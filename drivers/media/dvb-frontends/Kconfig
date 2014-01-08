@@ -19,6 +19,13 @@ config DVB_M88DS3103
 	help
 	  Say Y when you want to support this frontend.
 
+config DVB_TAS2101
+	tristate "Tmax TAS2101 based"
+	depends on DVB_CORE && I2C
+	default m if !MEDIA_SUBDRV_AUTOSELECT
+	help
+	  Say Y when you want to support this frontend.
+
 config DVB_MXL5XX
 	tristate "MaxLinear MxL5xx based tuner-demodulators"
 	depends on DVB_CORE && I2C
