@@ -1072,8 +1072,8 @@ static int sixaxis_set_operational_usb(struct hid_device *hdev)
 static int sixaxis_set_operational_bt(struct hid_device *hdev)
 {
 	unsigned char buf[] = { 0xf4,  0x42, 0x03, 0x00, 0x00 };
-	return hid_output_raw_report(hdev, buf, sizeof(buf),
-				     HID_FEATURE_REPORT);
+	return hid_hw_raw_request(hdev, buf[0], buf, sizeof(buf),
+				  HID_FEATURE_REPORT, HID_REQ_SET_REPORT);
 }
 
 /*
