@@ -91,6 +91,9 @@ struct stv090x_config {
 	int (*tuner_get_status)(struct dvb_frontend *fe, u32 *status);
 	void (*tuner_i2c_lock)(struct dvb_frontend *fe, int lock);
 
+	/* Hook for Lock LED */
+	void (*set_lock_led)(struct dvb_frontend *fe, int offon);
+
 	/* dir = 0 -> output, dir = 1 -> input/open-drain */
 	int (*set_gpio)(struct dvb_frontend *fe, u8 gpio, u8 dir, u8 value,
 			u8 xor_value);
