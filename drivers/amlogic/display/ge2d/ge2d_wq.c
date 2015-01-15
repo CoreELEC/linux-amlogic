@@ -342,9 +342,12 @@ static int ge2d_process_work_queue(struct ge2d_context_s *wq)
 	} while (pos != head);
 	ge2d_manager.last_wq = wq;
 exit:
+	spin_lock(&ge2d_manager.state_lock);
 	if (wq->ge2d_request_exit)
 		complete(&ge2d_manager.event.process_complete);
 	ge2d_manager.ge2d_state = GE2D_STATE_IDLE;
+	spin_unlock(&ge2d_manager.state_lock);
+
 	return ret;
 }
 
@@ -1498,10 +1501,20 @@ int  destroy_ge2d_work_queue(struct ge2d_context_s *ge2d_work_queue)
 		spin_unlock(&ge2d_manager.event.sem_lock);
 		if ((ge2d_manager.current_wq == ge2d_work_queue) &&
 		    (ge2d_manager.ge2d_state == GE2D_STATE_RUNNING)) {
-			ge2d_work_queue->ge2d_request_exit = 1;
-			wait_for_completion_timeout(
-				&ge2d_manager.event.process_complete,
-				msecs_to_jiffies(500));
+
+		     // check again with lock
+		        int wasRunning = 0;
+		        spin_lock(&ge2d_manager.state_lock);
+		        if (ge2d_manager.ge2d_state== GE2D_STATE_RUNNING)
+		        {
+			  ge2d_work_queue->ge2d_request_exit = 1;
+			  wasRunning = 1;
+			}
+			spin_unlock(&ge2d_manager.state_lock);
+			if (wasRunning)
+				wait_for_completion_timeout(
+					&ge2d_manager.event.process_complete,
+					msecs_to_jiffies(500));
 			/* condition so complex ,simplify it . */
 			ge2d_manager.last_wq = NULL;
 		} /* else we can delete it safely. */
@@ -1554,6 +1567,7 @@ int ge2d_wq_init(struct platform_device *pdev,
 
 	/* prepare bottom half */
 	spin_lock_init(&ge2d_manager.event.sem_lock);
+	spin_lock_init(&ge2d_manager.state_lock);
 	sema_init(&ge2d_manager.event.cmd_in_sem, 1);
 	init_waitqueue_head(&ge2d_manager.event.cmd_complete);
 	init_completion(&ge2d_manager.event.process_complete);
