@@ -12,6 +12,11 @@ config BCMDHD_USE_STATIC_BUF
 	depends on AM_WIFI
 	default n
 
+config AM_WIFI_DUMMY
+	tristate "Amlogic SDIO WiFi turn on and rescan module"
+	depends on AM_WIFI
+	default m
+
 source "drivers/amlogic/wifi/rtl8189ES/Kconfig"
 source "drivers/amlogic/wifi/rtl8189FS/Kconfig"
 source "drivers/amlogic/wifi/rtl8192EU/Kconfig"
