@@ -39,6 +39,7 @@ struct gpio_rc_dev {
 	int irq0_bank;
 	int irq1_bank;
 #endif
+	struct timer_list flush_timer;
 };
 
 #ifdef CONFIG_OF
@@ -102,10 +103,24 @@ static irqreturn_t gpio_ir_recv_irq(int irq, void *dev_id)
 	if (rc < 0)
 		goto err_get_value;
 
+	mod_timer(&gpio_dev->flush_timer,
+		  jiffies + nsecs_to_jiffies(gpio_dev->rcdev->timeout));
+
 	ir_raw_event_handle(gpio_dev->rcdev);
 
 err_get_value:
 	return IRQ_HANDLED;
+}
+
+static void flush_timer(unsigned long arg)
+{
+	struct gpio_rc_dev *gpio_dev = (struct gpio_rc_dev *)arg;
+	DEFINE_IR_RAW_EVENT(ev);
+
+	ev.timeout = true;
+	ev.duration = gpio_dev->rcdev->timeout;
+	ir_raw_event_store(gpio_dev->rcdev, &ev);
+	ir_raw_event_handle(gpio_dev->rcdev);
 }
 
 static int gpio_ir_recv_probe(struct platform_device *pdev)
@@ -153,6 +168,9 @@ static int gpio_ir_recv_probe(struct platform_device *pdev)
 	rcdev->input_id.version = 0x0100;
 	rcdev->dev.parent = &pdev->dev;
 	rcdev->driver_name = GPIO_IR_DRIVER_NAME;
+	rcdev->min_timeout = 0;
+	rcdev->timeout = IR_DEFAULT_TIMEOUT;
+	rcdev->max_timeout = 10 * IR_DEFAULT_TIMEOUT;
 	if (pdata->allowed_protos)
 		rcdev->allowed_protos = pdata->allowed_protos;
 	else
@@ -162,6 +180,9 @@ static int gpio_ir_recv_probe(struct platform_device *pdev)
 	gpio_dev->rcdev = rcdev;
 	gpio_dev->gpio_nr = pdata->gpio_nr;
 	gpio_dev->active_low = pdata->active_low;
+
+	setup_timer(&gpio_dev->flush_timer, flush_timer,
+		    (unsigned long)gpio_dev);
 
 	rc = gpio_request(pdata->gpio_nr, "gpio-ir-recv");
 	if (rc < 0)
@@ -234,6 +255,7 @@ static int gpio_ir_recv_remove(struct platform_device *pdev)
 	free_irq(gpio_dev->irq0_bank+MESON_GPIOIRQ_BASE, gpio_dev);
 	free_irq(gpio_dev->irq1_bank+MESON_GPIOIRQ_BASE, gpio_dev);
 #endif
+	del_timer_sync(&gpio_dev->flush_timer);
 	rc_unregister_device(gpio_dev->rcdev);
 	gpio_free(gpio_dev->gpio_nr);
 	kfree(gpio_dev);
