@@ -14730,3 +14730,8 @@ F:      drivers/input/touchscreen/sx8650.c
 HARDKERNEL S922D odroidn2
 M: 	charles park <charles.park@hardkernel.com>
 F:      Documentation/devicetree/binding/input/touchscreen/sx8650.txt
+
+DWAV TOUCHSCREEN DRIVER
+M:	codewalker@hardkernel.com>
+S:	Maintained
+F:	drivers/input/touchscreen/dwav-usb-mt.c
