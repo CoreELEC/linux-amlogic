@@ -1036,6 +1036,27 @@ static int meson_to_irq(struct gpio_chip *chip,
 	return	offset;
 }
 
+/* find available irq bank */
+int meson_fix_irqbank(int bank)
+{
+	if (bank < AMLGPIO_IRQ_MAX)	{
+		if (!meson_irq_desc[bank])
+			return	bank;
+		else	{
+			pr_err("ERROR(%s):already allocation irq bank(%d)!!\n",
+							__func__, bank);
+		}
+
+		/* if irq bank is not empty then find free irq bank */
+		bank = find_free_irq_bank();
+		pr_err("%s : new allocation irq bank(%d)!!\n",
+						__func__, bank);
+		return	bank;
+	}
+	return	-1;
+}
+EXPORT_SYMBOL(meson_fix_irqbank);
+
 int meson_setup_irq(struct gpio_chip *chip, unsigned int gpio,
 			unsigned int irq_flags, int *irq_banks)
 {
