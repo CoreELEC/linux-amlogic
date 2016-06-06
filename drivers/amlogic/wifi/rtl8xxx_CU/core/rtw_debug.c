@@ -64,7 +64,7 @@
 void dump_drv_version(void *sel)
 {
 	DBG_871X_SEL_NL(sel, "%s %s\n", DRV_NAME, DRIVERVERSION);
-	DBG_871X_SEL_NL(sel, "build time: %s %s\n", __DATE__, __TIME__);
+	//DBG_871X_SEL_NL(sel, "build time: %s %s\n", __DATE__, __TIME__);
 }
 
 void dump_log_level(void *sel)

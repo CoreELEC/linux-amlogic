@@ -19,6 +19,7 @@
  ******************************************************************************/
 #define _RTW_BR_EXT_C_
 
+#include <net/ip6_checksum.h>
 #ifdef __KERNEL__
 #include <linux/if_arp.h>
 #include <net/ip.h>
