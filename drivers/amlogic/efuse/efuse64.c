@@ -381,6 +381,25 @@ error_exit:
 	return ret;
 }
 
+char *efuse_get_mac(char *addr)
+{
+	char buf[6];
+	loff_t offset = 0x34;
+	int ret;
+
+	/* Copy H/W MAC address from eFuse programmed on production.
+	 * If missing or an error, C0:FF:EE:00:01:9F will be used.
+	 */
+	ret = efuse_read_usr(buf, sizeof(buf), &offset);
+	if (ret < 0) {
+		pr_err("hwmac: error to read MAC address, use default address\n");
+		memcpy(buf, "\xc0\xff\xee\x00\x01\x9f", 6);
+	}
+
+	return memcpy(addr, buf, 6);
+}
+EXPORT_SYMBOL(efuse_get_mac);
+
 static ssize_t userdata_show(struct class *cla,
 	struct class_attribute *attr, char *buf)
 {
