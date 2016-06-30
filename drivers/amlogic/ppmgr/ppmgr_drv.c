@@ -1236,7 +1236,7 @@ __ATTR(orientation,
 		receiver_write),
 #ifdef CONFIG_POST_PROCESS_MANAGER_3D_PROCESS
 	__ATTR(ppmgr_3d_mode,
-		S_IRUGO | S_IWUSR,
+		S_IRUGO | S_IWUSR | S_IWGRP,
 		_3dmode_read,
 		_3dmode_write),
 	__ATTR(viewmode,
