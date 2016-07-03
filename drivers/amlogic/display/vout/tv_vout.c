@@ -913,8 +913,8 @@ static int tv_set_current_vmode(enum vmode_e mode)
 		if (DOWN_HPLL == fine_tune_mode)
 			update_tv_info_duration(fps_target_mode, UP_HPLL);
 	}
-	fps_auto_adjust_mode(&tvmode);
-	update_vmode_status(get_name_from_vmode(tvmode));
+	// fps_auto_adjust_mode(&tvmode);
+	// update_vmode_status(get_name_from_vmode(tvmode));
 	vout_log_info("%s[%d]fps_target_mode=%d\n",
 		      __func__, __LINE__, tvmode);
 
