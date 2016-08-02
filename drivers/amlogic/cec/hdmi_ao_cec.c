@@ -1896,7 +1896,12 @@ static ssize_t hdmitx_cec_write(struct file *f, const char __user *buf,
 		return -EINVAL;
 
 	ret = cec_ll_tx(tempbuf, size);
-	return ret;
+	if (ret == CEC_FAIL_NACK) {
+		return -1;
+	}
+	else {
+		return size;
+	}
 }
 
 static void init_cec_port_info(struct hdmi_port_info *port,
