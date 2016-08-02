@@ -66,7 +66,7 @@ static struct early_suspend aocec_suspend_handler;
 #include <linux/amlogic/jtag.h>
 
 #define CEC_FRAME_DELAY		msecs_to_jiffies(400)
-#define CEC_DEV_NAME		"cec"
+#define CEC_DEV_NAME		"aocec"
 
 #define DEV_TYPE_TV			0
 #define DEV_TYPE_RECORDER		1
