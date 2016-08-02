@@ -1234,6 +1234,13 @@ int cec_node_init(struct hdmitx_dev *hdmitx_device)
 		return -1;
 	}
 
+	if (wait_event_interruptible(hdmitx_device->hdmi_info.vsdb_phy_addr.waitq,
+		hdmitx_device->hdmi_info.vsdb_phy_addr.valid == 1))
+	{
+		CEC_INFO("error during wait for a valid physical address\n");
+		return -ERESTARTSYS;
+	}
+
 	a = hdmitx_device->hdmi_info.vsdb_phy_addr.a;
 	b = hdmitx_device->hdmi_info.vsdb_phy_addr.b;
 	c = hdmitx_device->hdmi_info.vsdb_phy_addr.c;
@@ -1825,6 +1832,13 @@ static struct class_attribute aocec_class_attr[] = {
 /******************** cec hal interface ***************************/
 static int hdmitx_cec_open(struct inode *inode, struct file *file)
 {
+	if (wait_event_interruptible(cec_dev->tx_dev->hdmi_info.vsdb_phy_addr.waitq,
+		cec_dev->tx_dev->hdmi_info.vsdb_phy_addr.valid == 1))
+	{
+		CEC_INFO("error during wait for a valid physical address\n");
+		return -ERESTARTSYS;
+	}
+
 	cec_dev->cec_info.open_count++;
 	if (cec_dev->cec_info.open_count) {
 		cec_dev->cec_info.hal_ctl = 1;
