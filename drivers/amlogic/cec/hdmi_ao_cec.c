@@ -155,27 +155,27 @@ static unsigned char msg_log_buf[128] = { 0 };
 
 #define HR_DELAY(n)     (ktime_set(0, n * 1000 * 1000))
 __u16 cec_key_map[160] = {
-    KEY_ENTER, KEY_UP, KEY_DOWN, KEY_LEFT, KEY_RIGHT, 0 , 0 , 0 ,//0x00
-    0 , KEY_HOMEPAGE , KEY_MENU, 0, 0, KEY_BACK, 0, 0,
-    0 , 0, 0, 0, 0, 0, 0, 0,//0x10
-    0 , 0, 0, 0, 0, 0, 0, 0,
-    KEY_0 , KEY_1, KEY_2, KEY_3,KEY_4, KEY_5, KEY_6, KEY_7,//0x20
-    KEY_8 , KEY_9, KEY_DOT, 0, 0, 0, 0, 0,
-    KEY_CHANNELUP , KEY_CHANNELDOWN, KEY_CHANNEL, 0, 0, 0, 0, 0,//0x30
-    0 , 0, 0, 0, 0, 0, 0, 0,
+	KEY_ENTER, KEY_UP, KEY_DOWN, KEY_LEFT, KEY_RIGHT, 0 , 0 , 0 ,//0x00
+	0 , KEY_HOMEPAGE , KEY_MENU, 0, 0, KEY_BACK, 0, 0,
+	0 , 0, 0, 0, 0, 0, 0, 0,//0x10
+	0 , 0, 0, 0, 0, 0, 0, 0,
+	KEY_0 , KEY_1, KEY_2, KEY_3,KEY_4, KEY_5, KEY_6, KEY_7,//0x20
+	KEY_8 , KEY_9, KEY_DOT, 0, 0, 0, 0, 0,
+	KEY_CHANNELUP , KEY_CHANNELDOWN, KEY_CHANNEL, 0, 0, 0, 0, 0,//0x30
+	0 , 0, 0, 0, 0, 0, 0, 0,
 
-    KEY_POWER , KEY_VOLUMEUP, KEY_VOLUMEDOWN, KEY_MUTE, KEY_PLAYPAUSE, KEY_STOP, KEY_PLAYPAUSE, KEY_RECORD,//0x40
-    KEY_REWIND, KEY_FASTFORWARD, KEY_EJECTCD, KEY_NEXTSONG, KEY_PREVIOUSSONG, 0, 0, 0,
-    0 , 0, 0, KEY_PROGRAM, 0, 0, 0, 0,//0x50
-    0 , 0, 0, 0, 0, 0, 0, 0,
-    KEY_PLAYCD, KEY_PLAYPAUSE, KEY_RECORD, KEY_PAUSECD, KEY_STOPCD, KEY_MUTE, 0, KEY_TUNER,//0x60
-    0 , KEY_MEDIA, 0, 0, KEY_POWER, 0, 0, 0,
-    0 , KEY_BLUE, KEY_RED, KEY_GREEN, KEY_YELLOW, 0, 0, 0,//0x70
-    0 , 0, 0, 0, 0, 0, 0, 0x2fd,
-    0 , 0, 0, 0, 0, 0, 0, 0,//0x80
-    0 , 0, 0, 0, 0, 0, 0, 0,
-    0 , KEY_EXIT, 0, 0, 0, 0, KEY_PVR, 0,//0x90  //samsung vendor buttons return and channel_list
-    0 , 0, 0, 0, 0, 0, 0, 0,
+	KEY_POWER , KEY_VOLUMEUP, KEY_VOLUMEDOWN, KEY_MUTE, KEY_PLAYPAUSE, KEY_STOP, KEY_PLAYPAUSE, KEY_RECORD,//0x40
+	KEY_REWIND, KEY_FASTFORWARD, KEY_EJECTCD, KEY_NEXTSONG, KEY_PREVIOUSSONG, 0, 0, 0,
+	0 , 0, 0, KEY_PROGRAM, 0, 0, 0, 0,//0x50
+	0 , 0, 0, 0, 0, 0, 0, 0,
+	KEY_PLAYCD, KEY_PLAYPAUSE, KEY_RECORD, KEY_PAUSECD, KEY_STOPCD, KEY_MUTE, 0, KEY_TUNER,//0x60
+	0 , KEY_MEDIA, 0, 0, KEY_POWER, 0, 0, 0,
+	0 , KEY_BLUE, KEY_RED, KEY_GREEN, KEY_YELLOW, 0, 0, 0,//0x70
+	0 , 0, 0, 0, 0, 0, 0, 0x2fd,
+	0 , 0, 0, 0, 0, 0, 0, 0,//0x80
+	0 , 0, 0, 0, 0, 0, 0, 0,
+	0 , KEY_EXIT, 0, 0, 0, 0, KEY_PVR, 0,//0x90  //samsung vendor buttons return and channel_list
+	0 , 0, 0, 0, 0, 0, 0, 0,
 };
 
 struct hrtimer cec_key_timer;
@@ -183,43 +183,43 @@ static int last_key_irq = -1;
 static int key_value = 1;
 enum hrtimer_restart cec_key_up(struct hrtimer *timer)
 {
-    if (key_value == 1){
-        input_event(cec_dev->cec_info.remote_cec_dev,
-            EV_KEY, cec_key_map[last_key_irq], 0);
-    }
-    input_sync(cec_dev->cec_info.remote_cec_dev);
-    CEC_INFO("last:%d up\n", cec_key_map[last_key_irq]);
-    key_value = 2;
+	if (key_value == 1){
+		input_event(cec_dev->cec_info.remote_cec_dev,
+		EV_KEY, cec_key_map[last_key_irq], 0);
+	}
+	input_sync(cec_dev->cec_info.remote_cec_dev);
+	CEC_INFO("last:%d up\n", cec_key_map[last_key_irq]);
+	key_value = 2;
 
-    return HRTIMER_NORESTART;
+	return HRTIMER_NORESTART;
 }
 
 void cec_user_control_pressed_irq(unsigned char message_irq)
 {
-    if (message_irq < 160) {
-        CEC_INFO("Key pressed: %d\n", message_irq);
-        input_event(cec_dev->cec_info.remote_cec_dev, EV_KEY,
-                cec_key_map[message_irq], key_value);
-        input_sync(cec_dev->cec_info.remote_cec_dev);
-        last_key_irq = message_irq;
-        hrtimer_start(&cec_key_timer, HR_DELAY(200), HRTIMER_MODE_REL);
-        CEC_INFO(":key map:%d\n", cec_key_map[message_irq]);
-    }
+	if (message_irq < 160) {
+		CEC_INFO("Key pressed: %d\n", message_irq);
+		input_event(cec_dev->cec_info.remote_cec_dev, EV_KEY,
+				cec_key_map[message_irq], key_value);
+		input_sync(cec_dev->cec_info.remote_cec_dev);
+		last_key_irq = message_irq;
+		hrtimer_start(&cec_key_timer, HR_DELAY(200), HRTIMER_MODE_REL);
+		CEC_INFO(":key map:%d\n", cec_key_map[message_irq]);
+	}
 }
 
 void cec_user_control_released_irq(void)
 {
-    /*
-     * key must be valid
-     */
-    if (last_key_irq != -1) {
-        CEC_INFO("Key released: %d\n",last_key_irq);
-        hrtimer_cancel(&cec_key_timer);
-        input_event(cec_dev->cec_info.remote_cec_dev,
-            EV_KEY, cec_key_map[last_key_irq], 0);
-        input_sync(cec_dev->cec_info.remote_cec_dev);
-        key_value = 1;
-    }
+	/*
+	 * key must be valid
+	 */
+	if (last_key_irq != -1) {
+		CEC_INFO("Key released: %d\n",last_key_irq);
+		hrtimer_cancel(&cec_key_timer);
+		input_event(cec_dev->cec_info.remote_cec_dev,
+				EV_KEY, cec_key_map[last_key_irq], 0);
+		input_sync(cec_dev->cec_info.remote_cec_dev);
+		key_value = 1;
+	}
 }
 
 void cec_set_reg_bits(unsigned int addr, unsigned int value,
@@ -1352,15 +1352,15 @@ static void cec_rx_process(void)
 	opcode = msg[1];
 	switch (opcode) {
 	case CEC_OC_ACTIVE_SOURCE:
-		if (wake_ok == 0) {
-			int phy_addr = msg[2] << 8 | msg[3];
-			if (phy_addr == 0xffff)
-				break;
-			wake_ok = 1;
-			phy_addr |= (initiator << 16);
-			writel(phy_addr, cec_dev->cec_reg + AO_RTI_STATUS_REG1);
-			CEC_INFO("found wake up source:%x", phy_addr);
-		}
+		//if (wake_ok == 0) {
+		//	int phy_addr = msg[2] << 8 | msg[3];
+		//	if (phy_addr == 0xffff)
+		//		break;
+		//	wake_ok = 1;
+		//	phy_addr |= (initiator << 16);
+		//	writel(phy_addr, cec_dev->cec_reg + AO_RTI_STATUS_REG1);
+		//	CEC_INFO("found wake up source:%x", phy_addr);
+		//}
 		break;
 
 	case CEC_OC_ROUTING_CHANGE:
@@ -1526,8 +1526,8 @@ static void cec_task(struct work_struct *work)
 	int ret;
 
 	dwork = &cec_dev->cec_work;
-	if (cec_dev && !wake_ok &&
-	   !(cec_dev->hal_flag & (1 << HDMI_OPTION_SYSTEM_CEC_CONTROL))) {
+	if (cec_dev &&
+			!(cec_dev->hal_flag & (1 << HDMI_OPTION_SYSTEM_CEC_CONTROL))) {
 		if (1 << cec_dev->cec_info.log_addr & (1 << 0x0 | 1 << 0xF)) {
 			ret = cec_node_init(cec_dev->tx_dev);
 			if (ret < 0) {
@@ -1896,6 +1896,8 @@ static ssize_t hdmitx_cec_write(struct file *f, const char __user *buf,
 		return -EINVAL;
 
 	ret = cec_ll_tx(tempbuf, size);
+	/* delay a byte for continue message send */
+	msleep(25);
 	if (ret == CEC_FAIL_NACK) {
 		return -1;
 	}
