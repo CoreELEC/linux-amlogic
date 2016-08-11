@@ -65,7 +65,7 @@ ifeq ($(CONFIG_BCMDHD_AG),y)
 DHDCFLAGS += -DBAND_AG
 endif
 
-ifeq ($(CONFIG_DHD_USE_STATIC_BUF),y)
+ifeq ($(CONFIG_BCMDHD_USE_STATIC_BUF),y)
 # add dhd_static_buf to kernel image build
 #obj-y += dhd_static_buf.o
 DHDCFLAGS += -DCONFIG_DHD_USE_STATIC_BUF
