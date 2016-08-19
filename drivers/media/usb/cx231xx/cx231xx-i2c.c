@@ -159,18 +159,50 @@ static int cx231xx_i2c_send_bytes(struct i2c_adapter *i2c_adap,
 		bus->i2c_nostop = 0;
 		bus->i2c_reserve = 0;
 
-	} else {		/* regular case */
+	} else {	/* regular case */
 
-		/* prepare xfer_data struct */
-		req_data.dev_addr = msg->addr;
-		req_data.direction = msg->flags;
-		req_data.saddr_len = 0;
-		req_data.saddr_dat = 0;
-		req_data.buf_size = msg->len;
-		req_data.p_buffer = msg->buf;
+		if (bus->nr == 2) {
+			size = msg->len;
+			buf_ptr = (u8 *) msg->buf;
+			do {
+				/* prepare xfer_data struct */
+				req_data.dev_addr = msg->addr;
+				req_data.direction = msg->flags;
+				req_data.saddr_len = 0;
+				req_data.saddr_dat = 0;
+				req_data.buf_size = size > 4  ? 4 : size;
+				req_data.p_buffer = (u8 *) (buf_ptr + loop * 4);
 
-		/* usb send command */
-		status = dev->cx231xx_send_usb_command(bus, &req_data);
+				bus->i2c_nostop = (size > 4) ? 1 : 0;
+				bus->i2c_reserve = (loop == 0) ? 0 : 1;
+
+				/* usb send command */
+				status = dev->cx231xx_send_usb_command(bus, &req_data);
+				loop++;
+
+				if (size >= 4)
+					size -= 4;
+				else
+					size = 0;
+
+			} while (size > 0);
+			
+			bus->i2c_nostop = 0;
+			bus->i2c_reserve = 0;
+			
+		} else {
+
+			/* prepare xfer_data struct */
+			req_data.dev_addr = msg->addr;
+			req_data.direction = msg->flags;
+			req_data.saddr_len = 0;
+			req_data.saddr_dat = 0;
+			req_data.buf_size = msg->len;
+			req_data.p_buffer = msg->buf;
+
+			/* usb send command */
+			status = dev->cx231xx_send_usb_command(bus, &req_data);
+		}
 	}
 
 	return status < 0 ? status : 0;
