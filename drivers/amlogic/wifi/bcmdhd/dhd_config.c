@@ -128,6 +128,13 @@ const static char *bcm43241b4_ag_fw_name[] = {
 	"fw_bcm43241b4_ag_mfg.bin"
 };
 
+const static char *bcm4335b0_ag_fw_name[] = {
+	"fw_bcm4335b0_ag.bin",
+	"fw_bcm4335b0_ag_apsta.bin",
+	"fw_bcm4335b0_ag_p2p.bin",
+	"fw_bcm4335b0_ag_mfg.bin"
+};
+
 const static char *bcm4339a0_ag_fw_name[] = {
 	"fw_bcm4339a0_ag.bin",
 	"fw_bcm4339a0_ag_apsta.bin",
@@ -501,6 +508,8 @@ dhd_conf_set_fw_name_by_chip(dhd_pub_t *dhd, char *fw_path)
 		case BCM4335_CHIP_ID:
 			if (chiprev == BCM4335A0_CHIP_REV)
 				strcpy(&fw_path[i+1], bcm4339a0_ag_fw_name[fw_type]);
+			else if (chiprev == BCM4335B0_CHIP_REV)
+				strcpy(&fw_path[i+1], bcm4335b0_ag_fw_name[fw_type]);
 			break;
 		case BCM4345_CHIP_ID:
 		case BCM43454_CHIP_ID:
