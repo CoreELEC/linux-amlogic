@@ -1209,3 +1209,6 @@
 &defendkey {
 	status = "okay";
 };
+&aml_remote {
+	status = "okay";
+};
