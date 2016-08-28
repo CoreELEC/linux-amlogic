@@ -19,6 +19,7 @@
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
 #include <linux/spinlock.h>
+#include <linux/pinctrl/consumer.h>
 
 #include <media/rc-core.h>
 
@@ -113,6 +114,7 @@ static int meson_ir_probe(struct platform_device *pdev)
 	const char *map_name;
 	struct meson_ir *ir;
 	int ret;
+	struct pinctrl *pinctrl;
 
 	ir = devm_kzalloc(dev, sizeof(struct meson_ir), GFP_KERNEL);
 	if (!ir)
@@ -157,6 +159,15 @@ static int meson_ir_probe(struct platform_device *pdev)
 	if (ret) {
 		dev_err(dev, "failed to register rc device\n");
 		goto out_free;
+	}
+
+	if (of_get_property(node, "pinctrl-names", NULL)) {
+		pinctrl = devm_pinctrl_get_select_default(dev);
+		if (IS_ERR(pinctrl)) {
+			dev_err(dev, "failed to get pinctrl\n");
+			ret = PTR_ERR(pinctrl);
+			goto out_unreg;
+		}
 	}
 
 	ret = devm_request_irq(dev, ir->irq, meson_ir_irq, 0, "ir-meson", ir);
