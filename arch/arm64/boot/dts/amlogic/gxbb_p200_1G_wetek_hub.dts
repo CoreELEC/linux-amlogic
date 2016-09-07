@@ -752,7 +752,6 @@
 	};
 	aocec: aocec{
 		compatible = "amlogic, amlogic-aocec";
-		device_name = "aocec";
 		status = "okay";
 		vendor_name = "WeTek"; /* Max Chars: 8     */
 		vendor_id = <0x000000>; /* Refer to http://standards.ieee.org/develop/regauth/oui/oui.txt   */
