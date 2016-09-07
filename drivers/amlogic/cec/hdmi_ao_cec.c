@@ -237,12 +237,12 @@ unsigned int aocec_rd_reg(unsigned long addr)
 {
 	unsigned int data32;
 	unsigned long flags;
-	waiting_aocec_free();
 	spin_lock_irqsave(&cec_dev->cec_reg_lock, flags);
+	waiting_aocec_free();
 	data32 = 0;
 	data32 |= 0 << 16; /* [16]	 cec_reg_wr */
 	data32 |= 0 << 8; /* [15:8]   cec_reg_wrdata */
-	data32 |= addr << 0; /* [7:0]	cec_reg_addr */
+	data32 |= (addr & 0xff) << 0; /* [7:0]	cec_reg_addr */
 	writel(data32, cec_dev->cec_reg + AO_CEC_RW_REG);
 
 	waiting_aocec_free();
@@ -253,15 +253,16 @@ unsigned int aocec_rd_reg(unsigned long addr)
 
 void aocec_wr_reg(unsigned long addr, unsigned long data)
 {
-	unsigned long data32;
+	unsigned int data32;
 	unsigned long flags;
-	waiting_aocec_free();
 	spin_lock_irqsave(&cec_dev->cec_reg_lock, flags);
+	waiting_aocec_free();
 	data32 = 0;
 	data32 |= 1 << 16; /* [16]	 cec_reg_wr */
-	data32 |= data << 8; /* [15:8]   cec_reg_wrdata */
-	data32 |= addr << 0; /* [7:0]	cec_reg_addr */
+	data32 |= (data & 0xff) << 8; /* [15:8]   cec_reg_wrdata */
+	data32 |= (addr & 0xff) << 0; /* [7:0]	cec_reg_addr */
 	writel(data32, cec_dev->cec_reg + AO_CEC_RW_REG);
+	waiting_aocec_free();
 	spin_unlock_irqrestore(&cec_dev->cec_reg_lock, flags);
 } /* aocec_wr_only_reg */
 
