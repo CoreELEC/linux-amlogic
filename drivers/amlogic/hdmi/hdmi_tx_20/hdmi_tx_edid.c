@@ -2019,7 +2019,7 @@ int hdmitx_edid_parse(struct hdmitx_dev *hdmitx_device)
 
 	edid_save_checkvalue(EDID_buf, BlockCount+1);
 
-#if 1
+#if 0
 	i = hdmitx_edid_dump(hdmitx_device, (char *)(hdmitx_device->tmp_buf),
 		HDMI_TMP_BUF_SIZE);
 	hdmitx_device->tmp_buf[i] = 0;
