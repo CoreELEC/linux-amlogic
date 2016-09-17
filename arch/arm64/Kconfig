@@ -182,6 +182,12 @@ config ARCH_XGENE
 	help
 	  This enables support for AppliedMicro X-Gene SOC Family
 
+config ARCH_MESON64_ODROIDC2
+        bool "Hardkernel's ODROID-C2 board"
+        help
+          This enables support for the board ODROID-C2 of Hardkernel
+          which is based on ARMv8 SoC of AMLogic, Inc.
+
 endmenu
 
 menu "Bus support"
