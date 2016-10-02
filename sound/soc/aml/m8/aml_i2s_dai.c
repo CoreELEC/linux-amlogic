@@ -171,6 +171,7 @@ static int aml_dai_i2s_prepare(struct snd_pcm_substream *substream,
 		s->device_type = AML_AUDIO_I2SOUT;
 		audio_out_i2s_enable(0);
 		audio_util_set_dac_i2s_format(AUDIO_ALGOUT_DAC_FORMAT_DSP);
+		IEC958_mode_codec = 0;
 		aml_hw_i2s_init(runtime);
 		/* i2s/958 share the same audio hw buffer when PCM mode */
 		if (IEC958_mode_codec == 0) {

@@ -919,6 +919,8 @@ void audio_out_i2s_enable(unsigned flag)
 		/* Maybe cause POP noise */
 		/* audio_i2s_unmute(); */
 	} else {
+		aml_write_cbus(AIU_RST_SOFT, 0x01);
+		aml_read_cbus(AIU_I2S_SYNC);
 		aml_cbus_update_bits(AIU_MEM_I2S_CONTROL, 0x3 << 1, 0);
 
 		/* Maybe cause POP noise */
