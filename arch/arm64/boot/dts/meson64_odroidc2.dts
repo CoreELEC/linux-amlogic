@@ -802,8 +802,15 @@
         };
 };
 &i2c_a {
-  status = "disabled";
-  /*p200: multiplex with usb PWR, disbaled*/
+    status = "okay";
+
+    /* Hardkernel I2C RTC */
+    pcf8563: pcf8563@51    {
+        status = "okay";
+        compatible = "nxp,pcf8563";
+        reg = <0x51>;
+        #clock-cells = <0>;
+    };
 };
 /*
 &i2c_b {
