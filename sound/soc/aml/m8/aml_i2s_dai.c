@@ -78,19 +78,19 @@ static struct channel_speaker_allocation channel_allocations[] = {
 /*      	       channel:   7     6    5    4    3     2    1    0  */
 { .channels = 2,  .speakers = {  NA,   NA,  NA,  NA,  NA,   NA,  FR,  FL } },
                                  /* 2.1 */
-{ .channels = 3,  .speakers = {  NA,   NA,  NA,  NA,  LFE,  NA,  FR,  FL } },
+{ .channels = 3,  .speakers = {  NA,   NA,  NA,  NA,  NA,  LFE,  FR,  FL } },
                                  /* surround40 */
-{ .channels = 4,  .speakers = {  NA,   NA,  RR,  RL,   NA,  NA,  FR,  FL } },
+{ .channels = 4,  .speakers = {  NA,   NA,  RR,  RL,  NA,   NA,  FR,  FL } },
                                  /* surround41 */
-{ .channels = 5,  .speakers = {  NA,   NA,  RR,  RL,  LFE,  NA,  FR,  FL } },
+{ .channels = 5,  .speakers = {  NA,   NA,  RR,  RL,  NA,  LFE,  FR,  FL } },
                                  /* surround50 */
-{ .channels = 5,  .speakers = {  NA,   NA,  RR,  RL,   NA,  FC,  FR,  FL } },
+{ .channels = 5,  .speakers = {  NA,   NA,  RR,  RL,  FC,   NA,  FR,  FL } },
                                  /* surround51 */
-{ .channels = 6,  .speakers = {  NA,   NA,  RR,  RL,  LFE,  FC,  FR,  FL } },
+{ .channels = 6,  .speakers = {  NA,   NA,  RR,  RL,  FC,  LFE,  FR,  FL } },
                                  /* 6.1 */
-{ .channels = 7,  .speakers = {  NA,   RC,  RR,  RL,  LFE,  FC,  FR,  FL } },
+{ .channels = 7,  .speakers = {  NA,   RC,  RR,  RL,  FC,  LFE,  FR,  FL } },
                                  /* surround71 */
-{ .channels = 8,  .speakers = { RRC,  RLC,  RR,  RL,  LFE,  FC,  FR,  FL } },
+{ .channels = 8,  .speakers = { RRC,  RLC,  RR,  RL,  FC,  LFE,  FR,  FL } },
 };
 
 
