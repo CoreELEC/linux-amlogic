@@ -805,6 +805,27 @@
                         linux,default-trigger = "heartbeat";
                 };
         };
+
+	spi-gpio {
+		compatible = "spi-gpio";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		status = "ok";
+		id = <0>;
+		gpio-sck  = <&gpio GPIOX_2 0>;
+		gpio-miso = <&gpio GPIOX_4 0>;
+		gpio-mosi = <&gpio GPIOX_7 0>;
+		cs-gpios  = <&gpio GPIOX_1 0
+			     &gpio GPIOY_14 0>;
+		num-chipselects = <2>;
+
+		/* clients */
+		spidev0: spi-gpio@0 {
+			compatible = "spidev";
+			reg = <0>;
+			spi-max-frequency = <500000>;
+		};
+	};
 };
 &i2c_a {
     status = "okay";
