@@ -119,6 +119,7 @@ static void aml_hw_i2s_init(struct snd_pcm_runtime *runtime)
 #else
 	audio_set_i2s_mode(i2s_mode);
 #endif
+	memset(runtime->dma_area, 0, runtime->dma_bytes);
 	audio_set_aiubuf(runtime->dma_addr, runtime->dma_bytes,
 			 runtime->channels);
 }
@@ -536,7 +537,7 @@ static int aml_dai_i2s_resume(struct snd_soc_dai *dai)
 	return 0;
 }
 
-#define AML_DAI_I2S_RATES		(SNDRV_PCM_RATE_8000_192000)
+#define AML_DAI_I2S_RATES		(SNDRV_PCM_RATE_32000 | SNDRV_PCM_RATE_44100 | SNDRV_PCM_RATE_48000 | SNDRV_PCM_RATE_88200 | SNDRV_PCM_RATE_96000 | SNDRV_PCM_RATE_176400 | SNDRV_PCM_RATE_192000)
 #define AML_DAI_I2S_FORMATS		(SNDRV_PCM_FMTBIT_S16_LE |\
 		SNDRV_PCM_FMTBIT_S24_LE | SNDRV_PCM_FMTBIT_S32_LE)
 
