@@ -1084,7 +1084,7 @@ static const struct v4l2_file_operations amlvideo_fops = {
 	.owner = THIS_MODULE, .open = amlvideo_open,
 	.release = amlvideo_close,
 	.read = amlvideo_read, .poll = amlvideo_poll,
-	.ioctl = video_ioctl2, /* V4L2 ioctl handler */
+	.unlocked_ioctl = video_ioctl2, /* V4L2 ioctl handler */
 	.mmap = amlvideo_mmap, };
 
 static const struct v4l2_ioctl_ops amlvideo_ioctl_ops = {
@@ -1170,7 +1170,7 @@ static int __init amlvideo_create_instance(int inst)
 
 	*vfd = amlvideo_template;
 
-	vfd->debug = debug;
+	// vfd->debug = debug;
 	vfd->v4l2_dev = &dev->v4l2_dev;
 
 	/* //////////////////////////////////////// */
