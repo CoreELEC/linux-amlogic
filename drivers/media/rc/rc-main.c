@@ -1364,20 +1364,24 @@ struct rc_dev *rc_allocate_device(void)
 	if (!dev)
 		return NULL;
 
-	dev->input_dev = input_allocate_device();
-	if (!dev->input_dev) {
-		kfree(dev);
-		return NULL;
+	if (type != RC_DRIVER_IR_RAW_TX) {
+		dev->input_dev = input_allocate_device();
+		if (!dev->input_dev) {
+			kfree(dev);
+			return NULL;
+		}
+
+		dev->input_dev->getkeycode = ir_getkeycode;
+		dev->input_dev->setkeycode = ir_setkeycode;
+		input_set_drvdata(dev->input_dev, dev);
+
+		setup_timer(&dev->timer_keyup, ir_timer_keyup,
+			    (unsigned long)dev);
+
+		spin_lock_init(&dev->rc_map.lock);
+		spin_lock_init(&dev->keylock);
 	}
-
-	dev->input_dev->getkeycode = ir_getkeycode;
-	dev->input_dev->setkeycode = ir_setkeycode;
-	input_set_drvdata(dev->input_dev, dev);
-
-	spin_lock_init(&dev->rc_map.lock);
-	spin_lock_init(&dev->keylock);
 	mutex_init(&dev->lock);
-	setup_timer(&dev->timer_keyup, ir_timer_keyup, (unsigned long)dev);
 
 	dev->dev.type = &rc_dev_type;
 	dev->dev.class = &rc_class;
@@ -1414,23 +1418,28 @@ int rc_register_device(struct rc_dev *dev)
 	int rc;
 	u64 rc_type;
 
-	if (!dev || !dev->map_name)
+	if (!dev)
 		return -EINVAL;
 
-	rc_map = rc_map_get(dev->map_name);
-	if (!rc_map)
-		rc_map = rc_map_get(RC_MAP_EMPTY);
-	if (!rc_map || !rc_map->scan || rc_map->size == 0)
-		return -EINVAL;
-
-	set_bit(EV_KEY, dev->input_dev->evbit);
-	set_bit(EV_REP, dev->input_dev->evbit);
-	set_bit(EV_MSC, dev->input_dev->evbit);
-	set_bit(MSC_SCAN, dev->input_dev->mscbit);
-	if (dev->open)
-		dev->input_dev->open = ir_open;
-	if (dev->close)
-		dev->input_dev->close = ir_close;
+	if (dev->driver_type != RC_DRIVER_IR_RAW_TX) {
+	  if (!dev->map_name)
+		  return -EINVAL;
+		
+		rc_map = rc_map_get(dev->map_name);
+		if (!rc_map)
+			rc_map = rc_map_get(RC_MAP_EMPTY);
+		if (!rc_map || !rc_map->scan || rc_map->size == 0)
+			return -EINVAL;
+	
+		set_bit(EV_KEY, dev->input_dev->evbit);
+		set_bit(EV_REP, dev->input_dev->evbit);
+		set_bit(EV_MSC, dev->input_dev->evbit);
+		set_bit(MSC_SCAN, dev->input_dev->mscbit);
+		if (dev->open)
+			dev->input_dev->open = ir_open;
+		if (dev->close)
+			dev->input_dev->close = ir_close;
+	}
 
 	minor = ida_simple_get(&rc_ida, 0, RC_DEV_MAX, GFP_KERNEL);
 	if (minor < 0)
@@ -1442,7 +1451,8 @@ int rc_register_device(struct rc_dev *dev)
 	atomic_set(&dev->initialized, 0);
 
 	dev->dev.groups = dev->sysfs_groups;
-	dev->sysfs_groups[attr++] = &rc_dev_protocol_attr_grp;
+	if (dev->driver_type != RC_DRIVER_IR_RAW_TX)
+		dev->sysfs_groups[attr++] = &rc_dev_protocol_attr_grp;
 	if (dev->s_filter)
 		dev->sysfs_groups[attr++] = &rc_dev_filter_attr_grp;
 	if (dev->s_wakeup_filter)
@@ -1455,40 +1465,43 @@ int rc_register_device(struct rc_dev *dev)
 	if (rc)
 		goto out_unlock;
 
-	rc = ir_setkeytable(dev, rc_map);
-	if (rc)
-		goto out_dev;
+	if (dev->driver_type != RC_DRIVER_IR_RAW_TX) {
+		rc = ir_setkeytable(dev, rc_map);
+		if (rc)
+			goto out_dev;
 
-	dev->input_dev->dev.parent = &dev->dev;
-	memcpy(&dev->input_dev->id, &dev->input_id, sizeof(dev->input_id));
-	dev->input_dev->phys = dev->input_phys;
-	dev->input_dev->name = dev->input_name;
+		dev->input_dev->dev.parent = &dev->dev;
+		memcpy(&dev->input_dev->id, &dev->input_id, sizeof(dev->input_id));
+		dev->input_dev->phys = dev->input_phys;
+		dev->input_dev->name = dev->input_name;
 
-	rc = input_register_device(dev->input_dev);
-	if (rc)
-		goto out_table;
-
-	/*
-	 * Default delay of 250ms is too short for some protocols, especially
-	 * since the timeout is currently set to 250ms. Increase it to 500ms,
-	 * to avoid wrong repetition of the keycodes. Note that this must be
-	 * set after the call to input_register_device().
-	 */
-	dev->input_dev->rep[REP_DELAY] = 500;
-
-	/*
-	 * As a repeat event on protocols like RC-5 and NEC take as long as
-	 * 110/114ms, using 33ms as a repeat period is not the right thing
-	 * to do.
-	 */
-	dev->input_dev->rep[REP_PERIOD] = 125;
+		rc = input_register_device(dev->input_dev);
+		if (rc)
+			goto out_table;
+	
+		/*
+		 * Default delay of 250ms is too short for some protocols, especially
+		 * since the timeout is currently set to 250ms. Increase it to 500ms,
+		 * to avoid wrong repetition of the keycodes. Note that this must be
+		 * set after the call to input_register_device().
+		 */
+		dev->input_dev->rep[REP_DELAY] = 500;
+	
+		/*
+		 * As a repeat event on protocols like RC-5 and NEC take as long as
+		 * 110/114ms, using 33ms as a repeat period is not the right thing
+		 * to do.
+		 */
+		dev->input_dev->rep[REP_PERIOD] = 125;
+	}
 
 	path = kobject_get_path(&dev->dev.kobj, GFP_KERNEL);
 	dev_info(&dev->dev, "%s as %s\n",
 		dev->input_name ?: "Unspecified device", path ?: "N/A");
 	kfree(path);
 
-	if (dev->driver_type == RC_DRIVER_IR_RAW) {
+	if (dev->driver_type == RC_DRIVER_IR_RAW ||
+	    dev->driver_type == RC_DRIVER_IR_RAW_TX) {
 		if (!raw_init) {
 			request_module_nowait("ir-lirc-codec");
 			raw_init = true;
@@ -1498,13 +1511,15 @@ int rc_register_device(struct rc_dev *dev)
 			goto out_input;
 	}
 
-	rc_type = BIT_ULL(rc_map->rc_type);
-
-	if (dev->change_protocol) {
-		rc = dev->change_protocol(dev, &rc_type);
-		if (rc < 0)
-			goto out_raw;
-		dev->enabled_protocols = rc_type;
+	if (dev->driver_type != RC_DRIVER_IR_RAW_TX) {
+		rc_type = BIT_ULL(rc_map->rc_type);
+	
+		if (dev->change_protocol) {
+			rc = dev->change_protocol(dev, &rc_type);
+			if (rc < 0)
+				goto out_raw;
+			dev->enabled_protocols = rc_type;
+		}
 	}
 
 	if (dev->driver_type == RC_DRIVER_IR_RAW)
@@ -1522,13 +1537,17 @@ int rc_register_device(struct rc_dev *dev)
 	return 0;
 
 out_raw:
-	if (dev->driver_type == RC_DRIVER_IR_RAW)
+	if (dev->driver_type == RC_DRIVER_IR_RAW ||
+	    dev->driver_type == RC_DRIVER_IR_RAW_TX)
 		ir_raw_event_unregister(dev);
 out_input:
-	input_unregister_device(dev->input_dev);
-	dev->input_dev = NULL;
+	if (dev->driver_type != RC_DRIVER_IR_RAW_TX) {
+		input_unregister_device(dev->input_dev);
+		dev->input_dev = NULL;
+	}
 out_table:
-	ir_free_table(&dev->rc_map);
+	if (dev->driver_type != RC_DRIVER_IR_RAW_TX)
+		ir_free_table(&dev->rc_map);
 out_dev:
 	device_del(&dev->dev);
 out_unlock:
@@ -1547,12 +1566,14 @@ void rc_unregister_device(struct rc_dev *dev)
 	if (dev->driver_type == RC_DRIVER_IR_RAW)
 		ir_raw_event_unregister(dev);
 
-	/* Freeing the table should also call the stop callback */
-	ir_free_table(&dev->rc_map);
-	IR_dprintk(1, "Freed keycode table\n");
+	if (dev->driver_type != RC_DRIVER_IR_RAW_TX) {
+		/* Freeing the table should also call the stop callback */
+		ir_free_table(&dev->rc_map);
+		IR_dprintk(1, "Freed keycode table\n");
 
-	input_unregister_device(dev->input_dev);
-	dev->input_dev = NULL;
+		input_unregister_device(dev->input_dev);
+		dev->input_dev = NULL;
+	}
 
 	device_del(&dev->dev);
 
