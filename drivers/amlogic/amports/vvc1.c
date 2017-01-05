@@ -122,6 +122,7 @@ static struct timer_list recycle_timer;
 static u32 stat;
 static u32 buf_size, buf_offset;
 static u32 avi_flag;
+static u32 keyframe_pts_only;
 static u32 vvc1_ratio;
 static u32 vvc1_format;
 
@@ -293,11 +294,15 @@ static irqreturn_t vvc1_isr(int irq, void *dev_id)
 			frame_height = v_height;
 		}
 
+		repeat_count = READ_VREG(VC1_REPEAT_COUNT);
+		buffer_index = reg & 0x7;
+		picture_type = (reg >> 3) & 7;
+
 		if (pts_by_offset) {
 			offset = READ_VREG(VC1_OFFSET_REG);
-			if (pts_lookup_offset_us64(
-					PTS_TYPE_VIDEO,
-					offset, &pts, 0, &pts_us64) == 0) {
+			if (keyframe_pts_only && (picture_type != I_PICTURE)) {
+				pts_valid = 0;
+			} else if (pts_lookup_offset_us64(PTS_TYPE_VIDEO, offset, &pts, 0, &pts_us64) == 0) {
 				pts_valid = 1;
 #ifdef DEBUG_PTS
 				pts_hit++;
@@ -308,10 +313,6 @@ static irqreturn_t vvc1_isr(int irq, void *dev_id)
 #endif
 			}
 		}
-
-		repeat_count = READ_VREG(VC1_REPEAT_COUNT);
-		buffer_index = reg & 0x7;
-		picture_type = (reg >> 3) & 7;
 
 		if (buffer_index >= DECODE_BUFFER_NUM_MAX) {
 			pr_info("fatal error, invalid buffer index.");
@@ -896,6 +897,7 @@ static void vvc1_local_init(void)
 	vvc1_ratio = 0x100;
 
 	avi_flag = (unsigned long) vvc1_amstream_dec_info.param;
+	keyframe_pts_only = (u32)vvc1_amstream_dec_info.param & 0x100;
 
 	total_frame = 0;
 

@@ -152,6 +152,7 @@ static u32 vmpeg4_ratio;
 static u64 vmpeg4_ratio64;
 static u32 rate_detect;
 static u32 vmpeg4_rotation;
+static u32 keyframe_pts_only;
 
 static u32 total_frame;
 static u32 last_vop_time_inc, last_duration;
@@ -355,7 +356,7 @@ static irqreturn_t vmpeg4_isr(int irq, void *dev_id)
 		}
 
 		if ((I_PICTURE == picture_type) ||
-				(P_PICTURE == picture_type)) {
+				((P_PICTURE == picture_type) && (keyframe_pts_only == 0))) {
 			offset = READ_VREG(MP4_OFFSET_REG);
 			/*2500-->3000,because some mpeg4
 			video may checkout failed;
@@ -912,6 +913,8 @@ static void vmpeg4_local_init(void)
 		(((unsigned long) vmpeg4_amstream_dec_info.param)
 			>> 16) & 0xffff;
 
+	keyframe_pts_only = (u32)vmpeg4_amstream_dec_info.param & 0x100;
+	
 	frame_width = frame_height = frame_dur = frame_prog = 0;
 
 	total_frame = 0;
