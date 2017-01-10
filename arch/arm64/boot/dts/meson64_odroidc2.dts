@@ -193,20 +193,18 @@
         };
 
 	pwm {
-		compatible = "amlogic, gx-pwm";
+		compatible = "amlogic, odroid-pwm";
+		dev_name = "meson_pwm";
 		status = "okay";
-		pwm-outputs = <0>,<1>,<2>,<3>,<4>,<5>,<6>,<7>;
-		reg = <0x0 0xc1108550 0x0 0x30>,
-				<0x0 0xc8100550 0x0 0x10>;
-		clocks = <&clock CLK_XTAL>,
-				<&clock CLK_VID_PLL>,
-				<&clock CLK_FPLL_DIV4>,
-				<&clock CLK_FPLL_DIV3>;
-		clock-names = "xtal",
-				"vid_pll_clk",
-				"fclk_div4",
-				"fclk_div3";
-		clock-select = <0x0>,<0x0>,<0x0>,<0x0>,<0x3>,<0x0>,<0x0>,<0x0>;
+		pinctrl-names = "odroid_pwm0","odroid_pwm1";
+		pinctrl-0 = <&odroid_pwm0>;
+		pinctrl-1 = <&odroid_pwm1>;
+	};
+
+	pwm-ctrl {
+		compatible = "amlogic, pwm-ctrl";
+		dev_name = "pwm-ctrl";
+		status = "okay";
 	};
 
 	mesonstream {
@@ -873,6 +871,19 @@
                 amlogic,clrmask = <AO 0x80000018>;
                 amlogic,pins = "GPIOAO_13";
         };
+
+	odroid_pwm0: odroid_pwm0 {
+		amlogic,setmask=<3 0x00020000>;
+		amlogic,clrmask=<3 0x00000200>;
+		amlogic,pins="GPIOX_6";
+	};
+	odroid_pwm1: odroid_pwm1 {
+		amlogic,setmask=<3 0x00020000
+		                 3 0x00060000>;
+		amlogic,clrmask=<3 0x00000300
+		                 8 0x00000800>;
+		amlogic,pins="GPIOX_6","GPIOX_7";
+	};
 };
 
 &efuse {
