@@ -17,7 +17,6 @@ KBUILD_CFLAGS += -Werror=declaration-after-statement \
 		 -Werror=unused-label \
 		 -Werror=unused-result \
 		 -Werror=unused-value \
-		 -Werror=unused-variable \
 		 -Werror=builtin-macro-redefined
 
 obj-$(CONFIG_AML_NEXT_GEN_NAND)	+= dev/
