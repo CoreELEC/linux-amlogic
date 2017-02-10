@@ -100,6 +100,11 @@ static struct vinfo_s *update_tv_info_duration(
 	enum vmode_e target_vmode, enum fine_tune_mode_e fine_tune_mode);
 static int hdmitx_is_vmode_supported_process(char *mode_name);
 
+static enum fine_tune_mode_e get_fine_tune_mode(
+	enum vmode_e mode, int fr_vsource);
+
+static int cur_fr_vsource = 0;
+
 #endif
 
 #ifdef CONFIG_AML_WSS
@@ -913,6 +918,9 @@ static int tv_set_current_vmode(enum vmode_e mode)
 	vout_log_info("%s[%d]fps_target_mode=%d\n",
 		      __func__, __LINE__, tvmode);
 
+	if (cur_fr_vsource != 0)
+		fine_tune_mode = get_fine_tune_mode(tvmode, cur_fr_vsource);
+
 	info->vinfo = update_tv_info_duration(tvmode, fine_tune_mode);
 #else
 	info->vinfo = get_tv_info(tvmode);
@@ -1241,6 +1249,7 @@ static int framerate_automation_process(int duration)
 		return 1;
 	}
 	fr_vsource = get_vsource_fps(duration);
+	cur_fr_vsource = fr_vsource;
 	fps_playing_flag = 0;
 	if ((fr_vsource == 5994)
 		|| (fr_vsource == 2997)
