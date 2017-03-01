@@ -619,12 +619,9 @@ static int es8323_set_bias_level(struct snd_soc_codec *codec,
 	return 0;
 }
 
-#define ES8323_RATES (SNDRV_PCM_RATE_8000 | SNDRV_PCM_RATE_11025 | \
-	SNDRV_PCM_RATE_16000 | SNDRV_PCM_RATE_22050 | SNDRV_PCM_RATE_44100 | \
-	SNDRV_PCM_RATE_48000 | SNDRV_PCM_RATE_88200 | SNDRV_PCM_RATE_96000)
+#define ES8323_RATES (SNDRV_PCM_RATE_44100 | SNDRV_PCM_RATE_48000 | SNDRV_PCM_RATE_88200 | SNDRV_PCM_RATE_96000 | SNDRV_PCM_RATE_192000)
 
-#define ES8323_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S20_3LE | \
-	SNDRV_PCM_FMTBIT_S24_LE)
+#define ES8323_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S32_LE)
 
 static struct snd_soc_dai_ops es8323_ops = {
 	.hw_params = es8323_pcm_hw_params,
@@ -638,8 +635,8 @@ struct snd_soc_dai_driver es8323_dai = {
 	.name = "es8323-hifi",
 	.playback = {
 	     .stream_name = "Playback",
-	     .channels_min = 1,
-	     .channels_max = 2,
+	     .channels_min = 2,
+	     .channels_max = 8,
 	     .rates = ES8323_RATES,
 	     .formats = ES8323_FORMATS,
 	},
