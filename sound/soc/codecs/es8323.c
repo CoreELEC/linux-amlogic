@@ -59,7 +59,7 @@ struct es8323_priv {
  * Debug
  */
 
-#define ES8323_DEBUG 1
+// #define ES8323_DEBUG 1
 
 #ifdef ES8323_DEBUG
 #define alsa_dbg(format, arg...) \
