@@ -827,7 +827,7 @@ static int es8323_probe(struct snd_soc_codec *codec)
 		snd_soc_write(codec, 0x27, 0xb8);
 		snd_soc_write(codec, 0x2A, 0xb8);
 		snd_soc_write(codec, 0x02, 0x00);
-		snd_soc_write(codec, 0x19, 0x02);
+		snd_soc_write(codec, 0x19, 0x26);
 		snd_soc_write(codec, 0x04, 0x2c);
 		msleep(100);
 		snd_soc_write(codec, 0x2e, 0x00);
