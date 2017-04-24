@@ -293,7 +293,7 @@ void aml_hw_iec958_init(struct snd_pcm_substream *substream, int samesrc)
 	set.chan_stat->chstat0_r = set.chan_stat->chstat0_l;
 
 	/* AES3+2 */
-	if (IEC958_mode_codec == 8) {
+	if (IEC958_mode_codec == 8 || IEC958_mode_codec == 7) {
 		set.chan_stat->chstat1_l = 0x0900;
 	} else if (runtime->rate == 192000) {
 		set.chan_stat->chstat1_l = 0x0e00;
