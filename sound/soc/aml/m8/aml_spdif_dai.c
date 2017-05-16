@@ -221,7 +221,6 @@ void aml_hw_iec958_init(struct snd_pcm_substream *substream, int samesrc)
 #else
 		audio_set_i2s_mode(i2s_mode);
 #endif
-		memset(runtime->dma_area, 0, runtime->dma_bytes);
 		audio_set_aiubuf(runtime->dma_addr, runtime->dma_bytes, (runtime->format == SNDRV_PCM_FORMAT_S16) ? 2 : runtime->channels);
 	}
 
@@ -246,10 +245,6 @@ void aml_hw_iec958_init(struct snd_pcm_substream *substream, int samesrc)
 		IEC958_mode_codec = 4; /* EAC3 */
 		pr_info("set 4x audio clk for 958\n");
 		aml_cbus_update_bits(AIU_CLK_CTRL, 3 << 4, 0 << 4);
-	} else if (samesrc && runtime->channels == 8 && runtime->format == SNDRV_PCM_FORMAT_S16) {
-		IEC958_mode_codec = 0;
-		pr_info("share the same clock\n");
-		aml_cbus_update_bits(AIU_CLK_CTRL, 3 << 4, 2 << 4);
 	} else if (samesrc) {
 		IEC958_mode_codec = 0;
 		pr_info("share the same clock\n");

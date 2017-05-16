@@ -90,14 +90,14 @@ static const struct snd_pcm_hardware aml_i2s_hardware = {
 	    SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S24_LE |
 	    SNDRV_PCM_FMTBIT_S32_LE,
 
-	.period_bytes_min = 256,
-	.period_bytes_max = 32 * 1024,
-	.periods_min = 4,
-	.periods_max = 64,
+	.period_bytes_min = 64,
+	.period_bytes_max = 32 * 1024 * 2,
+	.periods_min = 2,
+	.periods_max = 1024,
 	.buffer_bytes_max = 128 * 1024 * 2 * 2,
 
 	.rate_min = 8000,
-	.rate_max = 192000,
+	.rate_max = 48000,
 	.channels_min = 2,
 	.channels_max = 8,
 #ifdef CONFIG_SND_AML_SPLIT_MODE_MMAP
@@ -126,6 +126,17 @@ static const struct snd_pcm_hardware aml_i2s_capture = {
 	.channels_min = 2,
 	.channels_max = 8,
 	.fifo_size = 0,
+};
+
+static unsigned int period_sizes[] = {
+	64, 128, 256, 512, 1024, 2048, 4096, 8192,
+	16384, 32768, 65536, 65536 * 2, 65536 * 4
+};
+
+static struct snd_pcm_hw_constraint_list hw_constraints_period_sizes = {
+	.count = ARRAY_SIZE(period_sizes),
+	.list = period_sizes,
+	.mask = 0
 };
 
 /*--------------------------------------------------------------------------*/
@@ -263,7 +274,6 @@ static int aml_i2s_hw_params(struct snd_pcm_substream *substream,
 
 		s->last_ptr = 0;
 	}
-	s->size = 0;
 
 	return 0;
 }
@@ -289,21 +299,6 @@ static int aml_i2s_prepare(struct snd_pcm_substream *substream)
 	if (s && s->device_type == AML_AUDIO_I2SOUT)
 		aml_i2s_playback_channel = runtime->channels;
 	tmp_buf->cached_len = 0;
-
-	/*
-	* Both capture and playback need to reset the last ptr
-	* to the start address, playback and capture use
-	* different address calculate, so we reset the different
-	* start address to the last ptr
-	*/
-	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
-		/* s->last_ptr must initialized as dma buffer's start addr */
-		s->last_ptr = runtime->dma_addr;
-	} else {
-		s->last_ptr = 0;
-	}
-	s->size = 0;
-
 	return 0;
 }
 
@@ -533,27 +528,24 @@ static int aml_i2s_open(struct snd_pcm_substream *substream)
 		snd_soc_set_runtime_hwparams(substream, &aml_i2s_capture);
 	}
 
+	/* ensure that peroid size is a multiple of 32bytes */
+	ret =
+	    snd_pcm_hw_constraint_list(runtime, 0,
+				       SNDRV_PCM_HW_PARAM_PERIOD_BYTES,
+				       &hw_constraints_period_sizes);
+	if (ret < 0) {
+		dev_err(substream->pcm->card->dev,
+			"set period bytes constraint error\n");
+		goto out;
+	}
+
 	/* ensure that buffer size is a multiple of period size */
-	ret = snd_pcm_hw_constraint_integer(runtime, SNDRV_PCM_HW_PARAM_PERIODS);
+	ret = snd_pcm_hw_constraint_integer(runtime,
+					    SNDRV_PCM_HW_PARAM_PERIODS);
 	if (ret < 0) {
-		dev_err(substream->pcm->card->dev, "set periods constraint error\n");
+		dev_err(substream->pcm->card->dev, "set period error\n");
 		goto out;
 	}
-
-	/* ensure that peroid bytes is a multiple of 256 bytes */
-	ret = snd_pcm_hw_constraint_step(runtime, 0, SNDRV_PCM_HW_PARAM_PERIOD_BYTES, 256);
-	if (ret < 0) {
-		dev_err(substream->pcm->card->dev, "set period bytes constraint error\n");
-		goto out;
-	}
-
-	/* ensure that buffer bytes is a multiple of 512 bytes */
-	ret = snd_pcm_hw_constraint_step(runtime, 0, SNDRV_PCM_HW_PARAM_BUFFER_BYTES, 512);
-	if (ret < 0) {
-		dev_err(substream->pcm->card->dev, "set buffer bytes constraint error\n");
-		goto out;
-	}
-
 	if (!prtd) {
 		prtd = kzalloc(sizeof(struct aml_runtime_data), GFP_KERNEL);
 		if (prtd == NULL) {
@@ -899,9 +891,7 @@ static struct snd_pcm_ops aml_i2s_ops = {
 #ifdef CONFIG_SND_AML_SPLIT_MODE_MMAP
 	.mmap = aml_pcm_mmap,
 #else
-#ifndef CONFIG_SND_AML_SPLIT_MODE
 	.copy = aml_i2s_copy,
-#endif
 #endif
 	.silence = aml_i2s_silence,
 };
