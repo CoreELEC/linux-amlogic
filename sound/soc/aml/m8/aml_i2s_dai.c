@@ -402,15 +402,13 @@ static int aml_dai_i2s_prepare(struct snd_pcm_substream *substream,
 		if (runtime->format == SNDRV_PCM_FORMAT_S16_LE) {
 			audio_in_i2s_set_buf(runtime->dma_addr,
 					runtime->dma_bytes * 2,
-					0, i2s_pos_sync, i2s->audin_fifo_src,
-					runtime->channels);
+					0, i2s_pos_sync, i2s->audin_fifo_src);
 			memset((void *)runtime->dma_area, 0,
 					runtime->dma_bytes * 2);
 		} else {
 			audio_in_i2s_set_buf(runtime->dma_addr,
 					runtime->dma_bytes,
-					0, i2s_pos_sync, i2s->audin_fifo_src,
-					runtime->channels);
+					0, i2s_pos_sync, i2s->audin_fifo_src);
 			memset((void *)runtime->dma_area, 0,
 					runtime->dma_bytes);
 		}
