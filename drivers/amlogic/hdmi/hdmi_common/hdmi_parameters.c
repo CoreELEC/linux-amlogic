@@ -1213,6 +1213,9 @@ struct hdmi_format_para *hdmi_get_fmt_name(char const *name, char const *attr)
 	if (strstr(name, "420"))
 		para->cs = COLORSPACE_YUV420;
 
+	if (strstr(name, "10"))
+		para->cd = COLORDEPTH_30B;
+
 	/* only 2160p60/50hz smpte60/50hz have Y420 mode */
 	if (para->cs == COLORSPACE_YUV420) {
 		switch ((para->vic) & 0xff) {
