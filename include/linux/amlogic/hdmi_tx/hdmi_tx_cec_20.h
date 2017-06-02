@@ -277,7 +277,6 @@ enum cec_version_e {
 	CEC_VERSION_13,
 	CEC_VERSION_13A,
 	CEC_VERSION_14A,
-	CEC_VERSION_20,
 };
 
 #define INFO_MASK_CEC_VERSION                (1<<0)
