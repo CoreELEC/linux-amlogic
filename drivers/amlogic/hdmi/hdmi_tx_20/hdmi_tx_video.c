@@ -620,8 +620,6 @@ int hdmitx_set_display(struct hdmitx_dev *hdev, enum hdmi_vic VideoCode)
 		param->color = param->color_prefer;
 		if (hdmi_output_rgb) {
 			param->color = COLORSPACE_RGB444;
-			hdev->para->cs =
-				hdev->cur_video_param->color;
 		} else {
 			/* HDMI CT 7-24 Pixel Encoding
 			 * YCbCr to YCbCr Sink
