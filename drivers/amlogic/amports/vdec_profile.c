@@ -110,17 +110,16 @@ static int vdec_profile_dbg_show(struct seq_file *m, void *v)
 
 	if (rec_wrapped) {
 		i = rec_wp;
-		end = rec_wp;
+		end = rec_wp - 1;
+		if (end < 0)
+			end = PROFILE_REC_SIZE - 1;
 	} else {
 		i = 0;
 		end = rec_wp;
 	}
 
 	base_timestamp = recs[i].timestamp;
-	while (1) {
-		if ((!rec_wrapped) && (i == end))
-			break;
-
+	for (; i != end; ) {
 		if (recs[i].vdec) {
 			seq_printf(m, "[%s:%d] %016llu us : %s\n",
 				vdec_device_name_str(recs[i].vdec),
@@ -131,9 +130,6 @@ static int vdec_profile_dbg_show(struct seq_file *m, void *v)
 
 		if (++i == PROFILE_REC_SIZE)
 			i = 0;
-
-		if (rec_wrapped && (i == end))
-			break;
 	}
 
 	mutex_unlock(&vdec_profile_mutex);

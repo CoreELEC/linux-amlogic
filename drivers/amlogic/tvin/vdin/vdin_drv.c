@@ -1213,16 +1213,6 @@ int start_tvin_service(int no , struct vdin_parm_s  *para)
 				para->h_active >>= 1;
 		devp->fmt_info_p->h_active  = para->h_active;
 		devp->fmt_info_p->v_active  = para->v_active;
-		if (devp->parm.port == TVIN_PORT_VIDEO) {
-			devp->fmt_info_p->v_active =
-				((rd(0, VPP_POSTBLEND_VD1_V_START_END) &
-				0xfff) - ((rd(0, VPP_POSTBLEND_VD1_V_START_END)
-				>> 16) & 0xfff) + 1);
-			devp->fmt_info_p->h_active =
-				((rd(0, VPP_POSTBLEND_VD1_H_START_END) &
-				0xfff) - ((rd(0, VPP_POSTBLEND_VD1_H_START_END)
-				>> 16) & 0xfff) + 1);
-		}
 		devp->fmt_info_p->scan_mode = para->scan_mode;
 		devp->fmt_info_p->duration  = 96000/para->frame_rate;
 		devp->fmt_info_p->pixel_clk = para->h_active *

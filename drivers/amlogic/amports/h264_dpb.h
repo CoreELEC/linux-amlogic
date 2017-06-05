@@ -17,11 +17,10 @@
 #define PRINT_FLAG_RUN_SCHEDULE       0x0100
 #define PRINT_FLAG_DEBUG_POC          0x0200
 #define PRINT_FLAG_VDEC_DATA          0x0400
-#define RRINT_FLAG_RPM                0x0800
 #define DISABLE_ERROR_HANDLE          0x10000
 #define OUTPUT_CURRENT_BUF            0x20000
 #define ONLY_RESET_AT_START           0x40000
-#define CLEAR_INIT_FLAG_REG           0x80000
+#define LOAD_UCODE_ALWAYS             0x80000
 #define FORCE_NO_SLICE                0x100000
 #define REINIT_DPB_TEST               0x200000
 
@@ -46,11 +45,6 @@
 #define H264_DECODE_BUFEMPTY        0x20
 #define H264_DECODE_TIMEOUT         0x21
 #define H264_SEARCH_BUFEMPTY        0x22
-
-#define H264_FIND_NEXT_PIC_NAL              0x50
-#define H264_FIND_NEXT_DVEL_NAL             0x51
-#define H264_AUX_DATA_READY					0x52
-
     /* 0x8x, search state*/
 #define H264_STATE_SEARCH_AFTER_SPS  0x80
 #define H264_STATE_SEARCH_AFTER_PPS  0x81
@@ -72,13 +66,11 @@
 #define DPB_OFFSET		0x100
 #define MMCO_OFFSET		0x200
 union param {
-#if 0
 #define H_TIME_STAMP_START	0X00
 #define H_TIME_STAMP_END	0X17
 #define PTS_ZERO_0		0X18
 #define PTS_ZERO_1		0X19
-#endif
-#define FIXED_FRAME_RATE_FLAG                   0X21
+#define FIXED_FRAME_RATE_FLAG                   0X1A
 
 #define OFFSET_DELIMITER_LO                     0x2f
 #define OFFSET_DELIMITER_HI                     0x30
@@ -663,10 +655,6 @@ struct FrameStore {
 	int         pre_output;
 	/* index in gFrameStore */
 	int       index;
-#define OTHER_DATA		0
-#define I_DATA			1
-#define NO_DATA		0xff
-	unsigned char data_flag;
 #endif
 	int       poc;
 
@@ -686,8 +674,9 @@ struct FrameStore {
 
 	u32       pts;
 	u64       pts64;
-
 };
+
+int prepare_display_buf(struct vdec_s *vdec, struct FrameStore *frame);
 
 
 /* #define DPB_SIZE_MAX     16 */
@@ -754,14 +743,6 @@ struct h264_dpb_stru {
 	struct StorablePicture m_PIC[MAX_PIC_BUF_NUM];
 	struct FrameStore mFrameStore[DPB_SIZE_MAX];
 
-	/*vui*/
-	unsigned int vui_status;
-	unsigned int num_units_in_tick;
-	unsigned int time_scale;
-	unsigned int fixed_frame_rate_flag;
-	unsigned int aspect_ratio_idc;
-	unsigned int aspect_ratio_sar_width;
-	unsigned int aspect_ratio_sar_height;
 };
 
 
@@ -769,8 +750,6 @@ extern unsigned int h264_debug_flag;
 extern unsigned int h264_debug_mask;
 
 int dpb_print(int indext, int debug_flag, const char *fmt, ...);
-
-int dpb_print_cont(int index, int debug_flag, const char *fmt, ...);
 
 unsigned char dpb_is_debug(int index, int debug_flag);
 
@@ -794,7 +773,7 @@ int release_colocate_buf(struct h264_dpb_stru *p_H264_Dpb, int index);
 int get_free_buf_idx(struct vdec_s *vdec);
 
 void store_picture_in_dpb(struct h264_dpb_stru *p_H264_Dpb,
-			struct StorablePicture *p, unsigned char data_flag);
+			struct StorablePicture *p);
 
 int remove_picture(struct h264_dpb_stru *p_H264_Dpb,
 			struct StorablePicture *pic);
@@ -806,5 +785,4 @@ int get_long_term_flag_by_buf_spec_num(struct h264_dpb_stru *p_H264_Dpb,
 
 void bufmgr_h264_remove_unused_frame(struct h264_dpb_stru *p_H264_Dpb);
 
-void flush_dpb(struct h264_dpb_stru *p_H264_Dpb);
 #endif

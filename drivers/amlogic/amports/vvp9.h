@@ -17,7 +17,9 @@
 
 #ifndef VVP9_H
 #define VVP9_H
+#ifndef CONFIG_MULTI_DEC
 #define VP9_10B_MMU
+#endif
 void adapt_coef_probs(int pic_count, int prev_kf, int cur_kf, int pre_fc,
 unsigned int *prev_prob, unsigned int *cur_prob, unsigned int *count);
 #endif

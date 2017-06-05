@@ -29,13 +29,9 @@
 #include <linux/amlogic/amports/vframe_provider.h>
 #include <linux/amlogic/amports/vframe_receiver.h>
 #include <linux/slab.h>
-#include <linux/amlogic/codec_mm/codec_mm.h>
-
 #include "vdec_reg.h"
 #include "arch/register.h"
 #include "amports_priv.h"
-#include "decoder/decoder_bmmu_box.h"
-
 
 
 #ifdef CONFIG_AM_VDEC_MJPEG_LOG
@@ -76,8 +72,7 @@ MODULE_AMLOG(LOG_LEVEL_ERROR, 0, LOG_LEVEL_DESC, LOG_DEFAULT_MASK_DESC);
 #define PICINFO_INTERLACE_FIRST     0x0010
 
 #define VF_POOL_SIZE          16
-#define DECODE_BUFFER_NUM_MAX		4
-#define MAX_BMMU_BUFFER_NUM		DECODE_BUFFER_NUM_MAX
+#define DECODE_BUFFER_NUM_MAX 4
 #define PUT_INTERVAL        (HZ/100)
 
 #if 1/*MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON6*/
@@ -93,7 +88,7 @@ static void vmjpeg_vf_put(struct vframe_s *, void *);
 static int vmjpeg_vf_states(struct vframe_states *states, void *);
 static int vmjpeg_event_cb(int type, void *data, void *private_data);
 
-static int vmjpeg_prot_init(void);
+static void vmjpeg_prot_init(void);
 static void vmjpeg_local_init(void);
 
 static const char vmjpeg_dec_id[] = "vmjpeg-dev";
@@ -107,7 +102,7 @@ static const struct vframe_operations_s vmjpeg_vf_provider = {
 	.event_cb = vmjpeg_event_cb,
 	.vf_states = vmjpeg_vf_states,
 };
-static void *mm_blk_handle;
+
 static struct vframe_provider_s vmjpeg_vf_prov;
 
 static DECLARE_KFIFO(newframe_q, struct vframe_s *, VF_POOL_SIZE);
@@ -121,6 +116,7 @@ static u32 frame_width, frame_height, frame_dur;
 static u32 saved_resolution;
 static struct timer_list recycle_timer;
 static u32 stat;
+static unsigned long buf_start;
 static u32 buf_size;
 static DEFINE_SPINLOCK(lock);
 
@@ -208,10 +204,6 @@ static irqreturn_t vmjpeg_isr(int irq, void *dev_id)
 			vf->orientation = 0;
 			vf->type_original = vf->type;
 			vfbuf_use[index]++;
-			vf->mem_handle =
-				decoder_bmmu_box_get_mem_handle(
-					mm_blk_handle,
-					index);
 
 			gvs->frame_dur = frame_dur;
 			vdec_count_info(gvs, 0, offset);
@@ -293,10 +285,6 @@ static irqreturn_t vmjpeg_isr(int irq, void *dev_id)
 			}
 			vf->type_original = vf->type;
 			vfbuf_use[index]++;
-			vf->mem_handle =
-				decoder_bmmu_box_get_mem_handle(
-					mm_blk_handle,
-					index);
 
 			gvs->frame_dur = frame_dur;
 			vdec_count_info(gvs, 0, offset);
@@ -432,12 +420,12 @@ int vmjpeg_dec_status(struct vdec_s *vdec, struct vdec_info *vstatus)
 }
 
 /****************************************/
-static int vmjpeg_canvas_init(void)
+static void vmjpeg_canvas_init(void)
 {
-	int i, ret;
+	int i;
 	u32 canvas_width, canvas_height;
 	u32 decbuf_size, decbuf_y_size, decbuf_uv_size;
-	unsigned long buf_start;
+	u32 disp_addr = 0xffffffff;
 
 	if (buf_size <= 0x00400000) {
 		/* SD only */
@@ -455,72 +443,133 @@ static int vmjpeg_canvas_init(void)
 		decbuf_size = 0x300000;
 	}
 
-	for (i = 0; i < MAX_BMMU_BUFFER_NUM; i++) {
+	if (is_vpp_postblend()) {
+		struct canvas_s cur_canvas;
 
-		ret = decoder_bmmu_box_alloc_buf_phy(mm_blk_handle, i,
-				decbuf_size, DRIVER_NAME, &buf_start);
-		if (ret < 0)
-			return ret;
-#ifdef NV21
-		canvas_config(index2canvas0(i) & 0xff,
-			buf_start,
-			canvas_width, canvas_height,
-			CANVAS_ADDR_NOWRAP,
-			CANVAS_BLKMODE_LINEAR);
-		canvas_config((index2canvas0(i) >> 8) & 0xff,
-			buf_start +
-			decbuf_y_size, canvas_width,
-			canvas_height / 2, CANVAS_ADDR_NOWRAP,
-			CANVAS_BLKMODE_LINEAR);
-		canvas_config(index2canvas1(i) & 0xff,
-			buf_start +
-			decbuf_size / 2, canvas_width,
-			canvas_height, CANVAS_ADDR_NOWRAP,
-			CANVAS_BLKMODE_LINEAR);
-		canvas_config((index2canvas1(i) >> 8) & 0xff,
-			buf_start +
-			decbuf_y_size + decbuf_uv_size / 2,
-			canvas_width, canvas_height / 2,
-			CANVAS_ADDR_NOWRAP,
-			CANVAS_BLKMODE_LINEAR);
-#else
-		canvas_config(index2canvas0(i) & 0xff,
-			buf_start,
-			canvas_width, canvas_height,
-			CANVAS_ADDR_NOWRAP,
-			CANVAS_BLKMODE_LINEAR);
-		canvas_config((index2canvas0(i) >> 8) & 0xff,
-			buf_start +
-			decbuf_y_size, canvas_width / 2,
-			canvas_height / 2, CANVAS_ADDR_NOWRAP,
-			CANVAS_BLKMODE_LINEAR);
-		canvas_config((index2canvas0(i) >> 16) & 0xff,
-			buf_start +
-			decbuf_y_size + decbuf_uv_size,
-			canvas_width / 2, canvas_height / 2,
-			CANVAS_ADDR_NOWRAP,
-			CANVAS_BLKMODE_LINEAR);
-		canvas_config(index2canvas1(i) & 0xff,
-			buf_start +
-			decbuf_size / 2, canvas_width,
-			canvas_height, CANVAS_ADDR_NOWRAP,
-			CANVAS_BLKMODE_LINEAR);
-		canvas_config((index2canvas1(i) >> 8) & 0xff,
-			buf_start +
-			decbuf_y_size + decbuf_uv_size / 2,
-			canvas_width / 2, canvas_height / 2,
-			CANVAS_ADDR_NOWRAP,
-			CANVAS_BLKMODE_LINEAR);
-		canvas_config((index2canvas1(i) >> 16) & 0xff,
-			buf_start +
-			decbuf_y_size + decbuf_uv_size +
-			decbuf_uv_size / 2, canvas_width / 2,
-			canvas_height / 2, CANVAS_ADDR_NOWRAP,
-			CANVAS_BLKMODE_LINEAR);
-#endif
-
+		canvas_read((READ_VCBUS_REG(VD1_IF0_CANVAS0) & 0xff),
+					&cur_canvas);
+		disp_addr = (cur_canvas.addr + 7) >> 3;
 	}
-	return 0;
+
+	for (i = 0; i < 4; i++) {
+		if (((buf_start + i * decbuf_size + 7) >> 3) == disp_addr) {
+#ifdef NV21
+			canvas_config(index2canvas0(i) & 0xff,
+					buf_start + 4 * decbuf_size,
+					canvas_width, canvas_height,
+					CANVAS_ADDR_NOWRAP,
+					CANVAS_BLKMODE_LINEAR);
+			canvas_config((index2canvas0(i) >> 8) & 0xff,
+					buf_start + 4 * decbuf_size +
+					decbuf_y_size, canvas_width,
+					canvas_height / 2, CANVAS_ADDR_NOWRAP,
+					CANVAS_BLKMODE_LINEAR);
+			canvas_config(index2canvas1(i) & 0xff,
+					buf_start + 4 * decbuf_size +
+					decbuf_size / 2, canvas_width,
+					canvas_height, CANVAS_ADDR_NOWRAP,
+					CANVAS_BLKMODE_LINEAR);
+			canvas_config((index2canvas1(i) >> 8) & 0xff,
+					buf_start + 4 * decbuf_size +
+					decbuf_y_size + decbuf_uv_size / 2,
+					canvas_width, canvas_height / 2,
+					CANVAS_ADDR_NOWRAP,
+					CANVAS_BLKMODE_LINEAR);
+#else
+			canvas_config(index2canvas0(i) & 0xff,
+					buf_start + 4 * decbuf_size,
+					canvas_width, canvas_height,
+					CANVAS_ADDR_NOWRAP,
+					CANVAS_BLKMODE_LINEAR);
+			canvas_config((index2canvas0(i) >> 8) & 0xff,
+					buf_start + 4 * decbuf_size +
+					decbuf_y_size, canvas_width / 2,
+					canvas_height / 2, CANVAS_ADDR_NOWRAP,
+					CANVAS_BLKMODE_LINEAR);
+			canvas_config((index2canvas0(i) >> 16) & 0xff,
+					buf_start + 4 * decbuf_size +
+					decbuf_y_size + decbuf_uv_size,
+					canvas_width / 2, canvas_height / 2,
+					CANVAS_ADDR_NOWRAP,
+					CANVAS_BLKMODE_LINEAR);
+			canvas_config(index2canvas1(i) & 0xff,
+					buf_start + 4 * decbuf_size +
+					decbuf_size / 2, canvas_width,
+					canvas_height, CANVAS_ADDR_NOWRAP,
+					CANVAS_BLKMODE_LINEAR);
+			canvas_config((index2canvas1(i) >> 8) & 0xff,
+					buf_start + 4 * decbuf_size +
+					decbuf_y_size + decbuf_uv_size / 2,
+					canvas_width / 2, canvas_height / 2,
+					CANVAS_ADDR_NOWRAP,
+					CANVAS_BLKMODE_LINEAR);
+			canvas_config((index2canvas1(i) >> 16) & 0xff,
+					buf_start + 4 * decbuf_size +
+					decbuf_y_size + decbuf_uv_size +
+					decbuf_uv_size / 2, canvas_width / 2,
+					canvas_height / 2, CANVAS_ADDR_NOWRAP,
+					CANVAS_BLKMODE_LINEAR);
+#endif
+		} else {
+#ifdef NV21
+			canvas_config(index2canvas0(i) & 0xff,
+					buf_start + i * decbuf_size,
+					canvas_width, canvas_height,
+					CANVAS_ADDR_NOWRAP,
+					CANVAS_BLKMODE_LINEAR);
+			canvas_config((index2canvas0(i) >> 8) & 0xff,
+					buf_start + i * decbuf_size +
+					decbuf_y_size, canvas_width,
+					canvas_height / 2, CANVAS_ADDR_NOWRAP,
+					CANVAS_BLKMODE_LINEAR);
+			canvas_config(index2canvas1(i) & 0xff,
+					buf_start + i * decbuf_size +
+					decbuf_size / 2, canvas_width,
+					canvas_height, CANVAS_ADDR_NOWRAP,
+					CANVAS_BLKMODE_LINEAR);
+			canvas_config((index2canvas1(i) >> 8) & 0xff,
+					buf_start + i * decbuf_size +
+					decbuf_y_size + decbuf_uv_size / 2,
+					canvas_width, canvas_height / 2,
+					CANVAS_ADDR_NOWRAP,
+					CANVAS_BLKMODE_LINEAR);
+#else
+			canvas_config(index2canvas0(i) & 0xff,
+					buf_start + i * decbuf_size,
+					canvas_width, canvas_height,
+					CANVAS_ADDR_NOWRAP,
+					CANVAS_BLKMODE_LINEAR);
+			canvas_config((index2canvas0(i) >> 8) & 0xff,
+					buf_start + i * decbuf_size +
+					decbuf_y_size, canvas_width / 2,
+					canvas_height / 2, CANVAS_ADDR_NOWRAP,
+					CANVAS_BLKMODE_LINEAR);
+			canvas_config((index2canvas0(i) >> 16) & 0xff,
+					buf_start + i * decbuf_size +
+					decbuf_y_size + decbuf_uv_size,
+					canvas_width / 2, canvas_height / 2,
+					CANVAS_ADDR_NOWRAP,
+					CANVAS_BLKMODE_LINEAR);
+			canvas_config(index2canvas1(i) & 0xff,
+					buf_start + i * decbuf_size +
+					decbuf_size / 2, canvas_width,
+					canvas_height, CANVAS_ADDR_NOWRAP,
+					CANVAS_BLKMODE_LINEAR);
+			canvas_config((index2canvas1(i) >> 8) & 0xff,
+					buf_start + i * decbuf_size +
+					decbuf_y_size + decbuf_uv_size / 2,
+					canvas_width / 2, canvas_height / 2,
+					CANVAS_ADDR_NOWRAP,
+					CANVAS_BLKMODE_LINEAR);
+			canvas_config((index2canvas1(i) >> 16) & 0xff,
+					buf_start + i * decbuf_size +
+					decbuf_y_size + decbuf_uv_size +
+					decbuf_uv_size / 2, canvas_width / 2,
+					canvas_height / 2, CANVAS_ADDR_NOWRAP,
+					CANVAS_BLKMODE_LINEAR);
+#endif
+		}
+	}
 }
 
 static void init_scaler(void)
@@ -607,9 +656,8 @@ static void init_scaler(void)
 	WRITE_VREG(PSCALE_RST, 0x0);
 }
 
-static int vmjpeg_prot_init(void)
+static void vmjpeg_prot_init(void)
 {
-	int r;
 #if 1/*MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON6*/
 	WRITE_VREG(DOS_SW_RESET0, (1 << 7) | (1 << 6));
 	WRITE_VREG(DOS_SW_RESET0, 0);
@@ -617,7 +665,7 @@ static int vmjpeg_prot_init(void)
 	WRITE_MPEG_REG(RESET0_REGISTER, RESET_IQIDCT | RESET_MC);
 #endif
 
-	r = vmjpeg_canvas_init();
+	vmjpeg_canvas_init();
 
 	WRITE_VREG(AV_SCRATCH_0, 12);
 	WRITE_VREG(AV_SCRATCH_1, 0x031a);
@@ -654,7 +702,6 @@ static int vmjpeg_prot_init(void)
 	CLEAR_VREG_MASK(MDEC_PIC_DC_CTRL, 1 << 17);
 #endif
 #endif
-	return r;
 }
 
 static int vmjpeg_vdec_info_init(void)
@@ -690,18 +737,6 @@ static void vmjpeg_local_init(void)
 		vfpool[i].index = DECODE_BUFFER_NUM_MAX;
 		kfifo_put(&newframe_q, vf);
 	}
-	if (mm_blk_handle) {
-		decoder_bmmu_box_free(mm_blk_handle);
-		mm_blk_handle = NULL;
-	}
-
-	mm_blk_handle = decoder_bmmu_box_alloc_box(
-		DRIVER_NAME,
-		0,
-		MAX_BMMU_BUFFER_NUM,
-		4 + PAGE_SHIFT,
-		CODEC_MM_FLAGS_CMA_CLEAR |
-		CODEC_MM_FLAGS_FOR_VDECODER);
 }
 
 static s32 vmjpeg_init(void)
@@ -725,9 +760,7 @@ static s32 vmjpeg_init(void)
 	stat |= STAT_MC_LOAD;
 
 	/* enable AMRISC side protocol */
-	r = vmjpeg_prot_init();
-	if (r < 0)
-		return r;
+	vmjpeg_prot_init();
 
 	r = vdec_request_irq(VDEC_IRQ_1, vmjpeg_isr,
 			"vmjpeg-irq", (void *)vmjpeg_dec_id);
@@ -788,7 +821,8 @@ static int amvdec_mjpeg_probe(struct platform_device *pdev)
 		return -EFAULT;
 	}
 
-	buf_size = pdata->alloc_mem_size;
+	buf_start = pdata->mem_start;
+	buf_size = pdata->mem_end - pdata->mem_start + 1;
 
 	if (pdata->sys_info)
 		vmjpeg_amstream_dec_info = *pdata->sys_info;
@@ -846,12 +880,8 @@ static int amvdec_mjpeg_remove(struct platform_device *pdev)
 	kfree(gvs);
 	gvs = NULL;
 
-	if (mm_blk_handle) {
-		decoder_bmmu_box_free(mm_blk_handle);
-		mm_blk_handle = NULL;
-	}
-
 	amlog_level(LOG_LEVEL_INFO, "amvdec_mjpeg remove.\n");
+
 	return 0;
 }
 

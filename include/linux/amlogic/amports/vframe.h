@@ -311,8 +311,6 @@ struct vframe_s {
 	/*for vframe's memory,
 	used by memory owner.*/
 	void *mem_handle;
-	/*for MMU H265/VP9 compress header*/
-	void *mem_head_handle;
 } /*vframe_t */;
 
 #if 0

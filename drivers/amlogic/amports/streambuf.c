@@ -45,7 +45,7 @@
 
 void *fetchbuf = 0;
 
-static s32 _stbuf_alloc(struct stream_buf_s *buf, bool is_secure)
+static s32 _stbuf_alloc(struct stream_buf_s *buf)
 {
 	if (buf->buf_size == 0)
 		return -ENOBUFS;
@@ -74,8 +74,8 @@ static s32 _stbuf_alloc(struct stream_buf_s *buf, bool is_secure)
 			flags |= CODEC_MM_FLAGS_FOR_ADECODER;
 			flags |= CODEC_MM_FLAGS_DMA_CPU;
 		}
-
-		if (is_secure)
+		if ((flags & CODEC_MM_FLAGS_FOR_VDECODER) &&
+			codec_mm_video_tvp_enabled())/*TVP TODO for MULTI*/
 			flags |= CODEC_MM_FLAGS_TVP;
 
 		buf->buf_start = codec_mm_alloc_for_dma(MEM_NAME,
@@ -101,15 +101,11 @@ static s32 _stbuf_alloc(struct stream_buf_s *buf, bool is_secure)
 				"Subtitle", buf->buf_size);
 			return -ENOMEM;
 		}
-
-		buf->is_secure = is_secure;
-
-		pr_info("%s stbuf alloced at %p, secure = %d, size = %d\n",
+		pr_info("%s stbuf alloced at %p, size = %d\n",
 				(buf->type == BUF_TYPE_HEVC) ? "HEVC" :
 				(buf->type == BUF_TYPE_VIDEO) ? "Video" :
 				(buf->type == BUF_TYPE_AUDIO) ? "Audio" :
 				"Subtitle", (void *)buf->buf_start,
-				buf->is_secure,
 				buf->buf_size);
 	}
 	if (buf->buf_size < buf->canusebuf_size)
@@ -119,14 +115,14 @@ static s32 _stbuf_alloc(struct stream_buf_s *buf, bool is_secure)
 	return 0;
 }
 
-int stbuf_change_size(struct stream_buf_s *buf, int size, bool is_secure)
+int stbuf_change_size(struct stream_buf_s *buf, int size)
 {
 	unsigned long old_buf;
 	int old_size, old_pagenum;
 	int ret;
 
-	pr_info("buffersize=%d,%d,start=%p, secure=%d\n", size, buf->buf_size,
-			(void *)buf->buf_start, is_secure);
+	pr_info("buffersize=%d,%d,start=%p\n", size, buf->buf_size,
+			(void *)buf->buf_start);
 
 	if (buf->buf_size == size && buf->buf_start != 0)
 		return 0;
@@ -138,8 +134,7 @@ int stbuf_change_size(struct stream_buf_s *buf, int size, bool is_secure)
 	buf->buf_size = size;
 	ret = size;
 
-	if (size == 0 ||
-		_stbuf_alloc(buf, is_secure) == 0) {
+	if (size == 0 || _stbuf_alloc(buf) == 0) {
 		/*
 		 * size=0:We only free the old memory;
 		 * alloc ok,changed to new buffer
@@ -147,9 +142,6 @@ int stbuf_change_size(struct stream_buf_s *buf, int size, bool is_secure)
 		if (old_buf != 0) {
 			codec_mm_free_for_dma(MEM_NAME, old_buf);
 		}
-
-		if (size == 0)
-			buf->is_secure = false;
 
 		pr_info("changed the (%d) buffer size from %d to %d\n",
 				buf->type, old_size, size);
@@ -276,8 +268,7 @@ s32 stbuf_init(struct stream_buf_s *buf, struct vdec_s *vdec)
 	u32 addr32;
 
 	if (!buf->buf_start) {
-		r = _stbuf_alloc(buf, (vdec) ?
-			vdec->port_flag & PORT_FLAG_DRM : 0);
+		r = _stbuf_alloc(buf);
 		if (r < 0)
 			return r;
 	}
@@ -287,11 +278,11 @@ s32 stbuf_init(struct stream_buf_s *buf, struct vdec_s *vdec)
 	if ((buf->type == BUF_TYPE_VIDEO) || (buf->type == BUF_TYPE_HEVC)) {
 		if (vdec) {
 			if (vdec_stream_based(vdec))
-				vdec_set_input_buffer(vdec, addr32,
+				vdec_input_set_buffer(&vdec->input, addr32,
 						buf->buf_size);
 			else
-				return vdec_set_input_buffer(vdec, addr32,
-						buf->buf_size);
+				return vdec_input_set_buffer(&vdec->input,
+					addr32,	buf->buf_size);
 		}
 	}
 
@@ -407,7 +398,6 @@ void stbuf_release(struct stream_buf_s *buf)
 		codec_mm_free_for_dma(MEM_NAME, buf->buf_start);
 		buf->flag &= ~BUF_FLAG_ALLOC;
 		buf->buf_start = 0;
-		buf->is_secure = false;
 	}
 	buf->flag &= ~BUF_FLAG_IN_USE;
 }

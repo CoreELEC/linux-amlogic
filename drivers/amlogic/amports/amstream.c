@@ -332,8 +332,7 @@ static struct stream_port_s ports[] = {
 #ifdef CONFIG_MULTI_DEC
 	{
 		.name = "amstream_vbuf",
-		.type = PORT_TYPE_ES | PORT_TYPE_VIDEO |
-			PORT_TYPE_DECODER_SCHED,
+		.type = PORT_TYPE_ES | PORT_TYPE_VIDEO,
 		.fops = &vbuf_fops,
 	},
 	{
@@ -364,8 +363,7 @@ static struct stream_port_s ports[] = {
 	{
 		.name = "amstream_mpts",
 		.type = PORT_TYPE_MPTS | PORT_TYPE_VIDEO |
-			PORT_TYPE_AUDIO | PORT_TYPE_SUB |
-			PORT_TYPE_DECODER_SCHED,
+			PORT_TYPE_AUDIO | PORT_TYPE_SUB,
 		.fops = &mpts_fops,
 	},
 	{
@@ -412,10 +410,17 @@ static struct stream_port_s ports[] = {
 #ifdef CONFIG_MULTI_DEC
 	{
 		.name = "amstream_hevc",
+#ifdef CONFIG_AM_VDEC_DV
+/*test dobly vision, remove later*/
 		.type = PORT_TYPE_ES | PORT_TYPE_VIDEO | PORT_TYPE_HEVC |
-			PORT_TYPE_DECODER_SCHED,
+			PORT_TYPE_DECODER_SCHED | PORT_TYPE_DUALDEC,
 		.fops = &vbuf_fops,
 		.vformat = VFORMAT_HEVC,
+#else
+		.type = PORT_TYPE_ES | PORT_TYPE_VIDEO | PORT_TYPE_HEVC,
+		.fops = &vbuf_fops,
+		.vformat = VFORMAT_HEVC,
+#endif
 	},
 	{
 		.name = "amstream_hevc_frame",
@@ -539,7 +544,7 @@ static void amstream_change_vbufsize(struct port_priv_s *priv,
 	}
 	if (pvbuf->for_4k) {
 		pvbuf->buf_size = def_4k_vstreambuf_sizeM * SZ_1M;
-		if (priv->vdec->port_flag & PORT_FLAG_DRM)
+		if (codec_mm_video_tvp_enabled())
 			pvbuf->buf_size = DEFAULT_VIDEO_BUFFER_SIZE_4K_TVP;
 		if ((pvbuf->buf_size > 30 * SZ_1M) &&
 		(codec_mm_get_total_size() < 220 * SZ_1M)) {
@@ -547,11 +552,11 @@ static void amstream_change_vbufsize(struct port_priv_s *priv,
 			pvbuf->buf_size = pvbuf->buf_size >> 1;
 		}
 	} else if (pvbuf->buf_size > def_vstreambuf_sizeM * SZ_1M) {
-		if (priv->vdec->port_flag & PORT_FLAG_DRM)
+		if (codec_mm_video_tvp_enabled())
 			pvbuf->buf_size = DEFAULT_VIDEO_BUFFER_SIZE_TVP;
 	} else {
 		pvbuf->buf_size = def_vstreambuf_sizeM * SZ_1M;
-		if (priv->vdec->port_flag & PORT_FLAG_DRM)
+		if (codec_mm_video_tvp_enabled())
 			pvbuf->buf_size = DEFAULT_VIDEO_BUFFER_SIZE_TVP;
 	}
 	reset_canuse_buferlevel(10000);
@@ -620,7 +625,7 @@ static int video_port_init(struct port_priv_s *priv,
 	struct stream_port_s *port = priv->port;
 	struct vdec_s *vdec = priv->vdec;
 
-	if ((vdec->port_flag & PORT_FLAG_VFORMAT) == 0) {
+	if ((port->flag & PORT_FLAG_VFORMAT) == 0) {
 		pr_err("vformat not set\n");
 		return -EPERM;
 	}
@@ -899,7 +904,7 @@ static int amstream_port_init(struct port_priv_s *priv)
 	}
 
 	if ((port->type & PORT_TYPE_VIDEO) &&
-		(vdec->port_flag & PORT_FLAG_VFORMAT)) {
+		(port->flag & PORT_FLAG_VFORMAT)) {
 		pubuf->buf_size = 0;
 		pubuf->buf_start = 0;
 		pubuf->buf_wp = 0;
@@ -978,7 +983,7 @@ static int amstream_port_init(struct port_priv_s *priv)
 #endif
 
 	if ((port->type & PORT_TYPE_VIDEO) &&
-		(vdec->port_flag & PORT_FLAG_VFORMAT))
+		(port->flag & PORT_FLAG_VFORMAT))
 		/* connect vdec at the end after all HW initialization */
 		vdec_connect(vdec);
 
@@ -1098,7 +1103,7 @@ static ssize_t amstream_vbuf_write(struct file *file, const char *buf,
 			return r;
 	}
 
-	if (priv->vdec->port_flag & PORT_FLAG_DRM)
+	if (port->flag & PORT_FLAG_DRM)
 		r = drm_write(file, pbuf, buf, count);
 	else
 		r = esparser_write(file, pbuf, buf, count);
@@ -1527,8 +1532,7 @@ static int amstream_open(struct inode *inode, struct file *file)
 			return -ENOMEM;
 		}
 
-		if ((port->type & PORT_TYPE_DUALDEC) ||
-			(amports_get_debug_flags() & 0x100)) {
+		if (port->type & PORT_TYPE_DUALDEC) {
 			priv->vdec->slave = vdec_create(port, priv->vdec);
 
 			if (priv->vdec->slave == NULL) {
@@ -1547,9 +1551,6 @@ static int amstream_release(struct inode *inode, struct file *file)
 {
 	struct port_priv_s *priv = file->private_data;
 	struct stream_port_s *port = priv->port;
-#ifdef CONFIG_MULTI_DEC
-	u32 port_flag = 0;
-#endif
 
 	if (iminor(inode) >= amstream_port_num)
 		return -ENODEV;
@@ -1560,10 +1561,6 @@ static int amstream_release(struct inode *inode, struct file *file)
 		amstream_port_release(priv);
 
 	if (priv->vdec) {
-#ifdef CONFIG_MULTI_DEC
-		port_flag = priv->vdec->port_flag;
-#endif
-
 		if (priv->vdec->slave)
 			vdec_release(priv->vdec->slave);
 
@@ -1606,7 +1603,7 @@ static int amstream_release(struct inode *inode, struct file *file)
 				vdec_poweroff(VDEC_1);
 #else
 				if ((port->type & PORT_TYPE_MPTS) &&
-				((port_flag & PORT_FLAG_VFORMAT) == 0)) {
+				((port->flag & PORT_FLAG_VFORMAT) == 0)) {
 					vdec_poweroff(VDEC_1);
 					vdec_poweroff(VDEC_HEVC);
 				} else if ((port->vformat == VFORMAT_HEVC
@@ -1831,13 +1828,11 @@ static long amstream_ioctl_set(struct port_priv_s *priv, ulong arg)
 				if (has_hevc_vdec()) {
 					r = stbuf_change_size(
 						&bufs[BUF_TYPE_HEVC],
-						parm.data_32,
-						false);
+						parm.data_32);
 				}
 				r = stbuf_change_size(
 						&bufs[BUF_TYPE_VIDEO],
-						parm.data_32,
-						false);
+						parm.data_32);
 			}
 		} else if (this->type & PORT_TYPE_FRAME) {
 			/* todo: frame based set max buffer size */
@@ -1857,9 +1852,7 @@ static long amstream_ioctl_set(struct port_priv_s *priv, ulong arg)
 			((bufs[BUF_TYPE_AUDIO].flag & BUF_FLAG_IN_USE) == 0)) {
 			if (bufs[BUF_TYPE_AUDIO].flag & BUF_FLAG_ALLOC) {
 				r = stbuf_change_size(
-					&bufs[BUF_TYPE_AUDIO],
-					parm.data_32,
-					false);
+					&bufs[BUF_TYPE_AUDIO], parm.data_32);
 			}
 		} else
 			r = -EINVAL;
@@ -2048,9 +2041,6 @@ static long amstream_ioctl_set(struct port_priv_s *priv, ulong arg)
 		if (parm.data_32 == 1) {
 			pr_err("set drmmode\n");
 			this->flag |= PORT_FLAG_DRM;
-			if ((this->type & PORT_TYPE_VIDEO) &&
-				(priv->vdec))
-				priv->vdec->port_flag |= PORT_FLAG_DRM;
 		} else {
 			this->flag &= (~PORT_FLAG_DRM);
 			pr_err("no drmmode\n");
@@ -2071,10 +2061,6 @@ static long amstream_ioctl_set(struct port_priv_s *priv, ulong arg)
 			vdec_set_video_path(priv->vdec, parm.data_32);
 		} else
 			r = -EINVAL;
-		break;
-	case AMSTREAM_SET_EOS:
-		if (priv->vdec)
-			vdec_set_eos(priv->vdec, parm.data_32);
 		break;
 	default:
 		r = -ENOIOCTLCMD;
@@ -2384,12 +2370,10 @@ static long amstream_do_ioctl_old(struct port_priv_s *priv,
 			if (bufs[BUF_TYPE_VIDEO].flag & BUF_FLAG_ALLOC) {
 				if (has_hevc_vdec()) {
 					r = stbuf_change_size(
-						&bufs[BUF_TYPE_HEVC],
-						arg, false);
+						&bufs[BUF_TYPE_HEVC], arg);
 				}
 				r = stbuf_change_size(
-						&bufs[BUF_TYPE_VIDEO],
-						arg, false);
+						&bufs[BUF_TYPE_VIDEO], arg);
 			}
 		} else
 			r = -EINVAL;
@@ -2408,7 +2392,7 @@ static long amstream_do_ioctl_old(struct port_priv_s *priv,
 			((bufs[BUF_TYPE_AUDIO].flag & BUF_FLAG_IN_USE) == 0)) {
 			if (bufs[BUF_TYPE_AUDIO].flag & BUF_FLAG_ALLOC) {
 				r = stbuf_change_size(
-					&bufs[BUF_TYPE_AUDIO], arg, false);
+					&bufs[BUF_TYPE_AUDIO], arg);
 			}
 		} else
 			r = -EINVAL;
@@ -2934,9 +2918,6 @@ static long amstream_do_ioctl_old(struct port_priv_s *priv,
 		if ((u32) arg == 1) {
 			pr_err("set drmmode\n");
 			this->flag |= PORT_FLAG_DRM;
-			if ((this->type & PORT_TYPE_VIDEO) &&
-				(priv->vdec))
-				priv->vdec->port_flag |= PORT_FLAG_DRM;
 		} else {
 			this->flag &= (~PORT_FLAG_DRM);
 			pr_err("no drmmode\n");
@@ -3553,9 +3534,9 @@ static int amstream_remove(struct platform_device *pdev)
 	int i;
 	struct stream_port_s *st;
 	if (bufs[BUF_TYPE_VIDEO].flag & BUF_FLAG_ALLOC)
-		stbuf_change_size(&bufs[BUF_TYPE_VIDEO], 0, false);
+		stbuf_change_size(&bufs[BUF_TYPE_VIDEO], 0);
 	if (bufs[BUF_TYPE_AUDIO].flag & BUF_FLAG_ALLOC)
-		stbuf_change_size(&bufs[BUF_TYPE_AUDIO], 0, false);
+		stbuf_change_size(&bufs[BUF_TYPE_AUDIO], 0);
 	stbuf_fetch_release();
 	tsdemux_class_unregister();
 	for (st = &ports[0], i = 0; i < amstream_port_num; i++, st++)

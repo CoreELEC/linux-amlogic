@@ -81,10 +81,9 @@ void *decoder_bmmu_box_alloc_box(const char *name,
 	struct decoder_bmmu_box *box;
 	int size;
 	int tvp_flags;
-	tvp_flags = (mem_flags & CODEC_MM_FLAGS_TVP) ?
+	tvp_flags = codec_mm_video_tvp_enabled() ?
 		CODEC_MM_FLAGS_TVP : 0;
-
-	pr_info("decoder_bmmu_box_alloc_box, tvp_flags = %x\n", tvp_flags);
+	/*TODO.changed to vdec-tvp flags*/
 
 	size = sizeof(struct decoder_bmmu_box) + sizeof(struct codec_mm_s *) *
 		   max_num;
@@ -283,40 +282,6 @@ int decoder_bmmu_box_alloc_idx_wait(
 		ret = -ENOMEM;
 	}
 	return ret;
-}
-
-int decoder_bmmu_box_alloc_buf_phy(
-	void *handle, int idx,
-	int size, unsigned char *driver_name,
-	unsigned long *buf_phy_addr)
-{
-	if (!decoder_bmmu_box_check_and_wait_size(
-			size,
-			1)) {
-		pr_info("%s not enough buf for buf_idx = %d\n",
-					driver_name, idx);
-		return	-ENOMEM;
-	}
-	if (!decoder_bmmu_box_alloc_idx_wait(
-			handle,
-			idx,
-			size,
-			-1,
-			-1,
-			BMMU_ALLOC_FLAGS_WAITCLEAR
-			)) {
-		*buf_phy_addr =
-			decoder_bmmu_box_get_phy_addr(
-			handle,
-			idx);
-		pr_info("%s malloc buf_idx = %d addr = %ld size = %d\n",
-			driver_name, idx, *buf_phy_addr, size);
-		} else {
-		pr_info("%s malloc failed  %d\n", driver_name, idx);
-			return -ENOMEM;
-	}
-
-	return 0;
 }
 
 static int decoder_bmmu_box_dump(struct decoder_bmmu_box *box, void *buf,
