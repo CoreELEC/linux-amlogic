@@ -58,6 +58,14 @@ config GE2D_KEEP_FRAME
 menu "Video Decoders"
 	depends on AM_VIDEO
 
+config MULTI_DEC
+	tristate "Amlogic Multi-Instance Decoding"
+	default n
+	---help---
+	   Support multi-instance decoding in amlogic drivers.
+	   select for building amports and ion drivers with support.
+	   ...
+
 config AM_VDEC_MPEG12
 	tristate "Amlogic MPEG1/2 Video Decoder"
 	default y
