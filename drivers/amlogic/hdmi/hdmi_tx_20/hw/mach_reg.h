@@ -35,21 +35,17 @@ void sec_reg_write(unsigned *addr, unsigned value);
 unsigned sec_reg_read(unsigned *addr);
 void init_reg_map(void);
 
-#define WAIT_FOR_PLL_LOCKED(reg)				\
-	do {							\
-		unsigned int st = 0, cnt = 10;			\
+#define WAIT_FOR_PLL_LOCKED(reg)                        \
+	do {                                                \
+		unsigned int cnt = 10;                          \
+		unsigned int time_out = 0;                      \
 		while (cnt--) {                                 \
-			udelay(5);				\
-			st = !!(hd_read_reg(reg) & (1 << 31));	\
-			if (st)					\
-				break;				\
-			else {					\
-				/* reset hpll */		\
-				hd_set_reg_bits(reg, 1, 28, 1);	\
-				hd_set_reg_bits(reg, 0, 28, 1);	\
-			}					\
-		}						\
-		if (cnt < 9)					\
+			time_out = 0;                               \
+			while ((!(hd_read_reg(reg) & (1 << 31)))\
+				& (time_out < 10000))               \
+				time_out++;                            \
+			}                                               \
+		if (cnt < 9)                                     \
 			pr_info("pll[0x%x] reset %d times\n", reg, 9 - cnt);\
 	} while (0)
 
