@@ -100,8 +100,8 @@ u32 amstream_buf_num;
 
 static int debugflags;
 
-#define DEFAULT_VIDEO_BUFFER_SIZE       (1024 * 1024 * 3)
-#define DEFAULT_VIDEO_BUFFER_SIZE_4K       (1024 * 1024 * 6)
+#define DEFAULT_VIDEO_BUFFER_SIZE       (1024 * 1024 * 10)
+#define DEFAULT_VIDEO_BUFFER_SIZE_4K       (1024 * 1024 * 15)
 #define DEFAULT_VIDEO_BUFFER_SIZE_TVP       (1024 * 1024 * 10)
 #define DEFAULT_VIDEO_BUFFER_SIZE_4K_TVP       (1024 * 1024 * 15)
 
@@ -552,6 +552,7 @@ static void amstream_change_vbufsize(struct port_priv_s *priv,
 			pvbuf->buf_size = pvbuf->buf_size >> 1;
 		}
 	} else if (pvbuf->buf_size > def_vstreambuf_sizeM * SZ_1M) {
+		pvbuf->buf_size = def_vstreambuf_sizeM * SZ_1M;
 		if (codec_mm_video_tvp_enabled())
 			pvbuf->buf_size = DEFAULT_VIDEO_BUFFER_SIZE_TVP;
 	} else {
