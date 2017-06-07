@@ -29,6 +29,7 @@
 #include <linux/errno.h>
 #include <asm/irq.h>
 #include <linux/io.h>
+#include <linux/io.h>
 #include <linux/major.h>
 #include <linux/slab.h>
 #include <linux/uaccess.h>
