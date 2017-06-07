@@ -120,12 +120,9 @@ static void ir_timer_keyup(unsigned long cookie)
 static void ir_do_keydown(struct remote_dev *dev, int scancode,
 			  u32 keycode)
 {
-	remote_printk(2, "keypressed=0x%x\n", dev->keypressed);
+	bool new_event = !dev->keypressed;
 
-	if (dev->keypressed)
-		ir_do_keyup(dev);
-
-	if (KEY_RESERVED != keycode) {
+	if (new_event && KEY_RESERVED != keycode) {
 		dev->keypressed = true;
 		dev->last_scancode = scancode;
 		dev->last_keycode = keycode;
@@ -133,7 +130,7 @@ static void ir_do_keydown(struct remote_dev *dev, int scancode,
 		input_sync(dev->input_device);
 		remote_printk(2, "report key!!\n");
 	} else {
-		remote_printk(2, "no handle key");
+		remote_printk(2, "no handle key!!\n");
 	}
 }
 
@@ -142,12 +139,9 @@ void remote_keydown(struct remote_dev *dev, int scancode, int status)
 	unsigned long flags;
 	u32 keycode;
 
-
-	if (REMOTE_REPEAT != status) {
-		if (dev->is_valid_custom &&
-			(false == dev->is_valid_custom(dev)))
-			remote_printk(2, "invalid custom:0x%x\n",
-				dev->cur_hardcode);
+	if (dev->is_valid_custom && (false == dev->is_valid_custom(dev))) {
+		remote_printk(2, "invalid custom:0x%x\n", dev->cur_hardcode);
+		return;
 	}
 	spin_lock_irqsave(&dev->keylock, flags);
 	if (status == REMOTE_NORMAL) {
@@ -163,7 +157,6 @@ void remote_keydown(struct remote_dev *dev, int scancode, int status)
 	}
 	spin_unlock_irqrestore(&dev->keylock, flags);
 }
-
 EXPORT_SYMBOL(remote_keydown);
 
 struct remote_dev *remote_allocate_device(void)

@@ -56,7 +56,6 @@ static ssize_t protocol_store(struct device *dev,
 {
 	int ret;
 	int protocol;
-	unsigned long flags;
 	struct remote_chip *chip = dev_get_drvdata(dev);
 
 	ret = kstrtoint(buf, 0, &protocol);
@@ -64,7 +63,6 @@ static ssize_t protocol_store(struct device *dev,
 		pr_err("input parameter error\n");
 		return -EINVAL;
 	}
-	spin_lock_irqsave(&chip->slock, flags);
 	chip->protocol = protocol;
 	chip->set_register_config(chip, chip->protocol);
 	if ((chip->r_dev->rc_type >> 8) && !(chip->protocol >> 8)) {
@@ -75,7 +73,6 @@ static ssize_t protocol_store(struct device *dev,
 		remote_raw_event_register(chip->r_dev); /*no raw->raw*/
 	}
 	chip->r_dev->rc_type = chip->protocol;
-	spin_unlock_irqrestore(&chip->slock, flags);
 	return count;
 }
 
@@ -85,7 +82,7 @@ static ssize_t keymap_show(struct device *dev,
 {
 	struct remote_chip *chip = dev_get_drvdata(dev);
 	int i, len;
-	struct custom_table *ct = chip->sys_custom;
+	struct custom_table *ct = chip->cur_custom;
 	if (!ct) {
 		pr_err("please set keymap name first\n");
 		return 0;
@@ -118,7 +115,7 @@ static ssize_t keymap_store(struct device *dev,
 	}
 	for (cnt = 0; cnt < chip->custom_num; cnt++, ct++) {
 		if (ct->custom_code == value) {
-			chip->sys_custom = ct;
+			chip->cur_custom = ct;
 			break;
 		}
 	}
