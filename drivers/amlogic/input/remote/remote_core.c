@@ -35,9 +35,11 @@
 #include <linux/uaccess.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/of_platform.h>
+#include "remote_main.h"
 #include <linux/amlogic/cpu_version.h>
 #include <linux/amlogic/pm.h>
 #include <linux/of_address.h>
+
 
 #include "remote_core.h"
 
@@ -111,6 +113,7 @@ static void ir_timer_keyup(unsigned long cookie)
 			ir_do_keyup(dev);
 		dev->wait_next_repeat = 0;
 	}
+
 	spin_unlock_irqrestore(&dev->keylock, flags);
 }
 
@@ -202,7 +205,7 @@ int remote_register_device(struct remote_dev *dev)
 	int i;
 	int ret;
 
-	if (MULTI_IR_SOFTWARE_DECODE(dev->rc_type)) {
+	if (dev->rc_type >> 8) {
 		remote_raw_init();
 		remote_raw_event_register(dev);
 	}
@@ -231,7 +234,7 @@ EXPORT_SYMBOL(remote_register_device);
 
 void remote_unregister_device(struct remote_dev *dev)
 {
-	if (MULTI_IR_SOFTWARE_DECODE(dev->rc_type))
+	if (dev->rc_type >> 8)
 		remote_raw_event_unregister(dev);
 
 	input_unregister_device(dev->input_device);

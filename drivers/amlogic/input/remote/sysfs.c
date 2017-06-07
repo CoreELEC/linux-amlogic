@@ -39,21 +39,16 @@
 #include <linux/of_address.h>
 
 #include "remote_meson.h"
+#include "remote_core.h"
 #include <linux/amlogic/iomap.h>
+
 
 static ssize_t protocol_show(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
 	struct remote_chip *chip = dev_get_drvdata(dev);
-	if (ENABLE_LEGACY_IR(chip->protocol))
-		return sprintf(buf, "protocol=%s&%s (0x%x)\n",
-			chip->ir_contr[LEGACY_IR_ID].proto_name,
-			chip->ir_contr[MULTI_IR_ID].proto_name,
-			chip->protocol);
-
 	return sprintf(buf, "protocol=%s (0x%x)\n",
-		chip->ir_contr[MULTI_IR_ID].proto_name,
-		chip->protocol);
+		chip->proto_name, chip->protocol);
 }
 
 static ssize_t protocol_store(struct device *dev,
@@ -72,12 +67,10 @@ static ssize_t protocol_store(struct device *dev,
 	spin_lock_irqsave(&chip->slock, flags);
 	chip->protocol = protocol;
 	chip->set_register_config(chip, chip->protocol);
-	if (MULTI_IR_SOFTWARE_DECODE(chip->r_dev->rc_type) &&
-				!MULTI_IR_SOFTWARE_DECODE(chip->protocol)) {
+	if ((chip->r_dev->rc_type >> 8) && !(chip->protocol >> 8)) {
 		remote_raw_event_unregister(chip->r_dev); /*raw->no raw*/
 		pr_info("remote_raw_event_unregister\n");
-	} else if (!MULTI_IR_SOFTWARE_DECODE(chip->r_dev->rc_type) &&
-				MULTI_IR_SOFTWARE_DECODE(chip->protocol)) {
+	} else if (!(chip->r_dev->rc_type >> 8) && (chip->protocol >> 8)) {
 		remote_raw_init();
 		remote_raw_event_register(chip->r_dev); /*no raw->raw*/
 	}
