@@ -36,7 +36,6 @@
 #include <linux/amlogic/codec_mm/codec_mm_scatter.h>
 #include <linux/workqueue.h>
 #include <linux/delay.h>
-#include <linux/mm.h>
 
 #include "codec_mm_priv.h"
 #include "codec_mm_scatter_priv.h"
@@ -130,7 +129,6 @@ struct codec_mm_scatter_mgt {
 	int try_alloc_in_sys_page_cnt_min;
 	int alloc_from_cma_first;
 	int enable_slot_from_sys;
-	int no_cache_size_M;
 	int support_from_slot_sys;
 	int one_page_cnt;
 	int scatters_cnt;
@@ -1625,7 +1623,7 @@ static int codec_mm_scatter_info_dump_in(
 			 (smgt->total_page_num << PAGE_SHIFT) / SZ_1M,
 			 smgt->total_page_num << PAGE_SHIFT,
 			 smgt->total_page_num);
-	n = smgt->alloced_page_num;
+	n = smgt->alloced_page_num - smgt->cached_pages;
 	BUFPRINT("\talloced size:%dM, %d Bypes,pages:%d\n",
 			 (n << PAGE_SHIFT) / SZ_1M,
 			 n << PAGE_SHIFT,
@@ -1636,11 +1634,6 @@ static int codec_mm_scatter_info_dump_in(
 	BUFPRINT("\tscatter cached:%d M |%d pages\n",
 		(smgt->cached_pages << PAGE_SHIFT) / SZ_1M,
 		smgt->cached_pages);
-
-	BUFPRINT("\talloc from sys size:%d\n",
-		(smgt->alloc_from_sys_sc_cnt +
-		smgt->one_page_cnt) << PAGE_SHIFT);
-
 	BUFPRINT("\talloc from sys sc cnt:%d\n",
 		smgt->alloc_from_sys_sc_cnt);
 	BUFPRINT("\talloc from sys pages cnt:%d pages\n",
@@ -1977,7 +1970,6 @@ enum config_id {
 	ID3_MAX_SYS_PAGES,
 	ID4_MIN_SYS_PAGES,
 	ID5_SLOT_FROM_SYS,
-	ID6_NO_CACHE_SIZE,
 	IDX_MAX,
 };
 struct sc_configs sc_global_config[] = {
@@ -1987,7 +1979,6 @@ struct sc_configs sc_global_config[] = {
 	{ID3_MAX_SYS_PAGES, "max_sys_pages"},
 	{ID4_MIN_SYS_PAGES, "min_sys_pages"},
 	{ID5_SLOT_FROM_SYS, "enable_slot_from_sys"},
-	{ID6_NO_CACHE_SIZE, "no_cache_size_M"},
 };
 
 static int codec_mm_scatter_mgt_get_config_in(int tvp, int id)
@@ -2007,8 +1998,6 @@ static int codec_mm_scatter_mgt_get_config_in(int tvp, int id)
 		return smgt->try_alloc_in_sys_page_cnt_min;
 	case ID5_SLOT_FROM_SYS:
 		return smgt->enable_slot_from_sys;
-	case ID6_NO_CACHE_SIZE:
-		return smgt->no_cache_size_M;
 	default:
 		return 0;
 	}
@@ -2038,9 +2027,6 @@ static int codec_mm_scatter_mgt_set_config_in(int tvp, int id, int newset)
 	case ID5_SLOT_FROM_SYS:
 		smgt->enable_slot_from_sys = newset;
 		smgt->support_from_slot_sys = newset;
-		break;
-	case ID6_NO_CACHE_SIZE:
-		smgt->no_cache_size_M = newset;
 		break;
 	default:
 		return -1;
@@ -2154,15 +2140,7 @@ static void codec_mm_scatter_cache_manage(
 	int total_free_page = smgt->total_page_num -
 		smgt->alloced_page_num + smgt->cached_pages;
 	if (smgt->delay_free_on > 0 && smgt->keep_size_PAGE > 0) {
-		/*if alloc too much ,don't cache any more.*/
-		if (smgt->no_cache_size_M > 0 &&
-			(smgt->cached_pages <= smgt->keep_size_PAGE) &&
-			(smgt->total_page_num >=
-			 (smgt->no_cache_size_M * (SZ_1M >> PAGE_SHIFT)))) {
-			/*have enough pages for most movies.
-			  don't cache more.
-			*/
-		} else if ((smgt->cached_pages < smgt->keep_size_PAGE) ||
+		if ((smgt->cached_pages < smgt->keep_size_PAGE) ||
 			(smgt->force_cache_on &&/*on star cache*/
 			(smgt->cached_pages < smgt->force_cache_page_cnt))
 		) {/*first 500ms ,alloc double.*/
@@ -2443,12 +2421,6 @@ static int codec_mm_scatter_mgt_alloc_in(struct codec_mm_scatter_mgt **psmgt)
 	smgt->mem_flags = CODEC_MM_FLAGS_CMA_FIRST |
 					CODEC_MM_FLAGS_FOR_VDECODER |
 					CODEC_MM_FLAGS_FOR_SCATTER;
-	if ((totalram_pages << PAGE_SHIFT) < 800 * SZ_1M) {
-		/*less memory boards don't cache more,
-		after alloced many pages.*/
-		smgt->no_cache_size_M = 100;
-	} else
-		smgt->no_cache_size_M = 0;
 	INIT_LIST_HEAD(&smgt->free_list);
 	INIT_LIST_HEAD(&smgt->scatter_list);
 	mutex_init(&smgt->monitor_lock);
