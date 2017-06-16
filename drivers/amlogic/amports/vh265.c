@@ -268,7 +268,7 @@ static u32 dynamic_buf_num_margin;
 #else
 static u32 buf_alloc_width;
 static u32 buf_alloc_height;
-static u32 dynamic_buf_num_margin = 10;
+static u32 dynamic_buf_num_margin = 8;
 #endif
 static u32 max_buf_num = 16;
 static u32 buf_alloc_size;
