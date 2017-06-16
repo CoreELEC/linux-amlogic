@@ -85,12 +85,12 @@ unsigned char hdmi_pll_mode = 0; /* 1, use external clk as hdmi pll source */
 /* Pixel format: 0=RGB444; 1=YCbCr444; 2=Rsrv; 3=YCbCr422. */
 #define TX_INPUT_COLOR_FORMAT   COLORSPACE_YUV444
 /* Pixel range: 0=16-235/240; 1=16-240; 2=1-254; 3=0-255. */
-#define TX_INPUT_COLOR_RANGE	0
+#define TX_INPUT_COLOR_RANGE	3
 /* Pixel bit width: 4=24-bit; 5=30-bit; 6=36-bit; 7=48-bit. */
 #define TX_COLOR_DEPTH		 COLORDEPTH_24B
 /* Pixel format: 0=RGB444; 1=YCbCr422; 2=YCbCr444; 3=YCbCr420. */
 #define TX_OUTPUT_COLOR_FORMAT  COLORSPACE_YUV444
-#define TX_OUTPUT_COLOR_RANGE 0
+#define TX_OUTPUT_COLOR_RANGE 3
 
 #if 1
 /* 0=I2S 2-channel; 1=I2S 4 x 2-channel. */
@@ -1992,7 +1992,7 @@ next:
 			/* set hsync/vsync as default 0 */
 			hd_set_reg_bits(P_VPU_HDMI_DITH_CNTL, 0, 2, 2);
 		}
-		/* 10-8 dithering on (10-8 <= GXL) -- set for LibreELEC, disable for Android */
+		/* 10-8 dithering on (10-8 <= GXL) */
 		hd_set_reg_bits(P_VPU_HDMI_FMT_CTRL, 1, 4, 1);
 		/* 12-10 rounding on (10-8 <= GXL) */
 		hd_set_reg_bits(P_VPU_HDMI_FMT_CTRL, 1, 10, 1);
@@ -3781,14 +3781,13 @@ static int hdmitx_hdmi_dvi_config(struct hdmitx_dev *hdev,
 		hdmitx_set_reg_bits(HDMITX_DWC_FC_AVICONF0, 0, 0, 2);
 #else
 		hdmitx_csc_config(TX_INPUT_COLOR_FORMAT,
-			COLORSPACE_RGB444, TX_COLOR_DEPTH);
+			TX_OUTPUT_COLOR_FORMAT, TX_COLOR_DEPTH);
 #endif
 
 		/* set dvi flag */
 		hdmitx_set_reg_bits(HDMITX_DWC_FC_INVIDCONF, 0, 3, 1);
 
 	} else {
-#if 0
 		/* disable csc in video path */
 		hdmitx_wr_reg(HDMITX_DWC_MC_FLOWCTRL, 0x0);
 
@@ -3797,7 +3796,6 @@ static int hdmitx_hdmi_dvi_config(struct hdmitx_dev *hdev,
 			hdmitx_set_reg_bits(HDMITX_DWC_FC_AVICONF0, 3, 0, 2);
 		else
 			hdmitx_set_reg_bits(HDMITX_DWC_FC_AVICONF0, 2, 0, 2);
-#endif
 		/* set hdmi flag */
 		hdmitx_set_reg_bits(HDMITX_DWC_FC_INVIDCONF, 1, 3, 1);
 	}
@@ -4109,14 +4107,6 @@ void hdmitx_set_avi_colorimetry(struct hdmi_format_para *para)
 		hdmitx_set_reg_bits(HDMITX_DWC_FC_AVICONF1, 1, 6, 2);
 		hdmitx_set_reg_bits(HDMITX_DWC_FC_AVICONF2, 0, 4, 3);
 		break;
-	default:
-		/* C1C0 709 */
-		hdmitx_set_reg_bits(HDMITX_DWC_FC_AVICONF1, 2, 6, 2);
-		hdmitx_set_reg_bits(HDMITX_DWC_FC_AVICONF2, 0, 4, 3);
-		break;
-	}
-#if 0
-	switch (para->vic) {
 	case HDMI_3840x2160p24_16x9:
 	case HDMI_3840x2160p25_16x9:
 	case HDMI_3840x2160p30_16x9:
@@ -4140,9 +4130,11 @@ void hdmitx_set_avi_colorimetry(struct hdmi_format_para *para)
 		}
 		break;
 	default:
+		/* C1C0 709 */
+		hdmitx_set_reg_bits(HDMITX_DWC_FC_AVICONF1, 2, 6, 2);
+		hdmitx_set_reg_bits(HDMITX_DWC_FC_AVICONF2, 0, 4, 3);
 		break;
 	}
-#endif
 }
 
 /*
