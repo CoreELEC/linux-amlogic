@@ -118,36 +118,31 @@ struct vivi_fmt {
 };
 
 static struct vivi_fmt formats[] = {
-{
-	.name = "RGB888 (24)",
-	.fourcc = V4L2_PIX_FMT_RGB24, /* 24  RGB-8-8-8 */
-	.depth = 24, }, {
-		.name = "RGBA8888 (32)",
-		.fourcc = V4L2_PIX_FMT_RGB32, /* 24  RGBA-8-8-8-8 */
-	.depth = 32, }, {
-		.name = "12  Y/CbCr 4:2:0", .fourcc = V4L2_PIX_FMT_NV12,
-		.depth = 12, }, {.name = "21  Y/CbCr 4:2:0", .fourcc =
-		V4L2_PIX_FMT_NV21, .depth = 12, }, {
-		.name = "RGB565 (BE)",
-		.fourcc = V4L2_PIX_FMT_RGB565X, /* rrrrrggg gggbbbbb */
-		.depth = 16, },
-#if 0
 	{
-		.name = "BGRA8888 (32)",
-		.fourcc = V4L2_PIX_FMT_BGR32, /* 24  RGBA-8-8-8-8 */
-		.depth = 32,
-	},
-	{
-		.name = "BGR888 (24)",
-		.fourcc = V4L2_PIX_FMT_BGR24, /* 24  BGR-8-8-8 */
+		.name = "RGB888 (24)",
+		.fourcc = V4L2_PIX_FMT_RGB24, /* 24  RGB-8-8-8 */
 		.depth = 24,
 	},
 	{
-		.name = "YUV420P",
-		.fourcc = V4L2_PIX_FMT_YUV420,
+		.name = "RGBA8888 (32)",
+		.fourcc = V4L2_PIX_FMT_RGB32, /* 24  RGBA-8-8-8-8 */
+		.depth = 32,
+	},
+	{
+		.name = "12  Y/CbCr 4:2:0",
+		.fourcc = V4L2_PIX_FMT_NV12,
 		.depth = 12,
 	},
-#endif
+	{
+		.name = "21  Y/CbCr 4:2:0",
+		.fourcc = V4L2_PIX_FMT_NV21,
+		.depth = 12,
+	},
+	{
+		.name = "RGB565 (BE)",
+		.fourcc = V4L2_PIX_FMT_RGB565X, /* rrrrrggg gggbbbbb */
+		.depth = 16,
+	},
 };
 
 struct vframe_s *amlvideo_pool_ready[AMLVIDEO_POOL_SIZE + 1];
@@ -282,7 +277,6 @@ struct vivi_fh {
 static int index;
 static int unregFlag;
 static int startFlag;
-unsigned eventparam[4];
 struct mutex vfpMutex;
 static int video_receiver_event_fun(int type, void *data, void *private_data)
 {
@@ -304,10 +298,6 @@ static int video_receiver_event_fun(int type, void *data, void *private_data)
 	if (type == VFRAME_EVENT_PROVIDER_REG) {
 		AMLVIDEO_DBG("AML:VFRAME_EVENT_PROVIDER_REG\n");
 
-		if (unregFlag == 0)
-			vf_notify_provider(RECEIVER_NAME,
-						VFRAME_EVENT_RECEIVER_PARAM_SET,
-						(void *)eventparam);
 		ppmgrvf = NULL;
 		first_frame = 0;
 		mutex_unlock(&vfpMutex);
@@ -516,18 +506,6 @@ static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 	fh->vb_vidq.field = f->fmt.pix.field;
 	fh->type = f->type;
 
-	eventparam[0] = f->fmt.pix.width;
-	eventparam[1] = f->fmt.pix.height;
-	if (fh->fmt->fourcc == V4L2_PIX_FMT_RGB24)
-		eventparam[2] = (GE2D_FORMAT_S24_BGR | GE2D_LITTLE_ENDIAN);
-	else if (fh->fmt->fourcc == V4L2_PIX_FMT_RGB32)
-		eventparam[2] = (GE2D_FORMAT_S32_ABGR | GE2D_LITTLE_ENDIAN);
-	else if (fh->fmt->fourcc == V4L2_PIX_FMT_RGB565X)
-		eventparam[2] = (GE2D_FORMAT_S16_RGB_565 | GE2D_LITTLE_ENDIAN);
-	else
-		eventparam[2] = (GE2D_FORMAT_M24_NV21 | GE2D_LITTLE_ENDIAN);
-	vf_notify_provider(RECEIVER_NAME, VFRAME_EVENT_RECEIVER_PARAM_SET,
-				(void *)eventparam);
 	return ret;
 }
 
@@ -543,20 +521,7 @@ static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 	fh->height = f->fmt.pix.height;
 	fh->vb_vidq.field = f->fmt.pix.field;
 	fh->type = f->type;
-	eventparam[0] = f->fmt.pix.width;
-	eventparam[1] = f->fmt.pix.height;
-	if (fh->fmt->fourcc == V4L2_PIX_FMT_RGB24)
-		eventparam[2] = (GE2D_FORMAT_S24_BGR | GE2D_LITTLE_ENDIAN);
-	else if (fh->fmt->fourcc == V4L2_PIX_FMT_RGB32)
-		eventparam[2] = (GE2D_FORMAT_S32_ABGR | GE2D_LITTLE_ENDIAN);
-	else if (fh->fmt->fourcc == V4L2_PIX_FMT_RGB565X)
-		eventparam[2] = (GE2D_FORMAT_S16_RGB_565 | GE2D_LITTLE_ENDIAN);
-	else if (fh->fmt->fourcc == V4L2_PIX_FMT_NV12)
-		eventparam[2] = (GE2D_FORMAT_M24_NV12 | GE2D_LITTLE_ENDIAN);
-	else if (fh->fmt->fourcc == V4L2_PIX_FMT_NV21)
-		eventparam[2] = (GE2D_FORMAT_M24_NV21 | GE2D_LITTLE_ENDIAN);
-	vf_notify_provider(RECEIVER_NAME, VFRAME_EVENT_RECEIVER_PARAM_SET,
-				(void *)eventparam);
+
 	return ret;
 }
 
