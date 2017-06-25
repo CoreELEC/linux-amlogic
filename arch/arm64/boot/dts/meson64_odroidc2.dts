@@ -84,11 +84,10 @@
 		};
 
 		/*  POST PROCESS MANAGER */
-		ppmgr_reserved:linux,ppmgr {
-			compatible = "amlogic, ppmgr_memory";
-			size = <0x0 0x0>;
-			multi-use;
-		};
+		//ppmgr_reserved:linux,ppmgr {
+		//	compatible = "amlogic, ppmgr_memory";
+		//	size = <0x0 0x2000000>;
+		//};
 
 		codec_mm_cma:linux,codec_mm_cma {
 			compatible = "shared-dma-pool";
@@ -130,7 +129,7 @@
 		mem_size = <0x01800000 0x00100000>; /* fb0/fb1 memory size */
 		display_mode_default = "1080p60hz";
 		scale_mode = <1>; /** 0:VPU free scale 1:OSD free scale 2:OSD super scale */
-		display_size_default = <1920 1080 1920 2160 32>; //1920*1080*4*3 = 0x17BB000
+		display_size_default = <1920 1080 1920 3240 32>; //1920*1080*4*3 = 0x17BB000
 	};
 	ge2d {
 		compatible = "amlogic, ge2d";
@@ -258,7 +257,7 @@
 	};
 	ppmgr {
 		compatible = "amlogic, ppmgr";//to match of_device_id's compatible member
-		memory-region = <&ppmgr_reserved>;
+		memory-region = <&ion_reserved>;
 		dev_name = "ppmgr";
 		status = "okay";
 	};
@@ -891,6 +890,9 @@
 };
 &audio_data{
 	status = "okay";
+};
+&aml_remote {
+	status = "disabled";
 };
 &meson_ir {
 	status = "okay";
