@@ -1578,6 +1578,7 @@ static int drm_queue_vblank_event(struct drm_device *dev, unsigned int pipe,
 {
 	struct drm_vblank_crtc *vblank = &dev->vblank[pipe];
 	struct drm_pending_vblank_event *e;
+	struct drm_crtc *crtc;
 	struct timeval now;
 	unsigned long flags;
 	unsigned int seq;
@@ -1594,6 +1595,10 @@ static int drm_queue_vblank_event(struct drm_device *dev, unsigned int pipe,
 	e->event.base.type = DRM_EVENT_VBLANK;
 	e->event.base.length = sizeof(e->event);
 	e->event.user_data = vblwait->request.signal;
+	e->event.crtc_id = 0;
+	crtc = drm_crtc_from_index(dev, pipe);
+	if (crtc)
+		e->event.crtc_id = crtc->base.id;
 
 	spin_lock_irqsave(&dev->event_lock, flags);
 
