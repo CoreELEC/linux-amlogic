@@ -353,3 +353,12 @@ config DVB_USB_TBS5520SE
 	select DVB_SI2183 if MEDIA_SUBDRV_AUTOSELECT
 	help
 	  Say Y here to support the Turbosight TBS5520SE USB2 DVB-T/T2/C/C2/S/S2/ISDB-T device
+
+config DVB_USB_TBS5580
+        tristate "Turbosight TBS5580 CI support"
+        depends on DVB_USB
+        select DVB_SI2183 if MEDIA_SUBDRV_AUTOSELECT
+        select MEDIA_TUNER_SI2157 if MEDIA_SUBDRV_AUTOSELECT
+	select MEDIA_TUNER_AV201X if MEDIA_SUBDRV_AUTOSELECT
+        help
+          Say Y here to support the Turbosight TBS5580 CI USB2 DVB-T/T2/C/C2/S/S2/S2x device
