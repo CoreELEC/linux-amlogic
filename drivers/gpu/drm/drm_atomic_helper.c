@@ -2011,8 +2011,8 @@ void drm_atomic_helper_swap_state(struct drm_atomic_state *state,
 	struct drm_plane *plane;
 	struct drm_plane_state *plane_state;
 	struct drm_crtc_commit *commit;
-	void *obj, *obj_state;
-	const struct drm_private_state_funcs *funcs;
+	struct drm_private_obj *obj;
+	struct drm_private_state *obj_state;
 
 	if (stall) {
 		for_each_crtc_in_state(state, crtc, crtc_state, i) {
@@ -2062,8 +2062,11 @@ void drm_atomic_helper_swap_state(struct drm_atomic_state *state,
 		plane->state->state = NULL;
 	}
 
-	__for_each_private_obj(state, obj, obj_state, i, funcs)
-		funcs->swap_state(obj, &state->private_objs[i].obj_state);
+	for_each_private_obj(state, obj, obj_state, i) {
+		obj->state->state = state;
+		swap(state->private_objs[i].state, obj->state);
+		obj->state->state = NULL;
+	}
 }
 EXPORT_SYMBOL(drm_atomic_helper_swap_state);
 
@@ -3490,3 +3493,18 @@ backoff:
 	goto retry;
 }
 EXPORT_SYMBOL(drm_atomic_helper_legacy_gamma_set);
+
+/**
+ * __drm_atomic_helper_private_duplicate_state - copy atomic private state
+ * @obj: CRTC object
+ * @state: new private object state
+ *
+ * Copies atomic state from a private objects's current state and resets inferred values.
+ * This is useful for drivers that subclass the private state.
+ */
+void __drm_atomic_helper_private_obj_duplicate_state(struct drm_private_obj *obj,
+						     struct drm_private_state *state)
+{
+	memcpy(state, obj->state, sizeof(*state));
+}
+EXPORT_SYMBOL(__drm_atomic_helper_private_obj_duplicate_state);
