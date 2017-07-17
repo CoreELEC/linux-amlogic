@@ -758,7 +758,7 @@
 		};
 
 	};
-	meson-remote {
+	aml_remote:meson-remote {
 		compatible = "amlogic, aml_remote";
 		dev_name = "meson-remote";
 		status = "okay";
