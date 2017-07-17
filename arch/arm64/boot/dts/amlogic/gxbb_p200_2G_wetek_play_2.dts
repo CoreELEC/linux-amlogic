@@ -1134,10 +1134,12 @@
 		};
 	};
 
-/*
 	dvb {
-		compatible = "amlogic, dvb";
-		dev_name = "dvb";
+		compatible = "amlogic,dvb";
+		dev_name = "wetek-dvb";
+		status = "okay";
+		fec_reset_gpio-gpios = <&gpio GPIOY_13 GPIO_ACTIVE_HIGH>;
+		power_ctrl_gpio-gpios = <&gpio GPIOY_15 GPIO_ACTIVE_LOW>;
 		//"parallel","serial","disable"
 		ts0 = "parallel";
 		ts0_control = <0>;
@@ -1151,7 +1153,7 @@
 				&clock GCLK_IDX_HIU_PARSER_TOP>;
 		reset-names = "demux", "asyncfifo", "ahbarb0", "uparsertop";
 	};
-	dvbfe {
+/*	dvbfe {
 		compatible = "amlogic, dvbfe";
 		dev_name = "dvbfe";
 		dtv_demod0 = "Mxl241";
@@ -1162,11 +1164,10 @@
 		fe0_dtv_demod = <0>;
 		fe0_ts = <0>;
 		fe0_dev = <0>;
-	};
-*/
+	};*/
 };
 &i2c_a {
-  status = "disabled";
+  status = "okay";
   /*p200: multiplex with usb PWR, disbaled*/
 };
 /*
