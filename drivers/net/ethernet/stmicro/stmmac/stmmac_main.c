@@ -3471,7 +3471,7 @@ static void moniter_tx_handler(struct work_struct *work)
 			if (c_phy_dev->link) {
 				if (priv->dirty_tx != priv->cur_tx &&
 						check_tx == 0) {
-					pr_info("tx queueing\n");
+					pr_debug("tx queueing\n");
 					check_tx = 1;
 					last_dirty_tx = priv->dirty_tx;
 				}
@@ -3481,7 +3481,7 @@ static void moniter_tx_handler(struct work_struct *work)
 					i = 0;
 					check_tx = 0;
 					if (last_dirty_tx == priv->dirty_tx) {
-						pr_info("tx stop, recover eth new\n");
+						pr_debug("tx stop, recover eth new\n");
 						stmmac_release(priv->dev);
 						stmmac_open(priv->dev);
 					}
