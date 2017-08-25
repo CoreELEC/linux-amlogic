@@ -15,7 +15,7 @@ DHDCFLAGS = -Wall -Wstrict-prototypes -Dlinux -DBCMDRIVER -DSDTEST       \
 	-DKEEP_ALIVE -DPKT_FILTER_SUPPORT -DPNO_SUPPORT -DDHDTCPACK_SUPPRESS  \
 	-DDHD_DONOT_FORWARD_BCMEVENT_AS_NETWORK_PKT -DRXFRAME_THREAD          \
 	-DSWTXGLOM                                                            \
-	-DENABLE_INSMOD_NO_FW_LOAD                                            \
+	-DENABLE_INSMOD_NO_FW_LOAD -DGET_CUSTOM_MAC_ENABLE                   \
 	-I$(src) -I$(src)/include
 
 DHDOFILES = aiutils.o siutils.o sbutils.o bcmutils.o bcmwifi_channels.o \
