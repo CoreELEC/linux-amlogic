@@ -52,6 +52,7 @@ struct led_classdev {
 #define LED_DEV_CAP_FLASH	(1 << 24)
 #define LED_HW_PLUGGABLE	(1 << 25)
 #define LED_PANIC_INDICATOR	(1 << 26)
+#define LED_RETAIN_AT_SHUTDOWN	(1 << 27)
 
 	/* Set LED brightness level
 	 * Must not sleep. Use brightness_set_blocking for drivers
@@ -373,6 +374,7 @@ struct gpio_led {
 	unsigned	retain_state_suspended : 1;
 	unsigned	panic_indicator : 1;
 	unsigned	default_state : 2;
+	unsigned	retain_state_shutdown : 1;
 	/* default_state should be one of LEDS_GPIO_DEFSTATE_(ON|OFF|KEEP) */
 	struct gpio_desc *gpiod;
 };
