@@ -3572,8 +3572,6 @@ static int hdmitx_cntl_ddc(struct hdmitx_dev *hdev, unsigned cmd,
 	case DDC_HDCP_MUX_INIT:
 		if (argv == 2) {
 			hdmitx_ddc_hw_op(DDC_MUX_DDC);
-			hdmitx_set_reg_bits(HDMITX_DWC_MC_CLKDIS, 1, 6, 1);
-			udelay(5);
 			hdmitx_wr_reg(HDMITX_DWC_HDCP22REG_CTRL, 0x6);
 			hdmitx_set_reg_bits(HDMITX_TOP_SW_RESET, 1, 5, 1);
 			udelay(10);
