@@ -2020,6 +2020,7 @@ void set_vpp_lut(
 
 	if (lut_sel == VPP_LUT_OSD_OETF) {
 		/* enable latched */
+		WRITE_VPP_REG_BITS(VIU_OSD1_OETF_CTL, 1, 28, 1);
 		if (r && r_map)
 			for (i = 0; i < OSD_OETF_LUT_SIZE; i++)
 				r_map[i] = r[i];
