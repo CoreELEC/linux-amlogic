@@ -593,6 +593,18 @@ void hdmitx_output_rgb(void)
 	hdmi_output_rgb = 1;
 }
 
+static int is_philips_2009(struct rx_cap *pRXCap)
+{
+	if ((strncmp(pRXCap->ReceiverBrandName, "PHL", strlen(pRXCap->ReceiverBrandName)) == 0) && \
+		(strncmp(pRXCap->ReceiverProductName, "Philips", strlen(pRXCap->ReceiverProductName)) == 0) && \
+		(pRXCap->manufacture_year == 19)) {
+		hdmi_print(INF, SYS, "This is a 2009 Philips TV which misreports colour caps");
+		return 1;
+	}
+	else
+		return 0;
+}
+
 int hdmitx_set_display(struct hdmitx_dev *hdev, enum hdmi_vic VideoCode)
 {
 	struct hdmitx_vidpara *param = NULL;
@@ -618,7 +630,7 @@ int hdmitx_set_display(struct hdmitx_dev *hdev, enum hdmi_vic VideoCode)
 	hdev->cur_video_param = param;
 	if (param) {
 		param->color = param->color_prefer;
-		if (hdmi_output_rgb) {
+		if (hdmi_output_rgb || is_philips_2009(&hdev->RXCap)) {
 			param->color = COLORSPACE_RGB444;
 		} else {
 			/* HDMI CT 7-24 Pixel Encoding
