@@ -4072,9 +4072,9 @@ void amvecm_matrix_process(struct vframe_s *vf)
 	} else {
 		/* check last signal type */
 		if ((last_vf != NULL) &&
-			((((last_vf_signal_type >> 16) & 0xff) == 9)
+			((((last_vf->signal_type >> 16) & 0xff) == 9)
 			|| customer_master_display_en
-			|| (((last_vf_signal_type >> 8) & 0xff) >= 14)))
+			|| (((last_vf->signal_type >> 8) & 0xff) >= 14)))
 			null_vf_cnt++;
 
 		if ((((READ_VPP_REG(VPP_MISC) & (1<<10)) == 0)
