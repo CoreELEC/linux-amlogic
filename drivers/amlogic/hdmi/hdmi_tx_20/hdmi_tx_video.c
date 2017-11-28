@@ -647,7 +647,8 @@ int hdmitx_set_display(struct hdmitx_dev *hdev, enum hdmi_vic VideoCode)
 				break;
 			}
 			if (param->color == COLORSPACE_RGB444) {
-				hdev->para->cs = hdev->cur_video_param->color;
+				hdev->para->cs = COLORSPACE_RGB444;
+				hdev->para->cd = COLORDEPTH_24B;
 				pr_info("hdmitx: rx edid only support RGB format\n");
 			}
 
