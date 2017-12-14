@@ -33,7 +33,7 @@
 #include <linux/amlogic/hdmi_tx/hdmi_tx_module.h>
 #include <linux/amlogic/hdmi_tx/hdmi_tx_compliance.h>
 
-static unsigned char hdmi_output_rgb;
+unsigned char hdmi_output_rgb;
 static void hdmitx_set_spd_info(struct hdmitx_dev *hdev);
 static void hdmi_set_vend_spec_infofram(struct hdmitx_dev *hdev,
 	enum hdmi_vic VideoCode);
