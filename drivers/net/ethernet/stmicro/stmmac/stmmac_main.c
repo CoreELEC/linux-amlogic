@@ -63,7 +63,7 @@
 extern unsigned int g_mac_addr_setup;
 
 #if defined (CONFIG_EFUSE)
-extern char *efuse_get_mac(char *addr);
+extern int efuse_get_mac(char *addr);
 #endif
 
 #define STMMAC_ALIGN(x)	L1_CACHE_ALIGN(x)
