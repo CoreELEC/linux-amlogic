@@ -24,6 +24,7 @@
         /*mali-supply = <&vdd_mali>;*/
         operating-points = <
             /* KHz   uV */
+            792000 1000000
             666666 1000000
             500000 1000000
             400000 1000000
@@ -32,7 +33,7 @@
             125000 1000000
         >;
 
-        tbl = <&dvfs125_cfg &dvfs285_cfg &dvfs400_cfg &dvfs500_cfg &dvfs666_cfg>;
+        tbl = <&dvfs285_cfg &dvfs400_cfg &dvfs500_cfg &dvfs666_cfg &dvfs800_cfg &dvfs800_cfg>;
 
         /*clocks = <&gpu_clk>;
         clock-names = "clk_mali";*/
