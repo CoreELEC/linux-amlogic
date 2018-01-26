@@ -423,6 +423,7 @@ static int bt_probe(struct platform_device *pdev)
 	if (ret)
 		pr_err("dev_pm_set_wake_irq failed: %d\n", ret);
 
+	bt_device_on(pdata);
 	return 0;
 
 err_rfkill:
