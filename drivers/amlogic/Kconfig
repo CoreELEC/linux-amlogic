@@ -97,6 +97,8 @@ source "drivers/amlogic/pm/Kconfig"
 
 source "drivers/amlogic/dvb_tv/Kconfig"
 
+source "drivers/amlogic/wetek/Kconfig"
+
 source "drivers/amlogic/mailbox/Kconfig"
 
 source "drivers/amlogic/rdma/Kconfig"
