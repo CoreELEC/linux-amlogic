@@ -1,0 +1,13 @@
+#
+# AVL6862 dvb driver configuration
+#
+
+menu "AVL6862 dvb driver"
+
+config AVL6862
+	tristate "AVL6862 dvb driver"
+	default n
+	select DVB_CORE
+	help
+		Select to enable AVL6862 dvb driver.
+endmenu
