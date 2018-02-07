@@ -26,6 +26,7 @@
 #include <dt-bindings/pwm/meson.h>
 #include "mesongxl.dtsi"
 / {
+	le-dt-id = "gxl_p231_1g";
 	model = "Amlogic";
 	compatible = "amlogic, Gxbb";
 	amlogic-dt-id = "gxl_p231_1g";
