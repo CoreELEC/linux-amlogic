@@ -188,13 +188,13 @@ static int meson_ir_probe(struct platform_device *pdev)
 		}
 	}
 
+	setup_timer(&ir->flush_timer, flush_timer, (unsigned long) ir);
+
 	ret = devm_request_irq(dev, ir->irq, meson_ir_irq, 0, "ir-meson", ir);
 	if (ret) {
 		dev_err(dev, "failed to request irq\n");
 		goto out_unreg;
 	}
-
-	setup_timer(&ir->flush_timer, flush_timer, (unsigned long) ir);
 
 	/* Reset the decoder */
 	meson_ir_set_mask(ir, IR_DEC_REG1, REG1_RESET, REG1_RESET);
