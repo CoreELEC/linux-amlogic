@@ -1974,30 +1974,36 @@ next:
 	case COLORDEPTH_48B:
 		if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXM) {
 			unsigned int hs_flag = 0;
+                        /* 12-10 dithering on */
+                        hd_set_reg_bits(P_VPU_HDMI_FMT_CTRL, 1, 4, 1);
 			/* hsync/vsync not invert */
 			hs_flag = (hd_read_reg(P_VPU_HDMI_SETTING) >> 2) & 0x3;
 			hd_set_reg_bits(P_VPU_HDMI_SETTING, 0, 2, 2);
+                        /* 12-10 rounding off */
+                        hd_set_reg_bits(P_VPU_HDMI_FMT_CTRL, 0, 10, 1);
 			/* 10-8 dithering off (2x2 old dither) */
 			hd_set_reg_bits(P_VPU_HDMI_DITH_CNTL, 0, 4, 1);
 			/* set hsync/vsync */
 			hd_set_reg_bits(P_VPU_HDMI_DITH_CNTL, hs_flag, 2, 2);
+                } else {
+                        hd_set_reg_bits(P_VPU_HDMI_FMT_CTRL, 0, 4, 1);
+                        hd_set_reg_bits(P_VPU_HDMI_FMT_CTRL, 0, 10, 1);
 		}
-		/* 12-10 dithering off (10-8 <= GXL) */
-		hd_set_reg_bits(P_VPU_HDMI_FMT_CTRL, 0, 4, 1);
-		/* 12-10 rounding off (10-8 <= GXL) */
-		hd_set_reg_bits(P_VPU_HDMI_FMT_CTRL, 0, 10, 1);
 		break;
 	default:
 		if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXM) {
+                        /* 12-10 dithering off */
+                        hd_set_reg_bits(P_VPU_HDMI_FMT_CTRL, 0, 4, 1);
+                        /* 12-10 rounding on */
+                        hd_set_reg_bits(P_VPU_HDMI_FMT_CTRL, 1, 10, 1);
 			/* 10-8 dithering on (2x2 old dither) */
 			hd_set_reg_bits(P_VPU_HDMI_DITH_CNTL, 1, 4, 1);
 			/* set hsync/vsync as default 0 */
 			hd_set_reg_bits(P_VPU_HDMI_DITH_CNTL, 0, 2, 2);
-		}
-		/* 10-8 dithering on (10-8 <= GXL) */
-		hd_set_reg_bits(P_VPU_HDMI_FMT_CTRL, 1, 4, 1);
-		/* 12-10 rounding on (10-8 <= GXL) */
-		hd_set_reg_bits(P_VPU_HDMI_FMT_CTRL, 1, 10, 1);
+		} else {
+                       hd_set_reg_bits(P_VPU_HDMI_FMT_CTRL, 0, 4, 1);
+                       hd_set_reg_bits(P_VPU_HDMI_FMT_CTRL, 1, 10, 1);
+                }
 		break;
 	}
 
