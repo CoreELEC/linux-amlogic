@@ -3019,6 +3019,20 @@ static void hdmitx_debug(struct hdmitx_dev *hdev, const char *buf)
 			hdmi_print(INF, HPD "hdmitx: unlock hpd\n");
 		}
 		return;
+	} else if (strncmp(tmpbuf, "dither", 5) == 0) {
+		int dither = 0;
+		if (tmpbuf[6] == '1')
+			dither = 1;
+		hd_set_reg_bits(P_VPU_HDMI_FMT_CTRL, dither, 4, 1);
+		hdmi_print(INF, SYS, "hdmitx: adjust dither to %d", dither);
+		return;
+        } else if (strncmp(tmpbuf, "round", 5) == 0) {
+                int round = 0;
+                if (tmpbuf[6] == '1')
+                        round = 1;
+		hd_set_reg_bits(P_VPU_HDMI_FMT_CTRL, round, 10, 1);
+                hdmi_print(INF, SYS, "hdmitx: adjust round to %d", round);
+		return;
 	} else if (strncmp(tmpbuf, "hpd_stick", 9) == 0) {
 		if (tmpbuf[9] == '1')
 			hdev->hdcp_hpd_stick = 1;
