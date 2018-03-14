@@ -3033,6 +3033,16 @@ static void hdmitx_debug(struct hdmitx_dev *hdev, const char *buf)
 		hd_set_reg_bits(P_VPU_HDMI_FMT_CTRL, round, 10, 1);
                 hdmi_print(INF, SYS, "hdmitx: adjust round to %d", round);
 		return;
+	} else if (strncmp(tmpbuf, "do2020", 6) == 0) {
+		hdmi_print(INF, SYS, "hdmitx: BT2020 AVI on");
+		hdmitx_set_reg_bits(HDMITX_DWC_FC_AVICONF1, 3, 6, 2);
+                hdmitx_set_reg_bits(HDMITX_DWC_FC_AVICONF2, 6, 4, 3);
+		return;
+        } else if (strncmp(tmpbuf, "no2020", 6) == 0) {
+                hdmi_print(INF, SYS, "hdmitx: BT2020 AVI off");
+                hdmitx_set_reg_bits(HDMITX_DWC_FC_AVICONF1, 2, 6, 2);
+                hdmitx_set_reg_bits(HDMITX_DWC_FC_AVICONF2, 0, 4, 3);
+		return;
 	} else if (strncmp(tmpbuf, "hpd_stick", 9) == 0) {
 		if (tmpbuf[9] == '1')
 			hdev->hdcp_hpd_stick = 1;
