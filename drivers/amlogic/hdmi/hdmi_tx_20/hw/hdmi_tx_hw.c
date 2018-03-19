@@ -1968,6 +1968,11 @@ next:
 		hd_set_reg_bits(P_VPU_HDMI_SETTING, 0, 4, 4);
 		hd_set_reg_bits(P_VPU_HDMI_SETTING, 1, 8, 1);
 	}
+	mdelay(1);
+	hd_set_reg_bits(P_VPU_HDMI_FMT_CTRL, 0, 4, 1);
+	mdelay(1);
+        hd_set_reg_bits(P_VPU_HDMI_FMT_CTRL, 1, 10, 1);
+#if 0
 	switch (hdev->cur_video_param->color_depth) {
 	case COLORDEPTH_30B:
 	case COLORDEPTH_36B:
@@ -2006,6 +2011,7 @@ next:
                 }
 		break;
 	}
+#endif
 
 	hdmitx_set_hw(hdev);
 
