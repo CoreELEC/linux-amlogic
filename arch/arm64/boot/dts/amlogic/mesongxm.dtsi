@@ -839,4 +839,10 @@
 		 reg = <0x0 0xc883e000 0x0 0x28>;
 	 };
 
+	le-vfd {
+		compatible = "le,vfd";
+		dev_name = "le-vfd";
+		status = "okay";
+	};
+
 };/* end of / */

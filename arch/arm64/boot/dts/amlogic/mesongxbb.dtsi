@@ -832,5 +832,10 @@
 		};
 	};
 
+	le-vfd {
+		compatible = "le,vfd";
+		dev_name = "le-vfd";
+		status = "okay";
+	};
 
 };/* end of / */
