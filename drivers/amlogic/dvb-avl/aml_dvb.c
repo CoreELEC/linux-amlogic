@@ -57,14 +57,16 @@
 #include "aml_dvb.h"
 #include "aml_dvb_reg.h"
 
-#define pr_dbg(fmt, args...) printk("%s: " fmt, __func__, ## args)
-#define pr_error(fmt, args...) printk("%s: " fmt, __func__, ## args)
-#define pr_inf(fmt, args...)   printk("%s: " fmt, __func__, ## args)
-//#define pr_error(fmt, args...) printk("DVB: " fmt, ## args)
-//#define pr_inf(fmt, args...)   printk("DVB: " fmt, ## args)
+#define pr_dbg(fmt, args...)\
+	do {\
+		if (debug_dvb)\
+			printk("DVB: %s: " fmt, __func__, ## args);\
+	} while (0)
+#define pr_error(fmt, args...) printk("DVB: %s: " fmt, __func__, ## args)
+#define pr_inf(fmt, args...)   printk("DVB: %s: " fmt, __func__, ## args)
 
 MODULE_PARM_DESC(debug_dvb, "\n\t\t Enable dvb debug information");
-static int debug_dvb = 1;
+static int debug_dvb;
 module_param(debug_dvb, int, 0644);
 
 #define CARD_NAME "amlogic-dvb"
@@ -166,6 +168,7 @@ static int aml_dvb_dmx_init(struct aml_dvb *advb, struct aml_dmx *dmx, int id)
 		dmx->dmx_irq = res->start;
 	}
 #endif
+	pr_dbg("demux%d_irq: %d\n", id, dmx->dmx_irq);
 
 	dmx->source  = 0;
 	dmx->dump_ts_select = 0;
@@ -194,6 +197,7 @@ static int aml_dvb_dmx_init(struct aml_dvb *advb, struct aml_dmx *dmx, int id)
 	for (i=0; i<DMX_DEV_COUNT; i++) {
 		int source = i+DMX_FRONTEND_0;
 		dmx->hw_fe[i].source = source;
+	pr_dbg("demux%d: source:%d\n", i, source);
 
 		if ((ret = dmx->demux.dmx.add_frontend(&dmx->demux.dmx, &dmx->hw_fe[i])) < 0) {
 			pr_error("adding hw_frontend to dmx failed: error %d",ret);
@@ -280,7 +284,6 @@ static int aml_dvb_asyncfifo_init(struct aml_dvb *advb, struct aml_asyncfifo *as
 		asyncfifo->asyncfifo_irq = res->start;
 	}
 #endif
-pr_inf("af:%d irq:%d\n", id, asyncfifo->asyncfifo_irq);
 
 	asyncfifo->dvb = advb;
 	asyncfifo->id = id;
@@ -344,7 +347,6 @@ static ssize_t stb_show_source(struct class *class, struct class_attribute *attr
 static ssize_t stb_store_source(struct class *class,struct class_attribute *attr, const char *buf, size_t size)
 {
     dmx_source_t src = -1;
-pr_inf("inp:%s\n", buf);
     if(!strncmp("ts0", buf, 3)) {
     	src = DMX_SOURCE_FRONT0;
     } else if(!strncmp("ts1", buf, 3)) {
@@ -400,7 +402,6 @@ static ssize_t dsc_store_source(struct class *class, struct class_attribute *att
                           size_t size)
 {
 	dmx_source_t src = -1;
-pr_inf("inp:%s\n", buf);
 
 	if(!strncmp("dmx0", buf, 4)) {
 		src = DMX_SOURCE_FRONT0; 	//	src = DMX_SOURCE_FRONT0+100;
@@ -487,7 +488,6 @@ static ssize_t tso_store_source(struct class *class,struct class_attribute *attr
                           size_t size)
 {
     dmx_source_t src = -1;
-pr_inf("inp:%s\n", buf);
 
     if(!strncmp("ts0", buf, 3)) {
     	src = DMX_SOURCE_FRONT0;
@@ -558,7 +558,6 @@ static ssize_t demux##i##_show_source(struct class *class,  struct class_attribu
 static ssize_t demux##i##_store_source(struct class *class,  struct class_attribute *attr,const char *buf, size_t size)\
 {\
     dmx_source_t src = -1;\
-pr_inf("inp:%s\n", buf);    \
 	if(!strncmp("ts0", buf, 3)) {\
     	src = DMX_SOURCE_FRONT0;\
     } else if(!strncmp("ts1", buf, 3)) {\
@@ -757,7 +756,6 @@ static ssize_t asyncfifo##i##_show_source(struct class *class,  struct class_att
 static ssize_t asyncfifo##i##_store_source(struct class *class,  struct class_attribute *attr,const char *buf, size_t size)\
 {\
     enum aml_dmx_id_t src = -1;\
-pr_inf("inp:%s\n", buf);    \
 	if(!strncmp("dmx0", buf, 4)) {\
     	src = AM_DMX_0;\
     } else if(!strncmp("dmx1", buf, 4)) {\
@@ -990,6 +988,7 @@ static const struct of_device_id aml_dvb_dt_match[]={
 	{
 		.compatible = "amlogic,dvb",
 	},
+
 	{},
 };
 #endif /*CONFIG_OF*/
@@ -1174,10 +1173,10 @@ static int aml_dvb_probe(struct platform_device *pdev)
 	if(pdev->dev.of_node){
 		int s2p_id = 0;
 
+		char buf[32];
+		const char *str;
+		u32 value;
 		for (i=0; i<TS_IN_COUNT; i++){
-			char buf[32];
-			const char *str;
-			u32 value;
 
 			advb->ts[i].mode   = AM_TS_DISABLE;
 			advb->ts[i].s2p_id = -1;
@@ -1229,6 +1228,14 @@ static int aml_dvb_probe(struct platform_device *pdev)
 					advb->s2p[advb->ts[i].s2p_id].invert = value;
 				}
 			}
+		}
+		snprintf(buf, sizeof(buf), "ts_out_invert");
+		ret =
+			of_property_read_u32(pdev->dev.of_node, buf,
+				&value);
+		if (!ret) {
+				pr_inf("%s: 0x%x\n", buf, value);
+				advb->ts_out_invert = value;
 		}
 	}
 #endif
