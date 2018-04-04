@@ -73,6 +73,7 @@ static struct r848_config r848_config = {
 static struct avl6862_config avl6862_config = {
 	.demod_address = 0x14,
 	.tuner_address = 0x7A,
+	.ts_serial = 0,
 };
 
 int avl6862_Reset(void)
@@ -113,11 +114,13 @@ static int avl6862_fe_init(struct aml_dvb *advb, struct platform_device *pdev, s
 	pr_inf("Init AVL6862 frontend %d\n", id);
 	
 #ifdef CONFIG_OF
+	of_property_read_u32(pdev->dev.of_node, "fe0_ts", &avl6862_config.ts_serial);
+	pr_dbg("fe0_ts=%d\n", avl6862_config.ts_serial);
 	if (of_property_read_u32(pdev->dev.of_node, "dtv_demod0_i2c_adap_id", &i2c_adap_id)) {
 		ret = -ENOMEM;
 		goto err_resource;
 	}
-	pr_dbg("i2c_adap_id=%d\n", &i2c_adap_id);
+	pr_dbg("i2c_adap_id=%d\n", i2c_adap_id);
 	desc = of_get_named_gpiod_flags(pdev->dev.of_node, "dtv_demod0_reset_gpio-gpios", 0, NULL);
 	gpio_reset = desc_to_gpio(desc);
 	pr_dbg("gpio_reset=%d\n", gpio_reset);
@@ -125,6 +128,13 @@ static int avl6862_fe_init(struct aml_dvb *advb, struct platform_device *pdev, s
 	desc = of_get_named_gpiod_flags(pdev->dev.of_node, "dtv_demod0_power_gpio-gpios", 0, NULL);
 	gpio_power = desc_to_gpio(desc);
 	pr_dbg("gpio_power=%d\n", gpio_power);
+
+	avl6862_config.gpio_lock_led =0;
+	desc = of_get_named_gpiod_flags(pdev->dev.of_node, "dtv_demod0_lock_gpio-gpios", 0, NULL);
+	if (!PTR_RET(desc)) {
+	  avl6862_config.gpio_lock_led = desc_to_gpio(desc);
+	  pr_dbg("gpio_lock_led=%d\n", avl6862_config.gpio_lock_led);
+        }
 #endif /*CONFIG_OF*/
 
 	frontend_reset = gpio_reset;

@@ -243,6 +243,7 @@ struct aml_dvb {
 	struct timer_list    watchdog_timer;
 	int                  dmx_watchdog_disable[DMX_DEV_COUNT];
 	struct aml_swfilter  swfilter;
+	int		     ts_out_invert;
 };
 
 

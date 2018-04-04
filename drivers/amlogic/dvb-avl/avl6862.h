@@ -23,22 +23,7 @@
 #include "dvb_frontend.h"
 
 #define MAX_CHANNEL_INFO 256
-#if 0
-typedef struct s_DVBTx_Channel_TS
-{
-    // number, example 474*1000 is RF frequency 474MHz.
-    int channel_freq_khz;
-    // number, example 8000 is 8MHz bandwith channel.
-    int channel_bandwith_khz;
 
-    u8 channel_type;
-    // 0 - Low priority layer, 1 - High priority layer
-    u8 dvbt_hierarchy_layer;
-    // data PLP id, 0 to 255; for single PLP DVBT2 channel, this ID is 0; for DVBT channel, this ID isn't used.
-    u8 data_plp_id;
-    u8 channel_profile;
-}s_DVBTx_Channel_TS;
-#endif
 struct avl6862_priv {
 	struct i2c_adapter *i2c;
  	struct avl6862_config *config;
@@ -47,18 +32,18 @@ struct avl6862_priv {
 
 	/* DVB-Tx */
 	u16 g_nChannel_ts_total;
-//	s_DVBTx_Channel_TS global_channel_ts_table[MAX_CHANNEL_INFO];
 };
 
 struct avl6862_config {
-	int		i2c_id; // i2c adapter id
-	void	*i2c_adapter; // i2c adapter
+	int		i2c_id;        // i2c adapter id
+	void		*i2c_adapter;  // i2c adapter
 	u8		demod_address; // demodulator i2c address
 	u8		tuner_address; // tuner i2c address
-	unsigned char eDiseqcStatus;
+	unsigned char 	eDiseqcStatus;
+	int             ts_serial;
+	int		gpio_lock_led;
 };
 
 extern struct dvb_frontend *avl6862_attach(struct avl6862_config *config, struct i2c_adapter *i2c);
-extern struct dvb_frontend *avl6862x_attach(struct avl6862_config *config, struct i2c_adapter *i2c);
 
 #endif /* AVL6862_H */

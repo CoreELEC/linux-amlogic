@@ -26,6 +26,7 @@
 #include <linux/init.h>
 #include <linux/string.h>
 #include <linux/bitrev.h>
+#include <linux/amlogic/aml_gpio_consumer.h>
 
 #include "dvb_frontend.h"
 #include "avl6862.h"
@@ -39,7 +40,6 @@
 MODULE_PARM_DESC(debug_avl, "\n\t\t Enable AVL demodulator debug information");
 static int debug_avl;
 module_param(debug_avl, int, 0644);
-
 
 static int avl6862_i2c_rd(struct avl6862_priv *priv, u8 *buf, int len)
 {
@@ -952,6 +952,7 @@ static int avl6862_set_dvbt(struct dvb_frontend *fe)
 }
 
 #define I2C_RPT_DIV ((0x2A)*(250000)/(240*1000))	//m_CoreFrequency_Hz 250000000
+#define uiTSFrequencyHz 270000000
 
 
 static int avl6862_set_dvbmode(struct dvb_frontend *fe,
@@ -1005,14 +1006,42 @@ static int avl6862_set_dvbmode(struct dvb_frontend *fe,
 	ret |= avl6862_WR_REG32(priv, REG_GPIO_BASE + GPIO_LNB_VOLTAGE, GPIO_0);
 
 	/* set TS mode */
-	ret |= avl6862_WR_REG8(priv,0x200 + rc_ts_serial_caddr_offset, AVL_TS_PARALLEL);
+	if (priv->config->ts_serial) {
+		ret |= avl6862_WR_REG8(priv,0x200 + rc_ts_serial_caddr_offset, AVL_TS_SERIAL);
+		dbg_avl("set AVL_TS_SERIAL");
+	}
+	else {
+		ret |= avl6862_WR_REG8(priv,0x200 + rc_ts_serial_caddr_offset, AVL_TS_PARALLEL);
+		dbg_avl("set AVL_TS_PARALLEL");
+	}
+
 	ret |= avl6862_WR_REG8(priv,0x200 + rc_ts_clock_edge_caddr_offset, AVL_MPCM_RISING);
 	ret |= avl6862_WR_REG8(priv,0x200 + rc_enable_ts_continuous_caddr_offset, AVL_TS_CONTINUOUS_ENABLE);
+	ret |= avl6862_WR_REG32(priv,0x200 + rc_ts_cntns_clk_frac_d_iaddr_offset, uiTSFrequencyHz);
+	if (priv->config->ts_serial) {
+		switch (priv->delivery_system) {
+		case SYS_DVBS:
+		case SYS_DVBS2:
+			ret |= avl6862_WR_REG32(priv,0x200 + rc_ts_cntns_clk_frac_n_iaddr_offset, uiTSFrequencyHz);
+			break;
+		case SYS_DVBT:
+		case SYS_DVBT2:
+		case SYS_DVBC_ANNEX_A:
+		case SYS_DVBC_ANNEX_B:
+		default:
+			ret |= avl6862_WR_REG32(priv,0x200 + rc_ts_cntns_clk_frac_n_iaddr_offset, uiTSFrequencyHz / 2);
+			break;
+		}
+	}
+	else
+		ret |= avl6862_WR_REG32(priv,0x200 + rc_ts_cntns_clk_frac_n_iaddr_offset, uiTSFrequencyHz / 8);
 
 	/* TS serial pin */
 	ret |= avl6862_WR_REG8(priv,0x200 + rc_ts_serial_outpin_caddr_offset, AVL_MPSP_DATA0);
+
 	/* TS serial order */
 	ret |= avl6862_WR_REG8(priv,0x200 + rc_ts_serial_msb_caddr_offset, AVL_MPBO_MSB);
+
 	/* TS serial sync pulse */
 	ret |= avl6862_WR_REG8(priv,0x200 + rc_ts_sync_pulse_caddr_offset, AVL_TS_SERIAL_SYNC_1_PULSE);
 	/* TS error pol */
@@ -1030,6 +1059,7 @@ static int avl6862_set_dvbmode(struct dvb_frontend *fe,
 	ret |= avl6862_WR_REG32(priv, REG_TS_OUTPUT, TS_OUTPUT_ENABLE);
 
 	/* init tuner i2c repeater */
+
 	/* hold in reset */
 	ret |= avl6862_WR_REG32(priv, 0x118000 + tuner_i2c_srst_offset, 1);
 	/* close gate */
@@ -1418,6 +1448,7 @@ static int avl6862_read_status(struct dvb_frontend *fe, enum fe_status *status)
 	c->strength.stat[1].scale = FE_SCALE_RELATIVE;
 	c->strength.stat[1].uvalue = (Percent * 65535) / 100; //(100 - agc/1000) * 656;
 
+	int lock_led = priv->config->gpio_lock_led;
 	if (reg){
 		*status |= FE_HAS_CARRIER | FE_HAS_VITERBI | FE_HAS_SYNC | FE_HAS_LOCK;
 		c->cnr.len = 2;
@@ -1433,6 +1464,9 @@ static int avl6862_read_status(struct dvb_frontend *fe, enum fe_status *status)
 		c->cnr.len = 1;
 		c->cnr.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
 	}
+	if (lock_led)
+		gpio_direction_output(lock_led, snr > 1000 ? 1 : 0);
+	dbg_avl("Status:%x level:%d snr:%d", *status, Percent, snr);
 	return ret;
 }
 
@@ -1492,6 +1526,7 @@ static int avl6862_read_ber(struct dvb_frontend *fe, u32 *ber)
 	default:
 		ret = 1;
 	}
+	dbg_avl("BER:%d ret:%d", ber, ret);
 	return ret;
 }
 
@@ -1507,7 +1542,10 @@ static int avl6862_set_frontend(struct dvb_frontend *fe)
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	u32 demod_mode;
 	int ret;
+	int lock_led = priv->config->gpio_lock_led;
 
+	if (lock_led)
+		gpio_direction_output(lock_led, 0);
 
 	/* check that mode is correctly set */
 	ret = avl6862_RD_REG32(priv, 0x200 + rs_current_active_mode_iaddr_offset, &demod_mode);
@@ -1531,7 +1569,8 @@ static int avl6862_set_frontend(struct dvb_frontend *fe)
 	case SYS_DVBT2:
 		if (demod_mode != AVL_DVBTX)
 			ret = avl6862_set_dvbmode(fe, c->delivery_system);
-		if (demod_mode != AVL_DVBTX) {
+		ret = avl6862_RD_REG32(priv, 0x200 + rs_current_active_mode_iaddr_offset, &demod_mode);
+		if (ret || demod_mode != AVL_DVBTX) {
 			dev_err(&priv->i2c->dev, "%s: failed to enter DVBTx mode",
 				KBUILD_MODNAME);
 			ret = -EAGAIN;
@@ -1542,7 +1581,8 @@ static int avl6862_set_frontend(struct dvb_frontend *fe)
 	case SYS_DVBC_ANNEX_A:
 		if (demod_mode != AVL_DVBC)
 			ret = avl6862_set_dvbmode(fe, c->delivery_system);
-		if (demod_mode != AVL_DVBC) {
+		ret = avl6862_RD_REG32(priv, 0x200 + rs_current_active_mode_iaddr_offset, &demod_mode);
+		if (ret || demod_mode != AVL_DVBC) {
 			dev_err(&priv->i2c->dev, "%s: failed to enter DVBC mode",
 				KBUILD_MODNAME);
 			ret = -EAGAIN;
@@ -1553,7 +1593,8 @@ static int avl6862_set_frontend(struct dvb_frontend *fe)
 	case SYS_DVBC_ANNEX_B:
 		if (demod_mode != AVL_DVBC)
 			ret = avl6862_set_dvbmode(fe, c->delivery_system);
-		if (demod_mode != AVL_DVBC) {
+		ret = avl6862_RD_REG32(priv, 0x200 + rs_current_active_mode_iaddr_offset, &demod_mode);
+		if (ret || demod_mode != AVL_DVBC) {
 			dev_err(&priv->i2c->dev, "%s: failed to enter DVBC annex B mode",
 				KBUILD_MODNAME);
 			ret = -EAGAIN;
@@ -1565,7 +1606,8 @@ static int avl6862_set_frontend(struct dvb_frontend *fe)
 	case SYS_DVBS2:
 		if (demod_mode != AVL_DVBSX)
 			ret = avl6862_set_dvbmode(fe, c->delivery_system);
-		if (demod_mode != AVL_DVBSX) {
+		ret = avl6862_RD_REG32(priv, 0x200 + rs_current_active_mode_iaddr_offset, &demod_mode);
+		if (ret || demod_mode != AVL_DVBSX) {
 			dev_err(&priv->i2c->dev, "%s: failed to enter DVBSx mode",
 				KBUILD_MODNAME);
 			ret = -EAGAIN;
@@ -1697,7 +1739,7 @@ static struct dvb_frontend_ops avl6862_ops = {
 	.get_frontend_algo		= avl6862fe_algo,
 	.tune				= avl6862_tune,
 
-//	.set_property			= avl6862_set_property,
+// 	.set_property			= NULL, // avl6862_set_property,
 	.set_frontend			= avl6862_set_frontend,
 };
 
