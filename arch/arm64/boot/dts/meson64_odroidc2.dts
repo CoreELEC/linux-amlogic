@@ -21,6 +21,7 @@
 #include <dt-bindings/reset/aml_gxbb.h>
 #include "amlogic/mesongxbb.dtsi"
 / {
+	le-dt-id = "meson64_odroidc2";
 	model = "ODROID-C2";
 	amlogic-dt-id = "odroidc2_2g";
 	compatible = "amlogic, Gxbb";
@@ -891,9 +892,7 @@
 &audio_data{
 	status = "okay";
 };
-&aml_remote {
-	status = "disabled";
-};
 &meson_ir {
 	status = "okay";
+	linux,rc-map-name = "rc-odroid";
 };
