@@ -3915,9 +3915,10 @@ static void vpp_matrix_update(struct vframe_s *vf, struct vinfo_s *vinfo)
 					| (5 << 26)	/* unspecified */
 					| (0 << 25)	/* limit */
 					| (1 << 24)	/* color available */
-					| (9 << 16)	/* bt2020 */
-					| (14 << 8)	/* bt2020-10 */
-					| (10 << 0);	/* bt2020c */
+					/* bt2020 */
+					| (signal_color_primaries << 16)
+					/* bt2020-10 */
+					| (signal_transfer_characteristic << 8);
 		} else {
 			/* sdr source send normal info
 			 * use the features to discribe source info */
