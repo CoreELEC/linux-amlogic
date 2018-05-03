@@ -16,6 +16,7 @@ u8  ADC_READ_COUNT = 1;
 u8  VGA_DELAY = 2;
 u8  FILTER_DELAY = 2;   
    
+#undef dev_dbg
 #define dev_dbg(fmt, args...) \
 	do {\
 		if (debug)\
@@ -327,7 +328,6 @@ bool I2C_Write_Len(struct r848_priv *priv, I2C_LEN_TYPE *R848_I2C_Len)
 
 bool I2C_Write(struct r848_priv *priv, I2C_TYPE *R848_I2C)
 {
-	int ret = 0;
 	I2C_LEN_TYPE i2c_para;
 
 	i2c_para.RegAddr = R848_I2C->RegAddr;
@@ -1581,6 +1581,8 @@ R848_SysFreq_Info_Type R848_SysFreq_Sel(struct r848_priv *priv, R848_Standard_Ty
 					case R848_DVB_T2_1_7M_IF_5M:
 						R848_SysFreq_Info.AGC_CLK = 0x1C;		 //250Hz   R26[4:2] 
 					break;
+					default:
+					break;
 				}
 			}
 			if(RF_freq<=236000)
@@ -1745,7 +1747,9 @@ R848_ErrCode R848_TF_Check(struct r848_priv *priv)
 	u32   RingVCO = 0;
 	u32   RingFreq = 72000;
 	u32   RingRef = R848_Xtal;
-	u8     divnum_ring = 0;
+	u8    divnum_ring = 0;
+	u8    VGA_Count = 0;
+	u8    VGA_Read = 0;
 
 	if(R848_Xtal==16000)  //16M
 	{
@@ -1904,8 +1908,6 @@ R848_ErrCode R848_TF_Check(struct r848_priv *priv)
 
 
 	 //------- increase VGA power to let ADC read value significant ---------//
-	 u8   VGA_Count = 0;
-	 u8   VGA_Read = 0;
 
 	 for(VGA_Count=5; VGA_Count < 16; VGA_Count ++)
 	 {
@@ -3658,7 +3660,7 @@ R848_ErrCode R848_IMR_Cross(struct r848_priv *priv, R848_SectType* IQ_Pont, u8* 
 	u8 Reg16 = R848_Array[8] & 0xC0;	
 	u8 Reg17 = R848_Array[9] & 0xC0;	
 
-//	memset(&Compare_Temp,0, sizeof(R848_SectType));
+	memset(&Compare_Temp,0, sizeof(R848_SectType));
 	Compare_Temp.Value = 255;
 
 	for(CrossCount=0; CrossCount<9; CrossCount++)
@@ -3966,6 +3968,7 @@ R848_ErrCode R848_GPO(struct r848_priv *priv, R848_GPO_Type R848_GPO_Conrl)
 
 R848_ErrCode R848_SetStandard(struct r848_priv *priv, R848_Standard_Type RT_Standard)
 {	 
+	u8 u1FilCalGap = 8;
 	//printf("RT_Standard = %d\n",RT_Standard);
 	if(RT_Standard != R848_pre_standard)
 	{
@@ -3978,7 +3981,6 @@ R848_ErrCode R848_SetStandard(struct r848_priv *priv, R848_Standard_Type RT_Stan
 	Sys_Info1 = R848_Sys_Sel(priv,RT_Standard);
 
 	// Filter Calibration
-	u8 u1FilCalGap = 8;
 
 	if(RT_Standard<R848_ATV_SIZE)    //ATV
 	    u1FilCalGap = R848_Fil_Cal_Gap;
@@ -4141,6 +4143,9 @@ u8  R848_Filt_Cal_ADC(struct r848_priv *priv, u32 IF_Freq, u8 R848_BW, u8 FilCal
 	 u32   RingVCO = 0;
 	 u32   RingRef = R848_Xtal;
 	 u8     divnum_ring = 0;
+	 R848_Standard_Type	R848_Standard;
+	 u8   VGA_Count = 0;
+	 u8   VGA_Read = 0;
 
 	
 	if(R848_Xtal==16000)  //16M
@@ -4160,7 +4165,6 @@ u8  R848_Filt_Cal_ADC(struct r848_priv *priv, u32 IF_Freq, u8 R848_BW, u8 FilCal
 
 
 
-	 R848_Standard_Type	R848_Standard;
 	 R848_Standard=R848_ATSC; //no set R848_DVB_S
 
 	 //Write initial reg before doing calibration 
@@ -4290,8 +4294,6 @@ u8  R848_Filt_Cal_ADC(struct r848_priv *priv, u32 IF_Freq, u8 R848_BW, u8 FilCal
 		return RT_Fail;	
 
 	 //------- increase VGA power to let ADC read value significant ---------//
-	 u8   VGA_Count = 0;
-	 u8   VGA_Read = 0;
 
 	 R848_I2C.RegAddr = 0x12;	//  R848:R18[3:0]  
      R848_Array[10] = (R848_Array[10] & 0xF0) | 0;  //filter code=0
@@ -4391,10 +4393,10 @@ u8  R848_Filt_Cal_ADC(struct r848_priv *priv, u32 IF_Freq, u8 R848_BW, u8 FilCal
 
 	 }
 
-	 if(u1FilterCode==16)
-          u1FilterCodeResult = 15;
+	 if (u1FilterCode == 16)
+         	u1FilterCodeResult = 15;
 
-	  return u1FilterCodeResult;
+	 return u1FilterCodeResult;
 
 }
 R848_ErrCode R848_SetFrequency(struct r848_priv *priv, R848_Set_Info R848_INFO)
@@ -4630,15 +4632,15 @@ R848_ErrCode R848_SetFrequency(struct r848_priv *priv, R848_Set_Info R848_INFO)
 
 R848_ErrCode R848_DVBS_Setting(struct r848_priv *priv, R848_Set_Info R848_INFO)
 {
-	 u8 fine_tune=0;
-	 u8 Coarse=0;
+    u8 fine_tune=0;
+    u8 Coarse=0;
 
-	if(R848_INFO.R848_Standard != R848_pre_standard)
-	{
-		 if(R848_InitReg(priv,R848_INFO.R848_Standard) != RT_Success)      
-		     return RT_Fail;
+    if(R848_INFO.R848_Standard != R848_pre_standard)
+    {
+	if(R848_InitReg(priv,R848_INFO.R848_Standard) != RT_Success)      
+	     return RT_Fail;
 
-		 R848_pre_DVBS_bw = 0; //initial bw value
+	R848_pre_DVBS_bw = 0; //initial bw value
 
 
 	//Output Signal Mode    (  O is diff  ; 1 is single  )
@@ -4904,10 +4906,10 @@ R848_ErrCode R848_DVBS_Setting(struct r848_priv *priv, R848_Set_Info R848_INFO)
 	if(I2C_Write(priv, &R848_I2C) != RT_Success)
 		return RT_Fail;
 
-		R848_pre_DVBS_bw = R848_INFO.DVBS_BW;
-	}
+	R848_pre_DVBS_bw = R848_INFO.DVBS_BW;
+   }
 
-	return RT_Success;
+   return RT_Success;
 }
 R848_ErrCode R848_SetPllData(struct r848_priv *priv, R848_Set_Info R848_INFO)
 {	  
@@ -5281,8 +5283,6 @@ R848_ErrCode R848_SetXtalIntCap(struct r848_priv *priv, R848_Xtal_Cap_TYPE R848_
 
 static int r848_release(struct dvb_frontend *fe)
 {
-	struct r848_priv *priv = fe->tuner_priv;
-	dev_dbg("\n");
 
 	kfree(fe->tuner_priv);
 	fe->tuner_priv = NULL;
@@ -5292,9 +5292,8 @@ static int r848_release(struct dvb_frontend *fe)
 static int r848_init(struct dvb_frontend *fe)
 {
 	struct r848_priv *priv = fe->tuner_priv;
-	int ret;
-	dev_dbg("\n");
-
+	int ret = 0;
+#if 0
 	u8 i;
 
 	
@@ -5302,7 +5301,7 @@ static int r848_init(struct dvb_frontend *fe)
 	//if (priv->inited == 1)
 	//	return 0;
 	
-#if 0
+
 	//priv->inited = 1;
 
 	
@@ -5388,7 +5387,7 @@ static int r848_init(struct dvb_frontend *fe)
 #if 1
 	if (R848_Init(priv) != RT_Success)
 		dev_dbg("init tuner failed!!!\n");
-	else
+//	else
 		//priv->inited = 1;//vit
 		
 #endif
@@ -5422,10 +5421,8 @@ static int r848_init(struct dvb_frontend *fe)
 
 static int r848_sleep(struct dvb_frontend *fe)
 {
-	struct r848_priv *priv = fe->tuner_priv;
+//	struct r848_priv *priv = fe->tuner_priv;
 	int ret = 0;
-	
-	dev_dbg("\n");
 	
 	//R848_Initial_done_flag = R848_FALSE;//vit test
 	//R848_IMR_done_flag = R848_FALSE;//vit test
@@ -5594,7 +5591,7 @@ struct dvb_frontend *r848x_attach(struct dvb_frontend *fe,
 
 	priv = kzalloc(sizeof(struct r848_priv), GFP_KERNEL);
 	if (priv == NULL) {
-		printk( "R848 %s: attach failed\n");
+		printk( "R848: attach failed\n");
 		return NULL;
 	}
 

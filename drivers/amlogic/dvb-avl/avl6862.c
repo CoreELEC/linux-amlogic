@@ -1087,7 +1087,6 @@ static int AVL_Demod_DVBSx_Diseqc_SendModulationData(struct avl6862_priv *priv, 
 	int r = 0;
 	u32 i1 = 0;
 	u32 i2 = 0;
-	u8 pucBuffTemp[8] = {0};
 	u8 Continuousflag = 0;
 	u16 uiTempOutTh = 0;
 
@@ -1197,7 +1196,6 @@ int  AVL_Demod_DVBSx_Diseqc_SendTone(struct avl6862_priv *priv, u8 ucTone, u8 uc
 	int r = 0;
 	u32 i1 = 0;
 	u32 i2 = 0;
-	u8 pucBuffTemp[8] = {0};
 	u8 Continuousflag = 0;
 	u16 uiTempOutTh = 0;
 
@@ -1287,7 +1285,6 @@ static int avl6862_diseqc(struct dvb_frontend *fe,
 static int avl6862_burst(struct dvb_frontend *fe, enum fe_sec_mini_cmd burst)
 {
 	struct avl6862_priv *priv = fe->demodulator_priv;
-	struct AVL_Diseqc_TxStatus TxStatus;
 	int ret;
 
 	ret = avl6862_set_dvbmode(fe,SYS_DVBS);
@@ -1383,8 +1380,8 @@ static int avl6862_read_status(struct dvb_frontend *fe, enum fe_status *status)
 	int ret = 0;
 	u32 reg = 0, agc, mul, snr = 0;
 	u16 Level;
-	int i = 0;
 	int Percent = 0;
+	int lock_led = priv->config->gpio_lock_led;
 
 	switch (priv->delivery_system) {
 	case SYS_DVBC_ANNEX_A:
@@ -1448,7 +1445,6 @@ static int avl6862_read_status(struct dvb_frontend *fe, enum fe_status *status)
 	c->strength.stat[1].scale = FE_SCALE_RELATIVE;
 	c->strength.stat[1].uvalue = (Percent * 65535) / 100; //(100 - agc/1000) * 656;
 
-	int lock_led = priv->config->gpio_lock_led;
 	if (reg){
 		*status |= FE_HAS_CARRIER | FE_HAS_VITERBI | FE_HAS_SYNC | FE_HAS_LOCK;
 		c->cnr.len = 2;
@@ -1526,7 +1522,7 @@ static int avl6862_read_ber(struct dvb_frontend *fe, u32 *ber)
 	default:
 		ret = 1;
 	}
-	dbg_avl("BER:%d ret:%d", ber, ret);
+	dbg_avl("BER:%d ret:%d", *ber, ret);
 	return ret;
 }
 
@@ -1634,7 +1630,7 @@ static int avl6862_tune(struct dvb_frontend *fe, bool re_tune,
 	}
 	return avl6862_read_status(fe, status);
 }
-
+#if 0
 static int avl6862_set_property(struct dvb_frontend *fe,
 		struct dtv_property *p)
 {
@@ -1671,7 +1667,7 @@ static int avl6862_set_property(struct dvb_frontend *fe,
 
 	return ret;
 }
-
+#endif
 static int avl6862_init(struct dvb_frontend *fe)
 {
 	return 0;
@@ -1686,6 +1682,7 @@ static void avl6862_release(struct dvb_frontend *fe)
 {
 	struct avl6862_priv *priv = fe->demodulator_priv;
 	kfree(priv);
+	return;
 }
 
 static struct dvb_frontend_ops avl6862_ops = {

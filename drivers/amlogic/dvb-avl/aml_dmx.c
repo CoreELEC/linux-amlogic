@@ -1260,7 +1260,7 @@ static irqreturn_t dvr_irq_handler(int irq_number, void *para)
 /*Enable the STB*/
 static void stb_enable(struct aml_dvb *dvb)
 {
-	int out_src, des_in, en_des, fec_clk, hiu, dec_clk_en;
+	int out_src, des_in = 0, en_des = 0, fec_clk, hiu, dec_clk_en = 0;
 	int src, tso_src, i;
 	u32 fec_s0, fec_s1;
 	u32 invert0, invert1;
@@ -4131,7 +4131,6 @@ int aml_dmx_set_demux(struct aml_dvb *dvb, int id)
 {
 	aml_stb_hw_set_source(dvb, DMX_SOURCE_DVR0);
 	if (id < DMX_DEV_COUNT) {
-		pr_dbg("demux: %d\n", id);
 		struct aml_dmx *dmx = &dvb->dmx[id];
 		aml_dmx_hw_set_source((struct dmx_demux *)dmx,
 							DMX_SOURCE_DVR0);
