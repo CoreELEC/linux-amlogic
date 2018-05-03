@@ -1350,7 +1350,7 @@ static int avl6211_read_snr(struct dvb_frontend* fe, u16 *snr)
 				else 
 					*snr = 5 + (r_snr)*20/10;
 					
-					*snr = (*snr * 65535) / 100;
+				*snr = (*snr * 65535) / 100;
 			}
 		}
 	}

@@ -44,7 +44,7 @@ struct cxd2841er_config {
 extern struct dvb_frontend *cxd2841er_attach_s(struct cxd2841er_config *cfg,
 					       struct i2c_adapter *i2c);
 
-extern struct dvb_frontend *cxd2841er_attach_t_c(struct cxd2841er_config *cfg,
+extern struct dvb_frontend *cxd2841er_attach_wetek(struct cxd2841er_config *cfg,
 					       struct i2c_adapter *i2c);
 
 #endif

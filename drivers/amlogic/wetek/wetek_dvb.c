@@ -105,27 +105,6 @@ static struct tsdemux_ops wetek_tsdemux_ops = {
 };
 static struct class   wetek_stb_class;
 
-static int control_ts_on_csi_port(int tsin, int enable)
-{
-//#if MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON8
-   if (is_meson_m8_cpu() || is_meson_m8b_cpu() || is_meson_m8m2_cpu()) {
-	unsigned int temp_data;
-	if(tsin==2 && enable) {
-		//TS2 is on CSI port.
-		//power on mipi csi phy
-		pr_error("power on mipi csi phy for TSIN2\n");
-		WRITE_CBUS_REG(HHI_CSI_PHY_CNTL0,0xfdc1ff81);
-		WRITE_CBUS_REG(HHI_CSI_PHY_CNTL1,0x3fffff);
-		temp_data = READ_CBUS_REG(HHI_CSI_PHY_CNTL2);
-		temp_data &= 0x7ff00000;
-		temp_data |= 0x80000fc0;
-		WRITE_CBUS_REG(HHI_CSI_PHY_CNTL2,temp_data);
-	}
-   }
-//#endif
-	return 0;
-}
-
 static void wetek_dvb_dmx_release(struct wetek_dvb *advb, struct wetek_dmx *dmx)
 {
 	int i;
@@ -984,15 +963,6 @@ static ssize_t stb_store_hw_setting(struct class *class, struct class_attribute 
 
 	return count;
 }
-#ifdef CONFIG_OF
-static const struct of_device_id wetek_dvb_dt_match[]={
-	{
-		.compatible = "amlogic,dvb",
-	},
-
-	{},
-};
-#endif /*CONFIG_OF*/
 
 /*Get the STB source demux*/
 static struct wetek_dmx* get_stb_dmx(void)
@@ -1127,12 +1097,13 @@ extern int wetek_unregist_dmx_class(void);
 int __init wetek_dvb_init(void)
 {
 	struct wetek_nims p;
-	get_nims_infos(&p);
-	struct platform_device *pdev = p.pdev;
+	struct platform_device *pdev;
 	struct wetek_dvb *advb;
 	struct devio_wetek_platform_data *pd_dvb;
 	struct dvb_frontend_ops *ops;
 	int i, ret = 0;
+	get_nims_infos(&p);
+	pdev = p.pdev;
 
 	advb = &wetek_dvb_device;
 	memset(advb, 0, sizeof(wetek_dvb_device));
@@ -1227,10 +1198,13 @@ error:
 void __exit wetek_dvb_exit(void)
 {
 	struct wetek_nims p;
-	get_nims_infos(&p);
-	struct platform_device *pdev = p.pdev;
-	struct wetek_dvb *advb = (struct wetek_dvb *)dev_get_drvdata(&pdev->dev);
+	struct platform_device *pdev;
+	struct wetek_dvb *advb;
 	int i;
+
+	get_nims_infos(&p);
+	pdev = p.pdev;
+	advb = (struct wetek_dvb *)dev_get_drvdata(&pdev->dev);
 
 	tsdemux_set_ops(NULL);
 

@@ -3120,11 +3120,11 @@ static int cxd2841er_sleep_tc_to_active_c(struct cxd2841er_priv *priv,
 	return 0;
 }
 
-static int cxd2841er_get_frontend(struct dvb_frontend *fe,
-				  struct dtv_frontend_properties *p)
+static int cxd2841er_get_frontend(struct dvb_frontend *fe)
 {
 	enum fe_status status = 0;
 	struct cxd2841er_priv *priv = fe->demodulator_priv;
+	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 
 	dev_dbg(&priv->i2c->dev, "%s()\n", __func__);
 	if (priv->state == STATE_ACTIVE_S)
@@ -3734,14 +3734,14 @@ struct dvb_frontend *cxd2841er_attach_s(struct cxd2841er_config *cfg,
 {
 	return cxd2841er_attach(cfg, i2c, SYS_DVBS);
 }
-EXPORT_SYMBOL(cxd2841er_attach_s);
+//EXPORT_SYMBOL(cxd2841er_attach_s);
 
-struct dvb_frontend *cxd2841er_attach_t_c(struct cxd2841er_config *cfg,
+struct dvb_frontend *cxd2841er_attach_wetek(struct cxd2841er_config *cfg,
 					struct i2c_adapter *i2c)
 {
 	return cxd2841er_attach(cfg, i2c, 0);
 }
-EXPORT_SYMBOL(cxd2841er_attach_t_c);
+EXPORT_SYMBOL(cxd2841er_attach_wetek);
 
 static struct dvb_frontend_ops cxd2841er_dvbs_s2_ops = {
 	.delsys = { SYS_DVBS, SYS_DVBS2 },

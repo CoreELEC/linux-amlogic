@@ -50,7 +50,7 @@ static struct reset_control *dvb_uparsertop_reset_ctl;
 
 
 static struct wetek_nims weteknims;
-
+#ifndef CONFIG_ARM64
 static struct cxd2837_cfg cxd2837cfg = {
 		.adr = 0x6C,
 		.if_agc_polarity = 1,
@@ -62,7 +62,7 @@ static struct cxd2837_cfg cxd2837cfg = {
 		.xtal = XTAL_20500KHz,
 		.ts_clock = SERIAL_TS_CLK_MID_FULL,
 };
-
+#endif
 static struct cxd2841er_config cxd2841cfg = {
 		.i2c_addr = 0x6C,
 		.if_agc = 0,
@@ -418,7 +418,7 @@ static int nim_dvb_probe(struct platform_device *pdev)
 #else
 		dev_info(&pdev->dev, "Checking for Sony CXD2841ER DVB-C/T/T2 demod ...\n");
 
-		weteknims.fe[i] =  cxd2841er_attach_t_c(&cxd2841cfg, weteknims.i2c[i]);
+		weteknims.fe[i] =  cxd2841er_attach_wetek(&cxd2841cfg, weteknims.i2c[i]);
 
 		if (weteknims.fe[i] != NULL) {
 			if (mxl603_attach(weteknims.fe[i], weteknims.i2c[i], 0x60, &mxl603cfg) == NULL) {
