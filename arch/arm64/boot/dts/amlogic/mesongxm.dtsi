@@ -839,9 +839,9 @@
 		 reg = <0x0 0xc883e000 0x0 0x28>;
 	 };
 
-	le-vfd {
-		compatible = "le,vfd";
-		dev_name = "le-vfd";
+	openvfd {
+		compatible = "open,vfd";
+		dev_name = "openvfd";
 		status = "okay";
 	};
 

@@ -832,9 +832,9 @@
 		};
 	};
 
-	le-vfd {
-		compatible = "le,vfd";
-		dev_name = "le-vfd";
+	openvfd {
+		compatible = "open,vfd";
+		dev_name = "openvfd";
 		status = "okay";
 	};
 
