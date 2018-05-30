@@ -417,8 +417,6 @@ void enable_dolby_vision(int enable)
 				VSYNC_RD_MPEG_REG(VPP_DOLBY_CTRL);
 			viu_misc_ctrl_backup =
 				VSYNC_RD_MPEG_REG(VIU_MISC_CTRL1);
-			vpu_hdmi_fmt_backup =
-				VSYNC_RD_MPEG_REG(VPU_HDMI_FMT_CTRL);
 			viu_eotf_ctrl_backup =
 				VSYNC_RD_MPEG_REG(VIU_EOTF_CTL);
 			xvycc_lut_ctrl_backup =
@@ -450,7 +448,6 @@ void enable_dolby_vision(int enable)
 				| (0 << 1)	/* 17 core1 el bypass */
 				| (0 << 0), /* 16 core1 bl bypass */
 				16, 8);
-			VSYNC_WR_MPEG_REG(VPU_HDMI_FMT_CTRL, 0);
 			VSYNC_WR_MPEG_REG(VIU_EOTF_CTL, 0);
 			VSYNC_WR_MPEG_REG(XVYCC_LUT_CTL, 0);
 			VSYNC_WR_MPEG_REG(XVYCC_INV_LUT_CTL, 0);
@@ -471,8 +468,6 @@ void enable_dolby_vision(int enable)
 				dolby_ctrl_backup);
 			VSYNC_WR_MPEG_REG(VIU_MISC_CTRL1,
 				viu_misc_ctrl_backup);
-			VSYNC_WR_MPEG_REG(VPU_HDMI_FMT_CTRL,
-				vpu_hdmi_fmt_backup);
 			VSYNC_WR_MPEG_REG(VIU_EOTF_CTL,
 				viu_eotf_ctrl_backup);
 			VSYNC_WR_MPEG_REG(XVYCC_LUT_CTL,
