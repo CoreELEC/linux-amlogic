@@ -1968,7 +1968,7 @@ next:
 		hd_set_reg_bits(P_VPU_HDMI_SETTING, 0, 4, 4);
 		hd_set_reg_bits(P_VPU_HDMI_SETTING, 1, 8, 1);
 	}
-	switch (hdev->cur_video_param->color_depth) {
+	switch (hdev->para->cd) {
 	case COLORDEPTH_30B:
 	case COLORDEPTH_36B:
 	case COLORDEPTH_48B:
