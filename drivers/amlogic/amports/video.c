@@ -691,7 +691,7 @@ static u32 ori2_start_y_lines;
 static u32 ori2_end_y_lines;
 
 /* wide settings */
-static u32 wide_setting;
+static u32 wide_setting = 1;
 
 /* black out policy */
 #if defined(CONFIG_JPEGLOGO)
@@ -4682,6 +4682,12 @@ cur_dev->vpp_off,0,VPP_VD2_ALPHA_BIT,9);//vd2 alpha must set
 	/* VPP one time settings */
 	wait_sync = 0;
 
+	if (vinfo && VSYNC_RD_MPEG_REG(
+		VPP_POSTBLEND_H_SIZE + cur_dev->vpp_off)
+		!= vinfo->width)
+		VSYNC_WR_MPEG_REG(
+			VPP_POSTBLEND_H_SIZE + cur_dev->vpp_off,
+			vinfo->width);
 	if (cur_dispbuf && cur_dispbuf->process_fun) {
 		/* for new deinterlace driver */
 #ifdef CONFIG_VSYNC_RDMA
