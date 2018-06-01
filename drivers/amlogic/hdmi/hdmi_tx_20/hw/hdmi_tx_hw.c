@@ -2001,7 +2001,7 @@ next:
 			/* set hsync/vsync as default 0 */
 			hd_set_reg_bits(P_VPU_HDMI_DITH_CNTL, 0, 2, 2);
 		} else {
-                       hd_set_reg_bits(P_VPU_HDMI_FMT_CTRL, 0, 4, 1);
+                       hd_set_reg_bits(P_VPU_HDMI_FMT_CTRL, 1, 4, 1);
                        hd_set_reg_bits(P_VPU_HDMI_FMT_CTRL, 1, 10, 1);
                 }
 		break;
