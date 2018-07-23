@@ -14655,3 +14655,8 @@ HARDKERNEL S922D odroidn2
 M: 	Joy Cho <joy.cho@hardkernel.com>
 F:	arch/arm64/configs/odroidn2_defconfig
 F:      arch/arm64/boot/dts/amlogic/s922d_odroidn2.dts
+
+HARDKERNEL S922D odroidn2
+M: 	Joy Cho <joy.cho@hardkernel.com>
+F:	arch/arm64/configs/odroidn2_defconfig
+F:      arch/arm64/boot/dts/amlogic/s922d_odroidn2.dts
