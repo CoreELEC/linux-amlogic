@@ -14651,3 +14651,7 @@ AMLOGIC DTS
 M:	Luan Yuan <luan.yuan@amlogic.com>
 F:	arch/arm/boot/dts/amlogic/partition_mbox_p241_P.dtsi
 
+HARDKERNEL S922D odroidn2
+M: 	Joy Cho <joy.cho@hardkernel.com>
+F:	arch/arm64/configs/odroidn2_defconfig
+F:      arch/arm64/boot/dts/amlogic/s922d_odroidn2.dts
