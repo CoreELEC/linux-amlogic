@@ -275,6 +275,7 @@ static int appleir_input_configured(struct hid_device *hid,
 	for (i = 0; i < ARRAY_SIZE(appleir_key_table); i++)
 		set_bit(appleir->keymap[i], input_dev->keybit);
 	clear_bit(KEY_RESERVED, input_dev->keybit);
+
 	return 0;
 }
 

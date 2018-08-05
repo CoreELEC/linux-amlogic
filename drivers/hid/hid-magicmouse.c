@@ -476,13 +476,16 @@ static int magicmouse_input_configured(struct hid_device *hdev,
 
 {
 	struct magicmouse_sc *msc = hid_get_drvdata(hdev);
+	int ret;
 
-	int ret = magicmouse_setup_input(msc->input, hdev);
+	ret = magicmouse_setup_input(msc->input, hdev);
 	if (ret) {
 		hid_err(hdev, "magicmouse setup input failed (%d)\n", ret);
 		/* clean msc->input to notify probe() of the failure */
 		msc->input = NULL;
+		return ret;
 	}
+
 	return 0;
 }
 
@@ -549,8 +552,8 @@ static int magicmouse_probe(struct hid_device *hdev,
 	 * but there seems to be no other way of switching the mode.
 	 * Thus the super-ugly hacky success check below.
 	 */
-	ret = hdev->hid_output_raw_report(hdev, feature, sizeof(feature),
-			HID_FEATURE_REPORT);
+	ret = hid_hw_raw_request(hdev, feature[0], feature, sizeof(feature),
+				HID_FEATURE_REPORT, HID_REQ_SET_REPORT);
 	if (ret != -EIO && ret != sizeof(feature)) {
 		hid_err(hdev, "unable to request touch data (%d)\n", ret);
 		goto err_stop_hw;
