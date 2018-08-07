@@ -2037,32 +2037,8 @@ next:
 
 	if (hdev->para->cs == COLORSPACE_YUV420) {
 		/* change AVI packet */
-		hdmitx_set_reg_bits(HDMITX_DWC_FC_AVICONF0, 0x3, 0, 2);
 		mode420_half_horizontal_para();
-	} else {
-		/* change AVI packet */
-		unsigned int indicator = 0;
-		unsigned int data32 = 0x0;
-
-		switch (hdev->para->cs) {
-		case COLORSPACE_RGB444:
-			indicator = 0x0;
-			break;
-		case COLORSPACE_YUV422:
-			indicator = 0x1;
-			break;
-		case COLORSPACE_YUV444:
-		default:
-			indicator = 0x2;
-			break;
-		case COLORSPACE_YUV420:
-			indicator = 0x3;
-			break;
-		}
-		data32 = (0x40 | ((indicator&0x4)<<5) | (indicator&0x3));
-		hdmitx_wr_reg(HDMITX_DWC_FC_AVICONF0, data32);
-	}
-
+	} 
 	hdmitx_set_reg_bits(HDMITX_DWC_FC_INVIDCONF, 0, 3, 1);
 	mdelay(1);
 	hdmitx_set_reg_bits(HDMITX_DWC_FC_INVIDCONF, 1, 3, 1);
@@ -3834,10 +3810,7 @@ static int hdmitx_hdmi_dvi_config(struct hdmitx_dev *hdev,
 			hdmitx_csc_config(TX_INPUT_COLOR_FORMAT,
 				COLORSPACE_RGB444, TX_COLOR_DEPTH);
 			hdmitx_set_reg_bits(HDMITX_DWC_FC_INVIDCONF, 0, 3, 1);
-		} else if (hdev->para->cs == COLORSPACE_YUV420)
-			hdmitx_set_reg_bits(HDMITX_DWC_FC_AVICONF0, 3, 0, 2);
-		else
-			hdmitx_set_reg_bits(HDMITX_DWC_FC_AVICONF0, 2, 0, 2);
+		}
 		/* set hdmi flag */
 		hdmitx_set_reg_bits(HDMITX_DWC_FC_INVIDCONF, 1, 3, 1);
 	}
@@ -4489,31 +4462,7 @@ static void config_hdmi20_tx(enum hdmi_vic vic,
 	hdmitx_wr_reg(HDMITX_DWC_FC_GCP, data32);
 
 	/* write AVI Infoframe packet configuration */
-
-	data32  = 0;
-	data32 |= (((output_color_format>>2)&0x1) << 7);
-	data32 |= (1 << 6);
-	data32 |= (0 << 4);
-	data32 |= (0 << 2);
-	data32 |= (0x2 << 0);    /* FIXED YCBCR 444 */
-	hdmitx_wr_reg(HDMITX_DWC_FC_AVICONF0, data32);
-	switch (output_color_format) {
-	case COLORSPACE_RGB444:
-		tmp = 0;
-		break;
-	case COLORSPACE_YUV422:
-		tmp = 1;
-		break;
-	case COLORSPACE_YUV420:
-		tmp = 3;
-		break;
-	case COLORSPACE_YUV444:
-	default:
-		tmp = 2;
-		break;
-	}
-	hdmitx_set_reg_bits(HDMITX_DWC_FC_AVICONF0, tmp, 0, 2);
-
+	hdmitx_set_reg_bits(HDMITX_DWC_FC_AVICONF0, 1, 6, 1);
 	hdmitx_wr_reg(HDMITX_DWC_FC_AVICONF1, 0x8);
 	hdmitx_wr_reg(HDMITX_DWC_FC_AVICONF2, 0);
 
@@ -4961,6 +4910,7 @@ static void hdmitx_csc_config(unsigned char input_color_format,
 		((rgb_ycc_indicator & 0x4) >> 2), 7, 1);
 	hdmitx_set_reg_bits(HDMITX_DWC_FC_AVICONF0,
 		(rgb_ycc_indicator & 0x3), 0, 2);
+	pr_info("Set rgb_ycc to %d\n", rgb_ycc_indicator);
 }   /* hdmitx_csc_config */
 
 static void hdmitx_set_hw(struct hdmitx_dev *hdev)
