@@ -1460,8 +1460,10 @@ static int avl6862_read_status(struct dvb_frontend *fe, enum fe_status *status)
 		c->cnr.len = 1;
 		c->cnr.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
 	}
-	if (lock_led)
+	if (lock_led) {
+		gpio_request(lock_led, KBUILD_MODNAME);
 		gpio_direction_output(lock_led, snr > 1000 ? 1 : 0);
+	}
 	dbg_avl("Status:%x level:%d snr:%d", *status, Percent, snr);
 	return ret;
 }
@@ -1540,9 +1542,10 @@ static int avl6862_set_frontend(struct dvb_frontend *fe)
 	int ret;
 	int lock_led = priv->config->gpio_lock_led;
 
-	if (lock_led)
+	if (lock_led) {
+		gpio_request(lock_led, KBUILD_MODNAME);
 		gpio_direction_output(lock_led, 0);
-
+	}
 	/* check that mode is correctly set */
 	ret = avl6862_RD_REG32(priv, 0x200 + rs_current_active_mode_iaddr_offset, &demod_mode);
 	if (ret)
