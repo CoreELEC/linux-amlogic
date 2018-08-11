@@ -1968,36 +1968,42 @@ next:
 		hd_set_reg_bits(P_VPU_HDMI_SETTING, 0, 4, 4);
 		hd_set_reg_bits(P_VPU_HDMI_SETTING, 1, 8, 1);
 	}
-	switch (hdev->cur_video_param->color_depth) {
+	switch (hdev->para->cd) {
 	case COLORDEPTH_30B:
 	case COLORDEPTH_36B:
 	case COLORDEPTH_48B:
 		if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXM) {
 			unsigned int hs_flag = 0;
+                        /* 12-10 dithering on */
+                        hd_set_reg_bits(P_VPU_HDMI_FMT_CTRL, 1, 4, 1);
 			/* hsync/vsync not invert */
 			hs_flag = (hd_read_reg(P_VPU_HDMI_SETTING) >> 2) & 0x3;
 			hd_set_reg_bits(P_VPU_HDMI_SETTING, 0, 2, 2);
+                        /* 12-10 rounding off */
+                        hd_set_reg_bits(P_VPU_HDMI_FMT_CTRL, 0, 10, 1);
 			/* 10-8 dithering off (2x2 old dither) */
 			hd_set_reg_bits(P_VPU_HDMI_DITH_CNTL, 0, 4, 1);
 			/* set hsync/vsync */
 			hd_set_reg_bits(P_VPU_HDMI_DITH_CNTL, hs_flag, 2, 2);
+                } else {
+                        hd_set_reg_bits(P_VPU_HDMI_FMT_CTRL, 0, 4, 1);
+                        hd_set_reg_bits(P_VPU_HDMI_FMT_CTRL, 0, 10, 1);
 		}
-		/* 12-10 dithering off (10-8 <= GXL) */
-		hd_set_reg_bits(P_VPU_HDMI_FMT_CTRL, 0, 4, 1);
-		/* 12-10 rounding off (10-8 <= GXL) */
-		hd_set_reg_bits(P_VPU_HDMI_FMT_CTRL, 0, 10, 1);
 		break;
 	default:
 		if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXM) {
+                        /* 12-10 dithering off */
+                        hd_set_reg_bits(P_VPU_HDMI_FMT_CTRL, 0, 4, 1);
+                        /* 12-10 rounding on */
+                        hd_set_reg_bits(P_VPU_HDMI_FMT_CTRL, 1, 10, 1);
 			/* 10-8 dithering on (2x2 old dither) */
 			hd_set_reg_bits(P_VPU_HDMI_DITH_CNTL, 1, 4, 1);
 			/* set hsync/vsync as default 0 */
 			hd_set_reg_bits(P_VPU_HDMI_DITH_CNTL, 0, 2, 2);
-		}
-		/* 10-8 dithering on (10-8 <= GXL) */
-		hd_set_reg_bits(P_VPU_HDMI_FMT_CTRL, 1, 4, 1);
-		/* 12-10 rounding on (10-8 <= GXL) */
-		hd_set_reg_bits(P_VPU_HDMI_FMT_CTRL, 1, 10, 1);
+		} else {
+                       hd_set_reg_bits(P_VPU_HDMI_FMT_CTRL, 1, 4, 1);
+                       hd_set_reg_bits(P_VPU_HDMI_FMT_CTRL, 1, 10, 1);
+                }
 		break;
 	}
 
@@ -2025,32 +2031,8 @@ next:
 
 	if (hdev->para->cs == COLORSPACE_YUV420) {
 		/* change AVI packet */
-		hdmitx_set_reg_bits(HDMITX_DWC_FC_AVICONF0, 0x3, 0, 2);
 		mode420_half_horizontal_para();
-	} else {
-		/* change AVI packet */
-		unsigned int indicator = 0;
-		unsigned int data32 = 0x0;
-
-		switch (hdev->para->cs) {
-		case COLORSPACE_RGB444:
-			indicator = 0x0;
-			break;
-		case COLORSPACE_YUV422:
-			indicator = 0x1;
-			break;
-		case COLORSPACE_YUV444:
-		default:
-			indicator = 0x2;
-			break;
-		case COLORSPACE_YUV420:
-			indicator = 0x3;
-			break;
-		}
-		data32 = (0x40 | ((indicator&0x4)<<5) | (indicator&0x3));
-		hdmitx_wr_reg(HDMITX_DWC_FC_AVICONF0, data32);
-	}
-
+	} 
 	hdmitx_set_reg_bits(HDMITX_DWC_FC_INVIDCONF, 0, 3, 1);
 	mdelay(1);
 	hdmitx_set_reg_bits(HDMITX_DWC_FC_INVIDCONF, 1, 3, 1);
@@ -3013,6 +2995,30 @@ static void hdmitx_debug(struct hdmitx_dev *hdev, const char *buf)
 			hdmi_print(INF, HPD "hdmitx: unlock hpd\n");
 		}
 		return;
+	} else if (strncmp(tmpbuf, "dither", 6) == 0) {
+		int dither = 0;
+		if (tmpbuf[6] == '1')
+			dither = 1;
+		hd_set_reg_bits(P_VPU_HDMI_FMT_CTRL, dither, 4, 1);
+		hdmi_print(INF, SYS, "hdmitx: adjust dither = %d\n", dither);
+		return;
+        } else if (strncmp(tmpbuf, "round", 5) == 0) {
+                int round = 0;
+                if (tmpbuf[5] == '1')
+                        round = 1;
+		hd_set_reg_bits(P_VPU_HDMI_FMT_CTRL, round, 10, 1);
+                hdmi_print(INF, SYS, "hdmitx: adjust round = %d\n", round);
+		return;
+	} else if (strncmp(tmpbuf, "do2020", 6) == 0) {
+		hdmi_print(INF, SYS, "hdmitx: BT2020 AVI on\n");
+		hdmitx_set_reg_bits(HDMITX_DWC_FC_AVICONF1, 3, 6, 2);
+                hdmitx_set_reg_bits(HDMITX_DWC_FC_AVICONF2, 6, 4, 3);
+		return;
+        } else if (strncmp(tmpbuf, "no2020", 6) == 0) {
+                hdmi_print(INF, SYS, "hdmitx: BT2020 AVI off\n");
+                hdmitx_set_reg_bits(HDMITX_DWC_FC_AVICONF1, 2, 6, 2);
+                hdmitx_set_reg_bits(HDMITX_DWC_FC_AVICONF2, 0, 4, 3);
+		return;
 	} else if (strncmp(tmpbuf, "hpd_stick", 9) == 0) {
 		if (tmpbuf[9] == '1')
 			hdev->hdcp_hpd_stick = 1;
@@ -3798,10 +3804,7 @@ static int hdmitx_hdmi_dvi_config(struct hdmitx_dev *hdev,
 			hdmitx_csc_config(TX_INPUT_COLOR_FORMAT,
 				COLORSPACE_RGB444, TX_COLOR_DEPTH);
 			hdmitx_set_reg_bits(HDMITX_DWC_FC_INVIDCONF, 0, 3, 1);
-		} else if (hdev->para->cs == COLORSPACE_YUV420)
-			hdmitx_set_reg_bits(HDMITX_DWC_FC_AVICONF0, 3, 0, 2);
-		else
-			hdmitx_set_reg_bits(HDMITX_DWC_FC_AVICONF0, 2, 0, 2);
+		}
 		/* set hdmi flag */
 		hdmitx_set_reg_bits(HDMITX_DWC_FC_INVIDCONF, 1, 3, 1);
 	}
@@ -4453,31 +4456,7 @@ static void config_hdmi20_tx(enum hdmi_vic vic,
 	hdmitx_wr_reg(HDMITX_DWC_FC_GCP, data32);
 
 	/* write AVI Infoframe packet configuration */
-
-	data32  = 0;
-	data32 |= (((output_color_format>>2)&0x1) << 7);
-	data32 |= (1 << 6);
-	data32 |= (0 << 4);
-	data32 |= (0 << 2);
-	data32 |= (0x2 << 0);    /* FIXED YCBCR 444 */
-	hdmitx_wr_reg(HDMITX_DWC_FC_AVICONF0, data32);
-	switch (output_color_format) {
-	case COLORSPACE_RGB444:
-		tmp = 0;
-		break;
-	case COLORSPACE_YUV422:
-		tmp = 1;
-		break;
-	case COLORSPACE_YUV420:
-		tmp = 3;
-		break;
-	case COLORSPACE_YUV444:
-	default:
-		tmp = 2;
-		break;
-	}
-	hdmitx_set_reg_bits(HDMITX_DWC_FC_AVICONF0, tmp, 0, 2);
-
+	hdmitx_set_reg_bits(HDMITX_DWC_FC_AVICONF0, 1, 6, 1);
 	hdmitx_wr_reg(HDMITX_DWC_FC_AVICONF1, 0x8);
 	hdmitx_wr_reg(HDMITX_DWC_FC_AVICONF2, 0);
 
@@ -4925,6 +4904,7 @@ static void hdmitx_csc_config(unsigned char input_color_format,
 		((rgb_ycc_indicator & 0x4) >> 2), 7, 1);
 	hdmitx_set_reg_bits(HDMITX_DWC_FC_AVICONF0,
 		(rgb_ycc_indicator & 0x3), 0, 2);
+	pr_info("Set rgb_ycc to %d\n", rgb_ycc_indicator);
 }   /* hdmitx_csc_config */
 
 static void hdmitx_set_hw(struct hdmitx_dev *hdev)
