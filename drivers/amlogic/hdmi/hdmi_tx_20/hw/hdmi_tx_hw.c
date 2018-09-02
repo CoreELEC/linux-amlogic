@@ -3796,8 +3796,6 @@ static int hdmitx_hdmi_dvi_config(struct hdmitx_dev *hdev,
 		hdmitx_set_reg_bits(HDMITX_DWC_FC_INVIDCONF, 0, 3, 1);
 
 	} else {
-		/* disable csc in video path */
-		hdmitx_wr_reg(HDMITX_DWC_MC_FLOWCTRL, 0x0);
 
 		/* set ycc indicator */
 		if (hdmi_output_rgb) {
