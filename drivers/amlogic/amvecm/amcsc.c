@@ -3136,7 +3136,7 @@ static void amvecm_cp_hdr_info(struct master_display_info_s *hdr_data,
 			hdr_data->white_point[0] = bt709_white_point[0];
 			hdr_data->white_point[1] = bt709_white_point[1];
 			/* default luminance */
-			hdr_data->luminance[0] = 5000 * 10000;
+			hdr_data->luminance[0] = 1000 * 10000;
 			hdr_data->luminance[1] = 50;
 
 			/* content_light_level */
