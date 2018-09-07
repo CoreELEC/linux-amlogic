@@ -849,10 +849,15 @@ void hdmitx_set_clk(struct hdmitx_dev *hdev)
 {
 	enum hdmi_vic vic = hdev->cur_VIC;
 	struct hdmi_format_para *para = NULL;
+	enum hdmi_color_depth cd;
+	if (hdev->cur_video_param->color_depth && hdev->cur_video_param->color_depth > 0)
+		cd = hdev->cur_video_param->color_depth;
+	else
+		cd = hdev->para->cd;
 
 	frac_rate = hdev->frac_rate_policy;
 	pr_info("hdmitx: set clk: VIC = %d  cd = %d  frac_rate = %d\n", vic,
-		hdev->para->cd, frac_rate);
+		cd, frac_rate);
 	para = hdmi_get_fmt_paras(vic);
 	if (para && (para->name) && likely_frac_rate_mode(para->name))
 		;
@@ -866,7 +871,7 @@ void hdmitx_set_clk(struct hdmitx_dev *hdev)
 		return;
 	}
 	if (hdev->para->cs != COLORSPACE_YUV422)
-		hdmitx_set_clk_(vic, hdev->para->cd);
+		hdmitx_set_clk_(vic, cd);
 	else
 		hdmitx_set_clk_(vic, COLORDEPTH_24B);
 }

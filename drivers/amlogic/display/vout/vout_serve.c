@@ -392,7 +392,7 @@ static ssize_t vout_attr_vinfo_show(struct class *class,
 		info->sync_duration_num, info->sync_duration_den,
 		info->screen_real_width, info->screen_real_height,
 		info->video_clk, info->viu_color_fmt);
-	len += sprintf(buf+len, "hdr_info:\n"
+	len += sprintf(buf+len, "hdr master display info:\n"
 		"    present_flag          %d\n"
 		"    features              0x%x\n"
 		"    primaries             0x%x, 0x%x\n"

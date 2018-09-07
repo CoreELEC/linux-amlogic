@@ -1224,7 +1224,10 @@ struct hdmi_format_para *hdmi_get_fmt_name(char const *name, char const *attr)
 		case HDMI_3840x2160p60_64x27:
 			break;
 		default:
-			para = &fmt_para_non_hdmi_fmt;
+			/* fall back to something which must be supported */
+			pr_err("Y420 mode illegal at that resolution - falling back to RGB,8bit");
+			para->cs = COLORSPACE_RGB444;
+			para->cd = COLORDEPTH_24B;
 			break;
 		}
 	}

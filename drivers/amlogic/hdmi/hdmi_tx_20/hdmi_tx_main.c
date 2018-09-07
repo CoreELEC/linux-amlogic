@@ -62,6 +62,7 @@
 #include <linux/amlogic/hdmi_tx/hdmi_config.h>
 #include <linux/i2c.h>
 #include "hw/tvenc_conf.h"
+#include "hw/hdmi_tx_reg.h"
 #ifdef CONFIG_INSTABOOT
 #include <linux/amlogic/instaboot/instaboot.h>
 #endif
@@ -516,15 +517,30 @@ static int set_disp_mode_auto(void)
 	struct hdmi_format_para *para = NULL;
 	unsigned char mode[32];
 	enum hdmi_vic vic = HDMI_Unkown;
+	enum hdmi_color_depth stream_cur_cd;
+	char* pix_fmt[] = {"RGB","YUV422","YUV444","YUV420"};
+	char* eotf[] = {"SDR","HDR","HDR10","HLG"};
+	char* range[] = {"default","limited","full"};
+	char* colour_str[] = {"default", "SMPTE-C", "bt709", "xvYCC601","xvYCC709",
+		"sYCC601","opYCC601","opRGB","bt2020c","bt2020nc","P3 D65","P3 theater"};
+	
 	/* vic_ready got from IP */
 	enum hdmi_vic vic_ready = hdev->HWOp.GetState(
 		hdev, STAT_VIDEO_VIC, 0);
 
 	memset(mode, 0, sizeof(mode));
 
+	/* save colourdepth of the stream */
+	stream_cur_cd = hdev->para->cd;
+	pr_info("hdmitx: stream colourdepth was %d in para 0x%08x (%s)\n",stream_cur_cd * 2, hdev->para, hdev->para->name);
+	if (hdev->cur_video_param != NULL){
+		pr_info("hdmitx: display colourdepth was %d in cur_param 0x%08x (VIC: %d)\n",hdev->cur_video_param->color_depth * 2,
+			hdev->cur_video_param,  hdev->cur_video_param->VIC);
+	}
+
 	/* get current vinfo */
 	info = hdmi_get_current_vinfo();
-	hdmi_print(IMP, VID "get current mode: %s\n",
+	hdmi_print(IMP, VID "auto - get current mode: %s\n",
 		info ? info->name : "null");
 	if (info == NULL)
 		return -1;
@@ -558,6 +574,7 @@ static int set_disp_mode_auto(void)
 		hdev->HWOp.CntlMisc(hdev, MISC_TMDS_PHY_OP, TMDS_PHY_DISABLE);
 		hdev->HWOp.CntlConfig(hdev, CONF_VIDEO_BLANK_OP, VIDEO_UNBLANK);
 		hdev->para = para = hdmi_get_fmt_name("invalid", fmt_attr);
+		para->cd = stream_cur_cd;
 		return -1;
 	} else {
 		memcpy(mode, info->name, strlen(info->name));
@@ -580,31 +597,39 @@ static int set_disp_mode_auto(void)
 	 * as two different modes, such Scrambler
 	 * So if node "attr" contains 420, need append 420 to mode.
 	 */
-	if (strstr(fmt_attr, "420")) {
-		if (!strstr(mode, "420"))
-			strncat(mode, "420", 3);
-	}
+
 	para = hdmi_get_fmt_name(mode, fmt_attr);
+	/* check display caps - warn but don't force - these can only be set by sysfs */
+	if (para->cs == COLORSPACE_YUV422 && !(hdev->RXCap.native_Mode && 0x10))
+		   pr_warn("Colourspace is set to Y422 but display does not support it");
+	/* only RGB is mandatory in HDMI1.4 */
+	if (para->cs == COLORSPACE_YUV444 && !(hdev->RXCap.native_Mode && 0x20))
+		   pr_warn("Colourspace is set to Y444 but display does not support it");
 	hdev->para = para;
+	pr_info("hdmitx: hdev->para now = para at 0x%08x\n",hdev->para);
+	/* going to use cur_video_param for the bitdepth we really want */
+	if (hdev->cur_video_param != NULL){
+		if (strstr(fmt_attr,"bit") != NULL){
+			hdev->cur_video_param->color_depth = para->cd;
+		pr_info("hdmitx: display colourdepth set by attr to %d in cur_param 0x%08x (VIC: %d)\n",hdev->cur_video_param->color_depth * 2,
+				hdev->cur_video_param,  hdev->cur_video_param->VIC);
+		} else {
+		pr_info("hdmitx: display colourdepth still %d in cur_param 0x%08x (VIC: %d)\n",hdev->cur_video_param->color_depth * 2,
+				hdev->cur_video_param,  hdev->cur_video_param->VIC);
+		}
+		if (hdev->cur_video_param->color_depth > COLORDEPTH_24B && !(hdev->RXCap.ColorDeepSupport & 0x78))
+			pr_warn("Bitdepth is set to %d bits but display does not support deep colour",
+				hdev->cur_video_param->color_depth * 2);
+	}
+
+	/* and recover the original bitstream bitdepth */
+	para->cd = stream_cur_cd;
+	pr_info("hdmitx: Stream colourdepth is %d in para 0x%08x (%s - VIC: %d)\n",stream_cur_cd * 2, hdev->para, hdev->para->name, hdev->para->vic);
 	/* msleep(500); */
 	vic = hdmitx_edid_get_VIC(hdev, mode, 1);
-	if (strncmp(info->name, "2160p30hz", strlen("2160p30hz")) == 0) {
-		vic = HDMI_4k2k_30;
-	} else if (strncmp(info->name, "2160p25hz",
-		strlen("2160p25hz")) == 0) {
-		vic = HDMI_4k2k_25;
-	} else if (strncmp(info->name, "2160p24hz",
-		strlen("2160p24hz")) == 0) {
-		vic = HDMI_4k2k_24;
-	} else if (strncmp(info->name, "smpte24hz",
-		strlen("smpte24hz")) == 0)
-		vic = HDMI_4k2k_smpte_24;
-	else {
-	/* nothing */
-	}
 	if (suspend_flag == 1)
 		vic_ready = HDMI_Unkown;
-	if ((vic_ready != HDMI_Unkown) && (vic_ready == vic)) {
+	if ((vic_ready != HDMI_Unkown) && (vic_ready == vic) && (strstr(fmt_attr,"now") == NULL)) {
 		hdmi_print(IMP, SYS "[%s] ALREADY init VIC = %d\n",
 			__func__, vic);
 		if (hdev->RXCap.IEEEOUI == 0) {
@@ -628,13 +653,18 @@ static int set_disp_mode_auto(void)
 	} else
 		hdmitx_pre_display_init();
 
+	/* now is one-shot but attrs are sticky */
+	if (strstr(fmt_attr,"now") != NULL){
+		memcpy(strstr(fmt_attr,"now"), " ", 3);
+	}
+
 	hdev->cur_VIC = HDMI_Unkown;
 /* if vic is HDMI_Unkown, hdmitx_set_display will disable HDMI */
 	ret = hdmitx_set_display(hdev, vic);
-	pr_info("%s %d %d\n", info->name, info->sync_duration_num,
+	hdmi_print(IMP, VID"vinfo: %s %d %d\n", info->name, info->sync_duration_num,
 		info->sync_duration_den);
 	recalc_vinfo_sync_duration(info, hdev->frac_rate_policy);
-	pr_info("%s %d %d\n", info->name, info->sync_duration_num,
+	hdmi_print(IMP, VID"vinfo recalc: %s %d %d\n", info->name, info->sync_duration_num,
 		info->sync_duration_den);
 	if (ret >= 0) {
 		hdev->HWOp.Cntl(hdev, HDMITX_AVMUTE_CNTL, AVMUTE_CLEAR);
@@ -661,8 +691,47 @@ static int set_disp_mode_auto(void)
 	hdmitx_set_audio(hdev, &(hdev->cur_audio_param), hdmi_ch);
 	hdev->output_blank_flag = 1;
 	hdev->ready = 1;
+	/* report hdmi video status */ 
+
+	hdmi_print(IMP, VID "VIC: %d (%d) %s\n",
+			(hdmitx_rd_reg(HDMITX_DWC_FC_AVIVID) > 0 ? hdmitx_rd_reg(HDMITX_DWC_FC_AVIVID) :
+			 hdmitx_rd_reg(HDMITX_DWC_FC_VSDPAYLOAD1)), hdev->cur_VIC, hdev->para->name);
+
+	hdmi_print(IMP, VID "Bit depth: %d-bit, Colour range: %s, Colourspace: %s\n",
+			(((hdmitx_rd_reg(HDMITX_DWC_TX_INVID0) & 0x6) >> 1) + 4 ) * 2,
+			range[(hdmitx_rd_reg(HDMITX_DWC_FC_AVICONF2) & 4) >> 2],
+			pix_fmt[(hdmitx_rd_reg(HDMITX_DWC_FC_AVICONF0) & 0x3)]);
+
+	if (((hdmitx_rd_reg(HDMITX_DWC_FC_AVICONF1) & 0xc0) >> 6) < 0x3)
+		hdmi_print(IMP, VID "Colorimetry: %s\n",
+				colour_str[(hdmitx_rd_reg(HDMITX_DWC_FC_AVICONF1) & 0xc0) >> 6]);
+	else	
+		hdmi_print(IMP, VID "Colorimetry: %s\n",
+				colour_str[((hdmitx_rd_reg(HDMITX_DWC_FC_AVICONF2) & 0x70) >> 4) + 3]);
+
+	if ((hdmitx_rd_reg(HDMITX_DWC_FC_DRM_PB00) & 3) == 0x02) {
+		hdmi_print(IMP, VID "HDR data: EOTF: %s, Colour range: %s\n", eotf[(hdmitx_rd_reg(HDMITX_DWC_FC_DRM_PB00) & 3)],
+				range[((hdmitx_rd_reg(HDMITX_DWC_FC_AVICONF3) & 4) >> 2) + 1]);
+		if (hdmitx_rd_reg(HDMITX_DWC_FC_DRM_PB02) > 0x0) {
+			hdmi_print(IMP, VID "Master display colours:\nPrimary one 0.%04d,0.%04d, two 0.%04d,0.%04d, three 0.%04d,0.%04d\nWhite 0.%04d,0.%04d, Luminance max/min: %d,0.%03d\n",
+					(hdmitx_rd_reg(HDMITX_DWC_FC_DRM_PB02) | (hdmitx_rd_reg(HDMITX_DWC_FC_DRM_PB03) << 8)) * 2 / 10,
+					(hdmitx_rd_reg(HDMITX_DWC_FC_DRM_PB04) | (hdmitx_rd_reg(HDMITX_DWC_FC_DRM_PB05) << 8)) * 2 / 10,
+					(hdmitx_rd_reg(HDMITX_DWC_FC_DRM_PB06) | (hdmitx_rd_reg(HDMITX_DWC_FC_DRM_PB07) << 8)) * 2 / 10,
+					(hdmitx_rd_reg(HDMITX_DWC_FC_DRM_PB08) | (hdmitx_rd_reg(HDMITX_DWC_FC_DRM_PB09) << 8)) * 2 / 10,
+					(hdmitx_rd_reg(HDMITX_DWC_FC_DRM_PB10) | (hdmitx_rd_reg(HDMITX_DWC_FC_DRM_PB11) << 8)) * 2 / 10,
+					(hdmitx_rd_reg(HDMITX_DWC_FC_DRM_PB12) | (hdmitx_rd_reg(HDMITX_DWC_FC_DRM_PB13) << 8)) * 2 / 10,
+					(hdmitx_rd_reg(HDMITX_DWC_FC_DRM_PB14) | (hdmitx_rd_reg(HDMITX_DWC_FC_DRM_PB15) << 8)) * 2 / 10,
+					(hdmitx_rd_reg(HDMITX_DWC_FC_DRM_PB16) | (hdmitx_rd_reg(HDMITX_DWC_FC_DRM_PB17) << 8)) * 2 / 10,
+					(hdmitx_rd_reg(HDMITX_DWC_FC_DRM_PB18) | (hdmitx_rd_reg(HDMITX_DWC_FC_DRM_PB19) << 8)) / 10000,
+					(hdmitx_rd_reg(HDMITX_DWC_FC_DRM_PB20) | (hdmitx_rd_reg(HDMITX_DWC_FC_DRM_PB21) << 8)));
+			hdmi_print(IMP, VID "Max content luminance: %d, Max frame average luminance: %d\n",
+					(hdmitx_rd_reg(HDMITX_DWC_FC_DRM_PB22) | (hdmitx_rd_reg(HDMITX_DWC_FC_DRM_PB23) << 8)) / 10000,
+					(hdmitx_rd_reg(HDMITX_DWC_FC_DRM_PB24) | (hdmitx_rd_reg(HDMITX_DWC_FC_DRM_PB25) << 8)) / 10000);
+		}
+		else hdmi_print(IMP, VID "No master display info\n");
+	}		
 	return ret;
-}
+} /* set_disp_mode_auto */
 
 static unsigned char is_dispmode_valid_for_hdmi(void)
 {
@@ -704,8 +773,11 @@ static ssize_t store_attr(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t count)
 {
 	memcpy(fmt_attr, buf, sizeof(fmt_attr));
+	if (strstr(fmt_attr,"now"))
+			set_disp_mode_auto();
 	return count;
 }
+
 
 /*aud_mode attr*/
 static ssize_t show_aud_mode(struct device *dev,
@@ -1179,15 +1251,21 @@ static ssize_t show_config(struct device *dev,
 	struct hdmitx_dev *hdev = &hdmitx_device;
 
 	pos += snprintf(buf+pos, PAGE_SIZE, "cur_VIC: %d\n", hdev->cur_VIC);
-	if (hdev->cur_video_param)
-		pos += snprintf(buf+pos, PAGE_SIZE,
-			"cur_video_param->VIC=%d\n",
-			hdev->cur_video_param->VIC);
-	if (hdev->para) {
-		pos += snprintf(buf+pos, PAGE_SIZE, "cd = %d\n",
-			hdev->para->cd);
-		pos += snprintf(buf+pos, PAGE_SIZE, "cs = %d\n",
-			hdev->para->cs);
+	if (hdev->para){
+		struct hdmi_format_para *para;
+	   	para = hdev->para;
+
+		pos += snprintf(buf+pos, PAGE_SIZE, "VIC: %d %s\n",
+				hdmitx_device.cur_VIC, para->name);
+		char* pix_fmt[] = {"RGB","YUV422","YUV444","YUV420"};
+		char* eotf[] = {"null","DV","HDR10","SDR"};
+		char* range[] = {"default","limited","full"};
+		pos += snprintf(buf + pos, PAGE_SIZE, "Colour depth: %d-bit\nColourspace: %s\nColour range: %s\nEOTF: %s\nPQ colour range: %s\n",
+				(((hdmitx_rd_reg(HDMITX_DWC_TX_INVID0) & 0x6) >> 1) + 4 ) * 2,
+				pix_fmt[(hdmitx_rd_reg(HDMITX_DWC_FC_AVICONF0) & 0x3)],
+				range[(hdmitx_rd_reg(HDMITX_DWC_FC_AVICONF2) & 0xc) >> 2],
+				"TBC", //eotf[(hdmitx_rd_reg(HDMITX_DWC_FC_AVICONF1) & 4)],
+				range[((hdmitx_rd_reg(HDMITX_DWC_FC_AVICONF3) & 0xc) >> 2) + 1]);
 	}
 
 	switch (hdev->tx_aud_cfg) {

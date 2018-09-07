@@ -2424,11 +2424,11 @@ int hdmitx_edid_dump(struct hdmitx_dev *hdmitx_device, char *buffer,
 		"Manufacture Year: %d\n", pRXCap->manufacture_year+1990);
 
 	pos += snprintf(buffer+pos, buffer_len-pos,
-		"Physcial size(cm): %d x %d\n",
+		"Physical size(cm): %d x %d\n",
 		pRXCap->physcial_weight, pRXCap->physcial_height);
 
 	pos += snprintf(buffer+pos, buffer_len-pos,
-		"EDID Verison: %d.%d\n",
+		"EDID Version: %d.%d\n",
 		pRXCap->edid_version, pRXCap->edid_revision);
 
 	pos += snprintf(buffer+pos, buffer_len-pos,
@@ -2444,11 +2444,11 @@ int hdmitx_edid_dump(struct hdmitx_dev *hdmitx_device, char *buffer,
 		hdmitx_device->hdmi_info.vsdb_phy_addr.d);
 
 	pos += snprintf(buffer+pos, buffer_len-pos,
-		"native Mode %x, VIC (native %d):\n",
-		pRXCap->native_Mode, pRXCap->native_VIC);
+		"YCC support 0x%02x, VIC (native %d):\n",
+		(pRXCap->native_Mode & 0x30) >> 4, pRXCap->native_VIC);
 
 	pos += snprintf(buffer+pos, buffer_len-pos,
-		"ColorDeepSupport %x\n", pRXCap->ColorDeepSupport);
+		"ColorDeepSupport 0x%02x\n", pRXCap->ColorDeepSupport);
 
 	for (i = 0 ; i < pRXCap->VIC_count ; i++) {
 		pos += snprintf(buffer+pos, buffer_len-pos, "%d ",
@@ -2459,19 +2459,19 @@ int hdmitx_edid_dump(struct hdmitx_dev *hdmitx_device, char *buffer,
 		"Audio {format, channel, freq, cce}\n");
 	for (i = 0; i < pRXCap->AUD_count; i++) {
 		pos += snprintf(buffer+pos, buffer_len-pos,
-			"{%d, %d, %x, %x}\n",
+			"{%d, %d, 0x%02x, 0x%02x}\n",
 			pRXCap->RxAudioCap[i].audio_format_code,
 			pRXCap->RxAudioCap[i].channel_num_max,
 			pRXCap->RxAudioCap[i].freq_cc,
 			pRXCap->RxAudioCap[i].cc3);
 	}
 	pos += snprintf(buffer+pos, buffer_len-pos,
-		"Speaker Allocation: %x\n", pRXCap->RxSpeakerAllocation);
+		"Speaker Allocation: 0x%02x\n", pRXCap->RxSpeakerAllocation);
 	pos += snprintf(buffer+pos, buffer_len-pos, "Vendor: 0x%x\n",
 		pRXCap->IEEEOUI);
 
 	pos += snprintf(buffer+pos, buffer_len-pos,
-		"MaxTMDSClock1 %d MHz\n", pRXCap->Max_TMDS_Clock1 * 5);
+		"MaxTMDSClock1 %d MHz%s\n", pRXCap->Max_TMDS_Clock1 * 5, pRXCap->Max_TMDS_Clock1 == 1 ? " or less" : "");
 
 	if (pRXCap->HF_IEEEOUI) {
 		pos += snprintf(buffer+pos, buffer_len-pos, "Vendor2: 0x%x\n",
