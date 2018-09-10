@@ -699,13 +699,13 @@ static int set_disp_mode_auto(void)
 
 	hdmi_print(IMP, VID "Bit depth: %d-bit, Colour range: %s, Colourspace: %s\n",
 			(((hdmitx_rd_reg(HDMITX_DWC_TX_INVID0) & 0x6) >> 1) + 4 ) * 2,
-			range[(hdmitx_rd_reg(HDMITX_DWC_FC_AVICONF2) & 4) >> 2],
+			range[(hdmitx_rd_reg(HDMITX_DWC_FC_AVICONF2) & 0xc) >> 2],
 			pix_fmt[(hdmitx_rd_reg(HDMITX_DWC_FC_AVICONF0) & 0x3)]);
 
 	if (((hdmitx_rd_reg(HDMITX_DWC_FC_AVICONF1) & 0xc0) >> 6) < 0x3)
 		hdmi_print(IMP, VID "Colorimetry: %s\n",
 				colour_str[(hdmitx_rd_reg(HDMITX_DWC_FC_AVICONF1) & 0xc0) >> 6]);
-	else	
+	else
 		hdmi_print(IMP, VID "Colorimetry: %s\n",
 				colour_str[((hdmitx_rd_reg(HDMITX_DWC_FC_AVICONF2) & 0x70) >> 4) + 3]);
 
@@ -1258,13 +1258,13 @@ static ssize_t show_config(struct device *dev,
 		pos += snprintf(buf+pos, PAGE_SIZE, "VIC: %d %s\n",
 				hdmitx_device.cur_VIC, para->name);
 		char* pix_fmt[] = {"RGB","YUV422","YUV444","YUV420"};
-		char* eotf[] = {"null","DV","HDR10","SDR"};
+		char* eotf[] = {"SDR","HDR","HDR10","HLG"};
 		char* range[] = {"default","limited","full"};
 		pos += snprintf(buf + pos, PAGE_SIZE, "Colour depth: %d-bit\nColourspace: %s\nColour range: %s\nEOTF: %s\nPQ colour range: %s\n",
 				(((hdmitx_rd_reg(HDMITX_DWC_TX_INVID0) & 0x6) >> 1) + 4 ) * 2,
 				pix_fmt[(hdmitx_rd_reg(HDMITX_DWC_FC_AVICONF0) & 0x3)],
 				range[(hdmitx_rd_reg(HDMITX_DWC_FC_AVICONF2) & 0xc) >> 2],
-				"TBC", //eotf[(hdmitx_rd_reg(HDMITX_DWC_FC_AVICONF1) & 4)],
+				eotf[(hdmitx_rd_reg(HDMITX_DWC_FC_DRM_PB00) & 3)],
 				range[((hdmitx_rd_reg(HDMITX_DWC_FC_AVICONF3) & 0xc) >> 2) + 1]);
 	}
 

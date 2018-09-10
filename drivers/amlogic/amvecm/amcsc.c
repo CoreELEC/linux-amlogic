@@ -3560,14 +3560,18 @@ static void bypass_hdr_process(
 				CSC_OFF);
 
 			/* osd matrix RGB709 to YUV709 limit/full */
-			if (range_control)
+			if (signal_range == 1){
 				set_vpp_matrix(VPP_MATRIX_OSD,
 					RGB709_to_YUV709_coeff,
 					CSC_ON);	/* use full range */
-			else
+				pr_info("Full range RGB-YUV");
+			}
+			else {
 				set_vpp_matrix(VPP_MATRIX_OSD,
 					RGB709_to_YUV709l_coeff,
 					CSC_ON);	/* use limit range */
+				pr_info("Limited range RGB-YUV");
+			}
 		}
 
 		/************** VIDEO **************/
@@ -3585,20 +3589,14 @@ static void bypass_hdr_process(
 					/* limit->full range */
 				else
 					set_vpp_matrix(VPP_MATRIX_VD1,
-						bypass_coeff,
-						CSC_OFF);
+						YUV709f_to_YUV709l_coeff,
+						CSC_ON);
 					/* full->full range */
 			} else {
-				if (signal_range == 0) /* limit range */
 					set_vpp_matrix(VPP_MATRIX_VD1,
 						bypass_coeff,
 						CSC_OFF);
 					/* limit->limit range */
-				else
-					set_vpp_matrix(VPP_MATRIX_VD1,
-						YUV709f_to_YUV709l_coeff,
-						CSC_ON);
-					/* full->limit range */
 			}
 		}
 

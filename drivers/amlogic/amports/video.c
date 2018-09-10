@@ -7091,7 +7091,6 @@ static ssize_t frame_format_show(struct class *cla,
 		else
 			ret+= sprintf(buf + ret, "No colour data present\n");
 
-
 		if (dispbuf->prop.bbar.bottom == 0 || dispbuf->prop.bbar.right == 0)
 			ret+= sprintf(buf + ret, "No black bar info\n");
 		else {
