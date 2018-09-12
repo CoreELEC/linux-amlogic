@@ -663,6 +663,20 @@ int hdmitx_set_display(struct hdmitx_dev *hdev, enum hdmi_vic VideoCode)
 			default:
 				break;
 			}
+			if (param->color == COLORSPACE_YUV444 &&
+					hdev->para->tmds_clk * ((int) param->color_depth) / ((int) COLORDEPTH_24B) >
+					hdev->RXCap.Max_TMDS_Clock1 * 5000 &&
+					! hdev->RXCap.HF_IEEEOUI){
+				/* set 422 mode if sink can handle it */
+				if (hdev->RXCap.native_Mode & 0x10){
+					hdev->para->cs = COLORSPACE_YUV422;
+					pr_info("Setting colourspace to YCC422");
+				} else {
+					pr_info("No bandwidth for YCC444 at %d, setting 8-bit", (int) param->color_depth);
+					hdev->para->cs = COLORDEPTH_24B;
+				}
+			}
+
 			if (param->color == COLORSPACE_RGB444) {
 				hdev->para->cs = hdev->cur_video_param->color;
 				pr_info("hdmitx: rx edid only support RGB format\n");

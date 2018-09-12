@@ -1419,23 +1419,32 @@ static ssize_t show_disp_cap(struct device *dev,
 	const char *native_disp_mode =
 		hdmitx_edid_get_native_VIC(&hdmitx_device);
 	enum hdmi_vic vic;
+	struct hdmi_format_para *para = NULL;
 	if (hdmitx_device.tv_no_edid) {
 		pos += snprintf(buf+pos, PAGE_SIZE, "null edid\n");
 	} else {
 		for (i = 0; disp_mode_t[i]; i++) {
 			vic = hdmitx_edid_get_VIC(&hdmitx_device,
-				disp_mode_t[i], 0);
-		if (vic != HDMI_Unkown) {
-			pos += snprintf(buf+pos, PAGE_SIZE, "%s",
-				disp_mode_t[i]);
-			if (native_disp_mode && (strcmp(
-				native_disp_mode,
-				disp_mode_t[i]) == 0)) {
-				pos += snprintf(buf+pos, PAGE_SIZE,
-					"*\n");
-			} else
-			pos += snprintf(buf+pos, PAGE_SIZE, "\n");
-		}
+					disp_mode_t[i], 0);
+			if (vic != HDMI_Unkown) {
+				/* sanity check */
+				para = hdmi_get_fmt_paras(vic);
+				if (! hdmitx_device.RXCap.HF_IEEEOUI &&
+						para->tmds_clk > hdmitx_device.RXCap.Max_TMDS_Clock1 * 5000){
+					pr_info("Mode %s (VIC %d) needs %dMHz clock, more than %dMHz",
+							disp_mode_t[i], vic, para->tmds_clk / 1000, hdmitx_device.RXCap.Max_TMDS_Clock1 * 5);
+				} else {
+					pos += snprintf(buf+pos, PAGE_SIZE, "%s",
+							disp_mode_t[i]);
+					if (native_disp_mode && (strcmp(
+									native_disp_mode,
+									disp_mode_t[i]) == 0)) {
+						pos += snprintf(buf+pos, PAGE_SIZE,
+								"*\n");
+					} else
+						pos += snprintf(buf+pos, PAGE_SIZE, "\n");
+				}
+			}
 		}
 	}
 	return pos;
