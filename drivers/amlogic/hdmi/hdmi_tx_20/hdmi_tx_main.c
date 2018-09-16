@@ -1260,7 +1260,7 @@ static ssize_t show_config(struct device *dev,
 		char* pix_fmt[] = {"RGB","YUV422","YUV444","YUV420"};
 		char* eotf[] = {"SDR","HDR","HDR10","HLG"};
 		char* range[] = {"default","limited","full"};
-		pos += snprintf(buf + pos, PAGE_SIZE, "Colour depth: %d-bit\nColourspace: %s\nColour range: %s\nEOTF: %s\nPQ colour range: %s\n",
+		pos += snprintf(buf + pos, PAGE_SIZE, "Colour depth: %d-bit\nColourspace: %s\nColour range: %s\nEOTF: %s\nYCC colour range: %s\n",
 				(((hdmitx_rd_reg(HDMITX_DWC_TX_INVID0) & 0x6) >> 1) + 4 ) * 2,
 				pix_fmt[(hdmitx_rd_reg(HDMITX_DWC_FC_AVICONF0) & 0x3)],
 				range[(hdmitx_rd_reg(HDMITX_DWC_FC_AVICONF2) & 0xc) >> 2],

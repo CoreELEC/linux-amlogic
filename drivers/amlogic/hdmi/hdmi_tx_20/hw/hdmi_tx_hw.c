@@ -4488,7 +4488,7 @@ static void config_hdmi20_tx(enum hdmi_vic vic,
 	}
 
 	data32  = 0;
-	data32 |= (((0 == COLORRANGE_FUL) ? 1 : 0) << 2);
+	data32 |= (((hdev->para->cr == COLORRANGE_FUL) ? 1 : 0) << 2);
 	data32 |= (0 << 0);
 	hdmitx_wr_reg(HDMITX_DWC_FC_AVICONF3,   data32);
 
