@@ -2307,7 +2307,10 @@ static void set_aud_info_pkt(struct hdmitx_dev *hdev,
 		hdmitx_set_reg_bits(HDMITX_DWC_FC_AUDICONF0,
 			GET_OUTCHN_NO(hdev->aud_output_ch) - 1, 4, 3);
 	hdmitx_set_reg_bits(HDMITX_DWC_FC_AUDICONF1, 0, 0, 3); /* SF */
-	hdmitx_set_reg_bits(HDMITX_DWC_FC_AUDICONF1, 0, 4, 2); /* SS */
+	if (audio_param->channel_num < 2)
+		hdmitx_set_reg_bits(HDMITX_DWC_FC_AUDICONF1, 3, 4, 2); /* SS */
+	else
+		hdmitx_set_reg_bits(HDMITX_DWC_FC_AUDICONF1, 0, 4, 2); /* SS */
 	switch (audio_param->type) {
 	case CT_MAT:
 	case CT_DTS_HD_MA:
