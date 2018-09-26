@@ -530,6 +530,13 @@ static int set_disp_mode_auto(void)
 
 	memset(mode, 0, sizeof(mode));
 
+	/* get current vinfo */
+	info = hdmi_get_current_vinfo();
+	hdmi_print(IMP, VID "auto - get current mode: %s\n",
+		info ? info->name : "null");
+	if (info == NULL)
+		return -1;
+
 	/* save colourdepth of the stream */
 	stream_cur_cd = hdev->para->cd;
 	pr_info("hdmitx: stream colourdepth was %d in para 0x%08x (%s)\n",stream_cur_cd * 2, hdev->para, hdev->para->name);
@@ -537,13 +544,6 @@ static int set_disp_mode_auto(void)
 		pr_info("hdmitx: display colourdepth was %d in cur_param 0x%08x (VIC: %d)\n",hdev->cur_video_param->color_depth * 2,
 			hdev->cur_video_param,  hdev->cur_video_param->VIC);
 	}
-
-	/* get current vinfo */
-	info = hdmi_get_current_vinfo();
-	hdmi_print(IMP, VID "auto - get current mode: %s\n",
-		info ? info->name : "null");
-	if (info == NULL)
-		return -1;
 
 	info->fresh_tx_hdr_pkt = hdmitx_set_drm_pkt;
 	info->fresh_tx_vsif_pkt = hdmitx_set_vsif_pkt;
@@ -611,16 +611,21 @@ static int set_disp_mode_auto(void)
 	if (hdev->cur_video_param != NULL){
 		if (strstr(fmt_attr,"bit") != NULL){
 			hdev->cur_video_param->color_depth = para->cd;
-		pr_info("hdmitx: display colourdepth set by attr to %d in cur_param 0x%08x (VIC: %d)\n",hdev->cur_video_param->color_depth * 2,
-				hdev->cur_video_param,  hdev->cur_video_param->VIC);
+			pr_info("hdmitx: display colourdepth set by attr to %d in cur_param 0x%08x (VIC: %d)\n",hdev->cur_video_param->color_depth * 2,
+					hdev->cur_video_param,  hdev->cur_video_param->VIC);
 		} else {
-		pr_info("hdmitx: display colourdepth still %d in cur_param 0x%08x (VIC: %d)\n",hdev->cur_video_param->color_depth * 2,
-				hdev->cur_video_param,  hdev->cur_video_param->VIC);
+			if (stream_cur_cd == COLORDEPTH_24B)
+				hdev->cur_video_param->color_depth = COLORDEPTH_24B;
+			pr_info("hdmitx: display colourdepth is %d in cur_param 0x%08x (VIC: %d)\n",hdev->cur_video_param->color_depth * 2,
+					hdev->cur_video_param,  hdev->cur_video_param->VIC);
 		}
 		if (hdev->cur_video_param->color_depth > COLORDEPTH_24B && !(hdev->RXCap.ColorDeepSupport & 0x78))
 			pr_warn("Bitdepth is set to %d bits but display does not support deep colour",
 				hdev->cur_video_param->color_depth * 2);
 	}
+	/* only set full range if forced */
+	if (strstr(fmt_attr,"full") == NULL)
+		hdev->para->cr = COLORRANGE_LIM;
 
 	/* and recover the original bitstream bitdepth */
 	para->cd = stream_cur_cd;
@@ -697,9 +702,10 @@ static int set_disp_mode_auto(void)
 			(hdmitx_rd_reg(HDMITX_DWC_FC_AVIVID) > 0 ? hdmitx_rd_reg(HDMITX_DWC_FC_AVIVID) :
 			 hdmitx_rd_reg(HDMITX_DWC_FC_VSDPAYLOAD1)), hdev->cur_VIC, hdev->para->name);
 
-	hdmi_print(IMP, VID "Bit depth: %d-bit, Colour range: %s, Colourspace: %s\n",
+	hdmi_print(IMP, VID "Bit depth: %d-bit, Colour range RGB: %s, YCC: %s, Colourspace: %s\n",
 			(((hdmitx_rd_reg(HDMITX_DWC_TX_INVID0) & 0x6) >> 1) + 4 ) * 2,
 			range[(hdmitx_rd_reg(HDMITX_DWC_FC_AVICONF2) & 0xc) >> 2],
+			range[((hdmitx_rd_reg(HDMITX_DWC_FC_AVICONF3) & 4) >> 2) + 1],
 			pix_fmt[(hdmitx_rd_reg(HDMITX_DWC_FC_AVICONF0) & 0x3)]);
 
 	if (((hdmitx_rd_reg(HDMITX_DWC_FC_AVICONF1) & 0xc0) >> 6) < 0x3)
@@ -710,8 +716,7 @@ static int set_disp_mode_auto(void)
 				colour_str[((hdmitx_rd_reg(HDMITX_DWC_FC_AVICONF2) & 0x70) >> 4) + 3]);
 
 	if ((hdmitx_rd_reg(HDMITX_DWC_FC_DRM_PB00) & 3) == 0x02) {
-		hdmi_print(IMP, VID "HDR data: EOTF: %s, Colour range: %s\n", eotf[(hdmitx_rd_reg(HDMITX_DWC_FC_DRM_PB00) & 3)],
-				range[((hdmitx_rd_reg(HDMITX_DWC_FC_AVICONF3) & 4) >> 2) + 1]);
+		hdmi_print(IMP, VID "HDR data: EOTF: %s\n", eotf[(hdmitx_rd_reg(HDMITX_DWC_FC_DRM_PB00) & 3)]);
 		if (hdmitx_rd_reg(HDMITX_DWC_FC_DRM_PB02) > 0x0) {
 			hdmi_print(IMP, VID "Master display colours:\nPrimary one 0.%04d,0.%04d, two 0.%04d,0.%04d, three 0.%04d,0.%04d\nWhite 0.%04d,0.%04d, Luminance max/min: %d,0.%03d\n",
 					(hdmitx_rd_reg(HDMITX_DWC_FC_DRM_PB02) | (hdmitx_rd_reg(HDMITX_DWC_FC_DRM_PB03) << 8)) * 2 / 10,
@@ -1253,7 +1258,7 @@ static ssize_t show_config(struct device *dev,
 	pos += snprintf(buf+pos, PAGE_SIZE, "cur_VIC: %d\n", hdev->cur_VIC);
 	if (hdev->para){
 		struct hdmi_format_para *para;
-	   	para = hdev->para;
+		para = hdev->para;
 
 		pos += snprintf(buf+pos, PAGE_SIZE, "VIC: %d %s\n",
 				hdmitx_device.cur_VIC, para->name);
@@ -1266,6 +1271,9 @@ static ssize_t show_config(struct device *dev,
 				range[(hdmitx_rd_reg(HDMITX_DWC_FC_AVICONF2) & 0xc) >> 2],
 				eotf[(hdmitx_rd_reg(HDMITX_DWC_FC_DRM_PB00) & 3)],
 				range[((hdmitx_rd_reg(HDMITX_DWC_FC_AVICONF3) & 0xc) >> 2) + 1]);
+		pos += snprintf(buf + pos, PAGE_SIZE, "PLL clock: 0x%08x, Vid clock div 0x%08x\n",
+				hd_read_reg(P_HHI_HDMI_PLL_CNTL),
+				hd_read_reg(P_HHI_VID_PLL_CLK_DIV));
 	}
 
 	switch (hdev->tx_aud_cfg) {

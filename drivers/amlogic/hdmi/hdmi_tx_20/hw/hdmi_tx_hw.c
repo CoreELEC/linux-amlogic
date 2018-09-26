@@ -3788,11 +3788,11 @@ static int hdmitx_hdmi_dvi_config(struct hdmitx_dev *hdev,
 	} else {
 
 		/* set ycc indicator */
-		if (hdmi_output_rgb) {
+/*		if (hdmi_output_rgb) {
 			hdmitx_csc_config(TX_INPUT_COLOR_FORMAT,
 				COLORSPACE_RGB444, TX_COLOR_DEPTH);
 			hdmitx_set_reg_bits(HDMITX_DWC_FC_INVIDCONF, 0, 3, 1);
-		}
+		}*/
 		/* set hdmi flag */
 		hdmitx_set_reg_bits(HDMITX_DWC_FC_INVIDCONF, 1, 3, 1);
 	}

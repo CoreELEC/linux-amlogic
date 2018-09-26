@@ -2448,7 +2448,9 @@ int hdmitx_edid_dump(struct hdmitx_dev *hdmitx_device, char *buffer,
 		(pRXCap->native_Mode & 0x30) >> 4, pRXCap->native_VIC);
 
 	pos += snprintf(buffer+pos, buffer_len-pos,
-		"ColorDeepSupport 0x%02x\n", pRXCap->ColorDeepSupport);
+		"ColorDeepSupport 0x%02x 10/12/16/Y444 %d/%d/%d/%d\n",
+		pRXCap->ColorDeepSupport, pRXCap->dc_30bit, pRXCap->dc_36bit,
+		pRXCap->dc_48bit, pRXCap->dc_y444);
 
 	for (i = 0 ; i < pRXCap->VIC_count ; i++) {
 		pos += snprintf(buffer+pos, buffer_len-pos, "%d ",

@@ -3831,7 +3831,7 @@ static irqreturn_t vsync_isr(int irq, void *dev_id)
 #endif
 	struct vframe_s *toggle_vf = NULL;
 	int video1_off_req = 0;
-	struct hdmitx_dev *hdmitx_device;
+	struct hdmitx_dev *hdev;
 
 	if (debug_flag & DEBUG_FLAG_VSYNC_DONONE)
 		return IRQ_HANDLED;
@@ -3872,9 +3872,9 @@ static irqreturn_t vsync_isr(int irq, void *dev_id)
 #endif
 
 	vf = video_vf_peek();
-   	hdmitx_device = get_hdmitx_device();
+   	hdev = get_hdmitx_device();
 	enum hdmi_color_depth cur_cd;
-	cur_cd = hdmitx_device->para->cd;
+	cur_cd = hdev->para->cd;
 	if ((vf) && ((vf->type & VIDTYPE_NO_VIDEO_ENABLE) == 0)) {
 		int bitdepthY;
 		enum hdmi_color_depth new_cd;
@@ -3891,13 +3891,13 @@ static irqreturn_t vsync_isr(int irq, void *dev_id)
 				new_cd = COLORDEPTH_24B;
 		}
 		if (new_cd != cur_cd){
-			hdmitx_device->para->cd = new_cd;
-			pr_info(" Colourdepth set from stream as %dB in para 0x%08x (%s)\n",(int) hdmitx_device->para->cd * 6, &hdmitx_device->para, hdmitx_device->para->name);
-			pr_info(" Colourdepth in stream changed to %d\n", hdmitx_device->para->cd * 2);
-			if (hdmitx_device->cur_video_param != NULL){
-				hdmitx_device->cur_video_param->color_depth = new_cd;
-				pr_info(" Colourdepth set from stream as %d in cur_param 0x%08x (VIC: %d)\n", hdmitx_device->cur_video_param->color_depth,
-						&hdmitx_device->cur_video_param, hdmitx_device->cur_video_param->VIC);
+			video_property_changed = true;
+			hdev->para->cd = new_cd;
+			pr_info(" Colourdepth changed in stream to %dB in para 0x%08x (%s)\n",(int) hdev->para->cd * 6, hdev->para, hdev->para->name);
+			if (hdev->cur_video_param != NULL){
+				hdev->cur_video_param->color_depth = new_cd;
+				pr_info(" Colourdepth set from stream as %d in cur_param 0x%08x (VIC: %d)\n", hdev->cur_video_param->color_depth,
+						hdev->cur_video_param, hdev->cur_video_param->VIC);
 			}
 		}
 		if ((old_vmode != new_vmode) || (debug_flag == 8)) {
@@ -3905,19 +3905,22 @@ static irqreturn_t vsync_isr(int irq, void *dev_id)
 			video_property_changed = true;
 			pr_info(" detect vout mode change! was %d now %d\n",old_vmode,new_vmode);
 			old_vmode = new_vmode;
-			dump_params(vf);
 		}
+		if (video_property_changed)
+			dump_params(vf);
+
 	} else if (!vf && cur_cd != COLORDEPTH_24B) {
 		struct vframe_provider_s *vfp = vf_get_provider(RECEIVER_NAME);
 		if (!vfp){
 			pr_info(" Frame provider: none\n");
-			hdmitx_device->para->cd = COLORDEPTH_24B; // assume 8-bit if not using hw accel
-			pr_info(" Colourdepth reset to %dB in para 0x%08x (%s)\n",(int) hdmitx_device->para->cd * 6, &hdmitx_device->para, hdmitx_device->para->name);
-			if (hdmitx_device->cur_video_param != NULL){
-				hdmitx_device->cur_video_param->color_depth = COLORDEPTH_24B;
-				pr_info(" Colourdepth reset from stream as %d in cur_param 0x%08x (VIC: %d)\n", hdmitx_device->cur_video_param->color_depth,
-						&hdmitx_device->cur_video_param, hdmitx_device->cur_video_param->VIC);
+			hdev->para->cd = COLORDEPTH_24B; // assume 8-bit if not using hw accel
+			pr_info(" Colourdepth reset to %dB in para 0x%08x (%s)\n",(int) hdev->para->cd * 6, hdev->para, hdev->para->name);
+			if (hdev->cur_video_param != NULL){
+				hdev->cur_video_param->color_depth = COLORDEPTH_24B;
+				pr_info(" Colourdepth reset from stream as %d in cur_param 0x%08x (VIC: %d)\n", hdev->cur_video_param->color_depth,
+						hdev->cur_video_param, hdev->cur_video_param->VIC);
 			}
+			video_property_changed = true;
 		}
 	}
 #ifdef CONFIG_AM_VIDEO_LOG
