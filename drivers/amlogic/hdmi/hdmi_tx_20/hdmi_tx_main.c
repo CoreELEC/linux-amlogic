@@ -63,6 +63,7 @@
 #include <linux/i2c.h>
 #include "hw/tvenc_conf.h"
 #include "hw/hdmi_tx_reg.h"
+#include "hw/mach_reg.h"
 #ifdef CONFIG_INSTABOOT
 #include <linux/amlogic/instaboot/instaboot.h>
 #endif
