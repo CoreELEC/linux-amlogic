@@ -720,7 +720,7 @@ RETRY:
 	eyetest_log = readl(host->base + SD_EMMC_EYETEST_LOG);
 
 	if (!(geyetest_log->eyetest_done & 0x1)) {
-		pr_warn("testing eyetest times:0x%x,out:0x%x,0x%x,line:%d\n",
+		pr_debug("testing eyetest times:0x%x,out:0x%x,0x%x,line:%d\n",
 			readl(host->base + SD_EMMC_EYETEST_LOG),
 			eyetest_out0, eyetest_out1, line_x);
 		gintf3->eyetest_on = 0;
@@ -728,7 +728,7 @@ RETRY:
 		pdata->intf3 = intf3;
 		retry--;
 		if (retry == 0) {
-			pr_warn("[%s][%d] retry eyetest failed-line:%d\n",
+			pr_debug("[%s][%d] retry eyetest failed-line:%d\n",
 					__func__, __LINE__, line_x);
 			return 1;
 		}
