@@ -69,7 +69,7 @@ static void __iomem *network_interface_setup(struct platform_device *pdev)
 		pr_debug("detect cbus[2051]=null, plesae setting cali_val\n");
 	} else {
 		pr_debug("Ethernet :got cali_val 0x%x .set it\n", cali_val);
-		writel(cali_val, addr+4);
+		/* writel(cali_val, addr+4); */
 	}
 	if (!of_property_read_u32(np, "internal_phy", &internal_phy)) {
 		res2 = platform_get_resource(pdev, IORESOURCE_MEM, 2);
