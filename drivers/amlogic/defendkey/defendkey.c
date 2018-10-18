@@ -35,12 +35,23 @@
 #include <linux/sysfs.h>
 #include <asm/cacheflush.h>
 #include "securekey.h"
+#include <linux/memblock.h>
 
 #define DEFENDKEY_DEVICE_NAME	"defendkey"
 #define DEFENDKEY_CLASS_NAME "defendkey"
 void __iomem *mem_base_virt;
 unsigned long mem_size;
 unsigned long random_virt;
+
+struct defendkey_mem {
+	unsigned long	base;
+	unsigned long	size;
+};
+
+struct defendkey_mem defendkey_rmem;
+
+#define CMD_SECURE_CHECK _IO('d', 0x01)
+#define CMD_DECRYPT_DTB  _IO('d', 0x02)
 
 enum e_defendkey_type {
 	e_upgrade_check = 0,
@@ -83,7 +94,27 @@ static loff_t defendkey_llseek(struct file *filp, loff_t off, int whence)
 static long defendkey_unlocked_ioctl(struct file *file,
 	unsigned int cmd, unsigned long arg)
 {
-	return 0;
+	unsigned long ret = 0;
+
+	switch (cmd) {
+	case CMD_SECURE_CHECK:
+		ret = aml_is_secure_set();
+		break;
+	case CMD_DECRYPT_DTB:
+		if (arg == 1)
+			decrypt_dtb = 1;
+		else if (arg == 0)
+			decrypt_dtb = 0;
+		else {
+			return -EINVAL;
+			pr_info("set defendkey decrypt_dtb fail,invalid value\n");
+		}
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return ret;
 }
 
 #ifdef CONFIG_COMPAT
@@ -124,7 +155,7 @@ static ssize_t defendkey_read(struct file *file,
 					__func__, ret);
 				return ret_fail;
 			}
-		__dma_flush_area((const void *)mem_base_virt, copy_size);
+		//__dma_flush_area((const void *)mem_base_virt, copy_size);
 		}
 		if (!ret) {
 			pr_info("%s: copy data to user successfully!\n",
@@ -143,11 +174,15 @@ static ssize_t defendkey_write(struct file *file,
 	ssize_t ret_value = ret_error;
 	int ret = -EINVAL;
 
-	unsigned long mem_base_phy, copy_base, copy_size, random;
-	unsigned long option = 0;
+	unsigned long mem_base_phy, copy_base, copy_size;
+	uint64_t option = 0, random = 0, option_random = 0;
 	int i;
+	struct cpumask task_cpumask;
 
-	mem_base_phy = get_sharemem_info(GET_SHARE_MEM_INPUT_BASE);
+	cpumask_copy(&task_cpumask, &current->cpus_allowed);
+	set_cpus_allowed_ptr(current, cpumask_of(0));
+
+	mem_base_phy = defendkey_rmem.base;
 	mem_base_virt = phys_to_virt(mem_base_phy);
 
 	if (!mem_base_phy || !mem_size) {
@@ -161,6 +196,12 @@ static ssize_t defendkey_write(struct file *file,
 
 	random = readl((void *)random_virt);
 
+#ifdef	CONFIG_ARM64_A32
+	option_random = (random << 8);
+#endif
+
+	option_random |= (random << 32);
+
 	for (i = 0; i <= count/mem_size; i++) {
 		copy_size = mem_size;
 		copy_base = (unsigned long)buf+i*mem_size;
@@ -173,7 +214,7 @@ static ssize_t defendkey_write(struct file *file,
 			ret =  -EFAULT;
 			goto exit;
 		}
-		__dma_flush_area((const void *)mem_base_virt, copy_size);
+		//__dma_flush_area((const void *)mem_base_virt, copy_size);
 
 		if (i == 0) {
 			option = 1;
@@ -181,19 +222,19 @@ static ssize_t defendkey_write(struct file *file,
 				/*just transfer data to BL31 one time*/
 				option = 1|2|4;
 			}
-			option |= (random<<32);
+			option |= option_random;
 		} else if ((i > 0) && (i < (count/mem_size))) {
-			option = 2|(random<<32);
+			option = 2|option_random;
 			if ((count%mem_size == 0) &&
 				(i == (count/mem_size - 1)))
-				option = 4|(random<<32);
+				option = 4|option_random;
 		} else if (i == (count/mem_size)) {
 			if (count%mem_size != 0)
-				option = 4|(random<<32);
+				option = 4|option_random;
 			else
 				break;
 		}
-		pr_info("defendkey:%d: copy_size:0x%lx, option:0x%lx\n",
+		pr_info("defendkey:%d: copy_size:0x%lx, option:0x%llx\n",
 			__LINE__, copy_size, option);
 		pr_info("decrypt_dtb: %d\n", decrypt_dtb);
 		if (e_decrypt_dtb == decrypt_dtb)
@@ -226,6 +267,7 @@ static ssize_t defendkey_write(struct file *file,
 		ret_value = ret_success;
 	}
 exit:
+	set_cpus_allowed_ptr(current, &task_cpumask);
 	return ret_value;
 }
 
@@ -277,8 +319,7 @@ static ssize_t decrypt_dtb_store(struct class *cla,
 		len = count;
 
 	if (!strncmp(buf, "1", len)) {
-		//decrypt_dtb = 1;
-		pr_info("current BL31 share memory size not support decrypt_dtb\n");
+		decrypt_dtb = 1;
 	} else if (!strncmp(buf, "0", len))
 		decrypt_dtb = 0;
 	else {
@@ -313,6 +354,36 @@ static struct class defendkey_class = {
 	.class_attrs = defendkey_class_attrs,
 };
 
+static int __init early_defendkey_para(char *buf)
+{
+	int ret;
+
+	if (!buf)
+		return -EINVAL;
+
+	ret = sscanf(buf, "%lx,%lx",
+		&defendkey_rmem.base, &defendkey_rmem.size);
+	if (ret != 2) {
+		pr_err("invalid boot args \"defendkey\"\n");
+		return -EINVAL;
+	}
+
+	pr_info("%s, base:%lx, size:%lx\n",
+		__func__, defendkey_rmem.base, defendkey_rmem.size);
+
+	ret = memblock_reserve(defendkey_rmem.base,
+		PAGE_ALIGN(defendkey_rmem.size));
+	if (ret < 0) {
+		pr_info("reserve memblock %lx - %lx failed\n",
+			defendkey_rmem.base,
+			defendkey_rmem.base + PAGE_ALIGN(defendkey_rmem.size));
+		return -EINVAL;
+	}
+
+	return 0;
+}
+early_param("defendkey", early_defendkey_para);
+
 static int aml_defendkey_probe(struct platform_device *pdev)
 {
 	int ret =  -1;
@@ -334,7 +405,12 @@ static int aml_defendkey_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "please config mem_size in dts\n");
 		goto error1;
 	}
+
 	mem_size = val64;
+	if (mem_size > defendkey_rmem.size) {
+		dev_err(&pdev->dev, "Reserved memory is not enough!\n");
+		return -EINVAL;
+	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (IS_ERR(res)) {

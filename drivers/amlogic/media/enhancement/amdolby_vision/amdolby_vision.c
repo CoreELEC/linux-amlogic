@@ -292,6 +292,10 @@ MODULE_PARM_DESC(dolby_vision_graphic_min, "\n dolby_vision_graphic_min\n");
 module_param(dolby_vision_graphic_max, uint, 0664);
 MODULE_PARM_DESC(dolby_vision_graphic_max, "\n dolby_vision_graphic_max\n");
 
+/*these two parameters form OSD*/
+static unsigned int osd_graphic_width = 1920;
+static unsigned int osd_graphic_height = 1080;
+
 static unsigned int dv_cert_graphic_width = 1920;
 static unsigned int dv_cert_graphic_height = 1080;
 module_param(dv_cert_graphic_width, uint, 0664);
@@ -1556,8 +1560,7 @@ static int dolby_core1_set(
 				/* vd2 to core1 */
 				0, 17, 1);
 	} else {
-		if (get_cpu_type() ==
-			MESON_CPU_MAJOR_ID_G12A)
+		if (is_meson_g12())
 			VSYNC_WR_MPEG_REG_BITS(
 				DOLBY_PATH_CTRL,
 				/* vd2 to core1 */
@@ -1764,8 +1767,7 @@ static int dolby_core2_set(
 
 	VSYNC_WR_MPEG_REG(DOLBY_CORE2A_CLKGATE_CTRL, 0);
 	VSYNC_WR_MPEG_REG(DOLBY_CORE2A_SWAP_CTRL0, 0);
-	if (is_meson_gxm() ||
-		is_meson_g12() || reset) {
+	if (is_meson_gxm() || is_meson_g12() || reset) {
 		VSYNC_WR_MPEG_REG(DOLBY_CORE2A_SWAP_CTRL1,
 			((hsize + g_htotal_add) << 16)
 			| (vsize + g_vtotal_add + g_vsize_add));
@@ -1944,9 +1946,14 @@ static int dolby_core3_set(
 			}
 			if (new_dovi_setting.dovi_ll_enable &&
 				new_dovi_setting.diagnostic_enable == 0) {
-				/*   bypass gainoff to vks */
+				/*bypass gainoff to vks */
+				/*enable wn tp vks*/
 				VSYNC_WR_MPEG_REG_BITS(
 					VPP_DOLBY_CTRL, 0, 2, 1);
+				VSYNC_WR_MPEG_REG_BITS(
+					VPP_DOLBY_CTRL, 1, 1, 1);
+				VSYNC_WR_MPEG_REG(
+					VPP_DAT_CONV_PARA1, 0x8000800);
 				VSYNC_WR_MPEG_REG_BITS(
 					VPP_MATRIX_CTRL,
 					1, 0, 1); /* post matrix */
@@ -1954,6 +1961,10 @@ static int dolby_core3_set(
 				/* bypass wm tp vks*/
 				VSYNC_WR_MPEG_REG_BITS(
 					VPP_DOLBY_CTRL, 1, 2, 1);
+				VSYNC_WR_MPEG_REG_BITS(
+					VPP_DOLBY_CTRL, 0, 1, 1);
+				VSYNC_WR_MPEG_REG(
+					VPP_DAT_CONV_PARA1, 0x20002000);
 				if (is_meson_txlx_tvmode())
 					enable_rgb_to_yuv_matrix_for_dvll(
 						0, NULL, 12);
@@ -2050,6 +2061,13 @@ static int dolby_core3_set(
 	return 0;
 }
 
+void update_graphic_width_height(unsigned int width,
+	unsigned int height)
+{
+	osd_graphic_width = width;
+	osd_graphic_height = height;
+}
+
 static void apply_stb_core_settings(
 	int enable, unsigned int mask,
 	bool reset, u32 frame_size, u8 pps_state)
@@ -2062,15 +2080,15 @@ static void apply_stb_core_settings(
 #else
 	u32 core1_dm_count = 24;
 #endif
-	u32 graphics_w = 1920;
-	u32 graphics_h = 1080;
+	u32 graphics_w = osd_graphic_width;
+	u32 graphics_h = osd_graphic_height;
 
 	if (is_dolby_vision_stb_mode()
 		&& (dolby_vision_flags & FLAG_CERTIFICAION)) {
 		graphics_w = dv_cert_graphic_width;
 		graphics_h = dv_cert_graphic_height;
 	}
-	if (is_meson_txlx_package_962E()
+	if (is_meson_txlx_stbmode()
 		|| force_stb_mode) {
 		if ((vinfo->width >= 1920) &&
 			(vinfo->height >= 1080) &&
@@ -2088,7 +2106,7 @@ static void apply_stb_core_settings(
 			g_vpotch = 0x20;
 	}
 	if (mask & 1) {
-		if (is_meson_txlx_package_962E()
+		if (is_meson_txlx_stbmode()
 			|| force_stb_mode) {
 			stb_dolby_core1_set(
 				27, 173, 256 * 5,
@@ -2594,6 +2612,10 @@ void enable_dolby_vision(int enable)
 						0, 3, 1);   /* bypass core3  */
 				VSYNC_WR_MPEG_REG(VPP_WRAP_OSD1_MATRIX_EN_CTRL,
 					0x0);
+				VSYNC_WR_MPEG_REG(VPP_WRAP_OSD2_MATRIX_EN_CTRL,
+					0x0);
+				VSYNC_WR_MPEG_REG(VPP_WRAP_OSD3_MATRIX_EN_CTRL,
+					0x0);
 				if (dolby_vision_mask & 2)
 					VSYNC_WR_MPEG_REG_BITS(
 						DOLBY_PATH_CTRL,
@@ -2842,6 +2864,10 @@ void enable_dolby_vision(int enable)
 				pr_dolby_dbg("Dolby Vision STB cores turn off\n");
 			} else if (is_meson_g12()) {
 				VSYNC_WR_MPEG_REG(VPP_WRAP_OSD1_MATRIX_EN_CTRL,
+					0x1);
+				VSYNC_WR_MPEG_REG(VPP_WRAP_OSD2_MATRIX_EN_CTRL,
+					0x1);
+				VSYNC_WR_MPEG_REG(VPP_WRAP_OSD3_MATRIX_EN_CTRL,
 					0x1);
 				VSYNC_WR_MPEG_REG_BITS(
 					DOLBY_PATH_CTRL,
@@ -5935,9 +5961,15 @@ int register_dv_functions(const struct dolby_vision_func_s *func)
 			("efuse_mode=%d reg_value = 0x%x\n",
 			efuse_mode,
 			reg_value);
-		if (is_meson_gxm() ||
-			is_meson_g12())
+		/* r321 stb core doesn't need run mode*/
+		/*TV core need run mode and the value is 2*/
+		if (is_meson_gxm() || is_meson_g12())
 			dolby_vision_run_mode_delay = 3;
+		else if (force_stb_mode || is_meson_txlx_stbmode())
+			dolby_vision_run_mode_delay = 0;
+		else
+			dolby_vision_run_mode_delay = RUN_MODE_DELAY;
+
 		pq_config =  vmalloc(sizeof(struct pq_config_s));
 		if (pq_config == NULL) {
 			pr_info("[amdolby_vision] vmalloc failed for pq_config_s error!\n");

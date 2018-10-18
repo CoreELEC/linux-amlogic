@@ -77,7 +77,7 @@
 			reusable;
 			size = <0x8000000>;
 			alignment = <0x400000>;
-			alloc-ranges = <0x0 0x30000000>;
+			alloc-ranges = <0x30000000 0x50000000>;
 		};
 		//di_reserved:linux,di {
 			//compatible = "amlogic, di-mem";
@@ -116,7 +116,7 @@
 			size = <0x13400000>;
 			alignment = <0x400000>;
 			linux,contiguous-region;
-			alloc-ranges = <0x0 0x30000000>;
+			alloc-ranges = <0x30000000 0x50000000>;
 		};
 		/* codec shared reserved */
 		codec_mm_reserved:linux,codec_mm_reserved {
@@ -653,23 +653,23 @@
 		};
 		opp05 {
 			opp-hz = /bits/ 64 <1200000000>;
-			opp-microvolt = <731000>;
+			opp-microvolt = <761000>;
 		};
 		opp06 {
 			opp-hz = /bits/ 64 <1398000000>;
-			opp-microvolt = <761000>;
+			opp-microvolt = <791000>;
 		};
 		opp07 {
 			opp-hz = /bits/ 64 <1512000000>;
-			opp-microvolt = <791000>;
+			opp-microvolt = <831000>;
 		};
 		opp08 {
 			opp-hz = /bits/ 64 <1608000000>;
-			opp-microvolt = <831000>;
+			opp-microvolt = <871000>;
 		};
 		opp09 {
 			opp-hz = /bits/ 64 <1704000000>;
-			opp-microvolt = <861000>;
+			opp-microvolt = <921000>;
 		};
 		opp10 {
 			opp-hz = /bits/ 64 <1800000000>;

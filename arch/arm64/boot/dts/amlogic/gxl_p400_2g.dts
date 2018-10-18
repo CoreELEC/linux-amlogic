@@ -75,8 +75,6 @@
 			alignment = <0x0 0x400000>;
 			alloc-ranges = <0x0 0x7dc00000 0x0 0x2400000>;
 		};
-
-
 	};
 
 	wifi{
@@ -872,3 +870,4 @@
 		status = "okay";
 	};
 };
+

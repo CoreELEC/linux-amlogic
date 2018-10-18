@@ -1153,8 +1153,7 @@ void set_hdr_matrix(
 			} else
 				adpscl_shift[i] = adp_scal_shift;
 
-			if (hdr_mtx_param->mtx_ogain)
-				adpscl_ys_coef[i] =
+			adpscl_ys_coef[i] =
 					1 << adp_scal_shift;
 			adpscl_beta_s[i] = 0;
 			adpscl_beta[i] = 0;
@@ -1475,6 +1474,9 @@ void hdr_func(enum hdr_module_sel module_sel,
 		bit_depth = 10;
 	else
 		return;
+
+	if (is_meson_tl1_cpu())
+		bit_depth = 10;
 
 #ifdef HDR2_MODULE
 	MenuFun fun[] = {pq_eotf, pq_oetf, gm_eotf, gm_oetf,

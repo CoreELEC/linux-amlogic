@@ -530,6 +530,10 @@ static int ppmgr_receiver_event_fun(int type, void *data, void *private_data)
 		break;
 	case VFRAME_EVENT_PROVIDER_RESET:
 		vf_ppmgr_reset(0);
+		vf_notify_receiver(
+			PROVIDER_NAME,
+			VFRAME_EVENT_PROVIDER_RESET,
+			NULL);
 		break;
 	case VFRAME_EVENT_PROVIDER_FR_HINT:
 	case VFRAME_EVENT_PROVIDER_FR_END_HINT:
@@ -3293,7 +3297,7 @@ int ppmgr_buffer_init(int vout_mode)
 	int buf_size;
 	struct vinfo_s vinfo = {.width = 1280, .height = 720, };
 	/* int flags = CODEC_MM_FLAGS_DMA; */
-	int flags = CODEC_MM_FLAGS_DMA_CPU|CODEC_MM_FLAGS_CMA_CLEAR;
+	int flags = CODEC_MM_FLAGS_DMA | CODEC_MM_FLAGS_CMA_CLEAR;
 #ifdef INTERLACE_DROP_MODE
 	mycount = 0;
 #endif

@@ -13539,8 +13539,8 @@ F: arch/arm/mach-meson/Makefile.boot
 
 HDMITX OUTPUT DRIVER
 M:	Yi Zhou <yi.zhou@amlogic.com>
-M:	Kaifu Hu <kaifu.hu@amlogic.com>
 M:      Zongdong Jiao <zongdong.jiao@amlogic.com>
+M:	Kaifu Hu <kaifu.hu@amlogic.com>
 S:	Maintained
 F:	drivers/amlogic/media/vout/hdmitx/*
 F:	drivers/amlogic/media/vout/hdmitx/hdcp/*
@@ -13916,6 +13916,7 @@ F:	drivers/amlogic/media/enhancement/amvecm/dolby_vision/*
 F:	drivers/amlogic/media/enhancement/amvecm/arch/*
 F:	drivers/amlogic/media/enhancement/amvecm/dnlp_algorithm/*
 F:	include/linux/amlogic/media/amvecm/*
+F:	drivers/amlogic/media/enhancement/amvecm/hdr/*
 
 AMLOGIC GXL ADD SKT DTS
 M: Yun Cai <yun.cai@amlogic.com>
@@ -14174,6 +14175,7 @@ F: driver/amlogic/drm/am_meson_drv.c
 F: driver/amlogic/drm/am_meson_drv.h
 F: driver/amlogic/drm/am_meson_vpu.c
 F: driver/amlogic/drm/am_meson_vpu.h
+F: drivers/amlogic/media/enhancement/amvecm/amvecm_drm.c
 
 AMLOGIC ADD S400EMMC DTS
 M: Yue Gui <yuegui.he@amlogic.com>
@@ -14280,6 +14282,7 @@ F:      sound/soc/amlogic/meson/dmic.h
 AMLOGIC GPIO IRQ
 M:	Xingyu Chen <xingyu.chen@amlogic.com>
 F:	drivers/amlogic/irqchip/*
+F:	drivers/amlogic/irqchip/irq-meson-gpio-double-edge.c
 F:	Documentation/devicetree/bindings/interrupt-controller/amlogic,meson-gpio-intc.txt
 
 AMLOGIC PINCTRL DRIVER
@@ -14640,6 +14643,8 @@ AMLOGIC DTBO PARTITION
 M:      Xindong Xu  <xindong.xu@amlogic.com>
 F:	arch/arm64/boot/dts/amlogic/common_overlay_dt.dts
 F:      arch/arm/boot/dts/amlogic/common_overlay_dt.dts
+F:	arch/arm64/boot/dts/amlogic/android_p_overlay_dt.dts
+F:	arch/arm/boot/dts/amlogic/android_p_overlay_dt.dts
 
 AMLOGIC DTS
 M:	Luan Yuan <luan.yuan@amlogic.com>
@@ -14650,6 +14655,59 @@ F:	arch/arm/boot/dts/amlogic/partition_mbox_p241_P.dtsi
 AMLOGIC DTS
 M:	Luan Yuan <luan.yuan@amlogic.com>
 F:	arch/arm/boot/dts/amlogic/partition_mbox_p241_P.dtsi
+
+AMLOGIC TL1 SOUND CARD
+M:      Xing Wang <xing.wang@amlogic.com
+F:	include/dt-bindings/clock/amlogic,tl1-audio-clk.h
+F:	sound/soc/amlogic/auge/*
+
+AMLOGIC TL1 AUDIO EXTERANL INPUT/OUTPUT DRIVERS
+M:	Xing Wang <xing.wang@amlogic.com
+F:	sound/soc/amlogic/auge/extn.c
+F:	sound/soc/amlogic/auge/frhdmirx_hw.c
+F:	sound/soc/amlogic/auge/frhdmirx_hw.h
+F:	sound/soc/amlogic/auge/*
+
+AMLOGIC LCD DRIVERS
+M:	Evoke Zhang <evoke.zhang@amlogic.com>
+F:	arch\arm\boot\dts\amlogic\mesontl1_pxp-panel.dtsi
+F:	drivers\amlogic\media\vout\lcd\lcd_clk_ctrl.h
+F:	drivers\amlogic\media\vout\lcd\lcd_debug.h
+F:	drivers\amlogic\media\vout\lcd\lcd_tcon.c
+F:	drivers\amlogic\media\vout\lcd\lcd_tcon.h
+
+AMLOGIC VDIN DRIVERS
+M:	Xuhua Zhang <xuhua.zhang@amlogic.com>
+F:	drivers/amlogic/media/vin/tvin/vdin/vdin_afbce.c
+F:	drivers/amlogic/media/vin/tvin/vdin/vdin_afbce.h
+
+AMLOGIC MESONAXG S400 DTS
+M:	Yuegui He <yuegui.he@amlogic.com>
+F:	arch/arm64/boot/dts/amlogic/axg_s400_v03.dts
+F:	arch/arm64/boot/dts/amlogic/axg_s400emmc.dts
+F:	arch/arm64/boot/dts/amlogic/axg_s400emmc_v03.dts
+
+AMLOGIC MESON DTS
+M:	Huan Biao <huan.biao@amlogic.com>
+F:	arch/arm64/boot/dts/amlogic/g12a_s905d2_u200_buildroot_vccktest.dts
+F:	arch/arm64/boot/dts/amlogic/g12b_a311d_w400_buildroot_vccktest.dts
+
+AMLOGIC DDR TOOL
+M:	wenbiao zhang <wenbiao.zhang@amlogic.com>
+F:	include/linux/amlogic/aml_dmc.h
+
+AMLOGIC AB UPDATE DTS
+M:	Xindong Xu <xindong.xu@amlogic.com>
+F:	arch/arm/boot/dts/amlogic/firmware_ab.dtsi
+F:	arch/arm/boot/dts/amlogic/firmware_avb_ab.dtsi
+F:	arch/arm64/boot/dts/amlogic/firmware_ab.dtsi
+F:	arch/arm/boot/dts/amlogic/partition_mbox_ab_P_32.dtsi
+F:	arch/arm64/boot/dts/amlogic/firmware_avb_ab.dtsi
+F:	arch/arm64/boot/dts/amlogic/partition_mbox_ab_P_32.dtsi
+
+AMLOGIC BACKLIGHT LDIM DRIVER
+M:      Evoke Zhang <evoke.zhang@amlogic.com>
+F:      drivers/amlogic/media/vout/backlight/aml_ldim/ldim_spi.c
 
 HARDKERNEL S922D odroidn2
 M: 	Joy Cho <joy.cho@hardkernel.com>

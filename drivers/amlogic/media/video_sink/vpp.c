@@ -2436,7 +2436,8 @@ vpp_set_filters(u32 process_3d_type, u32 wide_mode,
 
 	if ((vf->ratio_control & DISP_RATIO_ADAPTED_PICMODE)
 		&& !disable_adapted) {
-		wide_mode = vf->pic_mode.screen_mode;
+		if (vf->pic_mode.screen_mode != 0xff)
+			wide_mode = vf->pic_mode.screen_mode;
 		if (vf->pic_mode.provider == PIC_MODE_PROVIDER_WSS) {
 			/* from wss, need add global setting */
 			video_source_crop_top += vf->pic_mode.vs;
@@ -2674,7 +2675,8 @@ void vpp_super_scaler_support(void)
 		sr_support &= ~SUPER_CORE1_SUPPORT;
 	}
 	scaler_path_sel = SCALER_PATH_MAX;
-	if (is_meson_g12a_cpu() || is_meson_g12b_cpu())
+	if (is_meson_g12a_cpu() || is_meson_g12b_cpu()
+		|| is_meson_tl1_cpu())
 		sr_reg_offt = 0xc00;
 	else
 		sr_reg_offt = 0;

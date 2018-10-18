@@ -52,6 +52,11 @@ unsigned int btsc_sap_mode = 1;	/*0: off 1:monitor 2:auto */
  */
 void aml_fe_get_atvaudio_state(int *state)
 {
+#if 0 /* delay notification stable */
+	static unsigned int count;
+	static bool mute = true;
+#endif
+	int av_status = 0;
 	int power = 0;
 	int vpll_lock = 0;
 	int line_lock = 0;
@@ -64,12 +69,16 @@ void aml_fe_get_atvaudio_state(int *state)
 		return;
 	}
 
+	av_status = tvin_get_av_status();
 	/* scan mode need mute */
-	if (priv->state == ATVDEMOD_STATE_WORK && !priv->scanning) {
+	if (priv->state == ATVDEMOD_STATE_WORK
+			&& !priv->scanning
+			&& !priv->standby
+			&& av_status) {
 		retrieve_vpll_carrier_lock(&vpll_lock);
 		retrieve_vpll_carrier_line_lock(&line_lock);
 		if ((vpll_lock == 0) && (line_lock == 0)) {
-			retrieve_vpll_carrier_audio_power(&power);
+			/* retrieve_vpll_carrier_audio_power(&power); */
 			*state = 1;
 		} else {
 			*state = 0;
@@ -78,8 +87,9 @@ void aml_fe_get_atvaudio_state(int *state)
 		}
 	} else {
 		*state = 0;
-		pr_audio("%s, atv is not work, atv_state: %d.\n",
-				__func__, priv->state);
+		pr_audio("ATV state[%d], scan[%d], standby[%d], av[%d].\n",
+				priv->state, priv->scanning,
+				priv->standby, av_status);
 	}
 
 	/* If the atv signal is locked, it means there is audio data,
@@ -91,7 +101,23 @@ void aml_fe_get_atvaudio_state(int *state)
 	else
 		*state = 0;
 #endif
-	pr_audio("aml_fe_get_atvaudio_state: %d, power = %d.\n",
+#if 0 /* delay notification stable */
+	if (*state) {
+		if (mute) {
+			count++;
+			if (count > 100) {
+				count = 0;
+				mute = false;
+			} else
+				*state = 0;
+		} else
+			count = 0;
+	} else {
+		count = 0;
+		mute = true;
+	}
+#endif
+	pr_audio("aml_fe_get_atvaudio_state: %d, power = %d\n",
 			*state, power);
 }
 
@@ -114,7 +140,7 @@ int atv_demod_enter_mode(struct dvb_frontend *fe)
 		}
 	}
 
-	adc_set_pll_cntl(1, ADC_EN_ATV_DEMOD, NULL);
+	err_code = adc_set_pll_cntl(1, ADC_EN_ATV_DEMOD, NULL);
 	vdac_enable(1, 1);
 	usleep_range(2000, 2100);
 	atvdemod_clk_init();
@@ -124,9 +150,10 @@ int atv_demod_enter_mode(struct dvb_frontend *fe)
 		aud_demod_clk_gate(1);
 		/* atvauddemod_init(); */
 	}
+
 	if (err_code) {
-		pr_dbg("[amlatvdemod..]%s init atvdemod error.\n", __func__);
-		return err_code;
+		pr_dbg("%s: init atvdemod error %d.\n", __func__, err_code);
+		return -1;
 	}
 
 	/* aml_afc_timer_enable(fe); */
@@ -144,6 +171,9 @@ int atv_demod_enter_mode(struct dvb_frontend *fe)
 int atv_demod_leave_mode(struct dvb_frontend *fe)
 {
 	struct atv_demod_priv *priv = fe->analog_demod_priv;
+
+	priv->state = ATVDEMOD_STATE_IDEL;
+	priv->standby = true;
 
 	if (priv->afc.disable)
 		priv->afc.disable(&priv->afc);
@@ -166,8 +196,6 @@ int atv_demod_leave_mode(struct dvb_frontend *fe)
 	amlatvdemod_devp->audmode = 0;
 	amlatvdemod_devp->soundsys = 0xFF;
 
-	priv->state = ATVDEMOD_STATE_IDEL;
-
 	pr_info("%s: OK.\n", __func__);
 
 	return 0;
@@ -182,7 +210,7 @@ static void atv_demod_set_params(struct dvb_frontend *fe,
 	struct aml_atvdemod_parameters *p = &priv->atvdemod_param;
 	bool reconfig = false;
 
-	priv->standby = false;
+	priv->standby = true;
 
 	/* afc tune disable,must cancel wq before set tuner freq*/
 	if (priv->afc.disable)
@@ -252,6 +280,9 @@ static void atv_demod_set_params(struct dvb_frontend *fe,
 
 		if (priv->monitor.enable)
 			priv->monitor.enable(&priv->monitor);
+
+		/* for searching mute audio */
+		priv->standby = false;
 	}
 }
 
@@ -285,6 +316,7 @@ static void atv_demod_standby(struct dvb_frontend *fe)
 	if (priv->state != ATVDEMOD_STATE_IDEL) {
 		atv_demod_leave_mode(fe);
 		priv->state = ATVDEMOD_STATE_SLEEP;
+		priv->standby = true;
 	}
 
 	pr_info("%s: OK.\n", __func__);
@@ -337,10 +369,11 @@ static int atv_demod_set_config(struct dvb_frontend *fe, void *priv_cfg)
 	switch (*state) {
 	case AML_ATVDEMOD_INIT:
 		if (priv->state != ATVDEMOD_STATE_WORK) {
+			priv->standby = true;
 			if (fe->ops.tuner_ops.set_config)
 				fe->ops.tuner_ops.set_config(fe, NULL);
-			atv_demod_enter_mode(fe);
-			priv->state = ATVDEMOD_STATE_WORK;
+			if (!atv_demod_enter_mode(fe))
+				priv->state = ATVDEMOD_STATE_WORK;
 		}
 		break;
 
@@ -354,8 +387,10 @@ static int atv_demod_set_config(struct dvb_frontend *fe, void *priv_cfg)
 
 	case AML_ATVDEMOD_RESUME:
 		if (priv->state == ATVDEMOD_STATE_SLEEP) {
-			atv_demod_enter_mode(fe);
-			priv->state = ATVDEMOD_STATE_WORK;
+			if (!atv_demod_enter_mode(fe)) {
+				priv->state = ATVDEMOD_STATE_WORK;
+				priv->standby = false;
+			}
 		}
 		break;
 

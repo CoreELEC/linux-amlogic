@@ -257,6 +257,7 @@ int meson_pinconf_common_set(struct meson_pinctrl *pc, unsigned int pin,
 				 BIT(bit), arg ? BIT(bit) : 0);
 		if (ret)
 			return ret;
+		break;
 	default:
 		return -ENOTSUPP;
 	}
@@ -654,6 +655,9 @@ static int meson_pinctrl_parse_dt(struct meson_pinctrl *pc,
 
 	pc->of_irq = of_find_compatible_node(NULL,
 					NULL, "amlogic,meson-gpio-intc");
+	if (!pc->of_irq)
+		pc->of_irq = of_find_compatible_node(NULL,
+					NULL, "amlogic,meson-gpio-intc-ext");
 
 	pc->reg_mux = meson_map_resource(pc, gpio_np, "mux");
 	if (IS_ERR(pc->reg_mux)) {

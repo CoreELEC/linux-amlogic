@@ -585,8 +585,8 @@ static void vdin_set_meas_mux(unsigned int offset, enum tvin_port_e port_,
 			(bt_path == BT_PATH_GPIO_B))
 			meas_mux = MEAS_MUX_656_B;
 		else if ((is_meson_gxl_cpu() || is_meson_gxm_cpu() ||
-			is_meson_g12a_cpu() || is_meson_g12b_cpu()) &&
-			(bt_path == BT_PATH_GPIO))
+			is_meson_g12a_cpu() || is_meson_g12b_cpu() ||
+			is_meson_tl1_cpu()) && (bt_path == BT_PATH_GPIO))
 			meas_mux = MEAS_MUX_656;
 		else
 			pr_info("cpu not define or do not support  bt656");
@@ -696,8 +696,8 @@ void vdin_set_top(unsigned int offset,
 			wr_bits(offset, VDIN_ASFIFO_CTRL3, 0xe4,
 				VDI9_ASFIFO_CTRL_BIT, VDI9_ASFIFO_CTRL_WID);
 		} else if ((is_meson_gxm_cpu() || is_meson_gxl_cpu() ||
-			is_meson_g12a_cpu() || is_meson_g12b_cpu()) &&
-			(bt_path == BT_PATH_GPIO)) {
+			is_meson_g12a_cpu() || is_meson_g12b_cpu() ||
+			is_meson_tl1_cpu()) && (bt_path == BT_PATH_GPIO)) {
 			vdin_mux = VDIN_MUX_656;
 			wr_bits(offset, VDIN_ASFIFO_CTRL0, 0xe4,
 				VDI1_ASFIFO_CTRL_BIT, VDI1_ASFIFO_CTRL_WID);
@@ -2614,7 +2614,7 @@ void vdin_set_default_regmap(unsigned int offset)
 	/* [11: 0]       write.lfifo_buf_size   = 0x100 */
 	if (is_meson_m8b_cpu() ||
 		is_meson_gxtvbb_cpu() || is_meson_txl_cpu() ||
-		is_meson_txlx_cpu())
+		is_meson_txlx_cpu() || is_meson_tl1_cpu())
 		wr(offset, VDIN_LFIFO_CTRL,     0x00000f00);
 	else
 		wr(offset, VDIN_LFIFO_CTRL,     0x00000780);
@@ -4326,3 +4326,5 @@ void vdin_clk_onoff(struct vdin_dev_s *devp, bool onoff)
 		wr(offset, VDIN_COM_GCLK_CTRL2, 0x55555555);
 	}
 }
+
+

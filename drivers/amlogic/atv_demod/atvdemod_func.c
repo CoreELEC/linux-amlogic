@@ -1746,12 +1746,9 @@ int atvdemod_init(void)
 	pr_err("%s do atv_dmd_soft_reset ...\n", __func__);
 	/*4.software reset*/
 	atv_dmd_soft_reset();
-	atv_dmd_soft_reset();
-	atv_dmd_soft_reset();
-	atv_dmd_soft_reset();
 
-	/* ?????
-	 *	while (!all_lock) {
+	/* check the PLL, line lock status, don't need to check. */
+	/*	while (!all_lock) {
 	 *	data32 = atv_dmd_rd_long(APB_BLOCK_ADDR_VDAGC,0x13<<2);
 	 *	if ((data32 & 0x1c) == 0x0) {
 	 *		all_lock = 1;
@@ -1769,6 +1766,10 @@ int atvdemod_init(void)
 
 void atvdemod_uninit(void)
 {
+	/* mute atv audio output */
+	if (is_meson_txl_cpu())
+		atv_dmd_wr_long(APB_BLOCK_ADDR_MONO_PROC, 0x50, 0);
+
 	atv_dmd_non_std_set(false);
 }
 

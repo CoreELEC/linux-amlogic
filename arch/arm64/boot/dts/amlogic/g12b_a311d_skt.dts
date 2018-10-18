@@ -68,6 +68,7 @@
 			size = <0x0 0x400000>;
 			alignment = <0x0 0x400000>;
 			alloc-ranges = <0x0 0x05000000 0x0 0x400000>;
+			clear-map;
 		};
 
 		secos_reserved:linux,secos {
@@ -745,6 +746,8 @@
 		clocks = <&clkc CLKID_24M>;
 		clock-names = "g12a_24m";
 		reset = <&gpio GPIOZ_12 GPIO_ACTIVE_HIGH>;
+		ir_cut_gpio = <&gpio GPIOZ_11 GPIO_ACTIVE_HIGH
+				&gpio GPIOZ_7 GPIO_ACTIVE_HIGH>;
 	};
 
 	iq: iq {
@@ -803,7 +806,7 @@
 	display_size_default = <1920 1080 1920 2160 32>;
 	mem_size = <0x00800000 0x1980000 0x100000 0x100000 0x800000>;
 	logo_addr = "0x7f800000";
-	mem_alloc = <0>;
+	mem_alloc = <1>;
 	pxp_mode = <0>; /** 0:normal mode 1:pxp mode */
 };
 

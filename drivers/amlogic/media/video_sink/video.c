@@ -219,6 +219,7 @@ static u32 next_peek_underflow;
 
 static DEFINE_SPINLOCK(video_onoff_lock);
 static int video_onoff_state = VIDEO_ENABLE_STATE_IDLE;
+static u32 video_onoff_time;
 static DEFINE_SPINLOCK(video2_onoff_lock);
 static int video2_onoff_state = VIDEO_ENABLE_STATE_IDLE;
 static u32 hdmiin_frame_check;
@@ -2968,6 +2969,13 @@ static inline void vd1_path_select(bool afbc)
 			/* afbc0 gclk ctrl */
 			(0 << 0),
 			0, 22);
+		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1))
+			VSYNC_WR_MPEG_REG_BITS(
+				VD1_AFBCD0_MISC_CTRL,
+				/* Vd1_afbc0_mem_sel */
+				(afbc ? 1 : 0),
+				22, 1);
+
 #ifdef CONFIG_AMLOGIC_MEDIA_DEINTERLACE
 		if (!cpu_after_eq(MESON_CPU_MAJOR_ID_G12A))
 			return;
@@ -3025,6 +3033,12 @@ static inline void vd2_path_select(bool afbc)
 			/* afbc1 gclk ctrl */
 			(0 << 0),
 			0, 22);
+		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1))
+			VSYNC_WR_MPEG_REG_BITS(
+				VD2_AFBCD1_MISC_CTRL,
+				/* Vd2_afbc0_mem_sel */
+				(afbc ? 1 : 0),
+				22, 1);
 	} else {
 		VSYNC_WR_MPEG_REG_BITS(
 			VIU_MISC_CTRL1 + misc_off,
@@ -3073,7 +3087,14 @@ static void viu_set_dcu(struct vpp_frame_par_s *frame_par, struct vframe_s *vf)
 				r |= (1<<29);
 			VSYNC_WR_MPEG_REG(AFBC_MODE, r);
 			VSYNC_WR_MPEG_REG(AFBC_ENABLE, 0x1700);
-			VSYNC_WR_MPEG_REG(AFBC_CONV_CTRL, 0x100);
+
+			r = 0x100;
+			/* need check the vf->type 444/422/420 */
+			/* current use 420 as default for tl1 */
+			if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1))
+				r |= (2 << 12);
+			VSYNC_WR_MPEG_REG(AFBC_CONV_CTRL, r);
+
 			u = (vf->bitdepth >> (BITDEPTH_U_SHIFT)) & 0x3;
 			v = (vf->bitdepth >> (BITDEPTH_V_SHIFT)) & 0x3;
 			VSYNC_WR_MPEG_REG(AFBC_DEC_DEF_COLOR,
@@ -3633,7 +3654,14 @@ static void vd2_set_dcu(struct vpp_frame_par_s *frame_par, struct vframe_s *vf)
 				r |= (1<<29);
 			VSYNC_WR_MPEG_REG(VD2_AFBC_MODE, r);
 			VSYNC_WR_MPEG_REG(VD2_AFBC_ENABLE, 0x1700);
-			VSYNC_WR_MPEG_REG(VD2_AFBC_CONV_CTRL, 0x100);
+
+			r = 0x100;
+			/* need check the vf->type 444/422/420 */
+			/* current use 420 as default for tl1 */
+			if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1))
+				r |= (2 << 12);
+			VSYNC_WR_MPEG_REG(VD2_AFBC_CONV_CTRL, r);
+
 			u = (vf->bitdepth >> (BITDEPTH_U_SHIFT)) & 0x3;
 			v = (vf->bitdepth >> (BITDEPTH_V_SHIFT)) & 0x3;
 			VSYNC_WR_MPEG_REG(VD2_AFBC_DEC_DEF_COLOR,
@@ -6264,6 +6292,7 @@ SET_FILTER:
 				VPP_POSTBLEND_EN;
 
 			video_onoff_state = VIDEO_ENABLE_STATE_IDLE;
+			video_onoff_time = jiffies_to_msecs(jiffies);
 
 			if (debug_flag & DEBUG_FLAG_BLACKOUT)
 				pr_info("VsyncEnableVideoLayer\n");
@@ -6279,6 +6308,7 @@ SET_FILTER:
 			VSYNC_WR_MPEG_REG(VPP_SRSHARP0_CTRL, 0);
 			VSYNC_WR_MPEG_REG(VPP_SRSHARP1_CTRL, 0);
 			video_onoff_state = VIDEO_ENABLE_STATE_IDLE;
+			video_onoff_time = jiffies_to_msecs(jiffies);
 			vpu_delay_work_flag |=
 				VPU_VIDEO_LAYER1_CHANGED;
 			if (debug_flag & DEBUG_FLAG_BLACKOUT)
@@ -6322,6 +6352,7 @@ SET_FILTER:
 			else
 				vpp_misc_set |= (0x1ff << VPP_VD2_ALPHA_BIT);
 			video2_onoff_state = VIDEO_ENABLE_STATE_IDLE;
+			video_onoff_time = jiffies_to_msecs(jiffies);
 
 			if (debug_flag & DEBUG_FLAG_BLACKOUT)
 				pr_info("VsyncEnableVideoLayer2\n");
@@ -6329,6 +6360,7 @@ SET_FILTER:
 			vpp_misc_set &= ~(VPP_VD2_PREBLEND |
 				VPP_VD2_POSTBLEND | VPP_PREBLEND_EN);
 			video2_onoff_state = VIDEO_ENABLE_STATE_IDLE;
+			video_onoff_time = jiffies_to_msecs(jiffies);
 
 			if (debug_flag & DEBUG_FLAG_BLACKOUT)
 				pr_info("VsyncDisableVideoLayer2\n");
@@ -6347,6 +6379,14 @@ SET_FILTER:
 	} else {
 		video_enabled = video_status_saved;
 	}
+
+	if (!video_enabled &&
+		(vpp_misc_set & VPP_VD1_POSTBLEND))
+		vpp_misc_set &= ~(VPP_VD1_PREBLEND |
+			VPP_VD2_PREBLEND |
+			VPP_VD2_POSTBLEND |
+			VPP_VD1_POSTBLEND |
+			VPP_PREBLEND_EN);
 
 	if (!legacy_vpp) {
 		u32 set_value = 0;
@@ -6753,9 +6793,16 @@ static void video_vf_unreg_provider(void)
 #endif
 }
 
-static void video_vf_light_unreg_provider(void)
+static void video_vf_light_unreg_provider(int need_keep_frame)
 {
 	ulong flags;
+
+	if (need_keep_frame) {
+		/* wait for the end of the last toggled frame*/
+		atomic_set(&video_unreg_flag, 1);
+		while (atomic_read(&video_inirq_flag) > 0)
+			schedule();
+	}
 
 	spin_lock_irqsave(&lock, flags);
 #ifdef CONFIG_AMLOGIC_MEDIA_VSYNC_RDMA
@@ -6772,6 +6819,19 @@ static void video_vf_light_unreg_provider(void)
 		cur_dispbuf = &vf_local;
 	}
 	spin_unlock_irqrestore(&lock, flags);
+
+	if (need_keep_frame) {
+		/* keep the last toggled frame*/
+		if (cur_dispbuf) {
+			unsigned int result;
+
+			result = vf_keep_current(cur_dispbuf, NULL);
+			if (result == 0)
+				pr_info("%s: keep cur_disbuf failed\n",
+					__func__);
+		}
+		atomic_set(&video_unreg_flag, 0);
+	}
 }
 
 static int  get_display_info(void *data)
@@ -6837,9 +6897,9 @@ static int video_receiver_event_fun(int type, void *data, void *private_data)
 		//init_hdr_info();
 
 	} else if (type == VFRAME_EVENT_PROVIDER_RESET) {
-		video_vf_light_unreg_provider();
+		video_vf_light_unreg_provider(1);
 	} else if (type == VFRAME_EVENT_PROVIDER_LIGHT_UNREG)
-		video_vf_light_unreg_provider();
+		video_vf_light_unreg_provider(0);
 	else if (type == VFRAME_EVENT_PROVIDER_REG) {
 		enable_video_discontinue_report = 1;
 		drop_frame_count = 0;
@@ -6873,7 +6933,7 @@ static int video_receiver_event_fun(int type, void *data, void *private_data)
 				(void *)1);
 		}
 
-		video_vf_light_unreg_provider();
+		video_vf_light_unreg_provider(0);
 	} else if (type == VFRAME_EVENT_PROVIDER_FORCE_BLACKOUT) {
 		force_blackout = 1;
 		if (debug_flag & DEBUG_FLAG_BLACKOUT) {
@@ -7553,9 +7613,23 @@ static long amvideo_ioctl(struct file *file, unsigned int cmd, ulong arg)
 		put_user(video_global_output, (u32 __user *)argp);
 		break;
 
-	case AMSTREAM_IOC_GET_VIDEO_LAYER1_ON:
-		put_user(video_onoff_state, (u32 __user *)argp);
-		break;
+	case AMSTREAM_IOC_GET_VIDEO_LAYER1_ON: {
+			u32 vsync_duration;
+			u32 video_onoff_diff = 0;
+
+			vsync_duration = vsync_pts_inc / 90;
+			video_onoff_diff =
+				jiffies_to_msecs(jiffies) - video_onoff_time;
+
+			if (video_onoff_state == VIDEO_ENABLE_STATE_IDLE) {
+				/* wait until 5ms after next vsync */
+				msleep(video_onoff_diff < vsync_duration
+					? vsync_duration - video_onoff_diff + 5
+					: 0);
+			}
+			put_user(video_onoff_state, (u32 __user *)argp);
+			break;
+		}
 
 	case AMSTREAM_IOC_SET_VIDEOPEEK:
 		videopeek = true;
@@ -10020,10 +10094,6 @@ static int __init video_early_init(void)
 			VD2_IF0_LUMA_FIFO_SIZE + cur_dev->viu_off, 0x180);
 	}
 
-	 /*fix S905 av out flicker black dot*/
-	if (is_meson_gxbb_cpu())
-		SET_VCBUS_REG_MASK(VPP_MISC, VPP_OUT_SATURATE);
-
 #if 0	/* if (0 >= VMODE_MAX) //DEBUG_TMP */
 		CLEAR_VCBUS_REG_MASK(VPP_VSC_PHASE_CTRL,
 				     VPP_PHASECTL_TYPE_INTERLACE);
@@ -10090,6 +10160,11 @@ static int __init video_early_init(void)
 		WRITE_DMCREG(
 			DMC_AM0_CHAN_CTRL,
 			0x8ff403cf);
+
+	/* force bypass dolby for TL1. There is no dolby function */
+	if (is_meson_tl1_cpu())
+		WRITE_VCBUS_REG_BITS(
+			DOLBY_PATH_CTRL, 0xf, 0, 6);
 	return 0;
 }
 
@@ -10221,7 +10296,8 @@ static int __init video_init(void)
 	}
 #endif
 
-	if (is_meson_g12a_cpu() || is_meson_g12b_cpu()) {
+	if (is_meson_g12a_cpu() || is_meson_g12b_cpu()
+		|| is_meson_tl1_cpu()) {
 		cur_dev->viu_off = 0x3200 - 0x1a50;
 		legacy_vpp = false;
 	}

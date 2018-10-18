@@ -52,7 +52,7 @@
 
 		CPU0:cpu@0 {
 			device_type = "cpu";
-			compatible = "arm,cortex-a9";
+			compatible = "arm,cortex-a53","arm,armv8";
 			reg = <0x0>;
 			enable-method = "psci";
 			cpu-idle-states = <&CPU_SLEEP_0>;
@@ -70,7 +70,7 @@
 
 		CPU1:cpu@1 {
 			device_type = "cpu";
-			compatible = "arm,cortex-a9";
+			compatible = "arm,cortex-a53","arm,armv8";
 			reg = <0x1>;
 			enable-method = "psci";
 			cpu-idle-states = <&CPU_SLEEP_0>;
@@ -88,7 +88,7 @@
 
 		CPU2:cpu@2 {
 			device_type = "cpu";
-			compatible = "arm,cortex-a9";
+			compatible = "arm,cortex-a53","arm,armv8";
 			reg = <0x2>;
 			enable-method = "psci";
 			cpu-idle-states = <&CPU_SLEEP_0>;
@@ -106,7 +106,7 @@
 
 		CPU3:cpu@3 {
 			device_type = "cpu";
-			compatible = "arm,cortex-a9";
+			compatible = "arm,cortex-a53","arm,armv8";
 			reg = <0x3>;
 			enable-method = "psci";
 			cpu-idle-states = <&CPU_SLEEP_0>;
@@ -430,8 +430,14 @@
 	};
 
 	wdt: watchdog@0xffd0f0d0 {
-		compatible = "amlogic,meson-g12a-wdt";
+		compatible = "amlogic, meson-wdt";
 		status = "okay";
+		default_timeout=<10>;
+		reset_watchdog_method=<1>; /* 0:sysfs,1:kernel */
+		reset_watchdog_time=<2>;
+		shutdown_timeout=<10>;
+		firmware_timeout=<6>;
+		suspend_timeout=<6>;
 		reg = <0xffd0f0d0 0x10>;
 		clock-names = "xtal";
 		clocks = <&xtal>;
@@ -1361,6 +1367,7 @@
 			/*caps defined in dts*/
 			tx_delay = <0>;
 			co_phase = <3>;
+			calc_f = <1>;
 			max_req_size = <0x20000>; /**128KB*/
 			gpio_dat3 = <&gpio BOOT_3 GPIO_ACTIVE_HIGH>;
 			hw_reset = <&gpio BOOT_9 GPIO_ACTIVE_HIGH>;
@@ -1791,8 +1798,8 @@
 	defendkey: defendkey {
 	compatible = "amlogic, defendkey";
 	reg = <0xff630218 0x4>; /*RNG_USR_DATA*/
-	mem_size = <0x1000>;
-	status = "disabled";
+	mem_size = <0 0x100000>;
+	status = "okay";
 	};
 
 	aml_dma {

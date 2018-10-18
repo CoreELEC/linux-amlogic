@@ -249,6 +249,7 @@
 		in_base_func = <0x82000020>;
 		out_base_func = <0x82000021>;
 		reserve_mem_size = <0x00300000>;
+		clear_range = <0x05100000 0x200000>;
 	};
 
 	securitykey {
@@ -470,8 +471,14 @@
 	};
 
 	wdt: watchdog@0xffd0f0d0 {
-		compatible = "amlogic,meson-g12a-wdt";
+		compatible = "amlogic, meson-wdt";
 		status = "okay";
+		default_timeout=<10>;
+		reset_watchdog_method=<1>; /* 0:sysfs,1:kernel */
+		reset_watchdog_time=<2>;
+		shutdown_timeout=<10>;
+		firmware_timeout=<6>;
+		suspend_timeout=<6>;
 		reg = <0x0 0xffd0f0d0 0x0 0x10>;
 		clock-names = "xtal";
 		clocks = <&xtal>;
@@ -1883,6 +1890,13 @@
 					"csi-host1-intr2",
 					"csi-host1-intr1";
 		link-device = <&adapter>;
+	};
+
+	defendkey: defendkey {
+		compatible = "amlogic, defendkey";
+		reg = <0x0 0xff630218 0x0 0x4>; /*RNG_USR_DATA*/
+		mem_size = <0x0 0x100000>;
+		status = "okay";
 	};
 };/* end of / */
 

@@ -74,9 +74,6 @@ static void osd_debug_dump_value(void)
 		osd_get_blending_para(&blend_para);
 		if (blend_para != NULL) {
 			osd_log_info("OSD LAYER: %d\n", blend_para->layer_cnt);
-			osd_log_info("OSD background size: %d, %d\n",
-				blend_para->background_w,
-				blend_para->background_h);
 			osd_log_info("|index\t|order\t|src axis\t|dst axis\n");
 			for (index = 0; index < HW_OSD_COUNT; index++) {
 				osd_log_info("%2d\t%2d\t(%4d,%4d,%4d,%4d)\t(%4d,%4d,%4d,%4d)\n",
@@ -199,9 +196,15 @@ static void osd_debug_dump_register_all(void)
 		osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
 		reg = VPP_OSD2_BLD_V_SCOPE;
 		osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
+		reg = VD1_BLEND_SRC_CTRL;
+		osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
+		reg = VD2_BLEND_SRC_CTRL;
+		osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
 		reg = OSD1_BLEND_SRC_CTRL;
 		osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
 		reg = OSD2_BLEND_SRC_CTRL;
+		osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
+		reg = VIU_OSD_BLEND_CTRL1;
 		osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
 		reg = VPP_POSTBLEND_H_SIZE;
 		osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));

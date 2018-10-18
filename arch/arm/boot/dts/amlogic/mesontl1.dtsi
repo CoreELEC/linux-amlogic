@@ -23,6 +23,7 @@
 #include <dt-bindings/pwm/pwm.h>
 #include <dt-bindings/pwm/meson.h>
 #include <dt-bindings/clock/amlogic,tl1-clkc.h>
+#include <dt-bindings/clock/amlogic,tl1-audio-clk.h>
 #include "mesong12a-bifrost.dtsi"
 
 / {
@@ -241,6 +242,20 @@
 			gpio-controller;
 			#gpio-cells = <2>;
 		};
+
+		aoceca_mux:aoceca_mux {
+			mux {
+				groups = "cec_ao_a";
+				function = "cec_ao";
+			};
+		};
+
+		aocecb_mux:aocecb_mux {
+			mux {
+				groups = "cec_ao_b";
+				function = "cec_ao";
+			};
+		};
 	};
 
 	pinctrl_periphs: pinctrl@ff6346c0 {
@@ -263,11 +278,43 @@
 			gpio-controller;
 			#gpio-cells = <2>;
 		};
+
+
+		hdmirx_a_mux:hdmirx_a_mux {
+			mux {
+				groups = "hdmirx_a_hpd", "hdmirx_a_det",
+					"hdmirx_a_sda", "hdmirx_a_sck";
+				function = "hdmirx_a";
+			};
+		};
+
+		hdmirx_b_mux:hdmirx_b_mux {
+			mux {
+				groups = "hdmirx_b_hpd", "hdmirx_b_det",
+					"hdmirx_b_sda", "hdmirx_b_sck";
+				function = "hdmirx_b";
+			};
+		};
+
+		hdmirx_c_mux:hdmirx_c_mux {
+			mux {
+				groups = "hdmirx_c_hpd", "hdmirx_c_det",
+					"hdmirx_c_sda", "hdmirx_c_sck";
+				function = "hdmirx_c";
+			};
+		};
+
 	};
 
 	wdt: watchdog@0xffd0f0d0 {
-		compatible = "amlogic,meson-tl1-wdt";
+		compatible = "amlogic, meson-wdt";
 		status = "okay";
+		default_timeout=<10>;
+		reset_watchdog_method=<1>; /* 0:sysfs,1:kernel */
+		reset_watchdog_time=<2>;
+		shutdown_timeout=<10>;
+		firmware_timeout=<6>;
+		suspend_timeout=<6>;
 		reg = <0xffd0f0d0 0x10>;
 		clock-names = "xtal";
 		clocks = <&xtal>;
@@ -306,6 +353,66 @@
 				reg = <0x0 0x3fc>;
 			};
 		};/* end of hiubus*/
+
+		audiobus: audiobus@0xff600000 {
+			compatible = "amlogic, audio-controller", "simple-bus";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			reg = <0xff600000 0x10000>;
+			ranges = <0x0 0xff600000 0x10000>;
+
+			clkaudio:audio_clocks {
+				compatible = "amlogic, tl1-audio-clocks";
+				#clock-cells = <1>;
+				reg = <0x0 0xb0>;
+			};
+
+			ddr_manager {
+				compatible = "amlogic, tl1-audio-ddr-manager";
+				interrupts = <
+					GIC_SPI 148 IRQ_TYPE_EDGE_RISING
+					GIC_SPI 149 IRQ_TYPE_EDGE_RISING
+					GIC_SPI 150 IRQ_TYPE_EDGE_RISING
+					GIC_SPI 48 IRQ_TYPE_EDGE_RISING
+					GIC_SPI 152 IRQ_TYPE_EDGE_RISING
+					GIC_SPI 153 IRQ_TYPE_EDGE_RISING
+					GIC_SPI 154 IRQ_TYPE_EDGE_RISING
+					GIC_SPI 49 IRQ_TYPE_EDGE_RISING
+				>;
+				interrupt-names =
+					"toddr_a", "toddr_b", "toddr_c",
+					"toddr_d",
+					"frddr_a", "frddr_b", "frddr_c",
+					"frddr_d";
+			};
+		};/* end of audiobus*/
+
+		/* Sound iomap */
+		aml_snd_iomap {
+			compatible = "amlogic, snd-iomap";
+			status = "okay";
+			#address-cells=<1>;
+			#size-cells=<1>;
+			ranges;
+			pdm_bus {
+				reg = <0xFF601000 0x400>;
+			};
+			audiobus_base {
+				reg = <0xFF600000 0x1000>;
+			};
+			audiolocker_base {
+				reg = <0xFF601400 0x400>;
+			};
+			eqdrc_base {
+				reg = <0xFF602000 0x2000>;
+			};
+			reset_base {
+				reg = <0xFFD01000 0x1000>;
+			};
+			vad_base {
+				reg = <0xFF601800 0x800>;
+			};
+		};
 
 		cbus: cbus@ffd00000 {
 			compatible = "simple-bus";
@@ -549,6 +656,12 @@
 				pinctrl-0=<&i2c_ao_slave_pins>;
 			};
 		};/* end of aobus */
+
+		ion_dev {
+			compatible = "amlogic, ion_dev";
+			status = "okay";
+			memory-region = <&ion_cma_reserved>;
+		};/* end of ion_dev*/
 	}; /* end of soc*/
 
 	custom_maps: custom_maps {
@@ -841,6 +954,134 @@
 		/*partions defined in dts*/
 	};
 
+	mesonstream {
+		compatible = "amlogic, codec, streambuf";
+		status = "okay";
+		clocks = <&clkc CLKID_U_PARSER
+			&clkc CLKID_DEMUX
+			&clkc CLKID_AHB_ARB0
+			&clkc CLKID_DOS
+			&clkc CLKID_VDEC_MUX
+			&clkc CLKID_HCODEC_MUX
+			&clkc CLKID_HEVC_MUX
+			&clkc CLKID_HEVCF_MUX>;
+		clock-names = "parser_top",
+			"demux",
+			"ahbarb0",
+			"vdec",
+			"clk_vdec_mux",
+			"clk_hcodec_mux",
+			"clk_hevc_mux",
+			"clk_hevcb_mux";
+	};
+
+	vcodec-dec {
+		compatible = "amlogic, vcodec-dec";
+		status = "okay";
+	};
+
+	vdec {
+		compatible = "amlogic, vdec";
+		status = "okay";
+		interrupts = <0 3 1
+			0 23 1
+			0 32 1
+			0 43 1
+			0 44 1
+			0 45 1>;
+		interrupt-names = "vsync",
+			"demux",
+			"parser",
+			"mailbox_0",
+			"mailbox_1",
+			"mailbox_2";
+	};
+
+	canvas: canvas {
+		compatible = "amlogic, meson, canvas";
+		status = "okay";
+		reg = <0xff638000 0x2000>;
+	};
+
+	codec_io: codec_io {
+		compatible = "amlogic, codec_io";
+		status = "okay";
+		#address-cells=<1>;
+		#size-cells=<1>;
+		ranges;
+		io_cbus_base{
+			reg = <0xffd00000 0x100000>;
+		};
+		io_dos_base{
+			reg = <0xff620000 0x10000>;
+		};
+		io_hiubus_base{
+			reg = <0xff63c000 0x2000>;
+		};
+		io_aobus_base{
+			reg = <0xff800000 0x10000>;
+		};
+		io_vcbus_base{
+			reg = <0xff900000 0x40000>;
+		};
+		io_dmc_base{
+			reg = <0xff638000 0x2000>;
+		};
+		io_efuse_base{
+			reg = <0xff630000 0x2000>;
+		};
+	};
+
+	rdma {
+		compatible = "amlogic, meson-tl1, rdma";
+		status = "okay";
+		interrupts = <0 89 1>;
+		interrupt-names = "rdma";
+	};
+
+	meson_fb: fb {
+		compatible = "amlogic, meson-tl1";
+		memory-region = <&logo_reserved>;
+		status = "disabled";
+		interrupts = <0 3 1
+			0 56 1
+			0 89 1>;
+		interrupt-names = "viu-vsync", "viu2-vsync", "rdma";
+		/* uboot logo,fb0/fb1 memory size,if afbcd fb0=0x01851000*/
+		display_mode_default = "1080p60hz";
+		scale_mode = <1>;
+		/** 0:VPU free scale 1:OSD free scale 2:OSD super scale */
+		display_size_default = <1920 1080 1920 2160 32>;
+		/*1920*1080*4*3 = 0x17BB000*/
+		clocks = <&clkc CLKID_VPU_CLKC_MUX>;
+		clock-names = "vpu_clkc";
+	};
+
+	ge2d {
+		compatible = "amlogic, ge2d-g12a";
+		status = "okay";
+		interrupts = <0 146 1>;
+		interrupt-names = "ge2d";
+		clocks = <&clkc CLKID_VAPB_MUX>,
+			<&clkc CLKID_G2D>,
+			<&clkc CLKID_GE2D_GATE>;
+		clock-names = "clk_vapb_0",
+			"clk_ge2d",
+			"clk_ge2d_gate";
+		reg = <0xff940000 0x10000>;
+	};
+
+	meson-amvideom {
+		compatible = "amlogic, amvideom";
+		status = "okay";
+		interrupts = <0 3 1>;
+		interrupt-names = "vsync";
+	};
+
+	vdac {
+		compatible = "amlogic, vdac-tl1";
+		status = "okay";
+	};
 }; /* end of / */
 
 &pinctrl_aobus {

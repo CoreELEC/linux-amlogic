@@ -745,17 +745,18 @@ void tsync_avevent_locked(enum avevent_e event, u32 param)
 	switch (event) {
 	case VIDEO_START:
 		tsync_video_started = 1;
-		/*
-		 *set tsync mode to vmaster to avoid video block caused
-		 *by avpts-diff too much
-		 *threshold 120s is an arbitrary value
-		 */
+
+	//set tsync mode to vmaster to avoid video block caused
+	// by avpts-diff too much
+	//threshold 120s is an arbitrary value
+
 		if (tsync_enable && !get_vsync_pts_inc_mode())
 			tsync_mode = TSYNC_MODE_AMASTER;
-		else {
+		else{
 			tsync_mode = TSYNC_MODE_VMASTER;
 			if (get_vsync_pts_inc_mode())
 				tsync_stat = TSYNC_STAT_PCRSCR_SETUP_NONE;
+
 		}
 
 		if (tsync_dec_reset_flag)
@@ -786,6 +787,8 @@ void tsync_avevent_locked(enum avevent_e event, u32 param)
 			if (abs(param - t) > tsync_av_threshold_max) {
 				/* if this happens, then play */
 				tsync_stat = TSYNC_STAT_PCRSCR_SETUP_VIDEO;
+				tsync_mode = TSYNC_MODE_VMASTER;
+				tsync_enable = 0;
 				timestamp_pcrscr_set(param);
 				set_pts_realign();
 			}
@@ -822,7 +825,6 @@ void tsync_avevent_locked(enum avevent_e event, u32 param)
 	case VIDEO_TSTAMP_DISCONTINUITY: {
 		unsigned int oldpts = timestamp_vpts_get();
 		int oldmod = tsync_mode;
-
 		if (tsync_mode == TSYNC_MODE_VMASTER)
 			t = timestamp_apts_get();
 		else
@@ -838,6 +840,7 @@ void tsync_avevent_locked(enum avevent_e event, u32 param)
 			tsync_mode_switch('V', abs(param - t),
 							  param - oldpts);
 		}
+
 		timestamp_vpts_set(param);
 		if (tsync_mode == TSYNC_MODE_VMASTER) {
 			timestamp_pcrscr_set(param);
@@ -866,7 +869,6 @@ void tsync_avevent_locked(enum avevent_e event, u32 param)
 			t = timestamp_vpts_get();
 		else
 			t = timestamp_pcrscr_get();
-
 		amlog_level(LOG_LEVEL_ATTENTION,
 				"AUDIO_TSTAMP_DISCONTINUITY, 0x%x, 0x%x\n",
 				t, param);
@@ -1441,13 +1443,19 @@ static ssize_t store_vpts(struct class *class,
 	ssize_t r;
 
 	/*r = sscanf(buf, "0x%x", &pts);*/
-	r = kstrtoint(buf, 0, &pts);
+	r = kstrtouint(buf, 0, &pts);
 
 	if (r != 0)
 		return -EINVAL;
 
 	timestamp_vpts_set(pts);
 	return size;
+}
+
+static ssize_t show_demux_pcr(struct class *class,
+		struct class_attribute *attr, char *buf)
+{
+	return sprintf(buf, "0x%x\n", timestamp_tsdemux_pcr_get());
 }
 
 static ssize_t show_apts(struct class *class,
@@ -1462,9 +1470,7 @@ static ssize_t store_apts(struct class *class,
 {
 	unsigned int pts;
 	ssize_t r;
-
-	/*r = sscanf(buf, "0x%x", &pts);*/
-	r = kstrtoint(buf, 0, &pts);
+	r = kstrtouint(buf, 0, &pts);
 
 	if (r != 0)
 		return -EINVAL;
@@ -1868,6 +1874,12 @@ static ssize_t show_checkin_firstvpts(struct class *class,
 	return sprintf(buf, "0x%x\n", timestamp_checkin_firstvpts_get());
 }
 
+static ssize_t show_checkin_firstapts(struct class *class,
+		struct class_attribute *attr, char *buf)
+{
+	return sprintf(buf, "0x%x\n", timestamp_checkin_firstapts_get());
+}
+
 static ssize_t show_vpause_flag(struct class *class,
 		struct class_attribute *attr, char *buf)
 {
@@ -2002,7 +2014,11 @@ static struct class_attribute tsync_class_attrs[] = {
 	__ATTR(checkin_firstvpts, 0644, show_checkin_firstvpts,
 	NULL),
 	__ATTR(apts_lookup, 0644, show_apts_lookup,
-		store_apts_lookup),
+	store_apts_lookup),
+	__ATTR(demux_pcr, 0644, show_demux_pcr,
+	NULL),
+	__ATTR(checkin_firstapts, 0644, show_checkin_firstapts,
+	NULL),
 	__ATTR_NULL
 };
 

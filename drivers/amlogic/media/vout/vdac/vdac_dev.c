@@ -128,6 +128,10 @@ void ana_ref_cntl0_bit9(bool on, unsigned int module_sel)
 {
 	bool enable = 0;
 
+	/*tl1:bandgap en, bc[7] default:0 opened*/
+	if (s_vdac_data->cpu_id == VDAC_CPU_TL1)
+		return;
+
 	switch (module_sel & 0x1f) {
 	case VDAC_MODULE_ATV_DEMOD: /* dtv demod */
 		if (on)
@@ -368,6 +372,12 @@ void vdac_enable(bool on, unsigned int module_sel)
 	mutex_lock(&vdac_mutex);
 	switch (module_sel) {
 	case VDAC_MODULE_ATV_DEMOD: /* atv demod */
+		if ((on && (pri_flag & VDAC_MODULE_ATV_DEMOD))
+			|| (!on && !(pri_flag & VDAC_MODULE_ATV_DEMOD))) {
+			pr_info("%s: ATV DEMOD had done!:%d.\n", __func__, on);
+			break;
+		}
+
 		if (on) {
 			ana_ref_cntl0_bit9(1, VDAC_MODULE_ATV_DEMOD);
 			/*after txlx need reset bandgap after bit9 enabled*/
@@ -564,6 +574,11 @@ struct meson_vdac_data meson_g12ab_vdac_data = {
 	.name = "meson-g12ab-vdac",
 };
 
+struct meson_vdac_data meson_tl1_vdac_data = {
+	.cpu_id = VDAC_CPU_TL1,
+	.name = "meson-tl1-vdac",
+};
+
 static const struct of_device_id meson_vdac_dt_match[] = {
 	{
 		.compatible = "amlogic, vdac-gxtvbb",
@@ -592,6 +607,9 @@ static const struct of_device_id meson_vdac_dt_match[] = {
 	}, {
 		.compatible = "amlogic, vdac-g12b",
 		.data		= &meson_g12ab_vdac_data,
+	}, {
+		.compatible = "amlogic, vdac-tl1",
+		.data		= &meson_tl1_vdac_data,
 	},
 	{},
 };
@@ -673,6 +691,8 @@ static int __exit aml_vdac_remove(struct platform_device *pdev)
 static int amvdac_drv_suspend(struct platform_device *pdev,
 		pm_message_t state)
 {
+	if (s_vdac_data->cpu_id == VDAC_CPU_TXL)
+		vdac_hiu_reg_write(HHI_VDAC_CNTL0, 0);
 	pr_info("%s: suspend module\n", __func__);
 	return 0;
 }

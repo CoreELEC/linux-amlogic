@@ -27,7 +27,6 @@
  * other devices
  */
 extern int hdcp_ksv_valid(unsigned char *dat);
-extern unsigned int hdcp_get_downstream_ver(void);
 
 #endif
 

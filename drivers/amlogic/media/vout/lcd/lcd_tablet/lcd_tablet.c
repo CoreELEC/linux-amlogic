@@ -382,6 +382,7 @@ static struct vout_server_s lcd_vout_server = {
 		.set_vframe_rate_end_hint = lcd_set_vframe_rate_end_hint,
 		.set_vframe_rate_policy = lcd_set_vframe_rate_policy,
 		.get_vframe_rate_policy = lcd_get_vframe_rate_policy,
+		.set_bist = lcd_debug_test,
 #ifdef CONFIG_PM
 		.vout_suspend = lcd_suspend,
 		.vout_resume = lcd_resume,
@@ -405,6 +406,7 @@ static struct vout_server_s lcd_vout2_server = {
 		.set_vframe_rate_end_hint = lcd_set_vframe_rate_end_hint,
 		.set_vframe_rate_policy = lcd_set_vframe_rate_policy,
 		.get_vframe_rate_policy = lcd_get_vframe_rate_policy,
+		.set_bist = lcd_debug_test,
 #ifdef CONFIG_PM
 		.vout_suspend = lcd_suspend,
 		.vout_resume = lcd_resume,
@@ -1190,7 +1192,13 @@ static void lcd_config_init(struct lcd_config_s *pconf)
 	lcd_tablet_config_update(pconf);
 	lcd_clk_generate_parameter(pconf);
 	ss_level = pconf->lcd_timing.ss_level;
-	cconf->ss_level = (ss_level >= cconf->ss_level_max) ? 0 : ss_level;
+	if (cconf->data) {
+		cconf->ss_level = (ss_level >= cconf->data->ss_level_max) ?
+					0 : ss_level;
+	} else {
+		LCDERR("%s: clk config data is null\n", __func__);
+		cconf->ss_level = 0;
+	}
 
 	lcd_tablet_config_post_update(pconf);
 }

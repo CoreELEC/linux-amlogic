@@ -276,6 +276,7 @@ enum cpuid_type_e {
 	__MESON_CPU_MAJOR_ID_TXHD,
 	__MESON_CPU_MAJOR_ID_G12A,
 	__MESON_CPU_MAJOR_ID_G12B,
+	__MESON_CPU_MAJOR_ID_TL1,
 	__MESON_CPU_MAJOR_ID_UNKNOWN,
 };
 
@@ -358,6 +359,12 @@ enum viu2_rotate_format {
 enum viu_type {
 	VIU1,
 	VIU2,
+};
+
+enum render_cmd_type {
+	LAYER_SYNC,
+	BLANK_CMD,
+	PAGE_FLIP,
 };
 
 struct pandata_s {
@@ -464,6 +471,8 @@ struct layer_fence_map_s {
 struct osd_layers_fence_map_s {
 	struct list_head list;
 	int out_fd;
+	unsigned char hdr_mode;
+	unsigned char cmd;
 	struct display_flip_info_s disp_info;
 	struct layer_fence_map_s layer_map[HW_OSD_COUNT];
 };
@@ -494,6 +503,8 @@ struct osd_device_data_s {
 	u32 vpp_fifo_len;
 	u32 dummy_data;
 	u32 has_viu2;
+	u32 viu1_osd_count;
+	u32 viu2_index;
 	struct clk *vpu_clkc;
 };
 
@@ -579,32 +590,24 @@ struct layer_blend_s {
 	struct dispdata_s input1_data;
 	struct dispdata_s input2_data;
 	struct dispdata_s output_data;
-	u32 background_w;
-	u32 background_h;
 	u32 blend_core1_bypass;
 };
 struct hw_osd_blending_s {
 	u8 osd_blend_mode;
 	u8 osd_to_bdin_table[OSD_BLEND_LAYERS];
 	u8 reorder[HW_OSD_COUNT];
+	u8 blend_din;
 	u32 din_reoder_sel;
 	u32 layer_cnt;
-	bool change_order;
 	bool b_exchange_din;
 	bool b_exchange_blend_in;
 	bool osd1_freescale_used;
 	bool osd1_freescale_disable;
-	bool bscaler_down[HW_OSD_COUNT];
-	u32 background_w;
-	u32 background_h;
 	u32 vinfo_width;
 	u32 vinfo_height;
-	u32 screen1_ratio_w;
-	u32 screen1_ratio_h;
-	u32 screen2_ratio_w;
-	u32 screen2_ratio_h;
-	u32 pic_w_ratio;
-	u32 pic_h_ratio;
+	u32 screen_ratio_w;
+	u32 screen_ratio_h;
+	struct dispdata_s dst_data;
 	struct layer_blend_reg_s blend_reg;
 	struct layer_blend_s layer_blend;
 };
@@ -734,7 +737,6 @@ struct hw_para_s {
 	u32 osd_clear[HW_OSD_COUNT];
 	u32 vinfo_width;
 	u32 vinfo_height;
-	u32 b_interlaced;
 	u32 fb_drvier_probe;
 	u32 afbc_force_reset;
 	u32 afbc_regs_backup;
@@ -746,8 +748,6 @@ struct hw_para_s {
 	u32 hw_rdma_en;
 	u32 blend_bypass;
 	u32 hdr_used;
-	u32 workaround_hdr;
-	u32 workaround_not_hdr;
 	u32 basic_urgent;
 	u32 two_ports;
 	u32 afbc_err_cnt;

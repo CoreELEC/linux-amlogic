@@ -1188,3 +1188,4 @@
 &pwm_ef {
 	status = "okay";
 };
+

@@ -80,7 +80,7 @@
 			reusable;
 			size = <0x800000>;
 			alignment = <0x400000>;
-			alloc-ranges = <0x7f700000 0x800000>;
+			alloc-ranges = <0x7f800000 0x800000>;
 		};
 		ion_cma_reserved:linux,ion-dev {
 			compatible = "shared-dma-pool";
@@ -151,14 +151,14 @@
 		};
 	};
 
-	dummy-battery {
+	amlogic_battery:dummy-battery {
 		compatible = "amlogic, dummy-battery";
-		status = "okay";
+		status = "disabled";
 	};
 
-	dummy-charger {
+	amlogic_charger:dummy-charger {
 		compatible = "amlogic, dummy-charger";
-		status = "okay";
+		status = "disabled";
 	};
 
 	gpioleds {

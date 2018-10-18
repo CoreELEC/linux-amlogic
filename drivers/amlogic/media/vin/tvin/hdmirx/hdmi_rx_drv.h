@@ -34,19 +34,19 @@
 #include "hdmi_rx_edid.h"
 
 
-#define RX_VER0 "ver.2018-10-15"
+#define RX_VER0 "ver.2018-11-8"
 /*
  *
  *
  *
  *
  */
-#define RX_VER1 "ver.2018/08/22"
+#define RX_VER1 "ver.2018/10/22"
 /*
  *
  *
  */
-#define RX_VER2 "ver.2018/09/06"
+#define RX_VER2 "ver.2018/10/30"
 
 /*print type*/
 #define	LOG_EN		0x01
@@ -85,10 +85,18 @@ enum chip_id_e {
 	CHIP_ID_TXL,
 	CHIP_ID_TXLX,
 	CHIP_ID_TXHD,
+	CHIP_ID_TL1,
+};
+
+enum phy_ver_e {
+	PHY_VER_ORG,
+	PHY_VER_TL1,
 };
 
 struct meson_hdmirx_data {
 	enum chip_id_e chip_id;
+	enum phy_ver_e phy_ver;
+	struct ctrl *phyctrl;
 };
 
 struct hdmirx_dev_s {
@@ -250,10 +258,21 @@ struct rx_video_info {
 /** Encrypted keys size - 40 bits x 40 keys */
 #define HDCP_KEYS_SIZE	(2 * 40)
 
+/*emp buffer config*/
+#define DUMP_MODE_EMP	0
+#define DUMP_MODE_TMDS	1
+#define TMDS_BUFFER_SIZE	0x1e00000 /*30M*/
+#define EMP_BUFFER_SIZE		0x200000	/*2M*/
+#define EMP_BUFF_MAC_PKT_CNT ((EMP_BUFFER_SIZE/2)/32 - 200)
+#define TMDS_DATA_BUFFER_SIZE	0x200000
+
+
 /**
  * @short HDMI RX controller HDCP configuration
  */
 struct hdmi_rx_hdcp {
+	/*hdcp auth state*/
+	enum repeater_state_e state;
 	/** Repeater mode else receiver only */
 	bool repeat;
 	bool cascade_exceed;
@@ -335,8 +354,32 @@ struct aud_info_s {
 	int real_sr;
 };
 
+struct phy_sts {
+	uint32_t cable_clk;
+	uint32_t tmds_clk;
+	uint32_t aud_div;
+	uint32_t pll_rate;
+	uint32_t clk_rate;
+	uint32_t phy_bw;
+};
+
+struct emp_buff {
+	unsigned int dump_mode;
+	struct page *pg_addr;
+	phys_addr_t p_addr_a;
+	phys_addr_t p_addr_b;
+	/*void __iomem *v_addr_a;*/
+	/*void __iomem *v_addr_b;*/
+	void __iomem *storeA;
+	void __iomem *storeB;
+	void __iomem *ready;
+	unsigned int emppktcnt;
+	unsigned long irqcnt;
+};
+
 struct rx_s {
 	enum chip_id_e chip_id;
+	struct hdmirx_dev_s *hdmirxdev;
 	/** HDMI RX received signal changed */
 	uint8_t skip;
 	/*avmute*/
@@ -353,6 +396,7 @@ struct rx_s {
 	bool boot_flag;
 	bool open_fg;
 	uint8_t irq_flag;
+	bool firm_change;/*hdcp2.2 rp/rx switch time*/
 	/** HDMI RX controller HDCP configuration */
 	struct hdmi_rx_hdcp hdcp;
 	/*report hpd status to app*/
@@ -384,6 +428,8 @@ struct rx_s {
 	unsigned int pwr_sts;
 	/* for debug */
 	/*struct pd_infoframe_s dbg_info;*/
+	struct phy_sts physts;
+	struct emp_buff empbuff;
 };
 
 struct _hdcp_ksv {
@@ -409,6 +455,7 @@ extern struct tasklet_struct rx_tasklet;
 extern struct device *hdmirx_dev;
 extern struct rx_s rx;
 extern struct reg_map reg_maps[MAP_ADDR_MODULE_NUM];
+extern bool downstream_repeat_support;
 extern void rx_tasklet_handler(unsigned long arg);
 extern void skip_frame(unsigned int cnt);
 
@@ -425,7 +472,7 @@ extern void rx_send_hpd_pulse(void);
 /* irq */
 extern void rx_irq_en(bool enable);
 extern irqreturn_t irq_handler(int irq, void *params);
-extern void cecrx_irq_handle(void);
+extern void cecb_irq_handle(void);
 
 /* user interface */
 extern int pc_mode_en;
@@ -466,6 +513,7 @@ bool hdmirx_repeat_support(void);
 
 /* edid-hdcp14 */
 extern unsigned int edid_update_flag;
+extern unsigned int downstream_hpd_flag;
 
 extern void hdmirx_fill_edid_buf(const char *buf, int size);
 extern unsigned int hdmirx_read_edid_buf(char *buf, int max_size);

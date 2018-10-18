@@ -165,7 +165,8 @@ void enable_di_post_mif(enum gate_mode_e mode);
 void di_hw_uninit(void);
 void combing_pd22_window_config(unsigned int width, unsigned int height);
 void calc_lmv_init(void);
-void calc_lmv_base_mcinfo(unsigned int vf_height, unsigned long mcinfo_adr);
+void calc_lmv_base_mcinfo(unsigned int vf_height, unsigned long mcinfo_adr,
+						unsigned int mcinfo_size);
 void init_field_mode(unsigned short height);
 void film_mode_win_config(unsigned int width, unsigned int height);
 void pulldown_vof_win_config(struct pulldown_detected_s *wins);
@@ -176,10 +177,14 @@ void di_interrupt_ctrl(unsigned char ma_en,
 	unsigned char det3d_en, unsigned char nrds_en,
 	unsigned char post_wr, unsigned char mc_en);
 void di_txl_patch_prog(int prog_flg, unsigned int cnt, bool mc_en);
+bool afbc_is_supported(void);
 //extern void afbc_power_sw(bool on);
 extern void afbc_reg_sw(bool on);
 extern void afbc_sw_trig(bool  on);
 extern void dump_vd2_afbc(void);
 
+extern u8 *di_vmap(ulong addr, u32 size, bool *bflg);
+extern void di_unmap_phyaddr(u8 *vaddr);
+extern int di_print(const char *fmt, ...);
 
 #endif

@@ -212,13 +212,13 @@
 		};
 	};
 
-	dummy-battery {
+	amlogic_battery:dummy-battery {
 		compatible = "amlogic, dummy-battery";
-		status = "okay";
+		status = "disabled";
 	};
-	dummy-charger {
+	amlogic_charger:dummy-charger {
 		compatible = "amlogic, dummy-charger";
-		status = "okay";
+		status = "disabled";
 	};
 
 	ethmac: ethernet@0xff3f0000 {
@@ -791,7 +791,7 @@
 		compatible = "amlogic, unifykey";
 		status = "okay";
 
-		unifykey-num = <18>;
+		unifykey-num = <21>;
 		unifykey-index-0 = <&keysn_0>;
 		unifykey-index-1 = <&keysn_1>;
 		unifykey-index-2 = <&keysn_2>;
@@ -810,6 +810,9 @@
 		unifykey-index-15 = <&keysn_15>;
 		unifykey-index-16 = <&keysn_16>;
 		unifykey-index-17 = <&keysn_17>;
+		unifykey-index-18 = <&keysn_18>;
+		unifykey-index-19 = <&keysn_19>;
+		unifykey-index-20 = <&keysn_20>;
 
 		keysn_0: key_0{
 			key-name = "usid";
@@ -906,6 +909,21 @@
 			key-device = "normal";
 			key-permit = "read","write","del";
 		};
+		keysn_18:key_18{
+			key-name = "hdcp22_rprx_fw";
+			key-device = "normal";
+			key-permit = "read","write","del";
+		};
+		keysn_19:key_19{
+			key-name = "hdcp22_rprp_fw";
+			key-device = "normal";
+			key-permit = "read","write","del";
+		};
+		keysn_20:key_20{
+			key-name = "hdcp22_rp_private";
+			key-device = "secure";
+			key-permit = "read","write","del";
+		};
 	}; /* End unifykey */
 
 	cvbsout {
@@ -948,7 +966,7 @@
 		 */
 		ic_type = <6>;
 		//gpio_i2c_en = <0>;
-		//repeater_tx = <0x1>;
+		repeater_tx = <0x1>;
 		//#address-cells = <2>;
 		//#size-cells = <2>;
 		//ranges;
@@ -983,6 +1001,7 @@
 		cec_osd_string = "AML_TV"; /* Max Chars: 14    */
 		port_num = <4>;	/*all port number*/
 		/*ee_cec;*/
+		cec_sel = <2>;
 		output = <1>;	/*output port number*/
 		/*arc support port:bit 0-3, according to portmap*/
 		arc_port_mask = <0x8>;
@@ -990,9 +1009,9 @@
 					0 199 1>;
 		interrupt-names = "hdmi_aocecb","hdmi_aocec";
 		pinctrl-names = "default","hdmitx_aocecb","cec_pin_sleep";
-		pinctrl-0=<&hdmitx_aocec>;
-		pinctrl-1=<&hdmitx_aocecb>;
-		pinctrl-2=<&hdmitx_aocecb>;
+		pinctrl-0=<&hdmitx_aocec &hdmitx_aocecb1>;
+		pinctrl-1=<&hdmitx_aocec &hdmitx_aocecb1>;
+		pinctrl-2=<&hdmitx_aocec &hdmitx_aocecb1>;
 		reg = <0x0 0xFF80023c 0x0 0x4
 		       0x0 0xFF800000 0x0 0x400>;
 		reg-names = "ao_exit","ao";

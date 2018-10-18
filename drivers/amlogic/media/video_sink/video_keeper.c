@@ -633,8 +633,7 @@ static int alloc_keep_buffer(void)
 	 *	if not used ge2d.
 	 *	need CPU access.
 	 */
-	flags = CODEC_MM_FLAGS_DMA_CPU |
-	CODEC_MM_FLAGS_FOR_VDECODER;
+	flags = CODEC_MM_FLAGS_DMA | CODEC_MM_FLAGS_FOR_VDECODER;
 #endif
 	if ((flags & CODEC_MM_FLAGS_FOR_VDECODER) &&
 			codec_mm_video_tvp_enabled())/*TVP TODO for MULTI*/
@@ -835,6 +834,7 @@ static unsigned int vf_keep_current_locked(
 		cur_dispbuf_el);
 	if (ret) {
 		/*keeped ok with codec keeper!*/
+		keep_video_on = 1;
 		return 1;
 	}
 #ifdef CONFIG_AMLOGIC_MEDIA_MULTI_DEC

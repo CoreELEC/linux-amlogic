@@ -73,6 +73,12 @@
 #include <linux/debugfs.h>
 /*2018-07-18 -----------*/
 
+#undef TRACE_INCLUDE_PATH
+#undef TRACE_INCLUDE_FILE
+#define TRACE_INCLUDE_PATH .
+#define TRACE_INCLUDE_FILE deinterlace_trace
+#include <trace/define_trace.h>
+
 #ifdef DET3D
 #include "detect3d.h"
 #endif
@@ -123,7 +129,7 @@ static di_dev_t *de_devp;
 static dev_t di_devno;
 static struct class *di_clsp;
 
-static const char version_s[] = "2018-09-28a";
+static const char version_s[] = "2018-11-28b";
 
 static int bypass_state = 1;
 static int bypass_all;
@@ -1237,7 +1243,61 @@ static bool is_in_queue(struct di_buf_s *di_buf, int queue_idx)
 	}
 	return ret;
 }
+//---------------------------
+u8 *di_vmap(ulong addr, u32 size, bool *bflg)
+{
+	u8 *vaddr = NULL;
+	ulong phys = addr;
+	u32 offset = phys & ~PAGE_MASK;
+	u32 npages = PAGE_ALIGN(size) / PAGE_SIZE;
+	struct page **pages = NULL;
+	pgprot_t pgprot;
+	int i;
 
+	if (!PageHighMem(phys_to_page(phys)))
+		return phys_to_virt(phys);
+
+	if (offset)
+		npages++;
+
+	pages = vmalloc(sizeof(struct page *) * npages);
+	if (!pages)
+		return NULL;
+
+	for (i = 0; i < npages; i++) {
+		pages[i] = phys_to_page(phys);
+		phys += PAGE_SIZE;
+	}
+
+	/*nocache*/
+	pgprot = pgprot_writecombine(PAGE_KERNEL);
+
+	vaddr = vmap(pages, npages, VM_MAP, pgprot);
+	if (!vaddr) {
+		pr_err("the phy(%lx) vmaped fail, size: %d\n",
+			addr - offset, npages << PAGE_SHIFT);
+		vfree(pages);
+		return NULL;
+	}
+
+	vfree(pages);
+
+//	if (debug_mode & 0x20) {
+//		di_print("[HIGH-MEM-MAP] %s, pa(%lx) to va(%p), size: %d\n",
+//			__func__, addr, vaddr + offset, npages << PAGE_SHIFT);
+//	}
+	*bflg = true;
+
+	return vaddr + offset;
+}
+
+void di_unmap_phyaddr(u8 *vaddr)
+{
+	void *addr = (void *)(PAGE_MASK & (ulong)vaddr);
+
+	vunmap(addr);
+}
+//-------------------------
 static ssize_t
 store_dump_mem(struct device *dev, struct device_attribute *attr,
 	       const char *buf, size_t len)
@@ -1254,6 +1314,7 @@ store_dump_mem(struct device *dev, struct device_attribute *attr,
 	loff_t pos = 0;
 	void *buff = NULL;
 	mm_segment_t old_fs;
+	bool bflg_vmap = false;
 
 	buf_orig = kstrdup(buf, GFP_KERNEL);
 	ps = buf_orig;
@@ -1300,10 +1361,18 @@ store_dump_mem(struct device *dev, struct device_attribute *attr,
 			return len;
 		}
 		dump_state_flag = 1;
-		if (de_devp->flags & DI_MAP_FLAG)
-			buff = (void *)phys_to_virt(dump_adr);
-		else
+		if (de_devp->flags & DI_MAP_FLAG) {
+			//buff = (void *)phys_to_virt(dump_adr);
+			buff = di_vmap(dump_adr, nr_size, &bflg_vmap);
+			if (buff == NULL) {
+				pr_info("di_vap err\n");
+				filp_close(filp, NULL);
+				return len;
+
+			}
+		} else {
 			buff = ioremap(dump_adr, nr_size);
+		}
 		if (IS_ERR_OR_NULL(buff))
 			pr_err("%s: ioremap error.\n", __func__);
 		vfs_write(filp, buff, nr_size, &pos);
@@ -1327,6 +1396,10 @@ store_dump_mem(struct device *dev, struct device_attribute *attr,
  */
 		vfs_fsync(filp, 0);
 		pr_info("write buffer 0x%lx  to %s.\n", dump_adr, parm[1]);
+		if (bflg_vmap)
+			di_unmap_phyaddr(buff);
+
+
 		if (!(de_devp->flags & DI_MAP_FLAG))
 			iounmap(buff);
 		dump_state_flag = 0;
@@ -4194,7 +4267,8 @@ static irqreturn_t de_irq(int irq, void *dev_instance)
 				is_meson_txhd_cpu())
 				mc_pre_mv_irq();
 			calc_lmv_base_mcinfo((di_pre_stru.cur_height>>1),
-				di_pre_stru.di_wr_buf->mcinfo_adr);
+				di_pre_stru.di_wr_buf->mcinfo_adr,
+				di_pre_stru.mcinfo_size);
 		}
 		nr_process_in_irq();
 		if ((data32&0x200) && de_devp->nrds_enable)
@@ -5973,11 +6047,14 @@ static bool need_bypass(struct vframe_s *vf)
 
 	if (vf->type & VIDTYPE_PIC)
 		return true;
-#if 1
+#if 0
 	if (vf->type & VIDTYPE_COMPRESS)
 		return true;
 #else
+	/*support G12A and TXLX platform*/
 	if (vf->type & VIDTYPE_COMPRESS) {
+		if (!afbc_is_supported())
+			return true;
 		if ((vf->compHeight > (default_height + 8))
 			|| (vf->compWidth > default_width))
 			return true;
@@ -6313,7 +6390,7 @@ static int di_task_handle(void *data)
 				di_pre_stru.reg_req_flag_irq = 0;
 			}
 			#ifdef CONFIG_CMA
-			mutex_lock(&de_devp->cma_mutex);
+			/* mutex_lock(&de_devp->cma_mutex);*/
 			if (di_pre_stru.cma_release_req) {
 				atomic_set(&devp->mem_flag, 0);
 				di_cma_release(devp);
@@ -6328,7 +6405,7 @@ static int di_task_handle(void *data)
 				di_pre_stru.cma_alloc_req = 0;
 				di_pre_stru.cma_alloc_done = 1;
 			}
-			mutex_unlock(&de_devp->cma_mutex);
+			/* mutex_unlock(&de_devp->cma_mutex); */
 			#endif
 		}
 		if (de_devp->flags & DI_VPU_CLKB_SET) {
@@ -6451,6 +6528,13 @@ static int di_receiver_event_fun(int type, void *data, void *arg)
 		di_blocking = 1;
 
 		pr_dbg("%s: VFRAME_EVENT_PROVIDER_RESET\n", __func__);
+		if (is_bypass(NULL)
+			|| bypass_state
+			|| di_pre_stru.bypass_flag) {
+			vf_notify_receiver(VFM_NAME,
+				VFRAME_EVENT_PROVIDER_RESET,
+				NULL);
+		}
 
 		goto light_unreg;
 	} else if (type == VFRAME_EVENT_PROVIDER_LIGHT_UNREG) {
@@ -7435,7 +7519,7 @@ static int di_probe(struct platform_device *pdev)
 	} else {
 			atomic_set(&di_devp->mem_flag, 1);
 	}
-	mutex_init(&di_devp->cma_mutex);
+	/* mutex_init(&di_devp->cma_mutex); */
 	INIT_LIST_HEAD(&di_devp->pq_table_list);
 
 	atomic_set(&di_devp->pq_flag, 0);
@@ -7562,8 +7646,9 @@ static int di_remove(struct platform_device *pdev)
 	di_devp->di_event = 0xff;
 	kthread_stop(di_devp->task);
 	hrtimer_cancel(&di_pre_hrtimer);
+	tasklet_kill(&di_pre_tasklet);	//ary.sui
 	tasklet_disable(&di_pre_tasklet);
-	tasklet_kill(&di_pre_tasklet);
+
 #ifdef CONFIG_AMLOGIC_MEDIA_RDMA
 /* rdma handle */
 	if (di_devp->rdma_handle > 0)
@@ -7619,8 +7704,9 @@ static void di_shutdown(struct platform_device *pdev)
 	di_devp = platform_get_drvdata(pdev);
 	ret = hrtimer_cancel(&di_pre_hrtimer);
 	pr_info("di pre hrtimer canel %d.\n", ret);
-	tasklet_disable(&di_pre_tasklet);
 	tasklet_kill(&di_pre_tasklet);
+	tasklet_disable(&di_pre_tasklet);
+
 	init_flag = 0;
 	if (is_meson_txlx_cpu())
 		di_top_gate_control(true, true);

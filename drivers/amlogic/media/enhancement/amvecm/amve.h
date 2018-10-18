@@ -64,6 +64,7 @@ extern struct ve_dnlp_s am_ve_dnlp;
 extern struct tcon_gamma_table_s video_gamma_table_r;
 extern struct tcon_gamma_table_s video_gamma_table_g;
 extern struct tcon_gamma_table_s video_gamma_table_b;
+extern struct tcon_gamma_table_s video_gamma_table_ioctl_set;
 extern struct tcon_gamma_table_s video_gamma_table_r_adj;
 extern struct tcon_gamma_table_s video_gamma_table_g_adj;
 extern struct tcon_gamma_table_s video_gamma_table_b_adj;
@@ -142,6 +143,9 @@ extern int VSYNC_WR_MPEG_REG(u32 adr, u32 val);
 /* unsigned long long ve_get_vs_cnt(void); */
 /* #endif */
 extern int video_rgb_ogo_xvy_mtx;
+
+#define GAMMA_SIZE 256
+
 extern unsigned int dnlp_sel;
 extern void ve_dnlp_load_reg(void);
 
@@ -157,8 +161,11 @@ extern void amvecm_fresh_overscan(struct vframe_s *vf);
 extern void amvecm_reset_overscan(void);
 extern int vpp_set_lut3d(int enable, int bLut3DLoad,
 	int *pLut3D, int bLut3DCheck);
-extern void vpp_lut3d_table_init(int *pLut3D);
+extern void vpp_lut3d_table_init(int *pLut3D, int bitdepth);
 extern void dump_plut3d_table(void);
 extern void dump_plut3d_reg_table(void);
+
+extern void amvecm_gamma_init(bool en);
+
 #endif
 
