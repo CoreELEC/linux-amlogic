@@ -668,7 +668,11 @@ int hdmitx_set_display(struct hdmitx_dev *hdev, enum hdmi_vic VideoCode)
 					hdev->para->tmds_clk, hdev->para->tmds_clk * ((int) param->color_depth) / ((int) COLORDEPTH_24B),
 					hdev->RXCap.Max_TMDS_Clock1 * 5000,
 					hdev->RXCap.HF_IEEEOUI);
-			if (param->color == COLORSPACE_YUV444 && param->color_depth > COLORDEPTH_24B){
+			if (param->color == COLORSPACE_YUV444 &&
+					hdev->para->tmds_clk * ((int) param->color_depth) / ((int) COLORDEPTH_24B) >
+					hdev->RXCap.Max_TMDS_Clock1 * 5000 &&
+					! hdev->RXCap.HF_IEEEOUI){
+
 				/* set 422 mode if sink can handle it */
 				if (hdev->RXCap.native_Mode & 0x10){
 					param->color = COLORSPACE_YUV422;
@@ -678,25 +682,10 @@ int hdmitx_set_display(struct hdmitx_dev *hdev, enum hdmi_vic VideoCode)
 					param->color_depth = COLORDEPTH_24B;
 				}
 			}
-		}
 
-		if (param->color == COLORSPACE_RGB444) {
-			if (param->color_depth > COLORDEPTH_24B){
-				if (! hdmi_output_rgb){
-					/* set 422 mode if sink can handle it */
-					if (hdev->RXCap.native_Mode & 0x10){
-						param->color = COLORSPACE_YUV422;
-						pr_info("Setting colourspace to YCC422 for %d-bit\n", ((int) param->color_depth) * 2);
-					} else if ((param->color_depth == COLORDEPTH_30B && ! hdev->RXCap.dc_30bit) ||
-							(param->color_depth == COLORDEPTH_36B && ! hdev->RXCap.dc_36bit)) {
-						pr_info("No support for RGB deep colour, setting 8-bit\n");
-						param->color = COLORDEPTH_24B;
-					} else
-						pr_info("Colourdepth for RGB is %d-bit\n", ((int) param->color_depth) * 2);
-				} else {
-					pr_info("Setting 8-bit colourdepth for RGB\n");
-					param->color_depth = COLORDEPTH_24B;
-				}
+			if (param->color == COLORSPACE_RGB444) {
+				param->color = hdev->cur_video_param->color;
+				pr_info("hdmitx: rx edid only support RGB format\n");
 			}
 		}
 

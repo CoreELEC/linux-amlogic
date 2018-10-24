@@ -615,14 +615,15 @@ static int set_disp_mode_auto(void)
 			pr_info("hdmitx: display colourdepth set by attr to %d in cur_param 0x%08x (VIC: %d)\n",hdev->cur_video_param->color_depth * 2,
 					hdev->cur_video_param,  hdev->cur_video_param->VIC);
 		} else {
-			if (stream_cur_cd == COLORDEPTH_24B)
-				hdev->cur_video_param->color_depth = COLORDEPTH_24B;
+			hdev->cur_video_param->color_depth = COLORDEPTH_30B;
 			pr_info("hdmitx: display colourdepth is %d in cur_param 0x%08x (VIC: %d)\n",hdev->cur_video_param->color_depth * 2,
 					hdev->cur_video_param,  hdev->cur_video_param->VIC);
 		}
-		if (hdev->cur_video_param->color_depth > COLORDEPTH_24B && !(hdev->RXCap.ColorDeepSupport & 0x78))
+		if (hdev->cur_video_param->color_depth > COLORDEPTH_24B && !(hdev->RXCap.ColorDeepSupport & 0x78)){
 			pr_warn("Bitdepth is set to %d bits but display does not support deep colour",
 				hdev->cur_video_param->color_depth * 2);
+			hdev->cur_video_param->color_depth = COLORDEPTH_24B;
+		}
 	}
 	/* only set full range if forced */
 	if (strstr(fmt_attr,"full") == NULL)
@@ -717,7 +718,7 @@ static int set_disp_mode_auto(void)
 				colour_str[((hdmitx_rd_reg(HDMITX_DWC_FC_AVICONF2) & 0x70) >> 4) + 3]);
 
 	if ((hdmitx_rd_reg(HDMITX_DWC_FC_DRM_PB00) & 3) == 0x02) {
-		hdmi_print(IMP, VID "HDR data: EOTF: %s\n", eotf[(hdmitx_rd_reg(HDMITX_DWC_FC_DRM_PB00) & 3)]);
+		hdmi_print(IMP, VID "HDR data: EOTF: %s\n", eotf[(hdmitx_rd_reg(HDMITX_DWC_FC_DRM_PB00) & 7)]);
 		if (hdmitx_rd_reg(HDMITX_DWC_FC_DRM_PB02) > 0x0) {
 			hdmi_print(IMP, VID "Master display colours:\nPrimary one 0.%04d,0.%04d, two 0.%04d,0.%04d, three 0.%04d,0.%04d\nWhite 0.%04d,0.%04d, Luminance max/min: %d,0.%03d\n",
 					(hdmitx_rd_reg(HDMITX_DWC_FC_DRM_PB02) | (hdmitx_rd_reg(HDMITX_DWC_FC_DRM_PB03) << 8)) * 2 / 10,
@@ -1270,7 +1271,7 @@ static ssize_t show_config(struct device *dev,
 				(((hdmitx_rd_reg(HDMITX_DWC_TX_INVID0) & 0x6) >> 1) + 4 ) * 2,
 				pix_fmt[(hdmitx_rd_reg(HDMITX_DWC_FC_AVICONF0) & 0x3)],
 				range[(hdmitx_rd_reg(HDMITX_DWC_FC_AVICONF2) & 0xc) >> 2],
-				eotf[(hdmitx_rd_reg(HDMITX_DWC_FC_DRM_PB00) & 3)],
+				eotf[(hdmitx_rd_reg(HDMITX_DWC_FC_DRM_PB00) & 7)],
 				range[((hdmitx_rd_reg(HDMITX_DWC_FC_AVICONF3) & 0xc) >> 2) + 1]);
 		pos += snprintf(buf + pos, PAGE_SIZE, "PLL clock: 0x%08x, Vid clock div 0x%08x\n",
 				hd_read_reg(P_HHI_HDMI_PLL_CNTL),
@@ -1439,6 +1440,7 @@ static ssize_t show_disp_cap(struct device *dev,
 				/* sanity check */
 				para = hdmi_get_fmt_paras(vic);
 				if (! hdmitx_device.RXCap.HF_IEEEOUI &&
+						hdmitx_device.RXCap.Max_TMDS_Clock1 >= 15 &&
 						para->tmds_clk > hdmitx_device.RXCap.Max_TMDS_Clock1 * 5000){
 					pr_info("Mode %s (VIC %d) needs %dMHz clock, more than %dMHz",
 							disp_mode_t[i], vic, para->tmds_clk / 1000, hdmitx_device.RXCap.Max_TMDS_Clock1 * 5);

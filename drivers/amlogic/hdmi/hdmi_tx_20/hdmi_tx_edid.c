@@ -1406,6 +1406,9 @@ static int hdmitx_edid_block_parse(struct hdmitx_dev *hdmitx_device,
 				(unsigned long)BlockBuf[offset+5];
 			pRXCap->Max_TMDS_Clock1 =
 				(unsigned long)BlockBuf[offset+6];
+			/* clock cannot be less than 75MHz */
+			if (pRXCap->Max_TMDS_Clock1 < 15)
+				pRXCap->Max_TMDS_Clock1 = 15;
 			if (count > 7) {
 				tmp = BlockBuf[offset+7];
 				idx = offset + 8;

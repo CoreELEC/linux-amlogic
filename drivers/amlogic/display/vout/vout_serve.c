@@ -392,6 +392,17 @@ static ssize_t vout_attr_vinfo_show(struct class *class,
 		info->sync_duration_num, info->sync_duration_den,
 		info->screen_real_width, info->screen_real_height,
 		info->video_clk, info->viu_color_fmt);
+	len += sprintf(buf+len, "hdr info:\n"
+		"    hdr_support           0x%08x\n"
+		"    lumi_max              %d\n"
+		"    lumi_avg              %d\n"
+		"    lumi_min              %d\n"
+		"    sink_flag             %s\n\n",
+		info->hdr_info.hdr_support,
+		info->hdr_info.lumi_max,
+		info->hdr_info.lumi_avg,
+		info->hdr_info.lumi_min,
+		info->hdr_info.sink_flag ? "panel" : "hdmi out");
 	len += sprintf(buf+len, "hdr master display info:\n"
 		"    present_flag          %d\n"
 		"    features              0x%x\n"
