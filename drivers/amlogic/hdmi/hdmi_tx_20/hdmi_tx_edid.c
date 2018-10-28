@@ -155,6 +155,18 @@ static int Edid_find_name_block(unsigned char *data)
 		ret = 1;
 	return ret;
 }
+static int Edid_find_range_block(unsigned char *data)
+{
+	int ret = 0;
+	int i;
+	for (i = 0; i < 3; i++) {
+		if (data[i])
+			return ret;
+	}
+	if (data[3] == 0xfd)
+		ret = 1;
+	return ret;
+}
 
 static void Edid_ReceiverProductNameParse(struct rx_cap *pRxCap,
 	unsigned char *data)
@@ -1402,13 +1414,14 @@ static int hdmitx_edid_block_parse(struct hdmitx_dev *hdmitx_device,
 				pRXCap->IEEEOUI = 0x000c03;
 			else
 				goto case_hf;
-			pRXCap->ColorDeepSupport =
-				(unsigned long)BlockBuf[offset+5];
-			pRXCap->Max_TMDS_Clock1 =
-				(unsigned long)BlockBuf[offset+6];
-			/* clock cannot be less than 75MHz */
-			if (pRXCap->Max_TMDS_Clock1 < 15)
-				pRXCap->Max_TMDS_Clock1 = 15;
+			if (count > 5){
+				pRXCap->ColorDeepSupport =
+					(unsigned long)BlockBuf[offset+5];
+				pRXCap->Max_TMDS_Clock1 =
+					(unsigned long)BlockBuf[offset+6];
+			}
+			else
+				pRXCap->Max_TMDS_Clock1 = 0;
 			if (count > 7) {
 				tmp = BlockBuf[offset+7];
 				idx = offset + 8;
@@ -1832,6 +1845,7 @@ int hdmitx_edid_parse(struct hdmitx_dev *hdmitx_device)
 	unsigned char BlockCount;
 	unsigned char *EDID_buf;
 	int i, j, ret_val;
+	int maxPixelClock = 0;
 	int idx[4];
 	struct rx_cap *pRXCap = &(hdmitx_device->RXCap);
 	struct vinfo_s *info = NULL;
@@ -1881,6 +1895,9 @@ int hdmitx_edid_parse(struct hdmitx_dev *hdmitx_device)
 		if (Edid_find_name_block(&EDID_buf[idx[i]]))
 			Edid_ReceiverProductNameParse(&hdmitx_device->RXCap,
 				&EDID_buf[idx[i]+5]);
+
+		if (Edid_find_range_block(&EDID_buf[idx[i]]))
+			maxPixelClock = EDID_buf[idx[i+9]];
 	}
 
 	Edid_ManufactureDateParse(&hdmitx_device->RXCap, &EDID_buf[16]);
@@ -2049,6 +2066,12 @@ int hdmitx_edid_parse(struct hdmitx_dev *hdmitx_device)
 				info->hdr_info.hdr_support);
 		}
 	}
+
+	if (pRXCap->Max_TMDS_Clock1 < 15){
+		hdmi_print(IMP, EDID "Setting maxTMDSclock from range block\n");
+		pRXCap->Max_TMDS_Clock1 = maxPixelClock * 2;
+	}
+
 	return 0;
 
 }

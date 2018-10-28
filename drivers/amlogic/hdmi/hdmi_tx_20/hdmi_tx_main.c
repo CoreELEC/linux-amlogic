@@ -1440,7 +1440,6 @@ static ssize_t show_disp_cap(struct device *dev,
 				/* sanity check */
 				para = hdmi_get_fmt_paras(vic);
 				if (! hdmitx_device.RXCap.HF_IEEEOUI &&
-						hdmitx_device.RXCap.Max_TMDS_Clock1 >= 15 &&
 						para->tmds_clk > hdmitx_device.RXCap.Max_TMDS_Clock1 * 5000){
 					pr_info("Mode %s (VIC %d) needs %dMHz clock, more than %dMHz",
 							disp_mode_t[i], vic, para->tmds_clk / 1000, hdmitx_device.RXCap.Max_TMDS_Clock1 * 5);
