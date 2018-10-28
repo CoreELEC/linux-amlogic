@@ -1897,7 +1897,7 @@ int hdmitx_edid_parse(struct hdmitx_dev *hdmitx_device)
 				&EDID_buf[idx[i]+5]);
 
 		if (Edid_find_range_block(&EDID_buf[idx[i]]))
-			maxPixelClock = EDID_buf[idx[i+9]];
+			maxPixelClock = EDID_buf[idx[i]+9];
 	}
 
 	Edid_ManufactureDateParse(&hdmitx_device->RXCap, &EDID_buf[16]);
