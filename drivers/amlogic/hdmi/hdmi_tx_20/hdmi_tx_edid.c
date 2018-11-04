@@ -2066,10 +2066,28 @@ int hdmitx_edid_parse(struct hdmitx_dev *hdmitx_device)
 				info->hdr_info.hdr_support);
 		}
 	}
-
+	/* Set maxTMDSclock1 from range block if it doesn't seem to be set right */
 	if (pRXCap->Max_TMDS_Clock1 < 15){
-		hdmi_print(IMP, EDID "Setting maxTMDSclock from range block\n");
+		hdmi_print(IMP, EDID "Setting maxTMDSclock1 from range block\n");
 		pRXCap->Max_TMDS_Clock1 = maxPixelClock * 2;
+	}
+	/* Make sure we have a usable maxTMDSclock1 */
+	if (pRXCap->Max_TMDS_Clock1 < 15){
+		pRXCap->Max_TMDS_Clock1 = 35;
+		hdmi_print(IMP, EDID "No Valid maxTMDSclock1 Setting to 175Mhz\n");
+	}
+	/* If we have a high clock but no HF-VSDB it's probably HDMI 2, so fake a HF-VSDB */
+	if (maxPixelClock > 34 && ! pRXCap->Max_TMDS_Clock2 && ! pRXCap->HF_IEEEOUI){
+		hdmi_print(IMP, EDID "High clock, no HF-VSDB block, Is it missing?\n");
+		hdmi_print(IMP, EDID "Faking HF-VSDB block\n");
+		pRXCap->HF_IEEEOUI = 0xd85dc4;
+		pRXCap->Max_TMDS_Clock2 = maxPixelClock * 2;
+		pRXCap->scdc_present = 1;
+		pRXCap->scdc_rr_capable = 0;
+		pRXCap->lte_340mcsc_scramble = 0;
+		pRXCap->dc_30bit_420 = 0;
+		pRXCap->dc_36bit_420 = 0;
+		pRXCap->dc_48bit_420 = 0;
 	}
 
 	return 0;
