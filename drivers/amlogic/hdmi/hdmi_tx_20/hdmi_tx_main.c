@@ -610,7 +610,10 @@ static int set_disp_mode_auto(void)
 			pr_info("hdmitx: display colourdepth set by attr to %d in cur_param 0x%08x (VIC: %d)\n",hdev->cur_video_param->color_depth * 2,
 					hdev->cur_video_param,  hdev->cur_video_param->VIC);
 		} else {
-			hdev->cur_video_param->color_depth = COLORDEPTH_30B;
+			if (stream_cur_cd == COLORDEPTH_24B)
+				hdev->cur_video_param->color_depth = COLORDEPTH_24B;
+			if (stream_cur_cd == COLORDEPTH_30B)
+				hdev->cur_video_param->color_depth = COLORDEPTH_30B;
 			pr_info("hdmitx: display colourdepth is %d in cur_param 0x%08x (VIC: %d)\n",hdev->cur_video_param->color_depth * 2,
 					hdev->cur_video_param,  hdev->cur_video_param->VIC);
 		}
