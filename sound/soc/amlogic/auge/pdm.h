@@ -30,7 +30,6 @@
 /* 8ch pdm in, 8 ch tdmin_lb */
 #define PDM_CHANNELS_LB_MAX		(PDM_CHANNELS_MAX + 8)
 
-
 #define PDM_RATES			(SNDRV_PCM_RATE_96000 |\
 					SNDRV_PCM_RATE_64000 |\
 					SNDRV_PCM_RATE_48000 |\
@@ -70,6 +69,8 @@ struct aml_pdm {
 	struct clk *clk_pdm_sysclk;
 	struct clk *clk_pdm_dclk;
 	struct toddr *tddr;
+	/* sample rate */
+	int rate;
 	/*
 	 * filter mode:0~4,
 	 * from mode 0 to 4, the performance is from high to low,
@@ -89,6 +90,9 @@ struct aml_pdm {
 
 	/* train */
 	bool train_en;
+
+	/* low power mode, for dclk_sycpll to 24m */
+	bool isLowPower;
 
 	struct pdm_chipinfo *chipinfo;
 	struct snd_kcontrol *controls[PDM_RUN_MAX];

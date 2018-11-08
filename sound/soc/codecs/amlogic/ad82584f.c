@@ -19,18 +19,19 @@ static void ad82584f_early_suspend(struct early_suspend *h);
 static void ad82584f_late_resume(struct early_suspend *h);
 #endif
 
-#define AD82584F_RATES (SNDRV_PCM_RATE_32000 | \
-		       SNDRV_PCM_RATE_44100 | \
-		       SNDRV_PCM_RATE_48000 | \
-		       SNDRV_PCM_RATE_64000 | \
-		       SNDRV_PCM_RATE_88200 | \
-		       SNDRV_PCM_RATE_96000 | \
-		       SNDRV_PCM_RATE_176400 | \
-		       SNDRV_PCM_RATE_192000)
+#define AD82584F_RATES (SNDRV_PCM_RATE_16000 | \
+	SNDRV_PCM_RATE_32000 | \
+	SNDRV_PCM_RATE_44100 | \
+	SNDRV_PCM_RATE_48000 | \
+	SNDRV_PCM_RATE_64000 | \
+	SNDRV_PCM_RATE_88200 | \
+	SNDRV_PCM_RATE_96000 | \
+	SNDRV_PCM_RATE_176400 | \
+	SNDRV_PCM_RATE_192000)
 
 #define AD82584F_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | \
-	 SNDRV_PCM_FMTBIT_S24_LE | \
-	 SNDRV_PCM_FMTBIT_S32_LE)
+	SNDRV_PCM_FMTBIT_S24_LE | \
+	SNDRV_PCM_FMTBIT_S32_LE)
 
 static const DECLARE_TLV_DB_SCALE(mvol_tlv, -10300, 50, 1);
 static const DECLARE_TLV_DB_SCALE(chvol_tlv, -10300, 50, 1);

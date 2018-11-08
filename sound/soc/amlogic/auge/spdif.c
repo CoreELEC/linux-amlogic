@@ -36,7 +36,6 @@
 #include "ddr_mngr.h"
 #include "spdif_hw.h"
 #include "spdif_match_table.c"
-#include "audio_utils.h"
 #include "resample.h"
 #include "resample_hw.h"
 
@@ -1152,49 +1151,29 @@ static int aml_dai_spdif_prepare(
 		struct toddr_fmt fmt;
 		unsigned int msb, lsb, toddr_type;
 
-		if (loopback_is_enable()) {
-			switch (bit_depth) {
-			case 8:
-			case 16:
-			case 32:
-				toddr_type = 0;
-				break;
-			case 24:
-				toddr_type = 4;
-				break;
-			default:
-				pr_err(
-					"runtime format invalid bit_depth: %d\n",
-					bit_depth);
-				return -EINVAL;
-			}
-			msb = 32 - 1;
-			lsb = 32 - bit_depth;
-		} else {
-			switch (bit_depth) {
-			case 8:
-			case 16:
-				toddr_type = 0;
-				break;
-			case 24:
-				toddr_type = 4;
-				break;
-			case 32:
-				toddr_type = 3;
-				break;
-			default:
-				dev_err(p_spdif->dev,
-					"runtime format invalid bit_depth: %d\n",
-					bit_depth);
-				return -EINVAL;
-			}
-
-			msb = 28 - 1;
-			if (bit_depth <= 24)
-				lsb = 28 - bit_depth;
-			else
-				lsb = 4;
+		switch (bit_depth) {
+		case 8:
+		case 16:
+			toddr_type = 0;
+			break;
+		case 24:
+			toddr_type = 4;
+			break;
+		case 32:
+			toddr_type = 3;
+			break;
+		default:
+			dev_err(p_spdif->dev,
+				"runtime format invalid bit_depth: %d\n",
+				bit_depth);
+			return -EINVAL;
 		}
+
+		msb = 28 - 1;
+		if (bit_depth <= 24)
+			lsb = 28 - bit_depth;
+		else
+			lsb = 4;
 
 		// to ddr spdifin
 		fmt.type       = toddr_type;

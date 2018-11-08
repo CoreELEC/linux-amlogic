@@ -107,6 +107,9 @@ struct aml_tdm {
 
 	bool en_share;
 	unsigned int lane_cnt;
+
+	/* tdmin_lb src sel */
+	int tdmin_lb_src;
 };
 
 static const struct snd_pcm_hardware aml_tdm_hardware = {
@@ -537,6 +540,9 @@ static int aml_dai_tdm_prepare(struct snd_pcm_substream *substream,
 		case 2:
 			src = TDMIN_C;
 		break;
+		case 3:
+			src = TDMIN_LB;
+		break;
 		default:
 			dev_err(p_tdm->dev, "invalid id: %d\n",
 					p_tdm->id);
@@ -932,7 +938,7 @@ static int aml_dai_tdm_hw_free(struct snd_pcm_substream *substream,
 	struct frddr *fr = p_tdm->fddr;
 	int i;
 
-	for (i = 0; i < 4; i++)
+	for (i = 0; i < p_tdm->lane_cnt; i++)
 		aml_tdm_set_channel_mask(p_tdm->actrl,
 			substream->stream, p_tdm->id, i, 0);
 
@@ -1175,20 +1181,15 @@ static int aml_dai_set_tdm_slot(struct snd_soc_dai *cpu_dai,
 			oe_val = p_tdm->setting.lane_oe_mask_out;
 		}
 
-		if (lanes_lb_cnt) {
-			in_src = p_tdm->id + 6;
-			if (in_src > 7) {
-				pr_err("unknown src(%d) for tdmin\n", in_src);
-				return -EINVAL;
-			}
-		}
+		if (lanes_lb_cnt)
+			in_src = p_tdm->tdmin_lb_src;
 		if (lanes_oe_in_cnt)
 			in_src = p_tdm->id + 3;
 		if (lanes_in_cnt)
 			in_src = p_tdm->id;
 	} else {
 		if (lanes_lb_cnt)
-			in_src = p_tdm->id + 3;
+			in_src = p_tdm->tdmin_lb_src;
 		if (lanes_in_cnt && lanes_in_cnt <= 4)
 			in_src = p_tdm->id;
 		if (in_src > 5) {
@@ -1307,69 +1308,85 @@ static struct snd_soc_dai_ops aml_dai_tdm_ops = {
 
 static struct snd_soc_dai_driver aml_tdm_dai[] = {
 	{
-	.name = "TDM-A",
-	.id = 1,
-	.probe = aml_dai_tdm_probe,
-	.remove = aml_dai_tdm_remove,
-	.playback = {
-	      .channels_min = 1,
-	      .channels_max = 32,
-	      .rates = AML_DAI_TDM_RATES,
-	      .formats = AML_DAI_TDM_FORMATS,
-	},
-	.capture = {
-	     .channels_min = 1,
-	     .channels_max = 32,
-	     .rates = AML_DAI_TDM_RATES,
-	     .formats = AML_DAI_TDM_FORMATS,
-	},
-	.ops = &aml_dai_tdm_ops,
-	.symmetric_rates = 1,
-	},
-	{
-	.name = "TDM-B",
-	.id = 2,
-	.probe = aml_dai_tdm_probe,
-	.remove = aml_dai_tdm_remove,
-	.playback = {
-	      .channels_min = 1,
-	      .channels_max = 32,
-	      .rates = AML_DAI_TDM_RATES,
-	      .formats = AML_DAI_TDM_FORMATS,
-	},
-	.capture = {
-	     .channels_min = 1,
-	     .channels_max = 32,
-	     .rates = AML_DAI_TDM_RATES,
-	     .formats = AML_DAI_TDM_FORMATS,
-	},
-	.ops = &aml_dai_tdm_ops,
-	.symmetric_rates = 1,
+		.name = "TDM-A",
+		.id = 1,
+		.probe = aml_dai_tdm_probe,
+		.remove = aml_dai_tdm_remove,
+		.playback = {
+		      .channels_min = 1,
+		      .channels_max = 32,
+		      .rates = AML_DAI_TDM_RATES,
+		      .formats = AML_DAI_TDM_FORMATS,
+		},
+		.capture = {
+		     .channels_min = 1,
+		     .channels_max = 32,
+		     .rates = AML_DAI_TDM_RATES,
+		     .formats = AML_DAI_TDM_FORMATS,
+		},
+		.ops = &aml_dai_tdm_ops,
+		.symmetric_rates = 1,
 	},
 	{
-	.name = "TDM-C",
-	.id = 3,
-	.probe = aml_dai_tdm_probe,
-	.remove = aml_dai_tdm_remove,
-	.playback = {
-	      .channels_min = 1,
-	      .channels_max = 32,
-	      .rates = AML_DAI_TDM_RATES,
-	      .formats = AML_DAI_TDM_FORMATS,
+
+		.name = "TDM-B",
+		.id = 2,
+		.probe = aml_dai_tdm_probe,
+		.remove = aml_dai_tdm_remove,
+		.playback = {
+		      .channels_min = 1,
+		      .channels_max = 32,
+		      .rates = AML_DAI_TDM_RATES,
+		      .formats = AML_DAI_TDM_FORMATS,
+		},
+		.capture = {
+		     .channels_min = 1,
+		     .channels_max = 32,
+		     .rates = AML_DAI_TDM_RATES,
+		     .formats = AML_DAI_TDM_FORMATS,
+		},
+		.ops = &aml_dai_tdm_ops,
+		.symmetric_rates = 1,
 	},
-	.capture = {
-	     .channels_min = 1,
-	     .channels_max = 32,
-	     .rates = AML_DAI_TDM_RATES,
-	     .formats = AML_DAI_TDM_FORMATS,
+	{
+		.name = "TDM-C",
+		.id = 3,
+		.probe = aml_dai_tdm_probe,
+		.remove = aml_dai_tdm_remove,
+		.playback = {
+		      .channels_min = 1,
+		      .channels_max = 32,
+		      .rates = AML_DAI_TDM_RATES,
+		      .formats = AML_DAI_TDM_FORMATS,
+		},
+		.capture = {
+		     .channels_min = 1,
+		     .channels_max = 32,
+		     .rates = AML_DAI_TDM_RATES,
+		     .formats = AML_DAI_TDM_FORMATS,
+		},
+		.ops = &aml_dai_tdm_ops,
+		.symmetric_rates = 1,
 	},
-	.ops = &aml_dai_tdm_ops,
-	.symmetric_rates = 1,
-	},
+	{
+		.name = "TDMIN-LB",
+		.id = 4,
+		.probe = aml_dai_tdm_probe,
+		.remove = aml_dai_tdm_remove,
+
+		.capture = {
+			.channels_min = 1,
+			.channels_max = 32,
+			.rates = AML_DAI_TDM_RATES,
+			.formats = AML_DAI_TDM_FORMATS,
+		},
+		.ops = &aml_dai_tdm_ops,
+		.symmetric_rates = 1,
+	}
 };
 
 static const struct snd_soc_component_driver aml_tdm_component = {
-	.name              = DRV_NAME,
+	.name		= DRV_NAME,
 };
 
 static int check_channel_mask(const char *str)
@@ -1517,9 +1534,23 @@ static int aml_tdm_platform_probe(struct platform_device *pdev)
 			&p_tdm->i2s2hdmitx);
 	if (ret < 0)
 		p_tdm->i2s2hdmitx = 0;
-	pr_info("TDM id %d i2s2hdmi:%d\n",
-		p_tdm->id,
-		p_tdm->i2s2hdmitx);
+	else
+		pr_info("TDM id %d i2s2hdmi:%d\n",
+			p_tdm->id,
+			p_tdm->i2s2hdmitx);
+
+	if (p_tdm->id == TDM_LB) {
+		ret = of_property_read_u32(node, "lb-src-sel",
+				&p_tdm->tdmin_lb_src);
+		if (ret < 0 || (p_tdm->tdmin_lb_src > 7)) {
+			dev_err(&pdev->dev, "invalid lb-src-sel:%d\n",
+				p_tdm->tdmin_lb_src);
+			return -EINVAL;
+		}
+		pr_info("TDM id %d lb-src-sel:%d\n",
+			p_tdm->id,
+			p_tdm->tdmin_lb_src);
+	}
 
 	/* get tdm lanes info. if not, set to default 0 */
 	ret = of_parse_tdm_lane_slot_in(node,

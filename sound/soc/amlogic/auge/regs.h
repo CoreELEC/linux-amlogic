@@ -197,16 +197,41 @@ enum clk_sel {
 #define EE_AUDIO_ARB_CTRL                  0x0a0
 
 /*
- *	AUDIO TDM
+ *	AUDIO LOOPBACK
  */
 #define EE_AUDIO_LB_CTRL0                  0x0b0
-#define EE_AUDIO_LB_CTRL1                  0x0b1
-#define EE_AUDIO_DAT_ID0                   0x0b2
-#define EE_AUDIO_DAT_ID1                   0x0b3
-#define EE_AUDIO_LB_ID0                    0x0b4
-#define EE_AUDIO_LB_ID1                    0x0b5
-#define EE_AUDIO_LB_STS                    0x0b6
 
+#define EE_AUDIO_LB_A_CTRL0                0xb0
+#define EE_AUDIO_LB_A_CTRL1                0xb1
+#define EE_AUDIO_LB_A_CTRL2                0xb2
+#define EE_AUDIO_LB_A_CTRL3                0xb3
+#define EE_AUDIO_LB_A_DAT_CH_ID0           0xb4
+#define EE_AUDIO_LB_A_DAT_CH_ID1           0xb5
+#define EE_AUDIO_LB_A_DAT_CH_ID2           0xb6
+#define EE_AUDIO_LB_A_DAT_CH_ID3           0xb7
+#define EE_AUDIO_LB_A_LB_CH_ID0            0xb8
+#define EE_AUDIO_LB_A_LB_CH_ID1            0xb9
+#define EE_AUDIO_LB_A_LB_CH_ID2            0xba
+#define EE_AUDIO_LB_A_LB_CH_ID3            0xbb
+#define EE_AUDIO_LB_A_STS                  0xbc
+
+#define EE_AUDIO_LB_B_CTRL0                0x230
+#define EE_AUDIO_LB_B_CTRL1                0x231
+#define EE_AUDIO_LB_B_CTRL2                0x232
+#define EE_AUDIO_LB_B_CTRL3                0x233
+#define EE_AUDIO_LB_B_DAT_CH_ID0           0x234
+#define EE_AUDIO_LB_B_DAT_CH_ID1           0x235
+#define EE_AUDIO_LB_B_DAT_CH_ID2           0x236
+#define EE_AUDIO_LB_B_DAT_CH_ID3           0x237
+#define EE_AUDIO_LB_B_LB_CH_ID0            0x238
+#define EE_AUDIO_LB_B_LB_CH_ID1            0x239
+#define EE_AUDIO_LB_B_LB_CH_ID2            0x23a
+#define EE_AUDIO_LB_B_LB_CH_ID3            0x23b
+#define EE_AUDIO_LB_B_STS                  0x23c
+
+/*
+ *	AUDIO TDM
+ */
 #define EE_AUDIO_TDMIN_A_CTRL              0x0c0
 #define EE_AUDIO_TDMIN_A_SWAP0             0x0c1
 #define EE_AUDIO_TDMIN_A_SWAP1             0x260
@@ -543,20 +568,6 @@ enum clk_sel {
 #define EE_AUDIO_FRDDR_D_FINISH_ADDRB      0x228
 #define EE_AUDIO_FRDDR_D_INIT_ADDR         0x229
 #define EE_AUDIO_FRDDR_D_CTRL2             0x22a
-
-#define EE_AUDIO_LB_B_CTRL0                0x230
-#define EE_AUDIO_LB_B_CTRL1                0x231
-#define EE_AUDIO_LB_B_CTRL2                0x232
-#define EE_AUDIO_LB_B_CTRL3                0x233
-#define EE_AUDIO_LB_B_DAT_CH_ID0           0x234
-#define EE_AUDIO_LB_B_DAT_CH_ID1           0x235
-#define EE_AUDIO_LB_B_DAT_CH_ID2           0x236
-#define EE_AUDIO_LB_B_DAT_CH_ID3           0x237
-#define EE_AUDIO_LB_B_LB_CH_ID0            0x238
-#define EE_AUDIO_LB_B_LB_CH_ID1            0x239
-#define EE_AUDIO_LB_B_LB_CH_ID2            0x23a
-#define EE_AUDIO_LB_B_LB_CH_ID3            0x23b
-#define EE_AUDIO_LB_B_STS                  0x23c
 
 /*
  *	AUDIO LOCKER

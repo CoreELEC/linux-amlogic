@@ -29,7 +29,6 @@
 
 #include "regs.h"
 #include "ddr_mngr.h"
-#include "audio_utils.h"
 
 #include "resample.h"
 #include "resample_hw.h"
@@ -133,12 +132,6 @@ static int unregister_toddr_l(struct device *dev, void *data)
 		return -EINVAL;
 
 	to = &toddrs[i];
-
-	/* check for loopback */
-	if (to->is_lb) {
-		loopback_set_status(0);
-		to->is_lb = 0;
-	}
 
 	/* disable audio ddr arb */
 	mask_bit = i;
@@ -366,13 +359,6 @@ void aml_toddr_select_src(struct toddr *to, enum toddr_src src)
 	/* store to check toddr num */
 	to->src = src;
 
-	/* check whether loopback enable */
-	if (loopback_check_enable(src)) {
-		loopback_set_status(1);
-		to->is_lb = 1; /* in loopback */
-		src = LOOPBACK_A;
-	}
-
 	if (to->chipinfo
 		&& to->chipinfo->src_sel_ctrl) {
 		reg = calc_toddr_address(EE_AUDIO_TODDR_A_CTRL1, reg_base);
@@ -454,6 +440,29 @@ void aml_toddr_set_format(struct toddr *to, struct toddr_fmt *fmt)
 		0x7 << 24 | 0x1fff << 3,
 		fmt->endian << 24 | fmt->type << 13 |
 		fmt->msb << 8 | fmt->lsb << 3);
+}
+
+unsigned int aml_toddr_get_status(struct toddr *to)
+{
+	struct aml_audio_controller *actrl = to->actrl;
+	unsigned int reg_base = to->reg_base;
+	unsigned int reg;
+
+	reg = calc_toddr_address(EE_AUDIO_TODDR_A_STATUS1, reg_base);
+
+	return aml_audiobus_read(actrl, reg);
+}
+
+void aml_toddr_ack_irq(struct toddr *to, int status)
+{
+	struct aml_audio_controller *actrl = to->actrl;
+	unsigned int reg_base = to->reg_base;
+	unsigned int reg;
+
+	reg = calc_toddr_address(EE_AUDIO_TODDR_A_CTRL1, reg_base);
+
+	aml_audiobus_update_bits(actrl, reg, MEMIF_INT_MASK, status);
+	aml_audiobus_update_bits(actrl, reg, MEMIF_INT_MASK, 0);
 }
 
 void aml_toddr_insert_chanum(struct toddr *to)

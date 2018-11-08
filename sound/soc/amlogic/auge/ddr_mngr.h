@@ -23,6 +23,14 @@
 #include <sound/soc.h>
 #include "audio_io.h"
 
+#define MEMIF_INT_ADDR_FINISH       BIT(0)
+#define MEMIF_INT_ADDR_INT          BIT(1)
+#define MEMIF_INT_COUNT_REPEAT      BIT(2)
+#define MEMIF_INT_COUNT_ONCE        BIT(3)
+#define MEMIF_INT_FIFO_ZERO         BIT(4)
+#define MEMIF_INT_FIFO_DEPTH        BIT(5)
+#define MEMIF_INT_MASK              GENMASK(7, 0)
+
 enum ddr_num {
 	DDR_A,
 	DDR_B,
@@ -104,27 +112,6 @@ struct toddr_fmt {
 	unsigned int rate;
 };
 
-#if 0
-struct ddr_desc {
-	/* start address of DDR */
-	unsigned int start;
-	/* finish address of DDR */
-	unsigned int finish;
-	/* interrupt address or counts of DDR blocks */
-	unsigned int intrpt;
-	/* fifo total counts */
-	unsigned int fifo_depth;
-	/* fifo start threshold */
-	unsigned int fifo_thr;
-	enum ddr_types data_type;
-	unsigned int edian;
-	unsigned int pp_mode;
-	//unsigned int reg_base;
-	struct clk *ddr;
-	struct clk *ddr_arb;
-};
-#endif
-
 struct ddr_chipinfo {
 	/* INT and Start address is same or separated */
 	bool int_start_same_addr;
@@ -170,7 +157,6 @@ struct ddr_chipinfo {
 };
 
 struct toddr {
-	//struct ddr_desc dscrpt;
 	struct device *dev;
 	unsigned int resample: 1;
 	unsigned int ext_signed: 1;
@@ -222,7 +208,6 @@ struct frddr_attach {
 };
 
 struct frddr {
-	//struct ddr_desc dscrpt;
 	struct device *dev;
 	enum frddr_dest dest;
 
@@ -244,7 +229,6 @@ struct frddr {
 };
 
 /* to ddrs */
-int fetch_toddr_index_by_src(int toddr_src);
 struct toddr *fetch_toddr_by_src(int toddr_src);
 struct toddr *aml_audio_register_toddr(struct device *dev,
 		struct aml_audio_controller *actrl,
@@ -264,6 +248,10 @@ void aml_toddr_set_fifos(struct toddr *to, unsigned int thresh);
 void aml_toddr_update_fifos_rd_th(struct toddr *to, int th);
 void aml_toddr_force_finish(struct toddr *to);
 void aml_toddr_set_format(struct toddr *to, struct toddr_fmt *fmt);
+
+unsigned int aml_toddr_get_status(struct toddr *to);
+void aml_toddr_ack_irq(struct toddr *to, int status);
+
 void aml_toddr_insert_chanum(struct toddr *to);
 unsigned int aml_toddr_read(struct toddr *to);
 void aml_toddr_write(struct toddr *to, unsigned int val);
@@ -280,7 +268,6 @@ void aml_pwrdet_enable(bool enable, int pwrdet_module);
 void aml_set_vad(bool enable, int module);
 
 /* from ddrs */
-int fetch_frddr_index_by_src(int frddr_src);
 struct frddr *fetch_frddr_by_src(int frddr_src);
 
 struct frddr *aml_audio_register_frddr(struct device *dev,
