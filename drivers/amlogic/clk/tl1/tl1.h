@@ -80,6 +80,7 @@
 #define HHI_HDMIRX_CLK_CNTL		0x200 /* 0x80 offset in datasheet1 */
 #define HHI_HDMIRX_AUD_CLK_CNTL		0x204 /* 0x81 offset in datasheet1 */
 #define HHI_VPU_CLKB_CNTL		0x20C /* 0x83 offset in datasheet1 */
+#define HHI_HDMIRX_METER_CLK_CNTL	0x234 /* 0x8d offset in datasheet1 */
 
 #define HHI_VDIN_MEAS_CLK_CNTL		0x250 /* 0x94 offset in datasheet1 */
 #define HHI_NAND_CLK_CNTL		0x25C /* 0x97 offset in datasheet1*/
@@ -114,6 +115,7 @@
 #define HHI_ADC_PLL_CNTL2		0x2AC /* 0xab offset in datasheet */
 #define HHI_ADC_PLL_CNTL3		0x2B0 /* 0xac offset in datasheet */
 #define HHI_ADC_PLL_CNTL4		0x2B4 /* 0xad offset in datasheet */
+#define HHI_HDMIRX_AXI_CLK_CNTL		0x2E0 /* 0xb8 offset in datasheet */
 
 #define HHI_SYS_PLL_CNTL0		0x2f4 /* 0xbd offset in datasheet */
 #define HHI_SYS_PLL_CNTL1		0x2f8 /* 0xbe offset in datasheet */
@@ -159,7 +161,9 @@ static const struct pll_rate_table tl1_pll_rate_table[] = {
 	PLL_RATE(1200000000ULL, 200, 1, 2), /*DCO=4800M*/
 	PLL_RATE(1296000000ULL, 216, 1, 2), /*DCO=5184M*/
 	PLL_RATE(1398000000ULL, 233, 1, 2), /*DCO=5592M*/
+	PLL_RATE(1404000000ULL, 234, 1, 2), /*DCO=5614M*/
 	PLL_RATE(1494000000ULL, 249, 1, 2), /*DCO=5976M*/
+	PLL_RATE(1500000000ULL, 125, 1, 1), /*DCO=3000M*/
 	PLL_RATE(1512000000ULL, 126, 1, 1), /*DCO=3024M*/
 	PLL_RATE(1608000000ULL, 134, 1, 1), /*DCO=3216M*/
 	PLL_RATE(1704000000ULL, 142, 1, 1), /*DCO=3408M*/

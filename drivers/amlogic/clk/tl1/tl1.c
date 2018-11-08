@@ -51,7 +51,7 @@ static struct meson_clk_pll tl1_sys_pll = {
 	},
 	.n = {
 		.reg_off = HHI_SYS_PLL_CNTL0,
-		.shift   = 9,
+		.shift   = 10,
 		.width   = 5,
 	},
 	.od = {
@@ -79,13 +79,13 @@ static struct meson_clk_pll tl1_gp0_pll = {
 	},
 	.n = {
 		.reg_off = HHI_GP0_PLL_CNTL0,
-		.shift   = 9,
+		.shift   = 10,
 		.width   = 5,
 	},
 	.od = {
 		.reg_off = HHI_GP0_PLL_CNTL0,
 		.shift   = 16,
-		.width   = 2,
+		.width   = 3,
 	},
 	.rate_table = tl1_pll_rate_table,
 	.rate_count = ARRAY_SIZE(tl1_pll_rate_table),
