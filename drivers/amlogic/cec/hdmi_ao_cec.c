@@ -2189,7 +2189,7 @@ static char *aml_cec_class_devnode(struct device *dev, umode_t *mode)
 {
 	if (mode)
 		*mode = 0666;
-	CEC_INFO("mode is %x\n", *mode);
+	//CEC_INFO("mode is %x\n", *mode);
 	return NULL;
 }
 
