@@ -1253,7 +1253,7 @@ int cec_node_init(struct hdmitx_dev *hdmitx_device)
 	if ((cec_dev->hal_flag & (1 << HDMI_OPTION_SYSTEM_CEC_CONTROL)))
 		return -1;
 
-	if (!(hdmitx_device->cec_func_config & (1 << CEC_FUNC_MSAK)))
+	if (!(hdmitx_device->cec_func_config & (1 << CEC_FUNC_MASK)))
 		return -1;
 
 	CEC_INFO("cec_node_init started\n");
@@ -1310,7 +1310,7 @@ int cec_node_init(struct hdmitx_dev *hdmitx_device)
 
 			/* Disable switch TV on automatically */
 			if (!(hdmitx_device->cec_func_config &
-					(1 << AUTO_POWER_ON_MASK))) {
+					(1 << ACTIVE_SOURCE_MASK))) {
 				CEC_INFO("Auto TV switch on disabled\n");
 				break;
 			}
@@ -1529,6 +1529,11 @@ static void cec_task(struct work_struct *work)
 	int ret;
 
 	dwork = &cec_dev->cec_work;
+	if (!(cec_dev->tx_dev->cec_func_config &
+			(1 << CEC_INPUT_MASK))) {
+		CEC_INFO("CEC input mode disabled\n");
+		return;
+	}
 	if (cec_dev &&
 			!(cec_dev->hal_flag & (1 << HDMI_OPTION_SYSTEM_CEC_CONTROL))) {
 		if (1 << cec_dev->cec_info.log_addr & (1 << 0x0 | 1 << 0xF)) {
