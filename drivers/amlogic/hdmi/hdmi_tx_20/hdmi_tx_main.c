@@ -593,11 +593,6 @@ static int set_disp_mode_auto(void)
 			}
 		}
 	}
-	/* In the file hdmi_common/hdmi_parameters.c,
-	 * the data array all_fmt_paras[] treat 2160p60hz and 2160p60hz420
-	 * as two different modes, such Scrambler
-	 * So if node "attr" contains 420, need append 420 to mode.
-	 */
 
 	para = hdmi_get_fmt_name(mode, fmt_attr);
 	/* check display caps - warn but don't force - these can only be set by sysfs */
@@ -619,10 +614,20 @@ static int set_disp_mode_auto(void)
 			pr_info("hdmitx: display colourdepth is %d in cur_param 0x%08x (VIC: %d)\n",hdev->cur_video_param->color_depth * 2,
 					hdev->cur_video_param,  hdev->cur_video_param->VIC);
 		}
-		if (hdev->cur_video_param->color_depth > COLORDEPTH_24B && !(hdev->RXCap.ColorDeepSupport & 0x78)){
-			pr_warn("Bitdepth is set to %d bits but display does not support deep colour",
-				hdev->cur_video_param->color_depth * 2);
-			hdev->cur_video_param->color_depth = COLORDEPTH_24B;
+		if (hdev->cur_video_param->color_depth > COLORDEPTH_24B){
+			int dc_support = 0;
+			if (hdev->RXCap.ColorDeepSupport & 0x78 && hdev->para->cs != COLORSPACE_YUV420)
+				dc_support = 1;
+			else if ((hdev->RXCap.HF_IEEEOUI) &&
+					((hdev->RXCap.dc_30bit_420 && hdev->cur_video_param->color_depth == COLORDEPTH_30B) ||
+					 (hdev->RXCap.dc_36bit_420 && hdev->cur_video_param->color_depth == COLORDEPTH_36B) ||
+					 (hdev->RXCap.dc_48bit_420 && hdev->cur_video_param->color_depth == COLORDEPTH_48B)))
+				dc_support = 1;
+			if (! dc_support){
+				pr_warn("Bitdepth is set to %d bits but display does not support deep colour",
+						hdev->cur_video_param->color_depth * 2);
+				hdev->cur_video_param->color_depth = COLORDEPTH_24B;
+			}
 		}
 	}
 	/* only set full range if forced */
@@ -737,6 +742,9 @@ static int set_disp_mode_auto(void)
 		}
 		else hdmi_print(IMP, VID "No master display info\n");
 	}		
+		hdmi_print(IMP, VID "PLL clock: 0x%08x, Vid clock div 0x%08x\n",
+				hd_read_reg(P_HHI_HDMI_PLL_CNTL),
+				hd_read_reg(P_HHI_VID_PLL_CLK_DIV));
 	return ret;
 } /* set_disp_mode_auto */
 
@@ -1441,19 +1449,19 @@ static ssize_t show_disp_cap(struct device *dev,
 				para = hdmi_get_fmt_paras(vic);
 				if (! hdmitx_device.RXCap.HF_IEEEOUI &&
 						para->tmds_clk > hdmitx_device.RXCap.Max_TMDS_Clock1 * 5000){
-					pr_info("Mode %s (VIC %d) needs %dMHz clock, more than %dMHz",
+					pr_warn("Mode %s (VIC %d) needs %dMHz clock, at 444,8-bit - more than %dMHz",
 							disp_mode_t[i], vic, para->tmds_clk / 1000, hdmitx_device.RXCap.Max_TMDS_Clock1 * 5);
-				} else {
-					pos += snprintf(buf+pos, PAGE_SIZE, "%s",
-							disp_mode_t[i]);
-					if (native_disp_mode && (strcmp(
-									native_disp_mode,
-									disp_mode_t[i]) == 0)) {
-						pos += snprintf(buf+pos, PAGE_SIZE,
-								"*\n");
-					} else
-						pos += snprintf(buf+pos, PAGE_SIZE, "\n");
 				}
+				pos += snprintf(buf+pos, PAGE_SIZE, "%s",
+						disp_mode_t[i]);
+				if (native_disp_mode && (strcmp(
+								native_disp_mode,
+								disp_mode_t[i]) == 0)) {
+					pos += snprintf(buf+pos, PAGE_SIZE,
+							"*\n");
+				} else
+					pos += snprintf(buf+pos, PAGE_SIZE, "\n");
+
 			}
 		}
 	}
@@ -2352,6 +2360,22 @@ static int hdmitx_notify_callback_v(struct notifier_block *block,
 	if (get_cur_vout_index() != 1)
 		return 0;
 
+	/* get current vinfo */
+	info = hdmi_get_current_vinfo();
+	if (info == NULL) {
+		hdmi_print(ERR, VID "cann't get valid mode\n");
+		return -1;
+	}
+
+	if (cmd == VOUT_EVENT_MODE_CHANGE_PRE){
+		hdmi_print(IMP, VID"vinfo: %s %d %d\n", info->name, info->sync_duration_num,
+				info->sync_duration_den);
+		recalc_vinfo_sync_duration(info, hdmitx_device.frac_rate_policy);
+		hdmi_print(IMP, VID"vinfo recalc: %s %d %d\n", info->name, info->sync_duration_num,
+				info->sync_duration_den);
+		return 0;
+	}
+
 	if (cmd != VOUT_EVENT_MODE_CHANGE)
 		return 0;
 
@@ -2360,12 +2384,6 @@ static int hdmitx_notify_callback_v(struct notifier_block *block,
 	/* vic_ready got from IP */
 	vic_ready = hdmitx_device.HWOp.GetState(&hdmitx_device,
 		STAT_VIDEO_VIC, 0);
-	/* get current vinfo */
-	info = hdmi_get_current_vinfo();
-	if (info == NULL) {
-		hdmi_print(ERR, VID "cann't get valid mode\n");
-		return -1;
-	}
 
 	vic_now = hdmitx_edid_get_VIC(&hdmitx_device, info->name, 1);
 	if (hdmitx_device.vic_count == 0) {

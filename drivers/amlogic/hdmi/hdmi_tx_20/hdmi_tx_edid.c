@@ -1452,7 +1452,7 @@ case_hf:
 			if ((BlockBuf[offset] == 0xd8) &&
 				(BlockBuf[offset+1] == 0x5d) &&
 				(BlockBuf[offset+2] == 0xc4))
-				pRXCap->HF_IEEEOUI = 0xd85dc4;
+				pRXCap->HF_IEEEOUI = 0xc45dd8;
 			pRXCap->Max_TMDS_Clock2 = BlockBuf[offset+4];
 			pRXCap->scdc_present =
 				!!(BlockBuf[offset+5] & (1 << 7));

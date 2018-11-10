@@ -4104,28 +4104,6 @@ void hdmitx_set_avi_colorimetry(struct hdmi_format_para *para)
 		hdmitx_set_reg_bits(HDMITX_DWC_FC_AVICONF1, 1, 6, 2);
 		hdmitx_set_reg_bits(HDMITX_DWC_FC_AVICONF2, 0, 4, 3);
 		break;
-	case HDMI_3840x2160p24_16x9:
-	case HDMI_3840x2160p25_16x9:
-	case HDMI_3840x2160p30_16x9:
-	case HDMI_3840x2160p50_16x9:
-	case HDMI_3840x2160p60_16x9:
-	case HDMI_4096x2160p24_256x135:
-	case HDMI_4096x2160p25_256x135:
-	case HDMI_4096x2160p30_256x135:
-	case HDMI_4096x2160p50_256x135:
-	case HDMI_4096x2160p60_256x135:
-	case HDMI_3840x2160p24_64x27:
-	case HDMI_3840x2160p25_64x27:
-	case HDMI_3840x2160p30_64x27:
-	case HDMI_3840x2160p50_64x27:
-	case HDMI_3840x2160p60_64x27:
-		if (para->cd != COLORDEPTH_24B) {
-			/* C1C0 Extended Colorimetry 3 */
-			hdmitx_set_reg_bits(HDMITX_DWC_FC_AVICONF1, 3, 6, 2);
-			/* Extended Colorimetry EC2/1/0 0 */
-			hdmitx_set_reg_bits(HDMITX_DWC_FC_AVICONF2, 6, 4, 3);
-		}
-		break;
 	default:
 		/* C1C0 709 */
 		hdmitx_set_reg_bits(HDMITX_DWC_FC_AVICONF1, 2, 6, 2);

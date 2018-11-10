@@ -69,6 +69,7 @@ enum hdmi_barinfo {
 
 enum hdmi_colorimetry {
 	CC_NO_DATA = 0, CC_ITU601, CC_ITU709, CC_XVYCC601, CC_XVYCC709,
+	CC_SYCC601, CC_OPYCC601, CC_OPRGB, CC_ITU2020c, CC_ITU2020,
 };
 
 enum hdmi_slacing {
