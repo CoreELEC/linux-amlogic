@@ -2926,7 +2926,7 @@ static void dump_clk_status(void)
 		rx_measure_clock(MEASURE_CLK_PIXEL));
 	rx_pr("audio clock = %d\n",
 		rx_measure_clock(MEASURE_CLK_AUD_PLL));
-	rx_pr("aud div clock = %d\n",
+	rx_pr("aud clk in = %d\n",
 		rx_measure_clock(MEASURE_CLK_AUD_DIV));
 	rx_pr("mpll clock = %d\n",
 		rx_measure_clock(MEASURE_CLK_MPLL));

@@ -2404,10 +2404,10 @@ void rx_aud_pll_ctl(bool en)
 		if (en) {
 			/* AUD_CLK=N/CTS*TMDS_CLK */
 			/* bandgap enable */
-			tmp = rd_reg_hhi(HHI_VDAC_CNTL1);
-			wr_reg_hhi(HHI_VDAC_CNTL1, tmp|0x80);
-			wr_reg_hhi(HHI_AUD_PLL_CNTL, 0x40000540);
-			#if 0
+			wr_reg_hhi(HHI_VDAC_CNTL0, 0x906001);
+			wr_reg_hhi(HHI_VDAC_CNTL1, 0x0);
+			wr_reg_hhi(HHI_AUD_PLL_CNTL, 0x40001540);
+			#if 1
 			/* use mpll */
 			tmp = 0;
 			tmp |= 2 << 2; /* 0:tmds_clk 1:ref_clk 2:mpll_clk */
@@ -2423,7 +2423,7 @@ void rx_aud_pll_ctl(bool en)
 			wr_reg_hhi(HHI_AUD_PLL_CNTL3, 0);
 			#endif
 			rx_pr("aud div=%d\n", rd_reg_hhi(HHI_AUD_PLL_CNTL3));
-			wr_reg_hhi(HHI_AUD_PLL_CNTL, 0x60000540);
+			wr_reg_hhi(HHI_AUD_PLL_CNTL, 0x60001540);
 			rx_pr("audio pll lock:0x%x\n",
 				rd_reg_hhi(HHI_AUD_PLL_CNTL_I));
 			/*rx_audio_pll_sw_update();*/
@@ -2649,8 +2649,8 @@ unsigned int rx_get_clock(enum measure_clk_top_e clk_src)
 	uint32_t clock = 0;
 	uint32_t tmp_data = 0;
 	uint32_t meas_cycles = 0;
-	uint32_t tmp_data2 = 0;
-	ulong audclk = 0;
+	uint64_t tmp_data2 = 0;
+	uint32_t audclk = 0;
 
 	if (clk_src == TOP_HDMI_TMDSCLK)
 		tmp_data = hdmirx_rd_top(TOP_METER_HDMI_STAT);
@@ -2662,7 +2662,7 @@ unsigned int rx_get_clock(enum measure_clk_top_e clk_src)
 			/*get audio clk*/
 			tmp_data = hdmirx_rd_top(TOP_AUDMEAS_REF_CYCLES_STAT0);
 			tmp_data2 = hdmirx_rd_top(TOP_AUDMEAS_REF_CYCLES_STAT1);
-			audclk = (tmp_data2 & 0xffff)|tmp_data;
+			audclk = ((tmp_data2 & 0xffff) << 32)|tmp_data;
 			if (tmp_data2 & (0x1 << 17))
 				audclk = (24000 * 65536) / ((audclk + 1)/1000);
 			else
@@ -2799,18 +2799,18 @@ unsigned int rx_measure_clock(enum measure_clk_src_e clksrc)
 		clock = meson_clk_measure(29);
 	} else if (clksrc == MEASURE_CLK_AUD_PLL) {
 		if (rx.hdmirxdev->data->chip_id == CHIP_ID_TL1)
-			clock = meson_clk_measure(74);
+			clock = meson_clk_measure(74);/*audio vid out*/
 		else
 			clock = meson_clk_measure(24);
 	} else if (clksrc == MEASURE_CLK_AUD_DIV) {
 		if (rx.hdmirxdev->data->chip_id == CHIP_ID_TL1)
-			clock = meson_clk_measure(60);
+			clock = meson_clk_measure(67);/*apll_clk_audio*/
 		else
 			clock = meson_clk_measure(98);
 
 	} else if (clksrc == MEASURE_CLK_MPLL) {
 		if (rx.hdmirxdev->data->chip_id == CHIP_ID_TL1)
-			clock = meson_clk_measure(67);/*apll_clk_audio*/
+			clock = meson_clk_measure(29);/*apll_clk_out_div*/
 		else
 			clock = meson_clk_measure(27);
 	} else if (clksrc == MEASURE_CLK_ESM) {

@@ -39,6 +39,7 @@
 #define HHI_GCLK_MPEG0			(0x50 << 2) /* (0xC883C000 + 0x140) */
 #define HHI_HDMIRX_CLK_CNTL		0x200 /* (0xC883C000 + 0x200)  */
 #define HHI_HDMIRX_AUD_CLK_CNTL	0x204 /* 0x1081 */
+#define HHI_VDAC_CNTL0			(0xbb * 4)
 #define HHI_VDAC_CNTL1			(0xbc * 4)
 #define HHI_AUD_PLL_CNTL		(0xf8 * 4)
 #define HHI_AUD_PLL_CNTL2		(0xf9 * 4)
