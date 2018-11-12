@@ -129,7 +129,7 @@ static di_dev_t *de_devp;
 static dev_t di_devno;
 static struct class *di_clsp;
 
-static const char version_s[] = "2018-11-06a";
+static const char version_s[] = "2018-11-12a";
 
 static int bypass_state = 1;
 static int bypass_all;
@@ -5090,7 +5090,8 @@ de_post_process(void *arg, unsigned int zoom_start_x_lines,
 			is_meson_gxlx_cpu() ||
 			is_meson_txhd_cpu() ||
 			is_meson_g12a_cpu() ||
-			is_meson_g12b_cpu()) {
+			is_meson_g12b_cpu() ||
+			is_meson_tl1_cpu()) {
 		di_post_read_reverse_irq(overturn, mc_pre_flag,
 			post_blend_en ? mcpre_en : false);
 		/* disable mc for first 2 fieldes mv unreliable */
@@ -5871,7 +5872,8 @@ static void di_unreg_process_irq(void)
 	afbc_reg_sw(false);
 	di_hw_uninit();
 	if (is_meson_txlx_cpu() || is_meson_txhd_cpu()
-		|| is_meson_g12a_cpu() || is_meson_g12b_cpu()) {
+		|| is_meson_g12a_cpu() || is_meson_g12b_cpu()
+		|| is_meson_tl1_cpu()) {
 		di_pre_gate_control(false, mcpre_en);
 		nr_gate_control(false);
 	} else if (cpu_after_eq(MESON_CPU_MAJOR_ID_GXTVBB)) {
@@ -5883,7 +5885,8 @@ static void di_unreg_process_irq(void)
 	if (mirror_disable) {
 		di_hw_disable(mcpre_en);
 		if (is_meson_txlx_cpu() || is_meson_txhd_cpu()
-			|| is_meson_g12a_cpu() || is_meson_g12b_cpu()) {
+			|| is_meson_g12a_cpu() || is_meson_g12b_cpu()
+			|| is_meson_tl1_cpu()) {
 			enable_di_post_mif(GATE_OFF);
 			di_post_gate_control(false);
 			di_top_gate_control(false, false);
@@ -5995,7 +5998,8 @@ static void di_pre_size_change(unsigned short width,
 			is_meson_gxlx_cpu() ||
 			is_meson_txhd_cpu() ||
 			is_meson_g12a_cpu() ||
-			is_meson_g12b_cpu())
+			is_meson_g12b_cpu() ||
+			is_meson_tl1_cpu())
 			film_mode_win_config(width, height);
 	}
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXL))
@@ -6422,7 +6426,8 @@ static int di_task_handle(void *data)
 					#endif
 				}
 			}
-			if (is_meson_g12a_cpu() || is_meson_g12b_cpu()) {
+			if (is_meson_g12a_cpu() || is_meson_g12b_cpu()
+				|| is_meson_tl1_cpu()) {
 				#ifdef CLK_TREE_SUPPORT
 				clk_set_rate(de_devp->vpu_clkb,
 						de_devp->clkb_max_rate);
@@ -7366,7 +7371,8 @@ static void set_di_flag(void)
 		is_meson_gxlx_cpu() ||
 		is_meson_txhd_cpu() ||
 		is_meson_g12a_cpu() ||
-		is_meson_g12b_cpu()) {
+		is_meson_g12b_cpu() ||
+		is_meson_tl1_cpu()) {
 		mcpre_en = true;
 		mc_mem_alloc = true;
 		pulldown_enable = false;
@@ -7383,7 +7389,8 @@ static void set_di_flag(void)
 			is_meson_gxlx_cpu() ||
 			is_meson_txhd_cpu() ||
 			is_meson_g12a_cpu() ||
-			is_meson_g12b_cpu()) {
+			is_meson_g12b_cpu() ||
+			is_meson_tl1_cpu()) {
 			full_422_pack = true;
 		}
 
@@ -7394,7 +7401,8 @@ static void set_di_flag(void)
 			full_422_pack = false;
 		}
 		post_hold_line =
-			(is_meson_g12a_cpu() || is_meson_g12b_cpu())?10:17;
+			(is_meson_g12a_cpu() || is_meson_g12b_cpu()
+				|| is_meson_tl1_cpu())?10:17;
 	} else {
 		mcpre_en = false;
 		pulldown_enable = false;
