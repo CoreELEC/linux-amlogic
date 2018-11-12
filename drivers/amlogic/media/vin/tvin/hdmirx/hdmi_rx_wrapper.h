@@ -103,6 +103,15 @@ enum aud_clk_err_e {
 	E_AUDCLK_ERR,
 };
 
+enum dumpinfo_e {
+	RX_DUMP_VIDEO = 0x01,
+	RX_DUMP_AUDIO = 0x02,
+	RX_DUMP_HDCP = 0x04,
+	RX_DUMP_PHY = 0x08,
+	RX_DUMP_CLK = 0x10,
+	RX_DUMP_ALL = 0x80,
+};
+
 /* signal */
 extern enum tvin_sig_fmt_e hdmirx_hw_get_fmt(void);
 extern void rx_main_state_machine(void);
@@ -125,6 +134,8 @@ extern void rx_aud_pll_ctl(bool en);
 extern void hdmirx_timer_handler(unsigned long arg);
 extern void rx_tmds_resource_allocate(struct device *dev);
 extern void rx_emp_resource_allocate(struct device *dev);
-
+extern void rx_emp_data_capture(void);
+extern void rx_tmds_data_capture(void);
+extern void dump_state(enum dumpinfo_e enable);
 #endif
 

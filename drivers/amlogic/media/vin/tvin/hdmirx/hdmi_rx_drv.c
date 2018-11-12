@@ -592,17 +592,20 @@ void hdmirx_set_timing_info(struct tvin_sig_property_s *prop)
 			prop->he = 128;
 		}
 	}
-	/* under 4k2k50/60hz 10/12bit mode, */
+	/* bug fix for tl1:under 4k2k50/60hz 10/12bit mode, */
 	/* hdmi out clk will overstep the max sample rate of vdin */
 	/* so need discard the last line data to avoid display err */
 	/* 420 : hdmiout clk = pixel clk * 2 */
 	/* 422 : hdmiout clk = pixel clk * colordepth / 8 */
 	/* 444 : hdmiout clk = pixel clk */
-	if ((rx.pre.colordepth > E_COLORDEPTH_8) &&
-		(prop->fps > 49) &&
-		((sig_fmt == TVIN_SIG_FMT_HDMI_4096_2160_00HZ) ||
-		(sig_fmt == TVIN_SIG_FMT_HDMI_3840_2160_00HZ)))
-		prop->ve = 1;
+	if (rx.hdmirxdev->data->chip_id < CHIP_ID_TL1) {
+		/* tl1 need verify this bug */
+		if ((rx.pre.colordepth > E_COLORDEPTH_8) &&
+			(prop->fps > 49) &&
+			((sig_fmt == TVIN_SIG_FMT_HDMI_4096_2160_00HZ) ||
+			(sig_fmt == TVIN_SIG_FMT_HDMI_3840_2160_00HZ)))
+			prop->ve = 1;
+	}
 }
 
 /*
@@ -1712,7 +1715,12 @@ void rx_emp_resource_allocate(struct device *dev)
 {
 	if (rx.hdmirxdev->data->chip_id == CHIP_ID_TL1) {
 		/* allocate buffer */
-		rx.empbuff.storeA = kmalloc(EMP_BUFFER_SIZE, GFP_KERNEL);
+		if (!rx.empbuff.storeA)
+			rx.empbuff.storeA =
+				kmalloc(EMP_BUFFER_SIZE, GFP_KERNEL);
+		else
+			rx_pr("malloc emp buffer err\n");
+
 		if (rx.empbuff.storeA)
 			rx.empbuff.storeB =
 				rx.empbuff.storeA + (EMP_BUFFER_SIZE >> 1);
@@ -1750,25 +1758,95 @@ void rx_tmds_resource_allocate(struct device *dev)
 						rx.empbuff.pg_addr,
 						EMP_BUFFER_SIZE >> PAGE_SHIFT);
 				rx.empbuff.pg_addr = 0;
+				rx_pr("release emp data buffer\n");
 			}
 		} else {
 			dma_release_from_contiguous(dev, rx.empbuff.pg_addr,
 					TMDS_BUFFER_SIZE >> PAGE_SHIFT);
 			rx.empbuff.pg_addr = 0;
+			rx_pr("release pre tmds data buffer\n");
 		}
 
-		/* allocate buffer for tmds to ddr */
+		/* allocate tmds data buffer */
 		rx.empbuff.pg_addr =
 				dma_alloc_from_contiguous(dev,
 					TMDS_BUFFER_SIZE >> PAGE_SHIFT, 0);
 		if (rx.empbuff.pg_addr)
 			rx.empbuff.p_addr_a =
 				page_to_phys(rx.empbuff.pg_addr);
-
+		else
+			rx_pr("allocate tmds data buff fail\n");
 		rx.empbuff.dump_mode = DUMP_MODE_TMDS;
 		rx_pr("buffa paddr=0x%x\n", rx.empbuff.p_addr_a);
+		rx.empbuff.tmdspktcnt = 0;
 	}
 }
+
+void rx_emp_data_capture(void)
+{
+	/* data to terminal or save a file */
+	struct file *filp = NULL;
+	loff_t pos = 0;
+	void *buf = NULL;
+	char *path = "/data/emp_data.bin";
+	unsigned int offset = 0;
+	mm_segment_t old_fs = get_fs();
+
+	set_fs(KERNEL_DS);
+	filp = filp_open(path, O_RDWR|O_CREAT, 0666);
+
+	if (IS_ERR(filp)) {
+		pr_info("create %s error.\n", path);
+		return;
+	}
+
+	/*start buffer address*/
+	buf = rx.empbuff.ready;
+	/*write size*/
+	offset = rx.empbuff.emppktcnt * 32;
+	vfs_write(filp, buf, offset, &pos);
+	pr_info("write from 0x%x to 0x%x to %s.\n",
+			0, 0 + offset, path);
+	vfs_fsync(filp, 0);
+	filp_close(filp, NULL);
+	set_fs(old_fs);
+}
+
+void rx_tmds_data_capture(void)
+{
+	/* data to terminal or save a file */
+	struct file *filp = NULL;
+	loff_t pos = 0;
+	void *buf = NULL;
+	char *path = "/data/tmds_data.bin";
+	unsigned int offset = 0;
+	unsigned char *src_v_addr;
+	mm_segment_t old_fs = get_fs();
+
+	set_fs(KERNEL_DS);
+	filp = filp_open(path, O_RDWR|O_CREAT, 0666);
+
+	if (IS_ERR(filp)) {
+		pr_info("create %s error.\n", path);
+		return;
+	}
+
+	/* p addr to v addr for cpu access */
+	src_v_addr = phys_to_virt(rx.empbuff.p_addr_a);
+
+	/*start buffer address*/
+	buf = src_v_addr;
+	/*write size*/
+	offset = (rx.empbuff.tmdspktcnt * 15)/4;/*pkt to bytes*/
+	vfs_write(filp, buf, offset, &pos);
+	pr_info("write from 0x%x to 0x%x to %s.\n",
+			0, 0 + offset, path);
+	vfs_fsync(filp, 0);
+	filp_close(filp, NULL);
+	set_fs(old_fs);
+}
+
+
 
 #ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
 static void hdmirx_early_suspend(struct early_suspend *h)
@@ -2065,13 +2143,25 @@ static int hdmirx_probe(struct platform_device *pdev)
 				clk_rate/1000000);
 	}
 	#endif
-	hdevp->audmeas_clk = clk_get(&pdev->dev, "hdmirx_audmeas_clk");
-	if (IS_ERR(hdevp->audmeas_clk))
-		rx_pr("get audmeas_clk err\n");
-	else {
-		clk_set_parent(hdevp->audmeas_clk, fclk_div5_clk);
-		clk_set_rate(hdevp->audmeas_clk, 200000000);
-		clk_rate = clk_get_rate(hdevp->audmeas_clk);
+	if (rx.hdmirxdev->data->chip_id == CHIP_ID_TL1) {
+		hdevp->meter_clk = clk_get(&pdev->dev, "cts_hdmirx_meter_clk");
+		if (IS_ERR(hdevp->meter_clk))
+			rx_pr("get cts hdmirx meter clk err\n");
+		else {
+			clk_set_parent(hdevp->meter_clk, xtal_clk);
+			clk_set_rate(hdevp->meter_clk, 24000000);
+			clk_prepare_enable(hdevp->meter_clk);
+			clk_rate = clk_get_rate(hdevp->meter_clk);
+		}
+	} else {
+		hdevp->audmeas_clk = clk_get(&pdev->dev, "hdmirx_audmeas_clk");
+		if (IS_ERR(hdevp->audmeas_clk))
+			rx_pr("get audmeas_clk err\n");
+		else {
+			clk_set_parent(hdevp->audmeas_clk, fclk_div5_clk);
+			clk_set_rate(hdevp->audmeas_clk, 200000000);
+			clk_rate = clk_get_rate(hdevp->audmeas_clk);
+		}
 	}
 
 	pd_fifo_buf = kmalloc_array(1, PFIFO_SIZE * sizeof(uint32_t),

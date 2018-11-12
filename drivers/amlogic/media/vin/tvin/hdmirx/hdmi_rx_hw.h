@@ -20,6 +20,7 @@
 
 
 /*#define K_BRINGUP_PTM*/
+#define K_TEST_CHK_ERR_CNT
 
 /**
  * Bit field mask
@@ -1053,16 +1054,14 @@
 #define HHI_HDMIRX_PHY_MISC_CNTL1		(0xd8<<2)/*0x041*/
 #define HHI_HDMIRX_PHY_MISC_CNTL2		(0xe0<<2)/*0x042*/
 #define HHI_HDMIRX_PHY_MISC_CNTL3		(0xe1<<2)/*0x043*/
-#define HHI_HDMIRX_PHY_MISC_STAT		(0xee<<2)/*0x044*/
 #define HHI_HDMIRX_PHY_DCHA_CNTL0		(0xe2<<2)/*0x045*/
 #define HHI_HDMIRX_PHY_DCHA_CNTL1		(0xe3<<2)/*0x046*/
 #define HHI_HDMIRX_PHY_DCHA_CNTL2		(0xe4<<2)/*0x047*/
 #define HHI_HDMIRX_PHY_DCHD_CNTL0		(0xe5<<2)/*0x048*/
 #define HHI_HDMIRX_PHY_DCHD_CNTL1		(0xe6<<2)/*0x049*/
 #define HHI_HDMIRX_PHY_DCHD_CNTL2		(0xe7<<2)/*0x04A*/
+/*#define HHI_HDMIRX_PHY_MISC_STAT		(0xee<<2)*//*0x044*/
 #define HHI_HDMIRX_PHY_DCHD_STAT		(0xef<<2)/*0x04B*/
-
-
 
 #define TMDS_CLK_MIN			(24000UL)
 #define TMDS_CLK_MAX			(340000UL)
@@ -1204,10 +1203,13 @@ extern void rx_phy_rxsense_pulse(unsigned int t1, unsigned int t2);
 extern void rx_phy_power_on(unsigned int onoff);
 
 
-#define K_MEASURE_SRC_HDMI_TMDSCLK	0
-#define K_MEASURE_SRC_HDMI_CABLECLK	1
+enum measure_clk_top_e {
+	TOP_HDMI_TMDSCLK = 0,
+	TOP_HDMI_CABLECLK,
+	TOP_HDMI_AUDIOCLK,
+};
 
-enum measure_clk_src {
+enum measure_clk_src_e {
 	MEASURE_CLK_CABLE,
 	MEASURE_CLK_TMDS,
 	MEASURE_CLK_PIXEL,
@@ -1216,6 +1218,9 @@ enum measure_clk_src {
 	MEASURE_CLK_AUD_DIV,
 	MEASURE_CLK_ESM,
 };
+
+#define MHz	1000000
+#define KHz	1000
 
 enum apllbw {
 	apll_bw_24_40 = 0,
@@ -1237,9 +1242,9 @@ struct apll_param {
 	unsigned int od2_div;
 };
 
-extern unsigned int rx_get_clock(unsigned int clk_src);
+extern unsigned int rx_get_clock(enum measure_clk_top_e clk_src);
 extern unsigned int clk_util_clk_msr(unsigned int clk_mux);
-extern unsigned int rx_measure_clock(enum measure_clk_src clksrc);
+extern unsigned int rx_measure_clock(enum measure_clk_src_e clksrc);
 extern void aml_phy_init(unsigned int bw);
 extern void aml_phy_pw_onoff(unsigned int onoff);
 extern unsigned int  aml_check_clk_bandwidth(unsigned int cableclk,
@@ -1252,7 +1257,9 @@ extern void rx_emp_to_ddr_init(void);
 extern void rx_emp_field_done_irq(void);
 extern void rx_emp_status(void);
 extern void rx_emp_lastpkt_done_irq(void);
-
+extern void rx_tmds_to_ddr_init(void);
+extern void rx_get_error_cnt(uint32_t *ch0, uint32_t *ch1, uint32_t *ch2);
+extern void rx_get_audio_N_CTS(uint32_t *N, uint32_t *CTS);
 #endif
 
 

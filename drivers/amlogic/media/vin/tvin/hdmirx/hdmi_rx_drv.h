@@ -118,6 +118,7 @@ struct hdmirx_dev_s {
 	struct clk *aud_out_clk;
 	struct clk *esm_clk;
 	struct clk *skp_clk;
+	struct clk *meter_clk;
 	const struct meson_hdmirx_data *data;
 };
 
@@ -361,6 +362,7 @@ struct phy_sts {
 	uint32_t pll_rate;
 	uint32_t clk_rate;
 	uint32_t phy_bw;
+	ulong timestap;
 };
 
 struct emp_buff {
@@ -373,8 +375,9 @@ struct emp_buff {
 	void __iomem *storeA;
 	void __iomem *storeB;
 	void __iomem *ready;
-	unsigned int emppktcnt;
 	unsigned long irqcnt;
+	unsigned int emppktcnt;
+	unsigned int tmdspktcnt;
 };
 
 struct rx_s {
@@ -502,7 +505,6 @@ extern bool is_aud_pll_error(void);
 extern int hdmirx_debug(const char *buf, int size);
 extern void dump_reg(void);
 extern void dump_edid_reg(void);
-extern void dump_state(unsigned char enable);
 extern void rx_debug_loadkey(void);
 extern void rx_debug_load22key(void);
 extern int rx_debug_wr_reg(const char *buf, char *tmpbuf, int i);
