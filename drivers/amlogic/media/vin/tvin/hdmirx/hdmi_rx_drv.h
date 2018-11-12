@@ -119,6 +119,7 @@ struct hdmirx_dev_s {
 	struct clk *esm_clk;
 	struct clk *skp_clk;
 	struct clk *meter_clk;
+	struct clk *axi_clk;
 	const struct meson_hdmirx_data *data;
 };
 
@@ -264,7 +265,7 @@ struct rx_video_info {
 #define DUMP_MODE_TMDS	1
 #define TMDS_BUFFER_SIZE	0x1e00000 /*30M*/
 #define EMP_BUFFER_SIZE		0x200000	/*2M*/
-#define EMP_BUFF_MAC_PKT_CNT ((EMP_BUFFER_SIZE/2)/32 - 200)
+#define EMP_BUFF_MAX_PKT_CNT ((EMP_BUFFER_SIZE/2)/32 - 200)
 #define TMDS_DATA_BUFFER_SIZE	0x200000
 
 

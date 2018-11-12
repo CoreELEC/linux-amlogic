@@ -629,7 +629,7 @@
 #define PFIFO_GCP_EN		_BIT(17)/*type:0x03*/
 #define PFIFO_ACR_EN		_BIT(16)/*type:0x01*/
 /*tl1*/
-#define PFIFO_EMP_EN		_BIT(9)/*type:0x7f*/
+#define PFIFO_EMP_EN		_BIT(30)/*type:0x7f*/
 
 #define		GCP_GLOBAVMUTE			_BIT(15)
 /** Packet FIFO clear min/max information */
@@ -1042,6 +1042,9 @@
 #define HPI_REG_EXCEPTION_STATUS		0x60
 #define EXCEPTION_CODE					MSK(8, 1)
 #define AUD_PLL_THRESHOLD	1000000
+
+/* tl1 HIU related register */
+#define HHI_HDMIRX_AXI_CLK_CNTL			(0xb8<<2)
 
 /* tl1 HIU apll register */
 #define HHI_HDMIRX_APLL_CNTL0			(0xd2<<2)/* 0x4C */

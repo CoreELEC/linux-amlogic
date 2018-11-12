@@ -90,6 +90,7 @@ static int err_dbg_cnt;
 static int err_dbg_cnt_max = 500;
 #endif
 int force_vic;
+uint32_t fsm_log_en;
 
 static int aud_sr_stb_max = 20;
 
@@ -343,9 +344,12 @@ static int hdmi_rx_ctrl_irq_handler(void)
 		}
 	}
 
-	rx_top_intr_stat = hdmirx_rd_top(TOP_INTR_STAT);
-	if (rx_top_intr_stat & _BIT(31))
-		irq_need_clr = 1;
+	if (rx.hdmirxdev->data->chip_id != CHIP_ID_TL1) {
+		rx_top_intr_stat = hdmirx_rd_top(TOP_INTR_STAT);
+		if (rx_top_intr_stat & _BIT(31))
+			irq_need_clr = 1;
+	}
+
 	/* check hdmi open status before dwc isr */
 	if (!rx.open_fg) {
 		if (irq_need_clr)
@@ -531,7 +535,13 @@ reisr:hdmirx_top_intr_stat = hdmirx_rd_top(TOP_INTR_STAT);
 		rx_pr("[isr] enc fall\n");
 
 	/* must clear ip interrupt quickly */
-	if (hdmirx_top_intr_stat & (~(1 << 30))) {
+	if (rx.hdmirxdev->data->chip_id == CHIP_ID_TL1) {
+		hdmirx_top_intr_stat &= 0x1;
+	} else {
+		hdmirx_top_intr_stat &= (~(1 << 30));
+	}
+
+	if (hdmirx_top_intr_stat) {
 		error = hdmi_rx_ctrl_irq_handler();
 		if (error < 0) {
 			if (error != -EPERM) {
@@ -541,8 +551,11 @@ reisr:hdmirx_top_intr_stat = hdmirx_rd_top(TOP_INTR_STAT);
 			}
 		}
 	}
-	if (error == 1)
-		goto reisr;
+
+	if (rx.hdmirxdev->data->chip_id != CHIP_ID_TL1) {
+		if (error == 1)
+			goto reisr;
+	}
 	/* check the ip interrupt again */
 	/*hdmirx_top_intr_stat = hdmirx_rd_top(TOP_INTR_STAT);
 	 *if (hdmirx_top_intr_stat & (1 << 31)) {
@@ -1371,6 +1384,9 @@ void fsm_restart(void)
 	vic_check_en = true;
 	dvi_check_en = true;
 	rx.state = FSM_INIT;
+	rx.physts.cable_clk = 0;
+	rx.physts.pll_rate = 0;
+	rx.physts.phy_bw = 0;
 	rx_pr("force_fsm_init\n");
 }
 
@@ -1728,6 +1744,9 @@ int rx_set_global_variable(const char *buf, int size)
 		return pr_var(ignore_sscp_charerr, index);
 	if (set_pr_var(tmpbuf, ignore_sscp_tmds, value, &index, ret))
 		return pr_var(ignore_sscp_tmds, index);
+	if (set_pr_var(tmpbuf, fsm_log_en, value, &index, ret))
+		return pr_var(fsm_log_en, index);
+
 	return 0;
 }
 
@@ -1832,6 +1851,7 @@ void rx_get_global_variable(const char *buf)
 	pr_var(esd_phy_rst_max, i++);
 	pr_var(ignore_sscp_charerr, i++);
 	pr_var(ignore_sscp_tmds, i++);
+	pr_var(fsm_log_en, i++);
 }
 
 void skip_frame(unsigned int cnt)
@@ -2004,17 +2024,14 @@ void rx_clk_rate_monitor(void)
 
 	cur_clk_rate = rx_get_scdc_clkrate_sts();
 	cur_phy_bw = aml_check_clk_bandwidth(cur_cable_clk, cur_clk_rate);
-
-	if ((rx.cur_5v_sts) && (cur_cable_clk > ((20 * MHz))) &&
-		((rx.physts.phy_bw != cur_phy_bw) ||
+	if ((rx.cur_5v_sts) &&	((rx.physts.phy_bw != cur_phy_bw) ||
 			(rx.physts.clk_rate != cur_clk_rate) ||
 			(clk_diff > (1000 * KHz)))) {
-
 		if (phy_bw_cnt++ > 1) {
 			phy_bw_cnt = 0;
 			while (i++ < 3) {
-				rx_pr("chg phy i=%d, cable clk:%d\n",
-					i, cur_cable_clk);
+				rx_pr("chg phy i=%d, cabclk:%d, clkrate:%d\n",
+					i, cur_cable_clk, cur_clk_rate);
 				aml_phy_bw_switch(cur_cable_clk, cur_clk_rate);
 				if ((cur_cable_clk < (20 * MHz)) ||
 					aml_phy_pll_lock())
@@ -2118,6 +2135,21 @@ void rx_err_monitor(void)
 		break;
 	}
 }
+
+char *fsm_st[] = {
+	"FSM_5V_LOST",
+	"FSM_INIT",
+	"FSM_HPD_LOW",
+	"FSM_HPD_HIGH",
+	"FSM_WAIT_CLK_STABLE",
+	"FSM_EQ_START",
+	"FSM_WAIT_EQ_DONE",
+	"FSM_SIG_UNSTABLE",
+	"FSM_SIG_WAIT_STABLE",
+	"FSM_SIG_STABLE",
+	"FSM_SIG_READY",
+	"FSM_NULL",
+};
 
 /*
  * FUNC: rx_main_state_machine
@@ -2403,7 +2435,7 @@ void rx_main_state_machine(void)
 				if (aud_sts == E_REQUESTCLK_ERR) {
 					hdmirx_phy_init();
 					rx.state = FSM_WAIT_CLK_STABLE;
-					rx.pre_state = FSM_SIG_READY;
+					/*rx.pre_state = FSM_SIG_READY;*/
 					rx_pr("reqclk err->wait_clk\n");
 				} else if (aud_sts == E_PLLRATE_CHG)
 					rx_aud_pll_ctl(1);
@@ -2425,6 +2457,13 @@ void rx_main_state_machine(void)
 		break;
 	default:
 		break;
+	}
+
+	/* for fsm debug */
+	if (fsm_log_en && (rx.state != rx.pre_state)) {
+		rx_pr("fsm state:%d(%s) to %d(%s)\n", rx.pre_state,
+			fsm_st[rx.pre_state], rx.state, fsm_st[rx.state]);
+		rx.pre_state = rx.state;
 	}
 }
  #else

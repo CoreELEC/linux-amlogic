@@ -727,11 +727,12 @@
 		pinctrl-0 = <&hdmirx_a_mux &hdmirx_b_mux
 			&hdmirx_c_mux>;
 		repeat = <0>;
-		interrupts = <0 56 1>;
+		interrupts = <0 41 1>;
 		clocks = <&clkc CLKID_HDMIRX_MODET_COMP>,
 			   <&clkc CLKID_HDMIRX_CFG_COMP>,
 			   <&clkc CLKID_HDMIRX_ACR_COMP>,
 			   <&clkc CLKID_HDMIRX_METER_COMP>,
+			   <&clkc CLKID_HDMIRX_AXI_COMP>,
 			   <&xtal>,
 			   <&clkc CLKID_FCLK_DIV5>,
 			   <&clkc CLKID_FCLK_DIV7>,
@@ -744,6 +745,7 @@
 			"hdmirx_cfg_clk",
 				"hdmirx_acr_ref_clk",
 				"cts_hdmirx_meter_clk",
+				"cts_hdmi_axi_clk",
 				"xtal",
 				"fclk_div5",
 				"fclk_div7",

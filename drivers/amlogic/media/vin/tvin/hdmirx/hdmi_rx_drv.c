@@ -1735,11 +1735,12 @@ void rx_emp_resource_allocate(struct device *dev)
 					EMP_BUFFER_SIZE >> PAGE_SHIFT, 0);
 		if (rx.empbuff.pg_addr) {
 			/* hw access */
-			/* page to real address*/
+			/* page to real physical address*/
 			rx.empbuff.p_addr_a =
 				page_to_phys(rx.empbuff.pg_addr);
 			rx.empbuff.p_addr_b =
 				rx.empbuff.p_addr_a + (EMP_BUFFER_SIZE >> 1);
+			//page_address
 			rx_pr("buffa paddr=0x%x\n", rx.empbuff.p_addr_a);
 			rx_pr("buffb paddr=0x%x\n", rx.empbuff.p_addr_b);
 		} else {
@@ -2144,6 +2145,7 @@ static int hdmirx_probe(struct platform_device *pdev)
 	}
 	#endif
 	if (rx.hdmirxdev->data->chip_id == CHIP_ID_TL1) {
+		/*for audio clk measure*/
 		hdevp->meter_clk = clk_get(&pdev->dev, "cts_hdmirx_meter_clk");
 		if (IS_ERR(hdevp->meter_clk))
 			rx_pr("get cts hdmirx meter clk err\n");
@@ -2152,6 +2154,16 @@ static int hdmirx_probe(struct platform_device *pdev)
 			clk_set_rate(hdevp->meter_clk, 24000000);
 			clk_prepare_enable(hdevp->meter_clk);
 			clk_rate = clk_get_rate(hdevp->meter_clk);
+		}
+		/*for emp data to ddr*/
+		hdevp->axi_clk = clk_get(&pdev->dev, "cts_hdmi_axi_clk");
+		if (IS_ERR(hdevp->axi_clk))
+			rx_pr("get cts axi clk err\n");
+		else {
+			clk_set_parent(hdevp->axi_clk, xtal_clk);
+			clk_set_rate(hdevp->axi_clk, 667000000);
+			clk_prepare_enable(hdevp->axi_clk);
+			clk_rate = clk_get_rate(hdevp->axi_clk);
 		}
 	} else {
 		hdevp->audmeas_clk = clk_get(&pdev->dev, "hdmirx_audmeas_clk");
