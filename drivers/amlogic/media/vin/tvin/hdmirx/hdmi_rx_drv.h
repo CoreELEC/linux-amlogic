@@ -263,7 +263,7 @@ struct rx_video_info {
 /*emp buffer config*/
 #define DUMP_MODE_EMP	0
 #define DUMP_MODE_TMDS	1
-#define TMDS_BUFFER_SIZE	0x1e00000 /*30M*/
+#define TMDS_BUFFER_SIZE	0x2000000 /*32M*/
 #define EMP_BUFFER_SIZE		0x200000	/*2M*/
 #define EMP_BUFF_MAX_PKT_CNT ((EMP_BUFFER_SIZE/2)/32 - 200)
 #define TMDS_DATA_BUFFER_SIZE	0x200000

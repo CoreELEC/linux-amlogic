@@ -33,6 +33,7 @@
 #include <linux/cdev.h>
 #include <linux/clk.h>
 #include <linux/of.h>
+#include <linux/of_reserved_mem.h>
 #include <linux/poll.h>
 #include <linux/io.h>
 #include <linux/suspend.h>
@@ -40,6 +41,9 @@
 #include <linux/delay.h>
 #include <linux/of_device.h>
 #include <linux/dma-contiguous.h>
+#include <linux/slab.h>
+#include <linux/dma-mapping.h>
+#include <linux/highmem.h>
 
 
 /* Amlogic headers */
@@ -1779,13 +1783,15 @@ void rx_tmds_resource_allocate(struct device *dev)
 			rx_pr("allocate tmds data buff fail\n");
 		rx.empbuff.dump_mode = DUMP_MODE_TMDS;
 		rx_pr("buffa paddr=0x%x\n", rx.empbuff.p_addr_a);
-		rx.empbuff.tmdspktcnt = 0;
 	}
 }
 
+/*
+ * capture emp pkt data save file emp_data.bin
+ *
+ */
 void rx_emp_data_capture(void)
 {
-	/* data to terminal or save a file */
 	struct file *filp = NULL;
 	loff_t pos = 0;
 	void *buf = NULL;
@@ -1797,7 +1803,7 @@ void rx_emp_data_capture(void)
 	filp = filp_open(path, O_RDWR|O_CREAT, 0666);
 
 	if (IS_ERR(filp)) {
-		pr_info("create %s error.\n", path);
+		rx_pr("create %s error.\n", path);
 		return;
 	}
 
@@ -1806,23 +1812,28 @@ void rx_emp_data_capture(void)
 	/*write size*/
 	offset = rx.empbuff.emppktcnt * 32;
 	vfs_write(filp, buf, offset, &pos);
-	pr_info("write from 0x%x to 0x%x to %s.\n",
+	rx_pr("write from 0x%x to 0x%x to %s.\n",
 			0, 0 + offset, path);
 	vfs_fsync(filp, 0);
 	filp_close(filp, NULL);
 	set_fs(old_fs);
 }
 
+/*
+ * capture tmds data save file emp_data.bin
+ *
+ */
 void rx_tmds_data_capture(void)
 {
 	/* data to terminal or save a file */
 	struct file *filp = NULL;
 	loff_t pos = 0;
-	void *buf = NULL;
 	char *path = "/data/tmds_data.bin";
 	unsigned int offset = 0;
 	unsigned char *src_v_addr;
 	mm_segment_t old_fs = get_fs();
+	unsigned int recv_pagenum, i;
+	unsigned int recv_byte_cnt;
 
 	set_fs(KERNEL_DS);
 	filp = filp_open(path, O_RDWR|O_CREAT, 0666);
@@ -1832,21 +1843,30 @@ void rx_tmds_data_capture(void)
 		return;
 	}
 
-	/* p addr to v addr for cpu access */
-	src_v_addr = phys_to_virt(rx.empbuff.p_addr_a);
-
-	/*start buffer address*/
-	buf = src_v_addr;
-	/*write size*/
-	offset = (rx.empbuff.tmdspktcnt * 15)/4;/*pkt to bytes*/
-	vfs_write(filp, buf, offset, &pos);
-	pr_info("write from 0x%x to 0x%x to %s.\n",
-			0, 0 + offset, path);
+	recv_byte_cnt = rx.empbuff.tmdspktcnt * 4;
+	recv_pagenum = (recv_byte_cnt >> PAGE_SHIFT) + 1;
+	rx_pr("total byte:%d page:%d\n", recv_byte_cnt, recv_pagenum);
+	for (i = 0; i < recv_pagenum; i++) {
+		/* one page 4k,tmds data physical address, need map v addr */
+		src_v_addr = kmap(rx.empbuff.pg_addr + i);
+		if (recv_byte_cnt >= PAGE_SIZE) {
+			offset = PAGE_SIZE;
+			vfs_write(filp, src_v_addr, offset, &pos);
+			recv_byte_cnt -= PAGE_SIZE;
+		} else {
+			offset = recv_byte_cnt;
+			vfs_write(filp, src_v_addr, offset, &pos);
+		}
+		/* release current page */
+		kunmap(rx.empbuff.pg_addr + i);
+		rx_pr("%d ", i);
+	}
+	rx_pr("write from 0x%x to 0x%x to %s\n",
+			pos, offset, path);
 	vfs_fsync(filp, 0);
 	filp_close(filp, NULL);
 	set_fs(old_fs);
 }
-
 
 
 #ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
@@ -2096,21 +2116,22 @@ static int hdmirx_probe(struct platform_device *pdev)
 		clk_prepare_enable(hdevp->cfg_clk);
 		clk_rate = clk_get_rate(hdevp->cfg_clk);
 	}
+
 	hdcp22_on = rx_is_hdcp22_support();
 	if (hdcp22_on) {
 		hdevp->esm_clk = clk_get(&pdev->dev, "hdcp_rx22_esm");
-		if (IS_ERR(hdevp->esm_clk))
+		if (IS_ERR(hdevp->esm_clk)) {
 			rx_pr("get esm_clk err\n");
-		else {
+		} else {
 			clk_set_parent(hdevp->esm_clk, fclk_div7_clk);
 			clk_set_rate(hdevp->esm_clk, 285714285);
 			clk_prepare_enable(hdevp->esm_clk);
 			clk_rate = clk_get_rate(hdevp->esm_clk);
 		}
 		hdevp->skp_clk = clk_get(&pdev->dev, "hdcp_rx22_skp");
-		if (IS_ERR(hdevp->skp_clk))
+		if (IS_ERR(hdevp->skp_clk)) {
 			rx_pr("get skp_clk err\n");
-		else {
+		} else {
 			clk_set_parent(hdevp->skp_clk, xtal_clk);
 			clk_set_rate(hdevp->skp_clk, 24000000);
 			clk_prepare_enable(hdevp->skp_clk);
@@ -2130,7 +2151,6 @@ static int hdmirx_probe(struct platform_device *pdev)
 			clk_rate = clk_get_rate(hdevp->aud_out_clk);
 		}
 	}
-
 
 	#if 0
 	hdevp->acr_ref_clk = clk_get(&pdev->dev, "hdmirx_acr_ref_clk");
@@ -2223,6 +2243,9 @@ static int hdmirx_probe(struct platform_device *pdev)
 		disable_port_num = disable_port & 0xF;
 	}
 
+	ret = of_reserved_mem_device_init(&(pdev->dev));
+	if (ret != 0)
+		rx_pr("warning: no rev cmd mem\n");
 	rx_emp_resource_allocate(&(pdev->dev));
 	hdmirx_hw_probe();
 	hdmirx_switch_pinmux(&(pdev->dev));

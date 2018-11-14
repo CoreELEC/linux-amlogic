@@ -18,8 +18,6 @@
 #ifndef __HDMI_RX_HW_H__
 #define __HDMI_RX_HW_H__
 
-
-/*#define K_BRINGUP_PTM*/
 #define K_TEST_CHK_ERR_CNT
 
 /**
@@ -1223,8 +1221,11 @@ enum measure_clk_src_e {
 	MEASURE_CLK_ESM,
 };
 
+
 #define MHz	1000000
 #define KHz	1000
+
+#define PHY_DEFAULT_FRQ	((100)*MHz)
 
 enum apllbw {
 	apll_bw_24_40 = 0,
@@ -1246,7 +1247,7 @@ struct apll_param {
 	unsigned int od2_div;
 };
 
-extern unsigned int rx_get_clock(enum measure_clk_top_e clk_src);
+extern int rx_get_clock(enum measure_clk_top_e clk_src);
 extern unsigned int clk_util_clk_msr(unsigned int clk_mux);
 extern unsigned int rx_measure_clock(enum measure_clk_src_e clksrc);
 extern void aml_phy_init(unsigned int bw);
@@ -1257,11 +1258,13 @@ extern void aml_sw_apll(unsigned int bandwidth, unsigned int cableclk);
 extern void aml_phy_bw_switch(unsigned int cableclk, unsigned int clkrate);
 extern unsigned int aml_phy_pll_lock(void);
 extern unsigned int aml_phy_tmds_valid(void);
+extern void aml_eq_setting(unsigned int bw);
 extern void rx_emp_to_ddr_init(void);
 extern void rx_emp_field_done_irq(void);
 extern void rx_emp_status(void);
 extern void rx_emp_lastpkt_done_irq(void);
 extern void rx_tmds_to_ddr_init(void);
+extern void rx_emp_capture_stop(void);
 extern void rx_get_error_cnt(uint32_t *ch0, uint32_t *ch1, uint32_t *ch2);
 extern void rx_get_audio_N_CTS(uint32_t *N, uint32_t *CTS);
 #endif
