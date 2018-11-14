@@ -1109,7 +1109,7 @@
 	};
 
 	sd_emmc_c: emmc@ffe07000 {
-		status = "okay";
+		status = "disabled";
 		compatible = "amlogic, meson-mmc-tl1";
 		reg = <0xffe07000 0x800>;
 		interrupts = <0 191 1>;
@@ -1147,32 +1147,16 @@
 		};
 	};
 
-	sd_emmc_b: sd@ffe05000 {
-		status = "okay";
+	sd_emmc_b: sdio@ffe05000 {
+		status = "disabled";
 		compatible = "amlogic, meson-mmc-tl1";
 		reg = <0xffe05000 0x800>;
-		interrupts = <0 190 1>;
+		interrupts = <0 190 4>;
 
-		pinctrl-names = "sd_all_pins",
-			"sd_clk_cmd_pins",
-			"sd_1bit_pins",
-			"sd_clk_cmd_uart_pins",
-			"sd_1bit_uart_pins",
-			"sd_to_ao_uart_pins",
-			"ao_to_sd_uart_pins",
-			"sd_to_ao_jtag_pins",
-			"ao_to_sd_jtag_pins";
-		pinctrl-0 = <&sd_all_pins>;
-		pinctrl-1 = <&sd_clk_cmd_pins>;
-		pinctrl-2 = <&sd_1bit_pins>;
-		pinctrl-3 = <&sd_to_ao_uart_clr_pins
-			&sd_clk_cmd_pins &ao_to_sd_uart_pins>;
-		pinctrl-4 = <&sd_to_ao_uart_clr_pins
-			&sd_1bit_pins &ao_to_sd_uart_pins>;
-		pinctrl-5 = <&sd_all_pins &sd_to_ao_uart_pins>;
-		pinctrl-6 = <&sd_to_ao_uart_clr_pins &ao_to_sd_uart_pins>;
-		pinctrl-7 = <&sd_all_pins &sd_to_ao_uart_pins>;
-		pinctrl-8 = <&sd_to_ao_uart_clr_pins &ao_to_sd_uart_pins>;
+		pinctrl-names = "sdio_all_pins",
+			"sdio_clk_cmd_pins";
+		pinctrl-0 = <&sdio_all_pins>;
+		pinctrl-1 = <&sdio_clk_cmd_pins>;
 
 		clocks = <&clkc CLKID_SD_EMMC_B>,
 			<&clkc CLKID_SD_EMMC_B_P0_COMP>,
@@ -1186,14 +1170,11 @@
 		cap-mmc-highspeed;
 		max-frequency = <100000000>;
 		disable-wp;
-		sd {
-			pinname = "sd";
+		sdio {
+			pinname = "sdio";
 			ocr_avail = <0x200080>; /**VDD voltage 3.3 ~ 3.4 */
 			max_req_size = <0x20000>; /**128KB*/
-			gpio_dat3 = <&gpio GPIOC_3 GPIO_ACTIVE_HIGH>;
-			jtag_pin = <&gpio GPIOC_0 GPIO_ACTIVE_HIGH>;
-			gpio_cd = <&gpio GPIOC_6 GPIO_ACTIVE_HIGH>;
-			card_type = <5>;
+			card_type = <3>;
 			/* 3:sdio device(ie:sdio-wifi),
 			 * 4:SD combo (IO+mem) card
 			 */
@@ -1751,12 +1732,12 @@
 		};
 	};
 
-	/* sdemmc portA */
+	/* sdemmc port */
 	sdio_clk_cmd_pins: sdio_clk_cmd_pins {
 		mux {
-			groups = "sdio_clk",
-				"sdio_cmd";
-			function = "sdio";
+			groups = "sdcard_clk",
+				"sdcard_cmd";
+			function = "sdcard";
 			input-enable;
 			bias-pull-up;
 			drive-strength = <3>;
@@ -1765,13 +1746,13 @@
 
 	sdio_all_pins: sdio_all_pins {
 		mux {
-			groups = "sdio_d0",
-				"sdio_d1",
-				"sdio_d2",
-				"sdio_d3",
-				"sdio_clk",
-				"sdio_cmd";
-			function = "sdio";
+			groups = "sdcard_d0",
+				"sdcard_d1",
+				"sdcard_d2",
+				"sdcard_d3",
+				"sdcard_clk",
+				"sdcard_cmd";
+			function = "sdcard";
 			input-enable;
 			bias-pull-up;
 			drive-strength = <3>;
