@@ -808,6 +808,14 @@
 				max_frame_time = <200>;
 			};
 
+			meson_irblaster: irblaster@14c {
+				compatible = "amlogic, meson_irblaster";
+				reg = <0x14c 0x10>,
+					<0x40 0x4>;
+				interrupts = <0 198 1>;
+				status = "disabled";
+			};
+
 			i2c_AO: i2c@5000 {
 				compatible = "amlogic,meson-i2c";
 				status = "disabled";
@@ -1484,6 +1492,20 @@
 			groups = "uart_ao_b_tx_8",
 				"uart_ao_b_rx_9";
 			function = "uart_ao_b";
+		};
+	};
+
+	irblaster_pins:irblaster_pin {
+		mux {
+			groups = "remote_out_ao";
+			function = "remote_out_ao";
+		};
+	};
+
+	irblaster_pins1:irblaster_pin1 {
+		mux {
+			groups = "remote_out_ao9";
+			function = "remote_out_ao";
 		};
 	};
 };
