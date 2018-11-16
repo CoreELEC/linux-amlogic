@@ -856,8 +856,6 @@ void hdmitx_set_clk(struct hdmitx_dev *hdev)
 		cd = hdev->para->cd;
 
 	frac_rate = hdev->frac_rate_policy;
-	pr_info("hdmitx: set clk: VIC = %d  cd = %d  frac_rate = %d\n", vic,
-		cd, frac_rate);
 	para = hdmi_get_fmt_paras(vic);
 	if (para && (para->name) && likely_frac_rate_mode(para->name))
 		;
@@ -870,6 +868,10 @@ void hdmitx_set_clk(struct hdmitx_dev *hdev)
 		hdmitx_set_3dfp_clk(vic);
 		return;
 	}
+	if (hdev->para->cs == COLORSPACE_YUV420)
+		vic |= 256;
+	pr_info("hdmitx: set clk: VIC = %d  cd = %d  cs = %d frac_rate = %d\n", vic,
+		cd, hdev->para->cs, frac_rate);
 	if (hdev->para->cs != COLORSPACE_YUV422)
 		hdmitx_set_clk_(vic, cd);
 	else

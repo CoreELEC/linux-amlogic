@@ -633,8 +633,9 @@ int hdmitx_set_display(struct hdmitx_dev *hdev, enum hdmi_vic VideoCode)
 		param->color_depth = hdev->cur_video_param->color_depth;
 	if (param) {
 		hdev->cur_video_param = param;
-	        hdmi_print(IMP, SYS "cur_param = param at 0x%08x colourdepth %d\n", hdev->cur_video_param, hdev->cur_video_param->color_depth * 2);
-		param->color = param->color_prefer;
+	        hdmi_print(IMP, SYS "cur_param = param at 0x%08x colourdepth %d colourspace %d\n", 
+					hdev->cur_video_param, hdev->cur_video_param->color_depth * 2, param->color);
+		param->color = hdev->para->cs;
 		if (hdmi_output_rgb || is_philips_2009(&hdev->RXCap) ||
 			hdev->para->cs == COLORSPACE_RGB444) {
 			param->color = COLORSPACE_RGB444;
@@ -650,7 +651,6 @@ int hdmitx_set_display(struct hdmitx_dev *hdev, enum hdmi_vic VideoCode)
 				param->color = COLORSPACE_YUV422;
 				break;
 			case 0x30:
-				param->color = hdev->para->cs;
 				break;
 			default:
 				param->color = COLORSPACE_RGB444;
@@ -681,14 +681,14 @@ int hdmitx_set_display(struct hdmitx_dev *hdev, enum hdmi_vic VideoCode)
 					((int) COLORDEPTH_24B) / (param->color == COLORSPACE_YUV420 ? 2 : 1),
 					hdev->RXCap.Max_TMDS_Clock1 * 5000,
 					hdev->RXCap.HF_IEEEOUI, hdev->RXCap.HF_IEEEOUI ? hdev->RXCap.Max_TMDS_Clock2 * 5000 : 0);
-			if (param->color == COLORSPACE_YUV444){
 				int max_tmds_clock = hdev->RXCap.Max_TMDS_Clock1 * 5000;
 				if (hdev->RXCap.HF_IEEEOUI)
 					max_tmds_clock = hdev->RXCap.Max_TMDS_Clock2 * 5000;
+			if (param->color == COLORSPACE_YUV444){
 				if (hdev->para->tmds_clk * ((int) param->color_depth) / ((int) COLORDEPTH_24B) >
 						max_tmds_clock){
 					/* set 422 mode if sink can handle it */
-					if (hdev->RXCap.native_Mode & 0x10){
+					if (hdev->RXCap.native_Mode & 0x10 && hdev->para->tmds_clk <= max_tmds_clock){
 						param->color = COLORSPACE_YUV422;
 						pr_info("Setting colourspace to YCC422 for %d-bit\n", ((int) param->color_depth) * 2);
 					} else {
@@ -696,6 +696,12 @@ int hdmitx_set_display(struct hdmitx_dev *hdev, enum hdmi_vic VideoCode)
 						param->color_depth = COLORDEPTH_24B;
 					}
 				}
+			}
+			if (param->color == COLORSPACE_YUV422 && hdev->para->tmds_clk > max_tmds_clock){
+				/* this can only happen with 4k50/60hz when no HF-IEEEOUI */
+				hdmi_print(IMP, VID "Cannot play YCC422 at this framerate, setting YCC420, 8 bits");
+				param->color_depth = COLORDEPTH_24B;
+				param->color = COLORSPACE_YUV420;
 			}
 		}
 

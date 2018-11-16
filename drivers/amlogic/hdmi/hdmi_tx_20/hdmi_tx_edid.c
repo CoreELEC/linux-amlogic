@@ -2310,7 +2310,6 @@ enum hdmi_vic hdmitx_edid_get_VIC(struct hdmitx_dev *hdev,
 				vic = HDMI_Unkown;
 		}
 	}
-	vic = hdmitx_edid_recheck_format(hdev, vic);
 	return vic;
 }
 

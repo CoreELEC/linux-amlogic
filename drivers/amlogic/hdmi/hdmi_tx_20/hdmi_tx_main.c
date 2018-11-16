@@ -41,6 +41,7 @@
 /* #include <linux/amlogic/osd/osd_dev.h> */
 #include <linux/amlogic/aml_gpio_consumer.h>
 #include <linux/amlogic/vout/vout_notify.h>
+#include <linux/amlogic/vout/vinfo.h>
 
 #include "hdmi_tx_hdcp.h"
 
@@ -88,6 +89,8 @@ static void hdmitx_set_drm_pkt(struct master_display_info_s *data);
 static void hdmitx_set_vsif_pkt(enum eotf_type type, uint8_t tunnel_mode);
 static int check_fbc_special(unsigned char *edid_dat);
 static int hdcp_tst_sig;
+static DEFINE_MUTEX(vout_mutex);
+
 
 /* add attr for hdmi output colorspace and colordepth */
 static char fmt_attr[16];
@@ -524,7 +527,7 @@ static int set_disp_mode_auto(void)
 	char* range[] = {"default","limited","full"};
 	char* colour_str[] = {"default", "SMPTE-C", "bt709", "xvYCC601","xvYCC709",
 		"sYCC601","opYCC601","opRGB","bt2020c","bt2020nc","P3 D65","P3 theater"};
-	
+
 	/* vic_ready got from IP */
 	enum hdmi_vic vic_ready = hdev->HWOp.GetState(
 		hdev, STAT_VIDEO_VIC, 0);
@@ -533,8 +536,8 @@ static int set_disp_mode_auto(void)
 
 	/* get current vinfo */
 	info = hdmi_get_current_vinfo();
-	hdmi_print(IMP, VID "auto - get current mode: %s\n",
-		info ? info->name : "null");
+	hdmi_print(IMP, VID "auto - get current mode: %s vmode_e %d\n",
+		info ? info->name : "null", info ? info->mode : 0);
 	if (info == NULL)
 		return -1;
 
@@ -592,9 +595,30 @@ static int set_disp_mode_auto(void)
 				}
 			}
 		}
+		hdev->HWOp.CntlConfig(hdev, CONF_CLR_AVI_PACKET, 0);
+		hdev->HWOp.CntlConfig(hdev, CONF_CLR_VSDB_PACKET, 0);
+		hdev->HWOp.CntlMisc(hdev, MISC_TMDS_PHY_OP, TMDS_PHY_DISABLE);
+		hdev->HWOp.CntlConfig(hdev, CONF_VIDEO_BLANK_OP, VIDEO_UNBLANK);
 	}
 
 	para = hdmi_get_fmt_name(mode, fmt_attr);
+
+	/* force 4k50/60Hz to 420 unless manually set */
+	if (strstr(fmt_attr,"422") == NULL){
+		switch ((para->vic) & 0xff) {
+			case HDMI_3840x2160p50_16x9:
+			case HDMI_3840x2160p60_16x9:
+			case HDMI_4096x2160p50_256x135:
+			case HDMI_4096x2160p60_256x135:
+			case HDMI_3840x2160p50_64x27:
+			case HDMI_3840x2160p60_64x27:
+				para->cs = COLORSPACE_YUV420;
+				break;
+			default:
+				break;
+		}
+	}
+
 	/* check display caps - warn but don't force - these can only be set by sysfs */
 	if (para->cs == COLORSPACE_YUV422 && !(hdev->RXCap.native_Mode && 0x10))
 		   pr_warn("Colourspace is set to Y422 but display does not support it");
@@ -673,14 +697,15 @@ static int set_disp_mode_auto(void)
 		memcpy(strstr(fmt_attr,"now"), " ", 3);
 	}
 
-	hdev->cur_VIC = HDMI_Unkown;
-/* if vic is HDMI_Unkown, hdmitx_set_display will disable HDMI */
-	ret = hdmitx_set_display(hdev, vic);
 	hdmi_print(IMP, VID"vinfo: %s %d %d\n", info->name, info->sync_duration_num,
 		info->sync_duration_den);
 	recalc_vinfo_sync_duration(info, hdev->frac_rate_policy);
 	hdmi_print(IMP, VID"vinfo recalc: %s %d %d\n", info->name, info->sync_duration_num,
 		info->sync_duration_den);
+
+	hdev->cur_VIC = HDMI_Unkown;
+/* if vic is HDMI_Unkown, hdmitx_set_display will disable HDMI */
+	ret = hdmitx_set_display(hdev, vic);
 	if (ret >= 0) {
 		hdev->HWOp.Cntl(hdev, HDMITX_AVMUTE_CNTL, AVMUTE_CLEAR);
 		hdev->cur_VIC = vic;
@@ -791,8 +816,20 @@ static ssize_t store_attr(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t count)
 {
 	memcpy(fmt_attr, buf, sizeof(fmt_attr));
-	if (strstr(fmt_attr,"now"))
-			set_disp_mode_auto();
+	if (strstr(fmt_attr,"now")){
+		struct vinfo_s *info = NULL;
+		info = hdmi_get_current_vinfo();
+		enum vmode_e tmpmode = VMODE_NULL;
+		//set_disp_mode_auto();
+		phy_pll_off();
+		mutex_lock(&vout_mutex);
+		set_current_vmode(tmpmode);
+		vout_notifier_call_chain(VOUT_EVENT_MODE_CHANGE, &tmpmode);
+		tmpmode = info->mode;
+		set_current_vmode(tmpmode);
+		vout_notifier_call_chain(VOUT_EVENT_MODE_CHANGE, &tmpmode);
+		mutex_unlock(&vout_mutex);
+	}
 	return count;
 }
 
