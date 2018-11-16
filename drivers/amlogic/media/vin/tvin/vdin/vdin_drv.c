@@ -321,17 +321,24 @@ static void vdin_vf_init(struct vdin_dev_s *devp)
 		/*if output fmt is nv21 or nv12 ,
 		 * use the two continuous canvas for one field
 		 */
-		if ((devp->prop.dest_cfmt == TVIN_NV12) ||
-			(devp->prop.dest_cfmt == TVIN_NV21)) {
-			chromaid =
+		if (devp->afbce_mode == 0) {
+			if ((devp->prop.dest_cfmt == TVIN_NV12) ||
+				(devp->prop.dest_cfmt == TVIN_NV21)) {
+				chromaid =
 				(vdin_canvas_ids[index][(vf->index<<1)+1])<<8;
-			addr =
-				vdin_canvas_ids[index][vf->index<<1] |
-				chromaid;
-		} else
-			addr = vdin_canvas_ids[index][vf->index];
+				addr =
+					vdin_canvas_ids[index][vf->index<<1] |
+					chromaid;
+			} else
+				addr = vdin_canvas_ids[index][vf->index];
 
-		vf->canvas0Addr = vf->canvas1Addr = addr;
+			vf->canvas0Addr = vf->canvas1Addr = addr;
+		} else if (devp->afbce_mode == 1) {
+			vf->compHeadAddr = devp->afbce_info->fm_head_paddr[i];
+			vf->compBodyAddr = devp->afbce_info->fm_body_paddr[i];
+			vf->compWidth  = devp->h_active;
+			vf->compHeight = devp->v_active;
+		}
 
 		/* set source type & mode */
 		vdin_set_source_type(devp, vf);
@@ -1538,19 +1545,20 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 	}
 	/* prepare for next input data */
 	next_wr_vfe = provider_vf_get(devp->vfp);
-	if (devp->afbce_mode == 0)
+	if (devp->afbce_mode == 0) {
 		vdin_set_canvas_id(devp, (devp->flags&VDIN_FLAG_RDMA_ENABLE),
 			(next_wr_vfe->vf.canvas0Addr&0xff));
-	else if (devp->afbce_mode == 1)
+
+		/* prepare for chroma canvas*/
+		if ((devp->prop.dest_cfmt == TVIN_NV12) ||
+			(devp->prop.dest_cfmt == TVIN_NV21))
+			vdin_set_chma_canvas_id(devp,
+				(devp->flags&VDIN_FLAG_RDMA_ENABLE),
+				(next_wr_vfe->vf.canvas0Addr>>8)&0xff);
+	} else if (devp->afbce_mode == 1) {
 		vdin_afbce_set_next_frame(devp,
 			(devp->flags&VDIN_FLAG_RDMA_ENABLE), next_wr_vfe);
-
-	/* prepare for chroma canvas*/
-	if ((devp->prop.dest_cfmt == TVIN_NV12) ||
-		(devp->prop.dest_cfmt == TVIN_NV21))
-		vdin_set_chma_canvas_id(devp,
-			(devp->flags&VDIN_FLAG_RDMA_ENABLE),
-			(next_wr_vfe->vf.canvas0Addr>>8)&0xff);
+	}
 
 	devp->curr_wr_vfe = next_wr_vfe;
 	/* debug for video latency */
@@ -1735,18 +1743,19 @@ irqreturn_t vdin_v4l2_isr(int irq, void *dev_id)
 
 	/* prepare for next input data */
 	next_wr_vfe = provider_vf_get(devp->vfp);
-	if (devp->afbce_mode == 0)
+	if (devp->afbce_mode == 0) {
 		vdin_set_canvas_id(devp, (devp->flags&VDIN_FLAG_RDMA_ENABLE),
 			(next_wr_vfe->vf.canvas0Addr&0xff));
-	else if (devp->afbce_mode == 1)
+
+		if ((devp->prop.dest_cfmt == TVIN_NV12) ||
+			(devp->prop.dest_cfmt == TVIN_NV21))
+			vdin_set_chma_canvas_id(devp,
+			(devp->flags&VDIN_FLAG_RDMA_ENABLE),
+			(next_wr_vfe->vf.canvas0Addr>>8)&0xff);
+	} else if (devp->afbce_mode == 1) {
 		vdin_afbce_set_next_frame(devp,
 			(devp->flags&VDIN_FLAG_RDMA_ENABLE), next_wr_vfe);
-
-	if ((devp->prop.dest_cfmt == TVIN_NV12) ||
-			(devp->prop.dest_cfmt == TVIN_NV21))
-		vdin_set_chma_canvas_id(devp,
-				(devp->flags&VDIN_FLAG_RDMA_ENABLE),
-				(next_wr_vfe->vf.canvas0Addr>>8)&0xff);
+	}
 
 	devp->curr_wr_vfe = next_wr_vfe;
 	vf_notify_receiver(devp->name, VFRAME_EVENT_PROVIDER_VFRAME_READY,

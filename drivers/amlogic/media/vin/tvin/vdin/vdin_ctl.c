@@ -4035,6 +4035,12 @@ u32 vdin_get_curr_field_type(struct vdin_dev_s *devp)
 		type &= (~VIDTYPE_VIU_SINGLE_PLANE);
 
 	}
+
+	if (devp->afbce_mode == 1) {
+		type |= VIDTYPE_COMPRESS;
+		type |= VIDTYPE_SCATTER;
+	}
+
 	return type;
 }
 

@@ -37,7 +37,7 @@
 #include <linux/amlogic/media/vfm/vframe_provider.h>
 #include <linux/amlogic/media/frame_provider/tvin/tvin_v4l2.h>
 #ifdef CONFIG_AML_RDMA
-#include <linux/amlogic/rdma/rdma_mgr.h>
+#include <linux/amlogic/media/rdma/rdma_mgr.h>
 #endif
 
 /* Local Headers */

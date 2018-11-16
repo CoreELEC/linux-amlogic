@@ -79,8 +79,6 @@ unsigned int vdin_afbce_cma_alloc(struct vdin_dev_s *devp)
 	unsigned int afbce_mem_used;
 	unsigned int frame_head_size;
 	unsigned int mmu_used;
-	//unsigned long afbce_head_phy_addr;
-	//unsigned long afbce_table_phy_addr;
 	unsigned long body_start_paddr;
 
 	if (devp->rdma_enable)
@@ -283,10 +281,9 @@ unsigned int vdin_afbce_cma_alloc(struct vdin_dev_s *devp)
 	/* 1 block = 32 * 4 pixle = 128 pixel */
 	/* there is a header in one block, a header has 4 bytes */
 	/* set fm_head_paddr start */
-	frame_head_size = roundup(devp->h_active * devp->v_active, 128);
+	frame_head_size = (int)roundup(devp->h_active * devp->v_active, 128);
 	/*h_active * v_active / 128 * 4 = frame_head_size*/
-	frame_head_size = devp->h_active * devp->v_active / 32;
-	frame_head_size = PAGE_ALIGN(frame_head_size);
+	frame_head_size = PAGE_ALIGN(frame_head_size / 32);
 
 	devp->afbce_info->frame_head_size = frame_head_size;
 
@@ -533,18 +530,17 @@ void vdin_afbce_config(struct vdin_dev_s *devp)
 		((def_color_1 & 0xfff) << 0)    // def_color_u
 		);
 
-	//cur_mmu_used += Rd(AFBCE_MMU_NUM); //4k addr have used in every frame;
-
 	W_VCBUS_BIT(AFBCE_MMU_RMIF_CTRL4, devp->afbce_info->table_paddr, 0, 32);
 	W_VCBUS_BIT(AFBCE_MMU_RMIF_SCOPE_X, cur_mmu_used, 0, 12);
 
+	W_VCBUS_BIT(AFBCE_ENABLE, 1, 12, 1); //set afbce pulse mode
 	W_VCBUS_BIT(AFBCE_ENABLE, 1, 8, 1);//enable afbce
 }
 
 void vdin_afbce_maptable_init(struct vdin_dev_s *devp)
 {
 	unsigned int i, j;
-	unsigned int *ptable = NULL;
+	unsigned long ptable = 0;
 	unsigned int *vtable = NULL;
 	unsigned int body;
 	unsigned int size;
@@ -552,12 +548,13 @@ void vdin_afbce_maptable_init(struct vdin_dev_s *devp)
 	size = roundup(devp->afbce_info->frame_body_size, 4096);
 
 	for (i = 0; i < devp->vfmem_max_cnt; i++) {
-		ptable = (unsigned int *)
-			(devp->afbce_info->fm_table_paddr[i]&0xffffffff);
+		ptable = devp->afbce_info->fm_table_paddr[i];
 		if (devp->cma_config_flag == 0x101)
-			vtable = codec_mm_phys_to_virt((unsigned long)ptable);
+			vtable = codec_mm_phys_to_virt(ptable);
 		else if (devp->cma_config_flag == 0)
-			vtable = phys_to_virt((unsigned long)ptable);
+			vtable = phys_to_virt(ptable);
+		else
+			vtable = phys_to_virt(ptable);
 
 		body = devp->afbce_info->fm_body_paddr[i]&0xffffffff;
 		for (j = 0; j < size; j += 4096) {
@@ -571,20 +568,27 @@ void vdin_afbce_set_next_frame(struct vdin_dev_s *devp,
 	unsigned int rdma_enable, struct vf_entry *vfe)
 {
 	unsigned char i;
-	unsigned int cur_mmu_used;
 
 	i = vfe->af_num;
-	cur_mmu_used = devp->afbce_info->fm_table_paddr[i] / 4;
+	vfe->vf.compHeadAddr = devp->afbce_info->fm_head_paddr[i];
+	vfe->vf.compBodyAddr = devp->afbce_info->fm_body_paddr[i];
 
 #ifdef CONFIG_AML_RDMA
-	if (rdma_enable)
-		rdma_write_reg_bits(devp->rdma_handle,
-			AFBCE_HEAD_BADDR, devp->afbce_info->fm_head_paddr[i]);
-		rdma_write_reg(devp->rdma_handle,
-			AFBCE_MMU_RMIF_SCOPE_X, cur_mmu_used, 0, 12);
-	else
+	if (rdma_enable) {
+		rdma_write_reg(devp->rdma_handle, AFBCE_HEAD_BADDR,
+			devp->afbce_info->fm_head_paddr[i]);
+		rdma_write_reg_bits(devp->rdma_handle, AFBCE_MMU_RMIF_CTRL4,
+			devp->afbce_info->fm_table_paddr[i], 0, 32);
+		rdma_write_reg_bits(devp->rdma_handle, AFBCE_ENABLE, 1, 0, 1);
+
+		//W_VCBUS_BIT(AFBCE_ENABLE, 1, 0, 1); //enable pulse mode
+	} else
 #endif
-	afbce_wr(AFBCE_HEAD_BADDR, devp->afbce_info->fm_head_paddr[i]);
-	W_VCBUS_BIT(AFBCE_MMU_RMIF_SCOPE_X, cur_mmu_used, 0, 12);
+	{
+		afbce_wr(AFBCE_HEAD_BADDR, devp->afbce_info->fm_head_paddr[i]);
+		W_VCBUS_BIT(AFBCE_MMU_RMIF_CTRL4,
+			devp->afbce_info->fm_table_paddr[i], 0, 32);
+		W_VCBUS_BIT(AFBCE_ENABLE, 1, 0, 1); //enable pulse mode
+	}
 }
 
