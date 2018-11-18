@@ -653,7 +653,6 @@ static int set_disp_mode_auto(void)
 			if (! dc_support){
 				pr_warn("Bitdepth is set to %d bits but display does not support deep colour",
 						hdev->cur_video_param->color_depth * 2);
-				hdev->cur_video_param->color_depth = COLORDEPTH_24B;
 			}
 		}
 	}
