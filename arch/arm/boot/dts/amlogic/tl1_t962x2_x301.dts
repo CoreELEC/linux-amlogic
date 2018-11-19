@@ -491,9 +491,13 @@
 		 */
 		tv_bit_mode = <0x215>;
 		/* afbce_bit_mode: (amlogic frame buff compression encoder)
-		 * 0: normal mode, not use afbce
-		 * 1: use afbce non-mmu mode
-		 * 2: use afbce mmu mode
+		 * bit 0~3:
+		 * 0 -- normal mode, not use afbce
+		 * 1 -- use afbce non-mmu mode
+		 * 2 -- use afbce mmu mode
+		 * bit 4:
+		 * 0 -- afbce compression-lossy disable
+		 * 1 -- afbce compression-lossy enable
 		 */
 		afbce_bit_mode = <0>;
 	};

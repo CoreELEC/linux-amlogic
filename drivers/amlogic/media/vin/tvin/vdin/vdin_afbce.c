@@ -73,7 +73,7 @@ unsigned int vdin_afbce_cma_alloc(struct vdin_dev_s *devp)
 	unsigned int max_buffer_num = min_buf_num;
 	unsigned int i;
 	/*afbce head need 1036800 byte at most*/
-	unsigned int afbce_head_size_byte = PAGE_SIZE * 300;/*1.2M*/
+	unsigned int afbce_head_size_byte = PAGE_SIZE * 576;
 	/*afbce map_table need 218700 byte at most*/
 	unsigned int afbce_table_size_byte = PAGE_SIZE * 60;/*0.3M*/
 	unsigned int afbce_mem_used;
@@ -475,6 +475,11 @@ void vdin_afbce_config(struct vdin_dev_s *devp)
 	W_VCBUS_BIT(AFBCE_QUANT_ENABLE, (lossy_luma_en & 0x1), 0, 1);//loosy
 	W_VCBUS_BIT(AFBCE_QUANT_ENABLE, (lossy_chrm_en & 0x1), 4, 1);//loosy
 
+	if (devp->afbce_lossy_en == 1) {
+		afbce_wr(AFBCE_QUANT_ENABLE, 0xc11);
+		pr_info("afbce use lossy compression mode\n");
+	}
+
 	afbce_wr(AFBCE_SIZE_IN,
 		((devp->h_active & 0x1fff) << 16) |  // hsize_in of afbc input
 		((devp->v_active & 0x1fff) << 0)    // vsize_in of afbc input
@@ -573,15 +578,13 @@ void vdin_afbce_set_next_frame(struct vdin_dev_s *devp,
 	vfe->vf.compHeadAddr = devp->afbce_info->fm_head_paddr[i];
 	vfe->vf.compBodyAddr = devp->afbce_info->fm_body_paddr[i];
 
-#ifdef CONFIG_AML_RDMA
+#ifdef CONFIG_AMLOGIC_MEDIA_RDMA
 	if (rdma_enable) {
 		rdma_write_reg(devp->rdma_handle, AFBCE_HEAD_BADDR,
 			devp->afbce_info->fm_head_paddr[i]);
 		rdma_write_reg_bits(devp->rdma_handle, AFBCE_MMU_RMIF_CTRL4,
 			devp->afbce_info->fm_table_paddr[i], 0, 32);
 		rdma_write_reg_bits(devp->rdma_handle, AFBCE_ENABLE, 1, 0, 1);
-
-		//W_VCBUS_BIT(AFBCE_ENABLE, 1, 0, 1); //enable pulse mode
 	} else
 #endif
 	{

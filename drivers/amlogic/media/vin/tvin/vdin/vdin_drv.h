@@ -36,7 +36,7 @@
 #include <linux/amlogic/media/vfm/vframe_receiver.h>
 #include <linux/amlogic/media/vfm/vframe_provider.h>
 #include <linux/amlogic/media/frame_provider/tvin/tvin_v4l2.h>
-#ifdef CONFIG_AML_RDMA
+#ifdef CONFIG_AMLOGIC_MEDIA_RDMA
 #include <linux/amlogic/media/rdma/rdma_mgr.h>
 #endif
 
@@ -321,6 +321,7 @@ struct vdin_dev_s {
 	 * 2: use afbce mmu mode: head set by code, body addr assigning by hw
 	 */
 	unsigned int afbce_mode;
+	unsigned int afbce_lossy_en;
 	unsigned int canvas_config_mode;
 	bool	prehsc_en;
 	bool	vshrk_en;

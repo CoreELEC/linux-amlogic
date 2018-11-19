@@ -464,6 +464,8 @@ void vdin_get_format_convert(struct vdin_dev_s *devp)
 				format_convert = VDIN_FORMAT_CONVERT_YUV_NV21;
 			else if (devp->prop.dest_cfmt == TVIN_NV12)
 				format_convert = VDIN_FORMAT_CONVERT_YUV_NV12;
+			else if (devp->prop.dest_cfmt == TVIN_YUV444)
+				format_convert = VDIN_FORMAT_CONVERT_YUV_YUV444;
 			else
 				format_convert = VDIN_FORMAT_CONVERT_YUV_YUV422;
 			break;
@@ -745,18 +747,34 @@ void vdin_set_top(unsigned int offset,
 		if (port != TVIN_PORT_VIU1)
 			wr_bits(offset, VDIN_ASFIFO_CTRL3, 0xe4,
 				VDI6_ASFIFO_CTRL_BIT, VDI6_ASFIFO_CTRL_WID);
-		else
-			wr_bits(offset, VDIN_ASFIFO_CTRL3, 0xf4,
-				VDI6_ASFIFO_CTRL_BIT, VDI6_ASFIFO_CTRL_WID);
+		else {
+			if (/*is_meson_gxlx2_cpu() || */is_meson_g12b_cpu()
+				|| is_meson_tl1_cpu())
+				wr_bits(offset, VDIN_ASFIFO_CTRL3, 0xd4,
+					VDI6_ASFIFO_CTRL_BIT,
+					VDI6_ASFIFO_CTRL_WID);
+			else
+				wr_bits(offset, VDIN_ASFIFO_CTRL3, 0xf4,
+					VDI6_ASFIFO_CTRL_BIT,
+					VDI6_ASFIFO_CTRL_WID);
+		}
 		break;
 	case 0xc0: /* viu2 */
 		vdin_mux = VDIN_MUX_VIU_2;
 		if (port != TVIN_PORT_VIU2)
 			wr_bits(offset, VDIN_ASFIFO_CTRL3, 0xe4,
 				VDI8_ASFIFO_CTRL_BIT, VDI8_ASFIFO_CTRL_WID);
-		else
-			wr_bits(offset, VDIN_ASFIFO_CTRL3, 0xf4,
-				VDI8_ASFIFO_CTRL_BIT, VDI8_ASFIFO_CTRL_WID);
+		else {
+			if (/*is_meson_gxlx2_cpu() || */is_meson_g12b_cpu()
+				|| is_meson_tl1_cpu())
+				wr_bits(offset, VDIN_ASFIFO_CTRL3, 0xd4,
+					VDI6_ASFIFO_CTRL_BIT,
+					VDI6_ASFIFO_CTRL_WID);
+			else
+				wr_bits(offset, VDIN_ASFIFO_CTRL3, 0xf4,
+					VDI6_ASFIFO_CTRL_BIT,
+					VDI6_ASFIFO_CTRL_WID);
+		}
 		break;
 	case 0x100:/* mipi in mybe need modify base on truth */
 		vdin_mux = VDIN_MUX_MIPI;
@@ -1934,7 +1952,7 @@ void vdin_set_wr_ctrl_vsync(struct vdin_dev_s *devp,
 		hconv_mode = 2;
 		swap_cbcr = 0;
 	}
-#ifdef CONFIG_AML_RDMA
+#ifdef CONFIG_AMLOGIC_MEDIA_RDMA
 	if (rdma_enable) {
 		rdma_write_reg_bits(devp->rdma_handle,
 			VDIN_WR_CTRL+devp->addr_offset,
@@ -2028,7 +2046,7 @@ unsigned int vdin_get_total_v(unsigned int offset)
 void vdin_set_canvas_id(struct vdin_dev_s *devp, unsigned int rdma_enable,
 			unsigned int canvas_id)
 {
-#ifdef CONFIG_AML_RDMA
+#ifdef CONFIG_AMLOGIC_MEDIA_RDMA
 	if (rdma_enable) {
 		if (is_meson_g12a_cpu() || is_meson_g12b_cpu()) {
 			rdma_write_reg_bits(devp->rdma_handle,
@@ -2054,7 +2072,7 @@ unsigned int vdin_get_canvas_id(unsigned int offset)
 void vdin_set_chma_canvas_id(struct vdin_dev_s *devp, unsigned int rdma_enable,
 		unsigned int canvas_id)
 {
-#ifdef CONFIG_AML_RDMA
+#ifdef CONFIG_AMLOGIC_MEDIA_RDMA
 	if (rdma_enable)
 		rdma_write_reg_bits(devp->rdma_handle,
 				VDIN_WR_CTRL2+devp->addr_offset,
@@ -4039,6 +4057,8 @@ u32 vdin_get_curr_field_type(struct vdin_dev_s *devp)
 	if (devp->afbce_mode == 1) {
 		type |= VIDTYPE_COMPRESS;
 		type |= VIDTYPE_SCATTER;
+		if (devp->afbce_lossy_en == 1)
+			type |= VIDTYPE_COMPRESS_LOSS;
 	}
 
 	return type;

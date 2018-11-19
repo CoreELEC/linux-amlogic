@@ -374,7 +374,7 @@ static void vdin_vf_init(struct vdin_dev_s *devp)
 	}
 }
 
-#ifdef CONFIG_AML_RDMA
+#ifdef CONFIG_AMLOGIC_MEDIA_RDMA
 static void vdin_rdma_irq(void *arg)
 {
 	struct vdin_dev_s *devp = arg;
@@ -561,7 +561,7 @@ void vdin_start_dec(struct vdin_dev_s *devp)
 		devp->frontend->dec_ops->start(devp->frontend,
 				devp->parm.info.fmt);
 
-#ifdef CONFIG_AML_RDMA
+#ifdef CONFIG_AMLOGIC_MEDIA_RDMA
 	/*it is better put after all reg init*/
 	if (devp->rdma_enable && devp->rdma_handle > 0)
 		devp->flags |= VDIN_FLAG_RDMA_ENABLE;
@@ -668,7 +668,7 @@ void vdin_stop_dec(struct vdin_dev_s *devp)
 	switch_vpu_mem_pd_vmod(devp->addr_offset?VPU_VIU_VDIN1:VPU_VIU_VDIN0,
 			VPU_MEM_POWER_DOWN);
 	memset(&devp->prop, 0, sizeof(struct tvin_sig_property_s));
-#ifdef CONFIG_AML_RDMA
+#ifdef CONFIG_AMLOGIC_MEDIA_RDMA
 	rdma_clear(devp->rdma_handle);
 #endif
 	devp->flags &= (~VDIN_FLAG_RDMA_ENABLE);
@@ -1586,7 +1586,7 @@ irq_handled:
 		vdin_vf_disp_mode_skip(devp->vfp);
 
 	spin_unlock_irqrestore(&devp->isr_lock, flags);
-#ifdef CONFIG_AML_RDMA
+#ifdef CONFIG_AMLOGIC_MEDIA_RDMA
 	if (devp->flags & VDIN_FLAG_RDMA_ENABLE)
 		rdma_config(devp->rdma_handle,
 			(devp->rdma_enable&1) ?
@@ -1763,7 +1763,7 @@ irqreturn_t vdin_v4l2_isr(int irq, void *dev_id)
 
 irq_handled:
 	spin_unlock_irqrestore(&devp->isr_lock, flags);
-#ifdef CONFIG_AML_RDMA
+#ifdef CONFIG_AMLOGIC_MEDIA_RDMA
 	if (devp->flags & VDIN_FLAG_RDMA_ENABLE)
 		rdma_config(devp->rdma_handle,
 			(devp->rdma_enable&1) ?
@@ -2412,6 +2412,7 @@ static int vdin_drv_probe(struct platform_device *pdev)
 	int ret = 0;
 	struct vdin_dev_s *vdevp;
 	struct resource *res;
+	unsigned int val;
 	unsigned int urgent_en = 0;
 	unsigned int bit_mode = VDIN_WR_COLOR_DEPTH_8BIT;
 	/* const void *name; */
@@ -2432,7 +2433,7 @@ static int vdin_drv_probe(struct platform_device *pdev)
 		}
 	}
 	vdin_devp[vdevp->index] = vdevp;
-#ifdef CONFIG_AML_RDMA
+#ifdef CONFIG_AMLOGIC_MEDIA_RDMA
 	vdin_rdma_op.arg = vdin_devp;
 	vdevp->rdma_handle = rdma_register(&vdin_rdma_op,
 				NULL, RDMA_TABLE_SIZE);
@@ -2539,14 +2540,17 @@ static int vdin_drv_probe(struct platform_device *pdev)
 
 	/*set afbce mode*/
 	ret = of_property_read_u32(pdev->dev.of_node,
-		"afbce_bit_mode", &vdevp->afbce_mode);
+		"afbce_bit_mode", &val);
 	if (ret) {
 		vdevp->afbce_mode = 0;
 		pr_info("no afbce mode found, use normal mode\n");
 	} else {
+		vdevp->afbce_mode = val & 0xf;
+		vdevp->afbce_lossy_en = (val>>4)&0xf;
 		if ((is_meson_tl1_cpu()) && (vdevp->index == 0)) {
 			/* just use afbce at vdin0 */
 			pr_info("afbce mode = %d\n", vdevp->afbce_mode);
+			pr_info("afbce loosy en = %d\n", vdevp->afbce_lossy_en);
 			vdevp->afbce_info = devm_kzalloc(vdevp->dev,
 				sizeof(struct vdin_afbce_s), GFP_KERNEL);
 			if (!vdevp->afbce_info)
@@ -2714,7 +2718,7 @@ static int vdin_drv_remove(struct platform_device *pdev)
 	vdevp = platform_get_drvdata(pdev);
 
 	ret = cancel_delayed_work(&vdevp->vlock_dwork);
-#ifdef CONFIG_AML_RDMA
+#ifdef CONFIG_AMLOGIC_MEDIA_RDMA
 	rdma_unregister(vdevp->rdma_handle);
 #endif
 	mutex_destroy(&vdevp->fe_lock);
