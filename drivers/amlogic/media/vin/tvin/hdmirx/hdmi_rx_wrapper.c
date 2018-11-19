@@ -57,6 +57,10 @@ static int dwc_rst_wait_cnt_max = 1;
 static int sig_stable_cnt;
 static int sig_stable_max = 10;
 
+static int sig_stable_err_cnt;
+static int sig_stable_err_max = 5;
+static int max_err_cnt = 10;
+
 static bool clk_debug;
 
 static int hpd_wait_cnt;
@@ -983,6 +987,7 @@ bool rx_is_nosig(void)
 static bool rx_is_timing_stable(void)
 {
 	bool ret = true;
+	uint32_t ch0 = 0, ch1 = 0, ch2 = 0;
 
 	if ((abs(rx.cur.hactive - rx.pre.hactive) > diff_pixel_th) &&
 		(stable_check_lvl & HACTIVE_EN)) {
@@ -1065,6 +1070,22 @@ static bool rx_is_timing_stable(void)
 				rx.pre.colordepth,
 				rx.cur.colordepth);
 	}
+	/*for aml phy, check error counter*/
+	if (rx.hdmirxdev->data->chip_id == CHIP_ID_TL1 &&
+		(stable_check_lvl & ERR_CNT_EN)) {
+		rx_get_error_cnt(&ch0, &ch1, &ch2);
+		if ((ch0 + ch1 + ch2) > max_err_cnt) {
+			if (sig_stable_err_cnt++ > sig_stable_err_max) {
+				rx_pr("warning: more err counter\n");
+				sig_stable_err_cnt = 0;
+				/*phy setting is fail, need reset phy*/
+				sig_unstable_cnt = sig_unstable_max;
+				rx.physts.cable_clk = 0;
+			}
+			ret = false;
+		}
+	}
+
 	if ((ret == false) && (log_level & VIDEO_LOG))
 		rx_pr("\n");
 
@@ -2012,21 +2033,17 @@ void rx_5v_monitor(void)
  */
 void rx_clk_rate_monitor(void)
 {
-	int cur_cable_clk;
+	int cur_cable_clk/*, cur_cable_clk1*/;
 	unsigned int clk_diff;
 	unsigned int cur_phy_bw, i = 0;
 	static unsigned int phy_bw_cnt;
 	unsigned int cur_clk_rate;
+	unsigned int pll_lock = 0;
 
-	/*cur_cable_clk = rx_measure_clock(MEASURE_CLK_CABLE);*/
-	cur_cable_clk = rx_get_clock(TOP_HDMI_CABLECLK);
-	if (cur_cable_clk < 0)
-		return;
-
+	cur_cable_clk = rx_measure_clock(MEASURE_CLK_CABLE);
 	clk_diff = diff(rx.physts.cable_clk, cur_cable_clk);
-
 	cur_clk_rate = rx_get_scdc_clkrate_sts();
-	cur_phy_bw = aml_check_clk_bandwidth(cur_cable_clk, cur_clk_rate);
+	cur_phy_bw = aml_cable_clk_band(cur_cable_clk, cur_clk_rate);
 	if ((rx.cur_5v_sts) &&	((rx.physts.phy_bw != cur_phy_bw) ||
 			(rx.physts.clk_rate != cur_clk_rate) ||
 			(clk_diff > (1000*KHz)))) {
@@ -2037,8 +2054,8 @@ void rx_clk_rate_monitor(void)
 					i, cur_cable_clk, cur_clk_rate);
 				aml_phy_bw_switch(cur_cable_clk, cur_clk_rate);
 				udelay(50);/*wait pll lock*/
-				if ((cur_cable_clk < (20 * MHz)) ||
-					aml_phy_pll_lock())
+				pll_lock = aml_phy_pll_lock();
+				if ((cur_cable_clk < (20 * MHz)) || pll_lock)
 					break;
 			}
 			rx.physts.cable_clk = cur_cable_clk;
@@ -2071,6 +2088,7 @@ void rx_monitor_error_counter(void)
 		return;
 
 	timestap = get_seconds();
+
 	if ((timestap - rx.physts.timestap) > 1) {
 		rx.physts.timestap = timestap;
 		rx_get_error_cnt(&ch0, &ch1, &ch2);
@@ -2162,7 +2180,6 @@ char *fsm_st[] = {
 void rx_main_state_machine(void)
 {
 	int pre_auds_ch_alloc;
-	uint32_t ch0, ch1, ch2;
 
 	if (rx.hdmirxdev->data->chip_id == CHIP_ID_TL1)
 		rx_clk_rate_monitor();
@@ -2298,6 +2315,7 @@ void rx_main_state_machine(void)
 		dwc_rst_wait_cnt = 0;
 		sig_stable_cnt = 0;
 		sig_unstable_cnt = 0;
+		sig_stable_err_cnt = 0;
 		rx.state = FSM_SIG_STABLE;
 		break;
 	case FSM_SIG_STABLE:
@@ -2332,16 +2350,6 @@ void rx_main_state_machine(void)
 					dvi_check_en = false;
 					break;
 				}
-				if (rx.hdmirxdev->data->chip_id
-					== CHIP_ID_TL1) {
-					rx_get_error_cnt(&ch0, &ch1, &ch2);
-					if (ch0 || ch1 || ch2) {
-						rx_pr("have err cnt\n");
-						aml_phy_bw_switch(
-							rx.physts.cable_clk,
-							rx.physts.clk_rate);
-					}
-				}
 				rx.skip = 0;
 				rx.state = FSM_SIG_READY;
 				rx.aud_sr_stable_cnt = 0;
@@ -2362,6 +2370,7 @@ void rx_main_state_machine(void)
 				#ifdef K_TEST_CHK_ERR_CNT
 				rx_monitor_error_cnt_start();
 				#endif
+				sig_stable_err_cnt = 0;
 			}
 		} else {
 			sig_stable_cnt = 0;
@@ -2973,6 +2982,7 @@ static void dump_phy_status(void)
 			rd_reg_hhi(HHI_HDMIRX_APLL_CNTL0));
 		rx_pr("TMDS_ALIGN_STAT = 0x%x\n",
 			hdmirx_rd_top(TOP_TMDS_ALIGN_STAT));
+		rx_pr("all valid = 0x%x\n", aml_phy_tmds_valid());
 	}
 }
 

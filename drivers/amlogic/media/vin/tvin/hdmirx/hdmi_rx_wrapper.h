@@ -30,6 +30,7 @@
 #define INTERLACED_EN	0x100
 #define HDCP_ENC_EN		0x200
 #define COLOR_DEP_EN	0x400
+#define ERR_CNT_EN		0x800
 
 /* aud sample rate stable range */
 /* #define AUD_SR_RANGE 2000 */

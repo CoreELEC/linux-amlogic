@@ -1227,15 +1227,23 @@ enum measure_clk_src_e {
 
 #define PHY_DEFAULT_FRQ	((100)*MHz)
 
-enum apllbw {
-	apll_bw_24_40 = 0,
-	apll_bw_40_80,
-	apll_bw_80_150,
-	apll_bw_150_300,
-	apll_bw_300_600,
-	apll_bw_null = 0xf,
+enum phy_frq_band {
+	phy_frq_band_0 = 0,
+	phy_frq_band_1,
+	phy_frq_band_2,
+	phy_frq_band_3,
+	phy_frq_band_4,
+	phy_frq_null = 0xf,
 };
 
+enum pll_frq_band {
+	pll_frq_band_0 = 0,
+	pll_frq_band_1,
+	pll_frq_band_2,
+	pll_frq_band_3,
+	pll_frq_band_4,
+	pll_frq_null = 0xf,
+};
 
 struct apll_param {
 	unsigned int bw;
@@ -1250,15 +1258,16 @@ struct apll_param {
 extern int rx_get_clock(enum measure_clk_top_e clk_src);
 extern unsigned int clk_util_clk_msr(unsigned int clk_mux);
 extern unsigned int rx_measure_clock(enum measure_clk_src_e clksrc);
-extern void aml_phy_init(unsigned int bw);
-extern void aml_phy_pw_onoff(unsigned int onoff);
-extern unsigned int  aml_check_clk_bandwidth(unsigned int cableclk,
-	unsigned int clkrate);
-extern void aml_sw_apll(unsigned int bandwidth, unsigned int cableclk);
-extern void aml_phy_bw_switch(unsigned int cableclk, unsigned int clkrate);
+extern void aml_phy_init(uint32_t bw);
+extern void aml_phy_pw_onoff(uint32_t onoff);
+extern uint32_t aml_cable_clk_band(uint32_t cableclk,
+	uint32_t clkrate);
+extern uint32_t aml_phy_pll_band(uint32_t cableclk,
+	uint32_t clkrate);
+extern void aml_phy_bw_switch(uint32_t cableclk, uint32_t clkrate);
 extern unsigned int aml_phy_pll_lock(void);
 extern unsigned int aml_phy_tmds_valid(void);
-extern void aml_eq_setting(unsigned int bw);
+extern void aml_eq_setting(uint32_t bw);
 extern void rx_emp_to_ddr_init(void);
 extern void rx_emp_field_done_irq(void);
 extern void rx_emp_status(void);

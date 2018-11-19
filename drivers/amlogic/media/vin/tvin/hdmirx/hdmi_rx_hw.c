@@ -2148,7 +2148,7 @@ void hdmirx_phy_init(void)
 		data32 |= rx.port << 2;
 		hdmirx_wr_dwc(DWC_SNPS_PHYG3_CTRL, data32);
 
-		cur_cable_clk = rx_get_clock(TOP_HDMI_CABLECLK);
+		cur_cable_clk = rx_measure_clock(MEASURE_CLK_CABLE);
 		data32 = rx_get_scdc_clkrate_sts();
 		if (cur_cable_clk > 0)
 			aml_phy_bw_switch(cur_cable_clk, data32);
@@ -3158,11 +3158,11 @@ int rx_get_aud_pll_err_sts(void)
 	return ret;
 }
 
-unsigned int  aml_check_clk_bandwidth(unsigned int cableclk,
-	unsigned int clkrate)
+uint32_t aml_cable_clk_band(uint32_t cableclk,
+	uint32_t clkrate)
 {
-	unsigned int bw;
-	unsigned int cab_clk = cableclk;
+	uint32_t bw;
+	uint32_t cab_clk = cableclk;
 
 	/*rx_pr("cable clk=%d, clkrate=%d\n", cableclk, clkrate);*/
 	/* 1:40 */
@@ -3170,33 +3170,33 @@ unsigned int  aml_check_clk_bandwidth(unsigned int cableclk,
 		cab_clk = cableclk << 2;
 
 	/* 1:10 */
-	if (cab_clk < (40 * MHz))
-		bw = apll_bw_24_40;
-	else if (cab_clk < (80 * MHz))
-		bw = apll_bw_40_80;
-	else if (cab_clk < (150 * MHz))
-		bw = apll_bw_80_150;
-	else if (cab_clk < (300 * MHz))
-		bw = apll_bw_150_300;
-	else if (cab_clk < (600 * MHz))
-		bw = apll_bw_300_600;
+	if (cab_clk < (45*MHz))
+		bw = phy_frq_band_0;
+	else if (cab_clk < (77*MHz))
+		bw = phy_frq_band_1;
+	else if (cab_clk < (155*MHz))
+		bw = phy_frq_band_2;
+	else if (cab_clk < (300*MHz))
+		bw = phy_frq_band_3;
+	else if (cab_clk < (600*MHz))
+		bw = phy_frq_band_4;
 	else {
-		bw = apll_bw_80_150;
+		bw = phy_frq_band_2;
 		rx_pr("phy err: bw clk=%d\n", cableclk);
 	}
 	return bw;
 }
 
-void aml_phy_init(unsigned int bw)
+void aml_phy_init(uint32_t bw)
 {
-	unsigned int data32;
-	unsigned int term_value = 0x7;/*all terminal on*/
+	uint32_t data32;
+	uint32_t term_value = 0x7;/*all terminal on*/
 	/*	hdmirx_rd_top(TOP_HPD_PWR5V);*/
 
 	rx_pr("init phy port %d, bw:%d\n", rx.port, bw);
-	if (bw == apll_bw_null) {
+	if (bw == phy_frq_null) {
 		return;
-	} else if (bw <= apll_bw_24_40) {
+	} else if (bw <= phy_frq_band_0) {
 		/* enable terminal connect */
 		data32 = 0x30034078|(term_value & 0x7);
 		wr_reg_hhi(HHI_HDMIRX_PHY_MISC_CNTL0, data32);/*35c*/
@@ -3205,7 +3205,7 @@ void aml_phy_init(unsigned int bw)
 		wr_reg_hhi(HHI_HDMIRX_PHY_MISC_CNTL0, data32);/*35c*/
 		rx_pr("MISC_CNTL0=0x%x\n", data32);
 		wr_reg_hhi(HHI_HDMIRX_PHY_MISC_CNTL1, 0x00000080);/*360*/
-		wr_reg_hhi(HHI_HDMIRX_PHY_MISC_CNTL2, 0x02218000);/*380*/
+		wr_reg_hhi(HHI_HDMIRX_PHY_MISC_CNTL2, 0x02200000);/*380*/
 		/* reset and select data port */
 		data32 = 0x00000010;
 		data32 |= ((1 << rx.port) << 6);
@@ -3218,10 +3218,11 @@ void aml_phy_init(unsigned int bw)
 		wr_reg_hhi(HHI_HDMIRX_PHY_DCHA_CNTL0, 0x00000182);
 		wr_reg_hhi(HHI_HDMIRX_PHY_DCHA_CNTL1, 0x2800c202);
 		wr_reg_hhi(HHI_HDMIRX_PHY_DCHA_CNTL2, 0x010088a2);
-		wr_reg_hhi(HHI_HDMIRX_PHY_DCHD_CNTL0, 0x002c733a);
+		wr_reg_hhi(HHI_HDMIRX_PHY_DCHD_CNTL0, 0x002c714a);
 		wr_reg_hhi(HHI_HDMIRX_PHY_DCHD_CNTL2, 0x00018000);
 		wr_reg_hhi(HHI_HDMIRX_PHY_DCHD_CNTL1, 0x1e013130);
-	} else if (bw <= apll_bw_40_80) {
+		wr_reg_hhi(HHI_HDMIRX_PHY_DCHD_CNTL1, 0x1e413130);
+	} else if (bw <= phy_frq_band_1) {
 		/* enable terminal connect */
 		data32 = 0x30034078|(term_value & 0x7);
 		wr_reg_hhi(HHI_HDMIRX_PHY_MISC_CNTL0, data32);/*35c*/
@@ -3247,7 +3248,7 @@ void aml_phy_init(unsigned int bw)
 		wr_reg_hhi(HHI_HDMIRX_PHY_DCHD_CNTL2, 0x00028000);/*39c*/
 		wr_reg_hhi(HHI_HDMIRX_PHY_DCHD_CNTL1, 0x1e062620);/*398*/
 		wr_reg_hhi(HHI_HDMIRX_PHY_DCHD_CNTL1, 0x1e462620);/*398*/
-	} else if (bw <= apll_bw_80_150) {
+	} else if (bw <= phy_frq_band_2) {
 		/* enable terminal connect */
 		data32 = 0x30034078|(term_value & 0x7);
 		wr_reg_hhi(HHI_HDMIRX_PHY_MISC_CNTL0, data32);/*35c*/
@@ -3272,7 +3273,7 @@ void aml_phy_init(unsigned int bw)
 		wr_reg_hhi(HHI_HDMIRX_PHY_DCHD_CNTL2, 0x00018000);/*39c*/
 		wr_reg_hhi(HHI_HDMIRX_PHY_DCHD_CNTL1, 0x1e062620);/*398*/
 		wr_reg_hhi(HHI_HDMIRX_PHY_DCHD_CNTL1, 0x1e462620);/*398*/
-	} else if (bw <= apll_bw_150_300) {
+	} else if (bw <= phy_frq_band_3) {
 		/* 3G */
 		/* enable terminal connect */
 		data32 = 0x30034078|(term_value & 0x7);
@@ -3328,19 +3329,18 @@ void aml_phy_init(unsigned int bw)
 	}
 }
 
-void aml_eq_setting(unsigned int bw)
+void aml_eq_setting(uint32_t bw)
 {
 	static uint32_t cnt;
 
-	if (bw == apll_bw_null) {
+	if (bw == phy_frq_null) {
 		return;
-	} else if (bw <= apll_bw_24_40) {
+	} else if (bw <= phy_frq_band_0) {
 		#if 0
-		wr_reg_hhi(HHI_HDMIRX_PHY_DCHD_CNTL0, 0x002c733a);
 		wr_reg_hhi(HHI_HDMIRX_PHY_DCHD_CNTL2, 0x00018000);
 		wr_reg_hhi(HHI_HDMIRX_PHY_DCHD_CNTL1, 0x1e013130);
-		#endif
-	} else if (bw <= apll_bw_40_80) {
+		wr_reg_hhi(HHI_HDMIRX_PHY_DCHD_CNTL1, 0x1e413130);
+		#else
 		if (cnt & 0x1) {
 			wr_reg_hhi(HHI_HDMIRX_PHY_DCHD_CNTL2, 0x00028000);
 			wr_reg_hhi(HHI_HDMIRX_PHY_DCHD_CNTL1, 0x1e022220);
@@ -3352,7 +3352,20 @@ void aml_eq_setting(unsigned int bw)
 			udelay(1);
 			wr_reg_hhi(HHI_HDMIRX_PHY_DCHD_CNTL1, 0x1e462620);
 		}
-	} else if (bw <= apll_bw_80_150) {
+		#endif
+	} else if (bw <= phy_frq_band_1) {
+		if (cnt & 0x1) {
+			wr_reg_hhi(HHI_HDMIRX_PHY_DCHD_CNTL2, 0x00028000);
+			wr_reg_hhi(HHI_HDMIRX_PHY_DCHD_CNTL1, 0x1e022220);
+			udelay(1);
+			wr_reg_hhi(HHI_HDMIRX_PHY_DCHD_CNTL1, 0x1e422220);
+		} else {
+			wr_reg_hhi(HHI_HDMIRX_PHY_DCHD_CNTL2, 0x00028000);
+			wr_reg_hhi(HHI_HDMIRX_PHY_DCHD_CNTL1, 0x1e062620);
+			udelay(1);
+			wr_reg_hhi(HHI_HDMIRX_PHY_DCHD_CNTL1, 0x1e462620);
+		}
+	} else if (bw <= phy_frq_band_2) {
 		if (cnt & 0x1) {
 			wr_reg_hhi(HHI_HDMIRX_PHY_DCHD_CNTL2, 0x00028000);
 			wr_reg_hhi(HHI_HDMIRX_PHY_DCHD_CNTL1, 0x1e022220);
@@ -3364,7 +3377,7 @@ void aml_eq_setting(unsigned int bw)
 			udelay(1);
 			wr_reg_hhi(HHI_HDMIRX_PHY_DCHD_CNTL1, 0x1e462620);
 		}
-	} else if (bw <= apll_bw_150_300) {
+	} else if (bw <= phy_frq_band_3) {
 		if (cnt & 0x1) {
 			wr_reg_hhi(HHI_HDMIRX_PHY_DCHD_CNTL2, 0x00028000);
 			wr_reg_hhi(HHI_HDMIRX_PHY_DCHD_CNTL1, 0x1e022220);
@@ -3392,29 +3405,58 @@ void aml_eq_setting(unsigned int bw)
 struct apll_param apll_tab[] = {
 	/*od for tmds: 2/4/8/16/32*/
 	/*od2 for audio: 1/2/4/8/16*/
-	/* bw M, N, od,	od_div, od2, od2_div */
-	{apll_bw_24_40, 160, 1, 0x5, 32, 0x3, 8},/*tmdsx4*/
-	{apll_bw_40_80, 80, 1, 0x4,	16, 0x3, 8},/*tmdsx2*/
-	{apll_bw_80_150, 40, 1, 0x3, 8,	0x3, 8},/*tmds*/
-	{apll_bw_150_300, 40, 2, 0x2, 4, 0x2, 4},/*tmds*/
-	{apll_bw_300_600, 40, 1, 0x1, 2, 0x1, 2},/*tmds*/
-	{apll_bw_null, 40, 1, 0x3, 8,	0x3, 8},
+	/* bw M, N, od, od_div, od2, od2_div */
+	{pll_frq_band_0, 160, 1, 0x5, 32, 0x3, 8},/*tmdsx4*/
+	{pll_frq_band_1, 80, 1, 0x4,	16, 0x3, 8},/*tmdsx2*/
+	{pll_frq_band_2, 40, 1, 0x3, 8, 0x3, 8},/*tmds*/
+	{pll_frq_band_3, 40, 2, 0x2, 4, 0x2, 4},/*tmds*/
+	{pll_frq_band_4, 40, 1, 0x1, 2, 0x1, 2},/*tmds*/
+	{pll_frq_null, 40, 1, 0x3, 8,	0x3, 8},
 };
 
-void aml_phy_pll_setting(unsigned int bandwidth, unsigned int cable_clk)
+uint32_t aml_phy_pll_band(uint32_t cableclk,
+	uint32_t clkrate)
 {
-	unsigned int M, N;
-	unsigned int od, od_div;
-	unsigned int od2, od2_div;
-	unsigned int bw = bandwidth;
-	unsigned int vco_clk;
-	unsigned int apll_out;
-	unsigned int aud_pll_out;
-	unsigned int data, data2;
-	unsigned int aud_div;
-	unsigned int cableclk = cable_clk / KHz;
+	uint32_t bw;
+	uint32_t cab_clk = cableclk;
 
-	rx_pr("bw:%d, cableclk:%d\n", bandwidth, cableclk);
+	if (clkrate)
+		cab_clk = cableclk << 2;
+
+	/* 1:10 */
+	if (cab_clk < (35*MHz))
+		bw = pll_frq_band_0;
+	else if (cab_clk < (77*MHz))
+		bw = pll_frq_band_1;
+	else if (cab_clk < (155*MHz))
+		bw = pll_frq_band_2;
+	else if (cab_clk < (300*MHz))
+		bw = pll_frq_band_3;
+	else if (cab_clk < (600*MHz))
+		bw = pll_frq_band_4;
+	else {
+		bw = pll_frq_band_2;
+		rx_pr("phy err: bw clk=%d\n", cableclk);
+	}
+
+	return bw;
+}
+
+void aml_phy_pll_setting(uint32_t cable_clk, uint32_t clkrate)
+{
+	uint32_t M, N;
+	uint32_t od, od_div;
+	uint32_t od2, od2_div;
+	uint32_t bw;
+	uint32_t vco_clk;
+	uint32_t apll_out;
+	uint32_t aud_pll_out;
+	uint32_t data, data2;
+	uint32_t aud_div;
+	uint32_t cableclk = cable_clk / KHz;
+
+	bw = aml_phy_pll_band(cable_clk, clkrate);
+	rx_pr("bw:%d, cableclk:%d\n", bw, cableclk);
 	od_div = apll_tab[bw].od_div;
 	od = apll_tab[bw].od;
 	M = apll_tab[bw].M;
@@ -3428,9 +3470,9 @@ void aml_phy_pll_setting(unsigned int bandwidth, unsigned int cable_clk)
 
 	/*tmds clk out*/
 	apll_out = (vco_clk/od_div)/5;
-	rx_pr("M=%d,N=%d,od=%d,od_div=%d\n", M, N, od, od_div);
+	/*rx_pr("M=%d,N=%d,od=%d,od_div=%d\n", M, N, od, od_div);*/
 	rx_pr("apll_out=%d, vco_clk=%d\n", apll_out, vco_clk);
-	rx_pr("od2=%d, od2_div=%d\n", od2, od2_div);
+	/*rx_pr("od2=%d, od2_div=%d\n", od2, od2_div);*/
 
 	aud_pll_out = ((vco_clk/od2_div)/5);
 	rx_pr("aud pll out=%d\n", aud_pll_out);
@@ -3442,9 +3484,14 @@ void aml_phy_pll_setting(unsigned int bandwidth, unsigned int cable_clk)
 	wr_reg_hhi(HHI_HDMIRX_APLL_CNTL0, data|0x20000000);
 	udelay(2);
 	wr_reg_hhi(HHI_HDMIRX_APLL_CNTL0, data|0x30000000);
-	rx_pr("APLL_CNTL0:0x%x\n", rd_reg_hhi(HHI_HDMIRX_APLL_CNTL0));
+	/*rx_pr("APLL_CNTL0:0x%x\n", rd_reg_hhi(HHI_HDMIRX_APLL_CNTL0));*/
+	rd_reg_hhi(HHI_HDMIRX_APLL_CNTL0);
+	udelay(50);
 	wr_reg_hhi(HHI_HDMIRX_APLL_CNTL1, 0x00000000);
-	wr_reg_hhi(HHI_HDMIRX_APLL_CNTL2, 0x00001108);
+	if (bw <= pll_frq_band_1)
+		wr_reg_hhi(HHI_HDMIRX_APLL_CNTL2, 0x0000110e);
+	else
+		wr_reg_hhi(HHI_HDMIRX_APLL_CNTL2, 0x00001108);
 	data2 = 0x10058f30|od2;
 	wr_reg_hhi(HHI_HDMIRX_APLL_CNTL3, data2);
 
@@ -3454,20 +3501,19 @@ void aml_phy_pll_setting(unsigned int bandwidth, unsigned int cable_clk)
 	udelay(2);
 	/*apll_vctrl_mon_en*/
 	wr_reg_hhi(HHI_HDMIRX_APLL_CNTL4, data2|0x00800000);
-	rx_pr("APLL_CNTL4:0x%x\n", rd_reg_hhi(HHI_HDMIRX_APLL_CNTL4));
-
+	/*rx_pr("APLL_CNTL4:0x%x\n", rd_reg_hhi(HHI_HDMIRX_APLL_CNTL4));*/
+	rd_reg_hhi(HHI_HDMIRX_APLL_CNTL4);
+	udelay(80);
 	wr_reg_hhi(HHI_HDMIRX_APLL_CNTL0, data|0x34000000);
 	udelay(2);
 	wr_reg_hhi(HHI_HDMIRX_APLL_CNTL0, data|0x14000000);
-	rx_pr("APLL_CNTL0:0x%x\n", rd_reg_hhi(HHI_HDMIRX_APLL_CNTL0));
-	wr_reg_hhi(HHI_HDMIRX_APLL_CNTL2, 0x00003008);
-
-
-	/*wr_reg_hhi(HHI_HDMIRX_PHY_DCHD_CNTL2, 0x00018000);*/
-	/*wr_reg_hhi(HHI_HDMIRX_PHY_DCHD_CNTL1, 0x1e040400);*/
-	/*udelay(2);*/
-	/*wr_reg_hhi(HHI_HDMIRX_PHY_DCHD_CNTL1, 0x1e440400);*/
-
+	/*rx_pr("APLL_CNTL0:0x%x\n", rd_reg_hhi(HHI_HDMIRX_APLL_CNTL0));*/
+	rd_reg_hhi(HHI_HDMIRX_APLL_CNTL0);
+	udelay(60);
+	if (bw <= pll_frq_band_1)
+		wr_reg_hhi(HHI_HDMIRX_APLL_CNTL2, 0x0000300e);
+	else
+		wr_reg_hhi(HHI_HDMIRX_APLL_CNTL2, 0x00003008);
 	/* common block release reset */
 	data = rd_reg_hhi(HHI_HDMIRX_PHY_MISC_CNTL0);
 	data &= ~(0x7 << 7);
@@ -3479,7 +3525,7 @@ void aml_phy_pll_setting(unsigned int bandwidth, unsigned int cable_clk)
 
 	/*set audio pll divider*/
 	aud_div = aud_pll_out/apll_out;
-	rx_pr("aud div=%d\n", aud_div);
+	/*rx_pr("aud div=%d\n", aud_div);*/
 	if (aud_div == 1)
 		data = 0;
 	else if (aud_div == 2)
@@ -3493,9 +3539,9 @@ void aml_phy_pll_setting(unsigned int bandwidth, unsigned int cable_clk)
 	rx.physts.aud_div = data;
 }
 
-void aml_phy_pw_onoff(unsigned int onoff)
+void aml_phy_pw_onoff(uint32_t onoff)
 {
-	unsigned int data = rd_reg_hhi(HHI_HDMIRX_APLL_CNTL0);
+	uint32_t data = rd_reg_hhi(HHI_HDMIRX_APLL_CNTL0);
 
 	if (onoff) {
 		/* apll power down */
@@ -3511,22 +3557,24 @@ void aml_phy_pw_onoff(unsigned int onoff)
 		data &= ~(1 << 9);
 		wr_reg_hhi(HHI_HDMIRX_PHY_MISC_CNTL0, data);
 	} else {
-		aml_phy_init(apll_bw_80_150);
-		/*tl1_apll_setting(apll_bw_80_150);*/
+		aml_phy_init(phy_frq_band_2);
+		/*tl1_apll_setting(apll_frq_band_2);*/
 	}
 }
 
 /*
  * aml phy initial
  */
-void aml_phy_bw_switch(unsigned int cableclk, unsigned int clkrate)
+void aml_phy_bw_switch(uint32_t cableclk, uint32_t clkrate)
 {
-	unsigned int bw;
+	uint32_t bw;
 
-	bw = aml_check_clk_bandwidth(cableclk, clkrate);
+	if (cableclk == 0)
+		cableclk = PHY_DEFAULT_FRQ;
+	bw = aml_cable_clk_band(cableclk, clkrate);
 	aml_phy_init(bw);
 	udelay(1);
-	aml_phy_pll_setting(bw, cableclk);
+	aml_phy_pll_setting(cableclk, clkrate);
 	udelay(1);
 	aml_eq_setting(bw);
 }
@@ -3541,20 +3589,29 @@ unsigned int aml_phy_pll_lock(void)
 
 unsigned int aml_phy_tmds_valid(void)
 {
-	unsigned int tmvds_valid;
+	unsigned int tmds_valid;
 	unsigned int sqofclk;
 	unsigned int pll_lock;
 	unsigned int tmds_align;
 
-	tmvds_valid = hdmirx_rd_dwc(DWC_HDMI_PLL_LCK_STS) & 0x01;
+	tmds_valid = hdmirx_rd_dwc(DWC_HDMI_PLL_LCK_STS) & 0x01;
 	sqofclk = hdmirx_rd_top(TOP_MISC_STAT0) & 0x1;
 	pll_lock = rd_reg_hhi(HHI_HDMIRX_APLL_CNTL0) & 0x80000000;
 	tmds_align = hdmirx_rd_top(TOP_TMDS_ALIGN_STAT) & 0x3f000000;
-	if (tmvds_valid && sqofclk && pll_lock &&
+	if (tmds_valid && sqofclk && pll_lock &&
 		(tmds_align == 0x3f000000))
 		return true;
-	else
+	else {
+		if (log_level & VIDEO_LOG) {
+			rx_pr("tmds:%x,sqo:%x,lock:%x,align:%x\n",
+				tmds_valid, sqofclk, pll_lock, tmds_align);
+			rx_pr("cable clk0:%d\n",
+				rx_measure_clock(MEASURE_CLK_CABLE));
+			rx_pr("cable clk1:%d\n",
+				rx_get_clock(TOP_HDMI_CABLECLK));
+		}
 		return false;
+	}
 }
 
 void rx_phy_rxsense_pulse(unsigned int t1, unsigned int t2)
