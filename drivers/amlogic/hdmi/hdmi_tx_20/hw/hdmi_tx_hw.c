@@ -4722,21 +4722,32 @@ static void config_hdmi20_tx(enum hdmi_vic vic,
 	hdmitx_wr_reg(HDMITX_TOP_INTR_MASKN, data32);
 
 	/* Reset pulse */
-	hdmitx_rd_check_reg(HDMITX_DWC_MC_LOCKONCLOCK, 0xff, 0x9f);
-	hdmitx_wr_reg(HDMITX_DWC_MC_SWRSTZREQ, 0);
-	mdelay(10);
+        hdmitx_rd_check_reg(HDMITX_DWC_MC_LOCKONCLOCK, 0xff, 0x9f);
 
-	data32  = 0;
-	data32 |= (1 << 7);
-	data32 |= (1 << 6);
-	data32 |= (1 << 4);
-	data32 |= (1 << 3);
-	data32 |= (1 << 2);
-	data32 |= (0 << 1);
-	data32 |= (1 << 0);
-	hdmitx_wr_reg(HDMITX_DWC_MC_SWRSTZREQ, data32);
-	hdmitx_wr_reg(HDMITX_DWC_FC_VSYNCINWIDTH,
-		hdmitx_rd_reg(HDMITX_DWC_FC_VSYNCINWIDTH));
+        hd_write_reg(P_ENCP_VIDEO_EN, 0);
+        hdmitx_wr_reg(HDMITX_DWC_MC_CLKDIS, 0xdf);
+        hdmitx_wr_reg(HDMITX_DWC_MC_SWRSTZREQ, 0);
+        mdelay(10);
+
+        data32  = 0;
+        data32 |= (1 << 7);
+        data32 |= (1 << 6);
+        data32 |= (1 << 4);
+        data32 |= (1 << 3);
+        data32 |= (1 << 2);
+        data32 |= (0 << 1);
+        data32 |= (1 << 0);
+        hdmitx_wr_reg(HDMITX_DWC_MC_SWRSTZREQ, data32);
+        hdmitx_wr_reg(HDMITX_DWC_FC_VSYNCINWIDTH,
+                hdmitx_rd_reg(HDMITX_DWC_FC_VSYNCINWIDTH));
+
+        hdmitx_wr_reg(HDMITX_DWC_MC_CLKDIS, 0);
+        hd_write_reg(P_ENCP_VIDEO_EN, 0xff);
+
+        hdmitx_set_reg_bits(HDMITX_DWC_FC_INVIDCONF, 0, 3, 1);
+        mdelay(1);
+        hdmitx_set_reg_bits(HDMITX_DWC_FC_INVIDCONF, 1, 3, 1);
+
 } /* config_hdmi20_tx */
 
 /* TODO */
