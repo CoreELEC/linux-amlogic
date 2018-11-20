@@ -33,7 +33,7 @@
 #include <linux/arm-smccc.h>
 #include <asm/cacheflush.h>
 
-static long meson_efuse_fn_smc(struct efuse_hal_api_arg *arg)
+static long meson64_efuse_fn_smc(struct efuse_hal_api_arg *arg)
 {
 	long ret;
 	unsigned int cmd, offset, size;
@@ -71,7 +71,7 @@ static long meson_efuse_fn_smc(struct efuse_hal_api_arg *arg)
 		return 0;
 }
 
-int meson_trustzone_efuse(struct efuse_hal_api_arg *arg)
+int meson64_trustzone_efuse(struct efuse_hal_api_arg *arg)
 {
 	int ret;
 
@@ -79,7 +79,7 @@ int meson_trustzone_efuse(struct efuse_hal_api_arg *arg)
 		return -1;
 
 	set_cpus_allowed_ptr(current, cpumask_of(0));
-	ret = meson_efuse_fn_smc(arg);
+	ret = meson64_efuse_fn_smc(arg);
 	set_cpus_allowed_ptr(current, cpu_all_mask);
 	return ret;
 }
@@ -101,7 +101,7 @@ unsigned long efuse_aml_sec_boot_check(unsigned long nType,
 	memcpy((void *)sharemem_input_base,
 		(const void *)pBuffer, nLength);
 
-	__flush_dcache_area(sharemem_input_base, nLength);
+	//__flush_dcache_area(sharemem_input_base, nLength);
 
 	asm __volatile__("" : : : "memory");
 
@@ -133,7 +133,7 @@ unsigned long efuse_amlogic_set(char *buf, size_t count)
 	return ret;
 }
 
-ssize_t meson_trustzone_efuse_get_max(struct efuse_hal_api_arg *arg)
+ssize_t meson64_trustzone_efuse_get_max(struct efuse_hal_api_arg *arg)
 {
 	ssize_t ret;
 	unsigned int cmd;
@@ -164,7 +164,7 @@ ssize_t efuse_get_max(void)
 	arg.cmd = EFUSE_HAL_API_USER_MAX;
 
 	set_cpus_allowed_ptr(current, cpumask_of(0));
-	ret = meson_trustzone_efuse_get_max(&arg);
+	ret = meson64_trustzone_efuse_get_max(&arg);
 	set_cpus_allowed_ptr(current, cpu_all_mask);
 
 	if (ret == 0) {
@@ -187,7 +187,7 @@ ssize_t _efuse_read(char *buf, size_t count, loff_t *ppos)
 	arg.size = count;
 	arg.buffer = (unsigned long)buf;
 	arg.retcnt = (unsigned long)&retcnt;
-	ret = meson_trustzone_efuse(&arg);
+	ret = meson64_trustzone_efuse(&arg);
 	if (ret == 0) {
 		*ppos += retcnt;
 		return retcnt;
@@ -211,7 +211,7 @@ ssize_t _efuse_write(const char *buf, size_t count, loff_t *ppos)
 	arg.buffer = (unsigned long)buf;
 	arg.retcnt = (unsigned long)&retcnt;
 
-	ret = meson_trustzone_efuse(&arg);
+	ret = meson64_trustzone_efuse(&arg);
 	if (ret == 0) {
 		*ppos = retcnt;
 		return retcnt;

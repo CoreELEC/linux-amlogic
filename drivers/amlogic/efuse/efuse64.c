@@ -30,7 +30,7 @@
 
 #include <linux/amlogic/secmon.h>
 #include "efuse.h"
-#ifdef CONFIG_ARM64
+#if defined(CONFIG_ARM64) || defined(CONFIG_ARM64_A32)
 #include <linux/amlogic/efuse.h>
 #endif
 

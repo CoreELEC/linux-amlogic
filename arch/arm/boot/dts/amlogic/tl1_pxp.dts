@@ -876,3 +876,6 @@
 	status = "okay";
 };
 
+&efuse {
+	status = "okay";
+};

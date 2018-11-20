@@ -1246,3 +1246,7 @@
 &pwm_ab {
 	status = "okay";
 };
+
+&efuse {
+	status = "okay";
+};
