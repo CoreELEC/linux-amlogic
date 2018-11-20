@@ -421,6 +421,16 @@ static void hdrinfo_to_vinfo(struct vinfo_s *info, struct hdmitx_dev *hdev)
 		info->hdr_info.hdr_support);
 }
 
+static void rxlatency_to_vinfo(struct vinfo_s *info, struct rx_cap *rx)
+{
+	if (!info || !rx)
+		return;
+	info->rx_latency.vLatency = rx->vLatency;
+	info->rx_latency.aLatency = rx->aLatency;
+	info->rx_latency.i_vLatency = rx->i_vLatency;
+	info->rx_latency.i_aLatency = rx->i_aLatency;
+}
+
 static int set_disp_mode_auto(void)
 {
 	int ret =  -1;
@@ -446,8 +456,10 @@ static int set_disp_mode_auto(void)
 
 	if (!((strncmp(info->name, "480cvbs", 7) == 0) ||
 		(strncmp(info->name, "576cvbs", 7) == 0) ||
-		(strncmp(info->name, "null", 4) == 0)))
+		(strncmp(info->name, "null", 4) == 0))) {
 		hdrinfo_to_vinfo(info, hdev);
+		rxlatency_to_vinfo(info, &hdev->RXCap);
+	}
 
 	hdmi_physcial_size_update(hdev);
 
@@ -468,6 +480,7 @@ static int set_disp_mode_auto(void)
 		return -1;
 	}
 	strncpy(mode, info->name, sizeof(mode));
+	mode[31] = '\0';
 	if (strstr(mode, "fp")) {
 		int i = 0;
 
@@ -3767,21 +3780,13 @@ static void hdmitx_hpd_plugin_handler(struct work_struct *work)
 	mutex_unlock(&setclk_mutex);
 }
 
-static void clear_hdr_info(struct hdmitx_dev *hdev)
+static void clear_rx_vinfo(struct hdmitx_dev *hdev)
 {
 	struct vinfo_s *info = hdmitx_get_current_vinfo();
-	unsigned int i;
 
 	if (info) {
-		info->hdr_info.hdr_support = 0;
-		for (i = 0; i < 4; i++)
-			memset(&(info->hdr_info.dynamic_info[i]),
-				0, sizeof(struct hdr_dynamic));
-		info->hdr_info.colorimetry_support = 0;
-		info->hdr_info.lumi_max = 0;
-		info->hdr_info.lumi_avg = 0;
-		info->hdr_info.lumi_min = 0;
-		pr_info(SYS "clear RX hdr info\n");
+		memset(&info->hdr_info, 0, sizeof(info->hdr_info));
+		memset(&info->rx_latency, 0, sizeof(info->rx_latency));
 	}
 }
 
@@ -3828,7 +3833,7 @@ static void hdmitx_hpd_plugout_handler(struct work_struct *work)
 	hdev->HWOp.CntlMisc(hdev, MISC_TMDS_PHY_OP, TMDS_PHY_DISABLE);
 	hdev->hdmitx_event &= ~HDMI_TX_HPD_PLUGOUT;
 	hdev->HWOp.CntlMisc(hdev, MISC_ESM_RESET, 0);
-	clear_hdr_info(hdev);
+	clear_rx_vinfo(hdev);
 	rx_edid_physical_addr(0, 0, 0, 0);
 	hdmitx_edid_clear(hdev);
 	hdmi_physcial_size_update(hdev);
@@ -4744,7 +4749,7 @@ static char *next_token_ex(char *separator, char *buf, unsigned int size,
 /* check the colorattribute from uboot */
 static void check_hdmiuboot_attr(char *token)
 {
-	char attr[16];
+	char attr[16] = {0};
 	const char * const cs[] = {
 		"444", "422", "rgb", "420", NULL};
 	const char * const cd[] = {
