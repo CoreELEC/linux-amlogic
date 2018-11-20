@@ -636,6 +636,9 @@ static int ldim_dev_pwm_channel_register(struct bl_pwm_config_s *bl_pwm,
 	struct device_node *child;
 	struct aml_ldim_driver_s *ldim_drv = aml_ldim_get_driver();
 
+	if (ldim_debug_print)
+		LDIMPR("%s ok\n", __func__);
+
 	ret = of_property_read_u32(blnode, "ldim_pwm_config", &pwm_phandle);
 	if (ret) {
 		LDIMERR("not match ldim_pwm_config node\n");
@@ -682,8 +685,6 @@ static int ldim_dev_pwm_channel_register(struct bl_pwm_config_s *bl_pwm,
 		LDIMPR("register pwm_ch(%d) 0x%p\n",
 			bl_pwm->pwm_data.port_index, bl_pwm->pwm_data.pwm);
 	}
-
-	LDIMPR("%s ok\n", __func__);
 
 	return ret;
 
@@ -1255,11 +1256,12 @@ static int ldim_dev_probe(struct platform_device *pdev)
 			ldim_drv->dev_index);
 
 		ldim_dev_add_driver(ldim_drv);
+
+		/* init ldim function */
+		if (ldim_drv->valid_flag)
+			ldim_drv->init();
+		LDIMPR("%s OK\n", __func__);
 	}
-	/* init ldim function */
-	if (ldim_drv->valid_flag)
-		ldim_drv->init();
-	LDIMPR("%s OK\n", __func__);
 
 	return 0;
 }
@@ -1268,10 +1270,11 @@ static int __exit ldim_dev_remove(struct platform_device *pdev)
 {
 	struct aml_ldim_driver_s *ldim_drv = aml_ldim_get_driver();
 
-	if (ldim_drv->dev_index != 0xff)
+	if (ldim_drv->dev_index != 0xff) {
 		ldim_dev_remove_driver(ldim_drv);
+		LDIMPR("%s OK\n", __func__);
+	}
 
-	LDIMPR("%s OK\n", __func__);
 	return 0;
 }
 
