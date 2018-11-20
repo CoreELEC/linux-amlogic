@@ -653,7 +653,7 @@ static int osd_set_par(struct fb_info *info)
 	struct osd_ctl_s *osd_ctrl = &fbdev->osd_ctl;
 	u32 virt_end_x, virt_end_y;
 
-	if (fbdev->fb_index <= OSD3) {
+	if (fbdev->fb_index < osd_hw.osd_meson_dev.viu1_osd_count) {
 		vinfo = get_current_vinfo();
 		if (!vinfo) {
 			osd_log_err("current vinfo NULL\n");
@@ -1454,7 +1454,7 @@ static int osd_open(struct fb_info *info, int arg)
 
 	fb_index = fbdev->fb_index;
 	if ((osd_meson_dev.has_viu2)
-		&& (fb_index == OSD4)) {
+		&& (fb_index == osd_meson_dev.viu2_index)) {
 		int vpu_clkc_rate;
 
 		/* select mux0, if select mux1, mux0 must be set */
