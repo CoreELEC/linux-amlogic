@@ -697,9 +697,10 @@ int hdmitx_set_display(struct hdmitx_dev *hdev, enum hdmi_vic VideoCode)
 					}
 				}
 			}
-			if (param->color == COLORSPACE_YUV422 && hdev->para->tmds_clk > max_tmds_clock){
+			if ((param->color == COLORSPACE_YUV422 || param->color == COLORSPACE_YUV420)
+						&& hdev->para->tmds_clk > max_tmds_clock){
 				/* this can only happen with 4k50/60hz when no HF-IEEEOUI */
-				hdmi_print(IMP, VID "Cannot play YCC422 at this framerate, setting YCC420, 8 bits");
+				hdmi_print(IMP, VID "Colourspace or bitdepth too high for 50/60Hz, setting YCC420, 8 bits");
 				param->color_depth = COLORDEPTH_24B;
 				param->color = COLORSPACE_YUV420;
 			}

@@ -1550,10 +1550,11 @@ case_next:
 static void hdmitx_edid_set_default_vic(struct hdmitx_dev *hdmitx_device)
 {
 	struct rx_cap *pRXCap = &(hdmitx_device->RXCap);
-	pRXCap->VIC_count = 0x3;
+	pRXCap->VIC_count = 0x4;
 	pRXCap->VIC[0] = HDMI_720x480p60_16x9;
 	pRXCap->VIC[1] = HDMI_1280x720p60_16x9;
-	pRXCap->VIC[2] = HDMI_1920x1080p60_16x9;
+	pRXCap->VIC[2] = HDMI_1920x1080i60_16x9;
+	pRXCap->VIC[3] = HDMI_1920x1080p60_16x9;
 	pRXCap->native_VIC = HDMI_720x480p60_16x9;
 	hdmitx_device->vic_count = pRXCap->VIC_count;
 	hdmi_print(IMP, EDID "HDMI: set default vic\n");
@@ -1716,12 +1717,11 @@ static void Edid_ManufactureDateParse(struct rx_cap *pRxCap,
 		pRxCap->manufacture_week = data[0];
 
 	/* year:
-		0x0~0xf: reserved
+		0x0~0xf: reserved ??ref?
 		0x10~0xff: year of manufacture,
 					or model year(if specified by week=0xff)
 	*/
-	pRxCap->manufacture_year =
-		(data[1] <= 0xf)?0:data[1];
+	pRxCap->manufacture_year = data[1];
 
 	return;
 }
@@ -1906,7 +1906,7 @@ int hdmitx_edid_parse(struct hdmitx_dev *hdmitx_device)
 
 	Edid_PhyscialSizeParse(&hdmitx_device->RXCap, &EDID_buf[21]);
 
-	Edid_DecodeStandardTiming(&hdmitx_device->hdmi_info, &EDID_buf[26], 8);
+	Edid_DecodeStandardTiming(&hdmitx_device->hdmi_info, &EDID_buf[0x26], 8);
 	Edid_ParseCEADetailedTimingDescriptors(&hdmitx_device->hdmi_info,
 		4, 0x36, &EDID_buf[0]);
 
@@ -1917,6 +1917,9 @@ int hdmitx_edid_parse(struct hdmitx_dev *hdmitx_device)
 		hdmitx_device->hdmi_info.output_state = CABLE_PLUGIN_DVI_OUT;
 		hdmi_print(0, "EDID BlockCount=0\n");
 		hdmitx_edid_set_default_vic(hdmitx_device);
+
+		hdmi_print(IMP, EDID "Setting maxTMDSclock from range block\n");
+		pRXCap->Max_TMDS_Clock1 = maxPixelClock * 2;
 
 		/* DVI case judgement: only contains one block and
 		 * checksum valid */
@@ -1942,13 +1945,7 @@ int hdmitx_edid_parse(struct hdmitx_dev *hdmitx_device)
 	/* Note: some DVI monitor have more than 1 block */
 	if ((BlockCount == 1) && (EDID_buf[0x81] == 1)) {
 		hdmitx_device->RXCap.IEEEOUI = 0;
-		hdmitx_device->RXCap.VIC_count = 0x3;
-		hdmitx_device->RXCap.VIC[0] = HDMI_720x480p60_16x9;
-		hdmitx_device->RXCap.VIC[1] = HDMI_1280x720p60_16x9;
-		hdmitx_device->RXCap.VIC[2] = HDMI_1920x1080p60_16x9;
-		hdmitx_device->RXCap.native_VIC = HDMI_720x480p60_16x9;
-		hdmitx_device->vic_count = hdmitx_device->RXCap.VIC_count;
-		hdmi_print(IMP, EDID "HDMI: set default vic\n");
+		hdmitx_edid_set_default_vic(hdmitx_device);
 		return 0;
 	} else if (BlockCount > EDID_MAX_BLOCK) {
 		BlockCount = EDID_MAX_BLOCK;
@@ -2068,8 +2065,13 @@ int hdmitx_edid_parse(struct hdmitx_dev *hdmitx_device)
 	}
 	/* Set maxTMDSclock1 from range block if it doesn't seem to be set right */
 	if (pRXCap->Max_TMDS_Clock1 < 15){
-		hdmi_print(IMP, EDID "Setting maxTMDSclock1 from range block\n");
-		pRXCap->Max_TMDS_Clock1 = maxPixelClock * 2;
+		if (maxPixelClock < 8){
+			hdmi_print(IMP, EDID "No pixel clock value found - setting 75MHz");
+			pRXCap->Max_TMDS_Clock1 = 15;
+		} else {
+			hdmi_print(IMP, EDID "Setting maxTMDSclock from range block\n");
+			pRXCap->Max_TMDS_Clock1 = maxPixelClock * 2;
+		}
 	}
 	/* Make sure we have a usable maxTMDSclock1 */
 	if (pRXCap->Max_TMDS_Clock1 < 15){
