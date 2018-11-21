@@ -62,7 +62,7 @@ static DEFINE_SPINLOCK(reg_rw_lock);
 /* will suspend because of RxSense = 0, such as xiaomi-mtk box */
 static bool phy_fast_switching;
 static bool phy_fsm_enhancement = true;
-unsigned int last_clk_rate;
+/*unsigned int last_clk_rate;*/
 
 /* SNPS suggest to use the previous setting 0x3f when handle eq issues to
  * make clk_stable bit more stable(=1),but 0x3f may misjudge 46.25~92.5
@@ -2116,8 +2116,8 @@ void snps_phyg3_init(void)
 
 	/* clear clkrate cfg */
 	hdmirx_wr_bits_phy(PHY_CDR_CTRL_CNT, CLK_RATE_BIT, 0);
-	last_clk_rate = 0;
-
+	/*last_clk_rate = 0;*/
+	rx.physts.clk_rate = 0;
 	/* enable all ports's termination */
 	data32 = 0;
 	data32 |= 1 << 8;
@@ -2140,7 +2140,6 @@ void snps_phyg3_init(void)
 void hdmirx_phy_init(void)
 {
 	uint32_t data32;
-	uint32_t cur_cable_clk;
 
 	if (rx.hdmirxdev->data->chip_id == CHIP_ID_TL1) {
 		/* give default value */
@@ -2148,10 +2147,9 @@ void hdmirx_phy_init(void)
 		data32 |= rx.port << 2;
 		hdmirx_wr_dwc(DWC_SNPS_PHYG3_CTRL, data32);
 
-		cur_cable_clk = rx_measure_clock(MEASURE_CLK_CABLE);
-		data32 = rx_get_scdc_clkrate_sts();
-		if (cur_cable_clk > 0)
-			aml_phy_bw_switch(cur_cable_clk, data32);
+		if (rx.physts.cable_clk > 0)
+			aml_phy_bw_switch(rx.physts.cable_clk,
+				rx.physts.clk_rate);
 		else
 			aml_phy_bw_switch(PHY_DEFAULT_FRQ, 0);
 	} else {
@@ -2168,20 +2166,16 @@ void hdmirx_phy_init(void)
  */
 bool rx_clkrate_monitor(void)
 {
-	unsigned int clk_rate;
+	uint32_t clk_rate;
 	bool changed = false;
 	int i;
 	int error = 0;
+	int cur_cable_clk;
+	uint32_t clk_diff;
+	uint32_t cur_phy_bw;
 
-	if (rx.chip_id == CHIP_ID_TXHD)
-		return false;
-
-	if (force_clk_rate & 0x10)
-		clk_rate = force_clk_rate & 1;
-	else
-		clk_rate = (hdmirx_rd_dwc(DWC_SCDC_REGS0) >> 17) & 1;
-
-	if (clk_rate != last_clk_rate) {
+	clk_rate = rx_get_scdc_clkrate_sts();
+	if (clk_rate != rx.physts.clk_rate) {
 		changed = true;
 		if (rx.chip_id != CHIP_ID_TL1) {
 			for (i = 0; i < 3; i++) {
@@ -2194,13 +2188,37 @@ bool rx_clkrate_monitor(void)
 		}
 		if (log_level & VIDEO_LOG)
 			rx_pr("clk_rate:%d, last_clk_rate: %d\n",
-			clk_rate, last_clk_rate);
-		last_clk_rate = clk_rate;
+			clk_rate, rx.physts.clk_rate);
+		rx.physts.clk_rate = clk_rate;
+	}
+
+	if (rx.hdmirxdev->data->chip_id == CHIP_ID_TL1) {
+		cur_cable_clk = rx_measure_clock(MEASURE_CLK_CABLE);
+		clk_diff = diff(rx.physts.cable_clk, cur_cable_clk);
+		/*clk_rate = rx_get_scdc_clkrate_sts();*/
+		cur_phy_bw = aml_cable_clk_band(cur_cable_clk, clk_rate);
+		if ((rx.cur_5v_sts) &&	((rx.physts.phy_bw != cur_phy_bw) ||
+				changed || (clk_diff > (1000*KHz)))) {
+			changed = true;
+			aml_phy_bw_switch(cur_cable_clk, clk_rate);
+			udelay(50);/*wait pll lock*/
+			rx_pr("phy clk chg:cabclk:%d,%d,rate:%d,lock:%d\n",
+			cur_cable_clk, rx.physts.cable_clk,
+			clk_rate, aml_phy_pll_lock());
+			rx.physts.cable_clk = cur_cable_clk;
+			rx.physts.clk_rate = clk_rate;
+			rx.physts.phy_bw = cur_phy_bw;
+		}
+	}
+
+	if (changed) {
 		if (rx.state >= FSM_WAIT_CLK_STABLE)
 			rx.state = FSM_WAIT_CLK_STABLE;
 	}
+
 	return changed;
 }
+
 
 /*
  * rx_hdcp_init - hdcp1.4 init and enable
@@ -3789,8 +3807,8 @@ void rx_emp_status(void)
 {
 	rx_pr("p_addr_a=0x%x\n", rx.empbuff.p_addr_a);
 	rx_pr("p_addr_b=0x%x\n", rx.empbuff.p_addr_b);
-	rx_pr("storeA=0x%x\n", (uint32_t)rx.empbuff.storeB);
-	rx_pr("storeB=0x%x\n", (uint32_t)rx.empbuff.storeB);
+	rx_pr("storeA=0x%x\n", rx.empbuff.storeB);
+	rx_pr("storeB=0x%x\n", rx.empbuff.storeB);
 	rx_pr("irq cnt =0x%x\n", rx.empbuff.irqcnt);
 	rx_pr("ready=0x%p\n", rx.empbuff.ready);
 	rx_pr("dump_mode =0x%x\n", rx.empbuff.dump_mode);

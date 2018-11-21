@@ -2026,46 +2026,6 @@ void rx_5v_monitor(void)
 }
 
 /*
- * func : check hdmi cable clk and clk rate
- *
- * note : tl1 phy, need change phy setting manually
- *
- */
-void rx_clk_rate_monitor(void)
-{
-	int cur_cable_clk/*, cur_cable_clk1*/;
-	unsigned int clk_diff;
-	unsigned int cur_phy_bw, i = 0;
-	static unsigned int phy_bw_cnt;
-	unsigned int cur_clk_rate;
-	unsigned int pll_lock = 0;
-
-	cur_cable_clk = rx_measure_clock(MEASURE_CLK_CABLE);
-	clk_diff = diff(rx.physts.cable_clk, cur_cable_clk);
-	cur_clk_rate = rx_get_scdc_clkrate_sts();
-	cur_phy_bw = aml_cable_clk_band(cur_cable_clk, cur_clk_rate);
-	if ((rx.cur_5v_sts) &&	((rx.physts.phy_bw != cur_phy_bw) ||
-			(rx.physts.clk_rate != cur_clk_rate) ||
-			(clk_diff > (1000*KHz)))) {
-		if (phy_bw_cnt++ > 1) {
-			phy_bw_cnt = 0;
-			while (i++ < 3) {
-				rx_pr("chg phy i=%d, cabclk:%d, clkrate:%d\n",
-					i, cur_cable_clk, cur_clk_rate);
-				aml_phy_bw_switch(cur_cable_clk, cur_clk_rate);
-				udelay(50);/*wait pll lock*/
-				pll_lock = aml_phy_pll_lock();
-				if ((cur_cable_clk < (20 * MHz)) || pll_lock)
-					break;
-			}
-			rx.physts.cable_clk = cur_cable_clk;
-			rx.physts.clk_rate = cur_clk_rate;
-			rx.physts.phy_bw = cur_phy_bw;
-		}
-	}
-}
-
-/*
  * function:
  * for check error counter start for tl1
  *
@@ -2180,9 +2140,6 @@ char *fsm_st[] = {
 void rx_main_state_machine(void)
 {
 	int pre_auds_ch_alloc;
-
-	if (rx.hdmirxdev->data->chip_id == CHIP_ID_TL1)
-		rx_clk_rate_monitor();
 
 	switch (rx.state) {
 	case FSM_5V_LOST:
@@ -3318,12 +3275,15 @@ void hdmirx_timer_handler(unsigned long arg)
 	if (rx.open_fg) {
 		rx_nosig_monitor();
 		if (!hdmirx_repeat_support() || !rx.firm_change) {
-			if (!sm_pause)
+			if (!sm_pause) {
+				#ifdef USE_NEW_FSM_METHODE
+				rx_clkrate_monitor();
+				#endif
 				rx_main_state_machine();
+			}
 			rx_pkt_check_content();
 			#ifdef USE_NEW_FSM_METHODE
 			rx_err_monitor();
-			rx_clkrate_monitor();
 			#endif
 
 			#ifdef K_TEST_CHK_ERR_CNT

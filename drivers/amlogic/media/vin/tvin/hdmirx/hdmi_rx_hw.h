@@ -1228,20 +1228,20 @@ enum measure_clk_src_e {
 #define PHY_DEFAULT_FRQ	((100)*MHz)
 
 enum phy_frq_band {
-	phy_frq_band_0 = 0,
-	phy_frq_band_1,
-	phy_frq_band_2,
-	phy_frq_band_3,
-	phy_frq_band_4,
+	phy_frq_band_0 = 0,	/*45Mhz*/
+	phy_frq_band_1,		/*77Mhz*/
+	phy_frq_band_2,		/*155Mhz*/
+	phy_frq_band_3,		/*300Mhz*/
+	phy_frq_band_4,		/*600Mhz*/
 	phy_frq_null = 0xf,
 };
 
 enum pll_frq_band {
-	pll_frq_band_0 = 0,
-	pll_frq_band_1,
-	pll_frq_band_2,
-	pll_frq_band_3,
-	pll_frq_band_4,
+	pll_frq_band_0 = 0,	/*35Mhz*/
+	pll_frq_band_1,		/*77Mhz*/
+	pll_frq_band_2,		/*155Mhz*/
+	pll_frq_band_3,		/*300Mhz*/
+	pll_frq_band_4,		/*600Mhz*/
 	pll_frq_null = 0xf,
 };
 
