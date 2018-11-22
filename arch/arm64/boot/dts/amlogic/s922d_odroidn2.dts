@@ -32,6 +32,15 @@
 		#size-cells = <2>;
 		ranges;
 		/* global autoconfigured region for contiguous allocations */
+		ramoops@0x07400000 {
+			compatible = "ramoops";
+			reg = <0x0 0x07400000 0x0 0x00100000>;
+			record-size = <0x8000>;
+			console-size = <0x8000>;
+			ftrace-size = <0x0>;
+			pmsg-size = <0x8000>;
+		};
+
 		secmon_reserved:linux,secmon {
 			compatible = "shared-dma-pool";
 			reusable;
@@ -179,16 +188,6 @@
 		compatible = "amlogic, ionvideo";
 		dev_name = "ionvideo";
 		status = "okay";
-	};
-
-	gpio_keypad {
-		compatible = "amlogic, gpio_keypad";
-		status = "okay";
-		scan_period = <20>;
-		key_num = <1>;
-		key_name = "power";
-		key_code = <116>;
-		key_pin = <&gpio_ao  GPIOAO_3  GPIO_ACTIVE_HIGH>;
 	};
 
 	custom_maps {
