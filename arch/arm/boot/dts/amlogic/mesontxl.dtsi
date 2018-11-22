@@ -140,11 +140,16 @@
 	};
 
 	pmu {
-		compatible = "arm,armv8-pmuv3";
-		interrupts = <GIC_SPI 137 IRQ_TYPE_LEVEL_HIGH>,
-			     <GIC_SPI 138 IRQ_TYPE_LEVEL_HIGH>,
-			     <GIC_SPI 153 IRQ_TYPE_LEVEL_HIGH>,
-			     <GIC_SPI 154 IRQ_TYPE_LEVEL_HIGH>;
+		compatible = "arm,cortex-a15-pmu";
+		interrupts = <0 137 4>;
+		reg = <0xc8834400 0x1000>;
+		/* addr = base + offset << 2 */
+		sys_cpu_status0_offset = <0xa0>;
+		sys_cpu_status0_pmuirq_mask = <0xf>;
+		/* default 10ms */
+		relax_timer_ns = <10000000>;
+		/* default 10000us */
+		max_wait_cnt = <10000>;
 	};
 
 	psci {
