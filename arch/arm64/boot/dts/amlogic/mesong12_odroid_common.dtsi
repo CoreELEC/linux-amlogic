@@ -179,6 +179,22 @@
 		};
 	};
 
+	gpio-reset {
+		compatible = "linux,gpio-reset";
+		usb_hub_en {
+			gpios = <&gpio GPIOH_5 GPIO_ACTIVE_HIGH>;
+			asserted-state = <0>;
+			duration-ms = <100>;
+			auto;
+		};
+		usb_hub {
+			gpios = <&gpio GPIOH_4 GPIO_ACTIVE_HIGH>;
+			asserted-state = <0>;
+			duration-ms = <100>;
+			auto;
+		};
+	};
+
 	efuse: efuse{
 		compatible = "amlogic, efuse";
 		read_cmd = <0x82000030>;
@@ -215,13 +231,6 @@
 			size = <16>;
 		};
 	};//End efusekey
-};
-
-&i2c0 {
-	status = "okay";
-	pinctrl-names="default";
-	pinctrl-0=<&i2c0_master_pins2>;
-	clock-frequency = <400000>;
 };
 
 &ethmac {
