@@ -949,9 +949,9 @@ unsigned int cec_phyaddr_config(unsigned int value, bool wr_flag)
 unsigned int cec_logicaddr_config(unsigned int value, bool wr_flag)
 {
 	if (wr_flag)
-		cec_set_reg_bits(AO_DEBUG_REG1, value, 0, 8);
+		cec_set_reg_bits(AO_DEBUG_REG3, value, 0, 8);
 
-	return readl(cec_dev->cec_reg + AO_DEBUG_REG1);
+	return readl(cec_dev->cec_reg + AO_DEBUG_REG3);
 }
 
 void cec_keep_reset(void)
@@ -2133,7 +2133,6 @@ static long hdmitx_cec_ioctl(struct file *f,
 	case CEC_IOC_ADD_LOGICAL_ADDR:
 		tmp = arg & 0xf;
 		CEC_INFO("CEC LA ARG:%ld", arg);
-		cec_logicaddr_config(tmp, 1);
 		cec_logicaddr_set(tmp);
 		/* add by hal, to init some data structure */
 		cec_dev->cec_info.log_addr = tmp;
