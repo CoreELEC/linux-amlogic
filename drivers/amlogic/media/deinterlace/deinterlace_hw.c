@@ -939,7 +939,7 @@ static enum eAFBC_DEC afbc_get_decnub(void)
 		sel_dec = eAFBC_DEC0;
 	else if (is_meson_txlx_cpu())
 		sel_dec = eAFBC_DEC1;
-	else if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12A))
+	else if (is_meson_g12a_cpu())
 		sel_dec = AFBC_DEC_SEL;
 
 
@@ -957,7 +957,7 @@ bool afbc_is_supported(void)
 
 	/*currently support txlx and g12a*/
 	if (is_meson_txlx_cpu()
-		|| cpu_after_eq(MESON_CPU_MAJOR_ID_G12A))
+		|| is_meson_g12a_cpu())
 		ret = true;
 
 	return ret;
