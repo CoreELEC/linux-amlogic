@@ -110,6 +110,13 @@
 			alignment = <0x400000>;
 		};
 
+		/*vbi reserved mem*/
+		vbi_reserved:linux,vbi {
+			compatible = "amlogic, vbi-mem";
+			size = <0x100000>;
+			alloc-ranges = <0x0e000000 0x800000>;
+		};
+
 		/* for hdmi rx emp use */
 		hdmirx_emp_cma_reserved:linux,emp_cma {
 			compatible = "shared-dma-pool";
@@ -435,6 +442,37 @@
 		 *bit3:support 12bit
 		 */
 		tv_bit_mode = <0x15>;
+	};
+
+	tvafe {
+		compatible = "amlogic, tvafe-tl1";
+		/*memory-region = <&tvafe_cma_reserved>;*/
+		dev_name = "tvafe";
+		status = "okay";
+		flag_cma = <1>;/*1:share with codec_mm;0:cma alone*/
+		cma_size = <5>;/*MByte*/
+		reg = <0xff654000 0x2000>;/*tvafe reg base*/
+		reserve-iomap = "true";
+		tvafe_id = <0>;
+		//pinctrl-names = "default";
+		/*!!particular sequence, no more and no less!!!*/
+		tvafe_pin_mux = <
+				3 /* TVAFE_CVBS_IN2, CVBS_IN0 = 0 */
+				1 /* TVAFE_CVBS_IN0, CVBS_IN1 */
+				2 /* TVAFE_CVBS_IN1, CVBS_IN2 */
+				4 /* TVAFE_CVBS_IN3, CVBS_IN3 */
+		>;
+		clocks = <&clkc CLKID_DAC_CLK>;
+		clock-names = "vdac_clk_gate";
+	};
+
+	vbi {
+		compatible = "amlogic, vbi";
+		memory-region = <&vbi_reserved>;
+		dev_name = "vbi";
+		status = "okay";
+		interrupts = <0 83 1>;
+		reserve-iomap = "true";
 	};
 
 	unifykey {
