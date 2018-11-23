@@ -644,6 +644,8 @@ vpp_process_speed_check(s32 width_in,
 
 	if (vf)
 		cur_vf_type = vf->type;
+	else
+		return 0;
 	if (force_vskip_cnt == 0xff)/*for debug*/
 		return SPEED_CHECK_DONE;
 	if (next_frame_par->vscale_skip_count < force_vskip_cnt)
@@ -1537,14 +1539,12 @@ RESTART:
 	}
 
 	/* force overwrite filter setting */
-	if ((vert_scaler_filter >= COEF_BICUBIC) &&
-		(vert_scaler_filter <= COEF_3D_FILTER)) {
+	if (vert_scaler_filter <= COEF_3D_FILTER) {
 		filter->vpp_vert_coeff = filter_table[vert_scaler_filter];
 		filter->vpp_vert_filter = vert_scaler_filter;
 	}
 	if (vert_chroma_filter_force_en &&
-		(vert_chroma_scaler_filter >= COEF_BICUBIC) &&
-		(vert_chroma_scaler_filter <= COEF_3D_FILTER)) {
+		vert_chroma_scaler_filter <= COEF_3D_FILTER) {
 		cur_vert_chroma_filter = vert_chroma_scaler_filter;
 			filter->vpp_vert_chroma_coeff
 				= filter_table[cur_vert_chroma_filter];
@@ -1554,8 +1554,7 @@ RESTART:
 		filter->vpp_vert_chroma_filter_en = false;
 	}
 
-	if ((horz_scaler_filter >= COEF_BICUBIC) &&
-		(horz_scaler_filter <= COEF_3D_FILTER)) {
+	if (horz_scaler_filter <= COEF_3D_FILTER) {
 		filter->vpp_horz_coeff = filter_table[horz_scaler_filter];
 		filter->vpp_horz_filter = horz_scaler_filter;
 	}
