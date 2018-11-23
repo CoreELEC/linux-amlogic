@@ -1579,7 +1579,10 @@ int atvdemod_clk_init(void)
 		W_HIU_BIT(RESET1_REGISTER, 1, 7, 1);
 	}
 #endif
-	W_HIU_REG(HHI_ATV_DMD_SYS_CLK_CNTL, 0x80);
+	if (is_meson_tl1_cpu())
+		W_HIU_REG(HHI_ATV_DMD_SYS_CLK_CNTL, 0x1800080);
+	else
+		W_HIU_REG(HHI_ATV_DMD_SYS_CLK_CNTL, 0x80);
 
 	/* read_version_register(); */
 
@@ -1709,14 +1712,16 @@ int amlfmt_aud_standard(int broad_std)
 
 int atvauddemod_init(void)
 {
-	if (is_meson_txlx_cpu() || is_meson_txhd_cpu()) {
+	if (is_meson_txlx_cpu() || is_meson_txhd_cpu() || is_meson_tl1_cpu()) {
 		if (audio_thd_en)
 			audio_thd_init();
 
 		if (aud_auto)
 			aud_std = amlfmt_aud_standard(broad_std);
-		/* configure_adec(aud_std); */
-		/* adec_soft_reset(); */
+		else {
+			configure_adec(aud_std);
+			adec_soft_reset();
+		}
 		set_outputmode(aud_std, aud_mode);
 	} else {
 		/* for non support adec */
@@ -1737,7 +1742,7 @@ int atvdemod_init(void)
 	/* 1.set system clock when atv enter*/
 
 	pr_err("%s do configure_receiver ...\n", __func__);
-	if (is_meson_txlx_cpu() || is_meson_txhd_cpu())
+	if (is_meson_txlx_cpu() || is_meson_txhd_cpu() || is_meson_tl1_cpu())
 		sound_format = 1;
 	configure_receiver(broad_std, if_freq, if_inv, gde_curve, sound_format);
 	pr_err("%s do atv_dmd_misc ...\n", __func__);

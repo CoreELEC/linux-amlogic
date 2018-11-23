@@ -1292,7 +1292,7 @@ void configure_adec(int Audio_mode)
 	/*
 	 * set gate clk for btsc and nicam .
 	 */
-	if (is_meson_txhd_cpu())
+	if (is_meson_txhd_cpu() || is_meson_tl1_cpu())
 		adec_wr_reg(0x28, 0xa);
 
 	set_standard(Audio_mode);

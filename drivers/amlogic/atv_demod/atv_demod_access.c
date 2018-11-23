@@ -38,6 +38,12 @@ int amlatvdemod_reg_read(unsigned int reg, unsigned int *val)
 			pr_err("%s GCLK_MPEG0:0x%x\n", __func__, ret);
 			return 0;
 		}
+	} else if (is_meson_tl1_cpu()) {
+		amlatvdemod_hiu_reg_read(HHI_GCLK_MPEG0, &ret);
+		if (0 == ((1 << 22) & ret)) {
+			pr_err("%s GCLK_MPEG0:0x%x\n", __func__, ret);
+			return 0;
+		}
 	} else if (0 == (ADC_EN_ATV_DEMOD & tvafe_adc_get_pll_flag())) {
 		/* pr_dbg("%s atv demod pll not init\n", __func__); */
 		return 0;
@@ -60,6 +66,12 @@ int amlatvdemod_reg_write(unsigned int reg, unsigned int val)
 			pr_err("%s GCLK_MPEG0:0x%x\n", __func__, ret);
 			return 0;
 		}
+	} else if (is_meson_tl1_cpu()) {
+		amlatvdemod_hiu_reg_read(HHI_GCLK_MPEG0, &ret);
+		if (0 == ((1 << 22) & ret)) {
+			pr_err("%s GCLK_MPEG0:0x%x\n", __func__, ret);
+			return 0;
+		}
 	} else if (0 == (ADC_EN_ATV_DEMOD & tvafe_adc_get_pll_flag())) {
 		/* pr_dbg("%s atv demod pll not init\n", __func__); */
 		return 0;
@@ -73,6 +85,7 @@ int amlatvdemod_reg_write(unsigned int reg, unsigned int val)
 
 int atvaudiodem_reg_read(unsigned int reg, unsigned int *val)
 {
+#if 0
 	int ret = 0;
 
 	if (is_meson_txlx_cpu() || is_meson_txhd_cpu()) {
@@ -81,8 +94,14 @@ int atvaudiodem_reg_read(unsigned int reg, unsigned int *val)
 			pr_err("%s GCLK_MPEG0:0x%x\n", __func__, ret);
 			return 0;
 		}
+	} else if (is_meson_tl1_cpu()) {
+		amlatvdemod_hiu_reg_read(HHI_GCLK_MPEG0, &ret);
+		if (0 == ((1 << 28) & ret)) {
+			pr_err("%s GCLK_MPEG0:0x%x\n", __func__, ret);
+			return 0;
+		}
 	}
-
+#endif
 	if (amlatvdemod_devp->audio_reg_base)
 		*val = readl(amlatvdemod_devp->audio_reg_base + reg);
 
@@ -91,6 +110,7 @@ int atvaudiodem_reg_read(unsigned int reg, unsigned int *val)
 
 int atvaudiodem_reg_write(unsigned int reg, unsigned int val)
 {
+#if 0
 	int ret = 0;
 
 	if (is_meson_txlx_cpu() || is_meson_txhd_cpu()) {
@@ -99,7 +119,14 @@ int atvaudiodem_reg_write(unsigned int reg, unsigned int val)
 			pr_err("%s GCLK_MPEG0:0x%x\n", __func__, ret);
 			return 0;
 		}
+	} else if (is_meson_tl1_cpu()) {
+		amlatvdemod_hiu_reg_read(HHI_GCLK_MPEG0, &ret);
+		if (0 == ((1 << 28) & ret)) {
+			pr_err("%s GCLK_MPEG0:0x%x\n", __func__, ret);
+			return 0;
+		}
 	}
+#endif
 
 	if (amlatvdemod_devp->audio_reg_base)
 		writel(val, (amlatvdemod_devp->audio_reg_base + reg));

@@ -146,7 +146,7 @@ int atv_demod_enter_mode(struct dvb_frontend *fe)
 	atvdemod_clk_init();
 	/* err_code = atvdemod_init(); */
 
-	if (is_meson_txlx_cpu() || is_meson_txhd_cpu()) {
+	if (is_meson_txlx_cpu() || is_meson_txhd_cpu() || is_meson_tl1_cpu()) {
 		aud_demod_clk_gate(1);
 		/* atvauddemod_init(); */
 	}
@@ -189,7 +189,7 @@ int atv_demod_leave_mode(struct dvb_frontend *fe)
 
 	vdac_enable(0, 1);
 	adc_set_pll_cntl(0, ADC_EN_ATV_DEMOD, NULL);
-	if (is_meson_txlx_cpu() || is_meson_txhd_cpu())
+	if (is_meson_txlx_cpu() || is_meson_txhd_cpu() || is_meson_tl1_cpu())
 		aud_demod_clk_gate(0);
 
 	amlatvdemod_devp->std = 0;
@@ -405,11 +405,16 @@ static int atv_demod_set_config(struct dvb_frontend *fe, void *priv_cfg)
 
 	case AML_ATVDEMOD_UNSCAN_MODE:
 		priv->scanning = false;
+		/* No need to enable when exiting the scan,
+		 * but enable when actually played.
+		 */
+#if 0
 		if (priv->afc.enable)
 			priv->afc.enable(&priv->afc);
 
 		if (priv->monitor.enable)
 			priv->monitor.enable(&priv->monitor);
+#endif
 		break;
 	}
 

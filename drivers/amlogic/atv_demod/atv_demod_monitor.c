@@ -62,7 +62,9 @@ static void atv_demod_monitor_do_work(struct work_struct *work)
 		audio_thd_det();
 
 	if (atvaudio_det_outputmode_en &&
-		(is_meson_txlx_cpu() || is_meson_txhd_cpu()))
+		(is_meson_txlx_cpu()
+		|| is_meson_txhd_cpu()
+		|| is_meson_tl1_cpu()))
 		atvauddemod_set_outputmode();
 
 	if (atvdemod_det_nonstd_en)
