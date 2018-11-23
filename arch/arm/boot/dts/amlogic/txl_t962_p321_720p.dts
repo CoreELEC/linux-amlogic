@@ -155,6 +155,11 @@
 			/** alloc by self **/
 			alloc-ranges = <0x0 0x30000000>;
 		};
+
+		defendkey_reserved:linux,defendkey {
+			compatible = "amlogic, defendkey";
+			reg = <0x08300000 0x100000>;
+		};
 	}; /* end of reserved-memory */
 
 	dummy-battery {
@@ -1173,5 +1178,10 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&spicc_pins>;
 	cs-gpios = <&gpio GPIOZ_3 0>;
+};
+
+&defendkey {
+	memory-region = <&defendkey_reserved>;
+	status = "okay";
 };
 
