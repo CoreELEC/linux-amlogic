@@ -947,7 +947,8 @@ static int lcd_fops_create(void)
 		return -1;
 	}
 
-	LCDPR("%s OK\n", __func__);
+	if (lcd_debug_print_flag)
+		LCDPR("%s OK\n", __func__);
 	return 0;
 }
 
@@ -1215,7 +1216,8 @@ static int lcd_vsync_irq_init(void)
 			"lcd_vsync", (void *)"lcd_vsync")) {
 			LCDERR("can't request lcd_vsync_irq\n");
 		} else {
-			LCDPR("request lcd_vsync_irq successful\n");
+			if (lcd_debug_print_flag)
+				LCDPR("request lcd_vsync_irq successful\n");
 		}
 	}
 
@@ -1225,7 +1227,8 @@ static int lcd_vsync_irq_init(void)
 			"lcd_vsync2", (void *)"lcd_vsync2")) {
 			LCDERR("can't request lcd_vsync2_irq\n");
 		} else {
-			LCDPR("request lcd_vsync2_irq successful\n");
+			if (lcd_debug_print_flag)
+				LCDPR("request lcd_vsync2_irq successful\n");
 		}
 	}
 
