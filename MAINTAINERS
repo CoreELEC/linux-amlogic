@@ -14634,6 +14634,15 @@ F:      drivers/amlogic/media/vout/backlight/bl_extern/bl_ext_default.c
 F:      drivers/amlogic/media/vout/lcd/lcd_extern/i2c_ANX6862_7911.c
 F:      include/linux/amlogic/media/vout/lcd/aml_lcd.h
 
+AMLOGIC TL1 DTS
+M:	Bo Yang <bo.yang@amlogic.com>
+F:	arch/arm/boot/dts/amlogic/mesontl1.dtsi
+F:	arch/arm/boot/dts/amlogic/mesontl1_skt-panel.dtsi
+F:	arch/arm/boot/dts/amlogic/mesontl1_x301-panel.dtsi
+F:	arch/arm/boot/dts/amlogic/tl1_pxp.dts
+F:	arch/arm/boot/dts/amlogic/tl1_t962x2_skt.dts
+F:	arch/arm/boot/dts/amlogic/tl1_t962x2_x301.dts
+
 AMLOGIC TL1 CLOCK DRIVERS
 M:	Jian Hu <jian.hu@amlogic.com>
 F:	include/dt-bindings/clock/amlogic,tl1-clkc.h
