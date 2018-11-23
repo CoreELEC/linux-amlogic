@@ -110,6 +110,15 @@
 			alignment = <0x400000>;
 		};
 
+
+		demod_reserved:linux,demod {
+			compatible = "amlogic, demod-mem";
+			size = <0x800000>; //8M //100m 0x6400000
+			alloc-ranges = <0x0 0x30000000>;
+			//multi-use;
+			//no-map;
+		};
+
 		/*vbi reserved mem*/
 		vbi_reserved:linux,vbi {
 			compatible = "amlogic, vbi-mem";
@@ -173,6 +182,30 @@
 		status = "disabled";
 		reg = <0xff632000 0x1c>;
 		tdmout_index = <1>;
+	};
+
+	aml_dtv_demod {
+		compatible = "amlogic, ddemod-tl1";
+		dev_name = "aml_dtv_demod";
+		status = "okay";
+
+		//pinctrl-names="dtvdemod_agc";
+		//pinctrl-0=<&dtvdemod_agc>;
+
+		clocks = <&clkc CLKID_DAC_CLK>;
+		clock-names = "vdac_clk_gate";
+
+		reg = <0xff650000 0x4000	/*dtv demod base*/
+			   0xff63c000 0x2000	/*hiu reg base*/
+			   0xff800000 0x1000	/*io_aobus_base*/
+			   0xffd01000 0x1000	/*reset*/
+			>;
+
+		dtv_demod0_mem = <0>;	// need move to aml_dtv_demod ?
+		spectrum = <1>;
+		cma_flag = <0>;
+		cma_mem_size = <8>;
+		memory-region = <&demod_reserved>;//<&demod_reserved>;
 	};
 
 	auge_sound {
