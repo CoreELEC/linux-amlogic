@@ -4810,7 +4810,7 @@ void amve_vlock_process(struct vframe_s *vf)
 	struct vinfo_s *vinfo;
 	unsigned int input_hz, output_hz, input_vs_cnt;
 
-	if (vecm_latch_flag & FLAG_VLOCK_DIS) {
+	if (1) {
 		vlock_disable_step1();
 		vlock_en = 0;
 		vecm_latch_flag &= ~FLAG_VLOCK_DIS;
