@@ -135,5 +135,7 @@ source "drivers/amlogic/defendkey/Kconfig"
 source "drivers/amlogic/battery/Kconfig"
 
 source "drivers/amlogic/spi-nor/Kconfig"
+
+source "drivers/amlogic/media_modules/Kconfig"
 endmenu
 endif
