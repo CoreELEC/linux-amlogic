@@ -1147,39 +1147,6 @@
 		};
 	};
 
-	sd_emmc_b: sdio@ffe05000 {
-		status = "disabled";
-		compatible = "amlogic, meson-mmc-tl1";
-		reg = <0xffe05000 0x800>;
-		interrupts = <0 190 4>;
-
-		pinctrl-names = "sdio_all_pins",
-			"sdio_clk_cmd_pins";
-		pinctrl-0 = <&sdio_all_pins>;
-		pinctrl-1 = <&sdio_clk_cmd_pins>;
-
-		clocks = <&clkc CLKID_SD_EMMC_B>,
-			<&clkc CLKID_SD_EMMC_B_P0_COMP>,
-			<&clkc CLKID_FCLK_DIV2>,
-			<&clkc CLKID_FCLK_DIV5>,
-			<&xtal>;
-		clock-names = "core", "clkin0", "clkin1", "clkin2", "xtal";
-
-		bus-width = <4>;
-		cap-sd-highspeed;
-		cap-mmc-highspeed;
-		max-frequency = <100000000>;
-		disable-wp;
-		sdio {
-			pinname = "sdio";
-			ocr_avail = <0x200080>; /**VDD voltage 3.3 ~ 3.4 */
-			max_req_size = <0x20000>; /**128KB*/
-			card_type = <3>;
-			/* 3:sdio device(ie:sdio-wifi),
-			 * 4:SD combo (IO+mem) card
-			 */
-		};
-	};
 
 	spifc: spifc@ffd14000 {
 		compatible = "amlogic,aml-spi-nor";
@@ -1689,9 +1656,7 @@
 
 	ao_to_sd_uart_pins: ao_to_sd_uart_pins {
 		mux {
-			groups = "uart_ao_a_rx_c",
-					"uart_ao_a_tx_c",
-					"uart_ao_a_rx_w3",
+			groups ="uart_ao_a_rx_w3",
 					"uart_ao_a_tx_w2",
 					"uart_ao_a_rx_w7",
 					"uart_ao_a_tx_w6",
