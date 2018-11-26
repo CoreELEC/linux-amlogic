@@ -56,7 +56,7 @@
 #define HHI_GCLK_OTHER			0xd0 /* 0x34 offset in datasheet */
 
 #define HHI_GCLK_AO			0x154 /* 0x55 offset in datasheet */
-
+#define HHI_SYS_CPU_CLK_CNTL1		0x15C /* 0x57 offset in datasheet1 */
 #define HHI_VID_CLK_DIV			0x164 /* 0x59 offset in datasheet */
 #define HHI_SPICC_HCLK_CNTL		0x168 /* 0x5a offset in datasheet */
 
@@ -70,7 +70,7 @@
 #define HHI_MALI_CLK_CNTL		0x1b0 /* 0x6c offset in datasheet */
 #define HHI_VPU_CLKC_CNTL		0x1b4 /* 0x6d offset in datasheet1 */
 #define HHI_VPU_CLK_CNTL		0x1bC /* 0x6f offset in datasheet1 */
-#define HHI_AUDPLL_CLK_OUT_CNTL	0x1E0 /* 0x74 offset in datasheet1 */
+#define HHI_AUDPLL_CLK_OUT_CNTL		0x1E0 /* 0x74 offset in datasheet1 */
 #define HHI_VDEC_CLK_CNTL		0x1E0 /* 0x78 offset in datasheet1 */
 #define HHI_VDEC2_CLK_CNTL		0x1E4 /* 0x79 offset in datasheet1 */
 #define HHI_VDEC3_CLK_CNTL		0x1E8 /* 0x7a offset in datasheet1 */
@@ -80,6 +80,8 @@
 #define HHI_HDMIRX_CLK_CNTL		0x200 /* 0x80 offset in datasheet1 */
 #define HHI_HDMIRX_AUD_CLK_CNTL		0x204 /* 0x81 offset in datasheet1 */
 #define HHI_VPU_CLKB_CNTL		0x20C /* 0x83 offset in datasheet1 */
+#define HHI_SYS_CPU_CLK_CNTL5		0x21C /* 0x87 offset in datasheet1 */
+#define HHI_SYS_CPU_CLK_CNTL6		0x220 /* 0x88 offset in datasheet1 */
 #define HHI_HDMIRX_METER_CLK_CNTL	0x234 /* 0x8d offset in datasheet1 */
 
 #define HHI_VDIN_MEAS_CLK_CNTL		0x250 /* 0x94 offset in datasheet1 */
