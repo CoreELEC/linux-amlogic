@@ -8537,7 +8537,7 @@ void osd_init_hw(u32 logo_loaded, u32 osd_probe,
 		osd_hw.disp_info.position_x = 0;
 		osd_hw.disp_info.position_y = 0;
 		osd_hw.disp_info.position_w = 1920;
-		osd_hw.disp_info.background_h = 1080;
+		osd_hw.disp_info.position_h = 1080;
 		osd_hw.vinfo_width = 1920;
 		osd_hw.vinfo_height = 1080;
 		if ((osd_hw.osd_meson_dev.cpu_id ==
