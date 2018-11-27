@@ -146,14 +146,22 @@ static long meson_tl1_pll_round_rate(struct clk_hw *hw, unsigned long rate,
 	struct meson_clk_pll *pll = to_meson_clk_pll(hw);
 	const struct pll_rate_table *rate_table = pll->rate_table;
 	int i;
+	u64 ret_rate = 0;
 
 	for (i = 0; i < pll->rate_count; i++) {
-		if (rate <= rate_table[i].rate)
-			return rate_table[i].rate;
+		if (rate <= rate_table[i].rate) {
+			ret_rate = rate_table[i].rate;
+			if (!strcmp(clk_hw_get_name(hw), "sys_pll"))
+				do_div(ret_rate, 1000);
+			return ret_rate;
+		}
 	}
 
 	/* else return the smallest value */
-	return rate_table[0].rate;
+	ret_rate = rate_table[0].rate;
+	if (!strcmp(clk_hw_get_name(hw), "sys_pll"))
+		do_div(ret_rate, 1000);
+	return ret_rate;
 }
 
 static const struct pll_rate_table *meson_tl1_get_pll_settings
@@ -200,6 +208,9 @@ static int meson_tl1_pll_set_rate(struct clk_hw *hw, unsigned long rate,
 
 	if (parent_rate == 0 || rate == 0)
 		return -EINVAL;
+
+	if (!strcmp(clk_hw_get_name(hw), "sys_pll"))
+		rate *= 1000;
 
 	old_rate = rate;
 
