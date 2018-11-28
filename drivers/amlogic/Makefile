@@ -7,7 +7,6 @@
 ## Do not change.
 ##########################################
 
-KBUILD_CFLAGS += -Wlarger-than=28792
 KBUILD_CFLAGS += -Wstack-usage=1856 -Wno-bool-operation -Wno-maybe-uninitialized
 
 # These 2 marked sentence is just for generate warning messages
