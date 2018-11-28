@@ -166,7 +166,7 @@ static const char * const linein_left_txt[] = {
 	"None", "AIL1", "AIL2", "AIL3",
 };
 
-static const SOC_ENUM_SINGLE_DECL(linein_left_enum,
+static SOC_ENUM_SINGLE_DECL(linein_left_enum,
 				  ADC_VOL_CTR_PGA_IN_CONFIG,
 				  PGAL_IN_SEL, linein_left_txt);
 
@@ -178,7 +178,7 @@ static const char * const linein_right_txt[] = {
 	"None", "AIR1", "AIR2", "AIR3",
 };
 
-static const SOC_ENUM_SINGLE_DECL(linein_right_enum,
+static SOC_ENUM_SINGLE_DECL(linein_right_enum,
 				  ADC_VOL_CTR_PGA_IN_CONFIG,
 				  PGAR_IN_SEL, linein_right_txt);
 
@@ -191,7 +191,7 @@ static const char * const out_l1l_txt[] = {
 	"None", "LO1L_SEL_AIL", "LO1L_SEL_DACL", "Reserved", "LO1L_SEL_DACR_INV"
 };
 
-static const SOC_ENUM_SINGLE_DECL(out_lo1l_enum, LINE_OUT_CONFIG,
+static SOC_ENUM_SINGLE_DECL(out_lo1l_enum, LINE_OUT_CONFIG,
 				  LO1L_SEL_AIL, out_l1l_txt);
 
 static const struct snd_kcontrol_new lo1l_mux =
@@ -202,7 +202,7 @@ static const char * const out_l1r_txt[] = {
 	"None", "LO1R_SEL_AIR", "LO1R_SEL_DACR", "Reserved", "LO1R_SEL_DACL_INV"
 };
 
-static const SOC_ENUM_SINGLE_DECL(out_lo1r_enum, LINE_OUT_CONFIG,
+static SOC_ENUM_SINGLE_DECL(out_lo1r_enum, LINE_OUT_CONFIG,
 				  LO1R_SEL_AIR, out_l1r_txt);
 
 static const struct snd_kcontrol_new lo1r_mux =
@@ -214,7 +214,7 @@ static const char * const out_l2ol_txt[] = {
 	"LO2L_SEL_DAC2R_INV"
 };
 
-static const SOC_ENUM_SINGLE_DECL(out_lo2l_enum, LINE_OUT_CONFIG,
+static SOC_ENUM_SINGLE_DECL(out_lo2l_enum, LINE_OUT_CONFIG,
 				  LO2L_SEL_AIL, out_l2ol_txt);
 
 static const struct snd_kcontrol_new lo2l_mux =
@@ -226,7 +226,7 @@ static const char * const out_lo2r_txt[] = {
 	"LO2R_SEL_DAC2L_INV"
 };
 
-static const SOC_ENUM_SINGLE_DECL(out_lo2r_enum, LINE_OUT_CONFIG,
+static SOC_ENUM_SINGLE_DECL(out_lo2r_enum, LINE_OUT_CONFIG,
 				  LO2R_SEL_AIR, out_lo2r_txt);
 
 static const struct snd_kcontrol_new lo2r_mux =
