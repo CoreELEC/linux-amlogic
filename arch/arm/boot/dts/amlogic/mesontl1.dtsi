@@ -2087,7 +2087,8 @@
 				"tcon_4","tcon_5","tcon_6","tcon_7",
 				"tcon_8","tcon_9","tcon_10","tcon_11",
 				"tcon_12","tcon_13","tcon_14","tcon_15",
-				"tcon_lock";
+				"tcon_lock","tcon_spi_mo","tcon_spi_mi",
+				"tcon_spi_clk","tcon_spi_ss";
 			function = "tcon";
 		};
 	};
@@ -2097,7 +2098,8 @@
 				"GPIOH_4","GPIOH_5","GPIOH_6","GPIOH_7",
 				"GPIOH_8","GPIOH_9","GPIOH_10","GPIOH_11",
 				"GPIOH_12","GPIOH_13","GPIOH_14","GPIOH_15",
-				"GPIOH_16";
+				"GPIOH_16","GPIOH_17","GPIOH_18","GPIOH_19",
+				"GPIOH_20";
 			function = "gpio_periphs";
 			input-enable;
 		};
