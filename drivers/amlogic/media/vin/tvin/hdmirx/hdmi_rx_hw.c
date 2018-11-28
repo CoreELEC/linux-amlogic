@@ -387,6 +387,18 @@ unsigned int rd_reg_hhi(unsigned int offset)
 }
 
 /*
+ * rd_reg_hhi_bits - read specfied bits of HHI reg
+ * @addr: register address
+ * @mask: bits mask
+ *
+ * return masked bits of register value
+ */
+unsigned int rd_reg_hhi_bits(unsigned int offset, unsigned int mask)
+{
+	return rx_get_bits(rd_reg_hhi(offset), mask);
+}
+
+/*
  * wr_reg_hhi
  * @offset: offset address of hhi physical addr
  * @val: value being written
@@ -396,6 +408,17 @@ void wr_reg_hhi(unsigned int offset, unsigned int val)
 	unsigned int addr = offset +
 		reg_maps[MAP_ADDR_MODULE_HIU].phy_addr;
 	wr_reg(MAP_ADDR_MODULE_HIU, addr, val);
+}
+
+/*
+ * wr_reg_hhi_bits
+ * @offset: offset address of hhi physical addr
+ * @mask: modify bits mask
+ * @val: value being written
+ */
+void wr_reg_hhi_bits(unsigned int offset, unsigned int mask, unsigned int val)
+{
+	wr_reg_hhi(offset, rx_set_bits(rd_reg_hhi(offset), mask, val));
 }
 
 /*
@@ -665,8 +688,11 @@ unsigned int rx_set_hdcp14_secure_key(void)
  */
 void hdmirx_phy_pddq(unsigned int enable)
 {
-	hdmirx_wr_bits_dwc(DWC_SNPS_PHYG3_CTRL,
-		MSK(1, 1), enable);
+	if (rx.chip_id == CHIP_ID_TL1)
+		wr_reg_hhi_bits(HHI_HDMIRX_PHY_MISC_CNTL2, _BIT(1), enable);
+	else
+		hdmirx_wr_bits_dwc(DWC_SNPS_PHYG3_CTRL,
+			MSK(1, 1), enable);
 }
 
 /*
@@ -3532,28 +3558,27 @@ unsigned int aml_phy_tmds_valid(void)
 
 void rx_phy_rxsense_pulse(unsigned int t1, unsigned int t2)
 {
-	/* for tl1 no SW eq */
-	if (rx.hdmirxdev->data->chip_id == CHIP_ID_TL1) {
-		/* ... */
-	} else {
-		/* set rxsense pulse */
-		hdmirx_phy_pddq(1);
-		mdelay(t1);
-		hdmirx_phy_pddq(0);
-		mdelay(t2);
-	}
+	/* set rxsense pulse */
+	hdmirx_phy_pddq(1);
+	mdelay(t1);
+	hdmirx_phy_pddq(0);
+	mdelay(t2);
 }
 
 void rx_phy_power_on(unsigned int onoff)
 {
-	if (rx.hdmirxdev->data->chip_id == CHIP_ID_TL1) {
-		/* ... */
-
-	} else {
-		if (onoff)
-			hdmirx_phy_pddq(0);
-		else
-			hdmirx_phy_pddq(1);
+	if (onoff)
+		hdmirx_phy_pddq(0);
+	else
+		hdmirx_phy_pddq(1);
+	if (rx.chip_id == CHIP_ID_TL1) {
+		/*the enable of these regs are in phy init*/
+		if (onoff == 0) {
+			wr_reg_hhi_bits(HHI_HDMIRX_APLL_CNTL0, _BIT(28), onoff);
+			/*close termination 3.3v*/
+			wr_reg_hhi_bits(HHI_HDMIRX_PHY_MISC_CNTL0,
+					MSK(3, 0), onoff);
+		}
 	}
 }
 

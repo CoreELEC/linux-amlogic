@@ -1103,7 +1103,10 @@ extern int ignore_sscp_charerr;
 extern int ignore_sscp_tmds;
 
 extern void wr_reg_hhi(unsigned int offset, unsigned int val);
+extern void wr_reg_hhi_bits(unsigned int offset, unsigned int mask,
+				unsigned int val);
 extern unsigned int rd_reg_hhi(unsigned int offset);
+extern unsigned int rd_reg_hhi_bits(unsigned int offset, unsigned int mask);
 extern unsigned int rd_reg(enum map_addr_module_e module,
 		unsigned int reg_addr);
 extern void wr_reg(enum map_addr_module_e module,
