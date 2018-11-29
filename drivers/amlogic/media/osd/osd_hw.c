@@ -82,6 +82,7 @@
 #define OSD_TYPE_BOT_FIELD 1
 
 #define OSD_DISP_DEBUG    1
+#define ENCP_LINE_VSYNC   15
 #define ENCP_LINE         16
 #define OSD_OLD_HWC         (0x01 << 0)
 #define OSD_OTHER_NEW_HWC   (0x01 << 1)
@@ -2126,7 +2127,7 @@ int osd_set_scan_mode(u32 index)
 			if ((vinfo->width == 720)
 				&& (vinfo->height == 480)) {
 				if (osd_hw.free_scale_mode[index]) {
-					//osd_hw.field_out_en = 1;
+					osd_hw.field_out_en = 1;
 					switch (y_end) {
 					case 719:
 						osd_hw.bot_type = 2;
@@ -2146,7 +2147,7 @@ int osd_set_scan_mode(u32 index)
 			} else if ((vinfo->width == 720)
 				&& (vinfo->height == 576)) {
 				if (osd_hw.free_scale_mode[index]) {
-					//osd_hw.field_out_en = 1;
+					osd_hw.field_out_en = 1;
 					switch (y_end) {
 					case 719:
 						osd_hw.bot_type = 2;
@@ -2167,7 +2168,7 @@ int osd_set_scan_mode(u32 index)
 			} else if ((vinfo->width == 1920)
 				&& (vinfo->height == 1080)) {
 				if (osd_hw.free_scale_mode[index]) {
-					//osd_hw.field_out_en = 1;
+					osd_hw.field_out_en = 1;
 					switch (y_end) {
 					case 719:
 						osd_hw.bot_type = 1;
@@ -4409,6 +4410,10 @@ static void osd_pan_display_update_info(struct layer_fence_map_s *layer_map)
 				layer_map->dst_x + layer_map->dst_w - 1;
 			osd_hw.free_dst_data[index].y_end =
 				layer_map->dst_y + layer_map->dst_h - 1;
+			if (osd_hw.field_out_en) {
+				osd_hw.free_dst_data[index].y_start /= 2;
+				osd_hw.free_dst_data[index].y_end /= 2;
+			}
 		}
 	}
 	#if 0
@@ -7531,9 +7536,10 @@ static int osd_setting_order(void)
 	vinfo_height = osd_hw.field_out_en ?
 		(osd_hw.vinfo_height * 2) : osd_hw.vinfo_height;
 	if (line1 >= vinfo_height) {
-		osd_log_info(
-			"enter osd_setting_order:cnt=%d,encp line=%d\n",
-			cnt, line1);
+		if (osd_hw.osd_display_debug == ENCP_LINE_VSYNC)
+			osd_log_info(
+				"enter osd_setting_order:cnt=%d,encp line=%d\n",
+				cnt, line1);
 		osd_wait_vsync_hw();
 		line1 = get_enter_encp_line();
 	}
