@@ -693,6 +693,9 @@ static u32 ori2_end_y_lines;
 /* wide settings */
 static u32 wide_setting = 1;
 
+/* auto colour depth switching: 0 = on, 1 = off */
+static u32 disable_cdsw = 0;
+
 /* black out policy */
 #if defined(CONFIG_JPEGLOGO)
 static u32 blackout;
@@ -3890,7 +3893,7 @@ static irqreturn_t vsync_isr(int irq, void *dev_id)
 			default:
 				new_cd = COLORDEPTH_24B;
 		}
-		if (new_cd != cur_cd){
+		if (new_cd != cur_cd && disable_cdsw != 1){
 			video_property_changed = true;
 			hdev->para->cd = new_cd;
 			pr_info(" Colourdepth changed in stream to %dB in para 0x%08x (%s)\n",(int) hdev->para->cd * 6, hdev->para, hdev->para->name);
@@ -6849,6 +6852,32 @@ static ssize_t video_disable_store(struct class *cla,
 	return count;
 }
 
+static ssize_t cdsw_disable_show(struct class *cla,
+				  struct class_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%d\n", disable_cdsw);
+}
+
+static ssize_t cdsw_disable_store(struct class *cla,
+				   struct class_attribute *attr,
+				   const char *buf, size_t count)
+{
+	size_t r;
+	int val;
+	if (debug_flag)
+		pr_info("%s(%s)\n", __func__, buf);
+	r = sscanf(buf, "%d", &val);
+	if (r != 1)
+		return -EINVAL;
+	if ((val < 0) || (val > 1))
+		return -EINVAL;
+
+    disable_cdsw = val;
+    
+	return count;
+}
+
+
 static ssize_t video_freerun_mode_show(struct class *cla,
 				       struct class_attribute *attr, char *buf)
 {
@@ -7596,6 +7625,10 @@ static struct class_attribute amvideo_class_attrs[] = {
 	       S_IRUGO | S_IWUSR | S_IWGRP,
 	       video_disable_show,
 	       video_disable_store),
+	__ATTR(disable_cdsw,
+	       S_IRUGO | S_IWUSR | S_IWGRP,
+	       cdsw_disable_show,
+	       cdsw_disable_store),
 	__ATTR(zoom,
 	       S_IRUGO | S_IWUSR | S_IWGRP,
 	       video_zoom_show,
