@@ -171,8 +171,9 @@ static int c_show(struct seq_file *m, void *v)
 		seq_printf(m, "%02x", chipid[i]);
 	seq_puts(m, "\n");
 #endif
-
-	seq_printf(m, "Hardware\t: %s\n\n", "Amlogic");
+	system_rev = 0x0400;
+	seq_printf(m, "Hardware\t: %s\n", machine_name);
+	seq_printf(m, "Revision\t: %04x\n\n", system_rev);
 	return 0;
 }
 
