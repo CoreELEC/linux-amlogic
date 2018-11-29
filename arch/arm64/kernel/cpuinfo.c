@@ -225,8 +225,7 @@ static int c_show(struct seq_file *m, void *v)
 	}
 	seq_printf(m, "model name\t: Amlogic %s rev %01x\n", meson_name, meson_minor);
 #endif
-
-	seq_printf(m, "Hardware\t: %s\n\n", "Amlogic");
+	seq_printf(m, "Hardware\t: %s\n\n", machine_name);
 	return 0;
 }
 
