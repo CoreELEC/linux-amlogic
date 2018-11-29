@@ -50,6 +50,8 @@
 			operating-points-v2 = <&cpu_opp_table0>;
 			cpu-supply = <&vddcpu0>;
 			//cpu-idle-states = <&SYSTEM_SLEEP_0>;
+			voltage-tolerance = <0>;
+			clock-latency = <50000>;
 		};
 
 		CPU1:cpu@1 {
@@ -67,6 +69,8 @@
 			operating-points-v2 = <&cpu_opp_table0>;
 			cpu-supply = <&vddcpu0>;
 			//cpu-idle-states = <&SYSTEM_SLEEP_0>;
+			voltage-tolerance = <0>;
+			clock-latency = <50000>;
 		};
 
 		CPU2:cpu@2 {
@@ -84,6 +88,8 @@
 			operating-points-v2 = <&cpu_opp_table0>;
 			cpu-supply = <&vddcpu0>;
 			//cpu-idle-states = <&SYSTEM_SLEEP_0>;
+			voltage-tolerance = <0>;
+			clock-latency = <50000>;
 		};
 
 		CPU3:cpu@3 {
@@ -101,6 +107,8 @@
 			operating-points-v2 = <&cpu_opp_table0>;
 			cpu-supply = <&vddcpu0>;
 			//cpu-idle-states = <&SYSTEM_SLEEP_0>;
+			voltage-tolerance = <0>;
+			clock-latency = <50000>;
 		};
 	};
 
