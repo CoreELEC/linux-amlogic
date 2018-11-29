@@ -9,4 +9,6 @@
 #define CHIPID_LEN 16
 void cpuinfo_get_chipid(unsigned char *cid, unsigned int size);
 
+extern const char *machine_name;
+
 #endif
