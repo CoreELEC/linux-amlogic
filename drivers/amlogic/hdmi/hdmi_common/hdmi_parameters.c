@@ -880,9 +880,9 @@ static struct hdmi_format_para fmt_para_3840x2160p50_16x9_y420 = {
 	.progress_mode = 1,
 	.scrambler_en = 0,
 	.tmds_clk_div40 = 0,
-	.tmds_clk = 594000,
+	.tmds_clk = 297000,
 	.timing = {
-		.pixel_freq = 594000,
+		.pixel_freq = 297000,
 		.h_freq = 112500,
 		.v_freq = 50000,
 		.vsync_polarity = 1,
@@ -942,10 +942,10 @@ static struct hdmi_format_para fmt_para_3840x2160p60_16x9_y420 = {
 	.progress_mode = 1,
 	.scrambler_en = 0,
 	.tmds_clk_div40 = 0,
-	.tmds_clk = 594000,
+	.tmds_clk = 297000,
 	.timing = {
-		.pixel_freq = 594000,
-		.frac_freq = 593407,
+		.pixel_freq = 297000,
+		.frac_freq = 296703,
 		.h_freq = 135000,
 		.v_freq = 60000,
 		.vsync_polarity = 1,
@@ -1168,7 +1168,7 @@ static void hdmi_parse_attr(struct hdmi_format_para *para, char const *name)
 	}
 	/* set default value */
 	if (i == sizeof(parse_cr_) / sizeof(struct parse_cr))
-		para->cr = COLORRANGE_FUL;
+		para->cr = COLORRANGE_LIM;
 }
 
 /*
@@ -1224,7 +1224,9 @@ struct hdmi_format_para *hdmi_get_fmt_name(char const *name, char const *attr)
 		case HDMI_3840x2160p60_64x27:
 			break;
 		default:
-			para = &fmt_para_non_hdmi_fmt;
+			/* fall back to something which is hdmi legal */
+			pr_info("YUV420 mode illegal at that resolution - setting YUV444");
+			para->cs = COLORSPACE_YUV444;
 			break;
 		}
 	}

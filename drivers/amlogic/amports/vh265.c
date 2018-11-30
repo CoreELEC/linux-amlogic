@@ -8350,7 +8350,7 @@ static int amvdec_h265_probe(struct platform_device *pdev)
 
 	if ((get_cpu_type() >= MESON_CPU_MAJOR_ID_GXTVBB) &&
 		(parser_sei_enable & 0x100) == 0)
-		parser_sei_enable = 1;
+		parser_sei_enable = 7;
 	hevc->m_ins_flag = 0;
 	hevc->init_flag = 0;
 	hevc->uninit_list = 0;
@@ -8562,7 +8562,7 @@ static int ammvdec_h265_probe(struct platform_device *pdev)
 #endif
 	if ((get_cpu_type() >= MESON_CPU_MAJOR_ID_GXTVBB) &&
 		(parser_sei_enable & 0x100) == 0)
-		parser_sei_enable = 1;
+		parser_sei_enable = 7;
 	hevc->m_ins_flag = 1;
 	hevc->init_flag = 0;
 	hevc->uninit_list = 0;

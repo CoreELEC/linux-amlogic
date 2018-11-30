@@ -155,6 +155,18 @@ static int Edid_find_name_block(unsigned char *data)
 		ret = 1;
 	return ret;
 }
+static int Edid_find_range_block(unsigned char *data)
+{
+	int ret = 0;
+	int i;
+	for (i = 0; i < 3; i++) {
+		if (data[i])
+			return ret;
+	}
+	if (data[3] == 0xfd)
+		ret = 1;
+	return ret;
+}
 
 static void Edid_ReceiverProductNameParse(struct rx_cap *pRxCap,
 	unsigned char *data)
@@ -1402,10 +1414,14 @@ static int hdmitx_edid_block_parse(struct hdmitx_dev *hdmitx_device,
 				pRXCap->IEEEOUI = 0x000c03;
 			else
 				goto case_hf;
-			pRXCap->ColorDeepSupport =
-				(unsigned long)BlockBuf[offset+5];
-			pRXCap->Max_TMDS_Clock1 =
-				(unsigned long)BlockBuf[offset+6];
+			if (count > 5){
+				pRXCap->ColorDeepSupport =
+					(unsigned long)BlockBuf[offset+5];
+				pRXCap->Max_TMDS_Clock1 =
+					(unsigned long)BlockBuf[offset+6];
+			}
+			else
+				pRXCap->Max_TMDS_Clock1 = 0;
 			if (count > 7) {
 				tmp = BlockBuf[offset+7];
 				idx = offset + 8;
@@ -1436,7 +1452,7 @@ case_hf:
 			if ((BlockBuf[offset] == 0xd8) &&
 				(BlockBuf[offset+1] == 0x5d) &&
 				(BlockBuf[offset+2] == 0xc4))
-				pRXCap->HF_IEEEOUI = 0xd85dc4;
+				pRXCap->HF_IEEEOUI = 0xc45dd8;
 			pRXCap->Max_TMDS_Clock2 = BlockBuf[offset+4];
 			pRXCap->scdc_present =
 				!!(BlockBuf[offset+5] & (1 << 7));
@@ -1829,6 +1845,7 @@ int hdmitx_edid_parse(struct hdmitx_dev *hdmitx_device)
 	unsigned char BlockCount;
 	unsigned char *EDID_buf;
 	int i, j, ret_val;
+	int maxPixelClock = 0;
 	int idx[4];
 	struct rx_cap *pRXCap = &(hdmitx_device->RXCap);
 	struct vinfo_s *info = NULL;
@@ -1878,6 +1895,9 @@ int hdmitx_edid_parse(struct hdmitx_dev *hdmitx_device)
 		if (Edid_find_name_block(&EDID_buf[idx[i]]))
 			Edid_ReceiverProductNameParse(&hdmitx_device->RXCap,
 				&EDID_buf[idx[i]+5]);
+
+		if (Edid_find_range_block(&EDID_buf[idx[i]]))
+			maxPixelClock = EDID_buf[idx[i]+9];
 	}
 
 	Edid_ManufactureDateParse(&hdmitx_device->RXCap, &EDID_buf[16]);
@@ -2046,6 +2066,30 @@ int hdmitx_edid_parse(struct hdmitx_dev *hdmitx_device)
 				info->hdr_info.hdr_support);
 		}
 	}
+	/* Set maxTMDSclock1 from range block if it doesn't seem to be set right */
+	if (pRXCap->Max_TMDS_Clock1 < 15){
+		hdmi_print(IMP, EDID "Setting maxTMDSclock1 from range block\n");
+		pRXCap->Max_TMDS_Clock1 = maxPixelClock * 2;
+	}
+	/* Make sure we have a usable maxTMDSclock1 */
+	if (pRXCap->Max_TMDS_Clock1 < 15){
+		pRXCap->Max_TMDS_Clock1 = 35;
+		hdmi_print(IMP, EDID "No Valid maxTMDSclock1 Setting to 175Mhz\n");
+	}
+	/* If we have a high clock but no HF-VSDB it's probably HDMI 2, so fake a HF-VSDB */
+	if (maxPixelClock > 34 && ! pRXCap->Max_TMDS_Clock2 && ! pRXCap->HF_IEEEOUI){
+		hdmi_print(IMP, EDID "High clock, no HF-VSDB block, Is it missing?\n");
+		hdmi_print(IMP, EDID "Faking HF-VSDB block\n");
+		pRXCap->HF_IEEEOUI = 0xd85dc4;
+		pRXCap->Max_TMDS_Clock2 = maxPixelClock * 2;
+		pRXCap->scdc_present = 1;
+		pRXCap->scdc_rr_capable = 0;
+		pRXCap->lte_340mcsc_scramble = 0;
+		pRXCap->dc_30bit_420 = 0;
+		pRXCap->dc_36bit_420 = 0;
+		pRXCap->dc_48bit_420 = 0;
+	}
+
 	return 0;
 
 }
@@ -2424,11 +2468,11 @@ int hdmitx_edid_dump(struct hdmitx_dev *hdmitx_device, char *buffer,
 		"Manufacture Year: %d\n", pRXCap->manufacture_year+1990);
 
 	pos += snprintf(buffer+pos, buffer_len-pos,
-		"Physcial size(cm): %d x %d\n",
+		"Physical size(cm): %d x %d\n",
 		pRXCap->physcial_weight, pRXCap->physcial_height);
 
 	pos += snprintf(buffer+pos, buffer_len-pos,
-		"EDID Verison: %d.%d\n",
+		"EDID Version: %d.%d\n",
 		pRXCap->edid_version, pRXCap->edid_revision);
 
 	pos += snprintf(buffer+pos, buffer_len-pos,
@@ -2444,11 +2488,13 @@ int hdmitx_edid_dump(struct hdmitx_dev *hdmitx_device, char *buffer,
 		hdmitx_device->hdmi_info.vsdb_phy_addr.d);
 
 	pos += snprintf(buffer+pos, buffer_len-pos,
-		"native Mode %x, VIC (native %d):\n",
-		pRXCap->native_Mode, pRXCap->native_VIC);
+		"YCC support 0x%02x, VIC (native %d):\n",
+		(pRXCap->native_Mode & 0x30) >> 4, pRXCap->native_VIC);
 
 	pos += snprintf(buffer+pos, buffer_len-pos,
-		"ColorDeepSupport %x\n", pRXCap->ColorDeepSupport);
+		"ColorDeepSupport 0x%02x 10/12/16/Y444 %d/%d/%d/%d\n",
+		pRXCap->ColorDeepSupport, pRXCap->dc_30bit, pRXCap->dc_36bit,
+		pRXCap->dc_48bit, pRXCap->dc_y444);
 
 	for (i = 0 ; i < pRXCap->VIC_count ; i++) {
 		pos += snprintf(buffer+pos, buffer_len-pos, "%d ",
@@ -2459,19 +2505,19 @@ int hdmitx_edid_dump(struct hdmitx_dev *hdmitx_device, char *buffer,
 		"Audio {format, channel, freq, cce}\n");
 	for (i = 0; i < pRXCap->AUD_count; i++) {
 		pos += snprintf(buffer+pos, buffer_len-pos,
-			"{%d, %d, %x, %x}\n",
+			"{%d, %d, 0x%02x, 0x%02x}\n",
 			pRXCap->RxAudioCap[i].audio_format_code,
 			pRXCap->RxAudioCap[i].channel_num_max,
 			pRXCap->RxAudioCap[i].freq_cc,
 			pRXCap->RxAudioCap[i].cc3);
 	}
 	pos += snprintf(buffer+pos, buffer_len-pos,
-		"Speaker Allocation: %x\n", pRXCap->RxSpeakerAllocation);
+		"Speaker Allocation: 0x%02x\n", pRXCap->RxSpeakerAllocation);
 	pos += snprintf(buffer+pos, buffer_len-pos, "Vendor: 0x%x\n",
 		pRXCap->IEEEOUI);
 
 	pos += snprintf(buffer+pos, buffer_len-pos,
-		"MaxTMDSClock1 %d MHz\n", pRXCap->Max_TMDS_Clock1 * 5);
+		"MaxTMDSClock1 %d MHz%s\n", pRXCap->Max_TMDS_Clock1 * 5, pRXCap->Max_TMDS_Clock1 == 1 ? " or less" : "");
 
 	if (pRXCap->HF_IEEEOUI) {
 		pos += snprintf(buffer+pos, buffer_len-pos, "Vendor2: 0x%x\n",

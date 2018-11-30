@@ -627,10 +627,16 @@ int hdmitx_set_display(struct hdmitx_dev *hdev, enum hdmi_vic VideoCode)
 	}
 
 	param = hdmi_get_video_param(VideoCode);
-	hdev->cur_video_param = param;
+	hdmi_print(IMP, SYS "params found at 0x%08x\n", param);
+	/* recover the bitdepth set in hdmi_tx_main */
+	if (hdev->cur_video_param != NULL)
+		param->color_depth = hdev->cur_video_param->color_depth;
 	if (param) {
+		hdev->cur_video_param = param;
+	        hdmi_print(IMP, SYS "cur_param = param at 0x%08x colourdepth %d\n", hdev->cur_video_param, hdev->cur_video_param->color_depth * 2);
 		param->color = param->color_prefer;
-		if (hdmi_output_rgb || is_philips_2009(&hdev->RXCap)) {
+		if (hdmi_output_rgb || is_philips_2009(&hdev->RXCap) ||
+			hdev->para->cs == COLORSPACE_RGB444) {
 			param->color = COLORSPACE_RGB444;
 		} else {
 			/* HDMI CT 7-24 Pixel Encoding
@@ -638,17 +644,29 @@ int hdmitx_set_display(struct hdmitx_dev *hdev, enum hdmi_vic VideoCode)
 			 */
 			switch (hdev->RXCap.native_Mode & 0x30) {
 			case 0x20:/*bit5==1, then support YCBCR444 + RGB*/
-			case 0x30:
 				param->color = COLORSPACE_YUV444;
 				break;
 			case 0x10:/*bit4==1, then support YCBCR422 + RGB*/
 				param->color = COLORSPACE_YUV422;
 				break;
+			case 0x30:
+				param->color = hdev->para->cs;
+				break;
 			default:
 				param->color = COLORSPACE_RGB444;
 			}
-			/* For Y420 modes */
 			switch (VideoCode) {
+			/* Try to stop 50hz/60hz 10bit YUV444 from happening */
+			case HDMI_3840x2160p50_16x9:
+			case HDMI_3840x2160p60_16x9:
+			case HDMI_4096x2160p50_256x135:
+			case HDMI_4096x2160p60_256x135:
+				if (param->color_depth > COLORDEPTH_24B){
+					param->color = COLORSPACE_YUV422;
+					pr_info("Setting colourspace to YCC422 for %d-bit\n", ((int) param->color_depth) * 2);
+				}
+				break;
+			/* For Y420 modes */
 			case HDMI_3840x2160p50_16x9_Y420:
 			case HDMI_3840x2160p60_16x9_Y420:
 			case HDMI_4096x2160p50_256x135_Y420:
@@ -658,12 +676,36 @@ int hdmitx_set_display(struct hdmitx_dev *hdev, enum hdmi_vic VideoCode)
 			default:
 				break;
 			}
-			if (param->color == COLORSPACE_RGB444) {
-				hdev->para->cs = hdev->cur_video_param->color;
-				pr_info("hdmitx: rx edid only support RGB format\n");
+			hdmi_print(IMP, VID "pixel freq %d, tmds clock %d, MaxClock1 %d, HF_IEEEOUI 0x%06x, MaxClock2 %d\n",
+					hdev->para->tmds_clk, hdev->para->tmds_clk * ((int) param->color_depth) / 
+					((int) COLORDEPTH_24B) / (param->color == COLORSPACE_YUV420 ? 2 : 1),
+					hdev->RXCap.Max_TMDS_Clock1 * 5000,
+					hdev->RXCap.HF_IEEEOUI, hdev->RXCap.HF_IEEEOUI ? hdev->RXCap.Max_TMDS_Clock2 * 5000 : 0);
+			if (param->color == COLORSPACE_YUV444){
+				int max_tmds_clock = hdev->RXCap.Max_TMDS_Clock1 * 5000;
+				if (hdev->RXCap.HF_IEEEOUI)
+					max_tmds_clock = hdev->RXCap.Max_TMDS_Clock2 * 5000;
+				if (hdev->para->tmds_clk * ((int) param->color_depth) / ((int) COLORDEPTH_24B) >
+						max_tmds_clock){
+					/* set 422 mode if sink can handle it */
+					if (hdev->RXCap.native_Mode & 0x10){
+						param->color = COLORSPACE_YUV422;
+						pr_info("Setting colourspace to YCC422 for %d-bit\n", ((int) param->color_depth) * 2);
+					} else {
+						pr_info("No support for YCC422, setting 8-bit\n");
+						param->color_depth = COLORDEPTH_24B;
+					}
+				}
 			}
-
 		}
+
+/*		if (param->color == COLORSPACE_RGB444) {
+			hdev->cur_video_param->color = param->color;
+			hdmi_print(IMP, VID "hdmitx: rx edid only support RGB format\n");
+		}
+*/
+		hdev->para->cs = param->color;
+
 		if (hdev->HWOp.SetDispMode(hdev) >= 0) {
 			/* HDMI CT 7-33 DVI Sink, no HDMI VSDB nor any
 			 * other VSDB, No GB or DI expected
