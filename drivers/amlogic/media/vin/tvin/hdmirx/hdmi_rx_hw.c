@@ -3665,7 +3665,6 @@ void rx_emp_field_done_irq(void)
 
 	/*emp data start physical address*/
 	p_addr = hdmirx_rd_top(TOP_EMP_DDR_PTR_S_BUF);
-	cur_start_pg_addr = phys_to_page(p_addr);
 
 	/*buffer number*/
 	recv_pkt_cnt = hdmirx_rd_top(TOP_EMP_RCV_CNT_BUF);
@@ -3684,7 +3683,10 @@ void rx_emp_field_done_irq(void)
 
 	for (i = 0; i < recv_pagenum;) {
 		/*one page 4k*/
-		src_addr = kmap_atomic(cur_start_pg_addr + i);
+		cur_start_pg_addr = phys_to_page(p_addr + i*PAGE_SIZE);
+		src_addr = kmap_atomic(cur_start_pg_addr);
+		dma_sync_single_for_cpu(hdmirx_dev, (p_addr + i*PAGE_SIZE),
+			PAGE_SIZE, DMA_TO_DEVICE);
 		if (recv_byte_cnt >= PAGE_SIZE) {
 			for (j = 0; j < PAGE_SIZE;) {
 				if (src_addr[j] == 0x7f) {
@@ -3714,7 +3716,8 @@ void rx_emp_field_done_irq(void)
 			}
 		}
 		/*release*/
-		__kunmap_atomic(src_addr);
+		/*__kunmap_atomic(src_addr);*/
+		kunmap_atomic(src_addr);
 		i++;
 	}
 
@@ -3776,6 +3779,7 @@ void rx_tmds_to_ddr_init(void)
 				rx.empbuff.p_addr_a);
 			hdmirx_wr_top(TOP_EMP_DDR_START_B,
 				rx.empbuff.p_addr_a);
+			rx_pr("cfg hw addr=0x%x\n", rx.empbuff.p_addr_a);
 		}
 
 		/* max pkt count to avoid buffer overflow */
@@ -3785,8 +3789,8 @@ void rx_tmds_to_ddr_init(void)
 		rx_pr("pkt max cnt limit=0x%x\n", data);
 
 		data = 0;
-		data |= 0xf << 16;/*[23:16] hs_beat_rate=0xf */
-		/*[14] buffer_info_mode=0 */
+		data |= 0x0 << 16;/*[23:16] hs_beat_rate=0xf */
+		data |= 0x1 << 14;/*[14] buffer_info_mode=0 */
 		data |= 0x1 << 13;/*[13] reset_on_de=1 */
 		data |= 0x0 << 12;/*[12] burst_end_on_last_emp=1 */
 		data |= 0x0 << 2;/*[11:2] de_rise_delay=0 */

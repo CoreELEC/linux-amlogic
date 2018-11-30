@@ -1756,17 +1756,26 @@ void rx_emp_resource_allocate(struct device *dev)
 
 void rx_tmds_resource_allocate(struct device *dev)
 {
+	/*uint32_t *src_v_addr;*/
+	/*uint32_t *temp;*/
+	/*uint32_t i, j;*/
+	/*phys_addr_t p_addr;*/
+	/*struct page *pg_addr;*/
+
 	if (rx.hdmirxdev->data->chip_id == CHIP_ID_TL1) {
 		if (rx.empbuff.dump_mode == DUMP_MODE_EMP) {
 			if (rx.empbuff.pg_addr) {
 				dma_release_from_contiguous(dev,
 						rx.empbuff.pg_addr,
 						EMP_BUFFER_SIZE >> PAGE_SHIFT);
+				/*free_reserved_area();*/
 				rx.empbuff.pg_addr = 0;
 				rx_pr("release emp data buffer\n");
 			}
 		} else {
-			dma_release_from_contiguous(dev, rx.empbuff.pg_addr,
+			if (rx.empbuff.pg_addr)
+				dma_release_from_contiguous(dev,
+					rx.empbuff.pg_addr,
 					TMDS_BUFFER_SIZE >> PAGE_SHIFT);
 			rx.empbuff.pg_addr = 0;
 			rx_pr("release pre tmds data buffer\n");
@@ -1776,6 +1785,7 @@ void rx_tmds_resource_allocate(struct device *dev)
 		rx.empbuff.pg_addr =
 				dma_alloc_from_contiguous(dev,
 					TMDS_BUFFER_SIZE >> PAGE_SHIFT, 0);
+
 		if (rx.empbuff.pg_addr)
 			rx.empbuff.p_addr_a =
 				page_to_phys(rx.empbuff.pg_addr);
@@ -1783,6 +1793,27 @@ void rx_tmds_resource_allocate(struct device *dev)
 			rx_pr("allocate tmds data buff fail\n");
 		rx.empbuff.dump_mode = DUMP_MODE_TMDS;
 		rx_pr("buffa paddr=0x%x\n", rx.empbuff.p_addr_a);
+		#if 0
+		/*clear buffer for test*/
+		for (i = 0; i < 10; i++) {
+			p_addr = rx.empbuff.p_addr_a + i*PAGE_SIZE;
+			pg_addr = phys_to_page(p_addr);
+			dma_sync_single_for_device(hdmirx_dev,
+				p_addr, PAGE_SIZE, DMA_TO_DEVICE);
+			src_v_addr = kmap(pg_addr);
+			/*rx_pr("i:%d,p=0x%x v=0x%x ", i, p_addr, src_v_addr);*/
+			temp = src_v_addr;
+			for (j = 0; j < PAGE_SIZE; ) {
+				*temp = 0x5a010a30 + i;
+				temp++;
+				j += 4;
+				/*rx_pr("%d ", j);*/
+			}
+			flush_kernel_dcache_page(pg_addr);
+			kunmap(pg_addr);
+			/*rx_pr("page end\n");*/
+		}
+		#endif
 	}
 }
 
@@ -1830,10 +1861,14 @@ void rx_tmds_data_capture(void)
 	loff_t pos = 0;
 	char *path = "/data/tmds_data.bin";
 	unsigned int offset = 0;
-	unsigned char *src_v_addr;
+	char *src_v_addr;
 	mm_segment_t old_fs = get_fs();
-	unsigned int recv_pagenum, i;
+	unsigned int recv_pagenum = 0, i, j;
 	unsigned int recv_byte_cnt;
+	struct page *pg_addr;
+	phys_addr_t p_addr;
+	char *tmpbuff;
+	unsigned int *paddr;
 
 	set_fs(KERNEL_DS);
 	filp = filp_open(path, O_RDWR|O_CREAT, 0666);
@@ -1843,26 +1878,60 @@ void rx_tmds_data_capture(void)
 		return;
 	}
 
-	recv_byte_cnt = rx.empbuff.tmdspktcnt * 4;
+	tmpbuff = kmalloc(PAGE_SIZE + 16, GFP_KERNEL);
+	if (!tmpbuff) {
+		rx_pr("tmds malloc buffer err\n");
+		return;
+	}
+	memset(tmpbuff, 0, PAGE_SIZE);
+	recv_byte_cnt = rx.empbuff.tmdspktcnt*4;
 	recv_pagenum = (recv_byte_cnt >> PAGE_SHIFT) + 1;
+
 	rx_pr("total byte:%d page:%d\n", recv_byte_cnt, recv_pagenum);
 	for (i = 0; i < recv_pagenum; i++) {
 		/* one page 4k,tmds data physical address, need map v addr */
-		src_v_addr = kmap(rx.empbuff.pg_addr + i);
+		p_addr = rx.empbuff.p_addr_a + i*PAGE_SIZE;
+		pg_addr = phys_to_page(p_addr);
+		src_v_addr = kmap(pg_addr);
+		dma_sync_single_for_cpu(hdmirx_dev,
+			p_addr, PAGE_SIZE, DMA_TO_DEVICE);
+		pos = i * PAGE_SIZE;
 		if (recv_byte_cnt >= PAGE_SIZE) {
 			offset = PAGE_SIZE;
-			vfs_write(filp, src_v_addr, offset, &pos);
+			memcpy(tmpbuff, src_v_addr, PAGE_SIZE);
+			vfs_write(filp, tmpbuff, offset, &pos);
 			recv_byte_cnt -= PAGE_SIZE;
 		} else {
 			offset = recv_byte_cnt;
-			vfs_write(filp, src_v_addr, offset, &pos);
+			memcpy(tmpbuff, src_v_addr, recv_byte_cnt);
+			vfs_write(filp, tmpbuff, offset, &pos);
+			recv_byte_cnt = 0;
 		}
+
 		/* release current page */
-		kunmap(rx.empbuff.pg_addr + i);
-		rx_pr("%d ", i);
+		kunmap(pg_addr);
 	}
-	rx_pr("write from 0x%x to 0x%x to %s\n",
-			pos, offset, path);
+
+	/* for teset */
+	for (i = 0; i < recv_pagenum; i++) {
+		p_addr = rx.empbuff.p_addr_a + i*PAGE_SIZE;
+		pg_addr = phys_to_page(p_addr);
+		/* p addr map to v addr*/
+		paddr = kmap(pg_addr);
+		for (j = 0; j < PAGE_SIZE;) {
+			*paddr = 0xaabbccdd;
+			paddr++;
+			j += 4;
+		}
+		rx_pr(".");
+		dma_sync_single_for_device(hdmirx_dev,
+			p_addr, PAGE_SIZE, DMA_TO_DEVICE);
+		/* release current page */
+		kunmap(pg_addr);
+	}
+
+	kfree(tmpbuff);
+	rx_pr("write to %s\n", path);
 	vfs_fsync(filp, 0);
 	filp_close(filp, NULL);
 	set_fs(old_fs);
