@@ -167,12 +167,27 @@
 			compatible = "amlogic, ppmgr_memory";
 			size = <0x0>;
 		};
+
+		picdec_cma_reserved:linux,picdec {
+			compatible = "shared-dma-pool";
+			reusable;
+			size = <0x0>;
+			alignment = <0x0>;
+			linux,contiguous-region;
+		};
 	}; /* end of reserved-memory */
 
 	codec_mm {
 		compatible = "amlogic, codec, mm";
 		status = "okay";
 		memory-region = <&codec_mm_cma &codec_mm_reserved>;
+	};
+
+	picdec {
+		compatible = "amlogic, picdec";
+		memory-region = <&picdec_cma_reserved>;
+		dev_name = "picdec";
+		status = "okay";
 	};
 
 	ppmgr {
