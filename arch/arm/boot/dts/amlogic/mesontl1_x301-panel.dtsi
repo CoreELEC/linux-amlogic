@@ -642,7 +642,7 @@
 				410 110>; /*on_delay(ms), off_delay(ms)*/
 			bl_pwm_combo_level_mapping = <255 10 /*pwm_0 range*/
 				0 0>; /*pwm_1 range*/
-			bl_pwm_combo_port = "PWM_B","PWM_C";
+			bl_pwm_combo_port = "PWM_C","PWM_D";
 			bl_pwm_combo_attr = <1 /*pwm0 method*/
 				180 /*pwm0 freq(pwm:Hz, pwm_vs:multiple of vs)*/
 				100 25 /*pwm0 duty_max(%), duty_min(%)*/
