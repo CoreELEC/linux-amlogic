@@ -107,6 +107,10 @@ extern void aml_update_tdmin_src(
 	struct aml_audio_controller *actrl,
 	int index, int in_src);
 
+extern void tdmin_set_chnum_en(
+	struct aml_audio_controller *actrl,
+	int index, bool enable);
+
 extern void aml_tdm_set_channel_mask(
 	struct aml_audio_controller *actrl,
 	int stream, int index, int lanes, int mask);

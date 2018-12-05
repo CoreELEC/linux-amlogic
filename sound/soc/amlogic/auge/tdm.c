@@ -38,10 +38,11 @@
 
 #include "ddr_mngr.h"
 #include "tdm_hw.h"
+#include "sharebuffer.h"
+#include "vad.h"
 
 /*#define __PTM_TDM_CLK__*/
 
-#include "sharebuffer.h"
 
 #define DRV_NAME "aml_tdm"
 
@@ -403,7 +404,6 @@ static int aml_dai_tdm_prepare(struct snd_pcm_substream *substream,
 
 	bit_depth = snd_pcm_format_width(runtime->format);
 
-
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		struct frddr *fr = p_tdm->fddr;
 		enum frddr_dest dst;
@@ -458,6 +458,10 @@ static int aml_dai_tdm_prepare(struct snd_pcm_substream *substream,
 		unsigned int lsb = 32 - bit_depth;
 		unsigned int toddr_type;
 		struct toddr_fmt fmt;
+
+		if (vad_tdm_is_running(p_tdm->id)
+			&& pm_audio_is_suspend())
+			return 0;
 
 		switch (bit_depth) {
 		case 8:
@@ -542,6 +546,16 @@ static int aml_dai_tdm_trigger(struct snd_pcm_substream *substream, int cmd,
 	case SNDRV_PCM_TRIGGER_START:
 	case SNDRV_PCM_TRIGGER_RESUME:
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
+
+		if ((substream->stream == SNDRV_PCM_STREAM_CAPTURE)
+			&& vad_tdm_is_running(p_tdm->id)
+			&& pm_audio_is_suspend()) {
+			pm_audio_set_suspend(false);
+			/* VAD switch to alsa buffer */
+			vad_update_buffer(0);
+			break;
+		}
+
 		/* reset fifo here.
 		 * If not, xrun will cause channel mapping mismatch
 		 */
@@ -561,6 +575,14 @@ static int aml_dai_tdm_trigger(struct snd_pcm_substream *substream, int cmd,
 	case SNDRV_PCM_TRIGGER_STOP:
 	case SNDRV_PCM_TRIGGER_SUSPEND:
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
+		if ((substream->stream == SNDRV_PCM_STREAM_CAPTURE)
+			&& vad_tdm_is_running(p_tdm->id)
+			&& pm_audio_is_suspend()) {
+			/* switch to VAD buffer */
+			vad_update_buffer(1);
+			break;
+		}
+
 		aml_tdm_enable(p_tdm->actrl,
 			substream->stream, p_tdm->id, false);
 
@@ -724,6 +746,11 @@ static int aml_dai_tdm_hw_params(struct snd_pcm_substream *substream,
 			return ret;
 	}
 
+	/* Must enabe channel number for VAD */
+	if ((substream->stream == SNDRV_PCM_STREAM_CAPTURE)
+		&& (vad_tdm_is_running(p_tdm->id)))
+		tdmin_set_chnum_en(p_tdm->actrl, p_tdm->id, true);
+
 	/* share buffer trigger */
 	if ((substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
 		&& p_tdm->chipinfo
@@ -754,6 +781,11 @@ static int aml_dai_tdm_hw_free(struct snd_pcm_substream *substream,
 	for (i = 0; i < 4; i++)
 		aml_tdm_set_channel_mask(p_tdm->actrl,
 			substream->stream, p_tdm->id, i, 0);
+
+	/* Disable channel number for VAD */
+	if ((substream->stream == SNDRV_PCM_STREAM_CAPTURE)
+		&& (vad_tdm_is_running(p_tdm->id)))
+		tdmin_set_chnum_en(p_tdm->actrl, p_tdm->id, false);
 
 	/* share buffer free */
 	if ((substream->stream == SNDRV_PCM_STREAM_PLAYBACK)

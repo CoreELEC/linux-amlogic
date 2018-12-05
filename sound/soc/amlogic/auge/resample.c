@@ -82,7 +82,7 @@ static struct audioresample *get_audioresample(int id)
 	p_resample = ((id == 0) ? s_resample_a : s_resample_b);
 
 	if (!p_resample) {
-		pr_info("Not init audio resample\n");
+		pr_debug("Not init audio resample\n");
 		return NULL;
 	}
 

@@ -492,6 +492,19 @@ void aml_update_tdmin_src(
 		0xf << 20, in_src << 20);
 }
 
+void tdmin_set_chnum_en(
+	struct aml_audio_controller *actrl,
+	int index, bool enable)
+{
+	unsigned int reg, offset;
+
+	offset = EE_AUDIO_TDMIN_B_CTRL - EE_AUDIO_TDMIN_A_CTRL;
+	reg = EE_AUDIO_TDMIN_A_CTRL + offset * index;
+
+	aml_audiobus_update_bits(actrl, reg,
+		0x1 << 6, enable << 6);
+}
+
 void aml_tdm_set_channel_mask(
 	struct aml_audio_controller *actrl,
 	int stream, int index, int lane, int mask)
