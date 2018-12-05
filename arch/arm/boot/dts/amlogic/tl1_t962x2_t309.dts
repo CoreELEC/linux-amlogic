@@ -19,7 +19,7 @@
 
 #include "mesontl1.dtsi"
 #include "partition_mbox_normal_P_32.dtsi"
-#include "mesontl1_x301-panel.dtsi"
+#include "mesontl1_t309-panel.dtsi"
 
 / {
 	model = "Amlogic TL1 T962X2 T309";
@@ -1740,6 +1740,10 @@
 };
 
 &pwm_ab {
+	status = "okay";
+};
+
+&pwm_cd {
 	status = "okay";
 };
 

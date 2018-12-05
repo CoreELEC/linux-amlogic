@@ -14726,3 +14726,4 @@ AMLOGIC MESON TL1 PANEL DTS
 M:	Evoke Zhang <evoke.zhang@amlogic.com>
 F:	arch/arm/boot/dts/amlogic/mesontl1_skt-panel.dtsi
 F:	arch/arm/boot/dts/amlogic/mesontl1_x301-panel.dtsi
+F:	arch/arm/boot/dts/amlogic/mesontl1_t309-panel.dtsi
