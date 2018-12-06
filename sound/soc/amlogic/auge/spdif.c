@@ -951,12 +951,23 @@ static int aml_dai_spdif_prepare(
 		spdif_get_channel_status_info(&chsts, runtime->rate);
 		spdif_set_channel_status_info(&chsts, p_spdif->id);
 
+#if defined(CONFIG_ARCH_MESON64_ODROID_COMMON)
+		/* TOHDMITX_CTRL0
+		 * ODROID is spdif_b only would notify to hdmitx
+		 */
+		if (p_spdif->id == 1) {
+			spdifout_to_hdmitx_ctrl(p_spdif->id);
+			/* notify to hdmitx */
+			spdif_notify_to_hdmitx(substream);
+		}
+#else
 		/* TOHDMITX_CTRL0
 		 * Both spdif_a/spdif_b would notify to hdmitx
 		 */
 		spdifout_to_hdmitx_ctrl(p_spdif->id);
 		/* notify to hdmitx */
 		spdif_notify_to_hdmitx(substream);
+#endif
 
 	} else {
 		struct toddr *to = p_spdif->tddr;

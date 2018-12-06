@@ -611,8 +611,15 @@ void spdifout_play_with_zerodata(unsigned int spdif_id)
 
 		/* spdif clk */
 		spdifout_clk_ctrl(spdif_id, true);
+
+#if defined(CONFIG_ARCH_MESON64_ODROID_COMMON)
+		/* ODROID spdif_b only to hdmitx */
+		if (spdif_id == 1)
+			spdifout_to_hdmitx_ctrl(spdif_id);
+#else
 		/* spdif to hdmitx */
 		spdifout_to_hdmitx_ctrl(spdif_id);
+#endif
 
 		/* spdif ctrl */
 		spdifout_fifo_ctrl(spdif_id, frddr_index, bitwidth);
