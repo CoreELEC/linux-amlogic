@@ -111,12 +111,21 @@
 			alignment = <0x400000>;
 		};
 
-		demod_reserved:linux,demod {
-			compatible = "amlogic, demod-mem";
-			size = <0x800000>; //8M //100m 0x6400000
-			alloc-ranges = <0x0 0x30000000>;
-			//multi-use;
-			//no-map;
+		/*demod_reserved:linux,demod {
+		 *	compatible = "amlogic, demod-mem";
+		 *	size = <0x800000>; //8M //100m 0x6400000
+		 *	alloc-ranges = <0x0 0x30000000>;
+		 *	//multi-use;
+		 *	//no-map;
+		 *};
+		 */
+
+		demod_cma_reserved:linux,demod_cma {
+			compatible = "shared-dma-pool";
+			reusable;
+			/* 8M */
+			size = <0x0800000>;
+			alignment = <0x400000>;
 		};
 
 		/*vbi reserved mem*/
@@ -244,9 +253,9 @@
 
 		dtv_demod0_mem = <0>;	// need move to aml_dtv_demod ?
 		spectrum = <1>;
-		cma_flag = <0>;
+		cma_flag = <1>;
 		cma_mem_size = <8>;
-		memory-region = <&demod_reserved>;//<&demod_reserved>;
+		memory-region = <&demod_cma_reserved>;//<&demod_reserved>;
 	};
 
 	auge_sound {
