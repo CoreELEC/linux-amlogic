@@ -134,7 +134,7 @@ int atvaudiodem_reg_write(unsigned int reg, unsigned int val)
 	return 0;
 }
 
-int atvaudio_reg_read(unsigned int *val)
+int atvaudio_ctrl_read(unsigned int *val)
 {
 	/* only 0xffd0d340 read */
 	/* bit0: I2s select in_src, 0 = atv_demod, 1 = adec */
@@ -146,7 +146,7 @@ int atvaudio_reg_read(unsigned int *val)
 	return 0;
 }
 
-int atvaudio_reg_write(unsigned int val)
+int atvaudio_ctrl_write(unsigned int val)
 {
 	/* only 0xffd0d340 write */
 	/* bit0: I2s select in_src, 0 = atv_demod, 1 = adec */
