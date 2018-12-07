@@ -123,6 +123,8 @@ static int high_priority_cmds[] = {
 	SCPI_CMD_INIT_DSP,
 };
 
+static int m4_cmds[] = {-1};
+
 static struct scpi_dvfs_info *scpi_opps[MAX_DVFS_DOMAINS];
 
 static int scpi_linux_errmap[SCPI_ERR_MAX] = {
@@ -140,11 +142,17 @@ static inline int scpi_to_linux_errno(int errno)
 
 static bool high_priority_chan_supported(int cmd)
 {
-	int idx;
+	unsigned int idx;
 
-	for (idx = 0; idx < ARRAY_SIZE(high_priority_cmds); idx++)
-		if (cmd == high_priority_cmds[idx])
-			return true;
+	if (num_scp_chans == CHANNEL_MAX) {
+		for (idx = 0; idx < ARRAY_SIZE(high_priority_cmds); idx++)
+			if (cmd == high_priority_cmds[idx])
+				return true;
+	} else {
+		for (idx = 0; idx < ARRAY_SIZE(m4_cmds); idx++)
+			if (cmd == m4_cmds[idx])
+				return true;
+	}
 	return false;
 }
 
