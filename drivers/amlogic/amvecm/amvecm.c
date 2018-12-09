@@ -614,6 +614,7 @@ static void vpp_dump_histgram(void)
 {
 	uint i;
 	pr_info("%s:\n", __func__);
+	pr_info("Histogram for %d\n", rd_bits(0,VI_HIST_CTRL,11,3)); 
 	for (i = 0; i < 64; i++) {
 		pr_info("[%d]0x%-8x\t", i, vpp_hist_param.vpp_histgram[i]);
 		if ((i+1)%8 == 0)
@@ -621,9 +622,9 @@ static void vpp_dump_histgram(void)
 	}
 }
 
-void vpp_get_hist_en(void)
+void vpp_get_hist_en(int sel)
 {
-	wr_bits(0, VI_HIST_CTRL, 0x1, 11, 3);
+	wr_bits(0, VI_HIST_CTRL, sel, 11, 3);
 	wr_bits(0, VI_HIST_CTRL, 0x1, 0, 1);
 	wr(0, VI_HIST_GCLK_CTRL, 0xffffffff);
 	wr_bits(0, VI_HIST_CTRL, 2, VI_HIST_POW_BIT, VI_HIST_POW_WID);
@@ -2153,7 +2154,15 @@ static ssize_t amvecm_dump_vpp_hist_store(struct class *cla,
 		struct class_attribute *attr,
 		const char *buf, size_t count)
 {
-	return 0;
+	size_t r;
+	int val;
+	r = sscanf(buf, "%d", &val);
+	if (r != 1)
+		return -EINVAL;
+	if (val < 4 &&  val >= 0)
+		vpp_get_hist_en(val);
+
+	return count;
 }
 
 static ssize_t amvecm_hdr_dbg_show(struct class *cla,
@@ -2964,7 +2973,7 @@ static int aml_vecm_probe(struct platform_device *pdev)
 	if (is_meson_gxtvbb_cpu() || is_meson_txl_cpu())
 		init_sharpness();
 	/* #endif */
-	vpp_get_hist_en();
+	vpp_get_hist_en(1);
 
 	memset(&vpp_hist_param.vpp_histgram[0],
 		0, sizeof(unsigned short) * 64);

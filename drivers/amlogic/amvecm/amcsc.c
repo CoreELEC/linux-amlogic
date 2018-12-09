@@ -183,10 +183,15 @@ static uint cur_hdr_support;
 module_param(cur_hdr_support, uint, 0664);
 MODULE_PARM_DESC(cur_hdr_support, "\n cur_hdr_support\n");
 
-static uint range_control;
+static uint range_control = 0;
 module_param(range_control, uint, 0664);
-MODULE_PARM_DESC(range_control, "\n range_control 0:limit 1:full\n");
+MODULE_PARM_DESC(range_control, "\n range_control 0:limit-limit 1:full-limit 2:limit-full 3:full-full\n");
 
+static uint cur_range_control = 0;
+uint get_range_control(void){
+	return range_control;
+}
+EXPORT_SYMBOL(get_range_control);
 /* bit 0: use source primary,
    bit 1: use display primary,
    bit 2: adjust contrast according to source lumin,
@@ -885,7 +890,7 @@ static unsigned int video_oetf_b_mapping[VIDEO_OETF_LUT_SIZE] = {
 #define COEFF_NORM(a) ((int)((((a) * 2048.0) + 1) / 2))
 #define MATRIX_5x3_COEF_SIZE 24
 /******* osd1 matrix0 *******/
-/* default rgb to yuv_limit */
+/* default rgb to yuv_full */
 static unsigned int num_osd_matrix_coeff = MATRIX_5x3_COEF_SIZE;
 static int osd_matrix_coeff[MATRIX_5x3_COEF_SIZE] = {
 	0, 0, 0, /* pre offset */
@@ -1093,7 +1098,7 @@ static int YUV709f_to_YUV709l_coeff[MATRIX_5x3_COEF_SIZE] = {
 };
 
 static int YUV709l_to_YUV709f_coeff[MATRIX_5x3_COEF_SIZE] = {
-	64, -512, -512, /* pre offset */
+	-64, -512, -512, /* pre offset */
 	COEFF_NORM(1.16895),	COEFF_NORM(0),	COEFF_NORM(0),
 	COEFF_NORM(0),	COEFF_NORM(1.14286),	COEFF_NORM(0),
 	COEFF_NORM(0),	COEFF_NORM(0),	COEFF_NORM(1.14286),
@@ -2576,6 +2581,12 @@ int signal_type_changed(struct vframe_s *vf, struct vinfo_s *vinfo)
 		change_flag |= SIG_CS_CHG;
 		cur_signal_type = signal_type;
 	}
+	if (range_control != cur_range_control) {
+		pr_csc("Range control changed from 0x%x to 0x%x.\n",
+			cur_range_control, range_control);
+		change_flag |= SIG_CS_CHG;
+		cur_range_control = range_control;
+	}
 	if (pre_src_type != vf->source_type) {
 		pr_csc("Signal source changed from 0x%x to 0x%x.\n",
 			pre_src_type, vf->source_type);
@@ -3560,7 +3571,7 @@ static void bypass_hdr_process(
 				CSC_OFF);
 
 			/* osd matrix RGB709 to YUV709 limit/full */
-			if (signal_range == 1){
+			if (range_control & 2){
 				set_vpp_matrix(VPP_MATRIX_OSD,
 					RGB709_to_YUV709_coeff,
 					CSC_ON);	/* use full range */
@@ -3581,22 +3592,28 @@ static void bypass_hdr_process(
 				bypass_coeff,
 				CSC_OFF);	/* limit->limit range */
 		else {
-			if (range_control) {
-				if (signal_range == 0) /* limit range */
-					set_vpp_matrix(VPP_MATRIX_VD1,
-						YUV709l_to_YUV709f_coeff,
-						CSC_ON);
-					/* limit->full range */
-				else
+			pr_info("Setting VD1 for BT709");
+			switch (range_control) {
+				case 1:
+					/* input is full-range, output is limited */
 					set_vpp_matrix(VPP_MATRIX_VD1,
 						YUV709f_to_YUV709l_coeff,
 						CSC_ON);
-					/* full->full range */
-			} else {
+					break;
+				case 2:
+					/* input is limited, output is full-range */
 					set_vpp_matrix(VPP_MATRIX_VD1,
-						bypass_coeff,
-						CSC_OFF);
-					/* limit->limit range */
+						YUV709l_to_YUV709f_coeff,
+						CSC_ON);
+					break;
+				case 0:
+				case 3:
+				default:
+					/* input is same as output */
+					set_vpp_matrix(VPP_MATRIX_VD1,
+							bypass_coeff,
+							CSC_OFF);
+					break;
 			}
 		}
 
@@ -3647,7 +3664,7 @@ static void bypass_hdr_process(
 			CSC_OFF);
 
 		/* xvycc matrix full2limit or bypass */
-		if (vinfo->viu_color_fmt != TVIN_RGB444) {
+/*		if (vinfo->viu_color_fmt != TVIN_RGB444) {
 			if (csc_type == VPP_MATRIX_BT2020YUV_BT2020RGB)
 				set_vpp_matrix(VPP_MATRIX_XVYCC,
 					bypass_coeff,
@@ -3662,7 +3679,11 @@ static void bypass_hdr_process(
 						bypass_coeff,
 						CSC_OFF);
 			}
-		}
+		}*/
+		set_vpp_matrix(VPP_MATRIX_XVYCC,
+				bypass_coeff,
+				CSC_OFF);
+
 	} else {
 		/* OSD */
 		/* keep RGB */
@@ -3737,7 +3758,7 @@ static void sdr_hdr_process(
 			CSC_OFF);
 
 		/* osd matrix RGB709 to YUV709 limit/full */
-		if (range_control)
+		if (range_control & 2)
 			set_vpp_matrix(VPP_MATRIX_OSD,
 				RGB709_to_YUV709_coeff,
 				CSC_ON);	/* use full range */
@@ -3748,25 +3769,15 @@ static void sdr_hdr_process(
 
 		/************** VIDEO **************/
 		/* convert SDR Video to HDR */
-		if (range_control) {
-			if (signal_range == 0) /* limit range */
-				set_vpp_matrix(VPP_MATRIX_VD1,
-					YUV709l_to_YUV709f_coeff,
-					CSC_ON);	/* limit->full range */
-			else
-				set_vpp_matrix(VPP_MATRIX_VD1,
-					bypass_coeff,
-					CSC_OFF);	/* full->full range */
-		} else {
-			if (signal_range == 0) /* limit range */
-				set_vpp_matrix(VPP_MATRIX_VD1,
-					bypass_coeff,
-					CSC_OFF);	/* limit->limit range */
-			else
-				set_vpp_matrix(VPP_MATRIX_VD1,
+		if (range_control == 1) 
+			set_vpp_matrix(VPP_MATRIX_VD1,
 					YUV709f_to_YUV709l_coeff,
 					CSC_ON);	/* full->limit range */
-		}
+		else 
+			set_vpp_matrix(VPP_MATRIX_VD1,
+					bypass_coeff,
+					CSC_OFF);
+
 
 		set_vpp_matrix(VPP_MATRIX_POST,
 			YUV709l_to_RGB709_coeff,
@@ -3940,7 +3951,7 @@ static void vpp_matrix_update(struct vframe_s *vf, struct vinfo_s *vinfo)
 	if ((cur_csc_type != csc_type)
 	|| (signal_change_flag
 	& (SIG_PRI_INFO | SIG_KNEE_FACTOR | SIG_HDR_MODE |
-		SIG_HDR_SUPPORT))) {
+		SIG_HDR_SUPPORT | SIG_CS_CHG))) {
 		/* decided by edid or panel info or user setting */
 		if ((csc_type == VPP_MATRIX_BT2020YUV_BT2020RGB) &&
 			hdr_process_mode) {
@@ -4070,10 +4081,10 @@ void amvecm_matrix_process(struct vframe_s *vf)
 		dbg_vf = vf;
 	} else {
 		/* check last signal type */
-		if ((last_vf != NULL) &&
+		if ((last_vf != NULL) /*&&
 			((((last_vf->signal_type >> 16) & 0xff) == 9)
 			|| customer_master_display_en
-			|| (((last_vf->signal_type >> 8) & 0xff) >= 14)))
+			|| (((last_vf->signal_type >> 8) & 0xff) >= 14))*/)
 			null_vf_cnt++;
 
 		if ((((READ_VPP_REG(VPP_MISC) & (1<<10)) == 0)
@@ -4458,7 +4469,7 @@ reg_dump:
 	pr_err("----dump regs VPP_LUT_EOTF----\n");
 	print_vpp_lut(VPP_LUT_EOTF, READ_VPP_REG(VIU_EOTF_CTL) & (7 << 27));
 	pr_err("----dump regs VPP_LUT_OETF----\n");
-	print_vpp_lut(VPP_LUT_OETF, READ_VPP_REG(XVYCC_LUT_CTL) & 0x7f);
+	print_vpp_lut(VPP_LUT_OETF, READ_VPP_REG(XVYCC_LUT_CTL) & 0x70 & 0xf);
 	/*********************dump reg end*********************/
 dbg_end:
 
