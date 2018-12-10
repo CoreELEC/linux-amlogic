@@ -46,7 +46,7 @@
  *
  *
  */
-#define RX_VER2 "ver.2018/11/22"
+#define RX_VER2 "ver.2018/12/18"
 
 /*print type*/
 #define	LOG_EN		0x01
@@ -57,6 +57,7 @@
 #define EQ_LOG		0x20
 #define REG_LOG		0x40
 #define ERR_LOG		0x80
+#define EDID_LOG	0x100
 #define VSI_LOG		0x800
 
 /* 50ms timer for hdmirx main loop (HDMI_STATE_CHECK_FREQ is 20) */
@@ -363,7 +364,10 @@ struct phy_sts {
 	uint32_t pll_rate;
 	uint32_t clk_rate;
 	uint32_t phy_bw;
+	uint32_t cablesel;
 	ulong timestap;
+	uint32_t err_sum;
+	uint32_t eq_data[256];
 };
 
 struct emp_buff {
@@ -432,7 +436,7 @@ struct rx_s {
 	unsigned int pwr_sts;
 	/* for debug */
 	/*struct pd_infoframe_s dbg_info;*/
-	struct phy_sts physts;
+	struct phy_sts phy;
 	struct emp_buff empbuff;
 };
 

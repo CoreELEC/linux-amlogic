@@ -361,7 +361,7 @@ void hdmirx_dec_close(struct tvin_frontend_s *fe)
 	 *	reset the vdac) to avoid noise issue
 	 */
 	/* For txl,also need to keep bandgap always on:SWPL-1224 */
-	/* if (rx.hdmirxdev->data->chip_id == CHIP_ID_TXL) */
+	/* if (rx.chip_id == CHIP_ID_TXL) */
 		/* vdac_enable(0, 0x10); */
 	/* open_flage = 0; */
 	rx.open_fg = 0;
@@ -602,7 +602,7 @@ void hdmirx_set_timing_info(struct tvin_sig_property_s *prop)
 	/* 420 : hdmiout clk = pixel clk * 2 */
 	/* 422 : hdmiout clk = pixel clk * colordepth / 8 */
 	/* 444 : hdmiout clk = pixel clk */
-	if (rx.hdmirxdev->data->chip_id < CHIP_ID_TL1) {
+	if (rx.chip_id < CHIP_ID_TL1) {
 		/* tl1 need verify this bug */
 		if ((rx.pre.colordepth > E_COLORDEPTH_8) &&
 			(prop->fps > 49) &&
@@ -1717,7 +1717,7 @@ static void rx_phy_resume(void)
 
 void rx_emp_resource_allocate(struct device *dev)
 {
-	if (rx.hdmirxdev->data->chip_id == CHIP_ID_TL1) {
+	if (rx.chip_id == CHIP_ID_TL1) {
 		/* allocate buffer */
 		if (!rx.empbuff.storeA)
 			rx.empbuff.storeA =
@@ -1762,7 +1762,7 @@ void rx_tmds_resource_allocate(struct device *dev)
 	/*phys_addr_t p_addr;*/
 	/*struct page *pg_addr;*/
 
-	if (rx.hdmirxdev->data->chip_id == CHIP_ID_TL1) {
+	if (rx.chip_id == CHIP_ID_TL1) {
 		if (rx.empbuff.dump_mode == DUMP_MODE_EMP) {
 			if (rx.empbuff.pg_addr) {
 				dma_release_from_contiguous(dev,
@@ -2002,7 +2002,7 @@ static int hdmirx_probe(struct platform_device *pdev)
 
 	if (hdevp->data) {
 		rx.chip_id = hdevp->data->chip_id;
-		rx_pr("chip id:%d\n", rx.hdmirxdev->data->chip_id);
+		rx_pr("chip id:%d\n", rx.chip_id);
 		rx_pr("phy ver:%d\n", rx.hdmirxdev->data->phy_ver);
 	} else {
 		/*txlx chip for default*/
@@ -2207,8 +2207,8 @@ static int hdmirx_probe(struct platform_device *pdev)
 			clk_rate = clk_get_rate(hdevp->skp_clk);
 		}
 	}
-	if ((rx.hdmirxdev->data->chip_id == CHIP_ID_TXLX) ||
-		(rx.hdmirxdev->data->chip_id == CHIP_ID_TXHD)) {
+	if ((rx.chip_id == CHIP_ID_TXLX) ||
+		(rx.chip_id == CHIP_ID_TXHD)) {
 		tmds_clk_fs = clk_get(&pdev->dev, "hdmirx_aud_pll2fs");
 		if (IS_ERR(tmds_clk_fs))
 			rx_pr("get tmds_clk_fs err\n");
@@ -2233,7 +2233,7 @@ static int hdmirx_probe(struct platform_device *pdev)
 				clk_rate/1000000);
 	}
 	#endif
-	if (rx.hdmirxdev->data->chip_id == CHIP_ID_TL1) {
+	if (rx.chip_id == CHIP_ID_TL1) {
 		/*for audio clk measure*/
 		hdevp->meter_clk = clk_get(&pdev->dev, "cts_hdmirx_meter_clk");
 		if (IS_ERR(hdevp->meter_clk))
@@ -2317,6 +2317,7 @@ static int hdmirx_probe(struct platform_device *pdev)
 		rx_pr("warning: no rev cmd mem\n");
 	rx_emp_resource_allocate(&(pdev->dev));
 	hdmirx_hw_probe();
+	hdmirx_init_params();
 	hdmirx_switch_pinmux(&(pdev->dev));
 #ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
 	register_early_suspend(&hdmirx_early_suspend_handler);

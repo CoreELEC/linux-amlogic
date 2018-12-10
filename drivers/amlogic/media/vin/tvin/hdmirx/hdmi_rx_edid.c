@@ -1121,7 +1121,8 @@ unsigned char get_atmos_offset(unsigned char *p_edid)
 	do {
 		tag_data = p_edid[tag_offset];
 		if ((tag_data & 0xE0) == 0x20) {
-			rx_pr("audio_\n");
+			if (log_level & EDID_LOG)
+				rx_pr("audio_");
 			aud_length = tag_data & 0x1F;
 			break;
 		}
@@ -1148,7 +1149,8 @@ unsigned char rx_edid_update_atmos(unsigned char *p_edid)
 			p_edid[offset] = 1;
 		else
 			p_edid[offset] = 0;
-		rx_pr("offset = %d\n", offset);
+		if (log_level & EDID_LOG)
+			rx_pr("offset = %d\n", offset);
 	}
 	return 0;
 }

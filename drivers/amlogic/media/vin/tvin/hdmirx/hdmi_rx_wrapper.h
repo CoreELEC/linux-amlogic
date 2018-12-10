@@ -37,7 +37,6 @@
 #define PHY_REQUEST_CLK_MIN		170000000
 #define PHY_REQUEST_CLK_MAX		370000000
 #define TIMER_STATE_CHECK		(1*HZ/100)
-#define USE_NEW_FSM_METHODE
 
 struct freq_ref_s {
 	bool interlace;
@@ -105,12 +104,12 @@ enum aud_clk_err_e {
 };
 
 enum dumpinfo_e {
-	RX_DUMP_VIDEO = 0x01,
+	RX_DUMP_VIDEO = 0,
+	RX_DUMP_ALL = 1,
 	RX_DUMP_AUDIO = 0x02,
 	RX_DUMP_HDCP = 0x04,
 	RX_DUMP_PHY = 0x08,
-	RX_DUMP_CLK = 0x10,
-	RX_DUMP_ALL = 0x80,
+	RX_DUMP_CLK = 0x10
 };
 
 /* signal */
@@ -137,6 +136,7 @@ extern void rx_tmds_resource_allocate(struct device *dev);
 extern void rx_emp_resource_allocate(struct device *dev);
 extern void rx_emp_data_capture(void);
 extern void rx_tmds_data_capture(void);
-extern void dump_state(enum dumpinfo_e enable);
+extern void dump_state(int enable);
+extern void hdmirx_init_params(void);
 #endif
 

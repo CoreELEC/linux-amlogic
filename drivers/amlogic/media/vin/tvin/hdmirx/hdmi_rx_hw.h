@@ -1096,11 +1096,13 @@ extern int aud_mute_sel;
 extern int pdec_ists_en;
 extern int pd_fifo_start_cnt;
 extern int md_ists_en;
-extern int eq_ref_voltage;
 extern int aud_ch_map;
 extern int hdcp14_key_mode;
 extern int ignore_sscp_charerr;
 extern int ignore_sscp_tmds;
+extern int find_best_eq;
+extern int eq_try_cnt;
+extern void rx_get_best_eq_setting(void);
 
 extern void wr_reg_hhi(unsigned int offset, unsigned int val);
 extern void wr_reg_hhi_bits(unsigned int offset, unsigned int mask,
@@ -1261,16 +1263,15 @@ struct apll_param {
 extern int rx_get_clock(enum measure_clk_top_e clk_src);
 extern unsigned int clk_util_clk_msr(unsigned int clk_mux);
 extern unsigned int rx_measure_clock(enum measure_clk_src_e clksrc);
-extern void aml_phy_init(uint32_t bw);
+extern void aml_phy_init(void);
 extern void aml_phy_pw_onoff(uint32_t onoff);
 extern uint32_t aml_cable_clk_band(uint32_t cableclk,
 	uint32_t clkrate);
-extern uint32_t aml_phy_pll_band(uint32_t cableclk,
-	uint32_t clkrate);
-extern void aml_phy_bw_switch(uint32_t cableclk, uint32_t clkrate);
+extern void aml_phy_switch_port(void);
+extern void aml_phy_bw_switch(void);
 extern unsigned int aml_phy_pll_lock(void);
 extern unsigned int aml_phy_tmds_valid(void);
-extern void aml_eq_setting(uint32_t bw);
+extern void aml_eq_setting(void);
 extern void rx_emp_to_ddr_init(void);
 extern void rx_emp_field_done_irq(void);
 extern void rx_emp_status(void);
