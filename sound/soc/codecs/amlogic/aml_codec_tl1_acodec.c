@@ -129,7 +129,8 @@ static int aml_DAC_Gain_set_enum(
 	struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
+	struct snd_soc_codec *codec = snd_soc_component_to_codec(component);
 	u32 reg_addr = ACODEC_1;
 	u32 val = snd_soc_read(codec, reg_addr);
 
@@ -177,7 +178,8 @@ static int aml_DAC2_Gain_set_enum(
 		struct snd_kcontrol *kcontrol,
 		struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
+	struct snd_soc_codec *codec = snd_soc_component_to_codec(component);
 	u32 reg_addr = ACODEC_7;
 	u32 val = snd_soc_read(codec, reg_addr);
 
