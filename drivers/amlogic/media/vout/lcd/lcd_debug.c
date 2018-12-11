@@ -2299,7 +2299,7 @@ static ssize_t lcd_debug_ss_store(struct class *class,
 	temp = lcd_drv->lcd_config->lcd_timing.ss_level;
 	switch (buf[0]) {
 	case 'l':
-		ret = sscanf(buf, "level %x", &value);
+		ret = sscanf(buf, "level %d", &value);
 		if (ret == 1) {
 			value &= 0xff;
 			ret = lcd_set_ss(value, 0xff, 0xff);
@@ -2314,7 +2314,7 @@ static ssize_t lcd_debug_ss_store(struct class *class,
 		}
 		break;
 	case 'f':
-		ret = sscanf(buf, "freq %x", &value);
+		ret = sscanf(buf, "freq %d", &value);
 		if (ret == 1) {
 			value &= 0xf;
 			ret = lcd_set_ss(0xff, value, 0xff);
@@ -2329,7 +2329,7 @@ static ssize_t lcd_debug_ss_store(struct class *class,
 		}
 		break;
 	case 'm':
-		ret = sscanf(buf, "mode %x", &value);
+		ret = sscanf(buf, "mode %d", &value);
 		if (ret == 1) {
 			value &= 0xf;
 			ret = lcd_set_ss(0xff, 0xff, value);
