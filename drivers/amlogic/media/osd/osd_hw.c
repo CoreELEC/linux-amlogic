@@ -72,6 +72,7 @@
 #include "osd_fb.h"
 
 #define OSD_BLEND_SHIFT_WORKAROUND
+#define REMOVE_PHYS_TO_VIRT
 #ifdef CONFIG_AMLOGIC_VSYNC_FIQ_ENABLE
 #define FIQ_VSYNC
 #endif
@@ -3735,7 +3736,9 @@ static bool osd_ge2d_compose_pan_display(struct osd_fence_map_s *fence_map)
 {
 	u32 index = fence_map->fb_index;
 	bool free_scale_set = false;
+	#ifndef REMOVE_PHYS_TO_VIRT
 	void *vaddr = NULL;
+	#endif
 
 	canvas_config(osd_hw.fb_gem[index].canvas_idx,
 		fence_map->ext_addr,
@@ -3743,12 +3746,13 @@ static bool osd_ge2d_compose_pan_display(struct osd_fence_map_s *fence_map)
 		(osd_hw.color_info[index]->bpp >> 3)),
 		fence_map->height,
 		CANVAS_ADDR_NOWRAP, CANVAS_BLKMODE_LINEAR);
+	#ifndef REMOVE_PHYS_TO_VIRT
 	vaddr = phys_to_virt(fence_map->ext_addr);
 	osd_hw.screen_base[index] = vaddr;
 	osd_hw.screen_size[index] =
 		CANVAS_ALIGNED(fence_map->width *
 		osd_hw.color_info[index]->bpp) * fence_map->height;
-
+	#endif
 	osd_hw.pandata[index].x_start = 0;
 	osd_hw.pandata[index].x_end = fence_map->width - 1;
 	osd_hw.pandata[index].y_start = 0;
@@ -3813,10 +3817,14 @@ static bool osd_direct_compose_pan_display(struct osd_fence_map_s *fence_map)
 	u32 x_start, x_end, y_start, y_end;
 	bool freescale_update = false;
 	struct pandata_s freescale_dst[HW_OSD_COUNT];
+	#ifndef REMOVE_PHYS_TO_VIRT
 	void *vaddr = NULL;
+	#endif
 
 	ext_addr = ext_addr + fence_map->byte_stride * fence_map->yoffset;
+	#ifndef REMOVE_PHYS_TO_VIRT
 	vaddr = phys_to_virt(ext_addr);
+	#endif
 
 	if (!osd_hw.osd_afbcd[index].enable) {
 		canvas_config(osd_hw.fb_gem[index].canvas_idx,
@@ -3824,9 +3832,11 @@ static bool osd_direct_compose_pan_display(struct osd_fence_map_s *fence_map)
 			fence_map->byte_stride,
 			fence_map->height,
 			CANVAS_ADDR_NOWRAP, CANVAS_BLKMODE_LINEAR);
+		#ifndef REMOVE_PHYS_TO_VIRT
 		osd_hw.screen_base[index] = vaddr;
 		osd_hw.screen_size[index] =
 			fence_map->byte_stride * fence_map->height;
+		#endif
 	} else {
 		osd_hw.osd_afbcd[index].phy_addr = ext_addr;
 		osd_hw.osd_afbcd[index].frame_width =
@@ -3847,8 +3857,10 @@ static bool osd_direct_compose_pan_display(struct osd_fence_map_s *fence_map)
 			else
 				osd_hw.osd_afbcd[index].conv_lbuf_len = 1024;
 		}
+		#ifndef REMOVE_PHYS_TO_VIRT
 		osd_hw.screen_base[index] = vaddr;
 		osd_hw.screen_size[index] = fence_map->afbc_len;
+		#endif
 	}
 	width_dst = osd_hw.free_dst_data_backup[index].x_end -
 		osd_hw.free_dst_data_backup[index].x_start + 1;
@@ -3859,7 +3871,6 @@ static bool osd_direct_compose_pan_display(struct osd_fence_map_s *fence_map)
 		osd_hw.free_dst_data_backup[index].y_start + 1;
 	height_src = osd_hw.free_src_data_backup[index].y_end -
 		osd_hw.free_src_data_backup[index].y_start + 1;
-
 	if (osd_hw.free_scale_enable[index] ||
 		(width_src != width_dst) ||
 		(height_src != height_dst) ||
@@ -4271,7 +4282,9 @@ static void osd_pan_display_update_info(struct layer_fence_map_s *layer_map)
 	u32 index = layer_map->fb_index;
 	const struct color_bit_define_s *color = NULL;
 	u32 ext_addr = 0;
+	#ifndef REMOVE_PHYS_TO_VIRT
 	void *vaddr = NULL;
+	#endif
 	u32 format = 0;
 
 	if (index > OSD_MAX)
@@ -4341,7 +4354,10 @@ static void osd_pan_display_update_info(struct layer_fence_map_s *layer_map)
 			layer_map->byte_stride *
 			layer_map->src_y;
 		#endif
+
+		#ifndef REMOVE_PHYS_TO_VIRT
 		vaddr = phys_to_virt(ext_addr);
+		#endif
 		if (!osd_hw.osd_afbcd[index].enable) {
 			/*ext_addr is no crop, so height =
 			 * layer_map->src_h + layer_map->src_y
@@ -4352,9 +4368,11 @@ static void osd_pan_display_update_info(struct layer_fence_map_s *layer_map)
 				layer_map->src_h + layer_map->src_y,
 				CANVAS_ADDR_NOWRAP,
 				CANVAS_BLKMODE_LINEAR);
+			#ifndef REMOVE_PHYS_TO_VIRT
 			osd_hw.screen_base[index] = vaddr;
 			osd_hw.screen_size[index] =
 				layer_map->byte_stride * layer_map->src_h;
+			#endif
 		} else {
 			osd_hw.osd_afbcd[index].phy_addr = ext_addr;
 			if (osd_hw.osd_meson_dev.afbc_type ==
@@ -4381,10 +4399,11 @@ static void osd_pan_display_update_info(struct layer_fence_map_s *layer_map)
 				else
 					osd_hw.osd_afbcd[index]
 						.conv_lbuf_len = 1024;
+				#ifndef REMOVE_PHYS_TO_VIRT
 				osd_hw.screen_base[index] = vaddr;
 				osd_hw.screen_size[index] =
 					layer_map->afbc_len;
-
+				#endif
 			} else if (osd_hw.osd_meson_dev
 				.afbc_type == MALI_AFBC) {
 				osd_hw.osd_afbcd[index].frame_width =
@@ -4392,12 +4411,13 @@ static void osd_pan_display_update_info(struct layer_fence_map_s *layer_map)
 					//BYTE_32_ALIGNED(layer_map->src_w);
 				osd_hw.osd_afbcd[index].frame_height =
 					BYTE_8_ALIGNED(layer_map->src_h);
+				#ifndef REMOVE_PHYS_TO_VIRT
 				osd_hw.screen_base[index] = vaddr;
 				osd_hw.screen_size[index] =
 					layer_map->afbc_len;
+				#endif
 			}
 		}
-
 		/* just get para, need update via do_hwc */
 		osd_hw.order[index] = layer_map->zorder;
 		switch (layer_map->blend_mode) {
@@ -9459,9 +9479,14 @@ static bool osd_direct_render(struct osd_plane_map_s *plane_map)
 	u32 x_start, x_end, y_start, y_end;
 	bool freescale_update = false;
 	struct pandata_s freescale_dst[HW_OSD_COUNT];
+
+	#ifndef REMOVE_PHYS_TO_VIRT
 	void *vaddr = NULL;
+	#endif
 
 	phy_addr = phy_addr + plane_map->byte_stride * plane_map->src_y;
+
+	#ifndef REMOVE_PHYS_TO_VIRT
 	vaddr = phys_to_virt(phy_addr);
 	osd_hw.screen_base[index] = vaddr;
 	osd_hw.screen_size[index] =
@@ -9471,6 +9496,7 @@ static bool osd_direct_render(struct osd_plane_map_s *plane_map)
 			memset(vaddr, 0x0,
 				plane_map->byte_stride*plane_map->src_h);
 	}
+	#endif
 	osd_log_dbg(MODULE_RENDER, "canvas_id=%x, phy_addr=%x\n",
 		osd_hw.fb_gem[index].canvas_idx, phy_addr);
 	canvas_config(osd_hw.fb_gem[index].canvas_idx,
@@ -9708,13 +9734,19 @@ static void osd_cursor_move(struct osd_plane_map_s *plane_map)
 	u32 phy_addr = plane_map->phy_addr;
 	u32 x_start, x_end, y_start, y_end;
 	u32 x, y;
+
+	#ifndef REMOVE_PHYS_TO_VIRT
 	void *vaddr = NULL;
+	#endif
+
 	struct pandata_s disp_tmp;
 	struct pandata_s free_dst_data_backup;
 
 	if (index != OSD2)
 		return;
 	phy_addr = phy_addr + plane_map->byte_stride * plane_map->src_y;
+
+	#ifndef REMOVE_PHYS_TO_VIRT
 	vaddr = phys_to_virt(phy_addr);
 	osd_hw.screen_base[index] = vaddr;
 	osd_hw.screen_size[index] =
@@ -9724,6 +9756,7 @@ static void osd_cursor_move(struct osd_plane_map_s *plane_map)
 			memset(vaddr, 0x0,
 				plane_map->byte_stride*plane_map->src_h);
 	}
+	#endif
 	canvas_config(osd_hw.fb_gem[index].canvas_idx,
 		phy_addr,
 		plane_map->byte_stride,
