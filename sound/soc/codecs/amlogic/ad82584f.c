@@ -36,11 +36,11 @@ static const DECLARE_TLV_DB_SCALE(mvol_tlv, -10300, 50, 1);
 static const DECLARE_TLV_DB_SCALE(chvol_tlv, -10300, 50, 1);
 
 static const struct snd_kcontrol_new ad82584f_snd_controls[] = {
-	SOC_SINGLE_TLV("Master Volume", MVOL, 0,
+	SOC_SINGLE_TLV("AMP Master Volume", MVOL, 0,
 				0xff, 1, mvol_tlv),
-	SOC_SINGLE_TLV("Ch1 Volume", C1VOL, 0,
+	SOC_SINGLE_TLV("AMP Ch1 Volume", C1VOL, 0,
 				0xff, 1, chvol_tlv),
-	SOC_SINGLE_TLV("Ch2 Volume", C2VOL, 0,
+	SOC_SINGLE_TLV("AMP Ch2 Volume", C2VOL, 0,
 			0xff, 1, chvol_tlv),
 };
 
