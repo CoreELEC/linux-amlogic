@@ -1573,6 +1573,14 @@
 	pinctrl-0=<&i2c2_z_pins>;
 	clock-frequency = <400000>;
 
+	tas5805: tas5805@36 {
+		compatible = "ti,tas5805";
+		#sound-dai-cells = <0>;
+		codec_name = "tas5805";
+		reg = <0x2d>;
+		status = "disable";
+	};
+
 	ad82584f: ad82584f@62 {
 		compatible = "ESMT, ad82584f";
 		#sound-dai-cells = <0>;
