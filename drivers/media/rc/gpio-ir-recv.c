@@ -169,8 +169,8 @@ static int gpio_ir_recv_probe(struct platform_device *pdev)
 	rcdev->dev.parent = &pdev->dev;
 	rcdev->driver_name = GPIO_IR_DRIVER_NAME;
 	rcdev->min_timeout = 0;
-	rcdev->timeout = IR_DEFAULT_TIMEOUT;
-	rcdev->max_timeout = 10 * IR_DEFAULT_TIMEOUT;
+	rcdev->timeout = MS_TO_NS(125);
+	rcdev->max_timeout = MS_TO_NS(1250);
 	if (pdata->allowed_protos)
 		rcdev->allowed_protos = pdata->allowed_protos;
 	else
