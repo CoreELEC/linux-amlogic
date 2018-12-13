@@ -1691,7 +1691,7 @@ static void rx_phy_suspend(void)
 		if (hdmi_cec_en != 0) {
 			if (suspend_pddq_sel == 2) {
 				/* set rxsense pulse */
-				rx_phy_rxsense_pulse(10, 10);
+				rx_phy_rxsense_pulse(10, 10, 0);
 			}
 		}
 		/* phy powerdown */
@@ -1707,7 +1707,7 @@ static void rx_phy_resume(void)
 			 * rxsense pulse and phy_int shottern than
 			 * 50ms, SDA may be pulled low 800ms on MTK box
 			 */
-			rx_phy_rxsense_pulse(20, 50);
+			rx_phy_rxsense_pulse(20, 50, 1);
 		}
 	}
 	hdmirx_phy_init();

@@ -3561,12 +3561,12 @@ unsigned int aml_phy_tmds_valid(void)
 	}
 }
 
-void rx_phy_rxsense_pulse(unsigned int t1, unsigned int t2)
+void rx_phy_rxsense_pulse(unsigned int t1, unsigned int t2, bool en)
 {
 	/* set rxsense pulse */
-	hdmirx_phy_pddq(1);
+	hdmirx_phy_pddq(!en);
 	mdelay(t1);
-	hdmirx_phy_pddq(0);
+	hdmirx_phy_pddq(en);
 	mdelay(t2);
 }
 

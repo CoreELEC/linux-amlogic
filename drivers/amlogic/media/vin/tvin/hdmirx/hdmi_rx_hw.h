@@ -1204,7 +1204,7 @@ extern void rx_force_rxsense_cfg(uint8_t level);
 extern void rx_force_hpd_rxsense_cfg(uint8_t level);
 extern void rx_audio_bandgap_rst(void);
 extern void rx_audio_bandgap_rst(void);
-extern void rx_phy_rxsense_pulse(unsigned int t1, unsigned int t2);
+extern void rx_phy_rxsense_pulse(unsigned int t1, unsigned int t2, bool en);
 extern void rx_phy_power_on(unsigned int onoff);
 
 
