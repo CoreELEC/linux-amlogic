@@ -1683,7 +1683,12 @@ void hdcp22_clk_en(bool en)
  */
 void hdmirx_hdcp22_esm_rst(void)
 {
-	hdmirx_wr_top(TOP_SW_RESET, 0x100);
+	/* For TL1,the sw_reset_hdcp22 bit is top reg 0x0,bit'12 */
+	if (rx.chip_id == CHIP_ID_TL1)
+		hdmirx_wr_top(TOP_SW_RESET, 0x1000);
+	else
+		/* For txlx and previous chips,the sw_reset_hdcp22 is bit'8 */
+		hdmirx_wr_top(TOP_SW_RESET, 0x100);
 	mdelay(1);
 	hdmirx_wr_top(TOP_SW_RESET, 0x0);
 	rx_pr("esm rst\n");
