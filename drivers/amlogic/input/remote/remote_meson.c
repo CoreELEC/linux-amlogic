@@ -704,6 +704,9 @@ static int remote_resume(struct device *dev)
 	unsigned long flags;
 	unsigned char cnt;
 
+	if (is_pm_freeze_mode())
+		return 0;
+
 	dev_info(dev, "remote resume\n");
 	/*resume register config*/
 	spin_lock_irqsave(&chip->slock, flags);
@@ -741,6 +744,9 @@ static int remote_resume(struct device *dev)
 static int remote_suspend(struct device *dev)
 {
 	struct remote_chip *chip = dev_get_drvdata(dev);
+
+	if (is_pm_freeze_mode())
+		return 0;
 
 	dev_info(dev, "remote suspend\n");
 	disable_irq(chip->irqno);
