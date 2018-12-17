@@ -1529,11 +1529,11 @@ static void cec_task(struct work_struct *work)
 	int ret;
 
 	dwork = &cec_dev->cec_work;
-	if (!(cec_dev->tx_dev->cec_func_config &
-			(1 << CEC_INPUT_MASK))) {
-		CEC_INFO("CEC input mode disabled\n");
-		return;
-	}
+	//if (!(cec_dev->tx_dev->cec_func_config &
+	//		(1 << CEC_INPUT_MASK))) {
+	//	CEC_INFO("CEC input mode disabled\n");
+	//	return;
+	//}
 	if (cec_dev &&
 			!(cec_dev->hal_flag & (1 << HDMI_OPTION_SYSTEM_CEC_CONTROL))) {
 		if (1 << cec_dev->cec_info.log_addr & (1 << 0x0 | 1 << 0xF)) {
