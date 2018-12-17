@@ -863,6 +863,47 @@ static struct fbtft_device_display displays[] = {
 			}
 		}
 	}, {
+#if defined(CONFIG_ARCH_MESON64_ODROID_COMMON)
+		.name = "hktft9340",
+		.spi = &(struct spi_board_info) {
+			.modalias = "fb_ili9340",
+			.max_speed_hz = 40000000,
+			.mode = SPI_MODE_0,
+			.platform_data = &(struct fbtft_platform_data) {
+				.display = {
+					.buswidth = 8,
+					.backlight = 1,
+				},
+				.bgr = true,
+				.gpios = (const struct fbtft_gpio []) {
+					{ "reset", 480 },
+					{ "dc", 483 },
+					{ "led", 473 },
+					{},
+				},
+			}
+		}
+	}, {
+		.name = "odroid32",
+		.spi = &(struct spi_board_info) {
+			.modalias = "fb_ili9340",
+			.max_speed_hz = 40000000,
+			.mode = SPI_MODE_0,
+			.platform_data = &(struct fbtft_platform_data) {
+				.display = {
+					.buswidth = 8,
+					.backlight = 1,
+				},
+				.bgr = true,
+				.gpios = (const struct fbtft_gpio []) {
+					{ "reset", 480 },
+					{ "dc", 483 },
+					{},
+				},
+			}
+		}
+	}, {
+#endif
 		.name = "pitft",
 		.spi = &(struct spi_board_info) {
 			.modalias = "fb_ili9340",

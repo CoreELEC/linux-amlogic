@@ -45,7 +45,11 @@ module_param(debug, ulong, 0);
 MODULE_PARM_DESC(debug, "override device debug level");
 
 #ifdef CONFIG_HAS_DMA
+#if defined(CONFIG_ARCH_MESON64_ODROID_COMMON)
+static bool dma = false;
+#else
 static bool dma = true;
+#endif
 module_param(dma, bool, 0);
 MODULE_PARM_DESC(dma, "Use DMA buffer");
 #endif
