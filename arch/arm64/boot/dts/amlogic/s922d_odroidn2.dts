@@ -477,3 +477,40 @@
 &saradc {
 	status = "okay";
 };
+
+&i2c2 {
+	status = "okay";
+	pinctrl-names = "default";
+	/* 40 Pin Header : SDA(GPIOX.17->3 Pin), SCL(GPIOX.18->5 Pin) */
+	pinctrl-0 = <&i2c2_master_pins1>;
+	/* default 400k */
+	clock-frequency = <400000>;
+};
+
+&spicc0 {
+	status = "okay";
+
+	/*
+		40 Pin Header : MOSI(GPIOX.8->19 Pin), MISO(GPIOX.9->21 Pin),
+				SPI0_CLK(GPIOX.11->23 Pin)
+				SPI_CE0(GPIOX.2->22 Pin), SPI_CE1(GPIOX.10->24 Pin)
+	*/
+	pinctrl-names = "default";
+	pinctrl-0 = <&spicc0_pins_x>;
+
+	num_chipselect = <2>;
+	cs-gpios = <&gpio GPIOX_2 GPIO_ACTIVE_LOW>, <&gpio GPIOX_10 GPIO_ACTIVE_LOW>;
+
+	spidev@0 {
+		compatible = "linux,spidev";
+		/* spi default max clock 100Mhz */
+		spi-max-frequency = <100000000>;
+		reg = <0>;
+	};
+	spidev@1 {
+		compatible = "linux,spidev";
+		/* spi default max clock 100Mhz */
+		spi-max-frequency = <100000000>;
+		reg = <1>;
+	};
+};
