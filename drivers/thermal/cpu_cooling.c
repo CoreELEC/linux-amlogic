@@ -302,18 +302,15 @@ static int build_dyn_power_table(struct cpufreq_cooling_device *cpufreq_device,
 	if (cpufreq_device->max_level == 0)
 		return -EINVAL;
 
-	if (num_opps < cpufreq_device->max_level)
+	if (num_opps < (cpufreq_device->max_level + 1))
 		return -EINVAL;
 
-	power_table = kcalloc(cpufreq_device->max_level,
-			sizeof(*power_table), GFP_KERNEL);
-	if (!power_table)
-		return -ENOMEM;
-#else
+	num_opps = cpufreq_device->max_level + 1;
+#endif
+
 	power_table = kcalloc(num_opps, sizeof(*power_table), GFP_KERNEL);
 	if (!power_table)
 		return -ENOMEM;
-#endif
 
 	rcu_read_lock();
 
@@ -323,7 +320,7 @@ static int build_dyn_power_table(struct cpufreq_cooling_device *cpufreq_device,
 		u32 freq_mhz, voltage_mv;
 		u64 power;
 #ifdef CONFIG_ARCH_MESON64_ODROIDN2
-		if (i >= cpufreq_device->max_level)
+		if (i >= num_opps)
 			break;
 #else
 		if (i >= num_opps) {
@@ -351,17 +348,10 @@ static int build_dyn_power_table(struct cpufreq_cooling_device *cpufreq_device,
 
 	rcu_read_unlock();
 
-#ifdef CONFIG_ARCH_MESON64_ODROIDN2
-	if (i != cpufreq_device->max_level) {
-		ret = PTR_ERR(opp);
-		goto free_power_table;
-	}
-#else
 	if (i != num_opps) {
 		ret = PTR_ERR(opp);
 		goto free_power_table;
 	}
-#endif
 
 	cpufreq_device->cpu_dev = dev;
 	cpufreq_device->dyn_power_table = power_table;
