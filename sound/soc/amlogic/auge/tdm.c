@@ -14,7 +14,7 @@
  * more details.
  *
  */
-
+#define DEBUG
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/platform_device.h>
@@ -773,7 +773,7 @@ static int aml_dai_set_tdm_fmt(struct snd_soc_dai *cpu_dai, unsigned int fmt)
 {
 	struct aml_tdm *p_tdm = snd_soc_dai_get_drvdata(cpu_dai);
 
-	pr_info("asoc aml_dai_set_tdm_fmt, %#x, %p, id(%d), clksel(%d)\n",
+	pr_debug("asoc aml_dai_set_tdm_fmt, %#x, %p, id(%d), clksel(%d)\n",
 		fmt, p_tdm, p_tdm->id, p_tdm->clk_sel);
 	switch (fmt & SND_SOC_DAIFMT_CLOCK_MASK) {
 	case SND_SOC_DAIFMT_CONT:
@@ -865,10 +865,10 @@ static int aml_dai_set_bclk_ratio(struct snd_soc_dai *cpu_dai,
 
 	if (p_tdm->setting.pcm_mode == SND_SOC_DAIFMT_I2S ||
 		p_tdm->setting.pcm_mode == SND_SOC_DAIFMT_LEFT_J) {
-		pr_info("aml_dai_set_bclk_ratio, select I2S mode\n");
+		pr_debug("aml_dai_set_bclk_ratio, select I2S mode\n");
 		lrclk_hi = bclk_ratio / 2;
 	} else {
-		pr_info("aml_dai_set_bclk_ratio, select TDM mode\n");
+		pr_debug("aml_dai_set_bclk_ratio, select TDM mode\n");
 	}
 	aml_tdm_set_bclk_ratio(p_tdm->actrl,
 		p_tdm->clk_sel, lrclk_hi, bclk_ratio);
@@ -911,15 +911,15 @@ static int aml_dai_set_tdm_slot(struct snd_soc_dai *cpu_dai,
 	lanes_oe_in_cnt = pop_count(p_tdm->setting.lane_oe_mask_in);
 	lanes_lb_cnt = pop_count(p_tdm->setting.lane_lb_mask_in);
 
-	pr_info("%s(), txmask(%#x), rxmask(%#x)\n",
+	pr_debug("%s(), txmask(%#x), rxmask(%#x)\n",
 		__func__, tx_mask, rx_mask);
-	pr_info("\tlanes_out_cnt(%d), lanes_in_cnt(%d)\n",
+	pr_debug("\tlanes_out_cnt(%d), lanes_in_cnt(%d)\n",
 		lanes_out_cnt, lanes_in_cnt);
-	pr_info("\tlanes_oe_out_cnt(%d), lanes_oe_in_cnt(%d)\n",
+	pr_debug("\tlanes_oe_out_cnt(%d), lanes_oe_in_cnt(%d)\n",
 		lanes_oe_out_cnt, lanes_oe_in_cnt);
-	pr_info("\tlanes_lb_cnt(%d)\n",
+	pr_debug("\tlanes_lb_cnt(%d)\n",
 		lanes_lb_cnt);
-	pr_info("\tslots(%d), slot_width(%d)\n",
+	pr_debug("\tslots(%d), slot_width(%d)\n",
 		slots, slot_width);
 	p_tdm->setting.tx_mask = tx_mask;
 	p_tdm->setting.rx_mask = rx_mask;

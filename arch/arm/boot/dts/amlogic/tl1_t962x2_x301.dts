@@ -240,6 +240,7 @@
 		reg = <0xff632000 0x1c>;
 		tdmout_index = <0>;
 		tdmin_index = <0>;
+		dat1_ch_sel = <1>;
 	};
 
 	aml_dtv_demod {

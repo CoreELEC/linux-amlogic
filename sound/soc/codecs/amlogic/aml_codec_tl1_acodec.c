@@ -788,6 +788,12 @@ static int aml_tl1_acodec_probe(struct platform_device *pdev)
 
 	of_property_read_u32(
 			pdev->dev.of_node,
+			"dat1_ch_sel",
+			&aml_acodec->dat1_ch_sel);
+	pr_info("aml_tl1_acodec dat1_ch_sel=%d\n",
+		aml_acodec->dat1_ch_sel);
+	of_property_read_u32(
+			pdev->dev.of_node,
 			"tdmin_index",
 			&aml_acodec->tdmin_index);
 	pr_info("aml_tl1_acodec tdmin_index=%d\n",

@@ -14,7 +14,7 @@
  * more details.
  *
  */
-
+#define DEBUG
 #include <sound/soc.h>
 
 #include "iomap.h"
@@ -64,7 +64,7 @@ void aml_spdifin_chnum_en(struct aml_audio_controller *actrl,
 	reg = EE_AUDIO_SPDIFIN_CTRL0;
 	aml_audiobus_update_bits(actrl, reg, 1 << 26, is_enable << 26);
 
-	pr_info("%s spdifin ctrl0:0x%x\n",
+	pr_debug("%s spdifin ctrl0:0x%x\n",
 		__func__,
 		aml_audiobus_read(actrl, reg));
 }
@@ -234,7 +234,7 @@ void aml_spdif_fifo_ctrl(
 		return;
 	}
 
-	pr_info("%s, bit depth:%d, frddr type:%d, toddr:type:%d\n",
+	pr_debug("%s, bit depth:%d, frddr type:%d, toddr:type:%d\n",
 		__func__,
 		bitwidth,
 		frddr_type,
@@ -408,7 +408,7 @@ void spdifout_fifo_ctrl(int spdif_id, int fifo_id, int bitwidth)
 	unsigned int frddr_type = spdifout_get_frddr_type(bitwidth);
 	unsigned int offset, reg;
 
-	pr_info("spdif_%s fifo ctrl, frddr:%d type:%d, %d bits\n",
+	pr_debug("spdif_%s fifo ctrl, frddr:%d type:%d, %d bits\n",
 		(spdif_id == 0) ? "a":"b",
 		fifo_id,
 		frddr_type,
@@ -454,7 +454,7 @@ void spdifout_enable(int spdif_id, bool is_enable)
 {
 	unsigned int offset, reg;
 
-	pr_info("spdif_%s is set to %s\n",
+	pr_debug("spdif_%s is set to %s\n",
 		(spdif_id == 0) ? "a":"b",
 		is_enable ? "enable":"disable");
 
@@ -594,7 +594,7 @@ void spdif_set_channel_status_info(
 
 void spdifout_play_with_zerodata(unsigned int spdif_id)
 {
-	pr_info("%s, spdif id:%d enable:%d\n",
+	pr_debug("%s, spdif id:%d enable:%d\n",
 		__func__,
 		spdif_id,
 		spdifout_is_enable(spdif_id));
@@ -643,7 +643,7 @@ void spdifout_play_with_zerodata(unsigned int spdif_id)
 
 void spdifout_play_with_zerodata_free(unsigned int spdif_id)
 {
-	pr_info("%s, spdif id:%d\n",
+	pr_debug("%s, spdif id:%d\n",
 		__func__,
 		spdif_id);
 

@@ -14,6 +14,7 @@
  * more details.
  *
  */
+#define DEBUG
 #undef pr_fmt
 #define pr_fmt(fmt) "audio_ddr_mngr: " fmt
 
@@ -213,7 +214,7 @@ static struct toddr *register_toddr_l(struct device *dev,
 	to->dev = dev;
 	to->actrl = actrl;
 	to->in_use = true;
-	pr_info("toddrs[%d] registered by device %s\n", i, dev_name(dev));
+	pr_debug("toddrs[%d] registered by device %s\n", i, dev_name(dev));
 	return to;
 }
 
@@ -259,7 +260,7 @@ static int unregister_toddr_l(struct device *dev, void *data)
 	to->dev = NULL;
 	to->actrl = NULL;
 	to->in_use = false;
-	pr_info("toddrs[%d] released by device %s\n", i, dev_name(dev));
+	pr_debug("toddrs[%d] released by device %s\n", i, dev_name(dev));
 
 	return 0;
 }
@@ -499,7 +500,7 @@ void aml_toddr_set_resample(struct toddr *to, bool enable)
 	unsigned int reg_base = to->reg_base;
 	unsigned int reg;
 
-	pr_info("toddr selects data to %s resample\n",
+	pr_debug("toddr selects data to %s resample\n",
 		enable ? "enable" : "disable");
 	reg = calc_toddr_address(EE_AUDIO_TODDR_A_CTRL0, reg_base);
 	aml_audiobus_update_bits(actrl,	reg, 1<<30, enable<<30);
@@ -511,7 +512,7 @@ void aml_toddr_set_resample_ab(struct toddr *to, int asrc_src_sel, bool enable)
 	unsigned int reg_base = to->reg_base;
 	unsigned int reg;
 
-	pr_info("toddr selects data to %s resample %c\n",
+	pr_debug("toddr selects data to %s resample %c\n",
 		enable ? "enable" : "disable",
 		(asrc_src_sel == 0) ? 'a' : 'b');
 	reg = calc_toddr_address(EE_AUDIO_TODDR_A_CTRL1, reg_base);
@@ -786,7 +787,7 @@ static struct frddr *register_frddr_l(struct device *dev,
 	from->dev = dev;
 	from->actrl = actrl;
 	from->in_use = true;
-	pr_info("frddrs[%d] registered by device %s\n", i, dev_name(dev));
+	pr_debug("frddrs[%d] registered by device %s\n", i, dev_name(dev));
 	return from;
 }
 
@@ -826,7 +827,7 @@ static int unregister_frddr_l(struct device *dev, void *data)
 	from->dev = NULL;
 	from->actrl = NULL;
 	from->in_use = false;
-	pr_info("frddrs[%d] released by device %s\n", i, dev_name(dev));
+	pr_debug("frddrs[%d] released by device %s\n", i, dev_name(dev));
 	return 0;
 }
 
@@ -1043,7 +1044,7 @@ void aml_frddr_select_dst_ss(struct frddr *fr,
 					sel);
 				break;
 			}
-			pr_info("%s sel:%d, dst_src:%d\n",
+			pr_debug("%s sel:%d, dst_src:%d\n",
 				__func__, sel, dst);
 			aml_audiobus_update_bits(actrl, reg, s_m, s_v);
 	}
