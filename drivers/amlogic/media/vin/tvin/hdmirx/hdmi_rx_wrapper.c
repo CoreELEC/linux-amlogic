@@ -410,6 +410,12 @@ static int hdmi_rx_ctrl_irq_handler(void)
 					rx_pr("[irq] EMP_RCV %#x\n",
 					intr_pedc);
 				emp_handle_flag = true;
+			} else if (rx_get_bits(intr_pedc,
+				DRM_RCV_EN_TXLX) != 0) {
+				if (log_level & 0x400)
+					rx_pr("[irq] DRM_RCV_EN %#x\n",
+					intr_pedc);
+				drm_handle_flag = true;
 			}
 		} else if (rx.chip_id == CHIP_ID_TXLX) {
 			if (rx_get_bits(intr_pedc,
