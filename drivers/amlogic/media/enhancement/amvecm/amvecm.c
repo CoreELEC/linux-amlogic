@@ -31,6 +31,8 @@
 #include <linux/stat.h>
 #include <linux/errno.h>
 #include <linux/uaccess.h>
+#include <linux/of.h>
+#include <linux/of_device.h>
 /* #include <linux/amlogic/aml_common.h> */
 #include <linux/ctype.h>/* for parse_para_pq */
 #include <linux/vmalloc.h>
@@ -128,7 +130,7 @@ static struct hdr_metadata_info_s vpp_hdr_metadata_s;
 static int vdj_mode_flg;
 struct am_vdj_mode_s vdj_mode_s;
 
-void __iomem *amvecm_hiu_reg_base;/* = *ioremap(0xc883c000, 0x2000); */
+/*void __iomem *amvecm_hiu_reg_base;*//* = *ioremap(0xc883c000, 0x2000); */
 
 static int debug_amvecm;
 module_param(debug_amvecm, int, 0664);
@@ -721,6 +723,7 @@ static ssize_t amvecm_vlock_store(struct class *cla,
 		sel = VLOCK_SUPPORT;
 	} else if (!strncmp(parm[0], "enable", 6)) {
 		vecm_latch_flag |= FLAG_VLOCK_EN;
+		vlock_set_en(true);
 	} else if (!strncmp(parm[0], "disable", 7)) {
 		vecm_latch_flag |= FLAG_VLOCK_DIS;
 	} else if (!strncmp(parm[0], "status", 6)) {
@@ -5988,11 +5991,40 @@ static const struct file_operations amvecm_fops = {
 #endif
 	.poll = amvecm_poll,
 };
+
+static const struct vecm_match_data_s vecm_dt_xxx = {
+	.vlk_support = true,
+	.vlk_new_fsm = 0,
+	.vlk_hwver = vlock_hw_org,
+	.vlk_phlock_en = false,
+};
+
+static const struct vecm_match_data_s vecm_dt_tl1 = {
+	.vlk_support = true,
+	.vlk_new_fsm = 1,
+	.vlk_hwver = vlock_hw_ver2,
+	.vlk_phlock_en = true,
+};
+
+static const struct of_device_id aml_vecm_dt_match[] = {
+	{
+		.compatible = "amlogic, vecm",
+		.data = &vecm_dt_xxx,
+	},
+	{
+		.compatible = "amlogic, vecm-tl1",
+		.data = &vecm_dt_tl1,
+	},
+	{},
+};
+
 static void aml_vecm_dt_parse(struct platform_device *pdev)
 {
 	struct device_node *node;
 	unsigned int val;
 	int ret;
+	const struct of_device_id *of_id;
+	struct vecm_match_data_s *matchdata;
 
 	node = pdev->dev.of_node;
 	/* get integer value */
@@ -6031,6 +6063,18 @@ static void aml_vecm_dt_parse(struct platform_device *pdev)
 			pr_info("Can't find  tx_op_color_primary.\n");
 		else
 			tx_op_color_primary = val;
+
+		/*get compatible matched device, to get chip related data*/
+		of_id = of_match_device(aml_vecm_dt_match, &pdev->dev);
+		if (of_id != NULL) {
+			pr_info("%s", of_id->compatible);
+			matchdata = (struct vecm_match_data_s *)of_id->data;
+		} else {
+			matchdata = (struct vecm_match_data_s *)&vecm_dt_xxx;
+			pr_info("unable to get matched device\n");
+		}
+		vlock_dt_match_init(matchdata);
+
 		/*vlock param config*/
 		vlock_param_config(node);
 	}
@@ -6158,16 +6202,7 @@ static int aml_vecm_probe(struct platform_device *pdev)
 	if (is_meson_g12a_cpu() || is_meson_g12b_cpu())
 		sdr_mode = 2;
 
-	/*config vlock mode*/
-	/*todo:txlx & g9tv support auto pll,*/
-	/*but support not good,need vlsi support optimize*/
-	vlock_mode = VLOCK_MODE_MANUAL_PLL;
-	if (is_meson_gxtvbb_cpu() ||
-		is_meson_txl_cpu() || is_meson_txlx_cpu()
-		|| is_meson_txhd_cpu())
-		vlock_en = 1;
-	else
-		vlock_en = 0;
+	vlock_status_init();
 	hdr_init(&amvecm_dev.hdr_d);
 	aml_vecm_dt_parse(pdev);
 
@@ -6259,13 +6294,6 @@ static void amvecm_shutdown(struct platform_device *pdev)
 	lc_free();
 }
 
-static const struct of_device_id aml_vecm_dt_match[] = {
-	{
-		.compatible = "amlogic, vecm",
-	},
-	{},
-};
-
 static struct platform_driver aml_vecm_driver = {
 	.driver = {
 		.name = "aml_vecm",
@@ -6284,16 +6312,19 @@ static struct platform_driver aml_vecm_driver = {
 
 static int __init aml_vecm_init(void)
 {
-	unsigned int hiu_reg_base;
+	/*unsigned int hiu_reg_base;*/
 
 	pr_info("%s:module init\n", __func__);
+	#if 0
 	/* remap the hiu bus */
 	if (is_meson_txlx_cpu() || is_meson_txhd_cpu() ||
-		is_meson_g12a_cpu() || is_meson_g12b_cpu())
+		is_meson_g12a_cpu() || is_meson_g12b_cpu()
+		|| is_meson_tl1_cpu())
 		hiu_reg_base = 0xff63c000;
 	else
 		hiu_reg_base = 0xc883c000;
 	amvecm_hiu_reg_base = ioremap(hiu_reg_base, 0x2000);
+	#endif
 	if (platform_driver_register(&aml_vecm_driver)) {
 		pr_err("failed to register bl driver module\n");
 		return -ENODEV;
@@ -6305,7 +6336,7 @@ static int __init aml_vecm_init(void)
 static void __exit aml_vecm_exit(void)
 {
 	pr_info("%s:module exit\n", __func__);
-	iounmap(amvecm_hiu_reg_base);
+	/*iounmap(amvecm_hiu_reg_base);*/
 	platform_driver_unregister(&aml_vecm_driver);
 }
 

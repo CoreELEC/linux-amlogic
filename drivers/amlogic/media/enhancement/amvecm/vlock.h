@@ -23,7 +23,7 @@
 #include <linux/amlogic/media/vfm/vframe.h>
 #include "linux/amlogic/media/amvecm/ve.h"
 
-#define VLOCK_VER "Ref.2018/11/07a"
+#define VLOCK_VER "Ref.2018/12/24"
 
 #define VLOCK_REG_NUM	33
 
@@ -59,6 +59,18 @@ enum vlock_param_e {
 	VLOCK_PARAM_MAX,
 };
 
+struct stvlock_sig_sts {
+	u32 fsm_sts;
+	u32 fsm_prests;
+	u32 vf_sts;
+	u32 vmd_chg;
+	u32 frame_cnt_in;
+	u32 frame_cnt_no;
+	u32 input_hz;
+	u32 output_hz;
+	bool md_support;
+	struct vecm_match_data_s *dtdata;
+};
 extern void amve_vlock_process(struct vframe_s *vf);
 extern void amve_vlock_resume(void);
 extern void vlock_param_set(unsigned int val, enum vlock_param_e sel);
@@ -84,6 +96,29 @@ extern void vlock_log_print(void);
 #define VLOCK_MODE_MANUAL_SOFT_ENC (1 << 4)
 #define VLOCK_MODE_MANUAL_MIX_PLL_ENC (1 << 5)
 
+
+#define IS_MANUAL_MODE(md)	(md & \
+				(VLOCK_MODE_MANUAL_PLL | \
+				VLOCK_MODE_MANUAL_ENC |	\
+				VLOCK_MODE_MANUAL_SOFT_ENC))
+
+#define IS_PLL_MODE(md)	(md & \
+				(VLOCK_MODE_MANUAL_PLL | \
+				VLOCK_MODE_AUTO_PLL))
+
+#define IS_AUTO_PLL_MODE(md) (md & \
+					VLOCK_MODE_AUTO_PLL)
+
+#define IS_MANUAL_ENC_MODE(md) (md & \
+				VLOCK_MODE_MANUAL_ENC)
+
+#define IS_MANUAL_PLL_MODE(md) (md & \
+				VLOCK_MODE_MANUAL_PLL)
+
+#define IS_MANUAL_SOFTENC_MODE(md) (md & \
+				VLOCK_MODE_MANUAL_SOFT_ENC)
+
+
 #define XTAL_VLOCK_CLOCK   24000000/*vlock use xtal clock*/
 
 #define VLOCK_SUPPORT_HDMI (1 << 0)
@@ -106,7 +141,7 @@ extern void vlock_log_print(void);
 extern unsigned int vlock_mode;
 extern unsigned int vlock_en;
 extern unsigned int vecm_latch_flag;
-extern void __iomem *amvecm_hiu_reg_base;
+/*extern void __iomem *amvecm_hiu_reg_base;*/
 extern unsigned int probe_ok;
 
 extern void lcd_ss_enable(bool flag);
@@ -123,4 +158,7 @@ extern void vlock_lcd_param_work(struct work_struct *p_work);
 extern int vlock_notify_callback(struct notifier_block *block,
 	unsigned long cmd, void *para);
 #endif
+extern void vlock_status_init(void);
+extern void vlock_dt_match_init(struct vecm_match_data_s *pdata);
+extern void vlock_set_en(bool en);
 
