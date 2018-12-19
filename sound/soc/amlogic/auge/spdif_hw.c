@@ -528,6 +528,11 @@ int spdifin_get_audio_type(void)
 	return (val >> 16) & 0xff;
 }
 
+void spdifin_set_src(int src)
+{
+	audiobus_update_bits(EE_AUDIO_SPDIFIN_CTRL0, 0x3 << 4, src << 4);
+}
+
 void spdif_set_channel_status_info(
 	struct iec958_chsts *chsts, int spdif_id)
 {

@@ -20,5 +20,5 @@
 extern void frhdmirx_enable(bool enable);
 extern void frhdmirx_src_select(int src);
 extern void frhdmirx_ctrl(int channels, int src);
-
+extern unsigned int frhdmirx_get_chan_status_pc(void);
 #endif

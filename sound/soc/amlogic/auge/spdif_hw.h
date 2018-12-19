@@ -88,4 +88,5 @@ extern void spdif_set_channel_status_info(
 
 extern void spdifout_play_with_zerodata(unsigned int spdif_id);
 extern void spdifout_play_with_zerodata_free(unsigned int spdif_id);
+extern void spdifin_set_src(int src);
 #endif

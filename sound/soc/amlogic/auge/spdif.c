@@ -253,6 +253,7 @@ static int spdifin_audio_type_get_enum(
 
 /* For fake */
 static bool is_mute;
+static int  spdifin_src;
 static int aml_audio_set_spdif_mute(struct snd_kcontrol *kcontrol,
 					struct snd_ctl_elem_value *ucontrol)
 {
@@ -266,6 +267,36 @@ static int aml_audio_get_spdif_mute(struct snd_kcontrol *kcontrol,
 {
 	ucontrol->value.integer.value[0] = is_mute;
 
+	return 0;
+}
+static const char *const spdifin_src_texts[] = {
+	"spdifin pad", "spdifout", "N/A", "HDMIRX"
+};
+
+const struct soc_enum spdifin_src_enum =
+	SOC_ENUM_SINGLE(SND_SOC_NOPM, 0, ARRAY_SIZE(spdifin_src_texts),
+	spdifin_src_texts);
+
+int spdifin_source_get_enum(
+	struct snd_kcontrol *kcontrol,
+	struct snd_ctl_elem_value *ucontrol)
+{
+	ucontrol->value.enumerated.item[0] = spdifin_src;
+	return 0;
+}
+
+int spdifin_source_set_enum(
+	struct snd_kcontrol *kcontrol,
+	struct snd_ctl_elem_value *ucontrol)
+{
+	int src = ucontrol->value.enumerated.item[0];
+
+	if (src > 3) {
+		pr_err("bad parameter for spdifin src set\n");
+		return -1;
+	}
+	spdifin_set_src(src);
+	spdifin_src = src;
 	return 0;
 }
 
@@ -288,6 +319,10 @@ static const struct snd_kcontrol_new snd_spdif_controls[] = {
 	SOC_SINGLE_BOOL_EXT("Audio spdif mute",
 				0, aml_audio_get_spdif_mute,
 				aml_audio_set_spdif_mute),
+	SOC_ENUM_EXT("Audio spdifin source",
+				spdifin_src_enum,
+				spdifin_source_get_enum,
+				spdifin_source_set_enum),
 
 };
 
@@ -556,7 +591,7 @@ static void spdifin_status_event(struct aml_spdif *p_spdif)
 			pr_info("Pd changed\n");
 	} else {
 		if (intrpt_status & 0x8)
-			pr_info("CH status changed\n");
+			pr_debug("CH status changed\n");
 
 		if (intrpt_status & 0x10) {
 			int val = spdifin_get_ch_status0to31();

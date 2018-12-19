@@ -55,22 +55,22 @@ static void dump_pcm_setting(struct pcm_setting *setting)
 	if (setting == NULL)
 		return;
 
-	pr_info("dump_pcm_setting(%p)\n", setting);
-	pr_info("\tpcm_mode(%d)\n", setting->pcm_mode);
-	pr_info("\tsysclk(%d)\n", setting->sysclk);
-	pr_info("\tsysclk_bclk_ratio(%d)\n", setting->sysclk_bclk_ratio);
-	pr_info("\tbclk(%d)\n", setting->bclk);
-	pr_info("\tbclk_lrclk_ratio(%d)\n", setting->bclk_lrclk_ratio);
-	pr_info("\tlrclk(%d)\n", setting->lrclk);
-	pr_info("\ttx_mask(%#x)\n", setting->tx_mask);
-	pr_info("\trx_mask(%#x)\n", setting->rx_mask);
-	pr_info("\tslots(%d)\n", setting->slots);
-	pr_info("\tslot_width(%d)\n", setting->slot_width);
-	pr_info("\tlane_mask_in(%#x)\n", setting->lane_mask_in);
-	pr_info("\tlane_mask_out(%#x)\n", setting->lane_mask_out);
-	pr_info("\tlane_oe_mask_in(%#x)\n", setting->lane_oe_mask_in);
-	pr_info("\tlane_oe_mask_out(%#x)\n", setting->lane_oe_mask_out);
-	pr_info("\tlane_lb_mask_in(%#x)\n", setting->lane_lb_mask_in);
+	pr_debug("dump_pcm_setting(%p)\n", setting);
+	pr_debug("\tpcm_mode(%d)\n", setting->pcm_mode);
+	pr_debug("\tsysclk(%d)\n", setting->sysclk);
+	pr_debug("\tsysclk_bclk_ratio(%d)\n", setting->sysclk_bclk_ratio);
+	pr_debug("\tbclk(%d)\n", setting->bclk);
+	pr_debug("\tbclk_lrclk_ratio(%d)\n", setting->bclk_lrclk_ratio);
+	pr_debug("\tlrclk(%d)\n", setting->lrclk);
+	pr_debug("\ttx_mask(%#x)\n", setting->tx_mask);
+	pr_debug("\trx_mask(%#x)\n", setting->rx_mask);
+	pr_debug("\tslots(%d)\n", setting->slots);
+	pr_debug("\tslot_width(%d)\n", setting->slot_width);
+	pr_debug("\tlane_mask_in(%#x)\n", setting->lane_mask_in);
+	pr_debug("\tlane_mask_out(%#x)\n", setting->lane_mask_out);
+	pr_debug("\tlane_oe_mask_in(%#x)\n", setting->lane_oe_mask_in);
+	pr_debug("\tlane_oe_mask_out(%#x)\n", setting->lane_oe_mask_out);
+	pr_debug("\tlane_lb_mask_in(%#x)\n", setting->lane_lb_mask_in);
 }
 
 struct tdm_chipinfo {
@@ -844,7 +844,7 @@ static int aml_dai_set_tdm_sysclk(struct snd_soc_dai *cpu_dai,
 	clk_set_rate(p_tdm->clk, freq * ratio);
 	clk_set_rate(p_tdm->mclk, freq);
 
-	pr_info("set mclk:%d, mpll:%d, get mclk:%lu, mpll:%lu\n",
+	pr_debug("set mclk:%d, mpll:%d, get mclk:%lu, mpll:%lu\n",
 		freq,
 		freq * ratio,
 		clk_get_rate(p_tdm->mclk),
