@@ -968,7 +968,7 @@ static int aml_dai_set_tdm_slot(struct snd_soc_dai *cpu_dai,
 	} else {
 		if (lanes_lb_cnt)
 			in_src = p_tdm->id + 3;
-		if (lanes_in_cnt && lanes_in_cnt <= 3)
+		if (lanes_in_cnt && lanes_in_cnt <= 4)
 			in_src = p_tdm->id;
 		if (in_src > 5) {
 			pr_err("unknown src(%d) for tdmin\n", in_src);
