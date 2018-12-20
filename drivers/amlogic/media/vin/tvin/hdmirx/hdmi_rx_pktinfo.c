@@ -336,7 +336,7 @@ void rx_debug_pktinfo(char input[][20])
 {
 	uint32_t sts = 0;
 	uint32_t enable = 0;
-	long res = 0;
+	uint32_t res = 0;
 
 	if (strncmp(input[1], "debugfifo", 9) == 0) {
 		/*open all pkt interrupt source for debug*/
@@ -367,7 +367,7 @@ void rx_debug_pktinfo(char input[][20])
 		rx_pkt_status();
 	else if (strncmp(input[1], "dump", 7) == 0) {
 		/*check input type*/
-		if (kstrtol(input[2], 16, &res) < 0)
+		if (kstrtou32(input[2], 16, &res) < 0)
 			rx_pr("error input:fmt is 0xValue\n");
 		rx_pkt_dump(res);
 	} else if (strncmp(input[1], "irqdisable", 10) == 0) {
@@ -440,7 +440,7 @@ void rx_debug_pktinfo(char input[][20])
 		/*hdmirx_irq_open()*/
 	} else if (strncmp(input[1], "fifopkten", 9) == 0) {
 		/*check input*/
-		if (kstrtol(input[2], 16, &res) < 0)
+		if (kstrtou32(input[2], 16, &res) < 0)
 			return;
 		rx_pr("pkt ctl disable:0x%x", res);
 		/*check pkt enable ctl bit*/
@@ -455,7 +455,7 @@ void rx_debug_pktinfo(char input[][20])
 		hdmirx_wr_dwc(DWC_PDEC_CTRL, enable);
 	} else if (strncmp(input[1], "fifopktdis", 10) == 0) {
 		/*check input*/
-		if (kstrtol(input[2], 16, &res) < 0)
+		if (kstrtou32(input[2], 16, &res) < 0)
 			return;
 		rx_pr("pkt ctl disable:0x%x", res);
 		/*check pkt enable ctl bit*/
@@ -470,14 +470,14 @@ void rx_debug_pktinfo(char input[][20])
 		hdmirx_wr_dwc(DWC_PDEC_CTRL, enable);
 	} else if (strncmp(input[1], "contentchk", 10) == 0) {
 		/*check input*/
-		if (kstrtol(input[2], 16, &res) < 0) {
+		if (kstrtou32(input[2], 16, &res) < 0) {
 			rx_pr("error input:fmt is 0xXX\n");
 			return;
 		}
 		rx_pkt_content_chk_en(res);
 	} else if (strncmp(input[1], "pdfifopri", 9) == 0) {
 		/*check input*/
-		if (kstrtol(input[2], 16, &res) < 0) {
+		if (kstrtou32(input[2], 16, &res) < 0) {
 			rx_pr("error input:fmt is 0xXX\n");
 			return;
 		}

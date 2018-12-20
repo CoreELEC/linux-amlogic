@@ -2179,7 +2179,9 @@ bool rx_clkrate_monitor(void)
 	clk_rate = rx_get_scdc_clkrate_sts();
 	if (is_clk_stable()) {
 		rx.phy.cable_clk = rx_measure_clock(MEASURE_CLK_CABLE);
+		rx.phy.tmds_clk = rx_measure_clock(MEASURE_CLK_TMDS);
 		rx.phy.phy_bw = aml_cable_clk_band(rx.phy.cable_clk, clk_rate);
+		rx.phy.pll_bw = aml_phy_pll_band(rx.phy.cable_clk, clk_rate);
 	}
 
 	if (clk_rate != rx.phy.clk_rate) {
@@ -3090,13 +3092,13 @@ void dump_edid_reg(void)
 
 int rx_debug_wr_reg(const char *buf, char *tmpbuf, int i)
 {
-	long adr = 0;
-	long value = 0;
+	uint32_t adr = 0;
+	uint32_t value = 0;
 
-	if (kstrtol(tmpbuf + 3, 16, &adr) < 0)
+	if (kstrtou32(tmpbuf + 3, 16, &adr) < 0)
 		return -EINVAL;
 	rx_pr("adr = %#x\n", adr);
-	if (kstrtol(buf + i + 1, 16, &value) < 0)
+	if (kstrtou32(buf + i + 1, 16, &value) < 0)
 		return -EINVAL;
 	rx_pr("value = %#x\n", value);
 	if (tmpbuf[1] == 'h') {
@@ -3131,11 +3133,11 @@ int rx_debug_wr_reg(const char *buf, char *tmpbuf, int i)
 
 int rx_debug_rd_reg(const char *buf, char *tmpbuf)
 {
-	long adr = 0;
-	long value = 0;
+	uint32_t adr = 0;
+	uint32_t value = 0;
 
 	if (tmpbuf[1] == 'h') {
-		if (kstrtol(tmpbuf + 3, 16, &adr) < 0)
+		if (kstrtou32(tmpbuf + 3, 16, &adr) < 0)
 			return -EINVAL;
 		if (tmpbuf[2] == 't') {
 			value = hdmirx_rd_top(adr);
@@ -3219,6 +3221,34 @@ uint32_t aml_cable_clk_band(uint32_t cableclk,
 		bw = phy_frq_band_2;
 		rx_pr("phy err: bw clk=%d\n", cableclk);
 	}
+	return bw;
+}
+
+uint32_t aml_phy_pll_band(uint32_t cableclk,
+	uint32_t clkrate)
+{
+	uint32_t bw;
+	uint32_t cab_clk = cableclk;
+
+	if (clkrate)
+		cab_clk = cableclk << 2;
+
+	/* 1:10 */
+	if (cab_clk < (35*MHz))
+		bw = pll_frq_band_0;
+	else if (cab_clk < (77*MHz))
+		bw = pll_frq_band_1;
+	else if (cab_clk < (155*MHz))
+		bw = pll_frq_band_2;
+	else if (cab_clk < (300*MHz))
+		bw = pll_frq_band_3;
+	else if (cab_clk < (600*MHz))
+		bw = pll_frq_band_4;
+	else {
+		bw = pll_frq_band_2;
+		rx_pr("phy err: bw clk=%d\n", cableclk);
+	}
+
 	return bw;
 }
 
@@ -3470,7 +3500,7 @@ void aml_phy_pll_setting(void)
 	uint32_t M, N;
 	uint32_t od, od_div;
 	uint32_t od2, od2_div;
-	uint32_t bw = rx.phy.phy_bw;
+	uint32_t bw = rx.phy.pll_bw;
 	uint32_t vco_clk;
 	uint32_t apll_out;
 	uint32_t aud_pll_out;
@@ -3517,7 +3547,8 @@ void aml_phy_pll_setting(void)
 	udelay(2);
 	wr_reg_hhi(HHI_HDMIRX_APLL_CNTL0, data|0x14000000);
 	udelay(60);
-	wr_reg_hhi(HHI_HDMIRX_APLL_CNTL2, 0x00003018);
+	/* bit'5: force lock bit'2: improve ldo voltage */
+	wr_reg_hhi(HHI_HDMIRX_APLL_CNTL2, 0x0000303c);
 	/* common block release reset */
 	data = rd_reg_hhi(HHI_HDMIRX_PHY_MISC_CNTL0);
 	data &= ~(0x7 << 7);
@@ -3585,24 +3616,47 @@ unsigned int aml_phy_pll_lock(void)
 		return false;
 }
 
+bool is_tmds_clk_stable(void)
+{
+	bool ret = true;
+	uint32_t cableclk;
+
+	if (rx.phy.clk_rate)
+		cableclk = rx.phy.cable_clk * 4;
+	else
+		cableclk = rx.phy.cable_clk;
+
+	if (abs(cableclk - rx.phy.tmds_clk) > 5 * MHz) {
+		if (log_level & VIDEO_LOG)
+			rx_pr("cableclk=%d,tmdsclk=%d\n",
+				cableclk/MHz, rx.phy.tmds_clk/MHz);
+		ret = false;
+	} else
+		ret = true;
+
+	return ret;
+}
+
 unsigned int aml_phy_tmds_valid(void)
 {
 	unsigned int tmds_valid;
+	unsigned int tmdsclk_valid;
 	unsigned int sqofclk;
-	unsigned int pll_lock;
+	/* unsigned int pll_lock; */
 	unsigned int tmds_align;
 
 	tmds_valid = hdmirx_rd_dwc(DWC_HDMI_PLL_LCK_STS) & 0x01;
 	sqofclk = hdmirx_rd_top(TOP_MISC_STAT0) & 0x1;
-	pll_lock = rd_reg_hhi(HHI_HDMIRX_APLL_CNTL0) & 0x80000000;
+	/*pll_lock = rd_reg_hhi(HHI_HDMIRX_APLL_CNTL0) & 0x80000000;*/
+	tmdsclk_valid = is_tmds_clk_stable();
 	tmds_align = hdmirx_rd_top(TOP_TMDS_ALIGN_STAT) & 0x3f000000;
-	if (tmds_valid && sqofclk && pll_lock &&
+	if (tmds_valid && sqofclk && tmdsclk_valid &&
 		(tmds_align == 0x3f000000))
 		return true;
 	else {
 		if (log_level & VIDEO_LOG) {
-			rx_pr("tmds:%x,sqo:%x,lock:%x,align:%x\n",
-				tmds_valid, sqofclk, pll_lock, tmds_align);
+			rx_pr("tmds:%x,sqo:%x,tmdsclk_valid:%x,align:%x\n",
+				tmds_valid, sqofclk, tmdsclk_valid, tmds_align);
 			rx_pr("cable clk0:%d\n",
 				rx_measure_clock(MEASURE_CLK_CABLE));
 			rx_pr("cable clk1:%d\n",

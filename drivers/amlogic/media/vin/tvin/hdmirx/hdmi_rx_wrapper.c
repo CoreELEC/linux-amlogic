@@ -1312,6 +1312,7 @@ void fsm_restart(void)
 	rx.phy.cable_clk = 0;
 	rx.phy.pll_rate = 0;
 	rx.phy.phy_bw = 0;
+	rx.phy.pll_bw = 0;
 	rx_pr("force_fsm_init\n");
 }
 
@@ -1450,7 +1451,7 @@ int rx_set_global_variable(const char *buf, int size)
 {
 	char tmpbuf[60];
 	int i = 0;
-	long value = 0;
+	uint32_t value = 0;
 	int ret = 0;
 	int index = 1;
 
@@ -1471,9 +1472,9 @@ int rx_set_global_variable(const char *buf, int size)
 			break;
 	}
 	if ((buf[i] == '0') && ((buf[i + 1] == 'x') || (buf[i + 1] == 'X')))
-		ret = kstrtol(buf + i + 2, 16, &value);
+		ret = kstrtou32(buf + i + 2, 16, &value);
 	else
-		ret = kstrtol(buf + i, 10, &value);
+		ret = kstrtou32(buf + i, 10, &value);
 	/*rx_pr("tmpbuf: %s value: %#x index:%#x\n", tmpbuf, value, index);*/
 
 	if (ret != 0)
@@ -2645,7 +2646,7 @@ int hdmirx_debug(const char *buf, int size)
 {
 	char tmpbuf[128];
 	int i = 0;
-	long value = 0;
+	uint32_t value = 0;
 
 	char input[5][20];
 	char *const delim = " ";
@@ -2716,7 +2717,7 @@ int hdmirx_debug(const char *buf, int size)
 		else
 			dump_state(RX_DUMP_ALL);
 	} else if (strncmp(tmpbuf, "pause", 5) == 0) {
-		if (kstrtol(tmpbuf + 5, 10, &value) < 0)
+		if (kstrtou32(tmpbuf + 5, 10, &value) < 0)
 			return -EINVAL;
 		rx_pr("%s\n", value ? "pause" : "enable");
 		sm_pause = value;
@@ -2786,7 +2787,7 @@ int hdmirx_debug(const char *buf, int size)
 	} else if (strncmp(input[0], "tmdscapture", 11) == 0) {
 		rx_tmds_data_capture();
 	} else if (strncmp(input[0], "tmdscnt", 7) == 0) {
-		if (kstrtol(input[1], 16, &value) < 0)
+		if (kstrtou32(input[1], 16, &value) < 0)
 			rx_pr("error input Value\n");
 		rx_pr("set pkt cnt:0x%x\n", value);
 		rx.empbuff.tmdspktcnt = value;

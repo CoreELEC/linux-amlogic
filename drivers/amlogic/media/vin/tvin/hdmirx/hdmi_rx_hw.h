@@ -1267,6 +1267,8 @@ extern void aml_phy_init(void);
 extern void aml_phy_pw_onoff(uint32_t onoff);
 extern uint32_t aml_cable_clk_band(uint32_t cableclk,
 	uint32_t clkrate);
+extern uint32_t aml_phy_pll_band(uint32_t cableclk,
+	uint32_t clkrate);
 extern void aml_phy_switch_port(void);
 extern void aml_phy_bw_switch(void);
 extern unsigned int aml_phy_pll_lock(void);
