@@ -147,4 +147,7 @@ struct stmmac_of_data {
 	void (*exit)(struct platform_device *pdev, void *priv);
 };
 extern int chip_simulation;
+#ifdef CONFIG_DWMAC_MESON
+extern u8 DEFMAC[];
+#endif
 #endif

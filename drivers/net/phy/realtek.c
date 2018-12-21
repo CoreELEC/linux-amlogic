@@ -72,6 +72,13 @@ static int rtl8211f_config_init(struct phy_device *phydev)
 	phy_write(phydev, RTL821x_LCR, 0XC171); /*led configuration*/
 	phy_write(phydev, RTL821x_EPAGSR, 0x0);
 
+#ifdef CONFIG_DWMAC_MESON
+	/* enable INTB/PMEB */
+	phy_write(phydev, RTL821x_EPAGSR, 0xd40);
+	phy_write(phydev, 22, 0x20);
+	phy_write(phydev, RTL821x_EPAGSR, 0);
+#endif
+
 	/* rx reg 21 bit 3 tx reg 17 bit 8*/
 	/* phy_write(phydev, 0x1f, 0xd08);
 	 * val =  phy_read(phydev, 0x15);
@@ -80,6 +87,96 @@ static int rtl8211f_config_init(struct phy_device *phydev)
 
 	return 0;
 }
+
+#ifdef CONFIG_DWMAC_MESON
+static int rtl8211f_suspend(struct phy_device *phydev)
+{
+	int val;
+
+	mutex_lock(&phydev->lock);
+
+	if (phydev->drv->features & 0x8000)
+	{
+		if(is_zero_ether_addr(DEFMAC))
+			return 0;
+
+		pr_info("set mac for wol = %02x:%02x:%02x:%02x:%02x:%02x\n",
+			DEFMAC[0], DEFMAC[1], DEFMAC[2], DEFMAC[3], DEFMAC[4], DEFMAC[5]);
+
+		phy_write(phydev, MII_BMCR, 0x1040);
+
+		phy_write(phydev, RTL821x_EPAGSR, 0xd8c);
+		val = (DEFMAC[1] << 8) | DEFMAC[0];
+		phy_write(phydev, 16, val);
+		val = (DEFMAC[3] << 8) | DEFMAC[2];
+		phy_write(phydev, 17, val);
+		val = (DEFMAC[5] << 8) | DEFMAC[4];
+		phy_write(phydev, 18, val);
+		phy_write(phydev, RTL821x_EPAGSR, 0);
+
+		phy_write(phydev, RTL821x_EPAGSR, 0xd8a);
+		phy_write(phydev, 17, 0x9fff);
+		phy_write(phydev, RTL821x_EPAGSR, 0);
+
+		phy_write(phydev, RTL821x_EPAGSR, 0xd8a);
+		phy_write(phydev, 16, 0x1000);
+		phy_write(phydev, RTL821x_EPAGSR, 0);
+
+		phy_write(phydev, RTL821x_EPAGSR, 0xd80);
+		phy_write(phydev, 16, 0x3000);
+		phy_write(phydev, 17, 0x0020);
+		phy_write(phydev, 18, 0x03c0);
+		phy_write(phydev, 19, 0x0000);
+		phy_write(phydev, 20, 0x0000);
+		phy_write(phydev, 21, 0x0000);
+		phy_write(phydev, 22, 0x0000);
+		phy_write(phydev, 23, 0x0000);
+		phy_write(phydev, RTL821x_EPAGSR, 0);
+
+		phy_write(phydev, RTL821x_EPAGSR, 0xd8a);
+		phy_write(phydev, 19, 0x1002);
+		phy_write(phydev, RTL821x_EPAGSR, 0);
+	}
+	else
+	{
+		val = phy_read(phydev, MII_BMCR);
+		phy_write(phydev, MII_BMCR, val | BMCR_PDOWN);
+	}
+
+	mutex_unlock(&phydev->lock);
+
+	return 0;
+}
+
+static int rtl8211f_resume(struct phy_device *phydev)
+{
+	int value;
+
+	mutex_lock(&phydev->lock);
+
+	value = phy_read(phydev, MII_BMCR);
+	phy_write(phydev, MII_BMCR, value & ~BMCR_PDOWN);
+
+	phy_write(phydev, MII_BMCR,
+			BMCR_RESET|BMCR_ANENABLE|BMCR_ANRESTART);
+
+	/* wait for ready */
+	do {
+		value = phy_read(phydev, MII_BMCR);
+		if (value < 0)
+			return value;
+	} while (value & BMCR_RESET);
+
+	/* enable INTB/PMEB */
+	phy_write(phydev, RTL821x_EPAGSR, 0xd40);
+	phy_write(phydev, 22, 0x20);
+	phy_write(phydev, RTL821x_EPAGSR, 0);
+
+	mutex_unlock(&phydev->lock);
+
+	return 0;
+}
+#endif
 
 static int rtl821x_ack_interrupt(struct phy_device *phydev)
 {
@@ -169,8 +266,13 @@ static struct phy_driver rtl8211f_driver = {
 	.config_init	= rtl8211f_config_init,
 	.config_aneg	= &genphy_config_aneg,
 	.read_status	= &genphy_read_status,
+#ifdef CONFIG_DWMAC_MESON
+	.suspend	= rtl8211f_suspend,
+	.resume		= rtl8211f_resume,
+#else
 	.suspend	= genphy_suspend,
 	.resume		= genphy_resume,
+#endif
 	.driver		= { .owner = THIS_MODULE,},
 };
 

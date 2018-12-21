@@ -1378,6 +1378,8 @@ int genphy_suspend(struct phy_device *phydev)
 {
 	int value;
 	/*don't power off if wol is needed*/
+	if (phydev->drv->features & 0x8000)
+		return 0;
 
 	mutex_lock(&phydev->lock);
 
