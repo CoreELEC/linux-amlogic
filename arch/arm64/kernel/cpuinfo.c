@@ -37,6 +37,9 @@
 #include <linux/amlogic/cpu_version.h>
 #endif
 
+#ifdef CONFIG_ARCH_MESON64_ODROID_COMMON
+#include <linux/amlogic/efuse.h>
+#endif
 
 /*
  * In case the boot CPU is hotpluggable, we record its initial state and
@@ -164,12 +167,42 @@ static int c_show(struct seq_file *m, void *v)
 		seq_printf(m, "CPU part\t: 0x%03x\n", MIDR_PARTNUM(midr));
 		seq_printf(m, "CPU revision\t: %d\n\n", MIDR_REVISION(midr));
 	}
+#ifdef CONFIG_ARCH_MESON64_ODROID_COMMON
+#ifdef CONFIG_AMLOGIC_CPU_INFO
+	cpuinfo_get_chipid(chipid, CHIPID_LEN);
+	seq_puts(m, "CPU info\t: ");
+	for (i = 0; i < 16; i++)
+		seq_printf(m, "%02x", chipid[i]);
+	seq_puts(m, "\n");
+#endif
+	{
+		int ret;
+		char uuid[32];
+		char *p = uuid;
+		loff_t pos = 0;
+
+		seq_puts(m, "Serial\t\t: ");
+
+		ret = efuse_read_usr(uuid, sizeof(uuid), &pos);
+		if ((ret < 0) || (ret != sizeof(uuid))) {
+			seq_puts(m, "Unknown\n");
+		} else {
+			for (i = 0; i < sizeof(uuid); i++) {
+				if ((i == 8) || (i == 12) || (i == 16) || (i == 20))
+					seq_putc(m, '-');
+				seq_printf(m, "%c", uuid[i]);
+			}
+			seq_putc(m, '\n');
+		}
+	}
+#else
 #ifdef CONFIG_AMLOGIC_CPU_INFO
 	cpuinfo_get_chipid(chipid, CHIPID_LEN);
 	seq_puts(m, "Serial\t\t: ");
 	for (i = 0; i < 16; i++)
 		seq_printf(m, "%02x", chipid[i]);
 	seq_puts(m, "\n");
+#endif
 #endif
 	system_rev = 0x0400;
 	seq_printf(m, "Hardware\t: %s\n", machine_name);

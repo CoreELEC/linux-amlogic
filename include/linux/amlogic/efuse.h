@@ -34,4 +34,7 @@ ssize_t efuse_user_attr_read(char *name, char *buf);
 #else
 int efuse_read_intlItem(char *intl_item, char *buf, int size);
 #endif
+
+ssize_t efuse_read_usr(char *buf, size_t count, loff_t *ppos);
+
 #endif
