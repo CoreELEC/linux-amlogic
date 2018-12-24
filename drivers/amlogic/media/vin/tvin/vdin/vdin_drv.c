@@ -2327,6 +2327,22 @@ static long vdin_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 				devp->auto_ratio_en);
 		}
 		break;
+	case TVIN_IOC_GET_LATENCY_MODE:
+		mutex_unlock(&devp->fe_lock);
+		if (copy_to_user(argp,
+			&(devp->prop.latency),
+			sizeof(struct tvin_latency_s))) {
+			mutex_unlock(&devp->fe_lock);
+			ret = -EFAULT;
+			pr_info("TVIN_IOC_GET_ALLM_MODE err\n\n");
+			break;
+		}
+		pr_info("allm mode-%d,IT=%d,CN=%d\n\n",
+			devp->prop.latency.allm_mode,
+			devp->prop.latency.it_content,
+			devp->prop.latency.cn_type);
+		mutex_unlock(&devp->fe_lock);
+		break;
 	default:
 		ret = -ENOIOCTLCMD;
 	/* pr_info("%s %d is not supported command\n", __func__, cmd); */
