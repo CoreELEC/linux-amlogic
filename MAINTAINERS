@@ -14731,6 +14731,8 @@ M:	Bo Yang <bo.yang@amlogic.com>
 F:	arch/arm/boot/dts/amlogic/tl1_t962x2_skt.dts
 F:	arch/arm/boot/dts/amlogic/tl1_t962x2_x301.dts
 F:	arch/arm/boot/dts/amlogic/tl1_t962x2_t309.dts
+F:	arch/arm64/boot/dts/amlogic/mesontl1*
+F:	arch/arm64/boot/dts/amlogic/tl1_t962x2_*
 
 AMLOGIC MESON TL1 PANEL DTS
 M:	Evoke Zhang <evoke.zhang@amlogic.com>
