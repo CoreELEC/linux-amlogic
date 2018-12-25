@@ -14745,6 +14745,8 @@ M:	Evoke Zhang <evoke.zhang@amlogic.com>
 F:	arch/arm/boot/dts/amlogic/mesontl1_skt-panel.dtsi
 F:	arch/arm/boot/dts/amlogic/mesontl1_x301-panel.dtsi
 F:	arch/arm/boot/dts/amlogic/mesontl1_t309-panel.dtsi
+F:      drivers/amlogic/media/vout/lcd/lcd_phy_config.c
+F:      drivers/amlogic/media/vout/lcd/lcd_phy_config.h
 
 AMLOGIC MESONAXG RSR DTS
 M:	Yeping Miao <yeping.miao@amlogic.com>
