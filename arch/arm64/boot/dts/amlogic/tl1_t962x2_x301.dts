@@ -67,7 +67,6 @@
 			size = <0x0 0x13400000>;
 			alignment = <0x0 0x400000>;
 			linux,contiguous-region;
-			alloc-ranges = <0x0 0x12000000 0x0 0x13400000>;
 		};
 
 		/* codec shared reserved */
@@ -91,7 +90,6 @@
 			reusable;
 			size = <0x0 0xc00000>;
 			alignment = <0x0 0x400000>;
-			alloc-ranges = <0x0 0x71000000 0x0 0xc00000>;
 		};
 
 		ion_cma_reserved:linux,ion-dev {
@@ -140,7 +138,6 @@
 		vbi_reserved:linux,vbi {
 			compatible = "amlogic, vbi-mem";
 			size = <0x0 0x100000>;
-			alloc-ranges = <0x0 0x0e000000 0x0 0x800000>;
 		};
 
 		/*di CMA pool */
@@ -167,7 +164,6 @@
 			/* 32M for tmds to ddr */
 			size = <0x0 0x2000000>;
 			alignment = <0x0 0x400000>;
-			/* alloc-ranges = <0x0 0x400000 0x0 0x2000000>; */
 		};
 
 		/* POST PROCESS MANAGER */
