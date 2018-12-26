@@ -58,6 +58,7 @@ unsigned int efuse_read_cmd;
 unsigned int efuse_write_cmd;
 unsigned int efuse_get_max_cmd;
 
+#if !defined(CONFIG_ARCH_MESON64_ODROID_COMMON)
 #define  DEFINE_EFUEKEY_SHOW_ATTR(keyname)	\
 	static ssize_t  show_##keyname(struct class *cla, \
 					  struct class_attribute *attr,	\
@@ -89,6 +90,19 @@ DEFINE_EFUEKEY_STORE_ATTR(mac)
 DEFINE_EFUEKEY_STORE_ATTR(mac_bt)
 DEFINE_EFUEKEY_STORE_ATTR(mac_wifi)
 DEFINE_EFUEKEY_STORE_ATTR(usid)
+#else
+#define  DEFINE_EFUEKEY_SHOW_ATTR(keyname)	\
+	static ssize_t  keyname##_show(struct class *cla, \
+					  struct class_attribute *attr,	\
+						char *buf)	\
+	{	\
+		ssize_t ret;	\
+		\
+		ret = efuse_user_attr_show(#keyname, buf); \
+		return ret; \
+	}
+DEFINE_EFUEKEY_SHOW_ATTR(uuid)
+#endif
 
 int efuse_getinfo(char *item, struct efusekey_info *info)
 {
@@ -158,13 +172,74 @@ loff_t efuse_llseek(struct file *filp, loff_t off, int whence)
 		return newpos;
 }
 
+#if defined(CONFIG_ARCH_MESON64_ODROID_COMMON)
+static int odroid_valid(u8 *data, u32 len, u8 expected)
+{
+	u8 sum = 0;
+
+	while (len--)
+		sum += *data++;
+
+	return (sum == expected) ? 0 : -EINVAL;
+}
+
+static int odroid_provision(struct odroid_efuse_t *fuse)
+{
+	int ret;
+	loff_t pos;
+
+	if (memcmp((void *)&fuse->magic, EFUSE_ODROID_MAGIC,
+				sizeof(((struct odroid_efuse_t *)0)->magic)))
+		return -EINVAL;
+
+	if (fuse->offset > 128 - sizeof((struct odroid_efuse_t *)0)->data)
+		return -EINVAL;
+
+	if (fuse->len > sizeof((struct odroid_efuse_t *)0)->data)
+		return -EINVAL;
+
+	ret = odroid_valid(fuse->data, fuse->len, fuse->sum);
+	if (ret < 0) {
+		pr_err("%s:%d, Invalid checksum\n", __func__, __LINE__);
+		return -EINVAL;
+	}
+
+	/* Write */
+	pos = ((loff_t)(fuse->offset)) & 0xffffffff;
+	ret = efuse_write_usr(fuse->data, fuse->len, &pos);
+	if (ret < 0) {
+		pr_err("failed to write efuse\n");
+		return ret;
+	}
+
+	/* Read back */
+	pos = ((loff_t)(fuse->offset)) & 0xffffffff;
+	ret = efuse_read_usr(fuse->data, fuse->len, &pos);
+	if (ret < 0) {
+		pr_err("failed to read efuse\n");
+		return ret;
+	}
+
+	/* Verify */
+	ret = odroid_valid(fuse->data, fuse->len, fuse->sum);
+	if (ret < 0) {
+		pr_err("data mismatch\n");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+#endif
+
 static long efuse_unlocked_ioctl(struct file *file, unsigned int cmd,
 	unsigned long arg)
 {
 	void __user	     *argp = (void __user *)arg;
 	struct efusekey_info info;
 	int		     ret;
-
+#if defined(CONFIG_ARCH_MESON64_ODROID_COMMON)
+	struct odroid_efuse_t fuse;
+#endif
 
 	switch (cmd) {
 	case EFUSE_INFO_GET:
@@ -186,6 +261,22 @@ static long efuse_unlocked_ioctl(struct file *file, unsigned int cmd,
 			return ret;
 		}
 		break;
+#if defined(CONFIG_ARCH_MESON64_ODROID_COMMON)
+	case EFUSE_INFO_PROVISION:
+		ret = copy_from_user(&fuse, argp, sizeof(fuse));
+		if (ret != 0) {
+			pr_err("%s:%d, copy_from_user fail\n",
+				__func__, __LINE__);
+			return ret;
+		}
+
+		ret = odroid_provision(&fuse);
+		if (ret < 0) {
+			pr_err("%s:%d, Failed (%d)\n",
+					__func__, __LINE__, ret);
+		}
+		break;
+#endif
 
 	default:
 		return -ENOTTY;
@@ -580,6 +671,7 @@ static struct class_attribute efuse_class_attrs[] = {
 
 	#endif
 
+#if !defined(CONFIG_ARCH_MESON64_ODROID_COMMON)
 	__ATTR(mac, 0700, show_mac, store_mac),
 
 	__ATTR(mac_bt, 0700, show_mac_bt, store_mac_bt),
@@ -587,7 +679,9 @@ static struct class_attribute efuse_class_attrs[] = {
 	__ATTR(mac_wifi, 0700, show_mac_wifi, store_mac_wifi),
 
 	__ATTR(usid, 0700, show_usid, store_usid),
-
+#else
+	__ATTR_RO(uuid),
+#endif
 	__ATTR_WO(amlogic_set),
 
 	__ATTR_NULL

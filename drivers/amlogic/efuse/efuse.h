@@ -42,6 +42,20 @@
 
 #define EFUSE_INFO_GET			_IO('f', 0x40)
 
+#if defined(CONFIG_ARCH_MESON64_ODROID_COMMON)
+#define EFUSE_INFO_PROVISION		_IO('f', 0x5073)
+#define EFUSE_ODROID_MAGIC		"HKN2"
+#define EFUSE_ODROID_MAXSIZ		64
+
+struct odroid_efuse_t {
+	u32 magic;	/* EFUSE_ODROID_MAGIC */
+	u32 offset;	/* The offset of data in eFuse */
+	u32 len;	/* The length of data buffer */
+	u8 sum;		/* The checksum of data buffer */
+	u8 data[EFUSE_ODROID_MAXSIZ];
+} __attribute__ ((__packed__));
+#endif
+
 #define EFUSE_HAL_API_READ	0
 #define EFUSE_HAL_API_WRITE 1
 #define EFUSE_HAL_API_USER_MAX 3
