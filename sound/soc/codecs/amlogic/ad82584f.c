@@ -42,6 +42,9 @@ static const struct snd_kcontrol_new ad82584f_snd_controls[] = {
 				0xff, 1, chvol_tlv),
 	SOC_SINGLE_TLV("AMP Ch2 Volume", C2VOL, 0,
 			0xff, 1, chvol_tlv),
+
+	SOC_SINGLE("AMP Ch1 Switch", MUTE, 5, 1, 1),
+	SOC_SINGLE("AMP Ch2 Switch", MUTE, 4, 1, 1),
 };
 
 static int ad82584f_reg_init(struct snd_soc_codec *codec);
@@ -591,6 +594,11 @@ struct ad82584f_priv {
 	struct regmap *regmap;
 	struct snd_soc_codec *codec;
 	struct ad82584f_platform_data *pdata;
+
+	unsigned char Ch1_vol;
+	unsigned char Ch2_vol;
+	unsigned char master_vol;
+
 #ifdef CONFIG_HAS_EARLYSUSPEND
 	struct early_suspend early_suspend;
 #endif
@@ -844,7 +852,14 @@ static int ad82584f_remove(struct snd_soc_codec *codec)
 #ifdef CONFIG_PM
 static int ad82584f_suspend(struct snd_soc_codec *codec)
 {
+	struct ad82584f_priv *ad82584f = snd_soc_codec_get_drvdata(codec);
+
 	dev_info(codec->dev, "ad82584f_suspend!\n");
+
+	/* save volume */
+	ad82584f->Ch1_vol = snd_soc_read(codec, C1VOL);
+	ad82584f->Ch2_vol = snd_soc_read(codec, C2VOL);
+	ad82584f->master_vol = snd_soc_read(codec, MVOL);
 
 	ad82584f_set_bias_level(codec, SND_SOC_BIAS_OFF);
 
@@ -853,9 +868,16 @@ static int ad82584f_suspend(struct snd_soc_codec *codec)
 
 static int ad82584f_resume(struct snd_soc_codec *codec)
 {
+	struct ad82584f_priv *ad82584f = snd_soc_codec_get_drvdata(codec);
+
 	dev_info(codec->dev, "ad82584f_resume!\n");
 
 	ad82584f_init(codec);
+
+	snd_soc_write(codec, C1VOL, ad82584f->Ch1_vol);
+	snd_soc_write(codec, C2VOL, ad82584f->Ch2_vol);
+	snd_soc_write(codec, MVOL, ad82584f->master_vol);
+
 	ad82584f_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 
 	return 0;
