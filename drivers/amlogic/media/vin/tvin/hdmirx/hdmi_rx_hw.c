@@ -3353,8 +3353,11 @@ void aml_phy_init(void)
 {
 	uint32_t idx = rx.phy.phy_bw;
 	uint32_t data32;
+	uint32_t term_value =
+		hdmirx_rd_top(TOP_HPD_PWR5V) & 0x7;
 
 	data32 = phy_misci[idx][0];
+	data32 = (data32 & (~0x7)) | term_value;
 	/* terminal en */
 	data32 &= ~(disable_port_num & 0x07);
 	wr_reg_hhi(HHI_HDMIRX_PHY_MISC_CNTL0, data32);
