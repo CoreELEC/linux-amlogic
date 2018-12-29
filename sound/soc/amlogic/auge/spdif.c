@@ -1038,7 +1038,9 @@ static int aml_dai_spdif_prepare(
 		}
 
 		fifo_id = aml_frddr_get_fifo_id(fr);
-		aml_frddr_set_format(fr, bit_depth - 1,
+		aml_frddr_set_format(fr,
+			runtime->channels,
+			bit_depth - 1,
 			spdifout_get_frddr_type(bit_depth));
 		aml_frddr_select_dst(fr, dst);
 		aml_frddr_set_fifos(fr, 0x40, 0x20);

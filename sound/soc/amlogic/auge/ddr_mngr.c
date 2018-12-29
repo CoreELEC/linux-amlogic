@@ -709,7 +709,8 @@ void aml_pwrdet_enable(bool enable, int pwrdet_module)
 		if (attach_pwrdet.status == RUNNING) {
 			struct toddr *to = fetch_toddr_by_src(pwrdet_module);
 
-			aml_set_pwrdet(to, enable);
+			if (to)
+				aml_set_pwrdet(to, enable);
 		}
 		attach_pwrdet.status = DISABLED;
 	}
@@ -941,7 +942,8 @@ int aml_check_sharebuffer_valid(struct frddr *fr, int ss_sel)
 			&& (frddrs[i].fifo_id != current_fifo_id)
 			&& (frddrs[i].dest == ss_sel)) {
 
-			pr_info("ss_sel:%d used, invalid for share buffer\n",
+			pr_info(" frddr:%d, ss_sel:%d used, invalid for share buffer\n",
+				i,
 				ss_sel);
 			ret = 0;
 			break;
@@ -1035,8 +1037,17 @@ void aml_frddr_enable(struct frddr *fr, bool enable)
 	/* ensure disable before enable frddr */
 	aml_audiobus_update_bits(actrl,	reg, 1<<31, enable<<31);
 
-	if (!enable)
+	if (!enable) {
 		aml_audiobus_write(actrl, reg, 0x0);
+
+		/* clr src sel and its en */
+		if (fr->chipinfo
+			&& fr->chipinfo->src_sel_ctrl) {
+			reg = calc_frddr_address(EE_AUDIO_FRDDR_A_CTRL2,
+				reg_base);
+			aml_audiobus_write(actrl, reg, 0x0);
+		}
+	}
 
 	/* check for Audio EQ/DRC */
 	if (aml_check_aed_module(fr->dest))
@@ -1083,8 +1094,6 @@ void aml_frddr_select_dst_ss(struct frddr *fr,
 	unsigned int reg_base = fr->reg_base;
 	unsigned int reg, ss_valid;
 
-	reg = calc_frddr_address(EE_AUDIO_FRDDR_A_CTRL0, reg_base);
-
 	ss_valid = aml_check_sharebuffer_valid(fr, dst);
 
 	/* same source en */
@@ -1093,19 +1102,52 @@ void aml_frddr_select_dst_ss(struct frddr *fr,
 		&& ss_valid) {
 		int s_v = 0, s_m = 0;
 
-			switch (sel) {
-			case 1:
-				s_m = 0xf << 4;
-				s_v = enable ? (dst << 4 | 1 << 7) : 0 << 4;
-				break;
-			case 2:
-				s_m = 0xf << 8;
-				s_v = enable ? (dst << 8 | 1 << 11) : 0 << 8;
-				break;
-			default:
-				pr_warn_once("sel :%d is not supported for same source\n",
-					sel);
-				break;
+			if (fr->chipinfo
+				&& fr->chipinfo->src_sel_ctrl) {
+				reg = calc_frddr_address(EE_AUDIO_FRDDR_A_CTRL2,
+						reg_base);
+
+				switch (sel) {
+				case 1:
+					s_m = 0x17 << 8;
+					s_v = enable ?
+						(dst << 8 | 1 << 12) : 0 << 8;
+					break;
+				case 2:
+					s_m = 0x17 << 16;
+					s_v = enable ?
+						(dst << 16 | 1 << 20) : 0 << 16;
+					break;
+				default:
+					pr_warn_once("sel :%d is not supported for same source\n",
+						sel);
+					break;
+				}
+				s_m |= 0xff << 24;
+				if (enable)
+					s_v |= (fr->channels - 1) << 24;
+				else
+					s_v |= 0x0 << 24;
+			} else {
+				reg = calc_frddr_address(EE_AUDIO_FRDDR_A_CTRL0,
+						reg_base);
+
+				switch (sel) {
+				case 1:
+					s_m = 0xf << 4;
+					s_v = enable ?
+						(dst << 4 | 1 << 7) : 0 << 4;
+					break;
+				case 2:
+					s_m = 0xf << 8;
+					s_v = enable ?
+						(dst << 8 | 1 << 11) : 0 << 8;
+					break;
+				default:
+					pr_warn_once("sel :%d is not supported for same source\n",
+						sel);
+					break;
+				}
 			}
 			pr_debug("%s sel:%d, dst_src:%d\n",
 				__func__, sel, dst);
@@ -1137,8 +1179,11 @@ unsigned int aml_frddr_get_fifo_id(struct frddr *fr)
 }
 
 void aml_frddr_set_format(struct frddr *fr,
-	unsigned int msb, unsigned int frddr_type)
+	unsigned int chnum,
+	unsigned int msb,
+	unsigned int frddr_type)
 {
+	fr->channels = chnum;
 	fr->msb  = msb;
 	fr->type = frddr_type;
 }

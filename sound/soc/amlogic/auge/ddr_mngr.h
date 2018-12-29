@@ -218,6 +218,7 @@ struct frddr {
 	unsigned int reg_base;
 	unsigned int fifo_id;
 
+	unsigned int channels;
 	unsigned int msb;
 	unsigned int type;
 
@@ -281,7 +282,9 @@ void aml_frddr_set_fifos(struct frddr *fr,
 		unsigned int depth, unsigned int thresh);
 unsigned int aml_frddr_get_fifo_id(struct frddr *fr);
 void aml_frddr_set_format(struct frddr *fr,
-	unsigned int msb, unsigned int frddr_type);
+	unsigned int chnum,
+	unsigned int msb,
+	unsigned int frddr_type);
 /* audio eq drc */
 void aml_set_aed(bool enable, int aed_module);
 

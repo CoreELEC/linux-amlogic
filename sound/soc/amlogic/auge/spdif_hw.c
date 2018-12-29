@@ -403,10 +403,14 @@ void spdifout_clk_ctrl(int spdif_id, bool is_enable)
 	audiobus_write(reg, is_enable << 31 | 0x0 << 24 | 0x3 << 0);
 }
 
-void spdifout_fifo_ctrl(int spdif_id, int fifo_id, int bitwidth)
+static void spdifout_fifo_ctrl(int spdif_id,
+	int fifo_id, int bitwidth, int channels)
 {
 	unsigned int frddr_type = spdifout_get_frddr_type(bitwidth);
-	unsigned int offset, reg;
+	unsigned int offset, reg, i, chmask = 0;
+
+	for (i = 0; i < channels; i++)
+		chmask |= (1 << i);
 
 	pr_debug("spdif_%s fifo ctrl, frddr:%d type:%d, %d bits\n",
 		(spdif_id == 0) ? "a":"b",
@@ -419,7 +423,7 @@ void spdifout_fifo_ctrl(int spdif_id, int fifo_id, int bitwidth)
 	reg = EE_AUDIO_SPDIFOUT_CTRL0 + offset * spdif_id;
 	audiobus_update_bits(reg,
 		0x3<<21|0x1<<20|0x1<<19|0xff<<4,
-		0x0<<21|0<<20|0<<19|0x3<<4);
+		0x0<<21|0<<20|0<<19|chmask<<4);
 
 	offset = EE_AUDIO_SPDIFOUT_B_CTRL1 - EE_AUDIO_SPDIFOUT_CTRL1;
 	reg = EE_AUDIO_SPDIFOUT_CTRL1 + offset * spdif_id;
@@ -471,7 +475,7 @@ void spdifout_enable(int spdif_id, bool is_enable)
 }
 
 void spdifout_samesource_set(int spdif_index, int fifo_id,
-	int bitwidth, bool is_enable)
+	int bitwidth, int channels, bool is_enable)
 {
 	int spdif_id;
 
@@ -485,7 +489,7 @@ void spdifout_samesource_set(int spdif_index, int fifo_id,
 		spdifout_clk_ctrl(spdif_id, /*is_enable*/true);
 
 	if (is_enable)
-		spdifout_fifo_ctrl(spdif_id, fifo_id, bitwidth);
+		spdifout_fifo_ctrl(spdif_id, fifo_id, bitwidth, channels);
 }
 
 int spdifin_get_sample_rate(void)
@@ -624,7 +628,8 @@ void spdifout_play_with_zerodata(unsigned int spdif_id)
 		spdifout_to_hdmitx_ctrl(spdif_id);
 
 		/* spdif ctrl */
-		spdifout_fifo_ctrl(spdif_id, frddr_index, bitwidth);
+		spdifout_fifo_ctrl(spdif_id,
+			frddr_index, bitwidth, runtime.channels);
 
 		/* channel status info */
 		spdif_get_channel_status_info(&chsts, sample_rate);
