@@ -236,3 +236,60 @@ int fbtft_write_gpio16_wr_latched(struct fbtft_par *par, void *buf, size_t len)
 	return -1;
 }
 EXPORT_SYMBOL(fbtft_write_gpio16_wr_latched);
+
+#if defined(CONFIG_ARCH_MESON64_ODROID_COMMON)
+union	reg_bitfield {
+	unsigned int	wvalue;
+	struct {
+		unsigned int	db02: 1;	/* GPIOX.0 */
+		unsigned int	db00: 1;	/* GPIOX.1 */
+		unsigned int	db01: 1;	/* GPIOX.2 */
+		unsigned int	bit3: 1;	/* GPIOX.3 */
+		unsigned int	db07: 1;	/* GPIOX.4 */
+		unsigned int	bit5: 1;	/* GPIOX.5 */
+		unsigned int	bit6: 1;	/* GPIOX.6 */
+		unsigned int	db06: 1;	/* GPIOX.7 */
+		unsigned int	db05: 1;	/* GPIOX.8 */
+		unsigned int	db04: 1;	/* GPIOX.9 */
+		unsigned int	wr: 1;		/* GPIOX.10 */
+		unsigned int	db03: 1;	/* GPIOX.11 */
+		/* GPIOX.12 ~ GPIOX.31 */
+		unsigned int	bit12_bit31 : 20;
+	} bits;
+};
+
+int fbtft_write_reg_wr(struct fbtft_par *par, void *buf, size_t len)
+{
+	u8	data;
+	union	reg_bitfield	dbus;
+
+	if (!par->reg_gpiox) {
+		pr_err("%s : ioremap gpio register fail!\n", __func__);
+		return	0;
+	}
+
+	dbus.wvalue = ioread32(par->reg_gpiox + OFFSET_GPIOX_IN);
+
+	while (len--) {
+		data = *buf;
+		dbus.bits.db00 = (data & 0x01) ? 1 : 0;
+		dbus.bits.db01 = (data & 0x02) ? 1 : 0;
+		dbus.bits.db02 = (data & 0x04) ? 1 : 0;
+		dbus.bits.db03 = (data & 0x08) ? 1 : 0;
+		dbus.bits.db04 = (data & 0x10) ? 1 : 0;
+		dbus.bits.db05 = (data & 0x20) ? 1 : 0;
+		dbus.bits.db06 = (data & 0x40) ? 1 : 0;
+		dbus.bits.db07 = (data & 0x80) ? 1 : 0;
+		/* Start writing by pulling down /WR */
+		dbus.bits.wr = 0;
+		iowrite32(dbus.wvalue, par->reg_gpiox + OFFSET_GPIOX_OUT);
+		dbus.bits.wr = 1;
+		iowrite32(dbus.wvalue, par->reg_gpiox + OFFSET_GPIOX_OUT);
+
+		buf++;
+	}
+
+	return 0;
+}
+
+#endif /* #if defined(CONFIG_ARCH_MESON64_ODROID_COMMON) */
