@@ -543,6 +543,9 @@ static struct fbtft_device_display displays[] = {
 			.dev = {
 			.release = fbtft_device_pdev_release,
 			.platform_data = &(struct fbtft_platform_data) {
+#if defined(CONFIG_ARCH_MESON64_ODROID_COMMON)
+				.bgr = true,
+#endif
 				.gpios = (const struct fbtft_gpio []) {
 #if defined(CONFIG_ARCH_MESON64_ODROID_COMMON)
 					{ "reset", 479 }, /* GPX.3  */
