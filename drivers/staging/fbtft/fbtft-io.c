@@ -271,7 +271,7 @@ int fbtft_write_reg_wr(struct fbtft_par *par, void *buf, size_t len)
 	dbus.wvalue = ioread32(par->reg_gpiox + OFFSET_GPIOX_IN);
 
 	while (len--) {
-		data = *buf;
+		data = *(u8 *)buf;
 		dbus.bits.db00 = (data & 0x01) ? 1 : 0;
 		dbus.bits.db01 = (data & 0x02) ? 1 : 0;
 		dbus.bits.db02 = (data & 0x04) ? 1 : 0;
@@ -291,5 +291,6 @@ int fbtft_write_reg_wr(struct fbtft_par *par, void *buf, size_t len)
 
 	return 0;
 }
+EXPORT_SYMBOL(fbtft_write_reg_wr);
 
 #endif /* #if defined(CONFIG_ARCH_MESON64_ODROID_COMMON) */
