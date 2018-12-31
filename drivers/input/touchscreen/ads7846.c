@@ -32,10 +32,15 @@
 #include <linux/gpio.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/ads7846.h>
+#if !defined(CONFIG_ARCH_MESON64_ODROID_COMMON)
 #include <linux/regulator/consumer.h>
+#endif
 #include <linux/module.h>
 #include <asm/irq.h>
 
+#if defined(CONFIG_ARCH_MESON64_ODROID_COMMON)
+    #include <linux/amlogic/aml_gpio_consumer.h>
+#endif
 /*
  * This code has been heavily tested on a Nokia 770, and lightly
  * tested on other ads7846 devices (OSK/Mistral, Lubbock, Spitz).
@@ -98,7 +103,9 @@ struct ads7846 {
 	char			name[32];
 
 	struct spi_device	*spi;
+#if !defined(CONFIG_ARCH_MESON64_ODROID_COMMON)
 	struct regulator	*reg;
+#endif
 
 #if IS_ENABLED(CONFIG_HWMON)
 	struct device		*hwmon;
@@ -226,7 +233,9 @@ static void ads7846_restart(struct ads7846 *ts)
 static void __ads7846_disable(struct ads7846 *ts)
 {
 	ads7846_stop(ts);
+#if !defined(CONFIG_ARCH_MESON64_ODROID_COMMON)
 	regulator_disable(ts->reg);
+#endif
 
 	/*
 	 * We know the chip's in low power mode since we always
@@ -237,12 +246,14 @@ static void __ads7846_disable(struct ads7846 *ts)
 /* Must be called with ts->lock held */
 static void __ads7846_enable(struct ads7846 *ts)
 {
+#if !defined(CONFIG_ARCH_MESON64_ODROID_COMMON)
 	int error;
 
 	error = regulator_enable(ts->reg);
 	if (error != 0)
 		dev_err(&ts->spi->dev, "Failed to enable supply: %d\n", error);
 
+#endif
 	ads7846_restart(ts);
 }
 
@@ -1260,11 +1271,12 @@ static int ads7846_probe(struct spi_device *spi)
 	unsigned long irq_flags;
 	int err;
 
+#if !defined(CONFIG_ARCH_MESON64_ODROID_COMMON)
 	if (!spi->irq) {
 		dev_dbg(&spi->dev, "no IRQ?\n");
 		return -EINVAL;
 	}
-
+#endif
 	/* don't exceed max specified sample rate */
 	if (spi->max_speed_hz > (125000 * SAMPLE_BITS)) {
 		dev_err(&spi->dev, "f(sample) %d KHz?\n",
@@ -1369,6 +1381,7 @@ static int ads7846_probe(struct spi_device *spi)
 
 	ads7846_setup_spi_msg(ts, pdata);
 
+#if !defined(CONFIG_ARCH_MESON64_ODROID_COMMON)
 	ts->reg = regulator_get(&spi->dev, "vcc");
 	if (IS_ERR(ts->reg)) {
 		err = PTR_ERR(ts->reg);
@@ -1382,6 +1395,9 @@ static int ads7846_probe(struct spi_device *spi)
 		goto err_put_regulator;
 	}
 
+#else
+	spi->irq = gpio_to_irq(ts->gpio_pendown);
+#endif
 	irq_flags = pdata->irq_flags ? : IRQF_TRIGGER_FALLING;
 	irq_flags |= IRQF_ONESHOT;
 
@@ -1433,6 +1449,9 @@ static int ads7846_probe(struct spi_device *spi)
 	if (!dev_get_platdata(&spi->dev))
 		devm_kfree(&spi->dev, (void *)pdata);
 
+	dev_info(&spi->dev, "%s ok! registered with irq (%d)\n",
+		__func__, spi->irq);
+
 	return 0;
 
  err_remove_attr_group:
@@ -1442,10 +1461,12 @@ static int ads7846_probe(struct spi_device *spi)
  err_free_irq:
 	free_irq(spi->irq, ts);
  err_disable_regulator:
+#if !defined(CONFIG_ARCH_MESON64_ODROID_COMMON)
 	regulator_disable(ts->reg);
  err_put_regulator:
 	regulator_put(ts->reg);
  err_free_gpio:
+#endif
 	if (!ts->get_pendown_state)
 		gpio_free(ts->gpio_pendown);
  err_cleanup_filter:
@@ -1473,7 +1494,9 @@ static int ads7846_remove(struct spi_device *spi)
 
 	ads784x_hwmon_unregister(spi, ts);
 
+#if !defined(CONFIG_ARCH_MESON64_ODROID_COMMON)
 	regulator_put(ts->reg);
+#endif
 
 	if (!ts->get_pendown_state) {
 		/*
