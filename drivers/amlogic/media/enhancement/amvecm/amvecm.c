@@ -736,6 +736,14 @@ static ssize_t amvecm_vlock_store(struct class *cla,
 		vlock_log_stop();
 	} else if (!strncmp(parm[0], "log_print", 9)) {
 		vlock_log_print();
+	} else if (!strncmp(parm[0], "phase", 5)) {
+		if (kstrtol(parm[1], 10, &val) < 0)
+			return -EINVAL;
+		vlock_set_phase(val);
+	} else if (!strncmp(parm[0], "phaseen", 7)) {
+		if (kstrtol(parm[1], 10, &val) < 0)
+			return -EINVAL;
+		vlock_set_phase_en(val);
 	} else {
 		pr_info("unsupport cmd!!\n");
 	}
@@ -6023,7 +6031,7 @@ static const struct vecm_match_data_s vecm_dt_tl1 = {
 	.vlk_support = true,
 	.vlk_new_fsm = 1,
 	.vlk_hwver = vlock_hw_ver2,
-	.vlk_phlock_en = true,
+	.vlk_phlock_en = false,
 };
 
 static const struct of_device_id aml_vecm_dt_match[] = {

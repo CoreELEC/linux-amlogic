@@ -23,7 +23,7 @@
 #include <linux/amlogic/media/vfm/vframe.h>
 #include "linux/amlogic/media/amvecm/ve.h"
 
-#define VLOCK_VER "Ref.2018/12/24"
+#define VLOCK_VER "Ref.2019/1/24"
 
 #define VLOCK_REG_NUM	33
 
@@ -69,7 +69,10 @@ struct stvlock_sig_sts {
 	u32 input_hz;
 	u32 output_hz;
 	bool md_support;
+	u32 phlock_percent;
 	struct vecm_match_data_s *dtdata;
+	u32 val_frac;
+	u32 val_m;
 };
 extern void amve_vlock_process(struct vframe_s *vf);
 extern void amve_vlock_resume(void);
@@ -102,6 +105,10 @@ extern void vlock_log_print(void);
 				VLOCK_MODE_MANUAL_ENC |	\
 				VLOCK_MODE_MANUAL_SOFT_ENC))
 
+#define IS_AUTO_MODE(md)	(md & \
+				(VLOCK_MODE_AUTO_PLL | \
+				VLOCK_MODE_AUTO_ENC))
+
 #define IS_PLL_MODE(md)	(md & \
 				(VLOCK_MODE_MANUAL_PLL | \
 				VLOCK_MODE_AUTO_PLL))
@@ -130,12 +137,13 @@ extern void vlock_log_print(void);
 #define VLOCK_PLL_ADJ_LIMIT 9/*vlock pll adj limit(0x300a default)*/
 
 /*vlock_debug mask*/
-#define VLOCK_DEBUG_INFO (1 << 0)
-#define VLOCK_DEBUG_FLUSH_REG_DIS (1 << 1)
-#define VLOCK_DEBUG_ENC_LINE_ADJ_DIS (1 << 2)
-#define VLOCK_DEBUG_ENC_PIXEL_ADJ_DIS (1 << 3)
-#define VLOCK_DEBUG_AUTO_MODE_LOG_EN (1 << 4)
-#define VLOCK_DEBUG_PLL2ENC_DIS (1 << 5)
+#define VLOCK_DEBUG_INFO (0x1)
+#define VLOCK_DEBUG_FLUSH_REG_DIS (0x2)
+#define VLOCK_DEBUG_ENC_LINE_ADJ_DIS (0x4)
+#define VLOCK_DEBUG_ENC_PIXEL_ADJ_DIS (0x8)
+#define VLOCK_DEBUG_AUTO_MODE_LOG_EN (0x10)
+#define VLOCK_DEBUG_PLL2ENC_DIS (0x20)
+#define VLOCK_DEBUG_FSM_DIS (0x40)
 
 /* 0:enc;1:pll;2:manual pll */
 extern unsigned int vlock_mode;
@@ -161,4 +169,6 @@ extern int vlock_notify_callback(struct notifier_block *block,
 extern void vlock_status_init(void);
 extern void vlock_dt_match_init(struct vecm_match_data_s *pdata);
 extern void vlock_set_en(bool en);
+extern void vlock_set_phase(u32 percent);
+extern void vlock_set_phase_en(u32 en);
 
