@@ -1,5 +1,5 @@
 /*
- * arch/arm64/boot/dts/amlogic/s905d2_odroidc3_android.dts
+ * arch/arm64/boot/dts/amlogic/meson64_odroidc3_android.dts
  *
  * Copyright (C) 2018 Hardkernel Co., Ltd. All rights reserved.
  *
@@ -15,7 +15,7 @@
  *
  */
 
-#include "s905d2_odroidc3.dts"
+#include "meson64_odroidc3.dts"
 
 / {
 	firmware {
