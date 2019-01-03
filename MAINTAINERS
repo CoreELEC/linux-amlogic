@@ -14766,3 +14766,8 @@ F:	drivers/amlogic/media/camera/*
 F:	drivers/amlogic/media/common/canvas/canvas_mgr.c
 F:	drivers/amlogic/media/common/vfm/vfm.c
 F:	include/linux/amlogic/media/camera/*
+
+AMLOGIC multimedia
+M:	Pengcheng Chen <pengcheng.chen@amlogic.com>
+F:	drivers/amlogic/media/common/ge2d/ge2d_dmabuf.c
+F:	drivers/amlogic/media/common/ge2d/ge2d_dmabuf.h
