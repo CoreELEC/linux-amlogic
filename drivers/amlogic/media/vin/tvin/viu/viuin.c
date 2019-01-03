@@ -165,6 +165,9 @@ void viuin_check_venc_line(struct viuin_s *devp_local)
 		pr_info("**************%s,vencv_line_cur:%d,cnt:%d***********\n",
 				__func__, vencv_line_cur, cnt);
 }
+
+/*g12a/g12b and before: use viu_loop encl/encp*/
+/*tl1: use viu_loop vpp */
 static int viuin_open(struct tvin_frontend_s *fe, enum tvin_port_e port)
 {
 	struct viuin_s *devp = container_of(fe, struct viuin_s, frontend);
@@ -256,8 +259,12 @@ static int viuin_open(struct tvin_frontend_s *fe, enum tvin_port_e port)
 		else if ((port == TVIN_PORT_VIU1_WB0_POST_BLEND) ||
 			(port == TVIN_PORT_VIU2_WB0_POST_BLEND))
 			wr_bits_viu(VPP_WRBAK_CTRL, 5, 0, 3);
+		else if ((port == TVIN_PORT_VIU1_WB0_VPP) ||
+			(port == TVIN_PORT_VIU2_WB0_VPP))
+			wr_bits_viu(VPP_WRBAK_CTRL, 6, 0, 3);
 		else
 			wr_bits_viu(VPP_WRBAK_CTRL, 0, 4, 3);
+
 		if ((port == TVIN_PORT_VIU1_WB1_VD1) ||
 			(port == TVIN_PORT_VIU2_WB1_VD1))
 			wr_bits_viu(VPP_WRBAK_CTRL, 1, 4, 3);
@@ -273,8 +280,12 @@ static int viuin_open(struct tvin_frontend_s *fe, enum tvin_port_e port)
 		else if ((port == TVIN_PORT_VIU1_WB1_POST_BLEND) ||
 			(port == TVIN_PORT_VIU2_WB1_POST_BLEND))
 			wr_bits_viu(VPP_WRBAK_CTRL, 5, 4, 3);
+		else if ((port == TVIN_PORT_VIU1_WB1_VPP) ||
+			(port == TVIN_PORT_VIU2_WB1_VPP))
+			wr_bits_viu(VPP_WRBAK_CTRL, 6, 4, 3);
 		else
 			wr_bits_viu(VPP_WRBAK_CTRL, 0, 4, 3);
+
 		/*wrback hsync en*/
 		if (((port >= TVIN_PORT_VIU1_WB0_VD1) &&
 			(port <= TVIN_PORT_VIU1_WB0_POST_BLEND)) ||
@@ -387,7 +398,11 @@ static void viuin_sig_property(struct tvin_frontend_s *fe,
 	if (devp->parm.port == TVIN_PORT_VIU1_VIDEO)
 		prop->color_format = TVIN_YUV444;
 	else if ((devp->parm.port == TVIN_PORT_VIU1) ||
-		(devp->parm.port == TVIN_PORT_VIU2)) {
+		(devp->parm.port == TVIN_PORT_VIU2) ||
+		(devp->parm.port == TVIN_PORT_VIU1_WB0_VPP) ||
+		(devp->parm.port == TVIN_PORT_VIU1_WB1_VPP) ||
+		(devp->parm.port == TVIN_PORT_VIU2_WB0_VPP) ||
+		(devp->parm.port == TVIN_PORT_VIU2_WB1_VPP)) {
 		vinfo = get_current_vinfo();
 		prop->color_format = vinfo->viu_color_fmt;
 	} else
