@@ -1214,4 +1214,14 @@ config TOUCHSCREEN_ROHM_BU21023
 	  To compile this driver as a module, choose M here: the
 	  module will be called bu21023_ts.
 
+config TOUCHSCREEN_SX8650
+        tristate "Semtech multitouch resistive touchscreen"
+        depends on I2C
+        help
+          Say Y here if you have a touchscreen using Semtec sx8650 controller.
+
+          If unsure, say N.
+
+          To compile this driver as a module, choose M here: the
+          module will be called sx865x.
 endif

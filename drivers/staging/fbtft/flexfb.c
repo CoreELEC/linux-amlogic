@@ -126,6 +126,24 @@ static int ssd1351_init[] = { -1, 0xfd, 0x12, -1, 0xfd, 0xb1, -1, 0xae, -1, 0xb3
 			      -1, 0xab, 0x01, -1, 0xb1, 0x32, -1, 0xb4, 0xa0, 0xb5, 0x55, -1, 0xbb, 0x17, -1, 0xbe, 0x05,
 			      -1, 0xc1, 0xc8, 0x80, 0xc8, -1, 0xc7, 0x0f, -1, 0xb6, 0x01, -1, 0xa6, -1, 0xaf, -3 };
 
+static int ili9488_init[] = {
+	-1, 0xB0, 0x00,
+	-1, 0x11,
+	-2, 120,
+	-1, 0x3A, 0x55,
+	-1, 0xC2, 0x33,
+	-1, 0xC5, 0x00, 0x1E, 0x80,
+	-1, 0x36, 0x28,
+	-1, 0xB1, 0xB0,
+	-1, 0xE0, 0x00, 0x04, 0x0E, 0x08, 0x17, 0x0A, 0x40, 0x79, 0x4D, 0x07,
+		0x0E, 0x0A, 0x1A, 0x1D, 0x0F,
+	-1, 0xE1, 0x00, 0x1B, 0x1F, 0x02, 0x10, 0x05, 0x32, 0x34, 0x43, 0x02,
+		0x0A, 0x09, 0x33, 0x37, 0x0F,
+	-1, 0x11,
+	-1, 0x29,
+	-3
+};
+
 /**
  * struct flexfb_lcd_controller - Describes the LCD controller properties
  * @name: Model name of the chip
@@ -211,6 +229,13 @@ static const struct flexfb_lcd_controller flexfb_chip_table[] = {
 		.init_seq_sz = ARRAY_SIZE(ili9341_init),
 	},
 	{
+		.name = "ili9488",
+		.width = 320,
+		.height = 480,
+		.init_seq = ili9488_init,
+		.init_seq_sz = ARRAY_SIZE(ili9488_init),
+	},
+	{
 		.name = "ssd1289",
 		.width = 240,
 		.height = 320,
@@ -228,6 +253,53 @@ static const struct flexfb_lcd_controller flexfb_chip_table[] = {
 		.init_seq_sz = ARRAY_SIZE(ssd1351_init),
 	},
 };
+
+#if defined(CONFIG_ARCH_MESON64_ODROID_COMMON)
+static void set_addr_win_odroid(struct fbtft_par *par,
+				int xs, int ys, int xe, int ye)
+{
+	/* Column address */
+	write_reg(par, 0x2A, xs >> 8, xs & 0xFF, xe >> 8, xe & 0xFF);
+
+	/* Row address */
+	write_reg(par, 0x2B, ys >> 8, ys & 0xFF, ye >> 8, ye & 0xFF);
+
+	/* Memory write */
+	write_reg(par, 0x2C);
+}
+
+#define ODROID_TFT35_MACTL_MV  0x20
+#define ODROID_TFT35_MACTL_MX  0x40
+#define ODROID_TFT35_MACTL_MY  0x80
+
+static int set_var_odroid(struct fbtft_par *par)
+{
+	u8 val;
+
+	fbtft_par_dbg(DEBUG_INIT_DISPLAY, par, "%s()\n", __func__);
+
+	switch (par->info->var.rotate) {
+	case 270:
+		val = ODROID_TFT35_MACTL_MV;
+		break;
+	case 180:
+		val = ODROID_TFT35_MACTL_MY;
+		break;
+	case 90:
+		val =	ODROID_TFT35_MACTL_MV |
+			ODROID_TFT35_MACTL_MX |
+			ODROID_TFT35_MACTL_MY;
+		break;
+	default:
+		val = ODROID_TFT35_MACTL_MX;
+		break;
+	}
+	/* Memory Access Control  */
+	write_reg(par, 0x36, val | (par->bgr << 3));
+	return	0;
+}
+
+#endif
 
 /* ili9320, ili9325 */
 static void flexfb_set_addr_win_1(struct fbtft_par *par,
@@ -518,6 +590,17 @@ static int flexfb_probe_common(struct spi_device *sdev,
 	if (!nobacklight)
 		par->fbtftops.register_backlight = fbtft_register_backlight;
 
+#if defined(CONFIG_ARCH_MESON64_ODROID_COMMON)
+	par->reg_gpiox = ioremap(ODROIDN2_GPIOX_START, 64);
+	if (!par->reg_gpiox) {
+		pr_err("%s : ioremap gpiox register error!\n", __func__);
+	} else {
+		par->fbtftops.write = fbtft_write_reg_wr;
+		par->fbtftops.set_addr_win = set_addr_win_odroid;
+		par->fbtftops.set_var = set_var_odroid;
+	}
+#endif
+
 	ret = fbtft_register_framebuffer(info);
 	if (ret < 0)
 		goto out_release;
@@ -540,6 +623,10 @@ static int flexfb_remove_common(struct device *dev, struct fb_info *info)
 	if (par)
 		fbtft_par_dbg(DEBUG_DRIVER_INIT_FUNCTIONS, par, "%s()\n",
 			      __func__);
+#if defined(CONFIG_ARCH_MESON64_ODROID_COMMON)
+	if (par->reg_gpiox)
+		iounmap(par->reg_gpiox);
+#endif
 	fbtft_unregister_framebuffer(info);
 	fbtft_framebuffer_release(info);
 
