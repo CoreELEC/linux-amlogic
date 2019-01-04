@@ -23,6 +23,9 @@
 #include <linux/reset.h>
 #include <linux/gpio.h>
 #include <linux/dma-mapping.h>
+#if defined(CONFIG_ARCH_MESON64_ODROID_COMMON)
+#include <linux/pinctrl/consumer.h>
+#endif
 
 /*
  * The Meson SPICC controller could support DMA based transfers, but is not
@@ -214,6 +217,9 @@ struct meson_spicc_device {
 	unsigned long			rxb_remain;
 	unsigned long			xfer_remain;
 	bool				using_dma;
+#if defined(CONFIG_ARCH_MESON64_ODROID_COMMON)
+	struct pinctrl			*pinctrl;
+#endif
 #ifdef MESON_SPICC_TEST_ENTRY
 	struct				class cls;
 	u8				test_data;
@@ -1041,6 +1047,9 @@ static int meson_spicc_probe(struct platform_device *pdev)
 	spicc = spi_master_get_devdata(master);
 	spicc->master = master;
 
+#if defined(CONFIG_ARCH_MESON64_ODROID_COMMON)
+	spicc->pinctrl = NULL;
+#endif
 	spicc->pdev = pdev;
 	platform_set_drvdata(pdev, spicc);
 
@@ -1075,6 +1084,14 @@ static int meson_spicc_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "clock registration failed\n");
 		goto out_master;
 	}
+
+#if defined(CONFIG_ARCH_MESON64_ODROID_COMMON)
+	spicc->pinctrl = devm_pinctrl_get_select(&pdev->dev, "default");
+	if (IS_ERR(spicc->pinctrl)) {
+		spicc->pinctrl = NULL;
+		dev_err(&pdev->dev, "spi pinmux : can't get spicc_pins\n");
+	}
+#endif
 
 	device_reset_optional(&pdev->dev);
 
@@ -1112,6 +1129,18 @@ static int meson_spicc_remove(struct platform_device *pdev)
 {
 	struct meson_spicc_device *spicc = platform_get_drvdata(pdev);
 
+#ifdef MESON_SPICC_TEST_ENTRY
+	class_unregister(&spicc->cls);
+#endif /* end MESON_SPICC_TEST_ENTRY */
+
+#if defined(CONFIG_ARCH_MESON64_ODROID_COMMON)
+	if (spicc->pinctrl)
+		devm_pinctrl_put(spicc->pinctrl);
+
+	spicc->pinctrl = devm_pinctrl_get_select(&pdev->dev, "gpio_periphs");
+	devm_pinctrl_put(spicc->pinctrl);
+	spicc->pinctrl = NULL;
+#endif
 	/* Disable SPI */
 	writel(0, spicc->base + SPICC_CONREG);
 

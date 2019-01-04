@@ -506,4 +506,13 @@
 			function = "gpio_periphs";
 		};
 	};
+	spicc0_to_gpiox: spicc0_gpiox {
+		mux {
+			groups = "GPIOX_8",
+				 "GPIOX_9",
+				 //"GPIOX_10",
+				 "GPIOX_11";
+			function = "gpio_periphs";
+		};
+	};
 }; /* end of pinctrl_periphs */
