@@ -31,6 +31,7 @@
 #include <linux/amlogic/ramdump.h>
 #include <linux/amlogic/reboot.h>
 #include <linux/arm-smccc.h>
+#include <linux/of.h>
 #include <linux/highmem.h>
 #include <asm/cacheflush.h>
 
@@ -282,6 +283,46 @@ void ramdump_sync_data(void)
 static int __init ramdump_probe(struct platform_device *pdev)
 {
 	void __iomem *p = NULL;
+	struct device_node *np;
+	unsigned long dts_memory[2] = {0}, total_mem;
+	struct resource *res;
+	unsigned int dump_set;
+	int ret;
+	void __iomem *base;
+
+	np = of_find_node_by_name(NULL, "memory");
+	if (!np)
+		return -EINVAL;
+
+#ifdef CONFIG_64BIT
+	ret = of_property_read_u64_array(np, "linux,usable-memory",
+					 (u64 *)&dts_memory, 2);
+	if (ret)
+		ret = of_property_read_u64_array(np, "reg",
+						 (u64 *)&dts_memory, 2);
+#else
+	ret = of_property_read_u32_array(np, "linux,usable-memory",
+					 (u32 *)&dts_memory, 2);
+	if (ret)
+		ret = of_property_read_u32_array(np, "reg",
+						 (u32 *)&dts_memory, 2);
+#endif
+	if (ret)
+		pr_info("can't get dts memory\n");
+	else
+		pr_info("MEMORY:[%lx+%lx]\n", dts_memory[0], dts_memory[1]);
+	of_node_put(np);
+
+	/*
+	 * memory in dts is [start_addr size] patten. For amlogic soc,
+	 * ddr address range is started from 0x0, usually start_addr in
+	 * dts should be started with 0x0, but some soc must reserve a
+	 * small framgment of memory at 0x0 for start up code. So start_addr
+	 * can be 0x100000/0x1000000. But we always using 0x0 to get real
+	 * DDR size for ramdump. So we using following formula to get total
+	 * DDR size.
+	 */
+	total_mem = dts_memory[0] + dts_memory[1];
 
 	ram = kzalloc(sizeof(struct ramdump), GFP_KERNEL);
 	if (!ram)
@@ -319,6 +360,21 @@ static int __init ramdump_probe(struct platform_device *pdev)
 	if (!ram->disable && !ram->mem_size) {
 		INIT_WORK(&ram->clear_work, lazy_clear_work);
 		schedule_work(&ram->clear_work);
+	}
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
+					   "PREG_STICKY_REG8");
+	if (res) {
+		base = devm_ioremap(&pdev->dev, res->start,
+						res->end - res->start);
+		if (!base) {
+			pr_err("%s, map reg failed\n", __func__);
+			goto err;
+		}
+		dump_set = readl(base);
+		dump_set &= ~RAMDUMP_STICKY_DATA_MASK;
+		dump_set |= ((total_mem >> 20) | AMLOGIC_KERNEL_BOOTED);
+		writel(dump_set, base);
+		pr_info("%s, set sticky to %x\n", __func__, dump_set);
 	}
 	return 0;
 

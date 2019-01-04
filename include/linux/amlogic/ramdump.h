@@ -20,6 +20,9 @@
 
 #define SET_REBOOT_REASON		0x82000049
 
+#define AMLOGIC_KERNEL_BOOTED		0x8000
+#define RAMDUMP_STICKY_DATA_MASK	0xFFFF
+
 extern int ramdump_disabled(void);
 extern void ramdump_sync_data(void);
 
