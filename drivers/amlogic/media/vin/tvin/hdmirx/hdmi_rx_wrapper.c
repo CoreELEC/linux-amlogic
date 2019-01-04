@@ -154,9 +154,9 @@ static bool video_stable_to_esm;
 MODULE_PARM_DESC(video_stable_to_esm, "\n video_stable_to_esm\n");
 module_param(video_stable_to_esm, bool, 0664);
 
-static bool enable_hdcp22_esm_log;
+static int enable_hdcp22_esm_log;
 MODULE_PARM_DESC(enable_hdcp22_esm_log, "\n enable_hdcp22_esm_log\n");
-module_param(enable_hdcp22_esm_log, bool, 0664);
+module_param(enable_hdcp22_esm_log, int, 0664);
 
 static bool esm_error_flag;
 MODULE_PARM_DESC(esm_error_flag, "\n esm_error_flag\n");
@@ -1917,6 +1917,13 @@ void rx_5v_monitor(void)
 		}
 	}
 	rx.cur_5v_sts = (pwr_sts >> rx.port) & 1;
+	/* inform hdcp_rx22 the 5v sts of rx */
+	if (hdcp22_on) {
+		if (!pwr_sts)
+			hdcp_mode_sel = true;
+		else
+			hdcp_mode_sel = false;
+	}
 }
 
 /*

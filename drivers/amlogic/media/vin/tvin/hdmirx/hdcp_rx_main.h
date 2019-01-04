@@ -30,7 +30,7 @@
 
 /* need update the version when update firmware */
 #define ESM_VERSION	"2.4.84.11.D3"
-#define HDCP_RX22_VER "New FW T0905"
+#define HDCP_RX22_VER "HDCP2.2 RX190104"
 
 #define ESM_HL_DRIVER_SUCCESS                0
 #define ESM_HL_DRIVER_FAILED               (-1)

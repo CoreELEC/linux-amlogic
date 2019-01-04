@@ -46,7 +46,7 @@
  *
  *
  */
-#define RX_VER2 "ver.2018/12/20"
+#define RX_VER2 "ver.2019/01/04"
 
 /*print type*/
 #define	LOG_EN		0x01
