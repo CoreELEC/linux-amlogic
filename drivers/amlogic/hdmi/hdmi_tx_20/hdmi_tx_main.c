@@ -659,9 +659,15 @@ static int set_disp_mode_auto(void)
 			}
 		}
 	}
-	/* only set full range if forced */
-	if (strstr(fmt_attr,"full") == NULL)
+
+	/* set range using range_control from amcsc */
+	if (strstr(fmt_attr,"full") || get_range_control() & 2){
+               hdev->para->cr = COLORRANGE_FUL;
+	}
+	else {
 		hdev->para->cr = COLORRANGE_LIM;
+
+	}
 
 	/* and recover the original bitstream bitdepth */
 	para->cd = stream_cur_cd;
