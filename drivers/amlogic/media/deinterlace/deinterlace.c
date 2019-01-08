@@ -129,7 +129,7 @@ static di_dev_t *de_devp;
 static dev_t di_devno;
 static struct class *di_clsp;
 
-static const char version_s[] = "2019-02-26a";
+static const char version_s[] = "2019-02-27a";
 
 static int bypass_state = 1;
 static int bypass_all;
@@ -3382,7 +3382,7 @@ static bool pps_en;
 module_param_named(pps_en, pps_en, bool, 0644);
 static unsigned int pps_position = 1;
 module_param_named(pps_position, pps_position, uint, 0644);
-static unsigned int pre_enable_mask = 3;
+static unsigned int pre_enable_mask = 3;/*bit0:ma bit1:mc*/
 module_param_named(pre_enable_mask, pre_enable_mask, uint, 0644);
 
 static unsigned char pre_de_buf_config(void)
@@ -4297,6 +4297,10 @@ static irqreturn_t de_irq(int irq, void *dev_instance)
 		trace_di_pre("PRE-IRQ-0",
 			di_pre_stru.field_count_for_cont,
 			di_pre_stru.irq_time[0]);
+		/*add from valsi wang.feng*/
+		di_arb_sw(false);
+		di_arb_sw(true);
+
 		if (mcpre_en) {
 			get_mcinfo_from_reg_in_irq();
 			if ((is_meson_gxlx_cpu() &&
@@ -6177,6 +6181,8 @@ static void di_reg_process_irq(void)
 			de_devp->flags |= DI_VPU_CLKB_SET;
 			enable_di_pre_mif(false, mcpre_en);
 			di_pre_gate_control(true, mcpre_en);
+			di_rst_protect(true);/*2019-01-22 by VLSI feng.wang*/
+			di_pre_nr_wr_done_sel(true);
 			nr_gate_control(true);
 		} else {
 			/* if mcdi enable DI_CLKG_CTRL should be 0xfef60000 */
