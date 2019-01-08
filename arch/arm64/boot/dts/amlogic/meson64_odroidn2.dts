@@ -484,9 +484,10 @@
 
 &i2c2 {
 	status = "okay";
-	pinctrl-names = "default";
+	pinctrl-names = "default","gpio_periphs";
 	/* 40 Pin Header : SDA(GPIOX.17->3 Pin), SCL(GPIOX.18->5 Pin) */
 	pinctrl-0 = <&i2c2_master_pins1>;
+	pinctrl-1 = <&i2c2_to_gpiox>;
 	/* default 400k */
 	clock-frequency = <400000>;
 };
