@@ -487,13 +487,6 @@ int rx_eq_algorithm(void)
 	static uint8_t pre_eq_freq = 0xff;
 	uint8_t pll_rate = hdmirx_rd_phy(PHY_MAINFSM_STATUS1) >> 9 & 3;
 
-	/* for tl1 no SW eq */
-	if (rx.chip_id == CHIP_ID_TL1) {
-		hdmirx_phy_init();
-		eq_sts = E_EQ_FINISH;
-		return 1;
-	}
-
 	if (is_6g_mode())
 		pll_rate = E_EQ_6G;
 

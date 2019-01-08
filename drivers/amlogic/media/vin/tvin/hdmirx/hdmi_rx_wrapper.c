@@ -188,7 +188,7 @@ int phy_retry_times = 1;
  * some out-spec sources whose framerate change a lot(e.g:59.7~60.16hz).
  * Other brands of tv can support this,we also need to support.
  */
-static int stable_check_lvl = 0x7df;
+static int stable_check_lvl;
 
 /* If dvd source received the frequent pulses on HPD line,
  * It will sent a length of dirty audio data sometimes.it's TX's issues.
@@ -213,9 +213,13 @@ void hdmirx_init_params(void)
 	if (rx.chip_id == CHIP_ID_TL1) {
 		clk_unstable_max = 10;
 		esd_phy_rst_max = 200;
+		stable_check_lvl = 0x7df;
+		pll_lock_max = 1;
 	} else {
 		clk_unstable_max = 200;
 		esd_phy_rst_max = 2;
+		stable_check_lvl = 0x17df;
+		pll_lock_max = 2;
 	}
 }
 
@@ -959,91 +963,108 @@ static bool rx_is_timing_stable(void)
 {
 	bool ret = true;
 	uint32_t ch0 = 0, ch1 = 0, ch2 = 0;
-
-	if ((abs(rx.cur.hactive - rx.pre.hactive) > diff_pixel_th) &&
-		(stable_check_lvl & HACTIVE_EN)) {
-		ret = false;
-		if (log_level & VIDEO_LOG)
-			rx_pr("hactive(%d=>%d),",
-				rx.pre.hactive,
-				rx.cur.hactive);
+	if (stable_check_lvl & TMDS_VALID_EN) {
+		if (!is_tmds_valid()) {
+			ret = false;
+			if (log_level & VIDEO_LOG)
+				rx_pr("TMDS invalid\n");
+		}
 	}
-	if ((abs(rx.cur.vactive - rx.pre.vactive) > diff_line_th) &&
-		(stable_check_lvl & VACTIVE_EN)) {
-		ret = false;
-		if (log_level & VIDEO_LOG)
-			rx_pr("vactive(%d=>%d),",
-				rx.pre.vactive,
-				rx.cur.vactive);
+	if (stable_check_lvl & HACTIVE_EN) {
+		if ((diff(rx.cur.hactive, rx.pre.hactive) > diff_pixel_th) ||
+			(rx.cur.hactive == 0)) {
+			ret = false;
+			if (log_level & VIDEO_LOG)
+				rx_pr("hactive(%d=>%d),",
+					rx.pre.hactive,
+					rx.cur.hactive);
+		}
 	}
-	if ((abs(rx.cur.htotal - rx.pre.htotal) > diff_pixel_th) &&
-		(stable_check_lvl & HTOTAL_EN)) {
-		ret = false;
-		if (log_level & VIDEO_LOG)
-			rx_pr("htotal(%d=>%d),",
-				rx.pre.htotal,
-				rx.cur.htotal);
+	if (stable_check_lvl & VACTIVE_EN) {
+		if ((diff(rx.cur.vactive, rx.pre.vactive) > diff_line_th)  ||
+			(rx.cur.vactive == 0)) {
+			ret = false;
+			if (log_level & VIDEO_LOG)
+				rx_pr("vactive(%d=>%d),",
+					rx.pre.vactive,
+					rx.cur.vactive);
+		}
 	}
-	if ((abs(rx.cur.vtotal - rx.pre.vtotal) > diff_line_th) &&
-		(stable_check_lvl & VTOTAL_EN)) {
-		ret = false;
-		if (log_level & VIDEO_LOG)
-			rx_pr("vtotal(%d=>%d),",
-				rx.pre.vtotal,
-				rx.cur.vtotal);
+	if (stable_check_lvl & HTOTAL_EN) {
+		if (diff(rx.cur.htotal, rx.pre.htotal) > diff_pixel_th) {
+			ret = false;
+			if (log_level & VIDEO_LOG)
+				rx_pr("htotal(%d=>%d),",
+					rx.pre.htotal,
+					rx.cur.htotal);
+		}
 	}
-	if ((rx.pre.colorspace != rx.cur.colorspace) &&
-		(stable_check_lvl & COLSPACE_EN)) {
-		ret = false;
-		if (log_level & VIDEO_LOG)
-			rx_pr("colorspace(%d=>%d),",
-				rx.pre.colorspace,
-				rx.cur.colorspace);
+	if (stable_check_lvl & VTOTAL_EN) {
+		if (diff(rx.cur.vtotal, rx.pre.vtotal) > diff_line_th) {
+			ret = false;
+			if (log_level & VIDEO_LOG)
+				rx_pr("vtotal(%d=>%d),",
+					rx.pre.vtotal,
+					rx.cur.vtotal);
+		}
 	}
-	if ((abs(rx.pre.frame_rate - rx.cur.frame_rate) > diff_frame_th) &&
-		(stable_check_lvl & REFRESH_RATE_EN)) {
-		ret = false;
-		if (log_level & VIDEO_LOG)
-			rx_pr("frame_rate(%d=>%d),",
-				rx.pre.frame_rate,
-				rx.cur.frame_rate);
+	if (stable_check_lvl & COLSPACE_EN) {
+		if (rx.pre.colorspace != rx.cur.colorspace) {
+			ret = false;
+			if (log_level & VIDEO_LOG)
+				rx_pr("colorspace(%d=>%d),",
+					rx.pre.colorspace,
+					rx.cur.colorspace);
+		}
 	}
-	if ((rx.pre.repeat != rx.cur.repeat) &&
-		(stable_check_lvl & REPEAT_EN)) {
-		ret = false;
-		if (log_level & VIDEO_LOG)
-			rx_pr("repeat(%d=>%d),",
-				rx.pre.repeat,
-				rx.cur.repeat);
+	if (stable_check_lvl & REFRESH_RATE_EN) {
+		if (diff(rx.pre.frame_rate, rx.cur.frame_rate)
+			> diff_frame_th) {
+			ret = false;
+			if (log_level & VIDEO_LOG)
+				rx_pr("frame_rate(%d=>%d),",
+					rx.pre.frame_rate,
+					rx.cur.frame_rate);
+		}
 	}
-	if ((rx.pre.hw_dvi != rx.cur.hw_dvi) &&
-		(stable_check_lvl & DVI_EN)) {
-		ret = false;
-		if (log_level & VIDEO_LOG)
-			rx_pr("dvi(%d=>%d),",
-				rx.pre.hw_dvi,
-				rx.cur.hw_dvi);
+	if (stable_check_lvl & REPEAT_EN) {
+		if ((rx.pre.repeat != rx.cur.repeat) &&
+			(stable_check_lvl & REPEAT_EN)) {
+			ret = false;
+			if (log_level & VIDEO_LOG)
+				rx_pr("repeat(%d=>%d),",
+					rx.pre.repeat,
+					rx.cur.repeat);
+		}
 	}
-	if ((rx.pre.interlaced != rx.cur.interlaced) &&
-		(stable_check_lvl & INTERLACED_EN)) {
-		ret = false;
-		if (log_level & VIDEO_LOG)
-			rx_pr("interlaced(%d=>%d),",
-				rx.pre.interlaced,
-				rx.cur.interlaced);
+	if (stable_check_lvl & DVI_EN) {
+		if (rx.pre.hw_dvi != rx.cur.hw_dvi) {
+			ret = false;
+			if (log_level & VIDEO_LOG)
+				rx_pr("dvi(%d=>%d),",
+					rx.pre.hw_dvi,
+					rx.cur.hw_dvi);
+			}
 	}
-
-	if ((rx.pre.colordepth != rx.cur.colordepth) &&
-		(stable_check_lvl & COLOR_DEP_EN)) {
-		ret = false;
-		if (log_level & VIDEO_LOG)
-			rx_pr("colordepth(%d=>%d),",
-				rx.pre.colordepth,
-				rx.cur.colordepth);
+	if (stable_check_lvl & INTERLACED_EN) {
+		if (rx.pre.interlaced != rx.cur.interlaced) {
+			ret = false;
+			if (log_level & VIDEO_LOG)
+				rx_pr("interlaced(%d=>%d),",
+					rx.pre.interlaced,
+					rx.cur.interlaced);
+		}
 	}
-	/*for aml phy, check error counter*/
-	if (rx.chip_id == CHIP_ID_TL1 &&
-		(stable_check_lvl & ERR_CNT_EN)) {
+	if (stable_check_lvl & COLOR_DEP_EN) {
+		if (rx.pre.colordepth != rx.cur.colordepth) {
+			ret = false;
+			if (log_level & VIDEO_LOG)
+				rx_pr("colordepth(%d=>%d),",
+					rx.pre.colordepth,
+					rx.cur.colordepth);
+			}
+	}
+	if (stable_check_lvl & ERR_CNT_EN) {
 		rx_get_error_cnt(&ch0, &ch1, &ch2);
 		if ((ch0 + ch1 + ch2) > max_err_cnt) {
 			if (sig_stable_err_cnt++ > sig_stable_err_max) {
@@ -1056,7 +1077,6 @@ static bool rx_is_timing_stable(void)
 			ret = false;
 		}
 	}
-
 	if ((ret == false) && (log_level & VIDEO_LOG))
 		rx_pr("\n");
 
@@ -1203,6 +1223,20 @@ void rx_dwc_reset(void)
 	hdmirx_packet_fifo_rst();
 }
 
+bool rx_hpd_keep_low(void)
+{
+	bool ret = false;
+
+	if (downstream_hpd_flag) {
+		if (hpd_wait_cnt <= hpd_wait_max*5)
+			ret = true;
+	} else {
+		if (hpd_wait_cnt <= hpd_wait_max)
+			ret = true;
+	}
+	return ret;
+}
+
 int rx_get_cur_hpd_sts(void)
 {
 	int tmp;
@@ -1210,17 +1244,6 @@ int rx_get_cur_hpd_sts(void)
 	tmp = hdmirx_rd_top(TOP_HPD_PWR5V) & (1 << rx.port);
 	tmp >>= rx.port;
 	return tmp;
-}
-
-bool is_tmds_valid(void)
-{
-	if (force_vic)
-		return true;
-
-	if (rx.chip_id == CHIP_ID_TL1)
-		return (aml_phy_tmds_valid() == 1) ? true : false;
-	else
-		return (rx_get_pll_lock_sts() == 1) ? true : false;
 }
 
 void esm_set_reset(bool reset)
@@ -2063,14 +2086,9 @@ void rx_main_state_machine(void)
 		break;
 	case FSM_HPD_HIGH:
 		hpd_wait_cnt++;
-		if (rx_get_cur_hpd_sts() == 0) {
-			if (downstream_hpd_flag) {
-				if (hpd_wait_cnt <= hpd_wait_max*5)
-					break;
-			} else {
-				if (hpd_wait_cnt <= hpd_wait_max)
-					break;
-			}
+		if ((rx_get_cur_hpd_sts() == 0) &&
+			rx_hpd_keep_low()) {
+			break;
 		}
 		hpd_wait_cnt = 0;
 		clk_unstable_cnt = 0;
@@ -2111,11 +2129,11 @@ void rx_main_state_machine(void)
 		}
 		break;
 	case FSM_EQ_START:
-		rx_eq_algorithm();
+		rx_run_eq();
 		rx.state = FSM_WAIT_EQ_DONE;
 		break;
 	case FSM_WAIT_EQ_DONE:
-		if (rx_get_eq_run_state() != E_EQ_START) {
+		if (rx_eq_done()) {
 			rx.state = FSM_SIG_UNSTABLE;
 			pll_lock_cnt = 0;
 			pll_unlock_cnt = 0;
@@ -2138,9 +2156,10 @@ void rx_main_state_machine(void)
 			if (rx.err_rec_mode == ERR_REC_EQ_RETRY) {
 				rx.state = FSM_WAIT_CLK_STABLE;
 				if (esd_phy_rst_cnt++ < esd_phy_rst_max) {
-					hdmirx_phy_init();
 					rx.phy.cablesel++;
+					rx_pr("cablesel=%d\n", rx.phy.cablesel);
 					rx.phy.cable_clk = 0;
+					/* hdmirx_phy_init(); */
 				} else
 					rx.err_rec_mode = ERR_REC_HPD_RST;
 			} else if (rx.err_rec_mode == ERR_REC_HPD_RST) {
@@ -2229,6 +2248,7 @@ void rx_main_state_machine(void)
 			if (rx.err_rec_mode == ERR_REC_EQ_RETRY) {
 				rx.state = FSM_WAIT_CLK_STABLE;
 				rx.phy.cablesel++;
+				rx_pr("cablesel1=%d\n", rx.phy.cablesel);
 				rx.err_rec_mode = ERR_REC_HPD_RST;
 				rx_set_eq_run_state(E_EQ_START);
 			} else if (rx.err_rec_mode == ERR_REC_HPD_RST) {

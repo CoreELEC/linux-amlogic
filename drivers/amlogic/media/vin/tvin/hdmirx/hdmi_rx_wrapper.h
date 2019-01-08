@@ -31,6 +31,7 @@
 #define HDCP_ENC_EN		0x200
 #define COLOR_DEP_EN	0x400
 #define ERR_CNT_EN		0x800
+#define TMDS_VALID_EN	0x1000
 
 /* aud sample rate stable range */
 /* #define AUD_SR_RANGE 2000 */
@@ -113,6 +114,7 @@ enum dumpinfo_e {
 };
 
 /* signal */
+extern int force_vic;
 extern enum tvin_sig_fmt_e hdmirx_hw_get_fmt(void);
 extern void rx_main_state_machine(void);
 extern void rx_err_monitor(void);

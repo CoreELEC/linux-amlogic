@@ -1284,6 +1284,9 @@ extern void rx_tmds_to_ddr_init(void);
 extern void rx_emp_capture_stop(void);
 extern void rx_get_error_cnt(uint32_t *ch0, uint32_t *ch1, uint32_t *ch2);
 extern void rx_get_audio_N_CTS(uint32_t *N, uint32_t *CTS);
+extern void rx_run_eq(void);
+extern bool rx_eq_done(void);
+extern bool is_tmds_valid(void);
 #endif
 
 
