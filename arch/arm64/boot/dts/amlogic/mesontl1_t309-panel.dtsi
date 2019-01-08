@@ -433,9 +433,10 @@
 				1 /*clk_auto_generate*/
 				0>; /*pixel_clk(unit in Hz)*/
 			p2p_attr = <
-				0  /* teyp: 0=ceds, 1=cmpi, 2=isp, 3=epi,
-				    *       10=chpi, 11=cspi, 12=usit
-				    */
+				0x0  /* p2p_teyp:
+				      *  0x0=ceds, 0x1=cmpi, 0x2=isp, 0x3=epi,
+				      *  0x10=chpi, 0x11=cspi, 0x12=usit
+				      */
 				12 /* channel_num */
 				0x76543210 /* channel_sel0 */
 				0xba98   /* channel_sel1 */
@@ -481,9 +482,10 @@
 				1 /*clk_auto_generate*/
 				0>; /*pixel_clk(unit in Hz)*/
 			p2p_attr = <
-				0  /* teyp: 0=ceds, 1=cmpi, 2=isp, 3=epi,
-				    *       10=chpi, 11=cspi, 12=usit
-				    */
+				0x0  /* p2p_teyp:
+				      *  0x0=ceds, 0x1=cmpi, 0x2=isp, 0x3=epi,
+				      *  0x10=chpi, 0x11=cspi, 0x12=usit
+				      */
 				6 /* channel_num */
 				0x76543210 /* channel_sel0 */
 				0xba98   /* channel_sel1 */
@@ -528,9 +530,10 @@
 				1 /*clk_auto_generate*/
 				0>; /*pixel_clk(unit in Hz)*/
 			p2p_attr = <
-				10  /* teyp: 0=ceds, 1=cmpi, 2=isp, 3=epi,
-				     *       10=chpi, 11=cspi, 12=usit
-				     */
+				0x10  /* p2p_teyp:
+				       *  0x0=ceds, 0x1=cmpi, 0x2=isp, 0x3=epi,
+				       *  0x10=chpi, 0x11=cspi, 0x12=usit
+				       */
 				6 /* channel_num */
 				0x76543210 /* channel_sel0 */
 				0xba98   /* channel_sel1 */
@@ -575,9 +578,10 @@
 				1 /*clk_auto_generate*/
 				0>; /*pixel_clk(unit in Hz)*/
 			p2p_attr = <
-				10  /* teyp: 0=ceds, 1=cmpi, 2=isp, 3=epi,
-				     *       10=chpi, 11=cspi, 12=usit
-				     */
+				0x10  /* p2p_teyp:
+				       *  0x0=ceds, 0x1=cmpi, 0x2=isp, 0x3=epi,
+				       *  0x10=chpi, 0x11=cspi, 0x12=usit
+				       */
 				12 /* channel_num */
 				0x76543210 /* channel_sel0 */
 				0xba98   /* channel_sel1 */
