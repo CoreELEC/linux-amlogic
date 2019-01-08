@@ -41,7 +41,7 @@
  *
  *
  */
-#define RX_VER1 "ver.2018/12/27"
+#define RX_VER1 "ver.2019/01/08"
 /*
  *
  *

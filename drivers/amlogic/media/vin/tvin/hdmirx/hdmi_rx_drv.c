@@ -2450,11 +2450,10 @@ static int aml_hdcp22_pm_notify(struct notifier_block *nb,
 			rx_pr("hdcp22 kill ok!\n");
 		else
 			rx_pr("hdcp22 kill timeout!\n");
-		hdcp22_kill_esm = 0;
-		hdcp22_suspend();
+		hdcp_22_off();
 	} else if ((event == PM_POST_SUSPEND) && hdcp22_on) {
 		rx_pr("PM_POST_SUSPEND\n");
-		hdcp22_resume();
+		hdcp_22_on();
 	}
 	return NOTIFY_OK;
 }
@@ -2505,7 +2504,7 @@ static void hdmirx_shutdown(struct platform_device *pdev)
 	/* phy powerdown */
 	rx_phy_power_on(0);
 	if (hdcp22_on)
-		hdcp22_clk_en(0);
+		hdcp_22_off();
 	rx_pr("[hdmirx]: shutdown success\n");
 }
 

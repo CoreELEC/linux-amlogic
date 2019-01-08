@@ -1714,9 +1714,9 @@ void hdmirx_hdcp22_hpd(bool value)
 }
 
 /*
- * hdcp22_suspend - suspend flow of hdcp2.2
+ * hdcp_22_off
  */
-void hdcp22_suspend(void)
+void hdcp_22_off(void)
 {
 	hdcp22_clk_en(0);
 	/* note: can't pull down hpd before enter suspend */
@@ -1726,16 +1726,16 @@ void hdcp22_suspend(void)
 	hdmirx_wr_dwc(DWC_HDCP22_CONTROL,
 				0x0);
 	if (hdcp22_kill_esm == 0)
-		/* rx_pr("kill = 1\n"); */
 		hdmirx_hdcp22_esm_rst();
-		/* msleep(20); */
+	else
+		hdcp22_kill_esm = 0;
 	rx_pr("hdcp22 off\n");
 }
 
 /*
- * hdcp22_resume - resume flow of hdcp2.2
+ * hdcp_22_on
  */
-void hdcp22_resume(void)
+void hdcp_22_on(void)
 {
 	hdcp22_kill_esm = 0;
 	/* switch_set_state(&rx.hpd_sdev, 0x0); */
