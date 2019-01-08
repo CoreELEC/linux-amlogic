@@ -1777,6 +1777,10 @@ static void init_buf_list(struct hevc_state_s *hevc)
 		int pic_height =
 			get_buf_alloc_height(hevc)
 			? get_buf_alloc_height(hevc) : hevc->pic_h;
+		if (pic_height <= 1088) {
+			pr_info("Colour protection is on\n");
+			hevc->double_write_mode = 1;
+		}
 #ifdef LOSLESS_COMPRESS_MODE
 /*SUPPORT_10BIT*/
 	int losless_comp_header_size = compute_losless_comp_header_size
