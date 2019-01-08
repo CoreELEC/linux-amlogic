@@ -16,7 +16,7 @@ config AMLOGIC_I2C
 		normal master.
 
 config AMLOGIC_I2C_SLAVE
-	bool "Amlogic I2C Slave Driver"
+	tristate "Amlogic I2C Slave Driver"
 	depends on AMLOGIC_I2C
 	help
 		Amlogic software
@@ -25,7 +25,7 @@ config AMLOGIC_I2C_SLAVE
 		Amlogic I2C Slave Driver.
 
 config AMLOGIC_I2C_MASTER
-	bool "Amlogic I2C Master Driver"
+	tristate "Amlogic I2C Master Driver"
 	depends on AMLOGIC_I2C
 	help
 		Amlogic software
