@@ -1312,6 +1312,8 @@ static void hdmi_tvenc_set(struct hdmitx_vidpara *param)
 	unsigned long vs_bline_evn = 0, vs_eline_evn = 0;
 	unsigned long vso_begin_evn = 0;
 
+	struct hdmi_cea_timing *custom_timing;
+
 	switch (param->VIC) {
 	case HDMI_3840x1080p120hz:
 		INTERLACE_MODE = 0U;
@@ -1778,6 +1780,23 @@ static void hdmi_tvenc_set(struct hdmitx_vidpara *param)
 		EOF_LINES = 13;
 		VSYNC_LINES = 3;
 		SOF_LINES = 29;
+		TOTAL_FRAMES = 4;
+		break;
+	case HDMI_CUSTOMBUILT:
+		custom_timing = get_custom_timing();
+		INTERLACE_MODE = 0U;
+		PIXEL_REPEAT_VENC = 0;
+		PIXEL_REPEAT_HDMI = 0;
+		ACTIVE_PIXELS = custom_timing->h_active;
+		ACTIVE_LINES = custom_timing->v_active;
+		LINES_F0 = custom_timing->v_total;
+		LINES_F1  = custom_timing->v_total;
+		FRONT_PORCH = custom_timing->h_front;
+		HSYNC_PIXELS = custom_timing->h_sync;
+		BACK_PORCH = custom_timing->h_back;
+		EOF_LINES = custom_timing->v_front;
+		VSYNC_LINES = custom_timing->v_sync;
+		SOF_LINES = custom_timing->v_back;
 		TOTAL_FRAMES = 4;
 		break;
 	default:

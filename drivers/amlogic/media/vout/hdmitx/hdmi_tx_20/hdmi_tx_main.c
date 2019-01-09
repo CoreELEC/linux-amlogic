@@ -108,6 +108,13 @@ struct extcon_dev *hdmitx_extcon_hdr;
 struct extcon_dev *hdmitx_extcon_rxsense;
 struct extcon_dev *hdmitx_extcon_hdcp;
 
+static struct hdmi_cea_timing custom_timing;
+struct hdmi_cea_timing *get_custom_timing(void)
+{
+	return &custom_timing;
+}
+EXPORT_SYMBOL(get_custom_timing);
+
 static inline void hdmitx_notify_hpd(int hpd)
 {
 	if (hpd)

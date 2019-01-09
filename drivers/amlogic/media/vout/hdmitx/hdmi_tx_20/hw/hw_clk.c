@@ -835,6 +835,10 @@ static struct hw_enc_clk_val_group setting_enc_clk_val_24[] = {
 	{{HDMI_480x800p60_4x3,
 	  HDMI_VIC_END},
 		2560000, 4, 2, 2, VID_PLL_DIV_5, 1, 1, 1, -1},
+	{{HDMI_CUSTOMBUILT,
+	  HDMI_VIC_END},
+		/* default 1080p60hz */
+		5940000, 4, 1, 2, VID_PLL_DIV_5, 1, 1, 1, -1},
 	{{HDMI_VIC_FAKE,
 	  HDMI_VIC_END},
 		3450000, 1, 2, 2, VID_PLL_DIV_5, 1, 1, 1, -1},
@@ -962,6 +966,7 @@ static void hdmitx_set_clk_(struct hdmitx_dev *hdev)
 	enum hdmi_vic vic = hdev->cur_VIC;
 	enum hdmi_color_space cs = hdev->para->cs;
 	enum hdmi_color_depth cd = hdev->para->cd;
+	struct hdmi_cea_timing *custom_timing;
 
 	/* YUV 422 always use 24B mode */
 	if (cs == COLORSPACE_YUV422)
@@ -1032,6 +1037,17 @@ static void hdmitx_set_clk_(struct hdmitx_dev *hdev)
 		return;
 	}
 next:
+	/* FIXME : consider pixel clocks over 200MHz */
+	if (vic == HDMI_CUSTOMBUILT) {
+		pr_info("[n2][%s] vic == HDMI_CUSTOMBUILT\n", __func__);
+		custom_timing = get_custom_timing();
+		p_enc[j].hpll_clk_out = (custom_timing->frac_freq * 10);
+		/* control od dividers */
+		p_enc[j].od1 = 1;
+		p_enc[j].od2 = 1;
+		p_enc[j].od3 = 2;
+	}
+
 	hdmitx_set_cts_sys_clk(hdev);
 	set_hpll_clk_out(p_enc[j].hpll_clk_out);
 	if ((cd == COLORDEPTH_24B) && (hdev->sspll))

@@ -758,6 +758,7 @@ struct Hdcp_Sub {
 	unsigned int hdcp_sub_addr_start;
 	unsigned int hdcp_sub_len;
 };
+extern struct hdmi_cea_timing *get_custom_timing(void);
 extern void setup_attr(const char *buf);
 extern unsigned int hd_read_reg(unsigned int addr);
 extern void hd_write_reg(unsigned int addr, unsigned int val);
