@@ -138,6 +138,7 @@ struct lcd_timing_s {
 	unsigned char clk_change; /* internal used */
 	unsigned int lcd_clk;   /* pixel clock(unit: Hz) */
 	unsigned int lcd_clk_dft; /* internal used */
+	unsigned int bit_rate; /* Hz */
 	unsigned int h_period_dft; /* internal used */
 	unsigned int v_period_dft; /* internal used */
 	unsigned int pll_ctrl;  /* pll settings */
@@ -236,7 +237,6 @@ struct vbyone_config_s {
 	unsigned int byte_mode;
 	unsigned int color_fmt;
 	unsigned int phy_div;
-	unsigned int bit_rate;
 	unsigned int phy_vswing; /*[4]:ext_pullup, [3:0]vswing*/
 	unsigned int phy_preem;
 	unsigned int intr_en;
@@ -293,7 +293,6 @@ struct dsi_config_s {
 	unsigned char lane_num;
 	unsigned int bit_rate_max; /* MHz */
 	unsigned int bit_rate_min; /* MHz*/
-	unsigned int bit_rate; /* Hz */
 	unsigned int clk_factor; /* bit_rate/pclk */
 	unsigned int factor_numerator;
 	unsigned int factor_denominator; /* 100 */
@@ -334,7 +333,6 @@ struct mlvds_config_s {
 
 	/* internal used */
 	unsigned int pi_clk_sel; /* bit[9:0] */
-	unsigned int bit_rate; /* Hz */
 };
 
 enum p2p_type_e {
@@ -357,9 +355,6 @@ struct p2p_config_s {
 	unsigned int bit_swap; /* MSB/LSB reverse */
 	unsigned int phy_vswing;
 	unsigned int phy_preem;
-
-	/* internal used */
-	unsigned int bit_rate; /* Hz */
 };
 
 struct lcd_control_config_s {

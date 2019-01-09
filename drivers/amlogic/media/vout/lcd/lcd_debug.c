@@ -363,7 +363,7 @@ static int lcd_info_print_vbyone(char *buf, int offset)
 		vx1_conf->region_num,
 		vx1_conf->byte_mode,
 		vx1_conf->color_fmt,
-		vx1_conf->bit_rate,
+		pconf->lcd_timing.bit_rate,
 		vx1_conf->phy_vswing,
 		vx1_conf->phy_preem,
 		vx1_conf->intr_en,
@@ -444,7 +444,7 @@ static int lcd_info_print_mlvds(char *buf, int offset)
 		pconf->lcd_control.mlvds_config->bit_swap,
 		pconf->lcd_control.mlvds_config->phy_vswing,
 		pconf->lcd_control.mlvds_config->phy_preem,
-		pconf->lcd_control.mlvds_config->bit_rate,
+		pconf->lcd_timing.bit_rate,
 		pconf->lcd_control.mlvds_config->pi_clk_sel);
 
 	len += lcd_tcon_info_print((buf+len), (len+offset));
@@ -484,7 +484,7 @@ static int lcd_info_print_p2p(char *buf, int offset)
 		pconf->lcd_control.p2p_config->channel_sel1,
 		pconf->lcd_control.p2p_config->pn_swap,
 		pconf->lcd_control.p2p_config->bit_swap,
-		pconf->lcd_control.p2p_config->bit_rate,
+		pconf->lcd_timing.bit_rate,
 		pconf->lcd_control.p2p_config->phy_vswing,
 		pconf->lcd_control.p2p_config->phy_preem);
 
