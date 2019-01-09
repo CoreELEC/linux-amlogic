@@ -27,6 +27,8 @@
 	#address-cells = <2>;
 	#size-cells = <2>;
 
+	chosen { };
+
 	reserved-memory {
 		#address-cells = <2>;
 		#size-cells = <2>;
