@@ -114,8 +114,10 @@ unsigned int hdmirx_rd_dwc(unsigned int addr)
 	unsigned long dev_offset = 0x10;
 
 	if (rx.chip_id == CHIP_ID_TL1) {
+		spin_lock_irqsave(&reg_rw_lock, flags);
 		data = rd_reg(MAP_ADDR_MODULE_TOP,
 			addr + reg_maps[MAP_ADDR_MODULE_TOP].phy_addr);
+		spin_unlock_irqrestore(&reg_rw_lock, flags);
 	} else {
 		spin_lock_irqsave(&reg_rw_lock, flags);
 		wr_reg(MAP_ADDR_MODULE_TOP,
@@ -150,8 +152,10 @@ void hdmirx_wr_dwc(unsigned int addr, unsigned int data)
 	unsigned int dev_offset = 0x10;
 
 	if (rx.chip_id == CHIP_ID_TL1) {
+		spin_lock_irqsave(&reg_rw_lock, flags);
 		wr_reg(MAP_ADDR_MODULE_TOP,
 			addr + reg_maps[MAP_ADDR_MODULE_TOP].phy_addr, data);
+		spin_unlock_irqrestore(&reg_rw_lock, flags);
 	} else {
 		spin_lock_irqsave(&reg_rw_lock, flags);
 		wr_reg(MAP_ADDR_MODULE_TOP,
@@ -282,6 +286,7 @@ unsigned int hdmirx_rd_top(unsigned int addr)
 	unsigned int tempaddr = 0;
 
 	if (rx.chip_id == CHIP_ID_TL1) {
+		spin_lock_irqsave(&reg_rw_lock, flags);
 		dev_offset = TOP_DWC_BASE_OFFSET +
 			reg_maps[MAP_ADDR_MODULE_TOP].phy_addr;
 		if ((addr >= TOP_EDID_OFFSET) &&
@@ -294,6 +299,7 @@ unsigned int hdmirx_rd_top(unsigned int addr)
 			data = rd_reg(MAP_ADDR_MODULE_TOP,
 				dev_offset + (addr<<2));
 		}
+		spin_unlock_irqrestore(&reg_rw_lock, flags);
 	} else {
 		spin_lock_irqsave(&reg_rw_lock, flags);
 		wr_reg(MAP_ADDR_MODULE_TOP,
@@ -329,6 +335,7 @@ void hdmirx_wr_top(unsigned int addr, unsigned int data)
 	unsigned int tempaddr = 0;
 
 	if (rx.chip_id == CHIP_ID_TL1) {
+		spin_lock_irqsave(&reg_rw_lock, flags);
 		dev_offset = TOP_DWC_BASE_OFFSET +
 			reg_maps[MAP_ADDR_MODULE_TOP].phy_addr;
 		if ((addr >= TOP_EDID_OFFSET) &&
@@ -341,6 +348,7 @@ void hdmirx_wr_top(unsigned int addr, unsigned int data)
 			wr_reg(MAP_ADDR_MODULE_TOP,
 				dev_offset + (addr<<2), data);
 		}
+		spin_unlock_irqrestore(&reg_rw_lock, flags);
 	} else {
 		spin_lock_irqsave(&reg_rw_lock, flags);
 		wr_reg(MAP_ADDR_MODULE_TOP,
@@ -371,10 +379,16 @@ void hdmirx_wr_bits_top(unsigned int addr,
  */
 unsigned int rd_reg_hhi(unsigned int offset)
 {
-	unsigned int addr = offset +
-		reg_maps[MAP_ADDR_MODULE_HIU].phy_addr;
+	unsigned int ret;
+	unsigned long flags;
+	unsigned int addr;
 
-	return rd_reg(MAP_ADDR_MODULE_HIU, addr);
+	spin_lock_irqsave(&reg_rw_lock, flags);
+	addr = offset +
+		reg_maps[MAP_ADDR_MODULE_HIU].phy_addr;
+	ret = rd_reg(MAP_ADDR_MODULE_HIU, addr);
+	spin_unlock_irqrestore(&reg_rw_lock, flags);
+	return ret;
 }
 
 /*
@@ -396,9 +410,14 @@ unsigned int rd_reg_hhi_bits(unsigned int offset, unsigned int mask)
  */
 void wr_reg_hhi(unsigned int offset, unsigned int val)
 {
-	unsigned int addr = offset +
+	unsigned long flags;
+	unsigned int addr;
+
+	spin_lock_irqsave(&reg_rw_lock, flags);
+	addr = offset +
 		reg_maps[MAP_ADDR_MODULE_HIU].phy_addr;
 	wr_reg(MAP_ADDR_MODULE_HIU, addr, val);
+	spin_unlock_irqrestore(&reg_rw_lock, flags);
 }
 
 /*
@@ -706,12 +725,15 @@ void hdmirx_top_sw_reset(void)
 {
 	ulong flags;
 	unsigned long dev_offset = 0;
-
 	spin_lock_irqsave(&reg_rw_lock, flags);
 	if (rx.chip_id == CHIP_ID_TL1) {
-		hdmirx_wr_top(TOP_SW_RESET, 1);
+		dev_offset = TOP_DWC_BASE_OFFSET +
+			reg_maps[MAP_ADDR_MODULE_TOP].phy_addr;
+		wr_reg(MAP_ADDR_MODULE_TOP,
+			dev_offset + TOP_SW_RESET, 1);
 		udelay(1);
-		hdmirx_wr_top(TOP_SW_RESET, 0);
+		wr_reg(MAP_ADDR_MODULE_TOP,
+			dev_offset + TOP_SW_RESET, 0);
 	} else {
 		wr_reg(MAP_ADDR_MODULE_TOP,
 			hdmirx_addr_port | dev_offset, TOP_SW_RESET);
