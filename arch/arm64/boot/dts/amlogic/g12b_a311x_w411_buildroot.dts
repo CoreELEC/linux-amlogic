@@ -810,10 +810,10 @@
 	ircut: ircut {
 		compatible = "amlogic, ircut";
 		status = "okay";
-		filter1_gpio = <&gpio GPIOH_6 GPIO_ACTIVE_HIGH>;
-		filter2_gpio = <&gpio GPIOH_7 GPIO_ACTIVE_HIGH>;
-		ircut_in_gpio = <&gpio_ao GPIOAO_7 GPIO_ACTIVE_HIGH>;
-		alarm_out_gpio = <&gpio_ao GPIOAO_10 GPIO_ACTIVE_HIGH>;
+		filter1-gpios = <&gpio GPIOH_6 GPIO_ACTIVE_HIGH>;
+		filter2-gpios = <&gpio GPIOH_7 GPIO_ACTIVE_HIGH>;
+		light_in-gpios = <&gpio_ao GPIOAO_7 GPIO_ACTIVE_HIGH>;
+		alarm-gpios = <&gpio_ao GPIOAO_10 GPIO_ACTIVE_HIGH>;
 	};
 	vcodec_dec {
 		compatible = "amlogic, vcodec-dec";

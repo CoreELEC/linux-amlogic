@@ -14777,3 +14777,7 @@ M:	Pengcheng Chen <pengcheng.chen@amlogic.com>
 F:	drivers/amlogic/media/gdc/app/gdc_dmabuf.c
 F:	drivers/amlogic/media/gdc/app/gdc_dmabuf.h
 F:	drivers/amlogic/media/gdc/src/platform/system_log.c
+
+AMLOGIC IRCUT DRIVER
+M:	Dianzhong Huo <dianzhong.huo@amlogic.com>
+F:	drivers/amlogic/ircut/
