@@ -161,7 +161,7 @@
 			compatible = "shared-dma-pool";
 			reusable;
 			status = "okay";
-			size = <0x0 0xb400000>;
+			size = <0x0 0x3c00000>;
 			alignment = <0x0 0x400000>;
 		};
 
@@ -169,7 +169,7 @@
 			compatible = "shared-dma-pool";
 			reusable;
 			status = "okay";
-			size = <0x0 0x03000000>;
+			size = <0x0 0x1800000>;
 			alignment = <0x0 0x400000>;
 		};
 		gdc_cma_reserved:linux,gdc_cma {
