@@ -383,7 +383,7 @@ static void lcd_tcon_config_delayed(struct work_struct *work)
 	while (key_init_flag == 0) {
 		if (i++ >= LCD_UNIFYKEY_WAIT_TIMEOUT)
 			break;
-		msleep(20);
+		msleep(LCD_UNIFYKEY_RETRY_INTERVAL);
 		key_init_flag = key_unify_get_init_flag();
 	}
 	LCDPR("tcon: key_init_flag=%d, i=%d\n", key_init_flag, i);
