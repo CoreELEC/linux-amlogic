@@ -598,6 +598,7 @@ struct ad82584f_priv {
 	unsigned char Ch1_vol;
 	unsigned char Ch2_vol;
 	unsigned char master_vol;
+	unsigned char mute_val;
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
 	struct early_suspend early_suspend;
@@ -860,6 +861,7 @@ static int ad82584f_suspend(struct snd_soc_codec *codec)
 	ad82584f->Ch1_vol = snd_soc_read(codec, C1VOL);
 	ad82584f->Ch2_vol = snd_soc_read(codec, C2VOL);
 	ad82584f->master_vol = snd_soc_read(codec, MVOL);
+	ad82584f->mute_val = snd_soc_read(codec, MUTE);
 
 	ad82584f_set_bias_level(codec, SND_SOC_BIAS_OFF);
 
@@ -877,6 +879,7 @@ static int ad82584f_resume(struct snd_soc_codec *codec)
 	snd_soc_write(codec, C1VOL, ad82584f->Ch1_vol);
 	snd_soc_write(codec, C2VOL, ad82584f->Ch2_vol);
 	snd_soc_write(codec, MVOL, ad82584f->master_vol);
+	snd_soc_write(codec, MUTE, ad82584f->mute_val);
 
 	ad82584f_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 
