@@ -116,6 +116,9 @@ struct aml_tdm {
 	/* virtual link for i2s to hdmitx */
 	int i2s2hdmitx;
 	int acodec_adc;
+	uint last_mpll_freq;
+	uint last_mclk_freq;
+	uint last_fmt;
 };
 
 static const struct snd_pcm_hardware aml_tdm_hardware = {
@@ -367,33 +370,6 @@ struct snd_soc_platform_driver aml_tdm_platform = {
 	.ops = &aml_tdm_ops,
 	.pcm_new = aml_tdm_new,
 };
-
-static int aml_dai_tdm_startup(struct snd_pcm_substream *substream,
-			       struct snd_soc_dai *cpu_dai)
-{
-	struct aml_tdm *p_tdm = snd_soc_dai_get_drvdata(cpu_dai);
-	int ret;
-
-	ret = clk_prepare_enable(p_tdm->mclk);
-	if (ret) {
-		pr_err("Can't enable mclk: %d\n", ret);
-		goto err;
-	}
-
-	return ret;
-err:
-	pr_err("failed enable clock\n");
-	return ret;
-}
-
-static void aml_dai_tdm_shutdown(struct snd_pcm_substream *substream,
-				 struct snd_soc_dai *cpu_dai)
-{
-	struct aml_tdm *p_tdm = snd_soc_dai_get_drvdata(cpu_dai);
-
-	/* disable clock and gate */
-	clk_disable_unprepare(p_tdm->mclk);
-}
 
 static int aml_dai_tdm_prepare(struct snd_pcm_substream *substream,
 			       struct snd_soc_dai *cpu_dai)
@@ -770,6 +746,15 @@ static int aml_dai_tdm_hw_params(struct snd_pcm_substream *substream,
 					rate * ratio * mux);
 	}
 
+	if (!p_tdm->contns_clk && !IS_ERR(p_tdm->mclk)) {
+		pr_debug("%s(), enable mclk for %s", __func__, cpu_dai->name);
+		ret = clk_prepare_enable(p_tdm->mclk);
+		if (ret) {
+			pr_err("Can't enable mclk: %d\n", ret);
+			return ret;
+		}
+	}
+
 	return 0;
 }
 
@@ -800,6 +785,12 @@ static int aml_dai_tdm_hw_free(struct snd_pcm_substream *substream,
 				fr, p_tdm->samesource_sel);
 	}
 
+	/* disable clock and gate */
+	if (!p_tdm->contns_clk && !IS_ERR(p_tdm->mclk)) {
+		pr_info("%s(), disable mclk for %s", __func__, cpu_dai->name);
+		clk_disable_unprepare(p_tdm->mclk);
+	}
+
 	return 0;
 }
 
@@ -809,6 +800,12 @@ static int aml_dai_set_tdm_fmt(struct snd_soc_dai *cpu_dai, unsigned int fmt)
 
 	pr_debug("asoc aml_dai_set_tdm_fmt, %#x, %p, id(%d), clksel(%d)\n",
 		fmt, p_tdm, p_tdm->id, p_tdm->clk_sel);
+	if (p_tdm->last_fmt == fmt) {
+		pr_debug("%s(), fmt not change\n", __func__);
+		goto capture;
+	} else
+		p_tdm->last_fmt = fmt;
+
 	switch (fmt & SND_SOC_DAIFMT_CLOCK_MASK) {
 	case SND_SOC_DAIFMT_CONT:
 		p_tdm->contns_clk = true;
@@ -825,9 +822,9 @@ static int aml_dai_set_tdm_fmt(struct snd_soc_dai *cpu_dai, unsigned int fmt)
 
 	aml_tdm_set_format(p_tdm->actrl,
 		&(p_tdm->setting), p_tdm->clk_sel, p_tdm->id, fmt,
-		cpu_dai->capture_active,
-		cpu_dai->playback_active);
+		1, 1);
 
+capture:
 	/* update skew for ACODEC_ADC */
 	if (cpu_dai->capture_active
 		&& p_tdm->chipinfo
@@ -863,6 +860,7 @@ static int aml_dai_set_tdm_sysclk(struct snd_soc_dai *cpu_dai,
 {
 	struct aml_tdm *p_tdm = snd_soc_dai_get_drvdata(cpu_dai);
 	unsigned int ratio = aml_mpll_mclk_ratio(freq);
+	unsigned int mpll_freq = 0;
 
 	p_tdm->setting.sysclk = freq;
 
@@ -875,8 +873,20 @@ static int aml_dai_set_tdm_sysclk(struct snd_soc_dai *cpu_dai,
 		ratio = 20;
 #endif
 
-	clk_set_rate(p_tdm->clk, freq * ratio);
-	clk_set_rate(p_tdm->mclk, freq);
+	mpll_freq = freq * ratio;
+	if (mpll_freq != p_tdm->last_mpll_freq) {
+		clk_set_rate(p_tdm->clk, mpll_freq);
+		p_tdm->last_mpll_freq = mpll_freq;
+	} else {
+		pr_debug("%s(), mpll no change, keep clk\n", __func__);
+	}
+
+	if (freq != p_tdm->last_mclk_freq) {
+		clk_set_rate(p_tdm->mclk, freq);
+		p_tdm->last_mclk_freq = freq;
+	} else {
+		pr_debug("%s(), mclk no change, keep clk\n", __func__);
+	}
 
 	pr_debug("set mclk:%d, mpll:%d, get mclk:%lu, mpll:%lu\n",
 		freq,
@@ -1051,9 +1061,22 @@ static int aml_dai_tdm_remove(struct snd_soc_dai *cpu_dai)
 	return 0;
 }
 
+static int aml_dai_tdm_mute_stream(struct snd_soc_dai *cpu_dai,
+				int mute, int stream)
+{
+	struct aml_tdm *p_tdm = snd_soc_dai_get_drvdata(cpu_dai);
+
+	if (stream == SNDRV_PCM_STREAM_PLAYBACK) {
+		pr_debug("tdm playback mute: %d\n", mute);
+		aml_tdm_mute_playback(p_tdm->actrl, p_tdm->id, mute);
+	} else if (stream == SNDRV_PCM_STREAM_CAPTURE) {
+		pr_debug("tdm capture mute: %d\n", mute);
+		aml_tdm_mute_capture(p_tdm->actrl, p_tdm->id, mute);
+	}
+	return 0;
+}
+
 static struct snd_soc_dai_ops aml_dai_tdm_ops = {
-	.startup = aml_dai_tdm_startup,
-	.shutdown = aml_dai_tdm_shutdown,
 	.prepare = aml_dai_tdm_prepare,
 	.trigger = aml_dai_tdm_trigger,
 	.hw_params = aml_dai_tdm_hw_params,
@@ -1063,6 +1086,7 @@ static struct snd_soc_dai_ops aml_dai_tdm_ops = {
 	.set_bclk_ratio = aml_dai_set_bclk_ratio,
 	.set_clkdiv = aml_dai_set_clkdiv,
 	.set_tdm_slot = aml_dai_set_tdm_slot,
+	.mute_stream = aml_dai_tdm_mute_stream,
 };
 
 #define AML_DAI_TDM_RATES		(SNDRV_PCM_RATE_8000_192000)
