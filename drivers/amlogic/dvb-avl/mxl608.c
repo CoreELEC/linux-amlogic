@@ -958,7 +958,7 @@ err:
 	dev_dbg(&state->i2c->dev, "%s: failed = %d\n", __func__, ret);
 	return ret;
 }
-
+/*
 static int mxl608_get_frequency(struct dvb_frontend *fe, u32 *frequency)
 {
 #ifndef DUAL_TUNER
@@ -980,7 +980,7 @@ static int mxl608_get_bandwidth(struct dvb_frontend *fe, u32 *bandwidth)
 	*bandwidth = state->bandwidth;
 	return 0;
 }
-
+*/
 #ifndef DUAL_TUNER
 static
 #endif

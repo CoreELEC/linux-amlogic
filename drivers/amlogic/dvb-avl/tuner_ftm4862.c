@@ -87,6 +87,8 @@ static int ftm4862_get_if_frequency(struct dvb_frontend *fe, u32 *frequency)
 	case SYS_DVBT2:
 		ret = mxl608_get_if_frequency(fe, frequency);
 		break;
+	default:
+		break;
 	}
 
 	return ret;
