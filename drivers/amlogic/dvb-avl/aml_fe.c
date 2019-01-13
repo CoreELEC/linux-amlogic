@@ -36,6 +36,10 @@
 
 #include "avl6862.h"
 #include "r848a.h"
+#include "mxl608.h"
+#include "rda5815m.h"
+
+#include "tuner_ftm4862.h"
 
 #include "aml_dvb.h"
 #undef pr_err
@@ -60,60 +64,94 @@ MODULE_PARM_DESC(frontend_reset, "\n\t\t Reset GPIO of frontend");
 static int frontend_reset = -1;
 module_param(frontend_reset, int, 0644);
 
+MODULE_PARM_DESC(frontend_reset, "\n\t\t Antoverload GPIO of frontend");
+static int frontend_antoverload = -1;
+module_param(frontend_antoverload, int, 0644);
+
 static struct aml_fe avl6862_fe[FE_DEV_COUNT];
 
 static char *device_name = "avl6862";
 
-#if 1
-static struct r848_config r848_config = {
-	.i2c_address = 0x7A,	
+enum {
+	TUNER_BOARD_UNKNOWN,
+	TUNER_BOARD_MEECOOL,
+	TUNER_BOARD_MAGICSEE
 };
-#endif
+
+static struct r848_config r848_config = {
+	.i2c_address = 0x7A,
+};
+
+static struct ftm4862_config ftm4862_config = {
+	.reserved = 0,
+};
 
 static struct avl6862_config avl6862_config = {
 	.demod_address = 0x14,
-	.tuner_address = 0x7A,
+	.tuner_address = 0,
 	.ts_serial = 0,
 };
 
 int avl6862_Reset(void)
-{	
+{
 	pr_dbg("avl6862_Reset!\n");
-	
+
+	if(frontend_reset < 0)
+		return 0;
 	gpio_request(frontend_reset,device_name);
 	gpio_direction_output(frontend_reset, 0);
 	msleep(600);
 	gpio_request(frontend_reset,device_name);
 	gpio_direction_output(frontend_reset, 1);
-	msleep(200);
-	
+	msleep(600);
+
 	return 0;
 }
 
 int avl6862_gpio(void)
 {
 	pr_dbg("avl6862_gpio!\n");
-	
-	gpio_request(frontend_power,device_name);
-	gpio_direction_output(frontend_power, 1);
-	
+
+	if(frontend_power >= 0) {
+		gpio_request(frontend_power,device_name);
+		gpio_direction_output(frontend_power, 1);
+	}
+
+	if(frontend_antoverload >= 0) {
+		gpio_request(frontend_antoverload,device_name);
+		gpio_direction_output(frontend_antoverload, 1);
+	}
+
 	return 0;
 }
 
 static int avl6862_fe_init(struct aml_dvb *advb, struct platform_device *pdev, struct aml_fe *fe, int id)
 {
 	struct dvb_frontend_ops *ops;
-	int ret, i2c_adap_id = 1;
-
+	int ret, i2c_adap_id = 1, /* i2c_addr = 0x14, */ tun_board = TUNER_BOARD_MEECOOL;
 	struct i2c_adapter *i2c_handle;
+#ifdef CONFIG_OF
+	const char *str;
 #ifdef CONFIG_ARM64
         struct gpio_desc *desc;
-	int gpio_reset, gpio_power;
+	int gpio_reset, gpio_power, gpio_antoverload;
 #endif
-	
+#endif
+
 	pr_inf("Init AVL6862 frontend %d\n", id);
-	
+
 #ifdef CONFIG_OF
+	if(!of_property_read_string(pdev->dev.of_node, "dev_name", &str)) {
+		if(strlen(str) > 0 && !strcmp(str, "magicsee"))
+		{
+			tun_board = TUNER_BOARD_MAGICSEE;
+			pr_dbg("dev_name=%s\n", str);
+		}
+	}
+	//if(!of_property_read_u32(pdev->dev.of_node, "dtv_demod0_i2c_addr", &i2c_addr)) {
+	//	avl6862_config.demod_address = i2c_addr;
+	//	pr_dbg("i2c_addr=0x%02x\n", avl6862_config.demod_address);
+	//}
 	of_property_read_u32(pdev->dev.of_node, "fe0_ts", &avl6862_config.ts_serial);
 	pr_dbg("fe0_ts=%d\n", avl6862_config.ts_serial);
 	if (of_property_read_u32(pdev->dev.of_node, "dtv_demod0_i2c_adap_id", &i2c_adap_id)) {
@@ -122,23 +160,38 @@ static int avl6862_fe_init(struct aml_dvb *advb, struct platform_device *pdev, s
 	}
 	pr_dbg("i2c_adap_id=%d\n", i2c_adap_id);
 	desc = of_get_named_gpiod_flags(pdev->dev.of_node, "dtv_demod0_reset_gpio-gpios", 0, NULL);
-	gpio_reset = desc_to_gpio(desc);
-	pr_dbg("gpio_reset=%d\n", gpio_reset);
-	
-	desc = of_get_named_gpiod_flags(pdev->dev.of_node, "dtv_demod0_power_gpio-gpios", 0, NULL);
-	gpio_power = desc_to_gpio(desc);
-	pr_dbg("gpio_power=%d\n", gpio_power);
+	if (!PTR_RET(desc)) {
+		gpio_reset = desc_to_gpio(desc);
+		pr_dbg("gpio_reset=%d\n", gpio_reset);
+	} else
+		gpio_reset = -1;
 
-	avl6862_config.gpio_lock_led =0;
+	desc = of_get_named_gpiod_flags(pdev->dev.of_node, "dtv_demod0_power_gpio-gpios", 0, NULL);
+	if (!PTR_RET(desc)) {
+		gpio_power = desc_to_gpio(desc);
+		pr_dbg("gpio_power=%d\n", gpio_power);
+	} else
+		gpio_power = -1;
+
+	desc = of_get_named_gpiod_flags(pdev->dev.of_node, "dtv_demod0_antoverload_gpio-gpios", 0, NULL);
+	if (!PTR_RET(desc)) {
+		gpio_antoverload = desc_to_gpio(desc);
+		pr_dbg("gpio_antoverload=%d\n", gpio_antoverload);
+	} else
+		gpio_antoverload = -1;
+
+	avl6862_config.gpio_lock_led = 0;
 	desc = of_get_named_gpiod_flags(pdev->dev.of_node, "dtv_demod0_lock_gpio-gpios", 0, NULL);
 	if (!PTR_RET(desc)) {
-	  avl6862_config.gpio_lock_led = desc_to_gpio(desc);
-	  pr_dbg("gpio_lock_led=%d\n", avl6862_config.gpio_lock_led);
+		avl6862_config.gpio_lock_led = desc_to_gpio(desc);
+		pr_dbg("gpio_lock_led=%d\n", avl6862_config.gpio_lock_led);
         }
-#endif /*CONFIG_OF*/
 
 	frontend_reset = gpio_reset;
 	frontend_power = gpio_power;
+	frontend_antoverload = gpio_antoverload;
+#endif /*CONFIG_OF*/
+
 	i2c_handle = i2c_get_adapter(i2c_adap_id);
 
 	if (!i2c_handle) {
@@ -146,9 +199,9 @@ static int avl6862_fe_init(struct aml_dvb *advb, struct platform_device *pdev, s
 		ret = -ENOMEM;
 		goto err_resource;
 	}
-	
-	avl6862_Reset();
+
 	avl6862_gpio();
+	avl6862_Reset();
 	fe->fe = dvb_attach(avl6862_attach, &avl6862_config, i2c_handle);
 
 	if (!fe->fe) {
@@ -156,19 +209,60 @@ static int avl6862_fe_init(struct aml_dvb *advb, struct platform_device *pdev, s
 		ret = -ENOMEM;
 		goto err_resource;
 	}
-		
-	if (dvb_attach(r848x_attach, fe->fe, &r848_config, i2c_handle) == NULL) {
-		dvb_frontend_detach(fe->fe);
-		fe->fe = NULL;
-		pr_err("r848_attach attach failed!!!\n");
-		ret = -ENOMEM;
-		goto err_resource;
+
+	if (tun_board == TUNER_BOARD_MEECOOL)
+	{
+		if (dvb_attach(r848x_attach, fe->fe, &r848_config, i2c_handle) == NULL) {
+			dvb_frontend_detach(fe->fe);
+			fe->fe = NULL;
+			pr_err("r848_attach attach failed!!!\n");
+			ret = -ENOMEM;
+			goto err_resource;
+		}
+
+		pr_inf("AVL6862 and R848 attached!\n");
+
+		if ((ret=dvb_register_frontend(&advb->dvb_adapter, fe->fe))) {
+			pr_err("Frontend avl6862 registration failed!!!\n");
+			dvb_frontend_detach(fe->fe);
+			ops = &fe->fe->ops;
+			if (ops->release != NULL)
+				ops->release(fe->fe);
+			fe->fe = NULL;
+			ret = -ENOMEM;
+			goto err_resource;
+		}
+
+		goto tun_board_end;
 	}
+	else if (tun_board == TUNER_BOARD_MAGICSEE)
+	{
+		if (dvb_attach(ftm4862_attach, fe->fe, &ftm4862_config, i2c_handle) == NULL) {
+			dvb_frontend_detach(fe->fe);
+			fe->fe = NULL;
+			pr_err("ftm4862_attach attach failed!!!\n");
+			ret = -ENOMEM;
+			goto err_resource;
+		}
 
-	pr_inf("AVL6862 and R848 attached!\n");
+		pr_inf("FTM4862 attached!\n");
 
-	if ((ret=dvb_register_frontend(&advb->dvb_adapter, fe->fe))) {
-		pr_err("Frontend avl6862 registration failed!!!\n");
+		if ((ret=dvb_register_frontend(&advb->dvb_adapter, fe->fe))) {
+			pr_err("Frontend avl6862 registration failed!!!\n");
+			dvb_frontend_detach(fe->fe);
+			ops = &fe->fe->ops;
+			if (ops->release != NULL)
+				ops->release(fe->fe);
+			fe->fe = NULL;
+			ret = -ENOMEM;
+			goto err_resource;
+		}
+
+		goto tun_board_end;
+	}
+	else {
+		pr_err("Tuners not found, frontend avl6862 registration failed!!!\n");
+		dvb_frontend_detach(fe->fe);
 		ops = &fe->fe->ops;
 		if (ops->release != NULL)
 			ops->release(fe->fe);
@@ -176,10 +270,10 @@ static int avl6862_fe_init(struct aml_dvb *advb, struct platform_device *pdev, s
 		ret = -ENOMEM;
 		goto err_resource;
 	}
-	
 
+tun_board_end:
 	pr_inf("Frontend AVL6862 registred!\n");
-	
+
 	return 0;
 
 err_resource:
@@ -203,8 +297,9 @@ static int avl6862_fe_probe(struct platform_device *pdev)
 static void avl6862_fe_release(struct aml_dvb *advb, struct aml_fe *fe)
 {
 	if(fe && fe->fe) {
-                dvb_unregister_frontend(fe->fe);
-                dvb_frontend_detach(fe->fe);
+		dvb_unregister_frontend(fe->fe);
+		dvb_frontend_detach(fe->fe);
+		fe->fe = NULL;
 	}
 }
 
