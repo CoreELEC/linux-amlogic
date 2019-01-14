@@ -274,6 +274,7 @@ static long efuse_unlocked_ioctl(struct file *file, unsigned int cmd,
 		if (ret < 0) {
 			pr_err("%s:%d, Failed (%d)\n",
 					__func__, __LINE__, ret);
+			return ret;
 		}
 		break;
 #endif
