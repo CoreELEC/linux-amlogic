@@ -1225,6 +1225,7 @@
 		clocks = <&clkc CLKID_U_PARSER
 			&clkc CLKID_DEMUX
 			&clkc CLKID_AHB_ARB0
+			&clkc CLKID_CLK81
 			&clkc CLKID_DOS
 			&clkc CLKID_VDEC_MUX
 			&clkc CLKID_HCODEC_MUX
@@ -1233,6 +1234,7 @@
 		clock-names = "parser_top",
 			"demux",
 			"ahbarb0",
+			"clk_81",
 			"vdec",
 			"clk_vdec_mux",
 			"clk_hcodec_mux",
