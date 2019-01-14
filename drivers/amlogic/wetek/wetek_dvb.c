@@ -268,7 +268,7 @@ static int wetek_dvb_asyncfifo_init(struct wetek_dvb *advb, struct wetek_asyncfi
 	asyncfifo->dvb = advb;
 	asyncfifo->id = id;
 	asyncfifo->init = 0;
-	asyncfifo->flush_size = 256*1024;
+	asyncfifo->flush_size = 188*64;
 
 	return wetek_asyncfifo_hw_init(asyncfifo);
 }

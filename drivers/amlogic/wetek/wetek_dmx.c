@@ -271,7 +271,8 @@ static void dmxn_op_chan(int dmx, int ch, int(*op)(int, int), int ch_op)
 #define LARGE_SEC_BUFF_MASK  0xFFFFFFFF
 #define LARGE_SEC_BUFF_COUNT 32
 #define WATCHDOG_TIMER    250
-#define ASYNCFIFO_BUFFER_SIZE_DEFAULT (512*1024)
+#define ASYNCFIFO_PACKETS 2048
+#define ASYNCFIFO_BUFFER_SIZE_DEFAULT (188 * ASYNCFIFO_PACKETS)
 
 #define DEMUX_INT_MASK\
 			((0<<(AUDIO_SPLICING_POINT))    |\
