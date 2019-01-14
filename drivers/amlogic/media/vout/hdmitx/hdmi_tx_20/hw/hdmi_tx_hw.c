@@ -1508,7 +1508,7 @@ static void hdmi_tvenc_set(struct hdmitx_vidpara *param)
 		FRONT_PORCH = 48;
 		HSYNC_PIXELS = 32;
 		BACK_PORCH = 80;
-		EOF_LINES = 2;
+		EOF_LINES = 3;
 		VSYNC_LINES = 6;
 		SOF_LINES = 38;
 		TOTAL_FRAMES = 4;
@@ -2115,6 +2115,14 @@ do { \
 	case HDMI_3840x2160p60_16x9_Y420:
 	case HDMI_4096x2160p50_256x135_Y420:
 	case HDMI_4096x2160p60_256x135_Y420:
+		if (hdev->para->cd == COLORDEPTH_24B)
+			set_phy_by_mode(2);
+		else
+			set_phy_by_mode(1);
+		break;
+	/* consider HPLL over 2Gbps */
+	case HDMI_2560x1600p60_8x5:
+	case HDMI_2560x1440p60_16x9:
 		if (hdev->para->cd == COLORDEPTH_24B)
 			set_phy_by_mode(2);
 		else
