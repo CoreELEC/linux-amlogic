@@ -91,9 +91,12 @@ struct ldim_dev_config_s ldim_dev_config = {
 		.pwm_duty_max = 100,
 		.pwm_duty_min = 10,
 	},
-	.dim_range_update = NULL,
 
 	.bl_regnum = 0,
+
+	.dim_range_update = NULL,
+	.dev_reg_write = NULL,
+	.dev_reg_read = NULL,
 };
 
 static void ldim_gpio_probe(int index)
@@ -1498,11 +1501,127 @@ static ssize_t ldim_dev_pwm_analog_store(struct class *class,
 	return count;
 }
 
+static unsigned char ldim_dev_reg;
+static unsigned char ldim_dev_reg_dump_cnt;
+static ssize_t ldim_dev_reg_show(struct class *class,
+		struct class_attribute *attr, char *buf)
+{
+	unsigned char data;
+	ssize_t len = 0;
+	int ret;
+
+	if (ldim_dev_config.dev_reg_read == NULL)
+		return sprintf(buf, "ldim dev_reg_read is null\n");
+
+	data = ldim_dev_reg;
+	ret = ldim_dev_config.dev_reg_read(&data, 1);
+	if (ret) {
+		len = sprintf(buf, "reg[0x%02x] read error\n", ldim_dev_reg);
+	} else {
+		len = sprintf(buf, "reg[0x%02x] = 0x%02x\n",
+			ldim_dev_reg, data);
+	}
+
+	return len;
+}
+
+static ssize_t ldim_dev_reg_store(struct class *class,
+	struct class_attribute *attr, const char *buf, size_t count)
+{
+	unsigned int reg = 0, val = 0;
+	unsigned char data[2];
+	unsigned int ret;
+
+	ret = sscanf(buf, "%x %x", &reg, &val);
+	if (ret == 1) {
+		if (reg > 0xff) {
+			LDIMERR("invalid reg address: 0x%x\n", reg);
+			return count;
+		}
+		ldim_dev_reg = (unsigned char)reg;
+	} else if (ret == 2) {
+		if (ldim_dev_config.dev_reg_write == NULL) {
+			LDIMERR("ldim dev_reg_write is null\n");
+			return count;
+		}
+		if (reg > 0xff) {
+			LDIMERR("invalid reg address: 0x%x\n", reg);
+			return count;
+		}
+		ldim_dev_reg = (unsigned char)reg;
+		data[0] = ldim_dev_reg;
+		data[1] = (unsigned char)val;
+		ldim_dev_config.dev_reg_write(data, 2);
+		LDIMPR("write reg[0x%02x] = 0x%02x\n", data[0], data[1]);
+	} else {
+		LDIMERR("invalid parameters\n");
+	}
+
+	return count;
+}
+
+static ssize_t ldim_dev_reg_dump_show(struct class *class,
+		struct class_attribute *attr, char *buf)
+{
+	unsigned char *data;
+	ssize_t len = 0;
+	int i, ret;
+
+	if (ldim_dev_config.dev_reg_read == NULL)
+		return sprintf(buf, "ldim dev_reg_read is null\n");
+
+	if (ldim_dev_reg_dump_cnt == 0)
+		return sprintf(buf, "ldim reg_dump_cnt is zero\n");
+
+	data = kcalloc(ldim_dev_reg_dump_cnt,
+		sizeof(unsigned char), GFP_KERNEL);
+	ret = ldim_dev_config.dev_reg_read(data, ldim_dev_reg_dump_cnt);
+	if (ret) {
+		len = sprintf(buf, "reg[0x%02x] read error\n", ldim_dev_reg);
+	} else {
+		len += sprintf(buf+len, "reg[0x%02x] = ", ldim_dev_reg);
+		for (i = 0; i < (ldim_dev_reg_dump_cnt - 1); i++)
+			len += sprintf(buf+len, "0x%02x,", data[i]);
+		len += sprintf(buf+len, "0x%02x\n",
+			data[ldim_dev_reg_dump_cnt - 1]);
+	}
+	kfree(data);
+
+	return len;
+}
+
+static ssize_t ldim_dev_reg_dump_store(struct class *class,
+	struct class_attribute *attr, const char *buf, size_t count)
+{
+	unsigned int reg = 0, cnt = 0;
+	unsigned int ret;
+
+	ret = sscanf(buf, "%x %d", &reg, &cnt);
+	if (ret == 2) {
+		if (reg > 0xff) {
+			LDIMERR("invalid reg address: 0x%x\n", reg);
+			return count;
+		}
+		if (cnt > 0xff) {
+			LDIMERR("invalid reg cnt: %d\n", cnt);
+			return count;
+		}
+		ldim_dev_reg = (unsigned char)reg;
+		ldim_dev_reg_dump_cnt = (unsigned char)cnt;
+	} else {
+		LDIMERR("invalid parameters\n");
+	}
+
+	return count;
+}
+
 static struct class_attribute ldim_dev_class_attrs[] = {
 	__ATTR(status, 0644, ldim_dev_show, NULL),
 	__ATTR(pwm_ldim, 0644, ldim_dev_pwm_ldim_show, ldim_dev_pwm_ldim_store),
 	__ATTR(pwm_analog, 0644, ldim_dev_pwm_analog_show,
 		ldim_dev_pwm_analog_store),
+	__ATTR(reg, 0644, ldim_dev_reg_show, ldim_dev_reg_store),
+	__ATTR(reg_dump, 0644, ldim_dev_reg_dump_show, ldim_dev_reg_dump_store),
 	__ATTR_NULL
 };
 
