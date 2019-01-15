@@ -261,14 +261,14 @@
 };
 
 &pwm_cd {
-	status = "disabled";
+	status = "okay";
 	pinctrl-names = "pwm_pins","gpio_periphs";
-	pinctrl-0 = <&pwm_c_pins2 &pwm_d_pins1>;
+	pinctrl-0 = <&pwm_c_pins2 &pwm_d_pins2>;
 	pinctrl-1 = <&pwmcd_to_gpios>;
 };
 
 &pwm_ef {
-	status = "disabled";
+	status = "okay";
 	pinctrl-names = "pwm_pins","gpio_periphs";
 	pinctrl-0 = <&pwm_e_pins &pwm_f_pins1>;
 	pinctrl-1 = <&pwmef_to_gpios>;
@@ -494,7 +494,7 @@
 	};
 	pwmcd_to_gpios:pwmcd_gpio {
 		mux {
-			groups = "GPIOX_5", "GPIOX_3";
+			groups = "GPIOX_5", "GPIOX_6";
 			function = "gpio_periphs";
 		};
 	};
