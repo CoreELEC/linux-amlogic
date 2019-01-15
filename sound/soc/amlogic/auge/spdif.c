@@ -51,6 +51,8 @@
 /* for debug */
 /*#define __SPDIFIN_INSERT_CHNUM__*/
 
+/*#define __SPDIFIN_AUDIO_TYPE_HW__*/
+
 struct spdif_chipinfo {
 	unsigned int id;
 
@@ -560,11 +562,12 @@ static void spdifin_status_event(struct aml_spdif *p_spdif)
 				pr_info("Event: EXTCON_SPDIFIN_SAMPLERATE, new sample rate:%s\n",
 					spdifin_samplerate[mode + 1]);
 
+#ifdef __SPDIFIN_AUDIO_TYPE_HW__
 				/* resample enable, by hw */
 				if (!spdifin_check_audiotype_by_sw(p_spdif))
 					resample_set(p_spdif->asrc_id,
 						p_spdif->auto_asrc);
-
+#endif
 				extcon_set_state(p_spdif->edev,
 					EXTCON_SPDIFIN_SAMPLERATE, 1);
 			}
@@ -582,9 +585,11 @@ static void spdifin_status_event(struct aml_spdif *p_spdif)
 				EXTCON_SPDIFIN_AUDIOTYPE, 1);
 
 #ifdef __PTM_SPDIF_CLK__
+#ifdef __SPDIFIN_AUDIO_TYPE_HW__
 			/* resample disable, by hw */
 			if (!spdifin_check_audiotype_by_sw(p_spdif))
 				resample_set(p_spdif->asrc_id, 0);
+#endif
 #endif
 		}
 		if (intrpt_status & 0x10)
@@ -614,9 +619,11 @@ static void spdifin_status_event(struct aml_spdif *p_spdif)
 		extcon_set_state(p_spdif->edev,
 			EXTCON_SPDIFIN_AUDIOTYPE, 0);
 
+#ifdef __SPDIFIN_AUDIO_TYPE_HW__
 		/* resample to 48k, by hw */
 		if (!spdifin_check_audiotype_by_sw(p_spdif))
 			resample_set(p_spdif->asrc_id, p_spdif->auto_asrc);
+#endif
 	}
 	if (intrpt_status & 0x40)
 		pr_info("valid changed\n");
@@ -969,9 +976,12 @@ static int aml_dai_spdif_startup(
 			pr_err("Can't enable pcm clk_spdifin clock: %d\n", ret);
 			goto err;
 		}
+
+#ifdef __SPDIFIN_AUDIO_TYPE_HW__
 		/* resample to 48k in default, by hw */
 		if (!spdifin_check_audiotype_by_sw(p_spdif))
 			resample_set(p_spdif->asrc_id, p_spdif->auto_asrc);
+#endif
 	}
 
 	return 0;
@@ -998,10 +1008,11 @@ static void aml_dai_spdif_shutdown(
 		clk_disable_unprepare(p_spdif->sysclk);
 		clk_disable_unprepare(p_spdif->gate_spdifout);
 	} else {
+#ifdef __SPDIFIN_AUDIO_TYPE_HW__
 		/* resample disabled, by hw */
 		if (!spdifin_check_audiotype_by_sw(p_spdif))
 			resample_set(p_spdif->asrc_id, 0);
-
+#endif
 		clk_disable_unprepare(p_spdif->clk_spdifin);
 		clk_disable_unprepare(p_spdif->fixed_clk);
 		clk_disable_unprepare(p_spdif->gate_spdifin);

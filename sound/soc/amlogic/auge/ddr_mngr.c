@@ -164,8 +164,6 @@ int fetch_toddr_index_by_src(int toddr_src)
 		}
 	}
 
-	pr_err("invalid toddr src\n");
-
 	return -1;
 }
 
@@ -179,8 +177,6 @@ struct toddr *fetch_toddr_by_src(int toddr_src)
 			return &toddrs[i];
 		}
 	}
-
-	pr_err("invalid toddr src\n");
 
 	return NULL;
 }
@@ -490,8 +486,6 @@ void aml_toddr_set_resample(struct toddr *to, bool enable)
 	unsigned int reg_base = to->reg_base;
 	unsigned int reg;
 
-	pr_debug("toddr selects data to %s resample\n",
-		enable ? "enable" : "disable");
 	reg = calc_toddr_address(EE_AUDIO_TODDR_A_CTRL0, reg_base);
 	aml_audiobus_update_bits(actrl,	reg, 1<<30, enable<<30);
 }
@@ -502,9 +496,6 @@ void aml_toddr_set_resample_ab(struct toddr *to, int asrc_src_sel, bool enable)
 	unsigned int reg_base = to->reg_base;
 	unsigned int reg;
 
-	pr_debug("toddr selects data to %s resample %c\n",
-		enable ? "enable" : "disable",
-		(asrc_src_sel == 0) ? 'a' : 'b');
 	reg = calc_toddr_address(EE_AUDIO_TODDR_A_CTRL1, reg_base);
 	if (asrc_src_sel == 0)
 		aml_audiobus_update_bits(actrl,	reg, 1 << 27, enable << 27);
@@ -537,11 +528,12 @@ static void aml_resample_enable(
 		}
 	}
 
-	pr_info("Resample %d in running, module:%d, toddr:%d, asrc_src_sel:%d\n",
-		p_attach_resample->id,
-		p_attach_resample->attach_module,
+	pr_info("toddr %d selects data to %s resample_%c for module:%s\n",
 		to->fifo_id,
-		to->asrc_src_sel);
+		enable ? "enable" : "disable",
+		(p_attach_resample->id == 0) ? 'a' : 'b',
+		toddr_src_get_str(p_attach_resample->attach_module)
+		);
 
 	if (enable) {
 		int bitwidth = to->bitdepth;
@@ -906,7 +898,6 @@ int fetch_frddr_index_by_src(int frddr_src)
 		}
 	}
 
-	pr_err("invalid frdd_src\n");
 	return -1;
 }
 
@@ -920,8 +911,6 @@ struct frddr *fetch_frddr_by_src(int frddr_src)
 			return &frddrs[i];
 		}
 	}
-
-	pr_err("invalid frddr src\n");
 
 	return NULL;
 }
