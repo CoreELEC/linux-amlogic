@@ -14785,3 +14785,11 @@ F:	drivers/amlogic/media/gdc/src/platform/system_log.c
 AMLOGIC IRCUT DRIVER
 M:	Dianzhong Huo <dianzhong.huo@amlogic.com>
 F:	drivers/amlogic/ircut/
+
+AMLOGIC VIDEOSYNC
+M:	Jintao Xu <jintao.xu@amlogic.com>
+F:	drivers/amlogic/media/video_processor/videosync/Kconfig
+F:	drivers/amlogic/media/video_processor/videosync/Makefile
+F:	drivers/amlogic/media/video_processor/videosync/vfp.h
+F:	drivers/amlogic/media/video_processor/videosync/videosync.h
+F:	drivers/amlogic/media/video_processor/videosync/videosync.c
