@@ -220,6 +220,13 @@
 		gpios = <&gpio GPIOA_13 GPIO_ACTIVE_HIGH>;
 		status = "disabled";
 	};
+
+	pwmgpio:pwmgpio {
+		compatible = "pwm-gpio";
+		#pwm-cells = <3>;
+		pwm-gpios = <&gpio_ao GPIOAO_10 GPIO_ACTIVE_HIGH>;
+		status = "okay";
+	};
 };
 
 &ethmac {
