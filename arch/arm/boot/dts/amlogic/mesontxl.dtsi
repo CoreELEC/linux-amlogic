@@ -370,15 +370,10 @@
 	jtag {
 		compatible = "amlogic, jtag";
 		status = "okay";
-		select = "apao"; /* disable/apao/apee */
-		jtagao-gpios = <&gpio_ao	GPIOAO_3	0
-				&gpio_ao	GPIOAO_4	0
-				&gpio_ao	GPIOAO_5	0
-				&gpio_ao	GPIOAO_7	0>;
-		jtagee-gpios = <&gpio		CARD_0		0
-				&gpio		CARD_1		0
-				&gpio		CARD_2		0
-				&gpio		CARD_3		0>;
+		select = "disable"; /* disable/apao/apee */
+		pinctrl-names="jtag_apao_pins", "jtag_apee_pins";
+		pinctrl-0=<&jtag_apao_pins>;
+		pinctrl-1=<&jtag_apee_pins>;
 	};
 
 	meson_suspend: pm {
@@ -1181,6 +1176,16 @@
 		     function = "ee_cec";
 		};
 	};
+
+	jtag_apao_pins:jtag_apao_pin {
+		mux {
+			groups = "GPIOAO_3",
+			"GPIOAO_4",
+			"GPIOAO_5",
+			"GPIOAO_7";
+			function = "gpio_aobus";
+		};
+	};
 };
 
 &pinctrl_periphs {
@@ -1544,6 +1549,16 @@
 				"spi_mosi_a",
 				"spi_clk_a";
 			function = "spi_a";
+		};
+	};
+
+	jtag_apee_pins:jtag_apee_pin {
+		mux {
+			groups = "CARD_0",
+			"CARD_1",
+			"CARD_2",
+			"CARD_3";
+			function = "gpio_periphs";
 		};
 	};
 };
