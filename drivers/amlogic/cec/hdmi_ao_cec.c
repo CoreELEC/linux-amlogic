@@ -488,6 +488,49 @@ static inline void cecrx_clear_irq(unsigned int flags)
 		writel(flags, cec_dev->cec_reg + AO_CECB_INTR_CLR);
 }
 
+/* max length = 14+1 */
+#define OSD_NAME_DEV	1
+const uint8_t dev_osd_name[1][16] = {
+	{1, 0x43, 0x68, 0x72, 0x6f, 0x6d, 0x65, 0x63, 0x61, 0x73, 0x74},
+};
+
+const uint8_t dev_vendor_id[1][3] = {
+	{0, 0, 0},
+};
+
+static bool cec_message_op(unsigned char *msg, unsigned char len)
+{
+	int i, j;
+
+	if (((msg[0] & 0xf0) >> 4) == cec_dev->cec_info.log_addr) {
+		CEC_ERR("bad iniator with self:%s", msg_log_buf);
+		return false;
+	}
+	switch (msg[1]) {
+	case 0x47:
+		/* OSD name */
+		if (len > 16)
+			break;
+		for (j = 0; j < OSD_NAME_DEV; j++) {
+			for (i = 2; i < len; i++) {
+				if (msg[i] != dev_osd_name[j][i-1])
+					break;
+			}
+			if (i == len) {
+				cec_set_dev_info(dev_osd_name[j][0]);
+				CEC_INFO("specific dev:%d", dev_osd_name[j][0]);
+			}
+		}
+		break;
+	case 0x87:
+		/* verdor ID */
+		break;
+	default:
+		break;
+	}
+	return true;
+}
+
 static int cecb_pick_msg(unsigned char *msg, unsigned char *out_len)
 {
 	int i, size;
@@ -504,11 +547,10 @@ static int cecb_pick_msg(unsigned char *msg, unsigned char *out_len)
 	/* clr CEC lock bit */
 	hdmirx_cec_write(DWC_CEC_LOCK, 0);
 	CEC_INFO("%s", msg_log_buf);
-	if (((msg[0] & 0xf0) >> 4) == cec_dev->cec_info.log_addr) {
-		*out_len = 0;
-		CEC_ERR("bad iniator with self:%s", msg_log_buf);
-	} else
+	if (cec_message_op(msg, len))
 		*out_len = len;
+	else
+		*out_len = 0;
 	pin_status = 1;
 	return 0;
 }

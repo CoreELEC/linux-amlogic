@@ -1091,6 +1091,7 @@ extern unsigned int hdmirx_addr_port;
 extern unsigned int hdmirx_data_port;
 extern unsigned int hdmirx_ctrl_port;
 extern int acr_mode;
+extern int hdcp_enc_mode;
 extern int force_clk_rate;
 extern int auto_aclk_mute;
 extern int aud_avmute_en;

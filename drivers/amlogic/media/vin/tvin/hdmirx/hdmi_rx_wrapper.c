@@ -206,6 +206,7 @@ int pre_port = 0xff;
 static int hdcp_none_wait_max = 100;
 static int esd_phy_rst_cnt;
 static int esd_phy_rst_max;
+static int cec_dev_info;
 struct rx_s rx;
 
 void hdmirx_init_params(void)
@@ -234,6 +235,17 @@ void rx_hpd_to_esm_handle(struct work_struct *work)
 	extcon_set_state_sync(rx.rx_excton_rx22, EXTCON_DISP_HDMI, 1);
 	rx_pr("esm_hpd-1\n");
 }
+
+int cec_set_dev_info(uint8_t dev_idx)
+{
+	cec_dev_info |= 1 << dev_idx;
+
+	if (dev_idx == 1)
+		hdcp_enc_mode = 1;
+
+	return 0;
+}
+EXPORT_SYMBOL(cec_set_dev_info);
 
 /*
  *func: irq tasklet
@@ -1695,6 +1707,8 @@ int rx_set_global_variable(const char *buf, int size)
 		return pr_var(find_best_eq, index);
 	if (set_pr_var(tmpbuf, eq_try_cnt, value, &index, ret))
 		return pr_var(eq_try_cnt, index);
+	if (set_pr_var(tmpbuf, hdcp_enc_mode, value, &index, ret))
+		return pr_var(hdcp_enc_mode, index);
 	return 0;
 }
 
@@ -1799,6 +1813,7 @@ void rx_get_global_variable(const char *buf)
 	pr_var(phy_retry_times, i++);
 	pr_var(find_best_eq, i++);
 	pr_var(eq_try_cnt, i++);
+	pr_var(hdcp_enc_mode, i++);
 }
 
 void skip_frame(unsigned int cnt)

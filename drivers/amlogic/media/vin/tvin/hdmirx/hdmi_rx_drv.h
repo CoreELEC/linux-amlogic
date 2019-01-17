@@ -41,7 +41,7 @@
  *
  *
  */
-#define RX_VER1 "ver.2019/01/08"
+#define RX_VER1 "ver.2019/01/28"
 /*
  *
  *
@@ -476,7 +476,7 @@ extern struct reg_map reg_maps[MAP_ADDR_MODULE_NUM];
 extern bool downstream_repeat_support;
 extern void rx_tasklet_handler(unsigned long arg);
 extern void skip_frame(unsigned int cnt);
-
+extern int cec_set_dev_info(uint8_t dev_idx);
 
 /* reg */
 

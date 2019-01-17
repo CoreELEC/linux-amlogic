@@ -64,9 +64,8 @@ static DEFINE_SPINLOCK(reg_rw_lock);
 static bool phy_fast_switching;
 static bool phy_fsm_enhancement = true;
 /*unsigned int last_clk_rate;*/
-
 static uint32_t modet_clk = 24000;
-
+int hdcp_enc_mode;
 /* top_irq_en bit[16:13] hdcp_sts */
 int top_intr_maskn_value = 1;
 bool hdcp_enable = 1;
@@ -1393,7 +1392,7 @@ static int DWC_init(void)
 	/* 1: force OESS */
 	/* 2: force EESS */
 	/* 3: auto mode,check CTL[3:0]=d9/d8 during WOO */
-	data32 |= (0	<< 2);
+	data32 |= (hdcp_enc_mode	<< 2);
 	data32 |= (0	<< 0);
 	hdmirx_wr_dwc(DWC_HDMI_MODE_RECOVER, data32);
 
