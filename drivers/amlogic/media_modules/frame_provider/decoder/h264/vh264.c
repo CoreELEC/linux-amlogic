@@ -56,6 +56,9 @@
 #include <linux/amlogic/tee.h>
 #include "../../../common/chips/decoder_cpu_ver_info.h"
 
+#include <trace/events/meson_atrace.h>
+
+
 #define DRIVER_NAME "amvdec_h264"
 #define MODULE_NAME "amvdec_h264"
 #define MEM_NAME "codec_264"
@@ -485,6 +488,7 @@ static void prepare_display_q(void)
 		if (kfifo_get(&delay_display_q, &vf)) {
 			kfifo_put(&display_q,
 				(const struct vframe_s *)vf);
+			ATRACE_COUNTER(MODULE_NAME, vf->pts);
 			vf_notify_receiver(PROVIDER_NAME,
 				VFRAME_EVENT_PROVIDER_VFRAME_READY, NULL);
 		}
@@ -2930,6 +2934,7 @@ static void stream_switching_do(struct work_struct *work)
 		if (kfifo_get(&delay_display_q, &vf)) {
 			kfifo_put(&display_q,
 				(const struct vframe_s *)vf);
+			ATRACE_COUNTER(MODULE_NAME, vf->pts);
 			vf_notify_receiver(PROVIDER_NAME,
 				VFRAME_EVENT_PROVIDER_VFRAME_READY, NULL);
 		} else
@@ -3011,7 +3016,7 @@ static void stream_switching_do(struct work_struct *work)
 		/* send clone to receiver */
 		kfifo_put(&display_q,
 			(const struct vframe_s *)&fense_vf[i]);
-
+		ATRACE_COUNTER(MODULE_NAME, fense_vf[i].pts);
 		/* early recycle frames for last session */
 		if (delay)
 			vh264_vf_put(vf, NULL);

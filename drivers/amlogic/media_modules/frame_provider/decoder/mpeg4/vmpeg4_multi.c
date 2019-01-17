@@ -46,6 +46,9 @@
 #include <linux/amlogic/media/codec_mm/configs.h>
 #include "../utils/firmware.h"
 
+#include <trace/events/meson_atrace.h>
+
+
 #define DRIVER_NAME "ammvdec_mpeg4"
 #define MODULE_NAME "ammvdec_mpeg4"
 
@@ -752,6 +755,7 @@ static irqreturn_t vmpeg4_isr_thread_fn(struct vdec_s *vdec, int irq)
 			} else {
 				kfifo_put(&hw->display_q,
 				(const struct vframe_s *)vf);
+				ATRACE_COUNTER(MODULE_NAME, vf->pts);
 				hw->frame_num++;
 			vf_notify_receiver(vdec->vf_provider_name,
 					VFRAME_EVENT_PROVIDER_VFRAME_READY,
@@ -800,6 +804,7 @@ static irqreturn_t vmpeg4_isr_thread_fn(struct vdec_s *vdec, int irq)
 			} else {
 				kfifo_put(&hw->display_q,
 				(const struct vframe_s *)vf);
+				ATRACE_COUNTER(MODULE_NAME, vf->pts);
 				hw->frame_num++;
 			vf_notify_receiver(vdec->vf_provider_name,
 				VFRAME_EVENT_PROVIDER_VFRAME_READY,
@@ -854,6 +859,7 @@ static irqreturn_t vmpeg4_isr_thread_fn(struct vdec_s *vdec, int irq)
 					vf->duration = duration * (hw->timeout_flag + 1);
 				kfifo_put(&hw->display_q,
 					(const struct vframe_s *)vf);
+				ATRACE_COUNTER(MODULE_NAME, vf->pts);
 				hw->frame_num++;
 				hw->timeout_flag = 0;
 				vf_notify_receiver(vdec->vf_provider_name,

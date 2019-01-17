@@ -45,6 +45,9 @@
 #include "../../../common/chips/decoder_cpu_ver_info.h"
 #include <linux/amlogic/tee.h>
 
+
+#include <trace/events/meson_atrace.h>
+
 #define DRIVER_NAME "amvdec_avs"
 #define MODULE_NAME "amvdec_avs"
 
@@ -585,6 +588,7 @@ static void vavs_isr(void)
 
 			kfifo_put(&display_q,
 					  (const struct vframe_s *)vf);
+			ATRACE_COUNTER(MODULE_NAME, vf->pts);
 			vf_notify_receiver(PROVIDER_NAME,
 					VFRAME_EVENT_PROVIDER_VFRAME_READY,
 					NULL);
@@ -643,6 +647,7 @@ static void vavs_isr(void)
 
 			kfifo_put(&display_q,
 					  (const struct vframe_s *)vf);
+			ATRACE_COUNTER(MODULE_NAME, vf->pts);
 			vf_notify_receiver(PROVIDER_NAME,
 					VFRAME_EVENT_PROVIDER_VFRAME_READY,
 					NULL);
@@ -720,6 +725,7 @@ static void vavs_isr(void)
 					buffer_index);
 			kfifo_put(&display_q,
 					  (const struct vframe_s *)vf);
+			ATRACE_COUNTER(MODULE_NAME, vf->pts);
 			vf_notify_receiver(PROVIDER_NAME,
 					VFRAME_EVENT_PROVIDER_VFRAME_READY,
 					NULL);
