@@ -411,6 +411,9 @@ int lcd_power_load_from_dts(struct lcd_config_s *pconf,
 	int i, j;
 	unsigned int index;
 
+	if (lcd_debug_print_flag)
+		LCDPR("%s\n", __func__);
+
 	if (child == NULL) {
 		LCDPR("error: failed to get %s\n", pconf->lcd_propname);
 		return -1;
@@ -447,6 +450,7 @@ int lcd_power_load_from_dts(struct lcd_config_s *pconf,
 			index = lcd_power->power_on_step[i].index;
 			switch (lcd_power->power_on_step[i].type) {
 			case LCD_POWER_TYPE_CPU:
+			case LCD_POWER_TYPE_WAIT_GPIO:
 				if (index < LCD_CPU_GPIO_NUM_MAX)
 					lcd_cpu_gpio_probe(index);
 				break;
@@ -501,6 +505,7 @@ int lcd_power_load_from_dts(struct lcd_config_s *pconf,
 			index = lcd_power->power_off_step[i].index;
 			switch (lcd_power->power_off_step[i].type) {
 			case LCD_POWER_TYPE_CPU:
+			case LCD_POWER_TYPE_WAIT_GPIO:
 				if (index < LCD_CPU_GPIO_NUM_MAX)
 					lcd_cpu_gpio_probe(index);
 				break;
@@ -546,8 +551,6 @@ int lcd_power_load_from_unifykey(struct lcd_config_s *pconf,
 
 	/* power: (5byte * n) */
 	p = buf + len;
-	if (lcd_debug_print_flag)
-		LCDPR("power_on step:\n");
 	i = 0;
 	while (i < LCD_PWR_STEP_MAX) {
 		pconf->lcd_power->power_on_step_max = i;
@@ -575,6 +578,7 @@ int lcd_power_load_from_unifykey(struct lcd_config_s *pconf,
 		index = pconf->lcd_power->power_on_step[i].index;
 		switch (pconf->lcd_power->power_on_step[i].type) {
 		case LCD_POWER_TYPE_CPU:
+		case LCD_POWER_TYPE_WAIT_GPIO:
 			if (index < LCD_CPU_GPIO_NUM_MAX)
 				lcd_cpu_gpio_probe(index);
 			break;
@@ -627,6 +631,7 @@ int lcd_power_load_from_unifykey(struct lcd_config_s *pconf,
 		index = pconf->lcd_power->power_off_step[j].index;
 		switch (pconf->lcd_power->power_off_step[j].type) {
 		case LCD_POWER_TYPE_CPU:
+		case LCD_POWER_TYPE_WAIT_GPIO:
 			if (index < LCD_CPU_GPIO_NUM_MAX)
 				lcd_cpu_gpio_probe(index);
 			break;
