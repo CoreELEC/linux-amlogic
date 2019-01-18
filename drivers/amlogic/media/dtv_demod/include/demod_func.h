@@ -498,6 +498,7 @@ extern void dvbc_reg_initial_old(struct aml_demod_sta *demod_sta);
 
 /*txlx*/
 extern void dvbc_reg_initial(struct aml_demod_sta *demod_sta);
+extern void demod_dvbc_set_qam(unsigned int qam);
 extern void dvbc_init_reg_ext(void);
 extern u32 dvbc_get_ch_sts(void);
 extern u32 dvbc_get_qam_mode(void);

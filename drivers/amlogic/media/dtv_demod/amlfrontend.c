@@ -51,8 +51,6 @@
 #include <linux/dvb/aml_demod.h>
 #include "demod_func.h"
 
-#include "amlfrontend.h"
-
 /*dma_get_cma_size_int_byte*/
 #include <linux/amlogic/media/codec_mm/codec_mm.h>
 #include <linux/dma-contiguous.h>
@@ -71,11 +69,20 @@ module_param(auto_search_std, int, 0644);
 MODULE_PARM_DESC(std_lock_timeout, "\n\t\t atsc-c std lock timeout");
 static unsigned int std_lock_timeout = 1000;
 module_param(std_lock_timeout, int, 0644);
-/*0.001for field,0.002 for performance*/
-static char *demod_version = "V0.03";
+
+/*0.001for field,0.002 for performance
+ *0.04: new method of tl1 dvbc channel fast search(Hisense project)
+ */
+static char *demod_version = "V0.04";
 
 
 int aml_demod_debug = DBG_INFO;
+
+/*use this flag to mark the new method for dvbc channel fast search
+ *it's disabled as default, can be enabled if needed
+ *we can make it always enabled after all testing are passed
+ */
+static unsigned int demod_dvbc_speedup_en;
 
 
 #if 0
@@ -213,7 +220,7 @@ static ssize_t dvbc_auto_sym_store(struct class *cls,
 
 static unsigned int dtmb_mode;
 static unsigned int atsc_mode_para;
-static unsigned int demod_mode_para;
+static enum demod_md demod_mode_para;
 
 
 enum {
@@ -231,20 +238,10 @@ enum {
 	ATSC_READ_FREQ = 4,
 };
 
-enum {
-	UNKNOWN = 0,
-	AML_DVBC,
-	AML_DTMB,
-	AML_DVBT,
-	AML_ATSC,
-	AML_J83B,
-	AML_ISDBT,
-	AML_DVBT2
-};
-
-
-
-
+enum demod_md demod_get_current_mode(void)
+{
+	return demod_mode_para;
+}
 
 int convert_snr(int in_snr)
 {
@@ -995,12 +992,11 @@ static int demod_dvbc_speed_up(enum fe_status *status)
 				check_ok = 1;
 			} else {
 				for (i = 0; i < dvbc_count; i++) {
+					msleep(25);
 					sts = dvbc_get_status();
 
 					if (sts >= 0x3)
 						break;
-
-					msleep(25);
 				}
 
 				PR_DBG("[rsj]dvbc_status is 0x%x\n", sts);
@@ -1009,6 +1005,7 @@ static int demod_dvbc_speed_up(enum fe_status *status)
 					*status = FE_TIMEDOUT;
 					ilock = 0;
 					check_ok = 1;
+					timer_disable(D_TIMER_DETECT);
 				}
 			}
 
@@ -1139,7 +1136,9 @@ static int gxtv_demod_dvbc_set_frontend(struct dvb_frontend *fe)
 }
 
 static int gxtv_demod_dvbc_get_frontend(struct dvb_frontend *fe)
-{                               /*these content will be writed into eeprom .*/
+{
+	#if 0
+	/*these content will be writed into eeprom .*/
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	u32 qam_mode;
 
@@ -1147,6 +1146,7 @@ static int gxtv_demod_dvbc_get_frontend(struct dvb_frontend *fe)
 	qam_mode = dvbc_get_qam_mode();
 	c->modulation = qam_mode + 1;
 	PR_DBG("[mode] is %d\n", c->modulation);
+	#endif
 
 	return 0;
 }
@@ -1653,10 +1653,8 @@ static int gxtv_demod_atsc_set_frontend(struct dvb_frontend *fe)
 			qam_write_reg(0x12, 0x50e1000);
 			qam_write_reg(0x30, 0x41f2f69);
 		}
-
 	} else if (c->modulation > QAM_AUTO) {
 		if (is_ic_ver(IC_VER_TL1)) {
-			//demod_set_sys_atsc_v4();
 			Val_0x6a.bits = atsc_read_reg_v4(ATSC_DEMOD_REG_0X6A);
 			Val_0x6a.b.peak_thd = 0x6;//Let CCFO Quality over 6
 			atsc_write_reg_v4(ATSC_DEMOD_REG_0X6A, Val_0x6a.bits);
@@ -2508,11 +2506,134 @@ int Gxtv_Demod_Dtmb_Init(struct amldtvdemod_device_s *dev)
 }
 
 #ifdef DVB_CORE_ORI
+unsigned int demod_dvbc_get_fast_search(void)
+{
+	return demod_dvbc_speedup_en;
+}
+
+void demod_dvbc_set_fast_search(unsigned int en)
+{
+	if (en)
+		demod_dvbc_speedup_en = 1;
+	else
+		demod_dvbc_speedup_en = 0;
+}
+
+void demod_dvbc_fsm_reset(void)
+{
+	//qam_write_reg(0x7, 0xf23);
+	qam_write_reg(0x7, qam_read_reg(0x7) & ~(1 << 4));
+	qam_write_reg(0x3a, 0x0);
+	//qam_write_reg(0x7, 0xf33);
+	qam_write_reg(0x7, qam_read_reg(0x7) | (1 << 4));
+	qam_write_reg(0x3a, 0x4);
+}
+
+//return val : 0=no signal,1=has signal,2=waiting
+unsigned int demod_dvbc_64_256_auto_fast(unsigned int *delay)
+{
+	static unsigned int times, no_sig_cnt;
+	static unsigned int qam64 = 1;
+
+	if (tuner_get_ch_power2() < -87)
+		return 0;
+
+	times++;
+	PR_DVBC("fast search : times = %d\n", times);
+	if (times < 6)
+		*delay = HZ / 8;//125ms
+	else
+		*delay = HZ / 2;//500ms
+
+	if ((qam_read_reg(0x31) & 0xf) < 3) {
+		no_sig_cnt++;
+
+		if (no_sig_cnt == 2 && times == 2) {//250ms
+			no_sig_cnt = 0;
+			times = 0;
+			*delay = HZ / 4;
+			qam64 = 1;
+			return 0;
+		}
+	} else if ((qam_read_reg(0x31) & 0xf) == 5) {
+		no_sig_cnt = 0;
+		times = 0;
+		*delay = HZ / 4;
+		qam64 = 1;
+		return 1;
+	}
+
+	if (times == 14) {
+		times = 0;
+		no_sig_cnt = 0;
+		*delay = HZ / 4;
+		qam64 = 1;
+		return 0;
+	}
+
+	qam64 = !qam64;
+
+	PR_DVBC("fast search : qam64 = %d\n", qam64);
+	if (qam64)
+		demod_dvbc_set_qam(2);//64qam
+	else
+		demod_dvbc_set_qam(4);//256qam
+
+	demod_dvbc_fsm_reset();
+
+	return 2;
+}
+
+//return val : 0=no signal,1=has signal,2=waiting
+unsigned int demod_dvbc_fast_search(unsigned int *delay)
+{
+	static unsigned int times, no_sig_cnt;
+
+	if (tuner_get_ch_power2() < -87)
+		return 0;
+
+	times++;
+	PR_DVBC("fast search : times = %d\n", times);
+	if (times < 3)
+		*delay = HZ / 8;//125ms
+	else
+		*delay = HZ / 2;//500ms
+
+	if ((qam_read_reg(0x31) & 0xf) < 3) {
+		no_sig_cnt++;
+
+		if (no_sig_cnt == 2 && times == 2) {//250ms
+			no_sig_cnt = 0;
+			times = 0;
+			*delay = HZ / 4;
+			return 0;
+		}
+	} else if ((qam_read_reg(0x31) & 0xf) == 5) {
+		no_sig_cnt = 0;
+		times = 0;
+		*delay = HZ / 4;
+		return 1;
+	}
+
+	if (times == 7) {
+		times = 0;
+		no_sig_cnt = 0;
+		*delay = HZ / 4;
+		return 0;
+	}
+
+	demod_dvbc_fsm_reset();
+
+	return 2;
+}
+
 static int gxtv_demod_dvbc_tune(struct dvb_frontend *fe, bool re_tune,
 	unsigned int mode_flags, unsigned int *delay, enum fe_status *status)
 {
 	/*struct dtv_frontend_properties *c = &fe->dtv_property_cache;*/
 	int ret = 0;
+	unsigned int sig_flg;
+	static unsigned int fast_search_finish = 1;
 	/*unsigned int up_delay;*/
 	/*unsigned int firstdetet;*/
 
@@ -2526,6 +2647,26 @@ static int gxtv_demod_dvbc_tune(struct dvb_frontend *fe, bool re_tune,
 		dtvdd_devp->en_detect = 1;
 
 		gxtv_demod_dvbc_set_frontend(fe);
+
+		if (demod_dvbc_speedup_en == 1) {
+			fast_search_finish = 0;
+			*status = 0;
+			*delay = HZ / 8;
+			qam_write_reg(0x65, 0x400c);
+			qam_write_reg(0x60, 0x10466000);
+			qam_write_reg(0xac, (qam_read_reg(0xac) & (~0xff00))
+				| 0x800);
+			qam_write_reg(0xae, (qam_read_reg(0xae)
+				& (~0xff000000)) | 0x8000000);
+
+			if (fe->dtv_property_cache.modulation == QAM_AUTO)
+				demod_dvbc_set_qam(2);//64 QAM
+		} else
+			qam_write_reg(0x65, 0x800c);
+
+		if (demod_dvbc_speedup_en == 1)
+			return 0;
+
 		/*timer_set_max(D_TIMER_DETECT, 4000);*/
 		timer_begain(D_TIMER_DETECT);
 		gxtv_demod_dvbc_read_status_timer(fe, status);
@@ -2543,7 +2684,42 @@ static int gxtv_demod_dvbc_tune(struct dvb_frontend *fe, bool re_tune,
 		return ret;
 	}
 
-	gxtv_demod_dvbc_read_status_timer(fe, status);
+	if (demod_dvbc_speedup_en == 1) {
+		if (!fast_search_finish) {
+			if (fe->dtv_property_cache.modulation == QAM_AUTO)
+				sig_flg = demod_dvbc_64_256_auto_fast(delay);
+			else
+				sig_flg = demod_dvbc_fast_search(delay);
+
+			switch (sig_flg) {
+			case 0:
+				*status = FE_TIMEDOUT;
+				fast_search_finish = 1;
+				PR_DVBC(">>>unlock<<<\n");
+				break;
+			case 1:
+				*status =
+				FE_HAS_LOCK | FE_HAS_SIGNAL | FE_HAS_CARRIER |
+				FE_HAS_VITERBI | FE_HAS_SYNC;
+				fast_search_finish = 1;
+				PR_DVBC(">>>lock<<<\n");
+				break;
+			case 2:
+				*status = 0;
+				break;
+			default:
+				PR_DVBC("wrong return value\n");
+				break;
+			}
+		}	else {
+			gxtv_demod_dvbc_read_status_timer(fe, status);
+		}
+	}	else {
+		gxtv_demod_dvbc_read_status_timer(fe, status);
+	}
+
+	if (demod_dvbc_speedup_en == 1)
+		return 0;
 
 	#if 0
 	if (is_ic_ver(IC_VER_TL1))
@@ -4148,6 +4324,7 @@ static int aml_dtvdm_read_snr(struct dvb_frontend *fe, u16 *snr)
 	return ret;
 
 }
+
 static int aml_dtvdm_read_ucblocks(struct dvb_frontend *fe, u32 *ucblocks)
 {
 	enum aml_fe_n_mode_t nmode = dtvdd_devp->n_mode;

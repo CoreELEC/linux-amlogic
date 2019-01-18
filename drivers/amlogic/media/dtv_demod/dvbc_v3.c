@@ -179,6 +179,86 @@ static unsigned int get_adc_freq(void)
 	return 24000;
 }
 
+void demod_dvbc_set_qam(unsigned int qam)
+{
+	/* QAM_GCTL0 */
+	qam_write_reg(0x2, (qam_read_reg(0x2) & ~7) | (qam & 7));
+
+	switch (qam) {
+	case 0: /*16qam*/
+		qam_write_reg(0x71, 0x000a2200);
+
+		if (is_ic_ver(IC_VER_TL1))
+			qam_write_reg(0x72, 0xc2b0c49);
+		else
+			qam_write_reg(0x72, 0x0c2b04a9);
+
+		qam_write_reg(0x73, 0x02020000);
+		qam_write_reg(0x75, 0x000e9178);
+		qam_write_reg(0x76, 0x0001c100);
+		qam_write_reg(0x7a, 0x002ab7ff);
+		qam_write_reg(0x93, 0x641a180c);
+		qam_write_reg(0x94, 0x0c141400);
+		break;
+	case 1:/*32qam*/
+		qam_write_reg(0x71, 0x00061200);
+		qam_write_reg(0x72, 0x099301ae);
+		qam_write_reg(0x73, 0x08080000);
+		qam_write_reg(0x75, 0x000bf10c);
+		qam_write_reg(0x76, 0x0000a05c);
+		qam_write_reg(0x77, 0x001000d6);
+		qam_write_reg(0x7a, 0x0019a7ff);
+		qam_write_reg(0x7c, 0x00111222);
+
+		if (is_ic_ver(IC_VER_TL1))
+			qam_write_reg(0x7d, 0x2020305);
+		else
+			qam_write_reg(0x7d, 0x05050505);
+
+		qam_write_reg(0x7e, 0x03000d0d);
+		qam_write_reg(0x93, 0x641f1d0c);
+		qam_write_reg(0x94, 0x0c1a1a00);
+		break;
+	case 2:/*64qam*/
+		if (is_ic_ver(IC_VER_TL1)) {
+			qam_write_reg(0x9c, 0x2a132100);
+			qam_write_reg(0x57, 0x606060d);
+		}
+		break;
+	case 3:/*128qam*/
+		qam_write_reg(0x71, 0x0002c200);
+		qam_write_reg(0x72, 0x0a6e0059);
+		qam_write_reg(0x73, 0x08080000);
+		qam_write_reg(0x75, 0x000a70e9);
+		qam_write_reg(0x76, 0x00002013);
+		qam_write_reg(0x77, 0x00035068);
+		qam_write_reg(0x78, 0x000ab100);
+
+		if (is_ic_ver(IC_VER_TL1))
+			qam_write_reg(0x7a, 0xba7ff);
+		else
+			qam_write_reg(0x7a, 0x002ba7ff);
+
+		qam_write_reg(0x7c, 0x00111222);
+
+		if (is_ic_ver(IC_VER_TL1))
+			qam_write_reg(0x7d, 0x2020305);
+		else
+			qam_write_reg(0x7d, 0x05050505);
+
+		qam_write_reg(0x7e, 0x03000d0d);
+		qam_write_reg(0x93, 0x642a240c);
+		qam_write_reg(0x94, 0x0c262600);
+		break;
+	case 4://256 QAM
+		if (is_ic_ver(IC_VER_TL1)) {
+			qam_write_reg(0x9c, 0x2a232100);
+			qam_write_reg(0x57, 0x606040d);
+		}
+		break;
+	}
+}
+
 void dvbc_reg_initial(struct aml_demod_sta *demod_sta)
 {
 	u32 clk_freq;
@@ -225,79 +305,7 @@ void dvbc_reg_initial(struct aml_demod_sta *demod_sta)
 	qam_write_reg(0x0, 0x0);
 	/* QAM_STATUS */
 	qam_write_reg(0x7, 0x00000f00);
-	/* QAM_GCTL0 */
-	qam_write_reg(0x2, (qam_read_reg(0x2) & ~7) | (ch_mode & 7));
-	/* qam mode */
-
-	switch (ch_mode) {
-	case 0: /*16qam*/
-		qam_write_reg(0x71, 0x000a2200);
-
-		if (is_ic_ver(IC_VER_TL1))
-			qam_write_reg(0x72, 0xc2b0c49);
-		else
-			qam_write_reg(0x72, 0x0c2b04a9);
-
-		qam_write_reg(0x73, 0x02020000);
-		qam_write_reg(0x75, 0x000e9178);
-		qam_write_reg(0x76, 0x0001c100);
-		qam_write_reg(0x7a, 0x002ab7ff);
-		qam_write_reg(0x93, 0x641a180c);
-		qam_write_reg(0x94, 0x0c141400);
-		break;
-	case 1:/*32qam*/
-		qam_write_reg(0x71, 0x00061200);
-		qam_write_reg(0x72, 0x099301ae);
-		qam_write_reg(0x73, 0x08080000);
-		qam_write_reg(0x75, 0x000bf10c);
-		qam_write_reg(0x76, 0x0000a05c);
-		qam_write_reg(0x77, 0x001000d6);
-		qam_write_reg(0x7a, 0x0019a7ff);
-		qam_write_reg(0x7c, 0x00111222);
-
-		if (is_ic_ver(IC_VER_TL1))
-			qam_write_reg(0x7d, 0x2020305);
-		else
-			qam_write_reg(0x7d, 0x05050505);
-
-		qam_write_reg(0x7e, 0x03000d0d);
-		qam_write_reg(0x93, 0x641f1d0c);
-		qam_write_reg(0x94, 0x0c1a1a00);
-		break;
-	case 2:/*64qam*/
-		break;
-	case 3:/*128qam*/
-		qam_write_reg(0x71, 0x0002c200);
-		qam_write_reg(0x72, 0x0a6e0059);
-		qam_write_reg(0x73, 0x08080000);
-		qam_write_reg(0x75, 0x000a70e9);
-		qam_write_reg(0x76, 0x00002013);
-		qam_write_reg(0x77, 0x00035068);
-		qam_write_reg(0x78, 0x000ab100);
-
-		if (is_ic_ver(IC_VER_TL1))
-			qam_write_reg(0x7a, 0xba7ff);
-		else
-			qam_write_reg(0x7a, 0x002ba7ff);
-
-		qam_write_reg(0x7c, 0x00111222);
-
-		if (is_ic_ver(IC_VER_TL1))
-			qam_write_reg(0x7d, 0x2020305);
-		else
-			qam_write_reg(0x7d, 0x05050505);
-
-		qam_write_reg(0x7e, 0x03000d0d);
-		qam_write_reg(0x93, 0x642a240c);
-		qam_write_reg(0x94, 0x0c262600);
-		break;
-	case 4:
-		if (is_ic_ver(IC_VER_TL1)) {
-			qam_write_reg(0x9c, 0x2a232100);
-			qam_write_reg(0x57, 0x606040d);
-		}
-		break;
-	}
+	demod_dvbc_set_qam(ch_mode);
 	/*dvbc_write_reg(QAM_BASE+0x00c, 0xfffffffe);*/
 	/* // adc_cnt, symb_cnt*/
 	qam_write_reg(0x3, 0xffff8ffe);
