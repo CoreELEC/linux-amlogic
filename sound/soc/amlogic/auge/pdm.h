@@ -69,6 +69,10 @@ struct aml_pdm {
 	struct clk *clk_pdm_sysclk;
 	struct clk *clk_pdm_dclk;
 	struct toddr *tddr;
+
+	struct pdm_chipinfo *chipinfo;
+	struct snd_kcontrol *controls[PDM_RUN_MAX];
+
 	/* sample rate */
 	int rate;
 	/*
@@ -93,9 +97,6 @@ struct aml_pdm {
 
 	/* low power mode, for dclk_sycpll to 24m */
 	bool isLowPower;
-
-	struct pdm_chipinfo *chipinfo;
-	struct snd_kcontrol *controls[PDM_RUN_MAX];
 };
 
 #endif /*__AML_PDM_H__*/

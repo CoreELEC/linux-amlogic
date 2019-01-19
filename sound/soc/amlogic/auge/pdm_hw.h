@@ -34,6 +34,9 @@ struct pdm_info {
 
 extern void aml_pdm_ctrl(struct pdm_info *info);
 
+extern void pdm_force_sysclk_to_oscin(bool force);
+extern void pdm_set_channel_ctrl(int sample_count);
+
 extern void aml_pdm_arb_config(struct aml_audio_controller *actrl);
 
 extern int aml_pmd_set_HPF_filter_parameters(void *array);

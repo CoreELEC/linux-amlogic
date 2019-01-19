@@ -107,7 +107,7 @@ enum clk_sel {
 #define EE_AUDIO_CLK_RESAMPLEB_CTRL        0x02e
 #define EE_AUDIO_CLK_SPDIFIN_LB_CTRL       0x02f
 #define EE_AUDIO_CLK_EQDRC_CTRL0           0x030
-#define EE_AUDIO_VAD_CLK_CTRL              0x031
+#define EE_AUDIO_CLK_VAD_CTRL              0x031
 #define EE_AUDIO_EARCTX_CMDC_CLK_CTRL      0x032
 #define EE_AUDIO_EARCTX_DMAC_CLK_CTRL      0x033
 #define EE_AUDIO_EARCRX_CMDC_CLK_CTRL      0x034

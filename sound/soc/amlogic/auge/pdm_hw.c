@@ -59,6 +59,11 @@ void pdm_fifo_reset(void)
 		0x1 << 16);
 }
 
+void pdm_force_sysclk_to_oscin(bool force)
+{
+	audiobus_update_bits(EE_AUDIO_CLK_PDMIN_CTRL1, 0x1 << 30, force << 30);
+}
+
 void pdm_set_channel_ctrl(int sample_count)
 {
 	aml_pdm_write(PDM_CHAN_CTRL, ((sample_count << 24) |
@@ -547,14 +552,16 @@ int pdm_get_ors(int dclk_idx, int sample_rate)
 		else if (sample_rate == 8000)
 			osr = 128;
 		else
-			pr_err("Not support rate:%d\n", sample_rate);
+			pr_err("%s, Not support rate:%d\n",
+				__func__, sample_rate);
 	} else if (dclk_idx == 2) {
 		if (sample_rate == 16000)
 			osr = 48;
 		else if (sample_rate == 8000)
 			osr = 96;
 		else
-			pr_err("Not support rate:%d\n", sample_rate);
+			pr_err("%s, Not support rate:%d\n",
+				__func__, sample_rate);
 	} else {
 		if (sample_rate == 96000)
 			osr = 32;
@@ -569,7 +576,8 @@ int pdm_get_ors(int dclk_idx, int sample_rate)
 		else if (sample_rate == 8000)
 			osr = 384;
 		else
-			pr_err("Not support rate:%d\n", sample_rate);
+			pr_err("%s, Not support rate:%d\n",
+				__func__, sample_rate);
 	}
 
 	return osr;

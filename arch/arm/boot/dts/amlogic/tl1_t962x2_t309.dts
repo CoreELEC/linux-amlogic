@@ -1429,7 +1429,6 @@
 		pinctrl-0 = <&spdifout_a>;
 		pinctrl-1 = <&spdifout_a_mute>;
 
-
 		/*
 		 * whether do asrc for pcm and resample a or b
 		 * if raw data, asrc is disabled automatically
