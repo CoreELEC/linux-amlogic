@@ -2062,12 +2062,27 @@
 		};
 	};
 
+	atvdemod_agc_pins: atvdemod_agc_pins {
+		mux {
+			groups = "atv_if_agc_dv";
+			function = "atv";
+		};
+	};
+
+	dtvdemod_agc_pins: dtvdemod_agc_pins {
+		mux {
+			groups = "dtv_if_agc_dv2";
+			function = "dtv";
+		};
+	};
+
 	lcd_vbyone_pins: lcd_vbyone_pin {
 		mux {
 			groups = "vx1_lockn","vx1_htpdn";
 			function = "vx1";
 		};
 	};
+
 	lcd_vbyone_off_pins: lcd_vbyone_off_pin {
 		mux {
 			groups = "GPIOH_15","GPIOH_16";
