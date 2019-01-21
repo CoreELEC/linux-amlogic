@@ -2486,7 +2486,10 @@ static long vdin_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			return -EFAULT;
 		}
 		memset(&param, 0, sizeof(struct vdin_parm_s));
-		param.port = TVIN_PORT_VIU1;
+		if (is_meson_tl1_cpu())
+			param.port = TVIN_PORT_VIU1_WB0_VPP;
+		else
+			param.port = TVIN_PORT_VIU1;
 		param.reserved |= PARAM_STATE_HISTGRAM;
 		param.h_active = vdin_v4l2_param.width;
 		param.v_active = vdin_v4l2_param.height;
