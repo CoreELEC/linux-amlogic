@@ -26,6 +26,9 @@
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/types.h>
+#if defined(CONFIG_ARCH_MESON64_ODROID_COMMON)
+#include <linux/pinctrl/consumer.h>
+#endif
 
 /* Meson I2C register map */
 #define REG_CTRL					0x00
@@ -116,6 +119,9 @@ struct meson_i2c {
 
 	int retain_fastmode;
 	struct meson_i2c_data *data;
+#if defined(CONFIG_ARCH_MESON64_ODROID_COMMON)
+	struct pinctrl			*pinctrl;
+#endif
 };
 
 static void meson_i2c_set_mask(struct meson_i2c *i2c, int reg, u32 mask,
@@ -558,6 +564,10 @@ static int meson_i2c_probe(struct platform_device *pdev)
 	i2c->dev = &pdev->dev;
 	platform_set_drvdata(pdev, i2c);
 
+#if defined(CONFIG_ARCH_MESON64_ODROID_COMMON)
+	i2c->pinctrl = NULL;
+#endif
+
 	spin_lock_init(&i2c->lock);
 	init_completion(&i2c->done);
 
@@ -593,6 +603,14 @@ static int meson_i2c_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "can't prepare clock\n");
 		return ret;
 	}
+
+#if defined(CONFIG_ARCH_MESON64_ODROID_COMMON)
+	i2c->pinctrl = devm_pinctrl_get_select(&pdev->dev, "default");
+	if (IS_ERR(i2c->pinctrl)) {
+		i2c->pinctrl = NULL;
+		dev_err(&pdev->dev, "i2c pinmux : can't get i2c_pins\n");
+	}
+#endif
 
 	strlcpy(i2c->adap.name, "Meson I2C adapter",
 		sizeof(i2c->adap.name));
@@ -631,6 +649,18 @@ static int meson_i2c_remove(struct platform_device *pdev)
 {
 	struct meson_i2c *i2c = platform_get_drvdata(pdev);
 
+#if defined(CONFIG_ARCH_MESON64_ODROID_COMMON)
+	struct device *dev = &pdev->dev;
+
+	sysfs_remove_file(&dev->kobj, &dev_attr_speed.attr);
+
+	if (i2c->pinctrl)
+		devm_pinctrl_put(i2c->pinctrl);
+
+	i2c->pinctrl = devm_pinctrl_get_select(&pdev->dev, "gpio_periphs");
+	devm_pinctrl_put(i2c->pinctrl);
+	i2c->pinctrl = NULL;
+#endif
 	i2c_del_adapter(&i2c->adap);
 	clk_unprepare(i2c->clk);
 

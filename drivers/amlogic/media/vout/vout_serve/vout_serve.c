@@ -270,12 +270,19 @@ static int set_vout_init_mode(void)
 	snprintf(init_mode_str, VMODE_NAME_LEN_MAX, "%s", vout_mode_uboot);
 	vout_init_vmode = validate_vmode(vout_mode_uboot);
 	if (vout_init_vmode >= VMODE_MAX) {
+#if defined(CONFIG_ARCH_MESON64_ODROID_COMMON)
+		VOUTERR("no matched vout mode %s, force to set 1080p60hz\n",
+			vout_mode_uboot);
+		snprintf(init_mode_str, VMODE_NAME_LEN_MAX, "%s", "1080p60hz");
+		vout_init_vmode = validate_vmode("1080p60hz");
+#else
 		VOUTERR("no matched vout_init mode %s, force to invalid\n",
 			vout_mode_uboot);
 		nulldisp_index = 1;
 		vout_init_vmode = nulldisp_vinfo[nulldisp_index].mode;
 		snprintf(init_mode_str, VMODE_NAME_LEN_MAX, "%s",
 			nulldisp_vinfo[nulldisp_index].name);
+#endif
 	}
 	last_vmode = vout_init_vmode;
 
@@ -854,7 +861,16 @@ static int refresh_tvout_mode(void)
 	if (tvout_monitor_flag == 0)
 		return 0;
 
+#if defined(CONFIG_ARCH_MESON64_ODROID_COMMON)
+	/*
+	 * vout mode is treated as HDMI always initialized
+	 * even though HDMI cable is detached.
+	 * TODO : except cvbs cable is plugged in.
+	 */
+	hpd_state = 1;
+#else
 	hpd_state = vout_get_hpd_state();
+#endif
 	if (hpd_state) {
 		cur_vmode = validate_vmode(hdmimode);
 		snprintf(cur_mode_str, VMODE_NAME_LEN_MAX, "%s", hdmimode);
@@ -863,12 +879,19 @@ static int refresh_tvout_mode(void)
 		snprintf(cur_mode_str, VMODE_NAME_LEN_MAX, "%s", cvbsmode);
 	}
 	if (cur_vmode >= VMODE_MAX) {
+#if defined(CONFIG_ARCH_MESON64_ODROID_COMMON)
+		VOUTERR("%s: no matched vmode: %s, force to set 1080p60hz\n",
+			__func__, cur_mode_str);
+		cur_vmode = validate_vmode("1080p60hz");
+		snprintf(cur_mode_str, VMODE_NAME_LEN_MAX, "%s", "1080p60hz");
+#else
 		VOUTERR("%s: no matched cur_mode: %s, force to invalid\n",
 			__func__, cur_mode_str);
 		nulldisp_index = 1;
 		cur_vmode = nulldisp_vinfo[nulldisp_index].mode;
 		snprintf(cur_mode_str, VMODE_NAME_LEN_MAX, "%s",
 			nulldisp_vinfo[nulldisp_index].name);
+#endif
 	}
 
 	/* not box platform */

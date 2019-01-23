@@ -124,6 +124,9 @@ struct meson_pwm {
 	struct mutex lock;
 	spinlock_t pwm_lock;
 	unsigned int clk_mask;
+#if defined(CONFIG_ARCH_MESON64_ODROID_COMMON)
+	struct pinctrl *p_pinctrl;
+#endif
 };
 
 /*the functions only use for meson pwm driver*/

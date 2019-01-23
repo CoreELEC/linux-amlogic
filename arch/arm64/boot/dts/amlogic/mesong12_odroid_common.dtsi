@@ -214,6 +214,12 @@
 			size = <32>;
 		};
 	};//End efusekey
+
+	onewire:onewire {
+		compatible = "w1-gpio";
+		gpios = <&gpio GPIOA_13 GPIO_ACTIVE_HIGH>;
+		status = "disabled";
+	};
 };
 
 &ethmac {
@@ -231,7 +237,7 @@
 /*if you want to use vdin just modify status to "ok"*/
 &vdin0 {
 	memory-region = <&vdin0_cma_reserved>;
-	status = "okay";
+	status = "disable";
 	/*vdin write mem color depth support:
 	 *bit0:support 8bit
 	 *bit1:support 9bit
@@ -244,7 +250,7 @@
 
 &vdin1 {
 	memory-region = <&vdin1_cma_reserved>;
-	status = "okay";
+	status = "disable";
 	/*vdin write mem color depth support:
 	 *bit0:support 8bit
 	 *bit1:support 9bit
@@ -254,8 +260,18 @@
 	tv_bit_mode = <1>;
 };
 
+&pwm_cd {
+	status = "disabled";
+	pinctrl-names = "pwm_pins","gpio_periphs";
+	pinctrl-0 = <&pwm_c_pins2 &pwm_d_pins1>;
+	pinctrl-1 = <&pwmcd_to_gpios>;
+};
+
 &pwm_ef {
-	status = "okay";
+	status = "disabled";
+	pinctrl-names = "pwm_pins","gpio_periphs";
+	pinctrl-0 = <&pwm_e_pins &pwm_f_pins1>;
+	pinctrl-1 = <&pwmef_to_gpios>;
 };
 
 &pwm_AO_cd {
@@ -264,8 +280,9 @@
 
 &i2c3 {
 	status = "okay";
-	pinctrl-names = "default";
+	pinctrl-names = "default","gpio_periphs";
 	pinctrl-0 = <&i2c3_master_pins2>;
+	pinctrl-1 = <&i2c3_to_gpioa>;
 	clock-frequency = <100000>;		/* default 100k */
 
 	pcf8563: rtc@51 {
@@ -450,8 +467,24 @@
 };
 
 &pinctrl_periphs {
+	i2c2_to_gpiox:i2c2_gpiox {
+		mux {
+			groups = "GPIOX_17",
+				"GPIOX_18";
+			function = "gpio_periphs";
+			drive-strength = <3>;
+		};
+	};
 	i2c3_master_pins2:i2c3_pins2 {
 		mux {
+			drive-strength = <3>;
+		};
+	};
+	i2c3_to_gpioa:i2c3_gpioa {
+		mux {
+			groups = "GPIOA_14",
+				"GPIOA_15";
+			function = "gpio_periphs";
 			drive-strength = <3>;
 		};
 	};
@@ -459,6 +492,27 @@
 		mux {/* GPIOA_11 */
 			groups = "spdif_out_a11";
 			function = "spdif_out";
+		};
+	};
+	pwmcd_to_gpios:pwmcd_gpio {
+		mux {
+			groups = "GPIOX_5", "GPIOX_3";
+			function = "gpio_periphs";
+		};
+	};
+	pwmef_to_gpios:pwmef_gpio {
+		mux {
+			groups = "GPIOX_16", "GPIOX_7";
+			function = "gpio_periphs";
+		};
+	};
+	spicc0_to_gpiox: spicc0_gpiox {
+		mux {
+			groups = "GPIOX_8",
+				 "GPIOX_9",
+				 //"GPIOX_10",
+				 "GPIOX_11";
+			function = "gpio_periphs";
 		};
 	};
 }; /* end of pinctrl_periphs */

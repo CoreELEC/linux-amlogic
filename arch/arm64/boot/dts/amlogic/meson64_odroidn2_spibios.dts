@@ -27,6 +27,8 @@
 	#address-cells = <2>;
 	#size-cells = <2>;
 
+	chosen { };
+
 	reserved-memory {
 		#address-cells = <2>;
 		#size-cells = <2>;
@@ -115,14 +117,16 @@
 		};
 		/*  vdin0 CMA pool */
 		vdin0_cma_reserved:linux,vdin0_cma {
+			status = "disabled";
 			compatible = "shared-dma-pool";
 			reusable;
-		/* 1920x1080x2x4  =16+4 M */
+			/* 1920x1080x2x4  =16+4 M */
 			size = <0x0 0x04000000>;
 			alignment = <0x0 0x400000>;
 		};
 		/*  vdin1 CMA pool */
 		vdin1_cma_reserved:linux,vdin1_cma {
+			status = "disabled";
 			compatible = "shared-dma-pool";
 			reusable;
 			/* 1920x1080x2x4  =16 M */
