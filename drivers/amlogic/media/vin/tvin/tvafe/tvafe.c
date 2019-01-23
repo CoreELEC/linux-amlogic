@@ -352,7 +352,8 @@ void tvafe_dec_start(struct tvin_frontend_s *fe, enum tvin_sig_fmt_e fmt)
 		W_APB_REG(CVD2_H_LOOP_MAXSTATE, 0x9);
 
 #ifdef CONFIG_AMLOGIC_MEDIA_TVIN_AVDETECT
-	if (tvafe_cpu_type() == CPU_TYPE_TXLX) {
+	if (tvafe_cpu_type() == CPU_TYPE_TXLX ||
+		tvafe_cpu_type() == CPU_TYPE_TL1) {
 		if (port == TVIN_PORT_CVBS1)
 			tvafe_avin_detect_ch1_anlog_enable(0);
 		else if (port == TVIN_PORT_CVBS2)
@@ -418,7 +419,8 @@ void tvafe_dec_stop(struct tvin_frontend_s *fe, enum tvin_port_e port)
 		tvafe_cvd2_set_default_de(&tvafe->cvd2);
 	}
 #ifdef CONFIG_AMLOGIC_MEDIA_TVIN_AVDETECT
-	if (tvafe_cpu_type() == CPU_TYPE_TXLX) {
+	if (tvafe_cpu_type() == CPU_TYPE_TXLX ||
+		tvafe_cpu_type() == CPU_TYPE_TL1) {
 		if (port == TVIN_PORT_CVBS1)
 			tvafe_avin_detect_ch1_anlog_enable(1);
 		else if (port == TVIN_PORT_CVBS2)
