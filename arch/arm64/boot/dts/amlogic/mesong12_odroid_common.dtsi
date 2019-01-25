@@ -321,6 +321,8 @@
 
 &sd_emmc_c {
 	status = "okay";
+	mmc-ddr-1_8v;
+	mmc-hs200-1_8v;
 	emmc {
 		caps = "MMC_CAP_8_BIT_DATA",
 			 "MMC_CAP_MMC_HIGHSPEED",
@@ -331,14 +333,10 @@
 			 "MMC_CAP_ERASE",
 			 "MMC_CAP_CMD23";
 		caps2 = "MMC_CAP2_HS200_1_8V_SDR",
-			"MMC_CAP2_BROKEN_VOLTAGE",
-			"MMC_CAP2_HS400_ES",
-			"MMC_CAP2_HS400_1_8V";
+			"MMC_CAP2_BROKEN_VOLTAGE";
 		f_min = <400000>;
-		f_max = <120000000>;
-		card_type = <1>;
-		gpio_dat3 = <&gpio BOOT_3 GPIO_ACTIVE_HIGH>;
-		hw_reset =  <&gpio BOOT_12 GPIO_ACTIVE_HIGH>;
+		f_max = <200000000>;
+		hw_reset = <&gpio BOOT_12 GPIO_ACTIVE_HIGH>;
 	};
 };
 
