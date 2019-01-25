@@ -126,7 +126,7 @@
 			reusable;
 			/* 4M for emp to ddr */
 			/* 32M for tmds to ddr */
-			size = <0x2000000>;
+			size = <0x400000>;
 			alignment = <0x400000>;
 			/* alloc-ranges = <0x400000 0x2000000>; */
 		};
