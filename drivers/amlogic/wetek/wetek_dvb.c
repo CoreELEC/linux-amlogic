@@ -375,50 +375,6 @@ static ssize_t dsc_show_source(struct class *class,struct class_attribute *attr,
 }
 
 
-
-/*Set the descrambler's input source*/
-static ssize_t dsc_store_source(struct class *class, struct class_attribute *attr,
-                          const char *buf,
-                          size_t size)
-{
-	dmx_source_t src = -1;
-
-	if(!strncmp("dmx0", buf, 4)) {
-		src = DMX_SOURCE_FRONT0; 	//	src = DMX_SOURCE_FRONT0+100;
-	} else if(!strncmp("dmx1", buf, 4)) {
-		src = DMX_SOURCE_FRONT1;	//	src = DMX_SOURCE_FRONT1+100;
-	} else if(!strncmp("dmx2", buf, 4)) {
-		src = DMX_SOURCE_FRONT2;	//	src = DMX_SOURCE_FRONT2+100;
-	}
-	wetek_dsc_hw_set_source(&wetek_dvb_device, src);
-
-	return size;
-}
-
-
-/*Show free descramblers count*/
-static ssize_t dsc_show_free_dscs(struct class *class,
-				  struct class_attribute *attr,
-				  char *buf)
-{
-	struct wetek_dvb *dvb = &wetek_dvb_device;
-	int fid, count;
-	ssize_t ret = 0;
-	unsigned long flags;
-
-	spin_lock_irqsave(&dvb->slock, flags);
-	count = 0;
-	for(fid = 0; fid < DSC_COUNT; fid++){
-		if(!dvb->dsc[fid].used)
-			count++;
-	}
-	spin_unlock_irqrestore(&dvb->slock, flags);
-
-	ret = sprintf(buf, "%d\n", count);
-	return ret;
-}
-
-
 /*Show the TS output source*/
 static ssize_t tso_show_source(struct class *class, struct class_attribute *attr,char *buf)
 {
@@ -1017,7 +973,6 @@ static ssize_t demux##i##_reset_store(struct class *class,  struct class_attribu
 static struct class_attribute wetek_stb_class_attrs[] = {
 	__ATTR(hw_setting, S_IRUGO|S_IWUSR, stb_show_hw_setting, stb_store_hw_setting),
 	__ATTR(source,  S_IRUGO | S_IWUSR | S_IWGRP, stb_show_source, stb_store_source),
-	__ATTR(dsc_source,  S_IRUGO | S_IWUSR, dsc_show_source, dsc_store_source),
 	__ATTR(tso_source,  S_IRUGO | S_IWUSR, tso_show_source, tso_store_source),
 #define DEMUX_SOURCE_ATTR_PCR(i)\
 		__ATTR(demux##i##_pcr,  S_IRUGO | S_IWUSR, demux##i##_show_pcr, NULL)
@@ -1082,7 +1037,6 @@ static struct class_attribute wetek_stb_class_attrs[] = {
 	__ATTR(audio_pts,  S_IRUGO | S_IWUSR | S_IWGRP, demux_show_audio_pts, NULL),
 	__ATTR(first_video_pts,  S_IRUGO | S_IWUSR, demux_show_first_video_pts, NULL),
 	__ATTR(first_audio_pts,  S_IRUGO | S_IWUSR, demux_show_first_audio_pts, NULL),
-	__ATTR(free_dscs,  S_IRUGO | S_IWUSR, dsc_show_free_dscs, NULL),
 	__ATTR_NULL
 };
 

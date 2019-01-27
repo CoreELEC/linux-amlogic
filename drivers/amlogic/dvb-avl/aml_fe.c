@@ -31,6 +31,12 @@
 #include <linux/version.h>
 #include <linux/amlogic/aml_gpio_consumer.h>
 #include <linux/platform_device.h>
+#if defined(CONFIG_PROC_FS)
+#include <linux/proc_fs.h>
+#include <asm/uaccess.h>
+#include <linux/seq_file.h>
+#include <linux/spinlock.h>
+#endif
 
 #include "aml_fe.h"
 
@@ -64,9 +70,19 @@ MODULE_PARM_DESC(frontend_reset, "\n\t\t Reset GPIO of frontend");
 static int frontend_reset = -1;
 module_param(frontend_reset, int, 0644);
 
-MODULE_PARM_DESC(frontend_reset, "\n\t\t Antoverload GPIO of frontend");
+MODULE_PARM_DESC(frontend_antoverload, "\n\t\t Antoverload GPIO of frontend");
 static int frontend_antoverload = -1;
 module_param(frontend_antoverload, int, 0644);
+
+#if defined(CONFIG_PROC_FS)
+static DEFINE_SPINLOCK(aml_fe_lock);
+static struct proc_dir_entry *proc_aml_fe;
+static struct proc_dir_entry *proc_antoverload;
+#define PROCREG_AML_FE		"aml_fe"
+#define PROCREG_ANT_POWER	"antoverload"
+static int set_ant_power = 0; /* default is off */
+#endif
+extern void dmx_reset_dmx_sw(void);
 
 static struct aml_fe avl6862_fe[FE_DEV_COUNT];
 
@@ -119,7 +135,7 @@ int avl6862_gpio(void)
 
 	if(frontend_antoverload >= 0) {
 		gpio_request(frontend_antoverload,device_name);
-		gpio_direction_output(frontend_antoverload, 1);
+		gpio_direction_output(frontend_antoverload, 0);
 	}
 
 	return 0;
@@ -181,11 +197,11 @@ static int avl6862_fe_init(struct aml_dvb *advb, struct platform_device *pdev, s
 		gpio_antoverload = -1;
 
 	avl6862_config.gpio_lock_led = 0;
-	desc = of_get_named_gpiod_flags(pdev->dev.of_node, "dtv_demod0_lock_gpio-gpios", 0, NULL);
+	/*desc = of_get_named_gpiod_flags(pdev->dev.of_node, "dtv_demod0_lock_gpio-gpios", 0, NULL);
 	if (!PTR_RET(desc)) {
 		avl6862_config.gpio_lock_led = desc_to_gpio(desc);
 		pr_dbg("gpio_lock_led=%d\n", avl6862_config.gpio_lock_led);
-        }
+        }*/
 
 	frontend_reset = gpio_reset;
 	frontend_power = gpio_power;
@@ -202,6 +218,7 @@ static int avl6862_fe_init(struct aml_dvb *advb, struct platform_device *pdev, s
 
 	avl6862_gpio();
 	avl6862_Reset();
+
 	fe->fe = dvb_attach(avl6862_attach, &avl6862_config, i2c_handle);
 
 	if (!fe->fe) {
@@ -273,6 +290,7 @@ static int avl6862_fe_init(struct aml_dvb *advb, struct platform_device *pdev, s
 
 tun_board_end:
 	pr_inf("Frontend AVL6862 registred!\n");
+	dmx_reset_dmx_sw();
 
 	return 0;
 
@@ -349,12 +367,88 @@ static struct platform_driver aml_fe_driver = {
         }
 };
 
+#if defined(CONFIG_PROC_FS)
+static int antoverload_read(struct seq_file *seq, void *v)
+{
+	seq_printf(seq, "%s\n", set_ant_power ? "1" : "0" );
+	return 0;
+}
+
+static int antoverload_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, antoverload_read, NULL);
+}
+
+static ssize_t antoverload_write(struct file *file, const char __user *buffer, size_t count, loff_t *data)
+{
+	char buf[2];
+	/* set on/off output 5V, echo 1|0 > /proc/aml_fe/antoverload */
+
+	if(copy_from_user(buf, buffer, count))
+		return -EFAULT;
+
+	spin_lock_bh(&aml_fe_lock);
+
+	set_ant_power = simple_strtol(buf, 0, 10);
+	if(!set_ant_power) {
+		gpio_request(frontend_antoverload,device_name);
+		gpio_direction_output(frontend_antoverload, 0);
+	} else {
+		gpio_request(frontend_antoverload,device_name);
+		gpio_direction_output(frontend_antoverload, 1);
+	}
+	pr_info("aml_fe: Output 5V is %s.\n", set_ant_power ? "on" : "off" );
+
+	spin_unlock_bh(&aml_fe_lock);
+
+	return count;
+}
+
+static const struct file_operations aml_fe_antoverload_fops = {
+	.owner		= THIS_MODULE,
+	.open		= antoverload_open,
+	.read		= seq_read,
+	.write		= antoverload_write,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
+static void aml_fe_proc_init(void)
+{
+	if(proc_aml_fe == NULL)
+		proc_aml_fe = proc_mkdir(PROCREG_AML_FE, NULL);
+
+	if(frontend_antoverload >= 0) {
+		if(!(proc_antoverload = proc_create(PROCREG_ANT_POWER, 0, proc_aml_fe, &aml_fe_antoverload_fops)))
+			pr_err("!! FAIL to create %s PROC !!\n", PROCREG_ANT_POWER);
+	}
+	pr_info("PROC AML FE INIT OK!\n");
+}
+
+static void aml_fe_proc_exit(void)
+{
+	if((frontend_antoverload >= 0) && proc_antoverload)
+		remove_proc_entry(PROCREG_ANT_POWER, proc_aml_fe);
+	if(proc_aml_fe)
+		remove_proc_entry(PROCREG_AML_FE, 0);
+	pr_info("PROC AML FE EXIT OK!\n");
+}
+#endif
+
 static int __init avlfrontend_init(void) {
-	 return platform_driver_register(&aml_fe_driver);
+	int ret;
+	ret = platform_driver_register(&aml_fe_driver);
+#if defined(CONFIG_PROC_FS)
+	aml_fe_proc_init();
+#endif
+	return ret;
 }
 
 static void __exit avlfrontend_exit(void) {
-        platform_driver_unregister(&aml_fe_driver);
+#if defined(CONFIG_PROC_FS)
+	aml_fe_proc_exit();
+#endif
+	platform_driver_unregister(&aml_fe_driver);
 }
 
 module_init(avlfrontend_init);
