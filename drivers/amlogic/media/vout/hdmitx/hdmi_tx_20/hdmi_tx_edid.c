@@ -2206,6 +2206,7 @@ static struct dispmode_vic dispmode_vic_tab[] = {
 	{"640x480p60hz", HDMI_640x480p60_4x3},
 	{"480x320p60hz", HDMI_480x320p60_4x3},
 	{"480x800p60hz", HDMI_480x800p60_4x3},
+	{"custombuilt", HDMI_CUSTOMBUILT},
 };
 
 int hdmitx_edid_VIC_support(enum hdmi_vic vic)

@@ -166,6 +166,7 @@ static bool set_hpll_hclk_v3(unsigned int m, unsigned int frac_val)
 
 void set_g12a_hpll_clk_out(unsigned int frac_rate, unsigned int clk)
 {
+	unsigned int m, m1, m2;
 
 	switch (clk) {
 	case 5940000:
@@ -489,6 +490,28 @@ void set_g12a_hpll_clk_out(unsigned int frac_rate, unsigned int clk)
 		break;
 	default:
 		pr_info("error hpll clk: %d\n", clk);
+
+		/* FIXME : consider pixel clocks over 200MHz */
+		/* calculate "m" */
+		m1 = (clk * 0x3A) / 1422000;
+		m2 = (clk * 0xE1) / 5405400;
+		m = (m1 + m2)/2;
+		m &= 0xff;
+		m |= 0x3b000400;
+		hd_write_reg(P_HHI_HDMI_PLL_CNTL0, m);
+		pr_info("m1 0x%x, m2 0x%x, m 0x%x\n", m1, m2, m);
+
+		/* check pll LOCK time */
+		hd_write_reg(P_HHI_HDMI_PLL_CNTL1, 0x00018000);
+
+		hd_write_reg(P_HHI_HDMI_PLL_CNTL2, 0x00000000);
+		hd_write_reg(P_HHI_HDMI_PLL_CNTL3, 0x0a691c00);
+		hd_write_reg(P_HHI_HDMI_PLL_CNTL4, 0x33771290);
+		hd_write_reg(P_HHI_HDMI_PLL_CNTL5, 0x39270000);
+		hd_write_reg(P_HHI_HDMI_PLL_CNTL6, 0x50540000);
+		hd_set_reg_bits(P_HHI_HDMI_PLL_CNTL0, 0x0, 29, 1);
+		WAIT_FOR_PLL_LOCKED(P_HHI_HDMI_PLL_CNTL0);
+		pr_info("HPLL: 0x%x\n", hd_read_reg(P_HHI_HDMI_PLL_CNTL0));
 		break;
 	}
 }

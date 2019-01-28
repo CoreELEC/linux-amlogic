@@ -1423,6 +1423,38 @@ static struct vic_tvregs_set tvregsTab_3dfp[] = {
 	{HDMI_1280x720p50_16x9, tvregs_3dfp_720p50},
 };
 
+void build_custom_vic_tvregs(void)
+{
+	struct hdmi_cea_timing *custom_timing = get_custom_timing();
+
+	hd_write_reg(P_VENC_VDAC_SETTING, 0xff);
+
+	hd_write_reg(P_ENCP_VIDEO_EN, 0);
+	hd_write_reg(P_ENCI_VIDEO_EN, 0);
+
+	hd_write_reg(P_ENCP_VIDEO_MODE, 0x4040);
+	hd_write_reg(P_ENCP_VIDEO_MODE_ADV, 0x18);
+
+	hd_write_reg(P_ENCP_VIDEO_MAX_PXCNT, (custom_timing->h_total - 1));
+	hd_write_reg(P_ENCP_VIDEO_MAX_LNCNT, (custom_timing->v_total - 1));
+
+	hd_write_reg(P_ENCP_VIDEO_HAVON_BEGIN, custom_timing->h_back);
+	hd_write_reg(P_ENCP_VIDEO_HAVON_END,
+		((custom_timing->h_back + custom_timing->h_active) - 1));
+	hd_write_reg(P_ENCP_VIDEO_VAVON_BLINE, custom_timing->v_back);
+	hd_write_reg(P_ENCP_VIDEO_VAVON_ELINE,
+		((custom_timing->v_back + custom_timing->v_active) - 1));
+
+	hd_write_reg(P_ENCP_VIDEO_HSO_BEGIN, 0);
+	hd_write_reg(P_ENCP_VIDEO_HSO_END, custom_timing->h_sync);
+	hd_write_reg(P_ENCP_VIDEO_VSO_BEGIN, 0x1E);
+	hd_write_reg(P_ENCP_VIDEO_VSO_END, 0x32);
+	hd_write_reg(P_ENCP_VIDEO_VSO_BLINE, 0x0);
+	hd_write_reg(P_ENCP_VIDEO_VSO_ELINE, custom_timing->v_sync);
+	hd_write_reg(P_ENCP_VIDEO_EN, 1);
+	hd_write_reg(P_ENCI_VIDEO_EN, 0);
+}
+
 static inline void setreg(const struct reg_s *r)
 {
 	hd_write_reg(r->reg, r->val);
@@ -1450,17 +1482,26 @@ static const struct reg_s *tvregs_setting_mode(struct hdmitx_dev *hdev)
 
 void set_vmode_enc_hw(struct hdmitx_dev *hdev)
 {
-	const struct reg_s *s = tvregs_setting_mode(hdev);
-	/* Turn off VDAC, no need any more for HDMITX */
+	const struct reg_s *s;
 
-	/*hd_set_reg_bits(P_VENC_VDAC_SETTING, 0x1f, 0, 5);*/
-	if (s) {
-		pr_info("set enc for VIC: %d\n",
-			hdev->cur_video_param->VIC);
-		while (s->reg != MREG_END_MARKER)
-			setreg(s++);
-	} else
-		pr_info("set enc not find VIC: %d\n",
-			hdev->cur_video_param->VIC);
+	if (hdev->cur_video_param->VIC != HDMI_CUSTOMBUILT) {
+		s = tvregs_setting_mode(hdev);
+
+		/* Turn off VDAC, no need any more for HDMITX */
+		/*hd_set_reg_bits(P_VENC_VDAC_SETTING, 0x1f, 0, 5);*/
+		if (s) {
+			pr_info("set enc for VIC: %d\n",
+					hdev->cur_video_param->VIC);
+			while (s->reg != MREG_END_MARKER)
+				setreg(s++);
+		} else
+			pr_info("set enc not find VIC: %d\n",
+					hdev->cur_video_param->VIC);
+	} else {
+		/* Turn off VDAC, no need any more for HDMITX */
+		/*hd_set_reg_bits(P_VENC_VDAC_SETTING, 0x1f, 0, 5);*/
+
+		build_custom_vic_tvregs();
+	}
 }
 
