@@ -1391,6 +1391,12 @@
 		query_licence_cmd = <0x82000050>;
 		status = "disabled";
 	};
+
+	defendkey: defendkey {
+		compatible = "amlogic, defendkey";
+		mem_size = <0 0x100000>;
+		status = "okay";
+	};
 }; /* end of / */
 
 &pinctrl_aobus {
