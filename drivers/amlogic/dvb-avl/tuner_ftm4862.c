@@ -162,8 +162,10 @@ static int ftm4862_set_params(struct dvb_frontend *fe)
 		break;
 	case SYS_DVBS:
 	case SYS_DVBS2:
-	default:
 		ret = rda5815m_set_params(fe);
+		break;
+	default:
+		ret = 0;
 		break;
 	}
 	return ret;

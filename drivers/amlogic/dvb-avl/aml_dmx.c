@@ -1561,7 +1561,7 @@ static int _dmx_smallsec_enable(struct aml_smallsec *ss, int bufsize)
 	ss->bufsize = bufsize;
 	ss->enable = 1;
 
-	pr_inf("demux%d smallsec buf start: %lx, size: %d\n",
+	pr_dbg("demux%d smallsec buf start: %lx, size: %d\n",
 		ss->dmx->id, ss->buf, ss->bufsize);
 	return 0;
 }
@@ -1577,7 +1577,7 @@ static int _dmx_smallsec_disable(struct aml_smallsec *ss)
 		ss->buf_map = 0;
 	}
 	ss->enable = 0;
-	pr_inf("demux%d smallsec buf disable\n", ss->dmx->id);
+	pr_dbg("demux%d smallsec buf disable\n", ss->dmx->id);
 	return 0;
 }
 
@@ -1626,7 +1626,7 @@ static int _dmx_timeout_enable(struct aml_dmxtimeout *dto, int timeout,
 	dto->trigger = 0;
 	dto->enable = 1;
 
-	pr_inf("demux%d timeout enable:timeout(%d),ch(0x%x),match(%d)\n",
+	pr_dbg("demux%d timeout enable:timeout(%d),ch(0x%x),match(%d)\n",
 		dto->dmx->id, dto->timeout, dto->ch_disable, dto->match);
 
 	return 0;
@@ -1637,7 +1637,7 @@ static int _dmx_timeout_disable(struct aml_dmxtimeout *dto)
 	DMX_WRITE_REG(dto->dmx->id, DEMUX_INPUT_TIMEOUT, 0);
 	dto->enable = 0;
 	dto->trigger = 0;
-	pr_inf("demux%d timeout disable\n", dto->dmx->id);
+	pr_dbg("demux%d timeout disable\n", dto->dmx->id);
 
 	return 0;
 }
@@ -2788,13 +2788,19 @@ void dmx_reset_dmx_hw(struct aml_dvb *dvb, int id)
 	dmx_reset_dmx_id_hw_ex(dvb, id, 1);
 }
 
-void dmx_reset_dmx_sw(void)
+void dmx_reset_dmx_sw(int num) /* -1 - all */
 {
 	struct aml_dvb *dvb = aml_get_dvb_device();
 	int i;
 
-	for (i = 0; i < DMX_DEV_COUNT; i++)
-		dmx_reset_dmx_id_hw_ex(dvb, i, 0);
+	if(num < 0) {
+		for (i = 0; i < DMX_DEV_COUNT; i++)
+			dmx_reset_dmx_id_hw_ex(dvb, i, 0);
+		reset_async_fifos(dvb);
+	} else {
+		dmx_reset_dmx_id_hw_ex(dvb, num, 0);
+	}
+	msleep(150);
 }
 EXPORT_SYMBOL(dmx_reset_dmx_sw);
 

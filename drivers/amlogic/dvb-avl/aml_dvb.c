@@ -849,6 +849,7 @@ static const struct of_device_id aml_dvb_dt_match[]={
 };
 #endif /*CONFIG_OF*/
 
+#if 0
 /*Get the STB source demux*/
 static struct aml_dmx* get_stb_dmx(void)
 {
@@ -878,6 +879,7 @@ static struct aml_dmx* get_stb_dmx(void)
 
 	return dmx;
 }
+#endif
 
 #define DEMUX_RESET_FUNC_DECL(i)  \
 static ssize_t demux##i##_reset_store(struct class *class,  struct class_attribute *attr,const char *buf, size_t size)\
