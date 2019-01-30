@@ -247,6 +247,20 @@ struct scpi_opp *scpi_dvfs_get_opps(u8 domain)
 	if (scpi_opps[domain])	/* data already populated */
 		return scpi_opps[domain];
 
+#if defined(CONFIG_ARCH_MESON64_ODROIDC2)
+	/*
+	 * 1. default dvfs table has max 1.536GHz with domain '0'
+	 * 2. set the 7th bit to support flexible dvfs table to 2.016GHz
+	 */
+
+	struct device_node *dt = of_find_node_by_path("/");
+	const char *dtid = of_get_property(dt, "amlogic-dt-id", NULL);
+	if (strstr(dtid, "odroidc2_2g")) {
+		pr_info("dvfs odroidc2 detected - flexible dvfs table supported");
+		domain |= 0x80;
+	}
+#endif
+
 	SCPI_SETUP_DBUF(sdata, mdata, SCPI_CL_DVFS,
 			SCPI_CMD_GET_DVFS_INFO, domain, buf);
 	ret = scpi_execute_cmd(&sdata);
