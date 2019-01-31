@@ -178,7 +178,6 @@ static int c_show(struct seq_file *m, void *v)
 	{
 		int ret;
 		char uuid[32];
-		char *p = uuid;
 		loff_t pos = 0;
 
 		seq_puts(m, "Serial\t\t: ");
