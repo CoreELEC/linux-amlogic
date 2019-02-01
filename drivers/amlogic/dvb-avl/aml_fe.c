@@ -197,11 +197,11 @@ static int avl6862_fe_init(struct aml_dvb *advb, struct platform_device *pdev, s
 		gpio_antoverload = -1;
 
 	avl6862_config.gpio_lock_led = 0;
-	/*desc = of_get_named_gpiod_flags(pdev->dev.of_node, "dtv_demod0_lock_gpio-gpios", 0, NULL);
+	desc = of_get_named_gpiod_flags(pdev->dev.of_node, "dtv_demod0_lock_gpio-gpios", 0, NULL);
 	if (!PTR_RET(desc)) {
 		avl6862_config.gpio_lock_led = desc_to_gpio(desc);
 		pr_dbg("gpio_lock_led=%d\n", avl6862_config.gpio_lock_led);
-        }*/
+        }
 
 	frontend_reset = gpio_reset;
 	frontend_power = gpio_power;
