@@ -94,6 +94,7 @@ static DEFINE_MUTEX(vout_mutex);
 
 /* add attr for hdmi output colorspace and colordepth */
 static char fmt_attr[16];
+static int force_hdr = 0;
 
 #ifndef CONFIG_AM_TV_OUTPUT
 /* Fake vinfo */
@@ -841,6 +842,31 @@ static ssize_t store_attr(struct device *dev,
 	return count;
 }
 
+static ssize_t show_force_hdr(struct device *dev,
+	struct device_attribute *attr, char *buf)
+{
+	int pos = 0;
+
+	pos += snprintf(buf+pos, PAGE_SIZE, "%d\n", force_hdr);
+	return pos;
+}
+
+static ssize_t store_force_hdr(struct device *dev,
+	struct device_attribute *attr, const char *buf, size_t count)
+{
+	if (strncmp(buf, "1", 1) == 0)
+		force_hdr = 1;
+	else
+		force_hdr = 0;
+	hdmitx_edid_parse(&hdmitx_device);
+
+	return count;
+}
+
+unsigned int get_force_hdr(void){
+	return force_hdr;
+}
+EXPORT_SYMBOL (get_force_hdr);
 
 /*aud_mode attr*/
 static ssize_t show_aud_mode(struct device *dev,
@@ -2349,6 +2375,8 @@ static DEVICE_ATTR(output_rgb, S_IWUSR | S_IWGRP,
 static DEVICE_ATTR(disp_mode, S_IWUSR | S_IRUGO | S_IWGRP,
 	show_disp_mode, store_disp_mode);
 static DEVICE_ATTR(attr, S_IWUSR | S_IRUGO | S_IWGRP, show_attr, store_attr);
+static DEVICE_ATTR(force_hdr, S_IWUSR | S_IRUGO, show_force_hdr,
+	store_force_hdr);
 static DEVICE_ATTR(aud_mode, S_IWUSR | S_IRUGO, show_aud_mode,
 	store_aud_mode);
 static DEVICE_ATTR(edid, S_IWUSR | S_IRUGO, show_edid, store_edid);
@@ -3178,6 +3206,7 @@ static int amhdmitx_probe(struct platform_device *pdev)
 	hdmitx_device.hdtx_dev = dev;
 	ret = device_create_file(dev, &dev_attr_disp_mode);
 	ret = device_create_file(dev, &dev_attr_attr);
+	ret = device_create_file(dev, &dev_attr_force_hdr);
 	ret = device_create_file(dev, &dev_attr_aud_mode);
 	ret = device_create_file(dev, &dev_attr_edid);
 	ret = device_create_file(dev, &dev_attr_rawedid);
@@ -3369,6 +3398,7 @@ static int amhdmitx_remove(struct platform_device *pdev)
 	/* Remove the cdev */
 	device_remove_file(dev, &dev_attr_disp_mode);
 	device_remove_file(dev, &dev_attr_attr);
+	device_remove_file(dev, &dev_attr_force_hdr);
 	device_remove_file(dev, &dev_attr_aud_mode);
 	device_remove_file(dev, &dev_attr_edid);
 	device_remove_file(dev, &dev_attr_rawedid);

@@ -3575,13 +3575,13 @@ static void bypass_hdr_process(
 				set_vpp_matrix(VPP_MATRIX_OSD,
 					RGB709_to_YUV709_coeff,
 					CSC_ON);	/* use full range */
-				pr_info("Full range RGB-YUV");
+				pr_csc("Full range RGB-YUV");
 			}
 			else {
 				set_vpp_matrix(VPP_MATRIX_OSD,
 					RGB709_to_YUV709l_coeff,
 					CSC_ON);	/* use limit range */
-				pr_info("Limited range RGB-YUV");
+				pr_csc("Limited range RGB-YUV");
 			}
 		}
 
@@ -3592,7 +3592,7 @@ static void bypass_hdr_process(
 				bypass_coeff,
 				CSC_OFF);	/* limit->limit range */
 		else {
-			pr_info("Setting VD1 for BT709");
+			pr_csc("Setting VD1 for BT709");
 			switch (range_control) {
 				case 1:
 					/* input is full-range, output is limited */
@@ -3930,6 +3930,7 @@ static void vpp_matrix_update(struct vframe_s *vf, struct vinfo_s *vinfo)
 					| (signal_color_primaries << 16)
 					/* bt2020-10 */
 					| (signal_transfer_characteristic << 8);
+			pr_csc("amcsc: Sending HDR stream");
 		} else {
 			/* sdr source send normal info
 			 * use the features to discribe source info */
@@ -3942,6 +3943,7 @@ static void vpp_matrix_update(struct vframe_s *vf, struct vinfo_s *vinfo)
 					| (1 << 16)	/* bt709 */
 					| (1 << 8)	/* bt709 */
 					| (1 << 0);	/* bt709 */
+			pr_csc("amcsc: Sending SDR stream");
 		}
 		amvecm_cp_hdr_info(&send_info, p);
 		if (vinfo->fresh_tx_hdr_pkt)

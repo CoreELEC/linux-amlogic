@@ -1360,6 +1360,8 @@ static int hdmitx_edid_block_parse(struct hdmitx_dev *hdmitx_device,
 	unsigned char count;
 	unsigned char tag;
 	int i, tmp, idx;
+	bool has_hdr_static = false;
+	char dummy_hdr_static[] = {0xe3,0x06,0x0f,0x01};
 	unsigned char *vfpdb_offset = NULL;
 	struct rx_cap *pRXCap = &(hdmitx_device->RXCap);
 
@@ -1494,6 +1496,7 @@ case_next:
 				case EXTENSION_DRM_TAG:
 					Edid_ParsingDRMBlock(pRXCap,
 						&BlockBuf[offset]);
+					has_hdr_static = true;
 					break;
 				case EXTENSION_VFPDB_TAG:
 /* Just record VFPDB offset address, call Edid_ParsingVFPDB() after DTD
@@ -1532,6 +1535,11 @@ case_next:
 		default:
 			break;
 		}
+	}
+	if (!has_hdr_static && get_force_hdr()){
+		Edid_ParsingDRMBlock(pRXCap,
+						dummy_hdr_static);
+		pr_info("Forcing HDR caps");
 	}
 
 	Edid_Y420CMDB_PostProcess(hdmitx_device);
@@ -2514,21 +2522,21 @@ int hdmitx_edid_dump(struct hdmitx_dev *hdmitx_device, char *buffer,
 	}
 	pos += snprintf(buffer+pos, buffer_len-pos,
 		"Speaker Allocation: 0x%02x\n", pRXCap->RxSpeakerAllocation);
-	pos += snprintf(buffer+pos, buffer_len-pos, "Vendor: 0x%x\n",
+	pos += snprintf(buffer+pos, buffer_len-pos, "Vendor: 0x%06x\n",
 		pRXCap->IEEEOUI);
 
 	pos += snprintf(buffer+pos, buffer_len-pos,
 		"MaxTMDSClock1 %d MHz%s\n", pRXCap->Max_TMDS_Clock1 * 5, pRXCap->Max_TMDS_Clock1 == 1 ? " or less" : "");
 
 	if (pRXCap->HF_IEEEOUI) {
-		pos += snprintf(buffer+pos, buffer_len-pos, "Vendor2: 0x%x\n",
+		pos += snprintf(buffer+pos, buffer_len-pos, "Vendor2: 0x%06x\n",
 			pRXCap->HF_IEEEOUI);
 		pos += snprintf(buffer+pos, buffer_len-pos,
 			"MaxTMDSClock2 %d MHz\n", pRXCap->Max_TMDS_Clock2 * 5);
 	}
 	if (pRXCap->colorimetry_data)
 		pos += snprintf(buffer+pos, buffer_len-pos,
-			"ColorMetry: 0x%x\n", pRXCap->colorimetry_data);
+			"Colorimetry: 0x%x\n", pRXCap->colorimetry_data);
 	pos += snprintf(buffer+pos, buffer_len-pos, "SCDC: %x\n",
 		pRXCap->scdc_present);
 	pos += snprintf(buffer+pos, buffer_len-pos, "RR_Cap: %x\n",
