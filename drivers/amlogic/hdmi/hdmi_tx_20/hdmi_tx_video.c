@@ -656,13 +656,7 @@ int hdmitx_set_display(struct hdmitx_dev *hdev, enum hdmi_vic VideoCode)
 				param->color = COLORSPACE_RGB444;
 			}
 			switch (VideoCode) {
-			/* Try to use YUV422 for UHD and 4k 10bit instead of YUV444*/
-			case HDMI_3840x2160p24_16x9:
-			case HDMI_3840x2160p25_16x9:
-			case HDMI_3840x2160p30_16x9:
-			case HDMI_4096x2160p24_256x135:
-			case HDMI_4096x2160p25_256x135:
-			case HDMI_4096x2160p30_256x135:
+			/* Try to stop 50hz/60hz 10bit YUV444 from happening */
 			case HDMI_3840x2160p50_16x9:
 			case HDMI_3840x2160p60_16x9:
 			case HDMI_4096x2160p50_256x135:
