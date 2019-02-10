@@ -596,10 +596,10 @@ static int set_disp_mode_auto(void)
 				}
 			}
 		}
-		hdev->HWOp.CntlConfig(hdev, CONF_CLR_AVI_PACKET, 0);
-		hdev->HWOp.CntlConfig(hdev, CONF_CLR_VSDB_PACKET, 0);
-		hdev->HWOp.CntlMisc(hdev, MISC_TMDS_PHY_OP, TMDS_PHY_DISABLE);
-		hdev->HWOp.CntlConfig(hdev, CONF_VIDEO_BLANK_OP, VIDEO_UNBLANK);
+		//hdev->HWOp.CntlConfig(hdev, CONF_CLR_AVI_PACKET, 0);
+		//hdev->HWOp.CntlConfig(hdev, CONF_CLR_VSDB_PACKET, 0);
+		//hdev->HWOp.CntlMisc(hdev, MISC_TMDS_PHY_OP, TMDS_PHY_DISABLE);
+		//hdev->HWOp.CntlConfig(hdev, CONF_VIDEO_BLANK_OP, VIDEO_UNBLANK);
 	}
 
 	para = hdmi_get_fmt_name(mode, fmt_attr);
