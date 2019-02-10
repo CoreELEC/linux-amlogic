@@ -655,18 +655,8 @@ int hdmitx_set_display(struct hdmitx_dev *hdev, enum hdmi_vic VideoCode)
 			default:
 				param->color = COLORSPACE_RGB444;
 			}
-			switch (VideoCode) {
-			/* Try to stop 50hz/60hz 10bit YUV444 from happening */
-			case HDMI_3840x2160p50_16x9:
-			case HDMI_3840x2160p60_16x9:
-			case HDMI_4096x2160p50_256x135:
-			case HDMI_4096x2160p60_256x135:
-				if (param->color_depth > COLORDEPTH_24B){
-					param->color = COLORSPACE_YUV422;
-					pr_info("Setting colourspace to YCC422 for %d-bit\n", ((int) param->color_depth) * 2);
-				}
-				break;
 			/* For Y420 modes */
+			switch (VideoCode) {
 			case HDMI_3840x2160p50_16x9_Y420:
 			case HDMI_3840x2160p60_16x9_Y420:
 			case HDMI_4096x2160p50_256x135_Y420:
