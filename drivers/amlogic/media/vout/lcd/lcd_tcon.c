@@ -28,6 +28,9 @@
 #include <linux/of.h>
 #include <linux/reset.h>
 #include <linux/of_reserved_mem.h>
+#include <linux/cma.h>
+#include <linux/dma-contiguous.h>
+#include <linux/dma-mapping.h>
 #include <linux/amlogic/media/vout/lcd/lcd_vout.h>
 #include <linux/amlogic/media/vout/lcd/lcd_unifykey.h>
 #include "lcd_common.h"
@@ -695,6 +698,8 @@ static struct lcd_tcon_data_s tcon_data_tl1 = {
 
 int lcd_tcon_probe(struct aml_lcd_drv_s *lcd_drv)
 {
+	struct cma *cma;
+	unsigned int mem_size;
 	int key_init_flag = 0;
 	int ret = 0;
 
@@ -722,31 +727,40 @@ int lcd_tcon_probe(struct aml_lcd_drv_s *lcd_drv)
 	if (ret) {
 		LCDERR("tcon: init reserved memory failed\n");
 	} else {
-#ifdef CONFIG_CMA
-		tcon_rmem.mem_vaddr = dma_alloc_coherent(lcd_drv->dev,
-			lcd_tcon_data->axi_mem_size,
-			&tcon_rmem.mem_paddr,
-			GFP_KERNEL);
-		if (tcon_rmem.mem_vaddr == NULL) {
-			LCDERR("tcon axi_mem alloc failed\n");
-			tcon_rmem.mem_paddr = 0;
-		} else {
-			tcon_rmem.mem_size = lcd_tcon_data->axi_mem_size;
-			tcon_rmem.flag = 1;
-			LCDPR("tcon: axi_mem base:0x%lx, size:0x%x\n",
-				(unsigned long)tcon_rmem.mem_paddr,
-				tcon_rmem.mem_size);
-		}
-#else
 		if ((void *)tcon_rmem.mem_paddr == NULL) {
+#ifdef CONFIG_CMA
+			cma = dev_get_cma_area(lcd_drv->dev);
+			if (cma) {
+				tcon_rmem.mem_paddr = cma_get_base(cma);
+				LCDPR("tcon axi_mem base:0x%lx, size:0x%lx\n",
+					(unsigned long)tcon_rmem.mem_paddr,
+					cma_get_size(cma));
+
+				mem_size = lcd_tcon_data->axi_mem_size;
+				tcon_rmem.mem_vaddr = dma_alloc_from_contiguous(
+					lcd_drv->dev,
+					(mem_size >> PAGE_SHIFT),
+					0);
+				if (tcon_rmem.mem_vaddr == NULL) {
+					LCDERR("tcon axi_mem alloc failed\n");
+				} else {
+					LCDPR("tcon axi_mem dma_alloc=0x%x\n",
+						mem_size);
+					tcon_rmem.mem_size = mem_size;
+					tcon_rmem.flag = 2; /* cma memory */
+				}
+			} else {
+				LCDERR("tcon: NO CMA\n");
+			}
+#else
 			LCDERR("tcon axi_mem alloc failed\n");
-		} else {
-			tcon_rmem.flag = 1;
-			LCDPR("tcon: axi_mem base:0x%lx, size:0x%x\n",
-				(unsigned long)tcon_rmem.mem_paddr,
-				tcon_rmem.mem_size);
-		}
 #endif
+		} else {
+			tcon_rmem.flag = 1; /* reserved memory */
+			mem_size = tcon_rmem.mem_size;
+			LCDPR("tcon axi_mem base:0x%lx, size:0x%x\n",
+				(unsigned long)tcon_rmem.mem_paddr, mem_size);
+		}
 	}
 
 	INIT_DELAYED_WORK(&lcd_tcon_delayed_work, lcd_tcon_config_delayed);
@@ -770,16 +784,14 @@ int lcd_tcon_probe(struct aml_lcd_drv_s *lcd_drv)
 
 int lcd_tcon_remove(struct aml_lcd_drv_s *lcd_drv)
 {
-	if (tcon_rmem.flag) {
+	if (tcon_rmem.flag == 2) {
 		LCDPR("tcon free memory: base:0x%lx, size:0x%x\n",
 			(unsigned long)tcon_rmem.mem_paddr,
 			tcon_rmem.mem_size);
 #ifdef CONFIG_CMA
-		dma_free_coherent(lcd_drv->dev, tcon_rmem.mem_size,
+		dma_release_from_contiguous(lcd_drv->dev,
 			tcon_rmem.mem_vaddr,
-			(dma_addr_t)&tcon_rmem.mem_paddr);
-#else
-		/* to do */
+			tcon_rmem.mem_size >> PAGE_SHIFT);
 #endif
 	}
 
