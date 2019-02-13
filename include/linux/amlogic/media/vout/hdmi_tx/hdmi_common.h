@@ -162,6 +162,7 @@ enum hdmi_vic {
 	HDMI_800x480p60_5x3,
 	HDMI_480x320p60_4x3,
 	HDMI_480x800p60_4x3,
+	HDMI_CUSTOMBUILT,
 
 	/*
 	 * the following vic is for those y420 mode

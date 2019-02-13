@@ -1312,6 +1312,8 @@ static void hdmi_tvenc_set(struct hdmitx_vidpara *param)
 	unsigned long vs_bline_evn = 0, vs_eline_evn = 0;
 	unsigned long vso_begin_evn = 0;
 
+	struct hdmi_cea_timing *custom_timing;
+
 	switch (param->VIC) {
 	case HDMI_3840x1080p120hz:
 		INTERLACE_MODE = 0U;
@@ -1506,7 +1508,7 @@ static void hdmi_tvenc_set(struct hdmitx_vidpara *param)
 		FRONT_PORCH = 48;
 		HSYNC_PIXELS = 32;
 		BACK_PORCH = 80;
-		EOF_LINES = 2;
+		EOF_LINES = 3;
 		VSYNC_LINES = 6;
 		SOF_LINES = 38;
 		TOTAL_FRAMES = 4;
@@ -1778,6 +1780,23 @@ static void hdmi_tvenc_set(struct hdmitx_vidpara *param)
 		EOF_LINES = 13;
 		VSYNC_LINES = 3;
 		SOF_LINES = 29;
+		TOTAL_FRAMES = 4;
+		break;
+	case HDMI_CUSTOMBUILT:
+		custom_timing = get_custom_timing();
+		INTERLACE_MODE = 0U;
+		PIXEL_REPEAT_VENC = 0;
+		PIXEL_REPEAT_HDMI = 0;
+		ACTIVE_PIXELS = custom_timing->h_active;
+		ACTIVE_LINES = custom_timing->v_active;
+		LINES_F0 = custom_timing->v_total;
+		LINES_F1  = custom_timing->v_total;
+		FRONT_PORCH = custom_timing->h_front;
+		HSYNC_PIXELS = custom_timing->h_sync;
+		BACK_PORCH = custom_timing->h_back;
+		EOF_LINES = custom_timing->v_front;
+		VSYNC_LINES = custom_timing->v_sync;
+		SOF_LINES = custom_timing->v_back;
 		TOTAL_FRAMES = 4;
 		break;
 	default:
@@ -2096,6 +2115,14 @@ do { \
 	case HDMI_3840x2160p60_16x9_Y420:
 	case HDMI_4096x2160p50_256x135_Y420:
 	case HDMI_4096x2160p60_256x135_Y420:
+		if (hdev->para->cd == COLORDEPTH_24B)
+			set_phy_by_mode(2);
+		else
+			set_phy_by_mode(1);
+		break;
+	/* consider HPLL over 2Gbps */
+	case HDMI_2560x1600p60_8x5:
+	case HDMI_2560x1440p60_16x9:
 		if (hdev->para->cd == COLORDEPTH_24B)
 			set_phy_by_mode(2);
 		else

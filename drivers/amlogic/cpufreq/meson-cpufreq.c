@@ -77,7 +77,7 @@ struct meson_cpufreq_driver_data {
 
 static unsigned long max_freq[2] = {
 		1896000, /* defalut freq for A53 is 1.896GHz */
-		1704000  /* defalut freq for A73 is 1.704GHz */
+		1800000  /* defalut freq for A73 is 1.800GHz */
 };
 #endif
 
@@ -525,14 +525,19 @@ static int __init get_max_freq_a53(char *str)
 
 	if (str == NULL) {
 		/* default freq value for A53 core is 1.896GHz */
-		max_freq[0] = 1896000;
+		pr_info("[%s] no data\n", __func__);
 		return -EINVAL;
 	}
 	ret = kstrtoul(str, 0, &max_freq[0]);
+	if (ret != 0) {
+		pr_info("[%s] invalid data - err %d, str %s\n",
+			__func__, ret, str);
+		return -EINVAL;
+	}
 
 	/* in unit kHz */
 	max_freq[0] *= 1000;
-	pr_info("dvfs [%s] - max_freq : %ld\n", __func__, max_freq[0]);
+	pr_info("[%s] - max_freq : %ld\n", __func__, max_freq[0]);
 
 	return 0;
 }
@@ -543,15 +548,20 @@ static int __init get_max_freq_a73(char *str)
 	int ret;
 
 	if (str == NULL) {
-		/* default freq value for A73 core is 1.704GHz */
-		max_freq[1] = 1704000;
+		/* default freq value for A73 core is 1.800GHz */
+		pr_info("[%s] no data\n", __func__);
 		return -EINVAL;
 	}
 	ret = kstrtoul(str, 0, &max_freq[1]);
+	if (ret != 0) {
+		pr_info("[%s] invalid data - err %d, str %s\n",
+			__func__, ret, str);
+		return -EINVAL;
+	}
 
 	/* in unit kHz */
 	max_freq[1] *= 1000;
-	pr_info("dvfs [%s] - max_freq : %ld\n", __func__, max_freq[1]);
+	pr_info("[%s] - max_freq : %ld\n", __func__, max_freq[1]);
 
 	return 0;
 }

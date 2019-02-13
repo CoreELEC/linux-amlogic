@@ -482,12 +482,20 @@ ssize_t efuse_user_attr_show(char *name, char *buf)
 		pr_err("ERROR: read %zd byte(s) not %d byte(s) data\n",
 			ret, info.size);
 
-	for (i = 0; i < info.size; i++) {
-		if (i%16 == 0)
-			len += sprintf(buf + len, "\n");
-		if (i%16 == 0)
-			len += sprintf(buf + len, "0x%02x: ", i);
-		len += sprintf(buf + len, "%02x ", local_buf[i]);
+	if (strcmp(name, "uuid")) {
+		for (i = 0; i < info.size; i++) {
+			if (i%16 == 0)
+				len += sprintf(buf + len, "\n");
+			if (i%16 == 0)
+				len += sprintf(buf + len, "0x%02x: ", i);
+			len += sprintf(buf + len, "%02x ", local_buf[i]);
+		}
+	} else {
+		for (i = 0; i < info.size; i++) {
+			if ((i == 8) || (i == 12) || (i == 16) || (i == 20))
+				len += sprintf(buf + len, "-");
+			len += sprintf(buf + len, "%c", local_buf[i]);
+		}
 	}
 	len += sprintf(buf + len, "\n");
 	ret = len;
