@@ -62,7 +62,7 @@
 #define TL1_GP0_PLL_CNTL4 0x33771290
 #define TL1_GP0_PLL_CNTL5 0x39272000
 
-#define TL1_HIFI_PLL_CNTL1 0x00000000
+#define TL1_HIFI_PLL_CNTL1 0x00007800
 #define TL1_HIFI_PLL_CNTL2 0x00000000
 #define TL1_HIFI_PLL_CNTL3 0x6a285c00
 #define TL1_HIFI_PLL_CNTL4 0x65771290
@@ -287,15 +287,15 @@ static int meson_tl1_pll_set_rate(struct clk_hw *hw, unsigned long rate,
 	} else if (!strcmp(clk_hw_get_name(hw), "hifi_pll")) {
 		writel((readl(cntlbase) | MESON_PLL_RESET)
 			& (~MESON_PLL_ENABLE), cntlbase);
-		writel(TL1_GP0_PLL_CNTL1,
+		writel(TL1_HIFI_PLL_CNTL1,
 				cntlbase + (unsigned long)(1*4));
-		writel(TL1_GP0_PLL_CNTL2,
+		writel(TL1_HIFI_PLL_CNTL2,
 				cntlbase + (unsigned long)(2*4));
-		writel(TL1_GP0_PLL_CNTL3,
+		writel(TL1_HIFI_PLL_CNTL3,
 				cntlbase + (unsigned long)(3*4));
-		writel(TL1_GP0_PLL_CNTL4,
+		writel(TL1_HIFI_PLL_CNTL4,
 				cntlbase + (unsigned long)(4*4));
-		writel(TL1_GP0_PLL_CNTL5,
+		writel(TL1_HIFI_PLL_CNTL5,
 				cntlbase + (unsigned long)(5*4));
 		writel(TL1_PLL_CNTL6,
 				cntlbase + (unsigned long)(6*4));

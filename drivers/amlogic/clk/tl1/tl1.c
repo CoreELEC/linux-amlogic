@@ -143,8 +143,8 @@ static struct meson_clk_pll tl1_hifi_pll = {
 		.shift   = 16,
 		.width   = 2,
 	},
-	.rate_table = tl1_pll_rate_table,
-	.rate_count = ARRAY_SIZE(tl1_pll_rate_table),
+	.rate_table = tl1_hifi_pll_rate_table,
+	.rate_count = ARRAY_SIZE(tl1_hifi_pll_rate_table),
 	.lock = &clk_lock,
 	.hw.init = &(struct clk_init_data){
 		.name = "hifi_pll",

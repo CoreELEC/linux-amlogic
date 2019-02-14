@@ -238,4 +238,7 @@ static const struct fclk_rate_table fclk_pll_rate_table[] = {
 	FCLK_PLL_RATE(1000000000, 1, 0, 0),
 };
 
+static const struct pll_rate_table tl1_hifi_pll_rate_table[] = {
+	PLL_RATE(666000000ULL,	222, 1, 3), /*DCO=5328M*/
+};
 #endif /* __TL1_H */
