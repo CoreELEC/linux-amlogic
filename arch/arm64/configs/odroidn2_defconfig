@@ -4823,7 +4823,16 @@ CONFIG_R8712U=m
 # Speakup console speech
 #
 # CONFIG_SPEAKUP is not set
-# CONFIG_STAGING_MEDIA is not set
+CONFIG_STAGING_MEDIA=y
+# CONFIG_I2C_BCM2048 is not set
+# CONFIG_MEDIA_CEC is not set
+CONFIG_LIRC_STAGING=y
+# CONFIG_LIRC_IMON is not set
+CONFIG_LIRC_ODROID=m
+# CONFIG_LIRC_SASEM is not set
+# CONFIG_LIRC_SERIAL is not set
+# CONFIG_LIRC_SIR is not set
+# CONFIG_LIRC_ZILOG is not set
 
 #
 # Android
