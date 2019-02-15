@@ -21,6 +21,9 @@
 #include <linux/spinlock.h>
 
 #include <media/rc-core.h>
+#if defined(CONFIG_ARCH_MESON64_ODROIDN2)
+#include <linux/amlogic/iomap.h>
+#endif
 
 #define DRIVER_NAME		"meson-ir"
 
@@ -59,7 +62,10 @@
 #define REG1_IRQSEL_RISE	(3 << 2)
 
 #define REG1_RESET		BIT(0)
+#define REG1_POL		BIT(1)
 #define REG1_ENABLE		BIT(15)
+
+#define AO_RTI_PIN_MUX_REG	0x14	/* offset 0x5 */
 
 #define STATUS_IR_DEC_IN	BIT(8)
 
@@ -86,11 +92,19 @@ static void meson_ir_set_mask(struct meson_ir *ir, unsigned int reg,
 static irqreturn_t meson_ir_irq(int irqno, void *dev_id)
 {
 	struct meson_ir *ir = dev_id;
+#if !defined(CONFIG_ARCH_MESON64_ODROIDN2)
 	u32 duration;
 	DEFINE_IR_RAW_EVENT(rawir);
+#endif
 
 	spin_lock(&ir->lock);
 
+#if defined(CONFIG_ARCH_MESON64_ODROIDN2)
+	ir_raw_event_store_edge(ir->rc,
+		(readl(ir->reg + IR_DEC_STATUS) & STATUS_IR_DEC_IN)
+		? IR_PULSE : IR_SPACE);
+	ir_raw_event_handle(ir->rc);
+#else
 	duration = readl(ir->reg + IR_DEC_REG1);
 	duration = (duration & REG1_TIME_IV_MASK) >> REG1_TIME_IV_SHIFT;
 	rawir.duration = US_TO_NS(duration * MESON_TRATE);
@@ -99,6 +113,7 @@ static irqreturn_t meson_ir_irq(int irqno, void *dev_id)
 
 	ir_raw_event_store_with_filter(ir->rc, &rawir);
 	ir_raw_event_handle(ir->rc);
+#endif
 
 	spin_unlock(&ir->lock);
 
@@ -113,6 +128,10 @@ static int meson_ir_probe(struct platform_device *pdev)
 	const char *map_name;
 	struct meson_ir *ir;
 	int ret;
+#if defined(CONFIG_ARCH_MESON64_ODROIDN2)
+	unsigned int reg_val;
+	bool pulse_inverted = false;
+#endif
 
 	ir = devm_kzalloc(dev, sizeof(struct meson_ir), GFP_KERNEL);
 	if (!ir)
@@ -149,6 +168,9 @@ static int meson_ir_probe(struct platform_device *pdev)
 	ir->rc->rx_resolution = US_TO_NS(MESON_TRATE);
 	ir->rc->timeout = MS_TO_NS(200);
 	ir->rc->driver_name = DRIVER_NAME;
+#if defined(CONFIG_ARCH_MESON64_ODROIDN2)
+	pulse_inverted = of_property_read_bool(node, "pulse-inverted");
+#endif
 
 	spin_lock_init(&ir->lock);
 	platform_set_drvdata(pdev, ir);
@@ -164,6 +186,16 @@ static int meson_ir_probe(struct platform_device *pdev)
 		dev_err(dev, "failed to request irq\n");
 		goto out_unreg;
 	}
+
+#if defined(CONFIG_ARCH_MESON64_ODROIDN2)
+	/* Set remote_input alternative function - GPIOAO.BIT5 */
+	reg_val = aml_read_aobus(AO_RTI_PIN_MUX_REG);
+	reg_val |= (0x1 << 20); /* [23:20], func1 IR_REMOTE_IN */
+	aml_write_aobus(AO_RTI_PIN_MUX_REG, reg_val);
+
+	reg_val = aml_read_aobus(AO_RTI_PIN_MUX_REG);
+	dev_info(dev, "AO_RTI_PIN_MUX : 0x%x\n", reg_val);
+#endif
 
 	/* Reset the decoder */
 	meson_ir_set_mask(ir, IR_DEC_REG1, REG1_RESET, REG1_RESET);
@@ -182,6 +214,11 @@ static int meson_ir_probe(struct platform_device *pdev)
 	/* IRQ on rising and falling edges */
 	meson_ir_set_mask(ir, IR_DEC_REG1, REG1_IRQSEL_MASK,
 			  REG1_IRQSEL_RISE_FALL);
+#if defined(CONFIG_ARCH_MESON64_ODROIDN2)
+	/* Set polarity Invert input polarity */
+	meson_ir_set_mask(ir, IR_DEC_REG1, REG1_POL,
+			pulse_inverted ? REG1_POL : 0);
+#endif
 	/* Enable the decoder */
 	meson_ir_set_mask(ir, IR_DEC_REG1, REG1_ENABLE, REG1_ENABLE);
 
