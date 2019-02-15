@@ -2425,13 +2425,15 @@ static int osd_probe(struct platform_device *pdev)
 
 	/* get meson-fb resource from dt */
 	prop = of_get_property(pdev->dev.of_node, "scale_mode", NULL);
-	if (prop)
+	if (prop) {
 		prop_idx = of_read_ulong(prop, 1);
-	osd_set_free_scale_mode_hw(DEV_OSD0, prop_idx);
+		osd_set_free_scale_mode_hw(DEV_OSD0, prop_idx);
+	}
 	prop = of_get_property(pdev->dev.of_node, "4k2k_fb", NULL);
-	if (prop)
+	if (prop) {
 		prop_idx = of_read_ulong(prop, 1);
-	osd_set_4k2k_fb_mode_hw(prop_idx);
+		osd_set_4k2k_fb_mode_hw(prop_idx);
+	}
 	/* get default display mode from dt */
 	ret = of_property_read_string(pdev->dev.of_node,
 		"display_mode_default", &str);
@@ -2440,9 +2442,10 @@ static int osd_probe(struct platform_device *pdev)
 	else
 		current_mode = vmode_name_to_mode(str);
 	prop = of_get_property(pdev->dev.of_node, "pxp_mode", NULL);
-	if (prop)
+	if (prop) {
 		prop_idx = of_read_ulong(prop, 1);
-	osd_set_pxp_mode(prop_idx);
+		osd_set_pxp_mode(prop_idx);
+	}
 
 	prop = of_get_property(pdev->dev.of_node, "ddr_urgent", NULL);
 	if (prop) {
