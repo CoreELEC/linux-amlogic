@@ -1,4 +1,4 @@
-obj-m	+=	aml_hardware_spi.o aml_hardware_pcmcia.o aml_hardware_ci.o
+obj-y	+=	aml_hardware_spi.o aml_hardware_pcmcia.o aml_hardware_ci.o
 
 ccflags-y += -I$(srctree)/drivers/media/dvb-core -I$(srctree)/drivers/gpio -I$(srctree)/include
 
