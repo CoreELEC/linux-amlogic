@@ -76,6 +76,10 @@
 		dev_name = "openvfd";
 		status = "okay";
 	};
+
+	gpio_keypad {
+		reg = <0x0 0xFF800000 0x0 0x400>;
+	};
 };
 
 &i2c2 {
