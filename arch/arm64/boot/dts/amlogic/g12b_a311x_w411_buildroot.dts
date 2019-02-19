@@ -842,6 +842,7 @@
 
 &adapter {
 	status = "okay";
+	mem_alloc = <24>;
 	memory-region = <&adapt_cma_reserved>;
 };
 
