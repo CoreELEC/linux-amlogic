@@ -21,7 +21,7 @@
 #define CEC_DRIVER_VERSION     "2019/12/09:sm1 bus check reg define err\n"
 
 #define CEC_FRAME_DELAY		msecs_to_jiffies(400)
-#define CEC_DEV_NAME		"cec"
+#define CEC_DEV_NAME		"aocec"
 
 #define CEC_PHY_PORT_NUM		4
 #define HR_DELAY(n)		(ktime_set(0, n * 1000 * 1000))
