@@ -11,7 +11,7 @@
 
 #define CEC_DRIVER_VERSION     "2022/08/21: bringup for s5"
 
-#define CEC_DEV_NAME		"cec"
+#define CEC_DEV_NAME		"aocec"
 
 #define CEC_FRAME_DELAY		msecs_to_jiffies(30)
 /* delay for framework to receive & handle uevent */
