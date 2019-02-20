@@ -1239,8 +1239,9 @@ enum phy_frq_band {
 	phy_frq_band_0 = 0,	/*45Mhz*/
 	phy_frq_band_1,		/*77Mhz*/
 	phy_frq_band_2,		/*155Mhz*/
-	phy_frq_band_3,		/*300Mhz*/
-	phy_frq_band_4,		/*600Mhz*/
+	phy_frq_band_3,		/*340Mhz*/
+	phy_frq_band_4,		/*525Mhz*/
+	phy_frq_band_5,		/*600Mhz*/
 	phy_frq_null = 0xf,
 };
 

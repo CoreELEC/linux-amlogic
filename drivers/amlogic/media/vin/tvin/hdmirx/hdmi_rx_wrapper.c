@@ -697,7 +697,6 @@ static const struct freq_ref_s freq_ref[] = {
 
 	/* for AG-506 */
 	{0, 0,	0,	720,	483,	HDMI_480p60},
-	{0, 0,	0,	0,		0,		HDMI_UNKNOWN}
 };
 
 static bool fmt_vic_abnormal(void)
@@ -706,11 +705,12 @@ static bool fmt_vic_abnormal(void)
 	 * timing match, but TX send normal VIC, then
 	 * abnormal format is detected.
 	 */
-	if (((rx.pre.sw_vic == HDMI_UNKNOWN) ||
-		(rx.pre.sw_vic == HDMI_UNSUPPORT)) &&
-		(rx.pre.hw_vic != HDMI_UNKNOWN))
+	if ((rx.pre.sw_vic == HDMI_UNKNOWN) ||
+		(rx.pre.sw_vic == HDMI_UNSUPPORT)) {
+		if (log_level & VIDEO_LOG)
+			rx_pr("fmt_vic_abnormal\n");
 		return true;
-	else
+	} else
 		return false;
 }
 
@@ -2564,6 +2564,7 @@ static void dump_video_status(void)
 	rx_pr("frame_rate %d\n", rx.cur.frame_rate);
 	rx_pr("fmt=0x%x,", hdmirx_hw_get_fmt());
 	rx_pr("hw_vic %d,", rx.cur.hw_vic);
+	rx_pr("sw_vic %d,", rx.pre.sw_vic);
 	rx_pr("rx.no_signal=%d,rx.state=%d,",
 			rx.no_signal, rx.state);
 	rx_pr("skip frame=%d\n", rx.skip);
