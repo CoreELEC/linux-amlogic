@@ -1103,10 +1103,6 @@ static void vout_init_mode_parse(char *str)
 		return;
 	}
 
-#if defined(CONFIG_ARCH_MESON64_ODROID_COMMON)
-	/* always do initialization */
-	uboot_display = 0;
-#else
 	/* detect uboot display */
 	if (strncmp(str, "en", 2) == 0) { /* enable */
 		uboot_display = 1;
@@ -1118,7 +1114,7 @@ static void vout_init_mode_parse(char *str)
 		VOUTPR("%s: %d\n", str, uboot_display);
 		return;
 	}
-#endif
+
 	/*
 	 * just save the vmode_name,
 	 * convert to vmode when vout sever registered
