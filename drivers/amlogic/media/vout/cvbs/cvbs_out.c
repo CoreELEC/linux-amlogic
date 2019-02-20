@@ -1596,17 +1596,17 @@ static int __init cvbs_performance_setup(char *line)
 __setup("cvbsdrv=", cvbs_performance_setup);
 
 #if defined(CONFIG_ARCH_MESON64_ODROID_COMMON)
-static unsigned long cvbs_cable = 0;
+static int cvbs_cable = 0;
 
 int cvbs_cable_connected(void)
 {
-	return (int)cvbs_cable;
+	return cvbs_cable;
 }
 EXPORT_SYMBOL(cvbs_cable_connected);
 
 static int __init get_cvbs_cable(char *str)
 {
-	(void)kstrtoul(str, 10, (unsigned long *)&cvbs_cable);
+	cvbs_cable = (str[0] == '0') ? 0 : 1;
 
 	return 0;
 }
