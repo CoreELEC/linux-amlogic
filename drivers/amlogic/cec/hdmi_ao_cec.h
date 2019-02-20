@@ -23,7 +23,7 @@
 #define CEC_FRAME_DELAY		msecs_to_jiffies(30)
 #define CEC_CHK_BUS_CNT		20
 
-#define CEC_DEV_NAME		"cec"
+#define CEC_DEV_NAME		"aocec"
 
 #define CEC_PHY_PORT_NUM		4
 #define HR_DELAY(n)		(ktime_set(0, n * 1000 * 1000))
