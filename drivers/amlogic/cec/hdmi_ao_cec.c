@@ -2562,7 +2562,7 @@ static void cec_task(struct work_struct *work)
 	    cec_dev->cec_suspend == CEC_PW_STANDBY) {
 		/*cec module on*/
 		if (/*(cec_dev && cec_service_suspended()) || */
-		    is_pm_freeze_mode())
+		    is_pm_freeze_mode() && !(cec_dev->hal_flag & (1 << HDMI_OPTION_SYSTEM_CEC_CONTROL)))
 			cec_rx_process();
 
 		/*for check rx buffer for old chip version, cec rx irq process*/
@@ -3484,8 +3484,11 @@ static ssize_t hdmitx_cec_write(struct file *f, const char __user *buf,
 	if (cec_cfg & CEC_FUNC_CFG_CEC_ON) {
 		/*cec module on*/
 		ret = cec_ll_tx(tempbuf, size, SIGNAL_FREE_TIME_NEW_INITIATOR);
-	} else {
-		CEC_ERR("err:cec module disabled\n");
+		if (ret == CEC_FAIL_NACK) {
+			return -1;
+		} else {
+			return size;
+		}
 	}
 	return ret;
 }
@@ -4093,7 +4096,6 @@ static char *aml_cec_class_devnode(struct device *dev, umode_t *mode)
 {
 	if (mode) {
 		*mode = 0666;
-		CEC_INFO("mode is %x\n", *mode);
 	}
 	return NULL;
 }
