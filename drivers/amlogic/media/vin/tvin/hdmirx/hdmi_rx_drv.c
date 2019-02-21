@@ -777,7 +777,7 @@ void hdmirx_get_repetition_info(struct tvin_sig_property_s *prop)
 void hdmirx_get_latency_info(struct tvin_sig_property_s *prop)
 {
 	prop->latency.allm_mode = rx.vs_info_details.allm_mode;
-	prop->latency.it_content = it_content;
+	prop->latency.it_content = rx.cur.it_content;
 	prop->latency.cn_type = rx.cur.cn_type;
 }
 
