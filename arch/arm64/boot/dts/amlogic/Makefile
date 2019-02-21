@@ -7,8 +7,3 @@ dtb-y += g12a_s905d2_u200_drm_buildroot.dtb
 dtb-y += g12b_a311d_w400.dtb
 dtb-y += g12b_a311d_w400_buildroot.dtb
 endif
-dtb-$(CONFIG_ARCH_MESON64_ODROIDC3) += meson64_odroidc3.dtb
-dtb-$(CONFIG_ARCH_MESON64_ODROIDC3) += meson64_odroidc3_android.dtb
-dtb-$(CONFIG_ARCH_MESON64_ODROIDN2) += meson64_odroidn2.dtb
-dtb-$(CONFIG_ARCH_MESON64_ODROIDN2) += meson64_odroidn2_android.dtb
-dtb-$(CONFIG_ARCH_MESON64_ODROIDN2) += meson64_odroidn2_spibios.dtb

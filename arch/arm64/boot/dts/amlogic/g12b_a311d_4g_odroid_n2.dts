@@ -23,6 +23,8 @@
 / {
 	model = "Hardkernel ODROID-N2";
 	compatible = "amlogic, g12b";
+	amlogic-dt-id = "g12b_a311d_4g_odroid_n2";
+	le-dt-id = "g12b_a311d_4g_odroid_n2";
 	interrupt-parent = <&gic>;
 	#address-cells = <2>;
 	#size-cells = <2>;
