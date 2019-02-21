@@ -566,7 +566,6 @@
 		reg-names = "ao_exit","ao";
 	};
 
-	/*DCDC for MP8756GD*/
 	cpu_opp_table0: cpu_opp_table0 {
 		compatible = "operating-points-v2";
 		opp-shared;
