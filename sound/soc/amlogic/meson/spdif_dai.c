@@ -611,7 +611,6 @@ static struct snd_soc_dai_driver aml_spdif_dai[] = {
 			SNDRV_PCM_RATE_176400 |
 			SNDRV_PCM_RATE_192000),
 			.formats = (SNDRV_PCM_FMTBIT_S16_LE |
-			SNDRV_PCM_FMTBIT_S24_LE |
 			SNDRV_PCM_FMTBIT_S32_LE),
 		},
 		.capture = {
