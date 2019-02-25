@@ -19,8 +19,7 @@
 #define __AO_CEC_H__
 
 
-
-#define CEC_DRIVER_VERSION	"2019/5/10:tm2 verify two ip share pinmux"
+#define CEC_DRIVER_VERSION	"2019/6/13:early suspend not report pw status\n"
 
 #define CEC_FRAME_DELAY		msecs_to_jiffies(400)
 #define CEC_DEV_NAME		"cec"
