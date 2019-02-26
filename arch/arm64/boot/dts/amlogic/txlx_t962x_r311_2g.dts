@@ -1362,6 +1362,51 @@
 			&clkc CLKID_DOS_PARSER>;
 		clock-names = "demux", "asyncfifo", "ahbarb0", "uparsertop";
 	};
+	dvb_swdmx {
+		compatible = "amlogic, dvb-swdmx";
+		dev_name = "dvb_swdmx";
+		status = "okay";
+		cbus_base = <0x1800>;
+		asyncfifo0_reg_base = <0x2800>;
+		asyncfifo1_reg_base = <0x9800>;
+		asyncfifo2_reg_base = <0x2400>;
+		reset_base = <0x0400>;
+		parser_sub_ptr_base = <0x3800>;
+
+		ts_in_count = <3>;
+		s2p_count = <2>;
+		asyncfifo_count = <2>;
+
+		asyncfifo_buf_len = <0x80000>;
+
+		path_num = <2>;
+		path0_ts = <2>;/*0~2 for ts, 16 for hiu */
+		path0_dmx = <0>;
+		path0_asyncfifo = <0>;
+		path1_ts = <2>;
+		path1_dmx = <1>;
+		path1_asyncfifo = <1>;
+
+		/*dmxdev_num = <4>;*/
+
+		fe0_mode = "internal";
+		fe0_tuner = <&tuner>;
+		/*"parallel","serial","disable"*/
+		ts2 = "parallel";
+		ts2_control = <0>;
+		ts2_invert = <0>;
+		interrupts = <0 23 1
+					0 5 1
+					0 53 1>;
+		interrupt-names = "demux0_irq",
+						"demux1_irq",
+						"demux2_irq";
+		clocks = <&clkc CLKID_DEMUX
+			&clkc CLKID_ASYNC_FIFO
+			&clkc CLKID_AHB_ARB0
+			&clkc CLKID_DOS_PARSER>;
+		clock-names = "demux", "asyncfifo", "ahbarb0", "uparsertop";
+	};
 	aml_dtv_demod {
 		compatible = "amlogic, ddemod-txlx";
 		dev_name = "aml_dtv_demod";
