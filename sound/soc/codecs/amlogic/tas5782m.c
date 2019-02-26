@@ -51,6 +51,15 @@ static void tas5782m_late_resume(struct early_suspend *h);
 	 SNDRV_PCM_FMTBIT_S24_LE | SNDRV_PCM_FMTBIT_S24_BE | \
 	 SNDRV_PCM_FMTBIT_S32_LE)
 
+#define TAS5782M_REG_00      (0x00)
+#define TAS5782M_REG_7F      (0x7F)
+#define TAS5782M_REG_28      (0x28)
+#define TAS5782M_REG_29      (0x29)
+#define TAS5782M_REG_3D      (0x3D)
+#define TAS5782M_REG_3E      (0x3E)
+
+
+
 enum BITSIZE_MODE {
 	BITSIZE_MODE_16BITS = 0,
 	BITSIZE_MODE_20BITS = 1,
@@ -87,11 +96,143 @@ struct tas5782m_priv {
 
 static int g_sample_bitsize = 32;
 
-static const DECLARE_TLV_DB_SCALE(mvol_tlv, -12700, 50, 1);
-static const DECLARE_TLV_DB_SCALE(chvol_tlv, -10300, 50, 1);
+static int tas5782m_ch1_vol_info(struct snd_kcontrol *kcontrol,
+				struct snd_ctl_elem_info *uinfo)
+{
+	uinfo->type   = SNDRV_CTL_ELEM_TYPE_INTEGER;
+	uinfo->access = SNDRV_CTL_ELEM_ACCESS_TLV_READ
+			| SNDRV_CTL_ELEM_ACCESS_READWRITE;
+	uinfo->count  = 1;
+
+	uinfo->value.integer.min  = 0;
+	uinfo->value.integer.max  = 0xff;
+	uinfo->value.integer.step = 1;
+
+	return 0;
+}
+
+static int tas5782m_ch2_vol_info(struct snd_kcontrol *kcontrol,
+				struct snd_ctl_elem_info *uinfo)
+{
+	uinfo->type   = SNDRV_CTL_ELEM_TYPE_INTEGER;
+	uinfo->access = SNDRV_CTL_ELEM_ACCESS_TLV_READ
+			| SNDRV_CTL_ELEM_ACCESS_READWRITE;
+	uinfo->count  = 1;
+
+	uinfo->value.integer.min  = 0;
+	uinfo->value.integer.max  = 0xff;
+	uinfo->value.integer.step = 1;
+
+	return 0;
+}
+
+
+static int tas5782m_ch1_vol_get(struct snd_kcontrol *kcontrol,
+				struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
+	struct tas5782m_priv *tas5782m = snd_soc_codec_get_drvdata(codec);
+
+	ucontrol->value.integer.value[0] = tas5782m->Ch1_vol;
+
+	return 0;
+}
+
+static int tas5782m_ch2_vol_get(struct snd_kcontrol *kcontrol,
+				struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
+	struct tas5782m_priv *tas5782m = snd_soc_codec_get_drvdata(codec);
+
+	ucontrol->value.integer.value[0] = tas5782m->Ch2_vol;
+
+	return 0;
+}
+
+
+static void tas5782m_set_volume(struct snd_soc_codec *codec,
+				int value, int ch_num)
+{
+	unsigned char buf[2];
+	int write_count = 0;
+	struct tas5782m_priv *tas5782m = snd_soc_codec_get_drvdata(codec);
+
+	if (value < 0)
+		value = 0;
+	if (value > 255)
+		value = 255;
+
+	buf[0] = TAS5782M_REG_00, buf[1] = 0x00;
+	write_count = 2;
+	if (write_count != i2c_master_send(tas5782m->i2c, buf, write_count))
+		pr_err("%s %d !!!!! i2c_master_send error !!!!!\n",
+				__func__, __LINE__);
+
+	buf[0] = TAS5782M_REG_7F, buf[1] = 0x00;
+	write_count = 2;
+	if (write_count != i2c_master_send(tas5782m->i2c, buf, write_count))
+		pr_err("%s %d !!!!! i2c_master_send error !!!!!\n",
+				__func__, __LINE__);
+
+	buf[0] = TAS5782M_REG_00, buf[1] = 0x00;
+	write_count = 2;
+	if (write_count != i2c_master_send(tas5782m->i2c, buf, write_count))
+		pr_err("%s %d !!!!! i2c_master_send error !!!!!\n",
+				__func__, __LINE__);
+
+	buf[0] = (ch_num == 0) ? TAS5782M_REG_3D : TAS5782M_REG_3E;
+	buf[1] = value;
+	write_count = 2;
+	if (write_count != i2c_master_send(tas5782m->i2c, buf, write_count))
+		pr_err("%s %d !!!!! i2c_master_send error !!!!!\n",
+				__func__, __LINE__);
+
+}
+
+static int tas5782m_ch1_vol_put(struct snd_kcontrol *kcontrol,
+				struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
+	struct tas5782m_priv *tas5782m = snd_soc_codec_get_drvdata(codec);
+	int value;
+
+	value = ucontrol->value.integer.value[0];
+	tas5782m->Ch1_vol = value;
+	tas5782m_set_volume(codec, value, 0);
+
+	return 0;
+}
+
+static int tas5782m_ch2_vol_put(struct snd_kcontrol *kcontrol,
+				struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
+	struct tas5782m_priv *tas5782m = snd_soc_codec_get_drvdata(codec);
+	int value;
+
+	value = ucontrol->value.integer.value[0];
+	tas5782m->Ch2_vol = value;
+	tas5782m_set_volume(codec, value, 1);
+
+	return 0;
+}
+
 
 static const struct snd_kcontrol_new tas5782m_snd_controls[] = {
-
+	{
+		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+		.name  = "Ch1 Volume",
+		.info  = tas5782m_ch1_vol_info,
+		.get   = tas5782m_ch1_vol_get,
+		.put   = tas5782m_ch1_vol_put,
+	},
+	{
+		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+		.name  = "Ch2 Volume",
+		.info  = tas5782m_ch2_vol_info,
+		.get   = tas5782m_ch2_vol_get,
+		.put   = tas5782m_ch2_vol_put,
+	}
 };
 
 static int tas5782m_set_dai_sysclk(struct snd_soc_dai *codec_dai,
@@ -245,17 +386,18 @@ static int tas5782m_init_i2s_tdm_mode(struct snd_soc_codec *codec, int bit_size)
 	enum BITSIZE_MODE bit_value = BITSIZE_MODE_32BITS;
 
 	write_count = 2;
+	buf[0] = TAS5782M_REG_00, buf[1] = 0x00;
 	if (write_count != i2c_master_send(tas5782m->i2c, buf, write_count))
 		pr_err("%s %d !!!!! i2c_master_send error !!!!!\n",
 				__func__, __LINE__);
 
-	buf[0] = 0x7f, buf[1] = 0x00;
+	buf[0] = TAS5782M_REG_7F, buf[1] = 0x00;
 	write_count = 2;
 	if (write_count != i2c_master_send(tas5782m->i2c, buf, write_count))
 		pr_err("%s %d !!!!! i2c_master_send error !!!!!\n",
 				__func__, __LINE__);
 
-	buf[0] = 0x00, buf[1] = 0x00;
+	buf[0] = TAS5782M_REG_00, buf[1] = 0x00;
 	write_count = 2;
 	if (write_count != i2c_master_send(tas5782m->i2c, buf, write_count))
 		pr_err("%s %d !!!!! i2c_master_send error !!!!!\n",
@@ -270,7 +412,7 @@ static int tas5782m_init_i2s_tdm_mode(struct snd_soc_codec *codec, int bit_size)
 	else if (bit_size == 32)
 		bit_value = BITSIZE_MODE_32BITS;
 
-	buf[0] = 0x28, buf[1] = (work_mod << 4) | bit_value;
+	buf[0] = TAS5782M_REG_28, buf[1] = (work_mod << 4) | bit_value;
 	write_count = 2;
 	if (write_count != i2c_master_send(tas5782m->i2c, buf, write_count)) {
 		pr_err("%s %d !!!!! i2c_master_send error !!!!!\n",
@@ -282,21 +424,21 @@ static int tas5782m_init_i2s_tdm_mode(struct snd_soc_codec *codec, int bit_size)
 	}
 
 	if (work_mod == WORK_MODE_TDM) {
-		buf[0] = 0x00, buf[1] = 0x00;
+		buf[0] = TAS5782M_REG_00, buf[1] = 0x00;
 		write_count = 2;
 		if (write_count != i2c_master_send(tas5782m->i2c, buf,
 			write_count))
 			pr_err("%s %d !!!!! i2c_master_send error !!!!!\n",
 					__func__, __LINE__);
 
-		buf[0] = 0x7f, buf[1] = 0x00;
+		buf[0] = TAS5782M_REG_7F, buf[1] = 0x00;
 		write_count = 2;
 		if (write_count != i2c_master_send(tas5782m->i2c, buf,
 			write_count))
 			pr_err("%s %d !!!!! i2c_master_send error !!!!!\n",
 					__func__, __LINE__);
 
-		buf[0] = 0x00, buf[1] = 0x00;
+		buf[0] = TAS5782M_REG_00, buf[1] = 0x00;
 		write_count = 2;
 		if (write_count != i2c_master_send(tas5782m->i2c, buf,
 			write_count))
@@ -305,7 +447,7 @@ static int tas5782m_init_i2s_tdm_mode(struct snd_soc_codec *codec, int bit_size)
 
 		tdm_aofs = bit_size * 2 * (tas5782m->chip_offset - 1);
 
-		buf[0] = 0x29, buf[1] = tdm_aofs;
+		buf[0] = TAS5782M_REG_29, buf[1] = tdm_aofs;
 		write_count = 2;
 		if (write_count != i2c_master_send(tas5782m->i2c, buf,
 			write_count)) {
