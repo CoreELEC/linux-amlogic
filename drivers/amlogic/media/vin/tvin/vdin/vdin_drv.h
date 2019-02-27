@@ -400,5 +400,7 @@ extern bool is_dolby_vision_enable(void);
 extern void vdin_debugfs_init(struct vdin_dev_s *vdevp);
 extern void vdin_debugfs_exit(struct vdin_dev_s *vdevp);
 
+extern bool vlock_get_phlock_flag(void);
+
 #endif /* __TVIN_VDIN_DRV_H */
 

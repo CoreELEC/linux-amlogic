@@ -1551,7 +1551,7 @@ void vlock_status_init(void)
 	vlock.vf_sts = false;
 	vlock.vmd_chg = false;
 	vlock.md_support = false;
-	vlock.phlock_percent = 40;
+	/* vlock.phlock_percent = phlock_percent; */
 	vlock_clear_frame_counter();
 
 
@@ -2289,6 +2289,20 @@ int vlock_notify_callback(struct notifier_block *block, unsigned long cmd,
 	}
 	return 0;
 }
+
+static int __init phlock_phase_config(char *str)
+{
+	unsigned char *ptr = str;
+
+	pr_info("%s: bootargs is %s.\n", __func__, str);
+	if (strstr(ptr, "1"))
+		vlock.phlock_percent = 99;
+	else
+		vlock.phlock_percent = 40;
+
+	return 0;
+}
+__setup("video_reverse=", phlock_phase_config);
 
 /*video lock end*/
 

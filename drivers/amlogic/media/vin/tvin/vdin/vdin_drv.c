@@ -90,8 +90,10 @@ static unsigned int pr_times;
 static int canvas_config_mode = 2;
 static bool work_mode_simple;
 static int max_ignore_frames = 2;
+static int phase_lock_flag;
 /*game_mode_switch_frames:min num is 5 by 1080p60hz input test*/
 static int game_mode_switch_frames = 10;
+static int game_mode_phlock_switch_frames = 60;
 static int ignore_frames;
 static unsigned int dv_work_delby;
 /* viu isr select:
@@ -121,6 +123,10 @@ MODULE_PARM_DESC(viu_hw_irq, "viu_hw_irq");
 
 module_param(game_mode_switch_frames, int, 0664);
 MODULE_PARM_DESC(game_mode_switch_frames, "game mode switch <n> frames");
+
+module_param(game_mode_phlock_switch_frames, int, 0664);
+MODULE_PARM_DESC(game_mode_phlock_switch_frames,
+		"game mode switch <n> frames for phase_lock");
 #endif
 
 static bool vdin_dbg_en;
@@ -277,8 +283,14 @@ static void vdin_game_mode_check(struct vdin_dev_s *devp)
 		(devp->parm.port != TVIN_PORT_CVBS3)) {
 		if (devp->h_active > 720 && ((devp->parm.info.fps == 50) ||
 			(devp->parm.info.fps == 60)))
-			devp->game_mode = (VDIN_GAME_MODE_0 | VDIN_GAME_MODE_1 |
-				VDIN_GAME_MODE_SWITCH_EN);
+			if (is_meson_tl1_cpu()) {
+				devp->game_mode = (VDIN_GAME_MODE_0 |
+					VDIN_GAME_MODE_1 |
+					VDIN_GAME_MODE_SWITCH_EN);
+			} else {
+				devp->game_mode = (VDIN_GAME_MODE_0 |
+					VDIN_GAME_MODE_1);
+			}
 		else
 			devp->game_mode = VDIN_GAME_MODE_0;
 	} else if (game_mode == 2)/*for debug force game mode*/
@@ -292,6 +304,9 @@ static void vdin_game_mode_check(struct vdin_dev_s *devp)
 			VDIN_GAME_MODE_SWITCH_EN);
 	else
 		devp->game_mode = 0;
+
+	pr_info("%s: game_mode flag=%d, game_mode=%d\n",
+		__func__, game_mode, devp->game_mode);
 }
 /*
  *based on the bellow parameters:
@@ -642,6 +657,7 @@ void vdin_start_dec(struct vdin_dev_s *devp)
 	devp->irq_cnt = 0;
 	devp->rdma_irq_cnt = 0;
 	devp->frame_cnt = 0;
+	phase_lock_flag = 0;
 
 	if (time_en)
 		pr_info("vdin.%d start time: %ums, run time:%ums.\n",
@@ -1662,11 +1678,45 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 			vdin_vf_disp_mode_update(curr_wr_vfe, devp->vfp);
 	}
 	/*switch to game mode 2 from game mode 1,otherwise may appear blink*/
-	if ((devp->frame_cnt >= game_mode_switch_frames) &&
-		(devp->game_mode & VDIN_GAME_MODE_SWITCH_EN)) {
-		if (vdin_dbg_en)
-			pr_info("switch game mode (%d-->5)\n", devp->game_mode);
-		devp->game_mode = (VDIN_GAME_MODE_0 | VDIN_GAME_MODE_2);
+	if (is_meson_tl1_cpu()) {
+		if (devp->game_mode & VDIN_GAME_MODE_SWITCH_EN) {
+			/* make sure phase lock for next few frames */
+			if (vlock_get_phlock_flag())
+				phase_lock_flag++;
+			if (phase_lock_flag >= game_mode_phlock_switch_frames) {
+				if (vdin_dbg_en) {
+					pr_info(
+				"switch game mode (%d-->5), frame_cnt=%d\n",
+						devp->game_mode,
+						devp->frame_cnt);
+				}
+				devp->game_mode = (VDIN_GAME_MODE_0 |
+					VDIN_GAME_MODE_2);
+			}
+		}
+#if 0
+		if (phase_lock_flag >= game_mode_phlock_switch_frames) {
+			if (!vlock_get_phlock_flag())
+				phase_lock_flag = 0;
+			if (vdin_dbg_en) {
+				pr_info(
+				"switch game mode to %d, frame_cnt=%d\n",
+					devp->game_mode, devp->frame_cnt);
+			}
+			devp->game_mode = (VDIN_GAME_MODE_0 | VDIN_GAME_MODE_1 |
+				VDIN_GAME_MODE_SWITCH_EN);
+		}
+#endif
+	} else {
+		if ((devp->frame_cnt >= game_mode_switch_frames) &&
+			(devp->game_mode & VDIN_GAME_MODE_SWITCH_EN)) {
+			if (vdin_dbg_en) {
+				pr_info(
+				"switch game mode (%d-->5), frame_cnt=%d\n",
+					devp->game_mode, devp->frame_cnt);
+			}
+			devp->game_mode = (VDIN_GAME_MODE_0 | VDIN_GAME_MODE_2);
+		}
 	}
 
 	/* prepare for next input data */
