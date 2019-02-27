@@ -151,7 +151,13 @@ static int rtl8211f_config_init(struct phy_device *phydev)
 	}
 #endif
 	phy_write(phydev, RTL8211F_PAGE_SELECT, 0xd04); /*set page 0xd04*/
+#if defined(CONFIG_ARCH_MESON64_ODROID_COMMON)
+	phy_write(phydev, RTL821x_LCR,
+			(1 << 6) | (1 << 9)		// LED1 - GREEN (100Mbps)
+			| (1 << 13) | (1 << 14));	// LED2 - AMBER (1000Mbps)
+#else
 	phy_write(phydev, RTL821x_LCR, 0XC171); /*led configuration*/
+#endif
 
 	/* restore to default page 0 */
 	phy_write(phydev, RTL8211F_PAGE_SELECT, 0x0);
