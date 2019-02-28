@@ -185,13 +185,11 @@
 			gpios = <&gpio GPIOH_5 GPIO_ACTIVE_HIGH>;
 			asserted-state = <0>;
 			duration-ms = <100>;
-			auto;
 		};
 		usb_hub {
 			gpios = <&gpio GPIOH_4 GPIO_ACTIVE_HIGH>;
 			asserted-state = <0>;
 			duration-ms = <100>;
-			auto;
 		};
 	};
 
