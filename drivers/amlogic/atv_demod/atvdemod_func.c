@@ -311,9 +311,24 @@ void atv_dmd_ring_filter(bool on)
 		atv_dmd_wr_long(APB_BLOCK_ADDR_GDE_EQUAL, 0x30, 0x1d175c);
 		atv_dmd_wr_long(APB_BLOCK_ADDR_GDE_EQUAL, 0x34, 0x2d19e4);
 
+		/* enable filter */
 		atv_dmd_wr_long(APB_BLOCK_ADDR_GDE_EQUAL, 0x4c, 0x1);
-	} else
+	} else {
+		/* default value */
+		atv_dmd_wr_long(APB_BLOCK_ADDR_GDE_EQUAL, 0x10, 0x8423F6);
+		atv_dmd_wr_long(APB_BLOCK_ADDR_GDE_EQUAL, 0x14, 0xFF86A967);
+		atv_dmd_wr_long(APB_BLOCK_ADDR_GDE_EQUAL, 0x18, 0x37FE45);
+		atv_dmd_wr_long(APB_BLOCK_ADDR_GDE_EQUAL, 0x1c, 0xFF86A967);
+		atv_dmd_wr_long(APB_BLOCK_ADDR_GDE_EQUAL, 0x20, 0x3C223B);
+		atv_dmd_wr_long(APB_BLOCK_ADDR_GDE_EQUAL, 0x24, 0x8423F6);
+		atv_dmd_wr_long(APB_BLOCK_ADDR_GDE_EQUAL, 0x28, 0xFF86A967);
+		atv_dmd_wr_long(APB_BLOCK_ADDR_GDE_EQUAL, 0x2c, 0x37FE45);
+		atv_dmd_wr_long(APB_BLOCK_ADDR_GDE_EQUAL, 0x30, 0xFF86A967);
+		atv_dmd_wr_long(APB_BLOCK_ADDR_GDE_EQUAL, 0x34, 0x3C223B);
+
+		/* disable filter */
 		atv_dmd_wr_long(APB_BLOCK_ADDR_GDE_EQUAL, 0x4c, 0x0);
+	}
 
 	pr_dbg("%s do atv_dmd_ring_filter %d ...\n", __func__, on);
 }
