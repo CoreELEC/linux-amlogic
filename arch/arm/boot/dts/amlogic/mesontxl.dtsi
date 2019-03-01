@@ -645,6 +645,14 @@
 				status = "disabled";
 			};
 
+			irblaster: meson-irblaster@c0 {
+				compatible = "amlogic, aml_irblaster";
+				reg = <0xc0 0xc>,
+					<0x40 0x4>;
+				#irblaster-cells = <2>;
+				status = "disabled";
+			};
+
 			remote:rc@0580 {
 				compatible = "amlogic, aml_remote";
 				dev_name = "meson-remote";
@@ -1184,6 +1192,20 @@
 			"GPIOAO_5",
 			"GPIOAO_7";
 			function = "gpio_aobus";
+		};
+	};
+
+	irblaster_pins:irblaster_pin {
+		mux {
+			groups = "remote_out_ao2";
+			function = "ir_out";
+		};
+	};
+
+	irblaster_pins1:irblaster_pin1 {
+		mux {
+			groups = "remote_out_ao6";
+			function = "ir_out";
 		};
 	};
 };
