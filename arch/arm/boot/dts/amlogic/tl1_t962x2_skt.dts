@@ -1010,16 +1010,60 @@
 			};
 		};
 		ddr_thermal: ddr_thermal {
-			polling-delay = <1000>;
-			polling-delay-passive = <250>;
+			polling-delay = <2000>;
+			polling-delay-passive = <1000>;
 			sustainable-power = <1322>;
 			thermal-sensors = <&d_tsensor 1>;
+			trips {
+				dswitch_on: trip-point@0 {
+					temperature = <60000>;
+					hysteresis = <5000>;
+					type = "passive";
+				};
+				dcontrol: trip-point@1 {
+					temperature = <75000>;
+					hysteresis = <5000>;
+					type = "passive";
+				};
+				dhot: trip-point@2 {
+					temperature = <85000>;
+					hysteresis = <5000>;
+					type = "hot";
+				};
+				dcritical: trip-point@3 {
+					temperature = <110000>;
+					hysteresis = <1000>;
+					type = "critical";
+				};
+			};
 		};
 		sar_thermal: sar_thermal {
-			polling-delay = <1000>;
-			polling-delay-passive = <250>;
+			polling-delay = <2000>;
+			polling-delay-passive = <1000>;
 			sustainable-power = <1322>;
 			thermal-sensors = <&s_tsensor 2>;
+			trips {
+				sswitch_on: trip-point@0 {
+					temperature = <60000>;
+					hysteresis = <5000>;
+					type = "passive";
+				};
+				scontrol: trip-point@1 {
+					temperature = <75000>;
+					hysteresis = <5000>;
+					type = "passive";
+				};
+				shot: trip-point@2 {
+					temperature = <85000>;
+					hysteresis = <5000>;
+					type = "hot";
+				};
+				scritical: trip-point@3 {
+					temperature = <110000>;
+					hysteresis = <1000>;
+					type = "critical";
+				};
+			};
 		};
 	};/*thermal zone end*/
 
