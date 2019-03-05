@@ -92,8 +92,8 @@
 	auge_sound {
 		compatible = "amlogic, g12a-sound-card";
 		aml-audio-card,name = "AML-AUGESOUND";
-		/*avout mute gpio*/
-		avout_mute-gpios = <&gpio_ao GPIOAO_2 GPIO_ACTIVE_HIGH>;
+		/*line-out mute gpio*/
+		mute_gpio = <&gpio_ao GPIOAO_2 GPIO_ACTIVE_LOW>;
 		/*for audio effect ,eqdrc */
 		aml-audio-card,effect = <&audio_effect>;
 
@@ -185,13 +185,11 @@
 			gpios = <&gpio GPIOH_5 GPIO_ACTIVE_HIGH>;
 			asserted-state = <0>;
 			duration-ms = <100>;
-			auto;
 		};
 		usb_hub {
 			gpios = <&gpio GPIOH_4 GPIO_ACTIVE_HIGH>;
 			asserted-state = <0>;
 			duration-ms = <100>;
-			auto;
 		};
 	};
 
