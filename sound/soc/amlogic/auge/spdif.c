@@ -72,6 +72,8 @@ struct spdif_chipinfo {
 	bool eq_drc_en;
 	/* pc, pd interrupt is separated. */
 	bool pcpd_separated;
+	/* same source, spdif re-enable */
+	bool same_src_spdif_reen;
 };
 
 struct aml_spdif {
@@ -1469,6 +1471,7 @@ struct spdif_chipinfo tl1_spdif_a_chipinfo = {
 	.chnum_en     = true,
 	.hold_start   = true,
 	.eq_drc_en    = true,
+	.same_src_spdif_reen = true,
 };
 
 struct spdif_chipinfo tl1_spdif_b_chipinfo = {
@@ -1476,6 +1479,7 @@ struct spdif_chipinfo tl1_spdif_b_chipinfo = {
 	.chnum_en     = true,
 	.hold_start   = true,
 	.eq_drc_en    = true,
+	.same_src_spdif_reen = true,
 };
 
 static const struct of_device_id aml_spdif_device_id[] = {
@@ -1513,6 +1517,7 @@ static int aml_spdif_platform_probe(struct platform_device *pdev)
 	struct aml_spdif *aml_spdif = NULL;
 	struct spdif_chipinfo *p_spdif_chipinfo;
 	int ret = 0;
+	bool spdif_reenable = false;
 
 
 	aml_spdif = devm_kzalloc(dev, sizeof(struct aml_spdif), GFP_KERNEL);
@@ -1533,6 +1538,8 @@ static int aml_spdif_platform_probe(struct platform_device *pdev)
 		aml_spdif->clk_cont = 1;
 
 		aml_spdif->chipinfo = p_spdif_chipinfo;
+
+		spdif_reenable = p_spdif_chipinfo->same_src_spdif_reen;
 	} else
 		dev_warn_once(dev,
 			"check whether to update spdif chipinfo\n");
@@ -1555,7 +1562,7 @@ static int aml_spdif_platform_probe(struct platform_device *pdev)
 		return -EINVAL;
 
 	if (aml_spdif->clk_cont)
-		spdifout_play_with_zerodata(aml_spdif->id);
+		spdifout_play_with_zerodata(aml_spdif->id, spdif_reenable);
 
 	ret = devm_snd_soc_register_component(dev, &aml_spdif_component,
 		&aml_spdif_dai[aml_spdif->id], 1);

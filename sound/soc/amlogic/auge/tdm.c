@@ -91,6 +91,9 @@ struct tdm_chipinfo {
 	/* same source */
 	bool same_src_fn;
 
+	/* same source, spdif re-enable */
+	bool same_src_spdif_reen;
+
 	/* ACODEC_ADC function */
 	bool adc_fn;
 };
@@ -518,9 +521,11 @@ static int aml_dai_tdm_trigger(struct snd_pcm_substream *substream, int cmd,
 		&& p_tdm->chipinfo->same_src_fn
 		&& (p_tdm->samesource_sel >= 0)
 		&& (aml_check_sharebuffer_valid(p_tdm->fddr,
-				p_tdm->samesource_sel))) {
-			sharebuffer_trigger(cmd, p_tdm->samesource_sel);
-	}
+				p_tdm->samesource_sel))
+	)
+		sharebuffer_trigger(cmd,
+			p_tdm->samesource_sel,
+			p_tdm->chipinfo->same_src_spdif_reen);
 
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
@@ -1230,6 +1235,7 @@ struct tdm_chipinfo tl1_tdma_chipinfo = {
 	.clk_pad_ctl = true,
 	.same_src_fn = true,
 	.adc_fn      = true,
+	.same_src_spdif_reen = true,
 };
 
 struct tdm_chipinfo tl1_tdmb_chipinfo = {
@@ -1239,6 +1245,7 @@ struct tdm_chipinfo tl1_tdmb_chipinfo = {
 	.clk_pad_ctl = true,
 	.same_src_fn = true,
 	.adc_fn      = true,
+	.same_src_spdif_reen = true,
 };
 
 struct tdm_chipinfo tl1_tdmc_chipinfo = {
@@ -1248,6 +1255,7 @@ struct tdm_chipinfo tl1_tdmc_chipinfo = {
 	.clk_pad_ctl = true,
 	.same_src_fn = true,
 	.adc_fn      = true,
+	.same_src_spdif_reen = true,
 };
 
 static const struct of_device_id aml_tdm_device_id[] = {
