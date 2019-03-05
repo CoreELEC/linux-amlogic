@@ -38,7 +38,8 @@
 /* 20190108: tl1 support tablet mode */
 /* 20190115: tl1 tcon all interface support */
 /* 20190225: optimize unifykey read flow to avoid crash */
-#define LCD_DRV_VERSION    "20190225"
+/* 20190308: add more panel clk_ss_level step for tl1 */
+#define LCD_DRV_VERSION    "20190308"
 
 #define VPP_OUT_SATURATE            (1 << 0)
 
