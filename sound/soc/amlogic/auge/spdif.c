@@ -1199,8 +1199,9 @@ static struct snd_soc_dai_ops aml_dai_spdif_ops = {
 	.set_sysclk = aml_dai_set_spdif_sysclk,
 };
 
-#define AML_DAI_SPDIF_RATES		(SNDRV_PCM_RATE_32000 | SNDRV_PCM_RATE_44100 | SNDRV_PCM_RATE_48000 | SNDRV_PCM_RATE_88200 | SNDRV_PCM_RATE_96000 | SNDRV_PCM_RATE_176400 | SNDRV_PCM_RATE_192000)
-#define AML_DAI_SPDIF_FORMATS		(SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S32_LE)
+#define AML_DAI_SPDIF_RATES		(SNDRV_PCM_RATE_8000_192000)
+#define AML_DAI_SPDIF_FORMATS		(SNDRV_PCM_FMTBIT_S16_LE |\
+		SNDRV_PCM_FMTBIT_S24_LE | SNDRV_PCM_FMTBIT_S32_LE)
 
 static struct snd_soc_dai_driver aml_spdif_dai[] = {
 	{
@@ -1230,7 +1231,7 @@ static struct snd_soc_dai_driver aml_spdif_dai[] = {
 		.remove = aml_dai_spdif_remove,
 		.playback = {
 			  .channels_min = 1,
-			  .channels_max = 2,
+			  .channels_max = 8,
 			  .rates = AML_DAI_SPDIF_RATES,
 			  .formats = AML_DAI_SPDIF_FORMATS,
 		},
