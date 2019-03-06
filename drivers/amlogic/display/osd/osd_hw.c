@@ -2003,7 +2003,8 @@ void osd_pan_display_hw(u32 index, unsigned int xoffset, unsigned int yoffset)
 		osd_hw.pandata[index].y_start += diff_y;
 		osd_hw.pandata[index].y_end   += diff_y;
 		add_to_update_list(index, DISP_GEOMETRY);
-		osd_wait_vsync_hw();
+		if ((get_vpu_mem_pd_vmod(VPU_DI_PRE) == 1) || (get_cpu_type() != MESON_CPU_MAJOR_ID_GXM))
+			osd_wait_vsync_hw();
 	}
 #ifdef CONFIG_AM_FB_EXT
 	osd_ext_clone_pan(index);

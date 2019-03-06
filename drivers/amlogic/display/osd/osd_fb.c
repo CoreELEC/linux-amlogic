@@ -43,6 +43,7 @@
 #include <linux/dma-mapping.h>
 #include <meson_ion.h>
 /* Amlogic Headers */
+#include <linux/amlogic/cpu_version.h>
 #include <linux/amlogic/vout/vout_notify.h>
 #include <linux/amlogic/instaboot/instaboot.h>
 #include <sw_sync.h>
@@ -908,7 +909,10 @@ static int osd_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
 			break;
 		}
 	case FBIO_WAITFORVSYNC:
-		osd_wait_vsync_event();
+		if (get_cpu_type() == MESON_CPU_MAJOR_ID_GXM)
+			osd_wait_vsync_hw();
+		else
+			osd_wait_vsync_event();
 		ret = copy_to_user(argp, &ret, sizeof(u32));
 		break;
 	default:
