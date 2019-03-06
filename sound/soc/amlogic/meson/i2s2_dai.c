@@ -288,8 +288,9 @@ static int aml_dai_i2s2_resume(struct snd_soc_dai *dai)
 	return 0;
 }
 
-#define AML_DAI_i2s2_RATES		(SNDRV_PCM_RATE_32000 | SNDRV_PCM_RATE_44100 | SNDRV_PCM_RATE_48000 | SNDRV_PCM_RATE_88200 | SNDRV_PCM_RATE_96000 | SNDRV_PCM_RATE_176400 | SNDRV_PCM_RATE_192000)
-#define AML_DAI_i2s2_FORMATS	(SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S24_LE)
+#define AML_DAI_i2s2_RATES		(SNDRV_PCM_RATE_8000_192000)
+#define AML_DAI_i2s2_FORMATS	(SNDRV_PCM_FMTBIT_S16_LE\
+		| SNDRV_PCM_FMTBIT_S32_LE | SNDRV_PCM_FMTBIT_S24_LE)
 
 static struct snd_soc_dai_ops aml_dai_i2s2_ops = {
 	.startup = aml_dai_i2s2_startup,
