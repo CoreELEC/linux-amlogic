@@ -404,7 +404,7 @@
 };
 
 &i2c2 {
-	status = "disabled";
+	status = "okay";
 	pinctrl-names = "default","gpio_periphs";
 	/* 40 Pin Header : SDA(GPIOX.17->3 Pin), SCL(GPIOX.18->5 Pin) */
 	pinctrl-0 = <&i2c2_master_pins1>;
@@ -415,7 +415,7 @@
 
 &i2c3 {
 	/* default i2c clock-frequency is 100Khz */
-	status = "disabled";
+	status = "okay";
 
 	/* Hardkernel I2C 3.5" Touchscreen */
 	/* drivers/input/sx8650.c */
