@@ -2106,8 +2106,11 @@ static void vh264_isr(void)
 
 static void vh264_set_clk(struct work_struct *work)
 {
+	/*pr_info
+	("vh264_set_clk: clk_adj_frame_count=%d saved_resolution=%d frame_dur=%d ucode_type=%d \n",
+	 clk_adj_frame_count, saved_resolution, frame_dur, ucode_type);*/
 	if (ucode_type != UCODE_IP_ONLY_PARAM &&
-		(clk_adj_frame_count > VDEC_CLOCK_ADJUST_FRAME) &&
+		(clk_adj_frame_count >= VDEC_CLOCK_ADJUST_FRAME) &&
 		frame_dur > 0 && saved_resolution !=
 		frame_width * frame_height * (96000 / frame_dur)) {
 		int fps = 96000 / frame_dur;
