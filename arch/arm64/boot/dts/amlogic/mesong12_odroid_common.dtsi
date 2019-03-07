@@ -102,10 +102,7 @@
 			mclk-fs = <256>;
 			bitclock-master = <&aml_tdmc>;
 			frame-master = <&aml_tdmc>;
-			/* suffix-name, sync with android audio hal
-			 * what's the dai link used for
-			 */
-			suffix-name = "alsaPORT-i2s";
+			continuous-clock;
 			cpu {
 				sound-dai = <&aml_tdmc>;
 				dai-tdm-slot-tx-mask = <1 1>;
@@ -123,10 +120,6 @@
 		aml-audio-card,dai-link@1 {
 			mclk-fs = <128>;
 			continuous-clock;
-			/* suffix-name, sync with android audio hal
-			 * what's the dai link used for
-			 */
-			suffix-name = "alsaPORT-spdifb2hdmi";
 			cpu {
 				sound-dai = <&aml_spdif_b>;
 				system-clock-frequency = <6144000>;
@@ -139,10 +132,7 @@
 		/* spdif_out GPIOA_11 */
 		aml-audio-card,dai-link@2 {
 			mclk-fs = <128>;
-			/* suffix-name, sync with android audio hal
-			 * what's the dai link used for
-			 */
-			suffix-name = "alsaPORT-spdif";
+			continuous-clock;
 			cpu {
 				sound-dai = <&aml_spdif>;
 				system-clock-frequency = <6144000>;
