@@ -148,6 +148,53 @@ static const struct snd_pcm_hardware aml_tdm_hardware = {
 	.channels_max = 32,
 };
 
+static int tdmin_clk_get(struct snd_kcontrol *kcontrol,
+			struct snd_ctl_elem_value *ucontrol)
+{
+	int clk;
+	int value;
+
+	clk = meson_clk_measure(70);
+	if (clk >= 11000000)
+		value = 3;
+	else if (clk >= 6000000)
+		value = 2;
+	else if (clk >= 2000000)
+		value = 1;
+	else
+		value = 0;
+
+
+	ucontrol->value.integer.value[0] = value;
+
+	return 0;
+}
+
+/* current sample mode and its sample rate */
+static const char *const i2sin_clk[] = {
+	"0",
+	"3000000",
+	"6000000",
+	"12000000"
+};
+
+
+
+static const struct soc_enum i2sin_clk_enum[] = {
+	SOC_ENUM_SINGLE(SND_SOC_NOPM, 0, ARRAY_SIZE(i2sin_clk),
+			i2sin_clk),
+};
+
+
+
+static const struct snd_kcontrol_new snd_tdm_controls[] = {
+	SOC_ENUM_EXT("I2SIn CLK", i2sin_clk_enum,
+				tdmin_clk_get,
+				NULL)
+};
+
+
+
 static irqreturn_t aml_tdm_ddr_isr(int irq, void *devid)
 {
 	struct snd_pcm_substream *substream = (struct snd_pcm_substream *)devid;
@@ -1079,7 +1126,13 @@ static int aml_dai_set_tdm_slot(struct snd_soc_dai *cpu_dai,
 
 static int aml_dai_tdm_probe(struct snd_soc_dai *cpu_dai)
 {
+	int ret = 0;
 	struct aml_tdm *p_tdm = snd_soc_dai_get_drvdata(cpu_dai);
+
+	ret = snd_soc_add_dai_controls(cpu_dai, snd_tdm_controls,
+					ARRAY_SIZE(snd_tdm_controls));
+	if (ret < 0)
+		pr_err("%s, failed add snd spdif controls\n", __func__);
 
 	/* config ddr arb */
 	aml_tdm_arb_config(p_tdm->actrl);
