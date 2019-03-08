@@ -593,6 +593,8 @@ static int aml_spdif_open(struct snd_pcm_substream *substream)
 	return 0;
 }
 
+static void aml_set_spdifclk(struct aml_spdif *p_spdif);
+unsigned int original_sysclk_freq = 6144000;
 
 static int aml_spdif_close(struct snd_pcm_substream *substream)
 {
@@ -603,6 +605,10 @@ static int aml_spdif_close(struct snd_pcm_substream *substream)
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		aml_audio_unregister_frddr(p_spdif->dev, substream);
+		// A workaround to enable PCM after passthrough is disabled.
+		spdifout_play_with_zerodata(p_spdif->id);
+		p_spdif->sysclk_freq = original_sysclk_freq;
+		aml_set_spdifclk(p_spdif);
 	} else {
 		aml_audio_unregister_toddr(p_spdif->dev, substream);
 		free_irq(p_spdif->irq_spdifin, p_spdif);
@@ -1082,16 +1088,10 @@ static int aml_dai_spdif_trigger(struct snd_pcm_substream *substream, int cmd,
 			dev_info(substream->pcm->card->dev, "S/PDIF Capture disable\n");
 			aml_toddr_enable(p_spdif->tddr, 0);
 		}
-		/* continuous-clock, spdif out is not disable,
-		 * only mute, ensure spdif outputs zero data.
-		 */
-		if (p_spdif->clk_cont
-			&& (substream->stream == SNDRV_PCM_STREAM_PLAYBACK))
-			aml_spdif_mute(p_spdif->actrl,
-				substream->stream, p_spdif->id, true);
-		else
-			aml_spdif_enable(p_spdif->actrl,
-				substream->stream, p_spdif->id, false);
+
+		// Disable SPDIF, it will be reinitialized in aml_spdif_close.
+		aml_spdif_enable(p_spdif->actrl,
+			substream->stream, p_spdif->id, false);
 		break;
 	default:
 		return -EINVAL;
@@ -1180,10 +1180,15 @@ static int aml_dai_set_spdif_sysclk(struct snd_soc_dai *cpu_dai,
 		dir);
 
 	if (clk_id == 0) {
+		static bool first_call = true;
 		struct aml_spdif *p_spdif = snd_soc_dai_get_drvdata(cpu_dai);
 
 		p_spdif->sysclk_freq = freq;
 		aml_set_spdifclk(p_spdif);
+		if (first_call) {
+			first_call = false;
+			original_sysclk_freq = freq;
+		}
 	}
 
 	return 0;
