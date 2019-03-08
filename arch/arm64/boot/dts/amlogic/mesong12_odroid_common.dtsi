@@ -530,3 +530,8 @@
 		cs_gpios = <&gpio BOOT_14 GPIO_ACTIVE_LOW>;
 	};
 };
+
+&gpio_intc {
+	compatible = "amlogic,meson-gpio-intc-ext",
+		   "amlogic,meson-g12a-gpio-intc";
+};
