@@ -34,8 +34,7 @@ bool spdif_is_4x_clk(void)
 {
 	bool is_4x = false;
 
-	if (IEC958_mode_codec == 4 || IEC958_mode_codec == 5 ||
-		IEC958_mode_codec == 7 || IEC958_mode_codec == 8) {
+	if (IEC958_mode_codec == 7 || IEC958_mode_codec == 8) {
 		is_4x = true;
 	}
 
@@ -76,8 +75,6 @@ void spdif_get_channel_status_info(
 			}
 		} else if (IEC958_mode_codec == 8 || IEC958_mode_codec == 7) {
 			/* DTS-HD MA, TrueHD */
-				chsts->chstat0_l = 0x8206;
-				chsts->chstat0_r = 0x8206;
 				chsts->chstat1_l = 0x900;
 				chsts->chstat1_r = 0x900;
 		} else {
