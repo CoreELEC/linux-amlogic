@@ -253,8 +253,8 @@ bool raw_is_4x_clk(enum aud_codec_types codec_type)
 {
 	bool is_4x = false;
 
-	if (codec_type == AUD_CODEC_TYPE_EAC3 ||
-	    codec_type == AUD_CODEC_TYPE_DTS_HD ||
+	if (/*codec_type == AUD_CODEC_TYPE_EAC3 ||
+	    codec_type == AUD_CODEC_TYPE_DTS_HD ||*/
 	    codec_type == AUD_CODEC_TYPE_TRUEHD ||
 	    codec_type == AUD_CODEC_TYPE_DTS_HD_MA ||
 	    codec_type == AUD_CODEC_TYPE_AC3_LAYOUT_B) {
