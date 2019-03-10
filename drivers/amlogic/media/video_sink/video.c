@@ -931,7 +931,7 @@ static u32 ori2_start_y_lines;
 static u32 ori2_end_y_lines;
 
 /* wide settings */
-static u32 wide_setting;
+static u32 wide_setting = 1;
 
 /* black out policy */
 #if defined(CONFIG_JPEGLOGO)
