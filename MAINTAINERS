@@ -13796,7 +13796,6 @@ F: arch/arm/boot/dts/amlogic>
 
 ANLOGIC AUDIO
 M: Xing Wang <xing.wang@amlogic.com>
-M: Zhe Wang <Zhe.Wang@amlogic.com>
 F: arch/arm64/boot/dts/amlogic/gxl_p212_1g.dts
 F: arch/arm64/boot/dts/amlogic/gxl_p212_2g.dts
 F: arch/arm64/boot/dts/amlogic/gxl_p230_2g.dts
@@ -14052,6 +14051,13 @@ F: arch/arm64/boot/dts/amlogic/mesonaxg_s400-panel.dtsi
 AMLOGIC AXG ADD AO CLK
 M:	Yun Cai <yun.cai@amlogic.com>
 F:	drivers/amlogic/clk/axg/axg_ao.c
+
+AMLOGIC Irblaster driver
+M: Zan Peng <zan.peng@amlogic.com>
+F: drivers/amlogic/irblaster/irblaster.c
+F: drivers/amlogic/irblaster/irblaster.h
+F: drivers/amlogic/irblaster/Kconfig
+F: drivers/amlogic/irblaster/Makefile
 
 AMLOGIC AXG ADD CLKMSR INTERFACE
 M:	wang xing <xing.wang@amlogic.com>
@@ -14408,9 +14414,9 @@ F:	drivers/amlogic/cpufreq/meson-cpufreq.c
 F:	drivers/amlogic/clk/clk-cpu-fclk-composite.c
 
 AMLOGIC Irblaster driver
-M: 	Bichao.Zheng <bichao.zheng@amlogic.com>
-F: 	drivers/amlogic/irblaster/*
-F: 	include/linux/amlogic/irblaster*
+M: yu.tu <yu.tu@amlogic.com>
+F: drivers/amlogic/irblaster/meson-irblaster.c
+F: drivers/amlogic/irblaster/meson-irblaster.h
 
 AMLOGIC THERMAL DRIVER
 M:	Huan Biao <huan.biao@amlogic.com>
@@ -14505,7 +14511,6 @@ F:	drivers/amlogic/defendkey/*
 
 AMLOGIC DEBUG
 M: Jianxin Pan <jianxin.pan@amlogic.com>
-M: Tao Guo <tao.guo@amlogic.com>
 F:  drivers/amlogic/debug/*
 
 AMLOGIC G12A spdif channel status
@@ -14804,6 +14809,11 @@ F:	arch/arm/boot/dts/amlogic/axg_s400_v03sbr.dts
 F:	sound/soc/codecs/amlogic/tas5782m.c
 F:	sound/soc/codecs/amlogic/tas5782m.h
 
-AMLOGIC TL1 VAD
-M:	Wenbiao Zhang <wenbiao.zhang@amlogic.com>
-F:	include/linux/amlogic/vad_api.h
+AMLOGIC SM1 DTS
+M:	Zhiqiang Liang <Zhiqiang.Liang@amlogic.com>
+F:	arch/arm64/boot/dts/amlogic/mesongsm1-bifrost.dtsi
+F:	arch/arm64/boot/dts/amlogic/mesongsm1.dtsi
+F:	arch/arm64/boot/dts/amlogic/sm1_pxp.dts
+F:	arch/arm/boot/dts/amlogic/mesongsm1-bifrost.dtsi
+F:	arch/arm/boot/dts/amlogic/mesongsm1.dtsi
+F:	arch/arm/boot/dts/amlogic/sm1_pxp.dts
