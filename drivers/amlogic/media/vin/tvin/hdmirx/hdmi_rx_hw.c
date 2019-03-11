@@ -83,6 +83,8 @@ int hdcp22_on;
 MODULE_PARM_DESC(hdcp22_on, "\n hdcp22_on\n");
 module_param(hdcp22_on, int, 0664);
 
+/* test for HBR CTS, audio module can set it to force 8ch */
+int hbr_force_8ch = 1;
 /*
  * hdcp14_key_mode:hdcp1.4 key handle method select
  * NORMAL_MODE:systemcontrol path
@@ -933,7 +935,8 @@ void rx_get_audinfo(struct aud_info_s *audio_info)
 		hdmirx_rd_bits_dwc(DWC_PDEC_AIF_PB0, CH_SPEAK_ALLOC);
 	audio_info->auds_layout =
 		hdmirx_rd_bits_dwc(DWC_PDEC_STS, PD_AUD_LAYOUT);
-
+	audio_info->aud_hbr_rcv =
+		hdmirx_rd_dwc(DWC_PDEC_AUD_STS) & AUDS_HBR_RCV;
 	audio_info->aud_packet_received =
 			hdmirx_rd_dwc(DWC_PDEC_AUD_STS) &
 			(AUDS_RCV | AUDS_HBR_RCV);
@@ -959,6 +962,7 @@ void rx_get_audio_status(struct rx_audio_stat_s *aud_sts)
 		(rx.avmute_skip == 0)) {
 		aud_sts->aud_rcv_packet = rx.aud_info.aud_packet_received;
 		aud_sts->aud_stb_flag = true;
+		aud_sts->aud_alloc = rx.aud_info.auds_ch_alloc;
 		aud_sts->aud_sr = rx.aud_info.real_sr;
 		aud_sts->aud_channel_cnt = rx.aud_info.channel_count;
 		aud_sts->aud_type = rx.aud_info.coding_type;
@@ -971,6 +975,17 @@ void rx_get_audio_status(struct rx_audio_stat_s *aud_sts)
 	}
 }
 EXPORT_SYMBOL(rx_get_audio_status);
+
+/*
+ * rx_get_audio_status - interface for audio module
+ */
+
+int rx_set_audio_param(uint32_t param)
+{
+	hbr_force_8ch = param & 1;
+	return 1;
+}
+EXPORT_SYMBOL(rx_set_audio_param);
 
 /*
  * rx_get_hdmi5v_sts - get current pwr5v status on all ports
@@ -2068,7 +2083,8 @@ int hdmirx_audio_init(void)
 	/* DEFAULT: {27'd0, 3'd0, 2'd1} */
 	hdmirx_wr_dwc(DWC_PDEC_ACRM_CTRL, data32);
 
-	hdmirx_wr_bits_dwc(DWC_AUD_CTRL, DWC_AUD_HBR_ENABLE, 1);
+	/* unsupport HBR serial mode. invalid bit */
+	/* hdmirx_wr_bits_dwc(DWC_AUD_CTRL, DWC_AUD_HBR_ENABLE, 1); */
 
 	/* SAO cfg, disable I2S output, no use */
 	data32 = 0;
@@ -2723,7 +2739,11 @@ void hdmirx_config_audio(void)
 	 * according to audio speaker allocation, if layout
 	 * bit = 0, use ch1 & ch2 by default.
 	 */
-	if (rx.aud_info.auds_layout) {
+	if (rx.aud_info.aud_hbr_rcv && hbr_force_8ch) {
+		hdmirx_wr_dwc(DWC_AUD_CHEXTR_CTRL, 0xff);
+		if (log_level & AUDIO_LOG)
+			rx_pr("HBR rcv, force 8ch\n");
+	} else if (rx.aud_info.auds_layout) {
 		hdmirx_wr_bits_dwc(DWC_AUD_CHEXTR_CTRL,
 			AUD_CH_MAP_CFG,
 			rx.aud_info.auds_ch_alloc);

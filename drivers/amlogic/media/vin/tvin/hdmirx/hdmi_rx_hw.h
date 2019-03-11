@@ -1106,7 +1106,7 @@ extern int ignore_sscp_tmds;
 extern int find_best_eq;
 extern int eq_try_cnt;
 extern void rx_get_best_eq_setting(void);
-
+extern int hbr_force_8ch;
 extern void wr_reg_hhi(unsigned int offset, unsigned int val);
 extern void wr_reg_hhi_bits(unsigned int offset, unsigned int mask,
 				unsigned int val);

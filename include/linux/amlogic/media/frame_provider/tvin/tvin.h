@@ -505,6 +505,17 @@ struct rx_audio_stat_s {
 	int aud_type;
 	/* indicate if audio fifo start threshold is crossed */
 	bool afifo_thres_pass;
+	/*
+	 * 0 [ch1 ch2]
+	 * 1,2,3 [ch1 ch2 ch3 ch4]
+	 * 4,8 [ch1 ch2 ch5 ch6]
+	 * 5,6,7,9,10,11 [ch1 ch2 ch3 ch4 ch5 ch6]
+	 * 12,16,24,28 [ch1 ch2 ch5 ch6 ch7 ch8]
+	 * 20 [ch1 ch2 ch7 ch8]
+	 * 21,22,23[ch1 ch2 ch3 ch4 ch7 ch8]
+	 * all others [all of 8ch]
+	 */
+	int aud_alloc;
 };
 
 extern int adc_set_pll_cntl(bool on, unsigned int module_sel, void *pDtvPara);

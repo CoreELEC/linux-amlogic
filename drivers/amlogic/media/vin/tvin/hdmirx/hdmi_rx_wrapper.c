@@ -633,15 +633,6 @@ static bool check_real_sr_change(void)
 	return ret;
 }
 
-static unsigned char is_aud_ch_map_change(int pre, int cur)
-{
-	unsigned char ret = 0;
-
-	if (pre != cur)
-		ret = 1;
-	return ret;
-}
-
 static const struct freq_ref_s freq_ref[] = {
 	/* interlace 420 3d hac vac index */
 	/* 420mode */
@@ -1720,6 +1711,8 @@ int rx_set_global_variable(const char *buf, int size)
 		return pr_var(eq_try_cnt, index);
 	if (set_pr_var(tmpbuf, hdcp_enc_mode, value, &index, ret))
 		return pr_var(hdcp_enc_mode, index);
+	if (set_pr_var(tmpbuf, hbr_force_8ch, value, &index, ret))
+		return pr_var(hbr_force_8ch, index);
 	return 0;
 }
 
@@ -1825,6 +1818,7 @@ void rx_get_global_variable(const char *buf)
 	pr_var(find_best_eq, i++);
 	pr_var(eq_try_cnt, i++);
 	pr_var(hdcp_enc_mode, i++);
+	pr_var(hbr_force_8ch, i++);
 }
 
 void skip_frame(unsigned int cnt)
@@ -2093,6 +2087,7 @@ char *fsm_st[] = {
 void rx_main_state_machine(void)
 {
 	int pre_auds_ch_alloc;
+	int pre_auds_hbr;
 
 	switch (rx.state) {
 	case FSM_5V_LOST:
@@ -2344,12 +2339,14 @@ void rx_main_state_machine(void)
 
 		packet_update();
 		pre_auds_ch_alloc = rx.aud_info.auds_ch_alloc;
+		pre_auds_hbr = rx.aud_info.aud_hbr_rcv;
 		rx_get_audinfo(&rx.aud_info);
 
 		if (check_real_sr_change())
 			rx_audio_pll_sw_update();
-		if (is_aud_ch_map_change
-			(pre_auds_ch_alloc, rx.aud_info.auds_ch_alloc)) {
+		if ((pre_auds_ch_alloc != rx.aud_info.auds_ch_alloc) ||
+			((pre_auds_hbr != rx.aud_info.aud_hbr_rcv) &&
+			hbr_force_8ch)) {
 			if (log_level & AUDIO_LOG)
 				dump_state(RX_DUMP_AUDIO);
 			hdmirx_config_audio();

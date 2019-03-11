@@ -350,7 +350,7 @@ struct aud_info_s {
 	 *int down_mix_inhibit;
 	 *int level_shift_value;
 	 */
-
+	int aud_hbr_rcv;
 	int aud_packet_received;
 
 	/* channel status */
