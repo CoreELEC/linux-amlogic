@@ -6340,11 +6340,6 @@ static struct vframe_s *vh265_vf_peek(void *op_arg)
 
 
 	if (kfifo_out_peek(&hevc->display_q, (void *)&vf, 2)) {
-		if (vf[1]) {
-			vf[0]->next_vf_pts_valid = true;
-			vf[0]->next_vf_pts = vf[1]->pts;
-		} else
-			vf[0]->next_vf_pts_valid = false;
 		return vf[0];
 	}
 
@@ -6452,12 +6447,6 @@ static struct vframe_s *vh265_vf_get(void *op_arg)
 
 		hevc->show_frame_num++;
 		hevc->vf_get_count++;
-
-		if (kfifo_peek(&hevc->display_q, &next_vf)) {
-			vf->next_vf_pts_valid = true;
-			vf->next_vf_pts = next_vf->pts;
-		} else
-			vf->next_vf_pts_valid = false;
 
 		return vf;
 	}

@@ -565,7 +565,6 @@ static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *p)
 	int ret = 0;
 	u64 pts_us64 = 0;
 	u64 pts_tmp;
-	struct vframe_s *next_vf;
 
 	if (vfq_level(&dev->q_ready) > AMLVIDEO_POOL_SIZE - 1)
 		return -EAGAIN;
@@ -610,10 +609,6 @@ static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *p)
 		/*AMLVIDEO_WARN("pts= %d, dev->vf->duration= %d\n",*/
 			/*dev->vf->pts, (DUR2PTS(dev->vf->duration)));*/
 	}
-	next_vf = vf_peek(dev->vf_receiver_name);
-	dev->vf->next_vf_pts_valid = next_vf != NULL;
-	if (dev->vf->next_vf_pts_valid)
-		dev->vf->next_vf_pts = next_vf->pts;
 
 	p->index = omx_freerun_index;
 

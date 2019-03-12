@@ -155,8 +155,6 @@ extern int tsync_set_av_threshold_min(int min);
 
 extern int tsync_set_av_threshold_max(int max);
 
-extern void set_pts_realign(void);
-
 static inline u32 tsync_vpts_discontinuity_margin(void)
 {
 	return tsync_get_av_threshold_min();

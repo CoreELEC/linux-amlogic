@@ -6452,11 +6452,6 @@ static struct vframe_s *vvp9_vf_peek(void *op_arg)
 		return NULL;
 
 	if (kfifo_out_peek(&pbi->display_q, (void *)&vf, 2)) {
-		if (vf[1]) {
-			vf[0]->next_vf_pts_valid = true;
-			vf[0]->next_vf_pts = vf[1]->pts;
-		} else
-			vf[0]->next_vf_pts_valid = false;
 		return vf[0];
 	}
 
@@ -6484,12 +6479,6 @@ static struct vframe_s *vvp9_vf_get(void *op_arg)
 					vf->width, vf->height,
 					vf->pts,
 					vf->pts_us64);
-
-			if (kfifo_peek(&pbi->display_q, &next_vf)) {
-				vf->next_vf_pts_valid = true;
-				vf->next_vf_pts = next_vf->pts;
-			} else
-				vf->next_vf_pts_valid = false;
 
 			return vf;
 		}
