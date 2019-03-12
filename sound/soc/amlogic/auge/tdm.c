@@ -400,6 +400,8 @@ static int aml_dai_tdm_prepare(struct snd_pcm_substream *substream,
 			i2s_to_hdmitx_ctrl(p_tdm->id);
 			aout_notifier_call_chain(AOUT_EVENT_IEC_60958_PCM,
 				substream);
+		} else {
+			i2s_to_hdmitx_disable();
 		}
 
 		fifo_id = aml_frddr_get_fifo_id(fr);
