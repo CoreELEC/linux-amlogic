@@ -56,7 +56,7 @@ struct aml_T9015_audio_priv {
 };
 
 static const struct reg_default t9015_init_list[] = {
-	{AUDIO_CONFIG_BLOCK_ENABLE, 0x0000300F},
+	{AUDIO_CONFIG_BLOCK_ENABLE, 0x00000000},
 	{ADC_VOL_CTR_PGA_IN_CONFIG, 0x00000000},
 	{DAC_VOL_CTR_DAC_SOFT_MUTE, 0xFEFE0000},
 	{LINE_OUT_CONFIG, 0x00001111},
@@ -218,15 +218,15 @@ static const struct snd_soc_dapm_widget T9015_audio_dapm_widgets[] = {
 
 	/*DAC playback stream */
 	SND_SOC_DAPM_DAC("Left DAC", "HIFI Playback",
-			 AUDIO_CONFIG_BLOCK_ENABLE,
-			 DACL_EN, 0),
+			 SND_SOC_NOPM,
+			 0, 0),
 	SND_SOC_DAPM_DAC("Right DAC", "HIFI Playback",
-			 AUDIO_CONFIG_BLOCK_ENABLE,
-			 DACR_EN, 0),
+			 SND_SOC_NOPM,
+			 0, 0),
 
 	/*DRV output */
-	SND_SOC_DAPM_OUT_DRV("LOLP_OUT_EN", AUDIO_CONFIG_BLOCK_ENABLE,
-			     VMID_GEN_EN, 0, NULL, 0),
+	SND_SOC_DAPM_OUT_DRV("LOLP_OUT_EN", SND_SOC_NOPM,
+			     0, 0, NULL, 0),
 	SND_SOC_DAPM_OUT_DRV("LOLN_OUT_EN", SND_SOC_NOPM,
 			     0, 0, NULL, 0),
 	SND_SOC_DAPM_OUT_DRV("LORP_OUT_EN", SND_SOC_NOPM,
@@ -346,6 +346,7 @@ static int aml_T9015_hw_params(struct snd_pcm_substream *substream,
 	    snd_soc_codec_get_drvdata(codec);
 
 	T9015_audio->params = params;
+	auge_toacodec_ctrl(T9015_audio->tdmout_index);
 
 	return 0;
 }
@@ -353,6 +354,20 @@ static int aml_T9015_hw_params(struct snd_pcm_substream *substream,
 static int aml_T9015_audio_set_bias_level(struct snd_soc_codec *codec,
 					 enum snd_soc_bias_level level)
 {
+	u32 value = snd_soc_read(codec, AUDIO_CONFIG_BLOCK_ENABLE);
+	bool Vmid_eanble = (bool)((value >> VMID_GEN_EN) & 0x1);
+
+	if (!Vmid_eanble) {
+		value &= ~(0x1 << VMID_GEN_EN);
+		snd_soc_write(codec, AUDIO_CONFIG_BLOCK_ENABLE, value);
+		msleep(20);
+		value |= 0x1 << VMID_GEN_EN;
+		value |= 0x1 << BIAS_CURRENT_EN;
+		value |= 0x1 << REFP_BUF_EN;
+		value |= 0x3F;
+		snd_soc_write(codec, AUDIO_CONFIG_BLOCK_ENABLE, value);
+	}
+
 	switch (level) {
 	case SND_SOC_BIAS_ON:
 
