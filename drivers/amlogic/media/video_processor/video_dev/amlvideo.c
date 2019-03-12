@@ -240,6 +240,8 @@ static int video_receiver_event_fun(int type, void *data, void *private_data)
 		dev->first_frame = 0;
 		vfq_init(&dev->q_ready, AMLVIDEO_POOL_SIZE + 1,
 			&dev->amlvideo_pool_ready[0]);
+		vfq_init(&dev->q_omx, AMLVIDEO_POOL_SIZE + 1,
+                                &dev->amlvideo_pool_omx[0]);
 	}
 	if (type == VFRAME_EVENT_PROVIDER_REG) {
 		AMLVIDEO_DBG("AML:VFRAME_EVENT_PROVIDER_REG\n");
@@ -291,6 +293,8 @@ static int video_receiver_event_fun(int type, void *data, void *private_data)
 		dev->first_frame = 0;
 		vfq_init(&dev->q_ready, AMLVIDEO_POOL_SIZE + 1,
 			&dev->amlvideo_pool_ready[0]);
+		vfq_init(&dev->q_omx, AMLVIDEO_POOL_SIZE + 1,
+			&dev->amlvideo_pool_omx[0]);
 
 		vf_notify_receiver(dev->vf_provider_name,
 			VFRAME_EVENT_PROVIDER_RESET, data);
