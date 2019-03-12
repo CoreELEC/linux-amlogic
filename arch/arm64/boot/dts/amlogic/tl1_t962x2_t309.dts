@@ -1492,6 +1492,7 @@
 				"tdma_fs_z",
 				"tdma_dout0_z";
 			function = "tdma_out";
+			bias-disable;
 		};
 	};
 
