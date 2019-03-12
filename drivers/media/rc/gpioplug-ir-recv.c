@@ -22,6 +22,8 @@
 #include <linux/platform_device.h>
 #include <linux/platform_data/media/gpio-ir-recv.h>
 
+#define GPIO_IR_DRIVER_NAME	"gpio-rc-recv"
+
 static unsigned gpio_nr = -1;
 module_param(gpio_nr, uint, 0);
 MODULE_PARM_DESC(gpio_nr, "GPIO number to receive IR pulse");
