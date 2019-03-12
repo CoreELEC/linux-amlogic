@@ -209,12 +209,6 @@
 		wb_en = <0>;/*1:enabel ;0:disable*/
 		cm_en = <0>;/*1:enabel ;0:disable*/
 	};
-	amdolby_vision {
-		compatible = "amlogic, dolby_vision_g12a";
-		dev_name = "aml_amdolby_vision_driver";
-		status = "okay";
-		tv_mode = <0>;/*1:enabel ;0:disable*/
-	};
 
 	cpu_opp_table0: cpu_opp_table0 {
 		compatible = "operating-points-v2";

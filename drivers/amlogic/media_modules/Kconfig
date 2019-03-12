@@ -93,9 +93,3 @@ config AMLOGIC_MEDIA_VENC_H265
 	default m
 	help
 		Enables amlogic video decoder
-		
-config AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
-	tristate "Amlogic Video decoder"
-	default m
-	help
-		Enables amlogic video decoder
