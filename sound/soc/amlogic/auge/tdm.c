@@ -1294,6 +1294,8 @@ static int aml_dai_tdm_prepare(struct snd_pcm_substream *substream,
 			else
 				pr_warn("%s(), i2s2hdmi with wrong fmt,codec_type:%d\n",
 					__func__, spdif_get_codec());
+		} else {
+			i2s_to_hdmitx_disable();
 		}
 
 		fifo_id = aml_frddr_get_fifo_id(fr);
