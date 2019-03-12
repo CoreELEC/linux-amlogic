@@ -700,8 +700,19 @@ unsigned int rx_set_hdcp14_secure_key(void)
  */
 void hdmirx_phy_pddq(unsigned int enable)
 {
-	if (rx.chip_id == CHIP_ID_TL1)
+	uint32_t term_value =
+		hdmirx_rd_top(TOP_HPD_PWR5V) & 0x7;
+
+	if (rx.chip_id == CHIP_ID_TL1) {
 		wr_reg_hhi_bits(HHI_HDMIRX_PHY_MISC_CNTL2, _BIT(1), enable);
+		/* set rxsense */
+		if (enable)
+			wr_reg_hhi_bits(HHI_HDMIRX_PHY_MISC_CNTL0,
+				MSK(3, 0), 0);
+		else
+			wr_reg_hhi_bits(HHI_HDMIRX_PHY_MISC_CNTL0,
+				MSK(3, 0), term_value);
+	}
 	else
 		hdmirx_wr_bits_dwc(DWC_SNPS_PHYG3_CTRL,
 			MSK(1, 1), enable);

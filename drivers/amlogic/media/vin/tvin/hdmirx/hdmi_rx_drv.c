@@ -1718,7 +1718,7 @@ static void rx_phy_resume(void)
 			 * rxsense pulse and phy_int shottern than
 			 * 50ms, SDA may be pulled low 800ms on MTK box
 			 */
-			rx_phy_rxsense_pulse(20, 50, 1);
+			rx_phy_rxsense_pulse(10, 50, 1);
 		}
 	}
 	hdmirx_phy_init();
