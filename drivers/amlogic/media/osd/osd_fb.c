@@ -1962,7 +1962,7 @@ static struct fb_ops osd_ops = {
 	.fb_fillrect    = cfb_fillrect,
 	.fb_copyarea    = cfb_copyarea,
 	.fb_imageblit   = cfb_imageblit,
-#if defined(CONFIG_ARCH_MESON64_ODROID_COMMON)
+#if defined(CONFIG_ARCH_MESON64_ODROID_COMMON) \
 	&& !defined(CONFIG_AMLOGIC_MEDIA_FB_OSD2_CURSOR)
 	.fb_cursor      = soft_cursor,
 #else
