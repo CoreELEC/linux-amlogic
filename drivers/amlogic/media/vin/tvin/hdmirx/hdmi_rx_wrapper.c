@@ -576,6 +576,14 @@ reisr:hdmirx_top_intr_stat = hdmirx_rd_top(TOP_INTR_STAT);
 	if (rx.chip_id != CHIP_ID_TL1) {
 		if (error == 1)
 			goto reisr;
+	} else {
+		hdmirx_top_intr_stat = hdmirx_rd_top(TOP_INTR_STAT);
+		hdmirx_top_intr_stat &= 0x1;
+		if (hdmirx_top_intr_stat) {
+			if (log_level & ERR_LOG)
+				rx_pr("\n irq_miss");
+			goto reisr;
+		}
 	}
 	/* check the ip interrupt again */
 	/*hdmirx_top_intr_stat = hdmirx_rd_top(TOP_INTR_STAT);
