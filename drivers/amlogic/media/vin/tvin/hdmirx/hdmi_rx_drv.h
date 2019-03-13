@@ -46,7 +46,7 @@
  *
  *
  */
-#define RX_VER2 "ver.2019/02/21"
+#define RX_VER2 "ver.2019/03/19"
 
 /*print type*/
 #define	LOG_EN		0x01
@@ -419,6 +419,7 @@ struct rx_s {
 	struct hdmi_rx_hdcp hdcp;
 	/*report hpd status to app*/
 	struct extcon_dev *rx_excton_rx22;
+	struct extcon_dev *rx_excton_open;
 
 	/* wrapper */
 	unsigned int state;

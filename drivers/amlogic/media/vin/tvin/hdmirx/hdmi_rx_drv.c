@@ -457,6 +457,7 @@ void hdmirx_extcon_register(struct platform_device *pdev, struct device *dev)
 	ret = extcon_dev_register(edev);
 	if (ret < 0) {
 		rx_pr("failed to register rx_excton_rx22\n");
+		extcon_dev_free(edev);
 		return;
 	}
 	rx.rx_excton_rx22 = edev;
@@ -473,10 +474,28 @@ void hdmirx_extcon_register(struct platform_device *pdev, struct device *dev)
 	ret = extcon_dev_register(edev);
 	if (ret < 0) {
 		rx_pr("failed to register rx_excton_auth\n");
+		extcon_dev_free(edev);
 		return;
 	}
 	rx.hdcp.rx_excton_auth = edev;
 	/* rx_pr("hdmirx_extcon_register done\n"); */
+
+	/*hdmirx extcon open port*/
+	edev = extcon_dev_allocate(rx22_ext);
+	if (IS_ERR(edev)) {
+		rx_pr("failed to allocate rx_excton_open\n");
+		return;
+	}
+	edev->dev.parent = dev;
+	edev->name = "rx_excton_open";
+	dev_set_name(&edev->dev, "hdmiin");
+	ret = extcon_dev_register(edev);
+	if (ret < 0) {
+		rx_pr("failed to register rx_excton_open\n");
+		extcon_dev_free(edev);
+		return;
+	}
+	rx.rx_excton_open = edev;
 }
 static struct tvin_decoder_ops_s hdmirx_dec_ops = {
 	.support    = hdmirx_dec_support,

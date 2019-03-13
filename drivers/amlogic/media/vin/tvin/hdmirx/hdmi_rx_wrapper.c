@@ -1889,6 +1889,7 @@ void hdmirx_open_port(enum tvin_port_e port)
 	edid_update_flag = 0;
 	rx_pkt_initial();
 	sm_pause = fsmst;
+	extcon_set_state_sync(rx.rx_excton_open, EXTCON_DISP_HDMI, 1);
 	rx_pr("%s:%d\n", __func__, rx.port);
 }
 
@@ -1900,6 +1901,7 @@ void hdmirx_close_port(void)
 	/* when exit hdmi, disable termination & hpd of specific port */
 	if (disable_port_en)
 		rx_set_port_hpd(disable_port_num, 0);
+	extcon_set_state_sync(rx.rx_excton_open, EXTCON_DISP_HDMI, 0);
 }
 
 void rx_nosig_monitor(void)
