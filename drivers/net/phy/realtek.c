@@ -168,9 +168,29 @@ static int rtl8211f_config_init(struct phy_device *phydev)
 }
 
 #ifdef CONFIG_AMLOGIC_ETH_PRIVE
+
+#if defined(CONFIG_ARCH_MESON64_ODROID_COMMON)
+#include <linux/amlogic/scpi_protocol.h>
+
+static u32 enable_wol = 0;
+
+static int __init enable_wol_setup(char *str)
+{
+	enable_wol = (str[0] != '0');
+	support_external_phy_wol = enable_wol;
+
+	return 0;
+}
+__setup("enable_wol=", enable_wol_setup);
+#endif
+
 int rtl8211f_suspend(struct phy_device *phydev)
 {
 	int value = 0;
+
+#if defined(CONFIG_ARCH_MESON64_ODROID_COMMON)
+	scpi_send_usr_data(SCPI_CL_WOL, &enable_wol, sizeof(enable_wol));
+#endif
 
 	if (support_external_phy_wol) {
 		mutex_lock(&phydev->lock);
