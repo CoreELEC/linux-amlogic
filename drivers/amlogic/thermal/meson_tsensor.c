@@ -652,7 +652,11 @@ static int meson_map_dt_data(struct platform_device *pdev)
 		data->tsensor_set_emulation = r1p1_tsensor_set_emulation;
 		data->tsensor_clear_irqs = r1p1_tsensor_clear_irqs;
 		data->tsensor_update_irqs =  r1p1_tsensor_update_irqs;
+	#if defined(CONFIG_ARCH_MESON64_ODROID_COMMON)
+		data->ntrip = 7;
+	#else
 		data->ntrip = 4;
+	#endif
 		break;
 	default:
 		dev_err(&pdev->dev, "Platform not supported\n");

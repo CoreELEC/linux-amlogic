@@ -215,6 +215,49 @@
 		pwm-gpios = <&gpio_ao GPIOAO_10 GPIO_ACTIVE_HIGH>;
 		status = "okay";
 	};
+
+	pwmfan:pwm-fan {
+		compatible = "pwm-fan";
+		pwms = <&pwmgpio 0 40000 PWM_POLARITY_INVERTED>;
+		cooling-min-state = <0>;
+		cooling-max-state = <3>;
+		#cooling-cells = <2>;
+		cooling-levels = <0 120 170 220>;
+	};
+};
+
+&soc_thermal {
+	trips {
+		fan_0: trip-point@4 {
+			temperature = <45000>;
+			hysteresis = <5000>;
+			type = "active";
+		};
+		fan_1: trip-point@5 {
+			temperature = <55000>;
+			hysteresis = <5000>;
+			type = "active";
+		};
+		fan_2: trip-point@6 {
+			temperature = <60000>;
+			hysteresis = <5000>;
+			type = "active";
+		};
+	};
+	cooling-maps {
+		fan_cooling_map0 {
+			trip = <&fan_0>;
+			cooling-device = <&pwmfan 0 1>;
+		};
+		fan_cooling_map1 {
+			trip = <&fan_1>;
+			cooling-device = <&pwmfan 1 2>;
+		};
+		fan_cooling_map2 {
+			trip = <&fan_2>;
+			cooling-device = <&pwmfan 2 3>;
+		};
+	};
 };
 
 &ethmac {
