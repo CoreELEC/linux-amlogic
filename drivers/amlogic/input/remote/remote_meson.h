@@ -199,4 +199,7 @@ int ir_scancode_sort(struct ir_map_tab *ir_map);
 struct ir_map_tab_list *seek_map_tab(struct remote_chip *chip, int custom_code);
 void ir_tab_free(struct ir_map_tab_list *ir_map_list);
 
+#if defined(CONFIG_IR_HK_LIRC_HELPER)
+extern void remote_wakeup_decode_type(int dec_type);
+#endif
 #endif

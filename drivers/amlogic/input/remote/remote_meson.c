@@ -484,6 +484,9 @@ static int ir_get_devtree_pdata(struct platform_device *pdev)
 		chip->protocol = 1;
 	}
 	dev_info(chip->dev, "protocol = 0x%x\n", chip->protocol);
+#if defined(CONFIG_IR_HK_LIRC_HELPER)
+	remote_wakeup_decode_type(chip->protocol);
+#endif
 
 	ret = of_property_read_u32(pdev->dev.of_node,
 			"led_blink", &chip->r_dev->led_blink);
