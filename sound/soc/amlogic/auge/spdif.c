@@ -76,6 +76,13 @@ struct spdif_chipinfo {
 	bool same_src_spdif_reen;
 };
 
+enum SPDIF_SRC {
+	SPDIFIN_PAD = 0,
+	SPDIFOUT,
+	NOAP,
+	HDMIRX
+};
+
 struct aml_spdif {
 	struct pinctrl *pin_ctl;
 	struct aml_audio_controller *actrl;
@@ -127,6 +134,10 @@ struct aml_spdif {
 	/* last value for pc, pd */
 	int pc_last;
 	int pd_last;
+
+	/* mixer control vals */
+	bool mute;
+	enum SPDIF_SRC spdifin_src;
 };
 
 static const struct snd_pcm_hardware aml_spdif_hardware = {
@@ -255,21 +266,44 @@ static int spdifin_audio_type_get_enum(
 	return 0;
 }
 
-/* For fake */
-static bool is_mute;
-static int  spdifin_src;
 static int aml_audio_set_spdif_mute(struct snd_kcontrol *kcontrol,
 					struct snd_ctl_elem_value *ucontrol)
 {
-	is_mute =
-			ucontrol->value.integer.value[0];
+	struct snd_soc_dai *dai = snd_kcontrol_chip(kcontrol);
+	struct aml_spdif *p_spdif = snd_soc_dai_get_drvdata(dai);
+	struct pinctrl_state *state = NULL;
+	bool mute = !!ucontrol->value.integer.value[0];
+
+	if (IS_ERR_OR_NULL(p_spdif->pin_ctl)) {
+		pr_err("%s(), no pinctrl", __func__);
+		return 0;
+	}
+	if (mute) {
+		state = pinctrl_lookup_state
+			(p_spdif->pin_ctl, "spdif_pins_mute");
+
+		if (!IS_ERR_OR_NULL(state))
+			pinctrl_select_state(p_spdif->pin_ctl, state);
+	} else {
+		state = pinctrl_lookup_state
+			(p_spdif->pin_ctl, "spdif_pins");
+
+		if (!IS_ERR_OR_NULL(state))
+			pinctrl_select_state(p_spdif->pin_ctl, state);
+	}
+
+	p_spdif->mute = mute;
+
 	return 0;
 }
 
 static int aml_audio_get_spdif_mute(struct snd_kcontrol *kcontrol,
 					struct snd_ctl_elem_value *ucontrol)
 {
-	ucontrol->value.integer.value[0] = is_mute;
+	struct snd_soc_dai *dai = snd_kcontrol_chip(kcontrol);
+	struct aml_spdif *p_spdif = snd_soc_dai_get_drvdata(dai);
+
+	ucontrol->value.integer.value[0] = p_spdif->mute;
 
 	return 0;
 }
@@ -285,7 +319,11 @@ int spdifin_source_get_enum(
 	struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
-	ucontrol->value.enumerated.item[0] = spdifin_src;
+	struct snd_soc_dai *dai = snd_kcontrol_chip(kcontrol);
+	struct aml_spdif *p_spdif = snd_soc_dai_get_drvdata(dai);
+
+	ucontrol->value.enumerated.item[0] = p_spdif->spdifin_src;
+
 	return 0;
 }
 
@@ -293,6 +331,8 @@ int spdifin_source_set_enum(
 	struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
+	struct snd_soc_dai *dai = snd_kcontrol_chip(kcontrol);
+	struct aml_spdif *p_spdif = snd_soc_dai_get_drvdata(dai);
 	int src = ucontrol->value.enumerated.item[0];
 
 	if (src > 3) {
@@ -300,7 +340,8 @@ int spdifin_source_set_enum(
 		return -1;
 	}
 	spdifin_set_src(src);
-	spdifin_src = src;
+	p_spdif->spdifin_src = src;
+
 	return 0;
 }
 
@@ -327,7 +368,11 @@ static const struct snd_kcontrol_new snd_spdif_controls[] = {
 				spdifin_src_enum,
 				spdifin_source_get_enum,
 				spdifin_source_set_enum),
-
+#ifdef CONFIG_AMLOGIC_HDMITX
+	SOC_SINGLE_BOOL_EXT("Audio hdmi-out mute",
+				0, aml_get_hdmi_out_audio,
+				aml_set_hdmi_out_audio),
+#endif
 };
 
 static bool spdifin_check_audiotype_by_sw(struct aml_spdif *p_spdif)
