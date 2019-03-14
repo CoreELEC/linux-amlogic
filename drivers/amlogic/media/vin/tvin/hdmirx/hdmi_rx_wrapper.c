@@ -474,6 +474,8 @@ static int hdmi_rx_ctrl_irq_handler(void)
 			 */
 			if (rx.aud_info.auds_layout)
 				rx_afifo_store_all_subpkt(true);
+			else
+				rx_afifo_store_all_subpkt(false);
 			//if (rx.aud_info.real_sr != 0)
 				//error |= hdmirx_audio_fifo_rst();
 		}
@@ -481,6 +483,7 @@ static int hdmi_rx_ctrl_irq_handler(void)
 			if (log_level & 0x100)
 				rx_pr("[irq] UNDERFL\n");
 			rx.irq_flag |= IRQ_AUD_FLAG;
+			rx_afifo_store_all_subpkt(false);
 			//if (rx.aud_info.real_sr != 0)
 				//error |= hdmirx_audio_fifo_rst();
 		}
