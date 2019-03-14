@@ -108,6 +108,7 @@ static u32 osd_vpp_misc_mask;
 static bool update_osd_vpp_misc;
 
 #ifdef CONFIG_GE2D_KEEP_FRAME
+#include <linux/amlogic/ge2d/ge2d.h>
 /* #if MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON6 */
 /* #include <mach/mod_gate.h> */
 /* #endif */
@@ -133,6 +134,17 @@ bool platform_type = 1;
 
 /* for bit depth setting. */
 int bit_depth_flag = 8;
+
+struct amvideo_private {
+	struct vframe_s * ext_get_current;
+};
+
+struct amvideo_grabber_data {
+	int canvas_index;
+	u32 canvas0Addr;
+	u32 ge2dformat;
+	u64 size;
+};
 
 bool omx_secret_mode = false;
 EXPORT_SYMBOL(omx_secret_mode);
@@ -944,8 +956,7 @@ static int vf_get_states(struct vframe_states *states)
 
 static inline void video_vf_put(struct vframe_s *vf)
 {
-	struct vframe_provider_s *vfp = vf_get_provider(RECEIVER_NAME);
-	if (vfp && vf && atomic_dec_and_test(&vf->use_cnt)) {
+	if (vf && atomic_dec_and_test(&vf->use_cnt)) {
 		vf_put(vf, RECEIVER_NAME);
 		if (is_dolby_vision_enable())
 			dolby_vision_vf_put(vf);
@@ -5520,6 +5531,14 @@ static void _set_video_window(int *p)
  *********************************************************/
 static int amvideo_open(struct inode *inode, struct file *file)
 {
+	struct amvideo_private* priv =
+		kzalloc(sizeof(struct amvideo_private), GFP_KERNEL);
+
+	if (!priv)
+		return -ENOMEM;
+
+	file->private_data = priv;
+
 	return 0;
 }
 
@@ -5530,6 +5549,14 @@ static int amvideo_poll_open(struct inode *inode, struct file *file)
 
 static int amvideo_release(struct inode *inode, struct file *file)
 {
+	struct amvideo_private* priv = file->private_data;
+	if (priv->ext_get_current) {
+		ext_put_video_frame(priv->ext_get_current);
+	}
+
+	kfree(priv);
+	file->private_data = NULL;
+
 	if (blackout | force_blackout) {
 		/*	DisableVideoLayer();
 		don't need it ,it have problem on  pure music playing */
@@ -5550,6 +5577,7 @@ static long amvideo_ioctl(struct file *file, unsigned int cmd, ulong arg)
 {
 	long ret = 0;
 	void __user *argp = (void __user *)arg;
+	struct amvideo_private* priv = file->private_data;
 
 	switch (cmd) {
 	case AMSTREAM_IOC_SET_OMX_VPTS:{
@@ -5849,6 +5877,131 @@ static long amvideo_ioctl(struct file *file, unsigned int cmd, ulong arg)
 		vsync_slow_factor = arg;
 		break;
 
+	/****************************************************************
+	Video frame ioctl
+	*****************************************************************/
+	case AMVIDEO_EXT_GET_CURRENT_VIDEOFRAME:
+		{
+			struct vframe_s *vf;
+			int canvas_index;
+
+			ret = -EEXIST;
+
+			if (!priv->ext_get_current) {
+				ret = ext_get_cur_video_frame(&vf, &canvas_index);
+				if (!ret) {
+					priv->ext_get_current = vf;
+					put_user(canvas_index, (int __user *)argp);
+				}
+				else
+					ret = -EAGAIN;
+			}
+		}
+		break;
+
+	case AMVIDEO_EXT_PUT_CURRENT_VIDEOFRAME:
+		{
+			if (priv->ext_get_current) {
+				ext_put_video_frame(priv->ext_get_current);
+				priv->ext_get_current = NULL;
+				ret = 0;
+			}
+			else {
+				ret = -EEXIST;
+			}
+		}
+		break;
+
+	case AMVIDEO_EXT_CURRENT_VIDEOFRAME_GET_GE2D_FORMAT:
+		{
+			u32 format = 0;
+
+			ret = -ENOENT;
+
+			if (priv->ext_get_current) {
+				if ((priv->ext_get_current->type & VIDTYPE_VIU_422) == VIDTYPE_VIU_422) {
+					format = GE2D_FORMAT_S16_YUV422;
+				}
+				else if ((priv->ext_get_current->type & VIDTYPE_VIU_444) == VIDTYPE_VIU_444) {
+					format = GE2D_FORMAT_S24_YUV444;
+				}
+				else if ((priv->ext_get_current->type & VIDTYPE_VIU_NV21) == VIDTYPE_VIU_NV21) {
+					format = GE2D_FORMAT_M24_NV21;
+				}
+				put_user(format, (u32 __user *)argp);
+				ret = 0;
+			}
+		}
+		break;
+
+	case AMVIDEO_EXT_CURRENT_VIDEOFRAME_GET_SIZE:
+		{
+			u64 size;
+
+			ret = -ENOENT;
+
+			if (priv->ext_get_current) {
+				size = ((u64)priv->ext_get_current->width << 32) |
+					   priv->ext_get_current->height;
+				put_user(size, (u64 __user *)argp);
+				ret = 0;
+			}
+		}
+		break;
+
+	case AMVIDEO_EXT_CURRENT_VIDEOFRAME_GET_CANVAS0ADDR:
+		{
+			u32 canvas0Addr;
+
+			ret = -ENOENT;
+
+			if (priv->ext_get_current) {
+				canvas0Addr = priv->ext_get_current->canvas0Addr;
+				put_user(canvas0Addr, (u32 __user *)argp);
+				ret = 0;
+			}
+		}
+		break;
+
+	case AMVIDEO_EXT_CURRENT_VIDEOFRAME_GET_DATA:
+		{
+			struct vframe_s *vf;
+
+			ret = -EFAULT;
+
+			if (!priv->ext_get_current) {
+				int canvas_index;
+				ret = ext_get_cur_video_frame(&vf, &canvas_index);
+
+				if (!ret) {
+					struct amvideo_grabber_data grabber_data;
+
+					priv->ext_get_current = vf;
+
+					grabber_data.canvas_index = canvas_index;
+					grabber_data.canvas0Addr = priv->ext_get_current->canvas0Addr;
+
+					if ((priv->ext_get_current->type & VIDTYPE_VIU_422) == VIDTYPE_VIU_422) {
+						grabber_data.ge2dformat = GE2D_FORMAT_S16_YUV422;
+					}
+					else if ((priv->ext_get_current->type & VIDTYPE_VIU_444) == VIDTYPE_VIU_444) {
+						grabber_data.ge2dformat = GE2D_FORMAT_S24_YUV444;
+					}
+					else if ((priv->ext_get_current->type & VIDTYPE_VIU_NV21) == VIDTYPE_VIU_NV21) {
+						grabber_data.ge2dformat = GE2D_FORMAT_M24_NV21;
+					}
+
+					grabber_data.size = ((u64)priv->ext_get_current->width << 32) |
+						   priv->ext_get_current->height;
+
+					copy_to_user(argp, &grabber_data, sizeof(struct amvideo_grabber_data));
+				}
+				else
+					ret = -EAGAIN;
+			}
+		}
+		break;
+
 	default:
 		return -EINVAL;
 	}
@@ -5885,6 +6038,11 @@ static long amvideo_compat_ioctl(struct file *file, unsigned int cmd, ulong arg)
 	case AMSTREAM_IOC_GET_3D_TYPE:
 	case AMSTREAM_IOC_GET_SOURCE_VIDEO_3D_TYPE:
 	case AMSTREAM_IOC_GET_VSYNC_SLOW_FACTOR:
+	case AMVIDEO_EXT_GET_CURRENT_VIDEOFRAME:
+	case AMVIDEO_EXT_CURRENT_VIDEOFRAME_GET_GE2D_FORMAT:
+	case AMVIDEO_EXT_CURRENT_VIDEOFRAME_GET_SIZE:
+	case AMVIDEO_EXT_CURRENT_VIDEOFRAME_GET_CANVAS0ADDR:
+	case AMVIDEO_EXT_CURRENT_VIDEOFRAME_GET_DATA:
 		arg = (unsigned long) compat_ptr(arg);
 	case AMSTREAM_IOC_TRICKMODE:
 	case AMSTREAM_IOC_VPAUSE:
@@ -5904,6 +6062,7 @@ static long amvideo_compat_ioctl(struct file *file, unsigned int cmd, ulong arg)
 	case AMSTREAM_IOC_SET_3D_TYPE:
 	case AMSTREAM_IOC_SET_VSYNC_UPINT:
 	case AMSTREAM_IOC_SET_VSYNC_SLOW_FACTOR:
+	case AMVIDEO_EXT_PUT_CURRENT_VIDEOFRAME:
 		return amvideo_ioctl(file, cmd, arg);
 	default:
 		return -EINVAL;
