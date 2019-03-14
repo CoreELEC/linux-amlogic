@@ -72,8 +72,11 @@ AMLVIDEO_MINOR_VERSION, AMLVIDEO_RELEASE)
 #define PROVIDER_NAME "amlvideo"
 
 #define AMLVIDEO_POOL_SIZE 16
+static struct vfq_s q_ready;
+static struct vfq_s q_omx;
 /*extern bool omx_secret_mode;*/
-
+static u8 first_frame;
+static u64 last_pts_us64;
 static u32 omx_freerun_index = 0;
 
 #define DUR2PTS(x) ((x) - ((x) >> 4))
@@ -101,6 +104,7 @@ static unsigned int vid_limit = 16;
 module_param(vid_limit, uint, 0644);
 MODULE_PARM_DESC(vid_limit, "capture memory limit in megabytes");
 
+struct vframe_s *ppmgrvf = NULL;
 static int video_receiver_event_fun(int type, void *data, void*);
 
 #define dprintk(dev, level, fmt, arg...) \
@@ -140,30 +144,26 @@ static struct vivi_fmt formats[] = {
 };
 
 
+struct vframe_s *amlvideo_pool_ready[AMLVIDEO_POOL_SIZE + 1];
+struct vframe_s *amlvideo_pool_omx[AMLVIDEO_POOL_SIZE + 1];
 /* -----------------------------------------------------------------
  *           provider operations
  * -----------------------------------------------------------------
  */
 static struct vframe_s *amlvideo_vf_peek(void *op_arg)
 {
-	struct vivi_dev *dev = (struct vivi_dev *)op_arg;
-
-	return vfq_peek(&dev->q_ready);
+	return vfq_peek(&q_ready);
 }
 
 static struct vframe_s *amlvideo_vf_get(void *op_arg)
 {
-	struct vivi_dev *dev = (struct vivi_dev *)op_arg;
-
-	return vfq_pop(&dev->q_ready);
+	return vfq_pop(&q_ready);
 }
 
 static void amlvideo_vf_put(struct vframe_s *vf, void *op_arg)
 {
-	struct vivi_dev *dev = (struct vivi_dev *)op_arg;
-
-	vf_put(vf, dev->vf_receiver_name);
-	vf_notify_provider(dev->vf_receiver_name, VFRAME_EVENT_RECEIVER_PUT,
+	vf_put(vf, RECEIVER_NAME);
+	vf_notify_provider(RECEIVER_NAME, VFRAME_EVENT_RECEIVER_PUT,
 					NULL);
 }
 
@@ -187,8 +187,7 @@ static int amlvideo_vf_states(struct vframe_states *states, void *op_arg)
 {
 	/* unsigned long flags; */
 	/* spin_lock_irqsave(&lock, flags); */
-	struct vivi_dev *dev = (struct vivi_dev *)op_arg;
-	int avail_count = vfq_level(&dev->q_ready) + vfq_level(&dev->q_omx);
+	int avail_count = vfq_level(&q_ready) + vfq_level(&q_omx);
 
 	states->vf_pool_size = AMLVIDEO_POOL_SIZE;
 	states->buf_recycle_num = 0;
@@ -205,6 +204,7 @@ static const struct vframe_operations_s amlvideo_vf_provider = {
 	.event_cb = amlvideo_event_cb,
 	.vf_states = amlvideo_vf_states,
 };
+static struct vframe_provider_s amlvideo_vf_prov;
 
 static struct vivi_fmt *get_format(struct v4l2_format *f)
 {
@@ -223,40 +223,45 @@ static struct vivi_fmt *get_format(struct v4l2_format *f)
 	return &formats[k];
 }
 
+static int index;
+static int unregFlag;
+unsigned eventparam[4];
+struct mutex vfpMutex;
 static int video_receiver_event_fun(int type, void *data, void *private_data)
 {
 	struct vframe_states states;
 	struct vivi_dev *dev = (struct vivi_dev *)private_data;
 
 	if (type == VFRAME_EVENT_PROVIDER_UNREG) {
-		if (dev->index != 8)
-			mutex_lock(&dev->vfpMutex);
+		unregFlag = 1;
+		if (index != 8)
+			mutex_lock(&vfpMutex);
 		AMLVIDEO_DBG("AML:VFRAME_EVENT_PROVIDER_UNREG\n");
-		if (vf_get_receiver(dev->vf_provider_name)) {
+		if (vf_get_receiver(PROVIDER_NAME)) {
 			AMLVIDEO_DBG("unreg:amlvideo\n");
-			vf_unreg_provider(&dev->video_vf_prov);
+			vf_unreg_provider(&amlvideo_vf_prov);
 			omx_secret_mode = false;
 		}
-		dev->first_frame = 0;
-		vfq_init(&dev->q_ready, AMLVIDEO_POOL_SIZE + 1,
-			&dev->amlvideo_pool_ready[0]);
-		vfq_init(&dev->q_omx, AMLVIDEO_POOL_SIZE + 1,
-                                &dev->amlvideo_pool_omx[0]);
+		first_frame = 0;
+		vfq_init(&q_ready, AMLVIDEO_POOL_SIZE + 1,
+			&amlvideo_pool_ready[0]);
+		vfq_init(&q_omx, AMLVIDEO_POOL_SIZE + 1,
+                                &amlvideo_pool_omx[0]);
 	}
 	if (type == VFRAME_EVENT_PROVIDER_REG) {
 		AMLVIDEO_DBG("AML:VFRAME_EVENT_PROVIDER_REG\n");
 
-		dev->vf = NULL;
-		dev->first_frame = 0;
+		ppmgrvf = NULL;
+		first_frame = 0;
 		dev->frame_num = 0;
-		mutex_unlock(&dev->vfpMutex);
+		mutex_unlock(&vfpMutex);
 	} else if (type == VFRAME_EVENT_PROVIDER_QUREY_STATE) {
 		amlvideo_vf_states(&states, dev);
 		if (states.buf_avail_num > 0) {
 			return RECEIVER_ACTIVE;
 		} else {
 			if (vf_notify_receiver(
-				dev->vf_provider_name,
+				PROVIDER_NAME,
 				VFRAME_EVENT_PROVIDER_QUREY_STATE,
 				NULL)
 			== RECEIVER_ACTIVE)
@@ -266,37 +271,37 @@ static int video_receiver_event_fun(int type, void *data, void *private_data)
 		/*break;*/
 	} else if (type == VFRAME_EVENT_PROVIDER_START) {
 		AMLVIDEO_DBG("AML:VFRAME_EVENT_PROVIDER_START\n");
-		if (vf_get_receiver(dev->vf_provider_name)) {
+		if (vf_get_receiver(PROVIDER_NAME)) {
 			struct vframe_receiver_s *aaa = vf_get_receiver(
-				dev->vf_provider_name);
+				PROVIDER_NAME);
 			AMLVIDEO_DBG("aaa->name=%s", aaa->name);
 			omx_secret_mode = true;
-			vfq_init(&dev->q_ready, AMLVIDEO_POOL_SIZE + 1,
-					&dev->amlvideo_pool_ready[0]);
-			vfq_init(&dev->q_omx, AMLVIDEO_POOL_SIZE + 1,
-                                        &dev->amlvideo_pool_omx[0]);
-			vf_provider_init(&dev->video_vf_prov,
-						dev->vf_provider_name,
+			vfq_init(&q_ready, AMLVIDEO_POOL_SIZE + 1,
+					&amlvideo_pool_ready[0]);
+			vfq_init(&q_omx, AMLVIDEO_POOL_SIZE + 1,
+                                        &amlvideo_pool_omx[0]);
+			vf_provider_init(&amlvideo_vf_prov,
+						PROVIDER_NAME,
 						&amlvideo_vf_provider, dev);
-			vf_reg_provider(&dev->video_vf_prov);
-			vf_notify_receiver(dev->vf_provider_name,
+			vf_reg_provider(&amlvideo_vf_prov);
+			vf_notify_receiver(PROVIDER_NAME,
 						VFRAME_EVENT_PROVIDER_START,
 						NULL);
 		}
 	} else if (type == VFRAME_EVENT_PROVIDER_FR_HINT) {
-		vf_notify_receiver(dev->vf_provider_name,
+		vf_notify_receiver(PROVIDER_NAME,
 			VFRAME_EVENT_PROVIDER_FR_HINT, data);
 	} else if (type == VFRAME_EVENT_PROVIDER_FR_END_HINT) {
-		vf_notify_receiver(dev->vf_provider_name,
+		vf_notify_receiver(PROVIDER_NAME,
 		VFRAME_EVENT_PROVIDER_FR_END_HINT, data);
 	} else if (type == VFRAME_EVENT_PROVIDER_RESET) {
-		dev->first_frame = 0;
-		vfq_init(&dev->q_ready, AMLVIDEO_POOL_SIZE + 1,
-			&dev->amlvideo_pool_ready[0]);
-		vfq_init(&dev->q_omx, AMLVIDEO_POOL_SIZE + 1,
-			&dev->amlvideo_pool_omx[0]);
+		first_frame = 0;
+		vfq_init(&q_ready, AMLVIDEO_POOL_SIZE + 1,
+			&amlvideo_pool_ready[0]);
+		vfq_init(&q_omx, AMLVIDEO_POOL_SIZE + 1,
+			&amlvideo_pool_omx[0]);
 
-		vf_notify_receiver(dev->vf_provider_name,
+		vf_notify_receiver(PROVIDER_NAME,
 			VFRAME_EVENT_PROVIDER_RESET, data);
 	}
 	return 0;
@@ -536,23 +541,22 @@ static int vidioc_qbuf(struct file *file, void *priv, struct v4l2_buffer *p)
 {
 	u32 index;
 	struct vframe_s *vf;
-	struct vivi_dev *dev = video_drvdata(file);
-	while ((vf = vfq_peek(&dev->q_omx)))
+	while ((vf = vfq_peek(&q_omx)))
 	{
-		index = (u32)dev->vf->pts_us64;
+		index = (u32)ppmgrvf->pts_us64;
 		if (p->index > index)
 		{
-			vf_put(vfq_pop(&dev->q_omx), RECEIVER_NAME);
+			vf_put(vfq_pop(&q_omx), RECEIVER_NAME);
 			printk("vidioc_qbuf skip: index:%u:%u\n", p->index, index);
 			continue;
 		}
 		else if (p->index == index)
 		{
-			vf = (vfq_pop(&dev->q_omx));
+			vf = (vfq_pop(&q_omx));
 			if (p->flags & V4L2_BUF_FLAG_DONE)
 				vf_put(vf, RECEIVER_NAME);
 			else
-				vfq_push(&dev->q_ready, vf);
+				vfq_push(&q_ready, vf);
 		}
 		break;
 	}
@@ -566,67 +570,89 @@ static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *p)
 	u64 pts_us64 = 0;
 	u64 pts_tmp;
 
-	if (vfq_level(&dev->q_ready) > AMLVIDEO_POOL_SIZE - 1)
+	if (omx_secret_mode == true) {
+		if (vfq_level(&q_ready) > AMLVIDEO_POOL_SIZE - 1) {
+		  return -EAGAIN;
+		}
+	}
+	if (!vf_peek(RECEIVER_NAME))
 		return -EAGAIN;
 
-	if (!vf_peek(dev->vf_receiver_name))
-		return -EAGAIN;
+	if (omx_secret_mode != true)
+		mutex_lock(&vfpMutex);
 
-	dev->vf = vf_get(dev->vf_receiver_name);
-	if (!dev->vf) {
+	ppmgrvf = vf_get(RECEIVER_NAME);
+	if (!ppmgrvf) {
 		/* printk("%s, %s, %d\n", __FILE__, __FUNCTION__, __LINE__); */
-		mutex_unlock(&dev->vfpMutex);
+		mutex_unlock(&vfpMutex);
 		return -EAGAIN;
 	}
 
-	if (dev->vf->index == 0xFFFFFFFF) {
+	if (ppmgrvf->index == 0xFFFFFFFF) {
 		pr_info("vidioc_dqbuf: Invalid vf\n");
 		return -EAGAIN;
 	}
-
-	dev->vf->omx_index = dev->frame_num;
-	dev->am_parm.signal_type = dev->vf->signal_type;
+/*
+	ppmgrvf->omx_index = dev->frame_num;
+	dev->am_parm.signal_type = ppmgrvf->signal_type;
 	dev->am_parm.master_display_colour
-		= dev->vf->prop.master_display_colour;
+		= ppmgrvf->prop.master_display_colour;
+*/
+	if (omx_secret_mode == true) {
 
-	if (!dev->vf->pts_us64)
-		dev->vf->pts_us64 = ((u64)dev->vf->pts * 100) / 9;
+//printk("%s, %s, %d %x %llx\n", __FILE__, __FUNCTION__, __LINE__, ppmgrvf->pts, ppmgrvf->pts_us64);
 
-	if (dev->vf->pts_us64) {
-		dev->first_frame = 1;
-		pts_us64 = dev->vf->pts_us64;
-	} else if (dev->first_frame == 0) {
-		dev->first_frame = 1;
+	if (!ppmgrvf->pts_us64)
+		ppmgrvf->pts_us64 = ((u64)ppmgrvf->pts * 100) / 9;
+
+	if (ppmgrvf->pts_us64) {
+		first_frame = 1;
+		pts_us64 = ppmgrvf->pts_us64;
+	} else if (first_frame == 0) {
+		first_frame = 1;
 		pts_us64 = 0;
 	} else {
-		pts_tmp = DUR2PTS(dev->vf->duration) * 100;
+		pts_tmp = DUR2PTS(ppmgrvf->duration) * 100;
 		do_div(pts_tmp, 9);
-		pts_us64 = dev->last_pts_us64
+		pts_us64 = last_pts_us64
 			+ pts_tmp;
 		pts_tmp = pts_us64*9;
 		do_div(pts_tmp, 100);
-		dev->vf->pts = pts_tmp;
-		/*AMLVIDEO_WARN("pts= %d, dev->vf->duration= %d\n",*/
-			/*dev->vf->pts, (DUR2PTS(dev->vf->duration)));*/
+		ppmgrvf->pts = pts_tmp;
+		/*AMLVIDEO_WARN("pts= %d, ppmgrvf->duration= %d\n",*/
+			/*ppmgrvf->pts, (DUR2PTS(ppmgrvf->duration)));*/
 	}
 
 	p->index = omx_freerun_index;
 
 	p->timestamp.tv_sec = pts_us64 >> 32;
 	p->timestamp.tv_usec = pts_us64 & 0xFFFFFFFF;
-	dev->last_pts_us64 = pts_us64;
-	dev->vf->pts_us64 = omx_freerun_index++;
-	vfq_push(&dev->q_ready, dev->vf);
+	last_pts_us64 = pts_us64;
+	ppmgrvf->pts_us64 = omx_freerun_index++;
+	vfq_push(&q_ready, ppmgrvf);
 
-	if ((dev->vf->type & VIDTYPE_COMPRESS) != 0) {
-		p->timecode.type = dev->vf->compWidth;
-		p->timecode.flags = dev->vf->compHeight;
+	if ((ppmgrvf->type & VIDTYPE_COMPRESS) != 0) {
+		p->timecode.type = ppmgrvf->compWidth;
+		p->timecode.flags = ppmgrvf->compHeight;
 	} else {
-		p->timecode.type = dev->vf->width;
-		p->timecode.flags = dev->vf->height;
+		p->timecode.type = ppmgrvf->width;
+		p->timecode.flags = ppmgrvf->height;
 	}
 	p->sequence = dev->frame_num++;
 
+	return ret;
+	}
+	
+	if (!ppmgrvf->pts_us64)
+		ppmgrvf->pts_us64 = ((u64)ppmgrvf->pts * 100) / 9;
+
+	if (!ppmgrvf) {
+		mutex_unlock(&vfpMutex);
+		return -EAGAIN;
+	}
+	p->index = (ppmgrvf->canvas0Addr & 0xff) - PPMGR_CANVAS_INDEX;
+	p->timestamp.tv_sec = 0;
+	p->timestamp.tv_usec = ppmgrvf->pts_us64;
 	return ret;
 }
 
@@ -684,9 +710,9 @@ static int amlvideo_open(struct file *file)
 	char *bstart = NULL;
 	unsigned int bsize = 0;
 
-	dev->vf = NULL;
-	dev->index = 0;
-	mutex_unlock(&dev->vfpMutex);
+	ppmgrvf = NULL;
+	index = 0;
+	mutex_unlock(&vfpMutex);
 	mutex_lock(&dev->mutex);
 	dev->users++;
 	if (dev->users > 1) {
@@ -770,8 +796,8 @@ static int amlvideo_close(struct file *file)
 	videobuf_stop(&fh->vb_vidq);
 	videobuf_mmap_free(&fh->vb_vidq);
 	kfree(fh);
-	dev->index = 8;
-	mutex_unlock(&dev->vfpMutex);
+	index = 8;
+	mutex_unlock(&vfpMutex);
 /* if (dev->res) { */
 	kfree(dev->res);
 	dev->res = NULL;
@@ -899,7 +925,7 @@ static int __init amlvideo_create_instance(int inst)
 	/* initialize locks */
 	spin_lock_init(&dev->slock);
 	mutex_init(&dev->mutex);
-	mutex_init(&dev->vfpMutex);
+	mutex_init(&vfpMutex);
 
 	ret = -ENOMEM;
 	vfd = video_device_alloc();
@@ -931,13 +957,10 @@ static int __init amlvideo_create_instance(int inst)
 	snprintf(dev->vf_provider_name, AMLVIDEO_VF_NAME_SIZE,
 		(0) ? PROVIDER_NAME : PROVIDER_NAME ".%x",
 		inst & 0xff);
-#else
-	memcpy(dev->vf_receiver_name, RECEIVER_NAME, sizeof(RECEIVER_NAME));
-	memcpy(dev->vf_provider_name, PROVIDER_NAME, sizeof(PROVIDER_NAME));
 #endif
 
 	vf_receiver_init(&dev->video_vf_recv,
-			dev->vf_receiver_name,
+			RECEIVER_NAME,
 			&video_vf_receiver, dev);
 	vf_reg_receiver(&dev->video_vf_recv);
 
