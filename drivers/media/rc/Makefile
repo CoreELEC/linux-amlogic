@@ -38,3 +38,4 @@ obj-$(CONFIG_IR_TTUSBIR) += ttusbir.o
 obj-$(CONFIG_RC_ST) += st_rc.o
 obj-$(CONFIG_IR_SUNXI) += sunxi-cir.o
 obj-$(CONFIG_IR_IMG) += img-ir/
+obj-$(CONFIG_IR_HK_LIRC_HELPER) += hk-lirc-helper.o
