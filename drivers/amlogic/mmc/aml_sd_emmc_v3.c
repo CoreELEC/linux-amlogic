@@ -806,7 +806,7 @@ RETRY:
 		pdata->intf3 = intf3;
 		retry--;
 		if (retry == 0) {
-			pr_warn("[%s][%d] retry eyetest failed-line:%d\n",
+			pr_debug("[%s][%d] retry eyetest failed-line:%d\n",
 					__func__, __LINE__, line_x);
 			return 1;
 		}
