@@ -539,7 +539,7 @@ static int vidioc_qbuf(struct file *file, void *priv, struct v4l2_buffer *p)
 	struct vivi_dev *dev = video_drvdata(file);
 	while ((vf = vfq_peek(&dev->q_omx)))
 	{
-		index = (u32)dev->vf->pts_us64;
+		index = (u32)vf->pts_us64;
 		if (p->index > index)
 		{
 			vf_put(vfq_pop(&dev->q_omx), RECEIVER_NAME);
@@ -616,7 +616,7 @@ static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *p)
 	p->timestamp.tv_usec = pts_us64 & 0xFFFFFFFF;
 	dev->last_pts_us64 = pts_us64;
 	dev->vf->pts_us64 = omx_freerun_index++;
-	vfq_push(&dev->q_ready, dev->vf);
+	vfq_push(&dev->q_omx, dev->vf);
 
 	if ((dev->vf->type & VIDTYPE_COMPRESS) != 0) {
 		p->timecode.type = dev->vf->compWidth;
