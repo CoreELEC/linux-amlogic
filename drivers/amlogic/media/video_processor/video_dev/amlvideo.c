@@ -542,7 +542,7 @@ static int vidioc_qbuf(struct file *file, void *priv, struct v4l2_buffer *p)
 		index = (u32)vf->pts_us64;
 		if (p->index > index)
 		{
-			vf_put(vfq_pop(&dev->q_omx), RECEIVER_NAME);
+			vf_put(vfq_pop(&dev->q_omx), dev->vf_receiver_name);
 			printk("vidioc_qbuf skip: index:%u:%u\n", p->index, index);
 			continue;
 		}
@@ -550,7 +550,7 @@ static int vidioc_qbuf(struct file *file, void *priv, struct v4l2_buffer *p)
 		{
 			vf = (vfq_pop(&dev->q_omx));
 			if (p->flags & V4L2_BUF_FLAG_DONE)
-				vf_put(vf, RECEIVER_NAME);
+				vf_put(vf, dev->vf_receiver_name);
 			else
 				vfq_push(&dev->q_ready, vf);
 		}
