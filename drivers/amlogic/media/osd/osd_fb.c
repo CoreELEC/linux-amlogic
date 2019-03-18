@@ -422,7 +422,8 @@ static void osd_set_fb_parameters(int index, const struct vinfo_s *vinfo)
 
 	osd_set_free_scale_enable_hw(index, 0);
 	osd_set_free_scale_mode_hw(index, 1);
-	osd_set_free_scale_axis_hw(index, 0, 0, vinfo->width, vinfo->height);
+	osd_set_free_scale_axis_hw(index, 0, 0,
+		(vinfo->width - 1), (vinfo->height - 1));
 
 	/* OVERSCAN */
 	overscan_window(vinfo, overscan_ratio, &left, &top, &width, &height);
