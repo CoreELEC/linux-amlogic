@@ -33,6 +33,10 @@
 #include "stmmac_pcs.h"
 #include "dwmac1000.h"
 
+#if defined(CONFIG_ARCH_MESON64_ODROID_COMMON)
+extern void odroid_get_ether_addr(unsigned char *addr);
+#endif
+
 static void dwmac1000_core_init(struct mac_device_info *hw, int mtu)
 {
 	void __iomem *ioaddr = hw->pcsr;
