@@ -14832,3 +14832,9 @@ AMLOGIC SM1 POWER CTRL DRIVERS
 M:	Shunzhou Jiang <shunzhou.jiang@amlogic.com>
 F:	drivers/amlogic/power/power_ctrl.c
 F:	include/linux/amlogic/power_ctrl.h
+
+AMLOGIC MESONAXG S400 GVA SBR DTS
+M:	Yeping Miao <yeping.miao@amlogic.com>
+F:	arch/arm64/boot/dts/amlogic/axg_s400_v03gva_sbr.dts
+F:	arch/arm/boot/dts/amlogic/axg_s400_v03gva_sbr.dts
+
