@@ -439,6 +439,7 @@ static DEFINE_MUTEX(video_layer_mutex);
 static u32 layer_cap;
 
 static struct disp_info_s glayer_info[MAX_VD_LAYERS];
+static struct vframe_pic_mode_s gPic_info[MAX_VD_LAYERS];
 
 static u32 reference_zorder = 128;
 
@@ -3063,6 +3064,7 @@ static inline void proc_vd2_vsc_phase_per_vsync(
 static void pip_toggle_frame(struct vframe_s *vf)
 {
 	u32 first_picture = 0;
+	bool force_toggle = false;
 
 	if (vf == NULL)
 		return;
@@ -3139,6 +3141,21 @@ static void pip_toggle_frame(struct vframe_s *vf)
 #endif
 	}
 
+	if (cur_pipbuf &&
+		(cur_pipbuf->ratio_control &
+		DISP_RATIO_ADAPTED_PICMODE)) {
+		if (vf && (cur_pipbuf->ratio_control
+			== vf->ratio_control)
+			&& memcmp(&cur_pipbuf->pic_mode,
+			&vf->pic_mode,
+			sizeof(struct vframe_pic_mode_s)))
+			force_toggle = true;
+		else if (memcmp(&cur_pipbuf->pic_mode,
+			&gPic_info[1],
+			sizeof(struct vframe_pic_mode_s)))
+			force_toggle = true;
+	}
+
 	if (pip_property_changed) {
 		first_picture = 1;
 		pip_property_changed = 0;
@@ -3147,7 +3164,8 @@ static void pip_toggle_frame(struct vframe_s *vf)
 		vf->type_backup = vf->type;
 
 	/* enable new config on the new frames */
-	if ((first_picture) ||  (cur_pipbuf &&
+	if (first_picture || force_toggle ||
+		(cur_pipbuf &&
 		((cur_pipbuf->bufWidth != vf->bufWidth) ||
 		(cur_pipbuf->width != vf->width) ||
 		(cur_pipbuf->height != vf->height) ||
@@ -3174,6 +3192,9 @@ static void pip_toggle_frame(struct vframe_s *vf)
 				&glayer_info[1], vf,
 				nextpip_frame_par, vinfo,
 				true, 1);
+
+		memcpy(&gPic_info[1], &vf->pic_mode,
+			sizeof(struct vframe_pic_mode_s));
 
 		if (iret == VppFilter_Success_and_Changed)
 			pip_property_changed = 1;
@@ -3932,14 +3953,20 @@ static void vsync_toggle_frame(struct vframe_s *vf, int line)
 		vf->type_backup = vf->type;
 	}
 
-	if (cur_dispbuf && vf &&
+	if (cur_dispbuf &&
 		(cur_dispbuf->ratio_control &
-		DISP_RATIO_ADAPTED_PICMODE) &&
-		(cur_dispbuf->ratio_control ==
-		vf->ratio_control) &&
-		memcmp(&cur_dispbuf->pic_mode, &vf->pic_mode,
-		sizeof(struct vframe_pic_mode_s)))
-		force_toggle = true;
+		DISP_RATIO_ADAPTED_PICMODE)) {
+		if (vf && (cur_dispbuf->ratio_control
+			== vf->ratio_control)
+			&& memcmp(&cur_dispbuf->pic_mode,
+			&vf->pic_mode,
+			sizeof(struct vframe_pic_mode_s)))
+			force_toggle = true;
+		else if (memcmp(&cur_dispbuf->pic_mode,
+			&gPic_info[0],
+			sizeof(struct vframe_pic_mode_s)))
+			force_toggle = true;
+	}
 
 	if ((last_process_3d_type != process_3d_type)
 		|| (last_el_status != vf_with_el))
@@ -3987,6 +4014,9 @@ static void vsync_toggle_frame(struct vframe_s *vf, int line)
 
 		if (iret == VppFilter_Success_and_Changed)
 			video_property_changed = 1;
+
+		memcpy(&gPic_info[0], &vf->pic_mode,
+			sizeof(struct vframe_pic_mode_s));
 
 		/* apply new vpp settings */
 		frame_par_ready_to_set = 1;
@@ -12764,6 +12794,7 @@ static int __init video_init(void)
 	/* make vd1 below vd2 */
 	for (i = 0; i < MAX_VD_LAYERS; i++) {
 		vpp_disp_info_init(&glayer_info[i], i);
+		memset(&gPic_info[i], 0, sizeof(struct vframe_pic_mode_s));
 		glayer_info[i].wide_mode = 1;
 		glayer_info[i].zorder = reference_zorder - 2 + i;
 		glayer_info[i].cur_sel_port = i;
