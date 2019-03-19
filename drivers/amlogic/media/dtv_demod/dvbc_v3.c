@@ -301,6 +301,19 @@ void dvbc_reg_initial(struct aml_demod_sta *demod_sta)
 	qam_write_reg(0x7, qam_read_reg(0x7) & ~(1 << 0));
 	/* Sw disable demod */
 	qam_write_reg(0x7, qam_read_reg(0x7) | (1 << 0));
+
+	if (is_ic_ver(IC_VER_TL1))
+		if (agc_mode == 1) {
+			qam_write_reg(0x25,
+				qam_read_reg(0x25) & ~(0x1 << 10));
+			qam_write_reg(0x24,
+				qam_read_reg(0x24) | (0x1 << 17));
+		#if 0
+			qam_write_reg(0x3d,
+				qam_read_reg(0x3d) | 0xf);
+		#endif
+		}
+
 	/* Sw enable demod */
 	qam_write_reg(0x0, 0x0);
 	/* QAM_STATUS */
@@ -395,16 +408,19 @@ void dvbc_reg_initial(struct aml_demod_sta *demod_sta)
 	/* agc control */
 	/* dvbc_write_reg(QAM_BASE+0x094, 0x7f800d2c);// AGC_CTRL  ALPS tuner */
 	/* dvbc_write_reg(QAM_BASE+0x094, 0x7f80292c);     // Pilips Tuner */
-	if ((agc_mode & 1) == 0)
-		/* freeze if agc */
-		qam_write_reg(0x25,
-		qam_read_reg(0x25) | (0x1 << 10));
-	if ((agc_mode & 2) == 0) {
-		/* IF control */
-		/*freeze rf agc */
-		qam_write_reg(0x25,
-		qam_read_reg(0x25) | (0x1 << 13));
+	if (!is_ic_ver(IC_VER_TL1)) {
+		if ((agc_mode & 1) == 0)
+			/* freeze if agc */
+			qam_write_reg(0x25,
+			qam_read_reg(0x25) | (0x1 << 10));
+		if ((agc_mode & 2) == 0) {
+			/* IF control */
+			/*freeze rf agc */
+			qam_write_reg(0x25,
+			qam_read_reg(0x25) | (0x1 << 13));
+		}
 	}
+
 	/*Maxlinear Tuner */
 	/*dvbc_write_reg(QAM_BASE+0x094, 0x7f80292d); */
 	/*dvbc_write_reg(QAM_BASE + 0x098, 0x9fcc8190);*/

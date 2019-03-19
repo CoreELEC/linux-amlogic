@@ -935,6 +935,18 @@ static int gxtv_demod_dvbc_read_status_timer
 	/*check tuner*/
 	if (!timer_tuner_not_enough()) {
 		strenth = tuner_get_ch_power2();
+
+		/*agc control,fine tune strength*/
+		if (is_ic_ver(IC_VER_TL1) && (dtvdd_devp->pin_name != NULL) &&
+			(strncmp(fe->ops.tuner_ops.info.name, "r842", 4)
+			== 0)) {
+			strenth += 22;
+
+			if (strenth <= -80)
+				strenth = dvbc_get_power_strength(
+					qam_read_reg(0x27) & 0x7ff, strenth);
+		}
+
 		if (strenth < -87) {
 			*status = FE_TIMEDOUT;
 			return 0;
@@ -1040,6 +1052,7 @@ static int gxtv_demod_dvbc_read_ber(struct dvb_frontend *fe, u32 *ber)
 static int gxtv_demod_dvbc_read_signal_strength
 	(struct dvb_frontend *fe, u16 *strength)
 {
+	int tuner_sr;
 
 
 #if 0
@@ -1047,7 +1060,22 @@ static int gxtv_demod_dvbc_read_signal_strength
 		tn_strength = fe->ops.tuner_ops.get_strength(fe);
 	*strength = 256 - tn_strength;
 #else
-	*strength = tuner_get_ch_power3();
+	if (is_ic_ver(IC_VER_TL1) &&
+		(dtvdd_devp->pin_name != NULL) &&
+		(strncmp(fe->ops.tuner_ops.info.name, "r842", 4) == 0)) {
+		tuner_sr = tuner_get_ch_power2();
+		tuner_sr += 22;
+
+		if (tuner_sr <= -80)
+			tuner_sr = dvbc_get_power_strength(
+				qam_read_reg(0x27) & 0x7ff, tuner_sr);
+
+		if (tuner_sr < -100)
+			*strength = 0;
+		else
+			*strength = tuner_sr + 100;
+	} else
+		*strength = tuner_get_ch_power3();
 #endif
 
 	return 0;
@@ -1548,17 +1576,31 @@ static int gxtv_demod_atsc_read_ber(struct dvb_frontend *fe, u32 *ber)
 static int gxtv_demod_atsc_read_signal_strength
 	(struct dvb_frontend *fe, u16 *strength)
 {
+	int strenth;
+
+	strenth = tuner_get_ch_power(fe);
 /*	struct aml_fe *afe = fe->demodulator_priv;*/
 	/*struct aml_fe_dev *dev = afe->dtv_demod; */
+	if (is_ic_ver(IC_VER_TL1) && (dtvdd_devp->pin_name != NULL) &&
+		(strncmp(fe->ops.tuner_ops.info.name, "r842", 4) == 0)) {
+		if ((fe->dtv_property_cache.modulation <= QAM_AUTO) &&
+			(fe->dtv_property_cache.modulation != QPSK))
+			strenth += 18;
+		else {
+			strenth += 15;
+			if (strenth <= -80)
+				strenth = atsc_get_power_strength(
+					atsc_read_reg_v4(0x44) & 0xfff,
+						strenth);
+		}
 
+		if (strenth < -100)
+			*strength = 0;
+		else
+			*strength = strenth + 100;
+	} else
+		*strength = tuner_get_ch_power3();
 
-	*strength = tuner_get_ch_power3();
-	#if 0
-	if (*strength < 0)
-		*strength = 0;
-	else if (*strength > 100)
-		*strength = 100;
-	#endif
 	if (*strength > 100)
 		*strength = 100;
 
@@ -1605,6 +1647,8 @@ static int gxtv_demod_atsc_set_frontend(struct dvb_frontend *fe)
 	union ATSC_DEMOD_REG_0X6A_BITS Val_0x6a;
 	union ATSC_CNTR_REG_0X20_BITS Val_0x20;
 	int nco_rate;
+	/*[0]: specturm inverse(1),normal(0); [1]:if_frequency*/
+	unsigned int tuner_freq[2] = {0};
 
 	memset(&param_atsc, 0, sizeof(param_atsc));
 	memset(&param_j83b, 0, sizeof(param_j83b));
@@ -1659,6 +1703,16 @@ static int gxtv_demod_atsc_set_frontend(struct dvb_frontend *fe)
 			Val_0x6a.b.peak_thd = 0x6;//Let CCFO Quality over 6
 			atsc_write_reg_v4(ATSC_DEMOD_REG_0X6A, Val_0x6a.bits);
 			atsc_write_reg_v4(ATSC_EQ_REG_0XA5, 0x8c);
+
+			if (fe->ops.tuner_ops.get_if_frequency)
+				fe->ops.tuner_ops.
+					get_if_frequency(fe, tuner_freq);
+
+			/*bit 2: invert specturm, for r842 tuner AGC control*/
+			if (tuner_freq[0] == 1)
+				atsc_write_reg_v4(ATSC_DEMOD_REG_0X56, 0x4);
+			else
+				atsc_write_reg_v4(ATSC_DEMOD_REG_0X56, 0x0);
 
 			if (demod_status.adc_freq == Adc_Clk_24M) {
 				atsc_write_reg_v4(ATSC_DEMOD_REG_0X54,
@@ -1787,6 +1841,16 @@ void atsc_detect_first(struct dvb_frontend *fe, enum fe_status *status)
 		msleep(dvb_tuner_delay);
 
 	strenth = tuner_get_ch_power(fe);
+
+	/*agc control,fine tune strength*/
+	if (is_ic_ver(IC_VER_TL1) && (dtvdd_devp->pin_name != NULL) &&
+		(strncmp(fe->ops.tuner_ops.info.name, "r842", 4) == 0)) {
+		strenth += 15;
+		if (strenth <= -80)
+			strenth = atsc_get_power_strength(
+				atsc_read_reg_v4(0x44) & 0xfff, strenth);
+	}
+
 	if (strenth < THRD_TUNER_STRENTH_ATSC) {
 		*status = FE_TIMEDOUT;
 		PR_ATSC("tuner:no signal!\n");
@@ -1850,6 +1914,12 @@ static int atsc_j83b_detect_first(struct dvb_frontend *fe, enum fe_status *s)
 		msleep(dvb_tuner_delay);
 
 	strenth = tuner_get_ch_power(fe);
+
+	/*agc control,fine tune strength*/
+	if (is_ic_ver(IC_VER_TL1) && (dtvdd_devp->pin_name != NULL) &&
+		(strncmp(fe->ops.tuner_ops.info.name, "r842", 4) == 0))
+		strenth += 18;
+
 	if (strenth < THRD_TUNER_STRENTH_J83) {
 		*s = FE_TIMEDOUT;
 		PR_ATSC("tuner:no signal!j83\n");
@@ -2379,8 +2449,9 @@ static int gxtv_demod_dtmb_read_status_old
 		PR_ERR("%s:not support %d!\n", __func__, get_dtmb_ver());
 		return -1;
 	}
+
 	s = amdemod_dtmb_stat_islock();
-/*      s=1;*/
+
 	if (s == 1) {
 		ilock = 1;
 		*status =
@@ -2409,8 +2480,20 @@ static int gxtv_demod_dtmb_read_ber(struct dvb_frontend *fe, u32 *ber)
 static int gxtv_demod_dtmb_read_signal_strength
 		(struct dvb_frontend *fe, u16 *strength)
 {
+	int tuner_sr;
 
-	*strength = tuner_get_ch_power3();
+	if (is_ic_ver(IC_VER_TL1) &&
+		(dtvdd_devp->pin_name != NULL) &&
+		(strncmp(fe->ops.tuner_ops.info.name, "r842", 4) == 0)) {
+		tuner_sr = tuner_get_ch_power2();
+		tuner_sr += 16;
+
+		if (tuner_sr < -100)
+			*strength = 0;
+		else
+			*strength = tuner_sr + 100;
+	} else
+		*strength = tuner_get_ch_power3();
 	return 0;
 }
 

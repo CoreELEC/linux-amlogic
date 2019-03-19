@@ -454,8 +454,9 @@ u16 tuner_get_ch_power3(void);
 
 int dtmb_get_power_strength(int agc_gain);
 
-
-
+extern int dvbc_get_power_strength(int agc_gain, int tuner_strength);
+extern int j83b_get_power_strength(int agc_gain, int tuner_strength);
+extern int atsc_get_power_strength(int agc_gain, int tuner_strength);
 
 /* dvbt */
 int dvbt_set_ch(struct aml_demod_sta *demod_sta,
