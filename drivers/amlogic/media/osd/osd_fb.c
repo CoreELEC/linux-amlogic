@@ -448,11 +448,14 @@ static int __init overscan_setup(char *str)
 
 	ret = kstrtoint(str, 0, &ratio);
 
-	if (ratio > 100)
+	if (ret != 0)
 		ratio = 100;
 	else
-		if (ratio < 80)
-			ratio = 80;
+		if (ratio > 100)
+			ratio = 100;
+		else
+			if (ratio < 80)
+				ratio = 80;
 
 	overscan_ratio = ratio;
 
