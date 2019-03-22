@@ -16,7 +16,7 @@
  */
 
 #include <dt-bindings/interrupt-controller/arm-gic.h>
-#include <dt-bindings/gpio/meson-tl1-gpio.h>
+#include <dt-bindings/gpio/meson-tm2-gpio.h>
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/input/meson_rc.h>
 #include <dt-bindings/input/input.h>
@@ -311,7 +311,7 @@
 	};
 
 	pinctrl_aobus: pinctrl@ff800014 {
-		compatible = "amlogic,meson-tl1-aobus-pinctrl";
+		compatible = "amlogic,meson-tm2-aobus-pinctrl";
 		#address-cells = <2>;
 		#size-cells = <2>;
 		ranges;
@@ -340,8 +340,22 @@
 		};
 	};
 
+	pinctrl_testn: pinctrl@ff80035c {
+		compatible = "amlogic,meson-tm2-testn-pinctrl";
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		testn: testn@ff80035c {
+			reg = <0x0 0xff80035c 0x0 0x1>;
+			reg-names = "mux";
+			gpio-controller;
+			#gpio-cells = <2>;
+		};
+	};
+
 	pinctrl_periphs: pinctrl@ff6346c0 {
-		compatible = "amlogic,meson-tl1-periphs-pinctrl";
+		compatible = "amlogic,meson-tm2-periphs-pinctrl";
 		#address-cells = <2>;
 		#size-cells = <2>;
 		ranges;
