@@ -62,7 +62,7 @@
 	/* Audio Related start */
 	dummy_codec:dummy{
 		#sound-dai-cells = <0>;
-		compatible = "amlogic, aml_dummy_codec";
+		compatible = "linux,spdif-dit";
 		status = "okay";
 	};
 	amlogic_codec:t9015{
@@ -97,7 +97,20 @@
 		/*for audio effect ,eqdrc */
 		aml-audio-card,effect = <&audio_effect>;
 
+		/* spdif_b to hdmi, only playback */
 		aml-audio-card,dai-link@0 {
+			mclk-fs = <128>;
+			continuous-clock;
+			cpu {
+				sound-dai = <&aml_spdif_b>;
+				system-clock-frequency = <6144000>;
+			};
+			codec {
+				sound-dai = <&dummy_codec>;
+			};
+		};
+
+		aml-audio-card,dai-link@1 {
 			format = "i2s";// "dsp_a";
 			mclk-fs = <256>;
 			bitclock-master = <&aml_tdmc>;
@@ -113,19 +126,6 @@
 			};
 			codec {
 				sound-dai = <&amlogic_codec>;
-			};
-		};
-
-		/* spdif_b to hdmi, only playback */
-		aml-audio-card,dai-link@1 {
-			mclk-fs = <128>;
-			continuous-clock;
-			cpu {
-				sound-dai = <&aml_spdif_b>;
-				system-clock-frequency = <6144000>;
-			};
-			codec {
-				sound-dai = <&dummy_codec>;
 			};
 		};
 
