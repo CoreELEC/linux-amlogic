@@ -554,6 +554,7 @@
 		status = "okay";
 		reg = <0xFF6345E0 4>;
 		reg-names = "PREG_STICKY_REG8";
+		store_device = "data";
 	};
 
 	soc {
