@@ -472,7 +472,7 @@ void di_hw_init(bool pd_enable, bool mc_enable)
 	switch_vpu_clk_gate_vmod(VPU_VPU_CLKB, VPU_CLK_GATE_ON);
 	if (is_meson_txlx_cpu() || is_meson_txhd_cpu()
 		|| is_meson_g12a_cpu() || is_meson_g12b_cpu()
-		|| is_meson_tl1_cpu())
+		|| is_meson_tl1_cpu() || is_meson_sm1_cpu())
 		di_top_gate_control(true, true);
 	else if (is_meson_gxl_cpu()	|| is_meson_gxm_cpu()
 		|| is_meson_gxlx_cpu())
@@ -485,7 +485,7 @@ void di_hw_init(bool pd_enable, bool mc_enable)
 		is_meson_gxlx_cpu() ||
 		is_meson_txhd_cpu() ||
 		is_meson_g12a_cpu() ||
-		is_meson_g12b_cpu() ||
+		is_meson_g12b_cpu() || is_meson_sm1_cpu() ||
 		is_meson_tl1_cpu()) {
 		/* vpp fifo max size on txl :128*3=384[0x180] */
 		/* di fifo max size on txl :96*3=288[0x120] */
@@ -521,7 +521,7 @@ void di_hw_init(bool pd_enable, bool mc_enable)
 	if (is_meson_txlx_cpu() ||
 		is_meson_txhd_cpu() ||
 		is_meson_g12a_cpu() ||
-		is_meson_g12b_cpu() ||
+		is_meson_g12b_cpu() || is_meson_sm1_cpu() ||
 		is_meson_tl1_cpu()) {
 		di_pre_gate_control(true, true);
 		di_post_gate_control(true);
@@ -539,7 +539,7 @@ void di_hw_init(bool pd_enable, bool mc_enable)
 		mc_di_param_init();
 	if (is_meson_txlx_cpu() ||
 		is_meson_txhd_cpu() ||
-		is_meson_g12a_cpu() ||
+		is_meson_g12a_cpu() || is_meson_sm1_cpu() ||
 		is_meson_g12b_cpu() ||
 		is_meson_tl1_cpu()) {
 		di_pre_gate_control(false, true);
@@ -995,6 +995,8 @@ void enable_afbc_input(struct vframe_s *vf)
 	}
 }
 #endif
+
+#define AFBC_DEC_SEL	(eAFBC_DEC1)
 
 u32 enable_afbc_input(struct vframe_s *vf)
 {
