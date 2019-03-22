@@ -213,7 +213,7 @@ void hdmirx_init_params(void)
 {
 	if (rx.chip_id == CHIP_ID_TL1) {
 		clk_unstable_max = 10;
-		esd_phy_rst_max = 200;
+		esd_phy_rst_max = 20;
 		stable_check_lvl = 0x7df;
 		pll_lock_max = 1;
 	} else {
@@ -985,8 +985,7 @@ static bool rx_is_timing_stable(void)
 		}
 	}
 	if (stable_check_lvl & HACTIVE_EN) {
-		if ((diff(rx.cur.hactive, rx.pre.hactive) > diff_pixel_th) ||
-			(rx.cur.hactive == 0)) {
+		if (diff(rx.cur.hactive, rx.pre.hactive) > diff_pixel_th) {
 			ret = false;
 			if (log_level & VIDEO_LOG)
 				rx_pr("hactive(%d=>%d),",
@@ -995,8 +994,7 @@ static bool rx_is_timing_stable(void)
 		}
 	}
 	if (stable_check_lvl & VACTIVE_EN) {
-		if ((diff(rx.cur.vactive, rx.pre.vactive) > diff_line_th)  ||
-			(rx.cur.vactive == 0)) {
+		if (diff(rx.cur.vactive, rx.pre.vactive) > diff_line_th) {
 			ret = false;
 			if (log_level & VIDEO_LOG)
 				rx_pr("vactive(%d=>%d),",
@@ -1709,6 +1707,8 @@ int rx_set_global_variable(const char *buf, int size)
 		return pr_var(find_best_eq, index);
 	if (set_pr_var(tmpbuf, eq_try_cnt, value, &index, ret))
 		return pr_var(eq_try_cnt, index);
+	if (set_pr_var(tmpbuf, pll_rst_max, value, &index, ret))
+		return pr_var(pll_rst_max, index);
 	if (set_pr_var(tmpbuf, hdcp_enc_mode, value, &index, ret))
 		return pr_var(hdcp_enc_mode, index);
 	if (set_pr_var(tmpbuf, hbr_force_8ch, value, &index, ret))
@@ -1817,6 +1817,7 @@ void rx_get_global_variable(const char *buf)
 	pr_var(phy_retry_times, i++);
 	pr_var(find_best_eq, i++);
 	pr_var(eq_try_cnt, i++);
+	pr_var(pll_rst_max, i++);
 	pr_var(hdcp_enc_mode, i++);
 	pr_var(hbr_force_8ch, i++);
 }
@@ -2225,7 +2226,7 @@ void rx_main_state_machine(void)
 					hdmirx_hw_config();
 					hdmi_rx_top_edid_update();
 					rx.state = FSM_HPD_LOW;
-					vic_check_en = false;
+					//vic_check_en = false;
 					break;
 				}
 				sig_unready_cnt = 0;
@@ -2584,6 +2585,7 @@ static void dump_video_status(void)
 		hdmirx_rd_top(TOP_EDID_RAM_OVR2_DATA),
 			rx.port, up_phy_addr);
 	dump_clk_status();
+	rx_pr("eq=%x\n", (rd_reg_hhi(HHI_HDMIRX_PHY_DCHD_CNTL1)>>4)&0xffff);
 }
 
 static void dump_audio_status(void)
