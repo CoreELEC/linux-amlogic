@@ -4536,13 +4536,18 @@ static int amhdmitx_get_dt_info(struct platform_device *pdev)
 			pr_info(SYS "get hdmi platform data\n");
 		}
 #endif
-	hdmitx_device.irq_hpd = platform_get_irq_byname(pdev, "hdmitx_hpd");
+	pr_info("hdmitx: testtest\n");
+	hdmitx_device.irq_hpd = 39;
+	// platform_get_irq_byname(pdev, "hdmitx_hpd");
+#if 0
 	if (hdmitx_device.irq_hpd == -ENXIO) {
 		pr_err("%s: ERROR: hdmitx hpd irq No not found\n",
 				__func__);
 			return -ENXIO;
 	}
+
 	pr_info(SYS "hpd irq = %d\n", hdmitx_device.irq_hpd);
+#endif
 
 	return ret;
 }

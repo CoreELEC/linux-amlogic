@@ -1353,6 +1353,33 @@
 		clock-names = "vpu_clkc";
 	};
 
+	amhdmitx: amhdmitx{
+		compatible = "amlogic, amhdmitx";
+		dev_name = "amhdmitx";
+		status = "okay";
+		vend-data = <&vend_data>;
+		clocks = <&clkc CLKID_VCLK2_ENCI
+			&clkc CLKID_VCLK2_VENCI0
+			&clkc CLKID_VCLK2_VENCI1
+			&clkc CLKID_VAPB_MUX
+			&clkc CLKID_VPU_MUX>;
+		clock-names = "venci_top_gate",
+			"venci_0_gate",
+			"venci_1_gate",
+			"hdmi_vapb_clk",
+			"hdmi_vpu_clk";
+		/* 0:M8B   1:GXBB 2:GXTVBB 3:GXL  4:GXM
+		 * 5:TXL   6:TXLX 7:AXG    8:GXLX 9:TXHD
+		 * 10:G12A 11:G12B 12:SM1  13:TM2
+		 */
+		ic_type = <13>;
+		vend_data: vend_data{ /* Should modified by Customer */
+			vendor_name = "Amlogic"; /* Max Chars: 8 */
+			/* standards.ieee.org/develop/regauth/oui/oui.txt */
+			vendor_id = <0x000000>;
+		};
+	};
+
 	ge2d {
 		compatible = "amlogic, ge2d-sm1";
 		status = "okay";

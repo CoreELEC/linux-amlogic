@@ -411,6 +411,35 @@ int hdmitx_hpd_hw_op_g12a(enum hpd_op cmd)
 	return ret;
 }
 
+int hdmitx_hpd_hw_op_tm2(enum hpd_op cmd)
+{
+	int ret = 0;
+
+	switch (cmd) {
+	case HPD_INIT_DISABLE_PULLUP:
+		hd_set_reg_bits(P_PAD_PULL_UP_REG2, 0, 16, 1);
+		break;
+	case HPD_INIT_SET_FILTER:
+		hdmitx_wr_reg(HDMITX_TOP_HPD_FILTER,
+			((0xa << 12) | (0xa0 << 0)));
+		break;
+	case HPD_IS_HPD_MUXED:
+		ret = !!(hd_read_reg(P_PERIPHS_PIN_MUX_9) & (6 << 0));
+		break;
+	case HPD_MUX_HPD:
+		hd_set_reg_bits(P_PERIPHS_PIN_MUX_9, 6, 0, 4);
+		break;
+	case HPD_UNMUX_HPD:
+		hd_set_reg_bits(P_PERIPHS_PIN_MUX_9, 0, 0, 4);
+		break;
+	case HPD_READ_HPD_GPIO:
+		ret = hdmitx_rd_reg(HDMITX_DWC_PHY_STAT0) & (1 << 1);
+		break;
+	default:
+		break;
+	}
+	return ret;
+}
 
 void set_hpll_sspll_g12a(enum hdmi_vic vic)
 {

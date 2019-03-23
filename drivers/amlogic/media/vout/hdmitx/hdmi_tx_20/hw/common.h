@@ -67,6 +67,7 @@ void set_hpll_od3_g12a(unsigned int div);
 
 int hdmitx_hpd_hw_op_txlx(enum hpd_op cmd);
 int hdmitx_hpd_hw_op_g12a(enum hpd_op cmd);
+int hdmitx_hpd_hw_op_tm2(enum hpd_op cmd);
 int read_hpd_gpio_txlx(void);
 int hdmitx_ddc_hw_op_txlx(enum ddc_op cmd);
 extern unsigned int hdmitx_get_format_txlx(void);

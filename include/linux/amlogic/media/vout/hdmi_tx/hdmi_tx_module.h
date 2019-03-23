@@ -43,6 +43,7 @@
 #define MESON_CPU_ID_G12A		10
 #define MESON_CPU_ID_G12B		11
 #define MESON_CPU_ID_SM1		12
+#define MESON_CPU_ID_TM2		13
 
 
 /*****************************
