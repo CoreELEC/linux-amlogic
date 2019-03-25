@@ -52,6 +52,9 @@
 #define TDM_C	2
 #define LANE_MAX 4
 
+static int aml_dai_set_tdm_sysclk(struct snd_soc_dai *cpu_dai,
+				int clk_id, unsigned int freq, int dir);
+
 static void dump_pcm_setting(struct pcm_setting *setting)
 {
 	if (setting == NULL)
@@ -152,6 +155,36 @@ static const struct snd_pcm_hardware aml_tdm_hardware = {
 	.channels_max = 32,
 };
 
+static int tdm_clk_get(struct snd_kcontrol *kcontrol,
+					struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_dai *cpu_dai = snd_kcontrol_chip(kcontrol);
+	struct aml_tdm *p_tdm = snd_soc_dai_get_drvdata(cpu_dai);
+
+	ucontrol->value.enumerated.item[0] = clk_get_rate(p_tdm->mclk);
+	return 0;
+}
+
+static int tdm_clk_set(struct snd_kcontrol *kcontrol,
+					struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_dai *cpu_dai = snd_kcontrol_chip(kcontrol);
+	struct aml_tdm *p_tdm = snd_soc_dai_get_drvdata(cpu_dai);
+
+	int mclk_rate = p_tdm->last_mclk_freq;
+	int value = ucontrol->value.enumerated.item[0];
+
+	if (value > 2000000 || value < 0) {
+		pr_err("Fine tdm clk setting range (0~2000000), %d\n", value);
+		return 0;
+	}
+	mclk_rate += (value - 1000000);
+
+	aml_dai_set_tdm_sysclk(cpu_dai, 0, mclk_rate, 0);
+
+	return 0;
+}
+
 static int tdmin_clk_get(struct snd_kcontrol *kcontrol,
 			struct snd_ctl_elem_value *ucontrol)
 {
@@ -182,8 +215,6 @@ static const char *const i2sin_clk[] = {
 	"12000000"
 };
 
-
-
 static const struct soc_enum i2sin_clk_enum[] = {
 	SOC_ENUM_SINGLE(SND_SOC_NOPM, 0, ARRAY_SIZE(i2sin_clk),
 			i2sin_clk),
@@ -194,7 +225,12 @@ static const struct soc_enum i2sin_clk_enum[] = {
 static const struct snd_kcontrol_new snd_tdm_controls[] = {
 	SOC_ENUM_EXT("I2SIn CLK", i2sin_clk_enum,
 				tdmin_clk_get,
-				NULL)
+				NULL),
+
+	SOC_SINGLE_EXT("TDM MCLK Fine Setting",
+				0, 0, 2000000, 0,
+				tdm_clk_get,
+				tdm_clk_set),
 };
 
 
