@@ -215,6 +215,15 @@ static int video2_onoff_state = VIDEO_ENABLE_STATE_IDLE;
 #define BRIDGE_IRQ_SET() WRITE_CBUS_REG(ISA_TIMERC, 1)
 #endif
 
+#ifdef CONFIG_AM_VIDEOCAPTURE
+enum video_capture_state {
+	CAPTURE_STATE_OFF = 0,
+	CAPTURE_STATE_ON = 1,
+	CAPTURE_STATE_CAPTURE = 2,
+};
+
+atomic_t capture_use_cnt = ATOMIC_INIT(CAPTURE_STATE_OFF);
+#endif
 
 
 #if 1	/* MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON8 */
@@ -301,6 +310,14 @@ static int video2_onoff_state = VIDEO_ENABLE_STATE_IDLE;
 		spin_lock_irqsave(&video_onoff_lock, flags); \
 		video_onoff_state = VIDEO_ENABLE_STATE_OFF_REQ; \
 		video_enabled = 0;\
+		atomic_set(&capture_use_cnt, CAPTURE_STATE_OFF); \
+		if (capture_frame_req && capture_frame_req->data) { \
+			struct amvideocap_req_data *reqdata = \
+				(struct amvideocap_req_data *)capture_frame_req->data; \
+			if (reqdata && reqdata->privdata) \
+				reqdata->privdata->state = 0xffff; \
+		} \
+		capture_frame_req = NULL; \
 		spin_unlock_irqrestore(&video_onoff_lock, flags); \
 	} while (0)
 
@@ -543,7 +560,7 @@ static u32 video_scaler_mode;
 static int content_top = 0, content_left = 0, content_w = 0, content_h;
 static int scaler_pos_changed;
 #endif
-static struct amvideocap_req *capture_frame_req;
+static struct amvideocap_req *capture_frame_req = NULL;
 static struct video_prot_s video_prot;
 static u32 video_angle;
 u32 get_video_angle(void)
@@ -871,7 +888,6 @@ void safe_disble_videolayer(void)
 #endif
 }
 
-
 /*********************************************************/
 static inline struct vframe_s *video_vf_peek(void)
 {
@@ -885,8 +901,6 @@ static inline struct vframe_s *video_vf_get(void)
 
 	if (vf) {
 		video_notify_flag |= VIDEO_NOTIFY_PROVIDER_GET;
-		atomic_set(&vf->use_cnt, 1);
-		/*always to 1,for first get from vfm provider */
 		if ((vf->type & VIDTYPE_MVC) && (framepacking_support)
 		&&(framepacking_width) && (framepacking_height)) {
 			vf->width = framepacking_width;
@@ -956,7 +970,7 @@ static int vf_get_states(struct vframe_states *states)
 
 static inline void video_vf_put(struct vframe_s *vf)
 {
-	if (vf && atomic_dec_and_test(&vf->use_cnt)) {
+	if (vf) {
 		vf_put(vf, RECEIVER_NAME);
 		if (is_dolby_vision_enable())
 			dolby_vision_vf_put(vf);
@@ -964,22 +978,18 @@ static inline void video_vf_put(struct vframe_s *vf)
 	}
 }
 
+#ifdef CONFIG_AM_VIDEOCAPTURE
 int ext_get_cur_video_frame(struct vframe_s **vf, int *canvas_index)
 {
 	if (cur_dispbuf == NULL)
 		return -1;
-	atomic_inc(&cur_dispbuf->use_cnt);
 	*canvas_index = READ_VCBUS_REG(VD1_IF0_CANVAS0 + cur_dev->viu_off);
 	*vf = cur_dispbuf;
 	return 0;
 }
-#ifdef CONFIG_AM_VIDEOCAPTURE
 
 int ext_put_video_frame(struct vframe_s *vf)
 {
-	if (vf == &vf_local)
-		return 0;
-	video_vf_put(vf);
 	return 0;
 }
 int is_need_framepacking_output(void)
@@ -992,33 +1002,53 @@ int is_need_framepacking_output(void)
 	return ret;
 }
 
-
 int ext_register_end_frame_callback(struct amvideocap_req *req)
 {
-	mutex_lock(&video_module_mutex);
-	capture_frame_req = req;
-	mutex_unlock(&video_module_mutex);
-	return 0;
+	int ret = -EAGAIN;
+
+	if (!req) {
+		atomic_set(&capture_use_cnt, CAPTURE_STATE_ON);
+		ret = 0;
+	}
+	else if (atomic_read(&capture_use_cnt) == CAPTURE_STATE_ON && req)
+	{
+		capture_frame_req = req;
+		atomic_set(&capture_use_cnt, CAPTURE_STATE_CAPTURE);
+		ret = 0;
+	}
+	else if ( atomic_read(&capture_use_cnt) == CAPTURE_STATE_OFF)
+		ret = -ENODATA;
+
+	return ret;
 }
-int ext_frame_capture_poll(int endflags)
+
+int ext_frame_capture_poll(struct vframe_s *vf)
 {
-	mutex_lock(&video_module_mutex);
-	if (capture_frame_req && capture_frame_req->callback) {
-		struct vframe_s *vf;
-		int index;
-		int ret;
-		struct amvideocap_req *req = capture_frame_req;
-		ret = ext_get_cur_video_frame(&vf, &index);
-		if (!ret) {
-			req->callback(req->data, vf, index);
+	int ret = -EAGAIN;
+	static int capture_frame_toggle = 0;
+
+	if (capture_frame_toggle == 0 && vf) {
+		if (vf->duration > 0 && (96000 / vf->duration) > 30)
+			capture_frame_toggle = 1;
+
+		if (atomic_read(&capture_use_cnt) == CAPTURE_STATE_CAPTURE && capture_frame_req && capture_frame_req->callback) {
+			struct amvideocap_req_data *reqdata =
+				(struct amvideocap_req_data *)capture_frame_req->data;
+			int index = READ_VCBUS_REG(VD1_IF0_CANVAS0 + cur_dev->viu_off);
+
+			if (reqdata && reqdata->privdata)
+				ret = capture_frame_req->callback(reqdata->privdata, vf, index);
+
 			capture_frame_req = NULL;
+			atomic_set(&capture_use_cnt, CAPTURE_STATE_ON);
 		}
 	}
-	mutex_unlock(&video_module_mutex);
-	return 0;
+	else
+		capture_frame_toggle = 0;
+
+	return ret;
 }
 #endif
-
 
 static void vpp_settings_h(struct vpp_frame_par_s *framePtr)
 {
@@ -2476,6 +2506,9 @@ static void vsync_toggle_frame(struct vframe_s *vf)
 		}
 	}
 	cur_dispbuf = vf;
+#ifdef CONFIG_AM_VIDEOCAPTURE
+	ext_frame_capture_poll(cur_dispbuf);
+#endif
 	if (first_picture) {
 		frame_par_ready_to_set = 1;
 
@@ -5334,7 +5367,6 @@ alternative mode,passing two buffer in one frame */
 			VFRAME_EVENT_PROVIDER_SET_3D_VFRAME_INTERLEAVE,
 				(void *)1);
 		}
-
 		video_vf_light_unreg_provider();
 	} else if (type == VFRAME_EVENT_PROVIDER_FORCE_BLACKOUT) {
 		force_blackout = 1;

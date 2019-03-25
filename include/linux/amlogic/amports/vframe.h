@@ -300,7 +300,6 @@ struct vframe_s {
 	/* pixel aspect ratio */
 	enum pixel_aspect_ratio_e pixel_ratio;
 	u64 ready_jiffies64;	/* ready from decode on  jiffies_64 */
-	atomic_t use_cnt;
 	u32 frame_dirty;
 	/* prog_proc_config:
 	 *1: process p from decoder as filed;

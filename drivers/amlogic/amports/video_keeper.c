@@ -765,9 +765,6 @@ unsigned int vf_keep_current(struct vframe_s *cur_dispbuf)
 		return 0;
 	}
 
-#ifdef CONFIG_AM_VIDEOCAPTURE
-	ext_frame_capture_poll(1);	/*pull  if have capture end frame */
-#endif
 	if (get_blackout_policy()) {
 		pr_info("keep exit is skip current\n");
 		return 0;

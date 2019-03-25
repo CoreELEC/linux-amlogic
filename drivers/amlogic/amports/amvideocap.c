@@ -64,10 +64,8 @@
 #define MODULE_NAME "amvideocap"
 #define DEVICE_NAME "amvideocap"
 
-#define CAP_WIDTH_MAX      1920
-#define CAP_HEIGHT_MAX     1080
-
-#define BUF_SIZE_MAX      (0x1fffff) /* 1920 * 1088 * 4 */
+#define CAP_WIDTH_MAX      3840
+#define CAP_HEIGHT_MAX     2160
 
 MODULE_DESCRIPTION("Video Frame capture");
 MODULE_AUTHOR("amlogic-bj");
@@ -286,7 +284,6 @@ static ssize_t amvideocap_YUV_to_RGB(
 	int u_index = (cur_index >> 8) & 0xff;
 	int v_index = (cur_index >> 16) & 0xff;
 	int input_x, input_y, input_width, input_height, intfmt;
-	unsigned long RGB_addr;
 	memset(&ge2d_config, 0, sizeof(struct config_para_ex_s));
 	intfmt = amvideocap_get_input_format(vf);
 
@@ -310,12 +307,6 @@ static ssize_t amvideocap_YUV_to_RGB(
 		return -1;
 	}
 	pr_debug("RGB_phy_addr:%x\n", (unsigned int)priv->phyaddr);
-	RGB_addr = (unsigned long)priv->vaddr;
-	if (!RGB_addr) {
-		pr_err("%s: failed to remap y addr\n", __func__);
-		return -1;
-	}
-	pr_debug("RGB_addr:%lx\n", RGB_addr);
 
 	if (vf == NULL) {
 		pr_err("%s: vf is NULL\n", __func__);
@@ -604,11 +595,11 @@ static ssize_t amvideocap_YUV_to_RGB(
 	ge2d_config.dst_para.height = h;
 
 	if (ge2d_context_config_ex(ge2d_amvideocap_context, &ge2d_config) < 0) {
-		pr_err("++ge2d configing error.\n");
+		pr_err("++ge2d configuration error.\n");
 		return -1;
 	}
 
-	stretchblt_noalpha(ge2d_amvideocap_context,
+	stretchblt_noalpha_noblk(ge2d_amvideocap_context,
 					   0,
 					   0,
 					   ge2d_config.src_para.width,
@@ -633,7 +624,6 @@ static ssize_t amvideocap_YUV_to_RGB(
 	}
 
 	return 0;
-	/* vfs_write(video_rgb_filp,RGB_addr,size, &video_yuv_pos); */
 }
 
 static int amvideocap_capture_one_frame_l(
@@ -699,17 +689,6 @@ static int amvideocap_capture_one_frame(
 	return ret;
 }
 
-static int amvideocap_capture_one_frame_callback(
-		unsigned long data,
-		struct vframe_s *vfput,
-		int index)
-{
-	struct amvideocap_req_data *reqdata =
-		(struct amvideocap_req_data *)data;
-	amvideocap_capture_one_frame(reqdata->privdata, vfput, index);
-	return 0;
-}
-
 static int amvideocap_capture_one_frame_wait(
 		struct amvideocap_private *priv,
 		int waitms)
@@ -718,30 +697,29 @@ static int amvideocap_capture_one_frame_wait(
 	int ret = 0;
 	struct amvideocap_req_data reqdata;
 	struct amvideocap_req req;
-	priv->sended_end_frame_cap_req = 0;
+	priv->sended_end_frame_cap_req = -EAGAIN;
 	priv->state = AMVIDEOCAP_STATE_ON_CAPTURE;
 	do {
 		if (ret == -EAGAIN)
-			msleep(100);
+			usleep_range(500, 1000);
 		if (priv->want.at_flags == CAP_FLAG_AT_END) {
-			if (!priv->sended_end_frame_cap_req) {
+			if (priv->sended_end_frame_cap_req == -EAGAIN) {
 				reqdata.privdata = priv;
 				req.callback =
-					amvideocap_capture_one_frame_callback;
+					amvideocap_capture_one_frame;
 				req.data = (unsigned long)&reqdata;
 				req.at_flags = priv->want.at_flags;
 				req.timestamp_ms = priv->want.timestamp_ms;
 				priv->sended_end_frame_cap_req =
-					!ext_register_end_frame_callback(&req);
+					ext_register_end_frame_callback(&req);
 				ret = -EAGAIN;
-			} else {
-				if (priv->state ==
-					AMVIDEOCAP_STATE_FINISHED_CAPTURE)
+			} else
+				if (priv->sended_end_frame_cap_req == -ENODATA ||
+							priv->state == AMVIDEOCAP_STATE_ERROR) {
+				ret = -ENODATA;
+			} else
+				if (priv->state == AMVIDEOCAP_STATE_FINISHED_CAPTURE)
 					ret = 0;
-				else if (priv->state ==
-						 AMVIDEOCAP_STATE_ON_CAPTURE)
-					ret = -EAGAIN;
-			}
 		} else {
 			ret = amvideocap_capture_one_frame(priv, NULL, 0);
 			pr_debug("amvideocap_capture_one_frame_wait ret=%d\n",

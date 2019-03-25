@@ -40,7 +40,7 @@ u32 get_video_enabled(void);
 
 
 #ifdef CONFIG_AM_VIDEOCAPTURE
-int ext_frame_capture_poll(int endflags);
+int ext_frame_capture_poll(struct vframe_s *vf);
 #endif
 
 extern u32 disp_canvas_index[2][6];
