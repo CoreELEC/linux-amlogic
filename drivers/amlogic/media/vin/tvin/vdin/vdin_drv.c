@@ -2423,7 +2423,8 @@ static long vdin_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 			devp_vdin1->debug.scaler4w = 1280;
 			devp_vdin1->debug.scaler4h = 720;
-			devp_vdin1->debug.dest_cfmt = TVIN_YUV422;
+			/* vdin1 follow vdin0 afbc dest_cfmt */
+			devp_vdin1->debug.dest_cfmt = devp->prop.dest_cfmt;
 			devp_vdin1->flags |= VDIN_FLAG_MANUAL_CONVERSION;
 
 			vdin_start_dec(devp_vdin1);
