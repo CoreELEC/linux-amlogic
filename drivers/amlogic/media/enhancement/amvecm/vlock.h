@@ -23,7 +23,7 @@
 #include <linux/amlogic/media/vfm/vframe.h>
 #include "linux/amlogic/media/amvecm/ve.h"
 
-#define VLOCK_VER "Ref.2019/1/24"
+#define VLOCK_VER "Ref.2019/3/26a"
 
 #define VLOCK_REG_NUM	33
 
@@ -62,6 +62,7 @@ enum vlock_param_e {
 struct stvlock_sig_sts {
 	u32 fsm_sts;
 	u32 fsm_prests;
+	u32 fsm_pause;
 	u32 vf_sts;
 	u32 vmd_chg;
 	u32 frame_cnt_in;
@@ -177,4 +178,7 @@ extern void vlock_dt_match_init(struct vecm_match_data_s *pdata);
 extern void vlock_set_en(bool en);
 extern void vlock_set_phase(u32 percent);
 extern void vlock_set_phase_en(u32 en);
+
+extern void lcd_vlock_m_update(unsigned int vlock_m);
+extern void lcd_vlock_farc_update(unsigned int vlock_farc);
 
