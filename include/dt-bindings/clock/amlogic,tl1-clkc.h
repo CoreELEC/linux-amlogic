@@ -48,9 +48,38 @@
 #define CLKID_CPU_FCLK_P			24
 #define CLKID_CPU_CLK				25
 /*#define CLKID_ADC_PLL				24*/
-
+#define CLKID_PCIE_PLL				26
+#define CLKID_VIPNANOQ				27
+#define CLKID_PCIE1				28
+#define CLKID_PCIE0PHY				29
+#define CLKID_PCIE1PHY				30
+#define CLKID_PARSER1				31
+#define CLKID_HDCP22_PCLK			32
+#define CLKID_HDMITX_PCLK			33
+#define CLKID_HDMITX_AXI_PCLK			34
+#define CLKID_DSPB				35
+#define CLKID_DSPA				36
+/* dsp clocks */
+#define CLKID_DSPA_MUX_A			37
+#define CLKID_DSPA_DIV_A			38
+#define CLKID_DSPA_GATE_A			39
+#define CLKID_DSPA_MUX_B			40
+#define CLKID_DSPA_DIV_B			41
+#define CLKID_DSPA_GATE_B			42
+#define CLKID_DSPA_MUX				43
+#define CLKID_DSPB_MUX_A			44
+#define CLKID_DSPB_DIV_A			45
+#define CLKID_DSPB_GATE_A			46
+#define CLKID_DSPB_MUX_B			47
+#define CLKID_DSPB_DIV_B			48
+#define CLKID_DSPB_GATE_B			49
+#define CLKID_DSPB_MUX				50
+#define CLKID_PCIE0_GATE			51
+#define CLKID_PCIE1_GATE			52
+#define CLKID_PCIE0				53
+#define CLKID_PCIE01_ENABLE			54
 /*HHI_GCLK_MPEG0: 0x50*/
-#define GATE_BASE0				(26)
+#define GATE_BASE0				55
 
 #define CLKID_DDR				(GATE_BASE0 + 0)
 #define CLKID_DOS				(GATE_BASE0 + 1)
@@ -102,7 +131,7 @@
 #define CLKID_BT656				(GATE_BASE2 + 2)
 #define CLKID_USB1_TO_DDR			(GATE_BASE2 + 3)
 #define CLKID_MMC_PCLK				(GATE_BASE2 + 4)
-#define CLKID_HDCP22_PCLK			(GATE_BASE0 + 5)
+#define CLKID_HDMIRX_TOP			(GATE_BASE0 + 5)
 #define CLKID_UART2				(GATE_BASE2 + 6)
 #define CLKID_TS				(GATE_BASE2 + 7)
 #define CLKID_VPU_INTR				(GATE_BASE2 + 8)

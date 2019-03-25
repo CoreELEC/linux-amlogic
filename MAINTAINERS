@@ -14849,3 +14849,7 @@ AMLOGIC TM2 PINCTRL DRIVER
 M:	Qianggui Song <qianggui.song@amlogic.com>
 F:	drivers/amlogic/pinctrl/pinctrl-meson-tm2.c
 F:	include/dt-bindings/gpio/meson-tm2-gpio.h
+
+AMLOGIC MESON TM2 CLOCK DRIVER
+M:	Jian Hu <jian.hu@amlogic.com>
+F:	driver/amlogic/clk/tm2/*

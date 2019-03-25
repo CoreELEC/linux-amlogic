@@ -50,10 +50,10 @@
 #define HHI_HIFI_PLL_CNTL6		0xec /* 0x3b offset in datasheet */
 #define HHI_HIFI_PLL_STS		0xf0 /* 0x3c offset in datasheet very*/
 
-#define HHI_GCLK_MPEG0			0x140 /* 0x50 offset in datasheet */
-#define HHI_GCLK_MPEG1			0x144 /* 0x51 offset in datasheet */
-#define HHI_GCLK_MPEG2			0x148 /* 0x52 offset in datasheet */
-#define HHI_GCLK_OTHER			0x150 /* 0x54 offset in datasheet */
+#define HHI_GCLK_MPEG0			0xc0 /* 0x30 offset in datasheet */
+#define HHI_GCLK_MPEG1			0xc4 /* 0x31 offset in datasheet */
+#define HHI_GCLK_MPEG2			0xc8 /* 0x32 offset in datasheet */
+#define HHI_GCLK_OTHER			0xd0 /* 0x34 offset in datasheet */
 
 #define HHI_GCLK_AO			0x154 /* 0x55 offset in datasheet */
 

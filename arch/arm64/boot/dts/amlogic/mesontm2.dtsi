@@ -615,6 +615,10 @@
 				#clock-cells = <1>;
 				reg = <0x0 0x0 0x0 0x3fc>;
 			};
+			clkc1: clock-controller@1 {
+				compatible = "amlogic,tm2-clkc";
+				#clock-cells = <1>;
+			};
 		};/* end of hiubus*/
 
 		audiobus: audiobus@0xff600000 {
