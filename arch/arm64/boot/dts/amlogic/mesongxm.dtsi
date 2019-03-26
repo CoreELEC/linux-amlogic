@@ -23,6 +23,7 @@
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include "mesongxm-gpu-t82x.dtsi"
 / {
+	coreelec;
 	cpus:cpus {
 		#address-cells = <2>;
 		#size-cells = <0>;
