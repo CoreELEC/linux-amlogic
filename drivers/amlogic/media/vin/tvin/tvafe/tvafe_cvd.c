@@ -553,11 +553,13 @@ static void tvafe_cvd2_write_mode_reg(struct tvafe_cvd2_s *cvd2,
 	}
 
 	/*set for wipe off vertical stripes*/
-	if ((cvd2->vd_port > TVIN_PORT_CVBS0) &&
-		(cvd2->vd_port <= TVIN_PORT_CVBS3) &&
-		(cvd2->vd_port != TVIN_PORT_CVBS3) &&
-		(tvafe_cpu_type() >= CPU_TYPE_TXL))
-		W_APB_REG(ACD_REG_25, 0x00e941a8);
+	if (cvd2->vd_port == TVIN_PORT_CVBS1 ||
+		cvd2->vd_port == TVIN_PORT_CVBS2) {
+		if (tvafe_cpu_type() >= CPU_TYPE_TL1)
+			W_APB_REG(ACD_REG_25, 0xeafb4e8e);
+		else if (tvafe_cpu_type() >= CPU_TYPE_TXL)
+			W_APB_REG(ACD_REG_25, 0x00e941a8);
+	}
 
 	/* enable CVD2 */
 	W_APB_BIT(CVD2_RESET_REGISTER, 0, SOFT_RST_BIT, SOFT_RST_WID);
