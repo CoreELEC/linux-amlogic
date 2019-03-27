@@ -182,6 +182,13 @@
 			alignment = <0x0>;
 			linux,contiguous-region;
 		};
+		dsp_fw_reserved:linux,dsp_fw {
+			compatible = "shared-dma-pool";
+			reusable;
+			size = <0x01000000>;
+			alignment = <0x00400000>;
+			alloc-ranges = <0x30000000 0x01000000>;
+		};
 	}; /* end of reserved-memory */
 	galcore {
 		status = "okay";

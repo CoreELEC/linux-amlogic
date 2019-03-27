@@ -104,6 +104,8 @@ obj-$(CONFIG_AMLOGIC_BT_DEVICE)		+= bluetooth/
 
 obj-$(CONFIG_AMLOGIC_WIFI)      += wifi/
 
+obj-$(CONFIG_AMLOGIC_HIFI4DSP) += hifi4dsp/
+
 obj-$(CONFIG_AMLOGIC_POWER)		+= power/
 
 obj-$(CONFIG_AMLOGIC_PCIE)      += pci/

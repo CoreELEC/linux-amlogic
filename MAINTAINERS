@@ -14924,3 +14924,7 @@ F:	drivers/amlogic/input/touchscreen/hyn_cst2xx/*
 AMLOGIC WEEKLY CHANGE GENERATOR
 M:	JIAMIN MA <jiamin.ma@amlogic.com>
 F:	scripts/amlogic/weekly_change.py
+
+ANLOGIC HIFI4DSP
+M: Shuyu Li <Shuyu.Li@amlogic.com>
+F: drivers/amlogic/hifi4dsp/*

@@ -1608,6 +1608,27 @@
 	cpu_ver_name {
 		compatible = "amlogic, cpu-major-id-tm2";
 	};
+
+	hifi4dsp: hifi4dsp {
+		compatible = "amlogic, hifi4dsp";
+		memory-region = <&dsp_fw_reserved>;
+		reserved_mem_size = <0x00400000>;
+		reg = <0x0 0xff680000 0x0 0x10000
+			0x0 0xff690000 0x0 0x10000>;
+		reg-names = "dspa_top_reg","dspb_top_reg";
+		interrupts = <0 242 1
+				0 246 1>;
+		interrupt-names = "irq_frm_dspa","irq_frm_dspb";
+		clocks = <&clkc CLKID_DSPA
+			&clkc CLKID_DSPA_MUX
+			&clkc CLKID_DSPB
+			&clkc CLKID_DSPB_MUX>;
+		clock-names = "dspa_gate", "dspa_clk",
+				"dspb_gate", "dspb_gate";
+		dsp-cnt = <2>;
+		status = "okay";
+	};
+
 }; /* end of / */
 
 &pinctrl_aobus {
