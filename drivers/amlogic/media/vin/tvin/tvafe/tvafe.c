@@ -1486,6 +1486,11 @@ static int tvafe_drv_resume(struct platform_device *pdev)
 
 static void tvafe_drv_shutdown(struct platform_device *pdev)
 {
+	if (tvafe_cpu_type() == CPU_TYPE_TL1) {
+		W_APB_BIT(TVFE_VAFE_CTRL0, 0, 19, 1);
+		W_APB_BIT(TVFE_VAFE_CTRL1, 0, 8, 1);
+	}
+	adc_pll_down();
 	tvafe_pr_info("tvafe_drv_shutdown ok.\n");
 }
 

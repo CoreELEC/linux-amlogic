@@ -41,8 +41,6 @@
 #define VAFE_CLK_SELECT			24
 #define VAFE_CLK_SELECT_WIDTH	2
 
-
-
 static unsigned int adc_pll_chg;
 
 /* TOP */
@@ -599,6 +597,21 @@ void tvafe_enable_avout(enum tvin_port_e port, bool enable)
 	}
 }
 
+void adc_pll_down(void)
+{
+	if (!adc_pll_chg &&
+		tvafe_cpu_type() == CPU_TYPE_TL1 &&
+		R_HIU_BIT(HHI_ADC_PLL_CNTL0_TL1, 28, 1)) {
+		W_HIU_BIT(HHI_ADC_PLL_CNTL0_TL1, 0, 28, 1);
+		tvafe_pr_info("%s: ok\n", __func__);
+	}
+}
+
+/*module_sel*/
+/*ADC_EN_ATV_DEMOD	0x1*/
+/*ADC_EN_TVAFE		0x2*/
+/*ADC_EN_DTV_DEMOD	0x4*/
+/*ADC_EN_DTV_DEMODPLL	0x8*/
 int adc_set_pll_cntl(bool on, unsigned int module_sel, void *pDtvPara)
 {
 	unsigned int adc_pll_lock_cnt = 0;

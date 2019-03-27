@@ -737,7 +737,7 @@ static void amvdac_drv_shutdown(struct platform_device *pdev)
 	if (s_vdac_data->cpu_id == VDAC_CPU_TXL ||
 		s_vdac_data->cpu_id == VDAC_CPU_TXLX)
 		cntl1 = 0x0;
-	else if (s_vdac_data->cpu_id == VDAC_CPU_TL1)
+	else if (s_vdac_data->cpu_id >= VDAC_CPU_TL1)
 		cntl1 = 0x80;
 	else
 		cntl1 = 0x8;

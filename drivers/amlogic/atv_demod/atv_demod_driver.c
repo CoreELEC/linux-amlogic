@@ -786,6 +786,7 @@ static void aml_atvdemod_shutdown(struct platform_device *pdev)
 	struct aml_atvdemod_device *dev = platform_get_drvdata(pdev);
 
 	v4l2_frontend_shutdown(&dev->v4l2_fe);
+	adc_pll_down();
 
 	pr_info("%s: OK.\n", __func__);
 }

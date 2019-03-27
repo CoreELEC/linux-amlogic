@@ -3080,7 +3080,8 @@ static int leave_mode(enum aml_fe_n_mode_t mode)
 		}
 	}
 
-	adc_set_pll_cntl(0, 0x04, NULL);
+	adc_set_pll_cntl(0, 0x4, NULL);
+	adc_set_pll_cntl(0, 0x8, NULL);
 	demod_mode_para = UNKNOWN;
 	/* should disable the adc ref signal for demod */
 	/*vdac_enable(0, 0x2);*/
@@ -3736,6 +3737,7 @@ static void aml_dtvdemod_shutdown(struct platform_device *pdev)
 			leave_mode(nmode);
 		dtvdd_devp->state = DTVDEMOD_ST_IDLE;
 	}
+	adc_pll_down();
 
 }
 

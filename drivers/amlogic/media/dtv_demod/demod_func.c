@@ -485,7 +485,7 @@ void adc_dpll_setup(int clk_a, int clk_b, int clk_sys, int dvb_mode)
 	/* debug only */
 	/*printk("adcpllctl=0x%x\n",adc_pll_cntl.d32);*/
 
-	sts_pll = adc_set_pll_cntl(1, 0x0c, &ddemod_pll);
+	sts_pll = adc_set_pll_cntl(1, 0x8, &ddemod_pll);
 	if (sts_pll < 0) {
 		/*set pll fail*/
 		PR_ERR("%s:set pll fail! please check!\n", __func__);

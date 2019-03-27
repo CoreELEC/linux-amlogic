@@ -137,7 +137,7 @@
 #define ADC_EN_ATV_DEMOD	0x1
 #define ADC_EN_TVAFE		0x2
 #define ADC_EN_DTV_DEMOD	0x4
-#define ADC_EN_DTV_DEMODPLL	0xC
+#define ADC_EN_DTV_DEMODPLL	0x8
 
 #define LOG_ADC_CAL
 /* #define LOG_VGA_EDID */
