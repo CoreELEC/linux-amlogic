@@ -14838,3 +14838,9 @@ M:	Yeping Miao <yeping.miao@amlogic.com>
 F:	arch/arm64/boot/dts/amlogic/axg_s400_v03gva_sbr.dts
 F:	arch/arm/boot/dts/amlogic/axg_s400_v03gva_sbr.dts
 
+AMLOGIC TL1 DTS
+M:	Huijie Huang <huijie.huang@amlogic.com>
+F:	arch/arm/boot/dts/amlogic/tl1_t962x2_x301_1g.dts
+F:	arch/arm/boot/dts/amlogic/tl1_t962x2_x301_2g.dts
+F:	arch/arm64/boot/dts/amlogic/tl1_t962x2_x301_1g.dts
+F:	arch/arm64/boot/dts/amlogic/tl1_t962x2_x301_2g.dts

@@ -1,5 +1,5 @@
 /*
- * arch/arm64/boot/dts/amlogic/tl1_t962x2_x301.dts
+ * arch/arm/boot/dts/amlogic/tl1_t962x2_x301.dts
  *
  * Copyright (C) 2018 Amlogic, Inc. All rights reserved.
  *
@@ -23,7 +23,7 @@
 
 / {
 	model = "Amlogic TL1 T962X2 X301";
-	amlogic-dt-id = "tl1_t962x2_x301";
+	amlogic-dt-id = "tl1_t962x2_x301-2g";
 	compatible = "amlogic, tl1_t962x2_x301";
 
 	aliases {
@@ -40,21 +40,23 @@
 		i2c2 = &i2c2;
 		i2c3 = &i2c3;
 		i2c4 = &i2c_AO;
+		spi0 = &spicc0;
+		spi1 = &spicc1;
 	};
 
 	memory@00000000 {
 		device_type = "memory";
-		linux,usable-memory = <0x0 0x0 0x0 0x80000000>;
+		linux,usable-memory = <0x0 0x80000000>;
 	};
 
 	reserved-memory {
-		#address-cells = <2>;
-		#size-cells = <2>;
+		#address-cells = <1>;
+		#size-cells = <1>;
 		ranges;
 		/* global autoconfigured region for contiguous allocations */
 		ramoops@0x07400000 {
 			compatible = "ramoops";
-			reg = <0x0 0x07400000 0x0 0x00100000>;
+			reg = <0x07400000 0x00100000>;
 			record-size = <0x8000>;
 			console-size = <0x8000>;
 			ftrace-size = <0x0>;
@@ -64,49 +66,50 @@
 		secmon_reserved: linux,secmon {
 			compatible = "shared-dma-pool";
 			reusable;
-			size = <0x0 0x400000>;
-			alignment = <0x0 0x400000>;
-			alloc-ranges = <0x0 0x05000000 0x0 0x400000>;
+			size = <0x400000>;
+			alignment = <0x400000>;
+			alloc-ranges = <0x05000000 0x400000>;
 		};
 
 		logo_reserved:linux,meson-fb {
 			compatible = "shared-dma-pool";
 			reusable;
-			size = <0x0 0x800000>;
-			alignment = <0x0 0x400000>;
-			alloc-ranges = <0x0 0x7f800000 0x0 0x800000>;
+			size = <0x800000>;
+			alignment = <0x400000>;
+			alloc-ranges = <0x7f800000 0x800000>;
 		};
 
 		lcd_tcon_reserved:linux,lcd_tcon {
 			compatible = "shared-dma-pool";
 			reusable;
-			size = <0x0 0xc00000>;
-			alignment = <0x0 0x400000>;
-			alloc-ranges = <0x0 0x7ec00000 0x0 0xc00000>;
+			size = <0xc00000>;
+			alignment = <0x400000>;
+			alloc-ranges = <0x7ec00000 0xc00000>;
 		};
 
 		codec_mm_cma:linux,codec_mm_cma {
 			compatible = "shared-dma-pool";
 			reusable;
 			/* ion_codec_mm max can alloc size 80M*/
-			size = <0x0 0x13400000>;
-			alignment = <0x0 0x400000>;
+			size = <0x13400000>;
+			alignment = <0x400000>;
 			linux,contiguous-region;
+			alloc-ranges = <0x30000000 0x50000000>;
 		};
 
 		/* codec shared reserved */
 		codec_mm_reserved:linux,codec_mm_reserved {
 			compatible = "amlogic, codec-mm-reserved";
-			size = <0x0 0x0>;
-			alignment = <0x0 0x100000>;
+			size = <0x0>;
+			alignment = <0x100000>;
 			//no-map;
 		};
 
 		ion_cma_reserved:linux,ion-dev {
 			compatible = "shared-dma-pool";
 			reusable;
-			size = <0x0 0x2000000>;
-			alignment = <0x0 0x400000>;
+			size = <0x2000000>;
+			alignment = <0x400000>;
 		};
 
 		/*  vdin0 CMA pool */
@@ -114,8 +117,8 @@
 		//	compatible = "shared-dma-pool";
 		//	reusable;
 			/* 3840x2160x4x4 ~=128 M */
-		//	size = <0x0 0xc400000>;
-		//	alignment = <0x0 0x400000>;
+		//	size = <0xc400000>;
+		//	alignment = <0x400000>;
 		//};
 
 		/*  vdin1 CMA pool */
@@ -123,14 +126,14 @@
 			compatible = "shared-dma-pool";
 			reusable;
 			/* 1920x1080x2x4  =16 M */
-			size = <0x0 0x1400000>;
-			alignment = <0x0 0x400000>;
+			size = <0x1400000>;
+			alignment = <0x400000>;
 		};
 
 		/*demod_reserved:linux,demod {
 		 *	compatible = "amlogic, demod-mem";
-		 *	size = <0x0 0x800000>; //8M //100m 0x6400000
-		 *	alloc-ranges = <0x0 0x0 0x0 0x30000000>;
+		 *	size = <0x800000>; //8M //100m 0x6400000
+		 *	alloc-ranges = <0x0 0x30000000>;
 		 *	//multi-use;
 		 *	//no-map;
 		 *};
@@ -140,8 +143,8 @@
 			compatible = "shared-dma-pool";
 			reusable;
 			/* 8M */
-			size = <0x0 0x0800000>;
-			alignment = <0x0 0x400000>;
+			size = <0x0800000>;
+			alignment = <0x400000>;
 		};
 
 		/*di CMA pool */
@@ -155,8 +158,8 @@
 			 * 10x4736064=45.2M(0x2e) support 12bit
 			 * 10x4074560=40M(0x28) support 10bit
 			 */
-			size = <0x0 0x02800000>;
-			alignment = <0x0 0x400000>;
+			size = <0x02800000>;
+			alignment = <0x400000>;
 		};
 
 		/* for hdmi rx emp use */
@@ -166,21 +169,22 @@
 			reusable;
 			/* 4M for emp to ddr */
 			/* 32M for tmds to ddr */
-			size = <0x0 0x2000000>;
-			alignment = <0x0 0x400000>;
+			size = <0x400000>;
+			alignment = <0x400000>;
+			/* alloc-ranges = <0x400000 0x2000000>; */
 		};
 
 		/* POST PROCESS MANAGER */
 		ppmgr_reserved:linux,ppmgr {
 			compatible = "amlogic, ppmgr_memory";
-			size = <0x0 0x0>;
+			size = <0x0>;
 		};
 
 		picdec_cma_reserved:linux,picdec {
 			compatible = "shared-dma-pool";
 			reusable;
-			size = <0x0 0x0>;
-			alignment = <0x0 0x0>;
+			size = <0x0>;
+			alignment = <0x0>;
 			linux,contiguous-region;
 		};
 	}; /* end of reserved-memory */
@@ -252,7 +256,7 @@
 		#sound-dai-cells = <0>;
 		compatible = "amlogic, tl1_acodec";
 		status = "okay";
-		reg = <0x0 0xff632000 0x0 0x1c>;
+		reg = <0xff632000 0x1c>;
 		tdmout_index = <0>;
 		tdmin_index = <0>;
 		dat1_ch_sel = <1>;
@@ -269,10 +273,10 @@
 		clocks = <&clkc CLKID_DAC_CLK>;
 		clock-names = "vdac_clk_gate";
 
-		reg = <0x0 0xff650000 0x0 0x4000	/*dtv demod base*/
-			   0x0 0xff63c000 0x0 0x2000	/*hiu reg base*/
-			   0x0 0xff800000 0x0 0x1000	/*io_aobus_base*/
-			   0x0 0xffd01000 0x0 0x1000	/*reset*/
+		reg = <0xff650000 0x4000	/*dtv demod base*/
+			   0xff63c000 0x2000	/*hiu reg base*/
+			   0xff800000 0x1000	/*io_aobus_base*/
+			   0xffd01000 0x1000	/*reset*/
 			>;
 
 		dtv_demod0_mem = <0>;	// need move to aml_dtv_demod ?
@@ -291,7 +295,7 @@
 		aml-audio-card,dai-link@0 {
 			format = "i2s";
 			mclk-fs = <256>;
-			//continuous-clock;
+			continuous-clock;
 			//bitclock-inversion;
 			//frame-inversion;
 			/* master mode */
@@ -399,6 +403,7 @@
 
 		aml-audio-card,dai-link@4 {
 			mclk-fs = <128>;
+			continuous-clock;
 			/* suffix-name, sync with android audio hal used for */
 			suffix-name = "alsaPORT-spdif";
 			cpu {
@@ -475,7 +480,7 @@
 	};
 
 	amlvecm {
-		compatible = "amlogic, vecm";
+		compatible = "amlogic, vecm-tl1";
 		dev_name = "aml_vecm";
 		status = "okay";
 		gamma_en = <1>;/*1:enabel ;0:disable*/
@@ -569,7 +574,7 @@
 		status = "okay";
 		flag_cma = <1>;/*1:share with codec_mm;0:cma alone*/
 		cma_size = <5>;/*MByte*/
-		reg = <0x0 0xff654000 0x0 0x2000>;/*tvafe reg base*/
+		reg = <0xff654000 0x2000>;/*tvafe reg base*/
 		reserve-iomap = "true";
 		tvafe_id = <0>;
 		//pinctrl-names = "default";
@@ -849,13 +854,13 @@
 		/* MAP_ADDR_MODULE_SEC_AHB2 */
 		/* MAP_ADDR_MODULE_APB4 */
 		/* MAP_ADDR_MODULE_TOP */
-		reg = < 0x0 0x0 0x0 0x0
-			0x0 0xff63C000 0x0 0x2000
-			0x0 0xffe0d000 0x0 0x2000
-			0x0 0x0 0x0 0x0
-			0x0 0x0 0x0 0x0
-			0x0 0x0 0x0 0x0
-			0x0 0xff610000 0x0 0xa000>;
+		reg = < 0x0 0x0
+			0xff63C000 0x2000
+			0xffe0d000 0x2000
+			0x0 0x0
+			0x0 0x0
+			0x0 0x0
+			0xff610000 0xa000>;
 	};
 
 	aocec: aocec {
@@ -879,16 +884,16 @@
 		pinctrl-0=<&aoceca_mux>;
 		pinctrl-1=<&aocecb_mux>;
 		pinctrl-2=<&aoceca_mux>;
-		reg = <0x0 0xFF80023c 0x0 0x4
-			   0x0 0xFF800000 0x0 0x400>;
+		reg = <0xFF80023c 0x4
+			   0xFF800000 0x400>;
 		reg-names = "ao_exit","ao";
 	};
 
 	p_tsensor: p_tsensor@ff634800 {
 		compatible = "amlogic, r1p1-tsensor";
 		status = "okay";
-		reg = <0x0 0xff634800 0x0 0x50>,
-			<0x0 0xff800268 0x0 0x4>;
+		reg = <0xff634800 0x50>,
+			<0xff800268 0x4>;
 		cal_type = <0x1>;
 		cal_a = <324>;
 		cal_b = <424>;
@@ -904,8 +909,8 @@
 	d_tsensor: d_tsensor@ff634c00 {
 		compatible = "amlogic, r1p1-tsensor";
 		status = "okay";
-		reg = <0x0 0xff634c00 0x0 0x50>,
-			<0x0 0xff800230 0x0 0x4>;
+		reg = <0xff634c00 0x50>,
+			<0xff800230 0x4>;
 		cal_type = <0x1>;
 		cal_a = <324>;
 		cal_b = <424>;
@@ -921,8 +926,8 @@
 	s_tsensor: s_tsensor@ff635000 {
 		compatible = "amlogic, r1p1-tsensor";
 		status = "okay";
-		reg = <0x0 0xff635000 0x0 0x50>,
-			<0x0 0xff80026c 0x0 0x4>;
+		reg = <0xff635000 0x50>,
+			<0xff80026c 0x4>;
 		cal_type = <0x1>;
 		cal_a = <324>;
 		cal_b = <424>;
@@ -1175,10 +1180,10 @@
 		btsc_sap_mode = <1>;
 		/* pinctrl-names="atvdemod_agc_pins"; */
 		/* pinctrl-0=<&atvdemod_agc_pins>; */
-		reg = <0x0 0xff656000 0x0 0x2000 /* demod reg */
-				0x0 0xff63c000 0x0 0x2000 /* hiu reg */
-				0x0 0xff634000 0x0 0x2000 /* periphs reg */
-				0x0 0xff64a000 0x0 0x2000>; /* audio reg */
+		reg = <0xff656000 0x2000 /* demod reg */
+				0xff63c000 0x2000 /* hiu reg */
+				0xff634000 0x2000 /* periphs reg */
+				0xff64a000 0x2000>; /* audio reg */
 		reg_23cf = <0x88188832>;
 		/*default:0x88188832;r840 on haier:0x48188832*/
 	};
@@ -1217,7 +1222,7 @@
 	sd_emmc_b: sdio@ffe05000 {
 		status = "okay";
 		compatible = "amlogic, meson-mmc-tl1";
-		reg = <0x0 0xffe05000 0x0 0x800>;
+		reg = <0xffe05000 0x800>;
 		interrupts = <0 190 4>;
 
 		pinctrl-names = "sdio_all_pins",
@@ -1259,6 +1264,7 @@
 			 */
 		};
 	};
+
 /*	sd_emmc_b: sd@ffe05000 {
  *		status = "okay";
  *		compatible = "amlogic, meson-mmc-tl1";
@@ -1542,6 +1548,41 @@
 		status = "disabled";
 	};
 
+	vad:vad {
+		compatible = "amlogic, snd-vad";
+		#sound-dai-cells = <0>;
+
+		clocks = <&clkaudio CLKID_AUDIO_GATE_TOVAD
+			&clkc CLKID_FCLK_DIV5
+			&clkaudio CLKID_AUDIO_VAD>;
+		clock-names = "gate", "pll", "clk";
+
+		interrupts = <GIC_SPI 155 IRQ_TYPE_EDGE_RISING
+				GIC_SPI 47 IRQ_TYPE_EDGE_RISING>;
+		interrupt-names = "irq_wakeup", "irq_frame_sync";
+
+		/*
+		 * Data src sel:
+		 * 0: tdmin_a;
+		 * 1: tdmin_b;
+		 * 2: tdmin_c;
+		 * 3: spdifin;
+		 * 4: pdmin;
+		 * 5: loopback_b;
+		 * 6: tdmin_lb;
+		 * 7: loopback_a;
+		 */
+		src = <4>;
+
+		/*
+		 * deal with hot word in user space or kernel space
+		 * 0: in user space
+		 * 1: in kernel space
+		 */
+		level = <1>;
+
+		status = "disabled";
+	};
 }; /* end of audiobus */
 
 &pinctrl_periphs {
