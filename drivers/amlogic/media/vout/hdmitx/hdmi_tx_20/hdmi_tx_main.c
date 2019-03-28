@@ -110,6 +110,18 @@ struct extcon_dev *hdmitx_extcon_hdr;
 struct extcon_dev *hdmitx_extcon_rxsense;
 struct extcon_dev *hdmitx_extcon_hdcp;
 
+void control_hdmiphy(bool on)
+{
+	if (on)
+		hdmitx_device.HWOp.CntlMisc(&hdmitx_device,
+			MISC_TMDS_PHY_OP,
+			TMDS_PHY_ENABLE);
+	else
+		hdmitx_device.HWOp.CntlMisc(&hdmitx_device,
+			MISC_TMDS_PHY_OP,
+			TMDS_PHY_DISABLE);
+}
+
 static struct hdmi_cea_timing custom_timing;
 struct hdmi_cea_timing *get_custom_timing(void)
 {

@@ -73,4 +73,5 @@ extern size_t get_fb_rmem_size(int index);
 extern int osd_blank(int blank_mode, struct fb_info *info);
 extern struct osd_fb_dev_s *gp_fbdev_list[];
 extern const struct color_bit_define_s default_color_format_array[];
+extern void control_hdmiphy(bool on);
 #endif
