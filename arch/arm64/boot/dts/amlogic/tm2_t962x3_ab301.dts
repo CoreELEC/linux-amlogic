@@ -19,6 +19,7 @@
 
 #include "mesontm2.dtsi"
 #include "partition_mbox_normal.dtsi"
+#include "mesontm2_t962x3_ab301-panel.dtsi"
 
 / {
 	model = "Amlogic TM2 T962X3 AB301";
@@ -76,6 +77,14 @@
 			alignment = <0x0 0x400000>;
 			linux,contiguous-region;
 			alloc-ranges = <0x0 0x30000000 0x0 0x50000000>;
+		};
+
+		lcd_tcon_reserved:linux,lcd_tcon {
+			compatible = "shared-dma-pool";
+			reusable;
+			size = <0x0 0xc00000>;
+			alignment = <0x0 0x400000>;
+			alloc-ranges = <0x0 0x7ec00000 0x0 0xc00000>;
 		};
 
 		/* codec shared reserved */
@@ -1567,7 +1576,40 @@
 		};
 	};
 
-
+	/*backlight*/
+	bl_pwm_vs_on_pins:bl_pwm_vs_on_pin {
+		mux {
+			groups = "pwm_vs_z5";
+			function = "pwm_vs";
+		};
+	};
+	bl_pwm_off_pins:bl_pwm_off_pin {
+		mux {
+			groups = "GPIOZ_5";
+			function = "gpio_periphs";
+			output-low;
+		};
+	};
+	bl_pwm_combo_0_vs_on_pins:bl_pwm_combo_0_vs_on_pin {
+		mux {
+			groups = "pwm_vs_z5";
+			function = "pwm_vs";
+		};
+	};
+	bl_pwm_combo_1_vs_on_pins:bl_pwm_combo_1_vs_on_pin {
+		mux {
+			groups = "pwm_vs_z6";
+			function = "pwm_vs";
+		};
+	};
+	bl_pwm_combo_off_pins:bl_pwm_combo_off_pin {
+		mux {
+			groups = "GPIOZ_5",
+				"GPIOZ_6";
+			function = "gpio_periphs";
+			output-low;
+		};
+	};
 }; /* end of pinctrl_periphs */
 
 &pinctrl_aobus {
@@ -1750,6 +1792,10 @@
 };
 
 &pwm_AO_cd {
+	status = "okay";
+};
+
+&pwm_cd {
 	status = "okay";
 };
 

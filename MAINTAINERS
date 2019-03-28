@@ -14848,3 +14848,10 @@ F:	include/dt-bindings/gpio/meson-tm2-gpio.h
 AMLOGIC MESON TM2 CLOCK DRIVER
 M:	Jian Hu <jian.hu@amlogic.com>
 F:	driver/amlogic/clk/tm2/*
+
+AMLOGIC MESON TM2 LCD DTS
+M:	Shaochan Liu <shaochan.liu@amlogic.com>
+F:	arch/arm64/boot/dts/amlogic/mesontm2_t962x3_ab301-panel.dtsi
+F:	arch/arm64/boot/dts/amlogic/mesontm2_t962x3_ab309-panel.dtsi
+F:	arch/arm/boot/dts/amlogic/mesontm2_t962x3_ab301-panel.dtsi
+F:	arch/arm/boot/dts/amlogic/mesontm2_t962x3_ab309-panel.dtsi

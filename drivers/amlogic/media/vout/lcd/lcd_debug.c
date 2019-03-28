@@ -606,6 +606,7 @@ static void lcd_reg_print_serializer(char *buf, int offset)
 
 	switch (lcd_drv->data->chip_type) {
 	case LCD_CHIP_TL1:
+	case LCD_CHIP_TM2:
 		reg0 = HHI_LVDS_TX_PHY_CNTL0_TL1;
 		reg1 = HHI_LVDS_TX_PHY_CNTL1_TL1;
 		break;
@@ -4496,6 +4497,7 @@ int lcd_debug_probe(void)
 
 	switch (lcd_drv->data->chip_type) {
 	case LCD_CHIP_TL1:
+	case LCD_CHIP_TM2:
 		lcd_debug_info_reg = &lcd_debug_info_reg_tl1;
 		lcd_debug_info_if_lvds.reg_dump_phy =
 			lcd_reg_print_phy_analog_tl1;
