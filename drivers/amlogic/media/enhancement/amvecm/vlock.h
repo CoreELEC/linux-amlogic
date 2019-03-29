@@ -23,7 +23,7 @@
 #include <linux/amlogic/media/vfm/vframe.h>
 #include "linux/amlogic/media/amvecm/ve.h"
 
-#define VLOCK_VER "Ref.2019/3/26a"
+#define VLOCK_VER "Ref.2019/3/29a"
 
 #define VLOCK_REG_NUM	33
 
@@ -131,6 +131,9 @@ enum VLOCK_MD {
 
 #define IS_MANUAL_SOFTENC_MODE(md) (md & \
 				VLOCK_MODE_MANUAL_SOFT_ENC)
+
+#define VLOCK_START_CNT		50
+#define VLOCK_WORK_CNT	(VLOCK_START_CNT + 10)
 
 
 #define XTAL_VLOCK_CLOCK   24000000/*vlock use xtal clock*/
