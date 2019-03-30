@@ -34,7 +34,7 @@
 #include "hdmi_rx_edid.h"
 
 
-#define RX_VER0 "ver.2019-03-25"
+#define RX_VER0 "ver.2019-04-02"
 /*
  *
  *
@@ -61,7 +61,6 @@
 #define VSI_LOG		0x800
 
 /* 50ms timer for hdmirx main loop (HDMI_STATE_CHECK_FREQ is 20) */
-
 
 #define ABS(x) ((x) < 0 ? -(x) : (x))
 

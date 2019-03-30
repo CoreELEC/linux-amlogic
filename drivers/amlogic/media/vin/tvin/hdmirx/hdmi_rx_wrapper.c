@@ -1214,6 +1214,9 @@ void rx_dwc_reset(void)
 	 * 1. hdmi swreset
 	 * 2. new AKSV is received
 	 */
+	hdmirx_wr_top(TOP_SW_RESET, 0x280);
+	udelay(1);
+	hdmirx_wr_top(TOP_SW_RESET, 0);
 	if ((rx.hdcp.hdcp_version == HDCP_VER_NONE) &&
 		(rx_get_hdcp14_sts() != 0))
 		rx_sw_reset(2);
@@ -2135,6 +2138,7 @@ void rx_main_state_machine(void)
 			if (++clk_stable_cnt > clk_stable_max) {
 				rx.state = FSM_EQ_START;
 				clk_stable_cnt = 0;
+				rx_pr("clk stable=%d\n", rx.phy.cable_clk);
 				rx.err_code = ERR_NONE;
 			}
 		} else {
