@@ -648,9 +648,13 @@ static irqreturn_t intr_handler(int irq, void *dev)
 	hdmitx_wr_reg(HDMITX_TOP_INTR_STAT_CLR, ~0);
 	hdmitx_wr_reg(HDMITX_DWC_HDCP22REG_STAT, 0xff);
 
-	pr_info(SYS "irq %x\n", dat_top);
-	if (dat_dwc)
-		pr_info(SYS "irq %x\n", dat_dwc);
+	if (hdev->chip_type != MESON_CPU_ID_TM2) {
+	/*tm2 has a bug, wait to fix*/
+		pr_info(SYS "irq %x\n", dat_top);
+		if (dat_dwc)
+			pr_info(SYS "irq %x\n", dat_dwc);
+	}
+
 	if (hdev->hpd_lock == 1) {
 		pr_info(HW "HDMI hpd locked\n");
 		goto next;
