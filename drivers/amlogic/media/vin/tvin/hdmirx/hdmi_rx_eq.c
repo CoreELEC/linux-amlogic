@@ -181,7 +181,7 @@ void eq_dwork_handler(struct work_struct *work)
 	cancel_delayed_work(&eq_dwork);
 
 	/* for tl1 no SW eq */
-	if (rx.chip_id == CHIP_ID_TL1)
+	if (rx.chip_id >= CHIP_ID_TL1)
 		return;
 
 	for (i = 0; i < NTRYS; i++) {

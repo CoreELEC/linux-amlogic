@@ -185,7 +185,7 @@ void rx_pkt_debug(void)
 	data32 |= (rx_pkt_type_mapping(PKT_TYPE_ISRC1));
 	data32 |= (rx_pkt_type_mapping(PKT_TYPE_ISRC2));
 	data32 |= (rx_pkt_type_mapping(PKT_TYPE_GAMUT_META));
-	if (rx.chip_id == CHIP_ID_TL1)
+	if (rx.chip_id >= CHIP_ID_TL1)
 		data32 |= (rx_pkt_type_mapping(PKT_TYPE_EMP));
 
 	hdmirx_wr_dwc(DWC_PDEC_CTRL, data32);
@@ -351,7 +351,7 @@ void rx_debug_pktinfo(char input[][20])
 			enable |= _BIT(30);/* DRC_RCV*/
 		else
 			enable |= _BIT(9);/* DRC_RCV*/
-		if (rx.chip_id == CHIP_ID_TL1)
+		if (rx.chip_id >= CHIP_ID_TL1)
 			enable |= _BIT(9);/* EMP_RCV*/
 		enable |= _BIT(20);/* GMD_RCV */
 		enable |= _BIT(19);/* AIF_RCV */
@@ -394,7 +394,7 @@ void rx_debug_pktinfo(char input[][20])
 		else if (strncmp(input[2], "amp", 3) == 0)
 			sts = _BIT(14);
 		else if (strncmp(input[2], "emp", 3) == 0) {
-			if (rx.chip_id == CHIP_ID_TL1)
+			if (rx.chip_id >= CHIP_ID_TL1)
 				sts = _BIT(9);
 			else
 				rx_pr("no emp function\n");
@@ -428,7 +428,7 @@ void rx_debug_pktinfo(char input[][20])
 		else if (strncmp(input[2], "amp", 3) == 0)
 			enable |= _BIT(14);
 		else if (strncmp(input[2], "emp", 3) == 0) {
-			if (rx.chip_id == CHIP_ID_TL1)
+			if (rx.chip_id >= CHIP_ID_TL1)
 				enable |= _BIT(9);
 			else
 				rx_pr("no emp function\n");
