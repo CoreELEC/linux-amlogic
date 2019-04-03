@@ -332,6 +332,23 @@ void vdin_canvas_auto_config(struct vdin_dev_s *devp)
 		pr_err("\nvdin%d canvas_max_num %d less than vfmem_max_cnt %d\n",
 			devp->index, devp->canvas_max_num, devp->vfmem_max_cnt);
 	}
+
+	if (devp->set_canvas_manual == 1) {
+		for (i = 0; i < 4; i++) {
+			canvas_id =
+				vdin_canvas_ids[devp->index][i * canvas_step];
+			canvas_addr = vdin_set_canvas_addr[i].paddr;
+			canvas_config(canvas_id, canvas_addr,
+				devp->canvas_w, devp->canvas_h,
+				CANVAS_ADDR_NOWRAP, CANVAS_BLKMODE_LINEAR);
+			pr_info("canvas index=%d- %3d: 0x%lx-0x%lx %ux%u\n",
+				i, canvas_id, canvas_addr,
+				canvas_addr + devp->canvas_max_size,
+				devp->canvas_w, devp->canvas_h);
+		}
+		return;
+	}
+
 	if ((devp->cma_config_en != 1) || !(devp->cma_config_flag & 0x100)) {
 		/*use_reserved_mem or alloc_from_contiguous*/
 		devp->mem_start = roundup(devp->mem_start, devp->canvas_align);
@@ -503,9 +520,25 @@ unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 	devp->vfmem_size = PAGE_ALIGN(mem_size) + dolby_size_byte;
 	devp->vfmem_size = (devp->vfmem_size/PAGE_SIZE + 1)*PAGE_SIZE;
 
+	if (devp->set_canvas_manual == 1) {
+		for (i = 0; i < VDIN_CANVAS_MAX_CNT; i++) {
+			if (vdin_set_canvas_addr[i].dmabuff == NULL)
+				break;
+
+			vdin_set_canvas_addr[i].paddr =
+				roundup(vdin_set_canvas_addr[i].paddr,
+					devp->canvas_align);
+		}
+
+		devp->canvas_max_num = max_buffer_num = i;
+		devp->vfmem_max_cnt = max_buffer_num;
+	}
+
+
 	mem_size = PAGE_ALIGN(mem_size) * max_buffer_num +
 		dolby_size_byte * max_buffer_num;
 	mem_size = (mem_size/PAGE_SIZE + 1)*PAGE_SIZE;
+
 	if (mem_size > devp->cma_mem_size) {
 		mem_size = devp->cma_mem_size;
 		pr_err("\nvdin%d cma_mem_size is not enough!!!\n", devp->index);

@@ -157,6 +157,21 @@ static inline const char *vdin_fmt_convert_str(
 	}
 }
 
+struct vdin_set_canvas_s {
+	int fd;
+	int index;
+};
+
+struct vdin_set_canvas_addr_s {
+	long paddr;
+	int  size;
+
+	struct dma_buf *dmabuff;
+	struct dma_buf_attachment *dmabufattach;
+	struct sg_table *sgtable;
+};
+extern struct vdin_set_canvas_addr_s vdin_set_canvas_addr[VDIN_CANVAS_MAX_CNT];
+
 /*******for debug **********/
 struct vdin_debug_s {
 	struct tvin_cutwin_s cutwin;
@@ -351,6 +366,11 @@ struct vdin_dev_s {
 	unsigned int afbce_mode_pre;
 	unsigned int afbce_mode;
 	unsigned int afbce_valid;
+
+	/*fot 'T correction' on projector*/
+	unsigned int set_canvas_manual;
+	unsigned int keystone_vframe_ready;
+	struct vf_entry *keystone_entry[VDIN_CANVAS_MAX_CNT];
 	unsigned int canvas_config_mode;
 	bool	prehsc_en;
 	bool	vshrk_en;
@@ -368,7 +388,6 @@ struct vdin_dev_s {
 	unsigned int vdin_reset_flag;
 	unsigned int vdin_dev_ssize;
 	wait_queue_head_t queue;
-
 	struct dentry *dbg_root;	/*dbg_fs*/
 };
 

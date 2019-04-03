@@ -449,7 +449,9 @@ struct tvafe_pin_mux_s {
 	struct tvin_latency_s)
 #define TVIN_IOC_G_FRONTEND_INFO    _IOR(_TM_T, 0x4e,\
 	struct tvin_frontend_info_s)
-
+#define TVIN_IOC_S_CANVAS_ADDR  _IOW(_TM_T, 0x4f,\
+	struct vdin_set_canvas_s)
+#define TVIN_IOC_S_CANVAS_RECOVERY  _IO(_TM_T, 0x0a)
 /* TVAFE */
 #define TVIN_IOC_S_AFE_VGA_PARM     _IOW(_TM_T, 0x16, struct tvafe_vga_parm_s)
 #define TVIN_IOC_G_AFE_VGA_PARM     _IOR(_TM_T, 0x17, struct tvafe_vga_parm_s)

@@ -217,9 +217,7 @@ static int viuin_open(struct tvin_frontend_s *fe, enum tvin_port_e port)
 			wr_viu(VPU_VIU2VDIN_HDN_CTRL, 0x40f00);
 	} else
 		wr_bits_viu(VPU_VIU2VDIN_HDN_CTRL, devp->parm.h_active, 0, 14);
-	if (is_meson_g12a_cpu() || is_meson_g12b_cpu() ||
-		is_meson_tl1_cpu() || is_meson_sm1_cpu() ||
-		is_meson_tm2_cpu()) {
+	if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12A)) {
 		if (((port >= TVIN_PORT_VIU1_WB0_VD1) &&
 			(port <= TVIN_PORT_VIU1_WB0_POST_BLEND)) ||
 			((port >= TVIN_PORT_VIU2_WB0_VD1) &&
@@ -263,9 +261,11 @@ static int viuin_open(struct tvin_frontend_s *fe, enum tvin_port_e port)
 			(port == TVIN_PORT_VIU2_WB0_POST_BLEND))
 			wr_bits_viu(VPP_WRBAK_CTRL, 5, 0, 3);
 		else if ((port == TVIN_PORT_VIU1_WB0_VPP) ||
-			(port == TVIN_PORT_VIU2_WB0_VPP))
+			(port == TVIN_PORT_VIU2_WB0_VPP)) {
 			wr_bits_viu(VPP_WRBAK_CTRL, 6, 0, 3);
-		else
+			/*increase h banking in case vdin afifo overflow*/
+			wr_bits_viu(VPP_WRBAK_CTRL, 0xff, 16, 8);
+		} else
 			wr_bits_viu(VPP_WRBAK_CTRL, 0, 4, 3);
 
 		if ((port == TVIN_PORT_VIU1_WB1_VD1) ||

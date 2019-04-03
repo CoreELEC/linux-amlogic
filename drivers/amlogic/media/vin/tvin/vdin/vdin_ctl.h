@@ -145,6 +145,8 @@ extern void vdin_hw_enable(unsigned int offset);
 extern void vdin_hw_disable(unsigned int offset);
 extern unsigned int vdin_get_field_type(unsigned int offset);
 extern int vdin_vsync_reset_mif(int index);
+extern bool vdin_check_vdi6_afifo_overflow(unsigned int offset);
+extern void vdin_clear_vdi6_afifo_overflow_flg(unsigned int offset);
 extern void vdin_set_cutwin(struct vdin_dev_s *devp);
 extern void vdin_set_decimation(struct vdin_dev_s *devp);
 extern void vdin_fix_nonstd_vsync(struct vdin_dev_s *devp);
@@ -187,7 +189,7 @@ extern void vdin_dolby_addr_alloc(struct vdin_dev_s *devp, unsigned int size);
 extern void vdin_dolby_addr_release(struct vdin_dev_s *devp, unsigned int size);
 extern int vdin_event_cb(int type, void *data, void *op_arg);
 extern void vdin_hdmiin_patch(struct vdin_dev_s *devp);
-extern void vdin_set_top(unsigned int offset,
+extern void vdin_set_top(struct vdin_dev_s *devp, unsigned int offset,
 		enum tvin_port_e port,
 		enum tvin_color_fmt_e input_cfmt, unsigned int h,
 		enum bt_path_e bt_path);

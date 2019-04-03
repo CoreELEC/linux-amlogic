@@ -41,9 +41,13 @@
 #include <linux/of_reserved_mem.h>
 #include <linux/of_irq.h>
 #include <linux/cma.h>
+#include <linux/dma-buf.h>
+#include <linux/scatterlist.h>
+#include <linux/mm_types.h>
 #include <linux/amlogic/media/codec_mm/codec_mm.h>
 #include <linux/dma-contiguous.h>
 #include <linux/amlogic/iomap.h>
+#include <linux/fdtable.h>
 /* Amlogic Headers */
 #include <linux/amlogic/media/vpu/vpu.h>
 #include <linux/amlogic/media/vfm/vframe.h>
@@ -80,6 +84,8 @@ static unsigned long mem_start, mem_end;
 static unsigned int use_reserved_mem;
 static unsigned int pr_times;
 
+struct vdin_set_canvas_addr_s vdin_set_canvas_addr[VDIN_CANVAS_MAX_CNT];
+static DECLARE_WAIT_QUEUE_HEAD(vframe_waitq);
 /*
  * canvas_config_mode
  * 0: canvas_config in driver probe
@@ -874,6 +880,7 @@ int start_tvin_service(int no, struct vdin_parm_s  *para)
 		fe = tvin_get_frontend(para->port, 1);
 	} else
 		fe = tvin_get_frontend(para->port, 0);
+
 	if (fe) {
 		fe->private_data = para;
 		fe->port         = para->port;
@@ -901,6 +908,7 @@ int start_tvin_service(int no, struct vdin_parm_s  *para)
 		(viu_hw_irq != 0)) {
 		ret = request_irq(devp->irq, vdin_v4l2_isr, IRQF_SHARED,
 				devp->irq_name, (void *)devp);
+
 		if (ret != 0) {
 			pr_info("vdin_v4l2_isr request irq error.\n");
 			return -1;
@@ -1615,7 +1623,7 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 				devp->format_convert,
 				devp->color_depth_mode, devp->source_bitdepth,
 				devp->flags&VDIN_FLAG_RDMA_ENABLE);
-			vdin_set_top(devp->addr_offset, devp->parm.port,
+			vdin_set_top(devp, devp->addr_offset, devp->parm.port,
 				devp->prop.color_format, devp->h_active,
 				devp->bt_path);
 
@@ -1970,6 +1978,15 @@ module_param(skip_ratio, ushort, 0664);
 MODULE_PARM_DESC(skip_ratio,
 		"\n vdin skip frame ratio 1/ratio will reserved.\n");
 
+static struct vf_entry *check_vdin_readlist(struct vdin_dev_s *devp)
+{
+	struct vf_entry *vfe;
+
+	vfe = receiver_vf_peek(devp->vfp);
+
+	return vfe;
+}
+
 irqreturn_t vdin_v4l2_isr(int irq, void *dev_id)
 {
 	ulong flags;
@@ -1981,7 +1998,7 @@ irqreturn_t vdin_v4l2_isr(int irq, void *dev_id)
 	struct tvin_decoder_ops_s *decops;
 	struct tvin_state_machine_ops_s *sm_ops;
 	int ret = 0;
-	int offset;
+	unsigned int offset;
 
 	if (!devp)
 		return IRQ_HANDLED;
@@ -1996,6 +2013,7 @@ irqreturn_t vdin_v4l2_isr(int irq, void *dev_id)
 	spin_lock_irqsave(&devp->isr_lock, flags);
 	devp->vdin_reset_flag = vdin_vsync_reset_mif(devp->index);
 	offset = devp->addr_offset;
+
 	if (devp)
 		/* avoid null pointer oops */
 		stamp  = vdin_get_meas_vstamp(offset);
@@ -2019,12 +2037,21 @@ irqreturn_t vdin_v4l2_isr(int irq, void *dev_id)
 		}
 	}
 
+	if ((devp->set_canvas_manual == 1) && check_vdin_readlist(devp)) {
+		devp->keystone_vframe_ready = 1;
+		wake_up_interruptible(&vframe_waitq);
+	}
+
 	if (devp->last_wr_vfe) {
 		provider_vf_put(devp->last_wr_vfe, devp->vfp);
 		devp->last_wr_vfe = NULL;
-		vf_notify_receiver(devp->name,
+
+		if (devp->set_canvas_manual != 1) {
+			vf_notify_receiver(devp->name,
 				VFRAME_EVENT_PROVIDER_VFRAME_READY, NULL);
+		}
 	}
+
 	/*check vs is valid base on the time during continuous vs*/
 	vdin_check_cycle(devp);
 
@@ -2101,6 +2128,7 @@ irqreturn_t vdin_v4l2_isr(int irq, void *dev_id)
 			goto irq_handled;
 		}
 	}
+
 	if (curr_wr_vfe) {
 		curr_wr_vfe->flag |= VF_FLAG_NORMAL_FRAME;
 		/* provider_vf_put(curr_wr_vfe, devp->vfp); */
@@ -2124,8 +2152,10 @@ irqreturn_t vdin_v4l2_isr(int irq, void *dev_id)
 	}
 
 	devp->curr_wr_vfe = next_wr_vfe;
-	vf_notify_receiver(devp->name, VFRAME_EVENT_PROVIDER_VFRAME_READY,
-			NULL);
+
+	if (devp->set_canvas_manual != 1)
+		vf_notify_receiver(devp->name,
+			VFRAME_EVENT_PROVIDER_VFRAME_READY, NULL);
 
 irq_handled:
 	spin_unlock_irqrestore(&devp->isr_lock, flags);
@@ -2187,6 +2217,9 @@ static int vdin_open(struct inode *inode, struct file *file)
 	/* Get the per-device structure that contains this cdev */
 	devp = container_of(inode->i_cdev, struct vdin_dev_s, cdev);
 	file->private_data = devp;
+
+	if (devp->set_canvas_manual == 1)
+		return 0;
 
 	if (devp->index >= VDIN_MAX_DEVS)
 		return -ENXIO;
@@ -2293,12 +2326,17 @@ static int vdin_release(struct inode *inode, struct file *file)
 static long vdin_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	long ret = 0;
+	int i;
 	int callmaster_status = 0;
 	struct vdin_dev_s *devp = NULL;
 	void __user *argp = (void __user *)arg;
 	struct vdin_parm_s param;
 	ulong flags;
 	struct vdin_hist_s vdin1_hist_temp;
+	struct page *page;
+	struct vdin_set_canvas_s vdinsetcanvas[VDIN_CANVAS_MAX_CNT];
+	unsigned int idx = 0;
+	unsigned int recov_idx = 0;
 
 	/* Get the per-device structure that contains this cdev */
 	devp = file->private_data;
@@ -2415,6 +2453,7 @@ static long vdin_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	}
 	case TVIN_IOC_STOP_DEC:	{
 		struct tvin_parm_s *parm = &devp->parm;
+
 		mutex_lock(&devp->fe_lock);
 		if (!(devp->flags & VDIN_FLAG_DEC_STARTED)) {
 			pr_err("TVIN_IOC_STOP_DEC(%d) decode havn't started\n",
@@ -2471,6 +2510,7 @@ static long vdin_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	case TVIN_IOC_CLOSE: {
 		struct tvin_parm_s *parm = &devp->parm;
 		enum tvin_port_e port = parm->port;
+
 		mutex_lock(&devp->fe_lock);
 		if (!(devp->flags & VDIN_FLAG_DEC_OPENED)) {
 			pr_err("TVIN_IOC_CLOSE(%d) you have not opened port\n",
@@ -2772,25 +2812,34 @@ static long vdin_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			param.port = TVIN_PORT_VIU1_WB0_VPP;
 		else
 			param.port = TVIN_PORT_VIU1;
-		param.reserved |= PARAM_STATE_HISTGRAM;
+
 		param.h_active = vdin_v4l2_param.width;
 		param.v_active = vdin_v4l2_param.height;
-		/* use 1280X720 for histgram*/
-		if ((vdin_v4l2_param.width > 1280) &&
-			(vdin_v4l2_param.height > 720)) {
-			devp->debug.scaler4w = 1280;
-			devp->debug.scaler4h = 720;
-			devp->debug.dest_cfmt = TVIN_YUV422;
-			devp->flags |= VDIN_FLAG_MANUAL_CONVERSION;
+
+		if (devp->set_canvas_manual != 1) {
+			param.reserved |= PARAM_STATE_HISTGRAM;
+			/* use 1280X720 for histgram*/
+			if ((vdin_v4l2_param.width > 1280) &&
+				(vdin_v4l2_param.height > 720)) {
+				devp->debug.scaler4w = 1280;
+				devp->debug.scaler4h = 720;
+				devp->debug.dest_cfmt = TVIN_YUV422;
+				devp->flags |= VDIN_FLAG_MANUAL_CONVERSION;
+			}
 		}
+
 		param.frame_rate = vdin_v4l2_param.fps;
 		param.cfmt = TVIN_YUV422;
-		param.dfmt = TVIN_YUV422;
+
+		if (devp->set_canvas_manual == 1)
+			param.dfmt = TVIN_RGB444;
+		else
+			param.dfmt = TVIN_YUV422;
+
 		param.scan_mode = TVIN_SCAN_MODE_PROGRESSIVE;
 		param.fmt = TVIN_SIG_FMT_MAX;
 		//devp->flags |= VDIN_FLAG_V4L2_DEBUG;
 		devp->hist_bar_enable = 1;
-		devp->index = 1;
 		start_tvin_service(devp->index, &param);
 		break;
 
@@ -2803,7 +2852,101 @@ static long vdin_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		devp->flags &= (~VDIN_FLAG_ISR_REQ);
 		devp->flags &= (~VDIN_FLAG_FS_OPENED);
 		stop_tvin_service(devp->index);
+
+		/*release manual set dma-bufs*/
+		if (devp->set_canvas_manual == 1) {
+			for (i = 0; i < 4; i++) {
+				if (vdin_set_canvas_addr[i].dmabuff == 0)
+					continue;
+
+				dma_buf_unmap_attachment(
+					vdin_set_canvas_addr[i].dmabufattach,
+					vdin_set_canvas_addr[i].sgtable,
+					DMA_BIDIRECTIONAL);
+				dma_buf_detach(
+					vdin_set_canvas_addr[i].dmabuff,
+					vdin_set_canvas_addr[i].dmabufattach);
+				dma_buf_put(vdin_set_canvas_addr[i].dmabuff);
+				devp->keystone_entry[i] = NULL;
+			}
+			memset(vdin_set_canvas_addr, 0,
+				sizeof(struct vdin_set_canvas_addr_s) *
+				VDIN_CANVAS_MAX_CNT);
+		}
 		break;
+
+	case TVIN_IOC_S_CANVAS_ADDR:
+		if (devp->index == 0) {
+			pr_info("TVIN_IOC_S_CANVAS_ADDR can't be used at vdin0\n");
+			break;
+		}
+
+		if (copy_from_user(vdinsetcanvas, argp,
+			sizeof(struct vdin_set_canvas_s) * 4)) {
+			pr_info("TVIN_IOC_S_CANVAS_ADDR copy fail\n");
+			return -EFAULT;
+		}
+
+		for (i = 0; i < 4; i++) {
+			/*when fd means, the canvas list reaches end*/
+			if (vdinsetcanvas[i].fd < 0)
+				break;
+
+			if (vdinsetcanvas[i].index >= VDIN_CANVAS_MAX_CNT) {
+				pr_err("vdin buf idx range (0 ~ %d), current idx is too big.\n ",
+					VDIN_CANVAS_MAX_CNT - 1);
+				continue;
+			}
+
+			idx = vdinsetcanvas[i].index;
+
+			vdin_set_canvas_addr[idx].dmabuff =
+				dma_buf_get(vdinsetcanvas[i].fd);
+
+			vdin_set_canvas_addr[idx].dmabufattach =
+				dma_buf_attach(
+				vdin_set_canvas_addr[idx].dmabuff,
+				devp->dev);
+			vdin_set_canvas_addr[idx].sgtable =
+				dma_buf_map_attachment(
+				vdin_set_canvas_addr[idx].dmabufattach,
+				DMA_BIDIRECTIONAL);
+
+			page = sg_page(vdin_set_canvas_addr[idx].sgtable->sgl);
+			vdin_set_canvas_addr[idx].paddr =
+				PFN_PHYS(page_to_pfn(page));
+			vdin_set_canvas_addr[idx].size =
+				vdin_set_canvas_addr[idx].dmabuff->size;
+
+			pr_info("TVIN_IOC_S_CANVAS_ADDR[%d] addr=0x%lx, len=0x%x.\n",
+				i,
+				vdin_set_canvas_addr[idx].paddr,
+				vdin_set_canvas_addr[idx].size);
+
+			__close_fd(current->files, vdinsetcanvas[i].fd);
+		}
+		break;
+
+	case TVIN_IOC_S_CANVAS_RECOVERY:
+		if (devp->index == 0) {
+			pr_info("TVIN_IOC_S_CANVAS_RECOVERY can't be used at vdin0\n");
+			break;
+		}
+
+		if (copy_from_user(&recov_idx, argp, sizeof(unsigned int))) {
+			pr_info("TVIN_IOC_S_CANVAS_RECOVERY copy fail\n");
+			return -EFAULT;
+		}
+
+		if (devp->keystone_entry[recov_idx]) {
+			receiver_vf_put(&devp->keystone_entry[recov_idx]->vf,
+				devp->vfp);
+			devp->keystone_entry[recov_idx] = NULL;
+		} else
+			pr_err("[vdin.%d] idx %d RECOVERY error\n",
+					devp->index, recov_idx);
+		break;
+
 	default:
 		ret = -ENOIOCTLCMD;
 	/* pr_info("%s %d is not supported command\n", __func__, cmd); */
@@ -2865,22 +3008,57 @@ static unsigned int vdin_poll(struct file *file, poll_table *wait)
 	struct vdin_dev_s *devp = file->private_data;
 	unsigned int mask = 0;
 
-	poll_wait(file, &devp->queue, wait);
-	mask = (POLLIN | POLLRDNORM);
+	if (devp->set_canvas_manual == 1) {
+		poll_wait(file, &vframe_waitq, wait);
+
+		if (devp->keystone_vframe_ready == 1)
+			mask = (POLLIN | POLLRDNORM);
+	} else {
+		poll_wait(file, &devp->queue, wait);
+		mask = (POLLIN | POLLRDNORM);
+	}
 
 	return mask;
 }
 
+static ssize_t vdin_read(struct file *file, char __user *buf,
+	size_t count, loff_t *ppos)
+{
+	int index;
+	long ret;
+	struct vf_entry *vfe;
+	struct vdin_dev_s *devp = file->private_data;
+
+	vfe = receiver_vf_peek(devp->vfp);
+	if (!vfe)
+		return 0;
+
+	vfe = receiver_vf_get(devp->vfp);
+	/*index = report_canvas_index;*/
+	index = vfe->vf.index;
+	devp->keystone_entry[index] = vfe;
+	ret = copy_to_user(buf, (void *)(&index), sizeof(int));
+	if (ret) {
+		pr_info("vdin_read copy_to_user error\n");
+		return -1;
+	}
+
+	devp->keystone_vframe_ready = 0;
+
+	return sizeof(int);
+}
+
 static const struct file_operations vdin_fops = {
-	.owner	         = THIS_MODULE,
-	.open	         = vdin_open,
-	.release         = vdin_release,
-	.unlocked_ioctl  = vdin_ioctl,
+	.owner = THIS_MODULE,
+	.open = vdin_open,
+	.read = vdin_read,
+	.release = vdin_release,
+	.unlocked_ioctl = vdin_ioctl,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl = vdin_compat_ioctl,
 #endif
-	.mmap	         = vdin_mmap,
-	.poll            = vdin_poll,
+	.mmap = vdin_mmap,
+	.poll = vdin_poll,
 };
 
 
@@ -3068,6 +3246,16 @@ static int vdin_drv_probe(struct platform_device *pdev)
 		}
 	}
 
+	ret = of_property_read_u32(pdev->dev.of_node,
+		"set_canvas_manual", &vdevp->set_canvas_manual);
+
+	if (ret) {
+		vdevp->set_canvas_manual = 0;
+		pr_info("set_canvas_manual = 0\n");
+	} else {
+		pr_info("set_canvas_manual = %d\n", vdevp->set_canvas_manual);
+	}
+
 	/*vdin urgent en*/
 	ret = of_property_read_u32(pdev->dev.of_node,
 			"urgent_en", &urgent_en);
@@ -3087,16 +3275,12 @@ static int vdin_drv_probe(struct platform_device *pdev)
 	/* @todo vdin_addr_offset */
 	if (is_meson_gxbb_cpu() && vdevp->index)
 		vdin_addr_offset[vdevp->index] = 0x70;
-	else if ((is_meson_g12a_cpu() || is_meson_g12b_cpu() ||
-		is_meson_tl1_cpu() || is_meson_sm1_cpu() ||
-		is_meson_tm2_cpu()) && vdevp->index)
+	else if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12A) && vdevp->index)
 		vdin_addr_offset[vdevp->index] = 0x100;
 	vdevp->addr_offset = vdin_addr_offset[vdevp->index];
 	vdevp->flags = 0;
 	/*canvas align number*/
-	if (is_meson_g12a_cpu() || is_meson_g12b_cpu() ||
-		is_meson_tl1_cpu() || is_meson_sm1_cpu() ||
-		is_meson_tm2_cpu())
+	if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12A))
 		vdevp->canvas_align = 64;
 	else
 		vdevp->canvas_align = 32;

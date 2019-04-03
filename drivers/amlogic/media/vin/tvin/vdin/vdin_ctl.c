@@ -750,7 +750,7 @@ static void vdin_set_meas_mux(unsigned int offset, enum tvin_port_e port_,
 	b.BT_PATH_GPIO_B:gxtvbb & gxbb
 	c.txl and txlx don't support bt656
 */
-void vdin_set_top(unsigned int offset,
+void vdin_set_top(struct vdin_dev_s *devp, unsigned int offset,
 		enum tvin_port_e port,
 		enum tvin_color_fmt_e input_cfmt, unsigned int h,
 		enum bt_path_e bt_path)
@@ -873,6 +873,7 @@ void vdin_set_top(unsigned int offset,
 		vdin_mux = VDIN_MUX_NULL;
 		break;
 	}
+
 	switch (input_cfmt) {
 	case TVIN_YVYU422:
 		vdin_data_bus_1 = VDIN_MAP_RCR;
@@ -887,6 +888,14 @@ void vdin_set_top(unsigned int offset,
 		vdin_data_bus_0 = VDIN_MAP_BPB;
 		vdin_data_bus_1 = VDIN_MAP_RCR;
 		vdin_data_bus_2 = VDIN_MAP_Y_G;
+		break;
+	case TVIN_RGB444:
+		/*RGB mapping*/
+		if (devp->set_canvas_manual == 1) {
+			vdin_data_bus_0 = VDIN_MAP_RCR;
+			vdin_data_bus_1 = VDIN_MAP_BPB;
+			vdin_data_bus_2 = VDIN_MAP_Y_G;
+		}
 		break;
 	default:
 		break;
@@ -1996,7 +2005,14 @@ static inline void vdin_set_wr_ctrl(struct vdin_dev_s *devp,
 		VDIN_WRCTRLREG_PAUSE_BIT, 1);
 	/*  swap the 2 64bits word in 128 words */
 	/*if (is_meson_gxbb_cpu())*/
-	wr_bits(offset, VDIN_WR_CTRL, 1, 19, 1);
+	if (devp->set_canvas_manual == 1) {
+		/*not swap 2 64bits words in 128 words */
+		wr_bits(offset, VDIN_WR_CTRL, 0, 19, 1);
+		/*little endian*/
+		wr_bits(offset, VDIN_WR_H_START_END, 1, 30, 1);
+	} else
+		wr_bits(offset, VDIN_WR_CTRL, 1, 19, 1);
+
 }
 void vdin_set_wr_ctrl_vsync(struct vdin_dev_s *devp,
 	unsigned int offset, enum vdin_format_convert_e format_convert,
@@ -2577,7 +2593,7 @@ void vdin_set_all_regs(struct vdin_dev_s *devp)
 			devp->color_depth_mode, devp->source_bitdepth);
 
 	/* top sub-module */
-	vdin_set_top(devp->addr_offset, devp->parm.port,
+	vdin_set_top(devp, devp->addr_offset, devp->parm.port,
 			devp->prop.color_format, devp->h_active,
 			devp->bt_path);
 
@@ -2585,7 +2601,6 @@ void vdin_set_all_regs(struct vdin_dev_s *devp)
 
 	vdin_set_meas_mux(devp->addr_offset, devp->parm.port,
 			devp->bt_path);
-
 }
 
 static void vdin_delay_line(unsigned short num, unsigned int offset)
@@ -2969,6 +2984,18 @@ unsigned int vdin_get_field_type(unsigned int offset)
 {
 	return rd_bits(offset, VDIN_COM_STATUS0, 0, 1);
 }
+
+bool vdin_check_vdi6_afifo_overflow(unsigned int offset)
+{
+	return rd_bits(offset, VDIN_COM_STATUS2, 15, 1);
+}
+
+void vdin_clear_vdi6_afifo_overflow_flg(unsigned int offset)
+{
+	wr_bits(offset, VDIN_ASFIFO_CTRL3, 0x1, 1, 1);
+	wr_bits(offset, VDIN_ASFIFO_CTRL3, 0x0, 1, 1);
+}
+
 static unsigned int vdin_reset_flag;
 inline int vdin_vsync_reset_mif(int index)
 {

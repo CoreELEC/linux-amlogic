@@ -2101,15 +2101,9 @@ start_chk:
 			pr_info("urgent_en (%d):%d\n", devp->index,
 				devp->urgent_en);
 		}
-	} else if (!strcmp(parm[0], "irq_flag")) {
-		if (!parm[1])
-			pr_err("miss parameters .\n");
-		else if (kstrtoul(parm[1], 10, &val) == 0) {
-			devp->vdin_irq_flag = val;
-			pr_info("vdin(%d) irq_flag: %d\n", devp->index,
-						devp->vdin_irq_flag);
-		}
-	} else if (!strcmp(parm[0], "skip_vf_num")) {
+	} else if (!strcmp(parm[0], "irq_cnt"))
+		pr_info("vdin(%d) irq_cnt: %d\n", devp->index,	devp->irq_cnt);
+	else if (!strcmp(parm[0], "skip_vf_num")) {
 		if (!parm[1])
 			pr_err("miss parameters .\n");
 		else if ((kstrtoul(parm[1], 10, &val) == 0) && (devp->vfp)) {
@@ -2198,9 +2192,14 @@ start_chk:
 		} else {
 			pr_info("vdin_afbce_mode: %d\n", devp->afbce_mode);
 		}
-	} else {
+	} else if (!strcmp(parm[0], "vdi6_afifo_overflow"))
+		pr_info("%d\n",
+			vdin_check_vdi6_afifo_overflow(devp->addr_offset));
+	else if (!strcmp(parm[0], "vdi6_afifo_clear"))
+		vdin_clear_vdi6_afifo_overflow_flg(devp->addr_offset);
+	else
 		pr_info("unknown command\n");
-	}
+
 	kfree(buf_orig);
 	return len;
 }
