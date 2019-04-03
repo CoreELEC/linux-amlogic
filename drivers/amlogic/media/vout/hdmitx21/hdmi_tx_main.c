@@ -149,6 +149,7 @@ static DEFINE_MUTEX(getedid_mutex);
 
 static struct hdmitx_dev hdmitx21_device = {
 	.frac_rate_policy = 1,
+	.cec_func_config = 0x7f
 };
 
 struct hdmitx_dev *get_hdmitx21_device(void)
@@ -6954,6 +6955,7 @@ static int hdmitx21_boot_para_setup(char *s)
 	char *token;
 	u32 token_len = 0;
 	u32 token_offset = 0;
+	unsigned long list;
 	u32 offset = 0;
 	int size = strlen(s);
 
@@ -6968,6 +6970,13 @@ static int hdmitx21_boot_para_setup(char *s)
 			if (token_len == 3 &&
 			    strncmp(token, "off", token_len) == 0) {
 				init_flag |= INIT_FLAG_NOT_LOAD;
+			} else if (strncmp(token, "cec", 3) == 0) {
+				if (kstrtoul(token+3, 16, &list) == 0) {
+					if ((list >= 0) && (list <= 0xff))
+						hdev->cec_func_config = list;
+				}
+				pr_info("HDMI hdmi_cec_func_config:0x%x\n",
+					hdev->cec_func_config);
 			}
 			check_hdmiuboot_attr(token);
 		}
