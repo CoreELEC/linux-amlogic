@@ -108,3 +108,7 @@
 &pcie_A {
 	status = "disabled";
 };
+
+&aocec {
+	/delete-property/ ee_cec;
+};

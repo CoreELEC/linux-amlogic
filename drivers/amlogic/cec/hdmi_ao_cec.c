@@ -224,7 +224,7 @@ unsigned int waiting_aocec_free(unsigned int r)
 
 	while (readl(cec_dev->cec_reg + r) & (1<<23)) {
 		if (cnt++ >= 3500) {
-			pr_info("waiting aocec %x free time out %d\n", r, cnt);
+			CEC_INFO("waiting aocec %x free time out %d\n", r, cnt);
 			if (cec_dev->proble_finish)
 				cec_hw_reset(CEC_A);
 			ret = false;
@@ -240,7 +240,7 @@ unsigned int waiting_aocec_free(unsigned int r)
 		unsigned long cnt = 0;\
 		while (readl(cec_dev->cec_reg + r) & (1<<23)) {\
 			if (cnt++ == 3500) { \
-				pr_info("waiting aocec %x free time out\n", r);\
+				CEC_INFO("waiting aocec %x free time out\n", r);\
 				if (cec_dev->proble_finish) \
 					cec_hw_reset(CEC_A);\
 				break;\
@@ -1275,7 +1275,7 @@ static int ceca_trigle_tx(const unsigned char *msg, int len)
 			pos += sprintf(msg_log_buf + pos, "\n");
 
 			msg_log_buf[pos] = '\0';
-			pr_info("%s", msg_log_buf);
+			CEC_INFO("%s", msg_log_buf);
 		}
 		cec_timeout_cnt = 0;
 		return 0;
@@ -1704,7 +1704,7 @@ static void cec_pre_init(void)
 	reg &= 0xfffff;
 	if ((reg & 0xffff) == 0xffff)
 		wake_ok = 0;
-	pr_info("cec: wake up flag:%x\n", reg);
+	CEC_INFO("cec: wake up flag:%x\n", reg);
 
 	if (cec_dev->cec_num > 1) {
 		ao_ceca_init();
@@ -1715,6 +1715,8 @@ static void cec_pre_init(void)
 		else
 			ao_ceca_init();
 	}
+
+	cec_config(cec_dev->tx_dev->cec_func_config, 1);
 
 	//need restore all logical address
 	if (cec_dev->cec_num > 1)
@@ -2057,8 +2059,7 @@ static void cec_task(struct work_struct *work)
 
 		/*for check rx buffer for old chip version, cec rx irq process*/
 		/*in internal hdmi rx, for avoid msg lose*/
-		if ((cec_dev->cpu_type < MESON_CPU_MAJOR_ID_TXLX) &&
-			(cec_cfg == CEC_FUNC_CFG_ALL)) {
+		if (cec_dev->cpu_type < MESON_CPU_MAJOR_ID_TXLX) {
 			if (cec_late_check_rx_buffer()) {
 				/*msg in*/
 				mod_delayed_work(cec_dev->cec_thread, dwork, 0);
@@ -3385,8 +3386,6 @@ static int aml_cec_probe(struct platform_device *pdev)
 
 	/* irq set */
 	cec_irq_enable(false);
-	/* default enable all function*/
-	cec_config(CEC_FUNC_CFG_ALL, 1);
 	/* for init */
 	cec_pre_init();
 	/* cec hw module reset */

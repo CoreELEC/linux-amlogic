@@ -52,12 +52,6 @@ enum cecbver {
 #define CEC_A	0
 #define CEC_B	1
 
-/*
-#define CEC_FUNC_MASK			0
-#define ONE_TOUCH_PLAY_MASK		1
-#define ONE_TOUCH_STANDBY_MASK	2
-#define AUTO_POWER_ON_MASK		3
-*/
 #define CEC_FUNC_CFG_CEC_ON			0x01
 #define CEC_FUNC_CFG_OTP_ON			0x02
 #define CEC_FUNC_CFG_AUTO_STANDBY	0x04
