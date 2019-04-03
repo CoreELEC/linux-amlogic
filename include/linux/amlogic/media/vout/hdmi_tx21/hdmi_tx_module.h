@@ -428,6 +428,7 @@ struct hdmitx_dev {
 	u32 vend_id_hit:1;
 	spinlock_t edid_spinlock; /* edid hdr/dv cap lock */
 	struct vpu_dev_s *hdmitx_vpu_clk_gate_dev;
+	unsigned int cec_func_config;
 
 	/*DRM related*/
 	int drm_hdmitx_id;
