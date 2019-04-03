@@ -528,6 +528,7 @@ struct hdmitx_dev {
 	struct vpu_dev_s *hdmi_vpu_dev;
 #endif
 	struct st_debug_param debug_param;
+	unsigned int cec_func_config;
 };
 
 #define CMD_DDC_OFFSET          (0x10 << 24)

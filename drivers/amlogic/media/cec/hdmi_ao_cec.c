@@ -824,8 +824,7 @@ static void cec_task(struct work_struct *work)
 
 		/*for check rx buffer for old chip version, cec rx irq process*/
 		/*in internal hdmi rx, for avoid msg lose*/
-		if (cec_dev->plat_data->chip_id <= CEC_CHIP_TXLX &&
-		    cec_cfg == CEC_FUNC_CFG_ALL) {
+		if (cec_dev->plat_data->chip_id <= CEC_CHIP_TXLX) {
 			if (cec_late_check_rx_buffer()) {
 				/*msg in*/
 				mod_delayed_work(cec_dev->cec_thread, dwork, 0);
@@ -2487,13 +2486,13 @@ static int aml_cec_probe(struct platform_device *pdev)
 		cec_dev->dbg_dev->pins->sleep_state =
 			pinctrl_lookup_state(pin, "cec_pin_sleep");
 		if (IS_ERR(cec_dev->dbg_dev->pins->sleep_state))
-			pr_info("get sleep state error!\n");
+			CEC_INFO("get sleep state error!\n");
 		/*get active state*/
 		if (ee_cec == CEC_B) {
 			cec_dev->dbg_dev->pins->default_state =
 				pinctrl_lookup_state(pin, "hdmitx_aocecb");
 			if (IS_ERR(cec_dev->dbg_dev->pins->default_state)) {
-				pr_info("get aocecb error!\n");
+				CEC_INFO("get aocecb error!\n");
 				cec_dev->dbg_dev->pins->default_state =
 					pinctrl_lookup_state(pin, "default");
 				CEC_ERR("use default cec\n");
@@ -2504,12 +2503,12 @@ static int aml_cec_probe(struct platform_device *pdev)
 			cec_dev->dbg_dev->pins->default_state =
 				pinctrl_lookup_state(pin, "default");
 			if (IS_ERR(cec_dev->dbg_dev->pins->default_state))
-				pr_info("get default error1!\n");
+				CEC_INFO("get default error1!\n");
 		}
 		/*select pin state*/
 		ret = pinctrl_pm_select_default_state(&pdev->dev);
 		if (ret > 0)
-			pr_info("select state error:0x%x\n", ret);
+			CEC_INFO("select state error:0x%x\n", ret);
 	}
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "ao_exit");
@@ -2662,7 +2661,7 @@ static int aml_cec_probe(struct platform_device *pdev)
 	/* irq set */
 	cec_irq_enable(false);
 	/* default enable all function*/
-	cec_config(CEC_FUNC_CFG_ALL, 1);
+	//cec_config(CEC_FUNC_CFG_ALL, 1);
 	/* for init */
 	cec_pre_init();
 
@@ -2907,7 +2906,7 @@ static int aml_cec_pm_prepare(struct device *dev)
 	unsigned int i, j;
 
 	if (IS_ERR_OR_NULL(cec_dev)) {
-		pr_info("%s cec_dev is null\n", __func__);
+		CEC_INFO("%s cec_dev is null\n", __func__);
 		return 0;
 	}
 	/*initial msg buffer*/
