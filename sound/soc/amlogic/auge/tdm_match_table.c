@@ -42,6 +42,12 @@ struct tdm_chipinfo {
 
 	/* mclk pad offset */
 	bool mclkpad_no_offset;
+
+	/* offset config for SW_RESET in reg.h */
+	int reset_reg_offset;
+
+	/* async fifo */
+	bool async_fifo;
 };
 
 
@@ -103,6 +109,8 @@ struct tdm_chipinfo tl1_tdma_chipinfo = {
 	.oe_fn       = true,
 	.same_src_fn = true,
 	.adc_fn      = true,
+	.reset_reg_offset = 1,
+	.async_fifo  = true,
 };
 
 struct tdm_chipinfo tl1_tdmb_chipinfo = {
@@ -111,6 +119,8 @@ struct tdm_chipinfo tl1_tdmb_chipinfo = {
 	.oe_fn       = true,
 	.same_src_fn = true,
 	.adc_fn      = true,
+	.reset_reg_offset = 1,
+	.async_fifo  = true,
 };
 
 struct tdm_chipinfo tl1_tdmc_chipinfo = {
@@ -119,6 +129,8 @@ struct tdm_chipinfo tl1_tdmc_chipinfo = {
 	.oe_fn       = true,
 	.same_src_fn = true,
 	.adc_fn      = true,
+	.reset_reg_offset = 1,
+	.async_fifo  = true,
 };
 
 struct tdm_chipinfo tl1_tdminlb_chipinfo = {
@@ -127,6 +139,7 @@ struct tdm_chipinfo tl1_tdminlb_chipinfo = {
 	.oe_fn       = true,
 	.same_src_fn = true,
 	.adc_fn      = true,
+	.async_fifo  = true,
 };
 
 struct tdm_chipinfo sm1_tdma_chipinfo = {
@@ -135,6 +148,8 @@ struct tdm_chipinfo sm1_tdma_chipinfo = {
 	.oe_fn       = true,
 	.same_src_fn = true,
 	.lane_cnt    = LANE_MAX0,
+	.reset_reg_offset = 1,
+	.async_fifo  = true,
 };
 
 struct tdm_chipinfo sm1_tdmb_chipinfo = {
@@ -143,6 +158,8 @@ struct tdm_chipinfo sm1_tdmb_chipinfo = {
 	.oe_fn       = true,
 	.same_src_fn = true,
 	.lane_cnt    = LANE_MAX3,
+	.reset_reg_offset = 1,
+	.async_fifo  = true,
 };
 
 struct tdm_chipinfo sm1_tdmc_chipinfo = {
@@ -151,6 +168,8 @@ struct tdm_chipinfo sm1_tdmc_chipinfo = {
 	.oe_fn       = true,
 	.same_src_fn = true,
 	.lane_cnt    = LANE_MAX1,
+	.reset_reg_offset = 1,
+	.async_fifo  = true,
 };
 
 struct tdm_chipinfo sm1_tdminlb_chipinfo = {
@@ -159,6 +178,7 @@ struct tdm_chipinfo sm1_tdminlb_chipinfo = {
 	.oe_fn       = true,
 	.same_src_fn = true,
 	.lane_cnt    = LANE_MAX3,
+	.async_fifo  = true,
 };
 
 struct tdm_chipinfo tm2_tdma_chipinfo = {
@@ -168,6 +188,8 @@ struct tdm_chipinfo tm2_tdma_chipinfo = {
 	.same_src_fn = true,
 	.adc_fn      = true,
 	.lane_cnt    = LANE_MAX3,
+	.reset_reg_offset = 1,
+	.async_fifo  = true,
 };
 
 struct tdm_chipinfo tm2_tdmb_chipinfo = {
@@ -177,6 +199,8 @@ struct tdm_chipinfo tm2_tdmb_chipinfo = {
 	.same_src_fn = true,
 	.adc_fn      = true,
 	.lane_cnt    = LANE_MAX1,
+	.reset_reg_offset = 1,
+	.async_fifo  = true,
 };
 
 struct tdm_chipinfo tm2_tdmc_chipinfo = {
@@ -186,6 +210,8 @@ struct tdm_chipinfo tm2_tdmc_chipinfo = {
 	.same_src_fn = true,
 	.adc_fn      = true,
 	.lane_cnt    = LANE_MAX1,
+	.reset_reg_offset = 1,
+	.async_fifo  = true,
 };
 
 struct tdm_chipinfo tm2_tdminlb_chipinfo = {
@@ -194,6 +220,7 @@ struct tdm_chipinfo tm2_tdminlb_chipinfo = {
 	.oe_fn       = true,
 	.same_src_fn = true,
 	.lane_cnt    = LANE_MAX3,
+	.async_fifo  = true,
 };
 
 static const struct of_device_id aml_tdm_device_id[] = {

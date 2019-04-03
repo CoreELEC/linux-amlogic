@@ -63,8 +63,6 @@ static void aml_check_vad(struct toddr *to, bool enable);
 
 /* Audio EQ DRC */
 static struct frddr_attach attach_aed;
-static void aml_check_aed(bool enable, int dst);
-static bool aml_check_aed_module(int dst);
 
 static irqreturn_t aml_ddr_isr(int irq, void *devid)
 {
@@ -870,15 +868,22 @@ static void aml_check_vad(struct toddr *to, bool enable)
 /* from DDRS */
 static struct frddr *register_frddr_l(struct device *dev,
 	struct aml_audio_controller *actrl,
-	irq_handler_t handler, void *data)
+	irq_handler_t handler, void *data, bool rvd_dst)
 {
 	struct frddr *from;
 	unsigned int mask_bit;
 	int i, ret;
 
-	/* lookup unused frddr */
 	for (i = 0; i < DDRMAX; i++) {
-		if (!frddrs[i].in_use)
+		/* lookup reserved frddr */
+		if (frddrs[i].in_use == false &&
+			frddrs[i].reserved == true &&
+			rvd_dst == true)
+			break;
+		/* lookup unused frddr */
+		if (frddrs[i].in_use == false &&
+			frddrs[i].reserved == false &&
+			rvd_dst == false)
 			break;
 	}
 
@@ -978,12 +983,12 @@ struct frddr *fetch_frddr_by_src(int frddr_src)
 
 struct frddr *aml_audio_register_frddr(struct device *dev,
 	struct aml_audio_controller *actrl,
-	irq_handler_t handler, void *data)
+	irq_handler_t handler, void *data, bool rvd_dst)
 {
 	struct frddr *fr = NULL;
 
 	mutex_lock(&ddr_mutex);
-	fr = register_frddr_l(dev, actrl, handler, data);
+	fr = register_frddr_l(dev, actrl, handler, data, rvd_dst);
 	mutex_unlock(&ddr_mutex);
 	return fr;
 }
@@ -1066,11 +1071,6 @@ static void frddr_set_sharebuffer_enable(
 				sel);
 			break;
 		}
-		s_m |= 0xff << 24;
-		if (enable)
-			s_v |= (fr->channels - 1) << 24;
-		else
-			s_v |= 0x0 << 24;
 	} else {
 		reg = calc_frddr_address(EE_AUDIO_FRDDR_A_CTRL0,
 				reg_base);
@@ -1202,10 +1202,6 @@ void aml_frddr_enable(struct frddr *fr, bool enable)
 			aml_audiobus_write(actrl, reg, 0x0);
 		}
 	}
-
-	/* check for Audio EQ/DRC */
-	if (aml_check_aed_module(fr->dest))
-		aml_check_aed(enable, fr->dest);
 }
 
 void aml_frddr_select_dst(struct frddr *fr, enum frddr_dest dst)
@@ -1220,6 +1216,9 @@ void aml_frddr_select_dst(struct frddr *fr, enum frddr_dest dst)
 		&& fr->chipinfo->src_sel_ctrl) {
 		reg = calc_frddr_address(EE_AUDIO_FRDDR_A_CTRL2, reg_base);
 		src_sel_en = 4;
+		/*update frddr channel*/
+		aml_audiobus_update_bits(actrl, reg,
+			0xff << 24, (fr->channels - 1) << 24);
 	} else {
 		reg = calc_frddr_address(EE_AUDIO_FRDDR_A_CTRL0, reg_base);
 		src_sel_en = 3;
@@ -1254,9 +1253,10 @@ void aml_frddr_select_dst_ss(struct frddr *fr,
 	/* same source en */
 	if (fr->chipinfo
 		&& fr->chipinfo->same_src_fn
-		&& ss_valid
-	)
-		frddr_set_sharebuffer_enable(fr, dst, sel, enable);
+		&& ss_valid) {
+		frddr_set_sharebuffer_enable(fr,
+			dst, sel, enable);
+	}
 }
 
 void aml_frddr_set_fifos(struct frddr *fr,
@@ -1302,12 +1302,18 @@ static void aml_aed_enable(struct frddr_attach *p_attach_aed, bool enable)
 		unsigned int reg;
 
 		reg = calc_frddr_address(EE_AUDIO_FRDDR_A_CTRL2, reg_base);
-		aml_audiobus_update_bits(actrl,
-			reg, 0x1 << 3, enable << 3);
-
-		aed_set_ctrl(enable, 0, p_attach_aed->attach_module);
-		aed_set_format(fr->msb, fr->type, fr->fifo_id);
-		aed_enable(enable);
+		if (enable) {
+			aml_audiobus_update_bits(actrl,
+				reg, 0x1 << 3, enable << 3);
+			aed_set_ctrl(enable, 0, p_attach_aed->attach_module);
+			aed_set_format(fr->msb, fr->type, fr->fifo_id);
+			aed_enable(enable);
+		} else {
+			aed_enable(enable);
+			aed_set_ctrl(enable, 0, p_attach_aed->attach_module);
+			aml_audiobus_update_bits(actrl,
+				reg, 0x1 << 3, enable << 3);
+		}
 	} else {
 		if (enable) {
 			/* frddr type and bit depth for AED */
@@ -1315,40 +1321,6 @@ static void aml_aed_enable(struct frddr_attach *p_attach_aed, bool enable)
 		}
 		aed_src_select(enable, fr->dest, fr->fifo_id);
 	}
-}
-
-void aml_set_aed(bool enable, int aed_module)
-{
-	bool update_running = false;
-
-	/* when try to enable AED, if frddr is not in used,
-	 * set AED status as ready
-	 */
-	attach_aed.enable = enable;
-	attach_aed.attach_module = aed_module;
-
-	if (enable) {
-		if ((attach_aed.status == DISABLED)
-			|| (attach_aed.status == READY)) {
-			struct frddr *fr = fetch_frddr_by_src(aed_module);
-
-			if (!fr) {
-				attach_aed.status = READY;
-			} else {
-				attach_aed.status = RUNNING;
-				update_running = true;
-				pr_info("Playback with AED\n");
-			}
-		}
-	} else {
-		if (attach_aed.status == RUNNING)
-			update_running = true;
-
-		attach_aed.status = DISABLED;
-	}
-
-	if (update_running)
-		aml_aed_enable(&attach_aed, enable);
 }
 
 static bool aml_check_aed_module(int dst)
@@ -1362,21 +1334,87 @@ static bool aml_check_aed_module(int dst)
 	return is_module_aed;
 }
 
-static void aml_check_aed(bool enable, int dst)
+void aml_set_aed(bool enable, int aed_module)
 {
-	/* check effect module is sync with crruent frddr dst */
-	if (attach_aed.attach_module != dst)
-		return;
+	attach_aed.enable = enable;
+	attach_aed.attach_module = aed_module;
+}
 
-	/* AED in enable */
-	if (attach_aed.enable) {
-		if (enable)
-			attach_aed.status = RUNNING;
-		else
-			attach_aed.status = DISABLED;
-
+void aml_aed_top_enable(struct frddr *fr, bool enable)
+{
+	if (aml_check_aed_module(fr->dest))
 		aml_aed_enable(&attach_aed, enable);
+}
+
+void aml_aed_set_frddr_reserved(void)
+{
+	frddrs[DDR_A].reserved = true;
+}
+
+void aml_frddr_check(struct frddr *fr)
+{
+	unsigned int tmp, tmp1, i = 0;
+	struct aml_audio_controller *actrl = fr->actrl;
+	unsigned int reg_base = fr->reg_base;
+	unsigned int reg;
+
+	/*max 200us delay*/
+	for (i = 0; i < 200; i++) {
+		reg = calc_frddr_address(EE_AUDIO_FRDDR_A_CTRL1, reg_base);
+		aml_audiobus_update_bits(actrl,	reg, 0xf << 8, 0x0 << 8);
+		reg = calc_frddr_address(EE_AUDIO_FRDDR_A_STATUS2, reg_base);
+		tmp = aml_audiobus_read(actrl, reg);
+
+		reg = calc_frddr_address(EE_AUDIO_FRDDR_A_CTRL1, reg_base);
+		aml_audiobus_update_bits(actrl,	reg, 0xf << 8, 0x2 << 8);
+		reg = calc_frddr_address(EE_AUDIO_FRDDR_A_STATUS2, reg_base);
+		tmp1 = aml_audiobus_read(actrl, reg);
+
+		if (tmp == tmp1)
+			return;
+
+		udelay(1);
+		pr_debug("delay:[%dus]; FRDDR_STATUS2: [0x%x] [0x%x]\n",
+			i, tmp, tmp1);
 	}
+	pr_err("Error: 200us time out, FRDDR_STATUS2: [0x%x] [0x%x]\n",
+				tmp, tmp1);
+	return;
+}
+
+void aml_frddr_reset(struct frddr *fr, int offset)
+{
+	unsigned int reg = 0, val = 0;
+
+	if (fr == NULL) {
+		pr_err("%s(), frddr NULL pointer\n", __func__);
+		return;
+	}
+
+	if ((offset != 0) && (offset != 1)) {
+		pr_err("%s(), invalid offset = %d\n", __func__, offset);
+		return;
+	}
+
+	if (fr->fifo_id == 0) {
+		reg = EE_AUDIO_SW_RESET0(offset);
+		val = REG_BIT_RESET_FRDDRA;
+	} else if (fr->fifo_id == 1) {
+		reg = EE_AUDIO_SW_RESET0(offset);
+		val = REG_BIT_RESET_FRDDRB;
+	} else if (fr->fifo_id == 2) {
+		reg = EE_AUDIO_SW_RESET0(offset);
+		val = REG_BIT_RESET_FRDDRC;
+	} else if (fr->fifo_id == 3) {
+		reg = EE_AUDIO_SW_RESET1;
+		val = REG_BIT_RESET_FRDDRD;
+	} else {
+		pr_err("invalid frddr id %d\n", fr->fifo_id);
+		return;
+	}
+
+	audiobus_update_bits(reg, val, val);
+	audiobus_update_bits(reg, val, 0);
 }
 
 void frddr_init_without_mngr(unsigned int frddr_index, unsigned int src0_sel)

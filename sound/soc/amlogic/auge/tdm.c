@@ -41,8 +41,8 @@
 #include "sharebuffer.h"
 #include "vad.h"
 #include "spdif_hw.h"
-
 #include "tdm_match_table.c"
+#include "effects_v2.h"
 
 /*#define __PTM_TDM_CLK__*/
 
@@ -315,13 +315,20 @@ static int aml_tdm_open(struct snd_pcm_substream *substream)
 	struct device *dev = rtd->platform->dev;
 	struct aml_tdm *p_tdm;
 
+	pr_info("%s\n", __func__);
 	p_tdm = (struct aml_tdm *)dev_get_drvdata(dev);
 
 	snd_soc_set_runtime_hwparams(substream, &aml_tdm_hardware);
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
+		int dst_id = get_aed_dst();
+		bool aed_dst_status = false;
+
+		if (dst_id == p_tdm->id)
+			aed_dst_status = true;
 		p_tdm->fddr = aml_audio_register_frddr(dev,
-			p_tdm->actrl, aml_tdm_ddr_isr, substream);
+			p_tdm->actrl, aml_tdm_ddr_isr,
+			substream, aed_dst_status);
 		if (p_tdm->fddr == NULL) {
 			dev_err(dev, "failed to claim from ddr\n");
 			return -ENXIO;
@@ -379,6 +386,21 @@ static int aml_tdm_prepare(struct snd_pcm_substream *substream)
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		struct frddr *fr = p_tdm->fddr;
 
+		if (p_tdm->chipinfo && p_tdm->chipinfo->async_fifo) {
+			int offset = p_tdm->chipinfo->reset_reg_offset;
+
+			pr_debug("%s(), reset fddr\n", __func__);
+			aml_frddr_reset(p_tdm->fddr, offset);
+			aml_tdm_out_reset(p_tdm->id, offset);
+
+			if (p_tdm->chipinfo->same_src_fn
+				&& (p_tdm->samesource_sel >= 0)
+				&& (aml_check_sharebuffer_valid(p_tdm->fddr,
+					p_tdm->samesource_sel))
+				&& p_tdm->en_share)
+				aml_spdif_out_reset(p_tdm->samesource_sel - 3,
+						offset);
+		}
 		aml_frddr_set_buf(fr, start_addr, end_addr);
 		aml_frddr_set_intrpt(fr, int_addr);
 	} else {
@@ -461,11 +483,12 @@ static int aml_dai_tdm_prepare(struct snd_pcm_substream *substream,
 			p_tdm->chipinfo->same_src_fn
 			&& (p_tdm->samesource_sel >= 0)
 			&& (aml_check_sharebuffer_valid(p_tdm->fddr,
-					p_tdm->samesource_sel))
+				p_tdm->samesource_sel))
 			&& p_tdm->en_share) {
 				sharebuffer_prepare(substream,
 					fr, p_tdm->samesource_sel,
-					p_tdm->lane_ss);
+					p_tdm->lane_ss,
+					p_tdm->chipinfo->reset_reg_offset);
 		}
 
 		/* i2s source to hdmix */
@@ -529,7 +552,7 @@ static int aml_dai_tdm_prepare(struct snd_pcm_substream *substream,
 			return -EINVAL;
 		}
 
-		dev_info(substream->pcm->card->dev, "tdm prepare----capture\n");
+		dev_info(substream->pcm->card->dev, "tdm prepare capture\n");
 		switch (p_tdm->id) {
 		case 0:
 			src = TDMIN_A;
@@ -586,18 +609,6 @@ static int aml_dai_tdm_trigger(struct snd_pcm_substream *substream, int cmd,
 {
 	struct aml_tdm *p_tdm = snd_soc_dai_get_drvdata(cpu_dai);
 
-	/* share buffer trigger */
-	if ((substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
-		&& p_tdm->chipinfo
-		&& p_tdm->chipinfo->same_src_fn
-		&& (p_tdm->samesource_sel >= 0)
-		&& (aml_check_sharebuffer_valid(p_tdm->fddr,
-				p_tdm->samesource_sel))
-		&& p_tdm->en_share)
-		sharebuffer_trigger(cmd,
-			p_tdm->samesource_sel,
-			p_tdm->chipinfo->same_src_spdif_reen);
-
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
 	case SNDRV_PCM_TRIGGER_RESUME:
@@ -618,13 +629,31 @@ static int aml_dai_tdm_trigger(struct snd_pcm_substream *substream, int cmd,
 		aml_tdm_fifo_reset(p_tdm->actrl, substream->stream, p_tdm->id);
 
 		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
+			/* output START sequence:
+			 * 1. Frddr/TDMOUT/SPDIF reset(may cause the AVR mute)
+			 * 2. ctrl0 set to 0
+			 * 3. TDMOUT enable
+			 * 4. SPDIFOUT enable
+			 * 5. FRDDR enable
+			 */
 			dev_info(substream->pcm->card->dev, "tdm playback enable\n");
-			aml_frddr_enable(p_tdm->fddr, 1);
+			/*don't change this flow*/
+			aml_aed_top_enable(p_tdm->fddr, true);
 			aml_tdm_enable(p_tdm->actrl,
 				substream->stream, p_tdm->id, true);
+			if (p_tdm->chipinfo
+				&& p_tdm->chipinfo->same_src_fn
+				&& (p_tdm->samesource_sel >= 0)
+				&& (aml_check_sharebuffer_valid(p_tdm->fddr,
+						p_tdm->samesource_sel))
+				&& p_tdm->en_share)
+				sharebuffer_trigger(cmd,
+					p_tdm->samesource_sel,
+					p_tdm->chipinfo->same_src_spdif_reen);
+
+			aml_frddr_enable(p_tdm->fddr, true);
 			udelay(100);
-			aml_tdm_mute_playback(p_tdm->actrl, p_tdm->id,
-					false, p_tdm->lane_cnt);
+			aml_tdmout_enable_gain(p_tdm->id, false);
 			if (p_tdm->chipinfo
 				&& p_tdm->chipinfo->same_src_fn
 				&& (p_tdm->samesource_sel >= 0)
@@ -652,10 +681,15 @@ static int aml_dai_tdm_trigger(struct snd_pcm_substream *substream, int cmd,
 		}
 
 		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
+			/* output STOP sequence:
+			 * 1. TDMOUT->muteval
+			 * 2. SPDIFOUT->muteval
+			 * 3. TDMOUT/SPDIF Disable
+			 * 4. FRDDR Disable
+			 */
 			dev_info(substream->pcm->card->dev, "tdm playback stop\n");
-			aml_frddr_enable(p_tdm->fddr, 0);
-			aml_tdm_mute_playback(p_tdm->actrl, p_tdm->id,
-					true, p_tdm->lane_cnt);
+			/*don't change this flow*/
+			aml_tdmout_enable_gain(p_tdm->id, true);
 			if (p_tdm->chipinfo
 				&& p_tdm->chipinfo->same_src_fn
 				&& (p_tdm->samesource_sel >= 0)
@@ -664,12 +698,30 @@ static int aml_dai_tdm_trigger(struct snd_pcm_substream *substream, int cmd,
 				&& p_tdm->en_share) {
 				aml_spdifout_mute_without_actrl(0, true);
 			}
+			aml_aed_top_enable(p_tdm->fddr, false);
+			aml_tdm_enable(p_tdm->actrl,
+				substream->stream, p_tdm->id, false);
+			if (p_tdm->chipinfo	&& p_tdm->chipinfo->same_src_fn
+				&& (p_tdm->samesource_sel >= 0)
+				&& (aml_check_sharebuffer_valid(p_tdm->fddr,
+						p_tdm->samesource_sel))
+				&& p_tdm->en_share)
+				sharebuffer_trigger(cmd,
+					p_tdm->samesource_sel,
+					p_tdm->chipinfo->same_src_spdif_reen);
+
+			if (p_tdm->chipinfo	&&
+				p_tdm->chipinfo->async_fifo)
+				aml_frddr_check(p_tdm->fddr);
+
+			aml_frddr_enable(p_tdm->fddr, false);
 		} else {
 			dev_info(substream->pcm->card->dev, "tdm capture stop\n");
-			aml_toddr_enable(p_tdm->tddr, 0);
+			aml_toddr_enable(p_tdm->tddr, false);
+			aml_tdm_enable(p_tdm->actrl,
+				substream->stream, p_tdm->id, false);
 		}
-		aml_tdm_enable(p_tdm->actrl,
-			substream->stream, p_tdm->id, false);
+
 		break;
 	default:
 		return -EINVAL;
@@ -1625,6 +1677,7 @@ static int aml_tdm_platform_probe(struct platform_device *pdev)
 	p_tdm->dev = dev;
 	/* For debug to disable share buffer */
 	p_tdm->en_share = 1;
+	pr_info("%s(), share en = %d", __func__, p_tdm->en_share);
 	dev_set_drvdata(dev, p_tdm);
 
 	/* spdif same source with i2s */

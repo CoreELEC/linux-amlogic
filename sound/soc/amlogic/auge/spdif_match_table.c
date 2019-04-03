@@ -39,6 +39,8 @@ struct spdif_chipinfo {
 	bool pcpd_separated;
 	/* same source, spdif re-enable */
 	bool same_src_spdif_reen;
+	/* async fifo */
+	bool async_fifo;
 };
 
 struct spdif_chipinfo axg_spdif_chipinfo = {
@@ -69,6 +71,7 @@ struct spdif_chipinfo tl1_spdif_a_chipinfo = {
 	.chnum_en     = true,
 	.hold_start   = true,
 	.eq_drc_en    = true,
+	.async_fifo   = true,
 };
 
 struct spdif_chipinfo tl1_spdif_b_chipinfo = {
@@ -76,6 +79,7 @@ struct spdif_chipinfo tl1_spdif_b_chipinfo = {
 	.chnum_en     = true,
 	.hold_start   = true,
 	.eq_drc_en    = true,
+	.async_fifo   = true,
 };
 
 struct spdif_chipinfo sm1_spdif_a_chipinfo = {
@@ -83,6 +87,7 @@ struct spdif_chipinfo sm1_spdif_a_chipinfo = {
 	.chnum_en     = true,
 	.hold_start   = true,
 	.eq_drc_en    = true,
+	.async_fifo   = true,
 };
 
 struct spdif_chipinfo sm1_spdif_b_chipinfo = {
@@ -90,6 +95,7 @@ struct spdif_chipinfo sm1_spdif_b_chipinfo = {
 	.chnum_en     = true,
 	.hold_start   = true,
 	.eq_drc_en    = true,
+	.async_fifo   = true,
 };
 
 struct spdif_chipinfo tm2_spdif_a_chipinfo = {
@@ -97,6 +103,7 @@ struct spdif_chipinfo tm2_spdif_a_chipinfo = {
 	.chnum_en     = true,
 	.hold_start   = true,
 	.eq_drc_en    = true,
+	.async_fifo   = true,
 };
 
 struct spdif_chipinfo tm2_spdif_b_chipinfo = {
@@ -104,6 +111,7 @@ struct spdif_chipinfo tm2_spdif_b_chipinfo = {
 	.chnum_en     = true,
 	.hold_start   = true,
 	.eq_drc_en    = true,
+	.async_fifo   = true,
 };
 
 static const struct of_device_id aml_spdif_device_id[] = {

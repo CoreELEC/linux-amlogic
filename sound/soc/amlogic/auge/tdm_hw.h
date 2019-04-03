@@ -163,4 +163,5 @@ void aml_tdm_mute_capture(
 		int tdm_index,
 		bool mute,
 		int lane_cnt);
+void aml_tdm_out_reset(unsigned int tdm_id, int offset);
 #endif

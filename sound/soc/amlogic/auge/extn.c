@@ -191,7 +191,7 @@ static int extn_open(struct snd_pcm_substream *substream)
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		p_extn->fddr = aml_audio_register_frddr(dev,
 			p_extn->actrl,
-			extn_ddr_isr, substream);
+			extn_ddr_isr, substream, false);
 		if (p_extn->fddr == NULL) {
 			dev_err(dev, "failed to claim from ddr\n");
 			return -ENXIO;

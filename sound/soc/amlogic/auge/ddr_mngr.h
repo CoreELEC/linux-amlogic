@@ -226,6 +226,8 @@ struct frddr {
 	int irq;
 	bool in_use;
 	struct ddr_chipinfo *chipinfo;
+
+	bool reserved;
 };
 
 /* to ddrs */
@@ -272,7 +274,7 @@ struct frddr *fetch_frddr_by_src(int frddr_src);
 
 struct frddr *aml_audio_register_frddr(struct device *dev,
 		struct aml_audio_controller *actrl,
-		irq_handler_t handler, void *data);
+		irq_handler_t handler, void *data, bool rvd_dst);
 int aml_audio_unregister_frddr(struct device *dev, void *data);
 int aml_frddr_set_buf(struct frddr *fr, unsigned int start,
 			unsigned int end);
@@ -292,8 +294,12 @@ void aml_frddr_set_format(struct frddr *fr,
 	unsigned int chnum,
 	unsigned int msb,
 	unsigned int frddr_type);
+
+void aml_frddr_reset(struct frddr *fr, int offset);
+
 /* audio eq drc */
 void aml_set_aed(bool enable, int aed_module);
+void aml_aed_top_enable(struct frddr *fr, bool enable);
 
 void frddr_init_without_mngr(unsigned int frddr_index, unsigned int src0_sel);
 void frddr_deinit_without_mngr(unsigned int frddr_index);
@@ -307,6 +313,9 @@ int card_add_ddr_kcontrols(struct snd_soc_card *card);
 
 void pm_audio_set_suspend(bool is_suspend);
 bool pm_audio_is_suspend(void);
+
+void aml_frddr_check(struct frddr *fr);
+void aml_aed_set_frddr_reserved(void);
 
 #endif
 

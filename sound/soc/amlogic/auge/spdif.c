@@ -748,7 +748,7 @@ static int aml_spdif_open(struct snd_pcm_substream *substream)
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		p_spdif->fddr = aml_audio_register_frddr(dev,
 			p_spdif->actrl,
-			aml_spdif_ddr_isr, substream);
+			aml_spdif_ddr_isr, substream, false);
 		if (p_spdif->fddr == NULL) {
 			dev_err(dev, "failed to claim from ddr\n");
 			return -ENXIO;
@@ -1219,6 +1219,8 @@ static int aml_dai_spdif_trigger(struct snd_pcm_substream *substream, int cmd,
 
 		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 			dev_info(substream->pcm->card->dev, "S/PDIF Playback enable\n");
+			aml_spdif_enable(p_spdif->actrl,
+			    substream->stream, p_spdif->id, true);
 			aml_frddr_enable(p_spdif->fddr, 1);
 			udelay(100);
 			aml_spdif_mute(p_spdif->actrl,
@@ -1226,10 +1228,9 @@ static int aml_dai_spdif_trigger(struct snd_pcm_substream *substream, int cmd,
 		} else {
 			dev_info(substream->pcm->card->dev, "S/PDIF Capture enable\n");
 			aml_toddr_enable(p_spdif->tddr, 1);
+			aml_spdif_enable(p_spdif->actrl,
+			    substream->stream, p_spdif->id, true);
 		}
-
-		aml_spdif_enable(p_spdif->actrl,
-			substream->stream, p_spdif->id, true);
 
 		break;
 	case SNDRV_PCM_TRIGGER_STOP:
@@ -1237,21 +1238,28 @@ static int aml_dai_spdif_trigger(struct snd_pcm_substream *substream, int cmd,
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
 		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 			dev_info(substream->pcm->card->dev, "S/PDIF Playback disable\n");
+			/* continuous-clock, spdif out is not disable,
+			 * only mute, ensure spdif outputs zero data.
+			 */
+			if (p_spdif->clk_cont) {
+				aml_spdif_mute(p_spdif->actrl,
+					substream->stream, p_spdif->id, true);
+			} else {
+				aml_spdif_enable(p_spdif->actrl,
+					substream->stream, p_spdif->id, false);
+			}
+
+			if (p_spdif->chipinfo &&
+				p_spdif->chipinfo->async_fifo)
+				aml_frddr_check(p_spdif->fddr);
 			aml_frddr_enable(p_spdif->fddr, 0);
 		} else {
 			dev_info(substream->pcm->card->dev, "S/PDIF Capture disable\n");
 			aml_toddr_enable(p_spdif->tddr, 0);
-		}
-		/* continuous-clock, spdif out is not disable,
-		 * only mute, ensure spdif outputs zero data.
-		 */
-		if (p_spdif->clk_cont
-			&& (substream->stream == SNDRV_PCM_STREAM_PLAYBACK))
-			aml_spdif_mute(p_spdif->actrl,
-				substream->stream, p_spdif->id, true);
-		else
 			aml_spdif_enable(p_spdif->actrl,
-				substream->stream, p_spdif->id, false);
+					substream->stream, p_spdif->id, false);
+		}
+
 		break;
 	default:
 		return -EINVAL;

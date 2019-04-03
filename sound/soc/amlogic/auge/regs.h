@@ -37,6 +37,11 @@ enum clk_sel {
 	SLAVE_J
 };
 
+struct register_table {
+	char *name;
+	unsigned int addr;
+};
+
 #define AUD_ADDR_OFFSET(addr)              ((addr) << 2)
 
 /*
@@ -71,7 +76,46 @@ enum clk_sel {
 #define EE_AUDIO_MCLK_F_CTRL(offset)       (0x006 + offset)
 #define EE_AUDIO_MST_PAD_CTRL0(offset)     (0x007 + offset)
 #define EE_AUDIO_MST_PAD_CTRL1(offset)     (0x008 + offset)
+
+#define REG_BIT_RESET_PDM				(1)
+#define REG_BIT_RESET_TDMINA				(1 << 1)
+#define REG_BIT_RESET_TDMINB				(1 << 2)
+#define REG_BIT_RESET_TDMINC				(1 << 3)
+#define REG_BIT_RESET_TDMIN_LB				(1 << 4)
+#define REG_BIT_RESET_LOOPBACK				(1 << 5)
+#define REG_BIT_RESET_TODDRA				(1 << 6)
+#define REG_BIT_RESET_TODDRB				(1 << 7)
+#define REG_BIT_RESET_TODDRC				(1 << 8)
+#define REG_BIT_RESET_FRDDRA				(1 << 9)
+#define REG_BIT_RESET_FRDDRB				(1 << 10)
+#define REG_BIT_RESET_FRDDRC				(1 << 11)
+#define REG_BIT_RESET_TDMOUTA				(1 << 12)
+#define REG_BIT_RESET_TDMOUTB				(1 << 13)
+#define REG_BIT_RESET_TDMOUTC				(1 << 14)
+#define REG_BIT_RESET_SPDIFOUTA				(1 << 15)
+#define REG_BIT_RESET_SPDIFOUTB				(1 << 16)
+#define REG_BIT_RESET_SPDIFIN				(1 << 17)
+#define REG_BIT_RESET_EQDRC				(1 << 18)
+#define REG_BIT_RESET_RESAMPLE				(1 << 19)
+#define REG_BIT_RESET_DDRARB				(1 << 20)
+#define REG_BIT_RESET_POWDET				(1 << 21)
+#define REG_BIT_RESET_TORAM				(1 << 22)
+#define REG_BIT_RESET_TOACODEC				(1 << 23)
+#define REG_BIT_RESET_TOHDMITX				(1 << 24)
+#define REG_BIT_RESET_CLKTREE				(1 << 25)
+#define REG_BIT_RESET_RESAMPLEB				(1 << 26)
+#define REG_BIT_RESET_TOVAD				(1 << 27)
+#define REG_BIT_RESET_LOCKER				(1 << 28)
+#define REG_BIT_RESET_SPDIFIN_LB			(1 << 29)
+#define REG_BIT_RESET_FRATV				(1 << 30)
+#define REG_BIT_RESET_FRHDMIRX				(1 << 31)
+
 #define EE_AUDIO_SW_RESET0(offset)         (0x009 + offset)
+
+#define REG_BIT_RESET_FRDDRD				(1)
+#define REG_BIT_RESET_TODDRD				(1 << 1)
+#define REG_BIT_RESET_LOOPBACKB				(1 << 2)
+
 #define EE_AUDIO_SW_RESET1                 0x00b
 #define EE_AUDIO_CLK81_CTRL                0x00c
 #define EE_AUDIO_CLK81_EN                  0x00d

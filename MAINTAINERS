@@ -13804,6 +13804,7 @@ F: arch/arm/boot/dts/amlogic>
 ANLOGIC AUDIO DRIVER
 M: Xing Wang <xing.wang@amlogic.com>
 M: Zhe Wang <Zhe.Wang@amlogic.com>
+M: Shuai Li <shuai.li@amlogic.com>
 F: arch/arm64/boot/dts/amlogic/*
 F: arch/arm/boot/dts/amlogic/*
 F: arch/arm64/configs/meson64_defconfig

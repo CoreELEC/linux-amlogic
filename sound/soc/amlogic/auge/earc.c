@@ -144,7 +144,7 @@ static int earc_open(struct snd_pcm_substream *substream)
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		p_earc->fddr = aml_audio_register_frddr(dev,
 			p_earc->actrl,
-			earc_ddr_isr, substream);
+			earc_ddr_isr, substream, false);
 		if (p_earc->fddr == NULL) {
 			dev_err(dev, "failed to claim from ddr\n");
 			return -ENXIO;

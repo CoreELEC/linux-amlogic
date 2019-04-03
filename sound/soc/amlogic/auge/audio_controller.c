@@ -15,6 +15,9 @@
  *
  */
 
+
+/*#define DEBUG*/
+
 #include <linux/device.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
@@ -28,6 +31,8 @@
 
 #include "audio_io.h"
 #include "regs.h"
+#include "audio_aed_reg_list.h"
+#include "audio_top_reg_list.h"
 
 #define DRV_NAME "aml-audio-controller"
 
@@ -46,7 +51,10 @@ static int aml_audio_mmio_write(struct aml_audio_controller *actrlr,
 			unsigned int reg, unsigned int value)
 {
 	struct regmap *regmap = actrlr->regmap;
-
+	pr_debug("audio top reg:[%s] addr: [%#x] val: [%#x]\n",
+			top_register_table[reg].name,
+			top_register_table[reg].addr,
+			value);
 	return regmap_write(regmap, (reg << 2), value);
 }
 
@@ -54,7 +62,10 @@ static int aml_audio_mmio_update_bits(struct aml_audio_controller *actrlr,
 			unsigned int reg, unsigned int mask, unsigned int value)
 {
 	struct regmap *regmap = actrlr->regmap;
-
+	pr_debug("audio top reg:[%s] addr: [%#x] mask: [%#x] val: [%#x]\n",
+			top_register_table[reg].name,
+			top_register_table[reg].addr,
+			mask, value);
 	return regmap_update_bits(regmap, (reg << 2), mask, value);
 }
 
