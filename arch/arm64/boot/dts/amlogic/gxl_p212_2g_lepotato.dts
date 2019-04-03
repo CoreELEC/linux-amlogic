@@ -1,0 +1,6 @@
+#include "gxl_p212_2g.dts"
+#include "lepotato.dtsi"
+
+/ {
+	le-dt-id = "gxl_p212_2g_lepotato";
+};
