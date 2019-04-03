@@ -1554,9 +1554,10 @@ static void vdin_set_color_matrix0_g12a(unsigned int offset,
 			VDIN_MATRIX_COEF_INDEX_BIT, VDIN_MATRIX_COEF_INDEX_WID);
 
 		wr(offset,
-			VDIN_MATRIX_PRE_OFFSET0_1, matrix_tbl->pre_offset0_1);
+			VDIN_HDR2_MATRIXI_PRE_OFFSET0_1,
+				matrix_tbl->pre_offset0_1);
 		wr(offset,
-			VDIN_MATRIX_PRE_OFFSET2, matrix_tbl->pre_offset2);
+			VDIN_HDR2_MATRIXI_PRE_OFFSET2, matrix_tbl->pre_offset2);
 		wr(offset, VDIN_HDR2_MATRIXI_COEF00_01, matrix_tbl->coef00_01);
 		wr(offset, VDIN_HDR2_MATRIXI_COEF02_10, matrix_tbl->coef02_10);
 		wr(offset, VDIN_HDR2_MATRIXI_COEF11_12, matrix_tbl->coef11_12);
