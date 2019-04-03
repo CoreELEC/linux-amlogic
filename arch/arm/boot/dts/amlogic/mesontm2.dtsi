@@ -1470,7 +1470,7 @@
 	amhdmitx: amhdmitx{
 		compatible = "amlogic, amhdmitx";
 		dev_name = "amhdmitx";
-		status = "okay";
+		status = "disabled";
 		vend-data = <&vend_data>;
 		pinctrl-names="default", "hdmitx_i2c";
 		pinctrl-0=<&hdmitx_hpd &hdmitx_ddc>;

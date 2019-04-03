@@ -1931,3 +1931,7 @@
 &efuse {
 	status = "okay";
 };
+
+&amhdmitx {
+	status = "okay";
+};

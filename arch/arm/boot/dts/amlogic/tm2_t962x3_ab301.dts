@@ -1,5 +1,5 @@
 /*
- * arch/arm/boot/dts/amlogic/tm2_t962e2_ab301.dts
+ * arch/arm/boot/dts/amlogic/tm2_t962x3_ab301.dts
  *
  * Copyright (C) 2017 Amlogic, Inc. All rights reserved.
  *
@@ -21,9 +21,9 @@
 #include "partition_mbox_normal.dtsi"
 
 / {
-	model = "Amlogic TM2 T962E2 AB301";
-	amlogic-dt-id = "tm2_t962e2_ab301";
-	compatible = "amlogic, tm2_t962e2_ab301";
+	model = "Amlogic TM2 T962X3 AB301";
+	amlogic-dt-id = "tm2_t962x3_ab301";
+	compatible = "amlogic, tm2_t962x3_ab301";
 
 	aliases {
 		serial0 = &uart_AO;
@@ -319,7 +319,7 @@
 			};
 			tdmacodec: codec {
 				//sound-dai = <&dummy_codec>;
-				sound-dai = </*&ad82584f*/ &tl1_codec>;
+				sound-dai = <&ad82584f &tl1_codec>;
 			};
 		};
 
@@ -1094,57 +1094,58 @@
 		};
 	}; /*thermal zone end*/
 
+	/*DCDC for MP8756GD*/
 	cpu_opp_table0: cpu_opp_table0 {
 		compatible = "operating-points-v2";
 		opp-shared;
 
 		opp00 {
 			opp-hz = /bits/ 64 <100000000>;
-			opp-microvolt = <730000>;
+			opp-microvolt = <729000>;
 		};
 		opp01 {
 			opp-hz = /bits/ 64 <250000000>;
-			opp-microvolt = <730000>;
+			opp-microvolt = <729000>;
 		};
 		opp02 {
 			opp-hz = /bits/ 64 <500000000>;
-			opp-microvolt = <730000>;
+			opp-microvolt = <729000>;
 		};
 		opp03 {
 			opp-hz = /bits/ 64 <667000000>;
-			opp-microvolt = <750000>;
+			opp-microvolt = <749000>;
 		};
 		opp04 {
 			opp-hz = /bits/ 64 <1000000000>;
-			opp-microvolt = <770000>;
+			opp-microvolt = <769000>;
 		};
 		opp05 {
 			opp-hz = /bits/ 64 <1200000000>;
-			opp-microvolt = <780000>;
+			opp-microvolt = <779000>;
 		};
 		opp06 {
 			opp-hz = /bits/ 64 <1404000000>;
-			opp-microvolt = <790000>;
+			opp-microvolt = <789000>;
 		};
 		opp07 {
 			opp-hz = /bits/ 64 <1500000000>;
-			opp-microvolt = <800000>;
+			opp-microvolt = <799000>;
 		};
 		opp08 {
 			opp-hz = /bits/ 64 <1608000000>;
-			opp-microvolt = <810000>;
+			opp-microvolt = <809000>;
 		};
 		opp09 {
 			opp-hz = /bits/ 64 <1704000000>;
-			opp-microvolt = <850000>;
+			opp-microvolt = <849000>;
 		};
 		opp10 {
 			opp-hz = /bits/ 64 <1800000000>;
-			opp-microvolt = <900000>;
+			opp-microvolt = <899000>;
 		};
 		opp11 {
 			opp-hz = /bits/ 64 <1908000000>;
-			opp-microvolt = <950000>;
+			opp-microvolt = <949000>;
 		};
 	};
 
@@ -1152,7 +1153,7 @@
 		compatible = "amlogic, cpufreq-meson";
 		pinctrl-names = "default";
 		pinctrl-0 = <&pwm_ao_d_pins3>;
-		status = "okay";
+		status = "disabled";
 	};
 
 	tuner: tuner {
@@ -1714,7 +1715,7 @@
 		compatible = "ESMT, ad82584f";
 		#sound-dai-cells = <0>;
 		reg = <0x31>;
-		status = "disabled";
+		status = "okay";
 		reset_pin = <&gpio_ao GPIOAO_6 0>;
 	};
 
@@ -1838,13 +1839,7 @@
 
 &usb3_phy_v2 {
 	status = "okay";
-	portnum = <2>;
-	portconfig-30 = <1>;
-	portconfig-31 = <1>;
-};
-
-&usb_otg {
-	status = "okay";
+	portnum = <0>;
 	otg = <0>;
 };
 
@@ -1852,16 +1847,6 @@
 	status = "okay";
 	/** 0: normal, 1: otg+dwc3 host only, 2: otg+dwc3 device only*/
 	controller-type = <1>;
-};
-
-&pcie_A {
-	reset-gpio = <&gpio_ao GPIOAO_4 GPIO_ACTIVE_HIGH>;
-	status = "disable";
-};
-
-&pcie_B {
-	/* ab311 only pcie a, no pcie b */
-	status = "disable";
 };
 
 &spicc0 {
