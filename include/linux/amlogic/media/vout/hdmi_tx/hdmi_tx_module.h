@@ -502,6 +502,7 @@ struct hdmitx_dev {
 	bool systemcontrol_on;
 	unsigned char vid_mute_op;
 	spinlock_t edid_spinlock; /* edid hdr/dv cap lock */
+	unsigned int cec_func_config;
 };
 
 #define CMD_DDC_OFFSET          (0x10 << 24)
