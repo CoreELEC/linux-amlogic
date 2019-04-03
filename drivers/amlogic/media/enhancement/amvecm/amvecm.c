@@ -238,7 +238,7 @@ __setup("pq=", amvecm_load_pq_val);
 static int amvecm_set_contrast2(int val)
 {
 	val += 0x80;
-	if (get_cpu_type() == MESON_CPU_MAJOR_ID_TL1) {
+	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A) {
 		WRITE_VPP_REG_BITS(VPP_VADJ2_Y_2,
 			val, 0, 8);
 		WRITE_VPP_REG_BITS(VPP_VADJ2_MISC, 1, 0, 1);
@@ -256,14 +256,14 @@ static int amvecm_set_brightness2(int val)
 	if (get_cpu_type() <= MESON_CPU_MAJOR_ID_GXTVBB)
 		WRITE_VPP_REG_BITS(VPP_VADJ2_Y,
 			vdj_mode_s.brightness2, 8, 9);
-	else if (get_cpu_type() == MESON_CPU_MAJOR_ID_TL1)
+	else if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A)
 		WRITE_VPP_REG_BITS(VPP_VADJ2_Y_2,
 			vdj_mode_s.brightness2, 8, 11);
 	else
 		WRITE_VPP_REG_BITS(VPP_VADJ2_Y,
 			vdj_mode_s.brightness2 >> 1, 8, 10);
 
-	if (get_cpu_type() == MESON_CPU_MAJOR_ID_TL1)
+	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A)
 		WRITE_VPP_REG_BITS(VPP_VADJ2_MISC, 1, 0, 1);
 	else
 		WRITE_VPP_REG_BITS(VPP_VADJ_CTRL, 1, 2, 1);
@@ -292,7 +292,7 @@ static ssize_t video_adj1_brightness_show(struct class *cla,
 		val = (val << 23) >> 23;
 
 		return sprintf(buf, "%d\n", val);
-	} else if (get_cpu_type() == MESON_CPU_MAJOR_ID_TL1) {
+	} else if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A) {
 		val = (READ_VPP_REG(VPP_VADJ1_Y_2) >> 8) & 0x7ff;
 		val = (val << 21) >> 21;
 
@@ -317,12 +317,12 @@ static ssize_t video_adj1_brightness_store(struct class *cla,
 
 	if (get_cpu_type() <= MESON_CPU_MAJOR_ID_GXTVBB)
 		WRITE_VPP_REG_BITS(VPP_VADJ1_Y, val, 8, 9);
-	else if (get_cpu_type() == MESON_CPU_MAJOR_ID_TL1)
+	else if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A)
 		WRITE_VPP_REG_BITS(VPP_VADJ1_Y_2, val, 8, 11);
 	else
 		WRITE_VPP_REG_BITS(VPP_VADJ1_Y, val >> 1, 8, 10);
 
-	if (get_cpu_type() == MESON_CPU_MAJOR_ID_TL1)
+	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A)
 		WRITE_VPP_REG_BITS(VPP_VADJ1_MISC, 1, 0, 1);
 	else
 		WRITE_VPP_REG_BITS(VPP_VADJ_CTRL, 1, 0, 1);
@@ -333,7 +333,7 @@ static ssize_t video_adj1_brightness_store(struct class *cla,
 static ssize_t video_adj1_contrast_show(struct class *cla,
 			struct class_attribute *attr, char *buf)
 {
-	if (get_cpu_type() == MESON_CPU_MAJOR_ID_TL1)
+	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A)
 		return sprintf(buf, "%d\n",
 			(int)(READ_VPP_REG(VPP_VADJ1_Y_2) & 0xff) - 0x80);
 	else
@@ -354,7 +354,7 @@ static ssize_t video_adj1_contrast_store(struct class *cla,
 
 	val += 0x80;
 
-	if (get_cpu_type() == MESON_CPU_MAJOR_ID_TL1) {
+	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A) {
 		WRITE_VPP_REG_BITS(VPP_VADJ1_Y_2, val, 0, 8);
 		WRITE_VPP_REG_BITS(VPP_VADJ1_MISC, 1, 0, 1);
 	} else {
@@ -376,7 +376,7 @@ static ssize_t video_adj2_brightness_show(struct class *cla,
 		val = (val << 23) >> 23;
 
 		return sprintf(buf, "%d\n", val);
-	} else if (get_cpu_type() == MESON_CPU_MAJOR_ID_TL1) {
+	} else if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A) {
 		val = (READ_VPP_REG(VPP_VADJ2_Y_2) >> 8) & 0x7ff;
 		val = (val << 21) >> 21;
 
@@ -405,7 +405,7 @@ static ssize_t video_adj2_brightness_store(struct class *cla,
 static ssize_t video_adj2_contrast_show(struct class *cla,
 			struct class_attribute *attr, char *buf)
 {
-	if (get_cpu_type() == MESON_CPU_MAJOR_ID_TL1)
+	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A)
 		return sprintf(buf, "%d\n",
 			(int)(READ_VPP_REG(VPP_VADJ2_Y_2) & 0xff) - 0x80);
 	else
@@ -811,7 +811,7 @@ void vpp_get_vframe_hist_info(struct vframe_s *vf)
 	unsigned int hist_height, hist_width;
 	u64 divid;
 
-	if (get_cpu_type() == MESON_CPU_MAJOR_ID_TL1) {
+	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A) {
 		/*TL1 remove VPP_IN_H_V_SIZE register*/
 		hist_width = READ_VPP_REG_BITS(VPP_PREBLEND_H_SIZE, 0, 13);
 		hist_height = READ_VPP_REG_BITS(VPP_PREBLEND_H_SIZE, 16, 13);
@@ -1230,7 +1230,7 @@ static int amvecm_set_saturation_hue(int mab)
 		mb = -512;
 	mab =  ((ma & 0x3ff) << 16) | (mb & 0x3ff);
 
-	if (get_cpu_type() == MESON_CPU_MAJOR_ID_TL1)
+	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A)
 		WRITE_VPP_REG(VPP_VADJ1_MA_MB_2, mab);
 	else
 		WRITE_VPP_REG(VPP_VADJ1_MA_MB, mab);
@@ -1244,7 +1244,7 @@ static int amvecm_set_saturation_hue(int mab)
 	md = (s16)((mab<<6)>>22);  /* md =  ma; */
 	mab = ((mc&0x3ff)<<16)|(md&0x3ff);
 
-	if (get_cpu_type() == MESON_CPU_MAJOR_ID_TL1) {
+	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A) {
 		WRITE_VPP_REG(VPP_VADJ1_MC_MD_2, mab);
 		WRITE_VPP_REG_BITS(VPP_VADJ1_MISC, 1, 0, 1);
 	} else {
@@ -1299,7 +1299,7 @@ static int amvecm_set_saturation_hue_post(int val1,
 	mab =  ((ma & 0x3ff) << 16) | (mb & 0x3ff);
 	pr_info("\n[amvideo..] saturation_post:%d hue_post:%d mab:%x\n",
 			saturation_post, hue_post, mab);
-	if (get_cpu_type() == MESON_CPU_MAJOR_ID_TL1)
+	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A)
 		WRITE_VPP_REG(VPP_VADJ2_MA_MB_2, mab);
 	else
 		WRITE_VPP_REG(VPP_VADJ2_MA_MB, mab);
@@ -1311,7 +1311,7 @@ static int amvecm_set_saturation_hue_post(int val1,
 		mc = -512;
 	md = (s16)((mab<<6)>>22);  /* md =	ma; */
 	mab = ((mc&0x3ff)<<16)|(md&0x3ff);
-	if (get_cpu_type() == MESON_CPU_MAJOR_ID_TL1) {
+	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A) {
 		WRITE_VPP_REG(VPP_VADJ2_MC_MD_2, mab);
 		WRITE_VPP_REG_BITS(VPP_VADJ2_MISC, 1, 0, 1);
 	} else {
@@ -1644,8 +1644,8 @@ static long amvecm_ioctl(struct file *file,
 			vecm_latch_flag |= FLAG_VADJ1_BRI;
 		}
 		if (vdj_mode_flg & 0x2) { /*brightness2*/
-			if ((vdj_mode_s.brightness2 < -255) ||
-				(vdj_mode_s.brightness2 > 255)) {
+			if ((vdj_mode_s.brightness2 < -1024) ||
+				(vdj_mode_s.brightness2 > 1023)) {
 				pr_amvecm_dbg("load brightness2 value invalid!!!\n");
 				return -EINVAL;
 			}
@@ -2484,7 +2484,7 @@ static ssize_t amvecm_contrast_store(struct class *cla,
 static ssize_t amvecm_saturation_hue_show(struct class *cla,
 		struct class_attribute *attr, char *buf)
 {
-	if (get_cpu_type() == MESON_CPU_MAJOR_ID_TL1)
+	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A)
 		return sprintf(buf, "0x%x\n",
 			READ_VPP_REG(VPP_VADJ1_MA_MB_2));
 	else
@@ -2547,7 +2547,7 @@ void vpp_vd_adj1_saturation_hue(signed int sat_val,
 	mab =  ((ma & 0x3ff) << 16) | (mb & 0x3ff);
 	pr_info("\n[amvideo..] saturation_pre:%d hue_pre:%d mab:%x\n",
 			sat_val, hue_val, mab);
-	if (get_cpu_type() == MESON_CPU_MAJOR_ID_TL1)
+	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A)
 		WRITE_VPP_REG(VPP_VADJ1_MA_MB_2, mab);
 	else
 		WRITE_VPP_REG(VPP_VADJ1_MA_MB, mab);
@@ -2560,7 +2560,7 @@ void vpp_vd_adj1_saturation_hue(signed int sat_val,
 	md = (s16)((mab<<6)>>22);  /* md =	ma; */
 	mab = ((mc&0x3ff)<<16)|(md&0x3ff);
 
-	if (get_cpu_type() == MESON_CPU_MAJOR_ID_TL1) {
+	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A) {
 		WRITE_VPP_REG(VPP_VADJ1_MC_MD_2, mab);
 		WRITE_VPP_REG_BITS(VPP_VADJ1_MISC, 1, 0, 1);
 	} else {
@@ -6235,8 +6235,15 @@ void init_pq_setting(void)
 		is_meson_txlx_cpu() || is_meson_txhd_cpu() ||
 		is_meson_tl1_cpu() || is_meson_tm2_cpu())
 		goto tvchip_pq_setting;
-	else if (is_meson_g12a_cpu() || is_meson_g12b_cpu()) {
+	else if (is_meson_g12a_cpu() || is_meson_g12b_cpu() ||
+		is_meson_sm1_cpu()) {
 		sr_offset[0] = SR0_OFFSET;
+		bitdepth = 12;
+		/*confirm with vlsi-Lunhai.Chen, for G12A/G12B,
+		 *VPP_GCLK_CTRL1 must enable
+		 */
+		WRITE_VPP_REG_BITS(VPP_GCLK_CTRL1, 0xf, 0, 4);
+		cm_init_config(bitdepth);
 		/*dnlp off*/
 		WRITE_VPP_REG_BITS(VPP_VE_ENABLE_CTRL, 0,
 			 DNLP_EN_BIT, DNLP_EN_WID);
