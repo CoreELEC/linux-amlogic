@@ -292,7 +292,7 @@ void atv_dmd_misc(void)
 		atv_dmd_wr_long(APB_BLOCK_ADDR_SIF_STG_2,
 				0x1c, 0x0f000);
 		atvaudio_ctrl_read(&reg);
-		if (is_meson_tl1_cpu())
+		if (is_meson_tl1_cpu() || is_meson_tm2_cpu())
 			atvaudio_ctrl_write(reg & (~0x100000));/* bit20 */
 		else
 			atvaudio_ctrl_write(reg & (~0x3));/* bit[1-0] */
@@ -305,7 +305,7 @@ void atv_dmd_misc(void)
 		atv_dmd_wr_long(APB_BLOCK_ADDR_SIF_STG_2,
 				0x1c, 0x1f000);
 		atvaudio_ctrl_read(&reg);
-		if (is_meson_tl1_cpu())
+		if (is_meson_tl1_cpu() || is_meson_tm2_cpu())
 			atvaudio_ctrl_write(reg | 0x100000);/* bit20 */
 		else
 			atvaudio_ctrl_write(reg | 0x3);/* bit[1-0] */
@@ -315,7 +315,7 @@ void atv_dmd_misc(void)
 
 void atv_dmd_ring_filter(bool on)
 {
-	if (!is_meson_tl1_cpu())
+	if (!is_meson_tl1_cpu() && !is_meson_tm2_cpu())
 		return;
 
 	if (on) {
@@ -1673,7 +1673,7 @@ int atvdemod_clk_init(void)
 		W_HIU_BIT(RESET1_REGISTER, 1, 7, 1);
 	}
 #endif
-	if (is_meson_tl1_cpu())
+	if (is_meson_tl1_cpu() || is_meson_tm2_cpu())
 		W_HIU_REG(HHI_ATV_DMD_SYS_CLK_CNTL, 0x1800080);
 	else
 		W_HIU_REG(HHI_ATV_DMD_SYS_CLK_CNTL, 0x80);
@@ -1915,7 +1915,8 @@ int amlfmt_aud_standard(int broad_std)
 
 int atvauddemod_init(void)
 {
-	if (is_meson_txlx_cpu() || is_meson_txhd_cpu() || is_meson_tl1_cpu()) {
+	if (is_meson_txlx_cpu() || is_meson_txhd_cpu() || is_meson_tl1_cpu()
+			|| is_meson_tm2_cpu()) {
 		if (audio_thd_en)
 			audio_thd_init();
 
@@ -1938,7 +1939,8 @@ int atvauddemod_init(void)
 
 void atvauddemod_set_outputmode(void)
 {
-	if (is_meson_txlx_cpu() || is_meson_txhd_cpu() || is_meson_tl1_cpu()) {
+	if (is_meson_txlx_cpu() || is_meson_txhd_cpu() || is_meson_tl1_cpu()
+			|| is_meson_tm2_cpu()) {
 		if (aud_reinit) {
 			/* before maybe need check afc status */
 			atvauddemod_init();
@@ -1952,7 +1954,8 @@ int atvdemod_init(bool on)
 	/* 1.set system clock when atv enter*/
 
 	pr_dbg("%s do configure_receiver ...\n", __func__);
-	if (is_meson_txlx_cpu() || is_meson_txhd_cpu() || is_meson_tl1_cpu())
+	if (is_meson_txlx_cpu() || is_meson_txhd_cpu() || is_meson_tl1_cpu()
+			|| is_meson_tm2_cpu())
 		sound_format = 1;
 	configure_receiver(broad_std, if_freq, if_inv, gde_curve, sound_format);
 	pr_dbg("%s do atv_dmd_misc ...\n", __func__);
@@ -2464,10 +2467,13 @@ void aml_audio_overmodulation(int enable)
 			atv_dmd_wr_long(APB_BLOCK_ADDR_SIF_STG_2,
 					0x1c, 0x0f000);
 			atvaudio_ctrl_read(&reg);
-			if (is_meson_tl1_cpu()) /* bit20 */
+			if (is_meson_tl1_cpu() || is_meson_tm2_cpu()) {
+				/* bit20 */
 				atvaudio_ctrl_write(reg & (~0x100000));
-			else
-				atvaudio_ctrl_write(reg & (~0x3));/* bit[1-0] */
+			} else {
+				/* bit[1-0] */
+				atvaudio_ctrl_write(reg & (~0x3));
+			}
 			/* audio_atv_ov_flag = 1;*/ /* Enter and hold */
 			pr_info("tmp_v[0x%lx] > 0x10 && audio_atv_ov_flag == 0.\n",
 					tmp_v);
@@ -2482,10 +2488,13 @@ void aml_audio_overmodulation(int enable)
 			atv_dmd_wr_long(APB_BLOCK_ADDR_SIF_STG_2,
 					0x1c, 0x1f000);
 			atvaudio_ctrl_read(&reg);
-			if (is_meson_tl1_cpu()) /* bit20 */
+			if (is_meson_tl1_cpu() || is_meson_tm2_cpu()) {
+				/* bit20 */
 				atvaudio_ctrl_write(reg | 0x100000);
-			else
-				atvaudio_ctrl_write(reg | 0x3);/* bit[1-0] */
+			} else {
+				/* bit[1-0] */
+				atvaudio_ctrl_write(reg | 0x3);
+			}
 			audio_atv_ov_flag = 0;
 			pr_info("tmp_v[0x%lx] <= 0x10 && audio_atv_ov_flag == 1.\n",
 					tmp_v);

@@ -95,14 +95,14 @@ static ssize_t aml_atvdemod_store(struct class *class,
 			pr_info("atv init error.\n");
 	} else if (!strncmp(parm[0], "audout_mode", 11)) {
 		if (is_meson_txlx_cpu() || is_meson_txhd_cpu()
-				|| is_meson_tl1_cpu()) {
+				|| is_meson_tl1_cpu() || is_meson_tm2_cpu()) {
 			atvauddemod_set_outputmode();
 			pr_info("atvauddemod_set_outputmode done ....\n");
 		}
 	} else if (!strncmp(parm[0], "signal_audmode", 14)) {
 		int stereo_flag, sap_flag;
 		if (is_meson_txlx_cpu() || is_meson_txhd_cpu()
-				|| is_meson_tl1_cpu()) {
+				|| is_meson_tl1_cpu() || is_meson_tm2_cpu()) {
 			update_btsc_mode(1, &stereo_flag, &sap_flag);
 			pr_info("get signal_audmode done ....\n");
 		}
@@ -110,7 +110,7 @@ static ssize_t aml_atvdemod_store(struct class *class,
 		adc_set_pll_cntl(1, 0x1, NULL);
 		atvdemod_clk_init();
 		if (is_meson_txlx_cpu() || is_meson_txhd_cpu()
-				|| is_meson_tl1_cpu())
+				|| is_meson_tl1_cpu() || is_meson_tm2_cpu())
 			aud_demod_clk_gate(1);
 		pr_info("atvdemod_clk_init done ....\n");
 	} else if (!strncmp(parm[0], "tune", 4)) {
@@ -720,7 +720,7 @@ static int aml_atvdemod_probe(struct platform_device *pdev)
 		dev->audio_reg_base = ioremap(round_down(0xffd0d340, 0x3), 4);
 
 		pr_info("audio_reg_base = 0x%p.\n", dev->audio_reg_base);
-	} else if (is_meson_tl1_cpu()) {
+	} else if (is_meson_tl1_cpu() || is_meson_tm2_cpu()) {
 		dev->audio_reg_base = ioremap(round_down(0xff60074c, 0x3), 4);
 
 		pr_info("audio_reg_base = 0x%p.\n", dev->audio_reg_base);

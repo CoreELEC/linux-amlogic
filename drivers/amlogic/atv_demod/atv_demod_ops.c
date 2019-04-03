@@ -146,7 +146,8 @@ int atv_demod_enter_mode(struct dvb_frontend *fe)
 	atvdemod_clk_init();
 	/* err_code = atvdemod_init(); */
 
-	if (is_meson_txlx_cpu() || is_meson_txhd_cpu() || is_meson_tl1_cpu()) {
+	if (is_meson_txlx_cpu() || is_meson_txhd_cpu() || is_meson_tl1_cpu()
+			|| is_meson_tm2_cpu()) {
 		aud_demod_clk_gate(1);
 		/* atvauddemod_init(); */
 	}
@@ -191,7 +192,8 @@ int atv_demod_leave_mode(struct dvb_frontend *fe)
 
 	vdac_enable(0, 1);
 	adc_set_pll_cntl(0, ADC_EN_ATV_DEMOD, NULL);
-	if (is_meson_txlx_cpu() || is_meson_txhd_cpu() || is_meson_tl1_cpu())
+	if (is_meson_txlx_cpu() || is_meson_txhd_cpu() || is_meson_tl1_cpu()
+			|| is_meson_tm2_cpu())
 		aud_demod_clk_gate(0);
 
 	amlatvdemod_devp->std = 0;
@@ -684,7 +686,8 @@ static void atvdemod_fe_try_analog_format(struct v4l2_frontend *v4l2_fe,
 	*audio_fmt = audio;
 
 	/* for audio standard detection */
-	if (is_meson_txlx_cpu() || is_meson_txhd_cpu() || is_meson_tl1_cpu()) {
+	if (is_meson_txlx_cpu() || is_meson_txhd_cpu() || is_meson_tl1_cpu()
+			|| is_meson_tm2_cpu()) {
 		*soundsys = amlfmt_aud_standard(broad_std);
 		*soundsys = (*soundsys << 16) | 0x00FFFF;
 	} else
