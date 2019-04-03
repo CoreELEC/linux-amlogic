@@ -114,13 +114,12 @@ int hdmitx_hpd_hw_op(enum hpd_op cmd)
 	case MESON_CPU_ID_GXM:
 		return hdmitx_hpd_hw_op_gxl(cmd);
 	case MESON_CPU_ID_TXLX:
+	case MESON_CPU_ID_TM2:
 		return hdmitx_hpd_hw_op_txlx(cmd);
 	case MESON_CPU_ID_G12A:
 	case MESON_CPU_ID_G12B:
 	case MESON_CPU_ID_SM1:
 		return hdmitx_hpd_hw_op_g12a(cmd);
-	case MESON_CPU_ID_TM2:
-		return hdmitx_hpd_hw_op_tm2(cmd);
 	default:
 		break;
 	}
@@ -648,12 +647,9 @@ static irqreturn_t intr_handler(int irq, void *dev)
 	hdmitx_wr_reg(HDMITX_TOP_INTR_STAT_CLR, ~0);
 	hdmitx_wr_reg(HDMITX_DWC_HDCP22REG_STAT, 0xff);
 
-	if (hdev->chip_type != MESON_CPU_ID_TM2) {
-	/*tm2 has a bug, wait to fix*/
-		pr_info(SYS "irq %x\n", dat_top);
-		if (dat_dwc)
-			pr_info(SYS "irq %x\n", dat_dwc);
-	}
+	pr_info(SYS "irq %x\n", dat_top);
+	if (dat_dwc)
+		pr_info(SYS "irq %x\n", dat_dwc);
 
 	if (hdev->hpd_lock == 1) {
 		pr_info(HW "HDMI hpd locked\n");

@@ -4023,8 +4023,6 @@ int get_hpd_state(void)
 	ret = hdmitx_device.hpd_state;
 	mutex_unlock(&setclk_mutex);
 
-	if (hdmitx_device.chip_type == MESON_CPU_ID_TM2)
-		return 1;
 	return ret;
 }
 EXPORT_SYMBOL(get_hpd_state);
@@ -4539,8 +4537,6 @@ static int amhdmitx_get_dt_info(struct platform_device *pdev)
 		}
 #endif
 	hdmitx_device.irq_hpd = platform_get_irq_byname(pdev, "hdmitx_hpd");
-	if (hdmitx_device.chip_type == MESON_CPU_ID_TM2)
-		hdmitx_device.irq_hpd = 39;
 	if (hdmitx_device.irq_hpd == -ENXIO) {
 		pr_err("%s: ERROR: hdmitx hpd irq No not found\n",
 				__func__);
