@@ -665,7 +665,8 @@ static void vdin_set_meas_mux(unsigned int offset, enum tvin_port_e port_,
 			meas_mux = MEAS_MUX_656_B;
 		else if ((is_meson_gxl_cpu() || is_meson_gxm_cpu() ||
 			is_meson_g12a_cpu() || is_meson_g12b_cpu() ||
-			is_meson_tl1_cpu() || is_meson_sm1_cpu()) &&
+			is_meson_tl1_cpu() || is_meson_sm1_cpu() ||
+			is_meson_tm2_cpu()) &&
 			(bt_path == BT_PATH_GPIO))
 			meas_mux = MEAS_MUX_656;
 		else
@@ -777,7 +778,8 @@ void vdin_set_top(unsigned int offset,
 				VDI9_ASFIFO_CTRL_BIT, VDI9_ASFIFO_CTRL_WID);
 		} else if ((is_meson_gxm_cpu() || is_meson_gxl_cpu() ||
 			is_meson_g12a_cpu() || is_meson_g12b_cpu() ||
-			is_meson_tl1_cpu() || is_meson_sm1_cpu()) &&
+			is_meson_tl1_cpu() || is_meson_sm1_cpu() ||
+			is_meson_tm2_cpu()) &&
 			(bt_path == BT_PATH_GPIO)) {
 			vdin_mux = VDIN_MUX_656;
 			wr_bits(offset, VDIN_ASFIFO_CTRL0, 0xe4,
@@ -828,7 +830,8 @@ void vdin_set_top(unsigned int offset,
 				VDI6_ASFIFO_CTRL_BIT, VDI6_ASFIFO_CTRL_WID);
 		else {
 			if (/*is_meson_gxlx2_cpu() || */is_meson_g12b_cpu()
-				|| is_meson_tl1_cpu() || is_meson_sm1_cpu())
+				|| is_meson_tl1_cpu() || is_meson_sm1_cpu() ||
+				is_meson_tm2_cpu())
 				wr_bits(offset, VDIN_ASFIFO_CTRL3, 0xd4,
 					VDI6_ASFIFO_CTRL_BIT,
 					VDI6_ASFIFO_CTRL_WID);
@@ -845,7 +848,8 @@ void vdin_set_top(unsigned int offset,
 				VDI8_ASFIFO_CTRL_BIT, VDI8_ASFIFO_CTRL_WID);
 		else {
 			if (/*is_meson_gxlx2_cpu() || */is_meson_g12b_cpu()
-				|| is_meson_tl1_cpu() || is_meson_sm1_cpu())
+				|| is_meson_tl1_cpu() || is_meson_sm1_cpu() ||
+				is_meson_tm2_cpu())
 				wr_bits(offset, VDIN_ASFIFO_CTRL3, 0xd4,
 					VDI6_ASFIFO_CTRL_BIT,
 					VDI6_ASFIFO_CTRL_WID);
@@ -1589,7 +1593,7 @@ void vdin_set_matrix(struct vdin_dev_s *devp)
 		wr_bits(offset, VDIN_MATRIX_CTRL, 0,
 				VDIN_MATRIX1_EN_BIT, VDIN_MATRIX1_EN_WID);
 		if (is_meson_g12a_cpu() || is_meson_g12b_cpu() ||
-			is_meson_sm1_cpu())
+			is_meson_sm1_cpu() || is_meson_tm2_cpu())
 			vdin_set_color_matrix0_g12a(devp->addr_offset,
 				devp->fmt_info_p,
 				devp->format_convert,
@@ -1623,7 +1627,7 @@ void vdin_set_matrix(struct vdin_dev_s *devp)
 				devp->prop.vdin_hdr_Flag,
 				devp->color_range_mode);
 		if (is_meson_g12a_cpu() || is_meson_g12b_cpu() ||
-			is_meson_sm1_cpu())
+			is_meson_sm1_cpu() || is_meson_tm2_cpu())
 			vdin_set_color_matrix0_g12a(devp->addr_offset,
 				devp->fmt_info_p,
 				devp->format_convert,
@@ -1659,7 +1663,7 @@ void vdin_set_matrixs(struct vdin_dev_s *devp, unsigned char id,
 	switch (id) {
 	case 0:
 		if (is_meson_g12a_cpu() || is_meson_g12b_cpu() ||
-			is_meson_sm1_cpu())
+			is_meson_sm1_cpu() || is_meson_tm2_cpu())
 			vdin_set_color_matrix0_g12a(devp->addr_offset,
 				devp->fmt_info_p,
 				devp->format_convert,
@@ -1709,7 +1713,8 @@ void vdin_set_prob_xy(unsigned int offset,
 			devp->prop.color_fmt_range,
 			devp->prop.vdin_hdr_Flag,
 			devp->color_range_mode);
-	if (is_meson_g12a_cpu() || is_meson_g12b_cpu() || is_meson_sm1_cpu())
+	if (is_meson_g12a_cpu() || is_meson_g12b_cpu() ||
+		is_meson_sm1_cpu() || is_meson_tm2_cpu())
 		vdin_set_color_matrix0_g12a(devp->addr_offset,
 			devp->fmt_info_p,
 			devp->format_convert,
@@ -2723,6 +2728,8 @@ void vdin_set_default_regmap(unsigned int offset)
 		is_meson_gxtvbb_cpu() || is_meson_txl_cpu() ||
 		is_meson_txlx_cpu() || is_meson_tl1_cpu())
 		wr(offset, VDIN_LFIFO_CTRL,     0x00000f00);
+	else if (is_meson_tm2_cpu())
+		wr(offset, VDIN_LFIFO_CTRL,     0xc0020f00);
 	else
 		wr(offset, VDIN_LFIFO_CTRL,     0x00000780);
 	/* [15:14]     clkgate.bbar             = 0/(auto, off, on, on) */
