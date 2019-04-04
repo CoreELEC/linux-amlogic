@@ -145,7 +145,7 @@ static MUX(dspb_clk_a_mux, HHI_DSP_CLK_CNTL, 0x7, 20,
 	dsp_parent_names, CLK_GET_RATE_NOCACHE | CLK_IGNORE_UNUSED);
 static DIV(dspb_clk_a_div, HHI_DSP_CLK_CNTL, 16, 4, "dspb_clk_a_mux",
 	CLK_GET_RATE_NOCACHE | CLK_IGNORE_UNUSED | CLK_SET_RATE_PARENT);
-static GATE(dspb_clk_a_gate, HHI_SD_EMMC_CLK_CNTL, 23, "dspb_clk_a_div",
+static GATE(dspb_clk_a_gate, HHI_DSP_CLK_CNTL, 23, "dspb_clk_a_div",
 	CLK_GET_RATE_NOCACHE | CLK_IGNORE_UNUSED | CLK_SET_RATE_PARENT);
 
 static MUX(dspb_clk_b_mux, HHI_DSP_CLK_CNTL, 0x7, 28,
@@ -158,7 +158,7 @@ static GATE(dspb_clk_b_gate, HHI_DSP_CLK_CNTL, 23, "dspb_clk_b_div",
 PNAME(dspb_parent_names) = { "dspb_clk_a_gate",
 				"dspb_clk_b_gate" };
 
-static MESON_MUX(dspb_clk_mux, HHI_VPU_CLKC_CNTL, 0x1, 31,
+static MESON_MUX(dspb_clk_mux, HHI_DSP_CLK_CNTL, 0x1, 31,
 	dspb_parent_names, CLK_GET_RATE_NOCACHE);
 
 static struct clk_gate *tm2_clk_gates[] = {
