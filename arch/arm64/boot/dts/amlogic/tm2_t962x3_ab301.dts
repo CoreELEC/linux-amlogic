@@ -260,7 +260,7 @@
 	};
 
 	aml_dtv_demod {
-		compatible = "amlogic, ddemod-tl1";
+		compatible = "amlogic, ddemod-tm2";
 		dev_name = "aml_dtv_demod";
 		status = "okay";
 
