@@ -5841,7 +5841,7 @@ static int aml_vecm_probe(struct platform_device *pdev)
 		hdr_flag = (1 << 0) | (1 << 1) | (0 << 2) | (0 << 3);
 
 	if (is_meson_g12a_cpu() || is_meson_g12b_cpu())
-		sdr_mode = 2;
+		sdr_mode = 0;
 
 	/*config vlock mode*/
 	/*todo:txlx & g9tv support auto pll,*/
