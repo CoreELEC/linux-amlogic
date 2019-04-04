@@ -635,9 +635,7 @@ static int meson_ir_get_devtree_pdata(struct platform_device *pdev)
 	chip->r_dev->max_frame_time = value;
 
 	/*create map table */
-	ret = meson_ir_get_custom_tables(pdev->dev.of_node, chip);
-	if (ret < 0)
-		return ret;
+	meson_ir_get_custom_tables(pdev->dev.of_node, chip);
 
 	return 0;
 }
