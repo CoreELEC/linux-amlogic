@@ -43,7 +43,7 @@
 #include <linux/input.h>
 #include <linux/amlogic/vad_api.h>
 
-#include "vad_hw_coeff.c"
+#include "vad_hw_coeff.h"
 #include "vad_hw.h"
 #include "vad.h"
 

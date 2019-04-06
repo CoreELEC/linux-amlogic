@@ -1,5 +1,5 @@
 /*
- * sound/soc/amlogic/auge/vad_hw_coeff.c
+ * sound/soc/amlogic/auge/vad_hw_coeff.h
  *
  * Copyright (C) 2018 Amlogic, Inc. All rights reserved.
  *
@@ -14,6 +14,9 @@
  * more details.
  *
  */
+
+#ifndef __VAD_HW_COEFF_H__
+#define __VAD_HW_COEFF_H__
 
 /* parameters for downsample and emphasis filter */
 static int vad_de_coeff[] = {
@@ -165,3 +168,4 @@ static int vad_ram_coeff[] = {
 	0x00000FFF
 };
 
+#endif

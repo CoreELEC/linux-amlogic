@@ -1,5 +1,5 @@
 /*
- * sound/soc/amlogic/auge/pdm_hw_coeff.c
+ * sound/soc/amlogic/auge/pdm_hw_coeff.h
  *
  * Copyright (C) 2017 Amlogic, Inc. All rights reserved.
  *
@@ -19,6 +19,9 @@
  * For filter 1 and filter 3, it's only relative with coefficent mode
  * For filter 2, it's only relative with osr and hcic stage number
  */
+
+#ifndef __PDM_HW_COEFF_H__
+#define __PDM_HW_COEFF_H__
 
 static const int lpf2_osr64[]  = {
 	0x00050a, 0xfff004, 0x0002c1, 0x003c12, 0xffa818,
@@ -274,3 +277,5 @@ static const int lpf3_mode4[] = {
 	0x018208, 0xfedaef, 0xff25e9, 0x009ddb, 0x006ded,
 	0xffb7a1, 0xffd46b
 };
+
+#endif

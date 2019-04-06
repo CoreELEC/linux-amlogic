@@ -1537,7 +1537,7 @@
 		 * 7: "Enable:192K",
 		 */
 		asrc_id = <0>;
-		auto_asrc = <3>;
+		auto_asrc = <0>;
 
 		/*spdif clk tuning enable*/
 		clk_tuning_enable = <1>;
@@ -1594,47 +1594,41 @@
 	};
 
 	asrca: resample@0 {
-		compatible = "amlogic, tl1-resample-a";
+		compatible = "amlogic, sm1-resample-a";
 		clocks = <&clkc CLKID_MPLL0
-				&clkaudio CLKID_AUDIO_MCLK_A
-				&clkaudio CLKID_AUDIO_RESAMPLE_A>;
+			&clkaudio CLKID_AUDIO_MCLK_A
+			&clkaudio CLKID_AUDIO_RESAMPLE_A>;
 		clock-names = "resample_pll", "resample_src", "resample_clk";
-		/*same with toddr_src
-		 *	TDMIN_A, 0
-		 *	TDMIN_B, 1
-		 *	TDMIN_C, 2
-		 *	SPDIFIN, 3
-		 *	PDMIN,  4
-		 *	NONE,
-		 *	TDMIN_LB, 6
-		 *	LOOPBACK, 7
-		 */
-		resample_module = <3>;
 
-		status = "disabled";
+		/*same with toddr_src
+		 *	TDMIN_A,    0
+		 *	TDMIN_B,    1
+		 *	TDMIN_C,    2
+		 *	SPDIFIN,    3
+		 *	PDMIN,      4
+		 *	FRATV,      5
+		 *	TDMIN_LB,   6
+		 *	LOOPBACK_A, 7
+		 *	FRHDMIRX,   8
+		 *	LOOPBACK_B, 9
+		 *	SPDIFIN_LB, 10
+		 *	EARC_RX,    11
+		 */
+		resample_module = <8>;
+
+		status = "okay";
 	};
 
 	asrcb: resample@1 {
-		compatible = "amlogic, tl1-resample-b";
-
+		compatible = "amlogic, sm1-resample-b";
 		clocks = <&clkc CLKID_MPLL3
 			&clkaudio CLKID_AUDIO_MCLK_F
 			&clkaudio CLKID_AUDIO_RESAMPLE_B>;
 		clock-names = "resample_pll", "resample_src", "resample_clk";
 
-		/*same with toddr_src
-		 *      TDMIN_A, 0
-		 *      TDMIN_B, 1
-		 *      TDMIN_C, 2
-		 *      SPDIFIN, 3
-		 *      PDMIN,  4
-		 *      NONE,
-		 *      TDMIN_LB, 6
-		 *      LOOPBACK, 7
-		 */
-		resample_module = <3>;
+		/*this resample is only used for loopback_A.*/
 
-		status = "disabled";
+		status = "okay";
 	};
 
 	vad:vad {

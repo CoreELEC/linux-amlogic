@@ -31,6 +31,7 @@
 #include "ddr_mngr.h"
 #include "tdm_hw.h"
 #include "pdm_hw.h"
+#include "resample.h"
 
 #include "vad.h"
 
@@ -590,7 +591,10 @@ static int loopback_set_ctrl(struct loopback *p_loopback, int bitwidth)
 	datalb_cfg.type        = datalb_toddr_type;
 	datalb_cfg.m           = datalb_msb;
 	datalb_cfg.n           = datalb_lsb;
-	datalb_cfg.datalb_src  = p_loopback->datalb_src;
+	datalb_cfg.datalb_src  = 0; /* todo: tdmin_LB */
+	/* get resample B status */
+	datalb_cfg.resample_enable =
+		(unsigned int)get_resample_enable(RESAMPLE_B);
 
 	if (p_loopback->chipinfo) {
 		datain_cfg.ch_ctrl_switch = p_loopback->chipinfo->ch_ctrl;

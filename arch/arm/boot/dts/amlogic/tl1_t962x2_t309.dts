@@ -1454,7 +1454,7 @@
 		 * 7: "Enable:192K",
 		 */
 		asrc_id = <0>;
-		auto_asrc = <3>;
+		auto_asrc = <0>;
 
 		/*spdif clk tuning enable*/
 		clk_tuning_enable = <1>;

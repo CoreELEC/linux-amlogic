@@ -695,10 +695,10 @@
 
 		audio_earc: bus@ff603000 {
 			compatible = "simple-bus";
-			reg = <0xff603000 0xD000>;
+			reg = <0xff603000 0x1000>;
 			#address-cells = <1>;
 			#size-cells = <1>;
-			ranges = <0x0 0xff603000 0xD000>;
+			ranges = <0x0 0xff603000 0x1000>;
 
 			earc: earc@0 {
 				compatible = "amlogic, tm2-snd-earc";
@@ -769,6 +769,12 @@
 			};
 			vad_base {
 				reg = <0xFF601800 0x400>;
+			};
+			resampleA_base {
+				reg = <0xFF601C00 0x104>;
+			};
+			resampleB_base {
+				reg = <0xFF604000 0x104>;
 			};
 		};
 

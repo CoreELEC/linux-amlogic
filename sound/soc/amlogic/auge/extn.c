@@ -442,7 +442,7 @@ static int extn_dai_startup(
 	struct snd_soc_dai *cpu_dai)
 {
 	if (get_audioresample(RESAMPLE_A))
-		resample_set_inner_rate(RESAMPLE_A);
+		resample_set(RESAMPLE_A, RATE_48K);
 
 	return 0;
 }
@@ -451,7 +451,6 @@ static void extn_dai_shutdown(
 	struct snd_pcm_substream *substream,
 	struct snd_soc_dai *cpu_dai)
 {
-	//resample_set(RESAMPLE_A, RATE_OFF, false);
 }
 
 static int extn_dai_prepare(

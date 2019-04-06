@@ -1301,7 +1301,7 @@
 		 * 6: "Enable:176K",
 		 * 7: "Enable:192K",
 		 */
-		auto_asrc = <3>;
+		auto_asrc = <0>;
 		status = "okay";
 	};
 	aml_pdm: pdm {

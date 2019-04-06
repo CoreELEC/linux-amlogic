@@ -14023,6 +14023,7 @@ F:	include/linux/amlogic/aml_sd_emmc_v3.h
 AMLOGIC Asoc driver
 M: shuai li <shuai.li@amlogic.com>
 M: xing wang <xing.wang@amlogic.com>
+M: Zhe Wang <zhe.wang@amlogic.com>
 F: sound/soc/amlogic/meson/*
 F: sound/soc/amlogic/auge/*
 F: sound/soc/codecs/amlogic/*

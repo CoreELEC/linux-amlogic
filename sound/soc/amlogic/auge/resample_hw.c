@@ -15,13 +15,18 @@
  *
  */
 #include <linux/clk.h>
+#include <linux/amlogic/iomap.h>
+#include <linux/math64.h>
 
 #include "resample_hw.h"
+#include "resample_hw_coeff.h"
 #include "regs.h"
 #include "iomap.h"
 
 /*Cnt_ctrl = mclk/fs_out-1 ; fest 256fs */
-#define RESAMPLE_CNT_CONTROL 255
+#define RESAMPLE_CNT_CONTROL (255)
+#define SINC8_FILTER_COEF_ADDR (0)
+#define AA_FILTER_COEF_ADDR (129 * 32)
 
 static u32 resample_coef_parameters_table[7][5] = {
 	/*coef of 32K, fc = 9000, Q:0.55, G= 14.00, */
@@ -40,27 +45,228 @@ static u32 resample_coef_parameters_table[7][5] = {
 	{0x00800000, 0x0, 0x0, 0x0, 0x0},
 };
 
+void new_resample_set_ram_coeff_aa(enum resample_idx id, int len,
+				   unsigned int *params)
+{
+	int i;
+	unsigned int *p = params;
+
+	new_resample_write(id, AUDIO_RSAMP_AA_COEF_ADDR, AA_FILTER_COEF_ADDR);
+	for (i = 0; i < len; i++, p++)
+		new_resample_write(id, AUDIO_RSAMP_AA_COEF_DATA, *p);
+}
+
+void new_resample_set_ram_coeff_sinc(enum resample_idx id, int len,
+				     unsigned int *params)
+{
+	int i;
+	unsigned int *p = params;
+
+	new_resample_write(id, AUDIO_RSAMP_SINC_COEF_ADDR,
+			   SINC8_FILTER_COEF_ADDR);
+	for (i = 0; i < len; i++, p++)
+		new_resample_write(id, AUDIO_RSAMP_SINC_COEF_DATA, *p);
+}
+
+void new_resample_init_param(enum resample_idx id)
+{
+	new_resample_write(id, AUDIO_RSAMP_CTRL0, 7);
+	new_resample_write(id, AUDIO_RSAMP_CTRL0, 0);
+
+	/*enable memory power*/
+	aml_write_hiubus(HHI_AUDIO_MEM_PD_REG0, 0x0);
+
+	/* filter tap of AA and sinc filter */
+	new_resample_update_bits(id, AUDIO_RSAMP_CTRL2, 0xff << 8, 0x3f << 8);
+	new_resample_update_bits(id, AUDIO_RSAMP_CTRL2, 0xff, 0x3f);
+	new_resample_update_bits(id, AUDIO_RSAMP_CTRL1, 0x1 << 12, 0x1 << 12);
+
+	if (id == RESAMPLE_A) {
+		/*write resample A filter in ram*/
+		new_resample_set_ram_coeff_sinc(id, SINC8_FILTER_COEF_SIZE,
+						&sinc8_coef[0]);
+	} else {
+		/*write resample B filter in ram*/
+		new_resample_set_ram_coeff_sinc(id, SINC8_FILTER_COEF_SIZE,
+						&sinc_coef[0]);
+	}
+}
+
+void new_resample_enable(enum resample_idx id, bool enable)
+{
+	new_resample_update_bits(id, AUDIO_RSAMP_CTRL1,
+				 0x1 << 11, enable << 11);
+}
+
+bool new_resample_get_status(enum resample_idx id)
+{
+	unsigned int val = new_resample_read(id, AUDIO_RSAMP_CTRL1);
+
+	return ((val >> 11) & 0x1);
+}
+
+static int new_resample_status_check(enum resample_idx id)
+{
+	int check_times = 20;
+	unsigned int val;
+
+	/* wait resample status to bypass, then change config, max 20us */
+	while (check_times--) {
+		val = new_resample_read(id, AUDIO_RSAMP_RO_STATUS);
+		val = (val >> 11) & 0x7;
+		if (val == 1)
+			break;
+		udelay(1);
+	}
+
+	if (check_times == 0) {
+		pr_err("%s(), check resample status error!", __func__);
+		return -1;
+	}
+
+	return 0;
+}
+
+void new_resample_set_format(enum resample_idx id, int channel, int bits)
+{
+	int reg_val = bits - 1;
+
+	if (channel > 8 || channel == 0 || bits < 16)
+		return;
+
+	/* resample B is always 2 channel for loopback */
+	if (id == RESAMPLE_B) {
+		channel = 2;
+		reg_val = 31;
+	}
+
+	new_resample_enable(id, false);
+	new_resample_status_check(id);
+
+	new_resample_write(id, AUDIO_RSAMP_PHSINIT, 0x0);
+	/* channel num */
+	new_resample_update_bits(id, AUDIO_RSAMP_CTRL2, 0x3f << 24,
+				 channel << 24);
+	/* bit width */
+	new_resample_update_bits(id, AUDIO_RSAMP_CTRL1, 0x1f << 13,
+				 reg_val << 13);
+
+	/* enable auto adjust module */
+	new_resample_update_bits(id, AUDIO_RSAMP_CTRL0, 0x1 << 2,
+				 0x1 << 2);
+	new_resample_update_bits(id, AUDIO_RSAMP_ADJ_CTRL1, 0xffff << 16,
+				 (256 / channel) << 16);
+	new_resample_write(id, AUDIO_RSAMP_ADJ_SFT, 0x1f020604);
+	new_resample_write(id, AUDIO_RSAMP_ADJ_IDET_LEN, 0x22710);
+	new_resample_write(id, AUDIO_RSAMP_ADJ_FORCE, 0x0);
+	new_resample_write(id, AUDIO_RSAMP_ADJ_CTRL0, 0x1);
+	new_resample_update_bits(id, AUDIO_RSAMP_CTRL0, 0x1 << 2, 0x0 << 2);
+
+	new_resample_enable(id, true);
+
+	pr_info("%s(), channel = %d, bits = %d", __func__, channel, bits);
+}
+
+void new_resample_src_select(enum resample_idx id, enum resample_src src)
+{
+    /* resample B is always for loopbackA */
+	if (id == RESAMPLE_B)
+		src = ASRC_LOOPBACK_A;
+
+	new_resample_enable(id, false);
+	new_resample_status_check(id);
+
+	/* resample source select */
+	new_resample_update_bits(id, AUDIO_RSAMP_CTRL1, 0xf, src);
+
+	new_resample_enable(id, true);
+}
+
+void new_resample_set_ratio(enum resample_idx id, int input_sr, int output_sr)
+{
+	u32 down_ratio = 1;
+	u32 input_sample_rate = (u32)input_sr;
+	u32 output_sample_rate = (u32)output_sr;
+	u64 phase_step = (u64)input_sample_rate;
+
+	new_resample_enable(id, false);
+	new_resample_status_check(id);
+
+	if (input_sample_rate <= output_sample_rate) { /* upsample*/
+		new_resample_update_bits(id, AUDIO_RSAMP_CTRL2, 0x3 << 16,
+					 0 << 16);
+		/* disable AA filter */
+		new_resample_update_bits(id, AUDIO_RSAMP_CTRL1, 0x1 << 10,
+					 0 << 10);
+	} else { /* downsample*/
+		int rate = input_sample_rate * 10 / output_sample_rate;
+		/* enable AA filter */
+		new_resample_update_bits(id, AUDIO_RSAMP_CTRL1, 0x1 << 10,
+					 1 << 10);
+		if (id == RESAMPLE_A) {
+			if (rate <= 30) {
+				new_resample_set_ram_coeff_aa(
+						id, AA_FILTER_COEF_SIZE,
+						&aa_coef_a_half[0]);
+				new_resample_update_bits(id, AUDIO_RSAMP_CTRL2,
+							 0x3 << 16, 1 << 16);
+				down_ratio = 2;
+			} else {
+				new_resample_set_ram_coeff_aa(
+						id, AA_FILTER_COEF_SIZE,
+						&aa_coef_a_quarter[0]);
+				new_resample_update_bits(id, AUDIO_RSAMP_CTRL2,
+							 0x3 << 16, 2 << 16);
+				down_ratio = 4;
+			}
+		} else {
+			new_resample_set_ram_coeff_aa(
+					id, AA_FILTER_COEF_SIZE,
+					&aa_coef_one_third[0]);
+			new_resample_update_bits(id, AUDIO_RSAMP_CTRL2,
+						 0x3 << 16, 0 << 16);
+			down_ratio = 3;
+		}
+	}
+
+	output_sample_rate *= down_ratio;
+	phase_step *= (1 << 28);
+	phase_step = div_u64(phase_step, output_sample_rate);
+
+	new_resample_write(id, AUDIO_RSAMP_PHSSTEP, (u32)phase_step);
+
+	new_resample_enable(id, true);
+
+	pr_info("%s(), down_ratio = %d, phase_step = 0x%x", __func__,
+		down_ratio, (u32)phase_step);
+}
+
 void resample_enable(enum resample_idx id, bool enable)
 {
 	int offset = EE_AUDIO_RESAMPLEB_CTRL0 - EE_AUDIO_RESAMPLEA_CTRL0;
 	int reg = EE_AUDIO_RESAMPLEA_CTRL0 + offset * id;
 
-	/*don't change this flow*/
-	audiobus_update_bits(
-		reg, 0x1 << 31 | 0x1 << 28,
-		0 << 31 | 0x0 << 28);
+	if (enable == 1) {
+		/*don't change this flow*/
+		audiobus_update_bits(
+			reg, 0x1 << 31 | 0x1 << 28,
+			0 << 31 | 0x0 << 28);
 
-	audiobus_update_bits(reg,
-		0x1 << 31,
-		1 << 31);
+		audiobus_update_bits(reg, 0x1 << 31, 1 << 31);
 
-	audiobus_update_bits(reg,
-		0x1 << 31,
-		0 << 31);
+		audiobus_update_bits(reg, 0x1 << 31, 0 << 31);
+	}
 
-	audiobus_update_bits(reg,
-		0x1 << 28,
-		enable << 28);
+	audiobus_update_bits(reg, 0x1 << 28, enable << 28);
+}
+
+bool resample_get_status(enum resample_idx id)
+{
+	int offset = EE_AUDIO_RESAMPLEB_CTRL0 - EE_AUDIO_RESAMPLEA_CTRL0;
+	int reg = EE_AUDIO_RESAMPLEA_CTRL0 + offset * id;
+	bool enable = (audiobus_read(reg) >> 28) & 0x1;
+
+	return enable;
 }
 
 int resample_init(enum resample_idx id, int input_sr)
@@ -86,16 +292,6 @@ int resample_init(enum resample_idx id, int input_sr)
 		0x0 << 26 | /* method0 */
 		RESAMPLE_CNT_CONTROL << 16 |
 		Avg_cnt_init);
-
-	return 0;
-}
-
-int resample_disable(enum resample_idx id)
-{
-	int offset = EE_AUDIO_RESAMPLEB_CTRL0 - EE_AUDIO_RESAMPLEA_CTRL0;
-	int reg = EE_AUDIO_RESAMPLEA_CTRL0 + offset * id;
-
-	audiobus_update_bits(reg, 0x1 << 28, 0 << 28);
 
 	return 0;
 }
@@ -134,6 +330,7 @@ void resample_src_select(int src)
 		0x3 << 29,
 		src << 29);
 }
+
 /* for tl1 and after */
 void resample_src_select_ab(enum resample_idx id, enum resample_src src)
 {
