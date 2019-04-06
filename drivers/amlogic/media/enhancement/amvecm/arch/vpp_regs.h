@@ -868,6 +868,9 @@
 #define VPP_LUT3D_CBUS2RAM_CTRL			0x39d1
 #define VPP_LUT3D_RAM_ADDR				0x39d2
 #define VPP_LUT3D_RAM_DATA				0x39d3
+#define VPP_GAMMA_CTRL					0x39d4
+#define VPP_GAMMA_BIN_ADDR				0x39d5
+#define VPP_GAMMA_BIN_DATA				0x39d6
 
 #define ENCL_VIDEO_EN		0x1ca0
 

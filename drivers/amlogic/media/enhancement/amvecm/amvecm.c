@@ -5565,6 +5565,13 @@ static ssize_t amvecm_debug_store(struct class *cla,
 				overscan_table[i].afd_enable,
 				overscan_table[i].load_flag);
 		}
+	} else if (!strcmp(parm[0], "set_gamma_lut_65")) {
+		if (!strcmp(parm[1], "default"))
+			set_gamma_regs(1, 0);
+		else if (!strcmp(parm[1], "straight"))
+			set_gamma_regs(1, 1);
+		else
+			pr_info("unsupport cmd\n");
 	} else
 		pr_info("unsupport cmd\n");
 

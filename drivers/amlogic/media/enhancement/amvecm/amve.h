@@ -168,6 +168,6 @@ extern void dump_plut3d_table(void);
 extern void dump_plut3d_reg_table(void);
 
 extern void amvecm_gamma_init(bool en);
-
+extern void set_gamma_regs(int en, int sel);
 #endif
 

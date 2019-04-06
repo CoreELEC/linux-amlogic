@@ -1666,4 +1666,49 @@ void dump_plut3d_reg_table(void)
 	}
 }
 
+void set_gamma_regs(int en, int sel)
+{
+	int i;
+	int *gamma_lut = NULL;
+
+	static int gamma_lut_default[66] =  {
+	0, 0, 0, 1, 2, 4, 6, 8, 11, 14, 17, 21, 26, 31,
+	36, 42, 49, 55, 63, 71, 79, 88, 98, 108, 118,
+	129, 141, 153, 166, 179, 193, 208, 223, 238,
+	255, 271, 289, 307, 325, 344, 364, 384, 405,
+	427, 449, 472, 495, 519, 544, 569, 595, 621,
+	649, 676, 705, 734, 763, 794, 825, 856, 888,
+	921, 955, 989, 1023, 0};
+
+	static int gamma_lut_straight[66] =  {
+	 0, 16, 32, 48, 64, 80, 96, 112, 128, 144, 160,
+	 176, 192, 208, 224, 240, 256, 272, 288, 304, 320,
+	 336, 352, 368, 384, 400, 416, 432, 448, 464, 480,
+	 496, 512, 528, 544, 560, 576, 592, 608, 624, 640,
+	 656, 672, 688, 704, 720, 736, 752, 768, 784, 800,
+	 816, 832, 848, 864, 880, 896, 912, 928, 944, 960,
+	 976, 992, 1008, 1023, 0};
+
+	if (!sel)
+		gamma_lut = gamma_lut_default;
+	else
+		gamma_lut = gamma_lut_straight;
+
+	if (en) {
+		WRITE_VPP_REG(VPP_GAMMA_BIN_ADDR, 0);
+		for (i = 0; i < 33; i = i + 1)
+			WRITE_VPP_REG(VPP_GAMMA_BIN_DATA,
+				(((gamma_lut[i*2+1]<<2)&0xffff)<<16 |
+					((gamma_lut[i*2]<<2)&0xffff)));
+		for (i = 0; i < 33; i = i + 1)
+			WRITE_VPP_REG(VPP_GAMMA_BIN_DATA,
+				(((gamma_lut[i*2+1]<<2)&0xffff)<<16 |
+					((gamma_lut[i*2]<<2)&0xffff)));
+		for (i = 0; i < 33; i = i + 1)
+			WRITE_VPP_REG(VPP_GAMMA_BIN_DATA,
+				(((gamma_lut[i*2+1]<<2)&0xffff)<<16 |
+					((gamma_lut[i*2]<<2)&0xffff)));
+		WRITE_VPP_REG_BITS(VPP_GAMMA_CTRL, 0x1, 0, 1);
+	}
+}
 
