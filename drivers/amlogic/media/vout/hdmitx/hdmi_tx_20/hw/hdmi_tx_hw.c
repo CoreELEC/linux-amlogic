@@ -2064,9 +2064,9 @@ do { \
 		if (hdev->para->cs != COLORSPACE_YUV420)
 			set_phy_by_mode(HDMI_PHYPARA_6G);
 		else
-			if (hdev->para->cd == COLORDEPTH_36B)
+			if (hdev->cur_video_param->color_depth == COLORDEPTH_36B)
 				set_phy_by_mode(HDMI_PHYPARA_4p5G);
-			else if (hdev->para->cd == COLORDEPTH_30B)
+			else if (hdev->cur_video_param->color_depth == COLORDEPTH_30B)
 				set_phy_by_mode(HDMI_PHYPARA_3p7G);
 			else
 				set_phy_by_mode(HDMI_PHYPARA_3G);
@@ -2075,9 +2075,9 @@ do { \
 	case HDMI_3840x2160p60_16x9_Y420:
 	case HDMI_4096x2160p50_256x135_Y420:
 	case HDMI_4096x2160p60_256x135_Y420:
-		if (hdev->para->cd == COLORDEPTH_36B)
+		if (hdev->cur_video_param->color_depth == COLORDEPTH_36B)
 			set_phy_by_mode(HDMI_PHYPARA_4p5G);
-		else if (hdev->para->cd == COLORDEPTH_30B)
+		else if (hdev->cur_video_param->color_depth == COLORDEPTH_30B)
 			set_phy_by_mode(HDMI_PHYPARA_3p7G);
 		else
 			set_phy_by_mode(HDMI_PHYPARA_3G);
@@ -2089,12 +2089,12 @@ do { \
 	case HDMI_4096x2160p25_256x135:
 	case HDMI_4096x2160p30_256x135:
 		if ((hdev->para->cs == COLORSPACE_YUV422)
-			|| (hdev->para->cd == COLORDEPTH_24B))
+			|| (hdev->cur_video_param->color_depth == COLORDEPTH_24B))
 			set_phy_by_mode(HDMI_PHYPARA_3G);
 		else
-			if (hdev->para->cd == COLORDEPTH_36B)
+			if (hdev->cur_video_param->color_depth == COLORDEPTH_36B)
 				set_phy_by_mode(HDMI_PHYPARA_4p5G);
-			else if (hdev->para->cd == COLORDEPTH_30B)
+			else if (hdev->cur_video_param->color_depth == COLORDEPTH_30B)
 				set_phy_by_mode(HDMI_PHYPARA_3p7G);
 			else
 				set_phy_by_mode(HDMI_PHYPARA_3G);
@@ -2137,7 +2137,7 @@ static void hdmitx_set_scdc(struct hdmitx_dev *hdev)
 	case HDMI_4096x2160p50_256x135:
 	case HDMI_4096x2160p60_256x135:
 		if ((hdev->para->cs == COLORSPACE_YUV420)
-			&& (hdev->para->cd == COLORDEPTH_24B))
+			&& (hdev->cur_video_param->color_depth == COLORDEPTH_24B))
 			hdev->para->tmds_clk_div40 = 0;
 		else
 			hdev->para->tmds_clk_div40 = 1;
@@ -2148,7 +2148,7 @@ static void hdmitx_set_scdc(struct hdmitx_dev *hdev)
 	case HDMI_4096x2160p60_256x135_Y420:
 	case HDMI_3840x2160p50_64x27_Y420:
 	case HDMI_3840x2160p60_64x27_Y420:
-		if (hdev->para->cd == COLORDEPTH_24B)
+		if (hdev->cur_video_param->color_depth == COLORDEPTH_24B)
 			hdev->para->tmds_clk_div40 = 0;
 		else
 			hdev->para->tmds_clk_div40 = 1;
@@ -2163,7 +2163,7 @@ static void hdmitx_set_scdc(struct hdmitx_dev *hdev)
 	case HDMI_3840x2160p30_64x27:
 	case HDMI_4096x2160p30_256x135:
 		if ((hdev->para->cs == COLORSPACE_YUV422)
-			|| (hdev->para->cd == COLORDEPTH_24B))
+			|| (hdev->cur_video_param->color_depth == COLORDEPTH_24B))
 			hdev->para->tmds_clk_div40 = 0;
 		else
 			hdev->para->tmds_clk_div40 = 1;
@@ -6257,10 +6257,10 @@ static void hdmitx_set_hw(struct hdmitx_dev *hdev)
 	}
 
 	pr_info(HW " config hdmitx IP vic = %d cd:%d cs: %d\n", vic,
-		hdev->para->cd, hdev->para->cs);
+		hdev->cur_video_param->color_depth, hdev->para->cs);
 
 	config_hdmi20_tx(vic, hdev,
-			hdev->para->cd,
+			hdev->cur_video_param->color_depth,
 			TX_INPUT_COLOR_FORMAT,
 			hdev->para->cs);
 }
