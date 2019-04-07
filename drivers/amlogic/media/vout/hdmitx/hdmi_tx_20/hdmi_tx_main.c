@@ -47,6 +47,9 @@
 #include <linux/amlogic/media/vout/hdmi_tx_ext.h>
 #include <linux/amlogic/media/registers/cpu_version.h>
 #include "hw/tvenc_conf.h"
+#include "hw/hdmi_tx_reg.h"
+#include "hw/mach_reg.h"
+#include "hw/reg_sc2.h"
 #include "hw/common.h"
 #include "hw/hw_clk.h"
 #include "hw/reg_ops.h"
@@ -2669,6 +2672,13 @@ static ssize_t config_show(struct device *dev,
 	int pos = 0;
 	unsigned char *conf;
 	struct hdmitx_dev *hdev = &hdmitx_device;
+	char* pix_fmt[] = {"RGB","YUV422","YUV444","YUV420"};
+	char* eotf[] = {"SDR","HDR","HDR10","HLG"};
+	char* range[] = {"default","limited","full"};
+	char* colourimetry[] = {"default", "BT.601", "BT.709", "xvYCC601","xvYCC709",
+	"sYCC601","Adobe_YCC601","Adobe_RGB","BT.2020c","BT.2020nc","P3 D65","P3 DCI"};
+	unsigned int reg_hdmi_pll = P_HHI_HDMI_PLL_CNTL;
+	unsigned int reg_vid_pll = P_HHI_VID_PLL_CLK_DIV;
 
 	pos += snprintf(buf + pos, PAGE_SIZE, "cur_VIC: %d\n", hdev->cur_VIC);
 	if (hdev->cur_video_param)
@@ -2676,42 +2686,32 @@ static ssize_t config_show(struct device *dev,
 			"cur_video_param->VIC=%d\n",
 			hdev->cur_video_param->VIC);
 	if (hdev->para) {
-		switch (hdev->para->cd) {
-		case COLORDEPTH_24B:
-			conf = "8bit";
-			break;
-		case COLORDEPTH_30B:
-			conf = "10bit";
-			break;
-		case COLORDEPTH_36B:
-			conf = "12bit";
-			break;
-		case COLORDEPTH_48B:
-			conf = "16bit";
-			break;
-		default:
-			conf = "reserved";
+		struct hdmi_format_para *para;
+		para = hdev->para;
+
+		pos += snprintf(buf+pos, PAGE_SIZE, "VIC: %d %s\n",
+				hdmitx_device.cur_VIC, para->name);
+		pos += snprintf(buf + pos, PAGE_SIZE, "Colour depth: %d-bit\nColourspace: %s\nColour range: %s\nEOTF: %s\nYCC colour range: %s\n",
+				(((hdmitx_rd_reg(HDMITX_DWC_TX_INVID0) & 0x6) >> 1) + 4 ) * 2,
+				pix_fmt[(hdmitx_rd_reg(HDMITX_DWC_FC_AVICONF0) & 0x3)],
+				range[(hdmitx_rd_reg(HDMITX_DWC_FC_AVICONF2) & 0xc) >> 2],
+				eotf[(hdmitx_rd_reg(HDMITX_DWC_FC_DRM_PB00) & 7)],
+				range[((hdmitx_rd_reg(HDMITX_DWC_FC_AVICONF3) & 0xc) >> 2) + 1]);
+        if (((hdmitx_rd_reg(HDMITX_DWC_FC_AVICONF1) & 0xc0) >> 6) < 0x3)
+			pos += snprintf(buf + pos, PAGE_SIZE, "Colourimetry: %s\n",
+					colourimetry[(hdmitx_rd_reg(HDMITX_DWC_FC_AVICONF1) & 0xc0) >> 6]);
+        else
+			pos += snprintf(buf + pos, PAGE_SIZE, "Colourimetry: %s\n",
+					colourimetry[((hdmitx_rd_reg(HDMITX_DWC_FC_AVICONF2) & 0x70) >> 4) + 3]);
+
+		if (hdmitx_device.data->chip_type >= MESON_CPU_ID_SC2) {
+			reg_hdmi_pll = P_ANACTRL_HDMIPLL_CTRL0;
+			reg_vid_pll = P_CLKCTRL_VID_PLL_CLK_DIV;
 		}
-		pos += snprintf(buf + pos, PAGE_SIZE, "colordepth: %s\n",
-				conf);
-		switch (hdev->para->cs) {
-		case COLORSPACE_RGB444:
-			conf = "RGB";
-			break;
-		case COLORSPACE_YUV422:
-			conf = "422";
-			break;
-		case COLORSPACE_YUV444:
-			conf = "444";
-			break;
-		case COLORSPACE_YUV420:
-			conf = "420";
-			break;
-		default:
-			conf = "reserved";
-		}
-		pos += snprintf(buf + pos, PAGE_SIZE, "colorspace: %s\n",
-				conf);
+
+		pos += snprintf(buf + pos, PAGE_SIZE, "PLL clock: 0x%08x, Vid clock div 0x%08x\n",
+				hd_read_reg(reg_hdmi_pll),
+				hd_read_reg(reg_vid_pll));
 	}
 
 	switch (hdev->tx_aud_cfg) {
