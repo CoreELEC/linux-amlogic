@@ -778,11 +778,12 @@ void hdmirx_get_vsi_info(struct tvin_sig_property_s *prop)
 		if ((rx.vs_info_details.dolby_vision == true) &&
 			(rx.vs_info_details.dolby_timeout <=
 				dv_nopacket_timeout) &&
-			(rx.vs_info_details.dolby_timeout != 0))
+			(rx.vs_info_details.dolby_timeout != 0)) {
 			rx.vs_info_details.dolby_timeout--;
-		if (rx.vs_info_details.dolby_timeout == 0) {
-			rx.vs_info_details.dolby_vision = false;
-			rx_pr("dv timeout\n");
+			if (rx.vs_info_details.dolby_timeout == 0) {
+				rx.vs_info_details.dolby_vision = false;
+					rx_pr("dv type 0x18 timeout\n");
+			}
 		}
 		if (log_level & VSI_LOG) {
 			rx_pr("prop->dolby_vision:%d\n", prop->dolby_vision);

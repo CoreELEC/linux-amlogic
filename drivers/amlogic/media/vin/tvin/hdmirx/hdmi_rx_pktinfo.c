@@ -1362,7 +1362,7 @@ void rx_get_vsi_info(void)
 	rx.vs_info_details._3d_ext_data = 0;
 	rx.vs_info_details.low_latency = false;
 	rx.vs_info_details.backlt_md_bit = false;
-	rx.vs_info_details.dolby_timeout = 0xffff;
+	/* rx.vs_info_details.dolby_timeout = 0xffff; */
 	if ((pkt->length == E_DV_LENGTH_27) &&
 		(pkt->ieee == 0x00d046)) {
 		/* dolby1.5 */
@@ -1381,9 +1381,11 @@ void rx_get_vsi_info(void)
 		/* dobly10 */
 		if (pkt->length == E_DV_LENGTH_24) {
 			rx.vs_info_details.dolby_vision = true;
-			if ((pkt->sbpkt.payload.data[0] & 0xffff) == 0)
+			if ((pkt->sbpkt.payload.data[0] & 0xffff) == 0) {
 				rx.vs_info_details.dolby_timeout =
 					dv_nopacket_timeout;
+				pkt->sbpkt.payload.data[0] = 0xffff;
+			}
 		} else if ((pkt->length == E_DV_LENGTH_5) &&
 			(pkt->sbpkt.payload.data[0] & 0xffff)) {
 			rx.vs_info_details.dolby_vision = false;

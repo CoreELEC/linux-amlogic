@@ -2876,7 +2876,7 @@ void hdmirx_timer_handler(unsigned long arg)
 				rx_clkrate_monitor();
 				rx_main_state_machine();
 			}
-			rx_pkt_check_content();
+			/* rx_pkt_check_content(); */
 			rx_err_monitor();
 			#ifdef K_TEST_CHK_ERR_CNT
 			if (err_chk_en)

@@ -286,18 +286,15 @@ unsigned int hdmirx_rd_top(unsigned int addr)
 	ulong flags;
 	int data;
 	unsigned int dev_offset = 0;
-	unsigned int tempaddr = 0;
 
 	if (rx.chip_id >= CHIP_ID_TL1) {
 		spin_lock_irqsave(&reg_rw_lock, flags);
 		dev_offset = TOP_DWC_BASE_OFFSET +
 			reg_maps[MAP_ADDR_MODULE_TOP].phy_addr;
-		if ((addr >= TOP_EDID_OFFSET) &&
-			(addr <= (TOP_EDID_OFFSET + 0x1ff))) {
-			/*edid address range*/
-			tempaddr = TOP_EDID_ADDR_S + (addr - 0x200);
+		if ((addr >= TOP_EDID_ADDR_S) &&
+			(addr <= (TOP_EDID_PORT3_ADDR_E))) {
 			data = rd_reg_b(MAP_ADDR_MODULE_TOP,
-				dev_offset + tempaddr);
+				dev_offset + addr);
 		} else {
 			data = rd_reg(MAP_ADDR_MODULE_TOP,
 				dev_offset + (addr<<2));
@@ -335,18 +332,15 @@ void hdmirx_wr_top(unsigned int addr, unsigned int data)
 {
 	ulong flags;
 	unsigned long dev_offset = 0;
-	unsigned int tempaddr = 0;
 
 	if (rx.chip_id >= CHIP_ID_TL1) {
 		spin_lock_irqsave(&reg_rw_lock, flags);
 		dev_offset = TOP_DWC_BASE_OFFSET +
 			reg_maps[MAP_ADDR_MODULE_TOP].phy_addr;
-		if ((addr >= TOP_EDID_OFFSET) &&
-			(addr <= (TOP_EDID_OFFSET + 0x1ff))) {
-			/*edid address range*/
-			tempaddr = TOP_EDID_ADDR_S + (addr - 0x200);
+		if ((addr >= TOP_EDID_ADDR_S) &&
+			(addr <= (TOP_EDID_PORT3_ADDR_E))) {
 			wr_reg_b(MAP_ADDR_MODULE_TOP,
-				dev_offset + tempaddr, (unsigned char)data);
+				dev_offset + addr, (unsigned char)data);
 		} else {
 			wr_reg(MAP_ADDR_MODULE_TOP,
 				dev_offset + (addr<<2), data);
@@ -3159,15 +3153,54 @@ void dump_edid_reg(void)
 	rx_pr("0x4 1.4 edid with 420 video data\n");
 	rx_pr("0x5 2.0 edid with HDR,DV,420\n");
 	rx_pr("********************************\n");
-
-	for (i = 0; i < 16; i++) {
-		rx_pr("[%2d] ", i);
-		for (j = 0; j < 16; j++) {
-			rx_pr("0x%02lx, ",
-			       hdmirx_rd_top(TOP_EDID_OFFSET +
-					     (i * 16 + j)));
+	if (rx.chip_id < CHIP_ID_TL1) {
+		for (i = 0; i < 16; i++) {
+			rx_pr("[%2d] ", i);
+			for (j = 0; j < 16; j++) {
+				rx_pr("0x%02lx, ",
+					   hdmirx_rd_top(TOP_EDID_OFFSET +
+							 (i * 16 + j)));
+			}
+			rx_pr("\n");
 		}
-		rx_pr("\n");
+	} else if (rx.chip_id == CHIP_ID_TL1) {
+		for (i = 0; i < 16; i++) {
+			rx_pr("[%2d] ", i);
+			for (j = 0; j < 16; j++) {
+				rx_pr("0x%02lx, ",
+					   hdmirx_rd_top(TOP_EDID_ADDR_S +
+							 (i * 16 + j)));
+			}
+			rx_pr("\n");
+		}
+	} else {
+		for (i = 0; i < 16; i++) {
+			rx_pr("[%2d] ", i);
+			for (j = 0; j < 16; j++) {
+				rx_pr("0x%02lx, ",
+					   hdmirx_rd_top(TOP_EDID_ADDR_S +
+							 (i * 16 + j)));
+			}
+			rx_pr("\n");
+		}
+		for (i = 0; i < 16; i++) {
+			rx_pr("[%2d] ", i);
+			for (j = 0; j < 16; j++) {
+				rx_pr("0x%02lx, ",
+					   hdmirx_rd_top(TOP_EDID_PORT2_ADDR_S +
+							 (i * 16 + j)));
+			}
+			rx_pr("\n");
+		}
+		for (i = 0; i < 16; i++) {
+			rx_pr("[%2d] ", i);
+			for (j = 0; j < 16; j++) {
+				rx_pr("0x%02lx, ",
+					   hdmirx_rd_top(TOP_EDID_PORT3_ADDR_S +
+							 (i * 16 + j)));
+			}
+			rx_pr("\n");
+		}
 	}
 }
 
