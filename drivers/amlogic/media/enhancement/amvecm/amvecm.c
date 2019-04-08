@@ -6529,7 +6529,7 @@ static const struct vecm_match_data_s vecm_dt_tl1 = {
 	.vlk_support = true,
 	.vlk_new_fsm = 1,
 	.vlk_hwver = vlock_hw_ver2,
-	.vlk_phlock_en = false,
+	.vlk_phlock_en = true,
 };
 
 static const struct vecm_match_data_s vecm_dt_tm2 = {
@@ -6733,9 +6733,9 @@ static int aml_vecm_probe(struct platform_device *pdev)
 	else
 		hdr_flag = (1 << 0) | (1 << 1) | (0 << 2) | (0 << 3);
 
-	vlock_status_init();
 	hdr_init(&amvecm_dev.hdr_d);
 	aml_vecm_dt_parse(pdev);
+	vlock_status_init();
 
 	probe_ok = 1;
 	pr_info("%s: ok\n", __func__);
