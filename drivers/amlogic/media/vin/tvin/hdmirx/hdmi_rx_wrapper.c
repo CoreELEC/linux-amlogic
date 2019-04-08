@@ -1242,8 +1242,8 @@ bool rx_hpd_keep_low(void)
 {
 	bool ret = false;
 
-	if (downstream_hpd_flag) {
-		if (hpd_wait_cnt <= hpd_wait_max*5)
+	if (downstream_hpd_flag || edid_update_flag) {
+		if (hpd_wait_cnt <= hpd_wait_max*4)
 			ret = true;
 	} else {
 		if (hpd_wait_cnt <= hpd_wait_max)
@@ -1344,7 +1344,7 @@ void fsm_restart(void)
 	hdmirx_hw_config();
 	hdmi_rx_top_edid_update();
 	set_scdc_cfg(1, 0);
-	vic_check_en = true;
+	vic_check_en = false;
 	dvi_check_en = true;
 	rx.state = FSM_INIT;
 	rx.phy.cable_clk = 0;
@@ -1624,8 +1624,8 @@ int rx_set_global_variable(const char *buf, int size)
 		return pr_var(esm_recovery_mode, index);
 	if (set_pr_var(tmpbuf, unnormal_wait_max, value, &index, ret))
 		return pr_var(unnormal_wait_max, index);
-	if (set_pr_var(tmpbuf, edid_update_delay, value, &index, ret))
-		return pr_var(edid_update_delay, index);
+	/* if (set_pr_var(tmpbuf, edid_update_delay, value, &index, ret)) */
+		/*return pr_var(edid_update_delay, index);*/
 	if (set_pr_var(tmpbuf, hdmi_yuv444_enable, value, &index, ret))
 		return pr_var(hdmi_yuv444_enable, index);
 	if (set_pr_var(tmpbuf, pc_mode_en, value, &index, ret))
@@ -1777,7 +1777,7 @@ void rx_get_global_variable(const char *buf)
 	pr_var(hdcp22_esm_reset2, i++);
 	pr_var(esm_recovery_mode, i++);
 	pr_var(unnormal_wait_max, i++);
-	pr_var(edid_update_delay, i++);
+	/*pr_var(edid_update_delay, i++);*/
 	pr_var(hdmi_yuv444_enable, i++);
 	pr_var(pc_mode_en, i++);
 	pr_var(en_4k_2_2k, i++);
@@ -1856,7 +1856,7 @@ void hdmirx_open_port(enum tvin_port_e port)
 	rx.port = (port - TVIN_PORT_HDMI0) & 0xf;
 	//rx.no_signal = false;
 	//rx.wait_no_sig_cnt = 0;
-	vic_check_en = true;
+	vic_check_en = false;
 	dvi_check_en = true;
 	if (hdmirx_repeat_support())
 		rx.hdcp.repeat = repeat_plug;
@@ -1961,7 +1961,7 @@ void rx_5v_monitor(void)
 		if (rx.cur_5v_sts == 0) {
 			set_fsm_state(FSM_5V_LOST);
 			rx.err_code = ERR_5V_LOST;
-			vic_check_en = true;
+			vic_check_en = false;
 			dvi_check_en = true;
 		}
 	}
@@ -2121,6 +2121,7 @@ void rx_main_state_machine(void)
 		clk_unstable_cnt = 0;
 		esd_phy_rst_cnt = 0;
 		downstream_hpd_flag = 0;
+		edid_update_flag = 0;
 		pre_port = rx.port;
 		rx_set_cur_hpd(1);
 		rx.phy.cable_clk = 0;
@@ -2225,12 +2226,16 @@ void rx_main_state_machine(void)
 				/* if format vic is abnormal, do hw
 				 * reset once to try to recover.
 				 */
-				if (fmt_vic_abnormal() &&
-					(vic_check_en == true)) {
-					hdmirx_hw_config();
-					hdmi_rx_top_edid_update();
-					rx.state = FSM_HPD_LOW;
-					//vic_check_en = false;
+				if (fmt_vic_abnormal()) {
+					if (vic_check_en) {
+						hdmirx_hw_config();
+						hdmi_rx_top_edid_update();
+						rx.state = FSM_HPD_LOW;
+					} else {
+						rx.state = FSM_WAIT_CLK_STABLE;
+						rx_set_eq_run_state(E_EQ_START);
+						vic_check_en = true;
+					}
 					break;
 				}
 				sig_unready_cnt = 0;
@@ -2250,9 +2255,9 @@ void rx_main_state_machine(void)
 				rx.aud_sr_stable_cnt = 0;
 				rx.aud_sr_unstable_cnt = 0;
 				rx.no_signal = false;
-				//memset(&rx.aud_info, 0,
-					//sizeof(struct aud_info_s));
-				//rx_set_eq_run_state(E_EQ_PASS);
+				/*memset(&rx.aud_info, 0,*/
+					/*sizeof(struct aud_info_s));*/
+				/*rx_set_eq_run_state(E_EQ_PASS);*/
 				hdmirx_config_video();
 				rx_get_audinfo(&rx.aud_info);
 				hdmirx_config_audio();
@@ -2312,7 +2317,7 @@ void rx_main_state_machine(void)
 				rx.hdcp.hdcp_version = HDCP_VER_NONE;
 				rx.state = FSM_WAIT_CLK_STABLE;
 				/* rx.pre_state = FSM_SIG_READY; */
-				vic_check_en = true;
+				vic_check_en = false;
 				rx.skip = 0;
 				rx.aud_sr_stable_cnt = 0;
 				rx.aud_sr_unstable_cnt = 0;
