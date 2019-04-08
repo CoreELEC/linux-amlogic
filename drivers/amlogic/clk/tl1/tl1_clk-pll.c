@@ -70,11 +70,12 @@
 
 #define TL1_PLL_CNTL6 0x56540000
 
-#define TM2_PCIE_PLL_CNTL0_0	0x28060464
-#define TM2_PCIE_PLL_CNTL0_1	0x38060464
-#define TM2_PCIE_PLL_CNTL0_2	0x3c060464
-#define TM2_PCIE_PLL_CNTL0_3	0x1c060464
-#define TM2_PCIE_PLL_CNTL1	0x00000000
+#define TM2_PCIE_PLL_CNTL0_0	0x280c0464
+#define TM2_PCIE_PLL_CNTL0_1	0x380c0464
+#define TM2_PCIE_PLL_CNTL0_2	0x3c0c0464
+#define TM2_PCIE_PLL_CNTL0_3	0x1c0c0464
+#define TM2_PCIE_PLL_CNTL0_4	0x140c04c8
+#define TM2_PCIE_PLL_CNTL1	0x30000000
 #define TM2_PCIE_PLL_CNTL2	0x00001100
 #define TM2_PCIE_PLL_CNTL2_	0x00001000
 #define TM2_PCIE_PLL_CNTL3	0x10058e00
@@ -325,7 +326,9 @@ static int meson_tl1_pll_set_rate(struct clk_hw *hw, unsigned long rate,
 			cntlbase + (unsigned long)(0*4));
 		writel(TM2_PCIE_PLL_CNTL0_3,
 			cntlbase + (unsigned long)(0*4));
-		udelay(10);
+		udelay(20);
+		writel(TM2_PCIE_PLL_CNTL0_4,
+			cntlbase + (unsigned long)(0*4));
 		writel(TM2_PCIE_PLL_CNTL2_,
 			cntlbase + (unsigned long)(7*4));
 	} else {
@@ -334,6 +337,8 @@ static int meson_tl1_pll_set_rate(struct clk_hw *hw, unsigned long rate,
 		return -EINVAL;
 	}
 
+	/* when set rate for pcie pll, do not set M/N/OD/frac registers bit */
+	if (strcmp(clk_hw_get_name(hw), "pcie_pll")) {
 	reg = readl(pll->base + p->reg_off);
 
 	tmp = rate_set->n;
@@ -374,7 +379,7 @@ static int meson_tl1_pll_set_rate(struct clk_hw *hw, unsigned long rate,
 		reg = PARM_SET(p->width, p->shift, reg, tmp);
 		writel(reg, pll->base + p->reg_off);
 	}
-
+	}
 	p = &pll->n;
 
 	/* PLL reset */
