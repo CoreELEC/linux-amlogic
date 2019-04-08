@@ -1222,7 +1222,7 @@
 	sd_emmc_b: sdio@ffe05000 {
 		status = "okay";
 		compatible = "amlogic, meson-mmc-tm2";
-		reg = <0xffe05000 0x800>;
+		reg = <0x0 0xffe05000 0x0 0x800>;
 		interrupts = <0 190 4>;
 
 		pinctrl-names = "sdio_all_pins",
@@ -1694,12 +1694,21 @@
 
 }; /* end of pinctrl_periphs */
 
+&pinctrl_aobus {
+	spdifout: spdifout {
+		mux { /* gpiao_10 */
+			groups = "spdif_out_ao";
+			function = "spdif_out_ao";
+		};
+	};
+};  /* end of pinctrl_aobus */
+
 &audio_data{
 	status = "okay";
 };
 
 &i2c2 {
-	status = "okay";
+	status = "disabled";
 	pinctrl-names="default";
 	pinctrl-0=<&i2c2_z_pins>;
 	clock-frequency = <400000>;
@@ -1711,16 +1720,24 @@
 		reg = <0x2d>;
 		status = "disable";
 	};
+};
+
+&i2c3 {
+	status = "okay";
+	pinctrl-names="default";
+	pinctrl-0=<&i2c3_h1_pins>;
+	clock-frequency = <400000>;
 
 	ad82584f: ad82584f@62 {
 		compatible = "ESMT, ad82584f";
 		#sound-dai-cells = <0>;
 		reg = <0x31>;
-		status = "okay";
-		reset_pin = <&gpio_ao GPIOAO_6 0>;
+		status = "disabled";
+		reset_pin = <&gpio GPIOH_13 0>;
+		no_mclk;
 	};
-
 };
+
 
 &sd_emmc_c {
 	status = "okay";
@@ -1840,7 +1857,13 @@
 
 &usb3_phy_v2 {
 	status = "okay";
-	portnum = <0>;
+	portnum = <2>;
+	portconfig-30 = <1>;
+	portconfig-31 = <1>;
+};
+
+&usb_otg {
+	status = "okay";
 	otg = <0>;
 };
 
@@ -1848,6 +1871,16 @@
 	status = "okay";
 	/** 0: normal, 1: otg+dwc3 host only, 2: otg+dwc3 device only*/
 	controller-type = <1>;
+};
+
+&pcie_A {
+	reset-gpio = <&gpio_ao GPIOAO_4 GPIO_ACTIVE_HIGH>;
+	status = "disable";
+};
+
+&pcie_B {
+	/* ab311 only pcie a, no pcie b */
+	status = "disable";
 };
 
 &spicc0 {
@@ -1867,10 +1900,6 @@
 };
 
 &pwm_AO_cd {
-	status = "okay";
-};
-
-&pwm_cd {
 	status = "okay";
 };
 
@@ -1917,3 +1946,4 @@
 &efuse {
 	status = "okay";
 };
+
