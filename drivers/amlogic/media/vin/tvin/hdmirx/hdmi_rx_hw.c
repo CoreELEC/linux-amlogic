@@ -97,6 +97,8 @@ int ignore_sscp_tmds = 1;
 int find_best_eq;
 int eq_try_cnt = 20;
 int pll_rst_max;
+/* cd lock threshold */
+int cdr_lock_level;
 /*------------------------variable define end------------------------------*/
 
 static int check_regmap_flag(unsigned int addr)
@@ -3367,70 +3369,68 @@ uint32_t aml_phy_pll_band(uint32_t cableclk,
 }
 
 static const uint32_t phy_misci[][4] = {
-		/* 0xd7			0xd8		0xe0		0xe1 */
+		/* 0xd7		0xd8		0xe0		0xe1 */
 	{	/* 24~45M */
-		0x3003707f,	0x00000080,	0x02218000,	0x00000010,
+		0x3003707f, 0x00000080, 0x02218000, 0x00000010,
 	},
 	{	/* 45~74.5M */
-		0x3003707f,	0x00000080,	0x02218000,	0x00000010,
+		0x3003707f, 0x00000080, 0x02218000, 0x00000010,
 	},
 	{	/* 77~155M */
-		0x3003707f,	0x00000080,	0x02218000,	0x00000010,
+		0x3003707f, 0x00000080, 0x02218000, 0x00000010,
 	},
 	{	/* 155~340M */
-		0x3003707f,	0x00000080,	0x02218000,	0x00000010,
+		0x3003707f, 0x00000080, 0x02218000, 0x00000010,
 	},
 	{	/* 340~525M */
-		0x3003707f,	0x007f0080,	0x02218000,	0x00000010,
+		0x3003707f, 0x007f0080, 0x02218000, 0x00000010,
 	},
 	{	/* 525~600M */
-		/* 0x3003707f,	0x007f0080,	0x02218000,	0x00000010, */
-		0x30037079,	0x007f8080,	0x02218000,	0x00000010,
+		0x3003707f, 0x007f8080, 0x02218000, 0x00000010,
 	},
 };
 
 static const uint32_t phy_dcha[][3] = {
-		/*  0xe2		0xe3		0xe4 */
+		/*	0xe2		0xe3		0xe4 */
 	{	/* 24~45M */
-		0x00000280,	0x4400c202,	0x030088a2,
+		0x00000280, 0x4400c202, 0x030088a2,
 	},
 	{	/* 45~74.5M */
 		0x00000280, 0x4400c202, 0x030088a2,
 	},
 	{	/* 77~155M */
-		0x000002a2,	0x6800c202, 0x01009126,
+		0x000002a2, 0x6800c202, 0x01009126,
 	},
 	{	/* 155~340M */
-		0x000002a2,	0x0800c202, 0x0100cc31,
+		0x00000280, 0x0800c202, 0x0100cc31,
 	},
 	{	/* 340~525M */
-		0x000002a2,	0x0700003c, 0x1d00cc31,
+		0x00000280, 0x0700003c, 0x1d00cc31,
 	},
 	{	/* 525~600M */
-		/* 0x000002a2,	0x0700003c, 0x1d00cc31, */
-		0x00000282,	0x07000000, 0x1d00cc31,
+		0x00000280, 0x07000000, 0x1d00cc31,
 	},
 };
 
 static const uint32_t phy_dcha_reva[][3] = {
-		/*  0xe2		0xe3		0xe4 */
+		/*	0xe2		0xe3		0xe4 */
 	{	/* 24~45M */
-		0x00000280,	0x2400c202,	0x030088a2,
+		0x00000280, 0x2400c202, 0x030088a2,
 	},
 	{	/* 45~74.5M */
 		0x00000280, 0x2400c202, 0x030088a2,
 	},
 	{	/* 77~155M */
-		0x000002a2,	0x4800c202, 0x01009126,
+		0x000002a2, 0x4800c202, 0x01009126,
 	},
 	{	/* 155~340M */
-		0x000002a2,	0x0800c202, 0x0100cc31,
+		0x000002a2, 0x0800c202, 0x0100cc31,
 	},
 	{	/* 340~525M */
-		0x000002a2,	0x0700003c, 0x1d00cc31,
+		0x000002a2, 0x0700003c, 0x1d00cc31,
 	},
 	{	/* 525~600M */
-		0x000002a2,	0x0700003c, 0x1d00cc31,
+		0x000002a2, 0x0700003c, 0x1d00cc31,
 	},
 };
 
@@ -3448,85 +3448,36 @@ static const uint32_t phy_dchd_1[][3] = {
 		0x003c714a, 0x1e062620, 0x00018000,
 	},
 	{	/* 155~340M */
-		0x003c714a, 0x1e062620, 0x00018000,
+		0x003c714a, 0x1e050064, 0x0001a000,
 	},
 	{	/* 340~525M */
-		0x003c714a, 0x1e051650, 0x0001a000,
+		0x003c714a, 0x1e050064, 0x0001a000,
 	},
 	{	/* 525~600M */
-		/*0x002c714a, 0x1e051650, 0x00018000,*/
-		0x003e714a,	0x1e050560, 0x0001a000,
+		0x003e714a, 0x1e050560, 0x0001a000,
 	},
 };
 
 /* short cable */
 static const uint32_t phy_dchd_2[][3] = {
-		/*  0xe5		0xe6		0xe7 */
+		/*	0xe5		0xe6		0xe7 */
 	{	/* 24~45M */
-		0x003e714a,	0x1e022220,	0x00018000,
+		0x003e714a, 0x1e022220, 0x00018000,
 	},
 	{	/* 45~74.5M */
 		0x003e714a, 0x1e022220, 0x00018000,
 	},
 	{	/* 77~155M */
-		0x003c714a,	0x1e022220, 0x00018000,
+		0x003c714a, 0x1e022220, 0x00018000,
 	},
 	{	/* 155~340M */
-		0x003c714a,	0x1e022220, 0x00018000,
+		0x003c714a, 0x1e022220, 0x0001a000,
 	},
 	{	/* 340~525M */
-		0x003c714a,	0x1e022220, 0x0001a000,
+		0x003c714a, 0x1e040460, 0x0001a000,
 	},
 	{	/* 525~600M */
-		/*0x002c714a,	0x1e022220, 0x00018000,*/
-		0x003e714a,	0x1e022220, 0x0001a000,
-	},
-};
-
-
-/* long cable */
-static const uint32_t phy_dchd_3[][3] = {
-		/*  0xe5		0xe6		0xe7 */
-	{	/* 24~45M */
-		0x002e712a,	0x1e062620,	0x00018000,
-	},
-	{	/* 45~74.5M */
-		0x002e714a, 0x1e062620, 0x00018000,
-	},
-	{	/* 77~155M */
-		0x002c715a,	0x1e062620, 0x00018000,
-	},
-	{	/* 155~340M */
-		0x002c715a,	0x1e062620, 0x00018000,
-	},
-	{	/* 340~525M */
-		0x002c715a,	0x1e051650, 0x00018000,
-	},
-	{	/* 525~600M */
-		0x002c715a,	0x1e051650, 0x00018000,
-	},
-};
-
-/* short cable */
-static const uint32_t phy_dchd_4[][3] = {
-		/*  0xe5		0xe6		0xe7 */
-	{	/* 24~45M */
-		0x002e712a,	0x1e022220,	0x00018000,
-	},
-	{	/* 45~74.5M */
-		0x002e714a, 0x1e022220, 0x00018000,
-	},
-	{	/* 77~155M */
-		0x002c715a,	0x1e022220, 0x00018000,
-	},
-	{	/* 155~340M */
-		0x002c715a,	0x1e022220, 0x00018000,
-	},
-	{	/* 340~525M */
-		0x002c715a,	0x1e012330, 0x0001a000,
-	},
-	{	/* 525~600M */
-		0x002c715a,	0x1e022220, 0x00018000,
+		0x003e714a, 0x1e040460, 0x0001a000,
 	},
 };
 
@@ -3587,8 +3538,15 @@ void aml_phy_init_1(void)
 		wr_reg_hhi(HHI_HDMIRX_PHY_DCHA_CNTL2,
 			phy_dcha[idx][2]);
 	}
-	wr_reg_hhi(HHI_HDMIRX_PHY_DCHD_CNTL0,
-		phy_dchd_1[idx][0]);
+	if (cdr_lock_level == 0)
+		wr_reg_hhi(HHI_HDMIRX_PHY_DCHD_CNTL0,
+			phy_dchd_1[idx][0]);
+	else if (cdr_lock_level == 1)
+		wr_reg_hhi(HHI_HDMIRX_PHY_DCHD_CNTL0,
+			0x006f0041);
+	else if (cdr_lock_level == 2)
+		wr_reg_hhi(HHI_HDMIRX_PHY_DCHD_CNTL0,
+			0x002f714a);
 	wr_reg_hhi(HHI_HDMIRX_PHY_DCHD_CNTL2,
 		phy_dchd_1[idx][2]);
 
@@ -3669,7 +3627,18 @@ void aml_phy_init(void)
 			phy_dcha[idx][2]);
 	}
 
-	wr_reg_hhi(HHI_HDMIRX_PHY_DCHD_CNTL0, phy_dchd_1[idx][0]);
+	if (cdr_lock_level == 0)
+		wr_reg_hhi(HHI_HDMIRX_PHY_DCHD_CNTL0,
+			phy_dchd_1[idx][0]);
+	else if (cdr_lock_level == 1)
+		wr_reg_hhi(HHI_HDMIRX_PHY_DCHD_CNTL0,
+			0x006f0041);
+	else if (cdr_lock_level == 2)
+		wr_reg_hhi(HHI_HDMIRX_PHY_DCHD_CNTL0,
+			0x002f714a);
+	wr_reg_hhi(HHI_HDMIRX_PHY_DCHD_CNTL2,
+		phy_dchd_1[idx][2]);
+
 	wr_reg_hhi(HHI_HDMIRX_PHY_DCHD_CNTL2, phy_dchd_1[idx][2]);
 	if ((rx.phy.cablesel % 2) == 0)
 		data32 = phy_dchd_1[idx][1];
@@ -3690,17 +3659,10 @@ void aml_eq_setting(void)
 	if (find_best_eq) {
 		data32 = phy_dchd_1[idx][1] & (~(MSK(16, 4)));
 		data32 |= find_best_eq << 4;
-	} else if ((rx.phy.cablesel % 4) == 0)
+	} else if ((rx.phy.cablesel % 2) == 0)
 		data32 = phy_dchd_1[idx][1];
-
-	else if ((rx.phy.cablesel % 4) == 1)
+	else if ((rx.phy.cablesel % 2) == 1)
 		data32 = phy_dchd_2[idx][1];
-
-	else if ((rx.phy.cablesel % 4) == 2)
-		data32 = phy_dchd_3[idx][1];
-
-	else if ((rx.phy.cablesel % 4) == 3)
-		data32 = phy_dchd_4[idx][1];
 
 
 	wr_reg_hhi(HHI_HDMIRX_PHY_DCHD_CNTL1, data32);
@@ -3869,7 +3831,8 @@ void aml_phy_pll_setting(void)
 		if (is_tl1_former())
 			data2 = 0x000100c0;
 		else
-			data2 = 0x080100c0;
+			/* decrease pll bw*/
+			data2 = 0x080130c0;//0x080100c0
 		data2 |= (od << 24);
 		wr_reg_hhi(HHI_HDMIRX_APLL_CNTL4, data2);
 		udelay(5);

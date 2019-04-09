@@ -69,7 +69,7 @@ static int hpd_wait_cnt;
 static int hpd_wait_max = 40;
 
 static int sig_unstable_cnt;
-static int sig_unstable_max = 80;
+static int sig_unstable_max = 40;/* 80 */
 
 bool vic_check_en;
 bool dvi_check_en;
@@ -203,7 +203,7 @@ static bool hdcp22_stop_auth_enable;
 static bool hdcp22_esm_reset2_enable;
 int sm_pause;
 int pre_port = 0xff;
-static int hdcp_none_wait_max = 100;
+static int hdcp_none_wait_max = 50;/* 100 */
 static int esd_phy_rst_cnt;
 static int esd_phy_rst_max;
 static int cec_dev_info;
@@ -1716,6 +1716,8 @@ int rx_set_global_variable(const char *buf, int size)
 		return pr_var(hdcp_enc_mode, index);
 	if (set_pr_var(tmpbuf, hbr_force_8ch, value, &index, ret))
 		return pr_var(hbr_force_8ch, index);
+	if (set_pr_var(tmpbuf, cdr_lock_level, value, &index, ret))
+		return pr_var(cdr_lock_level, index);
 	return 0;
 }
 
@@ -1823,6 +1825,7 @@ void rx_get_global_variable(const char *buf)
 	pr_var(pll_rst_max, i++);
 	pr_var(hdcp_enc_mode, i++);
 	pr_var(hbr_force_8ch, i++);
+	pr_var(cdr_lock_level, i++);
 }
 
 void skip_frame(unsigned int cnt)
@@ -2250,6 +2253,7 @@ void rx_main_state_machine(void)
 					dvi_check_en = false;
 					break;
 				}
+				sig_stable_cnt = 0;
 				rx.skip = 0;
 				rx.state = FSM_SIG_READY;
 				rx.aud_sr_stable_cnt = 0;
@@ -2521,7 +2525,7 @@ unsigned int hdmirx_show_info(unsigned char *buf, int size)
 
 static void dump_phy_status(void)
 {
-	uint32_t val0, val1, val2;
+	uint32_t val0, val1, val2, data32;
 
 	rx_pr("[PHY info]\n");
 	if (rx.chip_id >= CHIP_ID_TL1) {
@@ -2538,6 +2542,54 @@ static void dump_phy_status(void)
 		rx_pr("TMDS_ALIGN_STAT = 0x%x\n",
 			hdmirx_rd_top(TOP_TMDS_ALIGN_STAT));
 		rx_pr("all valid = 0x%x\n", aml_phy_tmds_valid());
+
+		data32 = rd_reg_hhi(HHI_HDMIRX_PHY_DCHD_CNTL1);
+		data32 = data32 & 0xf0ffffff;
+		wr_reg_hhi(HHI_HDMIRX_PHY_DCHD_CNTL1, data32);
+		rx_pr("0x3bc-0=%x\n", rd_reg_hhi(HHI_HDMIRX_PHY_DCHD_STAT));
+		udelay(10);
+		data32 = ((data32 & 0xf0ffffff) | (0x2 << 24));
+		wr_reg_hhi(HHI_HDMIRX_PHY_DCHD_CNTL1, data32);
+		rx_pr("0x3bc-2=%x\n", rd_reg_hhi(HHI_HDMIRX_PHY_DCHD_STAT));
+		udelay(10);
+		data32 = ((data32 & 0xf0ffffff) | (0x4 << 24));
+		wr_reg_hhi(HHI_HDMIRX_PHY_DCHD_CNTL1, data32);
+		rx_pr("0x3bc-4=%x\n", rd_reg_hhi(HHI_HDMIRX_PHY_DCHD_STAT));
+		udelay(10);
+		data32 = ((data32 & 0xf0ffffff) | (0x6 << 24));
+		wr_reg_hhi(HHI_HDMIRX_PHY_DCHD_CNTL1, data32);
+		rx_pr("0x3bc-6=%x\n", rd_reg_hhi(HHI_HDMIRX_PHY_DCHD_STAT));
+		udelay(10);
+		data32 = ((data32 & 0xf0ffffff) | (0xe << 24));
+		wr_reg_hhi(HHI_HDMIRX_PHY_DCHD_CNTL1, data32);
+		if (log_level & VIDEO_LOG) {
+			rx_pr("0x3bc-e=%x\n",
+				rd_reg_hhi(HHI_HDMIRX_PHY_DCHD_STAT));
+			rx_pr("0x3bc-e=%x\n",
+				rd_reg_hhi(HHI_HDMIRX_PHY_DCHD_STAT));
+			rx_pr("0x3bc-e=%x\n",
+				rd_reg_hhi(HHI_HDMIRX_PHY_DCHD_STAT));
+			rx_pr("0x3bc-e=%x\n",
+				rd_reg_hhi(HHI_HDMIRX_PHY_DCHD_STAT));
+			rx_pr("0x3bc-e=%x\n",
+				rd_reg_hhi(HHI_HDMIRX_PHY_DCHD_STAT));
+			rx_pr("0x3bc-e=%x\n",
+				rd_reg_hhi(HHI_HDMIRX_PHY_DCHD_STAT));
+			rx_pr("0x3bc-e=%x\n",
+				rd_reg_hhi(HHI_HDMIRX_PHY_DCHD_STAT));
+			rx_pr("0x3bc-e=%x\n",
+				rd_reg_hhi(HHI_HDMIRX_PHY_DCHD_STAT));
+			rx_pr("0x3bc-e=%x\n",
+				rd_reg_hhi(HHI_HDMIRX_PHY_DCHD_STAT));
+			rx_pr("0x3bc-e=%x\n",
+				rd_reg_hhi(HHI_HDMIRX_PHY_DCHD_STAT));
+			rx_pr("0x3bc-e=%x\n",
+				rd_reg_hhi(HHI_HDMIRX_PHY_DCHD_STAT));
+			rx_pr("0x3bc-e=%x\n",
+				rd_reg_hhi(HHI_HDMIRX_PHY_DCHD_STAT));
+			rx_pr("0x3bc-e=%x\n",
+				rd_reg_hhi(HHI_HDMIRX_PHY_DCHD_STAT));
+		}
 	}
 }
 
