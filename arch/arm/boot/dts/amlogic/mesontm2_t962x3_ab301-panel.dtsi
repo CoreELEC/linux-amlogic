@@ -21,7 +21,7 @@
 		status = "okay";
 		mode = "tv";
 		fr_auto_policy = <1>; /* 0=disable, 1=60/50hz, 2=60/50/48hz */
-		key_valid = <0>;
+		key_valid = <1>;
 		clocks = <&clkc CLKID_VCLK2_ENCL
 			&clkc CLKID_VCLK2_VENCL
 			&clkc CLKID_TCON
@@ -698,7 +698,7 @@
 	lcd_extern{
 		compatible = "amlogic, lcd_extern";
 		status = "okay";
-		key_valid = <0>;
+		key_valid = <1>;
 		i2c_bus = "i2c_bus_1";
 
 		extern_0{
@@ -798,7 +798,7 @@
 	backlight{
 		compatible = "amlogic, backlight-tm2";
 		status = "okay";
-		key_valid = <0>;
+		key_valid = <1>;
 		pinctrl-names = "pwm_on","pwm_vs_on",
 				"pwm_combo_0_1_on",
 				"pwm_combo_0_vs_1_on",
