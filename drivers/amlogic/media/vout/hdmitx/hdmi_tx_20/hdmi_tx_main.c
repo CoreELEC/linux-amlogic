@@ -588,7 +588,7 @@ static int set_disp_mode_auto(void)
 	else {
 	/* nothing */
 	}
-	if ((vic_ready != HDMI_Unknown) && (vic_ready == vic)) {
+	if ((vic_ready != HDMI_Unknown) && (vic_ready == vic) && (strstr(hdmitx_device.fmt_attr,"now") == NULL)) {
 		pr_info(SYS "[%s] ALREADY init VIC = %d\n",
 			__func__, vic);
 		if (hdev->rxcap.ieeeoui == 0) {
@@ -615,6 +615,10 @@ static int set_disp_mode_auto(void)
 
 	hdmitx_pre_display_init();
 
+
+	if (strstr(hdmitx_device.fmt_attr,"now") != NULL){
+		memcpy(strstr(hdmitx_device.fmt_attr,"now"), " ", 3);
+	}
 	hdev->cur_VIC = HDMI_Unknown;
 /* if vic is HDMI_Unknown, hdmitx_set_display will disable HDMI */
 	ret = hdmitx_set_display(hdev, vic);
@@ -694,6 +698,10 @@ ssize_t store_attr(struct device *dev,
 		hdmitx_device.para->cs = COLORSPACE_YUV420;
 	else
 		hdmitx_device.para->cs = COLORSPACE_YUV444;
+
+	if (strstr(hdmitx_device.fmt_attr,"now")){
+		set_disp_mode_auto();
+	}
 	return count;
 }
 /*aud_mode attr*/
