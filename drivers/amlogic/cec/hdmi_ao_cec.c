@@ -2538,8 +2538,6 @@ static ssize_t hdmitx_cec_write(struct file *f, const char __user *buf,
 		} else {
 			return size;
 		}
-	} else {
-		CEC_ERR("err:cec module disabled\n");
 	}
 
 	return ret;
