@@ -412,9 +412,10 @@ int aml_nand_update_ubootenv(struct amlnand_chip *aml_chip, char *env_ptr)
 	int ret = 0;
 	char malloc_flag = 0;
 	char *env_buf = NULL;
+	struct nand_flash *flash = &aml_chip->flash;
 
 	if (env_buf == NULL) {
-		env_buf = kzalloc(CONFIG_ENV_SIZE, GFP_KERNEL);
+		env_buf = kzalloc(CONFIG_ENV_SIZE + flash->pagesize, GFP_KERNEL);
 		malloc_flag = 1;
 		if (env_buf == NULL)
 			return -ENOMEM;

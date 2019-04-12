@@ -28,9 +28,11 @@ int aml_nand_update_secure(struct amlnand_chip *aml_chip, char *secure_ptr)
 	int ret = 0;
 	char malloc_flag = 0;
 	char *secure_buf = NULL;
+	struct nand_flash *flash = &aml_chip->flash;
 
 	if (secure_buf == NULL) {
-		secure_buf = kzalloc(CONFIG_SECURE_SIZE, GFP_KERNEL);
+		secure_buf = kzalloc(CONFIG_SECURE_SIZE + flash->pagesize, GFP_KERNEL);
+		malloc_flag = 1;
 		if (secure_buf == NULL)
 			return -ENOMEM;
 		memset(secure_buf, 0, CONFIG_SECURE_SIZE);
@@ -99,6 +101,7 @@ int32_t nand_secure_write(struct amlnand_chip *aml_chip, char *buf, int len)
 {
 	/* struct secure_t *secure_ptr = NULL; */
 	unsigned char *secure_ptr = NULL;
+	struct nand_flash *flash = &aml_chip->flash;
 	int error = 0;
 
 	if (len > CONFIG_SECURE_SIZE) {
@@ -106,7 +109,7 @@ int32_t nand_secure_write(struct amlnand_chip *aml_chip, char *buf, int len)
 		return -EFAULT;
 	}
 
-	secure_ptr = kzalloc(CONFIG_SECURE_SIZE, GFP_KERNEL);
+	secure_ptr = kzalloc(CONFIG_SECURE_SIZE + flash->pagesize, GFP_KERNEL);
 	if (secure_ptr == NULL)
 		return -ENOMEM;
 

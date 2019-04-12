@@ -400,9 +400,10 @@ int aml_nand_update_dtb(struct amlnand_chip *aml_chip, char *dtb_ptr)
 	int ret = 0;
 	char malloc_flag = 0;
 	char *dtb_buf = NULL;
+	struct nand_flash *flash = &aml_chip->flash;
 
 	if (dtb_buf == NULL) {
-		dtb_buf = kzalloc(aml_chip_dtb->dtbsize, GFP_KERNEL);
+		dtb_buf = kzalloc(aml_chip_dtb->dtbsize + flash->pagesize, GFP_KERNEL);
 		malloc_flag = 1;
 		if (dtb_buf == NULL)
 			return -ENOMEM;

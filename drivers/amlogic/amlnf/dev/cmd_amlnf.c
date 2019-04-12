@@ -131,12 +131,14 @@ int amlnand_read(struct amlnf_dev *nftl_dev,
 		return ret;
 	}
 
-	ret |= nftl_dev->read_sector(nftl_dev, head_sector, 1, local_buf);
-	memcpy(buf, local_buf+head_start_bytes, head_bytes_num);
+	if ((offset % AML_NFTL_ALIGN_SIZE) != 0) {
+		ret |= nftl_dev->read_sector(nftl_dev, head_sector, 1, local_buf);
+		memcpy(buf, local_buf+head_start_bytes, head_bytes_num);
 
-	buf += head_bytes_num;
-	offset += head_bytes_num;
-	size -= head_bytes_num;
+		buf += head_bytes_num;
+		offset += head_bytes_num;
+		size -= head_bytes_num;
+	}
 
 	if (size > AML_NFTL_ALIGN_SIZE) {
 		mid_len = size >> AML_NFTL_ALIGN_SHIFT;
@@ -196,14 +198,15 @@ int amlnand_write(struct amlnf_dev *nftl_dev,
 		goto flush;
 	}
 
-	ret |= nftl_dev->read_sector(nftl_dev, head_sector, 1, local_buf);
-	memcpy(local_buf+head_start_bytes, buf, head_bytes_num);
-	ret |= nftl_dev->write_sector(nftl_dev, head_sector, 1, local_buf);
+	if ((offset % AML_NFTL_ALIGN_SIZE) != 0) {
+		ret |= nftl_dev->read_sector(nftl_dev, head_sector, 1, local_buf);
+		memcpy(local_buf+head_start_bytes, buf, head_bytes_num);
+		ret |= nftl_dev->write_sector(nftl_dev, head_sector, 1, local_buf);
 
-
-	buf += head_bytes_num;
-	offset += head_bytes_num;
-	size -= head_bytes_num;
+		buf += head_bytes_num;
+		offset += head_bytes_num;
+		size -= head_bytes_num;
+	}
 
 	if (size > AML_NFTL_ALIGN_SIZE) {
 		mid_len = size >> AML_NFTL_ALIGN_SHIFT;
@@ -279,6 +282,8 @@ int do_amlnfphy(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 		/* flag = 0, indicate normal boot; */
 		/* flag = 1, indicate update; */
 		/* flag = 2, indicate need erase */
+
+		aml_nand_msg("init_flag:%x",init_flag);
 		ret = amlnf_init(init_flag);
 		if (ret) {
 			aml_nand_msg("nand_init failed ret:%x", ret);

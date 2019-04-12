@@ -42,9 +42,10 @@ int aml_nand_update_key(struct amlnand_chip *aml_chip, char *key_ptr)
 	int ret = 0;
 	int malloc_flag = 0;
 	char *key_buf = NULL;
+	struct nand_flash *flash = &aml_chip->flash;
 
 	if (key_buf == NULL) {
-		key_buf = kzalloc(aml_chip->keysize, GFP_KERNEL);
+		key_buf = kzalloc(aml_chip->keysize + flash->pagesize, GFP_KERNEL);
 		malloc_flag = 1;
 		if (key_buf == NULL)
 			return -ENOMEM;
@@ -104,8 +105,9 @@ int32_t nand_key_read(uint8_t *buf,
 {
 	struct nand_menson_key *key_ptr = NULL;
 	struct amlnand_chip *aml_chip = aml_chip_key;
-	u32 keysize = aml_chip->keysize - sizeof(u32);
+	u32 keysize = aml_chip->keysize;
 	int error = 0;
+	struct nand_flash *flash = &aml_chip_key->flash;
 
 	*actual_lenth = keysize;
 
@@ -118,7 +120,7 @@ int32_t nand_key_read(uint8_t *buf,
 		memset(buf + keysize, 0 , len - keysize);
 	}
 
-	key_ptr = kzalloc(aml_chip->keysize, GFP_KERNEL);
+	key_ptr = kzalloc(aml_chip->keysize + flash->pagesize, GFP_KERNEL);
 	if (key_ptr == NULL)
 		return -ENOMEM;
 
@@ -155,8 +157,9 @@ int32_t nand_key_write(uint8_t *buf,
 {
 	struct nand_menson_key *key_ptr = NULL;
 	struct amlnand_chip *aml_chip = aml_chip_key;
-	u32 keysize = aml_chip->keysize - sizeof(u32);
+	u32 keysize = aml_chip->keysize;
 	int error = 0;
+	struct nand_flash *flash = &aml_chip_key->flash;
 
 	if (len > keysize) {
 		/*
@@ -167,7 +170,7 @@ int32_t nand_key_write(uint8_t *buf,
 		memset(buf + keysize, 0 , len - keysize);
 	}
 
-	key_ptr = kzalloc(aml_chip->keysize, GFP_KERNEL);
+	key_ptr = kzalloc(aml_chip->keysize + flash->pagesize, GFP_KERNEL);
 	if (key_ptr == NULL)
 		return -ENOMEM;
 
@@ -206,13 +209,13 @@ int aml_key_init(struct amlnand_chip *aml_chip)
 /*
 	struct aml_keybox_provider_s *provider;
 */
-	key_ptr = aml_nand_malloc(aml_chip->keysize);
+	key_ptr = aml_nand_malloc(aml_chip->keysize + sizeof(u32));
 	if (key_ptr == NULL) {
 		aml_nand_msg("nand malloc for key_ptr failed");
 		ret = -1;
 		goto exit_error0;
 	}
-	memset(key_ptr, 0x0, aml_chip->keysize);
+	memset(key_ptr, 0x0, aml_chip->keysize + sizeof(u32));
 	aml_nand_dbg("nand key: nand_key_probe. ");
 
 	ret = amlnand_info_init(aml_chip,
@@ -252,8 +255,9 @@ int aml_key_reinit(struct amlnand_chip *aml_chip)
 {
 	int ret = 0;
 	struct nand_menson_key *key_ptr = NULL;
+	struct nand_flash *flash = &aml_chip->flash;
 
-	key_ptr = vmalloc(aml_chip->keysize);
+	key_ptr = vmalloc(aml_chip->keysize + flash->pagesize);
 	if (key_ptr == NULL) {
 		aml_nand_msg("nand malloc for key_ptr failed");
 		ret = -1;

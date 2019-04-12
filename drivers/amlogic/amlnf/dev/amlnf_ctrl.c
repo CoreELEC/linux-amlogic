@@ -462,7 +462,7 @@ void nand_boot_info_prepare(struct amlnand_phydev *phydev,
 			controller->bch_mode, 0, (controller->ecc_unit >> 3),
 			controller->ecc_steps);
 
-	if ((flash->new_type < 10) && (flash->new_type))
+	if (((flash->new_type < 10) && (flash->new_type)) || (slc_info->micron_l0l3_mode == 1))
 		en_slc = 1;
 	else if (flash->new_type == SANDISK_19NM)
 		en_slc = 2;
@@ -531,6 +531,9 @@ void nand_boot_info_prepare(struct amlnand_phydev *phydev,
 		info->boot_num = boot_num;
 		info->each_boot_pages = each_boot_pages;
 
+		if (slc_info->micron_l0l3_mode == 1)
+			info->new_nand_type |= (1<<31); /* mircon l0l3 type mode */
+
 		aml_nand_msg("new_type = 0x%x\n", info->new_nand_type);
 		aml_nand_msg("page_per_blk = 0x%x\n", info->pages_in_block);
 		aml_nand_msg("boot_num = %d each_boot_pages = %d", boot_num,
@@ -578,12 +581,13 @@ int aml_sys_info_init(struct amlnand_chip *aml_chip)
 	struct nand_arg_info *amlnf_dtb = &aml_chip->amlnf_dtb;
 #endif
 	struct nand_arg_info *uboot_env =  &aml_chip->uboot_env;
+	struct nand_flash *flash = &aml_chip->flash;
 	unsigned char *buf = NULL;
 	unsigned int buf_size = 0;
 	int ret = 0;
 
 	buf_size = max_t(u32, CONFIG_SECURE_SIZE, CONFIG_KEY_MAX_SIZE);
-	buf = aml_nand_malloc(buf_size);
+	buf = aml_nand_malloc(buf_size + flash->pagesize);
 	if (!buf)
 		aml_nand_msg("aml_sys_info_init : malloc failed");
 

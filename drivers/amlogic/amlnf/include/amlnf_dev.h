@@ -93,6 +93,13 @@
 #define SPI_NAND_FLAG		4
 #define SPI_EMMC_FLAG		5
 
+#define STORAGE_DEV_NOSET       (0)
+#define STORAGE_DEV_EMMC        (1)
+#define STORAGE_DEV_NAND        (2)
+#define STORAGE_DEV_SPI         (3)
+#define STORAGE_DEV_SDCARD      (4)
+#define STORAGE_DEV_USB         (5)
+
 
 /***nand BOOT flags***/
 #define NAND_BOOT_NORMAL					0
@@ -408,6 +415,7 @@ struct amlnf_dev {
 	uint (*flush)(struct amlnf_dev *dev);
 };
 
+extern struct amlnand_phydev *phydev;
 extern struct list_head nphy_dev_list;
 extern struct list_head nf_dev_list;
 
@@ -434,6 +442,7 @@ extern void nand_get_chip(void *aml_chip);
 extern void nand_release_chip(void *aml_chip);
 extern int check_storage_device(void);
 
+extern unsigned char device_model[20];
 
 
 extern ssize_t verify_nand_page(struct class *class,

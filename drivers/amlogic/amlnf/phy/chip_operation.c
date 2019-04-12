@@ -16,9 +16,20 @@
 */
 
 #include "../include/phynand.h"
+extern int mt_L04A_nand_check(struct amlnand_chip *aml_chip);
+extern int mt_L05B_nand_check(struct amlnand_chip *aml_chip);
 
 static int _read_page_single_plane(struct amlnand_chip *aml_chip,
-	u8 chipnr,
+	u8 chipnr, u8 *buf, u8 *oob_buf,
+	u32 page_addr);
+static int write_page_two_plane(struct amlnand_chip *aml_chip,
+	int chipnr,
+	u8 *buf,
+	u8 *oob_buf,
+	u32 plane0_page_addr,
+	u32 plane1_page_addr);
+static int write_page_single_plane(struct amlnand_chip *aml_chip,
+	u8 chipnr, u8 *buf, u8 *oob_buf,
 	u32 page_addr);
 
 static int check_cmdfifo_size(struct hw_controller *controller)
@@ -170,20 +181,20 @@ static int ecc_read_retry_handle(struct amlnand_chip *aml_chip,
 		if (flash->new_type != SANDISK_19NM) {
 			if ((*retry_cnt) > (retry_op_cnt-2)) {
 				aml_nand_dbg("detect bitflip page:%d",
-					page_addr);
+					controller->page_addr);
 				ops_para->bit_flip++;
 			}
 		} else {
 			if (up_page) {
 				if ((*retry_cnt) > (retry_cnt_up-2)) {
 					aml_nand_dbg("detect bitflip page:%d",
-						page_addr);
+						controller->page_addr);
 					ops_para->bit_flip++;
 				}
 			} else {
 				if ((*retry_cnt) > (retry_cnt_lp-2)) {
 					aml_nand_dbg("detect bitflip page:%d",
-						page_addr);
+						controller->page_addr);
 					ops_para->bit_flip++;
 				}
 			}
@@ -191,8 +202,7 @@ static int ecc_read_retry_handle(struct amlnand_chip *aml_chip,
 	} else if ((controller->ecc_cnt_cur > controller->ecc_cnt_limit)
 		&& (flash->new_type == 0)) {
 		aml_nand_dbg("detect bitflip page:%d, chip:%d",
-			page_addr,
-			chipnr);
+			controller->page_addr, chipnr);
 		ops_para->bit_flip++;
 	}
 	ret = 0;
@@ -216,6 +226,8 @@ _out:
 #if (AML_CFG_2PLANE_READ_EN)
 static int read_page_two_plane(struct amlnand_chip *aml_chip,
 	unsigned char chipnr,
+	u8 *buf,
+	u8 *oob_buf,
 	unsigned int plane0_page_addr,
 	unsigned int plane1_page_addr)
 {
@@ -223,7 +235,7 @@ static int read_page_two_plane(struct amlnand_chip *aml_chip,
 	struct nand_flash *flash = &(aml_chip->flash);
 	struct chip_ops_para *ops_para = &(aml_chip->ops_para);
 	struct read_retry_info *retry_info = &(controller->retry_info);
-	unsigned char *buf = ops_para->data_buf;
+	/* unsigned char *buf = ops_para->data_buf; */
 	unsigned char *tmp_buf = controller->oob_buf;
 	unsigned int pages_per_blk_shift;
 	unsigned int page_size, page_addr, tmp_page;
@@ -239,7 +251,7 @@ static int read_page_two_plane(struct amlnand_chip *aml_chip,
 	pages_per_blk_shift =
 		(controller->block_shift - controller->page_shift);
 
-	if ((controller->oob_mod) && (ops_para->oob_buf)
+	if ((controller->oob_mod) && (oob_buf)
 		&& (!ops_para->data_buf))
 		new_oob = 1;
 
@@ -409,7 +421,7 @@ RETRY_PLANE_CMD:
 						page_size);
 				buf += page_size;
 			}
-			if (ops_para->oob_buf) {
+			if (oob_buf) {
 				if (all_ff_flag)
 					memset(tmp_buf, 0xff, user_byte_num);
 
@@ -530,7 +542,7 @@ RETRY_PLANE_CMD:
 				}
 				plane0_retry_flag = 1;
 			}
-			if (ops_para->data_buf) {
+			if (buf) {
 				if (all_ff_flag)
 					memset(buf, 0xff, page_size);
 				else
@@ -539,7 +551,7 @@ RETRY_PLANE_CMD:
 						page_size);
 				buf += page_size;
 			}
-			if (ops_para->oob_buf) {
+			if (oob_buf) {
 				if (all_ff_flag)
 					memset(tmp_buf, 0xff, user_byte_num);
 
@@ -603,13 +615,13 @@ RETRY_PLANE_CMD:
 			memset(buf, 0xff, page_size);
 		else
 			memcpy(buf, controller->data_buf, page_size);
-		buf += page_size;
+		/* buf += page_size; */
 	}
 
-	if (ops_para->oob_buf) {
+	if (oob_buf) {
 		if (all_ff_flag)
 			memset(tmp_buf, 0xff, user_byte_num);
-		tmp_buf += user_byte_num;
+		/* tmp_buf += user_byte_num; */
 	}
 	all_ff_flag = 0;
 
@@ -619,12 +631,12 @@ RETRY_PLANE_CMD:
 	}
 
 new_oob_mod:
-	if (ops_para->oob_buf) {
-		memcpy(ops_para->oob_buf,
+	if (oob_buf) {
+		memcpy(oob_buf,
 			controller->oob_buf,
 			BYTES_OF_USER_PER_PAGE);
 		if (ops_para->ecc_err)
-			memset(ops_para->oob_buf, 0x22, BYTES_OF_USER_PER_PAGE);
+			memset(oob_buf, 0x22, BYTES_OF_USER_PER_PAGE);
 	}
 
 	return NAND_SUCCESS;
@@ -696,7 +708,7 @@ _out:
 
 
 static int _read_page_single_plane(struct amlnand_chip *aml_chip,
-	unsigned char chipnr,
+	unsigned char chipnr, u8 *buf, u8 *oob_buf,
 	unsigned int page_addr)
 {
 	struct hw_controller *controller = &(aml_chip->controller);
@@ -704,7 +716,7 @@ static int _read_page_single_plane(struct amlnand_chip *aml_chip,
 	struct chip_ops_para *ops_para = &(aml_chip->ops_para);
 	struct en_slc_info *slc_info = &(controller->slc_info);
 	struct read_retry_info *retry_info = &(controller->retry_info);
-	unsigned char *buf = ops_para->data_buf;
+	/* unsigned char *buf = ops_para->data_buf; */
 	unsigned char *tmp_buf = controller->oob_buf;
 	unsigned int pages_per_blk_shift;
 	unsigned int page_size, tmp_page;
@@ -716,8 +728,8 @@ static int _read_page_single_plane(struct amlnand_chip *aml_chip,
 	pages_per_blk_shift =
 		(controller->block_shift - controller->page_shift);
 
-	if (controller->oob_mod && (ops_para->oob_buf)
-		&& (!ops_para->data_buf))
+	if (controller->oob_mod && (oob_buf)
+		&& (!buf))
 		new_oob = 1;
 
 	/* for ecc mode */
@@ -841,18 +853,18 @@ RETRY_CMD:
 		}
 	}
 
-	if (ops_para->data_buf) {
+	if (buf) {
 		if (all_ff_flag)
 			memset(buf, 0xff, page_size);
 		else
 			memcpy(buf, controller->data_buf, page_size);
-		buf += page_size;
+		/* buf += page_size; */
 	}
 
-	if (ops_para->oob_buf) {
+	if (oob_buf) {
 		if (all_ff_flag)
 			memset(tmp_buf, 0xff, user_byte_num);
-		tmp_buf += user_byte_num;
+		/* tmp_buf += user_byte_num; */
 	}
 	all_ff_flag = 0;
 
@@ -861,12 +873,12 @@ RETRY_CMD:
 		BUG();
 	}
 #if 0 /*move this outsides */
-	if (ops_para->oob_buf) {
-		memcpy(ops_para->oob_buf,
+	if (oob_buf) {
+		memcpy(oob_buf,
 			controller->oob_buf,
 			BYTES_OF_USER_PER_PAGE);
 		if (ops_para->ecc_err)
-			memset(ops_para->oob_buf, 0x22, BYTES_OF_USER_PER_PAGE);
+			memset(oob_buf, 0x22, BYTES_OF_USER_PER_PAGE);
 	}
 #endif
 	return NAND_SUCCESS;
@@ -876,21 +888,21 @@ error_exit0:
 
 
 static int read_page_single_plane(struct amlnand_chip *aml_chip,
-	u8 chipnr,
+	u8 chipnr, u8 *buf, u8 *oob_buf,
 	u32 page_addr)
 {
 	int ret;
 	struct hw_controller *controller = &(aml_chip->controller);
 	struct chip_ops_para *ops_para = &(aml_chip->ops_para);
 
-	ret = _read_page_single_plane(aml_chip, chipnr, page_addr);
+	ret = _read_page_single_plane(aml_chip, chipnr, buf, oob_buf, page_addr);
 
-	if (ops_para->oob_buf) {
-		memcpy(ops_para->oob_buf,
+	if (oob_buf) {
+		memcpy(oob_buf,
 			controller->oob_buf,
 			BYTES_OF_USER_PER_PAGE);
 		if (ops_para->ecc_err)
-			memset(ops_para->oob_buf, 0x22, BYTES_OF_USER_PER_PAGE);
+			memset(oob_buf, 0x22, BYTES_OF_USER_PER_PAGE);
 	}
 
 	return ret;
@@ -910,6 +922,11 @@ static int read_page(struct amlnand_chip *aml_chip)
 	unsigned int plane_page_addr, plane_blk_addr, pages_per_blk_shift;
 	unsigned char i, chip_num , plane_num;
 	int ret = 0;
+#if (__DEBUG_L04__)
+	struct nand_flash *flash = &(aml_chip->flash);
+	u8 *buf = ops_para->data_buf;
+	u8 *oob_buf = ops_para->oob_buf;
+#endif
 
 	if ((!ops_para->oob_buf) && (!ops_para->data_buf)) {
 		aml_nand_msg("buf & oob_buf should never be NULL");
@@ -923,9 +940,14 @@ static int read_page(struct amlnand_chip *aml_chip)
 	else
 		chip_num = 1;
 
+	if (ops_para->option & DEV_USE_SHAREPAGE_MODE)
+		ops_para->page_addr <<= 1;
+
 	plane0_page_addr = plane1_page_addr = 0;
 
 	page_addr = ops_para->page_addr;
+
+	/* aml_nand_msg("ops_para->option:%d,ops_para->page_addr:%x",ops_para->option,ops_para->page_addr); */
 	controller->page_addr = ops_para->page_addr;
 	pages_per_blk_shift =
 		(controller->block_shift - controller->page_shift);
@@ -954,25 +976,68 @@ static int read_page(struct amlnand_chip *aml_chip)
 		for (i = 0; i < chip_num; i++) {
 			if (plane_num == 2) {
 				ret = read_page_two_plane(aml_chip,
-					i,
+					i, buf, oob_buf,
 					plane0_page_addr,
 					plane1_page_addr);
-			} else
+#if (__DEBUG_L04__)
+				if (ops_para->option & DEV_USE_SHAREPAGE_MODE) {
+					if (buf)
+						buf += flash->pagesize*2;
+					if (oob_buf)
+						oob_buf += BYTES_OF_USER_PER_PAGE;
+					ret = read_page_two_plane(aml_chip,
+						i, buf, oob_buf,
+						plane0_page_addr + 1,
+						plane1_page_addr + 1);
+				}
+#endif
+			} else {
 				ret = read_page_single_plane(aml_chip,
-					i,
+					i, buf, oob_buf,
 					page_addr);
+				if (ops_para->option & DEV_USE_SHAREPAGE_MODE) {
+					if (buf)
+						buf += flash->pagesize;
+					if (oob_buf)
+						oob_buf += BYTES_OF_USER_PER_PAGE;
+					ret = read_page_single_plane(aml_chip,
+						i, buf, NULL,
+						page_addr + 1);
+				}
+			}
 		}
 	} else {
 		if (plane_num == 2) {
 			ret = read_page_two_plane(aml_chip,
-				ops_para->chipnr,
+				ops_para->chipnr, buf, oob_buf,
 				plane0_page_addr,
 				plane1_page_addr);
-		} else
+#if (__DEBUG_L04__)
+			if (ops_para->option & DEV_USE_SHAREPAGE_MODE) {
+				if (buf)
+					buf += flash->pagesize*2;
+				if (oob_buf)
+					oob_buf += BYTES_OF_USER_PER_PAGE;
+				ret = read_page_two_plane(aml_chip,
+					ops_para->chipnr, buf, oob_buf,
+					plane0_page_addr + 1,
+					plane1_page_addr + 1);
+			}
+#endif
+		} else {
 			ret = read_page_single_plane(aml_chip,
-				ops_para->chipnr,
+				ops_para->chipnr, buf, oob_buf,
 				page_addr);
-
+			if (ops_para->option & DEV_USE_SHAREPAGE_MODE) {
+				if (buf)
+					buf += flash->pagesize;
+				if (oob_buf)
+					oob_buf += BYTES_OF_USER_PER_PAGE;
+				ret = read_page_single_plane(aml_chip,
+					ops_para->chipnr, buf, NULL,
+					page_addr + 1);
+			}
+		}
 	}
 error_exit0:
 	return ret;
@@ -987,36 +1052,194 @@ error_exit0:
 static int write_page(struct amlnand_chip *aml_chip)
 {
 	struct hw_controller *controller = &(aml_chip->controller);
-	struct nand_flash *flash = &(aml_chip->flash);
 	struct chip_ops_para *ops_para = &(aml_chip->ops_para);
-	struct en_slc_info *slc_info = &(controller->slc_info);
-	unsigned char *buf = ops_para->data_buf;
-	unsigned char *oob_buf = ops_para->oob_buf;
-	unsigned int plane_page_addr, plane_blk_addr, pages_per_blk_shift;
-	unsigned int plane0_page_addr, plane1_page_addr, column, page_addr;
-	unsigned int page_size;
-	unsigned char i, bch_mode, plane_num, chip_num, chipnr, user_byte_num;
-	unsigned char slc_mode, status, st_cnt;
+	u32 plane0_page_addr, plane1_page_addr, page_addr;
+	u32 plane_page_addr, plane_blk_addr, pages_per_blk_shift;
+	u8 i, chip_num , plane_num;
 	int ret = 0;
+#if (__DEBUG_L04__)
+	struct nand_flash *flash = &(aml_chip->flash);
+	u8 *buf = ops_para->data_buf;
+	u8 *oob_buf = ops_para->oob_buf;
+#endif
 
-	if (!buf) {
-		aml_nand_msg("buf should never be NULL");
+	if (!ops_para->data_buf) {
+		aml_nand_msg("buf & oob_buf should never be NULL");
 		ret = -NAND_ARGUMENT_FAILURE;
 		goto error_exit0;
 	}
-	if (aml_chip->nand_status  != NAND_STATUS_NORMAL) {
-		aml_nand_msg("nand status unusal: do not write anything!!!!!");
-		return NAND_SUCCESS;
-	}
-
-	user_byte_num = chipnr = 0;
-	plane0_page_addr = plane1_page_addr = 0;
 
 	/* for multi-chip mode */
 	if (ops_para->option & DEV_MULTI_CHIP_MODE)
 		chip_num = controller->chip_num;
 	else
 		chip_num = 1;
+
+	plane0_page_addr = plane1_page_addr = 0;
+
+	if (ops_para->option & DEV_USE_SHAREPAGE_MODE)
+		ops_para->page_addr <<= 1;
+
+	page_addr = ops_para->page_addr;
+	controller->page_addr = ops_para->page_addr;
+	pages_per_blk_shift =
+		(controller->block_shift - controller->page_shift);
+	if (unlikely(page_addr >= controller->internal_page_nums)) {
+		controller->page_addr -= controller->internal_page_nums;
+		controller->page_addr |= controller->internal_page_nums *
+			aml_chip->flash.internal_chipnr;
+		page_addr = controller->page_addr;
+	}
+	/* for multi-plane mode */
+	if (ops_para->option & DEV_MULTI_PLANE_MODE) {
+		plane_num = 2;
+		plane_page_addr = page_addr & ((1 << pages_per_blk_shift)-1);
+		plane_blk_addr = (page_addr >> (pages_per_blk_shift));
+		plane_blk_addr <<= 1;
+		plane0_page_addr = (plane_blk_addr << pages_per_blk_shift) |
+			plane_page_addr;
+		plane_blk_addr += 1;
+		plane1_page_addr = (plane_blk_addr << pages_per_blk_shift) |
+			plane_page_addr;
+	} else
+		plane_num = 1;
+
+	if (chip_num > 1) {
+		for (i = 0; i < chip_num; i++) {
+			if (plane_num == 2) {
+				ret = write_page_two_plane(aml_chip,
+					i, buf, oob_buf,
+					plane0_page_addr,
+					plane1_page_addr);
+				#if (__DEBUG_L04__)
+				if (ops_para->option & DEV_USE_SHAREPAGE_MODE) {
+					if (buf)
+						buf += flash->pagesize*2;
+					if (oob_buf)
+						oob_buf += BYTES_OF_USER_PER_PAGE;
+					ret = write_page_two_plane(aml_chip,
+						i, buf, oob_buf,
+						plane0_page_addr + 1,
+						plane1_page_addr + 1);
+				}
+				#endif
+
+			} else {
+				ret = write_page_single_plane(aml_chip,
+					i, buf, oob_buf,
+					page_addr);
+				if (ops_para->option & DEV_USE_SHAREPAGE_MODE) {
+					if (buf)
+						buf += flash->pagesize;
+					if (oob_buf)
+						oob_buf += BYTES_OF_USER_PER_PAGE;
+					ret = write_page_single_plane(aml_chip,
+					i, buf, oob_buf,
+					page_addr + 1);
+				}
+			}
+		}
+	} else {
+		if (plane_num == 2) {
+			ret = write_page_two_plane(aml_chip,
+				ops_para->chipnr, buf, oob_buf,
+				plane0_page_addr,
+				plane1_page_addr);
+			#if (__DEBUG_L04__)
+			if (ops_para->option & DEV_USE_SHAREPAGE_MODE) {
+				if (buf)
+					buf += flash->pagesize*2;
+				if (oob_buf)
+					oob_buf += BYTES_OF_USER_PER_PAGE;
+				ret = write_page_two_plane(aml_chip,
+					ops_para->chipnr, buf, oob_buf,
+					plane0_page_addr + 1,
+					plane1_page_addr + 1);
+			}
+			#endif
+		} else {
+			ret = write_page_single_plane(aml_chip,
+				ops_para->chipnr, buf, oob_buf,
+				page_addr);
+			if (ops_para->option & DEV_USE_SHAREPAGE_MODE) {
+				if (buf)
+					buf += flash->pagesize;
+				if (oob_buf)
+					oob_buf += BYTES_OF_USER_PER_PAGE;
+				ret = write_page_single_plane(aml_chip,
+				ops_para->chipnr, buf, oob_buf,
+				page_addr + 1);
+			}
+		}
+	}
+error_exit0:
+	return ret;
+}
+
+static int write_page_two_plane(struct amlnand_chip *aml_chip,
+	int chipnr,
+	u8 *buf,
+	u8 *oob_buf,
+	u32 plane0_page_addr,
+	u32 plane1_page_addr)
+{
+	struct hw_controller *controller = &(aml_chip->controller);
+	struct nand_flash *flash = &(aml_chip->flash);
+	struct chip_ops_para *ops_para = &(aml_chip->ops_para);
+	struct en_slc_info *slc_info = &(controller->slc_info);
+
+	struct chip_operation *operation = &(aml_chip->operation);
+	unsigned char retry_val[4] ={0, 0, 0, 0};
+	unsigned char addr = 0x89;
+
+	u32 column;
+	u32 page_size;
+	u8 bch_mode, user_byte_num;
+	u8 slc_mode, status, st_cnt, chip_num = 1;
+	int i, ret = 0;
+
+	if ((mt_L04A_nand_check(aml_chip) == 0) ||
+		(mt_L05B_nand_check(aml_chip) == 0)) {
+			operation->get_onfi_para(aml_chip, retry_val, addr);
+			if (retry_val[0] != 0) {
+				aml_nand_msg("!!!read retry value:%d,when write",
+					retry_val[0]);
+				retry_val[0] = 0;
+				operation->set_onfi_para(aml_chip, retry_val, addr);
+				operation->get_onfi_para(aml_chip, retry_val, addr);
+				aml_nand_msg("!!!set read retry value:%d,when write",
+					retry_val[0]);
+			}
+		}
+
+	if (ops_para->option & DEV_MULTI_CHIP_MODE)
+		chip_num = controller->chip_num;
+
+	user_byte_num = 0;
+
+	/* for ecc mode */
+	if ((ops_para->option & DEV_ECC_SOFT_MODE)
+		|| (controller->bch_mode == NAND_ECC_NONE)) {
+		bch_mode = NAND_ECC_NONE;
+		page_size = flash->pagesize + flash->oobsize;
+	} else {
+		bch_mode = controller->bch_mode;
+		user_byte_num = controller->ecc_steps * controller->user_mode;
+		page_size = controller->ecc_steps*controller->ecc_unit;
+
+		if (!oob_buf) { /* empty oob buffer, set defaut */
+			memset(controller->oob_buf,
+				0xa5,
+				user_byte_num);
+			controller->oob_buf[0] = 0xff;
+			oob_buf = controller->oob_buf;
+		} else {
+			memcpy(controller->oob_buf,
+				oob_buf,
+				user_byte_num);
+			//oob_buf = controller->oob_buf;
+		}
+	}
 
 	if (ops_para->option & DEV_SLC_MODE) {
 		/* aml_nand_dbg("enable SLC mode"); */
@@ -1029,39 +1252,222 @@ static int write_page(struct amlnand_chip *aml_chip)
 	} else
 		slc_mode = 0;
 
-	/* for multi-plane mode */
-	page_addr = ops_para->page_addr;
-	controller->page_addr = ops_para->page_addr;
-	pages_per_blk_shift =
-		(controller->block_shift - controller->page_shift);
+	column = 0;
+
+	ret = controller->quene_rb(controller, chipnr);
+	if (ret) {
+		aml_nand_msg("quene rb busy here");
+		goto error_exit0;
+	}
+
+	/* plane0 */
+	controller->cmd_ctrl(controller, NAND_CMD_SEQIN,
+		NAND_CTRL_CLE);
+	controller->cmd_ctrl(controller, column,
+		NAND_CTRL_ALE);
+	controller->cmd_ctrl(controller, column>>8,
+		NAND_CTRL_ALE);
+	controller->cmd_ctrl(controller, plane0_page_addr,
+		NAND_CTRL_ALE);
+	controller->cmd_ctrl(controller, plane0_page_addr>>8,
+		NAND_CTRL_ALE);
+	controller->cmd_ctrl(controller, plane0_page_addr>>16,
+		NAND_CTRL_ALE);
+
+	if (bch_mode != NAND_ECC_NONE)
+		controller->set_usr_byte(controller,
+			oob_buf,
+			user_byte_num);
+
+	controller->page_addr = plane0_page_addr;
+	ret = controller->dma_write(controller,
+		buf,
+		page_size,
+		bch_mode);
+	if (ret) {
+		aml_nand_msg("dma error here");
+		goto error_exit0;
+	}
+
+	controller->cmd_ctrl(controller,
+		NAND_CMD_DUMMY_PROGRAM,
+		NAND_CTRL_CLE);
+
+	NFC_SEND_CMD_IDLE(controller, NAND_TADL_TIME_CYCLE);
+
+	ret = controller->quene_rb(controller, chipnr);
+	if (ret) {
+		aml_nand_msg("quene rb busy here");
+		goto error_exit0;
+	}
+
+	oob_buf += user_byte_num;
+	buf += page_size;
+
+	if ((controller->mfr_type == NAND_MFR_HYNIX)
+		|| (controller->mfr_type == NAND_MFR_SAMSUNG))
+		controller->cmd_ctrl(controller,
+			NAND_CMD_TWOPLANE_WRITE2,
+			NAND_CTRL_CLE);
+	else
+		controller->cmd_ctrl(controller,
+			NAND_CMD_TWOPLANE_WRITE2_MICRO,
+			NAND_CTRL_CLE);
+
+	controller->cmd_ctrl(controller, column, NAND_CTRL_ALE);
+	controller->cmd_ctrl(controller, column>>8,
+		NAND_CTRL_ALE);
+	controller->cmd_ctrl(controller, plane1_page_addr,
+		NAND_CTRL_ALE);
+	controller->cmd_ctrl(controller, plane1_page_addr>>8,
+		NAND_CTRL_ALE);
+	controller->cmd_ctrl(controller, plane1_page_addr>>16,
+		NAND_CTRL_ALE);
+
+	NFC_SEND_CMD_IDLE(controller, NAND_TADL_TIME_CYCLE);
+
+	if (bch_mode != NAND_ECC_NONE)
+		controller->set_usr_byte(controller,
+			oob_buf,
+			user_byte_num);
+
+	controller->page_addr = plane1_page_addr;
+	ret = controller->dma_write(controller,
+			buf,
+			page_size,
+			bch_mode);
+	if (ret) {
+		aml_nand_msg("dma error here");
+		goto error_exit0;
+	}
+	/* start */
+	controller->cmd_ctrl(controller, NAND_CMD_PAGEPROG,
+		NAND_CTRL_CLE);
+	NFC_SEND_CMD_IDLE(controller, NAND_TWB_TIME_CYCLE);
+	oob_buf += user_byte_num;
+
+	buf += page_size;
+
+	if (check_cmdfifo_size(controller)) {
+		aml_nand_msg("check cmdfifo size timeout");
+		BUG();
+	}
+
+	for (i = 0; i < chip_num; i++) {
+		chipnr = (chip_num > 1) ? i : ops_para->chipnr;
+	st_cnt = 0;
+#ifdef AML_NAND_RB_IRQ
+	if (i == 0)
+		ret = controller->quene_rb_irq(controller, chipnr);
+	else
+		ret = controller->quene_rb(controller, chipnr);
+#else
+	ret = controller->quene_rb(controller, chipnr);
+#endif
+	if (ret) {
+		aml_nand_msg("quene rb busy here");
+		goto error_exit0;
+	}
+
+	controller->cmd_ctrl(controller, NAND_CMD_STATUS,
+		NAND_CTRL_CLE);
+	NFC_SEND_CMD_IDLE(controller, NAND_TWHR_TIME_CYCLE);
+WSTATUS_TRY:
+	status = controller->readbyte(controller);
+	if (status == NAND_STATUS_FAILED) {
+		aml_nand_msg("write falied at page:%d, status:0x%x",
+			plane0_page_addr,
+			status);
+		ret = -NAND_WRITE_FAILED;
+		goto error_exit0;
+	} else if (status != NAND_STATUS_RIGHT) {
+		aml_nand_msg("status failed page:%d,status:0x%x try:%d",
+			plane0_page_addr,
+			status,
+			st_cnt);
+		if (st_cnt++ < NAND_STATUS_MAX_TRY) {
+			NFC_SEND_CMD_IDLE(controller,
+				NAND_TWB_TIME_CYCLE);
+			goto WSTATUS_TRY;
+		}
+		aml_nand_msg("status still failed");
+	}
+	}
+	/* for hynix nand, reset reg def value */
+	if (slc_mode == 2) {
+		ret = slc_info->exit(controller);
+		if (ret < 0)
+			aml_nand_msg("slc enter failed here");
+	}
+
+	return NAND_SUCCESS;
+error_exit0:
+	return ret;
+}
+
+static int write_page_single_plane(struct amlnand_chip *aml_chip,
+	u8 chipnr, u8 *buf, u8 *oob_buf,
+	u32 page_addr)
+{
+	struct hw_controller *controller = &(aml_chip->controller);
+	struct nand_flash *flash = &(aml_chip->flash);
+	struct chip_ops_para *ops_para = &(aml_chip->ops_para);
+	struct en_slc_info *slc_info = &(controller->slc_info);
+	u32 column;
+	u32 page_size;
+	u8 bch_mode, user_byte_num;
+	u8 slc_mode, status, st_cnt, chip_num = 1;
+	int i, ret = 0;
+	struct chip_operation *operation = &(aml_chip->operation);
+	unsigned char retry_val[4] ={0, 0, 0, 0};
+	unsigned char addr = 0x89;
+
+	if (!buf) {
+		aml_nand_msg("buf should never be NULL");
+		ret = -NAND_ARGUMENT_FAILURE;
+		goto error_exit0;
+	}
+	if (aml_chip->nand_status  != NAND_STATUS_NORMAL) {
+		aml_nand_msg("nand status unusal: do not write anything!!!!!");
+		return NAND_SUCCESS;
+	}
+	if ((mt_L04A_nand_check(aml_chip) == 0) ||
+		(mt_L05B_nand_check(aml_chip) == 0)) {
+			operation->get_onfi_para(aml_chip, retry_val, addr);
+			if (retry_val[0] != 0) {
+				aml_nand_msg("!!!read retry value1:%d,when write",
+					retry_val[0]);
+				retry_val[0] = 0;
+				operation->set_onfi_para(aml_chip, retry_val, addr);
+				operation->get_onfi_para(aml_chip, retry_val, addr);
+				aml_nand_msg("!!!set read retry value1:%d,when write",
+					retry_val[0]);
+			}
+		}
+
+	if (ops_para->option & DEV_MULTI_CHIP_MODE)
+		chip_num = controller->chip_num;
+
+	user_byte_num = 0;
+
+	if (ops_para->option & DEV_SLC_MODE) {
+		/* aml_nand_dbg("enable SLC mode"); */
+		if (flash->new_type == SANDISK_19NM)
+			slc_mode = 1;
+		else if ((flash->new_type > 0) && (flash->new_type < 10))
+			slc_mode = 2;
+		else
+			slc_mode = 0;
+	} else
+		slc_mode = 0;
+
+	controller->page_addr = page_addr;
 	if (unlikely(controller->page_addr >= controller->internal_page_nums)) {
 		controller->page_addr -= controller->internal_page_nums;
 		controller->page_addr |= controller->internal_page_nums *
 			aml_chip->flash.internal_chipnr;
 	}
-	if (ops_para->option & DEV_MULTI_PLANE_MODE) {
-		plane_num = 2;
-		plane_page_addr = (controller->page_addr &
-			(((1 << pages_per_blk_shift) - 1)));
-		plane_blk_addr = (controller->page_addr >> pages_per_blk_shift);
-		plane_blk_addr <<= 1;
-		plane0_page_addr = (plane_blk_addr << pages_per_blk_shift)
-			| plane_page_addr;
-		plane_blk_addr += 1;
-		plane1_page_addr = (plane_blk_addr << pages_per_blk_shift)
-			| plane_page_addr;
 
-#if 0
-		aml_nand_dbg("ops_para->page_addr =%d", ops_para->page_addr);
-		aml_nand_dbg("controller->page_addr=%d", controller->page_addr);
-		aml_nand_dbg("plane_page_addr =%d", plane_page_addr);
-		aml_nand_dbg("plane_blk_addr =%d", plane_blk_addr);
-		aml_nand_dbg("plane0_page_addr =%d", plane0_page_addr);
-		aml_nand_dbg("plane1_page_addr =%d", plane1_page_addr);
-#endif
-	} else {
-		plane_num = 1;
-	}
 
 	/* for ecc mode */
 	if ((ops_para->option & DEV_ECC_SOFT_MODE)
@@ -1072,296 +1478,126 @@ static int write_page(struct amlnand_chip *aml_chip)
 		bch_mode = controller->bch_mode;
 		user_byte_num = controller->ecc_steps*controller->user_mode;
 		page_size = controller->ecc_steps*controller->ecc_unit;
-
-		/*
-		if (controller->bch_mode == NAND_ECC_BCH_SHORT){
-			page_size =
-				(flash->pagesize / 512) * NAND_ECC_UNIT_SHORT;
-		}*/
-
-		if (!oob_buf) {
+		if (!oob_buf) { /* empty oob buffer, set defaut */
 			memset(controller->oob_buf,
 				0xa5,
-				(user_byte_num * (plane_num * chip_num)));
+				user_byte_num);
 			controller->oob_buf[0] = 0xff;
 			oob_buf = controller->oob_buf;
 		} else {
 			memcpy(controller->oob_buf,
-				ops_para->oob_buf,
-				(user_byte_num * (plane_num * chip_num)));
-			oob_buf = controller->oob_buf;
+				oob_buf,
+				user_byte_num);
+			//oob_buf = controller->oob_buf;
 		}
 
 	}
 
-#if 0
-	aml_nand_dbg("page_addr:%d, buf: %x %x %x %x %x %x %x %x",
-			ops_para->page_addr, buf[0],
-			buf[1], buf[2], buf[3], buf[4],
-			buf[5], buf[6], buf[7]);
-	aml_nand_dbg("page_addr:%d, oob_buf: %x %x %x %x %x %x %x %x",
-			ops_para->page_addr, oob_buf[0],
-			oob_buf[1], oob_buf[2], oob_buf[3], oob_buf[4],
-			oob_buf[5], oob_buf[6], oob_buf[7]);
-#endif
 	column = 0;
+	ret = controller->quene_rb(controller, chipnr);
+	if (ret) {
+		aml_nand_msg("quene rb busy here");
+		goto error_exit0;
+	}
 
-	for (i = 0; i < chip_num; i++) {
-		chipnr = (chip_num > 1) ? i : ops_para->chipnr;
-		ret = controller->quene_rb(controller, chipnr);
-		if (ret) {
-			aml_nand_msg("quene rb busy @ %s-%d",
-				__func__, __LINE__);
-			goto error_exit0;
-		}
-#if 0
-		if (aml_chip->debug_num == 1)
-			aml_nand_dbg("chipnr=%d, chip_num=%d",
-				chipnr,
-				chip_num);
-			aml_nand_dbg("controller->chip_selected =%d",
-			controller->chip_selected);
-#endif
+	if (slc_mode) {
+		ret = slc_info->enter(controller);
+		if (ret < 0)
+			aml_nand_msg("slc enter failed here");
+	}
 
-		if (plane_num == 2) {
-			/* plane0 */
-			controller->cmd_ctrl(controller, NAND_CMD_SEQIN,
-				NAND_CTRL_CLE);
-			controller->cmd_ctrl(controller, column,
-				NAND_CTRL_ALE);
-			controller->cmd_ctrl(controller, column>>8,
-				NAND_CTRL_ALE);
-			controller->cmd_ctrl(controller, plane0_page_addr,
-				NAND_CTRL_ALE);
-			controller->cmd_ctrl(controller, plane0_page_addr>>8,
-				NAND_CTRL_ALE);
-			controller->cmd_ctrl(controller, plane0_page_addr>>16,
-				NAND_CTRL_ALE);
+	ret = controller->quene_rb(controller, chipnr);
+	if (ret)
+		aml_nand_msg("quene rb busy here");
 
-			if (bch_mode != NAND_ECC_NONE)
-				controller->set_usr_byte(controller,
-					oob_buf,
-					user_byte_num);
+	controller->cmd_ctrl(controller, NAND_CMD_SEQIN,
+		NAND_CTRL_CLE);
+	controller->cmd_ctrl(controller, column,
+		NAND_CTRL_ALE);
+	controller->cmd_ctrl(controller, column>>8,
+		NAND_CTRL_ALE);
+	controller->cmd_ctrl(controller, controller->page_addr,
+		NAND_CTRL_ALE);
+	controller->cmd_ctrl(controller,
+		controller->page_addr>>8, NAND_CTRL_ALE);
+	controller->cmd_ctrl(controller,
+		controller->page_addr>>16, NAND_CTRL_ALE);
 
-			controller->page_addr = plane0_page_addr;
+	NFC_SEND_CMD_IDLE(controller, NAND_TADL_TIME_CYCLE);
 
-			ret = controller->dma_write(controller,
-				buf,
-				page_size,
-				bch_mode);
-			if (ret) {
-				aml_nand_msg("dma error here");
-				goto error_exit0;
-			}
-#if  0
-			if (aml_chip->debug_num == 1) {
-				aml_nand_dbg("ops_para->page_addr =%d",
-					ops_para->page_addr);
-				aml_nand_dbg("controller->page_addr =%d",
-					controller->page_addr);
-				aml_nand_dbg("plane_page_addr =%d",
-					plane_page_addr);
-				aml_nand_dbg("plane_blk_addr =%d",
-					plane_blk_addr);
-				aml_nand_dbg("plane0_page_addr =%d",
-					plane0_page_addr);
-				aml_nand_dbg("plane1_page_addr =%d",
-					plane1_page_addr);
+	if (bch_mode != NAND_ECC_NONE)
+		controller->set_usr_byte(controller,
+			oob_buf,
+			user_byte_num);
 
-			}
-#endif
-			controller->cmd_ctrl(controller,
-				NAND_CMD_DUMMY_PROGRAM,
-				NAND_CTRL_CLE);
+	ret = controller->dma_write(controller,
+		buf,
+		page_size,
+		bch_mode);
+	if (ret) {
+		aml_nand_msg("dma error here");
+		goto error_exit0;
+	}
 
-			NFC_SEND_CMD_IDLE(controller, NAND_TADL_TIME_CYCLE);
+	/* start */
+	controller->cmd_ctrl(controller, NAND_CMD_PAGEPROG,
+		NAND_CTRL_CLE);
+	NFC_SEND_CMD_IDLE(controller, NAND_TWB_TIME_CYCLE);
+	oob_buf += user_byte_num;
+	buf += page_size;
 
-			ret = controller->quene_rb(controller, chipnr);
-			if (ret) {
-				aml_nand_msg("quene rb busy @ %s-%d",
-					__func__, __LINE__);
-				goto error_exit0;
-			}
-
-			oob_buf += user_byte_num;
-
-			/*
-			oob_buf+=(BYTES_OF_USER_PER_PAGE /(controller->chip_num;
-				plane_num));
-			*/
-			buf += page_size;
-
-			if ((controller->mfr_type == NAND_MFR_HYNIX)
-				|| (controller->mfr_type == NAND_MFR_SAMSUNG))
-				controller->cmd_ctrl(controller,
-					NAND_CMD_TWOPLANE_WRITE2,
-					NAND_CTRL_CLE);
-			else
-				controller->cmd_ctrl(controller,
-					NAND_CMD_TWOPLANE_WRITE2_MICRO,
-					NAND_CTRL_CLE);
-
-			controller->cmd_ctrl(controller, column, NAND_CTRL_ALE);
-			controller->cmd_ctrl(controller, column>>8,
-				NAND_CTRL_ALE);
-			controller->cmd_ctrl(controller, plane1_page_addr,
-				NAND_CTRL_ALE);
-			controller->cmd_ctrl(controller, plane1_page_addr>>8,
-				NAND_CTRL_ALE);
-			controller->cmd_ctrl(controller, plane1_page_addr>>16,
-				NAND_CTRL_ALE);
-
-			NFC_SEND_CMD_IDLE(controller, NAND_TADL_TIME_CYCLE);
-
-			if (bch_mode != NAND_ECC_NONE)
-				controller->set_usr_byte(controller,
-					oob_buf,
-					user_byte_num);
-
-			controller->page_addr = plane1_page_addr;
-			ret = controller->dma_write(controller,
-					buf,
-					page_size,
-					bch_mode);
-			if (ret) {
-				aml_nand_msg("dma error here");
-				goto error_exit0;
-			}
-		} else {
-			if (slc_mode) {
-				ret = slc_info->enter(controller);
-				if (ret < 0)
-					aml_nand_msg("slc enter failed here");
-			}
-
-			/*
-			NFC_SEND_CMD_IDLE(controller, NAND_TADL_TIME_CYCLE);
-			*/
-			ret = controller->quene_rb(controller, chipnr);
-			if (ret)
-				aml_nand_msg("quene rb busy @ %s-%d",
-					__func__, __LINE__);
-
-			controller->cmd_ctrl(controller, NAND_CMD_SEQIN,
-				NAND_CTRL_CLE);
-			controller->cmd_ctrl(controller, column,
-				NAND_CTRL_ALE);
-			controller->cmd_ctrl(controller, column>>8,
-				NAND_CTRL_ALE);
-			controller->cmd_ctrl(controller, controller->page_addr,
-				NAND_CTRL_ALE);
-			controller->cmd_ctrl(controller,
-				controller->page_addr>>8, NAND_CTRL_ALE);
-			controller->cmd_ctrl(controller,
-				controller->page_addr>>16, NAND_CTRL_ALE);
-			/*
-			controller->cmd_ctrl(controller,
-				NAND_CMD_PAGEPROG, NAND_CTRL_CLE);
-			*/
-			NFC_SEND_CMD_IDLE(controller, NAND_TADL_TIME_CYCLE);
-
-			if (bch_mode != NAND_ECC_NONE)
-				controller->set_usr_byte(controller,
-					oob_buf,
-					user_byte_num);
-#if 0
-			if (aml_chip->debug_num == 1) {
-				aml_nand_dbg("chipnr =%d", chipnr);
-				aml_nand_dbg("controller->page_addr =%d",
-					controller->page_addr);
-			}
-#endif
-			ret = controller->dma_write(controller,
-				buf,
-				page_size,
-				bch_mode);
-			if (ret) {
-				aml_nand_msg("dma error here");
-				goto error_exit0;
-			}
-#if  0
-			if (1) {
-				aml_nand_dbg("ops_para->page_addr =%d",
-					ops_para->page_addr);
-				aml_nand_dbg("controller->page_addr =%d",
-					controller->page_addr);
-				aml_nand_dbg("plane_page_addr =%d",
-					plane_page_addr);
-				aml_nand_dbg("plane_blk_addr =%d",
-					plane_blk_addr);
-				int tt;
-				aml_nand_dbg("page_size=%d", page_size);
-				for (tt = 0; tt < 200; tt++)
-					aml_nand_dbg("buf[%d]=%d", tt, buf[tt]);
-			}
-#endif
-		}
-		/* start */
-		controller->cmd_ctrl(controller, NAND_CMD_PAGEPROG,
-			NAND_CTRL_CLE);
-		NFC_SEND_CMD_IDLE(controller, NAND_TWB_TIME_CYCLE);
-		oob_buf += user_byte_num;
-
-		/*
-		oob_buf +=
-		(BYTES_OF_USER_PER_PAGE /(controller->chip_num * plane_num));
-		*/
-		buf += page_size;
-
-		if (check_cmdfifo_size(controller)) {
-			aml_nand_msg("check cmdfifo size timeout");
-			BUG();
-		}
+	if (check_cmdfifo_size(controller)) {
+		aml_nand_msg("check cmdfifo size timeout");
+		BUG();
 	}
 
 	for (i = 0; i < chip_num; i++) {
 		chipnr = (chip_num > 1) ? i : ops_para->chipnr;
-		st_cnt = 0;
+	st_cnt = 0;
 #ifdef AML_NAND_RB_IRQ
-		if (i == 0)
-			ret = controller->quene_rb_irq(controller, chipnr);
-		else
-			ret = controller->quene_rb(controller, chipnr);
-#else
+	if (i == 0)
+		ret = controller->quene_rb_irq(controller, chipnr);
+	else
 		ret = controller->quene_rb(controller, chipnr);
+#else
+	ret = controller->quene_rb(controller, chipnr);
 #endif
-		if (ret) {
-			aml_nand_msg("quene rb busy @ %s-%d",
-				__func__, __LINE__);
-			goto error_exit0;
-		}
-
-		controller->cmd_ctrl(controller, NAND_CMD_STATUS,
-			NAND_CTRL_CLE);
-		NFC_SEND_CMD_IDLE(controller, NAND_TWHR_TIME_CYCLE);
-WSTATUS_TRY:
-		status = controller->readbyte(controller);
-		if (status == NAND_STATUS_FAILED) {
-			aml_nand_msg("write falied at page:%d, status:0x%x",
-				page_addr,
-				status);
-			ret = -NAND_WRITE_FAILED;
-			goto error_exit0;
-		} else if (status != NAND_STATUS_RIGHT) {
-			aml_nand_msg("status failed page:%d,status:0x%x try:%d",
-				page_addr,
-				status,
-				st_cnt);
-			if (st_cnt++ < NAND_STATUS_MAX_TRY) {
-				NFC_SEND_CMD_IDLE(controller,
-					NAND_TWB_TIME_CYCLE);
-				goto WSTATUS_TRY;
-			}
-			aml_nand_msg("status still failed");
-		}
-
-		/* for hynix nand, reset reg def value */
-		if (slc_mode == 2) {
-			ret = slc_info->exit(controller);
-			if (ret < 0)
-				aml_nand_msg("slc enter failed here");
-		}
+	if (ret) {
+		aml_nand_msg("quene rb busy here");
+		goto error_exit0;
 	}
+
+	controller->cmd_ctrl(controller, NAND_CMD_STATUS,
+		NAND_CTRL_CLE);
+	NFC_SEND_CMD_IDLE(controller, NAND_TWHR_TIME_CYCLE);
+WSTATUS_TRY:
+	status = controller->readbyte(controller);
+	if (status == NAND_STATUS_FAILED) {
+		aml_nand_msg("write falied at page:%d, status:0x%x",
+			page_addr,
+			status);
+		ret = -NAND_WRITE_FAILED;
+		goto error_exit0;
+	} else if (status != NAND_STATUS_RIGHT) {
+		aml_nand_msg("status failed page:%d,status:0x%x try:%d",
+			page_addr,
+			status,
+			st_cnt);
+		if (st_cnt++ < NAND_STATUS_MAX_TRY) {
+			NFC_SEND_CMD_IDLE(controller,
+				NAND_TWB_TIME_CYCLE);
+			goto WSTATUS_TRY;
+		}
+		aml_nand_msg("status still failed");
+	}
+	}
+	/* for hynix nand, reset reg def value */
+	if (slc_mode == 2) {
+		ret = slc_info->exit(controller);
+		if (ret < 0)
+			aml_nand_msg("slc enter failed here");
+	}
+
 	return NAND_SUCCESS;
 error_exit0:
 	return ret;
@@ -1445,16 +1681,22 @@ static int block_isbad(struct amlnand_chip *aml_chip)
 	struct chip_operation *operation = &aml_chip->operation;
 
 	unsigned int blk_addr, page_per_blk_shift;
-	unsigned char chip_num = 1, chipnr;
+	unsigned char /* chip_num = 1, */ chipnr;
 	unsigned char  oob_buf[8];
 	int ret = 0;
+	u32 buf_size = 0;
+	u8* page_buf;
 
+#if 0
 	if (ops_para->option & DEV_MULTI_CHIP_MODE) {
 		chip_num = controller->chip_num;
 		/* aml_nand_dbg(" chip_num =%d ",chip_num); */
 	}
+#endif
 
 	page_per_blk_shift = ffs(flash->blocksize) - ffs(flash->pagesize);
+	if (ops_para->option & DEV_USE_SHAREPAGE_MODE)
+		ops_para->page_addr <<= 1;
 	blk_addr = ops_para->page_addr >> page_per_blk_shift;
 	chipnr = ops_para->chipnr;
 	if (unlikely(controller->page_addr >= controller->internal_page_nums)) {
@@ -1539,7 +1781,24 @@ static int block_isbad(struct amlnand_chip *aml_chip)
 		} else
 			ret = get_blcok_status(aml_chip, chipnr, blk_addr);
 	} else {
-		ops_para->data_buf = controller->page_buf;
+
+			buf_size = (flash->pagesize + flash->oobsize) * controller->chip_num;
+			if (flash->option & NAND_MULTI_PLANE_MODE)
+				buf_size <<= 1;
+
+			if (flash->option & NAND_USE_SHAREPAGE_MODE)
+				buf_size <<= 1;
+
+			page_buf = aml_nand_malloc(buf_size);
+			if (!page_buf) {
+				aml_nand_msg("no memory for data buf, and need %x", buf_size);
+				printk( "%s: line:%d\n", __func__, __LINE__);
+				ret = -NAND_MALLOC_FAILURE;
+				goto exit_error0;
+			}
+		/*ops_para->data_buf = controller->page_buf; */
+		ops_para->data_buf = page_buf;
+
 		ops_para->oob_buf = controller->oob_buf;
 		ops_para->ooblen = sizeof(oob_buf);
 
@@ -1551,6 +1810,8 @@ static int block_isbad(struct amlnand_chip *aml_chip)
 		ret = operation->read_page(aml_chip);
 
 		nand_release_chip(aml_chip);
+		aml_nand_free(page_buf);
+		page_buf = NULL;
 
 		if ((ret < 0) || (ops_para->ecc_err)) {
 			aml_nand_msg("nand read page failed at %d chip %d",
@@ -1585,14 +1846,20 @@ static int block_markbad(struct amlnand_chip *aml_chip)
 	struct chip_operation *operation = &aml_chip->operation;
 
 	unsigned int blk_addr, pages_per_blk_shift;
-	unsigned char chip_num = 1, chipnr;
+	unsigned char /* chip_num = 1,*/ chipnr;
 	unsigned short *tmp_status;
 	int ret;
+	u32 buf_size = 0;
+	u8* page_buf;
 
+#if 0
 	if (ops_para->option & DEV_MULTI_CHIP_MODE)
 		chip_num = controller->chip_num;
+#endif
 
 	pages_per_blk_shift = ffs(flash->blocksize) - ffs(flash->pagesize);
+	if (ops_para->option & DEV_USE_SHAREPAGE_MODE)
+		ops_para->page_addr <<= 1;
 	blk_addr = ops_para->page_addr >> pages_per_blk_shift;
 	chipnr = ops_para->chipnr;
 	if (unlikely(controller->page_addr >= controller->internal_page_nums)) {
@@ -1718,7 +1985,22 @@ static int block_markbad(struct amlnand_chip *aml_chip)
 	/* ops_para->page_addr = blk_addr << pages_per_blk_shift; */
 	/* ops_para->chipnr = blk_addr % controller->chip_num; */
 	controller->select_chip(controller, ops_para->chipnr);
-	ops_para->data_buf = controller->page_buf;
+
+	buf_size = (flash->pagesize + flash->oobsize) * controller->chip_num;
+	if (flash->option & NAND_MULTI_PLANE_MODE)
+	    buf_size <<= 1;
+
+	if (flash->option & NAND_USE_SHAREPAGE_MODE)
+		buf_size <<= 1;
+
+	page_buf = aml_nand_malloc(buf_size);
+	if (!page_buf) {
+	    aml_nand_msg("no memory for data buf, and need %x", buf_size);
+		printk( "%s: line:%d\n", __func__, __LINE__);
+	    return -NAND_MALLOC_FAILURE;
+	}
+	//ops_para->data_buf = controller->page_buf;
+	ops_para->data_buf = page_buf;
 	ops_para->oob_buf = controller->oob_buf;
 	memset((unsigned char *)ops_para->data_buf, 0x0, flash->pagesize);
 	memset((unsigned char *)ops_para->oob_buf, 0x0, flash->oobsize);
@@ -1730,6 +2012,9 @@ static int block_markbad(struct amlnand_chip *aml_chip)
 
 	if (aml_chip->state == CHIP_READY)
 		nand_release_chip(aml_chip);
+
+	aml_nand_free(page_buf);
+	page_buf = NULL;
 
 	if (ret < 0) {
 		aml_nand_msg(" nand write failed");
@@ -1774,6 +2059,9 @@ static int erase_block(struct amlnand_chip *aml_chip)
 			slc_mode = 0;
 	} else
 	   slc_mode = 0;
+
+	if (ops_para->option & DEV_USE_SHAREPAGE_MODE)
+		ops_para->page_addr <<= 1;
 
 	controller->page_addr = ops_para->page_addr;
 
@@ -1896,7 +2184,7 @@ static int erase_block(struct amlnand_chip *aml_chip)
 ESTATUS_TRY:
 		status = controller->readbyte(controller);
 		if (status == NAND_STATUS_FAILED) {
-			aml_nand_msg("erase falied, chip%d page:%d,status:0x%x",
+			aml_nand_msg("erase failed, chip%d page:0x%x,status:0x%x",
 				chipnr,
 				controller->page_addr,
 				status);
@@ -2238,14 +2526,16 @@ static int blk_modify_bbt_chip_op(struct amlnand_chip *aml_chip, int value)
 	/* struct chip_operation *operation = & aml_chip->operation; */
 
 	unsigned int blk_addr, page_per_blk_shift;
-	unsigned char chip_num = 1, chipnr;
+	unsigned char /* chip_num = 1,*/ chipnr;
 	/* unsigned char  oob_buf[8]; */
 	int ret = 0;
-
+#if 0
 	if (ops_para->option & DEV_MULTI_CHIP_MODE)
 		chip_num = controller->chip_num;
-
+#endif
 	page_per_blk_shift = ffs(flash->blocksize) - ffs(flash->pagesize);
+	if (ops_para->option & DEV_USE_SHAREPAGE_MODE)
+		ops_para->page_addr <<= 1;
 	blk_addr = ops_para->page_addr >> page_per_blk_shift;
 	chipnr = ops_para->chipnr;
 	if (unlikely(controller->page_addr >= controller->internal_page_nums)) {
@@ -2338,21 +2628,26 @@ static int blk_modify_bbt_chip_op(struct amlnand_chip *aml_chip, int value)
 static int update_bbt_chip_op(struct amlnand_chip *aml_chip)
 {
 	struct hw_controller *controller = &aml_chip->controller;
-	struct nand_flash *flash = &aml_chip->flash;
 	struct chip_ops_para *ops_para = &aml_chip->ops_para;
+#if 0
+	struct nand_flash *flash = &aml_chip->flash;
 	/* struct chip_operation *operation = & aml_chip->operation; */
 
 	unsigned int blk_addr, pages_per_blk_shift;
 	unsigned char chip_num = 1, chipnr;
 	/* unsigned short * tmp_status; */
+#endif
 	int ret;
 
+#if 0
 	if (ops_para->option & DEV_MULTI_CHIP_MODE)
 		chip_num = controller->chip_num;
-
 	pages_per_blk_shift = ffs(flash->blocksize) - ffs(flash->pagesize);
 	blk_addr = ops_para->page_addr >> pages_per_blk_shift;
 	chipnr = ops_para->chipnr;
+#endif
+	if (ops_para->option & DEV_USE_SHAREPAGE_MODE)
+		ops_para->page_addr <<= 1;
 	if (unlikely(controller->page_addr >= controller->internal_page_nums)) {
 		controller->page_addr -=
 			controller->internal_page_nums;
@@ -2378,15 +2673,25 @@ static int get_onfi_features(struct amlnand_chip *aml_chip,
 {
 	struct hw_controller *controller = &(aml_chip->controller);
 	int i, j;
+	int time_out_cnt = 0;
 
 	for (i = 0; i < controller->chip_num; i++) {
 		controller->select_chip(controller, i);
+		if (controller->quene_rb(controller, i) < 0) {
+			aml_nand_dbg("Get features quene rb failed here");
+			return -NAND_BUSY_FAILURE;
+		}
 		controller->cmd_ctrl(controller, NAND_CMD_GET_FEATURES,
 			NAND_CTRL_CLE);
 		controller->cmd_ctrl(controller, addr, NAND_CTRL_ALE);
 		NFC_SEND_CMD_IDLE(controller, NAND_TWB_TIME_CYCLE);
 		NFC_SEND_CMD_IDLE(controller, 0);
-
+		do {
+			if (NFC_CMDFIFO_SIZE(controller) <= 0)
+				break;
+			udelay(2);
+		} while (time_out_cnt++ <= AML_NAND_READ_BUSY_TIMEOUT);
+		udelay(1); //wait 1us
 		for (j = 0; j < 4; j++)
 			buf[j] = controller->readbyte(controller);
 	}
@@ -2408,6 +2713,10 @@ static int set_onfi_features(struct amlnand_chip *aml_chip,
 
 	for (i = 0; i < controller->chip_num; i++) {
 		controller->select_chip(controller, i);
+		if (controller->quene_rb(controller, i) < 0) {
+			aml_nand_dbg("Set features quene rb failed here");
+			return -NAND_BUSY_FAILURE;
+		}
 		controller->cmd_ctrl(controller, NAND_CMD_SET_FEATURES,
 			NAND_CTRL_CLE);
 		controller->cmd_ctrl(controller, addr, NAND_CTRL_ALE);
@@ -2437,10 +2746,53 @@ static int set_onfi_features(struct amlnand_chip *aml_chip,
  * nand_reset, send reset command, and assume nand selected here
  *
  *************************************************************/
+int nand_hardreset(struct amlnand_chip *aml_chip, u8 chipnr)
+{
+	struct hw_controller *controller = &(aml_chip->controller);
+	int status;
+
+	if (controller->quene_rb(controller, chipnr) < 0) {
+		aml_nand_msg("%s(): quene rb failed here", __func__);
+		return -NAND_BUSY_FAILURE;
+	}
+
+	//Delay
+	mdelay(5);
+
+	controller->cmd_ctrl(controller, 0x78, NAND_CTRL_CLE);
+	controller->cmd_ctrl(controller, chipnr>> 0, NAND_CTRL_ALE);
+	controller->cmd_ctrl(controller, chipnr>> 8, NAND_CTRL_ALE);
+	controller->cmd_ctrl(controller, chipnr>>16, NAND_CTRL_ALE);
+	NFC_SEND_CMD_IDLE(controller, NAND_TWHR_TIME_CYCLE);
+	NFC_SEND_CMD_IDLE(controller, 0);
+	NFC_SEND_CMD_IDLE(controller, 0);
+
+	while (NFC_CMDFIFO_SIZE(controller));
+
+	status = (int)controller->readbyte(controller);
+	while ((status & 0x60) != 0x60) {
+	    udelay(1);
+	    status = (int)controller->readbyte(controller);
+	}
+
+	/* hardreset */
+	NFC_SEND_CMD_IDLE(controller, 0);
+	controller->cmd_ctrl(controller, 0xFD, NAND_CTRL_CLE);
+	NFC_SEND_CMD_IDLE(controller, NAND_TWB_TIME_CYCLE);
+	NFC_SEND_CMD_IDLE(controller, 0);
+
+	/* DataSheet says 3 ms of tPOR */
+	mdelay(3);
+
+	return NAND_SUCCESS;
+}
 int nand_reset(struct amlnand_chip *aml_chip, u8 chipnr)
 {
 	struct hw_controller *controller = &(aml_chip->controller);
 	int status;
+
+	/* fixme, read back controller status. */
+
 	/* reset */
 	NFC_SEND_CMD_IDLE(controller, 0);
 	controller->cmd_ctrl(controller, NAND_CMD_RESET, NAND_CTRL_CLE);
@@ -2463,8 +2815,7 @@ int nand_reset(struct amlnand_chip *aml_chip, u8 chipnr)
 	NFC_SEND_CMD_IDLE(controller, 0);
 	NFC_SEND_CMD_IDLE(controller, 0);
 
-	while (NFC_CMDFIFO_SIZE(controller))
-		;
+	while (NFC_CMDFIFO_SIZE(controller));
 
 	status = (int)controller->readbyte(controller);
 	if (status & NAND_STATUS_READY)
@@ -2521,6 +2872,58 @@ error_exit0:
 	return ret;
 }
 
+static int nand_read_param(struct amlnand_chip *aml_chip, u8 chip_nr,
+	u8 param_addr, u8 *param)
+{
+	struct hw_controller *controller = &(aml_chip->controller);
+	int ret = 0, i = 0, j = 0;
+	int status = 0;
+	int chip_num = 1;
+
+	memset(param, 0, 512);
+
+	if ( controller->chip_num )
+		chip_num = 1; // TBD: controller->chip_num;
+
+	/* Read From one chip now */
+	for (i=0; i < chip_num; i++) {
+		controller->select_chip(controller, i);
+		controller->cmd_ctrl(controller, NAND_CMD_PARAM, NAND_CTRL_CLE);
+		controller->cmd_ctrl(controller, param_addr, NAND_CTRL_ALE);
+
+		NFC_SEND_CMD_IDLE(controller, NAND_TWB_TIME_CYCLE);
+		NFC_SEND_CMD_IDLE(controller, 0);
+		ndelay(600);
+
+		if (controller->quene_rb(controller, i) < 0) {
+			aml_nand_msg("%s: quene rb failed here", __func__);
+			return -NAND_BUSY_FAILURE;
+		}
+
+		controller->cmd_ctrl(controller, NAND_CMD_STATUS, NAND_CTRL_CLE);
+		NFC_SEND_CMD_IDLE(controller, NAND_TWHR_TIME_CYCLE);
+		NFC_SEND_CMD_IDLE(controller, 0);
+		NFC_SEND_CMD_IDLE(controller, 0);
+		ndelay(600);
+		while (NFC_CMDFIFO_SIZE(controller) > 0);
+		status = (int)controller->readbyte(controller);
+		while  (!(status & NAND_STATUS_READY)) {
+			status = (int)controller->readbyte(controller);
+		}
+		controller->cmd_ctrl(controller, 0x0, NAND_CTRL_CLE);
+		NFC_SEND_CMD_IDLE(controller, 0);
+
+		for (j=0; j<512; j++)
+			param[j] = controller->readbyte(controller);
+	}
+	aml_nand_dbg("param data0[32~43]: %x, %x, %x, %x,%x, %x",param[0],param[1],
+					param[2],param[3],param[4],param[5]);
+	aml_nand_dbg("param data0[32~43]: %x, %x, %x, %x,%x, %x",param[32],param[33],
+					param[34],param[35],param[36],param[37]);
+	/* TBD: NEED to add  crc to validate JEDEC */
+	return ret;
+}
+
 int amlnand_init_operation(struct amlnand_chip *aml_chip)
 {
 	struct chip_operation *operation = &(aml_chip->operation);
@@ -2529,6 +2932,8 @@ int amlnand_init_operation(struct amlnand_chip *aml_chip)
 		operation->reset = nand_reset;
 	if (!operation->read_id)
 		operation->read_id = read_id;
+	if (!operation->nand_read_param)
+		operation->nand_read_param = nand_read_param;
 	if (!operation->set_onfi_para)
 		operation->set_onfi_para = set_onfi_features;
 	if (!operation->get_onfi_para)
@@ -2566,4 +2971,3 @@ int amlnand_init_operation(struct amlnand_chip *aml_chip)
 
 	return NAND_SUCCESS;
 }
-

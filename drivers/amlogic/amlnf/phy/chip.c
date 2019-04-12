@@ -24,6 +24,8 @@ static int get_flash_type(struct amlnand_chip *aml_chip)
 	unsigned char dev_id[MAX_ID_LEN] = {0};
 	struct nand_flash *type = NULL;
 	int ret = 0, i, extid;
+	u8 flash_id0 = 0xff;
+	u8 onfi_param_data[512] = {0};
 
 	ret = operation->read_id(aml_chip,
 		0,
@@ -68,6 +70,7 @@ static int get_flash_type(struct amlnand_chip *aml_chip)
 			}
 		}
 #endif
+		flash_id0 = dev_id[0];
 		if (!type) {
 			aml_nand_msg("no matched id");
 			ret = -NAND_ID_FAILURE;
@@ -135,13 +138,125 @@ static int get_flash_type(struct amlnand_chip *aml_chip)
 	aml_nand_dbg("internal_page_nums =%d,internal_chipnr=%d",
 			controller->internal_page_nums,
 			aml_chip->flash.internal_chipnr);
-	if (!memcmp((char *)dev_id, "ONFI", 4))
+	if (!memcmp((char *)dev_id, "ONFI", 4)) {
+		/*judege micron/specteck nand by liuxj*/
+		if (operation->nand_read_param(aml_chip, 0, 0, &onfi_param_data[0]) == 0) { /*zero is valid*/
+			if (flash_id0 == 0x2c) {
+				aml_nand_msg("param data[32~43]: %x, %x, %x, %x,%x, %x",onfi_param_data[32],onfi_param_data[33],
+					onfi_param_data[34],onfi_param_data[35],onfi_param_data[36],onfi_param_data[37]);
+				aml_nand_dbg("read retry option[181~182]: %x, %x",onfi_param_data[181],onfi_param_data[182]);
+				if ((onfi_param_data[32] == 0x4D) && (onfi_param_data[33] == 0x49) && (onfi_param_data[34] == 0x43)
+					&& (onfi_param_data[35] == 0x52) && (onfi_param_data[36] == 0x4F) && (onfi_param_data[37] == 0x4E)) {
+					aml_nand_msg("nand Manufacturer: micron\n");
+				} else if ((onfi_param_data[32] == 0x53) && (onfi_param_data[33] == 0x50) && (onfi_param_data[34] == 0x45)
+					&& (onfi_param_data[35] == 0x43) && (onfi_param_data[36] == 0x54) && (onfi_param_data[37] == 0x45)) {
+					aml_nand_msg("nand Manufacturer: specteck\n");
+				} else {
+					aml_nand_msg("unknown Manufacturer ");
+				}
+				aml_nand_dbg("block num: 0x%x,0x%x,0x%x,0x%x",onfi_param_data[99],onfi_param_data[98],onfi_param_data[97],onfi_param_data[96]);
+			}
+		} else {
+			aml_nand_msg("read nand param data fail\n");
+		}
 		controller->onfi_mode = type->onfi_mode;
+	}
 #endif
 error_exit:
 	return ret;
 }
 
+int mt_L95B_nand_check(struct amlnand_chip *aml_chip)
+{
+	struct nand_flash *flash = &(aml_chip->flash);
+
+	if ((flash->id[0] == 0x2C) &&
+	    ((flash->id[1] == 0x84) && (flash->id[2] == 0x64) &&
+	     (flash->id[3] == 0x54) && (flash->id[4] == 0xA9)) ) {
+		return 0;
+	} else  return -1;
+}
+
+int mt_L85C_nand_check(struct amlnand_chip *aml_chip)
+{
+	struct nand_flash *flash = &(aml_chip->flash);
+
+	if ((flash->id[0] == 0x2C) &&
+	    (flash->id[1] == 0x84) && (flash->id[2] == 0x64) &&
+	     (flash->id[3] == 0x3c) && (flash->id[4] == 0xA9)
+	     && (flash->id[5] == 0x04)) {
+		return 0;
+	} else  return -1;
+}
+
+int mt_L04A_nand_check(struct amlnand_chip *aml_chip)
+{
+	struct nand_flash *flash = &(aml_chip->flash);
+
+	if ((flash->id[0] == 0x2C) &&
+	    ((flash->id[1] == 0x64) && (flash->id[2] == 0x44) &&
+	     (flash->id[3] == 0x32) && (flash->id[4] == 0xA5)) ) {
+		return 0;
+	} else  return -1;
+}
+
+int mt_L05B_nand_check(struct amlnand_chip *aml_chip)
+{
+	struct nand_flash *flash = &(aml_chip->flash);
+
+	if ((flash->id[0] == 0x2C) &&
+	    ((flash->id[1] == 0x84) && (flash->id[2] == 0x44) &&
+	     (flash->id[3] == 0x32) && (flash->id[4] == 0xAA)) ) {
+		return 0;
+	} else  return -1;
+}
+
+static void micron_check_rand_mode (struct amlnand_chip *aml_chip)
+{
+	struct hw_controller *controller = &(aml_chip->controller);
+	struct chip_operation *operation = &(aml_chip->operation);
+	//struct nand_flash *flash = &(aml_chip->flash);
+	struct en_slc_info *slc_info = &(controller->slc_info);
+	unsigned char rand_val[4] ={0, 0, 0, 0};
+	const int rand_addr = 0x92;
+
+	aml_nand_msg("%s()", __func__);
+	slc_info->micron_l0l3_mode = 0;
+
+
+	/* No Randomizer (L0L3) Support for 3D 100 series nand */
+	if ((mt_L04A_nand_check(aml_chip) == 0) ||
+		(mt_L05B_nand_check(aml_chip) == 0))
+			return;
+
+	operation->get_onfi_para(aml_chip, rand_val, rand_addr);
+	aml_nand_dbg("%s, %d,val:%d",__func__, __LINE__, rand_val[0]);
+	if (rand_val[0] == 1) {
+		rand_val[0] = 0;
+		operation->set_onfi_para(aml_chip, rand_val, rand_addr);
+		operation->get_onfi_para(aml_chip, rand_val, rand_addr);
+		aml_nand_dbg("%s, %d,val:%d",
+				__func__, __LINE__, rand_val[0]);
+		if (rand_val[0] == 0) slc_info->micron_l0l3_mode = 1;
+
+		rand_val[0] = 1;
+		operation->set_onfi_para(aml_chip, rand_val, rand_addr);
+		operation->get_onfi_para(aml_chip, rand_val, rand_addr);
+		aml_nand_dbg("%s, %d,val:%d", __func__, __LINE__, rand_val[0]);
+	} else if (rand_val[0] == 0) {
+		rand_val[0] = 1;
+		operation->set_onfi_para(aml_chip, rand_val, rand_addr);
+		operation->get_onfi_para(aml_chip, rand_val, rand_addr);
+		if (rand_val[0] == 1) {
+		   aml_nand_dbg("%s, Set Randomizer val:%d ON",
+						__func__, rand_val[0]);
+		   slc_info->micron_l0l3_mode = 1;
+		}
+	}
+
+	if (slc_info->micron_l0l3_mode)
+		aml_nand_msg("nand: Support for Randomizer MODE");
+}
 
 /*
   * fill amlnand_chip struct.
@@ -182,15 +297,12 @@ static int amlnand_chip_scan(struct amlnand_chip *aml_chip)
 			aml_nand_dbg("read id failed and ret:%d", ret);
 			continue;
 		}
-		/*
-		memcmp((char*)&(aml_chip->flash.id[0]),
-			(char*)&dev_id[0], MAX_ID_LEN)
-		*/
-		aml_nand_dbg("controller->flash_type =%d",
+
+		aml_nand_msg("controller->flash_type =%d",
 			controller->flash_type);
 		if (((controller->flash_type == NAND_TYPE_SLC)
 			|| (controller->flash_type == NAND_TYPE_MLC))
-&& (aml_chip->flash.id[1] == dev_id[1])) {
+			&& (aml_chip->flash.id[1] == dev_id[1])) {
 			controller->ce_enable[chip_num] =
 				(((CE_PAD_DEFAULT >> i*4) & 0xf) << 10);
 			controller->rb_enable[chip_num] =
@@ -227,6 +339,9 @@ static int amlnand_chip_scan(struct amlnand_chip *aml_chip)
 				onfi_features[0]);
 		}
 	}
+
+	if (aml_chip->flash.new_type == MICRON_20NM)
+		micron_check_rand_mode(aml_chip);
 
 	ret = NAND_SUCCESS;
 error_exit0:
@@ -278,7 +393,7 @@ static int nand_buf_init(struct amlnand_chip *aml_chip)
 		err = -NAND_MALLOC_FAILURE;
 		goto exit_error1;
 	}
-
+#if 0
 	buf_size = (flash->pagesize + flash->oobsize) * controller->chip_num;
 	if (flash->option & NAND_MULTI_PLANE_MODE)
 		buf_size <<= 1;
@@ -289,9 +404,9 @@ static int nand_buf_init(struct amlnand_chip *aml_chip)
 		err = -NAND_MALLOC_FAILURE;
 		goto exit_error2;
 	}
-
+#endif
 	buf_size = flash->oobsize * controller->chip_num;
-	if (flash->option & NAND_MULTI_PLANE_MODE)
+	if (flash->option & (NAND_MULTI_PLANE_MODE | NAND_USE_SHAREPAGE_MODE))
 		buf_size <<= 1;
 
 	controller->oob_buf = aml_nand_malloc(buf_size);
@@ -301,20 +416,12 @@ static int nand_buf_init(struct amlnand_chip *aml_chip)
 		goto exit_error3;
 	}
 
-	/*
-	if (request_irq(INT_NAND,
-		(irq_handler_t)nand_interrupt_monitor,
-		0,
-		"anl_nand",
-		aml_chip)) {
-		printk("request SDIO irq error!!!\n");
-		return -1;
-	}
-	*/
 	return NAND_SUCCESS;
 exit_error3:
+#if 0
 	aml_nand_free(controller->page_buf);
 exit_error2:
+#endif
 	amlnf_dma_free(controller->user_buf,
 		(flash->pagesize / controller->ecc_bytes)*sizeof(int),
 		1);
@@ -349,7 +456,7 @@ static void nand_buf_free(struct amlnand_chip *aml_chip)
 	amlnf_dma_free(controller->user_buf,
 		(flash->pagesize / controller->ecc_bytes)*sizeof(int),
 		1);
-	aml_nand_free(controller->page_buf);
+	/* aml_nand_free(controller->page_buf); */
 	aml_nand_free(controller->oob_buf);
 }
 
@@ -459,6 +566,8 @@ int amlchip_opstest(struct amlnand_chip *aml_chip)
 	uint64_t addr, opslen = 0, len = 0;
 	unsigned int erase_shift, write_shift, writesize, erasesize;
 	int i, ret = 0;
+	u32 buf_size = 0;
+	u8 *page_buf;
 
 	/* should setting nand pinmux first */
 	nand_get_chip(aml_chip);
@@ -469,11 +578,26 @@ int amlchip_opstest(struct amlnand_chip *aml_chip)
 	writesize = flash->pagesize;
 	erasesize = flash->blocksize;
 
+	buf_size = (flash->pagesize + flash->oobsize) * controller->chip_num;
+	if (flash->option & NAND_MULTI_PLANE_MODE)
+	    buf_size <<= 1;
+
+	if (flash->option & NAND_USE_SHAREPAGE_MODE)
+		buf_size <<= 1;
+
+	page_buf = aml_nand_malloc(buf_size);
+	if (!page_buf) {
+	    aml_nand_msg("no memory for data buf, and need %x", buf_size);
+		printk( "%s: line:%d\n", __func__, __LINE__);
+	    return 0;
+	}
+
 	/* ops_para->option = (DEV_ECC_HW_MODE |DEV_SERIAL_CHIP_MODE ); */
 	ops_para->option = (DEV_ECC_HW_MODE |
 		NAND_MULTI_PLANE_MODE |
-		DEV_SERIAL_CHIP_MODE);
-	ops_para->data_buf = controller->page_buf;
+		DEV_SERIAL_CHIP_MODE | DEV_USE_SHAREPAGE_MODE);
+	ops_para->data_buf = page_buf;
+	/* ops_para->data_buf = controller->page_buf; */
 	/* ops_para->oob_buf = controller->oobbuf; */
 
 	if (ops_para->option & DEV_MULTI_PLANE_MODE) {
@@ -485,6 +609,9 @@ int amlchip_opstest(struct amlnand_chip *aml_chip)
 		writesize *= controller->chip_num;
 		erasesize *= controller->chip_num;
 	}
+
+	if (ops_para->option & DEV_USE_SHAREPAGE_MODE)
+		writesize *= 2;
 
 	erase_shift  = ffs(erasesize) - 1;
 	write_shift  = ffs(writesize) - 1;
@@ -628,9 +755,10 @@ int amlchip_opstest(struct amlnand_chip *aml_chip)
 			aml_nand_msg("bit_flip at page_addr:%d",
 				ops_para->page_addr);
 	}
-
 	/* should clear nand pinmux here */
 	nand_release_chip(aml_chip);
+	aml_nand_free(page_buf);
+	page_buf = NULL;
 	return 0;
 }
 
