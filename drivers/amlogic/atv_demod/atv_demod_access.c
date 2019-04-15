@@ -38,7 +38,7 @@ int amlatvdemod_reg_read(unsigned int reg, unsigned int *val)
 			pr_err("%s GCLK_MPEG0:0x%x\n", __func__, ret);
 			return 0;
 		}
-	} else if (is_meson_tl1_cpu()) {
+	} else if (is_meson_tl1_cpu() || is_meson_tm2_cpu()) {
 		amlatvdemod_hiu_reg_read(HHI_GCLK_MPEG0, &ret);
 		if (0 == ((1 << 22) & ret)) {
 			pr_err("%s GCLK_MPEG0:0x%x\n", __func__, ret);
@@ -66,7 +66,7 @@ int amlatvdemod_reg_write(unsigned int reg, unsigned int val)
 			pr_err("%s GCLK_MPEG0:0x%x\n", __func__, ret);
 			return 0;
 		}
-	} else if (is_meson_tl1_cpu()) {
+	} else if (is_meson_tl1_cpu() || is_meson_tm2_cpu()) {
 		amlatvdemod_hiu_reg_read(HHI_GCLK_MPEG0, &ret);
 		if (0 == ((1 << 22) & ret)) {
 			pr_err("%s GCLK_MPEG0:0x%x\n", __func__, ret);
@@ -94,7 +94,7 @@ int atvaudiodem_reg_read(unsigned int reg, unsigned int *val)
 			pr_err("%s GCLK_MPEG0:0x%x\n", __func__, ret);
 			return 0;
 		}
-	} else if (is_meson_tl1_cpu()) {
+	} else if (is_meson_tl1_cpu() || is_meson_tm2_cpu()) {
 		amlatvdemod_hiu_reg_read(HHI_GCLK_MPEG0, &ret);
 		if (0 == ((1 << 28) & ret)) {
 			pr_err("%s GCLK_MPEG0:0x%x\n", __func__, ret);
@@ -119,7 +119,7 @@ int atvaudiodem_reg_write(unsigned int reg, unsigned int val)
 			pr_err("%s GCLK_MPEG0:0x%x\n", __func__, ret);
 			return 0;
 		}
-	} else if (is_meson_tl1_cpu()) {
+	} else if (is_meson_tl1_cpu() || is_meson_tm2_cpu()) {
 		amlatvdemod_hiu_reg_read(HHI_GCLK_MPEG0, &ret);
 		if (0 == ((1 << 28) & ret)) {
 			pr_err("%s GCLK_MPEG0:0x%x\n", __func__, ret);

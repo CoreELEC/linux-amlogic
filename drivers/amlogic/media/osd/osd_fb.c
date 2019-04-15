@@ -3740,6 +3740,7 @@ static struct osd_device_data_s osd_gxbb = {
 	.vpp_fifo_len = 0x77f,
 	.dummy_data = 0x00808000,
 	.has_viu2 = 0,
+	.osd0_sc_independ = 0,
 };
 
 static struct osd_device_data_s osd_gxtvbb = {
@@ -3755,6 +3756,7 @@ static struct osd_device_data_s osd_gxtvbb = {
 	.vpp_fifo_len = 0xfff,
 	.dummy_data = 0x0,
 	.has_viu2 = 0,
+	.osd0_sc_independ = 0,
 };
 
 static struct osd_device_data_s osd_gxl = {
@@ -3770,6 +3772,7 @@ static struct osd_device_data_s osd_gxl = {
 	.vpp_fifo_len = 0x77f,
 	.dummy_data = 0x00808000,
 	.has_viu2 = 0,
+	.osd0_sc_independ = 0,
 };
 
 static struct osd_device_data_s osd_gxm = {
@@ -3785,6 +3788,7 @@ static struct osd_device_data_s osd_gxm = {
 	.vpp_fifo_len = 0xfff,
 	.dummy_data = 0x00202000,/* dummy data is different */
 	.has_viu2 = 0,
+	.osd0_sc_independ = 0,
 };
 
 static struct osd_device_data_s osd_txl = {
@@ -3800,6 +3804,7 @@ static struct osd_device_data_s osd_txl = {
 	.vpp_fifo_len = 0x77f,
 	.dummy_data = 0x00808000,
 	.has_viu2 = 0,
+	.osd0_sc_independ = 0,
 };
 
 static struct osd_device_data_s osd_txlx = {
@@ -3815,6 +3820,7 @@ static struct osd_device_data_s osd_txlx = {
 	.vpp_fifo_len = 0x77f,
 	.dummy_data = 0x00808000,
 	.has_viu2 = 0,
+	.osd0_sc_independ = 0,
 };
 
 static struct osd_device_data_s osd_axg = {
@@ -3831,6 +3837,7 @@ static struct osd_device_data_s osd_axg = {
 	.vpp_fifo_len = 0x400,
 	.dummy_data = 0x00808000,
 	.has_viu2 = 0,
+	.osd0_sc_independ = 0,
 };
 
 static struct osd_device_data_s osd_g12a = {
@@ -3846,6 +3853,7 @@ static struct osd_device_data_s osd_g12a = {
 	.vpp_fifo_len = 0xfff,/* 2048 */
 	.dummy_data = 0x00808000,
 	.has_viu2 = 1,
+	.osd0_sc_independ = 0,
 };
 
 static struct osd_device_data_s osd_g12b = {
@@ -3861,6 +3869,7 @@ static struct osd_device_data_s osd_g12b = {
 	.vpp_fifo_len = 0xfff,/* 2048 */
 	.dummy_data = 0x00808000,
 	.has_viu2 = 1,
+	.osd0_sc_independ = 0,
 };
 
 static struct osd_device_data_s osd_tl1 = {
@@ -3876,6 +3885,7 @@ static struct osd_device_data_s osd_tl1 = {
 	.vpp_fifo_len = 0xfff,/* 2048 */
 	.dummy_data = 0x00808000,
 	.has_viu2 = 1,
+	.osd0_sc_independ = 0,
 };
 
 static struct osd_device_data_s osd_sm1 = {
@@ -3891,6 +3901,23 @@ static struct osd_device_data_s osd_sm1 = {
 	.vpp_fifo_len = 0xfff,/* 2048 */
 	.dummy_data = 0x00808000,
 	.has_viu2 = 1,
+	.osd0_sc_independ = 0,
+};
+
+static struct osd_device_data_s osd_tm2 = {
+	.cpu_id = __MESON_CPU_MAJOR_ID_TM2,
+	.osd_ver = OSD_HIGH_ONE,
+	.afbc_type = MALI_AFBC,
+	.osd_count = 4,
+	.has_deband = 1,
+	.has_lut = 1,
+	.has_rdma = 1,
+	.has_dolby_vision = 0,
+	.osd_fifo_len = 64, /* fifo len 64*8 = 512 */
+	.vpp_fifo_len = 0xfff,/* 2048 */
+	.dummy_data = 0x00808000,
+	.has_viu2 = 1,
+	.osd0_sc_independ = 1,
 };
 
 static const struct of_device_id meson_fb_dt_match[] = {
@@ -3943,6 +3970,10 @@ static const struct of_device_id meson_fb_dt_match[] = {
 		.compatible = "amlogic, meson-sm1",
 		.data = &osd_sm1,
 	},
+	{
+		.compatible = "amlogic, meson-tm2",
+		.data = &osd_tm2,
+	},
 	{},
 };
 
@@ -3984,7 +4015,6 @@ static int osd_probe(struct platform_device *pdev)
 			return -ENODEV;
 		}
 	}
-
 	/* get interrupt resource */
 	int_viu_vsync = platform_get_irq_byname(pdev, "viu-vsync");
 	if (int_viu_vsync  == -ENXIO) {

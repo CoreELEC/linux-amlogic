@@ -130,8 +130,9 @@ struct ss_reg_vt {
 #define IC_VER_GXLX	(0x03)
 #define IC_VER_TXHD	(0x04)
 #define IC_VER_TL1	(0x05)
+#define IC_VER_TM2	(0x06)
 
-#define IC_VER_NUB	(0x06)
+#define IC_VER_NUB	(0x07)
 
 
 /*-----------------------*/

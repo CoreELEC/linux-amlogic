@@ -421,7 +421,8 @@ static void tvafe_cvd2_write_mode_reg(struct tvafe_cvd2_s *cvd2,
 	/*setting for txhd snow*/
 	if (tvafe_get_snow_cfg() &&
 		(tvafe_cpu_type() == CPU_TYPE_TXHD ||
-		tvafe_cpu_type() == CPU_TYPE_TL1)) {
+		tvafe_cpu_type() == CPU_TYPE_TL1 ||
+		tvafe_cpu_type() == CPU_TYPE_TM2)) {
 		W_APB_BIT(CVD2_OUTPUT_CONTROL, 3, 5, 2);
 		W_APB_REG(ACD_REG_6C, 0x80500000);
 	}
@@ -2621,7 +2622,8 @@ void tvafe_snow_config(unsigned int onoff)
 {
 	if (tvafe_snow_function_flag == 0 ||
 		tvafe_cpu_type() == CPU_TYPE_TXHD ||
-		tvafe_cpu_type() == CPU_TYPE_TL1)
+		tvafe_cpu_type() == CPU_TYPE_TL1 ||
+		tvafe_cpu_type() == CPU_TYPE_TM2)
 		return;
 	if (onoff)
 		W_APB_BIT(CVD2_OUTPUT_CONTROL, 3, BLUE_MODE_BIT, BLUE_MODE_WID);
@@ -2632,7 +2634,8 @@ void tvafe_snow_config(unsigned int onoff)
 void tvafe_snow_config_clamp(unsigned int onoff)
 {
 	if (tvafe_cpu_type() == CPU_TYPE_TXHD ||
-		tvafe_cpu_type() == CPU_TYPE_TL1) {
+		tvafe_cpu_type() == CPU_TYPE_TL1 ||
+		tvafe_cpu_type() == CPU_TYPE_TM2) {
 		if (onoff)
 			vdin_adjust_tvafesnow_brightness();
 		return;

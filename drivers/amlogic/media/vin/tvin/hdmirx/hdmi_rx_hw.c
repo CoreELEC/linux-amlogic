@@ -116,7 +116,7 @@ unsigned int hdmirx_rd_dwc(unsigned int addr)
 	int data;
 	unsigned long dev_offset = 0x10;
 
-	if (rx.chip_id == CHIP_ID_TL1) {
+	if (rx.chip_id >= CHIP_ID_TL1) {
 		spin_lock_irqsave(&reg_rw_lock, flags);
 		data = rd_reg(MAP_ADDR_MODULE_TOP,
 			addr + reg_maps[MAP_ADDR_MODULE_TOP].phy_addr);
@@ -154,7 +154,7 @@ void hdmirx_wr_dwc(unsigned int addr, unsigned int data)
 	ulong flags;
 	unsigned int dev_offset = 0x10;
 
-	if (rx.chip_id == CHIP_ID_TL1) {
+	if (rx.chip_id >= CHIP_ID_TL1) {
 		spin_lock_irqsave(&reg_rw_lock, flags);
 		wr_reg(MAP_ADDR_MODULE_TOP,
 			addr + reg_maps[MAP_ADDR_MODULE_TOP].phy_addr, data);
@@ -286,18 +286,15 @@ unsigned int hdmirx_rd_top(unsigned int addr)
 	ulong flags;
 	int data;
 	unsigned int dev_offset = 0;
-	unsigned int tempaddr = 0;
 
-	if (rx.chip_id == CHIP_ID_TL1) {
+	if (rx.chip_id >= CHIP_ID_TL1) {
 		spin_lock_irqsave(&reg_rw_lock, flags);
 		dev_offset = TOP_DWC_BASE_OFFSET +
 			reg_maps[MAP_ADDR_MODULE_TOP].phy_addr;
-		if ((addr >= TOP_EDID_OFFSET) &&
-			(addr <= (TOP_EDID_OFFSET + 0x1ff))) {
-			/*edid address range*/
-			tempaddr = TOP_EDID_ADDR_S + (addr - 0x200);
+		if ((addr >= TOP_EDID_ADDR_S) &&
+			(addr <= (TOP_EDID_PORT3_ADDR_E))) {
 			data = rd_reg_b(MAP_ADDR_MODULE_TOP,
-				dev_offset + tempaddr);
+				dev_offset + addr);
 		} else {
 			data = rd_reg(MAP_ADDR_MODULE_TOP,
 				dev_offset + (addr<<2));
@@ -335,18 +332,15 @@ void hdmirx_wr_top(unsigned int addr, unsigned int data)
 {
 	ulong flags;
 	unsigned long dev_offset = 0;
-	unsigned int tempaddr = 0;
 
-	if (rx.chip_id == CHIP_ID_TL1) {
+	if (rx.chip_id >= CHIP_ID_TL1) {
 		spin_lock_irqsave(&reg_rw_lock, flags);
 		dev_offset = TOP_DWC_BASE_OFFSET +
 			reg_maps[MAP_ADDR_MODULE_TOP].phy_addr;
-		if ((addr >= TOP_EDID_OFFSET) &&
-			(addr <= (TOP_EDID_OFFSET + 0x1ff))) {
-			/*edid address range*/
-			tempaddr = TOP_EDID_ADDR_S + (addr - 0x200);
+		if ((addr >= TOP_EDID_ADDR_S) &&
+			(addr <= (TOP_EDID_PORT3_ADDR_E))) {
 			wr_reg_b(MAP_ADDR_MODULE_TOP,
-				dev_offset + tempaddr, (unsigned char)data);
+				dev_offset + addr, (unsigned char)data);
 		} else {
 			wr_reg(MAP_ADDR_MODULE_TOP,
 				dev_offset + (addr<<2), data);
@@ -704,7 +698,7 @@ void hdmirx_phy_pddq(unsigned int enable)
 	uint32_t term_value =
 		hdmirx_rd_top(TOP_HPD_PWR5V) & 0x7;
 
-	if (rx.chip_id == CHIP_ID_TL1) {
+	if (rx.chip_id >= CHIP_ID_TL1) {
 		wr_reg_hhi_bits(HHI_HDMIRX_PHY_MISC_CNTL2, _BIT(1), enable);
 		/* set rxsense */
 		if (enable)
@@ -740,7 +734,7 @@ void hdmirx_top_sw_reset(void)
 	ulong flags;
 	unsigned long dev_offset = 0;
 	spin_lock_irqsave(&reg_rw_lock, flags);
-	if (rx.chip_id == CHIP_ID_TL1) {
+	if (rx.chip_id >= CHIP_ID_TL1) {
 		dev_offset = TOP_DWC_BASE_OFFSET +
 			reg_maps[MAP_ADDR_MODULE_TOP].phy_addr;
 		wr_reg(MAP_ADDR_MODULE_TOP,
@@ -771,7 +765,7 @@ void rx_irq_en(bool enable)
 	unsigned int data32 = 0;
 
 	if (enable) {
-		if (rx.chip_id == CHIP_ID_TL1) {
+		if (rx.chip_id >= CHIP_ID_TL1) {
 			data32 |= 1 << 31; /* DRC_CKS_CHG */
 			data32 |= 1 << 30; /* DRC_RCV */
 			data32 |= 0 << 29; /* AUD_TYPE_CHG */
@@ -1069,7 +1063,7 @@ bool is_clk_stable(void)
 {
 	int clk = false;
 
-	if (rx.chip_id == CHIP_ID_TL1) {
+	if (rx.chip_id >= CHIP_ID_TL1) {
 		/* sqofclk */
 		clk = hdmirx_rd_top(TOP_MISC_STAT0) & 0x1;
 	} else {
@@ -1265,7 +1259,7 @@ static int TOP_init(void)
 		hdmirx_wr_top(TOP_VID_CNTL2,  data32);
 	}
 	data32 = 0;
-	if (rx.chip_id == CHIP_ID_TL1) {
+	if (rx.chip_id >= CHIP_ID_TL1) {
 		/* n_cts_auto_mode: */
 		/*	0-every ACR packet */
 		/*	1-on N or CTS value change */
@@ -1273,12 +1267,12 @@ static int TOP_init(void)
 	}
 	/* delay cycles before n/cts update pulse */
 	data32 |= 7 << 0;
-	if (rx.chip_id == CHIP_ID_TL1)
+	if (rx.chip_id >= CHIP_ID_TL1)
 		hdmirx_wr_top(TOP_TL1_ACR_CNTL2, data32);
 	else
 		hdmirx_wr_top(TOP_ACR_CNTL2, data32);
 
-	if (rx.chip_id == CHIP_ID_TL1) {
+	if (rx.chip_id >= CHIP_ID_TL1) {
 		data32 = hdmirx_rd_dwc(DWC_HDCP_CTRL);
 		/* 0: Original behaviour */
 		/* 1: Balance path delay between non-HDCP and HDCP */
@@ -1515,7 +1509,7 @@ void rx_hdcp14_config(const struct hdmi_rx_hdcp *hdcp)
 #if 0
 void rx_set_term_enable(bool enable)
 {
-	if (rx.chip_id == CHIP_ID_TL1) {
+	if (rx.chip_id >= CHIP_ID_TL1) {
 		/* need to do : for tl1 */
 	} else
 		hdmirx_wr_bits_phy(PHY_MAIN_FSM_OVERRIDE1,
@@ -1527,7 +1521,7 @@ void rx_set_term_value(unsigned char port, bool value)
 {
 	unsigned int data32;
 
-	if (rx.chip_id == CHIP_ID_TL1) {
+	if (rx.chip_id >= CHIP_ID_TL1) {
 		/* need to do : for tl1 */
 		data32 = rd_reg_hhi(HHI_HDMIRX_PHY_MISC_CNTL0);
 		if (port < E_PORT3) {
@@ -1625,7 +1619,7 @@ void rx_force_rxsense_cfg(uint8_t level)
 	unsigned int term_ovr_value;
 	unsigned int data32;
 
-	if (rx.chip_id == CHIP_ID_TL1) {
+	if (rx.chip_id >= CHIP_ID_TL1) {
 		/* enable terminal connect */
 		data32 = rd_reg_hhi(HHI_HDMIRX_PHY_MISC_CNTL0);
 		if (level) {
@@ -1721,7 +1715,7 @@ void hdcp22_clk_en(bool en)
 			((0 << 25)  |
 			 (1 << 24)  |   /* [   24] Enable gated clock */
 			 (0 << 16)));
-		if (rx.chip_id == CHIP_ID_TL1)
+		if (rx.chip_id >= CHIP_ID_TL1)
 			/* TL1:esm related clk bit9-11 */
 			hdmirx_wr_bits_top(TOP_CLK_CNTL, MSK(3, 9), 0x7);
 		else
@@ -1739,7 +1733,7 @@ void hdcp22_clk_en(bool en)
 void hdmirx_hdcp22_esm_rst(void)
 {
 	/* For TL1,the sw_reset_hdcp22 bit is top reg 0x0,bit'12 */
-	if (rx.chip_id == CHIP_ID_TL1)
+	if (rx.chip_id >= CHIP_ID_TL1)
 		hdmirx_wr_top(TOP_SW_RESET, 0x1000);
 	else
 		/* For txlx and previous chips,the sw_reset_hdcp22 is bit'8 */
@@ -1876,7 +1870,7 @@ void clk_init(void)
 	#endif
 	if ((rx.chip_id == CHIP_ID_TXLX) ||
 		(rx.chip_id == CHIP_ID_TXHD) ||
-		(rx.chip_id == CHIP_ID_TL1)) {
+		(rx.chip_id >= CHIP_ID_TL1)) {
 		/* [15] hdmirx_aud_pll4x_en override enable */
 		/* [14] hdmirx_aud_pll4x_en override value */
 		/* [6:5] clk_sel for cts_hdmirx_aud_pll_clk: */
@@ -1898,7 +1892,7 @@ void clk_init(void)
 	data32 |= 0 << 31;  /* [31]     disable clkgating */
 	data32 |= 1 << 17;  /* [17]     audfifo_rd_en */
 	data32 |= 1 << 16;  /* [16]     pktfifo_rd_en */
-	if (rx.chip_id == CHIP_ID_TL1) {
+	if (rx.chip_id >= CHIP_ID_TL1) {
 		data32 |= 0 << 8;   /* [8]      tmds_ch2_clk_inv */
 		data32 |= 0 << 7;  /* [7]     tmds_ch1_clk_inv */
 		data32 |= 0 << 6;  /* [6]     tmds_ch0_clk_inv */
@@ -2004,7 +1998,7 @@ int hdmirx_audio_init(void)
 	data32 |= acr_mode  << 0;
 	hdmirx_wr_top(TOP_ACR_CNTL_STAT, data32);
 
-	if (rx.chip_id == CHIP_ID_TL1) {
+	if (rx.chip_id >= CHIP_ID_TL1) {
 		data32 = 0;
 		data32 |= 0	<< 2;/*meas_mode*/
 		data32 |= 1	<< 1;/*enable*/
@@ -2246,7 +2240,7 @@ void hdmirx_phy_init(void)
 {
 	/* uint32_t data32; */
 	/* uint32_t cur_cable_clk; */
-	if (rx.chip_id == CHIP_ID_TL1)
+	if (rx.chip_id >= CHIP_ID_TL1)
 		aml_phy_bw_switch();
 	else
 		snps_phyg3_init();
@@ -2283,7 +2277,7 @@ bool rx_clkrate_monitor(void)
 
 	if (clk_rate != rx.phy.clk_rate) {
 		changed = true;
-		if (rx.chip_id != CHIP_ID_TL1) {
+		if (rx.chip_id < CHIP_ID_TL1) {
 			for (i = 0; i < 3; i++) {
 				error = hdmirx_wr_bits_phy(PHY_CDR_CTRL_CNT,
 					CLK_RATE_BIT, clk_rate);
@@ -2409,7 +2403,7 @@ void hdmirx_hw_config(void)
 		hdmirx_20_init();
 	DWC_init();
 	hdmirx_irq_hdcp_enable(true);
-	if (rx.chip_id == CHIP_ID_TL1)
+	if (rx.chip_id >= CHIP_ID_TL1)
 		aml_phy_switch_port();
 	hdmirx_phy_init();
 	hdmirx_wr_top(TOP_INTR_MASKN, top_intr_maskn_value);
@@ -2441,7 +2435,7 @@ void hdmirx_hw_probe(void)
 	packet_init();
 	if (rx.chip_id != CHIP_ID_TXHD)
 		hdmirx_20_init();
-	if (rx.chip_id == CHIP_ID_TL1)
+	if (rx.chip_id >= CHIP_ID_TL1)
 		aml_phy_switch_port();
 	hdmirx_phy_init();
 	hdmirx_wr_top(TOP_PORT_SEL, 0x10);
@@ -2527,7 +2521,7 @@ void rx_aud_pll_ctl(bool en)
 	int tmp = 0;
 	/*unsigned int od, od2;*/
 
-	if (rx.chip_id == CHIP_ID_TL1) {
+	if (rx.chip_id >= CHIP_ID_TL1) {
 		if (en) {
 			/* AUD_CLK=N/CTS*TMDS_CLK */
 			/* bandgap enable */
@@ -2788,10 +2782,10 @@ int rx_get_clock(enum measure_clk_top_e clk_src)
 	if (clk_src == TOP_HDMI_TMDSCLK)
 		tmp_data = hdmirx_rd_top(TOP_METER_HDMI_STAT);
 	else if (clk_src == TOP_HDMI_CABLECLK) {
-		if (rx.chip_id == CHIP_ID_TL1)
+		if (rx.chip_id >= CHIP_ID_TL1)
 			tmp_data = hdmirx_rd_top(TOP_METER_CABLE_STAT);
 	} else if (clk_src == TOP_HDMI_AUDIOCLK) {
-		if (rx.chip_id == CHIP_ID_TL1) {
+		if (rx.chip_id >= CHIP_ID_TL1) {
 			/*get audio clk*/
 			tmp_data = hdmirx_rd_top(TOP_AUDMEAS_REF_CYCLES_STAT0);
 			tmp_data2 = hdmirx_rd_top(TOP_AUDMEAS_REF_CYCLES_STAT1);
@@ -2913,12 +2907,12 @@ unsigned int rx_measure_clock(enum measure_clk_src_e clksrc)
 	 */
 
 	if (clksrc == MEASURE_CLK_CABLE) {
-		if (rx.chip_id == CHIP_ID_TL1) {
+		if (rx.chip_id >= CHIP_ID_TL1) {
 			clock = meson_clk_measure(30);
 			/*clock = rx_get_clock(TOP_HDMI_CABLECLK);*/
 		}
 	} else if (clksrc == MEASURE_CLK_TMDS) {
-		if (rx.chip_id == CHIP_ID_TL1)
+		if (rx.chip_id >= CHIP_ID_TL1)
 			clock = meson_clk_measure(63);
 		else {
 			clock = meson_clk_measure(25);
@@ -2931,18 +2925,18 @@ unsigned int rx_measure_clock(enum measure_clk_src_e clksrc)
 	} else if (clksrc == MEASURE_CLK_PIXEL) {
 		clock = meson_clk_measure(29);
 	} else if (clksrc == MEASURE_CLK_AUD_PLL) {
-		if (rx.chip_id == CHIP_ID_TL1)
+		if (rx.chip_id >= CHIP_ID_TL1)
 			clock = meson_clk_measure(74);/*audio vid out*/
 		else
 			clock = meson_clk_measure(24);
 	} else if (clksrc == MEASURE_CLK_AUD_DIV) {
-		if (rx.chip_id == CHIP_ID_TL1)
+		if (rx.chip_id >= CHIP_ID_TL1)
 			clock = meson_clk_measure(67);/*apll_clk_audio*/
 		else
 			clock = meson_clk_measure(98);
 
 	} else if (clksrc == MEASURE_CLK_MPLL) {
-		if (rx.chip_id == CHIP_ID_TL1)
+		if (rx.chip_id >= CHIP_ID_TL1)
 			clock = meson_clk_measure(29);/*apll_clk_out_div*/
 		else
 			clock = meson_clk_measure(27);
@@ -3072,7 +3066,7 @@ void dump_reg(void)
 		i = i + 4;
 	}
 
-	if (rx.chip_id == CHIP_ID_TL1) {
+	if (rx.chip_id >= CHIP_ID_TL1) {
 		for (i = 0x25; i <= 0x84;) {
 			rx_pr("[0x%-3x]", i);
 			rx_pr("0x%-8x", hdmirx_rd_top(i));
@@ -3099,7 +3093,7 @@ void dump_reg(void)
 			i = i + 4;
 		}
 
-	} else if (rx.chip_id == CHIP_ID_TL1) {
+	} else if (rx.chip_id >= CHIP_ID_TL1) {
 		/* dump phy register */
 		rx_pr("\n***AML PHY registers***\n");
 		for (i = HHI_HDMIRX_APLL_CNTL0;
@@ -3159,15 +3153,54 @@ void dump_edid_reg(void)
 	rx_pr("0x4 1.4 edid with 420 video data\n");
 	rx_pr("0x5 2.0 edid with HDR,DV,420\n");
 	rx_pr("********************************\n");
-
-	for (i = 0; i < 16; i++) {
-		rx_pr("[%2d] ", i);
-		for (j = 0; j < 16; j++) {
-			rx_pr("0x%02lx, ",
-			       hdmirx_rd_top(TOP_EDID_OFFSET +
-					     (i * 16 + j)));
+	if (rx.chip_id < CHIP_ID_TL1) {
+		for (i = 0; i < 16; i++) {
+			rx_pr("[%2d] ", i);
+			for (j = 0; j < 16; j++) {
+				rx_pr("0x%02lx, ",
+					   hdmirx_rd_top(TOP_EDID_OFFSET +
+							 (i * 16 + j)));
+			}
+			rx_pr("\n");
 		}
-		rx_pr("\n");
+	} else if (rx.chip_id == CHIP_ID_TL1) {
+		for (i = 0; i < 16; i++) {
+			rx_pr("[%2d] ", i);
+			for (j = 0; j < 16; j++) {
+				rx_pr("0x%02lx, ",
+					   hdmirx_rd_top(TOP_EDID_ADDR_S +
+							 (i * 16 + j)));
+			}
+			rx_pr("\n");
+		}
+	} else {
+		for (i = 0; i < 16; i++) {
+			rx_pr("[%2d] ", i);
+			for (j = 0; j < 16; j++) {
+				rx_pr("0x%02lx, ",
+					   hdmirx_rd_top(TOP_EDID_ADDR_S +
+							 (i * 16 + j)));
+			}
+			rx_pr("\n");
+		}
+		for (i = 0; i < 16; i++) {
+			rx_pr("[%2d] ", i);
+			for (j = 0; j < 16; j++) {
+				rx_pr("0x%02lx, ",
+					   hdmirx_rd_top(TOP_EDID_PORT2_ADDR_S +
+							 (i * 16 + j)));
+			}
+			rx_pr("\n");
+		}
+		for (i = 0; i < 16; i++) {
+			rx_pr("[%2d] ", i);
+			for (j = 0; j < 16; j++) {
+				rx_pr("0x%02lx, ",
+					   hdmirx_rd_top(TOP_EDID_PORT3_ADDR_S +
+							 (i * 16 + j)));
+			}
+			rx_pr("\n");
+		}
 	}
 }
 
@@ -3251,7 +3284,7 @@ int rx_get_aud_pll_err_sts(void)
 	uint32_t phy_pll_rate = (hdmirx_rd_phy(PHY_MAINFSM_STATUS1)>>9)&0x3;
 	uint32_t aud_pll_cntl = (rd_reg_hhi(HHI_AUD_PLL_CNTL6)>>28)&0x3;
 
-	if (rx.chip_id == CHIP_ID_TL1) {
+	if (rx.chip_id >= CHIP_ID_TL1) {
 		/* need to do something ...*/
 	} else {
 		if (req_clk > PHY_REQUEST_CLK_MAX ||
@@ -3279,7 +3312,7 @@ uint32_t aml_cable_clk_band(uint32_t cableclk,
 	uint32_t bw;
 	uint32_t cab_clk = cableclk;
 
-	if (rx.chip_id != CHIP_ID_TL1)
+	if (rx.chip_id < CHIP_ID_TL1)
 		return phy_frq_band_2;
 
 	/* rx_pr("cable clk=%d, clkrate=%d\n", cableclk, clkrate); */
@@ -3683,7 +3716,7 @@ void rx_get_best_eq_setting(void)
 	static uint32_t time_cnt;
 	static uint32_t array_cnt;
 
-	if ((rx.chip_id != CHIP_ID_TL1) ||
+	if ((rx.chip_id < CHIP_ID_TL1) ||
 		(!find_best_eq))
 		return;
 	if ((find_best_eq >= 0x7777) ||
@@ -3934,7 +3967,7 @@ bool is_tmds_valid(void)
 	if (force_vic)
 		return true;
 
-	if (rx.chip_id == CHIP_ID_TL1)
+	if (rx.chip_id >= CHIP_ID_TL1)
 		return (aml_phy_tmds_valid() == 1) ? true : false;
 	else
 		return (rx_get_pll_lock_sts() == 1) ? true : false;
@@ -3984,7 +4017,7 @@ void rx_phy_power_on(unsigned int onoff)
 		hdmirx_phy_pddq(0);
 	else
 		hdmirx_phy_pddq(1);
-	if (rx.chip_id == CHIP_ID_TL1) {
+	if (rx.chip_id >= CHIP_ID_TL1) {
 		/*the enable of these regs are in phy init*/
 		if (onoff == 0) {
 			wr_reg_hhi_bits(HHI_HDMIRX_APLL_CNTL0, _BIT(28), onoff);
@@ -3999,7 +4032,7 @@ void rx_emp_to_ddr_init(void)
 {
 	unsigned int data;
 
-	if (rx.chip_id != CHIP_ID_TL1)
+	if (rx.chip_id < CHIP_ID_TL1)
 		return;
 
 	if (rx.empbuff.pg_addr) {
@@ -4160,7 +4193,7 @@ void rx_tmds_to_ddr_init(void)
 	unsigned int data, data2;
 	unsigned int i = 0;
 
-	if (rx.chip_id != CHIP_ID_TL1)
+	if (rx.chip_id < CHIP_ID_TL1)
 		return;
 
 	if (rx.empbuff.pg_addr) {

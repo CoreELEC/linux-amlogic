@@ -185,7 +185,7 @@ void rx_pkt_debug(void)
 	data32 |= (rx_pkt_type_mapping(PKT_TYPE_ISRC1));
 	data32 |= (rx_pkt_type_mapping(PKT_TYPE_ISRC2));
 	data32 |= (rx_pkt_type_mapping(PKT_TYPE_GAMUT_META));
-	if (rx.chip_id == CHIP_ID_TL1)
+	if (rx.chip_id >= CHIP_ID_TL1)
 		data32 |= (rx_pkt_type_mapping(PKT_TYPE_EMP));
 
 	hdmirx_wr_dwc(DWC_PDEC_CTRL, data32);
@@ -351,7 +351,7 @@ void rx_debug_pktinfo(char input[][20])
 			enable |= _BIT(30);/* DRC_RCV*/
 		else
 			enable |= _BIT(9);/* DRC_RCV*/
-		if (rx.chip_id == CHIP_ID_TL1)
+		if (rx.chip_id >= CHIP_ID_TL1)
 			enable |= _BIT(9);/* EMP_RCV*/
 		enable |= _BIT(20);/* GMD_RCV */
 		enable |= _BIT(19);/* AIF_RCV */
@@ -394,7 +394,7 @@ void rx_debug_pktinfo(char input[][20])
 		else if (strncmp(input[2], "amp", 3) == 0)
 			sts = _BIT(14);
 		else if (strncmp(input[2], "emp", 3) == 0) {
-			if (rx.chip_id == CHIP_ID_TL1)
+			if (rx.chip_id >= CHIP_ID_TL1)
 				sts = _BIT(9);
 			else
 				rx_pr("no emp function\n");
@@ -428,7 +428,7 @@ void rx_debug_pktinfo(char input[][20])
 		else if (strncmp(input[2], "amp", 3) == 0)
 			enable |= _BIT(14);
 		else if (strncmp(input[2], "emp", 3) == 0) {
-			if (rx.chip_id == CHIP_ID_TL1)
+			if (rx.chip_id >= CHIP_ID_TL1)
 				enable |= _BIT(9);
 			else
 				rx_pr("no emp function\n");
@@ -1362,7 +1362,7 @@ void rx_get_vsi_info(void)
 	rx.vs_info_details._3d_ext_data = 0;
 	rx.vs_info_details.low_latency = false;
 	rx.vs_info_details.backlt_md_bit = false;
-	rx.vs_info_details.dolby_timeout = 0xffff;
+	/* rx.vs_info_details.dolby_timeout = 0xffff; */
 	if ((pkt->length == E_DV_LENGTH_27) &&
 		(pkt->ieee == 0x00d046)) {
 		/* dolby1.5 */
@@ -1381,9 +1381,11 @@ void rx_get_vsi_info(void)
 		/* dobly10 */
 		if (pkt->length == E_DV_LENGTH_24) {
 			rx.vs_info_details.dolby_vision = true;
-			if ((pkt->sbpkt.payload.data[0] & 0xffff) == 0)
+			if ((pkt->sbpkt.payload.data[0] & 0xffff) == 0) {
 				rx.vs_info_details.dolby_timeout =
 					dv_nopacket_timeout;
+				pkt->sbpkt.payload.data[0] = 0xffff;
+			}
 		} else if ((pkt->length == E_DV_LENGTH_5) &&
 			(pkt->sbpkt.payload.data[0] & 0xffff)) {
 			rx.vs_info_details.dolby_vision = false;

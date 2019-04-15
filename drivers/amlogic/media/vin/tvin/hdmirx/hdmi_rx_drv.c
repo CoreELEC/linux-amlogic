@@ -158,6 +158,11 @@ static struct notifier_block aml_hdcp22_pm_notifier = {
 	.notifier_call = aml_hdcp22_pm_notify,
 };
 
+static struct meson_hdmirx_data rx_tm2_data = {
+	.chip_id = CHIP_ID_TM2,
+	.phy_ver = PHY_VER_TL1,
+};
+
 static struct meson_hdmirx_data rx_tl1_data = {
 	.chip_id = CHIP_ID_TL1,
 	.phy_ver = PHY_VER_TL1,
@@ -184,6 +189,10 @@ static struct meson_hdmirx_data rx_gxtvbb_data = {
 };
 
 static const struct of_device_id hdmirx_dt_match[] = {
+	{
+		.compatible     = "amlogic, hdmirx_tm2",
+		.data           = &rx_tm2_data
+	},
 	{
 		.compatible     = "amlogic, hdmirx_tl1",
 		.data           = &rx_tl1_data
@@ -769,11 +778,12 @@ void hdmirx_get_vsi_info(struct tvin_sig_property_s *prop)
 		if ((rx.vs_info_details.dolby_vision == true) &&
 			(rx.vs_info_details.dolby_timeout <=
 				dv_nopacket_timeout) &&
-			(rx.vs_info_details.dolby_timeout != 0))
+			(rx.vs_info_details.dolby_timeout != 0)) {
 			rx.vs_info_details.dolby_timeout--;
-		if (rx.vs_info_details.dolby_timeout == 0) {
-			rx.vs_info_details.dolby_vision = false;
-			rx_pr("dv timeout\n");
+			if (rx.vs_info_details.dolby_timeout == 0) {
+				rx.vs_info_details.dolby_vision = false;
+					rx_pr("dv type 0x18 timeout\n");
+			}
 		}
 		if (log_level & VSI_LOG) {
 			rx_pr("prop->dolby_vision:%d\n", prop->dolby_vision);
@@ -1747,7 +1757,7 @@ static void rx_phy_resume(void)
 
 void rx_emp_resource_allocate(struct device *dev)
 {
-	if (rx.chip_id == CHIP_ID_TL1) {
+	if (rx.chip_id >= CHIP_ID_TL1) {
 		/* allocate buffer */
 		if (!rx.empbuff.storeA)
 			rx.empbuff.storeA =
@@ -1792,7 +1802,7 @@ void rx_tmds_resource_allocate(struct device *dev)
 	/*phys_addr_t p_addr;*/
 	/*struct page *pg_addr;*/
 
-	if (rx.chip_id == CHIP_ID_TL1) {
+	if (rx.chip_id >= CHIP_ID_TL1) {
 		if (rx.empbuff.dump_mode == DUMP_MODE_EMP) {
 			if (rx.empbuff.pg_addr) {
 				dma_release_from_contiguous(dev,
@@ -2263,7 +2273,7 @@ static int hdmirx_probe(struct platform_device *pdev)
 				clk_rate/1000000);
 	}
 	#endif
-	if (rx.chip_id == CHIP_ID_TL1) {
+	if (rx.chip_id >= CHIP_ID_TL1) {
 		/*for audio clk measure*/
 		hdevp->meter_clk = clk_get(&pdev->dev, "cts_hdmirx_meter_clk");
 		if (IS_ERR(hdevp->meter_clk))

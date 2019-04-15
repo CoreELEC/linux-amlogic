@@ -214,7 +214,8 @@ void set_vmode_clk(void)
 		}
 		if (ret)
 			pr_info("[error]:hdmi_pll lock failed\n");
-	} else if (cvbs_cpu_type() == CVBS_CPU_TYPE_TL1) {
+	} else if (cvbs_cpu_type() == CVBS_CPU_TYPE_TL1 ||
+		cvbs_cpu_type() == CVBS_CPU_TYPE_TM2) {
 		cvbs_out_hiu_write(HHI_TCON_PLL_CNTL0,	0x202f04f7);
 		udelay(100);
 		cvbs_out_hiu_write(HHI_TCON_PLL_CNTL0,	0x302f04f7);
@@ -257,7 +258,8 @@ void set_vmode_clk(void)
 			cvbs_set_vid1_clk(cvbs_clk_path & 0x1);
 		else
 			cvbs_set_vid2_clk(cvbs_clk_path & 0x1);
-	} else if (cvbs_cpu_type() == CVBS_CPU_TYPE_TL1) {
+	} else if (cvbs_cpu_type() == CVBS_CPU_TYPE_TL1 ||
+		cvbs_cpu_type() == CVBS_CPU_TYPE_TM2) {
 		if (cvbs_clk_path & 0x2)
 			cvbs_set_vid1_clk(0);
 		else

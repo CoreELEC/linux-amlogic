@@ -1431,7 +1431,7 @@ void configure_adec(int Audio_mode)
 	/*
 	 * set gate clk for btsc and nicam .
 	 */
-	if (is_meson_txhd_cpu() || is_meson_tl1_cpu())
+	if (is_meson_txhd_cpu() || is_meson_tl1_cpu() || is_meson_tm2_cpu())
 		adec_wr_reg(0x28, 0xa);
 
 	set_standard(Audio_mode);
@@ -1537,7 +1537,7 @@ void set_output_left_right_exchange(unsigned int ch)
 
 	atvaudio_ctrl_read(&read);
 
-	if (is_meson_tl1_cpu()) { /* bit[19] */
+	if (is_meson_tl1_cpu() || is_meson_tm2_cpu()) { /* bit[19] */
 		if ((read & (1 << 19)) != ((ch & 0x01) << 19))
 			atvaudio_ctrl_write((read & ~(1 << 19)) |
 					((ch & 0x01) << 19));

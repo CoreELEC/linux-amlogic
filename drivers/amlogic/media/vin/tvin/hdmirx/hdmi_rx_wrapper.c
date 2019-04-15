@@ -211,7 +211,7 @@ struct rx_s rx;
 
 void hdmirx_init_params(void)
 {
-	if (rx.chip_id == CHIP_ID_TL1) {
+	if (rx.chip_id >= CHIP_ID_TL1) {
 		clk_unstable_max = 10;
 		esd_phy_rst_max = 20;
 		stable_check_lvl = 0x7df;
@@ -359,7 +359,7 @@ static int hdmi_rx_ctrl_irq_handler(void)
 		}
 	}
 
-	if (rx.chip_id  != CHIP_ID_TL1) {
+	if (rx.chip_id < CHIP_ID_TL1) {
 		rx_top_intr_stat = hdmirx_rd_top(TOP_INTR_STAT);
 		if (rx_top_intr_stat & _BIT(31))
 			irq_need_clr = 1;
@@ -419,7 +419,7 @@ static int hdmi_rx_ctrl_irq_handler(void)
 				rx_pr("[irq] FIFO MIN\n");
 		}
 
-		if (rx.chip_id == CHIP_ID_TL1) {
+		if (rx.chip_id >= CHIP_ID_TL1) {
 			if (rx_get_bits(intr_pedc,
 				_BIT(9)) != 0) {
 				if (log_level & 0x400)
@@ -522,7 +522,7 @@ reisr:hdmirx_top_intr_stat = hdmirx_rd_top(TOP_INTR_STAT);
 	hdmirx_wr_top(TOP_INTR_STAT_CLR, hdmirx_top_intr_stat);
 	/* modify interrupt flow for isr loading */
 	/* top interrupt handler */
-	if (rx.chip_id == CHIP_ID_TL1) {
+	if (rx.chip_id >= CHIP_ID_TL1) {
 		if (hdmirx_top_intr_stat & (1 << 29))
 			if (log_level & 0x100)
 				rx_pr("[isr] sqofclk_fall\n");
@@ -559,7 +559,7 @@ reisr:hdmirx_top_intr_stat = hdmirx_rd_top(TOP_INTR_STAT);
 		rx_pr("[isr] enc fall\n");
 
 	/* must clear ip interrupt quickly */
-	if (rx.chip_id == CHIP_ID_TL1) {
+	if (rx.chip_id >= CHIP_ID_TL1) {
 		hdmirx_top_intr_stat &= 0x1;
 	} else {
 		hdmirx_top_intr_stat &= (~(1 << 30));
@@ -576,7 +576,7 @@ reisr:hdmirx_top_intr_stat = hdmirx_rd_top(TOP_INTR_STAT);
 		}
 	}
 
-	if (rx.chip_id != CHIP_ID_TL1) {
+	if (rx.chip_id < CHIP_ID_TL1) {
 		if (error == 1)
 			goto reisr;
 	} else {
@@ -1994,7 +1994,7 @@ void rx_monitor_error_counter(void)
 	ulong timestap;
 	uint32_t ch0, ch1, ch2;
 
-	if (rx.chip_id != CHIP_ID_TL1)
+	if (rx.chip_id < CHIP_ID_TL1)
 		return;
 
 	timestap = get_seconds();
@@ -2033,7 +2033,7 @@ void rx_err_monitor(void)
 		break;
 	case ERR_PHY_UNLOCK:
 		if (err_dbg_cnt == 0) {
-			if (rx.chip_id != CHIP_ID_TL1)
+			if (rx.chip_id < CHIP_ID_TL1)
 				rx_pr("EQ = %d-%d-%d\n",
 					eq_ch0.bestsetting,
 					eq_ch1.bestsetting,
@@ -2519,7 +2519,7 @@ static void dump_phy_status(void)
 	uint32_t val0, val1, val2;
 
 	rx_pr("[PHY info]\n");
-	if (rx.chip_id == CHIP_ID_TL1) {
+	if (rx.chip_id >= CHIP_ID_TL1) {
 		rx_get_error_cnt(&val0, &val1, &val2);
 		rx_pr("err cnt- ch0: %d,ch1:%d ch2:%d\n", val0, val1, val2);
 		rx_pr("PLL_LCK_STS(tmds valid) = 0x%x\n",
@@ -2606,7 +2606,7 @@ static void dump_audio_status(void)
 	rx_pr(" CA=%u\n", a.auds_ch_alloc);
 	rx_pr("CTS=%d, N=%d,", a.cts, a.n);
 	rx_pr("acr clk=%d\n", a.arc);
-	if (rx.chip_id == CHIP_ID_TL1) {
+	if (rx.chip_id >= CHIP_ID_TL1) {
 		rx_get_audio_N_CTS(&val0, &val1);
 		rx_pr("top CTS:%d, N:%d\n", val1, val0);
 	}
@@ -2876,7 +2876,7 @@ void hdmirx_timer_handler(unsigned long arg)
 				rx_clkrate_monitor();
 				rx_main_state_machine();
 			}
-			rx_pkt_check_content();
+			/* rx_pkt_check_content(); */
 			rx_err_monitor();
 			#ifdef K_TEST_CHK_ERR_CNT
 			if (err_chk_en)

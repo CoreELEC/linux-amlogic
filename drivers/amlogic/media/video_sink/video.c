@@ -3190,15 +3190,10 @@ static void pip_toggle_frame(struct vframe_s *vf)
 			&pip_frame_parms[1] : &pip_frame_parms[0];
 
 		update_layer_info(1);
-		if (legacy_vpp || is_meson_tl1_cpu())
-			iret = vpp_set_filters_no_scaler(
-				&glayer_info[1], vf,
-				nextpip_frame_par, vinfo, 1);
-		else
-			iret = vpp_set_filters(
-				&glayer_info[1], vf,
-				nextpip_frame_par, vinfo,
-				true, 1);
+		iret = vpp_set_filters(
+			&glayer_info[1], vf,
+			nextpip_frame_par, vinfo,
+			true, 1);
 
 		memcpy(&gPic_info[1], &vf->pic_mode,
 			sizeof(struct vframe_pic_mode_s));
@@ -12611,17 +12606,17 @@ static int __init video_early_init(void)
 		WRITE_VCBUS_REG_BITS(
 			VPP_MISC1, 0x100, 0, 9);
 	}
-	if (is_meson_tl1_cpu()) {
+	if (is_meson_tl1_cpu() || is_meson_tm2_cpu()) {
 		/* force bypass dolby for TL1, no dolby function */
-		WRITE_VCBUS_REG_BITS(
-			DOLBY_PATH_CTRL, 0xf, 0, 6);
+		if (is_meson_tl1_cpu())
+			WRITE_VCBUS_REG_BITS(
+				DOLBY_PATH_CTRL, 0xf, 0, 6);
 		/* disable latch for sr core0/1 scaler */
 		WRITE_VCBUS_REG_BITS(
 			SRSHARP0_SHARP_SYNC_CTRL, 1, 0, 1);
 		WRITE_VCBUS_REG_BITS(
 			SRSHARP1_SHARP_SYNC_CTRL, 1, 8, 1);
-	}
-	if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12B))
+	} else if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12B))
 		WRITE_VCBUS_REG_BITS(
 			SRSHARP0_SHARP_SYNC_CTRL, 1, 0, 1);
 	return 0;
@@ -12883,6 +12878,23 @@ static int __init video_init(void)
 		glayer_info[i].zorder = reference_zorder - 2 + i;
 		glayer_info[i].cur_sel_port = i;
 		glayer_info[i].last_sel_port = i;
+		if (legacy_vpp) {
+			glayer_info[i].afbc_support = true;
+			glayer_info[i].pps_support =
+				(i == 0) ? true : false;
+		} else if (is_meson_tl1_cpu()) {
+			glayer_info[i].afbc_support =
+				(i == 0) ? true : false;
+			glayer_info[i].pps_support =
+				(i == 0) ? true : false;
+		} else if (is_meson_tm2_cpu()) {
+			glayer_info[i].afbc_support =
+				(i == 0) ? true : false;
+			glayer_info[i].pps_support = true;
+		} else {
+			glayer_info[i].afbc_support = true;
+			glayer_info[i].pps_support = true;
+		}
 	}
 
 	if (legacy_vpp)
@@ -12894,6 +12906,13 @@ static int __init video_init(void)
 			LAYER0_AVAIL;
 	else if (is_meson_tl1_cpu())
 		layer_cap =
+			LAYER1_AVAIL |
+			LAYER0_AFBC |
+			LAYER0_SCALER |
+			LAYER0_AVAIL;
+	else if (is_meson_tm2_cpu())
+		layer_cap =
+			LAYER1_SCALER |
 			LAYER1_AVAIL |
 			LAYER0_AFBC |
 			LAYER0_SCALER |

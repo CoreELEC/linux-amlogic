@@ -261,6 +261,8 @@
 #define	TOP_DUK_3						0x06d
 #define TOP_NSEC_SCRATCH				0x06e
 #define	TOP_SEC_SCRATCH					0x06f
+#define TOP_EDID_OFFSET					0x200
+
 /* TL1 */
 #define	TOP_EMP_DDR_START_A				0x070
 #define	TOP_EMP_DDR_START_B				0x071
@@ -282,14 +284,19 @@
 #define	TOP_MISC_STAT0					0x084
 #define TOP_EDID_ADDR_S					0x1000
 #define TOP_EDID_ADDR_E					0x11ff
+
+/* TM2 */
+#define TOP_EDID_PORT2_ADDR_S			0x1200
+#define TOP_EDID_PORT2_ADDR_E			0x13ff
+#define TOP_EDID_PORT3_ADDR_S			0x1400
+#define TOP_EDID_PORT3_ADDR_E			0x15ff
+
+
 #define TOP_DWC_BASE_OFFSET				0x8000
 
 
 #define TOP_DONT_TOUCH0                  0x0fe
 #define TOP_DONT_TOUCH1                  0x0ff
-
-/* hdmi2.0 new end */
-#define TOP_EDID_OFFSET					0x200
 
 /*
  * HDMI registers

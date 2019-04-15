@@ -928,6 +928,7 @@ void rx_edid_fill_to_register(
 	u_int i;
 	u_int checksum = 0;
 	u_int value = 0;
+	u_int tmp_addr;
 
 	if (!(pedid && pphy_addr && pchecksum))
 		return;
@@ -944,11 +945,35 @@ void rx_edid_fill_to_register(
 	}
 
 	/* physical address info at second block */
+	if (rx.chip_id < CHIP_ID_TL1)
+		tmp_addr = TOP_EDID_OFFSET;
+	else
+		tmp_addr = TOP_EDID_ADDR_S;
 	for (i = 0; i <= 255; i++) {
 		/* fill first edid buffer */
-		hdmirx_wr_top(TOP_EDID_OFFSET + i, pedid[i]);
+		hdmirx_wr_top(tmp_addr + i,
+			pedid[i]);
 		/* fill second edid buffer */
-		hdmirx_wr_top(TOP_EDID_OFFSET + 0x100  + i, pedid[i]);
+		hdmirx_wr_top(tmp_addr + 0x100 + i,
+			pedid[i]);
+	}
+	if (rx.chip_id == CHIP_ID_TM2) {
+		for (i = 0; i <= 255; i++) {
+			/* fill first edid buffer */
+			hdmirx_wr_top(TOP_EDID_PORT2_ADDR_S + i,
+				pedid[i]);
+			/* fill second edid buffer */
+			hdmirx_wr_top(TOP_EDID_PORT2_ADDR_S + 0x100 + i,
+				pedid[i]);
+		}
+		for (i = 0; i <= 255; i++) {
+			/* fill first edid buffer */
+			hdmirx_wr_top(TOP_EDID_PORT3_ADDR_S + i,
+				pedid[i]);
+			/* fill second edid buffer */
+			hdmirx_wr_top(TOP_EDID_PORT3_ADDR_S + 0x100 + i,
+				pedid[i]);
+		}
 	}
 	/* caculate 4 port check sum */
 	if (brepeat) {
@@ -971,7 +996,7 @@ void rx_edid_update_overlay(
 						u_int *pphy_addr,
 						u_char *pchecksum)
 {
-	//u_int i;
+	u_int tmp_addr;
 
 	if (!(pphy_addr && pchecksum))
 		return;
@@ -985,6 +1010,13 @@ void rx_edid_update_overlay(
 		 (((pphy_addr[E_PORT1] >> 8) & 0xFF)<<8)
 			| (((pphy_addr[E_PORT2] >> 8) & 0xFF)<<16)
 			| (((pphy_addr[E_PORT3] >> 8) & 0xFF)<<24));
+
+	if (rx.chip_id == CHIP_ID_TM2) {
+		tmp_addr = TOP_EDID_ADDR_S + phy_addr_offset + 1;
+		hdmirx_wr_top(tmp_addr, pphy_addr[E_PORT0] >> 8);
+		hdmirx_wr_top(tmp_addr + 0x200, pphy_addr[E_PORT1] >> 8);
+		hdmirx_wr_top(tmp_addr + 0x400, pphy_addr[E_PORT2] >> 8);
+	}
 	/* physical address byte 0 */
 	hdmirx_wr_top(TOP_EDID_RAM_OVR1,
 		phy_addr_offset | (0x0f<<16));
@@ -993,6 +1025,12 @@ void rx_edid_update_overlay(
 			((pphy_addr[E_PORT2] & 0xFF)<<16) |
 			((pphy_addr[E_PORT3] & 0xFF) << 24));
 
+	if (rx.chip_id == CHIP_ID_TM2) {
+		tmp_addr = TOP_EDID_ADDR_S + phy_addr_offset;
+		hdmirx_wr_top(tmp_addr, pphy_addr[E_PORT0] & 0xff);
+		hdmirx_wr_top(tmp_addr + 0x200, pphy_addr[E_PORT1] & 0xff);
+		hdmirx_wr_top(tmp_addr + 0x400, pphy_addr[E_PORT2] & 0xff);
+	}
 	/* checksum */
 	hdmirx_wr_top(TOP_EDID_RAM_OVR0,
 		0xff | (0x0f<<16));
@@ -1000,6 +1038,12 @@ void rx_edid_update_overlay(
 			pchecksum[E_PORT0]|(pchecksum[E_PORT1]<<8)|
 			(pchecksum[E_PORT2]<<16) | (pchecksum[E_PORT3] << 24));
 
+	if (rx.chip_id == CHIP_ID_TM2) {
+		tmp_addr = TOP_EDID_ADDR_S + 0xff;
+		hdmirx_wr_top(tmp_addr, pchecksum[E_PORT0]);
+		hdmirx_wr_top(tmp_addr + 0x200, pchecksum[E_PORT1]);
+		hdmirx_wr_top(tmp_addr + 0x400, pchecksum[E_PORT2]);
+	}
 
 	/* replace the second edid ram data */
 	/* physical address byte 1 */
@@ -1197,7 +1241,8 @@ unsigned int hdmi_rx_top_edid_update(void)
 							phy_addr, checksum);
 	if (sts) {
 		/* update physical and checksum */
-	rx_edid_update_overlay(phy_addr_offset, phy_addr, checksum);
+		rx_edid_update_overlay(phy_addr_offset,
+			phy_addr, checksum);
 	}
 	return 1;
 }

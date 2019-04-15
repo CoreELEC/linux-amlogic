@@ -114,6 +114,7 @@ int hdmitx_hpd_hw_op(enum hpd_op cmd)
 	case MESON_CPU_ID_GXM:
 		return hdmitx_hpd_hw_op_gxl(cmd);
 	case MESON_CPU_ID_TXLX:
+	case MESON_CPU_ID_TM2:
 		return hdmitx_hpd_hw_op_txlx(cmd);
 	case MESON_CPU_ID_G12A:
 	case MESON_CPU_ID_G12B:
@@ -142,6 +143,7 @@ int read_hpd_gpio(void)
 	case MESON_CPU_ID_G12A:
 	case MESON_CPU_ID_G12B:
 	case MESON_CPU_ID_SM1:
+	case MESON_CPU_ID_TM2:
 		return read_hpd_gpio_txlx();
 	default:
 		break;
@@ -166,6 +168,7 @@ int hdmitx_ddc_hw_op(enum ddc_op cmd)
 	case MESON_CPU_ID_G12A:
 	case MESON_CPU_ID_G12B:
 	case MESON_CPU_ID_SM1:
+	case MESON_CPU_ID_TM2:
 		return hdmitx_ddc_hw_op_txlx(cmd);
 	default:
 		break;
@@ -395,6 +398,7 @@ static unsigned int hdmitx_get_format(void)
 	case MESON_CPU_ID_G12A:
 	case MESON_CPU_ID_G12B:
 	case MESON_CPU_ID_SM1:
+	case MESON_CPU_ID_TM2:
 		ret = hdmitx_get_format_txlx();
 		break;
 	case MESON_CPU_ID_GXBB:
@@ -442,6 +446,7 @@ void hdmitx_sys_reset(void)
 	case MESON_CPU_ID_G12A:
 	case MESON_CPU_ID_G12B:
 	case MESON_CPU_ID_SM1:
+	case MESON_CPU_ID_TM2:
 		hdmitx_sys_reset_txlx();
 		break;
 	case MESON_CPU_ID_GXBB:
@@ -645,6 +650,7 @@ static irqreturn_t intr_handler(int irq, void *dev)
 	pr_info(SYS "irq %x\n", dat_top);
 	if (dat_dwc)
 		pr_info(SYS "irq %x\n", dat_dwc);
+
 	if (hdev->hpd_lock == 1) {
 		pr_info(HW "HDMI hpd locked\n");
 		goto next;
@@ -1870,6 +1876,31 @@ static void set_phy_by_mode(unsigned int mode)
 			break;
 		}
 		break;
+	case MESON_CPU_ID_TM2:
+		switch (mode) {
+		case 1: /* 5.94/4.5/3.7Gbps */
+			hd_write_reg(P_TM2_HHI_HDMI_PHY_CNTL0, 0x37eb65c4);
+			if (hdev->dongle_mode)
+				hd_write_reg(P_HHI_HDMI_PHY_CNTL0, 0x37eb5584);
+			hd_write_reg(P_TM2_HHI_HDMI_PHY_CNTL3, 0x2ab0ff3b);
+			hd_write_reg(P_TM2_HHI_HDMI_PHY_CNTL5, 0x0000080b);
+			break;
+		case 2: /* 2.97Gbps */
+			hd_write_reg(P_TM2_HHI_HDMI_PHY_CNTL0, 0x33eb6262);
+			if (hdev->dongle_mode)
+				hd_write_reg(P_TM2_HHI_HDMI_PHY_CNTL0,
+				0x33eb4262);
+			hd_write_reg(P_TM2_HHI_HDMI_PHY_CNTL3, 0x2ab0ff3b);
+			hd_write_reg(P_TM2_HHI_HDMI_PHY_CNTL5, 0x00000003);
+			break;
+		case 3: /* 1.485Gbps, and below */
+		default:
+			hd_write_reg(P_TM2_HHI_HDMI_PHY_CNTL0, 0x33eb4242);
+			hd_write_reg(P_TM2_HHI_HDMI_PHY_CNTL3, 0x2ab0ff3b);
+			hd_write_reg(P_TM2_HHI_HDMI_PHY_CNTL5, 0x00000003);
+			break;
+		}
+		break;
 	case MESON_CPU_ID_M8B:
 	case MESON_CPU_ID_GXBB:
 	case MESON_CPU_ID_GXTVBB:
@@ -1924,8 +1955,30 @@ static void hdmitx_set_phy(struct hdmitx_dev *hdev)
 {
 	if (!hdev)
 		return;
-	hd_write_reg(P_HHI_HDMI_PHY_CNTL0, 0x0);
+	if (hdev->chip_type == MESON_CPU_ID_TM2) {
+		hd_write_reg(P_HHI_HDMI_PHY_CNTL0, 0x0);
 
+/* P_HHI_HDMI_PHY_CNTL1 bit[1]: enable clock	bit[0]: soft reset */
+#define RESET_HDMI_PHY() \
+do { \
+	hd_set_reg_bits(P_TM2_HHI_HDMI_PHY_CNTL1, 0xf, 0, 4); \
+	mdelay(2); \
+	hd_set_reg_bits(P_TM2_HHI_HDMI_PHY_CNTL1, 0xe, 0, 4); \
+	mdelay(2); \
+} while (0)
+
+		hd_set_reg_bits(P_TM2_HHI_HDMI_PHY_CNTL1, 0x0390, 16, 16);
+		hd_set_reg_bits(P_TM2_HHI_HDMI_PHY_CNTL1, 0x1, 17, 1);
+		hd_set_reg_bits(P_TM2_HHI_HDMI_PHY_CNTL1, 0x0, 17, 1);
+		hd_set_reg_bits(P_TM2_HHI_HDMI_PHY_CNTL1, 0x0, 0, 4);
+		msleep(100);
+		RESET_HDMI_PHY();
+		RESET_HDMI_PHY();
+		RESET_HDMI_PHY();
+#undef RESET_HDMI_PHY
+
+	} else {
+		hd_write_reg(P_HHI_HDMI_PHY_CNTL0, 0x0);
 /* P_HHI_HDMI_PHY_CNTL1	bit[1]: enable clock	bit[0]: soft reset */
 #define RESET_HDMI_PHY() \
 do { \
@@ -1935,16 +1988,17 @@ do { \
 	mdelay(2); \
 } while (0)
 
-	hd_set_reg_bits(P_HHI_HDMI_PHY_CNTL1, 0x0390, 16, 16);
-	hd_set_reg_bits(P_HHI_HDMI_PHY_CNTL1, 0x1, 17, 1);
-	if (hdev->chip_type >= MESON_CPU_ID_GXL)
-		hd_set_reg_bits(P_HHI_HDMI_PHY_CNTL1, 0x0, 17, 1);
-	hd_set_reg_bits(P_HHI_HDMI_PHY_CNTL1, 0x0, 0, 4);
-	msleep(100);
-	RESET_HDMI_PHY();
-	RESET_HDMI_PHY();
-	RESET_HDMI_PHY();
+		hd_set_reg_bits(P_HHI_HDMI_PHY_CNTL1, 0x0390, 16, 16);
+		hd_set_reg_bits(P_HHI_HDMI_PHY_CNTL1, 0x1, 17, 1);
+		if (hdev->chip_type >= MESON_CPU_ID_GXL)
+			hd_set_reg_bits(P_HHI_HDMI_PHY_CNTL1, 0x0, 17, 1);
+		hd_set_reg_bits(P_HHI_HDMI_PHY_CNTL1, 0x0, 0, 4);
+		msleep(100);
+		RESET_HDMI_PHY();
+		RESET_HDMI_PHY();
+		RESET_HDMI_PHY();
 #undef RESET_HDMI_PHY
+	}
 
 	switch (hdev->cur_VIC) {
 	case HDMI_4k2k_24:
@@ -2756,6 +2810,7 @@ static int hdmitx_cntl(struct hdmitx_dev *hdev, unsigned int cmd,
 			case MESON_CPU_ID_G12A:
 			case MESON_CPU_ID_G12B:
 			case MESON_CPU_ID_SM1:
+			case MESON_CPU_ID_TM2:
 				hd_set_reg_bits(P_HHI_HDMI_PLL_CNTL, 1, 29, 1);
 				udelay(50);
 				hd_set_reg_bits(P_HHI_HDMI_PLL_CNTL, 0, 28, 1);
@@ -4255,6 +4310,28 @@ static void hdmitx_debug(struct hdmitx_dev *hdev, const char *buf)
 				else
 					pr_info("prbs clk :%x\n", hd_read_reg
 						(P_HHI_HDMI_PHY_STATUS));
+			}
+			break;
+		case MESON_CPU_ID_TM2:
+			for (i = 0; i < 4; i++) {
+				hd_write_reg(P_TM2_HHI_HDMI_PHY_CNTL1,
+					0x0390000f);
+				hd_write_reg(P_TM2_HHI_HDMI_PHY_CNTL1,
+					0x0390000e);
+				hd_write_reg(P_TM2_HHI_HDMI_PHY_CNTL1,
+					0x03904002);
+				hd_write_reg(P_TM2_HHI_HDMI_PHY_CNTL4,
+					0x0001efff | (i << 20));
+				hd_write_reg(P_TM2_HHI_HDMI_PHY_CNTL1,
+					0xef904002);
+				mdelay(10);
+				if (i > 0)
+					pr_info("prbs D[%d]:%x\n", i - 1,
+						hd_read_reg
+						(P_TM2_HHI_HDMI_PHY_STATUS));
+				else
+					pr_info("prbs clk :%x\n", hd_read_reg
+						(P_TM2_HHI_HDMI_PHY_STATUS));
 			}
 			break;
 		default:

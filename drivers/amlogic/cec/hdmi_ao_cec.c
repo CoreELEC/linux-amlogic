@@ -82,6 +82,7 @@ struct cec_platform_data_s {
 	bool ee_to_ao;/*ee cec hw module mv to ao;ao cec delete*/
 	bool ceca_sts_reg;/*add new internal status register*/
 	enum cecbver cecb_ver;/* detail discription ref enum cecbver */
+	enum cecaver ceca_ver;
 };
 
 
@@ -1178,6 +1179,13 @@ void cec_clear_all_logical_addr(unsigned int cec_sel)
 void cec_enable_arc_pin(bool enable)
 {
 	unsigned int data;
+
+	if (is_meson_sm1_cpu() ||
+			cpu_after_eq(MESON_CPU_MAJOR_ID_TM2)) {
+		/*sm1 and tm2 later, audio module handle this*/
+
+		return;
+	}
 
 	if (cec_dev->plat_data->cecb_ver >= CECB_VER_2) {
 		data = rd_reg_hhi(HHI_HDMIRX_ARC_CNTL);
@@ -3108,6 +3116,7 @@ static const struct cec_platform_data_s cec_g12a_data = {
 	.line_bit = 3,
 	.ee_to_ao = 1,
 	.ceca_sts_reg = 0,
+	.ceca_ver = CECA_VER_0,
 	.cecb_ver = CECB_VER_1,
 };
 
@@ -3116,6 +3125,7 @@ static const struct cec_platform_data_s cec_txl_data = {
 	.line_bit = 7,
 	.ee_to_ao = 0,
 	.ceca_sts_reg = 0,
+	.ceca_ver = CECA_VER_0,
 	.cecb_ver = CECB_VER_0,
 };
 
@@ -3124,6 +3134,7 @@ static const struct cec_platform_data_s cec_tl1_data = {
 	.line_bit = 10,
 	.ee_to_ao = 1,
 	.ceca_sts_reg = 1,
+	.ceca_ver = CECA_VER_0,
 	.cecb_ver = CECB_VER_2,
 };
 
@@ -3132,6 +3143,16 @@ static const struct cec_platform_data_s cec_sm1_data = {
 	.line_bit = 3,
 	.ee_to_ao = 1,
 	.ceca_sts_reg = 1,
+	.ceca_ver = CECA_VER_1,
+	.cecb_ver = CECB_VER_2,
+};
+
+static const struct cec_platform_data_s cec_tm2_data = {
+	.line_reg = 0,
+	.line_bit = 3,
+	.ee_to_ao = 1,
+	.ceca_sts_reg = 1,
+	.ceca_ver = CECA_VER_1,
 	.cecb_ver = CECB_VER_2,
 };
 
@@ -3159,6 +3180,10 @@ static const struct of_device_id aml_cec_dt_match[] = {
 	{
 		.compatible = "amlogic, aocec-sm1",
 		.data = &cec_sm1_data,
+	},
+	{
+		.compatible = "amlogic, aocec-tm2",
+		.data = &cec_tm2_data,
 	},
 	{}
 };

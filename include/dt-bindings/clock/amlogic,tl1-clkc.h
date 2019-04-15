@@ -39,18 +39,50 @@
 #define CLKID_MPLL1				15
 #define CLKID_MPLL2				16
 #define CLKID_MPLL3				17
-#define CLKID_CPU_FCLK_P00			18
-#define CLKID_CPU_FCLK_P01			19
-#define CLKID_CPU_FCLK_P0			20
-#define CLKID_CPU_FCLK_P10			21
-#define CLKID_CPU_FCLK_P11			22
-#define CLKID_CPU_FCLK_P1			23
-#define CLKID_CPU_FCLK_P			24
-#define CLKID_CPU_CLK				25
+#define CLKID_CPU_FCLK_P			18
+#define CLKID_CPU_CLK				19
+#define CLKID_DSU_SOURCE_SEL0			20
+#define CLKID_DSU_SOURCE_DIV0			21
+#define CLKID_DSU_SEL0				22
+#define CLKID_DSU_SOURCE_SEL1			23
+#define CLKID_DSU_SOURCE_DIV1			24
+#define CLKID_DSU_SEL1				25
+#define CLKID_DSU_PRE_PARENT0			26
+#define CLKID_DSU_PRE_CLK			27
+#define CLKID_DSU_CLK				28
 /*#define CLKID_ADC_PLL				24*/
-
+#define CLKID_PCIE_PLL				29
+#define CLKID_VIPNANOQ				30
+#define CLKID_PCIE1				31
+#define CLKID_PCIE0PHY				32
+#define CLKID_PCIE1PHY				33
+#define CLKID_PARSER1				34
+#define CLKID_HDCP22_PCLK			35
+#define CLKID_HDMITX_PCLK			36
+#define CLKID_HDMITX_AXI_PCLK			37
+#define CLKID_DSPB				38
+#define CLKID_DSPA				39
+/* dsp clocks */
+#define CLKID_DSPA_MUX_A			40
+#define CLKID_DSPA_DIV_A			41
+#define CLKID_DSPA_GATE_A			42
+#define CLKID_DSPA_MUX_B			43
+#define CLKID_DSPA_DIV_B			44
+#define CLKID_DSPA_GATE_B			45
+#define CLKID_DSPA_MUX				46
+#define CLKID_DSPB_MUX_A			47
+#define CLKID_DSPB_DIV_A			48
+#define CLKID_DSPB_GATE_A			49
+#define CLKID_DSPB_MUX_B			50
+#define CLKID_DSPB_DIV_B			51
+#define CLKID_DSPB_GATE_B			52
+#define CLKID_DSPB_MUX				53
+#define CLKID_PCIE0_GATE			54
+#define CLKID_PCIE1_GATE			55
+#define CLKID_PCIE0				56
+#define CLKID_PCIE01_ENABLE			57
 /*HHI_GCLK_MPEG0: 0x50*/
-#define GATE_BASE0				(26)
+#define GATE_BASE0				58
 
 #define CLKID_DDR				(GATE_BASE0 + 0)
 #define CLKID_DOS				(GATE_BASE0 + 1)
@@ -102,7 +134,7 @@
 #define CLKID_BT656				(GATE_BASE2 + 2)
 #define CLKID_USB1_TO_DDR			(GATE_BASE2 + 3)
 #define CLKID_MMC_PCLK				(GATE_BASE2 + 4)
-#define CLKID_HDCP22_PCLK			(GATE_BASE0 + 5)
+#define CLKID_HDMIRX_TOP			(GATE_BASE0 + 5)
 #define CLKID_UART2				(GATE_BASE2 + 6)
 #define CLKID_TS				(GATE_BASE2 + 7)
 #define CLKID_VPU_INTR				(GATE_BASE2 + 8)

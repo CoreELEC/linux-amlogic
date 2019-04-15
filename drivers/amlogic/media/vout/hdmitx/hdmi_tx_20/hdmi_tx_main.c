@@ -4542,6 +4542,7 @@ static int amhdmitx_get_dt_info(struct platform_device *pdev)
 				__func__);
 			return -ENXIO;
 	}
+
 	pr_info(SYS "hpd irq = %d\n", hdmitx_device.irq_hpd);
 
 	return ret;

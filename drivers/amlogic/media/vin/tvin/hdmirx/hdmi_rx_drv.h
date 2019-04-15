@@ -46,7 +46,7 @@
  *
  *
  */
-#define RX_VER2 "ver.2019/03/19"
+#define RX_VER2 "ver.2019/04/07"
 
 /*print type*/
 #define	LOG_EN		0x01
@@ -86,6 +86,7 @@ enum chip_id_e {
 	CHIP_ID_TXLX,
 	CHIP_ID_TXHD,
 	CHIP_ID_TL1,
+	CHIP_ID_TM2,
 };
 
 enum phy_ver_e {

@@ -504,7 +504,7 @@ static void vlock_setting(struct vframe_s *vf,
 
 		/*enable vlock to adj pll*/
 		/* CFG_VID_LOCK_ADJ_EN disable */
-		WRITE_VPP_REG_BITS(ENCL_MAX_LINE_SWITCH_POINT, 0, 13, 1);
+		WRITE_VPP_REG_BITS(enc_max_line_switch_addr, 0, 13, 1);
 		/* disable to adjust enc */
 		WRITE_VPP_REG_BITS(VPU_VLOCK_CTRL, 0, 30, 1);
 		/* VLOCK_CNTL_EN enable */
@@ -1034,7 +1034,7 @@ static void vlock_enable_step3_soft_enc(void)
 		WRITE_VPP_REG(ENCL_VIDEO_MAX_LNCNT,
 			pre_enc_max_line + line_adj);
 	if (!(vlock_debug & VLOCK_DEBUG_ENC_PIXEL_ADJ_DIS))
-		WRITE_VPP_REG(ENCL_MAX_LINE_SWITCH_POINT,
+		WRITE_VPP_REG(enc_max_line_switch_addr,
 			pre_enc_max_pixel + pixel_adj);
 
 	last_i_vsync = READ_VPP_REG(0x3011);
@@ -1494,13 +1494,13 @@ void vlock_status_init(void)
 	vlock_mode = VLOCK_MODE_MANUAL_PLL;
 	if (is_meson_gxtvbb_cpu() ||
 		is_meson_txl_cpu() || is_meson_txlx_cpu()
-		|| is_meson_tl1_cpu())
+		|| is_meson_tl1_cpu() || is_meson_tm2_cpu())
 		vlock_en = 1;
 	else
 		vlock_en = 0;
 
 	/*initial pll register address*/
-	if (is_meson_tl1_cpu()) {
+	if (is_meson_tl1_cpu() || is_meson_tm2_cpu()) {
 		hhi_pll_reg_m = HHI_TCON_PLL_CNTL0;
 		hhi_pll_reg_frac = HHI_TCON_PLL_CNTL1;
 		/*hhi_pll_reg_vlock_ctl = HHI_HDMI_PLL_VLOCK_CNTL;*/

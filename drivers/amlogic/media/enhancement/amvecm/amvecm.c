@@ -5036,16 +5036,36 @@ static void get_cm_hist(enum cm_hist_e hist_sel)
 	kfree(hist);
 }
 
-static void cm_init_config(void)
+static void cm_init_config(int bitdepth)
 {
-	WRITE_VPP_REG(VPP_CHROMA_ADDR_PORT, XVYCC_YSCP_REG);
-	WRITE_VPP_REG(VPP_CHROMA_DATA_PORT, 0x3ff0000);
-	WRITE_VPP_REG(VPP_CHROMA_ADDR_PORT, XVYCC_USCP_REG);
-	WRITE_VPP_REG(VPP_CHROMA_DATA_PORT, 0x3ff0000);
-	WRITE_VPP_REG(VPP_CHROMA_ADDR_PORT, XVYCC_VSCP_REG);
-	WRITE_VPP_REG(VPP_CHROMA_DATA_PORT, 0x3ff0000);
-	WRITE_VPP_REG(VPP_CHROMA_ADDR_PORT, LUMA_ADJ0_REG);
-	WRITE_VPP_REG(VPP_CHROMA_DATA_PORT, 0x40400);
+	if (bitdepth == 10) {
+		WRITE_VPP_REG(VPP_CHROMA_ADDR_PORT, XVYCC_YSCP_REG);
+		WRITE_VPP_REG(VPP_CHROMA_DATA_PORT, 0x3ff0000);
+		WRITE_VPP_REG(VPP_CHROMA_ADDR_PORT, XVYCC_USCP_REG);
+		WRITE_VPP_REG(VPP_CHROMA_DATA_PORT, 0x3ff0000);
+		WRITE_VPP_REG(VPP_CHROMA_ADDR_PORT, XVYCC_VSCP_REG);
+		WRITE_VPP_REG(VPP_CHROMA_DATA_PORT, 0x3ff0000);
+		WRITE_VPP_REG(VPP_CHROMA_ADDR_PORT, LUMA_ADJ0_REG);
+		WRITE_VPP_REG(VPP_CHROMA_DATA_PORT, 0x40400);
+	} else if (bitdepth == 12) {
+		WRITE_VPP_REG(VPP_CHROMA_ADDR_PORT, XVYCC_YSCP_REG);
+		WRITE_VPP_REG(VPP_CHROMA_DATA_PORT, 0xfff0000);
+		WRITE_VPP_REG(VPP_CHROMA_ADDR_PORT, XVYCC_USCP_REG);
+		WRITE_VPP_REG(VPP_CHROMA_DATA_PORT, 0xfff0000);
+		WRITE_VPP_REG(VPP_CHROMA_ADDR_PORT, XVYCC_VSCP_REG);
+		WRITE_VPP_REG(VPP_CHROMA_DATA_PORT, 0xfff0000);
+		WRITE_VPP_REG(VPP_CHROMA_ADDR_PORT, LUMA_ADJ0_REG);
+		WRITE_VPP_REG(VPP_CHROMA_DATA_PORT, 0x100400);
+	} else {
+		WRITE_VPP_REG(VPP_CHROMA_ADDR_PORT, XVYCC_YSCP_REG);
+		WRITE_VPP_REG(VPP_CHROMA_DATA_PORT, 0x3ff0000);
+		WRITE_VPP_REG(VPP_CHROMA_ADDR_PORT, XVYCC_USCP_REG);
+		WRITE_VPP_REG(VPP_CHROMA_DATA_PORT, 0x3ff0000);
+		WRITE_VPP_REG(VPP_CHROMA_ADDR_PORT, XVYCC_VSCP_REG);
+		WRITE_VPP_REG(VPP_CHROMA_DATA_PORT, 0x3ff0000);
+		WRITE_VPP_REG(VPP_CHROMA_ADDR_PORT, LUMA_ADJ0_REG);
+		WRITE_VPP_REG(VPP_CHROMA_DATA_PORT, 0x40400);
+	}
 }
 
 static const char *amvecm_debug_usage_str = {
@@ -6207,9 +6227,12 @@ free_buf:
 /* #if (MESON_CPU_TYPE == MESON_CPU_TYPE_MESONG9TV) */
 void init_pq_setting(void)
 {
+
+	int bitdepth;
+
 	if (is_meson_gxtvbb_cpu() || is_meson_txl_cpu() ||
 		is_meson_txlx_cpu() || is_meson_txhd_cpu() ||
-		is_meson_tl1_cpu())
+		is_meson_tl1_cpu() || is_meson_tm2_cpu())
 		goto tvchip_pq_setting;
 	else if (is_meson_g12a_cpu() || is_meson_g12b_cpu()) {
 		sr_offset[0] = SR0_OFFSET;
@@ -6225,14 +6248,20 @@ void init_pq_setting(void)
 	return;
 
 tvchip_pq_setting:
-	if (get_cpu_type() == MESON_CPU_MAJOR_ID_TL1) {
+	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
+		if (is_meson_tl1_cpu())
+			bitdepth = 10;
+		else if (is_meson_tm2_cpu())
+			bitdepth = 12;
+		else
+			bitdepth = 12;
 		/*sr0 & sr1 register shfit*/
 		sr_offset[0] = SR0_OFFSET;
 		sr_offset[1] = SR1_OFFSET;
 		/*cm register init*/
-		cm_init_config();
+		cm_init_config(bitdepth);
 		/*lc init*/
-		lc_init();
+		lc_init(bitdepth);
 	}
 	/*probe close sr0 peaking for switch on video*/
 	WRITE_VPP_REG_BITS(VPP_SRSHARP0_CTRL, 1, 0, 1);
@@ -6503,6 +6532,14 @@ static const struct vecm_match_data_s vecm_dt_tl1 = {
 	.vlk_phlock_en = false,
 };
 
+static const struct vecm_match_data_s vecm_dt_tm2 = {
+	.vlk_support = true,
+	.vlk_new_fsm = 1,
+	.vlk_hwver = vlock_hw_ver2,
+	.vlk_phlock_en = false,
+};
+
+
 static const struct of_device_id aml_vecm_dt_match[] = {
 	{
 		.compatible = "amlogic, vecm",
@@ -6511,6 +6548,10 @@ static const struct of_device_id aml_vecm_dt_match[] = {
 	{
 		.compatible = "amlogic, vecm-tl1",
 		.data = &vecm_dt_tl1,
+	},
+	{
+		.compatible = "amlogic, vecm-tm2",
+		.data = &vecm_dt_tm2,
 	},
 	{},
 };
