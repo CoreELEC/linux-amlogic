@@ -21,6 +21,7 @@
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <dt-bindings/clock/amlogic,tl1-clkc.h>
+#include <linux/delay.h>
 
 #include "../clkc.h"
 #include "tl1.h"
@@ -515,7 +516,7 @@ static struct clk_mux tl1_dsu_fixed_sel0 = {
 		.parent_names = (const char *[]){ "dsu_fixed_source_sel0",
 						"dsu_fixed_source_div0" },
 		.num_parents = 2,
-		.flags = CLK_SET_RATE_PARENT | CLK_SET_RATE_NO_REPARENT,
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -559,7 +560,7 @@ static struct clk_mux tl1_dsu_fixed_sel1 = {
 		.parent_names = (const char *[]){ "dsu_fixed_source_sel1",
 						"dsu_fixed_source_div1" },
 		.num_parents = 2,
-		.flags = CLK_SET_RATE_PARENT | CLK_SET_RATE_NO_REPARENT,
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -575,6 +576,7 @@ static struct clk_mux tl1_dsu_pre0_clk = {
 		.parent_names = (const char *[]){ "dsu_fixed_sel0",
 						"dsu_fixed_sel1" },
 		.num_parents = 2,
+		/* set parent in dsu_fixed_sel0 clk notify */
 		.flags = CLK_SET_RATE_PARENT | CLK_SET_RATE_NO_REPARENT,
 	},
 };
@@ -589,6 +591,7 @@ static struct clk_mux tl1_dsu_pre_clk = {
 		.ops = &clk_mux_ops,
 		.parent_names = (const char *[]){ "dsu_pre0_clk", "sys_pll" },
 		.num_parents = 2,
+		/* dsu_pre0_clk is the only providing clock */
 		.flags = CLK_SET_RATE_PARENT | CLK_SET_RATE_NO_REPARENT,
 	},
 };
@@ -957,6 +960,46 @@ static struct clk_gate *tl1_clk_gates[] = {
 	&tl1_sec_ahb_apb3,
 };
 
+struct tl1_nb_data {
+	struct notifier_block nb;
+};
+
+static int tl1_dsu_sel0_clk_notifier_cb(struct notifier_block *nb,
+				    unsigned long event, void *data)
+{
+	struct clk *dsu_pre0_clk, *parent_clk;
+	int ret;
+
+	switch (event) {
+	case PRE_RATE_CHANGE:
+		/* switch to tl1_dsu_fixed_sel1, set it to 1G (default 24M) */
+		ret = clk_set_rate(tl1_dsu_fixed_sel1.hw.clk, 1000000000);
+		if (ret < 0)
+			return ret;
+		parent_clk = tl1_dsu_fixed_sel1.hw.clk;
+		break;
+	case POST_RATE_CHANGE:
+		parent_clk = tl1_dsu_fixed_sel0.hw.clk;
+		break;
+	default:
+		return NOTIFY_DONE;
+	}
+
+	dsu_pre0_clk = tl1_dsu_pre0_clk.hw.clk;
+
+	ret = clk_set_parent(dsu_pre0_clk, parent_clk);
+	if (ret)
+		return notifier_from_errno(ret);
+
+	usleep_range(80, 120);
+
+	return NOTIFY_OK;
+}
+
+static struct tl1_nb_data tl1_dsu_nb_data = {
+	.nb.notifier_call = tl1_dsu_sel0_clk_notifier_cb,
+};
+
 static void __init tl1_clkc_init(struct device_node *np)
 {
 	int clkid, i;
@@ -1052,21 +1095,17 @@ static void __init tl1_clkc_init(struct device_node *np)
 	parent_hw = clk_hw_get_parent(&tl1_cpu_clk.mux.hw);
 	parent_clk = parent_hw->clk;
 	ret = clk_notifier_register(parent_clk, &tl1_cpu_clk.clk_nb);
+	/*
+	 * when change tl1_dsu_fixed_sel0, switch to
+	 * tl1_dsu_fixed_sel1 to avoid crash
+	 */
+	ret = clk_notifier_register(tl1_dsu_fixed_sel0.hw.clk,
+					&tl1_dsu_nb_data.nb);
 	if (ret) {
 		pr_err("%s: failed to register clock notifier for cpu_clk\n",
 		__func__);
 		goto iounmap;
 	}
-
-	/* set sys pll as dsu_pre's parent*/
-	/*clk_set_parent(tl1_dsu_pre_clk.hw.clk, tl1_sys_pll.hw.clk);*/
-	/* set tl1_dsu_pre0_clk to 1.5G, gp1 pll is 1.5G */
-	/*clk_set_rate(tl1_dsu_pre0_clk.hw.clk, 1500000000);*/
-	/*set tl1_dsu_pre0_clk as dsu_pre's parent */
-	/*clk_set_parent(tl1_dsu_pre_clk.hw.clk, tl1_dsu_pre0_clk.hw.clk);*/
-	/*set dsu pre clk to 1GHZ*/
-	clk_set_rate(tl1_dsu_pre_clk.hw.clk, 1000000000);
-	clk_prepare_enable(tl1_dsu_pre_clk.hw.clk);
 
 	ret = of_clk_add_provider(np, of_clk_src_onecell_get,
 			&clk_data);
