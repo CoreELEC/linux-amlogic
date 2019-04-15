@@ -1501,7 +1501,8 @@ RESTART:
 		!(vf->type & VIDTYPE_NO_DW) &&
 		(vf->canvas0Addr != 0) &&
 		(!next_frame_par->nocomp)) {
-		if ((next_frame_par->vscale_skip_count > 1)
+		if ((vpp_flags & VPP_FLAG_FORCE_NO_COMPRESS)
+			|| (next_frame_par->vscale_skip_count > 1)
 			|| !input->afbc_support
 			|| force_no_compress)
 			no_compress = true;
@@ -1523,7 +1524,8 @@ RESTART:
 		h_in = height_in = vf->height;
 		next_frame_par->hscale_skip_count = 0;
 		next_frame_par->vscale_skip_count = 0;
-		crop_ratio = vf->compWidth / vf->width;
+		if (vf->width && vf->compWidth)
+			crop_ratio = vf->compWidth / vf->width;
 		goto RESTART_ALL;
 	}
 
@@ -2996,7 +2998,8 @@ RESTART:
 		!(vf->type & VIDTYPE_NO_DW) &&
 		(vf->canvas0Addr != 0) &&
 		(!next_frame_par->nocomp)) {
-		if ((next_frame_par->vscale_skip_count > 1)
+		if ((vpp_flags & VPP_FLAG_FORCE_NO_COMPRESS)
+			|| (next_frame_par->vscale_skip_count > 1)
 			|| !input->afbc_support
 			|| force_no_compress)
 			no_compress = true;
@@ -3226,6 +3229,9 @@ int vpp_set_filters(
 
 	if (op_flag & 1)
 		vpp_flags |= VPP_FLAG_MORE_LOG;
+
+	if (local_input.need_no_compress)
+		vpp_flags |= VPP_FLAG_FORCE_NO_COMPRESS;
 
 	next_frame_par->VPP_post_blend_vd_v_end_ = vinfo->field_height - 1;
 	next_frame_par->VPP_post_blend_vd_h_end_ = vinfo->width - 1;

@@ -467,6 +467,8 @@ static bool hist_test_flag;
 static unsigned long hist_buffer_addr;
 static u32 hist_print_count;
 
+static atomic_t gAfbc_request = ATOMIC_INIT(0);
+
 #define MAX_ZOOM_RATIO 300
 
 #define VPP_PREBLEND_VD_V_END_LIMIT 2304
@@ -1176,6 +1178,65 @@ static int noneseamless_play_clone_rate = 5;
 #endif
 
 #define CONFIG_AM_VOUT
+
+static s32 is_afbc_for_vpp(u8 id)
+{
+	s32 ret = -1;
+	u32 val;
+
+	if ((id >= MAX_VD_LAYERS)
+		|| legacy_vpp)
+		return ret;
+
+	if (id == 0)
+		val = READ_VCBUS_REG(
+			VD1_AFBCD0_MISC_CTRL);
+	else
+		val = READ_VCBUS_REG(
+			VD2_AFBCD1_MISC_CTRL);
+
+	if ((val & (1 << 10)) && (val & (1 << 12))
+		&& !(val & (1 << 9)))
+		ret = 1;
+	else
+		ret = 0;
+	return ret;
+}
+
+s32 di_request_afbc_hw(u8 id, bool on)
+{
+	u32 cur_afbc_request;
+	u32 next_request = 0;
+	s32 ret = -1;
+
+	if (id >= MAX_VD_LAYERS)
+		return ret;
+
+	if (!glayer_info[id].afbc_support || legacy_vpp)
+		return ret;
+
+	next_request = 1 << id;
+	cur_afbc_request = atomic_read(&gAfbc_request);
+	if (on) {
+		if (cur_afbc_request & next_request)
+			return is_afbc_for_vpp(id);
+
+		atomic_add(next_request, &gAfbc_request);
+		ret = 1;
+	} else {
+		if ((cur_afbc_request & next_request) == 0)
+			return is_afbc_for_vpp(id);
+
+		atomic_sub(next_request, &gAfbc_request);
+		ret = 1;
+	}
+	if (id == 0)
+		video_property_changed = 1;
+	else
+		pip_property_changed = 1;
+	return ret;
+}
+EXPORT_SYMBOL(di_request_afbc_hw);
 
 void safe_disble_videolayer(void)
 {
@@ -1977,7 +2038,8 @@ static void zoom_get_vert_pos(struct vframe_s *vf, u32 vpp_3d_mode, u32 *ls,
 }
 
 #endif
-static void zoom_display_horz(struct vframe_s *vf, int hscale)
+static void zoom_display_horz(
+	struct vframe_s *vf, int hscale, bool no_compress)
 {
 	u32 ls = 0, le = 0, rs = 0, re = 0;
 #ifdef TV_REVERSE
@@ -2017,7 +2079,8 @@ static void zoom_display_horz(struct vframe_s *vf, int hscale)
 			  (((zoom_end_x_lines / 2 - zoom_start_x_lines / 2 +
 			     1) >> hscale) << VD1_FMT_CHROMA_WIDTH_BIT));
 
-	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXBB) {
+	if (!no_compress &&
+		vf && (vf->type & VIDTYPE_COMPRESS)) {
 		int l_aligned;
 		int r_aligned;
 		int h_skip = cur_frame_par->hscale_skip_count + 1;
@@ -2197,7 +2260,8 @@ static void vd2_zoom_display_horz(struct vframe_s *vf, int hscale)
 		<< VD1_FMT_CHROMA_WIDTH_BIT));
 }
 
-static void zoom_display_vert(struct vframe_s *vf)
+static void zoom_display_vert(
+	struct vframe_s *vf, int vscale, bool no_compress)
 {
 
 	u32 ls = 0, le = 0, rs = 0, re = 0;
@@ -2300,12 +2364,13 @@ static void zoom_display_vert(struct vframe_s *vf)
 		}
 	}
 
-	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXBB) {
+	if (!no_compress &&
+		vf && (vf->type & VIDTYPE_COMPRESS)) {
 		int t_aligned;
 		int b_aligned;
 		int ori_t_aligned;
 		int ori_b_aligned;
-		int v_skip = cur_frame_par->vscale_skip_count + 1;
+		int v_skip = vscale + 1;
 		int c_skip = 2;
 
 		/* After TL1, afbc supports 420/422/444*/
@@ -2605,7 +2670,7 @@ static void vsync_video_pattern(void)
 }
 #endif
 
-static inline void vd1_path_select(bool afbc)
+static inline void vd1_path_select(bool afbc, bool di_afbc)
 {
 	u32 misc_off = cur_dev->vpp_off;
 
@@ -2619,13 +2684,13 @@ static inline void vd1_path_select(bool afbc)
 			/* vd1 -> dolby -> vpp top */
 			(0 << 14) |
 			/* axi sel: vd1 mif or afbc */
-			((afbc ? 1 : 0) << 12) |
+			(((afbc || di_afbc) ? 1 : 0) << 12) |
 			/* data sel: vd1 & afbc0 (not osd4) */
 			(0 << 11) |
 			/* data sel: afbc0 or vd1 */
 			((afbc ? 1 : 0) << 10) |
 			/* afbc0 to vd1 (not di) */
-			(0 << 9) |
+			((di_afbc ? 1 : 0) << 9) |
 			/* vd1 mif to vpp (not di) */
 			(0 << 8) |
 			/* afbc0 gclk ctrl */
@@ -2669,7 +2734,7 @@ static inline void vd1_path_select(bool afbc)
 	}
 }
 
-static inline void vd2_path_select(bool afbc)
+static inline void vd2_path_select(bool afbc, bool di_afbc)
 {
 	u32 misc_off = cur_dev->vpp_off;
 
@@ -2683,13 +2748,13 @@ static inline void vd2_path_select(bool afbc)
 			/* TODO: vd2 -> dolby -> vpp top ?? */
 			(0 << 14) |
 			/* axi sel: vd2 mif */
-			((afbc ? 1 : 0) << 12) |
+			(((afbc || di_afbc) ? 1 : 0) << 12) |
 			/* data sel: vd2 & afbc1 (not osd4) */
 			(0 << 11) |
 			/* data sel: afbc1 */
 			((afbc ? 1 : 0) << 10) |
 			/* afbc1 to vd2 (not di) */
-			(0 << 9) |
+			((di_afbc ? 1 : 0)  << 9) |
 			/* vd2 mif to vpp (not di) */
 			(0 << 8) |
 			/* afbc1 gclk ctrl */
@@ -3268,6 +3333,7 @@ static void pip_set_dcu(struct vpp_frame_par_s *frame_par, struct vframe_s *vf)
 	u32 u, v;
 	u32 type, bit_mode = 0;
 	u8 burst_len = 1;
+	u32 canvas_w;
 
 	if (!vf || !frame_par) {
 		pr_err("pip_set_dcu vf is NULL\n");
@@ -3394,11 +3460,24 @@ static void pip_set_dcu(struct vpp_frame_par_s *frame_par, struct vframe_s *vf)
 				VD2_AFBCDEC_IQUANT_ENABLE, 0);
 		}
 
-		vd2_path_select(true);
+		vd2_path_select(true, false);
 		VSYNC_WR_MPEG_REG(VD2_IF0_GEN_REG +
 			 cur_dev->viu_off, 0);
 		return;
 	}
+
+	/* vd mif burst len is 2 as default */
+	burst_len = 2;
+	if (vf->canvas0Addr != (u32)-1)
+		canvas_w = canvas_get_width(
+			vf->canvas0Addr & 0xff);
+	else
+		canvas_w = vf->canvas0_config[0].width;
+
+	if (canvas_w % 32)
+		burst_len = 0;
+	else if (canvas_w % 64)
+		burst_len = 1;
 
 	if ((vf->bitdepth & BITDEPTH_Y10) &&
 		(!frame_par->nocomp)) {
@@ -3413,11 +3492,14 @@ static void pip_set_dcu(struct vpp_frame_par_s *frame_par, struct vframe_s *vf)
 	} else {
 		bit_mode = 0;
 	}
-	vd2_path_select(false);
+	vd2_path_select(false, false);
 	if (!legacy_vpp) {
 		VSYNC_WR_MPEG_REG_BITS(
 			G12_VD2_IF0_GEN_REG3,
 			(bit_mode & 0x3), 8, 2);
+		VSYNC_WR_MPEG_REG_BITS(
+			G12_VD2_IF0_GEN_REG3,
+			(burst_len & 0x3), 1, 2);
 	} else {
 		VSYNC_WR_MPEG_REG_BITS(
 			VD2_IF0_GEN_REG3 + cur_dev->viu_off,
@@ -3678,6 +3760,13 @@ static void vsync_toggle_frame(struct vframe_s *vf, int line)
 	frame_count++;
 	toggle_count++;
 
+	if (vf && !(vf->type & VIDTYPE_COMPRESS)
+		&& glayer_info[0].need_no_compress) {
+		atomic_sub(1, &gAfbc_request);
+		glayer_info[0].need_no_compress = false;
+		force_toggle = true;
+	}
+
 	if (vf->type & VIDTYPE_MVC)
 		is_mvc = true;
 
@@ -3877,7 +3966,7 @@ static void vsync_toggle_frame(struct vframe_s *vf, int line)
 
 	/* switch buffer */
 	post_canvas = vf->canvas0Addr;
-	if ((get_cpu_type() >= MESON_CPU_MAJOR_ID_GXBB) &&
+	if (!glayer_info[0].need_no_compress &&
 		(vf->type & VIDTYPE_COMPRESS)) {
 		VSYNC_WR_MPEG_REG(AFBC_HEAD_BADDR, vf->compHeadAddr>>4);
 		VSYNC_WR_MPEG_REG(AFBC_BODY_BADDR, vf->compBodyAddr>>4);
@@ -4360,15 +4449,30 @@ static void viu_set_dcu(struct vpp_frame_par_s *frame_par, struct vframe_s *vf)
 					AFBCDEC_IQUANT_ENABLE, 0);
 			}
 
-			vd1_path_select(true);
+			vd1_path_select(true, false);
 
 			VSYNC_WR_MPEG_REG(
 				VD1_IF0_GEN_REG + cur_dev->viu_off, 0);
 			return;
 
 		} else {
+			u32 canvas_w;
+
+			/* vd mif burst len is 2 as default */
+			burst_len = 2;
+			if (vf->canvas0Addr != (u32)-1)
+				canvas_w = canvas_get_width(
+					vf->canvas0Addr & 0xff);
+			else
+				canvas_w = vf->canvas0_config[0].width;
+
+			if (canvas_w % 32)
+				burst_len = 0;
+			else if (canvas_w % 64)
+				burst_len = 1;
+
 			if ((vf->bitdepth & BITDEPTH_Y10) &&
-			(!frame_par->nocomp)) {
+				(!frame_par->nocomp)) {
 				if (vf->type & VIDTYPE_VIU_444) {
 					bit_mode = 2;
 				} else {
@@ -4384,10 +4488,17 @@ static void viu_set_dcu(struct vpp_frame_par_s *frame_par, struct vframe_s *vf)
 				VSYNC_WR_MPEG_REG_BITS(
 					G12_VD1_IF0_GEN_REG3,
 					(bit_mode & 0x3), 8, 2);
-				if (is_mvc)
+				VSYNC_WR_MPEG_REG_BITS(
+					G12_VD1_IF0_GEN_REG3,
+					(burst_len & 0x3), 1, 2);
+				if (is_mvc) {
 					VSYNC_WR_MPEG_REG_BITS(
 						G12_VD2_IF0_GEN_REG3,
 						(bit_mode & 0x3), 8, 2);
+					VSYNC_WR_MPEG_REG_BITS(
+						G12_VD2_IF0_GEN_REG3,
+						(burst_len & 0x3), 1, 2);
+				}
 			} else {
 				VSYNC_WR_MPEG_REG_BITS(
 					VD1_IF0_GEN_REG3 +
@@ -4409,8 +4520,14 @@ static void viu_set_dcu(struct vpp_frame_par_s *frame_par, struct vframe_s *vf)
 				DI_POST_WR_REG_BITS(DI_IF0_GEN_REG3,
 					(bit_mode & 0x3), 8, 2);
 #endif
-			vd1_path_select(false);
-			VSYNC_WR_MPEG_REG(AFBC_ENABLE, 0);
+			if (glayer_info[0].need_no_compress
+				|| (vf->type & VIDTYPE_PRE_DI_AFBC)) {
+				vd1_path_select(false, true);
+			} else {
+				vd1_path_select(false, false);
+				VSYNC_WR_MPEG_REG(
+					AFBC_ENABLE, 0);
+			}
 		}
 	}
 
@@ -4904,13 +5021,28 @@ static void vd2_set_dcu(struct vpp_frame_par_s *frame_par, struct vframe_s *vf)
 					VD2_AFBCDEC_IQUANT_ENABLE, 0);
 			}
 
-			vd2_path_select(true);
+			vd2_path_select(true, false);
 			VSYNC_WR_MPEG_REG(VD2_IF0_GEN_REG +
 					 cur_dev->viu_off, 0);
 			return;
 		} else {
+			u32 canvas_w;
+
+			/* vd mif burst len is 2 as default */
+			burst_len = 2;
+			if (vf->canvas0Addr != (u32)-1)
+				canvas_w = canvas_get_width(
+					vf->canvas0Addr & 0xff);
+			else
+				canvas_w = vf->canvas0_config[0].width;
+
+			if (canvas_w % 32)
+				burst_len = 0;
+			else if (canvas_w % 64)
+				burst_len = 1;
+
 			if ((vf->bitdepth & BITDEPTH_Y10) &&
-			(!frame_par->nocomp)) {
+				(!frame_par->nocomp)) {
 				if (vf->type & VIDTYPE_VIU_444) {
 					bit_mode = 2;
 				} else {
@@ -4922,11 +5054,14 @@ static void vd2_set_dcu(struct vpp_frame_par_s *frame_par, struct vframe_s *vf)
 			} else {
 				bit_mode = 0;
 			}
-			vd2_path_select(false);
+			vd2_path_select(false, false);
 			if (!legacy_vpp) {
 				VSYNC_WR_MPEG_REG_BITS(
 					G12_VD2_IF0_GEN_REG3,
 					(bit_mode & 0x3), 8, 2);
+				VSYNC_WR_MPEG_REG_BITS(
+					G12_VD2_IF0_GEN_REG3,
+					(burst_len & 0x3), 1, 2);
 			} else {
 				VSYNC_WR_MPEG_REG_BITS(
 					VD2_IF0_GEN_REG3 + cur_dev->viu_off,
@@ -6405,6 +6540,12 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 	static  struct vframe_s *pause_vf;
 	int force_flush = 0;
 	static u32 interrupt_count;
+	u32 next_afbc_request = atomic_read(&gAfbc_request);
+
+	glayer_info[0].need_no_compress =
+		(next_afbc_request & 1) ? true : false;
+	glayer_info[1].need_no_compress =
+		(next_afbc_request & 2) ? true : false;
 
 	if (debug_flag & DEBUG_FLAG_VSYNC_DONONE)
 		return IRQ_HANDLED;
@@ -7583,11 +7724,14 @@ SET_FILTER:
 					cur_frame_par->VPP_hd_start_lines_;
 			zoom_end_x_lines = cur_frame_par->VPP_hd_end_lines_;
 			zoom_display_horz(cur_dispbuf,
-				cur_frame_par->hscale_skip_count);
+				cur_frame_par->hscale_skip_count,
+				cur_frame_par->nocomp);
 
 			zoom_start_y_lines = zoom_start_y;
 			zoom_end_y_lines = zoom_end_y;
-			zoom_display_vert(cur_dispbuf);
+			zoom_display_vert(cur_dispbuf,
+				cur_frame_par->vscale_skip_count,
+				cur_frame_par->nocomp);
 			if (is_dolby_vision_enable() && cur_dispbuf2) {
 				zoom2_start_x_lines = ori2_start_x_lines;
 				zoom2_end_x_lines = ori2_end_x_lines;
@@ -8754,6 +8898,7 @@ static int video_receiver_event_fun(int type, void *data, void *private_data)
 /*alternative mode,passing two buffer in one frame */
 		if (platform_type == 1) {
 			if ((process_3d_type & MODE_3D_FA) &&
+			cur_dispbuf &&
 			!cur_dispbuf->trans_fmt)
 				vf_notify_receiver_by_name("deinterlace",
 			VFRAME_EVENT_PROVIDER_SET_3D_VFRAME_INTERLEAVE,
