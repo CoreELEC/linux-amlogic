@@ -44,6 +44,8 @@
 
 #define ATVDEMOD_INTERVAL  (HZ / 100) /* 10ms, #define HZ 100 */
 
+#define AUTO_DETECT_COLOR (1 << 0)
+#define AUTO_DETECT_AUDIO (1 << 1)
 
 struct atv_demod_sound_system {
 	unsigned int broadcast_std;

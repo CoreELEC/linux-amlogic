@@ -381,8 +381,9 @@ static int v4l2_set_frontend(struct v4l2_frontend *v4l2_fe,
 	fepriv->state = V4L2FE_STATE_RETUNE;
 
 	/* Request the search algorithm to search */
-	fepriv->algo_status |= V4L2_SEARCH_AGAIN;
 	if (params->flag & ANALOG_FLAG_ENABLE_AFC) {
+		fepriv->algo_status |= V4L2_SEARCH_AGAIN;
+
 		/*dvb_frontend_add_event(fe, 0); */
 		v4l2_frontend_clear_events(v4l2_fe);
 		v4l2_frontend_wakeup(v4l2_fe);
@@ -461,6 +462,34 @@ static int v4l2_frontend_read_status(struct v4l2_frontend *v4l2_fe,
 		analog_ops->has_signal(&v4l2_fe->fe, (u16 *) status);
 	else if (tuner_ops->get_status)
 		tuner_ops->get_status(&v4l2_fe->fe, (u32 *) status);
+
+	return ret;
+}
+
+static int v4l2_frontend_detect_tune(struct v4l2_frontend *v4l2_fe,
+		struct v4l2_tune_status *status)
+{
+	int ret = 0;
+
+	pr_dbg("%s.\n", __func__);
+
+	if (!status)
+		return -1;
+
+	if (v4l2_fe->ops.tune)
+		ret = v4l2_fe->ops.tune(v4l2_fe, status);
+
+	return ret;
+}
+
+static int v4l2_frontend_detect_standard(struct v4l2_frontend *v4l2_fe)
+{
+	int ret = 0;
+
+	pr_dbg("%s.\n", __func__);
+
+	if (v4l2_fe->ops.detect)
+		ret = v4l2_fe->ops.detect(v4l2_fe);
 
 	return ret;
 }
@@ -655,6 +684,15 @@ static int v4l2_property_process_get(struct v4l2_frontend *v4l2_fe,
 	case V4L2_TUNER_IF_FREQ:
 		tvp->data = amlatvdemod_devp->if_freq;
 		break;
+	case V4L2_AFC:
+	{
+		s32 afc = 0;
+
+		if (v4l2_fe->fe.ops.analog_ops.get_afc)
+			v4l2_fe->fe.ops.analog_ops.get_afc(&v4l2_fe->fe, &afc);
+		tvp->data = afc;
+	}
+		break;
 	default:
 		pr_dbg("%s: V4L2 property %d doesn't exist\n",
 				__func__, tvp->cmd);
@@ -776,7 +814,7 @@ static long v4l2_frontend_ioctl(struct file *filp, void *fh, bool valid_prio,
 				(struct v4l2_analog_parameters *) arg);
 		break;
 
-	case V4L2_GET_FRONTEND:
+	case V4L2_GET_FRONTEND: /* 0x8028566a */
 		ret = v4l2_get_frontend(v4l2_fe,
 				(struct v4l2_analog_parameters *) arg);
 		break;
@@ -799,6 +837,15 @@ static long v4l2_frontend_ioctl(struct file *filp, void *fh, bool valid_prio,
 	case V4L2_SET_PROPERTY: /* 0xc010566e */
 	case V4L2_GET_PROPERTY: /* 0xc010566f */
 		ret = v4l2_frontend_ioctl_properties(filp, cmd, arg);
+		break;
+
+	case V4L2_DETECT_TUNE: /* 0x80285670 */
+		ret = v4l2_frontend_detect_tune(v4l2_fe,
+				(struct v4l2_tune_status *) arg);
+		break;
+
+	case V4L2_DETECT_STANDARD: /* 0x5671 */
+		ret = v4l2_frontend_detect_standard(v4l2_fe);
 		break;
 
 	default:
