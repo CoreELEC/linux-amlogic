@@ -183,9 +183,6 @@ struct v4l2_adapter {
 	struct device *dev;
 
 	struct dvb_frontend fe;
-
-	struct i2c_client i2c;
-	unsigned int tuner_id;
 };
 
 struct v4l2_frontend_ops {
@@ -201,8 +198,6 @@ struct v4l2_frontend {
 	struct device *dev;
 
 	struct dvb_frontend fe;
-	unsigned int tuner_id;
-	struct i2c_client i2c;
 
 	enum v4l2_tuner_type mode;
 
@@ -224,9 +219,6 @@ struct v4l2_atvdemod_device {
 	struct video_device *video_dev;
 
 	struct mutex lock;
-
-	struct i2c_client i2c;
-	unsigned int tuner_id;
 };
 
 int v4l2_resister_frontend(struct v4l2_frontend *v4l2_fe);

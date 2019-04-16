@@ -392,9 +392,9 @@ void set_a2k(void)
 	adec_wr_reg(ADDR_LPR_GAIN_ADJ, 0x3e0);
 
 	adec_wr_reg(ADDR_LPR_COMP_CTRL, 0x010);
-	adec_wr_reg(ADDR_IIR_SPEED_CTRL, 0xff5d7f7f/*0xd65d7f7f*/);
-	adec_wr_reg(STEREO_DET_THD, 0x4000);
-	adec_wr_reg(DUAL_DET_THD, 0x4000);
+	adec_wr_reg(ADDR_IIR_SPEED_CTRL, 0xd65d7f7f);
+	adec_wr_reg(STEREO_DET_THD, 0x1000);
+	adec_wr_reg(DUAL_DET_THD, 0x1000);
 
 	adec_wr_reg((ADDR_SEL_CTRL), 0x1000);
 }
@@ -430,9 +430,9 @@ void set_a2g(void)
 	adec_wr_reg(ADDR_LPR_GAIN_ADJ, 0x3e0);
 
 	adec_wr_reg(ADDR_LPR_COMP_CTRL, 0x010);
-	adec_wr_reg(ADDR_IIR_SPEED_CTRL, 0xff5d7f7f/*0xd65d7f7f*/);
-	adec_wr_reg(STEREO_DET_THD, 0x4000);
-	adec_wr_reg(DUAL_DET_THD, 0x4000);
+	adec_wr_reg(ADDR_IIR_SPEED_CTRL, 0xd65d7f7f);
+	adec_wr_reg(STEREO_DET_THD, 0x1000);
+	adec_wr_reg(DUAL_DET_THD, 0x1000);
 }
 
 void set_a2bg(void)
@@ -466,9 +466,9 @@ void set_a2bg(void)
 	adec_wr_reg(ADDR_LPR_GAIN_ADJ, 0x3e0);
 
 	adec_wr_reg(ADDR_LPR_COMP_CTRL, 0x010);
-	adec_wr_reg(ADDR_IIR_SPEED_CTRL, 0xff5d7f7f/*0xd65d7f7f*/);
-	adec_wr_reg(STEREO_DET_THD, 0x4000);
-	adec_wr_reg(DUAL_DET_THD, 0x4000);
+	adec_wr_reg(ADDR_IIR_SPEED_CTRL, 0xd65d7f7f);
+	adec_wr_reg(STEREO_DET_THD, 0x1000);
+	adec_wr_reg(DUAL_DET_THD, 0x1000);
 }
 
 void set_a2dk1(void)
@@ -502,9 +502,9 @@ void set_a2dk1(void)
 	adec_wr_reg(ADDR_LPR_GAIN_ADJ, 0x3e0);
 
 	adec_wr_reg(ADDR_LPR_COMP_CTRL, 0x010);
-	adec_wr_reg(ADDR_IIR_SPEED_CTRL, 0xff5d7f7f/*0xd65d7f7f*/);
-	adec_wr_reg(STEREO_DET_THD, 0x4000);
-	adec_wr_reg(DUAL_DET_THD, 0x4000);
+	adec_wr_reg(ADDR_IIR_SPEED_CTRL, 0xd65d7f7f);
+	adec_wr_reg(STEREO_DET_THD, 0x1000);
+	adec_wr_reg(DUAL_DET_THD, 0x1000);
 }
 
 void set_a2dk2(void)
@@ -538,9 +538,9 @@ void set_a2dk2(void)
 	adec_wr_reg(ADDR_LPR_GAIN_ADJ, 0x3e0);
 
 	adec_wr_reg(ADDR_LPR_COMP_CTRL, 0x010);
-	adec_wr_reg(ADDR_IIR_SPEED_CTRL, 0xff5d7f7f/*0xd65d7f7f*/);
-	adec_wr_reg(STEREO_DET_THD, 0x4000);
-	adec_wr_reg(DUAL_DET_THD, 0x4000);
+	adec_wr_reg(ADDR_IIR_SPEED_CTRL, 0xd65d7f7f);
+	adec_wr_reg(STEREO_DET_THD, 0x1000);
+	adec_wr_reg(DUAL_DET_THD, 0x1000);
 }
 
 void set_a2dk3(void)
@@ -574,9 +574,9 @@ void set_a2dk3(void)
 	adec_wr_reg(ADDR_LPR_GAIN_ADJ, 0x3e0);
 
 	adec_wr_reg(ADDR_LPR_COMP_CTRL, 0x010);
-	adec_wr_reg(ADDR_IIR_SPEED_CTRL, 0xff5d7f7f/*0xd65d7f7f*/);
-	adec_wr_reg(STEREO_DET_THD, 0x4000);
-	adec_wr_reg(DUAL_DET_THD, 0x4000);
+	adec_wr_reg(ADDR_IIR_SPEED_CTRL, 0xd65d7f7f);
+	adec_wr_reg(STEREO_DET_THD, 0x1000);
+	adec_wr_reg(DUAL_DET_THD, 0x1000);
 }
 
 void set_eiaj(void)
@@ -1402,6 +1402,15 @@ void set_outputmode(uint32_t standard, uint32_t outmode)
 	case AUDIO_STANDARD_A2_DK1:
 	case AUDIO_STANDARD_A2_DK2:
 	case AUDIO_STANDARD_A2_DK3:
+		if (standard != AUDIO_STANDARD_EIAJ
+				&& !aud_reinit
+				&& atvdemod_get_snr_val() < 50) {
+			/* Fixed weak signal, unstable */
+			adec_wr_reg(ADDR_IIR_SPEED_CTRL, 0xff5d7f7f);
+			adec_wr_reg(STEREO_DET_THD, 0x4000);
+			adec_wr_reg(DUAL_DET_THD, 0x4000);
+		}
+
 		set_a2_eiaj_outputmode(outmode);
 		break;
 	case AUDIO_STANDARD_NICAM_DK:

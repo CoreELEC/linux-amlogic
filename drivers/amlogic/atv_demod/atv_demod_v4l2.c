@@ -602,7 +602,6 @@ static int v4l2_property_process_set(struct v4l2_frontend *v4l2_fe,
 				v4l2_fe->fe.ops.tuner_ops.release(&v4l2_fe->fe);
 		}
 
-		v4l2_fe->tuner_id = id;
 		if (aml_attach_tuner(amlatvdemod_devp) < 0) {
 			pr_err("%s: attach tuner %d error.\n",
 					__func__, id);
@@ -823,8 +822,8 @@ static int v4l2_frontend_open(struct file *filp)
 	if (!amlatvdemod_devp->analog_attached) {
 		ret = aml_attach_demod(amlatvdemod_devp);
 		if (ret < 0) {
-			pr_err("%s: attach demod %d error.\n",
-					__func__, v4l2_fe->tuner_id);
+			pr_err("%s: line %d, error ret %d.\n",
+					__func__, __LINE__, ret);
 			return -EBUSY;
 		}
 	}
@@ -832,8 +831,8 @@ static int v4l2_frontend_open(struct file *filp)
 	if (!amlatvdemod_devp->tuner_attached) {
 		ret = aml_attach_tuner(amlatvdemod_devp);
 		if (ret < 0) {
-			pr_err("%s: attach tuner %d error.\n",
-					__func__, v4l2_fe->tuner_id);
+			pr_err("%s: line %d, error ret %d.\n",
+					__func__, __LINE__, ret);
 			return -EBUSY;
 		}
 	}

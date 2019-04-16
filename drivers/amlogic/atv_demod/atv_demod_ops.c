@@ -543,6 +543,8 @@ static void atvdemod_fe_try_analog_format(struct v4l2_frontend *v4l2_fe,
 	struct dvb_frontend *fe = &v4l2_fe->fe;
 	struct v4l2_analog_parameters *p = &v4l2_fe->params;
 	struct analog_parameters params;
+	struct atv_demod_priv *priv = fe->analog_demod_priv;
+	unsigned int tuner_id = priv->atvdemod_param.tuner_id;
 	int i = 0;
 	int try_vfmt_cnt = 300;
 	int varify_cnt = 0;
@@ -564,8 +566,8 @@ static void atvdemod_fe_try_analog_format(struct v4l2_frontend *v4l2_fe,
 				pr_dbg("get cvbs_std varify_cnt:%d, cnt:%d, cvbs_std:0x%x\n",
 						varify_cnt, i,
 						(unsigned int) cvbs_std);
-				if (((v4l2_fe->tuner_id == AM_TUNER_R840
-					|| v4l2_fe->tuner_id == AM_TUNER_R842)
+				if (((tuner_id == AM_TUNER_R840
+					|| tuner_id == AM_TUNER_R842)
 					&& varify_cnt > 0)
 					|| varify_cnt > 3)
 					break;
@@ -703,6 +705,7 @@ static int atvdemod_fe_afc_closer(struct v4l2_frontend *v4l2_fe, int minafcfreq,
 	struct dvb_frontend *fe = &v4l2_fe->fe;
 	struct v4l2_analog_parameters *p = &v4l2_fe->params;
 	struct analog_parameters params;
+	struct atv_demod_priv *priv = fe->analog_demod_priv;
 	int afc = 100;
 	__u32 set_freq;
 	int count = 25;
@@ -711,7 +714,7 @@ static int atvdemod_fe_afc_closer(struct v4l2_frontend *v4l2_fe, int minafcfreq,
 	static int temp_freq, temp_afc;
 	struct timespec time_now;
 	static struct timespec success_time;
-	unsigned int tuner_id = v4l2_fe->tuner_id;
+	unsigned int tuner_id = priv->atvdemod_param.tuner_id;
 
 	pr_dbg("[%s] freq_success: %d, freq: %d, minfreq: %d, maxfreq: %d\n",
 		__func__, freq_success, p->frequency, minafcfreq, maxafcfreq);
@@ -937,7 +940,7 @@ static enum v4l2_search atvdemod_fe_search(struct v4l2_frontend *v4l2_fe)
 	int search_count = 0;
 	/* bool try_secam = false; */
 	int ret = -1;
-	unsigned int tuner_id = v4l2_fe->tuner_id;
+	unsigned int tuner_id = 0;
 	int priv_cfg = 0;
 
 	if (unlikely(!fe || !p ||
@@ -959,6 +962,8 @@ static enum v4l2_search atvdemod_fe_search(struct v4l2_frontend *v4l2_fe)
 		pr_err("[%s] afc_range == 0, skip the search\n", __func__);
 		return V4L2_SEARCH_INVALID;
 	}
+
+	tuner_id = priv->atvdemod_param.tuner_id;
 
 	pr_info("[%s] afc_range: [%d], tuner: [%d], freq: [%d], flag: [%d].\n",
 			__func__, p->afc_range, tuner_id,

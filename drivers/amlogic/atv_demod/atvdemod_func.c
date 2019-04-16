@@ -111,7 +111,7 @@ enum AUDIO_SCAN_ID {
 };
 
 static unsigned int mix1_freq;
-static int snr_val;
+int snr_val;
 int broad_std_except_pal_m;
 
 

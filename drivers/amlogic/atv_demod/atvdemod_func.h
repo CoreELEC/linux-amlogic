@@ -27,6 +27,7 @@ extern int broad_std_except_pal_m;
 extern unsigned int aud_std;
 extern unsigned int aud_mode;
 extern bool audio_thd_en;
+extern bool aud_reinit;
 
 enum broadcast_standard_e {
 	ATVDEMOD_STD_NTSC = 0,

@@ -45,7 +45,7 @@
 #include "atvauddemod_func.h"
 
 
-#define AMLATVDEMOD_VER "V2.09"
+#define AMLATVDEMOD_VER "V2.10"
 
 struct aml_atvdemod_device *amlatvdemod_devp;
 
@@ -560,6 +560,7 @@ int aml_attach_tuner(struct aml_atvdemod_device *dev)
 	void *p = NULL;
 	struct v4l2_frontend *v4l2_fe = &dev->v4l2_fe;
 	struct dvb_frontend *fe = &v4l2_fe->fe;
+	struct atv_demod_priv *priv = fe->analog_demod_priv;
 	struct tuner_config *cfg = NULL;
 
 	if (dev->tuner_cur < 0) {
@@ -598,9 +599,7 @@ int aml_attach_tuner(struct aml_atvdemod_device *dev)
 
 	if (p != NULL) {
 		dev->tuner_attached = true;
-		v4l2_fe->tuner_id = cfg->id;
-		v4l2_fe->i2c.addr = cfg->i2c_addr;
-		v4l2_fe->i2c.adapter = dev->tuners[dev->tuner_cur].i2c_adp;
+		priv->atvdemod_param.tuner_id = cfg->id;
 	} else {
 		pr_err("%s: attach tuner [%d] error.\n", __func__, cfg->id);
 		return -1;
