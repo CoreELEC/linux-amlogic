@@ -523,9 +523,11 @@ reisr:hdmirx_top_intr_stat = hdmirx_rd_top(TOP_INTR_STAT);
 	/* modify interrupt flow for isr loading */
 	/* top interrupt handler */
 	if (rx.chip_id >= CHIP_ID_TL1) {
-		if (hdmirx_top_intr_stat & (1 << 29))
+		if (hdmirx_top_intr_stat & (1 << 29)) {
+			skip_frame(skip_frame_cnt);
 			if (log_level & 0x100)
 				rx_pr("[isr] sqofclk_fall\n");
+		}
 		if (hdmirx_top_intr_stat & (1 << 28))
 			if (log_level & 0x100)
 				rx_pr("[isr] sqofclk_rise\n");
@@ -1718,6 +1720,8 @@ int rx_set_global_variable(const char *buf, int size)
 		return pr_var(hbr_force_8ch, index);
 	if (set_pr_var(tmpbuf, cdr_lock_level, value, &index, ret))
 		return pr_var(cdr_lock_level, index);
+	if (set_pr_var(tmpbuf, top_intr_maskn_value, value, &index, ret))
+		return pr_var(top_intr_maskn_value, index);
 	return 0;
 }
 
@@ -1826,6 +1830,7 @@ void rx_get_global_variable(const char *buf)
 	pr_var(hdcp_enc_mode, i++);
 	pr_var(hbr_force_8ch, i++);
 	pr_var(cdr_lock_level, i++);
+	pr_var(top_intr_maskn_value, i++);
 }
 
 void skip_frame(unsigned int cnt)

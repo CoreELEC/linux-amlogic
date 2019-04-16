@@ -129,7 +129,7 @@ bool en_4096_2_3840;
 int en_4k_2_2k;
 int en_4k_timing = 1;
 bool hdmi_cec_en;
-int vdin_drop_frame_cnt = 1;
+int vdin_drop_frame_cnt = 2;
 /* suspend_pddq_sel:
  * 0: keep phy on when suspend(don't need phy init when
  *   resume), it doesn't work now because phy VDDIO_3.3V

@@ -249,8 +249,7 @@ static int video_onoff_state = VIDEO_ENABLE_STATE_IDLE;
 static u32 video_onoff_time;
 static DEFINE_SPINLOCK(video2_onoff_lock);
 static int video2_onoff_state = VIDEO_ENABLE_STATE_IDLE;
-static u32 hdmiin_frame_check;
-static u32 hdmiin_frame_check_cnt;
+static u32 frame_skip_check_cnt;
 
 
 /*frame_detect_flag: 1 enable, 0 disable */
@@ -5654,7 +5653,8 @@ static inline bool video_vf_disp_mode_check(struct vframe_s *vf)
 	} else
 		vf_notify_provider_by_name("vdin0",
 			VFRAME_EVENT_RECEIVER_DISP_MODE, (void *)&req);
-	if (req.disp_mode == VFRAME_DISP_MODE_OK)
+	if ((req.disp_mode == VFRAME_DISP_MODE_OK) ||
+		(req.disp_mode == VFRAME_DISP_MODE_NULL))
 		return false;
 	/*whether need to check pts??*/
 	video_vf_put(vf);
@@ -6737,14 +6737,15 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 			 *	quickly for display
 			 *case2:input buffer all not OK
 			 */
-			if (vf && hdmiin_frame_check &&
-				(vf->source_type == VFRAME_SOURCE_TYPE_HDMI) &&
+			if (vf &&
+				((vf->source_type == VFRAME_SOURCE_TYPE_HDMI) ||
+				(vf->source_type == VFRAME_SOURCE_TYPE_CVBS)) &&
 				(video_vf_disp_mode_get(vf) ==
 				VFRAME_DISP_MODE_UNKNOWN) &&
-				(hdmiin_frame_check_cnt++ < 10))
+				(frame_skip_check_cnt++ < 10))
 				break;
 			else
-				hdmiin_frame_check_cnt = 0;
+				frame_skip_check_cnt = 0;
 
 			vf = video_vf_get();
 			if (!vf) {
@@ -6762,8 +6763,9 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 				ATRACE_COUNTER(MODULE_NAME,  __LINE__);
 				break;
 			}
-			if (vf && hdmiin_frame_check && (vf->source_type ==
-				VFRAME_SOURCE_TYPE_HDMI) &&
+			if (vf &&
+				((vf->source_type == VFRAME_SOURCE_TYPE_HDMI) ||
+				(vf->source_type == VFRAME_SOURCE_TYPE_CVBS)) &&
 				video_vf_disp_mode_check(vf))
 				break;
 			force_blackout = 0;
@@ -13078,9 +13080,6 @@ MODULE_PARM_DESC(underflow, "\n Underflow count\n");
 
 module_param(next_peek_underflow, uint, 0664);
 MODULE_PARM_DESC(skip, "\n Underflow count\n");
-
-module_param(hdmiin_frame_check, uint, 0664);
-MODULE_PARM_DESC(hdmiin_frame_check, "\n hdmiin_frame_check\n");
 
 module_param(step_enable, uint, 0664);
 MODULE_PARM_DESC(step_enable, "\n step_enable\n");
