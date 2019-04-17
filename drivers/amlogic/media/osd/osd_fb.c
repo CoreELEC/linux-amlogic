@@ -3912,7 +3912,7 @@ static struct osd_device_data_s osd_tm2 = {
 	.has_deband = 1,
 	.has_lut = 1,
 	.has_rdma = 1,
-	.has_dolby_vision = 0,
+	.has_dolby_vision = 1,
 	.osd_fifo_len = 64, /* fifo len 64*8 = 512 */
 	.vpp_fifo_len = 0xfff,/* 2048 */
 	.dummy_data = 0x00808000,
