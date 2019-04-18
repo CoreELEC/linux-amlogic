@@ -377,11 +377,12 @@
 		pinctrl-1=<&jtag_apee_pins>;
 	};
 
-	meson_suspend: pm {
+	aml_pm {
 		compatible = "amlogic, pm";
 		status = "okay";
-		reg = <0xc81000a8 0x4>,
-				<0xc810023c 0x4>;
+		device_name = "aml_pm";
+		debug_reg = <0xc81000a8>;
+		exit_reg = <0xc810023c>;
 	};
 
 	reboot {
