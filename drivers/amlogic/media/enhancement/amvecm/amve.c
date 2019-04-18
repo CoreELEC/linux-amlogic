@@ -576,7 +576,8 @@ void vpp_set_rgb_ogo(struct tcon_rgb_ogo_s *p)
 			m[22], 5, 3);
 	} else {
 		/*for txlx and txhd, pre_offset and post_offset become 13 bit*/
-		if (is_meson_txlx_cpu() || is_meson_txhd_cpu()) {
+		if (is_meson_txlx_cpu() || is_meson_txhd_cpu() ||
+			is_meson_tm2_cpu()) {
 			WRITE_VPP_REG(VPP_GAINOFF_CTRL0,
 				((p->en << 31) & 0x80000000) |
 				((p->r_gain << 16) & 0x07ff0000) |
