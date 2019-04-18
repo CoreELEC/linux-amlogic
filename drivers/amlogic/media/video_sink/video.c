@@ -85,6 +85,7 @@ MODULE_AMLOG(LOG_LEVEL_ERROR, 0, LOG_DEFAULT_LEVEL_DESC, LOG_MASK_DESC);
 #endif
 #include <linux/amlogic/media/video_sink/video.h>
 #include <linux/amlogic/media/codec_mm/configs.h>
+#include <linux/amlogic/media/codec_mm/codec_mm.h>
 
 #include "../common/vfm/vfm.h"
 #include <linux/amlogic/media/amdolbyvision/dolby_vision.h>
@@ -457,6 +458,11 @@ static u32 reference_zorder = 128;
 /* default value 20 30 */
 static s32 black_threshold_width = 20;
 static s32 black_threshold_height = 30;
+
+static struct vframe_s hist_test_vf;
+static bool hist_test_flag;
+static unsigned long hist_buffer_addr;
+static u32 hist_print_count;
 
 #define MAX_ZOOM_RATIO 300
 
@@ -1243,6 +1249,13 @@ static inline struct vframe_s *video_vf_peek(void)
 {
 	struct vframe_s *vf = vf_peek(RECEIVER_NAME);
 
+	if (hist_test_flag) {
+		if (cur_dispbuf != &hist_test_vf)
+			vf = &hist_test_vf;
+		else
+			vf = NULL;
+	}
+
 	if (vf && vf->disp_pts && vf->disp_pts_us64) {
 		vf->pts = vf->disp_pts;
 		vf->pts_us64 = vf->disp_pts_us64;
@@ -1257,8 +1270,13 @@ static inline struct vframe_s *video_vf_get(void)
 	struct vframe_s *vf = NULL;
 	int frame_width, frame_height;
 
-	vf = vf_get(RECEIVER_NAME);
+	if (hist_test_flag) {
+		if (cur_dispbuf != &hist_test_vf)
+			vf = &hist_test_vf;
+		return vf;
+	}
 
+	vf = vf_get(RECEIVER_NAME);
 	if (vf) {
 		if (vf->disp_pts && vf->disp_pts_us64) {
 			vf->pts = vf->disp_pts;
@@ -1345,6 +1363,9 @@ static int video_vf_get_states(struct vframe_states *states)
 static inline void video_vf_put(struct vframe_s *vf)
 {
 	struct vframe_provider_s *vfp = vf_get_provider(RECEIVER_NAME);
+
+	if (vf == &hist_test_vf)
+		return;
 
 	if (vfp && vf && atomic_dec_and_test(&vf->use_cnt)) {
 		vf_put(vf, RECEIVER_NAME);
@@ -6336,6 +6357,9 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 
 	if (debug_flag & DEBUG_FLAG_VSYNC_DONONE)
 		return IRQ_HANDLED;
+
+	if (!hist_test_flag && (cur_dispbuf == &hist_test_vf))
+		cur_dispbuf = NULL;
 
 	if (frame_detect_flag == 1 &&
 			receive_frame_count &&
@@ -11692,6 +11716,214 @@ static ssize_t black_threshold_store(
 	return strnlen(buf, count);
 }
 
+static int free_alloced_hist_test_buffer(void)
+{
+	if (hist_buffer_addr) {
+		codec_mm_free_for_dma("hist-test", hist_buffer_addr);
+		hist_buffer_addr = 0;
+	}
+	return 0;
+}
+
+static int alloc_hist_test_buffer(u32 size)
+{
+	int ret = -ENOMEM;
+	int flags = CODEC_MM_FLAGS_DMA |
+		CODEC_MM_FLAGS_FOR_VDECODER;
+
+	if (!hist_buffer_addr) {
+		hist_buffer_addr = codec_mm_alloc_for_dma(
+			"hist-test",
+			PAGE_ALIGN(size)/PAGE_SIZE, 0, flags);
+	}
+	if (hist_buffer_addr)
+		ret = 0;
+	return ret;
+}
+
+static ssize_t hist_test_show(
+	struct class *cla,
+	struct class_attribute *attr,
+	char *buf)
+{
+#define VI_HIST_MAX_MIN (0x2e03)
+#define VI_HIST_SPL_VAL (0x2e04)
+#define VI_HIST_SPL_PIX_CNT (0x2e05)
+#define VI_HIST_CHROMA_SUM (0x2e06)
+	ssize_t len = 0;
+	u32 hist_result[4];
+
+	if (hist_test_flag) {
+		hist_result[0] = READ_VCBUS_REG(VI_HIST_MAX_MIN);
+		hist_result[1] = READ_VCBUS_REG(VI_HIST_SPL_VAL);
+		hist_result[2] = READ_VCBUS_REG(VI_HIST_SPL_PIX_CNT);
+		hist_result[3] = READ_VCBUS_REG(VI_HIST_CHROMA_SUM);
+
+		len +=
+			sprintf(buf + len, "\n======time %d =====\n",
+			hist_print_count + 1);
+		len +=
+			sprintf(buf + len, "hist_max_min: 0x%08x\n",
+			hist_result[0]);
+		len +=
+			sprintf(buf + len, "hist_spl_val: 0x%08x\n",
+			hist_result[1]);
+		len +=
+			sprintf(buf + len, "hist_spl_pix_cnt: 0x%08x\n",
+			hist_result[2]);
+		len +=
+			sprintf(buf + len, "hist_chroma_sum: 0x%08x\n",
+			hist_result[3]);
+		msleep(50);
+		hist_print_count++;
+	} else {
+		len +=
+			sprintf(buf + len, "no hist data\n");
+	}
+	return len;
+}
+
+static ssize_t hist_test_store(
+	struct class *cla,
+	struct class_attribute *attr,
+	const char *buf, size_t count)
+{
+#define VI_HIST_CTRL (0x2e00)
+#define VI_HIST_H_START_END (0x2e01)
+#define VI_HIST_V_START_END (0x2e02)
+#define VI_HIST_PIC_SIZE (0x2e28)
+#define VIU_EOTF_CTL (0x31d0)
+#define XVYCC_LUT_CTL (0x3165)
+#define XVYCC_INV_LUT_CTL (0x3164)
+#define XVYCC_VD1_RGB_CTRST (0x3170)
+	int parsed[3];
+	int frame_width = 0, frame_height = 0;
+	int pat_val = 0, canvas_width;
+	u32 hist_dst_w, hist_dst_h;
+	const struct vinfo_s *ginfo = get_current_vinfo();
+	struct disp_info_s *layer = &glayer_info[0];
+
+	if (likely(parse_para(buf, 3, parsed) == 3)) {
+		frame_width = parsed[0];
+		frame_height = parsed[1];
+		pat_val = parsed[2];
+	}
+
+	if (cur_dispbuf
+		&& (cur_dispbuf != &vf_local)
+		&& (cur_dispbuf != &hist_test_vf))
+		pat_val = 0;
+	if (!frame_width || !frame_height)
+		pat_val = 0;
+
+	if (legacy_vpp)
+		pat_val = 0;
+
+	if (pat_val > 0 && pat_val <= 0x3fffffff) {
+		if (!hist_test_flag) {
+			memset(&hist_test_vf, 0, sizeof(hist_test_vf));
+			canvas_width = (frame_width + 31) & (~31);
+			if (!alloc_hist_test_buffer(
+				canvas_width * frame_height * 3)) {
+				hist_test_vf.canvas0Addr =
+					DISPLAY_CANVAS_BASE_INDEX + 5;
+				hist_test_vf.canvas1Addr =
+					DISPLAY_CANVAS_BASE_INDEX + 5;
+				canvas_config(
+					DISPLAY_CANVAS_BASE_INDEX + 5,
+					(unsigned int)hist_buffer_addr,
+					canvas_width * 3,
+					frame_height,
+					CANVAS_ADDR_NOWRAP,
+					CANVAS_BLKMODE_LINEAR);
+				hist_test_vf.width = frame_width;
+				hist_test_vf.height = frame_height;
+				hist_test_vf.type = VIDTYPE_VIU_444 |
+					VIDTYPE_VIU_SINGLE_PLANE |
+					VIDTYPE_VIU_FIELD | VIDTYPE_PIC;
+				/* indicate the vframe is a full range frame */
+				hist_test_vf.signal_type =
+					/* HD default 709 limit */
+					  (1 << 29) /* video available */
+					| (5 << 26) /* unspecified */
+					| (1 << 25) /* full */
+					| (1 << 24) /* color available */
+					| (1 << 16) /* bt709 */
+					| (1 << 8)  /* bt709 */
+					| (1 << 0); /* bt709 */
+				hist_test_vf.duration_pulldown = 0;
+				hist_test_vf.index = 0;
+				hist_test_vf.pts = 0;
+				hist_test_vf.pts_us64 = 0;
+				hist_test_vf.ratio_control = 0;
+				hist_test_flag = true;
+				WRITE_VCBUS_REG(VIU_EOTF_CTL, 0);
+				WRITE_VCBUS_REG(XVYCC_LUT_CTL, 0);
+				WRITE_VCBUS_REG(XVYCC_INV_LUT_CTL, 0);
+				WRITE_VCBUS_REG(VPP_VADJ_CTRL, 0);
+				WRITE_VCBUS_REG(VPP_GAINOFF_CTRL0, 0);
+				WRITE_VCBUS_REG(VPP_VE_ENABLE_CTRL, 0);
+				WRITE_VCBUS_REG(XVYCC_VD1_RGB_CTRST, 0);
+				if (ginfo) {
+					if (ginfo->width >
+						(layer->layer_width
+						+ layer->layer_left))
+						hist_dst_w =
+						layer->layer_width
+						+ layer->layer_left;
+					else
+						hist_dst_w =
+						ginfo->width;
+					if (ginfo->field_height >
+						(layer->layer_height
+						+ layer->layer_top))
+						hist_dst_h =
+						layer->layer_height
+						+ layer->layer_top;
+					else
+						hist_dst_h =
+						ginfo->field_height;
+					WRITE_VCBUS_REG(
+					VI_HIST_H_START_END,
+					hist_dst_w & 0xfff);
+					WRITE_VCBUS_REG(
+					VI_HIST_V_START_END,
+					(hist_dst_h - 2) & 0xfff);
+					WRITE_VCBUS_REG(
+					VI_HIST_PIC_SIZE,
+					(ginfo->width & 0xfff) |
+					(ginfo->field_height << 16));
+					WRITE_VCBUS_REG(VI_HIST_CTRL, 0x3803);
+				} else {
+					WRITE_VCBUS_REG(
+					VI_HIST_H_START_END, 0);
+					WRITE_VCBUS_REG(
+					VI_HIST_V_START_END, 0);
+					WRITE_VCBUS_REG(
+					VI_HIST_PIC_SIZE,
+					(ginfo->width & 0xfff) |
+					(ginfo->field_height << 16));
+					WRITE_VCBUS_REG(VI_HIST_CTRL, 0x3801);
+				}
+			}
+		}
+		WRITE_VCBUS_REG(VPP_VD1_CLIP_MISC0, pat_val);
+		WRITE_VCBUS_REG(VPP_VD1_CLIP_MISC1, pat_val);
+		WRITE_VCBUS_REG(DOLBY_PATH_CTRL, 0x3f);
+		msleep(50);
+		hist_print_count = 0;
+	} else if (hist_test_flag) {
+		hist_test_flag = false;
+		msleep(50);
+		free_alloced_hist_test_buffer();
+		WRITE_VCBUS_REG(VPP_VD1_CLIP_MISC0, 0x3fffffff);
+		WRITE_VCBUS_REG(VPP_VD1_CLIP_MISC1, 0);
+		WRITE_VCBUS_REG(DOLBY_PATH_CTRL, 0xf);
+		safe_disble_videolayer();
+	}
+	return strnlen(buf, count);
+}
+
 #ifdef VIDEO_PIP
 int _videopip_set_disable(u32 val)
 {
@@ -12218,6 +12450,10 @@ static struct class_attribute amvideo_class_attrs[] = {
 	       0664,
 	       black_threshold_show,
 	       black_threshold_store),
+	 __ATTR(hist_test,
+	       0664,
+	       hist_test_show,
+	       hist_test_store),
 	__ATTR_RO(frame_addr),
 	__ATTR_RO(frame_canvas_width),
 	__ATTR_RO(frame_canvas_height),
