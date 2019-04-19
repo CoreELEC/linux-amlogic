@@ -563,6 +563,8 @@ void cecb_irq_handle(void)
 	/* clear irq */
 	if (intr_cec != 0)
 		cecrx_clear_irq(intr_cec);
+	else
+		CEC_INFO_L(L_1, "err cec intsts:0\n");
 
 	if (cec_dev->plat_data->ee_to_ao)
 		shift = 16;
