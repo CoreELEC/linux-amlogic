@@ -1219,8 +1219,12 @@ void rx_dwc_reset(void)
 	hdmirx_wr_top(TOP_SW_RESET, 0x280);
 	udelay(1);
 	hdmirx_wr_top(TOP_SW_RESET, 0);
-	if ((rx.hdcp.hdcp_version == HDCP_VER_NONE) &&
-		(rx_get_hdcp14_sts() != 0))
+	if (rx.hdcp.hdcp_version == HDCP_VER_NONE)
+	/* dishNXT box only send set_avmute, not clear_avmute
+	 * we must clear hdcp avmute status here
+	 * otherwise hdcp2.2 module does not work
+	 */
+		/* (rx_get_hdcp14_sts() != 0)) */
 		rx_sw_reset(2);
 	else
 		rx_sw_reset(1);
