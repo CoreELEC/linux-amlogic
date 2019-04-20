@@ -32,6 +32,7 @@
 #include "vdin_drv.h"
 #include "vdin_ctl.h"
 #include "vdin_regs.h"
+#include "vdin_afbce.h"
 /*2018-07-18 add debugfs*/
 #include <linux/seq_file.h>
 #include <linux/debugfs.h>
@@ -828,7 +829,7 @@ static void vdin_dump_state(struct vdin_dev_s *devp)
 		devp->dv.dv_flag, devp->dv.dv_config, devp->prop.dolby_vision);
 	pr_info("size of struct vdin_dev_s: %d\n", devp->vdin_dev_ssize);
 
-	pr_info("afbce_flag: %d\n", devp->afbce_flag);
+	pr_info("afbce_flag: 0x%x\n", devp->afbce_flag);
 	pr_info("afbce_mode: %d\n", devp->afbce_mode);
 	if (devp->afbce_mode == 1) {
 		for (i = 0; i < devp->vfmem_max_cnt; i++) {
@@ -852,16 +853,9 @@ static void vdin_dump_state(struct vdin_dev_s *devp)
 				i, devp->afbce_info->fm_body_paddr[i],
 				devp->afbce_info->frame_body_size);
 		}
-		if (is_meson_tl1_cpu()) {
-			pr_info("tl1 preview flag = %d\n",
-				tl1_vdin1_preview_flag);
-		}
 	}
 	pr_info("Vdin driver version :  %s\n", VDIN_VER);
 }
-
-/*2018-07-18 add debugfs*/
-struct vdin_dev_s *vdin_get_dev(unsigned int index);
 
 /*same as vdin_dump_state*/
 static int seq_file_vdin_state_show(struct seq_file *seq, void *v)
@@ -1772,11 +1766,23 @@ start_chk:
 		unsigned int offset = devp->addr_offset;
 		pr_info("vdin%d addr offset:0x%x regs start----\n",
 				devp->index, offset);
-		for (reg = VDIN_SCALE_COEF_IDX;	reg <= 0x1273; reg++)
-			pr_info("[0x%x]reg:0x%x-0x%x\n",
-					(0xd0100000 + ((reg+offset)<<2)),
-					(reg+offset), rd(offset, reg));
-		pr_info("vdin%d regs   end----\n", devp->index);
+		for (reg = VDIN_SCALE_COEF_IDX; reg <= 0x1273; reg++) {
+			pr_info("0x%04x = 0x%08x\n",
+				(reg+offset), rd(offset, reg));
+		}
+		pr_info("vdin%d regs end----\n", devp->index);
+		if (devp->afbce_flag & VDIN_AFBCE_EN) {
+			pr_info("vdin%d afbce regs start----\n", devp->index);
+			for (reg = AFBCE_ENABLE; reg <= AFBCE_MMU_RMIF_RO_STAT;
+				reg++) {
+				pr_info("0x%04x = 0x%08x\n",
+					(reg), R_VCBUS(reg));
+			}
+			pr_info("vdin%d afbce regs end----\n", devp->index);
+		}
+		reg = VDIN_MISC_CTRL;
+		pr_info("0x%04x = 0x%08x\n", (reg), R_VCBUS(reg));
+		pr_info("\n");
 	} else if (!strcmp(parm[0], "rgb_xy")) {
 		unsigned int x = 0, y = 0;
 
@@ -2133,15 +2139,15 @@ start_chk:
 		} else {
 			pr_info("skip_frame_debug: %d\n", skip_frame_debug);
 		}
-	} else if (!strcmp(parm[0], "afbc_drop_cnt")) {
+	} else if (!strcmp(parm[0], "max_recycle_cnt")) {
 		if (parm[1] != NULL) {
 			if (kstrtouint(parm[1], 10,
-				&vdin_afbc_force_drop_frame_cnt) == 0)
-				pr_info("set vdin_afbc_force_drop_frame_cnt: %d\n",
-					vdin_afbc_force_drop_frame_cnt);
+				&max_recycle_frame_cnt) == 0)
+				pr_info("set max_recycle_frame_cnt: %d\n",
+					max_recycle_frame_cnt);
 		} else {
-			pr_info("vdin_afbc_force_drop_frame_cnt: %d\n",
-				vdin_afbc_force_drop_frame_cnt);
+			pr_info("max_recycle_frame_cnt: %d\n",
+				max_recycle_frame_cnt);
 		}
 	} else if (!strcmp(parm[0], "max_ignore_cnt")) {
 		if (parm[1] != NULL) {
@@ -2151,6 +2157,46 @@ start_chk:
 		} else {
 			pr_info("max_ignore_frame_cnt: %d\n",
 				max_ignore_frame_cnt);
+		}
+	} else if (!strcmp(parm[0], "afbce_flag")) {
+		if (parm[1] != NULL) {
+			if (kstrtouint(parm[1], 16, &devp->afbce_flag) == 0) {
+				pr_info("set vdin_afbce_flag: 0x%x\n",
+					devp->afbce_flag);
+			}
+		} else {
+			pr_info("vdin_afbce_flag: 0x%x\n", devp->afbce_flag);
+		}
+	} else if (!strcmp(parm[0], "afbce_mode")) {
+		unsigned int mode = 0, flag = 0;
+
+		if (parm[2] != NULL) {
+			if ((kstrtouint(parm[1], 10, &mode) == 0) &&
+				(kstrtouint(parm[2], 10, &flag) == 0)) {
+				vdin0_afbce_debug_force = flag;
+				if (devp->afbce_flag & VDIN_AFBCE_EN)
+					devp->afbce_mode = mode;
+				else
+					devp->afbce_mode = 0;
+				if (vdin0_afbce_debug_force) {
+					pr_info("set force vdin_afbce_mode: %d\n",
+						devp->afbce_mode);
+				} else {
+					pr_info("set vdin_afbce_mode: %d\n",
+						devp->afbce_mode);
+				}
+			}
+		} else if (parm[1] != NULL) {
+			if (kstrtouint(parm[1], 10, &mode) == 0) {
+				if (devp->afbce_flag & VDIN_AFBCE_EN)
+					devp->afbce_mode = mode;
+				else
+					devp->afbce_mode = 0;
+				pr_info("set vdin_afbce_mode: %d\n",
+					devp->afbce_mode);
+			}
+		} else {
+			pr_info("vdin_afbce_mode: %d\n", devp->afbce_mode);
 		}
 	} else {
 		pr_info("unknown command\n");

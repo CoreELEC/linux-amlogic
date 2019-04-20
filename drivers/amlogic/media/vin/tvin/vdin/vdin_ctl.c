@@ -3936,6 +3936,7 @@ void vdin_dolby_config(struct vdin_dev_s *devp)
 	}
 }
 
+unsigned int vdin0_afbce_debug_force;
 int vdin_event_cb(int type, void *data, void *op_arg)
 {
 	unsigned long flags;
@@ -4007,6 +4008,26 @@ int vdin_event_cb(int type, void *data, void *op_arg)
 			pr_info("%s(type 0x%x vf index 0x%x)=>disp_mode %d,req_mode:%d\n",
 				__func__, type, index_disp, req->disp_mode,
 				req->req_mode);
+	} else if (type & VFRAME_EVENT_RECEIVER_NEED_NO_COMP) {
+		struct vdin_dev_s *devp = vdin_get_dev(0);
+		unsigned int *cnt;
+
+		/* use for debug */
+		if (vdin0_afbce_debug_force)
+			return 0;
+
+		cnt = (unsigned int *)data;
+		if (*cnt) {
+			devp->afbce_mode = 0;
+		} else {
+			if (devp->afbce_valid)
+				devp->afbce_mode = 1;
+		}
+
+		if (vdin_ctl_dbg&(1<<1))
+			pr_info("%s(type 0x%x vdin%d) afbce_mode: %d, vpp_cnt: %d\n",
+				__func__, type, devp->index,
+				devp->afbce_mode, *cnt);
 	}
 	return 0;
 }
@@ -4186,7 +4207,7 @@ u32 vdin_get_curr_field_type(struct vdin_dev_s *devp)
 	if ((format_convert == VDIN_FORMAT_CONVERT_YUV_YUV444) ||
 			(format_convert == VDIN_FORMAT_CONVERT_RGB_YUV444)) {
 		type |= VIDTYPE_VIU_444;
-		if (devp->afbce_mode == 1)
+		if (devp->afbce_mode_pre)
 			type |= VIDTYPE_COMB_MODE;
 	} else if ((format_convert == VDIN_FORMAT_CONVERT_YUV_YUV422) ||
 			(format_convert == VDIN_FORMAT_CONVERT_RGB_YUV422))
@@ -4200,10 +4221,13 @@ u32 vdin_get_curr_field_type(struct vdin_dev_s *devp)
 
 	}
 
-	if (devp->afbce_mode == 1) {
+	if (devp->afbce_valid)
+		type |= VIDTYPE_SUPPORT_COMPRESS;
+	if (devp->afbce_mode_pre) {
 		type |= VIDTYPE_COMPRESS;
+		type |= VIDTYPE_NO_DW;
 		type |= VIDTYPE_SCATTER;
-		if (devp->afbce_lossy_en == 1)
+		if (devp->afbce_flag & VDIN_AFBCE_EN_LOOSY)
 			type |= VIDTYPE_COMPRESS_LOSS;
 	}
 

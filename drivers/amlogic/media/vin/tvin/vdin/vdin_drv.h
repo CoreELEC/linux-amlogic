@@ -45,7 +45,10 @@
 #include "vdin_vf.h"
 #include "vdin_regs.h"
 
-#define VDIN_VER "Ref.2019/03/01"
+/* Ref.2019/04/25: tl1 vdin0 afbce dynamically switch support,
+ *                 vpp also should support this function
+ */
+#define VDIN_VER "Ref.2019/04/25"
 
 /*the counter of vdin*/
 #define VDIN_MAX_DEVS			2
@@ -106,6 +109,13 @@
 /*TXL new add*/
 #define VDIN_WR_COLOR_DEPTH_10BIT_FULL_PCAK_MODE	(1 << 4)
 
+/* vdin afbce flag */
+#define VDIN_AFBCE_EN                   (1 << 0)
+#define VDIN_AFBCE_EN_LOOSY             (1 << 1)
+#define VDIN_AFBCE_EN_4K                (1 << 4)
+#define VDIN_AFBCE_EN_1080P             (1 << 5)
+#define VDIN_AFBCE_EN_720P              (1 << 6)
+#define VDIN_AFBCE_EN_SMALL             (1 << 7)
 
 static inline const char *vdin_fmt_convert_str(
 		enum vdin_format_convert_e fmt_cvt)
@@ -329,15 +339,26 @@ struct vdin_dev_s {
 	 * 1: use afbce non-mmu mode: head/body addr set by code
 	 * 2: use afbce mmu mode: head set by code, body addr assigning by hw
 	 */
+	/*afbce_flag:
+	 *bit[0]: enable afbce
+	 *bit[1]: enable afbce_loosy
+	 *bit[4]: afbce enable for 4k
+	 *bit[5]: afbce enable for 1080p
+	 *bit[6]: afbce enable for 720p
+	 *bit[7]: afbce enable for other small resolution
+	 */
 	unsigned int afbce_flag;
+	unsigned int afbce_mode_pre;
 	unsigned int afbce_mode;
-	unsigned int afbce_lossy_en;
+	unsigned int afbce_valid;
 	unsigned int canvas_config_mode;
 	bool	prehsc_en;
 	bool	vshrk_en;
 	bool	urgent_en;
 	bool black_bar_enable;
 	bool hist_bar_enable;
+	unsigned int ignore_frames;
+	unsigned int recycle_frames;
 	/*use frame rate to cal duraton*/
 	unsigned int use_frame_rate;
 	unsigned int irq_cnt;
@@ -364,11 +385,11 @@ struct vdin_v4l2_param_s {
 	int fps;
 };
 
-extern unsigned int tl1_vdin1_preview_flag;
-extern unsigned int vdin_afbc_preview_force_drop_frame_cnt;
-extern unsigned int vdin_afbc_force_drop_frame_cnt;
+extern unsigned int max_recycle_frame_cnt;
 extern unsigned int max_ignore_frame_cnt;
 extern unsigned int skip_frame_debug;
+
+extern unsigned int vdin0_afbce_debug_force;
 
 extern struct vframe_provider_s *vf_get_provider_by_name(
 		const char *provider_name);
@@ -408,6 +429,9 @@ extern void vdin_debugfs_init(struct vdin_dev_s *vdevp);
 extern void vdin_debugfs_exit(struct vdin_dev_s *vdevp);
 
 extern bool vlock_get_phlock_flag(void);
+
+extern struct vdin_dev_s *vdin_get_dev(unsigned int index);
+extern void vdin_mif_config_init(struct vdin_dev_s *devp);
 
 #endif /* __TVIN_VDIN_DRV_H */
 
