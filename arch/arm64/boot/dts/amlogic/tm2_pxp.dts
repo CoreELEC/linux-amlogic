@@ -624,12 +624,12 @@
 		vendor_id = <0x000000>;
 		product_desc = "TM2"; /* Max Chars: 16	  */
 		cec_osd_string = "AML_TV"; /* Max Chars: 14    */
-		port_num = <3>;
+		port_num = <4>;
 		ee_cec;
 		/*cec_sel = <2>;*/
 		output = <1>;	/*output port number*/
 		arc_port_mask = <0x2>;
-		interrupts = <0 205 1
+		interrupts = <0 203 1
 					0 199 1>;
 		interrupt-names = "hdmi_aocecb","hdmi_aocec";
 		pinctrl-names = "default","hdmitx_aocecb","cec_pin_sleep";
