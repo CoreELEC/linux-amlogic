@@ -924,6 +924,15 @@ void hdmirx_irq_hdcp_enable(bool enable)
 	}
 }
 
+void hdmirx_top_irq_en(bool flag)
+{
+	if (flag)
+		hdmirx_wr_top(TOP_INTR_MASKN,
+			top_intr_maskn_value);
+	else
+		hdmirx_wr_top(TOP_INTR_MASKN, 0);
+}
+
 /*
  * rx_get_audinfo - get aduio info
  */
@@ -2409,7 +2418,7 @@ void hdmirx_hw_config(void)
 	if (rx.chip_id >= CHIP_ID_TL1)
 		aml_phy_switch_port();
 	hdmirx_phy_init();
-	hdmirx_wr_top(TOP_INTR_MASKN, top_intr_maskn_value);
+	hdmirx_top_irq_en(true);
 	rx_pr("%s  %d Done!\n", __func__, rx.port);
 	/* hdmi reset will cause cec not working*/
 	/* cec modult need reset */
@@ -2423,7 +2432,7 @@ void hdmirx_hw_config(void)
 void hdmirx_hw_probe(void)
 {
 	hdmirx_wr_top(TOP_MEM_PD, 0);
-	hdmirx_wr_top(TOP_INTR_MASKN, 0);
+	hdmirx_top_irq_en(false);
 	hdmirx_wr_top(TOP_SW_RESET, 0);
 	clk_init();
 	TOP_init();
@@ -2443,7 +2452,7 @@ void hdmirx_hw_probe(void)
 	hdmirx_phy_init();
 	hdmirx_wr_top(TOP_PORT_SEL, 0x10);
 	hdmirx_wr_top(TOP_INTR_STAT_CLR, ~0);
-	hdmirx_wr_top(TOP_INTR_MASKN, top_intr_maskn_value);
+	hdmirx_top_irq_en(true);
 	/* rx_pr("%s Done!\n", __func__); */
 }
 
@@ -3372,22 +3381,22 @@ uint32_t aml_phy_pll_band(uint32_t cableclk,
 static const uint32_t phy_misci[][4] = {
 		/* 0xd7		0xd8		0xe0		0xe1 */
 	{	/* 24~45M */
-		0x3007707f, 0x00000080, 0x02218000, 0x00000010,
+		0x3003707f, 0x00000080, 0x02218000, 0x00000010,
 	},
 	{	/* 45~74.5M */
-		0x3007707f, 0x00000080, 0x02218000, 0x00000010,
+		0x3003707f, 0x00000080, 0x02218000, 0x00000010,
 	},
 	{	/* 77~155M */
-		0x3007707f, 0x00000080, 0x02218000, 0x00000010,
+		0x3003707f, 0x00000080, 0x02218000, 0x00000010,
 	},
 	{	/* 155~340M */
-		0x3007707f, 0x00000080, 0x02218000, 0x00000010,
+		0x3003707f, 0x00000080, 0x02218000, 0x00000010,
 	},
 	{	/* 340~525M */
-		0x3007707f, 0x007f0080, 0x02218000, 0x00000010,
+		0x3003707f, 0x007f0080, 0x02218000, 0x00000010,
 	},
 	{	/* 525~600M */
-		0x3007707f, 0x007f8080, 0x02218000, 0x00000010,
+		0x3003707f, 0x007f8080, 0x02218000, 0x00000010,
 	},
 };
 

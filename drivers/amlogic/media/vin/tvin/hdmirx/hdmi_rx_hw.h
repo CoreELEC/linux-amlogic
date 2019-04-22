@@ -1299,6 +1299,7 @@ extern void rx_get_audio_N_CTS(uint32_t *N, uint32_t *CTS);
 extern void rx_run_eq(void);
 extern bool rx_eq_done(void);
 extern bool is_tmds_valid(void);
+extern void hdmirx_top_irq_en(bool flag);
 #endif
 
 
