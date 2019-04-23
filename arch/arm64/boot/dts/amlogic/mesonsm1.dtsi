@@ -1364,7 +1364,7 @@
 		clocks = <&clkc CLKID_SD_EMMC_C>,
 			   <&clkc CLKID_SD_EMMC_C_P0_COMP>,
 			   <&clkc CLKID_FCLK_DIV2>,
-			   <&clkc CLKID_FCLK_DIV5>,
+			   <&clkc CLKID_FCLK_DIV2P5>,
 			   <&xtal>;
 		clock-names = "core", "clkin0", "clkin1", "clkin2", "xtal";
 
@@ -1822,6 +1822,7 @@
 			function = "emmc";
 			input-enable;
 			bias-pull-up;
+			drive-strength = <3>;
 		};
 	};
 
@@ -1840,6 +1841,7 @@
 			function = "emmc";
 			input-enable;
 			bias-pull-up;
+			drive-strength = <3>;
 		};
 	};
 
@@ -1849,6 +1851,7 @@
 			function = "emmc";
 			input-enable;
 			bias-pull-down;
+			drive-strength = <3>;
 		};
 	};
 
