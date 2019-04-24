@@ -1272,6 +1272,7 @@ struct apll_param {
 	unsigned int od_div;
 	unsigned int od2;
 	unsigned int od2_div;
+	unsigned int aud_div;
 };
 
 extern int rx_get_clock(enum measure_clk_top_e clk_src);

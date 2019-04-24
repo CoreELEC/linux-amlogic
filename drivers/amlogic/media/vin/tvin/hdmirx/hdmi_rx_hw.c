@@ -1275,7 +1275,7 @@ static int TOP_init(void)
 		/* n_cts_auto_mode: */
 		/*	0-every ACR packet */
 		/*	1-on N or CTS value change */
-		data32 |= 0 << 4;
+		data32 |= 1 << 4;
 	}
 	/* delay cycles before n/cts update pulse */
 	data32 |= 7 << 0;
@@ -3596,8 +3596,8 @@ void aml_phy_init(void)
 	/* data channel and common block reset */
 	/*update from "data channel and common block */
 	/* reset"to"only common block reset" */
-	/*data32 |= 0xf << 7;*/
-	data32 |= 0x1 << 10;
+	data32 |= 0xf << 7;
+	/* data32 |= 0x1 << 10; */
 	udelay(5);
 	wr_reg_hhi(HHI_HDMIRX_PHY_MISC_CNTL0, data32);
 	udelay(2);
@@ -3666,6 +3666,12 @@ void aml_eq_setting(void)
 	uint32_t data32 = 0;
 	uint32_t idx = rx.phy.phy_bw;
 
+	/* data channel release reset */
+	/* data32 = rd_reg_hhi(HHI_HDMIRX_PHY_MISC_CNTL0); */
+	/* rx_pr("0x35c=0x%x\n", data32); */
+	/* data32 |= (0x7 << 7); */
+	/* wr_reg_hhi(HHI_HDMIRX_PHY_MISC_CNTL0, data32); */
+
 	if (find_best_eq) {
 		data32 = phy_dchd_1[idx][1] & (~(MSK(16, 4)));
 		data32 |= find_best_eq << 4;
@@ -3673,7 +3679,6 @@ void aml_eq_setting(void)
 		data32 = phy_dchd_1[idx][1];
 	else if ((rx.phy.cablesel % 2) == 1)
 		data32 = phy_dchd_2[idx][1];
-
 
 	wr_reg_hhi(HHI_HDMIRX_PHY_DCHD_CNTL1, data32);
 	udelay(5);
@@ -3780,13 +3785,13 @@ bool is_tmds_clk_stable(void)
 struct apll_param apll_tab[] = {
 	/*od for tmds: 2/4/8/16/32*/
 	/*od2 for audio: 1/2/4/8/16*/
-	/* bw M, N, od, od_div, od2, od2_div */
-	{pll_frq_band_0, 160, 1, 0x5, 32, 0x2, 8},/*tmdsx4*/
-	{pll_frq_band_1, 80, 1, 0x4,	16, 0x2, 8},/*tmdsx2*/
-	{pll_frq_band_2, 40, 1, 0x3, 8, 0x2, 8},/*tmds*/
-	{pll_frq_band_3, 40, 2, 0x2, 4, 0x1, 4},/*tmds*/
-	{pll_frq_band_4, 40, 1, 0x1, 2, 0x0, 2},/*tmds*/
-	{pll_frq_null, 40, 1, 0x3, 8,	0x2, 8},
+	/* bw M, N, od, od_div, od2, od2_div, aud_div */
+	{pll_frq_band_0, 160, 1, 0x5, 32,	0x2, 8, 2},/*tmdsx4*/
+	{pll_frq_band_1, 80, 1, 0x4,	16, 0x2, 8, 1},/*tmdsx2*/
+	{pll_frq_band_2, 40, 1, 0x3, 8,	0x2, 8, 0},/*tmds*/
+	{pll_frq_band_3, 40, 2, 0x2, 4,	0x1, 4, 0},/*tmds*/
+	{pll_frq_band_4, 40, 1, 0x1, 2,	0x0, 2, 0},/*tmds*/
+	{pll_frq_null, 40, 1, 0x3, 8,	0x2, 8, 0},
 };
 
 void aml_phy_pll_setting(void)
@@ -3796,12 +3801,10 @@ void aml_phy_pll_setting(void)
 	uint32_t od2, od2_div;
 	uint32_t bw = rx.phy.pll_bw;
 	uint32_t vco_clk;
-	uint32_t apll_out;
-	uint32_t aud_pll_out;
 	uint32_t data, data2;
-	uint32_t aud_div;
 	uint32_t cableclk = rx.phy.cable_clk / KHz;
 	int pll_rst_cnt = 0;
+	int m_div;
 
 	od_div = apll_tab[bw].od_div;
 	od = apll_tab[bw].od;
@@ -3810,60 +3813,57 @@ void aml_phy_pll_setting(void)
 	od2_div = apll_tab[bw].od2_div;
 	od2 = apll_tab[bw].od2;
 
+	/*set audio pll divider*/
+	rx.phy.aud_div = apll_tab[bw].aud_div;
 	vco_clk = (cableclk * M) / N; /*KHz*/
 	if ((vco_clk < (2970 * KHz)) || (vco_clk > (6000 * KHz))) {
 		if (log_level & VIDEO_LOG)
 			rx_pr("err: M=%d,N=%d,vco_clk=%d\n", M, N, vco_clk);
 	}
 
-	/*tmds clk out*/
-	apll_out = (vco_clk/od_div)/5;
-	aud_pll_out = ((vco_clk/od2_div)/5);
 	if (is_tl1_former())
 		od2 += 1;
 	do {
-		/*cntl0 M <7:0> N<14:10>*/
-		data = 0x00090400 & 0xffff8300;
-		data |= M;
-		data |= (N << 10);
-		wr_reg_hhi(HHI_HDMIRX_APLL_CNTL0, data|0x20000000);
-		udelay(5);
-		wr_reg_hhi(HHI_HDMIRX_APLL_CNTL0, data|0x30000000);
-		udelay(5);
-		wr_reg_hhi(HHI_HDMIRX_APLL_CNTL1, 0x00000000);
-		udelay(5);
-		wr_reg_hhi(HHI_HDMIRX_APLL_CNTL2, 0x00001118);
-		udelay(5);
-		data2 = 0x10058f30|od2;
-		wr_reg_hhi(HHI_HDMIRX_APLL_CNTL3, data2);
+		if ((vco_clk > (3000 * KHz)) && (vco_clk < (4800 * KHz)) &&
+			(M <= 80)) {
+			data2 = 0x300b8f30 | od2;
+			m_div = 2;
+		} else {
+			data2 = 0x300d8f30 | od2;
+			m_div = 1;
+		}
 
-		/* verB: bit'27=1 */
+		wr_reg_hhi(HHI_HDMIRX_APLL_CNTL1, 0x00000000);
+		wr_reg_hhi(HHI_HDMIRX_APLL_CNTL2, 0x0000503c);
+		wr_reg_hhi(HHI_HDMIRX_APLL_CNTL3, data2);
 		if (is_tl1_former())
 			data2 = 0x000100c0;
 		else
-			/* decrease pll bw*/
-			data2 = 0x080130c0;//0x080100c0
+			data2 = 0x080130c0;
 		data2 |= (od << 24);
 		wr_reg_hhi(HHI_HDMIRX_APLL_CNTL4, data2);
+		udelay(1);
+		/*cntl0 M <7:0> N<14:10>*/
+		data = 0x00090000;
+		data |= M * m_div;
+		data |= (N << 10);
+		wr_reg_hhi(HHI_HDMIRX_APLL_CNTL0, data | 0x20000000);
+		wr_reg_hhi(HHI_HDMIRX_APLL_CNTL0, data | 0x30000000);
 		udelay(5);
-		/*apll_vctrl_mon_en*/
-		wr_reg_hhi(HHI_HDMIRX_APLL_CNTL4, data2|0x00800000);
+		wr_reg_hhi(HHI_HDMIRX_APLL_CNTL4, data2 | 0x00800000);
 		udelay(5);
-		wr_reg_hhi(HHI_HDMIRX_APLL_CNTL0, data|0x34000000);
+		wr_reg_hhi(HHI_HDMIRX_APLL_CNTL0, data | 0x34000000);
 		udelay(5);
-		wr_reg_hhi(HHI_HDMIRX_APLL_CNTL0, data|0x14000000);
-		udelay(5);
-		/* bit'5: force lock bit'2: improve ldo voltage:pll 0.8v->0.9 */
+		if (m_div == 2) {
+			m_div = 1;
+			data &= 0xffffff00;
+			data |= M * m_div;
+			wr_reg_hhi(HHI_HDMIRX_APLL_CNTL0, data | 0x34000000);
+		}
+		data &= 0xdfffffff;
+		wr_reg_hhi(HHI_HDMIRX_APLL_CNTL0, data | 0x14000000);
+		/* bit'5: force lock bit'2: improve phy ldo voltage */
 		wr_reg_hhi(HHI_HDMIRX_APLL_CNTL2, 0x0000303c);
-		udelay(5);
-		/* common block release reset */
-		data = rd_reg_hhi(HHI_HDMIRX_PHY_MISC_CNTL0);
-		data &= ~(0xf << 7);
-		wr_reg_hhi(HHI_HDMIRX_PHY_MISC_CNTL0, data);
-		udelay(5);
-		/* data channel release reset */
-		data |= (0xf << 7);
-		wr_reg_hhi(HHI_HDMIRX_PHY_MISC_CNTL0, data);
 
 		udelay(100);
 		if (pll_rst_cnt++ > pll_rst_max) {
@@ -3876,19 +3876,6 @@ void aml_phy_pll_setting(void)
 				meson_clk_measure(29)/MHz,
 				hdmirx_rd_top(TOP_MISC_STAT0) & 0x1);
 	} while ((!is_tmds_clk_stable()) && is_clk_stable());
-	/*set audio pll divider*/
-	aud_div = aud_pll_out/apll_out;
-	if (aud_div == 1)
-		data = 0;
-	else if (aud_div == 2)
-		data = 1;
-	else if (aud_div == 4)
-		data = 2;
-	else if (aud_div == 8)
-		data = 3;
-	else if (aud_div == 16)
-		data = 4;
-	rx.phy.aud_div = data;
 }
 
 void aml_phy_pw_onoff(uint32_t onoff)
