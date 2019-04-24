@@ -53,6 +53,7 @@ enum vppfilter_state_e {
 	VppFilter_Fail = -1,
 	VppFilter_Success = 0,
 	VppFilter_Success_and_Changed,
+	VppFilter_Changed_but_Hold,
 };
 
 enum f2v_vphase_type_e {

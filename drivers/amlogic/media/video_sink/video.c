@@ -277,6 +277,8 @@ static u32 frame_detect_fps = 60000;
 static u32 frame_detect_receive_count;
 static u32 frame_detect_drop_count;
 
+static u32 vpp_hold_setting_cnt;
+
 #ifdef FIQ_VSYNC
 #define BRIDGE_IRQ INT_TIMER_C
 #define BRIDGE_IRQ_SET() WRITE_CBUS_REG(ISA_TIMERC, 1)
@@ -3172,7 +3174,7 @@ static void pip_toggle_frame(struct vframe_s *vf)
 	}
 
 	if (pip_property_changed) {
-		first_picture = 1;
+		force_toggle = true;
 		pip_property_changed = 0;
 	}
 	if (cur_pipbuf != vf)
@@ -3795,11 +3797,11 @@ static void vsync_toggle_frame(struct vframe_s *vf, int line)
 	if (video_property_changed) {
 		property_changed_true = 2;
 		video_property_changed = 0;
-		first_picture = 1;
+		force_toggle = true;
 	}
 	if (property_changed_true > 0) {
 		property_changed_true--;
-		first_picture = 1;
+		force_toggle = true;
 	}
 
 	if ((debug_flag & DEBUG_FLAG_BLACKOUT)
@@ -4022,14 +4024,31 @@ static void vsync_toggle_frame(struct vframe_s *vf, int line)
 			(is_dolby_vision_on() &&
 			is_dolby_vision_stb_mode()), 1);
 
-		if (iret == VppFilter_Success_and_Changed)
-			video_property_changed = 1;
-
 		memcpy(&gPic_info[0], &vf->pic_mode,
 			sizeof(struct vframe_pic_mode_s));
 
-		/* apply new vpp settings */
-		frame_par_ready_to_set = 1;
+		if ((iret == VppFilter_Success_and_Changed)
+			|| (iret == VppFilter_Changed_but_Hold))
+			video_property_changed = 1;
+
+		if (iret == VppFilter_Changed_but_Hold) {
+			video_notify_flag |=
+				VIDEO_NOTIFY_NEED_NO_COMP;
+			vpp_hold_setting_cnt++;
+			if (debug_flag & DEBUG_FLAG_BLACKOUT)
+				pr_info("toggle_frame vpp hold setting cnt: %d\n",
+					vpp_hold_setting_cnt);
+		} else {/* apply new vpp settings */
+			if ((next_frame_par->vscale_skip_count <= 1)
+				&& (vf->type & VIDTYPE_SUPPORT_COMPRESS)) {
+				video_notify_flag |=
+					VIDEO_NOTIFY_NEED_NO_COMP;
+				if (debug_flag & DEBUG_FLAG_BLACKOUT)
+					pr_info("disable no compress mode\n");
+			}
+			vpp_hold_setting_cnt = 0;
+			frame_par_ready_to_set = 1;
+		}
 
 		if (((vf->width > 1920) && (vf->height > 1088)) ||
 			((vf->type & VIDTYPE_COMPRESS) &&
@@ -5594,6 +5613,13 @@ static void vsync_notify(void)
 
 		video_notify_flag &=
 		    ~(VIDEO_NOTIFY_PROVIDER_GET | VIDEO_NOTIFY_PROVIDER_PUT);
+	}
+	if (video_notify_flag & VIDEO_NOTIFY_NEED_NO_COMP) {
+		/* FIXME: can not use fixed provider name */
+		vf_notify_provider_by_name("vdin0",
+			VFRAME_EVENT_RECEIVER_NEED_NO_COMP,
+			(void *)&vpp_hold_setting_cnt);
+		video_notify_flag &= ~VIDEO_NOTIFY_NEED_NO_COMP;
 	}
 #ifdef CONFIG_CLK81_DFS
 	check_and_set_clk81();

@@ -1487,6 +1487,7 @@ RESTART:
 	}
 
 	if ((vf->type & VIDTYPE_COMPRESS) &&
+		!(vf->type & VIDTYPE_NO_DW) &&
 		(vf->canvas0Addr != 0) &&
 		(!next_frame_par->nocomp)) {
 		if ((next_frame_par->vscale_skip_count > 1)
@@ -1687,6 +1688,10 @@ RESTART:
 			next_frame_par->vscale_skip_count;
 	}
 
+	if ((next_frame_par->vscale_skip_count > 1)
+		&& (vf->type & VIDTYPE_COMPRESS)
+		&& (vf->type & VIDTYPE_NO_DW))
+		ret = VppFilter_Changed_but_Hold;
 	return ret;
 }
 /*
@@ -2890,6 +2895,7 @@ RESTART:
 	}
 
 	if ((vf->type & VIDTYPE_COMPRESS) &&
+		!(vf->type & VIDTYPE_NO_DW) &&
 		(vf->canvas0Addr != 0) &&
 		(!next_frame_par->nocomp)) {
 		if ((next_frame_par->vscale_skip_count > 1)
@@ -2954,6 +2960,10 @@ RESTART:
 		next_frame_par->VPP_line_in_length_ >>= 1;
 	}
 
+	if ((next_frame_par->vscale_skip_count > 1)
+		&& (vf->type & VIDTYPE_COMPRESS)
+		&& (vf->type & VIDTYPE_NO_DW))
+		ret = VppFilter_Changed_but_Hold;
 	return ret;
 }
 
@@ -3122,6 +3132,9 @@ int vpp_set_filters(
 			vinfo->width, vinfo->height,
 			vinfo, vpp_flags, next_frame_par, vf);
 
+	/* bypass sr since the input w/h may be wrong */
+	if (ret == VppFilter_Changed_but_Hold)
+		bypass_sr = true;
 	/*config super scaler after set next_frame_par is calc ok for pps*/
 	if (local_input.layer_id == 0)
 		vpp_set_super_scaler(
