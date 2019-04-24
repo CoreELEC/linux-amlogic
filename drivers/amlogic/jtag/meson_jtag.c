@@ -96,6 +96,8 @@ static inline char *select_to_name(int select)
 		return "apao";
 	case AMLOGIC_JTAG_APEE:
 		return "apee";
+	case AMLOGIC_SWD_APAO:
+		return "swd_apao";
 	default:
 		return "disable";
 	}
@@ -111,6 +113,8 @@ static inline int name_to_select(const char *s)
 		select = AMLOGIC_JTAG_APAO;
 	else if (!strncmp(s, "apee", 4))
 		select = AMLOGIC_JTAG_APEE;
+	else if (!strncmp(s, "swd_apao", 8))
+		select = AMLOGIC_SWD_APAO;
 	else {
 		pr_err("unknown select: %s\n", s);
 		select = AMLOGIC_JTAG_DISABLE;
@@ -168,7 +172,7 @@ static int __init setup_jtag(char *p)
 }
 
 /*
- * jtag=[apao|apee]
+ * jtag=[apao|apee|swd_apao]
  * jtag=[apao|apee]{,[0|1]}
  *
  * [apao|apee]: jtag domain
@@ -356,6 +360,20 @@ static int aml_jtag_setup(struct aml_jtag_dev *jdev)
 			return -EINVAL;
 		}
 		break;
+	case AMLOGIC_SWD_APAO:
+		s = pinctrl_lookup_state(jdev->jtag_pinctrl,
+					 "jtag_swd_apao_pins");
+		if (IS_ERR_OR_NULL(s)) {
+			dev_err(&jdev->pdev->dev,
+					"could not get swd_apao_pins state\n");
+			return -EINVAL;
+		}
+		ret = pinctrl_select_state(jdev->jtag_pinctrl, s);
+		if (ret) {
+			dev_err(&jdev->pdev->dev, "failed to set pinctrl\n");
+			return -EINVAL;
+		}
+		break;
 	default:
 		if (old_select != AMLOGIC_JTAG_DISABLE) {
 			devm_pinctrl_put(jdev->jtag_pinctrl);
@@ -380,7 +398,7 @@ static ssize_t jtag_select_show(struct class *cls,
 	len += sprintf(buf + len, "current select: %s\n\n",
 			select_to_name(global_select));
 	len += sprintf(buf + len, "usage:\n");
-	len += sprintf(buf + len, "    echo [apao|apee] > select\n");
+	len += sprintf(buf + len, "    echo [apao|apee|swd_apao] > select\n");
 	len += sprintf(buf + len, "    echo [apao|apee]{,[0|1]} > select\n");
 
 	return len;
