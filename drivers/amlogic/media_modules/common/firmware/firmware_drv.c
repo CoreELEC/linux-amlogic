@@ -435,7 +435,8 @@ static int fw_data_check_sum(struct firmware_s *fw)
 
 	crc = crc32_le(~0U, fw->data, fw->head.data_size);
 
-	/*pr_info("firmware crc result : 0x%x\n", crc ^ ~0U);*/
+	if (debug)
+		pr_info("firmware crc result : 0x%x\n", crc ^ ~0U);
 
 	return fw->head.checksum != (crc ^ ~0U) ? 0 : 1;
 }
@@ -587,7 +588,7 @@ static int fw_package_parse(struct fw_files_s *files,
 			continue;
 
 		if (debug)
-			pr_info("adds %s to the fw list.\n", info->name);
+			pr_info("adds %s with format %s(%d) to the fw list.\n", info->name, get_fw_format_name(info->format), info->format);
 
 		info->data = data;
 		fw_add_info(info);
@@ -602,6 +603,7 @@ static int fw_code_parse(struct fw_files_s *files,
 	char *buf, int size)
 {
 	struct fw_info_s *info;
+	struct fw_head_s *head;
 
 	info = kzalloc(sizeof(struct fw_info_s), GFP_KERNEL);
 	if (IS_ERR_OR_NULL(info))
@@ -614,6 +616,10 @@ static int fw_code_parse(struct fw_files_s *files,
 	info->file_type = files->file_type;
 	strncpy(info->src_from, files->name,
 		sizeof(info->src_from));
+	head = (struct fw_head_s *)buf;
+	strncpy(info->name, head->name,
+		sizeof(info->name));
+	info->format = get_fw_format(head->format);
 	memcpy(info->data, buf, size);
 
 	if (!fw_data_check_sum(info->data)) {
@@ -623,7 +629,7 @@ static int fw_code_parse(struct fw_files_s *files,
 	}
 
 	if (debug)
-		pr_info("adds %s to the fw list.\n", info->name);
+		pr_info("adds %s with format %s(%d) to the fw list.\n", info->name, get_fw_format_name(info->format), info->format);
 
 	fw_add_info(info);
 
