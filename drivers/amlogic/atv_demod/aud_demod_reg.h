@@ -18,6 +18,7 @@
 #ifndef __AUD_DEMOD_REG_H__
 #define __AUD_DEMOD_REG_H__
 
+#define TOP_GATE_CLK               0x001
 #define ADEC_CTRL                  0x010
 #define FREQ0_CTRL                 0x011
 #define FREQ1_CTRL                 0x012
@@ -42,6 +43,8 @@
 #define SAP_DET_THD                0x025
 #define MODE_DET_CNT_THD           0x026
 #define ADEC_RESET                 0x027
+#define BTSC_NICAM_GATE_CLK        0x028
+#define LR_GAIN_ADJ                0x029
 
 #define DDC_FIR_COEF0_0            0x030
 #define DDC_FIR_COEF0_1            0x031

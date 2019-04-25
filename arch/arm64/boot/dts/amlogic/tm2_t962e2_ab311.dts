@@ -18,7 +18,7 @@
 /dts-v1/;
 
 #include "mesontm2.dtsi"
-#include "partition_mbox_normal.dtsi"
+#include "partition_mbox_normal_P_32.dtsi"
 
 / {
 	model = "Amlogic TM2 T962E2 AB311";
@@ -1188,6 +1188,7 @@
 		status = "okay";
 		tuner = <&tuner>;
 		btsc_sap_mode = <1>;
+		interrupts = <0 236 1>;
 		/* pinctrl-names="atvdemod_agc_pins"; */
 		/* pinctrl-0=<&atvdemod_agc_pins>; */
 		reg = <0x0 0xff656000 0x0 0x2000 /* demod reg */

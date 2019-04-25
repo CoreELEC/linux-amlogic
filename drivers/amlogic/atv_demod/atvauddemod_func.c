@@ -1426,9 +1426,9 @@ void set_outputmode(uint32_t standard, uint32_t outmode)
 void aud_demod_clk_gate(int on)
 {
 	if (on)
-		adec_wr_reg(1, 0xf13);
+		adec_wr_reg(TOP_GATE_CLK, 0xf13);
 	else
-		adec_wr_reg(1, 0);
+		adec_wr_reg(TOP_GATE_CLK, 0);
 }
 
 void configure_adec(int Audio_mode)
@@ -1441,7 +1441,7 @@ void configure_adec(int Audio_mode)
 	 * set gate clk for btsc and nicam .
 	 */
 	if (is_meson_txhd_cpu() || is_meson_tl1_cpu() || is_meson_tm2_cpu())
-		adec_wr_reg(0x28, 0xa);
+		adec_wr_reg(BTSC_NICAM_GATE_CLK, 0xa);
 
 	set_standard(Audio_mode);
 

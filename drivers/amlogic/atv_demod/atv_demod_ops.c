@@ -33,6 +33,7 @@
 #include "atv_demod_v4l2.h"
 #include "atv_demod_afc.h"
 #include "atv_demod_monitor.h"
+#include "atv_demod_isr.h"
 
 #define DEVICE_NAME "aml_atvdemod"
 
@@ -129,6 +130,7 @@ int aml_atvdemod_get_btsc_sap_mode(void)
 int atv_demod_enter_mode(struct dvb_frontend *fe)
 {
 	int err_code = 0;
+	struct atv_demod_priv *priv = fe->analog_demod_priv;
 
 	if (amlatvdemod_devp->pin_name != NULL) {
 		amlatvdemod_devp->agc_pin =
@@ -157,8 +159,8 @@ int atv_demod_enter_mode(struct dvb_frontend *fe)
 		return -1;
 	}
 
-	/* aml_afc_timer_enable(fe); */
-	/* aml_demod_timer_enable(fe); */
+	if (priv->isr.enable)
+		priv->isr.enable(&priv->isr);
 
 	amlatvdemod_devp->std = 0;
 	amlatvdemod_devp->audmode = 0;
@@ -177,6 +179,9 @@ int atv_demod_leave_mode(struct dvb_frontend *fe)
 	priv->standby = true;
 
 	usleep_range(30 * 1000, 30 * 1000 + 100);
+
+	if (priv->isr.disable)
+		priv->isr.disable(&priv->isr);
 
 	if (priv->afc.disable)
 		priv->afc.disable(&priv->afc);
@@ -346,8 +351,11 @@ static void atv_demod_release(struct dvb_frontend *fe)
 
 	atv_demod_leave_mode(fe);
 
-	if (priv)
+	if (priv) {
+		if (amlatvdemod_devp->irq > 0)
+			atv_demod_isr_uninit(&priv->isr);
 		instance = hybrid_tuner_release_state(priv);
+	}
 
 	if (instance == 0)
 		fe->analog_demod_priv = NULL;
@@ -1215,6 +1223,11 @@ struct dvb_frontend *aml_atvdemod_attach(struct dvb_frontend *fe,
 
 		priv->monitor.fe = fe;
 		atv_demod_monitor_init(&priv->monitor);
+
+		if (amlatvdemod_devp->irq > 0) {
+			priv->isr.irq = amlatvdemod_devp->irq;
+			atv_demod_isr_init(&priv->isr);
+		}
 
 		priv->standby = true;
 

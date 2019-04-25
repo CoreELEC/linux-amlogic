@@ -101,6 +101,7 @@
 	DEBUGFS_CREATE_NODE(audio_gain_lpr, 0640, dentry, u32)\
 	DEBUGFS_CREATE_NODE(audio_atv_ov, 0640, dentry, u32)\
 	DEBUGFS_CREATE_NODE(audio_atv_ov_flag, 0640, dentry, u32)\
+	DEBUGFS_CREATE_NODE(atvdemod_isr_en, 0640, dentry, bool)\
 }
 
 

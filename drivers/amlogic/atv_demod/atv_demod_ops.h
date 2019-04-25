@@ -24,6 +24,7 @@
 #include "atv_demod_driver.h"
 #include "atv_demod_afc.h"
 #include "atv_demod_monitor.h"
+#include "atv_demod_isr.h"
 
 
 #define AML_ATVDEMOD_UNINIT         0x0
@@ -64,6 +65,8 @@ struct atv_demod_priv {
 	struct atv_demod_afc afc;
 
 	struct atv_demod_monitor monitor;
+
+	struct atv_demod_isr isr;
 
 	int state;
 	bool scanning;

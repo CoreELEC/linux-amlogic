@@ -631,6 +631,8 @@ static int aml_atvdemod_probe(struct platform_device *pdev)
 	if (!dev)
 		return -ENOMEM;
 
+	amlatvdemod_devp = dev;
+
 	dev->name = ATVDEMOD_DEVICE_NAME;
 	dev->dev = &pdev->dev;
 	dev->cls.name = ATVDEMOD_DEVICE_NAME;
@@ -640,6 +642,15 @@ static int aml_atvdemod_probe(struct platform_device *pdev)
 	if (class_register(&dev->cls)) {
 		pr_err("class register fail.\n");
 		goto fail_class_register;
+	}
+
+	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
+	if (!res) {
+		dev->irq = -1;
+		pr_err("can't get irq resource.\n");
+	} else {
+		dev->irq = res->start;
+		pr_err("get irq resource %d.\n", dev->irq);
 	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -740,8 +751,6 @@ static int aml_atvdemod_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, dev);
 
-	amlatvdemod_devp = dev;
-
 	pr_info("%s: OK.\n", __func__);
 
 	return 0;
@@ -752,6 +761,7 @@ fail_get_resource:
 fail_class_register:
 	kfree(dev->tuners);
 	kfree(dev);
+	amlatvdemod_devp = NULL;
 
 	pr_info("%s: fail.\n", __func__);
 

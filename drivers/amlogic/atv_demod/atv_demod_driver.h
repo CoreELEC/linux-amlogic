@@ -67,6 +67,8 @@ struct aml_atvdemod_device {
 	bool analog_attached;
 	bool tuner_attached;
 
+	int irq;
+
 	void __iomem *demod_reg_base;
 	void __iomem *audiodemod_reg_base;
 	void __iomem *hiu_reg_base;

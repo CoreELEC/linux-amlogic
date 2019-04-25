@@ -724,6 +724,7 @@
 		status = "okay";
 		tuner = <&tuner>;
 		btsc_sap_mode = <1>;
+		interrupts = <0 236 1>;
 		/* pinctrl-names="atvdemod_agc_pins"; */
 		/* pinctrl-0=<&atvdemod_agc_pins>; */
 		reg = <0xff656000 0x2000 /* demod reg */
