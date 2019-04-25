@@ -519,16 +519,55 @@ static int lcd_vbyone_lanes_set(int lane_num, int byte_mode, int region_num,
 static void lcd_vbyone_hw_filter(int flag)
 {
 	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
+	struct vbyone_config_s *vx1_conf;
+	unsigned int temp, period;
+	unsigned int tick_period[] = {
+		0xfffff,
+		0xff,    /* 1: 0.8us */
+		0x1ff,   /* 2: 1.7us */
+		0x3ff,   /* 3: 3.4us */
+		0x7ff,   /* 4: 6.9us */
+		0xfff,   /* 5: 13.8us */
+		0x1fff,  /* 6: 27us */
+		0x3fff,  /* 7: 55us */
+		0x7fff,  /* 8: 110us */
+		0xffff,  /* 9: 221us */
+		0x1ffff, /* 10: 441us */
+		0x3ffff, /* 11: 883us */
+		0x7ffff, /* 12: 1.76ms */
+		0xfffff, /* 13: 3.53ms */
+	};
 
+	vx1_conf = lcd_drv->lcd_config->lcd_control.vbyone_config;
 	switch (lcd_drv->data->chip_type) {
 	case LCD_CHIP_TL1:
 	case LCD_CHIP_TM2:
 		if (flag) {
-			lcd_vcbus_write(VBO_INFILTER_TICK_PERIOD_L, 0xffff);
-			lcd_vcbus_write(VBO_INFILTER_TICK_PERIOD_H, 0xf);
-			lcd_vcbus_setb(VBO_INSGN_CTRL, 0x7, 8, 4);
-			lcd_vcbus_setb(VBO_INSGN_CTRL, 0x7, 12, 4);
+			period = vx1_conf->hw_filter_time & 0xff;
+			if (period >=
+				(sizeof(tick_period) / sizeof(unsigned int)))
+				period = tick_period[0];
+			else
+				period = tick_period[period];
+			temp = period & 0xffff;
+			lcd_vcbus_write(VBO_INFILTER_TICK_PERIOD_L, temp);
+			temp = (period >> 16) & 0xf;
+			lcd_vcbus_write(VBO_INFILTER_TICK_PERIOD_H, temp);
+			/* hpd */
+			temp = vx1_conf->hw_filter_cnt & 0xf;
+			temp = (temp == 0) ? 0x7 : temp;
+			lcd_vcbus_setb(VBO_INSGN_CTRL, temp, 8, 4);
+			/* lockn */
+			temp = (vx1_conf->hw_filter_cnt >> 8) & 0xf;
+			temp = (temp == 0) ? 0x7 : temp;
+			lcd_vcbus_setb(VBO_INSGN_CTRL, temp, 12, 4);
 		} else {
+			temp = (vx1_conf->hw_filter_time >> 8) & 0x1;
+			if (temp) {
+				LCDPR("%s: %d bypass for debug\n",
+					__func__, flag);
+				break;
+			}
 			lcd_vcbus_write(VBO_INFILTER_TICK_PERIOD_L, 0xff);
 			lcd_vcbus_write(VBO_INFILTER_TICK_PERIOD_H, 0x0);
 			lcd_vcbus_setb(VBO_INSGN_CTRL, 0x7, 8, 4);
@@ -752,6 +791,7 @@ void lcd_vbyone_interrupt_enable(int flag)
 		lcd_vcbus_write(VBO_INTR_UNMASK, 0x0);
 		/* release hold in FSM_ACQ */
 		lcd_vcbus_setb(VBO_FSM_HOLDER_L, 0, 0, 16);
+		lcd_vbyone_hw_filter(0);
 		lcd_vx1_intr_request = 0;
 	}
 }

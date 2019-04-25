@@ -258,6 +258,7 @@ static int lcd_set_vframe_rate_hint(int duration)
 	/* update vinfo */
 	info->sync_duration_num = duration_num;
 	info->sync_duration_den = duration_den;
+	lcd_drv->fr_mode = 1;
 
 	lcd_framerate_automation_set_mode();
 #endif
@@ -282,9 +283,15 @@ static int lcd_set_vframe_rate_end_hint(void)
 		LCDPR("%s: return mode = %s, policy = %d\n", __func__,
 			info->name, lcd_drv->fr_auto_policy);
 
+		if (lcd_drv->fr_mode == 0) {
+			LCDPR("%s: fr_mode is invalid, exit\n", __func__);
+			return 0;
+		}
+
 		/* update vinfo */
 		info->sync_duration_num = lcd_drv->std_duration.duration_num;
 		info->sync_duration_den = lcd_drv->std_duration.duration_den;
+		lcd_drv->fr_mode = 0;
 
 		lcd_framerate_automation_set_mode();
 	}
@@ -842,6 +849,22 @@ static int lcd_config_load_from_dts(struct lcd_config_s *pconf,
 				pconf->lcd_control.vbyone_config->phy_preem);
 			}
 		}
+		ret = of_property_read_u32_array(child, "hw_filter",
+			&para[0], 2);
+		if (ret) {
+			if (lcd_debug_print_flag)
+				LCDPR("failed to get hw_filter\n");
+		} else {
+			pconf->lcd_control.vbyone_config->hw_filter_time =
+				para[0];
+			pconf->lcd_control.vbyone_config->hw_filter_cnt =
+				para[1];
+			if (lcd_debug_print_flag) {
+				LCDPR("vbyone hw_filter=0x%x 0x%x\n",
+			pconf->lcd_control.vbyone_config->hw_filter_time,
+			pconf->lcd_control.vbyone_config->hw_filter_cnt);
+			}
+		}
 		break;
 	case LCD_MIPI:
 		ret = of_property_read_u32_array(child, "mipi_attr",
@@ -1120,6 +1143,12 @@ static int lcd_config_load_from_unifykey(struct lcd_config_s *pconf)
 			pconf->lcd_control.vbyone_config->vsync_intr_en =
 				(*(p + LCD_UKEY_IF_ATTR_7) |
 				((*(p + LCD_UKEY_IF_ATTR_7 + 1)) << 8)) & 0xff;
+			pconf->lcd_control.vbyone_config->hw_filter_time =
+				*(p + LCD_UKEY_IF_ATTR_8) |
+				((*(p + LCD_UKEY_IF_ATTR_8 + 1)) << 8);
+			pconf->lcd_control.vbyone_config->hw_filter_cnt =
+				*(p + LCD_UKEY_IF_ATTR_9) |
+				((*(p + LCD_UKEY_IF_ATTR_9 + 1)) << 8);
 		}
 	} else
 		LCDERR("unsupport lcd_type: %d\n", pconf->lcd_basic.lcd_type);

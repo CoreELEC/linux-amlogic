@@ -359,6 +359,8 @@ static int lcd_info_print_vbyone(char *buf, int offset)
 		"phy_preem       0x%x\n"
 		"intr_en         %u\n"
 		"vsync_intr_en   %u\n"
+		"hw_filter_time  0x%x\n"
+		"hw_filter_cnt   0x%x\n"
 		"ctrl_flag       0x%x\n\n",
 		vx1_conf->lane_count,
 		vx1_conf->region_num,
@@ -369,6 +371,8 @@ static int lcd_info_print_vbyone(char *buf, int offset)
 		vx1_conf->phy_preem,
 		vx1_conf->intr_en,
 		vx1_conf->vsync_intr_en,
+		vx1_conf->hw_filter_time,
+		vx1_conf->hw_filter_cnt,
 		vx1_conf->ctrl_flag);
 	if (vx1_conf->ctrl_flag & 0x1) {
 		n = lcd_debug_info_len(len + offset);
@@ -731,7 +735,7 @@ static int lcd_reg_print_lvds(char *buf, int offset)
 	return len;
 }
 
-static int lcd_reg_print_vbyone(char *buf, int offset)
+static int lcd_reg_print_vbyone_txl(char *buf, int offset)
 {
 	unsigned int reg;
 	int n, len = 0;
@@ -781,6 +785,66 @@ static int lcd_reg_print_vbyone(char *buf, int offset)
 	reg = VBO_INTR_STATE;
 	len += snprintf((buf+len), n,
 		"VX1_INTR_STATE      [0x%04x] = 0x%08x\n",
+		reg, lcd_vcbus_read(reg));
+
+	return len;
+}
+
+static int lcd_reg_print_vbyone_tl1(char *buf, int offset)
+{
+	unsigned int reg;
+	int n, len = 0;
+
+	lcd_reg_print_serializer((buf+len), (len+offset));
+
+	n = lcd_debug_info_len(len + offset);
+	len += snprintf((buf+len), n, "\nvbyone regs:\n");
+	n = lcd_debug_info_len(len + offset);
+	reg = VBO_STATUS_L;
+	len += snprintf((buf+len), n,
+		"VX1_STATUS                   [0x%04x] = 0x%08x\n",
+		reg, lcd_vcbus_read(reg));
+
+	n = lcd_debug_info_len(len + offset);
+	reg = VBO_INFILTER_TICK_PERIOD_H;
+	len += snprintf((buf+len), n,
+		"VBO_INFILTER_TICK_PERIOD_H   [0x%04x] = 0x%08x\n",
+		reg, lcd_vcbus_read(reg));
+	n = lcd_debug_info_len(len + offset);
+	reg = VBO_INFILTER_TICK_PERIOD_L;
+	len += snprintf((buf+len), n,
+		"VBO_INFILTER_TICK_PERIOD_L   [0x%04x] = 0x%08x\n",
+		reg, lcd_vcbus_read(reg));
+	n = lcd_debug_info_len(len + offset);
+	reg = VBO_INSGN_CTRL;
+	len += snprintf((buf+len), n,
+		"VBO_INSGN_CTRL               [0x%04x] = 0x%08x\n",
+		reg, lcd_vcbus_read(reg));
+
+	n = lcd_debug_info_len(len + offset);
+	reg = VBO_FSM_HOLDER_L;
+	len += snprintf((buf+len), n,
+		"VX1_FSM_HOLDER_L             [0x%04x] = 0x%08x\n",
+		reg, lcd_vcbus_read(reg));
+	n = lcd_debug_info_len(len + offset);
+	reg = VBO_FSM_HOLDER_H;
+	len += snprintf((buf+len), n,
+		"VX1_FSM_HOLDER_H             [0x%04x] = 0x%08x\n",
+		reg, lcd_vcbus_read(reg));
+	n = lcd_debug_info_len(len + offset);
+	reg = VBO_INTR_STATE_CTRL;
+	len += snprintf((buf+len), n,
+		"VX1_INTR_STATE_CTRL          [0x%04x] = 0x%08x\n",
+		reg, lcd_vcbus_read(reg));
+	n = lcd_debug_info_len(len + offset);
+	reg = VBO_INTR_UNMASK;
+	len += snprintf((buf+len), n,
+		"VX1_INTR_UNMASK              [0x%04x] = 0x%08x\n",
+		reg, lcd_vcbus_read(reg));
+	n = lcd_debug_info_len(len + offset);
+	reg = VBO_INTR_STATE;
+	len += snprintf((buf+len), n,
+		"VX1_INTR_STATE               [0x%04x] = 0x%08x\n",
 		reg, lcd_vcbus_read(reg));
 
 	return len;
@@ -3479,7 +3543,7 @@ static ssize_t lcd_vx1_debug_store(struct class *class,
 			vx1_conf->cdr_training_hold = val[3];
 			lcd_debug_config_update();
 		} else {
-			pr_info("set vbyone ctrl_flag: 0x%x\n",
+			pr_info("vbyone ctrl_flag: 0x%x\n",
 				vx1_conf->ctrl_flag);
 			pr_info("power_on_reset_delay: %dms\n",
 				vx1_conf->power_on_reset_delay);
@@ -3492,6 +3556,20 @@ static ssize_t lcd_vx1_debug_store(struct class *class,
 #else
 		return -EINVAL;
 #endif
+	} else if (buf[0] == 'f') { /* filter */
+		ret = sscanf(buf, "filter %x %x", &val[0], &val[1]);
+		if (ret == 2) {
+			pr_info("set vbyone hw_filter_time: 0x%x, hw_filter_cnt: 0x%x\n",
+				val[0], val[1]);
+			vx1_conf->hw_filter_time = val[0];
+			vx1_conf->hw_filter_cnt = val[1];
+			lcd_debug_config_update();
+		} else {
+			pr_info("vbyone hw_filter_time: 0x%x, hw_filter_cnt: 0x%x\n",
+				vx1_conf->hw_filter_time,
+				vx1_conf->hw_filter_cnt);
+			return -EINVAL;
+		}
 	} else {
 		ret = sscanf(buf, "%d %d %d", &vx1_conf->lane_count,
 			&vx1_conf->region_num, &vx1_conf->byte_mode);
@@ -4462,7 +4540,7 @@ static struct lcd_debug_info_if_s lcd_debug_info_if_lvds = {
 
 static struct lcd_debug_info_if_s lcd_debug_info_if_vbyone = {
 	.interface_print = lcd_info_print_vbyone,
-	.reg_dump_interface = lcd_reg_print_vbyone,
+	.reg_dump_interface = lcd_reg_print_vbyone_txl,
 	.reg_dump_phy = lcd_reg_print_phy_analog,
 	.class_attrs = lcd_debug_class_attrs_vbyone,
 };
@@ -4501,6 +4579,8 @@ int lcd_debug_probe(void)
 		lcd_debug_info_reg = &lcd_debug_info_reg_tl1;
 		lcd_debug_info_if_lvds.reg_dump_phy =
 			lcd_reg_print_phy_analog_tl1;
+		lcd_debug_info_if_vbyone.reg_dump_interface =
+			lcd_reg_print_vbyone_tl1;
 		lcd_debug_info_if_vbyone.reg_dump_phy =
 			lcd_reg_print_phy_analog_tl1;
 		lcd_debug_info_if_mlvds.reg_dump_phy =

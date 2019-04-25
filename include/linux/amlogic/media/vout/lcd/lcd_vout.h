@@ -259,10 +259,8 @@ struct vbyone_config_s {
 	unsigned int hpd_data_delay; /* ms */
 	unsigned int cdr_training_hold; /* ms */
 	/* hw filter */
-	unsigned int hpd_hw_filter_time; /* ms */
-	unsigned int hpd_hw_filter_cnt;
-	unsigned int lockn_hw_filter_time; /* ms */
-	unsigned int lockn_hw_filter_cnt;
+	unsigned int hw_filter_time;
+	unsigned int hw_filter_cnt;
 };
 
 /* mipi-dsi config */
@@ -501,6 +499,7 @@ struct aml_lcd_drv_s {
 	struct class *lcd_debug_class;
 
 	int fr_auto_policy;
+	int fr_mode;
 	struct lcd_duration_s std_duration;
 
 	void (*driver_init_pre)(void);

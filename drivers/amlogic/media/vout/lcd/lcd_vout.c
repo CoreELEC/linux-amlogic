@@ -113,6 +113,9 @@ static struct vbyone_config_s lcd_vbyone_config = {
 	.power_on_reset_delay = VX1_PWR_ON_RESET_DLY_DFT,
 	.hpd_data_delay = VX1_HPD_DATA_DELAY_DFT,
 	.cdr_training_hold = VX1_CDR_TRAINING_HOLD_DFT,
+
+	.hw_filter_time = 0,
+	.hw_filter_cnt = 0,
 };
 
 static struct mlvds_config_s lcd_mlvds_config = {
@@ -1325,6 +1328,7 @@ static int lcd_config_probe(struct platform_device *pdev)
 	lcd_driver->lcd_mute_state = 0;
 	lcd_driver->lcd_mute_flag = 0;
 	lcd_driver->lcd_resume_type = 1; /* default workqueue */
+	lcd_driver->fr_mode = 0;
 	lcd_driver->viu_sel = LCD_VIU_SEL_NONE;
 	lcd_driver->vsync_none_timer_flag = 0;
 	lcd_driver->power_ctrl = lcd_power_ctrl;
