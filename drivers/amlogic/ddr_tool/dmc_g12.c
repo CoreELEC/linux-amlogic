@@ -113,10 +113,12 @@ static void check_violation(struct dmc_monitor *mon)
 		break;
 	case MESON_CPU_MAJOR_ID_SM1:
 	case MESON_CPU_MAJOR_ID_TL1:
-		/* bit fix for SM1/TL1 */
+	case MESON_CPU_MAJOR_ID_TM2:
+		/* bit fix for SM1/TL1/TM2 */
 		off1 = 22;
 		off2 = 11;
 		break;
+
 	default: /* G12A */
 		off1 = 21;
 		off2 = 10;
