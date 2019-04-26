@@ -1,5 +1,5 @@
 /*
- * sound/soc/amlogic/meson/i2s_dai.h
+ * drivers/amlogic/amlkaraoke/aml_audio_resampler.h
  *
  * Copyright (C) 2017 Amlogic, Inc. All rights reserved.
  *
@@ -15,18 +15,23 @@
  *
  */
 
-#ifndef __AML_I2S_DAI_H__
-#define __AML_I2S_DAI_H__
+#ifndef __AUDIO_RESAMPLER_H__
+#define __AUDIO_RESAMPLER_H__
 
-struct aml_i2s {
-	struct clk *clk_mpll;
-	struct clk *clk_mclk;
-	int old_samplerate;
-	bool disable_clk_suspend;
-	int audin_fifo_src;
-	int i2s_pos_sync;
-	int clk_data_pos;
-	unsigned long mclk;
+struct resample_para {
+	unsigned int fraction_step;
+	unsigned int sample_fraction;
+	short lastsample_left;
+	short lastsample_right;
+	unsigned int input_sr;
+	unsigned int output_sr;
+	unsigned int channels;
 };
+
+int resampler_init(struct resample_para *resample);
+int resample_process(
+		struct resample_para *resample,
+		unsigned int in_frame,
+		short *input, short *output);
 
 #endif

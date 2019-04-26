@@ -1,5 +1,5 @@
 /*
- * sound/soc/amlogic/meson/i2s_dai.h
+ * drivers/amlogic/amlkaraoke/aml_karaoke.h
  *
  * Copyright (C) 2017 Amlogic, Inc. All rights reserved.
  *
@@ -15,18 +15,16 @@
  *
  */
 
-#ifndef __AML_I2S_DAI_H__
-#define __AML_I2S_DAI_H__
+#ifndef _AML_KARAOKE_H_
+#define _AML_KARAOKE_H_
 
-struct aml_i2s {
-	struct clk *clk_mpll;
-	struct clk *clk_mclk;
-	int old_samplerate;
-	bool disable_clk_suspend;
-	int audin_fifo_src;
-	int i2s_pos_sync;
-	int clk_data_pos;
-	unsigned long mclk;
-};
+/*
+ *   A virtual path to get usb audio capture data to i2s mixed out.
+ */
+
+#define AMLKARAOKE_DRIVER_NAME "amlkaraoke"
+#define AMLKARAOKE_DRIVER_NAME "amlkaraoke"
+#define AMLKARAOKE_DEVICE_NAME "amlkaraoke-dev"
+#define AMAUDIO_CLASS_NAME "amlkaraoke"
 
 #endif

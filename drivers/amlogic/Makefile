@@ -90,6 +90,8 @@ obj-$(CONFIG_AMLOGIC_AMAUDIO2) += amaudio2/
 
 obj-$(CONFIG_AMLOGIC_AUDIO_INFO) += audioinfo/
 
+obj-$(CONFIG_AMLKARAOKE)		+= amlkaraoke/
+
 obj-$(CONFIG_AMLOGIC_SUSPEND)	+= pm/
 
 obj-$(CONFIG_AMLOGIC_LED)		+= led/

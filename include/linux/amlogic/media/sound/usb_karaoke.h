@@ -1,5 +1,5 @@
 /*
- * sound/soc/amlogic/meson/i2s_dai.h
+ * include/linux/amlogic/media/sound/usb_karaoke.h
  *
  * Copyright (C) 2017 Amlogic, Inc. All rights reserved.
  *
@@ -15,18 +15,13 @@
  *
  */
 
-#ifndef __AML_I2S_DAI_H__
-#define __AML_I2S_DAI_H__
+#ifndef __USB_KARAOKE_H
+#define __USB_KARAOKE_H
 
-struct aml_i2s {
-	struct clk *clk_mpll;
-	struct clk *clk_mclk;
-	int old_samplerate;
-	bool disable_clk_suspend;
-	int audin_fifo_src;
-	int i2s_pos_sync;
-	int clk_data_pos;
-	unsigned long mclk;
-};
+int i2s_out_mix_init(void);
+int i2s_out_mix_deinit(void);
+void aml_i2s_set_ch_r_info(
+	unsigned int channels,
+	unsigned int samplerate);
 
 #endif

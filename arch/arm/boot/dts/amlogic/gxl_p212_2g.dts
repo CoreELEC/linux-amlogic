@@ -941,6 +941,15 @@
 			sound-dai = <&pcm_codec>;
 		};
 	};
+
+	amlkaraoke {
+		compatible = "amlogic, aml_karaoke";
+		dev_name = "aml_karaoke";
+		status = "okay";
+		interrupts = <0 48 1>;
+		interrupt-names = "aml_karaoke";
+	};
+
 	/* END OF AUDIO board specific */
 	rdma{
 		compatible = "amlogic, meson, rdma";
