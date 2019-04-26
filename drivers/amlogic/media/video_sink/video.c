@@ -3242,6 +3242,7 @@ static void pip_set_dcu(struct vpp_frame_par_s *frame_par, struct vframe_s *vf)
 		0, 0x8, 0x9, 0xa, 0xb, 0xc, 0xd, 0xe, 0xf};
 	u32 u, v;
 	u32 type, bit_mode = 0;
+	u8 burst_len = 1;
 
 	if (!vf || !frame_par) {
 		pr_err("pip_set_dcu vf is NULL\n");
@@ -3255,9 +3256,11 @@ static void pip_set_dcu(struct vpp_frame_par_s *frame_par, struct vframe_s *vf)
 		type &= ~VIDTYPE_COMPRESS;
 
 	if (type & VIDTYPE_COMPRESS) {
+		if (!legacy_vpp || is_meson_txlx_cpu())
+			burst_len = 2;
 		r = (3 << 24) |
 			(vpp_hold_line << 16) |
-			((legacy_vpp ? 1 : 2) << 14) | /* burst1 */
+			(burst_len << 14) | /* burst1 */
 			(vf->bitdepth & BITDEPTH_MASK);
 
 		if (frame_par->hscale_skip_count)
@@ -4165,6 +4168,7 @@ static void viu_set_dcu(struct vpp_frame_par_s *frame_par, struct vframe_s *vf)
 	u32 u, v;
 	u32 type, bit_mode = 0;
 	bool is_mvc = false;
+	u8 burst_len = 1;
 
 	if (vf == NULL) {
 		pr_info("viu_set_dcu vf NULL, return\n");
@@ -4181,9 +4185,11 @@ static void viu_set_dcu(struct vpp_frame_par_s *frame_par, struct vframe_s *vf)
 			type &= ~VIDTYPE_COMPRESS;
 
 		if (type & VIDTYPE_COMPRESS) {
+			if (!legacy_vpp || is_meson_txlx_cpu())
+				burst_len = 2;
 			r = (3 << 24) |
 			    (vpp_hold_line << 16) |
-			    ((legacy_vpp ? 1 : 2) << 14) | /* burst1 */
+			    (burst_len << 14) | /* burst1 */
 			    (vf->bitdepth & BITDEPTH_MASK);
 
 			if (frame_par->hscale_skip_count)
@@ -4698,6 +4704,7 @@ static void vd2_set_dcu(struct vpp_frame_par_s *frame_par, struct vframe_s *vf)
 		0, 0x8, 0x9, 0xa, 0xb, 0xc, 0xd, 0xe, 0xf};
 	u32 u, v;
 	u32 type, bit_mode = 0;
+	u8 burst_len = 1;
 
 	if (!vf) {
 		pr_err("vd2_set_dcu vf is NULL\n");
@@ -4712,9 +4719,11 @@ static void vd2_set_dcu(struct vpp_frame_par_s *frame_par, struct vframe_s *vf)
 		vf->width;
 	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXBB) {
 		if (type & VIDTYPE_COMPRESS) {
+			if (!legacy_vpp || is_meson_txlx_cpu())
+				burst_len = 2;
 			r = (3 << 24) |
 			    (vpp_hold_line << 16) |
-			    ((legacy_vpp ? 1 : 2) << 14) | /* burst1 */
+			    (burst_len << 14) | /* burst1 */
 			    (vf->bitdepth & BITDEPTH_MASK);
 
 			if (frame_par->hscale_skip_count)
@@ -6481,18 +6490,32 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 
 	if (is_meson_txlx_cpu() && dmc_adjust) {
 		bool force_adjust = false;
+		u32 vf_width = 0, vf_height = 0;
 		struct vframe_s *chk_vf;
 
 		chk_vf = (vf != NULL) ? vf : cur_dispbuf;
 		if (chk_vf)
 			force_adjust =
 				(chk_vf->type & VIDTYPE_VIU_444) ? true : false;
-		if (chk_vf)
+		if (chk_vf) {
+			if (cur_frame_par &&
+				cur_frame_par->nocomp) {
+				vf_width = chk_vf->width;
+				vf_height = chk_vf->height;
+			} else if ((chk_vf->type & VIDTYPE_COMPRESS)
+				&& cur_frame_par
+				&& cur_frame_par->vscale_skip_count) {
+				vf_width = chk_vf->compWidth;
+				vf_height = chk_vf->compHeight;
+			} else {
+				vf_width = chk_vf->width;
+				vf_height = chk_vf->height;
+			}
 			dmc_adjust_for_mali_vpu(
-				chk_vf->width,
-				chk_vf->height,
+				vf_width,
+				vf_height,
 				force_adjust);
-		else
+		} else
 			dmc_adjust_for_mali_vpu(
 				0, 0, force_adjust);
 	}
