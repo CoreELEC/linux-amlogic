@@ -1956,6 +1956,10 @@ int osd_notify_callback(struct notifier_block *block, unsigned long cmd,
 	switch (cmd) {
 	case  VOUT_EVENT_MODE_CHANGE:
 		set_osd_logo_freescaler();
+		if (!strcmp(vinfo->name, "dummy_panel"))
+			osd_set_hold_line(MAX_HOLD_LINE);
+		else
+			osd_set_hold_line(DEFAULT_HOLD_LINE);
 		if (osd_hw.osd_meson_dev.cpu_id == __MESON_CPU_MAJOR_ID_G12B &&
 			is_meson_rev_b())
 			set_reset_rdma_trigger_line();

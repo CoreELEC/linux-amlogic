@@ -1908,7 +1908,8 @@ static bool mali_afbc_get_error(void)
 
 	status = VSYNCOSD_RD_MPEG_REG(VPU_MAFBC_IRQ_RAW_STATUS);
 	if (status & 0x3c) {
-		osd_log_dbg(MODULE_BASE, "afbc error happened\n");
+		osd_log_dbg(MODULE_BASE,
+			"afbc error happened,status=0x%x\n", status);
 		osd_hw.afbc_err_cnt++;
 		error = true;
 	}
@@ -3686,6 +3687,25 @@ void osd_set_dimm_info(u32 index, u32 osd_dimm_layer, u32 osd_dimm_color)
 	osd_hw.dim_color[index] = osd_dimm_color;
 }
 
+void osd_set_hold_line(int hold_line)
+{
+	int i;
+	unsigned int data32 = 0, val = 0;
+
+	for (i = 0; i <= osd_hw.osd_meson_dev.viu1_osd_count; i++) {
+		if (osd_hw.powered[i]) {
+			data32 = VSYNCOSD_RD_MPEG_REG
+				(hw_osd_reg_array[i].osd_fifo_ctrl_stat);
+			val = (data32 >> 5) & 0x1f;
+			if (val != hold_line) {
+				VSYNCOSD_WR_MPEG_REG_BITS
+					(hw_osd_reg_array[i].osd_fifo_ctrl_stat,
+					hold_line & 0x1f, 5, 5);
+			}
+		}
+	}
+}
+
 int osd_get_capbility(u32 index)
 {
 	u32 capbility = 0;
@@ -4223,7 +4243,7 @@ static void osd_pan_display_single_fence(struct osd_fence_map_s *fence_map)
 	if (index >= OSD2)
 		goto out;
 	vinfo = get_current_vinfo();
-	if (vinfo && (!strcmp(vinfo->name, "invalid") ||
+	if (!vinfo || (!strcmp(vinfo->name, "invalid") ||
 			!strcmp(vinfo->name, "null")))
 		goto out;
 
@@ -4668,7 +4688,7 @@ static void _osd_pan_display_layers_fence(
 	/* osd_count need -1 when VIU2 enable */
 	struct layer_fence_map_s *layer_map = NULL;
 
-	if (vinfo && (!strcmp(vinfo->name, "invalid") ||
+	if (!vinfo || (!strcmp(vinfo->name, "invalid") ||
 				!strcmp(vinfo->name, "null")))
 		/* vout is null, release fence */
 		goto out;
@@ -8934,7 +8954,10 @@ static void osd_update_fifo(u32 index)
 {
 	u32 data32;
 
-	data32 = osd_hw.urgent[index] & 1;
+	data32 = VSYNCOSD_RD_MPEG_REG(
+		hw_osd_reg_array[index].osd_fifo_ctrl_stat);
+	data32 |= osd_hw.urgent[index] & 1;
+	#if 0
 	data32 |= 4 << 5; /* hold_fifo_lines */
 
 	/* burst_len_sel: 3=64, g12a = 5 */
@@ -8957,6 +8980,7 @@ static void osd_update_fifo(u32 index)
 	data32 |= 2 << 22;
 	/* bit 28:24, fifo_lim */
 	data32 |= 2 << 24;
+	#endif
 	VSYNCOSD_WR_MPEG_REG(
 		hw_osd_reg_array[index].osd_fifo_ctrl_stat, data32);
 	remove_from_update_list(index, OSD_FIFO);
@@ -9374,6 +9398,7 @@ void osd_init_hw(u32 logo_loaded, u32 osd_probe,
 void osd_init_viu2(void)
 {
 	u32 idx, data32;
+	struct vinfo_s *vinfo;
 
 	set_viu2_rgb2yuv(1);
 
@@ -9386,7 +9411,11 @@ void osd_init_viu2(void)
 	 * set DDR request priority to be urgent
 	 */
 	data32 = 1;
-	data32 |= 4 << 5;  /* hold_fifo_lines */
+	vinfo = get_current_vinfo2();
+	if (vinfo && (!strcmp(vinfo->name, "dummy_panel"))) {
+		data32 |= MAX_HOLD_LINE << 5;  /* hold_fifo_lines */
+	} else
+		data32 |= DEFAULT_HOLD_LINE << 5;  /* hold_fifo_lines */
 	/* burst_len_sel: 3=64, g12a = 5 */
 	if (osd_hw.osd_meson_dev.osd_ver == OSD_HIGH_ONE) {
 		data32 |= 1 << 10;
@@ -10682,8 +10711,7 @@ void osd_page_flip(struct osd_plane_map_s *plane_map)
 	else if (output_index == VIU2)
 		vinfo = get_current_vinfo2();
 #endif
-	vinfo = get_current_vinfo();
-	if (vinfo && (!strcmp(vinfo->name, "invalid") ||
+	if (!vinfo || (!strcmp(vinfo->name, "invalid") ||
 				!strcmp(vinfo->name, "null"))) {
 		return;
 	}
