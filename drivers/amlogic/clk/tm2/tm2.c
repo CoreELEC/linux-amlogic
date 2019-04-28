@@ -28,7 +28,7 @@
 #include "tm2.h"
 
 static const struct pll_rate_table tm2_pcie_pll_rate_table[] = {
-	PLL_RATE(100000000, 100, 1, 6),
+	PLL_RATE(100000000, 200, 1, 12),
 	{ /* sentinel */ },
 };
 
@@ -74,7 +74,7 @@ static struct clk_gate tm2_pcie01_enable = {
 		.ops = &clk_gate_ops,
 		.parent_names = (const char *[]){ "pcie_pll" },
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT,
+		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
 	},
 };
 
@@ -87,7 +87,7 @@ static struct clk_gate tm2_pcie0_gate = {
 		.ops = &clk_gate_ops,
 		.parent_names = (const char *[]){ "tm2_pcie01" },
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT,
+		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
 	},
 };
 
@@ -100,7 +100,7 @@ static struct clk_gate tm2_pcie1_gate = {
 		.ops = &clk_gate_ops,
 		.parent_names = (const char *[]){ "tm2_pcie01" },
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT,
+		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
 	},
 };
 
