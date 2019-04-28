@@ -6820,20 +6820,6 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 			set_hdr_to_frame(vf);
 #endif
 
-#if defined(CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM)
-			refresh_on_vs(vf);
-			if (amvecm_on_vs(
-				(cur_dispbuf != &vf_local)
-				? cur_dispbuf : NULL,
-				vf, CSC_FLAG_CHECK_OUTPUT,
-				cur_frame_par ?
-				cur_frame_par->supsc1_hori_ratio :
-				0,
-				cur_frame_par ?
-				cur_frame_par->supsc1_vert_ratio :
-				0) == 1)
-				break;
-#endif
 			/*
 			 *two special case:
 			 *case1:4k display case,input buffer not enough &
@@ -6884,6 +6870,22 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 					video_3d_format = vf->trans_fmt;
 				}
 			}
+
+#if defined(CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM)
+			refresh_on_vs(vf);
+			if (amvecm_on_vs(
+				(cur_dispbuf != &vf_local)
+				? cur_dispbuf : NULL,
+				vf, CSC_FLAG_CHECK_OUTPUT,
+				cur_frame_par ?
+				cur_frame_par->supsc1_hori_ratio :
+				0,
+				cur_frame_par ?
+				cur_frame_par->supsc1_vert_ratio :
+				0) == 1)
+				break;
+#endif
+
 			vsync_toggle_frame(vf, __LINE__);
 			toggle_frame = vf;
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
