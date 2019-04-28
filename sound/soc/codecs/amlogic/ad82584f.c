@@ -773,7 +773,7 @@ static int reset_ad82584f_GPIO(struct snd_soc_codec *codec)
 		return -1;
 
 	gpio_direction_output(pdata->reset_pin, GPIOF_OUT_INIT_LOW);
-	mdelay(1);
+	mdelay(10);
 	gpio_direction_output(pdata->reset_pin, GPIOF_OUT_INIT_HIGH);
 	mdelay(1);
 

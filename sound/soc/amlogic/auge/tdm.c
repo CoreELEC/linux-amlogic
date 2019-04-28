@@ -1262,6 +1262,32 @@ static int aml_dai_tdm_mute_stream(struct snd_soc_dai *cpu_dai,
 	return 0;
 }
 
+static int aml_set_default_tdm_clk(struct aml_tdm *tdm)
+{
+	unsigned int mclk = 12288000;
+	unsigned int ratio = aml_mpll_mclk_ratio(mclk);
+	unsigned int lrclk_hi;
+
+	/*set default i2s clk for codec sequence*/
+	tdm->setting.bclk_lrclk_ratio = 64;
+	tdm->setting.sysclk_bclk_ratio = 4;
+	tdm->clk_sel = 0;
+	lrclk_hi = tdm->setting.bclk_lrclk_ratio - 1;
+
+	aml_tdm_set_lrclkdiv(tdm->actrl, tdm->clk_sel,
+		tdm->setting.sysclk_bclk_ratio - 1);
+
+	aml_tdm_set_bclk_ratio(tdm->actrl,
+		tdm->clk_sel, lrclk_hi/2, lrclk_hi);
+
+	clk_prepare_enable(tdm->mclk);
+	clk_set_rate(tdm->clk, mclk*ratio);
+	clk_set_rate(tdm->mclk, mclk);
+
+	return 0;
+}
+
+
 static struct snd_soc_dai_ops aml_dai_tdm_ops = {
 	.prepare = aml_dai_tdm_prepare,
 	.trigger = aml_dai_tdm_trigger,
@@ -1555,6 +1581,9 @@ static int aml_tdm_platform_probe(struct platform_device *pdev)
 		dev_info(dev, "aml_tdm_get_pins error!\n");
 		/*return PTR_ERR(p_tdm->pin_ctl);*/
 	}
+
+	/*set default clk for output*/
+	aml_set_default_tdm_clk(p_tdm);
 
 	/* mclk pad ctrl */
 	ret = of_property_read_u32(node, "mclk_pad",
