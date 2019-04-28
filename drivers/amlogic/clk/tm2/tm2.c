@@ -79,8 +79,8 @@ static struct clk_gate tm2_pcie01_enable = {
 };
 
 static struct clk_gate tm2_pcie0_gate = {
-	.reg = (void *)HHI_PCIE_PLL_CNTL1,
-	.bit_idx = 28,
+	.reg = (void *)HHI_PCIE_PLL_CNTL5,
+	.bit_idx = 3,
 	.lock = &clk_lock,
 	.hw.init = &(struct clk_init_data){
 		.name = "tm2_pcie0_gate",
@@ -92,8 +92,8 @@ static struct clk_gate tm2_pcie0_gate = {
 };
 
 static struct clk_gate tm2_pcie1_gate = {
-	.reg = (void *)HHI_PCIE_PLL_CNTL5,
-	.bit_idx = 3,
+	.reg = (void *)HHI_PCIE_PLL_CNTL1,
+	.bit_idx = 28,
 	.lock = &clk_lock,
 	.hw.init = &(struct clk_init_data){
 		.name = "tm2_pcie1_gate",
