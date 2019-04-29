@@ -539,16 +539,15 @@ static void lc_config(int enable,
 	struct vframe_s *vf,
 	unsigned int sps_h_en,
 	unsigned int sps_v_en,
+	unsigned int sps_w_in,
+	unsigned int sps_h_in,
 	int bitdepth)
 {
 	int h_num, v_num;
 	unsigned int height, width;
 	static unsigned int vf_height, vf_width;
 	unsigned int flag;
-	const struct vinfo_s *vinfo = get_current_vinfo();
 
-	height = vinfo->height;
-	width = vinfo->width;
 	h_num = 12;
 	v_num = 8;
 
@@ -566,16 +565,17 @@ static void lc_config(int enable,
 			return;
 	}
 
+	height = sps_h_in << sps_h_en;
+	width = sps_w_in << sps_v_en;
+
 	vf_height = vf->height;
 	vf_width = vf->width;
 	/*flag: 0 for 601; 1 for 709*/
 	flag = (vf_height > 720) ? 1 : 0;
 	lc_top_config(enable, h_num, v_num, height, width, bitdepth, flag);
 
-	if (sps_h_en == 1)
-		width /= 2;
-	if (sps_v_en == 1)
-		height /= 2;
+	width = sps_w_in;
+	height = sps_h_in;
 
 	lc_curve_ctrl_config(enable, height, width);
 	lc_stts_blk_config(enable, height, width);
@@ -1338,7 +1338,9 @@ void lc_init(int bitdepth)
 
 void lc_process(struct vframe_s *vf,
 	unsigned int sps_h_en,
-	unsigned int sps_v_en)
+	unsigned int sps_v_en,
+	unsigned int sps_w_in,
+	unsigned int sps_h_in)
 {
 	int blk_hnum, blk_vnum, dwTemp;
 	int bitdepth;
@@ -1376,7 +1378,8 @@ void lc_process(struct vframe_s *vf,
 	dwTemp = READ_VPP_REG(LC_CURVE_HV_NUM);
 	blk_hnum = (dwTemp >> 8) & 0x1f;
 	blk_vnum = (dwTemp) & 0x1f;
-	lc_config(lc_en, vf, sps_h_en, sps_v_en, bitdepth);
+	lc_config(lc_en, vf, sps_h_en, sps_v_en,
+		sps_w_in, sps_h_in, bitdepth);
 	/*get each block curve*/
 	read_lc_curve(blk_vnum, blk_hnum);
 	lc_read_region(blk_vnum, blk_hnum);

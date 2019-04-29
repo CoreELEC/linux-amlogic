@@ -6849,7 +6849,6 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 #if ENABLE_UPDATE_HDR_FROM_USER
 			set_hdr_to_frame(vf);
 #endif
-
 			/*
 			 *two special case:
 			 *case1:4k display case,input buffer not enough &
@@ -6912,10 +6911,15 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 				0,
 				cur_frame_par ?
 				cur_frame_par->supsc1_vert_ratio :
+				0,
+				cur_frame_par ?
+				cur_frame_par->spsc1_w_in :
+				0,
+				cur_frame_par ?
+				cur_frame_par->spsc1_h_in :
 				0) == 1)
 				break;
 #endif
-
 			vsync_toggle_frame(vf, __LINE__);
 			toggle_frame = vf;
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
@@ -7003,7 +7007,13 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 						: 0,
 						cur_frame_par ?
 						cur_frame_par->supsc1_vert_ratio
-						: 0) == 1)
+						: 0,
+						cur_frame_par ?
+						cur_frame_par->spsc1_w_in :
+						0,
+						cur_frame_par ?
+						cur_frame_par->spsc1_h_in :
+						0) == 1)
 						break;
 #endif
 					vf = video_vf_get();
@@ -7113,6 +7123,12 @@ SET_FILTER:
 			0,
 			cur_frame_par ?
 			cur_frame_par->supsc1_vert_ratio :
+			0,
+			cur_frame_par ?
+			cur_frame_par->spsc1_w_in :
+			0,
+			cur_frame_par ?
+			cur_frame_par->spsc1_h_in :
 			0);
 #endif
 	/* filter setting management */

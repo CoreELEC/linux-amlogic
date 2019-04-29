@@ -95,7 +95,9 @@ extern struct lc_alg_param_s lc_alg_parm;
 extern void lc_init(int bitdepth);
 extern void lc_process(struct vframe_s *vf,
 	unsigned int sps_h_en,
-	unsigned int sps_v_en);
+	unsigned int sps_v_en,
+	unsigned int sps_w_in,
+	unsigned int sps_h_in);
 extern void lc_free(void);
 #endif
 

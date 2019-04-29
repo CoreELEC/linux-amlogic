@@ -1069,7 +1069,9 @@ int amvecm_on_vs(
 	struct vframe_s *toggle_vf,
 	int flags,
 	unsigned int sps_h_en,
-	unsigned int sps_v_en)
+	unsigned int sps_v_en,
+	unsigned int sps_w_in,
+	unsigned int sps_h_in)
 {
 	int result = 0;
 
@@ -1097,12 +1099,14 @@ int amvecm_on_vs(
 			ioctrl_get_hdr_metadata(toggle_vf);
 
 		if (toggle_vf)
-			lc_process(toggle_vf, sps_h_en, sps_v_en);
+			lc_process(toggle_vf, sps_h_en, sps_v_en,
+				sps_w_in, sps_h_in);
 	} else {
 		amvecm_reset_overscan();
 		result = amvecm_matrix_process(NULL, NULL, flags);
 		ve_hist_gamma_reset();
-		lc_process(NULL, sps_h_en, sps_v_en);
+		lc_process(NULL, sps_h_en, sps_v_en,
+			sps_w_in, sps_h_in);
 	}
 
 	if (!is_dolby_vision_on())

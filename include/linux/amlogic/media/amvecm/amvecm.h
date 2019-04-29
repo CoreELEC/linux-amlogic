@@ -458,7 +458,9 @@ extern int amvecm_on_vs(
 	struct vframe_s *toggle_vf,
 	int flags,
 	unsigned int sps_h_en,
-	unsigned int sps_v_en);
+	unsigned int sps_v_en,
+	unsigned int sps_w_in,
+	unsigned int sps_h_in);
 extern void refresh_on_vs(struct vframe_s *vf);
 extern void pc_mode_process(void);
 extern void pq_user_latch_process(void);
