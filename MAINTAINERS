@@ -14971,3 +14971,67 @@ AMLOGIC GDC DRIVER
 M:	Pengcheng Chen <pengcheng.chen@amlogic.com>
 F:	drivers/amlogic/media/gdc/app/gdc_wq.c
 F:	drivers/amlogic/media/gdc/app/gdc_wq.h
+
+LAB126 PRIVACY
+M:	LAB126
+F:	drivers/misc/amz_priv*
+
+LAB126 lifecycle and log
+M:	LAB126
+F:	drivers/staging/amazon/*
+
+LAB126 tmp103
+M:	LAB126
+F:	drivers/hwmon/tmp103.c
+
+LAB126 RAVEN DTS
+M:	Yong Yu <yonyu@lab126.com>
+F:	arch/arm64/boot/dts/amlogic/raven.dts
+F:	arch/arm64/boot/dts/amlogic/raven_proto.dts
+F:	Documentation/devicetree/bindings/iio/light/tsl2540.txt
+
+LAB126 RAVEN DEFCONFIG
+M:	Yong Yu <yonyu@lab126.com>
+F:	arch/arm64/configs/raven_defconfig
+F:	arch/arm64/configs/raven_debug_defconfig
+
+LAB126 RAVEN THERMISTOR
+M:	Kevin Ow <krow@amazon.com>
+F:	Documentation/devicetree/bindings/thermal/ntc-bts-thermistor.txt
+F:	drivers/amlogic/iio/adc/saradc_ntc_bts.c
+F:	drivers/amlogic/iio/adc/Makefile
+F:	drivers/amlogic/iio/adc/Kconfig
+
+LAB126 RAVEN VIRTUAL THERMAL SENSOR
+M:	Kevin Ow <krow@amazon.com>
+F:	arch/arm64/boot/dts/amlogic/raven_thermal_zones.dtsi
+F:	Documentation/devicetree/bindings/thermal/virtual_sensor_thermal.txt
+F:	drivers/thermal/Kconfig
+F:	drivers/thermal/Makefile
+F:	drivers/thermal/trip_step_wise.c
+F:	drivers/thermal/virtual_sensor_thermal.c
+F:	include/linux/virtual_sensor_thermal.h
+
+LAB126 RAVEN WIFI_COOLING
+M:	Kevin Ow <krow@amazon.com>
+F:	Documentation/devicetree/bindings/thermal/wifi-temp-sensor.txt
+F:	drivers/thermal/wifi_cooling.c
+F:	drivers/amlogic/thermal/aml_thermal_cooling.c
+F:	drivers/amlogic/thermal/aml_thermal_hw.c
+F:	include/linux/amlogic/aml_thermal_cooling.h
+F:	include/linux/amlogic/aml_thermal_hw.h
+
+THIRD PARTY AUDIO CODEC TLV320DAC3203
+M: Xing Fang <xing.fang@amlogic.com>
+F: sound/soc/codecs/tlv320dac3203.c
+F: sound/soc/codecs/tlv320dac3203.h
+
+LAB126 PERFORMANCE BOOST DRIVER
+M: Yong Yu <yonyu@lab126.com>
+F: drivers/amlogic/cpufreq/cpufreq-boost.c
+F: include/linux/cpufreq-boost.h
+
+ADD OSD SW_SYNC DRIVER
+M: Pengcheng Chen <pengcheng.chen@amlogic.com>
+F: drivers/amlogic/media/osd/osd_sw_sync.c
+F: drivers/amlogic/media/osd/osd_sw_sync.h

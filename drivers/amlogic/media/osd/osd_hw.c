@@ -36,9 +36,6 @@
 #include <linux/amlogic/cpu_version.h>
 /* Android Headers */
 
-/* Amlogic sync headers */
-#include <linux/amlogic/aml_sync_api.h>
-
 /* Amlogic Headers */
 #include <linux/amlogic/media/vout/vinfo.h>
 #include <linux/amlogic/media/vout/vout_notify.h>
@@ -74,6 +71,7 @@
 #include "osd_hw.h"
 #include "osd_hw_def.h"
 #include "osd_fb.h"
+#include "osd_sw_sync.h"
 
 #ifdef CONFIG_AMLOGIC_VSYNC_FIQ_ENABLE
 #define FIQ_VSYNC
