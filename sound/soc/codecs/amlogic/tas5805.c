@@ -1013,9 +1013,9 @@ static int reset_tas5805m_GPIO(struct device *dev)
 		return -1;
 
 	gpio_direction_output(pdata->reset_pin, GPIOF_OUT_INIT_LOW);
-	mdelay(1);
+	usleep_range(1 * 1000, 2 * 1000);
 	gpio_direction_output(pdata->reset_pin, GPIOF_OUT_INIT_HIGH);
-	mdelay(5);
+	usleep_range(5 * 1000, 6 * 1000);
 
 	return 0;
 }
@@ -1042,7 +1042,7 @@ static int tas5805m_reg_init(struct snd_soc_codec *codec)
 		snd_soc_write(codec, tas5805m_reset[j][0],
 			tas5805m_reset[j][1]);
 	};
-	mdelay(10);
+	usleep_range(10 * 1000, 11 * 1000);
 	for (i = 0; i < ARRAY_SIZE(tas5805m_init_sequence); i++) {
 		snd_soc_write(codec, tas5805m_init_sequence[i][0],
 			tas5805m_init_sequence[i][1]);
@@ -1061,7 +1061,7 @@ static int tas5805m_snd_resume(struct snd_soc_codec *codec)
 	if (pdata->reset_pin)
 		gpio_direction_output(pdata->reset_pin, GPIOF_OUT_INIT_HIGH);
 
-	mdelay(3);
+	usleep_range(3 * 1000, 4 * 1000);
 
 	ret = tas5805m_reg_init(codec);
 //	    regmap_register_patch(tas5805m->regmap, tas5805m_init_sequence,
@@ -1090,7 +1090,7 @@ static int tas5805m_probe(struct snd_soc_codec *codec)
 //	ret =
 //	    regmap_register_patch(tas5805m->regmap, tas5805m_init_sequence,
 //				  ARRAY_SIZE(tas5805m_init_sequence));
-	mdelay(20);
+	usleep_range(20 * 1000, 21 * 1000);
 	ret = tas5805m_reg_init(codec);
 	if (ret != 0)
 		goto err;
