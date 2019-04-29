@@ -27,6 +27,10 @@
 
 /*may define in other module*/
 #define CURV_NODES 6
+/*curve_node_total*/
+#define LC_HIST_SIZE 1632
+/*curve_node_total*/
+#define LC_CURV_SIZE 580
 /*history message delay*/
 #define N 4
 /*hist bin num*/
@@ -524,6 +528,10 @@ static void lc_disable(void)
 	WRITE_VPP_REG_BITS(LC_CURVE_RAM_CTRL, 0, 0, 1);
 	/*lc hist stts enable*/
 	WRITE_VPP_REG_BITS(LC_STTS_HIST_REGION_IDX, 0, 31, 1);
+	memset(lc_hist, 0, LC_HIST_SIZE * sizeof(int));
+	memset(lc_szcurve, 0, LC_CURV_SIZE * sizeof(int));
+	memset(curve_nodes_cur, 0, LC_CURV_SIZE * sizeof(int));
+	memset(curve_nodes_pre, 0, LC_CURV_SIZE * sizeof(int));
 	lc_en_chflg = 0x0;
 }
 
@@ -673,17 +681,20 @@ static int set_lc_curve(int binit, int bcheck)
 	hvTemp = READ_VPP_REG(SRSHARP1_LC_HV_NUM);
 	h_num = (hvTemp >> 8) & 0x1f;
 	v_num = hvTemp & 0x1f;
-	VSYNC_WR_MPEG_REG(SRSHARP1_LC_MAP_RAM_CTRL, 1);
+
 	/*data sequence: ymin/minBv/pkBv/maxBv/ymaxv/ypkBv*/
 	if (binit) {
-		VSYNC_WR_MPEG_REG(SRSHARP1_LC_MAP_RAM_ADDR, 0);
+		WRITE_VPP_REG(SRSHARP1_LC_MAP_RAM_CTRL, 1);
+		WRITE_VPP_REG(SRSHARP1_LC_MAP_RAM_ADDR, 0);
 		for (i = 0; i < h_num * v_num; i++) {
-			VSYNC_WR_MPEG_REG(SRSHARP1_LC_MAP_RAM_DATA,
+			WRITE_VPP_REG(SRSHARP1_LC_MAP_RAM_DATA,
 				(0|(0<<10)|(512<<20)));
-			VSYNC_WR_MPEG_REG(SRSHARP1_LC_MAP_RAM_DATA,
+			WRITE_VPP_REG(SRSHARP1_LC_MAP_RAM_DATA,
 				(1023|(1023<<10)|(512<<20)));
 		}
+		WRITE_VPP_REG(SRSHARP1_LC_MAP_RAM_CTRL, 0);
 	} else {
+		VSYNC_WR_MPEG_REG(SRSHARP1_LC_MAP_RAM_CTRL, 1);
 		VSYNC_WR_MPEG_REG(SRSHARP1_LC_MAP_RAM_ADDR, 0);
 		if (lc_demo_mode)
 			lc_demo_wr_curve(h_num, v_num);
@@ -698,16 +709,31 @@ static int set_lc_curve(int binit, int bcheck)
 					(lc_szcurve[6 * i + 4]<<10)|
 					(lc_szcurve[6 * i + 5]<<20));
 			}
+		VSYNC_WR_MPEG_REG(SRSHARP1_LC_MAP_RAM_CTRL, 0);
 	}
-	VSYNC_WR_MPEG_REG(SRSHARP1_LC_MAP_RAM_CTRL, 0);
 
 	if (bcheck) {
-		VSYNC_WR_MPEG_REG(SRSHARP1_LC_MAP_RAM_CTRL, 1);
-		VSYNC_WR_MPEG_REG(SRSHARP1_LC_MAP_RAM_ADDR, 0 | (1 << 31));
-		if (lc_demo_mode)
-			rflag = lc_demo_check_curve(h_num, v_num);
-		else
+		if (binit) {
+			WRITE_VPP_REG(SRSHARP1_LC_MAP_RAM_CTRL, 1);
+			WRITE_VPP_REG(SRSHARP1_LC_MAP_RAM_ADDR,
+				0 | (1 << 31));
 			for (i = 0; i < h_num * v_num; i++) {
+				temp = READ_VPP_REG(SRSHARP1_LC_MAP_RAM_DATA);
+				if (temp != (0 | (0 << 10) | (512 << 20)))
+					rflag = (2 * i + 0) | (1 << 31);
+				temp = READ_VPP_REG(SRSHARP1_LC_MAP_RAM_DATA);
+				if (temp != (1023 | (1023 << 10) | (512 << 20)))
+					rflag = (2 * i + 1) | (1 << 31);
+			}
+			WRITE_VPP_REG(SRSHARP1_LC_MAP_RAM_CTRL, 0);
+		} else {
+			VSYNC_WR_MPEG_REG(SRSHARP1_LC_MAP_RAM_CTRL, 1);
+			VSYNC_WR_MPEG_REG(SRSHARP1_LC_MAP_RAM_ADDR,
+						0 | (1 << 31));
+			if (lc_demo_mode)
+				rflag = lc_demo_check_curve(h_num, v_num);
+			else
+				for (i = 0; i < h_num * v_num; i++) {
 				temp = READ_VPP_REG(SRSHARP1_LC_MAP_RAM_DATA);
 				temp1 = lc_szcurve[6 * i + 0]|
 					(lc_szcurve[6 * i + 1]<<10)|
@@ -720,8 +746,9 @@ static int set_lc_curve(int binit, int bcheck)
 					(lc_szcurve[6 * i + 5]<<20);
 				if (temp != temp1)
 					rflag = (2 * i + 1) | (1 << 31);
-			}
-		VSYNC_WR_MPEG_REG(SRSHARP1_LC_MAP_RAM_CTRL, 0);
+				}
+			VSYNC_WR_MPEG_REG(SRSHARP1_LC_MAP_RAM_CTRL, 0);
+		}
 	}
 
 	return rflag;
@@ -1122,7 +1149,6 @@ static void lc_fw_curve_iir(struct vframe_s *vf,
 			&frm_cnt_below,/*out: osd case heavy iir time */
 			lc_hist,
 			blk_hnum);
-
 	/*step 2: scene change signal get: two method*/
 	scene_change_flag = global_scene_change(
 						curve_nodes_cur,
@@ -1131,6 +1157,12 @@ static void lc_fw_curve_iir(struct vframe_s *vf,
 						blk_hnum,
 						osd_flag_cnt_above,
 						osd_flag_cnt_below);
+	if (scene_change_flag) {
+		memset(osd_flag_cnt_below, 0, sizeof(int) * 2);
+		memset(osd_flag_cnt_above, 0, sizeof(int) * 2);
+		frm_cnt_below = 0;
+		frm_cnt_above = 0;
+	}
 
 	/* step 3: set tiir alpha based on different situation */
 	cal_iir_alpha(refresh_alpha,/*out*/
@@ -1241,21 +1273,21 @@ void lc_init(int bitdepth)
 	h_num = 12;
 	v_num = 8;
 
-	lc_szcurve = kzalloc(580 * sizeof(int), GFP_KERNEL);
+	lc_szcurve = kcalloc(LC_CURV_SIZE, sizeof(int), GFP_KERNEL);
 	if (!lc_szcurve)
 		return;
-	curve_nodes_cur = kzalloc(580 * sizeof(int), GFP_KERNEL);
+	curve_nodes_cur = kcalloc(LC_CURV_SIZE, sizeof(int), GFP_KERNEL);
 	if (!curve_nodes_cur) {
 		kfree(lc_szcurve);
 		return;
 	}
-	curve_nodes_pre = kzalloc(580 * sizeof(int), GFP_KERNEL);
+	curve_nodes_pre = kcalloc(LC_CURV_SIZE, sizeof(int), GFP_KERNEL);
 	if (!curve_nodes_pre) {
 		kfree(lc_szcurve);
 		kfree(curve_nodes_cur);
 		return;
 	}
-	lc_hist = kzalloc(1632 * sizeof(int), GFP_KERNEL);
+	lc_hist = kcalloc(LC_HIST_SIZE, sizeof(int), GFP_KERNEL);
 	if (!lc_hist) {
 		kfree(lc_szcurve);
 		kfree(curve_nodes_cur);
@@ -1300,8 +1332,8 @@ void lc_init(int bitdepth)
 	WRITE_VPP_REG(SRSHARP1_LC_SAT_LUT_62, tmp);
 	/*end*/
 
-	if (set_lc_curve(1, 0))
-		pr_amlc_dbg("%s: init fail", __func__);
+	if (set_lc_curve(1, 1))
+		pr_info("%s: init fail", __func__);
 }
 
 void lc_process(struct vframe_s *vf,
