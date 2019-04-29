@@ -1733,6 +1733,13 @@ void hdcp22_clk_en(bool en)
 		else
 			/* TL1:esm related clk bit3-5 */
 			hdmirx_wr_bits_top(TOP_CLK_CNTL, MSK(3, 3), 0x7);
+
+		if (rx.chip_id >= CHIP_ID_TM2)
+			/* Enable axi_clk,for tm2 */
+			/* AXI arbiter is moved outside of hdmitx. */
+			/* There is an AXI arbiter in the chip’s EE domain */
+			/* for arbitrating AXI requests from HDMI TX and RX.*/
+			hdmirx_wr_bits_top(TOP_CLK_CNTL, MSK(1, 12), 0x1);
 	} else {
 		hdmirx_wr_bits_top(TOP_CLK_CNTL, MSK(3, 3), 0x0);
 		wr_reg_hhi(HHI_HDCP22_CLK_CNTL, 0);
