@@ -434,6 +434,12 @@ struct edid_data_s {
 	unsigned int checksum;
 };
 
+enum tx_hpd_event_e {
+	E_IDLE = 0,
+	E_EXE = 1,
+	E_RCV = 2,
+};
+
 enum hdmi_vic_e {
 	/* Refer to CEA 861-D */
 	HDMI_UNKNOWN = 0,

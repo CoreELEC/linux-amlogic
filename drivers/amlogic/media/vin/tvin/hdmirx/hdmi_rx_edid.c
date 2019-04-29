@@ -2716,3 +2716,16 @@ int rx_set_hdr_lumi(unsigned char *data, int len)
 }
 EXPORT_SYMBOL(rx_set_hdr_lumi);
 
+void rx_edid_physical_addr(int a, int b, int c, int d)
+{
+	tx_hpd_event = E_RCV;
+	up_phy_addr = ((d & 0xf) << 12) |
+		   ((c & 0xf) <<  8) |
+		   ((b & 0xf) <<  4) |
+		   ((a & 0xf) <<  0);
+
+	/* if (log_level & EDID_LOG) */
+	rx_pr("\nup_phy_addr = %x\n", up_phy_addr);
+}
+EXPORT_SYMBOL(rx_edid_physical_addr);
+

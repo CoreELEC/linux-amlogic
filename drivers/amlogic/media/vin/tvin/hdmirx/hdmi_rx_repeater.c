@@ -47,6 +47,7 @@ static unsigned char receive_edid[MAX_RECEIVE_EDID];
 int receive_edid_len = MAX_RECEIVE_EDID;
 MODULE_PARM_DESC(receive_edid, "\n receive_edid\n");
 module_param_array(receive_edid, byte, &receive_edid_len, 0664);
+int tx_hpd_event;
 int edid_len;
 MODULE_PARM_DESC(edid_len, "\n edid_len\n");
 module_param(edid_len, int, 0664);
@@ -369,10 +370,4 @@ void rx_repeat_hpd_state(bool plug)
 {
 }
 EXPORT_SYMBOL(rx_repeat_hpd_state);
-
-void rx_edid_physical_addr(int a, int b, int c, int d)
-{
-}
-EXPORT_SYMBOL(rx_edid_physical_addr);
-
 

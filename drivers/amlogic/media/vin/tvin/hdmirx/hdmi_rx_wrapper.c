@@ -2212,7 +2212,7 @@ void rx_main_state_machine(void)
 			} else if (rx.err_rec_mode == ERR_REC_HPD_RST) {
 				rx_set_cur_hpd(0);
 				rx.phy.cable_clk = 0;
-				rx.state = FSM_HPD_HIGH;
+				rx.state = FSM_INIT;
 				rx.err_rec_mode = ERR_REC_EQ_RETRY;
 			}
 			rx_set_eq_run_state(E_EQ_START);
@@ -2306,7 +2306,7 @@ void rx_main_state_machine(void)
 			} else if (rx.err_rec_mode == ERR_REC_HPD_RST) {
 				rx_set_cur_hpd(0);
 				rx.phy.cable_clk = 0;
-				rx.state = FSM_HPD_HIGH;
+				rx.state = FSM_INIT;
 				rx.err_rec_mode = ERR_REC_EQ_RETRY;
 			}
 		}
@@ -2935,12 +2935,34 @@ int hdmirx_debug(const char *buf, int size)
 	return 0;
 }
 
+void rx_dw_edid_monitor(void)
+{
+	if (!hdmi_cec_en)
+		return;
+	if (tx_hpd_event == E_RCV) {
+		if (rx.open_fg)
+			fsm_restart();
+		rx_set_port_hpd(ALL_PORTS, 0);
+		hdmi_rx_top_edid_update();
+		hpd_wait_cnt = 0;
+		tx_hpd_event = E_EXE;
+	} else if (tx_hpd_event == E_EXE) {
+		if (!rx.open_fg)
+			hpd_wait_cnt++;
+		if (!rx_hpd_keep_low()) {
+			rx_set_port_hpd(ALL_PORTS, 1);
+			tx_hpd_event = E_IDLE;
+		}
+	}
+}
+
 void hdmirx_timer_handler(unsigned long arg)
 {
 	struct hdmirx_dev_s *devp = (struct hdmirx_dev_s *)arg;
 
 	rx_5v_monitor();
 	rx_check_repeat();
+	rx_dw_edid_monitor();
 	if (rx.open_fg) {
 		rx_nosig_monitor();
 		if (!hdmirx_repeat_support() || !rx.firm_change) {
