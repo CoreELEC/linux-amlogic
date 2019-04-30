@@ -23,7 +23,7 @@
 
 / {
 	model = "Amlogic";
-	amlogic-dt-id = "g12a_u200_2g";
+	amlogic-dt-id = "g12a_u202_2g";
 	compatible = "amlogic, g12a";
 	interrupt-parent = <&gic>;
 	#address-cells = <1>;
@@ -80,7 +80,7 @@
 			reusable;
 			size = <0x800000>;
 			alignment = <0x400000>;
-			alloc-ranges = <0x30000000 0x50000000>;
+			alloc-ranges = <0x7f800000 0x800000>;
 		};
 		ion_cma_reserved:linux,ion-dev {
 			compatible = "shared-dma-pool";
