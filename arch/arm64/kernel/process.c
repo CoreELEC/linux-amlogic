@@ -62,6 +62,10 @@ unsigned long __stack_chk_guard __read_mostly;
 EXPORT_SYMBOL(__stack_chk_guard);
 #endif
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+#include <linux/amlogic/secmon.h>
+#endif
+
 /*
  * Function pointers to optional machine specific functions
  */
@@ -194,6 +198,27 @@ static void show_data(unsigned long addr, int nbytes, const char *name)
 	 */
 	if (addr < PAGE_OFFSET || addr > -256UL)
 		return;
+
+#ifdef CONFIG_AMLOGIC_MODIFY
+	/*
+	 * Treating data in general purpose register as an address
+	 * and dereferencing it is quite a dangerous behaviour,
+	 * especially when it belongs to secure monotor region or
+	 * ioremap region(for arm64 vmalloc region is already filtered
+	 * out), which can lead to external abort on non-linefetch and
+	 * can not be protected by probe_kernel_address.
+	 * We need more strict filtering rules
+	 */
+
+#ifdef CONFIG_AMLOGIC_SEC
+	/*
+	 * filter out secure monitor region
+	 */
+	if (addr <= (unsigned long)high_memory)
+		if (within_secmon_region(addr))
+			return;
+#endif
+#endif
 
 	printk("\n%s: %#lx:\n", name, addr);
 
