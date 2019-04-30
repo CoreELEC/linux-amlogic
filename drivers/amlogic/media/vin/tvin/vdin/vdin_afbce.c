@@ -82,6 +82,9 @@ void vdin_write_mif_or_afbce_init(struct vdin_dev_s *devp)
 {
 	enum vdin_output_mif_e sel;
 
+	if ((devp->afbce_flag & VDIN_AFBCE_EN) == 0)
+		return;
+
 	if (devp->afbce_mode == 0)
 		sel = VDIN_OUTPUT_TO_MIF;
 	else
@@ -115,7 +118,7 @@ void vdin_write_mif_or_afbce(struct vdin_dev_s *devp,
 	enum vdin_output_mif_e sel)
 {
 
-	if (devp->index != 0)
+	if ((devp->afbce_flag & VDIN_AFBCE_EN) == 0)
 		return;
 
 	if (sel == VDIN_OUTPUT_TO_MIF) {
