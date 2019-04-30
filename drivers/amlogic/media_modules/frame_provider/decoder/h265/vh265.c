@@ -260,6 +260,7 @@ static u32 pts_unstable;
 #define MAX_BUF_NUM 24
 #define MAX_REF_PIC_NUM 24
 #define MAX_REF_ACTIVE  16
+#define DEFAULT_BUF_NUM 7
 
 #ifdef MV_USE_FIXED_BUF
 #define BMMU_MAX_BUFFERS (BUF_POOL_SIZE + 1)
@@ -317,7 +318,8 @@ static uint slice_parse_begin;
 static u32 step;
 static bool is_reset;
 
-static u32 dynamic_buf_num_margin = 7;
+static u32 default_buf_num = DEFAULT_BUF_NUM;
+static u32 dynamic_buf_num_margin = DEFAULT_BUF_NUM;
 static u32 buf_alloc_width;
 static u32 buf_alloc_height;
 
@@ -10764,6 +10766,9 @@ MODULE_PARM_DESC(buf_alloc_height, "\n buf_alloc_height\n");
 
 module_param(dynamic_buf_num_margin, uint, 0664);
 MODULE_PARM_DESC(dynamic_buf_num_margin, "\n dynamic_buf_num_margin\n");
+
+module_param(default_buf_num, uint, 0444);
+MODULE_PARM_DESC(default_buf_num, "\n default_buf_num\n");
 
 module_param(max_buf_num, uint, 0664);
 MODULE_PARM_DESC(max_buf_num, "\n max_buf_num\n");
