@@ -38,6 +38,10 @@
 #endif
 #include "../../gpio/gpiolib.h"
 
+#include <linux/interrupt.h>
+#include <linux/pm_wakeup.h>
+#include <linux/pm_wakeirq.h>
+
 #ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
 #include <linux/amlogic/pm.h>
 static struct early_suspend bt_early_suspend;
@@ -199,6 +203,12 @@ static void bt_device_on(struct bt_dev_data *pdata)
 	msleep(200);
 }
 
+/*The system calls this function when GPIOC_14 interrupt occurs*/
+static irqreturn_t bt_interrupt(int irq, void *dev_id)
+{
+	pr_info("freeze: test BT IRQ\n");
+	return IRQ_HANDLED;
+}
 static int bt_set_block(void *data, bool blocked)
 {
 	struct bt_dev_data *pdata = data;
@@ -232,12 +242,20 @@ static void bt_lateresume(struct early_suspend *h)
 static int bt_suspend(struct platform_device *pdev,
 	pm_message_t state)
 {
+	struct bt_dev_data *pdata = platform_get_drvdata(pdev);
+
+	pr_info("bt suspend\n");
+	enable_irq(pdata->irqno_wakeup);
 
 	return 0;
 }
 
 static int bt_resume(struct platform_device *pdev)
 {
+	struct bt_dev_data *pdata = platform_get_drvdata(pdev);
+
+	pr_info("bt resume\n");
+	disable_irq(pdata->irqno_wakeup);
 
 	return 0;
 }
@@ -287,6 +305,17 @@ static int bt_probe(struct platform_device *pdev)
 			desc = of_get_named_gpiod_flags(pdev->dev.of_node,
 				"gpio_hostwake", 0, NULL);
 			pdata->gpio_hostwake = desc_to_gpio(desc);
+		}
+		/*gpio_btwakeup = BT_WAKE_HOST*/
+		ret = of_property_read_string(pdev->dev.of_node,
+			"gpio_btwakeup", &str);
+		if (ret) {
+			pr_warn("not get gpio_btwakeup\n");
+			pdata->gpio_btwakeup = 0;
+		} else {
+			desc = of_get_named_gpiod_flags(pdev->dev.of_node,
+				"gpio_btwakeup", 0, NULL);
+			pdata->gpio_btwakeup = desc_to_gpio(desc);
 		}
 
 		prop = of_get_property(pdev->dev.of_node,
@@ -371,6 +400,28 @@ static int bt_probe(struct platform_device *pdev)
 	bt_early_suspend.param = pdev;
 	register_early_suspend(&bt_early_suspend);
 #endif
+
+	platform_set_drvdata(pdev, pdata);
+
+	/*1.Set BT_WAKE_HOST to the input state;*/
+	/*2.Get interrupt number(irqno_wakeup).*/
+	pdata->irqno_wakeup = gpio_to_irq(pdata->gpio_btwakeup);
+
+	/*Register interrupt service function*/
+	ret = request_irq(pdata->irqno_wakeup, bt_interrupt,
+			IRQF_TRIGGER_FALLING, "bt-irq", (void *)pdata);
+	if (ret < 0)
+		pr_err("request_irq error ret=%d\n", ret);
+
+	disable_irq(pdata->irqno_wakeup);
+
+	ret = device_init_wakeup(&pdev->dev, 1);
+	if (ret)
+		pr_err("device_init_wakeup failed: %d\n", ret);
+	/*Wake up the interrupt*/
+	ret = dev_pm_set_wake_irq(&pdev->dev, pdata->irqno_wakeup);
+	if (ret)
+		pr_err("dev_pm_set_wake_irq failed: %d\n", ret);
 
 	return 0;
 
