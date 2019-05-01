@@ -4055,8 +4055,10 @@ void rx_emp_to_ddr_init(void)
 		/* emp int enable TOP_INTR_MASKN*/
 		/* emp field end done at DE rist bit[25]*/
 		/* emp last EMP pkt recv done bit[26]*/
-		top_intr_maskn_value |= _BIT(25);
-		hdmirx_wr_top(TOP_INTR_MASKN, top_intr_maskn_value);
+		/* disable emp irq */
+		/* top_intr_maskn_value |= _BIT(25);
+		 * hdmirx_wr_top(TOP_INTR_MASKN, top_intr_maskn_value);
+		 */
 	}
 
 	rx.empbuff.ready = NULL;

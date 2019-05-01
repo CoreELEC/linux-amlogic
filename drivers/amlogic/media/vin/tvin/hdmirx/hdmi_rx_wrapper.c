@@ -49,7 +49,7 @@ static int pll_unlock_cnt;
 static int pll_unlock_max = 30;
 
 static int pll_lock_cnt;
-static int pll_lock_max = 2;
+static int pll_lock_max;
 
 static int dwc_rst_wait_cnt;
 static int dwc_rst_wait_cnt_max = 1;
@@ -215,7 +215,7 @@ void hdmirx_init_params(void)
 		clk_unstable_max = 10;
 		esd_phy_rst_max = 20;
 		stable_check_lvl = 0x7df;
-		pll_lock_max = 1;
+		pll_lock_max = 5;
 	} else {
 		clk_unstable_max = 200;
 		esd_phy_rst_max = 2;
@@ -1726,6 +1726,8 @@ int rx_set_global_variable(const char *buf, int size)
 		return pr_var(cdr_lock_level, index);
 	if (set_pr_var(tmpbuf, top_intr_maskn_value, value, &index, ret))
 		return pr_var(top_intr_maskn_value, index);
+	if (set_pr_var(tmpbuf, pll_lock_max, value, &index, ret))
+		return pr_var(pll_lock_max, index);
 	return 0;
 }
 
@@ -1835,6 +1837,7 @@ void rx_get_global_variable(const char *buf)
 	pr_var(hbr_force_8ch, i++);
 	pr_var(cdr_lock_level, i++);
 	pr_var(top_intr_maskn_value, i++);
+	pr_var(pll_lock_max, i++);
 }
 
 void skip_frame(unsigned int cnt)
