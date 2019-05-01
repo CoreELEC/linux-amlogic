@@ -1,0 +1,14 @@
+#include "g12b_a311d_odroid_n2_dvb.dts"
+
+/{
+	coreelec-dt-id = "g12b_a311d_odroid_n2_2dvb";
+	dvb {
+		dtv_demod1_i2c_adap_id = <3>;
+		ts1 = "serial";
+		ts1_control = <0>;
+		ts1_invert = <0>;
+		fec_reset_gpio-gpios2 = <&gpio GPIOX_15 GPIO_ACTIVE_HIGH>;
+		power_ctrl_gpio-gpios2 = <&gpio GPIOX_14 GPIO_ACTIVE_LOW>;
+	};
+
+};
