@@ -2707,6 +2707,12 @@ void di_post_switch_buffer(
 			DI_VSYNC_WR_MPEG_REG_BITS(MCVECRD_CTRL1,
 				di_mcvecrd_mif->canvas_num, 16, 8);
 		}
+		/*motion for current display field.*/
+		if (blend_mtn_en) {
+			DI_VSYNC_WR_MPEG_REG_BITS(MTNRD_CTRL1,
+				di_mtnprd_mif->canvas_num, 16, 8);
+			/* current field mtn canvas index.*/
+		}
 	} else {
 		if ((VSYNC_RD_MPEG_REG(VIU_MISC_CTRL0) & 0x50000) != 0x50000)
 			DI_VSYNC_WR_MPEG_REG_BITS(VIU_MISC_CTRL0, 5, 16, 3);
@@ -2723,6 +2729,12 @@ void di_post_switch_buffer(
 				di_mcvecrd_mif->canvas_num,
 				0, 10);
 		}
+		/*motion for current display field.*/
+		if (blend_mtn_en) {
+			DI_VSYNC_WR_MPEG_REG(DI_MTNRD_CTRL,
+			(di_mtnprd_mif->canvas_num << 8) | (urgent << 16));
+			/*current field mtn canvas index.*/
+		}
 	}
 
 	if (!ei_only && (di_ddr_en || di_vpp_en)) {
@@ -2735,14 +2747,6 @@ void di_post_switch_buffer(
 				(di_buf2_mif->canvas0_addr2 << 16) |
 				(di_buf2_mif->canvas0_addr1 << 8) |
 				(di_buf2_mif->canvas0_addr0 << 0));
-	}
-
-	/* motion for current display field. */
-	if (blend_mtn_en) {
-		DI_VSYNC_WR_MPEG_REG(DI_MTNRD_CTRL,
-(di_mtnprd_mif->canvas_num << 8) | (urgent << 16)
-	 ); /* current field mtn canvas index. */
-
 	}
 
 	if (di_ddr_en) {
