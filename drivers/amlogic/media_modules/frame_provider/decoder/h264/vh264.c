@@ -246,7 +246,7 @@ static unsigned int no_idr_error_max = 60;
 static u32 bad_block_scale;
 #endif
 
-static unsigned int enable_switch_fense = 1;
+static unsigned int enable_switch_fense = 0;
 #define EN_SWITCH_FENCE() (enable_switch_fense && !is_4k)
 #if 0
 static u32 vh264_no_disp_wd_count;
