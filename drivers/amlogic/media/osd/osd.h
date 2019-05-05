@@ -613,8 +613,10 @@ struct hw_osd_blending_s {
 	bool osd1_freescale_disable;
 	u32 vinfo_width;
 	u32 vinfo_height;
-	u32 screen_ratio_w;
-	u32 screen_ratio_h;
+	u32 screen_ratio_w_num;
+	u32 screen_ratio_w_den;
+	u32 screen_ratio_h_num;
+	u32 screen_ratio_h_den;
 	struct dispdata_s dst_data;
 	struct layer_blend_reg_s blend_reg;
 	struct layer_blend_s layer_blend;

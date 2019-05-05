@@ -94,7 +94,6 @@
 
 #define osd_tprintk(...)
 
-#define OSD_CALC    14
 #define FREE_SCALE_MAX_WIDTH    1920
 struct hw_para_s osd_hw;
 static DEFINE_MUTEX(osd_mutex);
@@ -6690,10 +6689,12 @@ static void osd_set_freescale(u32 index,
 
 		osd_hw.free_dst_data[index].x_start = 0;
 		osd_hw.free_dst_data[index].y_start = 0;
-		width = layer_blend->output_data.w
-			* blending->screen_ratio_w >> OSD_CALC;
-		height = (layer_blend->output_data.h - workaround_line)
-			* blending->screen_ratio_h >> OSD_CALC;
+		width = layer_blend->output_data.w *
+			blending->screen_ratio_w_num /
+			blending->screen_ratio_w_den;
+		height = (layer_blend->output_data.h - workaround_line) *
+			blending->screen_ratio_h_num /
+			blending->screen_ratio_h_den;
 		if (osd_hw.field_out_en[output_index])
 			height = height >> 1;
 	} else {
@@ -6712,15 +6713,19 @@ static void osd_set_freescale(u32 index,
 			(blending->osd_blend_mode == OSD_BLEND_ABC)) {
 			/* combine mode, need uniformization */
 			osd_hw.free_dst_data[index].x_start =
-				(osd_hw.dst_data[index].x << OSD_CALC) /
-				blending->screen_ratio_w;
+				osd_hw.dst_data[index].x *
+				blending->screen_ratio_w_den /
+				blending->screen_ratio_w_num;
 			osd_hw.free_dst_data[index].y_start =
-				(osd_hw.dst_data[index].y << OSD_CALC) /
-				blending->screen_ratio_h;
-			width = (osd_hw.dst_data[index].w << OSD_CALC) /
-				blending->screen_ratio_w;
-			height = (osd_hw.dst_data[index].h << OSD_CALC) /
-				blending->screen_ratio_h;
+				osd_hw.dst_data[index].y *
+				blending->screen_ratio_h_den /
+				blending->screen_ratio_h_num;
+			width = osd_hw.dst_data[index].w *
+				blending->screen_ratio_w_den /
+				blending->screen_ratio_w_num;
+			height = osd_hw.dst_data[index].h *
+				blending->screen_ratio_h_den /
+				blending->screen_ratio_h_num;
 			if (width > FREE_SCALE_MAX_WIDTH)
 				width = FREE_SCALE_MAX_WIDTH;
 		} else if (blending->osd_blend_mode == OSD_BLEND_AB_C) {
@@ -6729,17 +6734,19 @@ static void osd_set_freescale(u32 index,
 			if (blending->blend_din != BLEND_DIN4) {
 				/* combine mode, need uniformization */
 				osd_hw.free_dst_data[index].x_start =
-					(osd_hw.dst_data[index].x << OSD_CALC) /
-					blending->screen_ratio_w;
+					osd_hw.dst_data[index].x *
+					blending->screen_ratio_w_den /
+					blending->screen_ratio_w_num;
 				osd_hw.free_dst_data[index].y_start =
-					(osd_hw.dst_data[index].y << OSD_CALC) /
-					blending->screen_ratio_h;
-				width = (osd_hw.dst_data[index].w
-					<< OSD_CALC) /
-					blending->screen_ratio_w;
-				height = (osd_hw.dst_data[index].h
-					<< OSD_CALC) /
-					blending->screen_ratio_h;
+					osd_hw.dst_data[index].y *
+					blending->screen_ratio_h_den /
+					blending->screen_ratio_h_num;
+				width = osd_hw.dst_data[index].w *
+					blending->screen_ratio_w_den /
+					blending->screen_ratio_w_num;
+				height = osd_hw.dst_data[index].h *
+					blending->screen_ratio_h_den /
+					blending->screen_ratio_h_num;
 			} else {
 				/* direct used dst as freescale dst */
 				osd_hw.free_dst_data[index].x_start =
@@ -8115,14 +8122,18 @@ static void set_blend_reg(struct layer_blend_reg_s *blend_reg)
 static void uniformization_fb(u32 index,
 	struct hw_osd_blending_s *blending)
 {
-	blending->dst_data.x = (osd_hw.dst_data[index].x << OSD_CALC) /
-		blending->screen_ratio_w;
-	blending->dst_data.y = (osd_hw.dst_data[index].y << OSD_CALC) /
-		blending->screen_ratio_h;
-	blending->dst_data.w = (osd_hw.dst_data[index].w << OSD_CALC) /
-		blending->screen_ratio_w;
-	blending->dst_data.h = (osd_hw.dst_data[index].h << OSD_CALC) /
-		blending->screen_ratio_h;
+	blending->dst_data.x = osd_hw.dst_data[index].x *
+		blending->screen_ratio_w_den /
+		blending->screen_ratio_w_num;
+	blending->dst_data.y = osd_hw.dst_data[index].y *
+		blending->screen_ratio_h_den /
+		blending->screen_ratio_h_num;
+	blending->dst_data.w = osd_hw.dst_data[index].w *
+		blending->screen_ratio_w_den /
+		blending->screen_ratio_w_num;
+	blending->dst_data.h = osd_hw.dst_data[index].h *
+		blending->screen_ratio_h_den /
+		blending->screen_ratio_h_num;
 	osd_log_dbg2(MODULE_BLEND,
 		"uniformization:osd%d:dst_data:%d,%d,%d,%d\n",
 		index,
@@ -8190,12 +8201,14 @@ static int osd_setting_order(u32 output_index)
 
 	blending->vinfo_width = osd_hw.vinfo_width[output_index];
 	blending->vinfo_height = osd_hw.vinfo_height[output_index];
-	blending->screen_ratio_w =
-		(osd_hw.disp_info[output_index].position_w << OSD_CALC)
-		/ osd_hw.disp_info[output_index].background_w;
-	blending->screen_ratio_h =
-		(osd_hw.disp_info[output_index].position_h << OSD_CALC)
-		/ osd_hw.disp_info[output_index].background_h;
+	blending->screen_ratio_w_num =
+		osd_hw.disp_info[output_index].position_w;
+	blending->screen_ratio_w_den =
+		osd_hw.disp_info[output_index].background_w;
+	blending->screen_ratio_h_num =
+		osd_hw.disp_info[output_index].position_h;
+	blending->screen_ratio_h_den =
+		osd_hw.disp_info[output_index].background_h;
 	blending->layer_cnt = get_available_layers();
 	set_blend_order(blending);
 
