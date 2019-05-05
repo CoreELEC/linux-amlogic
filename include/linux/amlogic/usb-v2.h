@@ -121,7 +121,9 @@ union usb_r3_v2 {
 		unsigned p30_ssc_range:3;
 		unsigned p30_ssc_ref_clk_sel:9;
 		unsigned p30_ref_ssp_en:1;
-		unsigned reserved:18;
+		unsigned reserved:6;
+		unsigned p31_pcs_tx_deemph_3p5db:6;
+		unsigned p31_pcs_tx_deemph_6db:6;
 	} b;
 };
 
@@ -224,6 +226,9 @@ struct amlogic_usb_v2 {
 	struct clk		*clk;
 	struct clk		*gate0_clk;
 	struct clk		*gate1_clk;
+	struct clk		*pcie_hcsl_en_clk;
+	u32 portconfig_31;
+	u32 portconfig_30;
 };
 
 union phy3_r1 {

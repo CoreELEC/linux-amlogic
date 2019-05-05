@@ -248,7 +248,7 @@ static void cr_bus_write_31(struct amlogic_usb_v2 *phy_v3,
 	union phy3_r5 phy_r5 = {.d32 = 0};
 	unsigned long timeout_jiffies;
 
-	cr_bus_addr(phy_v3, addr);
+	cr_bus_addr_31(phy_v3, addr);
 
 	phy_r4.b.phy_cr_data_in = data;
 	writel(phy_r4.d32, phy_v3->phy31_cfg_r4);
@@ -441,66 +441,77 @@ static int amlogic_new_usb3_init_v3(struct usb_phy *x)
 			((unsigned long)phy->regs + 4*i);
 	}
 
-	/* config usb30 phy */
-	r3.d32 = readl(usb_new_aml_regs_v3.usb_r_v2[3]);
-	r3.b.p30_ssc_en = 1;
-	r3.b.p30_ssc_range = 2;
-	r3.b.p30_ref_ssp_en = 1;
-	writel(r3.d32, usb_new_aml_regs_v3.usb_r_v2[3]);
-	udelay(2);
-	r2.d32 = readl(usb_new_aml_regs_v3.usb_r_v2[2]);
-	r2.b.p30_pcs_tx_deemph_3p5db = 0x15;
-	r2.b.p30_pcs_tx_deemph_6db = 0x20;
-	writel(r2.d32, usb_new_aml_regs_v3.usb_r_v2[2]);
-	udelay(2);
-	r1.d32 = readl(usb_new_aml_regs_v3.usb_r_v2[1]);
-	r1.b.u3h_host_port_power_control_present = 1;
-	r1.b.u3h_fladj_30mhz_reg = 0x20;
-	r1.b.p30_pcs_tx_swing_full = 127;
-	r1.b.u3h_host_u3_port_disable = 0;
-	writel(r1.d32, usb_new_aml_regs_v3.usb_r_v2[1]);
-	udelay(2);
-	p3_r2.d32 = readl(phy->phy3_cfg_r2);
-	p3_r2.b.phy_tx_vboost_lvl = 0x4;
-	writel(p3_r2.d32, phy->phy3_cfg_r2);
-	udelay(2);
+	if (phy->portconfig_30) {
+		/* config usb30 phy */
+		r3.d32 = readl(usb_new_aml_regs_v3.usb_r_v2[3]);
+		r3.b.p30_ssc_en = 1;
+		r3.b.p30_ssc_range = 2;
+		r3.b.p30_ref_ssp_en = 1;
+		writel(r3.d32, usb_new_aml_regs_v3.usb_r_v2[3]);
+		udelay(2);
+		r2.d32 = readl(usb_new_aml_regs_v3.usb_r_v2[2]);
+		r2.b.p30_pcs_tx_deemph_3p5db = 0x15;
+		r2.b.p30_pcs_tx_deemph_6db = 0x20;
+		writel(r2.d32, usb_new_aml_regs_v3.usb_r_v2[2]);
+		udelay(2);
+		r1.d32 = readl(usb_new_aml_regs_v3.usb_r_v2[1]);
+		r1.b.u3h_host_port_power_control_present = 1;
+		r1.b.u3h_fladj_30mhz_reg = 0x20;
+		r1.b.p30_pcs_tx_swing_full = 127;
+		r1.b.u3h_host_u3_port_disable = 0;
+		writel(r1.d32, usb_new_aml_regs_v3.usb_r_v2[1]);
+		udelay(2);
+		p3_r2.d32 = readl(phy->phy3_cfg_r2);
+		p3_r2.b.phy_tx_vboost_lvl = 0x4;
+		writel(p3_r2.d32, phy->phy3_cfg_r2);
+		udelay(2);
 
-	usb3_phy_cr_config_30(phy);
+		usb3_phy_cr_config_30(phy);
 
-	/*
-	 * LOS_BIAS	to 0x5
-	 * LOS_LEVEL to 0x9
-	 */
-	p3_r1.d32 = readl(phy->phy3_cfg_r1);
-	p3_r1.b.phy_los_bias = 0x4;
-	p3_r1.b.phy_los_level = 0x9;
-	writel(p3_r1.d32, phy->phy3_cfg_r1);
+		/*
+		 * LOS_BIAS	to 0x5
+		 * LOS_LEVEL to 0x9
+		 */
+		p3_r1.d32 = readl(phy->phy3_cfg_r1);
+		p3_r1.b.phy_los_bias = 0x5;
+		p3_r1.b.phy_los_level = 0x9;
+		writel(p3_r1.d32, phy->phy3_cfg_r1);
+	}
 
-	/* config usb31 phy */
-	r7.d32 = readl(usb_new_aml_regs_v3.usb_r_v2[7]);
-	r7.b.p31_ssc_en = 1;
-	r7.b.p31_ssc_range = 2;
-	r7.b.p31_ref_ssp_en = 1;
-	r7.b.p31_pcs_tx_deemph_6db = 0x20;
-	r7.b.p31_pcs_tx_swing_full = 127;
-	writel(r7.d32, usb_new_aml_regs_v3.usb_r_v2[7]);
+	if (phy->portconfig_31) {
+		/* config usb31 phy */
+		r7.d32 = readl(usb_new_aml_regs_v3.usb_r_v2[7]);
+		r7.b.p31_ssc_en = 1;
+		r7.b.p31_ssc_range = 2;
+		r7.b.p31_ref_ssp_en = 1;
+		writel(r7.d32, usb_new_aml_regs_v3.usb_r_v2[7]);
+		udelay(2);
+		r7.d32 = readl(usb_new_aml_regs_v3.usb_r_v2[7]);
+		r7.b.p31_pcs_tx_deemph_6db = 0x20;
+		r7.b.p31_pcs_tx_swing_full = 127;
+		writel(r7.d32, usb_new_aml_regs_v3.usb_r_v2[7]);
+		udelay(2);
+		r3.d32 = readl(usb_new_aml_regs_v3.usb_r_v2[3]);
+		r3.b.p31_pcs_tx_deemph_3p5db = 0x15;
+		writel(r3.d32, usb_new_aml_regs_v3.usb_r_v2[3]);
 
-	udelay(2);
-	p3_r2.d32 = readl(phy->phy31_cfg_r2);
-	p3_r2.b.phy_tx_vboost_lvl = 0x4;
-	writel(p3_r2.d32, phy->phy31_cfg_r2);
-	udelay(2);
+		udelay(2);
+		p3_r2.d32 = readl(phy->phy31_cfg_r2);
+		p3_r2.b.phy_tx_vboost_lvl = 0x4;
+		writel(p3_r2.d32, phy->phy31_cfg_r2);
+		udelay(2);
 
-	usb3_phy_cr_config_31(phy);
+		usb3_phy_cr_config_31(phy);
 
-	/*
-	 * LOS_BIAS	to 0x5
-	 * LOS_LEVEL to 0x9
-	 */
-	p3_r1.d32 = readl(phy->phy31_cfg_r1);
-	p3_r1.b.phy_los_bias = 0x4;
-	p3_r1.b.phy_los_level = 0x9;
-	writel(p3_r1.d32, phy->phy31_cfg_r1);
+		/*
+		 * LOS_BIAS	to 0x5
+		 * LOS_LEVEL to 0x9
+		 */
+		p3_r1.d32 = readl(phy->phy31_cfg_r1);
+		p3_r1.b.phy_los_bias = 0x5;
+		p3_r1.b.phy_los_level = 0x9;
+		writel(p3_r1.d32, phy->phy31_cfg_r1);
+	}
 
 	return 0;
 }
@@ -509,49 +520,57 @@ static void power_switch_to_pcie(struct amlogic_usb_v2 *phy)
 {
 	u32 val;
 
-	power_ctrl_sleep(1, phy->u30_ctrl_sleep_shift);
-	power_ctrl_mempd0(1, phy->u30_hhi_mem_pd_mask,
+	if (phy->portconfig_30) {
+		power_ctrl_sleep(1, phy->u30_ctrl_sleep_shift);
+		power_ctrl_mempd0(1, phy->u30_hhi_mem_pd_mask,
 				phy->u30_hhi_mem_pd_shift);
-	udelay(100);
+		udelay(100);
 
-	val = readl((void __iomem *)
-		((unsigned long)phy->reset_regs + (0x20 * 4 - 0x8)));
-	writel((val & (~(0x1 << phy->usb30_ctrl_rst_bit))), (void __iomem *)
-		((unsigned long)phy->reset_regs + (0x20 * 4 - 0x8)));
+		val = readl((void __iomem *)
+			((unsigned long)phy->reset_regs + (0x20 * 4 - 0x8)));
+		writel((val & (~(0x1 << phy->usb30_ctrl_rst_bit))),
+			(void __iomem *)((unsigned long)phy->reset_regs +
+			(0x20 * 4 - 0x8)));
 
-	udelay(100);
+		udelay(100);
 
-	power_ctrl_iso(1, phy->u30_ctrl_iso_shift);
+		power_ctrl_iso(1, phy->u30_ctrl_iso_shift);
 
-	val = readl((void __iomem *)
-		((unsigned long)phy->reset_regs + (0x20 * 4 - 0x8)));
+		val = readl((void __iomem *)
+			((unsigned long)phy->reset_regs + (0x20 * 4 - 0x8)));
 
-	writel((val | (0x1 << phy->usb30_ctrl_rst_bit)), (void __iomem	*)
-		((unsigned long)phy->reset_regs + (0x20 * 4 - 0x8)));
+		writel((val | (0x1 << phy->usb30_ctrl_rst_bit)),
+			(void __iomem	*)((unsigned long)phy->reset_regs +
+			(0x20 * 4 - 0x8)));
 
-	udelay(100);
+		udelay(100);
+	}
 
-	power_ctrl_sleep(1, phy->u31_ctrl_sleep_shift);
-	power_ctrl_mempd0(1, phy->u31_hhi_mem_pd_mask,
-				phy->u31_hhi_mem_pd_shift);
-	udelay(100);
+	if (phy->portconfig_31) {
+		power_ctrl_sleep(1, phy->u31_ctrl_sleep_shift);
+		power_ctrl_mempd0(1, phy->u31_hhi_mem_pd_mask,
+			phy->u31_hhi_mem_pd_shift);
+		udelay(100);
 
-	val = readl((void __iomem *)
-		((unsigned long)phy->reset_regs + (0x20 * 4 - 0x8)));
-	writel((val & (~(0x1 << phy->usb31_ctrl_rst_bit))), (void __iomem *)
-		((unsigned long)phy->reset_regs + (0x20 * 4 - 0x8)));
+		val = readl((void __iomem *)
+			((unsigned long)phy->reset_regs + (0x20 * 4 - 0x8)));
+		writel((val & (~(0x1 << phy->usb31_ctrl_rst_bit))),
+			(void __iomem *)((unsigned long)phy->reset_regs +
+			(0x20 * 4 - 0x8)));
 
-	udelay(100);
+		udelay(100);
 
-	power_ctrl_iso(1, phy->u31_ctrl_iso_shift);
+		power_ctrl_iso(1, phy->u31_ctrl_iso_shift);
 
-	val = readl((void __iomem *)
-		((unsigned long)phy->reset_regs + (0x20 * 4 - 0x8)));
+		val = readl((void __iomem *)
+			((unsigned long)phy->reset_regs + (0x20 * 4 - 0x8)));
 
-	writel((val | (0x1 << phy->usb31_ctrl_rst_bit)), (void __iomem	*)
-		((unsigned long)phy->reset_regs + (0x20 * 4 - 0x8)));
+		writel((val | (0x1 << phy->usb31_ctrl_rst_bit)),
+			(void __iomem	*)((unsigned long)phy->reset_regs +
+			(0x20 * 4 - 0x8)));
 
-	udelay(100);
+		udelay(100);
+	}
 }
 
 static int amlogic_new_usb3_v3_probe(struct platform_device *pdev)
@@ -589,6 +608,7 @@ static int amlogic_new_usb3_v3_probe(struct platform_device *pdev)
 	u32 portconfig_31 = 0;
 	unsigned long rate;
 #define PCIE_PLL_RATE 100000000
+	u32 val;
 
 	prop = of_get_property(dev->of_node, "portnum", NULL);
 	if (prop)
@@ -765,6 +785,8 @@ static int amlogic_new_usb3_v3_probe(struct platform_device *pdev)
 			((unsigned long)phy->phy31_cfg + 4 * 4);
 	phy->phy31_cfg_r5 = (void __iomem *)
 			((unsigned long)phy->phy31_cfg + 4 * 5);
+	phy->portconfig_30 = portconfig_30;
+	phy->portconfig_31 = portconfig_31;
 	phy->portnum      = portnum;
 	phy->suspend_flag = 0;
 	phy->phy.dev		= phy->dev;
@@ -791,43 +813,77 @@ static int amlogic_new_usb3_v3_probe(struct platform_device *pdev)
 			phy->u31_ctrl_iso_shift = u31_ctrl_iso_shift;
 			phy->usb31_ctrl_rst_bit = usb31_ctrl_rst_bit;
 			power_switch_to_pcie(phy);
+			udelay(100);
 		}
 
-		if (portconfig_30)
+		if (portconfig_30) {
+			val = readl((void __iomem *)
+			((unsigned long)phy->reset_regs + (0x20 * 4 - 0x8)));
+			writel((val & (~(0x1 << 14))), (void __iomem *)
+			((unsigned long)phy->reset_regs + (0x20 * 4 - 0x8)));
+
+			udelay(100);
+
+			val = readl((void __iomem *)
+			((unsigned long)phy->reset_regs + (0x20 * 4 - 0x8)));
+
+			writel((val | (0x1 << 14)), (void __iomem	*)
+			((unsigned long)phy->reset_regs + (0x20 * 4 - 0x8)));
+
+			udelay(100);
 			writel((readl(phy->phy3_cfg) | (3<<5)), phy->phy3_cfg);
+		}
 		udelay(100);
 
-		if (portconfig_31)
+		if (portconfig_31) {
+			val = readl((void __iomem *)
+			((unsigned long)phy->reset_regs + (0x20 * 4 - 0x8)));
+			writel((val & (~(0x1 << 29))), (void __iomem *)
+			((unsigned long)phy->reset_regs + (0x20 * 4 - 0x8)));
+
+			udelay(100);
+
+			val = readl((void __iomem *)
+			((unsigned long)phy->reset_regs + (0x20 * 4 - 0x8)));
+
+			writel((val | (0x1 << 29)), (void __iomem	*)
+			((unsigned long)phy->reset_regs + (0x20 * 4 - 0x8)));
+			udelay(100);
+
 			writel((readl(phy->phy31_cfg) | (3<<5)),
-					phy->phy31_cfg);
-		udelay(100);
-
-		phy->gate0_clk = devm_clk_get(dev, "pcie0_gate");
-		if (IS_ERR(phy->gate0_clk)) {
-			dev_err(dev, "Failed to get usb3 bus clock\n");
-			ret = PTR_ERR(phy->gate0_clk);
-			return ret;
+				phy->phy31_cfg);
 		}
 
-		ret = clk_prepare_enable(phy->gate0_clk);
-		if (ret) {
-			dev_err(dev, "Failed to enable usb3 bus clock\n");
-			ret = PTR_ERR(phy->gate0_clk);
-			return ret;
+		if (portconfig_30) {
+			phy->gate0_clk = devm_clk_get(dev, "pcie0_gate");
+			if (IS_ERR(phy->gate0_clk)) {
+				dev_err(dev, "Failed to get usb3 bus clock\n");
+				ret = PTR_ERR(phy->gate0_clk);
+				return ret;
+			}
+
+			ret = clk_prepare_enable(phy->gate0_clk);
+			if (ret) {
+				dev_err(dev, "Failed to enable usb3 bus clock\n");
+				ret = PTR_ERR(phy->gate0_clk);
+				return ret;
+			}
 		}
 
-		phy->gate1_clk = devm_clk_get(dev, "pcie1_gate");
-		if (IS_ERR(phy->gate1_clk)) {
-			dev_err(dev, "Failed to get usb3 bus clock\n");
-			ret = PTR_ERR(phy->gate1_clk);
-			return ret;
-		}
+		if (portconfig_31) {
+			phy->gate1_clk = devm_clk_get(dev, "pcie1_gate");
+			if (IS_ERR(phy->gate1_clk)) {
+				dev_err(dev, "Failed to get usb3 bus clock\n");
+				ret = PTR_ERR(phy->gate1_clk);
+				return ret;
+			}
 
-		ret = clk_prepare_enable(phy->gate1_clk);
-		if (ret) {
-			dev_err(dev, "Failed to enable usb3 bus clock\n");
-			ret = PTR_ERR(phy->gate1_clk);
-			return ret;
+			ret = clk_prepare_enable(phy->gate1_clk);
+			if (ret) {
+				dev_err(dev, "Failed to enable usb3 bus clock\n");
+				ret = PTR_ERR(phy->gate1_clk);
+				return ret;
+			}
 		}
 
 		phy->clk = devm_clk_get(dev, "pcie_refpll");
