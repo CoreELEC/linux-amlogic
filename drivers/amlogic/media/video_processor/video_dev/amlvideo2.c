@@ -4967,7 +4967,9 @@ static int vidioc_streamon(struct file *file, void *priv, enum v4l2_buf_type i)
 	}
 
 	memset(&node->display_info, 0, sizeof(struct vdisplay_info_s));
-	if (!node->start_vdin_flag) {
+	if ((!node->start_vdin_flag) ||
+	(node->porttype == TVIN_PORT_VIU1_WB0_VD1) ||
+	(node->porttype == TVIN_PORT_VIU1_VIDEO)) {
 		ret = vf_notify_receiver_by_name("amvideo",
 			  VFRAME_EVENT_PROVIDER_QUREY_DISPLAY_INFO,
 			 &node->display_info);
@@ -5020,8 +5022,16 @@ static int vidioc_streamon(struct file *file, void *priv, enum v4l2_buf_type i)
 	para.port = node->porttype;
 	para.fmt = TVIN_SIG_FMT_MAX;
 	para.frame_rate = vinfo->sync_duration_num/vinfo->sync_duration_den;
-	para.h_active = vinfo->width;
-	para.v_active = vinfo->height;
+	if ((para.port == TVIN_PORT_VIU1_WB0_VD1) ||
+	(para.port == TVIN_PORT_VIU1_VIDEO)) {
+		para.h_active = (node->display_info.display_hsc_endp -
+		node->display_info.display_hsc_startp + 1);
+		para.v_active = (node->display_info.display_vsc_endp -
+		node->display_info.display_vsc_startp + 1);
+	} else {
+		para.h_active = vinfo->width;
+		para.v_active = vinfo->height;
+	}
 	para.hsync_phase = 0;
 	para.vsync_phase = 1;
 	para.hs_bp = 0;
