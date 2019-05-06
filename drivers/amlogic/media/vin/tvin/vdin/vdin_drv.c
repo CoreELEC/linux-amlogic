@@ -1618,8 +1618,10 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 			vdin_set_top(devp->addr_offset, devp->parm.port,
 				devp->prop.color_format, devp->h_active,
 				devp->bt_path);
-			if (devp->afbce_mode)
+
+			if (devp->afbce_valid)
 				vdin_afbce_update(devp);
+
 			if (skip_frame_debug) {
 				pr_info("vdin.%d dest_cfmt changed: %d->%d\n",
 					devp->index,
