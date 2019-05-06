@@ -655,8 +655,13 @@ void aml_set_resample(enum resample_idx id,
 	p_attach_resample->id            = id;
 	p_attach_resample->attach_module = resample_module;
 
+	mutex_lock(&ddr_mutex);
 	to = fetch_toddr_by_src(
 		p_attach_resample->attach_module);
+	if (to == NULL) {
+		pr_info("%s(), toddr NULL\n", __func__);
+		goto exit;
+	}
 
 	if (enable) {
 		if ((p_attach_resample->status == DISABLED)
@@ -679,6 +684,9 @@ void aml_set_resample(enum resample_idx id,
 
 	if (update_running && to)
 		aml_resample_enable(to, p_attach_resample, enable);
+
+exit:
+	mutex_unlock(&ddr_mutex);
 }
 
 /*
