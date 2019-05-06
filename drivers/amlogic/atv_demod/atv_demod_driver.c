@@ -479,6 +479,8 @@ static void aml_atvdemod_dt_parse(struct aml_atvdemod_device *pdev)
 			pdev->tuners[i].cfg.id = AM_TUNER_R840;
 		else if (!strncmp(str, "r842_tuner", 10))
 			pdev->tuners[i].cfg.id = AM_TUNER_R842;
+		else if (!strncmp(str, "atbm2040_tuner", 14))
+			pdev->tuners[i].cfg.id = AM_TUNER_ATBM2040;
 		else {
 			pr_err("can't support tuner: %s.\n", str);
 			pdev->tuners[i].cfg.id = AM_TUNER_NONE;
@@ -523,7 +525,7 @@ static void aml_atvdemod_dt_parse(struct aml_atvdemod_device *pdev)
 		else
 			pdev->tuners[i].cfg.xtal_cap = val;
 
-		pr_err("find tuner %d.\n", i);
+		pr_err("find tuner %s [%d].\n", str, pdev->tuners[i].cfg.id);
 	}
 
 	of_node_put(node_tuner);
@@ -590,6 +592,10 @@ int aml_attach_tuner(struct aml_atvdemod_device *dev)
 		break;
 	case AM_TUNER_MXL661:
 		p = v4l2_attach(mxl661_attach, fe,
+				dev->tuners[dev->tuner_cur].i2c_adp, cfg);
+		break;
+	case AM_TUNER_ATBM2040:
+		p = v4l2_attach(atbm2040_attach, fe,
 				dev->tuners[dev->tuner_cur].i2c_adp, cfg);
 		break;
 	default:

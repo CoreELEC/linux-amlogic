@@ -2000,8 +2000,6 @@ void atvdemod_uninit(void)
 void atv_dmd_set_std(void)
 {
 	v4l2_std_id ptstd = amlatvdemod_devp->std;
-	int tuner_index = amlatvdemod_devp->tuner_cur;
-	int tuner_id = amlatvdemod_devp->tuners[tuner_index].cfg.id;
 
 	/* set broad standard of tuner*/
 	if (((ptstd & V4L2_COLOR_STD_PAL)
@@ -2079,14 +2077,8 @@ void atv_dmd_set_std(void)
 	}
 
 	/* Tuner returns the if and signal inverted states */
-	if ((tuner_id == AM_TUNER_R840) ||
-		(tuner_id == AM_TUNER_R842) ||
-		(tuner_id == AM_TUNER_SI2151) ||
-		(tuner_id == AM_TUNER_SI2159) ||
-		(tuner_id == AM_TUNER_MXL661)) {
-		if_freq = amlatvdemod_devp->if_freq;
-		if_inv = amlatvdemod_devp->if_inv;
-	}
+	if_freq = amlatvdemod_devp->if_freq;
+	if_inv = amlatvdemod_devp->if_inv;
 
 	pr_dbg("[%s] set broad_std %d, hz_cvrt 0x%x, offset %d.\n",
 			__func__, broad_std, freq_hz_cvrt,

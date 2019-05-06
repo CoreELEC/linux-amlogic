@@ -445,6 +445,10 @@ static struct analog_demod_ops atvdemod_ops = {
 
 
 unsigned int tuner_status_cnt = 4; /* 4-->16 test on sky mxl661 */
+/* 0: no check, 1: check */
+bool check_rssi = true;
+/* Less than -85, it means no signal */
+int tuner_rssi = -80;
 
 bool slow_mode;
 
@@ -716,6 +720,7 @@ static void atvdemod_fe_try_signal(struct v4l2_frontend *v4l2_fe,
 	/* unsigned int audio = 0; */
 	/* bool try_secam = false; */
 	unsigned int tuner_id = priv->atvdemod_param.tuner_id;
+	s16 strength = 0;
 
 	params.frequency = p->frequency;
 	params.mode = p->afc_range;
@@ -734,6 +739,18 @@ static void atvdemod_fe_try_signal(struct v4l2_frontend *v4l2_fe,
 		} else {
 			/* AM_TUNER_SI2151 and AM_TUNER_SI2159 */
 			usleep_range(10 * 1000, 10 * 1000 + 100);
+		}
+
+		/* Add tuner rssi strength check */
+		if (tuner_id == AM_TUNER_ATBM2040 &&
+			fe->ops.tuner_ops.get_strength && check_rssi) {
+			fe->ops.tuner_ops.get_strength(fe, &strength);
+			if (strength < tuner_rssi) {
+				pr_err("[%s] freq: %d tuner RSSI [%d] less than [%d].\n",
+						__func__, p->frequency,
+						strength, tuner_rssi);
+				break;
+			}
 		}
 
 		fe->ops.analog_ops.has_signal(fe, (u16 *)&ade_state);
