@@ -1728,6 +1728,8 @@ int rx_set_global_variable(const char *buf, int size)
 		return pr_var(top_intr_maskn_value, index);
 	if (set_pr_var(tmpbuf, pll_lock_max, value, &index, ret))
 		return pr_var(pll_lock_max, index);
+	if (set_pr_var(tmpbuf, clock_lock_th, value, &index, ret))
+		return pr_var(clock_lock_th, index);
 	return 0;
 }
 
@@ -1838,6 +1840,7 @@ void rx_get_global_variable(const char *buf)
 	pr_var(cdr_lock_level, i++);
 	pr_var(top_intr_maskn_value, i++);
 	pr_var(pll_lock_max, i++);
+	pr_var(clock_lock_th, i++);
 }
 
 void skip_frame(unsigned int cnt)

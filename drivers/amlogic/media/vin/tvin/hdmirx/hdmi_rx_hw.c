@@ -97,9 +97,10 @@ int ignore_sscp_charerr = 1;
 int ignore_sscp_tmds = 1;
 int find_best_eq;
 int eq_try_cnt = 20;
-int pll_rst_max;
-/* cd lock threshold */
+int pll_rst_max = 5;
+/* cdr lock threshold */
 int cdr_lock_level;
+int clock_lock_th = 2;
 /*------------------------variable define end------------------------------*/
 
 static int check_regmap_flag(unsigned int addr)
@@ -3674,11 +3675,10 @@ void aml_eq_setting(void)
 	uint32_t idx = rx.phy.phy_bw;
 
 	/* data channel release reset */
-	/* data32 = rd_reg_hhi(HHI_HDMIRX_PHY_MISC_CNTL0); */
-	/* rx_pr("0x35c=0x%x\n", data32); */
-	/* data32 |= (0x7 << 7); */
-	/* wr_reg_hhi(HHI_HDMIRX_PHY_MISC_CNTL0, data32); */
-
+	data32 = rd_reg_hhi(HHI_HDMIRX_PHY_MISC_CNTL0);
+	data32 |= (0x7 << 7);
+	wr_reg_hhi(HHI_HDMIRX_PHY_MISC_CNTL0, data32);
+	udelay(50);
 	if (find_best_eq) {
 		data32 = phy_dchd_1[idx][1] & (~(MSK(16, 4)));
 		data32 |= find_best_eq << 4;
@@ -3774,7 +3774,7 @@ bool is_tmds_clk_stable(void)
 		cableclk = rx.phy.cable_clk;
 
 	pixel_clk = meson_clk_measure(29);
-	if (abs(cableclk - pixel_clk) > 5 * MHz) {
+	if (abs(cableclk - pixel_clk) > clock_lock_th * MHz) {
 		if (log_level & VIDEO_LOG)
 			rx_pr("cableclk=%d,tmdsclk=%d,pixelclk=%d\n",
 				cableclk/MHz, rx.phy.tmds_clk/MHz,
@@ -3856,16 +3856,17 @@ void aml_phy_pll_setting(void)
 		data |= (N << 10);
 		wr_reg_hhi(HHI_HDMIRX_APLL_CNTL0, data | 0x20000000);
 		wr_reg_hhi(HHI_HDMIRX_APLL_CNTL0, data | 0x30000000);
-		udelay(5);
+		udelay(50);
 		wr_reg_hhi(HHI_HDMIRX_APLL_CNTL4, data2 | 0x00800000);
-		udelay(5);
+		udelay(50);
 		wr_reg_hhi(HHI_HDMIRX_APLL_CNTL0, data | 0x34000000);
-		udelay(5);
+		udelay(50);
 		if (m_div == 2) {
 			m_div = 1;
 			data &= 0xffffff00;
 			data |= M * m_div;
 			wr_reg_hhi(HHI_HDMIRX_APLL_CNTL0, data | 0x34000000);
+			udelay(50);
 		}
 		data &= 0xdfffffff;
 		wr_reg_hhi(HHI_HDMIRX_APLL_CNTL0, data | 0x14000000);
@@ -3883,6 +3884,11 @@ void aml_phy_pll_setting(void)
 				meson_clk_measure(29)/MHz,
 				hdmirx_rd_top(TOP_MISC_STAT0) & 0x1);
 	} while ((!is_tmds_clk_stable()) && is_clk_stable());
+
+	/* data channel reset */
+	data = rd_reg_hhi(HHI_HDMIRX_PHY_MISC_CNTL0);
+	data &= (~(0x7 << 7));
+	wr_reg_hhi(HHI_HDMIRX_PHY_MISC_CNTL0, data);
 }
 
 void aml_phy_pw_onoff(uint32_t onoff)
