@@ -6173,8 +6173,6 @@ static int vpp_blend_setting_default(u32 index)
 		osd1_v_start = osd_hw.dispdata[index].y_start;
 		osd1_v_end = osd_hw.dispdata[index].y_end;
 	}
-	VSYNCOSD_WR_MPEG_REG(VPP_OSD1_IN_SIZE,
-		osd1_dst_h | osd1_dst_v << 16);
 
 	/* setting blend scope */
 	VSYNCOSD_WR_MPEG_REG(VPP_OSD1_BLD_H_SCOPE,
@@ -8062,6 +8060,10 @@ static void set_blend_reg(struct layer_blend_reg_s *blend_reg)
 
 	VSYNCOSD_WR_MPEG_REG(VIU_OSD_BLEND_BLEND0_SIZE,
 		blend_reg->osd_blend_blend0_size);
+	/* hdr input size should set to osd blend0 output size */
+	VSYNCOSD_WR_MPEG_REG(VPP_OSD1_IN_SIZE,
+		blend_reg->osd_blend_blend0_size);
+
 	VSYNCOSD_WR_MPEG_REG(VIU_OSD_BLEND_BLEND1_SIZE,
 		blend_reg->osd_blend_blend1_size);
 
@@ -8384,6 +8386,10 @@ static void osd_setting_default_hwc(void)
 		blend_vsize  << 16 |
 		blend_hsize);
 	VSYNCOSD_WR_MPEG_REG(VIU_OSD_BLEND_BLEND1_SIZE,
+		blend_vsize  << 16 |
+		blend_hsize);
+	/* hdr input size should set to osd blend0 output size */
+	VSYNCOSD_WR_MPEG_REG(VPP_OSD1_IN_SIZE,
 		blend_vsize  << 16 |
 		blend_hsize);
 	VSYNCOSD_WR_MPEG_REG_BITS(DOLBY_PATH_CTRL,
