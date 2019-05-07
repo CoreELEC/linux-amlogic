@@ -242,13 +242,17 @@ void atv_dmd_misc(void)
 			== AM_TUNER_MXL661) {
 		/*test in sky*/
 		atv_dmd_wr_long(APB_BLOCK_ADDR_DAC_UPS, 0x04, 0xbffa0000);
-		atv_dmd_wr_long(APB_BLOCK_ADDR_DAC_UPS, 0x00, 0x6f4000);
+		atv_dmd_wr_long(APB_BLOCK_ADDR_DAC_UPS, 0x00, 0x764000);
 		/*guanzhong@20151013 fix nonstd def is:0x0c010301;0x0c020601*/
 		atv_dmd_wr_long(APB_BLOCK_ADDR_CARR_RCVY, 0x24, 0xc030901);
+	} else if (amlatvdemod_devp->tuners[amlatvdemod_devp->tuner_cur].cfg.id
+			== AM_TUNER_ATBM2040) {
+		atv_dmd_wr_long(APB_BLOCK_ADDR_DAC_UPS, 0x04, 0xc8fa0000);
+		atv_dmd_wr_long(APB_BLOCK_ADDR_DAC_UPS, 0x00, 0x704000);
 	} else {
 		/*zhuangwei 0xdafa0000*/
 		atv_dmd_wr_long(APB_BLOCK_ADDR_DAC_UPS, 0x04, 0xc8fa0000);
-		atv_dmd_wr_long(APB_BLOCK_ADDR_DAC_UPS, 0x00, 0x554000);
+		atv_dmd_wr_long(APB_BLOCK_ADDR_DAC_UPS, 0x00, 0x764000);
 	}
 	/*zhuangwei*/
 	atv_dmd_wr_long(APB_BLOCK_ADDR_DAC_UPS_24M, 0x04, 0xdafa0000);
