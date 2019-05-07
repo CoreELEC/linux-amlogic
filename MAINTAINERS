@@ -14916,3 +14916,7 @@ AMLOGIC S905Y2 U223_LP DTS
 M:	Qingwei Xu <qingwei.xu@amlogic.com>
 F:	arm/boot/dts/amlogic/g12a_s905y2_u223_lp.dts
 F:	arm64/boot/dts/amlogic/g12a_s905y2_u223_lp.dts
+
+AMLOGIC HYN_CST2XX TOUCHSCREEN
+M:	XINLIANG ZHANG <xinliang.zhang@amlogic.com>
+F:	drivers/amlogic/input/touchscreen/hyn_cst2xx/*
