@@ -41,7 +41,7 @@ unsigned int aud_std = AUDIO_STANDARD_NICAM_DK;
 unsigned int aud_mode = AUDIO_OUTMODE_STEREO;
 bool aud_auto = true;
 bool aud_reinit;
-bool aud_mono_only;
+bool aud_mono_only = true;
 unsigned long over_threshold = 0xffff;
 unsigned long input_amplitude = 0xffff;
 
@@ -141,6 +141,8 @@ void atv_dmd_soft_reset(void)
 	atv_dmd_wr_byte(APB_BLOCK_ADDR_SYSTEM_MGT, 0x0, 0x0);
 	atv_dmd_wr_byte(APB_BLOCK_ADDR_SYSTEM_MGT, 0x0, 0x1);
 	atv_dmd_wr_long(0x1d, 0x0, 0x1037);/* enable dac */
+
+	pr_dbg("%s done.\n", __func__);
 }
 
 void atv_dmd_input_clk_32m(void)
@@ -311,11 +313,18 @@ void atv_dmd_misc(void)
 			atvaudio_ctrl_write(reg | 0x3);/* bit[1-0] */
 		audio_atv_ov_flag = 0;
 	}
+
+	pr_dbg("%s done.\n", __func__);
 }
 
 void atv_dmd_ring_filter(bool on)
 {
+	unsigned long filter_status = 0;
 	if (!is_meson_tl1_cpu() && !is_meson_tm2_cpu())
+		return;
+
+	filter_status = atv_dmd_rd_long(APB_BLOCK_ADDR_GDE_EQUAL, 0x4c);
+	if (((filter_status & 0x01) && on) || (!(filter_status & 0x01) && !on))
 		return;
 
 	if (on) {
@@ -1723,18 +1732,18 @@ int amlfmt_aud_standard(int broad_std)
 		reg_value = adec_rd_reg(CARRIER_MAG_REPORT);
 		pr_info("\n%s CARRIER_MAG_REPORT: 0x%x\n",
 				__func__, (reg_value >> 16) & 0xffff);
-		if (((reg_value>>16)&0xffff) > audio_a2_threshold) {
+		if (((reg_value >> 16) & 0xffff) > audio_a2_threshold) {
 			std = AUDIO_STANDARD_A2_K;
-			if (amlatvdemod_devp->soundsys == 0xFF)
+			if (amlatvdemod_devp->sound_mode == 0xFF)
 				aud_mode = AUDIO_OUTMODE_A2_STEREO;
 			else
-				aud_mode = amlatvdemod_devp->soundsys;
+				aud_mode = amlatvdemod_devp->sound_mode;
 		} else {
 			std = AUDIO_STANDARD_BTSC;
-			if (amlatvdemod_devp->soundsys == 0xFF)
+			if (amlatvdemod_devp->sound_mode == 0xFF)
 				aud_mode = AUDIO_OUTMODE_STEREO;
 			else
-				aud_mode = amlatvdemod_devp->soundsys;
+				aud_mode = amlatvdemod_devp->sound_mode;
 			configure_adec(std);
 			adec_soft_reset();
 		}
@@ -1776,16 +1785,16 @@ int amlfmt_aud_standard(int broad_std)
 				__func__, reg_value);
 		if (nicam_lock) {
 			std = AUDIO_STANDARD_NICAM_BG;
-			if (amlatvdemod_devp->soundsys == 0xFF)
+			if (amlatvdemod_devp->sound_mode == 0xFF)
 				aud_mode = AUDIO_OUTMODE_NICAM_STEREO;
 			else
-				aud_mode = amlatvdemod_devp->soundsys;
+				aud_mode = amlatvdemod_devp->sound_mode;
 		} else {
 			std = AUDIO_STANDARD_A2_BG;
-			if (amlatvdemod_devp->soundsys == 0xFF)
+			if (amlatvdemod_devp->sound_mode == 0xFF)
 				aud_mode = AUDIO_OUTMODE_A2_STEREO;
 			else
-				aud_mode = amlatvdemod_devp->soundsys;
+				aud_mode = amlatvdemod_devp->sound_mode;
 			configure_adec(std);
 			adec_soft_reset();
 		}
@@ -1814,16 +1823,16 @@ int amlfmt_aud_standard(int broad_std)
 				__func__, reg_value);
 		if (nicam_lock) {
 			std = AUDIO_STANDARD_NICAM_DK;
-			if (amlatvdemod_devp->soundsys == 0xFF)
+			if (amlatvdemod_devp->sound_mode == 0xFF)
 				aud_mode = AUDIO_OUTMODE_NICAM_STEREO;
 			else
-				aud_mode = amlatvdemod_devp->soundsys;
+				aud_mode = amlatvdemod_devp->sound_mode;
 		} else {
 			std = AUDIO_STANDARD_A2_DK1;
-			if (amlatvdemod_devp->soundsys == 0xFF)
+			if (amlatvdemod_devp->sound_mode == 0xFF)
 				aud_mode = AUDIO_OUTMODE_A2_STEREO;
 			else
-				aud_mode = amlatvdemod_devp->soundsys;
+				aud_mode = amlatvdemod_devp->sound_mode;
 			configure_adec(std);
 			adec_soft_reset();
 		}
@@ -1852,10 +1861,10 @@ int amlfmt_aud_standard(int broad_std)
 				__func__, reg_value);
 		if (nicam_lock) {
 			std = AUDIO_STANDARD_NICAM_I;
-			if (amlatvdemod_devp->soundsys == 0xFF)
+			if (amlatvdemod_devp->sound_mode == 0xFF)
 				aud_mode = AUDIO_OUTMODE_NICAM_STEREO;
 			else
-				aud_mode = amlatvdemod_devp->soundsys;
+				aud_mode = amlatvdemod_devp->sound_mode;
 		} else {
 			std = AUDIO_STANDARD_MONO_I;
 			aud_mode = AUDIO_OUTMODE_MONO;
@@ -1887,10 +1896,10 @@ int amlfmt_aud_standard(int broad_std)
 				__func__, reg_value);
 		if (nicam_lock) {
 			std = AUDIO_STANDARD_NICAM_L;
-			if (amlatvdemod_devp->soundsys == 0xFF)
+			if (amlatvdemod_devp->sound_mode == 0xFF)
 				aud_mode = AUDIO_OUTMODE_NICAM_STEREO;
 			else
-				aud_mode = amlatvdemod_devp->soundsys;
+				aud_mode = amlatvdemod_devp->sound_mode;
 		} else {
 			std = AUDIO_STANDARD_MONO_L;
 			aud_mode = AUDIO_OUTMODE_MONO;
@@ -1949,41 +1958,45 @@ void atvauddemod_set_outputmode(void)
 	}
 }
 
-int atvdemod_init(bool on)
+int atvdemod_init(struct atv_demod_priv *priv)
 {
-	/* 1.set system clock when atv enter*/
+	struct atv_demod_parameters *p = &priv->atvdemod_param;
 
-	pr_dbg("%s do configure_receiver ...\n", __func__);
-	if (is_meson_txlx_cpu() || is_meson_txhd_cpu() || is_meson_tl1_cpu()
-			|| is_meson_tm2_cpu())
-		sound_format = 1;
-	configure_receiver(broad_std, if_freq, if_inv, gde_curve, sound_format);
-	pr_dbg("%s do atv_dmd_misc ...\n", __func__);
-	atv_dmd_misc();
+	if (amlatvdemod_devp->std != p->param.std ||
+		amlatvdemod_devp->audmode != p->param.audmode ||
+		amlatvdemod_devp->if_freq != p->if_freq ||
+		amlatvdemod_devp->if_inv != p->if_inv) {
 
-	if (on && (broad_std == AML_ATV_DEMOD_VIDEO_MODE_PROP_NTSC_M ||
+		amlatvdemod_devp->std = p->param.std;
+		amlatvdemod_devp->audmode = p->param.audmode;
+		amlatvdemod_devp->if_freq = p->if_freq;
+		amlatvdemod_devp->if_inv = p->if_inv;
+
+		atv_dmd_set_std(amlatvdemod_devp->std);
+
+		if (is_meson_txlx_cpu() || is_meson_txhd_cpu()
+				|| is_meson_tl1_cpu() || is_meson_tm2_cpu())
+			sound_format = 1;
+
+		configure_receiver(broad_std, if_freq, if_inv, gde_curve,
+				sound_format);
+	}
+
+	if (!priv->scanning)
+		atv_dmd_misc();
+
+	if (!priv->scanning &&
+		(broad_std == AML_ATV_DEMOD_VIDEO_MODE_PROP_NTSC_M ||
 		broad_std == AML_ATV_DEMOD_VIDEO_MODE_PROP_NTSC))
 		atv_dmd_ring_filter(true);
 	else
 		atv_dmd_ring_filter(false);
 
-	pr_dbg("%s do atv_dmd_soft_reset ...\n", __func__);
-	/*4.software reset*/
 	atv_dmd_soft_reset();
-
-	/* check the PLL, line lock status, don't need to check. */
-	/*	while (!all_lock) {
-	 *	data32 = atv_dmd_rd_long(APB_BLOCK_ADDR_VDAGC,0x13<<2);
-	 *	if ((data32 & 0x1c) == 0x0) {
-	 *		all_lock = 1;
-	 *	}
-	 *	delay_us(400);
-	 * }
-	 */
 
 	mix1_freq = atv_dmd_rd_byte(APB_BLOCK_ADDR_MIXER_1, 0x0);
 
-	pr_info("%s done\n", __func__);
+	pr_dbg("%s done.\n", __func__);
 
 	return 0;
 }
@@ -1997,10 +2010,8 @@ void atvdemod_uninit(void)
 	atv_dmd_non_std_set(false);
 }
 
-void atv_dmd_set_std(void)
+void atv_dmd_set_std(unsigned long ptstd)
 {
-	v4l2_std_id ptstd = amlatvdemod_devp->std;
-
 	/* set broad standard of tuner*/
 	if (((ptstd & V4L2_COLOR_STD_PAL)
 			|| (ptstd & V4L2_COLOR_STD_SECAM)
@@ -2086,8 +2097,8 @@ void atv_dmd_set_std(void)
 
 	pr_dbg("[%s] set std color %s, audio type %s.\n",
 		__func__,
-		v4l2_std_to_str((0xff000000 & amlatvdemod_devp->std)),
-		v4l2_std_to_str((0xffffff & amlatvdemod_devp->std)));
+		v4l2_std_to_str((0xff000000 & ptstd)),
+		v4l2_std_to_str((0xffffff & ptstd)));
 
 	pr_dbg("[%s] set if_freq %d, if_inv %d.\n",
 		__func__, amlatvdemod_devp->if_freq,
@@ -2097,6 +2108,7 @@ void atv_dmd_set_std(void)
 int aml_audiomode_autodet(struct v4l2_frontend *v4l2_fe)
 {
 	struct dvb_frontend *fe = &v4l2_fe->fe;
+	struct atv_demod_priv *priv = fe->analog_demod_priv;
 	struct v4l2_analog_parameters *p = &v4l2_fe->params;
 	struct analog_parameters params;
 
@@ -2140,7 +2152,7 @@ int aml_audiomode_autodet(struct v4l2_frontend *v4l2_fe)
 			broad_std = AML_ATV_DEMOD_VIDEO_MODE_PROP_PAL_M;
 		} else {
 			broad_std = AML_ATV_DEMOD_VIDEO_MODE_PROP_SECAM_L;
-			atvdemod_init(false);
+			atvdemod_init(priv);
 			temp_data = atv_dmd_rd_reg(APB_BLOCK_ADDR_SIF_STG_2,
 					0x02);
 

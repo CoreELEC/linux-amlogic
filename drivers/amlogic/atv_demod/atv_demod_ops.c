@@ -164,7 +164,7 @@ int atv_demod_enter_mode(struct dvb_frontend *fe)
 
 	amlatvdemod_devp->std = 0;
 	amlatvdemod_devp->audmode = 0;
-	amlatvdemod_devp->soundsys = 0xFF;
+	amlatvdemod_devp->sound_mode = 0xFF;
 
 	pr_info("%s: OK.\n", __func__);
 
@@ -203,7 +203,7 @@ int atv_demod_leave_mode(struct dvb_frontend *fe)
 
 	amlatvdemod_devp->std = 0;
 	amlatvdemod_devp->audmode = 0;
-	amlatvdemod_devp->soundsys = 0xFF;
+	amlatvdemod_devp->sound_mode = 0xFF;
 
 	pr_info("%s: OK.\n", __func__);
 
@@ -216,17 +216,16 @@ static void atv_demod_set_params(struct dvb_frontend *fe,
 	int ret = -1;
 	u32 if_info[2] = { 0 };
 	struct atv_demod_priv *priv = fe->analog_demod_priv;
-	struct aml_atvdemod_parameters *p = &priv->atvdemod_param;
-	bool reconfig = false;
+	struct atv_demod_parameters *p = &priv->atvdemod_param;
 
 	priv->standby = true;
 
 	/* afc tune disable,must cancel wq before set tuner freq*/
-	if (priv->afc.disable)
-		priv->afc.disable(&priv->afc);
+	if (priv->afc.pause)
+		priv->afc.pause(&priv->afc);
 
-	if (priv->monitor.disable)
-		priv->monitor.disable(&priv->monitor);
+	if (priv->monitor.pause)
+		priv->monitor.pause(&priv->monitor);
 
 	if (fe->ops.tuner_ops.set_analog_params)
 		ret = fe->ops.tuner_ops.set_analog_params(fe, params);
@@ -238,37 +237,12 @@ static void atv_demod_set_params(struct dvb_frontend *fe,
 	p->param.mode = params->mode;
 	p->param.audmode = params->audmode;
 	p->param.std = params->std;
+	p->last_frequency = params->frequency;
 
 	p->if_inv = if_info[0];
 	p->if_freq = if_info[1];
 
-	if ((p->tuner_id == AM_TUNER_R840) ||
-		(p->tuner_id == AM_TUNER_R842) ||
-		(p->tuner_id == AM_TUNER_SI2151) ||
-		(p->tuner_id == AM_TUNER_SI2159) ||
-		(p->tuner_id == AM_TUNER_MXL661))
-		reconfig = false;
-
-	/* In general, demod does not need to be reconfigured
-	 * if parameters such as STD remain unchanged,
-	 * but when the input signal frequency offset -0.25MHz,
-	 * demod will be unlocked. That's very strange.
-	 */
-	if (reconfig || !priv->scanning ||
-		amlatvdemod_devp->std != p->param.std ||
-		amlatvdemod_devp->audmode != p->param.audmode ||
-		amlatvdemod_devp->if_freq != p->if_freq ||
-		amlatvdemod_devp->if_inv != p->if_inv) {
-
-		amlatvdemod_devp->std = p->param.std;
-		amlatvdemod_devp->audmode = p->param.audmode;
-		amlatvdemod_devp->if_freq = p->if_freq;
-		amlatvdemod_devp->if_inv = p->if_inv;
-
-		atv_dmd_set_std();
-		atvdemod_init(!priv->scanning);
-	} else
-		atv_dmd_soft_reset();
+	atvdemod_init(priv);
 
 	if (!priv->scanning)
 		atvauddemod_init();
@@ -694,12 +668,14 @@ static void atvdemod_fe_try_analog_format(struct v4l2_frontend *v4l2_fe,
 
 	*audio_fmt = audio;
 
+#if 0 /* no detect when searching */
 	/* for audio standard detection */
 	if (is_meson_txlx_cpu() || is_meson_txhd_cpu() || is_meson_tl1_cpu()
 			|| is_meson_tm2_cpu()) {
 		*soundsys = amlfmt_aud_standard(broad_std);
 		*soundsys = (*soundsys << 16) | 0x00FFFF;
 	} else
+#endif
 		*soundsys = 0xFFFFFF;
 
 	pr_info("auto detect audio broad_std %d, [%s][0x%x] soundsys[0x%x]\n",
@@ -975,12 +951,12 @@ static int atvdemod_fe_set_property(struct v4l2_frontend *v4l2_fe,
 	switch (tvp->cmd) {
 	case V4L2_SOUND_SYS:
 		/* aud_mode = tvp->data & 0xFF; */
-		amlatvdemod_devp->soundsys = tvp->data & 0xFF;
-		if (amlatvdemod_devp->soundsys != 0xFF) {
-			aud_mode = amlatvdemod_devp->soundsys;
-			params->soundsys = aud_mode;
+		amlatvdemod_devp->sound_mode = tvp->data & 0xFF;
+		if (amlatvdemod_devp->sound_mode != 0xFF) {
+			aud_mode = amlatvdemod_devp->sound_mode;
+			params->soundsys = params->soundsys | aud_mode;
 		}
-		priv->sound_sys.output_mode = tvp->data & 0xFF;
+		priv->atvdemod_sound.output_mode = tvp->data & 0xFF;
 		break;
 
 	case V4L2_SLOW_SEARCH_MODE:
@@ -988,7 +964,7 @@ static int atvdemod_fe_set_property(struct v4l2_frontend *v4l2_fe,
 		break;
 
 	case V4L2_SIF_OVER_MODULATION:
-		priv->sound_sys.sif_over_modulation = tvp->data;
+		priv->atvdemod_sound.sif_over_modulation = tvp->data;
 		break;
 
 	default:

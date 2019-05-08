@@ -49,7 +49,7 @@ static void atv_demod_monitor_do_work(struct work_struct *work)
 	struct atv_demod_monitor *monitor =
 			container_of(work, struct atv_demod_monitor, work);
 
-	if (!monitor->state)
+	if (monitor->state == MONI_DISABLE)
 		return;
 
 	retrieve_vpll_carrier_lock(&vpll_lock);
@@ -104,6 +104,9 @@ static void atv_demod_monitor_timer_handler(unsigned long arg)
 	if (vdac_enable_check_dtv())
 		return;
 
+	if (monitor->state == MONI_PAUSE)
+		return;
+
 	schedule_work(&monitor->work);
 }
 
@@ -111,7 +114,7 @@ static void atv_demod_monitor_enable(struct atv_demod_monitor *monitor)
 {
 	mutex_lock(&monitor->mtx);
 
-	if (atvdemod_timer_en && !monitor->state) {
+	if (atvdemod_timer_en && monitor->state == MONI_DISABLE) {
 		atv_dmd_non_std_set(false);
 
 		init_timer(&monitor->timer);
@@ -121,7 +124,12 @@ static void atv_demod_monitor_enable(struct atv_demod_monitor *monitor)
 		monitor->timer.expires = jiffies +
 				ATVDEMOD_INTERVAL * atvdemod_timer_delay;
 		add_timer(&monitor->timer);
-		monitor->state = true;
+		monitor->state = MONI_ENABLE;
+		monitor->lock_cnt = 0;
+	} else if (atvdemod_timer_en && monitor->state == MONI_PAUSE) {
+		atv_dmd_non_std_set(false);
+
+		monitor->state = MONI_ENABLE;
 		monitor->lock_cnt = 0;
 	}
 
@@ -134,9 +142,8 @@ static void atv_demod_monitor_disable(struct atv_demod_monitor *monitor)
 {
 	mutex_lock(&monitor->mtx);
 
-	if (atvdemod_timer_en && monitor->state) {
-		monitor->state = false;
-		atv_dmd_non_std_set(false);
+	if (atvdemod_timer_en && monitor->state != MONI_DISABLE) {
+		monitor->state = MONI_DISABLE;
 		del_timer_sync(&monitor->timer);
 		cancel_work_sync(&monitor->work);
 	}
@@ -146,20 +153,33 @@ static void atv_demod_monitor_disable(struct atv_demod_monitor *monitor)
 	pr_dbg("%s: state: %d.\n", __func__, monitor->state);
 }
 
+static void atv_demod_monitor_pause(struct atv_demod_monitor *monitor)
+{
+	mutex_lock(&monitor->mtx);
+
+	if (monitor->state == MONI_ENABLE) {
+		monitor->state = MONI_PAUSE;
+		atv_dmd_non_std_set(false);
+		cancel_work_sync(&monitor->work);
+	}
+
+	mutex_unlock(&monitor->mtx);
+}
+
 void atv_demod_monitor_init(struct atv_demod_monitor *monitor)
 {
 	mutex_lock(&monitor_mutex);
 
 	mutex_init(&monitor->mtx);
 
-	monitor->state = false;
+	monitor->state = MONI_DISABLE;
 	monitor->lock = false;
 	monitor->lock_cnt = 0;
 	monitor->disable = atv_demod_monitor_disable;
 	monitor->enable = atv_demod_monitor_enable;
+	monitor->pause = atv_demod_monitor_pause;
 
 	INIT_WORK(&monitor->work, atv_demod_monitor_do_work);
 
 	mutex_unlock(&monitor_mutex);
 }
-

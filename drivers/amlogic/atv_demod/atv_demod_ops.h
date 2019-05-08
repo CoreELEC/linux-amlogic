@@ -47,12 +47,27 @@
 #define AUTO_DETECT_COLOR (1 << 0)
 #define AUTO_DETECT_AUDIO (1 << 1)
 
-struct atv_demod_sound_system {
-	unsigned int broadcast_std;
-	unsigned int audio_std;
-	unsigned int input_mode;
-	unsigned int output_mode;
+struct atv_demod_sound {
+	unsigned int broadcast_std; /* PAL-I/BG/DK/M, NTSC-M */
+	unsigned int soundsys;      /* A2/BTSC/EIAJ/NICAM */
+	unsigned int input_mode;    /* Mono/Stereo/Dual/Sap */
+	unsigned int output_mode;   /* Mono/Stereo/Dual/Sap */
 	int sif_over_modulation;
+};
+
+struct atv_demod_parameters {
+
+	struct analog_parameters param;
+
+	unsigned int last_frequency;
+	unsigned int lock_range;
+	unsigned int leap_step;
+
+	unsigned int afc_range;
+	unsigned int tuner_id;
+	unsigned int if_freq;
+	unsigned int if_inv;
+	unsigned int reserved;
 };
 
 struct atv_demod_priv {
@@ -61,8 +76,8 @@ struct atv_demod_priv {
 
 	bool standby;
 
-	struct aml_atvdemod_parameters atvdemod_param;
-	struct atv_demod_sound_system sound_sys;
+	struct atv_demod_parameters atvdemod_param;
+	struct atv_demod_sound atvdemod_sound;
 
 	struct atv_demod_afc afc;
 

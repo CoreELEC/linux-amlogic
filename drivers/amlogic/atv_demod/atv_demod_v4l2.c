@@ -110,8 +110,16 @@ static void v4l2_frontend_add_event(struct v4l2_frontend *v4l2_fe,
 	e = &events->events[events->eventw];
 	e->status = status;
 
-	memcpy(&e->parameters, &v4l2_fe->params,
-			sizeof(struct v4l2_analog_parameters));
+	/* memcpy(&e->parameters, &v4l2_fe->params,
+	 * sizeof(struct v4l2_analog_parameters));
+	 */
+	e->parameters.frequency = v4l2_fe->params.frequency;
+	e->parameters.audmode = v4l2_fe->params.audmode;
+	e->parameters.soundsys = v4l2_fe->params.soundsys;
+	e->parameters.std = v4l2_fe->params.std;
+	e->parameters.flag = v4l2_fe->params.flag;
+	e->parameters.afc_range = v4l2_fe->params.afc_range;
+	e->parameters.reserved = v4l2_fe->params.reserved;
 
 	events->eventw = wp;
 
@@ -375,18 +383,29 @@ static int v4l2_set_frontend(struct v4l2_frontend *v4l2_fe,
 	 * the user. FE_SET_FRONTEND triggers an initial frontend event
 	 * with status = 0, which copies output parameters to userspace.
 	 */
-	//dtv_property_legacy_params_sync_ex(fe, &fepriv->parameters_out);
-	memcpy(&v4l2_fe->params, params, sizeof(struct v4l2_analog_parameters));
-
-	fepriv->state = V4L2FE_STATE_RETUNE;
+	/* memcpy(&v4l2_fe->params, params,
+	 * sizeof(struct v4l2_analog_parameters));
+	 */
+	v4l2_fe->params.frequency = params->frequency;
+	v4l2_fe->params.audmode = params->audmode;
+	v4l2_fe->params.soundsys = params->soundsys;
+	v4l2_fe->params.std = params->std;
+	v4l2_fe->params.flag = params->flag;
+	v4l2_fe->params.afc_range = params->afc_range;
+	v4l2_fe->params.reserved = params->reserved;
 
 	/* Request the search algorithm to search */
 	if (params->flag & ANALOG_FLAG_ENABLE_AFC) {
+		fepriv->state = V4L2FE_STATE_RETUNE;
+
 		fepriv->algo_status |= V4L2_SEARCH_AGAIN;
 
 		/*dvb_frontend_add_event(fe, 0); */
 		v4l2_frontend_clear_events(v4l2_fe);
 		v4l2_frontend_wakeup(v4l2_fe);
+
+		fepriv->status = 0;
+
 	} else if (fe->ops.analog_ops.set_params) {
 		/* TODO:*/
 		p.frequency = params->frequency;
@@ -402,8 +421,6 @@ static int v4l2_set_frontend(struct v4l2_frontend *v4l2_fe,
 		fe->ops.analog_ops.set_params(fe, &p);
 	}
 
-	fepriv->status = 0;
-
 	return 0;
 }
 
@@ -412,7 +429,14 @@ static int v4l2_get_frontend(struct v4l2_frontend *v4l2_fe,
 {
 	pr_dbg("%s.\n", __func__);
 
-	memcpy(p, &v4l2_fe->params, sizeof(struct v4l2_analog_parameters));
+	/*memcpy(p, &v4l2_fe->params, sizeof(struct v4l2_analog_parameters));*/
+	p->frequency = v4l2_fe->params.frequency;
+	p->audmode = v4l2_fe->params.audmode;
+	p->soundsys = v4l2_fe->params.soundsys;
+	p->std = v4l2_fe->params.std;
+	p->flag = v4l2_fe->params.flag;
+	p->afc_range = v4l2_fe->params.afc_range;
+	p->reserved = v4l2_fe->params.reserved;
 
 	return 0;
 }

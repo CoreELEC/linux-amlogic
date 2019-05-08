@@ -107,8 +107,16 @@ struct v4l2_frontend;
 struct v4l2_analog_parameters {
 	unsigned int frequency;
 	unsigned int audmode;
-	unsigned int soundsys; /*A2,BTSC,EIAJ,NICAM */
-	/* std & 0xff000000: PAL/NTSC/SECAM, std & 0x00ffffff: cvbs format */
+
+	/* soundsys & 0xff0000: A2,BTSC,EIAJ,NICAM.
+	 * soundsys & 0xff00: signal input mode.
+	 * soundsys & 0xff: output mode.
+	 */
+	unsigned int soundsys;
+
+	/* std & 0xff000000: PAL/NTSC/SECAM.
+	 * std & 0x00ffffff: CVBS format.
+	 */
 	v4l2_std_id std;
 	unsigned int flag; /* for search or play */
 	unsigned int afc_range;

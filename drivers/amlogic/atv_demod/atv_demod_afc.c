@@ -108,7 +108,7 @@ void atv_demod_afc_do_work(struct work_struct *work)
 	int tmp = 0;
 	int field_lock = 0;
 
-	if (afc->state == false)
+	if (afc->state != AFC_ENABLE)
 		return;
 
 	retrieve_vpll_carrier_lock(&tmp);/* 0 means lock, 1 means unlock */
@@ -201,7 +201,7 @@ static void atv_demod_afc_timer_handler(unsigned long arg)
 	struct dvb_frontend *fe = afc->fe;
 	unsigned int delay_ms = 0;
 
-	if (afc->state == false)
+	if (afc->state == AFC_DISABLE)
 		return;
 
 	if (afc->status == AFC_LOCK_STATUS_POST_OVER_RANGE ||
@@ -224,6 +224,9 @@ static void atv_demod_afc_timer_handler(unsigned long arg)
 	if ((afc_timer_en == false) || (fe->ops.info.type != FE_ANALOG))
 		return;
 
+	if (afc->state == AFC_PAUSE)
+		return;
+
 	schedule_work(&afc->work);
 }
 
@@ -231,8 +234,8 @@ static void atv_demod_afc_disable(struct atv_demod_afc *afc)
 {
 	mutex_lock(&afc->mtx);
 
-	if (afc_timer_en && (afc->state == true)) {
-		afc->state = false;
+	if (afc_timer_en && (afc->state != AFC_DISABLE)) {
+		afc->state = AFC_DISABLE;
 		del_timer_sync(&afc->timer);
 		cancel_work_sync(&afc->work);
 	}
@@ -246,7 +249,7 @@ static void atv_demod_afc_enable(struct atv_demod_afc *afc)
 {
 	mutex_lock(&afc->mtx);
 
-	if (afc_timer_en && (afc->state == false)) {
+	if (afc_timer_en && (afc->state == AFC_DISABLE)) {
 		init_timer(&afc->timer);
 		afc->timer.function = atv_demod_afc_timer_handler;
 		afc->timer.data = (ulong) afc;
@@ -259,12 +262,31 @@ static void atv_demod_afc_enable(struct atv_demod_afc *afc)
 		afc->timer_delay_cnt = 20;
 		afc->status = AFC_LOCK_STATUS_NULL;
 		add_timer(&afc->timer);
-		afc->state = true;
+		afc->state = AFC_ENABLE;
+	} else if (afc_timer_en && (afc->state == AFC_PAUSE)) {
+		afc->offset = 0;
+		afc->no_sig_cnt = 0;
+		afc->pre_step = 0;
+		afc->timer_delay_cnt = 20;
+		afc->status = AFC_LOCK_STATUS_NULL;
+		afc->state = AFC_ENABLE;
 	}
 
 	mutex_unlock(&afc->mtx);
 
 	pr_afc("%s: state: %d.\n", __func__, afc->state);
+}
+
+static void atv_demod_afc_pause(struct atv_demod_afc *afc)
+{
+	mutex_lock(&afc->mtx);
+
+	if (afc->state == AFC_ENABLE) {
+		afc->state = AFC_PAUSE;
+		cancel_work_sync(&afc->work);
+	}
+
+	mutex_unlock(&afc->mtx);
 }
 
 void atv_demod_afc_init(struct atv_demod_afc *afc)
@@ -273,13 +295,13 @@ void atv_demod_afc_init(struct atv_demod_afc *afc)
 
 	mutex_init(&afc->mtx);
 
-	afc->state = false;
+	afc->state = AFC_DISABLE;
 	afc->timer_delay_cnt = 0;
 	afc->disable = atv_demod_afc_disable;
 	afc->enable = atv_demod_afc_enable;
+	afc->pause = atv_demod_afc_pause;
 
 	INIT_WORK(&afc->work, atv_demod_afc_do_work);
 
 	mutex_unlock(&afc_mutex);
 }
-

@@ -45,7 +45,7 @@
 #include "atvauddemod_func.h"
 
 
-#define AMLATVDEMOD_VER "V2.10"
+#define AMLATVDEMOD_VER "V2.11"
 
 struct aml_atvdemod_device *amlatvdemod_devp;
 

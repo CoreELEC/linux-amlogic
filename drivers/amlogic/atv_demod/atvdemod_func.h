@@ -19,6 +19,7 @@
 #define __ATV_DEMOD_FUNC_H__
 
 struct v4l2_frontend;
+struct atv_demod_priv;
 
 #define HHI_ATV_DMD_SYS_CLK_CNTL		0x10f3
 
@@ -71,9 +72,9 @@ extern void configure_receiver(int Broadcast_Standard,
 			       int Tuner_Input_IF_inverted, int GDE_Curve,
 			       int sound_format);
 extern int atvdemod_clk_init(void);
-extern int atvdemod_init(bool on);
+extern int atvdemod_init(struct atv_demod_priv *priv);
 extern void atvdemod_uninit(void);
-extern void atv_dmd_set_std(void);
+extern void atv_dmd_set_std(unsigned long std);
 extern void retrieve_adc_power(int *adc_level);
 extern void retrieve_vpll_carrier_lock(int *lock);
 extern void retrieve_vpll_carrier_line_lock(int *lock);
