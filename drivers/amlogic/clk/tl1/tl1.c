@@ -185,6 +185,10 @@ static struct meson_clk_pll tl1_adc_pll = {
 };
 #endif
 
+static const struct pll_rate_table tl1_fixed_pll_rate_table[] = {
+	PLL_FRAC_RATE(2000000000ULL, 166, 1, 1, 0, 0x3F15555),
+};
+
 static struct meson_clk_pll tl1_fixed_pll = {
 	.m = {
 		.reg_off = HHI_FIX_PLL_CNTL0,
@@ -207,12 +211,14 @@ static struct meson_clk_pll tl1_fixed_pll = {
 		.width	 = 19,
 	},
 	.lock = &clk_lock,
+	.rate_table = tl1_fixed_pll_rate_table,
+	.rate_count = ARRAY_SIZE(tl1_fixed_pll_rate_table),
 	.hw.init = &(struct clk_init_data){
 		.name = "fixed_pll",
-		.ops = &meson_tl1_pll_ro_ops,
+		.ops = &meson_tl1_pll_ops,
 		.parent_names = (const char *[]){ "xtal" },
 		.num_parents = 1,
-		.flags = CLK_GET_RATE_NOCACHE,
+		.flags = CLK_GET_RATE_NOCACHE | CLK_IGNORE_UNUSED,
 	},
 };
 
@@ -676,6 +682,19 @@ static struct clk_gate tl1_clk81 = {
 	},
 };
 
+static struct clk_mux tl1_switch_clk81 = {
+	.reg = (void *)HHI_MPEG_CLK_CNTL,
+	.mask = 0x1,
+	.shift = 8,
+	.lock = &clk_lock,
+	.hw.init = &(struct clk_init_data){
+		.name = "switch_clk81",
+		.ops = &clk_mux_ops,
+		.parent_names = (const char *[]){ "xtal", "clk81" },
+		.num_parents = 2,
+	},
+};
+
 /* Everything Else (EE) domain gates */
 /* HHI_GCLK_MPEG0 26 bits valid */
 static MESON_GATE_TL1(tl1_ddr, HHI_GCLK_MPEG0,		0);
@@ -881,6 +900,7 @@ static struct clk_hw *tl1_clk_hws[] = {
 	[CLKID_DSU_PRE_PARENT0] = &tl1_dsu_pre0_clk.hw,
 	[CLKID_DSU_PRE_CLK]	= &tl1_dsu_pre_clk.hw,
 	[CLKID_DSU_CLK]		= &tl1_dsu_clk.hw,
+	[CLKID_SWITCH_CLK81] = &tl1_switch_clk81.hw,
 };
 /* Convenience tables to populate base addresses in .probe */
 
@@ -1101,6 +1121,9 @@ static void __init tl1_clkc_init(struct device_node *np)
 	tl1_dsu_clk.reg = clk_base
 			+ (unsigned long)tl1_dsu_clk.reg;
 
+	tl1_switch_clk81.reg = clk_base
+			+ (unsigned long)tl1_switch_clk81.reg;
+
 	/* Populate base address for gates */
 	for (i = 0; i < ARRAY_SIZE(tl1_clk_gates); i++)
 		tl1_clk_gates[i]->reg = clk_base +
@@ -1127,6 +1150,8 @@ static void __init tl1_clkc_init(struct device_node *np)
 			WARN_ON(IS_ERR(clks[clkid]));
 		}
 	}
+	clks[CLKID_SWITCH_CLK81] = clk_register(NULL, &tl1_switch_clk81.hw);
+	WARN_ON(IS_ERR(clks[CLKID_SWITCH_CLK81]));
 
 	meson_tl1_sdemmc_init();
 	meson_tl1_media_init();
