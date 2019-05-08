@@ -44,6 +44,15 @@ menuconfig RC_DECODERS
 	depends on RC_CORE
 
 if RC_DECODERS
+config IR_IRMP_DECODER
+	tristate "Enable IR raw decoder for IRMP"
+	depends on RC_CORE
+	default y
+
+	help
+	   Enable this option if to include the software
+	   IR decoder IRMP.
+
 config IR_NEC_DECODER
 	tristate "Enable IR raw decoder for the NEC protocol"
 	depends on RC_CORE
