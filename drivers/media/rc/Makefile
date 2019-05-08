@@ -22,6 +22,7 @@ obj-$(CONFIG_IR_SANYO_DECODER) += ir-sanyo-decoder.o
 obj-$(CONFIG_IR_SHARP_DECODER) += ir-sharp-decoder.o
 obj-$(CONFIG_IR_SONY_DECODER) += ir-sony-decoder.o
 obj-$(CONFIG_IR_XMP_DECODER) += ir-xmp-decoder.o
+obj-$(CONFIG_IR_IRMP_DECODER) += ir-irmp-decoder.o
 
 # stand-alone IR receivers/transmitters  - please keep it alphabetically
 # sorted by Kconfig name (e. g. LC_ALL=C sort Makefile)

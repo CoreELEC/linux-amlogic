@@ -43,6 +43,14 @@ menuconfig RC_DECODERS
 	bool "Remote controller decoders"
 
 if RC_DECODERS
+config IR_IRMP_DECODER
+	tristate "Enable IR raw decoder for IRMP"
+	depends on RC_CORE
+	default y
+
+	help
+	   Enable this option if to include the software
+	   IR decoder IRMP.
 
 config IR_IMON_DECODER
 	tristate "Enable IR raw decoder for the iMON protocol"
