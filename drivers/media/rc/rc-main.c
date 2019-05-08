@@ -1029,6 +1029,7 @@ static const struct {
 	  RC_PROTO_BIT_RCMM24 |
 	  RC_PROTO_BIT_RCMM32,	"rc-mm",	"ir-rcmm-decoder"	},
 	{ RC_PROTO_BIT_XBOX_DVD, "xbox-dvd",	NULL			},
+	{ RC_PROTO_BIT_IRMP, "irmp",	"ir-irmp-decoder"			},
 };
 
 /**
