@@ -196,6 +196,7 @@ struct lirc_scancode {
  * @RC_PROTO_RCMM24: RC-MM protocol 24 bits
  * @RC_PROTO_RCMM32: RC-MM protocol 32 bits
  * @RC_PROTO_XBOX_DVD: Xbox DVD Movie Playback Kit protocol
+ * @RC_PROTO_IRMP: IRMP multi software decoder
  */
 enum rc_proto {
 	RC_PROTO_UNKNOWN	= 0,
@@ -226,6 +227,7 @@ enum rc_proto {
 	RC_PROTO_RCMM24		= 25,
 	RC_PROTO_RCMM32		= 26,
 	RC_PROTO_XBOX_DVD	= 27,
+	RC_PROTO_IRMP	= 28,
 };
 
 #endif
