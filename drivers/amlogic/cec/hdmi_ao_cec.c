@@ -963,20 +963,31 @@ void cec_logicaddr_set(int l_add)
 
 		CEC_INFO("set cecb logical addr:0x%x\n", l_add);
 	} else {
-		/*clear all logical address*/
-		aocec_wr_reg(CEC_LOGICAL_ADDR0, 0);
-		aocec_wr_reg(CEC_LOGICAL_ADDR1, 0);
-		aocec_wr_reg(CEC_LOGICAL_ADDR2, 0);
-		aocec_wr_reg(CEC_LOGICAL_ADDR3, 0);
-		aocec_wr_reg(CEC_LOGICAL_ADDR4, 0);
+		if (cec_dev->plat_data->ceca_ver == CECA_VER_0) {
+			/*clear all logical address*/
+			aocec_wr_reg(CEC_LOGICAL_ADDR0, 0);
+			aocec_wr_reg(CEC_LOGICAL_ADDR1, 0);
+			aocec_wr_reg(CEC_LOGICAL_ADDR2, 0);
+			aocec_wr_reg(CEC_LOGICAL_ADDR3, 0);
+			aocec_wr_reg(CEC_LOGICAL_ADDR4, 0);
 
-		cec_hw_buf_clear();
-		aocec_wr_reg(CEC_LOGICAL_ADDR0, (l_add & 0xf));
-		udelay(100);
-		aocec_wr_reg(CEC_LOGICAL_ADDR0, (0x1 << 4) | (l_add & 0xf));
-		if (cec_msg_dbg_en)
-			CEC_INFO("set cec alogical addr:0x%x\n",
-				aocec_rd_reg(CEC_LOGICAL_ADDR0));
+			cec_hw_buf_clear();
+			aocec_wr_reg(CEC_LOGICAL_ADDR0, (l_add & 0xf));
+			udelay(100);
+			aocec_wr_reg(CEC_LOGICAL_ADDR0,
+				(0x1 << 4) | (l_add & 0xf));
+			if (cec_msg_dbg_en)
+				CEC_INFO("set cec alogical addr:0x%x\n",
+					aocec_rd_reg(CEC_LOGICAL_ADDR0));
+		} else {
+			if (l_add < 8)
+				aocec_wr_reg(CEC_LOGICAL_ADDR0, 1 << l_add);
+			else
+				aocec_wr_reg(CEC_LOGICAL_ADDR1,
+					1 << (l_add - 8) | 0x80);
+
+			CEC_INFO("set ceca logical addr:0x%x\n", l_add);
+		}
 	}
 }
 
@@ -985,29 +996,42 @@ void ceca_addr_add(unsigned int l_add)
 	unsigned int addr;
 	unsigned int i;
 
-	/* check if the logical addr is exist ? */
-	for (i = CEC_LOGICAL_ADDR0; i <= CEC_LOGICAL_ADDR4; i++) {
-		addr = aocec_rd_reg(i);
-		if ((addr & 0x10) && ((addr & 0xf) == (l_add & 0xf))) {
-			CEC_INFO("add 0x%x exist\n", l_add);
-			return;
+	if (cec_dev->plat_data->ceca_ver == CECA_VER_0) {
+		/* check if the logical addr is exist ? */
+		for (i = CEC_LOGICAL_ADDR0; i <= CEC_LOGICAL_ADDR4; i++) {
+			addr = aocec_rd_reg(i);
+			if ((addr & 0x10) && ((addr & 0xf) == (l_add & 0xf))) {
+				CEC_INFO("add 0x%x exist\n", l_add);
+				return;
+			}
 		}
-	}
 
-	/* find a empty place */
-	for (i = CEC_LOGICAL_ADDR0; i <= CEC_LOGICAL_ADDR4; i++) {
-		addr = aocec_rd_reg(i);
-		if (addr & 0x10) {
-			CEC_INFO(" skip 0x%x ,val=0x%x\n", i, addr);
-			continue;
+		/* find a empty place */
+		for (i = CEC_LOGICAL_ADDR0; i <= CEC_LOGICAL_ADDR4; i++) {
+			addr = aocec_rd_reg(i);
+			if (addr & 0x10) {
+				CEC_INFO(" skip 0x%x ,val=0x%x\n", i, addr);
+				continue;
+			} else {
+				cec_hw_buf_clear();
+				aocec_wr_reg(i, (l_add & 0xf));
+				udelay(100);
+				aocec_wr_reg(i, (l_add & 0xf)|0x10);
+				CEC_INFO("cec a add addr %d at 0x%x\n",
+					l_add, i);
+				break;
+			}
+		}
+	} else {
+		/*every bit means a logical address*/
+		if (l_add < 8) {
+			addr = aocec_rd_reg(CEC_LOGICAL_ADDR0);
+			addr |= (1 << l_add);
+			aocec_wr_reg(CEC_LOGICAL_ADDR0, addr);
 		} else {
-			cec_hw_buf_clear();
-			aocec_wr_reg(i, (l_add & 0xf));
-			udelay(100);
-			aocec_wr_reg(i, (l_add & 0xf)|0x10);
-			CEC_INFO("cec a add addr %d at 0x%x\n",
-				l_add, i);
-			break;
+			addr = aocec_rd_reg(CEC_LOGICAL_ADDR1);
+			addr |= (1 << (l_add - 8));
+			aocec_wr_reg(CEC_LOGICAL_ADDR1, addr);
 		}
 	}
 }
@@ -1056,16 +1080,30 @@ void cec_logicaddr_remove(unsigned int cec_sel, unsigned int l_add)
 		}
 		CEC_INFO("cec b remove addr %d\n", l_add);
 	} else {
-		for (i = CEC_LOGICAL_ADDR0; i <= CEC_LOGICAL_ADDR4; i++) {
-			addr = aocec_rd_reg(i);
-			if ((addr & 0xf) == (l_add & 0xf)) {
-				aocec_wr_reg(i, (addr & 0xf));
-				udelay(100);
-				aocec_wr_reg(i, 0);
-				cec_hw_buf_clear();
-				CEC_INFO("cec a rm addr %d at 0x%x\n",
-					l_add, i);
+		if (cec_dev->plat_data->ceca_ver == CECA_VER_0) {
+			for (i = CEC_LOGICAL_ADDR0;
+				i <= CEC_LOGICAL_ADDR4; i++) {
+				addr = aocec_rd_reg(i);
+				if ((addr & 0xf) == (l_add & 0xf)) {
+					aocec_wr_reg(i, (addr & 0xf));
+					udelay(100);
+					aocec_wr_reg(i, 0);
+					cec_hw_buf_clear();
+					CEC_INFO("cec a rm addr %d at 0x%x\n",
+						l_add, i);
+				}
 			}
+		} else {
+			if (l_add < 8) {
+				addr = aocec_rd_reg(CEC_LOGICAL_ADDR0);
+				addr &= ~(1 << l_add);
+				aocec_wr_reg(CEC_LOGICAL_ADDR0, addr);
+			} else {
+				addr = aocec_rd_reg(CEC_LOGICAL_ADDR1);
+				addr &= ~(1 << (l_add - 8));
+				aocec_wr_reg(CEC_LOGICAL_ADDR1, addr);
+			}
+			CEC_INFO("cec a remove addr %d\n", l_add);
 		}
 	}
 }
@@ -2780,6 +2818,9 @@ void cec_dump_info(void)
 	CEC_ERR("hpd_state:0x%x\n", cec_dev->tx_dev->hpd_state);
 	CEC_ERR("cec_config:0x%x\n", cec_config(0, 0));
 	CEC_ERR("log_addr:0x%x\n", cec_dev->cec_info.log_addr);
+	CEC_ERR("ceca_ver:0x%x\n", cec_dev->plat_data->ceca_ver);
+	CEC_ERR("cecb_ver:0x%x\n", cec_dev->plat_data->cecb_ver);
+
 	port = kcalloc(cec_dev->port_num, sizeof(*port), GFP_KERNEL);
 	if (port) {
 		init_cec_port_info(port, cec_dev);
@@ -3102,6 +3143,7 @@ static const struct cec_platform_data_s cec_gxl_data = {
 	.line_bit = 8,
 	.ee_to_ao = 0,
 	.ceca_sts_reg = 0,
+	.ceca_ver = CECA_VER_0,
 	.cecb_ver = CECB_VER_0,
 };
 
@@ -3110,6 +3152,7 @@ static const struct cec_platform_data_s cec_txlx_data = {
 	.line_bit = 7,
 	.ee_to_ao = 1,
 	.ceca_sts_reg = 0,
+	.ceca_ver = CECA_VER_0,
 	.cecb_ver = CECB_VER_1,
 };
 

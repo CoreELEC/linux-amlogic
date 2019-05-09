@@ -20,7 +20,7 @@
 
 
 
-#define CEC_DRIVER_VERSION	"Ver 2019/3/25\n"
+#define CEC_DRIVER_VERSION	"2019/5/9:tm2 cec a support multi-addr"
 
 #define CEC_FRAME_DELAY		msecs_to_jiffies(400)
 #define CEC_DEV_NAME		"cec"
@@ -31,15 +31,24 @@
 #define HR_DELAY(n)		(ktime_set(0, n * 1000 * 1000))
 
 enum cecaver {
-	/*first version*/
+	/*
+	 * first version, only support one logical addr
+	 * "0xf" broadcast addr is default on
+	 */
 	CECA_VER_0 = 0,
 
-	/*support multi logical address*/
+	/*
+	 * support multi logical address, "0xf" broadcast
+	 * addr is default on
+	 */
 	CECA_VER_1 = 1,
 };
 
 enum cecbver {
-	/*first version*/
+	/* first version
+	 * support multi logical address, "0xf" broadcast
+	 * addr is default on
+	 */
 	CECB_VER_0 = 0,
 	/*ee to ao */
 	CECB_VER_1 = 1,
