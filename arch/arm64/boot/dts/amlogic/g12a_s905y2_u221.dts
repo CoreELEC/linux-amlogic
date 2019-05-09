@@ -1370,5 +1370,5 @@
 };
 
 &amhdmitx {
-	dongle_mode = <1>;
+	dongle_mode = <0>;
 };
