@@ -1769,10 +1769,14 @@ void hdmirx_hdcp22_esm_rst(void)
 int rx_is_hdcp22_support(void)
 {
 	int ret = 0;
+	int temp;
 
-	if (rx_sec_set_duk(hdmirx_repeat_support()) == 1) {
+	temp = rx_sec_set_duk(hdmirx_repeat_support());
+	if (temp) {
 		rx_hdcp22_wr_top(TOP_SKP_CNTL_STAT, 7);
 		ret = 1;
+		if (temp == 2)
+			rx_pr("2.2 test key!!!\n");
 	} else
 		ret = 0;
 	rx_pr("hdcp22 == %d\n", ret);
@@ -2359,7 +2363,7 @@ void hdmirx_load_firm_reset(int type)
 		downstream_hpd_flag = 0;
 	ret = rx_sec_set_duk(hdmirx_repeat_support());
 	rx_pr("ret = %d\n", ret);
-	if (ret == 1) {
+	if (ret) {
 		hdmirx_wr_dwc(DWC_HDCP22_CONTROL, 0x0);
 		hdmirx_hdcp22_esm_rst();
 		mdelay(100);
@@ -3004,7 +3008,7 @@ void rx_debug_load22key(void)
 
 	ret = rx_sec_set_duk(hdmirx_repeat_support());
 	rx_pr("22 = %d\n", ret);
-	if (ret == 1) {
+	if (ret) {
 		rx_pr("load 2.2 key\n");
 		sm_pause = 1;
 		rx_set_cur_hpd(0);
