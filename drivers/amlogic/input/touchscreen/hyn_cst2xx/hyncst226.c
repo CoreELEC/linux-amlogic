@@ -534,7 +534,7 @@ static int cst2xx_read_checksum(struct i2c_client *client)
 		if ((buf[0] == 0x01) || (buf[0] == 0x02))
 			break;
 
-		usleep_range(2000, 2010)
+		usleep_range(2000, 2010);
 	}
 
 	if ((buf[0] == 0x01) || (buf[0] == 0x02)) {
@@ -931,6 +931,8 @@ XY_WORK_END:
 	i2c_lock_flag = 0;
 i2c_lock_schedule:;
 #endif
+
+	return;
 }
 
 #ifdef HYN_MONITOR
