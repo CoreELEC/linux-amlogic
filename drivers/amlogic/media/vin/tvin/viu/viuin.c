@@ -399,18 +399,27 @@ static void viuin_sig_property(struct tvin_frontend_s *fe,
 	static const struct vinfo_s *vinfo;
 	struct viuin_s *devp = container_of(fe, struct viuin_s, frontend);
 
-	if (devp->parm.port == TVIN_PORT_VIU1_VIDEO)
+	switch (devp->parm.port) {
+	case TVIN_PORT_VIU1_VIDEO:
+	case TVIN_PORT_VIU1_WB0_POST_BLEND:
 		prop->color_format = TVIN_YUV444;
-	else if ((devp->parm.port == TVIN_PORT_VIU1) ||
-		(devp->parm.port == TVIN_PORT_VIU2) ||
-		(devp->parm.port == TVIN_PORT_VIU1_WB0_VPP) ||
-		(devp->parm.port == TVIN_PORT_VIU1_WB1_VPP) ||
-		(devp->parm.port == TVIN_PORT_VIU2_WB0_VPP) ||
-		(devp->parm.port == TVIN_PORT_VIU2_WB1_VPP)) {
+		break;
+
+	case TVIN_PORT_VIU1:
+	case TVIN_PORT_VIU2:
+	case TVIN_PORT_VIU1_WB0_VPP:
+	case TVIN_PORT_VIU1_WB1_VPP:
+	case TVIN_PORT_VIU2_WB0_VPP:
+	case TVIN_PORT_VIU2_WB1_VPP:
 		vinfo = get_current_vinfo();
 		prop->color_format = vinfo->viu_color_fmt;
-	} else
+		break;
+
+	default:
 		prop->color_format = devp->parm.cfmt;
+		break;
+	}
+
 	prop->dest_cfmt = devp->parm.dfmt;
 
 	prop->scaling4w = devp->parm.dest_hactive;
