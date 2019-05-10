@@ -20,7 +20,7 @@
 
 
 
-#define CEC_DRIVER_VERSION	"2019/5/9:tm2 cec a support multi-addr"
+#define CEC_DRIVER_VERSION	"2019/5/10:tm2 verify two ip share pinmux"
 
 #define CEC_FRAME_DELAY		msecs_to_jiffies(400)
 #define CEC_DEV_NAME		"cec"
@@ -66,9 +66,13 @@ enum cecbver {
 #define L_1		1
 #define L_2		2
 #define L_3		3
+#define L_4		4
 
 #define CEC_A	0
 #define CEC_B	1
+
+#define ENABLE_ONE_CEC	1
+#define ENABLE_TWO_CEC	2
 
 /*
 #define CEC_FUNC_MASK			0
@@ -294,6 +298,11 @@ enum cecbver {
 #define RX_BUSY                 1  /* Receiver is busy */
 #define RX_DONE                 2  /* Message has been received successfully */
 #define RX_ERROR                3  /* Message has been received with error */
+
+/*  AO CECA INT flag */
+#define AO_CEC_HOST_ACK			0x01
+#define AO_CEC_TX_INT			0x02
+#define AO_CEC_RX_INT			0x04
 
 #define TOP_HPD_PWR5V           0x002
 #define TOP_ARCTX_CNTL          0x010
@@ -551,12 +560,13 @@ void cec_irq_enable(bool enable);
 void aocec_irq_enable(bool enable);
 extern void dump_reg(void);
 #endif
-extern void cec_dump_info(void);
+extern void cec_status(void);
 extern void cec_hw_reset(unsigned int cec_sel);
 extern void cec_restore_logical_addr(unsigned int cec_sel,
 	unsigned int addr_en);
 extern void cec_logicaddr_add(unsigned int cec_sel, unsigned int l_add);
 extern void cec_clear_all_logical_addr(unsigned int cec_sel);
 extern int dump_cecrx_reg(char *b);
+extern void cec_ip_share_io(u32 share, u32 cec_ip);
 
 #endif	/* __AO_CEC_H__ */
