@@ -1326,6 +1326,12 @@
 			 */
 		};
 	};
+
+	aml_pm {
+		vad_wakeup_disable = <0x0>;
+		vddio3v3_en = <&gpio_ao GPIOAO_2 0>;
+	};
+
 /*	sd_emmc_b: sd@ffe05000 {
  *		status = "okay";
  *		compatible = "amlogic, meson-mmc-tl1";

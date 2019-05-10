@@ -281,6 +281,16 @@
                 device_name = "aml_pm";
 		debug_reg = <0xff8000a8>;
 		exit_reg = <0xff80023c>;
+		dmc_asr = <0xff638634>;
+		cpu_reg = <0xff63c19c>;
+		clocks = <&clkc CLKID_SWITCH_CLK81>,
+			<&clkc CLKID_CLK81>,
+			<&clkc CLKID_FIXED_PLL>,
+			<&xtal>;
+		clock-names = "switch_clk81",
+			"clk81",
+			"fixed_pll",
+			"xtal";
 	};
 
 	cpuinfo {

@@ -15153,3 +15153,8 @@ M: shunzhou jiang <shunzhou.jiang@amlogic.com>
 F: drivers/amlogic/firmware/bl40_module.c
 F: drivers/amlogic/firmware/Makefile
 F: drivers/amlogic/firmware/Kconfig
+
+AMLOGIC VAD WAKEUP POWER
+M: Zhiqiang Liang <zhiqiang.liang@amlogic.com>
+F: drivers/amlogic/pm/vad_power.c
+F: drivers/amlogic/pm/vad_power.h
