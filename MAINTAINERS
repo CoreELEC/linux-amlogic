@@ -14920,3 +14920,7 @@ F:	arm64/boot/dts/amlogic/g12a_s905y2_u223_lp.dts
 AMLOGIC HYN_CST2XX TOUCHSCREEN
 M:	XINLIANG ZHANG <xinliang.zhang@amlogic.com>
 F:	drivers/amlogic/input/touchscreen/hyn_cst2xx/*
+
+AMLOGIC WEEKLY CHANGE GENERATOR
+M:	JIAMIN MA <jiamin.ma@amlogic.com>
+F:	scripts/amlogic/weekly_change.py
