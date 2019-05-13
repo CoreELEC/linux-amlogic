@@ -335,17 +335,21 @@
 	dvb {
 		compatible = "amlogic, dvb";
 		dev_name = "dvb";
-		status = "ok";
+		fe0_mode = "external";
+		fe0_demod = "Avl6762";
+		fe0_i2c_adap_id = <&i2c3>;
+		fe0_demod_i2c_addr = <0x14>;
+		fe0_ts = <0>;
+		fe0_reset_value = <0>;
+		fe0_reset_gpio = <&gpio GPIOZ_10 GPIO_ACTIVE_HIGH>;
+		dtv_demod0_ant_poweron_value = <0>;
 
 		ts0 = "serial";
 		ts0_control = <0x800>;
 		ts0_invert = <0>;
-		pinctrl-names = "s_ts0";
-		pinctrl-0 = <&dvb_s_ts0_pins>;
-
 		interrupts = <0 23 1
 		0 5 1
-		0 53 1
+		0 21 1
 		0 19 1
 		0 25 1
 		0 18 1
@@ -357,22 +361,14 @@
 		"dvr1_irq",
 		"dvrfill0_fill",
 		"dvrfill1_flush";
+		pinctrl-names = "s_ts0";
+		pinctrl-0 = <&dvb_s_ts0_pins>;
+		clocks = <&clkc CLKID_DEMUX
+		&clkc CLKID_AHB_ARB0
+		&clkc CLKID_DOS_PARSER>;
+		clock-names = "demux", "ahbarb0", "parser_top";
 	};
-	dvbfe {
-		compatible = "amlogic, dvbfe";
-		dev_name = "dvbfe";
-		dtv_demod0 = "Avl6762";
-		dtv_demod0_i2c_adap = <&i2c3>;
-		dtv_demod0_i2c_addr = <0x14>;
-		dtv_demod0_reset_value = <0>;
-		dtv_demod0_reset_gpio = <&gpio GPIOZ_10 GPIO_ACTIVE_HIGH>;
-		dtv_demod0_ant_poweron_value = <0>;
-		dtv_demod0_ant_power_gpio = <&gpio GPIOH_5 GPIO_ACTIVE_HIGH>;
-		dtv_demod0_tuner_type = <52>;
-		fe0_dtv_demod = <0>;
-		fe0_ts  = <0>;
-		fe0_dev = <0>;
-	};
+
 	unifykey{
 		compatible = "amlogic, unifykey";
 		status = "ok";
