@@ -186,7 +186,7 @@ static void lcd_set_pll_ss_level_txl(unsigned int level)
 static void lcd_set_pll_txl(struct lcd_clk_config_s *cConf)
 {
 	unsigned int pll_ctrl, pll_ctrl2, pll_ctrl3;
-	int ret;
+	int ret, cnt = 0;
 
 	if (lcd_debug_print_flag == 2)
 		LCDPR("%s\n", __func__);
@@ -200,6 +200,7 @@ static void lcd_set_pll_txl(struct lcd_clk_config_s *cConf)
 		(cConf->pll_od2_sel << LCD_PLL_OD2_TXL) |
 		(cConf->pll_od1_sel << LCD_PLL_OD1_TXL));
 
+set_pll_retry_txl:
 	lcd_hiu_write(HHI_HDMI_PLL_CNTL, pll_ctrl);
 	lcd_hiu_write(HHI_HDMI_PLL_CNTL2, pll_ctrl2);
 	lcd_hiu_write(HHI_HDMI_PLL_CNTL3, pll_ctrl3);
@@ -213,8 +214,11 @@ static void lcd_set_pll_txl(struct lcd_clk_config_s *cConf)
 	lcd_hiu_setb(HHI_HDMI_PLL_CNTL, 0, LCD_PLL_RST_TXL, 1);
 
 	ret = lcd_pll_wait_lock(HHI_HDMI_PLL_CNTL, LCD_PLL_LOCK_TXL);
-	if (ret)
+	if (ret) {
+		if (cnt++ < PLL_RETRY_MAX)
+			goto set_pll_retry_txl;
 		LCDERR("hpll lock failed\n");
+	}
 
 	if (cConf->ss_level > 0)
 		lcd_set_pll_ss_level_txl(cConf->ss_level);
@@ -245,7 +249,7 @@ static void lcd_set_pll_ss_level_txlx(unsigned int level)
 static void lcd_set_pll_txlx(struct lcd_clk_config_s *cConf)
 {
 	unsigned int pll_ctrl, pll_ctrl2, pll_ctrl3;
-	int ret;
+	int ret, cnt = 0;
 
 	if (lcd_debug_print_flag == 2)
 		LCDPR("%s\n", __func__);
@@ -259,6 +263,7 @@ static void lcd_set_pll_txlx(struct lcd_clk_config_s *cConf)
 		(cConf->pll_od2_sel << LCD_PLL_OD2_TXL) |
 		(cConf->pll_od1_sel << LCD_PLL_OD1_TXL));
 
+set_pll_retry_txlx:
 	lcd_hiu_write(HHI_HDMI_PLL_CNTL, pll_ctrl);
 	lcd_hiu_write(HHI_HDMI_PLL_CNTL2, pll_ctrl2);
 	lcd_hiu_write(HHI_HDMI_PLL_CNTL3, pll_ctrl3);
@@ -269,8 +274,11 @@ static void lcd_set_pll_txlx(struct lcd_clk_config_s *cConf)
 	lcd_hiu_setb(HHI_HDMI_PLL_CNTL, 0, LCD_PLL_RST_TXL, 1);
 
 	ret = lcd_pll_wait_lock(HHI_HDMI_PLL_CNTL, LCD_PLL_LOCK_TXL);
-	if (ret)
+	if (ret) {
+		if (cnt++ < PLL_RETRY_MAX)
+			goto set_pll_retry_txlx;
 		LCDERR("hpll lock failed\n");
+	}
 
 	if (cConf->ss_level > 0)
 		lcd_set_pll_ss_level_txlx(cConf->ss_level);
@@ -279,7 +287,7 @@ static void lcd_set_pll_txlx(struct lcd_clk_config_s *cConf)
 static void lcd_set_pll_axg(struct lcd_clk_config_s *cConf)
 {
 	unsigned int pll_ctrl, pll_ctrl1, pll_ctrl2;
-	int ret;
+	int ret, cnt = 0;
 
 	if (lcd_debug_print_flag == 2)
 		LCDPR("%s\n", __func__);
@@ -292,6 +300,7 @@ static void lcd_set_pll_axg(struct lcd_clk_config_s *cConf)
 	pll_ctrl1 |= ((1 << 12) | (cConf->pll_frac << 0));
 	pll_ctrl2 = 0xb75020be | (cConf->pll_od_fb << 19);
 
+set_pll_retry_axg:
 	lcd_hiu_write(HHI_GP0_PLL_CNTL_AXG, pll_ctrl);
 	lcd_hiu_write(HHI_GP0_PLL_CNTL1_AXG, pll_ctrl1);
 	lcd_hiu_write(HHI_GP0_PLL_CNTL2_AXG, pll_ctrl2);
@@ -305,14 +314,17 @@ static void lcd_set_pll_axg(struct lcd_clk_config_s *cConf)
 	lcd_hiu_setb(HHI_GP0_PLL_CNTL_AXG, 0, LCD_PLL_RST_AXG, 1);
 
 	ret = lcd_pll_wait_lock(HHI_GP0_PLL_CNTL_AXG, LCD_PLL_LOCK_AXG);
-	if (ret)
+	if (ret) {
+		if (cnt++ < PLL_RETRY_MAX)
+			goto set_pll_retry_axg;
 		LCDERR("gp0_pll lock failed\n");
+	}
 }
 
 static void lcd_set_gp0_pll_g12a(struct lcd_clk_config_s *cConf)
 {
 	unsigned int pll_ctrl, pll_ctrl1, pll_ctrl3, pll_ctrl4, pll_ctrl6;
-	int ret;
+	int ret, cnt = 0;
 
 	if (lcd_debug_print_flag == 2)
 		LCDPR("%s\n", __func__);
@@ -333,6 +345,7 @@ static void lcd_set_gp0_pll_g12a(struct lcd_clk_config_s *cConf)
 		pll_ctrl6 = 0x56540000;
 	}
 
+set_gp0_pll_retry_g12a:
 	lcd_hiu_write(HHI_GP0_PLL_CNTL0_G12A, pll_ctrl);
 	lcd_hiu_write(HHI_GP0_PLL_CNTL1_G12A, pll_ctrl1);
 	lcd_hiu_write(HHI_GP0_PLL_CNTL2_G12A, 0x00);
@@ -345,14 +358,17 @@ static void lcd_set_gp0_pll_g12a(struct lcd_clk_config_s *cConf)
 	lcd_hiu_setb(HHI_GP0_PLL_CNTL0_G12A, 0, LCD_PLL_RST_GP0_G12A, 1);
 
 	ret = lcd_pll_wait_lock_g12a(1);
-	if (ret)
+	if (ret) {
+		if (cnt++ < PLL_RETRY_MAX)
+			goto set_gp0_pll_retry_g12a;
 		LCDERR("gp0_pll lock failed\n");
+	}
 }
 
 static void lcd_set_hpll_g12a(struct lcd_clk_config_s *cConf)
 {
 	unsigned int pll_ctrl, pll_ctrl2, pll_ctrl4, pll_ctrl5, pll_ctrl7;
-	int ret;
+	int ret, cnt = 0;
 
 	if (lcd_debug_print_flag == 2)
 		LCDPR("%s\n", __func__);
@@ -376,6 +392,7 @@ static void lcd_set_hpll_g12a(struct lcd_clk_config_s *cConf)
 		pll_ctrl7 = 0x56540000;
 	}
 
+set_hpll_pll_retry_g12a:
 	lcd_hiu_write(HHI_HDMI_PLL_CNTL, pll_ctrl);
 	lcd_hiu_write(HHI_HDMI_PLL_CNTL2, pll_ctrl2);
 	lcd_hiu_write(HHI_HDMI_PLL_CNTL3, 0x00);
@@ -388,14 +405,17 @@ static void lcd_set_hpll_g12a(struct lcd_clk_config_s *cConf)
 	lcd_hiu_setb(HHI_HDMI_PLL_CNTL, 0, LCD_PLL_RST_HPLL_G12A, 1);
 
 	ret = lcd_pll_wait_lock_g12a(0);
-	if (ret)
+	if (ret) {
+		if (cnt++ < PLL_RETRY_MAX)
+			goto set_hpll_pll_retry_g12a;
 		LCDERR("hpll lock failed\n");
+	}
 }
 
 static void lcd_set_gp0_pll_g12b(struct lcd_clk_config_s *cConf)
 {
 	unsigned int pll_ctrl, pll_ctrl1, pll_ctrl3, pll_ctrl4, pll_ctrl6;
-	int ret;
+	int ret, cnt = 0;
 
 	if (lcd_debug_print_flag == 2)
 		LCDPR("%s\n", __func__);
@@ -416,6 +436,7 @@ static void lcd_set_gp0_pll_g12b(struct lcd_clk_config_s *cConf)
 		pll_ctrl6 = 0x56540000;
 	}
 
+set_gp0_pll_retry_g12b:
 	lcd_hiu_write(HHI_GP0_PLL_CNTL0_G12A, pll_ctrl);
 	lcd_hiu_write(HHI_GP0_PLL_CNTL1_G12A, pll_ctrl1);
 	lcd_hiu_write(HHI_GP0_PLL_CNTL2_G12A, 0x00);
@@ -428,14 +449,17 @@ static void lcd_set_gp0_pll_g12b(struct lcd_clk_config_s *cConf)
 	lcd_hiu_setb(HHI_GP0_PLL_CNTL0_G12A, 0, LCD_PLL_RST_GP0_G12A, 1);
 
 	ret = lcd_pll_wait_lock(HHI_GP0_PLL_CNTL0_G12A, LCD_PLL_LOCK_GP0_G12A);
-	if (ret)
+	if (ret) {
+		if (cnt++ < PLL_RETRY_MAX)
+			goto set_gp0_pll_retry_g12b;
 		LCDERR("gp0_pll lock failed\n");
+	}
 }
 
 static void lcd_set_hpll_g12b(struct lcd_clk_config_s *cConf)
 {
 	unsigned int pll_ctrl, pll_ctrl2, pll_ctrl4, pll_ctrl5, pll_ctrl7;
-	int ret;
+	int ret, cnt = 0;
 
 	if (lcd_debug_print_flag == 2)
 		LCDPR("%s\n", __func__);
@@ -459,6 +483,7 @@ static void lcd_set_hpll_g12b(struct lcd_clk_config_s *cConf)
 		pll_ctrl7 = 0x56540000;
 	}
 
+set_hpll_pll_retry_g12b:
 	lcd_hiu_write(HHI_HDMI_PLL_CNTL, pll_ctrl);
 	lcd_hiu_write(HHI_HDMI_PLL_CNTL2, pll_ctrl2);
 	lcd_hiu_write(HHI_HDMI_PLL_CNTL3, 0x00);
@@ -471,8 +496,11 @@ static void lcd_set_hpll_g12b(struct lcd_clk_config_s *cConf)
 	lcd_hiu_setb(HHI_HDMI_PLL_CNTL, 0, LCD_PLL_RST_HPLL_G12A, 1);
 
 	ret = lcd_pll_wait_lock(HHI_HDMI_PLL_CNTL, LCD_PLL_LOCK_HPLL_G12A);
-	if (ret)
+	if (ret) {
+		if (cnt++ < PLL_RETRY_MAX)
+			goto set_hpll_pll_retry_g12b;
 		LCDERR("hpll lock failed\n");
+	}
 }
 
 static void lcd_set_pll_ss_level_tl1(unsigned int level)
@@ -521,7 +549,7 @@ static void lcd_set_pll_tl1(struct lcd_clk_config_s *cConf)
 		{0, 1, 0},  /* div16 */
 	};
 	unsigned int tcon_div_sel = cConf->pll_tcon_div_sel;
-	int ret;
+	int ret, cnt = 0;
 
 	if (lcd_debug_print_flag == 2)
 		LCDPR("%s\n", __func__);
@@ -538,6 +566,7 @@ static void lcd_set_pll_tl1(struct lcd_clk_config_s *cConf)
 		((1 << 20) | /* sdm_en */
 		(cConf->pll_frac << 0));
 
+set_pll_retry_tl1:
 	lcd_hiu_write(HHI_TCON_PLL_CNTL0, pll_ctrl);
 	udelay(10);
 	lcd_hiu_setb(HHI_TCON_PLL_CNTL0, 1, LCD_PLL_RST_TL1, 1);
@@ -562,6 +591,8 @@ static void lcd_set_pll_tl1(struct lcd_clk_config_s *cConf)
 
 	ret = lcd_pll_wait_lock(HHI_TCON_PLL_CNTL0, LCD_PLL_LOCK_TL1);
 	if (ret) {
+		if (cnt++ < PLL_RETRY_MAX)
+			goto set_pll_retry_tl1;
 		LCDERR("hpll lock failed\n");
 	} else {
 		udelay(100);
