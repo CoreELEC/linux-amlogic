@@ -688,8 +688,8 @@ static int ramoops_probe(struct platform_device *pdev)
 	}
 	pr_info("ramoops_io_en:%d %d old:0x%lx ftrace_size:0x%lx",
 		ramoops_io_en, ramoops_ftrace_en,
-		(unsigned long)persistent_ram_old_size(cxt->fprz),
-		ramoops_ftrace_size);
+		cxt->fprz ? (unsigned long)persistent_ram_old_size(cxt->fprz)
+		: 0, ramoops_ftrace_size);
 #endif
 
 	return 0;
