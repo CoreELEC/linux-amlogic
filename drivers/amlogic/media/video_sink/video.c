@@ -157,6 +157,7 @@ static bool omx_drop_done;
 static bool video_start_post;
 static bool videopeek;
 static bool nopostvideostart;
+static int hold_property_changed;
 static struct video_frame_detect_s video_frame_detect;
 static struct timeval time_setomxpts = {
 	.tv_sec = 0,
@@ -5390,11 +5391,14 @@ static inline bool vpts_expire(struct vframe_s *cur_vf,
 	systime = timestamp_pcrscr_get();
 	pts = next_vf->pts;
 
-	if (((pts == 0) && (cur_dispbuf != &vf_local))
+	if (((pts == 0) && ((cur_dispbuf != &vf_local)
+		|| (hold_property_changed == 1)))
 	    || (freerun_mode == FREERUN_DUR)) {
 		pts =
 		    timestamp_vpts_get() +
 		    (cur_vf ? DUR2PTS(cur_vf->duration) : 0);
+		if (hold_property_changed == 1)
+			hold_property_changed = 0;
 	}
 	/* check video PTS discontinuity */
 	else if ((enable_video_discontinue_report) &&
@@ -8361,6 +8365,7 @@ static void video_vf_unreg_provider(void)
 	first_frame_toggled = 0;
 	videopeek = 0;
 	nopostvideostart = false;
+	hold_property_changed = 0;
 
 	atomic_set(&video_unreg_flag, 1);
 	while (atomic_read(&video_inirq_flag) > 0)
@@ -10893,15 +10898,21 @@ static ssize_t video_hold_store(struct class *cla,
 				   const char *buf, size_t count)
 {
 	int r;
+	unsigned int value;
+
 	cur_width = 0;
 	cur_height = 0;
 	if (debug_flag & DEBUG_FLAG_BLACKOUT)
 		pr_info("%s(%s)\n", __func__, buf);
 
-	r = kstrtoint(buf, 0, &hold_video);
+	r = kstrtoint(buf, 0, &value);
 	if (r < 0)
 		return -EINVAL;
 
+	if (value == 0 && hold_video == 1)
+		hold_property_changed = 1;
+
+	hold_video = value;
 	return count;
 }
 
