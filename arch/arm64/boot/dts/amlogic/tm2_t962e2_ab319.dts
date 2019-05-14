@@ -1310,6 +1310,10 @@
 
 		/* In for ACODEC_ADC */
 		acodec_adc = <1>;
+		/*enable default mclk(12.288M), before extern codec start*/
+		start_clk_enable = <1>;
+		/*tdm clk tuning enable*/
+		clk_tuning_enable = <1>;
 
 		status = "okay";
 
@@ -1460,6 +1464,8 @@
 		asrc_id = <0>;
 		auto_asrc = <3>;
 
+		/*spdif clk tuning enable*/
+		clk_tuning_enable = <1>;
 		status = "okay";
 	};
 

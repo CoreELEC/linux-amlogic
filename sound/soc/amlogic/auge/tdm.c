@@ -110,6 +110,8 @@ struct aml_tdm {
 
 	/* tdmin_lb src sel */
 	int tdmin_lb_src;
+	int start_clk_enable;
+	int clk_tuning_enable;
 };
 
 static const struct snd_pcm_hardware aml_tdm_hardware = {
@@ -199,20 +201,18 @@ static const struct soc_enum i2sin_clk_enum[] = {
 			i2sin_clk),
 };
 
-
-
 static const struct snd_kcontrol_new snd_tdm_controls[] = {
 	SOC_ENUM_EXT("I2SIn CLK", i2sin_clk_enum,
 				tdmin_clk_get,
 				NULL),
+};
 
+static const struct snd_kcontrol_new snd_tdm_clk_controls[] = {
 	SOC_SINGLE_EXT("TDM MCLK Fine Setting",
 				0, 0, 2000000, 0,
 				tdm_clk_get,
 				tdm_clk_set),
 };
-
-
 
 static irqreturn_t aml_tdm_ddr_isr(int irq, void *devid)
 {
@@ -1283,7 +1283,16 @@ static int aml_dai_tdm_probe(struct snd_soc_dai *cpu_dai)
 	ret = snd_soc_add_dai_controls(cpu_dai, snd_tdm_controls,
 					ARRAY_SIZE(snd_tdm_controls));
 	if (ret < 0)
-		pr_err("%s, failed add snd spdif controls\n", __func__);
+		pr_err("%s, failed add snd tdm controls\n", __func__);
+
+	if (p_tdm->clk_tuning_enable == 1) {
+		ret = snd_soc_add_dai_controls(cpu_dai,
+				snd_tdm_clk_controls,
+				ARRAY_SIZE(snd_tdm_clk_controls));
+		if (ret < 0)
+			pr_err("%s, failed add snd tdm clk controls\n",
+				__func__);
+	}
 
 	/* config ddr arb */
 	aml_tdm_arb_config(p_tdm->actrl);
@@ -1665,8 +1674,17 @@ static int aml_tdm_platform_probe(struct platform_device *pdev)
 		/*return PTR_ERR(p_tdm->pin_ctl);*/
 	}
 
+	ret = of_property_read_u32(node, "start_clk_enable",
+				&p_tdm->start_clk_enable);
+	if (ret < 0)
+		p_tdm->start_clk_enable = 0;
+	else
+		pr_info("TDM id %d output clk enable:%d\n",
+			p_tdm->id, p_tdm->start_clk_enable);
+
 	/*set default clk for output*/
-	aml_set_default_tdm_clk(p_tdm);
+	if (p_tdm->start_clk_enable == 1)
+		aml_set_default_tdm_clk(p_tdm);
 
 	/* mclk pad ctrl */
 	ret = of_property_read_u32(node, "mclk_pad",
@@ -1689,6 +1707,14 @@ static int aml_tdm_platform_probe(struct platform_device *pdev)
 		dev_err(dev, "devm_snd_soc_register_component failed\n");
 		return ret;
 	}
+
+	ret = of_property_read_u32(node, "clk_tuning_enable",
+				&p_tdm->clk_tuning_enable);
+	if (ret < 0)
+		p_tdm->clk_tuning_enable = 0;
+	else
+		pr_info("TDM id %d tuning clk enable:%d\n",
+			p_tdm->id, p_tdm->clk_tuning_enable);
 
 	return devm_snd_soc_register_platform(dev, &aml_tdm_platform);
 }

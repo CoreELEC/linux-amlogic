@@ -114,6 +114,7 @@ struct aml_spdif {
 	/* mixer control vals */
 	bool mute;
 	enum SPDIF_SRC spdifin_src;
+	int clk_tuning_enable;
 };
 
 static const struct snd_pcm_hardware aml_spdif_hardware = {
@@ -400,7 +401,9 @@ static const struct snd_kcontrol_new snd_spdif_controls[] = {
 				0, aml_get_hdmi_out_audio,
 				aml_set_hdmi_out_audio),
 #endif
+};
 
+static const struct snd_kcontrol_new snd_spdif_clk_controls[] = {
 	SOC_SINGLE_EXT("SPDIF CLK Fine Setting",
 				0, 0, 2000000, 0,
 				spdif_clk_get,
@@ -985,6 +988,15 @@ static int aml_dai_spdif_probe(struct snd_soc_dai *cpu_dai)
 			pr_err("%s, failed add snd spdif controls\n", __func__);
 	}
 
+	if (p_spdif->clk_tuning_enable == 1) {
+		ret = snd_soc_add_dai_controls(cpu_dai,
+				snd_spdif_clk_controls,
+				ARRAY_SIZE(snd_spdif_clk_controls));
+		if (ret < 0)
+			pr_err("%s, failed add snd spdif clk controls\n",
+				__func__);
+	}
+
 	return 0;
 }
 
@@ -1510,6 +1522,15 @@ static int aml_spdif_parse_of(struct platform_device *pdev)
 		dev_err(dev, "Can't retrieve spdifout clock\n");
 		return PTR_ERR(p_spdif->clk_spdifout);
 	}
+
+	ret = of_property_read_u32(pdev->dev.of_node,
+				"clk_tuning_enable",
+				&p_spdif->clk_tuning_enable);
+	if (ret < 0)
+		p_spdif->clk_tuning_enable = 0;
+	else
+		pr_info("Spdif id %d tuning clk enable:%d\n",
+			p_spdif->id, p_spdif->clk_tuning_enable);
 
 	return 0;
 }
