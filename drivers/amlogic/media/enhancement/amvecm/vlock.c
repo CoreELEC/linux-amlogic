@@ -1231,7 +1231,8 @@ static void vlock_enable_step3_pll(void)
 					(org_m - 1))?(org_m - 1):(pre_m - 1);
 			}
 			m_reg_value = (tmp_value & 0xffffff00) + tar_m;
-			if (tar_m != (tmp_value & 0xffffff00)) {
+			if ((tar_m != (tmp_value & 0xffffff00)) &&
+				(!vlock.ss_sts)) {
 				vlock_set_panel_pll_m(m_reg_value);
 				mchang = 1;
 				if (vlock_debug & VLOCK_DEBUG_INFO)
@@ -1664,6 +1665,11 @@ void vlock_set_phase_en(u32 en)
 	pr_info("vlock phlock_en=%d\n", en);
 }
 
+u32 vlock_get_phase_en(void)
+{
+	return vlock.phlock_en;
+}
+
 void vlock_phaselock_check(struct stvlock_sig_sts *pvlock,
 		struct vframe_s *vf)
 {
@@ -1983,7 +1989,7 @@ void vlock_fsm_check_lock_sts(struct stvlock_sig_sts *pvlock,
 			if (vlock_debug & VLOCK_DEBUG_INFO)
 				pr_info("vlock warning: set back ss on(%d, %d)\n",
 				frqlock_sts, phlock_sts);
-			pvlock->pll_mode_pause = true;
+			/*pvlock->pll_mode_pause = true;*/
 			pvlock->ss_sts = true;
 			vlock_set_panel_ss(true);
 		}

@@ -48,7 +48,7 @@
 /* Ref.2019/04/25: tl1 vdin0 afbce dynamically switch support,
  *                 vpp also should support this function
  */
-#define VDIN_VER "Ref.2019/04/25"
+#define VDIN_VER "Ref.2019/05/14"
 
 /*the counter of vdin*/
 #define VDIN_MAX_DEVS			2
@@ -89,9 +89,13 @@
 #define VDIN_CANVAS_MAX_CNT				9
 
 /*values of vdin game mode process flag */
+/*enable*/
 #define VDIN_GAME_MODE_0                (1 << 0)
+/*delay 1 frame*/
 #define VDIN_GAME_MODE_1                (1 << 1)
+/*delay 2 frame*/
 #define VDIN_GAME_MODE_2                (1 << 2)
+/*when phase lock, will switch 2 to 1*/
 #define VDIN_GAME_MODE_SWITCH_EN        (1 << 3)
 
 /*flag for flush vdin buff*/
@@ -448,6 +452,7 @@ extern void vdin_debugfs_init(struct vdin_dev_s *vdevp);
 extern void vdin_debugfs_exit(struct vdin_dev_s *vdevp);
 
 extern bool vlock_get_phlock_flag(void);
+u32 vlock_get_phase_en(void);
 
 extern struct vdin_dev_s *vdin_get_dev(unsigned int index);
 extern void vdin_mif_config_init(struct vdin_dev_s *devp);

@@ -97,7 +97,7 @@ static bool work_mode_simple;
 static int phase_lock_flag;
 /*game_mode_switch_frames:min num is 5 by 1080p60hz input test*/
 static int game_mode_switch_frames = 10;
-static int game_mode_phlock_switch_frames = 60;
+static int game_mode_phlock_switch_frames = 120;
 static unsigned int dv_work_delby;
 
 static struct vf_entry *vfe_drop_force;
@@ -1845,6 +1845,8 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 			/* make sure phase lock for next few frames */
 			if (vlock_get_phlock_flag())
 				phase_lock_flag++;
+			else
+				phase_lock_flag = 0;
 			if (phase_lock_flag >= game_mode_phlock_switch_frames) {
 				if (vdin_dbg_en) {
 					pr_info("switch game mode (%d-->5), frame_cnt=%d\n",
