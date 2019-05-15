@@ -14928,3 +14928,10 @@ F:	scripts/amlogic/weekly_change.py
 ANLOGIC HIFI4DSP
 M: Shuyu Li <Shuyu.Li@amlogic.com>
 F: drivers/amlogic/hifi4dsp/*
+
+AMLOGCI SM1 AC200/AC213 BUILDROOT DTS
+M:  Guofeang Tang <guofeng.tang@amlogic.com>
+F:  arch/arm/boot/dts/amlogic/sm1_s905d3_ac200_buildroot.dts
+F:  arch/arm/boot/dts/amlogic/sm1_s905x3_ac213_buildroot.dts
+F:  arch/arm64/boot/dts/amlogic/sm1_s905d3_ac200_buildroot.dts
+F:  arch/arm64/boot/dts/amlogic/sm1_s905x3_ac213_buildroot.dts
