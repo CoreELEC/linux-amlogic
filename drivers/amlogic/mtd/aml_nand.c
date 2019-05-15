@@ -2143,6 +2143,7 @@ int aml_nand_init(struct aml_nand_chip *aml_chip)
 #endif
 	aml_nand_key_check(mtd);
 	aml_nand_dtb_check(mtd);
+	aml_nand_ddr_check(mtd);
 
 	if (aml_chip->support_new_nand == 1) {
 		if ((new_nand_info->type)

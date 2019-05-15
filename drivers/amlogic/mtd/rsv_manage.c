@@ -920,6 +920,24 @@ int aml_nand_rsv_info_init(struct mtd_info *mtd)
 	aml_chip->aml_nanddtb_info->size = aml_chip->dtbsize;
 	memcpy(aml_chip->aml_nanddtb_info->name, DTB_NAND_MAGIC, 4);
 
+	aml_chip->aml_nandddr_info =
+		kzalloc(sizeof(struct aml_nandrsv_info_t), GFP_KERNEL);
+	if (aml_chip->aml_nandddr_info == NULL)
+		return -ENOMEM;
+	aml_chip->aml_nandddr_info->mtd = mtd;
+	aml_chip->aml_nandddr_info->valid_node =
+		kzalloc(sizeof(struct valid_node_t), GFP_KERNEL);
+	if (aml_chip->aml_nandddr_info->valid_node == NULL)
+		return -ENOMEM;
+
+	aml_chip->aml_nandddr_info->valid_node->phy_blk_addr = -1;
+	aml_chip->aml_nandddr_info->start_block =
+		aml_chip->aml_nanddtb_info->end_block;
+	aml_chip->aml_nandddr_info->end_block =
+		aml_chip->aml_nanddtb_info->end_block + NAND_DDR_BLOCK_NUM;
+	aml_chip->aml_nandddr_info->size = aml_chip->dtbsize;
+	memcpy(aml_chip->aml_nandddr_info->name, DDR_NAND_MAGIC, 4);
+
 	if ((vernier - (BOOT_TOTAL_PAGES >> pages_per_blk_shift)) >
 	    RESERVED_BLOCK_NUM) {
 		pr_info("ERROR: total blk number is over the limit\n");
@@ -935,6 +953,8 @@ int aml_nand_rsv_info_init(struct mtd_info *mtd)
 				aml_chip->aml_nandkey_info->start_block);
 		pr_info("dtb_start=%d\n",
 				aml_chip->aml_nanddtb_info->start_block);
+		pr_info("ddr_start=%d\n",
+				aml_chip->aml_nandddr_info->start_block);
 
 	return 0;
 }
@@ -1250,6 +1270,21 @@ int aml_nand_dtb_check(struct mtd_info *mtd)
 		pr_info("%s %d\n", __func__, __LINE__);
 
 	if (aml_chip->aml_nanddtb_info->valid == 0)
+		pr_info("%s %d NO dtb exist\n", __func__, __LINE__);
+
+	return ret;
+}
+
+int aml_nand_ddr_check(struct mtd_info *mtd)
+{
+	struct aml_nand_chip *aml_chip = mtd_to_nand_chip(mtd);
+	int ret = 0;
+
+	ret = aml_nand_scan_rsv_info(mtd, aml_chip->aml_nandddr_info);
+	if ((ret != 0) && ((ret != (-1))))
+		pr_info("%s %d\n", __func__, __LINE__);
+
+	if (aml_chip->aml_nandddr_info->valid == 0)
 		pr_info("%s %d NO dtb exist\n", __func__, __LINE__);
 
 	return ret;
