@@ -900,7 +900,8 @@ static int refresh_tvout_mode(void)
 	if (tvout_monitor_flag == 0)
 		return 0;
 
-	hpd_state = vout_get_hpd_state();
+       hpd_state = 1;
+
 	if (hpd_state) {
 		/* Vout will check the checksum of EDID of uboot and kernel.
 		 * If checksum is different. Vout will set null to display/mode.
