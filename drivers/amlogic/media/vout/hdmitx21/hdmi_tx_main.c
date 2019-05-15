@@ -4942,6 +4942,7 @@ static void hdmitx_hpd_plugin_handler(struct work_struct *work)
 			rx_set_repeater_support(1);
 	}
 
+	set_disp_mode_auto();
 	info = hdmitx_get_current_vinfo(NULL);
 	if (info && info->mode == VMODE_HDMI)
 		hdmitx21_set_audio(hdev, &hdev->cur_audio_param);
