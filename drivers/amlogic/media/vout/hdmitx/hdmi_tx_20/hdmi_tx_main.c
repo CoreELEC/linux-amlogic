@@ -6344,6 +6344,7 @@ static void hdmitx_hpd_plugin_handler(struct work_struct *work)
 		rx_set_receive_hdcp(bksv_buf, 1, 1, 0, 0);
 	}
 
+	set_disp_mode_auto();
 	info = hdmitx_get_current_vinfo(NULL);
 	if (info && info->mode == VMODE_HDMI)
 		hdmitx_set_audio(hdev, &hdev->cur_audio_param);
