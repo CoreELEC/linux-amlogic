@@ -42,6 +42,7 @@
 #define MESON_CPU_ID_TXHD		9
 #define MESON_CPU_ID_G12A		10
 #define MESON_CPU_ID_G12B		11
+#define MESON_CPU_ID_SM1		12
 
 
 /*****************************
@@ -130,10 +131,10 @@ struct rx_cap {
 	unsigned char edid_version;
 	unsigned char edid_revision;
 	unsigned char ColorDeepSupport;
-	unsigned int Video_Latency;
-	unsigned int Audio_Latency;
-	unsigned int Interlaced_Video_Latency;
-	unsigned int Interlaced_Audio_Latency;
+	unsigned int vLatency;
+	unsigned int aLatency;
+	unsigned int i_vLatency;
+	unsigned int i_aLatency;
 	unsigned int threeD_present;
 	unsigned int threeD_Multi_present;
 	unsigned int hdmi_vic_LEN;
@@ -300,9 +301,8 @@ struct hdmitx_dev {
 	struct pinctrl_state *pinctrl_default;
 	struct delayed_work work_hpd_plugin;
 	struct delayed_work work_hpd_plugout;
-	struct delayed_work work_aud_hpd_plug;
 	struct delayed_work work_rxsense;
-	struct work_struct work_internal_intr;
+	struct delayed_work work_internal_intr;
 	struct work_struct work_hdr;
 	struct delayed_work work_do_hdcp;
 #ifdef CONFIG_AML_HDMI_TX_14

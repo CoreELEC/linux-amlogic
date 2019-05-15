@@ -46,6 +46,7 @@
 #include <linux/cma.h>
 #include <linux/dma-contiguous.h>
 #include <linux/clk.h>
+#include <linux/amlogic/cpu_version.h>
 /* Amlogic Headers */
 #include <linux/amlogic/media/vout/vinfo.h>
 #include <linux/amlogic/media/vout/vout_notify.h>
@@ -59,6 +60,7 @@
 #include "osd_log.h"
 #include "osd_sync.h"
 #include "osd_io.h"
+#include "osd_rdma.h"
 static __u32 var_screeninfo[5];
 static struct osd_device_data_s osd_meson_dev;
 
@@ -2071,6 +2073,9 @@ int osd_notify_callback(struct notifier_block *block, unsigned long cmd,
 	switch (cmd) {
 	case  VOUT_EVENT_MODE_CHANGE:
 		set_osd_logo_freescaler();
+		if (osd_hw.osd_meson_dev.cpu_id == __MESON_CPU_MAJOR_ID_G12B &&
+			is_meson_rev_b())
+			set_reset_rdma_trigger_line();
 		if ((osd_meson_dev.osd_ver == OSD_NORMAL)
 			|| (osd_meson_dev.osd_ver == OSD_SIMPLE)
 			|| (osd_hw.hwc_enable == 0)) {
@@ -3047,9 +3052,18 @@ static ssize_t free_scale_switch(struct device *device,
 
 	ret = kstrtoint(buf, 0, &res);
 	free_scale_enable = res;
-	osd_switch_free_scale(
-		(fb_info->node == DEV_OSD0) ? DEV_OSD1 : DEV_OSD0,
-		0, 0, fb_info->node, 1, free_scale_enable);
+
+	if (osd_hw.osd_meson_dev.osd_ver == OSD_HIGH_ONE)
+		osd_switch_free_scale(
+			(fb_info->node == DEV_OSD0) ? DEV_OSD0 : DEV_OSD1,
+			1, free_scale_enable, fb_info->node, 1,
+			free_scale_enable);
+	else
+		osd_switch_free_scale(
+			(fb_info->node == DEV_OSD0) ? DEV_OSD1 : DEV_OSD0,
+			0, 0, fb_info->node, 1,
+			free_scale_enable);
+
 	osd_log_info("free_scale_switch to fb%d, mode: 0x%x\n",
 		fb_info->node, free_scale_enable);
 	return count;
@@ -3468,6 +3482,33 @@ static ssize_t show_osd_status(struct device *device,
 				fb_info->node, osd_hw.enable[fb_info->node]);
 }
 
+static ssize_t show_osd_line_n_rdma(
+	struct device *device, struct device_attribute *attr,
+	char *buf)
+{
+	int  line_n_rdma;
+
+	line_n_rdma = osd_get_line_n_rdma();
+
+	return snprintf(buf, PAGE_SIZE, "0x%x\n", line_n_rdma);
+}
+
+static ssize_t store_osd_line_n_rdma(
+	struct device *device, struct device_attribute *attr,
+	const char *buf, size_t count)
+{
+	int line_n_rdma;
+	int ret = 0;
+
+	ret = kstrtoint(buf, 0, &line_n_rdma);
+	if (ret < 0)
+		return -EINVAL;
+
+	osd_set_line_n_rdma(line_n_rdma);
+
+	return count;
+}
+
 static inline  int str2lower(char *str)
 {
 	while (*str != '\0') {
@@ -3678,7 +3719,8 @@ static struct device_attribute osd_attrs[] = {
 			show_osd_plane_alpha, store_osd_plane_alpha),
 	__ATTR(osd_status, 0444,
 			show_osd_status, NULL),
-
+	__ATTR(osd_line_n_rdma, 0644,
+			show_osd_line_n_rdma, store_osd_line_n_rdma),
 };
 
 static struct device_attribute osd_attrs_viu2[] = {
@@ -4038,6 +4080,36 @@ static struct osd_device_data_s osd_tl1 = {
 	.has_viu2 = 1,
 };
 
+static struct osd_device_data_s osd_tm2 = {
+	.cpu_id = __MESON_CPU_MAJOR_ID_TM2,
+	.osd_ver = OSD_HIGH_ONE,
+	.afbc_type = MALI_AFBC,
+	.osd_count = 4,
+	.has_deband = 1,
+	.has_lut = 1,
+	.has_rdma = 1,
+	.has_dolby_vision = 0,
+	.osd_fifo_len = 64, /* fifo len 64*8 = 512 */
+	.vpp_fifo_len = 0xfff,/* 2048 */
+	.dummy_data = 0x00808000,
+	.has_viu2 = 1,
+};
+
+static struct osd_device_data_s osd_sm1 = {
+	.cpu_id = __MESON_CPU_MAJOR_ID_SM1,
+	.osd_ver = OSD_HIGH_ONE,
+	.afbc_type = MALI_AFBC,
+	.osd_count = 4,
+	.has_deband = 1,
+	.has_lut = 1,
+	.has_rdma = 1,
+	.has_dolby_vision = 1,
+	.osd_fifo_len = 64, /* fifo len 64*8 = 512 */
+	.vpp_fifo_len = 0xfff,/* 2048 */
+	.dummy_data = 0x00808000,
+	.has_viu2 = 1,
+};
+
 static const struct of_device_id meson_fb_dt_match[] = {
 	{
 		.compatible = "amlogic, meson-gxbb",
@@ -4083,6 +4155,14 @@ static const struct of_device_id meson_fb_dt_match[] = {
 	{
 		.compatible = "amlogic, meson-tl1",
 		.data = &osd_tl1,
+	},
+	{
+		.compatible = "amlogic, meson-sm1",
+		.data = &osd_sm1,
+	},
+	{
+		.compatible = "amlogic, meson-tm2",
+		.data = &osd_tm2,
 	},
 	{},
 };

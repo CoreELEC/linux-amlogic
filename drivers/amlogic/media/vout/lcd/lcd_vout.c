@@ -36,6 +36,7 @@
 #ifdef CONFIG_OF
 #include <linux/of.h>
 #endif
+#include <linux/amlogic/pm.h>
 #include <linux/amlogic/cpu_version.h>
 #include <linux/amlogic/media/vout/vinfo.h>
 #include <linux/amlogic/media/vout/vout_notify.h>
@@ -1112,29 +1113,14 @@ static int lcd_config_probe(struct platform_device *pdev)
 		LCDPR("detect lcd_auto_test: %d\n", lcd_driver->lcd_auto_test);
 	}
 
-	ret = of_property_read_string_index(lcd_driver->dev->of_node,
-		"interrupt-names", 0, &str);
-	if (ret == 0) {
-		lcd_driver->res_vsync_irq = platform_get_resource(pdev,
-			IORESOURCE_IRQ, 0);
-	}
-	ret = of_property_read_string_index(lcd_driver->dev->of_node,
-		"interrupt-names", 1, &str);
-	if (ret == 0) {
-		if (strcmp(str, "vbyone") == 0) {
-			lcd_driver->res_vx1_irq =
-				platform_get_resource(pdev, IORESOURCE_IRQ, 1);
-		} else if (strcmp(str, "vsync2") == 0) {
-			lcd_driver->res_vsync2_irq =
-				platform_get_resource(pdev, IORESOURCE_IRQ, 1);
-		}
-	}
-	ret = of_property_read_string_index(lcd_driver->dev->of_node,
-		"interrupt-names", 2, &str);
-	if (ret == 0) {
-		lcd_driver->res_tcon_irq = platform_get_resource(pdev,
-			IORESOURCE_IRQ, 2);
-	}
+	lcd_driver->res_vsync_irq = platform_get_resource_byname(pdev,
+		IORESOURCE_IRQ, "vsync");
+	lcd_driver->res_vsync2_irq = platform_get_resource_byname(pdev,
+		IORESOURCE_IRQ, "vsync2");
+	lcd_driver->res_vx1_irq = platform_get_resource_byname(pdev,
+		IORESOURCE_IRQ, "vbyone");
+	lcd_driver->res_tcon_irq = platform_get_resource_byname(pdev,
+		IORESOURCE_IRQ, "tcon");
 
 	lcd_driver->lcd_info = &lcd_vinfo;
 	lcd_driver->lcd_config = &lcd_config_dft;
@@ -1272,6 +1258,12 @@ static struct lcd_data_s lcd_data_tl1 = {
 	.reg_map_table = &lcd_reg_tl1[0],
 };
 
+static struct lcd_data_s lcd_data_sm1 = {
+	.chip_type = LCD_CHIP_SM1,
+	.chip_name = "sm1",
+	.reg_map_table = &lcd_reg_axg[0],
+};
+
 static const struct of_device_id lcd_dt_match_table[] = {
 	{
 		.compatible = "amlogic, lcd-gxl",
@@ -1304,6 +1296,10 @@ static const struct of_device_id lcd_dt_match_table[] = {
 	{
 		.compatible = "amlogic, lcd-tl1",
 		.data = &lcd_data_tl1,
+	},
+	{
+		.compatible = "amlogic, lcd-sm1",
+		.data = &lcd_data_sm1,
 	},
 	{},
 };
@@ -1409,6 +1405,14 @@ static int lcd_remove(struct platform_device *pdev)
 
 static int lcd_resume(struct platform_device *pdev)
 {
+	if (lcd_debug_print_flag)
+		LCDPR("resume method: %d\n", get_resume_method());
+
+	if ((get_resume_method() == RTC_WAKEUP) ||
+		(get_resume_method() == AUTO_WAKEUP) ||
+		(get_resume_method() == UDEFINED_WAKEUP))
+		return 0;
+
 	if ((lcd_driver->lcd_status & LCD_STATUS_VMODE_ACTIVE) == 0)
 		return 0;
 

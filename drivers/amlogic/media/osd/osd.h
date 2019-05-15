@@ -277,6 +277,8 @@ enum cpuid_type_e {
 	__MESON_CPU_MAJOR_ID_G12A,
 	__MESON_CPU_MAJOR_ID_G12B,
 	__MESON_CPU_MAJOR_ID_TL1,
+	__MESON_CPU_MAJOR_ID_SM1,
+	__MESON_CPU_MAJOR_ID_TM2,
 	__MESON_CPU_MAJOR_ID_UNKNOWN,
 };
 
@@ -449,6 +451,8 @@ struct layer_fence_map_s {
 	u32 ext_addr;
 	u32 format;
 	u32 compose_type;
+	u32 fb_width;
+	u32 fb_height;
 	u32 src_x;
 	u32 src_y;
 	u32 src_w;
@@ -750,10 +754,12 @@ struct hw_para_s {
 	u32 hw_rdma_en;
 	u32 blend_bypass;
 	u32 hdr_used;
+	u32 workaround_line;
 	u32 basic_urgent;
 	u32 two_ports;
 	u32 afbc_err_cnt;
 	u32 viu_type;
+	u32 line_n_rdma;
 	struct hw_debug_s osd_debug;
 	int out_fence_fd;
 	int in_fd[HW_OSD_COUNT];

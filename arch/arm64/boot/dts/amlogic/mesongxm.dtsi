@@ -26,6 +26,7 @@
 #include <dt-bindings/pwm/pwm.h>
 #include <dt-bindings/pwm/meson.h>
 #include "mesongxm-gpu-t82x.dtsi"
+#include "gxm-sched-energy.dtsi"
 / {
 	cpus:cpus {
 		#address-cells = <2>;
@@ -69,6 +70,8 @@
 			clocks = <&scpi_dvfs 0>;
 			clock-names = "cpu-cluster.0";
 			cpu-idle-states = <&SYSTEM_SLEEP_0>;
+			sched-energy-costs = <&CPU_COST_A53_HS
+						&CLUSTER_COST_A53_HS>;
 /*
  *		cpu-idle-states = <&CPU_SLEEP_0 &CLUSTER_SLEEP_0
  *				&SYSTEM_SLEEP_0>;
@@ -83,6 +86,8 @@
 			clocks = <&scpi_dvfs 0>;
 			clock-names = "cpu-cluster.0";
 			cpu-idle-states = <&SYSTEM_SLEEP_0>;
+			sched-energy-costs = <&CPU_COST_A53_HS
+						&CLUSTER_COST_A53_HS>;
 /*
  *		cpu-idle-states = <&CPU_SLEEP_0 &CLUSTER_SLEEP_0
  *				&SYSTEM_SLEEP_0>;
@@ -97,6 +102,8 @@
 			clocks = <&scpi_dvfs 0>;
 			clock-names = "cpu-cluster.0";
 			cpu-idle-states = <&SYSTEM_SLEEP_0>;
+			sched-energy-costs = <&CPU_COST_A53_HS
+						&CLUSTER_COST_A53_HS>;
 /*
  *		cpu-idle-states = <&CPU_SLEEP_0 &CLUSTER_SLEEP_0
  *				&SYSTEM_SLEEP_0>;
@@ -111,6 +118,8 @@
 			clocks = <&scpi_dvfs 0>;
 			clock-names = "cpu-cluster.0";
 			cpu-idle-states = <&SYSTEM_SLEEP_0>;
+			sched-energy-costs = <&CPU_COST_A53_HS
+						&CLUSTER_COST_A53_HS>;
 /*
  *		cpu-idle-states = <&CPU_SLEEP_0 &CLUSTER_SLEEP_0
  *				&SYSTEM_SLEEP_0>;
@@ -125,6 +134,8 @@
 			clocks = <&scpi_dvfs 1>;
 			clock-names = "cpu-cluster.1";
 			cpu-idle-states = <&SYSTEM_SLEEP_0>;
+			sched-energy-costs = <&CPU_COST_A53
+						&CLUSTER_COST_A53>;
 /*
  *		cpu-idle-states = <&CPU_SLEEP_0 &CLUSTER_SLEEP_0
  *				&SYSTEM_SLEEP_0>;
@@ -139,6 +150,8 @@
 			clocks = <&scpi_dvfs 1>;
 			clock-names = "cpu-cluster.1";
 			cpu-idle-states = <&SYSTEM_SLEEP_0>;
+			sched-energy-costs = <&CPU_COST_A53
+						&CLUSTER_COST_A53>;
 /*
  *		cpu-idle-states = <&CPU_SLEEP_0 &CLUSTER_SLEEP_0
  *				&SYSTEM_SLEEP_0>;
@@ -152,6 +165,8 @@
 			clocks = <&scpi_dvfs 1>;
 			clock-names = "cpu-cluster.1";
 			cpu-idle-states = <&SYSTEM_SLEEP_0>;
+			sched-energy-costs = <&CPU_COST_A53
+						&CLUSTER_COST_A53>;
 /*
  *		cpu-idle-states = <&CPU_SLEEP_0 &CLUSTER_SLEEP_0
  *				&SYSTEM_SLEEP_0>;
@@ -166,6 +181,8 @@
 			clocks = <&scpi_dvfs 1>;
 			clock-names = "cpu-cluster.1";
 			cpu-idle-states = <&SYSTEM_SLEEP_0>;
+			sched-energy-costs = <&CPU_COST_A53
+						&CLUSTER_COST_A53>;
 /*
  *		cpu-idle-states = <&CPU_SLEEP_0 &CLUSTER_SLEEP_0
  *				&SYSTEM_SLEEP_0>;
@@ -223,12 +240,17 @@
 		bit_mode=<12>;
 		bit_resolution=<0>;
 	};
+
 	arm_pmu {
 		compatible = "arm,armv8-pmuv3";
-		interrupts = <0 137 4>,
-			     <0 138 4>,
-			     <0 153 4>,
-			     <0 154 4>;
+		/* clusterb-enabled; */
+		interrupts = <GIC_SPI 137 IRQ_TYPE_LEVEL_HIGH>;
+		reg = <0x0 0xc8834680 0x0 0x4>;
+		cpumasks = <0xf>;
+		/* default 10ms */
+		relax-timer-ns = <10000000>;
+		/* default 10000us */
+		max-wait-cnt = <10000>;
 	};
 
 	gic: interrupt-controller@2c001000 {

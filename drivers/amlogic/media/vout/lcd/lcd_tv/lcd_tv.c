@@ -389,7 +389,8 @@ static int lcd_vout_clr_state(int index)
 	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
 
 	lcd_vout_state &= ~(1 << index);
-	lcd_drv->viu_sel = LCD_VIU_SEL_NONE;
+	if (lcd_drv->viu_sel == index)
+		lcd_drv->viu_sel = LCD_VIU_SEL_NONE;
 
 	return 0;
 }
@@ -445,17 +446,7 @@ static int lcd_framerate_automation_set_mode(void)
 	if (lcd_drv->lcd_config->lcd_basic.lcd_type == LCD_VBYONE)
 		lcd_vbyone_interrupt_enable(0);
 	/* change clk parameter */
-	switch (lcd_drv->lcd_config->lcd_timing.clk_change) {
-	case LCD_CLK_PLL_CHANGE:
-		lcd_clk_generate_parameter(lcd_drv->lcd_config);
-		lcd_clk_set(lcd_drv->lcd_config);
-		break;
-	case LCD_CLK_FRAC_UPDATE:
-		lcd_clk_update(lcd_drv->lcd_config);
-		break;
-	default:
-		break;
-	}
+	lcd_clk_change(lcd_drv->lcd_config);
 	lcd_venc_change(lcd_drv->lcd_config);
 	if (lcd_drv->lcd_config->lcd_basic.lcd_type == LCD_VBYONE)
 		lcd_vbyone_wait_stable();
@@ -1346,6 +1337,8 @@ static void lcd_set_vinfo(unsigned int sync_duration)
 
 	LCDPR("%s: sync_duration=%d\n", __func__, sync_duration);
 
+	vout_notifier_call_chain(VOUT_EVENT_MODE_CHANGE_PRE,
+		&lcd_drv->lcd_info->mode);
 	/* update vinfo */
 	lcd_drv->lcd_info->sync_duration_num = sync_duration;
 	lcd_drv->lcd_info->sync_duration_den = 100;
@@ -1360,17 +1353,7 @@ static void lcd_set_vinfo(unsigned int sync_duration)
 	if (lcd_drv->lcd_config->lcd_basic.lcd_type == LCD_VBYONE)
 		lcd_vbyone_interrupt_enable(0);
 	/* change clk parameter */
-	switch (lcd_drv->lcd_config->lcd_timing.clk_change) {
-	case LCD_CLK_PLL_CHANGE:
-		lcd_clk_generate_parameter(lcd_drv->lcd_config);
-		lcd_clk_set(lcd_drv->lcd_config);
-		break;
-	case LCD_CLK_FRAC_UPDATE:
-		lcd_clk_update(lcd_drv->lcd_config);
-		break;
-	default:
-		break;
-	}
+	lcd_clk_change(lcd_drv->lcd_config);
 	lcd_venc_change(lcd_drv->lcd_config);
 	if (lcd_drv->lcd_config->lcd_basic.lcd_type == LCD_VBYONE)
 		lcd_vbyone_wait_stable();

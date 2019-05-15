@@ -193,9 +193,11 @@ static unsigned int combing_bias_motion_setting[MAX_NUM_DI_REG] = {
 	0x02020606,
 	0x05080344,
 	0x40020a04,
-	0x0001ff0c, /* 0x0001FF12 */
-	0x00400204, /* 0x00200204 */
-	0x00016404, /* 0x00012002 */
+	/*idea from mingliang.dong & vlsi zheng.bao begin*/
+	0x0001FF12, /* 0x0001ff0c */
+	0x00200204, /* 0x00400204 */
+	0x00012002, /* 0x00016404 */
+	/*idea from mingliang.dong & vlsi zheng.bao end*/
 	0x00000142
 };
 
@@ -211,10 +213,12 @@ static unsigned int combing_very_motion_setting[MAX_NUM_DI_REG] = {
 	0x0D200302,
 	0x02020606,
 	0x05080344,
-	0x40020a04,  /* 0x60000404,*/
-	0x0001ff0c, /* 0x0001FF12 */
-	0x00400204, /* 0x00200204 */
-	0x00016404, /* 0x00012002 */
+	/*idea from mingliang.dong & vlsi zheng.bao begin*/
+	0x60000404, /* 0x40020a04*/
+	0x0001FF12, /* 0x0001ff0c */
+	0x00200204, /* 0x00400204 */
+	0x00012002, /* 0x00016404 */
+	/*idea from mingliang.dong & vlsi zheng.bao end*/
 	0x00000131
 };
 /*special for resolution test file*/
@@ -596,8 +600,9 @@ static void set_combing_regs(int lvl, int bit_mode)
 			DI_Wr_reg_bits(DI_MTN_1_CTRL1,
 				((*combing_setting_values[lvl])[0] &
 				combing_setting_masks[i]), 0, 24);
-		if (bit_mode != 10 &&
-			combing_setting_registers[i] == NR2_MATNR_DEGHOST)
+          	/*working on db, driver don't handle this*/
+		if (((bit_mode != 10) || cpu_after_eq(MESON_CPU_MAJOR_ID_TL1))
+			&& combing_setting_registers[i] == NR2_MATNR_DEGHOST)
 			break;
 		else if (i < GXTVBB_REG_START) {
 			/* TODO: need change to check if

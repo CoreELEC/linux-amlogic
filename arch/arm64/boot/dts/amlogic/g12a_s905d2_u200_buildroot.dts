@@ -19,6 +19,7 @@
 
 #include "mesong12a.dtsi"
 #include "mesong12a_skt-panel.dtsi"
+#include "mesong12a_drm.dtsi"
 
 / {
 	model = "Amlogic";
@@ -44,7 +45,7 @@
 
 	memory@00000000 {
 		device_type = "memory";
-		linux,usable-memory = <0x0 0x100000 0x0 0x7ff00000>;
+		linux,usable-memory = <0x0 0x0 0x0 0x80000000>;
 	};
 
 	reserved-memory {
@@ -149,8 +150,6 @@
 			label="sys_led";
 			gpios=<&gpio_ao GPIOAO_11 GPIO_ACTIVE_HIGH>;
 			default-state ="on";
-			retain-state-suspended;
-			linux,default-trigger="cpu0";
 		};
 	};
 
@@ -224,10 +223,25 @@
 		};
 	};
 
+	picdec_cma_reserved:linux,picdec {
+		compatible = "shared-dma-pool";
+		reusable;
+		size = <0x0>;
+		alignment = <0x0>;
+		linux,contiguous-region;
+	};
+
 	codec_mm {
 		compatible = "amlogic, codec, mm";
 		memory-region = <&codec_mm_cma &codec_mm_reserved>;
 		dev_name = "codec_mm";
+		status = "okay";
+	};
+
+	picdec {
+		compatible = "amlogic, picdec";
+		memory-region = <&picdec_cma_reserved>;
+		dev_name = "picdec";
 		status = "okay";
 	};
 

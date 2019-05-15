@@ -150,6 +150,7 @@ int hdmitx_hpd_hw_op(enum hpd_op cmd)
 		return hdmitx_hpd_hw_op_txlx(cmd);
 	case MESON_CPU_ID_G12A:
 	case MESON_CPU_ID_G12B:
+	case MESON_CPU_ID_SM1:
 		return hdmitx_hpd_hw_op_g12a(cmd);
 	default:
 		break;
@@ -173,6 +174,7 @@ int read_hpd_gpio(void)
 	case MESON_CPU_ID_TXLX:
 	case MESON_CPU_ID_G12A:
 	case MESON_CPU_ID_G12B:
+	case MESON_CPU_ID_SM1:
 		return read_hpd_gpio_txlx();
 	default:
 		break;
@@ -196,6 +198,7 @@ int hdmitx_ddc_hw_op(enum ddc_op cmd)
 	case MESON_CPU_ID_TXLX:
 	case MESON_CPU_ID_G12A:
 	case MESON_CPU_ID_G12B:
+	case MESON_CPU_ID_SM1:
 		return hdmitx_ddc_hw_op_txlx(cmd);
 	default:
 		break;
@@ -419,6 +422,7 @@ static unsigned int hdmitx_get_format(void)
 	case MESON_CPU_ID_TXLX:
 	case MESON_CPU_ID_G12A:
 	case MESON_CPU_ID_G12B:
+	case MESON_CPU_ID_SM1:
 		ret = hdmitx_get_format_txlx();
 		break;
 	case MESON_CPU_ID_GXBB:
@@ -465,6 +469,7 @@ void hdmitx_sys_reset(void)
 	case MESON_CPU_ID_TXLX:
 	case MESON_CPU_ID_G12A:
 	case MESON_CPU_ID_G12B:
+	case MESON_CPU_ID_SM1:
 		hdmitx_sys_reset_txlx();
 		break;
 	case MESON_CPU_ID_GXBB:
@@ -582,6 +587,11 @@ static void hdmi_hwi_init(struct hdmitx_dev *hdev)
 	hdmitx_set_reg_bits(HDMITX_TOP_CLK_CNTL, 1, 6, 1);
 	/* Enable tmds_clk to HDCP2.2 IP */
 	hdmitx_set_reg_bits(HDMITX_TOP_CLK_CNTL, 1, 5, 1);
+	/* Enable axi_clk */
+	hdmitx_set_reg_bits(HDMITX_TOP_CLK_CNTL, 1, 13, 1);
+	/* Enable axi_async_req_en_emp & axi_async_req_en_esm */
+	hdmitx_set_reg_bits(HDMITX_TOP_AXI_ASYNC_CNTL0, 1, 0, 1);
+	hdmitx_set_reg_bits(HDMITX_TOP_AXI_ASYNC_CNTL0, 1, 16, 1);
 
 	hdmitx_hpd_hw_op(HPD_INIT_DISABLE_PULLUP);
 	hdmitx_hpd_hw_op(HPD_INIT_SET_FILTER);
@@ -664,9 +674,8 @@ static irqreturn_t intr_handler(int irq, void *dev)
 	hdmitx_wr_reg(HDMITX_TOP_INTR_STAT_CLR, ~0);
 	hdmitx_wr_reg(HDMITX_DWC_HDCP22REG_STAT, 0xff);
 
-	pr_info(SYS "irq %x\n", dat_top);
-	if (dat_dwc)
-		pr_info(SYS "irq %x\n", dat_dwc);
+	pr_info(SYS "irq %x %x\n", dat_top, dat_dwc);
+
 	if (hdev->hpd_lock == 1) {
 		pr_info(HW "HDMI hpd locked\n");
 		goto next;
@@ -688,8 +697,6 @@ static irqreturn_t intr_handler(int irq, void *dev)
 	}
 	/* HPD falling */
 	if (dat_top & (1 << 2)) {
-		queue_delayed_work(hdev->hdmi_wq,
-			&hdev->work_aud_hpd_plug, 2 * HZ);
 		hdev->hdmitx_event |= HDMI_TX_HPD_PLUGOUT;
 		hdev->hdmitx_event &= ~HDMI_TX_HPD_PLUGIN;
 		hdev->rhpd_state = 0;
@@ -699,7 +706,8 @@ static irqreturn_t intr_handler(int irq, void *dev)
 	/* internal interrupt */
 	if (dat_top & (1 << 0)) {
 		hdev->hdmitx_event |= HDMI_TX_INTERNAL_INTR;
-		queue_work(hdev->hdmi_wq, &hdev->work_internal_intr);
+		queue_delayed_work(hdev->hdmi_wq,
+			&hdev->work_internal_intr, HZ / 10);
 	}
 	if (dat_top & (1 << 3)) {
 		unsigned int rd_nonce_mode =
@@ -1994,6 +2002,7 @@ static void set_phy_by_mode(unsigned int mode)
 	switch (hdev->chip_type) {
 	case MESON_CPU_ID_G12A:
 	case MESON_CPU_ID_G12B:
+	case MESON_CPU_ID_SM1:
 		switch (mode) {
 		case 1: /* 5.94/4.5/3.7Gbps */
 			hd_write_reg(P_HHI_HDMI_PHY_CNTL0, 0x37eb65c4);
@@ -2869,6 +2878,7 @@ static int hdmitx_cntl(struct hdmitx_dev *hdev, unsigned int cmd,
 			switch (hdev->chip_type) {
 			case MESON_CPU_ID_G12A:
 			case MESON_CPU_ID_G12B:
+			case MESON_CPU_ID_SM1:
 				hd_set_reg_bits(P_HHI_HDMI_PLL_CNTL, 1, 29, 1);
 				udelay(50);
 				hd_set_reg_bits(P_HHI_HDMI_PLL_CNTL, 0, 28, 1);
@@ -3030,11 +3040,9 @@ do { \
 
 #define DUMP_HDMITXREG_SECTION(start, end) \
 do { \
-	if (start > end) { \
-		pr_info("Error start = 0x%lx > end = 0x%lx\n", start, end); \
+	if (start > end) \
 		break; \
-	} \
-	pr_info("Start = 0x%lx   End = 0x%lx\n", start, end); \
+\
 	for (addr = start; addr < end + 1; addr++) { \
 		val = hdmitx_rd_reg(addr); \
 		if (val) \
@@ -3046,7 +3054,12 @@ static void hdmitx_dump_intr(void)
 {
 	unsigned int addr = 0, val = 0;
 
-	DUMP_HDMITXREG_SECTION(HDMITX_DWC_IH_FC_STAT0, HDMITX_DWC_IH_MUTE);
+	DUMP_HDMITXREG_SECTION(HDMITX_DWC_IH_FC_STAT0,
+		HDMITX_DWC_IH_I2CMPHY_STAT0);
+	DUMP_HDMITXREG_SECTION(HDMITX_DWC_IH_DECODE, HDMITX_DWC_IH_DECODE);
+	DUMP_HDMITXREG_SECTION(HDMITX_DWC_IH_MUTE_FC_STAT0,
+		HDMITX_DWC_IH_MUTE_I2CMPHY_STAT0);
+	DUMP_HDMITXREG_SECTION(HDMITX_DWC_IH_MUTE, HDMITX_DWC_IH_MUTE);
 }
 
 static void mode420_half_horizontal_para(void)
@@ -4234,7 +4247,7 @@ static void hdmitx_debug(struct hdmitx_dev *hdev, const char *buf)
 		pr_info("topo: %d\n", hdmitx_hdcp_opr(0xe));
 		return;
 	} else if (strncmp(tmpbuf, "dumphdmireg", 11) == 0) {
-		unsigned char reg_val = 0;
+		unsigned int reg_val = 0;
 		unsigned int reg_adr = 0;
 
 #define DUMP_HDMITX_SECTION(a, b) \
@@ -4259,8 +4272,10 @@ static void hdmitx_debug(struct hdmitx_dev *hdev, const char *buf)
 			HDMITX_TOP_SEC_SCRATCH);
 		DUMP_HDMITX_SECTION(HDMITX_DWC_DESIGN_ID,
 			HDMITX_DWC_A_KSVMEMCTRL);
+#if 0
 		DUMP_HDMITX_HDCP_SECTION(HDMITX_DWC_HDCP_BSTATUS_0,
 			HDMITX_DWC_HDCP_REVOC_LIST_END);
+#endif
 		DUMP_HDMITX_HDCP_SECTION(HDMITX_DWC_HDCPREG_BKSV0,
 			HDMITX_DWC_HDCPREG_BKSV4);
 		DUMP_HDMITX_SECTION(HDMITX_DWC_HDCPREG_ANCONF,
@@ -4352,6 +4367,7 @@ static void hdmitx_debug(struct hdmitx_dev *hdev, const char *buf)
 		switch (hdev->chip_type) {
 		case MESON_CPU_ID_G12A:
 		case MESON_CPU_ID_G12B:
+		case MESON_CPU_ID_SM1:
 			for (i = 0; i < 4; i++) {
 				hd_write_reg(P_HHI_HDMI_PHY_CNTL1, 0x0390000f);
 				hd_write_reg(P_HHI_HDMI_PHY_CNTL1, 0x0390000e);
@@ -4826,6 +4842,7 @@ static int hdmitx_cntl_ddc(struct hdmitx_dev *hdev, unsigned int cmd,
 		break;
 	case DDC_HDCP_MUX_INIT:
 		if (argv == 2) {
+			hd_write_reg(P_HHI_HDCP22_CLK_CNTL, 0x01000100);
 			hdmitx_ddc_hw_op(DDC_MUX_DDC);
 			hdmitx_set_reg_bits(HDMITX_DWC_MC_CLKDIS, 1, 6, 1);
 			udelay(5);

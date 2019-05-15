@@ -40,6 +40,7 @@
 #include "tdm_hw.h"
 #include "sharebuffer.h"
 #include "vad.h"
+#include "spdif.h"
 
 /*#define __PTM_TDM_CLK__*/
 
@@ -357,7 +358,7 @@ static struct snd_pcm_ops aml_tdm_ops = {
 	.mmap = aml_tdm_mmap,
 };
 
-#define PREALLOC_BUFFER		(128 * 1024)
+#define PREALLOC_BUFFER		(256 * 1024)
 #define PREALLOC_BUFFER_MAX	(256 * 1024)
 static int aml_tdm_new(struct snd_soc_pcm_runtime *rtd)
 {
@@ -393,6 +394,9 @@ static int aml_dai_tdm_prepare(struct snd_pcm_substream *substream,
 					p_tdm->samesource_sel))) {
 				sharebuffer_prepare(substream,
 					fr, p_tdm->samesource_sel);
+				/* sharebuffer default uses spdif_a */
+				spdif_set_audio_clk(SPDIF_A, p_tdm->clk,
+					runtime->rate*128, 1);
 		}
 
 		/* i2s source to hdmix */
@@ -512,16 +516,6 @@ static int aml_dai_tdm_trigger(struct snd_pcm_substream *substream, int cmd,
 {
 	struct aml_tdm *p_tdm = snd_soc_dai_get_drvdata(cpu_dai);
 
-	/* share buffer trigger */
-	if ((substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
-		&& p_tdm->chipinfo
-		&& p_tdm->chipinfo->same_src_fn
-		&& (p_tdm->samesource_sel >= 0)
-		&& (aml_check_sharebuffer_valid(p_tdm->fddr,
-				p_tdm->samesource_sel))) {
-			sharebuffer_trigger(cmd, p_tdm->samesource_sel);
-	}
-
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
 	case SNDRV_PCM_TRIGGER_RESUME:
@@ -543,6 +537,14 @@ static int aml_dai_tdm_trigger(struct snd_pcm_substream *substream, int cmd,
 
 		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 			dev_info(substream->pcm->card->dev, "tdm playback enable\n");
+			/* share buffer trigger */
+			if (p_tdm->chipinfo
+				&& p_tdm->chipinfo->same_src_fn
+				&& (p_tdm->samesource_sel >= 0)
+				&& (aml_check_sharebuffer_valid(p_tdm->fddr,
+						p_tdm->samesource_sel))) {
+				sharebuffer_trigger(cmd, p_tdm->samesource_sel);
+			}
 			aml_frddr_enable(p_tdm->fddr, 1);
 		} else {
 			dev_info(substream->pcm->card->dev, "tdm capture enable\n");
@@ -563,16 +565,26 @@ static int aml_dai_tdm_trigger(struct snd_pcm_substream *substream, int cmd,
 			break;
 		}
 
-		aml_tdm_enable(p_tdm->actrl,
-			substream->stream, p_tdm->id, false);
-
 		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 			dev_info(substream->pcm->card->dev, "tdm playback stop\n");
+			memset(substream->runtime->dma_area,
+				0, substream->runtime->dma_bytes);
+			mdelay(3);
 			aml_frddr_enable(p_tdm->fddr, 0);
+			/* share buffer trigger */
+			if (p_tdm->chipinfo
+				&& p_tdm->chipinfo->same_src_fn
+				&& (p_tdm->samesource_sel >= 0)
+				&& (aml_check_sharebuffer_valid(p_tdm->fddr,
+						p_tdm->samesource_sel))) {
+				sharebuffer_trigger(cmd, p_tdm->samesource_sel);
+			}
 		} else {
 			dev_info(substream->pcm->card->dev, "tdm capture stop\n");
 			aml_toddr_enable(p_tdm->tddr, 0);
 		}
+		aml_tdm_enable(p_tdm->actrl,
+				substream->stream, p_tdm->id, false);
 		break;
 	default:
 		return -EINVAL;

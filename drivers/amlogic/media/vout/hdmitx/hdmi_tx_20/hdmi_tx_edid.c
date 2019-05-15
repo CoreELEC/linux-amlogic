@@ -1403,6 +1403,40 @@ static void hdmitx_edid_4k2k_parse(struct rx_cap *pRXCap, unsigned char *dat,
 	}
 }
 
+static void get_latency(struct rx_cap *pRXCap, unsigned char *val)
+{
+	if (val[0] == 0)
+		pRXCap->vLatency = LATENCY_INVALID_UNKNOWN;
+	else if (val[0] == 0xFF)
+		pRXCap->vLatency = LATENCY_NOT_SUPPORT;
+	else
+		pRXCap->vLatency = (val[0] - 1) * 2;
+
+	if (val[1] == 0)
+		pRXCap->aLatency = LATENCY_INVALID_UNKNOWN;
+	else if (val[1] == 0xFF)
+		pRXCap->aLatency = LATENCY_NOT_SUPPORT;
+	else
+		pRXCap->aLatency = (val[1] - 1) * 2;
+}
+
+static void get_ilatency(struct rx_cap *pRXCap, unsigned char *val)
+{
+	if (val[0] == 0)
+		pRXCap->i_vLatency = LATENCY_INVALID_UNKNOWN;
+	else if (val[0] == 0xFF)
+		pRXCap->i_vLatency = LATENCY_NOT_SUPPORT;
+	else
+		pRXCap->i_vLatency = val[0] * 2 - 1;
+
+	if (val[1] == 0)
+		pRXCap->i_aLatency = LATENCY_INVALID_UNKNOWN;
+	else if (val[1] == 0xFF)
+		pRXCap->i_aLatency = LATENCY_NOT_SUPPORT;
+	else
+		pRXCap->i_aLatency = val[1] * 2 - 1;
+}
+
 static int hdmitx_edid_block_parse(struct hdmitx_dev *hdmitx_device,
 	unsigned char *BlockBuf)
 {
@@ -1443,7 +1477,7 @@ static int hdmitx_edid_block_parse(struct hdmitx_dev *hdmitx_device,
 				pRXCap->RxAudioCap[idx + i].freq_cc =
 					BlockBuf[offset + i * 3 + 1]&0x7f;
 				pRXCap->RxAudioCap[idx + i].cc3 =
-					BlockBuf[offset + i * 3 + 2]&0x7;
+					BlockBuf[offset + i * 3 + 2];
 			}
 			offset += count;
 			break;
@@ -1477,10 +1511,22 @@ static int hdmitx_edid_block_parse(struct hdmitx_dev *hdmitx_device,
 				if (count > 7) {
 					tmp = BlockBuf[offset+7];
 					idx = offset + 8;
-					if (tmp & (1<<6))
+					if (tmp & (1<<6)) {
+						unsigned char val[2];
+
+						val[0] = BlockBuf[idx];
+						val[1] = BlockBuf[idx + 1];
+						get_latency(pRXCap, val);
 						idx += 2;
-					if (tmp & (1<<7))
+					}
+					if (tmp & (1<<7)) {
+						unsigned char val[2];
+
+						val[0] = BlockBuf[idx];
+						val[1] = BlockBuf[idx + 1];
+						get_ilatency(pRXCap, val);
 						idx += 2;
+					}
 					if (tmp & (1<<5)) {
 						idx += 1;
 						/* valid 4k */
@@ -1916,6 +1962,7 @@ next:
 	} else
 		dump_dtd_info(t);
 }
+
 static void hdrinfo_to_vinfo(struct vinfo_s *info, struct rx_cap *pRXCap)
 {
 	unsigned int  k, l;
@@ -1956,6 +2003,15 @@ static void hdrinfo_to_vinfo(struct vinfo_s *info, struct rx_cap *pRXCap)
 		info->hdr_info.hdr_support);
 }
 
+static void rxlatency_to_vinfo(struct vinfo_s *info, struct rx_cap *rx)
+{
+	if (!info || !rx)
+		return;
+	info->rx_latency.vLatency = rx->vLatency;
+	info->rx_latency.aLatency = rx->aLatency;
+	info->rx_latency.i_vLatency = rx->i_vLatency;
+	info->rx_latency.i_aLatency = rx->i_aLatency;
+}
 
 int hdmitx_edid_parse(struct hdmitx_dev *hdmitx_device)
 {
@@ -2153,8 +2209,10 @@ int hdmitx_edid_parse(struct hdmitx_dev *hdmitx_device)
 	if (info) {
 		if (!((strncmp(info->name, "480cvbs", 7) == 0) ||
 		(strncmp(info->name, "576cvbs", 7) == 0) ||
-		(strncmp(info->name, "null", 4) == 0)))
+		(strncmp(info->name, "null", 4) == 0))) {
 			hdrinfo_to_vinfo(info, pRXCap);
+			rxlatency_to_vinfo(info, pRXCap);
+		}
 	}
 	return 0;
 
@@ -2268,6 +2326,29 @@ const char *hdmitx_edid_vic_to_string(enum hdmi_vic vic)
 	}
 
 	return disp_str;
+}
+
+static bool is_rx_support_y420(struct hdmitx_dev *hdev)
+{
+	enum hdmi_vic vic = HDMI_Unknown;
+
+	vic = hdmitx_edid_get_VIC(hdev, "2160p60hz420", 0);
+	if (vic != HDMI_Unknown)
+		return 1;
+
+	vic = hdmitx_edid_get_VIC(hdev, "2160p50hz420", 0);
+	if (vic != HDMI_Unknown)
+		return 1;
+
+	vic = hdmitx_edid_get_VIC(hdev, "smpte60hz420", 0);
+	if (vic != HDMI_Unknown)
+		return 1;
+
+	vic = hdmitx_edid_get_VIC(hdev, "smpte50hz420", 0);
+	if (vic != HDMI_Unknown)
+		return 1;
+
+	return 0;
 }
 
 /* For some TV's EDID, there maybe exist some information ambiguous.
@@ -2410,6 +2491,8 @@ bool hdmitx_edid_check_valid_mode(struct hdmitx_dev *hdev,
 		return valid;
 	}
 	if (para->cs == COLORSPACE_YUV420) {
+		if (!is_rx_support_y420(hdev))
+			return 0;
 		if (pRXCap->dc_30bit_420)
 			rx_y420_max_dc = COLORDEPTH_30B;
 		if (pRXCap->dc_36bit_420)
@@ -2670,6 +2753,51 @@ int hdmitx_edid_dump(struct hdmitx_dev *hdmitx_device, char *buffer,
 		pos += snprintf(buffer+pos, buffer_len-pos,
 			"MaxTMDSClock2 %d MHz\n", pRXCap->Max_TMDS_Clock2 * 5);
 	}
+
+	pos += snprintf(buffer+pos, buffer_len-pos, "vLatency: ");
+	if (pRXCap->vLatency == LATENCY_INVALID_UNKNOWN)
+		pos += snprintf(buffer+pos, buffer_len-pos,
+				" Invalid/Unknown\n");
+	else if (pRXCap->vLatency == LATENCY_NOT_SUPPORT)
+		pos += snprintf(buffer+pos, buffer_len-pos,
+			" UnSupported\n");
+	else
+		pos += snprintf(buffer+pos, buffer_len-pos,
+			" %d\n", pRXCap->vLatency);
+
+	pos += snprintf(buffer+pos, buffer_len-pos, "aLatency: ");
+	if (pRXCap->aLatency == LATENCY_INVALID_UNKNOWN)
+		pos += snprintf(buffer+pos, buffer_len-pos,
+				" Invalid/Unknown\n");
+	else if (pRXCap->aLatency == LATENCY_NOT_SUPPORT)
+		pos += snprintf(buffer+pos, buffer_len-pos,
+			" UnSupported\n");
+	else
+		pos += snprintf(buffer+pos, buffer_len-pos, " %d\n",
+			pRXCap->aLatency);
+
+	pos += snprintf(buffer+pos, buffer_len-pos, "i_vLatency: ");
+	if (pRXCap->i_vLatency == LATENCY_INVALID_UNKNOWN)
+		pos += snprintf(buffer+pos, buffer_len-pos,
+				" Invalid/Unknown\n");
+	else if (pRXCap->i_vLatency == LATENCY_NOT_SUPPORT)
+		pos += snprintf(buffer+pos, buffer_len-pos,
+			" UnSupported\n");
+	else
+		pos += snprintf(buffer+pos, buffer_len-pos, " %d\n",
+			pRXCap->i_vLatency);
+
+	pos += snprintf(buffer+pos, buffer_len-pos, "i_aLatency: ");
+	if (pRXCap->i_aLatency == LATENCY_INVALID_UNKNOWN)
+		pos += snprintf(buffer+pos, buffer_len-pos,
+				" Invalid/Unknown\n");
+	else if (pRXCap->i_aLatency == LATENCY_NOT_SUPPORT)
+		pos += snprintf(buffer+pos, buffer_len-pos,
+			" UnSupported\n");
+	else
+		pos += snprintf(buffer+pos, buffer_len-pos, " %d\n",
+			pRXCap->i_aLatency);
+
 	if (pRXCap->colorimetry_data)
 		pos += snprintf(buffer+pos, buffer_len-pos,
 			"ColorMetry: 0x%x\n", pRXCap->colorimetry_data);

@@ -806,8 +806,8 @@ void lcd_timing_init_config(struct lcd_config_s *pconf)
 	vsync_bp = pconf->lcd_timing.vsync_bp;
 	vsync_width = pconf->lcd_timing.vsync_width;
 
-	de_hstart = h_period - h_active - 1;
-	de_vstart = v_period - v_active;
+	de_hstart = hsync_bp + hsync_width;
+	de_vstart = vsync_bp + vsync_width;
 
 	pconf->lcd_timing.video_on_pixel = de_hstart - h_delay;
 	pconf->lcd_timing.video_on_line = de_vstart;
@@ -1064,9 +1064,24 @@ int lcd_vmode_change(struct lcd_config_s *pconf)
 }
 #endif
 
+void lcd_clk_change(struct lcd_config_s *pconf)
+{
+	switch (pconf->lcd_timing.clk_change) {
+	case LCD_CLK_PLL_CHANGE:
+		lcd_clk_generate_parameter(pconf);
+		lcd_clk_set(pconf);
+		break;
+	case LCD_CLK_FRAC_UPDATE:
+		lcd_clk_update(pconf);
+		break;
+	default:
+		break;
+	}
+}
+
 void lcd_venc_change(struct lcd_config_s *pconf)
 {
-	unsigned int htotal, vtotal;
+	unsigned int htotal, vtotal, frame_rate;
 
 	htotal = lcd_vcbus_read(ENCL_VIDEO_MAX_PXCNT) + 1;
 	vtotal = lcd_vcbus_read(ENCL_VIDEO_MAX_LNCNT) + 1;
@@ -1084,8 +1099,10 @@ void lcd_venc_change(struct lcd_config_s *pconf)
 			pconf->lcd_basic.v_period);
 	}
 
-	if (pconf->lcd_basic.v_period != vtotal)
-		aml_lcd_notifier_call_chain(LCD_EVENT_BACKLIGHT_UPDATE, NULL);
+	frame_rate = (pconf->lcd_timing.sync_duration_num * 100) /
+		pconf->lcd_timing.sync_duration_den;
+	frame_rate = (frame_rate + 50) / 100;
+	aml_lcd_notifier_call_chain(LCD_EVENT_BACKLIGHT_UPDATE, &frame_rate);
 }
 
 void lcd_if_enable_retry(struct lcd_config_s *pconf)

@@ -67,6 +67,12 @@ static struct frddr_attach attach_aed;
 static void aml_check_aed(bool enable, int dst);
 static bool aml_check_aed_module(int dst);
 
+static irqreturn_t aml_ddr_isr(int irq, void *devid)
+{
+	(void)devid;
+	return IRQ_WAKE_THREAD;
+}
+
 /* to DDRS */
 static struct toddr *register_toddr_l(struct device *dev,
 	struct aml_audio_controller *actrl,
@@ -88,8 +94,8 @@ static struct toddr *register_toddr_l(struct device *dev,
 	to = &toddrs[i];
 
 	/* irqs request */
-	ret = request_irq(to->irq, handler,
-		0, dev_name(dev), data);
+	ret = request_threaded_irq(to->irq, aml_ddr_isr, handler,
+		IRQF_SHARED, dev_name(dev), data);
 	if (ret) {
 		dev_err(dev, "failed to claim irq %u\n", to->irq);
 		return NULL;
@@ -504,11 +510,10 @@ void aml_toddr_set_resample_ab(struct toddr *to, int asrc_src_sel, bool enable)
 }
 
 static void aml_resample_enable(
+	struct toddr *to,
 	struct toddr_attach *p_attach_resample,
 	bool enable)
 {
-	struct toddr *to = fetch_toddr_by_src(p_attach_resample->attach_module);
-
 	if (!to)
 		return;
 
@@ -587,7 +592,7 @@ static void aml_resample_enable(
 void aml_set_resample(int id, bool enable, int resample_module)
 {
 	struct toddr_attach *p_attach_resample;
-
+	struct toddr *to;
 	bool update_running = false;
 
 	if (id == 0)
@@ -599,11 +604,12 @@ void aml_set_resample(int id, bool enable, int resample_module)
 	p_attach_resample->id            = id;
 	p_attach_resample->attach_module = resample_module;
 
+	to = fetch_toddr_by_src(
+		p_attach_resample->attach_module);
+
 	if (enable) {
 		if ((p_attach_resample->status == DISABLED)
 			|| (p_attach_resample->status == READY)) {
-			struct toddr *to = fetch_toddr_by_src(
-				p_attach_resample->attach_module);
 
 			if (!to) {
 				p_attach_resample->status = READY;
@@ -620,8 +626,8 @@ void aml_set_resample(int id, bool enable, int resample_module)
 		p_attach_resample->status = DISABLED;
 	}
 
-	if (update_running)
-		aml_resample_enable(p_attach_resample, enable);
+	if (update_running && to)
+		aml_resample_enable(to, p_attach_resample, enable);
 }
 
 /*
@@ -649,7 +655,7 @@ start_check:
 		else
 			p_attach_resample->status = DISABLED;
 
-		aml_resample_enable(p_attach_resample, enable);
+		aml_resample_enable(to, p_attach_resample, enable);
 	}
 
 	if ((!resample_b_check)
@@ -834,8 +840,8 @@ static struct frddr *register_frddr_l(struct device *dev,
 			1<<31|1<<mask_bit, 1<<31|1<<mask_bit);
 
 	/* irqs request */
-	ret = request_irq(from->irq, handler,
-		0, dev_name(dev), data);
+	ret = request_threaded_irq(from->irq, aml_ddr_isr, handler,
+		IRQF_SHARED, dev_name(dev), data);
 	if (ret) {
 		dev_err(dev, "failed to claim irq %u\n", from->irq);
 		return NULL;

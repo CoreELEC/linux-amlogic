@@ -24,6 +24,8 @@
 #include <linux/amlogic/media/vout/vout_notify.h>
 #include <linux/amlogic/iomap.h>
 
+extern void lcd_vlock_m_update(unsigned int vlock_m);
+extern void lcd_vlock_frac_update(unsigned int vlock_farc);
 
 /* **********************************
  * debug print define
@@ -89,6 +91,7 @@ enum lcd_chip_e {
 	LCD_CHIP_G12A,  /* 5 */
 	LCD_CHIP_G12B,  /* 6 */
 	LCD_CHIP_TL1,   /* 7 */
+	LCD_CHIP_SM1,	/* 8 */
 	LCD_CHIP_MAX,
 };
 

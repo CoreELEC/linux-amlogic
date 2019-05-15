@@ -69,7 +69,7 @@ unsigned int vdin_afbce_cma_alloc(struct vdin_dev_s *devp)
 	char vdin_name[6];
 	unsigned int mem_size, h_size, v_size;
 	int flags = CODEC_MM_FLAGS_CMA_FIRST|CODEC_MM_FLAGS_CMA_CLEAR|
-		CODEC_MM_FLAGS_CPU;
+		CODEC_MM_FLAGS_DMA;
 	unsigned int max_buffer_num = min_buf_num;
 	unsigned int i;
 	/*afbce head need 1036800 byte at most*/
@@ -412,9 +412,9 @@ void vdin_afbce_config(struct vdin_dev_s *devp)
 	int sblk_num;
 	int uncmp_bits;
 	int uncmp_size;
-	int def_color_0 = 0;
-	int def_color_1 = 0;
-	int def_color_2 = 0;
+	int def_color_0 = 4095;
+	int def_color_1 = 2048;
+	int def_color_2 = 2048;
 	int def_color_3 = 0;
 	int hblksize_out = (devp->h_active + 31) >> 5;
 	int vblksize_out = (devp->v_active + 3)  >> 2;

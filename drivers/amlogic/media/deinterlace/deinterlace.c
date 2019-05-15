@@ -129,7 +129,7 @@ static di_dev_t *de_devp;
 static dev_t di_devno;
 static struct class *di_clsp;
 
-static const char version_s[] = "2018-12-04a";
+static const char version_s[] = "2019-03-18a";
 
 static int bypass_state = 1;
 static int bypass_all;
@@ -2100,7 +2100,8 @@ static int di_init_buf(int width, int height, unsigned char prog_flag)
 		mtn_size = (mtn_width * canvas_height)*4/16;
 		count_size = (mtn_width * canvas_height)*4/16;
 		mv_size = (mv_width * canvas_height)/5;
-		mc_size = canvas_height;
+		mc_size = roundup(canvas_height >> 1, canvas_align_width) << 1;
+
 		if (mc_mem_alloc) {
 			di_buf_size = nr_size + mtn_size + count_size +
 				mv_size + mc_size;
@@ -2153,6 +2154,7 @@ static int di_init_buf(int width, int height, unsigned char prog_flag)
 			di_buf->canvas_width[NR_CANVAS] = nr_canvas_width;
 			di_buf->canvas_width[MTN_CANVAS] = mtn_canvas_width;
 			di_buf->canvas_width[MV_CANVAS] = mv_canvas_width;
+
 			if (prog_flag) {
 				di_buf->canvas_height = canvas_height;
 				di_buf->nr_adr = de_devp->mem_start +
@@ -2160,6 +2162,9 @@ static int di_init_buf(int width, int height, unsigned char prog_flag)
 				di_buf->canvas_config_flag = 1;
 			} else {
 				di_buf->canvas_height = (canvas_height>>1);
+				di_buf->canvas_height =
+					roundup(di_buf->canvas_height,
+					canvas_align_width);
 				di_buf->nr_adr = de_devp->mem_start +
 					di_buf_size * i;
 				di_buf->mtn_adr = de_devp->mem_start +
@@ -3350,7 +3355,7 @@ static bool pps_en;
 module_param_named(pps_en, pps_en, bool, 0644);
 static unsigned int pps_position = 1;
 module_param_named(pps_position, pps_position, uint, 0644);
-static unsigned int pre_enable_mask = 3;
+static unsigned int pre_enable_mask = 3;/*bit0:ma bit1:mc*/
 module_param_named(pre_enable_mask, pre_enable_mask, uint, 0644);
 
 static unsigned char pre_de_buf_config(void)
@@ -4265,6 +4270,10 @@ static irqreturn_t de_irq(int irq, void *dev_instance)
 		trace_di_pre("PRE-IRQ-0",
 			di_pre_stru.field_count_for_cont,
 			di_pre_stru.irq_time[0]);
+		/*add from valsi wang.feng*/
+		di_arb_sw(false);
+		di_arb_sw(true);
+
 		if (mcpre_en) {
 			get_mcinfo_from_reg_in_irq();
 			if ((is_meson_gxlx_cpu() &&
@@ -5095,7 +5104,8 @@ de_post_process(void *arg, unsigned int zoom_start_x_lines,
 			is_meson_gxlx_cpu() ||
 			is_meson_txhd_cpu() ||
 			is_meson_g12a_cpu() ||
-			is_meson_g12b_cpu()) {
+			is_meson_g12b_cpu() ||
+			is_meson_sm1_cpu()) {
 		di_post_read_reverse_irq(overturn, mc_pre_flag,
 			post_blend_en ? mcpre_en : false);
 		/* disable mc for first 2 fieldes mv unreliable */
@@ -5876,7 +5886,8 @@ static void di_unreg_process_irq(void)
 	afbc_reg_sw(false);
 	di_hw_uninit();
 	if (is_meson_txlx_cpu() || is_meson_txhd_cpu()
-		|| is_meson_g12a_cpu() || is_meson_g12b_cpu()) {
+		|| is_meson_g12a_cpu() || is_meson_g12b_cpu()
+		|| is_meson_tl1_cpu() || is_meson_sm1_cpu()) {
 		di_pre_gate_control(false, mcpre_en);
 		nr_gate_control(false);
 	} else if (cpu_after_eq(MESON_CPU_MAJOR_ID_GXTVBB)) {
@@ -5888,7 +5899,8 @@ static void di_unreg_process_irq(void)
 	if (mirror_disable) {
 		di_hw_disable(mcpre_en);
 		if (is_meson_txlx_cpu() || is_meson_txhd_cpu()
-			|| is_meson_g12a_cpu() || is_meson_g12b_cpu()) {
+			|| is_meson_g12a_cpu() || is_meson_g12b_cpu()
+			|| is_meson_tl1_cpu() || is_meson_sm1_cpu()) {
 			enable_di_post_mif(GATE_OFF);
 			di_post_gate_control(false);
 			di_top_gate_control(false, false);
@@ -6000,7 +6012,9 @@ static void di_pre_size_change(unsigned short width,
 			is_meson_gxlx_cpu() ||
 			is_meson_txhd_cpu() ||
 			is_meson_g12a_cpu() ||
-			is_meson_g12b_cpu())
+			is_meson_g12b_cpu() ||
+			is_meson_tl1_cpu() ||
+			is_meson_sm1_cpu())
 			film_mode_win_config(width, height);
 	}
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXL))
@@ -6143,6 +6157,8 @@ static void di_reg_process_irq(void)
 			de_devp->flags |= DI_VPU_CLKB_SET;
 			enable_di_pre_mif(false, mcpre_en);
 			di_pre_gate_control(true, mcpre_en);
+			di_rst_protect(true);/*2019-01-22 by VLSI feng.wang*/
+			di_pre_nr_wr_done_sel(true);
 			nr_gate_control(true);
 		} else {
 			/* if mcdi enable DI_CLKG_CTRL should be 0xfef60000 */
@@ -6206,6 +6222,7 @@ static void di_reg_process_irq(void)
 					vframe->sig_fmt);
 
 		di_patch_post_update_mc_sw(DI_MC_SW_REG, true);
+		cue_int();
 		if (de_devp->flags & DI_LOAD_REG_FLAG)
 			up(&di_sema);
 		init_flag = 1;
@@ -6430,7 +6447,9 @@ static int di_task_handle(void *data)
 					#endif
 				}
 			}
-			if (is_meson_g12a_cpu() || is_meson_g12b_cpu()) {
+			if (is_meson_g12a_cpu() || is_meson_g12b_cpu()
+				|| is_meson_tl1_cpu() ||
+				is_meson_sm1_cpu()) {
 				#ifdef CLK_TREE_SUPPORT
 				clk_set_rate(de_devp->vpu_clkb,
 						de_devp->clkb_max_rate);
@@ -6699,14 +6718,16 @@ light_unreg:
 			pr_err("[DI] reg event device hasn't resumed\n");
 			return -1;
 		}
-		bypass_state = 0;
-		di_pre_stru.reg_req_flag = 1;
-		pr_dbg("%s: vframe provider reg %s\n", __func__,
-			provider_name);
 		if (reg_flag) {
 			pr_err("[DI] no muti instance.\n");
 			return -1;
 		}
+		pr_info("%s: vframe provider reg %s\n", __func__,
+			provider_name);
+
+		bypass_state = 0;
+		di_pre_stru.reg_req_flag = 1;
+
 		trigger_pre_di_process(TRIGGER_PRE_BY_PROVERDER_REG);
 		di_pre_stru.reg_req_flag_cnt = 0;
 		while (di_pre_stru.reg_req_flag) {
@@ -7375,7 +7396,9 @@ static void set_di_flag(void)
 		is_meson_gxlx_cpu() ||
 		is_meson_txhd_cpu() ||
 		is_meson_g12a_cpu() ||
-		is_meson_g12b_cpu()) {
+		is_meson_g12b_cpu() ||
+		is_meson_tl1_cpu() ||
+		is_meson_sm1_cpu()) {
 		mcpre_en = true;
 		mc_mem_alloc = true;
 		pulldown_enable = false;
@@ -7392,7 +7415,9 @@ static void set_di_flag(void)
 			is_meson_gxlx_cpu() ||
 			is_meson_txhd_cpu() ||
 			is_meson_g12a_cpu() ||
-			is_meson_g12b_cpu()) {
+			is_meson_g12b_cpu() ||
+			is_meson_tl1_cpu() ||
+			is_meson_sm1_cpu()) {
 			full_422_pack = true;
 		}
 
@@ -7403,7 +7428,9 @@ static void set_di_flag(void)
 			full_422_pack = false;
 		}
 		post_hold_line =
-			(is_meson_g12a_cpu() || is_meson_g12b_cpu())?10:17;
+			(is_meson_g12a_cpu() || is_meson_g12b_cpu()
+				|| is_meson_tl1_cpu() ||
+				is_meson_sm1_cpu())?10:17;
 	} else {
 		post_hold_line = 8;	/*2019-01-10: from VLSI feijun*/
 		mcpre_en = false;
@@ -7413,6 +7440,8 @@ static void set_di_flag(void)
 		use_2_interlace_buff = 0;
 		di_force_bit_mode = 8;
 	}
+	if (is_meson_tl1_cpu())
+		pulldown_enable = true;
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12A))
 		intr_mode = 3;
 	if (di_pre_rdma_enable) {
@@ -7617,13 +7646,14 @@ static int di_probe(struct platform_device *pdev)
 	vf_reg_receiver(&di_vf_recv);
 	vf_provider_init(&di_vf_prov, VFM_NAME, &deinterlace_vf_provider, NULL);
 	active_flag = 1;
+	sema_init(&di_sema, 1);
 	ret = request_irq(di_devp->pre_irq, &de_irq, IRQF_SHARED,
 		"pre_di", (void *)"pre_di");
 	if (di_devp->post_wr_support) {
 		ret = request_irq(di_devp->post_irq, &post_irq,
 			IRQF_SHARED, "post_di", (void *)"post_di");
 	}
-	sema_init(&di_sema, 1);
+	//sema_init(&di_sema, 1);
 	di_sema_init_flag = 1;
 	di_hw_init(pulldown_enable, mcpre_en);
 	set_di_flag();
@@ -7744,6 +7774,29 @@ static void di_shutdown(struct platform_device *pdev)
 }
 
 #ifdef CONFIG_PM
+
+static void di_clear_for_suspend(struct di_dev_s *di_devp)
+{
+	pr_info("%s\n", __func__);
+
+	di_unreg_process();/*have flag*/
+	if (di_pre_stru.unreg_req_flag_irq)
+		di_unreg_process_irq();
+
+#ifdef CONFIG_CMA
+	if (di_pre_stru.cma_release_req) {
+		pr_info("\tcma_release\n");
+		atomic_set(&di_devp->mem_flag, 0);
+		di_cma_release(di_devp);
+		di_pre_stru.cma_release_req = 0;
+		di_pre_stru.cma_alloc_done = 0;
+	}
+#endif
+	hrtimer_cancel(&di_pre_hrtimer);
+	tasklet_kill(&di_pre_tasklet);	//ary.sui
+	tasklet_disable(&di_pre_tasklet);
+	pr_info("%s end\n", __func__);
+}
 static int save_init_flag;
 /* must called after lcd */
 static int di_suspend(struct device *dev)
@@ -7753,9 +7806,13 @@ static int di_suspend(struct device *dev)
 
 	di_devp = dev_get_drvdata(dev);
 	di_devp->flags |= DI_SUSPEND_FLAG;
+
+	di_clear_for_suspend(di_devp);//add
+
 	/* fix suspend/resume crash problem */
 	save_init_flag = init_flag;
 	init_flag = 0;
+#if 0	/*2019-01-18*/
 	if (di_pre_stru.di_inp_buf) {
 		if (vframe_in[di_pre_stru.di_inp_buf->index]) {
 			vf_put(vframe_in[di_pre_stru.di_inp_buf->index],
@@ -7765,7 +7822,7 @@ static int di_suspend(struct device *dev)
 				VFRAME_EVENT_RECEIVER_PUT, NULL);
 		}
 	}
-
+#endif
 
 	if (!is_meson_txlx_cpu())
 		switch_vpu_clk_gate_vmod(VPU_VPU_CLKB,
@@ -7781,10 +7838,21 @@ static int di_resume(struct device *dev)
 	struct di_dev_s *di_devp = NULL;
 
 	di_devp = dev_get_drvdata(dev);
+
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXL))
 		clk_prepare_enable(di_devp->vpu_clkb);
 	init_flag = save_init_flag;
 	di_devp->flags &= ~DI_SUSPEND_FLAG;
+	/*2018-01-18*/
+	pr_info("%s\n", __func__);
+	tasklet_init(&di_pre_tasklet, pre_tasklet,
+		(unsigned long)(&di_pre_stru));
+	tasklet_disable(&di_pre_tasklet);
+	hrtimer_init(&di_pre_hrtimer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+	di_pre_hrtimer.function = di_pre_hrtimer_func;
+	hrtimer_start(&di_pre_hrtimer, ms_to_ktime(10), HRTIMER_MODE_REL);
+	tasklet_enable(&di_pre_tasklet);
+	/************/
 	pr_info("di: resume module\n");
 	return 0;
 }
@@ -7943,8 +8011,8 @@ module_param_named(overturn, overturn, bool, 0664);
 module_param_named(queue_print_flag, queue_print_flag, int, 0664);
 module_param_named(full_422_pack, full_422_pack, bool, 0644);
 module_param_named(cma_print, cma_print, bool, 0644);
-#ifdef DEBUG_SUPPORT
 module_param_named(pulldown_enable, pulldown_enable, bool, 0644);
+#ifdef DEBUG_SUPPORT
 #ifdef RUN_DI_PROCESS_IN_IRQ
 module_param_named(input2pre, input2pre, uint, 0664);
 module_param_named(input2pre_buf_miss_count, input2pre_buf_miss_count,

@@ -33,7 +33,7 @@
 #include <linux/fs.h>
 #include <linux/sysfs.h>
 #include <linux/uaccess.h>
-
+#include <linux/amlogic/cpu_version.h>
 /* Android Headers */
 
 /* Amlogic sync headers */
@@ -54,6 +54,7 @@
 #endif
 
 #ifdef CONFIG_AMLOGIC_MEDIA_VIDEO
+#include <linux/amlogic/media/vfm/vframe.h>
 #include <linux/amlogic/media/video_sink/video.h>
 #endif
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
@@ -107,7 +108,7 @@ static int osd_afbc_dec_enable;
 static int ext_canvas_id[HW_OSD_COUNT];
 static int osd_extra_idx[HW_OSD_COUNT][2];
 static bool suspend_flag;
-
+static u32 rdma_dt_cnt;
 static void osd_clone_pan(u32 index, u32 yoffset, int debug_flag);
 static void osd_set_dummy_data(u32 index, u32 alpha);
 
@@ -446,15 +447,22 @@ static unsigned int supsend_delay;
 module_param(supsend_delay, uint, 0664);
 MODULE_PARM_DESC(supsend_delay, "supsend_delay");
 
+int enable_vd_zorder = 1;
+MODULE_PARM_DESC(enable_vd_zorder, "\n enable_vd_zorder\n");
+module_param(enable_vd_zorder, uint, 0664);
+
 static int vsync_enter_line_max;
 static int vsync_exit_line_max;
 static int vsync_line_threshold = 950;
+static int line_threshold = 90;
 MODULE_PARM_DESC(vsync_enter_line_max, "\n vsync_enter_line_max\n");
 module_param(vsync_enter_line_max, uint, 0664);
 MODULE_PARM_DESC(vsync_exit_line_max, "\n vsync_exit_line_max\n");
 module_param(vsync_exit_line_max, uint, 0664);
 MODULE_PARM_DESC(vsync_line_threshold, "\n vsync_line_threshold\n");
 module_param(vsync_line_threshold, uint, 0664);
+MODULE_PARM_DESC(line_threshold, "\n line_threshold\n");
+module_param(line_threshold, uint, 0664);
 
 static unsigned int osd_filter_coefs_bicubic_sharp[] = {
 	0x01fa008c, 0x01fa0100, 0xff7f0200, 0xfe7f0300,
@@ -687,48 +695,44 @@ static void f2v_get_vertical_phase(
 static bool osd_hdr_on;
 #endif
 
-static int cnt;
-#ifdef CONFIG_AMLOGIC_MEDIA_FB_OSD_SYNC_FENCE
 static int get_encp_line(void)
 {
 	int enc_line = 0;
+	int active_line_begin = 0;
+	unsigned int reg = 0;
 
 	switch (osd_reg_read(VPU_VIU_VENC_MUX_CTRL) & 0x3) {
 	case 0:
-		enc_line = (osd_reg_read(ENCL_INFO_READ) >> 16) & 0x1fff;
+		reg = osd_reg_read(ENCL_INFO_READ);
+		active_line_begin =
+			osd_reg_read(ENCL_VIDEO_VAVON_BLINE);
 		break;
 	case 1:
-		enc_line = (osd_reg_read(ENCI_INFO_READ) >> 16) & 0x1fff;
+		reg = osd_reg_read(ENCI_INFO_READ);
+		active_line_begin =
+			osd_reg_read(ENCI_VFIFO2VD_LINE_TOP_START);
 		break;
 	case 2:
-		enc_line = (osd_reg_read(ENCP_INFO_READ) >> 16) & 0x1fff;
+		reg = osd_reg_read(ENCP_INFO_READ);
+		active_line_begin =
+			osd_reg_read(ENCP_VIDEO_VAVON_BLINE);
 		break;
 	case 3:
-		enc_line = (osd_reg_read(ENCT_INFO_READ) >> 16) & 0x1fff;
+		reg = osd_reg_read(ENCT_INFO_READ);
+		active_line_begin =
+			osd_reg_read(ENCT_VIDEO_VAVON_BLINE);
 		break;
 	}
+	enc_line = (reg >> 16) & 0x1fff;
+	enc_line -= active_line_begin;
 	return enc_line;
 }
-#endif
 
 static int get_enter_encp_line(void)
 {
 	int enc_line = 0;
 
-	switch (osd_reg_read(VPU_VIU_VENC_MUX_CTRL) & 0x3) {
-	case 0:
-		enc_line = (osd_reg_read(ENCL_INFO_READ) >> 16) & 0x1fff;
-		break;
-	case 1:
-		enc_line = (osd_reg_read(ENCI_INFO_READ) >> 16) & 0x1fff;
-		break;
-	case 2:
-		enc_line = (osd_reg_read(ENCP_INFO_READ) >> 16) & 0x1fff;
-		break;
-	case 3:
-		enc_line = (osd_reg_read(ENCT_INFO_READ) >> 16) & 0x1fff;
-		break;
-	}
+	enc_line = get_encp_line();
 	if (enc_line > vsync_enter_line_max)
 		vsync_enter_line_max = enc_line;
 	return enc_line;
@@ -738,20 +742,7 @@ static int get_exit_encp_line(void)
 {
 	int enc_line = 0;
 
-	switch (osd_reg_read(VPU_VIU_VENC_MUX_CTRL) & 0x3) {
-	case 0:
-		enc_line = (osd_reg_read(ENCL_INFO_READ) >> 16) & 0x1fff;
-		break;
-	case 1:
-		enc_line = (osd_reg_read(ENCI_INFO_READ) >> 16) & 0x1fff;
-		break;
-	case 2:
-		enc_line = (osd_reg_read(ENCP_INFO_READ) >> 16) & 0x1fff;
-		break;
-	case 3:
-		enc_line = (osd_reg_read(ENCT_INFO_READ) >> 16) & 0x1fff;
-		break;
-	}
+	enc_line = get_encp_line();
 	if (enc_line > vsync_exit_line_max)
 		vsync_exit_line_max = enc_line;
 	return enc_line;
@@ -1059,7 +1050,7 @@ static int sync_render_layers_fence(u32 index, u32 yres,
 	fence_map->cmd = LAYER_SYNC;
 	fence_map->layer_map[index].fb_index = index;
 	/* layer_map[index].enable will update if have blank ioctl */
-	fence_map->layer_map[index].enable = 1;
+	fence_map->layer_map[index].enable = request->op;
 	fence_map->layer_map[index].in_fd = request->in_fen_fd;
 	if (request->shared_fd < 0)
 		fence_map->layer_map[index].buf_file = NULL;
@@ -1068,6 +1059,8 @@ static int sync_render_layers_fence(u32 index, u32 yres,
 	fence_map->layer_map[index].ext_addr = phys_addr;
 	fence_map->layer_map[index].format = request->format;
 	fence_map->layer_map[index].compose_type = request->type;
+	fence_map->layer_map[index].fb_width = request->fb_width;
+	fence_map->layer_map[index].fb_height = request->fb_height;
 	fence_map->layer_map[index].src_x = request->xoffset;
 	fence_map->layer_map[index].src_y = request->yoffset;
 	fence_map->layer_map[index].src_w = request->width;
@@ -1113,11 +1106,10 @@ int osd_sync_request_render(u32 index, u32 yres,
 {
 	int line;
 
-	cnt++;
 	line = get_encp_line();
 	osd_log_dbg2(MODULE_RENDER,
-			"enter osd_sync_request_render:cnt=%d,encp line=%d\n",
-			cnt, line);
+			"enter osd_sync_request_render:encp line=%d\n",
+			line);
 	if (request->magic == FB_SYNC_REQUEST_RENDER_MAGIC_V1)
 		osd_hw.hwc_enable = 0;
 	else if (request->magic == FB_SYNC_REQUEST_RENDER_MAGIC_V2)
@@ -1139,8 +1131,8 @@ int osd_sync_do_hwc(struct do_hwc_cmd_s *hwc_cmd)
 
 	line = get_encp_line();
 	osd_log_dbg2(MODULE_RENDER,
-		"enter osd_sync_do_hwc:cnt=%d,encp line=%d\n",
-		cnt, line);
+		"enter osd_sync_do_hwc:encp line=%d\n",
+		line);
 	fence_map = kzalloc(
 		sizeof(struct osd_layers_fence_map_s), GFP_KERNEL);
 	if (!fence_map)
@@ -1674,6 +1666,8 @@ static u32 osd_get_hw_reset_flag(void)
 	case __MESON_CPU_MAJOR_ID_G12A:
 	case __MESON_CPU_MAJOR_ID_G12B:
 	case __MESON_CPU_MAJOR_ID_TL1:
+	case __MESON_CPU_MAJOR_ID_SM1:
+	case __MESON_CPU_MAJOR_ID_TM2:
 		{
 		int i, afbc_enable = 0;
 
@@ -2064,6 +2058,22 @@ void  osd_set_gbl_alpha_hw(u32 index, u32 gbl_alpha)
 u32 osd_get_gbl_alpha_hw(u32  index)
 {
 	return osd_hw.gbl_alpha[index];
+}
+
+void  osd_set_line_n_rdma(u32 line_n_rdma)
+{
+	if (osd_hw.line_n_rdma != line_n_rdma) {
+		osd_hw.line_n_rdma = line_n_rdma;
+		if (osd_hw.line_n_rdma)
+			enable_line_n_rdma();
+		else
+			enable_vsync_rdma();
+	}
+}
+
+u32 osd_get_line_n_rdma(void)
+{
+	return osd_hw.line_n_rdma;
 }
 
 void osd_set_color_key_hw(u32 index, u32 color_index, u32 colorkey)
@@ -2791,17 +2801,18 @@ void osd_enable_hw(u32 index, u32 enable)
 		add_to_update_list(index, OSD_GBL_ALPHA);
 		add_to_update_list(index, DISP_GEOMETRY);
 		osd_wait_vsync_hw();
-	}
 
-	while ((index == 0) && osd_hw.osd_afbcd[index].enable &&
+		while ((index == 0) && osd_hw.osd_afbcd[index].enable &&
 			(osd_hw.osd_afbcd[index].phy_addr == 0) &&
 			enable && (i < count)) {
-		osd_wait_vsync_hw();
-		i++;
+			osd_wait_vsync_hw();
+			i++;
+		}
+		if (i > 0)
+			osd_log_info("osd[%d]: wait %d vsync first buffer ready.\n",
+				index, i);
 	}
-	if (i > 0)
-		osd_log_info("osd[%d]: wait %d vsync first buffer ready.\n",
-			index, i);
+
 	osd_hw.enable[index] = enable;
 	if (get_osd_hwc_type() != OSD_G12A_NEW_HWC) {
 		add_to_update_list(index, OSD_ENABLE);
@@ -2997,34 +3008,35 @@ void osd_switch_free_scale(
 	int i = 0;
 	int count = (pxp_mode == 1)?3:WAIT_AFBC_READY_COUNT;
 
-	if (osd_hw.osd_meson_dev.osd_ver == OSD_HIGH_ONE)
-		return;
 	osd_log_info("osd[%d] enable: %d scale:0x%x (%s)\n",
 		pre_index, pre_enable, pre_scale, current->comm);
 	osd_log_info("osd[%d] enable: %d scale:0x%x (%s)\n",
 		next_index, next_enable, next_scale, current->comm);
 	if (osd_hw.free_scale_mode[pre_index]
 		|| osd_hw.free_scale_mode[next_index]) {
-		while ((next_index == OSD1)
-			&& osd_hw.osd_afbcd[next_index].enable
-			&& (osd_hw.osd_afbcd[next_index].phy_addr == 0)
-			&& next_enable && (i < count)) {
-			osd_wait_vsync_hw();
-			i++;
+		if (osd_hw.osd_meson_dev.osd_ver == OSD_NORMAL) {
+			while ((next_index == OSD1)
+				&& osd_hw.osd_afbcd[next_index].enable
+				&& (osd_hw.osd_afbcd[next_index].phy_addr == 0)
+				&& next_enable && (i < count)) {
+				osd_wait_vsync_hw();
+				i++;
+			}
+			if (i > 0)
+				osd_log_info("osd[%d]: wait %d vsync first buffer ready.\n",
+					next_index, i);
 		}
-		if (i > 0)
-			osd_log_info("osd[%d]: wait %d vsync first buffer ready.\n",
-				next_index, i);
-		h_enable = (pre_scale & 0xffff0000 ? 1 : 0);
-		v_enable = (pre_scale & 0xffff ? 1 : 0);
-		osd_hw.free_scale[pre_index].h_enable = h_enable;
-		osd_hw.free_scale[pre_index].v_enable = v_enable;
-		osd_hw.free_scale_enable[pre_index] = pre_scale;
-		osd_hw.free_scale_backup[pre_index].h_enable = h_enable;
-		osd_hw.free_scale_backup[pre_index].v_enable = v_enable;
-		osd_hw.free_scale_enable_backup[pre_index] = pre_scale;
-		osd_hw.enable[pre_index] = pre_enable;
-
+		if (pre_index != next_index) {
+			h_enable = (pre_scale & 0xffff0000 ? 1 : 0);
+			v_enable = (pre_scale & 0xffff ? 1 : 0);
+			osd_hw.free_scale[pre_index].h_enable = h_enable;
+			osd_hw.free_scale[pre_index].v_enable = v_enable;
+			osd_hw.free_scale_enable[pre_index] = pre_scale;
+			osd_hw.free_scale_backup[pre_index].h_enable = h_enable;
+			osd_hw.free_scale_backup[pre_index].v_enable = v_enable;
+			osd_hw.free_scale_enable_backup[pre_index] = pre_scale;
+			osd_hw.enable[pre_index] = pre_enable;
+		}
 		h_enable = (next_scale & 0xffff0000 ? 1 : 0);
 		v_enable = (next_scale & 0xffff ? 1 : 0);
 		osd_hw.free_scale[next_index].h_enable = h_enable;
@@ -3045,14 +3057,16 @@ void osd_switch_free_scale(
 			osd_afbc_dec_enable = 0;
 			osd_hw.reg[OSD_GBL_ALPHA].update_func(next_index);
 		}
-
-		osd_hw.reg[OSD_COLOR_MODE].update_func(pre_index);
-		if (pre_scale)
-			osd_hw.reg[OSD_FREESCALE_COEF].update_func(pre_index);
-		osd_hw.reg[DISP_GEOMETRY].update_func(pre_index);
-		osd_hw.reg[DISP_FREESCALE_ENABLE].update_func(pre_index);
-		osd_hw.reg[OSD_ENABLE].update_func(pre_index);
-
+		if (pre_index != next_index) {
+			osd_hw.reg[OSD_COLOR_MODE].update_func(pre_index);
+			if (pre_scale)
+				osd_hw.reg[OSD_FREESCALE_COEF].
+						update_func(pre_index);
+			osd_hw.reg[DISP_GEOMETRY].update_func(pre_index);
+			osd_hw.reg[DISP_FREESCALE_ENABLE].
+						update_func(pre_index);
+			osd_hw.reg[OSD_ENABLE].update_func(pre_index);
+		}
 		osd_hw.reg[OSD_COLOR_MODE].update_func(next_index);
 		if (next_scale)
 			osd_hw.reg
@@ -3064,7 +3078,8 @@ void osd_switch_free_scale(
 		spin_unlock_irqrestore(&osd_lock, lock_flags);
 		osd_wait_vsync_hw();
 	} else {
-		osd_enable_hw(pre_index, pre_enable);
+		if (pre_index != next_index)
+			osd_enable_hw(pre_index, pre_enable);
 		osd_enable_hw(next_index, next_enable);
 	}
 }
@@ -3900,6 +3915,7 @@ static void osd_pan_display_single_fence(struct osd_fence_map_s *fence_map)
 
 			/* geometry and freescale need update with ioctl */
 			osd_hw.reg[DISP_GEOMETRY].update_func(index);
+			osd_hw.reg[DISP_OSD_REVERSE].update_func(index);
 			if ((osd_hw.free_scale_enable[index]
 					&& osd_update_window_axis)
 					|| freescale_update) {
@@ -3908,7 +3924,10 @@ static void osd_pan_display_single_fence(struct osd_fence_map_s *fence_map)
 					.update_func(index);
 				osd_update_window_axis = false;
 			}
-			if ((osd_enable != osd_hw.enable[index])
+			if ((osd_enable != osd_hw.enable[index] ||
+				(osd_hw.osd_meson_dev.afbc_type
+					== MALI_AFBC &&
+				osd_hw.osd_afbcd[index].enable))
 				&& (skip == false)
 				&& (suspend_flag == false)) {
 				osd_hw.enable[index] = osd_enable;
@@ -4019,6 +4038,7 @@ static void osd_pan_display_single_fence(struct osd_fence_map_s *fence_map)
 			if (color_mode)
 				osd_hw.reg[OSD_COLOR_MODE].update_func(index);
 			osd_hw.reg[DISP_GEOMETRY].update_func(index);
+			osd_hw.reg[DISP_OSD_REVERSE].update_func(index);
 			if ((osd_hw.free_scale_enable[index]
 					&& osd_update_window_axis)
 					|| (osd_hw.free_scale_enable[index]
@@ -4028,7 +4048,10 @@ static void osd_pan_display_single_fence(struct osd_fence_map_s *fence_map)
 						.update_func(index);
 				osd_update_window_axis = false;
 			}
-			if ((osd_enable != osd_hw.enable[index])
+			if ((osd_enable != osd_hw.enable[index] ||
+				(osd_hw.osd_meson_dev.afbc_type
+					== MALI_AFBC &&
+				osd_hw.osd_afbcd[index].enable))
 				&& (skip == false)
 				&& (suspend_flag == false)) {
 				osd_hw.enable[index] = osd_enable;
@@ -4040,7 +4063,9 @@ static void osd_pan_display_single_fence(struct osd_fence_map_s *fence_map)
 				osd_mali_afbc_start();
 			spin_unlock_irqrestore(&osd_lock, lock_flags);
 			osd_wait_vsync_hw();
-		} else if ((osd_enable != osd_hw.enable[index])
+		} else if ((osd_enable != osd_hw.enable[index] ||
+			(osd_hw.osd_meson_dev.afbc_type == MALI_AFBC &&
+			osd_hw.osd_afbcd[index].enable))
 			&& (skip == false)) {
 			spin_lock_irqsave(&osd_lock, lock_flags);
 			if (suspend_flag == false) {
@@ -4084,6 +4109,10 @@ static void osd_pan_display_update_info(struct layer_fence_map_s *layer_map)
 	osd_hw.in_fd[index] = layer_map->in_fd;
 	osd_hw.buffer_alloc[index] = 1;
 	osd_hw.enable[index] = layer_map->enable;
+	if (osd_hw.enable[index] == 0) {
+		osd_log_dbg(MODULE_BASE, "osd%d: blanked\n", index);
+		return;
+	}
 	osd_hw.osd_afbcd[index].enable =
 		(layer_map->afbc_inter_format & AFBC_EN) >> 31;
 	if (layer_map->plane_alpha == 0xff)
@@ -4149,12 +4178,10 @@ static void osd_pan_display_update_info(struct layer_fence_map_s *layer_map)
 			/*ext_addr is no crop, so height =
 			 * layer_map->src_h + layer_map->src_y
 			 */
-			canvas_config(osd_hw.fb_gem[index].canvas_idx,
-				ext_addr,
-				layer_map->byte_stride,
-				layer_map->src_h + layer_map->src_y,
-				CANVAS_ADDR_NOWRAP,
-				CANVAS_BLKMODE_LINEAR);
+			osd_hw.fb_gem[index].addr = ext_addr;
+			osd_hw.fb_gem[index].width = layer_map->byte_stride;
+			osd_hw.fb_gem[index].height =
+				layer_map->src_h + layer_map->src_y;
 			osd_hw.screen_base[index] = ext_addr;
 			osd_hw.screen_size[index] =
 				layer_map->byte_stride * layer_map->src_h;
@@ -4193,7 +4220,8 @@ static void osd_pan_display_update_info(struct layer_fence_map_s *layer_map)
 					layer_map->byte_stride / 4;
 					//BYTE_32_ALIGNED(layer_map->src_w);
 				osd_hw.osd_afbcd[index].frame_height =
-					BYTE_8_ALIGNED(layer_map->src_h);
+					BYTE_8_ALIGNED(layer_map->fb_height);
+					/*BYTE_8_ALIGNED(layer_map->src_h);*/
 				osd_hw.screen_base[index] = ext_addr;
 				osd_hw.screen_size[index] =
 					layer_map->afbc_len;
@@ -4252,7 +4280,7 @@ static void osd_pan_display_update_info(struct layer_fence_map_s *layer_map)
 static void osd_pan_display_layers_fence(
 	struct osd_layers_fence_map_s *fence_map)
 {
-	int i = 0, index = 0;
+	int i = 0;
 	int ret;
 	int osd_count = osd_hw.osd_meson_dev.osd_count - 1;
 	/* osd_count need -1 when VIU2 enable */
@@ -4275,7 +4303,6 @@ static void osd_pan_display_layers_fence(
 	osd_hw.hdr_used = fence_map->hdr_mode;
 	for (i = 0; i < osd_count; i++) {
 		layer_map = &fence_map->layer_map[i];
-		index = layer_map->fb_index;
 		if (i != layer_map->fb_index) {
 			osd_hw.screen_base[i] = 0;
 			osd_hw.screen_size[i] = 0;
@@ -4433,12 +4460,8 @@ static void osd_update_disp_freescale_enable(u32 index)
 	else
 		vf_bank_len = 4;
 
-	if (osd_hw.hwc_enable && (index == OSD1)
-		&& ((osd_hw.osd_meson_dev.cpu_id ==
-		__MESON_CPU_MAJOR_ID_G12A) ||
-		(osd_hw.osd_meson_dev.cpu_id ==
-		__MESON_CPU_MAJOR_ID_G12B)))
-		shift_workaround = 1;
+	if (osd_hw.hwc_enable && (index == OSD1))
+		shift_workaround = osd_hw.workaround_line;
 
 #ifndef NEW_PPS_PHASE
 	if (osd_hw.bot_type == 1) {
@@ -4897,8 +4920,10 @@ static void osd_update_enable(u32 index)
 			notify_to_amvideo();
 			VSYNCOSD_CLR_MPEG_REG_MASK(VPP_MISC, temp_val);
 		}
-		VSYNCOSD_CLR_MPEG_REG_MASK(
-			osd_reg->osd_ctrl_stat, 1 << 0);
+		if (!(osd_hw.osd_meson_dev.cpu_id ==
+			__MESON_CPU_MAJOR_ID_G12B))
+			VSYNCOSD_CLR_MPEG_REG_MASK(
+				osd_reg->osd_ctrl_stat, 1 << 0);
 	}
 	if (osd_hw.osd_meson_dev.afbc_type == MESON_AFBC) {
 		if ((osd_hw.osd_afbcd[index].enable == ENABLE)
@@ -4953,14 +4978,16 @@ static void osd_update_enable(u32 index)
 		if (osd_hw.enable[index] == ENABLE)
 			postbld_src_sel = (index == 0) ? 3 : 4;
 		if (index == 0)
-			VSYNCOSD_WR_MPEG_REG(OSD1_BLEND_SRC_CTRL,
+			VSYNCOSD_WR_MPEG_REG(
+				OSD1_BLEND_SRC_CTRL,
 				(0 & 0xf) << 0 |
 				(0 & 0x1) << 4 |
 				(postbld_src_sel & 0xf) << 8 |
 				(0 & 0x1) << 16|
 				(1 & 0x1) << 20);
-		else if (index == 1)
-			VSYNCOSD_WR_MPEG_REG(OSD2_BLEND_SRC_CTRL,
+		else if ((index == 1) && (!enable_vd_zorder))
+			VSYNCOSD_WR_MPEG_REG(
+				OSD2_BLEND_SRC_CTRL,
 				(0 & 0xf) << 0 |
 				(0 & 0x1) << 4 |
 				(postbld_src_sel & 0xf) << 8 |
@@ -4972,18 +4999,35 @@ static void osd_update_enable(u32 index)
 
 static void osd_update_disp_osd_reverse(u32 index)
 {
-	if (osd_hw.osd_reverse[index] == REVERSE_TRUE)
+	if (osd_hw.osd_reverse[index] == REVERSE_TRUE) {
 		VSYNCOSD_WR_MPEG_REG_BITS(
 		hw_osd_reg_array[index].osd_blk0_cfg_w0, 3, 28, 2);
-	else if (osd_hw.osd_reverse[index] == REVERSE_X)
+		if ((osd_hw.osd_meson_dev.afbc_type == MALI_AFBC) &&
+			(osd_hw.osd_afbcd[index].enable == ENABLE))
+			VSYNCOSD_WR_MPEG_REG_BITS(
+			hw_osd_reg_array[index].afbc_prefetch_cfg_s, 3, 0, 2);
+	} else if (osd_hw.osd_reverse[index] == REVERSE_X) {
 		VSYNCOSD_WR_MPEG_REG_BITS(
 		hw_osd_reg_array[index].osd_blk0_cfg_w0, 1, 28, 2);
-	else if (osd_hw.osd_reverse[index] == REVERSE_Y)
+		if ((osd_hw.osd_meson_dev.afbc_type == MALI_AFBC) &&
+			(osd_hw.osd_afbcd[index].enable == ENABLE))
+			VSYNCOSD_WR_MPEG_REG_BITS(
+			hw_osd_reg_array[index].afbc_prefetch_cfg_s, 1, 0, 2);
+	} else if (osd_hw.osd_reverse[index] == REVERSE_Y) {
 		VSYNCOSD_WR_MPEG_REG_BITS(
 		hw_osd_reg_array[index].osd_blk0_cfg_w0, 2, 28, 2);
-	else
+		if ((osd_hw.osd_meson_dev.afbc_type == MALI_AFBC) &&
+			(osd_hw.osd_afbcd[index].enable == ENABLE))
+			VSYNCOSD_WR_MPEG_REG_BITS(
+			hw_osd_reg_array[index].afbc_prefetch_cfg_s, 2, 0, 2);
+	} else {
 		VSYNCOSD_WR_MPEG_REG_BITS(
 		hw_osd_reg_array[index].osd_blk0_cfg_w0, 0, 28, 2);
+		if ((osd_hw.osd_meson_dev.afbc_type == MALI_AFBC) &&
+			(osd_hw.osd_afbcd[index].enable == ENABLE))
+			VSYNCOSD_WR_MPEG_REG_BITS(
+			hw_osd_reg_array[index].afbc_prefetch_cfg_s, 0, 0, 2);
+	}
 	remove_from_update_list(index, DISP_OSD_REVERSE);
 }
 
@@ -5007,7 +5051,7 @@ static void osd_update_disp_osd_rotate(u32 index)
 	const struct vinfo_s *vinfo;
 	int out_y_crop_start, out_y_crop_end;
 
-	if (osd_hw.osd_meson_dev.cpu_id < __MESON_CPU_MAJOR_ID_G12B)
+	if (osd_hw.osd_meson_dev.cpu_id != __MESON_CPU_MAJOR_ID_G12B)
 		return;
 	src_fmt = get_viu2_src_format();
 	src_data.x = 0;
@@ -6075,12 +6119,12 @@ static void osd_setting_blend1(struct hw_osd_blending_s *blending)
 	if (!blending)
 		return;
 	if (osd_hw.hdr_used)
-		workaround_line = 1;
+		workaround_line = osd_hw.workaround_line;
 	else {
 		if (blending->layer_cnt == 2)
 			workaround_line = 0;
 		else
-			workaround_line = 1;
+			workaround_line = osd_hw.workaround_line;
 	}
 	layer_blend = &(blending->layer_blend);
 	blend_reg = &(blending->blend_reg);
@@ -6371,7 +6415,7 @@ static void osd_set_freescale(u32 index,
 	struct layer_blend_reg_s *blend_reg;
 	u32 width, height;
 	u32 src_height;
-	u32 workaround_line = 1;
+	u32 workaround_line = osd_hw.workaround_line;
 
 	layer_blend = &(blending->layer_blend);
 	blend_reg = &(blending->blend_reg);
@@ -6510,9 +6554,10 @@ static void osd_setting_blend0_input(u32 index,
 	struct hw_osd_blending_s *blending)
 {
 	struct layer_blend_s *layer_blend;
-	u32 workaround_line = 1;
+	u32 workaround_line = 0;
 	/* for g12a blend shift issue */
 
+	workaround_line = osd_hw.workaround_line;
 	layer_blend = &(blending->layer_blend);
 	if (index == OSD1) {
 
@@ -6555,12 +6600,12 @@ static void osd_setting_blend1_input(u32 index,
 	/* for g12a blend shift issue */
 
 	if (osd_hw.hdr_used)
-		workaround_line = 1;
+		workaround_line = osd_hw.workaround_line;
 	else {
 		if (blending->layer_cnt == 2)
 			workaround_line = 0;
 		else
-			workaround_line = 1;
+			workaround_line = osd_hw.workaround_line;
 	}
 
 	layer_blend = &(blending->layer_blend);
@@ -7243,12 +7288,15 @@ static void set_blend_reg(struct layer_blend_reg_s *blend_reg)
 		(0 << 16) |
 		(1 & 0x1) << 20);
 	/* vpp osd2 blend ctrl */
-	VSYNCOSD_WR_MPEG_REG(OSD2_BLEND_SRC_CTRL,
-		(0 & 0xf) << 0 |
-		(0 & 0x1) << 4 |
-		(blend_reg->postbld_src4_sel & 0xf) << 8 |
-		(0 << 16) |
-		(1 & 0x1) << 20);
+	if (!enable_vd_zorder)
+		VSYNCOSD_WR_MPEG_REG(
+			OSD2_BLEND_SRC_CTRL,
+			(0 & 0xf) << 0 |
+			(0 & 0x1) << 4 |
+			(blend_reg->postbld_src4_sel & 0xf)
+			<< 8 |
+			(0 << 16) |
+			(1 & 0x1) << 20);
 
 	VSYNCOSD_WR_MPEG_REG(VIU_OSD_BLEND_BLEND0_SIZE,
 		blend_reg->osd_blend_blend0_size);
@@ -7313,17 +7361,6 @@ static void uniformization_fb(u32 index,
 		blending->screen_ratio_w;
 	blending->dst_data.h = (osd_hw.dst_data[index].h << OSD_CALC) /
 		blending->screen_ratio_h;
-	if (osd_hw.dst_data[index].w < osd_hw.disp_info.position_w)
-		osd_log_err("base dispframe w(%d) must >= position_w(%d)\n",
-		osd_hw.dst_data[index].w, osd_hw.disp_info.position_w);
-	if ((blending->dst_data.w + blending->dst_data.x) >
-		osd_hw.disp_info.background_w) {
-		blending->dst_data.w = osd_hw.disp_info.background_w
-			- blending->dst_data.x;
-		osd_log_info("blending w(%d) must < base fb w(%d)\n",
-			blending->dst_data.w + blending->dst_data.x,
-			osd_hw.disp_info.background_w);
-	}
 	osd_log_dbg2(MODULE_BLEND,
 		"uniformization:osd%d:dst_data:%d,%d,%d,%d\n",
 		index,
@@ -7363,6 +7400,7 @@ static void adjust_dst_position(void)
 
 static int osd_setting_order(void)
 {
+#define RDMA_DETECT_REG VIU_OSD2_TCOLOR_AG2
 	int i;
 	struct layer_blend_reg_s *blend_reg;
 	struct hw_osd_blending_s *blending;
@@ -7371,6 +7409,7 @@ static int osd_setting_order(void)
 	int line1;
 	int line2;
 	int vinfo_height;
+	u32 val;
 
 	blending = &osd_blending;
 	blend_reg = &(blending->blend_reg);
@@ -7406,10 +7445,11 @@ static int osd_setting_order(void)
 	line1 = get_enter_encp_line();
 	vinfo_height = osd_hw.field_out_en ?
 		(osd_hw.vinfo_height * 2) : osd_hw.vinfo_height;
-	if (line1 >= vinfo_height) {
+	/* if nearly vsync signal, wait vsync here */
+	if (line1 >= vinfo_height * line_threshold / 100) {
 		osd_log_dbg(MODULE_RENDER,
-			"enter osd_setting_order:cnt=%d,encp line=%d\n",
-			cnt, line1);
+			"enter osd_setting_order:encp line=%d\n",
+			line1);
 		osd_wait_vsync_hw();
 		line1 = get_enter_encp_line();
 	}
@@ -7421,6 +7461,13 @@ static int osd_setting_order(void)
 			struct hw_osd_reg_s *osd_reg = &hw_osd_reg_array[i];
 
 			update = is_freescale_para_changed(i);
+			if (!osd_hw.osd_afbcd[i].enable)
+				canvas_config(osd_hw.fb_gem[i].canvas_idx,
+					osd_hw.fb_gem[i].addr,
+					osd_hw.fb_gem[i].width,
+					osd_hw.fb_gem[i].height,
+					CANVAS_ADDR_NOWRAP,
+					CANVAS_BLKMODE_LINEAR);
 			osd_hw.reg[OSD_COLOR_MODE].update_func(i);
 			if (!osd_hw.dim_layer[i]) {
 				VSYNCOSD_WR_MPEG_REG(osd_reg->osd_dimm_ctrl,
@@ -7447,6 +7494,7 @@ static int osd_setting_order(void)
 			}
 			osd_hw.reg[DISP_GEOMETRY].update_func(i);
 			osd_hw.reg[OSD_GBL_ALPHA].update_func(i);
+			osd_hw.reg[DISP_OSD_REVERSE].update_func(i);
 			if (update || osd_update_window_axis) {
 				osd_set_scan_mode(i);
 				osd_hw.reg
@@ -7472,14 +7520,21 @@ static int osd_setting_order(void)
 
 	set_blend_reg(blend_reg);
 	save_blend_reg(blend_reg);
+	/* append RDMA_DETECT_REG at last and detect if rdma missed some regs */
+	rdma_dt_cnt++;
+	VSYNCOSD_WR_MPEG_REG(RDMA_DETECT_REG, rdma_dt_cnt);
 	spin_unlock_irqrestore(&osd_lock, lock_flags);
 	line2 = get_exit_encp_line();
 	osd_log_dbg2(MODULE_RENDER,
-		"enter osd_setting_order:cnt=%d,encp line=%d\n",
-		cnt, line2);
-	if (line2 < line1)
-		osd_log_info("osd line %d,%d\n", line1, line2);
+		"enter osd_setting_order:encp line=%d\n",
+		line2);
 	osd_wait_vsync_hw();
+	val = osd_reg_read(RDMA_DETECT_REG);
+	/* if missed, need wait vsync */
+	if (/*(line2 < line1) || */(val != rdma_dt_cnt)) {
+		osd_wait_vsync_hw();
+		osd_log_dbg(MODULE_RENDER, "osd line %d,%d\n", line1, line2);
+	}
 	return 0;
 }
 
@@ -7522,12 +7577,16 @@ static void osd_setting_default_hwc(void)
 		(postbld_osd1_premult & 0x1) << 16|
 		(1 & 0x1) << 20);
 	/* vpp osd2 blend ctrl */
-	VSYNCOSD_WR_MPEG_REG(OSD2_BLEND_SRC_CTRL,
-		(0 & 0xf) << 0 |
-		(0 & 0x1) << 4 |
-		(postbld_src4_sel & 0xf) << 8 |
-		(postbld_osd2_premult & 0x1) << 16 |
-		(1 & 0x1) << 20);
+	if (!enable_vd_zorder)
+		VSYNCOSD_WR_MPEG_REG(
+			OSD2_BLEND_SRC_CTRL,
+			(0 & 0xf) << 0 |
+			(0 & 0x1) << 4 |
+			(postbld_src4_sel & 0xf)
+			<< 8 |
+			(postbld_osd2_premult & 0x1)
+			<< 16 |
+			(1 & 0x1) << 20);
 
 	/* Do later: different format select different dummy_data */
 	/* used default dummy data */
@@ -7715,10 +7774,18 @@ static void osd_setting_old_hwc(void)
 	static u32 osd_enable;
 
 	spin_lock_irqsave(&osd_lock, lock_flags);
+	if (!osd_hw.osd_afbcd[index].enable)
+		canvas_config(osd_hw.fb_gem[index].canvas_idx,
+			osd_hw.fb_gem[index].addr,
+			osd_hw.fb_gem[index].width,
+			osd_hw.fb_gem[index].height,
+			CANVAS_ADDR_NOWRAP,
+			CANVAS_BLKMODE_LINEAR);
 	osd_hw.reg[OSD_COLOR_MODE].update_func(index);
 	freescale_update = set_old_hwc_freescale(index);
 	/* geometry and freescale need update with ioctl */
 	osd_hw.reg[DISP_GEOMETRY].update_func(index);
+	osd_hw.reg[DISP_OSD_REVERSE].update_func(index);
 	if ((osd_hw.free_scale_enable[index]
 		&& osd_update_window_axis)
 		|| freescale_update) {
@@ -7746,9 +7813,17 @@ static void osd_setting_viu2(void)
 {
 	int index = OSD4;
 
+	if (!osd_hw.osd_afbcd[index].enable)
+		canvas_config(osd_hw.fb_gem[index].canvas_idx,
+			osd_hw.fb_gem[index].addr,
+			osd_hw.fb_gem[index].width,
+			osd_hw.fb_gem[index].height,
+			CANVAS_ADDR_NOWRAP,
+			CANVAS_BLKMODE_LINEAR);
 	osd_hw.reg[OSD_COLOR_MODE].update_func(index);
 	/* geometry and freescale need update with ioctl */
 	osd_hw.reg[DISP_GEOMETRY].update_func(index);
+	osd_hw.reg[DISP_OSD_REVERSE].update_func(index);
 	if (!osd_hw.osd_display_debug)
 		osd_hw.reg[OSD_ENABLE]
 		.update_func(index);
@@ -7931,6 +8006,19 @@ static void osd_basic_update_disp_geometry(u32 index)
 		osd_hw.src_data[index].h - 1) & 0x1fff) << 16;
 	VSYNCOSD_WR_MPEG_REG(osd_reg->osd_blk0_cfg_w2, data32);
 	buffer_h = ((data32 >> 16) & 0x1fff) - (data32 & 0x1fff) + 1;
+	if (osd_hw.osd_meson_dev.has_dolby_vision) {
+		VSYNCOSD_WR_MPEG_REG(
+			DOLBY_CORE2A_SWAP_CTRL1,
+			((buffer_w + 0x40) << 16)
+			| (buffer_h + 0x80 + 0));
+		VSYNCOSD_WR_MPEG_REG(
+			DOLBY_CORE2A_SWAP_CTRL2,
+			(buffer_w << 16) | (buffer_h + 0));
+
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
+		update_graphic_width_height(buffer_w, buffer_h);
+#endif
+	}
 	data32 = VSYNCOSD_RD_MPEG_REG(osd_reg->osd_ctrl_stat);
 	data32 &= ~0x1ff008;//0x1ff00e;
 	data32 |= osd_hw.gbl_alpha[index] << 12;
@@ -8311,7 +8399,8 @@ void osd_init_hw(u32 logo_loaded, u32 osd_probe,
 			osd_hw.hw_rdma_en = 1;
 	} else if (osd_hw.osd_meson_dev.osd_ver == OSD_HIGH_ONE) {
 		osd_hw.hw_cursor_en = 0;
-		osd_hw.hw_rdma_en = 1;
+		if (osd_hw.osd_meson_dev.has_rdma)
+			osd_hw.hw_rdma_en = 1;
 		/* g12a and g12b need delay */
 		supsend_delay = 50;
 	}
@@ -8320,7 +8409,7 @@ void osd_init_hw(u32 logo_loaded, u32 osd_probe,
 		/* init vpu fifo control register */
 		data32 = osd_reg_read(VPP_OFIFO_SIZE);
 		if (osd_hw.osd_meson_dev.osd_ver >= OSD_HIGH_ONE) {
-			data32 = 0; /* reset value 0xfff0fff */
+			data32 &= ~((0xfff << 20) | 0x3fff);
 			data32 |= (osd_hw.osd_meson_dev.vpp_fifo_len) << 20;
 			data32 |= osd_hw.osd_meson_dev.vpp_fifo_len + 1;
 		} else
@@ -8406,9 +8495,16 @@ void osd_init_hw(u32 logo_loaded, u32 osd_probe,
 		osd_hw.disp_info.position_x = 0;
 		osd_hw.disp_info.position_y = 0;
 		osd_hw.disp_info.position_w = 1920;
-		osd_hw.disp_info.background_h = 1080;
+		osd_hw.disp_info.position_h = 1080;
 		osd_hw.vinfo_width = 1920;
 		osd_hw.vinfo_height = 1080;
+		osd_hw.workaround_line = 0;
+		if ((osd_hw.osd_meson_dev.cpu_id ==
+			__MESON_CPU_MAJOR_ID_G12A) ||
+			((osd_hw.osd_meson_dev.cpu_id ==
+			__MESON_CPU_MAJOR_ID_G12B) &&
+			is_meson_rev_a()))
+			osd_hw.workaround_line = 1;
 		for (idx = 0; idx < osd_hw.osd_meson_dev.osd_count; idx++) {
 			osd_hw.premult_en[idx] = 0;
 			osd_hw.osd_afbcd[idx].format = COLOR_INDEX_32_ABGR;
@@ -8424,7 +8520,7 @@ void osd_init_hw(u32 logo_loaded, u32 osd_probe,
 				osd_hw.afbc_regs_backup = 1;
 			} else {
 				osd_hw.afbc_force_reset = 1;
-				osd_hw.afbc_regs_backup = 0;
+				osd_hw.afbc_regs_backup = 1;
 				data32 = osd_reg_read(MALI_AFBCD_TOP_CTRL);
 				osd_reg_write(MALI_AFBCD_TOP_CTRL,
 					data32 | 0x800000);
@@ -8440,13 +8536,11 @@ void osd_init_hw(u32 logo_loaded, u32 osd_probe,
 				osd_reg_set_bits(
 				hw_osd_reg_array[idx].osd_fifo_ctrl_stat,
 				1, 10, 2);
-				/* TODO: temp set at here,
-				 * need check for logo
-				 */
-				if (idx > 0)
-					osd_reg_set_bits(
-					hw_osd_reg_array[idx].osd_ctrl_stat,
-					0, 0, 1);
+				if (osd_hw.osd_meson_dev.cpu_id ==
+					__MESON_CPU_MAJOR_ID_G12B)
+					osd_reg_set_bits
+					(hw_osd_reg_array[idx].osd_ctrl_stat,
+					1, 0, 1);
 				osd_reg_set_bits(
 				hw_osd_reg_array[idx].osd_ctrl_stat,
 				0, 31, 1);
@@ -8594,7 +8688,7 @@ void osd_init_hw(u32 logo_loaded, u32 osd_probe,
 #endif
 	}
 	if (osd_hw.hw_rdma_en)
-		osd_rdma_enable(1);
+		osd_rdma_enable(2);
 
 }
 
@@ -8991,15 +9085,19 @@ void  osd_suspend_hw(void)
 			osd_reg_read(VIU_OSD_BLEND_CTRL);
 		osd_hw.reg_status_save1 =
 			osd_reg_read(OSD1_BLEND_SRC_CTRL);
-		osd_hw.reg_status_save2 =
-			osd_reg_read(OSD2_BLEND_SRC_CTRL);
+
 		osd_hw.reg_status_save3 =
 			osd_reg_read(VPP_RDARB_REQEN_SLV);
 		osd_hw.reg_status_save4 =
 			osd_reg_read(VPU_MAFBC_SURFACE_CFG);
 		osd_reg_clr_mask(VIU_OSD_BLEND_CTRL, 0xf0000);
 		osd_reg_clr_mask(OSD1_BLEND_SRC_CTRL, 0xf0f);
-		osd_reg_clr_mask(OSD2_BLEND_SRC_CTRL, 0xf0f);
+		if (!enable_vd_zorder) {
+			osd_hw.reg_status_save2 =
+				osd_reg_read(OSD2_BLEND_SRC_CTRL);
+			osd_reg_clr_mask(
+				OSD2_BLEND_SRC_CTRL, 0xf0f);
+		}
 		osd_reg_clr_mask(VPP_RDARB_REQEN_SLV,
 			rdarb_reqen_slv);
 		osd_reg_write(VPU_MAFBC_SURFACE_CFG, 0);
@@ -9054,8 +9152,9 @@ void osd_resume_hw(void)
 			osd_hw.reg_status_save);
 		osd_reg_write(OSD1_BLEND_SRC_CTRL,
 			osd_hw.reg_status_save1);
-		osd_reg_write(OSD2_BLEND_SRC_CTRL,
-			osd_hw.reg_status_save2);
+		if (!enable_vd_zorder)
+			osd_reg_write(OSD2_BLEND_SRC_CTRL,
+				osd_hw.reg_status_save2);
 		osd_reg_write(VPP_RDARB_REQEN_SLV,
 			osd_hw.reg_status_save3);
 		osd_reg_write(VPU_MAFBC_SURFACE_CFG,
@@ -9425,6 +9524,7 @@ static const struct color_bit_define_s *convert_panel_format(u32 format)
 {
 	const struct color_bit_define_s *color = NULL;
 
+	format &= ~AFBC_EN;
 	switch (format) {
 	case COLOR_INDEX_02_PAL4:
 	case COLOR_INDEX_04_PAL16:
@@ -9473,11 +9573,17 @@ static bool osd_direct_render(struct osd_plane_map_s *plane_map)
 		plane_map->byte_stride * plane_map->src_h;
 	osd_log_dbg(MODULE_RENDER, "canvas_id=%x, phy_addr=%x\n",
 		osd_hw.fb_gem[index].canvas_idx, phy_addr);
-	canvas_config(osd_hw.fb_gem[index].canvas_idx,
-		phy_addr,
-		plane_map->byte_stride,
-		plane_map->src_h,
-		CANVAS_ADDR_NOWRAP, CANVAS_BLKMODE_LINEAR);
+	if (osd_hw.osd_meson_dev.osd_ver == OSD_SIMPLE) {
+		osd_hw.fb_gem[index].addr = phy_addr;
+		osd_hw.fb_gem[index].width = plane_map->byte_stride;
+		osd_update_phy_addr(0);
+	} else {
+		canvas_config(osd_hw.fb_gem[index].canvas_idx,
+			phy_addr,
+			plane_map->byte_stride,
+			plane_map->src_h,
+			CANVAS_ADDR_NOWRAP, CANVAS_BLKMODE_LINEAR);
+	}
 	if (osd_hw.hwc_enable) {
 		/* just get para, need update via do_hwc */
 		osd_hw.order[index] = plane_map->zorder;
@@ -9914,6 +10020,7 @@ void osd_page_flip(struct osd_plane_map_s *plane_map)
 					plane_map->phy_addr;
 			osd_hw.reg[OSD_COLOR_MODE].update_func(index);
 			osd_hw.reg[DISP_GEOMETRY].update_func(index);
+			osd_hw.reg[DISP_OSD_REVERSE].update_func(index);
 			if ((osd_hw.free_scale_enable[index]
 				&& osd_update_window_axis)
 				|| freescale_update) {
@@ -9945,6 +10052,7 @@ void osd_page_flip(struct osd_plane_map_s *plane_map)
 				osd_cursor_move(plane_map);
 			osd_hw.reg[OSD_COLOR_MODE].update_func(index);
 			osd_hw.reg[DISP_GEOMETRY].update_func(index);
+			osd_hw.reg[DISP_OSD_REVERSE].update_func(index);
 			if ((osd_enable != osd_hw.enable[index])
 				&& (suspend_flag == false)) {
 				osd_hw.enable[index] = osd_enable;
@@ -9985,6 +10093,7 @@ void osd_page_flip(struct osd_plane_map_s *plane_map)
 			osd_hw.reg[OSD_COLOR_MODE].update_func(index);
 			if (!osd_hw.hwc_enable) {
 				osd_hw.reg[DISP_GEOMETRY].update_func(index);
+				osd_hw.reg[DISP_OSD_REVERSE].update_func(index);
 				if ((osd_hw.free_scale_enable[index]
 					&& osd_update_window_axis)
 					|| freescale_update) {

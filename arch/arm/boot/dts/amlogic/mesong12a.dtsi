@@ -155,21 +155,17 @@
 		bit_mode=<12>;
 		bit_resolution=<0>;
 	};
+
 	arm_pmu {
 		compatible = "arm,cortex-a15-pmu";
-		interrupts = <0 137 4>;
-		reg = <0xff634400 0x1000>;
-
-		/* addr = base + offset << 2 */
-		sys_cpu_status0_offset = <0xa0>;
-
-		sys_cpu_status0_pmuirq_mask = <0xf>;
-
+		/* clusterb-enabled; */
+		interrupts = <GIC_SPI 137 IRQ_TYPE_LEVEL_HIGH>;
+		reg = <0xff634680 0x4>;
+		cpumasks = <0xf>;
 		/* default 10ms */
-		relax_timer_ns = <10000000>;
-
+		relax-timer-ns = <10000000>;
 		/* default 10000us */
-		max_wait_cnt = <10000>;
+		max-wait-cnt = <10000>;
 	};
 
 	gic: interrupt-controller@2c001000 {
@@ -1032,9 +1028,9 @@
 		interrupt-map-mask = <0 0 0 0>;
 		interrupt-map = <0 0 0 0 &gic GIC_SPI 223 IRQ_TYPE_EDGE_RISING>;
 		device_type = "pci";
-		ranges = <0x81000000 0 0 0 0xfc600000 0x0 0x100000
+		ranges = <0x81000000 0 0 0xfc600000 0x0 0x100000
 			/* downstream I/O */
-			0x82000000 0 0xfc700000 0x0 0xfc700000 0 0x1900000>;
+			0x82000000 0xfc700000 0x0 0xfc700000 0 0x1900000>;
 			/* non-prefetchable memory */
 		num-lanes = <1>;
 		pcie-num = <1>;
@@ -1084,6 +1080,12 @@
 			/* standards.ieee.org/develop/regauth/oui/oui.txt */
 			vendor_id = <0x000000>;
 		};
+	};
+
+	amprime_sl:amprime_sl {
+		compatible = "amlogic, prime_sl_g12";
+		dev_name = "amprime_sl";
+		status = "disabled";
 	};
 
 	aocec: aocec {
@@ -1372,7 +1374,7 @@
 			calc_f = <1>;
 			max_req_size = <0x20000>; /**128KB*/
 			gpio_dat3 = <&gpio BOOT_3 GPIO_ACTIVE_HIGH>;
-			hw_reset = <&gpio BOOT_9 GPIO_ACTIVE_HIGH>;
+			hw_reset = <&gpio BOOT_12 GPIO_ACTIVE_HIGH>;
 			card_type = <1>;
 			/* 1:mmc card(include eMMC),
 			 * 2:sd card(include tSD)
@@ -1818,6 +1820,12 @@
 		aml_sha {
 			compatible = "amlogic,sha_dma";
 			dev_name = "aml_sha_dma";
+			status = "okay";
+		};
+
+		aml_tdes {
+			compatible = "amlogic,tdes_dma";
+			dev_name = "aml_tdes_dma";
 			status = "okay";
 		};
 	};

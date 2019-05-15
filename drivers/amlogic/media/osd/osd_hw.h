@@ -30,6 +30,7 @@
 extern int int_viu_vsync;
 extern int int_viu2_vsync;
 extern struct hw_para_s osd_hw;
+extern int enable_vd_zorder;
 
 #ifdef CONFIG_HIBERNATION
 extern void osd_freeze_hw(void);
@@ -215,4 +216,6 @@ void osd_set_rotate(u32 index, u32 osd_rotate);
 void osd_get_afbc_err_cnt(u32 *err_cnt);
 void osd_get_dimm_info(u32 index, u32 *osd_dimm_layer, u32 *osd_dimm_color);
 void osd_set_dimm_info(u32 index, u32 osd_dimm_layer, u32 osd_dimm_color);
+u32 osd_get_line_n_rdma(void);
+void  osd_set_line_n_rdma(u32 line_n_rdma);
 #endif

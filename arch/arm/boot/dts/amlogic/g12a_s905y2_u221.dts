@@ -44,7 +44,7 @@
 
 	memory@00000000 {
 		device_type = "memory";
-		linux,usable-memory = <0x000000 0x80000000>;
+		linux,usable-memory = <0x100000 0x7ff00000>;
 	};
 
 	reserved-memory {
@@ -212,10 +212,25 @@
 		};
 	};
 
+	picdec_cma_reserved:linux,picdec {
+		compatible = "shared-dma-pool";
+		reusable;
+		size = <0x0>;
+		alignment = <0x0>;
+		linux,contiguous-region;
+	};
+
 	codec_mm {
 		compatible = "amlogic, codec, mm";
 		memory-region = <&codec_mm_cma &codec_mm_reserved>;
 		dev_name = "codec_mm";
+		status = "okay";
+	};
+
+	picdec {
+		compatible = "amlogic, picdec";
+		memory-region = <&picdec_cma_reserved>;
+		dev_name = "picdec";
 		status = "okay";
 	};
 
@@ -669,18 +684,20 @@
 			opp-hz = /bits/ 64 <1512000000>;
 			opp-microvolt = <831000>;
 		};
-		opp08 {
-			opp-hz = /bits/ 64 <1608000000>;
-			opp-microvolt = <871000>;
-		};
-		opp09 {
-			opp-hz = /bits/ 64 <1704000000>;
-			opp-microvolt = <921000>;
-		};
-		opp10 {
-			opp-hz = /bits/ 64 <1800000000>;
-			opp-microvolt = <981000>;
-		};
+/*
+ *		opp08 {
+ *		        opp-hz = /bits/ 64 <1608000000>;
+ *		        opp-microvolt = <871000>;
+ *		};
+ *		opp09 {
+ *		        opp-hz = /bits/ 64 <1704000000>;
+ *		        opp-microvolt = <921000>;
+ *		};
+ *		opp10 {
+ *		        opp-hz = /bits/ 64 <1800000000>;
+ *		        opp-microvolt = <981000>;
+ *		};
+ */
 	};
 
 	cpufreq-meson {
@@ -1287,3 +1304,13 @@
 	status = "okay";
 };
 
+&gpu{
+	/*max gpu is 500MHz*/
+	tbl = <&dvfs285_cfg
+		&dvfs400_cfg
+		&dvfs500_cfg>;
+};
+
+&amhdmitx {
+	dongle_mode = <1>;
+};

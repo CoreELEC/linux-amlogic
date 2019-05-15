@@ -131,7 +131,8 @@ static int lcd_vout_clr_state(int index)
 	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
 
 	lcd_vout_state &= ~(1 << index);
-	lcd_drv->viu_sel = LCD_VIU_SEL_NONE;
+	if (lcd_drv->viu_sel == index)
+		lcd_drv->viu_sel = LCD_VIU_SEL_NONE;
 
 	return 0;
 }
@@ -192,17 +193,7 @@ static int lcd_framerate_automation_set_mode(void)
 #endif
 
 	/* change clk parameter */
-	switch (lcd_drv->lcd_config->lcd_timing.clk_change) {
-	case LCD_CLK_PLL_CHANGE:
-		lcd_clk_generate_parameter(lcd_drv->lcd_config);
-		lcd_clk_set(lcd_drv->lcd_config);
-		break;
-	case LCD_CLK_FRAC_UPDATE:
-		lcd_clk_update(lcd_drv->lcd_config);
-		break;
-	default:
-		break;
-	}
+	lcd_clk_change(lcd_drv->lcd_config);
 	lcd_tablet_config_post_update(lcd_drv->lcd_config);
 	lcd_venc_change(lcd_drv->lcd_config);
 
@@ -1001,6 +992,10 @@ static int lcd_config_load_from_unifykey(struct lcd_config_s *pconf)
 		((*(p + LCD_UKEY_PCLK + 1)) << 8) |
 		((*(p + LCD_UKEY_PCLK + 2)) << 16) |
 		((*(p + LCD_UKEY_PCLK + 3)) << 24));
+	if (pconf->lcd_timing.lcd_clk == 0) { /* avoid 0 mistake */
+		pconf->lcd_timing.lcd_clk = 60;
+		LCDERR("lcd_clk is 0, default to 60Hz\n");
+	}
 	pconf->lcd_basic.h_period_min = (*(p + LCD_UKEY_H_PERIOD_MIN) |
 		((*(p + LCD_UKEY_H_PERIOD_MIN + 1)) << 8));
 	pconf->lcd_basic.h_period_max = (*(p + LCD_UKEY_H_PERIOD_MAX) |
@@ -1247,6 +1242,8 @@ static void lcd_set_vinfo(unsigned int sync_duration)
 
 	LCDPR("%s: sync_duration=%d\n", __func__, sync_duration);
 
+	vout_notifier_call_chain(VOUT_EVENT_MODE_CHANGE_PRE,
+		&lcd_drv->lcd_info->mode);
 	/* update vinfo */
 	lcd_drv->lcd_info->sync_duration_num = sync_duration;
 	lcd_drv->lcd_info->sync_duration_den = 100;
@@ -1259,17 +1256,7 @@ static void lcd_set_vinfo(unsigned int sync_duration)
 #endif
 
 	/* change clk parameter */
-	switch (lcd_drv->lcd_config->lcd_timing.clk_change) {
-	case LCD_CLK_PLL_CHANGE:
-		lcd_clk_generate_parameter(lcd_drv->lcd_config);
-		lcd_clk_set(lcd_drv->lcd_config);
-		break;
-	case LCD_CLK_FRAC_UPDATE:
-		lcd_clk_update(lcd_drv->lcd_config);
-		break;
-	default:
-		break;
-	}
+	lcd_clk_change(lcd_drv->lcd_config);
 	lcd_tablet_config_post_update(lcd_drv->lcd_config);
 	lcd_venc_change(lcd_drv->lcd_config);
 
