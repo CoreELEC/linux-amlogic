@@ -35,6 +35,7 @@
 #include <sound/control.h>
 #include <sound/soc.h>
 #include <sound/pcm_params.h>
+#include <sound/tlv.h>
 
 #include "ddr_mngr.h"
 #include "audio_utils.h"
@@ -47,11 +48,19 @@
 
 #define MAX_INT    0x7ffffff
 
+#define DYNC_KCNTL_CNT 2
+
 struct extn_chipinfo {
 	/* try to check papb before fetch pcpd
 	 * no nonpcm2pcm irq for tl1
 	 */
 	bool no_nonpcm2pcm_clr;
+
+	/* eARC-ARC or CEC-ARC
+	 * CEC-ARC: tl1
+	 * eARC-ARC: sm1/tm2, etc
+	 */
+	bool cec_arc;
 };
 
 struct extn {
@@ -91,6 +100,8 @@ struct extn {
 	bool nonpcm_flag;
 
 	struct extn_chipinfo *chipinfo;
+	struct snd_kcontrol *controls[DYNC_KCNTL_CNT];
+
 };
 
 #define PREALLOC_BUFFER		(256 * 1024)
@@ -402,9 +413,18 @@ struct snd_soc_platform_driver extn_platform = {
 	.pcm_new = extn_new,
 };
 
+static int extn_create_controls(struct snd_card *card,
+				struct extn *p_extn);
+
 static int extn_dai_probe(struct snd_soc_dai *cpu_dai)
 {
+	struct snd_card *card = cpu_dai->component->card->snd_card;
+	struct extn *p_extn = snd_soc_dai_get_drvdata(cpu_dai);
+
 	pr_info("asoc debug: %s-%d\n", __func__, __LINE__);
+
+	if (p_extn->chipinfo && p_extn->chipinfo->cec_arc)
+		extn_create_controls(card, p_extn);
 
 	return 0;
 }
@@ -807,8 +827,7 @@ static int hdmirx_audio_type_get_enum(
 }
 #endif
 
-static const struct snd_kcontrol_new extn_controls[] = {
-	/* Out */
+static const struct snd_kcontrol_new extn_arc_controls[DYNC_KCNTL_CNT] = {
 	SOC_ENUM_EXT("HDMI ARC Source",
 		arc_src_enum,
 		arc_get_src,
@@ -818,6 +837,34 @@ static const struct snd_kcontrol_new extn_controls[] = {
 		0,
 		arc_get_enable,
 		arc_set_enable),
+};
+
+static int extn_create_controls(struct snd_card *card,
+				struct extn *p_extn)
+{
+	int i, err = 0;
+
+	memset(p_extn->controls, 0, sizeof(p_extn->controls));
+
+	for (i = 0; i < DYNC_KCNTL_CNT; i++) {
+		p_extn->controls[i] =
+			snd_ctl_new1(&extn_arc_controls[i], NULL);
+		err = snd_ctl_add(card, p_extn->controls[i]);
+		if (err < 0)
+			goto __error;
+	}
+
+	return 0;
+
+__error:
+	for (i = 0; i < DYNC_KCNTL_CNT; i++)
+		if (p_extn->controls[i])
+			snd_ctl_remove(card, p_extn->controls[i]);
+
+	return err;
+}
+
+static const struct snd_kcontrol_new extn_controls[] = {
 
 	/* In */
 	SOC_SINGLE_BOOL_EXT("SPDIFIN PAO",
@@ -886,12 +933,12 @@ static const struct snd_soc_component_driver extn_component = {
 
 struct extn_chipinfo tl1_extn_chipinfo = {
 	.no_nonpcm2pcm_clr = true,
+	.cec_arc           = true,
 };
 
 static const struct of_device_id extn_device_id[] = {
 	{
 		.compatible = "amlogic, snd-extn",
-		.data       = &tl1_extn_chipinfo,
 	},
 	{
 		.compatible = "amlogic, tl1-snd-extn",

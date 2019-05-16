@@ -104,7 +104,6 @@ static struct toddr *register_toddr_l(struct device *dev,
 	/*		(1 << 31)|(1 << mask_bit));*/
 
 	to->dev = dev;
-	to->actrl = actrl;
 	to->in_use = true;
 	pr_debug("toddrs[%d] registered by device %s\n", i, dev_name(dev));
 	return to;
@@ -145,7 +144,6 @@ static int unregister_toddr_l(struct device *dev, void *data)
 
 	free_irq(to->irq, data);
 	to->dev = NULL;
-	to->actrl = NULL;
 	to->in_use = false;
 	pr_debug("toddrs[%d] released by device %s\n", i, dev_name(dev));
 
@@ -970,7 +968,6 @@ static struct frddr *register_frddr_l(struct device *dev,
 		return NULL;
 	}
 	from->dev = dev;
-	from->actrl = actrl;
 	from->in_use = true;
 	pr_debug("frddrs[%d] registered by device %s\n", i, dev_name(dev));
 	return from;
@@ -1011,7 +1008,6 @@ static int unregister_frddr_l(struct device *dev, void *data)
 
 	free_irq(from->irq, data);
 	from->dev = NULL;
-	from->actrl = NULL;
 	from->in_use = false;
 	pr_debug("frddrs[%d] released by device %s\n", i, dev_name(dev));
 	return 0;
@@ -1741,74 +1737,90 @@ static struct notifier_block ddr_pm_notifier_block = {
 	.notifier_call = ddr_pm_event,
 };
 
+/* table Must in order */
+static struct ddr_info ddr_info[] = {
+	{EE_AUDIO_TODDR_A_CTRL0, EE_AUDIO_FRDDR_A_CTRL0, "toddr_a", "frddr_a"},
+	{EE_AUDIO_TODDR_B_CTRL0, EE_AUDIO_FRDDR_B_CTRL0, "toddr_b", "frddr_b"},
+	{EE_AUDIO_TODDR_C_CTRL0, EE_AUDIO_FRDDR_C_CTRL0, "toddr_c", "frddr_c"},
+	{EE_AUDIO_TODDR_D_CTRL0, EE_AUDIO_FRDDR_D_CTRL0, "toddr_d", "frddr_d"},
+};
+
+static int ddr_get_toddr_base_addr_by_idx(int idx)
+{
+	return ddr_info[idx].toddr_addr;
+}
+
+static int ddr_get_frddr_base_addr_by_idx(int idx)
+{
+	return ddr_info[idx].frddr_addr;
+}
+
+static char *ddr_get_toddr_name_by_idx(int idx)
+{
+	return ddr_info[idx].toddr_name;
+}
+
+static char *ddr_get_frddr_name_by_idx(int idx)
+{
+	return ddr_info[idx].frddr_name;
+}
+
 static int aml_ddr_mngr_platform_probe(struct platform_device *pdev)
 {
+	struct device_node *node = pdev->dev.of_node;
+	struct device_node *node_prt = NULL;
+	struct platform_device *pdev_parent;
+	struct aml_audio_controller *actrl = NULL;
 	struct ddr_chipinfo *p_ddr_chipinfo;
 	int ddr_num = 3; /* early chipset support max 3 ddr num */
 	int i, ret;
 
+	/* get audio controller */
+	node_prt = of_get_parent(node);
+	if (!node_prt)
+		return -ENXIO;
+
+	pdev_parent = of_find_device_by_node(node_prt);
+	of_node_put(node_prt);
+	actrl = (struct aml_audio_controller *)
+				platform_get_drvdata(pdev_parent);
+
 	p_ddr_chipinfo = (struct ddr_chipinfo *)
 		of_device_get_match_data(&pdev->dev);
-	if (!p_ddr_chipinfo)
-		dev_warn_once(&pdev->dev,
-			"check whether to update ddr_mngr chipinfo\n");
-
-	/* irqs */
-	toddrs[DDR_A].irq = platform_get_irq_byname(pdev, "toddr_a");
-	toddrs[DDR_B].irq = platform_get_irq_byname(pdev, "toddr_b");
-	toddrs[DDR_C].irq = platform_get_irq_byname(pdev, "toddr_c");
-
-	frddrs[DDR_A].irq = platform_get_irq_byname(pdev, "frddr_a");
-	frddrs[DDR_B].irq = platform_get_irq_byname(pdev, "frddr_b");
-	frddrs[DDR_C].irq = platform_get_irq_byname(pdev, "frddr_c");
-
-	if (p_ddr_chipinfo
-		&& (p_ddr_chipinfo->fifo_num == 4)) {
-		toddrs[DDR_D].irq = platform_get_irq_byname(pdev, "toddr_d");
-		frddrs[DDR_D].irq = platform_get_irq_byname(pdev, "frddr_d");
-		if (toddrs[DDR_D].irq < 0 || frddrs[DDR_D].irq < 0)
-			dev_err(&pdev->dev, "check irq for DDR_D\n");
-		ddr_num = p_ddr_chipinfo->fifo_num;
+	if (!p_ddr_chipinfo) {
+		dev_err(&pdev->dev,
+			"check to update ddr_mngr chipinfo\n");
+		return -EINVAL;
 	}
+
+	if (p_ddr_chipinfo->fifo_num == 2)
+		ddr_num = p_ddr_chipinfo->fifo_num;
+	else if (p_ddr_chipinfo->fifo_num == 4)
+		ddr_num = p_ddr_chipinfo->fifo_num;
 
 	for (i = 0; i < ddr_num; i++) {
-		pr_info("%d, irqs toddr %d, frddr %d\n",
-			i, toddrs[i].irq, frddrs[i].irq);
+		toddrs[i].irq =
+			platform_get_irq_byname(pdev,
+						ddr_get_toddr_name_by_idx(i));
+		toddrs[i].reg_base = ddr_get_toddr_base_addr_by_idx(i);
+		toddrs[i].fifo_id  = i;
+		toddrs[i].chipinfo = p_ddr_chipinfo;
+		toddrs[i].actrl    = actrl;
+
+		frddrs[i].irq =
+			platform_get_irq_byname(pdev,
+						ddr_get_frddr_name_by_idx(i));
+		frddrs[i].reg_base = ddr_get_frddr_base_addr_by_idx(i);
+		frddrs[i].fifo_id  = i;
+		frddrs[i].chipinfo = p_ddr_chipinfo;
+		frddrs[i].actrl    = actrl;
+
+		dev_info(&pdev->dev, "%d, irqs toddr %d, frddr %d\n",
+			 i, toddrs[i].irq, frddrs[i].irq);
+
 		if (toddrs[i].irq <= 0 || frddrs[i].irq <= 0) {
-			dev_err(&pdev->dev, "platform_get_irq_byname failed\n");
+			dev_err(&pdev->dev, "%s, get irq failed\n", __func__);
 			return -ENXIO;
-		}
-	}
-
-	/* inits */
-	toddrs[DDR_A].reg_base = EE_AUDIO_TODDR_A_CTRL0;
-	toddrs[DDR_B].reg_base = EE_AUDIO_TODDR_B_CTRL0;
-	toddrs[DDR_C].reg_base = EE_AUDIO_TODDR_C_CTRL0;
-	toddrs[DDR_A].fifo_id  = DDR_A;
-	toddrs[DDR_B].fifo_id  = DDR_B;
-	toddrs[DDR_C].fifo_id  = DDR_C;
-
-	frddrs[DDR_A].reg_base = EE_AUDIO_FRDDR_A_CTRL0;
-	frddrs[DDR_B].reg_base = EE_AUDIO_FRDDR_B_CTRL0;
-	frddrs[DDR_C].reg_base = EE_AUDIO_FRDDR_C_CTRL0;
-	frddrs[DDR_A].fifo_id  = DDR_A;
-	frddrs[DDR_B].fifo_id  = DDR_B;
-	frddrs[DDR_C].fifo_id  = DDR_C;
-
-	if (p_ddr_chipinfo) {
-		toddrs[DDR_A].chipinfo = p_ddr_chipinfo;
-		toddrs[DDR_B].chipinfo = p_ddr_chipinfo;
-		toddrs[DDR_C].chipinfo = p_ddr_chipinfo;
-		frddrs[DDR_A].chipinfo = p_ddr_chipinfo;
-		frddrs[DDR_B].chipinfo = p_ddr_chipinfo;
-		frddrs[DDR_C].chipinfo = p_ddr_chipinfo;
-
-		if (p_ddr_chipinfo->fifo_num == 4) {
-			toddrs[DDR_D].reg_base = EE_AUDIO_TODDR_D_CTRL0;
-			toddrs[DDR_D].fifo_id  = DDR_D;
-
-			frddrs[DDR_D].reg_base = EE_AUDIO_FRDDR_D_CTRL0;
-			frddrs[DDR_D].fifo_id  = DDR_D;
 		}
 	}
 

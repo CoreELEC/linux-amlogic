@@ -111,7 +111,16 @@ static struct platform_driver audio_clocks_driver = {
 	},
 	.probe  = audio_clocks_probe,
 };
-module_platform_driver(audio_clocks_driver);
+
+int __init audio_clocks_init(void)
+{
+	int ret;
+
+	ret = platform_driver_register(&audio_clocks_driver);
+
+	return ret;
+}
+core_initcall(audio_clocks_init);
 
 MODULE_AUTHOR("Amlogic, Inc.");
 MODULE_DESCRIPTION("Amlogic audio clocks ASoc driver");

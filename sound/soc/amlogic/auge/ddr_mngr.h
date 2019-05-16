@@ -233,6 +233,13 @@ struct frddr {
 	bool reserved;
 };
 
+struct ddr_info {
+	unsigned int toddr_addr;
+	unsigned int frddr_addr;
+	char *toddr_name;
+	char *frddr_name;
+};
+
 /* to ddrs */
 struct toddr *fetch_toddr_by_src(int toddr_src);
 struct toddr *aml_audio_register_toddr(struct device *dev,
