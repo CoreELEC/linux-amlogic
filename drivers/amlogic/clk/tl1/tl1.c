@@ -487,7 +487,7 @@ static struct clk_mux tl1_dsu_fixed_source_sel0 = {
 		.ops = &clk_mux_ops,
 		.parent_names = dsu_fixed_source_sel_parent_names,
 		.num_parents = ARRAY_SIZE(dsu_fixed_source_sel_parent_names),
-		.flags = CLK_SET_RATE_PARENT,
+		.flags = CLK_SET_RATE_PARENT | CLK_SET_RATE_NO_REPARENT,
 	},
 };
 
@@ -972,10 +972,6 @@ static int tl1_dsu_sel0_clk_notifier_cb(struct notifier_block *nb,
 
 	switch (event) {
 	case PRE_RATE_CHANGE:
-		/* switch to tl1_dsu_fixed_sel1, set it to 1G (default 24M) */
-		ret = clk_set_rate(tl1_dsu_fixed_sel1.hw.clk, 1000000000);
-		if (ret < 0)
-			return ret;
 		parent_clk = tl1_dsu_fixed_sel1.hw.clk;
 		break;
 	case POST_RATE_CHANGE:
@@ -1095,6 +1091,13 @@ static void __init tl1_clkc_init(struct device_node *np)
 	parent_hw = clk_hw_get_parent(&tl1_cpu_clk.mux.hw);
 	parent_clk = parent_hw->clk;
 	ret = clk_notifier_register(parent_clk, &tl1_cpu_clk.clk_nb);
+
+	/* set tl1_dsu_fixed_sel1 to 1G (default 24M) */
+	ret = clk_set_rate(tl1_dsu_fixed_sel1.hw.clk, 1000000000);
+	if (ret < 0) {
+		pr_err("set tl1_dsu_fixed_sel1 to 1G failed\n");
+		return;
+	}
 	/*
 	 * when change tl1_dsu_fixed_sel0, switch to
 	 * tl1_dsu_fixed_sel1 to avoid crash
