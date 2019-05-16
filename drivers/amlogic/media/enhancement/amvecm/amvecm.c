@@ -127,13 +127,14 @@ static unsigned int pc_mode = 0xff;
 static unsigned int pc_mode_last = 0xff;
 static struct hdr_metadata_info_s vpp_hdr_metadata_s;
 unsigned int atv_source_flg;
-/*bit0: brightness
- *bit1: brightness2
- *bit2: saturation_hue
- *bit3: saturation_hue_post
- *bit4: contrast
- *bit5: contrast2
- */
+
+#define VDJ_FLAG_BRIGHTNESS		BIT(0)
+#define VDJ_FLAG_BRIGHTNESS2		BIT(1)
+#define VDJ_FLAG_SAT_HUE		BIT(2)
+#define VDJ_FLAG_SAT_HUE_POST		BIT(3)
+#define VDJ_FLAG_CONTRAST		BIT(4)
+#define VDJ_FLAG_CONTRAST2		BIT(5)
+
 static int vdj_mode_flg;
 struct am_vdj_mode_s vdj_mode_s;
 
@@ -267,13 +268,13 @@ static int amvecm_set_brightness2(int val)
 {
 	if (get_cpu_type() <= MESON_CPU_MAJOR_ID_GXTVBB)
 		WRITE_VPP_REG_BITS(VPP_VADJ2_Y,
-			vdj_mode_s.brightness2, 8, 9);
+			val, 8, 9);
 	else if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A)
 		WRITE_VPP_REG_BITS(VPP_VADJ2_Y_2,
-			vdj_mode_s.brightness2, 8, 11);
+			val, 8, 11);
 	else
 		WRITE_VPP_REG_BITS(VPP_VADJ2_Y,
-			vdj_mode_s.brightness2 >> 1, 8, 10);
+			val >> 1, 8, 10);
 
 	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A)
 		WRITE_VPP_REG_BITS(VPP_VADJ2_MISC, 1, 0, 1);
@@ -1372,7 +1373,6 @@ static int amvecm_set_saturation_hue_post(int val1,
 		62,	68,  74,      /*1~12*/	80,   86,   92,	98,  104,
 		109,  115,  121,  126,  132, 137, 142, 147 /*13~25*/
 	};
-
 	hue_cos_len = sizeof(hue_cos)/sizeof(int);
 	hue_sin_len = sizeof(hue_sin)/sizeof(int);
 	i = (val2 > 0) ? val2 : -val2;
@@ -1793,11 +1793,11 @@ static long amvecm_ioctl(struct file *file,
 			break;
 		}
 		vdj_mode_flg = vdj_mode_s.flag;
-		if (vdj_mode_flg & 0x1) { /*brightness*/
+		if (vdj_mode_flg & VDJ_FLAG_BRIGHTNESS) { /*brightness*/
 			vd1_brightness = vdj_mode_s.brightness;
 			vecm_latch_flag |= FLAG_VADJ1_BRI;
 		}
-		if (vdj_mode_flg & 0x2) { /*brightness2*/
+		if (vdj_mode_flg & VDJ_FLAG_BRIGHTNESS2) { /*brightness2*/
 			if ((vdj_mode_s.brightness2 < -1024) ||
 				(vdj_mode_s.brightness2 > 1023)) {
 				pr_amvecm_dbg("load brightness2 value invalid!!!\n");
@@ -1805,36 +1805,35 @@ static long amvecm_ioctl(struct file *file,
 			}
 			ret = amvecm_set_brightness2(vdj_mode_s.brightness2);
 		}
-		if (vdj_mode_flg & 0x4)	{ /*saturation_hue*/
+		if (vdj_mode_flg & VDJ_FLAG_SAT_HUE)	{ /*saturation_hue*/
 			ret =
 			amvecm_set_saturation_hue(vdj_mode_s.saturation_hue);
 		}
-		if (vdj_mode_flg & 0x8) { /*saturation_hue_post*/
-			int parsed[2];
-			int saturation_hue_post;
-			char *buf;
+		if (vdj_mode_flg & VDJ_FLAG_SAT_HUE_POST) {
+			/*saturation_hue_post*/
+			int sat_post, hue_post, sat_hue_post;
 
-			saturation_hue_post = vdj_mode_s.saturation_hue_post;
-			buf = (char *) &saturation_hue_post;
-			if (likely(parse_para_pq(buf, 2, parsed) != 2)) {
-				ret = -EINVAL;
-				break;
-			}
-			ret = amvecm_set_saturation_hue_post(parsed[0],
-				 parsed[1]);
+			sat_hue_post = vdj_mode_s.saturation_hue;
+			sat_post = (((sat_hue_post >> 16) & 0xffff) / 2) - 128;
+			hue_post = sat_hue_post & 0xffff;
+			if (hue_post >= 0 && hue_post <= 150)
+				hue_post = hue_post / 6;
+			else
+				hue_post = (hue_post - 1024) / 6;
+			ret =
+			amvecm_set_saturation_hue_post(sat_post, hue_post);
 			if (ret < 0)
 				break;
 		}
 		if (vdj_mode_flg & 0x10) { /*contrast*/
-			if ((vdj_mode_s.contrast < -1024)
-				|| (vdj_mode_s.contrast > 1024)) {
+			if ((vdj_mode_s.contrast < -1024) ||
+			    (vdj_mode_s.contrast > 1023)) {
 				ret = -EINVAL;
 				pr_amvecm_dbg("[amvecm..] ioctrl contrast value invalid!!\n");
 				break;
 			}
 			vd1_contrast = vdj_mode_s.contrast;
 			vecm_latch_flag |= FLAG_VADJ1_CON;
-			vecm_latch_flag |= FLAG_VADJ1_COLOR;
 		}
 		if (vdj_mode_flg & 0x20) { /*constract2*/
 			if ((vdj_mode_s.contrast2 < -127)
@@ -2627,13 +2626,12 @@ static ssize_t amvecm_contrast_store(struct class *cla,
 	int val;
 
 	r = sscanf(buf, "%d\n", &val);
-	if ((r != 1) || (val < -1024) || (val > 1024))
+	if ((r != 1) || (val < -1024) || (val > 1023))
 		return -EINVAL;
 
 	vd1_contrast = val;
 	/*vecm_latch_flag |= FLAG_BRI_CON;*/
 	vecm_latch_flag |= FLAG_VADJ1_CON;
-	vecm_latch_flag |= FLAG_VADJ1_COLOR;
 	return count;
 }
 
