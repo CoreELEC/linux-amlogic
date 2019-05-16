@@ -1129,13 +1129,8 @@ void __init debug_ll_io_init(void)
 #endif
 
 #ifndef CONFIG_AMLOGIC_KASAN32
-#ifdef CONFIG_AMLOGIC_MODIFY
-static void * __initdata vmalloc_min =
-	(void *)(VMALLOC_END - (368 << 20) - VMALLOC_OFFSET);
-#else
 static void * __initdata vmalloc_min =
 	(void *)(VMALLOC_END - (240 << 20) - VMALLOC_OFFSET);
-#endif
 
 /*
  * vmalloc=size forces the vmalloc area to be exactly 'size'
