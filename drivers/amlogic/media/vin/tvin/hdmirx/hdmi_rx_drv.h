@@ -46,7 +46,7 @@
  *
  *
  */
-#define RX_VER2 "ver.2019/05/08"
+#define RX_VER2 "ver.2019/05/18"
 
 /*print type*/
 #define	LOG_EN		0x01
@@ -449,6 +449,7 @@ struct rx_s {
 	/*struct pd_infoframe_s dbg_info;*/
 	struct phy_sts phy;
 	struct emp_buff empbuff;
+	uint32_t arc_port;
 };
 
 struct _hdcp_ksv {

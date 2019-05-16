@@ -1622,6 +1622,43 @@ static ssize_t get_reset_hdcp22(struct device *dev,
 {
 	return 0;
 }
+
+static ssize_t earc_cap_ds_show(struct device *dev,
+	struct device_attribute *attr,
+	char *buf)
+{
+	return 0;
+}
+
+static ssize_t earc_cap_ds_store(struct device *dev,
+	struct device_attribute *attr,
+	const char *buf, size_t count)
+{
+	unsigned char char_len = 0;
+	unsigned int data = 0;
+	unsigned char i = 0;
+	unsigned char tmp[3] = {0};
+	unsigned char earc_cap_ds[EARC_CAP_DS_MAX_LENGTH] = {0};
+	int ret = 0;
+
+	char_len = strlen(buf);
+	rx_pr("character length = %d\n", char_len);
+	for (i = 0; i < char_len/2; i++) {
+		tmp[2] = '\0';
+		memcpy(tmp, buf + 2*i, 2);
+		ret = kstrtouint(tmp, 16, &data);
+		if (ret < 0) {
+			rx_pr("kstrtouint failed\n");
+			return count;
+		}
+		earc_cap_ds[i] = data;
+	}
+	rx_pr("eARC cap ds len: %d\n", i);
+	rx_set_earc_cap_ds(earc_cap_ds, i);
+
+	return count;
+}
+
 static DEVICE_ATTR(debug, 0644, hdmirx_debug_show, hdmirx_debug_store);
 static DEVICE_ATTR(edid, 0644, hdmirx_edid_show, hdmirx_edid_store);
 static DEVICE_ATTR(key, 0644, hdmirx_key_show, hdmirx_key_store);
@@ -1637,6 +1674,7 @@ static DEVICE_ATTR(hdcp_version, 0644, hdcp_version_show, hdcp_version_store);
 static DEVICE_ATTR(hw_info, 0644, hw_info_show, hw_info_store);
 static DEVICE_ATTR(edid_dw, 0644, edid_dw_show, edid_dw_store);
 static DEVICE_ATTR(ksvlist, 0644, ksvlist_show, ksvlist_store);
+static DEVICE_ATTR(earc_cap_ds, 0644, earc_cap_ds_show, earc_cap_ds_store);
 
 static int hdmirx_add_cdev(struct cdev *cdevp,
 		const struct file_operations *fops,
@@ -2162,6 +2200,11 @@ static int hdmirx_probe(struct platform_device *pdev)
 		rx_pr("hdmirx: fail to create ksvlist file\n");
 		goto fail_create_ksvlist;
 	}
+	ret = device_create_file(hdevp->dev, &dev_attr_earc_cap_ds);
+	if (ret < 0) {
+		rx_pr("hdmirx: fail to create earc_cap_ds file\n");
+		goto fail_create_earc_cap_ds;
+	}
 
 	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	if (!res) {
@@ -2353,7 +2396,13 @@ static int hdmirx_probe(struct platform_device *pdev)
 		disable_port_en = (disable_port >> 4) & 0x1;
 		disable_port_num = disable_port & 0xF;
 	}
-
+	ret = of_property_read_u32(pdev->dev.of_node,
+		"arc_port", &rx.arc_port);
+	if (ret) {
+		/* default arc port is port B */
+		rx.arc_port = 0x1;
+		rx_pr("not find arc_port, portB by default\n");
+	}
 	ret = of_reserved_mem_device_init(&(pdev->dev));
 	if (ret != 0)
 		rx_pr("warning: no rev cmd mem\n");
@@ -2380,6 +2429,8 @@ fail_kmalloc_pd_fifo:
 	return ret;
 fail_get_resource_irq:
 	return ret;
+fail_create_earc_cap_ds:
+	device_remove_file(hdevp->dev, &dev_attr_earc_cap_ds);
 fail_create_ksvlist:
 	device_remove_file(hdevp->dev, &dev_attr_ksvlist);
 fail_create_edid_dw:
@@ -2447,6 +2498,7 @@ static int hdmirx_remove(struct platform_device *pdev)
 	device_remove_file(hdevp->dev, &dev_attr_esm_base);
 	device_remove_file(hdevp->dev, &dev_attr_info);
 	device_remove_file(hdevp->dev, &dev_attr_arc_aud_type);
+	device_remove_file(hdevp->dev, &dev_attr_earc_cap_ds);
 	device_remove_file(hdevp->dev, &dev_attr_ksvlist);
 	device_remove_file(hdevp->dev, &dev_attr_edid_dw);
 	device_remove_file(hdevp->dev, &dev_attr_hw_info);

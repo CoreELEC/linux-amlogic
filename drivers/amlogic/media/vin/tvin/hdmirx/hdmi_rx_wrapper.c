@@ -1730,6 +1730,10 @@ int rx_set_global_variable(const char *buf, int size)
 		return pr_var(pll_lock_max, index);
 	if (set_pr_var(tmpbuf, clock_lock_th, value, &index, ret))
 		return pr_var(clock_lock_th, index);
+	if (set_pr_var(tmpbuf, en_take_dtd_space, value, &index, ret))
+		return pr_var(en_take_dtd_space, index);
+	if (set_pr_var(tmpbuf, earc_cap_ds_update_hpd_en, value, &index, ret))
+		return pr_var(earc_cap_ds_update_hpd_en, index);
 	return 0;
 }
 
@@ -1841,6 +1845,8 @@ void rx_get_global_variable(const char *buf)
 	pr_var(top_intr_maskn_value, i++);
 	pr_var(pll_lock_max, i++);
 	pr_var(clock_lock_th, i++);
+	pr_var(en_take_dtd_space, i++);
+	pr_var(earc_cap_ds_update_hpd_en, i++);
 }
 
 void skip_frame(unsigned int cnt)
@@ -2784,8 +2790,6 @@ int hdmirx_debug(const char *buf, int size)
 	char *token;
 	char *cur;
 	int cnt = 0;
-	unsigned char edid_index;
-	unsigned char *pedid_data;
 	struct edid_info_s edid_info;
 
 	while ((buf[i]) && (buf[i] != ',') && (buf[i] != ' ')) {
@@ -2871,12 +2875,26 @@ int hdmirx_debug(const char *buf, int size)
 	} else if (strncmp(input[0], "pktinfo", 7) == 0) {
 		rx_debug_pktinfo(input);
 	} else if (strncmp(tmpbuf, "parse_edid", 10) == 0) {
-		edid_index = rx_get_edid_index();
-		pedid_data = rx_get_edid(edid_index);
 		memset(&edid_info, 0, sizeof(struct edid_info_s));
-		edid_parse_block0(pedid_data, &edid_info);
-		edid_parse_cea_block(pedid_data+128, &edid_info);
+		rx_edid_parse(edid_temp, &edid_info);
 		rx_edid_parse_print(&edid_info);
+		rx_blk_index_print(&edid_info.cea_ext_info.blk_parse_info);
+	} else if (strncmp(tmpbuf, "parse_capds", 11) == 0) {
+		rx_prase_earc_capds_dbg();
+	} else if (strncmp(tmpbuf, "splice_capds", 12) == 0) {
+		edid_splice_earc_capds_dbg(edid_temp);
+	} else if (strncmp(tmpbuf, "splice_db", 9) == 0) {
+		if (kstrtou32(tmpbuf + 9, 16, &value) < 0)
+			return -EINVAL;
+		edid_splice_data_blk_dbg(edid_temp, value);
+	} else if (strncmp(tmpbuf, "rm_db_tag", 9) == 0) {
+		if (kstrtou32(tmpbuf + 9, 16, &value) < 0)
+			return -EINVAL;
+		edid_rm_db_by_tag(edid_temp, value);
+	} else if (strncmp(tmpbuf, "rm_db_idx", 9) == 0) {
+		if (kstrtou32(tmpbuf + 9, 16, &value) < 0)
+			return -EINVAL;
+		edid_rm_db_by_idx(edid_temp, value);
 	} else if (tmpbuf[0] == 'w') {
 		rx_debug_wr_reg(buf, tmpbuf, i);
 	} else if (tmpbuf[0] == 'r') {
