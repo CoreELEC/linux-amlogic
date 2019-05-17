@@ -5118,7 +5118,7 @@ static int hdmitx_set_current_vmode(enum vmode_e mode, void *data)
 	struct hdmitx_dev *hdev = get_hdmitx21_device();
 
 	hdmitx_register_vrr(hdev);
-	if (!(mode & VMODE_INIT_BIT_MASK)) {
+	if (!(mode & VMODE_INIT_BIT_MASK) && get_hpd_state()) {
 		set_disp_mode_auto();
 	} else {
 		pr_info("alread display in uboot\n");
