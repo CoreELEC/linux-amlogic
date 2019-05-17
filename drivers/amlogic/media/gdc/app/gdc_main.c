@@ -22,16 +22,6 @@
 //gdc api functions
 #include "gdc_api.h"
 
-irqreturn_t interrupt_handler_next(int irq, void *param)
-{
-	//handle the start of frame with gdc_process
-	struct gdc_cmd_s *gdc_cmd = (struct gdc_cmd_s *)param;
-
-	gdc_get_frame(gdc_cmd);
-
-	return IRQ_HANDLED;
-}
-
 int gdc_run(struct gdc_cmd_s *g)
 {
 
