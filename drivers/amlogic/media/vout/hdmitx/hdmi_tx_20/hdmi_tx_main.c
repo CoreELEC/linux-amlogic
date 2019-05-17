@@ -5855,7 +5855,7 @@ static int hdmitx_set_current_vmode(enum vmode_e mode, void *data)
 		recalc_vinfo_sync_duration(vinfo,
 					   hdmitx_device.frac_rate_policy);
 
-	if (!(mode & VMODE_INIT_BIT_MASK)) {
+	if (!(mode & VMODE_INIT_BIT_MASK) && get_hpd_state()) {
 		set_disp_mode_auto();
 	} else {
 		pr_info("alread display in uboot\n");
