@@ -375,13 +375,13 @@ static irqreturn_t vbi_isr(int irq, void *dev_id)
 	struct vbi_dev_s *devp = (struct vbi_dev_s *)dev_id;
 
 	spin_lock_irqsave(&devp->vbi_isr_lock, flags);
-	if (devp->vs_delay > 0) {
-		devp->vs_delay--;
+	if (devp->vbi_start == false) {
 		spin_unlock_irqrestore(&devp->vbi_isr_lock, flags);
 		return IRQ_HANDLED;
 	}
 
-	if (devp->vbi_start == false) {
+	if (devp->vs_delay > 0) {
+		devp->vs_delay--;
 		spin_unlock_irqrestore(&devp->vbi_isr_lock, flags);
 		return IRQ_HANDLED;
 	}
@@ -467,8 +467,10 @@ unsigned char *search_table(unsigned char *table_start_addr,
 		return NULL;
 	} else if ((table_end_addr <= table_start_addr) ||
 		(search_point > table_end_addr)) {
-		tvafe_pr_info("search_table add err: start=%p,search=%p,end=%p\n",
+		if (vbi_pr_en) {
+			tvafe_pr_info("search_table add err: start=%p,search=%p,end=%p\n",
 			table_start_addr, search_point, table_end_addr);
+		}
 		return NULL;
 	}
 
@@ -665,13 +667,15 @@ static void vbi_slicer_task(unsigned long arg)
 	if (ret_sync < 0)
 		return;
 
-	if ((len == VBI_WRITE_BURST_BYTE) ||
+	if ((len <= VBI_WRITE_BURST_BYTE) ||
 		(len > VBI_BUFF3_EA - VBI_BUFF2_EA)) {
 		if (ret_addr + 1 > devp->pac_addr_end)
 			devp->pac_addr = devp->pac_addr_start;
 		else
 			devp->pac_addr = ret_addr + 1;
 
+		if (vbi_dbg_en)
+			tvafe_pr_info("%s: invalid len %d\n", __func__, len);
 		return;
 	}
 
@@ -708,6 +712,11 @@ static void vbi_slicer_task(unsigned long arg)
 		chlen -= (vbihlen + 3);
 		local_rptr = vbi_addr + 1;
 
+		if ((local_rptr > devp->pac_addr_start+
+			VBI_BUFF3_EA+VBI_BUFF3_SIZE-1)
+			|| (local_rptr < devp->pac_addr_start + VBI_BUFF3_EA))
+			goto err_exit;
+
 		/* vbi_type & field_id */
 		vbi_get_byte(local_rptr, rbyte);
 		chlen--;
@@ -734,9 +743,14 @@ static void vbi_slicer_task(unsigned long arg)
 		pre_val |= ((u16)rbyte & 0x3) << 8;
 		vbi_data.line_num = pre_val;
 		/* data */
+		chlen -= vbi_data.nbytes;
+		if (vbi_data.nbytes > VBI_DATA_BYTE_MAX) {
+			tvafe_pr_info("[vbi..]: unsupport vbi_data_byte:%d\n",
+				vbi_data.nbytes);
+			continue;
+		}
 		memcpy(&(vbi_data.b[0]), local_rptr, vbi_data.nbytes);
 		local_rptr += vbi_data.nbytes;
-		chlen -= vbi_data.nbytes;
 		/* capture data to vbi buffer */
 		datalen = sizeof(struct vbi_data_s);
 		vbi_buffer_write(&devp->slicer->buffer, &vbi_data, datalen);
@@ -1424,19 +1438,19 @@ static ssize_t vbi_store(struct device *dev,
 	} else if (!strncmp(parm[0], "vbi_pr_en",
 		strlen("vbi_pr_en"))) {
 		if (kstrtouint(parm[1], 10, &val) < 0)
-			return -EINVAL;
+			goto vbi_store_err;
 		vbi_pr_en = val;
 		tvafe_pr_info("vbi_pr_en:%d\n", vbi_pr_en);
 	} else if (!strncmp(parm[0], "enable_tasklet",
 		strlen("enable_tasklet"))) {
 		if (kstrtouint(parm[1], 10, &val) < 0)
-			return -EINVAL;
+			goto vbi_store_err;
 		devp->tasklet_enable = val;
 		tvafe_pr_info("tasklet_enable:%d\n", devp->tasklet_enable);
 	} else if (!strncmp(parm[0], "data_wmode",
 		strlen("data_wmode"))) {
 		if (kstrtouint(parm[1], 10, &val) < 0)
-			return -EINVAL;
+			goto vbi_store_err;
 		vbi_buffer->data_wmode = val;
 		tvafe_pr_info("data_wmode:%d\n", vbi_buffer->data_wmode);
 	} else if (!strncmp(parm[0], "start", strlen("start"))) {
@@ -1465,13 +1479,13 @@ static ssize_t vbi_store(struct device *dev,
 		tvafe_pr_info("stop done!!!\n");
 	} else if (!strncmp(parm[0], "set_size", strlen("set_size"))) {
 		if (kstrtouint(parm[1], 10, &val) < 0)
-			return -EINVAL;
+			goto vbi_store_err;
 		vbi_set_buffer_size(devp, val);
 		tvafe_pr_info(" set buf size to %d\n",
 			vbi_slicer->buffer.size);
 	} else if (!strncmp(parm[0], "set_type", strlen("set_type"))) {
 		if (kstrtouint(parm[1], 16, &val) < 0)
-			return -EINVAL;
+			goto vbi_store_err;
 		vbi_slicer->type = val;
 		vbi_slicer_set(devp, vbi_slicer);
 		tvafe_pr_info(" set slicer type to %d\n",
@@ -1508,7 +1522,13 @@ static ssize_t vbi_store(struct device *dev,
 	} else {
 		tvafe_pr_info("[vbi..]unsupport cmd!!!\n");
 	}
+
+	kfree(buf_orig);
 	return len;
+
+vbi_store_err:
+	kfree(buf_orig);
+	return -EINVAL;
 }
 
 static DEVICE_ATTR(debug, 0644, vbi_show, vbi_store);

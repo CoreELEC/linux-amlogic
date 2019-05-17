@@ -219,14 +219,14 @@ enum vbi_state_e {
 
 
 /**** structure definitions ******/
-
+#define VBI_DATA_BYTE_MAX    42
 struct vbi_data_s {
 	unsigned int vbi_type:8;
 	unsigned int field_id:8;
 	unsigned int tt_sys:8;/*tt*/
 	unsigned int nbytes:16;
 	unsigned int line_num:16;
-	unsigned char b[42];         /* 42 for TT-625B */
+	unsigned char b[VBI_DATA_BYTE_MAX];         /* 42 for TT-625B */
 };
 
 struct vbi_ringbuffer_s {
