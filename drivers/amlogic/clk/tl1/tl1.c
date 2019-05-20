@@ -1093,11 +1093,14 @@ static void __init tl1_clkc_init(struct device_node *np)
 	ret = clk_notifier_register(parent_clk, &tl1_cpu_clk.clk_nb);
 
 	/* set tl1_dsu_fixed_sel1 to 1G (default 24M) */
-	ret = clk_set_rate(tl1_dsu_fixed_sel1.hw.clk, 1000000000);
+	ret = clk_set_parent(tl1_dsu_fixed_source_sel1.hw.clk,
+		tl1_fclk_div2.hw.clk);
 	if (ret < 0) {
-		pr_err("set tl1_dsu_fixed_sel1 to 1G failed\n");
+		pr_err("%s: failed to set parent for tl1_dsu_fixed_source_sel1\n",
+		__func__);
 		return;
 	}
+
 	/*
 	 * when change tl1_dsu_fixed_sel0, switch to
 	 * tl1_dsu_fixed_sel1 to avoid crash
