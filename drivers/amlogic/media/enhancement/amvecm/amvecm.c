@@ -745,6 +745,19 @@ static ssize_t amvecm_vlock_store(struct class *cla,
 		if (kstrtol(parm[1], 10, &val) < 0)
 			return -EINVAL;
 		vlock_set_phase_en(val);
+	} else if (!strncmp(parm[0], "afterfrqlock", 12)) {
+		if (kstrtol(parm[1], 10, &val) < 0)
+			return -EINVAL;
+		vlock_set_phase_en(val);
+		phase_en_after_frqlock = val;
+		pr_info("phase_en_after_frqlock=%d\n",
+			phase_en_after_frqlock);
+	} else if (!strncmp(parm[0], "ss_en", 5)) {
+		if (kstrtol(parm[1], 10, &val) < 0)
+			return -EINVAL;
+		vlock_set_phase_en(val);
+		vlock_ss_en = val;
+		pr_info("vlock_ss_en=%d\n", vlock_ss_en);
 	} else {
 		pr_info("----cmd list -----\n");
 		pr_info("vlock_mode val\n");
@@ -766,7 +779,9 @@ static ssize_t amvecm_vlock_store(struct class *cla,
 		pr_info("log_stop\n");
 		pr_info("log_print\n");
 		pr_info("phase persent\n");
-		pr_info("phlock_en val\n");
+		pr_info("phlock_en 0/1\n");
+		pr_info("afterfrqlock 0/1-phase lock after frq lock\n");
+		pr_info("vlock_ss_en 0/1-enable ss after phase lock\n");
 	}
 	if (sel < VLOCK_PARAM_MAX)
 		vlock_param_set(temp_val, sel);

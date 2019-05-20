@@ -23,7 +23,7 @@
 #include <linux/amlogic/media/vfm/vframe.h>
 #include "linux/amlogic/media/amvecm/ve.h"
 
-#define VLOCK_VER "Ref.2019/5/16:finetune phase lock"
+#define VLOCK_VER "Ref.2019/5/20"
 
 #define VLOCK_REG_NUM	33
 
@@ -73,6 +73,7 @@ struct stvlock_sig_sts {
 	u32 phlock_percent;
 	u32 phlock_sts;
 	u32 phlock_en;
+	u32 phlock_cnt;
 	u32 frqlock_sts;
 	/*u32 frqlock_stable_cnt;*/
 	u32 ss_sts;
@@ -169,6 +170,8 @@ extern unsigned int vlock_en;
 extern unsigned int vecm_latch_flag;
 /*extern void __iomem *amvecm_hiu_reg_base;*/
 extern unsigned int probe_ok;
+extern u32 phase_en_after_frqlock;
+extern u32 vlock_ss_en;
 
 extern void lcd_ss_enable(bool flag);
 extern unsigned int lcd_ss_status(void);
