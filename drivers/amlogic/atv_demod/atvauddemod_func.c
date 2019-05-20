@@ -460,10 +460,10 @@ void set_a2bg(void)
 	set_lpf15k();
 	set_deem(1);
 
-	adec_wr_reg(ADDR_DEMOD_GAIN, 0x12);
+	adec_wr_reg(ADDR_DEMOD_GAIN, 0x233);
 
-	adec_wr_reg(ADDR_LMR_ADJ, 0x3e0);
-	adec_wr_reg(ADDR_LPR_GAIN_ADJ, 0x3e0);
+	adec_wr_reg(ADDR_LMR_ADJ, 0x3a8);
+	adec_wr_reg(ADDR_LPR_GAIN_ADJ, 0x3a8);
 
 	adec_wr_reg(ADDR_LPR_COMP_CTRL, 0x010);
 	adec_wr_reg(ADDR_IIR_SPEED_CTRL, 0xd65d7f7f);
@@ -496,10 +496,10 @@ void set_a2dk1(void)
 	set_lpf15k();
 	set_deem(1);
 
-	adec_wr_reg(ADDR_DEMOD_GAIN, 0x12);
+	adec_wr_reg(ADDR_DEMOD_GAIN, 0x233);
 
-	adec_wr_reg(ADDR_LMR_ADJ, 0x3e0);
-	adec_wr_reg(ADDR_LPR_GAIN_ADJ, 0x3e0);
+	adec_wr_reg(ADDR_LMR_ADJ, 0x3a8);
+	adec_wr_reg(ADDR_LPR_GAIN_ADJ, 0x3a8);
 
 	adec_wr_reg(ADDR_LPR_COMP_CTRL, 0x010);
 	adec_wr_reg(ADDR_IIR_SPEED_CTRL, 0xd65d7f7f);
