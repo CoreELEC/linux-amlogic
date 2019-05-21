@@ -648,8 +648,9 @@ void set_nicam_dk(void)
 {
 	int aa;
 
-	adec_wr_reg(0x103, 0x1000000);
-	adec_wr_reg(0x115, 0x1503d);
+	adec_wr_reg(NICAM_CTRL_ENABLE, 0x1000000);
+	adec_wr_reg(NICAM_DAGC1, 0x1180E);
+	adec_wr_reg(NICAM_EQ_ERR_MODE, 0xAAF040A);
 
 	adec_wr_reg(ADDR_ADEC_CTRL, AUDIO_STANDARD_NICAM_DK);
 
@@ -663,19 +664,20 @@ void set_nicam_dk(void)
 
 	set_deem(2);
 
-	adec_wr_reg(0x103, 0x7f);
+	adec_wr_reg(NICAM_CTRL_ENABLE, 0x7f);
 
 	aa = (int)((FCLK-5.85e6)/FCLK*1024.0*1024.0*16.0);
-	adec_wr_reg(0x110, aa);
+	adec_wr_reg(NICAM_DDC_ROLLOFF, aa);
 }
 
 void set_nicam_i(void)
 {
 	int aa;
 
-	adec_wr_reg(0x103, 0x1000000);
-	adec_wr_reg(0x110, 0xcb9581);
-	adec_wr_reg(0x115, 0x1503d);
+	adec_wr_reg(NICAM_CTRL_ENABLE, 0x1000000);
+	adec_wr_reg(NICAM_DDC_ROLLOFF, 0xcb9581);
+	adec_wr_reg(NICAM_DAGC1, 0x1180E);
+	adec_wr_reg(NICAM_EQ_ERR_MODE, 0xAAF040A);
 
 	adec_wr_reg(ADDR_ADEC_CTRL, AUDIO_STANDARD_NICAM_I);
 
@@ -687,18 +689,19 @@ void set_nicam_i(void)
 	adec_wr_reg(ADDR_LPR_GAIN_ADJ, 0x200);
 
 	set_deem(2);
-	adec_wr_reg(0x103, 0x7f);
+	adec_wr_reg(NICAM_CTRL_ENABLE, 0x7f);
 
 	aa = (int)((FCLK-6.552e6)/FCLK*1024.0*1024.0*16.0);
-	adec_wr_reg(0x110, aa);
+	adec_wr_reg(NICAM_DDC_ROLLOFF, aa);
 }
 
 void set_nicam_bg(void)
 {
 	int aa;
 
-	adec_wr_reg(0x103, 0x1000000);
-	adec_wr_reg(0x115, 0x1503d);
+	adec_wr_reg(NICAM_CTRL_ENABLE, 0x1000000);
+	adec_wr_reg(NICAM_DAGC1, 0x1180E);
+	adec_wr_reg(NICAM_EQ_ERR_MODE, 0xAAF040A);
 
 	adec_wr_reg(ADDR_ADEC_CTRL, AUDIO_STANDARD_NICAM_BG);
 
@@ -710,15 +713,19 @@ void set_nicam_bg(void)
 	adec_wr_reg(ADDR_LPR_GAIN_ADJ, 0x200);
 
 	set_deem(2);
-	adec_wr_reg(0x103, 0x7f);
+	adec_wr_reg(NICAM_CTRL_ENABLE, 0x7f);
 
 	aa = (int)((FCLK-5.85e6)/FCLK*1024.0*1024.0*16.0);
-	adec_wr_reg(0x110, aa);
+	adec_wr_reg(NICAM_DDC_ROLLOFF, aa);
 }
 
 void set_nicam_l(void)
 {
 	int aa;
+
+	adec_wr_reg(NICAM_CTRL_ENABLE, 0x1000000);
+	adec_wr_reg(NICAM_DAGC1, 0x1180E);
+	adec_wr_reg(NICAM_EQ_ERR_MODE, 0xAAF040A);
 
 	adec_wr_reg(ADDR_ADEC_CTRL, AUDIO_STANDARD_NICAM_L);
 
@@ -730,10 +737,10 @@ void set_nicam_l(void)
 	adec_wr_reg(ADDR_LPR_GAIN_ADJ, 0x200);
 
 	set_deem(2);
-	adec_wr_reg(0x103, 0x7f);
+	adec_wr_reg(NICAM_CTRL_ENABLE, 0x7f);
 
 	aa = (int)((FCLK-5.85e6)/FCLK*1024.0*1024.0*16.0);
-	adec_wr_reg(0x110, aa);
+	adec_wr_reg(NICAM_DDC_ROLLOFF, aa);
 }
 
 void set_mono_m(void)

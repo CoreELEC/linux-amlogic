@@ -218,6 +218,11 @@
 #define CARRIER_MAG_REPORT         0x0f6
 #define BTSC_AB_REPORT             0x0f7
 #define AUDIO_MODE_REPORT          0x0f8
+
+#define NICAM_CTRL_ENABLE          0x103
+#define NICAM_DDC_ROLLOFF          0x110
+#define NICAM_DAGC1                0x115
+#define NICAM_EQ_ERR_MODE          0x17c
 #define NICAM_LEVEL_REPORT         0x1a3
 #define NICAM_MODE_REPORT          0x1a4
 
