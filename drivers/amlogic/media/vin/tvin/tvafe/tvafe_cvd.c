@@ -445,13 +445,24 @@ static void tvafe_cvd2_write_mode_reg(struct tvafe_cvd2_s *cvd2,
 		W_APB_REG(CVD2_REG_B6, 0x0);
 	}
 
-	if (((cvd2->vd_port == TVIN_PORT_CVBS1) ||
-		(cvd2->vd_port == TVIN_PORT_CVBS2)) &&
-		(cvd2->config_fmt == TVIN_SIG_FMT_CVBS_NTSC_M)) {
-		W_APB_REG(CVD2_VSYNC_SIGNAL_THRESHOLD, 0x7d);
-		if (tvafe_cpu_type() == CPU_TYPE_TL1) {
-			W_APB_REG(CVD2_REG_B0, 0x0);
-			W_APB_REG(CVD2_3DCOMB_FILTER, 0xfd);
+	if ((cvd2->vd_port == TVIN_PORT_CVBS1) ||
+		(cvd2->vd_port == TVIN_PORT_CVBS2)) {
+		if (cvd2->config_fmt == TVIN_SIG_FMT_CVBS_NTSC_M) {
+			W_APB_REG(CVD2_VSYNC_SIGNAL_THRESHOLD, 0x7d);
+			if (tvafe_cpu_type() == CPU_TYPE_TL1) {
+				W_APB_REG(CVD2_CONTROL1, 0x8);
+				W_APB_REG(CVD2_2DCOMB_NOISE_TH, 0x84);
+				W_APB_REG(CVD2_REG_B0, 0x0);
+				W_APB_REG(CVD2_3DCOMB_FILTER, 0xf);
+			}
+		}
+		if (cvd2->config_fmt == TVIN_SIG_FMT_CVBS_PAL_I) {
+			if (tvafe_cpu_type() == CPU_TYPE_TL1) {
+				W_APB_REG(ACD_REG_89, 0x80010004);
+				W_APB_REG(ACD_REG_8A, 0x100004);
+				W_APB_REG(ACD_REG_8B, 0x100000);
+				W_APB_REG(ACD_REG_8C, 0x38000);
+			}
 		}
 	}
 
