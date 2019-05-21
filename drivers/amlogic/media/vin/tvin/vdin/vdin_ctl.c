@@ -3677,6 +3677,7 @@ void vdin_dolby_addr_alloc(struct vdin_dev_s *devp, unsigned int size)
 			devp->vfp->dv_buf_mem[index],
 			devp->vfp->dv_buf_vmem[index]);
 	}
+	devp->dv.dv_mem_alloced = 1;
 	pr_info("%s:dv_dma_vaddr=0x%p,dv_dma_paddr=0x%lx\n", __func__,
 		devp->dv.dv_dma_vaddr, (ulong)devp->dv.dv_dma_paddr);
 }
@@ -3685,6 +3686,9 @@ void vdin_dolby_addr_release(struct vdin_dev_s *devp, unsigned int size)
 	unsigned int alloc_size;
 	int highmem_flag;
 	int index;
+
+	if (devp->dv.dv_mem_alloced == 0)
+		return;
 
 	alloc_size = dolby_size_byte*size;
 	if (devp->dv.dv_dma_vaddr)
@@ -3706,6 +3710,7 @@ void vdin_dolby_addr_release(struct vdin_dev_s *devp, unsigned int size)
 			}
 		}
 	}
+	devp->dv.dv_mem_alloced = 0;
 }
 
 static void vdin_dolby_metadata_swap(struct vdin_dev_s *devp, char *buf)

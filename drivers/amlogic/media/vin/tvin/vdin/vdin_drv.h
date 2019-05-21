@@ -195,6 +195,7 @@ struct vdin_dv_s {
 	bool dv_flag;
 	bool dv_config;
 	bool dv_crc_check;/*0:fail;1:ok*/
+	unsigned int dv_mem_alloced;
 };
 
 struct vdin_afbce_s {
