@@ -458,7 +458,7 @@ static u32 reference_zorder = 128;
 
 /* default value 20 30 */
 static s32 black_threshold_width = 20;
-static s32 black_threshold_height = 30;
+static s32 black_threshold_height = 48;
 
 static struct vframe_s hist_test_vf;
 static bool hist_test_flag;
