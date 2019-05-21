@@ -129,6 +129,9 @@ enum VLOCK_MD {
 #define IS_AUTO_PLL_MODE(md) (md & \
 					VLOCK_MODE_AUTO_PLL)
 
+#define IS_AUTO_ENC_MODE(md) (md & \
+							VLOCK_MODE_AUTO_ENC)
+
 #define IS_MANUAL_ENC_MODE(md) (md & \
 				VLOCK_MODE_MANUAL_ENC)
 
