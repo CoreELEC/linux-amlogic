@@ -4059,8 +4059,9 @@ static void vsync_toggle_frame(struct vframe_s *vf, int line)
 		int iret;
 
 		last_process_3d_type = process_3d_type;
-		if ((cur_dispbuf->width != vf->width) ||
-			(cur_dispbuf->height != vf->height)) {
+		if (!cur_dispbuf ||
+		    ((cur_dispbuf->width != vf->width) ||
+		    (cur_dispbuf->height != vf->height))) {
 			atomic_inc(&video_sizechange);
 			wake_up_interruptible(&amvideo_sizechange_wait);
 		}
