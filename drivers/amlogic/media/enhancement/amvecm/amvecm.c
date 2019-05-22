@@ -5477,9 +5477,7 @@ static ssize_t amvecm_lc_store(struct class *cls,
 
 static void def_hdr_sdr_mode(void)
 {
-	if (((READ_VPP_REG(VD1_HDR2_CTRL) >> 13) & 0x1) &&
-		((READ_VPP_REG(OSD1_HDR2_CTRL) >> 13) & 0x1))
-		sdr_mode = 2;
+	sdr_mode = 0;
 }
 
 /* #if (MESON_CPU_TYPE == MESON_CPU_TYPE_MESONG9TV) */
