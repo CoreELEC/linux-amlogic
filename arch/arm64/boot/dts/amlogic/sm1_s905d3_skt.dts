@@ -1092,6 +1092,20 @@
 	pinctrl-names="default";
 	pinctrl-0=<&i2c2_master_pins2>;
 	clock-frequency = <100000>;
+
+	lcd_extern_i2c0: lcd_extern_i2c@0 {
+		compatible = "lcd_ext, i2c";
+		dev_name = "i2c_LT8912";
+		reg = <0x48>;
+		status = "okay";
+	};
+
+	lcd_extern_i2c1: lcd_extern_i2c@1{
+		compatible = "lcd_ext, i2c";
+		dev_name = "i2c_LT8912";
+		reg = <0x49>;
+		status = "okay";
+	};
 };
 
 &i2c3 {
