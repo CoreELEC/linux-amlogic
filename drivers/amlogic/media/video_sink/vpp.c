@@ -3068,6 +3068,18 @@ int vpp_set_filters(
 	aspect_ratio = (vf->ratio_control & DISP_RATIO_ASPECT_RATIO_MASK)
 				   >> DISP_RATIO_ASPECT_RATIO_BIT;
 
+	if (!aspect_ratio) {
+		u32 sar_width, sar_height;
+
+		if (vf->type & VIDTYPE_COMPRESS) {
+			sar_width = vf->compWidth;
+			sar_height = vf->compHeight;
+		} else {
+			sar_width = vf->width;
+			sar_height = vf->height;
+		}
+		aspect_ratio = (sar_height << 8) / sar_width;
+	}
 	/* the height from vdin afbc will be half */
 	/* so need no interlace in */
 	if ((vf->type & VIDTYPE_INTERLACE)
