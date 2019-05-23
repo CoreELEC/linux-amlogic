@@ -250,6 +250,8 @@ struct vbi_slicer_s {
 
 	struct vbi_ringbuffer_s buffer;
 	struct mutex mutex;
+	struct mutex task_mutex;
+	unsigned int busy;
 
 	unsigned int reserve;
 };
@@ -260,7 +262,8 @@ struct vbi_dev_s {
 	struct cdev cdev;
 	struct device *dev;
 
-	struct tasklet_struct tsklt_slicer;
+	/*struct tasklet_struct tsklt_slicer;*/
+	struct work_struct slicer_work;
 
 	char irq_name[12];
 	unsigned int vs_irq;

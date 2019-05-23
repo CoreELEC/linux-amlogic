@@ -62,6 +62,7 @@
 static dev_t vbi_id;
 static struct class *vbi_clsp;
 static unsigned char field_data_flag;
+static struct vbi_dev_s *vbi_dev_local;
 
 /******debug********/
 static unsigned int vbi_dbg_en;
@@ -387,7 +388,7 @@ static irqreturn_t vbi_isr(int irq, void *dev_id)
 	}
 
 	if (devp->tasklet_enable)
-		tasklet_schedule(&devp->tsklt_slicer);
+		schedule_work(&devp->slicer_work);
 	spin_unlock_irqrestore(&devp->vbi_isr_lock, flags);
 	return IRQ_HANDLED;
 }
@@ -463,13 +464,15 @@ unsigned char *search_table(unsigned char *table_start_addr,
 
 	if (!table_start_addr || !search_point || !table_end_addr ||
 		!search_content || (search_size <= 0)) {
-		tvafe_pr_info("search_table point error\n");
+		tvafe_pr_info("%s: point error\n", __func__);
 		return NULL;
-	} else if ((table_end_addr <= table_start_addr) ||
+	}
+	if ((table_end_addr <= table_start_addr) ||
 		(search_point > table_end_addr)) {
 		if (vbi_pr_en) {
-			tvafe_pr_info("search_table add err: start=%p,search=%p,end=%p\n",
-			table_start_addr, search_point, table_end_addr);
+			tvafe_pr_info("%s: addr err: start=%p,search=%p,end=%p\n",
+				__func__, table_start_addr,
+				search_point, table_end_addr);
 		}
 		return NULL;
 	}
@@ -499,6 +502,66 @@ unsigned char *search_table(unsigned char *table_start_addr,
 		return NULL;
 	}
 }
+
+#if 0
+unsigned char *search_table_for_relocation(unsigned char *table_start_addr,
+	unsigned char *search_point, unsigned char *table_end_addr,
+	unsigned char *search_content, unsigned char search_size,
+	unsigned int *len, unsigned int search_max_line)
+{
+	unsigned char cflag = 0;
+	unsigned int count = 0, max_count;
+	unsigned int table_size = table_end_addr - table_start_addr + 1;
+	unsigned char *p = search_point;
+	unsigned int done = 0;
+	unsigned char *rp;
+
+	if (!table_start_addr || !search_point || !table_end_addr ||
+		!search_content || (search_size <= 0)) {
+		tvafe_pr_info("%s: point error\n", __func__);
+		return NULL;
+	}
+	if ((table_end_addr <= table_start_addr) ||
+		(search_point > table_end_addr)) {
+		if (vbi_pr_en) {
+			tvafe_pr_info("%s: addr err: start=%p,search=%p,end=%p\n",
+				__func__, table_start_addr,
+				search_point, table_end_addr);
+		}
+		return NULL;
+	}
+	if (search_max_line == 0)
+		return NULL;
+
+	max_count = 16 * search_max_line;
+	while (count++ < table_size) {
+		if (count >= max_count)
+			break;
+		if (((table_end_addr-p+1) < search_size) && (!cflag)) {
+			cflag = 1;
+			memcpy((table_end_addr+1),
+				table_start_addr, search_size);
+		} else if (p > table_end_addr) {
+			p = table_start_addr;
+		}
+
+		if (!memcmp(p, search_content, search_size)) {
+			done = 1;
+			break;
+		}
+		p++;
+	}
+
+	*len = count - 1 + search_size;
+	if (done == 0)
+		return NULL;
+
+	rp = p + search_size - 1;
+	if (rp > table_end_addr)
+		return (rp - table_end_addr + table_start_addr - 1);
+	return rp;
+}
+#endif
 
 static void force_set_vcnt(unsigned char *rptr)
 {
@@ -620,9 +683,9 @@ static int check_if_sync_cc_data(struct vbi_dev_s *devp, unsigned char *addr)
 	return 0;
 }
 
-static void vbi_slicer_task(unsigned long arg)
+static void vbi_slicer_work(struct work_struct *p_work)
 {
-	struct vbi_dev_s *devp = (struct vbi_dev_s *)arg;
+	struct vbi_dev_s *devp = vbi_dev_local;
 	struct vbi_data_s vbi_data;
 	unsigned char rbyte = 0;
 	unsigned char i = 0;
@@ -634,6 +697,8 @@ static void vbi_slicer_task(unsigned long arg)
 	unsigned int len, chlen, vbihlen, datalen;
 	int ret, ret_cpvbi, ret_sync;
 
+	if (!devp)
+		return;
 	if (devp->vbi_start == false)
 		return;
 	if (tvafe_clk_status == false) {
@@ -641,9 +706,15 @@ static void vbi_slicer_task(unsigned long arg)
 		return;
 	}
 
+	if (devp->slicer->busy)
+		return;
+
+	mutex_lock(&devp->slicer->task_mutex);
+	devp->slicer->busy = 1;
+
 	ret = init_cc_data_sync(devp);
 	if (!ret)
-		return;
+		goto vbi_slicer_task_exit;
 	if (vbi_dbg_en & 2)
 		tvafe_pr_info("pac_addr:%p\n", devp->pac_addr);
 	if (devp->pac_addr > devp->pac_addr_end)
@@ -665,7 +736,7 @@ static void vbi_slicer_task(unsigned long arg)
 
 	ret_sync = check_if_sync_cc_data(devp, ret_addr);
 	if (ret_sync < 0)
-		return;
+		goto vbi_slicer_task_exit;
 
 	if ((len <= VBI_WRITE_BURST_BYTE) ||
 		(len > VBI_BUFF3_EA - VBI_BUFF2_EA)) {
@@ -676,7 +747,7 @@ static void vbi_slicer_task(unsigned long arg)
 
 		if (vbi_dbg_en)
 			tvafe_pr_info("%s: invalid len %d\n", __func__, len);
-		return;
+		goto vbi_slicer_task_exit;
 	}
 
 	ret_cpvbi = copy_vbi_to(devp->pac_addr_start, devp->pac_addr_end,
@@ -688,14 +759,14 @@ static void vbi_slicer_task(unsigned long arg)
 		else
 			devp->pac_addr = ret_addr + 1;
 
-		return;
+		goto vbi_slicer_task_exit;
 	}
 
 	local_rptr = devp->pac_addr_start + VBI_BUFF3_EA;
 	chlen = len;
 	while (chlen > 0) {
 		if (!devp->vbi_start || !tvafe_clk_status)
-			return;
+			goto vbi_slicer_task_exit;
 		if ((local_rptr > devp->pac_addr_start+
 			VBI_BUFF3_EA+VBI_BUFF3_SIZE-1)
 			|| (local_rptr < devp->pac_addr_start + VBI_BUFF3_EA))
@@ -776,6 +847,10 @@ err_exit:
 		devp->pac_addr = devp->pac_addr_start;
 	else
 		devp->pac_addr = ret_addr + 1;
+
+vbi_slicer_task_exit:
+	devp->slicer->busy = 0;
+	mutex_unlock(&devp->slicer->task_mutex);
 
 	return;
 }
@@ -1072,7 +1147,6 @@ static int vbi_open(struct inode *inode, struct file *file)
 			__func__);
 		return -ERESTARTSYS;
 	}
-	tasklet_enable(&vbi_dev->tsklt_slicer);
 	vbi_ringbuffer_init(&vbi_dev->slicer->buffer, NULL,
 		VBI_DEFAULT_BUFFER_PACKAGE_NUM);
 	vbi_dev->slicer->type = VBI_TYPE_NULL;
@@ -1101,7 +1175,6 @@ static int vbi_release(struct inode *inode, struct file *file)
 
 	vbi_dev->tasklet_enable = false;
 	vbi_dev->vbi_start = false;  /*disable data capture function*/
-	tasklet_disable(&vbi_dev->tsklt_slicer);
 	ret = vbi_slicer_free(vbi_dev, vbi_slicer);
 	/* free irq */
 	if (vbi_dev->irq_free_status == 1)
@@ -1491,7 +1564,6 @@ static ssize_t vbi_store(struct device *dev,
 		tvafe_pr_info(" set slicer type to %d\n",
 			vbi_slicer->type);
 	} else if (!strncmp(parm[0], "open", strlen("open"))) {
-		tasklet_enable(&devp->tsklt_slicer);
 		vbi_ringbuffer_init(vbi_buffer, NULL,
 			VBI_DEFAULT_BUFFER_PACKAGE_NUM);
 		devp->slicer->type = VBI_TYPE_NULL;
@@ -1507,7 +1579,6 @@ static ssize_t vbi_store(struct device *dev,
 			tvafe_pr_err("request_irq fail\n");
 		tvafe_pr_info(" open ok.\n");
 	} else if (!strncmp(parm[0], "release", strlen("release"))) {
-		tasklet_disable(&devp->tsklt_slicer);
 		ret = vbi_slicer_free(devp, vbi_slicer);
 		devp->tasklet_enable = false;
 		devp->vbi_start = false;  /*disable data capture function*/
@@ -1548,6 +1619,7 @@ static int vbi_probe(struct platform_device *pdev)
 	}
 	memset(vbi_dev, 0, sizeof(struct vbi_dev_s));
 	vbi_mem_start = 0;
+	vbi_dev_local = vbi_dev;
 
 	/* connect the file operations with cdev */
 	cdev_init(&vbi_dev->cdev, &vbi_fops);
@@ -1607,10 +1679,11 @@ static int vbi_probe(struct platform_device *pdev)
 	vbi_dev->tasklet_enable = false;
 	vbi_dev->vbi_start = false;
 	/* Initialize tasklet */
-	tasklet_init(&vbi_dev->tsklt_slicer, vbi_slicer_task,
-				(unsigned long)vbi_dev);
+	/*tasklet_init(&vbi_dev->tsklt_slicer, vbi_slicer_task,
+	 *			(unsigned long)vbi_dev);
+	 */
+	INIT_WORK(&vbi_dev->slicer_work, vbi_slicer_work);
 
-	tasklet_disable(&vbi_dev->tsklt_slicer);
 	vbi_dev->vs_delay = VBI_VS_DELAY;
 
 	vbi_dev->slicer = vmalloc(sizeof(struct vbi_slicer_s));
@@ -1619,6 +1692,7 @@ static int vbi_probe(struct platform_device *pdev)
 		goto fail_alloc_mem;
 	}
 	mutex_init(&vbi_dev->slicer->mutex);
+	mutex_init(&vbi_dev->slicer->task_mutex);
 	init_waitqueue_head(&vbi_dev->slicer->buffer.queue);
 	spin_lock_init(&(vbi_dev->slicer->buffer.lock));
 	vbi_dev->slicer->buffer.data = NULL;
@@ -1658,9 +1732,11 @@ static int vbi_remove(struct platform_device *pdev)
 
 	vbi_dev = platform_get_drvdata(pdev);
 
+	mutex_destroy(&vbi_dev->slicer->task_mutex);
 	mutex_destroy(&vbi_dev->slicer->mutex);
 	mutex_destroy(&vbi_dev->mutex);
-	tasklet_kill(&vbi_dev->tsklt_slicer);
+	/*tasklet_kill(&vbi_dev->tsklt_slicer);*/
+	cancel_work_sync(&vbi_dev->slicer_work);
 	if (vbi_dev->pac_addr_start)
 		dma_free_coherent(vbi_dev->dev, vbi_dev->mem_size,
 			vbi_dev->pac_addr_start,
@@ -1696,7 +1772,8 @@ static void vbi_drv_shutdown(struct platform_device *pdev)
 	vbi_dev = platform_get_drvdata(pdev);
 	vbi_dev->tasklet_enable = false;
 	vbi_dev->vbi_start = false;
-	tasklet_kill(&vbi_dev->tsklt_slicer);
+	/*tasklet_kill(&vbi_dev->tsklt_slicer);*/
+	cancel_work_sync(&vbi_dev->slicer_work);
 	if (vbi_dev->irq_free_status == 1)
 		free_irq(vbi_dev->vs_irq, (void *)vbi_dev);
 	vbi_dev->irq_free_status = 0;
