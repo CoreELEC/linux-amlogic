@@ -338,6 +338,7 @@ enum vlock_hw_ver_e {
 	 * fix bug:i problem
 	 * fix bug:affect ss function
 	 * add: phase lock
+	 * tm2: have separate pll:tcon pll and hdmitx pll
 	 */
 	vlock_hw_ver2,
 };
@@ -347,6 +348,7 @@ struct vecm_match_data_s {
 	u32 vlk_new_fsm;
 	enum vlock_hw_ver_e vlk_hwver;
 	u32 vlk_phlock_en;
+	u32 vlk_pll_sel;/*independent panel pll and hdmitx pll*/
 };
 
 /*overscan:

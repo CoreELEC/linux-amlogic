@@ -23,7 +23,7 @@
 #include <linux/amlogic/media/vfm/vframe.h>
 #include "linux/amlogic/media/amvecm/ve.h"
 
-#define VLOCK_VER "Ref.2019/5/20"
+#define VLOCK_VER "Ref.2019/5/23:vlock for hdmi pll"
 
 #define VLOCK_REG_NUM	33
 
@@ -90,7 +90,6 @@ extern void vlock_reg_dump(void);
 extern void vlock_log_start(void);
 extern void vlock_log_stop(void);
 extern void vlock_log_print(void);
-extern int phase_lock_check(void);
 
 #define VLOCK_STATE_NULL 0
 #define VLOCK_STATE_ENABLE_STEP1_DONE 1
@@ -138,6 +137,14 @@ enum VLOCK_MD {
 
 #define IS_MANUAL_SOFTENC_MODE(md) (md & \
 				VLOCK_MODE_MANUAL_SOFT_ENC)
+
+
+enum vlock_pll_sel {
+	vlock_pll_sel_tcon = 0,
+	vlock_pll_sel_hdmi,
+	vlock_pll_sel_disable = 0xf,
+};
+
 
 #define VLOCK_START_CNT		50
 #define VLOCK_WORK_CNT	(VLOCK_START_CNT + 10)

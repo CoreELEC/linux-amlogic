@@ -181,7 +181,10 @@ u32 vlock_get_panel_pll_m(void)
 {
 	u32 val;
 
-	amvecm_hiu_reg_read(hhi_pll_reg_m, &val);
+	if (vlock.dtdata->vlk_pll_sel == vlock_pll_sel_hdmi)
+		amvecm_hiu_reg_read(HHI_HDMI_PLL_CNTL, &val);
+	else
+		amvecm_hiu_reg_read(hhi_pll_reg_m, &val);
 	return val;
 }
 
@@ -189,7 +192,10 @@ u32 vlock_get_panel_pll_frac(void)
 {
 	u32 val;
 
-	amvecm_hiu_reg_read(hhi_pll_reg_frac, &val);
+	if (vlock.dtdata->vlk_pll_sel == vlock_pll_sel_hdmi)
+		amvecm_hiu_reg_read(HHI_HDMI_PLL_CNTL2, &val);
+	else
+		amvecm_hiu_reg_read(hhi_pll_reg_frac, &val);
 	return val;
 }
 
@@ -197,16 +203,20 @@ void vlock_set_panel_pll_m(u32 val)
 {
 	u32 m = val;
 
-	/*amvecm_hiu_reg_write(hhi_pll_reg_m, m);*/
-	lcd_vlock_m_update(m);
+	if (vlock.dtdata->vlk_pll_sel == vlock_pll_sel_hdmi)
+		amvecm_hiu_reg_write(HHI_HDMI_PLL_CNTL, val);
+	else
+		lcd_vlock_m_update(m);
 }
 
 void vlock_set_panel_pll_frac(u32 val)
 {
 	u32 frac = val;
 
-	/*amvecm_hiu_reg_write(hhi_pll_reg_frac, frac);*/
-	lcd_vlock_farc_update(frac);
+	if (vlock.dtdata->vlk_pll_sel == vlock_pll_sel_hdmi)
+		amvecm_hiu_reg_write(HHI_HDMI_PLL_CNTL2, val);
+	else
+		lcd_vlock_farc_update(frac);
 }
 
 void vlock_set_panel_pll(u32 m, u32 frac)
@@ -221,15 +231,6 @@ void vlock_set_panel_ss(u32 onoff)
 		lcd_ss_enable(1);
 	else
 		lcd_ss_enable(0);
-}
-
-/*returen 1: use phase lock*/
-int phase_lock_check(void)
-{
-	unsigned int ret = 0;
-
-	ret = READ_VPP_REG_BITS(VPU_VLOCK_RO_LCK_FRM, 17, 1);
-	return ret;
 }
 
 static unsigned int vlock_check_input_hz(struct vframe_s *vf)
@@ -265,35 +266,81 @@ static unsigned int vlock_check_output_hz(unsigned int sync_duration_num,
 
 	tempHz = (sync_duration_num*100)/sync_duration_den;
 
-	switch (tempHz) {
-	case 2400:
+	if (tempHz == 2400)
 		ret_hz = 24;
-		break;
-	case 3000:
+	else if (tempHz == 3000)
 		ret_hz = 30;
-		break;
-	case 5000:
+	else if (tempHz == 5000)
 		ret_hz = 50;
-		break;
-	case 6000:
+	else if ((tempHz > 5990) && (tempHz <= 6000))
 		ret_hz = 60;
-		break;
-	case 10000:
+	else if (tempHz == 10000)
 		ret_hz = 100;
-		break;
-	case 12000:
+	else if (tempHz == 12000)
 		ret_hz = 120;
-		break;
-	default:
+	else
 		ret_hz = 0;
-		break;
-	}
 
 	if ((ret_hz == 0) && (vlock_debug & VLOCK_DEBUG_INFO))
-		pr_info("sync_duration_num:%d\n", sync_duration_num);
+		pr_info("tempHz=%d, sync_duration_num:%d den:%d\n", tempHz,
+			sync_duration_num, sync_duration_den);
 
 	return ret_hz;
 }
+
+/*
+ * Tm2 have two pll, hdmi pll and panel pll
+ * hdmi tx output mode vlock pll need switch to hdmi pll
+ * panel output mode, vlock pll need switch to panel pll
+ * des: 0-switch to panel pll , 1-switch to hdmi pll
+ */
+static void vlock_pll_select(u32 vlock_mode, u32 workmd)
+{
+	if (is_meson_tm2_cpu()) {
+		if (workmd == vlock_pll_sel_disable) {
+			amvecm_hiu_reg_write_bits(
+				HHI_HDMI_PLL_VLOCK_CNTL, 0, 0, 2);
+			amvecm_hiu_reg_write_bits(
+				HHI_HDMI_PLL_VLOCK_CNTL, 0, 4, 2);
+		} else {
+			if (IS_AUTO_PLL_MODE(vlock_mode)) {
+				if (workmd == vlock_pll_sel_hdmi) {
+				/*auto pll mode, hdmi M/F value from vlock*/
+					amvecm_hiu_reg_write_bits(
+					HHI_HDMI_PLL_VLOCK_CNTL, 0, 0, 2);
+					amvecm_hiu_reg_write_bits(
+					HHI_HDMI_PLL_VLOCK_CNTL, 3, 4, 2);
+				} else {
+				/*auto pll mode, panel M/F value from vlock*/
+					amvecm_hiu_reg_write_bits(
+					HHI_HDMI_PLL_VLOCK_CNTL, 3, 0, 2);
+					amvecm_hiu_reg_write_bits(
+					HHI_HDMI_PLL_VLOCK_CNTL, 0, 4, 2);
+				}
+			}
+		}
+	} else {
+		/* tv chip only have tcon pll */
+		if (workmd == vlock_pll_sel_disable) {
+			if (vlock.dtdata->vlk_hwver >= vlock_hw_ver2) {
+				amvecm_hiu_reg_write_bits(
+				HHI_HDMI_PLL_VLOCK_CNTL, 0x4, 0, 3);
+				amvecm_hiu_reg_write_bits(
+				HHI_HDMI_PLL_VLOCK_CNTL, 0x0, 0, 3);
+			}
+		} else {
+			if (vlock.dtdata->vlk_hwver >= vlock_hw_ver2) {
+				if (IS_AUTO_MODE(vlock_mode))
+					amvecm_hiu_reg_write_bits(
+					HHI_HDMI_PLL_VLOCK_CNTL, 0x7, 0, 3);
+				else if (IS_MANUAL_MODE(vlock_mode))
+					amvecm_hiu_reg_write_bits(
+					HHI_HDMI_PLL_VLOCK_CNTL, 0x6, 0, 3);
+			}
+		}
+	}
+}
+
 
 void vlock_reset(u32 onoff)
 {
@@ -760,12 +807,8 @@ static bool vlock_disable_step2(void)
 	if (vlock_dis_cnt > 0)
 		vlock_dis_cnt--;
 	else if (vlock_dis_cnt == 0) {
-		if (vlock.dtdata->vlk_hwver >= vlock_hw_ver2) {
-			amvecm_hiu_reg_write_bits(
-				HHI_HDMI_PLL_VLOCK_CNTL, 0x4, 0, 3);
-			amvecm_hiu_reg_write_bits(
-				HHI_HDMI_PLL_VLOCK_CNTL, 0x0, 0, 3);
-		}
+		/* pll source set default */
+		vlock_pll_select(vlock_mode, vlock_pll_sel_disable);
 
 		/* disable to adjust pll */
 		WRITE_VPP_REG_BITS(VPU_VLOCK_CTRL, 0, 29, 1);
@@ -1424,14 +1467,7 @@ void amve_vlock_process(struct vframe_s *vf)
 			 * tl1 auto pll,swich clk need after
 			 *several frames
 			 */
-			if (vlock.dtdata->vlk_hwver >= vlock_hw_ver2) {
-				if (IS_AUTO_MODE(vlock_mode))
-					amvecm_hiu_reg_write_bits(
-					HHI_HDMI_PLL_VLOCK_CNTL, 0x7, 0, 3);
-				else if (IS_MANUAL_MODE(vlock_mode))
-					amvecm_hiu_reg_write_bits(
-					HHI_HDMI_PLL_VLOCK_CNTL, 0x6, 0, 3);
-			}
+			vlock_pll_select(vlock_mode, vlock.dtdata->vlk_pll_sel);
 
 			if (vlock_debug & VLOCK_DEBUG_INFO)
 				pr_info("amve_vlock_process-2\n");
@@ -1909,14 +1945,7 @@ u32 vlock_fsm_en_step1_func(struct stvlock_sig_sts *pvlock,
 		 * tl1 auto pll,swich clk need after
 		 *several frames
 		 */
-		if (vlock.dtdata->vlk_hwver >= vlock_hw_ver2) {
-			if (IS_AUTO_MODE(vlock_mode))
-				amvecm_hiu_reg_write_bits(
-				HHI_HDMI_PLL_VLOCK_CNTL, 0x7, 0, 3);
-			else if (IS_MANUAL_MODE(vlock_mode))
-				amvecm_hiu_reg_write_bits(
-				HHI_HDMI_PLL_VLOCK_CNTL, 0x6, 0, 3);
-		}
+		vlock_pll_select(vlock_mode, vlock.dtdata->vlk_pll_sel);
 
 		ret = 1;
 		if (vlock_debug & VLOCK_DEBUG_INFO)
@@ -2301,6 +2330,7 @@ void vlock_status(void)
 	pr_info("vlk_new_fsm:%d\n", vlock.dtdata->vlk_new_fsm);
 	pr_info("vlk_phlock_en:%d\n", vlock.dtdata->vlk_phlock_en);
 	pr_info("vlk_hwver:%d\n", vlock.dtdata->vlk_hwver);
+	pr_info("vlk_pll_sel:%d\n", vlock.dtdata->vlk_pll_sel);
 	pr_info("phlock flag:%d\n", vlock_get_phlock_flag());
 	pr_info("vlock flag:%d\n", vlock_get_vlock_flag());
 	pr_info("phase:%d\n", vlock.phlock_percent);
@@ -2340,6 +2370,14 @@ void vlock_reg_dump(void)
 	val = vlock_get_panel_pll_frac();
 	pr_info("HIU pll f[0x%04x]=0x%08x\n", hhi_pll_reg_frac, val);
 
+	if (is_meson_tm2_cpu()) {
+		amvecm_hiu_reg_read(HHI_HDMI_PLL_CNTL, &val);
+		pr_info("HIU HDMI_PLL_CNTL 0x%x=0x%x\n",
+			HHI_HDMI_PLL_CNTL, val);
+		amvecm_hiu_reg_read(HHI_HDMI_PLL_CNTL2, &val);
+		pr_info("HIU HDMI_PLL_CNTL2 0x%x=0x%x\n",
+			HHI_HDMI_PLL_CNTL2, val);
+	}
 	/*back up orignal pll value*/
 	/*pr_info("HIU pll m[0x%x]=0x%x\n", hhi_pll_reg_m, vlock.val_m);*/
 	/*pr_info("HIU pll f[0x%x]=0x%x\n", hhi_pll_reg_frac, vlock.val_frac);*/
