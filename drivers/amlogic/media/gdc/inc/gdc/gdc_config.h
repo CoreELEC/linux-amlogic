@@ -59,7 +59,7 @@ struct mgdc_fh_s {
 	struct list_head list;
 	wait_queue_head_t	irq_queue;
 	struct meson_gdc_dev_t *gdev;
-	char task_comm[32];
+	char task_comm[TASK_COMM_LEN];
 	struct ion_client   *ion_client;
 	struct gdc_cmd_s gdc_cmd;
 	uint32_t mmap_type;

@@ -91,6 +91,8 @@ struct usb_host_interface *usb_find_alt_setting(
 	struct usb_interface_cache *intf_cache = NULL;
 	int i;
 
+	if (!config)
+		return NULL;
 	for (i = 0; i < config->desc.bNumInterfaces; i++) {
 		if (config->intf_cache[i]->altsetting[0].desc.bInterfaceNumber
 				== iface_num) {
@@ -456,9 +458,9 @@ struct usb_device *usb_alloc_dev(struct usb_device *parent,
 	 * Note: calling dma_set_mask() on a USB device would set the
 	 * mask for the entire HCD, so don't do that.
 	 */
-	dev->dev.dma_mask = bus->controller->dma_mask;
-	dev->dev.dma_pfn_offset = bus->controller->dma_pfn_offset;
-	set_dev_node(&dev->dev, dev_to_node(bus->controller));
+	dev->dev.dma_mask = bus->sysdev->dma_mask;
+	dev->dev.dma_pfn_offset = bus->sysdev->dma_pfn_offset;
+	set_dev_node(&dev->dev, dev_to_node(bus->sysdev));
 	dev->state = USB_STATE_ATTACHED;
 	dev->lpm_disable_count = 1;
 	atomic_set(&dev->urbnum, 0);
@@ -698,14 +700,14 @@ EXPORT_SYMBOL_GPL(usb_get_current_frame_number);
  */
 
 int __usb_get_extra_descriptor(char *buffer, unsigned size,
-			       unsigned char type, void **ptr)
+			       unsigned char type, void **ptr, size_t minsize)
 {
 	struct usb_descriptor_header *header;
 
 	while (size >= sizeof(struct usb_descriptor_header)) {
 		header = (struct usb_descriptor_header *)buffer;
 
-		if (header->bLength < 2) {
+		if (header->bLength < 2 || header->bLength > size) {
 			printk(KERN_ERR
 				"%s: bogus descriptor, type %d length %d\n",
 				usbcore_name,
@@ -714,7 +716,7 @@ int __usb_get_extra_descriptor(char *buffer, unsigned size,
 			return -1;
 		}
 
-		if (header->bDescriptorType == type) {
+		if (header->bDescriptorType == type && header->bLength >= minsize) {
 			*ptr = header;
 			return 0;
 		}
@@ -806,7 +808,7 @@ struct urb *usb_buffer_map(struct urb *urb)
 	if (!urb
 			|| !urb->dev
 			|| !(bus = urb->dev->bus)
-			|| !(controller = bus->controller))
+			|| !(controller = bus->sysdev))
 		return NULL;
 
 	if (controller->dma_mask) {
@@ -844,7 +846,7 @@ void usb_buffer_dmasync(struct urb *urb)
 			|| !(urb->transfer_flags & URB_NO_TRANSFER_DMA_MAP)
 			|| !urb->dev
 			|| !(bus = urb->dev->bus)
-			|| !(controller = bus->controller))
+			|| !(controller = bus->sysdev))
 		return;
 
 	if (controller->dma_mask) {
@@ -878,7 +880,7 @@ void usb_buffer_unmap(struct urb *urb)
 			|| !(urb->transfer_flags & URB_NO_TRANSFER_DMA_MAP)
 			|| !urb->dev
 			|| !(bus = urb->dev->bus)
-			|| !(controller = bus->controller))
+			|| !(controller = bus->sysdev))
 		return;
 
 	if (controller->dma_mask) {
@@ -928,7 +930,7 @@ int usb_buffer_map_sg(const struct usb_device *dev, int is_in,
 
 	if (!dev
 			|| !(bus = dev->bus)
-			|| !(controller = bus->controller)
+			|| !(controller = bus->sysdev)
 			|| !controller->dma_mask)
 		return -EINVAL;
 
@@ -964,7 +966,7 @@ void usb_buffer_dmasync_sg(const struct usb_device *dev, int is_in,
 
 	if (!dev
 			|| !(bus = dev->bus)
-			|| !(controller = bus->controller)
+			|| !(controller = bus->sysdev)
 			|| !controller->dma_mask)
 		return;
 
@@ -992,7 +994,7 @@ void usb_buffer_unmap_sg(const struct usb_device *dev, int is_in,
 
 	if (!dev
 			|| !(bus = dev->bus)
-			|| !(controller = bus->controller)
+			|| !(controller = bus->sysdev)
 			|| !controller->dma_mask)
 		return;
 
