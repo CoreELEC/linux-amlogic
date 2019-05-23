@@ -2353,12 +2353,7 @@ inline void tvafe_cvd2_adj_hs_ntsc(struct tvafe_cvd2_s *cvd2,
 			unsigned int hcnt64)
 {
 	unsigned int hcnt64_max, hcnt64_min;
-	unsigned int diff, hcnt64_ave, i, hcnt64_standard;
-
-	if (cpu_after_eq(MESON_CPU_MAJOR_ID_GXTVBB))
-		hcnt64_standard = 0x30e0e;
-	else
-		hcnt64_standard = 0x17a00;
+	unsigned int diff, hcnt64_ave, i, hcnt64_standard = 0x30e0e;
 
 	if ((cvd_isr_en & 0x1000) == 0)
 		return;

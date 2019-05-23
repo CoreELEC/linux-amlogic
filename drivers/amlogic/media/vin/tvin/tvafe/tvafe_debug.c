@@ -617,6 +617,88 @@ static ssize_t tvafe_reg_show(struct device *dev,
 
 static DEVICE_ATTR(reg, 0644, tvafe_reg_show, tvafereg_store);
 
+static ssize_t tvafe_cutwindow_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	ssize_t len = 0;
+
+	len += sprintf(buf+len,
+		"echo h index(d) val(d) > /sys/class/tvafe/tvafe0/cutwin;conifg cutwindow_h value\n");
+	len += sprintf(buf+len,
+		"echo v index(d) val(d) > /sys/class/tvafe/tvafe0/cutwin;conifg cutwindow_v value\n");
+	len += sprintf(buf+len,
+		"echo r > /sys/class/tvafe/tvafe0/cutwin;read cutwindow value\n");
+	return len;
+}
+
+static ssize_t tvafe_cutwindow_store(struct device *dev,
+		struct device_attribute *attr, const char *buff, size_t count)
+{
+	char *buf_orig, *parm[20] = {NULL};
+	unsigned int index, val;
+	char *pr_buf;
+	unsigned int pr_len;
+
+	if (!buff)
+		return count;
+	buf_orig = kstrdup(buff, GFP_KERNEL);
+	tvafe_parse_param(buf_orig, (char **)&parm);
+
+	if (!strcmp(parm[0], "h")) {
+		if (kstrtouint(parm[1], 10, &index) < 0)
+			goto tvafe_cutwindow_store_err;
+		if (index < 5) {
+			if (kstrtouint(parm[2], 10, &val) < 0)
+				goto tvafe_cutwindow_store_err;
+			cutwindow_val_h[index] = val;
+			pr_info("set cutwindow_h[%d] = %d\n", index, val);
+		} else {
+			pr_info("error: invalid index %d\n", index);
+		}
+	} else if (!strcmp(parm[0], "v")) {
+		if (kstrtouint(parm[1], 10, &index) < 0)
+			goto tvafe_cutwindow_store_err;
+		if (index < 5) {
+			if (kstrtouint(parm[2], 10, &val) < 0)
+				goto tvafe_cutwindow_store_err;
+			cutwindow_val_v[index] = val;
+			pr_info("set cutwindow_v[%d] = %d\n", index, val);
+		} else {
+			pr_info("error: invalid index %d\n", index);
+		}
+	} else if (!strcmp(parm[0], "r")) {
+		pr_buf = kzalloc(sizeof(char) * 100, GFP_KERNEL);
+		if (!pr_buf) {
+			pr_info("print buf malloc error\n");
+			goto tvafe_cutwindow_store_err;
+		}
+		pr_len = 0;
+		pr_len += sprintf(pr_buf+pr_len, "cutwindow_h:");
+		for (index = 0; index < 5; index++) {
+			pr_len += sprintf(pr_buf+pr_len,
+					" %d", cutwindow_val_h[index]);
+		}
+		pr_len += sprintf(pr_buf+pr_len, "\ncutwindow_v:");
+		for (index = 0; index < 5; index++) {
+			pr_len += sprintf(pr_buf+pr_len,
+					" %d", cutwindow_val_v[index]);
+		}
+		pr_info("%s\n", pr_buf);
+		kfree(pr_buf);
+	} else
+		pr_info("error: invaild command\n");
+
+	kfree(buf_orig);
+	return count;
+
+tvafe_cutwindow_store_err:
+	kfree(buf_orig);
+	return -EINVAL;
+}
+
+static DEVICE_ATTR(cutwin, 0644,
+		tvafe_cutwindow_show, tvafe_cutwindow_store);
+
 int tvafe_device_create_file(struct device *dev)
 {
 	int ret = 0;
@@ -625,12 +707,14 @@ int tvafe_device_create_file(struct device *dev)
 	ret |= device_create_file(dev, &dev_attr_cvd_reg8a);
 	ret |= device_create_file(dev, &dev_attr_dumpmem);
 	ret |= device_create_file(dev, &dev_attr_reg);
+	ret |= device_create_file(dev, &dev_attr_cutwin);
 
 	return ret;
 }
 
 void tvafe_remove_device_files(struct device *dev)
 {
+	device_remove_file(dev, &dev_attr_cutwin);
 	device_remove_file(dev, &dev_attr_debug);
 	device_remove_file(dev, &dev_attr_dumpmem);
 	device_remove_file(dev, &dev_attr_cvd_reg8a);

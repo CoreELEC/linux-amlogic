@@ -112,5 +112,8 @@ extern void tvafe_remove_device_files(struct device *dev);
 extern bool disableapi;
 extern bool force_stable;
 
+extern unsigned int cutwindow_val_h[5];
+extern unsigned int cutwindow_val_v[5];
+
 #endif  /* _TVAFE_H */
 
