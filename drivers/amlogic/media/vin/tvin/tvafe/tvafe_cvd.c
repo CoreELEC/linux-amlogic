@@ -153,12 +153,11 @@ module_param(config_force_fmt, uint, 0664);
 MODULE_PARM_DESC(config_force_fmt,
 		"after try TRY_FORMAT_MAX times ,we will force one fmt");
 
-/*0:normal 1:force nonstandard configure*/
-/*2:force don't nonstandard configure*/
-static unsigned int  force_nostd = 2;
-module_param(force_nostd, uint, 0644);
-MODULE_PARM_DESC(force_nostd,
-			"fixed nosig problem by removing the nostd config.\n");
+/*0:normal nonstandard configure every loop*/
+/*1:force nonstandard configure every loop*/
+/*2:nonstandard configure once*/
+/*3:force don't nonstandard configure*/
+unsigned int force_nostd = 2;
 
 /*0x001:enable cdto adj 0x010:enable 3d adj 0x100:enable pga;*/
 /*0x1000:enable hs adj,which can instead cdto*/
@@ -606,17 +605,21 @@ static void tvafe_cvd2_non_std_config(struct tvafe_cvd2_s *cvd2)
 	time_non_count = 200;
 	if (force_nostd == 3)
 		return;
+	if (cvd_nonstd_dbg_en) {
+		tvafe_pr_info("%s: force_nostd=%d, non_std_config=%d, non_std_enable=%d\n",
+			__func__, force_nostd,
+			cvd2->info.non_std_config,
+			cvd2->info.non_std_enable);
+	}
 	if ((cvd2->info.non_std_config == cvd2->info.non_std_enable) &&
-		(force_nostd&0x2))
+		(force_nostd == 2))
 		return;
 	cvd2->info.non_std_config = cvd2->info.non_std_enable;
 	if (cvd2->info.non_std_config && (!(force_nostd&0x1))) {
 
 		if (cvd_nonstd_dbg_en) {
-			tvafe_pr_info("%s: config non-std signal reg.\n",
-				__func__);
-			tvafe_pr_info("%s: noise_strenth=%d.\n",
-						__func__, noise_strenth);
+			tvafe_pr_info("%s: config non-std signal reg, noise_strenth=%d\n",
+				__func__, noise_strenth);
 		}
 
 #ifdef CONFIG_AM_SI2176
@@ -1255,6 +1258,14 @@ static void tvafe_cvd2_non_std_signal_det(
 		} else {
 
 			cvd2->info.non_std_enable = 0;
+		}
+	}
+
+	if (print_cnt == 0x28) {
+		if (cvd_nonstd_dbg_en) {
+			tvafe_pr_info("%s: nonstd_cnt=%d, nonstd_flag=%d, dgain=0x%x, non_std_enable=%d\n",
+				__func__, nonstd_cnt, nonstd_flag, dgain,
+				cvd2->info.non_std_enable);
 		}
 	}
 }

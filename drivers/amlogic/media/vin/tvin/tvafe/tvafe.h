@@ -114,6 +114,7 @@ extern bool force_stable;
 
 extern unsigned int cutwindow_val_h[5];
 extern unsigned int cutwindow_val_v[5];
+extern unsigned int force_nostd;
 
 #endif  /* _TVAFE_H */
 

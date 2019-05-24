@@ -200,11 +200,9 @@ static ssize_t tvafe_store(struct device *dev,
 		struct device_attribute *attr, const char *buff, size_t count)
 {
 	unsigned char fmt_index = 0;
-
 	struct tvafe_dev_s *devp;
-	unsigned long tmp = 0;
 	char *buf_orig, *parm[47] = {NULL};
-	long val;
+	unsigned int val;
 
 	devp = dev_get_drvdata(dev);
 	if (!buff)
@@ -235,17 +233,15 @@ static ssize_t tvafe_store(struct device *dev,
 		else
 			tvafe_pr_info("%s:invaild command.", buff);
 	} else if (!strncmp(buff, "disableapi", strlen("disableapi"))) {
-		if (kstrtoul(buff+strlen("disableapi")+1, 10, &tmp) == 0)
-			disableapi = tmp;
+		if (kstrtouint(buff+strlen("disableapi")+1, 10, &val) == 0)
+			disableapi = val;
 
 	} else if (!strncmp(buff, "force_stable", strlen("force_stable"))) {
-		if (kstrtoul(buff+strlen("force_stable")+1, 10, &tmp) == 0)
-			force_stable = tmp;
+		if (kstrtouint(buff+strlen("force_stable")+1, 10, &val) == 0)
+			force_stable = val;
 	} else if (!strncmp(buff, "tvafe_enable", strlen("tvafe_enable"))) {
-		if (kstrtoul(parm[1], 10, &val) < 0) {
-			kfree(buf_orig);
-			return -EINVAL;
-		}
+		if (kstrtouint(parm[1], 10, &val) < 0)
+			goto tvafe_store_err;
 		if (val) {
 			tvafe_enable_module(true);
 			devp->flags &= (~TVAFE_POWERDOWN_IN_IDLE);
@@ -258,10 +254,8 @@ static ssize_t tvafe_store(struct device *dev,
 	} else if (!strncmp(buff, "afe_ver", strlen("afe_ver"))) {
 		tvafe_pr_info("tvafe version :  %s\n", TVAFE_VER);
 	} else if (!strncmp(buff, "snowcfg", strlen("snowcfg"))) {
-		if (kstrtoul(parm[1], 10, &val) < 0) {
-			kfree(buf_orig);
-			return -EINVAL;
-		}
+		if (kstrtouint(parm[1], 10, &val) < 0)
+			goto tvafe_store_err;
 		if (val) {
 			tvafe_set_snow_cfg(true);
 			tvafe_pr_info("[tvafe..]hadware snow cfg en\n");
@@ -270,10 +264,8 @@ static ssize_t tvafe_store(struct device *dev,
 			tvafe_pr_info("[tvafe..]hadware snow cfg dis\n");
 		}
 	} else if (!strncmp(buff, "snowon", strlen("snowon"))) {
-		if (kstrtoul(parm[1], 10, &val) < 0) {
-			kfree(buf_orig);
-			return -EINVAL;
-		}
+		if (kstrtouint(parm[1], 10, &val) < 0)
+			goto tvafe_store_err;
 		if (val) {
 			tvafe_snow_config(1);
 			tvafe_snow_config_clamp(1);
@@ -287,10 +279,8 @@ static ssize_t tvafe_store(struct device *dev,
 			tvafe_pr_info("%s:tvafe snowoff\n", __func__);
 		}
 	} else if (!strcmp(parm[0], "frame_skip_enable")) {
-		if (kstrtoul(parm[1], 10, &val) < 0) {
-			kfree(buf_orig);
-			return -EINVAL;
-		}
+		if (kstrtouint(parm[1], 10, &val) < 0)
+			goto tvafe_store_err;
 		devp->frame_skip_enable = val;
 		tvafe_pr_info("frame_skip_enable:%d\n",
 			devp->frame_skip_enable);
@@ -301,10 +291,8 @@ static ssize_t tvafe_store(struct device *dev,
 		/*patch for Very low probability hanging issue on atv close*/
 		/*only appeared in one project,this for reserved debug*/
 		/*default setting to disable the nonstandard signal detect*/
-		if (kstrtoul(parm[1], 10, &val) < 0) {
-			kfree(buf_orig);
-			return -EINVAL;
-		}
+		if (kstrtouint(parm[1], 10, &val) < 0)
+			goto tvafe_store_err;
 		if (val) {
 			devp->tvafe.cvd2.nonstd_detect_dis = true;
 			pr_info("[tvafe..]%s:disable nonstd detect\n",
@@ -315,10 +303,8 @@ static ssize_t tvafe_store(struct device *dev,
 				__func__);
 		}
 	} else if (!strncmp(buff, "rf_ntsc50_en", strlen("rf_ntsc50_en"))) {
-		if (kstrtoul(parm[1], 10, &val) < 0) {
-			kfree(buf_orig);
-			return -EINVAL;
-		}
+		if (kstrtouint(parm[1], 10, &val) < 0)
+			goto tvafe_store_err;
 		if (val) {
 			tvafe_cvd2_rf_ntsc50_en(true);
 			pr_info("[tvafe..]%s:tvafe_cvd2_rf_ntsc50_en\n",
@@ -328,10 +314,19 @@ static ssize_t tvafe_store(struct device *dev,
 			pr_info("[tvafe..]%s:tvafe_cvd2_rf_ntsc50_dis\n",
 				__func__);
 		}
+	} else if (!strncmp(buff, "force_nostd", strlen("force_nostd"))) {
+		if (kstrtouint(parm[1], 10, &force_nostd) < 0)
+			goto tvafe_store_err;
+		pr_info("[tvafe..]%s: set force_nostd = %d\n",
+			__func__, force_nostd);
 	} else
 		tvafe_pr_info("[%s]:invaild command.\n", __func__);
 	kfree(buf_orig);
 	return count;
+
+tvafe_store_err:
+	kfree(buf_orig);
+	return -EINVAL;
 }
 
 static ssize_t tvafe_show(struct device *dev,
@@ -355,6 +350,8 @@ static ssize_t tvafe_show(struct device *dev,
 		"echo frame_skip_enable val(d) > /sys/class/tvafe/tvafe0/debug;frame skip enable/disable\n");
 	len += sprintf(buf+len,
 		"echo state > /sys/class/tvafe/tvafe0/debug;show tvafe status\n");
+	len += sprintf(buf+len,
+		"echo force_nostd val(d) > /sys/class/tvafe/tvafe0/debug;set force_nostd policy\n");
 	return len;
 }
 
