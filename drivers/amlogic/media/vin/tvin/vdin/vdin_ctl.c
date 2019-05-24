@@ -1621,7 +1621,8 @@ void vdin_set_matrix(struct vdin_dev_s *devp)
 				devp->color_range_mode);
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 		if ((devp->dv.dolby_input & (1 << devp->index)) ||
-		(devp->dv.dv_flag && is_dolby_vision_enable()))
+		(devp->dv.dv_flag && is_dolby_vision_enable()) ||
+		devp->parm.info.fmt == TVIN_SIG_FMT_CVBS_SECAM)
 			wr_bits(offset, VDIN_MATRIX_CTRL, 0,
 				VDIN_MATRIX_EN_BIT, VDIN_MATRIX_EN_WID);
 #endif
@@ -1653,6 +1654,9 @@ void vdin_set_matrix(struct vdin_dev_s *devp)
 				devp->prop.color_fmt_range,
 				devp->prop.vdin_hdr_Flag,
 				devp->color_range_mode);
+		if (devp->parm.info.fmt == TVIN_SIG_FMT_CVBS_SECAM)
+			wr_bits(offset, VDIN_MATRIX_CTRL, 0,
+				VDIN_MATRIX_EN_BIT, VDIN_MATRIX_EN_WID);
 		/* set xy */
 		wr_bits(offset, VDIN_MATRIX_PROBE_POS, rgb_info_y,
 			PROBE_POX_Y_BIT, PROBE_POX_Y_WID);
