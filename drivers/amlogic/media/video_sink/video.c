@@ -1116,7 +1116,7 @@ static u32 last_toggle_count;
 static u32 toggle_same_count;
 
 /* video_inuse */
-static u32 video_inuse;
+u32 video_inuse;
 
 void set_freerun_mode(int mode)
 {
