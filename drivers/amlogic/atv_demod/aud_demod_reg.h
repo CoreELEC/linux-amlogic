@@ -234,8 +234,8 @@
 #define ADDR_BTSC_BYPASS_CTRL      (BTSC_BYPASS_CTRL)
 #define ADDR_EXPANDER_SPECTRAL_ADJ (EXPANDER_SPEC_ADJ)
 #define ADDR_EXPANDER_GAIN_ADJ     (EXPANDER_GAIN_ADJ)
-#define ADDR_LMR_ADJ               (LMR_GAIN_ADJ)
-#define ADDR_SAP_ADJ               (SAP_GAIN_ADJ)
+#define ADDR_LMR_GAIN_ADJ          (LMR_GAIN_ADJ)
+#define ADDR_SAP_GAIN_ADJ          (SAP_GAIN_ADJ)
 #define ADDR_LPR_GAIN_ADJ          (LPR_GAIN_ADJ)
 #define ADDR_STEREO_THRESHOLD      (BTSC_STEREO_THD)
 #define ADDR_LPR_COMP_CTRL         (DELAY_COMP_CRTL)
@@ -362,6 +362,6 @@
 #define AUDIO_DEEM_75US             0
 #define AUDIO_DEEM_50US             1
 #define AUDIO_DEEM_J17              2
-
+#define AUDIO_DEEM_J17_2            3
 
 #endif /* __AUD_DEMOD_REG_H__ */
