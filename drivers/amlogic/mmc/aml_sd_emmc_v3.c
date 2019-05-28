@@ -460,6 +460,7 @@ static void aml_sd_emmc_set_power_v3(struct amlsd_platform *pdata,
 		writel(0, host->base + SD_EMMC_DELAY2_V3);
 		writel(0, host->base + SD_EMMC_ADJUST_V3);
 		writel(0, host->base + SD_EMMC_INTF3);
+		host->cmd_retune = 0;
 		break;
 	default:
 		if (pdata->pwr_pre)
@@ -818,7 +819,7 @@ RETRY:
 	eyetest_log = readl(host->base + SD_EMMC_EYETEST_LOG);
 
 	if (!(geyetest_log->eyetest_done & 0x1)) {
-		pr_warn("testing eyetest times:0x%x,out:0x%x,0x%x,line:%d\n",
+		pr_debug("testing eyetest times:0x%x,out:0x%x,0x%x,line:%d\n",
 			readl(host->base + SD_EMMC_EYETEST_LOG),
 			eyetest_out0, eyetest_out1, line_x);
 		gintf3->eyetest_on = 0;
