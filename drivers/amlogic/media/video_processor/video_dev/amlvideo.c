@@ -297,6 +297,9 @@ static int video_receiver_event_fun(int type, void *data, void *private_data)
 
 		vf_notify_receiver(dev->vf_provider_name,
 			VFRAME_EVENT_PROVIDER_RESET, data);
+	} else if (type == VFRAME_EVENT_PROVIDER_VFRAME_READY) {
+		if (vf_peek(dev->vf_receiver_name) != NULL)
+			wake_up_interruptible(&dev->wq);
 	}
 	return 0;
 }
@@ -738,14 +741,18 @@ static unsigned int amlvideo_poll(struct file *file,
 {
 	struct vivi_fh *fh = file->private_data;
 	struct vivi_dev *dev = fh->dev;
-	struct videobuf_queue *q = &fh->vb_vidq;
+	//struct videobuf_queue *q = &fh->vb_vidq;
 
 	dprintk(dev, 1, "%s\n", __func__);
 
 	if (fh->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return POLLERR;
-
-	return videobuf_poll_stream(file, q, wait);
+	poll_wait(file, &dev->wq, wait);
+	if (vf_peek(dev->vf_receiver_name))
+		return POLL_IN | POLLRDNORM;
+	else
+		return 0;
+	//return videobuf_poll_stream(file, q, wait);
 }
 
 static int amlvideo_close(struct file *file)
@@ -879,7 +886,7 @@ static int __init amlvideo_create_instance(int inst)
 		goto free_dev;
 
 	/* init video dma queues */
-
+	init_waitqueue_head(&dev->wq);
 	INIT_LIST_HEAD(&dev->vidq.active);
 	init_waitqueue_head(&dev->vidq.wq);
 
