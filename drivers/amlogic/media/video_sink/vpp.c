@@ -2268,6 +2268,31 @@ static void vpp_set_super_scaler(
 			next_frame_par->sr0_position = 1;
 			next_frame_par->sr1_position = 1;
 		}
+		if (next_frame_par->sr1_position) {
+			/* sr core 1 output */
+			next_frame_par->cm_input_w =
+				next_frame_par->spsc1_w_in <<
+				next_frame_par->supsc1_hori_ratio;
+			next_frame_par->cm_input_h =
+				next_frame_par->spsc1_h_in <<
+				next_frame_par->supsc1_vert_ratio;
+		} else if (!next_frame_par->sr0_position) {
+			/* sr core 0 output */
+			next_frame_par->cm_input_w =
+				next_frame_par->spsc0_w_in <<
+				next_frame_par->supsc0_hori_ratio;
+			next_frame_par->cm_input_h =
+				next_frame_par->spsc0_h_in <<
+				next_frame_par->supsc0_vert_ratio;
+		} else {
+			/* pps output */
+			next_frame_par->cm_input_w =
+				next_frame_par->VPP_hsc_endp -
+				next_frame_par->VPP_hsc_startp + 1;
+			next_frame_par->cm_input_h =
+				next_frame_par->VPP_vsc_endp -
+				next_frame_par->VPP_vsc_startp + 1;
+		}
 	} else if (is_meson_txhd_cpu()
 		|| is_meson_g12a_cpu()
 		|| is_meson_g12b_cpu()
@@ -2279,6 +2304,23 @@ static void vpp_set_super_scaler(
 		else
 			next_frame_par->sr0_position = 1;
 		next_frame_par->sr1_position = 0;
+		if (!next_frame_par->sr0_position) {
+			/* sr core 0 output */
+			next_frame_par->cm_input_w =
+				next_frame_par->spsc0_w_in <<
+				next_frame_par->supsc0_hori_ratio;
+			next_frame_par->cm_input_h =
+				next_frame_par->spsc0_h_in <<
+				next_frame_par->supsc0_vert_ratio;
+		} else {
+			/* pps output */
+			next_frame_par->cm_input_w =
+				next_frame_par->VPP_hsc_endp -
+				next_frame_par->VPP_hsc_startp + 1;
+			next_frame_par->cm_input_h =
+				next_frame_par->VPP_vsc_endp -
+				next_frame_par->VPP_vsc_startp + 1;
+		}
 	} else if (is_meson_gxlx_cpu()) {
 		if (sr_path == CORE1_BEFORE_PPS)
 			next_frame_par->sr1_position = 1;
@@ -2287,6 +2329,23 @@ static void vpp_set_super_scaler(
 		else
 			next_frame_par->sr1_position = 1;
 		next_frame_par->sr0_position = 0;
+		if (!next_frame_par->sr1_position) {
+			/* sr core 1 output */
+			next_frame_par->cm_input_w =
+				next_frame_par->spsc1_w_in <<
+				next_frame_par->supsc1_hori_ratio;
+			next_frame_par->cm_input_h =
+				next_frame_par->spsc1_h_in <<
+				next_frame_par->supsc1_vert_ratio;
+		} else {
+			/* pps output */
+			next_frame_par->cm_input_w =
+				next_frame_par->VPP_hsc_endp -
+				next_frame_par->VPP_hsc_startp + 1;
+			next_frame_par->cm_input_h =
+				next_frame_par->VPP_vsc_endp -
+				next_frame_par->VPP_vsc_startp + 1;
+		}
 	} else if (is_meson_txlx_cpu()
 		|| is_meson_txl_cpu()
 		|| is_meson_gxtvbb_cpu()) {
@@ -2300,6 +2359,23 @@ static void vpp_set_super_scaler(
 		} else {
 			next_frame_par->sr0_position = 1;
 			next_frame_par->sr1_position = 1;
+		}
+		if (next_frame_par->sr1_position) {
+			/* sr core 1 output */
+			next_frame_par->cm_input_w =
+				next_frame_par->spsc1_w_in <<
+				next_frame_par->supsc1_hori_ratio;
+			next_frame_par->cm_input_h =
+				next_frame_par->spsc1_h_in <<
+				next_frame_par->supsc1_vert_ratio;
+		} else {
+			/* pps output */
+			next_frame_par->cm_input_w =
+				next_frame_par->VPP_hsc_endp -
+				next_frame_par->VPP_hsc_startp + 1;
+			next_frame_par->cm_input_h =
+				next_frame_par->VPP_vsc_endp -
+				next_frame_par->VPP_vsc_startp + 1;
 		}
 	}
 
@@ -2323,6 +2399,11 @@ static void vpp_set_super_scaler(
 			 next_frame_par->VPP_hsc_linear_endp,
 			 next_frame_par->VPP_vsc_startp,
 			 next_frame_par->VPP_vsc_endp);
+		pr_info("layer0: cm_input_w=%u, cm_input_h=%u, sr0_position=%u, sr1_position=%u.\n",
+			next_frame_par->cm_input_w,
+			next_frame_par->cm_input_h,
+			next_frame_par->sr0_position,
+			next_frame_par->sr1_position);
 	}
 }
 
@@ -3154,12 +3235,28 @@ int vpp_set_filters(
 	if (ret == VppFilter_Changed_but_Hold)
 		bypass_sr = true;
 	/*config super scaler after set next_frame_par is calc ok for pps*/
-	if (local_input.layer_id == 0)
+	if (local_input.layer_id == 0) {
 		vpp_set_super_scaler(
 			wide_mode,
 			vinfo, next_frame_par,
 			(bypass_sr | bypass_spscl0),
 			(bypass_sr | bypass_spscl1));
+		/* cm input size will be set in super scaler function */
+	} else {
+		if (local_input.pps_support) {
+			next_frame_par->cm_input_w =
+				next_frame_par->VPP_hsc_endp
+				- next_frame_par->VPP_hsc_startp + 1;
+			next_frame_par->cm_input_h =
+				next_frame_par->VPP_vsc_endp
+				- next_frame_par->VPP_vsc_startp + 1;
+		} else {
+			next_frame_par->cm_input_w =
+				next_frame_par->video_input_w;
+			next_frame_par->cm_input_h =
+				next_frame_par->video_input_h;
+		}
+	}
 	return ret;
 }
 
