@@ -440,6 +440,16 @@ static void hdrinfo_to_vinfo(struct vinfo_s *info, struct hdmitx_dev *hdev)
 		info->hdr_info.hdr_support);
 }
 
+static void rxlatency_to_vinfo(struct vinfo_s *info, struct rx_cap *rx)
+{
+	if (!info || !rx)
+		return;
+	info->rx_latency.vLatency = rx->vLatency;
+	info->rx_latency.aLatency = rx->aLatency;
+	info->rx_latency.i_vLatency = rx->i_vLatency;
+	info->rx_latency.i_aLatency = rx->i_aLatency;
+}
+
 static int set_disp_mode_auto(void)
 {
 	int ret =  -1;
@@ -465,8 +475,10 @@ static int set_disp_mode_auto(void)
 
 	if (!((strncmp(info->name, "480cvbs", 7) == 0) ||
 		(strncmp(info->name, "576cvbs", 7) == 0) ||
-		(strncmp(info->name, "null", 4) == 0)))
+		(strncmp(info->name, "null", 4) == 0))) {
 		hdrinfo_to_vinfo(info, hdev);
+		rxlatency_to_vinfo(info, &hdev->RXCap);
+	}
 
 	hdmi_physcial_size_update(hdev);
 
@@ -487,6 +499,7 @@ static int set_disp_mode_auto(void)
 		return -1;
 	}
 	strncpy(mode, info->name, sizeof(mode));
+	mode[31] = '\0';
 	if (strstr(mode, "fp")) {
 		int i = 0;
 
@@ -541,9 +554,9 @@ static int set_disp_mode_auto(void)
 			hdev->HWOp.CntlConfig(hdev, CONF_HDMI_DVI_MODE,
 				DVI_MODE);
 			pr_info(SYS "change to DVI mode\n");
-		} else if (hdev->RXCap.IEEEOUI == 0) {
+		} else if (hdev->RXCap.ieeeoui == 0) {
 #else
-		if (hdev->RXCap.IEEEOUI == 0) {
+		if (hdev->RXCap.ieeeoui == 0) {
 #endif
 			/* DVI case judgement. In uboot, directly output HDMI
 			 * mode
@@ -551,7 +564,7 @@ static int set_disp_mode_auto(void)
 			hdev->HWOp.CntlConfig(hdev, CONF_HDMI_DVI_MODE,
 				DVI_MODE);
 			pr_info(SYS "change to DVI mode\n");
-		} else if ((hdev->RXCap.IEEEOUI == 0xc03) &&
+		} else if ((hdev->RXCap.ieeeoui == 0xc03) &&
 		(hdev->HWOp.CntlConfig(hdev, CONF_GET_HDMI_DVI_MODE, 0)
 			== DVI_MODE)) {
 			hdev->HWOp.CntlConfig(hdev, CONF_HDMI_DVI_MODE,
@@ -1236,6 +1249,10 @@ static void hdr_work_func(struct work_struct *work)
 			CONF_AVI_BT2020, hdev->colormetry);
 
 		msleep(1500);/*delay 1.5s*/
+		if (hdev->hdr_transfer_feature != T_BT709 ||
+			hdev->hdr_color_feature != C_BT709)
+			return;
+
 		hdev->HWOp.SetPacket(HDMI_PACKET_DRM, NULL, NULL);
 		hdev->hdmi_current_hdr_mode = 0;
 		hdmitx_sdr_hdr_uevent(hdev);
@@ -1352,9 +1369,6 @@ static void hdmitx_set_drm_pkt(struct master_display_info_s *data)
 			hdev->hdr_transfer_feature == T_HLG))
 			hdev->hdmi_current_hdr_mode = 3;
 	}
-
-	hdev->HWOp.CntlConfig(hdev, CONF_AVI_Q01,
-		RGB_RANGE_LIM);
 
 	switch (hdev->hdmi_current_hdr_mode) {
 	case 1:
@@ -2342,12 +2356,27 @@ static ssize_t show_disp_cap_3d(struct device *dev,
 	return pos;
 }
 
+static void _show_pcm_ch(struct rx_cap *pRXCap, int i,
+	int *ppos, char *buf)
+{
+	const char * const aud_sample_size[] = {"ReferToStreamHeader",
+		"16", "20", "24", NULL};
+	int j = 0;
+
+	for (j = 0; j < 3; j++) {
+		if (pRXCap->RxAudioCap[i].cc3 & (1 << j))
+			*ppos += snprintf(buf + *ppos, PAGE_SIZE, "%s/",
+				aud_sample_size[j+1]);
+	}
+	*ppos += snprintf(buf + *ppos - 1, PAGE_SIZE, " bit\n");
+}
+
 /**/
 static ssize_t show_aud_cap(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
 	int i, pos = 0, j;
-	static const char * const aud_coding_type[] =  {
+	static const char * const aud_ct[] =  {
 		"ReferToStreamHeader", "PCM", "AC-3", "MPEG1", "MP3",
 		"MPEG2", "AAC", "DTS", "ATRAC",	"OneBitAudio",
 		"Dobly_Digital+", "DTS-HD", "MAT", "DST", "WMA_Pro",
@@ -2355,32 +2384,52 @@ static ssize_t show_aud_cap(struct device *dev,
 	static const char * const aud_sampling_frequency[] = {
 		"ReferToStreamHeader", "32", "44.1", "48", "88.2", "96",
 		"176.4", "192", NULL};
-	static const char * const aud_sample_size[] = {"ReferToStreamHeader",
-		"16", "20", "24", NULL};
-
 	struct rx_cap *pRXCap = &(hdmitx_device.RXCap);
 
 	pos += snprintf(buf + pos, PAGE_SIZE,
 		"CodingType MaxChannels SamplingFreq SampleSize\n");
 	for (i = 0; i < pRXCap->AUD_count; i++) {
-		pos += snprintf(buf + pos, PAGE_SIZE, "%s, %d ch, ",
-			aud_coding_type[pRXCap->RxAudioCap[i].
-				audio_format_code],
+		pos += snprintf(buf + pos, PAGE_SIZE, "%s",
+			aud_ct[pRXCap->RxAudioCap[i].audio_format_code]);
+		if ((pRXCap->RxAudioCap[i].audio_format_code == CT_DOLBY_D) &&
+			(pRXCap->RxAudioCap[i].cc3 & 1))
+			pos += snprintf(buf + pos, PAGE_SIZE, "/ATMOS");
+		pos += snprintf(buf + pos, PAGE_SIZE, ", %d ch, ",
 			pRXCap->RxAudioCap[i].channel_num_max + 1);
 		for (j = 0; j < 7; j++) {
 			if (pRXCap->RxAudioCap[i].freq_cc & (1 << j))
 				pos += snprintf(buf + pos, PAGE_SIZE, "%s/",
 					aud_sampling_frequency[j+1]);
 		}
-		pos += snprintf(buf + pos - 1, PAGE_SIZE, " kHz, ") - 1;
-		for (j = 0; j < 3; j++) {
-			if (pRXCap->RxAudioCap[i].cc3 & (1 << j))
-				pos += snprintf(buf + pos, PAGE_SIZE, "%s/",
-					aud_sample_size[j+1]);
+		pos += snprintf(buf + pos - 1, PAGE_SIZE, " kHz, ");
+		switch (pRXCap->RxAudioCap[i].audio_format_code) {
+		case CT_PCM:
+			_show_pcm_ch(pRXCap, i, &pos, buf);
+			break;
+		case CT_AC_3:
+		case CT_MPEG1:
+		case CT_MP3:
+		case CT_MPEG2:
+		case CT_AAC:
+		case CT_DTS:
+		case CT_ATRAC:
+		case CT_ONE_BIT_AUDIO:
+			pos += snprintf(buf + pos, PAGE_SIZE,
+				"MaxBitRate %dkHz\n",
+				pRXCap->RxAudioCap[i].cc3 * 8);
+			break;
+		case CT_DOLBY_D:
+		case CT_DTS_HD:
+		case CT_MAT:
+		case CT_DST:
+			pos += snprintf(buf + pos, PAGE_SIZE, "DepVaule 0x%x\n",
+				pRXCap->RxAudioCap[i].cc3);
+			break;
+		case CT_WMA:
+		default:
+			break;
 		}
-		pos += snprintf(buf + pos - 1, PAGE_SIZE, " bit\n") - 1;
 	}
-
 	return pos;
 }
 
@@ -2518,6 +2567,77 @@ static ssize_t store_valid_mode(struct device *dev,
 	return count;
 }
 
+static ssize_t show_allm_mode(struct device *dev,
+	struct device_attribute *attr, char *buf)
+{
+	int pos = 0;
+	struct hdmitx_dev *hdev = &hdmitx_device;
+	struct rx_cap *pRXCap = &(hdmitx_device.RXCap);
+
+	if (!pRXCap->allm) { /* Rx not support ALLM */
+		pos += snprintf(buf + pos, PAGE_SIZE, "0\n\r");
+		return pos;
+	}
+
+	if (hdev->allm_mode == 1)
+		pos += snprintf(buf + pos, PAGE_SIZE, "game\n\r");
+	else if (hdev->allm_mode == 2)
+		pos += snprintf(buf + pos, PAGE_SIZE, "graphics\n\r");
+	else if (hdev->allm_mode == 3)
+		pos += snprintf(buf + pos, PAGE_SIZE, "photo\n\r");
+	else if (hdev->allm_mode == 4)
+		pos += snprintf(buf + pos, PAGE_SIZE, "cinema\n\r");
+	else
+		pos += snprintf(buf + pos, PAGE_SIZE, "0\n\r");
+
+	return pos;
+}
+
+static ssize_t store_allm_mode(struct device *dev,
+	struct device_attribute *attr, const char *buf, size_t count)
+{
+	struct hdmitx_dev *hdev = &hdmitx_device;
+	struct rx_cap *pRXCap = &hdev->RXCap;
+
+	pr_info("hdmitx: store allm_mode as %s\n", buf);
+
+	if (!pRXCap->allm) /* Rx not support ALLM */
+		return count;
+
+#define CMP_STR(str)	(strncmp(buf, str, strlen(str)) == 0)
+	if (CMP_STR("0")) {
+		// disable ALLM
+		hdev->allm_mode = 0;
+		hdev->HWOp.CntlConfig(hdev, CONF_ALLM_MODE, CLEAR_ALLM_MODE);
+		hdmitx_construct_vsif(hdev, VT_ALLM, 0, NULL);
+		if (is_hdmi14_4k(hdev->cur_VIC))
+			hdmitx_construct_vsif(hdev, VT_HDMI14_4K, 1, NULL);
+		return count;
+	}
+	if (CMP_STR("1") || CMP_STR("game") || CMP_STR("graphics")
+		|| CMP_STR("photo") || CMP_STR("cinema")) {
+		hdmitx_construct_vsif(hdev, VT_ALLM, 1, NULL);
+	}
+	if (CMP_STR("1") || CMP_STR("game")) {
+		hdev->allm_mode = 1;
+		// enable the default GAME ALLM
+		hdev->HWOp.CntlConfig(hdev, CONF_ALLM_MODE, SET_ALLM_GAME);
+	}
+	if (CMP_STR("graphics")) {
+		hdev->allm_mode = 2;
+		hdev->HWOp.CntlConfig(hdev, CONF_ALLM_MODE, SET_ALLM_GRAPHICS);
+	}
+	if (CMP_STR("photo")) {
+		hdev->allm_mode = 3;
+		hdev->HWOp.CntlConfig(hdev, CONF_ALLM_MODE, SET_ALLM_PHOTO);
+	}
+	if (CMP_STR("cinema")) {
+		hdev->allm_mode = 4;
+		hdev->HWOp.CntlConfig(hdev, CONF_ALLM_MODE, SET_ALLM_CINEMA);
+	}
+
+	return count;
+}
 
 /**/
 static ssize_t show_hdr_cap(struct device *dev,
@@ -3403,6 +3523,7 @@ static DEVICE_ATTR(hdr_cap, 0444, show_hdr_cap, NULL);
 static DEVICE_ATTR(dv_cap, 0444, show_dv_cap, NULL);
 static DEVICE_ATTR(dc_cap, 0444, show_dc_cap, NULL);
 static DEVICE_ATTR(valid_mode, 0664, show_valid_mode, store_valid_mode);
+static DEVICE_ATTR(allm_mode, 0664, show_allm_mode, store_allm_mode);
 static DEVICE_ATTR(aud_ch, 0664, show_aud_ch, store_aud_ch);
 static DEVICE_ATTR(avmute, 0664, show_avmute, store_avmute);
 static DEVICE_ATTR(swap, 0644, show_swap, store_swap);
@@ -3476,6 +3597,16 @@ static enum vmode_e hdmitx_validate_vmode(char *mode)
 
 	if (info) {
 		hdmitx_vinfo = info;
+		hdmitx_vinfo->info_3d = NON_3D;
+		if (hdmitx_device.flag_3dfp)
+			hdmitx_vinfo->info_3d = FP_3D;
+
+		if (hdmitx_device.flag_3dtb)
+			hdmitx_vinfo->info_3d = TB_3D;
+
+		if (hdmitx_device.flag_3dss)
+			hdmitx_vinfo->info_3d = SS_3D;
+
 		hdmitx_vinfo->vout_device = &hdmitx_vdev;
 		return VMODE_HDMI;
 	}
@@ -3773,7 +3904,6 @@ static void hdmitx_hpd_plugin_handler(struct work_struct *work)
 		rx_repeat_hpd_state(1);
 	hdmitx_get_edid(hdev);
 	hdmi_physcial_size_update(hdev);
-
 #if defined(CONFIG_ARCH_MESON64_ODROID_COMMON)
 	if (odroid_voutmode() == VOUTMODE_HDMI) {
 		pr_info(VID "Sink is HDMI device\n");
@@ -3785,14 +3915,14 @@ static void hdmitx_hpd_plugin_handler(struct work_struct *work)
 			CONF_HDMI_DVI_MODE, DVI_MODE);
 	} else
 #endif
-	{
-		if (hdev->RXCap.IEEEOUI != 0x000c03)
-			hdev->HWOp.CntlConfig(hdev,
-				CONF_HDMI_DVI_MODE, DVI_MODE);
-		else
-			hdev->HWOp.CntlConfig(hdev,
-				CONF_HDMI_DVI_MODE, HDMI_MODE);
-	}
+{
+	if (hdev->RXCap.ieeeoui != HDMI_IEEEOUI)
+		hdev->HWOp.CntlConfig(hdev,
+			CONF_HDMI_DVI_MODE, DVI_MODE);
+	else
+		hdev->HWOp.CntlConfig(hdev,
+			CONF_HDMI_DVI_MODE, HDMI_MODE);
+}
 
 	mutex_lock(&getedid_mutex);
 	mutex_unlock(&getedid_mutex);
@@ -3817,33 +3947,14 @@ static void hdmitx_hpd_plugin_handler(struct work_struct *work)
 	mutex_unlock(&setclk_mutex);
 }
 
-static void clear_hdr_info(struct hdmitx_dev *hdev)
+static void clear_rx_vinfo(struct hdmitx_dev *hdev)
 {
 	struct vinfo_s *info = hdmitx_get_current_vinfo();
-	unsigned int i;
 
 	if (info) {
-		info->hdr_info.hdr_support = 0;
-		for (i = 0; i < 4; i++)
-			memset(&(info->hdr_info.dynamic_info[i]),
-				0, sizeof(struct hdr_dynamic));
-		info->hdr_info.colorimetry_support = 0;
-		info->hdr_info.lumi_max = 0;
-		info->hdr_info.lumi_avg = 0;
-		info->hdr_info.lumi_min = 0;
-		pr_info(SYS "clear RX hdr info\n");
+		memset(&info->hdr_info, 0, sizeof(info->hdr_info));
+		memset(&info->rx_latency, 0, sizeof(info->rx_latency));
 	}
-}
-
-static void hdmitx_aud_hpd_plug_handler(struct work_struct *work)
-{
-	int st;
-	struct hdmitx_dev *hdev = container_of((struct delayed_work *)work,
-		struct hdmitx_dev, work_aud_hpd_plug);
-
-	st = hdev->HWOp.CntlMisc(hdev, MISC_HPD_GPI_ST, 0);
-	pr_info("hdmitx_aud_hpd_plug_handler state:%d\n", st);
-	extcon_set_state_sync(hdmitx_extcon_audio, EXTCON_DISP_HDMI, st);
 }
 
 static void hdmitx_hpd_plugout_handler(struct work_struct *work)
@@ -3878,7 +3989,7 @@ static void hdmitx_hpd_plugout_handler(struct work_struct *work)
 	hdev->HWOp.CntlMisc(hdev, MISC_TMDS_PHY_OP, TMDS_PHY_DISABLE);
 	hdev->hdmitx_event &= ~HDMI_TX_HPD_PLUGOUT;
 	hdev->HWOp.CntlMisc(hdev, MISC_ESM_RESET, 0);
-	clear_hdr_info(hdev);
+	clear_rx_vinfo(hdev);
 	rx_edid_physical_addr(0, 0, 0, 0);
 	hdmitx_edid_clear(hdev);
 	hdmi_physcial_size_update(hdev);
@@ -3886,12 +3997,13 @@ static void hdmitx_hpd_plugout_handler(struct work_struct *work)
 	hdev->hpd_state = 0;
 	hdmitx_notify_hpd(hdev->hpd_state);
 	extcon_set_state_sync(hdmitx_extcon_hdmi, EXTCON_DISP_HDMI, 0);
+	extcon_set_state_sync(hdmitx_extcon_audio, EXTCON_DISP_HDMI, 0);
 	mutex_unlock(&setclk_mutex);
 }
 
 static void hdmitx_internal_intr_handler(struct work_struct *work)
 {
-	struct hdmitx_dev *hdev = container_of((struct work_struct *)work,
+	struct hdmitx_dev *hdev = container_of((struct delayed_work *)work,
 		struct hdmitx_dev, work_internal_intr);
 
 	hdev->HWOp.DebugFun(hdev, "dumpintr");
@@ -3944,9 +4056,7 @@ static int hdmi_task_handle(void *data)
 		hdmitx_hpd_plugin_handler);
 	INIT_DELAYED_WORK(&hdmitx_device->work_hpd_plugout,
 		hdmitx_hpd_plugout_handler);
-	INIT_DELAYED_WORK(&hdmitx_device->work_aud_hpd_plug,
-		hdmitx_aud_hpd_plug_handler);
-	INIT_WORK(&hdmitx_device->work_internal_intr,
+	INIT_DELAYED_WORK(&hdmitx_device->work_internal_intr,
 		hdmitx_internal_intr_handler);
 
 	/* for rx sense feature */
@@ -4271,6 +4381,10 @@ static int amhdmitx_device_init(struct hdmitx_dev *hdmi_dev)
 	 */
 	hdmitx_device.hpdmode = 1;
 
+	hdmitx_device.flag_3dfp = 0;
+	hdmitx_device.flag_3dss = 0;
+	hdmitx_device.flag_3dtb = 0;
+
 	if ((init_flag&INIT_FLAG_POWERDOWN) && (hdmitx_device.hpdmode == 2))
 		hdmitx_device.mux_hpd_if_pin_high_flag = 0;
 	else
@@ -4320,6 +4434,7 @@ static int amhdmitx_get_dt_info(struct platform_device *pdev)
 
 #ifdef CONFIG_OF
 	if (pdev->dev.of_node) {
+		int dongle_mode = 0;
 		memset(&hdmitx_device.config_data, 0,
 			sizeof(struct hdmi_config_platform_data));
 		/* Get ic type information */
@@ -4330,6 +4445,14 @@ static int amhdmitx_get_dt_info(struct platform_device *pdev)
 		else
 			pr_info(SYS "hdmitx_device.chip_type : %d\n",
 				hdmitx_device.chip_type);
+
+		/* Get dongle_mode information */
+		ret = of_property_read_u32(pdev->dev.of_node, "dongle_mode",
+			&dongle_mode);
+		hdmitx_device.dongle_mode = !!dongle_mode;
+		if (!ret)
+			pr_info(SYS "hdmitx_device.dongle_mode: %d\n",
+				hdmitx_device.dongle_mode);
 
 		ret = of_property_read_u32(pdev->dev.of_node,
 			"repeater_tx", &val);
@@ -4561,6 +4684,7 @@ static int amhdmitx_probe(struct platform_device *pdev)
 	ret = device_create_file(dev, &dev_attr_support_3d);
 	ret = device_create_file(dev, &dev_attr_dc_cap);
 	ret = device_create_file(dev, &dev_attr_valid_mode);
+	ret = device_create_file(dev, &dev_attr_allm_mode);
 
 #ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
 	register_early_suspend(&hdmitx_early_suspend_handler);
@@ -4630,6 +4754,7 @@ static int amhdmitx_remove(struct platform_device *pdev)
 	device_remove_file(dev, &dev_attr_dv_cap);
 	device_remove_file(dev, &dev_attr_dc_cap);
 	device_remove_file(dev, &dev_attr_valid_mode);
+	device_remove_file(dev, &dev_attr_allm_mode);
 	device_remove_file(dev, &dev_attr_hpd_state);
 	device_remove_file(dev, &dev_attr_rhpd_state);
 	device_remove_file(dev, &dev_attr_max_exceed);
