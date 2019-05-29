@@ -271,15 +271,20 @@ static int amvecm_set_brightness2(int val)
 	return 0;
 }
 
-static void amvecm_size_patch(void)
+static void amvecm_size_patch(unsigned int cm_in_w,
+	unsigned int cm_in_h)
 {
 	unsigned int hs, he, vs, ve;
-	hs = READ_VPP_REG_BITS(VPP_POSTBLEND_VD1_H_START_END, 16, 13);
-	he = READ_VPP_REG_BITS(VPP_POSTBLEND_VD1_H_START_END, 0, 13);
 
-	vs = READ_VPP_REG_BITS(VPP_POSTBLEND_VD1_V_START_END, 16, 13);
-	ve = READ_VPP_REG_BITS(VPP_POSTBLEND_VD1_V_START_END, 0, 13);
-	cm2_frame_size_patch(he-hs+1, ve-vs+1);
+	if ((cm_in_w == 0) && (cm_in_h == 0)) {
+		hs = READ_VPP_REG_BITS(VPP_POSTBLEND_VD1_H_START_END, 16, 13);
+		he = READ_VPP_REG_BITS(VPP_POSTBLEND_VD1_H_START_END, 0, 13);
+
+		vs = READ_VPP_REG_BITS(VPP_POSTBLEND_VD1_V_START_END, 16, 13);
+		ve = READ_VPP_REG_BITS(VPP_POSTBLEND_VD1_V_START_END, 0, 13);
+		cm2_frame_size_patch(he-hs+1, ve-vs+1);
+	} else
+		cm2_frame_size_patch(cm_in_w, cm_in_h);
 }
 
 /* video adj1 */
@@ -1049,7 +1054,7 @@ void amvecm_video_latch(void)
 {
 	pc_mode_process();
 	cm_latch_process();
-	amvecm_size_patch();
+	/*amvecm_size_patch();*/
 	ve_dnlp_latch_process();
 	ve_lcd_gamma_process();
 	lvds_freq_process();
@@ -1071,7 +1076,9 @@ int amvecm_on_vs(
 	unsigned int sps_h_en,
 	unsigned int sps_v_en,
 	unsigned int sps_w_in,
-	unsigned int sps_h_in)
+	unsigned int sps_h_in,
+	unsigned int cm_in_w,
+	unsigned int cm_in_h)
 {
 	int result = 0;
 
@@ -1095,12 +1102,12 @@ int amvecm_on_vs(
 	if ((toggle_vf != NULL) || (vf != NULL)) {
 		/* matrix adjust */
 		result = amvecm_matrix_process(toggle_vf, vf, flags);
-		if (toggle_vf)
+		if (toggle_vf) {
 			ioctrl_get_hdr_metadata(toggle_vf);
-
-		if (toggle_vf)
 			lc_process(toggle_vf, sps_h_en, sps_v_en,
 				sps_w_in, sps_h_in);
+			amvecm_size_patch(cm_in_w, cm_in_h);
+		}
 	} else {
 		amvecm_reset_overscan();
 		result = amvecm_matrix_process(NULL, NULL, flags);

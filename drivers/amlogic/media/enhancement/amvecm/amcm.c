@@ -165,14 +165,22 @@ void am_set_regmap(struct am_regs_s *p)
 					if (get_cpu_type() >=
 						MESON_CPU_MAJOR_ID_G12A)
 						p->am_reg[i].val =
-						p->am_reg[i].val & 0xfffffffe;
+						p->am_reg[i].val & 0xfffffffc;
 					else
 						p->am_reg[i].val =
-						p->am_reg[i].val & 0xfffffffd;
+						p->am_reg[i].val & 0xfffffff9;
 				}
 				pr_amcm_dbg("[amcm]:%s REG_TYPE_INDEX_VPPCHROMA addr:0x%x",
 					__func__, p->am_reg[i].addr);
 			} else if (p->am_reg[i].addr == 0x208) {
+				if (get_cpu_type() >=
+					MESON_CPU_MAJOR_ID_G12A)
+					p->am_reg[i].val =
+						p->am_reg[i].val & 0xfffffffd;
+				else
+					p->am_reg[i].val =
+						p->am_reg[i].val & 0xfffffffb;
+
 				if (p->am_reg[i].val & 0x2)
 					cm_dis_flag = false;
 				else
@@ -381,14 +389,14 @@ void cm2_frame_size_patch(unsigned int width, unsigned int height)
 		amcm_enable();
 	vpp_size = width|(height << 16);
 	if (cm_size != vpp_size) {
-		WRITE_VPP_REG(VPP_CHROMA_ADDR_PORT, 0x205);
-		WRITE_VPP_REG(VPP_CHROMA_DATA_PORT, vpp_size);
-		WRITE_VPP_REG(VPP_CHROMA_ADDR_PORT, 0x209);
-		WRITE_VPP_REG(VPP_CHROMA_DATA_PORT, width<<15);
-		WRITE_VPP_REG(VPP_CHROMA_ADDR_PORT, 0x20a);
-		WRITE_VPP_REG(VPP_CHROMA_DATA_PORT, height<<16);
+		VSYNC_WR_MPEG_REG(VPP_CHROMA_ADDR_PORT, 0x205);
+		VSYNC_WR_MPEG_REG(VPP_CHROMA_DATA_PORT, vpp_size);
+		VSYNC_WR_MPEG_REG(VPP_CHROMA_ADDR_PORT, 0x209);
+		VSYNC_WR_MPEG_REG(VPP_CHROMA_DATA_PORT, width << 16);
+		VSYNC_WR_MPEG_REG(VPP_CHROMA_ADDR_PORT, 0x20a);
+		VSYNC_WR_MPEG_REG(VPP_CHROMA_DATA_PORT, height << 16);
 		cm_size =  vpp_size;
-		pr_amcm_dbg("\n[amcm..]cm2_frame_patch: set cm2 framesize %x, ",
+		pr_amcm_dbg("\n[amcm..]cm size from scaler: set cm2 framesize %x, ",
 				vpp_size);
 		pr_amcm_dbg("set demo mode  %x\n", cm2_patch_flag);
 	}
@@ -581,7 +589,7 @@ int cm_load_reg(struct am_regs_s *arg)
 {
 	int ret = 0;
 	/*force set cm size to 0,enable check vpp size*/
-	cm_size = 0;
+	/*cm_size = 0;*/
 	if (!(vecm_latch_flag & FLAG_REG_MAP0))
 		ret = amvecm_regmap_set(&amregs0, arg, FLAG_REG_MAP0);
 	else if (!(vecm_latch_flag & FLAG_REG_MAP1))

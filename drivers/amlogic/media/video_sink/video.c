@@ -7119,17 +7119,11 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 				(cur_dispbuf != &vf_local)
 				? cur_dispbuf : NULL,
 				vf, CSC_FLAG_CHECK_OUTPUT,
-				cur_frame_par ?
-				cur_frame_par->supsc1_hori_ratio :
 				0,
-				cur_frame_par ?
-				cur_frame_par->supsc1_vert_ratio :
 				0,
-				cur_frame_par ?
-				cur_frame_par->spsc1_w_in :
 				0,
-				cur_frame_par ?
-				cur_frame_par->spsc1_h_in :
+				0,
+				0,
 				0) == 1)
 				break;
 #endif
@@ -7220,17 +7214,11 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 						(cur_dispbuf != &vf_local)
 						? cur_dispbuf : NULL,
 						vf, CSC_FLAG_CHECK_OUTPUT,
-						cur_frame_par ?
-						cur_frame_par->supsc1_hori_ratio
-						: 0,
-						cur_frame_par ?
-						cur_frame_par->supsc1_vert_ratio
-						: 0,
-						cur_frame_par ?
-						cur_frame_par->spsc1_w_in :
 						0,
-						cur_frame_par ?
-						cur_frame_par->spsc1_h_in :
+						0,
+						0,
+						0,
+						0,
 						0) == 1)
 						break;
 #endif
@@ -7330,6 +7318,13 @@ SET_FILTER:
 		vf = pip_vf_peek();
 	}
 #endif
+
+	/* filter setting management */
+	if ((frame_par_ready_to_set) || (frame_par_force_to_set)) {
+		cur_frame_par = next_frame_par;
+		frame_par_di_set = 1;
+	}
+
 #if defined(CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM)
 		amvecm_on_vs(
 			(cur_dispbuf != &vf_local)
@@ -7347,13 +7342,15 @@ SET_FILTER:
 			0,
 			cur_frame_par ?
 			cur_frame_par->spsc1_h_in :
+			0,
+			cur_frame_par ?
+			cur_frame_par->cm_input_w :
+			0,
+			cur_frame_par ?
+			cur_frame_par->cm_input_h :
 			0);
 #endif
-	/* filter setting management */
-	if ((frame_par_ready_to_set) || (frame_par_force_to_set)) {
-		cur_frame_par = next_frame_par;
-		frame_par_di_set = 1;
-	}
+
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 	if (is_dolby_vision_enable()) {
 		u32 frame_size = 0, h_size, v_size;
