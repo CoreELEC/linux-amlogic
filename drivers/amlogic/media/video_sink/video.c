@@ -5504,7 +5504,6 @@ static inline bool vpts_expire(struct vframe_s *cur_vf,
 	} else if (omx_run
 			&& omx_secret_mode
 			&& (omx_pts + omx_pts_interval_upper < next_vf->pts)
-			&& (abs(omx_pts_set_index - next_vf->omx_index) <= 16)
 			&& (omx_pts_set_index >= next_vf->omx_index)) {
 		pr_info("omx, omx_pts=%d omx_pts_set_index=%d pts=%d omx_index=%d\n",
 					omx_pts,
