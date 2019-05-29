@@ -1031,7 +1031,6 @@ int aml_check_sharebuffer_valid(struct frddr *fr, int ss_sel)
 		if (frddrs[i].in_use
 			&& (frddrs[i].fifo_id != current_fifo_id)
 			&& (frddrs[i].dest == ss_sel)) {
-
 			ret = 0;
 			break;
 		}
