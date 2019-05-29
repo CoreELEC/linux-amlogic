@@ -70,7 +70,7 @@ static int remote_handle_usrkey(void)
 				sizeof(remotewakeupmask));
 	return 0;
 }
-
+#if 0
 static void remote_nec_convert_key(void)
 {
 	u32 usr_key;
@@ -149,8 +149,6 @@ __setup("irdecodetype=", remote_irdecode_type);
 
 static int __init remote_wakeup_setup(char *str)
 {
-	int ret;
-
 	if (str == NULL) {
 		pr_info("%s no string\n", __func__);
 		return -EINVAL;
@@ -165,12 +163,11 @@ static int __init remote_wakeup_setup(char *str)
 	return 0;
 }
 __setup("remotewakeup=", remote_wakeup_setup);
-
+#endif
 static int hk_lirc_helper_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct resource *res;
-	int ret;
 
 	if (!(pdev->dev.of_node)) {
 		dev_err(dev, "pdev->dev.of_node == NULL\n");
