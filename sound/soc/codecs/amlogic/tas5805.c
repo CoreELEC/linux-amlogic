@@ -649,10 +649,10 @@ const uint32_t tas5805m_volume[] = {
 #define TAS5805_EQPARAM_LENGTH 610
 #define TAS5805_EQ_LENGTH 245
 #define FILTER_PARAM_BYTE 244
-static  int m_eq_tab[TAS5805_EQPARAM_LENGTH][2] = {0};
+static  int m_eq_tab[TAS5805_EQPARAM_LENGTH][2];
 #define TAS5805_DRC_PARAM_LENGTH 29
 #define TAS5805_DRC_PARAM_COUNT  58
-static  int m_drc_tab[TAS5805_DRC_PARAM_LENGTH][2] = {0};
+static  int m_drc_tab[TAS5805_DRC_PARAM_LENGTH][2];
 
 struct tas5805m_priv {
 	struct regmap *regmap;
