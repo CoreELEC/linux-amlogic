@@ -5076,7 +5076,8 @@ static int hdmitx_tmds_rxsense(void)
 			hd_write_reg(P_HHI_HDMI_PHY_CNTL0, 0);
 		break;
 	}
-
+	if (!(hdev->HWOp.CntlMisc(hdev, MISC_HPD_GPI_ST, 0)))
+		return 0;
 	return ret;
 }
 
