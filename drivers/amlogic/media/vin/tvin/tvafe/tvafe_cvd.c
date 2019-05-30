@@ -2227,13 +2227,10 @@ inline void tvafe_cvd2_adj_hs(struct tvafe_cvd2_s *cvd2,
 	unsigned int diff, hcnt64_ave, i;
 	unsigned int hcnt64_standard = 0;
 
-	if (tvafe_cpu_type() >= CPU_TYPE_GXTVBB) {
-		if (cvd2->config_fmt == TVIN_SIG_FMT_CVBS_PAL_I)
-			hcnt64_standard = 0x31380;
-		else if (cvd2->config_fmt == TVIN_SIG_FMT_CVBS_NTSC_M)
-			hcnt64_standard = 0x30e0e;
-	} else
-		hcnt64_standard = 0x17a00;
+	if (cvd2->config_fmt == TVIN_SIG_FMT_CVBS_PAL_I)
+		hcnt64_standard = 0x31380;
+	else if (cvd2->config_fmt == TVIN_SIG_FMT_CVBS_NTSC_M)
+		hcnt64_standard = 0x30e0e;
 
 	if ((cvd_isr_en & 0x1000) == 0)
 		return;
@@ -2296,11 +2293,20 @@ inline void tvafe_cvd2_adj_hs(struct tvafe_cvd2_s *cvd2,
 				W_APB_BIT(CVD2_ACTIVE_VIDEO_HSTART, temp,
 					HACTIVE_START_BIT, HACTIVE_START_WID);
 				/* 0x12d */
+				if (tvafe_cpu_type() == CPU_TYPE_TL1 ||
+					tvafe_cpu_type() == CPU_TYPE_TM2) {
+					temp = 0x20 * cvd2->info.hs_adj_level;
+					delta = temp / 4;
+				}
 				temp = delta << 16;
 				temp = temp | delta;
 				temp = acd_h_back - temp;
 				W_APB_REG(ACD_REG_2D, temp);
 				acd_h = temp;
+
+				/*@20190530 vlsi adjust colorbar display*/
+				W_APB_REG(ACD_REG_66, 0x80000f10);
+				W_APB_REG(ACD_REG_64, 0xff00);
 			} else {
 				/*0x128*/
 				temp = (acd_128_l1 - acd_128) *
@@ -2321,6 +2327,9 @@ inline void tvafe_cvd2_adj_hs(struct tvafe_cvd2_s *cvd2,
 				temp = acd_h_back + temp;
 				W_APB_REG(ACD_REG_2D, temp);
 				acd_h = temp;
+
+				/*@20190530 vlsi adjust colorbar display*/
+				W_APB_REG(ACD_REG_66, 0x0);
 			}
 		} else {
 			if (R_APB_REG(CVD2_YC_SEPARATION_CONTROL) != 0x12)
