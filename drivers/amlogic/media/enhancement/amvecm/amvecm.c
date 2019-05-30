@@ -6215,7 +6215,17 @@ static ssize_t amvecm_lc_store(struct class *cls,
 		lc_curve_fresh = false;
 	else if (!strcmp(parm[0], "refresh_curve"))
 		lc_curve_fresh = true;
-	else
+	else if (!strcmp(parm[0], "reg_lmtrat_sigbin")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			goto free_buf;
+		lc_reg_lmtrat_sigbin = val;
+		pr_info("reg_lmtrat_sigbin = %d\n", lc_reg_lmtrat_sigbin);
+	} else if (!strcmp(parm[0], "tune_curve_en")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			goto free_buf;
+		tune_curve_en = val;
+		pr_info("tune_curve_en = %d\n", tune_curve_en);
+	} else
 		pr_info("unsupprt cmd!\n");
 
 	kfree(buf_orig);

@@ -23,7 +23,8 @@
 
 /*V1.0: Local_contrast Basic function, iir algorithm, debug interface for tool*/
 /*V1.1: add ioctrl load interface supprt*/
-#define LC_VER		"Ref.2019/03/07-V1.1"
+/*v2.0: add lc tune curve node patch by vlsi-guopan*/
+#define LC_VER		"Ref.2019/05/30-V2.0"
 
 enum lc_mtx_sel_e {
 	INP_MTX = 0x1,
@@ -61,6 +62,8 @@ struct lc_alg_param_s {
 
 
 extern int amlc_debug;
+extern int lc_reg_lmtrat_sigbin;
+extern int tune_curve_en;
 extern int lc_en;
 extern int lc_demo_mode;
 extern unsigned int lc_hist_vs;

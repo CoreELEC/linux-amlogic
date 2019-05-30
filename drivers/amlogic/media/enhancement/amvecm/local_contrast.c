@@ -35,6 +35,9 @@
 #define N 4
 /*hist bin num*/
 #define HIST_BIN 16
+
+int lc_reg_lmtrat_sigbin = 870;
+
 int amlc_debug;
 #define pr_amlc_dbg(fmt, args...)\
 	do {\
@@ -119,6 +122,8 @@ static unsigned int lc_satur_off[63] = {
 /*	3271, 3326, 3384, 3443, 3506, 3571, 3639, 3710,*/
 /*	3785, 3863, 3945, 4032*/
 /*};*/
+
+int tune_curve_en = 2;
 
 /*local contrast begin*/
 static void lc_mtx_set(enum lc_mtx_sel_e mtx_sel,
@@ -582,33 +587,104 @@ static void lc_config(int enable,
 	lc_stts_en(enable, height, width, 0, 0, 1, 1, 4, bitdepth);
 }
 
-static void read_lc_curve(int blk_vnum, int blk_hnum)
+static void tune_nodes_patch(int *omap, int *ihistogram, int reg_lmtrat_sigbin)
 {
-	int i, j;
-	unsigned int temp1, temp2;
 
-	WRITE_VPP_REG(LC_CURVE_RAM_CTRL, 1);
-	WRITE_VPP_REG(LC_CURVE_RAM_ADDR, 0);
-	for (i = 0; i < blk_vnum; i++) {
-		for (j = 0; j < blk_hnum; j++) {
-			temp1 = READ_VPP_REG(LC_CURVE_RAM_DATA);
-			temp2 = READ_VPP_REG(LC_CURVE_RAM_DATA);
-			lc_szcurve[(i*blk_hnum + j)*6+0] =
-				temp1 & 0x3ff;/*bit0:9*/
-			lc_szcurve[(i*blk_hnum + j)*6+1] =
-				(temp1>>10) & 0x3ff;/*bit10:19*/
-			lc_szcurve[(i*blk_hnum + j)*6+2] =
-				(temp1>>20) & 0x3ff;/*bit20:29*/
-			lc_szcurve[(i*blk_hnum + j)*6+3] =
-				temp2 & 0x3ff;/*bit0:9*/
-			lc_szcurve[(i*blk_hnum + j)*6+4] =
-				(temp2>>10) & 0x3ff;/*bit10:19*/
-			lc_szcurve[(i*blk_hnum + j)*6+5] =
-				(temp2>>20) & 0x3ff;/*bit20:29*/
+	int yminV_org, minBV_org, pkBV_org;
+	int maxBV_org, ymaxV_org, ypkBV_org;
+	int yminV, ymaxV, ypkBV;
+	int k, alpha, bin_pk, idx_pk, bin_pk2nd;
+	int pksum, pksum_2nd, dist;
+	int amount;
+	int thrd_sglbin;   /*u24 maybe 80% or 90%*/
+	int alpha_sgl;
+	int tmp_peak_val;/*pksum; bin_pk*/
+	int idx_pk2nd;
+
+	yminV_org = omap[0];
+	minBV_org = omap[1];
+	pkBV_org = omap[2];
+	maxBV_org = omap[3];
+	ymaxV_org = omap[4];
+	ypkBV_org = omap[5];
+	if (amlc_debug == 0xa) {
+		pr_info("minBV_org=%d yminV_org=%d pkBV_org=%d ypkBV_org=%d maxBV_org=%d ymaxV_org=%d\n",
+			minBV_org, yminV_org, pkBV_org, ypkBV_org,
+			maxBV_org, ymaxV_org);
+		amlc_debug = 0x0;
+	}
+	idx_pk = (pkBV_org + 32) >> 6;
+	bin_pk2nd = 0;
+	amount = 0;
+	bin_pk = 0;
+	idx_pk2nd = 0;
+
+	for (k = 0; k < HIST_BIN; k++) {
+		amount += ihistogram[k];
+		if (ihistogram[k] > bin_pk) {
+			bin_pk = ihistogram[k];
+			idx_pk = k;
 		}
 	}
-	WRITE_VPP_REG(LC_CURVE_RAM_CTRL, 0);
+	pksum = (idx_pk <= 1 || idx_pk >= 14) ? ihistogram[idx_pk] :
+		(ihistogram[idx_pk] + ihistogram[max(min(idx_pk - 1, 14), 1)]
+			+ ihistogram[max(min(idx_pk + 1, 14), 1)]);
+
+	for (k = 0; k < HIST_BIN; k++) {
+		if (k < (idx_pk - 1) || k > (idx_pk + 1)) {
+			if (ihistogram[k] > bin_pk2nd) {
+				bin_pk2nd = ihistogram[k];
+				idx_pk2nd = k;
+			}
+		}
+	}
+	pksum_2nd = (idx_pk2nd <= 1 || idx_pk2nd >= 14) ?
+		ihistogram[idx_pk2nd] :
+		(ihistogram[idx_pk2nd] +
+			ihistogram[max(min(idx_pk2nd - 1, 14), 1)] +
+			ihistogram[max(min(idx_pk2nd + 1, 14), 1)]);
+
+	dist = abs(idx_pk - idx_pk2nd);
+	if (bin_pk2nd == 0)
+		alpha = 0;
+	else {
+		if ((pksum_2nd >= (pksum * 4 / 16)) && (dist > 2))
+			alpha = min(dist * 8, 64);
+		else
+			alpha = 0;
+	}
+	yminV = yminV_org + (minBV_org - yminV_org) * alpha / 64;
+	ymaxV = ymaxV_org + (maxBV_org - ymaxV_org) * alpha / 64;
+
+	/*2. tune ypkBV if single peak
+	 * int reg_lmtrat_sigbin = 922; 95% 1024*0.95 = 973 / 90% 1024*0.9 = 922
+	 * 85% 1024*0.85 = 870 / 80% 1024*0.8 = 819
+	 */
+
+	 /*u24 maybe 80% or 90%*/
+	thrd_sglbin = (reg_lmtrat_sigbin * amount) >> 10;
+	alpha_sgl = 0;
+	tmp_peak_val = bin_pk;/*pksum; bin_pk;*/
+	if (tmp_peak_val > thrd_sglbin)
+		alpha_sgl = (tmp_peak_val - thrd_sglbin) * 1024 /
+			(amount - thrd_sglbin);
+	else
+		alpha_sgl = 0;
+
+	ypkBV = ypkBV_org + (pkBV_org - ypkBV_org) * alpha_sgl / 1024;
+
+	omap[0] = yminV;
+	omap[4] = ymaxV;
+	if (amlc_debug == 0xc)
+		pr_info("yminV_org=%d yminV=%d ymaxV_org=%d ymaxV=%d\n",
+			yminV_org, yminV, ymaxV_org, ymaxV);
+	omap[5] = ypkBV;
+	if (amlc_debug == 0xc) {
+		pr_info("ypkBV_org=%d ypkBV=%d\n", ypkBV_org, ypkBV);
+		amlc_debug = 0x0;
+	}
 }
+
 
 static void lc_demo_wr_curve(int h_num, int v_num)
 {
@@ -1204,12 +1280,32 @@ static void lc_read_region(int blk_vnum, int blk_hnum)
 	int i, j, k;
 	int data32;
 	int rgb_min, rgb_max;
+	unsigned int temp1, temp2;
 
 	WRITE_VPP_REG_BITS(0x4037, 1, 14, 1);
 	data32 = READ_VPP_REG(LC_STTS_HIST_START_RD_REGION);
 
-	for (i = 0; i < blk_vnum; i++)
+	WRITE_VPP_REG(LC_CURVE_RAM_CTRL, 1);
+	WRITE_VPP_REG(LC_CURVE_RAM_ADDR, 0);
+	for (i = 0; i < blk_vnum; i++) {
 		for (j = 0; j < blk_hnum; j++) {
+			/*part1: get lc curve node*/
+			temp1 = READ_VPP_REG(LC_CURVE_RAM_DATA);
+			temp2 = READ_VPP_REG(LC_CURVE_RAM_DATA);
+			lc_szcurve[(i * blk_hnum + j) * 6 + 0] =
+				temp1 & 0x3ff;/*bit0:9*/
+			lc_szcurve[(i * blk_hnum + j) * 6 + 1] =
+				(temp1 >> 10) & 0x3ff;/*bit10:19*/
+			lc_szcurve[(i * blk_hnum + j) * 6 + 2] =
+				(temp1 >> 20) & 0x3ff;/*bit20:29*/
+			lc_szcurve[(i * blk_hnum + j) * 6 + 3] =
+				temp2 & 0x3ff;/*bit0:9*/
+			lc_szcurve[(i * blk_hnum + j) * 6 + 4] =
+				(temp2 >> 10) & 0x3ff;/*bit10:19*/
+			lc_szcurve[(i * blk_hnum + j) * 6 + 5] =
+				(temp2 >> 20) & 0x3ff;/*bit20:29*/
+
+			/*part2: get lc hist*/
 			data32 = READ_VPP_REG(LC_STTS_HIST_START_RD_REGION);
 			if ((i >= lc_hist_vs) && (i <= lc_hist_ve) &&
 				(j >= lc_hist_hs) && (j <= lc_hist_he) &&
@@ -1218,7 +1314,7 @@ static void lc_read_region(int blk_vnum, int blk_hnum)
 
 			for (k = 0; k < 17; k++) {
 				data32 = READ_VPP_REG(LC_STTS_HIST_READ_REGION);
-				lc_hist[(i*blk_hnum+j)*17 + k]
+				lc_hist[(i * blk_hnum + j) * 17 + k]
 					= data32;
 				if ((i >= lc_hist_vs) && (i <= lc_hist_ve) &&
 					(j >= lc_hist_hs) && (j <= lc_hist_he)
@@ -1236,7 +1332,17 @@ static void lc_read_region(int blk_vnum, int blk_hnum)
 							k, data32);
 				}
 			}
+
+			/*part3: add tune curve node patch--by vlsi-guopan*/
+			if (tune_curve_en == 2)
+				tune_nodes_patch(
+					&lc_szcurve[(i * blk_hnum + j) * 6],
+					&lc_hist[(i * blk_hnum + j) * 17],
+					lc_reg_lmtrat_sigbin);
+
 		}
+	}
+	WRITE_VPP_REG(LC_CURVE_RAM_CTRL, 0);
 
 	if ((amlc_debug == 0x8) && lc_hist_prcnt)/*print all hist data*/
 		for (i = 0; i < 8*12*17; i++)
@@ -1380,8 +1486,7 @@ void lc_process(struct vframe_s *vf,
 	blk_vnum = (dwTemp) & 0x1f;
 	lc_config(lc_en, vf, sps_h_en, sps_v_en,
 		sps_w_in, sps_h_in, bitdepth);
-	/*get each block curve*/
-	read_lc_curve(blk_vnum, blk_hnum);
+	/*get hist & curve node*/
 	lc_read_region(blk_vnum, blk_hnum);
 	/*do time domain iir*/
 	lc_fw_curve_iir(vf, lc_hist,
