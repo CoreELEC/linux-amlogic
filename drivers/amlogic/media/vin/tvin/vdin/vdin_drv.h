@@ -48,7 +48,7 @@
 /* Ref.2019/04/25: tl1 vdin0 afbce dynamically switch support,
  *                 vpp also should support this function
  */
-#define VDIN_VER "Ref.2019/05/14"
+#define VDIN_VER "Ref.2019/05/31"
 
 /*the counter of vdin*/
 #define VDIN_MAX_DEVS			2
@@ -412,7 +412,7 @@ struct vdin_v4l2_param_s {
 extern unsigned int max_recycle_frame_cnt;
 extern unsigned int max_ignore_frame_cnt;
 extern unsigned int skip_frame_debug;
-
+extern unsigned int vdin_drop_cnt;
 extern unsigned int vdin0_afbce_debug_force;
 
 extern struct vframe_provider_s *vf_get_provider_by_name(

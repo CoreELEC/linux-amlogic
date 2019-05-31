@@ -14725,6 +14725,10 @@ M:	Xuhua Zhang <xuhua.zhang@amlogic.com>
 F:	drivers/amlogic/media/vin/tvin/vdin/vdin_afbce.c
 F:	drivers/amlogic/media/vin/tvin/vdin/vdin_afbce.h
 
+AMLOGIC VDIN DRIVERS
+M:  Yong Qin <yong.qin@amlogic.com>
+F:  drivers/amlogic/media/vin/tvin/vdin/vdin_trace.h
+
 AMLOGIC MESONAXG S400 DTS
 M:	Yuegui He <yuegui.he@amlogic.com>
 F:	arch/arm64/boot/dts/amlogic/axg_s400_v03.dts

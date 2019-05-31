@@ -149,7 +149,7 @@ static unsigned int isr_flag;
 module_param(isr_flag, uint, 0664);
 MODULE_PARM_DESC(isr_flag, "flag which affect the skip field");
 
-static unsigned int vdin_drop_cnt;
+unsigned int vdin_drop_cnt;
 module_param(vdin_drop_cnt, uint, 0664);
 MODULE_PARM_DESC(vdin_drop_cnt, "vdin_drop_cnt");
 
@@ -1430,9 +1430,7 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 	 * this code about system time must be outside of spinlock.
 	 * because the spinlock may affect the system time.
 	 */
-
 	spin_lock_irqsave(&devp->isr_lock, flags);
-
 	if (devp->afbce_mode == 1) {
 		/* no need reset mif under afbc mode */
 		devp->vdin_reset_flag = 0;
@@ -1599,8 +1597,10 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 	curr_wr_vfe = devp->curr_wr_vfe;
 	curr_wr_vf  = &curr_wr_vfe->vf;
 
+	next_wr_vfe = provider_vf_peek(devp->vfp);
+
 	/* change afbce mode */
-	if (devp->afbce_mode_pre != devp->afbce_mode)
+	if (next_wr_vfe && (devp->afbce_mode_pre != devp->afbce_mode))
 		vdin_afbce_mode_update(devp);
 
 	/* change color matrix */
@@ -1707,7 +1707,6 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 		goto irq_handled;
 	}
 
-	next_wr_vfe = provider_vf_peek(devp->vfp);
 	if (!next_wr_vfe) {
 		/*add for force vdin buffer recycle*/
 		if (devp->flags & VDIN_FLAG_FORCE_RECYCLE) {
