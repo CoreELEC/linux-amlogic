@@ -3691,7 +3691,7 @@ void osd_set_hold_line(int hold_line)
 	int i;
 	unsigned int data32 = 0, val = 0;
 
-	for (i = 0; i <= osd_hw.osd_meson_dev.viu1_osd_count; i++) {
+	for (i = 0; i < osd_hw.osd_meson_dev.viu1_osd_count; i++) {
 		if (osd_hw.powered[i]) {
 			data32 = VSYNCOSD_RD_MPEG_REG
 				(hw_osd_reg_array[i].osd_fifo_ctrl_stat);
