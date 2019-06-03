@@ -14947,3 +14947,10 @@ F:  arch/arm/boot/dts/amlogic/g12b_a311d_w400_drm_buildroot.dts
 F:  arch/arm/boot/dts/amlogic/g12b_a311d_w400_drm_buildroot_a.dts
 F:  arch/arm64/boot/dts/amlogic/g12b_a311d_w400_drm_buildroot.dts
 F:  arch/arm64/boot/dts/amlogic/g12b_a311d_w400_drm_buildroot_a.dts
+
+AMLOGIC GXL P281 DTS
+M:  Luan Yuan <luan.yuan@amlogic.com>
+F:  arch/arm/boot/dts/amlogic/gxl_p281_1g.dts
+F:  arch/arm/boot/dts/amlogic/gxl_p281_2g.dts
+F:  arch/arm64/boot/dts/amlogic/gxl_p281_1g.dts
+F:  arch/arm64/boot/dts/amlogic/gxl_p281_2g.dts
