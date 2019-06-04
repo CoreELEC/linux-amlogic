@@ -198,6 +198,7 @@ static u32 last_dolby_vision_ll_policy = DOLBY_VISION_LL_DISABLE;
 #endif
 
 static uint dolby_vision_on_count;
+static bool dolby_vision_el_disable;
 
 #define FLAG_FORCE_CVM				0x01
 #define FLAG_BYPASS_CVM				0x02
@@ -220,6 +221,7 @@ static uint dolby_vision_on_count;
 #define FLAG_PRIORITY_GRAPHIC	 0x200000
 #define FLAG_DISABLE_LOAD_VSVDB	 0x400000
 #define FLAG_DISABLE_CRC	 0x800000
+#define FLAG_ENABLE_EL		 0x1000000
 #define FLAG_TOGGLE_FRAME			0x80000000
 
 #define FLAG_FRAME_DELAY_MASK	0xf
@@ -1905,7 +1907,7 @@ static int dolby_core1_set(
 		if (is_meson_g12() || is_meson_tm2_stbmode())
 			VSYNC_WR_DV_REG_BITS(
 				DOLBY_PATH_CTRL,
-				/* vd2 to core1 */
+				/* vd2 to vpp */
 				1, 1, 1);
 		else
 			VSYNC_WR_DV_REG_BITS(
@@ -3501,6 +3503,7 @@ static int dvel_receiver_event_fun(int type, void *data, void *arg)
 		setting_update_count = 0;
 		crc_count = 0;
 		crc_bypass_count = 0;
+		dolby_vision_el_disable = 0;
 		return -1;
 	} else if (type == VFRAME_EVENT_PROVIDER_QUREY_STATE) {
 		return RECEIVER_ACTIVE;
@@ -3519,6 +3522,7 @@ static int dvel_receiver_event_fun(int type, void *data, void *arg)
 		setting_update_count = 0;
 		crc_count = 0;
 		crc_bypass_count = 0;
+		dolby_vision_el_disable = 0;
 	}
 	return 0;
 }
@@ -5188,6 +5192,17 @@ int dolby_vision_parse_metadata(
 				src_bdp = 10;
 				bypass_release = true;
 			}
+			if (is_meson_tm2_stbmode() &&
+				(req.dv_enhance_exist && !mel_flag &&
+				((dolby_vision_flags & FLAG_CERTIFICAION)
+					== 0))) {
+				src_format = FORMAT_SDR;
+				dovi_setting.src_format = src_format;
+				total_comp_size = 0;
+				total_md_size = 0;
+				src_bdp = 10;
+				bypass_release = true;
+			}
 		} else if (is_dolby_vision_stb_mode())
 			src_format = dovi_setting.src_format;
 		else if (is_meson_tvmode())
@@ -5320,6 +5335,14 @@ int dolby_vision_parse_metadata(
 				el_flag, mel_flag);
 			meta_flag_bl = 0;
 		}
+
+		if (is_meson_tm2_stbmode() &&
+			(el_flag && !mel_flag &&
+			((dolby_vision_flags & FLAG_CERTIFICAION) == 0))) {
+			el_flag = 0;
+			dolby_vision_el_disable = 1;
+		}
+
 		if ((src_format == FORMAT_DOVI)
 		&& meta_flag_bl && meta_flag_el) {
 			/* dovi frame no meta or meta error */
@@ -6435,6 +6458,12 @@ bool is_dolby_vision_stb_mode(void)
 		is_meson_box();
 }
 EXPORT_SYMBOL(is_dolby_vision_stb_mode);
+
+bool is_dolby_vision_el_disable(void)
+{
+	return dolby_vision_el_disable;
+}
+EXPORT_SYMBOL(is_dolby_vision_el_disable);
 
 int register_dv_functions(const struct dolby_vision_func_s *func)
 {

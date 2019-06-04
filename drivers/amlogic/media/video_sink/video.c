@@ -3117,7 +3117,7 @@ static void pip_toggle_frame(struct vframe_s *vf)
 	if (debug_flag & DEBUG_FLAG_PRINT_TOGGLE_FRAME)
 		pr_info("%s()\n", __func__);
 
-	if ((vf->width == 0) && (vf->height == 0)) {
+	if ((vf->width == 0) || (vf->height == 0)) {
 		amlog_level(LOG_LEVEL_ERROR,
 			"Video: invalid frame dimension\n");
 		return;
@@ -3582,6 +3582,10 @@ static u32 last_el_w;
 bool has_enhanced_layer(struct vframe_s *vf)
 {
 	struct provider_aux_req_s req;
+
+	if (is_dolby_vision_el_disable() &&
+		!for_dolby_vision_certification())
+		return 0;
 
 	if (!vf)
 		return 0;
@@ -5844,7 +5848,8 @@ struct vframe_s *dolby_vision_toggle_frame(struct vframe_s *vf)
 	int height_bl, height_el;
 	int ret = dolby_vision_update_metadata(vf);
 
-	cur_dispbuf2 = dolby_vision_vf_peek_el(vf);
+	if (!is_dolby_vision_el_disable() || for_dolby_vision_certification())
+		cur_dispbuf2 = dolby_vision_vf_peek_el(vf);
 	if (cur_dispbuf2) {
 		if (cur_dispbuf2->type & VIDTYPE_COMPRESS) {
 			VSYNC_WR_MPEG_REG(VD2_AFBC_HEAD_BADDR,
@@ -7941,7 +7946,9 @@ SET_FILTER:
 			video2_onoff_state = VIDEO_ENABLE_STATE_ON_PENDING;
 		} else if (video2_onoff_state ==
 			VIDEO_ENABLE_STATE_ON_PENDING) {
-			if (is_dolby_vision_on())
+			if (is_dolby_vision_on() &&
+				(!is_dolby_vision_el_disable() ||
+				for_dolby_vision_certification()))
 				vpp_misc_set &= ~(VPP_VD2_PREBLEND |
 					VPP_VD2_POSTBLEND | VPP_PREBLEND_EN);
 			else if (process_3d_type ||
