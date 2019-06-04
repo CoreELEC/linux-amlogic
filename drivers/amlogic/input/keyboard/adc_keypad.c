@@ -39,11 +39,26 @@
 static char adc_key_mode_name[MAX_NAME_LEN] = "abcdef";
 static char kernelkey_en_name[MAX_NAME_LEN] = "abcdef";
 static bool keypad_enable_flag = true;
+static char adc_key_mode = 2; /*no key can resume*/
+static bool has_adc_power_key;
+static bool freeze_mode_ignore_key;
+
+#ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
+bool keep_adc_alive(void)
+{
+	return is_pm_freeze_mode() && ((adc_key_mode == 1) ||
+		((adc_key_mode == 0) && has_adc_power_key));
+}
+EXPORT_SYMBOL(keep_adc_alive);
+#endif
 
 static int meson_adc_kp_search_key(struct meson_adc_kp *kp)
 {
 	struct adc_key *key;
 	int value, i;
+
+	if (freeze_mode_ignore_key)
+		return KEY_RESERVED;
 
 	mutex_lock(&kp->kp_lock);
 	for (i = 0; i < kp->chan_num; i++) {
@@ -106,12 +121,15 @@ static void send_data_to_bl301(void)
 	if (!strcmp(adc_key_mode_name, "POWER_WAKEUP_POWER")) {
 		val = 0;  /*only power key resume*/
 		scpi_send_usr_data(SCPI_CL_POWER, &val, sizeof(val));
+		adc_key_mode = 0;
 	} else if (!strcmp(adc_key_mode_name, "POWER_WAKEUP_ANY")) {
 		val = 1; /*any key resume*/
 		scpi_send_usr_data(SCPI_CL_POWER, &val, sizeof(val));
+		adc_key_mode = 1;
 	} else if (!strcmp(adc_key_mode_name, "POWER_WAKEUP_NONE")) {
 		val = 2; /*no key can resume*/
 		scpi_send_usr_data(SCPI_CL_POWER, &val, sizeof(val));
+		adc_key_mode = 2;
 	}
 
 }
@@ -244,6 +262,8 @@ static int meson_adc_kp_get_devtree_pdata(struct platform_device *pdev,
 			state = -EINVAL;
 			goto err;
 		}
+		if (key->code == KEY_POWER)
+			has_adc_power_key = true;
 
 		ret = of_property_read_u32_index(pdev->dev.of_node,
 			"key_chan", cnt, &key->chan);
@@ -363,6 +383,7 @@ static ssize_t table_store(struct class *cls, struct class_attribute *attr,
 	/*write "null" or "NULL" to clean up all key table*/
 	if (strcasecmp("null", nbuf) == 0) {
 		meson_adc_kp_list_free(kp);
+		has_adc_power_key = false;
 		return count;
 	}
 
@@ -450,6 +471,8 @@ static ssize_t table_store(struct class *cls, struct class_attribute *attr,
 			kfree(key);
 		}
 	}
+	if (dkey->code == KEY_POWER)
+		has_adc_power_key = true;
 	set_bit(dkey->code,  kp->poll_dev->input->keybit);
 	list_add_tail(&dkey->list, &kp->adckey_head);
 	dev_info(dev, "add newer key => %s:%d:%d:%d:%d\n", dkey->name,
@@ -576,8 +599,11 @@ static int meson_adc_kp_remove(struct platform_device *pdev)
 static int meson_adc_kp_suspend(struct platform_device *pdev,
 				pm_message_t state)
 {
-	if (is_pm_freeze_mode())
+#ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
+	if (keep_adc_alive())
 		return 0;
+#endif
+	freeze_mode_ignore_key = true;
 	return 0;
 }
 
@@ -586,9 +612,11 @@ static int meson_adc_kp_resume(struct platform_device *pdev)
 	struct adc_key *key;
 	struct meson_adc_kp *kp = platform_get_drvdata(pdev);
 
-	if (is_pm_freeze_mode())
+#ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
+	if (keep_adc_alive())
 		return 0;
-
+#endif
+	freeze_mode_ignore_key = false;
 	if (get_resume_method() == POWER_KEY_WAKEUP) {
 		list_for_each_entry(key, &kp->adckey_head, list) {
 			if (key->code == KEY_POWER) {

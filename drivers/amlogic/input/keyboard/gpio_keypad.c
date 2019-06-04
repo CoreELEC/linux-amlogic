@@ -279,11 +279,17 @@ static int meson_gpio_kp_suspend(struct platform_device *dev,
 	pm_message_t state)
 {
 	struct gpio_keypad *pdata;
-
-	if (is_pm_freeze_mode())
-		return 0;
+	int i;
 
 	pdata = (struct gpio_keypad *)platform_get_drvdata(dev);
+#ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
+	if (is_pm_freeze_mode()) {
+		for (i = 0; i < pdata->key_size; i++) {
+			if (pdata->key[i].code == KEY_POWER)
+				return 0;
+		}
+	}
+#endif
 	if (!pdata->use_irq)
 		del_timer(&(pdata->polling_timer));
 	return 0;
@@ -294,10 +300,16 @@ static int meson_gpio_kp_resume(struct platform_device *dev)
 	int i;
 	struct gpio_keypad *pdata;
 
-	if (is_pm_freeze_mode())
-		return 0;
-
 	pdata = (struct gpio_keypad *)platform_get_drvdata(dev);
+#ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
+	if (is_pm_freeze_mode()) {
+		for (i = 0; i < pdata->key_size; i++) {
+			if (pdata->key[i].code == KEY_POWER)
+				return 0;
+		}
+	}
+#endif
+
 	if (!pdata->use_irq)
 		mod_timer(&(pdata->polling_timer),
 			jiffies+msecs_to_jiffies(5));
