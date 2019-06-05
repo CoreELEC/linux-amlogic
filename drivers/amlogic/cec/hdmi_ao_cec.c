@@ -1840,26 +1840,18 @@ static struct class_attribute aocec_class_attr[] = {
 /******************** cec hal interface ***************************/
 static int hdmitx_cec_open(struct inode *inode, struct file *file)
 {
-	if (wait_event_interruptible(cec_dev->tx_dev->hdmi_info.vsdb_phy_addr.waitq,
-		cec_dev->tx_dev->hdmi_info.vsdb_phy_addr.valid == 1))
-	{
-		CEC_INFO("error during wait for a valid physical address\n");
-		return -ERESTARTSYS;
-	}
-
-	cec_dev->cec_info.open_count++;
-	if (cec_dev->cec_info.open_count) {
+	if (atomic_add_return(1, &cec_dev->cec_info.open_count)) {
 		cec_dev->cec_info.hal_ctl = 1;
+		/* set default logical addr flag for uboot */
+		cec_set_reg_bits(AO_DEBUG_REG1, 0xf, 16, 4);
 	}
 	return 0;
 }
 
 static int hdmitx_cec_release(struct inode *inode, struct file *file)
 {
-	cec_dev->cec_info.open_count--;
-	if (!cec_dev->cec_info.open_count) {
+	if (!atomic_sub_return(1, &cec_dev->cec_info.open_count))
 		cec_dev->cec_info.hal_ctl = 0;
-	}
 	return 0;
 }
 

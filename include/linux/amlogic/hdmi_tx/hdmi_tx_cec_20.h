@@ -306,7 +306,7 @@ struct cec_node_info_t {
  */
 struct cec_global_info_t {
 	dev_t dev_no;
-	unsigned int open_count;
+	atomic_t open_count;
 	unsigned int hal_ctl;			/* message controled by hal */
 	unsigned int vendor_id:24;
 	unsigned int power_status;

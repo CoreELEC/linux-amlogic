@@ -472,7 +472,7 @@ struct cec_global_info_t {
 	unsigned char active_log_dev;
 	unsigned char my_node_index;
 	dev_t dev_no;
-	unsigned int open_count;
+	atomic_t open_count;
 	unsigned int hal_ctl;	/* message controled by hal */
 	struct cec_flag_t cec_flag;
 	struct input_dev *remote_cec_dev; /* cec input device */
