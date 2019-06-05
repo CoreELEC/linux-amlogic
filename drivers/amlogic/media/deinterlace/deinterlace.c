@@ -1698,9 +1698,11 @@ static unsigned char is_source_change(vframe_t *vframe)
 	((di_pre_stru.cur_inp_type & VIDTYPE_VIU_FIELD) !=
 	(vframe->type & VIDTYPE_VIU_FIELD))
 	) {
-		/* just scan mode changed */
-		if (!di_pre_stru.force_interlace)
-			pr_dbg("DI I<->P.\n");
+		if (is_progressive(vframe)) {
+			pr_dbg("DI I->P.\n");
+		} else {
+			pr_dbg("DI P->I.\n");
+		}
 		return 2;
 	}
 	return 0;
@@ -1737,6 +1739,10 @@ unsigned char is_bypass(vframe_t *vf_in)
 	     (di_pre_stru.cur_width > 1920) || (di_pre_stru.cur_height > 1080)
 	     || (di_pre_stru.cur_inp_type & VIDTYPE_VIU_444))
 	    )
+		return 1;
+
+	if ((di_pre_stru.cur_prog_flag) &&
+	   (!di_pre_stru.force_interlace))
 		return 1;
 
 	if ((di_pre_stru.cur_width < 16) || (di_pre_stru.cur_height < 16))
@@ -4274,10 +4280,14 @@ jiffies_to_msecs(jiffies_64 - vframe->ready_jiffies64));
 		queue_out(di_buf);
 		change_type = is_source_change(vframe);
 		/* source change, when i mix p,force p as i*/
-		if (change_type == 1 || (change_type == 2 &&
-					 di_pre_stru.cur_prog_flag == 1)) {
+		if (change_type == 1 || (change_type == 2)) {
 
 			di_pre_stru.field_count_for_cont = 0;
+
+			/* check if top/bot interleaved */
+			if (change_type == 2)
+				/* source is i interleaves p fields */
+				di_pre_stru.force_interlace = true;
 
 			if (di_pre_stru.di_mem_buf_dup_p) {
 				/*avoid only 2 i field then p field*/
@@ -4405,10 +4415,6 @@ jiffies_to_msecs(jiffies_64 - vframe->ready_jiffies64));
 			}
 			/*di_pre_stru.field_count_for_cont = 0;*/
 		} else if (di_pre_stru.cur_prog_flag == 0) {
-			/* check if top/bot interleaved */
-			if (change_type == 2)
-				/* source is i interleaves p fields */
-				di_pre_stru.force_interlace = true;
 			if ((di_pre_stru.cur_inp_type &
 			VIDTYPE_TYPEMASK) == (di_buf->vframe->type &
 			VIDTYPE_TYPEMASK)) {
@@ -4598,6 +4604,7 @@ jiffies_to_msecs(jiffies_64 - vframe->ready_jiffies64));
 				di_pr_info("set cnt 0;");
 				/* ignore contp2rd and contprd */
 			}
+
 			di_buf->post_proc_flag = 1;
 			di_pre_stru.di_inp_buf = di_buf;
 			di_print("%s: %s[%d] => di_inp_buf\n", __func__,
