@@ -800,8 +800,8 @@ static int atvdemod_fe_afc_closer(struct v4l2_frontend *v4l2_fe, int minafcfreq,
 	struct v4l2_analog_parameters *p = &v4l2_fe->params;
 	struct analog_parameters params;
 	struct atv_demod_priv *priv = fe->analog_demod_priv;
-	int afc = 0;
-	__u32 set_freq;
+	int afc = 100;
+	__u32 set_freq = 0;
 	int count = 25;
 	int lock_cnt = 0;
 	static int freq_success;
