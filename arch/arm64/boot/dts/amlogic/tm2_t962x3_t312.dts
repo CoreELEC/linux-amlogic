@@ -1605,7 +1605,7 @@
 	};
 
 	aed:effect {
-		compatible = "amlogic, snd-effect-v2";
+		compatible = "amlogic, snd-effect-v3";
 		#sound-dai-cells = <0>;
 
 		clocks = <&clkaudio CLKID_AUDIO_GATE_EQDRC
@@ -1626,7 +1626,7 @@
 		/* max 0xff, each bit for one channel */
 		channel_mask = <0xff>;
 
-		status = "disable";
+		status = "okay";
 	};
 
 	asrca: resample@0 {
