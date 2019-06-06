@@ -1730,7 +1730,6 @@ void set_oetf_lut(
 		VSYNC_WR_MPEG_REG(oetf_lut_data_port, lut[148] >> 2);
 	else
 		VSYNC_WR_MPEG_REG(oetf_lut_data_port, lut[148]);
-
 }
 
 void set_c_gain(

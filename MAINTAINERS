@@ -15040,3 +15040,9 @@ AMLOGIC VIRTUAL_FB DRIVER
 M:	Pengcheng Chen <pengcheng.chen@amlogic.com>
 F:	drivers/amlogic/media/osd/osd_virtual.c
 F:	drivers/amlogic/media/osd/osd_virtual.h
+
+AMLOGIC ADD HDR10+ TO SDR FUNCTION
+M:  Cheng Wang <cheng.wang@amlogic.com>
+F:  drivers/amlogic/media/enhancement/amvecm/hdr/am_hdr10_plus_ootf.c
+F:  drivers/amlogic/media/enhancement/amvecm/hdr/am_hdr10_plus_ootf.h
+
