@@ -1,6 +1,6 @@
 #
 # Automatically generated file; DO NOT EDIT.
-# Linux/arm64 4.9.170 Kernel Configuration
+# Linux/arm64 4.9.177 Kernel Configuration
 #
 CONFIG_ARM64=y
 CONFIG_64BIT=y
@@ -2606,7 +2606,7 @@ CONFIG_INPUT_JOYSTICK=y
 # CONFIG_JOYSTICK_ZHENHUA is not set
 # CONFIG_JOYSTICK_AS5011 is not set
 # CONFIG_JOYSTICK_JOYDUMP is not set
-CONFIG_JOYSTICK_XPAD=y
+CONFIG_JOYSTICK_XPAD=m
 CONFIG_JOYSTICK_XPAD_FF=y
 CONFIG_JOYSTICK_XPAD_LEDS=y
 # CONFIG_INPUT_TABLET is not set
