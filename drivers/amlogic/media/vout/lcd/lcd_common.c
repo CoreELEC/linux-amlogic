@@ -1065,3 +1065,32 @@ void lcd_if_enable_retry(struct lcd_config_s *pconf)
 	pconf->retry_enable_cnt = 0;
 }
 
+void lcd_vout_notify_mode_change_pre(void)
+{
+	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
+
+	if (lcd_drv->viu_sel == 1) {
+		vout_notifier_call_chain(VOUT_EVENT_MODE_CHANGE_PRE,
+			&lcd_drv->lcd_info->mode);
+	} else if (lcd_drv->viu_sel == 2) {
+#ifdef CONFIG_AMLOGIC_VOUT2_SERVE
+		vout2_notifier_call_chain(VOUT_EVENT_MODE_CHANGE_PRE,
+			&lcd_drv->lcd_info->mode);
+#endif
+	}
+}
+
+void lcd_vout_notify_mode_change(void)
+{
+	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
+
+	if (lcd_drv->viu_sel == 1) {
+		vout_notifier_call_chain(VOUT_EVENT_MODE_CHANGE,
+			&lcd_drv->lcd_info->mode);
+	} else if (lcd_drv->viu_sel == 2) {
+#ifdef CONFIG_AMLOGIC_VOUT2_SERVE
+		vout2_notifier_call_chain(VOUT_EVENT_MODE_CHANGE,
+			&lcd_drv->lcd_info->mode);
+#endif
+	}
+}

@@ -238,6 +238,27 @@
 		fr_auto_policy = <0>;
 	};
 
+	vout2 {
+		compatible = "amlogic, vout2";
+		dev_name = "vout";
+		status = "disabled";
+		clocks = <&clkc CLKID_VPU_CLKC_P0_COMP>,
+			<&clkc CLKID_VPU_CLKC_MUX>;
+		clock-names = "vpu_clkc0",
+			"vpu_clkc";
+	};
+
+	dummy_lcd {
+		compatible = "amlogic, dummy_lcd";
+		status = "disabled";
+		clocks = <&clkc CLKID_VCLK2_ENCP
+			&clkc CLKID_VCLK2_VENCP0
+			&clkc CLKID_VCLK2_VENCP1>;
+		clock-names = "encp_top_gate",
+			"encp_int_gate0",
+			"encp_int_gate1";
+	};
+
 	/* Audio Related start */
 	pdm_codec:dummy {
 		#sound-dai-cells = <0>;

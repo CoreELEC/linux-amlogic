@@ -464,8 +464,7 @@ static int lcd_framerate_automation_set_mode(void)
 	if (lcd_drv->lcd_config->lcd_basic.lcd_type == LCD_VBYONE)
 		lcd_vbyone_wait_stable();
 
-	vout_notifier_call_chain(VOUT_EVENT_MODE_CHANGE,
-		&lcd_drv->lcd_info->mode);
+	lcd_vout_notify_mode_change();
 
 	return 0;
 }
@@ -1493,8 +1492,8 @@ static void lcd_set_vinfo(unsigned int sync_duration)
 
 	LCDPR("%s: sync_duration=%d\n", __func__, sync_duration);
 
-	vout_notifier_call_chain(VOUT_EVENT_MODE_CHANGE_PRE,
-		&lcd_drv->lcd_info->mode);
+	lcd_vout_notify_mode_change_pre();
+
 	/* update vinfo */
 	lcd_drv->lcd_info->sync_duration_num = sync_duration;
 	lcd_drv->lcd_info->sync_duration_den = 100;
@@ -1514,8 +1513,7 @@ static void lcd_set_vinfo(unsigned int sync_duration)
 	if (lcd_drv->lcd_config->lcd_basic.lcd_type == LCD_VBYONE)
 		lcd_vbyone_wait_stable();
 
-	vout_notifier_call_chain(VOUT_EVENT_MODE_CHANGE,
-		&lcd_drv->lcd_info->mode);
+	lcd_vout_notify_mode_change();
 }
 
 static int lcd_frame_rate_adjust_notifier(struct notifier_block *nb,

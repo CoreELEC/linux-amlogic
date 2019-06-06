@@ -76,6 +76,8 @@ extern int lcd_vmode_change(struct lcd_config_s *pconf);
 extern void lcd_clk_change(struct lcd_config_s *pconf);
 extern void lcd_venc_change(struct lcd_config_s *pconf);
 extern void lcd_if_enable_retry(struct lcd_config_s *pconf);
+extern void lcd_vout_notify_mode_change_pre(void);
+extern void lcd_vout_notify_mode_change(void);
 
 /* lcd phy */
 extern void lcd_lvds_phy_set(struct lcd_config_s *pconf, int status);

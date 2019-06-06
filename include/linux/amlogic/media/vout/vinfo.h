@@ -23,7 +23,7 @@
 /* the MSB is represent vmode set by vmode_init */
 #define	VMODE_INIT_BIT_MASK	0x8000
 #define	VMODE_MODE_BIT_MASK	0xff
-#define VMODE_NULL_DISP_MAX	3
+#define VMODE_NULL_DISP_MAX	2
 
 enum vmode_e {
 	VMODE_HDMI = 0,

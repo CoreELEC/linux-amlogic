@@ -1539,8 +1539,7 @@ static void lcd_vinfo_update(void)
 		vinfo->htotal = pconf->lcd_basic.h_period;
 		vinfo->vtotal = pconf->lcd_basic.v_period;
 	}
-	vout_notifier_call_chain(VOUT_EVENT_MODE_CHANGE,
-		&lcd_drv->lcd_info->mode);
+	lcd_vout_notify_mode_change();
 }
 
 static void lcd_debug_config_update(void)
@@ -1558,8 +1557,8 @@ static void lcd_debug_clk_change(unsigned int pclk)
 	struct lcd_config_s *pconf;
 	unsigned int sync_duration;
 
-	vout_notifier_call_chain(VOUT_EVENT_MODE_CHANGE_PRE,
-		&lcd_drv->lcd_info->mode);
+	lcd_vout_notify_mode_change_pre();
+
 	pconf = lcd_drv->lcd_config;
 	sync_duration = pclk / pconf->lcd_basic.h_period;
 	sync_duration = sync_duration * 100 / pconf->lcd_basic.v_period;
@@ -1589,8 +1588,7 @@ static void lcd_debug_clk_change(unsigned int pclk)
 		break;
 	}
 
-	vout_notifier_call_chain(VOUT_EVENT_MODE_CHANGE,
-		&lcd_drv->lcd_info->mode);
+	lcd_vout_notify_mode_change();
 }
 
 static void lcd_power_interface_ctrl(int state)
