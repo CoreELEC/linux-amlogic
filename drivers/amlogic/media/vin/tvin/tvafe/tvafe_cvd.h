@@ -117,6 +117,11 @@ struct tvafe_cvd2_lines_s {
 };
 #endif
 
+#define CVD2_AUTO_HS_DEFAULT    28
+#define CVD2_AUTO_HS_UNSTABLE   29
+#define CVD2_AUTO_HS_ADJ_DIR    30
+#define CVD2_AUTO_HS_ADJ_EN     31
+
 /* cvd2 signal information */
 struct tvafe_cvd2_info_s {
 	enum tvafe_cvd2_state_e state;
@@ -133,7 +138,13 @@ struct tvafe_cvd2_info_s {
 #endif
 	unsigned int comb_check_cnt;
 	unsigned int fmt_shift_cnt;
+	unsigned short nonstd_cnt;
+	unsigned short nonstd_stable_cnt;
+	unsigned short nonstd_print_cnt;
+	bool nonstd_flag;
+	bool nonstd_flag_adv;
 	bool non_std_enable;
+	bool non_std_enable_tmp;
 	bool non_std_config;
 	bool non_std_worst;
 	bool adc_reload_en;
@@ -141,11 +152,15 @@ struct tvafe_cvd2_info_s {
 	bool vs_adj_en;
 	/*0:+;1:-*/
 	bool hs_adj_dir;
+	unsigned int auto_hs_flag;
 
 #ifdef TVAFE_CVD2_AUTO_DE_ENABLE
 	struct tvafe_cvd2_lines_s vlines;
 #endif
 	unsigned int ntsc_switch_cnt;
+
+	unsigned int smr_cnt;
+	unsigned int isr_cnt;
 };
 
 /* CVD2 status list */
@@ -201,10 +216,10 @@ extern void tvafe_snow_config_clamp(unsigned int onoff);
 extern void tvafe_snow_config_acd(void);
 extern void tvafe_snow_config_acd_resume(void);
 extern enum tvin_aspect_ratio_e tvafe_cvd2_get_wss(void);
-extern void tvafe_cvd2_get_signal_status(struct tvafe_cvd2_s *cvd2);
 extern void cvd_vbi_mem_set(unsigned int offset, unsigned int size);
 extern void cvd_vbi_config(void);
 extern void tvafe_cvd2_rf_ntsc50_en(bool v);
+extern void tvafe_cvd2_non_std_config(struct tvafe_cvd2_s *cvd2);
 
 extern bool tvafe_snow_function_flag;
 

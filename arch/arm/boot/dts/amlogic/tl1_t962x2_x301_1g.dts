@@ -631,6 +631,19 @@
 
 		cutwindow_val_h = <0 10 18 20 62>; /* level 0~4 */
 		cutwindow_val_v = <4  8 14 16 24>;  /* level 0~4 */
+		/* auto_adj_en:
+		 * bit0 -- auto cdto
+		 * bit1 -- auto hs
+		 * bit2 -- auto vs
+		 * bit3 -- auto de
+		 * bit4 -- auto 3dcomb
+		 * bit5 -- auto pga
+		 */
+		auto_adj_en = <0x3e>;
+		/* val: default=0, 0x1, 0xf1, 0xe1, 0x11 for special tuner
+		 * force_flag: force setting to std mode, default=0
+		 */
+		nostd_vs_th = <0 0>; /* val, force_flag */
 	};
 
 	vbi {

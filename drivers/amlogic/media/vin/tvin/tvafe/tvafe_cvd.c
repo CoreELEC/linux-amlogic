@@ -115,11 +115,7 @@ static int scene_colorful_old;
 static int auto_de_en = 1;
 static int lock_cnt;
 static unsigned int cvd_reg8a = 0xa;
-static int auto_vs_en = 1;
 static bool ntsc50_en;
-
-module_param(auto_vs_en, int, 0664);
-MODULE_PARM_DESC(auto_vs_en, "auto_vs_en\n");
 
 module_param(auto_de_en, int, 0664);
 MODULE_PARM_DESC(auto_de_en, "auto_de_en\n");
@@ -134,14 +130,6 @@ MODULE_PARM_DESC(cdto_adj_th, "cvd2_adj_diff_threshold");
 static int cdto_adj_step = TVAFE_CVD2_CDTO_ADJ_STEP;
 module_param(cdto_adj_step, int, 0664);
 MODULE_PARM_DESC(cdto_adj_step, "cvd2_adj_step");
-
-static bool cvd_dbg_en;
-module_param(cvd_dbg_en, bool, 0664);
-MODULE_PARM_DESC(cvd_dbg_en, "cvd2 debug enable");
-
-static bool cvd_nonstd_dbg_en;
-module_param(cvd_nonstd_dbg_en, bool, 0664);
-MODULE_PARM_DESC(cvd_nonstd_dbg_en, "cvd2 nonstd debug enable");
 
 static int cvd2_shift_cnt = TVAFE_CVD2_SHIFT_CNT;
 module_param(cvd2_shift_cnt, int, 0664);
@@ -222,8 +210,6 @@ static bool cvd_pr1_chroma_flag;
 static bool cvd_pr2_chroma_flag;
 
 /* zhuangwei, nonstd experiment */
-static short nonstd_cnt;
-static short nonstd_flag;
 static unsigned int chroma_sum_pre1;
 static unsigned int chroma_sum_pre2;
 static unsigned int chroma_sum_pre3;
@@ -232,7 +218,7 @@ static unsigned int noise1;
 static unsigned int noise2;
 static unsigned int noise3;
 /* test */
-static short print_cnt;
+#define NOSTD_DEBUG_PRINT_CNT     100
 
 unsigned int vbi_mem_start;
 
@@ -259,7 +245,7 @@ void cvd_vbi_config(void)
 	W_APB_BIT(CVD2_VBI_CONTROL, 1, 0, 1);
 	W_APB_REG(CVD2_VSYNC_VBI_LOCKOUT_START, 0x00000000);
 	W_APB_REG(CVD2_VSYNC_VBI_LOCKOUT_END, 0x00000025);
-	if (cvd_dbg_en)
+	if (tvafe_dbg_print & TVAFE_DBG_SMR)
 		tvafe_pr_info("cvd_vbi_config\n");
 }
 
@@ -277,7 +263,7 @@ static void tvafe_cvd2_memory_init(struct tvafe_cvd2_mem_s *mem,
 
 	if ((mem->start == 0) || (mem->size == 0)) {
 
-		if (cvd_dbg_en)
+		if (tvafe_dbg_print & TVAFE_DBG_SMR)
 			tvafe_pr_info("%s: cvd2 memory size error!!!\n",
 			__func__);
 		return;
@@ -360,7 +346,7 @@ static void tvafe_cvd2_filter_config(void)
 		W_APB_REG(ACD_REG_96, 0x0);
 		break;
 	}
-	if (cvd_dbg_en)
+	if (tvafe_dbg_print & TVAFE_DBG_SMR)
 		tvafe_pr_info("%s cvd2 filter config level %d.\n",
 				__func__, CVD2_FILTER_CONFIG_LEVEL);
 
@@ -372,6 +358,7 @@ static void tvafe_cvd2_filter_config(void)
 static void tvafe_cvd2_write_mode_reg(struct tvafe_cvd2_s *cvd2,
 		struct tvafe_cvd2_mem_s *mem)
 {
+	struct tvafe_user_param_s *user_param = tvafe_get_user_param();
 	unsigned int i = 0;
 
 	/*disable vbi*/
@@ -445,7 +432,7 @@ static void tvafe_cvd2_write_mode_reg(struct tvafe_cvd2_s *cvd2,
 	}
 
 	if ((cvd2->vd_port == TVIN_PORT_CVBS1) ||
-		(cvd2->vd_port == TVIN_PORT_CVBS2)) {
+		(cvd2->vd_port == TVIN_PORT_CVBS2)) { /* avin */
 		if (cvd2->config_fmt == TVIN_SIG_FMT_CVBS_NTSC_M) {
 			W_APB_REG(CVD2_VSYNC_SIGNAL_THRESHOLD, 0x7d);
 			if (tvafe_cpu_type() == CPU_TYPE_TL1) {
@@ -462,6 +449,13 @@ static void tvafe_cvd2_write_mode_reg(struct tvafe_cvd2_s *cvd2,
 				W_APB_REG(ACD_REG_8B, 0x100000);
 				W_APB_REG(ACD_REG_8C, 0x38000);
 			}
+		}
+	} else if ((cvd2->vd_port == TVIN_PORT_CVBS3) ||
+			(cvd2->vd_port == TVIN_PORT_CVBS0)) { /* atv */
+		if (cvd2->config_fmt == TVIN_SIG_FMT_CVBS_PAL_I) {
+			if (user_param->force_vs_th_flag)
+				W_APB_BIT(CVD2_VSYNC_SIGNAL_THRESHOLD,
+					user_param->nostd_vs_th, 0, 8);
 		}
 	}
 
@@ -586,9 +580,9 @@ static void tvafe_cvd2_write_mode_reg(struct tvafe_cvd2_s *cvd2,
 /*
  * tvafe cvd2 configure Reg for non-standard signal
  */
-static void tvafe_cvd2_non_std_config(struct tvafe_cvd2_s *cvd2)
+void tvafe_cvd2_non_std_config(struct tvafe_cvd2_s *cvd2)
 {
-	static unsigned int time_non_count = 50;
+	struct tvafe_user_param_s *user_param = tvafe_get_user_param();
 	unsigned int noise_read = 0;
 	unsigned int noise_strenth = 0;
 
@@ -598,26 +592,27 @@ static void tvafe_cvd2_non_std_config(struct tvafe_cvd2_s *cvd2)
 	noise1 = noise_read;
 	noise_strenth = (noise1+(noise2<<1)+noise3)>>2;
 
-	if (time_non_count) {
-		time_non_count--;
-		return;
-	}
-	time_non_count = 200;
 	if (force_nostd == 3)
 		return;
-	if (cvd_nonstd_dbg_en) {
-		tvafe_pr_info("%s: force_nostd=%d, non_std_config=%d, non_std_enable=%d\n",
+
+	if (cvd2->info.nonstd_print_cnt == 0) {
+		if (tvafe_dbg_print & TVAFE_DBG_NOSTD2) {
+			tvafe_pr_info("%s: force_nostd=%d, non_std_config=%d, non_std_enable=%d\n",
 			__func__, force_nostd,
 			cvd2->info.non_std_config,
 			cvd2->info.non_std_enable);
+		}
 	}
+	if (cvd2->info.nonstd_print_cnt++ >= NOSTD_DEBUG_PRINT_CNT)
+		cvd2->info.nonstd_print_cnt = 0;
+
 	if ((cvd2->info.non_std_config == cvd2->info.non_std_enable) &&
 		(force_nostd == 2))
 		return;
 	cvd2->info.non_std_config = cvd2->info.non_std_enable;
-	if (cvd2->info.non_std_config && (!(force_nostd&0x1))) {
+	if (cvd2->info.non_std_config && (force_nostd != 0x1)) {
 
-		if (cvd_nonstd_dbg_en) {
+		if (tvafe_dbg_print & TVAFE_DBG_NOSTD) {
 			tvafe_pr_info("%s: config non-std signal reg, noise_strenth=%d\n",
 				__func__, noise_strenth);
 		}
@@ -669,8 +664,8 @@ static void tvafe_cvd2_non_std_config(struct tvafe_cvd2_s *cvd2)
 
 			/*config 0 for tuner R840/mxl661*/
 			/*si2151 si2159 r842 may need set 1*/
-			W_APB_BIT(CVD2_VSYNC_SIGNAL_THRESHOLD, 0,
-				VS_SIGNAL_AUTO_TH_BIT, VS_SIGNAL_AUTO_TH_WID);
+			W_APB_BIT(CVD2_VSYNC_SIGNAL_THRESHOLD,
+				user_param->nostd_vs_th, 0, 8);
 
 			/* vsync signal is not good */
 			W_APB_REG(CVD2_NOISE_THRESHOLD, 0x00);
@@ -688,9 +683,8 @@ static void tvafe_cvd2_non_std_config(struct tvafe_cvd2_s *cvd2)
 #endif
 
 	} else {
-		if (cvd_nonstd_dbg_en)
-			tvafe_pr_info("%s: out of non-std signal.\n",
-				__func__);
+		if (tvafe_dbg_print & TVAFE_DBG_NOSTD)
+			tvafe_pr_info("%s: out of non-std signal.\n", __func__);
 		W_APB_REG(CVD2_HSYNC_RISING_EDGE_START, 0x6d);
 		/*bit 15 dis/enabled by avin detect*/
 		W_APB_BIT(TVFE_CLAMP_INTF, 0x666, 0, 12);
@@ -707,7 +701,7 @@ static void tvafe_cvd2_non_std_config(struct tvafe_cvd2_s *cvd2)
 
 				W_APB_REG(CVD2_VSYNC_SIGNAL_THRESHOLD, 0xf0);
 				W_APB_REG(CVD2_VSYNC_CNTL, 0x2);
-				if (cvd_nonstd_dbg_en)
+				if (tvafe_dbg_print & TVAFE_DBG_NOSTD)
 					tvafe_pr_info("%s: out of non-std signal.rssi=%d\n",
 					__func__, cvd_get_rf_strength());
 			}
@@ -717,7 +711,7 @@ static void tvafe_cvd2_non_std_config(struct tvafe_cvd2_s *cvd2)
 				SYNC_SENSITIVITY) {
 				W_APB_REG(CVD2_VSYNC_SIGNAL_THRESHOLD, 0xf0);
 				W_APB_REG(CVD2_VSYNC_CNTL, 0x2);
-				if (cvd_nonstd_dbg_en)
+				if (tvafe_dbg_print & TVAFE_DBG_NOSTD)
 					tvafe_pr_info("%s: use the cvd register to judge the rssi.rssi=%u\n",
 				__func__, R_APB_REG(CVD2_SYNC_NOISE_STATUS));
 			}
@@ -792,44 +786,43 @@ static void tvafe_cvd2_set_cdto(unsigned int cdto)
 void tvafe_cvd2_set_default_cdto(struct tvafe_cvd2_s *cvd2)
 {
 	if (!cvd2) {
-
 		tvafe_pr_info("%s cvd2 null error.\n", __func__);
 		return;
 	}
-		switch (cvd2->config_fmt) {
 
-		case TVIN_SIG_FMT_CVBS_NTSC_M:
-			if (tvafe_cvd2_get_cdto() != CVD2_CHROMA_DTO_NTSC_M)
-				tvafe_cvd2_set_cdto(CVD2_CHROMA_DTO_NTSC_M);
-			break;
-		case TVIN_SIG_FMT_CVBS_NTSC_443:
-			if (tvafe_cvd2_get_cdto() != CVD2_CHROMA_DTO_NTSC_443)
-				tvafe_cvd2_set_cdto(CVD2_CHROMA_DTO_NTSC_443);
-			break;
-		case TVIN_SIG_FMT_CVBS_PAL_I:
-			if (tvafe_cvd2_get_cdto() != CVD2_CHROMA_DTO_PAL_I)
-				tvafe_cvd2_set_cdto(CVD2_CHROMA_DTO_PAL_I);
-			break;
-		case TVIN_SIG_FMT_CVBS_PAL_M:
-			if (tvafe_cvd2_get_cdto() != CVD2_CHROMA_DTO_PAL_M)
-				tvafe_cvd2_set_cdto(CVD2_CHROMA_DTO_PAL_M);
-			break;
-		case TVIN_SIG_FMT_CVBS_PAL_60:
-			if (tvafe_cvd2_get_cdto() != CVD2_CHROMA_DTO_PAL_60)
-				tvafe_cvd2_set_cdto(CVD2_CHROMA_DTO_PAL_60);
-			break;
-		case TVIN_SIG_FMT_CVBS_PAL_CN:
-			if (tvafe_cvd2_get_cdto() != CVD2_CHROMA_DTO_PAL_CN)
-				tvafe_cvd2_set_cdto(CVD2_CHROMA_DTO_PAL_CN);
-			break;
-		case TVIN_SIG_FMT_CVBS_SECAM:
-			if (tvafe_cvd2_get_cdto() != CVD2_CHROMA_DTO_SECAM)
-				tvafe_cvd2_set_cdto(CVD2_CHROMA_DTO_SECAM);
-			break;
-		default:
-			break;
+	switch (cvd2->config_fmt) {
+	case TVIN_SIG_FMT_CVBS_NTSC_M:
+		if (tvafe_cvd2_get_cdto() != CVD2_CHROMA_DTO_NTSC_M)
+			tvafe_cvd2_set_cdto(CVD2_CHROMA_DTO_NTSC_M);
+		break;
+	case TVIN_SIG_FMT_CVBS_NTSC_443:
+		if (tvafe_cvd2_get_cdto() != CVD2_CHROMA_DTO_NTSC_443)
+			tvafe_cvd2_set_cdto(CVD2_CHROMA_DTO_NTSC_443);
+		break;
+	case TVIN_SIG_FMT_CVBS_PAL_I:
+		if (tvafe_cvd2_get_cdto() != CVD2_CHROMA_DTO_PAL_I)
+			tvafe_cvd2_set_cdto(CVD2_CHROMA_DTO_PAL_I);
+		break;
+	case TVIN_SIG_FMT_CVBS_PAL_M:
+		if (tvafe_cvd2_get_cdto() != CVD2_CHROMA_DTO_PAL_M)
+			tvafe_cvd2_set_cdto(CVD2_CHROMA_DTO_PAL_M);
+		break;
+	case TVIN_SIG_FMT_CVBS_PAL_60:
+		if (tvafe_cvd2_get_cdto() != CVD2_CHROMA_DTO_PAL_60)
+			tvafe_cvd2_set_cdto(CVD2_CHROMA_DTO_PAL_60);
+		break;
+	case TVIN_SIG_FMT_CVBS_PAL_CN:
+		if (tvafe_cvd2_get_cdto() != CVD2_CHROMA_DTO_PAL_CN)
+			tvafe_cvd2_set_cdto(CVD2_CHROMA_DTO_PAL_CN);
+		break;
+	case TVIN_SIG_FMT_CVBS_SECAM:
+		if (tvafe_cvd2_get_cdto() != CVD2_CHROMA_DTO_SECAM)
+			tvafe_cvd2_set_cdto(CVD2_CHROMA_DTO_SECAM);
+		break;
+	default:
+		break;
 	}
-	if (cvd_dbg_en)
+	if (tvafe_dbg_print & TVAFE_DBG_ISR)
 		tvafe_pr_info("%s set cdto to default fmt %s.\n",
 				__func__, tvin_sig_fmt_str(cvd2->config_fmt));
 }
@@ -845,7 +838,7 @@ inline void tvafe_cvd2_try_format(struct tvafe_cvd2_s *cvd2,
 	if ((fmt < TVIN_SIG_FMT_CVBS_NTSC_M) ||
 		(fmt > TVIN_SIG_FMT_CVBS_NTSC_50)) {
 
-		if (cvd_dbg_en)
+		if (tvafe_dbg_print & TVAFE_DBG_SMR)
 			tvafe_pr_err("%s: cvd2 try format error!!!\n",
 			__func__);
 		return;
@@ -865,7 +858,7 @@ inline void tvafe_cvd2_try_format(struct tvafe_cvd2_s *cvd2,
 /*
  * tvafe cvd2 get signal status from Reg
  */
-void tvafe_cvd2_get_signal_status(struct tvafe_cvd2_s *cvd2)
+static void tvafe_cvd2_get_signal_status(struct tvafe_cvd2_s *cvd2)
 {
 	int data = 0;
 
@@ -946,7 +939,7 @@ void tvafe_cvd2_get_signal_status(struct tvafe_cvd2_s *cvd2)
 		!cvd2->hw_data[2].secam_detected)
 		cvd2->hw.secam_detected = false;
 
-	if (cnt_dbg_en & 1)
+	if (tvafe_dbg_print & TVAFE_DBG_SMR2)
 		tvafe_pr_info("acc4xx_cnt=%d,acc425_cnt=%d,acc3xx_cnt=%d,acc358_cnt=%d\n",
 			cvd2->hw.acc4xx_cnt, cvd2->hw.acc425_cnt,
 			cvd2->hw.acc3xx_cnt, cvd2->hw.acc358_cnt);
@@ -979,7 +972,7 @@ void tvafe_cvd2_get_signal_status(struct tvafe_cvd2_s *cvd2)
 	}
 	if (++ cvd2->hw_data_cur >= 3)
 		cvd2->hw_data_cur = 0;
-	if (cnt_dbg_en & 2)
+	if (tvafe_dbg_print & TVAFE_DBG_SMR2)
 		tvafe_pr_info("[%d]:hw.fsc_358=%d,hw.fsc_425=%d,hw.fsc_443 =%d\n",
 		__LINE__, cvd2->hw.fsc_358,
 		cvd2->hw.fsc_425, cvd2->hw.fsc_443);
@@ -1192,14 +1185,13 @@ EXPORT_SYMBOL(tvafe_cvd2_get_hv_lock);
 /*
  * tvafe cvd2 non-standard signal detection
  */
-static void tvafe_cvd2_non_std_signal_det(
-				struct tvafe_cvd2_s *cvd2)
+static void tvafe_cvd2_non_std_signal_det(struct tvafe_cvd2_s *cvd2)
 {
+	struct tvafe_user_param_s *user_param = tvafe_get_user_param();
 	unsigned short dgain = 0;
 	unsigned long chroma_sum_filt_tmp = 0;
 	unsigned long chroma_sum_filt = 0;
 	unsigned long chroma_sum_in = 0;
-
 
 	chroma_sum_in = rd_bits(0, VDIN_HIST_CHROMA_SUM,
 				HIST_CHROMA_SUM_BIT,  HIST_CHROMA_SUM_WID);
@@ -1216,33 +1208,22 @@ static void tvafe_cvd2_non_std_signal_det(
 	else
 		scene_colorful = 0;
 
-	if (print_cnt == 0x50)
-		print_cnt = 0;
-	else
-		print_cnt = print_cnt + 1;
-
-	if (print_cnt == 0x28) {
-		if (cvd_nonstd_dbg_en)
-			tvafe_pr_info("%s: scene_colorful = %d, chroma_sum_filt = %ld\n",
-			__func__, scene_colorful, chroma_sum_filt);
-	}
-
 	if ((cvd2->hw.h_nonstd | (cvd2->hw.v_nonstd && scene_colorful)) &&
-		(nonstd_cnt < CVD2_NONSTD_CNT_INC_LIMIT)) {
+		(cvd2->info.nonstd_cnt < CVD2_NONSTD_CNT_INC_LIMIT)) {
 
-		nonstd_cnt = nonstd_cnt + CVD2_NONSTD_CNT_INC_STEP;
+		cvd2->info.nonstd_cnt += CVD2_NONSTD_CNT_INC_STEP;
 
 	} else if ((!cvd2->hw.h_nonstd) && (!cvd2->hw.v_nonstd) &&
-			(nonstd_cnt >= CVD2_NONSTD_CNT_DEC_LIMIT)) {
+			(cvd2->info.nonstd_cnt >= CVD2_NONSTD_CNT_DEC_LIMIT)) {
 
-		nonstd_cnt = nonstd_cnt - CVD2_NONSTD_CNT_DEC_STEP;
+		cvd2->info.nonstd_cnt -= CVD2_NONSTD_CNT_DEC_STEP;
 
 	}
 
-	if (nonstd_cnt <= CVD2_NONSTD_FLAG_OFF_TH)
-		nonstd_flag = 0;
-	else if (nonstd_cnt >= CVD2_NONSTD_FLAG_ON_TH)
-		nonstd_flag = 1;
+	if (cvd2->info.nonstd_cnt <= CVD2_NONSTD_FLAG_OFF_TH)
+		cvd2->info.nonstd_flag = 0;
+	else if (cvd2->info.nonstd_cnt >= CVD2_NONSTD_FLAG_ON_TH)
+		cvd2->info.nonstd_flag = 1;
 
 	if ((cvd2->config_fmt == TVIN_SIG_FMT_CVBS_PAL_I) && cvd2->hw.line625) {
 
@@ -1251,21 +1232,51 @@ static void tvafe_cvd2_non_std_signal_det(
 		dgain |= R_APB_BIT(CVD2_AGC_GAIN_STATUS_11_8,
 				AGC_GAIN_11_8_BIT, AGC_GAIN_11_8_WID)<<8;
 		if ((dgain >= TVAFE_CVD2_NONSTD_DGAIN_MAX) ||
-				cvd2->hw.h_nonstd || nonstd_flag){
+				cvd2->hw.h_nonstd || cvd2->info.nonstd_flag) {
 
-			cvd2->info.non_std_enable = 1;
+			cvd2->info.nonstd_flag_adv = 1;
 
 		} else {
 
-			cvd2->info.non_std_enable = 0;
+			cvd2->info.nonstd_flag_adv = 0;
 		}
 	}
 
-	if (print_cnt == 0x28) {
-		if (cvd_nonstd_dbg_en) {
-			tvafe_pr_info("%s: nonstd_cnt=%d, nonstd_flag=%d, dgain=0x%x, non_std_enable=%d\n",
-				__func__, nonstd_cnt, nonstd_flag, dgain,
+	if (cvd2->info.non_std_enable_tmp != cvd2->info.nonstd_flag_adv) {
+		cvd2->info.non_std_enable_tmp = cvd2->info.nonstd_flag_adv;
+		cvd2->info.nonstd_stable_cnt = 0;
+		if (tvafe_dbg_print & TVAFE_DBG_NOSTD) {
+			tvafe_pr_info("%s: scene_colorful = %d, chroma_sum_filt = %ld, hw_h_nonstd=%d, hw_v_nonstd=%d\n",
+				__func__, scene_colorful, chroma_sum_filt,
+				cvd2->hw.h_nonstd, cvd2->hw.v_nonstd);
+			tvafe_pr_info("%s: smr_cnt=%d, nonstd_cnt=%d, nonstd_flag=%d, dgain=0x%x, non_std_enable=%d\n",
+				__func__, cvd2->info.smr_cnt,
+				cvd2->info.nonstd_cnt,
+				cvd2->info.nonstd_flag, dgain,
 				cvd2->info.non_std_enable);
+		}
+	} else {
+		/* filter for nostd_stable_cnt*10ms */
+		if (cvd2->info.nonstd_stable_cnt <
+			user_param->nostd_stable_cnt) {
+			cvd2->info.nonstd_stable_cnt++;
+		} else if (cvd2->info.nonstd_stable_cnt ==
+			user_param->nostd_stable_cnt) {
+			cvd2->info.non_std_enable =
+				cvd2->info.non_std_enable_tmp;
+			cvd2->info.nonstd_stable_cnt++;
+			if (tvafe_dbg_print & TVAFE_DBG_NOSTD) {
+				tvafe_pr_info("%s: scene_colorful = %d, chroma_sum_filt = %ld, hw_h_nonstd=%d, hw_v_nonstd=%d\n",
+					__func__, scene_colorful,
+					chroma_sum_filt,
+					cvd2->hw.h_nonstd,
+					cvd2->hw.v_nonstd);
+				tvafe_pr_info("%s: smr_cnt=%d, nonstd_cnt=%d, nonstd_flag=%d, dgain=0x%x, non_std_enable=%d\n",
+					__func__, cvd2->info.smr_cnt,
+					cvd2->info.nonstd_cnt,
+					cvd2->info.nonstd_flag, dgain,
+					cvd2->info.non_std_enable);
+			}
 		}
 	}
 }
@@ -1301,68 +1312,60 @@ static bool tvafe_cvd2_condition_shift(struct tvafe_cvd2_s *cvd2)
 {
 	bool ret = false;
 
-	/* check non standard signal, ignore SECAM/525 mode */
-	if (!tvafe_cvd2_sig_unstable(cvd2))
-		tvafe_cvd2_non_std_signal_det(cvd2);
-
-	if (cvd2->manual_fmt)
-		return false;
-
 	if (tvafe_cvd2_sig_unstable(cvd2)) {
-
-		if (cvd_dbg_en)
+		if (tvafe_dbg_print & TVAFE_DBG_SMR)
 			tvafe_pr_info("%s: sig unstable, nosig:%d,h-lock:%d,v-lock:%d\n",
 			__func__,
 			cvd2->hw.no_sig, cvd2->hw.h_lock, cvd2->hw.v_lock);
 		return true;
 	}
 
+	/* check non standard signal, ignore SECAM/525 mode */
+	tvafe_cvd2_non_std_signal_det(cvd2);
+
+	if (cvd2->manual_fmt)
+		return false;
+
 	/* check line flag */
-		switch (cvd2->config_fmt) {
-
-		case TVIN_SIG_FMT_CVBS_PAL_I:
-		case TVIN_SIG_FMT_CVBS_PAL_CN:
-		case TVIN_SIG_FMT_CVBS_SECAM:
-		case TVIN_SIG_FMT_CVBS_NTSC_50:
-			if (!cvd2->hw.line625) {
-
-				ret = true;
-				cvd2->fmt_loop_cnt = 0;
-				if (cvd_dbg_en)
-					tvafe_pr_info("%s: reset fmt try cnt 525 line\n",
-					__func__);
-			}
-			break;
-		case TVIN_SIG_FMT_CVBS_PAL_M:
-		case TVIN_SIG_FMT_CVBS_NTSC_443:
-		case TVIN_SIG_FMT_CVBS_PAL_60:
-		case TVIN_SIG_FMT_CVBS_NTSC_M:
-			if (cvd2->hw.line625) {
-
-				ret = true;
-				cvd2->fmt_loop_cnt = 0;
-				if (cvd_dbg_en)
-					tvafe_pr_info("%s: reset fmt try cnt 625 line\n",
-					__func__);
-			}
-			break;
-		default:
-			break;
+	switch (cvd2->config_fmt) {
+	case TVIN_SIG_FMT_CVBS_PAL_I:
+	case TVIN_SIG_FMT_CVBS_PAL_CN:
+	case TVIN_SIG_FMT_CVBS_SECAM:
+	case TVIN_SIG_FMT_CVBS_NTSC_50:
+		if (!cvd2->hw.line625) {
+			ret = true;
+			cvd2->fmt_loop_cnt = 0;
+			if (tvafe_dbg_print & TVAFE_DBG_SMR)
+				tvafe_pr_info("%s: reset fmt try cnt 525 line\n",
+				__func__);
+		}
+		break;
+	case TVIN_SIG_FMT_CVBS_PAL_M:
+	case TVIN_SIG_FMT_CVBS_NTSC_443:
+	case TVIN_SIG_FMT_CVBS_PAL_60:
+	case TVIN_SIG_FMT_CVBS_NTSC_M:
+		if (cvd2->hw.line625) {
+			ret = true;
+			cvd2->fmt_loop_cnt = 0;
+			if (tvafe_dbg_print & TVAFE_DBG_SMR)
+				tvafe_pr_info("%s: reset fmt try cnt 625 line\n",
+				__func__);
+		}
+		break;
+	default:
+		break;
 	}
 	if (ret) {
-
-		if (cvd_dbg_en)
+		if (tvafe_dbg_print & TVAFE_DBG_SMR)
 			tvafe_pr_info("%s: line625 error!!!!\n", __func__);
 		return true;
 	}
-	if (cvd2->hw.no_color_burst) {
 
+	if (cvd2->hw.no_color_burst) {
 		/* for SECAM format, set PAL_I */
 		if (cvd2->config_fmt != TVIN_SIG_FMT_CVBS_SECAM) {
 			/* set default fmt */
-
-			if (!cvd_pr_flag && cvd_dbg_en) {
-
+			if (!cvd_pr_flag && (tvafe_dbg_print & TVAFE_DBG_SMR)) {
 				cvd_pr_flag = true;
 				tvafe_pr_info("%s: no-color-burst, do not change mode.\n",
 					__func__);
@@ -1373,9 +1376,7 @@ static bool tvafe_cvd2_condition_shift(struct tvafe_cvd2_s *cvd2)
 	/* ignore pal flag because of cdto adjustment */
 	if ((cvd2->info.non_std_worst || cvd2->hw.h_nonstd) &&
 			(cvd2->config_fmt == TVIN_SIG_FMT_CVBS_PAL_I)) {
-
-		if (!cvd_pr_flag && cvd_dbg_en) {
-
+		if (!cvd_pr_flag && (tvafe_dbg_print & TVAFE_DBG_SMR)) {
 			cvd_pr_flag = true;
 			tvafe_pr_info("%s: if adj cdto or h-nonstd, ignore mode change.\n",
 				__func__);
@@ -1388,14 +1389,11 @@ static bool tvafe_cvd2_condition_shift(struct tvafe_cvd2_s *cvd2)
 		(cvd2->config_fmt == TVIN_SIG_FMT_CVBS_NTSC_M)) {
 
 		if (cvd2->info.ntsc_switch_cnt++ >= NTSC_SW_MAXCNT)
-
 			cvd2->info.ntsc_switch_cnt = 0;
 
-
 		if (cvd2->info.ntsc_switch_cnt <= NTSC_SW_MIDCNT) {
-
 			if (R_APB_BIT(CVD2_CHROMA_DTO_INCREMENT_23_16,
-			CDTO_INC_23_16_BIT, CDTO_INC_23_16_WID) != 0x2e){
+			CDTO_INC_23_16_BIT, CDTO_INC_23_16_WID) != 0x2e) {
 
 				W_APB_BIT(CVD2_CHROMA_DTO_INCREMENT_23_16, 0x2e,
 					CDTO_INC_23_16_BIT, CDTO_INC_23_16_WID);
@@ -1410,8 +1408,8 @@ static bool tvafe_cvd2_condition_shift(struct tvafe_cvd2_s *cvd2)
 				W_APB_BIT(CVD2_PHASE_OFFSE_RANGE, 0x20,
 			PHASE_OFFSET_RANGE_BIT, PHASE_OFFSET_RANGE_WID);
 			}
-			if (!cvd_pr1_chroma_flag && cvd_dbg_en) {
-
+			if (!cvd_pr1_chroma_flag &&
+				(tvafe_dbg_print & TVAFE_DBG_SMR)) {
 				cvd_pr1_chroma_flag = true;
 				cvd_pr2_chroma_flag = false;
 				tvafe_pr_info("%s: change cdto to ntsc-m\n",
@@ -1422,7 +1420,7 @@ static bool tvafe_cvd2_condition_shift(struct tvafe_cvd2_s *cvd2)
 
 			if (R_APB_BIT(CVD2_CHROMA_DTO_INCREMENT_23_16,
 				CDTO_INC_23_16_BIT, CDTO_INC_23_16_WID) !=
-				0x23){
+				0x23) {
 
 				W_APB_BIT(CVD2_CHROMA_DTO_INCREMENT_23_16, 0x23,
 					CDTO_INC_23_16_BIT, CDTO_INC_23_16_WID);
@@ -1439,8 +1437,8 @@ static bool tvafe_cvd2_condition_shift(struct tvafe_cvd2_s *cvd2)
 					PHASE_OFFSET_RANGE_BIT,
 					PHASE_OFFSET_RANGE_WID);
 			}
-			if (!cvd_pr2_chroma_flag && cvd_dbg_en) {
-
+			if (!cvd_pr2_chroma_flag &&
+				(tvafe_dbg_print & TVAFE_DBG_SMR)) {
 				cvd_pr2_chroma_flag = true;
 				cvd_pr1_chroma_flag = false;
 				tvafe_pr_info("%s: change cdto to pal-m\n",
@@ -1451,67 +1449,62 @@ static bool tvafe_cvd2_condition_shift(struct tvafe_cvd2_s *cvd2)
 	if (((cvd2->vd_port == TVIN_PORT_CVBS3) ||
 		(cvd2->vd_port == TVIN_PORT_CVBS0)) &&
 		force_fmt_flag) {
-		if (cvd_dbg_en)
+		if (tvafe_dbg_print & TVAFE_DBG_SMR)
 			tvafe_pr_info("[%s]:ignore the pal/358/443 flag and return\n",
 			__func__);
 		return false;
 	}
 	if (ignore_pal_nt)
-
 		return false;
 
 	/* check pal/secam flag */
-		switch (cvd2->config_fmt) {
-
-		case TVIN_SIG_FMT_CVBS_PAL_I:
-		case TVIN_SIG_FMT_CVBS_PAL_CN:
-		case TVIN_SIG_FMT_CVBS_PAL_60:
-		case TVIN_SIG_FMT_CVBS_PAL_M:
-			if (!cvd2->hw.pal)
-				ret = true;
-			break;
-		case TVIN_SIG_FMT_CVBS_SECAM:
-			if (!cvd2->hw.secam || !cvd2->hw.secam_detected)
-				ret = true;
-			break;
-		case TVIN_SIG_FMT_CVBS_NTSC_443:
-		case TVIN_SIG_FMT_CVBS_NTSC_M:
-		case TVIN_SIG_FMT_CVBS_NTSC_50:
-			if (cvd2->hw.pal)
-				ret = true;
-			break;
-		default:
-			break;
+	switch (cvd2->config_fmt) {
+	case TVIN_SIG_FMT_CVBS_PAL_I:
+	case TVIN_SIG_FMT_CVBS_PAL_CN:
+	case TVIN_SIG_FMT_CVBS_PAL_60:
+	case TVIN_SIG_FMT_CVBS_PAL_M:
+		if (!cvd2->hw.pal)
+			ret = true;
+		break;
+	case TVIN_SIG_FMT_CVBS_SECAM:
+		if (!cvd2->hw.secam || !cvd2->hw.secam_detected)
+			ret = true;
+		break;
+	case TVIN_SIG_FMT_CVBS_NTSC_443:
+	case TVIN_SIG_FMT_CVBS_NTSC_M:
+	case TVIN_SIG_FMT_CVBS_NTSC_50:
+		if (cvd2->hw.pal)
+			ret = true;
+		break;
+	default:
+		break;
 	}
 	if (ignore_443_358) {
-
 		if (ret)
 			return true;
 		else
 			return false;
 	}
 	/*check 358/443*/
-		switch (cvd2->config_fmt) {
-
-		case TVIN_SIG_FMT_CVBS_PAL_CN:
-		case TVIN_SIG_FMT_CVBS_PAL_M:
-		case TVIN_SIG_FMT_CVBS_NTSC_M:
-		case TVIN_SIG_FMT_CVBS_NTSC_50:
-			if (!cvd2->hw.fsc_358 && cvd2->hw.fsc_443)
-				ret = true;
-			break;
-		case TVIN_SIG_FMT_CVBS_PAL_I:
-		case TVIN_SIG_FMT_CVBS_PAL_60:
-		case TVIN_SIG_FMT_CVBS_NTSC_443:
-			if (cvd2->hw.fsc_358 && !cvd2->hw.fsc_443)
-				ret = true;
-			break;
-		default:
-			break;
+	switch (cvd2->config_fmt) {
+	case TVIN_SIG_FMT_CVBS_PAL_CN:
+	case TVIN_SIG_FMT_CVBS_PAL_M:
+	case TVIN_SIG_FMT_CVBS_NTSC_M:
+	case TVIN_SIG_FMT_CVBS_NTSC_50:
+		if (!cvd2->hw.fsc_358 && cvd2->hw.fsc_443)
+			ret = true;
+		break;
+	case TVIN_SIG_FMT_CVBS_PAL_I:
+	case TVIN_SIG_FMT_CVBS_PAL_60:
+	case TVIN_SIG_FMT_CVBS_NTSC_443:
+		if (cvd2->hw.fsc_358 && !cvd2->hw.fsc_443)
+			ret = true;
+		break;
+	default:
+		break;
 	}
 	if (ret) {
-
-		if (cvd_dbg_en)
+		if (tvafe_dbg_print & TVAFE_DBG_SMR)
 			tvafe_pr_info("%s: pal is %d,secam flag is %d, changed.\n",
 			__func__, cvd2->hw.pal, cvd2->hw.secam);
 		return true;
@@ -1554,19 +1547,20 @@ static void cvd_force_config_fmt(struct tvafe_cvd2_s *cvd2,
 
 }
 
-
-
 /*
- * tvafe cvd2 search video format function
+ * tvafe cvd2 search video format function: cvd2 state machine
  */
 
 static void tvafe_cvd2_search_video_mode(struct tvafe_cvd2_s *cvd2,
 			struct tvafe_cvd2_mem_s *mem)
 {
 	unsigned int shift_cnt = 0;
+
 	/* execute manual mode */
 	if ((cvd2->manual_fmt) && (cvd2->config_fmt != cvd2->manual_fmt) &&
 		(cvd2->config_fmt != TVIN_SIG_FMT_NULL)) {
+		tvafe_pr_info("%s: manual_fmt:%s\n",
+				__func__, tvin_sig_fmt_str(cvd2->manual_fmt));
 		tvafe_cvd2_try_format(cvd2, mem, cvd2->manual_fmt);
 	}
 	/* state-machine */
@@ -1574,15 +1568,16 @@ static void tvafe_cvd2_search_video_mode(struct tvafe_cvd2_s *cvd2,
 		/* wait for signal setup */
 		if (tvafe_cvd2_sig_unstable(cvd2)) {
 			cvd2->info.state_cnt = 0;
-			if (!cvd_pr_flag && cvd_dbg_en) {
+			if (!cvd_pr_flag && (tvafe_dbg_print & TVAFE_DBG_SMR)) {
 				cvd_pr_flag = true;
 				tvafe_pr_info("%s: sig unstable,nosig:%d,h-lock:%d,v-lock:%d.\n",
 				__func__, cvd2->hw.no_sig, cvd2->hw.h_lock,
 				cvd2->hw.v_lock);
 			}
+			return;
 		}
 		/* wait for signal stable */
-		else if (++cvd2->info.state_cnt <= FMT_WAIT_CNT)
+		if (++cvd2->info.state_cnt <= FMT_WAIT_CNT)
 			return;
 		force_fmt_flag = 0;
 		cvd_pr_flag = false;
@@ -1592,13 +1587,13 @@ static void tvafe_cvd2_search_video_mode(struct tvafe_cvd2_s *cvd2,
 		if (cvd2->manual_fmt) {
 			try_format_cnt = 0;
 			cvd2->info.state = TVAFE_CVD2_STATE_FIND;
-			if (cvd_dbg_en)
+			if (tvafe_dbg_print & TVAFE_DBG_SMR)
 				tvafe_pr_info("%s: manual fmt is:%s,do not need try other format!!!\n",
 				__func__, tvin_sig_fmt_str(cvd2->manual_fmt));
 			return;
 		}
 		/* auto mode */
-		if (cvd_dbg_en)
+		if (tvafe_dbg_print & TVAFE_DBG_SMR)
 			tvafe_pr_info("%s: switch to fmt:%s,hnon:%d,vnon:%d,c-lk:%d,pal:%d,secam:%d,h-lk:%d,v-lk:%d,fsc358:%d,fsc425:%d,fsc443:%d,secam detected %d,line625:%d\n",
 			__func__, tvin_sig_fmt_str(cvd2->config_fmt),
 			cvd2->hw.h_nonstd, cvd2->hw.v_nonstd,
@@ -1607,7 +1602,7 @@ static void tvafe_cvd2_search_video_mode(struct tvafe_cvd2_s *cvd2,
 			cvd2->hw.v_lock, cvd2->hw.fsc_358,
 			cvd2->hw.fsc_425, cvd2->hw.fsc_443,
 			cvd2->hw.secam_detected, cvd2->hw.line625);
-		if (cvd_dbg_en)
+		if (tvafe_dbg_print & TVAFE_DBG_SMR)
 			tvafe_pr_info("acc4xx_cnt = %d,acc425_cnt = %d,acc3xx_cnt = %d,acc358_cnt = %d secam_detected:%d\n",
 			cvd2->hw_data[cvd2->hw_data_cur].acc4xx_cnt,
 			cvd2->hw_data[cvd2->hw_data_cur].acc425_cnt,
@@ -1645,14 +1640,14 @@ static void tvafe_cvd2_search_video_mode(struct tvafe_cvd2_s *cvd2,
 				}
 			} else {
 				/* 525 lines */
-				if (cvd_dbg_en)
+				if (tvafe_dbg_print & TVAFE_DBG_SMR)
 					tvafe_pr_info("%s dismatch pal_i line625 %d!!!and the  fsc358 %d,pal %d,fsc_443:%d",
 					__func__, cvd2->hw.line625,
 					cvd2->hw.fsc_358, cvd2->hw.pal,
 					cvd2->hw.fsc_443);
 				tvafe_cvd2_try_format(cvd2, mem,
 				TVIN_SIG_FMT_CVBS_PAL_M);
-				if (cvd_dbg_en)
+				if (tvafe_dbg_print & TVAFE_DBG_SMR)
 					tvafe_pr_info("%sdismatch pal_i and after try other format: line625 %d!!!and the  fsc358 %d,pal %d,fsc_443:%d",
 					__func__, cvd2->hw.line625,
 					cvd2->hw.fsc_358,
@@ -1675,7 +1670,7 @@ static void tvafe_cvd2_search_video_mode(struct tvafe_cvd2_s *cvd2,
 				tvafe_cvd2_try_format(cvd2, mem,
 					TVIN_SIG_FMT_CVBS_NTSC_50);
 			else {
-				if (cvd_dbg_en)
+				if (tvafe_dbg_print & TVAFE_DBG_SMR)
 					tvafe_pr_info("%s dismatch pal_cn line625 %d, fsc358 %d,pal %d",
 					__func__, cvd2->hw.line625,
 					cvd2->hw.fsc_358, cvd2->hw.pal);
@@ -1726,7 +1721,7 @@ static void tvafe_cvd2_search_video_mode(struct tvafe_cvd2_s *cvd2,
 				/*confirm SECAM */
 				cvd2->info.state = TVAFE_CVD2_STATE_FIND;
 			} else {
-			if (cvd_dbg_en)
+			if (tvafe_dbg_print & TVAFE_DBG_SMR)
 				tvafe_pr_info("%s dismatch secam line625 %d, secam_detected %d",
 				__func__, cvd2->hw.line625,
 				cvd2->hw.secam_detected);
@@ -1750,7 +1745,7 @@ static void tvafe_cvd2_search_video_mode(struct tvafe_cvd2_s *cvd2,
 				/* => confirm PAL_M */
 				cvd2->info.state = TVAFE_CVD2_STATE_FIND;
 			} else {
-			if (cvd_dbg_en)
+			if (tvafe_dbg_print & TVAFE_DBG_SMR)
 				tvafe_pr_info("%s dismatch pal m line625 %d, fsc358 %d,pal %d",
 				__func__, cvd2->hw.line625,
 				cvd2->hw.fsc_358, cvd2->hw.pal);
@@ -1782,7 +1777,7 @@ static void tvafe_cvd2_search_video_mode(struct tvafe_cvd2_s *cvd2,
 				/*confirm NTSC_M */
 				cvd2->info.state = TVAFE_CVD2_STATE_FIND;
 			} else {
-				if (cvd_dbg_en)
+				if (tvafe_dbg_print & TVAFE_DBG_SMR)
 					tvafe_pr_info("%s dismatch ntsc m line625 %d, fsc358 %d,pal %d",
 					__func__, cvd2->hw.line625,
 					cvd2->hw.fsc_358, cvd2->hw.pal);
@@ -1798,7 +1793,7 @@ static void tvafe_cvd2_search_video_mode(struct tvafe_cvd2_s *cvd2,
 				cvd2->info.state = TVAFE_CVD2_STATE_FIND;
 			else{
 				/* set default to pal i */
-				if (cvd_dbg_en)
+				if (tvafe_dbg_print & TVAFE_DBG_SMR)
 					tvafe_pr_info("%s dismatch pal 60 line625 %d, fsc443 %d,pal %d",
 					__func__, cvd2->hw.line625,
 					cvd2->hw.fsc_443, cvd2->hw.pal);
@@ -1815,7 +1810,7 @@ static void tvafe_cvd2_search_video_mode(struct tvafe_cvd2_s *cvd2,
 				TVAFE_CVD2_STATE_FIND;
 			else{
 				/* set default to pal i */
-				if (cvd_dbg_en)
+				if (tvafe_dbg_print & TVAFE_DBG_SMR)
 					tvafe_pr_info("%s dismatch NTSC_443 line625 %d, fsc443 %d,pal %d",
 					__func__, cvd2->hw.line625,
 					cvd2->hw.fsc_443, cvd2->hw.pal);
@@ -1836,16 +1831,17 @@ static void tvafe_cvd2_search_video_mode(struct tvafe_cvd2_s *cvd2,
 		default:
 			break;
 		}
-		if (cvd_dbg_en)
+		if (tvafe_dbg_print & TVAFE_DBG_SMR)
 			tvafe_pr_info("%s: current fmt is:%s\n",
 			__func__, tvin_sig_fmt_str(cvd2->config_fmt));
 	} else if (cvd2->info.state == TVAFE_CVD2_STATE_FIND) {
 		/* manual mode => go directly to the manual format */
 		try_format_cnt = 0;
 		if (tvafe_cvd2_condition_shift(cvd2)) {
-			shift_cnt = cvd2_shift_cnt;
 			if (cvd2->info.non_std_enable)
 				shift_cnt = cvd2_shift_cnt*10;
+			else
+				shift_cnt = cvd2_shift_cnt;
 			/* if no color burst,*/
 			/*pal flag can not be trusted */
 			if (cvd2->info.fmt_shift_cnt++ > shift_cnt) {
@@ -1855,6 +1851,10 @@ static void tvafe_cvd2_search_video_mode(struct tvafe_cvd2_s *cvd2,
 				cvd2->info.ntsc_switch_cnt = 0;
 				try_format_cnt = 0;
 				cvd_pr_flag = false;
+				if (tvafe_dbg_print & TVAFE_DBG_SMR) {
+					tvafe_pr_info("%s: fmt_shift try_format\n",
+					__func__);
+				}
 			}
 		}
 		/* non-standard signal config */
@@ -1866,11 +1866,16 @@ static void tvafe_cvd2_search_video_mode(struct tvafe_cvd2_s *cvd2,
 #ifdef TVAFE_CVD2_AUTO_DE_ENABLE
 static void tvafe_cvd2_auto_de(struct tvafe_cvd2_s *cvd2)
 {
+	struct tvafe_user_param_s *user_param = tvafe_get_user_param();
 	struct tvafe_cvd2_lines_s *lines = &cvd2->info.vlines;
 	unsigned int i = 0, l_ave = 0, l_max = 0, l_min = 0xff, tmp = 0;
 
+	if ((user_param->auto_adj_en & TVAFE_AUTO_DE) == 0)
+		return;
+
 	if (!cvd2->hw.line625 || (cvd2->config_fmt != TVIN_SIG_FMT_CVBS_PAL_I))
 		return;
+
 	lines->val[0] = lines->val[1];
 	lines->val[1] = lines->val[2];
 	lines->val[2] = lines->val[3];
@@ -1884,7 +1889,7 @@ static void tvafe_cvd2_auto_de(struct tvafe_cvd2_s *cvd2)
 	}
 	if (lines->check_cnt++ == TVAFE_CVD2_AUTO_DE_CHECK_CNT) {
 		lines->check_cnt = 0;
-		/* if (cvd_dbg_en) */
+		/* if (tvafe_dbg_print & TVAFE_DBG_SMR) */
 	/* tvafe_pr_info("%s: check lines every 100*10ms\n", __func__); */
 		l_ave = (l_ave - l_max - l_min + 1) >> 1;
 		/* get the average value */
@@ -1901,7 +1906,7 @@ static void tvafe_cvd2_auto_de(struct tvafe_cvd2_s *cvd2)
 					lines->de_offset);
 				W_APB_REG(ACD_REG_2E, tmp);
 				scene_colorful_old = 0;
-				if (cvd_dbg_en)
+				if (tvafe_dbg_print & TVAFE_DBG_SMR)
 					tvafe_pr_info("%s: lrg vlines:%d, de_offset:%d tmp:%x\n",
 				__func__, l_ave, lines->de_offset, tmp);
 			}
@@ -1913,7 +1918,7 @@ static void tvafe_cvd2_auto_de(struct tvafe_cvd2_s *cvd2)
 					lines->de_offset + 1);
 				W_APB_REG(ACD_REG_2E, tmp);
 				scene_colorful_old = 0;
-				if (cvd_dbg_en)
+				if (tvafe_dbg_print & TVAFE_DBG_SMR)
 					tvafe_pr_info("%s: vlines:%d, de_offset:%d tmp:%x\n",
 					__func__, l_ave, lines->de_offset, tmp);
 				lines->de_offset--;
@@ -1924,14 +1929,18 @@ static void tvafe_cvd2_auto_de(struct tvafe_cvd2_s *cvd2)
 /* vlis advice new add @20170329 */
 static void tvafe_cvd2_adj_vs(struct tvafe_cvd2_s *cvd2)
 {
+	struct tvafe_user_param_s *user_param = tvafe_get_user_param();
 	struct tvafe_cvd2_lines_s *lines = &cvd2->info.vlines;
 	unsigned int i = 0, l_ave = 0, l_max = 0, l_min = 0xff;
+
+	if ((user_param->auto_adj_en & TVAFE_AUTO_VS) == 0)
+		return;
 
 	if (!cvd2->hw.line625 ||
 		((cvd2->config_fmt != TVIN_SIG_FMT_CVBS_PAL_I) &&
 		(cvd2->config_fmt != TVIN_SIG_FMT_CVBS_NTSC_M)))
 		return;
-	if (auto_de_en == 0) {
+	if ((user_param->auto_adj_en & TVAFE_AUTO_DE)  == 0) {
 		lines->val[0] = lines->val[1];
 		lines->val[1] = lines->val[2];
 		lines->val[2] = lines->val[3];
@@ -1988,14 +1997,13 @@ void tvafe_cvd2_set_default_de(struct tvafe_cvd2_s *cvd2)
 		return;
 #ifdef TVAFE_CVD2_AUTO_DE_ENABLE
 	if (!cvd2) {
-
 		tvafe_pr_info("%s error.\n", __func__);
 		return;
 	}
 	/*write default de to register*/
 	W_APB_REG(ACD_REG_2E,  (rf_acd_table[cvd2->config_fmt-
 				TVIN_SIG_FMT_CVBS_NTSC_M][0x2e]));
-	if (cvd_dbg_en)
+	if (tvafe_dbg_print & TVAFE_DBG_SMR)
 		tvafe_pr_info("%s set default de %s.\n",
 				__func__, tvin_sig_fmt_str(cvd2->config_fmt));
 	scene_colorful_old = 1;
@@ -2015,7 +2023,7 @@ static void tvafe_cvd2_reinit(struct tvafe_cvd2_s *cvd2)
 			(cvd2->config_fmt == TVIN_SIG_FMT_CVBS_PAL_I)) {
 
 		tvafe_cvd2_set_cdto(CVD2_CHROMA_DTO_PAL_I);
-		if (cvd_dbg_en)
+		if (tvafe_dbg_print & TVAFE_DBG_SMR)
 			tvafe_pr_info("%s: set default cdto.\n", __func__);
 
 	}
@@ -2027,23 +2035,24 @@ static void tvafe_cvd2_reinit(struct tvafe_cvd2_s *cvd2)
 	/*pali to nosignal,restore default vstart-end after auto de*/
 	if (cvd2->config_fmt == TVIN_SIG_FMT_CVBS_PAL_I) {
 		W_APB_REG(ACD_REG_2E, 0x170137);
-		if (cvd_dbg_en)
+		if (tvafe_dbg_print & TVAFE_DBG_SMR)
 			pr_info("[tvafe..] %s: reset auto de.\n", __func__);
 	}
 	/* init variable */
 	memset(&cvd2->info, 0, sizeof(struct tvafe_cvd2_info_s));
 	cvd2->cvd2_init_en = true;
 
-	if (cvd_dbg_en)
+	if (tvafe_dbg_print & TVAFE_DBG_SMR)
 		tvafe_pr_info("%s: reinit cvd2.\n", __func__);
 }
 
 /*
- * tvafe cvd2 signal status
+ * tvafe cvd2 signal status for smr
  */
 inline bool tvafe_cvd2_no_sig(struct tvafe_cvd2_s *cvd2,
 			struct tvafe_cvd2_mem_s *mem)
 {
+	struct tvafe_user_param_s *user_param = tvafe_get_user_param();
 	static bool ret;
 
 	tvafe_cvd2_get_signal_status(cvd2);
@@ -2054,27 +2063,24 @@ inline bool tvafe_cvd2_no_sig(struct tvafe_cvd2_s *cvd2,
 
 	/* init if no signal input */
 	if (cvd2->hw.no_sig) {
-
 		ret = true;
 		tvafe_cvd2_reinit(cvd2);
-
 	} else {
 		ret = false;
 		cvd2->cvd2_init_en = false;
 #ifdef TVAFE_CVD2_AUTO_DE_ENABLE
-	if (((!scene_colorful) && auto_de_en) || auto_vs_en) {
-		if (auto_de_en)
+		if ((!scene_colorful) &&
+			((user_param->auto_adj_en & TVAFE_AUTO_DE) ||
+			(user_param->auto_adj_en & TVAFE_AUTO_VS))) {
 			tvafe_cvd2_auto_de(cvd2);
-		if (auto_vs_en)
 			tvafe_cvd2_adj_vs(cvd2);
-	} else
-		tvafe_cvd2_set_default_de(cvd2);
+		} else
+			tvafe_cvd2_set_default_de(cvd2);
 #endif
 	}
 	if (ret && try_format_cnt) {
-
 		try_format_cnt = 0;
-		if (cvd_dbg_en)
+		if (tvafe_dbg_print & TVAFE_DBG_SMR)
 			tvafe_pr_info("%s: initialize try_format_cnt to zero.\n",
 					__func__);
 	}
@@ -2110,12 +2116,13 @@ inline enum tvin_sig_fmt_e tvafe_cvd2_get_format(
  */
 inline void tvafe_cvd2_adj_pga(struct tvafe_cvd2_s *cvd2)
 {
+	struct tvafe_user_param_s *user_param = tvafe_get_user_param();
 	unsigned short dg_max = 0, dg_min = 0xffff, dg_ave = 0, i = 0, pga = 0;
 	unsigned int tmp = 0;
 	unsigned int step = 0;
 	unsigned int delta_dg = 0;
 
-	if ((cvd_isr_en & 0x100) == 0)
+	if ((user_param->auto_adj_en & TVAFE_AUTO_PGA) == 0)
 		return;
 
 	cvd2->info.dgain[0] = cvd2->info.dgain[1];
@@ -2154,7 +2161,7 @@ inline void tvafe_cvd2_adj_pga(struct tvafe_cvd2_s *cvd2)
 			(pga >= (255+97))) {
 			return;
 		}
-		if (cvd_dbg_en)
+		if (tvafe_dbg_print & TVAFE_DBG_ISR)
 			tvafe_pr_info("%s: dg_ave_last:0x%x dg_ave:0x%x. pga 0x%x.\n",
 			__func__, dg_ave_last, dg_ave, pga);
 		dg_ave_last = dg_ave;
@@ -2186,12 +2193,12 @@ inline void tvafe_cvd2_adj_pga(struct tvafe_cvd2_s *cvd2)
 			pga = 2;
 		if (pga != R_APB_BIT(TVFE_VAFE_CTRL1,
 			VAFE_PGA_GAIN_BIT, VAFE_PGA_GAIN_WID)){
-			if (cvd_dbg_en)
+			if (tvafe_dbg_print & TVAFE_DBG_ISR)
 				tvafe_pr_info("%s: set pag:0x%x. current dgain 0x%x.\n",
 					__func__, pga, cvd2->info.dgain[3]);
 			W_APB_BIT(TVFE_VAFE_CTRL1, pga,
 			VAFE_PGA_GAIN_BIT, VAFE_PGA_GAIN_WID);
-			if (cvd_dbg_en)
+			if (tvafe_dbg_print & TVAFE_DBG_ISR)
 				tvafe_pr_info("%s: pga_step_last:0x%x step:0x%x.\n",
 					__func__, pga_step_last, step);
 		}
@@ -2231,20 +2238,22 @@ static void tvafe_cvd2_cdto_tune(unsigned int cur, unsigned int dest)
 	W_APB_REG(CVD2_CHROMA_DTO_INCREMENT_7_0,   (cur >>  0) & 0x000000ff);
 
 }
+
 inline void tvafe_cvd2_adj_hs(struct tvafe_cvd2_s *cvd2,
 			unsigned int hcnt64)
 {
+	struct tvafe_user_param_s *user_param = tvafe_get_user_param();
 	unsigned int hcnt64_max, hcnt64_min, temp, delta;
 	unsigned int diff, hcnt64_ave, i;
 	unsigned int hcnt64_standard = 0;
+
+	if ((user_param->auto_adj_en & TVAFE_AUTO_HS) == 0)
+		return;
 
 	if (cvd2->config_fmt == TVIN_SIG_FMT_CVBS_PAL_I)
 		hcnt64_standard = 0x31380;
 	else if (cvd2->config_fmt == TVIN_SIG_FMT_CVBS_NTSC_M)
 		hcnt64_standard = 0x30e0e;
-
-	if ((cvd_isr_en & 0x1000) == 0)
-		return;
 
 	/* only for pal-i adjusment */
 	if ((cvd2->config_fmt != TVIN_SIG_FMT_CVBS_PAL_I) &&
@@ -2318,6 +2327,20 @@ inline void tvafe_cvd2_adj_hs(struct tvafe_cvd2_s *cvd2,
 				/*@20190530 vlsi adjust colorbar display*/
 				W_APB_REG(ACD_REG_66, 0x80000f10);
 				W_APB_REG(ACD_REG_64, 0xff00);
+
+				cvd2->info.auto_hs_flag =
+					((1 << CVD2_AUTO_HS_ADJ_EN) |
+					(1 << CVD2_AUTO_HS_ADJ_DIR) |
+					(temp));
+
+				if (tvafe_dbg_print & TVAFE_DBG_ISR) {
+					tvafe_pr_info("%s: hs_adj_dir:%d, 0x2e:0x%x, 0x12d:0x%x, 0x128:0x%x\n",
+						__func__,
+						cvd2->info.hs_adj_dir,
+					R_APB_REG(CVD2_ACTIVE_VIDEO_HSTART),
+						R_APB_REG(ACD_REG_2D),
+						R_APB_REG(ACD_REG_28));
+				}
 			} else {
 				/*0x128*/
 				temp = (acd_128_l1 - acd_128) *
@@ -2341,8 +2364,26 @@ inline void tvafe_cvd2_adj_hs(struct tvafe_cvd2_s *cvd2,
 
 				/*@20190530 vlsi adjust colorbar display*/
 				W_APB_REG(ACD_REG_66, 0x0);
+
+				cvd2->info.auto_hs_flag =
+					((1 << CVD2_AUTO_HS_ADJ_EN) |
+					(0 << CVD2_AUTO_HS_ADJ_DIR) |
+					(temp));
+
+				if (tvafe_dbg_print & TVAFE_DBG_ISR) {
+					tvafe_pr_info("%s: hs_adj_dir:%d, 0x2e:0x%x, 0x12d:0x%x, 0x128:0x%x\n",
+						__func__,
+						cvd2->info.hs_adj_dir,
+					R_APB_REG(CVD2_ACTIVE_VIDEO_HSTART),
+						R_APB_REG(ACD_REG_2D),
+						R_APB_REG(ACD_REG_28));
+				}
 			}
 		} else {
+			if (cvd2->info.auto_hs_flag &
+				(1 << CVD2_AUTO_HS_DEFAULT))
+				return;
+
 			if (R_APB_REG(CVD2_YC_SEPARATION_CONTROL) != 0x12)
 				W_APB_REG(CVD2_YC_SEPARATION_CONTROL, 0x12);
 			if (R_APB_REG(CVD2_H_LOOP_MAXSTATE) != 0xd)
@@ -2356,9 +2397,26 @@ inline void tvafe_cvd2_adj_hs(struct tvafe_cvd2_s *cvd2,
 			cvd2->info.hs_adj_en = 0;
 			cvd2->info.hs_adj_level = 0;
 			acd_h = acd_h_back;
+
+			cvd2->info.auto_hs_flag = (1 << CVD2_AUTO_HS_DEFAULT);
+
+			if (tvafe_dbg_print & TVAFE_DBG_ISR) {
+				tvafe_pr_info("%s: recovery default setting\n",
+					__func__);
+			}
 		}
 	} else {
+		if (cvd2->info.auto_hs_flag & (1 << CVD2_AUTO_HS_UNSTABLE))
+			return;
+
 		/*signal unstable,set default value*/
+		if (R_APB_REG(CVD2_YC_SEPARATION_CONTROL) != 0x12)
+			W_APB_REG(CVD2_YC_SEPARATION_CONTROL, 0x12);
+		if (R_APB_REG(CVD2_H_LOOP_MAXSTATE) != 0xd)
+			W_APB_REG(CVD2_H_LOOP_MAXSTATE, 0xd);
+		if (R_APB_REG(CVD2_REG_87) != 0x0)
+			W_APB_REG(CVD2_REG_87, 0x0);
+
 		W_APB_REG(ACD_REG_2D, acd_h_back);
 		W_APB_BIT(CVD2_ACTIVE_VIDEO_HSTART, cvd_2e,
 					HACTIVE_START_BIT, HACTIVE_START_WID);
@@ -2366,16 +2424,24 @@ inline void tvafe_cvd2_adj_hs(struct tvafe_cvd2_s *cvd2,
 		cvd2->info.hs_adj_en = 0;
 		cvd2->info.hs_adj_level = 0;
 		acd_h = acd_h_back;
+
+		cvd2->info.auto_hs_flag = (1 << CVD2_AUTO_HS_UNSTABLE);
+
+		if (tvafe_dbg_print & TVAFE_DBG_ISR) {
+			tvafe_pr_info("%s: signal unstable to default setting\n",
+				__func__);
+		}
 	}
 }
 
 inline void tvafe_cvd2_adj_hs_ntsc(struct tvafe_cvd2_s *cvd2,
 			unsigned int hcnt64)
 {
+	struct tvafe_user_param_s *user_param = tvafe_get_user_param();
 	unsigned int hcnt64_max, hcnt64_min;
 	unsigned int diff, hcnt64_ave, i, hcnt64_standard = 0x30e0e;
 
-	if ((cvd_isr_en & 0x1000) == 0)
+	if ((user_param->auto_adj_en & TVAFE_AUTO_HS) == 0)
 		return;
 
 	/* only for ntsc-m adjusment */
@@ -2432,13 +2498,13 @@ inline void tvafe_cvd2_adj_hs_ntsc(struct tvafe_cvd2_s *cvd2,
 inline void tvafe_cvd2_adj_cdto(struct tvafe_cvd2_s *cvd2,
 			unsigned int hcnt64)
 {
+	struct tvafe_user_param_s *user_param = tvafe_get_user_param();
 	unsigned int hcnt64_max = 0, hcnt64_min = 0xffffffff,
 				hcnt64_ave = 0, i = 0;
 	unsigned int cur_cdto = 0, diff = 0;
 	u64 cal_cdto = 0;
 
-
-	if ((cvd_isr_en & 0x001) == 0)
+	if ((user_param->auto_adj_en & TVAFE_AUTO_CDTO) == 0)
 		return;
 
 	/* only for pal-i adjusment */
@@ -2486,7 +2552,7 @@ inline void tvafe_cvd2_adj_cdto(struct tvafe_cvd2_s *cvd2,
 		}
 		cvd2->info.non_std_worst = 1;
 
-		if (cvd_dbg_en)
+		if (tvafe_dbg_print & TVAFE_DBG_ISR)
 			tvafe_pr_info("%s: adj cdto from:0x%x to:0x%x\n",
 					__func__, (u32)cur_cdto, (u32)cal_cdto);
 		tvafe_cvd2_cdto_tune(cur_cdto, (unsigned int)cal_cdto);
@@ -2590,9 +2656,10 @@ static inline void tvafe_cvd2_sync_hight_tune(
  */
 inline void tvafe_cvd2_check_3d_comb(struct tvafe_cvd2_s *cvd2)
 {
+	struct tvafe_user_param_s *user_param = tvafe_get_user_param();
 	unsigned int cvd2_3d_status = R_APB_REG(CVD2_REG_95);
 
-	if ((cvd_isr_en & 0x010) == 0)
+	if ((user_param->auto_adj_en & TVAFE_AUTO_3DCOMB) == 0)
 		return;
 
 #ifdef SYNC_HEIGHT_AUTO_TUNING
@@ -2608,7 +2675,7 @@ inline void tvafe_cvd2_check_3d_comb(struct tvafe_cvd2_s *cvd2)
 
 		W_APB_BIT(CVD2_REG_B2, 1, COMB2D_ONLY_BIT, COMB2D_ONLY_WID);
 		W_APB_BIT(CVD2_REG_B2, 0, COMB2D_ONLY_BIT, COMB2D_ONLY_WID);
-		/* if (cvd_dbg_en) */
+		/* if (tvafe_dbg_print & TVAFE_DBG_ISR) */
 		/* tvafe_pr_info("%s: reset 3d comb  sts:0x%x\n", */
 		/*__func__, cvd2_3d_status); */
 	}

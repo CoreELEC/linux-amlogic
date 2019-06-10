@@ -195,7 +195,6 @@ extern int tvafe_cpu_type(void);
 extern void tvafe_clk_gate_ctrl(int status);
 
 extern struct mutex pll_mutex;
-extern bool tvafe_dbg_enable;
 
 #endif  /* _TVAFE_GENERAL_H */
 

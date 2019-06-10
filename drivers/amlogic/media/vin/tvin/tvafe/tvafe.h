@@ -32,7 +32,7 @@
 /* ************************************************* */
 /* *** macro definitions ********************************************* */
 /* *********************************************************** */
-#define TVAFE_VER "Ref.2019/04/24"
+#define TVAFE_VER "Ref.2019/07/02"
 
 /* used to set the flag of tvafe_dev_s */
 #define TVAFE_FLAG_DEV_OPENED 0x00000010
@@ -61,6 +61,24 @@ struct tvafe_info_s {
 	unsigned int aspect_ratio_cnt;
 };
 
+#define TVAFE_AUTO_CDTO    (1 << 0)
+#define TVAFE_AUTO_HS      (1 << 1)
+#define TVAFE_AUTO_VS      (1 << 2)
+#define TVAFE_AUTO_DE      (1 << 3)
+#define TVAFE_AUTO_3DCOMB  (1 << 4)
+#define TVAFE_AUTO_PGA     (1 << 5)
+
+struct tvafe_user_param_s {
+	unsigned int cutwindow_val_h[5];
+	unsigned int cutwindow_val_v[5];
+	unsigned int cutwindow_val_vs_ve;
+	unsigned int auto_adj_en;
+	unsigned int nostd_vs_th;
+	unsigned int force_vs_th_flag;
+	unsigned int nostd_stable_cnt;
+	unsigned int skip_vf_num;
+};
+
 /* tvafe device structure */
 struct tvafe_dev_s {
 	int	index;
@@ -81,6 +99,7 @@ struct tvafe_dev_s {
 	struct tvafe_cvd2_mem_s mem;
 
 	struct tvafe_info_s tvafe;
+
 	unsigned int cma_config_en;
 	/*cma_config_flag:1:share with codec_mm;0:cma alone*/
 	unsigned int cma_config_flag;
@@ -97,6 +116,8 @@ struct tvafe_dev_s {
 bool tvafe_get_snow_cfg(void);
 void tvafe_set_snow_cfg(bool cfg);
 
+struct tvafe_user_param_s *tvafe_get_user_param(void);
+
 typedef int (*hook_func_t)(void);
 extern void aml_fe_hook_cvd(hook_func_t atv_mode,
 		hook_func_t cvd_hv_lock, hook_func_t get_fmt);
@@ -112,9 +133,15 @@ extern void tvafe_remove_device_files(struct device *dev);
 extern bool disableapi;
 extern bool force_stable;
 
-extern unsigned int cutwindow_val_h[5];
-extern unsigned int cutwindow_val_v[5];
 extern unsigned int force_nostd;
+
+#define TVAFE_DBG_NORMAL     (1 << 0)
+#define TVAFE_DBG_ISR        (1 << 4)
+#define TVAFE_DBG_SMR        (1 << 8)
+#define TVAFE_DBG_SMR2       (1 << 9)
+#define TVAFE_DBG_NOSTD      (1 << 12)
+#define TVAFE_DBG_NOSTD2     (1 << 13)
+extern unsigned int tvafe_dbg_print;
 
 #endif  /* _TVAFE_H */
 

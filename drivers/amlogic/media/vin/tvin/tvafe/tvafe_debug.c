@@ -44,6 +44,9 @@ static void tvafe_state(struct tvafe_dev_s *devp)
 	struct tvafe_cvd2_info_s *cvd2_info = &cvd2->info;
 	struct tvafe_cvd2_lines_s *vlines = &cvd2_info->vlines;
 	struct tvafe_cvd2_hw_data_s *hw = &cvd2->hw;
+	struct tvafe_user_param_s *user_param = tvafe_get_user_param();
+	int i;
+
 	/* top dev info */
 	tvafe_pr_info("\n!!tvafe_dev_s info:\n");
 	tvafe_pr_info("size of tvafe_dev_s:%d\n", devp->sizeof_tvafe_dev_s);
@@ -113,6 +116,8 @@ static void tvafe_state(struct tvafe_dev_s *devp)
 		cvd2_info->vs_adj_level);
 	tvafe_pr_info("tvafe_cvd2_info_s->vs_adj_en:%d\n",
 		cvd2_info->vs_adj_en);
+	tvafe_pr_info("tvafe_cvd2_info_s->auto_hs_flag:0x%08x\n",
+		cvd2_info->auto_hs_flag);
 #ifdef TVAFE_SET_CVBS_CDTO_EN
 	tvafe_pr_info("tvafe_cvd2_info_s->hcnt64[0]:0x%x\n",
 		cvd2_info->hcnt64[0]);
@@ -123,6 +128,11 @@ static void tvafe_state(struct tvafe_dev_s *devp)
 	tvafe_pr_info("tvafe_cvd2_info_s->hcnt64[3]:0x%x\n",
 		cvd2_info->hcnt64[3]);
 #endif
+	tvafe_pr_info("tvafe_cvd2_info_s->smr_cnt:%d\n",
+		cvd2_info->smr_cnt);
+	tvafe_pr_info("tvafe_cvd2_info_s->isr_cnt:%d\n",
+		cvd2_info->isr_cnt);
+
 	/* tvafe_cvd2_info_s->tvafe_cvd2_lines_s struct info */
 	tvafe_pr_info("\n!!tvafe_cvd2_info_s->tvafe_cvd2_lines_s struct info:\n");
 	tvafe_pr_info("tvafe_cvd2_lines_s->check_cnt:0x%x\n",
@@ -174,6 +184,22 @@ static void tvafe_state(struct tvafe_dev_s *devp)
 	tvafe_pr_info("tvafe_cvd2_hw_data_s->fsc_358:%d\n", hw->fsc_358);
 	tvafe_pr_info("tvafe_cvd2_hw_data_s->fsc_425:%d\n", hw->fsc_425);
 	tvafe_pr_info("tvafe_cvd2_hw_data_s->fsc_443:%d\n", hw->fsc_443);
+	for (i = 0; i < 5; i++) {
+		tvafe_pr_info("cutwindow_val_h[%d]:%d\n",
+			i, user_param->cutwindow_val_h[i]);
+	}
+	for (i = 0; i < 5; i++) {
+		tvafe_pr_info("cutwindow_val_v[%d]:%d\n",
+			i, user_param->cutwindow_val_v[i]);
+	}
+	tvafe_pr_info("cutwindow_val_vs_ve:%d\n",
+		user_param->cutwindow_val_vs_ve);
+	tvafe_pr_info("auto_adj_en:%d\n", user_param->auto_adj_en);
+	tvafe_pr_info("nostd_vs_th:0x%x\n", user_param->nostd_vs_th);
+	tvafe_pr_info("force_vs_th_flag:0x%x\n", user_param->force_vs_th_flag);
+	tvafe_pr_info("nostd_stable_cnt:0x%x\n", user_param->nostd_stable_cnt);
+	tvafe_pr_info("skip_vf_num:0x%x\n", user_param->skip_vf_num);
+	tvafe_pr_info("tvafe version :  %s\n", TVAFE_VER);
 }
 
 static void tvafe_parse_param(char *buf_orig, char **parm)
@@ -201,6 +227,7 @@ static ssize_t tvafe_store(struct device *dev,
 {
 	unsigned char fmt_index = 0;
 	struct tvafe_dev_s *devp;
+	struct tvafe_user_param_s *user_param = tvafe_get_user_param();
 	char *buf_orig, *parm[47] = {NULL};
 	unsigned int val;
 
@@ -254,6 +281,8 @@ static ssize_t tvafe_store(struct device *dev,
 	} else if (!strncmp(buff, "afe_ver", strlen("afe_ver"))) {
 		tvafe_pr_info("tvafe version :  %s\n", TVAFE_VER);
 	} else if (!strncmp(buff, "snowcfg", strlen("snowcfg"))) {
+		if (!parm[1])
+			goto tvafe_store_err;
 		if (kstrtouint(parm[1], 10, &val) < 0)
 			goto tvafe_store_err;
 		if (val) {
@@ -264,6 +293,8 @@ static ssize_t tvafe_store(struct device *dev,
 			tvafe_pr_info("[tvafe..]hadware snow cfg dis\n");
 		}
 	} else if (!strncmp(buff, "snowon", strlen("snowon"))) {
+		if (!parm[1])
+			goto tvafe_store_err;
 		if (kstrtouint(parm[1], 10, &val) < 0)
 			goto tvafe_store_err;
 		if (val) {
@@ -279,15 +310,19 @@ static ssize_t tvafe_store(struct device *dev,
 			tvafe_pr_info("%s:tvafe snowoff\n", __func__);
 		}
 	} else if (!strcmp(parm[0], "frame_skip_enable")) {
-		if (kstrtouint(parm[1], 10, &val) < 0)
-			goto tvafe_store_err;
-		devp->frame_skip_enable = val;
+		if (parm[1]) {
+			if (kstrtouint(parm[1], 10, &val) < 0)
+				goto tvafe_store_err;
+			devp->frame_skip_enable = val;
+		}
 		tvafe_pr_info("frame_skip_enable:%d\n",
 			devp->frame_skip_enable);
 	} else if (!strncmp(buff, "state", strlen("state"))) {
 		tvafe_state(devp);
 	} else if (!strncmp(buff, "nonstd_detect_dis",
 		strlen("nonstd_detect_dis"))) {
+		if (!parm[1])
+			goto tvafe_store_err;
 		/*patch for Very low probability hanging issue on atv close*/
 		/*only appeared in one project,this for reserved debug*/
 		/*default setting to disable the nonstandard signal detect*/
@@ -303,6 +338,8 @@ static ssize_t tvafe_store(struct device *dev,
 				__func__);
 		}
 	} else if (!strncmp(buff, "rf_ntsc50_en", strlen("rf_ntsc50_en"))) {
+		if (!parm[1])
+			goto tvafe_store_err;
 		if (kstrtouint(parm[1], 10, &val) < 0)
 			goto tvafe_store_err;
 		if (val) {
@@ -315,10 +352,59 @@ static ssize_t tvafe_store(struct device *dev,
 				__func__);
 		}
 	} else if (!strncmp(buff, "force_nostd", strlen("force_nostd"))) {
-		if (kstrtouint(parm[1], 10, &force_nostd) < 0)
-			goto tvafe_store_err;
-		pr_info("[tvafe..]%s: set force_nostd = %d\n",
+		if (parm[1]) {
+			if (kstrtouint(parm[1], 10, &force_nostd) < 0)
+				goto tvafe_store_err;
+		}
+		pr_info("[tvafe..]%s: force_nostd = %d\n",
 			__func__, force_nostd);
+	} else if (!strncmp(buff, "force_vs_th", strlen("force_vs_th"))) {
+		if (parm[1]) {
+			if (kstrtouint(parm[1], 10,
+				&user_param->force_vs_th_flag) < 0)
+				goto tvafe_store_err;
+		}
+		pr_info("[tvafe..]%s: force_vs_th_flag = 0x%x\n",
+			__func__, user_param->force_vs_th_flag);
+	} else if (!strncmp(buff, "nostd_vs_th", strlen("nostd_vs_th"))) {
+		if (parm[1]) {
+			if (kstrtouint(parm[1], 16,
+				&user_param->nostd_vs_th) < 0)
+				goto tvafe_store_err;
+		}
+		pr_info("[tvafe..]%s: nostd_vs_th = 0x%x\n",
+			__func__, user_param->nostd_vs_th);
+	} else if (!strncmp(buff, "nostd_cnt", strlen("nostd_cnt"))) {
+		if (parm[1]) {
+			if (kstrtouint(parm[1], 10,
+				&user_param->nostd_stable_cnt) < 0)
+				goto tvafe_store_err;
+		}
+		pr_info("[tvafe..]%s: nostd_stable_cnt = 0x%x\n",
+			__func__, user_param->nostd_stable_cnt);
+	} else if (!strncmp(buff, "auto_adj", strlen("auto_adj"))) {
+		if (parm[1]) {
+			if (kstrtouint(parm[1], 16,
+				&user_param->auto_adj_en) < 0)
+				goto tvafe_store_err;
+		}
+		pr_info("[tvafe..]%s: auto_adj_en = 0x%x\n",
+			__func__, user_param->auto_adj_en);
+	} else if (!strncmp(buff, "skip_vf_num", strlen("skip_vf_num"))) {
+		if (parm[1]) {
+			if (kstrtouint(parm[1], 10,
+				&user_param->skip_vf_num) < 0)
+				goto tvafe_store_err;
+		}
+		pr_info("[tvafe..]%s: skip_vf_num = %d\n",
+			__func__, user_param->skip_vf_num);
+	} else if (!strncmp(buff, "dbg_print", strlen("dbg_print"))) {
+		if (parm[1]) {
+			if (kstrtouint(parm[1], 16, &tvafe_dbg_print) < 0)
+				goto tvafe_store_err;
+		}
+		pr_info("[tvafe..]%s: tvafe_dbg_print = 0x%x\n",
+			__func__, tvafe_dbg_print);
 	} else
 		tvafe_pr_info("[%s]:invaild command.\n", __func__);
 	kfree(buf_orig);
@@ -329,30 +415,45 @@ tvafe_store_err:
 	return -EINVAL;
 }
 
+static const char *tvafe_debug_usage_str = {
+"Usage:\n"
+"    echo cvdfmt ntsc/ntsc443/pali/palm/palcn/pal60/secam/null > /sys/class/tvafe/tvafe0/debug;conifg manual fmt\n"
+"\n"
+"    echo disableapi val(d) > /sys/class/tvafe/tvafe0/debug;enable/ignore api cmd\n"
+"\n"
+"    echo force_stable val(d) > /sys/class/tvafe/tvafe0/debug;force stable or not force\n"
+"\n"
+"    echo tvafe_enable val(d) > /sys/class/tvafe/tvafe0/debug;tvafe enable/disable\n"
+"\n"
+"    echo afe_ver > /sys/class/tvafe/tvafe0/debug;show tvafe version\n"
+"\n"
+"    echo snow val(d) > /sys/class/tvafe/tvafe0/debug;snow on/off\n"
+"\n"
+"    echo frame_skip_enable val(d) > /sys/class/tvafe/tvafe0/debug;frame skip enable/disable\n"
+"\n"
+"    echo state > /sys/class/tvafe/tvafe0/debug;show tvafe status\n"
+"\n"
+"    echo force_nostd val(d) > /sys/class/tvafe/tvafe0/debug;set force_nostd policy\n"
+"\n"
+"    echo nostd_vs_th val(h) > /sys/class/tvafe/tvafe0/debug;set nostd_vs_th\n"
+"\n"
+"    echo force_vs_th val(h) > /sys/class/tvafe/tvafe0/debug;set force_vs_th flag\n"
+"\n"
+"    echo nostd_cnt val(d) > /sys/class/tvafe/tvafe0/debug;set nostd_stable_cnt\n"
+"\n"
+"    echo skip_vf_num val(d) > /sys/class/tvafe/tvafe0/debug;set skip_vf_num for vdin\n"
+"\n"
+"    echo dbg_print val(h) > /sys/class/tvafe/tvafe0/debug;enable debug print\n"
+"    bit[0]: normal debug info\n"
+"    bit[4]: vsync isr debug info\n"
+"    bit[8]: smr debug info\n"
+"    bit[12]: nostd debug info\n"
+};
+
 static ssize_t tvafe_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
-	ssize_t len = 0;
-
-	len += sprintf(buf+len,
-		"echo cvdfmt ntsc/ntsc443/pali/palm/palcn/pal60/secam/null > /sys/class/tvafe/tvafe0/debug;conifg manual fmt\n");
-	len += sprintf(buf+len,
-		"echo disableapi val(d) > /sys/class/tvafe/tvafe0/debug;enable/ignore api cmd\n");
-	len += sprintf(buf+len,
-		"echo force_stable val(d) > /sys/class/tvafe/tvafe0/debug;force stable or not force\n");
-	len += sprintf(buf+len,
-		"echo tvafe_enable val(d) > /sys/class/tvafe/tvafe0/debug;tvafe enable/disable\n");
-	len += sprintf(buf+len,
-		"echo afe_ver > /sys/class/tvafe/tvafe0/debug;show tvafe version\n");
-	len += sprintf(buf+len,
-		"echo snow val(d) > /sys/class/tvafe/tvafe0/debug;snow on/off\n");
-	len += sprintf(buf+len,
-		"echo frame_skip_enable val(d) > /sys/class/tvafe/tvafe0/debug;frame skip enable/disable\n");
-	len += sprintf(buf+len,
-		"echo state > /sys/class/tvafe/tvafe0/debug;show tvafe status\n");
-	len += sprintf(buf+len,
-		"echo force_nostd val(d) > /sys/class/tvafe/tvafe0/debug;set force_nostd policy\n");
-	return len;
+	return sprintf(buf, "%s\n", tvafe_debug_usage_str);
 }
 
 static DEVICE_ATTR(debug, 0644, tvafe_show, tvafe_store);
@@ -631,6 +732,7 @@ static ssize_t tvafe_cutwindow_show(struct device *dev,
 static ssize_t tvafe_cutwindow_store(struct device *dev,
 		struct device_attribute *attr, const char *buff, size_t count)
 {
+	struct tvafe_user_param_s *user_param = tvafe_get_user_param();
 	char *buf_orig, *parm[20] = {NULL};
 	unsigned int index, val;
 	char *pr_buf;
@@ -647,7 +749,7 @@ static ssize_t tvafe_cutwindow_store(struct device *dev,
 		if (index < 5) {
 			if (kstrtouint(parm[2], 10, &val) < 0)
 				goto tvafe_cutwindow_store_err;
-			cutwindow_val_h[index] = val;
+			user_param->cutwindow_val_h[index] = val;
 			pr_info("set cutwindow_h[%d] = %d\n", index, val);
 		} else {
 			pr_info("error: invalid index %d\n", index);
@@ -658,7 +760,7 @@ static ssize_t tvafe_cutwindow_store(struct device *dev,
 		if (index < 5) {
 			if (kstrtouint(parm[2], 10, &val) < 0)
 				goto tvafe_cutwindow_store_err;
-			cutwindow_val_v[index] = val;
+			user_param->cutwindow_val_v[index] = val;
 			pr_info("set cutwindow_v[%d] = %d\n", index, val);
 		} else {
 			pr_info("error: invalid index %d\n", index);
@@ -673,12 +775,12 @@ static ssize_t tvafe_cutwindow_store(struct device *dev,
 		pr_len += sprintf(pr_buf+pr_len, "cutwindow_h:");
 		for (index = 0; index < 5; index++) {
 			pr_len += sprintf(pr_buf+pr_len,
-					" %d", cutwindow_val_h[index]);
+				" %d", user_param->cutwindow_val_h[index]);
 		}
 		pr_len += sprintf(pr_buf+pr_len, "\ncutwindow_v:");
 		for (index = 0; index < 5; index++) {
 			pr_len += sprintf(pr_buf+pr_len,
-					" %d", cutwindow_val_v[index]);
+				" %d", user_param->cutwindow_val_v[index]);
 		}
 		pr_info("%s\n", pr_buf);
 		kfree(pr_buf);
