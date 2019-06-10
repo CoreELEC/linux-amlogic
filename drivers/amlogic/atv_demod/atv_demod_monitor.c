@@ -30,6 +30,7 @@ static DEFINE_MUTEX(monitor_mutex);
 bool atvdemod_mixer_tune_en;
 bool atvdemod_overmodulated_en;
 bool atv_audio_overmodulated_en;
+unsigned int atv_audio_overmodulated_cnt = 1;
 bool audio_det_en;
 bool atvdemod_det_snr_en = true;
 bool audio_thd_en;
@@ -68,7 +69,7 @@ static void atv_demod_monitor_do_work(struct work_struct *work)
 		atvdemod_video_overmodulated();
 
 	if (atv_audio_overmodulated_en) {
-		if (monitor->lock_cnt % 10 == 0)
+		if (monitor->lock_cnt > atv_audio_overmodulated_cnt)
 			aml_audio_overmodulation(1);
 	}
 

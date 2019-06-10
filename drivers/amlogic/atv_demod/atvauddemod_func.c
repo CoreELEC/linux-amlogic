@@ -15,9 +15,6 @@
  *
  */
 
-#ifndef __ATVAUDDEMOD_FUN_H
-#define __ATVAUDDEMOD_FUN_H
-
 #include <linux/types.h>
 #include <linux/module.h>
 #include <linux/delay.h>
@@ -1670,6 +1667,7 @@ void set_outputmode_status_init(void)
 
 void set_output_left_right_exchange(unsigned int ch)
 {
+#if 0 /* use audio module interface */
 	unsigned int read = 0;
 
 	atvaudio_ctrl_read(&read);
@@ -1683,6 +1681,37 @@ void set_output_left_right_exchange(unsigned int ch)
 			atvaudio_ctrl_write((read & ~(1 << 2)) |
 					((ch & 0x01) << 2));
 	}
+#else
+
+#endif
 }
 
-#endif /* __ATVAUDDEMOD_FUN_H */
+/* atv audio source select
+ * 0: select from ATV;
+ * 1: select from ADEC;
+ */
+void audio_source_select(int source)
+{
+#if 0 /* use audio module interface */
+	unsigned int reg = 0;
+
+	atvaudio_ctrl_read(&reg);
+
+	if (source) {
+		if (is_meson_tl1_cpu() || is_meson_tm2_cpu())
+			atvaudio_ctrl_write(reg | 0x100000);/* bit20 */
+		else
+			atvaudio_ctrl_write(reg | 0x3);/* bit[1-0] */
+	} else {
+		if (is_meson_tl1_cpu() || is_meson_tm2_cpu())
+			atvaudio_ctrl_write(reg & (~0x100000));/* bit20 */
+		else
+			atvaudio_ctrl_write(reg & (~0x3));/* bit[1-0] */
+	}
+#else
+	if (source)
+		fratv_src_select(1);
+	else
+		fratv_src_select(0);
+#endif
+}

@@ -15,10 +15,16 @@
  *
  */
 
-#ifndef __ATVAUDDEMOD_H_
-#define __ATVAUDDEMOD_H_
+#ifndef __ATV_AUD_DEMOD_H__
+#define __ATV_AUD_DEMOD_H__
 
 #include "aud_demod_reg.h"
+
+#ifdef CONFIG_AMLOGIC_SND_SOC_AUGE
+#include "sound/soc/amlogic/auge/audio_utils.h"
+#else
+#include "sound/soc/amlogic/meson/audio_utils.h"
+#endif
 
 extern unsigned int signal_audmode;
 
@@ -43,5 +49,6 @@ void update_a2_eiaj_mode(int auto_en, int *stereo_flag, int *dual_flag);
 void set_outputmode_status_init(void);
 
 void set_output_left_right_exchange(unsigned int ch);
+void audio_source_select(int source);
 
-#endif /* __ATVAUDDEMOD_H_ */
+#endif /* __ATV_AUD_DEMOD_H__ */
