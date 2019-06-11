@@ -4216,6 +4216,8 @@ void vdin_set_drm_data(struct vdin_dev_s *devp,
 		vf->signal_type = ((1 << 8) |
 			(vf->signal_type & (~0xFF00)));
 	}
+
+	devp->parm.info.signal_type = vf->signal_type;
 }
 
 u32 vdin_get_curr_field_type(struct vdin_dev_s *devp)

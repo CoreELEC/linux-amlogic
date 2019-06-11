@@ -314,6 +314,7 @@ struct tvin_info_s {
 	enum tvin_color_fmt_e cfmt;
 	unsigned int fps;
 	unsigned int is_dvi;
+	unsigned int signal_type;
 };
 
 struct tvin_frontend_info_s {
