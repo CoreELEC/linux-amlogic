@@ -304,6 +304,28 @@ void sdio_reinit(void)
 }
 EXPORT_SYMBOL(sdio_reinit);
 
+void sdio_clk_always_on(void)
+{
+	u32 vconf = 0;
+	struct sd_emmc_config *pconf = (struct sd_emmc_config *)&vconf;
+	struct amlsd_platform *pdata = NULL;
+	struct amlsd_host *host = NULL;
+
+	if (sdio_host) {
+		pdata = mmc_priv(sdio_host);
+		host = pdata->host;
+
+		vconf = readl(host->base + SD_EMMC_CFG);
+		pconf->auto_clk = 0;
+		pconf->spare = 1;
+		writel(vconf, host->base + SD_EMMC_CFG);
+
+		pr_info("clk always on: cfg = %x\n",
+				readl(host->base + SD_EMMC_CFG));
+	}
+}
+EXPORT_SYMBOL(sdio_clk_always_on);
+
 void of_amlsd_pwr_prepare(struct amlsd_platform *pdata)
 {
 }
