@@ -829,6 +829,7 @@ static struct hw_enc_clk_val_group setting_enc_clk_val_24[] = {
 		/* actual hpll : 2014000 */
 		2000000, 4, 2, 2, VID_PLL_DIV_5, 1, 1, 1, -1},
 	{{HDMI_480x320p60_4x3,
+	  HDMI_480x272p60_4x3,
 	  HDMI_VIC_END},
 		/* actual hpll : 2016000 */
 		2000000, 4, 2, 2, VID_PLL_DIV_5, 1, 1, 1, -1},
