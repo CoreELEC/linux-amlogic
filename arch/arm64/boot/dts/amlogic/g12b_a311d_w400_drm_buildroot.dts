@@ -19,7 +19,7 @@
 
 #include "mesong12b.dtsi"
 #include "mesong12b_skt-panel.dtsi"
-#include "mesong12a_drm.dtsi"
+#include "mesong12b_drm.dtsi"
 
 / {
 	model = "Amlogic";
@@ -903,6 +903,7 @@
 	status = "okay";
 	compatible = "amlogic,meson-g12b-vpu";
 	logo_addr = "0x7f800000";
+	osd_ver = /bits/ 8 <OSD_V3>;
 };
 
 &drm_amhdmitx {

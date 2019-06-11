@@ -116,7 +116,7 @@ obj-$(CONFIG_AMLOGIC_IIO)       += iio/
 
 obj-$(CONFIG_AMLOGIC_DDR_TOOL)       += ddr_tool/
 
-obj-$(CONFIG_DRM_MESON)	+= drm/
+obj-$(CONFIG_AMLOGIC_DRM)	+= drm/
 
 obj-$(CONFIG_AMLOGIC_M8B_SM) += secure_monitor/
 

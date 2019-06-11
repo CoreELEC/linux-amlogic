@@ -15046,3 +15046,31 @@ M:  Cheng Wang <cheng.wang@amlogic.com>
 F:  drivers/amlogic/media/enhancement/amvecm/hdr/am_hdr10_plus_ootf.c
 F:  drivers/amlogic/media/enhancement/amvecm/hdr/am_hdr10_plus_ootf.h
 
+AMLOGIC DRM
+M:	Ao Xu <ao.xu@amlogic.com>
+M:	Dezhi Kong <dezhi.kong@amlogic.com>
+F:	include/linux/meson_ion.h
+F:	include/uapi/drm/meson_drm.h
+F:	include/uapi/drm/drm_fourcc.c
+F:	drivers/gpu/Makefile
+F:	drivers/amlogic/Kconfig
+F:	drivers/amlogic/Makefile
+F:	drivers/amlogic/drm/*
+F:	drivers/staging/android/ion/ion.h
+F:	drivers/staging/android/ion/ion_cma_heap.c
+F:	drivers/amlogic/media/osd/osd_fb.c
+F:	drivers/amlogic/media/common/ion_dev/dev_ion.c
+F:	drivers/amlogic/media/common/ion_dev/dev_ion.h
+F:	arch/arm/boot/dts/amlogic/meson-g12a-u200.dts
+F:	arch/arm/boot/dts/amlogic/mesong12a_drm.dtsi
+F:	arch/arm/boot/dts/amlogic/sm1_s905d3_ac200.dts
+F:	arch/arm/boot/dts/amlogic/sm1_s905x3_ac213.dts
+F:	arch/arm64/boot/dts/amlogic/meson-g12a-u200.dts
+F:	arch/arm64/boot/dts/amlogic/mesong12a_drm.dtsi
+F:	arch/arm64/boot/dts/amlogic/sm1_s905d3_ac200.dts
+F:	arch/arm64/boot/dts/amlogic/sm1_s905x3_ac213.dts
+F:	arch/arm/configs/meson64_a32_defconfig
+F:	arch/arm64/configs/meson64_a64_defconfig
+F:	arch/arm/boot/dts/amlogic/Makefile
+F:	arch/arm64/boot/dts/amlogic/Makefile
+
