@@ -736,19 +736,22 @@ int lcd_tcon_probe(struct aml_lcd_drv_s *lcd_drv)
 				LCDPR("tcon axi_mem base:0x%lx, size:0x%lx\n",
 					(unsigned long)tcon_rmem.mem_paddr,
 					cma_get_size(cma));
-
 				mem_size = lcd_tcon_data->axi_mem_size;
+				if (cma_get_size(cma) < mem_size)
+					tcon_rmem.flag = 0;
+				else {
 				tcon_rmem.mem_vaddr = dma_alloc_from_contiguous(
 					lcd_drv->dev,
 					(mem_size >> PAGE_SHIFT),
 					0);
-				if (tcon_rmem.mem_vaddr == NULL) {
+					if (tcon_rmem.mem_vaddr == NULL) {
 					LCDERR("tcon axi_mem alloc failed\n");
-				} else {
+					} else {
 					LCDPR("tcon axi_mem dma_alloc=0x%x\n",
 						mem_size);
-					tcon_rmem.mem_size = mem_size;
+						tcon_rmem.mem_size = mem_size;
 					tcon_rmem.flag = 2; /* cma memory */
+					}
 				}
 			} else {
 				LCDERR("tcon: NO CMA\n");
@@ -757,10 +760,14 @@ int lcd_tcon_probe(struct aml_lcd_drv_s *lcd_drv)
 			LCDERR("tcon axi_mem alloc failed\n");
 #endif
 		} else {
-			tcon_rmem.flag = 1; /* reserved memory */
 			mem_size = tcon_rmem.mem_size;
-			LCDPR("tcon axi_mem base:0x%lx, size:0x%x\n",
+			if (mem_size < lcd_tcon_data->axi_mem_size)
+				tcon_rmem.flag = 0;
+			else {
+				tcon_rmem.flag = 1; /* reserved memory */
+				LCDPR("tcon axi_mem base:0x%lx, size:0x%x\n",
 				(unsigned long)tcon_rmem.mem_paddr, mem_size);
+			}
 		}
 	}
 
