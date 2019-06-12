@@ -961,9 +961,14 @@ void fratv_enable(bool enable)
  * 0: select from ATV;
  * 1: select from ADEC;
  */
-void fratv_src_select(int src)
+void fratv_src_select(bool src)
 {
-	audiobus_update_bits(EE_AUDIO_FRATV_CTRL0, 0x1 << 20, (bool)src << 20);
+	audiobus_update_bits(EE_AUDIO_FRATV_CTRL0, 0x1 << 20, src << 20);
+}
+
+void fratv_LR_swap(bool swap)
+{
+	audiobus_update_bits(EE_AUDIO_FRATV_CTRL0, 0x1 << 19, swap << 19);
 }
 
 void cec_arc_enable(int src, bool enable)

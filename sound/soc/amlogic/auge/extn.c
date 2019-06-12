@@ -442,7 +442,10 @@ static int extn_dai_prepare(
 			msb = 15;
 			lsb = 0;
 
-			fratv_src_select(1);
+			/* commented it, selected by atv demod,
+			 * select 0 for non standard signal.
+			 */
+			/* fratv_src_select(1); */
 		} else if (src == FRHDMIRX) {
 			if (p_extn->hdmirx_mode) { /* PAO */
 
