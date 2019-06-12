@@ -1667,22 +1667,16 @@ void set_outputmode_status_init(void)
 
 void set_output_left_right_exchange(unsigned int ch)
 {
-#if 0 /* use audio module interface */
-	unsigned int read = 0;
-
-	atvaudio_ctrl_read(&read);
-
-	if (is_meson_tl1_cpu() || is_meson_tm2_cpu()) { /* bit[19] */
-		if ((read & (1 << 19)) != ((ch & 0x01) << 19))
-			atvaudio_ctrl_write((read & ~(1 << 19)) |
-					((ch & 0x01) << 19));
-	} else { /* bit[2] */
-		if ((read & (1 << 2)) != ((ch & 0x01) << 2))
-			atvaudio_ctrl_write((read & ~(1 << 2)) |
-					((ch & 0x01) << 2));
-	}
+#ifdef CONFIG_AMLOGIC_SND_SOC_AUGE
+	if (ch)
+		fratv_LR_swap(true);
+	else
+		fratv_LR_swap(false);
 #else
-
+	if (ch)
+		atv_LR_swap(true);
+	else
+		atv_LR_swap(false);
 #endif
 }
 
@@ -1692,26 +1686,15 @@ void set_output_left_right_exchange(unsigned int ch)
  */
 void audio_source_select(int source)
 {
-#if 0 /* use audio module interface */
-	unsigned int reg = 0;
-
-	atvaudio_ctrl_read(&reg);
-
-	if (source) {
-		if (is_meson_tl1_cpu() || is_meson_tm2_cpu())
-			atvaudio_ctrl_write(reg | 0x100000);/* bit20 */
-		else
-			atvaudio_ctrl_write(reg | 0x3);/* bit[1-0] */
-	} else {
-		if (is_meson_tl1_cpu() || is_meson_tm2_cpu())
-			atvaudio_ctrl_write(reg & (~0x100000));/* bit20 */
-		else
-			atvaudio_ctrl_write(reg & (~0x3));/* bit[1-0] */
-	}
+#ifdef CONFIG_AMLOGIC_SND_SOC_AUGE
+	if (source)
+		fratv_src_select(true);
+	else
+		fratv_src_select(false);
 #else
 	if (source)
-		fratv_src_select(1);
+		atv_LR_swap(true);
 	else
-		fratv_src_select(0);
+		atv_LR_swap(false);
 #endif
 }

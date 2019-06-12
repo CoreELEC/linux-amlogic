@@ -23,7 +23,7 @@
 #ifdef CONFIG_AMLOGIC_SND_SOC_AUGE
 #include "sound/soc/amlogic/auge/audio_utils.h"
 #else
-#include "sound/soc/amlogic/meson/audio_utils.h"
+#include "sound/soc/amlogic/meson/audio_hw.h"
 #endif
 
 extern unsigned int signal_audmode;
