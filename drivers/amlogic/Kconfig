@@ -142,5 +142,7 @@ source "drivers/amlogic/ircut/Kconfig"
 
 source "drivers/amlogic/hifi4dsp/Kconfig"
 
+source "drivers/amlogic/pixel_probe/Kconfig"
+
 endmenu
 endif
