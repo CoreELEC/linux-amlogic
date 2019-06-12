@@ -31,6 +31,9 @@
 #define MEMIF_INT_FIFO_DEPTH        BIT(5)
 #define MEMIF_INT_MASK              GENMASK(7, 0)
 
+#define TODDR_FIFO_CNT                    GENMASK(19, 8)
+#define FRDDR_FIFO_CNT                    GENMASK(17, 8)
+
 enum ddr_num {
 	DDR_A,
 	DDR_B,
@@ -252,6 +255,7 @@ void aml_toddr_force_finish(struct toddr *to);
 void aml_toddr_set_format(struct toddr *to, struct toddr_fmt *fmt);
 
 unsigned int aml_toddr_get_status(struct toddr *to);
+unsigned int aml_toddr_get_fifo_cnt(struct toddr *to);
 void aml_toddr_ack_irq(struct toddr *to, int status);
 
 void aml_toddr_insert_chanum(struct toddr *to);
