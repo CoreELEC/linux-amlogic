@@ -116,6 +116,7 @@ static bool mc_mem_alloc;
 static unsigned int di_pre_rdma_enable;
 static struct mutex di_event_mutex;
 static atomic_t di_flag_unreg;	//ary 2019-05-27
+static atomic_t di_trig_free_mem;
 
 static unsigned int di_force_bit_mode = 10;
 module_param(di_force_bit_mode, uint, 0664);
@@ -528,6 +529,42 @@ int get_di_dump_state_flag(void)
 {
 	return dump_state_flag;
 }
+/********************************************
+ * function: for releas mirror mem
+ *	need call this after unreg di
+ ********************************************/
+void di_trig_free_mirror_mem(void)
+{
+	if (atomic_read(&di_flag_unreg)
+		&& de_devp->flag_cma != 2
+		&& de_devp->flag_cma != 0
+		&& active_flag) {
+		atomic_set(&di_trig_free_mem, 1);
+		up(&di_sema);
+		di_pr_info("%s\n", __func__);
+	}
+}
+EXPORT_SYMBOL(di_trig_free_mirror_mem);
+static bool di_free_mem_pre(void)
+{
+
+	if (!atomic_read(&di_trig_free_mem))
+		return false;
+	if (di_pre_stru.cma_alloc_done)
+		return false;
+
+	if (!di_post_stru.keep_buf
+		|| !atomic_read(&di_flag_unreg)) {
+		atomic_set(&di_trig_free_mem, 0);
+		return false;
+	}
+
+	/*free mirror memory*/
+	di_post_stru.keep_buf = NULL;
+
+	return true;
+}
+
 /*--------------------------*/
 
 static void parse_param_di(char *buf_orig, char **parm)
@@ -623,6 +660,8 @@ store_dbg(struct device *dev,
 		dump_post_mif_reg();
 	} else if (strncmp(buf, "recycle_buf", 11) == 0) {
 		recycle_keep_buffer();
+	} else if (strncmp(buf, "free_mirror", 11) == 0) {
+		di_trig_free_mirror_mem();
 	} else if (strncmp(buf, "recycle_post", 12) == 0) {
 		if (di_vf_peek(NULL))
 			di_vf_put(di_vf_get(NULL), NULL);
@@ -6739,6 +6778,11 @@ static int di_task_handle(void *data)
 					atomic_set(&devp->mem_flag, 0);
 				di_pre_stru.cma_alloc_req = 0;
 				di_pre_stru.cma_alloc_done = 1;
+			}
+			if (di_free_mem_pre()) {
+				di_cma_release(devp);
+				di_pr_info("release mirror\n");
+				atomic_set(&di_trig_free_mem, 0);
 			}
 			/* mutex_unlock(&de_devp->cma_mutex); */
 			#endif
