@@ -1208,9 +1208,14 @@ static int Gxtv_Demod_Dvbc_Init(/*struct aml_fe_dev *dev, */int mode)
 		demod_status.tmp = Cry_mode;
 	}
 
-	if (is_ic_ver(IC_VER_TL1) || is_ic_ver(IC_VER_TM2)) {
+	if (is_ic_ver(IC_VER_TL1)) {
 		sys.adc_clk = Adc_Clk_24M;
+		/*for timeshift mosaic issue,already fixed with tm2*/
 		sys.demod_clk = Demod_Clk_167M;
+		demod_status.tmp = Cry_mode;
+	} else if (is_ic_ver(IC_VER_TM2)) {
+		sys.adc_clk = Adc_Clk_24M;
+		sys.demod_clk = Demod_Clk_250M;
 		demod_status.tmp = Cry_mode;
 	}
 
@@ -1671,8 +1676,9 @@ static int gxtv_demod_atsc_set_frontend(struct dvb_frontend *fe)
 		if (atsc_flag != QAM_AUTO)
 			atsc_flag = QAM_AUTO;
 		/* demod_set_demod_reg(0x502, TXLX_ADC_REG6);*/
-		//sys_clk=167M
-		dd_tvafe_hiu_reg_write(D_HHI_DEMOD_CLK_CNTL, 0x502);
+		/*sys_clk=167M*/
+		if (!is_ic_ver(IC_VER_TM2))
+			dd_tvafe_hiu_reg_write(D_HHI_DEMOD_CLK_CNTL, 0x502);
 
 		demod_set_mode_ts(Gxtv_Dvbc);
 		param_j83b.ch_freq = c->frequency / 1000;
@@ -1684,21 +1690,36 @@ static int gxtv_demod_atsc_set_frontend(struct dvb_frontend *fe)
 		else
 			param_j83b.symb_rate = 5361;
 
-		if (is_ic_ver(IC_VER_TL1) || is_ic_ver(IC_VER_TM2)) {
-			//for timeshift mosaic
+		if (is_ic_ver(IC_VER_TL1)) {
+			/*for timeshift mosaic issue,already fixed with tm2*/
 			demod_status.clk_freq = Demod_Clk_167M;
 			nco_rate = (demod_status.adc_freq * 256)
 				/ demod_status.clk_freq + 2;
 			front_write_reg_v4(0x20,
 				((front_read_reg_v4(0x20) & ~0xff)
 				| (nco_rate & 0xff)));
-			front_write_reg_v4(0x2f, 0x5);//for timeshift mosaic
+			/*for timeshift mosaic issue,already fixed with tm2*/
+			front_write_reg_v4(0x2f, 0x5);
+		} else if (is_ic_ver(IC_VER_TM2)) {
+			nco_rate = (demod_status.adc_freq * 256)
+				/ demod_status.clk_freq + 2;
+			front_write_reg_v4(0x20,
+				((front_read_reg_v4(0x20) & ~0xff)
+				| (nco_rate & 0xff)));
 		}
 
 		dvbc_set_ch(&demod_status, /*&demod_i2c, */&param_j83b);
 
 		if (is_ic_ver(IC_VER_TL1) || is_ic_ver(IC_VER_TM2)) {
 			qam_write_reg(0x7, 0x10f33);
+
+			/*don't bypass afifo,can run demod at 250M
+			 *for timeshift mosaic issue
+			 */
+			if (is_ic_ver(IC_VER_TM2))
+				qam_write_reg(0x87,
+					qam_read_reg(0x87) & 0xfffffffe);
+
 			set_j83b_filter_reg_v4();
 			qam_write_reg(0x12, 0x50e1000);
 			qam_write_reg(0x30, 0x41f2f69);
@@ -1731,7 +1752,8 @@ static int gxtv_demod_atsc_set_frontend(struct dvb_frontend *fe)
 					0x16e3600);
 			}
 
-			atsc_write_reg_v4(0x12, 0x18);//for timeshift mosaic
+			/*for timeshift mosaic issue*/
+			atsc_write_reg_v4(0x12, 0x18);
 			Val_0x20.bits = atsc_read_reg_v4(ATSC_CNTR_REG_0X20);
 			Val_0x20.b.cpu_rst = 1;
 			atsc_write_reg_v4(ATSC_CNTR_REG_0X20, Val_0x20.bits);
