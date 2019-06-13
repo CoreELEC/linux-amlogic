@@ -42,6 +42,8 @@
 #define ATV_AFC_1_0MHZ   1000000
 #define ATV_AFC_2_0MHZ   2000000
 
+#define ATV_SECAM_LC_100MHZ 100000000
+
 #define ATVDEMOD_INTERVAL  (HZ / 100) /* 10ms, #define HZ 100 */
 
 #define AUTO_DETECT_COLOR (1 << 0)
@@ -58,6 +60,9 @@ struct atv_demod_sound {
 struct atv_demod_parameters {
 
 	struct analog_parameters param;
+
+	bool secam_l;
+	bool secam_lc;
 
 	unsigned int last_frequency;
 	unsigned int lock_range;

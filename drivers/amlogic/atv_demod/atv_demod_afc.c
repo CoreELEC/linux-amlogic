@@ -50,8 +50,13 @@ static void atv_demod_afc_sync_frontend(struct atv_demod_afc *afc,
 
 	v4l2_fe->params.frequency = param->frequency + freq_offset;
 
-	pr_afc("%s, sync frequency: %d.\n", __func__,
-			v4l2_fe->params.frequency);
+	/* just play mode need sync */
+	if (!(v4l2_fe->params.flag & ANALOG_FLAG_ENABLE_AFC)) {
+		v4l2_fe->params.frequency = param->frequency + freq_offset;
+
+		pr_afc("%s, sync frequency: %d.\n", __func__,
+				v4l2_fe->params.frequency);
+	}
 }
 
 static void atv_demod_afc_do_work_pre(struct atv_demod_afc *afc)

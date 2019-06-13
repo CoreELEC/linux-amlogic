@@ -1376,26 +1376,29 @@ void retrieve_vpll_carrier_line_lock(int *lock)
 	*lock = (line_lock | line_lock_strong);
 }
 
-void retrieve_vpll_carrier_audio_power(int *power)
+void retrieve_vpll_carrier_audio_power(unsigned int *power,
+		unsigned int try_times)
 {
+	unsigned int i = 0;
+	unsigned int carrier_power = 0;
+	unsigned int carrier_power_total = 0;
 	unsigned long data = atv_dmd_rd_reg(APB_BLOCK_ADDR_SIF_STG_2, 0x02);
 
-	if (!(data & 0x80)) {
-		atv_dmd_wr_reg(APB_BLOCK_ADDR_SIF_STG_2, 0x02, data | 0x80);
+	if (!(data & 0x80))
+		atv_dmd_wr_reg(APB_BLOCK_ADDR_SIF_STG_2, 0x02, data | 0x87);
 
-		usleep_range(10000, 10000 + 100);
+	usleep_range(20000, 20000 + 100);
 
-		data = atv_dmd_rd_reg(APB_BLOCK_ADDR_SIF_STG_2, 0x03);
-		*power = data & 0xffff;
+	for (i = 0; i < try_times; i++) {
+		carrier_power = atv_dmd_rd_reg(APB_BLOCK_ADDR_SIF_STG_2, 0x03);
+		carrier_power_total += carrier_power & 0xffff;
+	}
 
-		/* keep open for carrier audio power update */
-		/*
-		 * data = atv_dmd_rd_reg(APB_BLOCK_ADDR_SIF_STG_2, 0x02);
-		 * atv_dmd_wr_reg(APB_BLOCK_ADDR_SIF_STG_2, 0x02,data&(~0x80));
-		 */
-	} else {
-		data = atv_dmd_rd_reg(APB_BLOCK_ADDR_SIF_STG_2, 0x03);
-		*power = data & 0xffff;
+	if (try_times)
+		*power = carrier_power_total / try_times;
+	else {
+		carrier_power = atv_dmd_rd_reg(APB_BLOCK_ADDR_SIF_STG_2, 0x03);
+		*power = carrier_power & 0xffff;
 	}
 
 	pr_audio("retrieve_vpll_carrier_audio_power: %d.\n", *power);
@@ -1995,6 +1998,17 @@ int atvdemod_init(struct atv_demod_priv *priv)
 
 		atv_dmd_set_std(amlatvdemod_devp->std);
 
+		if (p->param.std & (V4L2_STD_SECAM_L)) {
+			p->secam_l = true;
+			p->secam_lc = false;
+		} else if (p->param.std & V4L2_STD_SECAM_LC) {
+			p->secam_l = false;
+			p->secam_lc = true;
+		} else {
+			p->secam_l = false;
+			p->secam_lc = false;
+		}
+
 		if (is_meson_txlx_cpu() || is_meson_txhd_cpu()
 				|| is_meson_tl1_cpu() || is_meson_tm2_cpu())
 			sound_format = 1;
@@ -2122,27 +2136,22 @@ void atv_dmd_set_std(unsigned long ptstd)
 		v4l2_std_to_str((0xff000000 & ptstd)),
 		v4l2_std_to_str((0xffffff & ptstd)));
 
-	pr_dbg("[%s] set if_freq %d, if_inv %d.\n",
-		__func__, amlatvdemod_devp->if_freq,
-		amlatvdemod_devp->if_inv);
+	pr_dbg("[%s] set if_freq %d, if_inv %d.\n", __func__, if_freq, if_inv);
 }
 
 int aml_audiomode_autodet(struct v4l2_frontend *v4l2_fe)
 {
 	struct dvb_frontend *fe = &v4l2_fe->fe;
-	struct atv_demod_priv *priv = fe->analog_demod_priv;
 	struct v4l2_analog_parameters *p = &v4l2_fe->params;
 	struct analog_parameters params;
 
-	unsigned long carrier_power = 0;
+	unsigned int carrier_power = 0;
 	unsigned long carrier_power_max = 0;
 	unsigned long carrier_power_average_max = 0;
 	unsigned long carrier_power_average[4] = {0};
-	unsigned long temp_data = 0;
 	int lock = 0, line_lock = 0;
 	int broad_std_final = 0;
 	int num = 0, i = 0, final_id = 0;
-	int delay_ms = 20, delay_ms_default = 20;
 	int cur_std = ID_PAL_DK;
 	bool secam_signal = false;
 	bool ntsc_signal = false;
@@ -2169,31 +2178,34 @@ int aml_audiomode_autodet(struct v4l2_frontend *v4l2_fe)
 	case AML_ATV_DEMOD_VIDEO_MODE_PROP_SECAM_DK2:
 	case AML_ATV_DEMOD_VIDEO_MODE_PROP_SECAM_DK3:
 		if (!(p->std & V4L2_COLOR_STD_SECAM) ||
-				!(p->std & V4L2_STD_SECAM_L)) {
+			!((p->std & V4L2_STD_SECAM_L) ||
+				(p->std & V4L2_STD_SECAM_LC))) {
 			secam_signal = true;
 			broad_std = AML_ATV_DEMOD_VIDEO_MODE_PROP_PAL_M;
-		} else {
-			broad_std = AML_ATV_DEMOD_VIDEO_MODE_PROP_SECAM_L;
-			atvdemod_init(priv);
-			temp_data = atv_dmd_rd_reg(APB_BLOCK_ADDR_SIF_STG_2,
-					0x02);
 
-			temp_data = temp_data & (~0x80); /* 0xbf; */
-
-			atv_dmd_wr_reg(APB_BLOCK_ADDR_SIF_STG_2, 0x02,
-					temp_data);
-			/* pr_err("%s, SECAM ,audio set SECAM_L\n",
-			 *  __func__);
-			 */
-			return broad_std;
+			break;
 		}
-		break;
+
+		if ((p->std & V4L2_STD_SECAM_L) &&
+			p->frequency <= ATV_SECAM_LC_100MHZ) {
+			retrieve_vpll_carrier_audio_power(
+					&carrier_power, 100);
+			if (carrier_power < AUIDO_CARRIER_POWER_MIN) {
+				broad_std =
+				AML_ATV_DEMOD_VIDEO_MODE_PROP_SECAM_LC;
+				pr_err("%s,carrier %d too low, set L to LC.\n",
+						 __func__, carrier_power);
+			} else
+				broad_std =
+				AML_ATV_DEMOD_VIDEO_MODE_PROP_SECAM_L;
+		} else
+			broad_std =
+				AML_ATV_DEMOD_VIDEO_MODE_PROP_SECAM_L;
+
+		return broad_std;
 
 	default:
-		pr_err("unsupport broadcast_standard!!!\n");
-		temp_data = atv_dmd_rd_reg(APB_BLOCK_ADDR_SIF_STG_2, 0x02);
-		temp_data = temp_data & (~0x80); /* 0xbf; */
-		atv_dmd_wr_reg(APB_BLOCK_ADDR_SIF_STG_2, 0x02, temp_data);
+		pr_err("unsupport broadcast_standard %d !!!\n", broad_std);
 		return broad_std;
 	}
 
@@ -2210,7 +2222,6 @@ int aml_audiomode_autodet(struct v4l2_frontend *v4l2_fe)
 			p->frequency += 1;
 			p->audmode = V4L2_STD_PAL_I;
 
-			delay_ms = delay_ms_default;
 			break;
 		case AML_ATV_DEMOD_VIDEO_MODE_PROP_PAL_I:
 			broad_std = AML_ATV_DEMOD_VIDEO_MODE_PROP_PAL_BG;
@@ -2220,7 +2231,6 @@ int aml_audiomode_autodet(struct v4l2_frontend *v4l2_fe)
 			p->frequency += 1;
 			p->audmode = V4L2_STD_PAL_BG;
 
-			delay_ms = delay_ms_default;
 			break;
 		case AML_ATV_DEMOD_VIDEO_MODE_PROP_PAL_BG:
 			broad_std = AML_ATV_DEMOD_VIDEO_MODE_PROP_PAL_M;
@@ -2236,7 +2246,6 @@ int aml_audiomode_autodet(struct v4l2_frontend *v4l2_fe)
 				p->audmode = V4L2_STD_NTSC_M;
 			}
 
-			delay_ms = delay_ms_default;
 			break;
 		case AML_ATV_DEMOD_VIDEO_MODE_PROP_PAL_M:
 			broad_std = AML_ATV_DEMOD_VIDEO_MODE_PROP_PAL_DK;
@@ -2246,7 +2255,6 @@ int aml_audiomode_autodet(struct v4l2_frontend *v4l2_fe)
 			p->frequency += 1;
 			p->audmode = V4L2_STD_PAL_DK;
 
-			delay_ms = delay_ms_default;
 			break;
 		default:
 			pr_err("unsupport broadcast_standard!!!\n");
@@ -2259,13 +2267,6 @@ int aml_audiomode_autodet(struct v4l2_frontend *v4l2_fe)
 		params.std = p->std;
 		if (fe->ops.analog_ops.set_params)
 			fe->ops.analog_ops.set_params(fe, &params);
-
-		/* enable audio detect function */
-		temp_data = atv_dmd_rd_reg(APB_BLOCK_ADDR_SIF_STG_2, 0x02);
-		temp_data = temp_data | 0x87;/* 0x40 */
-		atv_dmd_wr_reg(APB_BLOCK_ADDR_SIF_STG_2, 0x02, temp_data);
-
-		usleep_range(delay_ms * 1000, delay_ms * 1000 + 100);
 
 		/* ----------------judgment signal state--------------------- */
 		i = 4;
@@ -2281,29 +2282,18 @@ int aml_audiomode_autodet(struct v4l2_frontend *v4l2_fe)
 			usleep_range(6000, 9000);
 		}
 		/* ----------------read carrier_power--------------------- */
-		if (has_audio) {
-			for (i = 0; i < 100; i++) {
-				carrier_power = atv_dmd_rd_reg(
-					APB_BLOCK_ADDR_SIF_STG_2, 0x03);
-				carrier_power_max += carrier_power;
-			}
-			carrier_power = carrier_power_max/i;
-		} else {
-			carrier_power = 0;
+		carrier_power = 0;
+		if (has_audio)
+			retrieve_vpll_carrier_audio_power(&carrier_power, 100);
+		else
 			pr_err("[%s] pll and line unlock.\n", __func__);
-		}
 
-		carrier_power_max = 0;
-		pr_err("[%s] [num:%d] [broad_std:%d] [%s] audio carrier power: %lu. @@@@@@@@@@\n",
+		pr_err("[%s] [num:%d] [broad_std:%d] [%s] audio carrier power: %d. @@@@@@@@@@\n",
 			__func__, num, broad_std, AUDIO_NAME[cur_std],
 			carrier_power);
 		carrier_power_average[cur_std] += carrier_power;
 		num++;
 	}
-
-	/* disable audio detect function */
-	temp_data = atv_dmd_rd_reg(APB_BLOCK_ADDR_SIF_STG_2, 0x02);
-	atv_dmd_wr_reg(APB_BLOCK_ADDR_SIF_STG_2, 0x02, temp_data & (~0x80));
 
 	carrier_power_max = carrier_power_average[0];
 	for (i = 0; i < ID_MAX; i++) {
@@ -2333,7 +2323,7 @@ int aml_audiomode_autodet(struct v4l2_frontend *v4l2_fe)
 	pr_err("%s:broad_std:%d,carrier_power_average_max:%lu\n",
 			__func__, broad_std, carrier_power_average_max);
 
-	if (carrier_power_average_max < 150) {
+	if (carrier_power_average_max < AUIDO_CARRIER_POWER_MIN) {
 		pr_err("%s,carrier too low error\n", __func__);
 		if (secam_signal) {
 			broad_std =

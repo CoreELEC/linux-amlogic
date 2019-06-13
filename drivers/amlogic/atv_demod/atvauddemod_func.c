@@ -1436,6 +1436,13 @@ void set_nicam_outputmode(uint32_t outmode)
 			set_deem_and_gain(aud_std);
 	}
 
+	if (aud_std == AUDIO_STANDARD_NICAM_L
+		&& outmode == AUDIO_OUTMODE_NICAM_MONO) {
+		audio_source_select(0);
+	} else {
+		audio_source_select(1);
+	}
+
 	switch (outmode) {
 	case AUDIO_OUTMODE_NICAM_MONO:/* fm mono */
 		if (is_meson_tl1_cpu() || is_meson_tm2_cpu()) {
@@ -1584,7 +1591,10 @@ void set_outputmode(uint32_t standard, uint32_t outmode)
 				aud_std = AUDIO_STANDARD_NICAM_I;
 			else if (standard == AUDIO_STANDARD_MONO_L)
 				aud_std = AUDIO_STANDARD_NICAM_L;
-		}
+
+			audio_source_select(1);
+		} else
+			audio_source_select(0);
 
 		break;
 	}

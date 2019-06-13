@@ -45,7 +45,7 @@
 #include "atvauddemod_func.h"
 
 
-#define AMLATVDEMOD_VER "V2.12"
+#define AMLATVDEMOD_VER "V2.13"
 
 struct aml_atvdemod_device *amlatvdemod_devp;
 
@@ -140,16 +140,16 @@ static ssize_t aml_atvdemod_store(struct class *class,
 	} else if (!strncmp(parm[0], "get", 3)) {
 		if (!strncmp(parm[1], "avout_gain", 10)) {
 			val = atv_dmd_rd_byte(0x0c, 0x01);
-			pr_dbg("avout_gain:0x%x\n", val);
+			pr_info("avout_gain:0x%x\n", val);
 		} else if (!strncmp(parm[1], "avout_offset", 12)) {
 			val = atv_dmd_rd_byte(0x0c, 0x04);
-			pr_dbg("avout_offset:0x%x\n", val);
+			pr_info("avout_offset:0x%x\n", val);
 		} else if (!strncmp(parm[1], "atv_gain", 8)) {
 			val = atv_dmd_rd_byte(0x19, 0x01);
-			pr_dbg("atv_gain:0x%x\n", val);
+			pr_info("atv_gain:0x%x\n", val);
 		} else if (!strncmp(parm[1], "atv_offset", 10)) {
 			val = atv_dmd_rd_byte(0x19, 0x04);
-			pr_dbg("atv_offset:0x%x\n", val);
+			pr_info("atv_offset:0x%x\n", val);
 		}
 	} else if (!strncmp(parm[0], "snr_hist", 8)) {
 		data_snr_avg = 0;
@@ -160,14 +160,14 @@ static ssize_t aml_atvdemod_store(struct class *class,
 			data_snr_avg += data_snr[i];
 		}
 		data_snr_avg = data_snr_avg / 128;
-		pr_dbg("**********snr_hist_128avg:0x%x(%d)*********\n",
+		pr_info("**********snr_hist_128avg:0x%x(%d)*********\n",
 				data_snr_avg,
 				data_snr_avg);
 	} else if (!strncmp(parm[0], "afc_info", 8)) {
 		data_afc = retrieve_vpll_carrier_afc();
-		pr_dbg("afc %d Khz.\n", data_afc);
+		pr_info("afc %d Khz.\n", data_afc);
 	} else if (!strncmp(parm[0], "ver_info", 8)) {
-		pr_dbg("aml_atvdemod_ver %s.\n",
+		pr_info("aml_atvdemod_ver %s.\n",
 				AMLATVDEMOD_VER);
 	} else if (!strncmp(parm[0], "audio_autodet", 13)) {
 		aml_audiomode_autodet(&dev->v4l2_fe);
@@ -175,10 +175,10 @@ static ssize_t aml_atvdemod_store(struct class *class,
 		if (kstrtoul(buf + strlen("audio_gain_set") + 1, 16, &tmp) == 0)
 			val = tmp;
 		aml_audio_valume_gain_set(val);
-		pr_dbg("audio_gain_set : %d\n", val);
+		pr_info("audio_gain_set : %d\n", val);
 	} else if (!strncmp(parm[0], "audio_gain_get", 14)) {
 		val = aml_audio_valume_gain_get();
-		pr_dbg("audio_gain_get : %d\n", val);
+		pr_info("audio_gain_get : %d\n", val);
 	} else if (!strncmp(parm[0], "audio_gain_shift", 16)) {
 		/* int db[] = {12, 6, 0, -6, -12, -18, -24, -30}; */
 		tmp = adec_rd_reg(0x16);
@@ -212,7 +212,7 @@ static ssize_t aml_atvdemod_store(struct class *class,
 			block_reg = tmp;
 		if (block_addr < APB_BLOCK_ADDR_TOP)
 			block_val = atv_dmd_rd_long(block_addr, block_reg);
-		pr_dbg("rs block_addr:0x%x,block_reg:0x%x,block_val:0x%x\n",
+		pr_info("rs block_addr:0x%x,block_reg:0x%x,block_val:0x%x\n",
 				block_addr,
 				block_reg, block_val);
 	} else if (!strncmp(parm[0], "ws", 2)) {
@@ -224,14 +224,14 @@ static ssize_t aml_atvdemod_store(struct class *class,
 			block_val = tmp;
 		if (block_addr < APB_BLOCK_ADDR_TOP)
 			atv_dmd_wr_long(block_addr, block_reg, block_val);
-		pr_dbg("ws block_addr:0x%x,block_reg:0x%x,block_val:0x%x\n",
+		pr_info("ws block_addr:0x%x,block_reg:0x%x,block_val:0x%x\n",
 				block_addr,
 				block_reg, block_val);
 		block_val = atv_dmd_rd_long(block_addr, block_reg);
-		pr_dbg("readback_val:0x%x\n", block_val);
+		pr_info("readback_val:0x%x\n", block_val);
 	} else if (!strncmp(parm[0], "snr_cur", 7)) {
 		data_snr_avg = atvdemod_get_snr_val();
-		pr_dbg("**********snr_cur:%d*********\n", data_snr_avg);
+		pr_info("**********snr_cur:%d*********\n", data_snr_avg);
 	} else if (!strncmp(parm[0], "pll_status", 10)) {
 		int vpll_lock;
 
@@ -249,9 +249,9 @@ static ssize_t aml_atvdemod_store(struct class *class,
 		else
 			pr_info("line lock:unlocked\n");
 	} else if (!strncmp(parm[0], "audio_power", 11)) {
-		int audio_power = 0;
+		unsigned int audio_power = 0;
 
-		retrieve_vpll_carrier_audio_power(&audio_power);
+		retrieve_vpll_carrier_audio_power(&audio_power, 1);
 		pr_info("audio_power: %d.\n", audio_power);
 	} else if (!strncmp(parm[0], "adc_power", 9)) {
 		int adc_power = 0;
@@ -354,8 +354,27 @@ static ssize_t aml_atvdemod_store(struct class *class,
 			else
 				pr_info("attach_tuner %d done.\n", tuner_id);
 		}
+	} else if (!strncmp(parm[0], "dump_demod", 10)) {
+		int blk = 0, reg = 0;
+
+		for (blk = 0; blk <= APB_BLOCK_ADDR_TOP; ++blk) {
+			for (reg = 0; reg <= 0x40; ++reg) {
+				val = atv_dmd_rd_long(blk, reg);
+				pr_err("[0x%04x] = 0x%x.\n",
+						(blk << 8) + (reg << 2), val);
+			}
+		}
+	} else if (!strncmp(parm[0], "dump_audemod", 12)) {
+		int reg = 0;
+
+		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXLX)) {
+			for (reg = 0; reg <= 0x1ff; ++reg) {
+				val = adec_rd_reg(reg);
+				pr_err("[0x%04x] = 0x%x.\n", (reg << 2), val);
+			}
+		}
 	} else
-		pr_dbg("invalid command\n");
+		pr_info("invalid command\n");
 
 EXIT:
 	kfree(buf_orig);
