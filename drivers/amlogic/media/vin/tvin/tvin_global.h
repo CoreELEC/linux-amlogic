@@ -266,7 +266,7 @@ static inline uint32_t rd_bits(uint32_t offset,
 #define CVD2_CHROMA_DTO_PAL_M    0x2623cd98
 #define CVD2_CHROMA_DTO_PAL_CN   0x263566cf
 #define CVD2_CHROMA_DTO_PAL_60   0x2f4abc24
-#define CVD2_CHROMA_DTO_SECAM    0x2db7a328
+#define CVD2_CHROMA_DTO_SECAM    0x2dcba328
 #define CVD2_HSYNC_DTO_NTSC_M    0x24000000
 #define CVD2_HSYNC_DTO_NTSC_443  0x24000000
 #define CVD2_HSYNC_DTO_PAL_I     0x24000000
