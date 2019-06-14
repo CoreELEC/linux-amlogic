@@ -2664,6 +2664,15 @@ static void dump_video_status(void)
 			rx.no_signal, rx.state);
 	rx_pr("skip frame=%d\n", rx.skip);
 	rx_pr("avmute_skip:0x%x\n", rx.avmute_skip);
+
+	rx_pr("****vs_info_details:*****\n");
+	rx_pr("hdr10plus = %d\n", rx.vs_info_details.hdr10plus);
+	rx_pr("allm_mode = %d\n", rx.vs_info_details.allm_mode);
+	rx_pr("dolby_vision = %d\n", rx.vs_info_details.dolby_vision);
+	rx_pr("dv ll = %d\n", rx.vs_info_details.low_latency);
+
+	rx_pr("DRM = %d\n", rx_pkt_chk_attach_drm());
+
 	rx_pr("phy addr: %#x,%#x,port: %d, up phy addr:%#x\n",
 		hdmirx_rd_top(TOP_EDID_RAM_OVR1_DATA),
 		hdmirx_rd_top(TOP_EDID_RAM_OVR2_DATA),

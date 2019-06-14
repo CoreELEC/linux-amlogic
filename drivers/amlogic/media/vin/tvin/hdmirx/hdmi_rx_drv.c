@@ -727,11 +727,45 @@ int hdmirx_hw_get_3d_structure(void)
  */
 void hdmirx_get_vsi_info(struct tvin_sig_property_s *prop)
 {
-	rx_get_vsi_info();
+	static uint8_t last_vsi_state;
+	uint8_t vsi_state = rx_get_vsi_info();
 
-	prop->trans_fmt = TVIN_TFMT_2D;
-	prop->dolby_vision = false;
-	if (hdmirx_hw_get_3d_structure() == 1) {
+	if (last_vsi_state != vsi_state) {
+		if (log_level & PACKET_LOG) {
+			rx_pr("!!!vsi state = %d\n", vsi_state);
+			rx_pr("1:4K3D 2:DV10 3:DV15 4:HDR10+\n");
+		}
+		prop->trans_fmt = TVIN_TFMT_2D;
+		prop->dolby_vision = false;
+		prop->hdr10p_info.hdr10p_on = false;
+		last_vsi_state = vsi_state;
+	}
+
+	switch (vsi_state) {
+	case E_VSI_HDR10PLUS:
+		prop->hdr10p_info.hdr10p_on = rx.vs_info_details.hdr10plus;
+		memcpy(&(prop->hdr10p_info.hdr10p_data),
+			&(rx_pkt.vs_info),
+			sizeof(struct tvin_hdr10p_data_s));
+		break;
+	case E_VSI_DV10:
+	case E_VSI_DV15:
+		prop->dolby_vision = rx.vs_info_details.dolby_vision;
+		prop->low_latency = rx.vs_info_details.low_latency;
+		if ((rx.vs_info_details.dolby_vision == true) &&
+			(rx.vs_info_details.dolby_timeout <=
+				dv_nopacket_timeout) &&
+			(rx.vs_info_details.dolby_timeout != 0)) {
+			rx.vs_info_details.dolby_timeout--;
+			if (rx.vs_info_details.dolby_timeout == 0) {
+				rx.vs_info_details.dolby_vision = false;
+					rx_pr("dv10 timeout\n");
+			}
+		}
+		break;
+	case E_VSI_4K3D:
+	case E_VSI_VSI21:
+		if (hdmirx_hw_get_3d_structure() == 1) {
 		if (rx.vs_info_details._3d_structure == 0x1) {
 			/* field alternative */
 			prop->trans_fmt = TVIN_TFMT_3D_FA;
@@ -772,23 +806,10 @@ void hdmirx_get_vsi_info(struct tvin_sig_property_s *prop)
 				break;
 			}
 		}
-	} else {
-		prop->dolby_vision = rx.vs_info_details.dolby_vision;
-		prop->low_latency = rx.vs_info_details.low_latency;
-		if ((rx.vs_info_details.dolby_vision == true) &&
-			(rx.vs_info_details.dolby_timeout <=
-				dv_nopacket_timeout) &&
-			(rx.vs_info_details.dolby_timeout != 0)) {
-			rx.vs_info_details.dolby_timeout--;
-			if (rx.vs_info_details.dolby_timeout == 0) {
-				rx.vs_info_details.dolby_vision = false;
-					rx_pr("dv type 0x18 timeout\n");
-			}
-		}
-		if (log_level & VSI_LOG) {
-			rx_pr("prop->dolby_vision:%d\n", prop->dolby_vision);
-			rx_pr("prop->low_latency:%d\n", prop->low_latency);
-		}
+	}
+		break;
+	default:
+		break;
 	}
 }
 /*
