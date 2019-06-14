@@ -93,6 +93,7 @@ MODULE_AMLOG(LOG_LEVEL_ERROR, 0, LOG_DEFAULT_LEVEL_DESC, LOG_MASK_DESC);
 #ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
 #include <linux/amlogic/pm.h>
 #endif
+#include <linux/math64.h>
 
 #define VIDEO_PIP
 
@@ -1114,7 +1115,10 @@ module_param_named(dmc_adjust, dmc_adjust, bool, 0644);
 static u32 dmc_config_state;
 static u32 last_toggle_count;
 static u32 toggle_same_count;
-
+static int hdmin_delay_start;
+static int hdmin_delay_start_time;
+static int hdmin_delay_duration;
+static int vframe_walk_delay;
 /* video_inuse */
 u32 video_inuse;
 
@@ -3964,7 +3968,8 @@ static void vsync_toggle_frame(struct vframe_s *vf, int line)
 		&& first_picture)
 		pr_info("first picture {%d,%d} pts:%x,\n",
 			vf->width, vf->height, vf->pts);
-
+	vframe_walk_delay = (int) div_u64(((jiffies_64 -
+		vf->ready_jiffies64)*1000), HZ);
 	/* switch buffer */
 	post_canvas = vf->canvas0Addr;
 	if (!glayer_info[0].need_no_compress &&
@@ -6296,6 +6301,34 @@ void correct_vd2_mif_size_for_DV(
 		/* TODO: if el len is 0, need disable bl */
 	}
 }
+
+int hdmi_in_start_check(struct vframe_s *vf)
+{
+	int expire;
+	int vsync_duration = 0;
+
+	if (hdmin_delay_start == 0)
+		return 0;
+	if (!vf || vf->duration == 0)
+		return 0;
+	if (hdmin_delay_duration < 0)
+		hdmin_delay_duration = 300;
+	if (hdmin_delay_start_time == -1) {
+		/* update duration */
+		vsync_duration = (int) (vf->duration / 96);
+		hdmin_delay_start_time = jiffies_to_msecs(jiffies);
+		hdmin_delay_start_time -= vsync_duration*2;
+		return 1;
+	}
+	expire = jiffies_to_msecs(jiffies) -
+		hdmin_delay_start_time;
+	if (expire < hdmin_delay_duration)
+		return 1;
+	hdmin_delay_start = 0;
+	timestamp_vpts_set(timestamp_pcrscr_get());
+	return 0;
+}
+
 #if ENABLE_UPDATE_HDR_FROM_USER
 void set_hdr_to_frame(struct vframe_s *vf)
 {
@@ -6545,6 +6578,7 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 	static  struct vframe_s *pause_vf;
 	int force_flush = 0;
 	static u32 interrupt_count;
+	int ret = 0;
 	u32 next_afbc_request = atomic_read(&gAfbc_request);
 
 	glayer_info[0].need_no_compress =
@@ -7006,6 +7040,12 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 
 	/* buffer switch management */
 	vf = video_vf_peek();
+	/* Blanche HDMI-IN AV SYNC Control */
+	if (vf) {
+		ret = hdmi_in_start_check(vf);
+		if (ret > 0)
+			goto exit;
+	}
 
 	/* setting video display property in underflow mode */
 	if ((!vf) && cur_dispbuf && (video_property_changed))
@@ -11330,6 +11370,56 @@ static ssize_t frame_addr_show(struct class *cla, struct class_attribute *attr,
 	return sprintf(buf, "NA\n");
 }
 
+static ssize_t hdmin_delay_start_show(struct class *class,
+			struct class_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%d\n", hdmin_delay_start);
+}
+
+static ssize_t hdmin_delay_start_store(struct class *class,
+			struct class_attribute *attr,
+			const char *buf, size_t count)
+{
+	size_t r;
+	int value;
+
+	r = kstrtoint(buf, 0, &value);
+	if (r < 0)
+		return -EINVAL;
+	hdmin_delay_start = value;
+	hdmin_delay_start_time = -1;
+	pr_info("[%s] hdmin_delay_start:%d\n", __func__, value);
+	return count;
+}
+
+static ssize_t hdmin_delay_duration_show(struct class *class,
+			struct class_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%d\n", hdmin_delay_duration);
+}
+
+static ssize_t hdmin_delay_duration_store(struct class *class,
+			struct class_attribute *attr,
+			const char *buf, size_t count)
+{
+	size_t r;
+	int value;
+
+	r = kstrtoint(buf, 0, &value);
+	if (r < 0)
+		return -EINVAL;
+	hdmin_delay_duration = value;
+	pr_info("[%s] hdmin_delay_duration:%d\n",
+		__func__, hdmin_delay_duration);
+	return count;
+}
+
+static ssize_t vframe_walk_delay_show(struct class *class,
+			struct class_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%d\n", vframe_walk_delay);
+}
+
 static ssize_t frame_canvas_width_show(struct class *cla,
 				       struct class_attribute *attr, char *buf)
 {
@@ -12746,6 +12836,17 @@ static struct class_attribute amvideo_class_attrs[] = {
 	__ATTR(free_keep_buffer,
 	       0664, NULL,
 	       video_free_keep_buffer_store),
+	__ATTR(hdmin_delay_start,
+	       0664,
+	       hdmin_delay_start_show,
+	       hdmin_delay_start_store),
+	__ATTR(hdmin_delay_duration,
+	       0664,
+	       hdmin_delay_duration_show,
+	       hdmin_delay_duration_store),
+	__ATTR(vframe_walk_delay,
+	       0664,
+	       vframe_walk_delay_show, NULL),
 	__ATTR(free_cma_buffer,
 	       0664, NULL,
 	       free_cma_buffer_store),
