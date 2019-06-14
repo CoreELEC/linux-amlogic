@@ -361,7 +361,7 @@ static void show_user_extra_register_data(struct pt_regs *regs, int nbytes)
 	set_fs(fs);
 }
 
-static void show_vma(struct mm_struct *mm, unsigned long addr)
+void show_vma(struct mm_struct *mm, unsigned long addr)
 {
 	struct vm_area_struct *vma;
 	struct file *file;

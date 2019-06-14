@@ -1266,6 +1266,10 @@ free_it:
 		 * appear not as the counts should be low
 		 */
 		list_add(&page->lru, &free_pages);
+	#ifdef CONFIG_AMLOGIC_CMA
+		if (ttu_flags & TTU_IGNORE_ACCESS)
+			ClearPageCmaAllocating(page);
+	#endif
 		continue;
 
 cull_mlocked:
