@@ -223,5 +223,8 @@ extern void tvafe_cvd2_non_std_config(struct tvafe_cvd2_s *cvd2);
 
 extern bool tvafe_snow_function_flag;
 
+extern unsigned int try_fmt_max_atv;
+extern unsigned int try_fmt_max_av;
+
 #endif /* _TVAFE_CVD_H */
 

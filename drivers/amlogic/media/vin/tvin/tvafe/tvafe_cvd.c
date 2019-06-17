@@ -90,7 +90,6 @@
 #define SYNC_SENSITIVITY true
 #define NOISE_JUDGE false
 #define PGA_DEFAULT_VAL 0x20
-#define TRY_FORMAT_MAX 5
 
 /*0:NORMAL  1:a little sharper 2:sharper 3:even sharper*/
 #define CVD2_FILTER_CONFIG_LEVEL 0
@@ -140,6 +139,9 @@ static unsigned int config_force_fmt;
 module_param(config_force_fmt, uint, 0664);
 MODULE_PARM_DESC(config_force_fmt,
 		"after try TRY_FORMAT_MAX times ,we will force one fmt");
+
+unsigned int try_fmt_max_atv = 24; /* 5->24 for SECAM identify to PAL */
+unsigned int try_fmt_max_av = 5;
 
 /*0:normal nonstandard configure every loop*/
 /*1:force nonstandard configure every loop*/
@@ -1555,6 +1557,13 @@ static void tvafe_cvd2_search_video_mode(struct tvafe_cvd2_s *cvd2,
 			struct tvafe_cvd2_mem_s *mem)
 {
 	unsigned int shift_cnt = 0;
+	unsigned int try_format_max;
+
+	if ((cvd2->vd_port == TVIN_PORT_CVBS3) ||
+		(cvd2->vd_port == TVIN_PORT_CVBS0))
+		try_format_max = try_fmt_max_atv;
+	else
+		try_format_max = try_fmt_max_av;
 
 	/* execute manual mode */
 	if ((cvd2->manual_fmt) && (cvd2->config_fmt != cvd2->manual_fmt) &&
@@ -1611,10 +1620,10 @@ static void tvafe_cvd2_search_video_mode(struct tvafe_cvd2_s *cvd2,
 			cvd2->hw_data[cvd2->hw_data_cur].secam_detected);
 			/* force mode:due to some*/
 			/*signal is hard to check out */
-		if (++try_format_cnt == TRY_FORMAT_MAX) {
+		if (++try_format_cnt == try_format_max) {
 			cvd_force_config_fmt(cvd2, mem, config_force_fmt);
 			return;
-		} else if (try_format_cnt > TRY_FORMAT_MAX) {
+		} else if (try_format_cnt > try_format_max) {
 			cvd2->info.state = TVAFE_CVD2_STATE_FIND;
 			force_fmt_flag = 1;
 			return;
@@ -1822,7 +1831,7 @@ static void tvafe_cvd2_search_video_mode(struct tvafe_cvd2_s *cvd2,
 					cvd_force_config_fmt(cvd2, mem,
 					config_force_fmt);
 					try_format_cnt =
-						TRY_FORMAT_MAX+1;
+						try_format_max+1;
 				} else
 					tvafe_cvd2_try_format(cvd2, mem,
 					TVIN_SIG_FMT_CVBS_PAL_I);

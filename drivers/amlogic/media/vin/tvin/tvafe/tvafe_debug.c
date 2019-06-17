@@ -199,6 +199,8 @@ static void tvafe_state(struct tvafe_dev_s *devp)
 	tvafe_pr_info("force_vs_th_flag:0x%x\n", user_param->force_vs_th_flag);
 	tvafe_pr_info("nostd_stable_cnt:0x%x\n", user_param->nostd_stable_cnt);
 	tvafe_pr_info("skip_vf_num:0x%x\n", user_param->skip_vf_num);
+	tvafe_pr_info("try_fmt_max_atv:%d\n", try_fmt_max_atv);
+	tvafe_pr_info("try_fmt_max_av:%d\n", try_fmt_max_av);
 	tvafe_pr_info("tvafe version :  %s\n", TVAFE_VER);
 }
 
@@ -398,6 +400,18 @@ static ssize_t tvafe_store(struct device *dev,
 		}
 		pr_info("[tvafe..]%s: skip_vf_num = %d\n",
 			__func__, user_param->skip_vf_num);
+	} else if (!strncmp(buff, "try_fmt_max_atv",
+		strlen("try_fmt_max_atv"))) {
+		if (kstrtouint(parm[1], 10, &try_fmt_max_atv) < 0)
+			goto tvafe_store_err;
+		pr_info("[tvafe..]%s: set try_fmt_max_atv = %d\n",
+			__func__, try_fmt_max_atv);
+	} else if (!strncmp(buff, "try_fmt_max_av",
+		strlen("try_fmt_max_av"))) {
+		if (kstrtouint(parm[1], 10, &try_fmt_max_av) < 0)
+			goto tvafe_store_err;
+		pr_info("[tvafe..]%s: set try_fmt_max_av = %d\n",
+			__func__, try_fmt_max_av);
 	} else if (!strncmp(buff, "dbg_print", strlen("dbg_print"))) {
 		if (parm[1]) {
 			if (kstrtouint(parm[1], 16, &tvafe_dbg_print) < 0)
