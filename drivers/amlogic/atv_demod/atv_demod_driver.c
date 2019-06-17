@@ -740,6 +740,10 @@ static int aml_atvdemod_probe(struct platform_device *pdev)
 		dev->audio_reg_base = ioremap(round_down(0xff60074c, 0x3), 4);
 
 		pr_info("audio_reg_base = 0x%p.\n", dev->audio_reg_base);
+	} else {
+		dev->audio_reg_base = NULL;
+
+		pr_info("audio_reg_base = NULL.\n");
 	}
 
 	aml_atvdemod_dt_parse(dev);
@@ -883,6 +887,7 @@ static void __exit aml_atvdemod_exit(void)
 MODULE_AUTHOR("nengwen.chen <nengwen.chen@amlogic.com>");
 MODULE_DESCRIPTION("aml atv demod device driver");
 MODULE_LICENSE("GPL");
+MODULE_VERSION(AMLATVDEMOD_VER);
 
 module_init(aml_atvdemod_init);
 module_exit(aml_atvdemod_exit);

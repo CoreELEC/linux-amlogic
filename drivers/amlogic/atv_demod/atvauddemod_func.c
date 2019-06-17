@@ -30,6 +30,15 @@
 #include "atv_demod_driver.h"
 #include "atv_demod_access.h"
 
+#ifdef CONFIG_AMLOGIC_SND_SOC_AUGE
+#include "sound/soc/amlogic/auge/audio_utils.h"
+#endif
+
+#ifdef CONFIG_AMLOGIC_SND_SOC_MESON
+#include "sound/soc/amlogic/meson/audio_hw.h"
+#endif
+
+
 /* #define AUDIO_MOD_DET_INTERNAL */
 
 /* ademod_debug_en for audio demod debug */
@@ -1667,17 +1676,22 @@ void set_outputmode_status_init(void)
 
 void set_output_left_right_exchange(unsigned int ch)
 {
+	/* after tl */
+	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
 #ifdef CONFIG_AMLOGIC_SND_SOC_AUGE
-	if (ch)
-		fratv_LR_swap(true);
-	else
-		fratv_LR_swap(false);
-#else
-	if (ch)
-		atv_LR_swap(true);
-	else
-		atv_LR_swap(false);
+		if (ch)
+			fratv_LR_swap(true);
+		else
+			fratv_LR_swap(false);
 #endif
+	} else {
+#ifdef CONFIG_AMLOGIC_SND_SOC_MESON
+		if (ch)
+			atv_LR_swap(true);
+		else
+			atv_LR_swap(false);
+#endif
+	}
 }
 
 /* atv audio source select
@@ -1686,15 +1700,20 @@ void set_output_left_right_exchange(unsigned int ch)
  */
 void audio_source_select(int source)
 {
+	/* after tl */
+	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
 #ifdef CONFIG_AMLOGIC_SND_SOC_AUGE
-	if (source)
-		fratv_src_select(true);
-	else
-		fratv_src_select(false);
-#else
-	if (source)
-		atv_LR_swap(true);
-	else
-		atv_LR_swap(false);
+		if (source)
+			fratv_src_select(true);
+		else
+			fratv_src_select(false);
 #endif
+	} else {
+#ifdef CONFIG_AMLOGIC_SND_SOC_MESON
+		if (source)
+			atv_src_select(true);
+		else
+			atv_src_select(false);
+#endif
+	}
 }
