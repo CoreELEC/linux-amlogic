@@ -245,6 +245,13 @@ void am_set_regmap(struct am_regs_s *p)
 			} else {
 				if (p->am_reg[i].addr == 0x1d26)
 					break;
+			/*if the bit 4 of SRSHARP1_LC_TOP_CTRL is 1,
+			 *it means that lc is enable in db,
+			 *so need to change lc_en to 1;
+			 *else if the bit 4 of SRSHARP1_LC_TOP_CTRL is 0,
+			 *it means that lc is disable in db,
+			 *so need to change lc_en to 0
+			 */
 				if (p->am_reg[i].addr == SRSHARP1_LC_TOP_CTRL) {
 					temp =
 					(p->am_reg[i].val & p->am_reg[i].mask)
@@ -252,6 +259,8 @@ void am_set_regmap(struct am_regs_s *p)
 					temp &= 0x1;
 					if (!temp && lc_en)
 						lc_en = 0;
+					else if (!lc_en && temp)
+						lc_en = 1;
 				}
 				if (pq_reg_wr_rdma)
 					VSYNC_WR_MPEG_REG(p->am_reg[i].addr,
