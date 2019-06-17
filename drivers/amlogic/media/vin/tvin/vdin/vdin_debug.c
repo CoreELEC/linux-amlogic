@@ -809,7 +809,8 @@ static void vdin_dump_state(struct vdin_dev_s *devp)
 		devp->vdin_irq_flag, devp->vdin_reset_flag,
 		devp->irq_cnt, devp->rdma_irq_cnt);
 	pr_info("vdin_drop_cnt: %d\n", vdin_drop_cnt);
-	pr_info("game_mode :  %d\n", devp->game_mode);
+	pr_info("game_mode cfg :  0x%x\n", game_mode);
+	pr_info("game_mode cur:  0x%x\n", devp->game_mode);
 	pr_info("dolby_input :  %d\n", devp->dv.dolby_input);
 	if ((devp->cma_config_en != 1) || !(devp->cma_config_flag & 0x100))
 		pr_info("dolby_mem_start = %ld, dolby_mem_size = %d\n",

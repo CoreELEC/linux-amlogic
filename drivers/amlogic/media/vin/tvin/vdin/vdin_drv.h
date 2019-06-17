@@ -91,9 +91,9 @@
 /*values of vdin game mode process flag */
 /*enable*/
 #define VDIN_GAME_MODE_0                (1 << 0)
-/*delay 1 frame*/
+/*delay 1 frame, vdin have one frame buffer delay*/
 #define VDIN_GAME_MODE_1                (1 << 1)
-/*delay 2 frame*/
+/*delay 2 frame write, read at same buffer*/
 #define VDIN_GAME_MODE_2                (1 << 2)
 /*when phase lock, will switch 2 to 1*/
 #define VDIN_GAME_MODE_SWITCH_EN        (1 << 3)

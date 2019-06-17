@@ -27,6 +27,12 @@
 
 #define VLOCK_REG_NUM	33
 
+struct vdin_sts {
+	unsigned int lcnt_sts;
+	unsigned int com_sts0;
+	unsigned int com_sts1;
+};
+
 struct vlock_log_s {
 	unsigned int pll_m;
 	unsigned int pll_frac;
@@ -81,6 +87,7 @@ struct stvlock_sig_sts {
 	struct vecm_match_data_s *dtdata;
 	u32 val_frac;
 	u32 val_m;
+	struct vdin_sts vdinsts;
 };
 extern void amve_vlock_process(struct vframe_s *vf);
 extern void amve_vlock_resume(void);

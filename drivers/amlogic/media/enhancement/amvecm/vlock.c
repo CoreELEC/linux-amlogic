@@ -1780,6 +1780,13 @@ void vlock_phaselock_check(struct stvlock_sig_sts *pvlock,
 				vlock_reset(1);
 				vlock_reset(0);
 			}
+
+			vlock.vdinsts.lcnt_sts =
+				READ_VPP_REG(0x1204/*VDIN_LCNT_STATUS*/);
+			vlock.vdinsts.com_sts0 =
+				READ_VPP_REG(0x1205/*VDIN_COM_STATUS0*/);
+			vlock.vdinsts.com_sts1 =
+				READ_VPP_REG(0x1206/*VDIN_COM_STATUS1*/);
 		}
 	}
 }
@@ -2410,6 +2417,9 @@ void vlock_status(void)
 	pr_info("vinfo vtotal:%d\n", vinfo->vtotal);
 	pr_info("vframe input_hz:%d\n", vlock.input_hz);
 	pr_info("vframe output_hz:%d\n", vlock.output_hz);
+	pr_info("lcnt_sts :0x%0x\n", vlock.vdinsts.lcnt_sts);
+	pr_info("com_sts0 :0x%0x\n", vlock.vdinsts.com_sts0);
+	pr_info("com_sts1 :0x%0x\n", vlock.vdinsts.com_sts1);
 }
 
 void vlock_reg_dump(void)
@@ -2616,7 +2626,7 @@ static int __init phlock_phase_config(char *str)
 
 	pr_info("%s: bootargs is %s.\n", __func__, str);
 	if (strstr(ptr, "1"))
-		vlock.phlock_percent = 99;
+		vlock.phlock_percent = 15;
 	else
 		vlock.phlock_percent = 40;
 
