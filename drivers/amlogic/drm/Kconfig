@@ -39,7 +39,7 @@ if DRM_MESON
 
 config DRM_MESON_VPU
 	tristate "support drm vpu function for meson drm display."
-	default y
+	default n
 	depends on DRM_MESON
 	help
 		add drm vpu support.
@@ -49,7 +49,7 @@ config DRM_MESON_VPU
 
 config DRM_MESON_HDMI
 	tristate "support drm hdmi function for meson drm display."
-	default y
+	default n
 	depends on DRM_MESON
 	depends on AMLOGIC_HDMITX
 	help
@@ -60,7 +60,7 @@ config DRM_MESON_HDMI
 
 config DRM_MESON_PANEL
 	tristate "support drm panel function for meson drm display."
-	default y
+	default n
 	depends on DRM_MESON
 	depends on AMLOGIC_LCD
 	select DRM_PANEL
@@ -73,7 +73,7 @@ config DRM_MESON_PANEL
 
 config DRM_MESON_USE_ION
 	bool "gem use ion to alloc/free graphic buffer."
-	default y
+	default n
 	depends on DRM_MESON
 	help
 		MESON DRM use CMA HELPER to manage framebuffer.

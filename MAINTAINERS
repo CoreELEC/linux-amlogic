@@ -15074,3 +15074,10 @@ F:	arch/arm64/configs/meson64_a64_defconfig
 F:	arch/arm/boot/dts/amlogic/Makefile
 F:	arch/arm64/boot/dts/amlogic/Makefile
 
+AMLOGIC DRM
+M:	Dezhi Kong <dezhi.kong@amlogic.com>
+F:	arch/arm/boot/dts/amlogic/mesonsm1_drm.dtsi
+F:	arch/arm64/boot/dts/amlogic/mesonsm1_drm.dtsi
+F:	arch/arm/boot/dts/amlogic/sm1_s905d3_ac200_drm_buildroot.dts
+F:	arch/arm64/boot/dts/amlogic/sm1_s905d3_ac200_drm_buildroot.dts
+F:	drivers/amlogic/drm/meson_vpu.c

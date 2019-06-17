@@ -208,6 +208,53 @@ static struct osd_device_data_s osd_g12b = {
 	.has_viu2 = 1,
 };
 
+static struct osd_device_data_s osd_tl1 = {
+	.cpu_id = __MESON_CPU_MAJOR_ID_TL1,
+	.osd_ver = OSD_HIGH_ONE,
+	.afbc_type = MALI_AFBC,
+	.osd_count = 3,
+	.has_deband = 1,
+	.has_lut = 1,
+	.has_rdma = 1,
+	.has_dolby_vision = 0,
+	.osd_fifo_len = 64, /* fifo len 64*8 = 512 */
+	.vpp_fifo_len = 0xfff,/* 2048 */
+	.dummy_data = 0x00808000,
+	.has_viu2 = 1,
+	.osd0_sc_independ = 0,
+};
+
+static struct osd_device_data_s osd_sm1 = {
+	.cpu_id = __MESON_CPU_MAJOR_ID_SM1,
+	.osd_ver = OSD_HIGH_ONE,
+	.afbc_type = MALI_AFBC,
+	.osd_count = 4,
+	.has_deband = 1,
+	.has_lut = 1,
+	.has_rdma = 1,
+	.has_dolby_vision = 1,
+	.osd_fifo_len = 64, /* fifo len 64*8 = 512 */
+	.vpp_fifo_len = 0xfff,/* 2048 */
+	.dummy_data = 0x00808000,
+	.has_viu2 = 1,
+	.osd0_sc_independ = 0,
+};
+
+static struct osd_device_data_s osd_tm2 = {
+	.cpu_id = __MESON_CPU_MAJOR_ID_TM2,
+	.osd_ver = OSD_HIGH_ONE,
+	.afbc_type = MALI_AFBC,
+	.osd_count = 4,
+	.has_deband = 1,
+	.has_lut = 1,
+	.has_rdma = 1,
+	.has_dolby_vision = 1,
+	.osd_fifo_len = 64, /* fifo len 64*8 = 512 */
+	.vpp_fifo_len = 0xfff,/* 2048 */
+	.dummy_data = 0x00808000,
+	.has_viu2 = 1,
+	.osd0_sc_independ = 1,
+};
 struct osd_device_data_s osd_meson_dev;
 static u32 logo_memsize;
 static struct page *logo_page;
@@ -368,7 +415,6 @@ static int am_meson_vpu_bind(struct device *dev,
 	int ret, irq;
 
 	/* Allocate crtc struct */
-	DRM_DEBUG("%s\n", __func__);
 	pr_info("[%s] in\n", __func__);
 	amcrtc = devm_kzalloc(dev, sizeof(*amcrtc),
 			      GFP_KERNEL);
@@ -489,7 +535,13 @@ static const struct of_device_id am_meson_vpu_driver_dt_match[] = {
 	 .data = &osd_g12a, },
 	{ .compatible = "amlogic,meson-g12b-vpu",
 	.data = &osd_g12b, },
-	{},
+	{.compatible = "amlogic, meson-tl1-vpu",
+	.data = &osd_tl1,},
+	{.compatible = "amlogic, meson-sm1-vpu",
+	.data = &osd_sm1,},
+	{.compatible = "amlogic, meson-tm2-vpu",
+	.data = &osd_tm2,},
+	{}
 };
 
 MODULE_DEVICE_TABLE(of, am_meson_vpu_driver_dt_match);
