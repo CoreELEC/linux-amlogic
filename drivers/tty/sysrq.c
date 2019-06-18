@@ -258,13 +258,6 @@ static DECLARE_WORK(sysrq_showallcpus, sysrq_showregs_othercpus);
 static void sysrq_handle_showallcpus(int key)
 {
 	/*
-	 * Temporarily disable this function
-	 * Remove it later
-	 */
-#ifdef CONFIG_AMLOGIC_MODIFY
-	return;
-#endif
-	/*
 	 * Fall back to the workqueue based printing if the
 	 * backtrace printing did not succeed or the
 	 * architecture has no support for it:

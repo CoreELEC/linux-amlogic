@@ -254,10 +254,14 @@ struct page *vmalloc_to_page(const void *vmalloc_addr)
 	 */
 	if (!pgd_none(*pgd)) {
 		pud_t *pud = pud_offset(pgd, addr);
+#ifndef CONFIG_AMLOGIC_MODIFY
 		WARN_ON_ONCE(pud_bad(*pud));
+#endif
 		if (!pud_none(*pud) && !pud_bad(*pud)) {
 			pmd_t *pmd = pmd_offset(pud, addr);
+#ifndef CONFIG_AMLOGIC_MODIFY
 			WARN_ON_ONCE(pmd_bad(*pmd));
+#endif
 			if (!pmd_none(*pmd) && !pmd_bad(*pmd)) {
 				pte_t *ptep, pte;
 
