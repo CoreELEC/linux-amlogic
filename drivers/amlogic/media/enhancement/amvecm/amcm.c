@@ -179,16 +179,16 @@ void am_set_regmap(struct am_regs_s *p)
 					cm_dis_flag = true;
 			}
 
-			WRITE_VPP_REG(VPP_CHROMA_ADDR_PORT,
+			VSYNC_WR_MPEG_REG(VPP_CHROMA_ADDR_PORT,
 					p->am_reg[i].addr);
 			if (p->am_reg[i].mask == 0xffffffff)
-				WRITE_VPP_REG(VPP_CHROMA_DATA_PORT,
+				VSYNC_WR_MPEG_REG(VPP_CHROMA_DATA_PORT,
 						p->am_reg[i].val);
 			else {
-				temp = READ_VPP_REG(VPP_CHROMA_DATA_PORT);
-				WRITE_VPP_REG(VPP_CHROMA_ADDR_PORT,
+				temp = VSYNC_RD_MPEG_REG(VPP_CHROMA_DATA_PORT);
+				VSYNC_WR_MPEG_REG(VPP_CHROMA_ADDR_PORT,
 						p->am_reg[i].addr);
-				WRITE_VPP_REG(VPP_CHROMA_DATA_PORT,
+				VSYNC_WR_MPEG_REG(VPP_CHROMA_DATA_PORT,
 					(temp & (~(p->am_reg[i].mask))) |
 					(p->am_reg[i].val & p->am_reg[i].mask));
 			}
@@ -290,16 +290,16 @@ void amcm_disable(void)
 	temp = READ_VPP_REG(VPP_CHROMA_DATA_PORT);
 	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A) {
 		if (temp & 0x1) {
-			WRITE_VPP_REG(VPP_CHROMA_ADDR_PORT,
+			VSYNC_WR_MPEG_REG(VPP_CHROMA_ADDR_PORT,
 				0x208);
-			WRITE_VPP_REG(VPP_CHROMA_DATA_PORT,
+			VSYNC_WR_MPEG_REG(VPP_CHROMA_DATA_PORT,
 				temp & 0xfffffffe);
 		}
 	} else {
 		if (temp & 0x2) {
-			WRITE_VPP_REG(VPP_CHROMA_ADDR_PORT,
+			VSYNC_WR_MPEG_REG(VPP_CHROMA_ADDR_PORT,
 				0x208);
-			WRITE_VPP_REG(VPP_CHROMA_DATA_PORT,
+			VSYNC_WR_MPEG_REG(VPP_CHROMA_DATA_PORT,
 				temp & 0xfffffffd);
 		}
 	}
@@ -316,16 +316,16 @@ void amcm_enable(void)
 	temp = READ_VPP_REG(VPP_CHROMA_DATA_PORT);
 	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A) {
 		if (!(temp & 0x1)) {
-			WRITE_VPP_REG(VPP_CHROMA_ADDR_PORT,
+			VSYNC_WR_MPEG_REG(VPP_CHROMA_ADDR_PORT,
 				0x208);
-			WRITE_VPP_REG(VPP_CHROMA_DATA_PORT,
+			VSYNC_WR_MPEG_REG(VPP_CHROMA_DATA_PORT,
 				temp | 0x1);
 		}
 	} else {
 		if (!(temp & 0x2)) {
-			WRITE_VPP_REG(VPP_CHROMA_ADDR_PORT,
+			VSYNC_WR_MPEG_REG(VPP_CHROMA_ADDR_PORT,
 				0x208);
-			WRITE_VPP_REG(VPP_CHROMA_DATA_PORT,
+			VSYNC_WR_MPEG_REG(VPP_CHROMA_DATA_PORT,
 				temp | 0x2);
 		}
 	}
