@@ -23,7 +23,7 @@
 #include <linux/amlogic/media/vfm/vframe.h>
 #include "linux/amlogic/media/amvecm/ve.h"
 
-#define VLOCK_VER "Ref.2019/5/23:vlock for hdmi pll"
+#define VLOCK_VER "Ref.2019/6/18:finetune vlock setting"
 
 #define VLOCK_REG_NUM	33
 

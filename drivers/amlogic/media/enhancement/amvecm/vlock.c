@@ -483,6 +483,10 @@ static void vlock_setting(struct vframe_s *vf,
 			else
 				WRITE_VPP_REG_BITS(VPU_VLOCK_MISC_CTRL,
 						1, 28, 1);
+		} else {
+			if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1))
+				WRITE_VPP_REG_BITS(VPU_VLOCK_MISC_CTRL,
+						1, 28, 1);
 		}
 		freq_hz = input_hz | (output_hz << 8);
 		WRITE_VPP_REG_BITS(VPU_VLOCK_MISC_CTRL, freq_hz, 0, 16);
@@ -537,7 +541,7 @@ static void vlock_setting(struct vframe_s *vf,
 		} else {
 			if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1))
 				WRITE_VPP_REG_BITS(VPU_VLOCK_MISC_CTRL,
-						0, 28, 1);
+						1, 28, 1);
 		}
 		freq_hz = input_hz | (output_hz << 8);
 		WRITE_VPP_REG_BITS(VPU_VLOCK_MISC_CTRL, freq_hz, 0, 16);
@@ -1768,11 +1772,13 @@ void vlock_phaselock_check(struct stvlock_sig_sts *pvlock,
 {
 	/*vs_i*/
 	u32 ia = READ_VPP_REG(VPU_VLOCK_RO_VS_I_DIST);
+	u32 oa = READ_VPP_REG(VPU_VLOCK_RO_VS_O_DIST);
 	u32 val, pre;
 
 	if (vlock.phlock_en) {
-		if ((pvlock->frame_cnt_in%100) == 0) {
-			ia = READ_VPP_REG(VPU_VLOCK_RO_VS_I_DIST);
+		if ((pvlock->frame_cnt_in % 20) == 0) {
+			/*ia = READ_VPP_REG(VPU_VLOCK_RO_VS_I_DIST);*/
+			ia = (ia + oa) / 2;
 			pre = READ_VPP_REG(VPU_VLOCK_LOOP1_PHSDIF_TGT);
 			val = (ia * (100 + vlock.phlock_percent))/200;
 			if (val != pre) {
