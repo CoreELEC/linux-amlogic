@@ -3100,6 +3100,8 @@ int vpp_set_filters(
 	u32 wide_mode;
 	int ret = VppFilter_Fail;
 	struct disp_info_s local_input;
+	bool bypass_sr0 = bypass_sr;
+	bool bypass_sr1 = bypass_sr;
 
 	if (!input)
 		return ret;
@@ -3269,12 +3271,22 @@ int vpp_set_filters(
 	if (ret == VppFilter_Changed_but_Hold)
 		bypass_sr = true;
 	/*config super scaler after set next_frame_par is calc ok for pps*/
+	if (is_meson_tl1_cpu()) {
+		/* disable sr0 when afbc, width >1920 and crop more than half */
+		if ((vf->type & VIDTYPE_COMPRESS)
+			&& (!next_frame_par->nocomp)
+			&& (vf->compWidth > 1920)
+			&& ((next_frame_par->video_input_w
+			<< (next_frame_par->hscale_skip_count + 1))
+			<= vf->compWidth))
+			bypass_sr0 = true;
+	}
 	if (local_input.layer_id == 0) {
 		vpp_set_super_scaler(
 			wide_mode,
 			vinfo, next_frame_par,
-			(bypass_sr | bypass_spscl0),
-			(bypass_sr | bypass_spscl1));
+			(bypass_sr0 | bypass_spscl0),
+			(bypass_sr1 | bypass_spscl1));
 		/* cm input size will be set in super scaler function */
 	} else {
 		if (local_input.pps_support) {
