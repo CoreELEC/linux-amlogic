@@ -605,6 +605,8 @@ static unsigned int force_no_compress;
 MODULE_PARM_DESC(force_no_compress, "force_no_compress");
 module_param(force_no_compress, uint, 0664);
 
+static unsigned int screen_ar_threshold = 3;
+
 /*
  *test on txlx:
  *Time_out = (V_out/V_screen_total)/FPS_out;
@@ -897,9 +899,24 @@ static int vpp_set_filters_internal(
 	u32 sar_width = 0, sar_height = 0;
 	bool ext_sar = false;
 	bool no_compress = false;
+	u32 min_aspect_ratio_out, max_aspect_ratio_out;
 
 	if (!input)
 		return VppFilter_Fail;
+	/* min = 0.95 x 1024 * height / width */
+	min_aspect_ratio_out =
+		((100 - screen_ar_threshold) << 10) / 100;
+	min_aspect_ratio_out =
+		(vinfo->height * min_aspect_ratio_out) / vinfo->width;
+	/* max = 1.05 x 1024 * height / width */
+	max_aspect_ratio_out =
+		((100 + screen_ar_threshold) << 10) / 100;
+	max_aspect_ratio_out =
+		(vinfo->height * max_aspect_ratio_out) / vinfo->width;
+
+	if ((aspect_ratio_out <= max_aspect_ratio_out)
+		&& (aspect_ratio_out >= min_aspect_ratio_out))
+		aspect_ratio_out = (vinfo->height << 10) / vinfo->width;
 
 	cur_filter = &gfilter[input->layer_id];
 	cur_custom_ar = input->custom_ar;
