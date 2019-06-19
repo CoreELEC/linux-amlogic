@@ -6375,8 +6375,12 @@ static bool black_threshold_check(u8 id)
 		return ret;
 
 	if ((layer->layer_width <= black_threshold_width)
-		|| (layer->layer_height <= black_threshold_height))
-		ret = true;
+		|| (layer->layer_height <= black_threshold_height)) {
+		if (cur_frame_par &&
+			(cur_frame_par->vscale_skip_count == 8) &&
+				(cur_frame_par->hscale_skip_count == 1))
+			ret = true;
+	}
 	return ret;
 }
 
