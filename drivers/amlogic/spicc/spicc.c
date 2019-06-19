@@ -1084,6 +1084,7 @@ static int of_spicc_get_data(
 	if (spicc->clk_rate) {
 		clk_set_rate(spicc->clk, spicc->clk_rate);
 		clk_prepare_enable(spicc->clk);
+		clk_prepare_enable(spicc->hclk);
 	}
 
 	if (spicc_get_flag(spicc, FLAG_ENHANCE)) {

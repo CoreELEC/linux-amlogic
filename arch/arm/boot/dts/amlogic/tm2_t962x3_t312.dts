@@ -2102,6 +2102,14 @@
 	cs-gpios = <&gpio GPIOH_20 0>;
 };
 
+&spicc_b {
+	status = "disabled";
+	pinctrl-names= "default";
+	pinctrl-0=<&spicc1_pins_h>;
+	num_chipselect = <1>;
+	cs-gpios = <&gpio GPIOH_0 GPIO_ACTIVE_HIGH>;
+};
+
 &meson_fb {
 	status = "okay";
 	display_size_default = <1920 1080 1920 2160 32>;
