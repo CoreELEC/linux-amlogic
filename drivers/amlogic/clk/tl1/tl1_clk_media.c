@@ -437,9 +437,16 @@ static struct meson_composite m_composite[] = {
 	&vpu_clkb_tmp_gate.hw, 0
 	},/*vpu_clkb_tmp*/
 
+	/*
+	 * add CLK_SET_RATE_PARENT for vpu_clkb_composite clock
+	 * vpu_clkb_composite's rate can set to 285714281HZ/400MHZ
+	 * 500MHZ/667MHZ or less than them.
+	 * No one use the vpu_clkb_tmp_composite, So we can change
+	 * its rate to get the best rate for vpu_clkb_composite.
+	 */
 	{CLKID_VPU_CLKB_COMP, "vpu_clkb_composite",
 	vpu_clkb_nomux_parent_names, ARRAY_SIZE(vpu_clkb_nomux_parent_names),
-	NULL, &vpu_clkb_div.hw, &vpu_clkb_gate.hw, 0
+	NULL, &vpu_clkb_div.hw, &vpu_clkb_gate.hw, CLK_SET_RATE_PARENT
 	},/*vpu_clkb*/
 
 	{CLKID_VDIN_MEAS_COMP, "vdin_meas_composite",
