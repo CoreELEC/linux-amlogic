@@ -1800,7 +1800,7 @@ static ssize_t config_out_path_show(struct device *dev,
 static ssize_t config_out_path_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t len)
 {
-	if (strlen(buf) >= sizeof(config_out_file)) {
+	if (strlen(buf) >= CONFIG_PATH_LENG) {
 		pr_info("err: path too long\n");
 	} else {
 		strncpy(config_out_file, buf, CONFIG_PATH_LENG - 1);
