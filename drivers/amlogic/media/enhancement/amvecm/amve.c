@@ -292,9 +292,6 @@ void vpp_set_lcd_gamma_table(u16 *data, u32 rgb_mask)
 
 	spin_lock_irqsave(&vpp_lcd_gamma_lock, flags);
 
-	WRITE_VPP_REG_BITS(L_GAMMA_CNTL_PORT,
-				0, GAMMA_EN, 1);
-
 	while (!(READ_VPP_REG(L_GAMMA_CNTL_PORT) & (0x1 << ADR_RDY))) {
 		udelay(10);
 		if (cnt++ > GAMMA_RETRY)
@@ -321,9 +318,6 @@ void vpp_set_lcd_gamma_table(u16 *data, u32 rgb_mask)
 	WRITE_VPP_REG(L_GAMMA_ADDR_PORT, (0x1 << H_AUTO_INC) |
 				    (0x1 << rgb_mask)   |
 				    (0x23 << HADR));
-
-	VSYNC_WR_MPEG_REG_BITS(L_GAMMA_CNTL_PORT,
-					gamma_en, GAMMA_EN, 1);
 
 	spin_unlock_irqrestore(&vpp_lcd_gamma_lock, flags);
 }
