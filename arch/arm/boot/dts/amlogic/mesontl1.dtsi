@@ -176,17 +176,6 @@
 		method = "smc";
 	};
 
-	scpi_clocks {
-		compatible = "arm, scpi-clks";
-
-		scpi_dvfs: scpi_clocks@0 {
-			compatible = "arm, scpi-clk-indexed";
-			#clock-cells = <1>;
-			clock-indices = <0>;
-			clock-output-names = "vcpu";
-		};
-	};
-
 	secmon {
 		compatible = "amlogic, secmon";
 		memory-region = <&secmon_reserved>;
