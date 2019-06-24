@@ -55,6 +55,7 @@ config AMLOGIC_KASAN32
 config AMLOGIC_VMAP
 	bool "Amlogic kernel stack"
 	depends on AMLOGIC_MEMORY_EXTEND
+	depends on ARM64 || !KASAN
 	default y
 	help
 		This config is used to enable amlogic kernel stack
