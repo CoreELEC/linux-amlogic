@@ -403,7 +403,7 @@ static struct meson_clk_mpll tl1_mpll3 = {
  * forthcoming coordinated clock rates feature
  */
 static u32 mux_table_cpu_p[]	= { 0, 1, 2, 3 };
-static u32 mux_table_cpu_px[]   = { 0, 1 };
+/*static u32 mux_table_cpu_px[]   = { 0, 1 };*/
 static struct meson_cpu_mux_divider tl1_cpu_fclk_p = {
 	.reg = (void *)HHI_SYS_CPU_CLK_CNTL0,
 	.cpu_fclk_p00 = {
@@ -453,23 +453,38 @@ static struct meson_cpu_mux_divider tl1_cpu_fclk_p = {
 	},
 };
 
-static struct meson_clk_cpu tl1_cpu_clk = {
-	.reg_off = HHI_SYS_CPU_CLK_CNTL0,
-	.clk_nb.notifier_call = meson_clk_cpu_notifier_cb,
-	.mux.reg = (void *)HHI_SYS_CPU_CLK_CNTL0,
-	.mux.shift = 11,
-	.mux.mask = 0x1,
-	.mux.lock = &clk_lock,
-	.mux.table = mux_table_cpu_px,
-	.mux.hw.init = &(struct clk_init_data){
-		.name = "cpu_clk",
-		.ops = &meson_clk_cpu_ops,
-		.parent_names = (const char *[]){ "cpu_fixedpll_p", "sys_pll"},
-		.num_parents = 2,
-		.flags = CLK_GET_RATE_NOCACHE,
-	},
+/*
+ * static struct meson_clk_cpu tl1_cpu_clk = {
+ *	.reg_off = HHI_SYS_CPU_CLK_CNTL0,
+ *	.clk_nb.notifier_call = meson_clk_cpu_notifier_cb,
+ *	.mux.reg = (void *)HHI_SYS_CPU_CLK_CNTL0,
+ *	.mux.shift = 11,
+ *	.mux.mask = 0x1,
+ *	.mux.lock = &clk_lock,
+ *	.mux.table = mux_table_cpu_px,
+ *	.mux.hw.init = &(struct clk_init_data){
+ *		.name = "cpu_clk",
+ *		.ops = &meson_clk_cpu_ops,
+ *		.parent_names = (const char *[]){ "cpu_fixedpll_p", "sys_pll"},
+ *		.num_parents = 2,
+ *		.flags = CLK_GET_RATE_NOCACHE,
+ *	},
+ *};
+ */
+static struct clk_mux tl1_cpu_clk = {
+		.reg = (void *)HHI_SYS_CPU_CLK_CNTL0,
+		.mask = 0x1,
+		.shift = 11,
+		.lock = &clk_lock,
+		.hw.init = &(struct clk_init_data){
+			.name = "cpu_clk",
+			.ops = &clk_mux_ops,
+			.parent_names = (const char *[]){ "cpu_fixedpll_p",
+							 "sys_pll" },
+			.num_parents = 2,
+			.flags = CLK_GET_RATE_NOCACHE,
+		},
 };
-
 
 /* dsu clocks */
 static const char * const dsu_fixed_source_sel_parent_names[] = {
@@ -856,7 +871,7 @@ static struct clk_hw *tl1_clk_hws[] = {
 	[CLKID_SEC_AHB_APB3]	= &tl1_sec_ahb_apb3.hw, /*AO 4*/
 
 	[CLKID_CPU_FCLK_P]      = &tl1_cpu_fclk_p.hw,
-	[CLKID_CPU_CLK]         = &tl1_cpu_clk.mux.hw,
+	[CLKID_CPU_CLK]         = &tl1_cpu_clk.hw,
 	[CLKID_DSU_SOURCE_SEL0] = &tl1_dsu_fixed_source_sel0.hw,
 	[CLKID_DSU_SOURCE_DIV0] = &tl1_dsu_fixed_source_div0.hw,
 	[CLKID_DSU_SEL0]		= &tl1_dsu_fixed_sel0.hw,
@@ -996,12 +1011,46 @@ static struct tl1_nb_data tl1_dsu_nb_data = {
 	.nb.notifier_call = tl1_dsu_sel0_clk_notifier_cb,
 };
 
+static int tl1_cpu_clk_notifier_cb(struct notifier_block *nb,
+				    unsigned long event, void *data)
+{
+	struct clk_hw **hws = tl1_clk_hws;
+	struct clk_hw *cpu_clk_hw, *parent_clk_hw;
+	struct clk *cpu_clk, *parent_clk;
+	int ret;
+
+	switch (event) {
+	case PRE_RATE_CHANGE:
+		parent_clk_hw = hws[CLKID_CPU_FCLK_P];
+		break;
+	case POST_RATE_CHANGE:
+		parent_clk_hw = hws[CLKID_SYS_PLL];
+		break;
+	default:
+		return NOTIFY_DONE;
+	}
+
+	cpu_clk_hw = hws[CLKID_CPU_CLK];
+	cpu_clk = __clk_lookup(clk_hw_get_name(cpu_clk_hw));
+	parent_clk = __clk_lookup(clk_hw_get_name(parent_clk_hw));
+
+	ret = clk_set_parent(cpu_clk, parent_clk);
+	if (ret)
+		return notifier_from_errno(ret);
+
+	usleep_range(80, 120);
+
+	return NOTIFY_OK;
+}
+
+static struct notifier_block tl1_cpu_nb_data = {
+	.notifier_call = tl1_cpu_clk_notifier_cb,
+};
+
 static void __init tl1_clkc_init(struct device_node *np)
 {
 	int clkid, i;
 	int ret = 0;
-	struct clk_hw *parent_hw;
-	struct clk *parent_clk;
 
 	/*  Generic clocks and PLLs */
 	clk_base = of_iomap(np, 0);
@@ -1027,9 +1076,8 @@ static void __init tl1_clkc_init(struct device_node *np)
 	/* Populate the base address for CPU clk */
 	tl1_cpu_fclk_p.reg = clk_base
 			+ (unsigned long)tl1_cpu_fclk_p.reg;
-	tl1_cpu_clk.base = clk_base;
-	tl1_cpu_clk.mux.reg = clk_base
-				+ (unsigned long)tl1_cpu_clk.mux.reg;
+	tl1_cpu_clk.reg = clk_base
+			+ (unsigned long)tl1_cpu_clk.reg;
 
 	/* Populate the base address for DSU clk */
 	tl1_dsu_fixed_source_sel0.reg = clk_base
@@ -1088,10 +1136,12 @@ static void __init tl1_clkc_init(struct device_node *np)
 	/* now cpu clock parent is sys pll , that is to say register
 	 * sys pll notify clock, why not register tl1_sys_pll.hw derectly?
 	 */
-	parent_hw = clk_hw_get_parent(&tl1_cpu_clk.mux.hw);
-	parent_clk = parent_hw->clk;
-	ret = clk_notifier_register(parent_clk, &tl1_cpu_clk.clk_nb);
-
+	ret = clk_notifier_register(tl1_sys_pll.hw.clk, &tl1_cpu_nb_data);
+	/*
+	 *parent_hw = clk_hw_get_parent(&tl1_cpu_clk.mux.hw);
+	 *parent_clk = parent_hw->clk;
+	 *ret = clk_notifier_register(parent_clk, &tl1_cpu_clk.clk_nb);
+	 */
 	/* set tl1_dsu_fixed_sel1 to 1G (default 24M) */
 	ret = clk_set_parent(tl1_dsu_fixed_source_sel1.hw.clk,
 		tl1_fclk_div2.hw.clk);
