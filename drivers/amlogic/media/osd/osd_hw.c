@@ -2789,7 +2789,8 @@ void osd_set_free_scale_enable_hw(u32 index, u32 enable)
 				osd_hw.free_dst_data[index].y_start + 1;
 			height_src = osd_hw.free_src_data[index].y_end -
 				osd_hw.free_src_data[index].y_start + 1;
-			if (height_dst != height_src)
+			if (height_dst != height_src &&
+				osd_hw.free_dst_data[index].y_end < 2159)
 				osd_set_dummy_data(index, 0);
 			else
 				osd_set_dummy_data(index, 0xff);
@@ -4180,8 +4181,9 @@ static bool osd_direct_compose_pan_display(struct osd_fence_map_s *fence_map)
 				sizeof(struct pandata_s));
 			freescale_update = true;
 
-			if ((height_dst != height_src) ||
-				(width_dst != width_src))
+			if (((height_dst != height_src) ||
+				(width_dst != width_src)) &&
+				osd_hw.free_dst_data[index].y_end < 2159)
 				osd_set_dummy_data(index, 0);
 			else
 				osd_set_dummy_data(index, 0xff);
@@ -6817,7 +6819,8 @@ static void osd_set_freescale(u32 index,
 		osd_hw.free_src_data[index].x_start + 1;
 	if ((osd_hw.osd_meson_dev.cpu_id ==
 		__MESON_CPU_MAJOR_ID_G12A) &&
-		(height != src_height))
+		(height != src_height) &&
+		osd_hw.free_dst_data[index].y_end < 2159)
 		osd_set_dummy_data(index, 0);
 	else
 		osd_set_dummy_data(index, 0xff);
@@ -8478,7 +8481,8 @@ static bool set_old_hwc_freescale(u32 index)
 			osd_hw.free_dst_data[index].y_start + 1;
 	height_src = osd_hw.free_src_data[index].y_end -
 			osd_hw.free_src_data[index].y_start + 1;
-	if (height_dst != height_src)
+	if (height_dst != height_src &&
+		osd_hw.free_dst_data[index].y_end < 2159)
 		osd_set_dummy_data(index, 0);
 	else
 		osd_set_dummy_data(index, 0xff);
@@ -10487,8 +10491,9 @@ static bool osd_direct_render(struct osd_plane_map_s *plane_map)
 				osd_hw.free_dst_data[index].y_end -
 				osd_hw.free_dst_data[index].y_start + 1;
 
-			if ((height_dst != height_src) ||
-				(width_dst != width_src))
+			if (((height_dst != height_src) ||
+				(width_dst != width_src)) &&
+				osd_hw.free_dst_data[index].y_end < 2159)
 				osd_set_dummy_data(index, 0);
 			else
 				osd_set_dummy_data(index, 0xff);
