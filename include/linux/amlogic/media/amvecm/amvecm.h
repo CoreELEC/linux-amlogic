@@ -97,9 +97,13 @@
 #define MTX_BYPASS_RGB_OGO			(1 << 0)
 #define MTX_RGB2YUVL_RGB_OGO		(1 << 1)
 
-#define SDR_SOURCE    (1 << 0)
-#define HDR10_SOURCE  (1 << 1)
-#define HLG_SOURCE    (1 << 2)
+#define UNKNOWN_SOURCE		0
+#define HDR10_SOURCE		1
+#define HDR10PLUS_SOURCE	2
+#define DOVI_SOURCE			3
+#define PRIMESL_SOURCE		4
+#define HLG_SOURCE			5
+#define SDR_SOURCE			6
 
 enum cm_hist_e {
 	CM_HUE_HIST = 0,
@@ -270,11 +274,12 @@ enum vpp_matrix_csc_e {
 };
 
 enum hdr_type_e {
-	HDRTYPE_NONE = 0,
-	HDRTYPE_SDR = 0x1,
-	HDRTYPE_HDR10 = 0x2,
-	HDRTYPE_HLG = 0x4,
-	HDRTYPE_MAX,
+	HDRTYPE_NONE = UNKNOWN_SOURCE,
+	HDRTYPE_SDR = SDR_SOURCE,
+	HDRTYPE_HDR10 = HDR10_SOURCE,
+	HDRTYPE_HLG = HLG_SOURCE,
+	HDRTYPE_HDR10PLUS = HDR10PLUS_SOURCE,
+	HDRTYPE_DOVI = DOVI_SOURCE
 };
 
 enum vpp_transfer_characteristic_e {
@@ -349,6 +354,12 @@ struct vecm_match_data_s {
 	enum vlock_hw_ver_e vlk_hwver;
 	u32 vlk_phlock_en;
 	u32 vlk_pll_sel;/*independent panel pll and hdmitx pll*/
+};
+
+enum vd_path_e {
+	VD1_PATH = 0,
+	VD2_PATH = 1,
+	VD_PATH_MAX = 2
 };
 
 /*overscan:
@@ -464,7 +475,8 @@ extern int amvecm_on_vs(
 	unsigned int sps_w_in,
 	unsigned int sps_h_in,
 	unsigned int cm_in_w,
-	unsigned int cm_in_h);
+	unsigned int cm_in_h,
+	enum vd_path_e vd_path);
 extern void refresh_on_vs(struct vframe_s *vf);
 extern void pc_mode_process(void);
 extern void pq_user_latch_process(void);

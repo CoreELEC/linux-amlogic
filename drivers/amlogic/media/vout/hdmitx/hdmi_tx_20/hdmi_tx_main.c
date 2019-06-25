@@ -73,13 +73,14 @@ static int set_disp_mode_auto(void);
 static void hdmitx_get_edid(struct hdmitx_dev *hdev);
 static void hdmitx_set_drm_pkt(struct master_display_info_s *data);
 static void hdmitx_set_vsif_pkt(enum eotf_type type, enum mode_type
-	tunnel_mode, struct dv_vsif_para *data);
+	tunnel_mode, struct dv_vsif_para *data, bool switch_to_sdr);
 static void hdmitx_set_hdr10plus_pkt(unsigned int flag,
 	struct hdr10plus_para *data);
 static void hdmitx_set_emp_pkt(unsigned char *data,
 	unsigned int type, unsigned int size);
 static int check_fbc_special(unsigned char *edid_dat);
 static struct vinfo_s *hdmitx_get_current_vinfo(void);
+static void hdmitx_fmt_attr(struct hdmitx_dev *hdev);
 
 static DEFINE_MUTEX(setclk_mutex);
 static DEFINE_MUTEX(getedid_mutex);
@@ -607,8 +608,12 @@ static ssize_t show_attr(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
 	int pos = 0;
-
-	pos += snprintf(buf+pos, PAGE_SIZE, "%s\n\r", hdmitx_device.fmt_attr);
+	if (!memcmp(hdmitx_device.fmt_attr, "default,", 7)) {
+		memset(hdmitx_device.fmt_attr, 0,
+			sizeof(hdmitx_device.fmt_attr));
+		hdmitx_fmt_attr(&hdmitx_device);
+	}
+	pos += snprintf(buf+pos, PAGE_SIZE, "%s\n", hdmitx_device.fmt_attr);
 	return pos;
 }
 
@@ -617,6 +622,14 @@ ssize_t store_attr(struct device *dev,
 {
 	strncpy(hdmitx_device.fmt_attr, buf, sizeof(hdmitx_device.fmt_attr));
 	hdmitx_device.fmt_attr[15] = '\0';
+	if (!memcmp(hdmitx_device.fmt_attr, "rgb", 3))
+		hdmitx_device.para->cs = COLORSPACE_RGB444;
+	else if (!memcmp(hdmitx_device.fmt_attr, "422", 3))
+		hdmitx_device.para->cs = COLORSPACE_YUV422;
+	else if (!memcmp(hdmitx_device.fmt_attr, "420", 3))
+		hdmitx_device.para->cs = COLORSPACE_YUV420;
+	else
+		hdmitx_device.para->cs = COLORSPACE_YUV444;
 	return count;
 }
 /*aud_mode attr*/
@@ -1387,7 +1400,7 @@ static void hdmitx_set_drm_pkt(struct master_display_info_s *data)
 }
 
 static void hdmitx_set_vsif_pkt(enum eotf_type type,
-	enum mode_type tunnel_mode, struct dv_vsif_para *data)
+	enum mode_type tunnel_mode, struct dv_vsif_para *data, bool signal_sdr)
 {
 	struct hdmitx_dev *hdev = &hdmitx_device;
 	struct dv_vsif_para para = {0};
@@ -1484,14 +1497,17 @@ static void hdmitx_set_vsif_pkt(enum eotf_type type,
 			else
 				hdev->HWOp.SetPacket(
 					HDMI_PACKET_VEND, NULL, NULL);
-			hdev->HWOp.CntlConfig(hdev,
-				CONF_AVI_RGBYCC_INDIC, hdev->para->cs);
-			hdev->HWOp.CntlConfig(hdev,
-				CONF_AVI_Q01, RGB_RANGE_LIM);
-			hdev->HWOp.CntlConfig(hdev,
-				CONF_AVI_YQ01, YCC_RANGE_LIM);
-			hdev->HWOp.CntlConfig(hdev, CONF_AVI_BT2020,
-				CLR_AVI_BT2020);/*BT709*/
+			if (signal_sdr) {
+				pr_info("hdmitx: H14b VSIF, switching signal to SDR\n");
+				hdev->HWOp.CntlConfig(hdev,
+					CONF_AVI_RGBYCC_INDIC, hdev->para->cs);
+				hdev->HWOp.CntlConfig(hdev,
+					CONF_AVI_Q01, RGB_RANGE_DEFAULT);
+				hdev->HWOp.CntlConfig(hdev,
+					CONF_AVI_YQ01, YCC_RANGE_LIM);
+				hdev->HWOp.CntlConfig(hdev, CONF_AVI_BT2020,
+					CLR_AVI_BT2020);/*BT709*/
+			}
 		}
 
 	}
@@ -1503,6 +1519,8 @@ static void hdmitx_set_vsif_pkt(enum eotf_type type,
 
 		if (data == NULL)
 			data = &para;
+		len = 0x1b;
+
 		/*4k vsif package */
 		if ((vic == HDMI_3840x2160p30_16x9) ||
 		    (vic == HDMI_3840x2160p25_16x9) ||
@@ -1513,14 +1531,13 @@ static void hdmitx_set_vsif_pkt(enum eotf_type type,
 		switch (type) {
 		case EOTF_T_DOLBYVISION:
 		case EOTF_T_LL_MODE:
-			len = 0x1b;
 			hdev->dv_src_feature = 1;
 			break;
 		case EOTF_T_HDR10:
 		case EOTF_T_SDR:
 		case EOTF_T_NULL:
 		default:
-			len = 0x5;
+
 			hdev->dv_src_feature = 0;
 			break;
 		}
@@ -1605,14 +1622,18 @@ static void hdmitx_set_vsif_pkt(enum eotf_type type,
 			} else
 				hdev->HWOp.SetPacket(
 					HDMI_PACKET_VEND, NULL, NULL);
-			hdev->HWOp.CntlConfig(hdev,
-				CONF_AVI_RGBYCC_INDIC, hdev->para->cs);
-			hdev->HWOp.CntlConfig(hdev,
-				CONF_AVI_Q01, RGB_RANGE_LIM);
-			hdev->HWOp.CntlConfig(hdev,
-				CONF_AVI_YQ01, YCC_RANGE_LIM);
-			hdev->HWOp.CntlConfig(hdev, CONF_AVI_BT2020,
+
+			if (signal_sdr) {
+				pr_info("hdmitx: Dolby VSIF, switching signal to SDR\n");
+				hdev->HWOp.CntlConfig(hdev,
+					CONF_AVI_RGBYCC_INDIC, hdev->para->cs);
+				hdev->HWOp.CntlConfig(hdev,
+					CONF_AVI_Q01, RGB_RANGE_DEFAULT);
+				hdev->HWOp.CntlConfig(hdev,
+					CONF_AVI_YQ01, YCC_RANGE_LIM);
+				hdev->HWOp.CntlConfig(hdev, CONF_AVI_BT2020,
 				CLR_AVI_BT2020);/*BT709*/
+			}
 		}
 	}
 }
@@ -2049,7 +2070,7 @@ static ssize_t store_config(struct device *dev,
 		data.features = 0x00091200;
 		hdmitx_set_drm_pkt(&data);
 	} else if (strncmp(buf, "vsif", 4) == 0)
-		hdmitx_set_vsif_pkt(buf[4] - '0', buf[5] == '1', NULL);
+		hdmitx_set_vsif_pkt(buf[4] - '0', buf[5] == '1', NULL, true);
 	else if (strncmp(buf, "emp", 3) == 0) {
 		if (hdmitx_device.chip_type >= MESON_CPU_ID_G12A)
 			hdmitx_set_emp_pkt(NULL, 1, 1);
@@ -4100,7 +4121,7 @@ static void hdmitx_hpd_plugout_handler(struct work_struct *work)
 		return;
 	}
 	/*after plugout, DV mode can't be supported*/
-	hdmitx_set_vsif_pkt(0, 0, NULL);
+	hdmitx_set_vsif_pkt(0, 0, NULL, true);
 	hdmitx_set_hdr10plus_pkt(0, NULL);
 	hdev->ready = 0;
 	if (hdev->repeater_tx)
@@ -4271,7 +4292,7 @@ static int get_dt_vend_init_data(struct device_node *np,
 	return 0;
 }
 
-static void hdmitx_init_fmt_attr(struct hdmitx_dev *hdev)
+static void hdmitx_fmt_attr(struct hdmitx_dev *hdev)
 {
 	if (strlen(hdev->fmt_attr) >= 8) {
 		pr_info(SYS "fmt_attr %s\n", hdev->fmt_attr);
@@ -4314,6 +4335,20 @@ static void hdmitx_init_fmt_attr(struct hdmitx_dev *hdev)
 			break;
 		}
 	}
+	pr_info(SYS "fmt_attr %s\n", hdev->fmt_attr);
+}
+
+static void hdmitx_init_fmt_attr(struct hdmitx_dev *hdev)
+{
+	if (strlen(hdev->fmt_attr) >= 8) {
+		pr_info(SYS "fmt_attr %s\n", hdev->fmt_attr);
+		return;
+	}
+	if ((hdev->para->cd == COLORDEPTH_RESERVED) &&
+	    (hdev->para->cs == COLORSPACE_RESERVED)) {
+		strcpy(hdev->fmt_attr, "default");
+	} else
+		hdmitx_fmt_attr(hdev);
 	pr_info(SYS "fmt_attr %s\n", hdev->fmt_attr);
 }
 

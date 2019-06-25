@@ -183,7 +183,7 @@ unsigned int debug_game_mode_1;
 module_param(debug_game_mode_1, uint, 0664);
 MODULE_PARM_DESC(debug_game_mode_1, "\n debug_game_mode_1\n");
 unsigned int pq_user_value;
-enum hdr_type_e hdr_source_type = HDRTYPE_SDR;
+enum hdr_type_e hdr_source_type = HDRTYPE_NONE;
 
 #define SR0_OFFSET 0xc00
 #define SR1_OFFSET 0xc80
@@ -1078,43 +1078,58 @@ int amvecm_on_vs(
 	unsigned int sps_w_in,
 	unsigned int sps_h_in,
 	unsigned int cm_in_w,
-	unsigned int cm_in_h)
+	unsigned int cm_in_h,
+	enum vd_path_e vd_path)
 {
 	int result = 0;
 
 	if (probe_ok == 0)
 		return 0;
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
-	if (for_dolby_vision_certification())
+	if (for_dolby_vision_certification() && (vd_path == VD1_PATH))
 		return 0;
 #endif
-	if (!dnlp_insmod_ok)
+	if (!dnlp_insmod_ok && vd_path == VD1_PATH)
 		dnlp_alg_param_init();
+
 	if (flags & CSC_FLAG_CHECK_OUTPUT) {
-		if (toggle_vf)
-			amvecm_fresh_overscan(toggle_vf);
-		else if (vf)
-			amvecm_fresh_overscan(vf);
+		if (vd_path == VD1_PATH) {
+			if (toggle_vf)
+				amvecm_fresh_overscan(toggle_vf);
+			else if (vf)
+				amvecm_fresh_overscan(vf);
+		}
 		/* to test if output will change */
 		return amvecm_matrix_process(
-			toggle_vf, vf, flags);
-	}
+			toggle_vf, vf, flags, vd_path);
+	} else if (vd_path == VD1_PATH)
+		send_hdr10_plus_pkt(vd_path);
 	if ((toggle_vf != NULL) || (vf != NULL)) {
 		/* matrix adjust */
-		result = amvecm_matrix_process(toggle_vf, vf, flags);
-		if (toggle_vf) {
+		result = amvecm_matrix_process(
+			toggle_vf, vf, flags, vd_path);
+		if (toggle_vf)
 			ioctrl_get_hdr_metadata(toggle_vf);
+
+		if (toggle_vf && vd_path == VD1_PATH) {
 			lc_process(toggle_vf, sps_h_en, sps_v_en,
 				sps_w_in, sps_h_in);
 			amvecm_size_patch(cm_in_w, cm_in_h);
 		}
 	} else {
-		amvecm_reset_overscan();
-		result = amvecm_matrix_process(NULL, NULL, flags);
-		ve_hist_gamma_reset();
-		lc_process(NULL, sps_h_en, sps_v_en,
-			sps_w_in, sps_h_in);
+		if (vd_path == VD1_PATH)
+			amvecm_reset_overscan();
+		result = amvecm_matrix_process(
+			NULL, NULL, flags, vd_path);
+		if (vd_path == VD1_PATH) {
+			ve_hist_gamma_reset();
+			lc_process(NULL, sps_h_en, sps_v_en,
+				sps_w_in, sps_h_in);
+		}
 	}
+
+	if (vd_path != VD1_PATH)
+		return result;
 
 	if (!is_dolby_vision_on())
 		get_hdr_source_type();
@@ -1617,7 +1632,8 @@ static long amvecm_ioctl(struct file *file,
 	case AMVECM_IOC_G_CSCTYPE:
 		argp = (void __user *)arg;
 		if (copy_to_user(argp,
-				&cur_csc_type, sizeof(enum vpp_matrix_csc_e)))
+				&cur_csc_type[VD1_PATH],
+				sizeof(enum vpp_matrix_csc_e)))
 			ret = -EFAULT;
 		break;
 	case AMVECM_IOC_G_COLOR_PRI:
@@ -1628,7 +1644,7 @@ static long amvecm_ioctl(struct file *file,
 			ret = -EFAULT;
 		break;
 	case AMVECM_IOC_S_CSCTYPE:
-		if (copy_from_user(&cur_csc_type,
+		if (copy_from_user(&cur_csc_type[VD1_PATH],
 				(void __user *)arg,
 				sizeof(enum vpp_matrix_csc_e))) {
 			ret = -EFAULT;
@@ -6781,7 +6797,7 @@ static int aml_vecm_probe(struct platform_device *pdev)
 	if (is_meson_gxl_cpu() || is_meson_gxm_cpu())
 		hdr_flag = (1 << 0) | (1 << 1) | (1 << 2) | (1 << 3);
 	else
-		hdr_flag = (1 << 0) | (1 << 1) | (0 << 2) | (0 << 3);
+		hdr_flag = (1 << 0) | (1 << 1) | (0 << 2) | (0 << 3) | (1 << 4);
 
 	hdr_init(&amvecm_dev.hdr_d);
 	aml_vecm_dt_parse(pdev);

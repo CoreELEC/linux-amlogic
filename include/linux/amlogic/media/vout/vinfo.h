@@ -102,6 +102,7 @@ struct hdr10_plus_info {
 struct hdr_info {
 /* RX EDID hdr support types */
 	u32 hdr_support;
+	unsigned char rawdata[7];
 /*
  *dynamic_info[0] expresses type1's parameters certainly
  *dynamic_info[1] expresses type2's parameters certainly
@@ -219,7 +220,8 @@ struct vout_device_s {
 	const struct dv_info *dv_info;
 	void (*fresh_tx_hdr_pkt)(struct master_display_info_s *data);
 	void (*fresh_tx_vsif_pkt)(enum eotf_type type,
-		enum mode_type tunnel_mode, struct dv_vsif_para *data);
+		enum mode_type tunnel_mode, struct dv_vsif_para *data,
+		bool signal_sdr);
 	void (*fresh_tx_hdr10plus_pkt)(unsigned int flag,
 		struct hdr10plus_para *data);
 	void  (*fresh_tx_emp_pkt)(unsigned char *data, unsigned int type,

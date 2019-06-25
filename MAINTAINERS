@@ -13924,7 +13924,7 @@ F:	drivers/amlogic/media/enhancement/amvecm/arch/*
 F:	drivers/amlogic/media/enhancement/amvecm/dnlp_algorithm/*
 F:	include/linux/amlogic/media/amvecm/*
 F:	drivers/amlogic/media/enhancement/amvecm/hdr/*
-F:      drivers/amlogic/media/enhancement/amvecm/amprime_sl/*
+F:  drivers/amlogic/media/enhancement/amvecm/amprime_sl/*
 
 AMLOGIC GXL ADD SKT DTS
 M: Yun Cai <yun.cai@amlogic.com>

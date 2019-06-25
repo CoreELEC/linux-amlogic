@@ -6,6 +6,7 @@ obj-$(CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM) += am_vecm.o
 am_vecm-objs := amve.o
 am_vecm-objs += amcm.o
 am_vecm-objs += amcsc.o
+am_vecm-objs += amcsc_pip.o
 am_vecm-objs += amvecm.o
 am_vecm-objs += keystone_correction.o
 am_vecm-objs += bitdepth.o

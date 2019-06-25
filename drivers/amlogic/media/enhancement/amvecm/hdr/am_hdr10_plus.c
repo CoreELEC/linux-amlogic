@@ -638,6 +638,7 @@ void hdr10_plus_hdmitx_vsif_parser(
 	int i;
 	int kpx, kpy;
 	int bz_cur_anchors[9];
+	u32 maxrgb_99_percentiles = 0;
 
 	memset(hdmitx_hdr10plus_param, 0, sizeof(struct hdr10plus_para));
 
@@ -702,7 +703,9 @@ void hdr10_plus_hdmitx_vsif_parser(
 	hdmitx_hdr10plus_param->average_maxrgb = (u8)ave_maxrgb;
 
 	for (i = 0; i < 9; i++) {
-		if (i == 2) {
+		if ((i == 2) &&
+			/* V0 sei update */
+			(hdmitx_hdr10plus_param->application_version != 0)) {
 			distribution_values[i] =
 			hdr_plus_sei.distribution_maxrgb_percentiles[0][i];
 			hdmitx_hdr10plus_param->distribution_values[i] =
@@ -711,6 +714,14 @@ void hdr10_plus_hdmitx_vsif_parser(
 		}
 		distribution_values[i] =
 			hdr_plus_sei.distribution_maxrgb_percentiles[0][i] / 10;
+		/* V0 sei update */
+		if ((hdr_plus_sei.num_distribution_maxrgb_percentiles[0] == 10)
+			&& (hdmitx_hdr10plus_param->application_version == 0)
+			&& (i == 8)) {
+			maxrgb_99_percentiles =
+			hdr_plus_sei.distribution_maxrgb_percentiles[0][i + 1];
+			distribution_values[i] = maxrgb_99_percentiles / 10;
+		}
 		if (distribution_values[i] < (1 << 12)) {
 			distribution_values[i] =
 				(distribution_values[i] + (1 << 3)) >> 4;
@@ -763,7 +774,7 @@ void hdr10_plus_hdmitx_vsif_parser(
 	/*only video, don't include graphic*/
 	hdmitx_hdr10plus_param->graphics_overlay_flag = 0;
 	/*metadata and video have no delay*/
-	hdmitx_hdr10plus_param->no_delay_flag = 0;
+	hdmitx_hdr10plus_param->no_delay_flag = 1;
 
 	memcpy(&dbg_hdr10plus_pkt, hdmitx_hdr10plus_param,
 		sizeof(struct hdr10plus_para));
