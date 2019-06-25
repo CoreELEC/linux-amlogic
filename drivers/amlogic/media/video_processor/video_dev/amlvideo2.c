@@ -4096,8 +4096,13 @@ static int amlvideo2_start_thread(struct amlvideo2_fh *fh)
 static void amlvideo2_stop_thread(struct amlvideo2_node_dmaqueue *dma_q)
 {
 	int ret = 0;
-	struct amlvideo2_node *node =
-		container_of(dma_q, struct amlvideo2_node, vidq);
+	struct amlvideo2_node *node;
+
+	if (IS_ERR_OR_NULL(dma_q)) {
+		pr_info("dma_q is NULL\n");
+		return;
+	}
+	node = container_of(dma_q, struct amlvideo2_node, vidq);
 	dpr_err(node->vid_dev, 1, "%s\n", __func__);
 	if (amlvideo2_dbg_en & 1) {
 		if (node->vid == 0)
@@ -4107,7 +4112,7 @@ static void amlvideo2_stop_thread(struct amlvideo2_node_dmaqueue *dma_q)
 	}
 	mutex_lock(&node->mutex);
 	/* shutdown control thread */
-	if (!IS_ERR(dma_q->kthread)) {
+	if (!IS_ERR_OR_NULL(dma_q->kthread)) {
 		dma_q->task_running = 0;
 		send_sig(SIGTERM, dma_q->kthread, 1);
 	#ifdef USE_SEMA_QBUF
