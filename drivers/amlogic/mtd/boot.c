@@ -817,6 +817,9 @@ static ssize_t uboot_read(struct file *file,
 	chip->select_chip(mtd, -1);
 	nand_release_device(mtd);
 	ret = copy_to_user(buf, data_buf, count);
+	if (ret)
+		count = -EFAULT;
+
 err_exit0:
 	vfree(data_buf);
 
@@ -858,6 +861,11 @@ static ssize_t uboot_write(struct file *file, const char __user *buf,
 	}
 
 	ret = copy_from_user(data_buf, buf, count);
+	if (ret) {
+		count = -EFAULT;
+		goto err_exit0;
+	}
+
 	addr = *ppos;
 	buffer = data_buf;
 	nand_get_device(mtd, FL_WRITING);
