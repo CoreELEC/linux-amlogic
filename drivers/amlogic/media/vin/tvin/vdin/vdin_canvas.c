@@ -22,6 +22,7 @@
 #include <linux/cma.h>
 #include <linux/amlogic/media/codec_mm/codec_mm.h>
 #include <linux/dma-contiguous.h>
+#include <linux/delay.h>
 
 /* Amlogic headers */
 #include <linux/amlogic/media/vfm/vframe.h>
@@ -422,7 +423,7 @@ unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 	int flags = CODEC_MM_FLAGS_CMA_FIRST|CODEC_MM_FLAGS_CMA_CLEAR|
 		CODEC_MM_FLAGS_DMA;
 	unsigned int max_buffer_num = min_buf_num;
-	unsigned int i;
+	unsigned int i, j;
 	/*head_size:3840*2160*3*9/32*/
 	unsigned int afbce_head_size_byte = PAGE_SIZE * 1712;
 	/*afbce map_table need 218700 byte at most*/
@@ -556,6 +557,21 @@ unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 		for (i = 0; i < max_buffer_num; i++) {
 			devp->vfmem_start[i] = codec_mm_alloc_for_dma(vdin_name,
 				devp->vfmem_size/PAGE_SIZE, 0, flags);
+
+			/*add for 1g config, codec can't release mem in time*/
+			for (j = 0; j < 20; j++) {
+				if (devp->vfmem_start[i] == 0) {
+					msleep(50);
+					pr_err("alloc mem fail:50*%dms\n", j);
+					devp->vfmem_start[i] =
+						codec_mm_alloc_for_dma
+						(vdin_name,
+						devp->vfmem_size/PAGE_SIZE, 0,
+						flags);
+				} else
+					break;
+			}
+
 			if (devp->vfmem_start[i] == 0) {
 				pr_err("\nvdin%d buf[%d]codec alloc fail!!!\n",
 					devp->index, i);
