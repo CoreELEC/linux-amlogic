@@ -37,7 +37,9 @@
 #include <linux/io.h>
 #include <linux/uaccess.h>
 #include <linux/pwm.h>
+#ifdef CONFIG_PCI
 #include <linux/pci.h>
+#endif
 #include <linux/amlogic/pwm_meson.h>
 #include "../../gpio/gpiolib.h"
 #define OWNER_NAME "sdio_wifi"
@@ -253,6 +255,7 @@ static int  wifi_power_release(struct inode *inode, struct file *file)
 }
 
 
+#ifdef CONFIG_PCI
 void pci_reinit(void)
 {
 	struct pci_bus *bus = NULL;
@@ -312,6 +315,7 @@ void pci_remove_reinit(unsigned int vid, unsigned int pid, unsigned int delBus)
 
 }
 EXPORT_SYMBOL(pci_remove_reinit);
+#endif
 
 static long wifi_power_ioctl(struct file *filp,
 	unsigned int cmd, unsigned long arg)
@@ -334,7 +338,9 @@ static long wifi_power_ioctl(struct file *filp,
 		mdelay(200);
 		set_usb_wifi_power(1);
 		mdelay(200);
+#ifdef CONFIG_PCI
 		pci_reinit();
+#endif
 		WIFI_INFO("Set sdio wifi power up!\n");
 		break;
 	case WIFI_POWER_DOWN:
