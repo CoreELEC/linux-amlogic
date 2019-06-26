@@ -20,7 +20,7 @@
 #include <dt-bindings/gpio/gpio.h>
 
 #include "mesontxlx.dtsi"
-#include "partition_mbox_normal.dtsi"
+#include "partition_mbox_normal_Q.dtsi"
 
 / {
 	model = "Amlogic";

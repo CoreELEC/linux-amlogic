@@ -14962,3 +14962,8 @@ F:  arch/arm/boot/dts/amlogic/gxl_p281_1g.dts
 F:  arch/arm/boot/dts/amlogic/gxl_p281_2g.dts
 F:  arch/arm64/boot/dts/amlogic/gxl_p281_1g.dts
 F:  arch/arm64/boot/dts/amlogic/gxl_p281_2g.dts
+
+ADD PARTITION DTSI FOR ANDROID Q
+M:  Xindong Xu <xindong.xu@amlogic.com>
+F:  arch/arm/boot/dts/amlogic/partition_mbox_normal_Q.dtsi
+F:  arch/arm64/boot/dts/amlogic/partition_mbox_normal_Q.dtsi
