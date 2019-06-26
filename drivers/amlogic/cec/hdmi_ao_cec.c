@@ -143,6 +143,7 @@ static struct cec_msg_last *last_cec_msg;
 static struct dbgflg stdbgflg;
 
 static int phy_addr_test;
+static struct tasklet_struct ceca_tasklet;
 
 /* from android cec hal */
 enum {
@@ -2188,29 +2189,36 @@ static void cec_task(struct work_struct *work)
 	queue_delayed_work(cec_dev->cec_thread, dwork, CEC_FRAME_DELAY);
 }
 
-static irqreturn_t ceca_isr(int irq, void *dev_instance)
+static void ceca_tasklet_pro(unsigned long arg)
 {
 	unsigned int intr_stat = 0;
 	struct delayed_work *dwork;
 
 	dwork = &cec_dev->cec_work;
-	intr_stat = cec_intr_stat();
-	CEC_INFO_L(L_2, "ceca_isr 0x%x\n", intr_stat);
-	if (intr_stat & AO_CEC_TX_INT) {   /* aocec tx intr */
+	intr_stat = ao_cec_intr_stat();
+	CEC_INFO_L(L_2, "ceca_tsklet 0x%x\n", intr_stat);
+	if (intr_stat & AO_CEC_TX_INT) {
+		/* cec a tx intr */
 		ceca_tx_irq_handle();
-		return IRQ_HANDLED;
+		return;
 	} else if (intr_stat & AO_CEC_RX_INT) {
+		/* cec a rx intr */
 		if ((-1) == ceca_rx_irq_handle(rx_msg, &rx_len))
-			return IRQ_HANDLED;
+			return;
 
 		complete(&cec_dev->rx_ok);
 		/* check rx buffer is full */
 		new_msg = 1;
 		mod_delayed_work(cec_dev->cec_thread, dwork, 0);
 	}
+}
 
+static irqreturn_t ceca_isr(int irq, void *dev_instance)
+{
+	tasklet_schedule(&ceca_tasklet);
 	return IRQ_HANDLED;
 }
+
 /*
 static void check_wake_up(void)
 {
@@ -3728,7 +3736,8 @@ static int aml_cec_probe(struct platform_device *pdev)
 	}
 	INIT_DELAYED_WORK(&cec_dev->cec_work, cec_task);
 	queue_delayed_work(cec_dev->cec_thread, &cec_dev->cec_work, 0);
-
+	tasklet_init(&ceca_tasklet, ceca_tasklet_pro,
+		(unsigned long)cec_dev);
 	scpi_get_wakeup_reason(&cec_dev->wakeup_reason);
 	CEC_ERR("wakeup_reason:0x%x\n", cec_dev->wakeup_reason);
 	scpi_get_cec_val(SCPI_CMD_GET_CEC1,
