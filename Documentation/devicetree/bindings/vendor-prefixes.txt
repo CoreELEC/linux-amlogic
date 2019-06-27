@@ -31,6 +31,7 @@ android,fstab
 android,vbmeta
 android,vendor
 android,firmware
+android,system
 apm	Applied Micro Circuits Corporation (APM)
 aptina	Aptina Imaging
 arasan	Arasan Chip Systems

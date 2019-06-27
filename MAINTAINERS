@@ -14967,3 +14967,12 @@ ADD PARTITION DTSI FOR ANDROID Q
 M:  Xindong Xu <xindong.xu@amlogic.com>
 F:  arch/arm/boot/dts/amlogic/partition_mbox_normal_Q.dtsi
 F:  arch/arm64/boot/dts/amlogic/partition_mbox_normal_Q.dtsi
+
+AMLOCIG DYNAMIC PARTITION DTSI
+M:  Xindong Xu <xindong.xu@amlogic.com>
+F:  arch/arm/boot/dts/amlogic/firmware_avb_Q.dtsi
+F:  arch/arm/boot/dts/amlogic/firmware_normal_Q.dtsi
+F:  arch/arm/boot/dts/amlogic/partition_mbox_normal_dynamic.dtsi
+F:  arch/arm64/boot/dts/amlogic/firmware_avb_Q.dtsi
+F:  arch/arm64/boot/dts/amlogic/firmware_normal_Q.dtsi
+F:  arch/arm64/boot/dts/amlogic/partition_mbox_normal_dynamic.dtsi
