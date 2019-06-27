@@ -72,6 +72,13 @@ static long remote_ioctl(struct file *file, unsigned int cmd,
 			retval = -EFAULT;
 			goto err;
 		}
+
+		if (value < 1 || value > MAX_KEYMAP_SIZE) {
+			chip->key_num.update_flag = false;
+			retval = -EINVAL;
+			goto err;
+		}
+
 		chip->key_num.update_flag = true;
 		chip->key_num.value = value;
 		break;
