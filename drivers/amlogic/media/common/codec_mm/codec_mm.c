@@ -1954,10 +1954,10 @@ static ssize_t tvp_region_show(struct class *class,
 	ret = codec_mm_tvp_get_mem_resource(res_victor, 8);
 	for (i = 0; i < ret; i++) {
 		off += sprintf(buf + off,
-			"segment%d:0x%p - 0x%p (size:0x%x)\n",
+			"segment%d:0x%lx - 0x%lx (size:0x%x)\n",
 			i,
-			(void *)res_victor[2 * i],
-			(void *)res_victor[2 * i + 1],
+			res_victor[2 * i],
+			res_victor[2 * i + 1],
 			(int)(res_victor[2 * i + 1] - res_victor[2 * i] + 1));
 	}
 	return off;
