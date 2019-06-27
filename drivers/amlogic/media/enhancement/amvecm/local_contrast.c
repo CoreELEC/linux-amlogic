@@ -1477,7 +1477,7 @@ void lc_process(struct vframe_s *vf,
 		return;
 	}
 
-	if (lc_flag == 0) {
+	if (lc_flag <= 1) {
 		lc_flag++;
 		return;
 	}
