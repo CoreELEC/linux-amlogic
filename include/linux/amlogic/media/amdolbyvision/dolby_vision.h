@@ -76,4 +76,5 @@ extern bool is_dovi_frame(struct vframe_s *vf);
 extern void update_graphic_width_height(unsigned int width,
 	unsigned int height);
 extern bool is_dolby_vision_el_disable(void);
+extern bool is_dovi_dual_layer_frame(struct vframe_s *vf);
 #endif
