@@ -14,9 +14,10 @@
  * more details.
  *
  */
-
 #ifndef _OSD_SW_SYNC_H
 #define _OSD_SW_SYNC_H
+
+#ifdef CONFIG_SYNC_FILE
 
 #include <linux/list.h>
 #include <linux/rbtree.h>
@@ -57,4 +58,6 @@ void aml_sync_inc_timeline(void *timeline, unsigned int value);
 struct fence *aml_sync_get_fence(int syncfile_fd);
 int aml_sync_wait_fence(struct fence *fence, long timeout);
 void aml_sync_put_fence(struct fence *fence);
+#endif
+
 #endif /* _OSD_SW_SYNC_H */

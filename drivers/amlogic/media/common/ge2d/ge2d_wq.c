@@ -2526,6 +2526,8 @@ struct ge2d_context_s *create_ge2d_work_queue(void)
 	struct ge2d_context_s *ge2d_work_queue;
 	int  empty;
 
+	if (!ge2d_manager.probe)
+		return NULL;
 	ge2d_work_queue = kzalloc(sizeof(struct ge2d_context_s), GFP_KERNEL);
 	ge2d_work_queue->config.h_scale_coef_type = FILTER_TYPE_BILINEAR;
 	ge2d_work_queue->config.v_scale_coef_type = FILTER_TYPE_BILINEAR;
@@ -2644,7 +2646,7 @@ int ge2d_wq_init(struct platform_device *pdev,
 		ge2d_log_err("ge2d create thread error\n");
 		return -1;
 	}
-
+	ge2d_manager.probe = 1;
 	return 0;
 }
 

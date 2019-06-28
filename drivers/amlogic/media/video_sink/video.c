@@ -13349,6 +13349,7 @@ static int amvideom_probe(struct platform_device *pdev)
 #ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
 	register_early_suspend(&video_early_suspend_handler);
 #endif
+	video_keeper_init();
 	return ret;
 }
 
@@ -13357,6 +13358,7 @@ static int amvideom_remove(struct platform_device *pdev)
 #ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
 	unregister_early_suspend(&video_early_suspend_handler);
 #endif
+	video_keeper_exit();
 	return 0;
 }
 
@@ -13620,7 +13622,6 @@ static int __init video_init(void)
 	switch_dev_register(&video1_state_sdev);
 	switch_set_state(&video1_state_sdev, 0);
 #endif
-	video_keeper_init();
 #ifdef CONFIG_AM_VIDEO2
 	set_clone_frame_rate(android_clone_rate, 0);
 #endif

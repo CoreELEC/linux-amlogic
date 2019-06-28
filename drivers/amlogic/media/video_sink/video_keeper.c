@@ -1185,7 +1185,7 @@ unsigned int vf_keep_current(
 	return ret;
 }
 
-int __init video_keeper_init(void)
+int video_keeper_init(void)
 {
 #ifdef CONFIG_AMLOGIC_MEDIA_GE2D
 	/* video_frame_getmem(); */
@@ -1193,7 +1193,7 @@ int __init video_keeper_init(void)
 #endif
 	return 0;
 }
-void __exit video_keeper_exit(void)
+void video_keeper_exit(void)
 {
 #ifdef CONFIG_AMLOGIC_MEDIA_GE2D
 	ge2d_videotask_release();

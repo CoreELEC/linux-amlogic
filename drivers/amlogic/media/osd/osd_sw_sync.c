@@ -14,6 +14,7 @@
  * more details.
  *
  */
+#ifdef CONFIG_SYNC_FILE
 
 #include <linux/file.h>
 #include <linux/fs.h>
@@ -296,3 +297,4 @@ void aml_sync_put_fence(struct fence *fence)
 {
 	fence_put(fence);
 }
+#endif
