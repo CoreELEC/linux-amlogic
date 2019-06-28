@@ -232,7 +232,7 @@ void cvd_vbi_mem_set(unsigned int offset, unsigned int size)
 		W_VBI_APB_BIT(ACD_REG_42, size, 0, 24);
 		W_VBI_APB_BIT(ACD_REG_42, 1, 31, 1);
 	} else
-		W_APB_BIT(ACD_REG_21, size,
+		W_APB_BIT(ACD_REG_21, (size - 1),
 			AML_VBI_SIZE_BIT, AML_VBI_SIZE_WID);
 	W_APB_BIT(ACD_REG_21, DECODER_VBI_START_ADDR,
 		AML_VBI_START_ADDR_BIT, AML_VBI_START_ADDR_WID);
@@ -240,6 +240,8 @@ void cvd_vbi_mem_set(unsigned int offset, unsigned int size)
 
 void cvd_vbi_config(void)
 {
+	/* 20190719: teletext slicer mode 1 to avoid error data */
+	W_APB_BIT(CVD2_VBI_SLIER_MODE_SEL, 1, 2, 2);
 	W_APB_REG(CVD2_VBI_CC_START, VBI_START_CC);
 	W_APB_REG(CVD2_VBI_WSS_START, 0x54);
 	W_VBI_APB_REG(CVD2_VBI_TT_START, VBI_START_TT);
@@ -271,9 +273,8 @@ static void tvafe_cvd2_memory_init(struct tvafe_cvd2_mem_s *mem,
 		return;
 	}
 
-	if (tvafe_cpu_type() >= CPU_TYPE_GXTVBB) {
-		cvd2_addr = mem->start >> 4;
-		motion_offset = motion_offset >> 4;
+	cvd2_addr = mem->start >> 4;
+	motion_offset = motion_offset >> 4;
 #if defined(CONFIG_AMLOGIC_MEDIA_TVIN_VBI)
 	if (vbi_mem_start != 0)
 		vbi_start = vbi_mem_start >> 4;
@@ -282,20 +283,8 @@ static void tvafe_cvd2_memory_init(struct tvafe_cvd2_mem_s *mem,
 #else
 	vbi_start = cvd2_addr + (vbi_offset >> 4);
 #endif
-		vbi_size = (DECODER_VBI_SIZE/2) >> 4;
-	} else {
-		cvd2_addr = mem->start >> 3;
-		motion_offset = motion_offset >> 3;
-#if defined(CONFIG_AMLOGIC_MEDIA_TVIN_VBI)
-	if (vbi_mem_start != 0)
-		vbi_start = vbi_mem_start >> 3;
-	else
-		vbi_start = cvd2_addr + (vbi_offset >> 3);
-#else
-	vbi_start = cvd2_addr + (vbi_offset >> 3);
-#endif
-		vbi_size = (DECODER_VBI_SIZE/2) >> 3;
-	}
+	vbi_size = (DECODER_VBI_SIZE/2) >> 4;
+
 	/* CVD2 mem addr is based on 64bit, system mem is based on 8bit*/
 	W_APB_REG(CVD2_REG_96, cvd2_addr);
 	W_APB_REG(ACD_REG_30, (cvd2_addr + motion_offset));
