@@ -160,6 +160,10 @@ extern void set_pts_realign(void);
 extern void timestamp_set_pcrlatency(u32 latency);
 extern u32 timestamp_get_pcrlatency(void);
 extern bool tsync_check_vpts_discontinuity(unsigned int vpts);
+extern void timestamp_clac_pts_latency(u8 type, u32 pts);
+extern u32 timestamp_get_pts_latency(u8 type);
+extern void timestamp_clean_pts_latency(u8 type);
+extern int tsync_get_vpts_adjust(void);
 
 static inline u32 tsync_vpts_discontinuity_margin(void)
 {
