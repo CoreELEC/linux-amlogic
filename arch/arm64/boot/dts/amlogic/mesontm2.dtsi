@@ -1275,7 +1275,7 @@
 	galcore {
 		compatible = "amlogic, galcore";
 		dev_name = "galcore";
-		status = "disabled";
+		status = "okay";
 		interrupts = <0 147 4>;
 		interrupt-names = "galcore";
 		reg = <0x0 0xff100000 0x0 0x800
@@ -1288,6 +1288,7 @@
 			0x0 0xffd01088 0x0 0x0
 			/*0xffd01088:reset reg*/
 			>;
+		nn_efuse = <0xff63003c 0x20>;
 	};
 	sd_emmc_c: emmc@ffe07000 {
 		status = "disabled";
