@@ -8554,6 +8554,7 @@ static void di_shutdown(struct platform_device *pdev)
 		switch_vpu_clk_gate_vmod(VPU_VPU_CLKB,
 			VPU_CLK_GATE_OFF);
 	kfree(di_devp);
+	di_devp = NULL;
 	pr_info("[DI] shutdown done.\n");
 
 }
