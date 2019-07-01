@@ -115,6 +115,59 @@ struct vframe_hist_s {
 #endif
 } /*vframe_hist_t */;
 
+struct tvin_hdr10p_data_s {
+	uint32_t vsif_hb;
+	uint32_t vsif_ieee_code;
+	struct pb4_st {
+		uint8_t rvd:1;
+		uint8_t max_lumin:5;
+		uint8_t app_ver:2;
+	} __packed pb4_st;
+	uint8_t average_maxrgb;
+	uint8_t distrib_valus0;
+	uint8_t distrib_valus1;
+	uint8_t distrib_valus2;
+	uint8_t distrib_valus3;
+	uint8_t distrib_valus4;
+	uint8_t distrib_valus5;
+	uint8_t distrib_valus6;
+	uint8_t distrib_valus7;
+	uint8_t distrib_valus8;
+	struct pb15_18_st {
+		uint32_t knee_point_x_9_6:4;
+		uint32_t num_bezier_curve_anchors:4;
+		uint32_t knee_point_y_9_8:2;
+		uint32_t knee_point_x_5_0:6;
+		uint32_t knee_point_y_7_0:8;
+		uint32_t bezier_curve_anchors0:8;
+	} __packed pb15_18_st;
+	uint8_t bezier_curve_anchors1;
+	uint8_t bezier_curve_anchors2;
+	uint8_t bezier_curve_anchors3;
+	uint8_t bezier_curve_anchors4;
+	uint8_t bezier_curve_anchors5;
+	uint8_t bezier_curve_anchors6;
+	uint8_t bezier_curve_anchors7;
+	uint8_t bezier_curve_anchors8;
+	struct pb27_st {
+		uint8_t rvd:6;
+		uint8_t no_delay_flag:1;
+		uint8_t overlay_flag:1;
+	} __packed pb27_st;
+} __packed;
+
+/*vdin dolby vsi info param*/
+struct tvin_dv_vsif_s {
+	uint8_t dobly_vision_signal:1;
+	uint8_t backlt_ctrl_MD_present:1;
+	uint8_t auxiliary_MD_present:1;
+	uint8_t eff_tmax_PQ_hi;
+	uint8_t eff_tmax_PQ_low;
+	uint8_t auxiliary_runmode;
+	uint8_t auxiliary_runversion;
+	uint8_t auxiliary_debug0;
+};
+
 /*
  * If bottom == 0 or right == 0, then all Blackbar information are invalid
  */
@@ -172,6 +225,7 @@ struct vframe_prop_s {
 	struct vframe_meas_s meas;
 	struct vframe_master_display_colour_s
 	 master_display_colour;
+	struct tvin_hdr10p_data_s hdr10p_data;
 } /*vframe_prop_t */;
 
 struct vdisplay_info_s {
@@ -231,18 +285,6 @@ struct vframe_pic_mode_s {
 	u32 custom_ar;
 	u32 AFD_enable;
 	enum pic_mode_provider_e provider;
-};
-
-/*vdin dolby vsi info param*/
-struct tvin_dv_vsif_s {
-	uint8_t dobly_vision_signal:1;
-	uint8_t backlt_ctrl_MD_present:1;
-	uint8_t auxiliary_MD_present:1;
-	uint8_t eff_tmax_PQ_hi;
-	uint8_t eff_tmax_PQ_low;
-	uint8_t auxiliary_runmode;
-	uint8_t auxiliary_runversion;
-	uint8_t auxiliary_debug0;
 };
 
 #define BITDEPTH_Y_SHIFT 8

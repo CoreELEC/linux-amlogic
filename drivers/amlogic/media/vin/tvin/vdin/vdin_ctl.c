@@ -4217,6 +4217,29 @@ static int vdin_hdr_sei_error_check(struct vdin_dev_s *devp)
 		return 0;
 }
 
+void vdin_hdr10plus_check(struct vdin_dev_s *devp,
+		struct vframe_s *vf) {
+
+	if (devp->prop.hdr10p_info.hdr10p_on) {
+		devp->prop.hdr10p_info.hdr10p_on = false;
+
+		vf->signal_type |= (1 << 29);/*present_flag*/
+		vf->signal_type |= (0 << 25);/*0:limited*/
+		/*color_primaries*/
+		vf->signal_type = ((9 << 16) |
+			(vf->signal_type & (~0xFF0000)));
+		/*transfer_characteristic*/
+		vf->signal_type = ((0x30 << 8) |
+			(vf->signal_type & (~0xFF00)));
+		/*matrix_coefficient*/
+		vf->signal_type = ((9 << 0) |
+			(vf->signal_type & (~0xFF)));
+		memcpy(&vf->prop.hdr10p_data,
+			&devp->prop.hdr10p_info.hdr10p_data,
+			sizeof(struct tvin_hdr10p_data_s));
+	}
+}
+
 void vdin_set_drm_data(struct vdin_dev_s *devp,
 		struct vframe_s *vf)
 {
@@ -4306,7 +4329,10 @@ void vdin_set_drm_data(struct vdin_dev_s *devp,
 	}
 
 	devp->parm.info.signal_type = vf->signal_type;
+	/*hdr10+ check*/
+	vdin_hdr10plus_check(devp, vf);
 }
+
 
 void vdin_check_hdmi_hdr(struct vdin_dev_s *devp)
 {
