@@ -15035,3 +15035,8 @@ ADD OSD SW_SYNC DRIVER
 M: Pengcheng Chen <pengcheng.chen@amlogic.com>
 F: drivers/amlogic/media/osd/osd_sw_sync.c
 F: drivers/amlogic/media/osd/osd_sw_sync.h
+
+AMLOGIC VIRTUAL_FB DRIVER
+M:	Pengcheng Chen <pengcheng.chen@amlogic.com>
+F:	drivers/amlogic/media/osd/osd_virtual.c
+F:	drivers/amlogic/media/osd/osd_virtual.h

@@ -61,6 +61,7 @@
 #include "osd_sync.h"
 #include "osd_io.h"
 #include "osd_rdma.h"
+#include "osd_virtual.h"
 static __u32 var_screeninfo[5];
 static struct osd_device_data_s osd_meson_dev;
 
@@ -365,7 +366,7 @@ int int_viu2_vsync = -ENXIO;
 int int_rdma = INT_RDMA;
 struct osd_fb_dev_s *gp_fbdev_list[OSD_COUNT] = {};
 static u32 fb_memsize[HW_OSD_COUNT + 1];
-struct page *osd_page[HW_OSD_COUNT + 1];
+static struct page *osd_page[HW_OSD_COUNT + 1];
 static phys_addr_t fb_rmem_paddr[OSD_COUNT];
 static void __iomem *fb_rmem_vaddr[OSD_COUNT];
 static size_t fb_rmem_size[OSD_COUNT];
@@ -473,7 +474,7 @@ static int osddev_setcolreg(unsigned int regno, u16 red, u16 green, u16 blue,
 	return 0;
 }
 
-static const struct color_bit_define_s *
+const struct color_bit_define_s *
 _find_color_format(struct fb_var_screeninfo *var)
 {
 	u32 upper_margin, lower_margin, i, level;
@@ -3982,6 +3983,22 @@ static struct osd_device_data_s osd_tm2 = {
 	.osd0_sc_independ = 1,
 };
 
+static struct osd_device_data_s osd_a1 = {
+	.cpu_id = __MESON_CPU_MAJOR_ID_A1,
+	.osd_ver = OSD_NONE,
+	.afbc_type = NO_AFBC,
+	.osd_count = 1,
+	.has_deband = 0,
+	.has_lut = 0,
+	.has_rdma = 0,
+	.has_dolby_vision = 0,
+	.osd_fifo_len = 64, /* fifo len 64*8 = 512 */
+	.vpp_fifo_len = 0xfff,/* 2048 */
+	.dummy_data = 0x00808000,
+	.has_viu2 = 0,
+	.osd0_sc_independ = 0,
+};
+
 static const struct of_device_id meson_fb_dt_match[] = {
 	{
 		.compatible = "amlogic, meson-gxbb",
@@ -4036,6 +4053,10 @@ static const struct of_device_id meson_fb_dt_match[] = {
 		.compatible = "amlogic, meson-tm2",
 		.data = &osd_tm2,
 	},
+	{
+		.compatible = "amlogic, meson-a1",
+		.data = &osd_a1,
+	},
 	{},
 };
 
@@ -4076,6 +4097,10 @@ static int osd_probe(struct platform_device *pdev)
 			pr_err("%s NOT match\n", __func__);
 			return -ENODEV;
 		}
+	}
+	if (osd_meson_dev.osd_ver == OSD_NONE) {
+		amlfb_virtual_probe(pdev);
+		return 0;
 	}
 	/* get interrupt resource */
 	int_viu_vsync = platform_get_irq_byname(pdev, "viu-vsync");
@@ -4334,6 +4359,10 @@ static int osd_remove(struct platform_device *pdev)
 	osd_log_info("osd_remove.\n");
 	if (!pdev)
 		return -ENODEV;
+	if (osd_meson_dev.osd_ver == OSD_NONE) {
+		amlfb_virtual_remove(pdev);
+		return 0;
+	}
 #ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
 	unregister_early_suspend(&early_suspend);
 #endif
@@ -4377,6 +4406,8 @@ static int osd_remove(struct platform_device *pdev)
 
 static void osd_shutdown(struct platform_device *pdev)
 {
+	if (osd_meson_dev.osd_ver == OSD_NONE)
+		return;
 	if (!osd_shutdown_flag) {
 		osd_shutdown_flag = 1;
 		osd_shutdown_hw();
