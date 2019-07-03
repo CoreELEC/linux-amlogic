@@ -38,6 +38,22 @@ static int afc_range[11] = {0, -500, 500, -1000, 1000,
 bool afc_timer_en = true;
 
 
+static void atv_demod_afc_sync_frontend(struct atv_demod_afc *afc,
+		int freq_offset)
+{
+	struct atv_demod_priv *priv =
+			container_of(afc, struct atv_demod_priv, afc);
+	struct dvb_frontend *fe = afc->fe;
+	struct v4l2_frontend *v4l2_fe =
+				container_of(fe, struct v4l2_frontend, fe);
+	struct analog_parameters *param = &priv->atvdemod_param.param;
+
+	v4l2_fe->params.frequency = param->frequency + freq_offset;
+
+	pr_afc("%s, sync frequency: %d.\n", __func__,
+			v4l2_fe->params.frequency);
+}
+
 static void atv_demod_afc_do_work_pre(struct atv_demod_afc *afc)
 {
 	struct atv_demod_priv *priv =
@@ -146,6 +162,9 @@ void atv_demod_afc_do_work(struct work_struct *work)
 		abs(afc->offset) <= afc_limit) && field_lock) {
 		afc->status = AFC_LOCK_STATUS_POST_LOCK;
 		afc->wave_cnt = 0;
+
+		atv_demod_afc_sync_frontend(afc, freq_offset * 1000);
+
 		pr_afc("%s,afc lock, set wave_cnt 0\n", __func__);
 		return;
 	}
