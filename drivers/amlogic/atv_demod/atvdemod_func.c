@@ -1321,7 +1321,7 @@ void configure_receiver(int Broadcast_Standard, unsigned int Tuner_IF_Frequency,
 
 	/*PWM*/
 	pr_dbg("ATV-DMD configure pwm\n");
-	atv_dmd_wr_long(APB_BLOCK_ADDR_AGC_PWM, 0x00, 0x1f40);	/*4KHz*/
+	atv_dmd_wr_long(APB_BLOCK_ADDR_AGC_PWM, 0x00, 0x1f40); /*4KHz*/
 	atv_dmd_wr_long(APB_BLOCK_ADDR_AGC_PWM, 0x04, 0xc8);
 	/*26 dB dynamic range*/
 	atv_dmd_wr_byte(APB_BLOCK_ADDR_AGC_PWM, 0x09, 0xa);
@@ -1330,7 +1330,7 @@ void configure_receiver(int Broadcast_Standard, unsigned int Tuner_IF_Frequency,
 		amlatvdemod_devp->tuners[amlatvdemod_devp->tuner_cur].cfg.id
 			== AM_TUNER_R842) {
 		/*config pwm for tuner r840*/
-		atv_dmd_wr_long(APB_BLOCK_ADDR_AGC_PWM, 0, 0xc80);
+		atv_dmd_wr_long(APB_BLOCK_ADDR_AGC_PWM, 0, 0xc80); /*10KHz*/
 		/* guanzhong for Tuner AGC shock */
 		atv_dmd_wr_long(APB_BLOCK_ADDR_AGC_PWM, 0x08, 0x46180200);
 		/* atv_dmd_wr_byte(APB_BLOCK_ADDR_ADC_SE,1,0xf);//Kd = 0xf */

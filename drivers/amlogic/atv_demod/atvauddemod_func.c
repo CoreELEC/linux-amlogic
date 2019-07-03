@@ -1100,6 +1100,17 @@ void update_btsc_mode(int auto_en, int *stereo_flag, int *sap_flag)
 
 }
 
+int get_nicam_lock_status(void)
+{
+	uint32_t reg_value = 0;
+
+	reg_value = adec_rd_reg(NICAM_LEVEL_REPORT);
+
+	pr_info("%s nicam_lock:%d\n", __func__, ((reg_value >> 28) & 1));
+
+	return ((reg_value >> 28) & 1);
+}
+
 void update_nicam_mode(int *nicam_flag, int *nicam_mono_flag,
 		int *nicam_stereo_flag, int *nicam_dual_flag)
 {
@@ -1545,6 +1556,18 @@ void set_outputmode(uint32_t standard, uint32_t outmode)
 			adec_wr_reg(DUAL_DET_THD, 0x4000);
 		}
 
+		/* for FM MONO system to detection nicam status */
+		if (!aud_reinit && get_nicam_lock_status()) {
+			if (standard == AUDIO_STANDARD_A2_DK1
+				|| standard == AUDIO_STANDARD_A2_DK1
+				|| standard == AUDIO_STANDARD_A2_DK3)
+				aud_std = AUDIO_STANDARD_NICAM_DK;
+			else if (standard == AUDIO_STANDARD_A2_BG)
+				aud_std = AUDIO_STANDARD_NICAM_BG;
+
+			break;
+		}
+
 		set_a2_eiaj_outputmode(outmode);
 		break;
 	case AUDIO_STANDARD_NICAM_DK:
@@ -1552,6 +1575,17 @@ void set_outputmode(uint32_t standard, uint32_t outmode)
 	case AUDIO_STANDARD_NICAM_BG:
 	case AUDIO_STANDARD_NICAM_L:
 		set_nicam_outputmode(outmode);
+		break;
+	case AUDIO_STANDARD_MONO_I:
+	case AUDIO_STANDARD_MONO_L:
+		/* for FM MONO system to detection nicam status */
+		if (!aud_reinit && get_nicam_lock_status()) {
+			if (standard == AUDIO_STANDARD_MONO_I)
+				aud_std = AUDIO_STANDARD_NICAM_I;
+			else if (standard == AUDIO_STANDARD_MONO_L)
+				aud_std = AUDIO_STANDARD_NICAM_L;
+		}
+
 		break;
 	}
 #endif
