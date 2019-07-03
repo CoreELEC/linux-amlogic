@@ -47,6 +47,7 @@
 /* printk(KERN_##(KERN_INFO) "AMVECM: " fmt, ## args) */
 
 #define GAMMA_RETRY        1000
+unsigned int gamma_loadprotect_en = 1;
 
 /* 0: Invalid */
 /* 1: Valid */
@@ -292,6 +293,9 @@ void vpp_set_lcd_gamma_table(u16 *data, u32 rgb_mask)
 
 	spin_lock_irqsave(&vpp_lcd_gamma_lock, flags);
 
+	if (gamma_loadprotect_en)
+		WRITE_VPP_REG_BITS(L_GAMMA_CNTL_PORT, 0, GAMMA_EN, 1);
+
 	while (!(READ_VPP_REG(L_GAMMA_CNTL_PORT) & (0x1 << ADR_RDY))) {
 		udelay(10);
 		if (cnt++ > GAMMA_RETRY)
@@ -318,6 +322,10 @@ void vpp_set_lcd_gamma_table(u16 *data, u32 rgb_mask)
 	WRITE_VPP_REG(L_GAMMA_ADDR_PORT, (0x1 << H_AUTO_INC) |
 				    (0x1 << rgb_mask)   |
 				    (0x23 << HADR));
+
+	if (gamma_loadprotect_en)
+		VSYNC_WR_MPEG_REG_BITS(L_GAMMA_CNTL_PORT,
+			gamma_en, GAMMA_EN, 1);
 
 	spin_unlock_irqrestore(&vpp_lcd_gamma_lock, flags);
 }

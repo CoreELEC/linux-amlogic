@@ -57,6 +57,7 @@ struct ve_regs_s {
 	unsigned int rsv:5;
 };
 
+extern unsigned int gamma_loadprotect_en;
 extern struct ve_hist_s video_ve_hist;
 extern void ve_hist_gamma_reset(void);
 extern unsigned int ve_size;

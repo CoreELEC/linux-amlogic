@@ -5101,8 +5101,10 @@ static const char *amvecm_debug_usage_str = {
 	"echo vpp_size > /sys/class/amvecm/debug; get vpp size config\n"
 	"echo wb enable > /sys/class/amvecm/debug\n"
 	"echo wb disable > /sys/class/amvecm/debug\n"
-	"echo gama enable > /sys/class/amvecm/debug\n"
-	"echo gama disable > /sys/class/amvecm/debug\n"
+	"echo gamma enable > /sys/class/amvecm/debug\n"
+	"echo gamma disable > /sys/class/amvecm/debug\n"
+	"echo gamma load_protect_en > /sys/class/amvecm/debug\n"
+	"echo gamma load_protect_dis > /sys/class/amvecm/debug\n"
 	"echo sr peaking_en > /sys/class/amvecm/debug\n"
 	"echo sr peaking_dis > /sys/class/amvecm/debug\n"
 	"echo sr lcti_en > /sys/class/amvecm/debug\n"
@@ -5180,6 +5182,12 @@ static ssize_t amvecm_debug_store(struct class *cla,
 		} else if (!strncmp(parm[1], "disable", 7)) {
 			vecm_latch_flag |= FLAG_GAMMA_TABLE_DIS;/* gamma off */
 			pr_info("disable gamma\n");
+		} else if (!strncmp(parm[1], "load_protect_en", 15)) {
+			gamma_loadprotect_en = 1;
+			pr_info("disable gamma before loading new gamma\n");
+		} else if (!strncmp(parm[1], "load_protect_dis", 16)) {
+			gamma_loadprotect_en = 0;
+			pr_info("loading new gamma without pretect");
 		}
 	} else if (!strncmp(parm[0], "sr", 2)) {
 		if (!strncmp(parm[1], "peaking_en", 10)) {
