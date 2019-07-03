@@ -2425,6 +2425,45 @@
 			input-enable;
 		};
 	};
+
+	dvb_s_ts0_pins: dvb_s_ts0_pins {
+		mux_1 {
+			groups = "tsin_a_din0",
+			"tsin_a_clk",
+			"tsin_a_sop",
+			"tsin_a_valid";
+			function = "tsin_a";
+		};
+
+		mux_2 {
+			groups = "tsout_dout0",
+			"tsout_dout1",
+			"tsout_dout2",
+			"tsout_dout3",
+			"tsout_dout4",
+			"tsout_dout5",
+			"tsout_dout6",
+			"tsout_dout7",
+			"tsout_clk",
+			"tsout_sop",
+			"tsout_valid";
+			function = "tsout";
+		};
+		mux_3 {
+			groups = "tsin_c_din0_z",
+			"tsin_c_din1_z",
+			"tsin_c_din2_z",
+			"tsin_c_din3_z",
+			"tsin_c_din4_z",
+			"tsin_c_din5_z",
+			"tsin_c_din6_z",
+			"tsin_c_din7_z",
+			"tsin_c_clk_z",
+			"tsin_c_sop_z",
+			"tsin_c_valid_z";
+			function = "tsin_c";
+		};
+	};
 };
 
 &gpu{

@@ -19,7 +19,7 @@
 
 #include "mesontm2.dtsi"
 #include "partition_mbox_normal_P_32.dtsi"
-#include "mesontm2_t962x3_ab301-panel.dtsi"
+#include "mesontm2_t962x3_t312-panel.dtsi"
 
 / {
 	model = "Amlogic TM2 T962X3 T312";
@@ -40,6 +40,8 @@
 		i2c2 = &i2c2;
 		i2c3 = &i2c3;
 		i2c4 = &i2c_AO;
+		spi0 = &spicc0;
+		spi1 = &spicc_b;
 	};
 
 	memory@00000000 {
@@ -449,6 +451,7 @@
 		compatible = "amlogic, dvb";
 		dev_name = "dvb";
 		status = "okay";
+
 		fe0_mode = "external";
 		fe0_demod = "Si2168";
 		fe0_i2c_adap_id = <&i2c0>;
@@ -457,9 +460,12 @@
 		fe0_reset_value = <0>;
 		fe0_reset_gpio = <&gpio GPIODV_11 GPIO_ACTIVE_HIGH>;
 
+		/*"parallel","serial","disable"*/
 		ts0 = "serial";
 		ts0_control = <0x800>;
 		ts0_invert = <0>;
+		ts_out_invert = <1>;
+
 		interrupts = <0 23 1
 					0 5 1
 					0 53 1
@@ -468,19 +474,40 @@
 					0 18 1
 					0 24 1>;
 		interrupt-names = "demux0_irq",
-						"demux1_irq",
-						"demux2_irq",
-						"dvr0_irq",
-						"dvr1_irq",
-						"dvrfill0_fill",
-						"dvrfill1_flush";
+				"demux1_irq",
+				"demux2_irq",
+				"dvr0_irq",
+				"dvr1_irq",
+				"dvr2_irq",
+				"dvrfill0_fill",
+				"dvrfill1_flush";
+
 		pinctrl-names = "s_ts0";
 		pinctrl-0 = <&dvb_s_ts0_pins>;
+
 		clocks = <&clkc CLKID_DEMUX
 			&clkc CLKID_ASYNC_FIFO
 			&clkc CLKID_AHB_ARB0
 			&clkc CLKID_U_PARSER>;
 		clock-names = "demux", "asyncfifo", "ahbarb0", "uparsertop";
+	};
+
+	dvbci {
+		compatible = "amlogic, dvbci";
+		dev_name = "dvbci";
+		io_type = <3>; /* 0=iobus,1=spi,2=cimax,3=spi-t312*/
+		dvbci_io {
+			/*mcu irq pin*/
+			mcu_irq_pin = <&gpio GPIOH_9 GPIO_ACTIVE_HIGH>;
+			/*below is spi config*/
+		    /*if use iobus you need add iobus config below */
+			spi_bus_num = <1>;
+			spi_chip_select = <0>;
+			spi_max_frequency = <300000>; /* unit: hz */
+			spi_mode = <3>; /* mode: 0, 1, 2, 3 */
+			spi_cs_delay = <10 100>; /*h delay, cs delay(unit:us)*/
+			spi_write_check = <0>; /* 0=disable, 1=enable */
+		};
 	};
 
 	tvafe_avin_detect {
@@ -1194,7 +1221,7 @@
 
 	wifi{
 		compatible = "amlogic, aml_wifi";
-		status = "okay";
+		status = "disabled";
 		interrupt_pin = <&gpio       GPIOC_12       GPIO_ACTIVE_HIGH>;
 		irq_trigger_type = "GPIO_IRQ_LOW";
 		dhd_static_buf;    //dhd_static_buf support
@@ -1218,7 +1245,7 @@
 	};
 
 	sd_emmc_b: sdio@ffe05000 {
-		status = "okay";
+		status = "disabled";
 		compatible = "amlogic, meson-mmc-tm2";
 		reg = <0x0 0xffe05000 0x0 0x800>;
 		interrupts = <0 190 4>;
@@ -1385,8 +1412,8 @@
 				&clkc CLKID_MPLL2>;
 		clock-names = "mclk", "clk_srcpll";
 
-		//pinctrl-names = "tdm_pins";
-		//pinctrl-0 = <&tdmout_c &tdmin_c>;
+		pinctrl-names = "tdm_pins";
+		pinctrl-0 = </*&tdmout_c &tdmin_c*/>;
 
 		status = "okay";
 	};
@@ -1456,7 +1483,7 @@
 			"pdm_sysclk";
 
 		pinctrl-names = "pdm_pins";
-		pinctrl-0 = <&pdmin>;
+		pinctrl-0 = </*&pdmin*/>;
 
 		/* mode 0~4, defalut:1 */
 		filter_mode = <1>;
@@ -2053,14 +2080,21 @@
 };
 
 &spicc0 {
-	status = "okay";
+	status = "disable";
 	pinctrl-names = "default";
 	pinctrl-0 = <&spicc0_pins_h>;
 	cs-gpios = <&gpio GPIOH_20 0>;
 };
 
+&spicc1 {
+	status = "disable";
+	pinctrl-names = "default";
+	pinctrl-0 = <&spicc1_pins_h>;
+	cs-gpios = <&gpio GPIOH_0 0>;
+};
+
 &spicc_b {
-	status = "disabled";
+	status = "okay";
 	pinctrl-names= "default";
 	pinctrl-0=<&spicc1_pins_h>;
 	num_chipselect = <1>;
