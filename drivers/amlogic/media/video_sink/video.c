@@ -1254,7 +1254,7 @@ void safe_disble_videolayer2(void)
 #ifdef VIDEO_PIP
 static inline struct vframe_s *pip_vf_peek(void)
 {
-	if (pip_loop)
+	if (pip_loop && (cur_dispbuf != cur_pipbuf))
 		return cur_dispbuf;
 	return vf_peek(RECEIVERPIP_NAME);
 }
@@ -1263,7 +1263,7 @@ static inline struct vframe_s *pip_vf_get(void)
 {
 	struct vframe_s *vf = NULL;
 
-	if (pip_loop)
+	if (pip_loop && (cur_dispbuf != cur_pipbuf))
 		return cur_dispbuf;
 
 	vf = vf_get(RECEIVERPIP_NAME);
