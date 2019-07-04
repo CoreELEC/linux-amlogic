@@ -29,7 +29,6 @@
 #include <linux/delay.h>
 
 /* Amlogic Headers */
-#include <linux/amlogic/cpu_version.h>
 #include <linux/amlogic/media/canvas/canvas.h>
 #include <linux/amlogic/media/canvas/canvas_mgr.h>
 #include <linux/amlogic/media/ge2d/ge2d.h>
@@ -756,14 +755,21 @@ static int build_ge2d_config(struct ge2d_context_s *context,
 				if (ge2d_meson_dev.canvas_status == 1) {
 					if (i == 0) {
 						src->canvas_index = 0;
-						src->phy_addr =
+						src->phy_addr[0] =
 							cfg->src_planes[0].addr;
-						src->stride =
+						src->stride[0] =
 							cfg->src_planes[0].w *
 							src->bpp / 8;
 					} else {
 						ge2d_log_info("not support src_planes>1\n");
 					}
+				} else if (ge2d_meson_dev.canvas_status == 2) {
+					src->canvas_index = 0;
+					src->phy_addr[i] =
+						cfg->src_planes[i].addr;
+					src->stride[i] =
+						cfg->src_planes[i].w *
+						src->bpp / 8;
 				} else {
 					src->canvas_index = 0;
 					canvas_cfg = ge2d_wq_get_canvas_cfg
@@ -789,14 +795,21 @@ static int build_ge2d_config(struct ge2d_context_s *context,
 				if (ge2d_meson_dev.canvas_status == 1) {
 					if (i == 0) {
 						dst->canvas_index = 0;
-						dst->phy_addr =
+						dst->phy_addr[0] =
 							cfg->dst_planes[0].addr;
-						dst->stride =
+						dst->stride[0] =
 							cfg->dst_planes[0].w *
 							dst->bpp / 8;
 					} else {
 						ge2d_log_info("not support dst_planes>1\n");
 					}
+				} else if (ge2d_meson_dev.canvas_status == 2) {
+					dst->canvas_index = 0;
+					dst->phy_addr[i] =
+						cfg->src_planes[i].addr;
+					dst->stride[i] =
+						cfg->src_planes[i].w *
+						src->bpp / 8;
 				} else {
 					dst->canvas_index = 0;
 					canvas_cfg = ge2d_wq_get_canvas_cfg
@@ -844,12 +857,12 @@ static int setup_display_property(struct src_dst_para_s *src_dst, int index)
 	data32 = VSYNCOSD_RD_MPEG_REG(
 		VIU_OSD1_BLK0_CFG_W0 + REG_OFFSET * index);
 	src_dst->canvas_index = (data32 >> 16) & 0xff;
-	if (ge2d_meson_dev.canvas_status == 1) {
+	if (ge2d_meson_dev.canvas_status) {
 		src_dst->canvas_index = 0;
 		osd_get_info(index, &cs_addr,
 			&cs_width, &cs_height);
-		src_dst->phy_addr = cs_addr;
-		src_dst->stride = cs_width;
+		src_dst->phy_addr[0] = cs_addr;
+		src_dst->stride[0] = cs_width;
 	}
 #ifdef CONFIG_AMLOGIC_MEDIA_CANVAS
 	else {
@@ -1007,18 +1020,23 @@ static int build_ge2d_addr_config(
 			unsigned int *stride
 			)
 {
-	int ret = -1;
+	int ret = -1, i = 0;
 	int bpp_value = bpp(format);
 
 	bpp_value /= 8;
-	ge2d_log_dbg("build_ge2d_addr_config bpp_value=%d\n",
-		bpp_value);
-	if (plane) {
-		if (plane[0].addr) {
-			*addr = plane[0].addr;
-			*stride = plane[0].w * bpp_value;
+
+	ge2d_log_dbg("%s bpp_value=%d\n", __func__, bpp_value);
+
+	if (!plane)
+		return ret;
+	for (i = 0; i < MAX_PLANE; i++) {
+		if (plane[i].addr) {
+			addr[i] = plane[i].addr;
+			stride[i] = plane[i].w * bpp_value;
 			ret = 0;
 		}
+	}
+	if (ge2d_meson_dev.canvas_status == 1) {
 		/* not support multi-src_planes */
 		if ((plane[1].addr) ||
 			(plane[2].addr) ||
@@ -1037,32 +1055,40 @@ static int build_ge2d_addr_config_ion(
 			unsigned int *stride
 			)
 {
-	int ret = -1;
+	int ret = -1, i = 0;
 	int bpp_value = bpp(format);
 	unsigned long addr_temp = 0;
 
 	bpp_value /= 8;
-	ge2d_log_dbg("build_ge2d_addr_config_ion bpp_value=%d\n",
-		bpp_value);
-	if (plane) {
-		if (plane[0].shared_fd) {
+
+	ge2d_log_dbg("%s bpp_value=%d\n", __func__, bpp_value);
+
+	if (!plane)
+		return ret;
+	for (i = 0; i < MAX_PLANE; i++) {
+		if (plane[i].shared_fd) {
 #ifdef CONFIG_AMLOGIC_ION
 			size_t len = 0;
 
 			ret = meson_ion_share_fd_to_phys(ge2d_ion_client,
-				plane[0].shared_fd, &addr_temp, &len);
+							 plane[i].shared_fd,
+							 &addr_temp, &len);
 			if (ret != 0)
 				return ret;
 #else
 			return ret;
 #endif
+			plane[i].addr += addr_temp;
+		} else if (plane[i].addr) {
+			plane[i].addr += plane[0].addr;
 		}
-		plane[0].addr += addr_temp;
-		if (plane[0].addr) {
-			*addr = plane[0].addr;
-			*stride = plane[0].w * bpp_value;
+		if (plane[i].addr) {
+			addr[i] = plane[i].addr;
+			stride[i] = plane[i].w * bpp_value;
 			ret = 0;
 		}
+	}
+	if (ge2d_meson_dev.canvas_status == 1) {
 		/* not support multi-src_planes */
 		if ((plane[1].addr) ||
 			(plane[2].addr) ||
@@ -1084,15 +1110,18 @@ static int build_ge2d_addr_config_dma(
 			unsigned int data_type
 			)
 {
-	int ret = -1;
+	int ret = -1, i = 0;
 	int bpp_value = bpp(format);
 	unsigned long addr_temp = 0;
 
 	bpp_value /= 8;
-	ge2d_log_dbg("build_ge2d_addr_config_ion bpp_value=%d\n",
-		bpp_value);
-	if (plane) {
-		if (plane[0].shared_fd) {
+
+	ge2d_log_dbg("%s bpp_value=%d\n", __func__, bpp_value);
+
+	if (!plane)
+		return ret;
+	for (i = 0; i < MAX_PLANE; i++) {
+		if (plane[i].shared_fd) {
 			struct ge2d_dma_cfg_s *cfg = NULL;
 			struct aml_dma_cfg *dma_cfg = NULL;
 
@@ -1101,25 +1130,29 @@ static int build_ge2d_addr_config_dma(
 				return -1;
 			cfg->dma_used = 1;
 			dma_cfg = kzalloc(sizeof(*dma_cfg), GFP_KERNEL);
-			dma_cfg->fd = plane[0].shared_fd;
-			dma_cfg->dev = &(ge2d_manager.pdev->dev);
+			dma_cfg->fd = plane[i].shared_fd;
+			dma_cfg->dev = &ge2d_manager.pdev->dev;
 			dma_cfg->dir = dir;
 			cfg->dma_cfg = dma_cfg;
 			ret = ge2d_buffer_get_phys(dma_cfg, &addr_temp);
 			if (ret != 0)
 				return ret;
+			plane[i].addr = addr_temp;
+		} else if (plane[i].addr) {
+			plane[i].addr += plane[0].addr;
 		}
-		plane[0].addr += addr_temp;
-		if (plane[0].addr) {
-			*addr = plane[0].addr;
-			*stride = plane[0].w * bpp_value;
+		if (plane[i].addr) {
+			addr[i] = plane[i].addr;
+			stride[i] = plane[i].w * bpp_value;
 			ret = 0;
 		}
+	}
+	if (ge2d_meson_dev.canvas_status == 1) {
 		/* not support multi-src_planes */
-		if ((plane[1].addr) ||
-			(plane[2].addr) ||
-			(plane[3].addr)) {
-			ge2d_log_info("ge2d not support NV21 mode\n");
+		if (plane[1].addr ||
+		    plane[2].addr ||
+		    plane[3].addr) {
+			ge2d_log_info("ge2d A113D not support NV21 mode\n");
 			ret = -1;
 		}
 	}
@@ -1165,7 +1198,6 @@ static int build_ge2d_config_ex_ion(struct ge2d_context_s *context,
 	int ret = -1, i;
 	int canvas_set = 0;
 	unsigned long addr;
-	size_t len;
 
 	bpp_value /= 8;
 	if (plane) {
@@ -1174,10 +1206,14 @@ static int build_ge2d_config_ex_ion(struct ge2d_context_s *context,
 			canvas_set = 0;
 			if (plane[i].shared_fd) {
 #ifdef CONFIG_AMLOGIC_ION
-			ret = meson_ion_share_fd_to_phys(ge2d_ion_client,
-				plane[i].shared_fd, &addr, &len);
-			if (ret != 0)
-				return ret;
+				size_t len;
+
+				ret = meson_ion_share_fd_to_phys
+					(ge2d_ion_client, plane[i].shared_fd,
+					 &addr,
+					 &len);
+				if (ret != 0)
+					return ret;
 #else
 				return ret;
 #endif
@@ -1272,8 +1308,9 @@ int ge2d_context_config_ex(struct ge2d_context_s *context,
 	struct ge2d_dp_gen_s *dp_gen_cfg;
 	struct ge2d_cmd_s *ge2d_cmd_cfg;
 	int top, left, width, height;
-	unsigned int src_addr = 0, src2_addr = 0, dst_addr = 0;
-	unsigned int src_stride = 0, src2_stride = 0, dst_stride = 0;
+	unsigned int src_addr[MAX_PLANE] = {0}, src_stride[MAX_PLANE] = {0};
+	unsigned int src2_addr[MAX_PLANE] = {0}, src2_stride[MAX_PLANE] = {0};
+	unsigned int dst_addr[MAX_PLANE] = {0}, dst_stride[MAX_PLANE] = {0};
 
 	/* setup src and dst */
 	switch (ge2d_config->src_para.mem_type) {
@@ -1285,8 +1322,8 @@ int ge2d_context_config_ex(struct ge2d_context_s *context,
 			return -1;
 		ge2d_config->src_para.canvas_index = tmp.canvas_index;
 		ge2d_config->src_para.format = tmp.ge2d_color_index;
-		src_addr = tmp.phy_addr;
-		src_stride = tmp.stride;
+		src_addr[0] = tmp.phy_addr[0];
+		src_stride[0] = tmp.stride[0];
 		ge2d_log_dbg("ge2d: src1-->type: osd%d, format: 0x%x !!\n",
 			     ge2d_config->src_para.mem_type - CANVAS_OSD0,
 			     ge2d_config->src_para.format);
@@ -1303,8 +1340,8 @@ int ge2d_context_config_ex(struct ge2d_context_s *context,
 		ge2d_config->src_para.width = tmp.xres;
 		ge2d_config->src_para.height = tmp.yres;
 		ge2d_log_dbg("ge2d osd phy_addr:0x%x,stride=0x%x,format:0x%x\n",
-			src_addr,
-			src_stride,
+			src_addr[0],
+			src_stride[0],
 			ge2d_config->src_para.format);
 		break;
 	case CANVAS_ALLOC:
@@ -1317,16 +1354,17 @@ int ge2d_context_config_ex(struct ge2d_context_s *context,
 			ge2d_log_dbg("ge2d error: src alloc, out of range\n");
 			return -1;
 		}
-		if (ge2d_meson_dev.canvas_status == 1) {
-			if (build_ge2d_addr_config(
-				&ge2d_config->src_planes[0],
-				ge2d_config->src_para.format,
-				&src_addr,
-				&src_stride) < 0)
+
+		if (ge2d_meson_dev.canvas_status) {
+			if (build_ge2d_addr_config
+					(&ge2d_config->src_planes[0],
+					 ge2d_config->src_para.format,
+					 src_addr,
+					 src_stride) < 0)
 				return -1;
 			ge2d_log_dbg("ge2d alloc phy_addr:0x%x,stride=0x%x,format:0x%x\n",
-				src_addr,
-				src_stride,
+				src_addr[0],
+				src_stride[0],
 				ge2d_config->src_para.format);
 		} else {
 			if (build_ge2d_config_ex(context,
@@ -1352,8 +1390,8 @@ int ge2d_context_config_ex(struct ge2d_context_s *context,
 			return -1;
 		ge2d_config->src2_para.canvas_index = tmp.canvas_index;
 		ge2d_config->src2_para.format = tmp.ge2d_color_index;
-		src2_addr = tmp.phy_addr;
-		src2_stride = tmp.stride;
+		src2_addr[0] = tmp.phy_addr[0];
+		src2_stride[0] = tmp.stride[0];
 		ge2d_log_dbg("ge2d: src2-->type: osd%d, format: 0x%x !!\n",
 			     ge2d_config->src2_para.mem_type - CANVAS_OSD0,
 			     ge2d_config->src2_para.format);
@@ -1370,8 +1408,8 @@ int ge2d_context_config_ex(struct ge2d_context_s *context,
 		ge2d_config->src2_para.width = tmp.xres;
 		ge2d_config->src2_para.height = tmp.yres;
 		ge2d_log_dbg("ge2d osd phy_addr:0x%x,stride=0x%x,format:0x%x\n",
-			src2_addr,
-			src_stride,
+			src2_addr[0],
+			src_stride[0],
 			ge2d_config->src2_para.format);
 		break;
 	case  CANVAS_ALLOC:
@@ -1388,19 +1426,21 @@ int ge2d_context_config_ex(struct ge2d_context_s *context,
 				ge2d_config->src_planes[0].addr) {
 			ge2d_config->src2_para.canvas_index =
 				ge2d_config->src_para.canvas_index;
-			src2_addr = src_addr;
-			src2_stride = src_stride;
+			memcpy(src2_addr, src_addr,
+			       sizeof(src_addr[MAX_PLANE]));
+			memcpy(src2_stride, src_stride,
+			       sizeof(src_stride[MAX_PLANE]));
 		} else {
-			if (ge2d_meson_dev.canvas_status == 1) {
-				if (build_ge2d_addr_config(
-					&ge2d_config->src2_planes[0],
-					ge2d_config->src2_para.format,
-					&src2_addr,
-					&src2_stride) < 0)
+			if (ge2d_meson_dev.canvas_status) {
+				if (build_ge2d_addr_config
+						(&ge2d_config->src2_planes[0],
+						 ge2d_config->src2_para.format,
+						 src2_addr,
+						 src2_stride) < 0)
 					return -1;
 				ge2d_log_dbg("ge2d alloc phy_addr:0x%x,stride=0x%x,format:0x%x\n",
-					src2_addr,
-					src2_stride,
+					src2_addr[0],
+					src2_stride[0],
 					ge2d_config->src2_para.format);
 			} else {
 				if (build_ge2d_config_ex(context,
@@ -1427,8 +1467,8 @@ int ge2d_context_config_ex(struct ge2d_context_s *context,
 			return -1;
 		ge2d_config->dst_para.canvas_index = tmp.canvas_index;
 		ge2d_config->dst_para.format = tmp.ge2d_color_index;
-		dst_addr = tmp.phy_addr;
-		dst_stride = tmp.stride;
+		dst_addr[0] = tmp.phy_addr[0];
+		dst_stride[0] = tmp.stride[0];
 
 		ge2d_log_dbg("ge2d: dst-->type: osd%d, format: 0x%x !!\n",
 			     ge2d_config->dst_para.mem_type - CANVAS_OSD0,
@@ -1446,8 +1486,8 @@ int ge2d_context_config_ex(struct ge2d_context_s *context,
 		ge2d_config->dst_para.width = tmp.xres;
 		ge2d_config->dst_para.height = tmp.yres;
 		ge2d_log_dbg("ge2d osd phy_addr:0x%x,stride=0x%x,format:0x%x\n",
-			dst_addr,
-			dst_stride,
+			dst_addr[0],
+			dst_stride[0],
 			ge2d_config->dst_para.format);
 		break;
 	case  CANVAS_ALLOC:
@@ -1464,26 +1504,29 @@ int ge2d_context_config_ex(struct ge2d_context_s *context,
 				ge2d_config->src_planes[0].addr) {
 			ge2d_config->dst_para.canvas_index =
 				ge2d_config->src_para.canvas_index;
-			dst_addr = src_addr;
-			dst_stride = src_stride;
-		}
-		else if (ge2d_config->dst_planes[0].addr ==
+			memcpy(dst_addr, src_addr,
+			       sizeof(src_addr[MAX_PLANE]));
+			memcpy(dst_stride, src_stride,
+			       sizeof(src_stride[MAX_PLANE]));
+		} else if (ge2d_config->dst_planes[0].addr ==
 				ge2d_config->src2_planes[0].addr) {
 			ge2d_config->dst_para.canvas_index =
 				ge2d_config->src2_para.canvas_index;
-			dst_addr = src2_addr;
-			dst_stride = src2_stride;
+			memcpy(dst_addr, src2_addr,
+			       sizeof(src2_addr[MAX_PLANE]));
+			memcpy(dst_stride, src2_stride,
+			       sizeof(src2_stride[MAX_PLANE]));
 		} else {
-			if (ge2d_meson_dev.canvas_status == 1) {
-				if (build_ge2d_addr_config(
-					&ge2d_config->dst_planes[0],
-					ge2d_config->dst_para.format,
-					&dst_addr,
-					&dst_stride) < 0)
+			if (ge2d_meson_dev.canvas_status) {
+				if (build_ge2d_addr_config
+						(&ge2d_config->dst_planes[0],
+						 ge2d_config->dst_para.format,
+						 dst_addr,
+						 dst_stride) < 0)
 					return -1;
 				ge2d_log_dbg("ge2d alloc phy_addr:0x%x,stride=0x%x,format:0x%x\n",
-					dst_addr,
-					dst_stride,
+					dst_addr[0],
+					dst_stride[0],
 					ge2d_config->dst_para.format);
 			} else {
 				if (build_ge2d_config_ex(context,
@@ -1641,8 +1684,9 @@ int ge2d_context_config_ex_ion(struct ge2d_context_s *context,
 	struct ge2d_dp_gen_s *dp_gen_cfg;
 	struct ge2d_cmd_s *ge2d_cmd_cfg;
 	int top, left, width, height;
-	unsigned int src_addr = 0, src2_addr = 0, dst_addr = 0;
-	unsigned int src_stride = 0, src2_stride = 0, dst_stride = 0;
+	unsigned int src_addr[MAX_PLANE] = {0}, src_stride[MAX_PLANE] = {0};
+	unsigned int src2_addr[MAX_PLANE] = {0}, src2_stride[MAX_PLANE] = {0};
+	unsigned int dst_addr[MAX_PLANE] = {0}, dst_stride[MAX_PLANE] = {0};
 
 	/* setup src and dst */
 	switch (ge2d_config->src_para.mem_type) {
@@ -1654,8 +1698,8 @@ int ge2d_context_config_ex_ion(struct ge2d_context_s *context,
 			return -1;
 		ge2d_config->src_para.canvas_index = tmp.canvas_index;
 		ge2d_config->src_para.format = tmp.ge2d_color_index;
-		src_addr = tmp.phy_addr;
-		src_stride = tmp.stride;
+		src_addr[0] = tmp.phy_addr[0];
+		src_stride[0] = tmp.stride[0];
 
 		ge2d_log_dbg("ge2d: src1-->type: osd%d, format: 0x%x !!\n",
 			     ge2d_config->src_para.mem_type - CANVAS_OSD0,
@@ -1673,8 +1717,8 @@ int ge2d_context_config_ex_ion(struct ge2d_context_s *context,
 		ge2d_config->src_para.width = tmp.xres;
 		ge2d_config->src_para.height = tmp.yres;
 		ge2d_log_dbg("ge2d osd phy_addr:0x%x,stride=0x%x,format:0x%x\n",
-			src_addr,
-			src_stride,
+			src_addr[0],
+			src_stride[0],
 			ge2d_config->src_para.format);
 		break;
 	case CANVAS_ALLOC:
@@ -1687,18 +1731,18 @@ int ge2d_context_config_ex_ion(struct ge2d_context_s *context,
 			ge2d_log_dbg("ge2d error: src alloc, out of range\n");
 			return -1;
 		}
-		if (ge2d_meson_dev.canvas_status == 1) {
-			if (build_ge2d_addr_config_ion(
-				&ge2d_config->src_planes[0],
-				ge2d_config->src_para.format,
-				&src_addr,
-				&src_stride) < 0)
+
+		if (ge2d_meson_dev.canvas_status) {
+			if (build_ge2d_addr_config_ion
+					(&ge2d_config->src_planes[0],
+					 ge2d_config->src_para.format,
+					 src_addr,
+					 src_stride) < 0)
 				return -1;
 			ge2d_log_dbg("ge2d alloc phy_addr:0x%x,stride=0x%x,format:0x%x\n",
-				src_addr,
-				src_stride,
+				src_addr[0],
+				src_stride[0],
 				ge2d_config->src_para.format);
-
 		} else {
 			if (build_ge2d_config_ex_ion(
 				context,
@@ -1724,8 +1768,8 @@ int ge2d_context_config_ex_ion(struct ge2d_context_s *context,
 			return -1;
 		ge2d_config->src2_para.canvas_index = tmp.canvas_index;
 		ge2d_config->src2_para.format = tmp.ge2d_color_index;
-		src2_addr = tmp.phy_addr;
-		src2_stride = tmp.stride;
+		src2_addr[0] = tmp.phy_addr[0];
+		src2_stride[0] = tmp.stride[0];
 
 		ge2d_log_dbg("ge2d: src2-->type: osd%d, format: 0x%x !!\n",
 			     ge2d_config->src2_para.mem_type - CANVAS_OSD0,
@@ -1743,8 +1787,8 @@ int ge2d_context_config_ex_ion(struct ge2d_context_s *context,
 		ge2d_config->src2_para.width = tmp.xres;
 		ge2d_config->src2_para.height = tmp.yres;
 		ge2d_log_dbg("ge2d osd phy_addr:0x%x,stride=0x%x,format:0x%x\n",
-			src2_addr,
-			src2_stride,
+			src2_addr[0],
+			src2_stride[0],
 			ge2d_config->src2_para.format);
 		break;
 	case  CANVAS_ALLOC:
@@ -1762,16 +1806,16 @@ int ge2d_context_config_ex_ion(struct ge2d_context_s *context,
 		 *	index = ge2d_config->src_para.canvas_index;
 		 * else
 		 */
-		if (ge2d_meson_dev.canvas_status == 1) {
-			if (build_ge2d_addr_config_ion(
-				&ge2d_config->src2_planes[0],
-				ge2d_config->src2_para.format,
-				&src2_addr,
-				&src2_stride) < 0)
+		if (ge2d_meson_dev.canvas_status) {
+			if (build_ge2d_addr_config_ion
+					(&ge2d_config->src2_planes[0],
+					 ge2d_config->src2_para.format,
+					 src2_addr,
+					 src2_stride) < 0)
 				return -1;
 			ge2d_log_dbg("ge2d alloc phy_addr:0x%x,stride=0x%x,format:0x%x\n",
-				src2_addr,
-				src2_stride,
+				src2_addr[0],
+				src2_stride[0],
 				ge2d_config->src2_para.format);
 		} else {
 			if (build_ge2d_config_ex_ion(
@@ -1798,8 +1842,8 @@ int ge2d_context_config_ex_ion(struct ge2d_context_s *context,
 			return -1;
 		ge2d_config->dst_para.canvas_index = tmp.canvas_index;
 		ge2d_config->dst_para.format = tmp.ge2d_color_index;
-		dst_addr = tmp.phy_addr;
-		dst_stride = tmp.stride;
+		dst_addr[0] = tmp.phy_addr[0];
+		dst_stride[0] = tmp.stride[0];
 
 		ge2d_log_dbg("ge2d: dst-->type: osd%d, format: 0x%x !!\n",
 			     ge2d_config->dst_para.mem_type - CANVAS_OSD0,
@@ -1817,8 +1861,8 @@ int ge2d_context_config_ex_ion(struct ge2d_context_s *context,
 		ge2d_config->dst_para.width = tmp.xres;
 		ge2d_config->dst_para.height = tmp.yres;
 		ge2d_log_dbg("ge2d osd phy_addr:0x%x,stride=0x%x,format:0x%x\n",
-			dst_addr,
-			dst_stride,
+			dst_addr[0],
+			dst_stride[0],
 			ge2d_config->dst_para.format);
 		break;
 	case  CANVAS_ALLOC:
@@ -1839,16 +1883,16 @@ int ge2d_context_config_ex_ion(struct ge2d_context_s *context,
 		 *	index = ge2d_config->src2_para.canvas_index;
 		 * else
 		 */
-		if (ge2d_meson_dev.canvas_status == 1) {
-			if (build_ge2d_addr_config_ion(
-				&ge2d_config->dst_planes[0],
-				ge2d_config->dst_para.format,
-				&dst_addr,
-				&dst_stride) < 0)
+		if (ge2d_meson_dev.canvas_status) {
+			if (build_ge2d_addr_config_ion
+					(&ge2d_config->dst_planes[0],
+					 ge2d_config->dst_para.format,
+					 dst_addr,
+					 dst_stride) < 0)
 				return -1;
 			ge2d_log_dbg("ge2d alloc phy_addr:0x%x,stride=0x%x,format:0x%x\n",
-				dst_addr,
-				dst_stride,
+				dst_addr[0],
+				dst_stride[0],
 				ge2d_config->dst_para.format);
 		} else {
 			if (build_ge2d_config_ex_ion(
@@ -2011,8 +2055,9 @@ int ge2d_context_config_ex_mem(struct ge2d_context_s *context,
 	struct ge2d_dp_gen_s *dp_gen_cfg;
 	struct ge2d_cmd_s *ge2d_cmd_cfg;
 	int top, left, width, height;
-	unsigned int src_addr = 0, src2_addr = 0, dst_addr = 0;
-	unsigned int src_stride = 0, src2_stride = 0, dst_stride = 0;
+	unsigned int src_addr[MAX_PLANE] = {0}, src_stride[MAX_PLANE] = {0};
+	unsigned int src2_addr[MAX_PLANE] = {0}, src2_stride[MAX_PLANE] = {0};
+	unsigned int dst_addr[MAX_PLANE] = {0}, dst_stride[MAX_PLANE] = {0};
 	struct config_para_ex_ion_s *ge2d_config;
 	int i;
 
@@ -2033,8 +2078,8 @@ int ge2d_context_config_ex_mem(struct ge2d_context_s *context,
 			return -1;
 		ge2d_config->src_para.canvas_index = tmp.canvas_index;
 		ge2d_config->src_para.format = tmp.ge2d_color_index;
-		src_addr = tmp.phy_addr;
-		src_stride = tmp.stride;
+		src_addr[0] = tmp.phy_addr[0];
+		src_stride[0] = tmp.stride[0];
 
 		ge2d_log_dbg("ge2d: src1-->type: osd%d, format: 0x%x !!\n",
 			     ge2d_config->src_para.mem_type - CANVAS_OSD0,
@@ -2052,8 +2097,8 @@ int ge2d_context_config_ex_mem(struct ge2d_context_s *context,
 		ge2d_config->src_para.width = tmp.xres;
 		ge2d_config->src_para.height = tmp.yres;
 		ge2d_log_dbg("ge2d osd phy_addr:0x%x,stride=0x%x,format:0x%x\n",
-			src_addr,
-			src_stride,
+			src_addr[0],
+			src_stride[0],
 			ge2d_config->src_para.format);
 		break;
 	case CANVAS_ALLOC:
@@ -2066,33 +2111,33 @@ int ge2d_context_config_ex_mem(struct ge2d_context_s *context,
 			ge2d_log_dbg("ge2d error: src alloc, out of range\n");
 			return -1;
 		}
-		if (ge2d_meson_dev.canvas_status == 1) {
+		if (ge2d_meson_dev.canvas_status) {
 			if (ge2d_config_mem->src1_mem_alloc_type ==
 				AML_GE2D_MEM_ION) {
-				if (build_ge2d_addr_config_ion(
-					&ge2d_config->src_planes[0],
-					ge2d_config->src_para.format,
-					&src_addr,
-					&src_stride) < 0)
+				if (build_ge2d_addr_config_ion
+						(&ge2d_config->src_planes[0],
+						 ge2d_config->src_para.format,
+						 src_addr,
+						 src_stride) < 0)
 					return -1;
 				ge2d_log_dbg("ge2d ion alloc phy_addr:0x%x,stride=0x%x,format:0x%x\n",
-					src_addr,
-					src_stride,
+					src_addr[0],
+					src_stride[0],
 					ge2d_config->src_para.format);
 			} else if (ge2d_config_mem->src1_mem_alloc_type ==
 				AML_GE2D_MEM_DMABUF) {
-				if (build_ge2d_addr_config_dma(
-					context,
-					&ge2d_config->src_planes[0],
-					ge2d_config->src_para.format,
-					&src_addr,
-					&src_stride,
-					DMA_TO_DEVICE,
-					AML_GE2D_SRC) < 0)
+				if (build_ge2d_addr_config_dma
+						(context,
+						 &ge2d_config->src_planes[0],
+						 ge2d_config->src_para.format,
+						 src_addr,
+						 src_stride,
+						 DMA_TO_DEVICE,
+						 AML_GE2D_SRC) < 0)
 					return -1;
 				ge2d_log_dbg("ge2d dma alloc phy_addr:0x%x,stride=0x%x,format:0x%x\n",
-					src_addr,
-					src_stride,
+					src_addr[0],
+					src_stride[0],
 					ge2d_config->src_para.format);
 			}
 		} else {
@@ -2135,8 +2180,8 @@ int ge2d_context_config_ex_mem(struct ge2d_context_s *context,
 			return -1;
 		ge2d_config->src2_para.canvas_index = tmp.canvas_index;
 		ge2d_config->src2_para.format = tmp.ge2d_color_index;
-		src2_addr = tmp.phy_addr;
-		src2_stride = tmp.stride;
+		src2_addr[0] = tmp.phy_addr[0];
+		src2_stride[0] = tmp.stride[0];
 
 		ge2d_log_dbg("ge2d: src2-->type: osd%d, format: 0x%x !!\n",
 			     ge2d_config->src2_para.mem_type - CANVAS_OSD0,
@@ -2154,8 +2199,8 @@ int ge2d_context_config_ex_mem(struct ge2d_context_s *context,
 		ge2d_config->src2_para.width = tmp.xres;
 		ge2d_config->src2_para.height = tmp.yres;
 		ge2d_log_dbg("ge2d osd phy_addr:0x%x,stride=0x%x,format:0x%x\n",
-			src2_addr,
-			src2_stride,
+			src2_addr[0],
+			src2_stride[0],
 			ge2d_config->src2_para.format);
 		break;
 	case  CANVAS_ALLOC:
@@ -2173,33 +2218,33 @@ int ge2d_context_config_ex_mem(struct ge2d_context_s *context,
 		 *	index = ge2d_config->src_para.canvas_index;
 		 * else
 		 */
-		if (ge2d_meson_dev.canvas_status == 1) {
+		if (ge2d_meson_dev.canvas_status) {
 			if (ge2d_config_mem->src2_mem_alloc_type ==
 				AML_GE2D_MEM_ION) {
-				if (build_ge2d_addr_config_ion(
-					&ge2d_config->src2_planes[0],
-					ge2d_config->src2_para.format,
-					&src2_addr,
-					&src2_stride) < 0)
+				if (build_ge2d_addr_config_ion
+						(&ge2d_config->src2_planes[0],
+						 ge2d_config->src2_para.format,
+						 src2_addr,
+						 src2_stride) < 0)
 					return -1;
 				ge2d_log_dbg("ge2d ion alloc phy_addr:0x%x,stride=0x%x,format:0x%x\n",
-					src2_addr,
-					src2_stride,
+					src2_addr[0],
+					src2_stride[0],
 					ge2d_config->src2_para.format);
 			} else if (ge2d_config_mem->src2_mem_alloc_type ==
 				AML_GE2D_MEM_DMABUF) {
-				if (build_ge2d_addr_config_dma(
-					context,
-					&ge2d_config->src2_planes[0],
-					ge2d_config->src2_para.format,
-					&src2_addr,
-					&src2_stride,
-					DMA_TO_DEVICE,
-					AML_GE2D_SRC2) < 0)
+				if (build_ge2d_addr_config_dma
+						(context,
+						 &ge2d_config->src2_planes[0],
+						 ge2d_config->src2_para.format,
+						 src2_addr,
+						 src2_stride,
+						 DMA_TO_DEVICE,
+						 AML_GE2D_SRC2) < 0)
 					return -1;
 				ge2d_log_dbg("ge2d dma alloc phy_addr:0x%x,stride=0x%x,format:0x%x\n",
-					src2_addr,
-					src2_stride,
+					src2_addr[0],
+					src2_stride[0],
 					ge2d_config->src2_para.format);
 			}
 		} else {
@@ -2242,8 +2287,8 @@ int ge2d_context_config_ex_mem(struct ge2d_context_s *context,
 			return -1;
 		ge2d_config->dst_para.canvas_index = tmp.canvas_index;
 		ge2d_config->dst_para.format = tmp.ge2d_color_index;
-		dst_addr = tmp.phy_addr;
-		dst_stride = tmp.stride;
+		dst_addr[0] = tmp.phy_addr[0];
+		dst_stride[0] = tmp.stride[0];
 
 		ge2d_log_dbg("ge2d: dst-->type: osd%d, format: 0x%x !!\n",
 			     ge2d_config->dst_para.mem_type - CANVAS_OSD0,
@@ -2261,8 +2306,8 @@ int ge2d_context_config_ex_mem(struct ge2d_context_s *context,
 		ge2d_config->dst_para.width = tmp.xres;
 		ge2d_config->dst_para.height = tmp.yres;
 		ge2d_log_dbg("ge2d osd phy_addr:0x%x,stride=0x%x,format:0x%x\n",
-			dst_addr,
-			dst_stride,
+			dst_addr[0],
+			dst_stride[0],
 			ge2d_config->dst_para.format);
 		break;
 	case  CANVAS_ALLOC:
@@ -2283,33 +2328,33 @@ int ge2d_context_config_ex_mem(struct ge2d_context_s *context,
 		 *	index = ge2d_config->src2_para.canvas_index;
 		 * else
 		 */
-		if (ge2d_meson_dev.canvas_status == 1) {
+		if (ge2d_meson_dev.canvas_status) {
 			if (ge2d_config_mem->dst_mem_alloc_type ==
 				AML_GE2D_MEM_ION) {
-				if (build_ge2d_addr_config_ion(
-					&ge2d_config->dst_planes[0],
-					ge2d_config->dst_para.format,
-					&dst_addr,
-					&dst_stride) < 0)
+				if (build_ge2d_addr_config_ion
+						(&ge2d_config->dst_planes[0],
+						 ge2d_config->dst_para.format,
+						 dst_addr,
+						 dst_stride) < 0)
 					return -1;
 				ge2d_log_dbg("ge2d ion alloc phy_addr:0x%x,stride=0x%x,format:0x%x\n",
-					dst_addr,
-					dst_stride,
+					dst_addr[0],
+					dst_stride[0],
 					ge2d_config->dst_para.format);
 			} else if (ge2d_config_mem->dst_mem_alloc_type ==
 				AML_GE2D_MEM_DMABUF) {
-				if (build_ge2d_addr_config_dma(
-					context,
-					&ge2d_config->dst_planes[0],
-					ge2d_config->dst_para.format,
-					&dst_addr,
-					&dst_stride,
-					DMA_FROM_DEVICE,
-					AML_GE2D_DST) < 0)
+				if (build_ge2d_addr_config_dma
+						(context,
+						 &ge2d_config->dst_planes[0],
+						 ge2d_config->dst_para.format,
+						 dst_addr,
+						 dst_stride,
+						 DMA_FROM_DEVICE,
+						 AML_GE2D_DST) < 0)
 					return -1;
 				ge2d_log_dbg("ge2d dma alloc phy_addr:0x%x,stride=0x%x,format:0x%x\n",
-					dst_addr,
-					dst_stride,
+					dst_addr[0],
+					dst_stride[0],
 					ge2d_config->dst_para.format);
 			}
 		} else {

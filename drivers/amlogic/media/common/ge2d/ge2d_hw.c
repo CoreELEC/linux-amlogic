@@ -19,7 +19,6 @@
 #include <linux/types.h>
 
 /* Amlogic Headers */
-#include <linux/amlogic/cpu_version.h>
 #include <linux/amlogic/media/ge2d/ge2d.h>
 
 /* Local Headers */
@@ -284,15 +283,54 @@ static const        unsigned int filt_coef3[] = { /* 3 point triangle */
 	0x00
 };
 
-void ge2d_canv_config(u32 index, u32 addr, u32 stride)
+void ge2d_canv_config(u32 index, u32 *addr, u32 *stride)
 {
-	ge2d_log_dbg("ge2d_canv_config:index=%d,addr=%x,stride=%d\n",
-		index, addr, stride);
-	if (index <= 2) {
-		ge2d_reg_write(GE2D_DST1_BADDR_CTRL + index * 2,
-			((addr + 7) >> 3));
-		ge2d_reg_write(GE2D_DST1_STRIDE_CTRL + index * 2,
-			((stride + 7) >> 3));
+	int i;
+
+	ge2d_log_dbg("%s:index=%d,addr=%x,stride=%d\n",
+		     __func__, index, addr[0], stride[0]);
+	if (ge2d_meson_dev.canvas_status == 1) {
+		if (index <= 2) {
+			ge2d_reg_write(GE2D_DST1_BADDR_CTRL + index * 2,
+				       ((addr[0] + 7) >> 3));
+			ge2d_reg_write(GE2D_DST1_STRIDE_CTRL + index * 2,
+				       ((stride[0] + 7) >> 3));
+		}
+	} else if (ge2d_meson_dev.canvas_status == 2) {
+		if (index <= 2) {
+			switch (index) {
+			case GE2D_SRC1_INDEX:
+				for (i = 0; i < 3; i++) {
+					if (!addr[i] || !stride[i])
+						break;
+					ge2d_reg_write
+					(GE2D_C1_SRC1_BADDR_CTRL_Y + i * 2,
+					 ((addr[i] + 7) >> 3));
+					ge2d_reg_write
+					(GE2D_C1_SRC1_STRIDE_CTRL_Y + i * 2,
+					 ((stride[i] + 7) >> 3));
+				}
+				break;
+			case GE2D_SRC2_INDEX:
+				ge2d_reg_write(GE2D_C1_SRC2_BADDR_CTRL,
+					       ((addr[0] + 7) >> 3));
+				ge2d_reg_write(GE2D_C1_SRC2_STRIDE_CTRL,
+					       ((stride[0] + 7) >> 3));
+				break;
+			case GE2D_DST1_INDEX:
+				for (i = 0; i < 2; i++) {
+					if (!addr[i] || !stride[i])
+						break;
+					ge2d_reg_write
+					(GE2D_C1_DST1_BADDR_CTRL + i * 2,
+					 ((addr[i] + 7) >> 3));
+					ge2d_reg_write
+					(GE2D_C1_DST1_STRIDE_CTRL + i * 2,
+					 ((stride[i] + 7) >> 3));
+				}
+				break;
+			}
+		}
 	}
 }
 
@@ -304,7 +342,7 @@ void ge2d_set_src1_data(struct ge2d_src1_data_s *cfg)
 	ge2d_reg_set_bits(GE2D_GEN_CTRL1, cfg->ddr_burst_size_cb, 18, 2);
 	ge2d_reg_set_bits(GE2D_GEN_CTRL1, cfg->ddr_burst_size_cr, 16, 2);
 
-	if (ge2d_meson_dev.canvas_status == 1) {
+	if (ge2d_meson_dev.canvas_status) {
 		ge2d_canv_config(GE2D_SRC1_INDEX,
 			cfg->phy_addr,
 			cfg->stride);
@@ -439,7 +477,7 @@ void ge2d_set_src2_dst_data(struct ge2d_src2_dst_data_s *cfg)
 	ge2d_reg_set_bits(GE2D_GEN_CTRL1, cfg->urgent_en,  9, 1);
 	ge2d_reg_set_bits(GE2D_GEN_CTRL1, cfg->ddr_burst_size, 22, 2);
 
-	if (ge2d_meson_dev.canvas_status == 1) {
+	if (ge2d_meson_dev.canvas_status) {
 		ge2d_canv_config(GE2D_SRC2_INDEX,
 			cfg->src2_phyaddr,
 			cfg->src2_stride);

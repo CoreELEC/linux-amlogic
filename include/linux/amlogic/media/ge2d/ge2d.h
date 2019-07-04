@@ -418,8 +418,8 @@ struct ge2d_src1_data_s {
 	unsigned char     color_conv_mode1;
 	unsigned int      def_color;
 	unsigned int      format_all;
-	unsigned int      phy_addr;
-	unsigned int      stride;
+	unsigned int      phy_addr[MAX_PLANE];
+	unsigned int      stride[MAX_PLANE];
 };
 
 struct ge2d_src1_gen_s {
@@ -468,10 +468,10 @@ struct ge2d_src2_dst_data_s {
 	unsigned char	dst2_discard_mode;
 	unsigned char	dst2_enable;
 
-	unsigned int src2_phyaddr;
-	unsigned int src2_stride;
-	unsigned int dst_phyaddr;
-	unsigned int dst_stride;
+	unsigned int src2_phyaddr[MAX_PLANE];
+	unsigned int src2_stride[MAX_PLANE];
+	unsigned int dst_phyaddr[MAX_PLANE];
+	unsigned int dst_stride[MAX_PLANE];
 };
 
 struct ge2d_src2_dst_gen_s {
@@ -739,8 +739,8 @@ struct src_dst_para_s {
 	int  canvas_index;
 	int  bpp;
 	int  ge2d_color_index;
-	int  phy_addr;
-	int  stride;
+	int  phy_addr[MAX_PLANE];
+	int  stride[MAX_PLANE];
 };
 
 enum ge2d_op_type_e {
@@ -1070,6 +1070,7 @@ enum {
 	GEN_PWR_SLEEP0,
 	GEN_PWR_ISO0,
 	MEM_PD_REG0,
+	PWR_SMC
 };
 
 struct ge2d_ctrl_s {
@@ -1096,6 +1097,7 @@ struct ge2d_device_data_s {
 	int has_self_pwr;
 	struct ge2d_power_table_s *poweron_table;
 	struct ge2d_power_table_s *poweroff_table;
+	int chip_type;
 };
 extern struct ge2d_device_data_s ge2d_meson_dev;
 
@@ -1184,7 +1186,7 @@ extern struct ge2d_src2_dst_gen_s
 extern struct ge2d_dp_gen_s *ge2d_wq_get_dp_gen(struct ge2d_context_s *wq);
 extern struct ge2d_cmd_s *ge2d_wq_get_cmd(struct ge2d_context_s *wq);
 extern int ge2d_wq_add_work(struct ge2d_context_s *wq);
-void ge2d_canv_config(u32 index, u32 addr, u32 stride);
+void ge2d_canv_config(u32 index, u32 *addr, u32 *stride);
 #include "ge2d_func.h"
 
 #endif

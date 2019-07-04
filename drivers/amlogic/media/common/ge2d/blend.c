@@ -18,8 +18,8 @@
 #include <linux/types.h>
 
 /* Amlogic Headers */
-#include <linux/amlogic/cpu_version.h>
 #include <linux/amlogic/media/ge2d/ge2d.h>
+#include "ge2d_reg.h"
 
 void blend(struct ge2d_context_s *wq,
 	   int src_x, int src_y, int src_w, int src_h,
@@ -72,7 +72,7 @@ void blend(struct ge2d_context_s *wq,
 	ge2d_cmd_cfg->alpha_src_blend_factor = (op >>  4) & 0xf;
 	ge2d_cmd_cfg->alpha_dst_blend_factor = (op >>  0) & 0xf;
 
-	if (get_cpu_type() != MESON_CPU_MAJOR_ID_AXG) {
+	if (ge2d_meson_dev.chip_type != MESON_CPU_MAJOR_ID_AXG) {
 		if (ge2d_cmd_cfg->color_blend_mode >= BLENDOP_LOGIC) {
 			ge2d_cmd_cfg->color_logic_op =
 				ge2d_cmd_cfg->color_blend_mode - BLENDOP_LOGIC;
@@ -142,7 +142,7 @@ void blend_noblk(struct ge2d_context_s *wq,
 	ge2d_cmd_cfg->color_dst_blend_factor = (op >> 16) & 0xf;
 	ge2d_cmd_cfg->alpha_src_blend_factor = (op >>  4) & 0xf;
 	ge2d_cmd_cfg->alpha_dst_blend_factor = (op >>  0) & 0xf;
-	if (get_cpu_type() != MESON_CPU_MAJOR_ID_AXG) {
+	if (ge2d_meson_dev.chip_type != MESON_CPU_MAJOR_ID_AXG) {
 		if (ge2d_cmd_cfg->color_blend_mode >= BLENDOP_LOGIC) {
 			ge2d_cmd_cfg->color_logic_op =
 				ge2d_cmd_cfg->color_blend_mode - BLENDOP_LOGIC;
@@ -212,7 +212,7 @@ void blend_noalpha(struct ge2d_context_s *wq,
 	ge2d_cmd_cfg->alpha_src_blend_factor = (op >>  4) & 0xf;
 	ge2d_cmd_cfg->alpha_dst_blend_factor = (op >>  0) & 0xf;
 
-	if (get_cpu_type() != MESON_CPU_MAJOR_ID_AXG) {
+	if (ge2d_meson_dev.chip_type != MESON_CPU_MAJOR_ID_AXG) {
 		if (ge2d_cmd_cfg->color_blend_mode >= BLENDOP_LOGIC) {
 			ge2d_cmd_cfg->color_logic_op =
 				ge2d_cmd_cfg->color_blend_mode - BLENDOP_LOGIC;
@@ -280,7 +280,7 @@ void blend_noalpha_noblk(struct ge2d_context_s *wq,
 	ge2d_cmd_cfg->alpha_src_blend_factor = (op >>  4) & 0xf;
 	ge2d_cmd_cfg->alpha_dst_blend_factor = (op >>  0) & 0xf;
 
-	if (get_cpu_type() != MESON_CPU_MAJOR_ID_AXG) {
+	if (ge2d_meson_dev.chip_type != MESON_CPU_MAJOR_ID_AXG) {
 		if (ge2d_cmd_cfg->color_blend_mode >= BLENDOP_LOGIC) {
 			ge2d_cmd_cfg->color_logic_op =
 				ge2d_cmd_cfg->color_blend_mode - BLENDOP_LOGIC;

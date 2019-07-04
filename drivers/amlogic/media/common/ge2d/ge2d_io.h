@@ -20,11 +20,14 @@
 
 #include <linux/io.h>
 #include <linux/amlogic/iomap.h>
-#include <linux/amlogic/cpu_version.h>
+#include <linux/amlogic/media/ge2d/ge2d.h>
+#include <linux/amlogic/media/registers/register_map.h>
 #include <linux/amlogic/media/registers/regs/ao_regs.h>
 #include <linux/amlogic/power_ctrl.h>
+#include <linux/amlogic/pwr_ctrl.h>
 
 #include "ge2d_log.h"
+#include "ge2d_reg.h"
 
 #define GE2DBUS_REG_ADDR(reg) (((reg - 0x1800) << 2))
 extern unsigned int ge2d_dump_reg_cnt;
@@ -73,8 +76,12 @@ static uint32_t ge2d_reg_read(unsigned int reg)
 	unsigned int addr = 0;
 	unsigned int val = 0;
 
-	if (get_cpu_type() < MESON_CPU_MAJOR_ID_GXBB)
+	if (ge2d_meson_dev.chip_type < MESON_CPU_MAJOR_ID_GXBB)
+#ifdef CONFIG_AMLOGIC_IOMAP
 		return (uint32_t)aml_read_cbus(reg);
+#else
+		return 0;
+#endif
 
 	addr = GE2DBUS_REG_ADDR(reg);
 	if (check_map_flag(addr))
@@ -89,8 +96,10 @@ static void ge2d_reg_write(unsigned int reg, unsigned int val)
 {
 	unsigned int addr = 0;
 
-	if (get_cpu_type() < MESON_CPU_MAJOR_ID_GXBB) {
+	if (ge2d_meson_dev.chip_type < MESON_CPU_MAJOR_ID_GXBB) {
+#ifdef CONFIG_AMLOGIC_IOMAP
 		aml_write_cbus(reg, val);
+#endif
 		return;
 	}
 
@@ -162,22 +171,25 @@ static inline void ge2d_set_pwr_tbl_bits(unsigned int table_type,
 	switch (table_type) {
 	case CBUS_BASE:
 		ge2d_c_setb(reg, val, start, len);
-	break;
+		break;
 	case AOBUS_BASE:
 		ge2d_ao_setb(reg, val, start, len);
-	break;
+		break;
 	case HIUBUS_BASE:
 		ge2d_hiu_setb(reg, val, start, len);
-	break;
+		break;
 	case GEN_PWR_SLEEP0:
 		power_ctrl_sleep(val ? 0 : 1, start);
-	break;
+		break;
 	case GEN_PWR_ISO0:
 		power_ctrl_iso(val ? 0 : 1, start);
-	break;
+		break;
 	case MEM_PD_REG0:
 		power_ctrl_mempd0(val ? 0 : 1, 0xFF, start);
-	break;
+		break;
+	case PWR_SMC:
+		pwr_ctrl_psci_smc(PM_GE2D, val);
+		break;
 	default:
 		ge2d_log_err("unsupported bus type\n");
 	break;
