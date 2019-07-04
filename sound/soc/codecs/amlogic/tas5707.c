@@ -329,7 +329,7 @@ static int tas5707_set_master_vol(struct snd_soc_codec *codec)
 		snd_soc_write(codec, DDX_MASTER_VOLUME,
 			      (0xff - pdata->custom_master_vol));
 	} else {
-		snd_soc_write(codec, DDX_MASTER_VOLUME, 0x69);
+		snd_soc_write(codec, DDX_MASTER_VOLUME, 0x11);
 	}
 
 	return 0;
@@ -652,8 +652,8 @@ static int tas5707_init(struct snd_soc_codec *codec)
 	if ((tas5707_set_master_vol(codec)) < 0)
 		dev_err(codec->dev, "fail to set tas5707 master vol!\n");
 
-	snd_soc_write(codec, DDX_CHANNEL1_VOL, tas5707->Ch1_vol);
-	snd_soc_write(codec, DDX_CHANNEL2_VOL, tas5707->Ch2_vol);
+	snd_soc_write(codec, DDX_CHANNEL1_VOL, 0x0);
+	snd_soc_write(codec, DDX_CHANNEL2_VOL, 0x0);
 	snd_soc_write(codec, DDX_SOFT_MUTE, 0x00);
 	snd_soc_write(codec, DDX_CHANNEL3_VOL, 0x80);
 
