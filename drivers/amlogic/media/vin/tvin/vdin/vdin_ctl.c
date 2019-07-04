@@ -3461,18 +3461,18 @@ void vdin_set_bitdepth(struct vdin_dev_s *devp)
 		pr_info("set output color depth %d bit from dts\n", set_width);
 	}
 
-	switch (devp->color_depth_config) {
-	case 8:
+	switch (devp->color_depth_config & 0xff) {
+	case COLOR_DEEPS_8BIT:
 		devp->source_bitdepth = 8;
 		wr_bits(offset, VDIN_WR_CTRL2, 0,
 			VDIN_WR_10BIT_MODE_BIT, VDIN_WR_10BIT_MODE_WID);
 		break;
-	case 10:
+	case COLOR_DEEPS_10BIT:
 		devp->source_bitdepth = 10;
 		wr_bits(offset, VDIN_WR_CTRL2, 1,
 			VDIN_WR_10BIT_MODE_BIT, VDIN_WR_10BIT_MODE_WID);
 		break;
-	case 0:
+	case COLOR_DEEPS_AUTO:
 		/* vdin_bit_depth is set to 0 by defaut, in this case,
 		devp->source_bitdepth is controlled by colordepth
 		change default to 10bit for 8in8out detail maybe lost
@@ -4218,6 +4218,44 @@ void vdin_set_drm_data(struct vdin_dev_s *devp,
 	}
 
 	devp->parm.info.signal_type = vf->signal_type;
+}
+
+void vdin_check_hdmi_hdr(struct vdin_dev_s *devp)
+{
+	struct tvin_state_machine_ops_s *sm_ops;
+	enum tvin_port_e port = TVIN_PORT_NULL;
+	struct tvin_sig_property_s *prop;
+
+	if (!devp)
+		return;
+
+	if (devp->color_depth_config & COLOR_DEEPS_MANUAL)
+		return;
+
+	devp->color_depth_config = COLOR_DEEPS_AUTO;
+	port = devp->parm.port;
+	if ((port < TVIN_PORT_HDMI0) || (port > TVIN_PORT_HDMI7))
+		return;
+
+	prop = &devp->prop;
+	sm_ops = devp->frontend->sm_ops;
+	if (sm_ops->get_sig_property) {
+		sm_ops->get_sig_property(devp->frontend, prop);
+		pr_info("vdin hdmi hdr eotf:0x%x\n",
+				devp->prop.hdr_info.hdr_data.eotf);
+		if (devp->prop.hdr_info.hdr_state == HDR_STATE_GET) {
+			if ((devp->prop.hdr_info.hdr_data.eotf ==
+					EOTF_HDR) ||
+				(devp->prop.hdr_info.hdr_data.eotf ==
+					EOTF_SMPTE_ST_2048) ||
+				(devp->prop.hdr_info.hdr_data.eotf ==
+					EOTF_HLG)) {
+				pr_info("vdin is hdr mode,force 10bit\n");
+				devp->color_depth_config = COLOR_DEEPS_10BIT;
+			}
+		}
+		devp->prop.hdr_info.hdr_data.eotf = 0;
+	}
 }
 
 u32 vdin_get_curr_field_type(struct vdin_dev_s *devp)

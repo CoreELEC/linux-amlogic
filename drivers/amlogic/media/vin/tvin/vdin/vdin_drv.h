@@ -121,6 +121,14 @@
 #define VDIN_AFBCE_EN_720P              (1 << 6)
 #define VDIN_AFBCE_EN_SMALL             (1 << 7)
 
+enum COLOR_DEEPS_CFGe {
+	COLOR_DEEPS_AUTO = 0,
+	COLOR_DEEPS_8BIT = 8,
+	COLOR_DEEPS_10BIT = 10,
+	COLOR_DEEPS_12BIT = 12,
+	COLOR_DEEPS_MANUAL = 0x100,
+};
+
 static inline const char *vdin_fmt_convert_str(
 		enum vdin_format_convert_e fmt_cvt)
 {
@@ -324,7 +332,7 @@ struct vdin_dev_s {
 	 *10:force config as 10bit
 	 *12:force config as 12bit
 	 */
-	unsigned int color_depth_config;
+	enum COLOR_DEEPS_CFGe color_depth_config;
 	/* new add from txl:color depth mode for 10bit
 	 *1: full pack mode;config 10bit as 10bit
 	 *0: config 10bit as 12bit

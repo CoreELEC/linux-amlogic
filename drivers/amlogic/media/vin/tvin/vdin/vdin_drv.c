@@ -586,8 +586,12 @@ void vdin_start_dec(struct vdin_dev_s *devp)
 	}
 	vdin_set_cutwin(devp);
 	vdin_set_hvscale(devp);
-	if (cpu_after_eq(MESON_CPU_MAJOR_ID_GXTVBB))
+
+	if (cpu_after_eq(MESON_CPU_MAJOR_ID_GXTVBB)) {
+		vdin_check_hdmi_hdr(devp);
 		vdin_set_bitdepth(devp);
+	}
+
 	/* txl new add fix for hdmi switch resolution cause cpu holding */
 	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_TXL)
 		vdin_fix_nonstd_vsync(devp);
@@ -3219,7 +3223,7 @@ static int vdin_drv_probe(struct platform_device *pdev)
 		pr_info("no bit mode found, set 8bit as default\n");
 
 	vdevp->color_depth_support = bit_mode & 0xff;
-	vdevp->color_depth_config = 0;
+	vdevp->color_depth_config = COLOR_DEEPS_AUTO;
 
 	ret = (bit_mode >> 8) & 0xff;
 	if (ret == 0)

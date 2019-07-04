@@ -767,6 +767,7 @@ static void vdin_dump_state(struct vdin_dev_s *devp)
 	pr_info("cma_mem_size:0x%x\n", devp->cma_mem_size);
 	pr_info("cma_mem_mode:%d\n", devp->cma_mem_mode);
 	pr_info("force_yuv444_malloc:%d\n", devp->force_yuv444_malloc);
+	vdin_check_hdmi_hdr(devp);
 	vdin_dump_vf_state(devp->vfp);
 	if (vf) {
 		pr_info("current vframe index(%u):\n", vf->index);
@@ -1935,7 +1936,7 @@ start_chk:
 		if (!parm[1])
 			pr_err("miss parameters .\n");
 		else if (kstrtoul(parm[1], 10, &val) == 0) {
-			devp->color_depth_config = val;
+			devp->color_depth_config = val | COLOR_DEEPS_MANUAL;
 			pr_info("color_depth(%d):%d\n\n", devp->index,
 				devp->color_depth_config);
 		}
