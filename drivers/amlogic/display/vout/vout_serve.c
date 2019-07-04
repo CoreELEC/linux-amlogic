@@ -878,6 +878,17 @@ static int __init get_vout_init_mode(char *str)
 }
 __setup("vout=", get_vout_init_mode);
 
+void set_vout_init_vmode(char *str)
+{
+	char str2[1024];
+	strcpy(str2, str);
+	strcat(str2, ",en"); // logo was already displayed by uboot
+	get_vout_init_mode(str2);
+	pr_err("set_vout_init_vmode: %s\n", str2);
+
+}
+EXPORT_SYMBOL(set_vout_init_vmode);
+
 MODULE_AUTHOR("Platform-BJ <platform.bj@amlogic.com>");
 MODULE_DESCRIPTION("VOUT Server Module");
 MODULE_LICENSE("GPL");

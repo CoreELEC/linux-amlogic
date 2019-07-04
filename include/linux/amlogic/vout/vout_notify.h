@@ -118,6 +118,7 @@ extern enum vmode_e validate_vmode2(char *);
 extern void set_vout2_mode_internal(char *name);
 extern enum vmode_e get_logo_vmode(void);
 extern int set_logo_vmode(enum vmode_e);
+extern void set_vout_init_vmode(char *);
 
 extern int vout2_suspend(void);
 extern int vout2_resume(void);
