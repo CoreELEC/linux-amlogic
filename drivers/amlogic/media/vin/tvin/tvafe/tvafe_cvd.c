@@ -478,9 +478,17 @@ static void tvafe_cvd2_write_mode_reg(struct tvafe_cvd2_s *cvd2,
 
 	} else {
 		W_APB_REG(CVD2_VSYNC_NO_SIGNAL_THRESHOLD, 0xf0);
-		if (cvd2->config_fmt == TVIN_SIG_FMT_CVBS_PAL_I)
+		if (cvd2->config_fmt == TVIN_SIG_FMT_CVBS_PAL_I) {
 				/*add for chroma state adjust dynamicly*/
 			W_APB_REG(CVD2_CHROMA_LOOPFILTER_STATE, cvd_reg8a);
+		}
+		if ((cvd2->config_fmt == TVIN_SIG_FMT_CVBS_NTSC_M) ||
+			(cvd2->config_fmt == TVIN_SIG_FMT_CVBS_PAL_M) ||
+			(cvd2->config_fmt == TVIN_SIG_FMT_CVBS_SECAM)) {
+			W_APB_BIT(CVD2_REG_B2, 1,
+			ADAPTIVE_CHROMA_MODE_BIT, ADAPTIVE_CHROMA_MODE_WID);
+			W_APB_REG(CVD2_CHROMA_EDGE_ENHANCEMENT, 0x22);
+		}
 	}
 #ifdef TVAFE_CVD2_CC_ENABLE
 	W_APB_REG(CVD2_VBI_DATA_TYPE_LINE21, 0x00000011);
