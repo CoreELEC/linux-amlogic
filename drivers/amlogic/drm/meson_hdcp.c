@@ -26,6 +26,7 @@
 #include <linux/io.h>
 #include <linux/delay.h>
 #include <linux/jiffies.h>
+#include <linux/kthread.h>
 #include <linux/workqueue.h>
 #include <linux/amlogic/media/vout/vout_notify.h>
 #include <linux/amlogic/media/vout/hdmi_tx/hdmi_tx_module.h>
@@ -300,21 +301,38 @@ int am_hdcp22_auth(struct am_hdmi_tx *am_hdmi)
 int am_hdcp_work(void *data)
 {
 	struct am_hdmi_tx *am_hdmi = data;
-	struct drm_connector_state *state = am_hdmi->connector.state;
-	int hdcp_fsm = 0;
+	struct drm_connector *conn = &(am_hdmi->connector);
+	int hdcp_fsm = HDCP_READY;
+	int hdcp_feature = 0;
 
+	DRM_INFO("start hdcp work CP=%u\n", conn->state->content_protection);
 	is_hdcp_hdmirx_supported(am_hdmi);
 	if ((am_hdmi->hdcp_tx_type & 0x2) &&
 		(am_hdmi->hdcp_rx_type & 0x2))
-		hdcp_fsm = HDCP22_ENABLE;
+		hdcp_feature = HDCP22_ENABLE;
 	else
-		hdcp_fsm = HDCP14_ENABLE;
+		hdcp_feature = HDCP14_ENABLE;
 
-	while (hdcp_fsm) {
-		if (am_hdmi->hdcp_stop_flag)
-			hdcp_fsm = HDCP_QUIT;
+	do {
+		/* The state ptr will update pre atomic commit */
+		if (conn->state->content_protection ==
+				DRM_MODE_CONTENT_PROTECTION_UNDESIRED) {
+			if (hdcp_fsm != HDCP_READY) {
+				hdcp_fsm = HDCP_READY;
+				DRM_INFO("HDCP status reset!\n");
+			}
+		} else if (hdcp_fsm == HDCP_READY) {
+			hdcp_fsm = hdcp_feature;
+		}
+		if (hdcp_fsm == HDCP_QUIT)
+			conn->state->content_protection =
+				DRM_MODE_CONTENT_PROTECTION_UNDESIRED;
 
 		switch (hdcp_fsm) {
+		case HDCP_READY:
+			/* wait for content_protection change. */
+			msleep_interruptible(5000);
+			break;
 		case HDCP22_ENABLE:
 			am_hdcp22_enable(am_hdmi);
 			DRM_INFO("hdcp22 work after 10s\n");
@@ -329,16 +347,13 @@ int am_hdcp_work(void *data)
 				hdcp_fsm = HDCP22_FAIL;
 			break;
 		case HDCP22_SUCCESS:
-			state->content_protection =
+			conn->state->content_protection =
 				DRM_MODE_CONTENT_PROTECTION_ENABLED;
-			DRM_DEBUG("hdcp22 is authenticated successfully\n");
 			hdcp_fsm = HDCP22_AUTH;
 			msleep_interruptible(200);
 			break;
 		case HDCP22_FAIL:
 			am_hdcp22_disable(am_hdmi);
-			state->content_protection =
-				DRM_MODE_CONTENT_PROTECTION_UNDESIRED;
 			DRM_INFO("hdcp22 failure and start hdcp14\n");
 			hdcp_fsm = HDCP14_ENABLE;
 			msleep_interruptible(2000);
@@ -348,6 +363,7 @@ int am_hdcp_work(void *data)
 				hdcp_fsm = HDCP_QUIT;
 				break;
 			}
+			DRM_INFO("hdcp14 work start");
 			am_hdcp14_enable(am_hdmi);
 			msleep_interruptible(500);
 			hdcp_fsm = HDCP14_AUTH;
@@ -359,24 +375,22 @@ int am_hdcp_work(void *data)
 				hdcp_fsm = HDCP14_FAIL;
 			break;
 		case HDCP14_SUCCESS:
-			state->content_protection =
+			conn->state->content_protection =
 				DRM_MODE_CONTENT_PROTECTION_ENABLED;
-			DRM_DEBUG("hdcp14 is authenticated successfully\n");
 			hdcp_fsm = HDCP14_AUTH;
 			msleep_interruptible(200);
 			break;
 		case HDCP14_FAIL:
 			am_hdcp14_disable(am_hdmi);
-			state->content_protection =
-				DRM_MODE_CONTENT_PROTECTION_UNDESIRED;
-			DRM_DEBUG("hdcp14 failure\n");
+			DRM_INFO("hdcp14 failure\n");
 			hdcp_fsm = HDCP_QUIT;
 			break;
 		case HDCP_QUIT:
 		default:
 			break;
 		}
-	}
+	} while (!kthread_should_stop());
+	DRM_INFO("hdcp worker stopped\n");
 	return 0;
 }
 EXPORT_SYMBOL(am_hdcp_work);

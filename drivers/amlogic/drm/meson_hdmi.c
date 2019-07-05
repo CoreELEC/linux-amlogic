@@ -179,6 +179,29 @@ static enum drm_connector_status am_hdmi_connector_detect
 	return connector_status_unknown;
 }
 
+void am_hdmi_hdcp_work_state_change(struct am_hdmi_tx *am_hdmi, int stop)
+{
+	if (am_hdmi->hdcp_tx_type == 0) {
+		DRM_INFO("hdcp not support\n");
+		return;
+	}
+	if (am_hdmi->hdcp_work == NULL && stop != 1) {
+		am_hdmi->hdcp_work = kthread_run(am_hdcp_work,
+				(void *)am_hdmi, "kthread_hdcp_task");
+		if (IS_ERR(am_hdmi->hdcp_work)) {
+			DRM_INFO("hdcp work create failed\n");
+			am_hdmi->hdcp_work = NULL;
+		}
+		return;
+	}
+	if (am_hdmi->hdcp_work != NULL && stop == 1) {
+		DRM_INFO("stop hdcp work\n");
+		kthread_stop(am_hdmi->hdcp_work);
+		am_hdmi->hdcp_work = NULL;
+		am_hdcp_disable(am_hdmi);
+	}
+}
+
 static int am_hdmi_connector_set_property(struct drm_connector *connector,
 	struct drm_property *property, uint64_t val)
 {
@@ -187,6 +210,8 @@ static int am_hdmi_connector_set_property(struct drm_connector *connector,
 
 	if (property == connector->content_protection_property) {
 		DRM_INFO("property:%s       val: %lld\n", property->name, val);
+		/* For none atomic commit */
+		/* atomic will be filter on drm_moder_object.c */
 		if (val == DRM_MODE_CONTENT_PROTECTION_ENABLED) {
 			DRM_DEBUG_KMS("only drivers can set CP Enabled\n");
 			return -EINVAL;
@@ -266,7 +291,6 @@ void am_hdmi_encoder_enable(struct drm_encoder *encoder)
 {
 	enum vmode_e vmode = get_current_vmode();
 	struct am_hdmi_tx *am_hdmi = to_am_hdmi(encoder);
-	struct drm_connector_state *state = am_hdmi->connector.state;
 
 	if (vmode == VMODE_HDMI)
 		DRM_INFO("enable\n");
@@ -276,18 +300,9 @@ void am_hdmi_encoder_enable(struct drm_encoder *encoder)
 	vout_notifier_call_chain(VOUT_EVENT_MODE_CHANGE_PRE, &vmode);
 	set_vout_vmode(vmode);
 	vout_notifier_call_chain(VOUT_EVENT_MODE_CHANGE, &vmode);
+	am_hdmi->hdcp_work = NULL;
 	mdelay(1000);
-	if (state->content_protection ==
-		DRM_MODE_CONTENT_PROTECTION_DESIRED) {
-		if (am_hdmi->hdcp_tx_type) {
-			am_hdmi->hdcp_stop_flag = 0;
-			am_hdmi->hdcp_work = kthread_run(am_hdcp_work,
-							 (void *)am_hdmi,
-							 "kthread_hdcp_task");
-		} else {
-			DRM_INFO("hdmitx doesn't has hdcp key\n");
-		}
-	}
+	am_hdmi_hdcp_work_state_change(am_hdmi, 0);
 }
 
 void am_hdmi_encoder_disable(struct drm_encoder *encoder)
@@ -295,32 +310,15 @@ void am_hdmi_encoder_disable(struct drm_encoder *encoder)
 	struct am_hdmi_tx *am_hdmi = to_am_hdmi(encoder);
 	struct drm_connector_state *state = am_hdmi->connector.state;
 
-	/*need to add hdmitx disable function ..todo*/
-	if (state->content_protection !=
-		DRM_MODE_CONTENT_PROTECTION_UNDESIRED) {
-		state->content_protection =
-			DRM_MODE_CONTENT_PROTECTION_UNDESIRED;
-		am_hdmi->hdcp_stop_flag = 1;
-		kthread_stop(am_hdmi->hdcp_work);
-		am_hdcp_disable(am_hdmi);
-	}
+	state->content_protection = DRM_MODE_CONTENT_PROTECTION_UNDESIRED;
+	am_hdmi_hdcp_work_state_change(am_hdmi, 1);
+
 }
 
 static int am_hdmi_encoder_atomic_check(struct drm_encoder *encoder,
 				struct drm_crtc_state *crtc_state,
 				struct drm_connector_state *conn_state)
 {
-	struct am_hdmi_tx *am_hdmi = to_am_hdmi(encoder);
-
-	DRM_INFO("content_protection:%d\n", conn_state->content_protection);
-
-	if (conn_state->content_protection ==
-		DRM_MODE_CONTENT_PROTECTION_ENABLED) {
-		kthread_stop(am_hdmi->hdcp_work);
-		am_hdcp_disable(am_hdmi);
-		conn_state->content_protection =
-			DRM_MODE_CONTENT_PROTECTION_DESIRED;
-	}
 	return 0;
 }
 

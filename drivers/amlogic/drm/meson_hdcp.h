@@ -32,6 +32,7 @@
 #define HDCP22_AUTH    6
 #define HDCP22_SUCCESS 7
 #define HDCP22_FAIL    8
+#define HDCP_READY     9
 
 int am_hdcp_init(struct am_hdmi_tx *am_hdmi);
 int is_hdcp_hdmitx_supported(struct am_hdmi_tx *am_hdmi);
