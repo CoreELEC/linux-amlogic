@@ -975,8 +975,9 @@ static void hdmitx_set_clk_(struct hdmitx_dev *hdev)
 	enum hdmi_color_depth cd;
 	struct hdmi_cea_timing *custom_timing;
 
-	if (hdev->cur_video_param->color_depth && hdev->cur_video_param->color_depth > 0)
-		cd = hdev->cur_video_param->color_depth;
+	if (hdev->cur_video_param && hdev->cur_video_param->color_depth
+		&& hdev->cur_video_param->color_depth > 0)
+			cd = hdev->cur_video_param->color_depth;
 	else
 		cd = hdev->para->cd;
 	frac_rate = hdev->frac_rate_policy;
