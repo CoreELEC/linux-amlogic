@@ -2872,9 +2872,9 @@ static long vdin_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 		/*release manual set dma-bufs*/
 		if (devp->set_canvas_manual == 1) {
-			for (i = 0; i < 4; i++) {
+			for (i = 0; i < VDIN_CANVAS_MAX_CNT; i++) {
 				if (vdin_set_canvas_addr[i].dmabuff == 0)
-					continue;
+					break;
 
 				dma_buf_unmap_attachment(
 					vdin_set_canvas_addr[i].dmabufattach,
@@ -2884,10 +2884,12 @@ static long vdin_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 					vdin_set_canvas_addr[i].dmabuff,
 					vdin_set_canvas_addr[i].dmabufattach);
 				dma_buf_put(vdin_set_canvas_addr[i].dmabuff);
-				devp->keystone_entry[i] = NULL;
 			}
 			memset(vdin_set_canvas_addr, 0,
 				sizeof(struct vdin_set_canvas_addr_s) *
+				VDIN_CANVAS_MAX_CNT);
+			memset(devp->keystone_entry, 0,
+				sizeof(struct vf_entry *) *
 				VDIN_CANVAS_MAX_CNT);
 		}
 		break;
@@ -2899,12 +2901,20 @@ static long vdin_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		}
 
 		if (copy_from_user(vdinsetcanvas, argp,
-			sizeof(struct vdin_set_canvas_s) * 4)) {
+			sizeof(struct vdin_set_canvas_s) *
+			VDIN_CANVAS_MAX_CNT)) {
 			pr_info("TVIN_IOC_S_CANVAS_ADDR copy fail\n");
 			return -EFAULT;
 		}
 
-		for (i = 0; i < 4; i++) {
+		memset(vdin_set_canvas_addr, 0,
+			sizeof(struct vdin_set_canvas_addr_s) *
+			VDIN_CANVAS_MAX_CNT);
+		memset(devp->keystone_entry, 0,
+			sizeof(struct vf_entry *) *
+			VDIN_CANVAS_MAX_CNT);
+
+		for (i = 0; i < VDIN_CANVAS_MAX_CNT; i++) {
 			/*when fd means, the canvas list reaches end*/
 			if (vdinsetcanvas[i].fd < 0)
 				break;
