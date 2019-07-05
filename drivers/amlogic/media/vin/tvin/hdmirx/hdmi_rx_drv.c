@@ -129,6 +129,7 @@ bool en_4096_2_3840;
 int en_4k_2_2k;
 int en_4k_timing = 1;
 bool hdmi_cec_en;
+static bool tv_auto_power_on;
 int vdin_drop_frame_cnt = 1;
 /* suspend_pddq_sel:
  * 0: keep phy on when suspend(don't need phy init when
@@ -1544,20 +1545,24 @@ static ssize_t cec_set_state(struct device *dev,
 	cnt = kstrtoint(buf, 0, &val);
 	if (cnt < 0 || val > 0xff)
 		return -EINVAL;
-	if (val == 0) {
+	/* val: 0xAB
+	 * A: tv_auto_power_on, B: hdmi_cec_en
+	 */
+	if ((val & 0xF) == 0) {
 		hdmi_cec_en = 0;
 		/* fix source can't get edid if cec off */
 		if (rx.boot_flag) {
 			if (hpd_low_cec_off == 0)
 				rx_force_hpd_rxsense_cfg(1);
 		}
-	} else if (val == 1)
+	} else if ((val & 0xF) == 1)
 		hdmi_cec_en = 1;
-	else if (val == 2) {
+	else if ((val & 0xF) == 2) {
 		hdmi_cec_en = 1;
 		rx_force_hpd_rxsense_cfg(1);
 	}
 	rx.boot_flag = false;
+	tv_auto_power_on = (val >> 4) & 0xF;
 	rx_pr("cec sts = %d\n", val);
 	return count;
 }
@@ -1788,14 +1793,14 @@ static int hdmirx_switch_pinmux(struct device *dev)
 
 static void rx_phy_suspend(void)
 {
-	/* set HPD low when cec off. */
-	if (!hdmi_cec_en)
+	/* set HPD low when cec off or TV auto power on disabled. */
+	if (!hdmi_cec_en || !tv_auto_power_on)
 		rx_set_port_hpd(ALL_PORTS, 0);
 	if (suspend_pddq_sel == 0)
 		rx_pr("don't set phy pddq down\n");
 	else {
-		/* there's no SDA low issue on MTK box when CEC off */
-		if (hdmi_cec_en != 0) {
+		/* there's no SDA low issue on MTK box when hpd low */
+		if (hdmi_cec_en && tv_auto_power_on) {
 			if (suspend_pddq_sel == 2) {
 				/* set rxsense pulse */
 				rx_phy_rxsense_pulse(10, 10, 0);
@@ -1809,7 +1814,10 @@ static void rx_phy_suspend(void)
 
 static void rx_phy_resume(void)
 {
-	if (hdmi_cec_en != 0) {
+	/* set below rxsense pulse only if hpd = high,
+	 * there's no SDA low issue on MTK box when hpd low
+	 */
+	if (hdmi_cec_en && tv_auto_power_on) {
 		if (suspend_pddq_sel == 1) {
 			/* set rxsense pulse, if delay time between
 			 * rxsense pulse and phy_int shottern than
@@ -2610,8 +2618,8 @@ static void hdmirx_shutdown(struct platform_device *pdev)
 	hdevp = platform_get_drvdata(pdev);
 	rx_pr("[hdmirx]: hdmirx_shutdown\n");
 	del_timer_sync(&hdevp->timer);
-	/* set HPD low when cec off. */
-	if (!hdmi_cec_en)
+	/* set HPD low when cec off or TV auto power on disabled.*/
+	if (!hdmi_cec_en || !tv_auto_power_on)
 		rx_set_port_hpd(ALL_PORTS, 0);
 	/* phy powerdown */
 	rx_phy_power_on(0);
