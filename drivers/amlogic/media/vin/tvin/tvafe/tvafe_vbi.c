@@ -1609,7 +1609,6 @@ static int vbi_probe(struct platform_device *pdev)
 	int ret = 0;
 	struct resource *res;
 	struct vbi_dev_s *vbi_dev;
-	dma_addr_t vbi_dma_addr;
 
 	/* allocate memory for the per-device structure */
 	vbi_dev = kzalloc(sizeof(struct vbi_dev_s), GFP_KERNEL);
@@ -1647,9 +1646,9 @@ static int vbi_probe(struct platform_device *pdev)
 
 	/*vbi memory alloc*/
 	vbi_dev->mem_size = DECODER_VBI_SIZE;
-	vbi_dev->pac_addr_start = dma_alloc_coherent(&pdev->dev,
-		vbi_dev->mem_size, &vbi_dma_addr, GFP_KERNEL);
-	vbi_dev->mem_start = (unsigned int)vbi_dma_addr;
+	vbi_dev->pac_addr_start = kzalloc(vbi_dev->mem_size, GFP_KERNEL);
+	vbi_dev->mem_start = virt_to_phys(vbi_dev->pac_addr_start);
+
 	if (vbi_dev->pac_addr_start == NULL) {
 		tvafe_pr_err(": dma_alloc_coherent failed!!!\n");
 		goto fail_alloc_mem;
@@ -1657,7 +1656,6 @@ static int vbi_probe(struct platform_device *pdev)
 	tvafe_pr_info("vbi: dma_alloc phy start_addr is:0x%x, size is:0x%x\n",
 		vbi_dev->mem_start, vbi_dev->mem_size);
 
-	memset(vbi_dev->pac_addr_start, 0, vbi_dev->mem_size);
 	vbi_dev->mem_size = vbi_dev->mem_size/2;
 	vbi_dev->mem_size >>= 4;
 	vbi_dev->mem_size <<= 4;
@@ -1737,10 +1735,7 @@ static int vbi_remove(struct platform_device *pdev)
 	mutex_destroy(&vbi_dev->mutex);
 	/*tasklet_kill(&vbi_dev->tsklt_slicer);*/
 	cancel_work_sync(&vbi_dev->slicer_work);
-	if (vbi_dev->pac_addr_start)
-		dma_free_coherent(vbi_dev->dev, vbi_dev->mem_size,
-			vbi_dev->pac_addr_start,
-			(dma_addr_t)&vbi_dev->mem_start);
+	kfree(vbi_dev->pac_addr_start);
 	vfree(vbi_dev->slicer);
 	device_destroy(vbi_clsp, MKDEV(MAJOR(vbi_id), 0));
 	cdev_del(&vbi_dev->cdev);
