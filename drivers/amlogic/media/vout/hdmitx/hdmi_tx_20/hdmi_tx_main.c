@@ -5057,6 +5057,10 @@ static  int __init hdmitx_boot_para_setup(char *s)
 					hdmitx_device.cec_func_config = list;
 				pr_info("HDMI hdmi_cec_func_config:0x%x\n",
 					hdmitx_device.cec_func_config);
+			} else if (strncmp(token, "cec", 3) != 0) {
+					hdmitx_device.cec_func_config = 0x3f;
+				pr_info("CEC value not defined in cmdline using default hdmi_cec_func_config:0x%x\n",
+					hdmitx_device.cec_func_config);
 			}
 			check_hdmiuboot_attr(token);
 		}
