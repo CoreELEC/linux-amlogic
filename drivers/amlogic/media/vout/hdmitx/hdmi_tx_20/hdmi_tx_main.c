@@ -5062,7 +5062,7 @@ static  int __init hdmitx_boot_para_setup(char *s)
 				pr_info("CEC value not defined in cmdline using default hdmi_cec_func_config:0x%x\n",
 					hdmitx_device.cec_func_config);
 			}
-			check_hdmiuboot_attr(token);
+			/*check_hdmiuboot_attr(token); /**/
 		}
 		offset = token_offset;
 	} while (token);
