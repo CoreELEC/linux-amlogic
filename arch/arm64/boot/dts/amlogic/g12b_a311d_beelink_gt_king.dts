@@ -1,4 +1,4 @@
-#include "g12b_a311d_w400_buildroot.dts"
+#include "g12b_a311d_coreelec.dts"
 
 /{
 	model = "Beelink GT-King";
@@ -7,32 +7,10 @@
 	memory@00000000 {
 		linux,usable-memory = <0x0 0x100000 0x0 0xf0800000>;
 	};
-
-	auge_sound {
-		avout_mute-gpios = <&gpio_ao GPIOAO_2 GPIO_ACTIVE_LOW>;
-	};
-
-	meson-ir {
-		compatible = "amlogic,meson6-ir";
-		/* Multi-format IR controller */
-		reg = <0x0 0xff808040 0x0 0x44>;
-		interrupts = <0 196 1>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&remote_pins>;
-		pulse-inverted;
-		status = "ok";
-	};
 };
 
 &usb3_phy_v2 {
 	otg = <0>;
-};
-
-&ethmac {
-	pinctrl-names = "external_eth_pins";
-	pinctrl-0 = <&external_eth_pins>;
-	mc_val = <0x1621>;
-	internal_phy=<0>;
 };
 
 &i2c3 {

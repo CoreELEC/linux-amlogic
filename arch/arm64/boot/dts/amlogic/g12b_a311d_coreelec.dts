@@ -1,0 +1,102 @@
+#include "g12b_a311d_w400_buildroot.dts"
+
+/{
+	chosen { };
+
+	reserved-memory {
+		galcore_reserved:linux,galcore {
+			size = <0x0 0x1000000>;
+		};
+	};
+
+	/delete-node/ partitions;
+
+	auge_sound {
+		/delete-property/ avout_mute-gpios;
+		mute_gpio = <&gpio_ao GPIOAO_2 GPIO_ACTIVE_LOW>;
+
+		/delete-node/ aml-audio-card,dai-link@0;
+		/delete-node/ aml-audio-card,dai-link@1;
+		/delete-node/ aml-audio-card,dai-link@2;
+		/delete-node/ aml-audio-card,dai-link@3;
+		/delete-node/ aml-audio-card,dai-link@4;
+		aml-audio-card,dai-link@0 {
+			mclk-fs = <128>;
+			continuous-clock;
+			cpu {
+				sound-dai = <&aml_spdif_b>;
+				system-clock-frequency = <6144000>;
+			};
+			codec {
+				sound-dai = <&dummy_codec>;
+			};
+		};
+
+		aml-audio-card,dai-link@1 {
+			format = "i2s";// "dsp_a";
+			mclk-fs = <256>;
+			bitclock-master = <&aml_tdmb>;
+			frame-master = <&aml_tdmb>;
+			continuous-clock;
+			cpu {
+				sound-dai = <&aml_tdmb>;
+				dai-tdm-slot-tx-mask = <1 1>;
+				dai-tdm-slot-rx-mask = <1 1>;
+				dai-tdm-slot-num = <2>;
+				dai-tdm-slot-width = <32>;
+				system-clock-frequency = <12288000>;
+			};
+			codec {
+				sound-dai = <&amlogic_codec>;
+			};
+		};
+
+		aml-audio-card,dai-link@2 {
+			mclk-fs = <128>;
+			continuous-clock;
+			cpu {
+				sound-dai = <&aml_spdif>;
+				system-clock-frequency = <6144000>;
+			};
+			codec {
+				sound-dai = <&dummy_codec>;
+			};
+		};
+	};
+
+	meson-ir {
+		compatible = "amlogic,meson6-ir";
+		/* Multi-format IR controller */
+		reg = <0x0 0xff808040 0x0 0x44>;
+		interrupts = <0 196 1>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&remote_pins>;
+		pulse-inverted;
+		status = "ok";
+	};
+};
+
+&meson_fb {
+	mem_size = <0x00800000 0x4b80000 0x100000 0x100000 0x800000>;
+	4k2k_fb = <1>;
+};
+
+&audiobus {
+	aml_spdif_b: spdif_b {
+		status = "okay";
+	};
+	aml_tdmb: tdmb {
+		/delete-property/ samesource_sel;
+		i2s2hdmi = <0>;
+		status = "okay";
+	};
+};
+
+&ethmac {
+	pinctrl-names = "external_eth_pins";
+	pinctrl-0 = <&external_eth_pins>;
+	mc_val = <0x1621>;
+	internal_phy=<0>;
+};
+
+/delete-node/ &nand;
