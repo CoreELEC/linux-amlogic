@@ -41,6 +41,9 @@
 #include <linux/page_idle.h>
 #include <linux/page_owner.h>
 #include <linux/ptrace.h>
+#ifdef CONFIG_AMLOGIC_CMA
+#include <linux/delay.h>
+#endif
 
 #include <asm/tlbflush.h>
 
@@ -348,7 +351,7 @@ out:
 	pte_unmap_unlock(ptep, ptl);
 #ifdef CONFIG_AMLOGIC_CMA
 	if (need_wait)
-		schedule_timeout(1);
+		usleep_range(1000, 1100);
 #endif
 }
 
