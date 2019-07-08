@@ -552,7 +552,7 @@
 		 *bit5:manual MIX PLL ENC
 		 */
 		 vlock_pll_m_limit = <1>;
-		 vlock_line_limit = <3>;
+		 vlock_line_limit = <2>;
 	};
 
 	amdolby_vision {

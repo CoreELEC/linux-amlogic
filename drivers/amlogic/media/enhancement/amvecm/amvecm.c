@@ -6663,6 +6663,8 @@ static void aml_vecm_dt_parse(struct platform_device *pdev)
 
 		/*vlock param config*/
 		vlock_param_config(node);
+
+		vlock_status_init();
 	}
 	/* init module status */
 	amvecm_wb_init(wb_en);
@@ -6783,7 +6785,6 @@ static int aml_vecm_probe(struct platform_device *pdev)
 
 	hdr_init(&amvecm_dev.hdr_d);
 	aml_vecm_dt_parse(pdev);
-	vlock_status_init();
 
 	probe_ok = 1;
 	pr_info("%s: ok\n", __func__);

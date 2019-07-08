@@ -64,7 +64,7 @@ static unsigned int vlock_intput_type;
 /* [reg(0x3009) x linemax_num)]>>24 is the limit line of enc mode
  * change from 4 to 3,for 4 may cause shake issue for 60.3hz input
  */
-static signed int vlock_line_limit = 3;
+static signed int vlock_line_limit = 2;
 static unsigned int vlock_enc_adj_limit;
 /* 0x3009 default setting for 2 line(1080p-output) is 0x8000 */
 static unsigned int vlock_capture_limit = 0x10000/*0x8000*/;
@@ -662,7 +662,7 @@ static void vlock_setting(struct vframe_s *vf,
 void vlock_vmode_check(void)
 {
 	const struct vinfo_s *vinfo;
-	unsigned int t0, t1;
+	/*unsigned int t0, t1;*/
 
 	if (vlock_en == 0)
 		return;
@@ -675,6 +675,7 @@ void vlock_vmode_check(void)
 			VLOCK_MODE_AUTO_PLL)) {
 			/*amvecm_hiu_reg_read(hhi_pll_reg_frac, &t0);*/
 			/*amvecm_hiu_reg_read(hhi_pll_reg_m, &t1);*/
+			#if 0
 			t0 = vlock_get_panel_pll_m();
 			t1 = vlock_get_panel_pll_frac();
 			if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
@@ -684,6 +685,16 @@ void vlock_vmode_check(void)
 				pre_hiu_reg_frac = t0 & 0xfff;
 				pre_hiu_reg_m = t1 & 0x1ff;
 			}
+			#else
+			if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
+				pre_hiu_reg_frac =
+					(vlock.val_frac >> 5) & 0xfff;
+				pre_hiu_reg_m = vlock.val_m & 0xff;
+			} else {
+				pre_hiu_reg_frac = vlock.val_frac & 0xfff;
+				pre_hiu_reg_m = vlock.val_m & 0x1ff;
+			}
+			#endif
 		}
 		if ((vlock_mode & (VLOCK_MODE_MANUAL_ENC |
 			VLOCK_MODE_AUTO_ENC |
@@ -1624,14 +1635,14 @@ void vlock_status_init(void)
 	/*config vlock mode*/
 	/*todo:txlx & g9tv support auto pll,*/
 	/*but support not good,need vlsi support optimize*/
-	vlock_line_limit = 2;/*only for test*/
-
+	#if 0
 	if (is_meson_gxtvbb_cpu() ||
 		is_meson_txl_cpu() || is_meson_txlx_cpu()
 		|| is_meson_tl1_cpu() || is_meson_tm2_cpu())
 		vlock_en = 1;
 	else
 		vlock_en = 0;
+	#endif
 
 	/*initial pll register address*/
 	if (is_meson_tl1_cpu() || is_meson_tm2_cpu()) {
@@ -2534,6 +2545,8 @@ void vlock_lcd_param_work(struct work_struct *p_work)
 		}
 		msleep(20);
 	}
+
+	pr_info("lcd vlock_en=%d, vlock_mode=0x%x\n", vlock_en, vlock_mode);
 }
 #endif
 
@@ -2553,19 +2566,17 @@ void vlock_param_config(struct device_node *node)
 	else
 		vlock_mode = val;
 	ret = of_property_read_u32(node, "vlock_pll_m_limit", &val);
-	if (ret) {
+	if (ret)
 		pr_info("Can't find  vlock_pll_m_limit.\n");
-		vlock_pll_m_limit = 1;
-	} else {
+	else
 		vlock_pll_m_limit = val;
-	}
+
 	ret = of_property_read_u32(node, "vlock_line_limit", &val);
-	if (ret) {
+	if (ret)
 		pr_info("Can't find  vlock_line_limit.\n");
-		vlock_line_limit = 1;
-	} else {
+	else
 		vlock_line_limit = val;
-	}
+
 #ifdef CONFIG_AMLOGIC_LCD
 	schedule_work(&aml_lcd_vlock_param_work);
 #endif
@@ -2574,7 +2585,7 @@ void vlock_param_config(struct device_node *node)
 		vlock_mode &= ~VLOCK_MODE_MANUAL_MIX_PLL_ENC;
 		vlock_mode |= VLOCK_MODE_MANUAL_PLL;
 	}
-	pr_info("param_config vlock_en:%d\n", vlock_en);
+	pr_info("param_config vlock_en:%d md=0x%x\n", vlock_en, vlock_mode);
 }
 
 int vlock_notify_callback(struct notifier_block *block, unsigned long cmd,
