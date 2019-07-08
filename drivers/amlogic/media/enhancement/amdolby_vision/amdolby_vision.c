@@ -267,7 +267,7 @@ static u32 vsync_count;
 
 static bool is_osd_off;
 static bool force_reset_core2;
-
+static int core1_switch;
 module_param(vtotal_add, uint, 0664);
 MODULE_PARM_DESC(vtotal_add, "\n vtotal_add\n");
 module_param(vpotch, uint, 0664);
@@ -7055,12 +7055,125 @@ static ssize_t amdolby_vision_dv_mode_store(struct class *cla,
 	return count;
 }
 
+static void parse_param(char *buf_orig, char **parm)
+{
+	char *ps, *token;
+	unsigned int n = 0;
+	char delim1[3] = " ";
+	char delim2[2] = "\n";
+
+	ps = buf_orig;
+	strcat(delim1, delim2);
+	while (1) {
+		token = strsep(&ps, delim1);
+		if (token == NULL)
+			break;
+		if (*token == '\0')
+			continue;
+		parm[n++] = token;
+	}
+}
+
+static ssize_t amdolby_vision_reg_store(struct class *cla,
+			struct class_attribute *attr,
+			const char *buf, size_t count)
+{
+	char *buf_orig, *parm[8] = {NULL};
+	long val = 0;
+	unsigned int reg_addr, reg_val;
+
+	if (!buf)
+		return count;
+	buf_orig = kstrdup(buf, GFP_KERNEL);
+	parse_param(buf_orig, (char **)&parm);
+	if (!strcmp(parm[0], "rv")) {
+		if (kstrtoul(parm[1], 16, &val) < 0) {
+			kfree(buf_orig);
+			buf_orig =  NULL;
+			return -EINVAL;
+		}
+		reg_addr = val;
+		reg_val = READ_VPP_DV_REG(reg_addr);
+		pr_info("reg[0x%04x]=0x%08x\n", reg_addr, reg_val);
+	} else if (!strcmp(parm[0], "wv")) {
+		if (kstrtoul(parm[1], 16, &val) < 0) {
+			kfree(buf_orig);
+			buf_orig =  NULL;
+			return -EINVAL;
+		}
+		reg_addr = val;
+		if (kstrtoul(parm[2], 16, &val) < 0) {
+			kfree(buf_orig);
+			buf_orig =  NULL;
+			return -EINVAL;
+		}
+		reg_val = val;
+		WRITE_VPP_DV_REG(reg_addr, reg_val);
+	}
+	kfree(buf_orig);
+	buf_orig =	NULL;
+	return count;
+
+}
+
+static ssize_t amdolby_vision_core1_switch_show(struct class *cla,
+			struct class_attribute *attr, char *buf)
+{
+	return snprintf(buf, 40, "%d\n",
+		core1_switch);
+}
+
+static ssize_t amdolby_vision_core1_switch_store(struct class *cla,
+			struct class_attribute *attr,
+			const char *buf, size_t count)
+{
+	size_t r;
+	u32 reg = 0, mask = 0xfaa1f00, set = 0;
+
+	r = kstrtoint(buf, 0, &core1_switch);
+	if (r != 0)
+		return -EINVAL;
+	if (is_meson_tm2_stbmode()) {
+		reg = VSYNC_RD_DV_REG(DOLBY_PATH_CTRL);
+		switch (core1_switch) {
+		case NO_SWITCH:
+			reg &= ~mask;
+			set = reg | 0x0c880c00;
+			VSYNC_WR_DV_REG(
+				DOLBY_PATH_CTRL, set);
+			break;
+		case SWITCH_BEFORE_DVCORE_1:
+			reg &= ~mask;
+			set = reg | 0x0c881c00;
+			VSYNC_WR_DV_REG(
+				DOLBY_PATH_CTRL, set);
+			break;
+		case SWITCH_BEFORE_DVCORE_2:
+			reg &= ~mask;
+			set = reg | 0x0c820300;
+			VSYNC_WR_DV_REG(
+				DOLBY_PATH_CTRL, set);
+			break;
+		case SWITCH_AFTER_DVCORE:
+			reg &= ~mask;
+			set = reg | 0x03280c00;
+			VSYNC_WR_DV_REG(
+				DOLBY_PATH_CTRL, set);
+			break;
+		}
+	}
+	return count;
+}
 
 static struct class_attribute amdolby_vision_class_attrs[] = {
 	__ATTR(debug, 0644,
 	amdolby_vision_debug_show, amdolby_vision_debug_store),
 	__ATTR(dv_mode, 0644,
 	amdolby_vision_dv_mode_show, amdolby_vision_dv_mode_store),
+	__ATTR(dv_reg, 0220,
+	NULL, amdolby_vision_reg_store),
+	__ATTR(core1_switch, 0644,
+	amdolby_vision_core1_switch_show, amdolby_vision_core1_switch_store),
 	__ATTR_NULL
 };
 

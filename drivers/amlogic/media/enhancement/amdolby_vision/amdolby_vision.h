@@ -49,6 +49,13 @@
 #define TUNINGMODE_EXTLEVEL5_DISABLE     0x10
 #define TUNINGMODE_EL_FORCEDDISABLE      0x20
 
+enum core1_switch_type {
+	NO_SWITCH = 0,
+	SWITCH_BEFORE_DVCORE_1,
+	SWITCH_BEFORE_DVCORE_2,
+	SWITCH_AFTER_DVCORE,
+};
+
 /*! @brief Output CSC configuration.*/
 # pragma pack(push, 1)
 struct TgtOutCscCfg {
