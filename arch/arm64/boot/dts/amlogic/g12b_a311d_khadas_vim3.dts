@@ -1,0 +1,8 @@
+#include "g12b_a311d_coreelec.dts"
+
+/{
+	model = "Khadas VIM3";
+	coreelec-dt-id = "g12b_a311d_khadas_vim3";
+
+	/delete-node/ memory@00000000;
+};
