@@ -2760,12 +2760,24 @@ void hdmirx_set_video_mute(bool mute)
 		rx_pr("%s-mute:%d\n", __func__, mute);
 }
 
+void set_dv_ll_mode(bool en)
+{
+	if (en) {
+		hdmirx_wr_bits_top(TOP_VID_CNTL, _BIT(17), 1);
+		hdmirx_wr_bits_top(TOP_VID_CNTL, _BIT(19), 1);
+	} else {
+		hdmirx_wr_bits_top(TOP_VID_CNTL, _BIT(17), 0);
+		hdmirx_wr_bits_top(TOP_VID_CNTL, _BIT(19), 0);
+	}
+}
+
 /*
  * hdmirx_config_video - video mute config
  */
 void hdmirx_config_video(void)
 {
 	hdmirx_set_video_mute(0);
+	set_dv_ll_mode(false);
 }
 
 /*

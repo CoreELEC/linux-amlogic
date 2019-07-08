@@ -919,6 +919,13 @@ bool hdmirx_check_frame_skip(struct tvin_frontend_s *fe)
 	return hdmirx_hw_check_frame_skip();
 }
 
+bool hdmirx_dv_config(bool en, struct tvin_frontend_s *fe)
+{
+	set_dv_ll_mode(en);
+
+	return true;
+}
+
 static struct tvin_state_machine_ops_s hdmirx_sm_ops = {
 	.nosig            = hdmirx_is_nosig,
 	.fmt_changed      = hdmirx_fmt_chg,
@@ -930,6 +937,7 @@ static struct tvin_state_machine_ops_s hdmirx_sm_ops = {
 	.vga_set_param    = NULL,
 	.vga_get_param    = NULL,
 	.check_frame_skip = hdmirx_check_frame_skip,
+	.hdmi_dv_config   = hdmirx_dv_config,
 };
 
 /*

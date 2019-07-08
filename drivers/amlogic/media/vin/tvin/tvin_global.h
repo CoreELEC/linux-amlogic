@@ -23,6 +23,7 @@
 /* #include <mach/am_regs.h> */
 #include <linux/amlogic/iomap.h>
 #include <linux/amlogic/cpu_version.h>
+#include <linux/amlogic/media/vfm/vframe.h>
 
 #ifdef TVBUS_REG_ADDR
 #define R_APB_REG(reg) aml_read_reg32(TVBUS_REG_ADDR(reg))
@@ -482,6 +483,7 @@ struct tvin_sig_property_s {
 	unsigned int		vdin_hdr_Flag;
 	enum tvin_color_fmt_range_e color_fmt_range;
 	struct tvin_hdr_info_s hdr_info;
+	struct tvin_dv_vsif_s dv_vsif;/*dolby vsi info*/
 	bool dolby_vision;/*is signal dolby version*/
 	bool low_latency;/*is low latency dolby mode*/
 	uint8_t fps;

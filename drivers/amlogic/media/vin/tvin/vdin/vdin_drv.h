@@ -48,7 +48,7 @@
 /* Ref.2019/04/25: tl1 vdin0 afbce dynamically switch support,
  *                 vpp also should support this function
  */
-#define VDIN_VER "Ref.2019/05/31"
+#define VDIN_VER "Ref.2019/07/08-add dv ll mode"
 
 /*the counter of vdin*/
 #define VDIN_MAX_DEVS			2
@@ -204,6 +204,8 @@ struct vdin_dv_s {
 	bool dv_config;
 	bool dv_crc_check;/*0:fail;1:ok*/
 	unsigned int dv_mem_alloced;
+	struct tvin_dv_vsif_s dv_vsif;/*dolby vsi info*/
+	bool low_latency;
 };
 
 struct vdin_afbce_s {

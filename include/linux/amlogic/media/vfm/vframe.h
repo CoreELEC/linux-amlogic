@@ -50,6 +50,7 @@
 #define VIDTYPE_NO_DW			0x4000000
 #define VIDTYPE_SUPPORT_COMPRESS	0x8000000
 #define VIDTYPE_PRE_DI_AFBC		0x10000000
+#define VIDTYPE_RGB_444			0x20000000
 
 #define DISP_RATIO_FORCECONFIG          0x80000000
 #define DISP_RATIO_FORCE_NORMALWIDE     0x40000000
@@ -230,6 +231,18 @@ struct vframe_pic_mode_s {
 	u32 custom_ar;
 	u32 AFD_enable;
 	enum pic_mode_provider_e provider;
+};
+
+/*vdin dolby vsi info param*/
+struct tvin_dv_vsif_s {
+	uint8_t dobly_vision_signal:1;
+	uint8_t backlt_ctrl_MD_present:1;
+	uint8_t auxiliary_MD_present:1;
+	uint8_t eff_tmax_PQ_hi;
+	uint8_t eff_tmax_PQ_low;
+	uint8_t auxiliary_runmode;
+	uint8_t auxiliary_runversion;
+	uint8_t auxiliary_debug0;
 };
 
 #define BITDEPTH_Y_SHIFT 8

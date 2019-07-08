@@ -74,6 +74,8 @@
 #define VDIN_CLS_NAME		"vdin"
 #define PROVIDER_NAME		"vdin"
 
+#define VDIN_DV_NAME		"dv_vdin"
+
 #define VDIN_PUT_INTERVAL (HZ/100)   /* 10ms, #define HZ 100 */
 
 static dev_t vdin_devno;
@@ -654,6 +656,8 @@ void vdin_start_dec(struct vdin_dev_s *devp)
 		vdin_dolby_config(devp);
 		if (vdin_dbg_en)
 			pr_info("vdin start dec dv input config\n");
+	} else {
+		vdin_dobly_mdata_write_en(devp->addr_offset, 0);
 	}
 #endif
 	devp->abnormal_cnt = 0;
@@ -674,8 +678,8 @@ void vdin_start_dec(struct vdin_dev_s *devp)
 
 	vdin_hw_enable(devp->addr_offset);
 	vdin_set_all_regs(devp);
+	vdin_set_dolby_ll_tunnel(devp);
 	vdin_write_mif_or_afbce_init(devp);
-
 	if (!(devp->parm.flag & TVIN_PARM_FLAG_CAP) &&
 		(devp->frontend) &&
 		devp->frontend->dec_ops &&
@@ -701,7 +705,7 @@ void vdin_start_dec(struct vdin_dev_s *devp)
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 	if ((devp->dv.dolby_input & (1 << devp->index)) ||
 		(devp->dv.dv_flag && is_dolby_vision_enable()))
-		vf_notify_receiver("dv_vdin",
+		vf_notify_receiver(VDIN_DV_NAME,
 			VFRAME_EVENT_PROVIDER_START, NULL);
 	else
 #endif
@@ -1534,13 +1538,18 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 			schedule_delayed_work(&devp->dv.dv_dwork,
 				dv_work_delby);
 		} else if (((dv_dbg_mask & DV_UPDATE_DATA_MODE_DELBY_WORK) == 0)
-			&& devp->dv.dv_config) {
+			&& devp->dv.dv_config && !devp->dv.low_latency) {
 			vdin_dolby_buffer_update(devp,
 				devp->last_wr_vfe->vf.index);
 			vdin_dolby_addr_update(devp,
 				devp->curr_wr_vfe->vf.index);
 		} else
 			devp->dv.dv_crc_check = true;
+
+		if (devp->dv.low_latency != devp->vfp->low_latency)
+			devp->vfp->low_latency = devp->dv.low_latency;
+		memcpy(&devp->vfp->dv_vsif,
+			&devp->dv.dv_vsif, sizeof(struct tvin_dv_vsif_s));
 		if ((devp->dv.dv_crc_check == true) ||
 			(!(dv_dbg_mask & DV_CRC_CHECK))) {
 			provider_vf_put(devp->last_wr_vfe, devp->vfp);
@@ -1570,7 +1579,7 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 		if (((devp->dv.dolby_input & (1 << devp->index)) ||
 			(devp->dv.dv_flag && is_dolby_vision_enable())) &&
 			(devp->dv.dv_config == true))
-			vf_notify_receiver("dv_vdin",
+			vf_notify_receiver(VDIN_DV_NAME,
 				VFRAME_EVENT_PROVIDER_VFRAME_READY, NULL);
 		else {
 #endif
@@ -1786,7 +1795,7 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 	if (((devp->dv.dolby_input & (1 << devp->index)) ||
 		(devp->dv.dv_flag && is_dolby_vision_enable())) &&
 		(devp->dv.dv_config == true))
-		vdin2nr = vf_notify_receiver("dv_vdin",
+		vdin2nr = vf_notify_receiver(VDIN_DV_NAME,
 			VFRAME_EVENT_PROVIDER_QUREY_VDIN2NR, NULL);
 	else
 #endif
@@ -1925,7 +1934,7 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 		if (((devp->dv.dolby_input & (1 << devp->index)) ||
 			(devp->dv.dv_flag && is_dolby_vision_enable()))
 			&& (devp->dv.dv_config == true))
-			vf_notify_receiver("dv_vdin",
+			vf_notify_receiver(VDIN_DV_NAME,
 				VFRAME_EVENT_PROVIDER_VFRAME_READY, NULL);
 		else {
 #endif
@@ -3333,7 +3342,7 @@ static int vdin_drv_probe(struct platform_device *pdev)
 	sprintf(vdevp->name, "%s%d", PROVIDER_NAME, vdevp->index);
 	vf_provider_init(&vdevp->vprov, vdevp->name, &vdin_vf_ops, vdevp->vfp);
 
-	vf_provider_init(&vdevp->dv.vprov_dv, "dv_vdin",
+	vf_provider_init(&vdevp->dv.vprov_dv, VDIN_DV_NAME,
 		&vdin_vf_ops, vdevp->vfp);
 	/* @todo canvas_config_mode */
 	if (canvas_config_mode == 0 || canvas_config_mode == 1)

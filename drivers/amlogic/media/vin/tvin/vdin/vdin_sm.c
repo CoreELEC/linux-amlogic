@@ -287,6 +287,11 @@ static void hdmirx_dv_check(struct vdin_dev_s *devp,
 		tvin_smr_init(devp->index);
 		devp->dv.dv_flag = prop->dolby_vision;
 	}
+
+	if (prop->low_latency != devp->dv.low_latency)
+		devp->dv.low_latency = prop->low_latency;
+	memcpy(&devp->dv.dv_vsif,
+			&prop->dv_vsif, sizeof(struct tvin_dv_vsif_s));
 }
 
 void reset_tvin_smr(unsigned int index)

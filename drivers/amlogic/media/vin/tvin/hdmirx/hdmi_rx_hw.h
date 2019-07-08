@@ -1202,6 +1202,7 @@ extern void rx_get_video_info(void);
 extern void hdmirx_set_video_mute(bool mute);
 extern void hdmirx_config_video(void);
 extern void hdmirx_config_audio(void);
+extern void set_dv_ll_mode(bool en);
 extern void rx_get_audinfo(struct aud_info_s *audio_info);
 extern bool rx_clkrate_monitor(void);
 
