@@ -1348,7 +1348,7 @@ void fsm_restart(void)
 		esm_set_stable(false);
 	}
 	hdmirx_hw_config();
-	hdmi_rx_top_edid_update();
+	/* hdmi_rx_top_edid_update(); */
 	set_scdc_cfg(1, 0);
 	vic_check_en = false;
 	dvi_check_en = true;
@@ -2540,6 +2540,8 @@ unsigned int hdmirx_show_info(unsigned char *buf, int size)
 		"sts0x8fc: 0x%x\n", hdmirx_rd_dwc(DWC_HDCP22_STATUS));
 	pos += snprintf(buf+pos, size-pos,
 		"sts0x81c: 0x%x\n", hdmirx_rd_dwc(DWC_HDCP22_CONTROL));
+	pos += snprintf(buf+pos, size-pos,
+		"edid_ver: %s\n", rx.edid_ver == EDID_V20 ? "2.0" : "1.4");
 
 	return pos;
 }
@@ -2668,6 +2670,7 @@ static void dump_video_status(void)
 			rx.port, up_phy_addr);
 	dump_clk_status();
 	rx_pr("eq=%x\n", (rd_reg_hhi(HHI_HDMIRX_PHY_DCHD_CNTL1)>>4)&0xffff);
+	rx_pr("edid_ver: %s\n", rx.edid_ver == EDID_V20 ? "2.0" : "1.4");
 }
 
 static void dump_audio_status(void)

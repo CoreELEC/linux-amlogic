@@ -41,7 +41,7 @@
  *
  *
  */
-#define RX_VER1 "ver.2019/05/09"
+#define RX_VER1 "ver.2019/07/08"
 /*
  *
  *
@@ -450,6 +450,7 @@ struct rx_s {
 	struct phy_sts phy;
 	struct emp_buff empbuff;
 	uint32_t arc_port;
+	enum edid_ver_e edid_ver;
 };
 
 struct _hdcp_ksv {

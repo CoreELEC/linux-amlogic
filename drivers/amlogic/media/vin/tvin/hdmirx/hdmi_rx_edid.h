@@ -155,6 +155,11 @@ enum edid_list_e {
 	EDID_LIST_NULL
 };
 
+enum edid_ver_e {
+	EDID_V14,
+	EDID_V20
+};
+
 struct detailed_timing_desc {
 	unsigned int pixel_clk;
 	unsigned int hactive;
@@ -463,8 +468,8 @@ struct edid_info_s {
 	/* 16 */
 	unsigned char product_week;
 	unsigned int product_year;
-	unsigned char edid_version;
-	unsigned char edid_revision;
+	/* unsigned char edid_version; */
+	/* unsigned char edid_revision; */
 	/* 54 + 18 * x */
 	struct detailed_timing_desc descriptor1;
 	struct detailed_timing_desc descriptor2;
@@ -727,6 +732,7 @@ void edid_splice_earc_capds_dbg(uint8_t *p_edid);
 void edid_splice_data_blk_dbg(uint8_t *p_edid, uint8_t idx);
 void edid_rm_db_by_tag(uint8_t *p_edid, uint16_t tagid);
 void edid_rm_db_by_idx(uint8_t *p_edid, uint8_t blk_idx);
+uint8_t *edid_tag_extract(uint8_t *p_edid, uint16_t tagid);
 void rx_modify_edid(unsigned char *buffer,
 				int len, unsigned char *addition);
 void rx_edid_update_audio_info(unsigned char *p_edid,

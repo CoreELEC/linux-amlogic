@@ -1941,6 +1941,7 @@ void clk_init(void)
 void hdmirx_20_init(void)
 {
 	unsigned long data32;
+	unsigned long scdc_en = rx.edid_ver;
 
 	data32 = 0;
 	data32 |= 1	<< 12; /* [12]     vid_data_checken */
@@ -1948,7 +1949,7 @@ void hdmirx_20_init(void)
 	data32 |= 1	<< 10; /* [10]     gb_checken */
 	data32 |= 1	<< 9;  /* [9]      preamb_checken */
 	data32 |= 1	<< 8;  /* [8]      ctrl_checken */
-	data32 |= 1	<< 4;  /* [4]      scdc_enable */
+	data32 |= scdc_en	<< 4;  /* [4]      scdc_enable */
 	/* To support some TX that sends out SSCP even when not scrambling:
 	 * 0: Original behaviour
 	 * 1: During TMDS character error detection, treat SSCP character
@@ -1975,8 +1976,8 @@ void hdmirx_20_init(void)
 	hdmirx_wr_dwc(DWC_SCDC_I2CCONFIG,    data32);
 
 	data32  = 0;
-	data32 |= 0    << 1;  /* [1]      hpd_low */
-	data32 |= 1    << 0;  /* [0]      power_provided */
+	data32 |= 1    << 1;  /* [1]      hpd_low */
+	data32 |= 0    << 0;  /* [0]      power_provided */
 	hdmirx_wr_dwc(DWC_SCDC_CONFIG,   data32);
 
 	data32  = 0;
