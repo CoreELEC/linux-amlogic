@@ -7970,6 +7970,10 @@ SET_FILTER:
 			VSYNC_WR_MPEG_REG(
 				VPP_POSTBLEND_H_SIZE + cur_dev->vpp_off,
 				((vinfo->field_height << 16) | vinfo->width));
+		VSYNC_WR_MPEG_REG(
+			VPP_OUT_H_V_SIZE + cur_dev->vpp_off,
+			vinfo->width << 16 |
+			vinfo->field_height);
 	} else if (vinfo) {
 		if (VSYNC_RD_MPEG_REG(
 			VPP_POSTBLEND_H_SIZE + cur_dev->vpp_off)
@@ -7977,6 +7981,10 @@ SET_FILTER:
 			VSYNC_WR_MPEG_REG(
 				VPP_POSTBLEND_H_SIZE + cur_dev->vpp_off,
 				vinfo->width);
+		VSYNC_WR_MPEG_REG(
+			VPP_OUT_H_V_SIZE + cur_dev->vpp_off,
+			vinfo->width << 16 |
+			vinfo->field_height);
 	}
 
 	if (cur_dispbuf && cur_dispbuf->process_fun) {
