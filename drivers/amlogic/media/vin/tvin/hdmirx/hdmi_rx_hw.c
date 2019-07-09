@@ -86,7 +86,7 @@ MODULE_PARM_DESC(hdcp22_on, "\n hdcp22_on\n");
 module_param(hdcp22_on, int, 0664);
 
 /* test for HBR CTS, audio module can set it to force 8ch */
-int hbr_force_8ch = 1;
+int hbr_force_8ch;
 /*
  * hdcp14_key_mode:hdcp1.4 key handle method select
  * NORMAL_MODE:systemcontrol path
@@ -2140,7 +2140,7 @@ int hdmirx_audio_init(void)
 	hdmirx_wr_dwc(DWC_PDEC_ACRM_CTRL, data32);
 
 	/* unsupport HBR serial mode. invalid bit */
-	/* hdmirx_wr_bits_dwc(DWC_AUD_CTRL, DWC_AUD_HBR_ENABLE, 1); */
+	hdmirx_wr_bits_dwc(DWC_AUD_CTRL, DWC_AUD_HBR_ENABLE, 1);
 
 	/* SAO cfg, disable I2S output, no use */
 	data32 = 0;

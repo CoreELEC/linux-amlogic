@@ -45,6 +45,11 @@ void resample_enable(enum resample_idx id, bool enable)
 	int offset = EE_AUDIO_RESAMPLEB_CTRL0 - EE_AUDIO_RESAMPLEA_CTRL0;
 	int reg = EE_AUDIO_RESAMPLEA_CTRL0 + offset * id;
 
+	/*don't change this flow*/
+	audiobus_update_bits(
+		reg, 0x1 << 31 | 0x1 << 28,
+		0 << 31 | 0x0 << 28);
+
 	audiobus_update_bits(reg,
 		0x1 << 31,
 		1 << 31);
@@ -90,7 +95,7 @@ int resample_disable(enum resample_idx id)
 	int offset = EE_AUDIO_RESAMPLEB_CTRL0 - EE_AUDIO_RESAMPLEA_CTRL0;
 	int reg = EE_AUDIO_RESAMPLEA_CTRL0 + offset * id;
 
-	audiobus_write(reg, 0);
+	audiobus_update_bits(reg, 0x1 << 28, 0 << 28);
 
 	return 0;
 }
@@ -116,7 +121,7 @@ int resample_set_hw_param(enum resample_idx id,
 	offset = EE_AUDIO_RESAMPLEB_CTRL2 - EE_AUDIO_RESAMPLEA_CTRL2;
 	reg = EE_AUDIO_RESAMPLEA_CTRL2 + offset * id;
 
-	audiobus_update_bits(reg, 1 << 25, 1 << 25);
+	audiobus_update_bits(reg, 3 << 26 | 1 << 25, 3 << 26 | 1 << 25);
 	resample_set_hw_pause_thd(id, 128);
 
 	return 0;

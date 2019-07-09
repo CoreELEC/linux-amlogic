@@ -50,6 +50,11 @@
 
 #define DYNC_KCNTL_CNT 2
 
+enum {
+	HDMIRX_MODE_SPDIFIN = 0,
+	HDMIRX_MODE_PAO = 1,
+};
+
 struct extn_chipinfo {
 	/* try to check papb before fetch pcpd
 	 * no nonpcm2pcm irq for tl1
@@ -147,27 +152,24 @@ static irqreturn_t extn_ddr_isr(int irq, void *devid)
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct device *dev = rtd->platform->dev;
 	struct extn *p_extn = (struct extn *)dev_get_drvdata(dev);
-	int timeout_thres = 5;
-
-#ifdef CONFIG_AMLOGIC_MEDIA_TVIN_HDMI
-	int sample_rate_index = get_hdmi_sample_rate_index();
-
-	/*192K audio*/
-	if (sample_rate_index == 7)
-		timeout_thres = 10;
-	else
-		timeout_thres = 5;
-#endif
 
 	if (!snd_pcm_running(substream))
 		return IRQ_HANDLED;
 
 	snd_pcm_period_elapsed(substream);
 
-	/* check pcm or nonpcm */
-	if (p_extn &&
-		p_extn->chipinfo &&
-		p_extn->chipinfo->no_nonpcm2pcm_clr) {
+	/* check pcm or nonpcm for PAO*/
+	if (p_extn->hdmirx_mode == HDMIRX_MODE_PAO) {
+		int timeout_thres = 5;
+#ifdef CONFIG_AMLOGIC_MEDIA_TVIN_HDMI
+		int sample_rate_index = get_hdmi_sample_rate_index();
+
+		/*192K audio*/
+		if (sample_rate_index == 7)
+			timeout_thres = 10;
+		else
+			timeout_thres = 5;
+#endif
 		if (p_extn->frhdmirx_last_cnt == p_extn->frhdmirx_cnt) {
 
 			p_extn->frhdmirx_same_cnt++;
@@ -183,6 +185,8 @@ static irqreturn_t extn_ddr_isr(int irq, void *devid)
 			p_extn->nonpcm_flag = true;
 			frhdmirx_clr_PAO_irq_bits();
 		}
+	} else {
+	    frhdmirx_clr_SPDIF_irq_bits();
 	}
 
 	return IRQ_HANDLED;
@@ -260,8 +264,7 @@ static int extn_close(struct snd_pcm_substream *substream)
 
 		if (toddr_src_get() == FRHDMIRX) {
 			frhdmirx_nonpcm2pcm_clr_reset(p_extn);
-			if (p_extn->hdmirx_mode == 1)
-				frhdmirx_clr_PAO_irq_bits();
+			frhdmirx_clr_all_irq_bits();
 			free_irq(p_extn->irq_frhdmirx, p_extn);
 		}
 	}
@@ -496,18 +499,24 @@ static int extn_dai_prepare(
 			 */
 			/* fratv_src_select(1); */
 		} else if (src == FRHDMIRX) {
-			if (p_extn->hdmirx_mode) { /* PAO */
 
-				if (bit_depth == 32)
-					toddr_type = 3;
-				else if (bit_depth == 24)
-					toddr_type = 4;
-				else
-					toddr_type = 0;
+			if (bit_depth == 32)
+				toddr_type = 3;
+			else if (bit_depth == 24)
+				toddr_type = 4;
+			else
+				toddr_type = 0;
 
+			if (p_extn->hdmirx_mode == HDMIRX_MODE_PAO) { /* PAO */
 				msb = 28 - 1 - 4;
 				if (bit_depth == 16)
 					lsb = 24 - bit_depth;
+				else
+					lsb = 4;
+			} else { /* SPDIFIN */
+				msb = 28 - 1;
+				if (bit_depth <= 24)
+					lsb = 28 - bit_depth;
 				else
 					lsb = 4;
 			}
@@ -812,7 +821,7 @@ static int hdmiin_check_audio_type(struct extn *p_extn)
 	int audio_type = 0;
 	int i;
 
-	if (!p_extn->nonpcm_flag)
+	if (!p_extn->nonpcm_flag && p_extn->hdmirx_mode)
 		return audio_type;
 
 	for (i = 0; i < total_num; i++) {
@@ -935,9 +944,9 @@ static const struct snd_kcontrol_new extn_controls[] = {
 		aml_set_atmos_audio_edid),
 
 	SOC_ENUM_EXT("HDMIIN Audio Type",
-			 hdmirx_audio_type_enum,
-			 hdmirx_audio_type_get_enum,
-			 NULL),
+		hdmirx_audio_type_enum,
+		hdmirx_audio_type_get_enum,
+		NULL),
 #endif
 
 };
@@ -1014,8 +1023,8 @@ static int extn_platform_probe(struct platform_device *pdev)
 	/* Default ARC SRC */
 	p_extn->arc_src = 1;
 
-	/* Default: PAO mode */
-	p_extn->hdmirx_mode = 1;
+	/* Default: SPDIFIN mode */
+	p_extn->hdmirx_mode = HDMIRX_MODE_SPDIFIN;
 
 	ret = devm_snd_soc_register_component(&pdev->dev,
 					      &extn_component,
