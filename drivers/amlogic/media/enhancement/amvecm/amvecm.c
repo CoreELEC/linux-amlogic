@@ -189,6 +189,8 @@ enum hdr_type_e hdr_source_type = HDRTYPE_NONE;
 #define SR1_OFFSET 0xc80
 unsigned int sr_offset[2] = {0, 0};
 
+unsigned int sr_demo_flag;
+
 static int wb_init_bypass_coef[24] = {
 	0, 0, 0, /* pre offset */
 	1024,	0,	0,
@@ -4453,6 +4455,28 @@ void amvecm_sharpness_enable(int sel)
 	}
 }
 
+void amvecm_sr_demo(int enable)
+{
+	if (enable) {
+		sr_demo_flag = 1;
+		WRITE_VPP_REG_BITS(SHARP0_DEMO_CRTL, 2, 17, 2);
+		WRITE_VPP_REG_BITS(SHARP0_DEMO_CRTL, 1, 16, 1);
+		WRITE_VPP_REG_BITS(SHARP0_DEMO_CRTL, 0x438, 0, 13);
+		WRITE_VPP_REG_BITS(SHARP1_DEMO_CRTL, 2, 17, 2);
+		WRITE_VPP_REG_BITS(SHARP1_DEMO_CRTL, 1, 16, 1);
+		WRITE_VPP_REG_BITS(SHARP1_DEMO_CRTL, 0x438, 0, 13);
+
+	} else {
+		sr_demo_flag = 0;
+		WRITE_VPP_REG_BITS(SHARP0_DEMO_CRTL, 2, 17, 2);
+		WRITE_VPP_REG_BITS(SHARP0_DEMO_CRTL, 0, 16, 1);
+		WRITE_VPP_REG_BITS(SHARP0_DEMO_CRTL, 0x438, 0, 13);
+		WRITE_VPP_REG_BITS(SHARP1_DEMO_CRTL, 2, 17, 2);
+		WRITE_VPP_REG_BITS(SHARP1_DEMO_CRTL, 0, 16, 1);
+		WRITE_VPP_REG_BITS(SHARP1_DEMO_CRTL, 0x438, 0, 13);
+	}
+}
+
 void amvecm_clip_range_limit(bool limit_en)
 {
 	/*fix mbox av out flicker black dot*/
@@ -5250,6 +5274,14 @@ static ssize_t amvecm_debug_store(struct class *cla,
 			amvecm_sharpness_enable(11);
 			amvecm_sharpness_enable(13);
 			pr_info("SR disable\n");
+		}  else if (!strncmp(parm[1], "demo", 4)) {
+			if (!strncmp(parm[2], "enable", 6)) {
+				amvecm_sr_demo(1);
+				pr_info("sr demo enable\n");
+			} else if (!strncmp(parm[2], "disable", 7)) {
+				amvecm_sr_demo(0);
+				pr_info("sr demo disable\n");
+			}
 		}
 	} else if (!strcmp(parm[0], "cm")) {
 		if (!strncmp(parm[1], "enable", 6)) {

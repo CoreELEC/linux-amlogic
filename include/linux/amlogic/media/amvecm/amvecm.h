@@ -460,6 +460,7 @@ extern signed int vd1_brightness, vd1_contrast;
 extern bool gamma_en;
 
 extern unsigned int atv_source_flg;
+extern unsigned int sr_demo_flag;
 
 extern enum hdr_type_e hdr_source_type;
 

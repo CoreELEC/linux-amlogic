@@ -253,6 +253,13 @@ void am_set_regmap(struct am_regs_s *p)
 			} else {
 				if (p->am_reg[i].addr == 0x1d26)
 					break;
+				if (sr_demo_flag) {
+					if ((p->am_reg[i].addr ==
+						SHARP0_DEMO_CRTL) ||
+						(p->am_reg[i].addr ==
+						SHARP1_DEMO_CRTL))
+						break;
+				}
 			/*if the bit 4 of SRSHARP1_LC_TOP_CTRL is 1,
 			 *it means that lc is enable in db,
 			 *so need to change lc_en to 1;

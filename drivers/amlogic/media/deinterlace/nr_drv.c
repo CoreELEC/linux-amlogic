@@ -46,6 +46,8 @@ module_param_named(nr2_en, nr2_en, uint, 0644);
 
 static bool nr_ctrl_reg;
 
+bool nr_demo_flag;
+
 int global_bs_calc_sw(int *pGbsVldCnt,
 			  int *pGbsVldFlg,
 			  int *pGbs,
@@ -1173,6 +1175,18 @@ static void nr_all_ctrl(bool enable)
 	DI_Wr_reg_bits(DNR_CTRL, value, 16, 1);
 
 }
+
+static void nr_demo_mode(bool enable)
+{
+	if (enable) {
+		DI_Wr_reg_bits(NR4_TOP_CTRL, 0, 6, 3);
+		nr_demo_flag = 1;
+	} else {
+		DI_Wr_reg_bits(NR4_TOP_CTRL, 7, 6, 3);
+		nr_demo_flag = 0;
+	}
+}
+
 static ssize_t nr_dbg_store(struct device *dev,
 				struct device_attribute *attr,
 				const char *buff, size_t count)
@@ -1185,6 +1199,15 @@ static ssize_t nr_dbg_store(struct device *dev,
 		nr_all_ctrl(false);
 	else if (!strcmp(parm[0], "enable"))
 		nr_all_ctrl(true);
+	else if (!strcmp(parm[0], "demo")) {
+		if (!strcmp(parm[1], "enable")) {
+			nr_demo_mode(true);
+			pr_info("nr demo enable\n");
+		} else if (!strcmp(parm[1], "disable")) {
+			nr_demo_mode(false);
+			pr_info("nr demo disable\n");
+		}
+	}
 
 	kfree(buf_orig);
 	return count;

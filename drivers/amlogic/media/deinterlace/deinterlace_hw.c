@@ -33,6 +33,8 @@
 #include "deinterlace.h"
 #include "register.h"
 #include "register_nr4.h"
+#include "nr_drv.h"
+
 #ifdef DET3D
 #include "detect3d.h"
 #endif
@@ -3873,6 +3875,11 @@ void di_load_regs(struct di_pq_parm_s *di_pq_ptr)
 		addr = regs_p->addr;
 		value = regs_p->val;
 		mask = regs_p->mask;
+		if (nr_demo_flag) {
+			if (addr == NR4_TOP_CTRL)
+				mask &= ~(0x7 << 6);
+		}
+
 		if (pq_load_dbg == 2)
 			pr_info("[%u][0x%x] = [0x%x]&[0x%x]\n",
 				i, addr, value, mask);
