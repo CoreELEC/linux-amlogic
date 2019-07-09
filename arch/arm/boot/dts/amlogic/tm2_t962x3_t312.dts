@@ -270,30 +270,6 @@
 		dat1_ch_sel = <1>;
 	};
 
-	aml_dtv_demod {
-		compatible = "amlogic, ddemod-tm2";
-		dev_name = "aml_dtv_demod";
-		status = "okay";
-
-		//pinctrl-names="dtvdemod_agc";
-		//pinctrl-0=<&dtvdemod_agc>;
-
-		clocks = <&clkc CLKID_DAC_CLK>;
-		clock-names = "vdac_clk_gate";
-
-		reg = <0xff650000 0x4000	/*dtv demod base*/
-			   0xff63c000 0x2000	/*hiu reg base*/
-			   0xff800000 0x1000	/*io_aobus_base*/
-			   0xffd01000 0x1000	/*reset*/
-			>;
-
-		dtv_demod0_mem = <0>;	// need move to aml_dtv_demod ?
-		spectrum = <1>;
-		cma_flag = <1>;
-		cma_mem_size = <8>;
-		memory-region = <&demod_cma_reserved>;//<&demod_reserved>;
-	};
-
 	auge_sound {
 		compatible = "amlogic, tm2-sound-card";
 		aml-audio-card,name = "AML-AUGESOUND";
@@ -473,31 +449,39 @@
 
 	dvb {
 		compatible = "amlogic, dvb";
+		dev_name = "dvb";
 		status = "okay";
-		fe0_mode = "internal";
-		fe0_tuner = <&tuner>;
+		fe0_mode = "external";
+		fe0_demod = "Si2168";
+		fe0_i2c_adap_id = <&i2c0>;
+		fe0_demod_i2c_addr = <0x64>;
+		fe0_ts = <0>;
+		fe0_reset_value = <0>;
+		fe0_reset_gpio = <&gpio GPIODV_11 GPIO_ACTIVE_HIGH>;
 
-		/*"parallel","serial","disable"*/
-		ts2 = "parallel";
-		ts2_control = <0>;
-		ts2_invert = <0>;
+		ts0 = "serial";
+		ts0_control = <0x800>;
+		ts0_invert = <0>;
 		interrupts = <0 23 1
-				0 5 1
-				0 53 1
-				0 19 1
-				0 25 1
-				0 17 1>;
+					0 5 1
+					0 53 1
+					0 19 1
+					0 25 1
+					0 18 1
+					0 24 1>;
 		interrupt-names = "demux0_irq",
-				"demux1_irq",
-				"demux2_irq",
-				"dvr0_irq",
-				"dvr1_irq",
-				"dvr2_irq";
+						"demux1_irq",
+						"demux2_irq",
+						"dvr0_irq",
+						"dvr1_irq",
+						"dvrfill0_fill",
+						"dvrfill1_flush";
+		pinctrl-names = "s_ts0";
+		pinctrl-0 = <&dvb_s_ts0_pins>;
 		clocks = <&clkc CLKID_DEMUX
 			&clkc CLKID_ASYNC_FIFO
 			&clkc CLKID_AHB_ARB0
-/*		&clkc CLKID_DOS_PARSER>;*/
-		&clkc CLKID_U_PARSER>;
+			&clkc CLKID_U_PARSER>;
 		clock-names = "demux", "asyncfifo", "ahbarb0", "uparsertop";
 	};
 
@@ -1200,33 +1184,8 @@
 	tuner: tuner {
 		compatible = "amlogic, tuner";
 		status = "okay";
-		tuner_cur = <0>; /* default use tuner */
-		tuner_num = <1>; /* tuner number, multi tuner support */
-		tuner_name_0 = "mxl661_tuner";
-		tuner_i2c_adap_0 = <&i2c0>;
-		tuner_i2c_addr_0 = <0x60>;
-		tuner_xtal_0 = <1>; /* 0: 16MHz, 1: 24MHz */
-		tuner_xtal_mode_0 = <3>;
-					/* NO_SHARE_XTAL(0)
-					 * SLAVE_XTAL_SHARE(3)
-					 */
-		tuner_xtal_cap_0 = <25>; /* when tuner_xtal_mode = 3, set 25 */
-	};
-
-	atv-demod {
-		compatible = "amlogic, atv-demod";
-		status = "okay";
-		tuner = <&tuner>;
-		btsc_sap_mode = <1>;
-		interrupts = <0 236 1>;
-		/* pinctrl-names="atvdemod_agc_pins"; */
-		/* pinctrl-0=<&atvdemod_agc_pins>; */
-		reg = <0xff656000 0x2000 /* demod reg */
-				0xff63c000 0x2000 /* hiu reg */
-				0xff634000 0x2000 /* periphs reg */
-				0xff64a000 0x2000>; /* audio reg */
-		reg_23cf = <0x88188832>;
-		/*default:0x88188832;r840 on haier:0x48188832*/
+		tuner0_i2c_addr = <0x60>;
+		tuner1_i2c_addr = <0x62>;
 	};
 
 	bt-dev{
@@ -1429,8 +1388,8 @@
 				&clkc CLKID_MPLL2>;
 		clock-names = "mclk", "clk_srcpll";
 
-		pinctrl-names = "tdm_pins";
-		pinctrl-0 = <&tdmout_c &tdmin_c>;
+		//pinctrl-names = "tdm_pins";
+		//pinctrl-0 = <&tdmout_c &tdmin_c>;
 
 		status = "okay";
 	};
@@ -1931,7 +1890,15 @@
 			output-low;
 		};
 	};
-
+	dvb_s_ts0_pins: dvb_s_ts0_pins {
+		mux {
+			groups = "tsin_a_din0",
+			"tsin_a_clk",
+			"tsin_a_sop",
+			"tsin_a_valid";
+			function = "tsin_a";
+		};
+	};
 }; /* end of pinctrl_periphs */
 
 &pinctrl_aobus {
