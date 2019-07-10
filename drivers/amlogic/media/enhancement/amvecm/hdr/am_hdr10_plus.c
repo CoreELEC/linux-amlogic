@@ -26,6 +26,8 @@
 #include <linux/amlogic/media/vout/vout_notify.h>
 #include <linux/amlogic/media/vfm/vframe_provider.h>
 #include <linux/amlogic/media/vfm/vframe_receiver.h>
+#include <linux/vmalloc.h>
+#include <linux/slab.h>
 
 #include "am_hdr10_plus.h"
 #include "am_hdr10_plus_ootf.h"
@@ -81,7 +83,7 @@ struct hdr_plus_bits_s sei_md_bits = {
 	.len_color_saturation_weight = 6
 };
 
-struct vframe_hdr_plus_sei_s1 hdr_plus_sei;
+struct vframe_hdr_plus_sei hdr_plus_sei;
 #define NAL_UNIT_SEI 39
 #define NAL_UNIT_SEI_SUFFIX 40
 
@@ -494,6 +496,91 @@ static int parse_sei(char *sei_buf, uint32_t size)
 	return 0;
 }
 
+static void hdr10_plus_vf_md_parse(struct vframe_s *vf)
+{
+	int i;
+	struct hdr10plus_para hdr10p_md_param;
+
+	memset(&hdr10p_md_param, 0, sizeof(struct hdr10plus_para));
+	memset(&hdr_plus_sei, 0, sizeof(struct vframe_hdr_plus_sei));
+
+	hdr10p_md_param.application_version =
+		vf->prop.hdr10p_data.pb4_st.app_ver;
+	hdr10p_md_param.targeted_max_lum =
+		vf->prop.hdr10p_data.pb4_st.max_lumin;
+	hdr10p_md_param.average_maxrgb =
+		vf->prop.hdr10p_data.average_maxrgb;
+	/*distribution value*/
+	memcpy(&hdr10p_md_param.distribution_values[0],
+		&vf->prop.hdr10p_data.distrib_valus0,
+		sizeof(uint8_t) * 9);
+
+	hdr10p_md_param.num_bezier_curve_anchors =
+	vf->prop.hdr10p_data.pb15_18_st.num_bezier_curve_anchors;
+
+	hdr10p_md_param.knee_point_x =
+	(vf->prop.hdr10p_data.pb15_18_st.knee_point_x_9_6 << 6) |
+		vf->prop.hdr10p_data.pb15_18_st.knee_point_x_5_0;
+	hdr10p_md_param.knee_point_y =
+	(vf->prop.hdr10p_data.pb15_18_st.knee_point_y_9_8 << 8) |
+		vf->prop.hdr10p_data.pb15_18_st.knee_point_y_7_0;
+	/*bezier curve*/
+	hdr10p_md_param.bezier_curve_anchors[0] =
+		vf->prop.hdr10p_data.pb15_18_st.bezier_curve_anchors0;
+	memcpy(&hdr10p_md_param.bezier_curve_anchors[1],
+		&vf->prop.hdr10p_data.bezier_curve_anchors1,
+		sizeof(uint8_t) * 8);
+
+	hdr10p_md_param.graphics_overlay_flag =
+		vf->prop.hdr10p_data.pb27_st.overlay_flag;
+	hdr10p_md_param.no_delay_flag =
+		vf->prop.hdr10p_data.pb27_st.no_delay_flag;
+
+	hdr_plus_sei.application_identifier =
+		hdr10p_md_param.application_version;
+
+	/*hdr10 plus default one window*/
+	hdr_plus_sei.num_windows = 1;
+
+	hdr_plus_sei.tgt_sys_disp_max_lumi =
+		hdr10p_md_param.targeted_max_lum << 5;
+
+	hdr_plus_sei.average_maxrgb[0] =
+		hdr10p_md_param.average_maxrgb << 4;
+
+	for (i = 0; i < 9; i++) {
+		if (i == 2) {
+			hdr_plus_sei.distribution_maxrgb_percentiles[0][2] =
+				hdr10p_md_param.distribution_values[2];
+			continue;
+		}
+		hdr_plus_sei.distribution_maxrgb_percentiles[0][i] =
+			(hdr10p_md_param.distribution_values[i] << 4) * 10;
+	}
+
+	hdr_plus_sei.num_bezier_curve_anchors[0] =
+		hdr10p_md_param.num_bezier_curve_anchors;
+
+	hdr_plus_sei.knee_point_x[0] =
+		hdr10p_md_param.knee_point_x << 2;
+	hdr_plus_sei.knee_point_y[0] =
+		hdr10p_md_param.knee_point_y << 2;
+
+	for (i = 0; i < 9; i++)
+		hdr_plus_sei.bezier_curve_anchors[0][i] =
+			hdr10p_md_param.bezier_curve_anchors[i] << 2;
+
+	for (i = 0; i < 9; i++) {
+		if (hdr_plus_sei.bezier_curve_anchors[0][i] != 0) {
+			hdr_plus_sei.tone_mapping_flag[0] = 1;
+			break;
+		}
+	}
+
+	hdr_plus_sei.color_saturation_mapping_flag[0] = 0;
+
+}
+
 void hdr10_plus_parser_metadata(struct vframe_s *vf)
 {
 	struct provider_aux_req_s req;
@@ -501,45 +588,49 @@ void hdr10_plus_parser_metadata(struct vframe_s *vf)
 	unsigned int size = 0;
 	unsigned int type = 0;
 
-	req.vf = vf;
-	req.bot_flag = 0;
-	req.aux_buf = NULL;
-	req.aux_size = 0;
-	req.dv_enhance_exist = 0;
-	req.low_latency = 0;
+	if (vf->source_type == VFRAME_SOURCE_TYPE_HDMI)
+		hdr10_plus_vf_md_parse(vf);
+	else if (vf->source_type == VFRAME_SOURCE_TYPE_OTHERS) {
+		req.vf = vf;
+		req.bot_flag = 0;
+		req.aux_buf = NULL;
+		req.aux_size = 0;
+		req.dv_enhance_exist = 0;
+		req.low_latency = 0;
 
-	vf_notify_provider_by_name("vdec.h265.00",
-			VFRAME_EVENT_RECEIVER_GET_AUX_DATA,
-			(void *)&req);
-	if (!req.aux_buf)
-		vf_notify_provider_by_name("decoder",
-			VFRAME_EVENT_RECEIVER_GET_AUX_DATA,
-			(void *)&req);
-	if (req.aux_buf && req.aux_size) {
-		p = req.aux_buf;
-		while (p < req.aux_buf
-			+ req.aux_size - 8) {
-			size = *p++;
-			size = (size << 8) | *p++;
-			size = (size << 8) | *p++;
-			size = (size << 8) | *p++;
-			type = *p++;
-			type = (type << 8) | *p++;
-			type = (type << 8) | *p++;
-			type = (type << 8) | *p++;
-			if (type == 0x02000000)
-				parse_sei(p, size);
+		vf_notify_provider_by_name("vdec.h265.00",
+				VFRAME_EVENT_RECEIVER_GET_AUX_DATA,
+				(void *)&req);
+		if (!req.aux_buf)
+			vf_notify_provider_by_name("decoder",
+				VFRAME_EVENT_RECEIVER_GET_AUX_DATA,
+				(void *)&req);
+		if (req.aux_buf && req.aux_size) {
+			p = req.aux_buf;
+			while (p < req.aux_buf
+				+ req.aux_size - 8) {
+				size = *p++;
+				size = (size << 8) | *p++;
+				size = (size << 8) | *p++;
+				size = (size << 8) | *p++;
+				type = *p++;
+				type = (type << 8) | *p++;
+				type = (type << 8) | *p++;
+				type = (type << 8) | *p++;
+				if (type == 0x02000000)
+					parse_sei(p, size);
 
-			p += size;
+				p += size;
+			}
 		}
-
 	}
 }
 
 struct hdr10plus_para dbg_hdr10plus_pkt;
 
 void hdr10_plus_hdmitx_vsif_parser(
-	struct hdr10plus_para *hdmitx_hdr10plus_param)
+	struct hdr10plus_para *hdmitx_hdr10plus_param,
+	struct vframe_s *vf)
 {
 	int vsif_tds_max_l;
 	int ave_maxrgb;
@@ -549,6 +640,45 @@ void hdr10_plus_hdmitx_vsif_parser(
 	int bz_cur_anchors[9];
 
 	memset(hdmitx_hdr10plus_param, 0, sizeof(struct hdr10plus_para));
+
+	if (vf->source_type == VFRAME_SOURCE_TYPE_HDMI) {
+		hdmitx_hdr10plus_param->application_version =
+			vf->prop.hdr10p_data.pb4_st.app_ver;
+		hdmitx_hdr10plus_param->targeted_max_lum =
+			vf->prop.hdr10p_data.pb4_st.max_lumin;
+		hdmitx_hdr10plus_param->average_maxrgb =
+			vf->prop.hdr10p_data.average_maxrgb;
+		/*distribution value*/
+		memcpy(&hdmitx_hdr10plus_param->distribution_values[0],
+			&vf->prop.hdr10p_data.distrib_valus0,
+			sizeof(uint8_t) * 9);
+
+		hdmitx_hdr10plus_param->num_bezier_curve_anchors =
+		vf->prop.hdr10p_data.pb15_18_st.num_bezier_curve_anchors;
+
+		hdmitx_hdr10plus_param->knee_point_x =
+		(vf->prop.hdr10p_data.pb15_18_st.knee_point_x_9_6 << 6) |
+			vf->prop.hdr10p_data.pb15_18_st.knee_point_x_5_0;
+		hdmitx_hdr10plus_param->knee_point_y =
+		(vf->prop.hdr10p_data.pb15_18_st.knee_point_y_9_8 << 8) |
+			vf->prop.hdr10p_data.pb15_18_st.knee_point_y_7_0;
+		/*bezier curve*/
+		hdmitx_hdr10plus_param->bezier_curve_anchors[0] =
+			vf->prop.hdr10p_data.pb15_18_st.bezier_curve_anchors0;
+		memcpy(&hdmitx_hdr10plus_param->bezier_curve_anchors[1],
+			&vf->prop.hdr10p_data.bezier_curve_anchors1,
+			sizeof(uint8_t) * 8);
+
+		hdmitx_hdr10plus_param->graphics_overlay_flag =
+			vf->prop.hdr10p_data.pb27_st.overlay_flag;
+		hdmitx_hdr10plus_param->no_delay_flag =
+			vf->prop.hdr10p_data.pb27_st.no_delay_flag;
+
+		memcpy(&dbg_hdr10plus_pkt, hdmitx_hdr10plus_param,
+			sizeof(struct hdr10plus_para));
+
+		return;
+	}
 
 	hdmitx_hdr10plus_param->application_version =
 		(u8)hdr_plus_sei.application_version;

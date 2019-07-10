@@ -5999,7 +5999,8 @@ static void hdr10_plus_metadata_update(struct vframe_s *vf,
 	hdr10_plus_ootf_gen();
 
 	if (tx_hdr10_plus_support)
-		hdr10_plus_hdmitx_vsif_parser(hdmitx_hdr10plus_param);
+		hdr10_plus_hdmitx_vsif_parser(hdmitx_hdr10plus_param,
+		vf);
 }
 
 static void hdr_tx_pkt_cb(
@@ -6042,6 +6043,16 @@ static void hdr_tx_pkt_cb(
 				if (vdev->fresh_tx_hdr_pkt)
 					vdev->fresh_tx_hdr_pkt(&send_info);
 			}
+
+			if (cur_csc_type ==
+				VPP_MATRIX_BT2020YUV_BT2020RGB_DYNAMIC) {
+				if (vdev) {
+					if (vdev->fresh_tx_hdr10plus_pkt)
+						vdev->fresh_tx_hdr10plus_pkt(0,
+							hdmitx_hdr10plus_param);
+				}
+			}
+
 			if (hdmi_csc_type != VPP_MATRIX_BT2020YUV_BT2020RGB) {
 				hdmi_csc_type = VPP_MATRIX_BT2020YUV_BT2020RGB;
 				*hdmi_scs_type_changed = 1;
@@ -6067,6 +6078,7 @@ static void hdr_tx_pkt_cb(
 				if (vdev->fresh_tx_hdr_pkt)
 					vdev->fresh_tx_hdr_pkt(&send_info);
 			}
+
 			if (hdmi_csc_type != VPP_MATRIX_BT2020YUV_BT2020RGB) {
 				hdmi_csc_type = VPP_MATRIX_BT2020YUV_BT2020RGB;
 				*hdmi_scs_type_changed = 1;
@@ -6190,11 +6202,12 @@ static void hdr_tx_pkt_cb(
 							&send_info);
 				}
 			} else if (cur_csc_type ==
-				VPP_MATRIX_BT2020YUV_BT2020RGB_DYNAMIC)
+				VPP_MATRIX_BT2020YUV_BT2020RGB_DYNAMIC) {
 				if (vdev) {
 					if (vdev->fresh_tx_hdr10plus_pkt)
 						vdev->fresh_tx_hdr10plus_pkt(0,
 							hdmitx_hdr10plus_param);
+				}
 			}
 
 			if (hdmi_csc_type != VPP_MATRIX_YUV709_RGB) {

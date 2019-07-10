@@ -18,7 +18,7 @@
 #ifndef AM_HDR_H
 #define AM_HDR_H
 
-struct vframe_hdr_plus_sei_s1 {
+struct vframe_hdr_plus_sei {
 	u16 present_flag;
 	u16 itu_t_t35_country_code;
 	u16 itu_t_t35_terminal_provider_code;
@@ -121,11 +121,12 @@ extern uint debug_hdr;
 #define HDR_PLUS_IEEE_OUI 0x90848B
 #define SEI_Syntax 0x4
 extern void hdr10_plus_hdmitx_vsif_parser(
-	struct hdr10plus_para *hdmitx_hdr10plus_param);
+	struct hdr10plus_para *hdmitx_hdr10plus_param,
+	struct vframe_s *vf);
 extern void hdr10_plus_parser_metadata(struct vframe_s *vf);
 extern void hdr10_plus_process(struct vframe_s *vf);
 extern void hdr10_plus_debug(void);
-extern struct vframe_hdr_plus_sei_s1 hdr_plus_sei;
+extern struct vframe_hdr_plus_sei hdr_plus_sei;
 
 #endif /* AM_HDR_H */
 
