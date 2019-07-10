@@ -1526,13 +1526,15 @@ static int osd_mmap(struct fb_info *info, struct vm_area_struct *vma)
 	unsigned long start;
 	u32 len;
 	int ret = 0;
+	static int mem_alloced;
 
 	if (!b_alloc_mem) {
 		/* alloc mem when osd_open */
-		if (info->screen_base == NULL) {
+		if (!mem_alloced) {
 			ret = malloc_osd_memory(info);
 			if (ret < 0)
 				return ret;
+			mem_alloced = 1;
 		}
 
 	}
