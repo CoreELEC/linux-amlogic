@@ -1026,9 +1026,17 @@ void vdin_set_cutwin(struct vdin_dev_s *devp)
 void vdin_adjust_tvafesnow_brightness(void)
 {
 	wr(0, VDIN_MATRIX_CTRL, 0x7);
+
+	/*post offset*/
 	wr(0, VDIN_MATRIX_OFFSET0_1, 0x200);
 	wr(0, VDIN_MATRIX_OFFSET2, 0x200);
+
+	/*coef*/
 	wr(0, VDIN_MATRIX_COEF00_01, 0x6000000);
+	wr(0, VDIN_MATRIX_COEF02_10, 0);
+	wr(0, VDIN_MATRIX_COEF11_12, 0);
+	wr(0, VDIN_MATRIX_COEF20_21, 0);
+	wr(0, VDIN_MATRIX_COEF22, 0);
 }
 EXPORT_SYMBOL(vdin_adjust_tvafesnow_brightness);
 
