@@ -268,6 +268,7 @@ static u32 vsync_count;
 static bool is_osd_off;
 static bool force_reset_core2;
 static int core1_switch;
+static int core3_switch;
 module_param(vtotal_add, uint, 0664);
 MODULE_PARM_DESC(vtotal_add, "\n vtotal_add\n");
 module_param(vpotch, uint, 0664);
@@ -7165,6 +7166,44 @@ static ssize_t amdolby_vision_core1_switch_store(struct class *cla,
 	return count;
 }
 
+static ssize_t amdolby_vision_core3_switch_show(struct class *cla,
+			struct class_attribute *attr, char *buf)
+{
+	return snprintf(buf, 40, "%d\n",
+		core3_switch);
+}
+
+static ssize_t amdolby_vision_core3_switch_store(struct class *cla,
+			struct class_attribute *attr,
+			const char *buf, size_t count)
+{
+	size_t r;
+
+	r = kstrtoint(buf, 0, &core3_switch);
+	if (r != 0)
+		return -EINVAL;
+	if (is_meson_tm2_stbmode()) {
+		switch (core3_switch) {
+		case CORE3_AFTER_WM:
+			VSYNC_WR_DV_REG_BITS(
+				VPP_DOLBY_CTRL,
+				0, 24, 2);
+			break;
+		case CORE3_AFTER_OSD1_HDR:
+			VSYNC_WR_DV_REG_BITS(
+				VPP_DOLBY_CTRL,
+				1, 24, 2);
+			break;
+		case CORE3_AFTER_VD2_HDR:
+			VSYNC_WR_DV_REG_BITS(
+				VPP_DOLBY_CTRL,
+				2, 24, 2);
+			break;
+		}
+	}
+	return count;
+}
+
 static struct class_attribute amdolby_vision_class_attrs[] = {
 	__ATTR(debug, 0644,
 	amdolby_vision_debug_show, amdolby_vision_debug_store),
@@ -7174,6 +7213,8 @@ static struct class_attribute amdolby_vision_class_attrs[] = {
 	NULL, amdolby_vision_reg_store),
 	__ATTR(core1_switch, 0644,
 	amdolby_vision_core1_switch_show, amdolby_vision_core1_switch_store),
+	__ATTR(core3_switch, 0644,
+	amdolby_vision_core3_switch_show, amdolby_vision_core3_switch_store),
 	__ATTR_NULL
 };
 

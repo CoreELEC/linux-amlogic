@@ -56,6 +56,12 @@ enum core1_switch_type {
 	SWITCH_AFTER_DVCORE,
 };
 
+enum core3_switch_type {
+	CORE3_AFTER_WM = 0,
+	CORE3_AFTER_OSD1_HDR,
+	CORE3_AFTER_VD2_HDR,
+};
+
 /*! @brief Output CSC configuration.*/
 # pragma pack(push, 1)
 struct TgtOutCscCfg {
