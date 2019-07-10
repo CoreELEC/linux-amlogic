@@ -425,6 +425,7 @@ struct vdin_hist_s {
 	int width;
 	int height;
 	int ave;
+	unsigned short hist[64];
 };
 
 struct vdin_v4l2_param_s {

@@ -1328,6 +1328,7 @@ static void vdin_hist_tgt(struct vdin_dev_s *devp, struct vframe_s *vf)
 	int ave_luma;
 	int pix_sum;
 	ulong flags;
+	unsigned int i = 0;
 
 	spin_lock_irqsave(&devp->hist_lock, flags);
 	vdin1_hist.sum    = vf->prop.hist.luma_sum;
@@ -1348,6 +1349,9 @@ static void vdin_hist_tgt(struct vdin_dev_s *devp, struct vframe_s *vf)
 	vdin1_hist.ave = ave_luma*255/(235-16);
 	if (vdin1_hist.ave > 255)
 		vdin1_hist.ave = 255;
+
+	for (i = 0; i < 64; i++)
+		vdin1_hist.hist[i] = vf->prop.hist.gamma[i];
 
 	spin_unlock_irqrestore(&devp->hist_lock, flags);
 }
@@ -2716,6 +2720,8 @@ static long vdin_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		vdin1_hist_temp.width = vdin1_hist.width;
 		vdin1_hist_temp.height = vdin1_hist.height;
 		vdin1_hist_temp.ave = vdin1_hist.ave;
+		for (i = 0; i < 64; i++)
+			vdin1_hist_temp.hist[i] = vdin1_hist.hist[i];
 		spin_unlock_irqrestore(&devp->hist_lock, flags);
 		if (vdin_dbg_en) {
 			if (pr_times++ > 10) {
@@ -2724,6 +2730,9 @@ static long vdin_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 					vdin1_hist_temp.height,
 					vdin1_hist_temp.width,
 					vdin1_hist_temp.ave);
+				for (i = 0; i < 64; i++)
+					pr_info("-:vdin1 hist[%d]=%d\n",
+					i, vdin1_hist_temp.hist[i]);
 			}
 		}
 
