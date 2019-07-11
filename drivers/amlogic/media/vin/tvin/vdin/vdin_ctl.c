@@ -1552,9 +1552,14 @@ static void vdin_set_color_matrix0_g12a(unsigned int offset,
 		break;
 	}
 
-	if (matrix_csc == VDIN_MATRIX_NULL)	{
+	if (matrix_csc == VDIN_MATRIX_NULL) {
 		wr_bits(offset, VDIN_MATRIX_CTRL, 0,
 				VDIN_MATRIX_EN_BIT, VDIN_MATRIX_EN_WID);
+
+		if (is_meson_tm2_cpu())
+			wr_bits(offset, VDIN_HDR2_MATRIXI_EN_CTRL, 0,
+					VDIN_MATRIX_EN_BIT,
+					VDIN_MATRIX_EN_WID);
 	} else {
 		matrix_tbl = &vdin_matrix_lup[matrix_csc - 1];
 
@@ -2748,9 +2753,10 @@ void vdin_set_default_regmap(unsigned int offset)
 		is_meson_gxtvbb_cpu() || is_meson_txl_cpu() ||
 		is_meson_txlx_cpu() || is_meson_tl1_cpu())
 		wr(offset, VDIN_LFIFO_CTRL,     0x00000f00);
-	else if (is_meson_tm2_cpu())
+	else if (is_meson_tm2_cpu()) {
 		wr(offset, VDIN_LFIFO_CTRL,     0xc0020f00);
-	else
+		wr(offset, VDIN_HDR2_MATRIXI_EN_CTRL, 0);
+	} else
 		wr(offset, VDIN_LFIFO_CTRL,     0x00000780);
 	/* [15:14]     clkgate.bbar             = 0/(auto, off, on, on) */
 	/* [13:12]     clkgate.bbar             = 0/(auto, off, on, on) */
