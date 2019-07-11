@@ -18,14 +18,11 @@
 #ifndef __AO_CEC_H__
 #define __AO_CEC_H__
 
-
-#define CEC_DRIVER_VERSION	"2019/7/12: add cec chip id\n"
+#define CEC_DRIVER_VERSION	"2019/7/11: pretect resume received OTP again msg\n"
 
 #define CEC_FRAME_DELAY		msecs_to_jiffies(400)
 #define CEC_DEV_NAME		"cec"
 
-#define CEC_EARLY_SUSPEND	(1 << 0)
-#define CEC_DEEP_SUSPEND	(1 << 1)
 #define CEC_PHY_PORT_NUM		4
 #define HR_DELAY(n)		(ktime_set(0, n * 1000 * 1000))
 
