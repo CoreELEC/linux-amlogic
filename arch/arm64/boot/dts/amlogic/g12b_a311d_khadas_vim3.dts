@@ -5,4 +5,21 @@
 	coreelec-dt-id = "g12b_a311d_khadas_vim3";
 
 	/delete-node/ memory@00000000;
+
+	gpioleds {
+		sys_led {
+			gpios=<&gpio_ao GPIOAO_4 GPIO_ACTIVE_HIGH>;
+		};
+	};
+
+	gpio_keypad {
+		key-gpios = <&gpio_ao GPIOAO_7 GPIO_ACTIVE_HIGH>;
+	};
+};
+
+&i2c3 {
+	hym8563: hym8563@51 {
+		compatible = "haoyu,hym8563";
+		reg = <0x51>;
+	};
 };

@@ -17,8 +17,5 @@
 	hym8563: hym8563@51 {
 		compatible = "haoyu,hym8563";
 		reg = <0x51>;
-		i2c_bus = "i2c_bus_c";
-		#clock-cells = <0>;
-		status = "okay";
 	};
 };
