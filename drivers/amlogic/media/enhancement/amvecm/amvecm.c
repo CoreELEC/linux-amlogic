@@ -39,6 +39,9 @@
 #include <linux/amlogic/media/vfm/vframe.h>
 #include <linux/amlogic/media/amvecm/amvecm.h>
 #include <linux/amlogic/media/vout/vout_notify.h>
+#ifdef CONFIG_AMLOGIC_PIXEL_PROBE
+#include <linux/amlogic/pixel_probe.h>
+#endif
 #include <linux/io.h>
 #include <linux/poll.h>
 #include <linux/workqueue.h>
@@ -64,6 +67,7 @@
 #include "hdr/am_hdr10_plus.h"
 #include "local_contrast.h"
 #include "arch/vpp_hdr_regs.h"
+
 
 #define pr_amvecm_dbg(fmt, args...)\
 	do {\
@@ -3449,41 +3453,90 @@ static ssize_t set_hdr_289lut_store(struct class *cls,
 static ssize_t amvecm_set_post_matrix_show(struct class *cla,
 			struct class_attribute *attr, char *buf)
 {
-	return sprintf(buf, "0x%x\n", (int)(READ_VPP_REG(VPP_MATRIX_CTRL)));
+	int val;
+
+	pr_info("Usage:\n");
+	pr_info("echo port > /sys/class/amvecm/matrix_set\n");
+	pr_info("1 : vadj1 input\n");
+	pr_info("2 : vadj2 input\n");
+	pr_info("4 : osd2 input\n");
+	pr_info("8 : postblend input\n");
+	pr_info("16 : osd1 input\n");
+	pr_info("33 : vadj1 output\n");
+	pr_info("34 : vadj2 output\n");
+	pr_info("36 : osd2 output\n");
+	pr_info("40 : postblend output\n");
+	pr_info("48: osd1 output\n");
+
+	val = READ_VPP_REG(VPP_MATRIX_CTRL);
+	pr_info("current setting: %d\n", (val >> 10) & 0x3f);
+
+	return 0;
 }
 static ssize_t amvecm_set_post_matrix_store(struct class *cla,
 			struct class_attribute *attr,
 			const char *buf, size_t count)
 {
-	size_t r;
-	int val;
+	int val, reg_val;
 
-	r = sscanf(buf, "0x%x", &val);
-	if ((r != 1)  || (val & 0xffff0000))
+	if (kstrtoint(buf, 10, &val) < 0)
 		return -EINVAL;
 
-	WRITE_VPP_REG(VPP_MATRIX_CTRL, val);
+	reg_val = READ_VPP_REG(VPP_MATRIX_CTRL);
+	reg_val = reg_val & 0xffff03ff;
+	reg_val = reg_val | ((val & 0x3f) << 10);
+
+	WRITE_VPP_REG(VPP_MATRIX_CTRL, reg_val);
+
+	pr_info("VPP_MATRIX_CTRL is set\n");
 	return count;
 }
 
 static ssize_t amvecm_post_matrix_pos_show(struct class *cla,
 			struct class_attribute *attr, char *buf)
 {
-	return sprintf(buf, "0x%x\n",
-			(int)(READ_VPP_REG(VPP_MATRIX_PROBE_POS)));
+	int val;
+
+	pr_info("Usage:\n");
+	pr_info("echo x y > /sys/class/amvecm/matrix_pos\n");
+
+	val = READ_VPP_REG(VPP_MATRIX_PROBE_POS);
+	pr_info("current position: %d %d\n",
+			(val >> 16) & 0x1fff,
+			(val >> 0) & 0x1fff);
+	return 0;
 }
 static ssize_t amvecm_post_matrix_pos_store(struct class *cla,
 			struct class_attribute *attr,
 			const char *buf, size_t count)
 {
-	size_t r;
-	int val;
+	int val_x, val_y, reg_val;
+	char *buf_orig, *parm[2] = {NULL};
 
-	r = sscanf(buf, "0x%x", &val);
-	if ((r != 1)  || (val & 0xe000e000))
+	if (!buf)
+		return count;
+	buf_orig = kstrdup(buf, GFP_KERNEL);
+	parse_param_amvecm(buf_orig, (char **)&parm);
+
+	if (kstrtoint(parm[0], 10, &val_x) < 0) {
+		kfree(buf_orig);
 		return -EINVAL;
+	}
+	if (kstrtoint(parm[1], 10, &val_y) < 0) {
+		kfree(buf_orig);
+		return -EINVAL;
+	}
 
-	WRITE_VPP_REG(VPP_MATRIX_PROBE_POS, val);
+	val_x = val_x & 0x1fff;
+	val_y = val_y & 0x1fff;
+
+	reg_val = READ_VPP_REG(VPP_MATRIX_PROBE_POS);
+	reg_val = reg_val & 0xe000e000;
+	reg_val = reg_val | (val_x << 16) | val_y;
+
+	WRITE_VPP_REG(VPP_MATRIX_PROBE_POS, reg_val);
+
+	kfree(buf_orig);
 	return count;
 }
 
@@ -3493,13 +3546,19 @@ static ssize_t amvecm_post_matrix_data_show(struct class *cla,
 	int len = 0, val1 = 0, val2 = 0;
 
 	val1 = READ_VPP_REG(VPP_MATRIX_PROBE_COLOR);
-/* #if (MESON_CPU_TYPE >= MESON_CPU_TYPE_MESONG9TV) */
-	val2 = READ_VPP_REG(VPP_MATRIX_PROBE_COLOR1);
-/* #endif */
-	len += sprintf(buf+len,
+	if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12A)) {
+		len += sprintf(buf+len,
+		"VPP_MATRIX_PROBE_COLOR %d, %d, %d\n",
+		(val1 >> 20) & 0x3ff,
+		(val1 >> 10) & 0x3ff,
+		(val1 >> 0) & 0x3ff);
+	} else {
+		val2 = READ_VPP_REG(VPP_MATRIX_PROBE_COLOR1);
+		len += sprintf(buf+len,
 		"VPP_MATRIX_PROBE_COLOR %x, %x, %x\n",
 		((val2 & 0xf) << 8) | ((val1 >> 24) & 0xff),
 		(val1 >> 12) & 0xfff, val1 & 0xfff);
+	}
 	return len;
 }
 
@@ -6788,6 +6847,9 @@ static void aml_vecm_dt_parse(struct platform_device *pdev)
 		vlock_status_init();
 	}
 	/* init module status */
+#ifdef CONFIG_AMLOGIC_PIXEL_PROBE
+	vpp_probe_enable();
+#endif
 	amvecm_wb_init(wb_en);
 	amvecm_gamma_init(0);
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION

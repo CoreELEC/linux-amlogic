@@ -27,6 +27,9 @@
 #include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/amlogic/media/codec_mm/codec_mm.h>
+#ifdef CONFIG_AMLOGIC_PIXEL_PROBE
+#include <linux/amlogic/pixel_probe.h>
+#endif
 /* Local Headers */
 #include "../tvin_format_table.h"
 #include "vdin_drv.h"
@@ -1822,7 +1825,9 @@ start_chk:
 		pr_info("\n");
 	} else if (!strcmp(parm[0], "rgb_xy")) {
 		unsigned int x = 0, y = 0;
-
+#ifdef CONFIG_AMLOGIC_PIXEL_PROBE
+		vdin_probe_enable();
+#endif
 		if (parm[1] && parm[2]) {
 			if (kstrtoul(parm[1], 10, &val) == 0)
 				x = val;
@@ -1834,7 +1839,7 @@ start_chk:
 	} else if (!strcmp(parm[0], "rgb_info")) {
 		unsigned int r, g, b;
 		vdin_get_prob_rgb(devp->addr_offset, &r, &g, &b);
-		pr_info("rgb_info-->r:%d,g:%d,b:%d\n", r, g, b);
+		pr_info("rgb_info-->r:%x,g:%x,b:%x\n", r, g, b);
 	} else if (!strcmp(parm[0], "mpeg2vdin")) {
 		if (parm[1] && parm[2]) {
 			if (kstrtoul(parm[1], 10, &val) == 0)
@@ -1854,7 +1859,9 @@ start_chk:
 				rgb_yuv0, rgb_yuv1, rgb_yuv2);
 	} else if (!strcmp(parm[0], "mat0_xy")) {
 		unsigned int x = 0, y = 0;
-
+#ifdef CONFIG_AMLOGIC_PIXEL_PROBE
+		vdin_probe_enable();
+#endif
 		if (parm[1] && parm[2]) {
 			if (kstrtoul(parm[1], 10, &val) == 0)
 				x = val;

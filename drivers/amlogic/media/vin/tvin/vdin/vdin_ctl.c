@@ -635,7 +635,7 @@ void vdin_get_prob_rgb(unsigned int offset,
 		unsigned int *r, unsigned int *g, unsigned int *b)
 {
 	*b = rgb_info_b = rd_bits(offset, VDIN_MATRIX_PROBE_COLOR,
-		COMPONENT0_PROBE_COLOR_BIT, COMPONENT0_PROBE_COLOR_WID);
+		COMPONENT2_PROBE_COLOR_BIT, COMPONENT0_PROBE_COLOR_WID);
 	*g = rgb_info_g = rd_bits(offset, VDIN_MATRIX_PROBE_COLOR,
 		COMPONENT1_PROBE_COLOR_BIT, COMPONENT1_PROBE_COLOR_WID);
 	*r = rgb_info_r = rd_bits(offset, VDIN_MATRIX_PROBE_COLOR,
