@@ -31,6 +31,7 @@
 #include <linux/input-polldev.h>
 #include <linux/amlogic/scpi_protocol.h>
 #include "adc_keypad.h"
+#include <linux/amlogic/scpi_protocol.h>
 
 #define POLL_INTERVAL_DEFAULT 25
 #define KEY_JITTER_COUNT  1
@@ -628,6 +629,8 @@ static int meson_adc_kp_resume(struct platform_device *pdev)
 				input_report_key(kp->poll_dev->input,
 					KEY_POWER,  0);
 				input_sync(kp->poll_dev->input);
+				if (scpi_clr_wakeup_reason())
+					pr_debug("clr adc wakeup reason fail.\n");
 
 				break;
 			}

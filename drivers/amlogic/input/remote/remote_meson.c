@@ -41,6 +41,7 @@
 #include <linux/amlogic/iomap.h>
 #include <linux/pm_wakeup.h>
 #include <linux/pm_wakeirq.h>
+#include <linux/amlogic/scpi_protocol.h>
 
 static void amlremote_tasklet(unsigned long data);
 static void learning_done_workqueue(struct work_struct *work);
@@ -922,6 +923,8 @@ static int remote_resume(struct device *dev)
 		input_event(chip->r_dev->input_device,
 		    EV_KEY, KEY_POWER, 0);
 		input_sync(chip->r_dev->input_device);
+		if (scpi_clr_wakeup_reason())
+			pr_debug("clr wakeup reason fail.\n");
 	}
 
 	if (get_resume_method() == REMOTE_CUS_WAKEUP) {
@@ -929,6 +932,8 @@ static int remote_resume(struct device *dev)
 		input_sync(chip->r_dev->input_device);
 		input_event(chip->r_dev->input_device, EV_KEY, 133, 0);
 		input_sync(chip->r_dev->input_device);
+		if (scpi_clr_wakeup_reason())
+			pr_debug("clr wakeup reason fail.\n");
 	}
 #endif
 

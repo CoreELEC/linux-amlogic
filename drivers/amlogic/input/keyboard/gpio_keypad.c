@@ -23,6 +23,7 @@
 #include <linux/interrupt.h>
 #include <linux/slab.h>
 #include <linux/amlogic/pm.h>
+#include <linux/amlogic/scpi_protocol.h>
 
 #undef pr_fmt
 #define pr_fmt(fmt) "gpio-keypad: " fmt
@@ -326,6 +327,8 @@ static int meson_gpio_kp_resume(struct platform_device *dev)
 				break;
 			}
 		}
+		if (scpi_clr_wakeup_reason())
+			pr_debug("clr gpio kp wakeup reason fail.\n");
 	}
 	return 0;
 }

@@ -28,6 +28,7 @@
 #include <linux/debugfs.h>
 #include <linux/input.h>
 #include <linux/amlogic/pm.h>
+#include <linux/amlogic/scpi_protocol.h>
 
 static void __iomem *alarm_reg_vaddr;
 static void __iomem *timere_low_vaddr, *timere_high_vaddr;
@@ -44,6 +45,8 @@ static void send_power_btn_wakeup(void)
 		input_sync(vinput_dev);
 		input_event(vinput_dev, EV_KEY, KEY_POWER, 0);
 		input_sync(vinput_dev);
+		if (scpi_clr_wakeup_reason())
+			pr_debug("clr vrtc wakeup reason fail.\n");
 	}
 }
 
