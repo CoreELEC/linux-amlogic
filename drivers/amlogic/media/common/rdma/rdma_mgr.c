@@ -68,10 +68,14 @@ static int rdma_watchdog = 20;
 static int reset_count;
 static int rdma_watchdog_count;
 static int rdma_force_reset = -1;
-static u16 trace_reg;
 
 #define RDMA_NUM 8
 #define RDMA_TABLE_SIZE (8 * (PAGE_SIZE))
+#define MAX_TRACE_NUM  16
+#define RDMA_MGR_CLASS_NAME  "rdma_mgr"
+static int rdma_trace_num;
+static int rdma_trace_enable;
+static u32 rdma_trace_reg[MAX_TRACE_NUM];
 
 struct rdma_regadr_s {
 	u32 rdma_ahb_start_addr;
@@ -106,6 +110,7 @@ struct rdma_instance_s {
 struct rdma_device_info {
 	const char *device_name;
 	struct platform_device *rdma_dev;
+	struct class *clsp;
 	struct rdma_instance_s rdma_ins[RDMA_NUM];
 };
 
@@ -614,7 +619,7 @@ EXPORT_SYMBOL(rdma_clear);
 
 u32 rdma_read_reg(int handle, u32 adr)
 {
-	int i;
+	int i, j = 0;
 	u32 *write_table;
 	int match = 0;
 	int read_from = 0;
@@ -642,24 +647,29 @@ u32 rdma_read_reg(int handle, u32 adr)
 			}
 		}
 	}
-	if (adr == trace_reg) {
-		if (read_from == 2)
-			pr_info("(%s) handle %d, %04x=0x%08x from write table(%d)\n",
-				__func__,
-				handle, adr,
-				read_val,
-				ins->rdma_write_count);
-		else if (read_from == 1)
-			pr_info("(%s) handle %d, %04x=0x%08x from item table(%d)\n",
-				__func__,
-				handle, adr,
-				read_val,
-				ins->rdma_item_count);
-		else
-			pr_info("(%s) handle %d, %04x=0x%08x from real reg\n",
-				__func__,
-				handle, adr,
-				read_val);
+	if (rdma_trace_enable) {
+		for (j = 0; j < rdma_trace_num; j++) {
+			if (adr == rdma_trace_reg[j]) {
+				if (read_from == 2)
+					pr_info("(%s) handle %d, %04x=0x%08x from write table(%d)\n",
+						__func__,
+						handle, adr,
+						read_val,
+						ins->rdma_write_count);
+				else if (read_from == 1)
+					pr_info("(%s) handle %d, %04x=0x%08x from item table(%d)\n",
+						__func__,
+						handle, adr,
+						read_val,
+						ins->rdma_item_count);
+				else
+					pr_info("(%s) handle %d, %04x=0x%08x from real reg\n",
+						__func__,
+						handle, adr,
+						read_val);
+			}
+
+		}
 	}
 	return read_val;
 }
@@ -698,6 +708,7 @@ int rdma_write_reg(int handle, u32 adr, u32 val)
 {
 	struct rdma_device_info *info = &rdma_info;
 	struct rdma_instance_s *ins = &info->rdma_ins[handle];
+	int j = 0;
 
 	if (ins->rdma_table_size == 0)
 		return -1;
@@ -724,19 +735,24 @@ int rdma_write_reg(int handle, u32 adr, u32 val)
 		ins->reg_buf[(ins->rdma_item_count << 1) + 1] = val;
 		ins->rdma_item_count++;
 	}
-	if (adr == trace_reg)
-		pr_info("(%s) handle %d, %04x=0x%08x (%d)\n",
-			__func__,
-			handle, adr,
-			val,
-			ins->rdma_item_count);
+	if (rdma_trace_enable) {
+		for (j = 0; j < rdma_trace_num; j++) {
+			if (adr == rdma_trace_reg[j]) {
+				pr_info("(%s) handle %d, %04x=0x%08x (%d)\n",
+					__func__,
+					handle, adr,
+					val,
+					ins->rdma_item_count);
+			}
+		}
+	}
 	return 0;
 }
 EXPORT_SYMBOL(rdma_write_reg);
 
 int rdma_write_reg_bits(int handle, u32 adr, u32 val, u32 start, u32 len)
 {
-	int i;
+	int i, j = 0;
 	u32 *write_table;
 	int match = 0;
 	int read_from = 0;
@@ -771,27 +787,31 @@ int rdma_write_reg_bits(int handle, u32 adr, u32 val, u32 start, u32 len)
 	write_val = (read_val & ~(((1L<<(len))-1)<<(start)))
 		|((unsigned int)(val) << (start));
 
-	if (adr == trace_reg) {
-		if (read_from == 2)
-			pr_info("(%s) handle %d, %04x=0x%08x->0x%08x from write table(%d)\n",
-				__func__,
-				handle, adr,
-				read_val,
-				write_val,
-				ins->rdma_write_count);
-		else if (read_from == 1)
-			pr_info("(%s) handle %d, %04x=0x%08x->0x%08x from item table(%d)\n",
-				__func__,
-				handle, adr,
-				read_val,
-				write_val,
-				ins->rdma_item_count);
-		else
-			pr_info("(%s) handle %d, %04x=0x%08x->0x%08x from real reg\n",
-				__func__,
-				handle, adr,
-				read_val,
-				write_val);
+	if (rdma_trace_enable) {
+		for (j = 0; j < rdma_trace_num; j++) {
+			if (adr == rdma_trace_reg[j]) {
+				if (read_from == 2)
+					pr_info("(%s) handle %d, %04x=0x%08x->0x%08x from write table(%d)\n",
+						__func__,
+						handle, adr,
+						read_val,
+						write_val,
+						ins->rdma_write_count);
+				else if (read_from == 1)
+					pr_info("(%s) handle %d, %04x=0x%08x->0x%08x from item table(%d)\n",
+						__func__,
+						handle, adr,
+						read_val,
+						write_val,
+						ins->rdma_item_count);
+				else
+					pr_info("(%s) handle %d, %04x=0x%08x->0x%08x from real reg\n",
+						__func__,
+						handle, adr,
+						read_val,
+						write_val);
+			}
+		}
 	}
 	if (match) {
 		ins->reg_buf[(i << 1) + 1] = write_val;
@@ -820,9 +840,6 @@ module_param(ctrl_ahb_rd_burst_size, uint, 0664);
 
 MODULE_PARM_DESC(ctrl_ahb_wr_burst_size, "\n ctrl_ahb_wr_burst_size\n");
 module_param(ctrl_ahb_wr_burst_size, uint, 0664);
-
-MODULE_PARM_DESC(trace_reg, "\n trace_addr\n");
-module_param(trace_reg, ushort, 0664);
 
 static struct rdma_device_data_s rdma_meson = {
 	.cpu_type = CPU_NORMAL,
@@ -858,6 +875,112 @@ static const struct of_device_id rdma_dt_match[] = {
 	{},
 };
 
+static int parse_para(const char *para, int para_num, int *result)
+{
+	char *token = NULL;
+	char *params, *params_base;
+	int *out = result;
+	int len = 0, count = 0;
+	int res = 0;
+	int ret = 0;
+
+	if (!para)
+		return 0;
+
+	params = kstrdup(para, GFP_KERNEL);
+	params_base = params;
+	token = params;
+	if (!token)
+		return 0;
+	len = strlen(token);
+	do {
+		token = strsep(&params, " ");
+		while (token && (isspace(*token)
+				|| !isgraph(*token)) && len) {
+			token++;
+			len--;
+		}
+		if ((len == 0) || (!token))
+			break;
+		ret = kstrtoint(token, 0, &res);
+		if (ret < 0)
+			break;
+		len = strlen(token);
+		*out++ = res;
+		count++;
+	} while ((token) && (count < para_num) && (len > 0));
+
+	kfree(params_base);
+	return count;
+}
+
+static ssize_t rdma_mgr_trace_enable_show(struct class *cla,
+		struct class_attribute *attr, char *buf)
+{
+	return snprintf(buf, PAGE_SIZE, "%x\n", rdma_trace_enable);
+}
+
+static ssize_t rdma_mgr_trace_enable_stroe(struct class *cla,
+		struct class_attribute *attr,
+		const char *buf, size_t count)
+{
+	int ret = 0;
+
+	ret = kstrtoint(buf, 0, &rdma_trace_enable);
+	if (ret < 0)
+		return -EINVAL;
+	return count;
+}
+
+static ssize_t rdma_mgr_trace_reg_show(struct class *cla,
+		struct class_attribute *attr, char *buf)
+{
+	int i;
+	char reg_info[16];
+	char *trace_info = NULL;
+
+	trace_info = kmalloc(rdma_trace_num * 16 + 1, GFP_KERNEL);
+	if (!trace_info)
+		return 0;
+	for (i = 0; i < rdma_trace_num; i++) {
+		sprintf(reg_info, "0x%x", rdma_trace_reg[i]);
+		strcat(trace_info, reg_info);
+		strcat(trace_info, " ");
+	}
+	i = snprintf(buf, PAGE_SIZE, "%s\n", trace_info);
+	kfree(trace_info);
+	trace_info = NULL;
+	return i;
+}
+
+static ssize_t rdma_mgr_trace_reg_stroe(struct class *cla,
+		struct class_attribute *attr,
+		const char *buf, size_t count)
+{
+	int parsed[MAX_TRACE_NUM];
+	int i = 0, num = 0;
+
+	for (i	= 0; i < MAX_TRACE_NUM; i++)
+		rdma_trace_reg[i] = 0;
+	num = parse_para(buf, MAX_TRACE_NUM, parsed);
+	if (num <= MAX_TRACE_NUM) {
+		rdma_trace_num = num;
+		for (i  = 0; i < num; i++) {
+			rdma_trace_reg[i] = parsed[i];
+			pr_info("trace reg:0x%x\n", rdma_trace_reg[i]);
+		}
+	}
+	return count;
+}
+
+static struct class_attribute rdma_attrs[] = {
+	__ATTR(trace_enable, 0664,
+		rdma_mgr_trace_enable_show, rdma_mgr_trace_enable_stroe),
+	__ATTR(trace_reg, 0664,
+		rdma_mgr_trace_reg_show, rdma_mgr_trace_reg_stroe),
+
+};
+
 u32 is_meson_g12b_revb(void)
 {
 	if (rdma_meson_dev.cpu_type == CPU_G12B &&
@@ -870,7 +993,7 @@ u32 is_meson_g12b_revb(void)
 /* static int __devinit rdma_probe(struct platform_device *pdev) */
 static int rdma_probe(struct platform_device *pdev)
 {
-	int i;
+	int i, ret = 0;
 	u32 data32;
 	int int_rdma;
 	int handle;
@@ -911,7 +1034,6 @@ static int rdma_probe(struct platform_device *pdev)
 	WRITE_VCBUS_REG(VPU_VPUARB2_ASYNC_HOLD_CTRL, 0x18101810);
 
 	rdma_mgr_irq_request = 0;
-	trace_reg = 0;
 
 	for (i = 0; i < RDMA_NUM; i++) {
 		info->rdma_ins[i].rdma_table_size = 0;
@@ -965,15 +1087,49 @@ static int rdma_probe(struct platform_device *pdev)
 			NULL, RDMA_TABLE_SIZE);
 		set_rdma_handle(LINE_N_INT_RDMA, handle);
 	}
+	info->clsp = class_create(THIS_MODULE,
+		RDMA_MGR_CLASS_NAME);
+	if (IS_ERR(info->clsp)) {
+		ret = PTR_ERR(info->clsp);
+		pr_err("fail to create class\n");
+		goto fail_create_class;
+	}
+	pr_info("classs created ok\n");
+	for (i = 0; i < ARRAY_SIZE(rdma_attrs); i++) {
+		if (class_create_file
+			(info->clsp,
+			&rdma_attrs[i]) < 0) {
+		pr_err("fail to class_create_file\n");
+		goto fail_class_create_file;
+		}
+	}
+	pr_info("classs file created ok\n");
 	return 0;
-
+fail_class_create_file:
+	for (i = 0; i < ARRAY_SIZE(rdma_attrs); i++)
+		class_remove_file(
+		info->clsp, &rdma_attrs[i]);
+	class_destroy(info->clsp);
+	info->clsp = NULL;
+	rdma_trace_num = 0;
+	rdma_trace_enable = 0;
+fail_create_class:
+	return ret;
 }
 
 /* static int __devexit rdma_remove(struct platform_device *pdev) */
 static int rdma_remove(struct platform_device *pdev)
 {
+	int i;
+	struct rdma_device_info *info = &rdma_info;
+
 	pr_error("RDMA driver removed.\n");
 	switch_vpu_mem_pd_vmod(VPU_RDMA, VPU_MEM_POWER_DOWN);
+	for (i = 0; i < ARRAY_SIZE(rdma_attrs); i++)
+		class_remove_file(
+		info->clsp, &rdma_attrs[i]);
+	class_destroy(info->clsp);
+	info->clsp = NULL;
 	return 0;
 }
 

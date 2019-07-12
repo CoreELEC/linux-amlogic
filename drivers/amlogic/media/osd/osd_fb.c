@@ -2966,6 +2966,8 @@ static ssize_t store_osd_reg(struct device *device,
 		reg_val = val;
 		osd_reg_write(reg_addr, reg_val);
 	}
+	kfree(buf_orig);
+	buf_orig = NULL;
 	return count;
 }
 
@@ -3374,6 +3376,68 @@ static ssize_t store_osd_blend_bypass(
 	return count;
 }
 
+static ssize_t show_rdma_trace_enable(
+	struct device *device, struct device_attribute *attr,
+	char *buf)
+{
+	return snprintf(buf, PAGE_SIZE, "%x\n", osd_hw.rdma_trace_enable);
+}
+
+static ssize_t store_rdma_trace_enable(
+	struct device *device, struct device_attribute *attr,
+	const char *buf, size_t count)
+{
+	int trace_enable;
+	int ret = 0;
+
+	ret = kstrtoint(buf, 0, &trace_enable);
+	if (ret < 0)
+		return -EINVAL;
+	osd_hw.rdma_trace_enable = trace_enable;
+	return count;
+}
+
+static ssize_t show_rdma_trace_reg(
+	struct device *device, struct device_attribute *attr,
+	char *buf)
+{
+	int i;
+	char reg_info[16];
+	char *trace_info = NULL;
+
+	trace_info = kmalloc(osd_hw.rdma_trace_num * 16 + 1, GFP_KERNEL);
+	if (!trace_info)
+		return 0;
+	for (i = 0; i < osd_hw.rdma_trace_num; i++) {
+		sprintf(reg_info, "0x%x", osd_hw.rdma_trace_reg[i]);
+		strcat(trace_info, reg_info);
+		strcat(trace_info, " ");
+	}
+	i = snprintf(buf, PAGE_SIZE, "%s\n", trace_info);
+	kfree(trace_info);
+	trace_info = NULL;
+	return i;
+}
+
+static ssize_t store_rdma_trace_reg(
+	struct device *device, struct device_attribute *attr,
+	const char *buf, size_t count)
+{
+	int parsed[MAX_TRACE_NUM];
+	int i = 0, num = 0;
+
+	for (i  = 0; i < MAX_TRACE_NUM; i++)
+		osd_hw.rdma_trace_reg[i] = 0;
+	num = parse_para(buf, MAX_TRACE_NUM, parsed);
+	if (num <= MAX_TRACE_NUM) {
+		osd_hw.rdma_trace_num = num;
+		for (i  = 0; i < num; i++) {
+			osd_hw.rdma_trace_reg[i] = parsed[i];
+			pr_info("trace reg:0x%x\n", osd_hw.rdma_trace_reg[i]);
+		}
+	}
+	return count;
+}
 
 static inline  int str2lower(char *str)
 {
@@ -3591,6 +3655,10 @@ static struct device_attribute osd_attrs[] = {
 			show_osd_hold_line, store_osd_hold_line),
 	__ATTR(osd_blend_bypass, 0644,
 			show_osd_blend_bypass, store_osd_blend_bypass),
+	__ATTR(trace_enable, 0644,
+			show_rdma_trace_enable, store_rdma_trace_enable),
+	__ATTR(trace_reg, 0644,
+			show_rdma_trace_reg, store_rdma_trace_reg),
 };
 
 static struct device_attribute osd_attrs_viu2[] = {

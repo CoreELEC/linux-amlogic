@@ -111,9 +111,10 @@ enum color_index_e {
 #define KEYCOLOR_FLAG_ONHOLD  2
 #define KEYCOLOR_FLAG_CURRENT 4
 
-#define HW_OSD_COUNT 4
+#define HW_OSD_COUNT     4
 #define OSD_BLEND_LAYERS 4
-#define VIU_COUNT     2
+#define VIU_COUNT        2
+#define MAX_TRACE_NUM    16
 
 /* OSD block definition */
 #define HW_OSD_BLOCK_COUNT 4
@@ -772,6 +773,9 @@ struct hw_para_s {
 	u32 afbc_err_cnt;
 	u32 viu_type;
 	u32 line_n_rdma;
+	u32 rdma_trace_enable;
+	u32 rdma_trace_num;
+	u32 rdma_trace_reg[MAX_TRACE_NUM];
 	struct hw_debug_s osd_debug;
 	int out_fence_fd[VIU_COUNT];
 	int in_fd[HW_OSD_COUNT];
