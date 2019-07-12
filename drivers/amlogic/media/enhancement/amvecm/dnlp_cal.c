@@ -591,6 +591,10 @@ void ve_set_v3_dnlp(struct ve_dnlp_curve_param_s *p)
 			p->param[ve_dnlp_hghrange]) ||
 		(dnlp_alg_param.dnlp_auto_rng !=
 			p->param[ve_dnlp_auto_rng]) ||
+		(dnlp_alg_param.dnlp_cuvbld_min !=
+			p->param[ve_dnlp_cuvbld_min]) ||
+		(dnlp_alg_param.dnlp_cuvbld_max !=
+			p->param[ve_dnlp_cuvbld_max]) ||
 		(dnlp_alg_param.dnlp_bbd_ratio_low !=
 			p->param[ve_dnlp_bbd_ratio_low]) ||
 		(dnlp_alg_param.dnlp_bbd_ratio_hig !=
@@ -717,6 +721,9 @@ void ve_set_v3_dnlp(struct ve_dnlp_curve_param_s *p)
 	dnlp_alg_param.dnlp_lowrange = p->param[ve_dnlp_lowrange];
 	dnlp_alg_param.dnlp_hghrange = p->param[ve_dnlp_hghrange];
 	dnlp_alg_param.dnlp_auto_rng = p->param[ve_dnlp_auto_rng];
+
+	dnlp_alg_param.dnlp_cuvbld_min = p->param[ve_dnlp_cuvbld_min];
+	dnlp_alg_param.dnlp_cuvbld_max = p->param[ve_dnlp_cuvbld_max];
 
 	/* histogram refine parms (remove bb affects) */
 	dnlp_alg_param.dnlp_bbd_ratio_low = p->param[ve_dnlp_bbd_ratio_low];
