@@ -76,7 +76,7 @@ static struct early_suspend aocec_suspend_handler;
 #endif
 
 struct cec_platform_data_s {
-	/*unsigned int chip_id;*/
+	enum cec_chip_ver chip_id;
 	unsigned char line_reg;/*cec gpio_i reg:0  ao;1 periph*/
 	unsigned int line_bit;/*cec gpio position in reg*/
 	bool ee_to_ao;/*ee cec hw module mv to ao;ao cec delete*/
@@ -1228,15 +1228,21 @@ void cec_clear_all_logical_addr(unsigned int cec_sel)
 void cec_enable_arc_pin(bool enable)
 {
 	unsigned int data;
+	unsigned int chipid = cec_dev->plat_data->chip_id;
 
-	if (is_meson_sm1_cpu() ||
-			cpu_after_eq(MESON_CPU_MAJOR_ID_TM2)) {
-		/*sm1 and tm2 later, audio module handle this*/
-
+	/* box no arc out*/
+	if ((chipid != CEC_CHIP_TXL) &&
+		(chipid != CEC_CHIP_TXLX) &&
+		(chipid != CEC_CHIP_TL1) &&
+		(chipid != CEC_CHIP_TM2))
 		return;
-	}
 
-	if (cec_dev->plat_data->cecb_ver >= CECB_VER_2) {
+	/*tm2 later, audio module handle this*/
+	if (chipid >= CEC_CHIP_TM2)
+		return;
+
+	/* tl1 tm2*/
+	if (chipid == CEC_CHIP_TL1) {
 		data = rd_reg_hhi(HHI_HDMIRX_ARC_CNTL);
 		/* enable bit 1:1 bit 0: 0*/
 		if (enable)
@@ -1246,7 +1252,7 @@ void cec_enable_arc_pin(bool enable)
 		wr_reg_hhi(HHI_HDMIRX_ARC_CNTL, data);
 		CEC_INFO("set arc en:%d, reg:%x\n", enable, data);
 	} else {
-		/* select arc according arg */
+		/* only tv chip select arc according arg */
 		if (enable)
 			hdmirx_wr_top(TOP_ARCTX_CNTL, 0x01);
 		else
@@ -3274,6 +3280,7 @@ static void aocec_late_resume(struct early_suspend *h)
 
 #ifdef CONFIG_OF
 static const struct cec_platform_data_s cec_gxl_data = {
+	.chip_id = CEC_CHIP_GXL,
 	.line_reg = 0,
 	.line_bit = 8,
 	.ee_to_ao = 0,
@@ -3284,6 +3291,7 @@ static const struct cec_platform_data_s cec_gxl_data = {
 };
 
 static const struct cec_platform_data_s cec_txlx_data = {
+	.chip_id = CEC_CHIP_TXLX,
 	.line_reg = 0,
 	.line_bit = 7,
 	.ee_to_ao = 1,
@@ -3294,6 +3302,18 @@ static const struct cec_platform_data_s cec_txlx_data = {
 };
 
 static const struct cec_platform_data_s cec_g12a_data = {
+	.chip_id = CEC_CHIP_G12A,
+	.line_reg = 1,
+	.line_bit = 3,
+	.ee_to_ao = 1,
+	.ceca_sts_reg = 0,
+	.ceca_ver = CECA_VER_0,
+	.cecb_ver = CECB_VER_1,
+	.share_io = false,
+};
+
+static const struct cec_platform_data_s cec_g12b_data = {
+	.chip_id = CEC_CHIP_G12B,
 	.line_reg = 1,
 	.line_bit = 3,
 	.ee_to_ao = 1,
@@ -3304,6 +3324,7 @@ static const struct cec_platform_data_s cec_g12a_data = {
 };
 
 static const struct cec_platform_data_s cec_txl_data = {
+	.chip_id = CEC_CHIP_TXL,
 	.line_reg = 0,
 	.line_bit = 7,
 	.ee_to_ao = 0,
@@ -3314,6 +3335,7 @@ static const struct cec_platform_data_s cec_txl_data = {
 };
 
 static const struct cec_platform_data_s cec_tl1_data = {
+	.chip_id = CEC_CHIP_TL1,
 	.line_reg = 0,
 	.line_bit = 10,
 	.ee_to_ao = 1,
@@ -3324,6 +3346,7 @@ static const struct cec_platform_data_s cec_tl1_data = {
 };
 
 static const struct cec_platform_data_s cec_sm1_data = {
+	.chip_id = CEC_CHIP_SM1,
 	.line_reg = 1,
 	.line_bit = 3,
 	.ee_to_ao = 1,
@@ -3334,6 +3357,7 @@ static const struct cec_platform_data_s cec_sm1_data = {
 };
 
 static const struct cec_platform_data_s cec_tm2_data = {
+	.chip_id = CEC_CHIP_TM2,
 	.line_reg = 0,
 	.line_bit = 3,
 	.ee_to_ao = 1,
@@ -3355,6 +3379,10 @@ static const struct of_device_id aml_cec_dt_match[] = {
 	{
 		.compatible = "amlogic, aocec-g12a",
 		.data = &cec_g12a_data,
+	},
+	{
+		.compatible = "amlogic, aocec-g12b",
+		.data = &cec_g12b_data,
 	},
 	{
 		.compatible = "amlogic, aocec-txl",
