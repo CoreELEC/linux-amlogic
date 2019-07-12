@@ -7787,10 +7787,14 @@ static void osd_set_freescale_new(u32 index,
 		return;
 	}
 	output_index = get_output_device_id(index);
-	osd_hw.free_scale_enable[index] = 0x10001;
-	osd_hw.free_scale[index].h_enable = 1;
-	osd_hw.free_scale[index].v_enable = 1;
-	osd_hw.free_scale_mode[index] = 1;
+
+	if (!(osd_hw.osd_display_debug &&
+		!osd_hw.free_scale_enable[index])) {
+		osd_hw.free_scale_enable[index] = 0x10001;
+		osd_hw.free_scale[index].h_enable = 1;
+		osd_hw.free_scale[index].v_enable = 1;
+		osd_hw.free_scale_mode[index] = 1;
+	}
 
 	osd_hw.free_src_data[index].x_start =
 		osd_hw.src_data[index].x;
