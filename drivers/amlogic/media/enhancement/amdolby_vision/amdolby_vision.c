@@ -2580,7 +2580,7 @@ static void apply_stb_core_settings(
 			g_vpotch = 0x60;
 		else
 			g_vpotch = 0x20;
-	} else if (is_meson_g12()) {
+	} else if (is_meson_g12() || is_meson_tm2_stbmode()) {
 		if (vinfo) {
 			if (debug_dolby & 2)
 				pr_dolby_dbg("vinfo %d %d %d\n",
