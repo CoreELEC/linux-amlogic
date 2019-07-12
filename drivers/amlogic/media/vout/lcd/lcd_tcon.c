@@ -106,6 +106,19 @@ void lcd_tcon_reg_write(unsigned int addr, unsigned int val)
 	}
 }
 
+static void lcd_tcon_od_init(unsigned char *table)
+{
+	unsigned int reg, bit, flag;
+
+	if (lcd_tcon_data->reg_core_od == REG_LCD_TCON_MAX)
+		return;
+
+	reg = lcd_tcon_data->reg_core_od;
+	bit = lcd_tcon_data->bit_od_en;
+	flag = (table[reg] >> bit) & 1;
+	lcd_tcon_od_set(flag);
+}
+
 static void lcd_tcon_od_check(unsigned char *table)
 {
 	unsigned int reg, bit;
@@ -369,6 +382,7 @@ static int lcd_tcon_config(struct aml_lcd_drv_s *lcd_drv)
 #endif
 
 	lcd_tcon_intr_init(lcd_drv);
+	lcd_tcon_od_init(lcd_tcon_data->reg_table);
 
 	return 0;
 }
