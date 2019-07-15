@@ -1440,6 +1440,7 @@ static unsigned int lcd_enc_tst[][7] = {
 void lcd_debug_test(unsigned int num)
 {
 	unsigned int h_active, video_on_pixel;
+	static int change_flag;
 	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
 
 	num = (num >= LCD_ENC_TST_NUM_MAX) ? 0 : num;
@@ -1451,6 +1452,19 @@ void lcd_debug_test(unsigned int num)
 
 	h_active = lcd_drv->lcd_config->lcd_basic.h_active;
 	video_on_pixel = lcd_drv->lcd_config->lcd_timing.video_on_pixel;
+	if (num > 0) {
+		if (!change_flag) {
+			if (lcd_vcbus_getb(L_GAMMA_CNTL_PORT, 0, 1)) {
+				change_flag = 1;
+				lcd_vcbus_setb(L_GAMMA_CNTL_PORT, 0, 0, 1);
+			}
+		}
+	} else {
+		if (change_flag) {
+			change_flag = 0;
+			lcd_vcbus_setb(L_GAMMA_CNTL_PORT, 1, 0, 1);
+		}
+	}
 	lcd_vcbus_write(ENCL_VIDEO_RGBIN_CTRL, lcd_enc_tst[num][6]);
 	lcd_vcbus_write(ENCL_TST_MDSEL, lcd_enc_tst[num][0]);
 	lcd_vcbus_write(ENCL_TST_Y, lcd_enc_tst[num][1]);
@@ -2589,6 +2603,7 @@ static ssize_t lcd_debug_test_store(struct class *class,
 	}
 	temp = (temp >= LCD_ENC_TST_NUM_MAX) ? 0 : temp;
 	lcd_drv->lcd_test_flag = (unsigned char)(temp | LCD_TEST_UPDATE);
+
 	while (i++ < 5000) {
 		if (lcd_drv->lcd_test_state == temp)
 			break;
@@ -3931,7 +3946,7 @@ static ssize_t lcd_tcon_debug_store(struct class *class,
 		struct class_attribute *attr, const char *buf, size_t count)
 {
 	char *buf_orig;
-	char *parm[47] = {NULL};
+	char **parm = NULL;
 	unsigned int temp = 0, val, i, n, size;
 	unsigned char data;
 	unsigned char *table;
@@ -3951,7 +3966,15 @@ static ssize_t lcd_tcon_debug_store(struct class *class,
 		LCDERR("%s: buf malloc error\n", __func__);
 		return count;
 	}
-	lcd_debug_parse_param(buf_orig, (char **)&parm);
+
+	parm = kcalloc(520, sizeof(char *), GFP_KERNEL);
+	if (parm == NULL) {
+		LCDERR("%s: parm malloc error\n", __func__);
+		kfree(buf_orig);
+		return count;
+	}
+
+	lcd_debug_parse_param(buf_orig, parm);
 
 	if (strcmp(parm[0], "reg") == 0) {
 		if (parm[1] == NULL) {
@@ -3988,8 +4011,38 @@ static ssize_t lcd_tcon_debug_store(struct class *class,
 				data = (unsigned char)val;
 				lcd_tcon_write_byte(temp, data);
 				pr_info(
-			"write tcon byte [0x%04x] = 0x%02x, readback 0x%02x\n",
-					temp, data, lcd_tcon_read_byte(temp));
+			"write tcon byte [0x%04x] = 0x%02x\n", temp, data);
+			}
+		} else if (strcmp(parm[1], "wlb") == 0) {
+			if (parm[3] != NULL) {
+				ret = kstrtouint(parm[2], 16, &temp);
+				if (ret) {
+					pr_info("invalid parameters\n");
+					goto lcd_tcon_debug_store_err;
+				}
+				ret = kstrtouint(parm[3], 16, &size);
+				if (ret) {
+					pr_info("invalid parameters\n");
+					goto lcd_tcon_debug_store_err;
+				}
+
+				if (parm[3 + size] == NULL) {
+					pr_info("size and data is not match\n");
+					goto lcd_tcon_debug_store_err;
+				}
+
+				for (i = 0; i < size; i++) {
+					ret = kstrtouint(parm[4 + i], 16, &val);
+					if (ret) {
+						pr_info("invalid parameters\n");
+						goto lcd_tcon_debug_store_err;
+					}
+					data = (unsigned char)val;
+					lcd_tcon_write_byte((temp + i), data);
+					pr_info(
+					"write tcon byte [0x%04x] = 0x%02x\n",
+					(temp + i), data);
+				}
 			}
 		} else if (strcmp(parm[1], "r") == 0) {
 			if (parm[2] != NULL) {
@@ -4014,9 +4067,39 @@ static ssize_t lcd_tcon_debug_store(struct class *class,
 					goto lcd_tcon_debug_store_err;
 				}
 				lcd_tcon_write(temp, val);
-				pr_info(
-			"write tcon [0x%04x] = 0x%08x, readback 0x%08x\n",
-					temp, val, lcd_tcon_read(temp));
+				pr_info("write tcon [0x%04x] = 0x%08x\n",
+					temp, val);
+			}
+		} else if (strcmp(parm[1], "wl") == 0) {
+			if (parm[3] != NULL) {
+				ret = kstrtouint(parm[2], 16, &temp);
+				if (ret) {
+					pr_info("invalid parameters\n");
+					goto lcd_tcon_debug_store_err;
+				}
+				pr_info("temp = %d\n", temp);
+				ret = kstrtouint(parm[3], 16, &size);
+				if (ret) {
+					pr_info("invalid parameters\n");
+					goto lcd_tcon_debug_store_err;
+				}
+
+				if (parm[3 + size] == NULL) {
+					pr_info("size and data is not match\n");
+					goto lcd_tcon_debug_store_err;
+				}
+
+				for (i = 0; i < size; i++) {
+					ret = kstrtouint(parm[4 + i], 16, &val);
+					if (ret) {
+						pr_info("invalid parameters\n");
+						goto lcd_tcon_debug_store_err;
+					}
+					lcd_tcon_write(temp + i, val);
+					pr_info(
+					"write tcon [0x%04x] = 0x%08x\n",
+					(temp + i), val);
+				}
 			}
 		}
 	} else if (strcmp(parm[0], "table") == 0) {
@@ -4118,10 +4201,12 @@ static ssize_t lcd_tcon_debug_store(struct class *class,
 	}
 
 lcd_tcon_debug_store_end:
+	kfree(parm);
 	kfree(buf_orig);
 	return count;
 
 lcd_tcon_debug_store_err:
+	kfree(parm);
 	kfree(buf_orig);
 	return count;
 }
