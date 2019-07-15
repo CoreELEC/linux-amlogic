@@ -179,9 +179,18 @@ static int write_to_fifo(struct meson_irblaster_dev *dev,
 	 * bit[9:0]: Count of timebase units to delay
 	 */
 
-	count_delay = (((hightime + cycle / 2) / cycle) - 1) & COUNT_DELAY_MASK;
-	val = (BLASTER_WRITE_FIFO | BLASTER_MODULATION_ENABLE |
-		BLASTER_TIMEBASE_MODULATION_CLOCK | (count_delay << 0));
+	count_delay = ((hightime + cycle / 2) / cycle) - 1;
+	if (count_delay < 1024) {
+		count_delay &= COUNT_DELAY_MASK;
+		val = (BLASTER_WRITE_FIFO | BLASTER_MODULATION_ENABLE |
+			BLASTER_TIMEBASE_MODULATION_CLOCK | (count_delay << 0));
+	} else {
+		count_delay = (((hightime + 100 / 2) / 100) - 1)
+			       &COUNT_DELAY_MASK;
+		val = (BLASTER_WRITE_FIFO | BLASTER_MODULATION_ENABLE |
+			BLASTER_TIMEBASE_100US | (count_delay << 0));
+	}
+
 	writel_relaxed(val, dev->reg_base + AO_IR_BLASTER_ADDR2);
 
 	/*

@@ -111,8 +111,16 @@ static int send_bit(struct aml_irblaster_dev *cw, unsigned int hightime,
 	 *			11=Modulator clock
 	 * bit[9:0]: Count of timebase units to delay
 	 */
-	count_delay = (((hightime + cycle/2) / cycle) - 1) & 0x3ff;
-	val = (0x10000 | (1 << 12)) | (3 << 10) | (count_delay << 0);
+
+	count_delay = ((hightime + cycle/2) / cycle) - 1;
+	if (count_delay < 1024) {
+		count_delay &= 0x3ff;
+		val = (0x10000 | (1 << 12)) | (3 << 10) | (count_delay << 0);
+	} else {
+		count_delay = (((hightime + 100 / 2) / 100) - 1)&0x3ff;
+		val = (0x10000 | (1 << 12)) | (2 << 10) | (count_delay << 0);
+	}
+
 	writel_relaxed(val, cw->reg_base + AO_IR_BLASTER_ADDR2);
 
 	/*

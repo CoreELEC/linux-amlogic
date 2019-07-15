@@ -1459,3 +1459,7 @@
 &saradc {
 	status = "disabled";
 };
+
+&irblaster {
+	status = "okay";
+};

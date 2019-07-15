@@ -75,7 +75,6 @@ static ssize_t send_store(struct device *dev,
 	irblaster_chip_data_clear(chip);
 	mutex_unlock(&chip->sys_lock);
 	kfree(buffer);
-
 	return ret ? : count;
 }
 
