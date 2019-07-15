@@ -27,7 +27,7 @@
 #include <linux/pinctrl/consumer.h>
 
 /* HDMITX driver version */
-#define HDMITX_VER "20190624"
+#define HDMITX_VER "20190715"
 
 /* chip type */
 #define MESON_CPU_ID_M8B		0
