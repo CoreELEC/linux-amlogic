@@ -225,12 +225,16 @@ int vdin_open_fe(enum tvin_port_e port, int index,  struct vdin_dev_s *devp)
 
 	devp->frontend = fe;
 	devp->parm.port = port;
-	/* for atv snow function */
+
+	/* for atv snow function,no need fmt here*/
+	#if 0
 	if ((port == TVIN_PORT_CVBS3) &&
 		(devp->parm.info.fmt == TVIN_SIG_FMT_NULL))
 		devp->parm.info.fmt = TVIN_SIG_FMT_CVBS_NTSC_M;
 	else
 		devp->parm.info.fmt = TVIN_SIG_FMT_NULL;
+	#endif
+
 	devp->parm.info.status = TVIN_SIG_STATUS_NULL;
 	/* clear color para*/
 	memset(&devp->pre_prop, 0, sizeof(devp->pre_prop));
@@ -2428,7 +2432,7 @@ static long vdin_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			mutex_unlock(&devp->fe_lock);
 			break;
 		}
-		if ((devp->parm.info.fmt == TVIN_SIG_FMT_NULL) &&
+		if ((parm.info.fmt == TVIN_SIG_FMT_NULL) &&
 			(devp->parm.port == TVIN_PORT_CVBS3)) {
 			de_fmt_flag = 1;
 			fmt = devp->parm.info.fmt = TVIN_SIG_FMT_CVBS_NTSC_M;
@@ -2436,6 +2440,7 @@ static long vdin_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			de_fmt_flag = 0;
 			fmt = devp->parm.info.fmt = parm.info.fmt;
 		}
+
 		devp->fmt_info_p =
 				(struct tvin_format_s *)tvin_get_fmt_info(fmt);
 		if (!devp->fmt_info_p) {

@@ -395,7 +395,8 @@ void tvin_smr(struct vdin_dev_s *devp)
 				if (sm_p->state_cnt >= unstb_in) {
 					sm_p->state_cnt  = unstb_in;
 					info->status = TVIN_SIG_STATUS_UNSTABLE;
-					info->fmt = TVIN_SIG_FMT_NULL;
+					/*info->fmt = TVIN_SIG_FMT_NULL;*/
+
 					if (sm_debug_enable &&
 						!sm_print_unstable) {
 						pr_info("[smr.%d] unstable\n",
@@ -438,23 +439,14 @@ void tvin_smr(struct vdin_dev_s *devp)
 						devp->parm.info.fps =
 							prop->fps;
 					}
-				} else
-					info->fmt = TVIN_SIG_FMT_NULL;
-				if (info->fmt == TVIN_SIG_FMT_NULL) {
-					/* remove unsupport status */
-					info->status = TVIN_SIG_STATUS_UNSTABLE;
-					if (sm_debug_enable &&
-						!sm_print_notsup) {
-						pr_info("[smr.%d] unstable --> not support\n",
-								devp->index);
-						sm_print_notsup = 1;
-					}
-				} else {
+
 					if (sm_ops->fmt_config)
 						sm_ops->fmt_config(fe);
+
 					tvin_smr_init_counter(devp->index);
 					sm_p->state = TVIN_SM_STATUS_PRESTABLE;
 					sm_atv_prestable_fmt = info->fmt;
+
 					if (sm_debug_enable) {
 						pr_info("[smr.%d]unstable-->prestable",
 						devp->index);
@@ -462,11 +454,22 @@ void tvin_smr(struct vdin_dev_s *devp)
 						info->fmt,
 						tvin_sig_fmt_str(info->fmt));
 					}
+
 					sm_print_nosig  = 0;
 					sm_print_unstable = 0;
 					sm_print_fmt_nosig = 0;
 					sm_print_fmt_chg = 0;
 					sm_print_prestable = 0;
+
+				} else {
+					info->status = TVIN_SIG_STATUS_UNSTABLE;
+
+					if (sm_debug_enable &&
+						!sm_print_notsup) {
+						pr_info("[smr.%d] unstable --> not support\n",
+								devp->index);
+						sm_print_notsup = 1;
+					}
 				}
 			}
 		}
