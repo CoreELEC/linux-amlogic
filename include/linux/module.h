@@ -84,7 +84,7 @@ void trim_init_extable(struct module *m);
 
 #ifdef MODULE
 #define MODULE_GENERIC_TABLE(gtype, name)			\
-extern const struct gtype##_id __mod_##gtype##_table		\
+extern const typeof(name) __mod_##gtype##_table		\
   __attribute__ ((unused, alias(__stringify(name))))
 
 #else  /* !MODULE */
