@@ -4804,15 +4804,6 @@ static void _osd_pan_display_layers_fence(
 	/* osd_count need -1 when VIU2 enable */
 	struct layer_fence_map_s *layer_map = NULL;
 
-	if (!vinfo || (!strcmp(vinfo->name, "invalid") ||
-				!strcmp(vinfo->name, "null")))
-		/* vout is null, release fence */
-		goto out;
-
-	osd_hw.vinfo_width[output_index] = vinfo->width;
-	osd_hw.vinfo_height[output_index] = vinfo->field_height;
-	memcpy(&osd_hw.disp_info[output_index], &fence_map->disp_info,
-	       sizeof(struct display_flip_info_s));
 	if (output_index == VIU1) {
 		osd_count = osd_hw.osd_meson_dev.viu1_osd_count;
 		if (osd_hw.osd_meson_dev.osd_ver <= OSD_NORMAL)
@@ -4827,6 +4818,16 @@ static void _osd_pan_display_layers_fence(
 		osd_log_err("invald output_index=%d\n", output_index);
 		return;
 	}
+
+	if (!vinfo || (!strcmp(vinfo->name, "invalid") ||
+				!strcmp(vinfo->name, "null")))
+		/* vout is null, release fence & buf file. */
+		goto out;
+
+	osd_hw.vinfo_width[output_index] = vinfo->width;
+	osd_hw.vinfo_height[output_index] = vinfo->field_height;
+	memcpy(&osd_hw.disp_info[output_index], &fence_map->disp_info,
+	       sizeof(struct display_flip_info_s));
 
 	if (osd_hw.osd_fps_start[output_index])
 		osd_hw.osd_fps[output_index]++;
