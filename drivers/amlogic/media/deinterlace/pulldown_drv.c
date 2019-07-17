@@ -119,6 +119,7 @@ unsigned int pulldown_detection(struct pulldown_detected_s *res,
 	unsigned int flm22_surenum = flm22_sure_num;
 	int difflag = 2;
 	bool flm32 = false, flm22 = false, flmxx = false;
+	unsigned int pulldown_info;
 
 	read_pulldown_info(&glb_frame_mot_num,
 		&glb_field_mot_num);
@@ -335,7 +336,12 @@ unsigned int pulldown_detection(struct pulldown_detected_s *res,
 				res->regs[1].blend_mode = 0;
 			}
 		}
-	return 0;
+
+	pulldown_info = flm32 ? 1 : 0;
+	pulldown_info |= flm22 ? 0x02 : 0;
+	pulldown_info |= flmxx ? 0x04 : 0;
+
+	return pulldown_info;
 }
 
 unsigned char pulldown_init(unsigned short width, unsigned short height)

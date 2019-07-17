@@ -3520,6 +3520,7 @@ static void pre_de_done_buf_config(void)
 	struct di_buf_s *post_wr_buf = NULL;
 	unsigned int glb_frame_mot_num = 0;
 	unsigned int glb_field_mot_num = 0;
+	unsigned int pull_down_info = 0;
 
 	ddbg_mod_save(eDI_DBG_MOD_PRE_DONEB, 0, di_pre_stru.in_seq);/*dbg*/
 	if (di_pre_stru.di_wr_buf) {
@@ -3542,13 +3543,22 @@ static void pre_de_done_buf_config(void)
 			di_pre_stru.di_post_wr_buf = di_pre_stru.di_wr_buf;
 		post_wr_buf = di_pre_stru.di_post_wr_buf;
 
+		if (post_wr_buf)
+			post_wr_buf->vframe->di_pulldown = 0;
+
 		if (post_wr_buf && !di_pre_stru.cur_prog_flag) {
 			read_pulldown_info(&glb_frame_mot_num,
 				&glb_field_mot_num);
-			if (pulldown_enable)
-				pulldown_detection(&post_wr_buf->pd_config,
+			if (pulldown_enable) {
+				pull_down_info = pulldown_detection(
+					&post_wr_buf->pd_config,
 					di_pre_stru.mtn_status, overturn,
 					di_pre_stru.di_inp_buf->vframe);
+				post_wr_buf->vframe->di_pulldown
+					= pull_down_info;
+
+			}
+			post_wr_buf->vframe->di_pulldown |= 0x08;
 			if (combing_fix_en)
 				cur_lev = adaptive_combing_fixing(
 				di_pre_stru.mtn_status,

@@ -874,6 +874,7 @@ void dump_vframe(struct vframe_s *vf)
 		vf->process_fun, vf->private_data);
 	pr_info("pixel_ratio %d list %p\n",
 		vf->pixel_ratio, &vf->list);
+	pr_info("di_pulldown 0x%x\n", vf->di_pulldown);
 }
 
 void print_di_buf(struct di_buf_s *di_buf, int format)

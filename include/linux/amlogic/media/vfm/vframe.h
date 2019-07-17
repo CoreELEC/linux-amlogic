@@ -423,6 +423,14 @@ struct vframe_s {
 
 	u32 sar_width;
 	u32 sar_height;
+	/*****************
+	 * di pulldown info
+	 * bit 3: interlace
+	 * bit 2: flmxx
+	 * bit 1: flm22
+	 * bit 0: flm32
+	 *****************/
+	u32 di_pulldown;
 } /*vframe_t */;
 
 #if 0
