@@ -2110,7 +2110,10 @@ static void zoom_display_horz(
 #ifdef TV_REVERSE
 		if (reverse) {
 			content_w = zoom_end_x_lines - zoom_start_x_lines + 1;
-			content_l = (r_aligned - zoom_end_x_lines - 1);
+			if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1))
+				content_l = 0;
+			else
+				content_l = (r_aligned - zoom_end_x_lines - 1);
 			content_r = content_l + content_w - 1;
 			VSYNC_WR_MPEG_REG(AFBC_PIXEL_HOR_SCOPE,
 				  (((content_l << 16)) | content_r) / h_skip);
@@ -2209,8 +2212,12 @@ static void vd2_zoom_display_horz(struct vframe_s *vf, int hscale)
 #ifdef TV_REVERSE
 		if (reverse) {
 			content_w = zoom2_end_x_lines - zoom2_start_x_lines + 1;
-			content_l = (r_aligned - zoom2_end_x_lines - 1) +
-			(zoom2_start_x_lines - l_aligned);
+			if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1))
+				content_l = 0;
+			else
+				content_l = (r_aligned - zoom2_end_x_lines
+					- 1) + (zoom2_start_x_lines
+					- l_aligned);
 			content_r = content_l + content_w - 1;
 			VSYNC_WR_MPEG_REG(VD2_AFBC_PIXEL_HOR_SCOPE,
 				  (content_l << 16) | content_r);
