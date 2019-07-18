@@ -216,11 +216,15 @@ void am_set_regmap(struct am_regs_s *p)
 				WRITE_VPP_REG(VPP_CHROMA_DATA_PORT,
 						p->am_reg[i].val);
 			break;
-/* #if (MESON_CPU_TYPE >= MESON_CPU_TYPE_MESONG9TV) */
 		case REG_TYPE_VCBUS:
+			if (p->am_reg[i].addr == SHARP0_DEJ_ALPHA) {
+				sr0_dej_setting[DEJAGGY_LEVEL - 1].val =
+					p->am_reg[i].val & 0xff;
+				if (pd_detect_en)
+					p->am_reg[i].mask &= ~(0xff);
+			}
+
 			if (p->am_reg[i].mask == 0xffffffff) {
-				/* WRITE_VCBUS_REG(p->am_reg[i].addr,*/
-				/* p->am_reg[i].val); */
 				if (pq_reg_wr_rdma)
 					VSYNC_WR_MPEG_REG(p->am_reg[i].addr,
 						p->am_reg[i].val);
@@ -347,6 +351,14 @@ void amcm_enable(void)
 	cm_en_flag = true;
 }
 
+void pd_combing_fix_patch(enum pd_comb_fix_lvl_e level)
+{
+	pr_amcm_dbg("\n[amcm..] pd fix lvl = %d\n", level);
+	WRITE_VPP_REG(sr0_dej_setting[level].addr,
+		(aml_read_vcbus(sr0_dej_setting[level].addr) &
+		(~(sr0_dej_setting[level].mask))) |
+		(sr0_dej_setting[level].val & sr0_dej_setting[level].mask));
+}
 
 void cm_regmap_latch(struct am_regs_s *am_regs, unsigned int reg_map)
 {

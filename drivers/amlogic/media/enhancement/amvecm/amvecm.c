@@ -191,6 +191,9 @@ unsigned int sr_offset[2] = {0, 0};
 
 unsigned int sr_demo_flag;
 
+bool pd_detect_en;
+int pd_fix_lvl = PD_HIG_LVL;
+
 static int wb_init_bypass_coef[24] = {
 	0, 0, 0, /* pre offset */
 	1024,	0,	0,
@@ -1052,6 +1055,32 @@ void vpp_demo_config(struct vframe_s *vf)
 	}
 }
 
+void amvecm_dejaggy_patch(struct vframe_s *vf)
+{
+	if (!vf) {
+		if (pd_detect_en)
+			pd_detect_en = 0;
+		return;
+	}
+
+	if ((vf->height == 1080) &&
+		(vf->width == 1920) &&
+		(vf->di_pulldown & (1 << 3)) &&
+		(vf->di_pulldown & 0x7)) {
+		if (pd_detect_en == 1)
+			return;
+		pd_detect_en = 1;
+		pd_combing_fix_patch(pd_fix_lvl);
+		pr_amvecm_dbg("pd_detect_en = %d; pd_fix_lvl = %d\n",
+			pd_detect_en, pd_fix_lvl);
+	} else if (pd_detect_en) {
+		pd_detect_en = 0;
+		pd_combing_fix_patch(PD_DEF_LVL);
+		pr_amvecm_dbg("pd_detect_en = %d; pd_fix_lvl = %d\n",
+			pd_detect_en, pd_fix_lvl);
+	}
+}
+
 void amvecm_video_latch(void)
 {
 	pc_mode_process();
@@ -1117,6 +1146,8 @@ int amvecm_on_vs(
 			lc_process(toggle_vf, sps_h_en, sps_v_en,
 				sps_w_in, sps_h_in);
 			amvecm_size_patch(cm_in_w, cm_in_h);
+			/*1080i pulldown combing workaround*/
+			amvecm_dejaggy_patch(toggle_vf);
 		}
 	} else {
 		if (vd_path == VD1_PATH)
@@ -1127,6 +1158,8 @@ int amvecm_on_vs(
 			ve_hist_gamma_reset();
 			lc_process(NULL, sps_h_en, sps_v_en,
 				sps_w_in, sps_h_in);
+			/*1080i pulldown combing workaround*/
+			amvecm_dejaggy_patch(NULL);
 		}
 	}
 
@@ -5610,6 +5643,15 @@ static ssize_t amvecm_debug_store(struct class *cla,
 			set_gamma_regs(1, 1);
 		else
 			pr_info("unsupport cmd\n");
+	}  else if (!strcmp(parm[0], "pd_fix_lvl")) {
+		if (parm[1]) {
+			if (kstrtoul(parm[1], 10, &val) < 0)
+				goto free_buf;
+		}
+		if (val > PD_DEF_LVL)
+			pd_fix_lvl = PD_DEF_LVL;
+		else
+			pd_fix_lvl = val;
 	} else
 		pr_info("unsupport cmd\n");
 

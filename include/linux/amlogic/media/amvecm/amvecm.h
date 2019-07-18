@@ -282,6 +282,13 @@ enum hdr_type_e {
 	HDRTYPE_DOVI = DOVI_SOURCE
 };
 
+enum pd_comb_fix_lvl_e {
+	PD_LOW_LVL = 0,
+	PD_MID_LVL,
+	PD_HIG_LVL,
+	PD_DEF_LVL
+};
+
 enum vpp_transfer_characteristic_e {
 	VPP_ST_NULL = 0,
 	VPP_ST709 = 0x1,
@@ -458,11 +465,11 @@ static inline uint32_t READ_VPP_REG_BITS(uint32_t reg,
 
 extern signed int vd1_brightness, vd1_contrast;
 extern bool gamma_en;
-
 extern unsigned int atv_source_flg;
 extern unsigned int sr_demo_flag;
 
 extern enum hdr_type_e hdr_source_type;
+extern bool pd_detect_en;
 
 #define CSC_FLAG_TOGGLE_FRAME	1
 #define CSC_FLAG_CHECK_OUTPUT	2
