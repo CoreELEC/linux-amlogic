@@ -2133,3 +2133,8 @@
 	status = "okay";
 };
 
+&irblaster {
+	pinctrl-names = "default";
+	pinctrl-0 = <&irblaster_pins>;
+	status = "okay";
+};
