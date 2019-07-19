@@ -126,8 +126,6 @@ static int wait_no_sig_max = 600;
 
 /* to inform ESM whether the cable is connected or not */
 bool hpd_to_esm;
-MODULE_PARM_DESC(hpd_to_esm, "\n hpd_to_esm\n");
-module_param(hpd_to_esm, bool, 0664);
 
 bool hdcp22_kill_esm;
 MODULE_PARM_DESC(hdcp22_kill_esm, "\n hdcp22_kill_esm\n");
@@ -135,54 +133,33 @@ module_param(hdcp22_kill_esm, bool, 0664);
 
 static int hdcp22_capable_sts = 0xff;
 
-static bool esm_auth_fail_en;
-MODULE_PARM_DESC(esm_auth_fail_en, "\n esm_auth_fail_en\n");
-module_param(esm_auth_fail_en, bool, 0664);
+bool esm_auth_fail_en;
 
-static bool hdcp_mode_sel;
-MODULE_PARM_DESC(hdcp_mode_sel, "\n hdcp_mode_sel\n");
-module_param(hdcp_mode_sel, bool, 0664);
+/* to inform hdcp_rx22 whether there's any device connected */
+bool pwr_sts_to_esm;
 
 static int hdcp22_auth_sts = 0xff;
 
 /*the esm reset flag for hdcp_rx22*/
-static bool esm_reset_flag;
-MODULE_PARM_DESC(esm_reset_flag, "\n esm_reset_flag\n");
-module_param(esm_reset_flag, bool, 0664);
+bool esm_reset_flag;
 
 /* to inform ESM whether the cable is connected or not */
-static bool video_stable_to_esm;
-MODULE_PARM_DESC(video_stable_to_esm, "\n video_stable_to_esm\n");
-module_param(video_stable_to_esm, bool, 0664);
+bool video_stable_to_esm;
 
-static int enable_hdcp22_esm_log;
-MODULE_PARM_DESC(enable_hdcp22_esm_log, "\n enable_hdcp22_esm_log\n");
-module_param(enable_hdcp22_esm_log, int, 0664);
+bool enable_hdcp22_esm_log;
 
-static bool esm_error_flag;
-MODULE_PARM_DESC(esm_error_flag, "\n esm_error_flag\n");
-module_param(esm_error_flag, bool, 0664);
+bool esm_error_flag;
 
-static bool hdcp22_esm_reset2;
-MODULE_PARM_DESC(hdcp22_esm_reset2, "\n hdcp22_esm_reset2\n");
-module_param(hdcp22_esm_reset2, bool, 0664);
+bool hdcp22_esm_reset2;
 
-static bool hdcp22_stop_auth;
-module_param(hdcp22_stop_auth, bool, 0664);
-MODULE_PARM_DESC(hdcp22_stop_auth, "hdcp22_stop_auth");
-
-static bool mute_kill_en;
-MODULE_PARM_DESC(mute_kill_en, "\n mute_kill_en\n");
-module_param(mute_kill_en, bool, 0664);
+bool hdcp22_stop_auth;
 
 int hdcp14_on;
 MODULE_PARM_DESC(hdcp14_on, "\n hdcp14_on\n");
 module_param(hdcp14_on, int, 0664);
 
 /*esm recovery mode for changing resolution & hdmi2.0*/
-static int esm_recovery_mode = ESM_REC_MODE_TMDS;
-module_param(esm_recovery_mode, int, 0664);
-MODULE_PARM_DESC(esm_recovery_mode, "esm_recovery_mode");
+int esm_recovery_mode = ESM_REC_MODE_TMDS;
 
 int phy_retry_times = 1;
 /* No need to judge  frame rate while checking timing stable,as there are
@@ -1557,10 +1534,8 @@ int rx_set_global_variable(const char *buf, int size)
 		return pr_var(aud_sr_stb_max, index);
 	if (set_pr_var(tmpbuf, hdcp22_kill_esm, value, &index, ret))
 		return pr_var(hdcp22_kill_esm, index);
-	if (set_pr_var(tmpbuf, mute_kill_en, value, &index, ret))
-		return pr_var(mute_kill_en, index);
-	if (set_pr_var(tmpbuf, hdcp_mode_sel, value, &index, ret))
-		return pr_var(hdcp_mode_sel, index);
+	if (set_pr_var(tmpbuf, pwr_sts_to_esm, value, &index, ret))
+		return pr_var(pwr_sts_to_esm, index);
 	if (set_pr_var(tmpbuf, audio_sample_rate, value, &index, ret))
 		return pr_var(audio_sample_rate, index);
 	if (set_pr_var(tmpbuf, auds_rcv_sts, value, &index, ret))
@@ -1759,8 +1734,7 @@ void rx_get_global_variable(const char *buf)
 	pr_var(force_vic, i++);
 	pr_var(aud_sr_stb_max, i++);
 	pr_var(hdcp22_kill_esm, i++);
-	pr_var(mute_kill_en, i++);
-	pr_var(hdcp_mode_sel, i++);
+	pr_var(pwr_sts_to_esm, i++);
 	pr_var(audio_sample_rate, i++);
 	pr_var(auds_rcv_sts, i++);
 	pr_var(audio_coding_type, i++);
@@ -1996,9 +1970,9 @@ void rx_5v_monitor(void)
 	/* inform hdcp_rx22 the 5v sts of rx */
 	if (hdcp22_on) {
 		if (!pwr_sts)
-			hdcp_mode_sel = true;
+			pwr_sts_to_esm = true;
 		else
-			hdcp_mode_sel = false;
+			pwr_sts_to_esm = false;
 	}
 	if (rx.chip_id == CHIP_ID_TM2) {
 		tmp_arc_5v = (pwr_sts >> rx.arc_port) & 1;

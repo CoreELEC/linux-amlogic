@@ -355,6 +355,52 @@ err_free:
 	return rc;
 }
 
+/*
+ * set_param - set kernel param to hdcp_rx22
+ * amlogic added
+ */
+static long set_param(struct esm_device *esm,
+	struct esm_ioc_param __user *arg)
+{
+	struct esm_ioc_param head;
+
+	memset(&head, 0, sizeof(head));
+	if (copy_from_user(&head, arg, sizeof(head)) != 0)
+		return -EFAULT;
+	esm_auth_fail_en = head.reauth;
+	esm_reset_flag = head.esm_reset;
+	hdcp22_stop_auth = head.auth_stop;
+	hdcp22_esm_reset2 = head.esm_reset2;
+	return 0;
+}
+
+/*
+ * get_param - hdcp_rx22 get param from kernel
+ * amlogic added
+ */
+static long get_param(struct esm_device *esm,
+	struct esm_ioc_param __user *arg)
+{
+	struct esm_ioc_param head;
+
+	head.hpd = hpd_to_esm;
+	head.video_stable = video_stable_to_esm;
+	head.pwr_sts = pwr_sts_to_esm;
+	head.log = enable_hdcp22_esm_log;
+	head.esm_reset = esm_reset_flag;
+	head.reauth = esm_auth_fail_en;
+	head.esm_err = 0;
+	head.auth_stop = hdcp22_stop_auth;
+	head.esm_reset2 = hdcp22_esm_reset2;
+	head.esm_kill = hdcp22_kill_esm;
+	head.reset_mode = esm_recovery_mode;
+
+	if (copy_to_user(arg, &head, sizeof(head)) != 0)
+		return -EFAULT;
+
+	return 0;
+}
+
 /* free_esm_slot - free_esm_slot*/
 static void free_esm_slot(struct esm_device *slot)
 {
@@ -400,6 +446,10 @@ static long hld_ioctl(struct file *f,
 		return read_data(esm, data);
 	case ESM_IOC_MEMSET_DATA:
 		return set_data(esm, data);
+	case ESM_IOC_GET_PARAM:
+		return get_param(esm, data);
+	case ESM_IOC_SET_PARAM:
+		return set_param(esm, data);
 	}
 
 	return -ENOTTY;

@@ -41,7 +41,7 @@
  *
  *
  */
-#define RX_VER1 "ver.2019/07/08"
+#define RX_VER1 "ver.2019/07/19"
 /*
  *
  *
@@ -516,6 +516,16 @@ extern int sm_pause;
 extern int suspend_pddq_sel;
 extern int disable_port_num;
 extern int disable_port_en;
+extern bool video_stable_to_esm;
+extern bool pwr_sts_to_esm;
+extern bool enable_hdcp22_esm_log;
+extern bool esm_reset_flag;
+extern bool esm_auth_fail_en;
+extern bool esm_error_flag;
+extern bool hdcp22_stop_auth;
+extern bool hdcp22_esm_reset2;
+extern int esm_recovery_mode;
+
 extern int rx_set_global_variable(const char *buf, int size);
 extern void rx_get_global_variable(const char *buf);
 extern int rx_pr(const char *fmt, ...);
