@@ -133,6 +133,7 @@ static u32 omx_pts;
 static u32 omx_pts_set_index;
 static bool omx_run;
 static u32 omx_version = 3;
+static u32 omx_continusdrop_cnt;
 #define OMX_PTS_DV_DEFAULT_UPPER 2500
 #define OMX_PTS_DV_DEFAULT_LOWER -1600
 static int omx_pts_interval_upper = 5500;
@@ -6890,6 +6891,7 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 		u32 system_time = timestamp_pcrscr_get();
 		int diff = 0;
 		unsigned long delta1 = 0;
+		unsigned long time_setomxpts_delta = 0;
 
 		diff = system_time - omx_pts;
 		if (time_setomxpts > 0
@@ -6902,8 +6904,13 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 			/* is not update for a while, in case when */
 			/* paused, pcr is not paused */
 			delta1 = func_div(sched_clock() - time_setomxpts, 1000);
-			if ((time_setomxpts - time_setomxpts_last) >
-				(4 * vsync_pts_inc * 1000 / 90)) {
+			time_setomxpts_delta = func_div(time_setomxpts -
+				time_setomxpts_last, 1000);
+			if ((time_setomxpts_delta >
+				(4 * vsync_pts_inc * 1000 / 90)) ||
+				((diff - omx_pts_interval_upper * 3 / 2) > 0)
+				|| ((diff - omx_pts_interval_lower * 3 / 2)
+				< 0)) {
 				time_setomxpts = 0;
 				time_setomxpts_last = 0;
 				if (debug_flag & DEBUG_FLAG_PTS_TRACE)
@@ -9002,6 +9009,7 @@ static int video_receiver_event_fun(int type, void *data, void *private_data)
 		omx_need_drop_frame_num = 0;
 		omx_drop_done = false;
 		omx_pts_set_index = 0;
+		omx_continusdrop_cnt = 0;
 		omx_continuous_drop_count = 0;
 		omx_continuous_drop_flag = false;
 		cur_disp_omx_index = 0;
@@ -9375,6 +9383,7 @@ static void set_omx_pts(u32 *p)
 	u32 not_reset = p[4];
 	u32 session = p[5];
 	unsigned int try_cnt = 0x1000;
+	bool updateomxpts = true;
 
 	cur_omx_index = frame_num;
 	mutex_lock(&omx_mutex);
@@ -9418,11 +9427,29 @@ static void set_omx_pts(u32 *p)
 		}
 	}
 	if (not_reset == 0) {
-		time_setomxpts_last = time_setomxpts;
-		time_setomxpts = sched_clock();
-		omx_pts = tmp_pts;
-		ATRACE_COUNTER("omxpts", omx_pts);
+		updateomxpts = set_from_hwc;
+		if (!set_from_hwc) {
+			omx_continusdrop_cnt++;
+			if (omx_continusdrop_cnt > 1) {
+				/* continus drop update omx_pts */
+				updateomxpts = true;
+			} else {
+				struct vframe_s *vf = NULL;
 
+				vf = vf_peek(RECEIVER_NAME);
+				if (vf && (vf->omx_index > 0)
+					&& (omx_pts_set_index > vf->omx_index))
+					omx_pts_set_index = vf->omx_index - 1;
+			}
+		} else
+			omx_continusdrop_cnt = 0;
+
+		if (updateomxpts) {
+			time_setomxpts_last = time_setomxpts;
+			time_setomxpts = sched_clock();
+			omx_pts = tmp_pts;
+			ATRACE_COUNTER("omxpts", omx_pts);
+		}
 	}
 	/* kodi may render first frame, then drop dozens of frames */
 	if (set_from_hwc == 0 && omx_run == true && frame_num <= 2
