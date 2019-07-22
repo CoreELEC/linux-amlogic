@@ -1,0 +1,68 @@
+#include "g12a_s905x2_u211_buildroot.dts"
+#include "coreelec_common.dtsi"
+
+/{
+	auge_sound {
+		/delete-property/ avout_mute-gpios;
+		mute_gpio = <&gpio_ao GPIOAO_2 GPIO_ACTIVE_LOW>;
+
+		/delete-node/ aml-audio-card,dai-link@0;
+		/delete-node/ aml-audio-card,dai-link@1;
+		/delete-node/ aml-audio-card,dai-link@2;
+		/delete-node/ aml-audio-card,dai-link@3;
+		/delete-node/ aml-audio-card,dai-link@4;
+		/delete-node/ aml-audio-card,dai-link@5;
+		aml-audio-card,dai-link@0 {
+			mclk-fs = <128>;
+			continuous-clock;
+			cpu {
+				sound-dai = <&aml_spdif_b>;
+				system-clock-frequency = <6144000>;
+			};
+			codec {
+				sound-dai = <&dummy_codec>;
+			};
+		};
+
+		aml-audio-card,dai-link@1 {
+			format = "i2s";// "dsp_a";
+			mclk-fs = <256>;
+			bitclock-master = <&aml_tdmb>;
+			frame-master = <&aml_tdmb>;
+			continuous-clock;
+			cpu {
+				sound-dai = <&aml_tdmb>;
+				dai-tdm-slot-tx-mask = <1 1>;
+				dai-tdm-slot-rx-mask = <1 1>;
+				dai-tdm-slot-num = <2>;
+				dai-tdm-slot-width = <32>;
+				system-clock-frequency = <12288000>;
+			};
+			codec {
+				sound-dai = <&amlogic_codec>;
+			};
+		};
+
+		aml-audio-card,dai-link@2 {
+			mclk-fs = <128>;
+			continuous-clock;
+			cpu {
+				sound-dai = <&aml_spdif>;
+				system-clock-frequency = <6144000>;
+			};
+			codec {
+				sound-dai = <&dummy_codec>;
+			};
+		};
+	};
+
+	gpioleds {
+		/delete-node/ net_red;
+		/delete-node/ net_green;
+		/delete-node/ remote_led;
+	};
+};
+
+&sd_emmc_b2 {
+	status = "okay";
+};
