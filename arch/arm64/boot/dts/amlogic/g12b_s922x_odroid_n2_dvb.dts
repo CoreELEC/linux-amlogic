@@ -1,7 +1,8 @@
-#include "meson64_odroidn2.dts"
+#include "g12b_s922x_odroid_n2.dts"
 
 /{
-	coreelec-dt-id = "g12b_a311d_odroid_n2_dvb";
+	coreelec-dt-id = "g12b_s922x_odroid_n2_dvb";
+
 	dvb {
 		compatible = "amlogic,dvb";
 		dev_name = "avl6862";
@@ -21,5 +22,26 @@
 			     <GIC_SPI 25 IRQ_TYPE_EDGE_RISING>;
 		interrupt-names = "demux0", "demux1", "asyncfifo0", "asyncfifo1";
 	};
+};
 
+&pinctrl_periphs {
+	dvb_s_ts0_pins: dvb_s_ts0_pins {
+		tsin_a {
+			groups ="tsin_a_valid",
+				"tsin_a_sop",
+				"tsin_a_din0",
+				"tsin_a_clk";
+			function = "tsin_a";
+		};
+	};
+
+	dvb_s_ts1_pins: dvb_s_ts1_pins {
+		tsin_b {
+			groups = "tsin_b_sop_x",
+			"tsin_b_valid_x",
+			"tsin_b_clk_x",
+			"tsin_b_din0_x";
+			function = "tsin_b";
+		};
+	};
 };

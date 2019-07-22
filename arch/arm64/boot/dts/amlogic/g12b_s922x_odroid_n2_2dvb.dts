@@ -1,7 +1,8 @@
-#include "g12b_a311d_odroid_n2_dvb.dts"
+#include "g12b_s922x_odroid_n2_dvb.dts"
 
 /{
-	coreelec-dt-id = "g12b_a311d_odroid_n2_2dvb";
+	coreelec-dt-id = "g12b_s922x_odroid_n2_2dvb";
+
 	dvb {
 		dtv_demod1_i2c_adap_id = <3>;
 		ts1 = "serial";
@@ -10,5 +11,4 @@
 		fec_reset_gpio-gpios2 = <&gpio GPIOX_15 GPIO_ACTIVE_HIGH>;
 		power_ctrl_gpio-gpios2 = <&gpio GPIOX_14 GPIO_ACTIVE_LOW>;
 	};
-
 };

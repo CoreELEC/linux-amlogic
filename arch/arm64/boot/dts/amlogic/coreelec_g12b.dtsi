@@ -1,15 +1,12 @@
 #include "g12b_a311d_w400_buildroot.dts"
+#include "coreelec_common.dtsi"
 
 /{
-	chosen { };
-
 	reserved-memory {
 		galcore_reserved:linux,galcore {
 			size = <0x0 0x1000000>;
 		};
 	};
-
-	/delete-node/ partitions;
 
 	auge_sound {
 		/delete-property/ avout_mute-gpios;
@@ -63,17 +60,6 @@
 			};
 		};
 	};
-
-	meson-ir {
-		compatible = "amlogic,meson6-ir";
-		/* Multi-format IR controller */
-		reg = <0x0 0xff808040 0x0 0x44>;
-		interrupts = <0 196 1>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&remote_pins>;
-		pulse-inverted;
-		status = "ok";
-	};
 };
 
 &meson_fb {
@@ -98,5 +84,3 @@
 	mc_val = <0x1621>;
 	internal_phy=<0>;
 };
-
-/delete-node/ &nand;

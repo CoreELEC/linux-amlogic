@@ -1,0 +1,45 @@
+/{
+	coreelec;
+
+	chosen { };
+
+	/delete-node/ partitions;
+
+	/delete-node/ rc@0xff808040;
+
+	/delete-node/ custom_maps;
+
+	meson-ir {
+		compatible = "amlogic,meson6-ir";
+		/* Multi-format IR controller */
+		reg = <0x0 0xff808040 0x0 0x44>;
+		interrupts = <0 196 1>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&remote_pins>;
+		pulse-inverted;
+		status = "ok";
+	};
+
+	meson-remote {
+		compatible = "amlogic, aml_remote";
+		dev_name = "meson-remote";
+		reg = <0x0 0xff808040 0x00 0x44>, /*Multi-format IR controller*/
+			<0x0 0xff808000 0x00 0x20>; /*Legacy IR controller*/
+		status = "disabled";
+		protocol = <REMOTE_TYPE_NEC>;
+		led_blink = <1>;
+		led_blink_frq = <100>;
+		interrupts = <0 196 1>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&remote_pins>;
+		max_frame_time = <200>; /*set software decoder max frame time*/
+	};
+
+	openvfd {
+		compatible = "open,vfd";
+		dev_name = "openvfd";
+		status = "okay";
+	};
+};
+
+/delete-node/ &nand;

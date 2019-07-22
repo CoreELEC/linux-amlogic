@@ -1068,12 +1068,6 @@
 		compatible = "amlogic, vdac-txl";
 		status = "okay";
 	};
-
-	openvfd {
-		compatible = "open,vfd";
-		dev_name = "openvfd";
-		status = "okay";
-	};
 }; /* end of / */
 
 &gpu{
@@ -1538,10 +1532,5 @@
 				"spi_clk_a";
 			function = "spi_a";
 		};
-	};
-	openvfd {
-		compatible = "open,vfd";
-		dev_name = "openvfd";
-		status = "okay";
 	};
 };
