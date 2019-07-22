@@ -15125,6 +15125,11 @@ F:	arch/arm64/configs/meson64_a64_defconfig
 F:	arch/arm/boot/dts/amlogic/Makefile
 F:	arch/arm64/boot/dts/amlogic/Makefile
 
+AMLOGIC VDAC
+M:      Evoke Zhang <evoke.zhang@amlogic.com>
+F:      drivers/amlogic/media/vout/vdac/vdac_dev.h
+F:	drivers/amlogic/media/vout/vdac/vdac_config.c
+
 AMLOGIC DRM
 M:	Dezhi Kong <dezhi.kong@amlogic.com>
 F:	arch/arm/boot/dts/amlogic/mesonsm1_drm.dtsi

@@ -35,6 +35,7 @@
 #include <linux/delay.h>
 #include <linux/io.h>
 #include <linux/amlogic/media/frame_provider/tvin/tvin.h>
+#include <linux/amlogic/media/vout/vdac_dev.h>
 #include <linux/arm-smccc.h>
 #include <linux/slab.h>
 #include <linux/dma-mapping.h>
@@ -2583,9 +2584,6 @@ void rx_aud_pll_ctl(bool en)
 	if (rx.chip_id >= CHIP_ID_TL1) {
 		if (en) {
 			/* AUD_CLK=N/CTS*TMDS_CLK */
-			/* bandgap enable */
-			wr_reg_hhi(HHI_VDAC_CNTL0, 0x906001);
-			wr_reg_hhi(HHI_VDAC_CNTL1, 0x0);
 			wr_reg_hhi(HHI_AUD_PLL_CNTL, 0x40001540);
 			#if 1
 			/* use mpll */

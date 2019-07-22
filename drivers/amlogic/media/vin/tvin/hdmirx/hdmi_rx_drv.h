@@ -562,7 +562,6 @@ extern unsigned int *pd_fifo_buf;
 
 /* for other modules */
 extern int External_Mute(int mute_flag);
-extern void vdac_enable(bool on, unsigned int module_sel);
 extern int rx_is_hdcp22_support(void);
 extern int hdmirx_get_connect_info(void);
 #endif

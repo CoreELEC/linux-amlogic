@@ -50,6 +50,7 @@
 /*#include <linux/amlogic/amports/vframe_provider.h>*/
 /*#include <linux/amlogic/amports/vframe_receiver.h>*/
 #include <linux/amlogic/media/frame_provider/tvin/tvin.h>
+#include <linux/amlogic/media/vout/vdac_dev.h>
 /*#include <linux/amlogic/amports/vframe.h>*/
 #include <linux/of_gpio.h>
 #ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
@@ -312,7 +313,7 @@ int hdmirx_dec_open(struct tvin_frontend_s *fe, enum tvin_port_e port)
 	devp->param.port = port;
 
 	/* should enable the adc ref signal for audio pll */
-	/* vdac_enable(1, 0x10); */
+	/* vdac_enable(1, VDAC_MODULE_AUDIO_OUT); */
 	hdmirx_open_port(port);
 	rx.open_fg = 1;
 	rx_pr("%s port:%x ok nosignal:%d\n", __func__, port, rx.no_signal);
@@ -371,7 +372,7 @@ void hdmirx_dec_close(struct tvin_frontend_s *fe)
 	 */
 	/* For txl,also need to keep bandgap always on:SWPL-1224 */
 	/* if (rx.chip_id == CHIP_ID_TXL) */
-		/* vdac_enable(0, 0x10); */
+		/* vdac_enable(0, VDAC_MODULE_AUDIO_OUT); */
 	/* open_flage = 0; */
 	rx.open_fg = 0;
 	devp = container_of(fe, struct hdmirx_dev_s, frontend);

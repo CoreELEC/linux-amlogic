@@ -23,6 +23,7 @@
 /*#include <mach/am_regs.h>*/
 
 #include <linux/amlogic/media/frame_provider/tvin/tvin.h>
+#include <linux/amlogic/media/vout/vdac_dev.h>
 #include "../tvin_global.h"
 #include "../tvin_format_table.h"
 #include "tvafe.h"
@@ -554,7 +555,10 @@ void tvafe_set_ddemod_default(void)
 		W_HIU_REG(HHI_DADC_CNTL3, 0x00082183);
 
 		/*W_HIU_REG(HHI_VDAC_CNTL0, 0x00000200);*/
-		W_HIU_BIT(HHI_VDAC_CNTL0, 1, 9, 1);
+		/*W_HIU_BIT(HHI_VDAC_CNTL0, 1, 9, 1);*/
+		/* remove vdac reg write, make sure it write in vdac driver,
+		 * because multi module use it
+		 */
 
 	} else if (tvafe_cpu_type() >= CPU_TYPE_TL1) {
 		W_APB_REG(TVFE_VAFE_CTRL0, 0x000d0710);
@@ -566,7 +570,10 @@ void tvafe_set_ddemod_default(void)
 		W_HIU_REG(HHI_DADC_CNTL3, 0x08300b83);
 
 		//HHI_VDAC_CNTL1
-		W_HIU_REG(0xbc, 0x0);
+		/*W_HIU_REG(0xbc, 0x0);*/
+		/* remove vdac reg write, make sure it write in vdac driver,
+		 * because multi module use it
+		 */
 	}
 
 }
@@ -580,23 +587,16 @@ void tvafe_enable_avout(enum tvin_port_e port, bool enable)
 		if (enable) {
 			tvafe_clk_gate_ctrl(1);
 			if (port == TVIN_PORT_CVBS3) {
-				vdac_enable(1, 0x1);
-				/* clock delay control */
-				W_HIU_BIT(HHI_VIID_CLK_DIV, 1, 19, 1);
-				/* vdac_clock_mux form atv demod */
-				W_HIU_BIT(HHI_VID_CLK_CNTL2, 1, 8, 1);
-				W_HIU_BIT(HHI_VID_CLK_CNTL2, 1, 4, 1);
-				/* vdac_clk gated clock control */
-				W_VCBUS_BIT(VENC_VDAC_DACSEL0, 1, 5, 1);
+				vdac_enable(1, VDAC_MODULE_AVOUT_ATV);
 			} else {
 				W_APB_REG(TVFE_ATV_DMD_CLP_CTRL, 0);
-				vdac_enable(1, 0x4);
+				vdac_enable(1, VDAC_MODULE_AVOUT_AV);
 			}
 		} else {
 			if (port == TVIN_PORT_CVBS3)
-				vdac_enable(0, 0x1);
+				vdac_enable(0, VDAC_MODULE_AVOUT_ATV);
 			else
-				vdac_enable(0, 0x4);
+				vdac_enable(0, VDAC_MODULE_AVOUT_AV);
 			tvafe_clk_gate_ctrl(0);
 		}
 	}
@@ -967,14 +967,12 @@ EXPORT_SYMBOL(tvafe_adc_get_pll_flag);
 /*
  * tvafe init the whole module
  */
-static bool enableavout = true;
-module_param(enableavout, bool, 0644);
-MODULE_PARM_DESC(enableavout, "disable av out when load adc reg");
 void tvafe_init_reg(struct tvafe_cvd2_s *cvd2,
 	struct tvafe_cvd2_mem_s *mem, enum tvin_port_e port,
 	struct tvafe_pin_mux_s *pinmux)
 {
 	unsigned int module_sel = ADC_EN_TVAFE;
+	struct tvafe_user_param_s *user_param = tvafe_get_user_param();
 
 	if (port == TVIN_PORT_CVBS3)
 		module_sel = ADC_EN_ATV_DEMOD;
@@ -1002,7 +1000,7 @@ void tvafe_init_reg(struct tvafe_cvd2_s *cvd2,
 
 		tvafe_set_cvbs_default(cvd2, mem, port, pinmux);
 		/*turn on/off av out*/
-		tvafe_enable_avout(port, enableavout);
+		tvafe_enable_avout(port, user_param->avout_en);
 		/* CDAC_CTRL_RESV2<1>=0 */
 	}
 

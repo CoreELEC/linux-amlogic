@@ -195,9 +195,6 @@ extern void tvafe_set_apb_bus_err_ctrl(void);
 extern void tvafe_enable_module(bool enable);
 extern void tvafe_enable_avout(enum tvin_port_e port, bool enable);
 
-/* vdac ctrl,adc/dac ref signal,cvbs out signal*/
-/* module index: atv demod:0x01; dtv demod:0x02; tvafe:0x4; dac:0x8*/
-void vdac_enable(bool on, unsigned int module_sel);
 extern void adc_set_pll_reset(void);
 extern int tvafe_adc_get_pll_flag(void);
 extern int tvafe_cpu_type(void);

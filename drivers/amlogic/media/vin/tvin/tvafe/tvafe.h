@@ -81,6 +81,7 @@ struct tvafe_user_param_s {
 	unsigned int nostd_stable_cnt;
 	unsigned int nostd_dmd_clp_step;
 	unsigned int skip_vf_num;
+	unsigned int avout_en;
 };
 
 /* tvafe device structure */

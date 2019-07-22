@@ -56,6 +56,7 @@
 #include <linux/dma-contiguous.h>
 
 #include <linux/amlogic/media/frame_provider/tvin/tvin.h>
+#include <linux/amlogic/media/vout/vdac_dev.h>
 
 
 MODULE_PARM_DESC(debug_aml, "\n\t\t Enable frontend debug information");
@@ -2998,7 +2999,7 @@ static bool enter_mode(enum aml_fe_n_mode_t mode)
 
 	/*-------------------*/
 	/* must enable the adc ref signal for demod, */
-	/*vdac_enable(1, 0x2);*/
+	/*vdac_enable(1, VDAC_MODULE_DTV_DEMOD);*/
 	dtvdemod_vdac_enable(1);/*on*/
 	dtvdd_devp->en_detect = 0;/**/
 	dtvdd_devp->n_mode = mode;
@@ -3115,7 +3116,7 @@ static int leave_mode(enum aml_fe_n_mode_t mode)
 	adc_set_pll_cntl(0, 0x8, NULL);
 	demod_mode_para = UNKNOWN;
 	/* should disable the adc ref signal for demod */
-	/*vdac_enable(0, 0x2);*/
+	/*vdac_enable(0, VDAC_MODULE_DTV_DEMOD);*/
 	dtvdemod_vdac_enable(0);/*off*/
 	dtvdemod_set_agc_pinmux(0);
 	msleep(200);
@@ -3630,10 +3631,10 @@ static void dtvdemod_vdac_enable(bool on)
 {
 	if (on) {
 		vdac_clk_gate_ctrl(1);
-		vdac_enable(1, 0x02);
+		vdac_enable(1, VDAC_MODULE_DTV_DEMOD);
 	} else {
 		vdac_clk_gate_ctrl(0);
-		vdac_enable(0, 0x02);
+		vdac_enable(0, VDAC_MODULE_DTV_DEMOD);
 	}
 }
 

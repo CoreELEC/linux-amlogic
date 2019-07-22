@@ -20,6 +20,7 @@
 #include <uapi/linux/dvb/frontend.h>
 
 #include <linux/amlogic/aml_atvdemod.h>
+#include <linux/amlogic/media/vout/vdac_dev.h>
 
 #include "drivers/media/tuners/tuner-i2c.h"
 #include "drivers/media/dvb-core/dvb_frontend.h"
@@ -149,7 +150,7 @@ int atv_demod_enter_mode(struct dvb_frontend *fe)
 	}
 
 	err_code = adc_set_pll_cntl(1, ADC_EN_ATV_DEMOD, NULL);
-	vdac_enable(1, 1);
+	vdac_enable(1, VDAC_MODULE_AVOUT_ATV);
 	usleep_range(2000, 2100);
 	atvdemod_clk_init();
 	/* err_code = atvdemod_init(); */
@@ -201,7 +202,7 @@ int atv_demod_leave_mode(struct dvb_frontend *fe)
 		amlatvdemod_devp->agc_pin = NULL;
 	}
 
-	vdac_enable(0, 1);
+	vdac_enable(0, VDAC_MODULE_AVOUT_ATV);
 	adc_set_pll_cntl(0, ADC_EN_ATV_DEMOD, NULL);
 	if (is_meson_txlx_cpu() || is_meson_txhd_cpu() || is_meson_tl1_cpu()
 			|| is_meson_tm2_cpu())

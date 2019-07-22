@@ -285,7 +285,6 @@ extern struct amldtvdemod_device_s *dtvdd_devp;	/**/
 
 /*int M6_Demod_Dtmb_Init(struct aml_fe_dev *dev);*/
 int convert_snr(int in_snr);
-extern int vdac_enable_check_dtv(void);
 
 
 extern unsigned  int ats_thread_flg;
