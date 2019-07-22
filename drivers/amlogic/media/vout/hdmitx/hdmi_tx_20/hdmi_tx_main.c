@@ -5031,6 +5031,16 @@ static void check_hdmiuboot_attr(char *token)
 	}
 }
 
+static int __init hdmitx_boot_android_device(char *str)
+{
+	hdmitx_device.cec_func_config = 0x3f;
+	pr_info("hdmitx: android device found, setting cec mode to:0x%x\n",
+		hdmitx_device.cec_func_config);
+	return 0;
+}
+
+__setup("androidboot.hardware=", hdmitx_boot_android_device);
+
 static  int __init hdmitx_boot_para_setup(char *s)
 {
 	char separator[] = {' ', ',', ';', 0x0};
@@ -5056,10 +5066,6 @@ static  int __init hdmitx_boot_para_setup(char *s)
 				if ((list >= 0) && (list <= 0xff))
 					hdmitx_device.cec_func_config = list;
 				pr_info("HDMI hdmi_cec_func_config:0x%x\n",
-					hdmitx_device.cec_func_config);
-			} else if (strncmp(token, "cec", 3) != 0) {
-					hdmitx_device.cec_func_config = 0x3f;
-				pr_info("CEC value not defined in cmdline using default hdmi_cec_func_config:0x%x\n",
 					hdmitx_device.cec_func_config);
 			}
 			/*check_hdmiuboot_attr(token); /**/
