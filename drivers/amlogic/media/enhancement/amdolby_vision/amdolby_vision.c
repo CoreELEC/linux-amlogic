@@ -1078,6 +1078,8 @@ static uint64_t stb_core1_lut[STB_DMA_TBL_SIZE];
 
 static bool tv_mode;
 static bool mel_mode;
+
+#define MAX_PARAM   8
 bool is_meson_gxm(void)
 {
 	if (dv_meson_dev.cpu_id == _CPU_MAJOR_ID_GXM)
@@ -6958,6 +6960,8 @@ static void parse_param_amdolby_vision(char *buf_orig, char **parm)
 		if (*token == '\0')
 			continue;
 		parm[n++] = token;
+		if (n >= MAX_PARAM)
+			break;
 	}
 }
 
@@ -6978,7 +6982,7 @@ static ssize_t amdolby_vision_debug_store(struct class *cla,
 		struct class_attribute *attr,
 		const char *buf, size_t count)
 {
-	char *buf_orig, *parm[8] = {NULL};
+	char *buf_orig, *parm[MAX_PARAM] = {NULL};
 	long val = 0;
 
 	if (!buf)
