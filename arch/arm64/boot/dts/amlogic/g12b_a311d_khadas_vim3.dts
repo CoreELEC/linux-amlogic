@@ -6,6 +6,10 @@
 
 	/delete-node/ memory@00000000;
 
+	auge_sound {
+		/delete-property/ mute_gpio;
+	};
+
 	gpioleds {
 		sys_led {
 			gpios=<&gpio_ao GPIOAO_4 GPIO_ACTIVE_HIGH>;
@@ -15,9 +19,16 @@
 	gpio_keypad {
 		key-gpios = <&gpio_ao GPIOAO_7 GPIO_ACTIVE_HIGH>;
 	};
+
+	/delete-node/ rtc;
 };
 
-&i2c3 {
+&i2c_AO {
+	status = "okay";
+	pinctrl-names="default";
+	pinctrl-0=<&ao_i2c_master_pins1>;
+	clock-frequency = <400000>;
+
 	hym8563: hym8563@51 {
 		compatible = "haoyu,hym8563";
 		reg = <0x51>;

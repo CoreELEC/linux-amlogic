@@ -42,4 +42,9 @@
 	};
 };
 
+&meson_fb {
+	mem_size = <0x00800000 0x4b80000 0x100000 0x100000 0x800000>;
+	4k2k_fb = <1>;
+};
+
 /delete-node/ &nand;

@@ -1,4 +1,5 @@
 dtb-y += g12a_s905x2_2g.dtb
+dtb-y += g12a_s905x2_2g_1gbit.dtb
 dtb-y += g12a_s905x2_4g.dtb
 dtb-y += g12a_s905x2_4g_1gbit.dtb
 dtb-y += g12b_s922x_beelink_gt_king.dtb
