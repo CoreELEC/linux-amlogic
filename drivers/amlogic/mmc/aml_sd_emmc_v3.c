@@ -1118,7 +1118,13 @@ static u32 scan_emmc_cmd_win(struct mmc_host *mmc, int send_status)
 		writel(delay2, host->base + SD_EMMC_DELAY2_V3);
 		offset = (u32)(get_random_long() % capacity);
 		for (j = 0; j < repeat_times; j++) {
-			err = single_read_cmd_for_scan(mmc,
+			if (send_status)
+				err = emmc_send_cmd(mmc,
+						MMC_SEND_STATUS,
+						1 << 16,
+						MMC_RSP_R1 | MMC_CMD_AC);
+			else
+				err = single_read_cmd_for_scan(mmc,
 					MMC_READ_SINGLE_BLOCK,
 					host->blk_test, 512, 1,
 					offset);
