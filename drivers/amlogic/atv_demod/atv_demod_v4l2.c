@@ -341,8 +341,11 @@ static int v4l2_frontend_start(struct v4l2_frontend *v4l2_fe)
 
 static int v4l2_frontend_check_mode(struct v4l2_frontend *v4l2_fe)
 {
-	if (v4l2_fe->mode != V4L2_TUNER_ANALOG_TV)
+	if (v4l2_fe->mode != V4L2_TUNER_ANALOG_TV) {
+		pr_dbg("%s: not in analog TV mode [%d].\n",
+				__func__, v4l2_fe->mode);
 		return -EINVAL;
+	}
 
 	return 0;
 }
@@ -356,8 +359,6 @@ static int v4l2_set_frontend(struct v4l2_frontend *v4l2_fe,
 	struct v4l2_frontend_private *fepriv = v4l2_fe->frontend_priv;
 	struct dvb_frontend *fe = &v4l2_fe->fe;
 	struct v4l2_property tvp = { 0 };
-
-	pr_dbg("%s.\n", __func__);
 
 	if (v4l2_frontend_check_mode(v4l2_fe) < 0)
 		return -EINVAL;
@@ -394,6 +395,8 @@ static int v4l2_set_frontend(struct v4l2_frontend *v4l2_fe,
 	v4l2_fe->params.afc_range = params->afc_range;
 	v4l2_fe->params.reserved = params->reserved;
 
+	pr_dbg("%s: params->flag 0x%x.\n", __func__, params->flag);
+
 	/* Request the search algorithm to search */
 	if (params->flag & ANALOG_FLAG_ENABLE_AFC) {
 		fepriv->state = V4L2FE_STATE_RETUNE;
@@ -427,7 +430,8 @@ static int v4l2_set_frontend(struct v4l2_frontend *v4l2_fe,
 static int v4l2_get_frontend(struct v4l2_frontend *v4l2_fe,
 		struct v4l2_analog_parameters *p)
 {
-	pr_dbg("%s.\n", __func__);
+	if (v4l2_frontend_check_mode(v4l2_fe) < 0)
+		return -EINVAL;
 
 	/*memcpy(p, &v4l2_fe->params, sizeof(struct v4l2_analog_parameters));*/
 	p->frequency = v4l2_fe->params.frequency;
@@ -437,6 +441,8 @@ static int v4l2_get_frontend(struct v4l2_frontend *v4l2_fe,
 	p->flag = v4l2_fe->params.flag;
 	p->afc_range = v4l2_fe->params.afc_range;
 	p->reserved = v4l2_fe->params.reserved;
+
+	pr_dbg("%s: frequency %d.\n", __func__, p->frequency);
 
 	return 0;
 }
@@ -820,7 +826,7 @@ static long v4l2_frontend_ioctl(struct file *filp, void *fh, bool valid_prio,
 	if (fepriv->exit != V4L2_FE_NO_EXIT)
 		return -ENODEV;
 
-	if (cmd == V4L2_READ_STATUS || cmd == V4L2_GET_FRONTEND)
+	if (cmd == V4L2_READ_STATUS/* || cmd == V4L2_GET_FRONTEND */)
 		need_lock = 0;
 
 	if (need_lock)

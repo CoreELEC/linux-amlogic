@@ -260,6 +260,8 @@ static void atv_demod_set_params(struct dvb_frontend *fe,
 
 		/* for searching mute audio */
 		priv->standby = false;
+
+		pr_dbg("%s: frequency %d.\n", __func__, p->param.frequency);
 	}
 }
 
