@@ -324,6 +324,9 @@ void tvin_smr(struct vdin_dev_s *devp)
 		(devp->flags & VDIN_FLAG_SUSPEND))
 		return;
 
+	if (!(devp->flags & VDIN_FLAG_DEC_OPENED))
+		return;
+
 	sm_p = &sm_dev[devp->index];
 	fe = devp->frontend;
 	sm_ops = devp->frontend->sm_ops;
@@ -661,10 +664,14 @@ void tvin_smr(struct vdin_dev_s *devp)
 		sm_p->state = TVIN_SM_STATUS_NOSIG;
 		break;
 	}
-	if (sm_p->sig_status != info->status) {
-		sm_p->sig_status = info->status;
-		wake_up(&devp->queue);
+
+	if (devp->flags & VDIN_FLAG_DEC_OPENED) {
+		if (sm_p->sig_status != info->status) {
+			sm_p->sig_status = info->status;
+			wake_up(&devp->queue);
+		}
 	}
+
 	signal_status = sm_p->sig_status;
 }
 

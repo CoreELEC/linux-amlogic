@@ -252,6 +252,8 @@ int vdin_open_fe(enum tvin_port_e port, int index,  struct vdin_dev_s *devp)
 	/* check open status */
 	if (ret)
 		return 1;
+
+	devp->flags |= VDIN_FLAG_DEC_OPENED;
 	/* init vdin state machine */
 	tvin_smr_init(devp->index);
 	init_timer(&devp->timer);
@@ -290,6 +292,8 @@ void vdin_close_fe(struct vdin_dev_s *devp)
 	devp->parm.port = TVIN_PORT_NULL;
 	devp->parm.info.fmt  = TVIN_SIG_FMT_NULL;
 	devp->parm.info.status = TVIN_SIG_STATUS_NULL;
+
+	devp->flags &= (~VDIN_FLAG_DEC_OPENED);
 
 	pr_info("%s ok\n", __func__);
 }
@@ -752,8 +756,10 @@ void vdin_stop_dec(struct vdin_dev_s *devp)
 	int i = 0;
 
 	/* avoid null pointer oops */
-	if (!devp || !devp->frontend)
+	if (!devp || !devp->frontend) {
+		pr_info("vdin err no frontend\n");
 		return;
+	}
 #ifdef CONFIG_CMA
 	if ((devp->cma_mem_alloc == 0) && devp->cma_config_en) {
 		pr_info("%s:cma not alloc,don't need do others!\n", __func__);
@@ -2221,6 +2227,11 @@ static void vdin_vlock_dwork(struct work_struct *work)
 	struct vdin_dev_s *devp =
 		container_of(dwork, struct vdin_dev_s, vlock_dwork);
 
+	if (!(devp->flags & VDIN_FLAG_DEC_OPENED)) {
+		cancel_delayed_work(&devp->vlock_dwork);
+		return;
+	}
+
 	if (!devp || !devp->frontend || !devp->curr_wr_vfe) {
 		pr_info("%s, dwork error !!!\n", __func__);
 		return;
@@ -2318,7 +2329,6 @@ static int vdin_release(struct inode *inode, struct file *file)
 	}
 	if (devp->flags & VDIN_FLAG_DEC_OPENED) {
 		vdin_close_fe(devp);
-		devp->flags &= (~VDIN_FLAG_DEC_OPENED);
 	}
 	devp->flags &= (~VDIN_FLAG_SNOW_FLAG);
 
@@ -2399,7 +2409,7 @@ static long vdin_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			break;
 		}
 
-		devp->flags |= VDIN_FLAG_DEC_OPENED;
+		/*devp->flags |= VDIN_FLAG_DEC_OPENED;*/
 		if (vdin_dbg_en)
 			pr_info("TVIN_IOC_OPEN(%d) port %s opened ok\n\n",
 				parm.index,	tvin_port_str(devp->parm.port));
@@ -2549,7 +2559,7 @@ static long vdin_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			pr_info("TVIN_IOC_CLOSE %ums.\n",
 					jiffies_to_msecs(jiffies));
 		vdin_close_fe(devp);
-		devp->flags &= (~VDIN_FLAG_DEC_OPENED);
+		/*devp->flags &= (~VDIN_FLAG_DEC_OPENED);*/
 		if (vdin_dbg_en)
 			pr_info("TVIN_IOC_CLOSE(%d) port %s closed ok\n\n",
 					parm->index,
@@ -2586,6 +2596,7 @@ static long vdin_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		if (!(devp->flags & VDIN_FLAG_DEC_OPENED)) {
 			ret = -EPERM;
 			mutex_unlock(&devp->fe_lock);
+			pr_info("vdin get info fail, DEC_OPENED\n");
 			break;
 		}
 		memcpy(&info, &devp->parm.info, sizeof(struct tvin_info_s));

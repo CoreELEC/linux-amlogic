@@ -719,6 +719,8 @@ static void vdin_dump_state(struct vdin_dev_s *devp)
 	struct vframe_s *vf = &devp->curr_wr_vfe->vf;
 	struct tvin_parm_s *curparm = &devp->parm;
 	struct vf_pool *vfp = devp->vfp;
+
+	pr_info("flags=0x%x\n", devp->flags);
 	pr_info("h_active = %d, v_active = %d\n",
 		devp->h_active, devp->v_active);
 	pr_info("canvas_w = %d, canvas_h = %d\n",

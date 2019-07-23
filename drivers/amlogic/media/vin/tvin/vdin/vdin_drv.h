@@ -48,7 +48,7 @@
 /* Ref.2019/04/25: tl1 vdin0 afbce dynamically switch support,
  *                 vpp also should support this function
  */
-#define VDIN_VER "Ref.2019/07/19:vf add hdr10 plus data"
+#define VDIN_VER "Ref.2019/07/23: pretect dec top/start"
 
 /*the counter of vdin*/
 #define VDIN_MAX_DEVS			2
