@@ -277,6 +277,65 @@ static int aml_audio_set_spdif_mute(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
+static int aml_spdif_platform_suspend(
+	struct platform_device *pdev, pm_message_t state)
+{
+	struct aml_spdif *p_spdif = dev_get_drvdata(&pdev->dev);
+	struct pinctrl_state *pstate = NULL;
+	int stream = SNDRV_PCM_STREAM_PLAYBACK;
+
+	if (!IS_ERR_OR_NULL(p_spdif->pin_ctl)) {
+		pstate = pinctrl_lookup_state
+		(p_spdif->pin_ctl, "spdif_pins_mute");
+		if (!IS_ERR_OR_NULL(pstate))
+			pinctrl_select_state(p_spdif->pin_ctl, pstate);
+	}
+	clk_disable_unprepare(p_spdif->sysclk);
+	aml_spdif_enable(p_spdif->actrl,
+			    stream, p_spdif->id, false);
+	pr_info("%s is mute\n", __func__);
+	return 0;
+}
+
+static int aml_spdif_platform_resume(struct platform_device *pdev)
+{
+	struct aml_spdif *p_spdif = dev_get_drvdata(&pdev->dev);
+	struct pinctrl_state *state = NULL;
+	int stream = SNDRV_PCM_STREAM_PLAYBACK;
+
+	if (!IS_ERR_OR_NULL(p_spdif->pin_ctl)) {
+		state = pinctrl_lookup_state
+		(p_spdif->pin_ctl, "spdif_pins");
+		if (!IS_ERR_OR_NULL(state))
+			pinctrl_select_state(p_spdif->pin_ctl, state);
+	}
+	clk_prepare_enable(p_spdif->sysclk);
+	aml_spdif_enable(p_spdif->actrl,
+			stream, p_spdif->id, true);
+	pr_info("%s is unmute\n", __func__);
+
+	return 0;
+}
+
+static void aml_spdif_platform_shutdown(struct platform_device *pdev)
+{
+	struct aml_spdif *p_spdif = dev_get_drvdata(&pdev->dev);
+	struct pinctrl_state *pstate = NULL;
+	int stream = SNDRV_PCM_STREAM_PLAYBACK;
+
+	if (!IS_ERR_OR_NULL(p_spdif->pin_ctl)) {
+		pstate = pinctrl_lookup_state
+		(p_spdif->pin_ctl, "spdif_pins_mute");
+		if (!IS_ERR_OR_NULL(pstate))
+			pinctrl_select_state(p_spdif->pin_ctl, pstate);
+	}
+	clk_disable_unprepare(p_spdif->sysclk);
+	aml_spdif_enable(p_spdif->actrl,
+			    stream, p_spdif->id, false);
+	pr_info("%s is mute\n", __func__);
+
+}
+
 static int aml_audio_get_spdif_mute(struct snd_kcontrol *kcontrol,
 					struct snd_ctl_elem_value *ucontrol)
 {
@@ -1651,6 +1710,9 @@ struct platform_driver aml_spdif_driver = {
 		.of_match_table = aml_spdif_device_id,
 	},
 	.probe = aml_spdif_platform_probe,
+	.suspend = aml_spdif_platform_suspend,
+	.resume  = aml_spdif_platform_resume,
+	.shutdown = aml_spdif_platform_shutdown,
 };
 module_platform_driver(aml_spdif_driver);
 

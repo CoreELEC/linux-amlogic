@@ -84,7 +84,7 @@ struct aml_card_data {
 	int micphone_gpio_det;
 	int mic_detect_flag;
 	bool mic_det_enable;
-
+	bool av_mute_enable;
 	struct aml_chipset_info *chipinfo;
 };
 
@@ -747,17 +747,25 @@ static int aml_card_parse_gpios(struct device_node *node,
 					ARRAY_SIZE(card_controls));
 		}
 	}
-
-	priv->avout_mute_desc = gpiod_get(dev,
-				"avout_mute", GPIOF_OUT_INIT_LOW);
+	if (IS_ERR_OR_NULL(priv->avout_mute_desc)) {
+		priv->avout_mute_desc = gpiod_get(dev,
+					"avout_mute", GPIOF_OUT_INIT_LOW);
+	}
 	if (!IS_ERR(priv->avout_mute_desc)) {
-		msleep(500);
-		gpiod_direction_output(priv->avout_mute_desc,
-			GPIOF_OUT_INIT_HIGH);
-		pr_info("av out status: %s\n",
-			gpiod_get_value(priv->avout_mute_desc) ?
-			"high" : "low");
-
+		if (!priv->av_mute_enable) {
+			msleep(500);
+			gpiod_direction_output(priv->avout_mute_desc,
+				GPIOF_OUT_INIT_HIGH);
+			pr_info("av out status: %s\n",
+				gpiod_get_value(priv->avout_mute_desc) ?
+				"high" : "low");
+		} else {
+			gpiod_direction_output(priv->avout_mute_desc,
+				GPIOF_OUT_INIT_LOW);
+			pr_info("av out status: %s\n",
+				gpiod_get_value(priv->avout_mute_desc) ?
+				"high" : "low");
+		}
 	}
 
 	return 0;
@@ -773,7 +781,6 @@ static void aml_init_work(struct work_struct *init_work)
 			struct aml_card_data, init_work);
 	dev = aml_priv_to_dev(priv);
 	np = dev->of_node;
-
 	aml_card_parse_gpios(np, priv);
 }
 
@@ -871,6 +878,29 @@ static const struct of_device_id auge_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, auge_of_match);
 
+static int card_suspend_pre(struct snd_soc_card *card)
+{
+	struct aml_card_data *priv = snd_soc_card_get_drvdata(card);
+
+	priv->av_mute_enable = 1;
+	INIT_WORK(&priv->init_work, aml_init_work);
+	schedule_work(&priv->init_work);
+	pr_info("it is card_pre_suspend\n");
+	return 0;
+}
+
+static int card_resume_post(struct snd_soc_card *card)
+{
+	struct aml_card_data *priv = snd_soc_card_get_drvdata(card);
+
+	priv->av_mute_enable = 0;
+	INIT_WORK(&priv->init_work, aml_init_work);
+	schedule_work(&priv->init_work);
+	pr_info("it is card_post_resume\n");
+	return 0;
+
+}
+
 static int aml_card_probe(struct platform_device *pdev)
 {
 	struct aml_card_data *priv;
@@ -911,6 +941,8 @@ static int aml_card_probe(struct platform_device *pdev)
 	priv->snd_card.dev		= dev;
 	priv->snd_card.dai_link		= priv->dai_link;
 	priv->snd_card.num_links	= num;
+	priv->snd_card.suspend_pre	= card_suspend_pre;
+	priv->snd_card.resume_post	= card_resume_post;
 
 	if (np && of_device_is_available(np)) {
 
@@ -981,7 +1013,7 @@ static int aml_card_probe(struct platform_device *pdev)
 		audio_jack_detect(priv);
 		audio_extcon_register(priv, dev);
 	}
-
+	priv->av_mute_enable = 0;
 	INIT_WORK(&priv->init_work, aml_init_work);
 	schedule_work(&priv->init_work);
 
@@ -1004,6 +1036,16 @@ static int aml_card_remove(struct platform_device *pdev)
 	return aml_card_clean_reference(card);
 }
 
+static void aml_card_platform_shutdown(struct platform_device *pdev)
+{
+	struct snd_soc_card *card = platform_get_drvdata(pdev);
+	struct aml_card_data *priv = snd_soc_card_get_drvdata(card);
+
+	priv->av_mute_enable = 1;
+	INIT_WORK(&priv->init_work, aml_init_work);
+	schedule_work(&priv->init_work);
+}
+
 static struct platform_driver aml_card = {
 	.driver = {
 		.name = "asoc-aml-card",
@@ -1012,6 +1054,7 @@ static struct platform_driver aml_card = {
 	},
 	.probe = aml_card_probe,
 	.remove = aml_card_remove,
+	.shutdown = aml_card_platform_shutdown,
 };
 
 module_platform_driver(aml_card);
