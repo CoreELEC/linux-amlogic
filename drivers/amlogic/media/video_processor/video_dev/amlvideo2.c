@@ -4035,7 +4035,14 @@ static int amlvideo2_thread(void *data)
 	}
 		/*msleep(10);*/
 
-	node->tmp_vf = NULL;
+	if (node->tmp_vf != NULL) {
+		if ((node->recv.name != NULL) &&
+			(!vf_get_receiver(node->recv.name))) {
+			vf_put(node->tmp_vf, node->recv.name);
+		}
+		node->tmp_vf = NULL;
+	}
+
 	if (amlvideo2_dbg_en) {
 		if (node->vid == 0)
 			pr_info("amlvideo2.0 thread exit.\n");
