@@ -107,11 +107,18 @@ struct rdma_instance_s {
 	int prev_trigger_type;
 };
 
+#define MAX_CONFLICT 32
+struct rdma_conflict_regs_s {
+	u32 adr[MAX_CONFLICT];
+	u32 val[MAX_CONFLICT];
+};
+
 struct rdma_device_info {
 	const char *device_name;
 	struct platform_device *rdma_dev;
 	struct class *clsp;
 	struct rdma_instance_s rdma_ins[RDMA_NUM];
+	struct rdma_conflict_regs_s rdma_reg;
 };
 
 static struct rdma_device_data_s rdma_meson_dev;
@@ -360,6 +367,7 @@ irqreturn_t rdma_mgr_isr(int irq, void *dev_id)
 	int retry_count = 0;
 	u32 rdma_status;
 	int i;
+	u32 read_val;
 	if (debug_flag & 0x10)
 		return IRQ_HANDLED;
 	rdma_isr_count++;
@@ -399,6 +407,13 @@ QUERY:
 	if ((rdma_status & 0xff000000) && (retry_count < 100))
 		goto QUERY;
 #endif
+	for (i = 0; i < MAX_CONFLICT; i++) {
+		if (info->rdma_reg.adr[i]) {
+			read_val = READ_VCBUS_REG(info->rdma_reg.adr[i]);
+			if (read_val == info->rdma_reg.val[i])
+				info->rdma_reg.adr[i] = 0;
+		}
+	}
 	return IRQ_HANDLED;
 }
 
@@ -622,17 +637,28 @@ u32 rdma_read_reg(int handle, u32 adr)
 	int i, j = 0;
 	u32 *write_table;
 	int match = 0;
+	int match_oth = 0;
 	int read_from = 0;
 	struct rdma_device_info *info = &rdma_info;
 	struct rdma_instance_s *ins = &info->rdma_ins[handle];
 	u32 read_val = READ_VCBUS_REG(adr);
 
-	for (i = (ins->rdma_item_count - 1); i >= 0; i--) {
-		if (ins->reg_buf[i << 1] == adr) {
-			read_val = ins->reg_buf[(i << 1) + 1];
-			match = 1;
-			read_from = 1;
+	for (i = 0; i < MAX_CONFLICT; i++) {
+		if (info->rdma_reg.adr[i] == adr) {
+			read_val = info->rdma_reg.val[i];
+			match_oth = 1;
+			read_from = 3;
 			break;
+		}
+	}
+	if (!match_oth) {
+		for (i = (ins->rdma_item_count - 1); i >= 0; i--) {
+			if (ins->reg_buf[i << 1] == adr) {
+				read_val = ins->reg_buf[(i << 1) + 1];
+				match = 1;
+				read_from = 1;
+				break;
+			}
 		}
 	}
 	if (!match) {
@@ -650,7 +676,13 @@ u32 rdma_read_reg(int handle, u32 adr)
 	if (rdma_trace_enable) {
 		for (j = 0; j < rdma_trace_num; j++) {
 			if (adr == rdma_trace_reg[j]) {
-				if (read_from == 2)
+				if (read_from == 3)
+					pr_info("(%s) handle %d, %04x=0x%08x from conflict table(%d)\n",
+						__func__,
+						handle, adr,
+						read_val,
+						ins->rdma_write_count);
+				else if (read_from == 2)
 					pr_info("(%s) handle %d, %04x=0x%08x from write table(%d)\n",
 						__func__,
 						handle, adr,
@@ -704,6 +736,71 @@ int rdma_watchdog_setting(int flag)
 }
 EXPORT_SYMBOL(rdma_watchdog_setting);
 
+static bool rdma_check_conflict(int handle, u32 adr, u32 *read_val)
+{
+	struct rdma_instance_s *oth_ins;
+	int i, j, k, n;
+
+	for (i = 0; i < MAX_CONFLICT; i++) {
+		if (rdma_info.rdma_reg.adr[i] == adr) {
+			if (read_val != NULL)
+				*read_val = rdma_info.rdma_reg.val[i];
+			return true;
+		}
+	}
+
+	for (i = 0; i < RDMA_NUM; i++) {
+		oth_ins = &rdma_info.rdma_ins[i];
+		if ((!oth_ins->rdma_table_size)
+		|| (!oth_ins->rdma_item_count)
+		|| (i == handle))
+			continue;
+		for (j = 0; j < oth_ins->rdma_item_count; j++) {
+			if (oth_ins->reg_buf[j << 1] != adr)
+				continue;
+			for (n = 0; n < rdma_trace_num; n++) {
+				if ((adr == rdma_trace_reg[n]) ||
+					(debug_flag & 0x20))
+					pr_info(
+						"(%s) handle %d, conflict write %04x=0x%08x (oth handle %d)\n",
+						__func__,
+						handle, adr,
+						oth_ins->reg_buf[(j << 1) + 1],
+						i);
+			}
+			for (k = 0; k < MAX_CONFLICT; k++) {
+				if (!rdma_info.rdma_reg.adr[i]) {
+					rdma_info.rdma_reg.adr[k] = adr;
+					rdma_info.rdma_reg.val[k] =
+						oth_ins->reg_buf[(j << 1) + 1];
+					if (read_val != NULL)
+						*read_val = oth_ins->
+							reg_buf[(j << 1) + 1];
+					return true;
+				}
+			}
+		}
+	}
+	return false;
+}
+
+static void rdma_update_conflict(u32 adr, u32 val)
+{
+	int i;
+
+	for (i = 0; i < MAX_CONFLICT; i++) {
+		if (rdma_info.rdma_reg.adr[i] == adr) {
+			rdma_info.rdma_reg.val[i] = val;
+			if (debug_flag & 0x20)
+				pr_info(
+					"(%s) %04x=0x%08x\n",
+					__func__,
+					adr, val);
+			break;
+		}
+	}
+}
+
 int rdma_write_reg(int handle, u32 adr, u32 val)
 {
 	struct rdma_device_info *info = &rdma_info;
@@ -716,6 +813,9 @@ int rdma_write_reg(int handle, u32 adr, u32 val)
 	if (debug_flag & 1)
 		pr_info("rdma_write(%d) %d(%x)<=%x\n",
 			handle, ins->rdma_item_count, adr, val);
+	if (rdma_check_conflict(handle, adr, NULL))
+		rdma_update_conflict(adr, val);
+
 	if (((ins->rdma_item_count << 1) + 1) <
 		(ins->rdma_table_size / sizeof(u32))) {
 		ins->reg_buf[ins->rdma_item_count << 1] = adr;
@@ -755,20 +855,30 @@ int rdma_write_reg_bits(int handle, u32 adr, u32 val, u32 start, u32 len)
 	int i, j = 0;
 	u32 *write_table;
 	int match = 0;
+	int match_oth = 0;
 	int read_from = 0;
 	struct rdma_device_info *info = &rdma_info;
 	struct rdma_instance_s *ins = &info->rdma_ins[handle];
 	u32 read_val = READ_VCBUS_REG(adr);
+	u32 oth_val = 0;
 	u32 write_val;
 
 	if (ins->rdma_table_size == 0)
 		return -1;
 
+	if (rdma_check_conflict(handle, adr, &oth_val)) {
+		match_oth = 1;
+		read_val = oth_val;
+		read_from = 3;
+	}
+
 	for (i = (ins->rdma_item_count - 1); i >= 0; i--) {
 		if (ins->reg_buf[i << 1] == adr) {
-			read_val = ins->reg_buf[(i << 1) + 1];
 			match = 1;
-			read_from = 1;
+			if (!match_oth) {
+				read_val = ins->reg_buf[(i << 1) + 1];
+				read_from = 1;
+			}
 			break;
 		}
 	}
@@ -777,40 +887,48 @@ int rdma_write_reg_bits(int handle, u32 adr, u32 val, u32 start, u32 len)
 		for (i = (ins->rdma_write_count - 1);
 			i >= 0; i--) {
 			if (write_table[i << 1] == adr) {
-				read_val =
-					write_table[(i << 1) + 1];
-				read_from = 2;
+				if (!match_oth) {
+					read_val =
+						write_table[(i << 1) + 1];
+					read_from = 2;
+				}
 				break;
 			}
 		}
 	}
 	write_val = (read_val & ~(((1L<<(len))-1)<<(start)))
 		|((unsigned int)(val) << (start));
-
-	if (rdma_trace_enable) {
-		for (j = 0; j < rdma_trace_num; j++) {
-			if (adr == rdma_trace_reg[j]) {
-				if (read_from == 2)
-					pr_info("(%s) handle %d, %04x=0x%08x->0x%08x from write table(%d)\n",
-						__func__,
-						handle, adr,
-						read_val,
-						write_val,
-						ins->rdma_write_count);
-				else if (read_from == 1)
-					pr_info("(%s) handle %d, %04x=0x%08x->0x%08x from item table(%d)\n",
-						__func__,
-						handle, adr,
-						read_val,
-						write_val,
-						ins->rdma_item_count);
-				else
-					pr_info("(%s) handle %d, %04x=0x%08x->0x%08x from real reg\n",
-						__func__,
-						handle, adr,
-						read_val,
-						write_val);
-			}
+	if (match_oth)
+		rdma_update_conflict(adr, write_val);
+	for (j = 0; j < rdma_trace_num; j++) {
+		if (adr == rdma_trace_reg[j]) {
+			if (read_from == 3)
+				pr_info("(%s) handle %d, %04x=0x%08x->0x%08x from conflict table(%d)\n",
+					__func__,
+					handle, adr,
+					read_val,
+					write_val,
+					ins->rdma_write_count);
+			else if (read_from == 2)
+				pr_info("(%s) handle %d, %04x=0x%08x->0x%08x from write table(%d)\n",
+					__func__,
+					handle, adr,
+					read_val,
+					write_val,
+					ins->rdma_write_count);
+			else if (read_from == 1)
+				pr_info("(%s) handle %d, %04x=0x%08x->0x%08x from item table(%d)\n",
+					__func__,
+					handle, adr,
+					read_val,
+					write_val,
+					ins->rdma_item_count);
+			else
+				pr_info("(%s) handle %d, %04x=0x%08x->0x%08x from real reg\n",
+					__func__,
+					handle, adr,
+					read_val,
+					write_val);
 		}
 	}
 	if (match) {
@@ -1035,6 +1153,7 @@ static int rdma_probe(struct platform_device *pdev)
 
 	rdma_mgr_irq_request = 0;
 
+	memset((void *)&info->rdma_reg, 0, sizeof(struct rdma_conflict_regs_s));
 	for (i = 0; i < RDMA_NUM; i++) {
 		info->rdma_ins[i].rdma_table_size = 0;
 		if (rdma_meson_dev.rdma_ver == RDMA_VER_1)
