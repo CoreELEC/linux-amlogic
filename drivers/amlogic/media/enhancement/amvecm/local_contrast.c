@@ -516,13 +516,18 @@ static void lc_top_config(int enable, int h_num, int v_num,
 	WRITE_VPP_REG_BITS(SRSHARP1_LC_TOP_CTRL, 0, 16, 1);
 	/*lc enable need set at last*/
 	WRITE_VPP_REG_BITS(SRSHARP1_LC_TOP_CTRL, enable, 4, 1);
-	if (flag == 1) {
-		lc_mtx_set(INP_MTX, LC_MTX_YUV709L_RGB, 1, bitdepth);
-		lc_mtx_set(OUTP_MTX, LC_MTX_RGB_YUV709L, 1, bitdepth);
-	} else {
+
+	if (flag == 0x3) {
+		/* bt601 use 601 matrix */
 		lc_mtx_set(INP_MTX, LC_MTX_YUV601L_RGB, 1, bitdepth);
 		lc_mtx_set(OUTP_MTX, LC_MTX_RGB_YUV601L, 1, bitdepth);
+	} else {
+		/* all other cases use 709 by default */
+		/* to do, should we handle bg2020 separately? */
+		lc_mtx_set(INP_MTX, LC_MTX_YUV709L_RGB, 1, bitdepth);
+		lc_mtx_set(OUTP_MTX, LC_MTX_RGB_YUV709L, 1, bitdepth);
 	}
+
 }
 
 static void lc_disable(void)
@@ -575,8 +580,21 @@ static void lc_config(int enable,
 
 	vf_height = vf->height;
 	vf_width = vf->width;
-	/*flag: 0 for 601; 1 for 709*/
-	flag = (vf_height > 720) ? 1 : 0;
+
+/*
+ *	bit 29: present_flag
+ *	bit 23-16: color_primaries
+ *	"unknown", "bt709", "undef", "bt601",
+ *	"bt470m", "bt470bg", "smpte170m", "smpte240m",
+ *	"film", "bt2020"
+ */
+	if (vf->signal_type & (1 << 29))
+		/* this field is present */
+		flag = ((vf->signal_type >> 16) & 0xff);
+	else
+		/* signal_type is not present */
+		/* use default value bt709 */
+		flag = 0x1;
 	lc_top_config(enable, h_num, v_num, height, width, bitdepth, flag);
 
 	width = sps_w_in;
@@ -685,6 +703,16 @@ static void tune_nodes_patch(int *omap, int *ihistogram, int reg_lmtrat_sigbin)
 	}
 }
 
+static void linear_nodes_patch(int *omap)
+{
+
+	omap[0] = 0;
+	omap[1] = 0;
+	omap[2] = 512;
+	omap[3] = 1023;
+	omap[4] = 1023;
+	omap[5] = 512;
+}
 
 static void lc_demo_wr_curve(int h_num, int v_num)
 {
@@ -1334,11 +1362,15 @@ static void lc_read_region(int blk_vnum, int blk_hnum)
 			}
 
 			/*part3: add tune curve node patch--by vlsi-guopan*/
-			if (tune_curve_en == 2)
+			if (tune_curve_en == 2) {
 				tune_nodes_patch(
 					&lc_szcurve[(i * blk_hnum + j) * 6],
 					&lc_hist[(i * blk_hnum + j) * 17],
 					lc_reg_lmtrat_sigbin);
+			} else if (tune_curve_en == 1) {
+				linear_nodes_patch(
+					&lc_szcurve[(i * blk_hnum + j) * 6]);
+			}
 
 		}
 	}
