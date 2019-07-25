@@ -23,6 +23,8 @@
 
 #define DRV_NAME "audio-clocks"
 
+DEFINE_SPINLOCK(aclk_lock);
+
 static const struct of_device_id audio_clocks_of_match[] = {
 	{
 		.compatible = "amlogic, axg-audio-clocks",
