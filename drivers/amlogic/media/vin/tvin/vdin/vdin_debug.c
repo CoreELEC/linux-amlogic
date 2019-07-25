@@ -2170,16 +2170,6 @@ start_chk:
 		} else {
 			pr_info("skip_frame_debug: %d\n", skip_frame_debug);
 		}
-	} else if (!strcmp(parm[0], "max_recycle_cnt")) {
-		if (parm[1] != NULL) {
-			if (kstrtouint(parm[1], 10,
-				&max_recycle_frame_cnt) == 0)
-				pr_info("set max_recycle_frame_cnt: %d\n",
-					max_recycle_frame_cnt);
-		} else {
-			pr_info("max_recycle_frame_cnt: %d\n",
-				max_recycle_frame_cnt);
-		}
 	} else if (!strcmp(parm[0], "max_ignore_cnt")) {
 		if (parm[1] != NULL) {
 			if (kstrtouint(parm[1], 10, &max_ignore_frame_cnt) == 0)

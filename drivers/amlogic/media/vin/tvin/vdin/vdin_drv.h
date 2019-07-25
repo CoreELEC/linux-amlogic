@@ -397,7 +397,6 @@ struct vdin_dev_s {
 	bool black_bar_enable;
 	bool hist_bar_enable;
 	unsigned int ignore_frames;
-	unsigned int recycle_frames;
 	/*use frame rate to cal duraton*/
 	unsigned int use_frame_rate;
 	unsigned int irq_cnt;
@@ -408,6 +407,9 @@ struct vdin_dev_s {
 	unsigned int vdin_dev_ssize;
 	wait_queue_head_t queue;
 	struct dentry *dbg_root;	/*dbg_fs*/
+
+	/*atv non-std signal,force drop the field if previous already dropped*/
+	unsigned int interlace_force_drop;
 };
 
 struct vdin_hist_s {
@@ -423,7 +425,6 @@ struct vdin_v4l2_param_s {
 	int fps;
 };
 
-extern unsigned int max_recycle_frame_cnt;
 extern unsigned int max_ignore_frame_cnt;
 extern unsigned int skip_frame_debug;
 extern unsigned int vdin_drop_cnt;
