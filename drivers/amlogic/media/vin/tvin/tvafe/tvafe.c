@@ -86,6 +86,10 @@ static bool enable_db_reg = true;
 module_param(enable_db_reg, bool, 0644);
 MODULE_PARM_DESC(enable_db_reg, "enable/disable tvafe load reg");
 
+/*0: atv playmode*/
+/*1: atv search mode*/
+static bool tvafe_mode;
+
 /*tvconfig snow config*/
 static bool snow_cfg;
 /*1: snow function on;*/
@@ -224,6 +228,14 @@ static void tvafe_cma_release(struct tvafe_dev_s *devp)
 #endif
 
 #ifdef CONFIG_AMLOGIC_ATV_DEMOD
+static int tvafe_work_mode(bool mode)
+{
+	tvafe_pr_info("%s: %d\n", __func__, mode);
+	tvafe_mode = mode;
+
+	return 0;
+}
+
 static int tvafe_get_v_fmt(void)
 {
 	int fmt = 0;
@@ -327,7 +339,7 @@ static int tvafe_dec_open(struct tvin_frontend_s *fe, enum tvin_port_e port)
 	g_tvafe_info = tvafe;
 	/* register aml_fe hook for atv search */
 	aml_fe_hook_cvd(tvafe_cvd2_get_atv_format, tvafe_cvd2_get_hv_lock,
-		tvafe_get_v_fmt);
+		tvafe_get_v_fmt, tvafe_work_mode);
 #endif
 	tvafe_pr_info("%s open port:0x%x ok.\n", __func__, port);
 
@@ -492,7 +504,7 @@ static void tvafe_dec_close(struct tvin_frontend_s *fe)
 #ifdef CONFIG_AMLOGIC_ATV_DEMOD
 	g_tvafe_info = NULL;
 	/* register aml_fe hook for atv search */
-	aml_fe_hook_cvd(NULL, NULL, NULL);
+	aml_fe_hook_cvd(NULL, NULL, NULL, NULL);
 #endif
 	/**set cvd2 reset to high**/
 	tvafe_cvd2_hold_rst();
@@ -682,6 +694,9 @@ bool tvafe_is_nosig(struct tvin_frontend_s *fe)
 		tvafe->cvd2.info.smr_cnt = 0;
 
 	ret = tvafe_cvd2_no_sig(&tvafe->cvd2, &devp->mem);
+	if ((!tvafe_mode) && (port == TVIN_PORT_CVBS3) &&
+		(devp->flags & TVAFE_FLAG_DEV_SNOW_FLAG)) /* playing snow */
+		ret = true;
 	if ((port == TVIN_PORT_CVBS3) &&
 		(tvafe->cvd2.config_fmt == TVIN_SIG_FMT_CVBS_PAL_I)) {
 		/*fix black side when config atv snow*/

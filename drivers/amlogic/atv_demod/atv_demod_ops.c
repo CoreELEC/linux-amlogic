@@ -429,16 +429,19 @@ int tuner_rssi = -80;
 bool slow_mode;
 
 typedef int (*hook_func_t) (void);
+typedef int (*hook_func1_t)(bool);
 hook_func_t aml_fe_hook_atv_status;
 hook_func_t aml_fe_hook_hv_lock;
 hook_func_t aml_fe_hook_get_fmt;
+hook_func1_t aml_fe_hook_set_mode;
 
 void aml_fe_hook_cvd(hook_func_t atv_mode, hook_func_t cvd_hv_lock,
-	hook_func_t get_fmt)
+	hook_func_t get_fmt, hook_func1_t set_mode)
 {
 	aml_fe_hook_atv_status = atv_mode;
 	aml_fe_hook_hv_lock = cvd_hv_lock;
 	aml_fe_hook_get_fmt = get_fmt;
+	aml_fe_hook_set_mode = set_mode;
 
 	pr_info("%s: OK.\n", __func__);
 }
@@ -1131,7 +1134,10 @@ static enum v4l2_search atvdemod_fe_search(struct v4l2_frontend *v4l2_fe)
 
 	if (p->afc_range == 0) {
 		pr_err("[%s] afc_range == 0, skip the search\n", __func__);
+		aml_fe_hook_set_mode(0);
 		return V4L2_SEARCH_INVALID;
+	} else {
+		aml_fe_hook_set_mode(1);
 	}
 
 	tuner_id = priv->atvdemod_param.tuner_id;
