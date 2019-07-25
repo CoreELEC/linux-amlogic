@@ -101,7 +101,6 @@
 	READ_HHI_REG(HHI_WAVE420L_CLK_CNTL2) \
 		& (~(1 << 8)))
 
-#ifdef CONFIG_COMPAT
 struct compat_vpudrv_buffer_t {
 	u32 size;
 	u32 cached;
@@ -109,7 +108,6 @@ struct compat_vpudrv_buffer_t {
 	compat_ulong_t base; /* kernel logical address in use kernel */
 	compat_ulong_t virt_addr; /* virtual user space address */
 };
-#endif
 
 struct vpudrv_buffer_t {
 	u32 size;
@@ -206,7 +204,6 @@ struct vpudrv_instance_pool_t {
 #define VDI_IOCTL_FLUSH_BUFFER \
 	_IOW(VDI_MAGIC, 13, VPUDRV_BUF_LEN)
 
-#ifdef CONFIG_COMPAT
 #define VDI_IOCTL_ALLOCATE_PHYSICAL_MEMORY32 \
 	_IOW(VDI_MAGIC, 0, VPUDRV_BUF_LEN32)
 
@@ -227,7 +224,6 @@ struct vpudrv_instance_pool_t {
 
 #define VDI_IOCTL_FLUSH_BUFFER32 \
 	_IOW(VDI_MAGIC, 13, VPUDRV_BUF_LEN32)
-#endif
 
 enum {
 	W4_INT_INIT_VPU = 0,

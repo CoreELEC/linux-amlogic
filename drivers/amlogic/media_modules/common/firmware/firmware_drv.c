@@ -14,6 +14,7 @@
  * more details.
  *
  */
+
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/types.h>
@@ -37,10 +38,9 @@
 #include <linux/amlogic/major.h>
 #include <linux/cdev.h>
 #include <linux/crc32.h>
-#include "../chips/decoder_cpu_ver_info.h"
 
-/* major.minor */
-#define PACK_VERS "v0.1"
+/* major.minor.revision */
+#define PACK_VERS "v0.0.1"
 
 #define CLASS_NAME	"firmware_codec"
 #define DEV_NAME	"firmware_vdec"
@@ -79,12 +79,15 @@ int get_firmware_data(unsigned int format, char *buf)
 	struct fw_mgr_s *mgr = g_mgr;
 	struct fw_info_s *info;
 
-	pr_info("[%s], the fw (%s) will be loaded.\n",
-		tee_enabled() ? "TEE" : "LOCAL",
-		get_fw_format_name(format));
-
-	if (tee_enabled())
-		return 0;
+	if (tee_enabled()) {
+		pr_info ("tee load firmware fomat = %d\n",(u32)format);
+		ret = tee_load_video_fw((u32)format, 0);
+		if (ret == 0)
+			ret = 1;
+		else
+			ret = -1;
+		return ret;
+	}
 
 	mutex_lock(&mutex);
 
@@ -117,7 +120,7 @@ int get_data_from_name(const char *name, char *buf)
 	struct fw_info_s *info;
 	char *fw_name = __getname();
 
-	if (fw_name == NULL)
+	if (IS_ERR_OR_NULL(fw_name))
 		return -ENOMEM;
 
 	strcat(fw_name, name);
@@ -360,12 +363,11 @@ static ssize_t info_show(struct class *class,
 			- sys_tz.tz_minuteswest * 60;
 		time_to_tm(secs, 0, &tm);
 
-		pr_info("%s %-16s, %02d:%02d:%02d %d/%d/%ld, %s %-8s, %s %-8s, %s %s\n",
+		pr_info("%s %-16s, %02d:%02d:%02d %d/%d/%ld, %s %-8s, %s %s\n",
 			"fmt:", info->data->head.format,
 			tm.tm_hour, tm.tm_min, tm.tm_sec,
 			tm.tm_mon + 1, tm.tm_mday, tm.tm_year + 1900,
-			"cmtid:", info->data->head.commit,
-			"chgid:", info->data->head.change_id,
+			"id:", info->data->head.commit,
 			"mk:", info->data->head.maker);
 	}
 out:
@@ -392,7 +394,7 @@ static int fw_info_fill(void)
 	char *path = __getname();
 	const char *name;
 
-	if (path == NULL)
+	if (IS_ERR_OR_NULL(path))
 		return -ENOMEM;
 
 	for (i = 0; i < info_size; i++) {
@@ -406,7 +408,7 @@ static int fw_info_fill(void)
 			continue;
 
 		files = kzalloc(sizeof(struct fw_files_s), GFP_KERNEL);
-		if (files == NULL) {
+		if (IS_ERR_OR_NULL(files)) {
 			__putname(path);
 			return -ENOMEM;
 		}
@@ -414,9 +416,7 @@ static int fw_info_fill(void)
 		files->file_type = ucode_info[i].file_type;
 		files->fw_type = ucode_info[i].fw_type;
 		strncpy(files->path, path, sizeof(files->path));
-		files->path[sizeof(files->path) - 1] = '\0';
 		strncpy(files->name, name, sizeof(files->name));
-		files->name[sizeof(files->name) - 1] = '\0';
 
 		list_add(&files->node, &mgr->files_head);
 	}
@@ -448,6 +448,7 @@ static int fw_data_filter(struct firmware_s *fw,
 	int cpu = fw_get_cpu(fw->head.cpu);
 
 	if (mgr->cur_cpu < cpu) {
+		pr_info("the fw %s is not match.\n", fw_info->name);
 		kfree(fw_info);
 		kfree(fw);
 		return -1;
@@ -476,18 +477,15 @@ static int fw_data_filter(struct firmware_s *fw,
 
 		/* the cpu ver is lower and needs to be filtered */
 		if (cpu < fw_get_cpu(info->data->head.cpu)) {
-			if (debug)
-				pr_info("keep the newer fw (%s) and ignore the older fw (%s).\n",
-					info->name, fw_info->name);
+			pr_info("the fw %s is not match.\n",
+				fw_info->name);
 			kfree(fw_info);
 			kfree(fw);
 			return 1;
 		}
 
 		/* removes not match fw from info list */
-		if (debug)
-			pr_info("drop the old fw (%s) will be load the newer fw (%s).\n",
-					info->name, fw_info->name);
+		pr_info("the fw %s is not match.\n", info->name);
 		kfree(info->data);
 		fw_del_info(info);
 	}
@@ -498,30 +496,26 @@ static int fw_data_filter(struct firmware_s *fw,
 static int fw_check_pack_version(char *buf)
 {
 	struct package_s *pack = NULL;
-	int major, minor, major_fw, minor_fw, ver = 0;
-	int ret;
+	int major, minor, rev, ver = 0;
 
 	pack = (struct package_s *) buf;
-	ret = sscanf(PACK_VERS, "v%x.%x", &major, &minor);
-	if (ret != 2)
-		return -1;
+	sscanf(PACK_VERS, "v%x.%x.%x", &major, &minor, &rev);
+	ver = (major << 24 | minor << 16 | rev);
 
-	ver = (major << 16 | minor);
+	pr_info("the package has %d fws totally.\n", pack->head.total);
 
-	if (debug)
-		pr_info("the package has %d fws totally.\n", pack->head.total);
+	major = pack->head.version >> 24;
+	minor = (pack->head.version >> 16) & 0xf;
+	rev = pack->head.version & 0xff;
 
-	major_fw = (pack->head.version >> 16) & 0xff;
-	minor_fw = pack->head.version & 0xff;
-
-	if (major < major_fw) {
-		pr_info("the pack ver v%d.%d too higher to unsupport.\n",
-			major_fw, minor_fw);
+	if (ver < pack->head.version) {
+		pr_info("the pack ver v%d.%d.%d too higher to unsupport.\n",
+			major, minor, rev);
 		return -1;
 	}
 
 	if (ver != pack->head.version) {
-		pr_info("the fw pack ver v%d.%d is too lower.\n", major_fw, minor_fw);
+		pr_info("the fw pack ver v%d.%d.%d is too lower.\n", major, minor, rev);
 		pr_info("it may work abnormally so need to be update in time.\n");
 	}
 
@@ -540,7 +534,7 @@ static int fw_package_parse(struct fw_files_s *files,
 	int try_cnt = 100;
 	char *path = __getname();
 
-	if (path == NULL)
+	if (IS_ERR_OR_NULL(path))
 		return -ENOMEM;
 
 	pack_data = ((struct package_s *)buf)->data;
@@ -557,13 +551,13 @@ static int fw_package_parse(struct fw_files_s *files,
 			continue;
 
 		info = kzalloc(sizeof(struct fw_info_s), GFP_KERNEL);
-		if (info == NULL) {
+		if (IS_ERR_OR_NULL(info)) {
 			ret = -ENOMEM;
 			goto out;
 		}
 
 		data = kzalloc(FRIMWARE_SIZE, GFP_KERNEL);
-		if (data == NULL) {
+		if (IS_ERR_OR_NULL(data)) {
 			kfree(info);
 			ret = -ENOMEM;
 			goto out;
@@ -572,10 +566,8 @@ static int fw_package_parse(struct fw_files_s *files,
 		info->file_type = files->file_type;
 		strncpy(info->src_from, files->name,
 			sizeof(info->src_from));
-		info->src_from[sizeof(info->src_from) - 1] = '\0';
 		strncpy(info->name, pack_info->head.name,
 			sizeof(info->name));
-		info->name[sizeof(info->name) - 1] = '\0';
 		info->format = get_fw_format(pack_info->head.format);
 
 		len = pack_info->head.length;
@@ -612,25 +604,21 @@ static int fw_code_parse(struct fw_files_s *files,
 	struct fw_info_s *info;
 
 	info = kzalloc(sizeof(struct fw_info_s), GFP_KERNEL);
-	if (info == NULL)
+	if (IS_ERR_OR_NULL(info))
 		return -ENOMEM;
 
 	info->data = kzalloc(FRIMWARE_SIZE, GFP_KERNEL);
-	if (info->data == NULL) {
-		kfree(info);
+	if (IS_ERR_OR_NULL(info->data))
 		return -ENOMEM;
-	}
 
 	info->file_type = files->file_type;
 	strncpy(info->src_from, files->name,
 		sizeof(info->src_from));
-	info->src_from[sizeof(info->src_from) - 1] = '\0';
 	memcpy(info->data, buf, size);
 
 	if (!fw_data_check_sum(info->data)) {
 		pr_info("check sum fail !\n");
 		kfree(info->data);
-		kfree(info);
 		return -1;
 	}
 
@@ -659,7 +647,7 @@ static int fw_data_binding(void)
 	int ret = 0, magic = 0;
 	struct fw_mgr_s *mgr = g_mgr;
 	struct fw_files_s *files, *tmp;
-	char *buf = NULL;
+	char *buf = vmalloc(BUFF_SIZE);
 	int size;
 
 	if (list_empty(&mgr->files_head)) {
@@ -667,7 +655,6 @@ static int fw_data_binding(void)
 		return 0;
 	}
 
-	buf = vmalloc(BUFF_SIZE);
 	if (IS_ERR_OR_NULL(buf))
 		return -ENOMEM;
 
@@ -678,9 +665,13 @@ static int fw_data_binding(void)
 		magic = fw_probe(buf);
 
 		if (files->file_type == VIDEO_PACKAGE && magic == PACK) {
+			pr_info("start to parse fw package.\n");
+
 			if (!fw_check_pack_version(buf))
 				ret = fw_package_parse(files, buf, size);
 		} else if (files->file_type == VIDEO_FW_FILE && magic == CODE) {
+			pr_info("start to parse fw code.\n");
+
 			ret = fw_code_parse(files, buf, size);
 		} else {
 			list_del(&files->node);
@@ -720,7 +711,7 @@ static int fw_mgr_init(void)
 	if (IS_ERR_OR_NULL(g_mgr))
 		return -ENOMEM;
 
-	g_mgr->cur_cpu = get_cpu_major_id();
+	g_mgr->cur_cpu = get_cpu_type();
 	INIT_LIST_HEAD(&g_mgr->files_head);
 	INIT_LIST_HEAD(&g_mgr->fw_head);
 	spin_lock_init(&g_mgr->lock);

@@ -65,8 +65,7 @@ struct fw_head_s {
 	char commit[16];
 	int data_size;
 	unsigned int time;
-	char change_id[16];
-	char reserved[112];
+	char reserved[128];
 };
 
 struct firmware_s {

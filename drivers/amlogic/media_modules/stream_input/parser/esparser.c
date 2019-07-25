@@ -61,9 +61,6 @@
 #define PARSER_DISCARD      (ES_DISCARD | ES_PARSER_START)
 #define PARSER_BUSY         (ES_PARSER_BUSY)
 
-#define MAX_DRM_PACKAGE_SIZE 0x500000
-
-
 static unsigned char *search_pattern;
 static dma_addr_t search_pattern_map;
 static u32 audio_real_wp;
@@ -154,7 +151,7 @@ static inline u32 buf_wp(u32 type)
 }
 
 static ssize_t _esparser_write(const char __user *buf,
-		size_t count, struct stream_buf_s *stbuf, int isphybuf)
+		size_t count, u32 type, int isphybuf)
 {
 	size_t r = count;
 	const char __user *p = buf;
@@ -164,7 +161,6 @@ static ssize_t _esparser_write(const char __user *buf,
 	int ret;
 	u32 wp;
 	dma_addr_t dma_addr = 0;
-	u32 type = stbuf->type;
 
 	if (type == BUF_TYPE_HEVC)
 		parser_type = PARSER_VIDEO;
@@ -249,12 +245,11 @@ static ssize_t _esparser_write(const char __user *buf,
 	else if (type == BUF_TYPE_AUDIO)
 		audio_data_parsed += len;
 
-	threadrw_update_buffer_level(stbuf, len);
 	return len;
 }
 
 static ssize_t _esparser_write_s(const char __user *buf,
-			size_t count, struct stream_buf_s *stbuf)
+			size_t count, u32 type)
 {
 	size_t r = count;
 	const char __user *p = buf;
@@ -262,7 +257,6 @@ static ssize_t _esparser_write_s(const char __user *buf,
 	int ret;
 	u32 wp, buf_start, buf_end;
 	dma_addr_t buf_wp_map;
-	u32 type = stbuf->type;
 
 	if (type != BUF_TYPE_AUDIO)
 		BUG();
@@ -316,10 +310,7 @@ static ssize_t _esparser_write_s(const char __user *buf,
 
 end_write:
 	if (type == BUF_TYPE_AUDIO)
-	{
 		audio_data_parsed += len;
-		threadrw_update_buffer_level(stbuf, len);
-	}
 
 	return len;
 }
@@ -356,11 +347,7 @@ s32 es_vpts_checkin(struct stream_buf_s *buf, u32 pts)
 		return 0;
 	}
 #endif
-	u32 passed = 0;
-
-	mutex_lock(&esparser_mutex);
-	passed = video_data_parsed + threadrw_buffer_level(buf);
-	mutex_unlock(&esparser_mutex);
+	u32 passed = video_data_parsed + threadrw_buffer_level(buf);
 
 	return pts_checkin_offset(PTS_TYPE_VIDEO, passed, pts);
 
@@ -376,10 +363,7 @@ s32 es_apts_checkin(struct stream_buf_s *buf, u32 pts)
 		return 0;
 	}
 #endif
-	u32 passed = 0;
-	mutex_lock(&esparser_mutex);
-	passed = audio_data_parsed + threadrw_buffer_level(buf);
-	mutex_unlock(&esparser_mutex);
+	u32 passed = audio_data_parsed + threadrw_buffer_level(buf);
 
 	return pts_checkin_offset(PTS_TYPE_AUDIO, passed, pts);
 }
@@ -450,7 +434,7 @@ s32 esparser_init(struct stream_buf_s *buf, struct vdec_s *vdec)
 
 		/* TS data path */
 #ifndef CONFIG_AM_DVB
-//		WRITE_DEMUX_REG(FEC_INPUT_CONTROL, 0);
+		WRITE_DEMUX_REG(FEC_INPUT_CONTROL, 0);
 #else
 		tsdemux_set_reset_flag();
 #endif
@@ -625,7 +609,6 @@ Err_1:
 	mutex_unlock(&esparser_mutex);
 	return r;
 }
-EXPORT_SYMBOL(esparser_init);
 
 void esparser_audio_reset_s(struct stream_buf_s *buf)
 {
@@ -731,7 +714,6 @@ void esparser_release(struct stream_buf_s *buf)
 	buf->flag &= ~BUF_FLAG_PARSER;
 	pts_stop(pts_type);
 }
-EXPORT_SYMBOL(esparser_release);
 
 ssize_t drm_write(struct file *file, struct stream_buf_s *stbuf,
 				  const char __user *buf, size_t count)
@@ -763,10 +745,6 @@ ssize_t drm_write(struct file *file, struct stream_buf_s *stbuf,
 	}
 
 	if ((drm->drm_flag & TYPE_DRMINFO) && (drm->drm_hasesdata == 0)) {
-		if (drm->drm_pktsize > MAX_DRM_PACKAGE_SIZE) {
-			pr_err("drm package size is error, size is %u\n", drm->drm_pktsize);
-			return -EINVAL;
-		}
 		/* buf only has drminfo not have esdata; */
 		realbuf = drm->drm_phy;
 		realcount = drm->drm_pktsize;
@@ -777,10 +755,6 @@ ssize_t drm_write(struct file *file, struct stream_buf_s *stbuf,
 		 *drm->drm_hasesdata,stbuf->type,buf);
 		 */
 	} else if (drm->drm_hasesdata == 1) {	/* buf is drminfo+es; */
-		if (drm->drm_pktsize > MAX_DRM_PACKAGE_SIZE) {
-			pr_err("drm package size is error, size is %u\n", drm->drm_pktsize);
-			return -EINVAL;
-		}
 		realcount = drm->drm_pktsize;
 		realbuf = (unsigned long)buf + sizeof(struct drm_info);
 		isphybuf = 0;
@@ -807,9 +781,7 @@ ssize_t drm_write(struct file *file, struct stream_buf_s *stbuf,
 		if (stbuf->type != BUF_TYPE_SUBTITLE
 			&& stbuf_space(stbuf) < count) {
 			/*should not write partial data in drm mode*/
-			r = stbuf_wait_space(stbuf, count);
-			if (r < 0)
-				return r;
+			stbuf_wait_space(stbuf, count);
 			if (stbuf_space(stbuf) < count)
 				return -EAGAIN;
 		}
@@ -819,13 +791,12 @@ ssize_t drm_write(struct file *file, struct stream_buf_s *stbuf,
 
 		if (stbuf->type != BUF_TYPE_AUDIO)
 			r = _esparser_write((const char __user *)realbuf, len,
-					stbuf, isphybuf);
+					stbuf->type, isphybuf);
 		else
 			r = _esparser_write_s((const char __user *)realbuf, len,
-					stbuf);
+					stbuf->type);
 		if (r < 0) {
 			pr_info("drm_write _esparser_write failed [%d]\n", r);
-			mutex_unlock(&esparser_mutex);
 			return r;
 		}
 		havewritebytes += r;
@@ -850,8 +821,6 @@ ssize_t drm_write(struct file *file, struct stream_buf_s *stbuf,
 
 	return re_count;
 }
-EXPORT_SYMBOL(drm_write);
-
 /*
  *flags:
  *1:phy
@@ -895,9 +864,9 @@ ssize_t esparser_write_ex(struct file *file,
 	mutex_lock(&esparser_mutex);
 
 	if (stbuf->type == BUF_TYPE_AUDIO)
-		r = _esparser_write_s(buf, len, stbuf);
+		r = _esparser_write_s(buf, len, stbuf->type);
 	else
-		r = _esparser_write(buf, len, stbuf, flags & 1);
+		r = _esparser_write(buf, len, stbuf->type, flags & 1);
 
 	mutex_unlock(&esparser_mutex);
 
@@ -945,7 +914,7 @@ ssize_t esparser_write(struct file *file,
 	}
 	return esparser_write_ex(file, stbuf, buf, count, 0);
 }
-EXPORT_SYMBOL(esparser_write);
+
 
 void esparser_sub_reset(void)
 {

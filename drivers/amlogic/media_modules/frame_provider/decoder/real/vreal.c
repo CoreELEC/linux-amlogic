@@ -52,10 +52,6 @@
 #include <linux/amlogic/media/codec_mm/codec_mm.h>
 #include <linux/amlogic/media/codec_mm/configs.h>
 #include "../utils/firmware.h"
-#include <linux/amlogic/tee.h>
-
-#include <trace/events/meson_atrace.h>
-
 
 #define DRIVER_NAME "amvdec_real"
 #define MODULE_NAME "amvdec_real"
@@ -358,7 +354,6 @@ static irqreturn_t vreal_isr(int irq, void *dev_id)
 				buffer_index);
 
 		kfifo_put(&display_q, (const struct vframe_s *)vf);
-		ATRACE_COUNTER(MODULE_NAME, vf->pts);
 
 		frame_count++;
 		vf_notify_receiver(PROVIDER_NAME,
@@ -504,7 +499,7 @@ static void vreal_put_timer_func(unsigned long arg)
 		struct vframe_s *vf;
 
 		if (kfifo_get(&recycle_q, &vf)) {
-			if ((vf->index < VF_BUF_NUM)
+			if ((vf->index >= 0) && (vf->index < VF_BUF_NUM)
 				&& (--vfbuf_use[vf->index] == 0)) {
 				WRITE_VREG(TO_AMRISC, ~(1 << vf->index));
 				vf->index = VF_BUF_NUM;
@@ -523,9 +518,6 @@ static void vreal_put_timer_func(unsigned long arg)
 
 int vreal_dec_status(struct vdec_s *vdec, struct vdec_info *vstatus)
 {
-	if (!(stat & STAT_VDEC_RUN))
-		return -1;
-
 	vstatus->frame_width = vreal_amstream_dec_info.width;
 	vstatus->frame_height = vreal_amstream_dec_info.height;
 	if (0 != vreal_amstream_dec_info.rate)
@@ -801,7 +793,6 @@ static void load_block_data(void *dest, unsigned int count)
 s32 vreal_init(struct vdec_s *vdec)
 {
 	int ret = -1, size = -1;
-	char fw_name[32] = {0};
 	char *buf = vmalloc(0x1000 * 16);
 
 	if (IS_ERR_OR_NULL(buf))
@@ -841,12 +832,10 @@ s32 vreal_init(struct vdec_s *vdec)
 		while (READ_VREG(LMEM_DMA_CTRL) & 0x8000)
 			;
 		size = get_firmware_data(VIDEO_DEC_REAL_V8, buf);
-		strncpy(fw_name, "vreal_mc_8", sizeof(fw_name));
 
 		pr_info("load VIDEO_DEC_FORMAT_REAL_8\n");
 	} else if (vreal_amstream_dec_info.format == VIDEO_DEC_FORMAT_REAL_9) {
 		size = get_firmware_data(VIDEO_DEC_REAL_V9, buf);
-		strncpy(fw_name, "vreal_mc_9", sizeof(fw_name));
 
 		pr_info("load VIDEO_DEC_FORMAT_REAL_9\n");
 	} else
@@ -859,14 +848,12 @@ s32 vreal_init(struct vdec_s *vdec)
 		vfree(buf);
 		return -1;
 	}
-
-	ret = amvdec_loadmc_ex(VFORMAT_REAL, fw_name, buf);
-	if (ret < 0) {
+	if (size == 1)
+		pr_info ("tee load ok");
+	else if (amvdec_loadmc_ex(VFORMAT_REAL, NULL, buf) < 0) {
 		rmparser_release();
 		amvdec_disable();
 		vfree(buf);
-		pr_err("%s: the %s fw loading failed, err: %x\n",
-			fw_name, tee_enabled() ? "TEE" : "local", ret);
 		return -EBUSY;
 	}
 
@@ -948,7 +935,6 @@ static int amvdec_real_probe(struct platform_device *pdev)
 
 	if (vreal_init(pdata) < 0) {
 		pr_info("amvdec_real init failed.\n");
-		pdata->dec_status = NULL;
 		return -ENODEV;
 	}
 	INIT_WORK(&set_clk_work, vreal_set_clk);
