@@ -499,3 +499,64 @@ void vdin_afbce_soft_reset(void)
 	W_VCBUS_BIT(AFBCE_MODE, 1, 30, 1);
 	W_VCBUS_BIT(AFBCE_MODE, 0, 30, 1);
 }
+
+void vdin_afbce_mode_init(struct vdin_dev_s *devp)
+{
+	/* afbce_valid means can switch into afbce mode */
+	devp->afbce_valid = 0;
+	if (devp->afbce_flag & VDIN_AFBCE_EN) {
+		if ((devp->h_active > 1920) && (devp->v_active > 1080)) {
+			if (devp->afbce_flag & VDIN_AFBCE_EN_4K)
+				devp->afbce_valid = 1;
+		} else if ((devp->h_active > 1280) && (devp->v_active > 720)) {
+			if (devp->afbce_flag & VDIN_AFBCE_EN_1080P)
+				devp->afbce_valid = 1;
+		} else if ((devp->h_active > 720) && (devp->v_active > 576)) {
+			if (devp->afbce_flag & VDIN_AFBCE_EN_720P)
+				devp->afbce_valid = 1;
+		} else {
+			if (devp->afbce_flag & VDIN_AFBCE_EN_SMALL)
+				devp->afbce_valid = 1;
+		}
+
+		/* if is hdr mode, not enable afbc mode*/
+		if (devp->prop.hdr_info.hdr_state == HDR_STATE_GET) {
+			if ((devp->prop.hdr_info.hdr_data.eotf ==
+					EOTF_HDR) ||
+				(devp->prop.hdr_info.hdr_data.eotf ==
+					EOTF_SMPTE_ST_2048) ||
+				(devp->prop.hdr_info.hdr_data.eotf ==
+					EOTF_HLG))
+			devp->afbce_valid = false;
+		}
+
+		if (devp->prop.hdr10p_info.hdr10p_on)
+			devp->afbce_valid = false;
+	}
+
+	/* default non-afbce mode
+	 * switch to afbce_mode if need by vpp notify
+	 */
+	devp->afbce_mode = 0;
+	devp->afbce_mode_pre = devp->afbce_mode;
+	pr_info("vdin%d init afbce_mode: %d\n", devp->index, devp->afbce_mode);
+}
+
+void vdin_afbce_mode_update(struct vdin_dev_s *devp)
+{
+	/* vdin mif/afbce mode update */
+	if (devp->afbce_mode) {
+		vdin_write_mif_or_afbce(devp, VDIN_OUTPUT_TO_AFBCE);
+		vdin_afbce_hw_enable_rdma(devp);
+	} else {
+		vdin_afbce_hw_disable_rdma(devp);
+		vdin_write_mif_or_afbce(devp, VDIN_OUTPUT_TO_MIF);
+	}
+
+	if (vdin_dbg_en) {
+		pr_info("vdin.%d: change afbce_mode %d->%d\n",
+			devp->index, devp->afbce_mode_pre, devp->afbce_mode);
+	}
+	devp->afbce_mode_pre = devp->afbce_mode;
+}
+

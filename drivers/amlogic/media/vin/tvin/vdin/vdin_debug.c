@@ -758,7 +758,7 @@ static void vdin_dump_state(struct vdin_dev_s *devp)
 	pr_info("frontend_fps:%d\n", devp->prop.fps);
 	pr_info("frontend_colordepth:%d\n", devp->prop.colordepth);
 	pr_info("source_bitdepth:%d\n", devp->source_bitdepth);
-	pr_info("color_depth_config:%d\n", devp->color_depth_config);
+	pr_info("color_depth_config:0x%x\n", devp->color_depth_config);
 	pr_info("color_depth_mode:%d\n", devp->color_depth_mode);
 	pr_info("color_depth_support:0x%x\n", devp->color_depth_support);
 	pr_info("cma_flag:0x%x\n", devp->cma_config_flag);
@@ -945,7 +945,7 @@ static int seq_file_vdin_state_show(struct seq_file *seq, void *v)
 	seq_printf(seq, "frontend_fps:%d\n", devp->prop.fps);
 	seq_printf(seq, "frontend_colordepth:%d\n", devp->prop.colordepth);
 	seq_printf(seq, "source_bitdepth:%d\n", devp->source_bitdepth);
-	seq_printf(seq, "color_depth_config:%d\n", devp->color_depth_config);
+	seq_printf(seq, "color_depth_config:0x%x\n", devp->color_depth_config);
 	seq_printf(seq, "color_depth_mode:%d\n", devp->color_depth_mode);
 	seq_printf(seq, "color_depth_support:0x%x\n",
 		devp->color_depth_support);
@@ -1971,7 +1971,7 @@ start_chk:
 			pr_err("miss parameters .\n");
 		else if (kstrtoul(parm[1], 10, &val) == 0) {
 			devp->color_depth_config = val | COLOR_DEEPS_MANUAL;
-			pr_info("color_depth(%d):%d\n\n", devp->index,
+			pr_info("color_depth(%d):0x%x\n\n", devp->index,
 				devp->color_depth_config);
 		}
 	} else if (!strcmp(parm[0], "color_depth_support")) {

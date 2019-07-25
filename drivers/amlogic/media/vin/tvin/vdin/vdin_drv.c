@@ -476,34 +476,6 @@ static void vdin_rdma_irq(void *arg)
 static struct rdma_op_s vdin_rdma_op[VDIN_MAX_DEVS];
 #endif
 
-static void vdin_afbce_mode_init(struct vdin_dev_s *devp)
-{
-	/* afbce_valid means can switch into afbce mode */
-	devp->afbce_valid = 0;
-	if (devp->afbce_flag & VDIN_AFBCE_EN) {
-		if ((devp->h_active > 1920) && (devp->v_active > 1080)) {
-			if (devp->afbce_flag & VDIN_AFBCE_EN_4K)
-				devp->afbce_valid = 1;
-		} else if ((devp->h_active > 1280) && (devp->v_active > 720)) {
-			if (devp->afbce_flag & VDIN_AFBCE_EN_1080P)
-				devp->afbce_valid = 1;
-		} else if ((devp->h_active > 720) && (devp->v_active > 576)) {
-			if (devp->afbce_flag & VDIN_AFBCE_EN_720P)
-				devp->afbce_valid = 1;
-		} else {
-			if (devp->afbce_flag & VDIN_AFBCE_EN_SMALL)
-				devp->afbce_valid = 1;
-		}
-	}
-
-	/* default non-afbce mode
-	 * switch to afbce_mode if need by vpp notify
-	 */
-	devp->afbce_mode = 0;
-	devp->afbce_mode_pre = devp->afbce_mode;
-	pr_info("vdin%d init afbce_mode: %d\n", devp->index, devp->afbce_mode);
-}
-
 /*
  * 1. config canvas base on  canvas_config_mode
  *		0: canvas_config in driver probe
@@ -1408,24 +1380,6 @@ static bool vdin_recycle_frame_check(struct vdin_dev_s *devp)
 	}
 
 	return false;
-}
-
-static void vdin_afbce_mode_update(struct vdin_dev_s *devp)
-{
-	/* vdin mif/afbce mode update */
-	if (devp->afbce_mode) {
-		vdin_write_mif_or_afbce(devp, VDIN_OUTPUT_TO_AFBCE);
-		vdin_afbce_hw_enable_rdma(devp);
-	} else {
-		vdin_afbce_hw_disable_rdma(devp);
-		vdin_write_mif_or_afbce(devp, VDIN_OUTPUT_TO_MIF);
-	}
-
-	if (vdin_dbg_en) {
-		pr_info("vdin.%d: change afbce_mode %d->%d\n",
-			devp->index, devp->afbce_mode_pre, devp->afbce_mode);
-	}
-	devp->afbce_mode_pre = devp->afbce_mode;
 }
 
 /*
@@ -3269,9 +3223,9 @@ static int vdin_drv_probe(struct platform_device *pdev)
 		vdevp->output_color_depth = 10;
 
 	if (vdevp->color_depth_support&VDIN_WR_COLOR_DEPTH_10BIT_FULL_PCAK_MODE)
-		vdevp->color_depth_mode = 1;
+		vdevp->color_depth_mode = VDIN_422_FULL_PK_EN;
 	else
-		vdevp->color_depth_mode = 0;
+		vdevp->color_depth_mode = VDIN_422_FULL_PK_DIS;
 
 	/*set afbce config*/
 	vdevp->afbce_flag = 0;

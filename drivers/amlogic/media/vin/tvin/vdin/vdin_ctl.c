@@ -1245,6 +1245,7 @@ static inline void vdin_set_color_matrix1(unsigned int offset,
 		wr_bits(offset, VDIN_MATRIX_CTRL, 1,
 			VDIN_MATRIX1_EN_BIT, VDIN_MATRIX1_EN_WID);
 	}
+	pr_info("%s id:%d\n", __func__, matrix_csc);
 }
 
 static inline void vdin_set_color_matrix0(unsigned int offset,
@@ -1421,6 +1422,7 @@ static inline void vdin_set_color_matrix0(unsigned int offset,
 		wr_bits(offset, VDIN_MATRIX_CTRL, 1,
 			VDIN_MATRIX_EN_BIT, VDIN_MATRIX_EN_WID);
 	}
+	pr_info("%s id:%d\n", __func__, matrix_csc);
 }
 static void vdin_set_color_matrix0_g12a(unsigned int offset,
 		struct tvin_format_s *tvin_fmt_p,
@@ -1606,6 +1608,7 @@ static void vdin_set_color_matrix0_g12a(unsigned int offset,
 		wr_bits(offset, VDIN_MATRIX_CTRL, 1,
 			VDIN_MATRIX_EN_BIT, VDIN_MATRIX_EN_WID);
 	}
+	pr_info("%s id:%d\n", __func__, matrix_csc);
 }
 
 /*set matrix based on rgb_info_enable:
@@ -4221,7 +4224,7 @@ void vdin_hdr10plus_check(struct vdin_dev_s *devp,
 		struct vframe_s *vf) {
 
 	if (devp->prop.hdr10p_info.hdr10p_on) {
-		devp->prop.hdr10p_info.hdr10p_on = false;
+		/*devp->prop.hdr10p_info.hdr10p_on = false;*/
 
 		vf->signal_type |= (1 << 29);/*present_flag*/
 		vf->signal_type |= (0 << 25);/*0:limited*/
@@ -4339,6 +4342,7 @@ void vdin_check_hdmi_hdr(struct vdin_dev_s *devp)
 	struct tvin_state_machine_ops_s *sm_ops;
 	enum tvin_port_e port = TVIN_PORT_NULL;
 	struct tvin_sig_property_s *prop;
+	/*enum tvin_color_fmt_e color_format;*/
 
 	if (!devp)
 		return;
@@ -4364,11 +4368,30 @@ void vdin_check_hdmi_hdr(struct vdin_dev_s *devp)
 					EOTF_SMPTE_ST_2048) ||
 				(devp->prop.hdr_info.hdr_data.eotf ==
 					EOTF_HLG)) {
+				#if 0
+				/*4k 444, afbc mode not support 10bit mode*/
+				color_format = devp->prop.color_format;
+				if (!(((color_format == TVIN_RGB444) ||
+					(color_format == TVIN_YUV444) ||
+					(color_format == TVIN_BGGR) ||
+					(color_format == TVIN_RGGB) ||
+					(color_format == TVIN_GBRG) ||
+					(color_format == TVIN_GRBG)) &&
+					((devp->h_active > 1920) &&
+						(devp->v_active > 1080)) &&
+					devp->afbce_valid)) {
+					devp->color_depth_config =
+						COLOR_DEEPS_10BIT;
+					pr_info("vdin is hdr mode,force 10bit\n");
+				}
+				#else
+				devp->color_depth_config =
+					COLOR_DEEPS_10BIT;
 				pr_info("vdin is hdr mode,force 10bit\n");
-				devp->color_depth_config = COLOR_DEEPS_10BIT;
+				#endif
 			}
 		}
-		devp->prop.hdr_info.hdr_data.eotf = 0;
+		/*devp->prop.hdr_info.hdr_data.eotf = 0;*/
 	}
 }
 

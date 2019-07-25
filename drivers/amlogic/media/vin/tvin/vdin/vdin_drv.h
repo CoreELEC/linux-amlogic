@@ -48,7 +48,7 @@
 /* Ref.2019/04/25: tl1 vdin0 afbce dynamically switch support,
  *                 vpp also should support this function
  */
-#define VDIN_VER "Ref.2019/07/23: pretect dec top/start"
+#define VDIN_VER "Ref.2019/07/30:444 10bit mode buffer size not right"
 
 /*the counter of vdin*/
 #define VDIN_MAX_DEVS			2
@@ -112,6 +112,10 @@
 #define VDIN_WR_COLOR_DEPTH_12BIT	(1 << 3)
 /*TXL new add*/
 #define VDIN_WR_COLOR_DEPTH_10BIT_FULL_PCAK_MODE	(1 << 4)
+
+
+#define VDIN_422_FULL_PK_EN			1
+#define VDIN_422_FULL_PK_DIS			0
 
 /* vdin afbce flag */
 #define VDIN_AFBCE_EN                   (1 << 0)
