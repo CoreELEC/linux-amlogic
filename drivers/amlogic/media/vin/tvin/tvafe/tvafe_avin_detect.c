@@ -1108,7 +1108,7 @@ static int tvafe_avin_detect_probe(struct platform_device *pdev)
 				(TVAFE_AVIN_INTERVAL * avin_timer_time);
 	add_timer(&avin_detect_timer);
 
-	avin_detect_flag = AVIN_DETECT_INIT;
+	avin_detect_flag |= AVIN_DETECT_INIT;
 	tvafe_pr_info("tvafe_avin_detect_probe ok.\n");
 
 	return 0;
