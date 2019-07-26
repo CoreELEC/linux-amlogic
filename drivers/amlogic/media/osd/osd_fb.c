@@ -1543,7 +1543,6 @@ static int osd_mmap(struct fb_info *info, struct vm_area_struct *vma)
 	mmio_pgoff = PAGE_ALIGN((start & ~PAGE_MASK) + len) >> PAGE_SHIFT;
 	if (vma->vm_pgoff >= mmio_pgoff) {
 		if (info->var.accel_flags) {
-			mutex_unlock(&info->mm_lock);
 			return -EINVAL;
 		}
 
@@ -1551,7 +1550,6 @@ static int osd_mmap(struct fb_info *info, struct vm_area_struct *vma)
 		start = info->fix.mmio_start;
 		len = info->fix.mmio_len;
 	}
-	mutex_unlock(&info->mm_lock);
 
 	vma->vm_page_prot = vm_get_page_prot(vma->vm_flags);
 	vma->vm_page_prot = pgprot_writecombine(vma->vm_page_prot);
