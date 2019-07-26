@@ -15132,3 +15132,6 @@ F:	drivers/amlogic/drm/meson_vpu_pipeline.c
 F:	drivers/amlogic/drm/meson_vpu_pipeline_traverse.c
 F:	include/dt-bindings/display/meson-drm-ids.h
 
+AMLOGIC LCD EXTERN DRIVER
+M:      Shaochan Liu <shaochan.liu@amlogic.com>
+F:      drivers/amlogic/media/vout/lcd/lcd_extern/i2c_CS602.c

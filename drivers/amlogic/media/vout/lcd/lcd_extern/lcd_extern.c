@@ -1468,6 +1468,10 @@ static int lcd_extern_add_i2c(struct aml_lcd_extern_driver_s *ext_drv)
 #ifdef CONFIG_AMLOGIC_LCD_EXTERN_I2C_DLPC3439
 		ret = aml_lcd_extern_i2c_DLPC3439_probe(ext_drv);
 #endif
+	} else if (strcmp(ext_drv->config->name, "i2c_CS602") == 0) {
+#ifdef CONFIG_AMLOGIC_LCD_EXTERN_I2C_CS602
+		ret = aml_lcd_extern_i2c_CS602_probe(ext_drv);
+#endif
 	} else if (strcmp(ext_drv->config->name, "i2c_ANX6862_7911") == 0) {
 #ifdef CONFIG_AMLOGIC_LCD_EXTERN_I2C_ANX6862_7911
 		ret = aml_lcd_extern_i2c_ANX6862_7911_probe(ext_drv);

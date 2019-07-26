@@ -2154,6 +2154,13 @@
 		reg = <0x74>;
 		status = "okay";
 	};
+
+	lcd_extern_i2c3: lcd_extern_i2c@3 {
+		compatible = "lcd_ext, i2c";
+		dev_name = "i2c_CS602";
+		reg = <0x66>;
+		status = "disable";
+	};
 };
 
 &pwm_ab {
