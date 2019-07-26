@@ -80,6 +80,7 @@
 				0  /*port_swap*/
 				0>; /*lane_reverse*/
 			phy_attr=<0xf 0>; /*vswing_level, preem_level*/
+			hw_filter=<0 0>;  /* filter_time, filter_cnt*/
 
 			/* power step: type, index, value, delay(ms) */
 			power_on_step = <
@@ -162,6 +163,7 @@
 				1 /*vbyone_intr_enable */
 				3>; /*vbyone_vsync_intr_enable*/
 			phy_attr=<0xf 1>; /* vswing_level, preem_level */
+			hw_filter=<0 0>;  /* filter_time, filter_cnt*/
 
 			/* power step: type, index, value, delay(ms) */
 			power_on_step = <
@@ -204,6 +206,7 @@
 				1   /*vbyone_intr_enable*/
 				3>; /*vbyone_vsync_intr_enable*/
 			phy_attr=<0xf 1>; /* vswing_level, preem_level */
+			hw_filter=<0 0>;  /* filter_time, filter_cnt*/
 
 			/* power step: type, index, value, delay(ms) */
 			power_on_step = <

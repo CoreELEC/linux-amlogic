@@ -526,7 +526,7 @@ static void lcd_vbyone_hw_filter(int flag)
 	struct vbyone_config_s *vx1_conf;
 	unsigned int temp, period;
 	unsigned int tick_period[] = {
-		0xfffff,
+		0xfff,
 		0xff,    /* 1: 0.8us */
 		0x1ff,   /* 2: 1.7us */
 		0x3ff,   /* 3: 3.4us */
