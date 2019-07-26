@@ -228,6 +228,7 @@
 				<GIC_PPI 11 0xff08>,
 				<GIC_PPI 10 0xff08>;
 	};
+
 	timer_bc {
 		compatible = "arm, meson-bc-timer";
 		reg=   <0x0 0xc1109990 0x0 0x4 0x0 0xc1109994 0x0 0x4>;
@@ -243,14 +244,16 @@
 
 	arm_pmu {
 		compatible = "arm,armv8-pmuv3";
-		/* clusterb-enabled; */
-		interrupts = <GIC_SPI 137 IRQ_TYPE_LEVEL_HIGH>;
-		reg = <0x0 0xc8834680 0x0 0x4>;
-		cpumasks = <0xf>;
+		clusterb-enabled;
+		interrupts = <GIC_SPI 137 IRQ_TYPE_LEVEL_HIGH>,
+			<GIC_SPI 132 IRQ_TYPE_LEVEL_HIGH>;
+		reg = <0x0 0xc8834680 0x0 0x4>,
+			<0x0 0xc8834740 0x0 0x4>;
+		cpumasks = <0xf 0xf0>;
 		/* default 10ms */
 		relax-timer-ns = <10000000>;
-		/* default 10000us */
-		max-wait-cnt = <10000>;
+		/* default 100000us */
+		max-wait-cnt = <100000>;
 	};
 
 	gic: interrupt-controller@2c001000 {

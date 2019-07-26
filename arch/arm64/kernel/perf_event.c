@@ -751,13 +751,6 @@ static void armv8pmu_disable_event(struct perf_event *event)
 
 #ifdef CONFIG_AMLOGIC_MODIFY
 #include <linux/perf/arm_pmu.h>
-
-static irqreturn_t armv8pmu_handle_irq(int irq_num, void *dev);
-
-void amlpmu_handle_irq_ipi(void *arg)
-{
-	armv8pmu_handle_irq(-1, amlpmu_ctx.pmu);
-}
 #endif
 
 static irqreturn_t armv8pmu_handle_irq(int irq_num, void *dev)
@@ -776,9 +769,11 @@ static irqreturn_t armv8pmu_handle_irq(int irq_num, void *dev)
 
 #ifdef CONFIG_AMLOGIC_MODIFY
 	/* amlpmu have routed the interrupt already, so return IRQ_HANDLED */
-	if (amlpmu_handle_irq(cpu_pmu,
-			      irq_num,
-			      armv8pmu_has_overflowed(pmovsr)))
+	amlpmu_handle_irq(cpu_pmu,
+			irq_num,
+			armv8pmu_has_overflowed(pmovsr));
+
+	if (!armv8pmu_has_overflowed(pmovsr))
 		return IRQ_HANDLED;
 #else
 	/*
