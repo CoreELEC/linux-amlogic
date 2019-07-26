@@ -400,7 +400,7 @@ static void set_gxtvbb_hpll_clk_out(unsigned int frac_rate, unsigned int clk)
 		hd_set_reg_bits(P_HHI_HDMI_PLL_CNTL, 0x4, 28, 3);
 		WAIT_FOR_PLL_LOCKED(P_HHI_HDMI_PLL_CNTL);
 		pr_info("HPLL: 0x%x\n", hd_read_reg(P_HHI_HDMI_PLL_CNTL));
-		hd_set_reg_bits(P_HHI_HDMI_PLL_CNTL2, 0x4e00, 0, 16);
+		/* hd_set_reg_bits(P_HHI_HDMI_PLL_CNTL2, 0x4e00, 0, 16); */
 		break;
 	case 4324320:
 		hd_write_reg(P_HHI_HDMI_PLL_CNTL, 0x5800025a);
