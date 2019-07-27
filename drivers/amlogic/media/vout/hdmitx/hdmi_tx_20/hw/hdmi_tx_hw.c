@@ -1875,23 +1875,38 @@ static void set_phy_by_mode(unsigned int mode)
 	case MESON_CPU_ID_G12A:
 	case MESON_CPU_ID_G12B:
 		switch (mode) {
-		case 1: /* 5.94/4.5/3.7Gbps */
+		case HDMI_PHYPARA_6G: /* 5.94Gbps */
+			hd_write_reg(P_HHI_HDMI_PHY_CNTL0, 0x37eb76d4);
+			hd_write_reg(P_HHI_HDMI_PHY_CNTL3, 0x2ab0ff3b);
+			hd_write_reg(P_HHI_HDMI_PHY_CNTL5, 0x0000080b);
+			break;
+		case HDMI_PHYPARA_4p5G: /* 4.5Gbps*/
+			hd_write_reg(P_HHI_HDMI_PHY_CNTL0, 0x37eb65d4);
+			hd_write_reg(P_HHI_HDMI_PHY_CNTL3, 0x2ab0ff3b);
+			hd_write_reg(P_HHI_HDMI_PHY_CNTL5, 0x0000080b);
+			break;
+		case HDMI_PHYPARA_3p7G: /* 3.7Gbps */
 			hd_write_reg(P_HHI_HDMI_PHY_CNTL0, 0x37eb65c4);
 			if (hdev->dongle_mode)
 				hd_write_reg(P_HHI_HDMI_PHY_CNTL0, 0x37eb5584);
 			hd_write_reg(P_HHI_HDMI_PHY_CNTL3, 0x2ab0ff3b);
 			hd_write_reg(P_HHI_HDMI_PHY_CNTL5, 0x0000080b);
 			break;
-		case 2: /* 2.97Gbps */
+		case HDMI_PHYPARA_3G: /* 2.97Gbps */
 			hd_write_reg(P_HHI_HDMI_PHY_CNTL0, 0x33eb6272);
 			if (hdev->dongle_mode)
 				hd_write_reg(P_HHI_HDMI_PHY_CNTL0, 0x33eb4262);
 			hd_write_reg(P_HHI_HDMI_PHY_CNTL3, 0x2ab0ff3b);
 			hd_write_reg(P_HHI_HDMI_PHY_CNTL5, 0x00000003);
 			break;
-		case 3: /* 1.485Gbps, and below */
+		case HDMI_PHYPARA_270M: /* SD format, 480p/576p, 270Mbps */
+			hd_write_reg(P_HHI_HDMI_PHY_CNTL0, 0x33eb5252);
+			hd_write_reg(P_HHI_HDMI_PHY_CNTL3, 0x2ab0ff3b);
+			hd_write_reg(P_HHI_HDMI_PHY_CNTL5, 0x00000003);
+			break;
+		case HDMI_PHYPARA_DEF: /* less than 2.97G */
 		default:
-			hd_write_reg(P_HHI_HDMI_PHY_CNTL0, 0x33eb4242);
+			hd_write_reg(P_HHI_HDMI_PHY_CNTL0, 0x33eb4262);
 			hd_write_reg(P_HHI_HDMI_PHY_CNTL3, 0x2ab0ff3b);
 			hd_write_reg(P_HHI_HDMI_PHY_CNTL5, 0x00000003);
 			break;
@@ -1899,17 +1914,20 @@ static void set_phy_by_mode(unsigned int mode)
 		break;
 	case MESON_CPU_ID_SM1:
 		switch (mode) {
-		case 1: /* 5.94/4.5/3.7Gbps */
+		case HDMI_PHYPARA_6G: /* 5.94/4.5/3.7Gbps */
+		case HDMI_PHYPARA_4p5G:
+		case HDMI_PHYPARA_3p7G:
 			hd_write_reg(P_HHI_HDMI_PHY_CNTL0, 0x37eb65c4);
 			hd_write_reg(P_HHI_HDMI_PHY_CNTL3, 0x2ab0ff3b);
 			hd_write_reg(P_HHI_HDMI_PHY_CNTL5, 0x0000080b);
 			break;
-		case 2: /* 2.97Gbps */
+		case HDMI_PHYPARA_3G: /* 2.97Gbps */
 			hd_write_reg(P_HHI_HDMI_PHY_CNTL0, 0x33eb42a2);
 			hd_write_reg(P_HHI_HDMI_PHY_CNTL3, 0x2ab0ff3b);
 			hd_write_reg(P_HHI_HDMI_PHY_CNTL5, 0x00000003);
 			break;
-		case 3: /* 1.485Gbps, and below */
+		case HDMI_PHYPARA_270M: /* 1.485Gbps, and below */
+		case HDMI_PHYPARA_DEF:
 		default:
 			hd_write_reg(P_HHI_HDMI_PHY_CNTL0, 0x33eb4242);
 			hd_write_reg(P_HHI_HDMI_PHY_CNTL3, 0x2ab0ff3b);
@@ -1919,17 +1937,20 @@ static void set_phy_by_mode(unsigned int mode)
 		break;
 	case MESON_CPU_ID_TM2:
 		switch (mode) {
-		case 1: /* 5.94/4.5/3.7Gbps */
+		case HDMI_PHYPARA_6G: /* 5.94/4.5/3.7Gbps */
+		case HDMI_PHYPARA_4p5G:
+		case HDMI_PHYPARA_3p7G:
 			hd_write_reg(P_TM2_HHI_HDMI_PHY_CNTL0, 0x33EB65c4);
 			hd_write_reg(P_TM2_HHI_HDMI_PHY_CNTL3, 0x2ab0ff3b);
 			hd_write_reg(P_TM2_HHI_HDMI_PHY_CNTL5, 0x0000080b);
 			break;
-		case 2: /* 2.97Gbps */
+		case HDMI_PHYPARA_3G: /* 2.97Gbps */
 			hd_write_reg(P_TM2_HHI_HDMI_PHY_CNTL0, 0x33eb42a5);
 			hd_write_reg(P_TM2_HHI_HDMI_PHY_CNTL3, 0x2ab0ff3b);
 			hd_write_reg(P_TM2_HHI_HDMI_PHY_CNTL5, 0x00000003);
 			break;
-		case 3: /* 1.485Gbps, and below */
+		case HDMI_PHYPARA_270M: /* 1.485Gbps, and below */
+		case HDMI_PHYPARA_DEF:
 		default:
 			hd_write_reg(P_TM2_HHI_HDMI_PHY_CNTL0, 0x33eb4262);
 			hd_write_reg(P_TM2_HHI_HDMI_PHY_CNTL3, 0x2ab0ff3b);
@@ -1942,15 +1963,18 @@ static void set_phy_by_mode(unsigned int mode)
 	case MESON_CPU_ID_GXTVBB:
 		/* other than GXL */
 		switch (mode) {
-		case 1: /* 5.94Gbps, 3.7125Gbsp */
+		case HDMI_PHYPARA_6G: /* 5.94Gbps, 3.7125Gbsp */
+		case HDMI_PHYPARA_4p5G:
+		case HDMI_PHYPARA_3p7G:
 			hd_write_reg(P_HHI_HDMI_PHY_CNTL0, 0x33353245);
 			hd_write_reg(P_HHI_HDMI_PHY_CNTL3, 0x2100115b);
 			break;
-		case 2: /* 2.97Gbps */
+		case HDMI_PHYPARA_3G: /* 2.97Gbps */
 			hd_write_reg(P_HHI_HDMI_PHY_CNTL0, 0x33634283);
 			hd_write_reg(P_HHI_HDMI_PHY_CNTL3, 0xb000115b);
 			break;
-		case 3: /* 1.485Gbps, and below */
+		case HDMI_PHYPARA_270M: /* 1.485Gbps, and below */
+		case HDMI_PHYPARA_DEF:
 		default:
 			hd_write_reg(P_HHI_HDMI_PHY_CNTL0, 0x33632122);
 			hd_write_reg(P_HHI_HDMI_PHY_CNTL3, 0x2000115b);
@@ -1966,18 +1990,21 @@ static void set_phy_by_mode(unsigned int mode)
 	case MESON_CPU_ID_TXHD:
 	default:
 		switch (mode) {
-		case 1: /* 5.94Gbps, 3.7125Gbsp */
+		case HDMI_PHYPARA_6G: /* 5.94Gbps, 3.7125Gbsp */
+		case HDMI_PHYPARA_4p5G:
+		case HDMI_PHYPARA_3p7G:
 			hd_write_reg(P_HHI_HDMI_PHY_CNTL0, 0x333d3282);
 			hd_write_reg(P_HHI_HDMI_PHY_CNTL3, 0x2136315b);
 			break;
-		case 2: /* 2.97Gbps */
+		case HDMI_PHYPARA_3G: /* 2.97Gbps */
 			hd_write_reg(P_HHI_HDMI_PHY_CNTL0, 0x33303382);
 			hd_write_reg(P_HHI_HDMI_PHY_CNTL3, 0x2036315b);
 			break;
-		case 3: /* 1.485Gbps */
+		case HDMI_PHYPARA_DEF: /* 1.485Gbps */
 			hd_write_reg(P_HHI_HDMI_PHY_CNTL0, 0x33303042);
 			hd_write_reg(P_HHI_HDMI_PHY_CNTL3, 0x2016315b);
 			break;
+		case HDMI_PHYPARA_270M:
 		default: /* 742.5Mbps, and below */
 			hd_write_reg(P_HHI_HDMI_PHY_CNTL0, 0x33604132);
 			hd_write_reg(P_HHI_HDMI_PHY_CNTL3, 0x0016315b);
@@ -1991,8 +2018,8 @@ static void hdmitx_set_phy(struct hdmitx_dev *hdev)
 {
 	if (!hdev)
 		return;
+	hd_write_reg(P_HHI_HDMI_PHY_CNTL0, 0x0);
 	if (hdev->chip_type == MESON_CPU_ID_TM2) {
-		hd_write_reg(P_HHI_HDMI_PHY_CNTL0, 0x0);
 
 /* P_HHI_HDMI_PHY_CNTL1 bit[1]: enable clock	bit[0]: soft reset */
 #define RESET_HDMI_PHY() \
@@ -2007,14 +2034,13 @@ do { \
 		hd_set_reg_bits(P_TM2_HHI_HDMI_PHY_CNTL1, 0x1, 17, 1);
 		hd_set_reg_bits(P_TM2_HHI_HDMI_PHY_CNTL1, 0x0, 17, 1);
 		hd_set_reg_bits(P_TM2_HHI_HDMI_PHY_CNTL1, 0x0, 0, 4);
-		msleep(100);
+		msleep(20);
 		RESET_HDMI_PHY();
 		RESET_HDMI_PHY();
 		RESET_HDMI_PHY();
 #undef RESET_HDMI_PHY
 
 	} else {
-		hd_write_reg(P_HHI_HDMI_PHY_CNTL0, 0x0);
 /* P_HHI_HDMI_PHY_CNTL1	bit[1]: enable clock	bit[0]: soft reset */
 #define RESET_HDMI_PHY() \
 do { \
@@ -2029,7 +2055,7 @@ do { \
 		if (hdev->chip_type >= MESON_CPU_ID_GXL)
 			hd_set_reg_bits(P_HHI_HDMI_PHY_CNTL1, 0x0, 17, 1);
 		hd_set_reg_bits(P_HHI_HDMI_PHY_CNTL1, 0x0, 0, 4);
-		msleep(100);
+		msleep(20);
 		RESET_HDMI_PHY();
 		RESET_HDMI_PHY();
 		RESET_HDMI_PHY();
@@ -2037,6 +2063,31 @@ do { \
 	}
 
 	switch (hdev->cur_VIC) {
+	case HDMI_3840x2160p50_16x9:
+	case HDMI_3840x2160p60_16x9:
+	case HDMI_4096x2160p50_256x135:
+	case HDMI_4096x2160p60_256x135:
+		if (hdev->para->cs != COLORSPACE_YUV420)
+			set_phy_by_mode(HDMI_PHYPARA_6G);
+		else
+			if (hdev->para->cd == COLORDEPTH_36B)
+				set_phy_by_mode(HDMI_PHYPARA_4p5G);
+			else if (hdev->para->cd == COLORDEPTH_30B)
+				set_phy_by_mode(HDMI_PHYPARA_3p7G);
+			else
+				set_phy_by_mode(HDMI_PHYPARA_3G);
+		break;
+	case HDMI_3840x2160p50_16x9_Y420:
+	case HDMI_3840x2160p60_16x9_Y420:
+	case HDMI_4096x2160p50_256x135_Y420:
+	case HDMI_4096x2160p60_256x135_Y420:
+		if (hdev->para->cd == COLORDEPTH_36B)
+			set_phy_by_mode(HDMI_PHYPARA_4p5G);
+		else if (hdev->para->cd == COLORDEPTH_30B)
+			set_phy_by_mode(HDMI_PHYPARA_3p7G);
+		else
+			set_phy_by_mode(HDMI_PHYPARA_3G);
+		break;
 	case HDMI_4k2k_24:
 	case HDMI_4k2k_25:
 	case HDMI_4k2k_30:
@@ -2045,40 +2096,25 @@ do { \
 	case HDMI_4096x2160p30_256x135:
 		if ((hdev->para->cs == COLORSPACE_YUV422)
 			|| (hdev->para->cd == COLORDEPTH_24B))
-			set_phy_by_mode(2);
+			set_phy_by_mode(HDMI_PHYPARA_3G);
 		else
-			set_phy_by_mode(1);
+			if (hdev->para->cd == COLORDEPTH_36B)
+				set_phy_by_mode(HDMI_PHYPARA_4p5G);
+			else if (hdev->para->cd == COLORDEPTH_30B)
+				set_phy_by_mode(HDMI_PHYPARA_3p7G);
+			else
+				set_phy_by_mode(HDMI_PHYPARA_3G);
 		break;
-	case HDMI_3840x2160p50_16x9:
-	case HDMI_3840x2160p60_16x9:
-	case HDMI_4096x2160p50_256x135:
-	case HDMI_4096x2160p60_256x135:
-		if (hdev->para->cs == COLORSPACE_YUV420)
-			set_phy_by_mode(2);
-		else
-			set_phy_by_mode(1);
-		break;
-	case HDMI_3840x2160p50_16x9_Y420:
-	case HDMI_3840x2160p60_16x9_Y420:
-	case HDMI_4096x2160p50_256x135_Y420:
-	case HDMI_4096x2160p60_256x135_Y420:
-		if (hdev->para->cd == COLORDEPTH_24B)
-			set_phy_by_mode(2);
-		else
-			set_phy_by_mode(1);
+	case HDMI_720x480p60_16x9:
+	case HDMI_720x576p50_16x9:
+	case HDMI_720x480i60_16x9:
+	case HDMI_720x576i50_16x9:
+		set_phy_by_mode(HDMI_PHYPARA_270M);
 		break;
 	case HDMI_1080p60:
 	case HDMI_1080p50:
-		if (hdev->flag_3dfp)
-			set_phy_by_mode(2);
-		else
-			set_phy_by_mode(3);
-		break;
 	default:
-		if (hdev->flag_3dfp)
-			set_phy_by_mode(3);
-		else
-			set_phy_by_mode(4);
+		set_phy_by_mode(HDMI_PHYPARA_DEF);
 		break;
 	}
 }
