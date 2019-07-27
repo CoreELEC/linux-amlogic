@@ -4,3 +4,7 @@
 	model = "Amlogic S905X2";
 	coreelec-dt-id = "g12a_s905x2_2g";
 };
+
+&i2c0 {
+	status = "disabled";
+};
