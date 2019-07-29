@@ -18,7 +18,7 @@
 /dts-v1/;
 
 #include "mesonsm1.dtsi"
-#include "partition_mbox_normal_Q.dtsi"
+#include "partition_mbox_normal_dynamic.dtsi"
 #include "mesonsm1_skt-panel.dtsi"
 
 / {
