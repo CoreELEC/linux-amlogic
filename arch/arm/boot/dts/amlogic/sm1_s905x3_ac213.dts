@@ -1768,3 +1768,7 @@
 		};
 	};
 };
+
+&irblaster {
+	status = "okay";
+};

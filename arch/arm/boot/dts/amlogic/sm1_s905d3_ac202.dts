@@ -1837,3 +1837,6 @@
 	status = "okay";
 };
 
+&irblaster {
+	status = "okay";
+};

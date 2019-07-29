@@ -244,7 +244,7 @@ void irblasterchip_sysfs_export(struct irblaster_chip *chip)
 	 * If device_create() fails the irblaster_chip is still usable by
 	 * the kernel its just not exported.
 	 */
-	parent = device_create(&irblaster_class, chip->dev, MKDEV(0, 0), chip,
+	parent = device_create(&irblaster_class, NULL, MKDEV(0, 0), chip,
 			       "irblaster%d", chip->base);
 	if (IS_ERR(parent)) {
 		dev_warn(chip->dev,
