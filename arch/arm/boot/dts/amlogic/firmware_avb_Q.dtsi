@@ -46,6 +46,13 @@
 				mnt_flags = "ro,barrier=1,inode_readahead_blks=8";
 				fsmgr_flags = "wait,logical,first_stage_mount";
 				};
+			metadata {
+				compatible = "android,metadata";
+				dev = "/dev/block/metadata";
+				type = "ext4";
+				mnt_flags = "noatime,nosuid,nodev,nodelalloc,nomblk_io_submit,errors=panic";
+				fsmgr_flags = "wait,check,formattable,first_stage_mount";
+				};
 			};
 		};
 	};
