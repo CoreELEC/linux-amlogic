@@ -629,7 +629,7 @@ void hdmi_packet_process(
 	if (!vinfo)
 		return;
 	if (!vinfo->vout_device) {
-		pr_info("vinfo->vout_device is null, return\n");
+		/* pr_info("vinfo->vout_device is null, return\n"); */
 		return;
 	}
 	vdev = vinfo->vout_device;
