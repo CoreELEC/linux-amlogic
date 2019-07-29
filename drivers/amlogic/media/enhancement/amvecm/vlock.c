@@ -1432,7 +1432,8 @@ void amve_vlock_process(struct vframe_s *vf)
 			(input_hz == 0) || (output_hz == 0) ||
 			(((vf->type_original & VIDTYPE_TYPEMASK)
 				!= VIDTYPE_PROGRESSIVE) &&
-				is_meson_txlx_package_962E())) {
+				is_meson_txlx_package_962E()) ||
+				(vinfo->fr_adj_type == VOUT_FR_ADJ_NONE)) {
 			if ((vlock_state != VLOCK_STATE_DISABLE_STEP2_DONE) &&
 				(vlock_state != VLOCK_STATE_NULL))
 				vlock_disable_step1();
@@ -1871,7 +1872,7 @@ void vlock_enc_timing_monitor(void)
 #if 1
 
 u32 vlock_fsm_check_support(struct stvlock_sig_sts *pvlock,
-		struct vframe_s *vf)
+		struct vframe_s *vf, struct vinfo_s *vinfo)
 {
 	u32 ret = true;
 
@@ -1897,6 +1898,9 @@ u32 vlock_fsm_check_support(struct stvlock_sig_sts *pvlock,
 				__func__);
 		ret = false;
 	}
+
+	if (vinfo->fr_adj_type == VOUT_FR_ADJ_NONE)
+		ret = false;
 
 	return ret;
 }
@@ -1936,7 +1940,7 @@ u32 vlock_fsm_input_check(struct stvlock_sig_sts *vlock, struct vframe_s *vf)
 	}
 
 	if (vlock->vf_sts)
-		vlock->md_support = vlock_fsm_check_support(vlock, vf);
+		vlock->md_support = vlock_fsm_check_support(vlock, vf, vinfo);
 
 	return ret;
 }
@@ -2420,6 +2424,7 @@ void vlock_status(void)
 	pr_info("vlk_fsm_sts:%d(2 is working)\n", vlock.fsm_sts);
 	pr_info("vlk_support:%d\n", vlock.dtdata->vlk_support);
 	pr_info("vlk_new_fsm:%d\n", vlock.dtdata->vlk_new_fsm);
+	pr_info("md_support:%d\n", vlock.md_support);
 	pr_info("vlk_phlock_en:%d\n", vlock.dtdata->vlk_phlock_en);
 	pr_info("vlk_hwver:%d\n", vlock.dtdata->vlk_hwver);
 	pr_info("vlk_pll_sel:%d\n", vlock.dtdata->vlk_pll_sel);
@@ -2432,6 +2437,7 @@ void vlock_status(void)
 	pr_info("vinfo video_clk:%d\n", vinfo->video_clk);
 	pr_info("vinfo htotal:%d\n", vinfo->htotal);
 	pr_info("vinfo vtotal:%d\n", vinfo->vtotal);
+	pr_info("fr_adj_type:%d\n", vinfo->fr_adj_type);
 	pr_info("vframe input_hz:%d\n", vlock.input_hz);
 	pr_info("vframe output_hz:%d\n", vlock.output_hz);
 	pr_info("lcnt_sts :0x%0x\n", vlock.vdinsts.lcnt_sts);
