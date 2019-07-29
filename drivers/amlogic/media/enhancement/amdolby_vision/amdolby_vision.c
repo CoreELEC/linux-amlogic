@@ -257,7 +257,7 @@ static unsigned int dma_start_line = 0x400;
 
 #define CRC_BUFF_SIZE (256 * 1024)
 static char *crc_output_buf;
-static u32 crc_outpuf_buff_off;
+static u32 crc_output_buff_off;
 static u32 crc_count;
 static u32 crc_bypass_count;
 static u32 setting_update_count;
@@ -7243,7 +7243,7 @@ EXPORT_SYMBOL(unregister_dv_functions);
 
 void tv_dolby_vision_crc_clear(int flag)
 {
-	crc_outpuf_buff_off = 0;
+	crc_output_buff_off = 0;
 	crc_count = 0;
 	crc_bypass_count = 0;
 	setting_update_count = 0;
@@ -7260,9 +7260,9 @@ char *tv_dolby_vision_get_crc(u32 *len)
 {
 	if ((!crc_output_buf) ||
 		(!len) ||
-		(crc_outpuf_buff_off == 0))
+		(crc_output_buff_off == 0))
 		return NULL;
-	*len = crc_outpuf_buff_off;
+	*len = crc_output_buff_off;
 	return crc_output_buf;
 }
 
@@ -7300,9 +7300,9 @@ void tv_dolby_vision_insert_crc(bool print)
 	str[len] = 0xa;
 	len++;
 	memcpy(
-		&crc_output_buf[crc_outpuf_buff_off],
+		&crc_output_buf[crc_output_buff_off],
 		&str[0], len);
-	crc_outpuf_buff_off += len;
+	crc_output_buff_off += len;
 	if (print || (debug_dolby & 2))
 		pr_info("%s\n", str);
 	crc_count++;
@@ -7393,11 +7393,17 @@ static ssize_t amdolby_vision_read(
 	size_t count, loff_t *ppos)
 {
 	char *out;
-	u32 data_size = 0, res, retVal = 0;
+	u32 data_size = 0, res, retVal = -1;
 
 	if (!is_dolby_vision_enable())
 		return retVal;
 	out = tv_dolby_vision_get_crc(&data_size);
+	if (data_size > CRC_BUFF_SIZE) {
+		pr_err("crc_output_buff_off is out of bound\n");
+		tv_dolby_vision_crc_clear(0);
+		return retVal;
+	}
+
 	if (out && data_size > 0) {
 		res = copy_to_user((void *)buf,
 			(void *)out,
