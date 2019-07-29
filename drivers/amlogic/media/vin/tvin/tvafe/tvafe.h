@@ -32,7 +32,7 @@
 /* ************************************************* */
 /* *** macro definitions ********************************************* */
 /* *********************************************************** */
-#define TVAFE_VER "Ref.2019/07/15"
+#define TVAFE_VER "Ref.2019/08/08"
 
 /* used to set the flag of tvafe_dev_s */
 #define TVAFE_FLAG_DEV_OPENED 0x00000010
@@ -73,9 +73,14 @@ struct tvafe_user_param_s {
 	unsigned int cutwindow_val_v[5];
 	unsigned int cutwindow_val_vs_ve;
 	unsigned int auto_adj_en;
+	unsigned int vline_chk_cnt;
 	unsigned int nostd_vs_th;
+	unsigned int nostd_no_vs_th;
+	unsigned int nostd_vs_cntl;
+	unsigned int nostd_vloop_tc;
 	unsigned int force_vs_th_flag;
 	unsigned int nostd_stable_cnt;
+	unsigned int nostd_dmd_clp_step;
 	unsigned int skip_vf_num;
 };
 

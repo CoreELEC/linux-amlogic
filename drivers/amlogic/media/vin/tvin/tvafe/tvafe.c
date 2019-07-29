@@ -139,9 +139,14 @@ static struct tvafe_user_param_s tvafe_user_param = {
 	 * bit[0]: auto cdto
 	 */
 	.auto_adj_en = 0x3e,
+	.vline_chk_cnt = 100, /* 100*10ms */
 	.nostd_vs_th = 0x0,
+	.nostd_no_vs_th = 0xf0,
+	.nostd_vs_cntl = 0x1,
+	.nostd_vloop_tc = 0x2,
 	.force_vs_th_flag = 0,
 	.nostd_stable_cnt = 3,
+	.nostd_dmd_clp_step = 0x10,
 
 	/*4 is the test result@20171101 on fluke-54200 and DVD*/
 	.skip_vf_num = 4,
@@ -1238,14 +1243,26 @@ static void tvafe_user_parameters_config(struct device_node *of_node)
 		tvafe_user_param.auto_adj_en = val[0];
 	}
 
-	ret = of_property_read_u32_array(of_node, "nostd_vs_th",
-			val, 2);
+	ret = of_property_read_u32_array(of_node, "nostd_vs_th", val, 2);
 	if (ret == 0) {
 		tvafe_user_param.nostd_vs_th = val[0];
 		tvafe_user_param.force_vs_th_flag = val[1];
 		tvafe_pr_info("find nostd_vs_th: 0x%x %d\n",
 			tvafe_user_param.nostd_vs_th,
 			tvafe_user_param.force_vs_th_flag);
+	}
+
+	ret = of_property_read_u32_array(of_node, "nostd_ctrl", val, 4);
+	if (ret == 0) {
+		tvafe_user_param.nostd_no_vs_th = val[0];
+		tvafe_user_param.nostd_vs_cntl = val[1];
+		tvafe_user_param.nostd_vloop_tc = val[2];
+		tvafe_user_param.nostd_dmd_clp_step = val[3];
+		tvafe_pr_info("find nostd_ctrl: 0x%x 0x%x 0x%x 0x%x\n",
+			tvafe_user_param.nostd_no_vs_th,
+			tvafe_user_param.nostd_vs_cntl,
+			tvafe_user_param.nostd_vloop_tc,
+			tvafe_user_param.nostd_dmd_clp_step);
 	}
 }
 

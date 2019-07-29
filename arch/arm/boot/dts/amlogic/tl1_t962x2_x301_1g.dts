@@ -645,6 +645,12 @@
 		 * force_flag: force setting to std mode, default=0
 		 */
 		nostd_vs_th = <0 0>; /* val, force_flag */
+		/* no_vs_th: default=0xf0
+		 * vs_cntl: default=0x1, support 0x0~0x3
+		 * vloop_tc: default=0x2, support 0x0~0x3
+		 * dmd_clp_step: default=0x10
+		 */
+		nostd_ctrl = <0xf0 0x1 0x2 0x10>;
 	};
 
 	vbi {

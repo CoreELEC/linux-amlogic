@@ -98,6 +98,8 @@ static void tvafe_state(struct tvafe_dev_s *devp)
 	tvafe_pr_info("tvafe_cvd2_info_s->state:0x%x\n", cvd2_info->state);
 	tvafe_pr_info("tvafe_cvd2_info_s->state_cnt:%d\n",
 		cvd2_info->state_cnt);
+	tvafe_pr_info("tvafe_cvd2_info_s->scene_colorful:%d\n",
+		cvd2_info->scene_colorful);
 	tvafe_pr_info("tvafe_cvd2_info_s->non_std_enable:%d\n",
 		cvd2_info->non_std_enable);
 	tvafe_pr_info("tvafe_cvd2_info_s->non_std_config:%d\n",
@@ -194,11 +196,17 @@ static void tvafe_state(struct tvafe_dev_s *devp)
 	}
 	tvafe_pr_info("cutwindow_val_vs_ve:%d\n",
 		user_param->cutwindow_val_vs_ve);
-	tvafe_pr_info("auto_adj_en:%d\n", user_param->auto_adj_en);
+	tvafe_pr_info("auto_adj_en:0x%x\n", user_param->auto_adj_en);
+	tvafe_pr_info("vline_chk_cnt:%d\n", user_param->vline_chk_cnt);
 	tvafe_pr_info("nostd_vs_th:0x%x\n", user_param->nostd_vs_th);
-	tvafe_pr_info("force_vs_th_flag:0x%x\n", user_param->force_vs_th_flag);
-	tvafe_pr_info("nostd_stable_cnt:0x%x\n", user_param->nostd_stable_cnt);
-	tvafe_pr_info("skip_vf_num:0x%x\n", user_param->skip_vf_num);
+	tvafe_pr_info("nostd_no_vs_th:0x%x\n", user_param->nostd_no_vs_th);
+	tvafe_pr_info("nostd_vs_cntl:0x%x\n", user_param->nostd_vs_cntl);
+	tvafe_pr_info("nostd_vloop_tc:0x%x\n", user_param->nostd_vloop_tc);
+	tvafe_pr_info("force_vs_th_flag:%d\n", user_param->force_vs_th_flag);
+	tvafe_pr_info("nostd_stable_cnt:%d\n", user_param->nostd_stable_cnt);
+	tvafe_pr_info("nostd_dmd_clp_step:0x%x\n",
+		user_param->nostd_dmd_clp_step);
+	tvafe_pr_info("skip_vf_num:%d\n", user_param->skip_vf_num);
 	tvafe_pr_info("try_fmt_max_atv:%d\n", try_fmt_max_atv);
 	tvafe_pr_info("try_fmt_max_av:%d\n", try_fmt_max_av);
 	tvafe_pr_info("tvafe version :  %s\n", TVAFE_VER);
@@ -366,7 +374,7 @@ static ssize_t tvafe_store(struct device *dev,
 				&user_param->force_vs_th_flag) < 0)
 				goto tvafe_store_err;
 		}
-		pr_info("[tvafe..]%s: force_vs_th_flag = 0x%x\n",
+		pr_info("[tvafe..]%s: force_vs_th_flag = %d\n",
 			__func__, user_param->force_vs_th_flag);
 	} else if (!strncmp(buff, "nostd_vs_th", strlen("nostd_vs_th"))) {
 		if (parm[1]) {
@@ -376,13 +384,37 @@ static ssize_t tvafe_store(struct device *dev,
 		}
 		pr_info("[tvafe..]%s: nostd_vs_th = 0x%x\n",
 			__func__, user_param->nostd_vs_th);
+	} else if (!strncmp(buff, "nostd_no_vs_th", strlen("nostd_no_vs_th"))) {
+		if (parm[1]) {
+			if (kstrtouint(parm[1], 16,
+				&user_param->nostd_no_vs_th) < 0)
+				goto tvafe_store_err;
+		}
+		pr_info("[tvafe..]%s: nostd_no_vs_th = 0x%x\n",
+			__func__, user_param->nostd_no_vs_th);
+	} else if (!strncmp(buff, "nostd_vs_cntl", strlen("nostd_vs_cntl"))) {
+		if (parm[1]) {
+			if (kstrtouint(parm[1], 16,
+				&user_param->nostd_vs_cntl) < 0)
+				goto tvafe_store_err;
+		}
+		pr_info("[tvafe..]%s: nostd_vs_cntl = 0x%x\n",
+			__func__, user_param->nostd_vs_cntl);
+	} else if (!strncmp(buff, "nostd_vloop_tc", strlen("nostd_vloop_tc"))) {
+		if (parm[1]) {
+			if (kstrtouint(parm[1], 16,
+				&user_param->nostd_vloop_tc) < 0)
+				goto tvafe_store_err;
+		}
+		pr_info("[tvafe..]%s: nostd_vloop_tc = 0x%x\n",
+			__func__, user_param->nostd_vloop_tc);
 	} else if (!strncmp(buff, "nostd_cnt", strlen("nostd_cnt"))) {
 		if (parm[1]) {
 			if (kstrtouint(parm[1], 10,
 				&user_param->nostd_stable_cnt) < 0)
 				goto tvafe_store_err;
 		}
-		pr_info("[tvafe..]%s: nostd_stable_cnt = 0x%x\n",
+		pr_info("[tvafe..]%s: nostd_stable_cnt = %d\n",
 			__func__, user_param->nostd_stable_cnt);
 	} else if (!strncmp(buff, "auto_adj", strlen("auto_adj"))) {
 		if (parm[1]) {
@@ -392,6 +424,24 @@ static ssize_t tvafe_store(struct device *dev,
 		}
 		pr_info("[tvafe..]%s: auto_adj_en = 0x%x\n",
 			__func__, user_param->auto_adj_en);
+	} else if (!strncmp(buff, "vline_chk_cnt",
+		strlen("vline_chk_cnt"))) {
+		if (parm[1]) {
+			if (kstrtouint(parm[1], 10,
+				&user_param->vline_chk_cnt) < 0)
+				goto tvafe_store_err;
+		}
+		pr_info("[tvafe..]%s: vline_chk_cnt = 0x%x\n",
+			__func__, user_param->vline_chk_cnt);
+	} else if (!strncmp(buff, "nostd_dmd_clp_step",
+		strlen("nostd_dmd_clp_step"))) {
+		if (parm[1]) {
+			if (kstrtouint(parm[1], 16,
+				&user_param->nostd_dmd_clp_step) < 0)
+				goto tvafe_store_err;
+		}
+		pr_info("[tvafe..]%s: nostd_dmd_clp_step = 0x%x\n",
+			__func__, user_param->nostd_dmd_clp_step);
 	} else if (!strncmp(buff, "skip_vf_num", strlen("skip_vf_num"))) {
 		if (parm[1]) {
 			if (kstrtouint(parm[1], 10,

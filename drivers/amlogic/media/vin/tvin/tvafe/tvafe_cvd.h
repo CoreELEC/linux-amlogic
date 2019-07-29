@@ -141,6 +141,7 @@ struct tvafe_cvd2_info_s {
 	unsigned short nonstd_cnt;
 	unsigned short nonstd_stable_cnt;
 	unsigned short nonstd_print_cnt;
+	bool scene_colorful;
 	bool nonstd_flag;
 	bool nonstd_flag_adv;
 	bool non_std_enable;
