@@ -42,12 +42,12 @@
 		};
 		misc:misc{
 			pname = "misc";
-			size = <0x0 0x800000>;
+			size = <0x0 0x200000>;
 			mask = <1>;
 		};
 		dtbo:dtbo{
 			pname = "dtbo";
-			size = <0x0 0x800000>;
+			size = <0x0 0x200000>;
 			mask = <1>;
 		};
 		cri_data:cri_data
@@ -84,7 +84,7 @@
 		};
 		tee:tee{
 			pname = "tee";
-			size = <0x0 0x2000000>;
+			size = <0x0 0x400000>;
 			mask = <1>;
 		};
 		vendor:vendor
@@ -102,7 +102,7 @@
 		system:system
 		{
 			pname = "system";
-			size = <0x0 0x32800000>;
+			size = <0x0 0x35000000>;
 			mask = <1>;
 		};
 		product:product{
@@ -113,7 +113,7 @@
 		cache:cache
 		{
 			pname = "cache";
-			size = <0x0 0x46000000>;
+			size = <0x0 0x32000000>;
 			mask = <2>;
 		};
 		data:data
