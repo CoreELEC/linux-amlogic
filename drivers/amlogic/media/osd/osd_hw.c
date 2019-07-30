@@ -33,6 +33,7 @@
 #include <linux/fs.h>
 #include <linux/sysfs.h>
 #include <linux/uaccess.h>
+#include <asm/div64.h>
 #include <linux/amlogic/cpu_version.h>
 /* Android Headers */
 
@@ -2409,7 +2410,6 @@ int osd_set_scan_mode(u32 index)
 				&& (vinfo->height == 2160))) {
 				if ((osd_hw.fb_for_4k2k)
 					&& (osd_hw.free_scale_enable[index]))
-					if (!(osd_hw.osd_meson_dev.afbc_type))
 						osd_hw.scale_workaround = 1;
 				osd_hw.field_out_en[output_index] = 0;
 			} else if (((vinfo->width == 720)
@@ -5000,7 +5000,7 @@ static void osd_set_dummy_data(u32 index, u32 alpha)
 
 static void osd_update_disp_freescale_enable(u32 index)
 {
-	int hf_phase_step, vf_phase_step;
+	u64 hf_phase_step, vf_phase_step;
 	int src_w, src_h, dst_w, dst_h;
 	int bot_ini_phase, top_ini_phase;
 	int vsc_ini_rcv_num, vsc_ini_rpt_p0_num;
@@ -5072,12 +5072,15 @@ static void osd_update_disp_freescale_enable(u32 index)
 		VSYNCOSD_WR_MPEG_REG(osd_reg->osd_sc_ctrl0, 0);
 	}
 
-	hf_phase_step = (src_w << 18) / dst_w;
-	hf_phase_step = (hf_phase_step << 6);
-	if (shift_workaround)
-		vf_phase_step = ((src_h - 1) << 20) / dst_h;
-	else
-		vf_phase_step = (src_h << 20) / dst_h;
+	hf_phase_step = (u64)src_w << 24;
+	do_div(hf_phase_step, dst_w);
+	if (shift_workaround) {
+		vf_phase_step = (u64)(src_h - 1) << 20;
+		do_div(vf_phase_step, dst_h);
+	} else {
+		vf_phase_step = (u64)src_h << 20;
+		do_div(vf_phase_step, dst_h);
+	}
 
 #ifdef NEW_PPS_PHASE
 	if (osd_hw.field_out_en[output_index]) {
