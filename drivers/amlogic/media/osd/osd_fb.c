@@ -738,6 +738,11 @@ static int osd_set_par(struct fb_info *info)
 	struct osd_ctl_s *osd_ctrl = &fbdev->osd_ctl;
 	u32 virt_end_x, virt_end_y;
 
+#ifdef CONFIG_ARCH_MESON64_ODROIDN2
+	info->var.xres_virtual = info->var.xres;
+	info->var.yres_virtual = info->var.yres;
+#endif
+
 	if (fbdev->fb_index <= OSD3) {
 		vinfo = get_current_vinfo();
 		if (!vinfo) {
