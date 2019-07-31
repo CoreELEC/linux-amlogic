@@ -51,12 +51,4 @@ int aml_get_hdmi_out_audio(struct snd_kcontrol *kcontrol,
 int aml_set_hdmi_out_audio(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol);
 #endif
-
-extern void earc_hdmitx_hpdst(bool st);
-/* prevent compile error in no HDMIRX case */
-void __attribute__((weak))earc_hdmitx_hpdst(bool st)
-{
-	pr_info("TODO, NEED TO REWRITE THIS FUNCTION\n");
-}
-
 #endif

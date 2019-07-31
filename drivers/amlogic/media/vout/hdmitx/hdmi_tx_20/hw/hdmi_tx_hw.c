@@ -47,7 +47,6 @@
 #include "hw_clk.h"
 #include <linux/arm-smccc.h>
 #include "checksha.h"
-#include <linux/amlogic/media/sound/spdif_info.h>
 
 static void mode420_half_horizontal_para(void);
 static void hdmi_phy_suspend(void);
@@ -671,7 +670,6 @@ static irqreturn_t intr_handler(int irq, void *dev)
 		hdev->hdmitx_event |= HDMI_TX_HPD_PLUGIN;
 		hdev->hdmitx_event &= ~HDMI_TX_HPD_PLUGOUT;
 		hdev->rhpd_state = 1;
-		earc_hdmitx_hpdst(1);
 		queue_delayed_work(hdev->hdmi_wq,
 			&hdev->work_hpd_plugin, HZ / 2);
 	}
@@ -680,7 +678,6 @@ static irqreturn_t intr_handler(int irq, void *dev)
 		hdev->hdmitx_event |= HDMI_TX_HPD_PLUGOUT;
 		hdev->hdmitx_event &= ~HDMI_TX_HPD_PLUGIN;
 		hdev->rhpd_state = 0;
-		earc_hdmitx_hpdst(0);
 		queue_delayed_work(hdev->hdmi_wq,
 			&hdev->work_hpd_plugout, HZ / 20);
 	}
