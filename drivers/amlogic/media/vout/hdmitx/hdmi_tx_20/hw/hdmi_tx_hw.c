@@ -47,6 +47,7 @@
 #include "hw_clk.h"
 #include <linux/arm-smccc.h>
 #include "checksha.h"
+#include <linux/amlogic/media/sound/hdmi_earc.h>
 
 static void mode420_half_horizontal_para(void);
 static void hdmi_phy_suspend(void);
@@ -641,6 +642,20 @@ void HDMITX_Meson_Init(struct hdmitx_dev *hdev)
 	hdev->HWOp.CntlMisc(hdev, MISC_AVMUTE_OP, CLR_AVMUTE);
 }
 
+static void hdmitx_phy_bandgap_en(struct hdmitx_dev *hdev)
+{
+	switch (hdev->chip_type) {
+	case MESON_CPU_ID_TM2:
+		hd_write_reg(P_TM2_HHI_HDMI_PHY_CNTL0, 0x0b4242);
+		break;
+	case MESON_CPU_ID_SM1:
+		hd_write_reg(P_HHI_HDMI_PHY_CNTL0, 0x0b4242);
+		break;
+	default:
+		break;
+	}
+}
+
 static irqreturn_t intr_handler(int irq, void *dev)
 {
 	/* get interrupt status */
@@ -670,6 +685,8 @@ static irqreturn_t intr_handler(int irq, void *dev)
 		hdev->hdmitx_event |= HDMI_TX_HPD_PLUGIN;
 		hdev->hdmitx_event &= ~HDMI_TX_HPD_PLUGOUT;
 		hdev->rhpd_state = 1;
+		hdmitx_phy_bandgap_en(hdev);
+		earc_hdmitx_hpdst(1);
 		queue_delayed_work(hdev->hdmi_wq,
 			&hdev->work_hpd_plugin, HZ / 2);
 	}
@@ -678,6 +695,7 @@ static irqreturn_t intr_handler(int irq, void *dev)
 		hdev->hdmitx_event |= HDMI_TX_HPD_PLUGOUT;
 		hdev->hdmitx_event &= ~HDMI_TX_HPD_PLUGIN;
 		hdev->rhpd_state = 0;
+		earc_hdmitx_hpdst(0);
 		queue_delayed_work(hdev->hdmi_wq,
 			&hdev->work_hpd_plugout, HZ / 20);
 	}
