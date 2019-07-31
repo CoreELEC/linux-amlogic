@@ -40,6 +40,13 @@
 		dev_name = "openvfd";
 		status = "okay";
 	};
+
+	hk-lirc-helper {
+		compatible = "hk-lirc-helper";
+		/* Multi-format IR controller */
+		reg = <0x0 0xff808040 0x0 0x44>;
+		status = "ok";
+	};
 };
 
 &meson_fb {
