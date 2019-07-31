@@ -877,6 +877,15 @@ void video_post_process(
 		break;
 	}
 
+	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A) {
+		if (vinfo->viu_color_fmt != COLOR_FMT_RGB444)
+			mtx_setting(POST2_MTX, MATRIX_NULL, MTX_OFF);
+		else if (!(vinfo->mode == VMODE_NULL ||
+			vinfo->mode == VMODE_INVALID))
+			mtx_setting(POST2_MTX,
+				MATRIX_YUV709_RGB, MTX_ON);
+	}
+
 	if (cur_sdr_process_mode[vd_path] !=
 		sdr_process_mode[vd_path]) {
 		if (cur_source_format[vd_path] == HDRTYPE_SDR)
