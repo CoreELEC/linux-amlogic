@@ -30,6 +30,7 @@ extern unsigned int aud_mode;
 extern bool audio_thd_en;
 extern bool aud_reinit;
 extern bool atv_audio_overmodulated_en;
+extern unsigned int non_std_en;
 
 enum broadcast_standard_e {
 	ATVDEMOD_STD_NTSC = 0,

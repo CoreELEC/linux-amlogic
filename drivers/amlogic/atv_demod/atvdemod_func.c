@@ -195,6 +195,8 @@ void power_on_receiver(void)
 void atv_dmd_misc(void)
 {
 	unsigned int reg = 0;
+	int index = amlatvdemod_devp->tuner_cur;
+	int tuner_id = amlatvdemod_devp->tuners[index].cfg.id;
 
 	if (broad_std == AML_ATV_DEMOD_VIDEO_MODE_PROP_SECAM_L) {
 		pr_info("broad_std is SECAM_L, no need config misc\n");
@@ -207,10 +209,7 @@ void atv_dmd_misc(void)
 	atv_dmd_wr_byte(APB_BLOCK_ADDR_VDAGC, 0x45, 0x90);	/*zhuangwei*/
 
 	atv_dmd_wr_long(APB_BLOCK_ADDR_VDAGC, 0x44, 0x5c8808c1);/*zhuangwei*/
-	if (amlatvdemod_devp->tuners[amlatvdemod_devp->tuner_cur].cfg.id
-			== AM_TUNER_R840 ||
-		amlatvdemod_devp->tuners[amlatvdemod_devp->tuner_cur].cfg.id
-			== AM_TUNER_R842) {
+	if (tuner_id == AM_TUNER_R840 || tuner_id == AM_TUNER_R842) {
 		/*zhuangwei*/
 		atv_dmd_wr_long(APB_BLOCK_ADDR_VDAGC, 0x3c, reg_23cf);
 		/*guanzhong@20150804a*/
@@ -238,15 +237,13 @@ void atv_dmd_misc(void)
 		atv_dmd_wr_long(APB_BLOCK_ADDR_AGC_PWM, 0x08, 0x46170200);
 	}
 
-	if (amlatvdemod_devp->tuners[amlatvdemod_devp->tuner_cur].cfg.id
-			== AM_TUNER_MXL661) {
+	if (tuner_id == AM_TUNER_MXL661) {
 		/*test in sky*/
 		atv_dmd_wr_long(APB_BLOCK_ADDR_DAC_UPS, 0x04, 0xbffa0000);
 		atv_dmd_wr_long(APB_BLOCK_ADDR_DAC_UPS, 0x00, 0x764000);
 		/*guanzhong@20151013 fix nonstd def is:0x0c010301;0x0c020601*/
 		atv_dmd_wr_long(APB_BLOCK_ADDR_CARR_RCVY, 0x24, 0xc030901);
-	} else if (amlatvdemod_devp->tuners[amlatvdemod_devp->tuner_cur].cfg.id
-			== AM_TUNER_ATBM2040) {
+	} else if (tuner_id == AM_TUNER_ATBM2040) {
 		atv_dmd_wr_long(APB_BLOCK_ADDR_DAC_UPS, 0x04, 0xc8fa0000);
 		atv_dmd_wr_long(APB_BLOCK_ADDR_DAC_UPS, 0x00, 0x704000);
 	} else {
@@ -290,6 +287,13 @@ void atv_dmd_misc(void)
 		atv_dmd_wr_long(APB_BLOCK_ADDR_VDAGC, 0x0c, 0x387c0831);
 		atv_dmd_wr_long(APB_BLOCK_ADDR_CARR_RCVY, 0x24, 0xc020901);
 	} else {
+		if (tuner_id == AM_TUNER_R840 || tuner_id == AM_TUNER_R842
+				|| non_std_en == 4) {
+			/* Reduce target amplitude and response speed */
+			atv_dmd_wr_long(APB_BLOCK_ADDR_AGC_PWM, 0x08,
+					0x17070200);
+		}
+
 		atv_dmd_wr_long(APB_BLOCK_ADDR_SIF_STG_2, 0x00,
 				extra_input_fil_val);
 		if (atv_video_gain)
@@ -1999,7 +2003,8 @@ int atvdemod_init(struct atv_demod_priv *priv)
 				sound_format);
 	}
 
-	if (!priv->scanning)
+	/* for non standard(non_std_en != 0) signal, need reinit */
+	if (!priv->scanning || non_std_en)
 		atv_dmd_misc();
 
 	if (!priv->scanning &&

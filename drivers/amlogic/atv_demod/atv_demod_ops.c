@@ -252,7 +252,7 @@ static void atv_demod_set_params(struct dvb_frontend *fe,
 	if ((fe->ops.info.type == FE_ANALOG)
 			&& (priv->scanning == false)
 			&& (p->param.mode == 0)) {
-		if (priv->afc.enable)
+		if (priv->afc.enable && non_std_en == 0)
 			priv->afc.enable(&priv->afc);
 
 		if (priv->monitor.enable)
