@@ -1149,6 +1149,10 @@ int amvecm_on_vs(
 			/*1080i pulldown combing workaround*/
 			amvecm_dejaggy_patch(toggle_vf);
 		}
+		/*refresh vframe*/
+		if (toggle_vf == NULL && vf != NULL) {
+			refresh_on_vs(vf);
+		}
 	} else {
 		if (vd_path == VD1_PATH)
 			amvecm_reset_overscan();
