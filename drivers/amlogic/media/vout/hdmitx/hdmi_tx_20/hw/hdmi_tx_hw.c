@@ -644,12 +644,17 @@ void HDMITX_Meson_Init(struct hdmitx_dev *hdev)
 
 static void hdmitx_phy_bandgap_en(struct hdmitx_dev *hdev)
 {
+	unsigned int val = 0;
 	switch (hdev->chip_type) {
 	case MESON_CPU_ID_TM2:
-		hd_write_reg(P_TM2_HHI_HDMI_PHY_CNTL0, 0x0b4242);
+		val = hd_read_reg(P_TM2_HHI_HDMI_PHY_CNTL0);
+		if (val == 0)
+			hd_write_reg(P_TM2_HHI_HDMI_PHY_CNTL0, 0x0b4242);
 		break;
 	case MESON_CPU_ID_SM1:
-		hd_write_reg(P_HHI_HDMI_PHY_CNTL0, 0x0b4242);
+		val = hd_read_reg(P_HHI_HDMI_PHY_CNTL0);
+		if (val == 0)
+			hd_write_reg(P_HHI_HDMI_PHY_CNTL0, 0x0b4242);
 		break;
 	default:
 		break;
