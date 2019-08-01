@@ -6338,6 +6338,20 @@ static ssize_t amvecm_lc_store(struct class *cls,
 			goto free_buf;
 		tune_curve_en = val;
 		pr_info("tune_curve_en = %d\n", tune_curve_en);
+	} else if (!strcmp(parm[0], "detect_signal_range_en")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			goto free_buf;
+		amlc_debug = 0xe;
+		detect_signal_range_en = val;
+		pr_info("detect_signal_range_en = %d\n",
+				detect_signal_range_en);
+	} else if (!strcmp(parm[0], "detect_signal_range_threshold")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			goto free_buf;
+		amlc_debug = 0xe;
+		detect_signal_range_threshold = val;
+		pr_info("detect_signal_range_threshold = %d\n",
+				detect_signal_range_threshold);
 	} else
 		pr_info("unsupprt cmd!\n");
 

@@ -39,6 +39,8 @@ enum lc_mtx_csc_e {
 	LC_MTX_RGB_YUV709L = 0x2,
 	LC_MTX_YUV601L_RGB = 0x3,
 	LC_MTX_RGB_YUV601L = 0x4,
+	LC_MTX_YUV709_RGB  = 0x5,
+	LC_MTX_RGB_YUV709  = 0x6,
 	LC_MTX_MAX
 };
 
@@ -64,6 +66,8 @@ struct lc_alg_param_s {
 extern int amlc_debug;
 extern int lc_reg_lmtrat_sigbin;
 extern int tune_curve_en;
+extern int detect_signal_range_en;
+extern int detect_signal_range_threshold;
 extern int lc_en;
 extern int lc_demo_mode;
 extern unsigned int lc_hist_vs;
