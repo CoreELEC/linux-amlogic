@@ -245,7 +245,8 @@ static int meson_mmc_clk_set_rate_v3(struct mmc_host *mmc,
 				pr_warn("set comp0 as mux_clk parent error\n");
 		} else if (((host->data->chip_type == MMC_CHIP_TL1)
 				|| (host->data->chip_type == MMC_CHIP_G12B))
-				&& (clk_ios >= 166000000)) {
+				&& (clk_ios >= 166000000)
+				&& (pdata->caps2 & MMC_CAP2_HS400)) {
 			src0_clk = devm_clk_get(host->dev, "clkin2");
 			if (ret)
 				pr_warn("not get clkin2\n");
