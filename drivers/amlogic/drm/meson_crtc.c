@@ -194,7 +194,7 @@ static void am_meson_crtc_atomic_flush(struct drm_crtc *crtc,
 	struct drm_color_lut *lut;
 	struct am_meson_crtc *amcrtc = to_am_meson_crtc(crtc);
 	struct drm_atomic_state *old_atomic_state = old_state->state;
-
+	struct meson_drm *priv = amcrtc->priv;
 	struct meson_vpu_pipeline *pipeline = amcrtc->pipeline;
 	#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT
 	int gamma_lut_size = 0;
@@ -209,14 +209,31 @@ static void am_meson_crtc_atomic_flush(struct drm_crtc *crtc,
 			#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT
 			am_meson_ctm_set(0, ctm);
 			#endif
+		} else {
+			DRM_DEBUG("%s Disable CTM!\n", __func__);
+			#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT
+			am_meson_ctm_disable();
+			#endif
 		}
+	}
+	if (crtc->state->gamma_lut != priv->gamma_lut_blob) {
+		DRM_DEBUG("%s GAMMA LUT blob changed!\n", __func__);
+		drm_property_unreference_blob(priv->gamma_lut_blob);
+		priv->gamma_lut_blob = NULL;
 		if (crtc->state->gamma_lut) {
-			DRM_INFO("%s color_mgmt_changed 2!\n", __func__);
+			DRM_INFO("%s Set GAMMA\n", __func__);
+			priv->gamma_lut_blob = drm_property_reference_blob(
+				crtc->state->gamma_lut);
 			lut = (struct drm_color_lut *)
 				crtc->state->gamma_lut->data;
 			#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT
 			gamma_lut_size = amvecm_drm_get_gamma_size(0);
 			amvecm_drm_gamma_set(0, lut, gamma_lut_size);
+			#endif
+		} else {
+			DRM_DEBUG("%s Disable GAMMA!\n", __func__);
+			#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT
+			amvecm_drm_gamma_disable(0);
 			#endif
 		}
 	}
@@ -258,7 +275,6 @@ int am_meson_crtc_create(struct am_meson_crtc *amcrtc)
 
 	#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT
 	amvecm_drm_init(0);
-	amvecm_drm_gamma_enable(0);
 	gamma_lut_size = amvecm_drm_get_gamma_size(0);
 	drm_mode_crtc_set_gamma_size(crtc, gamma_lut_size);
 	drm_crtc_enable_color_mgmt(crtc, 0, true, gamma_lut_size);

@@ -51,6 +51,7 @@ struct meson_drm {
 	struct drm_gem_object *fbdev_bo;
 	struct drm_plane *primary_plane;
 	struct drm_plane *cursor_plane;
+	struct drm_property_blob *gamma_lut_blob;
 
 #ifdef CONFIG_DRM_MESON_USE_ION
 	struct ion_client *gem_client;

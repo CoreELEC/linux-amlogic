@@ -4878,6 +4878,47 @@ static int cm2_luma_array[eCM2ColorMd_max][2];
 static int cm2_sat_array[eCM2ColorMd_max][2];
 static int cm2_hue_by_hs_array[eCM2ColorMd_max][2];
 
+#define MAX_CLIP_VAL ((1<<30)-1)
+static ssize_t amvecm_clamp_color_top_show(struct class *cla,
+			struct class_attribute *attr, char *buf)
+{
+	return sprintf(buf, "0x%08x\n", READ_VPP_REG(VPP_CLIP_MISC0));
+}
+static ssize_t amvecm_clamp_color_top_store(struct class *cla,
+			struct class_attribute *attr,
+			const char *buf, size_t count)
+{
+	size_t r;
+	uint32_t val;
+
+	r = sscanf(buf, "%x\n", &val);
+	if ((r != 1) || (val > MAX_CLIP_VAL))
+		return -EINVAL;
+
+	WRITE_VPP_REG(VPP_CLIP_MISC0, val);
+	return count;
+}
+
+static ssize_t amvecm_clamp_color_bottom_show(struct class *cla,
+			struct class_attribute *attr, char *buf)
+{
+	return sprintf(buf, "0x%08x\n", READ_VPP_REG(VPP_CLIP_MISC1));
+}
+static ssize_t amvecm_clamp_color_bottom_store(struct class *cla,
+			struct class_attribute *attr,
+			const char *buf, size_t count)
+{
+	size_t r;
+	uint32_t val;
+
+	r = sscanf(buf, "%x\n", &val);
+	if ((r != 1) || (val > MAX_CLIP_VAL))
+		return -EINVAL;
+
+	WRITE_VPP_REG(VPP_CLIP_MISC1, val);
+	return count;
+}
+
 static ssize_t amvecm_cm2_hue_show(struct class *cla,
 		struct class_attribute *attr, char *buf)
 {
@@ -6704,6 +6745,11 @@ static struct class_attribute amvecm_class_attrs[] = {
 	__ATTR(lc, 0644,
 		amvecm_lc_show,
 		amvecm_lc_store),
+	__ATTR(color_top, 0644,
+		amvecm_clamp_color_top_show, amvecm_clamp_color_top_store),
+	__ATTR(color_bottom, 0644,
+		amvecm_clamp_color_bottom_show,
+		amvecm_clamp_color_bottom_store),
 	__ATTR_NULL
 };
 
