@@ -4055,7 +4055,7 @@ static struct osd_device_data_s osd_tm2 = {
 	.vpp_fifo_len = 0xfff,/* 2048 */
 	.dummy_data = 0x00808000,
 	.has_viu2 = 1,
-	.osd0_sc_independ = 1,
+	.osd0_sc_independ = 0,
 };
 
 static struct osd_device_data_s osd_a1 = {
