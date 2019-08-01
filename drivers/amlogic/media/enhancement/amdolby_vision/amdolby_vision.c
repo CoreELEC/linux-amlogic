@@ -268,6 +268,7 @@ static u32 vsync_count;
 #define FLAG_VSYNC_CNT 10
 #define MAX_TRANSITION_DELAY 15
 #define MIN_TRANSITION_DELAY 2
+#define MAX_CORE3_MD_SIZE 128 /*512byte*/
 
 static bool is_osd_off;
 static bool force_reset_core2;
@@ -2538,7 +2539,7 @@ static int dolby_core3_set(
 				VSYNC_WR_DV_REG(DOLBY_CORE3_REG_START +
 					0x24 + i, p_core3_md_regs[i]);
 			}
-			for (; i < 30; i++)
+			for (; i < (MAX_CORE3_MD_SIZE + 1); i++)
 				VSYNC_WR_DV_REG(DOLBY_CORE3_REG_START +
 					0x24 + i, 0);
 		}
@@ -2603,7 +2604,7 @@ static void adjust_vpotch(void)
 
 	if (is_meson_txlx_stbmode()
 		|| force_stb_mode) {
-		if ((vinfo->width >= 1920) &&
+		if (vinfo && (vinfo->width >= 1920) &&
 			(vinfo->height >= 1080) &&
 			(vinfo->field_height >= 1080))
 			dma_start_line = 0x400;
@@ -2611,7 +2612,7 @@ static void adjust_vpotch(void)
 			dma_start_line = 0x180;
 		/* adjust core2 setting to work around*/
 		/* fixing with 1080p24hz and 480p60hz */
-		if ((vinfo->width < 1280) &&
+		if (vinfo && (vinfo->width < 1280) &&
 			(vinfo->height < 720) &&
 			(vinfo->field_height < 720))
 			g_vpotch = 0x60;
@@ -4040,7 +4041,7 @@ static int sink_support_hdr(const struct vinfo_s *vinfo)
 
 static int sink_support_hdr10_plus(const struct vinfo_s *vinfo)
 {
-	if ((vinfo->hdr_info.hdr10plus_info.ieeeoui
+	if (vinfo && (vinfo->hdr_info.hdr10plus_info.ieeeoui
 			== 0x90848B) &&
 		(vinfo->hdr_info.hdr10plus_info.application_version
 			== 1))
@@ -4065,7 +4066,7 @@ static int is_sink_cap_changed(const struct vinfo_s *vinfo)
 	int sink_available;
 	int ret = 0;
 
-	if (is_vinfo_available(vinfo)) {
+	if (vinfo && is_vinfo_available(vinfo)) {
 		hdr_cap = (1 << 0) |
 			(sink_support_dolby_vision(vinfo) << 1) |
 			(sink_support_hdr10_plus(vinfo) << 2) |
@@ -4465,6 +4466,9 @@ bool is_dovi_frame(struct vframe_s *vf)
 	char *p;
 	unsigned int size = 0;
 	unsigned int type = 0;
+
+	if (!vf)
+		return false;
 
 	req.vf = vf;
 	req.bot_flag = 0;
@@ -6540,17 +6544,19 @@ int dolby_vision_wait_metadata(struct vframe_s *vf)
 			return 1;
 	}
 
-	req.vf = vf;
-	req.bot_flag = 0;
-	req.aux_buf = NULL;
-	req.aux_size = 0;
-	req.dv_enhance_exist = 0;
+	if (vf) {
+		req.vf = vf;
+		req.bot_flag = 0;
+		req.aux_buf = NULL;
+		req.aux_size = 0;
+		req.dv_enhance_exist = 0;
 
-	if (vf->source_type == VFRAME_SOURCE_TYPE_OTHERS)
-		vf_notify_provider_by_name("dvbldec",
-			VFRAME_EVENT_RECEIVER_GET_AUX_DATA,
-			(void *)&req);
-	if (req.dv_enhance_exist) {
+		if (vf->source_type == VFRAME_SOURCE_TYPE_OTHERS)
+			vf_notify_provider_by_name("dvbldec",
+				VFRAME_EVENT_RECEIVER_GET_AUX_DATA,
+				(void *)&req);
+	}
+	if (vf && req.dv_enhance_exist) {
 		el_vf = dvel_vf_peek();
 		while (el_vf) {
 			if (debug_dolby & 2)
@@ -6717,7 +6723,7 @@ int dolby_vision_process(struct vframe_s *vf, u32 display_size,
 	bool reset_flag = false;
 	bool force_set = false;
 	static int sdr_delay;
-	unsigned int mode;
+	unsigned int mode = dolby_vision_mode;
 
 	if (!is_meson_box() && !is_meson_txlx() && !is_meson_tm2())
 		return -1;
