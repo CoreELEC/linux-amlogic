@@ -20,6 +20,17 @@ config AMLOGIC_PAGE_TRACE
 		with allocate page count information of each caller functions from
 		/proc/pagetrace
 
+config AMLOGIC_SLAB_TRACE
+	bool "Amlogic trace for slab usage"
+	depends on SLUB
+	depends on AMLOGIC_PAGE_TRACE
+	default y
+	help
+		Amlogic slab trace will record function address of caller for slab
+		allocate/free(kmalloc-xxxx only). trace information is stored in
+		a rb tree. And can be shown with allocate size information of
+		each caller functions from /proc/slabtrace
+
 config AMLOGIC_RAMDUMP
 	bool "Amlogic RAM DUMP support"
 	depends on AMLOGIC_MEMORY_EXTEND
