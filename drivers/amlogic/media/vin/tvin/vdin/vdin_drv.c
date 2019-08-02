@@ -3166,13 +3166,15 @@ static int vdin_drv_probe(struct platform_device *pdev)
 	vdevp->color_depth_support = bit_mode & 0xff;
 	vdevp->color_depth_config = COLOR_DEEPS_AUTO;
 
+	/* bit8:use 8bit  at 4k_50/60hz_10bit*/
+	/* bit9:use 10bit at 4k_50/60hz_10bit*/
 	ret = (bit_mode >> 8) & 0xff;
 	if (ret == 0)
 		vdevp->output_color_depth = 0;
-	else if (ret == 1)
-		vdevp->output_color_depth = 8;
-	else if (ret == 2)
-		vdevp->output_color_depth = 10;
+	else if (ret == 1)/*4k 10bit 8bit to video buffer*/
+		vdevp->output_color_depth = VDIN_COLOR_DEEPS_8BIT;
+	else if (ret == 2)/*4k 10bit 10bit to video buffer*/
+		vdevp->output_color_depth = VDIN_COLOR_DEEPS_10BIT;
 
 	if (vdevp->color_depth_support&VDIN_WR_COLOR_DEPTH_10BIT_FULL_PCAK_MODE)
 		vdevp->color_depth_mode = VDIN_422_FULL_PK_EN;

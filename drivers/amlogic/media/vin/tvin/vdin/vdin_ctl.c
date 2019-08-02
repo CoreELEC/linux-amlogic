@@ -1968,11 +1968,11 @@ static inline void vdin_set_wr_ctrl(struct vdin_dev_s *devp,
 		(format_convert == VDIN_FORMAT_CONVERT_RGB_YUV422) ||
 		(format_convert == VDIN_FORMAT_CONVERT_GBR_YUV422) ||
 		(format_convert == VDIN_FORMAT_CONVERT_BRG_YUV422)) &&
-		color_depth_mode && (source_bitdeth > 8))
+		color_depth_mode && (source_bitdeth > VDIN_COLOR_DEEPS_8BIT))
 		write_format444 = 3;
 
 	/* win_he */
-	if ((h%2) && (devp->source_bitdepth > 8) &&
+	if ((h%2) && (devp->source_bitdepth > VDIN_COLOR_DEEPS_8BIT) &&
 		(devp->color_depth_mode == 1) &&
 		((devp->format_convert == VDIN_FORMAT_CONVERT_YUV_YUV422) ||
 		(devp->format_convert == VDIN_FORMAT_CONVERT_RGB_YUV422) ||
@@ -3507,24 +3507,25 @@ void vdin_set_bitdepth(struct vdin_dev_s *devp)
 {
 	unsigned int offset = devp->addr_offset;
 	unsigned int set_width = 0;
+	unsigned int port;
 
 	if ((devp->output_color_depth) &&
 		((devp->prop.fps == 50) || (devp->prop.fps == 60)) &&
 		((devp->parm.info.fmt == TVIN_SIG_FMT_HDMI_3840_2160_00HZ) ||
 		(devp->parm.info.fmt == TVIN_SIG_FMT_HDMI_4096_2160_00HZ)) &&
-		(devp->prop.colordepth == 10)) {
+		(devp->prop.colordepth == VDIN_COLOR_DEEPS_10BIT)) {
 		set_width = devp->output_color_depth;
 		pr_info("set output color depth %d bit from dts\n", set_width);
 	}
 
 	switch (devp->color_depth_config & 0xff) {
 	case COLOR_DEEPS_8BIT:
-		devp->source_bitdepth = 8;
+		devp->source_bitdepth = VDIN_COLOR_DEEPS_8BIT;
 		wr_bits(offset, VDIN_WR_CTRL2, 0,
 			VDIN_WR_10BIT_MODE_BIT, VDIN_WR_10BIT_MODE_WID);
 		break;
 	case COLOR_DEEPS_10BIT:
-		devp->source_bitdepth = 10;
+		devp->source_bitdepth = VDIN_COLOR_DEEPS_10BIT;
 		wr_bits(offset, VDIN_WR_CTRL2, 1,
 			VDIN_WR_10BIT_MODE_BIT, VDIN_WR_10BIT_MODE_WID);
 		break;
@@ -3533,7 +3534,7 @@ void vdin_set_bitdepth(struct vdin_dev_s *devp)
 	 *	vdin config it as 10bit , 12 to 10
 	 */
 	case COLOR_DEEPS_12BIT:
-		devp->source_bitdepth = 10;
+		devp->source_bitdepth = VDIN_COLOR_DEEPS_10BIT;
 		wr_bits(offset, VDIN_WR_CTRL2, 1,
 			VDIN_WR_10BIT_MODE_BIT, VDIN_WR_10BIT_MODE_WID);
 		break;
@@ -3548,35 +3549,53 @@ void vdin_set_bitdepth(struct vdin_dev_s *devp)
 			(devp->prop.color_format == TVIN_RGGB) ||
 			(devp->prop.color_format == TVIN_GBRG) ||
 			(devp->prop.color_format == TVIN_GRBG)) {
-			devp->source_bitdepth = 8;
+			devp->source_bitdepth = VDIN_COLOR_DEEPS_8BIT;
 			wr_bits(offset, VDIN_WR_CTRL2, 0,
 				VDIN_WR_10BIT_MODE_BIT, VDIN_WR_10BIT_MODE_WID);
-		} else if (devp->prop.colordepth == 8) {
-			devp->source_bitdepth = 8;
-			wr_bits(offset, VDIN_WR_CTRL2, 0,
-				VDIN_WR_10BIT_MODE_BIT, VDIN_WR_10BIT_MODE_WID);
+		} else if (devp->prop.colordepth == VDIN_COLOR_DEEPS_8BIT) {
+			/* hdmi YUV422, 8 or 10 bit valid is unknown*/
+			/* so need vdin 10bit to frame buffer*/
+			port = devp->parm.port;
+			if (((port >= TVIN_PORT_HDMI0) &&
+				(port <= TVIN_PORT_HDMI7)) &&
+				(devp->prop.color_format == TVIN_YUV422) &&
+				(devp->color_depth_support &
+				VDIN_WR_COLOR_DEPTH_10BIT)) {
+				/*10 bit mode*/
+				devp->source_bitdepth = VDIN_COLOR_DEEPS_10BIT;
+				wr_bits(offset, VDIN_WR_CTRL2, 1,
+					VDIN_WR_10BIT_MODE_BIT,
+					VDIN_WR_10BIT_MODE_WID);
+			} else {
+				/*8bit mode*/
+				devp->source_bitdepth = VDIN_COLOR_DEEPS_8BIT;
+				wr_bits(offset, VDIN_WR_CTRL2, 0,
+					VDIN_WR_10BIT_MODE_BIT,
+					VDIN_WR_10BIT_MODE_WID);
+			}
 		} else if ((devp->color_depth_support &
-			VDIN_WR_COLOR_DEPTH_10BIT) &&
-			(devp->prop.colordepth == 10)) {
-			if (set_width == 8) {
-				devp->source_bitdepth = 8;
+			VDIN_WR_COLOR_DEPTH_10BIT)
+			&& ((devp->prop.colordepth == VDIN_COLOR_DEEPS_10BIT) ||
+			(devp->prop.colordepth == VDIN_COLOR_DEEPS_12BIT))) {
+			if (set_width == VDIN_COLOR_DEEPS_8BIT) {
+				devp->source_bitdepth = VDIN_COLOR_DEEPS_8BIT;
 				wr_bits(offset, VDIN_WR_CTRL2, 0,
 					VDIN_WR_10BIT_MODE_BIT,
 					VDIN_WR_10BIT_MODE_WID);
 			} else {
-				devp->source_bitdepth = 10;
+				devp->source_bitdepth = VDIN_COLOR_DEEPS_10BIT;
 				wr_bits(offset, VDIN_WR_CTRL2, 1,
 					VDIN_WR_10BIT_MODE_BIT,
 					VDIN_WR_10BIT_MODE_WID);
 			}
 		} else {
-			devp->source_bitdepth = 8;
+			devp->source_bitdepth = VDIN_COLOR_DEEPS_8BIT;
 			wr_bits(offset, VDIN_WR_CTRL2, 0,
 				VDIN_WR_10BIT_MODE_BIT, VDIN_WR_10BIT_MODE_WID);
 		}
 		break;
 	default:
-		devp->source_bitdepth = 8;
+		devp->source_bitdepth = VDIN_COLOR_DEEPS_8BIT;
 		wr_bits(offset, VDIN_WR_CTRL2, 0,
 			VDIN_WR_10BIT_MODE_BIT, VDIN_WR_10BIT_MODE_WID);
 		break;
@@ -4689,13 +4708,13 @@ inline void vdin_set_source_bitdepth(struct vdin_dev_s *devp,
 		struct vframe_s *vf)
 {
 	switch (devp->source_bitdepth) {
-	case 10:
+	case VDIN_COLOR_DEEPS_10BIT:
 		vf->bitdepth = BITDEPTH_Y10 | BITDEPTH_U10 | BITDEPTH_V10;
 		break;
-	case 9:
+	case VDIN_COLOR_DEEPS_9BIT:
 		vf->bitdepth = BITDEPTH_Y9 | BITDEPTH_U9 | BITDEPTH_V9;
 		break;
-	case 8:
+	case VDIN_COLOR_DEEPS_8BIT:
 		vf->bitdepth = BITDEPTH_Y8 | BITDEPTH_U8 | BITDEPTH_V8;
 		break;
 	default:

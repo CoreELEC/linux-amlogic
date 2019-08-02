@@ -48,7 +48,7 @@
 /* Ref.2019/04/25: tl1 vdin0 afbce dynamically switch support,
  *                 vpp also should support this function
  */
-#define VDIN_VER "Ref.2019/07/30:444 10bit mode buffer size not right"
+#define VDIN_VER "Ref.2019/08/2:hdmi yuv422 vdin set 10 bit mode"
 
 /*the counter of vdin*/
 #define VDIN_MAX_DEVS			2
@@ -106,13 +106,14 @@
 /* #define VDIN_DEBUG */
 
 /*vdin write mem color-depth support*/
-#define VDIN_WR_COLOR_DEPTH_8BIT	1
-#define VDIN_WR_COLOR_DEPTH_9BIT	(1 << 1)
-#define VDIN_WR_COLOR_DEPTH_10BIT	(1 << 2)
-#define VDIN_WR_COLOR_DEPTH_12BIT	(1 << 3)
-/*TXL new add*/
-#define VDIN_WR_COLOR_DEPTH_10BIT_FULL_PCAK_MODE	(1 << 4)
-
+enum VDIN_WR_COLOR_DEPTHe {
+	VDIN_WR_COLOR_DEPTH_8BIT = 0x01,
+	VDIN_WR_COLOR_DEPTH_9BIT = 0x02,
+	VDIN_WR_COLOR_DEPTH_10BIT = 0x04,
+	VDIN_WR_COLOR_DEPTH_12BIT = 0x08,
+	/*TXL new add*/
+	VDIN_WR_COLOR_DEPTH_10BIT_FULL_PCAK_MODE = 0x10,
+};
 
 #define VDIN_422_FULL_PK_EN			1
 #define VDIN_422_FULL_PK_DIS			0
@@ -131,6 +132,13 @@ enum COLOR_DEEPS_CFGe {
 	COLOR_DEEPS_10BIT = 10,
 	COLOR_DEEPS_12BIT = 12,
 	COLOR_DEEPS_MANUAL = 0x100,
+};
+
+enum vdin_color_deeps_e {
+	VDIN_COLOR_DEEPS_8BIT = 8,
+	VDIN_COLOR_DEEPS_9BIT = 9,
+	VDIN_COLOR_DEEPS_10BIT = 10,
+	VDIN_COLOR_DEEPS_12BIT = 12,
 };
 
 static inline const char *vdin_fmt_convert_str(
@@ -256,7 +264,7 @@ struct vdin_dev_s {
 
 	struct vdin_debug_s debug;
 	enum vdin_format_convert_e format_convert;
-	unsigned int source_bitdepth;
+	enum vdin_color_deeps_e source_bitdepth;
 
 	struct vf_entry *curr_wr_vfe;
 	struct vf_entry *last_wr_vfe;
@@ -331,7 +339,7 @@ struct vdin_dev_s {
 	 *bit3:support 12bit
 	 *bit4:support yuv422 10bit full pack mode (from txl new add)
 	 */
-	unsigned int color_depth_support;
+	enum VDIN_WR_COLOR_DEPTHe color_depth_support;
 	/*color depth config
 	 *0:auto config as frontend
 	 *8:force config as 8bit
