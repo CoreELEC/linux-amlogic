@@ -14976,3 +14976,9 @@ F:  arch/arm/boot/dts/amlogic/partition_mbox_normal_dynamic.dtsi
 F:  arch/arm64/boot/dts/amlogic/firmware_avb_Q.dtsi
 F:  arch/arm64/boot/dts/amlogic/firmware_normal_Q.dtsi
 F:  arch/arm64/boot/dts/amlogic/partition_mbox_normal_dynamic.dtsi
+
+AMLOGIC ADD HDR10+ FUNCTION FOR ANDROID Q
+M:  Cheng Wang <cheng.wang@amlogic.com>
+F:  drivers/amlogic/media/enhancement/amvecm/hdr/am_hdr10_plus_ootf.c
+F:  drivers/amlogic/media/enhancement/amvecm/hdr/am_hdr10_plus_ootf.h
+

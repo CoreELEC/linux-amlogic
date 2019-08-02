@@ -40,6 +40,7 @@
 #include "set_hdr2_v0.h"
 #include <linux/amlogic/media/amdolbyvision/dolby_vision.h>
 #include "hdr/am_hdr10_plus.h"
+#include "hdr/am_hdr10_plus_ootf.h"
 
 #define pr_csc(fmt, args...)\
 	do {\
@@ -1885,6 +1886,7 @@ const char matrix_name[7][16] = {
 static void print_vpp_matrix(int m_select, int *s, int on)
 {
 	unsigned int size;
+
 	if (s == NULL)
 		return;
 	if (m_select == VPP_MATRIX_OSD)
@@ -2468,6 +2470,7 @@ void enable_osd_path(int on, int shadow_mode)
 	static int *osd1_mtx_backup;
 	static uint32_t osd1_eotf_ctl_backup;
 	static uint32_t osd1_oetf_ctl_backup;
+
 	if (!on) {
 		osd1_mtx_backup = cur_osd_mtx;
 		osd1_eotf_ctl_backup = hdr_osd_reg.viu_osd1_eotf_ctl;
@@ -3121,6 +3124,7 @@ static void vpp_set_matrix(
 		struct matrix_s *m)
 {
 	int reg_value;
+
 	if (force_csc_type != 0xff)
 		csc_mode = force_csc_type;
 
@@ -3657,6 +3661,7 @@ int signal_type_changed(struct vframe_s *vf, struct vinfo_s *vinfo)
 enum vpp_matrix_csc_e get_csc_type(void)
 {
 	enum vpp_matrix_csc_e csc_type = VPP_MATRIX_NULL;
+
 	if ((signal_color_primaries == 1) &&
 		(signal_transfer_characteristic < 14)) {
 		if (signal_range == 0)
@@ -3921,6 +3926,7 @@ static void apply_scale_factor(int64_t (*in)[3], int32_t *rs)
 static void N2C(int64_t (*in)[3], int32_t ibl, int32_t obl)
 {
 	int i, j;
+
 	for (i = 0; i < 3; i++)
 		for (j = 0; j < 3; j++) {
 			in[i][j] =
@@ -3937,6 +3943,7 @@ static void cal_mtx_seting(
 {
 	int i, j;
 	int32_t right_shift;
+
 	if (get_cpu_type() > MESON_CPU_MAJOR_ID_GXTVBB) {
 		apply_scale_factor(in, &right_shift);
 		m->right_shift = right_shift;
@@ -4176,6 +4183,7 @@ static void amvecm_cp_hdr_info(struct master_display_info_s *hdr_data,
 		struct vframe_master_display_colour_s *p)
 {
 	int i, j;
+
 	if (customer_hdmi_display_en) {
 		hdr_data->features =
 			  (1 << 29)	/* video available */
@@ -4390,8 +4398,9 @@ static int hdr_process(
 	int i, j;
 
 	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A) {
-		hdr_func(VD1_HDR, HDR_SDR);
+
 		hdr_func(OSD1_HDR, HDR_BYPASS);
+		hdr_func(VD1_HDR, HDR_SDR);
 		return need_adjust_contrast_saturation;
 	}
 
@@ -5988,6 +5997,8 @@ static void hdr10_plus_metadata_update(struct vframe_s *vf,
 
 	hdr10_plus_parser_metadata(vf);
 
+	hdr10_plus_ootf_gen();
+
 	if (tx_hdr10_plus_support)
 		hdr10_plus_hdmitx_vsif_parser(hdmitx_hdr10plus_param);
 }
@@ -6294,7 +6305,8 @@ static void video_process(
 		if ((signal_change_flag & SIG_HDR10_PLUS_MODE) ||
 			(cur_csc_type !=
 			VPP_MATRIX_BT2020YUV_BT2020RGB_DYNAMIC))
-			hdr10_plus_process(vf);
+			hdr_process(csc_type, vinfo, p);
+			/*hdr10_plus_process(vf);*/
 		pr_csc("hdr10_plus_process.\n");
 	} else {
 		if ((csc_type < VPP_MATRIX_BT2020YUV_BT2020RGB) &&

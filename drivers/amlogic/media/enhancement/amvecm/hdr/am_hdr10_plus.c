@@ -28,6 +28,7 @@
 #include <linux/amlogic/media/vfm/vframe_receiver.h>
 
 #include "am_hdr10_plus.h"
+#include "am_hdr10_plus_ootf.h"
 
 uint debug_hdr;
 #define pr_hdr(fmt, args...)\
@@ -80,7 +81,7 @@ struct hdr_plus_bits_s sei_md_bits = {
 	.len_color_saturation_weight = 6
 };
 
-struct vframe_hdr_plus_sei_s hdr_plus_sei;
+struct vframe_hdr_plus_sei_s1 hdr_plus_sei;
 #define NAL_UNIT_SEI 39
 #define NAL_UNIT_SEI_SUFFIX 40
 
@@ -642,6 +643,7 @@ void hdr10_plus_process(struct vframe_s *vf)
 {
 	if (!vf)
 		return;
+	hdr10_plus_ootf_gen();
 }
 
 void hdr10_plus_debug(void)
