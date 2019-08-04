@@ -666,6 +666,7 @@
 			aoclkc: clock-controller@0 {
 				compatible = "amlogic,sm1-aoclkc";
 				#clock-cells = <1>;
+				#reset-cells = <1>;
 				reg = <0x0 0x3dc>;
 			};
 
