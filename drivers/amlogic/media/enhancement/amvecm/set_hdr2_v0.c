@@ -1576,9 +1576,9 @@ void set_hdr_matrix(
 		/*shift0 is for x coordinate*/
 		/*shift1 is for scale multiple*/
 		if (hdr_mtx_param->p_sel == HDR_SDR) {
-			adpscl_shift[0] = adp_scal_x_shift - 1;
+			adpscl_shift[0] = adp_scal_x_shift;
 			adpscl_shift[1] = OO_NOR -
-			_log2((1 << OO_NOR) / oo_y_lut_hdr_sdr[148] - 1);
+			_log2((1 << OO_NOR) / oo_y_lut_hdr_sdr[148]);
 		} else if (hdr_mtx_param->p_sel == HDR_HLG) {
 			adpscl_shift[0] = adp_scal_x_shift;
 			adpscl_shift[1] = OO_NOR -
