@@ -4777,12 +4777,10 @@ static void vpp_clip_config(unsigned int mode_sel, unsigned int color,
 	WRITE_VPP_REG(addr_clipbot, value_clipbot);
 }
 
-#define color_mode_idx 7
-
-static int cm2_hue_array[color_mode_idx][2];
-static int cm2_luma_array[color_mode_idx][2];
-static int cm2_sat_array[color_mode_idx][2];
-static int cm2_hue_by_hs_array[color_mode_idx][2];
+static int cm2_hue_array[eCM2ColorMd_max][2];
+static int cm2_luma_array[eCM2ColorMd_max][2];
+static int cm2_sat_array[eCM2ColorMd_max][2];
+static int cm2_hue_by_hs_array[eCM2ColorMd_max][2];
 
 static ssize_t amvecm_cm2_hue_show(struct class *cla,
 		struct class_attribute *attr, char *buf)
@@ -4790,7 +4788,7 @@ static ssize_t amvecm_cm2_hue_show(struct class *cla,
 	int i;
 	int pos = 0;
 
-	for (i = 0; i < color_mode_idx; i++)
+	for (i = 0; i < eCM2ColorMd_max; i++)
 		pos += sprintf(buf + pos, "%d %d %d\n", i,
 			cm2_hue_array[i][0], cm2_hue_array[i][1]);
 	return pos;
@@ -4840,7 +4838,7 @@ static ssize_t amvecm_cm2_luma_show(struct class *cla,
 	int i;
 	int pos = 0;
 
-	for (i = 0; i < color_mode_idx; i++)
+	for (i = 0; i < eCM2ColorMd_max; i++)
 		pos += sprintf(buf + pos, "%d %d %d\n", i,
 			cm2_luma_array[i][0], cm2_luma_array[i][1]);
 	return pos;
@@ -4890,7 +4888,7 @@ static ssize_t amvecm_cm2_sat_show(struct class *cla,
 	int i;
 	int pos = 0;
 
-	for (i = 0; i < color_mode_idx; i++)
+	for (i = 0; i < eCM2ColorMd_max; i++)
 		pos += sprintf(buf + pos, "%d %d %d\n", i,
 			cm2_sat_array[i][0], cm2_sat_array[i][1]);
 	return pos;
@@ -4941,7 +4939,7 @@ static ssize_t amvecm_cm2_hue_by_hs_show(struct class *cla,
 	int i;
 	int pos = 0;
 
-	for (i = 0; i < color_mode_idx; i++)
+	for (i = 0; i < eCM2ColorMd_max; i++)
 		pos += sprintf(buf + pos, "%d %d %d\n", i,
 			cm2_hue_by_hs_array[i][0], cm2_hue_by_hs_array[i][1]);
 	return pos;

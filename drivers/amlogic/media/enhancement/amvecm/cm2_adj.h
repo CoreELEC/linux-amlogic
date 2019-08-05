@@ -24,9 +24,12 @@ enum eCM2ColorMd {
 	eCM2ColorMd_red,
 	eCM2ColorMd_skin,
 	eCM2ColorMd_yellow,
+	eCM2ColorMd_yellow_green,
 	eCM2ColorMd_green,
+	eCM2ColorMd_blue_green,
 	eCM2ColorMd_cyan,
 	eCM2ColorMd_blue,
+	eCM2ColorMd_max,
 };
 
 /*H00 ~ H31*/
