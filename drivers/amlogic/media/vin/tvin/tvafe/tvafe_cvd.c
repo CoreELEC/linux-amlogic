@@ -352,6 +352,11 @@ static void tvafe_cvd2_write_mode_reg(struct tvafe_cvd2_s *cvd2,
 	struct tvafe_user_param_s *user_param = tvafe_get_user_param();
 	unsigned int i = 0;
 
+	if (!tvafe_clk_onoff) {
+		tvafe_pr_err("%s: tvafe clk is disabled!\n", __func__);
+		return;
+	}
+
 	/*disable vbi*/
 	W_APB_REG(CVD2_VBI_FRAME_CODE_CTL, 0x10);
 	W_APB_REG(ACD_REG_22, 0x07080000);
@@ -1174,6 +1179,17 @@ int tvafe_cvd2_get_atv_format(void)
 {
 	int format;
 
+	if (!tvafe_probe_flag || tvafe_devp == NULL) {
+		tvafe_pr_info("%s tvafe not proble\n", __func__);
+		return 0;
+	}
+
+	if (!(tvafe_devp->flags & TVAFE_FLAG_DEV_OPENED) ||
+			(tvafe_devp->flags & TVAFE_POWERDOWN_IN_IDLE)) {
+		tvafe_pr_info("%s tvafe is PW DOWN\n", __func__);
+		return 0;
+	}
+
 	format = R_APB_REG(CVD2_STATUS_REGISTER3)&0x7;
 	return format;
 }
@@ -1182,6 +1198,17 @@ EXPORT_SYMBOL(tvafe_cvd2_get_atv_format);
 int tvafe_cvd2_get_hv_lock(void)
 {
 	int lock_status;
+
+	if (!tvafe_probe_flag || tvafe_devp == NULL) {
+		tvafe_pr_info("%s tvafe not proble\n", __func__);
+		return 0;
+	}
+
+	if (!(tvafe_devp->flags & TVAFE_FLAG_DEV_OPENED) ||
+			(tvafe_devp->flags & TVAFE_POWERDOWN_IN_IDLE)) {
+		tvafe_pr_info("%s tvafe is PW DOWN\n", __func__);
+		return 0;
+	}
 
 	lock_status = R_APB_REG(CVD2_STATUS_REGISTER1)&0x6;
 	return lock_status;
@@ -2066,7 +2093,12 @@ inline bool tvafe_cvd2_no_sig(struct tvafe_cvd2_s *cvd2,
 			struct tvafe_cvd2_mem_s *mem)
 {
 	struct tvafe_user_param_s *user_param = tvafe_get_user_param();
-	static bool ret;
+	bool ret = true;
+
+	if (!tvafe_clk_onoff) {
+		tvafe_pr_err("%s: tvafe clk is disabled!\n", __func__);
+		return ret;
+	}
 
 	tvafe_cvd2_get_signal_status(cvd2);
 	/* get signal status from HW */

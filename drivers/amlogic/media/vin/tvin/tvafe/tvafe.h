@@ -132,6 +132,7 @@ extern int tvafe_hiu_reg_write(unsigned int reg, unsigned int val);
 extern int tvafe_device_create_file(struct device *dev);
 extern void tvafe_remove_device_files(struct device *dev);
 
+extern bool tvafe_clk_onoff;
 extern bool disableapi;
 extern bool force_stable;
 
