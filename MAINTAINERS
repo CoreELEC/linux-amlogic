@@ -15086,3 +15086,7 @@ AMLOGIC ADD DTS FOR T312 PLATFORM
 M:  hualing chen <hualing.chen@amlogic.com>
 F:  arch/arm64/boot/dts/amlogic/mesontm2_t962x3_t312-panel.dtsi
 F:  arch/arm/boot/dts/amlogic/mesontm2_t962x3_t312-panel.dtsi
+
+AMLOGIC ADD DRM FOR P212
+M: lingjie li <lingjie.li@amlogic.com>
+F: arch/arm/boot/dts/amlogic/gxl_p212_2g_drm_buildroot.dts
