@@ -2753,6 +2753,24 @@ struct vinfo_s *hdmi_get_valid_vinfo(char *mode)
 		/* the string of mode contains char NF */
 		memset(mode_, 0, sizeof(mode_));
 		strncpy(mode_, mode, sizeof(mode_));
+
+		/* skip "f", 1080fp60hz -> 1080p60hz for 3d */
+		mode_[31] = '\0';
+		if (strstr(mode_, "fp")) {
+			int i = 0;
+
+			for (; mode_[i]; i++) {
+				if ((mode_[i] == 'f') &&
+					(mode_[i + 1] == 'p')) {
+					do {
+						mode_[i] = mode_[i + 1];
+						i++;
+					} while (mode_[i]);
+					break;
+				}
+			}
+		}
+
 		for (i = 0; i < sizeof(mode_); i++)
 			if (mode_[i] == 10)
 				mode_[i] = 0;
@@ -3074,7 +3092,7 @@ struct hdmi_audio_fs_ncts aud_48k_para = {
 		.n = 6864,
 		.cts = 28125,
 		.n_36bit = 9152,
-		.cts_36bit = 58250,
+		.cts_36bit = 56250,
 		.n_48bit = 6864,
 		.cts_48bit = 56250,
 	},
@@ -3298,5 +3316,24 @@ unsigned int hdmi_get_csc_coef(
 	*coef_length = 0;
 
 	return 1;
+}
+
+bool is_hdmi14_4k(enum hdmi_vic vic)
+{
+	bool ret = 0;
+
+	switch (vic) {
+	case HDMI_3840x2160p24_16x9:
+	case HDMI_3840x2160p25_16x9:
+	case HDMI_3840x2160p30_16x9:
+	case HDMI_4096x2160p24_256x135:
+		ret = 1;
+		break;
+	default:
+		ret = 0;
+		break;
+	}
+
+	return ret;
 }
 

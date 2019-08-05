@@ -165,6 +165,7 @@ void hdmitx_set_cts_hdcp22_clk(struct hdmitx_dev *hdev)
 	case MESON_CPU_ID_GXM:
 	case MESON_CPU_ID_G12A:
 	case MESON_CPU_ID_G12B:
+	case MESON_CPU_ID_SM1:
 	default:
 		hd_write_reg(P_HHI_HDCP22_CLK_CNTL, 0x01000100);
 	break;
@@ -441,6 +442,7 @@ static void set_hpll_clk_out(unsigned int clk)
 		break;
 	case MESON_CPU_ID_G12A:
 	case MESON_CPU_ID_G12B:
+	case MESON_CPU_ID_SM1:
 		set_g12a_hpll_clk_out(frac_rate, clk);
 		break;
 	default:
@@ -458,6 +460,7 @@ static void set_hpll_sspll(enum hdmi_vic vic)
 	switch (hdev->chip_type) {
 	case MESON_CPU_ID_G12A:
 	case MESON_CPU_ID_G12B:
+	case MESON_CPU_ID_SM1:
 		set_hpll_sspll_g12a(vic);
 		break;
 	case MESON_CPU_ID_GXBB:
@@ -503,6 +506,7 @@ static void set_hpll_od1(unsigned int div)
 		break;
 	case MESON_CPU_ID_G12A:
 	case MESON_CPU_ID_G12B:
+	case MESON_CPU_ID_SM1:
 		set_hpll_od1_g12a(div);
 		break;
 	default:
@@ -541,6 +545,7 @@ static void set_hpll_od2(unsigned int div)
 		break;
 	case MESON_CPU_ID_G12A:
 	case MESON_CPU_ID_G12B:
+	case MESON_CPU_ID_SM1:
 		set_hpll_od2_g12a(div);
 		break;
 	default:
@@ -579,6 +584,7 @@ static void set_hpll_od3(unsigned int div)
 		break;
 	case MESON_CPU_ID_G12A:
 	case MESON_CPU_ID_G12B:
+	case MESON_CPU_ID_SM1:
 		set_hpll_od3_g12a(div);
 		break;
 	default:
@@ -966,8 +972,18 @@ static void hdmitx_set_clk_(struct hdmitx_dev *hdev)
 	struct hw_enc_clk_val_group *p_enc = NULL;
 	enum hdmi_vic vic = hdev->cur_VIC;
 	enum hdmi_color_space cs = hdev->para->cs;
-	enum hdmi_color_depth cd = hdev->para->cd;
+	enum hdmi_color_depth cd;
 	struct hdmi_cea_timing *custom_timing;
+
+	if (hdev->cur_video_param->color_depth && hdev->cur_video_param->color_depth > 0)
+		cd = hdev->cur_video_param->color_depth;
+	else
+		cd = hdev->para->cd;
+	frac_rate = hdev->frac_rate_policy;
+	if (hdev->para->cs == COLORSPACE_YUV420)
+		vic |= 256;
+	pr_info("hdmitx: set clk: VIC = %d  cd = %d  cs = %d frac_rate = %d\n", vic,
+			cd, hdev->para->cs, frac_rate);
 
 	/* YUV 422 always use 24B mode */
 	if (cs == COLORSPACE_YUV422)
