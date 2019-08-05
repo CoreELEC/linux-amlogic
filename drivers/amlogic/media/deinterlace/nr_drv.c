@@ -27,6 +27,7 @@
 #include "register_nr4.h"
 #include "nr_drv.h"
 #include "deinterlace.h"
+#include "di_pqa.h"
 
 static DNR_PRM_t dnr_param;
 static struct NR_PARM_s nr_param;
@@ -1366,3 +1367,31 @@ void nr_drv_init(struct device *dev)
 	else
 		dnr_dm_en = false;
 }
+
+static const struct nr_op_s di_ops_nr = {
+	.nr_hw_init		= nr_hw_init,
+	.nr_gate_control	= nr_gate_control,
+	.nr_drv_init		= nr_drv_init,
+	.nr_drv_uninit		= nr_drv_uninit,
+	.nr_process_in_irq	= nr_process_in_irq,
+	.nr_all_config		= nr_all_config,
+	.set_nr_ctrl_reg_table	= set_nr_ctrl_reg_table,
+	.cue_int		= cue_int,
+	.adaptive_cue_adjust	= adaptive_cue_adjust,
+	/*.module_para = dim_seq_file_module_para_nr,*/
+};
+
+bool di_attach_ops_nr(const struct nr_op_s **ops)
+{
+	#if 0
+	if (!ops)
+		return false;
+
+	memcpy(ops, &di_pd_ops, sizeof(struct pulldown_op_s));
+	#else
+	*ops = &di_ops_nr;
+	#endif
+
+	return true;
+}
+EXPORT_SYMBOL(di_attach_ops_nr);

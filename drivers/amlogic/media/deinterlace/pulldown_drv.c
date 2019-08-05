@@ -22,6 +22,7 @@
 #include "deinterlace_hw.h"
 #include "deinterlace_dbg.h"
 
+#include "di_pqa.h"
 static unsigned int field_diff_rate;
 
 static unsigned int flm22_sure_num = 100;
@@ -534,3 +535,26 @@ module_param_named(flm22_sure_num, flm22_sure_num, uint, 0644);
 module_param_named(flm22_glbpxlnum_rat, flm22_glbpxlnum_rat, uint, 0644);
 module_param_named(flag_di_weave, flag_di_weave, int, 0644);
 #endif
+static const struct pulldown_op_s di_pd_ops = {
+	.init		= pulldown_init,	/*call when size change*/
+	.detection	= pulldown_detection,	/*call after pre nrwrite*/
+	.vof_win_vshift	= pulldown_vof_win_vshift,	/*in post process*/
+	/*.module_para	= dim_seq_file_module_para_pulldown,*/	/*for debug*/
+	.prob		= pd_device_files_add,	/*prob*/
+	.remove		= pd_device_files_del,	/*remove*/
+};
+
+bool di_attach_ops_pulldown(const struct pulldown_op_s **ops)
+{
+	#if 0
+	if (!ops)
+		return false;
+
+	memcpy(ops, &di_pd_ops, sizeof(struct pulldown_op_s));
+	#else
+	*ops = &di_pd_ops;
+	#endif
+
+	return true;
+}
+EXPORT_SYMBOL(di_attach_ops_pulldown);

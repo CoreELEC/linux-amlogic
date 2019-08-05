@@ -18,7 +18,7 @@
 #ifndef _DI_HW_H
 #define _DI_HW_H
 #include <linux/amlogic/media/amvecm/amvecm.h>
-#include "pulldown_drv.h"
+#include "di_pqa.h"
 #include "nr_drv.h"
 
 /* if post size < 80, filter of ei can't work */

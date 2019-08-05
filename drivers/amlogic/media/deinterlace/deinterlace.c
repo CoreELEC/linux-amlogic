@@ -66,6 +66,8 @@
 #include "deinterlace_dbg.h"
 #include "nr_downscale.h"
 #include "di_pps.h"
+#include "di_pqa.h"
+
 #define CREATE_TRACE_POINTS
 #include "deinterlace_trace.h"
 
@@ -410,6 +412,7 @@ void DI_VSYNC_WR_MPEG_REG_BITS(unsigned int addr, unsigned int val,
 		VSYNC_WR_MPEG_REG_BITS(addr, val, start, len);
 }
 
+#if 0
 unsigned int DI_POST_REG_RD(unsigned int addr)
 {
 	if (IS_ERR_OR_NULL(de_devp))
@@ -433,6 +436,35 @@ int DI_POST_WR_REG_BITS(u32 adr, u32 val, u32 start, u32 len)
 	return VSYNC_WR_MPEG_REG_BITS(adr, val, start, len);
 }
 EXPORT_SYMBOL(DI_POST_WR_REG_BITS);
+#else
+static unsigned int lDI_POST_REG_RD(unsigned int addr)
+{
+	if (IS_ERR_OR_NULL(de_devp))
+		return 0;
+	if (de_devp->flags & DI_SUSPEND_FLAG) {
+		pr_err("[DI] REG 0x%x access prohibited.\n", addr);
+		return 0;
+	}
+	return VSYNC_RD_MPEG_REG(addr);
+}
+
+static int lDI_POST_WR_REG_BITS(u32 adr, u32 val, u32 start, u32 len)
+{
+	if (IS_ERR_OR_NULL(de_devp))
+		return 0;
+	if (de_devp->flags & DI_SUSPEND_FLAG) {
+		pr_err("[DI] REG 0x%x access prohibited.\n", adr);
+		return -1;
+	}
+	return VSYNC_WR_MPEG_REG_BITS(adr, val, start, len);
+}
+
+static const struct di_ext_ops di_ext = {
+	.di_post_reg_rd             = lDI_POST_REG_RD,
+	.di_post_wr_reg_bits        = lDI_POST_WR_REG_BITS,
+};
+
+#endif
 /**********************************/
 
 /*****************************
@@ -716,7 +748,7 @@ static int __init di_read_canvas_reverse(char *str)
 {
 	unsigned char *ptr = str;
 
-	pr_dbg("%s: bootargs is %s.\n", __func__, str);
+	di_pr_info("%s: bootargs is %s.\n", __func__, str);
 	if (strstr(ptr, "1")) {
 		invert_top_bot |= 0x1;
 		overturn = true;
@@ -8051,6 +8083,7 @@ show_frame_format(struct device *dev,
 }
 static DEVICE_ATTR(frame_format, 0444, show_frame_format, NULL);
 
+#if 0	/*move to di_local.c*/
 static int __init rmem_di_device_init(struct reserved_mem *rmem,
 	struct device *dev)
 {
@@ -8081,6 +8114,7 @@ static void rmem_di_device_release(struct reserved_mem *rmem,
 		di_devp->mem_size = 0;
 	}
 }
+#endif
 #ifdef CONFIG_AMLOGIC_MEDIA_RDMA
 unsigned int RDMA_RD_BITS(unsigned int adr, unsigned int start,
 			  unsigned int len)
@@ -8229,6 +8263,7 @@ static void set_di_flag(void)
 	mtn_int_combing_glbmot();
 }
 
+#if 0	/*move to di_local.c*/
 static const struct reserved_mem_ops rmem_di_ops = {
 	.device_init	= rmem_di_device_init,
 	.device_release = rmem_di_device_release,
@@ -8246,7 +8281,7 @@ static int __init rmem_di_setup(struct reserved_mem *rmem)
 	return 0;
 }
 RESERVEDMEM_OF_DECLARE(di, "amlogic, di-mem", rmem_di_setup);
-
+#endif
 static void di_get_vpu_clkb(struct device *dev, struct di_dev_s *pdev)
 {
 
@@ -8297,6 +8332,23 @@ static int di_probe(struct platform_device *pdev)
 {
 	int ret = 0;
 	struct di_dev_s *di_devp = NULL;
+
+	di_pr_info("%s:\n", __func__);
+
+#if 1	/*move from init*/
+	ret = alloc_chrdev_region(&di_devno, 0, DI_COUNT, DEVICE_NAME);
+	if (ret < 0) {
+		pr_err("%s: failed to allocate major number\n", __func__);
+		goto fail_alloc_cdev_region;
+	}
+	di_pr_info("%s: major %d\n", __func__, MAJOR(di_devno));
+	di_clsp = class_create(THIS_MODULE, CLASS_NAME);
+	if (IS_ERR(di_clsp)) {
+		ret = PTR_ERR(di_clsp);
+		pr_err("%s: failed to create class\n", __func__);
+		goto fail_class_create;
+	}
+#endif
 
 	di_devp = kmalloc(sizeof(struct di_dev_s), GFP_KERNEL);
 	if (!di_devp) {
@@ -8484,7 +8536,9 @@ static int di_probe(struct platform_device *pdev)
 	di_debugfs_init();	/*2018-07-18 add debugfs*/
 	di_patch_post_update_mc_sw(DI_MC_SW_IC, true);
 
-	pr_info("%s:ok\n", __func__);
+	dil_attach_ext_api(&di_ext);
+
+	di_pr_info("%s:ok\n", __func__);
 	return ret;
 
 fail_cdev_add:
@@ -8492,13 +8546,20 @@ fail_cdev_add:
 	kfree(di_devp);
 
 fail_kmalloc_dev:
+#if 1	/*move from init*/
+	class_destroy(di_clsp);
+fail_class_create:
+	unregister_chrdev_region(di_devno, DI_COUNT);
+fail_alloc_cdev_region:
 	return ret;
+#endif
 }
 
 static int di_remove(struct platform_device *pdev)
 {
 	struct di_dev_s *di_devp = NULL;
 
+	di_pr_info("%s:\n", __func__);
 	di_devp = platform_get_drvdata(pdev);
 
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXLX))
@@ -8549,11 +8610,17 @@ static int di_remove(struct platform_device *pdev)
 
 	}
 	device_destroy(di_clsp, di_devno);
+#if 1	/*move from exit*/
+	class_destroy(di_clsp);
+	di_debugfs_exit();
+	unregister_chrdev_region(di_devno, DI_COUNT);
+#endif
 	kfree(di_devp);
 /* free drvdata */
 	dev_set_drvdata(&pdev->dev, NULL);
 	platform_set_drvdata(pdev, NULL);
 
+	di_pr_info("%s:ok\n", __func__);
 	return 0;
 }
 
@@ -8701,7 +8768,7 @@ static int __init di_module_init(void)
 	int ret = 0;
 
 	di_pr_info("%s ok.\n", __func__);
-
+#if 0	/*move to prob*/
 	ret = alloc_chrdev_region(&di_devno, 0, DI_COUNT, DEVICE_NAME);
 	if (ret < 0) {
 		pr_err("%s: failed to allocate major number\n", __func__);
@@ -8714,26 +8781,30 @@ static int __init di_module_init(void)
 		pr_err("%s: failed to create class\n", __func__);
 		goto fail_class_create;
 	}
-
+#endif
 	ret = platform_driver_register(&di_driver);
 	if (ret != 0) {
 		pr_err("%s: failed to register driver\n", __func__);
-		goto fail_pdrv_register;
+		return -ENODEV;//goto fail_pdrv_register;
 	}
 	return 0;
+#if 0	/*move to prob*/
 fail_pdrv_register:
 	class_destroy(di_clsp);
 fail_class_create:
 	unregister_chrdev_region(di_devno, DI_COUNT);
 fail_alloc_cdev_region:
 	return ret;
+#endif
 }
 
 static void __exit di_module_exit(void)
 {
+#if 0	/*move to remove*/
 	class_destroy(di_clsp);
 	di_debugfs_exit();
 	unregister_chrdev_region(di_devno, DI_COUNT);
+#endif
 	platform_driver_unregister(&di_driver);
 }
 

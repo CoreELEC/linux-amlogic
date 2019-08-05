@@ -25,9 +25,8 @@
 #include <linux/clk.h>
 #include <linux/atomic.h>
 #include "deinterlace_hw.h"
-#include "pulldown_drv.h"
 #include "nr_drv.h"
-
+#include "../di_local/di_local.h"
 /*trigger_pre_di_process param*/
 #define TRIGGER_PRE_BY_PUT			'p'
 #define TRIGGER_PRE_BY_DE_IRQ		'i'
@@ -454,6 +453,7 @@ u32 di_requeset_afbc(u32 onoff);
 extern bool di_wr_cue_int(void);
 extern int reg_cue_int_show(struct seq_file *seq, void *v);
 
+bool dil_attach_ext_api(const struct di_ext_ops *di_api);
 /*---------------------*/
 
 struct di_buf_s *get_di_buf(int queue_idx, int *start_pos);

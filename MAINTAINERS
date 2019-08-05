@@ -15099,3 +15099,8 @@ AMLOGIC ADD DTS FOR AC223 PLATFORM
 M:  huijie huang <huijie.huang@amlogic.com>
 F:  arch/arm/boot/dts/amlogic/sm1_s905y3_ac223.dts
 F:  arch/arm64/boot/dts/amlogic/sm1_s905y3_ac223.dts
+
+AMLOGIC DEINTERLACE DRIVER
+M:	Jihong Sui <jihong.sui@amlogic.com>
+F:	drivers/amlogic/media/deinterlace/di_pqa.h
+F:	drivers/amlogic/media/di_local/*
