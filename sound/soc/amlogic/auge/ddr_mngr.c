@@ -553,7 +553,7 @@ bool aml_toddr_burst_finished(struct toddr *to)
 
 		/* fifo stopped */
 		if ((cnt0 == cnt1) && (cnt0 == cnt2) && (cnt0 < (0x40 - 2))) {
-			pr_info("%s(), i (%d) cnt(%d) break out\n",
+			pr_debug("%s(), i (%d) cnt(%d) break out\n",
 				__func__, i, cnt2);
 			fifo_stop = true;
 			break;
@@ -571,7 +571,7 @@ bool aml_toddr_burst_finished(struct toddr *to)
 		addr_reply = aml_toddr_get_position(to);
 
 		if (addr_request == addr_reply) {
-			pr_info("%s(), fifo_stop %d\n", __func__, fifo_stop);
+			pr_debug("%s(), fifo_stop %d\n", __func__, fifo_stop);
 			return true;
 		}
 

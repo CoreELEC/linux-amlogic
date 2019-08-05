@@ -460,10 +460,6 @@ static int extn_dai_prepare(
 		else
 			toddr_type = 0;
 
-		pr_info("%s Expected toddr src:%s\n",
-			__func__,
-			toddr_src_get_str(src));
-
 		if (src == FRATV) {
 			/* Now tv supports 48k, 16bits */
 			if ((bit_depth != 16) || (runtime->rate != 48000)) {
@@ -504,7 +500,9 @@ static int extn_dai_prepare(
 			return -EINVAL;
 		}
 
-		pr_info("%s m:%d, n:%d\n", __func__, msb, lsb);
+		pr_debug("%s Expected toddr src:%s, m:%d, n:%d, toddr type:%d\n",
+			__func__, toddr_src_get_str(src),
+			msb, lsb, toddr_type);
 
 		fmt.type      = toddr_type;
 		fmt.msb       = msb;
@@ -537,7 +535,8 @@ static int extn_dai_trigger(struct snd_pcm_substream *substream, int cmd,
 
 			aml_frddr_enable(p_extn->fddr, true);
 		} else {
-			dev_info(substream->pcm->card->dev, "External Capture enable\n");
+			dev_dbg(substream->pcm->card->dev,
+				"External Capture enable\n");
 
 			if (src == FRATV)
 				fratv_enable(true);
@@ -561,7 +560,9 @@ static int extn_dai_trigger(struct snd_pcm_substream *substream, int cmd,
 				fratv_enable(false);
 			else if (src == FRHDMIRX)
 				frhdmirx_enable(false);
-			dev_info(substream->pcm->card->dev, "External Capture disable\n");
+
+			dev_dbg(substream->pcm->card->dev,
+				"External Capture disable\n");
 
 			toddr_stopped = aml_toddr_burst_finished(p_extn->tddr);
 			if (toddr_stopped)

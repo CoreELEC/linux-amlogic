@@ -390,18 +390,15 @@ static int earc_dai_prepare(
 		else
 			toddr_type = 0;
 
-		pr_info("%s Expected toddr src:%s\n",
-			__func__,
-			toddr_src_get_str(src));
-
 		msb = 28 - 1;
 		if (bit_depth == 16)
 			lsb = 28 - bit_depth;
 		else
 			lsb = 4;
 
-		pr_info("%s m:%d, n:%d, toddr type:%d\n",
-			__func__, msb, lsb, toddr_type);
+		pr_debug("%s Expected toddr src:%s, m:%d, n:%d, toddr type:%d\n",
+			__func__, toddr_src_get_str(src),
+			msb, lsb, toddr_type);
 
 		fmt.type      = toddr_type;
 		fmt.msb       = msb;
