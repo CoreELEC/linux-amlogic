@@ -568,14 +568,15 @@ static void lcd_vbyone_hw_filter(int flag)
 		} else {
 			temp = (vx1_conf->hw_filter_time >> 8) & 0x1;
 			if (temp) {
-				LCDPR("%s: %d bypass for debug\n",
-					__func__, flag);
-				break;
+				lcd_vcbus_write(VBO_INFILTER_TICK_PERIOD_L,
+						0xff);
+				lcd_vcbus_write(VBO_INFILTER_TICK_PERIOD_H,
+						0x0);
+				lcd_vcbus_setb(VBO_INSGN_CTRL, 0x7, 8, 4);
+				lcd_vcbus_setb(VBO_INSGN_CTRL, 0x7, 12, 4);
+				LCDPR("%s: %d change to min for debug\n",
+				       __func__, flag);
 			}
-			lcd_vcbus_write(VBO_INFILTER_TICK_PERIOD_L, 0xff);
-			lcd_vcbus_write(VBO_INFILTER_TICK_PERIOD_H, 0x0);
-			lcd_vcbus_setb(VBO_INSGN_CTRL, 0x7, 8, 4);
-			lcd_vcbus_setb(VBO_INSGN_CTRL, 0x7, 12, 4);
 		}
 		break;
 	default:
