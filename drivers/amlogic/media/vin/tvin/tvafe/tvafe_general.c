@@ -399,7 +399,7 @@ static void tvafe_set_cvbs_default(struct tvafe_cvd2_s *cvd2,
 			W_HIU_REG(HHI_DADC_CNTL3, 0x00082183);
 		} else if (tvafe_cpu_type() >= CPU_TYPE_TL1) {
 			/** DADC CNTL for LIF signal input **/
-			W_HIU_REG(HHI_DADC_CNTL, 0x0030303c);
+			W_HIU_REG(HHI_DADC_CNTL, 0x00303044);
 			W_HIU_REG(HHI_DADC_CNTL2, 0x00003480);
 			W_HIU_REG(HHI_DADC_CNTL3, 0x08300b83);
 		} else {
@@ -419,7 +419,7 @@ static void tvafe_set_cvbs_default(struct tvafe_cvd2_s *cvd2,
 			W_HIU_REG(HHI_DADC_CNTL2, 0x00000400);
 			W_HIU_REG(HHI_DADC_CNTL3, 0x00082183);
 		} else if (tvafe_cpu_type() >= CPU_TYPE_TL1) {
-			W_HIU_REG(HHI_DADC_CNTL, 0x0030303c);
+			W_HIU_REG(HHI_DADC_CNTL, 0x00303044);
 			W_HIU_REG(HHI_DADC_CNTL2, 0x00003400);
 			W_HIU_REG(HHI_DADC_CNTL3, 0x08300b83);
 		}
@@ -552,7 +552,7 @@ void tvafe_set_ddemod_default(void)
 		W_APB_REG(TVFE_VAFE_CTRL1, 0x3000);
 		W_APB_REG(TVFE_VAFE_CTRL2, 0x1fe09e31);
 
-		W_HIU_REG(HHI_DADC_CNTL, 0x0030303c);
+		W_HIU_REG(HHI_DADC_CNTL, 0x00303044);
 		W_HIU_REG(HHI_DADC_CNTL2, 0x00003480);
 		W_HIU_REG(HHI_DADC_CNTL3, 0x08300b83);
 
