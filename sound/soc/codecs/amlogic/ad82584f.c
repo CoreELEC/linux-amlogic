@@ -856,7 +856,7 @@ static int ad82584f_probe(struct snd_soc_codec *codec)
 {
 	struct ad82584f_priv *ad82584f = snd_soc_codec_get_drvdata(codec);
 	struct ad82584f_platform_data *pdata = ad82584f->pdata;
-	int ret;
+	int ret = 0;
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
 	ad82584f->early_suspend.level = EARLY_SUSPEND_LEVEL_BLANK_SCREEN;
@@ -866,12 +866,15 @@ static int ad82584f_probe(struct snd_soc_codec *codec)
 	register_early_suspend(&(ad82584f->early_suspend));
 #endif
 
-	ret = devm_gpio_request_one(codec->dev, pdata->reset_pin,
-					GPIOF_OUT_INIT_LOW,
-					"ad82584f-reset-pin");
-	if (ret < 0) {
-		dev_err(codec->dev, "ad82584f get gpio error!\n");
-		return -1;
+	if (pdata->reset_pin > 0) {
+		ret = devm_gpio_request_one(codec->dev, pdata->reset_pin,
+						GPIOF_OUT_INIT_LOW,
+						"ad82584f-reset-pin");
+
+		if (ret < 0) {
+			dev_err(codec->dev, "ad82584f get gpio error!\n");
+			return -1;
+		}
 	}
 
 	ad82584f_init(codec);
