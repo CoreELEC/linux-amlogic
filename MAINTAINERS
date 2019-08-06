@@ -15090,3 +15090,8 @@ F:  arch/arm/boot/dts/amlogic/mesontm2_t962x3_t312-panel.dtsi
 AMLOGIC ADD DRM FOR P212
 M: lingjie li <lingjie.li@amlogic.com>
 F: arch/arm/boot/dts/amlogic/gxl_p212_2g_drm_buildroot.dts
+
+AMLOGIC ADD DTS FOR AC223 PLATFORM
+M:  huijie huang <huijie.huang@amlogic.com>
+F:  arch/arm/boot/dts/amlogic/sm1_s905y3_ac223.dts
+F:  arch/arm64/boot/dts/amlogic/sm1_s905y3_ac223.dts
