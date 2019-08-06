@@ -213,7 +213,8 @@
 			<&clkc CLKID_VPU_CLKB_COMP>;
 		clock-names = "vpu_clkb_tmp_composite",
 			"vpu_clkb_composite";
-		clock-range = <334 667>;
+		clock-range = <334 500>;
+		//clock-range = <334 667>;
 		/* buffer-size = <3621952>;(yuv422 8bit) */
 		buffer-size = <4074560>;/*yuv422 fullpack*/
 		/* reserve-iomap = "true"; */
