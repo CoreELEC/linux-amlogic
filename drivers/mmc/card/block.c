@@ -3034,7 +3034,7 @@ static int mmc_validate_mpt_partition(struct mmc_card *card)
 	mmc_claim_host(card->host);
 
 	/* FIXME: fix up the magic number for start block to check MPT partition */
-	ret = mmc_read_internal(card, 8184, 1, buf);
+	ret = mmc_read_internal(card, get_reserve_partition_off(card) / 512, 1, buf);
 	if (ret == 0) {
 		if (strncmp(buf, MMC_PARTITIONS_MAGIC,
 			sizeof(((struct mmc_partitions_fmt*)0)->magic)) != 0) {
@@ -3222,4 +3222,3 @@ module_exit(mmc_blk_exit);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Multimedia Card (MMC) block device driver");
-
