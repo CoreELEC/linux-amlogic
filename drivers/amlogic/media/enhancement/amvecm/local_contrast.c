@@ -1493,14 +1493,16 @@ void lc_process(struct vframe_s *vf,
 	else
 		bitdepth = 12;
 
-	if (!lc_en) {
-		lc_disable();
-		return;
-	}
 	if (!lc_malloc_ok) {
 		pr_amlc_dbg("%s: lc malloc fail", __func__);
 		return;
 	}
+
+	if (!lc_en) {
+		lc_disable();
+		return;
+	}
+
 	if (vf == NULL) {
 		if (lc_flag == 0xff) {
 			lc_disable();
@@ -1539,4 +1541,5 @@ void lc_free(void)
 	kfree(curve_nodes_cur);
 	kfree(curve_nodes_pre);
 	kfree(lc_hist);
+	lc_malloc_ok = 0;
 }
