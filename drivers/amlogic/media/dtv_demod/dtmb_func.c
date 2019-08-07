@@ -153,8 +153,13 @@ void dtmb_all_reset(void)
 
 		/*for timeshift mosaic issue*/
 		dtmb_write_reg(0x4e << 2, 0x256cf604);
-		/*delay fec lock to prevent eq is confused by signal*/
-		dtmb_write_reg(DTMB_FRONT_DEBUG_CFG, 0x5680000);
+
+		/*delay fec lock & make fec lost faster
+		 *to prevent eq is confused by signal
+		 */
+		dtmb_write_reg(DTMB_FRONT_DEBUG_CFG, 0x5480000);
+		/*reduce fec lost timeout*/
+		dtmb_write_reg(DTMB_FRONT_19_CONFIG, 0x30);
 	} else {
 		dtmb_write_reg(DTMB_FRONT_AGC_CONFIG1, 0x10127);
 		dtmb_write_reg(DTMB_CHE_IBDFE_CONFIG6, 0x943228cc);
