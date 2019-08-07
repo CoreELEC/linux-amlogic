@@ -332,9 +332,12 @@ const struct meson_crtc_funcs meson_private_crtc_funcs = {
 char *am_meson_crtc_get_voutmode(struct drm_display_mode *mode)
 {
 	int i;
+	struct vinfo_s *vinfo;
 
-	if (!strcmp(mode->name, "panel"))
-		return "panel";
+	vinfo = get_current_vinfo();
+
+	if (vinfo && vinfo->mode == VMODE_LCD)
+		return mode->name;
 
 	for (i = 0; i < ARRAY_SIZE(am_vout_modes); i++) {
 		if (am_vout_modes[i].width == mode->hdisplay &&

@@ -31,7 +31,6 @@
 #define MAX_PORT_ID 32
 
 static struct meson_vpu_block **vpu_blocks;
-static int num_blocks;
 
 struct meson_vpu_link_para {
 	u8 id;
@@ -233,7 +232,7 @@ static void populate_block_link(void)
 	int i, j, id;
 	struct meson_vpu_block *mvb;
 
-	for (i = 0; i < num_blocks; i++) {
+	for (i = 0; i < BLOCK_ID_MAX; i++) {
 		mvb = vpu_blocks[i];
 
 		if (!mvb)
@@ -257,12 +256,13 @@ static int populate_vpu_pipeline(struct device_node *vpu_block_node,
 	struct device_node *child_node;
 	struct meson_vpu_block *mvb;
 	struct meson_vpu_block_para para;
+	u32 num_blocks;
 
 	num_blocks = of_get_child_count(vpu_block_node);
 	if (num_blocks <= 0)
 		return -ENODEV;
 
-	vpu_blocks = kcalloc(num_blocks, sizeof(*vpu_blocks), GFP_KERNEL);
+	vpu_blocks = kcalloc(BLOCK_ID_MAX, sizeof(*vpu_blocks), GFP_KERNEL);
 	if (!vpu_blocks)
 		return -ENOMEM;
 

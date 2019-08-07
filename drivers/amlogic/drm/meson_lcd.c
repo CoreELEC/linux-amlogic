@@ -411,6 +411,7 @@ static int am_lcd_get_modes(struct drm_panel *panel)
 	if (!lcd->mode)
 		return 0;
 
+	/*ToDo:the below is no use,may delete it!*/
 	mode = drm_mode_duplicate(drm, lcd->mode);
 	if (!mode)
 		return 0;
@@ -468,6 +469,7 @@ static void am_drm_lcd_display_mode_timing_init(struct am_drm_lcd_s *lcd)
 {
 	struct lcd_config_s *pconf;
 	unsigned short tmp;
+	char *vout_mode;
 
 	if (!lcd->lcd_drv) {
 		pr_info("invalid lcd driver\n");
@@ -477,10 +479,20 @@ static void am_drm_lcd_display_mode_timing_init(struct am_drm_lcd_s *lcd)
 	pr_info("am_drm_lcd: %s %d\n", __func__, __LINE__);
 
 	pconf = lcd->lcd_drv->lcd_config;
+	vout_mode = get_vout_mode_internal();
 
 	lcd->mode = &am_lcd_mode;
 	lcd->timing = &am_lcd_timing;
 
+	if (vout_mode) {
+		strncpy(lcd->mode->name, vout_mode, DRM_DISPLAY_MODE_LEN);
+		lcd->mode->name[DRM_DISPLAY_MODE_LEN - 1] = 0;
+		/*ToDo:change it according to lcd drivers config*/
+		if (!strcmp(vout_mode, "panel"))
+			lcd->connector.connector_type = DRM_MODE_CONNECTOR_DSI;
+		else
+			lcd->connector.connector_type = DRM_MODE_CONNECTOR_LVDS;
+	}
 	lcd->mode->clock = pconf->lcd_timing.lcd_clk / 1000;
 	lcd->mode->hdisplay = pconf->lcd_basic.h_active;
 	tmp = pconf->lcd_basic.h_period - pconf->lcd_basic.h_active -
@@ -533,7 +545,7 @@ static void am_drm_lcd_display_mode_timing_init(struct am_drm_lcd_s *lcd)
 	lcd->timing->vsync_len.typ = pconf->lcd_timing.vsync_width;
 	lcd->timing->vsync_len.max = pconf->lcd_timing.vsync_width;
 
-	pr_info("am_drm_lcd: %s: lcd config:\n"
+	DRM_INFO("am_drm_lcd: %s: lcd config:\n"
 		"lcd_clk             %d\n"
 		"h_active            %d\n"
 		"v_active            %d\n"
@@ -549,7 +561,7 @@ static void am_drm_lcd_display_mode_timing_init(struct am_drm_lcd_s *lcd)
 		lcd->lcd_drv->lcd_config->lcd_basic.screen_height,
 		lcd->lcd_drv->lcd_config->lcd_timing.sync_duration_den,
 		lcd->lcd_drv->lcd_config->lcd_timing.sync_duration_num);
-	pr_info("am_drm_lcd: %s: display mode:\n"
+	DRM_INFO("am_drm_lcd: %s: display mode:\n"
 		"clock       %d\n"
 		"hdisplay    %d\n"
 		"vdisplay    %d\n"
@@ -563,7 +575,7 @@ static void am_drm_lcd_display_mode_timing_init(struct am_drm_lcd_s *lcd)
 		lcd->mode->width_mm,
 		lcd->mode->height_mm,
 		lcd->mode->vrefresh);
-	pr_info("am_drm_lcd: %s: timing:\n"
+	DRM_INFO("am_drm_lcd: %s: timing:\n"
 		"pixelclock   %d\n"
 		"hactive      %d\n"
 		"vactive      %d\n",
@@ -572,8 +584,32 @@ static void am_drm_lcd_display_mode_timing_init(struct am_drm_lcd_s *lcd)
 		lcd->timing->hactive.typ,
 		lcd->timing->vactive.typ);
 
-	pr_info("am_drm_lcd: %s %d\n", __func__, __LINE__);
+	DRM_INFO("am_drm_lcd: %s %d\n", __func__, __LINE__);
 }
+
+int am_drm_lcd_notify_callback(struct notifier_block *block, unsigned long cmd,
+	void *para)
+{
+	am_drm_lcd->lcd_drv = aml_lcd_get_driver();
+	if (!am_drm_lcd->lcd_drv) {
+		DRM_ERROR("invalid lcd driver, exit\n");
+		return -ENODEV;
+	}
+
+	switch (cmd) {
+	case VOUT_EVENT_MODE_CHANGE:
+		am_drm_lcd_display_mode_timing_init(am_drm_lcd);
+		DRM_INFO("%s:event MODE_CHANGE\n", __func__);
+		break;
+	default:
+		break;
+	}
+	return 0;
+}
+
+static struct notifier_block am_drm_lcd_notifier_nb = {
+	.notifier_call	= am_drm_lcd_notify_callback,
+};
 
 static const struct of_device_id am_meson_lcd_dt_ids[] = {
 	{ .compatible = "amlogic,drm-lcd", },
@@ -600,8 +636,11 @@ static int am_meson_lcd_bind(struct device *dev, struct device *master,
 		pr_err("invalid lcd driver, exit\n");
 		return -ENODEV;
 	}
-
-	am_drm_lcd_display_mode_timing_init(am_drm_lcd);
+	/*
+	 * register vout client for timing init,
+	 * avoid init with null info when lcd probe with unifykey case.
+	 */
+	vout_register_client(&am_drm_lcd_notifier_nb);
 
 	drm_panel_init(&am_drm_lcd->panel);
 	am_drm_lcd->panel.dev = NULL;

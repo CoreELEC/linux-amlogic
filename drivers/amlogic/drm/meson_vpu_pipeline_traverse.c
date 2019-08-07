@@ -57,19 +57,19 @@ static struct meson_vpu_block *neighbour(struct meson_vpu_block_state *mvbs,
 			continue;
 		next_state = meson_vpu_block_get_state(mvbl->link, state);
 		if (next_state->in_stack) {
-			//printk("%s already in stack.\n", mvbl->link->name);
+			DRM_DEBUG("%s already in stack.\n", mvbl->link->name);
 			continue;
 		}
 		if (!next_state->active) {
-			//printk("%s is not active.\n", mvbl->link->name);
+			DRM_DEBUG("%s is not active.\n", mvbl->link->name);
 			continue;
 		}
 		if (!mvbl->edges_active) {
-			//printk("edges is not active.\n");
+			DRM_DEBUG("edges is not active.\n");
 			continue;
 		}
 		if (mvbl->edges_visited) {
-			//printk("edges is already visited.\n");
+			DRM_DEBUG("edges is already visited.\n");
 			continue;
 		}
 
@@ -114,6 +114,8 @@ static void pipeline_dfs(int osd_index, struct meson_vpu_pipeline_state *mvps,
 	stack_push(mvs, start);
 	mvt->num_path = 0;
 	j = 0;
+	DRM_DEBUG("start->id=%d,name=%s\n", start->id, start->name);
+	DRM_DEBUG("end->id=%d,name=%s\n", end->id, end->name);
 
 	while (mvs->top) {
 		if (mvs->stack[mvs->top - 1] == end) {
@@ -133,12 +135,15 @@ static void pipeline_dfs(int osd_index, struct meson_vpu_pipeline_state *mvps,
 			next = neighbour(curr_state, &index, state);
 
 			if (next) {
+				DRM_DEBUG("next->id=%d,name=%s\n",
+					  next->id, next->name);
 				curr_state->outputs[index].edges_visited = 1;
 				next_state =
 					meson_vpu_block_get_state(next, state);
 				stack_push(mvs, next);
 				next_state->in_stack = 1;
 			} else {
+				DRM_DEBUG("next is NULL!!\n");
 				stack_pop(mvs);
 				curr_state->in_stack = 0;
 				pipeline_visit_clean(curr_state);

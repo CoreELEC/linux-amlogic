@@ -15118,3 +15118,17 @@ AMLOGIC DRM
 M:	Ao Xu <ao.xu@amlogic.com>
 F:	drivers/amlogic/drm/meson_debugfs.c
 
+AMLOGIC DRM
+M:	Dezhi Kong <dezhi.kong@amlogic.com>
+F:	arch/arm/boot/dts/amlogic/mesontl1_drm.dtsi
+F:	arch/arm/boot/dts/amlogic/tl1_t962x2_x301_1g_drm.dts
+F:	arch/arm/boot/dts/amlogic/tl1_t962x2_x301_2g_drm.dts
+F:	arch/arm64/boot/dts/amlogic/mesontl1_drm.dtsi
+F:	arch/arm64/boot/dts/amlogic/tl1_t962x2_x301_1g_drm.dts
+F:	arch/arm64/boot/dts/amlogic/tl1_t962x2_x301_2g_drm.dts
+F:	drivers/amlogic/drm/meson_lcd.c
+F:	drivers/amlogic/drm/meson_vpu.c
+F:	drivers/amlogic/drm/meson_vpu_pipeline.c
+F:	drivers/amlogic/drm/meson_vpu_pipeline_traverse.c
+F:	include/dt-bindings/display/meson-drm-ids.h
+

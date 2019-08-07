@@ -13,6 +13,7 @@
 #define OSD_BLEND_BLOCK 9
 #define OSD1_HDR_BLOCK 10
 #define VPP_POSTBLEND_BLOCK 11
+#define BLOCK_ID_MAX 12
 
 #define OSD1_PORT 0
 #define OSD2_PORT 1
