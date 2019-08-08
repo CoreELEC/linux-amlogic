@@ -489,6 +489,13 @@ static void tvafe_cvd2_write_mode_reg(struct tvafe_cvd2_s *cvd2,
 			ADAPTIVE_CHROMA_MODE_BIT, ADAPTIVE_CHROMA_MODE_WID);
 			W_APB_REG(CVD2_CHROMA_EDGE_ENHANCEMENT, 0x22);
 		}
+		if (cvd2->config_fmt == TVIN_SIG_FMT_CVBS_NTSC_M) {
+			if (tvafe_cpu_type() >= CPU_TYPE_TL1) {
+				/* fix Purple and green junctions is wider */
+				W_APB_BIT(CVD2_REG_FA, 0,
+					UV_FILTER_TYPE_BIT, UV_FILTER_TYPE_WID);
+			}
+		}
 	}
 #ifdef TVAFE_CVD2_CC_ENABLE
 	W_APB_REG(CVD2_VBI_DATA_TYPE_LINE21, 0x00000011);
