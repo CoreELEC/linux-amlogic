@@ -156,6 +156,21 @@ int meson_mmc_clk_init_v3(struct amlsd_host *host)
 
 	return ret;
 }
+/**************************
+ *   select clock source
+ * ************************
+ * HS200 200M -> HS400 200M
+ *
+ * G12B: 800M -> 800M
+ *
+ * TL1 : 792M -> 792M
+ *
+ * SM1 :  1G  -> 800M
+ *
+ * TM2 :  1G  -> 800M
+ *
+ * TXLX:  1G  -> 400M
+ **************************/
 
 static int meson_mmc_clk_set_rate_v3(struct mmc_host *mmc,
 		unsigned long clk_ios)
@@ -2276,8 +2291,7 @@ int aml_mmc_execute_tuning_v3(struct mmc_host *mmc, u32 opcode)
 		intf3 |= (1<<22);
 		writel(intf3, (host->base + SD_EMMC_INTF3));
 		pdata->intf3 = intf3;
-		if ((host->data->chip_type >= MMC_CHIP_TL1)
-			|| (host->data->chip_type == MMC_CHIP_G12B))
+		if (host->data->chip_type == MMC_CHIP_G12B)
 			aml_emmc_hs200_tl1(mmc);
 		err = 0;
 	}
