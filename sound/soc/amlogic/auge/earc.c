@@ -65,6 +65,16 @@ struct earc {
 	int sysclk_freq;
 };
 
+#include <linux/amlogic/media/sound/hdmi_earc.h>
+
+void earc_hdmirx_hpdst(int earc_port, bool st)
+{
+};
+
+void earc_hdmitx_hpdst(bool st)
+{
+};
+
 #define PREALLOC_BUFFER_MAX	(256 * 1024)
 
 #define EARC_RATES      (SNDRV_PCM_RATE_8000_192000)

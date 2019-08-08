@@ -35,6 +35,7 @@
 #include <linux/delay.h>
 #include <linux/of_gpio.h>
 #include <linux/amlogic/media/frame_provider/tvin/tvin.h>
+#include <linux/amlogic/media/sound/hdmi_earc.h>
 
 /* Local include */
 #include "hdmi_rx_repeater.h"
@@ -1962,6 +1963,7 @@ static void rx_cable_clk_monitor(void)
 		pre_sts = sts;
 	}
 }
+
 /* ---------------------------------------------------------- */
 /* func:         port A,B,C,D  hdmitx-5v monitor & HPD control */
 /* note:         G9TV portD no used */
@@ -1970,6 +1972,7 @@ void rx_5v_monitor(void)
 {
 	static uint8_t check_cnt;
 	uint8_t tmp_5v = rx_get_hdmi5v_sts();
+	bool tmp_arc_5v;
 
 	if (auto_switch_off)
 		tmp_5v = 0x0f;
@@ -1996,6 +1999,13 @@ void rx_5v_monitor(void)
 			hdcp_mode_sel = true;
 		else
 			hdcp_mode_sel = false;
+	}
+	if (rx.chip_id == CHIP_ID_TM2) {
+		tmp_arc_5v = (pwr_sts >> rx.arc_port) & 1;
+		if (rx.arc_5vsts != tmp_arc_5v) {
+			rx.arc_5vsts = tmp_arc_5v;
+			earc_hdmirx_hpdst(rx.arc_port, rx.arc_5vsts);
+		}
 	}
 }
 

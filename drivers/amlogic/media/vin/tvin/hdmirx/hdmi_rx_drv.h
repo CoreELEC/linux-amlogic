@@ -34,7 +34,7 @@
 #include "hdmi_rx_edid.h"
 
 
-#define RX_VER0 "ver.2019-06-14"
+#define RX_VER0 "ver.2019-08-08"
 /*
  *
  *
@@ -453,6 +453,7 @@ struct rx_s {
 	struct emp_buff empbuff;
 	uint32_t arc_port;
 	enum edid_ver_e edid_ver;
+	bool arc_5vsts;
 };
 
 struct _hdcp_ksv {

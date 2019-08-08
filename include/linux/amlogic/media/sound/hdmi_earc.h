@@ -18,9 +18,8 @@
 #ifndef __HDMI_EARC_H__
 #define __HDMI_EARC_H__
 
+extern void earc_hdmirx_hpdst(int port, bool st);
+
 extern void earc_hdmitx_hpdst(bool st);
 
-void earc_hdmitx_hpdst(bool st)
-{
-};
 #endif
