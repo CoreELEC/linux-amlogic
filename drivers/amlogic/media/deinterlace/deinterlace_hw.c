@@ -910,7 +910,7 @@ bool afbc_is_supported(void)
 	else if (is_meson_g12a_cpu())
 		ret = false;
 	else if (is_meson_tl1_cpu() || is_meson_tm2_cpu())
-		ret = true;
+		ret = false;
 
 	return ret;
 
