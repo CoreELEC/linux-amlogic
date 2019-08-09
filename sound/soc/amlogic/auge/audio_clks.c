@@ -101,6 +101,8 @@ static int audio_clocks_probe(struct platform_device *pdev)
 		return ret;
 	}
 
+	pr_info("%s done\n", __func__);
+
 	return 0;
 }
 

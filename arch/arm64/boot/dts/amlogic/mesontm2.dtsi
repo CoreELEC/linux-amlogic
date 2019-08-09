@@ -661,8 +661,8 @@
 			compatible = "amlogic, audio-controller", "simple-bus";
 			#address-cells = <2>;
 			#size-cells = <2>;
-			reg = <0x0 0xff600000 0x0 0x10000>;
-			ranges = <0x0 0x0 0x0 0xff600000 0x0 0x10000>;
+			reg = <0x0 0xff600000 0x0 0x3000>;
+			ranges = <0x0 0x0 0x0 0xff600000 0x0 0x3000>;
 
 			clkaudio:audio_clocks {
 				compatible = "amlogic, tm2-audio-clocks";
@@ -690,6 +690,59 @@
 			};
 		};/* end of audiobus*/
 
+		/* eARC */
+		audio_earc: bus@ff603000 {
+			compatible = "simple-bus";
+			reg = <0x0 0xff603000 0x0 0xD000>;
+			#address-cells = <2>;
+			#size-cells = <2>;
+			ranges = <0x0 0x0 0x0 0xff603000 0x0 0xD000>;
+
+			earc: earc@0 {
+				compatible = "amlogic, tm2-snd-earc";
+				#sound-dai-cells = <0>;
+
+				status = "disabled";
+
+				reg = <0x0 0x0 0x0 0x400>,
+					<0x0 0x400 0x0 0x200>,
+					<0x0 0x600 0x0 0x200>,
+					<0x0 0x800 0x0 0x400>,
+					<0x0 0xc00 0x0 0x200>,
+					<0x0 0xe00 0x0 0x200>;
+				reg-names = "tx_cmdc",
+					"tx_dmac",
+					"tx_top",
+					"rx_cmdc",
+					"rx_dmac",
+					"rx_top";
+
+				clocks = < &clkaudio CLKID_EARCRX_CMDC
+					&clkaudio CLKID_EARCRX_DMAC
+					&clkc CLKID_FCLK_DIV4
+					&clkc CLKID_FCLK_DIV4
+					&clkaudio CLKID_EARCTX_CMDC
+					&clkaudio CLKID_EARCTX_DMAC
+					&clkc CLKID_FCLK_DIV4
+					&clkc CLKID_MPLL1
+					>;
+				clock-names =
+					"rx_cmdc",
+					"rx_dmac",
+					"rx_cmdc_srcpll",
+					"rx_dmac_srcpll",
+					"tx_cmdc",
+					"tx_dmac",
+					"tx_cmdc_srcpll",
+					"tx_dmac_srcpll";
+
+				interrupts = <
+					GIC_SPI 232 IRQ_TYPE_LEVEL_HIGH
+					GIC_SPI 233 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-names = "earc_rx", "earc_tx";
+			};
+		};
+
 		/* Sound iomap */
 		aml_snd_iomap {
 			compatible = "amlogic, snd-iomap";
@@ -714,15 +767,6 @@
 			};
 			vad_base {
 				reg = <0x0 0xFF601800 0x0 0x400>;
-			};
-			earcrx_cdmc_base {
-				reg = <0x0 0xFF603800 0x0 0x30>;
-			};
-			earcrx_dmac_base {
-				reg = <0x0 0xFF603C00 0x0 0x20>;
-			};
-			earcrx_top_base {
-				reg = <0x0 0xFF603E00 0x0 0x10>;
 			};
 		};
 

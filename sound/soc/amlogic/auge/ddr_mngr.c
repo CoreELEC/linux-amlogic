@@ -1589,7 +1589,8 @@ static int toddr_src_enum_set(struct snd_kcontrol *kcontrol,
 static int frddr_src_idx = -1;
 
 static const char *const frddr_src_sel_texts[] = {
-	"TDMOUT_A", "TDMOUT_B", "TDMOUT_C", "SPDIFOUT_A", "SPDIFOUT_B"
+	"TDMOUT_A", "TDMOUT_B", "TDMOUT_C",
+	"SPDIFOUT_A", "SPDIFOUT_B", "EARCTX_DMAC"
 };
 
 static const struct soc_enum frddr_output_source_enum =
@@ -1603,7 +1604,7 @@ int frddr_src_get(void)
 
 const char *frddr_src_get_str(int idx)
 {
-	if (idx < 0 || idx > 4)
+	if (idx < 0 || idx >= FRDDR_MAX)
 		return NULL;
 
 	return frddr_src_sel_texts[idx];

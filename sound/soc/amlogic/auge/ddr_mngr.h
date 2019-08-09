@@ -93,6 +93,8 @@ enum frddr_dest {
 	TDMOUT_C,
 	SPDIFOUT_A,
 	SPDIFOUT_B,
+	EARCTX_DMAC,
+	FRDDR_MAX
 };
 
 enum status_sel {

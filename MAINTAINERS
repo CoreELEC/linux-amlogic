@@ -13823,6 +13823,7 @@ F: sound/soc/codecs/Makefile
 F: sound/soc/codecs/amlogic/*
 F: drivers/amlogic/audiodsp/*
 
+
 AMLOGIC PPMGR DRIVER
 M: Guosong Zhou <guosong.zhou@amlogic.com>
 F: arch/arm64/boot/dts/amlogic/gxl_p212_1g.dts
