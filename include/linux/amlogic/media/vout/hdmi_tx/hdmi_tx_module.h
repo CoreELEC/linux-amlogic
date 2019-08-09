@@ -164,6 +164,7 @@ struct rx_cap {
 	struct raw_block vsd;
 	/*blk0 check sum*/
 	unsigned char blk0_chksum;
+	unsigned char chksum[10];
 };
 
 struct cts_conftab {

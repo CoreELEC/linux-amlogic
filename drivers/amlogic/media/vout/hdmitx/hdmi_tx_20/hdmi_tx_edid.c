@@ -91,7 +91,23 @@ static unsigned int hdmitx_edid_check_valid_blocks(unsigned char *buf);
 static void Edid_DTD_parsing(struct rx_cap *pRXCap, unsigned char *data);
 static void hdmitx_edid_set_default_aud(struct hdmitx_dev *hdev);
 
-static void edid_save_checkvalue(unsigned char *buf, unsigned int block_cnt)
+static int xtochar(int num, unsigned char *checksum)
+{
+	if (((edid_checkvalue[num]  >> 4) & 0xf) <= 9)
+		checksum[0] = ((edid_checkvalue[num]  >> 4) & 0xf) + '0';
+	else
+		checksum[0] = ((edid_checkvalue[num]  >> 4) & 0xf) - 10 + 'a';
+
+	if ((edid_checkvalue[num] & 0xf) <= 9)
+		checksum[1] = (edid_checkvalue[num] & 0xf) + '0';
+	else
+		checksum[1] = (edid_checkvalue[num] & 0xf) - 10 + 'a';
+
+	return 0;
+}
+
+static void edid_save_checkvalue(unsigned char *buf, unsigned int block_cnt,
+	struct rx_cap *RXCap)
 {
 	unsigned int i, length, max;
 
@@ -105,6 +121,12 @@ static void edid_save_checkvalue(unsigned char *buf, unsigned int block_cnt)
 
 	for (i = 0; i < max; i++)
 		edid_checkvalue[i] = *(buf+(i+1)*128-1);
+
+	RXCap->chksum[0] = '0';
+	RXCap->chksum[1] = 'x';
+
+	for (i = 0; i < 4; i++)
+		xtochar(i, &RXCap->chksum[2 * i + 2]);
 }
 
 static int Edid_DecodeHeader(struct hdmitx_info *info, unsigned char *buff)
@@ -2422,7 +2444,7 @@ int hdmitx_edid_parse(struct hdmitx_dev *hdmitx_device)
 	if ((!pRXCap->AUD_count) && (!pRXCap->ieeeoui))
 		hdmitx_edid_set_default_aud(hdmitx_device);
 
-	edid_save_checkvalue(EDID_buf, BlockCount+1);
+	edid_save_checkvalue(EDID_buf, BlockCount + 1, pRXCap);
 
 	i = hdmitx_edid_dump(hdmitx_device, (char *)(hdmitx_device->tmp_buf),
 		HDMI_TMP_BUF_SIZE);
@@ -2435,6 +2457,8 @@ int hdmitx_edid_parse(struct hdmitx_dev *hdmitx_device)
 	/* update RX HDR information */
 	info = get_current_vinfo();
 	if (info) {
+		/*update hdmi checksum to vout*/
+		memcpy(info->hdmichecksum, pRXCap->chksum, 10);
 		if (!((strncmp(info->name, "480cvbs", 7) == 0) ||
 		(strncmp(info->name, "576cvbs", 7) == 0) ||
 		(strncmp(info->name, "null", 4) == 0))) {

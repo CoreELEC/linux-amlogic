@@ -268,6 +268,7 @@ struct vinfo_s {
 	u32 video_clk;
 	u32 htotal;
 	u32 vtotal;
+	unsigned char hdmichecksum[10];
 	enum vinfo_3d_e info_3d;
 	enum vout_fr_adj_type_e fr_adj_type;
 	enum color_fmt_e viu_color_fmt;

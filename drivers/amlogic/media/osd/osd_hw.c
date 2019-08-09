@@ -8681,8 +8681,6 @@ static void osd_setting_default_hwc(void)
 	VSYNCOSD_WR_MPEG_REG(VPP_OSD1_IN_SIZE,
 		blend_vsize  << 16 |
 		blend_hsize);
-	VSYNCOSD_WR_MPEG_REG_BITS(DOLBY_PATH_CTRL,
-		0x3, 2, 2);
 }
 
 static bool set_old_hwc_freescale(u32 index)

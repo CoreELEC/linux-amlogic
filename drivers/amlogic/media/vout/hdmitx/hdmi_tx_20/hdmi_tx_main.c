@@ -456,6 +456,9 @@ static int set_disp_mode_auto(void)
 
 	pr_info(SYS "get current mode: %s\n", info->name);
 
+	/*update hdmi checksum to vout*/
+	memcpy(info->hdmichecksum, hdev->RXCap.chksum, 10);
+
 	if (!((strncmp(info->name, "480cvbs", 7) == 0) ||
 		(strncmp(info->name, "576cvbs", 7) == 0) ||
 		(strncmp(info->name, "null", 4) == 0))) {

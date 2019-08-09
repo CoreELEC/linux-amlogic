@@ -534,7 +534,6 @@ struct dovi_setting_s {
 	uint32_t vout_width;
 	uint32_t vout_height;
 	u8 vsvdb_tbl[32];
-	u8 hdrdb_tbl[7];
 	struct ext_md_s ext_md;
 	uint32_t vsvdb_len;
 	uint32_t vsvdb_changed;
