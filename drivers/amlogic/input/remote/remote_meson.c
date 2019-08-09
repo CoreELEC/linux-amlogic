@@ -523,6 +523,13 @@ static int get_custom_tables(struct device_node *node,
 	for (index = 0; index < chip->custom_num; index++) {
 		propname = kasprintf(GFP_KERNEL, "map%d", index);
 		phandle = of_get_property(custom_maps, propname, NULL);
+
+		/* never use below, just use to find phandle
+		 * mem leak occurs if not free
+		 */
+		kfree(propname);
+		propname = NULL;
+
 		if (!phandle) {
 			dev_err(chip->dev, "%s:don't find match map%d\n",
 					__func__, index);
