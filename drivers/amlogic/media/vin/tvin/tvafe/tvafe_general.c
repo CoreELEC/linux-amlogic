@@ -235,6 +235,76 @@ static const unsigned int cvbs_top_reg_default[][2] = {
 	{0xFFFFFFFF, 0x00000000,}
 };
 
+static const unsigned int tvafe_pq_reg_trust_table[][2] = {
+	/* reg    mask */
+	{CVD2_CONTROL1,                     0xff}, /* 0x01 */
+	{CVD2_OUTPUT_CONTROL,               0x0f}, /* 0x07 */
+	{CVD2_LUMA_CONTRAST_ADJUSTMENT,     0xff}, /* 0x08 */
+	{CVD2_LUMA_BRIGHTNESS_ADJUSTMENT,   0xff}, /* 0x09 */
+	{CVD2_CHROMA_SATURATION_ADJUSTMENT, 0xff}, /* 0x0a */
+	{CVD2_CHROMA_HUE_PHASE_ADJUSTMENT,  0xff}, /* 0x0b */
+	{CVD2_CHROMA_EDGE_ENHANCEMENT,      0xff}, /* 0xb5 */
+	{CVD2_CHROMA_BW_MOTION,             0xff}, /* 0xe8 */
+	{CVD2_REG_FA,                       0xa0}, /* 0xfa */
+
+	{ACD_REG_25,                        0xffffffff},
+	{ACD_REG_53,                        0xffffffff},
+	{ACD_REG_54,                        0xffffffff},
+	{ACD_REG_55,                        0xc0fff3ff},
+	{ACD_REG_56,                        0x00f00000},
+	{ACD_REG_57,                        0x03ff81ff},
+	{ACD_REG_58,                        0x8fffffff},
+	{ACD_REG_64,                        0xffffffff},
+	{ACD_REG_65,                        0xffffffff},
+	{ACD_REG_66,                        0x80000ff0},
+	{ACD_REG_86,                        0xc0000000},
+	{ACD_REG_89,                        0x803ff3ff},
+	{ACD_REG_8A,                        0x03ff1fff},
+	{ACD_REG_8B,                        0x0fffffff},
+	{ACD_REG_8C,                        0x0fffffff},
+
+	{0xffffffff,                        0x00000000}, /* ending */
+};
+
+static void tvafe_pq_apb_reg_trust_write(unsigned int addr,
+		unsigned int mask, unsigned int val)
+{
+	unsigned int reg, i = 0, size;
+
+	reg = (addr << 2);
+	size = sizeof(tvafe_pq_reg_trust_table) / (sizeof(unsigned int) * 2);
+	/* check reg trust */
+	while (i < size) {
+		if (tvafe_pq_reg_trust_table[i][0] == 0xFFFFFFFF) {
+			tvafe_pr_info("%s: error: reg 0x%x is out of trust reg!\n",
+				__func__, addr);
+			return;
+		}
+		if (reg == tvafe_pq_reg_trust_table[i][0])
+			break;
+		i++;
+	}
+	/* check mask trust */
+	if ((mask & tvafe_pq_reg_trust_table[i][1]) != mask) {
+		tvafe_pr_info("%s: warning: reg 0x%x mask 0x%x is out of trust mask 0x%x, change to 0x%x!\n",
+				__func__, addr, mask,
+				tvafe_pq_reg_trust_table[i][1],
+				(mask & tvafe_pq_reg_trust_table[i][1]));
+		mask &= tvafe_pq_reg_trust_table[i][1];
+	}
+
+	if (mask == 0xffffffff)
+		W_APB_REG(reg, val);
+	else
+		W_APB_REG(reg, (R_APB_REG(reg) & (~(mask))) | (val & mask));
+
+	if (tvafe_dbg_print & TVAFE_DBG_NORMAL)
+		tvafe_pr_info("%s: apb: Reg0x%x(%u)=0x%x(%u) val=%x(%u) mask=%x(%u)\n",
+			__func__, addr, addr,
+			(val & mask), (val & mask),
+			val, val, mask, mask);
+}
+
 /*
  * tvafe cvd2 video poaition reg setting
  */
@@ -347,20 +417,8 @@ for (i = 0; i < p->length; i++) {
 				p->am_reg[i].mask, p->am_reg[i].mask);
 		break;
 	case REG_TYPE_APB:
-		if (p->am_reg[i].mask == 0xffffffff)
-			W_APB_REG(p->am_reg[i].addr<<2, p->am_reg[i].val);
-		else
-			W_APB_REG(p->am_reg[i].addr<<2,
-			(R_APB_REG(p->am_reg[i].addr<<2) &
-			(~(p->am_reg[i].mask))) |
-			(p->am_reg[i].val & p->am_reg[i].mask));
-		if (tvafe_dbg_print & TVAFE_DBG_NORMAL)
-			tvafe_pr_info("%s: apb: Reg0x%x(%u)=0x%x(%u)val=%x(%u)mask=%x(%u)\n",
-				__func__, p->am_reg[i].addr, p->am_reg[i].addr,
-				(p->am_reg[i].val & p->am_reg[i].mask),
-				(p->am_reg[i].val & p->am_reg[i].mask),
-				p->am_reg[i].val, p->am_reg[i].val,
-				p->am_reg[i].mask, p->am_reg[i].mask);
+		tvafe_pq_apb_reg_trust_write(p->am_reg[i].addr,
+			p->am_reg[i].mask, p->am_reg[i].val);
 		break;
 	default:
 		if (tvafe_dbg_print & TVAFE_DBG_NORMAL)
