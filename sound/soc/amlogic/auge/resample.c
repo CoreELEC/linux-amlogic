@@ -129,20 +129,16 @@ static int resample_clk_set(struct audioresample *p_resample)
 {
 	int ret = 0;
 
-	/* enable clock */
-	if (p_resample->enable) {
+	/* defaule tdm out mclk to resample clk */
+	clk_set_rate(p_resample->pll, 48000 * CLK_RATIO * 2);
+	clk_set_rate(p_resample->sclk, 48000 * CLK_RATIO);
+	clk_set_rate(p_resample->clk, 48000 * CLK_RATIO);
 
-		/* defaule tdm out mclk to resample clk */
-		clk_set_rate(p_resample->pll, 48000 * CLK_RATIO * 2);
-		clk_set_rate(p_resample->sclk, 48000 * CLK_RATIO);
-		clk_set_rate(p_resample->clk, 48000 * CLK_RATIO);
-
-		pr_info("%s, resample_pll:%lu, sclk:%lu, clk:%lu\n",
-			__func__,
-			clk_get_rate(p_resample->pll),
-			clk_get_rate(p_resample->sclk),
-			clk_get_rate(p_resample->clk));
-	}
+	pr_info("%s, resample_pll:%lu, sclk:%lu, clk:%lu\n",
+		__func__,
+		clk_get_rate(p_resample->pll),
+		clk_get_rate(p_resample->sclk),
+		clk_get_rate(p_resample->clk));
 
 	return ret;
 }
@@ -249,7 +245,7 @@ int resample_set(enum resample_idx id, enum samplerate_index index, bool force)
 	set_resample_rate_index(id, index);
 
 	resample_rate = resample_idx2rate(index);
-	ret = audio_resample_set(p_resample, (bool)index, resample_rate);
+	ret = audio_resample_set(p_resample, true, resample_rate);
 	if (ret)
 		return ret;
 
