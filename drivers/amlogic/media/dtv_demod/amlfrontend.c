@@ -2551,6 +2551,9 @@ static int gxtv_demod_dtmb_set_frontend(struct dvb_frontend *fe)
 	struct aml_demod_dtmb param;
 	int times;
 
+	if (!demod_thread)
+		return 0;
+
 	times = 2;
 	PR_DBG("gxtv_demod_dtmb_set_frontend,freq is %d\n", c->frequency);
 	memset(&param, 0, sizeof(param));

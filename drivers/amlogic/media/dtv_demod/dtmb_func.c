@@ -151,8 +151,10 @@ void dtmb_all_reset(void)
 			dtmb_write_reg(0x5b << 2, 0x4d6a0a25);
 		}
 
-		/*for timeshift mosaic issue*/
-		dtmb_write_reg(0x4e << 2, 0x256cf604);
+		/*for timeshift mosaic issue
+		 *bit 30:ts_sync_sel,0=ts_sync,1=searched ts_sync
+		 */
+		dtmb_write_reg(DTMB_FRONT_4e_CONFIG, 0x656cf604);
 
 		/*delay fec lock & make fec lost faster
 		 *to prevent eq is confused by signal
