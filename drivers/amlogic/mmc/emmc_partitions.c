@@ -938,8 +938,11 @@ static int add_emmc_partition(struct gendisk *disk,
 		offset = pp->offset >> 9; /* unit:512 bytes */
 		size = pp->size >> 9; /* unit:512 bytes */
 		if ((offset + size) <= cap) {
-			ret = add_emmc_each_part(disk, 1+i, offset,
-					size, 0, pp->name);
+			char temp_buf[256];
+			sprintf(temp_buf, "/partitions/%s", pp->name);
+			if (of_find_node_by_path(temp_buf))
+				ret = add_emmc_each_part(disk, 1+i, offset,
+						size, 0, pp->name);
 
 			pr_info("[%sp%02d] %20s  offset 0x%012llx, size 0x%012llx %s\n",
 					disk->disk_name, 1+i,
