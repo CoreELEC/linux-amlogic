@@ -1,8 +1,31 @@
 /{
 	coreelec;
+	/delete-property/ amlogic-dt-id;
 
 	chosen { };
 
+	reserved-memory {
+		linux,meson-fb {
+			alloc-ranges = <0x0 0x77800000 0x0 0x800000>;
+		};
+		linux,vdin0_cma {
+			status = "disabled";
+		};
+		linux,vdin1_cma {
+			status = "disabled";
+		};
+		linux,isp_cma {
+			status = "disabled";
+		};
+		linux,adapt_cma {
+			status = "disabled";
+		};
+		linux,gdc_cma {
+			status = "disabled";
+		};
+	};
+
+	/delete-node/ partitions;
 	partitions: partitions {
 		parts = <3>;
 		part-0 = <&bootloader>;
@@ -27,9 +50,7 @@
 	};
 
 	/delete-node/ rc@0xff808040;
-
 	/delete-node/ custom_maps;
-
 	meson-ir {
 		compatible = "amlogic,meson6-ir";
 		/* Multi-format IR controller */
@@ -40,7 +61,6 @@
 		pulse-inverted;
 		status = "ok";
 	};
-
 	meson-remote {
 		compatible = "amlogic, aml_remote";
 		dev_name = "meson-remote";
@@ -70,9 +90,29 @@
 	};
 };
 
+&i2c2 {
+	status = "disabled";
+};
+
 &meson_fb {
 	mem_size = <0x00800000 0x4b80000 0x100000 0x100000 0x800000>;
 	4k2k_fb = <1>;
 };
 
+&i2c0 {
+	status = "disabled";
+};
+
+&vdin0 {
+	status = "disabled";
+};
+
+&vdin1 {
+	status = "disabled";
+};
+
 /delete-node/ &nand;
+
+&pcie_A {
+	status = "disabled";
+};

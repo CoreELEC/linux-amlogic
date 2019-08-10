@@ -8,15 +8,13 @@
 		};
 	};
 
+	/delete-node/ auge_sound;
 	auge_sound {
-		/delete-property/ avout_mute-gpios;
+		compatible = "amlogic, g12a-sound-card";
+		aml-audio-card,name = "AML-AUGESOUND";
 		mute_gpio = <&gpio_ao GPIOAO_2 GPIO_ACTIVE_LOW>;
+		aml-audio-card,effect = <&audio_effect>;
 
-		/delete-node/ aml-audio-card,dai-link@0;
-		/delete-node/ aml-audio-card,dai-link@1;
-		/delete-node/ aml-audio-card,dai-link@2;
-		/delete-node/ aml-audio-card,dai-link@3;
-		/delete-node/ aml-audio-card,dai-link@4;
 		aml-audio-card,dai-link@0 {
 			mclk-fs = <128>;
 			continuous-clock;
