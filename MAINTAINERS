@@ -15221,3 +15221,32 @@ AMLOGIC VPP DRIVER
 M:	Brian Zhu <brian.zhu@amlogic.com>
 F: drivers/amlogic/media/video_sink/video_hw.c
 
+AMLOGIC T962X3 DRM DTS
+M:  Dezhi Kong <dezhi.kong@amlogic.com>
+F:  arch/arm/boot/dts/amlogic/tm2_t962x3_ab301_drm.dts
+F:  arch/arm/boot/dts/amlogic/tm2_t962e2_ab311_drm.dts
+F:  arch/arm64/boot/dts/amlogic/tm2_t962x3_ab301_drm.dts
+F:  arch/arm64/boot/dts/amlogic/tm2_t962e2_ab311_drm.dts
+F:  arch/arm64/boot/dts/amlogic/mesontm2_drm.dtsi
+F:  arch/arm/boot/dts/amlogic/mesontm2_drm.dtsi
+
+AMLOGIC VIDEO COMPOSER
+M:	Jintao.Xu <jintao.xu@amlogic.com>
+F: drivers/amlogic/media/video_processor/v4lvideo/Kconfig
+F: drivers/amlogic/media/video_processor/v4lvideo/Makefile
+F: drivers/amlogic/media/video_processor/v4lvideo/v4lvideo.c
+F: drivers/amlogic/media/video_processor/v4lvideo/v4lvideo.h
+F: drivers/amlogic/media/video_processor/video_composer/Kconfig
+F: drivers/amlogic/media/video_processor/video_composer/Makefile
+F: drivers/amlogic/media/video_processor/video_composer/vfq.h
+F: drivers/amlogic/media/video_processor/video_composer/vframe_ge2d_composer.c
+F: drivers/amlogic/media/video_processor/video_composer/vframe_ge2d_composer.h
+F: drivers/amlogic/media/video_processor/video_composer/video_composer.c
+F: drivers/amlogic/media/video_processor/video_composer/video_composer.h
+F: include/linux/amlogic/media/video_processor/video_composer_ext.h
+F: include/linux/amlogic/media/video_sink/v4lvideo_ext.h
+
+AMLOGIC VPP DRIVER
+M:	Brian Zhu <brian.zhu@amlogic.com>
+F: drivers/amlogic/media/video_sink/video_receiver.c
+F: drivers/amlogic/media/video_sink/video_receiver.h

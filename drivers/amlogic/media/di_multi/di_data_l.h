@@ -64,6 +64,7 @@ enum eDI_CFG_TOP_IDX {
 	eDI_CFG_BEGIN,
 	eDI_CFG_first_bypass,
 	eDI_CFG_ref_2,
+	EDI_CFG_KEEP_CLEAR_AUTO,
 	eDI_CFG_END,
 
 };
@@ -360,16 +361,16 @@ struct di_hpst_s {
 /**************************************/
 /* channel status */
 /**************************************/
-enum eDI_TOP_STATE {
+enum EDI_TOP_STATE {
 	eDI_TOP_STATE_NOPROB,
-	eDI_TOP_STATE_IDLE,	/*idle not work*/
+	EDI_TOP_STATE_IDLE,	/*idle not work*/
 	/* STEP1
 	 * till peek vframe and set irq;before this state, event reg finish
 	 */
 	eDI_TOP_STATE_REG_STEP1,
 	eDI_TOP_STATE_REG_STEP1_P1,	/*2019-05-21*/
 	eDI_TOP_STATE_REG_STEP2,	/*till alloc and ready*/
-	eDI_TOP_STATE_READY,		/*can do DI*/
+	EDI_TOP_STATE_READY,		/*can do DI*/
 	eDI_TOP_STATE_BYPASS,		/*complet bypass*/
 	eDI_TOP_STATE_UNREG_STEP1,	/*till pre/post is finish;*/
 	/* do unreg and to IDLE.
@@ -415,6 +416,7 @@ union   DI_L_CMD_BITS {
 };
 
 #define LCMD1(id, ch)	((id) | ((ch) << 8))
+#define LCMD2(id, ch, p2)	((id) | ((ch) << 8) | ((p2) << 16))
 
 enum eCMD_LOCAL {
 	eCMD_NONE,
@@ -422,18 +424,22 @@ enum eCMD_LOCAL {
 	eCMD_UNREG,
 	eCMD_READY,
 	eCMD_CHG,
+	ECMD_RL_KEEP,
 	NR_FINISH,
 };
 
-/**************************************/
-/*QUE*/
-/**************************************/
+/**************************************
+ * QUE
+ * keep same order as di_name_new_que
+ **************************************/
 enum QUE_TYPE {	/*mast start from 0 */
 	QUE_IN_FREE,	/*5*/
 	QUE_PRE_READY,	/*6*/
 	QUE_POST_FREE,	/*7*/
 	QUE_POST_READY,	/*8*/
 	QUE_POST_BACK,		/*new*/
+	QUE_POST_KEEP,	/*below use pw_queue_in*/
+	QUE_POST_KEEP_BACK,
 	/*----------------*/
 	QUE_DBG,
 	QUE_NUB,
@@ -734,10 +740,11 @@ struct di_ores_s {
 };
 
 enum eDI_CMA_ST {
-	eDI_CMA_ST_IDL,
-	eDI_CMA_ST_ALLOC,	/*do*/
-	eDI_CMA_ST_READY,
-	eDI_CMA_ST_RELEASE,	/*do*/
+	EDI_CMA_ST_IDL,
+	EDI_CMA_ST_ALLOC,	/*do*/
+	EDI_CMA_ST_READY,
+	EDI_CMA_ST_RELEASE,	/*do*/
+	EDI_CMA_ST_PART,
 };
 
 /**********************************
@@ -805,10 +812,16 @@ struct di_meson_data {
 	/*struct ddemod_reg_off regoff;*/
 };
 
-struct di_mng_s {
-	/*workqueue*/
+struct dim_wq_s {
+	char *name;
+	unsigned int ch;
 	struct workqueue_struct *wq_cma;
 	struct work_struct wq_work;
+};
+
+struct di_mng_s {
+	/*workqueue*/
+	struct dim_wq_s		wq;
 
 	/*use enum eDI_CMA_ST*/
 	atomic_t cma_mem_state[DI_CHANNEL_NUB];
@@ -958,6 +971,7 @@ struct di_data_l_s {
 
 #define DBG_M_POLLING		0x100
 #define DBG_M_ONCE		0x200
+#define DBG_M_KEEP		0x400
 
 extern unsigned int di_dbg;
 
@@ -986,6 +1000,7 @@ extern unsigned int di_dbg;
 #define dbg_first_frame(fmt, args ...)	dbg_m(DBG_M_FIRSTFRAME, fmt, ##args)
 #define dbg_dbg(fmt, args ...)		dbg_m(DBG_M_DBG, fmt, ##args)
 #define dbg_once(fmt, args ...)		dbg_m(DBG_M_ONCE, fmt, ##args)
+#define dbg_keep(fmt, args ...)		dbg_m(DBG_M_KEEP, fmt, ##args)
 
 char *di_cfgx_get_name(enum eDI_CFGX_IDX idx);
 bool di_cfgx_get(unsigned int ch, enum eDI_CFGX_IDX idx);

@@ -1156,7 +1156,7 @@ static void dis2_di(void)
 		ppre->di_inp_buf = NULL;
 	}
 	dim_uninit_buf(0, channel);
-	if (get_blackout_policy()) {
+	if (0/*get_blackout_policy()*/) {
 		dim_DI_Wr(DI_CLKG_CTRL, 0x2);
 		if (is_meson_txlx_cpu() || is_meson_txhd_cpu()) {
 			dimh_enable_di_post_mif(GATE_OFF);
@@ -1839,7 +1839,9 @@ static unsigned int di_cma_alloc(struct di_dev_s *devp, unsigned int channel)
 			}
 		}
 	}
-	PR_INF("%s:num_local[%d]\n", __func__, mm->sts.num_local);
+	PR_INF("%s:num_local[%d]:[%d]\n", __func__, mm->sts.num_local,
+	       alloc_cnt);
+	alloc_cnt = 0;
 	if (dimp_get(eDI_MP_post_wr_en)	&& dimp_get(eDI_MP_post_wr_support)) {
 		di_que_list(channel, QUE_POST_FREE, &tmpa[0], &psize);
 
@@ -1875,7 +1877,8 @@ static unsigned int di_cma_alloc(struct di_dev_s *devp, unsigned int channel)
 			if (dimp_get(eDI_MP_cma_print))
 				pr_info(" addr 0x%lx ok.\n", buf_p->nr_adr);
 		}
-		PR_INF("%s:num_pst[%d]\n", __func__, mm->sts.num_post);
+		PR_INF("%s:num_pst[%d]:%d\n", __func__, mm->sts.num_post,
+		       alloc_cnt);
 	}
 	if (de_devp->flag_cma != 0 && de_devp->nrds_enable) {
 		dim_nr_ds_buf_init(de_devp->flag_cma, 0,
@@ -1884,8 +1887,8 @@ static unsigned int di_cma_alloc(struct di_dev_s *devp, unsigned int channel)
 
 	end_time = jiffies_to_msecs(jiffies);
 	delta_time = end_time - start_time;
-	pr_info("%s:alloc %u buffer use %u ms(%u~%u)\n",
-		__func__, alloc_cnt, delta_time, start_time, end_time);
+	pr_info("%s:alloc use %u ms(%u~%u)\n",
+		__func__, delta_time, start_time, end_time);
 	return 1;
 }
 
@@ -1895,7 +1898,7 @@ static void di_cma_release(struct di_dev_s *devp, unsigned int channel)
 	struct di_buf_s *buf_p;
 	struct di_buf_s *pbuf_local = get_buf_local(channel);
 	struct di_buf_s *pbuf_post = get_buf_post(channel);
-	struct di_post_stru_s *ppost = get_post_stru(channel);
+/*	struct di_post_stru_s *ppost = get_post_stru(channel);*/
 	struct di_dev_s *de_devp = get_dim_de_devp();
 	bool ret;
 	struct di_mm_s *mm = dim_mm_get();
@@ -1933,12 +1936,12 @@ static void di_cma_release(struct di_dev_s *devp, unsigned int channel)
 		/*mm-0705 for (i = 0; i < ppost->di_post_num; i++) {*/
 		for (i = 0; i < mm->cfg.num_post; i++) {
 			buf_p = &pbuf_post[i];
-			if (ppost->keep_buf_post	&&
-			    i == ppost->keep_buf_post->index)
+
+			if (di_que_is_in_que(channel, QUE_POST_KEEP, buf_p))
 				continue;
 
 			if (!buf_p->pages) {
-				PR_ERR("2:%s:post buf[%d] is null\n",
+				PR_INF("2:%s:post buf[%d] is null\n",
 				       __func__, i);
 				continue;
 			}
@@ -1995,11 +1998,11 @@ bool dim_cma_top_release(unsigned int ch)
 
 #ifdef CONFIG_CMA
 	di_cma_release(de_devp, ch);
-
 #endif
 	return true;
 }
 
+#ifdef DIM_HIS	/*no use*/
 /*******************************************
  *
  *
@@ -2036,6 +2039,7 @@ void keep_buf_in_full(struct di_buf_s *ready_buf)
 			di_keep_buf[i] = ready_buf;
 	}
 }
+#endif
 
 int di_cnt_buf(int width, int height, int prog_flag, int mc_mm,
 	       int bit10_support, int pack422)
@@ -2134,7 +2138,7 @@ static int di_init_buf(int width, int height, unsigned char prog_flag,
 	struct di_post_stru_s *ppost = get_post_stru(channel);
 	struct di_buf_s *keep_buf = ppost->keep_buf;
 	struct di_dev_s *de_devp = get_dim_de_devp();
-	struct di_buf_s *keep_buf_post = ppost->keep_buf_post;
+/*	struct di_buf_s *keep_buf_post = ppost->keep_buf_post;*/
 	struct di_mm_s *mm = dim_mm_get(); /*mm-0705*/
 
 	unsigned int mem_st_local;
@@ -2361,11 +2365,11 @@ static int di_init_buf(int width, int height, unsigned char prog_flag,
 		if (di_buf) {
 			if (dimp_get(eDI_MP_post_wr_en) &&
 			    dimp_get(eDI_MP_post_wr_support)) {
-				/*ary:for keep buf*/
-				if (keep_buf_post && di_buf == keep_buf_post) {
-					dbg_reg("%s:post keep buf %d:%d\n",
+				if (di_que_is_in_que(channel, QUE_POST_KEEP,
+						     di_buf)) {
+					dbg_reg("%s:post keep buf %d\n",
 						__func__,
-						i, keep_buf_post->index);
+						di_buf->index);
 					continue;
 				}
 			}
@@ -2405,6 +2409,7 @@ static int di_init_buf(int width, int height, unsigned char prog_flag,
 	return 0;
 }
 
+#ifdef DIM_HIS	/*no use*/
 void dim_keep_mirror_buffer(unsigned int channel)	/*not use*/
 {
 	struct di_buf_s *p = NULL;
@@ -2444,6 +2449,7 @@ void dim_keep_mirror_buffer(unsigned int channel)	/*not use*/
 	}
 	}
 }
+#endif
 
 void dim_post_keep_mirror_buffer(unsigned int channel)
 {
@@ -2468,6 +2474,247 @@ void dim_post_keep_mirror_buffer(unsigned int channel)
 	if (flg && ppost->keep_buf_post) {
 		ppost->keep_buf_post->queue_index = -1;
 		ppost->keep_buf_post->invert_top_bot_flag = 0;
+	}
+}
+
+void dim_post_keep_mirror_buffer2(unsigned int ch)
+{
+	struct di_buf_s *p = NULL;
+	int itmp;
+
+	queue_for_each_entry(p, ch, QUEUE_DISPLAY, list) {
+		if (p->type != VFRAME_TYPE_POST	||
+		    !p->process_fun_index) {
+			dbg_keep("%s:not post buf:%d\n", __func__, p->type);
+			continue;
+		}
+		if (di_que_is_in_que(ch, QUE_POST_BACK, p)) {
+			dbg_keep("%s:is in back[%d]\n", __func__, p->index);
+			continue;
+		}
+
+		p->queue_index = -1;
+		di_que_in(ch, QUE_POST_KEEP, p);
+		p->invert_top_bot_flag = 0;
+
+		dbg_keep("%s %d\n", __func__, p->index);
+	}
+}
+
+bool dim_post_keep_is_in(unsigned int ch, struct di_buf_s *di_buf)
+{
+	if (di_que_is_in_que(ch, QUE_POST_KEEP, di_buf))
+		return true;
+	return false;
+}
+
+bool dim_post_keep_release_one(unsigned int ch, unsigned int di_buf_index)
+{
+	struct di_buf_s *pbuf_post;
+	struct di_buf_s *di_buf;
+
+	/*must post or err*/
+	pbuf_post = get_buf_post(ch);
+	di_buf = &pbuf_post[di_buf_index];
+
+	if (!di_que_is_in_que(ch, QUE_POST_KEEP, di_buf)) {
+		PR_ERR("%s:buf[%d] is not in keep\n", __func__, di_buf_index);
+		return false;
+	}
+	di_que_out_not_fifo(ch, QUE_POST_KEEP, di_buf);
+	di_que_in(ch, QUE_POST_FREE, di_buf);
+	dbg_keep("%s:buf[%d]\n", __func__, di_buf_index);
+	return true;
+}
+
+bool dim_post_keep_release_all_2free(unsigned int ch)
+{
+	struct di_buf_s *di_buf;
+	struct di_buf_s *pbuf_post;
+	unsigned int i = 0;
+
+	if (di_que_is_empty(ch, QUE_POST_KEEP))
+		return true;
+
+	pbuf_post = get_buf_post(ch);
+	dbg_keep("%s:ch[%d]\n", __func__, ch);
+
+	while (i <= MAX_POST_BUF_NUM) {
+		i++;
+		di_buf = di_que_peek(ch, QUE_POST_KEEP);
+		if (!di_buf)
+			break;
+
+		if (!di_que_out(ch, QUE_POST_KEEP, di_buf)) {
+			PR_ERR("%s:out err\n", __func__);
+			break;
+		}
+
+		di_que_in(ch, QUE_POST_FREE, di_buf);
+
+		dbg_keep("\ttype[%d],index[%d]\n", di_buf->type, di_buf->index);
+	}
+
+	return true;
+}
+
+void dim_post_keep_cmd_release(unsigned int ch, struct vframe_s *vframe)
+{
+	struct di_buf_s *di_buf;
+
+	if (!vframe)
+		return;
+
+	di_buf = (struct di_buf_s *)vframe->private_data;
+
+	if (!di_buf) {
+		PR_WARN("%s:ch[%d]:no di_buf\n", __func__, ch);
+		return;
+	}
+
+	if (di_buf->type != VFRAME_TYPE_POST) {
+		PR_WARN("%s:ch[%d]:not post\n", __func__, ch);
+		return;
+	}
+	dbg_keep("release keep ch[%d],index[%d]\n",
+		 di_buf->channel,
+		 di_buf->index);
+	task_send_cmd(LCMD2(ECMD_RL_KEEP, di_buf->channel, di_buf->index));
+}
+EXPORT_SYMBOL(dim_post_keep_cmd_release);
+
+void dim_post_keep_cmd_release2(struct vframe_s *vframe)
+{
+	struct di_buf_s *di_buf;
+
+	if (!vframe)
+		return;
+
+	di_buf = (struct di_buf_s *)vframe->private_data;
+
+	if (!di_buf) {
+		PR_WARN("%s:no di_buf\n", __func__);
+		return;
+	}
+
+	if (di_buf->type != VFRAME_TYPE_POST) {
+		PR_WARN("%s:ch[%d]:not post\n", __func__, di_buf->channel);
+		return;
+	}
+	dbg_keep("release keep ch[%d],index[%d]\n",
+		 di_buf->channel,
+		 di_buf->index);
+	task_send_cmd(LCMD2(ECMD_RL_KEEP, di_buf->channel, di_buf->index));
+}
+EXPORT_SYMBOL(dim_post_keep_cmd_release2);
+
+void dim_dbg_release_keep_all(unsigned int ch)
+{
+	unsigned int tmpa[MAX_FIFO_SIZE];
+	unsigned int psize, itmp;
+	struct di_buf_s *p;
+
+	di_que_list(ch, QUE_POST_KEEP, &tmpa[0], &psize);
+	dbg_keep("post_keep: curr(%d)\n", psize);
+
+	for (itmp = 0; itmp < psize; itmp++) {
+		p = pw_qindex_2_buf(ch, tmpa[itmp]);
+		dbg_keep("\ttype[%d],index[%d]\n", p->type, p->index);
+		dim_post_keep_cmd_release(ch, p->vframe);
+	}
+	dbg_keep("%s:end\n", __func__);
+}
+
+void dim_post_keep_back_recycle(unsigned int ch)
+{
+	unsigned int tmpa[MAX_FIFO_SIZE];
+	unsigned int psize, itmp;
+	struct di_buf_s *p;
+
+	if (di_que_is_empty(ch, QUE_POST_KEEP_BACK))
+		return;
+	di_que_list(ch, QUE_POST_KEEP_BACK, &tmpa[0], &psize);
+	dbg_keep("post_keep_back: curr(%d)\n", psize);
+	for (itmp = 0; itmp < psize; itmp++) {
+		p = pw_qindex_2_buf(ch, tmpa[itmp]);
+		dbg_keep("keep back recycle %d\n", p->index);
+		dim_post_keep_release_one(ch, p->index);
+	}
+	pw_queue_clear(ch, QUE_POST_KEEP_BACK);
+}
+
+void dim_post_keep_cmd_proc(unsigned int ch, unsigned int index)
+{
+	struct di_dev_s *di_dev;
+	enum EDI_TOP_STATE chst;
+	unsigned int len_keep, len_back;
+	struct di_buf_s *pbuf_post;
+	struct di_buf_s *di_buf;
+
+	/*must post or err*/
+	di_dev = get_dim_de_devp();
+
+	if (!di_dev || !di_dev->data_l) {
+		PR_WARN("%s: no di_dev\n", __func__);
+		return;
+	}
+
+	chst = dip_chst_get(ch);
+	switch (chst) {
+	case EDI_TOP_STATE_READY:
+		dim_post_keep_release_one(ch, index);
+		break;
+	case EDI_TOP_STATE_IDLE:
+	case eDI_TOP_STATE_BYPASS:
+		pbuf_post = get_buf_post(ch);
+		if (!pbuf_post) {
+			PR_ERR("%s:no pbuf_post\n", __func__);
+			break;
+		}
+
+		di_buf = &pbuf_post[index];
+		di_buf->queue_index = -1;
+		di_que_in(ch, QUE_POST_KEEP_BACK, di_buf);
+		len_keep = di_que_list_count(ch, QUE_POST_KEEP);
+		len_back = di_que_list_count(ch, QUE_POST_KEEP_BACK);
+		if (len_back >= len_keep) {
+			/*release all*/
+			pw_queue_clear(ch, QUE_POST_KEEP);
+			pw_queue_clear(ch, QUE_POST_KEEP_BACK);
+			dip_wq_cma_run(ch, false);
+		}
+		break;
+	case eDI_TOP_STATE_REG_STEP1:
+	case eDI_TOP_STATE_REG_STEP1_P1:
+	case eDI_TOP_STATE_REG_STEP2:
+		pbuf_post = get_buf_post(ch);
+		if (!pbuf_post) {
+			PR_ERR("%s:no pbuf_post\n", __func__);
+			break;
+		}
+
+		di_buf = &pbuf_post[index];
+		di_buf->queue_index = -1;
+		di_que_in(ch, QUE_POST_KEEP_BACK, di_buf);
+
+		break;
+	case eDI_TOP_STATE_UNREG_STEP1:
+		pbuf_post = get_buf_post(ch);
+		if (!pbuf_post) {
+			PR_ERR("%s:no pbuf_post\n", __func__);
+			break;
+		}
+
+		di_buf = &pbuf_post[index];
+		di_buf->queue_index = -1;
+		di_que_in(ch, QUE_POST_KEEP_BACK, di_buf);
+		break;
+	default:
+		PR_ERR("%s:do nothing? %s:%d\n",
+		       __func__,
+		       dip_chst_get_name(chst),
+		       index);
+		break;
 	}
 }
 
@@ -2498,7 +2745,7 @@ void dim_uninit_buf(unsigned int disable_mirror, unsigned int channel)
 	}
 #else
 	if (!disable_mirror)
-		dim_post_keep_mirror_buffer(channel);
+		dim_post_keep_mirror_buffer2(channel);
 #endif
 	queue_init(channel, 0);
 	di_que_init(channel); /*new que*/
@@ -6648,7 +6895,8 @@ void dim_unreg_process(unsigned int channel)
 
 void di_unreg_setting(void)
 {
-	unsigned int mirror_disable = get_blackout_policy();
+	/*unsigned int mirror_disable = get_blackout_policy();*/
+	unsigned int mirror_disable = 0;
 
 	if (!get_hw_reg_flg()) {
 		PR_ERR("%s:have setting?do nothing\n", __func__);
@@ -6748,7 +6996,8 @@ void di_unreg_variable(unsigned int channel)
 #endif
 	pr_info("%s:\n", __func__);
 	set_init_flag(channel, false);	/*init_flag = 0;*/
-	mirror_disable = get_blackout_policy();
+	/*mirror_disable = get_blackout_policy();*/
+	mirror_disable = 0;
 	di_lock_irqfiq_save(irq_flag2);
 	dim_print("%s: dim_uninit_buf\n", __func__);
 	dim_uninit_buf(mirror_disable, channel);
@@ -7138,9 +7387,10 @@ void di_reg_setting(unsigned int channel, struct vframe_s *vframe)
 		/*if (!use_2_interlace_buff) {*/
 		if (1) {
 			dim_top_gate_control(true, true);
-			dim_post_gate_control(true);
+			/*dim_post_gate_control(true);*/
 			/* freerun for reg configuration */
-			dimh_enable_di_post_mif(GATE_AUTO);
+			/*dimh_enable_di_post_mif(GATE_AUTO);*/
+			hpst_power_ctr(true);
 		} else {
 			dim_top_gate_control(true, false);
 		}
@@ -7622,7 +7872,7 @@ struct vframe_s *di_vf_l_get(unsigned int channel)
 	}
 
 	/**************************/
-	if (list_count(channel, QUEUE_DISPLAY) > 2) {
+	if (list_count(channel, QUEUE_DISPLAY) > DI_POST_GET_LIMIT) {
 		dim_tr_ops.post_get2(2);
 		return NULL;
 	}
@@ -7794,7 +8044,12 @@ void di_vf_l_put(struct vframe_s *vf, unsigned char channel)
 		recycle_vframe_type_post_print(di_buf, __func__, __LINE__);
 #endif
 #else
+		#ifdef DIM_HIS /*no use*/
 		pw_queue_in(channel, QUE_POST_BACK, di_buf->index);
+		#else
+		di_buf->queue_index = -1;
+		di_que_in(channel, QUE_POST_BACK, di_buf);
+		#endif
 #endif
 	} else {
 		di_lock_irqfiq_save(irq_flag2);
@@ -7811,15 +8066,13 @@ void di_vf_l_put(struct vframe_s *vf, unsigned char channel)
 void dim_recycle_post_back(unsigned int channel)
 {
 	struct di_buf_s *di_buf = NULL;
-	unsigned int post_buf_index;
-	struct di_buf_s *pbuf_post = get_buf_post(channel);
 	ulong irq_flag2 = 0;
+	unsigned int i = 0;
 
-	struct di_post_stru_s *ppost = get_post_stru(channel);
-
-	if (pw_queue_empty(channel, QUE_POST_BACK))
+	if (di_que_is_empty(channel, QUE_POST_BACK))
 		return;
 
+	#ifdef DIM_HIS /*history*/
 	while (pw_queue_out(channel, QUE_POST_BACK, &post_buf_index)) {
 		/*pr_info("dp2:%d\n", post_buf_index);*/
 		if (post_buf_index >= MAX_POST_BUF_NUM) {
@@ -7836,6 +8089,39 @@ void dim_recycle_post_back(unsigned int channel)
 		recycle_vframe_type_post(di_buf, channel);
 		di_unlock_irqfiq_restore(irq_flag2);
 	}
+	#else
+	while (i < MAX_FIFO_SIZE) {
+		i++;
+
+		di_buf = di_que_peek(channel, QUE_POST_BACK);
+		/*pr_info("dp2:%d\n", post_buf_index);*/
+		if (!di_buf)
+			break;
+
+		if (di_buf->type != VFRAME_TYPE_POST) {
+			queue_out(channel, di_buf);
+			PR_ERR("%s:type is not post\n", __func__);
+			continue;
+		}
+
+		dim_print("di_back:%d\n", di_buf->index);
+		di_lock_irqfiq_save(irq_flag2); /**/
+		di_que_out(channel, QUE_POST_BACK, di_buf);
+		di_buf->queue_index = QUEUE_DISPLAY;
+		queue_out(channel, di_buf);
+
+		if (!atomic_dec_and_test(&di_buf->di_cnt))
+			PR_ERR("%s,di_cnt > 0\n", __func__);
+
+		/*recycle_vframe_type_post(di_buf, channel);*/
+		di_buf->invert_top_bot_flag = 0;
+		di_que_in(channel, QUE_POST_FREE, di_buf);
+
+		di_unlock_irqfiq_restore(irq_flag2);
+	}
+
+	#endif
+	#ifdef DIM_HIS /*history*/
 	/*back keep_buf:*/
 	if (ppost->keep_buf_post) {
 		PR_INF("ch[%d]:%s:%d\n",
@@ -7847,6 +8133,10 @@ void dim_recycle_post_back(unsigned int channel)
 		di_unlock_irqfiq_restore(irq_flag2);
 		ppost->keep_buf_post = NULL;
 	}
+	#else
+	if (di_cfg_top_get(EDI_CFG_KEEP_CLEAR_AUTO))
+		dim_post_keep_release_all_2free(channel);
+	#endif
 }
 
 struct vframe_s *di_vf_l_peek(unsigned int channel)
@@ -7878,7 +8168,7 @@ struct vframe_s *di_vf_l_peek(unsigned int channel)
 	}
 	/**************************/
 	dim_log_buffer_state("pek", channel);
-
+	task_send_ready();
 #ifdef SUPPORT_START_FRAME_HOLD
 	if ((disp_frame_count == 0) && (dim_is_bypass(NULL, channel) == 0)) {
 		int ready_count = di_que_list_count(channel, QUE_POST_READY);

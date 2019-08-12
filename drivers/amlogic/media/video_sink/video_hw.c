@@ -64,6 +64,9 @@
 #include <linux/amlogic/media/video_sink/video.h>
 #include "../common/vfm/vfm.h"
 #include <linux/amlogic/media/amdolbyvision/dolby_vision.h>
+#include "video_receiver.h"
+
+/* #define DI_POST_PWR */
 
 struct video_layer_s vd_layer[MAX_VD_LAYER];
 struct disp_info_s glayer_info[MAX_VD_LAYERS];
@@ -118,7 +121,7 @@ static int vpu_mem_power_off_count;
 			spin_unlock_irqrestore(&delay_work_lock, flags); \
 		} \
 	} while (0)
-
+#ifdef DI_POST_PWR
 #define VD1_MEM_POWER_ON() \
 	do { \
 		unsigned long flags; \
@@ -132,6 +135,20 @@ static int vpu_mem_power_off_count;
 			switch_vpu_mem_pd_vmod( \
 				VPU_VD1_SCALE, VPU_MEM_POWER_ON); \
 	} while (0)
+#else
+#define VD1_MEM_POWER_ON() \
+	do { \
+		unsigned long flags; \
+		spin_lock_irqsave(&delay_work_lock, flags); \
+		vpu_delay_work_flag &= ~VPU_DELAYWORK_MEM_POWER_OFF_VD1; \
+		spin_unlock_irqrestore(&delay_work_lock, flags); \
+		switch_vpu_mem_pd_vmod(VPU_VIU_VD1, VPU_MEM_POWER_ON); \
+		switch_vpu_mem_pd_vmod(VPU_AFBC_DEC, VPU_MEM_POWER_ON); \
+		if (!legacy_vpp) \
+			switch_vpu_mem_pd_vmod( \
+				VPU_VD1_SCALE, VPU_MEM_POWER_ON); \
+	} while (0)
+#endif
 #define VD2_MEM_POWER_ON() \
 	do { \
 		unsigned long flags; \
@@ -391,6 +408,16 @@ bool is_di_post_link_on(void)
 	return ret;
 }
 
+bool is_di_post_mode(struct vframe_s *vf)
+{
+	bool ret = false;
+
+	if (vf && (vf->type & VIDTYPE_PRE_INTERLACE) &&
+	    !(vf->type & VIDTYPE_DI_PW))
+		ret = true;
+	return ret;
+}
+
 bool is_afbc_enabled(u8 layer_id)
 {
 	struct video_layer_s *layer = NULL;
@@ -415,6 +442,14 @@ bool is_local_vf(struct vframe_s *vf)
 	    ((vf == &vf_local) ||
 	     (vf == &vf_local2) ||
 	     (vf == &local_pip)))
+		return true;
+
+	/* FIXEME: remove gvideo_recv */
+	if (vf && gvideo_recv[0] &&
+	    (vf == &gvideo_recv[0]->local_buf))
+		return true;
+	if (vf && gvideo_recv[1] &&
+	    (vf == &gvideo_recv[1]->local_buf))
 		return true;
 	return false;
 }
@@ -475,7 +510,7 @@ void safe_switch_videolayer(u8 layer_id, bool on, bool async)
 
 static void vd1_path_select(
 	struct video_layer_s *layer,
-	bool afbc, bool di_afbc)
+	bool afbc, bool di_afbc, bool di_post)
 {
 	u32 misc_off = layer->misc_reg_offt;
 
@@ -507,9 +542,7 @@ static void vd1_path_select(
 				/* Vd1_afbc0_mem_sel */
 				(afbc ? 1 : 0),
 				22, 1);
-		if ((glayer_info[0].display_path_id
-		     != VFM_PATH_PIP) &&
-		    is_di_post_on()) {
+		if (di_post) {
 			/* check di_vpp_out_en bit */
 			VSYNC_WR_MPEG_REG_BITS(
 				VD1_AFBCD0_MISC_CTRL,
@@ -523,9 +556,7 @@ static void vd1_path_select(
 				20, 2);
 		}
 	} else {
-		if ((glayer_info[0].display_path_id
-		     != VFM_PATH_PIP) &&
-		    is_di_post_on())
+		if (di_post)
 			VSYNC_WR_MPEG_REG_BITS(
 				VIU_MISC_CTRL0 + misc_off,
 				0, 16, 3);
@@ -593,6 +624,7 @@ static void vd1_set_dcu(
 	u8 burst_len = 1;
 	u32 vd_off = layer->vd_reg_offt;
 	u32 afbc_off = layer->afbc_reg_offt;
+	bool di_post = false;
 
 	if (!vf) {
 		pr_info("vd1_set_dcu vf NULL, return\n");
@@ -605,6 +637,12 @@ static void vd1_set_dcu(
 
 	pr_debug("%s for vd%d %p, type:0x%x\n",
 		 __func__, layer->layer_id, vf, type);
+
+#ifdef CONFIG_AMLOGIC_MEDIA_DEINTERLACE
+	if ((glayer_info[0].display_path_id != VFM_PATH_PIP) &&
+	    is_di_post_mode(vf) && is_di_post_on())
+		di_post = true;
+#endif
 
 	if (frame_par->nocomp)
 		type &= ~VIDTYPE_COMPRESS;
@@ -696,7 +734,7 @@ static void vd1_set_dcu(
 				VSYNC_WR_MPEG_REG(
 					AFBCDEC_IQUANT_ENABLE + afbc_off, 0);
 		}
-		vd1_path_select(layer, true, false);
+		vd1_path_select(layer, true, false, di_post);
 		if (is_mvc)
 			vd2_path_select(layer, true, false);
 		VSYNC_WR_MPEG_REG(
@@ -737,6 +775,14 @@ static void vd1_set_dcu(
 		VSYNC_WR_MPEG_REG_BITS(
 			G12_VD1_IF0_GEN_REG3,
 			(burst_len & 0x3), 1, 2);
+		if (vf->flag & VFRAME_FLAG_VIDEO_LINEAR)
+			VSYNC_WR_MPEG_REG_BITS(
+				G12_VD1_IF0_GEN_REG3,
+				0, 0, 1);
+		else
+			VSYNC_WR_MPEG_REG_BITS(
+				G12_VD1_IF0_GEN_REG3,
+				1, 0, 1);
 		if (is_mvc) {
 			VSYNC_WR_MPEG_REG_BITS(
 				G12_VD2_IF0_GEN_REG3,
@@ -744,6 +790,14 @@ static void vd1_set_dcu(
 			VSYNC_WR_MPEG_REG_BITS(
 				G12_VD2_IF0_GEN_REG3,
 				(burst_len & 0x3), 1, 2);
+			if (vf->flag & VFRAME_FLAG_VIDEO_LINEAR)
+				VSYNC_WR_MPEG_REG_BITS(
+					G12_VD2_IF0_GEN_REG3,
+					0, 0, 1);
+			else
+				VSYNC_WR_MPEG_REG_BITS(
+					G12_VD2_IF0_GEN_REG3,
+					1, 0, 1);
 		}
 	} else {
 		VSYNC_WR_MPEG_REG_BITS(
@@ -757,23 +811,25 @@ static void vd1_set_dcu(
 				(bit_mode & 0x3), 8, 2);
 	}
 #ifdef CONFIG_AMLOGIC_MEDIA_DEINTERLACE
-	DI_POST_WR_REG_BITS(
-		DI_IF1_GEN_REG3,
-		(bit_mode & 0x3), 8, 2);
-	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXLX))
+	if (is_di_post_mode(vf)) {
 		DI_POST_WR_REG_BITS(
-			DI_IF2_GEN_REG3,
+			DI_IF1_GEN_REG3,
 			(bit_mode & 0x3), 8, 2);
-	if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12A))
-		DI_POST_WR_REG_BITS(
-			DI_IF0_GEN_REG3,
-			(bit_mode & 0x3), 8, 2);
+		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXLX))
+			DI_POST_WR_REG_BITS(
+				DI_IF2_GEN_REG3,
+				(bit_mode & 0x3), 8, 2);
+		if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12A))
+			DI_POST_WR_REG_BITS(
+				DI_IF0_GEN_REG3,
+				(bit_mode & 0x3), 8, 2);
+	}
 #endif
 	if (glayer_info[0].need_no_compress ||
 	    (vf->type & VIDTYPE_PRE_DI_AFBC)) {
-		vd1_path_select(layer, false, true);
+		vd1_path_select(layer, false, true, di_post);
 	} else {
-		vd1_path_select(layer, false, false);
+		vd1_path_select(layer, false, false, di_post);
 		if (is_mvc)
 			vd2_path_select(layer, false, false);
 		VSYNC_WR_MPEG_REG(
@@ -800,6 +856,9 @@ static void vd1_set_dcu(
 
 	if (frame_par->hscale_skip_count)
 		r |= VDIF_CHROMA_HZ_AVG | VDIF_LUMA_HZ_AVG;
+
+	if (vf->flag & VFRAME_FLAG_VIDEO_LINEAR)
+		r |= (1 << 4);
 
 	/*enable go field reset default according to vlsi*/
 	r |= VDIF_RESET_ON_GO_FIELD;
@@ -845,9 +904,8 @@ static void vd1_set_dcu(
 	} else {
 		/* TODO: if always use HFORMATTER_REPEAT */
 		if (is_crop_left_odd(frame_par)) {
-			if (!(type & VIDTYPE_PRE_INTERLACE) &&
-			    ((type & VIDTYPE_VIU_NV21) ||
-			     (type & VIDTYPE_VIU_422)))
+			if ((type & VIDTYPE_VIU_NV21) ||
+			    (type & VIDTYPE_VIU_422))
 				hphase = 0x8 << HFORMATTER_PHASE_BIT;
 		}
 		if (is_dolby_vision_on())
@@ -1168,6 +1226,14 @@ static void vd2_set_dcu(
 		VSYNC_WR_MPEG_REG_BITS(
 			G12_VD2_IF0_GEN_REG3,
 			(burst_len & 0x3), 1, 2);
+		if (vf->flag & VFRAME_FLAG_VIDEO_LINEAR)
+			VSYNC_WR_MPEG_REG_BITS(
+				G12_VD2_IF0_GEN_REG3,
+				0, 0, 1);
+		else
+			VSYNC_WR_MPEG_REG_BITS(
+				G12_VD2_IF0_GEN_REG3,
+				1, 0, 1);
 	} else {
 		VSYNC_WR_MPEG_REG_BITS(
 			VD2_IF0_GEN_REG3 + vd_off,
@@ -1197,6 +1263,9 @@ static void vd2_set_dcu(
 
 	if (frame_par->hscale_skip_count)
 		r |= VDIF_CHROMA_HZ_AVG | VDIF_LUMA_HZ_AVG;
+
+	if (vf->flag & VFRAME_FLAG_VIDEO_LINEAR)
+		r |= (1 << 4);
 
 	VSYNC_WR_MPEG_REG(VD2_IF0_GEN_REG + vd_off, r);
 
@@ -1229,9 +1298,8 @@ static void vd2_set_dcu(
 	} else {
 		/* TODO: if always use HFORMATTER_REPEAT */
 		if (is_crop_left_odd(frame_par)) {
-			if (!(type & VIDTYPE_PRE_INTERLACE) &&
-			    ((type & VIDTYPE_VIU_NV21) ||
-			     (type & VIDTYPE_VIU_422)))
+			if ((type & VIDTYPE_VIU_NV21) ||
+			    (type & VIDTYPE_VIU_422))
 				hphase = 0x8 << HFORMATTER_PHASE_BIT;
 		}
 		if (is_dolby_vision_on())
@@ -2295,11 +2363,13 @@ static void disable_vd1_blend(struct video_layer_s *layer)
 	vd_off = layer->vd_reg_offt;
 	afbc_off = layer->afbc_reg_offt;
 	if (layer->global_debug & DEBUG_FLAG_BLACKOUT)
-		pr_info("VIDEO: VD1 AFBC off now. dispbuf:%p, *dispbuf_mapping:%p, local: %p-%p\n",
+		pr_info("VIDEO: VD1 AFBC off now. dispbuf:%p, *dispbuf_mapping:%p, local: %p, %p, %p, %p\n",
 			layer->dispbuf,
 			layer->dispbuf_mapping ?
 			*layer->dispbuf_mapping : NULL,
-			&vf_local, &local_pip);
+			&vf_local, &local_pip,
+			gvideo_recv[0] ? &gvideo_recv[0]->local_buf : NULL,
+			gvideo_recv[1] ? &gvideo_recv[1]->local_buf : NULL);
 	VSYNC_WR_MPEG_REG(AFBC_ENABLE + afbc_off, 0);
 	VSYNC_WR_MPEG_REG(VD1_IF0_GEN_REG + vd_off, 0);
 	if (!legacy_vpp)
@@ -2350,11 +2420,13 @@ static void disable_vd2_blend(struct video_layer_s *layer)
 	vd_off = layer->vd_reg_offt;
 	afbc_off = layer->afbc_reg_offt;
 	if (layer->global_debug & DEBUG_FLAG_BLACKOUT)
-		pr_info("VIDEO: VD2 AFBC off now. dispbuf:%p, *dispbuf_mapping:%p, local: %p-%p\n",
+		pr_info("VIDEO: VD2 AFBC off now. dispbuf:%p, *dispbuf_mapping:%p, local: %p, %p, %p, %p\n",
 			layer->dispbuf,
 			layer->dispbuf_mapping ?
 			*layer->dispbuf_mapping : NULL,
-			&vf_local, &local_pip);
+			&vf_local, &local_pip,
+			gvideo_recv[0] ? &gvideo_recv[0]->local_buf : NULL,
+			gvideo_recv[1] ? &gvideo_recv[1]->local_buf : NULL);
 	VSYNC_WR_MPEG_REG(VD2_AFBC_ENABLE + afbc_off, 0);
 	VSYNC_WR_MPEG_REG(VD2_IF0_GEN_REG + vd_off, 0);
 	if (!legacy_vpp)
@@ -3454,6 +3526,14 @@ EXPORT_SYMBOL(get_video_mute);
 
 static void check_video_mute(void)
 {
+	u32 black_val;
+
+	if (is_meson_tl1_cpu())
+		black_val = (0x0 << 20) | (0x0 << 10) | 0; /* RGB */
+	else
+		black_val =
+			(0x0 << 20) | (0x200 << 10) | 0x200; /* YUV */
+
 	if (video_mute_on) {
 		if (is_dolby_vision_on()) {
 			/* core 3 black */
@@ -3465,14 +3545,18 @@ static void check_video_mute(void)
 		} else {
 			if (video_mute_status != VIDEO_MUTE_ON_VPP) {
 				/* vpp black */
-				VSYNC_WR_MPEG_REG(VPP_CLIP_MISC0,
-						  (0x0 << 20) |
-						  (0x200 << 10) |
-						  0x200);
-				VSYNC_WR_MPEG_REG(VPP_CLIP_MISC1,
-						  (0x0 << 20) |
-						  (0x200 << 10) |
-						  0x200);
+				VSYNC_WR_MPEG_REG(
+					VPP_CLIP_MISC0,
+					black_val);
+				VSYNC_WR_MPEG_REG(
+					VPP_CLIP_MISC1,
+					black_val);
+				WRITE_VCBUS_REG(
+					VPP_CLIP_MISC0,
+					black_val);
+				WRITE_VCBUS_REG(
+					VPP_CLIP_MISC1,
+					black_val);
 				pr_info("DOLBY: check_video_mute: VIDEO_MUTE_ON_VPP\n");
 			}
 			video_mute_status = VIDEO_MUTE_ON_VPP;
@@ -3486,13 +3570,15 @@ static void check_video_mute(void)
 			video_mute_status = VIDEO_MUTE_OFF;
 		} else {
 			if (video_mute_status != VIDEO_MUTE_OFF) {
-				VSYNC_WR_MPEG_REG(VPP_CLIP_MISC0,
-						  (0x3ff << 20) |
-						  (0x3ff << 10) |
-						  0x3ff);
-				VSYNC_WR_MPEG_REG(VPP_CLIP_MISC1,
-						  (0x0 << 20) |
-						  (0x0 << 10) | 0x0);
+				VSYNC_WR_MPEG_REG(
+					VPP_CLIP_MISC0,
+					(0x3ff << 20) |
+					(0x3ff << 10) |
+					0x3ff);
+				VSYNC_WR_MPEG_REG(
+					VPP_CLIP_MISC1,
+					(0x0 << 20) |
+					(0x0 << 10) | 0x0);
 				pr_info("DOLBY: check_video_mute: VIDEO_MUTE_OFF dv off\n");
 			}
 			video_mute_status = VIDEO_MUTE_OFF;
@@ -4041,6 +4127,7 @@ int set_layer_display_canvas(
 
 #ifdef CONFIG_AMLOGIC_MEDIA_DEINTERLACE
 	if ((layer_id == 0) &&
+	    is_di_post_mode(vf) &&
 	    is_di_post_link_on())
 		update_mif = false;
 #endif
@@ -4391,9 +4478,11 @@ static void do_vpu_delay_work(struct work_struct *work)
 				switch_vpu_mem_pd_vmod(
 					VPU_AFBC_DEC,
 					VPU_MEM_POWER_DOWN);
+#ifdef DI_POST_PWR
 				switch_vpu_mem_pd_vmod(
 					VPU_DI_POST,
 					VPU_MEM_POWER_DOWN);
+#endif
 				if (!legacy_vpp)
 					switch_vpu_mem_pd_vmod(
 						VPU_VD1_SCALE,
@@ -4569,7 +4658,7 @@ int video_early_init(void)
 		vd_layer[i].next_canvas_id = 1;
 #endif
 		/* vd_layer[i].global_output = 1; */
-		vd_layer[i].keep_frame_id = i;
+		vd_layer[i].keep_frame_id = 0xff;
 		vd_layer[i].disable_video = VIDEO_DISABLE_FORNEXT;
 		vpp_disp_info_init(&glayer_info[i], i);
 		memset(&gpic_info[i], 0, sizeof(struct vframe_pic_mode_s));

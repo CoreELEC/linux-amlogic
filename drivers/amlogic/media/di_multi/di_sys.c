@@ -528,7 +528,7 @@ static int dim_probe(struct platform_device *pdev)
 fail_cdev_add:
 	pr_info("%s:fail_cdev_add\n", __func__);
 	kfree(di_devp->data_l);
-
+	di_devp->data_l = NULL;
 fail_kmalloc_datal:
 	pr_info("%s:fail_kmalloc datal\n", __func__);
 
@@ -539,6 +539,7 @@ fail_class_create:
 	unregister_chrdev_region(di_pdev->devno, DI_COUNT);
 fail_alloc_cdev_region:
 	kfree(di_pdev);
+	di_pdev = NULL;
 fail_kmalloc_dev:
 
 	return ret;
@@ -612,8 +613,9 @@ static int dim_remove(struct platform_device *pdev)
 #endif
 
 	kfree(di_devp->data_l);
+	di_devp->data_l = NULL;
 	kfree(di_pdev);
-
+	di_pdev = NULL;
 	PR_INF("%s:finish\n", __func__);
 	return 0;
 }
@@ -649,7 +651,7 @@ static void di_clear_for_suspend(struct di_dev_s *di_devp)
 
 	di_vframe_unreg(channel);/*have flag*/
 
-	if (dip_chst_get(channel) != eDI_TOP_STATE_IDLE)
+	if (dip_chst_get(channel) != EDI_TOP_STATE_IDLE)
 		dim_unreg_process_irq(channel);
 
 	dip_cma_close();

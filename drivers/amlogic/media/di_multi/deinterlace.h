@@ -51,14 +51,14 @@
 /* buffer management related */
 #define MAX_IN_BUF_NUM				(4)
 #define MAX_LOCAL_BUF_NUM			(7)
-#define MAX_POST_BUF_NUM			(7)	/*(5)*/ /* 16 */
+#define MAX_POST_BUF_NUM			(11)	/*(5)*/ /* 16 */
 
 #define VFRAME_TYPE_IN				1
 #define VFRAME_TYPE_LOCAL			2
 #define VFRAME_TYPE_POST			3
 #define VFRAME_TYPE_NUM				3
 
-#define DI_POST_GET_LIMIT			4
+#define DI_POST_GET_LIMIT			8
 #define DI_PRE_READY_LIMIT			4
 /*vframe define*/
 #define vframe_t struct vframe_s
@@ -583,6 +583,7 @@ void dim_reg_timeout_inc(void);
 
 void dim_reg_process(unsigned int channel);
 bool is_bypass2(struct vframe_s *vf_in, unsigned int ch);
+void dim_post_keep_cmd_proc(unsigned int ch, unsigned int index);
 
 /*--------------------------*/
 int di_ori_event_unreg(unsigned int channel);
@@ -610,6 +611,8 @@ void di_vf_l_put(struct vframe_s *vf, unsigned char channel);
 struct vframe_s *di_vf_l_get(unsigned int channel);
 
 unsigned char pre_p_asi_de_buf_config(unsigned int ch);
+void dim_dbg_release_keep_all(unsigned int ch);
+void dim_post_keep_back_recycle(unsigned int ch);
 
 /*---------------------*/
 

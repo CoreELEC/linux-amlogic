@@ -49,6 +49,8 @@ const struct di_cfg_ctr_s di_cfg_top_ctr[K_DI_CFG_NUB] = {
 		eDI_CFG_first_bypass, 1},
 	[eDI_CFG_ref_2]  = {"ref_2",
 		eDI_CFG_ref_2, 0},
+	[EDI_CFG_KEEP_CLEAR_AUTO]  = {"keep_buf clear auto",
+		EDI_CFG_KEEP_CLEAR_AUTO, 1},
 	[eDI_CFG_END]  = {"cfg top end ", eDI_CFG_END, 0},
 
 };
@@ -823,7 +825,7 @@ static void dip_cma_init_val(void)
 
 	for (ch = 0; ch < DI_CHANNEL_NUB; ch++) {
 		/* CMA state */
-		atomic_set(&pbm->cma_mem_state[ch], eDI_CMA_ST_IDL);
+		atomic_set(&pbm->cma_mem_state[ch], EDI_CMA_ST_IDL);
 
 		/* CMA reg/unreg cmd */
 		pbm->cma_reg_cmd[ch] = 0;
@@ -842,7 +844,7 @@ void dip_cma_close(void)
 		if (!dip_cma_st_is_idle(ch)) {
 			dim_cma_top_release(ch);
 			pr_info("%s:force release ch[%d]", __func__, ch);
-			atomic_set(&pbm->cma_mem_state[ch], eDI_CMA_ST_IDL);
+			atomic_set(&pbm->cma_mem_state[ch], EDI_CMA_ST_IDL);
 
 			pbm->cma_reg_cmd[ch] = 0;
 		}
@@ -851,48 +853,78 @@ void dip_cma_close(void)
 
 static void dip_wq_cma_handler(struct work_struct *work)
 {
-	unsigned int ch;
 	struct di_mng_s *pbm = get_bufmng();
 	enum eDI_CMA_ST cma_st;
 	bool do_flg;
+	struct dim_wq_s *wq = container_of(work, struct dim_wq_s, wq_work);
 
-	pr_info("%s:start\n", __func__);
-	for (ch = 0; ch < DI_CHANNEL_NUB; ch++) {
-		do_flg = false;
-		cma_st = dip_cma_get_st(ch);
-		switch (cma_st) {
-		case eDI_CMA_ST_IDL:
-			if (pbm->cma_reg_cmd[ch]) {
-				do_flg = true;
-				/*set:alloc:*/
+	unsigned int ch = wq->ch;
+
+	pr_info("%s:ch[%d],start\n", __func__, ch);
+
+	do_flg = false;
+	cma_st = dip_cma_get_st(ch);
+	switch (cma_st) {
+	case EDI_CMA_ST_IDL:
+		if (pbm->cma_reg_cmd[ch]) {
+			do_flg = true;
+			/*set:alloc:*/
+			atomic_set(&pbm->cma_mem_state[ch], EDI_CMA_ST_ALLOC);
+			if (dim_cma_top_alloc(ch)) {
 				atomic_set(&pbm->cma_mem_state[ch],
-					   eDI_CMA_ST_ALLOC);
-				if (dim_cma_top_alloc(ch)) {
-					atomic_set(&pbm->cma_mem_state[ch],
-						   eDI_CMA_ST_READY);
-				}
+					   EDI_CMA_ST_READY);
 			}
-			break;
-		case eDI_CMA_ST_READY:
-			if (!pbm->cma_reg_cmd[ch]) {
-				do_flg = true;
-				atomic_set(&pbm->cma_mem_state[ch],
-					   eDI_CMA_ST_RELEASE);
-				dim_cma_top_release(ch);
-				atomic_set(&pbm->cma_mem_state[ch],
-					   eDI_CMA_ST_IDL);
-			}
-			break;
-		case eDI_CMA_ST_ALLOC:	/*do*/
-		case eDI_CMA_ST_RELEASE:/*do*/
-		default:
-			break;
 		}
-		if (!do_flg)
-			pr_info("\tch[%d],do nothing[%d]\n", ch, cma_st);
-		else
-			task_send_ready();
+		break;
+	case EDI_CMA_ST_READY:
+
+		if (!pbm->cma_reg_cmd[ch]) {
+			do_flg = true;
+			atomic_set(&pbm->cma_mem_state[ch],
+				   EDI_CMA_ST_RELEASE);
+			dim_cma_top_release(ch);
+			if (di_que_is_empty(ch, QUE_POST_KEEP))
+				atomic_set(&pbm->cma_mem_state[ch],
+					   EDI_CMA_ST_IDL);
+			else
+				atomic_set(&pbm->cma_mem_state[ch],
+					   EDI_CMA_ST_PART);
+		}
+		break;
+	case EDI_CMA_ST_PART:
+		if (pbm->cma_reg_cmd[ch]) {
+			do_flg = true;
+			/*set:alloc:*/
+			atomic_set(&pbm->cma_mem_state[ch], EDI_CMA_ST_ALLOC);
+			if (dim_cma_top_alloc(ch)) {
+				atomic_set(&pbm->cma_mem_state[ch],
+					   EDI_CMA_ST_READY);
+			}
+		} else {
+			do_flg = true;
+			atomic_set(&pbm->cma_mem_state[ch],
+				   EDI_CMA_ST_RELEASE);
+			dim_cma_top_release(ch);
+			if (di_que_is_empty(ch, QUE_POST_KEEP))
+				atomic_set(&pbm->cma_mem_state[ch],
+					   EDI_CMA_ST_IDL);
+			else
+				atomic_set(&pbm->cma_mem_state[ch],
+					   EDI_CMA_ST_PART);
+
+		}
+
+		break;
+	case EDI_CMA_ST_ALLOC:	/*do*/
+	case EDI_CMA_ST_RELEASE:/*do*/
+	default:
+		break;
 	}
+	if (!do_flg)
+		pr_info("\tch[%d],do nothing[%d]\n", ch, cma_st);
+	else
+		task_send_ready();
+
 	pr_info("%s:end\n", __func__);
 }
 
@@ -900,16 +932,16 @@ static void dip_wq_prob(void)
 {
 	struct di_mng_s *pbm = get_bufmng();
 
-	pbm->wq_cma = create_singlethread_workqueue("deinterlace");
-	INIT_WORK(&pbm->wq_work, dip_wq_cma_handler);
+	pbm->wq.wq_cma = create_singlethread_workqueue("deinterlace");
+	INIT_WORK(&pbm->wq.wq_work, dip_wq_cma_handler);
 }
 
 static void dip_wq_ext(void)
 {
 	struct di_mng_s *pbm = get_bufmng();
 
-	cancel_work_sync(&pbm->wq_work);
-	destroy_workqueue(pbm->wq_cma);
+	cancel_work_sync(&pbm->wq.wq_work);
+	destroy_workqueue(pbm->wq.wq_cma);
 	pr_info("%s:finish\n", __func__);
 }
 
@@ -922,7 +954,8 @@ void dip_wq_cma_run(unsigned char ch, bool reg_cmd)
 	else
 		pbm->cma_reg_cmd[ch] = 0;
 
-	queue_work(pbm->wq_cma, &pbm->wq_work);
+	pbm->wq.ch = ch;
+	queue_work(pbm->wq.wq_cma, &pbm->wq.wq_work);
 }
 
 bool dip_cma_st_is_ready(unsigned int ch)
@@ -930,7 +963,7 @@ bool dip_cma_st_is_ready(unsigned int ch)
 	struct di_mng_s *pbm = get_bufmng();
 	bool ret = false;
 
-	if (atomic_read(&pbm->cma_mem_state[ch]) == eDI_CMA_ST_READY)
+	if (atomic_read(&pbm->cma_mem_state[ch]) == EDI_CMA_ST_READY)
 		ret = true;
 
 	return ret;
@@ -941,7 +974,7 @@ bool dip_cma_st_is_idle(unsigned int ch)
 	struct di_mng_s *pbm = get_bufmng();
 	bool ret = false;
 
-	if (atomic_read(&pbm->cma_mem_state[ch]) == eDI_CMA_ST_IDL)
+	if (atomic_read(&pbm->cma_mem_state[ch]) == EDI_CMA_ST_IDL)
 		ret = true;
 
 	return ret;
@@ -954,7 +987,7 @@ bool dip_cma_st_is_idl_all(void)
 	bool ret = true;
 
 	for (ch = 0; ch < DI_CHANNEL_NUB; ch++) {
-		if (atomic_read(&pbm->cma_mem_state[ch]) != eDI_CMA_ST_IDL) {
+		if (atomic_read(&pbm->cma_mem_state[ch]) != EDI_CMA_ST_IDL) {
 			ret = true;
 			break;
 		}
@@ -981,7 +1014,7 @@ const char *di_cma_dbg_get_st_name(unsigned int ch)
 	enum eDI_CMA_ST st = dip_cma_get_st(ch);
 	const char *p = "";
 
-	if (st <= eDI_CMA_ST_RELEASE)
+	if (st <= EDI_CMA_ST_RELEASE)
 		p = di_cma_state_name[st];
 	return p;
 }
@@ -992,20 +1025,20 @@ void dip_cma_st_set_ready_all(void)
 	struct di_mng_s *pbm = get_bufmng();
 
 	for (ch = 0; ch < DI_CHANNEL_NUB; ch++)
-		atomic_set(&pbm->cma_mem_state[ch], eDI_CMA_ST_READY);
+		atomic_set(&pbm->cma_mem_state[ch], EDI_CMA_ST_READY);
 }
 
 /****************************/
 /*channel STATE*/
 /****************************/
-void dip_chst_set(unsigned int ch, enum eDI_TOP_STATE chSt)
+void dip_chst_set(unsigned int ch, enum EDI_TOP_STATE chst)
 {
 	struct di_mng_s *pbm = get_bufmng();
 
-	atomic_set(&pbm->ch_state[ch], chSt);
+	atomic_set(&pbm->ch_state[ch], chst);
 }
 
-enum eDI_TOP_STATE dip_chst_get(unsigned int ch)
+enum EDI_TOP_STATE dip_chst_get(unsigned int ch)
 {
 	struct di_mng_s *pbm = get_bufmng();
 
@@ -1017,12 +1050,12 @@ void dip_chst_init(void)
 	unsigned int ch;
 
 	for (ch = 0; ch < DI_CHANNEL_NUB; ch++)
-		dip_chst_set(ch, eDI_TOP_STATE_IDLE);
+		dip_chst_set(ch, EDI_TOP_STATE_IDLE);
 }
 
 bool dip_event_reg_chst(unsigned int ch)
 {
-	enum eDI_TOP_STATE chst;
+	enum EDI_TOP_STATE chst;
 	struct di_pre_stru_s *ppre = get_pre_stru(ch);
 	bool err_flg = false;
 	bool ret = true;
@@ -1035,7 +1068,7 @@ bool dip_event_reg_chst(unsigned int ch)
 		set_flag_trig_unreg(ch, false);
 #endif
 	switch (chst) {
-	case eDI_TOP_STATE_IDLE:
+	case EDI_TOP_STATE_IDLE:
 
 		queue_init2(ch);
 		di_que_init(ch);
@@ -1048,7 +1081,7 @@ bool dip_event_reg_chst(unsigned int ch)
 	case eDI_TOP_STATE_REG_STEP1:
 	case eDI_TOP_STATE_REG_STEP1_P1:
 	case eDI_TOP_STATE_REG_STEP2:
-	case eDI_TOP_STATE_READY:
+	case EDI_TOP_STATE_READY:
 	case eDI_TOP_STATE_BYPASS:
 		PR_WARN("have reg\n");
 		ret = false;
@@ -1057,7 +1090,7 @@ bool dip_event_reg_chst(unsigned int ch)
 	case eDI_TOP_STATE_UNREG_STEP2:
 		/*wait*/
 		ppre->reg_req_flag_cnt = 0;
-		while (dip_chst_get(ch) != eDI_TOP_STATE_IDLE) {
+		while (dip_chst_get(ch) != EDI_TOP_STATE_IDLE) {
 			usleep_range(10000, 10001);
 			if (ppre->reg_req_flag_cnt++ >
 				dim_get_reg_unreg_cnt()) {
@@ -1093,7 +1126,7 @@ bool dip_event_reg_chst(unsigned int ch)
 
 bool dip_event_unreg_chst(unsigned int ch)
 {
-	enum eDI_TOP_STATE chst, chst2;
+	enum EDI_TOP_STATE chst, chst2;
 	struct di_pre_stru_s *ppre = get_pre_stru(ch);
 	bool ret = false;
 	bool err_flg = false;
@@ -1109,7 +1142,7 @@ bool dip_event_unreg_chst(unsigned int ch)
 		set_flag_trig_unreg(ch, true);
 
 	switch (chst) {
-	case eDI_TOP_STATE_READY:
+	case EDI_TOP_STATE_READY:
 
 		di_vframe_unreg(ch);
 		/*trig unreg*/
@@ -1121,7 +1154,7 @@ bool dip_event_unreg_chst(unsigned int ch)
 		ppre->unreg_req_flag_cnt = 0;
 		chst2 = dip_chst_get(ch);
 
-		while (chst2 != eDI_TOP_STATE_IDLE) {
+		while (chst2 != EDI_TOP_STATE_IDLE) {
 			task_send_ready();
 			usleep_range(10000, 10001);
 			/*msleep(5);*/
@@ -1161,18 +1194,18 @@ bool dip_event_unreg_chst(unsigned int ch)
 			dpre_init();
 			dpost_init();
 		}
-		dip_chst_set(ch, eDI_TOP_STATE_IDLE);
+		dip_chst_set(ch, EDI_TOP_STATE_IDLE);
 		ret = true;
 
 		break;
-	case eDI_TOP_STATE_IDLE:
+	case EDI_TOP_STATE_IDLE:
 		PR_WARN("have unreg\n");
 		break;
 	case eDI_TOP_STATE_REG_STEP1:
 		dbg_dbg("%s:in reg step1\n", __func__);
 		di_vframe_unreg(ch);
 		set_reg_flag(ch, false);
-		dip_chst_set(ch, eDI_TOP_STATE_IDLE);
+		dip_chst_set(ch, EDI_TOP_STATE_IDLE);
 
 		ret = true;
 		break;
@@ -1199,7 +1232,7 @@ bool dip_event_unreg_chst(unsigned int ch)
 		ppre->unreg_req_flag_cnt = 0;
 		chst2 = dip_chst_get(ch);
 
-		while (chst2 != eDI_TOP_STATE_IDLE) {
+		while (chst2 != EDI_TOP_STATE_IDLE) {
 			task_send_ready();
 			usleep_range(10000, 10001);
 			/*msleep(5);*/
@@ -1232,7 +1265,7 @@ bool dip_event_unreg_chst(unsigned int ch)
 			dpost_init();
 		}
 
-		dip_chst_set(ch, eDI_TOP_STATE_IDLE);
+		dip_chst_set(ch, EDI_TOP_STATE_IDLE);
 
 		ret = true;
 		break;
@@ -1242,7 +1275,7 @@ bool dip_event_unreg_chst(unsigned int ch)
 
 		/*wait*/
 		ppre->unreg_req_flag_cnt = 0;
-		while (dip_chst_get(ch) != eDI_TOP_STATE_IDLE) {
+		while (dip_chst_get(ch) != EDI_TOP_STATE_IDLE) {
 			usleep_range(10000, 10001);
 			if (ppre->unreg_req_flag_cnt++ >
 				dim_get_reg_unreg_cnt()) {
@@ -1269,7 +1302,7 @@ bool dip_event_unreg_chst(unsigned int ch)
 /*process for reg and unreg cmd*/
 void dip_chst_process_reg(unsigned int ch)
 {
-	enum eDI_TOP_STATE chst;
+	enum EDI_TOP_STATE chst;
 	struct vframe_s *vframe;
 	struct di_pre_stru_s *ppre = get_pre_stru(ch);
 	bool reflesh = true;
@@ -1283,7 +1316,7 @@ void dip_chst_process_reg(unsigned int ch)
 
 	switch (chst) {
 	case eDI_TOP_STATE_NOPROB:
-	case eDI_TOP_STATE_IDLE:
+	case EDI_TOP_STATE_IDLE:
 		break;
 	case eDI_TOP_STATE_REG_STEP1:/*wait peek*/
 		vframe = pw_vf_peek(ch);
@@ -1363,7 +1396,7 @@ void dip_chst_process_reg(unsigned int ch)
 		reflesh = true;
 		break;
 	case eDI_TOP_STATE_REG_STEP2:/*now no change to do*/
-		if (dip_cma_get_st(ch) == eDI_CMA_ST_READY) {
+		if (dip_cma_get_st(ch) == EDI_CMA_ST_READY) {
 			if (di_cfg_top_get(eDI_CFG_first_bypass)) {
 				if (get_sum_g(ch) == 0)
 					dim_bypass_first_frame(ch);
@@ -1371,12 +1404,12 @@ void dip_chst_process_reg(unsigned int ch)
 					PR_INF("ch[%d],g[%d]\n",
 					       ch, get_sum_g(ch));
 			}
-			dip_chst_set(ch, eDI_TOP_STATE_READY);
+			dip_chst_set(ch, EDI_TOP_STATE_READY);
 			set_reg_flag(ch, true);
 			/*move to step1 dim_bypass_first_frame(ch);*/
 		}
 		break;
-	case eDI_TOP_STATE_READY:
+	case EDI_TOP_STATE_READY:
 
 		break;
 	case eDI_TOP_STATE_BYPASS:
@@ -1408,7 +1441,7 @@ void dip_chst_process_reg(unsigned int ch)
 			dpost_init();
 		}
 
-		dip_chst_set(ch, eDI_TOP_STATE_IDLE);
+		dip_chst_set(ch, EDI_TOP_STATE_IDLE);
 		/*debug only dbg_reg("ch[%d]UNREG_STEP2 end\n",ch);*/
 		break;
 	}
@@ -1424,7 +1457,7 @@ void dip_chst_process_ch(void)
 		chst = dip_chst_get(ch);
 		switch (chst) {
 		case eDI_TOP_STATE_REG_STEP2:
-			if (dip_cma_get_st(ch) == eDI_CMA_ST_READY) {
+			if (dip_cma_get_st(ch) == EDI_CMA_ST_READY) {
 				if (di_cfg_top_get(eDI_CFG_first_bypass)) {
 					if (get_sum_g(ch) == 0)
 						dim_bypass_first_frame(ch);
@@ -1432,7 +1465,7 @@ void dip_chst_process_ch(void)
 						PR_INF("ch[%d],g[%d]\n",
 						       ch, get_sum_g(ch));
 				}
-				dip_chst_set(ch, eDI_TOP_STATE_READY);
+				dip_chst_set(ch, EDI_TOP_STATE_READY);
 				set_reg_flag(ch, true);
 			}
 			break;
@@ -1454,8 +1487,13 @@ void dip_chst_process_ch(void)
 				dpost_init();
 			}
 
-			dip_chst_set(ch, eDI_TOP_STATE_IDLE);
+			dip_chst_set(ch, EDI_TOP_STATE_IDLE);
 			dbg_reg("ch[%d]STEP2 end\n", ch);
+			break;
+		case EDI_TOP_STATE_READY:
+			dim_post_keep_back_recycle(ch);
+			break;
+		default:
 			break;
 		}
 	}
@@ -1517,7 +1555,7 @@ const char * const di_top_state_name[] = {
 const char *dip_chst_get_name_curr(unsigned int ch)
 {
 	const char *p = "";
-	enum eDI_TOP_STATE chst;
+	enum EDI_TOP_STATE chst;
 
 	chst = dip_chst_get(ch);
 
@@ -1527,7 +1565,7 @@ const char *dip_chst_get_name_curr(unsigned int ch)
 	return p;
 }
 
-const char *dip_chst_get_name(enum eDI_TOP_STATE chst)
+const char *dip_chst_get_name(enum EDI_TOP_STATE chst)
 {
 	const char *p = "";
 
@@ -1858,7 +1896,6 @@ void do_table_working(struct do_table_s *pdo)
 void dip_init_value_reg(unsigned int ch)
 {
 	struct di_post_stru_s *ppost;
-	struct di_buf_s *keep_post_buf;
 	struct di_pre_stru_s *ppre = get_pre_stru(ch);
 
 	pr_info("%s:\n", __func__);
@@ -1866,11 +1903,10 @@ void dip_init_value_reg(unsigned int ch)
 	/*post*/
 	ppost = get_post_stru(ch);
 	/*keep buf:*/
-	keep_post_buf = ppost->keep_buf_post;
+	/*keep_post_buf = ppost->keep_buf_post;*/
 
 	memset(ppost, 0, sizeof(struct di_post_stru_s));
 	ppost->next_canvas_id = 1;
-	ppost->keep_buf_post = keep_post_buf;
 
 	/*pre*/
 	memset(ppre, 0, sizeof(struct di_pre_stru_s));
@@ -1890,6 +1926,10 @@ static bool dip_init_value(void)
 
 		/*que*/
 		ret = di_que_alloc(ch);
+		if (ret) {
+			pw_queue_clear(ch, QUE_POST_KEEP);
+			pw_queue_clear(ch, QUE_POST_KEEP_BACK);
+		}
 	}
 	set_current_channel(0);
 

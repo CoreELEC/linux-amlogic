@@ -35,6 +35,8 @@ const char * const di_name_new_que[QUE_NUB] = {
 	"QUE_POST_FREE",	/*2*/
 	"QUE_POST_READY",	/*3*/
 	"QUE_POST_BACK",	/*4*/
+	"QUE_POST_KEEP",
+	"QUE_POST_KEEP_BACK",
 	"QUE_DBG",
 /*	"QUE_NUB",*/
 
@@ -42,7 +44,7 @@ const char * const di_name_new_que[QUE_NUB] = {
 
 #define que_dbg		dim_print
 
-static void pw_queue_clear(unsigned int ch, enum QUE_TYPE qtype)
+void pw_queue_clear(unsigned int ch, enum QUE_TYPE qtype)
 {
 	struct di_ch_s *pch = get_chdata(ch);
 
@@ -166,6 +168,9 @@ bool pw_queue_empty(unsigned int ch, enum QUE_TYPE qtype)
 	return false;
 }
 
+/**********************************************************
+ *
+ **********************************************************/
 int di_que_list_count(unsigned int ch, enum QUE_TYPE qtype)
 {
 	struct di_ch_s *pch = get_chdata(ch);
@@ -249,8 +254,12 @@ void di_que_init(unsigned int ch)
 {
 	int i;
 
-	for (i = 0; i < QUE_NUB; i++)
+	for (i = 0; i < QUE_NUB; i++) {
+		if (i == QUE_POST_KEEP ||
+		    i == QUE_POST_KEEP_BACK)
+			continue;
 		pw_queue_clear(ch, i);
+	}
 }
 
 bool di_que_alloc(unsigned int ch)
@@ -433,6 +442,39 @@ bool di_que_is_in_que(unsigned int ch, enum QUE_TYPE qtype,
 			ret = true;
 			break;
 		}
+	}
+	return ret;
+}
+
+/* clear and rebuild que*/
+bool di_que_out_not_fifo(unsigned int ch, enum QUE_TYPE qtype,
+			 struct di_buf_s *di_buf)
+{
+	unsigned int q_index;
+	unsigned int arr[MAX_FIFO_SIZE + 1];
+	unsigned int asize = 0;
+	unsigned int i;
+	bool ret = false;
+
+	if (!pw_queue_peek(ch, qtype, &q_index))
+		return false;
+
+	q_index = pw_buf_2_qindex(ch, di_buf);
+
+	di_que_list(ch, qtype, &arr[0], &asize);
+
+	pw_queue_clear(ch, qtype);
+
+	if (asize == 0)
+		return ret;
+
+	for (i = 0; i < asize; i++) {
+		if (arr[i] == q_index) {
+			ret = true;
+			di_buf->queue_index = -1;
+			continue;
+		}
+		pw_queue_in(ch, qtype, arr[i]);
 	}
 	return ret;
 }

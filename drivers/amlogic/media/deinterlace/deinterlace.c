@@ -578,6 +578,11 @@ void di_trig_free_mirror_mem(void)
 		up(&di_sema);
 		di_pr_info("%s\n", __func__);
 	}
+
+	if (atomic_read(&di_flag_unreg)) {
+		diwr_set_power_control_pst(0);
+		di_pr_info("disable pst pd\n");
+	}
 }
 EXPORT_SYMBOL(di_trig_free_mirror_mem);
 static bool di_free_mem_pre(void)
@@ -7092,6 +7097,7 @@ static void di_reg_process_irq(void)
 		/*di pre h scaling down: sm1 tm2*/
 		de_devp->h_sc_down_en = pre_hsc_down_en;
 		switch_vpu_clk_gate_vmod(VPU_VPU_CLKB, VPU_CLK_GATE_ON);
+		diwr_set_power_control_pst(1);
 		if (post_wr_en && post_wr_support)
 			diwr_set_power_control(1);
 		/* up for vpu clkb rate change */

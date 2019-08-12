@@ -953,7 +953,7 @@ static int process_vf_tb_detect(struct vframe_s *vf,
 {
 	struct canvas_s cs0, cs1, cs2, cd;
 	int interlace_mode;
-	struct vframe_s src_vf;
+	int canvas_id;
 	u32 format = GE2D_FORMAT_M24_YUV420;
 	u32 h_scale_coef_type =
 		context->config.h_scale_coef_type;
@@ -1000,36 +1000,32 @@ static int process_vf_tb_detect(struct vframe_s *vf,
 	ge2d_config->src1_gb_alpha = 0;/* 0xff; */
 	ge2d_config->dst_xy_swap = 0;
 
-	src_vf = *vf;
-
 	if (vf->canvas0Addr == (u32)-1) {
 		canvas_config_config(
 			tb_src_canvas[0] & 0xff,
-			&src_vf.canvas0_config[0]);
-		if (src_vf.plane_num == 2) {
+			&vf->canvas0_config[0]);
+		if (vf->plane_num == 2) {
 			canvas_config_config(
 				tb_src_canvas[1] & 0xff,
-				&src_vf.canvas0_config[1]);
-		} else if (src_vf.plane_num == 3) {
+				&vf->canvas0_config[1]);
+		} else if (vf->plane_num == 3) {
 			canvas_config_config(
 				tb_src_canvas[2] & 0xff,
-				&src_vf.canvas0_config[2]);
+				&vf->canvas0_config[2]);
 		}
-		src_vf.canvas0Addr =
-			(tb_src_canvas[0] & 0xff)
+		canvas_id = (tb_src_canvas[0] & 0xff)
 			| ((tb_src_canvas[1] & 0xff) << 8)
 			| ((tb_src_canvas[2] & 0xff) << 16);
 
-		canvas_read(
-			src_vf.canvas0Addr & 0xff, &cs0);
-		canvas_read(
-			(src_vf.canvas0Addr >> 8) & 0xff, &cs1);
-		canvas_read(
-			(src_vf.canvas0Addr >> 16) & 0xff, &cs2);
+		canvas_read(canvas_id & 0xff, &cs0);
+		canvas_read((canvas_id >> 8) & 0xff, &cs1);
+		canvas_read((canvas_id >> 16) & 0xff, &cs2);
+		ge2d_config->src_para.canvas_index = canvas_id;
 	} else {
 		canvas_read(vf->canvas0Addr & 0xff, &cs0);
 		canvas_read((vf->canvas0Addr >> 8) & 0xff, &cs1);
 		canvas_read((vf->canvas0Addr >> 16) & 0xff, &cs2);
+		ge2d_config->src_para.canvas_index = vf->canvas0Addr;
 	}
 	ge2d_config->src_planes[0].addr = cs0.addr;
 	ge2d_config->src_planes[0].w = cs0.width;
@@ -1047,7 +1043,6 @@ static int process_vf_tb_detect(struct vframe_s *vf,
 	ge2d_config->src_key.key_enable = 0;
 	ge2d_config->src_key.key_mask = 0;
 	ge2d_config->src_key.key_mode = 0;
-	ge2d_config->src_para.canvas_index = src_vf.canvas0Addr;
 	ge2d_config->src_para.mem_type = CANVAS_TYPE_INVALID;
 	ge2d_config->src_para.format = format;
 	ge2d_config->src_para.fill_color_en = 0;

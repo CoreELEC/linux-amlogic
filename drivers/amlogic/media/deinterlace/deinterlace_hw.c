@@ -3367,6 +3367,12 @@ void diwr_set_power_control(unsigned char enable)
 		enable?VPU_MEM_POWER_ON:VPU_MEM_POWER_DOWN);
 }
 
+void diwr_set_power_control_pst(unsigned char enable)
+{
+	switch_vpu_mem_pd_vmod(VPU_DI_POST,
+			       enable ? VPU_MEM_POWER_ON : VPU_MEM_POWER_DOWN);
+}
+
 void di_hdr2_hist_init(void)
 {
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2)) {

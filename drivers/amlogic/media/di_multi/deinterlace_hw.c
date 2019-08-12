@@ -2680,8 +2680,10 @@ void dimh_initial_di_post_2(int hsize_post, int vsize_post,
 			DI_VSYNC_WR_MPEG_REG_BITS(VD1_AFBCD0_MISC_CTRL,
 						  1, 8, 1);
 			#endif
+		#ifdef DIM_HIS
 			dim_VSYNC_WR_MPEG_REG_BITS(VD1_AFBCD0_MISC_CTRL,
 						   0, 8, 1);
+		#endif
 		} else {
 			dim_VSYNC_WR_MPEG_REG_BITS(VD1_AFBCD0_MISC_CTRL,
 						   1, 8, 1);
@@ -3050,9 +3052,11 @@ void dimh_disable_post_deinterlace_2(void)
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12A)) {
 		/*dbg a dim_VSYNC_WR_MPEG_REG(DI_POST_GL_CTRL, 0);*/
 		di_post_set_flow(1, eDI_POST_FLOW_STEP1_STOP);
+		#ifdef DIM_HIS
 		dim_print("%s:VD1_AFBCD0_MISC_CTRL 0", __func__);
 		dim_VSYNC_WR_MPEG_REG_BITS(VD1_AFBCD0_MISC_CTRL, 0, 8, 2);
 		dim_VSYNC_WR_MPEG_REG_BITS(VD1_AFBCD0_MISC_CTRL, 0, 20, 2);
+		#endif
 	}
 }
 

@@ -93,6 +93,8 @@ MODULE_AMLOG(LOG_LEVEL_ERROR, 0, LOG_DEFAULT_LEVEL_DESC, LOG_MASK_DESC);
 #endif
 #include <linux/math64.h>
 
+#include "video_receiver.h"
+
 static int get_count;
 static int get_count_pip;
 
@@ -283,6 +285,8 @@ static int vpts_chase_pts_diff;
 
 static int step_enable;
 static int step_flag;
+
+struct video_recv_s *gvideo_recv[2] = {NULL, NULL};
 
 /*seek values on.video_define.h*/
 static int debug_flag;
@@ -680,7 +684,7 @@ static u32 blackout;
 #else
 static u32 blackout = 1;
 #endif
-static u32 force_blackout;
+u32 force_blackout;
 static u32 blackout_pip;
 
 /* disable video */
@@ -894,7 +898,7 @@ static inline struct vframe_s *pip_vf_get(void)
 	if (vf) {
 		get_count_pip++;
 		/* video_notify_flag |= VIDEO_NOTIFY_PROVIDER_GET; */
-		atomic_set(&vf->use_cnt, 1);
+		atomic_set(&vf->use_cnt_pip, 1);
 	}
 	return vf;
 
@@ -920,7 +924,7 @@ static inline void pip_vf_put(struct vframe_s *vf)
 	if (pip_loop)
 		return;
 
-	if (vfp && vf && atomic_dec_and_test(&vf->use_cnt)) {
+	if (vfp && vf && atomic_dec_and_test(&vf->use_cnt_pip)) {
 		vf_put(vf, RECEIVERPIP_NAME);
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 		if ((glayer_info[0].display_path_id
@@ -1055,7 +1059,9 @@ static inline void video_vf_put(struct vframe_s *vf)
 	if (vf == &hist_test_vf)
 		return;
 
-	if (vfp && vf && atomic_dec_and_test(&vf->use_cnt)) {
+	if (!vfp || !vf)
+		return;
+	if (atomic_dec_and_test(&vf->use_cnt)) {
 		vf_put(vf, RECEIVER_NAME);
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 		if (is_dolby_vision_enable())
@@ -1881,6 +1887,10 @@ static inline bool vpts_expire(struct vframe_s *cur_vf,
 	if (next_vf->flag & VFRAME_FLAG_GAME_MODE)
 		return true;
 
+	/* FIXME: remove it */
+	if (next_vf->flag & VFRAME_FLAG_VIDEO_COMPOSER)
+		return true;
+
 	if (step_enable) {
 		if (step_flag)
 			return false;
@@ -2379,7 +2389,6 @@ static int dvel_swap_frame(struct vframe_s *vf)
 
 		/* check if el available first */
 		if (!dvel_status) {
-			//safe_switch_videolayer(1, true, true);
 			dvel_changed = true;
 			dvel_size = new_dvel_w;
 			need_disable_vd2 = false;
@@ -2392,7 +2401,6 @@ static int dvel_swap_frame(struct vframe_s *vf)
 			layer_info);
 		dvel_status = true;
 	} else if (dvel_status) {
-		//safe_switch_videolayer(1, false, true);
 		dvel_changed = true;
 		dvel_status = false;
 		dvel_size = 0;
@@ -2752,10 +2760,160 @@ bool black_threshold_check(u8 id)
 	return ret;
 }
 
+static void _set_video_crop(
+	struct disp_info_s *layer, int *p)
+{
+	int last_l, last_r, last_t, last_b;
+	int new_l, new_r, new_t, new_b;
+
+	if (!layer)
+		return;
+
+	last_t = layer->crop_top;
+	last_l = layer->crop_left;
+	last_b = layer->crop_bottom;
+	last_r = layer->crop_right;
+
+	layer->crop_top = p[0];
+	layer->crop_left = p[1];
+	layer->crop_bottom = p[2];
+	layer->crop_right = p[3];
+
+	new_t = layer->crop_top;
+	new_l = layer->crop_left;
+	new_b = layer->crop_bottom;
+	new_r = layer->crop_right;
+	if ((new_t != last_t) || (new_l != last_l) ||
+	    (new_b != last_b) || (new_r != last_r)) {
+		if (layer->layer_id == 0)
+			vd_layer[0].property_changed = true;
+		else if (layer->layer_id == 1)
+			vd_layer[1].property_changed = true;
+	}
+}
+
+static void _set_video_window(
+	struct disp_info_s *layer, int *p)
+{
+	int w, h;
+	int *parsed = p;
+	int last_x, last_y, last_w, last_h;
+	int new_x, new_y, new_w, new_h;
+#ifdef TV_REVERSE
+	int temp, temp1;
+	const struct vinfo_s *info = get_current_vinfo();
+#endif
+
+	if (!layer)
+		return;
+
+#ifdef TV_REVERSE
+	if (reverse) {
+		temp = parsed[0];
+		temp1 = parsed[1];
+		parsed[0] = info->width - parsed[2] - 1;
+		parsed[1] = info->height - parsed[3] - 1;
+		parsed[2] = info->width - temp - 1;
+		parsed[3] = info->height - temp1 - 1;
+	}
+#endif
+
+	last_x = layer->layer_left;
+	last_y = layer->layer_top;
+	last_w = layer->layer_width;
+	last_h = layer->layer_height;
+
+	if (parsed[0] < 0 && parsed[2] < 2) {
+		parsed[2] = 2;
+		parsed[0] = 0;
+	}
+	if (parsed[1] < 0 && parsed[3] < 2) {
+		parsed[3] = 2;
+		parsed[1] = 0;
+	}
+	w = parsed[2] - parsed[0] + 1;
+	h = parsed[3] - parsed[1] + 1;
+
+#ifdef CONFIG_AMLOGIC_POST_PROCESS_MANAGER_PPSCALER
+	if (video_scaler_mode) {
+		if ((w == 1) && (h == 1)) {
+			w = 0;
+			h = 0;
+		}
+		if ((content_left != parsed[0]) ||
+		    (content_top != parsed[1]) ||
+		    (content_w != w) ||
+		    (content_h != h))
+			scaler_pos_changed = 1;
+		content_left = parsed[0];
+		content_top = parsed[1];
+		content_w = w;
+		content_h = h;
+		/* video_notify_flag =*/
+		/*video_notify_flag|VIDEO_NOTIFY_POS_CHANGED; */
+	} else
+#endif
+	{
+		if ((w > 0) && (h > 0)) {
+			if ((w == 1) && (h == 1)) {
+				w = 0;
+				h = 0;
+			}
+			layer->layer_left = parsed[0];
+			layer->layer_top = parsed[1];
+			layer->layer_width = w;
+			layer->layer_height = h;
+		}
+	}
+
+	new_x = layer->layer_left;
+	new_y = layer->layer_top;
+	new_w = layer->layer_width;
+	new_h = layer->layer_height;
+
+	if ((last_x != new_x) || (last_y != new_y) ||
+	    (last_w != new_w) || (last_h != new_h)) {
+		if (layer->layer_id == 0)
+			vd_layer[0].property_changed = true;
+		else if (layer->layer_id == 1)
+			vd_layer[1].property_changed = true;
+	}
+}
+
+void set_video_crop_ext(int layer_index, int *p)
+{
+	struct disp_info_s *layer = &glayer_info[layer_index];
+
+	_set_video_crop(layer, p);
+}
+
+void set_video_window_ext(int layer_index, int *p)
+{
+	struct disp_info_s *layer = &glayer_info[layer_index];
+
+	_set_video_window(layer, p);
+}
+
+void set_video_zorder_ext(int layer_index, int zorder)
+{
+	struct disp_info_s *layer = &glayer_info[layer_index];
+
+	if (layer->zorder != zorder) {
+		layer->zorder = zorder;
+		if (layer->layer_id == 0) {
+			vd_layer[0].property_changed = true;
+		} else if (layer->layer_id == 1) {
+			vd_layer[1].property_changed = true;
+		}
+	}
+}
+
 static void pip_swap_frame(struct vframe_s *vf)
 {
 	struct video_layer_s *layer = NULL;
 	struct disp_info_s *layer_info = NULL;
+	int axis[4];
+	int crop[4];
 	int ret;
 
 	if (!vf)
@@ -2768,6 +2926,21 @@ static void pip_swap_frame(struct vframe_s *vf)
 		DEBUG_FLAG_PRINT_TOGGLE_FRAME)
 		pr_info("%s()\n", __func__);
 
+	if (vf->flag & VFRAME_FLAG_VIDEO_COMPOSER) {
+		axis[0] = vf->axis[0];
+		axis[1] = vf->axis[1];
+		axis[2] = vf->axis[2];
+		axis[3] = vf->axis[3];
+		crop[0] = vf->crop[0];
+		crop[1] = vf->crop[1];
+		crop[2] = vf->crop[2];
+		crop[3] = vf->crop[3];
+		_set_video_window(&glayer_info[1], axis);
+		_set_video_crop(&glayer_info[1], crop);
+
+		glayer_info[1].zorder = vf->zorder;
+	}
+
 	ret = layer_swap_frame(
 		vf, layer->layer_id, false, vinfo);
 
@@ -2775,7 +2948,7 @@ static void pip_swap_frame(struct vframe_s *vf)
 	if (!is_local_vf(layer->dispbuf)) {
 		if (layer->keep_frame_id == 1)
 			video_pip_keeper_new_frame_notify();
-		else
+		else if (layer->keep_frame_id == 0)
 			video_keeper_new_frame_notify();
 	}
 	if (stop_update)
@@ -2865,6 +3038,8 @@ static void primary_swap_frame(
 	int ret;
 	struct video_layer_s *layer = NULL;
 	struct disp_info_s *layer_info = NULL;
+	int axis[4];
+	int crop[4];
 
 	ATRACE_COUNTER(__func__,  line);
 
@@ -2873,6 +3048,20 @@ static void primary_swap_frame(
 
 	layer = &vd_layer[0];
 	layer_info = &glayer_info[0];
+
+	if (vf->flag & VFRAME_FLAG_VIDEO_COMPOSER) {
+		axis[0] = vf->axis[0];
+		axis[1] = vf->axis[1];
+		axis[2] = vf->axis[2];
+		axis[3] = vf->axis[3];
+		crop[0] = vf->crop[0];
+		crop[1] = vf->crop[1];
+		crop[2] = vf->crop[2];
+		crop[3] = vf->crop[3];
+		_set_video_window(&glayer_info[0], axis);
+		_set_video_crop(&glayer_info[0], crop);
+		glayer_info[0].zorder = vf->zorder;
+	}
 
 	if ((layer->layer_id == 0) && vf &&
 	    !(vf->type & VIDTYPE_COMPRESS) &&
@@ -2891,7 +3080,8 @@ static void primary_swap_frame(
 			force_toggle = true;
 	} else {
 #ifdef CONFIG_AMLOGIC_MEDIA_DEINTERLACE
-		if (is_di_on()) {
+		/* FIXME: is_di_on */
+		if (is_di_post_mode(vf)) {
 			/* check mif enable status, disable post di */
 			VSYNC_WR_MPEG_REG(DI_POST_CTRL, 0x3 << 30);
 			VSYNC_WR_MPEG_REG(
@@ -2974,7 +3164,7 @@ static void primary_swap_frame(
 	if (!is_local_vf(layer->dispbuf)) {
 		if (layer->keep_frame_id == 1)
 			video_pip_keeper_new_frame_notify();
-		else
+		else if (layer->keep_frame_id == 0)
 			video_keeper_new_frame_notify();
 	}
 
@@ -3182,6 +3372,8 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 	struct vframe_s *dv_new_vf = NULL;
 	struct vframe_s *path0_new_frame = NULL;
 	struct vframe_s *path1_new_frame = NULL;
+	struct vframe_s *path2_new_frame = NULL;
+	struct vframe_s *path3_new_frame = NULL;
 	struct vframe_s *new_frame = NULL;
 	struct vframe_s *new_frame2 = NULL;
 	struct vframe_s *cur_dispbuf_back = cur_dispbuf;
@@ -3292,6 +3484,8 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 				sizeof(struct video_frame_detect_s));
 		}
 	}
+
+	vsync_notify_video_composer();
 
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 	if (is_dolby_vision_enable() && dovi_drop_flag) {
@@ -3432,9 +3626,9 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 #endif
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 	/* check video frame before VECM process */
-	if (is_dolby_vision_enable() &&
+	if (is_dolby_vision_enable() && vf &&
 	    ((vd1_path_id == VFM_PATH_AMVIDEO) ||
-	     (vd1_path_id == VFM_PATH_DEF)) && vf) {
+	     (vd1_path_id == VFM_PATH_DEF))) {
 		dolby_vision_check_mvc(vf);
 		dolby_vision_check_hdr10(vf);
 		dolby_vision_check_hdr10plus(vf);
@@ -3444,6 +3638,7 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 	if (cur_vd1_path_id != vd1_path_id) {
 		char *provider_name = NULL;
 
+		/* FIXME: add more receiver check */
 		if (vd1_path_id == VFM_PATH_PIP) {
 			provider_name = vf_get_provider_name("videopip");
 			while (provider_name) {
@@ -3601,16 +3796,23 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 
 	for (i = 0; i < dispbuf_to_put_num; i++) {
 		if (dispbuf_to_put[i]) {
+			dispbuf_to_put[i]->rendered = true;
 			video_vf_put(dispbuf_to_put[i]);
 			dispbuf_to_put[i] = NULL;
 		}
 		dispbuf_to_put_num = 0;
 	}
 	if (pipbuf_to_put) {
+		pipbuf_to_put->rendered = true;
 		pip_vf_put(pipbuf_to_put);
 		pipbuf_to_put = NULL;
 	}
 #endif
+
+	if (gvideo_recv[0])
+		gvideo_recv[0]->func->early_proc(gvideo_recv[0]);
+	if (gvideo_recv[1])
+		gvideo_recv[1]->func->early_proc(gvideo_recv[1]);
 
 	if ((!cur_dispbuf) || (cur_dispbuf == &vf_local)) {
 		vf = video_vf_peek();
@@ -3815,7 +4017,8 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 			if (trickmode_fffb == 1) {
 				trickmode_vpts = vf->pts;
 #ifdef CONFIG_AMLOGIC_MEDIA_VSYNC_RDMA
-				if (is_di_on()) {
+				/* FIXME: replace is_di_on */
+				if (is_di_post_mode(vf)) {
 					atomic_set(&trickmode_framedone, 1);
 					video_notify_flag |=
 					    VIDEO_NOTIFY_TRICK_WAIT;
@@ -3831,6 +4034,15 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 			if (slowsync_repeat_enable)
 				frame_repeat_count = 0;
 			vf = video_vf_peek();
+			if (vf) {
+				if ((vf->flag & VFRAME_FLAG_VIDEO_COMPOSER) &&
+				    (debug_flag &
+				     DEBUG_FLAG_COMPOSER_NO_DROP_FRAME)) {
+					pr_info("composer not drop\n");
+					vf = NULL;
+				}
+			}
+
 			if (!vf)
 				next_peek_underflow++;
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
@@ -3977,8 +4189,8 @@ SET_FILTER:
 	videopip_get_vf_cnt = 0;
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 	/* check video frame before VECM process */
-	if (vd1_path_id == VFM_PATH_PIP &&
-	    is_dolby_vision_enable() && vf) {
+	if (vd1_path_id == VFM_PATH_PIP && vf &&
+	    is_dolby_vision_enable()) {
 		dolby_vision_check_hdr10(vf);
 		dolby_vision_check_hdr10plus(vf);
 		dolby_vision_check_hlg(vf);
@@ -4050,6 +4262,85 @@ SET_FILTER:
 			pr_info("videopip drop frame: drop count %d\n",
 				videopip_drop_vf_cnt);
 	}
+
+	/* video_render.0 toggle frame */
+	if (gvideo_recv[0]) {
+		path2_new_frame =
+			gvideo_recv[0]->func->dequeue_frame(gvideo_recv[0]);
+		if (vd1_path_id == gvideo_recv[0]->path_id) {
+			/* FIXME: need DV dual layer case */
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
+			dv_new_vf = dvel_toggle_frame(vf, true);
+#endif
+			amvecm_on_vs(
+				(gvideo_recv[0]->cur_buf !=
+				 &gvideo_recv[0]->local_buf)
+				? gvideo_recv[0]->cur_buf : NULL,
+				path2_new_frame,
+				CSC_FLAG_CHECK_OUTPUT,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				VD1_PATH);
+		}
+		if (vd2_path_id == gvideo_recv[0]->path_id)
+			amvecm_on_vs(
+				(gvideo_recv[0]->cur_buf !=
+				 &gvideo_recv[0]->local_buf)
+				? gvideo_recv[0]->cur_buf : NULL,
+				path2_new_frame,
+				CSC_FLAG_CHECK_OUTPUT,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				VD2_PATH);
+	}
+
+	/* video_render.1 toggle frame */
+	if (gvideo_recv[1]) {
+		path3_new_frame =
+			gvideo_recv[1]->func->dequeue_frame(gvideo_recv[1]);
+		if (vd1_path_id == gvideo_recv[1]->path_id) {
+			/* FIXME: need DV dual layer case */
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
+			dv_new_vf = dvel_toggle_frame(vf, true);
+#endif
+			amvecm_on_vs(
+				(gvideo_recv[1]->cur_buf !=
+				 &gvideo_recv[1]->local_buf)
+				? gvideo_recv[1]->cur_buf : NULL,
+				path3_new_frame,
+				CSC_FLAG_CHECK_OUTPUT,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				VD1_PATH);
+		}
+		if (vd2_path_id == gvideo_recv[1]->path_id)
+			amvecm_on_vs(
+				(gvideo_recv[1]->cur_buf !=
+				 &gvideo_recv[1]->local_buf)
+				? gvideo_recv[1]->cur_buf : NULL,
+				path3_new_frame,
+				CSC_FLAG_CHECK_OUTPUT,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				VD2_PATH);
+	}
+
 	/* FIXME: if need enable for vd1 */
 #ifdef CHECK_LATER
 	if (!vd_layer[0].global_output) {
@@ -4065,28 +4356,35 @@ SET_FILTER:
 	     cur_vd2_path_id != vd2_path_id) &&
 	    (debug_flag & DEBUG_FLAG_PRINT_PATH_SWITCH)) {
 		pr_info("VID: === before path switch ===\n");
-		pr_info("VID: \tcur_path_id: %d, %d;\nVID: \tnew_path_id: %d, %d;\nVID: \ttoggle:%p, %p,\nVID: \tcur:%p, %p;\n",
+		pr_info("VID: \tcur_path_id: %d, %d;\nVID: \tnew_path_id: %d, %d;\nVID: \ttoggle:%p, %p, %p %p\nVID: \tcur:%p, %p, %p, %p;\n",
 			cur_vd1_path_id, cur_vd2_path_id,
 			vd1_path_id, vd2_path_id,
 			path0_new_frame, path1_new_frame,
-			cur_dispbuf, cur_pipbuf);
-		pr_info("VID: \tdispbuf:%p, %p;\nVID: \tlocal:%p, %p\n",
+			path2_new_frame, path3_new_frame,
+			cur_dispbuf, cur_pipbuf,
+			gvideo_recv[0] ? gvideo_recv[0]->cur_buf : NULL,
+			gvideo_recv[1] ? gvideo_recv[1]->cur_buf : NULL);
+		pr_info("VID: \tdispbuf:%p, %p;\nVID: \tlocal:%p, %p, %p, %p\n",
 			vd_layer[0].dispbuf, vd_layer[1].dispbuf,
-			&vf_local, &local_pip);
+			&vf_local, &local_pip,
+			gvideo_recv[0] ? &gvideo_recv[0]->local_buf : NULL,
+			gvideo_recv[1] ? &gvideo_recv[1]->local_buf : NULL);
 		pr_info("VID: \tblackout:%d %d force:%d;\n",
 			blackout, blackout_pip, force_blackout);
 	}
 
 	if (debug_flag & DEBUG_FLAG_PRINT_DISBUF_PER_VSYNC)
-		pr_info("VID: path id: %d, %d; new_frame:%p, %p, cur:%p, %p; vd dispbuf:%p, %p; local:%p, %p\n",
+		pr_info("VID: path id: %d, %d; new_frame:%p, %p, %p, %p cur:%p, %p, %p, %p; vd dispbuf:%p, %p; local:%p, %p, %p, %p\n",
 			vd1_path_id, vd2_path_id,
-			path0_new_frame,
-			path1_new_frame,
+			path0_new_frame, path1_new_frame,
+			path2_new_frame, path3_new_frame,
 			cur_dispbuf, cur_pipbuf,
-			vd_layer[0].dispbuf,
-			vd_layer[1].dispbuf,
-			&vf_local,
-			&local_pip);
+			gvideo_recv[0] ? gvideo_recv[0]->cur_buf : NULL,
+			gvideo_recv[1] ? gvideo_recv[1]->cur_buf : NULL,
+			vd_layer[0].dispbuf, vd_layer[1].dispbuf,
+			&vf_local, &local_pip,
+			gvideo_recv[0] ? &gvideo_recv[0]->local_buf : NULL,
+			gvideo_recv[1] ? &gvideo_recv[0]->local_buf : NULL);
 
 	if ((vd_layer[0].dispbuf_mapping == &cur_dispbuf) &&
 	    ((cur_dispbuf == &vf_local) ||
@@ -4100,8 +4398,66 @@ SET_FILTER:
 	    (vd_layer[0].dispbuf != cur_pipbuf))
 		vd_layer[0].dispbuf = cur_pipbuf;
 
+	if (gvideo_recv[0] &&
+	    (vd_layer[0].dispbuf_mapping == &gvideo_recv[0]->cur_buf) &&
+	    ((gvideo_recv[0]->cur_buf == &gvideo_recv[0]->local_buf) ||
+	     !gvideo_recv[0]->cur_buf) &&
+	    (vd_layer[0].dispbuf != gvideo_recv[0]->cur_buf))
+		vd_layer[0].dispbuf = gvideo_recv[0]->cur_buf;
+
+	if (gvideo_recv[1] &&
+	    (vd_layer[0].dispbuf_mapping == &gvideo_recv[1]->cur_buf) &&
+	    ((gvideo_recv[1]->cur_buf == &gvideo_recv[1]->local_buf) ||
+	     !gvideo_recv[1]->cur_buf) &&
+	    (vd_layer[0].dispbuf != gvideo_recv[1]->cur_buf))
+		vd_layer[0].dispbuf = gvideo_recv[1]->cur_buf;
+
 	/* vd1 config */
-	if (vd1_path_id == VFM_PATH_PIP) {
+	if (gvideo_recv[0] &&
+	    (gvideo_recv[0]->path_id == vd1_path_id)) {
+		/* video_render.0 display on VD1 */
+		new_frame = path2_new_frame;
+		if (!new_frame) {
+			if (!gvideo_recv[0]->cur_buf) {
+				/* video_render.0 no frame in display */
+				if (cur_vd1_path_id != vd1_path_id)
+					safe_switch_videolayer(0, false, true);
+				vd_layer[0].dispbuf = NULL;
+			} else if (gvideo_recv[0]->cur_buf ==
+				&gvideo_recv[0]->local_buf) {
+				/* video_render.0 keep frame */
+				vd_layer[0].dispbuf = gvideo_recv[0]->cur_buf;
+			} else if (vd_layer[0].dispbuf
+				!= gvideo_recv[0]->cur_buf) {
+				/* video_render.0 has frame in display */
+				new_frame = gvideo_recv[0]->cur_buf;
+			}
+		}
+		vd_layer[0].dispbuf_mapping = &gvideo_recv[0]->cur_buf;
+		cur_blackout = 1;
+	} else if (gvideo_recv[1] &&
+	    (gvideo_recv[1]->path_id == vd1_path_id)) {
+		/* video_render.1 display on VD1 */
+		new_frame = path3_new_frame;
+		if (!new_frame) {
+			if (!gvideo_recv[1]->cur_buf) {
+				/* video_render.1 no frame in display */
+				if (cur_vd1_path_id != vd1_path_id)
+					safe_switch_videolayer(0, false, true);
+				vd_layer[0].dispbuf = NULL;
+			} else if (gvideo_recv[1]->cur_buf ==
+				&gvideo_recv[1]->local_buf) {
+				/* video_render.1 keep frame */
+				vd_layer[0].dispbuf = gvideo_recv[1]->cur_buf;
+			} else if (vd_layer[0].dispbuf
+				!= gvideo_recv[1]->cur_buf) {
+				/* video_render.1 has frame in display */
+				new_frame = gvideo_recv[1]->cur_buf;
+			}
+		}
+		vd_layer[0].dispbuf_mapping = &gvideo_recv[1]->cur_buf;
+		cur_blackout = 1;
+	} else if (vd1_path_id == VFM_PATH_PIP) {
 		/* pip display on VD1 */
 		new_frame = path1_new_frame;
 		if (!new_frame) {
@@ -4149,7 +4505,7 @@ SET_FILTER:
 	    is_local_vf(vd_layer[0].dispbuf)) {
 		if (cur_blackout) {
 			vd_layer[0].property_changed = false;
-		} else if (!is_di_on()) {
+		} else if (!is_di_post_mode(vd_layer[0].dispbuf)) {
 			vd_layer[0].dispbuf->canvas0Addr =
 				get_layer_display_canvas(0);
 		}
@@ -4169,10 +4525,13 @@ SET_FILTER:
 #endif
 	}
 
-	if (vd1_path_id == VFM_PATH_PIP)
+	if ((vd1_path_id == VFM_PATH_AMVIDEO) ||
+	    (vd1_path_id == VFM_PATH_DEF))
+		vd_layer[0].keep_frame_id = 0;
+	else if (vd1_path_id == VFM_PATH_PIP)
 		vd_layer[0].keep_frame_id = 1;
 	else
-		vd_layer[0].keep_frame_id = 0;
+		vd_layer[0].keep_frame_id = 0xff;
 
 #if defined(CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM)
 	if (new_frame)
@@ -4218,8 +4577,66 @@ SET_FILTER:
 	    (vd_layer[1].dispbuf != cur_pipbuf))
 		vd_layer[1].dispbuf = cur_pipbuf;
 
+	if (gvideo_recv[0] &&
+	    (vd_layer[1].dispbuf_mapping == &gvideo_recv[0]->cur_buf) &&
+	    ((gvideo_recv[0]->cur_buf == &gvideo_recv[0]->local_buf) ||
+	     !gvideo_recv[0]->cur_buf) &&
+	    (vd_layer[1].dispbuf != gvideo_recv[0]->cur_buf))
+		vd_layer[1].dispbuf = gvideo_recv[0]->cur_buf;
+
+	if (gvideo_recv[1] &&
+	    (vd_layer[1].dispbuf_mapping == &gvideo_recv[1]->cur_buf) &&
+	    ((gvideo_recv[1]->cur_buf == &gvideo_recv[1]->local_buf) ||
+	     !gvideo_recv[1]->cur_buf) &&
+	    (vd_layer[1].dispbuf != gvideo_recv[1]->cur_buf))
+		vd_layer[1].dispbuf = gvideo_recv[1]->cur_buf;
+
 	/* vd2 config */
-	if (vd2_path_id == VFM_PATH_AMVIDEO) {
+	if (gvideo_recv[0] &&
+	    (gvideo_recv[0]->path_id == vd2_path_id)) {
+		/* video_render.0 display on VD2 */
+		new_frame2 = path2_new_frame;
+		if (!new_frame2) {
+			if (!gvideo_recv[0]->cur_buf) {
+				/* video_render.0 no frame in display */
+				if (cur_vd2_path_id != vd2_path_id)
+					safe_switch_videolayer(1, false, true);
+				vd_layer[1].dispbuf = NULL;
+			} else if (gvideo_recv[0]->cur_buf ==
+				&gvideo_recv[0]->local_buf) {
+				/* video_render.0 keep frame */
+				vd_layer[1].dispbuf = gvideo_recv[0]->cur_buf;
+			} else if (vd_layer[1].dispbuf
+				!= gvideo_recv[0]->cur_buf) {
+				/* video_render.0 has frame in display */
+				new_frame2 = gvideo_recv[0]->cur_buf;
+			}
+		}
+		vd_layer[1].dispbuf_mapping = &gvideo_recv[0]->cur_buf;
+		cur_blackout = 1;
+	} else if (gvideo_recv[1] &&
+	    (gvideo_recv[1]->path_id == vd2_path_id)) {
+		/* video_render.1 display on VD1 */
+		new_frame2 = path3_new_frame;
+		if (!new_frame2) {
+			if (!gvideo_recv[1]->cur_buf) {
+				/* video_render.1 no frame in display */
+				if (cur_vd2_path_id != vd2_path_id)
+					safe_switch_videolayer(1, false, true);
+				vd_layer[1].dispbuf = NULL;
+			} else if (gvideo_recv[1]->cur_buf ==
+				&gvideo_recv[1]->local_buf) {
+				/* video_render.1 keep frame */
+				vd_layer[1].dispbuf = gvideo_recv[1]->cur_buf;
+			} else if (vd_layer[1].dispbuf
+				!= gvideo_recv[1]->cur_buf) {
+				/* video_render.1 has frame in display */
+				new_frame2 = gvideo_recv[1]->cur_buf;
+			}
+		}
+		vd_layer[1].dispbuf_mapping = &gvideo_recv[1]->cur_buf;
+		cur_blackout = 1;
+	} else if (vd2_path_id == VFM_PATH_AMVIDEO) {
 		/* priamry display in VD2 */
 		new_frame2 = path0_new_frame;
 		if (!new_frame2) {
@@ -4282,10 +4699,13 @@ SET_FILTER:
 		need_disable_vd2 = false;
 	}
 
-	if (vd2_path_id == VFM_PATH_AMVIDEO)
+	if ((vd2_path_id == VFM_PATH_PIP) ||
+	    (vd2_path_id == VFM_PATH_DEF))
+		vd_layer[1].keep_frame_id = 1;
+	else if (vd2_path_id == VFM_PATH_AMVIDEO)
 		vd_layer[1].keep_frame_id = 0;
 	else
-		vd_layer[1].keep_frame_id = 1;
+		vd_layer[1].keep_frame_id = 0xff;
 
 #if defined(CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM)
 	amvecm_on_vs(
@@ -4324,18 +4744,30 @@ SET_FILTER:
 	pip_render_frame(
 		&vd_layer[1], vd_layer[1].dispbuf);
 
+	if (vd_layer[0].dispbuf &&
+	    (vd_layer[0].dispbuf->flag & VFRAME_FLAG_FAKE_FRAME))
+		safe_switch_videolayer(0, false, true);
+
+	if (vd_layer[1].dispbuf &&
+	    (vd_layer[1].dispbuf->flag & VFRAME_FLAG_FAKE_FRAME))
+		safe_switch_videolayer(1, false, true);
+
 	if ((cur_vd1_path_id != vd1_path_id ||
 	     cur_vd2_path_id != vd2_path_id) &&
 	    (debug_flag & DEBUG_FLAG_PRINT_PATH_SWITCH)) {
 		pr_info("VID: === After path switch ===\n");
-		pr_info("VID: \tpath_id: %d, %d;\nVID: \ttoggle:%p, %p\nVID: \tnew:%p, %p\nVID: \tcur:%p, %p;\n",
+		pr_info("VID: \tpath_id: %d, %d;\nVID: \ttoggle:%p, %p, %p %p\nVID: \tcur:%p, %p, %p, %p;\n",
 			vd1_path_id, vd2_path_id,
 			path0_new_frame, path1_new_frame,
-			new_frame, new_frame2,
-			cur_dispbuf, cur_pipbuf);
-		pr_info("VID: \tdispbuf:%p, %p;\nVID: \tlocal:%p, %p\n",
+			path2_new_frame, path3_new_frame,
+			cur_dispbuf, cur_pipbuf,
+			gvideo_recv[0] ? gvideo_recv[0]->cur_buf : NULL,
+			gvideo_recv[1] ? gvideo_recv[1]->cur_buf : NULL);
+		pr_info("VID: \tdispbuf:%p, %p;\nVID: \tlocal:%p, %p, %p, %p\n",
 			vd_layer[0].dispbuf, vd_layer[1].dispbuf,
-			&vf_local, &local_pip);
+			&vf_local, &local_pip,
+			gvideo_recv[0] ? &gvideo_recv[0]->local_buf : NULL,
+			gvideo_recv[1] ? &gvideo_recv[1]->local_buf : NULL);
 		pr_info("VID: \tblackout:%d %d force:%d;\n",
 			blackout, blackout_pip, force_blackout);
 	}
@@ -4370,14 +4802,21 @@ SET_FILTER:
 		di_post_process_done = true;
 	}
 exit:
+#ifdef CONFIG_AMLOGIC_MEDIA_DEINTERLACE
 	if (legacy_vpp &&
 	    !di_post_process_done &&
 	    is_di_post_on())
 		DI_POST_UPDATE_MC();
+#endif
 #if defined(PTS_LOGGING) || defined(PTS_TRACE_DEBUG)
 	pts_trace++;
 #endif
 	vpp_blend_update(vinfo);
+
+	if (gvideo_recv[0])
+		gvideo_recv[0]->func->late_proc(gvideo_recv[0]);
+	if (gvideo_recv[1])
+		gvideo_recv[1]->func->late_proc(gvideo_recv[1]);
 
 #ifdef CONFIG_AMLOGIC_MEDIA_VSYNC_RDMA
 	cur_rdma_buf = cur_dispbuf;
@@ -5062,7 +5501,7 @@ int _video_set_disable(u32 val)
 		/* FIXME */
 		if (layer->keep_frame_id == 1)
 			try_free_keep_videopip(0);
-		else
+		else if (layer->keep_frame_id == 0)
 			try_free_keep_video(0);
 	} else {
 		if (layer->dispbuf &&
@@ -5076,120 +5515,28 @@ int _video_set_disable(u32 val)
 	return 0;
 }
 
-static void _set_video_crop(
-	struct disp_info_s *layer, int *p)
+void video_set_global_output(u32 index, u32 val)
 {
-	int last_l, last_r, last_t, last_b;
-	int new_l, new_r, new_t, new_b;
-
-	if (!layer)
-		return;
-
-	last_t = layer->crop_top;
-	last_l = layer->crop_left;
-	last_b = layer->crop_bottom;
-	last_r = layer->crop_right;
-
-	new_t = layer->crop_top = p[0];
-	new_l = layer->crop_left = p[1];
-	new_b = layer->crop_bottom = p[2];
-	new_r = layer->crop_right = p[3];
-	if ((new_t != last_t) || (new_l != last_l) ||
-	    (new_b != last_b) || (new_r != last_r)) {
-		if (layer->layer_id == 0)
-			vd_layer[0].property_changed = true;
-		else if (layer->layer_id == 1)
-			vd_layer[1].property_changed = true;
+	if (index == 0) {
+		if (val != 0)
+			vd_layer[0].global_output = 1;
+		else
+			vd_layer[0].global_output = 0;
+	} else if (index == 1) {
+		if (val != 0)
+			vd_layer[1].global_output = 1;
+		else
+			vd_layer[1].global_output = 0;
 	}
+	pr_info("VID: VD%d set global output as %d\n",
+		index + 1, (val != 0) ? 1 : 0);
 }
 
-static void _set_video_window(
-	struct disp_info_s *layer, int *p)
+u32 video_get_layer_capability(void)
 {
-	int w, h;
-	int *parsed = p;
-	int last_x, last_y, last_w, last_h;
-	int new_x, new_y, new_w, new_h;
-#ifdef TV_REVERSE
-	int temp, temp1;
-	const struct vinfo_s *info = get_current_vinfo();
-#endif
-
-	if (!layer)
-		return;
-
-#ifdef TV_REVERSE
-	if (reverse) {
-		temp = parsed[0];
-		temp1 = parsed[1];
-		parsed[0] = info->width - parsed[2] - 1;
-		parsed[1] = info->height - parsed[3] - 1;
-		parsed[2] = info->width - temp - 1;
-		parsed[3] = info->height - temp1 - 1;
-	}
-#endif
-
-	last_x = layer->layer_left;
-	last_y = layer->layer_top;
-	last_w = layer->layer_width;
-	last_h = layer->layer_height;
-
-	if (parsed[0] < 0 && parsed[2] < 2) {
-		parsed[2] = 2;
-		parsed[0] = 0;
-	}
-	if (parsed[1] < 0 && parsed[3] < 2) {
-		parsed[3] = 2;
-		parsed[1] = 0;
-	}
-	w = parsed[2] - parsed[0] + 1;
-	h = parsed[3] - parsed[1] + 1;
-
-#ifdef CONFIG_AMLOGIC_POST_PROCESS_MANAGER_PPSCALER
-	if (video_scaler_mode) {
-		if ((w == 1) && (h == 1)) {
-			w = 0;
-			h = 0;
-		}
-		if ((content_left != parsed[0]) ||
-		    (content_top != parsed[1]) ||
-		    (content_w != w) ||
-		    (content_h != h))
-			scaler_pos_changed = 1;
-		content_left = parsed[0];
-		content_top = parsed[1];
-		content_w = w;
-		content_h = h;
-		/* video_notify_flag =*/
-		/*video_notify_flag|VIDEO_NOTIFY_POS_CHANGED; */
-	} else
-#endif
-	{
-		if ((w > 0) && (h > 0)) {
-			if ((w == 1) && (h == 1)) {
-				w = 0;
-				h = 0;
-			}
-			layer->layer_left = parsed[0];
-			layer->layer_top = parsed[1];
-			layer->layer_width = w;
-			layer->layer_height = h;
-		}
-	}
-
-	new_x = layer->layer_left;
-	new_y = layer->layer_top;
-	new_w = layer->layer_width;
-	new_h = layer->layer_height;
-
-	if ((last_x != new_x) || (last_y != new_y) ||
-	    (last_w != new_w) || (last_h != new_h)) {
-		if (layer->layer_id == 0)
-			vd_layer[0].property_changed = true;
-		else if (layer->layer_id == 1)
-			vd_layer[1].property_changed = true;
-	}
+	return layer_cap;
 }
+
 #if ENABLE_UPDATE_HDR_FROM_USER
 static void config_hdr_info(const struct vframe_master_display_colour_s p)
 {
@@ -5865,19 +6212,7 @@ static long amvideo_ioctl(struct file *file, unsigned int cmd, ulong arg)
 
 	case AMSTREAM_IOC_GLOBAL_SET_VIDEOPIP_OUTPUT:
 	case AMSTREAM_IOC_GLOBAL_SET_VIDEO_OUTPUT:
-		if (layer->layer_id == 0) {
-			if (arg != 0)
-				vd_layer[0].global_output = 1;
-			else
-				vd_layer[0].global_output = 0;
-		} else if (layer->layer_id == 1) {
-			if (arg != 0)
-				vd_layer[1].global_output = 1;
-			else
-				vd_layer[1].global_output = 0;
-		}
-		pr_info("VID: VD%d set global output as %d\n",
-			layer->layer_id + 1, (arg != 0) ? 1 : 0);
+		video_set_global_output(layer->layer_id, arg ? 1 : 0);
 		break;
 
 	case AMSTREAM_IOC_GLOBAL_GET_VIDEOPIP_OUTPUT:
@@ -7968,7 +8303,7 @@ static ssize_t video_free_keep_buffer_store(struct class *cla,
 	if (val == 1) {
 		if (vd_layer[0].keep_frame_id == 1)
 			try_free_keep_videopip(1);
-		else
+		else if (vd_layer[0].keep_frame_id == 0)
 			try_free_keep_video(1);
 	}
 	return count;
@@ -8356,7 +8691,7 @@ int _videopip_set_disable(u32 val)
 		/* FIXME */
 		if (layer->keep_frame_id == 1)
 			try_free_keep_videopip(0);
-		else
+		else if (vd_layer[0].keep_frame_id == 0)
 			try_free_keep_video(0);
 	} else {
 		if (layer->dispbuf &&
@@ -8711,6 +9046,41 @@ static ssize_t videopip_state_show(
 		curpip_frame_par->VPP_vsc_endp);
 	return len;
 }
+
+s32 set_video_path_select(const char *recv_name, u8 layer_id)
+{
+	u32 new_path_id;
+	struct disp_info_s *layer_info;
+	struct video_layer_s *layer;
+
+	if (!recv_name ||
+	    (layer_id >= MAX_VD_LAYERS))
+		return -1;
+
+	layer_info = &glayer_info[layer_id];
+	layer = &vd_layer[layer_id];
+	new_path_id = layer_info->display_path_id;
+	if (!strcmp(recv_name, "default"))
+		new_path_id = VFM_PATH_DEF;
+	else if (!strcmp(recv_name, RECEIVER_NAME))
+		new_path_id = VFM_PATH_AMVIDEO;
+	else if (!strcmp(recv_name, RECEIVERPIP_NAME))
+		new_path_id = VFM_PATH_PIP;
+	else if (!strcmp(recv_name, "video_render.0"))
+		new_path_id = VFM_PATH_VIDEO_RENDER0;
+	else if (!strcmp(recv_name, "video_render.1"))
+		new_path_id = VFM_PATH_VIDEO_RENDER1;
+	else if (!strcmp(recv_name, "invalid"))
+		new_path_id = VFM_PATH_INVAILD;
+	if (layer_info->display_path_id != new_path_id) {
+		pr_info("VID: store VD%d path_id changed %d->%d\n",
+			layer_id, layer_info->display_path_id, new_path_id);
+		layer_info->display_path_id = new_path_id;
+		layer->property_changed = true;
+	}
+	return 0;
+}
+EXPORT_SYMBOL(set_video_path_select);
 
 static ssize_t path_select_show(
 	struct class *cla,
@@ -9488,11 +9858,16 @@ static int __init video_init(void)
 		dispbuf_to_put[dispbuf_to_put_num] = NULL;
 	}
 #endif
+	gvideo_recv[0] = create_video_receiver(
+		"video_render.0", VFM_PATH_VIDEO_RENDER0);
+	gvideo_recv[1] = create_video_receiver(
+		"video_render.1", VFM_PATH_VIDEO_RENDER1);
 
 	vsync_fiq_up();
 
-	vf_receiver_init(&video_vf_recv, RECEIVER_NAME, &video_vf_receiver,
-			 NULL);
+	vf_receiver_init(
+		&video_vf_recv, RECEIVER_NAME,
+		&video_vf_receiver, NULL);
 	vf_reg_receiver(&video_vf_recv);
 
 	vf_receiver_init(
@@ -9536,6 +9911,13 @@ static void __exit video_exit(void)
 	safe_switch_videolayer(1, false, false);
 
 	vsync_fiq_down();
+
+	if (gvideo_recv[0])
+		destroy_video_receiver(gvideo_recv[0]);
+	gvideo_recv[0] = NULL;
+	if (gvideo_recv[1])
+		destroy_video_receiver(gvideo_recv[1]);
+	gvideo_recv[1] = NULL;
 
 	device_destroy(&amvideo_class, MKDEV(AMVIDEO_MAJOR, 0));
 	device_destroy(&amvideo_poll_class, MKDEV(amvideo_poll_major, 0));

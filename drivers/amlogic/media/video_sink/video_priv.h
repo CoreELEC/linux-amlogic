@@ -44,6 +44,7 @@
 #define DEBUG_FLAG_OMX_DISABLE_DROP_FRAME        0x2000000
 #define DEBUG_FLAG_PRINT_DROP_FRAME        0x4000000
 #define DEBUG_FLAG_OMX_DV_DROP_FRAME        0x8000000
+#define DEBUG_FLAG_COMPOSER_NO_DROP_FRAME     0x10000000
 
 #define VOUT_TYPE_TOP_FIELD 0
 #define VOUT_TYPE_BOT_FIELD 1
@@ -86,6 +87,8 @@ enum vd_path_id {
 	VFM_PATH_DEF = -1,
 	VFM_PATH_AMVIDEO = 0,
 	VFM_PATH_PIP = 1,
+	VFM_PATH_VIDEO_RENDER0 = 2,
+	VFM_PATH_VIDEO_RENDER1 = 3,
 	VFM_PATH_INVAILD = 0xff
 };
 
@@ -272,6 +275,8 @@ u32 get_videopip_enabled(void);
 bool is_di_on(void);
 bool is_di_post_on(void);
 bool is_di_post_link_on(void);
+bool is_di_post_mode(struct vframe_s *vf);
+
 bool is_afbc_enabled(u8 layer_id);
 bool is_local_vf(struct vframe_s *vf);
 
@@ -383,10 +388,15 @@ extern struct vframe_s *cur_dispbuf;
 extern struct vframe_s *cur_pipbuf;
 extern bool need_disable_vd2;
 extern u32 last_el_status;
+extern u32 force_blackout;
+extern atomic_t video_unreg_flag;
+extern atomic_t video_inirq_flag;
+extern struct video_recv_s *gvideo_recv[2];
 
 bool black_threshold_check(u8 id);
 void update_cur_dispbuf(void *buf);
 struct vframe_s *get_cur_dispbuf(void);
+s32 set_video_path_select(const char *recv_name, u8 layer_id);
 
 /*for video related files only.*/
 void video_module_lock(void);

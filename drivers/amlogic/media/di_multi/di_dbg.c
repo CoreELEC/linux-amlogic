@@ -1010,6 +1010,40 @@ static ssize_t wcfgx_store(struct file *file, const char __user *userbuf,
 	return count;
 }
 
+/***********************************************
+ *
+ ***********************************************/
+ssize_t keep_buf_clear_store(struct file *file, const char __user *userbuf,
+			     size_t count, loff_t *ppos)
+{
+	char buf[20];
+	int ret;
+
+	unsigned int ch;
+
+	count = min_t(size_t, count, (sizeof(buf) - 1));
+	if (copy_from_user(buf, userbuf, count))
+		return -EFAULT;
+
+	buf[count] = 0;
+	/*reg, bit, width, val*/
+
+	ret = kstrtouint(buf, 0, &ch);
+	if (ret) {
+		pr_info("war:please enter ch\n");
+		return 0;
+	}
+	pr_info("ch:%d", ch);
+
+	if (ch >= DI_CHANNEL_NUB) {
+		PR_ERR("%s:ch is overflow %d\n", __func__, ch);
+		return 0;
+	}
+
+	dim_dbg_release_keep_all(ch);
+
+	return count;
+}
 /***************************************************************
  * parameter show and store for top : DI
  **************************************************************/
@@ -1519,6 +1553,7 @@ DEFINE_STORE_ONLY(mpw_nr);
 DEFINE_STORE_ONLY(mpw_pd);
 DEFINE_STORE_ONLY(mpw_mtn);
 DEFINE_STORE_ONLY(buf_cnt);
+DEFINE_STORE_ONLY(keep_buf_clear);
 
 DEFINE_SHOW_STORE(reg);
 
@@ -1550,6 +1585,7 @@ static const struct di_dbgfs_files_t di_debugfs_files_top[] = {
 	{"mr_mtn", S_IFREG | 0644, &mpr_mtn_fops},
 	{"mw_mtn", S_IFREG | 0644, &mpw_mtn_fops},
 	{"buf_cnt", S_IFREG | 0644, &buf_cnt_fops},
+	{"keep_clear", S_IFREG | 0644, &keep_buf_clear_fops},
 };
 
 static const struct di_dbgfs_files_t di_debugfs_files[] = {

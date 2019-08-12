@@ -84,7 +84,13 @@
 #define VFRAME_FLAG_ERROR_RECOVERY		8
 #define VFRAME_FLAG_SYNCFRAME			0x10
 #define VFRAME_FLAG_GAME_MODE		0x20
+#define VFRAME_FLAG_VIDEO_COMPOSER     0x40
+#define VFRAME_FLAG_VIDEO_COMPOSER_BYPASS     0x80
+#define VFRAME_FLAG_COMPOSER_DONE     0x100
+#define VFRAME_FLAG_VIDEO_COMPOSER_DMA     0x200
+#define VFRAME_FLAG_VIDEO_LINEAR     0x400
 #define VFRAME_FLAG_EMPTY_FRAME_V4L		0x800
+#define VFRAME_FLAG_FAKE_FRAME		0x1000
 
 enum pixel_aspect_ratio_e {
 	PIXEL_ASPECT_RATIO_1_1,
@@ -405,6 +411,7 @@ struct vframe_s {
 	long long ready_clock[5];/*ns*/
 	long long ready_clock_hist[2];/*ns*/
 	atomic_t use_cnt;
+	atomic_t use_cnt_pip;
 	u32 frame_dirty;
 	/*
 	 *prog_proc_config:
@@ -428,6 +435,7 @@ struct vframe_s {
 
 	u32 sar_width;
 	u32 sar_height;
+
 	/*****************
 	 * di pulldown info
 	 * bit 3: interlace
@@ -437,6 +445,12 @@ struct vframe_s {
 	 *****************/
 	u32 di_pulldown;
 	u32 di_gmv;
+	u32 axis[4];
+	u32 crop[4];
+	u32 zorder;
+	u32 repeat_count[2];
+	struct file *file_vf;
+	bool rendered;
 } /*vframe_t */;
 
 #if 0

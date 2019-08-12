@@ -900,7 +900,6 @@ int dim_state_show(struct seq_file *seq, void *v, unsigned int channel)
 	unsigned int psize; /*new que*/
 	struct di_hpre_s  *pre = get_hw_pre();
 	struct di_hpst_s *post = get_hw_pst();
-	struct di_buf_s *keep_buf_post = NULL;
 	char *splt = "---------------------------";
 	struct di_mm_s *mm = dim_mm_get();	/*mm-0705*/
 
@@ -933,17 +932,7 @@ int dim_state_show(struct seq_file *seq, void *v, unsigned int channel)
 				   IS_ERR_OR_NULL(p) ? -1 : p->index, p);
 		}
 	}
-	/********************************/
-	/* check keep buf post		*/
-	/********************************/
-	keep_buf_post = di_post_stru_p->keep_buf_post;
 
-	if (IS_ERR_OR_NULL(keep_buf_post))
-		seq_printf(seq, "%s:NULL\n", "keep_buf_post");
-	else
-		seq_printf(seq, "%s:type=%d:index=%d\n",
-			   "keep_buf_post",
-			   keep_buf_post->type, keep_buf_post->index);
 	/********************************/
 	/* in_free_list			*/
 	/********************************/
@@ -1056,8 +1045,33 @@ int dim_state_show(struct seq_file *seq, void *v, unsigned int channel)
 	di_que_list(channel, QUE_POST_BACK, &tmpa[0], &psize); /*new que*/
 	seq_printf(seq, "post_back: curr(%d)\n", psize);
 
-	for (itmp = 0; itmp < psize; itmp++) {			/*new que*/
-		seq_printf(seq, "%d\n", tmpa[itmp]);
+	for (itmp = 0; itmp < psize; itmp++) {
+		p = pw_qindex_2_buf(channel, tmpa[itmp]);
+		seq_printf(seq, "\ttype[%d],index[%d]\n", p->type, p->index);
+	}
+	seq_printf(seq, "%s\n", splt);
+
+	/********************************/
+	/* post keep			*/
+	/********************************/
+	di_que_list(channel, QUE_POST_KEEP, &tmpa[0], &psize);
+	seq_printf(seq, "post_keep: curr(%d)\n", psize);
+
+	for (itmp = 0; itmp < psize; itmp++) {
+		p = pw_qindex_2_buf(channel, tmpa[itmp]);
+		seq_printf(seq, "\ttype[%d],index[%d]\n", p->type, p->index);
+	}
+	seq_printf(seq, "%s\n", splt);
+
+	/********************************
+	 * post keep back
+	 ********************************/
+	di_que_list(channel, QUE_POST_KEEP_BACK, &tmpa[0], &psize);
+	seq_printf(seq, "post_keep_back: curr(%d)\n", psize);
+
+	for (itmp = 0; itmp < psize; itmp++) {
+		p = pw_qindex_2_buf(channel, tmpa[itmp]);
+		seq_printf(seq, "\ttype[%d],index[%d]\n", p->type, p->index);
 	}
 	seq_printf(seq, "%s\n", splt);
 

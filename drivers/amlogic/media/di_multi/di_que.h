@@ -37,6 +37,7 @@ bool pw_queue_in(unsigned int ch, enum QUE_TYPE qtype,
 bool pw_queue_out(unsigned int ch, enum QUE_TYPE qtype,
 		  unsigned int *buf_index);
 bool pw_queue_empty(unsigned int ch, enum QUE_TYPE qtype);
+void pw_queue_clear(unsigned int ch, enum QUE_TYPE qtype);
 
 /******************************************/
 /*new api*/
@@ -60,6 +61,9 @@ bool di_que_out(unsigned int ch, enum QUE_TYPE qtype,
 
 struct di_buf_s *di_que_out_to_di_buf(unsigned int ch,
 				      enum QUE_TYPE qtype);
+bool di_que_out_not_fifo(unsigned int ch, enum QUE_TYPE qtype,
+			 struct di_buf_s *di_buf);
+
 bool di_que_in(unsigned int ch, enum QUE_TYPE qtype,
 	       struct di_buf_s *di_buf);
 bool di_que_is_in_que(unsigned int ch, enum QUE_TYPE qtype,

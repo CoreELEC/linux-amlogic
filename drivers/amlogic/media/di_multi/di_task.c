@@ -96,6 +96,10 @@ void task_polling_cmd(void)
 	for (i = 0; i < MAX_KFIFO_L_CMD_NUB; i++) {
 		if (!task_get_cmd(&cmdbyte.cmd32))
 			break;
+		if (cmdbyte.b.id == ECMD_RL_KEEP) {
+			dim_post_keep_cmd_proc(cmdbyte.b.ch, cmdbyte.b.p2);
+			continue;
+		}
 		dip_chst_process_reg(cmdbyte.b.ch);
 	}
 }

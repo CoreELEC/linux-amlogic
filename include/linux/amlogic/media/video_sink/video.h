@@ -260,4 +260,14 @@ void DI_POST_UPDATE_MC(void);
 
 extern void videosync_pcrscr_update(s32 inc, u32 base);
 void vsync_notify_videosync(void);
+void vsync_notify_video_composer(void);
+int _video_set_disable(u32 val);
+int _videopip_set_disable(u32 val);
+void video_set_global_output(u32 index, u32 val);
+u32 video_get_layer_capability(void);
+void set_video_crop_ext(int layer_index, int *p);
+void set_video_window_ext(int layer_index, int *p);
+void set_video_zorder_ext(int layer_index, int zorder);
+s32 set_video_path_select(const char *recv_name, u8 layer_id);
+
 #endif /* VIDEO_H */

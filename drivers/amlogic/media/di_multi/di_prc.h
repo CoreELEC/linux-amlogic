@@ -48,9 +48,9 @@ void dip_hw_process(void);
 void dip_chst_process_ch(void);
 bool dip_chst_change_2unreg(void);
 
-enum eDI_TOP_STATE dip_chst_get(unsigned int ch);
+enum EDI_TOP_STATE dip_chst_get(unsigned int ch);
 const char *dip_chst_get_name_curr(unsigned int ch);
-const char *dip_chst_get_name(enum eDI_TOP_STATE chst);
+const char *dip_chst_get_name(enum EDI_TOP_STATE chst);
 
 /**************************************
  *

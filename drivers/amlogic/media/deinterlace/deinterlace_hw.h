@@ -189,6 +189,7 @@ void di_top_gate_control(bool top_en, bool mc_en);
 void di_pre_gate_control(bool enable, bool mc_enable);
 void di_post_gate_control(bool gate);
 void diwr_set_power_control(unsigned char enable);
+void diwr_set_power_control_pst(unsigned char enable);
 void di_hw_disable(bool mc_enable);
 void enable_di_pre_mif(bool enable, bool mc_enable);
 void enable_di_post_mif(enum gate_mode_e mode);
