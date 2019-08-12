@@ -13,6 +13,7 @@
 
 &usb3_phy_v2 {
 	otg = <0>;
+	portnum = <1>;
 };
 
 &i2c3 {
