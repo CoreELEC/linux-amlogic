@@ -143,6 +143,10 @@ static int rtl8211f_config_init(struct phy_device *phydev)
 	/* config mac address for wol*/
 	if ((phydev->attached_dev) && (support_external_phy_wol)) {
 		mac_addr = phydev->attached_dev->dev_addr;
+
+		pr_info("set mac for wol = %02x:%02x:%02x:%02x:%02x:%02x\n",
+			mac_addr[0], mac_addr[1], mac_addr[2], mac_addr[3], mac_addr[4], mac_addr[5]);
+
 		phy_write(phydev, RTL8211F_PAGE_SELECT, 0xd8c);
 		phy_write(phydev, 0x10, mac_addr[0] | (mac_addr[1] << 8));
 		phy_write(phydev, 0x11, mac_addr[2] | (mac_addr[3] << 8));
@@ -200,7 +204,7 @@ int rtl8211f_suspend(struct phy_device *phydev)
 		phy_write(phydev, 0x11, 0x9fff);
 		/*pad isolation*/
 		value = phy_read(phydev, 0x13);
-		phy_write(phydev, 0x13, value | (0x1 << 15));
+		phy_write(phydev, 0x13, value | (0x1 << 12));
 		/*pin 31 pull high*/
 		phy_write(phydev, RTL8211F_PAGE_SELECT, 0xd40);
 		value = phy_read(phydev, 0x16);
