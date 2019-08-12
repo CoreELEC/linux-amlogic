@@ -785,7 +785,7 @@
 		compatible = "amlogic, unifykey";
 		status = "okay";
 
-		unifykey-num = <21>;
+		unifykey-num = <22>;
 		unifykey-index-0 = <&keysn_0>;
 		unifykey-index-1 = <&keysn_1>;
 		unifykey-index-2 = <&keysn_2>;
@@ -807,6 +807,7 @@
 		unifykey-index-18 = <&keysn_18>;
 		unifykey-index-19 = <&keysn_19>;
 		unifykey-index-20 = <&keysn_20>;
+		unifykey-index-21 = <&keysn_21>;
 
 		keysn_0: key_0{
 			key-name = "usid";
@@ -916,6 +917,11 @@
 		keysn_20:key_20{
 			key-name = "hdcp22_rp_private";
 			key-device = "secure";
+			key-permit = "read","write","del";
+		};
+		keysn_21:key_21{
+			key-name = "oemkey";
+			key-device = "normal";
 			key-permit = "read","write","del";
 		};
 	}; /* End unifykey */
