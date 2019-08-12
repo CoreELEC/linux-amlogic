@@ -4428,6 +4428,7 @@ u32 vdin_get_curr_field_type(struct vdin_dev_s *devp)
 	} else {
 		field_status = vdin_get_field_type(devp->addr_offset);
 		/*tvafe FIELD POLARITY 0 TOP,vdin must invert for correct*/
+
 		if (invert_top_bot ||
 			(devp->parm.port >= TVIN_PORT_CVBS0 &&
 			devp->parm.port <= TVIN_PORT_CVBS3))
@@ -4436,7 +4437,20 @@ u32 vdin_get_curr_field_type(struct vdin_dev_s *devp)
 		else
 			type |= field_status ?
 			VIDTYPE_INTERLACE_BOTTOM : VIDTYPE_INTERLACE_TOP;
+
+		/*md2 get pre field sts, need invert for cur*/
+		if ((devp->game_mode & VDIN_GAME_MODE_2) == VDIN_GAME_MODE_2) {
+			if ((type & VIDTYPE_INTERLACE_BOTTOM) ==
+				VIDTYPE_INTERLACE_TOP) {
+				type |= VIDTYPE_INTERLACE_BOTTOM;
+			} else if ((type & VIDTYPE_INTERLACE_BOTTOM) ==
+				VIDTYPE_INTERLACE_BOTTOM) {
+				type &= ~VIDTYPE_INTERLACE_BOTTOM;
+				type |= VIDTYPE_INTERLACE_TOP;
+			}
+		}
 	}
+
 	format_convert = devp->format_convert;
 	if ((format_convert == VDIN_FORMAT_CONVERT_YUV_YUV444) ||
 			(format_convert == VDIN_FORMAT_CONVERT_RGB_YUV444)) {
