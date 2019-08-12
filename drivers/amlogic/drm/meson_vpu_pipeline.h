@@ -205,7 +205,8 @@ struct meson_vpu_osd_state {
 
 struct meson_vpu_afbc {
 	struct meson_vpu_block base;
-
+	struct afbc_osd_reg_s *afbc_regs;
+	struct afbc_status_reg_s *status_regs;
 };
 
 struct meson_vpu_afbc_state {
@@ -213,7 +214,6 @@ struct meson_vpu_afbc_state {
 
 	u32 format;
 	u32 inter_format;
-	union afbc_osd_reg regs;
 };
 
 struct meson_vpu_scaler {

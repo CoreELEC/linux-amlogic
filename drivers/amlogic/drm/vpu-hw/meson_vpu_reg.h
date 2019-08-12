@@ -1243,67 +1243,27 @@
 
 /* reg definition */
 
-struct afbc_osd1_reg {
-	u32 vpu_mafbc_header_buf_addr_low_s0;
-	u32 vpu_mafbc_header_buf_addr_high_s0;
-	u32 vpu_mafbc_format_specifier_s0;
-	u32 vpu_mafbc_buffer_width_s0;
-	u32 vpu_mafbc_buffer_height_s0;
-	u32 vpu_mafbc_bounding_box_x_start_s0;
-	u32 vpu_mafbc_bounding_box_x_end_s0;
-	u32 vpu_mafbc_bounding_box_y_start_s0;
-	u32 vpu_mafbc_bounding_box_y_end_s0;
-	u32 vpu_mafbc_output_buf_addr_low_s0;
-	u32 vpu_mafbc_output_buf_addr_high_s0;
-	u32 vpu_mafbc_output_buf_stride_s0;
-	u32 vpu_mafbc_prefetch_cfg_s0;
-	u32 vpu_mafbc_payload_min_low_s0;
-	u32 vpu_mafbc_payload_min_high_s0;
-	u32 vpu_mafbc_payload_max_low_s0;
-	u32 vpu_mafbc_payload_max_high_s0;
+struct afbc_osd_reg_s {
+	u32 vpu_mafbc_header_buf_addr_low_s;
+	u32 vpu_mafbc_header_buf_addr_high_s;
+	u32 vpu_mafbc_format_specifier_s;
+	u32 vpu_mafbc_buffer_width_s;
+	u32 vpu_mafbc_buffer_height_s;
+	u32 vpu_mafbc_bounding_box_x_start_s;
+	u32 vpu_mafbc_bounding_box_x_end_s;
+	u32 vpu_mafbc_bounding_box_y_start_s;
+	u32 vpu_mafbc_bounding_box_y_end_s;
+	u32 vpu_mafbc_output_buf_addr_low_s;
+	u32 vpu_mafbc_output_buf_addr_high_s;
+	u32 vpu_mafbc_output_buf_stride_s;
+	u32 vpu_mafbc_prefetch_cfg_s;
+	u32 vpu_mafbc_payload_min_low_s;
+	u32 vpu_mafbc_payload_min_high_s;
+	u32 vpu_mafbc_payload_max_low_s;
+	u32 vpu_mafbc_payload_max_high_s;
 };
 
-struct afbc_osd2_reg {
-	u32 vpu_mafbc_header_buf_addr_low_s1;
-	u32 vpu_mafbc_header_buf_addr_high_s1;
-	u32 vpu_mafbc_format_specifier_s1;
-	u32 vpu_mafbc_buffer_width_s1;
-	u32 vpu_mafbc_buffer_height_s1;
-	u32 vpu_mafbc_bounding_box_x_start_s1;
-	u32 vpu_mafbc_bounding_box_x_end_s1;
-	u32 vpu_mafbc_bounding_box_y_start_s1;
-	u32 vpu_mafbc_bounding_box_y_end_s1;
-	u32 vpu_mafbc_output_buf_addr_low_s1;
-	u32 vpu_mafbc_output_buf_addr_high_s1;
-	u32 vpu_mafbc_output_buf_stride_s1;
-	u32 vpu_mafbc_prefetch_cfg_s1;
-	u32 vpu_mafbc_payload_min_low_s1;
-	u32 vpu_mafbc_payload_min_high_s1;
-	u32 vpu_mafbc_payload_max_low_s1;
-	u32 vpu_mafbc_payload_max_high_s1;
-};
-
-struct afbc_osd3_reg {
-	u32 vpu_mafbc_header_buf_addr_low_s2;
-	u32 vpu_mafbc_header_buf_addr_high_s2;
-	u32 vpu_mafbc_format_specifier_s2;
-	u32 vpu_mafbc_buffer_width_s2;
-	u32 vpu_mafbc_buffer_height_s2;
-	u32 vpu_mafbc_bounding_box_x_start_s2;
-	u32 vpu_mafbc_bounding_box_x_end_s2;
-	u32 vpu_mafbc_bounding_box_y_start_s2;
-	u32 vpu_mafbc_bounding_box_y_end_s2;
-	u32 vpu_mafbc_output_buf_addr_low_s2;
-	u32 vpu_mafbc_output_buf_addr_high_s2;
-	u32 vpu_mafbc_output_buf_stride_s2;
-	u32 vpu_mafbc_prefetch_cfg_s2;
-	u32 vpu_mafbc_payload_min_low_s2;
-	u32 vpu_mafbc_payload_min_high_s2;
-	u32 vpu_mafbc_payload_max_low_s2;
-	u32 vpu_mafbc_payload_max_high_s2;
-};
-
-struct afbc_status_reg {
+struct afbc_status_reg_s {
 	u32 vpu_mafbc_block_id;
 	u32 vpu_mafbc_irq_raw_status;
 	u32 vpu_mafbc_irq_clear;
@@ -1312,12 +1272,6 @@ struct afbc_status_reg {
 	u32 vpu_mafbc_command;
 	u32 vpu_mafbc_status;
 	u32 vpu_mafbc_surface_cfg;
-};
-
-union afbc_osd_reg {
-	struct afbc_osd1_reg afbc_osd1;
-	struct afbc_osd2_reg afbc_osd2;
-	struct afbc_osd3_reg afbc_osd3;
 };
 
 #endif

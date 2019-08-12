@@ -150,4 +150,6 @@ struct meson_drm_format_info {
 	u8 hw_colormat;
 	u8 alpha_replace;
 };
+
+const struct meson_drm_format_info *meson_drm_format_info(u32 format);
 #endif
