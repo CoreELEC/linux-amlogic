@@ -4275,6 +4275,7 @@ static void r8152b_get_version(struct r8152 *tp)
 		tp->mii.supports_gmii = 1;
 		break;
 	case 0x5c30:
+	case 0x6010:
 		tp->version = RTL_VER_06;
 		tp->mii.supports_gmii = 1;
 		break;
