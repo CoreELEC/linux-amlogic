@@ -1190,6 +1190,29 @@
 		};
 	};
 
+	spicc_a: spicc@ffd13000 {
+		compatible = "amlogic, spicc";
+		status = "disabled";
+		device_id = <0>;
+		reg = <0x0 0xffd13000 0x0 0x3c>;
+		clocks = <&clkc CLKID_SPICC0>,
+			<&clkc CLKID_SPICC0_COMP>;
+		clock-names = "cts_spicc_hclk", "spicc_clk";
+		clk_rate = <400000000>;
+		//interrupts = <0 81 1>;
+		enhance = <1>;
+		dma_tx_threshold = <3>;
+		dma_rx_threshold = <3>;
+		dma_num_per_read_burst = <3>;
+		dma_num_per_write_burst = <3>;
+		ssctl = <0>;
+		dma_en = <0>;
+		delay_control = <0x15>;
+		cs_delay = <10>;
+		enhance_dlyctl = <0>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+	};
 
 	spifc: spifc@ffd14000 {
 		compatible = "amlogic,aml-spi-nor";
@@ -2023,7 +2046,7 @@
 				 "spi0_miso_h",
 				 "spi0_clk_h";
 			function = "spi0";
-			drive-strength = <1>;
+			drive-strength = <3>;
 		};
 	};
 

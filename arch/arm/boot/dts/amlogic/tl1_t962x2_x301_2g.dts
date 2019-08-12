@@ -40,7 +40,7 @@
 		i2c2 = &i2c2;
 		i2c3 = &i2c3;
 		i2c4 = &i2c_AO;
-		spi0 = &spicc0;
+		spi0 = &spicc_a;
 		spi1 = &spicc1;
 	};
 
@@ -2093,10 +2093,22 @@
 };
 
 &spicc0 {
-	status = "okay";
+	status = "disabled";
 	pinctrl-names = "default";
 	pinctrl-0 = <&spicc0_pins_h>;
 	cs-gpios = <&gpio GPIOH_20 0>;
+};
+
+&spicc_a {
+	status = "okay";
+	pinctrl-names= "default";
+	pinctrl-0=<&spicc0_pins_h>;
+	cs-gpios = <&gpio GPIOH_20 GPIO_ACTIVE_HIGH>;
+	spi-nor@0 {
+		compatible = "jedec,spi-nor";
+		status = "okay";
+		frequency = <40000000>;
+	};
 };
 
 &meson_fb {
