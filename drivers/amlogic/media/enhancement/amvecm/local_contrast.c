@@ -76,6 +76,7 @@ unsigned int lc_hist_he;
 int *lc_szcurve;/*12*8*6+4*/
 int *curve_nodes_cur;
 static int *curve_nodes_pre;
+static int64_t *curve_nodes_pre_raw;
 int *lc_hist;/*12*8*17*/
 static bool lc_malloc_ok;
 /*print one or more frame data*/
@@ -542,6 +543,7 @@ static void lc_disable(void)
 	memset(lc_szcurve, 0, LC_CURV_SIZE * sizeof(int));
 	memset(curve_nodes_cur, 0, LC_CURV_SIZE * sizeof(int));
 	memset(curve_nodes_pre, 0, LC_CURV_SIZE * sizeof(int));
+	memset(curve_nodes_pre_raw, 0, LC_CURV_SIZE * sizeof(int64_t));
 	lc_en_chflg = 0x0;
 }
 
@@ -696,7 +698,8 @@ static void tune_nodes_patch(int *omap, int *ihistogram, int reg_lmtrat_sigbin)
 	if (amlc_debug == 0xc)
 		pr_info("yminV_org=%d yminV=%d ymaxV_org=%d ymaxV=%d\n",
 			yminV_org, yminV, ymaxV_org, ymaxV);
-	omap[5] = ypkBV;
+	/* disable single peak patch, will handle it by tunning */
+	/* omap[5] = ypkBV; */
 	if (amlc_debug == 0xc) {
 		pr_info("ypkBV_org=%d ypkBV=%d\n", ypkBV_org, ypkBV);
 		amlc_debug = 0x0;
@@ -1171,9 +1174,9 @@ int cal_curv_iir(int *curve_nodes_cur,
 				int refresh)
 {
 	int i, j, k;
-	int tmap[CURV_NODES];
+	int64_t tmap[CURV_NODES], node_pre_raw;
 	int addr_curv1, addr_curv2;
-	int node_cur, node_pre;
+	int node_cur;
 
 	for (i = 0; i < blk_vnum; i++) {
 		for (j = 0; j < blk_hnum; j++) {
@@ -1183,19 +1186,23 @@ int cal_curv_iir(int *curve_nodes_cur,
 					(i * blk_hnum + j) * CURV_NODES + k;
 				node_cur =/*u12 calc*/
 					(curve_nodes_cur[addr_curv2] << 2);
-				node_pre = (curve_nodes_pre[addr_curv2] << 2);
+				node_pre_raw =
+					curve_nodes_pre_raw[addr_curv2];
 				tmap[k] =
-					(node_cur * refresh_alpha[addr_curv1]
-					+ node_pre *
+					(node_cur * refresh_alpha[addr_curv1])
+					+ ((node_pre_raw *
 					(refresh - refresh_alpha[addr_curv1]) +
-					(1 << (refresh_bit - 1))) >>
-					refresh_bit;
+					(1 << (refresh_bit - 1)))
+						>> refresh_bit);
+				curve_nodes_pre_raw[addr_curv2] =
+					tmap[k];
+				tmap[k] = (tmap[k] >> refresh_bit);
 				/*output the iir result*/
 				curve_nodes_cur[addr_curv2] =
-					(tmap[k] >> 2);/*back to u10*/
+					(int)(tmap[k] >> 2);/*back to u10*/
 				/*delay for next iir*/
 				curve_nodes_pre[addr_curv2] =
-					(tmap[k] >> 2);
+					(int)(tmap[k] >> 2);
 			}
 		}
 	}
@@ -1432,6 +1439,16 @@ void lc_init(int bitdepth)
 		kfree(curve_nodes_pre);
 		return;
 	}
+	curve_nodes_pre_raw = kcalloc(LC_CURV_SIZE,
+					sizeof(int64_t),
+					GFP_KERNEL);
+	if (!curve_nodes_pre_raw) {
+		kfree(lc_szcurve);
+		kfree(curve_nodes_cur);
+		kfree(curve_nodes_pre);
+		kfree(lc_hist);
+		return;
+	}
 	lc_malloc_ok = 1;
 	if (!lc_en)
 		return;
@@ -1540,6 +1557,7 @@ void lc_free(void)
 	kfree(lc_szcurve);
 	kfree(curve_nodes_cur);
 	kfree(curve_nodes_pre);
+	kfree(curve_nodes_pre_raw);
 	kfree(lc_hist);
 	lc_malloc_ok = 0;
 }
