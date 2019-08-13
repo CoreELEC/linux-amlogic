@@ -1121,7 +1121,8 @@ static enum v4l2_search atvdemod_fe_search(struct v4l2_frontend *v4l2_fe)
 			!fe->ops.tuner_ops.get_status ||
 			!fe->ops.analog_ops.has_signal ||
 			!fe->ops.analog_ops.set_params ||
-			!fe->ops.analog_ops.set_config)) {
+			!fe->ops.analog_ops.set_config ||
+			!aml_fe_hook_set_mode || !aml_fe_hook_set_mode)) {
 		pr_err("[%s] error: NULL function or pointer.\n", __func__);
 		return V4L2_SEARCH_INVALID;
 	}
@@ -1135,6 +1136,7 @@ static enum v4l2_search atvdemod_fe_search(struct v4l2_frontend *v4l2_fe)
 	if (p->afc_range == 0) {
 		pr_err("[%s] afc_range == 0, skip the search\n", __func__);
 		aml_fe_hook_set_mode(0);
+
 		return V4L2_SEARCH_INVALID;
 	} else {
 		aml_fe_hook_set_mode(1);
