@@ -1263,7 +1263,7 @@
 	sd_emmc_b: sdio@ffe05000 {
 		status = "okay";
 		compatible = "amlogic, meson-mmc-tm2";
-		reg = <0x0 0xffe05000 0x0 0x800>;
+		reg = <0xffe05000 0x800>;
 		interrupts = <0 190 4>;
 
 		pinctrl-names = "sdio_all_pins",
