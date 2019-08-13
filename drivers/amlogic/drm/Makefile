@@ -21,6 +21,7 @@ endif
 
 meson-drm-y += meson_drv.o meson_plane.o meson_vpu_pipeline_traverse.o \
                 meson_crtc.o meson_vpu_pipeline.o meson_vpu_pipeline_private.o \
+		meson_debugfs.o	meson_vpu_util.o \
 
 meson-drm-y += \
                 vpu-hw/meson_vpu_osd_mif.o \

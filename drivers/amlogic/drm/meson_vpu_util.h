@@ -22,8 +22,8 @@
 #include <linux/amlogic/media/canvas/canvas.h>
 #include <linux/amlogic/media/canvas/canvas_mgr.h>
 #include <linux/amlogic/media/vpu/vpu.h>
+#include <linux/amlogic/iomap.h>
 #include "osd_rdma.h"
-#include "osd.h"
 
 /*osd internal channel*/
 enum din_channel_e {
@@ -46,17 +46,11 @@ int meson_util_rdma_write_reg_bits(u32 addr, u32 val, u32 start, u32 len);
 int meson_util_rdma_set_reg_mask(u32 addr, u32 mask);
 int meson_util_rdma_clr_reg_mask(u32 addr, u32 mask);
 int meson_util_rdma_irq_write_reg(u32 addr, u32 val);
+u32 meson_drm_read_reg(u32 addr);
 
 void meson_util_canvas_config(u32 index, unsigned long addr, u32 width,
 					u32 height, u32 wrap, u32 blkmode);
 int meson_util_canvas_pool_alloc_table(const char *owner, u32 *table, int size,
 					enum canvas_map_type_e type);
-
-unsigned int meson_util_vpu_get_clk(void);
-unsigned int meson_util_vpu_get_hwblk_clk(unsigned int vmode);
-void meson_util_vpu_set_hwblk_pd(unsigned int vmode, int flag);
-int meson_util_vpu_get_hwblk_pd(unsigned int vmode);
-
-extern const struct color_bit_define_s default_color_format_array_1[];
 
 #endif

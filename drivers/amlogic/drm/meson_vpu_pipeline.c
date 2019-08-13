@@ -275,6 +275,8 @@ static int populate_vpu_pipeline(struct device_node *vpu_block_node,
 			return -ENOMEM;
 		vpu_blocks[mvb->id] = mvb;
 	}
+	pipeline->mvbs = vpu_blocks;
+	pipeline->num_blocks = num_blocks;
 
 	populate_block_link();
 

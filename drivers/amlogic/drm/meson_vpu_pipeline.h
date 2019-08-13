@@ -98,6 +98,8 @@ struct meson_vpu_block_ops {
 		struct meson_vpu_block_state *state);
 	void (*enable)(struct meson_vpu_block *vblk);
 	void (*disable)(struct meson_vpu_block *vblk);
+	void (*dump_register)(struct meson_vpu_block *vblk,
+			struct seq_file *seq);
 	void (*init)(struct meson_vpu_block *vblk);
 };
 
@@ -166,6 +168,7 @@ struct meson_vpu_osd_layer_info {
 	u32 ratio_x;/*input_w/output_w*/
 	u32 afbc_inter_format;
 	u32 afbc_en;
+	u32 fb_size;
 };
 
 struct meson_vpu_osd {
@@ -201,6 +204,7 @@ struct meson_vpu_osd_state {
 	int s_mode;
 	int r_mode;
 	u32 plane_index;
+	u32 fb_size;
 };
 
 struct meson_vpu_afbc {
@@ -339,6 +343,10 @@ struct meson_vpu_pipeline {
 	u32 num_afbc_osds;
 	u32 num_scalers;
 	u8 osd_version;
+
+	struct drm_crtc *crtc;
+	struct meson_vpu_block **mvbs;
+	int num_blocks;
 };
 
 struct meson_vpu_common_state {

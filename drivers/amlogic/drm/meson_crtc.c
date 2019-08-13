@@ -19,6 +19,8 @@
 #include "meson_vpu_pipeline.h"
 #include "osd_drm.h"
 
+#define OSD_DUMP_PATH		"/tmp/osd_dump/"
+
 static int meson_crtc_set_mode(struct drm_mode_set *set)
 {
 	struct am_meson_crtc *amcrtc;
@@ -263,8 +265,11 @@ int am_meson_crtc_create(struct am_meson_crtc *amcrtc)
 	#endif
 
 	amcrtc->pipeline = pipeline;
+	pipeline->crtc = crtc;
+	strcpy(amcrtc->osddump_path, OSD_DUMP_PATH);
 	priv->crtc = crtc;
 	priv->crtcs[priv->num_crtcs++] = amcrtc;
+
 	return 0;
 }
 

@@ -159,7 +159,10 @@ static struct drm_driver meson_driver = {
 	.enable_vblank		= am_meson_enable_vblank,
 	.disable_vblank		= am_meson_disable_vblank,
 	.get_vblank_counter	= drm_vblank_no_hw_counter,
-
+#ifdef CONFIG_DEBUG_FS
+	.debugfs_init = meson_debugfs_init,
+	.debugfs_cleanup = meson_debugfs_cleanup,
+#endif
 #ifdef CONFIG_DRM_MESON_USE_ION
 	/* PRIME Ops */
 	.prime_handle_to_fd	= drm_gem_prime_handle_to_fd,

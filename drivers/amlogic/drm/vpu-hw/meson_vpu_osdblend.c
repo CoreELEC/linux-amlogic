@@ -502,6 +502,71 @@ static void osdblend_hw_disable(struct meson_vpu_block *vblk)
 	DRM_DEBUG("%s disable called.\n", osdblend->base.name);
 }
 
+static void osdblend_dump_register(struct meson_vpu_block *vblk,
+				struct seq_file *seq)
+{
+	u32 value;
+	struct meson_vpu_osdblend *osdblend;
+	struct osdblend_reg_s *reg;
+
+	osdblend = to_osdblend_block(vblk);
+	reg = osdblend->reg;
+
+	value = meson_drm_read_reg(reg->viu_osd_blend_ctrl);
+	seq_printf(seq, "%-35s\t\t0x%08X\n", "VIU_OSD_BLEND_CTRL:",  value);
+
+	value = meson_drm_read_reg(reg->viu_osd_blend_din0_scope_h);
+	seq_printf(seq, "%-35s\t\t0x%08X\n", "VIU_OSD_BLEND_DIN0_SCOPE_H:",
+			value);
+
+	value = meson_drm_read_reg(reg->viu_osd_blend_din0_scope_v);
+	seq_printf(seq, "%-35s\t\t0x%08X\n", "VIU_OSD_BLEND_DIN0_SCOPE_V:",
+			value);
+
+	value = meson_drm_read_reg(reg->viu_osd_blend_din1_scope_h);
+	seq_printf(seq, "%-35s\t\t0x%08X\n", "VIU_OSD_BLEND_DIN1_SCOPE_H:",
+			value);
+
+	value = meson_drm_read_reg(reg->viu_osd_blend_din1_scope_v);
+	seq_printf(seq, "%-35s\t\t0x%08X\n", "VIU_OSD_BLEND_DIN1_SCOPE_V:",
+			value);
+
+	value = meson_drm_read_reg(reg->viu_osd_blend_din2_scope_h);
+	seq_printf(seq, "%-35s\t\t0x%08X\n", "VIU_OSD_BLEND_DIN2_SCOPE_H:",
+			value);
+
+	value = meson_drm_read_reg(reg->viu_osd_blend_din2_scope_v);
+	seq_printf(seq, "%-35s\t\t0x%08X\n", "VIU_OSD_BLEND_DIN2_SCOPE_V:",
+			value);
+
+	value = meson_drm_read_reg(reg->viu_osd_blend_din3_scope_h);
+	seq_printf(seq, "%-35s\t\t0x%08X\n", "VIU_OSD_BLEND_DIN3_SCOPE_H:",
+			value);
+
+	value = meson_drm_read_reg(reg->viu_osd_blend_din3_scope_v);
+	seq_printf(seq, "%-35s\t\t0x%08X\n", "VIU_OSD_BLEND_DIN3_SCOPE_V:",
+			value);
+
+	value = meson_drm_read_reg(reg->viu_osd_blend_dummy_data0);
+	seq_printf(seq, "%-35s\t\t0x%08X\n", "VIU_OSD_BLEND_DUMMY_DATA0:",
+			value);
+
+	value = meson_drm_read_reg(reg->viu_osd_blend_dummy_alpha);
+	seq_printf(seq, "%-35s\t\t0x%08X\n", "VIU_OSD_BLEND_DUMMY_ALPHA:",
+			value);
+
+	value = meson_drm_read_reg(reg->viu_osd_blend0_size);
+	seq_printf(seq, "%-35s\t\t0x%08X\n", "VIU_OSD_BLEND_BLEND0_SIZE:",
+			value);
+
+	value = meson_drm_read_reg(reg->viu_osd_blend1_size);
+	seq_printf(seq, "%-35s\t\t0x%08X\n", "VIU_OSD_BLEND_BLEND1_SIZE:",
+			value);
+
+	value = meson_drm_read_reg(reg->viu_osd_blend_ctrl1);
+	seq_printf(seq, "%-35s\t\t0x%08X\n", "VIU_OSD_BLEND_CTRL1:", value);
+}
+
 static void osdblend_hw_init(struct meson_vpu_block *vblk)
 {
 	struct meson_vpu_osdblend *osdblend = to_osdblend_block(vblk);
@@ -515,6 +580,7 @@ struct meson_vpu_block_ops osdblend_ops = {
 	.update_state = osdblend_set_state,
 	.enable = osdblend_hw_enable,
 	.disable = osdblend_hw_disable,
+	.dump_register = osdblend_dump_register,
 	.init = osdblend_hw_init,
 };
 

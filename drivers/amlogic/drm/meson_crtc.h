@@ -53,6 +53,12 @@ struct am_meson_crtc {
 	struct dentry *crtc_debugfs_dir;
 
 	struct meson_vpu_pipeline *pipeline;
+
+	int dump_enable;
+	int blank_enable;
+	int dump_counts;
+	int dump_index;
+	char osddump_path[64];
 };
 
 #define to_am_meson_crtc(x) container_of(x, \

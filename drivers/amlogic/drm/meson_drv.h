@@ -76,4 +76,9 @@ extern int am_meson_register_crtc_funcs(struct drm_crtc *crtc,
 				 const struct meson_crtc_funcs *crtc_funcs);
 extern void am_meson_unregister_crtc_funcs(struct drm_crtc *crtc);
 
+#ifdef CONFIG_DEBUG_FS
+int meson_debugfs_init(struct drm_minor *minor);
+void meson_debugfs_cleanup(struct drm_minor *minor);
+#endif
+
 #endif /* __AM_MESON_DRV_H */

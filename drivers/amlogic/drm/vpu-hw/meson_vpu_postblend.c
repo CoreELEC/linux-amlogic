@@ -18,6 +18,7 @@
 /* Amlogic Headers */
 #include <linux/amlogic/media/vout/vout_notify.h>
 
+#include "meson_crtc.h"
 #include "meson_vpu_pipeline.h"
 #include "meson_vpu_util.h"
 #include "meson_vpu_postblend.h"
@@ -31,6 +32,7 @@ static struct postblend_reg_s postblend_reg = {
 	VD2_BLEND_SRC_CTRL,
 	OSD1_BLEND_SRC_CTRL,
 	OSD2_BLEND_SRC_CTRL,
+	VPP_OSD1_IN_SIZE,
 };
 
 /*vpp post&post blend for osd1 premult flag config as 0 default*/
@@ -124,11 +126,17 @@ static int postblend_check_state(struct meson_vpu_block *vblk,
 static void postblend_set_state(struct meson_vpu_block *vblk,
 		struct meson_vpu_block_state *state)
 {
+	struct drm_crtc *crtc;
+	struct am_meson_crtc *amc;
+	struct meson_vpu_pipeline_state *mvps;
+
 	struct meson_vpu_postblend *postblend = to_postblend_block(vblk);
 	struct osd_scope_s scope = {0, 1919, 0, 1079};
 	struct meson_vpu_pipeline *pipeline = postblend->base.pipeline;
 	struct postblend_reg_s *reg = postblend->reg;
-	struct meson_vpu_pipeline_state *mvps;
+
+	crtc = vblk->pipeline->crtc;
+	amc = to_am_meson_crtc(crtc);
 
 	DRM_DEBUG("%s set_state called.\n", postblend->base.name);
 	mvps = priv_to_pipeline_state(pipeline->obj.state);
@@ -139,6 +147,12 @@ static void postblend_set_state(struct meson_vpu_block *vblk,
 	vpp_osd1_blend_scope_set(reg, scope);
 	if (0)
 		vpp_osd2_blend_scope_set(reg, scope);
+
+	if (amc->blank_enable)
+		vpp_osd1_postblend_mux_set(postblend->reg, VPP_NULL);
+	else
+		vpp_osd1_postblend_mux_set(postblend->reg, VPP_OSD1);
+
 	osd1_blend_premult_set(reg);
 	osd2_blend_premult_set(reg);
 	DRM_DEBUG("scope h/v start/end [%d,%d,%d,%d].\n",
@@ -157,6 +171,44 @@ static void postblend_hw_disable(struct meson_vpu_block *vblk)
 	struct meson_vpu_postblend *postblend = to_postblend_block(vblk);
 
 	DRM_DEBUG("%s disable called.\n", postblend->base.name);
+}
+
+static void postblend_dump_register(struct meson_vpu_block *vblk,
+				struct seq_file *seq)
+{
+	u32 value;
+	struct meson_vpu_postblend *postblend;
+	struct postblend_reg_s *reg;
+
+	postblend = to_postblend_block(vblk);
+	reg = postblend->reg;
+
+	value = meson_drm_read_reg(reg->osd1_blend_src_ctrl);
+	seq_printf(seq, "%-35s\t\t0x%08X\n", "OSD1_BLEND_SRC_CTRL:", value);
+
+	value = meson_drm_read_reg(reg->osd2_blend_src_ctrl);
+	seq_printf(seq, "%-35s\t\t0x%08X\n", "OSD2_BLEND_SRC_CTRL:", value);
+
+	value = meson_drm_read_reg(reg->vd1_blend_src_ctrl);
+	seq_printf(seq, "%-35s\t\t0x%08X\n", "VD1_BLEND_SRC_CTRL:", value);
+
+	value = meson_drm_read_reg(reg->vd2_blend_src_ctrl);
+	seq_printf(seq, "%-35s\t\t0x%08X\n", "VD2_BLEND_SRC_CTRL:", value);
+
+	value = meson_drm_read_reg(reg->vpp_osd1_in_size);
+	seq_printf(seq, "%-35s\t\t0x%08X\n", "VPP_OSD1_IN_SIZE:", value);
+
+	value = meson_drm_read_reg(reg->vpp_osd1_bld_h_scope);
+	seq_printf(seq, "%-35s\t\t0x%08X\n", "VPP_OSD1_BLD_H_SCOPE:", value);
+
+	value = meson_drm_read_reg(reg->vpp_osd1_bld_v_scope);
+	seq_printf(seq, "%-35s\t\t0x%08X\n", "VPP_OSD1_BLD_V_SCOPE:", value);
+
+	value = meson_drm_read_reg(reg->vpp_osd2_bld_h_scope);
+	seq_printf(seq, "%-35s\t\t0x%08X\n", "VPP_OSD2_BLD_H_SCOPE:", value);
+
+	value = meson_drm_read_reg(reg->vpp_osd2_bld_v_scope);
+	seq_printf(seq, "%-35s\t\t0x%08X\n", "VPP_OSD2_BLD_V_SCOPE:", value);
 }
 
 static void postblend_hw_init(struct meson_vpu_block *vblk)
@@ -180,5 +232,6 @@ struct meson_vpu_block_ops postblend_ops = {
 	.update_state = postblend_set_state,
 	.enable = postblend_hw_enable,
 	.disable = postblend_hw_disable,
+	.dump_register = postblend_dump_register,
 	.init = postblend_hw_init,
 };

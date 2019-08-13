@@ -328,6 +328,74 @@ static void osd_afbc_set_state(struct meson_vpu_block *vblk,
 	DRM_DEBUG("%s set_state called.\n", afbc->base.name);
 }
 
+static void osd_afbc_dump_register(struct meson_vpu_block *vblk,
+				struct seq_file *seq)
+{
+	int osd_index;
+	u32 value;
+	char buff[8];
+	struct meson_vpu_afbc *afbc;
+	struct afbc_osd_reg_s *reg;
+
+	osd_index = vblk->index;
+	afbc = to_afbc_block(vblk);
+	reg = afbc->afbc_regs;
+
+	snprintf(buff, 8, "OSD%d", osd_index + 1);
+
+	value = meson_drm_read_reg(reg->vpu_mafbc_header_buf_addr_low_s);
+	seq_printf(seq, "%s_%-35s\t0x%08X\n", buff, "AFBC_HEADER_BUF_ADDR_LOW:",
+						value);
+
+	value = meson_drm_read_reg(reg->vpu_mafbc_header_buf_addr_high_s);
+	seq_printf(seq, "%s_%-35s\t0x%08X\n", buff,
+			"AFBC_HEADER_BUF_ADDR_HIGH:", value);
+
+	value = meson_drm_read_reg(reg->vpu_mafbc_format_specifier_s);
+	seq_printf(seq, "%s_%-35s\t0x%08X\n", buff, "AFBC_FORMAT_SPECIFIER:",
+						value);
+
+	value = meson_drm_read_reg(reg->vpu_mafbc_buffer_width_s);
+	seq_printf(seq, "%s_%-35s\t0x%08X\n", buff, "AFBC_BUFFER_WIDTH:",
+						value);
+
+	value = meson_drm_read_reg(reg->vpu_mafbc_buffer_height_s);
+	seq_printf(seq, "%s_%-35s\t0x%08X\n", buff, "AFBC_BUFFER_HEIGHT:",
+						value);
+
+	value = meson_drm_read_reg(reg->vpu_mafbc_bounding_box_x_start_s);
+	seq_printf(seq, "%s_%-35s\t0x%08X\n", buff,
+		"AFBC_BOUNDINGS_BOX_X_START:", value);
+
+	value = meson_drm_read_reg(reg->vpu_mafbc_bounding_box_x_end_s);
+	seq_printf(seq, "%s_%-35s\t0x%08X\n", buff, "AFBC_BOUNDINGS_BOX_X_END:",
+						value);
+
+	value = meson_drm_read_reg(reg->vpu_mafbc_bounding_box_y_start_s);
+	seq_printf(seq, "%s_%-35s\t0x%08X\n", buff,
+		"AFBC_BOUNDINGS_BOX_Y_START:", value);
+
+	value = meson_drm_read_reg(reg->vpu_mafbc_bounding_box_y_end_s);
+	seq_printf(seq, "%s_%-35s\t0x%08X\n", buff,
+		"AFBC_BOUNDINGS_BOX_Y_END:", value);
+
+	value = meson_drm_read_reg(reg->vpu_mafbc_output_buf_addr_low_s);
+	seq_printf(seq, "%s_%-35s\t0x%08X\n", buff,
+		"AFBC_OUTPUT_BUF_ADDR_LOW:", value);
+
+	value = meson_drm_read_reg(reg->vpu_mafbc_output_buf_addr_high_s);
+	seq_printf(seq, "%s_%-35s\t0x%08X\n", buff,
+		"AFBC_OUTPUT_BUF_ADDR_HIGH:", value);
+
+	value = meson_drm_read_reg(reg->vpu_mafbc_output_buf_stride_s);
+	seq_printf(seq, "%s_%-35s\t0x%08X\n", buff,
+		"AFBC_OUTPUT_BUF_STRIDE:", value);
+
+	value = meson_drm_read_reg(reg->vpu_mafbc_prefetch_cfg_s);
+	seq_printf(seq, "%s_%-35s\t0x%08X\n", buff, "AFBC_PREFETCH_CFG:",
+			value);
+}
+
 static void osd_afbc_hw_enable(struct meson_vpu_block *vblk)
 {
 	struct meson_vpu_afbc *afbc = to_afbc_block(vblk);
@@ -368,5 +436,6 @@ struct meson_vpu_block_ops afbc_ops = {
 	.update_state = osd_afbc_set_state,
 	.enable = osd_afbc_hw_enable,
 	.disable = osd_afbc_hw_disable,
+	.dump_register = osd_afbc_dump_register,
 	.init = osd_afbc_hw_init,
 };

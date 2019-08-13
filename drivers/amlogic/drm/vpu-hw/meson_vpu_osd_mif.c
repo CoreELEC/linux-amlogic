@@ -15,11 +15,17 @@
  *
  */
 
+#include <linux/module.h>
+#include <linux/init.h>
+#include <linux/fs.h>
+#include <linux/uaccess.h>
+
 #ifdef CONFIG_AMLOGIC_MEDIA_CANVAS
 #include <linux/amlogic/media/canvas/canvas.h>
 #include <linux/amlogic/media/canvas/canvas_mgr.h>
 #endif
 #include "meson_vpu_pipeline.h"
+#include "meson_crtc.h"
 #include "meson_vpu_reg.h"
 #include "meson_vpu_util.h"
 
@@ -347,17 +353,27 @@ static int osd_check_state(struct meson_vpu_block *vblk,
 	mvos->byte_stride = plane_info->byte_stride;
 	mvos->phy_addr = plane_info->phy_addr;
 	mvos->pixel_format = plane_info->pixel_format;
+	mvos->fb_size = plane_info->fb_size;
 	return 0;
 }
 
 static void osd_set_state(struct meson_vpu_block *vblk,
 		struct meson_vpu_block_state *state)
 {
+	struct file *fp;
+	mm_segment_t fs;
+	loff_t pos;
+	char name_buf[64];
+	struct drm_crtc *crtc;
+	struct am_meson_crtc *amc;
 	struct meson_vpu_osd *osd = to_osd_block(vblk);
 	struct meson_vpu_osd_state *mvos = to_osd_state(state);
 	u32 pixel_format, canvas_index, src_h, byte_stride, phy_addr;
 	struct osd_scope_s scope_src = {0, 1919, 0, 1079};
 	struct osd_mif_reg_s *reg = osd->reg;
+
+	crtc = vblk->pipeline->crtc;
+	amc = to_am_meson_crtc(crtc);
 
 	if (!vblk) {
 		DRM_DEBUG("set_state break for NULL.\n");
@@ -386,6 +402,31 @@ static void osd_set_state(struct meson_vpu_block *vblk,
 		scope_src.h_start, scope_src.h_end,
 		scope_src.v_start, scope_src.v_end);
 	DRM_DEBUG("%s set_state done.\n", osd->base.name);
+
+	if (amc->dump_enable) {
+		DRM_DEBUG("start to dump gem buff %d.\n", amc->dump_index);
+		memset(name_buf, 0, sizeof(name_buf));
+		amc->dump_index %= amc->dump_counts;
+		snprintf(name_buf, sizeof(name_buf), "%s/plane%d.dump.%d",
+			amc->osddump_path, mvos->plane_index,
+					amc->dump_index++);
+
+		if (amc->dump_index >= amc->dump_counts)
+			amc->dump_index = 0;
+
+		fs = get_fs();
+		set_fs(KERNEL_DS);
+		pos = 0;
+		fp = filp_open(name_buf, O_CREAT | O_RDWR, 0644);
+		if (IS_ERR(fp)) {
+			DRM_ERROR("create %s osd_dump fail.\n", name_buf);
+		} else {
+			vfs_write(fp, phys_to_virt(phy_addr),
+						mvos->fb_size, &pos);
+			filp_close(fp, NULL);
+		}
+		set_fs(fs);
+	}
 }
 
 static void osd_hw_enable(struct meson_vpu_block *vblk)
@@ -414,6 +455,61 @@ static void osd_hw_disable(struct meson_vpu_block *vblk)
 	DRM_DEBUG("%s disable done.\n", osd->base.name);
 }
 
+static void osd_dump_register(struct meson_vpu_block *vblk,
+					struct seq_file *seq)
+{
+	int osd_index;
+	u32 value;
+	char buff[8];
+	struct meson_vpu_osd *osd;
+	struct osd_mif_reg_s *reg;
+
+	osd_index = vblk->index;
+	osd = to_osd_block(vblk);
+	reg = osd->reg;
+
+	snprintf(buff, 8, "OSD%d", osd_index + 1);
+
+	value = meson_drm_read_reg(reg->viu_osd_fifo_ctrl_stat);
+	seq_printf(seq, "%s_%-35s\t0x%08X\n", buff, "FIFO_CTRL_STAT:", value);
+
+	value = meson_drm_read_reg(reg->viu_osd_ctrl_stat);
+	seq_printf(seq, "%s_%-35s\t0x%08X\n", buff, "CTRL_STAT:", value);
+
+	value = meson_drm_read_reg(reg->viu_osd_ctrl_stat2);
+	seq_printf(seq, "%s_%-35s\t0x%08X\n", buff, "CTRL_STAT2:", value);
+
+	value = meson_drm_read_reg(reg->viu_osd_blk0_cfg_w0);
+	seq_printf(seq, "%s_%-35s\t0x%08X\n", buff, "BLK0_CFG_W0:", value);
+
+	value = meson_drm_read_reg(reg->viu_osd_blk0_cfg_w1);
+	seq_printf(seq, "%s_%-35s\t0x%08X\n", buff, "BLK0_CFG_W1:", value);
+
+	value = meson_drm_read_reg(reg->viu_osd_blk0_cfg_w2);
+	seq_printf(seq, "%s_%-35s\t0x%08X\n", buff, "BLK0_CFG_W2:", value);
+
+	value = meson_drm_read_reg(reg->viu_osd_blk0_cfg_w3);
+	seq_printf(seq, "%s_%-35s\t0x%08X\n", buff, "BLK0_CFG_W3:", value);
+
+	value = meson_drm_read_reg(reg->viu_osd_blk0_cfg_w4);
+	seq_printf(seq, "%s_%-35s\t0x%08X\n", buff, "BLK0_CFG_W4:", value);
+
+	value = meson_drm_read_reg(reg->viu_osd_blk1_cfg_w4);
+	seq_printf(seq, "%s_%-35s\t0x%08X\n", buff, "BLK1_CFG_W4:", value);
+
+	value = meson_drm_read_reg(reg->viu_osd_blk2_cfg_w4);
+	seq_printf(seq, "%s_%-35s\t0x%08X\n", buff, "BLK2_CFG_W4:", value);
+
+	value = meson_drm_read_reg(reg->viu_osd_prot_ctrl);
+	seq_printf(seq, "%s_%-35s\t0x%08X\n", buff, "PROT_CTRL:", value);
+
+	value = meson_drm_read_reg(reg->viu_osd_mali_unpack_ctrl);
+	seq_printf(seq, "%s_%-35s\t0x%08X\n", buff, "MALI_UNPACK_CTRL:", value);
+
+	value = meson_drm_read_reg(reg->viu_osd_dimm_ctrl);
+	seq_printf(seq, "%s_%-35s\t0x%08X\n", buff, "DIMM_CTRL:", value);
+}
+
 static void osd_hw_init(struct meson_vpu_block *vblk)
 {
 	struct meson_vpu_osd *osd = to_osd_block(vblk);
@@ -432,5 +528,6 @@ struct meson_vpu_block_ops osd_ops = {
 	.update_state = osd_set_state,
 	.enable = osd_hw_enable,
 	.disable = osd_hw_disable,
+	.dump_register = osd_dump_register,
 	.init = osd_hw_init,
 };

@@ -207,6 +207,7 @@ static int meson_plane_get_fb_info(struct drm_plane *plane,
 	phyaddr = am_meson_gem_object_get_phyaddr(drv, meson_fb->bufp);
 	if (meson_fb->bufp->bscatter)
 		DRM_ERROR("ERROR:am_meson_plane meet a scatter framebuffer.\n");
+	plane_info->fb_size = meson_fb->bufp->base.size;
 	#else
 	if (!fb) {
 		DRM_INFO("fb is NULL!\n");
@@ -250,7 +251,8 @@ static int meson_plane_get_fb_info(struct drm_plane *plane,
 	DRM_DEBUG("phy_addr=0x%x,byte_stride=%d,pixel_format=%d\n",
 		plane_info->phy_addr, plane_info->byte_stride,
 		plane_info->pixel_format);
-	DRM_DEBUG("plane_index %d.\n", osd_plane->plane_index);
+	DRM_DEBUG("plane_index %d, size %d.\n", osd_plane->plane_index,
+							plane_info->fb_size);
 	return 0;
 }
 
@@ -359,6 +361,7 @@ static void meson_plane_cleanup_fb(struct drm_plane *plane,
 static void meson_plane_atomic_update(struct drm_plane *plane,
 				      struct drm_plane_state *old_state)
 {
+
 	DRM_DEBUG("plane atomic_update.\n");
 }
 

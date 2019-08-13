@@ -31,7 +31,7 @@ int meson_drm_rdma_write_reg(u32 addr, u32 val)
 
 int meson_drm_rdma_write_reg_bits(u32 addr, u32 val, u32 start, u32 len)
 {
-	return VSYNCOSD_WR_MPEG_REG(addr, val, start, len);
+	return VSYNCOSD_WR_MPEG_REG_BITS(addr, val, start, len);
 }
 
 int meson_drm_rdma_set_reg_mask(u32 addr, u32 mask)
@@ -53,31 +53,18 @@ int meson_drm_rdma_irq_write_reg(u32 addr, u32 val)
 
 u32 meson_drm_read_reg(u32 addr)
 {
-	int ret;
 	u32 val;
 
-	ret = aml_reg_read(IO_VAPB_BUS_BASE, addr << 2, &val);
+	val = aml_read_vcbus(addr);
 
-	if (ret) {
-		pr_err("read vcbus reg %x error %d\n", addr, ret);
-		return -1;
-	}
 	return val;
 }
 
-int meson_drm_write_reg(u32 addr, u32 val)
+void meson_drm_write_reg(u32 addr, u32 val)
 {
-	int ret;
-
-	ret = aml_reg_write(IO_VAPB_BUS_BASE, addr << 2, val);
-
-	if (ret) {
-		pr_err("write vcbus reg %x error %d\n", addr, ret);
-		return -1;
-	}
-	return 0;
+	aml_write_vcbus(addr, val);
 }
-
+#if 0
 int meson_drm_write_reg_bits(u32 addr, u32 val, u32 start, u32 len)
 {
 	int ret;
@@ -140,13 +127,14 @@ int meson_drm_clr_reg_mask(u32 addr, u32 mask)
 	}
 	return 0;
 }
+#endif
 
 /** canvas config  **/
 
 void meson_drm_canvas_config(u32 index, unsigned long addr, u32 width,
 			     u32 height, u32 wrap, u32 blkmode)
 {
-	canvas_config(index, addr, width, height, wrap, blkmode, 0);
+	canvas_config(index, addr, width, height, wrap, blkmode);
 }
 
 int meson_drm_canvas_pool_alloc_table(const char *owner, u32 *table, int size,
@@ -155,23 +143,3 @@ int meson_drm_canvas_pool_alloc_table(const char *owner, u32 *table, int size,
 	return canvas_pool_alloc_canvas_table(owner, table, size, type);
 }
 
-/** vpu clk and block power domain **/
-unsigned int meson_drm_vpu_get_clk(void)
-{
-	return get_vpu_clk();
-}
-
-unsigned int meson_drm_vpu_get_hwblk_clk(unsigned int vmode)
-{
-	return get_vpu_clk_vmode(vmode);
-}
-
-void meson_drm_vpu_set_hwblk_pd(unsigned int vmode, int flag)
-{
-	switch_vpu_mem_pd_vmode(vmode, flag);
-}
-
-int meson_drm_vpu_get_hwblk_pd(unsigned int vmode)
-{
-	return get_vpu_mem_pd_vmode(vmode);
-}

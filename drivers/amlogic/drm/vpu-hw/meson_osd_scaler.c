@@ -594,6 +594,55 @@ static void scaler_hw_disable(struct meson_vpu_block *vblk)
 	DRM_DEBUG("%s disable called.\n", scaler->base.name);
 }
 
+static void scaler_dump_register(struct meson_vpu_block *vblk,
+					struct seq_file *seq)
+{
+	int osd_index;
+	u32 value;
+	char buff[8];
+	struct meson_vpu_scaler *scaler;
+	struct osd_scaler_reg_s *reg;
+
+	osd_index = vblk->index;
+	scaler = to_scaler_block(vblk);
+	reg = scaler->reg;
+
+	snprintf(buff, 8, "OSD%d", osd_index + 1);
+
+	value = meson_drm_read_reg(reg->vpp_osd_vsc_phase_step);
+	seq_printf(seq, "%s_%-35s\t0x%08X\n", buff, "VSC_PHASE_STEP:", value);
+
+	value = meson_drm_read_reg(reg->vpp_osd_vsc_ini_phase);
+	seq_printf(seq, "%s_%-35s\t0x%08X\n", buff, "VSC_INIT_PHASE:", value);
+
+	value = meson_drm_read_reg(reg->vpp_osd_vsc_ctrl0);
+	seq_printf(seq, "%s_%-35s\t0x%08X\n", buff, "VSC_CTRL0:", value);
+
+	value = meson_drm_read_reg(reg->vpp_osd_hsc_phase_step);
+	seq_printf(seq, "%s_%-35s\t0x%08X\n", buff, "HSC_PHASE_STEP:", value);
+
+	value = meson_drm_read_reg(reg->vpp_osd_hsc_ini_phase);
+	seq_printf(seq, "%s_%-35s\t0x%08X\n", buff, "HSC_INIT_PHASE:", value);
+
+	value = meson_drm_read_reg(reg->vpp_osd_hsc_ctrl0);
+	seq_printf(seq, "%s_%-35s\t0x%08X\n", buff, "HSC_CTRL0:", value);
+
+	value = meson_drm_read_reg(reg->vpp_osd_sc_dummy_data);
+	seq_printf(seq, "%s_%-35s\t0x%08X\n", buff, "SC_DUMMY_DATA:", value);
+
+	value = meson_drm_read_reg(reg->vpp_osd_sc_ctrl0);
+	seq_printf(seq, "%s_%-35s\t0x%08X\n", buff, "SC_CTRL0:", value);
+
+	value = meson_drm_read_reg(reg->vpp_osd_sci_wh_m1);
+	seq_printf(seq, "%s_%-35s\t0x%08X\n", buff, "SCI_WH_M1:", value);
+
+	value = meson_drm_read_reg(reg->vpp_osd_sco_h_start_end);
+	seq_printf(seq, "%s_%-35s\t0x%08X\n", buff, "SCO_H_START_END:", value);
+
+	value = meson_drm_read_reg(reg->vpp_osd_sco_v_start_end);
+	seq_printf(seq, "%s_%-35s\t0x%08X\n", buff, "SCO_V_START_END:", value);
+}
+
 static void scaler_hw_init(struct meson_vpu_block *vblk)
 {
 	struct meson_vpu_scaler *scaler = to_scaler_block(vblk);
@@ -612,5 +661,6 @@ struct meson_vpu_block_ops scaler_ops = {
 	.update_state = scaler_set_state,
 	.enable = scaler_hw_enable,
 	.disable = scaler_hw_disable,
+	.dump_register = scaler_dump_register,
 	.init = scaler_hw_init,
 };
