@@ -77,3 +77,7 @@
 	mc_val = <0x1621>;
 	internal_phy=<0>;
 };
+
+&usb3_phy_v2 {
+	portnum = <1>;
+};
