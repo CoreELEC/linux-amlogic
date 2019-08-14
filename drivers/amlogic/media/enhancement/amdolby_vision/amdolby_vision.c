@@ -2631,6 +2631,10 @@ static void adjust_vpotch(void)
 				g_vpotch = 0x60;
 			else
 				g_vpotch = 0x20;
+			if (vinfo->width > 1920)
+				htotal_add = 0xc0;
+			else
+				htotal_add = 0x140;
 		} else
 			g_vpotch = 0x20;
 	} else if (is_meson_tm2_stbmode()) {
