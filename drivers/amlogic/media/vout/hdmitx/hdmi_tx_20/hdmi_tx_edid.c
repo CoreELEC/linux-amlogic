@@ -1532,7 +1532,6 @@ static int hdmitx_edid_block_parse(struct hdmitx_dev *hdmitx_device,
 	pRXCap->number_of_dtd += BlockBuf[3] & 0xf;
 
 	pRXCap->native_VIC = 0xff;
-	pRXCap->AUD_count = 0;
 
 	Edid_Y420CMDB_Reset(&(hdmitx_device->hdmi_info));
 
@@ -1746,7 +1745,7 @@ static void hdmitx_edid_set_default_aud(struct hdmitx_dev *hdev)
 	pRXCap->RxAudioCap[0].audio_format_code = 1; /* PCM */
 	pRXCap->RxAudioCap[0].channel_num_max = 1; /* 2ch */
 	pRXCap->RxAudioCap[0].freq_cc = 7; /* 32/44.1/48 kHz */
-	pRXCap->RxAudioCap[0].cc3 = 7; /* 16/20/24 bit */
+	pRXCap->RxAudioCap[0].cc3 = 1; /* 16bit */
 }
 
 /* add default VICs for DVI case */
@@ -2045,6 +2044,35 @@ next:
 		dump_dtd_info(t);
 }
 
+static void edid_check_pcm_declare(struct rx_cap *pRXCap)
+{
+	int idx_pcm = 0;
+	int i;
+
+	if (!pRXCap->AUD_count)
+		return;
+
+	/* Try to find more than 1 PCMs, RxAudioCap[0] is always basic audio */
+	for (i = 1; i < pRXCap->AUD_count; i++) {
+		if (pRXCap->RxAudioCap[i].audio_format_code ==
+			pRXCap->RxAudioCap[0].audio_format_code) {
+			idx_pcm = i;
+			break;
+		}
+	}
+
+	/* Remove basic audio */
+	if (idx_pcm) {
+		for (i = 0; i < pRXCap->AUD_count - 1; i++)
+			memcpy(&pRXCap->RxAudioCap[i],
+				&pRXCap->RxAudioCap[i + 1],
+				sizeof(struct rx_audiocap));
+		/* Clear the last audio declaration */
+		memset(&pRXCap->RxAudioCap[i], 0, sizeof(struct rx_audiocap));
+		pRXCap->AUD_count--;
+	}
+}
+
 static void hdrinfo_to_vinfo(struct vinfo_s *info, struct rx_cap *pRXCap)
 {
 	unsigned int  k, l;
@@ -2313,7 +2341,7 @@ int hdmitx_edid_parse(struct hdmitx_dev *hdmitx_device)
 
 		hdmitx_edid_block_parse(hdmitx_device, &(EDID_buf[i*128]));
 	}
-
+	edid_check_pcm_declare(&hdmitx_device->RXCap);
 /*
  * Because DTDs are not able to represent some Video Formats, which can be
  * represented as SVDs and might be preferred by Sinks, the first DTD in the
