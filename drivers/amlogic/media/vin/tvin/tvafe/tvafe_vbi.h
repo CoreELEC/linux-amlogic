@@ -304,7 +304,7 @@ struct vbi_dev_s {
 /*1: tvafe clk enable;*/
 /*0: tvafe clk disable*/
 /*read write cvd acd reg will crash when clk disabled*/
-extern bool tvafe_clk_onoff;
+extern bool tvafe_clk_status;
 extern unsigned int vbi_mem_start;
 
 #endif /* TVIN_VBI_H_ */

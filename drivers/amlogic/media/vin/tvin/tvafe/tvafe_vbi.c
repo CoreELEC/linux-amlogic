@@ -935,7 +935,7 @@ static void vbi_slicer_work(struct work_struct *p_work)
 		return;
 	if (devp->vbi_start == false)
 		return;
-	if (tvafe_clk_onoff == false) {
+	if (tvafe_clk_status == false) {
 		vbi_ringbuffer_flush(&devp->slicer->buffer);
 		return;
 	}
@@ -1026,7 +1026,7 @@ static void vbi_slicer_work(struct work_struct *p_work)
 	local_rptr = devp->temp_addr_start;
 	datalen = sizeof(struct vbi_data_s);
 	while (chlen < len) {
-		if (!devp->vbi_start || !tvafe_clk_onoff) {
+		if (!devp->vbi_start || !tvafe_clk_status) {
 			if (vbi_dbg_en & VBI_DBG_INFO)
 				tvafe_pr_info("%s: vbi stopped\n", __func__);
 			goto vbi_slicer_work_exit;
@@ -1501,7 +1501,7 @@ static ssize_t vbi_buffer_read(struct vbi_ringbuffer_s *src,
 
 	while (vbi_ringbuffer_empty(src)) {
 		if ((non_blocking || vbi_nonblock_en) ||
-			(tvafe_clk_onoff == false) || (timeout++ > 50)) {
+			(tvafe_clk_status == false) || (timeout++ > 50)) {
 			ret = -EWOULDBLOCK;
 			tvafe_pr_info("%s:nonblock|closed|timeout return.\n",
 				__func__);
@@ -1510,7 +1510,7 @@ static ssize_t vbi_buffer_read(struct vbi_ringbuffer_s *src,
 		msleep(20);
 	}
 
-	if (tvafe_clk_onoff == false) {
+	if (tvafe_clk_status == false) {
 		ret = -EWOULDBLOCK;
 		vbi_ringbuffer_flush(src);
 		if (vbi_dbg_en & VBI_DBG_READ)
@@ -1611,7 +1611,7 @@ static int vbi_release(struct inode *inode, struct file *file)
 		free_irq(vbi_dev->vs_irq, (void *)vbi_dev);
 	vbi_dev->irq_free_status = 0;
 	vcnt = 1;
-	if (tvafe_clk_onoff) {
+	if (tvafe_clk_status) {
 		/* vbi reset release, vbi agent enable */
 		/*W_VBI_APB_REG(ACD_REG_22, 0x06080000);*/
 		W_VBI_APB_REG(CVD2_VBI_FRAME_CODE_CTL, 0x10);
@@ -1641,7 +1641,7 @@ static long vbi_ioctl(struct file *file,
 			tvafe_pr_err("%s: slicer mutex error\n", __func__);
 			return -ERESTARTSYS;
 		}
-		if (tvafe_clk_onoff)
+		if (tvafe_clk_status)
 			vbi_hw_init(vbi_dev);
 		else {
 			tvafe_pr_err("tvafe not opend.ioctl start err\n");
@@ -1682,7 +1682,7 @@ static long vbi_ioctl(struct file *file,
 		vbi_dev->vbi_start = false;
 		vbi_data_stable_flag = 0;
 		ret = vbi_slicer_stop(vbi_slicer);
-		if (tvafe_clk_onoff) {
+		if (tvafe_clk_status) {
 			/* manuel reset vbi */
 			/*W_VBI_APB_REG(ACD_REG_22, 0x82080000);*/
 			/* vbi reset release, vbi agent enable*/
@@ -1696,7 +1696,7 @@ static long vbi_ioctl(struct file *file,
 		break;
 
 	case VBI_IOC_SET_TYPE:
-		if (!tvafe_clk_onoff) {
+		if (!tvafe_clk_status) {
 			mutex_unlock(&vbi_dev->mutex);
 			tvafe_pr_info("[vbi..] %s: afe not open,SET_TYPE return\n",
 				__func__);
@@ -1714,7 +1714,7 @@ static long vbi_ioctl(struct file *file,
 			mutex_unlock(&vbi_slicer->mutex);
 			break;
 		}
-		if (tvafe_clk_onoff) {
+		if (tvafe_clk_status) {
 			ret = vbi_slicer_set(vbi_dev, vbi_slicer);
 		} else {
 			ret = -EFAULT;

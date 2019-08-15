@@ -134,12 +134,10 @@
 
 /* adc pll ctl, atv demod & tvafe use the same adc module*/
 /* module index: atv demod:0x01; tvafe:0x2*/
-enum eADC_PLL_EN {
-	ADC_EN_ATV_DEMOD	= 0x1,
-	ADC_EN_TVAFE		= 0x2,
-	ADC_EN_DTV_DEMOD	= 0x4,
-	ADC_EN_DTV_DEMODPLL	= 0x8,
-};
+#define ADC_EN_ATV_DEMOD	0x1
+#define ADC_EN_TVAFE		0x2
+#define ADC_EN_DTV_DEMOD	0x4
+#define ADC_EN_DTV_DEMODPLL	0x8
 
 #define LOG_ADC_CAL
 /* #define LOG_VGA_EDID */

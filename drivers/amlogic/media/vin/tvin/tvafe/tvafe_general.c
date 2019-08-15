@@ -667,7 +667,7 @@ void adc_pll_down(void)
 /*ADC_EN_TVAFE		0x2*/
 /*ADC_EN_DTV_DEMOD	0x4*/
 /*ADC_EN_DTV_DEMODPLL	0x8*/
-int adc_set_pll_cntl(bool on, enum eADC_PLL_EN module_sel, void *pDtvPara)
+int adc_set_pll_cntl(bool on, unsigned int module_sel, void *pDtvPara)
 {
 	unsigned int adc_pll_lock_cnt = 0;
 	int ret = 0;	/* 0: success; -x: failed*/
@@ -1040,7 +1040,7 @@ void tvafe_init_reg(struct tvafe_cvd2_s *cvd2,
 	struct tvafe_cvd2_mem_s *mem, enum tvin_port_e port,
 	struct tvafe_pin_mux_s *pinmux)
 {
-	enum eADC_PLL_EN module_sel = ADC_EN_TVAFE;
+	unsigned int module_sel = ADC_EN_TVAFE;
 
 	if (port == TVIN_PORT_CVBS3)
 		module_sel = ADC_EN_ATV_DEMOD;

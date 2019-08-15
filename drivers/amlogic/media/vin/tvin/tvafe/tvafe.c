@@ -99,7 +99,7 @@ bool tvafe_snow_function_flag;
 /*1: tvafe clk enabled;*/
 /*0: tvafe clk disabled*/
 /*read write cvd acd reg will crash when clk disabled*/
-bool tvafe_clk_onoff;
+bool tvafe_clk_status;
 
 #ifdef CONFIG_AMLOGIC_MEDIA_TVIN_AVDETECT
 /*opened port,1:av1, 2:av2, 0:none av*/
@@ -121,9 +121,6 @@ unsigned int tvafe_dbg_print;
 #ifdef CONFIG_AMLOGIC_ATV_DEMOD
 static struct tvafe_info_s *g_tvafe_info;
 #endif
-bool tvafe_probe_flag;
-struct tvafe_dev_s *tvafe_devp;
-
 
 static struct tvafe_user_param_s tvafe_user_param = {
 	.cutwindow_val_h = {0, 10, 18, 20, 62},
@@ -248,17 +245,6 @@ static int tvafe_get_v_fmt(void)
 {
 	int fmt = 0;
 
-	if (!tvafe_probe_flag || tvafe_devp == NULL) {
-		tvafe_pr_info("%s tvafe not proble\n", __func__);
-		return 0;
-	}
-
-	if (!(tvafe_devp->flags & TVAFE_FLAG_DEV_OPENED) ||
-			(tvafe_devp->flags & TVAFE_POWERDOWN_IN_IDLE)) {
-		tvafe_pr_info("%s tvafe is PW DOWN\n", __func__);
-		return 0;
-	}
-
 	if (tvin_get_sm_status(0) != TVIN_SM_STATUS_STABLE) {
 		tvafe_pr_info("%s tvafe is not STABLE\n", __func__);
 		return 0;
@@ -353,7 +339,7 @@ static int tvafe_dec_open(struct tvin_frontend_s *fe, enum tvin_port_e port)
 
 	/* set the flag to enabble ioctl access */
 	devp->flags |= TVAFE_FLAG_DEV_OPENED;
-	tvafe_clk_onoff = true;
+	tvafe_clk_status = true;
 #ifdef CONFIG_AMLOGIC_ATV_DEMOD
 	g_tvafe_info = tvafe;
 	/* register aml_fe hook for atv search */
@@ -518,10 +504,7 @@ static void tvafe_dec_close(struct tvin_frontend_s *fe)
 		mutex_unlock(&devp->afe_mutex);
 		return;
 	}
-
-	devp->flags &= (~TVAFE_FLAG_DEV_STARTED);
-	devp->flags &= (~TVAFE_FLAG_DEV_OPENED);
-	tvafe_clk_onoff = false;
+	tvafe_clk_status = false;
 	/*del_timer_sync(&devp->timer);*/
 #ifdef CONFIG_AMLOGIC_ATV_DEMOD
 	g_tvafe_info = NULL;
@@ -568,7 +551,12 @@ static void tvafe_dec_close(struct tvin_frontend_s *fe)
 #endif
 	/* init variable */
 	memset(tvafe, 0, sizeof(struct tvafe_info_s));
+
+	devp->flags &= (~TVAFE_FLAG_DEV_STARTED);
+	devp->flags &= (~TVAFE_FLAG_DEV_OPENED);
+
 	tvafe_pr_info("%s close afe ok.\n", __func__);
+
 	mutex_unlock(&devp->afe_mutex);
 }
 
@@ -743,8 +731,7 @@ bool tvafe_fmt_chg(struct tvin_frontend_s *fe)
 	struct tvafe_info_s *tvafe = &devp->tvafe;
 	enum tvin_port_e port = tvafe->parm.port;
 
-	if (!(devp->flags & TVAFE_FLAG_DEV_OPENED) ||
-		(devp->flags & TVAFE_POWERDOWN_IN_IDLE)) {
+	if (!(devp->flags & TVAFE_FLAG_DEV_OPENED)) {
 		tvafe_pr_err("tvafe havn't opened, get fmt chg error!!!\n");
 		return true;
 	}
@@ -778,8 +765,7 @@ enum tvin_sig_fmt_e tvafe_get_fmt(struct tvin_frontend_s *fe)
 	struct tvafe_info_s *tvafe = &devp->tvafe;
 	enum tvin_port_e port = tvafe->parm.port;
 
-	if (!(devp->flags & TVAFE_FLAG_DEV_OPENED) ||
-		(devp->flags & TVAFE_POWERDOWN_IN_IDLE)) {
+	if (!(devp->flags & TVAFE_FLAG_DEV_OPENED)) {
 		tvafe_pr_err("tvafe havn't opened, get sig fmt error!!!\n");
 		return fmt;
 	}
@@ -1143,7 +1129,7 @@ EXPORT_SYMBOL(tvafe_reg_write);
 
 int tvafe_vbi_reg_read(unsigned int reg, unsigned int *val)
 {
-	if (tvafe_clk_onoff)
+	if (tvafe_clk_status)
 		*val = readl(tvafe_reg_base+reg);
 	else
 		return -1;
@@ -1153,7 +1139,7 @@ EXPORT_SYMBOL(tvafe_vbi_reg_read);
 
 int tvafe_vbi_reg_write(unsigned int reg, unsigned int val)
 {
-	if (tvafe_clk_onoff)
+	if (tvafe_clk_status)
 		writel(val, (tvafe_reg_base+reg));
 	else
 		return -1;
@@ -1332,7 +1318,6 @@ static int tvafe_drv_probe(struct platform_device *pdev)
 	const struct of_device_id *match;
 	/* struct tvin_frontend_s * frontend; */
 
-	tvafe_devp = NULL;
 	match = of_match_device(meson_tvafe_dt_match, &pdev->dev);
 	if (match == NULL) {
 		tvafe_pr_err("%s,no matched table\n", __func__);
@@ -1349,7 +1334,6 @@ static int tvafe_drv_probe(struct platform_device *pdev)
 	tdevp = kzalloc(sizeof(struct tvafe_dev_s), GFP_KERNEL);
 	if (!tdevp)
 		goto fail_kzalloc_tdev;
-	tvafe_devp = tdevp;
 
 	if (pdev->dev.of_node) {
 		ret = of_property_read_u32(pdev->dev.of_node,
@@ -1498,7 +1482,7 @@ static int tvafe_drv_probe(struct platform_device *pdev)
 
 	disableapi = false;
 	force_stable = false;
-	tvafe_probe_flag = true;
+
 	tvafe_pr_info("driver probe ok\n");
 
 	return 0;
@@ -1560,7 +1544,7 @@ static int tvafe_drv_suspend(struct platform_device *pdev,
 	}
 	/*disable and reset tvafe clock*/
 	tdevp->flags |= TVAFE_POWERDOWN_IN_IDLE;
-	tvafe_clk_onoff = false;
+	tvafe_clk_status = false;
 	tvafe_enable_module(false);
 	adc_set_pll_reset();
 
@@ -1578,7 +1562,7 @@ static int tvafe_drv_resume(struct platform_device *pdev)
 	adc_set_pll_reset();
 	tvafe_enable_module(true);
 	tdevp->flags &= (~TVAFE_POWERDOWN_IN_IDLE);
-	tvafe_clk_onoff = true;
+	tvafe_clk_status = false;
 	tvafe_pr_info("resume module\n");
 	return 0;
 }
@@ -1586,19 +1570,11 @@ static int tvafe_drv_resume(struct platform_device *pdev)
 
 static void tvafe_drv_shutdown(struct platform_device *pdev)
 {
-	struct tvafe_dev_s *tdevp;
-	struct tvafe_info_s *tvafe;
-
-	tdevp = platform_get_drvdata(pdev);
-	tvafe = &tdevp->tvafe;
-
 	if (tvafe_cpu_type() == CPU_TYPE_TL1) {
 		W_APB_BIT(TVFE_VAFE_CTRL0, 0, 19, 1);
 		W_APB_BIT(TVFE_VAFE_CTRL1, 0, 8, 1);
 	}
 	adc_pll_down();
-	tdevp->flags |= TVAFE_POWERDOWN_IN_IDLE;
-	tvafe_clk_onoff = false;
 	tvafe_pr_info("tvafe_drv_shutdown ok.\n");
 }
 

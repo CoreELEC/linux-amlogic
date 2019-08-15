@@ -226,8 +226,6 @@ extern bool tvafe_snow_function_flag;
 
 extern unsigned int try_fmt_max_atv;
 extern unsigned int try_fmt_max_av;
-extern bool tvafe_probe_flag;
-extern struct tvafe_dev_s *tvafe_devp;
 
 #endif /* _TVAFE_CVD_H */
 
