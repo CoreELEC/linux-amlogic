@@ -110,7 +110,6 @@ static const unsigned int cvd_mem_4f_length[TVIN_SIG_FMT_CVBS_SECAM-
 static int force_fmt_flag;
 static bool scene_colorful_old;
 static int lock_cnt;
-static unsigned int cvd_reg8a = 0xa;
 static bool ntsc50_en;
 
 static int cdto_adj_th = TVAFE_CVD2_CDTO_ADJ_TH;
@@ -382,10 +381,9 @@ static void tvafe_cvd2_write_mode_reg(struct tvafe_cvd2_s *cvd2,
 				TVIN_SIG_FMT_CVBS_NTSC_M][i]));
 	}
 
-	/*setting for txhd snow*/
+	/*setting for snow*/
 	if (tvafe_get_snow_cfg() &&
-		(tvafe_cpu_type() == CPU_TYPE_TXHD ||
-		tvafe_cpu_type() == CPU_TYPE_TL1 ||
+		(tvafe_cpu_type() == CPU_TYPE_TL1 ||
 		tvafe_cpu_type() == CPU_TYPE_TM2)) {
 		W_APB_BIT(CVD2_OUTPUT_CONTROL, 3, 5, 2);
 		W_APB_REG(ACD_REG_6C, 0x80500000);
@@ -407,34 +405,6 @@ static void tvafe_cvd2_write_mode_reg(struct tvafe_cvd2_s *cvd2,
 		W_APB_REG(CVD2_REG_B6, 0x0);
 	}
 
-	if ((cvd2->vd_port == TVIN_PORT_CVBS1) ||
-		(cvd2->vd_port == TVIN_PORT_CVBS2)) { /* avin */
-		if (cvd2->config_fmt == TVIN_SIG_FMT_CVBS_NTSC_M) {
-			W_APB_REG(CVD2_VSYNC_SIGNAL_THRESHOLD, 0x7d);
-			if (tvafe_cpu_type() == CPU_TYPE_TL1) {
-				W_APB_REG(CVD2_CONTROL1, 0x8);
-				W_APB_REG(CVD2_2DCOMB_NOISE_TH, 0x84);
-				W_APB_REG(CVD2_REG_B0, 0x0);
-				W_APB_REG(CVD2_3DCOMB_FILTER, 0xf);
-			}
-		}
-		if (cvd2->config_fmt == TVIN_SIG_FMT_CVBS_PAL_I) {
-			if (tvafe_cpu_type() == CPU_TYPE_TL1) {
-				W_APB_REG(ACD_REG_89, 0x80010004);
-				W_APB_REG(ACD_REG_8A, 0x100004);
-				W_APB_REG(ACD_REG_8B, 0x100000);
-				W_APB_REG(ACD_REG_8C, 0x38000);
-			}
-		}
-	} else if ((cvd2->vd_port == TVIN_PORT_CVBS3) ||
-			(cvd2->vd_port == TVIN_PORT_CVBS0)) { /* atv */
-		if (cvd2->config_fmt == TVIN_SIG_FMT_CVBS_PAL_I) {
-			if (user_param->force_vs_th_flag)
-				W_APB_REG(CVD2_VSYNC_SIGNAL_THRESHOLD,
-					(user_param->nostd_vs_th & 0xff));
-		}
-	}
-
 	/* reload CVD2 reg 0x87, 0x93, 0x94, 0x95, 0x96, 0xe6, 0xfa (int) */
 	W_APB_REG(((CVD_BASE_ADD+CVD_PART3_REG_0)<<2),
 		cvd_part3_table[cvd2->config_fmt-TVIN_SIG_FMT_CVBS_NTSC_M][0]);
@@ -450,45 +420,23 @@ static void tvafe_cvd2_write_mode_reg(struct tvafe_cvd2_s *cvd2,
 		cvd_part3_table[cvd2->config_fmt-TVIN_SIG_FMT_CVBS_NTSC_M][5]);
 	W_APB_REG(((CVD_BASE_ADD+CVD_PART3_REG_6)<<2),
 		cvd_part3_table[cvd2->config_fmt-TVIN_SIG_FMT_CVBS_NTSC_M][6]);
-
-	/* for tuner picture quality */
-
 	if ((cvd2->vd_port == TVIN_PORT_CVBS3) ||
-		(cvd2->vd_port == TVIN_PORT_CVBS0)) {
-
-		W_APB_REG(CVD2_REG_B0, 0xf0);
-		W_APB_BIT(CVD2_REG_B2, 0,
-			ADAPTIVE_CHROMA_MODE_BIT, ADAPTIVE_CHROMA_MODE_WID);
-		W_APB_BIT(CVD2_CONTROL1, 0, CHROMA_BW_LO_BIT, CHROMA_BW_LO_WID);
-
-	} else {
-		W_APB_REG(CVD2_VSYNC_NO_SIGNAL_THRESHOLD, 0xf0);
+			(cvd2->vd_port == TVIN_PORT_CVBS0)) { /* atv */
 		if (cvd2->config_fmt == TVIN_SIG_FMT_CVBS_PAL_I) {
-				/*add for chroma state adjust dynamicly*/
-			W_APB_REG(CVD2_CHROMA_LOOPFILTER_STATE, cvd_reg8a);
-		}
-		if ((cvd2->config_fmt == TVIN_SIG_FMT_CVBS_NTSC_M) ||
-			(cvd2->config_fmt == TVIN_SIG_FMT_CVBS_PAL_M) ||
-			(cvd2->config_fmt == TVIN_SIG_FMT_CVBS_SECAM)) {
-			W_APB_BIT(CVD2_REG_B2, 1,
-			ADAPTIVE_CHROMA_MODE_BIT, ADAPTIVE_CHROMA_MODE_WID);
-			W_APB_REG(CVD2_CHROMA_EDGE_ENHANCEMENT, 0x22);
-		}
-		if (cvd2->config_fmt == TVIN_SIG_FMT_CVBS_NTSC_M) {
-			if (tvafe_cpu_type() >= CPU_TYPE_TL1) {
-				/* fix Purple and green junctions is wider */
-				W_APB_BIT(CVD2_REG_FA, 0,
-					UV_FILTER_TYPE_BIT, UV_FILTER_TYPE_WID);
-			}
+			if (user_param->force_vs_th_flag)
+				W_APB_REG(CVD2_VSYNC_SIGNAL_THRESHOLD,
+					  (user_param->nostd_vs_th & 0xff));
 		}
 	}
+
 #ifdef TVAFE_CVD2_CC_ENABLE
 	W_APB_REG(CVD2_VBI_DATA_TYPE_LINE21, 0x00000011);
 	W_APB_REG(CVD2_VSYNC_VBI_LOCKOUT_START, 0x00000000);
 	W_APB_REG(CVD2_VSYNC_VBI_LOCKOUT_END, 0x00000025);
 	W_APB_REG(CVD2_VSYNC_TIME_CONSTANT, 0x0000000a);
 	W_APB_REG(CVD2_VBI_CC_START, 0x00000054);
-	W_APB_REG(CVD2_VBI_FRAME_CODE_CTL, 0x11);
+	/*disable vbi*/
+	W_APB_REG(CVD2_VBI_FRAME_CODE_CTL, 0x10);
 	W_APB_REG(ACD_REG_22, 0x82080000); /* manuel reset vbi */
 	W_APB_REG(ACD_REG_22, 0x04080000);
 	/* vbi reset release, vbi agent enable */
@@ -509,16 +457,6 @@ static void tvafe_cvd2_write_mode_reg(struct tvafe_cvd2_s *cvd2,
 		W_APB_BIT(ACD_REG_1B, 0xc, YCSEP_TEST6F_BIT, YCSEP_TEST6F_WID);
 	}
 #endif
-
-	/* add for board e04&e08  */
-	if (((cvd2->vd_port == TVIN_PORT_CVBS3) ||
-		(cvd2->vd_port == TVIN_PORT_CVBS0)) &&
-		(CVD_REG07_PAL != 0x03)
-		&& (cvd2->config_fmt == TVIN_SIG_FMT_CVBS_PAL_I))
-		W_APB_REG(CVD2_OUTPUT_CONTROL, CVD_REG07_PAL);
-
-	/*disable vbi*/
-	W_APB_REG(CVD2_VBI_FRAME_CODE_CTL, 0x10);
 
 	/* 3D comb filter buffer assignment */
 	tvafe_cvd2_memory_init(mem, cvd2->config_fmt);
@@ -544,24 +482,34 @@ static void tvafe_cvd2_write_mode_reg(struct tvafe_cvd2_s *cvd2,
 		W_APB_BIT(CVD2_VSYNC_TIME_CONSTANT, 0, 7, 1);
 
 	W_APB_REG(ACD_REG_22, 0x04080000);
-	/*enable vbi*/
-	W_APB_REG(CVD2_VBI_FRAME_CODE_CTL, 0x11);
-	pr_info("[tvafe..] %s: enable vbi\n", __func__);
 #endif
-	/*for palm moonoscope pattern color flash*/
-	if (cvd2->config_fmt == TVIN_SIG_FMT_CVBS_PAL_M) {
-		W_APB_REG(ACD_REG_22, 0x2020000);
-		W_APB_REG(CVD2_NOISE_THRESHOLD, 0xff);
-		W_APB_REG(CVD2_NON_STANDARD_SIGNAL_THRESHOLD, 0x20);
-	}
 
-	/*set for wipe off vertical stripes*/
-	if (cvd2->vd_port == TVIN_PORT_CVBS1 ||
-		cvd2->vd_port == TVIN_PORT_CVBS2) {
-		if (tvafe_cpu_type() >= CPU_TYPE_TL1)
-			W_APB_REG(ACD_REG_25, 0xeafb4e8e);
-		else if (tvafe_cpu_type() >= CPU_TYPE_TXL)
-			W_APB_REG(ACD_REG_25, 0x00e941a8);
+	/* for tuner picture quality */
+	if (cvd2->pq_conf) {
+		i = 0;
+		while (i < TVAFE_PQ_CONFIG_NUM_MAX) {
+			if (cvd2->pq_conf[i].reg == 0xffffffff)
+				break;
+			if (cvd2->pq_conf[i].mask == 0xffffffff) {
+				W_APB_REG(cvd2->pq_conf[i].reg,
+					  cvd2->pq_conf[i].val);
+			} else {
+				W_APB_REG(cvd2->pq_conf[i].reg,
+					  (R_APB_REG(cvd2->pq_conf[i].reg) &
+						(~(cvd2->pq_conf[i].mask))) |
+					(cvd2->pq_conf[i].val &
+						cvd2->pq_conf[i].mask));
+			}
+			if (tvafe_dbg_print & TVAFE_DBG_NORMAL) {
+				tvafe_pr_info("%s: pq: 0x%x=0x%x val=0x%x mask=0x%x\n",
+					      __func__,
+					(cvd2->pq_conf[i].reg >> 2),
+					R_APB_REG(cvd2->pq_conf[i].reg),
+					cvd2->pq_conf[i].val,
+					cvd2->pq_conf[i].mask);
+			}
+			i++;
+		}
 	}
 
 	/* enable CVD2 */
@@ -843,11 +791,22 @@ void tvafe_cvd2_set_default_cdto(struct tvafe_cvd2_s *cvd2)
 
 static void tvafe_cvd2_info_init(struct tvafe_cvd2_s *cvd2)
 {
+	struct tvafe_dev_s *devp = tvafe_get_dev();
+	unsigned int index;
+
 	/* init variable */
 	memset(&cvd2->info, 0, sizeof(struct tvafe_cvd2_info_s));
 
 	/* set default value if needed */
 	cvd2->info.scene_colorful = 1;
+
+	if (devp->pq_conf) {
+		index = cvd2->config_fmt - TVIN_SIG_FMT_CVBS_NTSC_M;
+		cvd2->pq_conf = devp->pq_conf[index];
+	} else {
+		tvafe_pr_err("%s: cvd2 pq_conf is null\n",
+			     __func__);
+	}
 }
 
 /*
@@ -871,8 +830,8 @@ inline void tvafe_cvd2_try_format(struct tvafe_cvd2_s *cvd2,
 		tvafe_pr_info("%s: try new fmt:%s\n",
 				__func__, tvin_sig_fmt_str(fmt));
 		cvd2->config_fmt = fmt;
-		tvafe_cvd2_write_mode_reg(cvd2, mem);
 		tvafe_cvd2_info_init(cvd2);
+		tvafe_cvd2_write_mode_reg(cvd2, mem);
 	}
 }
 
@@ -2732,12 +2691,6 @@ void tvafe_cvd2_hold_rst(void)
 	W_APB_BIT(CVD2_RESET_REGISTER, 1, SOFT_RST_BIT, SOFT_RST_WID);
 }
 
-void tvafe_cvd2_set_reg8a(unsigned int v)
-{
-	cvd_reg8a = v;
-	W_APB_REG(CVD2_CHROMA_LOOPFILTER_STATE, cvd_reg8a);
-}
-
 void tvafe_cvd2_rf_ntsc50_en(bool v)
 {
 	ntsc50_en = v;
@@ -2746,7 +2699,6 @@ void tvafe_cvd2_rf_ntsc50_en(bool v)
 void tvafe_snow_config(unsigned int onoff)
 {
 	if (tvafe_snow_function_flag == 0 ||
-		tvafe_cpu_type() == CPU_TYPE_TXHD ||
 		tvafe_cpu_type() == CPU_TYPE_TL1 ||
 		tvafe_cpu_type() == CPU_TYPE_TM2)
 		return;
@@ -2758,9 +2710,8 @@ void tvafe_snow_config(unsigned int onoff)
 
 void tvafe_snow_config_clamp(unsigned int onoff)
 {
-	if (tvafe_cpu_type() == CPU_TYPE_TXHD ||
-		tvafe_cpu_type() == CPU_TYPE_TL1 ||
-		tvafe_cpu_type() == CPU_TYPE_TM2) {
+	if (tvafe_cpu_type() == CPU_TYPE_TL1 ||
+	    tvafe_cpu_type() == CPU_TYPE_TM2) {
 		if (onoff)
 			vdin_adjust_tvafesnow_brightness();
 		return;

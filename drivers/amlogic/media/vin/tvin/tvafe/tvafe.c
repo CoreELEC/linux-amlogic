@@ -81,6 +81,7 @@ static struct am_regs_s tvaferegs;
 static struct tvafe_pin_mux_s tvafe_pinmux;
 static struct meson_tvafe_data *s_tvafe_data;
 static struct tvafe_clkgate_type tvafe_clkgate;
+static struct tvafe_dev_s *tvafe_dev_local;
 
 static bool enable_db_reg = true;
 module_param(enable_db_reg, bool, 0644);
@@ -152,6 +153,31 @@ static struct tvafe_user_param_s tvafe_user_param = {
 struct tvafe_user_param_s *tvafe_get_user_param(void)
 {
 	return &tvafe_user_param;
+}
+
+struct tvafe_dev_s *tvafe_get_dev(void)
+{
+	return tvafe_dev_local;
+}
+
+static int tvafe_pq_config_update(struct tvafe_dev_s *devp,
+				  enum tvin_port_e port)
+{
+	if ((port == TVIN_PORT_CVBS1) || (port == TVIN_PORT_CVBS2)) {
+		devp->pq_conf = s_tvafe_data->cvbs_pq_conf;
+		if (tvafe_dbg_print & TVAFE_DBG_NORMAL) {
+			tvafe_pr_info("%s: select cvbs_pq config\n",
+				      __func__);
+		}
+	} else {
+		devp->pq_conf = s_tvafe_data->rf_pq_conf;
+		if (tvafe_dbg_print & TVAFE_DBG_NORMAL) {
+			tvafe_pr_info("%s: select rf_pq config\n",
+				      __func__);
+		}
+	}
+
+	return 0;
 }
 
 /*
@@ -284,6 +310,7 @@ static int tvafe_dec_open(struct tvin_frontend_s *fe, enum tvin_port_e port)
 #endif
 	/* init variable */
 	memset(tvafe, 0, sizeof(struct tvafe_info_s));
+	tvafe_pq_config_update(devp, port);
 	/**enable and reset tvafe clock**/
 	tvafe_enable_module(true);
 	devp->flags &= (~TVAFE_POWERDOWN_IN_IDLE);
@@ -1266,49 +1293,45 @@ static void tvafe_user_parameters_config(struct device_node *of_node)
 	}
 }
 
-struct meson_tvafe_data meson_gxtvbb_tvafe_data = {
-	.cpu_id = CPU_TYPE_GXTVBB,
-	.name = "meson-gxtvbb-tvafe",
-};
-
-struct meson_tvafe_data meson_txl_tvafe_data = {
+static struct meson_tvafe_data meson_txl_tvafe_data = {
 	.cpu_id = CPU_TYPE_TXL,
 	.name = "meson-txl-tvafe",
+
+	.cvbs_pq_conf = NULL,
+	.rf_pq_conf = NULL,
 };
 
-struct meson_tvafe_data meson_txlx_tvafe_data = {
+static struct meson_tvafe_data meson_txlx_tvafe_data = {
 	.cpu_id = CPU_TYPE_TXLX,
 	.name = "meson-txlx-tvafe",
+
+	.cvbs_pq_conf = NULL,
+	.rf_pq_conf = NULL,
 };
 
-struct meson_tvafe_data meson_txhd_tvafe_data = {
-	.cpu_id = CPU_TYPE_TXHD,
-	.name = "meson-txhd-tvafe",
-};
-
-struct meson_tvafe_data meson_tl1_tvafe_data = {
+static struct meson_tvafe_data meson_tl1_tvafe_data = {
 	.cpu_id = CPU_TYPE_TL1,
 	.name = "meson-tl1-tvafe",
+
+	.cvbs_pq_conf = NULL,
+	.rf_pq_conf = NULL,
 };
 
-struct meson_tvafe_data meson_tm2_tvafe_data = {
+static struct meson_tvafe_data meson_tm2_tvafe_data = {
 	.cpu_id = CPU_TYPE_TM2,
 	.name = "meson-tm2-tvafe",
+
+	.cvbs_pq_conf = NULL,
+	.rf_pq_conf = NULL,
 };
 
 static const struct of_device_id meson_tvafe_dt_match[] = {
 	{
-		.compatible = "amlogic, tvafe-gxtvbb",
-		.data		= &meson_gxtvbb_tvafe_data,
-	}, {
 		.compatible = "amlogic, tvafe-txl",
 		.data		= &meson_txl_tvafe_data,
 	}, {
 		.compatible = "amlogic, tvafe-txlx",
 		.data		= &meson_txlx_tvafe_data,
-	}, {
-		.compatible = "amlogic, tvafe-txhd",
-		.data		= &meson_txhd_tvafe_data,
 	}, {
 		.compatible = "amlogic, tvafe-tl1",
 		.data		= &meson_tl1_tvafe_data,
@@ -1341,8 +1364,23 @@ static int tvafe_drv_probe(struct platform_device *pdev)
 	s_tvafe_data = (struct meson_tvafe_data *)match->data;
 	tvafe_pr_info("%s:cpu_id:%d,name:%s\n", __func__,
 		s_tvafe_data->cpu_id, s_tvafe_data->name);
+	tvafe_pq_config_probe(s_tvafe_data);
 
 	tvafe_clktree_probe(&pdev->dev);
+
+	ret = alloc_chrdev_region(&tvafe_devno, 0, 1, TVAFE_NAME);
+	if (ret < 0) {
+		tvafe_pr_err("%s: failed to allocate major number\n", __func__);
+		goto fail_alloc_cdev_region;
+	}
+	tvafe_pr_info("%s: major %d\n", __func__, MAJOR(tvafe_devno));
+
+	tvafe_clsp = class_create(THIS_MODULE, TVAFE_NAME);
+	if (IS_ERR(tvafe_clsp)) {
+		ret = PTR_ERR(tvafe_clsp);
+		tvafe_pr_err("%s: failed to create class\n", __func__);
+		goto fail_class_create;
+	}
 
 	/* allocate memory for the per-device structure */
 	tdevp = kzalloc(sizeof(struct tvafe_dev_s), GFP_KERNEL);
@@ -1492,6 +1530,7 @@ static int tvafe_drv_probe(struct platform_device *pdev)
 	av2_plugin_state = 0;
 #endif
 
+	tvafe_dev_local = tdevp;
 	tdevp->sizeof_tvafe_dev_s = sizeof(struct tvafe_dev_s);
 
 	disableapi = false;
@@ -1510,8 +1549,11 @@ fail_get_id:
 	kfree(tdevp);
 fail_kzalloc_tdev:
 	tvafe_pr_err("tvafe: kzalloc memory failed.\n");
+	class_destroy(tvafe_clsp);
+fail_class_create:
+	unregister_chrdev_region(tvafe_devno, 1);
+fail_alloc_cdev_region:
 	return ret;
-
 }
 
 static int tvafe_drv_remove(struct platform_device *pdev)
@@ -1531,6 +1573,11 @@ static int tvafe_drv_remove(struct platform_device *pdev)
 	tvafe_delete_device(tdevp->index);
 	cdev_del(&tdevp->cdev);
 	kfree(tdevp);
+	tvafe_dev_local = NULL;
+
+	class_destroy(tvafe_clsp);
+	unregister_chrdev_region(tvafe_devno, 1);
+
 	tvafe_pr_info("driver removed ok.\n");
 	return 0;
 }
@@ -1610,42 +1657,17 @@ static int __init tvafe_drv_init(void)
 {
 	int ret = 0;
 
-	ret = alloc_chrdev_region(&tvafe_devno, 0, 1, TVAFE_NAME);
-	if (ret < 0) {
-		tvafe_pr_err("%s: failed to allocate major number\n", __func__);
-		goto fail_alloc_cdev_region;
-	}
-	tvafe_pr_info("%s: major %d\n", __func__, MAJOR(tvafe_devno));
-
-	tvafe_clsp = class_create(THIS_MODULE, TVAFE_NAME);
-	if (IS_ERR(tvafe_clsp)) {
-		ret = PTR_ERR(tvafe_clsp);
-		tvafe_pr_err("%s: failed to create class\n", __func__);
-		goto fail_class_create;
-	}
-
 	ret = platform_driver_register(&tvafe_driver);
 	if (ret != 0) {
 		tvafe_pr_err("%s: failed to register driver\n", __func__);
-		goto fail_pdrv_register;
+		return ret;
 	}
 	/*tvafe_pr_info("tvafe_drv_init.\n");*/
 	return 0;
-
-fail_pdrv_register:
-	class_destroy(tvafe_clsp);
-fail_class_create:
-	unregister_chrdev_region(tvafe_devno, 1);
-fail_alloc_cdev_region:
-	return ret;
-
-
 }
 
 static void __exit tvafe_drv_exit(void)
 {
-	class_destroy(tvafe_clsp);
-	unregister_chrdev_region(tvafe_devno, 1);
 	platform_driver_unregister(&tvafe_driver);
 	tvafe_pr_info("tvafe_drv_exit.\n");
 }

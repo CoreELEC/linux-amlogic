@@ -51,7 +51,6 @@
 /************************************************************* */
 /* *** structure definitions ********************************************* */
 /************************************************************* */
-
 /* tvafe module structure */
 struct tvafe_info_s {
 	struct tvin_parm_s parm;
@@ -105,6 +104,8 @@ struct tvafe_dev_s {
 
 	struct tvafe_info_s tvafe;
 
+	struct tvafe_reg_table_s **pq_conf;
+
 	unsigned int cma_config_en;
 	/*cma_config_flag:1:share with codec_mm;0:cma alone*/
 	unsigned int cma_config_flag;
@@ -122,6 +123,7 @@ bool tvafe_get_snow_cfg(void);
 void tvafe_set_snow_cfg(bool cfg);
 
 struct tvafe_user_param_s *tvafe_get_user_param(void);
+struct tvafe_dev_s *tvafe_get_dev(void);
 
 typedef int (*hook_func_t)(void);
 typedef int (*hook_func1_t)(bool);
@@ -136,6 +138,7 @@ extern int tvafe_hiu_reg_read(unsigned int reg, unsigned int *val);
 extern int tvafe_hiu_reg_write(unsigned int reg, unsigned int val);
 extern int tvafe_device_create_file(struct device *dev);
 extern void tvafe_remove_device_files(struct device *dev);
+int tvafe_pq_config_probe(struct meson_tvafe_data *tvafe_data);
 
 extern bool disableapi;
 extern bool force_stable;

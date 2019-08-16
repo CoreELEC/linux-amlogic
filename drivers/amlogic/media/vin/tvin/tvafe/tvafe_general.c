@@ -284,6 +284,9 @@ static void tvafe_pq_apb_reg_trust_write(unsigned int addr,
 			break;
 		i++;
 	}
+	if (i >= size)
+		return;
+
 	/* check mask trust */
 	if ((mask & tvafe_pq_reg_trust_table[i][1]) != mask) {
 		tvafe_pr_info("%s: warning: reg 0x%x mask 0x%x is out of trust mask 0x%x, change to 0x%x!\n",
@@ -315,7 +318,6 @@ static enum tvafe_adc_ch_e tvafe_adc_pin_muxing(
 
 	if (tvafe_cpu_type() == CPU_TYPE_TXL ||
 		tvafe_cpu_type() == CPU_TYPE_TXLX ||
-		tvafe_cpu_type() == CPU_TYPE_TXHD ||
 		tvafe_cpu_type() >= CPU_TYPE_TL1) {
 		tvafe_pr_info("[tvafe]%s:pin:%d\n",
 			__func__, (unsigned int)pin);
@@ -450,11 +452,6 @@ static void tvafe_set_cvbs_default(struct tvafe_cvd2_s *cvd2,
 			W_HIU_REG(HHI_DADC_CNTL, 0x00102038);
 			W_HIU_REG(HHI_DADC_CNTL2, 0x00000406);
 			W_HIU_REG(HHI_DADC_CNTL3, 0x00082183);
-		} else if (tvafe_cpu_type() == CPU_TYPE_TXHD) {
-			/** DADC CNTL for LIF signal input **/
-			W_HIU_REG(HHI_DADC_CNTL, 0x00102038);
-			W_HIU_REG(HHI_DADC_CNTL2, 0x00000401);
-			W_HIU_REG(HHI_DADC_CNTL3, 0x00082183);
 		} else if (tvafe_cpu_type() >= CPU_TYPE_TL1) {
 			/** DADC CNTL for LIF signal input **/
 			W_HIU_REG(HHI_DADC_CNTL, 0x00303044);
@@ -472,10 +469,6 @@ static void tvafe_set_cvbs_default(struct tvafe_cvd2_s *cvd2,
 			tvafe_cpu_type() == CPU_TYPE_TXLX) {
 			W_HIU_REG(HHI_CADC_CNTL, 0x02000A08);
 			W_HIU_REG(HHI_CADC_CNTL2, 0x04007B05);
-		} else if (tvafe_cpu_type() == CPU_TYPE_TXHD) {
-			W_HIU_REG(HHI_DADC_CNTL, 0x00102038);
-			W_HIU_REG(HHI_DADC_CNTL2, 0x00000400);
-			W_HIU_REG(HHI_DADC_CNTL3, 0x00082183);
 		} else if (tvafe_cpu_type() >= CPU_TYPE_TL1) {
 			W_HIU_REG(HHI_DADC_CNTL, 0x00303044);
 			W_HIU_REG(HHI_DADC_CNTL2, 0x00003400);
@@ -494,7 +487,6 @@ static void tvafe_set_cvbs_default(struct tvafe_cvd2_s *cvd2,
 	}
 	if (tvafe_cpu_type() == CPU_TYPE_TXL ||
 		tvafe_cpu_type() == CPU_TYPE_TXLX ||
-		tvafe_cpu_type() == CPU_TYPE_TXHD ||
 		tvafe_cpu_type() >= CPU_TYPE_TL1) {
 		if (tvafe_cpu_type() >= CPU_TYPE_TL1) {
 			if (port == TVIN_PORT_CVBS3) {
@@ -511,42 +503,6 @@ static void tvafe_set_cvbs_default(struct tvafe_cvd2_s *cvd2,
 			W_APB_REG(TVFE_VAFE_CTRL0, 0x00090b00);
 			W_APB_REG(TVFE_VAFE_CTRL1, 0x00000110);
 			W_APB_REG(TVFE_VAFE_CTRL2, 0x0010ef93);
-			if (tvafe_cpu_type() == CPU_TYPE_TXHD) {
-				if (port == TVIN_PORT_CVBS3) {
-					/*enable fitler for atv/dtv*/
-					W_APB_BIT(TVFE_VAFE_CTRL0, 1,
-					VAFE_FILTER_EN_BIT, VAFE_FILTER_EN_WID);
-					/*increase current*/
-					W_APB_BIT(TVFE_VAFE_CTRL0, 2,
-						VAFE_FILTER_BIAS_ADJ_BIT,
-						VAFE_FILTER_BIAS_ADJ_WID);
-					/*increase band for atv/dtv*/
-					W_APB_BIT(TVFE_VAFE_CTRL0, 7,
-					VAFE_BW_SEL_BIT, VAFE_BW_SEL_WID);
-					W_APB_BIT(TVFE_VAFE_CTRL0, 0x10,
-						VAFE_FILTER_RESV_BIT,
-						VAFE_FILTER_RESV_WID);
-					/*disable pga for atv/dtv*/
-					W_APB_BIT(TVFE_VAFE_CTRL1, 0,
-					VAFE_PGA_EN_BIT, VAFE_PGA_EN_WID);
-					/*config from vlsi-xiaoniu for atv/dtv*/
-					/*disable afe buffer(bit0),*/
-					/*enable vafe buffer(bit28)*/
-					W_APB_REG(TVFE_VAFE_CTRL2, 0x1010eeb0);
-				/*W_APB_BIT(TVFE_VAFE_CTRL2, 1, 28, 1);*/
-				/*W_APB_BIT(TVFE_VAFE_CTRL2, 0, 0, 1);*/
-				} else if ((port == TVIN_PORT_CVBS1) ||
-					(port == TVIN_PORT_CVBS2)) {
-					W_APB_BIT(TVFE_VAFE_CTRL0, 1,
-					VAFE_FILTER_EN_BIT, VAFE_FILTER_EN_WID);
-					W_APB_BIT(TVFE_VAFE_CTRL1, 1,
-					VAFE_PGA_EN_BIT, VAFE_PGA_EN_WID);
-					/*enable Vref buffer*/
-					W_APB_BIT(TVFE_VAFE_CTRL2, 1, 28, 1);
-					/*enable afe buffer*/
-					W_APB_BIT(TVFE_VAFE_CTRL2, 1, 0, 1);
-				}
-			}
 		}
 
 #if (defined(CONFIG_ADC_DOUBLE_SAMPLING_FOR_CVBS) && defined(CRYSTAL_24M))
@@ -592,19 +548,6 @@ void tvafe_set_ddemod_default(void)
 		/*W_HIU_REG(HHI_VDAC_CNTL0, 0x00000200);*/
 		W_HIU_BIT(HHI_VDAC_CNTL0, 1, 9, 1);
 
-	} else if (tvafe_cpu_type() == CPU_TYPE_TXHD) {
-		W_HIU_REG(HHI_DADC_CNTL, 0x00102038);
-		W_HIU_REG(HHI_DADC_CNTL2, 0x00000401);
-		W_HIU_REG(HHI_DADC_CNTL3, 0x00082183);
-
-		/*W_HIU_REG(HHI_VDAC_CNTL0, 0x00000200);*/
-		W_HIU_BIT(HHI_VDAC_CNTL0, 1, 9, 1);
-
-		/*enable fitler */
-		/*config from vlsi-xiaoniu */
-		W_APB_REG(TVFE_VAFE_CTRL0, 0x000d0710);
-		W_APB_REG(TVFE_VAFE_CTRL1, 0x0);
-		W_APB_REG(TVFE_VAFE_CTRL2, 0x1010eeb0);
 	} else if (tvafe_cpu_type() >= CPU_TYPE_TL1) {
 		W_APB_REG(TVFE_VAFE_CTRL0, 0x000d0710);
 		W_APB_REG(TVFE_VAFE_CTRL1, 0x3000);
@@ -625,7 +568,6 @@ void tvafe_enable_avout(enum tvin_port_e port, bool enable)
 {
 	if (tvafe_cpu_type() == CPU_TYPE_TXL ||
 		tvafe_cpu_type() == CPU_TYPE_TXLX ||
-		tvafe_cpu_type() == CPU_TYPE_TXHD ||
 		tvafe_cpu_type() >= CPU_TYPE_TL1) {
 		if (enable) {
 			tvafe_clk_gate_ctrl(1);
@@ -716,8 +658,7 @@ int adc_set_pll_cntl(bool on, unsigned int module_sel, void *pDtvPara)
 		} else {
 			do {
 			if (tvafe_cpu_type() == CPU_TYPE_TXL ||
-				tvafe_cpu_type() == CPU_TYPE_TXLX ||
-				tvafe_cpu_type() == CPU_TYPE_TXHD) {
+				tvafe_cpu_type() == CPU_TYPE_TXLX) {
 				W_HIU_REG(HHI_ADC_PLL_CNTL3, 0x4a6a2110);
 				W_HIU_REG(HHI_ADC_PLL_CNTL, 0x30f14250);
 				W_HIU_REG(HHI_ADC_PLL_CNTL1, 0x22000442);
@@ -807,19 +748,6 @@ int adc_set_pll_cntl(bool on, unsigned int module_sel, void *pDtvPara)
 				W_HIU_REG(HHI_ADC_PLL_CNTL6, 0x00005000);
 				W_HIU_REG(HHI_ADC_PLL_CNTL3, 0xca6a2110);
 				W_HIU_REG(HHI_ADC_PLL_CNTL3, 0x4a6a2110);
-			} else if (tvafe_cpu_type() == CPU_TYPE_TXHD) {
-				W_HIU_REG(HHI_ADC_PLL_CNTL3, 0x4a6a2110);
-				W_HIU_REG(HHI_ADC_PLL_CNTL, 0x30f14250);
-				W_HIU_REG(HHI_ADC_PLL_CNTL1, 0x22000442);
-				/*0x5ba00380 from pll;0x5ba00385 clk*/
-				/*form crystal*/
-				W_HIU_REG(HHI_ADC_PLL_CNTL2, 0x5ba00385);
-				W_HIU_REG(HHI_ADC_PLL_CNTL3, 0x4a6a2110);
-				W_HIU_REG(HHI_ADC_PLL_CNTL4, 0x02913004);
-				W_HIU_REG(HHI_ADC_PLL_CNTL5, 0x00034a00);
-				W_HIU_REG(HHI_ADC_PLL_CNTL6, 0x00005000);
-				W_HIU_REG(HHI_ADC_PLL_CNTL3, 0xca6a2110);
-				W_HIU_REG(HHI_ADC_PLL_CNTL3, 0x4a6a2110);
 			} else {
 				W_HIU_REG(HHI_ADC_PLL_CNTL3, 0xca2a2110);
 				W_HIU_REG(HHI_ADC_PLL_CNTL4, 0x2933800);
@@ -873,8 +801,7 @@ int adc_set_pll_cntl(bool on, unsigned int module_sel, void *pDtvPara)
 			W_HIU_REG(HHI_DEMOD_CLK_CNTL, 0x501);
 
 		} else if (tvafe_cpu_type() == CPU_TYPE_TXL ||
-			tvafe_cpu_type() == CPU_TYPE_TXLX ||
-			tvafe_cpu_type() == CPU_TYPE_TXHD) {
+			tvafe_cpu_type() == CPU_TYPE_TXLX) {
 			do {
 				W_HIU_REG(HHI_ADC_PLL_CNTL3, 0x4a6a2110);
 				W_HIU_REG(HHI_ADC_PLL_CNTL,  0x5d414260);
@@ -935,8 +862,7 @@ int adc_set_pll_cntl(bool on, unsigned int module_sel, void *pDtvPara)
 		mutex_lock(&pll_mutex);
 
 		if (tvafe_cpu_type() == CPU_TYPE_TXL ||
-			tvafe_cpu_type() == CPU_TYPE_TXLX ||
-			tvafe_cpu_type() == CPU_TYPE_TXHD) {
+			tvafe_cpu_type() == CPU_TYPE_TXLX) {
 			do {
 				/*reset*/
 				W_HIU_REG(HHI_ADC_PLL_CNTL3, 0xca6a2110);

@@ -2092,18 +2092,6 @@ static ssize_t vbi_store(struct device *dev,
 		W_VBI_APB_REG(ACD_REG_22, 0x06080000);
 		W_VBI_APB_REG(CVD2_VBI_FRAME_CODE_CTL, 0x10);
 		tvafe_pr_info("[vbi..]device release OK.\n");
-	} else if (!strncmp(parm[0], "release", strlen("release"))) {
-		ret = vbi_slicer_free(devp, vbi_slicer);
-		devp->slicer_enable = false;
-		devp->vbi_start = false;  /*disable data capture function*/
-		/* free irq */
-		if (devp->irq_free_status == 1)
-			free_irq(devp->vs_irq, (void *)devp);
-		devp->irq_free_status = 0;
-		/* vbi reset release, vbi agent enable */
-		W_VBI_APB_REG(ACD_REG_22, 0x06080000);
-		W_VBI_APB_REG(CVD2_VBI_FRAME_CODE_CTL, 0x10);
-		tvafe_pr_info("[vbi..]device release OK.\n");
 	} else {
 		tvafe_pr_info("[vbi..]unsupport cmd!!!\n");
 	}
@@ -2124,6 +2112,18 @@ static int vbi_probe(struct platform_device *pdev)
 	int ret = 0;
 	struct resource *res;
 	struct vbi_dev_s *vbi_dev;
+
+	ret = alloc_chrdev_region(&vbi_id, 0, 1, VBI_NAME);
+	if (ret < 0) {
+		tvafe_pr_err(": failed to allocate major number\n");
+		goto fail_alloc_cdev_region;
+	}
+
+	vbi_clsp = class_create(THIS_MODULE, VBI_NAME);
+	if (IS_ERR(vbi_clsp)) {
+		tvafe_pr_err(": can't get vbi_clsp\n");
+		goto fail_class_create;
+	}
 
 	/* allocate memory for the per-device structure */
 	vbi_dev = kzalloc(sizeof(struct vbi_dev_s), GFP_KERNEL);
@@ -2262,6 +2262,10 @@ fail_add_cdev:
 	kfree(vbi_dev);
 fail_kzalloc_mem:
 	tvafe_pr_err(": failed to allocate memory for vbi device\n");
+	class_destroy(vbi_clsp);
+fail_class_create:
+	unregister_chrdev_region(vbi_id, 1);
+fail_alloc_cdev_region:
 	return ret;
 }
 
@@ -2347,40 +2351,21 @@ static int __init vbi_init(void)
 {
 	int ret = 0;
 
-	ret = alloc_chrdev_region(&vbi_id, 0, 1, VBI_NAME);
-	if (ret < 0) {
-		tvafe_pr_err(": failed to allocate major number\n");
-		goto fail_alloc_cdev_region;
-	}
-
-	vbi_clsp = class_create(THIS_MODULE, VBI_NAME);
-	if (IS_ERR(vbi_clsp)) {
-		tvafe_pr_err(": can't get vbi_clsp\n");
-		goto fail_class_create;
-	}
-
 	ret = platform_driver_register(&vbi_driver);
 	if (ret != 0) {
 		tvafe_pr_err("failed to register vbi module, error %d\n",
 			ret);
-		goto fail_pdrv_register;
 		return -ENODEV;
 	}
-	tvafe_pr_info("vbi: vbi_init.\n");
+	/*tvafe_pr_info("vbi: vbi_init.\n");*/
 	return 0;
-
-fail_pdrv_register:
-	class_destroy(vbi_clsp);
-fail_class_create:
-	unregister_chrdev_region(vbi_id, 1);
-fail_alloc_cdev_region:
-	return ret;
 }
 
 static void __exit vbi_exit(void)
 {
 	platform_driver_unregister(&vbi_driver);
 }
+
 static int vbi_mem_device_init(struct reserved_mem *rmem,
 		struct device *dev)
 {

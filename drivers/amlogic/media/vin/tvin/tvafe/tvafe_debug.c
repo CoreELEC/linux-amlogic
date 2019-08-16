@@ -469,6 +469,13 @@ static ssize_t tvafe_store(struct device *dev,
 		}
 		pr_info("[tvafe..]%s: tvafe_dbg_print = 0x%x\n",
 			__func__, tvafe_dbg_print);
+	} else if (!strncmp(buff, "print", strlen("print"))) {
+		if (parm[1]) {
+			if (kstrtouint(parm[1], 16, &tvafe_dbg_print) < 0)
+				goto tvafe_store_err;
+		}
+		pr_info("[tvafe..]%s: tvafe_dbg_print = 0x%x\n",
+			__func__, tvafe_dbg_print);
 	} else
 		tvafe_pr_info("[%s]:invaild command.\n", __func__);
 	kfree(buf_orig);
@@ -507,7 +514,7 @@ static const char *tvafe_debug_usage_str = {
 "\n"
 "    echo skip_vf_num val(d) > /sys/class/tvafe/tvafe0/debug;set skip_vf_num for vdin\n"
 "\n"
-"    echo dbg_print val(h) > /sys/class/tvafe/tvafe0/debug;enable debug print\n"
+"    echo print val(h) > /sys/class/tvafe/tvafe0/debug;enable debug print\n"
 "    bit[0]: normal debug info\n"
 "    bit[4]: vsync isr debug info\n"
 "    bit[8]: smr debug info\n"
@@ -620,28 +627,6 @@ static ssize_t tvafe_dumpmem_store(struct device *dev,
 }
 
 static DEVICE_ATTR(dumpmem, 0200, NULL, tvafe_dumpmem_store);
-
-/*echo n >/sys/class/tvafe/tvafe0/cvd_reg8a set register of cvd2*/
-static ssize_t tvafe_cvd_reg8a_store(struct device *dev,
-		struct device_attribute *attr, const char *buff, size_t count)
-{
-	unsigned int n;
-	struct tvafe_dev_s *devp;
-
-	devp = dev_get_drvdata(dev);
-	if (kstrtouint(buff, 10, &n) != 0)
-		return -1;
-	if (!(devp->flags & TVAFE_FLAG_DEV_OPENED)) {
-
-		tvafe_pr_err("tvafe havn't opened, error!!!\n");
-		return count;
-	}
-	tvafe_cvd2_set_reg8a(n);
-	tvafe_pr_info(" set register of cvd 0x8a to %u.\n", n);
-	return count;
-}
-
-static DEVICE_ATTR(cvd_reg8a, 0200, NULL, tvafe_cvd_reg8a_store);
 
 static ssize_t tvafereg_store(struct device *dev,
 		struct device_attribute *attr, const char *buff, size_t count)
@@ -867,7 +852,6 @@ int tvafe_device_create_file(struct device *dev)
 	int ret = 0;
 
 	ret |= device_create_file(dev, &dev_attr_debug);
-	ret |= device_create_file(dev, &dev_attr_cvd_reg8a);
 	ret |= device_create_file(dev, &dev_attr_dumpmem);
 	ret |= device_create_file(dev, &dev_attr_reg);
 	ret |= device_create_file(dev, &dev_attr_cutwin);
@@ -880,7 +864,6 @@ void tvafe_remove_device_files(struct device *dev)
 	device_remove_file(dev, &dev_attr_cutwin);
 	device_remove_file(dev, &dev_attr_debug);
 	device_remove_file(dev, &dev_attr_dumpmem);
-	device_remove_file(dev, &dev_attr_cvd_reg8a);
 	device_remove_file(dev, &dev_attr_debug);
 }
 

@@ -170,6 +170,7 @@ struct tvafe_cvd2_s {
 	struct tvafe_cvd2_hw_data_s hw_data[3];
 	struct tvafe_cvd2_hw_data_s hw;
 	struct tvafe_cvd2_info_s info;
+	struct tvafe_reg_table_s *pq_conf;
 	unsigned int fmt_loop_cnt;
 	unsigned char hw_data_cur;
 	enum tvin_port_e vd_port;
@@ -212,7 +213,6 @@ extern enum tvafe_cvbs_video_e tvafe_cvd2_get_lock_status(
 extern int tvafe_cvd2_get_atv_format(void);
 extern int tvafe_cvd2_get_hv_lock(void);
 extern void tvafe_cvd2_hold_rst(void);
-extern void tvafe_cvd2_set_reg8a(unsigned int v);
 extern void tvafe_snow_config(unsigned int onoff);
 extern void tvafe_snow_config_clamp(unsigned int onoff);
 extern void tvafe_snow_config_acd(void);

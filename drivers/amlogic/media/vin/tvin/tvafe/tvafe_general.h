@@ -153,18 +153,27 @@ enum tvafe_adc_ch_e {
 };
 
 enum tvafe_cpu_type {
-	CPU_TYPE_GXTVBB = 0,
-	CPU_TYPE_TXL  = 1,
-	CPU_TYPE_TXLX  = 2,
-	CPU_TYPE_TXHD = 3,
-	CPU_TYPE_GXLX = 4,
-	CPU_TYPE_TL1 = 5,
-	CPU_TYPE_TM2 = 6,
+	CPU_TYPE_TXL  = 0,
+	CPU_TYPE_TXLX = 1,
+	CPU_TYPE_GXLX = 2,
+	CPU_TYPE_TL1  = 3,
+	CPU_TYPE_TM2  = 4,
+	CPU_TYPE_MAX,
+};
+
+#define TVAFE_PQ_CONFIG_NUM_MAX    20
+struct tvafe_reg_table_s {
+	unsigned int reg;
+	unsigned int val;
+	unsigned int mask;
 };
 
 struct meson_tvafe_data {
 	enum tvafe_cpu_type cpu_id;
 	const char *name;
+
+	struct tvafe_reg_table_s **cvbs_pq_conf;
+	struct tvafe_reg_table_s **rf_pq_conf;
 };
 
 struct tvafe_clkgate_type {
