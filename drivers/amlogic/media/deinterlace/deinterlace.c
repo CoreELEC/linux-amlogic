@@ -5251,6 +5251,8 @@ module_param(post_cnt, uint, 0664);
 MODULE_PARM_DESC(post_cnt, "/n show blend mode/n");
 static bool post_refresh;
 module_param_named(post_refresh, post_refresh, bool, 0644);
+unsigned int di_last_display;
+
 static int
 de_post_process(void *arg, unsigned int zoom_start_x_lines,
 		unsigned int zoom_end_x_lines, unsigned int zoom_start_y_lines,
@@ -5295,6 +5297,7 @@ de_post_process(void *arg, unsigned int zoom_start_x_lines,
 
 	di_post_stru.cur_disp_index = di_buf->index;
 
+	di_last_display = di_buf->index;/*tmp for keep buf*/
 	if (get_vpp_reg_update_flag(zoom_start_x_lines) || post_refresh)
 		di_post_stru.update_post_reg_flag = 1;
 
@@ -7843,11 +7846,14 @@ static void di_vf_put(vframe_t *vf, void *arg)
 			__func__, vf);
 		return;
 	}
-	//if (di_post_stru.keep_buf == di_buf) {
-	//	pr_info("[DI]recycle buffer %d, get cnt %d.\n",
-	//		di_buf->index, disp_frame_count);
+	if (di_post_stru.keep_buf	&&
+	    (di_post_stru.keep_buf == di_buf	||
+	     di_last_display != di_post_stru.keep_buf->index)) {
+	/*if (di_post_stru.keep_buf == di_buf) {*/
+		pr_info("[DI]recycle buffer %d, get cnt %d.\n",
+			di_post_stru.keep_buf->index, disp_frame_count);
 		recycle_keep_buffer();
-	//}
+	}
 
 	if (di_buf->type == VFRAME_TYPE_POST) {
 		di_lock_irqfiq_save(irq_flag2);
