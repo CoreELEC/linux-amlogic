@@ -2167,3 +2167,7 @@
 &efuse {
 	status = "okay";
 };
+
+&pixel_probe {
+	status = "okay";
+};
