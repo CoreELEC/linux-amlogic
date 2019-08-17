@@ -681,6 +681,12 @@ struct hw_debug_s {
 	struct osd_debug_backup_s osd_backup[OSD_BACKUP_COUNT];
 };
 
+struct viu2_osd_reg_item {
+	u32 addr;
+	u32 val;
+	u32 mask;
+};
+
 struct hw_para_s {
 	struct pandata_s pandata[HW_OSD_COUNT];
 	struct pandata_s dispdata[HW_OSD_COUNT];
@@ -749,7 +755,7 @@ struct hw_para_s {
 	u32 osd_deband_enable;
 	u32 osd_fps[VIU_COUNT];
 	u32 osd_fps_start[VIU_COUNT];
-	u32 osd_display_debug;
+	u32 osd_display_debug[VIU_COUNT];
 	ulong screen_base[HW_OSD_COUNT];
 	ulong screen_size[HW_OSD_COUNT];
 	ulong screen_base_backup[HW_OSD_COUNT];

@@ -174,11 +174,13 @@ static ssize_t osd_display_debug_read_file(struct file *file,
 				char __user *userbuf,
 				size_t count, loff_t *ppos)
 {
+	struct seq_file *s = file->private_data;
+	int osd_id = *(int *)s;
 	char buf[128];
 	ssize_t len;
 	u32 osd_display_debug_enable;
 
-	osd_get_display_debug(&osd_display_debug_enable);
+	osd_get_display_debug(osd_id, &osd_display_debug_enable);
 	len = snprintf(buf, 128, "%d\n", osd_display_debug_enable);
 	return simple_read_from_buffer(userbuf, count, ppos, buf, len);
 }
@@ -187,6 +189,8 @@ static ssize_t osd_display_debug_write_file(struct file *file,
 				const char __user *userbuf,
 				size_t count, loff_t *ppos)
 {
+	struct seq_file *s = file->private_data;
+	int osd_id = *(int *)s;
 	char buf[128];
 	u32 osd_display_debug_enable;
 	int ret = 0;
@@ -196,7 +200,7 @@ static ssize_t osd_display_debug_write_file(struct file *file,
 		return -EFAULT;
 	buf[count] = 0;
 	ret = kstrtoint(buf, 0, &osd_display_debug_enable);
-	osd_set_display_debug(osd_display_debug_enable);
+	osd_set_display_debug(osd_id, osd_display_debug_enable);
 	return count;
 }
 

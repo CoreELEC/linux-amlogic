@@ -2973,9 +2973,10 @@ static ssize_t show_osd_display_debug(struct device *device,
 				struct device_attribute *attr,
 				char *buf)
 {
+	struct fb_info *fb_info = dev_get_drvdata(device);
 	u32 osd_display_debug_enable;
 
-	osd_get_display_debug(&osd_display_debug_enable);
+	osd_get_display_debug(fb_info->node, &osd_display_debug_enable);
 	return snprintf(buf, 40, "%d\n",
 		osd_display_debug_enable);
 }
@@ -2984,13 +2985,14 @@ static ssize_t store_osd_display_debug(struct device *device,
 			   struct device_attribute *attr,
 			   const char *buf, size_t count)
 {
+	struct fb_info *fb_info = dev_get_drvdata(device);
 	int res = 0;
 	int ret = 0;
 
 	ret = kstrtoint(buf, 0, &res);
 	if (ret < 0)
 		return -EINVAL;
-	osd_set_display_debug(res);
+	osd_set_display_debug(fb_info->node, res);
 
 	return count;
 }
@@ -3706,6 +3708,12 @@ static struct device_attribute osd_attrs_viu2[] = {
 			show_osd_rotate, store_osd_rotate),
 	__ATTR(osd_status, 0444,
 			show_osd_status, NULL),
+	__ATTR(osd_hwc_enable, 0644,
+			show_osd_hwc_enalbe, store_osd_hwc_enalbe),
+	__ATTR(osd_hold_line, 0644,
+			show_osd_hold_line, store_osd_hold_line),
+	__ATTR(osd_do_hwc, 0220,
+			NULL, store_do_hwc),
 };
 
 #ifdef CONFIG_PM
