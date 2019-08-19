@@ -34,6 +34,7 @@
 #define DEBUG_FLAG_FRAME_DETECT            0x800000
 #define DEBUG_FLAG_OMX_DEBUG_DROP_FRAME        0x1000000
 #define DEBUG_FLAG_OMX_DISABLE_DROP_FRAME        0x2000000
+#define DEBUG_FLAG_PRINT_DROP_FRAME        0x4000000
 
 /*for video.c's static int debug_flag;*/
 

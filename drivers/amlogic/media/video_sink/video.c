@@ -519,9 +519,14 @@ MODULE_PARM_DESC(video_dbg_vf, "\n video_dbg_vf\n");
 module_param(video_dbg_vf, uint, 0664);
 
 static unsigned int video_get_vf_cnt;
+static unsigned int videopip_get_vf_cnt;
 static unsigned int video_drop_vf_cnt;
 MODULE_PARM_DESC(video_drop_vf_cnt, "\n video_drop_vf_cnt\n");
 module_param(video_drop_vf_cnt, uint, 0664);
+static unsigned int videopip_drop_vf_cnt;
+MODULE_PARM_DESC(videopip_drop_vf_cnt, "\n videopip_drop_vf_cnt\n");
+module_param(videopip_drop_vf_cnt, uint, 0664);
+
 
 enum toggle_out_fl_frame_e {
 	OUT_FA_A_FRAME,
@@ -6787,18 +6792,20 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 				break;
 			}
 #endif
-			if (vf) {
-				if (omx_need_drop_frame_num >= vf->omx_index) {
-					//pr_info("vsync drop omx_index %d\n",
-						//vf->omx_index);
-					vf = video_vf_get();
-					video_vf_put(vf);
-				} else {
-					omx_drop_done = true;
-					break;
-				}
-			} else
+			if (!vf)
 				break;
+
+			if (omx_need_drop_frame_num >= vf->omx_index) {
+				vf = video_vf_get();
+				video_vf_put(vf);
+				video_drop_vf_cnt++;
+				if (debug_flag & DEBUG_FLAG_PRINT_DROP_FRAME)
+					pr_info("drop frame: drop count %d\n",
+					video_drop_vf_cnt);
+			} else {
+				omx_drop_done = true;
+				break;
+			}
 		}
 	}
 
@@ -7169,8 +7176,13 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 					vf->omx_index, vf->pts);
 			}
 			vf = vf_get(RECEIVER_NAME);
-			if (vf)
+			if (vf) {
 				vf_put(vf, RECEIVER_NAME);
+				video_drop_vf_cnt++;
+				if (debug_flag & DEBUG_FLAG_PRINT_DROP_FRAME)
+					pr_info("drop frame: drop count %d\n",
+					video_drop_vf_cnt);
+			}
 			vf = video_vf_peek();
 			continue;
 		}
@@ -7310,8 +7322,12 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 			if (debug_flag & DEBUG_FLAG_TOGGLE_FRAME_PER_VSYNC)
 				break;
 			video_get_vf_cnt++;
-			if (video_get_vf_cnt >= 2)
+			if (video_get_vf_cnt >= 2) {
 				video_drop_vf_cnt++;
+			if (debug_flag & DEBUG_FLAG_PRINT_DROP_FRAME)
+				pr_info("drop frame: drop count %d\n",
+				video_drop_vf_cnt);
+			}
 		} else {
 			ATRACE_COUNTER(MODULE_NAME,  __LINE__);
 			/* check if current frame's duration has expired,
@@ -7439,6 +7455,7 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 SET_FILTER:
 #ifdef VIDEO_PIP
 	vf = pip_vf_peek();
+	videopip_get_vf_cnt = 0;
 
 	/* setting video display property in underflow mode */
 	if ((!vf) && cur_pipbuf && (pip_property_changed))
@@ -7471,15 +7488,24 @@ SET_FILTER:
 				break;
 			vf = pip_vf_get();
 			if (vf) {
+				videopip_get_vf_cnt++;
 				pip_toggle_frame(vf);
 				toggle_pip_frame = vf;
 			}
 		} else {
 			vf = pip_vf_get();
-			if (vf)
+			if (vf) {
+				videopip_get_vf_cnt++;
 				pip_vf_put(vf);
+			}
 		}
 		vf = pip_vf_peek();
+	}
+	if (videopip_get_vf_cnt >= 2) {
+		videopip_drop_vf_cnt += (videopip_get_vf_cnt - 1);
+		if (debug_flag & DEBUG_FLAG_PRINT_DROP_FRAME)
+			pr_info("videopip drop frame: drop count %d\n",
+			videopip_drop_vf_cnt);
 	}
 #endif
 
@@ -9055,6 +9081,7 @@ static int video_receiver_event_fun(int type, void *data, void *private_data)
 	} else if (type == VFRAME_EVENT_PROVIDER_LIGHT_UNREG)
 		video_vf_light_unreg_provider(0);
 	else if (type == VFRAME_EVENT_PROVIDER_REG) {
+		video_drop_vf_cnt = 0;
 		enable_video_discontinue_report = 1;
 		drop_frame_count = 0;
 		receive_frame_count = 0;
@@ -9199,8 +9226,10 @@ static int pip_receiver_event_fun(
 		pip_vf_light_unreg_provider(1);
 	else if (type == VFRAME_EVENT_PROVIDER_LIGHT_UNREG)
 		pip_vf_light_unreg_provider(0);
-	else if (type == VFRAME_EVENT_PROVIDER_REG)
+	else if (type == VFRAME_EVENT_PROVIDER_REG) {
 		pip_vf_light_unreg_provider(0);
+		videopip_drop_vf_cnt = 0;
+	}
 	return 0;
 }
 #endif
