@@ -584,7 +584,7 @@ static struct meson_composite m_composite[] = {
 	{CLKID_TCON_PLL_COMP, "tcon_pll_composite",
 	tcon_pll_parent_names, ARRAY_SIZE(tcon_pll_parent_names),
 	&tcon_pll_mux.hw, &tcon_pll_div.hw,
-	&tcon_pll_gate.hw, 0
+	&tcon_pll_gate.hw, CLK_IGNORE_UNUSED
 	},
 
 	{CLKID_DEMOD_COMP, "demod_composite",
