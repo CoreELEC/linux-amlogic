@@ -209,4 +209,6 @@ source "drivers/tee/Kconfig"
 source "drivers/gpu/arm/Kconfig"
 
 source "drivers/gator/Kconfig"
+
+source "drivers/bootloader/Kconfig"
 endmenu

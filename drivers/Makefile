@@ -178,3 +178,4 @@ obj-$(CONFIG_FPGA)		+= fpga/
 obj-$(CONFIG_TEE)		+= tee/
 obj-$(CONFIG_AMLOGIC_DRIVER) 	+= amlogic/
 obj-$(CONFIG_GATOR)		+= gator/
+obj-$(CONFIG_BL301_MANAGER)	+= bootloader/

@@ -30,6 +30,7 @@ enum scpi_client_id {
 	SCPI_CL_WOL,
 	SCPI_CL_IRPROTO,
 	SCPI_CL_REMOTE_MASK,
+	SCPI_CL_5V_SYSTEM_POWER,
 	SCPI_MAX,
 };
 
