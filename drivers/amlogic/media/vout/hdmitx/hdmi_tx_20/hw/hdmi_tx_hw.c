@@ -89,6 +89,7 @@ static int hdmitx_cntl_config(struct hdmitx_dev *hdev, unsigned int cmd,
 	unsigned int argv);
 static int hdmitx_cntl_misc(struct hdmitx_dev *hdev, unsigned int cmd,
 	unsigned int  argv);
+static enum hdmi_vic get_vic_from_pkt(void);
 
 #define EDID_RAM_ADDR_SIZE	 (8)
 
@@ -482,6 +483,7 @@ static void hdmi_hwp_init(struct hdmitx_dev *hdev)
 	/* enable CLK_TO_DIG */
 	hd_set_reg_bits(P_HHI_HDMI_PHY_CNTL3, 0x3, 0, 2);
 	if (hdmitx_uboot_already_display()) {
+		hdev->cur_VIC = get_vic_from_pkt();
 		hdev->ready = 1;
 		/* Get uboot output color space from AVI */
 		switch (hdmitx_rd_reg(HDMITX_DWC_FC_AVICONF0) & 0x3) {
