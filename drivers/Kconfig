@@ -232,4 +232,5 @@ source "drivers/counter/Kconfig"
 
 source "drivers/amlogic/Kconfig"
 
+source "drivers/bootloader/Kconfig"
 endmenu
