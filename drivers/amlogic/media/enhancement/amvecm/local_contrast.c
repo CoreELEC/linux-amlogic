@@ -1303,18 +1303,18 @@ int cal_curv_iir(int *curve_nodes_cur,
 				tmap[k] =
 					(node_cur * refresh_alpha[addr_curv1])
 					+ ((node_pre_raw *
-					(refresh - refresh_alpha[addr_curv1]) +
-					(1 << (refresh_bit - 1)))
+					(refresh - refresh_alpha[addr_curv1]))
 						>> refresh_bit);
 				curve_nodes_pre_raw[addr_curv2] =
 					tmap[k];
-				tmap[k] = (tmap[k] >> refresh_bit);
+				tmap[k] = (tmap[k] + (1 << (1 + refresh_bit)))
+							>> (2 + refresh_bit);
 				/*output the iir result*/
 				curve_nodes_cur[addr_curv2] =
-					(int)(tmap[k] >> 2);/*back to u10*/
+					(int)(tmap[k]);/*back to u10*/
 				/*delay for next iir*/
 				curve_nodes_pre[addr_curv2] =
-					(int)(tmap[k] >> 2);
+					(int)(tmap[k]);
 			}
 		}
 	}
