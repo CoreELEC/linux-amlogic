@@ -30,6 +30,10 @@ struct am_meson_gem_object {
 	/*for buffer create from ion heap */
 	struct ion_handle *handle;
 	bool bscatter;
+
+	/* for buffer import form other driver */
+	phys_addr_t addr;
+	struct sg_table *sg;
 };
 
 /* GEM MANAGER CREATE*/

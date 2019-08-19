@@ -133,7 +133,7 @@ void am_meson_gem_object_free(struct drm_gem_object *obj)
 	if (obj->import_attach == false)
 		am_meson_gem_free_ion_buf(obj->dev, meson_gem_obj);
 	else
-		DRM_ERROR("Not support import buffer from other driver.\n");
+		drm_prime_gem_destroy(obj, meson_gem_obj->sg);
 
 	drm_gem_free_mmap_offset(obj);
 
@@ -219,9 +219,8 @@ int am_meson_gem_object_get_phyaddr(
 	int addr;
 	size_t len;
 
-	if (!meson_gem->handle) {
-		DRM_INFO("%s handle null\n", __func__);
-		return -1;
+	if (meson_gem->sg) {
+		return meson_gem->addr;
 	}
 
 	ion_phys(drm->gem_client, meson_gem->handle,
@@ -439,7 +438,8 @@ struct drm_gem_object *am_meson_gem_prime_import_sg_table(
 	}
 
 	DRM_DEBUG("%s: %p, sg_table %p\n", __func__, meson_gem_obj, sgt);
-	/*meson_gem_obj->sgt = sgt;*/
+	meson_gem_obj->sg = sgt;
+	meson_gem_obj->addr = sg_dma_address(sgt->sgl);
 	return &meson_gem_obj->base;
 }
 

@@ -176,7 +176,7 @@ static struct drm_driver meson_driver = {
 	 * If gem_prime_import_sg_table is NULL,only buffer created
 	 * by meson driver can be imported ok.
 	 */
-	/*.gem_prime_import_sg_table = am_meson_gem_prime_import_sg_table,*/
+	.gem_prime_import_sg_table = am_meson_gem_prime_import_sg_table,
 
 	.gem_prime_vmap		= am_meson_gem_prime_vmap,
 	.gem_prime_vunmap	= am_meson_gem_prime_vunmap,
