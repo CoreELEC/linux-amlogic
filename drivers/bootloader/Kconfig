@@ -1,0 +1,14 @@
+#
+# For a description of the syntax of this configuration file,
+# see Documentation/kbuild/kconfig-language.txt.
+#
+
+menu "Bootloader Drivers"
+
+config BL301_MANAGER
+       tristate "Team CoreELEC bl301 helper driver"
+       ---help---
+          Driver to parse handle data between
+          config.ini and bootloader blob bl301.
+
+endmenu
