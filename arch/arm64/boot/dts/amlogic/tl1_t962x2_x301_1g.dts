@@ -520,7 +520,7 @@
 	};
 
 	amlvecm {
-		compatible = "amlogic, vecm";
+		compatible = "amlogic, vecm-tl1";
 		dev_name = "aml_vecm";
 		status = "okay";
 		gamma_en = <1>;/*1:enabel ;0:disable*/

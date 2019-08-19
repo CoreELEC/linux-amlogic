@@ -23,7 +23,7 @@
 #include <linux/amlogic/media/vfm/vframe.h>
 #include "linux/amlogic/media/amvecm/ve.h"
 
-#define VLOCK_VER "Ref.2019/7/29:FR_ADJ_NONE not support vlock"
+#define VLOCK_VER "Ref.2019/8/18:vlock for double frq out"
 
 #define VLOCK_REG_NUM	33
 

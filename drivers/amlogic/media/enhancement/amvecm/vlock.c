@@ -484,9 +484,15 @@ static void vlock_setting(struct vframe_s *vf,
 				WRITE_VPP_REG_BITS(VPU_VLOCK_MISC_CTRL,
 						1, 28, 1);
 		} else {
-			if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1))
-				WRITE_VPP_REG_BITS(VPU_VLOCK_MISC_CTRL,
-						1, 28, 1);
+			if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
+				if ((input_hz > 0) && (output_hz > 0) &&
+				    (input_hz * 2 == output_hz))
+					WRITE_VPP_REG_BITS(VPU_VLOCK_MISC_CTRL,
+							   0, 28, 1);
+				else
+					WRITE_VPP_REG_BITS(VPU_VLOCK_MISC_CTRL,
+							   1, 28, 1);
+			}
 		}
 		freq_hz = input_hz | (output_hz << 8);
 		WRITE_VPP_REG_BITS(VPU_VLOCK_MISC_CTRL, freq_hz, 0, 16);
@@ -494,9 +500,14 @@ static void vlock_setting(struct vframe_s *vf,
 		 *Ifrm_cnt_mod:0x3001(bit23~16);
 		 *(output_freq/input_freq)*Ifrm_cnt_mod must be integer
 		 */
-		if (vlock_adapt == 0)
-			WRITE_VPP_REG_BITS(VPU_VLOCK_MISC_CTRL, 1, 16, 8);
-		else
+		if (vlock_adapt == 0) {
+			if ((output_hz > 0) && (input_hz > 0))
+				WRITE_VPP_REG_BITS(VPU_VLOCK_MISC_CTRL,
+						   output_hz / input_hz, 16, 8);
+			else
+				WRITE_VPP_REG_BITS(VPU_VLOCK_MISC_CTRL,
+						   1, 16, 8);
+		} else
 			WRITE_VPP_REG_BITS(VPU_VLOCK_MISC_CTRL,
 				input_hz, 16, 8);
 		temp_value = READ_VPP_REG(enc_max_line_addr);
@@ -539,9 +550,15 @@ static void vlock_setting(struct vframe_s *vf,
 				WRITE_VPP_REG_BITS(VPU_VLOCK_MISC_CTRL,
 						1, 28, 1);
 		} else {
-			if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1))
-				WRITE_VPP_REG_BITS(VPU_VLOCK_MISC_CTRL,
-						1, 28, 1);
+			if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
+				if ((input_hz > 0) && (output_hz > 0) &&
+				    (input_hz * 2 == output_hz))
+					WRITE_VPP_REG_BITS(VPU_VLOCK_MISC_CTRL,
+							   0, 28, 1);
+				else
+					WRITE_VPP_REG_BITS(VPU_VLOCK_MISC_CTRL,
+							   1, 28, 1);
+			}
 		}
 		freq_hz = input_hz | (output_hz << 8);
 		WRITE_VPP_REG_BITS(VPU_VLOCK_MISC_CTRL, freq_hz, 0, 16);
@@ -550,7 +567,12 @@ static void vlock_setting(struct vframe_s *vf,
 		 *(output_freq/input_freq)*Ifrm_cnt_mod must be integer
 		 */
 		if (vlock_adapt == 0)
-			WRITE_VPP_REG_BITS(VPU_VLOCK_MISC_CTRL, 1, 16, 8);
+			if ((output_hz > 0) && (input_hz > 0))
+				WRITE_VPP_REG_BITS(VPU_VLOCK_MISC_CTRL,
+						   output_hz / input_hz, 16, 8);
+			else
+				WRITE_VPP_REG_BITS(VPU_VLOCK_MISC_CTRL,
+						   1, 16, 8);
 		else
 			WRITE_VPP_REG_BITS(VPU_VLOCK_MISC_CTRL,
 				input_hz, 16, 8);
@@ -1070,6 +1092,10 @@ static void vlock_enable_step3_soft_enc(void)
 		return;
 	}
 	ia = (READ_VPP_REG(VPU_VLOCK_RO_VS_I_DIST) + last_i_vsync + 1) / 2;
+	/*for 25Hz->50Hz, 30Hz->60Hz*/
+	if (READ_VPP_REG_BITS(VPU_VLOCK_MISC_CTRL, 16, 8) == 2)
+		ia = ia / 2;
+
 	oa = READ_VPP_REG(VPU_VLOCK_RO_VS_O_DIST);
 
 	if ((ia == 0) || (oa == 0)) {
@@ -1280,7 +1306,12 @@ static void vlock_enable_step3_pll(void)
 		ia = READ_VPP_REG(VPU_VLOCK_RO_VS_I_DIST) / 2;
 	else
 		ia = READ_VPP_REG(VPU_VLOCK_RO_VS_I_DIST);
+	/*for 25Hz->50Hz, 30Hz->60Hz*/
+	if (READ_VPP_REG_BITS(VPU_VLOCK_MISC_CTRL, 16, 8) == 2)
+		ia = ia / 2;
+
 	oa = READ_VPP_REG(VPU_VLOCK_RO_VS_O_DIST);
+
 	abs_cnt = abs(ia - oa);
 	if (abs_cnt > (oa / 3)) {
 		if (vlock_debug & VLOCK_DEBUG_INFO)
@@ -1730,8 +1761,7 @@ void vlock_dt_match_init(struct vecm_match_data_s *pdata)
 
 void vlock_set_phase(u32 percent)
 {
-	u32 vs_i_val = READ_VPP_REG(VPU_VLOCK_RO_VS_I_DIST);
-	/*u32 vs_o_val = READ_VPP_REG(VPU_VLOCK_RO_VS_O_DIST);*/
+	u32 ia = READ_VPP_REG(VPU_VLOCK_RO_VS_I_DIST);
 	u32 data = 0;
 
 	if (!vlock.phlock_en)
@@ -1743,7 +1773,7 @@ void vlock_set_phase(u32 percent)
 	}
 
 	vlock.phlock_percent = percent;
-	data = (vs_i_val * (100 + vlock.phlock_percent))/200;
+	data = (ia * (100 + vlock.phlock_percent)) / 200;
 	WRITE_VPP_REG(VPU_VLOCK_LOOP1_PHSDIF_TGT, data);
 
 	vlock_reset(1);
@@ -1784,16 +1814,13 @@ void vlock_phaselock_check(struct stvlock_sig_sts *pvlock,
 {
 	/*vs_i*/
 	u32 ia = READ_VPP_REG(VPU_VLOCK_RO_VS_I_DIST);
-	u32 oa = READ_VPP_REG(VPU_VLOCK_RO_VS_O_DIST);
 	u32 val, pre;
 
 	if (vlock.phlock_en) {
 		if ((pvlock->frame_cnt_in % 20) == 0) {
-			/*ia = READ_VPP_REG(VPU_VLOCK_RO_VS_I_DIST);*/
-			ia = (ia + oa) / 2;
 			pre = READ_VPP_REG(VPU_VLOCK_LOOP1_PHSDIF_TGT);
 			val = (ia * (100 + vlock.phlock_percent))/200;
-			if (val != pre) {
+			if (abs(val - pre) > 5) {
 				WRITE_VPP_REG(VPU_VLOCK_LOOP1_PHSDIF_TGT, val);
 				vlock_reset(1);
 				vlock_reset(0);
@@ -1875,18 +1902,29 @@ u32 vlock_fsm_check_support(struct stvlock_sig_sts *pvlock,
 		struct vframe_s *vf, struct vinfo_s *vinfo)
 {
 	u32 ret = true;
+	u32 vs_support = false;
 
-	if (((pvlock->input_hz != pvlock->output_hz) && (vlock_adapt == 0)) ||
-		(pvlock->input_hz == 0) || (pvlock->output_hz == 0) ||
+	/* ex:30Hz->30Hz 50Hz->50Hz ...*/
+	if ((pvlock->input_hz > 0) &&
+	    (pvlock->input_hz == pvlock->output_hz))
+		vs_support = true;
+	/* ex:30Hz->60Hz 25Hz->50Hz */
+	if ((pvlock->input_hz > 0) &&
+	    (pvlock->input_hz * 2 == pvlock->output_hz))
+		vs_support = true;
+
+	if ((!vs_support && (vlock_adapt == 0)) ||
+	    (pvlock->input_hz == 0) || (pvlock->output_hz == 0) ||
 		(((vf->type_original & VIDTYPE_TYPEMASK)
 			!= VIDTYPE_PROGRESSIVE) &&
 			is_meson_txlx_package_962E())) {
 
 		if (vlock_debug & VLOCK_DEBUG_INFO) {
-			pr_info("[%s] for no support case!!!\n",
-				__func__);
-			pr_info("input_hz:%d, output_hz:%d\n",
-				pvlock->input_hz, pvlock->output_hz);
+			pr_info("[%s] for no support case!!! vf:0x%x\n",
+				__func__, vf->type_original);
+			pr_info("vs_sup:%d input_hz:%d, output_hz:%d\n",
+				vs_support, pvlock->input_hz,
+				pvlock->output_hz);
 			pr_info("type_original:0x%x\n", vf->type_original);
 		}
 		ret = false;
@@ -1899,8 +1937,12 @@ u32 vlock_fsm_check_support(struct stvlock_sig_sts *pvlock,
 		ret = false;
 	}
 
-	if (vinfo->fr_adj_type == VOUT_FR_ADJ_NONE)
+	if (vinfo->fr_adj_type == VOUT_FR_ADJ_NONE) {
+		if (vlock_debug & VLOCK_DEBUG_INFO)
+			pr_info("[%s] for adj_type VOUT_FR_ADJ_NONE!!!\n",
+				__func__);
 		ret = false;
+	}
 
 	return ret;
 }
@@ -2584,6 +2626,7 @@ void vlock_param_config(struct device_node *node)
 		vlock_line_limit = val;
 
 #ifdef CONFIG_AMLOGIC_LCD
+	/* lock vlock config data from LCD module */
 	schedule_work(&aml_lcd_vlock_param_work);
 #endif
 

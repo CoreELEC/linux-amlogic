@@ -6799,7 +6799,7 @@ static const struct vecm_match_data_s vecm_dt_tl1 = {
 };
 
 static const struct vecm_match_data_s vecm_dt_sm1 = {
-	.vlk_support = true,
+	.vlk_support = false,
 	.vlk_new_fsm = 1,
 	.vlk_hwver = vlock_hw_ver2,
 	.vlk_phlock_en = false,
@@ -6807,7 +6807,7 @@ static const struct vecm_match_data_s vecm_dt_sm1 = {
 };
 
 static const struct vecm_match_data_s vecm_dt_tm2 = {
-	.vlk_support = true,
+	.vlk_support = false,
 	.vlk_new_fsm = 1,
 	.vlk_hwver = vlock_hw_ver2,
 	.vlk_phlock_en = false,
@@ -6822,6 +6822,10 @@ static const struct of_device_id aml_vecm_dt_match[] = {
 	{
 		.compatible = "amlogic, vecm-tl1",
 		.data = &vecm_dt_tl1,
+	},
+	{
+		.compatible = "amlogic, vecm-sm1",
+		.data = &vecm_dt_sm1,
 	},
 	{
 		.compatible = "amlogic, vecm-tm2",
