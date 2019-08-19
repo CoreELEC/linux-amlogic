@@ -3761,8 +3761,7 @@ static int hdmitx_module_disable(enum vmode_e cur_vmod)
 	hdev->HWOp.CntlConfig(hdev, CONF_CLR_AVI_PACKET, 0);
 	hdev->HWOp.CntlConfig(hdev, CONF_CLR_VSDB_PACKET, 0);
 	hdev->HWOp.CntlMisc(hdev, MISC_TMDS_PHY_OP, TMDS_PHY_DISABLE);
-	if (hdev->para->hdmitx_vinfo.viu_mux == VIU_MUX_ENCI)
-		hdmitx_disable_vclk2_enci(hdev);
+	hdmitx_disable_clk(hdev);
 	hdev->para = hdmi_get_fmt_name("invalid", hdev->fmt_attr);
 	hdmitx_validate_vmode("null");
 	if (hdev->cedst_policy)

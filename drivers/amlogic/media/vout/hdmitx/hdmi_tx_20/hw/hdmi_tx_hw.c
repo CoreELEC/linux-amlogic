@@ -2189,9 +2189,6 @@ static void hdmitx_set_scdc(struct hdmitx_dev *hdev)
 
 void hdmitx_set_enc_hw(struct hdmitx_dev *hdev)
 {
-	if (hdev->para->hdmitx_vinfo.viu_mux == VIU_MUX_ENCI)
-		hdmitx_set_vclk2_enci(hdev);
-
 	set_vmode_enc_hw(hdev);
 
 	if (hdev->flag_3dfp) {
