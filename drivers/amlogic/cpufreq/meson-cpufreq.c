@@ -48,8 +48,8 @@
 #define OF_NODE_CPU_OPP_1	"/cpu_opp_table1/"	/* Core A73 */
 
 static unsigned long max_freq[2] = {
-		1896000, /* defalut freq for A53 is 1.896GHz */
-		1800000  /* defalut freq for A73 is 1.800GHz */
+		0, /* freq for A53 */
+		0  /* freq for A73 */
 };
 #endif
 
@@ -570,16 +570,12 @@ static int meson_cpufreq_init(struct cpufreq_policy *policy)
 	}
 
 #ifdef CONFIG_ARCH_MESON64_ODROIDN2
-	for (i = 0; (freq_table[cur_cluster][i].frequency != CPUFREQ_TABLE_END)
-		&& max_freq[cur_cluster]; i++) {
-		if (freq_table[cur_cluster][i].frequency > max_freq[cur_cluster]) {
-			pr_info("dvfs [%s] - cluster %d freq %d\n",
-				__func__, cur_cluster,
-				freq_table[cur_cluster][i].frequency);
-
-			freq_table[cur_cluster][i].frequency = CPUFREQ_TABLE_END;
-		}
+	for (i = 0; freq_table[cur_cluster][i].frequency != CPUFREQ_TABLE_END; i++) {
+		if (freq_table[cur_cluster][i].frequency > max_freq[cur_cluster])
+			max_freq[cur_cluster] = freq_table[cur_cluster][i].frequency;
 	}
+	pr_info("dvfs [%s] - cluster %d max freq %d\n",
+		__func__, cur_cluster, max_freq[cur_cluster]);
 #endif
 
 	ret = cpufreq_table_validate_and_show(policy, freq_table[cur_cluster]);
