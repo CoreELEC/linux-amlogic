@@ -407,16 +407,4 @@ config IR_SUNXI
 	   To compile this driver as a module, choose M here: the module will
 	   be called sunxi-ir.
 
-config IR_HK_LIRC_HELPER
-	tristate "Hardkernel LIRC helper driver"
-	depends on RC_CORE
-	---help---
-	   Driver to parse IR decode type from LIRC timing
-	   and convey custom power key pattern to bl301
-	   Say Y if you want to use the IR helper
-	   on Hardkernel platform.
-
-	   To compile this driver as a module, choose M here: the
-	   module will be called meson-ir.
-
 endif #RC_DEVICES
