@@ -15147,3 +15147,9 @@ F:	include/dt-bindings/display/meson-drm-ids.h
 AMLOGIC LCD EXTERN DRIVER
 M:      Shaochan Liu <shaochan.liu@amlogic.com>
 F:      drivers/amlogic/media/vout/lcd/lcd_extern/i2c_CS602.c
+
+AMLOGIC SM1/G12A BL40 BOOTUP DRIVER
+M: shunzhou jiang <shunzhou.jiang@amlogic.com>
+F: drivers/amlogic/firmware/bl40_module.c
+F: drivers/amlogic/firmware/Makefile
+F: drivers/amlogic/firmware/Kconfig

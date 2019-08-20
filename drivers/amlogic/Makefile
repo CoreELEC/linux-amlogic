@@ -141,3 +141,5 @@ obj-$(CONFIG_DOLBY_FW) += dolby_fw/
 obj-$(CONFIG_AMLOGIC_IRCUT) += ircut/
 
 obj-$(CONFIG_AMLOGIC_PIXEL_PROBE) += pixel_probe/
+
+obj-$(CONFIG_AMLOGIC_FIRMWARE) += firmware/

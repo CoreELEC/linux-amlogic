@@ -671,3 +671,21 @@ int scpi_get_cpuinfo(enum scpi_get_pfm_type type, u32 *freq, u32 *vol)
 	return ret;
 }
 EXPORT_SYMBOL_GPL(scpi_get_cpuinfo);
+
+int scpi_unlock_bl40(void)
+{
+	struct scpi_data_buf sdata;
+	struct mhu_data_buf mdata;
+	u8 temp = 0;
+
+	struct __packed {
+		u32 status;
+	} buf;
+
+	SCPI_SETUP_DBUF(sdata, mdata, SCPI_CL_NONE,
+			SCPI_CMD_BL4_WAIT_UNLOCK, temp, buf);
+	if (scpi_execute_cmd(&sdata))
+		return -1;
+	return 0;
+}
+EXPORT_SYMBOL_GPL(scpi_unlock_bl40);
