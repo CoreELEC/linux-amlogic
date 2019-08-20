@@ -3418,7 +3418,24 @@ static int vdin_drv_suspend(struct platform_device *pdev, pm_message_t state)
 	cpumask_copy(&vdinirq_mask, mask);
 	}
 	vdevp->flags |= VDIN_FLAG_SUSPEND;
-	vdin_enable_module(vdevp->addr_offset, false);
+	/*no need setting any regs*/
+	/*vdin_enable_module(vdevp->addr_offset, false);*/
+
+	/* disable clock of blackbar, histogram, histogram, line fifo1, matrix,
+	 * hscaler, pre hscaler, clock0
+	 */
+	/* [15:14]  Disable blackbar clock      = 01/(auto, off, on, on) */
+	/* [13:12]  Disable histogram clock     = 01/(auto, off, on, on) */
+	/* [11:10]  Disable line fifo1 clock    = 01/(auto, off, on, on) */
+	/* [ 9: 8]  Disable matrix clock        = 01/(auto, off, on, on) */
+	/* [ 7: 6]  Disable hscaler clock       = 01/(auto, off, on, on) */
+	/* [ 5: 4]  Disable pre hscaler clock   = 01/(auto, off, on, on) */
+	/* [ 3: 2]  Disable clock0              = 01/(auto, off, on, on) */
+	/* [    0]  Enable register clock       = 00/(auto, off!!!!!!!!) */
+	switch_vpu_clk_gate_vmod(vdevp->addr_offset == 0
+		? VPU_VIU_VDIN0 : VPU_VIU_VDIN1,
+		VPU_CLK_GATE_OFF);
+
 	pr_info("%s ok.\n", __func__);
 	return 0;
 }
@@ -3428,7 +3445,23 @@ static int vdin_drv_resume(struct platform_device *pdev)
 	struct vdin_dev_s *vdevp;
 
 	vdevp = platform_get_drvdata(pdev);
-	vdin_enable_module(vdevp->addr_offset, true);
+	/*no need resume anything*/
+	/*vdin_enable_module(vdevp->addr_offset, true);*/
+
+	/* enable clock of blackbar, histogram, histogram, line fifo1, matrix,
+	 * hscaler, pre hscaler, clock0
+	 */
+	/* [15:14]  Enable blackbar clock       = 00/(auto, off, on, on) */
+	/* [13:12]  Enable histogram clock      = 00/(auto, off, on, on) */
+	/* [11:10]  Enable line fifo1 clock     = 00/(auto, off, on, on) */
+	/* [ 9: 8]  Enable matrix clock         = 00/(auto, off, on, on) */
+	/* [ 7: 6]  Enable hscaler clock        = 00/(auto, off, on, on) */
+	/* [ 5: 4]  Enable pre hscaler clock    = 00/(auto, off, on, on) */
+	/* [ 3: 2]  Enable clock0               = 00/(auto, off, on, on) */
+	/* [    0]  Enable register clock       = 00/(auto, off!!!!!!!!) */
+	switch_vpu_clk_gate_vmod(vdevp->addr_offset == 0
+		? VPU_VIU_VDIN0 : VPU_VIU_VDIN1,
+		VPU_CLK_GATE_ON);
 
 	if (vdevp->irq) {
 		if (!irq_can_set_affinity(vdevp->irq))
