@@ -491,7 +491,7 @@ static const char *tvafe_debug_usage_str = {
 "\n"
 "    echo afe_ver > /sys/class/tvafe/tvafe0/debug;show tvafe version\n"
 "\n"
-"    echo snow val(d) > /sys/class/tvafe/tvafe0/debug;snow on/off\n"
+"    echo snowon val(d) > /sys/class/tvafe/tvafe0/debug;snow on/off\n"
 "\n"
 "    echo frame_skip_enable val(d) > /sys/class/tvafe/tvafe0/debug;frame skip enable/disable\n"
 "\n"

@@ -700,8 +700,22 @@ bool tvafe_is_nosig(struct tvin_frontend_s *fe)
 
 	ret = tvafe_cvd2_no_sig(&tvafe->cvd2, &devp->mem);
 	if ((!tvafe_mode) && (port == TVIN_PORT_CVBS3) &&
-		(devp->flags & TVAFE_FLAG_DEV_SNOW_FLAG)) /* playing snow */
-		ret = true;
+		(devp->flags & TVAFE_FLAG_DEV_SNOW_FLAG)) { /* playing snow */
+		tvafe->cvd2.info.snow_state[3] = tvafe->cvd2.info.snow_state[2];
+		tvafe->cvd2.info.snow_state[2] = tvafe->cvd2.info.snow_state[1];
+		tvafe->cvd2.info.snow_state[1] = tvafe->cvd2.info.snow_state[0];
+		if (ret)
+			tvafe->cvd2.info.snow_state[0] = 0;
+		else
+			tvafe->cvd2.info.snow_state[0] = 1;
+		if ((tvafe->cvd2.info.snow_state[3] +
+			tvafe->cvd2.info.snow_state[2] +
+			tvafe->cvd2.info.snow_state[1] +
+			tvafe->cvd2.info.snow_state[0]) == 4)
+			ret = false;
+		else
+			ret = true;
+	}
 	if ((port == TVIN_PORT_CVBS3) &&
 		(tvafe->cvd2.config_fmt == TVIN_SIG_FMT_CVBS_PAL_I)) {
 		/*fix black side when config atv snow*/

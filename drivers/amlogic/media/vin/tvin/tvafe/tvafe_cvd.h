@@ -136,6 +136,7 @@ struct tvafe_cvd2_info_s {
 	unsigned short dgain[4];
 	unsigned short dgain_cnt;
 #endif
+	unsigned char snow_state[4]; /* 0:nosig, 1:stable */
 	unsigned int comb_check_cnt;
 	unsigned int fmt_shift_cnt;
 	unsigned short nonstd_cnt;
