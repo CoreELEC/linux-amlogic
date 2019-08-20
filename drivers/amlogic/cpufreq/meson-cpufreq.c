@@ -570,12 +570,16 @@ static int meson_cpufreq_init(struct cpufreq_policy *policy)
 	}
 
 #ifdef CONFIG_ARCH_MESON64_ODROIDN2
-	for (i = 0; freq_table[cur_cluster][i].frequency != CPUFREQ_TABLE_END; i++) {
-		if (freq_table[cur_cluster][i].frequency > max_freq[cur_cluster])
-			max_freq[cur_cluster] = freq_table[cur_cluster][i].frequency;
+	for (i = 0; (freq_table[cur_cluster][i].frequency != CPUFREQ_TABLE_END)
+		&& max_freq[cur_cluster]; i++) {
+		if (freq_table[cur_cluster][i].frequency > max_freq[cur_cluster]) {
+			pr_info("dvfs [%s] - cluster %d freq %d\n",
+				__func__, cur_cluster,
+				freq_table[cur_cluster][i].frequency);
+
+			freq_table[cur_cluster][i].frequency = CPUFREQ_TABLE_END;
+		}
 	}
-	pr_info("dvfs [%s] - cluster %d max freq %d\n",
-		__func__, cur_cluster, max_freq[cur_cluster]);
 #endif
 
 	ret = cpufreq_table_validate_and_show(policy, freq_table[cur_cluster]);
