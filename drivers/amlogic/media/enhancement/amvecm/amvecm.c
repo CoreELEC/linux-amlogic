@@ -5115,7 +5115,7 @@ static void cm_sta_hist_range_thrd(int r, int ro_frame,
 		value0 = READ_VPP_REG(VPP_CHROMA_DATA_PORT);
 		WRITE_VPP_REG(VPP_CHROMA_ADDR_PORT, STA_SAT_HIST1_REG);
 		value1 = READ_VPP_REG(VPP_CHROMA_DATA_PORT);
-		pr_info("thrd0 = 0x%x, thrd0 = 0x%x\n", value0, value1);
+		pr_info("HIST0_REG = 0x%x, HIST1_REG = 0x%x\n", value0, value1);
 	} else {
 		WRITE_VPP_REG(VPP_CHROMA_ADDR_PORT, STA_SAT_HIST0_REG);
 		WRITE_VPP_REG(VPP_CHROMA_DATA_PORT, thrd0 | (ro_frame << 24));
@@ -5156,12 +5156,12 @@ static void get_cm_hist(enum cm_hist_e hist_sel)
 	unsigned int *hist;
 	unsigned int i;
 
-	hist = kmalloc(64 * sizeof(unsigned int), GFP_KERNEL);
-	memset(hist, 0, 64 * sizeof(unsigned int));
+	hist = kmalloc(32 * sizeof(unsigned int), GFP_KERNEL);
+	memset(hist, 0, 32 * sizeof(unsigned int));
 
 	switch (hist_sel) {
 	case CM_HUE_HIST:
-		for (i = 0; i < 64; i++) {
+		for (i = 0; i < 32; i++) {
 			WRITE_VPP_REG(VPP_CHROMA_ADDR_PORT,
 				RO_CM_HUE_HIST_BIN0 + i);
 			hist[i] = READ_VPP_REG(VPP_CHROMA_DATA_PORT);
@@ -5169,7 +5169,7 @@ static void get_cm_hist(enum cm_hist_e hist_sel)
 		}
 		break;
 	case CM_SAT_HIST:
-		for (i = 0; i < 64; i++) {
+		for (i = 0; i < 32; i++) {
 			WRITE_VPP_REG(VPP_CHROMA_ADDR_PORT,
 				RO_CM_SAT_HIST_BIN0 + i);
 			hist[i] = READ_VPP_REG(VPP_CHROMA_DATA_PORT);
@@ -5642,17 +5642,17 @@ static ssize_t amvecm_debug_store(struct class *cla,
 		if (rd)
 			cm_sta_hist_range_thrd(rd, 0, 0, 0);
 		else {
-			if (!parm[3]) {
+			if (!parm[4]) {
 				pr_info("miss param1\n");
 				goto free_buf;
 			}
-			if (kstrtoul(parm[1], 16, &val) < 0)
-				goto free_buf;
-			ro_frame = val;
 			if (kstrtoul(parm[2], 16, &val) < 0)
 				goto free_buf;
-			thrd0 = val;
+			ro_frame = val;
 			if (kstrtoul(parm[3], 16, &val) < 0)
+				goto free_buf;
+			thrd0 = val;
+			if (kstrtoul(parm[4], 16, &val) < 0)
 				goto free_buf;
 			thrd1 = val;
 			cm_sta_hist_range_thrd(rd, ro_frame, thrd0, thrd1);
