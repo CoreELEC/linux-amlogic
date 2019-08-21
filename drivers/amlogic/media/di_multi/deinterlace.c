@@ -1065,16 +1065,15 @@ store_dump_mem(struct device *dev, struct device_attribute *attr,
 				filp_close(filp, NULL);
 				kfree(buf_orig);
 				return len;
-
-				/*try again:*/
-				PR_INF("vap err,size to 5222400, try again\n");
-				nr_size = 5222400;
-				buff = dim_vmap(dump_adr, nr_size, &bflg_vmap);
-				if (!buff) {
-					filp_close(filp, NULL);
-					kfree(buf_orig);
-					return len;
-				}
+			}
+			/*try again:*/
+			PR_INF("vap err,size to 5222400, try again\n");
+			nr_size = 5222400;
+			buff = dim_vmap(dump_adr, nr_size, &bflg_vmap);
+			if (!buff) {
+				filp_close(filp, NULL);
+				kfree(buf_orig);
+				return len;
 			}
 		}
 	} else {
@@ -5180,7 +5179,10 @@ int dim_post_process(void *arg, unsigned int zoom_start_x_lines,
 		PR_ERR("%s 2:\n", __func__);
 		return 0;
 	}
-	dim_tr_ops.post_set(di_buf->vframe->omx_index);
+	if (di_buf->vframe)
+		dim_tr_ops.post_set(di_buf->vframe->omx_index);
+	else
+		return 0;
 	/*dbg*/
 	dim_ddbg_mod_save(eDI_DBG_MOD_POST_SETB, channel, ppost->frame_cnt);
 	dbg_post_cnt(channel, "ps1");
@@ -5221,8 +5223,7 @@ int dim_post_process(void *arg, unsigned int zoom_start_x_lines,
 			(dimp_get(eDI_MP_post_wr_en) &&
 			dimp_get(eDI_MP_post_wr_support)));
 
-		if (!di_buf->di_buf_dup_p[0]->vframe ||
-		    !di_buf->vframe) {
+		if (!di_buf->di_buf_dup_p[0]->vframe) {
 			PR_ERR("%s 3:\n", __func__);
 			return 0;
 		}
@@ -7174,7 +7175,7 @@ void di_reg_setting(unsigned int channel, struct vframe_s *vframe)
 	first_field_type = (vframe->type & VIDTYPE_TYPEMASK);
 	di_pre_size_change(vframe->width, nr_height,
 			   first_field_type, channel);
-	get_ops_nr()->cue_int();
+	get_ops_nr()->cue_int(vframe);
 	dim_ddbg_mod_save(eDI_DBG_MOD_REGE, channel, 0);
 
 	/*--------------------------*/
@@ -7220,9 +7221,8 @@ void di_reg_variable(unsigned int channel, struct vframe_s *vframe)
 			ppre->bypass_flag = true;
 			dimh_patch_post_update_mc_sw(DI_MC_SW_OTHER, false);
 			return;
-
-		ppre->bypass_flag = false;
 		}
+		ppre->bypass_flag = false;
 		/* patch for vdin progressive input */
 		if ((is_from_vdin(vframe)	&&
 		    is_progressive(vframe))
@@ -7381,7 +7381,9 @@ int di_ori_event_reg(void *data, unsigned int channel)
 	/*ary: need use interface api*/
 	/*receiver_name = vf_get_receiver_name(VFM_NAME);*/
 	preceiver = vf_get_receiver(di_rev_name[channel]);
-	receiver_name = preceiver->name;
+	if (preceiver)
+		receiver_name = preceiver->name;
+
 	if (receiver_name) {
 		if (!strcmp(receiver_name, "amvideo")) {
 			ppost->run_early_proc_fun_flag = 0;

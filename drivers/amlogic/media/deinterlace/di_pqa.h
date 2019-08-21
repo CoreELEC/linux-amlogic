@@ -96,7 +96,7 @@ struct nr_op_s {
 	void (*nr_all_config)(unsigned short nCol, unsigned short nRow,
 			      unsigned short type);
 	bool (*set_nr_ctrl_reg_table)(unsigned int addr, unsigned int value);
-	void (*cue_int)(void);
+	void (*cue_int)(struct vframe_s *vf);
 	void (*adaptive_cue_adjust)(unsigned int frame_diff,
 				    unsigned int field_diff);
 	int (*module_para)(struct seq_file *seq);
