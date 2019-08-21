@@ -3926,11 +3926,15 @@ static void vsync_toggle_frame(struct vframe_s *vf, int line)
 		}
 	}
 
-	if ((cur_dispbuf) && (cur_dispbuf != &vf_local) && (cur_dispbuf != vf)
-	    && (video_property_changed != 2)) {
+	if (cur_dispbuf != vf) {
 		new_frame_count++;
 		if (new_frame_count == 1)
 			first_picture = 1;
+	}
+
+	if ((cur_dispbuf) && (cur_dispbuf != &vf_local) && (cur_dispbuf != vf)
+	    && (video_property_changed != 2)) {
+
 #ifdef CONFIG_AMLOGIC_MEDIA_VSYNC_RDMA
 		if (is_vsync_rdma_enable()) {
 #ifdef RDMA_RECYCLE_ORDERED_VFRAMES
