@@ -412,7 +412,7 @@ static void tvafe_cvd2_write_mode_reg(struct tvafe_cvd2_s *cvd2,
 		if (cvd2->config_fmt == TVIN_SIG_FMT_CVBS_NTSC_M) {
 			W_APB_REG(CVD2_VSYNC_SIGNAL_THRESHOLD, 0x7d);
 			if (tvafe_cpu_type() == CPU_TYPE_TL1) {
-				W_APB_REG(CVD2_CONTROL1, 0x9);
+				W_APB_REG(CVD2_CONTROL1, 0x8);
 				W_APB_REG(CVD2_2DCOMB_NOISE_TH, 0x84);
 				W_APB_REG(CVD2_REG_B0, 0x0);
 				W_APB_REG(CVD2_3DCOMB_FILTER, 0xf);
