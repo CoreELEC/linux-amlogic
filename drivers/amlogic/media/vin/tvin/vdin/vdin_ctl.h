@@ -136,7 +136,7 @@ extern enum vdin_format_convert_e vdin_get_format_convert_matrix1(
 		struct vdin_dev_s *devp);
 extern void vdin_set_prob_xy(unsigned int offset, unsigned int x,
 		unsigned int y, struct vdin_dev_s *devp);
-extern void vdin_get_prob_rgb(unsigned int offset, unsigned int *r,
+extern void vdin_prob_get_rgb(unsigned int offset, unsigned int *r,
 		unsigned int *g, unsigned int *b);
 extern void vdin_set_all_regs(struct vdin_dev_s *devp);
 extern void vdin_set_default_regmap(unsigned int offset);
@@ -222,6 +222,15 @@ extern void vdin_vlock_input_sel(unsigned int type,
 extern void vdin_set_dolby_ll_tunnel(struct vdin_dev_s *devp);
 extern void vdin_check_hdmi_hdr(struct vdin_dev_s *devp);
 extern void vdin_dobly_mdata_write_en(unsigned int offset, unsigned int en);
+extern void vdin_prob_set_xy(unsigned int offset,
+		unsigned int x, unsigned int y, struct vdin_dev_s *devp);
+extern void vdin_prob_set_before_or_after_mat(unsigned int offset,
+		unsigned int x, struct vdin_dev_s *devp);
+extern void vdin_prob_get_yuv(unsigned int offset,
+		unsigned int *rgb_yuv0,	unsigned int *rgb_yuv1,
+		unsigned int *rgb_yuv2);
+extern void vdin_prob_matrix_sel(unsigned int offset,
+		unsigned int sel, struct vdin_dev_s *devp);
 
 #endif
 

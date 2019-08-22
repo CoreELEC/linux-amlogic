@@ -631,7 +631,7 @@ enum vdin_format_convert_e vdin_get_format_convert_matrix1(
  *	g 19:10
  *	b 29:20
  */
-void vdin_get_prob_rgb(unsigned int offset,
+void vdin_prob_get_rgb(unsigned int offset,
 		unsigned int *r, unsigned int *g, unsigned int *b)
 {
 	*b = rgb_info_b = rd_bits(offset, VDIN_MATRIX_PROBE_COLOR,
@@ -641,6 +641,120 @@ void vdin_get_prob_rgb(unsigned int offset,
 	*r = rgb_info_r = rd_bits(offset, VDIN_MATRIX_PROBE_COLOR,
 		COMPONENT0_PROBE_COLOR_BIT, COMPONENT0_PROBE_COLOR_WID);
 }
+
+void vdin_prob_get_yuv(unsigned int offset,
+		unsigned int *rgb_yuv0,
+		unsigned int *rgb_yuv1,
+		unsigned int *rgb_yuv2)
+{
+	*rgb_yuv0 = ((rd_bits(offset, VDIN_MATRIX_PROBE_COLOR,
+		COMPONENT2_PROBE_COLOR_BIT, COMPONENT2_PROBE_COLOR_WID)
+			<< 8) >> 10);
+	*rgb_yuv1 = ((rd_bits(offset, VDIN_MATRIX_PROBE_COLOR,
+		COMPONENT1_PROBE_COLOR_BIT, COMPONENT1_PROBE_COLOR_WID)
+			<< 8) >> 10);
+	*rgb_yuv2 = ((rd_bits(offset, VDIN_MATRIX_PROBE_COLOR,
+		COMPONENT0_PROBE_COLOR_BIT, COMPONENT0_PROBE_COLOR_WID)
+			<< 8) >> 10);
+}
+
+#if 0
+void vdin_prob_set_xy(unsigned int offset,
+		unsigned int x, unsigned int y, struct vdin_dev_s *devp)
+{
+
+	if (devp->fmt_info_p->scan_mode == TVIN_SCAN_MODE_INTERLACED)
+		y = y / 2;
+
+	wr_bits(offset, VDIN_MATRIX_PROBE_POS, y,
+		PROBE_POX_Y_BIT, PROBE_POX_Y_WID);
+	wr_bits(offset, VDIN_MATRIX_PROBE_POS, x,
+		PROBE_POS_X_BIT, PROBE_POS_X_WID);
+}
+#endif
+void vdin_prob_set_before_or_after_mat(unsigned int offset,
+		unsigned int x, struct vdin_dev_s *devp)
+{
+	if ((x != 0) && (x != 1))
+		return;
+	/* 1:probe pixel data after matrix */
+	wr_bits(offset, VDIN_MATRIX_CTRL, x,
+			VDIN_PROBE_POST_BIT, VDIN_PROBE_POST_WID);
+}
+
+void vdin_prob_matrix_sel(unsigned int offset,
+		unsigned int sel, struct vdin_dev_s *devp)
+{
+	unsigned int x;
+
+	x = sel & 0x03;
+	/* 1:select matrix 1 */
+	wr_bits(offset, VDIN_MATRIX_CTRL, x,
+		VDIN_PROBE_SEL_BIT, VDIN_PROBE_SEL_WID);
+}
+
+
+/* this function set flowing parameters:
+ *a.rgb_info_x	b.rgb_info_y
+ *debug usage:
+ *echo rgb_xy x y > /sys/class/vdin/vdinx/attr
+ */
+void vdin_prob_set_xy(unsigned int offset,
+		unsigned int x, unsigned int y, struct vdin_dev_s *devp)
+{
+#if 0
+	enum vdin_format_convert_e format_convert_matrix0;
+	enum vdin_format_convert_e format_convert_matrix1;
+
+	/* set matrix */
+	rgb_info_enable = 1;
+	format_convert_matrix0 = vdin_get_format_convert_matrix0(devp);
+	format_convert_matrix1 = vdin_get_format_convert_matrix1(devp);
+	vdin_set_color_matrix1(devp->addr_offset, devp->fmt_info_p,
+			format_convert_matrix1,
+			devp->parm.port,
+			devp->prop.color_fmt_range,
+			devp->prop.vdin_hdr_Flag,
+			devp->color_range_mode);
+	if (is_meson_g12a_cpu() || is_meson_g12b_cpu() ||
+		is_meson_sm1_cpu() || is_meson_tm2_cpu())
+		vdin_set_color_matrix0_g12a(devp->addr_offset,
+			devp->fmt_info_p,
+			devp->format_convert,
+			devp->parm.port,
+			devp->prop.color_fmt_range,
+			devp->prop.vdin_hdr_Flag,
+			devp->color_range_mode);
+	else
+		vdin_set_color_matrix0(devp->addr_offset, devp->fmt_info_p,
+			format_convert_matrix0,
+			devp->parm.port,
+			devp->prop.color_fmt_range,
+			devp->prop.vdin_hdr_Flag,
+			devp->color_range_mode);
+#endif
+
+	/* set position */
+	rgb_info_x = x;
+	if (devp->fmt_info_p->scan_mode == TVIN_SCAN_MODE_INTERLACED)
+		rgb_info_y = y / 2;
+	else
+		rgb_info_y = y;
+/* #if defined(VDIN_V1) */
+	wr_bits(offset, VDIN_MATRIX_PROBE_POS, rgb_info_y,
+		PROBE_POX_Y_BIT, PROBE_POX_Y_WID);
+	wr_bits(offset, VDIN_MATRIX_PROBE_POS, rgb_info_x,
+		PROBE_POS_X_BIT, PROBE_POS_X_WID);
+	#if 0
+	/* 1:probe pixel data after matrix */
+	wr_bits(offset, VDIN_MATRIX_CTRL, 1,
+		VDIN_PROBE_POST_BIT, VDIN_PROBE_POST_WID);
+	/* 1:select matrix 1 */
+	wr_bits(offset, VDIN_MATRIX_CTRL, 1,
+		VDIN_PROBE_SEL_BIT, VDIN_PROBE_SEL_WID);
+	#endif
+}
+
 
 /*function:
  *	1.set meas mux based on port_:
@@ -1730,63 +1844,6 @@ void vdin_set_matrixs(struct vdin_dev_s *devp, unsigned char id,
 	default:
 		break;
 	}
-}
-
-/* this function set flowing parameters:
- *a.rgb_info_x	b.rgb_info_y
- *debug usage:
- *echo rgb_xy x y > /sys/class/vdin/vdinx/attr
- */
-void vdin_set_prob_xy(unsigned int offset,
-		unsigned int x, unsigned int y, struct vdin_dev_s *devp)
-{
-	enum vdin_format_convert_e format_convert_matrix0;
-	enum vdin_format_convert_e format_convert_matrix1;
-
-	/* set matrix */
-	rgb_info_enable = 1;
-	format_convert_matrix0 = vdin_get_format_convert_matrix0(devp);
-	format_convert_matrix1 = vdin_get_format_convert_matrix1(devp);
-	vdin_set_color_matrix1(devp->addr_offset, devp->fmt_info_p,
-			format_convert_matrix1,
-			devp->parm.port,
-			devp->prop.color_fmt_range,
-			devp->prop.vdin_hdr_Flag,
-			devp->color_range_mode);
-	if (is_meson_g12a_cpu() || is_meson_g12b_cpu() ||
-		is_meson_sm1_cpu() || is_meson_tm2_cpu())
-		vdin_set_color_matrix0_g12a(devp->addr_offset,
-			devp->fmt_info_p,
-			devp->format_convert,
-			devp->parm.port,
-			devp->prop.color_fmt_range,
-			devp->prop.vdin_hdr_Flag,
-			devp->color_range_mode);
-	else
-		vdin_set_color_matrix0(devp->addr_offset, devp->fmt_info_p,
-			format_convert_matrix0,
-			devp->parm.port,
-			devp->prop.color_fmt_range,
-			devp->prop.vdin_hdr_Flag,
-			devp->color_range_mode);
-	/* set position */
-	rgb_info_x = x;
-	if (devp->fmt_info_p->scan_mode == TVIN_SCAN_MODE_INTERLACED)
-		rgb_info_y = y/2;
-	else
-		rgb_info_y = y;
-/* #if defined(VDIN_V1) */
-	wr_bits(offset, VDIN_MATRIX_PROBE_POS, rgb_info_y,
-		PROBE_POX_Y_BIT, PROBE_POX_Y_WID);
-	wr_bits(offset, VDIN_MATRIX_PROBE_POS, rgb_info_x,
-		PROBE_POS_X_BIT, PROBE_POS_X_WID);
-	/* 1:probe pixel data after matrix */
-	wr_bits(offset, VDIN_MATRIX_CTRL, 1,
-		VDIN_PROBE_POST_BIT, VDIN_PROBE_POST_WID);
-	/* 1:select matrix 1 */
-	wr_bits(offset, VDIN_MATRIX_CTRL, 1,
-		VDIN_PROBE_SEL_BIT, VDIN_PROBE_SEL_WID);
-/* #endif */
 }
 
 /*set block bar

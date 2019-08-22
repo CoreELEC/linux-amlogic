@@ -40,46 +40,6 @@
 #include <linux/seq_file.h>
 #include <linux/debugfs.h>
 
-static void vdin_get_vdin_yuv_rgb_mat0(unsigned int offset,
-		unsigned int *rgb_yuv0,
-		unsigned int *rgb_yuv1,
-		unsigned int *rgb_yuv2)
-{
-	*rgb_yuv0 = 0;  *rgb_yuv1 = 0;  *rgb_yuv2 = 0;
-
-	*rgb_yuv0 = ((rd_bits(offset, VDIN_MATRIX_PROBE_COLOR,
-		COMPONENT2_PROBE_COLOR_BIT, COMPONENT2_PROBE_COLOR_WID)
-			<< 8) >> 10);
-	*rgb_yuv1 = ((rd_bits(offset, VDIN_MATRIX_PROBE_COLOR,
-		COMPONENT1_PROBE_COLOR_BIT, COMPONENT1_PROBE_COLOR_WID)
-			<< 8) >> 10);
-	*rgb_yuv2 = ((rd_bits(offset, VDIN_MATRIX_PROBE_COLOR,
-		COMPONENT0_PROBE_COLOR_BIT, COMPONENT0_PROBE_COLOR_WID)
-			<< 8) >> 10);
-}
-
-static void vdin_set_prob_matrix0_xy(unsigned int offset,
-		unsigned int x, unsigned int y, struct vdin_dev_s *devp)
-{
-
-	if (devp->fmt_info_p->scan_mode == TVIN_SCAN_MODE_INTERLACED)
-		y = y/2;
-
-	wr_bits(offset, VDIN_MATRIX_PROBE_POS, y,
-		PROBE_POX_Y_BIT, PROBE_POX_Y_WID);
-	wr_bits(offset, VDIN_MATRIX_PROBE_POS, x,
-		PROBE_POS_X_BIT, PROBE_POS_X_WID);
-}
-
-static void vdin_set_before_after_mat0(unsigned int offset,
-		unsigned int x, struct vdin_dev_s *devp)
-{
-	if ((x != 0) && (x != 1))
-		return;
-
-	wr_bits(offset, VDIN_MATRIX_CTRL, x,
-			VDIN_PROBE_POST_BIT, VDIN_PROBE_POST_WID);
-}
 
 static void vdin_parse_param(char *buf_orig, char **parm)
 {
@@ -1823,7 +1783,7 @@ start_chk:
 		reg = VDIN_MISC_CTRL;
 		pr_info("0x%04x = 0x%08x\n", (reg), R_VCBUS(reg));
 		pr_info("\n");
-	} else if (!strcmp(parm[0], "rgb_xy")) {
+	} else if (!strcmp(parm[0], "prob_xy")) {
 		unsigned int x = 0, y = 0;
 #ifdef CONFIG_AMLOGIC_PIXEL_PROBE
 		vdin_probe_enable();
@@ -1833,13 +1793,36 @@ start_chk:
 				x = val;
 			if (kstrtoul(parm[2], 10, &val) == 0)
 				y = val;
-			vdin_set_prob_xy(devp->addr_offset, x, y, devp);
+			vdin_prob_set_xy(devp->addr_offset, x, y, devp);
 		} else
 			pr_err("miss parameters .\n");
-	} else if (!strcmp(parm[0], "rgb_info")) {
+	} else if (!strcmp(parm[0], "prob_rgb")) {
 		unsigned int r, g, b;
-		vdin_get_prob_rgb(devp->addr_offset, &r, &g, &b);
+		vdin_prob_get_rgb(devp->addr_offset, &r, &g, &b);
 		pr_info("rgb_info-->r:%x,g:%x,b:%x\n", r, g, b);
+	} else if (!strcmp(parm[0], "prob_yuv")) {
+		unsigned int r, g, b;
+
+		vdin_prob_get_yuv(devp->addr_offset, &r, &g, &b);
+		pr_info("yuv_info-->u:%x,v:%x,y:%x\n", r, g, b);
+	} else if (!strcmp(parm[0], "prob_pre_post")) {
+		unsigned int x = 0;
+
+		if (!parm[1])
+			pr_err("miss parameters .\n");
+		if (kstrtoul(parm[1], 10, &val) == 0)
+			x = val;
+		pr_info("matrix post sel: %d\n", x);
+		vdin_prob_set_before_or_after_mat(devp->addr_offset, x, devp);
+	} else if (!strcmp(parm[0], "prob_mat_sel")) {
+		unsigned int x = 0;
+
+		if (!parm[1])
+			pr_err("miss parameters .\n");
+		if (kstrtoul(parm[1], 10, &val) == 0)
+			x = val;
+		pr_info("matrix sel : %d\n", x);
+		vdin_prob_matrix_sel(devp->addr_offset, x, devp);
 	} else if (!strcmp(parm[0], "mpeg2vdin")) {
 		if (parm[1] && parm[2]) {
 			if (kstrtoul(parm[1], 10, &val) == 0)
@@ -1851,35 +1834,6 @@ start_chk:
 				devp->h_active, devp->v_active);
 		} else
 			pr_err("miss parameters .\n");
-	} else if (!strcmp(parm[0], "yuv_rgb_info")) {
-		unsigned int rgb_yuv0, rgb_yuv1, rgb_yuv2;
-		vdin_get_vdin_yuv_rgb_mat0(devp->addr_offset,
-				&rgb_yuv0, &rgb_yuv1, &rgb_yuv2);
-		pr_info("rgb_yuv0 :%d, rgb_yuv1 :%d , rgb_yuv2 :%d\n",
-				rgb_yuv0, rgb_yuv1, rgb_yuv2);
-	} else if (!strcmp(parm[0], "mat0_xy")) {
-		unsigned int x = 0, y = 0;
-#ifdef CONFIG_AMLOGIC_PIXEL_PROBE
-		vdin_probe_enable();
-#endif
-		if (parm[1] && parm[2]) {
-			if (kstrtoul(parm[1], 10, &val) == 0)
-				x = val;
-			if (kstrtoul(parm[2], 10, &val) == 0)
-				y = val;
-			pr_info("pos x  :%d, pos y  :%d\n", x, y);
-			vdin_set_prob_matrix0_xy(devp->addr_offset, x, y, devp);
-		} else
-			pr_err("miss parameters .\n");
-	} else if (!strcmp(parm[0], "mat0_set")) {
-		unsigned int x = 0;
-
-		if (!parm[1])
-			pr_err("miss parameters .\n");
-		if (kstrtoul(parm[1], 10, &val) == 0)
-			x = val;
-		pr_info("matrix set : %d\n", x);
-		vdin_set_before_after_mat0(devp->addr_offset, x, devp);
 	} else if (!strcmp(parm[0], "hdr")) {
 		int i;
 		struct vframe_master_display_colour_s *prop;
