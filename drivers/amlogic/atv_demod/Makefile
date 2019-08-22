@@ -10,6 +10,7 @@ atvdemod_fe-objs = atvdemod_func.o \
 		atv_demod_access.o \
 		atv_demod_debug.o \
 		atv_demod_isr.o \
+		atv_demod_ext.o \
 
 ccflags-y += -I.
 ccflags-y += -Idrivers/media/dvb-core

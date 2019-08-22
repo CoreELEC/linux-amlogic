@@ -34,6 +34,7 @@
 #include "atv_demod_afc.h"
 #include "atv_demod_monitor.h"
 #include "atv_demod_isr.h"
+#include "atv_demod_ext.h"
 
 #define DEVICE_NAME "aml_atvdemod"
 
@@ -383,6 +384,8 @@ static int atv_demod_set_config(struct dvb_frontend *fe, void *priv_cfg)
 
 		if (priv->monitor.disable)
 			priv->monitor.disable(&priv->monitor);
+
+		aml_fe_hook_call_set_mode(true);
 		break;
 
 	case AML_ATVDEMOD_UNSCAN_MODE:
@@ -397,6 +400,7 @@ static int atv_demod_set_config(struct dvb_frontend *fe, void *priv_cfg)
 		if (priv->monitor.enable)
 			priv->monitor.enable(&priv->monitor);
 #endif
+		aml_fe_hook_call_set_mode(false);
 		break;
 	}
 
@@ -431,24 +435,6 @@ bool support_secam_l;
 
 bool slow_mode;
 
-typedef int (*hook_func_t) (void);
-typedef int (*hook_func1_t)(bool);
-hook_func_t aml_fe_hook_atv_status;
-hook_func_t aml_fe_hook_hv_lock;
-hook_func_t aml_fe_hook_get_fmt;
-hook_func1_t aml_fe_hook_set_mode;
-
-void aml_fe_hook_cvd(hook_func_t atv_mode, hook_func_t cvd_hv_lock,
-	hook_func_t get_fmt, hook_func1_t set_mode)
-{
-	aml_fe_hook_atv_status = atv_mode;
-	aml_fe_hook_hv_lock = cvd_hv_lock;
-	aml_fe_hook_get_fmt = get_fmt;
-	aml_fe_hook_set_mode = set_mode;
-
-	pr_info("%s: OK.\n", __func__);
-}
-EXPORT_SYMBOL(aml_fe_hook_cvd);
 
 static v4l2_std_id atvdemod_fmt_2_v4l2_std(int fmt)
 {
@@ -555,12 +541,12 @@ static void atvdemod_fe_try_analog_format(struct v4l2_frontend *v4l2_fe,
 				break;
 			}
 
-			if (aml_fe_hook_get_fmt == NULL) {
+			if (aml_fe_hook_call_get_fmt(&cvbs_std) == false) {
 				pr_err("%s: aml_fe_hook_get_fmt == NULL.\n",
 						__func__);
 				break;
 			}
-			cvbs_std = aml_fe_hook_get_fmt();
+
 			if (cvbs_std) {
 				varify_cnt++;
 				pr_dbg("get cvbs_std varify_cnt:%d, cnt:%d, cvbs_std:0x%x\n",
@@ -1144,7 +1130,7 @@ static enum v4l2_search atvdemod_fe_search(struct v4l2_frontend *v4l2_fe)
 			!fe->ops.analog_ops.has_signal ||
 			!fe->ops.analog_ops.set_params ||
 			!fe->ops.analog_ops.set_config ||
-			!aml_fe_hook_set_mode || !aml_fe_hook_set_mode)) {
+			(aml_fe_has_hook_up() == false))) {
 		pr_err("[%s] error: NULL function or pointer.\n", __func__);
 		return V4L2_SEARCH_INVALID;
 	}
@@ -1157,11 +1143,8 @@ static enum v4l2_search atvdemod_fe_search(struct v4l2_frontend *v4l2_fe)
 
 	if (p->afc_range == 0) {
 		pr_err("[%s] afc_range == 0, skip the search\n", __func__);
-		aml_fe_hook_set_mode(0);
 
 		return V4L2_SEARCH_INVALID;
-	} else {
-		aml_fe_hook_set_mode(1);
 	}
 
 	tuner_id = priv->atvdemod_param.tuner_id;

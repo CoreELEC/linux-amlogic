@@ -399,6 +399,10 @@ static int v4l2_set_frontend(struct v4l2_frontend *v4l2_fe,
 
 	/* Request the search algorithm to search */
 	if (params->flag & ANALOG_FLAG_ENABLE_AFC) {
+
+		if (v4l2_fe->params.afc_range == 0)
+			return 0;
+
 		fepriv->state = V4L2FE_STATE_RETUNE;
 
 		fepriv->algo_status |= V4L2_SEARCH_AGAIN;
