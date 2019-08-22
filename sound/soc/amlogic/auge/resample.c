@@ -245,7 +245,7 @@ int resample_set(enum resample_idx id, enum samplerate_index index, bool force)
 	set_resample_rate_index(id, index);
 
 	resample_rate = resample_idx2rate(index);
-	ret = audio_resample_set(p_resample, true, resample_rate);
+	ret = audio_resample_set(p_resample, index, resample_rate);
 	if (ret)
 		return ret;
 
