@@ -1701,7 +1701,8 @@ void control_reset(void)
 void rx_esm_tmdsclk_en(bool en)
 {
 	hdmirx_wr_bits_top(TOP_CLK_CNTL, HDCP22_TMDSCLK_EN, en);
-
+	if (hdcp22_on)
+		hdmirx_hdcp22_hpd(en);
 	if (log_level & HDCP_LOG)
 		rx_pr("%s:%d\n", __func__, en);
 }
@@ -1992,7 +1993,8 @@ void hdmirx_20_init(void)
 
 	/* hdcp2.2 ctl */
 	if (hdcp22_on)
-		hdmirx_wr_dwc(DWC_HDCP22_CONTROL, 0x1000);
+		/* set hdcp_hpd high later */
+		hdmirx_wr_dwc(DWC_HDCP22_CONTROL, 0);
 	else
 		hdmirx_wr_dwc(DWC_HDCP22_CONTROL, 2);
 }
