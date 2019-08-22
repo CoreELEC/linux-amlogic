@@ -1520,7 +1520,7 @@ static int get_double_write_mode(struct VP9Decoder_s *pbi)
 			return 1;/*no valid frame,*/
 		cur_pic_config = &cm->cur_frame->buf;
 		w = cur_pic_config->y_crop_width;
-		h = cur_pic_config->y_crop_width;
+		h = cur_pic_config->y_crop_height;
 		if (valid_dw_mode == 0x100) {
 			if (w > 1920 && h > 1088)
 				dw = 0x4; /*1:2*/
