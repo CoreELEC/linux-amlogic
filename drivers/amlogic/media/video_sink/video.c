@@ -639,15 +639,20 @@ static int scaler_pos_changed;
 #ifndef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 bool is_dolby_vision_enable(void)
 {
-	return 0;
+	return false;
 }
 bool is_dolby_vision_on(void)
 {
-	return 0;
+	return false;
 }
 bool is_dolby_vision_stb_mode(void)
 {
-	return 0;
+	return false;
+}
+
+bool for_dolby_vision_certification(void)
+{
+	return false;
 }
 #endif
 
@@ -4190,7 +4195,9 @@ static void vsync_toggle_frame(struct vframe_s *vf, int line)
 			&glayer_info[0], vf,
 			next_frame_par, vinfo,
 			(is_dolby_vision_on() &&
-			is_dolby_vision_stb_mode()), 1);
+			is_dolby_vision_stb_mode() &&
+			for_dolby_vision_certification()),
+			1);
 
 		memcpy(&gPic_info[0], &vf->pic_mode,
 			sizeof(struct vframe_pic_mode_s));
@@ -7903,6 +7910,7 @@ SET_FILTER:
 				vinfo->height);
 			if (is_dolby_vision_on() &&
 				is_dolby_vision_stb_mode() &&
+				for_dolby_vision_certification() &&
 				!cur_frame_par->supsc0_enable &&
 				!cur_frame_par->supsc1_enable) {
 				VSYNC_WR_MPEG_REG(VPP_SRSHARP0_CTRL, 0);
@@ -8723,7 +8731,9 @@ int get_current_vscale_skip_count(struct vframe_s *vf)
 		&glayer_info[0],
 		vf, &frame_par, vinfo,
 		(is_dolby_vision_on() &&
-		is_dolby_vision_stb_mode()), 0);
+		is_dolby_vision_stb_mode() &&
+		for_dolby_vision_certification()),
+		0);
 	ret = frame_par.vscale_skip_count;
 	if (cur_frame_par && (process_3d_type & MODE_3D_ENABLE))
 		ret |= (cur_frame_par->vpp_3d_mode<<8);
