@@ -1185,6 +1185,19 @@ static int noneseamless_play_clone_rate = 5;
 
 #define CONFIG_AM_VOUT
 
+u32 is_crop_left_odd(struct vpp_frame_par_s *frame_par)
+{
+	int crop_left_odd;
+
+	/* odd, not even aligned*/
+	if (frame_par->VPP_hd_start_lines_ & 0x01)
+		crop_left_odd = 1;
+	else
+		crop_left_odd = 0;
+
+	return crop_left_odd;
+}
+
 static s32 is_afbc_for_vpp(u8 id)
 {
 	s32 ret = -1;
@@ -3339,7 +3352,7 @@ static void pip_toggle_frame(struct vframe_s *vf)
 static void pip_set_dcu(struct vpp_frame_par_s *frame_par, struct vframe_s *vf)
 {
 	u32 r;
-	u32 vphase, vini_phase;
+	u32 vphase, vini_phase, hphase = 0;
 	u32 pat, loop;
 	static const u32 vpat[MAX_VSKIP_COUNT + 1] = {
 		0, 0x8, 0x9, 0xa, 0xb, 0xc, 0xd, 0xe, 0xf};
@@ -3355,6 +3368,12 @@ static void pip_set_dcu(struct vpp_frame_par_s *frame_par, struct vframe_s *vf)
 
 	type = vf->type;
 	pr_debug("pip_set_dcu %p, type:0x%x\n", vf, type);
+	if (is_crop_left_odd(frame_par)) {
+		if (!(type & VIDTYPE_PRE_INTERLACE) &&
+			((type & VIDTYPE_VIU_NV21) ||
+			(type & VIDTYPE_VIU_422)))
+			hphase = 0x8 << HFORMATTER_PHASE_BIT;
+	}
 
 	if (frame_par->nocomp)
 		type &= ~VIDTYPE_COMPRESS;
@@ -3583,7 +3602,7 @@ static void pip_set_dcu(struct vpp_frame_par_s *frame_par, struct vframe_s *vf)
 				HFORMATTER_YC_RATIO_2_1 |
 				HFORMATTER_EN |
 				VFORMATTER_RPTLINE0_EN |
-				vini_phase | vphase);
+				vini_phase | vphase | hphase);
 			} else {
 				VSYNC_WR_MPEG_REG(
 				VIU_VD2_FMT_CTRL + cur_dev->viu_off,
@@ -3592,7 +3611,7 @@ static void pip_set_dcu(struct vpp_frame_par_s *frame_par, struct vframe_s *vf)
 				HFORMATTER_EN |
 				VFORMATTER_RPTLINE0_EN |
 				vini_phase | vphase |
-				VFORMATTER_EN);
+				VFORMATTER_EN | hphase);
 			}
 		} else {
 			VSYNC_WR_MPEG_REG(
@@ -3602,7 +3621,7 @@ static void pip_set_dcu(struct vpp_frame_par_s *frame_par, struct vframe_s *vf)
 				HFORMATTER_EN |
 				VFORMATTER_RPTLINE0_EN |
 				vini_phase | vphase |
-				VFORMATTER_EN);
+				VFORMATTER_EN | hphase);
 		}
 	} else if ((type & VIDTYPE_TYPEMASK) == VIDTYPE_INTERLACE_TOP) {
 		VSYNC_WR_MPEG_REG(
@@ -3613,7 +3632,8 @@ static void pip_set_dcu(struct vpp_frame_par_s *frame_par, struct vframe_s *vf)
 			(0xe << VFORMATTER_INIPHASE_BIT) |
 			(((type & VIDTYPE_VIU_422) ? 0x10 : 0x08)
 			<< VFORMATTER_PHASE_BIT) |
-			VFORMATTER_EN);
+			VFORMATTER_EN |
+			hphase);
 	} else {
 		VSYNC_WR_MPEG_REG(
 			VIU_VD2_FMT_CTRL + cur_dev->viu_off,
@@ -3624,7 +3644,8 @@ static void pip_set_dcu(struct vpp_frame_par_s *frame_par, struct vframe_s *vf)
 			(0xc << VFORMATTER_INIPHASE_BIT) |
 			(((type & VIDTYPE_VIU_422) ? 0x10 : 0x08)
 			<< VFORMATTER_PHASE_BIT) |
-			VFORMATTER_EN);
+			VFORMATTER_EN |
+			hphase);
 	}
 
 	if (is_meson_txlx_cpu()
@@ -4337,7 +4358,7 @@ static void vsync_toggle_frame(struct vframe_s *vf, int line)
 static void viu_set_dcu(struct vpp_frame_par_s *frame_par, struct vframe_s *vf)
 {
 	u32 r;
-	u32 vphase, vini_phase, vformatter;
+	u32 vphase, hphase = 0, vini_phase, vformatter;
 	u32 pat, loop;
 	static const u32 vpat[MAX_VSKIP_COUNT + 1] = {
 		0, 0x8, 0x9, 0xa, 0xb, 0xc, 0xd, 0xe, 0xf};
@@ -4355,7 +4376,13 @@ static void viu_set_dcu(struct vpp_frame_par_s *frame_par, struct vframe_s *vf)
 	if (type & VIDTYPE_MVC)
 		is_mvc = true;
 
-	pr_debug("set dcu for vd1 %p, type:0x%x\n", vf, type);
+	if (is_crop_left_odd(frame_par)) {
+		if (!(type & VIDTYPE_PRE_INTERLACE) &&
+			((type & VIDTYPE_VIU_NV21) ||
+			(type & VIDTYPE_VIU_422)))
+			hphase = 0x8 << HFORMATTER_PHASE_BIT;
+	}
+
 	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_GXBB) {
 		if (frame_par->nocomp)
 			type &= ~VIDTYPE_COMPRESS;
@@ -4647,7 +4674,8 @@ static void viu_set_dcu(struct vpp_frame_par_s *frame_par, struct vframe_s *vf)
 				VSYNC_WR_MPEG_REG(
 				VIU_VD1_FMT_CTRL + cur_dev->viu_off,
 				HFORMATTER_YC_RATIO_2_1 | HFORMATTER_EN |
-				VFORMATTER_RPTLINE0_EN | vini_phase | vphase);
+				VFORMATTER_RPTLINE0_EN | vini_phase | vphase |
+				hphase);
 				if (is_mvc)
 					VSYNC_WR_MPEG_REG(
 					VIU_VD2_FMT_CTRL + cur_dev->viu_off,
@@ -4655,7 +4683,7 @@ static void viu_set_dcu(struct vpp_frame_par_s *frame_par, struct vframe_s *vf)
 					HFORMATTER_YC_RATIO_2_1 |
 					HFORMATTER_EN |
 					VFORMATTER_RPTLINE0_EN |
-					vini_phase | vphase);
+					vini_phase | vphase | hphase);
 			} else {
 				VSYNC_WR_MPEG_REG(
 				VIU_VD1_FMT_CTRL + cur_dev->viu_off,
@@ -4663,7 +4691,7 @@ static void viu_set_dcu(struct vpp_frame_par_s *frame_par, struct vframe_s *vf)
 				HFORMATTER_REPEAT : 0) |
 				HFORMATTER_YC_RATIO_2_1 | HFORMATTER_EN |
 				VFORMATTER_RPTLINE0_EN | vini_phase | vphase |
-				vformatter);
+				vformatter | hphase);
 				if (is_mvc)
 					VSYNC_WR_MPEG_REG(
 					VIU_VD2_FMT_CTRL + cur_dev->viu_off,
@@ -4671,7 +4699,7 @@ static void viu_set_dcu(struct vpp_frame_par_s *frame_par, struct vframe_s *vf)
 					HFORMATTER_EN |
 					VFORMATTER_RPTLINE0_EN |
 					vini_phase | vphase |
-					vformatter);
+					vformatter | hphase);
 			}
 		} else {
 			VSYNC_WR_MPEG_REG(
@@ -4681,7 +4709,7 @@ static void viu_set_dcu(struct vpp_frame_par_s *frame_par, struct vframe_s *vf)
 				HFORMATTER_YC_RATIO_2_1 | HFORMATTER_EN |
 				VFORMATTER_RPTLINE0_EN |
 				vini_phase | vphase |
-				vformatter);
+				vformatter | hphase);
 			if (is_mvc)
 				VSYNC_WR_MPEG_REG(
 					VIU_VD2_FMT_CTRL + cur_dev->viu_off,
@@ -4689,7 +4717,7 @@ static void viu_set_dcu(struct vpp_frame_par_s *frame_par, struct vframe_s *vf)
 					HFORMATTER_EN |
 					VFORMATTER_RPTLINE0_EN |
 					vini_phase | vphase |
-					vformatter);
+					vformatter | hphase);
 		}
 	} else if (type & VIDTYPE_MVC) {
 		VSYNC_WR_MPEG_REG(VIU_VD1_FMT_CTRL + cur_dev->viu_off,
@@ -4698,14 +4726,16 @@ static void viu_set_dcu(struct vpp_frame_par_s *frame_par, struct vframe_s *vf)
 				VFORMATTER_RPTLINE0_EN |
 				(0xe << VFORMATTER_INIPHASE_BIT) |
 				(((type & VIDTYPE_VIU_422) ? 0x10 : 0x08)
-				<< VFORMATTER_PHASE_BIT) | VFORMATTER_EN);
+				<< VFORMATTER_PHASE_BIT) | VFORMATTER_EN |
+				hphase);
 		if (is_mvc)
 			VSYNC_WR_MPEG_REG(VIU_VD2_FMT_CTRL + cur_dev->viu_off,
 				HFORMATTER_YC_RATIO_2_1 | HFORMATTER_EN |
 				VFORMATTER_RPTLINE0_EN | (0xa <<
 				VFORMATTER_INIPHASE_BIT) |
 				(((type & VIDTYPE_VIU_422) ? 0x10 : 0x08)
-				<< VFORMATTER_PHASE_BIT) | VFORMATTER_EN);
+				<< VFORMATTER_PHASE_BIT) | VFORMATTER_EN |
+				hphase);
 	} else if ((type & VIDTYPE_INTERLACE)
 	&& (((type & VIDTYPE_TYPEMASK) == VIDTYPE_INTERLACE_TOP))) {
 		VSYNC_WR_MPEG_REG(VIU_VD1_FMT_CTRL + cur_dev->viu_off,
@@ -4713,7 +4743,8 @@ static void viu_set_dcu(struct vpp_frame_par_s *frame_par, struct vframe_s *vf)
 				VFORMATTER_RPTLINE0_EN | (0xe <<
 				VFORMATTER_INIPHASE_BIT) |
 				(((type & VIDTYPE_VIU_422) ? 0x10 : 0x08)
-				<< VFORMATTER_PHASE_BIT) | VFORMATTER_EN);
+				<< VFORMATTER_PHASE_BIT) | VFORMATTER_EN |
+				hphase);
 		if (is_mvc)
 			VSYNC_WR_MPEG_REG(VIU_VD2_FMT_CTRL + cur_dev->viu_off,
 				HFORMATTER_YC_RATIO_2_1 |
@@ -4721,7 +4752,8 @@ static void viu_set_dcu(struct vpp_frame_par_s *frame_par, struct vframe_s *vf)
 				VFORMATTER_RPTLINE0_EN |
 				(0xe << VFORMATTER_INIPHASE_BIT) |
 				(((type & VIDTYPE_VIU_422) ? 0x10 : 0x08)
-				<< VFORMATTER_PHASE_BIT) | VFORMATTER_EN);
+				<< VFORMATTER_PHASE_BIT) | VFORMATTER_EN |
+				hphase);
 	} else {
 		if (is_meson_txlx_package_962X()
 		&& !is_dolby_vision_stb_mode()
@@ -4735,7 +4767,7 @@ static void viu_set_dcu(struct vpp_frame_par_s *frame_par, struct vframe_s *vf)
 				(0 << VFORMATTER_INIPHASE_BIT) |
 				(((type & VIDTYPE_VIU_422) ? 0x10 : 0x08)
 				<< VFORMATTER_PHASE_BIT) |
-				VFORMATTER_EN);
+				VFORMATTER_EN | hphase);
 		} else {
 			VSYNC_WR_MPEG_REG(
 				VIU_VD1_FMT_CTRL + cur_dev->viu_off,
@@ -4746,7 +4778,8 @@ static void viu_set_dcu(struct vpp_frame_par_s *frame_par, struct vframe_s *vf)
 				VFORMATTER_RPTLINE0_EN |
 				(0xa << VFORMATTER_INIPHASE_BIT) |
 				(((type & VIDTYPE_VIU_422) ? 0x10 : 0x08)
-				<< VFORMATTER_PHASE_BIT) | VFORMATTER_EN);
+				<< VFORMATTER_PHASE_BIT) | VFORMATTER_EN |
+				hphase);
 		}
 		if (is_mvc)
 			VSYNC_WR_MPEG_REG(VIU_VD2_FMT_CTRL + cur_dev->viu_off,
@@ -4755,7 +4788,8 @@ static void viu_set_dcu(struct vpp_frame_par_s *frame_par, struct vframe_s *vf)
 				VFORMATTER_RPTLINE0_EN |
 				(0xa << VFORMATTER_INIPHASE_BIT) |
 				(((type & VIDTYPE_VIU_422) ? 0x10 : 0x08)
-				<< VFORMATTER_PHASE_BIT) | VFORMATTER_EN);
+				<< VFORMATTER_PHASE_BIT) | VFORMATTER_EN |
+				hphase);
 	}
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 	if ((is_meson_txlx_cpu()
@@ -4902,7 +4936,7 @@ static void viu_set_dcu(struct vpp_frame_par_s *frame_par, struct vframe_s *vf)
 static void vd2_set_dcu(struct vpp_frame_par_s *frame_par, struct vframe_s *vf)
 {
 	u32 r;
-	u32 vphase, vini_phase;
+	u32 vphase, vini_phase, hphase = 0;
 	u32 pat, loop;
 	static const u32 vpat[MAX_VSKIP_COUNT + 1] = {
 		0, 0x8, 0x9, 0xa, 0xb, 0xc, 0xd, 0xe, 0xf};
@@ -4917,6 +4951,13 @@ static void vd2_set_dcu(struct vpp_frame_par_s *frame_par, struct vframe_s *vf)
 
 	type = vf->type;
 	pr_debug("set dcu for vd2 %p, type:0x%x\n", vf, type);
+	if (is_crop_left_odd(frame_par)) {
+		if (!(type & VIDTYPE_PRE_INTERLACE) &&
+			((type & VIDTYPE_VIU_NV21) ||
+			(type & VIDTYPE_VIU_422)))
+			hphase = 0x8 << HFORMATTER_PHASE_BIT;
+	}
+
 	last_el_w = (vf->type
 		& VIDTYPE_COMPRESS) ?
 		vf->compWidth :
@@ -5165,7 +5206,7 @@ static void vd2_set_dcu(struct vpp_frame_par_s *frame_par, struct vframe_s *vf)
 				HFORMATTER_RRT_PIXEL0 |
 				HFORMATTER_YC_RATIO_2_1 |
 				HFORMATTER_EN | VFORMATTER_RPTLINE0_EN |
-				vini_phase | vphase);
+				vini_phase | vphase | hphase);
 			} else {
 				VSYNC_WR_MPEG_REG(
 				VIU_VD2_FMT_CTRL + cur_dev->viu_off,
@@ -5174,7 +5215,7 @@ static void vd2_set_dcu(struct vpp_frame_par_s *frame_par, struct vframe_s *vf)
 				HFORMATTER_YC_RATIO_2_1 | HFORMATTER_EN |
 				VFORMATTER_RPTLINE0_EN |
 				vini_phase | vphase |
-				VFORMATTER_EN);
+				VFORMATTER_EN | hphase);
 			}
 		} else {
 			VSYNC_WR_MPEG_REG(
@@ -5183,7 +5224,7 @@ static void vd2_set_dcu(struct vpp_frame_par_s *frame_par, struct vframe_s *vf)
 				HFORMATTER_REPEAT : 0) |
 				HFORMATTER_YC_RATIO_2_1 | HFORMATTER_EN |
 				VFORMATTER_RPTLINE0_EN | vini_phase | vphase |
-				VFORMATTER_EN);
+				VFORMATTER_EN | hphase);
 		}
 	} else if (type & VIDTYPE_MVC) {
 		VSYNC_WR_MPEG_REG(VIU_VD1_FMT_CTRL + cur_dev->viu_off,
@@ -5192,13 +5233,15 @@ static void vd2_set_dcu(struct vpp_frame_par_s *frame_par, struct vframe_s *vf)
 				VFORMATTER_RPTLINE0_EN |
 				(0xe << VFORMATTER_INIPHASE_BIT) |
 				(((type & VIDTYPE_VIU_422) ? 0x10 : 0x08)
-				<< VFORMATTER_PHASE_BIT) | VFORMATTER_EN);
+				<< VFORMATTER_PHASE_BIT) | VFORMATTER_EN |
+				hphase);
 		VSYNC_WR_MPEG_REG(VIU_VD2_FMT_CTRL + cur_dev->viu_off,
 				HFORMATTER_YC_RATIO_2_1 | HFORMATTER_EN |
 				VFORMATTER_RPTLINE0_EN | (0xa <<
 				VFORMATTER_INIPHASE_BIT) |
 				(((type & VIDTYPE_VIU_422) ? 0x10 : 0x08)
-				<< VFORMATTER_PHASE_BIT) | VFORMATTER_EN);
+				<< VFORMATTER_PHASE_BIT) | VFORMATTER_EN |
+				hphase);
 	} else if ((type & VIDTYPE_INTERLACE)
 		   &&
 		   (((type & VIDTYPE_TYPEMASK) == VIDTYPE_INTERLACE_TOP))) {
@@ -5209,7 +5252,7 @@ static void vd2_set_dcu(struct vpp_frame_par_s *frame_par, struct vframe_s *vf)
 				(0xe << VFORMATTER_INIPHASE_BIT) |
 				(((type & VIDTYPE_VIU_422) ? 0x10 : 0x08)
 				<< VFORMATTER_PHASE_BIT) |
-				VFORMATTER_EN);
+				VFORMATTER_EN | hphase);
 	} else {
 		if (is_meson_txlx_package_962X()
 		&& !is_dolby_vision_stb_mode()
@@ -5223,7 +5266,7 @@ static void vd2_set_dcu(struct vpp_frame_par_s *frame_par, struct vframe_s *vf)
 				(0 << VFORMATTER_INIPHASE_BIT) |
 				(((type & VIDTYPE_VIU_422) ? 0x10 : 0x08)
 				<< VFORMATTER_PHASE_BIT) |
-				VFORMATTER_EN);
+				VFORMATTER_EN | hphase);
 			pr_info("\tvd2 set fmt(dovi tv)\n");
 		} else {
 			VSYNC_WR_MPEG_REG(
@@ -5235,7 +5278,8 @@ static void vd2_set_dcu(struct vpp_frame_par_s *frame_par, struct vframe_s *vf)
 				VFORMATTER_RPTLINE0_EN |
 				(0xc << VFORMATTER_INIPHASE_BIT) |
 				(((type & VIDTYPE_VIU_422) ? 0x10 : 0x08)
-				<< VFORMATTER_PHASE_BIT) | VFORMATTER_EN);
+				<< VFORMATTER_PHASE_BIT) | VFORMATTER_EN |
+				hphase);
 			pr_info("\tvd2 set fmt(dovi:%d)\n",
 				/*is_dolby_vision_on()*/0);
 		}
