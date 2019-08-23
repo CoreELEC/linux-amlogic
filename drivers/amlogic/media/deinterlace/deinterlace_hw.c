@@ -2014,6 +2014,8 @@ static void set_di_if2_mif(struct DI_MIF_s *mif, int urgent,
 {
 	unsigned int bytes_per_pixel, demux_mode;
 	unsigned int pat, loop = 0, chro_rpt_lastl_ctrl = 0;
+	/*crop issue*/
+	unsigned int hz_ini_phase = 0;
 
 	if (mif->set_separate_en == 1) {
 		pat = vpat[(vskip_cnt<<1)+1];
@@ -2086,10 +2088,13 @@ static void set_di_if2_mif(struct DI_MIF_s *mif, int urgent,
 
 	/* Dummy pixel value */
 	DI_VSYNC_WR_MPEG_REG(DI_IF2_DUMMY_PIXEL, 0x00808000);
+	/*crop issue*/
+	if (mif->luma_x_start0 % 2)
+		hz_ini_phase = 8;
 	if (mif->set_separate_en != 0) { /* 4:2:0 block mode. */
 		set_di_if2_fmt_more(1, /* hfmt_en */
 		1,/* hz_yc_ratio */
-		0,/* hz_ini_phase */
+		hz_ini_phase,/* hz_ini_phase */
 		1,	/* vfmt_en */
 		1, /* vt_yc_ratio */
 		0, /* vt_ini_phase */
@@ -2099,7 +2104,7 @@ static void set_di_if2_mif(struct DI_MIF_s *mif, int urgent,
 	} else {
 		set_di_if2_fmt_more(1,	/* hfmt_en */
 		1, /* hz_yc_ratio */
-		0, /* hz_ini_phase */
+		hz_ini_phase, /* hz_ini_phase */
 		0,	/* vfmt_en */
 		0,	/* vt_yc_ratio */
 		0, /* vt_ini_phase */
@@ -2114,6 +2119,8 @@ static void set_di_if1_mif(struct DI_MIF_s *mif, int urgent,
 {
 	unsigned int bytes_per_pixel, demux_mode;
 	unsigned int pat, loop = 0, chro_rpt_lastl_ctrl = 0;
+	/*crop issue*/
+	unsigned int hz_ini_phase = 0;
 
 	if (mif->set_separate_en == 1) {
 		pat = vpat[(vskip_cnt<<1)+1];
@@ -2183,10 +2190,14 @@ static void set_di_if1_mif(struct DI_MIF_s *mif, int urgent,
 
 	/* Dummy pixel value */
 	DI_VSYNC_WR_MPEG_REG(DI_IF1_DUMMY_PIXEL, 0x00808000);
+	/*crop issue*/
+	if (mif->luma_x_start0 % 2)
+		hz_ini_phase = 8;
+
 	if (mif->set_separate_en != 0) { /* 4:2:0 block mode. */
 		set_di_if1_fmt_more(1, /* hfmt_en */
 		1,/* hz_yc_ratio */
-		0,/* hz_ini_phase */
+		hz_ini_phase,/* hz_ini_phase */
 		1,	/* vfmt_en */
 		1, /* vt_yc_ratio */
 		0, /* vt_ini_phase */
@@ -2196,7 +2207,7 @@ static void set_di_if1_mif(struct DI_MIF_s *mif, int urgent,
 	} else {
 		set_di_if1_fmt_more(1,	/* hfmt_en */
 		1, /* hz_yc_ratio */
-		0, /* hz_ini_phase */
+		hz_ini_phase, /* hz_ini_phase */
 		0,	/* vfmt_en */
 		0,	/* vt_yc_ratio */
 		0, /* vt_ini_phase */
@@ -2480,7 +2491,8 @@ static void set_di_if0_mif_g12(struct DI_MIF_s *mif, int urgent, int hold_line,
 {
 	unsigned int pat, loop = 0;
 	unsigned int bytes_per_pixel, demux_mode;
-
+	/*crop issue*/
+	unsigned int hz_ini_phase = 0;
 
 	if (mif->set_separate_en == 1) {
 		pat = vpat[(vskip_cnt<<1)+1];
@@ -2546,12 +2558,16 @@ static void set_di_if0_mif_g12(struct DI_MIF_s *mif, int urgent, int hold_line,
 	DI_VSYNC_WR_MPEG_REG(DI_IF0_LUMA0_RPT_PAT,   pat);
 	DI_VSYNC_WR_MPEG_REG(DI_IF0_CHROMA0_RPT_PAT, pat);
 
+	/*crop issue*/
+	if (mif->luma_x_start0 % 2)
+		hz_ini_phase = 8;
+
 	/* 4:2:0 block mode. */
 	if (mif->set_separate_en != 0) {
 		set_di_if0_fmt_more_g12(
 			1, /* hfmt_en */
 			1,	/* hz_yc_ratio */
-			0,	/* hz_ini_phase */
+			hz_ini_phase,	/* hz_ini_phase */
 			1,	/* vfmt_en */
 			1, /* vt_yc_ratio */
 			0, /* vt_ini_phase */
@@ -2562,7 +2578,7 @@ mif->chroma_x_end0 - mif->chroma_x_start0 + 1, /* c length */
 		set_di_if0_fmt_more_g12(
 		1,	/* hfmt_en */
 		1,	/* hz_yc_ratio */
-		0,  /* hz_ini_phase */
+		hz_ini_phase,  /* hz_ini_phase */
 		0,	/* vfmt_en */
 		0,	/* vt_yc_ratio */
 		0,  /* vt_ini_phase */
