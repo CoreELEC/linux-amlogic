@@ -15055,6 +15055,14 @@ M:  Cheng Wang <cheng.wang@amlogic.com>
 F:  drivers/amlogic/media/enhancement/amvecm/hdr/am_hdr10_plus_ootf.c
 F:  drivers/amlogic/media/enhancement/amvecm/hdr/am_hdr10_plus_ootf.h
 
+AMLOGIC PATTERN DETECTION FUNCTION
+M:  Xihai ZHu <xihai.zhu@amlogic.com>
+F:  drivers/amlogic/media/enhancement/amvecm/pattern_detection.c
+F:  drivers/amlogic/media/enhancement/amvecm/pattern_detection.h
+F:  drivers/amlogic/media/enhancement/amvecm/pattern_detection_bar_settings.h
+F:  drivers/amlogic/media/enhancement/amvecm/pattern_detection_corn_settings.h
+F:  drivers/amlogic/media/enhancement/amvecm/pattern_detection_face_settings.h
+
 AMLOGIC DRM
 M:	Ao Xu <ao.xu@amlogic.com>
 M:	Dezhi Kong <dezhi.kong@amlogic.com>

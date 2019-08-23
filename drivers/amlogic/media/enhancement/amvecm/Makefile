@@ -13,6 +13,7 @@ am_vecm-objs += bitdepth.o
 am_vecm-objs += set_hdr2_v0.o
 am_vecm-objs += dnlp_cal.o
 am_vecm-objs += cm2_adj.o
+am_vecm-objs += pattern_detection.o
 am_vecm-objs += vlock.o
 am_vecm-objs += hdr/am_hdr10_plus.o
 am_vecm-objs += local_contrast.o

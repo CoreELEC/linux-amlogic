@@ -112,6 +112,8 @@ struct vframe_hist_s {
 	unsigned char vpp_luma_max;
 	unsigned char vpp_luma_min;
 	unsigned short vpp_gamma[64];
+	unsigned int vpp_hue_gamma[32];
+	unsigned int vpp_sat_gamma[32];
 #ifdef AML_LOCAL_DIMMING
 	unsigned int ldim_max[100];
 #endif

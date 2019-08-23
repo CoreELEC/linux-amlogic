@@ -1140,7 +1140,7 @@ static void process_vf_rotate(struct vframe_s *vf,
 	struct vframe_s *new_vf;
 	struct ppframe_s *pp_vf;
 	struct canvas_s cs0, cs1, cs2, cd;
-	struct vframe_s src_vf;
+	static struct vframe_s src_vf;
 	int ret = 0;
 	unsigned int cur_angle = 0;
 	int interlace_mode;

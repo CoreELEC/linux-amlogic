@@ -305,6 +305,12 @@ void amcm_disable(void)
 {
 	int temp;
 
+	WRITE_VPP_REG(VPP_CHROMA_ADDR_PORT, STA_CFG_REG);
+	temp = READ_VPP_REG(VPP_CHROMA_DATA_PORT);
+	temp = (temp & (~0xc0000000)) | (0 << 30);
+	WRITE_VPP_REG(VPP_CHROMA_ADDR_PORT, STA_CFG_REG);
+	WRITE_VPP_REG(VPP_CHROMA_DATA_PORT, temp);
+
 	WRITE_VPP_REG(VPP_CHROMA_ADDR_PORT, 0x208);
 	temp = READ_VPP_REG(VPP_CHROMA_DATA_PORT);
 	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A) {
@@ -322,6 +328,7 @@ void amcm_disable(void)
 				temp & 0xfffffffd);
 		}
 	}
+
 	cm_en_flag = false;
 }
 
@@ -348,6 +355,27 @@ void amcm_enable(void)
 				temp | 0x2);
 		}
 	}
+
+	/* enable CM histogram by default, mode 0 */
+	WRITE_VPP_REG(VPP_CHROMA_ADDR_PORT, STA_CFG_REG);
+	temp = READ_VPP_REG(VPP_CHROMA_DATA_PORT);
+	temp = (temp & (~0xc0000000)) | (1 << 30);
+	temp = (temp & (~0xff0000)) | (24 << 16);
+	WRITE_VPP_REG(VPP_CHROMA_ADDR_PORT, STA_CFG_REG);
+	WRITE_VPP_REG(VPP_CHROMA_DATA_PORT, temp);
+
+	WRITE_VPP_REG(VPP_CHROMA_ADDR_PORT, LUMA_ADJ1_REG);
+	temp = READ_VPP_REG(VPP_CHROMA_DATA_PORT);
+	temp = (temp & (~(0x1fff0000))) | (0 << 16);
+	WRITE_VPP_REG(VPP_CHROMA_ADDR_PORT, LUMA_ADJ1_REG);
+	WRITE_VPP_REG(VPP_CHROMA_DATA_PORT, temp);
+
+	WRITE_VPP_REG(VPP_CHROMA_ADDR_PORT, STA_SAT_HIST0_REG);
+	WRITE_VPP_REG(VPP_CHROMA_DATA_PORT, 0 | (1 << 24));
+
+	WRITE_VPP_REG(VPP_CHROMA_ADDR_PORT, STA_SAT_HIST1_REG);
+	WRITE_VPP_REG(VPP_CHROMA_DATA_PORT, 0);
+
 	cm_en_flag = true;
 }
 
@@ -414,6 +442,11 @@ void cm2_frame_size_patch(unsigned int width, unsigned int height)
 		VSYNC_WR_MPEG_REG(VPP_CHROMA_DATA_PORT, width << 16);
 		VSYNC_WR_MPEG_REG(VPP_CHROMA_ADDR_PORT, 0x20a);
 		VSYNC_WR_MPEG_REG(VPP_CHROMA_DATA_PORT, height << 16);
+		/* default set full size for CM histogram */
+		VSYNC_WR_MPEG_REG(VPP_CHROMA_ADDR_PORT, STA_WIN_XYXY0_REG);
+		VSYNC_WR_MPEG_REG(VPP_CHROMA_DATA_PORT, 0 | (width << 16));
+		VSYNC_WR_MPEG_REG(VPP_CHROMA_ADDR_PORT, STA_WIN_XYXY1_REG);
+		VSYNC_WR_MPEG_REG(VPP_CHROMA_DATA_PORT, 0 | (height << 16));
 		cm_size =  vpp_size;
 		pr_amcm_dbg("\n[amcm..]cm size from scaler: set cm2 framesize %x, ",
 				vpp_size);

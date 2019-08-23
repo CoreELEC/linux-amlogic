@@ -61,6 +61,7 @@
 #include "keystone_correction.h"
 #include "bitdepth.h"
 #include "cm2_adj.h"
+#include "pattern_detection.h"
 #include <linux/amlogic/media/amdolbyvision/dolby_vision.h>
 #include "dnlp_cal.h"
 #include "vlock.h"
@@ -823,7 +824,7 @@ void vpp_get_hist_en(void)
 static unsigned int vpp_luma_max;
 void vpp_get_vframe_hist_info(struct vframe_s *vf)
 {
-	unsigned int hist_height, hist_width;
+	unsigned int hist_height, hist_width, i;
 	u64 divid;
 
 	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A) {
@@ -989,6 +990,23 @@ void vpp_get_vframe_hist_info(struct vframe_s *vf)
 			VI_HIST_ON_BIN_62_BIT, VI_HIST_ON_BIN_62_WID);
 	vf->prop.hist.vpp_gamma[63]  = READ_VPP_REG_BITS(VI_DNLP_HIST31,
 			VI_HIST_ON_BIN_63_BIT, VI_HIST_ON_BIN_63_WID);
+
+	if (enable_pattern_detect == 1) {
+		for (i = 0; i < 32; i++) {
+			WRITE_VPP_REG(
+				VPP_CHROMA_ADDR_PORT,
+				RO_CM_HUE_HIST_BIN0 + i);
+			vf->prop.hist.vpp_hue_gamma[i] =
+				READ_VPP_REG(VPP_CHROMA_DATA_PORT);
+		}
+		for (i = 0; i < 32; i++) {
+			WRITE_VPP_REG(
+				VPP_CHROMA_ADDR_PORT,
+				RO_CM_SAT_HIST_BIN0 + i);
+			vf->prop.hist.vpp_sat_gamma[i] =
+				READ_VPP_REG(VPP_CHROMA_DATA_PORT);
+		}
+	}
 	if (debug_game_mode_1 &&
 		(vpp_luma_max != vf->prop.hist.vpp_luma_max)) {
 		divid = vf->ready_clock_hist[1] = sched_clock();
@@ -1216,6 +1234,7 @@ void refresh_on_vs(struct vframe_s *vf)
 #endif
 			ve_on_vs(vf);
 		vpp_backup_histgram(vf);
+		pattern_detect(vf);
 	}
 }
 EXPORT_SYMBOL(refresh_on_vs);
@@ -5326,7 +5345,27 @@ static ssize_t amvecm_debug_store(struct class *cla,
 		dump_vpp_size_info();
 	else if (!strncmp(parm[0], "vpp_state", 9))
 		pr_info("amvecm driver version :  %s\n", AMVECM_VER);
-	else if (!strncmp(parm[0], "wb", 2)) {
+	else if (!strncmp(parm[0], "checkpattern", 12)) {
+		if (!strncmp(parm[1], "enable", 6)) {
+			pattern_detect_debug = 1;
+			enable_pattern_detect = 1;
+			pr_info("enable pattern detection\n");
+		} else if (!strncmp(parm[1], "debug", 5)) {
+			pattern_detect_debug = 2;
+			pr_info("enable pattern detection debug info\n");
+		} else if (!strncmp(parm[1], "disable", 7)) {
+			pattern_detect_debug = 0;
+			enable_pattern_detect = 0;
+			pr_info("disable pattern detection\n");
+		} else if (!strncmp(parm[1], "setmask", 7)) {
+			if (kstrtoul(parm[2], 16, &val) < 0)
+				goto free_buf;
+			pattern_mask = val;
+			pr_info("pattern_mask is 0x%x\n", pattern_mask);
+		} else if (!strncmp(parm[1], "getmask", 7)) {
+			pr_info("pattern_mask is 0x%x\n", pattern_mask);
+		}
+	} else if (!strncmp(parm[0], "wb", 2)) {
 		if (!strncmp(parm[1], "enable", 6)) {
 			amvecm_wb_enable(1);
 			pr_info("enable wb\n");
@@ -6860,6 +6899,45 @@ static void aml_vecm_dt_parse(struct platform_device *pdev)
 			pr_info("Can't find  cm_en.\n");
 		else
 			cm_en = val;
+		ret = of_property_read_u32(node, "detect_colorbar", &val);
+		if (ret) {
+			pr_info("Can't find  detect_colorbar.\n");
+		} else {
+			if (val == 0)
+				pattern_mask =
+				pattern_mask &
+				(!PATTERN_MASK(PATTERN_75COLORBAR));
+			else
+				pattern_mask =
+				pattern_mask |
+				PATTERN_MASK(PATTERN_75COLORBAR);
+		}
+		ret = of_property_read_u32(node, "detect_face", &val);
+		if (ret) {
+			pr_info("Can't find  detect_face.\n");
+		} else {
+			if (val == 0)
+				pattern_mask =
+				pattern_mask &
+				(!PATTERN_MASK(PATTERN_SKIN_TONE_FACE));
+			else
+				pattern_mask =
+				pattern_mask |
+				PATTERN_MASK(PATTERN_SKIN_TONE_FACE);
+		}
+		ret = of_property_read_u32(node, "detect_corn", &val);
+		if (ret) {
+			pr_info("Can't find  detect_corn.\n");
+		} else {
+			if (val == 0)
+				pattern_mask =
+				pattern_mask &
+				(!PATTERN_MASK(PATTERN_GREEN_CORN));
+			else
+				pattern_mask =
+				pattern_mask |
+				PATTERN_MASK(PATTERN_GREEN_CORN);
+		}
 		ret = of_property_read_u32(node, "wb_sel", &val);
 		if (ret)
 			pr_info("Can't find  wb_sel.\n");
@@ -6993,6 +7071,7 @@ static int aml_vecm_probe(struct platform_device *pdev)
 	vout_register_client(&vlock_notifier_nb);
 
 	init_pq_setting();
+	init_pattern_detect();
 	/* #endif */
 	vpp_get_hist_en();
 

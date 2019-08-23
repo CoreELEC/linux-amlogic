@@ -247,6 +247,7 @@ static const unsigned int tvafe_pq_reg_trust_table[][2] = {
 	{CVD2_CHROMA_BW_MOTION,             0xff}, /* 0xe8 */
 	{CVD2_REG_FA,                       0xa0}, /* 0xfa */
 
+	{ACD_REG_1B,                        0xffffffff},
 	{ACD_REG_25,                        0xffffffff},
 	{ACD_REG_53,                        0xffffffff},
 	{ACD_REG_54,                        0xffffffff},
@@ -257,11 +258,15 @@ static const unsigned int tvafe_pq_reg_trust_table[][2] = {
 	{ACD_REG_64,                        0xffffffff},
 	{ACD_REG_65,                        0xffffffff},
 	{ACD_REG_66,                        0x80000ff0},
+	{ACD_REG_6F,                        0xffffffff},
 	{ACD_REG_86,                        0xc0000000},
 	{ACD_REG_89,                        0x803ff3ff},
 	{ACD_REG_8A,                        0x03ff1fff},
 	{ACD_REG_8B,                        0x0fffffff},
 	{ACD_REG_8C,                        0x0fffffff},
+	{ACD_REG_94,                        0xffffffff},
+	{ACD_REG_95,                        0xffffffff},
+	{ACD_REG_96,                        0xffffffff},
 
 	{0xffffffff,                        0x00000000}, /* ending */
 };
