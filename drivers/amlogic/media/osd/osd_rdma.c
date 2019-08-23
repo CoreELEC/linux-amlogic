@@ -1169,6 +1169,7 @@ static int start_osd_rdma(char channel)
 	data32 &= ~(1 << inc_bit);
 	osd_reg_write(RDMA_ACCESS_AUTO, data32);
 #else
+#if 0 /*def LINE_INT_WORK_AROUND */
 	if (osd_hw.osd_meson_dev.cpu_id == __MESON_CPU_MAJOR_ID_G12B &&
 		is_meson_rev_b()) {
 		set_reset_rdma_trigger_line();
@@ -1176,7 +1177,9 @@ static int start_osd_rdma(char channel)
 			RDMA_AUTO_START_MASK);
 		osd_hw.line_n_rdma = 1;
 
-	} else {
+	} else
+#endif
+	{
 		rdma_config(channel,
 			RDMA_TRIGGER_VSYNC_INPUT
 			| RDMA_AUTO_START_MASK);

@@ -1226,20 +1226,20 @@ static u32 addr_map(u32 adr)
 static u32 VSYNC_RD_DV_REG(u32 adr)
 {
 	adr = addr_map(adr);
-	return _VSYNC_RD_MPEG_REG(adr);
+	return VSYNC_RD_MPEG_REG(adr);
 }
 
 static int VSYNC_WR_DV_REG(u32 adr, u32 val)
 {
 	adr = addr_map(adr);
-	_VSYNC_WR_MPEG_REG(adr, val);
+	VSYNC_WR_MPEG_REG(adr, val);
 	return 0;
 }
 
 static int VSYNC_WR_DV_REG_BITS(u32 adr, u32 val, u32 start, u32 len)
 {
 	adr = addr_map(adr);
-	_VSYNC_WR_MPEG_REG_BITS(adr, val, start, len);
+	VSYNC_WR_MPEG_REG_BITS(adr, val, start, len);
 	return 0;
 }
 
@@ -4361,8 +4361,7 @@ static int dolby_vision_policy_process(
 					*mode = DOLBY_VISION_OUTPUT_MODE_BYPASS;
 					mode_change = 1;
 				}
-			} else if ((is_meson_g12b_cpu() && is_meson_rev_a()) ||
-				is_meson_g12a_cpu()) {
+			} else if (is_meson_g12b_cpu() || is_meson_g12a_cpu()) {
 				/* dv cores keep on if in sdr mode */
 				if (dolby_vision_mode !=
 				DOLBY_VISION_OUTPUT_MODE_SDR8) {

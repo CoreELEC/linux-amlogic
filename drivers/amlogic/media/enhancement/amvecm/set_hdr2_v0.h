@@ -183,19 +183,8 @@ extern void mtx_setting(enum vpp_matrix_e mtx_sel,
 	enum mtx_csc_e mtx_csc,
 	int mtx_on);
 
-#ifndef CONFIG_AMLOGIC_MEDIA_VSYNC_RDMA
-#define _VSYNC_WR_MPEG_REG(adr, val) WRITE_VCBUS_REG(adr, val)
-#define _VSYNC_RD_MPEG_REG(adr) READ_VCBUS_REG(adr)
-#define _VSYNC_WR_MPEG_REG_BITS(adr, val, start, len) \
-			WRITE_VCBUS_REG_BITS(adr, val, start, len)
-#else
-extern int _VSYNC_WR_MPEG_REG_BITS(u32 adr,
-			u32 val, u32 start, u32 len);
-extern u32 _VSYNC_RD_MPEG_REG(u32 adr);
-extern int _VSYNC_WR_MPEG_REG(u32 adr, u32 val);
 extern void set_ootf_lut(
 	enum hdr_module_sel module_sel,
 	struct hdr_proc_lut_param_s *hdr_lut_param);
 extern struct hdr_proc_lut_param_s hdr_lut_param;
 
-#endif

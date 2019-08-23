@@ -1413,13 +1413,8 @@ void set_hdr_matrix(
 	if (hdr_mtx_param == NULL)
 		return;
 
-	if ((is_meson_g12b_cpu() && is_meson_rev_b()) &&
-		(module_sel == OSD1_HDR))
-		_VSYNC_WR_MPEG_REG_BITS(hdr_ctrl,
-			hdr_mtx_param->mtx_on, 13, 1);
-	else
-		VSYNC_WR_MPEG_REG_BITS(hdr_ctrl,
-			hdr_mtx_param->mtx_on, 13, 1);
+	VSYNC_WR_MPEG_REG_BITS(hdr_ctrl,
+		hdr_mtx_param->mtx_on, 13, 1);
 
 	if (mtx_sel == HDR_IN_MTX) {
 		for (i = 0; i < MTX_NUM_PARAM; i++)
@@ -1443,50 +1438,6 @@ void set_hdr_matrix(
 			(hdr_mtx_param->mtxi_pos_offset[0] << 16) |
 			(hdr_mtx_param->mtxi_pos_offset[1] & 0xFFF));
 #endif
-
-		if ((is_meson_g12b_cpu() && is_meson_rev_b()) &&
-			(module_sel == OSD1_HDR)) {
-			/* only enable in_mtx */
-			if ((hdr_mtx_param->mtx_only == MTX_ONLY) &&
-				(!hdr_mtx_param->mtx_on))
-				_VSYNC_WR_MPEG_REG(MATRIXI_EN_CTRL, 1);
-			else
-				_VSYNC_WR_MPEG_REG(MATRIXI_EN_CTRL,
-					hdr_mtx_param->mtx_on);
-			_VSYNC_WR_MPEG_REG_BITS(hdr_ctrl,
-				hdr_mtx_param->mtx_on, 4, 1);
-			_VSYNC_WR_MPEG_REG_BITS(hdr_ctrl,
-				hdr_mtx_param->mtx_only,
-				16, 1);
-			_VSYNC_WR_MPEG_REG_BITS(hdr_ctrl, 1, 14, 1);
-
-			_VSYNC_WR_MPEG_REG(MATRIXI_COEF00_01,
-				(in_mtx[0 * 3 + 0] << 16) |
-				(in_mtx[0 * 3 + 1] & 0x1FFF));
-			_VSYNC_WR_MPEG_REG(MATRIXI_COEF02_10,
-				(in_mtx[0 * 3 + 2] << 16) |
-				(in_mtx[1 * 3 + 0] & 0x1FFF));
-			_VSYNC_WR_MPEG_REG(MATRIXI_COEF11_12,
-				(in_mtx[1 * 3 + 1] << 16) |
-				(in_mtx[1 * 3 + 2] & 0x1FFF));
-			_VSYNC_WR_MPEG_REG(MATRIXI_COEF20_21,
-				(in_mtx[2 * 3 + 0] << 16) |
-				(in_mtx[2 * 3 + 1] & 0x1FFF));
-			_VSYNC_WR_MPEG_REG(MATRIXI_COEF22,
-				in_mtx[2 * 3 + 2]);
-			_VSYNC_WR_MPEG_REG(MATRIXI_OFFSET0_1,
-				(hdr_mtx_param->mtxi_pos_offset[0] << 16) |
-				(hdr_mtx_param->mtxi_pos_offset[1] & 0xFFF));
-			_VSYNC_WR_MPEG_REG(MATRIXI_OFFSET2,
-				hdr_mtx_param->mtxi_pos_offset[2]);
-			_VSYNC_WR_MPEG_REG(MATRIXI_PRE_OFFSET0_1,
-				(hdr_mtx_param->mtxi_pre_offset[0] << 16) |
-				(hdr_mtx_param->mtxi_pre_offset[1] & 0xFFF));
-			_VSYNC_WR_MPEG_REG(MATRIXI_PRE_OFFSET2,
-				hdr_mtx_param->mtxi_pre_offset[2]);
-
-			return;
-		}
 		if ((hdr_mtx_param->mtx_only == MTX_ONLY) &&
 		(!hdr_mtx_param->mtx_on))
 			VSYNC_WR_MPEG_REG(MATRIXI_EN_CTRL, 1);
@@ -1618,58 +1569,6 @@ void set_hdr_matrix(
 		/*gamut mode: 1->gamut before ootf*/
 					/*2->gamut after ootf*/
 					/*other->disable gamut*/
-		if ((is_meson_g12b_cpu() && is_meson_rev_b()) &&
-			(module_sel == OSD1_HDR)) {
-			_VSYNC_WR_MPEG_REG_BITS(hdr_ctrl,
-				hdr_mtx_param->mtx_gamut_mode, 6, 2);
-
-		    _VSYNC_WR_MPEG_REG(GMUT_CTRL, gmut_shift);
-		    _VSYNC_WR_MPEG_REG(GMUT_COEF0,
-				(gmut_coef[0][1] & 0xffff) << 16 |
-				(gmut_coef[0][0] & 0xffff));
-		    _VSYNC_WR_MPEG_REG(GMUT_COEF1,
-				(gmut_coef[1][0] & 0xffff) << 16 |
-				(gmut_coef[0][2] & 0xffff));
-		    _VSYNC_WR_MPEG_REG(GMUT_COEF2,
-				(gmut_coef[1][2] & 0xffff) << 16 |
-				(gmut_coef[1][1] & 0xffff));
-		    _VSYNC_WR_MPEG_REG(GMUT_COEF3,
-				(gmut_coef[2][1] & 0xffff) << 16 |
-				(gmut_coef[2][0] & 0xffff));
-		    _VSYNC_WR_MPEG_REG(GMUT_COEF4,
-				gmut_coef[2][2] & 0xffff);
-
-		    _VSYNC_WR_MPEG_REG(CGAIN_COEF0,
-				c_gain_lim_coef[1] << 16 |
-				c_gain_lim_coef[0]);
-		    _VSYNC_WR_MPEG_REG_BITS(CGAIN_COEF1,
-				c_gain_lim_coef[2], 0, 12);
-
-		    _VSYNC_WR_MPEG_REG(ADPS_CTRL,
-				adpscl_bypass[2] << 6 |
-				adpscl_bypass[1] << 5 |
-				adpscl_bypass[0] << 4 |
-				adpscl_mode);
-			_VSYNC_WR_MPEG_REG(ADPS_ALPHA0,
-					adpscl_alpha[1]<<16 | adpscl_alpha[0]);
-			_VSYNC_WR_MPEG_REG(ADPS_ALPHA1,
-				adpscl_shift[0] << 24 |
-				adpscl_shift[1] << 20 |
-				adpscl_shift[2] << 16 |
-				adpscl_alpha[2]);
-		    _VSYNC_WR_MPEG_REG(ADPS_BETA0,
-				adpscl_beta_s[0] << 20 | adpscl_beta[0]);
-		    _VSYNC_WR_MPEG_REG(ADPS_BETA1,
-				adpscl_beta_s[1] << 20 | adpscl_beta[1]);
-		    _VSYNC_WR_MPEG_REG(ADPS_BETA2,
-				adpscl_beta_s[2] << 20 | adpscl_beta[2]);
-		    _VSYNC_WR_MPEG_REG(ADPS_COEF0,
-				adpscl_ys_coef[1] << 16 |
-				adpscl_ys_coef[0]);
-		    _VSYNC_WR_MPEG_REG(ADPS_COEF1,
-				adpscl_ys_coef[2]);
-			return;
-		}
 		VSYNC_WR_MPEG_REG_BITS(hdr_ctrl,
 			hdr_mtx_param->mtx_gamut_mode, 6, 2);
 		VSYNC_WR_MPEG_REG(GMUT_CTRL, gmut_shift);
@@ -1738,44 +1637,6 @@ void set_hdr_matrix(
 			(hdr_mtx_param->mtxo_pos_offset[0] << 16) |
 			(hdr_mtx_param->mtxo_pos_offset[1] & 0xFFF));
 #endif
-
-		if ((is_meson_g12b_cpu() && is_meson_rev_b()) &&
-			(module_sel == OSD1_HDR)) {
-			_VSYNC_WR_MPEG_REG(CGAIN_OFFT,
-				(rgb2yuvpos[2] << 16) | rgb2yuvpos[1]);
-			_VSYNC_WR_MPEG_REG(MATRIXO_EN_CTRL,
-				hdr_mtx_param->mtx_on);
-			_VSYNC_WR_MPEG_REG_BITS(hdr_ctrl, 0, 17, 1);
-			_VSYNC_WR_MPEG_REG_BITS(hdr_ctrl, 1, 15, 1);
-
-			_VSYNC_WR_MPEG_REG(MATRIXO_COEF00_01,
-				(out_mtx[0 * 3 + 0] << 16) |
-				(out_mtx[0 * 3 + 1] & 0x1FFF));
-			_VSYNC_WR_MPEG_REG(MATRIXO_COEF02_10,
-				(out_mtx[0 * 3 + 2] << 16) |
-				(out_mtx[1 * 3 + 0] & 0x1FFF));
-			_VSYNC_WR_MPEG_REG(MATRIXO_COEF11_12,
-				(out_mtx[1 * 3 + 1] << 16) |
-				(out_mtx[1 * 3 + 2] & 0x1FFF));
-			_VSYNC_WR_MPEG_REG(MATRIXO_COEF20_21,
-				(out_mtx[2 * 3 + 0] << 16) |
-				(out_mtx[2 * 3 + 1] & 0x1FFF));
-			_VSYNC_WR_MPEG_REG(MATRIXO_COEF22,
-				out_mtx[2 * 3 + 2]);
-
-			_VSYNC_WR_MPEG_REG(MATRIXO_OFFSET0_1,
-				(hdr_mtx_param->mtxo_pos_offset[0] << 16) |
-				(hdr_mtx_param->mtxo_pos_offset[1]&0xFFF));
-			_VSYNC_WR_MPEG_REG(MATRIXO_OFFSET2,
-				hdr_mtx_param->mtxo_pos_offset[2]);
-			_VSYNC_WR_MPEG_REG(MATRIXO_PRE_OFFSET0_1,
-				(hdr_mtx_param->mtxo_pre_offset[0] << 16) |
-				(hdr_mtx_param->mtxo_pre_offset[1]&0xFFF));
-			_VSYNC_WR_MPEG_REG(MATRIXO_PRE_OFFSET2,
-				hdr_mtx_param->mtxo_pre_offset[2]);
-			return;
-		}
-
 		VSYNC_WR_MPEG_REG(CGAIN_OFFT,
 			(rgb2yuvpos[2] << 16) | rgb2yuvpos[1]);
 		VSYNC_WR_MPEG_REG(MATRIXO_EN_CTRL,
@@ -1850,18 +1711,6 @@ void set_eotf_lut(
 	for (i = 0; i < HDR2_EOTF_LUT_SIZE; i++)
 		lut[i] = hdr_lut_param->eotf_lut[i];
 
-	if ((is_meson_g12b_cpu() && is_meson_rev_b()) &&
-		(module_sel == OSD1_HDR)) {
-		_VSYNC_WR_MPEG_REG_BITS(hdr_ctrl, hdr_lut_param->lut_on, 3, 1);
-
-		if (!hdr_lut_param->lut_on)
-			return;
-
-		_VSYNC_WR_MPEG_REG(eotf_lut_addr_port, 0x0);
-		for (i = 0; i < HDR2_EOTF_LUT_SIZE; i++)
-			_VSYNC_WR_MPEG_REG(eotf_lut_data_port, lut[i]);
-		return;
-	}
 	VSYNC_WR_MPEG_REG_BITS(hdr_ctrl, hdr_lut_param->lut_on, 3, 1);
 
 	if (!hdr_lut_param->lut_on)
@@ -1910,22 +1759,7 @@ void set_ootf_lut(
 
 	for (i = 0; i < HDR2_OOTF_LUT_SIZE; i++)
 		lut[i] = hdr_lut_param->ogain_lut[i];
-	if ((is_meson_g12b_cpu() && is_meson_rev_b()) &&
-		(module_sel == OSD1_HDR)) {
-		_VSYNC_WR_MPEG_REG_BITS(hdr_ctrl, hdr_lut_param->lut_on, 1, 1);
 
-		if (!hdr_lut_param->lut_on)
-			return;
-
-		_VSYNC_WR_MPEG_REG(ootf_lut_addr_port, 0x0);
-		for (i = 0; i < HDR2_OOTF_LUT_SIZE / 2; i++)
-			_VSYNC_WR_MPEG_REG(ootf_lut_data_port,
-				(lut[i * 2 + 1] << 16) +
-				lut[i * 2]);
-		_VSYNC_WR_MPEG_REG(ootf_lut_data_port, lut[148]);
-
-		return;
-	}
 	VSYNC_WR_MPEG_REG_BITS(hdr_ctrl, hdr_lut_param->lut_on, 1, 1);
 
 	if (!hdr_lut_param->lut_on)
@@ -1978,31 +1812,6 @@ void set_oetf_lut(
 	for (i = 0; i < HDR2_OETF_LUT_SIZE; i++)
 		lut[i] = hdr_lut_param->oetf_lut[i];
 
-	if ((is_meson_g12b_cpu() && is_meson_rev_b()) &&
-		(module_sel == OSD1_HDR)) {
-		_VSYNC_WR_MPEG_REG_BITS(hdr_ctrl, hdr_lut_param->lut_on, 2, 1);
-
-		if (!hdr_lut_param->lut_on)
-			return;
-
-		_VSYNC_WR_MPEG_REG(oetf_lut_addr_port, 0x0);
-		for (i = 0; i < HDR2_OETF_LUT_SIZE / 2; i++) {
-			if (hdr_lut_param->bitdepth == 10)
-				_VSYNC_WR_MPEG_REG(oetf_lut_data_port,
-					((lut[i * 2 + 1] >> 2) << 16) +
-					(lut[i * 2] >> 2));
-			else
-				_VSYNC_WR_MPEG_REG(oetf_lut_data_port,
-					(lut[i * 2 + 1] << 16) +
-					lut[i * 2]);
-		}
-		if (hdr_lut_param->bitdepth == 10)
-			_VSYNC_WR_MPEG_REG(oetf_lut_data_port, lut[148] >> 2);
-		else
-			_VSYNC_WR_MPEG_REG(oetf_lut_data_port, lut[148]);
-
-		return;
-	}
 	VSYNC_WR_MPEG_REG_BITS(hdr_ctrl, hdr_lut_param->lut_on, 2, 1);
 
 	if (!hdr_lut_param->lut_on)
@@ -2073,32 +1882,6 @@ void set_c_gain(
 
 	/*cgain mode: 0->y domin*/
 	/*cgain mode: 1->rgb domin, use r/g/b max*/
-	if ((is_meson_g12b_cpu() && is_meson_rev_b()) &&
-		(module_sel == OSD1_HDR)) {
-		_VSYNC_WR_MPEG_REG_BITS(hdr_ctrl,
-			0, 12, 1);
-		_VSYNC_WR_MPEG_REG_BITS(hdr_ctrl,
-			hdr_lut_param->cgain_en, 0, 1);
-
-		if (cpu_after_eq(MESON_CPU_MAJOR_ID_SM1)) {
-			if (hdr_lut_param->bitdepth == 10)
-				_VSYNC_WR_MPEG_REG_BITS(cgain_coef1,
-					0x400, 16, 13);
-			else if (hdr_lut_param->bitdepth == 12)
-				_VSYNC_WR_MPEG_REG_BITS(cgain_coef1,
-					0x1000, 16, 13);
-		}
-
-		if (!hdr_lut_param->cgain_en)
-			return;
-
-		_VSYNC_WR_MPEG_REG(cgain_lut_addr_port, 0x0);
-		for (i = 0; i < HDR2_CGAIN_LUT_SIZE / 2; i++)
-			_VSYNC_WR_MPEG_REG(cgain_lut_data_port,
-				(lut[i * 2 + 1] << 16) + lut[i * 2]);
-		_VSYNC_WR_MPEG_REG(cgain_lut_data_port, lut[64]);
-		return;
-	}
 	VSYNC_WR_MPEG_REG_BITS(hdr_ctrl,
 		0, 12, 1);
 	VSYNC_WR_MPEG_REG_BITS(hdr_ctrl,
@@ -2152,8 +1935,7 @@ enum hdr_process_sel hdr_func(enum hdr_module_sel module_sel,
 				hdr_process_select = RGB_HLG;
 			/* use in_mtx for g12b rev b, sm1, tl1 */
 			if (hdr_process_select == RGB_YUV
-			&& (is_meson_sm1_cpu() || is_meson_tl1_cpu()
-			|| (is_meson_g12b_cpu() && is_meson_rev_b())))
+			&& (is_meson_sm1_cpu() || is_meson_tl1_cpu()))
 				mtx_only_mode = true;
 		}
 	}

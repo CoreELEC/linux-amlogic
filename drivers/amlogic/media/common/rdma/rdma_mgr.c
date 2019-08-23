@@ -1200,12 +1200,15 @@ static int rdma_probe(struct platform_device *pdev)
 		NULL, RDMA_TABLE_SIZE);
 	set_rdma_handle(VSYNC_RDMA, handle);
 
+#if 0 /*def LINE_INT_WORK_AROUND */
 	if (is_meson_g12b_revb()) {
 		pr_info("g12b revb!!!!\n");
 		handle = rdma_register(get_rdma_ops(LINE_N_INT_RDMA),
 			NULL, RDMA_TABLE_SIZE);
 		set_rdma_handle(LINE_N_INT_RDMA, handle);
 	}
+#endif
+
 	info->clsp = class_create(THIS_MODULE,
 		RDMA_MGR_CLASS_NAME);
 	if (IS_ERR(info->clsp)) {
