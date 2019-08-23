@@ -76,6 +76,13 @@
 		max_frame_time = <200>; /*set software decoder max frame time*/
 	};
 
+	amvideocap {
+		compatible = "amlogic, amvideocap";
+		dev_name = "amvideocap.0";
+		status = "okay";
+		max_size = <8>;//8M
+	};
+
 	openvfd {
 		compatible = "open,vfd";
 		dev_name = "openvfd";
