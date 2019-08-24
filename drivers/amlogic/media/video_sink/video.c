@@ -6007,6 +6007,7 @@ struct vframe_s *dolby_vision_toggle_frame(struct vframe_s *vf)
 	int height_bl, height_el;
 	int ret;
 
+	ret = dolby_vision_update_metadata(vf);
 	if (!is_dolby_vision_el_disable() || for_dolby_vision_certification())
 		cur_dispbuf2 = dolby_vision_vf_peek_el(vf);
 	if (cur_dispbuf2) {
@@ -6069,7 +6070,6 @@ struct vframe_s *dolby_vision_toggle_frame(struct vframe_s *vf)
 		return NULL;
 	};
 
-	ret = dolby_vision_update_metadata(vf);
 	if (ret == 0) {
 		/* setting generated for this frame */
 		/* or DOVI in bypass mode */
