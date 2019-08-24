@@ -5780,7 +5780,7 @@ int dolby_vision_parse_metadata(
 			if (!is_dv_standard_es(req.dv_enhance_exist,
 				ret_flags, w)) {
 				src_format = FORMAT_SDR;
-				dovi_setting.src_format = src_format;
+				/* dovi_setting.src_format = src_format; */
 				total_comp_size = 0;
 				total_md_size = 0;
 				src_bdp = 10;
@@ -5791,7 +5791,7 @@ int dolby_vision_parse_metadata(
 				((dolby_vision_flags & FLAG_CERTIFICAION)
 					== 0))) {
 				src_format = FORMAT_SDR;
-				dovi_setting.src_format = src_format;
+				/* dovi_setting.src_format = src_format; */
 				total_comp_size = 0;
 				total_md_size = 0;
 				src_bdp = 10;
@@ -5950,7 +5950,10 @@ int dolby_vision_parse_metadata(
 			el_flag = 0;
 			dolby_vision_el_disable = 1;
 		}
-
+		if (src_format != FORMAT_DOVI) {
+			el_flag = 0;
+			mel_flag = 0;
+		}
 		if ((src_format == FORMAT_DOVI)
 		&& meta_flag_bl && meta_flag_el) {
 			/* dovi frame no meta or meta error */
@@ -6268,7 +6271,7 @@ int dolby_vision_parse_metadata(
 	if ((src_format != dovi_setting.src_format)
 		|| (dst_format != dovi_setting.dst_format) ||
 		((!(dolby_vision_flags & FLAG_CERTIFICAION))
-		&& (frame_count == 0)))
+		&& (frame_count == 0))) {
 		p_funcs_stb->control_path(
 			FORMAT_INVALID, 0,
 			comp_buf[currentId], 0,
@@ -6278,6 +6281,12 @@ int dolby_vision_parse_metadata(
 			0,
 			&hdr10_param,
 			&new_dovi_setting);
+		pr_dolby_dbg(
+			"reset control path: format changed: src:%d->%d, dst:%d-%d, frame_count:%d, dolby_vision_flags:0x%x\n",
+			dovi_setting.src_format, src_format,
+			dovi_setting.dst_format, dst_format,
+			frame_count, dolby_vision_flags);
+	}
 	if (!vsvdb_config_set_flag) {
 		memset(&new_dovi_setting.vsvdb_tbl[0],
 			0, sizeof(new_dovi_setting.vsvdb_tbl));
