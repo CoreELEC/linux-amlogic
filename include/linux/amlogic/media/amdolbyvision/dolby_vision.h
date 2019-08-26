@@ -57,7 +57,7 @@ extern int get_dolby_vision_mode(void);
 extern void dolby_vision_set_toggle_flag(int flag);
 extern int dolby_vision_wait_metadata(struct vframe_s *vf);
 extern int dolby_vision_pop_metadata(void);
-extern int dolby_vision_update_metadata(struct vframe_s *vf);
+int dolby_vision_update_metadata(struct vframe_s *vf, bool drop_flag);
 extern int dolby_vision_process(struct vframe_s *vf, u32 display_size,
 	u8 pps_state);
 extern void dolby_vision_init_receiver(void *pdev);
