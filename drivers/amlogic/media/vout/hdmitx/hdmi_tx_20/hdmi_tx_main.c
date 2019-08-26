@@ -2484,12 +2484,14 @@ static ssize_t store_debug(struct device *dev,
 
 /* support format lists */
 const char *disp_mode_t[] = {
-#if 1
-	"480i60hz",
+	"480i60hz", /* 16:9 */
 	"576i50hz",
-#endif
 	"480p60hz",
 	"576p50hz",
+	"480i60hz_4x3", /* 4:3 */
+	"576i50hz_4x3",
+	"480p60hz_4x3",
+	"576p50hz_4x3",
 	"720p60hz",
 	"1080i60hz",
 	"1080p60hz",

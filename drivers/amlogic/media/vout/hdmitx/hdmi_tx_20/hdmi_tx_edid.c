@@ -2583,10 +2583,14 @@ int hdmitx_edid_parse(struct hdmitx_dev *hdmitx_device)
 }
 
 static struct dispmode_vic dispmode_vic_tab[] = {
-	{"480i60hz", HDMI_480i60_16x9},
-	{"480p60hz", HDMI_480p60_16x9},
-	{"576i50hz", HDMI_576i50_16x9},
-	{"576p50hz", HDMI_576p50_16x9},
+	{"480i60hz_4x3", HDMI_720x480i60_4x3},
+	{"480p60hz_4x3", HDMI_720x480p60_4x3},
+	{"576i50hz_4x3", HDMI_720x576i50_4x3},
+	{"576p50hz_4x3", HDMI_720x576p50_4x3},
+	{"480i60hz", HDMI_720x480i60_16x9},
+	{"480p60hz", HDMI_720x480p60_16x9},
+	{"576i50hz", HDMI_720x576i50_16x9},
+	{"576p50hz", HDMI_720x576p50_16x9},
 	{"720p50hz", HDMI_720p50},
 	{"720p60hz", HDMI_720p60},
 	{"1080i50hz", HDMI_1080i50},
