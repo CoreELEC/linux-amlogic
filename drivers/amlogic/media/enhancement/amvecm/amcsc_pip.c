@@ -24,7 +24,10 @@
 #include "hdr/am_hdr10_plus.h"
 
 /* 0: follow sink, 1: follow source */
-static uint hdr_policy;
+static uint hdr_policy = 1;
+module_param(hdr_policy, uint, 0664);
+MODULE_PARM_DESC(hdr_policy, "\n hdr policy\n");
+
 static uint cur_hdr_policy;
 static enum output_format_e target_format[VD_PATH_MAX];
 static enum hdr_type_e cur_source_format[VD_PATH_MAX];
