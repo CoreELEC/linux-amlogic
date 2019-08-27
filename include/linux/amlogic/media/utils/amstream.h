@@ -205,6 +205,7 @@
 #define AMSTREAM_IOC_GET_OMX_VERSION _IOW((_A_M), 0xb1, int)
 #define AMSTREAM_IOC_GET_OMX_INFO    _IOR((_A_M), 0xb2, unsigned int)
 #define AMSTREAM_IOC_SET_HDR_INFO    _IOW((_A_M), 0xb3, int)
+#define AMSTREAM_IOC_SET_TUNNEL_MODE _IOR(_A_M, 0xbd, unsigned int)
 #define AMSTREAM_IOC_GET_FIRST_FRAME_TOGGLED _IOR(_A_M, 0xbe, unsigned int)
 #define AMSTREAM_IOC_SET_VIDEOPEEK   _IOW(_A_M, 0xbf, unsigned int)
 
@@ -223,6 +224,9 @@
 #define AMSTREAM_IOC_SET_PTR _IOW((_A_M), 0xc6, struct am_ioctl_parm_ptr)
 #define AMSTREAM_IOC_GET_AVINFO _IOR((_A_M), 0xc7, struct av_param_info_t)
 #define AMSTREAM_IOC_GET_QOSINFO _IOR((_A_M), 0xc8, struct av_param_qosinfo_t)
+
+#define AMSTREAM_IOC_SET_CRC _IOW((_A_M), 0xc9, struct usr_crc_info_t)
+#define AMSTREAM_IOC_GET_CRC_CMP_RESULT _IOWR((_A_M), 0xca, int)
 
 
 #define TRICKMODE_NONE       0x00
@@ -517,7 +521,12 @@ struct userdata_param_t {
 	struct userdata_meta_info_t meta_info; /*output*/
 };
 
-
+struct usr_crc_info_t {
+	u32 id;
+	u32 pic_num;
+	u32 y_crc;
+	u32 uv_crc;
+};
 
 /*******************************************************************
 * 0x100~~0x1FF : set cmd
