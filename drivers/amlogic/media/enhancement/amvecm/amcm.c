@@ -470,7 +470,8 @@ void cm_latch_process(void)
 		if ((!is_meson_gxtvbb_cpu()) &&
 			(!is_meson_txl_cpu()) &&
 			(!is_meson_txlx_cpu()) &&
-			(!is_meson_tl1_cpu()))
+			(!is_meson_tl1_cpu()) &&
+			(!is_meson_tm2_cpu()))
 			amcm_level_sel(cm_level);
 		amcm_enable();
 		pr_amcm_dbg("\n[amcm..] set cm2 load OK!!!\n");
