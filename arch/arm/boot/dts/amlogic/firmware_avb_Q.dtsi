@@ -22,7 +22,7 @@
 				dev = "system";
 				type = "ext4";
 				mnt_flags = "ro,barrier=1,inode_readahead_blks=8";
-				fsmgr_flags = "wait,avb=vbmeta,logical,first_stage_mount";
+				fsmgr_flags = "wait,avb=vbmeta,logical,first_stage_mount,avb_keys=/avb/q-gsi.avbpubkey:/avb/r-gsi.avbpubkey:/avb/s-gsi.avbpubkey";
 				};
 
 			vendor {
