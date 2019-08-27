@@ -290,7 +290,6 @@ static int aml_spdif_platform_suspend(
 		if (!IS_ERR_OR_NULL(pstate))
 			pinctrl_select_state(p_spdif->pin_ctl, pstate);
 	}
-	clk_disable_unprepare(p_spdif->sysclk);
 	aml_spdif_enable(p_spdif->actrl,
 			    stream, p_spdif->id, false);
 	pr_info("%s is mute\n", __func__);
@@ -309,7 +308,6 @@ static int aml_spdif_platform_resume(struct platform_device *pdev)
 		if (!IS_ERR_OR_NULL(state))
 			pinctrl_select_state(p_spdif->pin_ctl, state);
 	}
-	clk_prepare_enable(p_spdif->sysclk);
 	aml_spdif_enable(p_spdif->actrl,
 			stream, p_spdif->id, true);
 	pr_info("%s is unmute\n", __func__);
@@ -329,7 +327,6 @@ static void aml_spdif_platform_shutdown(struct platform_device *pdev)
 		if (!IS_ERR_OR_NULL(pstate))
 			pinctrl_select_state(p_spdif->pin_ctl, pstate);
 	}
-	clk_disable_unprepare(p_spdif->sysclk);
 	aml_spdif_enable(p_spdif->actrl,
 			    stream, p_spdif->id, false);
 	pr_info("%s is mute\n", __func__);
