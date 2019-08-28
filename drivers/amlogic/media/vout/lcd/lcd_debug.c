@@ -3868,6 +3868,14 @@ static ssize_t lcd_phy_debug_store(struct class *class,
 	return count;
 }
 
+static ssize_t lcd_vx1_status_show(struct class *class,
+				   struct class_attribute *attr, char *buf)
+{
+	return sprintf(buf, "vbyone status: lockn = %d hpdn = %d\n",
+		       ((lcd_vcbus_read(VBO_STATUS_L) >> 7) & 0x1),
+		       ((lcd_vcbus_read(VBO_STATUS_L) >> 6) & 0x1));
+}
+
 static void lcd_tcon_reg_table_save(char *path, unsigned char *reg_table,
 		unsigned int size)
 {
@@ -4443,6 +4451,8 @@ static struct class_attribute lcd_debug_class_attrs_vbyone[] = {
 		lcd_vx1_debug_show, lcd_vx1_debug_store),
 	__ATTR(phy,    0644,
 		lcd_phy_debug_show, lcd_phy_debug_store),
+	__ATTR(status,    0644,
+	       lcd_vx1_status_show, NULL),
 	__ATTR(null,   0644, NULL, NULL),
 };
 
