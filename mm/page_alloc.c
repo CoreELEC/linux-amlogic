@@ -931,7 +931,17 @@ done_merging:
 		}
 	}
 
+#if defined(CONFIG_AMLOGIC_MEMORY_EXTEND) && defined(CONFIG_KASAN)
+	/*
+	 * always put freed page to tail of buddy system, in
+	 * order to increase probability of use-after-free
+	 * for KASAN check.
+	 */
+	list_add_tail(&page->lru,
+		      &zone->free_area[order].free_list[migratetype]);
+#else
 	list_add(&page->lru, &zone->free_area[order].free_list[migratetype]);
+#endif
 out:
 	zone->free_area[order].nr_free++;
 #ifdef CONFIG_AMLOGIC_MEMORY_EXTEND
@@ -2622,10 +2632,19 @@ void free_hot_cold_page(struct page *page, bool cold)
 	}
 
 	pcp = &this_cpu_ptr(zone->pageset)->pcp;
+#if defined(CONFIG_AMLOGIC_MEMORY_EXTEND) && defined(CONFIG_KASAN)
+	/*
+	 * always put freed page to tail of buddy system, in
+	 * order to increase probability of use-after-free
+	 * for KASAN check.
+	 */
+	list_add_tail(&page->lru, &pcp->lists[migratetype]);
+#else
 	if (!cold)
 		list_add(&page->lru, &pcp->lists[migratetype]);
 	else
 		list_add_tail(&page->lru, &pcp->lists[migratetype]);
+#endif
 	pcp->count++;
 	if (pcp->count >= pcp->high) {
 		unsigned long batch = READ_ONCE(pcp->batch);
