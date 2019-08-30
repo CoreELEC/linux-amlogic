@@ -938,6 +938,13 @@ void vdin_set_top(struct vdin_dev_s *devp, unsigned int offset,
 		vdin_mux = VDIN_MUX_HDMI;
 		wr_bits(offset, VDIN_ASFIFO_CTRL1, 0xe4,
 				VDI4_ASFIFO_CTRL_BIT, VDI4_ASFIFO_CTRL_WID);
+
+		/*reset top afifo for green screen when enter the channel*/
+		if (is_meson_tl1_cpu()) {
+			wr_bits(offset, VPU_SW_RESET, 1, 26, 1);
+			wr_bits(offset, VPU_SW_RESET, 0, 26, 1);
+		}
+
 		break;
 	case 0x80: /* dvin */
 		vdin_mux = VDIN_MUX_DVIN;
