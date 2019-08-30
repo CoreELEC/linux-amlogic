@@ -216,3 +216,11 @@ void lb_enable(int id, bool enable)
 
 	audiobus_update_bits(reg, 0x1 << 31, enable << 31);
 }
+
+void lb_set_chnum_en(int id, bool en)
+{
+	int offset = EE_AUDIO_LB_B_CTRL0 - EE_AUDIO_LB_A_CTRL0;
+	int reg = EE_AUDIO_LB_A_CTRL0 + offset * id;
+
+	audiobus_update_bits(reg, 0x1 << 27, en << 27);
+}
