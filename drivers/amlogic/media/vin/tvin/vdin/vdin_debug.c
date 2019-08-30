@@ -1490,8 +1490,16 @@ static ssize_t vdin_attr_store(struct device *dev,
 		ret = request_irq(devp->irq, vdin_isr, IRQF_SHARED,
 				devp->irq_name, (void *)devp);
 
+		if (vdin_dbg_en)
+			pr_info("%s vdin.%d request_irq\n", __func__,
+				devp->index);
+
 		/*disable irq until vdin is configured completely*/
 		disable_irq_nosync(devp->irq);
+
+		if (vdin_dbg_en)
+			pr_info("%s vdin.%d disable_irq_nosync\n", __func__,
+				devp->index);
 		/*init queue*/
 		init_waitqueue_head(&devp->queue);
 		/* remove the hardware limit to vertical [0-max]*/
@@ -1551,6 +1559,10 @@ start_chk:
 		devp->flags &= (~VDIN_FLAG_DEC_STARTED);
 		/* free irq */
 		free_irq(devp->irq, (void *)devp);
+
+		if (vdin_dbg_en)
+			pr_info("%s vdin.%d free_irq\n", __func__,
+				devp->index);
 		/* reset the hardware limit to vertical [0-1079]  */
 		/* WRITE_VCBUS_REG(VPP_PREBLEND_VD1_V_START_END, 0x00000437); */
 	} else if (!strcmp(parm[0], "v4l2stop")) {

@@ -735,6 +735,10 @@ void vdin_stop_dec(struct vdin_dev_s *devp)
 
 	disable_irq_nosync(devp->irq);
 
+	if (vdin_dbg_en)
+		pr_info("%s vdin.%d disable_irq_nosync\n", __func__,
+			devp->index);
+
 	if (devp->afbce_mode == 1) {
 		while (i++ < afbc_write_down_timeout) {
 			if (vdin_afbce_read_writedown_flag())
@@ -939,6 +943,10 @@ int start_tvin_service(int no, struct vdin_parm_s  *para)
 		ret = request_irq(devp->irq, vdin_v4l2_isr, IRQF_SHARED,
 				devp->irq_name, (void *)devp);
 
+		if (vdin_dbg_en)
+			pr_info("%s vdin.%d request_irq\n", __func__,
+				devp->index);
+
 		if (ret != 0) {
 			pr_info("vdin_v4l2_isr request irq error.\n");
 			return -1;
@@ -987,6 +995,10 @@ int stop_tvin_service(int no)
 	if ((devp->parm.port != TVIN_PORT_VIU1) ||
 		(viu_hw_irq != 0)) {
 		free_irq(devp->irq, (void *)devp);
+
+		if (vdin_dbg_en)
+			pr_info("%s vdin.%d free_irq\n", __func__,
+				devp->index);
 		devp->flags &= (~VDIN_FLAG_ISR_REQ);
 	}
 	end_time = jiffies_to_msecs(jiffies);
@@ -2184,19 +2196,27 @@ static int vdin_open(struct inode *inode, struct file *file)
 
 	/* request irq */
 	if (work_mode_simple) {
-		if (vdin_dbg_en)
-			pr_info("vdin.%d work in simple mode.\n", devp->index);
 		ret = request_irq(devp->irq, vdin_isr_simple, IRQF_SHARED,
 				devp->irq_name, (void *)devp);
-	} else {
+
 		if (vdin_dbg_en)
-			pr_info("vdin.%d work in normal mode.\n", devp->index);
+			pr_info("%s vdin.%d simple request_irq\n", __func__,
+				devp->index);
+	} else {
 		ret = request_irq(devp->irq, vdin_isr, IRQF_SHARED,
 				devp->irq_name, (void *)devp);
+
+		if (vdin_dbg_en)
+			pr_info("%s vdin.%d request_irq\n", __func__,
+				devp->index);
 	}
 	devp->flags |= VDIN_FLAG_ISR_REQ;
 	/*disable irq until vdin is configured completely*/
 	disable_irq_nosync(devp->irq);
+
+	if (vdin_dbg_en)
+		pr_info("%s vdin.%d disable_irq_nosync\n", __func__,
+			devp->index);
 
 	/*init queue*/
 	init_waitqueue_head(&devp->queue);
@@ -2243,8 +2263,13 @@ static int vdin_release(struct inode *inode, struct file *file)
 	devp->flags &= (~VDIN_FLAG_SNOW_FLAG);
 
 	/* free irq */
-	if (devp->flags & VDIN_FLAG_ISR_REQ)
+	if (devp->flags & VDIN_FLAG_ISR_REQ) {
 		free_irq(devp->irq, (void *)devp);
+
+		if (vdin_dbg_en)
+			pr_info("%s vdin.%d free_irq\n", __func__,
+				devp->index);
+	}
 	devp->flags &= (~VDIN_FLAG_ISR_REQ);
 
 	file->private_data = NULL;
@@ -2385,9 +2410,10 @@ static long vdin_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			(viu_hw_irq != 0)) {
 			/*enable irq */
 			enable_irq(devp->irq);
+
 			if (vdin_dbg_en)
-				pr_info("****[%s]enable_irq ifdef VDIN_V2****\n",
-						__func__);
+				pr_info("%s START_DEC vdin.%d enable_irq\n",
+					__func__, devp->index);
 		}
 
 		devp->flags |= VDIN_FLAG_DEC_STARTED;
@@ -2408,10 +2434,12 @@ static long vdin_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			mutex_unlock(&devp->fe_lock);
 			break;
 		}
+
 		if (time_en) {
 			devp->start_time = jiffies_to_msecs(jiffies);
 			pr_info("TVIN_IOC_STOP_DEC %ums.\n", devp->start_time);
 		}
+
 		devp->flags |= VDIN_FLAG_DEC_STOP_ISR;
 		vdin_stop_dec(devp);
 		/* init flag */
@@ -2694,7 +2722,7 @@ static long vdin_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		}
 		break;
 	case TVIN_IOC_GET_LATENCY_MODE:
-		mutex_unlock(&devp->fe_lock);
+		mutex_lock(&devp->fe_lock);
 		if (copy_to_user(argp,
 			&(devp->prop.latency),
 			sizeof(struct tvin_latency_s))) {
@@ -2750,8 +2778,13 @@ static long vdin_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			pr_info("TVIN_IOC_S_VDIN_V4L2START cann't be used at vdin0\n");
 			break;
 		}
-		if (devp->flags & VDIN_FLAG_ISR_REQ)
+		if (devp->flags & VDIN_FLAG_ISR_REQ) {
 			free_irq(devp->irq, (void *)devp);
+
+			if (vdin_dbg_en)
+				pr_info("%s vdin.%d free_irq\n", __func__,
+					devp->index);
+		}
 
 		if (copy_from_user(&vdin_v4l2_param, argp,
 				sizeof(struct vdin_v4l2_param_s))) {
