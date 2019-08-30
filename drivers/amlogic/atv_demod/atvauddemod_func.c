@@ -317,7 +317,7 @@ static void set_deem_and_gain(int standard)
 	case AUDIO_STANDARD_BTSC:
 		deem = AUDIO_DEEM_75US;
 		lmr_gain = 0x1e8;
-		lpr_gain = 0x3e0;
+		lpr_gain = 0x3c0;
 		demod_gain = 0x2;
 		break;
 	case AUDIO_STANDARD_A2_K:
@@ -335,25 +335,25 @@ static void set_deem_and_gain(int standard)
 	case AUDIO_STANDARD_A2_BG:
 		deem = AUDIO_DEEM_50US;
 		lmr_gain = 0x3a8;
-		lpr_gain = 0x1d0;
+		lpr_gain = 0x1f6;
 		demod_gain = 0x222;
 		break;
 	case AUDIO_STANDARD_A2_DK1:
 		deem = AUDIO_DEEM_50US;
 		lmr_gain = 0x3a8;
-		lpr_gain = 0x1d0;
+		lpr_gain = 0x1f6;
 		demod_gain = 0x222;
 		break;
 	case AUDIO_STANDARD_A2_DK2:
 		deem = AUDIO_DEEM_50US;
 		lmr_gain = 0x3a8;
-		lpr_gain = 0x1d0;
+		lpr_gain = 0x1f6;
 		demod_gain = 0x222;
 		break;
 	case AUDIO_STANDARD_A2_DK3:
 		deem = AUDIO_DEEM_50US;
 		lmr_gain = 0x3a8;
-		lpr_gain = 0x1d0;
+		lpr_gain = 0x1f6;
 		demod_gain = 0x222;
 		break;
 	case AUDIO_STANDARD_NICAM_DK:
@@ -363,7 +363,7 @@ static void set_deem_and_gain(int standard)
 		break;
 	case AUDIO_STANDARD_NICAM_I:
 		deem = AUDIO_DEEM_J17_2;
-		lpr_gain = 0x200;
+		lpr_gain = 0x177;
 		demod_gain = 0x233;
 		break;
 	case AUDIO_STANDARD_NICAM_BG:
@@ -391,7 +391,7 @@ static void set_deem_and_gain(int standard)
 	case AUDIO_STANDARD_MONO_I:
 		deem = AUDIO_DEEM_J17_2;
 		lmr_gain = 0x3a8;
-		lpr_gain = 0x200;
+		lpr_gain = 0x1c5;
 		demod_gain = 0x233;
 		break;
 	case AUDIO_STANDARD_MONO_BG:
@@ -1593,8 +1593,10 @@ void set_outputmode(uint32_t standard, uint32_t outmode)
 				aud_std = AUDIO_STANDARD_NICAM_L;
 
 			audio_source_select(1);
-		} else
-			audio_source_select(0);
+		} else {
+			if (standard == AUDIO_STANDARD_MONO_L)
+				audio_source_select(0);
+		}
 
 		break;
 	}

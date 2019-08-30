@@ -468,7 +468,7 @@ static void i2sin_fifo2_set_buf(u32 addr, u32 size, u32 src, u32 ch)
 void atv_src_select(bool src)
 {
 	aml_audin_update_bits(AUDIN_ATV_DEMOD_CTRL,
-			0x3, (src << 1) && src);
+			0x3, (src ? 0x3 : 0x0));
 }
 
 void atv_LR_swap(bool swap)
