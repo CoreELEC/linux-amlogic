@@ -733,7 +733,7 @@ static int aml_card_parse_gpios(struct device_node *node,
 	bool active_low;
 	int ret;
 
-	gpio = of_get_named_gpio_flags(node, "spk_mute", 0, &flags);
+	gpio = of_get_named_gpio_flags(node, "spk_mute-gpios", 0, &flags);
 	priv->spk_mute_gpio = gpio;
 
 	if (gpio_is_valid(gpio)) {
