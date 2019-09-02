@@ -126,14 +126,22 @@ static int wait_no_sig_max = 600;
 
 /* to inform ESM whether the cable is connected or not */
 bool hpd_to_esm;
+MODULE_PARM_DESC(hpd_to_esm, "\n hpd_to_esm\n");
+module_param(hpd_to_esm, bool, 0664);
 
 bool hdcp22_kill_esm;
 MODULE_PARM_DESC(hdcp22_kill_esm, "\n hdcp22_kill_esm\n");
 module_param(hdcp22_kill_esm, bool, 0664);
 
+bool hdcp_mode_sel;
+MODULE_PARM_DESC(hdcp_mode_sel, "\n hdcp_mode_sel\n");
+module_param(hdcp_mode_sel, bool, 0664);
+
 static int hdcp22_capable_sts = 0xff;
 
 bool esm_auth_fail_en;
+MODULE_PARM_DESC(esm_auth_fail_en, "\n esm_auth_fail_en\n");
+module_param(esm_auth_fail_en, bool, 0664);
 
 /* to inform hdcp_rx22 whether there's any device connected */
 bool pwr_sts_to_esm;
@@ -142,17 +150,29 @@ static int hdcp22_auth_sts = 0xff;
 
 /*the esm reset flag for hdcp_rx22*/
 bool esm_reset_flag;
+MODULE_PARM_DESC(esm_reset_flag, "\n esm_reset_flag\n");
+module_param(esm_reset_flag, bool, 0664);
 
 /* to inform ESM whether the cable is connected or not */
 bool video_stable_to_esm;
+MODULE_PARM_DESC(video_stable_to_esm, "\n video_stable_to_esm\n");
+module_param(video_stable_to_esm, bool, 0664);
 
 bool enable_hdcp22_esm_log;
+MODULE_PARM_DESC(enable_hdcp22_esm_log, "\n enable_hdcp22_esm_log\n");
+module_param(enable_hdcp22_esm_log, bool, 0664);
 
 bool esm_error_flag;
+MODULE_PARM_DESC(esm_error_flag, "\n esm_error_flag\n");
+module_param(esm_error_flag, bool, 0664);
 
 bool hdcp22_esm_reset2;
+MODULE_PARM_DESC(hdcp22_esm_reset2, "\n hdcp22_esm_reset2\n");
+module_param(hdcp22_esm_reset2, bool, 0664);
 
 bool hdcp22_stop_auth;
+module_param(hdcp22_stop_auth, bool, 0664);
+MODULE_PARM_DESC(hdcp22_stop_auth, "hdcp22_stop_auth");
 
 int hdcp14_on;
 MODULE_PARM_DESC(hdcp14_on, "\n hdcp14_on\n");
@@ -160,6 +180,8 @@ module_param(hdcp14_on, int, 0664);
 
 /*esm recovery mode for changing resolution & hdmi2.0*/
 int esm_recovery_mode = ESM_REC_MODE_TMDS;
+module_param(esm_recovery_mode, int, 0664);
+MODULE_PARM_DESC(esm_recovery_mode, "esm_recovery_mode");
 
 int phy_retry_times = 1;
 /* No need to judge  frame rate while checking timing stable,as there are
@@ -1329,7 +1351,7 @@ void fsm_restart(void)
 	/* hdmi_rx_top_edid_update(); */
 	set_scdc_cfg(1, 0);
 	vic_check_en = false;
-	dvi_check_en = true;
+	/* dvi_check_en = true; */
 	rx.state = FSM_INIT;
 	rx.phy.cable_clk = 0;
 	rx.phy.pll_rate = 0;
@@ -1856,7 +1878,7 @@ void hdmirx_open_port(enum tvin_port_e port)
 	//rx.no_signal = false;
 	//rx.wait_no_sig_cnt = 0;
 	vic_check_en = false;
-	dvi_check_en = true;
+	/* dvi_check_en = true; */
 	if (hdmirx_repeat_support())
 		rx.hdcp.repeat = repeat_plug;
 	else
@@ -1880,9 +1902,9 @@ void hdmirx_open_port(enum tvin_port_e port)
 			rx.state = FSM_HPD_LOW;
 		rx_set_cur_hpd(0);
 		/* need reset the whole module when switch port */
-		hdmirx_hw_config();
 		wait_ddc_idle();
 		hdmi_rx_top_edid_update();
+		hdmirx_hw_config();
 	} else {
 		if (rx.state >= FSM_SIG_STABLE)
 			rx.state = FSM_SIG_STABLE;
@@ -2236,8 +2258,8 @@ void rx_main_state_machine(void)
 				 */
 				if (fmt_vic_abnormal()) {
 					if (vic_check_en) {
-						hdmirx_hw_config();
 						hdmi_rx_top_edid_update();
+						hdmirx_hw_config();
 						rx.state = FSM_HPD_LOW;
 					} else {
 						rx.state = FSM_WAIT_CLK_STABLE;
