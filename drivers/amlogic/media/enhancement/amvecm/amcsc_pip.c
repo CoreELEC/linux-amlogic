@@ -883,8 +883,7 @@ void video_post_process(
 	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A) {
 		if (vinfo->viu_color_fmt != COLOR_FMT_RGB444)
 			mtx_setting(POST2_MTX, MATRIX_NULL, MTX_OFF);
-		else if (!(vinfo->mode == VMODE_NULL ||
-			vinfo->mode == VMODE_INVALID))
+		else
 			mtx_setting(POST2_MTX,
 				MATRIX_YUV709_RGB, MTX_ON);
 	}

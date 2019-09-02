@@ -6839,8 +6839,7 @@ static void video_process(
 	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A) {
 		if (vinfo->viu_color_fmt != COLOR_FMT_RGB444)
 			mtx_setting(POST2_MTX, MATRIX_NULL, MTX_OFF);
-		else if (!(vinfo->mode == VMODE_NULL ||
-			vinfo->mode == VMODE_INVALID))
+		else
 			mtx_setting(POST2_MTX,
 				MATRIX_YUV709_RGB, MTX_ON);
 	}
@@ -6921,7 +6920,8 @@ static int vpp_matrix_update(
 	int hdmi_scs_type_changed = 0;
 	bool hdr10p_meta_updated = false;
 
-	if (vinfo == NULL)
+	if (!vinfo || vinfo->mode == VMODE_NULL ||
+	    vinfo->mode == VMODE_INVALID)
 		return 0;
 
 	/* Tx hdr information */
@@ -7053,7 +7053,9 @@ int amvecm_matrix_process(
 	int ret;
 
 	if ((get_cpu_type() < MESON_CPU_MAJOR_ID_GXTVBB) ||
-		is_meson_gxl_package_905M2() || (csc_en == 0))
+	    is_meson_gxl_package_905M2() || (csc_en == 0) ||
+	    !vinfo || vinfo->mode == VMODE_NULL ||
+	    vinfo->mode == VMODE_INVALID)
 		return 0;
 
 	if (reload_mtx) {
