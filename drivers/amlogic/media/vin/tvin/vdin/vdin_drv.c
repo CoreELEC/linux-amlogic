@@ -798,6 +798,8 @@ void vdin_stop_dec(struct vdin_dev_s *devp)
 	devp->flags &= (~VDIN_FLAG_RDMA_ENABLE);
 	devp->ignore_frames = 0;
 	devp->cycle = 0;
+	/*reset csc_cfg in case it is enabled before switch out hdmi*/
+	devp->csc_cfg = 0;
 
 	 /* clear color para*/
 	memset(&devp->prop, 0, sizeof(devp->prop));
