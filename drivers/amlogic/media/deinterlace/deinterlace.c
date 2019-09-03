@@ -6673,6 +6673,8 @@ static void di_unreg_process_irq(void)
 		up(&di_sema);
 	}
 #endif
+	/*dbg*/
+	pr_info("di:retry cnt=%d\n", di_pre_stru.retry_cnt);
 }
 
 static void di_reg_process(void)
@@ -6986,6 +6988,11 @@ static void di_reg_process_irq(void)
 		cue_int(vframe);
 		if (de_devp->flags & DI_LOAD_REG_FLAG)
 			up(&di_sema);
+
+		di_pre_stru.retry_en = false;
+		di_pre_stru.retry_cnt = 0;
+		di_pre_stru.retry_index = 0;
+
 		init_flag = 1;
 		di_pre_stru.reg_req_flag_irq = 1;
 	}
@@ -7029,10 +7036,13 @@ static void di_process(void)
 					(di_pre_stru.pre_de_clear_flag == 2)) {
 					RDMA_WR(DI_INTR_CTRL, data32);
 #endif
-				pre_process_time =
+				if (di_pre_stru.pre_de_clear_flag == 2) {
+					di_pre_stru.retry_en = true;
+				} else {
+					pre_process_time =
 					di_pre_stru.pre_de_busy_timer_count;
-				pre_de_done_buf_config();
-
+					pre_de_done_buf_config();
+				}
 				di_pre_stru.pre_de_process_done = 0;
 				di_pre_stru.pre_de_clear_flag = 0;
 #ifdef CHECK_DI_DONE
@@ -7060,6 +7070,22 @@ static void di_process(void)
 			}
 		}
 		di_unlock_irqfiq_restore(irq_flag2);
+
+		/************/
+		if (di_pre_stru.retry_en &&
+		    (di_pre_stru.pre_de_busy == 0) &&
+		    (di_pre_stru.pre_de_process_done == 0) &&
+		    !atomic_read(&di_flag_unreg) &&
+		    (di_pre_stru.pre_de_process_flag == 0)) {
+			di_pre_stru.retry_index =
+				di_pre_stru.field_count_for_cont;
+			di_pre_stru.field_count_for_cont--;
+			di_print("di:retry set%d\n", di_pre_stru.retry_index);
+			pre_de_process();
+			di_pre_stru.retry_en = false;
+			di_pre_stru.retry_cnt++;
+		}
+
 		if ((di_pre_stru.pre_de_busy == 0) &&
 			(di_pre_stru.pre_de_process_done == 0)) {
 			if ((pre_run_flag == DI_RUN_FLAG_RUN) ||

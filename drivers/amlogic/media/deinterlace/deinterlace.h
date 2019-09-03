@@ -372,6 +372,10 @@ struct di_pre_stru_s {
 	struct combing_status_s *mtn_status;
 	u64 afbc_rls_time;
 	bool wait_afbc;
+	/*****************/
+	bool retry_en;
+	unsigned int retry_index;
+	unsigned int retry_cnt;
 };
 
 struct di_post_stru_s {
