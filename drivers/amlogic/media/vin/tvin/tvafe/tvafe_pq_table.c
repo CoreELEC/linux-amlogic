@@ -359,7 +359,6 @@ static struct tvafe_reg_table_s cvbs_pali_table_tl1[] = {
 	{CVD2_CHROMA_LOOPFILTER_STATE, 0x0a, 0xff},
 	{ACD_REG_89, 0x80010004, 0xffffffff},
 	{ACD_REG_8A, 0x100004, 0xffffffff},
-	{ACD_REG_8B, 0x100000, 0xffffffff},
 	{ACD_REG_8C, 0x38000, 0xffffffff},
 	/*set for wipe off vertical stripes*/
 	{ACD_REG_25, 0xeafb4e8e, 0xffffffff},
