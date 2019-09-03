@@ -1140,7 +1140,7 @@
 };
 
 &drm_lcd {
-	status = "okay";
+	status = "disabled";
 };
 
 &pwm_AO_cd {
