@@ -276,6 +276,8 @@ static bool is_osd_off;
 static bool force_reset_core2;
 static int core1_switch;
 static int core3_switch;
+static int video_enable;
+
 module_param(vtotal_add, uint, 0664);
 MODULE_PARM_DESC(vtotal_add, "\n vtotal_add\n");
 module_param(vpotch, uint, 0664);
@@ -2601,6 +2603,21 @@ static int is_graphic_changed(void)
 	}
 	return ret;
 }
+
+static int is_video_turn_on(void)
+{
+	int ret = 0;
+	int new_video_enable = get_video_enabled();
+
+	if (video_enable != new_video_enable) {
+		pr_dolby_dbg("video_enable changed %d-%d\n",
+			     video_enable, new_video_enable);
+		ret = new_video_enable ? 1 : -1;
+	}
+	video_enable  = new_video_enable;
+	return ret;
+}
+
 static void adjust_vpotch(void)
 {
 	const struct vinfo_s *vinfo = get_current_vinfo();
@@ -6813,6 +6830,10 @@ int dolby_vision_process(struct vframe_s *vf, u32 display_size,
 		if (vf)
 			dolby_vision_parse_metadata(vf, 1, false);
 		dolby_vision_set_toggle_flag(1);
+	}
+	if (is_video_turn_on() == 1) {
+		if (vf && !dolby_vision_parse_metadata(vf, 0, false))
+			dolby_vision_set_toggle_flag(1);
 	}
 
 	/* only monitor dolby_vision_policy */
