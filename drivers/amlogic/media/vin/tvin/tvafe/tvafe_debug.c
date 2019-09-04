@@ -712,29 +712,22 @@ static ssize_t tvafereg_store(struct device *dev,
 			}
 			break;
 		case 'D':
-			/* if (argn < 3) {*/
-			/*	tvafe_pr_err("syntax error.\n");*/
-			/* } else{*/
 			tvafe_pr_info("dump TOP reg----\n");
 			for (addr = TOP_BASE_ADD;
-				addr <= (TOP_BASE_ADD+0xb2); addr++)
-				tvafe_pr_info("[0x%x]APB[0x%04x]=0x%08x\n",
-						(0XC8842000+(addr<<2)), addr,
-						R_APB_REG(addr<<2));
+				addr <= (TOP_BASE_ADD + 0xb2); addr++)
+				tvafe_pr_info("APB[0x%04x]=0x%08x\n",
+					      addr, R_APB_REG(addr << 2));
 			tvafe_pr_info("dump ACD reg----\n");
 			for (addr = ACD_BASE_ADD;
-				addr <= (ACD_BASE_ADD+0xA4); addr++)
-				tvafe_pr_info("[0x%x]APB[0x%04x]=0x%08x\n",
-						(0XC8842000+(addr<<2)), addr,
-						R_APB_REG(addr<<2));
+				addr <= (ACD_BASE_ADD + 0xa5); addr++)
+				tvafe_pr_info("APB[0x%04x]=0x%08x\n",
+					      addr, R_APB_REG(addr << 2));
 			tvafe_pr_info("dump CVD2 reg----\n");
 			for (addr = CVD_BASE_ADD;
-				addr <= (CVD_BASE_ADD+0xf9); addr++)
-				tvafe_pr_info("[0x%x]APB[0x%04x]=0x%08x\n",
-						(0XC8842000+(addr<<2)), addr,
-						R_APB_REG(addr<<2));
+				addr <= (CVD_BASE_ADD + 0xfe); addr++)
+				tvafe_pr_info("APB[0x%04x]=0x%08x\n",
+					      addr, R_APB_REG(addr << 2));
 			tvafe_pr_info("dump reg done----\n");
-			/* } */
 			break;
 		default:
 			tvafe_pr_err("not support.\n");

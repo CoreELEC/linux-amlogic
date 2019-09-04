@@ -243,11 +243,12 @@ static const unsigned int tvafe_pq_reg_trust_table[][2] = {
 	{CVD2_LUMA_BRIGHTNESS_ADJUSTMENT,   0xff}, /* 0x09 */
 	{CVD2_CHROMA_SATURATION_ADJUSTMENT, 0xff}, /* 0x0a */
 	{CVD2_CHROMA_HUE_PHASE_ADJUSTMENT,  0xff}, /* 0x0b */
+	{CVD2_REG_87,                       0xc0}, /* 0x87 */
 	{CVD2_CHROMA_EDGE_ENHANCEMENT,      0xff}, /* 0xb5 */
 	{CVD2_CHROMA_BW_MOTION,             0xff}, /* 0xe8 */
-	{CVD2_REG_FA,                       0xa0}, /* 0xfa */
+	{CVD2_REG_FA,                       0x80}, /* 0xfa */
 
-	{ACD_REG_1B,                        0xffffffff},
+	{ACD_REG_1B,                        0x0f000000},
 	{ACD_REG_25,                        0xffffffff},
 	{ACD_REG_53,                        0xffffffff},
 	{ACD_REG_54,                        0xffffffff},
@@ -311,6 +312,8 @@ static void tvafe_pq_apb_reg_trust_write(unsigned int addr,
 			__func__, addr, addr,
 			(val & mask), (val & mask),
 			val, val, mask, mask);
+
+	cvd_reg87_pal = R_APB_REG(CVD2_REG_87);
 }
 
 /*

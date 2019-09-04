@@ -147,6 +147,9 @@ static int ignore_443_358;
 module_param(ignore_443_358, int, 0644);
 MODULE_PARM_DESC(ignore_443_358, "ignore_443_358\n");
 
+unsigned int cvd_reg87_pal;
+static unsigned int acd_vde_config = 0x00170107;
+
 static unsigned int acd_h_config = 0x8e035e;
 module_param(acd_h_config, uint, 0664);
 MODULE_PARM_DESC(acd_h_config, "acd_h_config");
@@ -511,6 +514,9 @@ static void tvafe_cvd2_write_mode_reg(struct tvafe_cvd2_s *cvd2,
 			i++;
 		}
 	}
+
+	cvd_reg87_pal = R_APB_REG(CVD2_REG_87);
+	acd_vde_config = R_APB_REG(ACD_REG_2E);
 
 	/* enable CVD2 */
 	W_APB_BIT(CVD2_RESET_REGISTER, 0, SOFT_RST_BIT, SOFT_RST_WID);
@@ -1994,8 +2000,7 @@ void tvafe_cvd2_set_default_de(struct tvafe_cvd2_s *cvd2)
 		return;
 	}
 	/*write default de to register*/
-	W_APB_REG(ACD_REG_2E,  (rf_acd_table[cvd2->config_fmt-
-				TVIN_SIG_FMT_CVBS_NTSC_M][0x2e]));
+	W_APB_REG(ACD_REG_2E, acd_vde_config);
 	if (tvafe_dbg_print & TVAFE_DBG_SMR)
 		tvafe_pr_info("%s set default de %s.\n",
 				__func__, tvin_sig_fmt_str(cvd2->config_fmt));
@@ -2027,7 +2032,7 @@ static void tvafe_cvd2_reinit(struct tvafe_cvd2_s *cvd2)
 #endif
 	/*pali to nosignal,restore default vstart-end after auto de*/
 	if (cvd2->config_fmt == TVIN_SIG_FMT_CVBS_PAL_I) {
-		W_APB_REG(ACD_REG_2E, 0x170137);
+		W_APB_REG(ACD_REG_2E, acd_vde_config);
 		if (tvafe_dbg_print & TVAFE_DBG_SMR)
 			pr_info("[tvafe..] %s: reset auto de.\n", __func__);
 	}
@@ -2380,8 +2385,8 @@ inline void tvafe_cvd2_adj_hs(struct tvafe_cvd2_s *cvd2,
 				W_APB_REG(CVD2_YC_SEPARATION_CONTROL, 0x12);
 			if (R_APB_REG(CVD2_H_LOOP_MAXSTATE) != 0xd)
 				W_APB_REG(CVD2_H_LOOP_MAXSTATE, 0xd);
-			if (R_APB_REG(CVD2_REG_87) != 0x0)
-				W_APB_REG(CVD2_REG_87, 0x0);
+			if (R_APB_REG(CVD2_REG_87) != cvd_reg87_pal)
+				W_APB_REG(CVD2_REG_87, cvd_reg87_pal);
 			W_APB_REG(ACD_REG_2D, acd_h_back);
 			W_APB_BIT(CVD2_ACTIVE_VIDEO_HSTART, cvd_2e,
 					HACTIVE_START_BIT, HACTIVE_START_WID);
@@ -2406,8 +2411,8 @@ inline void tvafe_cvd2_adj_hs(struct tvafe_cvd2_s *cvd2,
 			W_APB_REG(CVD2_YC_SEPARATION_CONTROL, 0x12);
 		if (R_APB_REG(CVD2_H_LOOP_MAXSTATE) != 0xd)
 			W_APB_REG(CVD2_H_LOOP_MAXSTATE, 0xd);
-		if (R_APB_REG(CVD2_REG_87) != 0x0)
-			W_APB_REG(CVD2_REG_87, 0x0);
+		if (R_APB_REG(CVD2_REG_87) != cvd_reg87_pal)
+			W_APB_REG(CVD2_REG_87, cvd_reg87_pal);
 
 		W_APB_REG(ACD_REG_2D, acd_h_back);
 		W_APB_BIT(CVD2_ACTIVE_VIDEO_HSTART, cvd_2e,

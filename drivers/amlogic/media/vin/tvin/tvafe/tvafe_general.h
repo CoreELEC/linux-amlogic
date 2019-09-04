@@ -204,6 +204,7 @@ extern int tvafe_cpu_type(void);
 extern void tvafe_clk_gate_ctrl(int status);
 
 extern struct mutex pll_mutex;
+extern unsigned int cvd_reg87_pal;
 
 #endif  /* _TVAFE_GENERAL_H */
 
