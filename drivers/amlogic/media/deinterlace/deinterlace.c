@@ -7188,71 +7188,79 @@ static int di_task_handle(void *data)
 		ret = down_interruptible(&di_sema);
 		if (ret != 0)
 			continue;
-		if (active_flag) {
-			if ((di_pre_stru.unreg_req_flag ||
-				di_pre_stru.force_unreg_req_flag ||
-				di_pre_stru.disable_req_flag) &&
-				(di_pre_stru.pre_de_busy == 0)) {
-				di_unreg_process();
+
+		if (!de_devp)
+			continue;
+
+		if (!active_flag)
+			continue;
+
+		if ((di_pre_stru.unreg_req_flag		||
+		     di_pre_stru.force_unreg_req_flag	||
+		     di_pre_stru.disable_req_flag)	&&
+		    (di_pre_stru.pre_de_busy == 0)) {
+			di_unreg_process();
 				#if 0
-				/* if mirror mode, can't speed down the clk*/
-				/* set min rate for power saving */
-				if (de_devp->vpu_clkb) {
-					clk_set_rate(de_devp->vpu_clkb,
-						de_devp->clkb_min_rate);
-				}
+			/* if mirror mode, can't speed down the clk*/
+			/* set min rate for power saving */
+			if (de_devp->vpu_clkb) {
+				clk_set_rate(de_devp->vpu_clkb,
+					     de_devp->clkb_min_rate);
+			}
 				#endif
-			}
-			if (di_pre_stru.reg_req_flag_irq ||
-				di_pre_stru.reg_req_flag) {
-				di_reg_process();
-				di_pre_stru.reg_req_flag = 0;
-				di_pre_stru.reg_req_flag_irq = 0;
-			}
-			#ifdef CONFIG_CMA
-			/* mutex_lock(&de_devp->cma_mutex);*/
-			if (di_pre_stru.cma_release_req) {
-				atomic_set(&devp->mem_flag, 0);
-				di_cma_release(devp);
-				di_pre_stru.cma_release_req = 0;
-				di_pre_stru.cma_alloc_done = 0;
-			}
-			if (di_pre_stru.cma_alloc_req) {
-				if (di_cma_alloc(devp))
-					atomic_set(&devp->mem_flag, 1);
-				else
-					atomic_set(&devp->mem_flag, 0);
-				di_pre_stru.cma_alloc_req = 0;
-				di_pre_stru.cma_alloc_done = 1;
-			}
-			if (di_free_mem_pre()) {
-				di_cma_release(devp);
-				di_pr_info("release mirror\n");
-				atomic_set(&di_trig_free_mem, 0);
-			}
-			/* mutex_unlock(&de_devp->cma_mutex); */
-			#endif
 		}
+		if (di_pre_stru.reg_req_flag_irq ||
+		    di_pre_stru.reg_req_flag) {
+			di_reg_process();
+			di_pre_stru.reg_req_flag = 0;
+			di_pre_stru.reg_req_flag_irq = 0;
+		}
+		#ifdef CONFIG_CMA
+		/* mutex_lock(&de_devp->cma_mutex);*/
+		if (di_pre_stru.cma_release_req) {
+			atomic_set(&devp->mem_flag, 0);
+			di_cma_release(devp);
+			di_pre_stru.cma_release_req = 0;
+			di_pre_stru.cma_alloc_done = 0;
+		}
+		if (di_pre_stru.cma_alloc_req) {
+			if (di_cma_alloc(devp))
+				atomic_set(&devp->mem_flag, 1);
+			else
+				atomic_set(&devp->mem_flag, 0);
+			di_pre_stru.cma_alloc_req = 0;
+			di_pre_stru.cma_alloc_done = 1;
+		}
+		if (di_free_mem_pre()) {
+			di_cma_release(devp);
+			di_pr_info("release mirror\n");
+			atomic_set(&di_trig_free_mem, 0);
+		}
+		/* mutex_unlock(&de_devp->cma_mutex); */
+		#endif
+
 		if (de_devp->flags & DI_VPU_CLKB_SET) {
 			if (is_meson_txlx_cpu()) {
 				if (!use_2_interlace_buff) {
 					#ifdef CLK_TREE_SUPPORT
 					clk_set_rate(de_devp->vpu_clkb,
-						de_devp->clkb_min_rate);
+						     de_devp->clkb_min_rate);
 					#endif
 				} else {
 					#ifdef CLK_TREE_SUPPORT
 					clk_set_rate(de_devp->vpu_clkb,
-						de_devp->clkb_max_rate);
+						     de_devp->clkb_max_rate);
 					#endif
 				}
 			}
-			if (is_meson_g12a_cpu() || is_meson_g12b_cpu()
-				|| is_meson_tl1_cpu() || is_meson_tm2_cpu() ||
-				is_meson_sm1_cpu()) {
+			if (is_meson_g12a_cpu()	||
+			    is_meson_g12b_cpu()	||
+			    is_meson_tl1_cpu()	||
+			    is_meson_tm2_cpu()	||
+			    is_meson_sm1_cpu()) {
 				#ifdef CLK_TREE_SUPPORT
 				clk_set_rate(de_devp->vpu_clkb,
-						de_devp->clkb_max_rate);
+					     de_devp->clkb_max_rate);
 				#endif
 			}
 			de_devp->flags &= (~DI_VPU_CLKB_SET);
@@ -8540,7 +8548,7 @@ static int di_probe(struct platform_device *pdev)
 	vf_receiver_init(&di_vf_recv, VFM_NAME, &di_vf_receiver, NULL);
 	vf_reg_receiver(&di_vf_recv);
 	vf_provider_init(&di_vf_prov, VFM_NAME, &deinterlace_vf_provider, NULL);
-	active_flag = 1;
+	/*active_flag = 1;*/
 	sema_init(&di_sema, 1);
 	ret = request_irq(di_devp->pre_irq, &de_irq, IRQF_SHARED,
 		"pre_di", (void *)"pre_di");
@@ -8567,6 +8575,7 @@ static int di_probe(struct platform_device *pdev)
 	di_devp->task = kthread_run(di_task_handle, di_devp, "kthread_di");
 	if (IS_ERR(di_devp->task))
 		pr_err("%s create kthread error.\n", __func__);
+	active_flag = 1;
 	di_debugfs_init();	/*2018-07-18 add debugfs*/
 	di_patch_post_update_mc_sw(DI_MC_SW_IC, true);
 
@@ -8662,6 +8671,8 @@ static void di_shutdown(struct platform_device *pdev)
 {
 	struct di_dev_s *di_devp = NULL;
 	int ret = 0;
+
+	active_flag = 0;
 
 	di_devp = platform_get_drvdata(pdev);
 	ret = hrtimer_cancel(&di_pre_hrtimer);
@@ -8763,6 +8774,7 @@ static int di_resume(struct device *dev)
 	di_pre_hrtimer.function = di_pre_hrtimer_func;
 	hrtimer_start(&di_pre_hrtimer, ms_to_ktime(10), HRTIMER_MODE_REL);
 	tasklet_enable(&di_pre_tasklet);
+	active_flag = 1;
 	/************/
 	pr_info("di: resume module\n");
 	return 0;
