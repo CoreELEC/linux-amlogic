@@ -5449,7 +5449,9 @@ de_post_process(void *arg, unsigned int zoom_start_x_lines,
 		}
 		di_post_stru.update_post_reg_flag = 1;
 		/* if height decrease, mtn will not enough */
-		if (di_buf->pd_config.global_mode != PULL_DOWN_BUF1 &&
+		if ((di_buf->pd_config.global_mode
+			!= PULL_DOWN_BUF1) &&
+			!di_buf->di_buf_dup_p[2] &&
 			!post_wr_en)
 			di_buf->pd_config.global_mode = PULL_DOWN_EI;
 	}
