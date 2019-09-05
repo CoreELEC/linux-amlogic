@@ -319,14 +319,14 @@ module_param(dolby_vision_graphic_max, uint, 0664);
 MODULE_PARM_DESC(dolby_vision_graphic_max, "\n dolby_vision_graphic_max\n");
 
 static unsigned int dv_target_graphics_max[3][3] = {
-	{ 300, 300, 380 }, /* DOVI => DOVI/HDR/SDR */
-	{ 300, 300, 100 }, /* HDR =>  DOVI/HDR/SDR */
-	{ 300, 300, 100 }, /* SDR =>  DOVI/HDR/SDR */
+	{ 300, 375, 380 }, /* DOVI => DOVI/HDR/SDR */
+	{ 300, 375, 100 }, /* HDR =>  DOVI/HDR/SDR */
+	{ 300, 375, 100 }, /* SDR =>  DOVI/HDR/SDR */
 };
 static unsigned int dv_target_graphics_LL_max[3][3] = {
-	{ 300, 300, 100 }, /* DOVI => DOVI/HDR/SDR */
-	{ 210, 300, 100 }, /* HDR =>  DOVI/HDR/SDR */
-	{ 300, 300, 100 }, /* SDR =>  DOVI/HDR/SDR */
+	{ 300, 375, 100 }, /* DOVI => DOVI/HDR/SDR */
+	{ 210, 375, 100 }, /* HDR =>  DOVI/HDR/SDR */
+	{ 300, 375, 100 }, /* SDR =>  DOVI/HDR/SDR */
 };
 
 /*these two parameters form OSD*/
