@@ -911,6 +911,8 @@
 		hpd_low_cec_off = <1>;
 		/* bit4: enable feature, bit3~0: port number */
 		disable_port = <0x0>;
+		/* 1: enable, 0: disable */
+		scdc_force_en = <0>;
 		/* MAP_ADDR_MODULE_CBUS */
 		/* MAP_ADDR_MODULE_HIU */
 		/* MAP_ADDR_MODULE_HDMIRX_CAPB3 */

@@ -101,6 +101,8 @@ int pll_rst_max = 5;
 /* cdr lock threshold */
 int cdr_lock_level;
 int clock_lock_th = 2;
+int scdc_force_en;
+
 /*------------------------variable define end------------------------------*/
 
 static int check_regmap_flag(unsigned int addr)
@@ -1942,7 +1944,8 @@ void clk_init(void)
 void hdmirx_20_init(void)
 {
 	unsigned long data32;
-	unsigned long scdc_en = rx.edid_ver;
+	unsigned long scdc_en =
+		scdc_force_en ? 1 : rx.edid_ver;
 
 	data32 = 0;
 	data32 |= 1	<< 12; /* [12]     vid_data_checken */

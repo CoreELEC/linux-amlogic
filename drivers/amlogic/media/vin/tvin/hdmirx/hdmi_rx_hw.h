@@ -1117,6 +1117,7 @@ extern int cdr_lock_level;
 extern int top_intr_maskn_value;
 extern int hbr_force_8ch;
 extern int clock_lock_th;
+extern int scdc_force_en;
 extern void rx_get_best_eq_setting(void);
 extern void wr_reg_hhi(unsigned int offset, unsigned int val);
 extern void wr_reg_hhi_bits(unsigned int offset, unsigned int mask,

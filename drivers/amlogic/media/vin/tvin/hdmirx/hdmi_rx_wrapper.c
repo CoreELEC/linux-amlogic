@@ -1732,6 +1732,8 @@ int rx_set_global_variable(const char *buf, int size)
 		return pr_var(en_take_dtd_space, index);
 	if (set_pr_var(tmpbuf, earc_cap_ds_update_hpd_en, value, &index, ret))
 		return pr_var(earc_cap_ds_update_hpd_en, index);
+	if (set_pr_var(tmpbuf, scdc_force_en, value, &index, ret))
+		return pr_var(scdc_force_en, index);
 	return 0;
 }
 
@@ -1844,6 +1846,7 @@ void rx_get_global_variable(const char *buf)
 	pr_var(clock_lock_th, i++);
 	pr_var(en_take_dtd_space, i++);
 	pr_var(earc_cap_ds_update_hpd_en, i++);
+	pr_var(scdc_force_en, i++);
 }
 
 void skip_frame(unsigned int cnt)

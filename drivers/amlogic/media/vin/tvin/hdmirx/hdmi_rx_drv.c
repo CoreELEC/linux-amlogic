@@ -2439,6 +2439,15 @@ static int hdmirx_probe(struct platform_device *pdev)
 		rx.arc_port = 0x1;
 		rx_pr("not find arc_port, portB by default\n");
 	}
+	ret = of_property_read_u32(pdev->dev.of_node,
+				   "scdc_force_en",
+				   &scdc_force_en);
+	if (ret) {
+		/* enable scdc accroding to edid version */
+		scdc_force_en = 0;
+		rx_pr("not find scdc_force_en, disable by default\n");
+	}
+
 	ret = of_reserved_mem_device_init(&(pdev->dev));
 	if (ret != 0)
 		rx_pr("warning: no rev cmd mem\n");
