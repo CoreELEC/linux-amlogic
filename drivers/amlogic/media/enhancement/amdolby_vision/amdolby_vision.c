@@ -1715,9 +1715,12 @@ static int tv_dolby_core1_set(
 	else
 		VSYNC_WR_DV_REG_BITS(DOLBY_TV_SWAP_CTRL5, 0, 4, 1);
 
-	VSYNC_WR_DV_REG_BITS(DOLBY_TV_SWAP_CTRL6, 1, 20, 1);
-	/* bypass dither */
-	VSYNC_WR_DV_REG_BITS(DOLBY_TV_SWAP_CTRL6, 1, 25, 1);
+	/*set diag reg to 0xb can bypass dither, not need set swap ctrl6 */
+	if (!is_meson_tm2_tvmode()) {
+		VSYNC_WR_DV_REG_BITS(DOLBY_TV_SWAP_CTRL6, 1, 20, 1);
+		/* bypass dither */
+		VSYNC_WR_DV_REG_BITS(DOLBY_TV_SWAP_CTRL6, 1, 25, 1);
+	}
 	if (src_chroma_format == 2)
 		VSYNC_WR_DV_REG_BITS(DOLBY_TV_SWAP_CTRL6, 1, 29, 1);
 	else if (src_chroma_format == 1)
@@ -1736,18 +1739,44 @@ static int tv_dolby_core1_set(
 			/* vd2 to vpp */
 			1, 17, 1);
 
-	if (dolby_vision_core1_on
-		&& !bypass_core1)
+	if (dolby_vision_core1_on &&
+	    !bypass_core1) {
+		if (is_meson_tm2_tvmode()) {
+			VSYNC_WR_DV_REG_BITS(
+				DOLBY_PATH_CTRL,
+				1, 8, 2);
+			VSYNC_WR_DV_REG_BITS(
+				DOLBY_PATH_CTRL,
+				1, 10, 2);
+			VSYNC_WR_DV_REG_BITS(
+				DOLBY_PATH_CTRL,
+				0, 16, 1);
+			VSYNC_WR_DV_REG_BITS(
+				DOLBY_PATH_CTRL,
+				0, 20, 1);
+			VSYNC_WR_DV_REG_BITS(
+				DOLBY_PATH_CTRL,
+				1, 24, 2);
+			VSYNC_WR_DV_REG_BITS(
+				DOLBY_PATH_CTRL,
+				0, 0, 2);
+		} else
 		VSYNC_WR_DV_REG_BITS(
 			VIU_MISC_CTRL1,
 			/* enable core 1 */
 			0, 16, 1);
-	else if (dolby_vision_core1_on
-		&& bypass_core1)
-		VSYNC_WR_DV_REG_BITS(
-			VIU_MISC_CTRL1,
-			/* bypass core 1 */
-			1, 16, 1);
+	} else if (dolby_vision_core1_on &&
+	    bypass_core1) {
+		if (is_meson_tm2_tvmode()) {
+			VSYNC_WR_DV_REG_BITS(
+				DOLBY_PATH_CTRL,
+				3, 0, 2);
+		} else
+			VSYNC_WR_DV_REG_BITS(
+				VIU_MISC_CTRL1,
+				/* bypass core 1 */
+				1, 16, 1);
+	}
 
 	if (dolby_vision_run_mode != 0xff)
 		run_mode = dolby_vision_run_mode;
@@ -3112,7 +3141,8 @@ void enable_dolby_vision(int enable)
 					/*   10->12 after gainoff */
 					VSYNC_WR_DV_REG(
 						VPP_DAT_CONV_PARA1, 0x20002000);
-					WRITE_VPP_DV_REG(0x33e7, 0xb);
+					WRITE_VPP_DV_REG(DOLBY_TV_DIAG_CTRL,
+							 0xb);
 				} else {
 					/* bypass all video effect */
 					if (dolby_vision_flags
@@ -3466,7 +3496,27 @@ void enable_dolby_vision(int enable)
 						DOLBY_PATH_CTRL,
 						/* enable core1 */
 						0, 0, 1);
-				else
+				else if (is_meson_tm2_tvmode()) {
+					VSYNC_WR_DV_REG_BITS(
+						DOLBY_PATH_CTRL,
+						1, 8, 2);
+					VSYNC_WR_DV_REG_BITS(
+						DOLBY_PATH_CTRL,
+						1, 10, 2);
+					VSYNC_WR_DV_REG_BITS(
+						DOLBY_PATH_CTRL,
+						0, 16, 1);
+					VSYNC_WR_DV_REG_BITS(
+						DOLBY_PATH_CTRL,
+						0, 20, 1);
+					VSYNC_WR_DV_REG_BITS(
+						DOLBY_PATH_CTRL,
+						1, 24, 2);
+					VSYNC_WR_DV_REG_BITS(
+						DOLBY_PATH_CTRL,
+						/* enable core1 */
+						0, 0, 2);
+				} else
 					VSYNC_WR_DV_REG_BITS(
 						VIU_MISC_CTRL1,
 						0,
@@ -3481,6 +3531,11 @@ void enable_dolby_vision(int enable)
 						DOLBY_PATH_CTRL,
 						/* disable core1 */
 						1, 0, 1);
+				else if (is_meson_tm2_tvmode())
+					VSYNC_WR_DV_REG_BITS(
+						DOLBY_PATH_CTRL,
+						/* disable core1 */
+						3, 0, 2);
 				else
 					VSYNC_WR_DV_REG_BITS(
 						VIU_MISC_CTRL1,
@@ -7445,8 +7500,8 @@ void tv_dolby_vision_insert_crc(bool print)
 	}
 	if (is_meson_tvmode()
 		&& !force_stb_mode) {
-		crc_enable = (READ_VPP_DV_REG(0x33e7) == 0xb);
-		crc = READ_VPP_DV_REG(0x33ef);
+		crc_enable = (READ_VPP_DV_REG(DOLBY_TV_DIAG_CTRL) == 0xb);
+		crc = READ_VPP_DV_REG(DOLBY_TV_OUTPUT_DM_CRC);
 	} else {
 		crc_enable = true; /* (READ_VPP_DV_REG(0x36fb) & 1); */
 		crc = READ_VPP_DV_REG(0x36fd);

@@ -4456,9 +4456,10 @@ static void viu_set_dcu(struct vpp_frame_par_s *frame_par, struct vframe_s *vf)
 
 			r = 0;
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
-			if (is_meson_txlx_package_962X()
-				&& !is_dolby_vision_stb_mode()
-				&& is_dolby_vision_on()) {
+			if ((is_meson_txlx_package_962X() ||
+			     is_meson_tm2_cpu()) &&
+			     !is_dolby_vision_stb_mode() &&
+			     is_dolby_vision_on()) {
 				r = HFORMATTER_REPEAT |
 					HFORMATTER_YC_RATIO_2_1 |
 					HFORMATTER_EN |
@@ -4663,9 +4664,10 @@ static void viu_set_dcu(struct vpp_frame_par_s *frame_par, struct vframe_s *vf)
 			vformatter = VFORMATTER_EN;
 		else
 			vformatter = 0;
-		if (is_meson_txlx_package_962X()
-		&& !is_dolby_vision_stb_mode()
-		&& is_dolby_vision_on()) {
+		if ((is_meson_txlx_package_962X() ||
+		     is_meson_tm2_cpu()) &&
+		     !is_dolby_vision_stb_mode() &&
+		     is_dolby_vision_on()) {
 			VSYNC_WR_MPEG_REG(
 				VIU_VD1_FMT_CTRL + cur_dev->viu_off,
 				HFORMATTER_REPEAT |
@@ -4770,9 +4772,10 @@ static void viu_set_dcu(struct vpp_frame_par_s *frame_par, struct vframe_s *vf)
 				<< VFORMATTER_PHASE_BIT) | VFORMATTER_EN |
 				hphase);
 	} else {
-		if (is_meson_txlx_package_962X()
-		&& !is_dolby_vision_stb_mode()
-		&& is_dolby_vision_on()) {
+		if ((is_meson_txlx_package_962X() ||
+		     is_meson_tm2_cpu()) &&
+		     !is_dolby_vision_stb_mode() &&
+		     is_dolby_vision_on()) {
 			VSYNC_WR_MPEG_REG(
 				VIU_VD1_FMT_CTRL + cur_dev->viu_off,
 				HFORMATTER_REPEAT |
@@ -5032,9 +5035,10 @@ static void vd2_set_dcu(struct vpp_frame_par_s *frame_par, struct vframe_s *vf)
 				(0x8 << VFORMATTER_PHASE_BIT) |
 				VFORMATTER_EN;
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
-			if (is_meson_txlx_package_962X()
-				&& !is_dolby_vision_stb_mode()
-				&& is_dolby_vision_on()) {
+			if ((is_meson_txlx_package_962X() ||
+			     is_meson_tm2_cpu()) &&
+			     !is_dolby_vision_stb_mode() &&
+			     is_dolby_vision_on()) {
 				r |= HFORMATTER_REPEAT |
 					HFORMATTER_YC_RATIO_2_1 |
 					HFORMATTER_EN |
@@ -5197,9 +5201,10 @@ static void vd2_set_dcu(struct vpp_frame_par_s *frame_par, struct vframe_s *vf)
 		vphase =
 		    ((type & VIDTYPE_VIU_422) ? 0x10 : 0x08) <<
 		    VFORMATTER_PHASE_BIT;
-		if (is_meson_txlx_package_962X()
-		&& !is_dolby_vision_stb_mode()
-		&& is_dolby_vision_on()) {
+		if ((is_meson_txlx_package_962X() ||
+		     is_meson_tm2_cpu()) &&
+		     !is_dolby_vision_stb_mode() &&
+		     is_dolby_vision_on()) {
 			VSYNC_WR_MPEG_REG(
 				VIU_VD2_FMT_CTRL + cur_dev->viu_off,
 				HFORMATTER_REPEAT |
@@ -5269,9 +5274,10 @@ static void vd2_set_dcu(struct vpp_frame_par_s *frame_par, struct vframe_s *vf)
 				<< VFORMATTER_PHASE_BIT) |
 				VFORMATTER_EN | hphase);
 	} else {
-		if (is_meson_txlx_package_962X()
-		&& !is_dolby_vision_stb_mode()
-		&& is_dolby_vision_on()) {
+		if ((is_meson_txlx_package_962X() ||
+		     is_meson_tm2_cpu()) &&
+		     !is_dolby_vision_stb_mode() &&
+		     is_dolby_vision_on()) {
 			VSYNC_WR_MPEG_REG(
 				VIU_VD2_FMT_CTRL + cur_dev->viu_off,
 				HFORMATTER_REPEAT |
