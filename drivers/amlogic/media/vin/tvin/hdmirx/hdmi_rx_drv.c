@@ -2309,25 +2309,24 @@ static int hdmirx_probe(struct platform_device *pdev)
 	}
 
 	hdcp22_on = rx_is_hdcp22_support();
-	if (hdcp22_on) {
-		hdevp->esm_clk = clk_get(&pdev->dev, "hdcp_rx22_esm");
-		if (IS_ERR(hdevp->esm_clk)) {
-			rx_pr("get esm_clk err\n");
-		} else {
-			clk_set_parent(hdevp->esm_clk, fclk_div7_clk);
-			clk_set_rate(hdevp->esm_clk, 285714285);
-			clk_prepare_enable(hdevp->esm_clk);
-			clk_rate = clk_get_rate(hdevp->esm_clk);
-		}
-		hdevp->skp_clk = clk_get(&pdev->dev, "hdcp_rx22_skp");
-		if (IS_ERR(hdevp->skp_clk)) {
-			rx_pr("get skp_clk err\n");
-		} else {
-			clk_set_parent(hdevp->skp_clk, xtal_clk);
-			clk_set_rate(hdevp->skp_clk, 24000000);
-			clk_prepare_enable(hdevp->skp_clk);
-			clk_rate = clk_get_rate(hdevp->skp_clk);
-		}
+
+	hdevp->esm_clk = clk_get(&pdev->dev, "hdcp_rx22_esm");
+	if (IS_ERR(hdevp->esm_clk)) {
+		rx_pr("get esm_clk err\n");
+	} else {
+		clk_set_parent(hdevp->esm_clk, fclk_div7_clk);
+		clk_set_rate(hdevp->esm_clk, 285714285);
+		clk_prepare_enable(hdevp->esm_clk);
+		clk_rate = clk_get_rate(hdevp->esm_clk);
+	}
+	hdevp->skp_clk = clk_get(&pdev->dev, "hdcp_rx22_skp");
+	if (IS_ERR(hdevp->skp_clk)) {
+		rx_pr("get skp_clk err\n");
+	} else {
+		clk_set_parent(hdevp->skp_clk, xtal_clk);
+		clk_set_rate(hdevp->skp_clk, 24000000);
+		clk_prepare_enable(hdevp->skp_clk);
+		clk_rate = clk_get_rate(hdevp->skp_clk);
 	}
 	if ((rx.chip_id == CHIP_ID_TXLX) ||
 		(rx.chip_id == CHIP_ID_TXHD)) {
