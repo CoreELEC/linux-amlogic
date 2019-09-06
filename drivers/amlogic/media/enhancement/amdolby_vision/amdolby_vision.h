@@ -207,7 +207,8 @@ enum signal_format_e {
 	FORMAT_DOVI_LL = 3,
 	FORMAT_HLG = 4,
 	FORMAT_HDR10PLUS = 5,
-	FORMAT_SDR_2020 = 6
+	FORMAT_SDR_2020 = 6,
+	FORMAT_MVC = 7
 };
 
 enum priority_mode_e {

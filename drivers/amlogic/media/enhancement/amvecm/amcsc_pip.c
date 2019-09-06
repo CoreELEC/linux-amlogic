@@ -148,7 +148,19 @@ int hdr_policy_process(
 		hdr10_plus_process_mode[vd_path] = PROC_BYPASS;
 		target_format[vd_path] = BT709;
 	} else if (cur_hdr_policy == 0) {
-		if (vd_path == VD1_PATH &&
+		if (source_format[vd_path] == HDRTYPE_MVC) {
+			/* hdr bypass output need sdr */
+			sdr_process_mode[vd_path] = PROC_BYPASS;
+			hdr_process_mode[vd_path] = PROC_BYPASS;
+			hlg_process_mode[vd_path] = PROC_BYPASS;
+			hdr10_plus_process_mode[vd_path] = PROC_BYPASS;
+			sdr_process_mode[oth_path] = PROC_BYPASS;
+			hdr_process_mode[oth_path] = PROC_BYPASS;
+			hlg_process_mode[oth_path] = PROC_BYPASS;
+			hdr10_plus_process_mode[oth_path] = PROC_BYPASS;
+			target_format[vd_path] = BT709;
+			target_format[oth_path] = BT709;
+		} else if (vd_path == VD1_PATH &&
 		    is_dolby_vision_enable() &&
 		    !is_dolby_vision_on() &&
 		    (source_format[vd_path]
@@ -254,7 +266,19 @@ int hdr_policy_process(
 #endif
 		}
 	} else if (cur_hdr_policy == 1) {
-		if (vd_path == VD1_PATH &&
+		if (source_format[vd_path] == HDRTYPE_MVC) {
+			/* hdr bypass output need sdr */
+			sdr_process_mode[vd_path] = PROC_BYPASS;
+			hdr_process_mode[vd_path] = PROC_BYPASS;
+			hlg_process_mode[vd_path] = PROC_BYPASS;
+			hdr10_plus_process_mode[vd_path] = PROC_BYPASS;
+			sdr_process_mode[oth_path] = PROC_BYPASS;
+			hdr_process_mode[oth_path] = PROC_BYPASS;
+			hlg_process_mode[oth_path] = PROC_BYPASS;
+			hdr10_plus_process_mode[oth_path] = PROC_BYPASS;
+			target_format[vd_path] = BT709;
+			target_format[oth_path] = BT709;
+		} else if (vd_path == VD1_PATH &&
 		    is_dolby_vision_enable() &&
 		    !is_dolby_vision_on() &&
 		    source_format[vd_path]
@@ -797,6 +821,12 @@ int hdr_policy_process(
 		case HDRTYPE_SDR:
 			cur_sdr_process_mode[oth_path] = PROC_OFF;
 			break;
+		case HDRTYPE_MVC:
+			cur_sdr_process_mode[oth_path] = PROC_BYPASS;
+			cur_hdr_process_mode[oth_path] = PROC_BYPASS;
+			cur_hlg_process_mode[oth_path] = PROC_BYPASS;
+			cur_hdr10_plus_process_mode[oth_path] = PROC_BYPASS;
+			break;
 		default:
 			break;
 		}
@@ -1106,7 +1136,11 @@ void video_post_process(
 				hdr_proc(VD2_HDR, HDR_HLG, vinfo);
 			hdr_proc(OSD1_HDR, SDR_HLG, vinfo);
 		}
-
+		break;
+	case HDRTYPE_MVC:
+		hdr_osd_off();
+		hdr_vd1_off();
+		hdr_vd2_off();
 		break;
 	default:
 		break;
@@ -1128,6 +1162,12 @@ void video_post_process(
 				vd_path + 1,
 				cur_sdr_process_mode[vd_path],
 				sdr_process_mode[vd_path]);
+		if (cur_source_format[vd_path] == HDRTYPE_MVC)
+			pr_csc(1,
+			       "am_vecm: vd%d: mvc_process_mode %d to %d\n",
+			       vd_path + 1,
+			       cur_sdr_process_mode[vd_path],
+			       sdr_process_mode[vd_path]);
 		cur_sdr_process_mode[vd_path] =
 			sdr_process_mode[vd_path];
 	}

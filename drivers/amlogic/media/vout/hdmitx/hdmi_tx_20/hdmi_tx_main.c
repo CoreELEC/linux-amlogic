@@ -1402,6 +1402,23 @@ static void hdmitx_set_drm_pkt(struct master_display_info_s *data)
 
 }
 
+static void update_current_para(struct hdmitx_dev *hdev)
+{
+	struct vinfo_s *info = NULL;
+	unsigned char mode[32];
+
+	info = hdmitx_get_current_vinfo();
+	if (!info)
+		return;
+
+	strncpy(mode, info->name, sizeof(mode));
+	if (strstr(hdev->fmt_attr, "420")) {
+		if (!strstr(mode, "420"))
+			strncat(mode, "420", 3);
+	}
+	hdev->para = hdmi_get_fmt_name(mode, hdev->fmt_attr);
+}
+
 static void hdmitx_set_vsif_pkt(enum eotf_type type,
 	enum mode_type tunnel_mode, struct dv_vsif_para *data, bool signal_sdr)
 {
@@ -1502,6 +1519,7 @@ static void hdmitx_set_vsif_pkt(enum eotf_type type,
 					HDMI_PACKET_VEND, NULL, NULL);
 			if (signal_sdr) {
 				pr_info("hdmitx: H14b VSIF, switching signal to SDR\n");
+				update_current_para(hdev);
 				hdev->HWOp.CntlConfig(hdev,
 					CONF_AVI_RGBYCC_INDIC, hdev->para->cs);
 				hdev->HWOp.CntlConfig(hdev,

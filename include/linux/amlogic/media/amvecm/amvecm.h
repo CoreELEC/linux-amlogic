@@ -103,6 +103,7 @@
 #define PRIMESL_SOURCE		4
 #define HLG_SOURCE			5
 #define SDR_SOURCE			6
+#define MVC_SOURCE           7
 
 enum cm_hist_e {
 	CM_HUE_HIST = 0,
@@ -286,7 +287,8 @@ enum hdr_type_e {
 	HDRTYPE_HDR10 = HDR10_SOURCE,
 	HDRTYPE_HLG = HLG_SOURCE,
 	HDRTYPE_HDR10PLUS = HDR10PLUS_SOURCE,
-	HDRTYPE_DOVI = DOVI_SOURCE
+	HDRTYPE_DOVI = DOVI_SOURCE,
+	HDRTYPE_MVC = MVC_SOURCE,
 };
 
 enum pd_comb_fix_lvl_e {

@@ -45,6 +45,7 @@
 
 
 uint debug_csc;
+static int cur_mvc_type[2];
 module_param(debug_csc, uint, 0664);
 MODULE_PARM_DESC(debug_csc, "\n debug_csc\n");
 
@@ -70,6 +71,15 @@ void hdr_vd1_off(void)
 	cur_hdr_process = hdr_func(VD1_HDR, HDR_BYPASS, get_current_vinfo());
 	pr_csc(8, "am_vecm: module=VD1_HDR, process=HDR_BYPASS(%d, %d)\n",
 		HDR_BYPASS, cur_hdr_process);
+}
+
+void hdr_vd2_off(void)
+{
+	enum hdr_process_sel cur_hdr_process;
+
+	cur_hdr_process = hdr_func(VD2_HDR, HDR_BYPASS, get_current_vinfo());
+	pr_csc(8, "am_vecm: module=VD2_HDR, process=HDR_BYPASS(%d, %d)\n",
+	       HDR_BYPASS, cur_hdr_process);
 }
 
 static struct hdr_data_t *phdr;
@@ -3762,7 +3772,14 @@ int signal_type_changed(struct vframe_s *vf,
 
 	if (!vf)
 		return 0;
-
+	if (vf->type & VIDTYPE_MVC) {
+		if (cur_mvc_type[vd_path] != (vf->type & VIDTYPE_MVC)) {
+			change_flag |= SIG_SRC_CHG;
+			cur_mvc_type[vd_path] = vf->type & VIDTYPE_MVC;
+			return change_flag;
+		}
+	} else
+		cur_mvc_type[vd_path] = 0;
 	if ((vf->source_type == VFRAME_SOURCE_TYPE_TUNER) ||
 		(vf->source_type == VFRAME_SOURCE_TYPE_CVBS) ||
 		(vf->source_type == VFRAME_SOURCE_TYPE_COMP) ||
@@ -6364,6 +6381,8 @@ EXPORT_SYMBOL(is_vinfo_available);
 static enum hdr_type_e get_source_type(enum vd_path_e vd_path)
 {
 	get_cur_vd_signal_type(vd_path);
+	if (cur_mvc_type[vd_path] == VIDTYPE_MVC)
+		return HDRTYPE_MVC;
 	if (vd_path == VD1_PATH &&
 	    is_dolby_vision_enable() &&
 	    get_dolby_vision_src_format()
@@ -7155,9 +7174,11 @@ static int vpp_matrix_update(
 			       get_hdr_policy());
 			signal_change_flag |= SIG_HDR_MODE;
 		}
+
 		source_format[VD1_PATH] = get_source_type(VD1_PATH);
 		source_format[VD2_PATH] = get_source_type(VD2_PATH);
 		get_cur_vd_signal_type(vd_path);
+
 		signal_change_flag |=
 			hdr_policy_process(vinfo, source_format, vd_path);
 		if (signal_change_flag & SIG_OUTPUT_MODE_CHG) {
@@ -7488,7 +7509,9 @@ int amvecm_matrix_process(
 				      get_source_type(VD1_PATH) ==
 				      HDRTYPE_HDR10PLUS ||
 				      get_source_type(VD1_PATH)
-				      == HDRTYPE_HLG))) {
+					== HDRTYPE_HLG ||
+					get_source_type(VD1_PATH)
+					== HDRTYPE_MVC))) {
 					/* and VD1 adaptive or VD2 */
 					/* or always hdr hdr+/hlg bypass */
 					/* faked vframe to switch matrix */

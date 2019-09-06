@@ -51,6 +51,12 @@ enum {
 	VIDEO_WIDEOPTION_MAX = 16
 };
 
+enum {
+	VFRAME_NONE,
+	VFRAME_MVC,
+	VFRAME_NO_MVC
+};
+
 /* TODO: move to register headers */
 #define VPP_VADJ2_BLMINUS_EN        (1 << 3)
 #define VPP_VADJ2_EN                (1 << 2)
