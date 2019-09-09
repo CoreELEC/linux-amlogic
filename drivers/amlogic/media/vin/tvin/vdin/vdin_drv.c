@@ -823,9 +823,11 @@ int start_tvin_service(int no, struct vdin_parm_s  *para)
 	struct vdin_dev_s *devp = vdin_devp[no];
 	enum tvin_sig_fmt_e fmt;
 
+	mutex_lock(&devp->fe_lock);
 	if (IS_ERR(devp)) {
 		pr_err("[vdin]%s vdin%d has't registered,please register.\n",
 				__func__, no);
+		mutex_unlock(&devp->fe_lock);
 		return -1;
 	}
 
@@ -852,10 +854,13 @@ int start_tvin_service(int no, struct vdin_parm_s  *para)
 				__func__, para->port);
 		if ((devp->parm.reserved & PARAM_STATE_SCREENCAP) &&
 			(devp->parm.reserved & PARAM_STATE_HISTGRAM) &&
-			(devp->index == 1))
+			(devp->index == 1)) {
+			mutex_unlock(&devp->fe_lock);
 			return 0;
-		else
+		} else {
+			mutex_unlock(&devp->fe_lock);
 			return -EBUSY;
+		}
 	}
 
 	vdin_clk_onoff(devp, true);
@@ -874,6 +879,7 @@ int start_tvin_service(int no, struct vdin_parm_s  *para)
 				GFP_KERNEL);
 		if (!devp->fmt_info_p) {
 			pr_err("[vdin]%s kmalloc error.\n", __func__);
+			mutex_unlock(&devp->fe_lock);
 			return -ENOMEM;
 		}
 		devp->fmt_info_p->hs_bp     = para->hs_bp;
@@ -908,6 +914,7 @@ int start_tvin_service(int no, struct vdin_parm_s  *para)
 	}
 	if (!devp->fmt_info_p) {
 		pr_err("%s(%d): error, fmt is null!!!\n", __func__, no);
+		mutex_unlock(&devp->fe_lock);
 		return -1;
 	}
 
@@ -931,6 +938,7 @@ int start_tvin_service(int no, struct vdin_parm_s  *para)
 	} else {
 		pr_err("%s(%d): not supported port 0x%x\n",
 				__func__, no, para->port);
+		mutex_unlock(&devp->fe_lock);
 		return -1;
 	}
 	/* #ifdef CONFIG_ARCH_MESON6 */
@@ -951,10 +959,13 @@ int start_tvin_service(int no, struct vdin_parm_s  *para)
 
 		if (ret != 0) {
 			pr_info("vdin_v4l2_isr request irq error.\n");
+			mutex_unlock(&devp->fe_lock);
 			return -1;
 		}
 		devp->flags |= VDIN_FLAG_ISR_REQ;
 	}
+
+	mutex_unlock(&devp->fe_lock);
 	return 0;
 }
 EXPORT_SYMBOL(start_tvin_service);
@@ -970,16 +981,20 @@ int stop_tvin_service(int no)
 	unsigned int end_time;
 
 	devp = vdin_devp[no];
+	mutex_lock(&devp->fe_lock);
+
 	if ((devp->parm.reserved & PARAM_STATE_HISTGRAM) &&
 		(devp->parm.reserved & PARAM_STATE_SCREENCAP) &&
 		(devp->index == 1)) {
 		pr_info("stop vdin v4l2 screencap.\n");
 		devp->parm.reserved &= ~PARAM_STATE_SCREENCAP;
+		mutex_unlock(&devp->fe_lock);
 		return 0;
 	}
 
 	if (!(devp->flags&VDIN_FLAG_DEC_STARTED)) {
 		pr_err("%s:decode hasn't started.\n", __func__);
+		mutex_unlock(&devp->fe_lock);
 		return -EBUSY;
 	}
 	vdin_stop_dec(devp);
@@ -1010,6 +1025,7 @@ int stop_tvin_service(int no)
 				end_time,
 				end_time-devp->start_time);
 
+	mutex_unlock(&devp->fe_lock);
 	return 0;
 }
 EXPORT_SYMBOL(stop_tvin_service);
