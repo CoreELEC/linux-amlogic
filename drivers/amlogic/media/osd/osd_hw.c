@@ -893,10 +893,40 @@ static void f2v_get_vertical_phase(
 static bool osd_hdr_on;
 #endif
 
+static int get_active_begin_line(u32 viu_type)
+{
+	int active_line_begin = 0;
+	u32 viu = VIU1;
+
+	if (viu_type == VIU1)
+		viu = osd_reg_read(VPU_VIU_VENC_MUX_CTRL) & 0x3;
+	else if (viu_type == VIU2)
+		viu = (osd_reg_read(VPU_VIU_VENC_MUX_CTRL) >> 2) & 0x3;
+	switch (viu) {
+	case 0:
+		active_line_begin =
+			osd_reg_read(ENCL_VIDEO_VAVON_BLINE);
+		break;
+	case 1:
+		active_line_begin =
+			osd_reg_read(ENCI_VFIFO2VD_LINE_TOP_START);
+		break;
+	case 2:
+		active_line_begin =
+			osd_reg_read(ENCP_VIDEO_VAVON_BLINE);
+		break;
+	case 3:
+		active_line_begin =
+			osd_reg_read(ENCT_VIDEO_VAVON_BLINE);
+		break;
+	}
+
+	return active_line_begin;
+}
+
 static int get_encp_line(u32 viu_type)
 {
 	int enc_line = 0;
-	int active_line_begin = 0;
 	unsigned int reg = 0;
 	u32 viu = VIU1;
 
@@ -907,27 +937,19 @@ static int get_encp_line(u32 viu_type)
 	switch (viu) {
 	case 0:
 		reg = osd_reg_read(ENCL_INFO_READ);
-		active_line_begin =
-			osd_reg_read(ENCL_VIDEO_VAVON_BLINE);
 		break;
 	case 1:
 		reg = osd_reg_read(ENCI_INFO_READ);
-		active_line_begin =
-			osd_reg_read(ENCI_VFIFO2VD_LINE_TOP_START);
 		break;
 	case 2:
 		reg = osd_reg_read(ENCP_INFO_READ);
-		active_line_begin =
-			osd_reg_read(ENCP_VIDEO_VAVON_BLINE);
 		break;
 	case 3:
 		reg = osd_reg_read(ENCT_INFO_READ);
-		active_line_begin =
-			osd_reg_read(ENCT_VIDEO_VAVON_BLINE);
 		break;
 	}
 	enc_line = (reg >> 16) & 0x1fff;
-	enc_line -= active_line_begin;
+
 	return enc_line;
 }
 
@@ -8464,7 +8486,7 @@ static int osd_setting_order(u32 output_index)
 	bool update = false;
 	int line1;
 	int line2;
-	int vinfo_height;
+	int active_begin_line;
 	u32 val;
 
 	blending = &osd_blending;
@@ -8504,12 +8526,10 @@ static int osd_setting_order(u32 output_index)
 		set_blend_path_new(blending);
 	else
 		set_blend_path(blending);
+	active_begin_line = get_active_begin_line(VIU1);
 	line1 = get_enter_encp_line(VIU1);
-	vinfo_height = osd_hw.field_out_en[output_index] ?
-		(osd_hw.vinfo_height[output_index] * 2) :
-		osd_hw.vinfo_height[output_index];
 	/* if nearly vsync signal, wait vsync here */
-	if (line1 >= vinfo_height * line_threshold / 100) {
+	if (line1 <= active_begin_line * line_threshold / 100) {
 		osd_log_dbg(MODULE_RENDER,
 			"enter osd_setting_order:encp line=%d\n",
 			line1);
@@ -8564,6 +8584,7 @@ static int osd_setting_order(u32 output_index)
 					[OSD_FREESCALE_COEF].update_func(i);
 				osd_hw.reg[DISP_FREESCALE_ENABLE]
 				.update_func(i);
+				osd_update_window_axis = false;
 			}
 			if (osd_hw.premult_en[i] && !osd_hw.blend_bypass)
 				VSYNCOSD_WR_MPEG_REG_BITS(
