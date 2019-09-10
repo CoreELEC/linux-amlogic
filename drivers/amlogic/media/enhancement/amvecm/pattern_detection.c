@@ -29,7 +29,7 @@
 #include "arch/vpp_regs.h"
 #include "amve.h"
 #include "pattern_detection.h"
-#ifdef CONFIG_TVIN_AFE
+#ifdef CONFIG_AMLOGIC_MEDIA_TVIN_AFE
 #include "pattern_detection_bar_settings.h"
 #include "pattern_detection_face_settings.h"
 #include "pattern_detection_corn_settings.h"
@@ -181,7 +181,7 @@ static struct pattern pattern_list[] = {
 	},
 };
 
-#ifdef CONFIG_TVIN_AFE
+#ifdef CONFIG_AMLOGIC_MEDIA_TVIN_AFE
 static void tvafe_get_default_regmap(struct am_regs_s *p)
 {
 	unsigned short i;
@@ -1001,7 +1001,7 @@ int pattern_detect_add_vpp_setting_table(
 int init_pattern_detect(void)
 {
 	/* install callback for color bar */
-#ifdef CONFIG_TVIN_AFE
+#ifdef CONFIG_AMLOGIC_MEDIA_TVIN_AFE
 	pattern_detect_add_checker(
 						PATTERN_75COLORBAR,
 						colorbar_hist_checker);
