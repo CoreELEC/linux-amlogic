@@ -149,7 +149,7 @@ static bool is_src1_addr_update(struct ge2d_src1_data_s *src1_data_cfg,
 	int update = 0;
 
 	for (i = 0; i < MAX_PLANE; i++) {
-		if (!phy_addr[i]) {
+		if (phy_addr[i]) {
 			if (phy_addr[i] != src1_data_cfg->phy_addr[i] ||
 			    stride[i] != src1_data_cfg->stride[i]) {
 				update = 1;
@@ -168,7 +168,7 @@ static bool is_src2_addr_update(struct ge2d_src2_dst_data_s *src2_dst_data_cfg,
 	int update = 0;
 
 	for (i = 0; i < MAX_PLANE; i++) {
-		if (!phy_addr[i]) {
+		if (phy_addr[i]) {
 			if (phy_addr[i] != src2_dst_data_cfg->src2_phyaddr[i] ||
 			    stride[i] != src2_dst_data_cfg->src2_stride[i]) {
 				update = 1;
@@ -187,7 +187,7 @@ static bool is_dst_addr_update(struct ge2d_src2_dst_data_s *src2_dst_data_cfg,
 	int update = 0;
 
 	for (i = 0; i < MAX_PLANE; i++) {
-		if (!phy_addr[i]) {
+		if (phy_addr[i]) {
 			if (phy_addr[i] != src2_dst_data_cfg->dst_phyaddr[i] ||
 			    stride[i] != src2_dst_data_cfg->dst_stride[i]) {
 				update = 1;
