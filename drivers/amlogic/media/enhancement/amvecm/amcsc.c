@@ -3914,6 +3914,11 @@ int signal_type_changed(struct vframe_s *vf,
 		change_flag |= SIG_SRC_OUTPUT_CHG;
 	}
 
+	if (vecm_latch_flag & FLAG_HDR_OOTF_LATCH) {
+		change_flag |= SIG_HDR_OOTF_CHG;
+		vecm_latch_flag &= ~FLAG_HDR_OOTF_LATCH;
+	}
+
 	return change_flag;
 }
 
@@ -6696,7 +6701,8 @@ static void video_process(
 				SIG_KNEE_FACTOR |
 				SIG_HDR_MODE |
 				SIG_HDR_SUPPORT |
-				SIG_HLG_MODE)
+				SIG_HLG_MODE |
+				SIG_HDR_OOTF_CHG)
 			) ||
 			(cur_csc_type[vd_path] <
 				VPP_MATRIX_BT2020YUV_BT2020RGB)) {
@@ -6725,7 +6731,8 @@ static void video_process(
 				SIG_KNEE_FACTOR |
 				SIG_HDR_MODE |
 				SIG_HDR_SUPPORT |
-				SIG_HLG_MODE)
+				SIG_HLG_MODE |
+				SIG_HDR_OOTF_CHG)
 			) ||
 			(cur_csc_type[vd_path] <
 				VPP_MATRIX_BT2020YUV_BT2020RGB)) {
@@ -6750,7 +6757,8 @@ static void video_process(
 				SIG_KNEE_FACTOR |
 				SIG_HDR_MODE |
 				SIG_HDR_SUPPORT |
-				SIG_HLG_MODE)
+				SIG_HLG_MODE |
+				SIG_HDR_OOTF_CHG)
 			) ||
 			(cur_csc_type[vd_path] <
 				VPP_MATRIX_BT2020YUV_BT2020RGB)) {
@@ -6778,7 +6786,8 @@ static void video_process(
 			SIG_KNEE_FACTOR |
 			SIG_HDR_MODE |
 			SIG_HDR_SUPPORT |
-			SIG_HLG_MODE)) ||
+			SIG_HLG_MODE |
+			SIG_HDR_OOTF_CHG)) ||
 			(cur_csc_type[vd_path] <
 				VPP_MATRIX_BT2020YUV_BT2020RGB)) {
 			bypass_hdr_process(csc_type, vinfo, p,
@@ -7015,7 +7024,7 @@ static int vpp_matrix_update(
 	& (SIG_CS_CHG | SIG_PRI_INFO | SIG_KNEE_FACTOR | SIG_HDR_MODE |
 		SIG_HDR_SUPPORT | SIG_HLG_MODE | SIG_OP_CHG |
 		SIG_SRC_OUTPUT_CHG | SIG_HDR10_PLUS_MODE |
-		SIG_SRC_CHG))) {
+		SIG_SRC_CHG | SIG_HDR_OOTF_CHG))) {
 		if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12A) &&
 		(get_cpu_type() != MESON_CPU_MAJOR_ID_TL1))
 			video_post_process(csc_type, vinfo, vd_path);

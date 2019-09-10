@@ -68,7 +68,7 @@
 #include "hdr/am_hdr10_plus.h"
 #include "local_contrast.h"
 #include "arch/vpp_hdr_regs.h"
-
+#include "set_hdr2_v0.h"
 
 #define pr_amvecm_dbg(fmt, args...)\
 	do {\
@@ -1458,6 +1458,30 @@ static void parse_overscan_table(unsigned int length,
 		atv_source_flg = 0;
 }
 
+static void hdr_tone_mapping_get(
+	unsigned int length,
+	unsigned int *hdr_tm)
+{
+	int i;
+
+	if (hdr_tm) {
+		for (i = 0; i < length; i++)
+			oo_y_lut_hdr_sdr[i] = hdr_tm[i];
+	}
+
+	vecm_latch_flag |= FLAG_HDR_OOTF_LATCH;
+
+	if (debug_amvecm & 4) {
+		for (i = 0; i < length; i++) {
+			pr_info("oo_y_lut_hdr_sdr[%d] = %d",
+				i, oo_y_lut_hdr_sdr[i]);
+			if (i % 8 == 0)
+				pr_info("\n");
+		}
+		pr_info("\n");
+	}
+}
+
 static long amvecm_ioctl(struct file *file,
 		unsigned int cmd, unsigned long arg)
 {
@@ -1467,6 +1491,8 @@ static long amvecm_ioctl(struct file *file,
 	struct ve_pq_load_s vpp_pq_load;
 	struct ve_pq_table_s *vpp_pq_load_table = NULL;
 	enum color_primary_e color_pri;
+	struct hdr_tone_mapping_s hdr_tone_mapping;
+	unsigned int *hdr_tm = NULL;
 
 	if (debug_amvecm & 2)
 		pr_info("[amvecm..] %s: cmd_nr = 0x%x\n",
@@ -1668,6 +1694,36 @@ static long amvecm_ioctl(struct file *file,
 		}
 		parse_overscan_table(vpp_pq_load.length, vpp_pq_load_table);
 		break;
+	case AMVECM_IOC_S_HDR_TM:
+		if (copy_from_user(
+			&hdr_tone_mapping,
+			(void __user *)arg,
+			sizeof(struct hdr_tone_mapping_s))) {
+			ret = -EFAULT;
+			pr_amvecm_dbg("hdr ioc fail!!!\n");
+			break;
+		}
+
+		if (hdr_tone_mapping.lutlength > HDR2_OOTF_LUT_SIZE) {
+			pr_amvecm_dbg("hdr tm over size !!!\n");
+			ret = -EFAULT;
+			break;
+		}
+		mem_size = hdr_tone_mapping.lutlength * sizeof(unsigned int);
+		hdr_tm = kmalloc(mem_size, GFP_KERNEL);
+		argp = hdr_tone_mapping.tm_lut;
+		if (!hdr_tm) {
+			ret = -EFAULT;
+			pr_amvecm_dbg("hdr tm kmalloc fail!!!\n");
+			break;
+		}
+		if (copy_from_user(hdr_tm, argp, mem_size)) {
+			pr_amvecm_dbg("[amvecm..] hdr_tm copy fail!!\n");
+			ret = -EFAULT;
+			break;
+		}
+		hdr_tone_mapping_get(hdr_tone_mapping.lutlength, hdr_tm);
+		break;
 	case AMVECM_IOC_G_DNLP_STATE:
 		if (copy_to_user((void __user *)arg,
 				&dnlp_en, sizeof(enum dnlp_state_e)))
@@ -1803,7 +1859,9 @@ static long amvecm_ioctl(struct file *file,
 		break;
 	}
 	if (vpp_pq_load_table != NULL)
-	kfree(vpp_pq_load_table);
+		kfree(vpp_pq_load_table);
+
+	kfree(hdr_tm);
 	return ret;
 }
 #ifdef CONFIG_COMPAT

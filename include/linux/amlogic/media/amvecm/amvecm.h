@@ -27,13 +27,12 @@
 
 
 /* struct ve_dnlp_s          video_ve_dnlp; */
-
 #define FLAG_RSV31              (1 << 31)
 #define FLAG_VADJ1_COLOR        (1 << 30)
 #define FLAG_VE_DNLP            (1 << 29)
 #define FLAG_VE_NEW_DNLP        (1 << 28)
 #define FLAG_VE_LC_CURV         (1 << 27)
-#define FLAG_RSV26              (1 << 26)
+#define FLAG_HDR_OOTF_LATCH     BIT(26)
 #define FLAG_3D_BLACK_DIS       (1 << 25)
 #define FLAG_3D_BLACK_EN        (1 << 24)
 #define FLAG_3D_SYNC_DIS        (1 << 23)
@@ -223,6 +222,14 @@ enum pc_mode_e {
 /*Local contrast command list*/
 #define AMVECM_IOC_S_LC_CURVE _IOW(_VE_CM, 0x62, struct ve_lc_curve_parm_s)
 
+/*tone mapping struct*/
+struct hdr_tone_mapping_s {
+	unsigned int lutlength;
+	unsigned int *tm_lut;
+};
+
+#define AMVECM_IOC_S_HDR_TM  _IOW(_VE_CM, 0x63, struct hdr_tone_mapping_s)
+#define AMVECM_IOC_G_HDR_TM  _IOR(_VE_CM, 0x64, struct hdr_tone_mapping_s)
 
 struct am_vdj_mode_s {
 	int flag;

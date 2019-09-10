@@ -187,4 +187,5 @@ extern void set_ootf_lut(
 	enum hdr_module_sel module_sel,
 	struct hdr_proc_lut_param_s *hdr_lut_param);
 extern struct hdr_proc_lut_param_s hdr_lut_param;
+extern int oo_y_lut_hdr_sdr[149];
 

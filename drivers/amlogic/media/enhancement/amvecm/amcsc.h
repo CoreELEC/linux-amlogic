@@ -115,6 +115,7 @@ enum output_format_e {
 #define SIG_HDR10_PLUS_MODE	0x800
 #define SIG_COLORIMETRY_SUPPORT 0x1000
 #define SIG_OUTPUT_MODE_CHG	0x2000
+#define SIG_HDR_OOTF_CHG 0x4000
 
 #define LUT_289_SIZE	289
 extern unsigned int lut_289_mapping[LUT_289_SIZE];
