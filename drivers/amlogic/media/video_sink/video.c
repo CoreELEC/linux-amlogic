@@ -7225,7 +7225,7 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 				vf->pts, vf->omx_index,
 				timestamp_pcrscr_get(), timestamp_vpts_get());
 		}
-		if (omx_continuous_drop_flag
+		if ((omx_continuous_drop_flag && omx_run)
 			&& !(debug_flag
 				& DEBUG_FLAG_OMX_DISABLE_DROP_FRAME)) {
 			if (is_dolby_vision_enable() && vf &&
