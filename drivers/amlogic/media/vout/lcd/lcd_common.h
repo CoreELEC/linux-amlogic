@@ -40,7 +40,8 @@
 /* 20190225: optimize unifykey read flow to avoid crash */
 /* 20190308: add more panel clk_ss_level step for tl1 */
 /* 20190520: add vbyone hw filter user define support */
-#define LCD_DRV_VERSION    "20190520"
+/* 20190911: add lcd_init_level for tl1 */
+#define LCD_DRV_VERSION    "20190911"
 
 #define VPP_OUT_SATURATE            (1 << 0)
 
