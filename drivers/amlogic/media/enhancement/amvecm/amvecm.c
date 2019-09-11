@@ -1079,6 +1079,16 @@ void vpp_demo_config(struct vframe_s *vf)
 	}
 }
 
+void vpp_game_mode_process(struct vframe_s *vf)
+{
+	if (vf->flag & VFRAME_FLAG_GAME_MODE) {
+		if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A)
+			WRITE_VPP_REG_BITS(VPP_VADJ1_MISC, 0, 0, 1);
+		else
+			WRITE_VPP_REG_BITS(VPP_VADJ_CTRL, 0, 0, 1);
+	}
+}
+
 void amvecm_dejaggy_patch(struct vframe_s *vf)
 {
 	if (!vf) {
@@ -1204,6 +1214,12 @@ int amvecm_on_vs(
 		if (is_meson_gxlx_cpu())
 			amve_sharpness_adaptive_setting(vf,
 				sps_h_en, sps_v_en);
+
+		vpp_game_mode_process(vf);
+
+		if (
+			(pc_mode != 0) &&
+			(!(vf->flag & VFRAME_FLAG_GAME_MODE))) {
 		amvecm_bricon_process(
 			vd1_brightness,
 			vd1_contrast + vd1_contrast_offset, vf);
@@ -1211,6 +1227,7 @@ int amvecm_on_vs(
 		amvecm_color_process(
 			saturation_pre + saturation_offset,
 			hue_pre, vf);
+		}
 
 		vpp_demo_config(vf);
 	}
@@ -3996,7 +4013,11 @@ void pc_mode_process(void)
 			VSYNC_WR_MPEG_REG_BITS(SRSHARP1_SR3_DERING_CTRL
 				+ sr_offset[1], 1, 28, 3);
 		}
-		VSYNC_WR_MPEG_REG(VPP_VADJ_CTRL, 0xd);
+
+		if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A)
+			WRITE_VPP_REG_BITS(VPP_VADJ1_MISC, 1, 0, 1);
+		else
+			VSYNC_WR_MPEG_REG(VPP_VADJ_CTRL, 0xd);
 		pc_mode_last = pc_mode;
 	} else if ((pc_mode == 0) && (pc_mode != pc_mode_last)) {
 		dnlp_en = 0;
@@ -4053,7 +4074,12 @@ void pc_mode_process(void)
 			VSYNC_WR_MPEG_REG_BITS(SRSHARP1_SR3_DERING_CTRL
 				+ sr_offset[1], 0, 28, 3);
 		}
-		VSYNC_WR_MPEG_REG(VPP_VADJ_CTRL, 0x0);
+
+		if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A)
+			WRITE_VPP_REG_BITS(VPP_VADJ1_MISC, 0, 0, 1);
+		else
+			VSYNC_WR_MPEG_REG(VPP_VADJ_CTRL, 0x0);
+
 		pc_mode_last = pc_mode;
 	}
 }
@@ -4746,8 +4772,10 @@ static void amvecm_pq_enable(int enable)
 		amvecm_wb_enable(true);
 
 		vecm_latch_flag |= FLAG_GAMMA_TABLE_EN;
-
-		WRITE_VPP_REG_BITS(VPP_VADJ_CTRL, 1, 0, 1);
+		if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A)
+			WRITE_VPP_REG_BITS(VPP_VADJ1_MISC, 1, 0, 1);
+		else
+			WRITE_VPP_REG_BITS(VPP_VADJ_CTRL, 1, 0, 1);
 	} else {
 		vecm_latch_flag |= FLAG_VE_DNLP_DIS;
 
@@ -4818,7 +4846,10 @@ static void amvecm_pq_enable(int enable)
 
 		vecm_latch_flag |= FLAG_GAMMA_TABLE_DIS;
 
-		WRITE_VPP_REG_BITS(VPP_VADJ_CTRL, 0, 0, 1);
+		if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A)
+			WRITE_VPP_REG_BITS(VPP_VADJ1_MISC, 0, 0, 1);
+		else
+			WRITE_VPP_REG_BITS(VPP_VADJ_CTRL, 0, 0, 1);
 	}
 }
 
