@@ -1734,6 +1734,8 @@ int rx_set_global_variable(const char *buf, int size)
 		return pr_var(earc_cap_ds_update_hpd_en, index);
 	if (set_pr_var(tmpbuf, scdc_force_en, value, &index, ret))
 		return pr_var(scdc_force_en, index);
+	if (set_pr_var(tmpbuf, hdcp_hpd_ctrl_en, value, &index, ret))
+		return pr_var(hdcp_hpd_ctrl_en, index);
 	return 0;
 }
 
@@ -1847,6 +1849,7 @@ void rx_get_global_variable(const char *buf)
 	pr_var(en_take_dtd_space, i++);
 	pr_var(earc_cap_ds_update_hpd_en, i++);
 	pr_var(scdc_force_en, i++);
+	pr_var(hdcp_hpd_ctrl_en, i++);
 }
 
 void skip_frame(unsigned int cnt)
@@ -1984,6 +1987,7 @@ void rx_5v_monitor(void)
 		pwr_sts = tmp_5v;
 		rx.cur_5v_sts = (pwr_sts >> rx.port) & 1;
 		hotplug_wait_query();
+		rx_pr("hotplug-0x%x\n", pwr_sts);
 		if (rx.cur_5v_sts == 0) {
 			set_fsm_state(FSM_5V_LOST);
 			rx.err_code = ERR_5V_LOST;

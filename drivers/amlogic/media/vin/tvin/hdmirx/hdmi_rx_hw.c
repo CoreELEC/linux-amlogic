@@ -102,6 +102,8 @@ int pll_rst_max = 5;
 int cdr_lock_level;
 int clock_lock_th = 2;
 int scdc_force_en;
+/* for hdcp_hpd debug, disable by default */
+bool hdcp_hpd_ctrl_en;
 
 /*------------------------variable define end------------------------------*/
 
@@ -1703,7 +1705,7 @@ void control_reset(void)
 void rx_esm_tmdsclk_en(bool en)
 {
 	hdmirx_wr_bits_top(TOP_CLK_CNTL, HDCP22_TMDSCLK_EN, en);
-	if (hdcp22_on)
+	if (hdcp22_on && hdcp_hpd_ctrl_en)
 		hdmirx_hdcp22_hpd(en);
 	if (log_level & HDCP_LOG)
 		rx_pr("%s:%d\n", __func__, en);
@@ -1995,11 +1997,15 @@ void hdmirx_20_init(void)
 	hdmirx_wr_dwc(DWC_CHLOCK_CONFIG, data32);
 
 	/* hdcp2.2 ctl */
-	if (hdcp22_on)
+	if (hdcp22_on) {
 		/* set hdcp_hpd high later */
-		hdmirx_wr_dwc(DWC_HDCP22_CONTROL, 0);
-	else
+		if (hdcp_hpd_ctrl_en)
+			hdmirx_wr_dwc(DWC_HDCP22_CONTROL, 0);
+		else
+			hdmirx_wr_dwc(DWC_HDCP22_CONTROL, 0x1000);
+	} else {
 		hdmirx_wr_dwc(DWC_HDCP22_CONTROL, 2);
+	}
 }
 
 
