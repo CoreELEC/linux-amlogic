@@ -54,7 +54,7 @@ uint pattern_mask = PATTERN_MASK(PATTERN_75COLORBAR) |
 static uint pattern_param = PATTERN_PARAM_COUNT;
 
 static uint pattern0_param_info[PATTERN_PARAM_COUNT] = {
-	5, 100, 850, 30, 110, 0x70000, 0xd0000, 0x158000,
+	5, 100, 830, 30, 110, 0x70000, 0xd0000, 0x158000,
 	400, 40, 650, 50, 0, 0, 0, 0,
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
