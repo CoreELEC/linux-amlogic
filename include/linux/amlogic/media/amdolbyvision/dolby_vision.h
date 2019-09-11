@@ -22,6 +22,7 @@
 #define V2_4
 
 #include <linux/types.h>
+#include <linux/amlogic/media/vout/vinfo.h>
 
 #define DOLBY_VISION_OUTPUT_MODE_IPT			0
 #define DOLBY_VISION_OUTPUT_MODE_IPT_TUNNEL		1
@@ -47,6 +48,11 @@
 /*		else bypass Dolby Vision */
 #define DOLBY_VISION_FORCE_OUTPUT_MODE	2
 
+#define MUTE_TYPE_NONE	0
+#define MUTE_TYPE_YUV	1
+#define MUTE_TYPE_RGB	2
+#define MUTE_TYPE_IPT	3
+
 extern void enable_dolby_vision(int enable);
 extern bool is_dolby_vision_enable(void);
 extern bool is_dolby_vision_on(void);
@@ -58,8 +64,9 @@ extern void dolby_vision_set_toggle_flag(int flag);
 extern int dolby_vision_wait_metadata(struct vframe_s *vf);
 extern int dolby_vision_pop_metadata(void);
 int dolby_vision_update_metadata(struct vframe_s *vf, bool drop_flag);
-extern int dolby_vision_process(struct vframe_s *vf, u32 display_size,
-	u8 pps_state);
+int dolby_vision_process(
+	struct vframe_s *rpt_vf, struct vframe_s *vf,
+	u32 display_size, u8 pps_state);
 extern void dolby_vision_init_receiver(void *pdev);
 extern void dolby_vision_vf_put(struct vframe_s *vf);
 extern struct vframe_s *dolby_vision_vf_peek_el(struct vframe_s *vf);
@@ -104,7 +111,9 @@ extern bool is_dovi_frame(struct vframe_s *vf);
 extern void update_graphic_width_height(unsigned int width,
 	unsigned int height);
 extern int get_dolby_vision_policy(void);
+void set_dolby_vision_policy(int policy);
 extern int get_dolby_vision_src_format(void);
 extern bool is_dolby_vision_el_disable(void);
 extern bool is_dovi_dual_layer_frame(struct vframe_s *vf);
+void dolby_vision_set_provider(char *prov_name);
 #endif

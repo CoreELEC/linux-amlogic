@@ -101,6 +101,12 @@ enum output_format_e {
 #define HDR_SUPPORT		(1 << 2)
 #define HLG_SUPPORT		(1 << 3)
 
+bool is_vinfo_available(const struct vinfo_s *vinfo);
+int is_sink_cap_changed(const struct vinfo_s *vinfo,
+			int *p_current_hdr_cap,
+			int *p_current_sink_available);
+int is_video_turn_on(bool *vd_on, enum vd_path_e vd_path);
+
 #define SIG_CS_CHG	0x01
 #define SIG_SRC_CHG	0x02
 #define SIG_PRI_INFO	0x04
@@ -132,6 +138,9 @@ extern int video_rgb_ogo_xvy_mtx;
 extern int tx_op_color_primary;
 extern uint cur_csc_type[VD_PATH_MAX];
 
+int get_hdr_policy(void);
+enum output_format_e get_force_output(void);
+
 /* 0: hdr->hdr, 1:hdr->sdr, 2:hdr->hlg */
 extern uint hdr_process_mode[VD_PATH_MAX];
 extern uint cur_hdr_process_mode[VD_PATH_MAX];
@@ -158,6 +167,10 @@ extern int amvecm_hdr_dbg(u32 sel);
 
 extern u32 get_video_enabled(void);
 extern u32 get_videopip_enabled(void);
+
+void set_video_mute(bool on);
+int get_video_mute(void);
+
 extern void get_hdr_source_type(void);
 extern void get_cur_vd_signal_type(enum vd_path_e vd_path);
 extern enum color_primary_e get_color_primary(void);

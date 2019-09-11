@@ -6128,13 +6128,6 @@ struct vframe_s *dolby_vision_toggle_frame(struct vframe_s *vf)
 			height_el - 1;
 	}
 
-	if (!get_video_enabled()) {
-		/* when video layer off */
-		/* not need to update setting */
-		dolby_vision_set_toggle_flag(0);
-		return NULL;
-	};
-
 	if (ret == 0) {
 		/* setting generated for this frame */
 		/* or DOVI in bypass mode */
@@ -6187,6 +6180,74 @@ static int dolby_vision_drop_frame(void)
 	return 0;
 }
 #endif
+
+static bool video_mute_on;
+MODULE_PARM_DESC(video_mute_on, "\n video_mute_on\n");
+module_param(video_mute_on, bool, 0664);
+
+/* 0: off, 1: vpp mute 2:dv mute */
+static int video_mute_status;
+
+void set_video_mute(bool on)
+{
+	video_mute_on = on;
+}
+EXPORT_SYMBOL(set_video_mute);
+
+int get_video_mute(void)
+{
+	return video_mute_status;
+}
+EXPORT_SYMBOL(get_video_mute);
+
+static void check_video_mute(void)
+{
+	if (video_mute_on) {
+		if (is_dolby_vision_on()) {
+			/* core 3 black */
+			if (video_mute_status != VIDEO_MUTE_ON_DV) {
+				dolby_vision_set_toggle_flag(1);
+				pr_info("DOLBY: check_video_mute: VIDEO_MUTE_ON_DV\n");
+			}
+			video_mute_status = VIDEO_MUTE_ON_DV;
+		} else {
+			if (video_mute_status != VIDEO_MUTE_ON_VPP) {
+				/* vpp black */
+				VSYNC_WR_MPEG_REG(VPP_CLIP_MISC0,
+						  (0x0 << 20) |
+						  (0x200 << 10) |
+						  0x200);
+				VSYNC_WR_MPEG_REG(VPP_CLIP_MISC1,
+						  (0x0 << 20) |
+						  (0x200 << 10) |
+						  0x200);
+				pr_info("DOLBY: check_video_mute: VIDEO_MUTE_ON_VPP\n");
+			}
+			video_mute_status = VIDEO_MUTE_ON_VPP;
+		}
+	} else {
+		if (is_dolby_vision_on()) {
+			if (video_mute_status != VIDEO_MUTE_OFF) {
+				dolby_vision_set_toggle_flag(2);
+				pr_info("DOLBY: check_video_mute: VIDEO_MUTE_OFF dv on\n");
+			}
+			video_mute_status = VIDEO_MUTE_OFF;
+		} else {
+			if (video_mute_status != VIDEO_MUTE_OFF) {
+				VSYNC_WR_MPEG_REG(VPP_CLIP_MISC0,
+						  (0x3ff << 20) |
+						  (0x3ff << 10) |
+						  0x3ff);
+				VSYNC_WR_MPEG_REG(VPP_CLIP_MISC1,
+						  (0x0 << 20) |
+						  (0x0 << 10) | 0x0);
+				pr_info("DOLBY: check_video_mute: VIDEO_MUTE_OFF dv off\n");
+			}
+			video_mute_status = VIDEO_MUTE_OFF;
+		}
+	}
+}
+
 /* patch for 4k2k bandwidth issue, skiw mali and vpu mif */
 static void dmc_adjust_for_mali_vpu(unsigned int width,
 	unsigned int height, bool force_adjust)
@@ -7497,8 +7558,9 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 				} else
 					vsync_toggle_frame(cur_dispbuf,
 							__LINE__);
-				if (is_dolby_vision_enable()
-				&& is_dolby_vision_video_on()) {
+				if (is_dolby_vision_enable() &&
+				    is_dolby_vision_on() &&
+				    get_video_enabled()) {
 					pause_vf = cur_dispbuf;
 					video_pause_global = 1;
 				} else {
@@ -7659,6 +7721,8 @@ SET_FILTER:
 	if (is_dolby_vision_enable()) {
 		u32 frame_size = 0, h_size, v_size;
 		u8 pps_state = 0; /* pps no change */
+		static struct vframe_s *cur_dv_vf;
+		static u32 cur_frame_size;
 
 		/* force toggle when keeping frame after playing */
 		if ((cur_dispbuf == &vf_local)
@@ -7669,22 +7733,8 @@ SET_FILTER:
 			dolby_vision_parse_metadata(
 				toggle_vf, 2, false, false);
 			dolby_vision_set_toggle_flag(1);
-			//pr_info("DOLBY: keep frame %p", toggle_vf);
+			/* pr_info("DOLBY: keep frame %p", toggle_vf); */
 		}
-/* pause mode was moved to video display property */
-#if 0
-		/* force toggle in pause mode */
-		if (cur_dispbuf
-			&& (cur_dispbuf != &vf_local)
-			&& !toggle_vf
-			&& is_dolby_vision_on()
-			&& !for_dolby_vision_certification()) {
-			toggle_vf = cur_dispbuf;
-			dolby_vision_parse_metadata(
-				cur_dispbuf, 0, false, false);
-			dolby_vision_set_toggle_flag(1);
-		}
-#endif
 		if (cur_frame_par) {
 			if (frame_par_ready_to_set || frame_par_force_to_set) {
 				struct vppfilter_mode_s *vpp_filter =
@@ -7726,8 +7776,28 @@ SET_FILTER:
 				toggle_vf->compHeight : toggle_vf->height;
 			frame_size = (h_size << 16) | v_size;
 		}
-		dolby_vision_process((cur_dispbuf != &vf_local)
-			? cur_dispbuf : toggle_vf, frame_size, pps_state);
+
+		if (cur_dispbuf == &vf_local) {
+			if (get_video_enabled())
+				toggle_vf = cur_dispbuf;
+			else
+				toggle_vf = NULL;
+		}
+		/* trigger dv process once when stop playing */
+		/* because toggle_vf is not sync with video off */
+		if (cur_dv_vf && !toggle_vf)
+			dolby_vision_set_toggle_flag(1);
+
+		if (cur_frame_size != frame_size) {
+			cur_frame_size = frame_size;
+			if (!toggle_vf && get_video_enabled())
+				toggle_vf = cur_dispbuf;
+			dolby_vision_set_toggle_flag(1);
+		}
+		cur_dv_vf = toggle_vf;
+		dolby_vision_process(
+			cur_dispbuf, toggle_vf,
+			frame_size, pps_state);
 		dolby_vision_update_setting();
 	}
 #endif
@@ -8315,6 +8385,9 @@ SET_FILTER:
 #if defined(PTS_LOGGING) || defined(PTS_TRACE_DEBUG)
 		pts_trace++;
 #endif
+
+	check_video_mute();
+
 	vpp_misc_save = READ_VCBUS_REG(VPP_MISC + cur_dev->vpp_off);
 	vpp_misc_set = vpp_misc_save;
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM
@@ -13346,10 +13419,11 @@ int vout_notify_callback(struct notifier_block *block, unsigned long cmd,
 		spin_unlock_irqrestore(&lock, flags);
 		new_vmode = vinfo->mode;
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
-		pr_info("vout_notify_callback: VOUT_EVENT_MODE_CHANGE");
-		/* make sure dolby policy process runs atleast once */
+		pr_info("DOLBY: vout_notify_callback: VOUT_EVENT_MODE_CHANGE\n");
+		/* force send hdmi pkt in dv code */
+		/* to workaround pkt cleaned during hotplug */
 		if (is_dolby_vision_enable())
-			dolby_vision_set_toggle_flag(1);
+			dolby_vision_set_toggle_flag(2);
 #endif
 		break;
 	case VOUT_EVENT_OSD_PREBLEND_ENABLE:

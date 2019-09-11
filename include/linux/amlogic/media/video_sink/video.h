@@ -238,6 +238,13 @@ static inline int amvideo_notifier_call_chain(unsigned long val, void *v)
 }
 #endif
 
+/* 0: off, 1: vpp mute 2:dv mute */
+#define VIDEO_MUTE_OFF		0
+#define VIDEO_MUTE_ON_VPP	1
+#define VIDEO_MUTE_ON_DV	2
+void set_video_mute(bool on);
+int get_video_mute(void);
+
 int query_video_status(int type, int *value);
 u32 set_blackout_policy(int policy);
 u32 get_blackout_policy(void);
