@@ -523,8 +523,11 @@ static struct class remote_class = {
 int ir_sys_device_attribute_init(struct remote_chip *chip)
 {
 	struct device *dev;
+	int err;
 
-	class_register(&remote_class);
+	err = class_register(&remote_class);
+	if (unlikely(err))
+		return err;
 
 	dev = device_create(&remote_class,  NULL,
 					chip->chr_devno, chip, chip->dev_name);
