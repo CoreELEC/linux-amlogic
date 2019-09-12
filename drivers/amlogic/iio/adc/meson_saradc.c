@@ -979,7 +979,9 @@ static int meson_sar_adc_init(struct iio_dev *indio_dev)
 		regval |= i << MESON_SAR_ADC_AUX_SW_MUX_SEL_CHAN_SHIFT(i);
 	regval |= MESON_SAR_ADC_AUX_SW_YP_DRIVE_SW;
 	regval |= MESON_SAR_ADC_AUX_SW_XP_DRIVE_SW;
-	regmap_write(priv->regmap, MESON_SAR_ADC_AUX_SW, regval);
+	ret = regmap_write(priv->regmap, MESON_SAR_ADC_AUX_SW, regval);
+	if (ret)
+		return ret;
 
 	/* must be set to <1> for g12a and later SoCs */
 	regmap_update_bits(priv->regmap, MESON_SAR_ADC_REG11,
