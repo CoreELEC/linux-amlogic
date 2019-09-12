@@ -55,7 +55,7 @@ static uint pattern_param = PATTERN_PARAM_COUNT;
 
 static uint pattern0_param_info[PATTERN_PARAM_COUNT] = {
 	5, 100, 830, 30, 110, 0x70000, 0xd0000, 0x158000,
-	400, 40, 650, 50, 0, 0, 0, 0,
+	400, 40, 650, 50, 0x300000, 0x500000, 0, 0,
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -298,7 +298,7 @@ static int colorbar_hist_checker(struct vframe_s *vf)
 	int tolerence_hue3a, tolerence_hue3b;
 	int tolerence_hue5;
 	int tolerence_hue_all, tolerence_luma, target_apl;
-	unsigned int tvafe_val, tolerance_tvafe;
+	unsigned int tvafe_val, tolerance_tvafe, max_tvafe;
 	int bin56, bin1718, bin2122;
 	int peak_hue_bin_sum4 = 0;
 	int peak_hue_bin_sum5 = 0;
@@ -313,6 +313,7 @@ static int colorbar_hist_checker(struct vframe_s *vf)
 	tolerence_hue3a = pattern_list[pattern_index].pattern_param[9];
 	tolerence_hue3b = pattern_list[pattern_index].pattern_param[10];
 	tolerence_hue5 = pattern_list[pattern_index].pattern_param[11];
+	max_tvafe = pattern_list[pattern_index].pattern_param[13];
 
 	if (
 		vf->source_type == VFRAME_SOURCE_TYPE_TUNER &&
@@ -321,9 +322,11 @@ static int colorbar_hist_checker(struct vframe_s *vf)
 	} else if (vf->source_type == VFRAME_SOURCE_TYPE_CVBS &&
 				vf->source_mode == VFRAME_SOURCE_MODE_NTSC) {
 		tolerance_tvafe = pattern_list[pattern_index].pattern_param[5];
+		max_tvafe = pattern_list[pattern_index].pattern_param[12];
 	} else if (vf->source_type == VFRAME_SOURCE_TYPE_CVBS &&
 				vf->source_mode == VFRAME_SOURCE_MODE_PAL) {
 		tolerance_tvafe = pattern_list[pattern_index].pattern_param[6];
+		max_tvafe = pattern_list[pattern_index].pattern_param[13];
 	}
 
 	if (
@@ -425,7 +428,7 @@ static int colorbar_hist_checker(struct vframe_s *vf)
 			pr_pattern_detect_dbg(
 				"judge1 colorbar detected\n");
 			flag = 2;
-		} else {
+		} else if (tvafe_val < max_tvafe) {
 			pr_pattern_detect_dbg(
 				"judge1 colorbar mixed detected\n");
 			flag = 1;
@@ -435,6 +438,7 @@ static int colorbar_hist_checker(struct vframe_s *vf)
 		goto judge_finish;
 
 	/* judge type 2, 4 grid, pink and blue*/
+#if 0
 	pr_pattern_detect_dbg(
 			"judge2......\n");
 	if (
@@ -447,6 +451,7 @@ static int colorbar_hist_checker(struct vframe_s *vf)
 	}
 	if (flag > 0)
 		goto judge_finish;
+#endif
 
 	/* judge type 3, ega-64blue color */
 	pr_pattern_detect_dbg(

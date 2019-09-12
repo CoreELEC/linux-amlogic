@@ -126,7 +126,7 @@ static unsigned int lc_satur_off[63] = {
 
 int tune_curve_en = 2;
 int detect_signal_range_en = 2;
-int detect_signal_range_threshold = 1000;
+int detect_signal_range_threshold = 1200;
 
 /*local contrast begin*/
 static void lc_mtx_set(enum lc_mtx_sel_e mtx_sel,
