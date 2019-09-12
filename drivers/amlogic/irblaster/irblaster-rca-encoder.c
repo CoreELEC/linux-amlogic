@@ -61,7 +61,8 @@ static u32 irblaster_rca_scancode_to_raw(enum irblaster_protocol protocol,
 int irblaster_rca_encode(enum irblaster_protocol protocol, unsigned int addr,
 			 unsigned int commmand, unsigned int *data)
 {
-	u32 raw, ret;
+	int ret;
+	u32 raw;
 
 	/* Convert a RCA scancode to raw rca data */
 	raw = irblaster_rca_scancode_to_raw(protocol, addr, commmand);

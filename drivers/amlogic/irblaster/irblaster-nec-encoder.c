@@ -97,7 +97,8 @@ int irblaster_nec_encode(enum irblaster_protocol protocol,
 			 unsigned int commmand,
 			 unsigned int *data)
 {
-	u32 raw, ret;
+	int ret;
+	u32 raw;
 
 	if (protocol >= IRBLASTER_PROTOCOL_MAX)
 		return -ENODEV;

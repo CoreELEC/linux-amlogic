@@ -47,6 +47,7 @@ static ssize_t send_store(struct device *dev,
 			if (ret) {
 				pr_err("Invalid tone\n");
 				mutex_unlock(&chip->sys_lock);
+				kfree(buffer);
 				return ret;
 			}
 			buffer[m] = val * 10;
