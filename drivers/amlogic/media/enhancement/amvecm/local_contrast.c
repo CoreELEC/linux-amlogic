@@ -126,7 +126,8 @@ static unsigned int lc_satur_off[63] = {
 
 int tune_curve_en = 2;
 int detect_signal_range_en = 2;
-int detect_signal_range_threshold = 1200;
+int detect_signal_range_threshold_black = 1200;
+int detect_signal_range_threshold_white = 3200;
 
 /*local contrast begin*/
 static void lc_mtx_set(enum lc_mtx_sel_e mtx_sel,
@@ -636,8 +637,9 @@ static int signal_detect(unsigned short *hist)
 		amlc_debug = 0x0;
 	}
 
-	if (((bin0 + bin1) > detect_signal_range_threshold) ||
-	     ((bin62 + bin63) > detect_signal_range_threshold))
+	if (
+		((bin0 + bin1) > detect_signal_range_threshold_black) ||
+		((bin62 + bin63) > detect_signal_range_threshold_white))
 		return 1;
 
 	return 0;

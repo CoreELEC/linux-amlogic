@@ -6545,10 +6545,15 @@ static ssize_t amvecm_lc_store(struct class *cls,
 	} else if (!strcmp(parm[0], "detect_signal_range_threshold")) {
 		if (kstrtoul(parm[1], 10, &val) < 0)
 			goto free_buf;
+		detect_signal_range_threshold_black = val;
+		if (kstrtoul(parm[2], 10, &val) < 0)
+			goto free_buf;
+		detect_signal_range_threshold_white = val;
 		amlc_debug = 0xe;
-		detect_signal_range_threshold = val;
-		pr_info("detect_signal_range_threshold = %d\n",
-				detect_signal_range_threshold);
+		pr_info(
+			"detect_signal_range_threshold = %d %d\n",
+			detect_signal_range_threshold_black,
+			detect_signal_range_threshold_white);
 	} else
 		pr_info("unsupprt cmd!\n");
 
