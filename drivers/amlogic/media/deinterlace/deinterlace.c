@@ -4633,10 +4633,16 @@ static int check_recycle_buf(void)
 	struct di_buf_s *di_buf = NULL;/* , *ptmp; */
 	int itmp;
 	int ret = 0;
+	bool blk_flg = 0;
 
+#ifdef DI_KEEP_HIS
 	if (di_blocking)
 		return ret;
+#endif
 	queue_for_each_entry(di_buf, ptmp, QUEUE_RECYCLE, list) {
+		if (di_blocking)
+			blk_flg = 1;
+
 		if ((di_buf->pre_ref_count == 0) &&
 		    (di_buf->post_ref_count == 0)) {
 			if (di_buf->type == VFRAME_TYPE_IN) {
@@ -4688,6 +4694,10 @@ static int check_recycle_buf(void)
 #endif
 		}
 	}
+
+	if (blk_flg)
+		pr_info("di:blk:recycle\n");
+
 	return ret;
 }
 
@@ -7313,6 +7323,35 @@ static enum hrtimer_restart di_pre_hrtimer_func(struct hrtimer *timer)
 	di_patch_post_update_mc();
 	return HRTIMER_RESTART;
 }
+
+static void post_display_buf_clear(void)
+{
+	struct di_buf_s *p = NULL;
+	int itmp;
+
+	pr_info("%s:\n", __func__);
+	queue_for_each_entry(p, ptmp, QUEUE_DISPLAY, list) {
+		pr_info("\t%s,%d\n", vframe_type_name[p->type], p->index);
+		if (p->type == VFRAME_TYPE_POST) {
+			if (!atomic_dec_and_test(&p->di_cnt))
+				di_print("%s,di_cnt > 0\n", __func__);
+			recycle_vframe_type_post(p);
+		} else {
+			queue_in(p, QUEUE_RECYCLE);
+			di_print("%s: %s[%d] =>recycle_list\n", __func__,
+				 vframe_type_name[p->type], p->index);
+		}
+	}
+}
+
+static void dbg_check_list(void)
+{
+	unsigned int post_display;
+
+	post_display = list_count(QUEUE_DISPLAY);
+	di_pr_info("display:%d\n", post_display);
+}
+
 /*
  * provider/receiver interface
  */
@@ -7382,40 +7421,64 @@ static int di_receiver_event_fun(int type, void *data, void *arg)
 		mutex_unlock(&di_event_mutex);
 		pr_info("DI: unreg f\n");
 	} else if (type == VFRAME_EVENT_PROVIDER_RESET) {
-		di_blocking = 1;
-
+		/*di_blocking = 1;*/
+		mutex_lock(&di_event_mutex);
 		pr_info("%s: VFRAME_EVENT_PROVIDER_RESET\n", __func__);
 		if (is_bypass(NULL)
 			|| bypass_state
 			|| di_pre_stru.bypass_flag) {
+			/* only if di is bypassed, then we send the message of
+			 * VFRAME_EVENT_PROVIDER_RESET to video and notify
+			 * it to keep the last canvas buffer which was
+			 * alloced by codec not by di.
+			 */
 			vf_notify_receiver(VFM_NAME,
 				VFRAME_EVENT_PROVIDER_RESET,
 				NULL);
+			di_blocking = 1;
+			spin_lock_irqsave(&plist_lock, flags);
+			post_display_buf_clear();
+			spin_unlock_irqrestore(&plist_lock, flags);
 		}
-
-		goto light_unreg;
-	} else if (type == VFRAME_EVENT_PROVIDER_LIGHT_UNREG) {
 		di_blocking = 1;
-
-		pr_info("%s: vf_notify_receiver ligth unreg\n", __func__);
-
-light_unreg:
+		/*-----------------------------------*/
 		spin_lock_irqsave(&plist_lock, flags);
 		for (i = 0; i < MAX_IN_BUF_NUM; i++) {
-
 			if (vframe_in[i])
-				pr_dbg("DI:clear vframe_in[%d]\n", i);
+				pr_info("DI:clear vframe_in[%d]\n", i);
 
 			vframe_in[i] = NULL;
 		}
 		spin_unlock_irqrestore(&plist_lock, flags);
 		di_blocking = 0;
+		mutex_unlock(&di_event_mutex);
+		pr_info("\treset:end\n");
+		/*goto light_unreg;*/
+	} else if (type == VFRAME_EVENT_PROVIDER_LIGHT_UNREG) {
+		mutex_lock(&di_event_mutex);
+		di_blocking = 1;
+
+		pr_info("%s: LIGHT_UNREG\n", __func__);
+
+/*light_unreg:*/
+#if 1
+		spin_lock_irqsave(&plist_lock, flags);
+		for (i = 0; i < MAX_IN_BUF_NUM; i++) {
+
+			if (vframe_in[i])
+				pr_info("DI:clear vframe_in[%d]\n", i);
+
+			vframe_in[i] = NULL;
+		}
+		spin_unlock_irqrestore(&plist_lock, flags);
+#endif
+		di_blocking = 0;
+		mutex_unlock(&di_event_mutex);
+		pr_info("\tlight unreg:end\n");
 	} else if (type == VFRAME_EVENT_PROVIDER_LIGHT_UNREG_RETURN_VFRAME) {
 		unsigned char vf_put_flag = 0;
 
-		pr_dbg(
-			"%s:VFRAME_EVENT_PROVIDER_LIGHT_UNREG_RETURN_VFRAME\n",
-			__func__);
+		pr_info("%s:LIGHT_UNREG_RETURN_VFRAME\n", __func__);
 /*
  * do not display garbage when 2d->3d or 3d->2d
  */
@@ -7552,6 +7615,7 @@ light_unreg:
 		if (reg_flag) {
 			pr_err("[DI] no muti instance.\n");
 			mutex_unlock(&di_event_mutex);
+			dbg_check_list();
 			return -1;
 		}
 		pr_info("%s: vframe provider reg %s\n", __func__,
@@ -7873,8 +7937,10 @@ static void di_vf_put(vframe_t *vf, void *arg)
 		di_print("%s: 0x%p\n", __func__, vf);
 		return;
 	}
+	#ifdef DI_KEEP_HIS
 	if (di_blocking)
 		return;
+	#endif
 	log_buffer_state("pu_");
 	di_buf = (struct di_buf_s *)vf->private_data;
 	if (IS_ERR_OR_NULL(di_buf)) {

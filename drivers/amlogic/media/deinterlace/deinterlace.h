@@ -473,4 +473,6 @@ struct di_buf_s *get_di_buf(int queue_idx, int *start_pos);
 
 #define pr_error(fmt, args ...)     pr_err("DI: " fmt, ## args)
 
+/******************************************/
+/*#define DI_KEEP_HIS	0*/
 #endif
