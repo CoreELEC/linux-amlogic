@@ -53,7 +53,7 @@
 #define R1P1_TS_STAT8		(0x18 * 4)
 #define R1P1_TS_STAT9		(0x19 * 4)
 
-#define R1P1_TS_VALUE_CONT	0x10
+#define R1P1_TS_VALUE_CONT	0x1
 #define	R1P1_TRIM_INFO		0x0
 #define R1P1_TS_TEMP_MASK	0xfff
 #define R1P1_TS_IRQ_MASK	0xff
@@ -447,7 +447,14 @@ static int r1p1_tsensor_read(struct meson_tsensor_data *data)
 			value_all += (tvalue & 0xffff);
 		}
 	}
-	tvalue = value_all / cnt;
+	if (cnt) {
+		tvalue = value_all / cnt;
+		pr_debug("%s  vall: %u, cnt: %u\n",
+				__func__, value_all, cnt);
+	} else {
+		pr_info("%s  valid cnt is 0\n", __func__);
+		tvalue = 0;
+	}
 	return tvalue;
 }
 

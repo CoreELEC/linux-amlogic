@@ -515,7 +515,7 @@ static void rx_pktdump_vsi(void *pdata)
 	rx_pr("ieee: 0x%x\n", pktdata->ieee);
 	rx_pr("3d vdfmt: 0x%x\n", pktdata->sbpkt.vsi.vdfmt);
 
-	if (pktdata->length == E_DV_LENGTH_24) {
+	if (pktdata->length == E_PKT_LENGTH_24) {
 		/*dobly version v0 pkt*/
 
 	} else {
@@ -1351,21 +1351,25 @@ static int vsi_handler(struct hdmi_rx_ctrl *ctx)
  *	stop: 0x05,0x04
  *
  */
-void rx_get_vsi_info(void)
+uint8_t rx_get_vsi_info(void)
 {
 	struct vsi_infoframe_st *pkt;
+	uint8_t ret = E_VSI_NULL;
 	unsigned int tmp;
 
 	pkt = (struct vsi_infoframe_st *)&(rx_pkt.vs_info);
-
 	rx.vs_info_details._3d_structure = 0;
 	rx.vs_info_details._3d_ext_data = 0;
 	rx.vs_info_details.low_latency = false;
 	rx.vs_info_details.backlt_md_bit = false;
 	/* rx.vs_info_details.dolby_timeout = 0xffff; */
-	if ((pkt->length == E_DV_LENGTH_27) &&
-		(pkt->ieee == 0x00d046)) {
-		/* dolby1.5 */
+	switch (pkt->ieee) {
+	case IEEE_DV15:
+		/* dolbyvision 1.5 */
+		ret = E_VSI_DV15;
+		if (pkt->length != E_PKT_LENGTH_27)
+			if (log_level & PACKET_LOG)
+				rx_pr("vsi dv15 length err\n");
 		tmp = pkt->sbpkt.payload.data[0] & _BIT(1);
 		rx.vs_info_details.dolby_vision = tmp ? true : false;
 		tmp = pkt->sbpkt.payload.data[0] & _BIT(0);
@@ -1377,28 +1381,43 @@ void rx_get_vsi_info(void)
 				(pkt->sbpkt.payload.data[0] & 0xf00);
 			rx.vs_info_details.eff_tmax_pq = tmp;
 		}
-	} else if (pkt->ieee == 0x000c03) {
-		/* dobly10 */
-		if (pkt->length == E_DV_LENGTH_24) {
+		break;
+	case IEEE_VSI21:
+		/* hdmi2.1 */
+		ret = E_VSI_VSI21;
+		tmp = pkt->sbpkt.payload.data[0] & _BIT(9);
+		rx.vs_info_details.allm_mode = tmp ? true : false;
+		break;
+	case IEEE_HDR10PLUS:
+		/* HDR10+ */
+		ret = E_VSI_HDR10PLUS;
+		if ((pkt->length != E_PKT_LENGTH_27) ||
+			(pkt->pkttype != 0x01) ||
+			(pkt->ver_st.version != 0x01) ||
+			(((pkt->sbpkt.payload.data[1] >> 6) & 0x03) != 0x01))
+			if (log_level & PACKET_LOG)
+				rx_pr("vsi hdr10+ length err\n");
+		/* consider hdr10+ is true when IEEE matched */
+		rx.vs_info_details.hdr10plus = true;
+		break;
+	case IEEE_VSI14:
+		/* dolbyvision1.0 */
+		ret = E_VSI_4K3D;
+		if (pkt->length == E_PKT_LENGTH_24) {
 			rx.vs_info_details.dolby_vision = true;
 			if ((pkt->sbpkt.payload.data[0] & 0xffff) == 0) {
 				rx.vs_info_details.dolby_timeout =
 					dv_nopacket_timeout;
 				pkt->sbpkt.payload.data[0] = 0xffff;
 			}
-		} else if ((pkt->length == E_DV_LENGTH_5) &&
+		} else if ((pkt->length == E_PKT_LENGTH_5) &&
 			(pkt->sbpkt.payload.data[0] & 0xffff)) {
 			rx.vs_info_details.dolby_vision = false;
-		} else if ((pkt->length == E_DV_LENGTH_4) &&
+		} else if ((pkt->length == E_PKT_LENGTH_4) &&
 			((pkt->sbpkt.payload.data[0] & 0xff) == 0)) {
 			rx.vs_info_details.dolby_vision = false;
-		}
-	} else if (pkt->ieee == 0xd85dc4) {
-		/*TODO:hdmi2.1 spec vsi packet*/
-		tmp = pkt->sbpkt.payload.data[0] & _BIT(9);
-		rx.vs_info_details.allm_mode = tmp ? true : false;
-	} else {
-		/*3d VSI*/
+		} else {
+		/* 3d VSI*/
 		if (pkt->sbpkt.vsi_3Dext.vdfmt == VSI_FORMAT_3D_FORMAT) {
 			rx.vs_info_details._3d_structure =
 				pkt->sbpkt.vsi_3Dext.threeD_st;
@@ -1411,6 +1430,11 @@ void rx_get_vsi_info(void)
 		}
 		rx.vs_info_details.dolby_vision = false;
 	}
+		break;
+	default:
+		break;
+	}
+	return ret;
 }
 
 #if 0

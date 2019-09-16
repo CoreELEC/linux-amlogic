@@ -18,6 +18,7 @@
 #ifndef _DNR_H
 #define _DNR_H
 #include <linux/atomic.h>
+#include <linux/amlogic/media/vfm/vframe.h>
 
 struct nr_param_s {
 	char *name;
@@ -84,8 +85,10 @@ struct CUE_PARM_s {
 	int glb_mot_framethr;
 	int glb_mot_fieldnum;
 	int glb_mot_fieldthr;
+	int glb_mot_fieldthr1;
 	int field_count;
 	int frame_count;
+	int field_count1;
 };
 
 #define	NR_CTRL_REG_NUM	6
@@ -181,7 +184,8 @@ void nr_all_config(unsigned short nCol, unsigned short nRow,
 	unsigned short type);
 bool set_nr_ctrl_reg_table(unsigned int addr, unsigned int value);
 
-extern void cue_int(void);
+extern void cue_int(struct vframe_s *vf);
 
+extern bool nr_demo_flag;
 #endif
 

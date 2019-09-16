@@ -41,6 +41,7 @@
 #include "register.h"
 #include "deinterlace_mtn.h"
 
+#include "di_pqa.h"
 #define MAX_NUM_DI_REG 32
 #define GXTVBB_REG_START 12
 static unsigned int combing_setting_registers[MAX_NUM_DI_REG] = {
@@ -605,8 +606,11 @@ static void set_combing_regs(int lvl, int bit_mode)
 			DI_Wr_reg_bits(DI_MTN_1_CTRL1,
 				((*combing_setting_values[lvl])[0] &
 				combing_setting_masks[i]), 0, 24);
-          	/*working on db, driver don't handle this*/
-		if (((bit_mode != 10) || cpu_after_eq(MESON_CPU_MAJOR_ID_TL1))
+			/*working on db, driver don't handle this
+			 *confirmed with vlsi-baozheng, G12a/G12B/SM1
+			 *is same as TL1, Change the condition to cpu after G12a
+			 */
+		if (((bit_mode != 10) || cpu_after_eq(MESON_CPU_MAJOR_ID_G12A))
 			&& combing_setting_registers[i] == NR2_MATNR_DEGHOST)
 			break;
 		else if (i < GXTVBB_REG_START) {
@@ -809,3 +813,26 @@ int adaptive_combing_fixing(
 #ifdef DEBUG_SUPPORT
 module_param_named(cmb_adpset_cnt, cmb_adpset_cnt, int, 0644);
 #endif
+static const struct mtn_op_s di_ops_mtn = {
+	.mtn_int_combing_glbmot		= mtn_int_combing_glbmot,
+	.adpative_combing_exit		= adpative_combing_exit,
+	.fix_tl1_1080i_sawtooth_patch	= fix_tl1_1080i_sawtooth_patch,
+	.adaptive_combing_fixing	= adaptive_combing_fixing,
+	.adpative_combing_config	= adpative_combing_config,
+	/*.module_para			= dim_seq_file_module_para_mtn,*/
+};
+
+bool di_attach_ops_mtn(const struct mtn_op_s **ops)
+{
+	#if 0
+	if (!ops)
+		return false;
+
+	memcpy(ops, &di_pd_ops, sizeof(struct pulldown_op_s));
+	#else
+	*ops = &di_ops_mtn;
+	#endif
+
+	return true;
+}
+EXPORT_SYMBOL(di_attach_ops_mtn);

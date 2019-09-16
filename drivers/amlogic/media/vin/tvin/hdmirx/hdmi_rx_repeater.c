@@ -247,6 +247,7 @@ void rx_hdcp14_resume(void)
 void rx_set_repeater_support(bool enable)
 {
 	downstream_repeat_support = enable;
+	rx_pr("****************=%d\n", downstream_repeat_support);
 }
 EXPORT_SYMBOL(rx_set_repeater_support);
 

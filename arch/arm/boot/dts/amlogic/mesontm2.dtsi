@@ -161,17 +161,6 @@
 		method = "smc";
 	};
 
-	scpi_clocks {
-		compatible = "arm, scpi-clks";
-
-		scpi_dvfs: scpi_clocks@0 {
-			compatible = "arm, scpi-clk-indexed";
-			#clock-cells = <1>;
-			clock-indices = <0>;
-			clock-output-names = "vcpu";
-		};
-	};
-
 	secmon {
 		compatible = "amlogic, secmon";
 		memory-region = <&secmon_reserved>;
@@ -321,8 +310,9 @@
 		compatible = "amlogic, g12a-eth-dwmac","snps,dwmac";
 		reg = <0xff3f0000 0x10000
 			0xff634540 0x8
-			0xff64c000 0xa0>;
-		reg-names = "eth_base", "eth_cfg", "eth_pll";
+			0xff64c000 0xa0
+			0xffd01008 0x4>;
+		reg-names = "eth_base", "eth_cfg", "eth_pll", "eth_reset";
 		interrupts = <0 8 1>;
 		interrupt-names = "macirq";
 		status = "disabled";
@@ -659,6 +649,7 @@
 			clkc: clock-controller@0 {
 				compatible = "amlogic,tl1-clkc";
 				#clock-cells = <1>;
+				#reset-cells = <1>;
 				reg = <0x0 0x3fc>;
 			};
 
@@ -1289,19 +1280,20 @@
 	galcore {
 		compatible = "amlogic, galcore";
 		dev_name = "galcore";
-		status = "disabled";
+		status = "okay";
 		interrupts = <0 147 4>;
 		interrupt-names = "galcore";
 		reg = <0xff100000 0x800
-			/*reg base value:0xff100000 */
 			0xff000000 0x400000
-			/*Sram bse value:0xff000000*/
 			0xff63c118 0x0
 			0xff63c11c 0x0
-			/*0xff63c118,0xff63c11c :nanoq mem regs*/
 			0xffd01088 0x0
-			/*0xffd01088:reset reg*/
+			0xff63c1c8 0x0
 			>;
+		reg-names = "NN_REG","NN_SRAM","NN_MEM0",
+			"NN_MEM1","NN_RESET","NN_CLK";
+		nn_power_version = <3>;
+		nn_efuse = <0xff63003c 0x20>;
 	};
 	sd_emmc_c: emmc@ffe07000 {
 		status = "disabled";
@@ -1342,6 +1334,28 @@
 		};
 	};
 
+	/* to use "dirspi" of amlogic-driver for T312 */
+	spicc_b:spicc_b {
+		compatible = "amlogic, spicc";
+		status = "disabled";
+		device_id = <1>;
+		reg = <0xffd15000 0x3c>;
+		clocks = <&clkc CLKID_SPICC1>,
+			<&clkc CLKID_SPICC1_COMP>;
+		clock-names = "cts_spicc_hclk", "spicc_clk";
+		clk_rate = <166666666>;
+		//interrupts = <0 90 1>;
+		enhance = <1>;
+		dma_tx_threshold = <3>;
+		dma_rx_threshold = <3>;
+		dma_num_per_read_burst = <3>;
+		dma_num_per_write_burst = <3>;
+		ssctl = <0>;
+		dma_en = <0>;
+		delay_control = <0x15>;
+		cs_delay = <10>;
+		enhance_dlyctl = <0>;
+	};
 
 	spifc: spifc@ffd14000 {
 		compatible = "amlogic,aml-spi-nor";
@@ -2262,6 +2276,16 @@
 		};
 	};
 
+	spicc1_pins_h: spicc1_pins_h {
+		mux {
+			groups = "spi1_mosi_h",
+				 "spi1_miso_h",
+				 "spi1_clk_h";
+			function = "spi1";
+			drive-strength = <1>;
+		};
+	};
+
 	internal_eth_pins: internal_eth_pins {
 		mux {
 			groups = "eth_link_led",
@@ -2401,6 +2425,45 @@
 				"GPIOH_20";
 			function = "gpio_periphs";
 			input-enable;
+		};
+	};
+
+	dvb_s_ts0_pins: dvb_s_ts0_pins {
+		mux_1 {
+			groups = "tsin_a_din0",
+			"tsin_a_clk",
+			"tsin_a_sop",
+			"tsin_a_valid";
+			function = "tsin_a";
+		};
+
+		mux_2 {
+			groups = "tsout_dout0",
+			"tsout_dout1",
+			"tsout_dout2",
+			"tsout_dout3",
+			"tsout_dout4",
+			"tsout_dout5",
+			"tsout_dout6",
+			"tsout_dout7",
+			"tsout_clk",
+			"tsout_sop",
+			"tsout_valid";
+			function = "tsout";
+		};
+		mux_3 {
+			groups = "tsin_c_din0_z",
+			"tsin_c_din1_z",
+			"tsin_c_din2_z",
+			"tsin_c_din3_z",
+			"tsin_c_din4_z",
+			"tsin_c_din5_z",
+			"tsin_c_din6_z",
+			"tsin_c_din7_z",
+			"tsin_c_clk_z",
+			"tsin_c_sop_z",
+			"tsin_c_valid_z";
+			function = "tsin_c";
 		};
 	};
 };

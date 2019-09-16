@@ -35,6 +35,9 @@
 #define N 4
 /*hist bin num*/
 #define HIST_BIN 16
+
+int lc_reg_lmtrat_sigbin = 870;
+
 int amlc_debug;
 #define pr_amlc_dbg(fmt, args...)\
 	do {\
@@ -73,6 +76,7 @@ unsigned int lc_hist_he;
 int *lc_szcurve;/*12*8*6+4*/
 int *curve_nodes_cur;
 static int *curve_nodes_pre;
+static int64_t *curve_nodes_pre_raw;
 int *lc_hist;/*12*8*17*/
 static bool lc_malloc_ok;
 /*print one or more frame data*/
@@ -119,6 +123,11 @@ static unsigned int lc_satur_off[63] = {
 /*	3271, 3326, 3384, 3443, 3506, 3571, 3639, 3710,*/
 /*	3785, 3863, 3945, 4032*/
 /*};*/
+
+int tune_curve_en = 2;
+int detect_signal_range_en = 2;
+int detect_signal_range_threshold_black = 1200;
+int detect_signal_range_threshold_white = 3200;
 
 /*local contrast begin*/
 static void lc_mtx_set(enum lc_mtx_sel_e mtx_sel,
@@ -284,6 +293,58 @@ static void lc_mtx_set(enum lc_mtx_sel_e mtx_sel,
 			WRITE_VPP_REG(matrix_pre_offset2, 0x00000600);
 		}
 		break;
+	case LC_MTX_RGB_YUV709:
+		if (mtx_sel & (INP_MTX | OUTP_MTX)) {
+			WRITE_VPP_REG(matrix_coef00_01, 0x00da02dc);
+			WRITE_VPP_REG(matrix_coef02_10, 0x004a1f8a);
+			WRITE_VPP_REG(matrix_coef11_12, 0x1e760200);
+			WRITE_VPP_REG(matrix_coef20_21, 0x02001e2f);
+			WRITE_VPP_REG(matrix_coef22, 0x00001fd1);
+			if (bitdepth == 10) {
+				WRITE_VPP_REG(matrix_offset0_1, 0x200);
+				WRITE_VPP_REG(matrix_clip, 0x3ff);
+			} else {
+				WRITE_VPP_REG(matrix_offset0_1, 0x800);
+				WRITE_VPP_REG(matrix_clip, 0xfff);
+			}
+		} else if (mtx_sel & STAT_MTX) {
+			WRITE_VPP_REG(matrix_coef00_01, 0x00bb0275);
+			WRITE_VPP_REG(matrix_coef02_10, 0x003f1f99);
+			WRITE_VPP_REG(matrix_coef11_12, 0x1ea601c2);
+			WRITE_VPP_REG(matrix_coef20_21, 0x01c21e67);
+			WRITE_VPP_REG(matrix_coef22, 0x00001fd7);
+			WRITE_VPP_REG(matrix_offset0_1, 0x00400200);
+			WRITE_VPP_REG(matrix_offset2, 0x00000200);
+			WRITE_VPP_REG(matrix_pre_offset0_1, 0x0);
+			WRITE_VPP_REG(matrix_pre_offset2, 0x0);
+		}
+		break;
+	case LC_MTX_YUV709_RGB:
+		if (mtx_sel & (INP_MTX | OUTP_MTX)) {
+			WRITE_VPP_REG(matrix_coef00_01, 0x01000000);
+			WRITE_VPP_REG(matrix_coef02_10, 0x01930100);
+			WRITE_VPP_REG(matrix_coef11_12, 0x1fd01f88);
+			WRITE_VPP_REG(matrix_coef20_21, 0x010001db);
+			WRITE_VPP_REG(matrix_coef22, 0x0);
+			if (bitdepth == 10) {
+				WRITE_VPP_REG(matrix_pre_offset0_1, 0x200);
+				WRITE_VPP_REG(matrix_clip, 0x3ff);
+			} else {
+				WRITE_VPP_REG(matrix_pre_offset0_1, 0x800);
+				WRITE_VPP_REG(matrix_clip, 0xfff);
+			}
+		} else if (mtx_sel & STAT_MTX) {
+			WRITE_VPP_REG(matrix_coef00_01, 0x04000000);
+			WRITE_VPP_REG(matrix_coef02_10, 0x064d0400);
+			WRITE_VPP_REG(matrix_coef11_12, 0x1f411e21);
+			WRITE_VPP_REG(matrix_coef20_21, 0x0400076d);
+			WRITE_VPP_REG(matrix_coef22, 0x0);
+			WRITE_VPP_REG(matrix_offset0_1, 0x0);
+			WRITE_VPP_REG(matrix_offset2, 0x0);
+			WRITE_VPP_REG(matrix_pre_offset0_1, 0x00000600);
+			WRITE_VPP_REG(matrix_pre_offset2, 0x00000600);
+		}
+		break;
 	case LC_MTX_NULL:
 		if (mtx_sel & (INP_MTX | OUTP_MTX)) {
 			WRITE_VPP_REG(matrix_coef00_01, 0x04000000);
@@ -386,7 +447,9 @@ static void lc_stts_en(int enable,
 	int hist_mode,
 	int lpf_en,
 	int din_sel,
-	int bitdepth)
+	int bitdepth,
+	int flag,
+	int flag_full)
 {
 	int data32;
 
@@ -399,7 +462,17 @@ static void lc_stts_en(int enable,
 	data32 = data32 | ((lpf_en & 0x1) << 21);
 	WRITE_VPP_REG(LC_STTS_HIST_REGION_IDX, data32);
 
-	lc_mtx_set(STAT_MTX, LC_MTX_YUV709L_RGB, enable, bitdepth);
+	if (flag == 0x3)
+		lc_mtx_set(STAT_MTX, LC_MTX_YUV601L_RGB,
+				enable, bitdepth);
+	else {
+		if (flag_full == 1)
+			lc_mtx_set(STAT_MTX, LC_MTX_YUV709_RGB,
+					enable, bitdepth);
+		else
+			lc_mtx_set(STAT_MTX, LC_MTX_YUV709L_RGB,
+					enable, bitdepth);
+	}
 
 	WRITE_VPP_REG_BITS(LC_STTS_CTRL0, din_sel, 3, 3);
 	/*lc hist stts enable*/
@@ -489,7 +562,8 @@ static void lc_blk_bdry_config(unsigned int height, unsigned int width)
 }
 
 static void lc_top_config(int enable, int h_num, int v_num,
-	unsigned int height, unsigned int width, int bitdepth, int flag)
+	unsigned int height, unsigned int width, int bitdepth,
+	int flag, int flag_full)
 {
 	/*lcinput_ysel*/
 	WRITE_VPP_REG_BITS(SRSHARP1_LC_INPUT_MUX, 5, 4, 3);
@@ -511,13 +585,24 @@ static void lc_top_config(int enable, int h_num, int v_num,
 	WRITE_VPP_REG_BITS(SRSHARP1_LC_TOP_CTRL, 0, 16, 1);
 	/*lc enable need set at last*/
 	WRITE_VPP_REG_BITS(SRSHARP1_LC_TOP_CTRL, enable, 4, 1);
-	if (flag == 1) {
-		lc_mtx_set(INP_MTX, LC_MTX_YUV709L_RGB, 1, bitdepth);
-		lc_mtx_set(OUTP_MTX, LC_MTX_RGB_YUV709L, 1, bitdepth);
-	} else {
+
+	if (flag == 0x3) {
+		/* bt601 use 601 matrix */
 		lc_mtx_set(INP_MTX, LC_MTX_YUV601L_RGB, 1, bitdepth);
 		lc_mtx_set(OUTP_MTX, LC_MTX_RGB_YUV601L, 1, bitdepth);
+	} else {
+		/* all other cases use 709 by default */
+		/* to do, should we handle bg2020 separately? */
+		/* for special signal, keep full range to avoid clipping */
+		if (flag_full == 1) {
+			lc_mtx_set(INP_MTX, LC_MTX_YUV709_RGB, 1, bitdepth);
+			lc_mtx_set(OUTP_MTX, LC_MTX_RGB_YUV709, 1, bitdepth);
+		} else {
+			lc_mtx_set(INP_MTX, LC_MTX_YUV709L_RGB, 1, bitdepth);
+			lc_mtx_set(OUTP_MTX, LC_MTX_RGB_YUV709L, 1, bitdepth);
+		}
 	}
+
 }
 
 static void lc_disable(void)
@@ -532,7 +617,32 @@ static void lc_disable(void)
 	memset(lc_szcurve, 0, LC_CURV_SIZE * sizeof(int));
 	memset(curve_nodes_cur, 0, LC_CURV_SIZE * sizeof(int));
 	memset(curve_nodes_pre, 0, LC_CURV_SIZE * sizeof(int));
+	memset(curve_nodes_pre_raw, 0, LC_CURV_SIZE * sizeof(int64_t));
 	lc_en_chflg = 0x0;
+}
+
+/* detect super white and super black currently */
+static int signal_detect(unsigned short *hist)
+{
+	unsigned short bin0, bin1, bin62, bin63;
+
+	bin0 = hist[0];
+	bin1 = hist[1];
+	bin62 = hist[62];
+	bin63 = hist[63];
+
+	if (amlc_debug == 0xe) {
+		pr_info("bin0=%d bin1=%d bin62=%d bin63=%d\n",
+				bin0, bin1, bin62, bin63);
+		amlc_debug = 0x0;
+	}
+
+	if (
+		((bin0 + bin1) > detect_signal_range_threshold_black) ||
+		((bin62 + bin63) > detect_signal_range_threshold_white))
+		return 1;
+
+	return 0;
 }
 
 static void lc_config(int enable,
@@ -545,8 +655,8 @@ static void lc_config(int enable,
 {
 	int h_num, v_num;
 	unsigned int height, width;
-	static unsigned int vf_height, vf_width;
-	unsigned int flag;
+	static unsigned int vf_height, vf_width, flag_full_pre;
+	unsigned int flag, flag_full;
 
 	h_num = 12;
 	v_num = 8;
@@ -557,57 +667,168 @@ static void lc_config(int enable,
 		return;
 	}
 
+	/* try to detect out of spec signal level */
+	flag_full = 0;
+	if (detect_signal_range_en == 2)
+		flag_full = signal_detect(vf->prop.hist.vpp_gamma);
+	else
+		flag_full = detect_signal_range_en;
+
+	if (flag_full != flag_full_pre) {
+		pr_info("signal changed, flag_full:%d->%d\n",
+				flag_full_pre, flag_full);
+	}
+
 	if ((vf_height == vf->height) &&
-		(vf_width == vf->width)) {
-		if (!lc_en_chflg)
-			lc_en_chflg = 0xff;
-		else
+		(vf_width == vf->width) &&
+		(flag_full == flag_full_pre) &&
+		lc_en_chflg) {
 			return;
 	}
 
+	flag_full_pre = flag_full;
 	height = sps_h_in << sps_h_en;
 	width = sps_w_in << sps_v_en;
 
 	vf_height = vf->height;
 	vf_width = vf->width;
-	/*flag: 0 for 601; 1 for 709*/
-	flag = (vf_height > 720) ? 1 : 0;
-	lc_top_config(enable, h_num, v_num, height, width, bitdepth, flag);
+
+	lc_en_chflg = 0xff;
+
+/*
+ *	bit 29: present_flag
+ *	bit 23-16: color_primaries
+ *	"unknown", "bt709", "undef", "bt601",
+ *	"bt470m", "bt470bg", "smpte170m", "smpte240m",
+ *	"film", "bt2020"
+ */
+	if (vf->signal_type & (1 << 29))
+		/* this field is present */
+		flag = ((vf->signal_type >> 16) & 0xff);
+	else
+		/* signal_type is not present */
+		/* use default value bt709 */
+		flag = 0x1;
+	lc_top_config(enable, h_num, v_num, height,
+				width, bitdepth, flag, flag_full);
 
 	width = sps_w_in;
 	height = sps_h_in;
 
 	lc_curve_ctrl_config(enable, height, width);
 	lc_stts_blk_config(enable, height, width);
-	lc_stts_en(enable, height, width, 0, 0, 1, 1, 4, bitdepth);
+	lc_stts_en(enable, height, width, 0, 0, 1, 1, 4,
+				bitdepth, flag, flag_full);
 }
 
-static void read_lc_curve(int blk_vnum, int blk_hnum)
+static void tune_nodes_patch(int *omap, int *ihistogram, int reg_lmtrat_sigbin)
 {
-	int i, j;
-	unsigned int temp1, temp2;
 
-	WRITE_VPP_REG(LC_CURVE_RAM_CTRL, 1);
-	WRITE_VPP_REG(LC_CURVE_RAM_ADDR, 0);
-	for (i = 0; i < blk_vnum; i++) {
-		for (j = 0; j < blk_hnum; j++) {
-			temp1 = READ_VPP_REG(LC_CURVE_RAM_DATA);
-			temp2 = READ_VPP_REG(LC_CURVE_RAM_DATA);
-			lc_szcurve[(i*blk_hnum + j)*6+0] =
-				temp1 & 0x3ff;/*bit0:9*/
-			lc_szcurve[(i*blk_hnum + j)*6+1] =
-				(temp1>>10) & 0x3ff;/*bit10:19*/
-			lc_szcurve[(i*blk_hnum + j)*6+2] =
-				(temp1>>20) & 0x3ff;/*bit20:29*/
-			lc_szcurve[(i*blk_hnum + j)*6+3] =
-				temp2 & 0x3ff;/*bit0:9*/
-			lc_szcurve[(i*blk_hnum + j)*6+4] =
-				(temp2>>10) & 0x3ff;/*bit10:19*/
-			lc_szcurve[(i*blk_hnum + j)*6+5] =
-				(temp2>>20) & 0x3ff;/*bit20:29*/
+	int yminV_org, minBV_org, pkBV_org;
+	int maxBV_org, ymaxV_org, ypkBV_org;
+	int yminV, ymaxV, ypkBV;
+	int k, alpha, bin_pk, idx_pk, bin_pk2nd;
+	int pksum, pksum_2nd, dist;
+	int amount;
+	int thrd_sglbin;   /*u24 maybe 80% or 90%*/
+	int alpha_sgl;
+	int tmp_peak_val;/*pksum; bin_pk*/
+	int idx_pk2nd;
+
+	yminV_org = omap[0];
+	minBV_org = omap[1];
+	pkBV_org = omap[2];
+	maxBV_org = omap[3];
+	ymaxV_org = omap[4];
+	ypkBV_org = omap[5];
+	if (amlc_debug == 0xa) {
+		pr_info("minBV_org=%d yminV_org=%d pkBV_org=%d ypkBV_org=%d maxBV_org=%d ymaxV_org=%d\n",
+			minBV_org, yminV_org, pkBV_org, ypkBV_org,
+			maxBV_org, ymaxV_org);
+		amlc_debug = 0x0;
+	}
+	idx_pk = (pkBV_org + 32) >> 6;
+	bin_pk2nd = 0;
+	amount = 0;
+	bin_pk = 0;
+	idx_pk2nd = 0;
+
+	for (k = 0; k < HIST_BIN; k++) {
+		amount += ihistogram[k];
+		if (ihistogram[k] > bin_pk) {
+			bin_pk = ihistogram[k];
+			idx_pk = k;
 		}
 	}
-	WRITE_VPP_REG(LC_CURVE_RAM_CTRL, 0);
+	pksum = (idx_pk <= 1 || idx_pk >= 14) ? ihistogram[idx_pk] :
+		(ihistogram[idx_pk] + ihistogram[max(min(idx_pk - 1, 14), 1)]
+			+ ihistogram[max(min(idx_pk + 1, 14), 1)]);
+
+	for (k = 0; k < HIST_BIN; k++) {
+		if (k < (idx_pk - 1) || k > (idx_pk + 1)) {
+			if (ihistogram[k] > bin_pk2nd) {
+				bin_pk2nd = ihistogram[k];
+				idx_pk2nd = k;
+			}
+		}
+	}
+	pksum_2nd = (idx_pk2nd <= 1 || idx_pk2nd >= 14) ?
+		ihistogram[idx_pk2nd] :
+		(ihistogram[idx_pk2nd] +
+			ihistogram[max(min(idx_pk2nd - 1, 14), 1)] +
+			ihistogram[max(min(idx_pk2nd + 1, 14), 1)]);
+
+	dist = abs(idx_pk - idx_pk2nd);
+	if (bin_pk2nd == 0)
+		alpha = 0;
+	else {
+		if ((pksum_2nd >= (pksum * 4 / 16)) && (dist > 2))
+			alpha = min(dist * 8, 64);
+		else
+			alpha = 0;
+	}
+	yminV = yminV_org + (minBV_org - yminV_org) * alpha / 64;
+	ymaxV = ymaxV_org + (maxBV_org - ymaxV_org) * alpha / 64;
+
+	/*2. tune ypkBV if single peak
+	 * int reg_lmtrat_sigbin = 922; 95% 1024*0.95 = 973 / 90% 1024*0.9 = 922
+	 * 85% 1024*0.85 = 870 / 80% 1024*0.8 = 819
+	 */
+
+	 /*u24 maybe 80% or 90%*/
+	thrd_sglbin = (reg_lmtrat_sigbin * amount) >> 10;
+	alpha_sgl = 0;
+	tmp_peak_val = bin_pk;/*pksum; bin_pk;*/
+	if (tmp_peak_val > thrd_sglbin)
+		alpha_sgl = (tmp_peak_val - thrd_sglbin) * 1024 /
+			(amount - thrd_sglbin);
+	else
+		alpha_sgl = 0;
+
+	ypkBV = ypkBV_org + (pkBV_org - ypkBV_org) * alpha_sgl / 1024;
+
+	omap[0] = yminV;
+	omap[4] = ymaxV;
+	if (amlc_debug == 0xc)
+		pr_info("yminV_org=%d yminV=%d ymaxV_org=%d ymaxV=%d\n",
+			yminV_org, yminV, ymaxV_org, ymaxV);
+	/* disable single peak patch, will handle it by tunning */
+	/* omap[5] = ypkBV; */
+	if (amlc_debug == 0xc) {
+		pr_info("ypkBV_org=%d ypkBV=%d\n", ypkBV_org, ypkBV);
+		amlc_debug = 0x0;
+	}
+}
+
+static void linear_nodes_patch(int *omap)
+{
+
+	omap[0] = 0;
+	omap[1] = 0;
+	omap[2] = 512;
+	omap[3] = 1023;
+	omap[4] = 1023;
+	omap[5] = 512;
 }
 
 static void lc_demo_wr_curve(int h_num, int v_num)
@@ -1067,9 +1288,9 @@ int cal_curv_iir(int *curve_nodes_cur,
 				int refresh)
 {
 	int i, j, k;
-	int tmap[CURV_NODES];
+	int64_t tmap[CURV_NODES], node_pre_raw;
 	int addr_curv1, addr_curv2;
-	int node_cur, node_pre;
+	int node_cur;
 
 	for (i = 0; i < blk_vnum; i++) {
 		for (j = 0; j < blk_hnum; j++) {
@@ -1079,19 +1300,23 @@ int cal_curv_iir(int *curve_nodes_cur,
 					(i * blk_hnum + j) * CURV_NODES + k;
 				node_cur =/*u12 calc*/
 					(curve_nodes_cur[addr_curv2] << 2);
-				node_pre = (curve_nodes_pre[addr_curv2] << 2);
+				node_pre_raw =
+					curve_nodes_pre_raw[addr_curv2];
 				tmap[k] =
-					(node_cur * refresh_alpha[addr_curv1]
-					+ node_pre *
-					(refresh - refresh_alpha[addr_curv1]) +
-					(1 << (refresh_bit - 1))) >>
-					refresh_bit;
+					(node_cur * refresh_alpha[addr_curv1])
+					+ ((node_pre_raw *
+					(refresh - refresh_alpha[addr_curv1]))
+						>> refresh_bit);
+				curve_nodes_pre_raw[addr_curv2] =
+					tmap[k];
+				tmap[k] = (tmap[k] + (1 << (1 + refresh_bit)))
+							>> (2 + refresh_bit);
 				/*output the iir result*/
 				curve_nodes_cur[addr_curv2] =
-					(tmap[k] >> 2);/*back to u10*/
+					(int)(tmap[k]);/*back to u10*/
 				/*delay for next iir*/
 				curve_nodes_pre[addr_curv2] =
-					(tmap[k] >> 2);
+					(int)(tmap[k]);
 			}
 		}
 	}
@@ -1204,12 +1429,32 @@ static void lc_read_region(int blk_vnum, int blk_hnum)
 	int i, j, k;
 	int data32;
 	int rgb_min, rgb_max;
+	unsigned int temp1, temp2;
 
 	WRITE_VPP_REG_BITS(0x4037, 1, 14, 1);
 	data32 = READ_VPP_REG(LC_STTS_HIST_START_RD_REGION);
 
-	for (i = 0; i < blk_vnum; i++)
+	WRITE_VPP_REG(LC_CURVE_RAM_CTRL, 1);
+	WRITE_VPP_REG(LC_CURVE_RAM_ADDR, 0);
+	for (i = 0; i < blk_vnum; i++) {
 		for (j = 0; j < blk_hnum; j++) {
+			/*part1: get lc curve node*/
+			temp1 = READ_VPP_REG(LC_CURVE_RAM_DATA);
+			temp2 = READ_VPP_REG(LC_CURVE_RAM_DATA);
+			lc_szcurve[(i * blk_hnum + j) * 6 + 0] =
+				temp1 & 0x3ff;/*bit0:9*/
+			lc_szcurve[(i * blk_hnum + j) * 6 + 1] =
+				(temp1 >> 10) & 0x3ff;/*bit10:19*/
+			lc_szcurve[(i * blk_hnum + j) * 6 + 2] =
+				(temp1 >> 20) & 0x3ff;/*bit20:29*/
+			lc_szcurve[(i * blk_hnum + j) * 6 + 3] =
+				temp2 & 0x3ff;/*bit0:9*/
+			lc_szcurve[(i * blk_hnum + j) * 6 + 4] =
+				(temp2 >> 10) & 0x3ff;/*bit10:19*/
+			lc_szcurve[(i * blk_hnum + j) * 6 + 5] =
+				(temp2 >> 20) & 0x3ff;/*bit20:29*/
+
+			/*part2: get lc hist*/
 			data32 = READ_VPP_REG(LC_STTS_HIST_START_RD_REGION);
 			if ((i >= lc_hist_vs) && (i <= lc_hist_ve) &&
 				(j >= lc_hist_hs) && (j <= lc_hist_he) &&
@@ -1218,7 +1463,7 @@ static void lc_read_region(int blk_vnum, int blk_hnum)
 
 			for (k = 0; k < 17; k++) {
 				data32 = READ_VPP_REG(LC_STTS_HIST_READ_REGION);
-				lc_hist[(i*blk_hnum+j)*17 + k]
+				lc_hist[(i * blk_hnum + j) * 17 + k]
 					= data32;
 				if ((i >= lc_hist_vs) && (i <= lc_hist_ve) &&
 					(j >= lc_hist_hs) && (j <= lc_hist_he)
@@ -1236,7 +1481,21 @@ static void lc_read_region(int blk_vnum, int blk_hnum)
 							k, data32);
 				}
 			}
+
+			/*part3: add tune curve node patch--by vlsi-guopan*/
+			if (tune_curve_en == 2) {
+				tune_nodes_patch(
+					&lc_szcurve[(i * blk_hnum + j) * 6],
+					&lc_hist[(i * blk_hnum + j) * 17],
+					lc_reg_lmtrat_sigbin);
+			} else if (tune_curve_en == 1) {
+				linear_nodes_patch(
+					&lc_szcurve[(i * blk_hnum + j) * 6]);
+			}
+
 		}
+	}
+	WRITE_VPP_REG(LC_CURVE_RAM_CTRL, 0);
 
 	if ((amlc_debug == 0x8) && lc_hist_prcnt)/*print all hist data*/
 		for (i = 0; i < 8*12*17; i++)
@@ -1294,11 +1553,21 @@ void lc_init(int bitdepth)
 		kfree(curve_nodes_pre);
 		return;
 	}
+	curve_nodes_pre_raw = kcalloc(LC_CURV_SIZE,
+					sizeof(int64_t),
+					GFP_KERNEL);
+	if (!curve_nodes_pre_raw) {
+		kfree(lc_szcurve);
+		kfree(curve_nodes_cur);
+		kfree(curve_nodes_pre);
+		kfree(lc_hist);
+		return;
+	}
 	lc_malloc_ok = 1;
 	if (!lc_en)
 		return;
 
-	lc_top_config(0, h_num, v_num, height, width, bitdepth, 1);
+	lc_top_config(0, h_num, v_num, height, width, bitdepth, 1, 0);
 	WRITE_VPP_REG_BITS(LC_CURVE_RAM_CTRL, 0, 0, 1);
 
 	/*default LC low parameters*/
@@ -1355,12 +1624,13 @@ void lc_process(struct vframe_s *vf,
 	else
 		bitdepth = 12;
 
-	if (!lc_en) {
-		lc_disable();
-		return;
-	}
 	if (!lc_malloc_ok) {
 		pr_amlc_dbg("%s: lc malloc fail", __func__);
+		return;
+	}
+
+	if (!lc_en) {
+		lc_disable();
 		return;
 	}
 	if (vf == NULL) {
@@ -1371,7 +1641,7 @@ void lc_process(struct vframe_s *vf,
 		return;
 	}
 
-	if (lc_flag == 0) {
+	if (lc_flag <= 1) {
 		lc_flag++;
 		return;
 	}
@@ -1380,8 +1650,7 @@ void lc_process(struct vframe_s *vf,
 	blk_vnum = (dwTemp) & 0x1f;
 	lc_config(lc_en, vf, sps_h_en, sps_v_en,
 		sps_w_in, sps_h_in, bitdepth);
-	/*get each block curve*/
-	read_lc_curve(blk_vnum, blk_hnum);
+	/*get hist & curve node*/
 	lc_read_region(blk_vnum, blk_hnum);
 	/*do time domain iir*/
 	lc_fw_curve_iir(vf, lc_hist,
@@ -1401,5 +1670,7 @@ void lc_free(void)
 	kfree(lc_szcurve);
 	kfree(curve_nodes_cur);
 	kfree(curve_nodes_pre);
+	kfree(curve_nodes_pre_raw);
 	kfree(lc_hist);
+	lc_malloc_ok = 0;
 }

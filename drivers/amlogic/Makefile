@@ -116,7 +116,7 @@ obj-$(CONFIG_AMLOGIC_IIO)       += iio/
 
 obj-$(CONFIG_AMLOGIC_DDR_TOOL)       += ddr_tool/
 
-obj-$(CONFIG_DRM_MESON)	+= drm/
+obj-$(CONFIG_AMLOGIC_DRM)	+= drm/
 
 obj-$(CONFIG_AMLOGIC_M8B_SM) += secure_monitor/
 
@@ -139,3 +139,7 @@ obj-$(CONFIG_MTD_SPI_NOR) += spi-nor/
 obj-$(CONFIG_DOLBY_FW) += dolby_fw/
 
 obj-$(CONFIG_AMLOGIC_IRCUT) += ircut/
+
+obj-$(CONFIG_AMLOGIC_PIXEL_PROBE) += pixel_probe/
+
+obj-$(CONFIG_AMLOGIC_FIRMWARE) += firmware/

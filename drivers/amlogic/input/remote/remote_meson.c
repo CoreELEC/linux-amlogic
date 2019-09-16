@@ -41,6 +41,7 @@
 #include <linux/amlogic/iomap.h>
 #include <linux/pm_wakeup.h>
 #include <linux/pm_wakeirq.h>
+#include <linux/amlogic/scpi_protocol.h>
 
 static void amlremote_tasklet(unsigned long data);
 static void learning_done_workqueue(struct work_struct *work);
@@ -522,6 +523,13 @@ static int get_custom_tables(struct device_node *node,
 	for (index = 0; index < chip->custom_num; index++) {
 		propname = kasprintf(GFP_KERNEL, "map%d", index);
 		phandle = of_get_property(custom_maps, propname, NULL);
+
+		/* never use below, just use to find phandle
+		 * mem leak occurs if not free
+		 */
+		kfree(propname);
+		propname = NULL;
+
 		if (!phandle) {
 			dev_err(chip->dev, "%s:don't find match map%d\n",
 					__func__, index);
@@ -762,7 +770,6 @@ static int ir_hardware_init(struct platform_device *pdev)
 		goto error_irq;
 
 	chip->irq_cpumask = 1;
-	irq_set_affinity(chip->irqno, cpumask_of(chip->irq_cpumask));
 
 	tasklet_enable(&tasklet);
 	tasklet.data = (unsigned long)chip;
@@ -922,6 +929,8 @@ static int remote_resume(struct device *dev)
 		input_event(chip->r_dev->input_device,
 		    EV_KEY, KEY_POWER, 0);
 		input_sync(chip->r_dev->input_device);
+		if (scpi_clr_wakeup_reason())
+			pr_debug("clr wakeup reason fail.\n");
 	}
 
 	if (get_resume_method() == REMOTE_CUS_WAKEUP) {
@@ -929,10 +938,11 @@ static int remote_resume(struct device *dev)
 		input_sync(chip->r_dev->input_device);
 		input_event(chip->r_dev->input_device, EV_KEY, 133, 0);
 		input_sync(chip->r_dev->input_device);
+		if (scpi_clr_wakeup_reason())
+			pr_debug("clr wakeup reason fail.\n");
 	}
 #endif
 
-	irq_set_affinity(chip->irqno, cpumask_of(chip->irq_cpumask));
 	enable_irq(chip->irqno);
 	return 0;
 }

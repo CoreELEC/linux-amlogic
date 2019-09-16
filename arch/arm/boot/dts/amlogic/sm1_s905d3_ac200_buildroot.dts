@@ -1214,10 +1214,11 @@
 		//dai-tdm-lane-slot-mask-out = <1 1 1 1 1 1 1 1>;
 		dai-tdm-clk-sel = <1>;
 		clocks = <&clkaudio CLKID_AUDIO_MCLK_B
+				&clkaudio CLKID_AUDIO_MCLK_PAD0
 				&clkc CLKID_MPLL1
 				&clkc CLKID_MPLL0
 				&clkaudio CLKID_AUDIO_SPDIFOUT_A>;
-		clock-names = "mclk", "clk_srcpll",
+		clock-names = "mclk", "mclk_pad", "clk_srcpll",
 			"samesource_srcpll", "samesource_clk";
 		pinctrl-names = "tdm_pins";
 		pinctrl-0 = <&tdmb_mclk &tdmout_b &tdmin_b>;
@@ -1558,6 +1559,27 @@
 
 		status = "disabled";
 	};
+	aed:effect {
+		compatible = "amlogic, snd-effect-v3";
+		#sound-dai-cells = <0>;
+		clocks = <&clkaudio CLKID_AUDIO_GATE_EQDRC
+			&clkc CLKID_FCLK_DIV5
+			&clkaudio CLKID_AUDIO_EQDRC>;
+		clock-names = "gate", "srcpll", "eqdrc";
+		/*
+		 * 0:tdmout_a
+		 * 1:tdmout_b
+		 * 2:tdmout_c
+		 * 3:spdifout
+		 * 4:spdifout_b
+		 */
+		eqdrc_module = <1>;
+		/* max 0xf, each bit for one lane, usually one lane */
+		lane_mask = <0x1>;
+		/* max 0xff, each bit for one channel */
+		channel_mask = <0x3>;
+		status = "okay";
+	};
 }; /* end of audiobus */
 
 &pinctrl_periphs {
@@ -1786,8 +1808,7 @@
 			 "MMC_CAP_ERASE",
 			 "MMC_CAP_CMD23",
 			 "MMC_CAP_DRIVER_TYPE_D";
-		caps2 = "MMC_CAP2_HS200";
-		/*MMC_CAP2_HS400"*/
+		caps2 = "MMC_CAP2_HS200", "MMC_CAP2_HS400";
 		f_min = <400000>;
 		f_max = <200000000>;
 	};

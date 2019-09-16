@@ -410,7 +410,7 @@
 			interrupt-names = "macirq";
 			clocks = <&clkc CLKID_ETH>;
 			clock-names = "ethclk81";
-			internal_phy=<0>;
+			internal_phy=<1>;
 	};
 
 	codec_io {
@@ -525,7 +525,7 @@
 				min_state = <400>;
 				dyn_coeff = <437>;
 				cluster_id = <0>;
-				node_name = "gpufreq_cool0";
+				node_name = "t82x";
 				device_type = "gpufreq";
 			};
 			gpucore_cool {
@@ -546,9 +546,6 @@
 			#cooling-cells = <2>; /* min followed by max */
 		};
 		cpucore_cool1:cpucore_cool1 {
-			#cooling-cells = <2>; /* min followed by max */
-		};
-		gpufreq_cool0:gpufreq_cool0 {
 			#cooling-cells = <2>; /* min followed by max */
 		};
 		gpucore_cool0:gpucore_cool0 {
@@ -609,7 +606,7 @@
 				};
 				gpufreq_cooling_map {
 					trip = <&control>;
-					cooling-device = <&gpufreq_cool0 0 4>;
+					cooling-device = <&t82x_gpu 0 4>;
 					contribution = <1024>;
 				};
 				gpucore_cooling_map {
@@ -641,10 +638,6 @@
 		compatible = "amlogic, amlogic-new-usb3";
 		portnum = <0>;
 		reg = <0xd0078080 0x20>;
-		interrupts = <0 16 4>;
-		otg = <1>;
-		gpio-vbus-power = "GPIOAO_5";
-		gpios = <&gpio_ao GPIOAO_5 GPIO_ACTIVE_HIGH>;
 	};
 
 	dwc2_a {
@@ -663,7 +656,7 @@
 		port-id-mode = <0>; /** 0: hardware, 1: sw_host, 2: sw_slave*/
 		usb-fifo = <728>;
 		cpu-type = "gxl";
-		controller-type = <3>; /** 0: normal,1:host,2:device,3:otg*/
+		controller-type = <1>; /** 0: normal,1:host,2:device,3:otg*/
 		phy-reg = <0xd0078000>;
 		phy-reg-size = <0xa0>;
 		clocks = <&clkc CLKID_USB_GENERAL
@@ -762,6 +755,7 @@
 
 	meson-fb {
 		compatible = "amlogic, meson-gxm";
+		memory-region = <&logo_reserved>;
 		dev_name = "meson-fb";
 		status = "okay";
 		interrupts = <0 3 1

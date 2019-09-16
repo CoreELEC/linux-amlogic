@@ -33,8 +33,11 @@
 #define HDMITX_VIC_MASK			0xff
 
 /* Refer to http://standards-oui.ieee.org/oui/oui.txt */
-#define HDMI_IEEEOUI	0x000C03
+#define HDMI_IEEEOUI		0x000C03
 #define HF_IEEEOUI		0xC45DD8
+#define DOVI_IEEEOUI		0x00D046
+#define HDR10PLUS_IEEEOUI	0x90848B
+
 #define GET_OUI_BYTE0(oui)	(oui & 0xff) /* Little Endian */
 #define GET_OUI_BYTE1(oui)	((oui >> 8) & 0xff)
 #define GET_OUI_BYTE2(oui)	((oui >> 16) & 0xff)
@@ -248,6 +251,16 @@ enum hdmi_vic {
 #define HDMI_4k2k_smpte_50_y420 HDMI_4096x2160p50_256x135_Y420
 #define HDMI_4k2k_smpte_60_y420 HDMI_4096x2160p60_256x135_Y420
 
+enum hdmi_phy_para {
+	HDMI_PHYPARA_6G = 1, /* 2160p60hz 444 8bit */
+	HDMI_PHYPARA_4p5G, /* 2160p50hz 420 12bit */
+	HDMI_PHYPARA_3p7G, /* 2160p30hz 444 10bit */
+	HDMI_PHYPARA_3G, /* 2160p24hz 444 8bit */
+	HDMI_PHYPARA_LT3G, /* 1080p60hz 444 12bit */
+	HDMI_PHYPARA_DEF = HDMI_PHYPARA_LT3G,
+	HDMI_PHYPARA_270M, /* 480p60hz 444 8bit */
+};
+
 enum hdmi_audio_fs;
 struct dtd;
 
@@ -392,6 +405,7 @@ unsigned int hdmi_get_csc_coef(
 	unsigned int color_depth, unsigned int color_format,
 	unsigned char **coef_array, unsigned int *coef_length);
 struct hdmi_format_para *hdmi_get_fmt_name(char const *name, char const *attr);
+struct hdmi_format_para *hdmi_tst_fmt_name(char const *name, char const *attr);
 struct vinfo_s *hdmi_get_valid_vinfo(char *mode);
 const char *hdmi_get_str_cd(struct hdmi_format_para *para);
 const char *hdmi_get_str_cs(struct hdmi_format_para *para);

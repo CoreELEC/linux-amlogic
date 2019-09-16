@@ -35,6 +35,8 @@
 #include <linux/uaccess.h>
 #include <linux/extcon.h>
 #include <linux/cdev.h>
+#include <linux/poll.h>
+#include <linux/workqueue.h>
 #include <linux/clk.h>
 #include <linux/clk-provider.h>
 
@@ -206,6 +208,12 @@ char *get_vout2_mode_internal(void)
 }
 EXPORT_SYMBOL(get_vout2_mode_internal);
 
+static inline void vout2_setmode_wakeup_queue(void)
+{
+	if (vout2_cdev)
+		wake_up(&vout2_cdev->setmode_queue);
+}
+
 static int set_vout2_mode(char *name)
 {
 	enum vmode_e mode;
@@ -240,6 +248,7 @@ static int set_vout2_mode(char *name)
 	vout2_notifier_call_chain(VOUT_EVENT_MODE_CHANGE, &mode);
 
 	extcon_set_state_sync(vout2_excton_setmode, EXTCON_TYPE_DISP, 0);
+	vout2_setmode_wakeup_queue();
 
 	return ret;
 }
@@ -265,6 +274,18 @@ static int set_vout2_init_mode(void)
 		vmode = vout2_init_vmode | VMODE_INIT_BIT_MASK;
 	else
 		vmode = vout2_init_vmode;
+
+	if ((vmode & VMODE_MODE_BIT_MASK) < VMODE_NULL) {
+		if (IS_ERR_OR_NULL(vpu_clkc))
+			VOUTERR("vout2: vpu_clkc\n");
+		else {
+			if (vpu_clkc_state == 0) {
+				VOUTPR("vout2: enable vpu_clkc\n");
+				clk_prepare_enable(vpu_clkc);
+				vpu_clkc_state = 1;
+			}
+		}
+	}
 
 	memset(local_name, 0, sizeof(local_name));
 	snprintf(local_name, VMODE_NAME_LEN_MAX, "%s", init_mode_str);
@@ -658,6 +679,17 @@ static long vout2_compat_ioctl(struct file *file, unsigned int cmd,
 }
 #endif
 
+static unsigned int vout2_poll(struct file *file, poll_table *wait)
+{
+	struct vout_cdev_s *vcdev = file->private_data;
+	unsigned int mask = 0;
+
+	poll_wait(file, &vcdev->setmode_queue, wait);
+	mask = (POLLIN | POLLRDNORM);
+
+	return mask;
+}
+
 static const struct file_operations vout2_fops = {
 	.owner          = THIS_MODULE,
 	.open           = vout2_io_open,
@@ -666,6 +698,7 @@ static const struct file_operations vout2_fops = {
 #ifdef CONFIG_COMPAT
 	.compat_ioctl   = vout2_compat_ioctl,
 #endif
+	.poll = vout2_poll,
 };
 
 static int vout2_fops_create(void)
@@ -699,6 +732,8 @@ static int vout2_fops_create(void)
 		VOUTERR("vout2: failed to create vout2 device: %d\n", ret);
 		goto vout2_fops_err3;
 	}
+
+	init_waitqueue_head(&vout2_cdev->setmode_queue);
 
 	VOUTPR("vout2: %s OK\n", __func__);
 	return 0;

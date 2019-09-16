@@ -35,6 +35,7 @@
 #include <linux/delay.h>
 #include <linux/of_gpio.h>
 #include <linux/amlogic/media/frame_provider/tvin/tvin.h>
+#include <linux/amlogic/media/sound/hdmi_earc.h>
 
 /* Local include */
 #include "hdmi_rx_repeater.h"
@@ -132,54 +133,53 @@ bool hdcp22_kill_esm;
 MODULE_PARM_DESC(hdcp22_kill_esm, "\n hdcp22_kill_esm\n");
 module_param(hdcp22_kill_esm, bool, 0664);
 
+bool hdcp_mode_sel;
+MODULE_PARM_DESC(hdcp_mode_sel, "\n hdcp_mode_sel\n");
+module_param(hdcp_mode_sel, bool, 0664);
+
 static int hdcp22_capable_sts = 0xff;
 
-static bool esm_auth_fail_en;
+bool esm_auth_fail_en;
 MODULE_PARM_DESC(esm_auth_fail_en, "\n esm_auth_fail_en\n");
 module_param(esm_auth_fail_en, bool, 0664);
 
-static bool hdcp_mode_sel;
-MODULE_PARM_DESC(hdcp_mode_sel, "\n hdcp_mode_sel\n");
-module_param(hdcp_mode_sel, bool, 0664);
+/* to inform hdcp_rx22 whether there's any device connected */
+bool pwr_sts_to_esm;
 
 static int hdcp22_auth_sts = 0xff;
 
 /*the esm reset flag for hdcp_rx22*/
-static bool esm_reset_flag;
+bool esm_reset_flag;
 MODULE_PARM_DESC(esm_reset_flag, "\n esm_reset_flag\n");
 module_param(esm_reset_flag, bool, 0664);
 
 /* to inform ESM whether the cable is connected or not */
-static bool video_stable_to_esm;
+bool video_stable_to_esm;
 MODULE_PARM_DESC(video_stable_to_esm, "\n video_stable_to_esm\n");
 module_param(video_stable_to_esm, bool, 0664);
 
-static int enable_hdcp22_esm_log;
+bool enable_hdcp22_esm_log;
 MODULE_PARM_DESC(enable_hdcp22_esm_log, "\n enable_hdcp22_esm_log\n");
-module_param(enable_hdcp22_esm_log, int, 0664);
+module_param(enable_hdcp22_esm_log, bool, 0664);
 
-static bool esm_error_flag;
+bool esm_error_flag;
 MODULE_PARM_DESC(esm_error_flag, "\n esm_error_flag\n");
 module_param(esm_error_flag, bool, 0664);
 
-static bool hdcp22_esm_reset2;
+bool hdcp22_esm_reset2;
 MODULE_PARM_DESC(hdcp22_esm_reset2, "\n hdcp22_esm_reset2\n");
 module_param(hdcp22_esm_reset2, bool, 0664);
 
-static bool hdcp22_stop_auth;
+bool hdcp22_stop_auth;
 module_param(hdcp22_stop_auth, bool, 0664);
 MODULE_PARM_DESC(hdcp22_stop_auth, "hdcp22_stop_auth");
-
-static bool mute_kill_en;
-MODULE_PARM_DESC(mute_kill_en, "\n mute_kill_en\n");
-module_param(mute_kill_en, bool, 0664);
 
 int hdcp14_on;
 MODULE_PARM_DESC(hdcp14_on, "\n hdcp14_on\n");
 module_param(hdcp14_on, int, 0664);
 
 /*esm recovery mode for changing resolution & hdmi2.0*/
-static int esm_recovery_mode = ESM_REC_MODE_TMDS;
+int esm_recovery_mode = ESM_REC_MODE_TMDS;
 module_param(esm_recovery_mode, int, 0664);
 MODULE_PARM_DESC(esm_recovery_mode, "esm_recovery_mode");
 
@@ -1348,10 +1348,10 @@ void fsm_restart(void)
 		esm_set_stable(false);
 	}
 	hdmirx_hw_config();
-	hdmi_rx_top_edid_update();
+	/* hdmi_rx_top_edid_update(); */
 	set_scdc_cfg(1, 0);
 	vic_check_en = false;
-	dvi_check_en = true;
+	/* dvi_check_en = true; */
 	rx.state = FSM_INIT;
 	rx.phy.cable_clk = 0;
 	rx.phy.pll_rate = 0;
@@ -1556,10 +1556,8 @@ int rx_set_global_variable(const char *buf, int size)
 		return pr_var(aud_sr_stb_max, index);
 	if (set_pr_var(tmpbuf, hdcp22_kill_esm, value, &index, ret))
 		return pr_var(hdcp22_kill_esm, index);
-	if (set_pr_var(tmpbuf, mute_kill_en, value, &index, ret))
-		return pr_var(mute_kill_en, index);
-	if (set_pr_var(tmpbuf, hdcp_mode_sel, value, &index, ret))
-		return pr_var(hdcp_mode_sel, index);
+	if (set_pr_var(tmpbuf, pwr_sts_to_esm, value, &index, ret))
+		return pr_var(pwr_sts_to_esm, index);
 	if (set_pr_var(tmpbuf, audio_sample_rate, value, &index, ret))
 		return pr_var(audio_sample_rate, index);
 	if (set_pr_var(tmpbuf, auds_rcv_sts, value, &index, ret))
@@ -1734,6 +1732,10 @@ int rx_set_global_variable(const char *buf, int size)
 		return pr_var(en_take_dtd_space, index);
 	if (set_pr_var(tmpbuf, earc_cap_ds_update_hpd_en, value, &index, ret))
 		return pr_var(earc_cap_ds_update_hpd_en, index);
+	if (set_pr_var(tmpbuf, scdc_force_en, value, &index, ret))
+		return pr_var(scdc_force_en, index);
+	if (set_pr_var(tmpbuf, hdcp_hpd_ctrl_en, value, &index, ret))
+		return pr_var(hdcp_hpd_ctrl_en, index);
 	return 0;
 }
 
@@ -1758,8 +1760,7 @@ void rx_get_global_variable(const char *buf)
 	pr_var(force_vic, i++);
 	pr_var(aud_sr_stb_max, i++);
 	pr_var(hdcp22_kill_esm, i++);
-	pr_var(mute_kill_en, i++);
-	pr_var(hdcp_mode_sel, i++);
+	pr_var(pwr_sts_to_esm, i++);
 	pr_var(audio_sample_rate, i++);
 	pr_var(auds_rcv_sts, i++);
 	pr_var(audio_coding_type, i++);
@@ -1847,6 +1848,8 @@ void rx_get_global_variable(const char *buf)
 	pr_var(clock_lock_th, i++);
 	pr_var(en_take_dtd_space, i++);
 	pr_var(earc_cap_ds_update_hpd_en, i++);
+	pr_var(scdc_force_en, i++);
+	pr_var(hdcp_hpd_ctrl_en, i++);
 }
 
 void skip_frame(unsigned int cnt)
@@ -1881,7 +1884,7 @@ void hdmirx_open_port(enum tvin_port_e port)
 	//rx.no_signal = false;
 	//rx.wait_no_sig_cnt = 0;
 	vic_check_en = false;
-	dvi_check_en = true;
+	/* dvi_check_en = true; */
 	if (hdmirx_repeat_support())
 		rx.hdcp.repeat = repeat_plug;
 	else
@@ -1905,9 +1908,9 @@ void hdmirx_open_port(enum tvin_port_e port)
 			rx.state = FSM_HPD_LOW;
 		rx_set_cur_hpd(0);
 		/* need reset the whole module when switch port */
-		hdmirx_hw_config();
 		wait_ddc_idle();
 		hdmi_rx_top_edid_update();
+		hdmirx_hw_config();
 	} else {
 		if (rx.state >= FSM_SIG_STABLE)
 			rx.state = FSM_SIG_STABLE;
@@ -1962,6 +1965,7 @@ static void rx_cable_clk_monitor(void)
 		pre_sts = sts;
 	}
 }
+
 /* ---------------------------------------------------------- */
 /* func:         port A,B,C,D  hdmitx-5v monitor & HPD control */
 /* note:         G9TV portD no used */
@@ -1970,6 +1974,7 @@ void rx_5v_monitor(void)
 {
 	static uint8_t check_cnt;
 	uint8_t tmp_5v = rx_get_hdmi5v_sts();
+	bool tmp_arc_5v;
 
 	if (auto_switch_off)
 		tmp_5v = 0x0f;
@@ -1982,6 +1987,7 @@ void rx_5v_monitor(void)
 		pwr_sts = tmp_5v;
 		rx.cur_5v_sts = (pwr_sts >> rx.port) & 1;
 		hotplug_wait_query();
+		rx_pr("hotplug-0x%x\n", pwr_sts);
 		if (rx.cur_5v_sts == 0) {
 			set_fsm_state(FSM_5V_LOST);
 			rx.err_code = ERR_5V_LOST;
@@ -1993,9 +1999,16 @@ void rx_5v_monitor(void)
 	/* inform hdcp_rx22 the 5v sts of rx */
 	if (hdcp22_on) {
 		if (!pwr_sts)
-			hdcp_mode_sel = true;
+			pwr_sts_to_esm = true;
 		else
-			hdcp_mode_sel = false;
+			pwr_sts_to_esm = false;
+	}
+	if (rx.chip_id == CHIP_ID_TM2) {
+		tmp_arc_5v = (pwr_sts >> rx.arc_port) & 1;
+		if (rx.arc_5vsts != tmp_arc_5v) {
+			rx.arc_5vsts = tmp_arc_5v;
+			earc_hdmirx_hpdst(rx.arc_port, rx.arc_5vsts);
+		}
 	}
 }
 
@@ -2252,8 +2265,8 @@ void rx_main_state_machine(void)
 				 */
 				if (fmt_vic_abnormal()) {
 					if (vic_check_en) {
-						hdmirx_hw_config();
 						hdmi_rx_top_edid_update();
+						hdmirx_hw_config();
 						rx.state = FSM_HPD_LOW;
 					} else {
 						rx.state = FSM_WAIT_CLK_STABLE;
@@ -2540,6 +2553,8 @@ unsigned int hdmirx_show_info(unsigned char *buf, int size)
 		"sts0x8fc: 0x%x\n", hdmirx_rd_dwc(DWC_HDCP22_STATUS));
 	pos += snprintf(buf+pos, size-pos,
 		"sts0x81c: 0x%x\n", hdmirx_rd_dwc(DWC_HDCP22_CONTROL));
+	pos += snprintf(buf+pos, size-pos,
+		"edid_ver: %s\n", rx.edid_ver == EDID_V20 ? "2.0" : "1.4");
 
 	return pos;
 }
@@ -2662,12 +2677,22 @@ static void dump_video_status(void)
 			rx.no_signal, rx.state);
 	rx_pr("skip frame=%d\n", rx.skip);
 	rx_pr("avmute_skip:0x%x\n", rx.avmute_skip);
+
+	rx_pr("****vs_info_details:*****\n");
+	rx_pr("hdr10plus = %d\n", rx.vs_info_details.hdr10plus);
+	rx_pr("allm_mode = %d\n", rx.vs_info_details.allm_mode);
+	rx_pr("dolby_vision = %d\n", rx.vs_info_details.dolby_vision);
+	rx_pr("dv ll = %d\n", rx.vs_info_details.low_latency);
+
+	rx_pr("DRM = %d\n", rx_pkt_chk_attach_drm());
+
 	rx_pr("phy addr: %#x,%#x,port: %d, up phy addr:%#x\n",
 		hdmirx_rd_top(TOP_EDID_RAM_OVR1_DATA),
 		hdmirx_rd_top(TOP_EDID_RAM_OVR2_DATA),
 			rx.port, up_phy_addr);
 	dump_clk_status();
 	rx_pr("eq=%x\n", (rd_reg_hhi(HHI_HDMIRX_PHY_DCHD_CNTL1)>>4)&0xffff);
+	rx_pr("edid_ver: %s\n", rx.edid_ver == EDID_V20 ? "2.0" : "1.4");
 }
 
 static void dump_audio_status(void)

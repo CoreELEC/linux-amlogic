@@ -19,6 +19,7 @@
 #define __AML_LOOPBACK_HW_H__
 
 #include <linux/types.h>
+#include "loopback.h"
 
 struct data_cfg {
 	/*
@@ -46,20 +47,20 @@ struct data_cfg {
 	bool ch_ctrl_switch;
 };
 
-extern void tdminlb_set_clk(int datatlb_src,
-	int sclk_div, int ratio, bool enable);
+void tdminlb_set_clk(enum datalb_src lb_src,
+		     int sclk_div, int ratio, bool enable);
 
 extern void tdminlb_set_format(int i2s_fmt);
 
-extern void tdminlb_set_ctrl(int src);
+void tdminlb_set_ctrl(enum datalb_src src);
 
 extern void tdminlb_enable(int tdm_index, int in_enable);
 
 extern void tdminlb_fifo_enable(int is_enable);
 
 extern void tdminlb_set_format(int i2s_fmt);
-extern void tdminlb_set_lanemask_and_chswap(int swap, int lane_mask);
-
+void tdminlb_set_lanemask_and_chswap
+	(int swap, int lane_mask, unsigned int mask);
 
 extern void tdminlb_set_src(int src);
 extern void lb_set_datain_src(int id, int src);
@@ -68,5 +69,7 @@ extern void lb_set_datain_cfg(int id, struct data_cfg *datain_cfg);
 extern void lb_set_datalb_cfg(int id, struct data_cfg *datalb_cfg);
 
 extern void lb_enable(int id, bool enable);
+
+void lb_set_chnum_en(int id, bool en);
 
 #endif

@@ -151,6 +151,11 @@ static ssize_t dump_reg_enable_store(struct class *cla,
 	int ret = 0;
 
 	ret = kstrtoint(buf, 0, &res);
+	if (ret) {
+		ge2d_log_err("kstrtoint err\n");
+		return -EINVAL;
+	}
+
 	ge2d_log_info("ge2d dump_reg_enbale: %d->%d\n",
 		ge2d_dump_reg_enable, res);
 	ge2d_dump_reg_enable = res;
@@ -173,6 +178,11 @@ static ssize_t dump_reg_cnt_store(struct class *cla,
 	int ret = 0;
 
 	ret = kstrtoint(buf, 0, &res);
+	if (ret) {
+		ge2d_log_err("kstrtoint err\n");
+		return -EINVAL;
+	}
+
 	ge2d_log_info("ge2d dump_reg: %d->%d\n", ge2d_dump_reg_cnt, res);
 	ge2d_dump_reg_cnt = res;
 	return count;
@@ -193,6 +203,11 @@ static ssize_t log_level_store(struct class *cla,
 	int ret = 0;
 
 	ret = kstrtoint(buf, 0, &res);
+	if (ret) {
+		ge2d_log_err("kstrtoint err\n");
+		return -EINVAL;
+	}
+
 	ge2d_log_info("ge2d log_level: %d->%d\n", ge2d_log_level, res);
 	ge2d_log_level = res;
 
@@ -245,7 +260,7 @@ static int ge2d_ioctl_config_ex_mem(struct ge2d_context_s *context,
 		ge2d_config_ex_mem = &(ge2d_para_config.para_config_memtype);
 
 		if (ge2d_para_config.para_config_memtype.ge2d_magic
-			== sizeof(struct config_para_ex_memtype_s)) {
+			== sizeof(struct compat_config_para_ex_memtype_s)) {
 			struct config_para_ex_ion_s *pge2d_config_ex;
 
 			uf_ex_mem =

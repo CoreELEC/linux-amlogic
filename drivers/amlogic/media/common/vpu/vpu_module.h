@@ -85,7 +85,8 @@ static char *vpu_mod_table[] = {
 	"axi_wr1",
 	"axi_wr0",
 	"afbce",
-	"dma"
+	"vdin_wr_mif2",
+	"dma",
 
 	"vpu_mod_max",
 

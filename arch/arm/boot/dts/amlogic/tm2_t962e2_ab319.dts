@@ -713,7 +713,7 @@
 		compatible = "amlogic, unifykey";
 		status = "okay";
 
-		unifykey-num = <21>;
+		unifykey-num = <24>;
 		unifykey-index-0 = <&keysn_0>;
 		unifykey-index-1 = <&keysn_1>;
 		unifykey-index-2 = <&keysn_2>;
@@ -735,6 +735,9 @@
 		unifykey-index-18 = <&keysn_18>;
 		unifykey-index-19 = <&keysn_19>;
 		unifykey-index-20 = <&keysn_20>;
+		unifykey-index-21 = <&keysn_21>;
+		unifykey-index-22 = <&keysn_22>;
+		unifykey-index-23 = <&keysn_23>;
 
 		keysn_0: key_0{
 			key-name = "usid";
@@ -846,6 +849,21 @@
 			key-device = "secure";
 			key-permit = "read","write","del";
 		};
+		keysn_21:key_21{
+			key-name = "hdcp22_rprx_fw";
+			key-device = "normal";
+			key-permit = "read","write","del";
+		};
+		keysn_22:key_22{
+			key-name = "hdcp22_rprp_fw";
+			key-device = "normal";
+			key-permit = "read","write","del";
+		};
+		keysn_23:key_23{
+			key-name = "hdcp22_rp_private";
+			key-device = "secure";
+			key-permit = "read","write","del";
+		};
 	}; /* End unifykey */
 
 	hdmirx {
@@ -904,6 +922,13 @@
 			0x0 0x0
 			0x0 0x0
 			0xff610000 0xa000>;
+	};
+
+	amhdmitx: amhdmitx {
+		compatible = "amlogic, amhdmitx";
+		dev_name = "amhdmitx";
+		status = "okay";
+		repeater_tx = <0x0>;
 	};
 
 	aocec: aocec {
@@ -1007,7 +1032,7 @@
 			};
 			gpufreq_cool {
 				min_state = <400>;
-				dyn_coeff = <140>;
+				dyn_coeff = <160>;
 				gpu_pp = <2>;
 				cluster_id = <0>;
 				node_name = "gpufreq_cool0";
@@ -1040,7 +1065,7 @@
 		pll_thermal: pll_thermal {
 			polling-delay = <1000>;
 			polling-delay-passive = <100>;
-			sustainable-power = <1322>;
+			sustainable-power = <1230>;
 			thermal-sensors = <&p_tsensor 0>;
 			trips {
 				pswitch_on: trip-point@0 {
@@ -1085,7 +1110,7 @@
 		ddr_thermal: ddr_thermal {
 			polling-delay = <2000>;
 			polling-delay-passive = <1000>;
-			sustainable-power = <1322>;
+			sustainable-power = <1230>;
 			thermal-sensors = <&d_tsensor 1>;
 			trips {
 				dswitch_on: trip-point@0 {
@@ -1113,7 +1138,7 @@
 		sar_thermal: sar_thermal {
 			polling-delay = <2000>;
 			polling-delay-passive = <1000>;
-			sustainable-power = <1322>;
+			sustainable-power = <1230>;
 			thermal-sensors = <&s_tsensor 2>;
 			trips {
 				sswitch_on: trip-point@0 {
@@ -1298,10 +1323,11 @@
 		dai-tdm-clk-sel = <0>;
 
 		clocks = <&clkaudio CLKID_AUDIO_MCLK_A
+				&clkaudio CLKID_AUDIO_MCLK_PAD0
 				&clkc CLKID_MPLL0
 				&clkc CLKID_MPLL1
 				&clkaudio CLKID_AUDIO_SPDIFOUT_A>;
-		clock-names = "mclk", "clk_srcpll",
+		clock-names = "mclk", "mclk_pad", "clk_srcpll",
 			"samesource_srcpll", "samesource_clk";
 
 		pinctrl-names = "tdm_pins";
@@ -1534,7 +1560,7 @@
 	};
 
 	aed:effect {
-		compatible = "amlogic, snd-effect-v2";
+		compatible = "amlogic, snd-effect-v3";
 		#sound-dai-cells = <0>;
 
 		clocks = <&clkaudio CLKID_AUDIO_GATE_EQDRC
@@ -1555,7 +1581,7 @@
 		/* max 0xff, each bit for one channel */
 		channel_mask = <0xff>;
 
-		status = "disable";
+		status = "okay";
 	};
 
 	asrca: resample@0 {
@@ -1875,8 +1901,7 @@
 			 "MMC_CAP_HW_RESET",
 			 "MMC_CAP_ERASE",
 			 "MMC_CAP_CMD23";
-		caps2 = "MMC_CAP2_HS200";
-			/*"MMC_CAP2_HS400";*/
+		caps2 = "MMC_CAP2_HS200", "MMC_CAP2_HS400";
 		f_min = <400000>;
 		f_max = <200000000>;
 	};

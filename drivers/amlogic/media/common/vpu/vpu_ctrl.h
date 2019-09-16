@@ -510,7 +510,9 @@ static struct vpu_ctrl_s vpu_mem_pd_tm2[] = {
 	{VPU_TCON,            HHI_VPU_MEM_PD_REG3, 0x3, 16,  16},
 	{VPU_AXI_WR1,         HHI_VPU_MEM_PD_REG4, 0x3,  0,   2},
 	{VPU_AXI_WR0,         HHI_VPU_MEM_PD_REG4, 0x3,  2,   2},
-	{VPU_DMA,             HHI_VPU_MEM_PD_REG4, 0xf,  4,   4},
+	{VPU_AFBCE,           HHI_VPU_MEM_PD_REG4, 0x3,  4,   2},
+	{VPU_VDIN_WR_MIF2,    HHI_VPU_MEM_PD_REG4, 0x3,  6,   2},
+	{VPU_DMA,             HHI_VPU_MEM_PD_REG4, 0xf,  8,   4},
 	{VPU_MOD_MAX,         VPU_REG_END,         0,    0,   0},
 };
 

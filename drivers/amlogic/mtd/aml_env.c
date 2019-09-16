@@ -226,6 +226,10 @@ ssize_t uboot_env_read(struct file *file,
 		read_size = count;
 
 	ret = copy_to_user(buf, (env_ptr + *ppos), read_size);
+	if (ret) {
+		read_size = -EFAULT;
+		goto exit;
+	}
 	*ppos += read_size;
 exit:
 	chip->select_chip(mtd, -1);
@@ -270,6 +274,10 @@ ssize_t uboot_env_write(struct file *file,
 		write_size = count;
 
 	ret = copy_from_user((env_ptr + *ppos), buf, write_size);
+	if (ret) {
+		write_size = -EFAULT;
+		goto exit;
+	}
 
 	ret = amlnf_env_save(env_ptr, CONFIG_ENV_SIZE);
 	if (ret) {

@@ -27,13 +27,12 @@
 
 
 /* struct ve_dnlp_s          video_ve_dnlp; */
-
 #define FLAG_RSV31              (1 << 31)
 #define FLAG_VADJ1_COLOR        (1 << 30)
 #define FLAG_VE_DNLP            (1 << 29)
 #define FLAG_VE_NEW_DNLP        (1 << 28)
 #define FLAG_VE_LC_CURV         (1 << 27)
-#define FLAG_RSV26              (1 << 26)
+#define FLAG_HDR_OOTF_LATCH     BIT(26)
 #define FLAG_3D_BLACK_DIS       (1 << 25)
 #define FLAG_3D_BLACK_EN        (1 << 24)
 #define FLAG_3D_SYNC_DIS        (1 << 23)
@@ -97,9 +96,13 @@
 #define MTX_BYPASS_RGB_OGO			(1 << 0)
 #define MTX_RGB2YUVL_RGB_OGO		(1 << 1)
 
-#define SDR_SOURCE    (1 << 0)
-#define HDR10_SOURCE  (1 << 1)
-#define HLG_SOURCE    (1 << 2)
+#define UNKNOWN_SOURCE		0
+#define HDR10_SOURCE		1
+#define HDR10PLUS_SOURCE	2
+#define DOVI_SOURCE			3
+#define PRIMESL_SOURCE		4
+#define HLG_SOURCE			5
+#define SDR_SOURCE			6
 
 enum cm_hist_e {
 	CM_HUE_HIST = 0,
@@ -219,6 +222,14 @@ enum pc_mode_e {
 /*Local contrast command list*/
 #define AMVECM_IOC_S_LC_CURVE _IOW(_VE_CM, 0x62, struct ve_lc_curve_parm_s)
 
+/*tone mapping struct*/
+struct hdr_tone_mapping_s {
+	unsigned int lutlength;
+	unsigned int *tm_lut;
+};
+
+#define AMVECM_IOC_S_HDR_TM  _IOW(_VE_CM, 0x63, struct hdr_tone_mapping_s)
+#define AMVECM_IOC_G_HDR_TM  _IOR(_VE_CM, 0x64, struct hdr_tone_mapping_s)
 
 struct am_vdj_mode_s {
 	int flag;
@@ -270,11 +281,19 @@ enum vpp_matrix_csc_e {
 };
 
 enum hdr_type_e {
-	HDRTYPE_NONE = 0,
-	HDRTYPE_SDR = 0x1,
-	HDRTYPE_HDR10 = 0x2,
-	HDRTYPE_HLG = 0x4,
-	HDRTYPE_MAX,
+	HDRTYPE_NONE = UNKNOWN_SOURCE,
+	HDRTYPE_SDR = SDR_SOURCE,
+	HDRTYPE_HDR10 = HDR10_SOURCE,
+	HDRTYPE_HLG = HLG_SOURCE,
+	HDRTYPE_HDR10PLUS = HDR10PLUS_SOURCE,
+	HDRTYPE_DOVI = DOVI_SOURCE
+};
+
+enum pd_comb_fix_lvl_e {
+	PD_LOW_LVL = 0,
+	PD_MID_LVL,
+	PD_HIG_LVL,
+	PD_DEF_LVL
 };
 
 enum vpp_transfer_characteristic_e {
@@ -349,6 +368,12 @@ struct vecm_match_data_s {
 	enum vlock_hw_ver_e vlk_hwver;
 	u32 vlk_phlock_en;
 	u32 vlk_pll_sel;/*independent panel pll and hdmitx pll*/
+};
+
+enum vd_path_e {
+	VD1_PATH = 0,
+	VD2_PATH = 1,
+	VD_PATH_MAX = 2
 };
 
 /*overscan:
@@ -447,10 +472,11 @@ static inline uint32_t READ_VPP_REG_BITS(uint32_t reg,
 
 extern signed int vd1_brightness, vd1_contrast;
 extern bool gamma_en;
-
 extern unsigned int atv_source_flg;
+extern unsigned int sr_demo_flag;
 
 extern enum hdr_type_e hdr_source_type;
+extern bool pd_detect_en;
 
 #define CSC_FLAG_TOGGLE_FRAME	1
 #define CSC_FLAG_CHECK_OUTPUT	2
@@ -462,7 +488,10 @@ extern int amvecm_on_vs(
 	unsigned int sps_h_en,
 	unsigned int sps_v_en,
 	unsigned int sps_w_in,
-	unsigned int sps_h_in);
+	unsigned int sps_h_in,
+	unsigned int cm_in_w,
+	unsigned int cm_in_h,
+	enum vd_path_e vd_path);
 extern void refresh_on_vs(struct vframe_s *vf);
 extern void pc_mode_process(void);
 extern void pq_user_latch_process(void);
@@ -504,5 +533,6 @@ extern int amvecm_drm_gamma_disable(u32 index);
 extern int am_meson_ctm_set(u32 index, struct drm_color_ctm *ctm);
 extern int am_meson_ctm_disable(void);
 
+extern void enable_osd1_mtx(unsigned int en);
 #endif /* AMVECM_H */
 

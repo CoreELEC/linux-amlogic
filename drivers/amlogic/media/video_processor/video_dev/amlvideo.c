@@ -54,6 +54,8 @@
 #include "amlvideo.h"
 
 #define AVMLVIDEO_MODULE_NAME "amlvideo"
+#define KERNEL_ATRACE_TAG KERNEL_ATRACE_TAG_AMLVIDEO
+#include <trace/events/meson_atrace.h>
 
 #define AMLVIDEO_INFO(fmt, args...) pr_info("amlvid:info: "fmt"", ## args)
 #define AMLVIDEO_DBG(fmt, args...) pr_debug("amlvid:dbg: "fmt"", ## args)
@@ -154,9 +156,12 @@ static struct vframe_s *amlvideo_vf_peek(void *op_arg)
 
 static struct vframe_s *amlvideo_vf_get(void *op_arg)
 {
+	struct vframe_s *vf;
 	struct vivi_dev *dev = (struct vivi_dev *)op_arg;
 
-	return vfq_pop(&dev->q_ready);
+	vf = vfq_pop(&dev->q_ready);
+	ATRACE_COUNTER(dev->v4l2_dev.name, vfq_level(&dev->q_ready));
+	return vf;
 }
 
 static void amlvideo_vf_put(struct vframe_s *vf, void *op_arg)
@@ -596,6 +601,7 @@ static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *p)
 		dev->vf->next_vf_pts = next_vf->pts;
 
 	vfq_push(&dev->q_ready, dev->vf);
+	ATRACE_COUNTER(dev->v4l2_dev.name, vfq_level(&dev->q_ready));
 	p->index = 0;
 
 	p->timestamp.tv_sec = pts_us64 >> 32;
@@ -741,18 +747,21 @@ static unsigned int amlvideo_poll(struct file *file,
 {
 	struct vivi_fh *fh = file->private_data;
 	struct vivi_dev *dev = fh->dev;
-	//struct videobuf_queue *q = &fh->vb_vidq;
 
 	dprintk(dev, 1, "%s\n", __func__);
 
 	if (fh->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return POLLERR;
+
+	if (vf_peek(dev->vf_receiver_name))
+		return POLL_IN | POLLRDNORM;
+
 	poll_wait(file, &dev->wq, wait);
+
 	if (vf_peek(dev->vf_receiver_name))
 		return POLL_IN | POLLRDNORM;
 	else
 		return 0;
-	//return videobuf_poll_stream(file, q, wait);
 }
 
 static int amlvideo_close(struct file *file)

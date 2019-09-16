@@ -19,6 +19,7 @@
 #include <linux/compiler.h>
 #include <linux/mm.h>
 #include <linux/kernel.h>
+#include <linux/rmap.h>
 #include <linux/kthread.h>
 #include <linux/sched/rt.h>
 #include <linux/completion.h>
@@ -31,6 +32,7 @@
 #include <linux/amlogic/aml_cma.h>
 #include <linux/hugetlb.h>
 #include <linux/proc_fs.h>
+#include <asm/system_misc.h>
 #include <trace/events/page_isolation.h>
 #ifdef CONFIG_AMLOGIC_PAGE_TRACE
 #include <linux/amlogic/page_trace.h>
@@ -228,21 +230,42 @@ static struct page *get_migrate_page(struct page *page, unsigned long private,
 				  int **resultp)
 {
 	gfp_t gfp_mask = GFP_USER | __GFP_MOVABLE | __GFP_BDEV;
+	struct page *new = NULL;
+#ifdef CONFIG_AMLOGIC_PAGE_TRACE
+	struct page_trace *old_trace, *new_trace;
+#endif
 
 	/*
 	 * TODO: allocate a destination hugepage from a nearest neighbor node,
 	 * accordance with memory policy of the user process if possible. For
 	 * now as a simple work-around, we use the next node for destination.
 	 */
-	if (PageHuge(page))
-		return alloc_huge_page_node(page_hstate(compound_head(page)),
+	if (PageHuge(page)) {
+		new = alloc_huge_page_node(page_hstate(compound_head(page)),
 					    next_node_in(page_to_nid(page),
 							 node_online_map));
+	#ifdef CONFIG_AMLOGIC_PAGE_TRACE
+		if (new) {
+			old_trace = find_page_base(page);
+			new_trace = find_page_base(new);
+			*new_trace = *old_trace;
+		}
+	#endif
+		return new;
+	}
 
 	if (PageHighMem(page))
 		gfp_mask |= __GFP_HIGHMEM;
 
-	return alloc_page(gfp_mask);
+	new = alloc_page(gfp_mask);
+#ifdef CONFIG_AMLOGIC_PAGE_TRACE
+	if (new) {
+		old_trace = find_page_base(page);
+		new_trace = find_page_base(new);
+		*new_trace = *old_trace;
+	}
+#endif
+	return new;
 }
 
 /* [start, end) must belong to a single zone. */
@@ -716,6 +739,31 @@ void aml_cma_free(unsigned long pfn, unsigned int nr_pages)
 }
 EXPORT_SYMBOL(aml_cma_free);
 
+static int cma_vma_show(struct page *page, struct vm_area_struct *vma,
+			unsigned long addr, void *arg)
+{
+#ifdef CONFIG_AMLOGIC_USER_FAULT
+	struct mm_struct *mm = vma->vm_mm;
+
+	show_vma(mm, addr);
+#endif
+	return SWAP_AGAIN;
+}
+
+void rmap_walk_vma(struct page *page)
+{
+	struct rmap_walk_control rwc = {
+		.rmap_one = cma_vma_show,
+	};
+
+	pr_info("%s, show map for page:%lx,f:%lx, m:%p, p:%d\n",
+		__func__, page_to_pfn(page), page->flags,
+		page->mapping, page_count(page));
+	if (!page_mapping(page))
+		return;
+	rmap_walk(page, &rwc);
+}
+
 void show_page(struct page *page)
 {
 	unsigned long trace = 0;
@@ -733,6 +781,8 @@ void show_page(struct page *page)
 		page->flags & 0xffffffff,
 		page_mapcount(page), page_count(page),
 		(void *)trace);
+	if (cma_debug_level > 4)
+		rmap_walk_vma(page);
 }
 
 static int cma_debug_show(struct seq_file *m, void *arg)

@@ -212,7 +212,7 @@
 */
 			SYSTEM_SLEEP_0: system-sleep-0 {
 				compatible = "arm,idle-state";
-				arm,psci-suspend-param = <0x1010000>;
+				arm,psci-suspend-param = <0x1020000>;
 				local-timer-stop;
 				entry-latency-us = <0x3fffffff>;
 				exit-latency-us = <0x40000000>;
@@ -242,15 +242,17 @@
 	};
 
 	arm_pmu {
-		compatible = "arm,cortex-a15-pmu";
-		/* clusterb-enabled; */
-		interrupts = <GIC_SPI 137 IRQ_TYPE_LEVEL_HIGH>;
-		reg = <0xc8834680 0x4>;
-		cpumasks = <0xf>;
+		compatible = "arm,cortex-a7-pmu";
+		clusterb-enabled;
+		interrupts = <GIC_SPI 137 IRQ_TYPE_LEVEL_HIGH>,
+			<GIC_SPI 132 IRQ_TYPE_LEVEL_HIGH>;
+		reg = <0xc8834680 0x4>,
+			<0xc8834740 0x4>;
+		cpumasks = <0xf 0xf0>;
 		/* default 10ms */
 		relax-timer-ns = <10000000>;
-		/* default 10000us */
-		max-wait-cnt = <10000>;
+		/* default 100000us */
+		max-wait-cnt = <100000>;
 	};
 
 	gic: interrupt-controller@2c001000 {
@@ -659,6 +661,7 @@
 			clkc: clock-controller@0 {
 				compatible = "amlogic,gxl-clkc";
 				#clock-cells = <1>;
+				#reset-cells = <1>;
 				reg = <0x0 0x3db>;
 			};
 		};

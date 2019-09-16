@@ -499,6 +499,7 @@ static int iw7027_smr(unsigned short *buf, unsigned char len)
 	dim_max = ldim_drv->ldev_conf->dim_max;
 	dim_min = ldim_drv->ldev_conf->dim_min;
 
+#if 0 /* this function will cause backlight flicker */
 	if (ldim_drv->vsync_change_flag == 50) {
 		iw7027_wreg(bl_iw7027->spi, 0x31, 0xd7);
 		ldim_drv->vsync_change_flag = 0;
@@ -506,6 +507,7 @@ static int iw7027_smr(unsigned short *buf, unsigned char len)
 		iw7027_wreg(bl_iw7027->spi, 0x31, 0xd3);
 		ldim_drv->vsync_change_flag = 0;
 	}
+#endif
 	if (bl_iw7027->test_mode) {
 		if (test_brightness == NULL) {
 			if (vsync_cnt == 0)

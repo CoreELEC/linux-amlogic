@@ -338,11 +338,23 @@ enum ge2d_memtype_s {
 #define GE2D_FORMAT_S16_10BIT_YUV422 \
 	(GE2D_FMT_S16_10BIT_YUV422 | GE2D_COLOR_MAP_10BIT_YUV422)
 
+#define GE2D_FORMAT_S16_10BIT_YUV422T \
+	(GE2D_FMT_S16_10BIT_YUV422T | GE2D_COLOR_MAP_10BIT_YUV422)
+
+#define GE2D_FORMAT_S16_10BIT_YUV422B \
+		(GE2D_FMT_S16_10BIT_YUV422B | GE2D_COLOR_MAP_10BIT_YUV422)
+
 #define GE2D_FORMAT_S16_10BIT_YVU422 \
 	(GE2D_FMT_S16_10BIT_YUV422 | GE2D_COLOR_MAP_10BIT_YVU422)
 
 #define GE2D_FORMAT_S16_12BIT_YUV422 \
 	(GE2D_FMT_S16_12BIT_YUV422 | GE2D_COLOR_MAP_12BIT_YUV422)
+
+#define GE2D_FORMAT_S16_12BIT_YUV422T \
+	(GE2D_FMT_S16_12BIT_YUV422T | GE2D_COLOR_MAP_12BIT_YUV422)
+
+#define GE2D_FORMAT_S16_12BIT_YUV422B \
+	(GE2D_FMT_S16_12BIT_YUV422B | GE2D_COLOR_MAP_12BIT_YUV422)
 
 #define GE2D_FORMAT_S16_12BIT_YVU422 \
 	(GE2D_FMT_S16_12BIT_YUV422 | GE2D_COLOR_MAP_12BIT_YVU422)
@@ -616,6 +628,14 @@ struct ge2d_cmd_s {
 	unsigned char    hang_flag;
 };
 
+struct ge2d_canvas_cfg_s {
+	int canvas_used;
+	int canvas_index;
+	unsigned int stride;
+	unsigned int height;
+	unsigned long phys_addr;
+};
+
 struct ge2d_dma_cfg_s {
 	int dma_used;
 	void *dma_cfg;
@@ -631,6 +651,9 @@ struct ge2d_config_s {
 	unsigned int	v_scale_coef_type;
 	unsigned int	h_scale_coef_type;
 	unsigned int	update_flag;
+	struct ge2d_canvas_cfg_s src_canvas_cfg[MAX_PLANE];
+	struct ge2d_canvas_cfg_s src2_canvas_cfg[MAX_PLANE];
+	struct ge2d_canvas_cfg_s dst_canvas_cfg[MAX_PLANE];
 	struct ge2d_dma_cfg_s src_dma_cfg[MAX_PLANE];
 	struct ge2d_dma_cfg_s src2_dma_cfg[MAX_PLANE];
 	struct ge2d_dma_cfg_s dst_dma_cfg[MAX_PLANE];
@@ -706,6 +729,7 @@ struct ge2d_manager_s {
 	int irq_num;
 	int ge2d_state;
 	int process_queue_state;
+	int probe;
 	struct platform_device *pdev;
 };
 

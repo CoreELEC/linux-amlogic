@@ -22,6 +22,9 @@
 #include <linux/page_owner.h>
 #include <linux/psi.h>
 #include "internal.h"
+#ifdef CONFIG_AMLOGIC_PAGE_TRACE
+#include <linux/amlogic/page_trace.h>
+#endif
 
 #ifdef CONFIG_COMPACTION
 static inline void count_compact_event(enum vm_event_item item)
@@ -973,6 +976,10 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
 
 isolate_success:
 		list_add(&page->lru, &cc->migratepages);
+	#ifdef CONFIG_AMLOGIC_CMA
+		if (cc->page_type == COMPACT_CMA)
+			SetPageCmaAllocating(page);
+	#endif
 		cc->nr_migratepages++;
 		nr_isolated++;
 
@@ -1262,6 +1269,9 @@ static struct page *compaction_alloc(struct page *migratepage,
 {
 	struct compact_control *cc = (struct compact_control *)data;
 	struct page *freepage;
+#ifdef CONFIG_AMLOGIC_PAGE_TRACE
+	struct page_trace *old_trace, *new_trace;
+#endif
 
 	/*
 	 * Isolate free pages if necessary, and if we are not aborting due to
@@ -1278,6 +1288,13 @@ static struct page *compaction_alloc(struct page *migratepage,
 	freepage = list_entry(cc->freepages.next, struct page, lru);
 	list_del(&freepage->lru);
 	cc->nr_freepages--;
+#ifdef CONFIG_AMLOGIC_PAGE_TRACE
+	if (freepage) {
+		old_trace = find_page_base(migratepage);
+		new_trace = find_page_base(freepage);
+		*new_trace = *old_trace;
+	}
+#endif
 
 	return freepage;
 }

@@ -27,6 +27,9 @@
 #include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/amlogic/media/codec_mm/codec_mm.h>
+#ifdef CONFIG_AMLOGIC_PIXEL_PROBE
+#include <linux/amlogic/pixel_probe.h>
+#endif
 /* Local Headers */
 #include "../tvin_format_table.h"
 #include "vdin_drv.h"
@@ -37,46 +40,6 @@
 #include <linux/seq_file.h>
 #include <linux/debugfs.h>
 
-static void vdin_get_vdin_yuv_rgb_mat0(unsigned int offset,
-		unsigned int *rgb_yuv0,
-		unsigned int *rgb_yuv1,
-		unsigned int *rgb_yuv2)
-{
-	*rgb_yuv0 = 0;  *rgb_yuv1 = 0;  *rgb_yuv2 = 0;
-
-	*rgb_yuv0 = ((rd_bits(offset, VDIN_MATRIX_PROBE_COLOR,
-		COMPONENT2_PROBE_COLOR_BIT, COMPONENT2_PROBE_COLOR_WID)
-			<< 8) >> 10);
-	*rgb_yuv1 = ((rd_bits(offset, VDIN_MATRIX_PROBE_COLOR,
-		COMPONENT1_PROBE_COLOR_BIT, COMPONENT1_PROBE_COLOR_WID)
-			<< 8) >> 10);
-	*rgb_yuv2 = ((rd_bits(offset, VDIN_MATRIX_PROBE_COLOR,
-		COMPONENT0_PROBE_COLOR_BIT, COMPONENT0_PROBE_COLOR_WID)
-			<< 8) >> 10);
-}
-
-static void vdin_set_prob_matrix0_xy(unsigned int offset,
-		unsigned int x, unsigned int y, struct vdin_dev_s *devp)
-{
-
-	if (devp->fmt_info_p->scan_mode == TVIN_SCAN_MODE_INTERLACED)
-		y = y/2;
-
-	wr_bits(offset, VDIN_MATRIX_PROBE_POS, y,
-		PROBE_POX_Y_BIT, PROBE_POX_Y_WID);
-	wr_bits(offset, VDIN_MATRIX_PROBE_POS, x,
-		PROBE_POS_X_BIT, PROBE_POS_X_WID);
-}
-
-static void vdin_set_before_after_mat0(unsigned int offset,
-		unsigned int x, struct vdin_dev_s *devp)
-{
-	if ((x != 0) && (x != 1))
-		return;
-
-	wr_bits(offset, VDIN_MATRIX_CTRL, x,
-			VDIN_PROBE_POST_BIT, VDIN_PROBE_POST_WID);
-}
 
 static void vdin_parse_param(char *buf_orig, char **parm)
 {
@@ -719,6 +682,8 @@ static void vdin_dump_state(struct vdin_dev_s *devp)
 	struct vframe_s *vf = &devp->curr_wr_vfe->vf;
 	struct tvin_parm_s *curparm = &devp->parm;
 	struct vf_pool *vfp = devp->vfp;
+
+	pr_info("flags=0x%x\n", devp->flags);
 	pr_info("h_active = %d, v_active = %d\n",
 		devp->h_active, devp->v_active);
 	pr_info("canvas_w = %d, canvas_h = %d\n",
@@ -756,7 +721,7 @@ static void vdin_dump_state(struct vdin_dev_s *devp)
 	pr_info("frontend_fps:%d\n", devp->prop.fps);
 	pr_info("frontend_colordepth:%d\n", devp->prop.colordepth);
 	pr_info("source_bitdepth:%d\n", devp->source_bitdepth);
-	pr_info("color_depth_config:%d\n", devp->color_depth_config);
+	pr_info("color_depth_config:0x%x\n", devp->color_depth_config);
 	pr_info("color_depth_mode:%d\n", devp->color_depth_mode);
 	pr_info("color_depth_support:0x%x\n", devp->color_depth_support);
 	pr_info("cma_flag:0x%x\n", devp->cma_config_flag);
@@ -767,6 +732,7 @@ static void vdin_dump_state(struct vdin_dev_s *devp)
 	pr_info("cma_mem_size:0x%x\n", devp->cma_mem_size);
 	pr_info("cma_mem_mode:%d\n", devp->cma_mem_mode);
 	pr_info("force_yuv444_malloc:%d\n", devp->force_yuv444_malloc);
+	vdin_check_hdmi_hdr(devp);
 	vdin_dump_vf_state(devp->vfp);
 	if (vf) {
 		pr_info("current vframe index(%u):\n", vf->index);
@@ -809,26 +775,8 @@ static void vdin_dump_state(struct vdin_dev_s *devp)
 		devp->vdin_irq_flag, devp->vdin_reset_flag,
 		devp->irq_cnt, devp->rdma_irq_cnt);
 	pr_info("vdin_drop_cnt: %d\n", vdin_drop_cnt);
-	pr_info("game_mode :  %d\n", devp->game_mode);
-	pr_info("dolby_input :  %d\n", devp->dv.dolby_input);
-	if ((devp->cma_config_en != 1) || !(devp->cma_config_flag & 0x100))
-		pr_info("dolby_mem_start = %ld, dolby_mem_size = %d\n",
-			(devp->mem_start +
-			devp->mem_size - devp->canvas_max_num*dolby_size_byte),
-			dolby_size_byte);
-	else
-		for (i = 0; i < devp->canvas_max_num; i++)
-			pr_info("dolby_mem_start[%d] = %ld, dolby_mem_size = %d\n",
-				i, (devp->vfmem_start[i] + devp->vfmem_size -
-				dolby_size_byte), dolby_size_byte);
-	for (i = 0; i < devp->canvas_max_num; i++) {
-		pr_info("dv_mem(%d):0x%x\n",
-			devp->vfp->dv_buf_size[i],
-			devp->vfp->dv_buf_mem[i]);
-	}
-	pr_info("dv_flag:%d;dv_config:%d,dolby_vision:%d\n",
-		devp->dv.dv_flag, devp->dv.dv_config, devp->prop.dolby_vision);
-	pr_info("size of struct vdin_dev_s: %d\n", devp->vdin_dev_ssize);
+	pr_info("game_mode cfg :  0x%x\n", game_mode);
+	pr_info("game_mode cur:  0x%x\n", devp->game_mode);
 
 	pr_info("afbce_flag: 0x%x\n", devp->afbce_flag);
 	pr_info("afbce_mode: %d\n", devp->afbce_mode);
@@ -855,6 +803,57 @@ static void vdin_dump_state(struct vdin_dev_s *devp)
 				devp->afbce_info->frame_body_size);
 		}
 	}
+
+	pr_info("dolby_input :  %d\n", devp->dv.dolby_input);
+	if ((devp->cma_config_en != 1) || !(devp->cma_config_flag & 0x100))
+		pr_info("dolby_mem_start = %ld, dolby_mem_size = %d\n",
+			(devp->mem_start +
+			devp->mem_size - devp->canvas_max_num*dolby_size_byte),
+			dolby_size_byte);
+	else
+		for (i = 0; i < devp->canvas_max_num; i++)
+			pr_info("dolby_mem_start[%d] = %ld, dolby_mem_size = %d\n",
+				i, (devp->vfmem_start[i] + devp->vfmem_size -
+				dolby_size_byte), dolby_size_byte);
+	for (i = 0; i < devp->canvas_max_num; i++) {
+		pr_info("dv_mem(%d):0x%x\n",
+			devp->vfp->dv_buf_size[i],
+			devp->vfp->dv_buf_mem[i]);
+	}
+	pr_info("dvEn:%d,dv_flag:%d;dv_cfg:%d,dolby_ver:%d,low_latency:(%d,%d,%d)\n",
+		is_dolby_vision_enable(),
+		devp->dv.dv_flag, devp->dv.dv_config, devp->prop.dolby_vision,
+		devp->dv.low_latency, devp->prop.low_latency,
+		devp->vfp->low_latency);
+
+	pr_info("size of struct vdin_dev_s: %d\n", devp->vdin_dev_ssize);
+	pr_info("devp->dv.dv_vsif:(%d,%d,%d,%d,%d,%d,%d,%d);\n",
+		devp->dv.dv_vsif.dobly_vision_signal,
+		devp->dv.dv_vsif.backlt_ctrl_MD_present,
+		devp->dv.dv_vsif.auxiliary_MD_present,
+		devp->dv.dv_vsif.eff_tmax_PQ_hi,
+		devp->dv.dv_vsif.eff_tmax_PQ_low,
+		devp->dv.dv_vsif.auxiliary_runmode,
+		devp->dv.dv_vsif.auxiliary_runversion,
+		devp->dv.dv_vsif.auxiliary_debug0);
+	pr_info("devp->prop.dv_vsif:(%d,%d,%d,%d,%d,%d,%d,%d)\n",
+		devp->prop.dv_vsif.dobly_vision_signal,
+		devp->prop.dv_vsif.backlt_ctrl_MD_present,
+		devp->prop.dv_vsif.auxiliary_MD_present,
+		devp->prop.dv_vsif.eff_tmax_PQ_hi,
+		devp->prop.dv_vsif.eff_tmax_PQ_low,
+		devp->prop.dv_vsif.auxiliary_runmode,
+		devp->prop.dv_vsif.auxiliary_runversion,
+		devp->prop.dv_vsif.auxiliary_debug0);
+	pr_info("devp->vfp->dv_vsif:(%d,%d,%d,%d,%d,%d,%d,%d)\n",
+		devp->vfp->dv_vsif.dobly_vision_signal,
+		devp->vfp->dv_vsif.backlt_ctrl_MD_present,
+		devp->vfp->dv_vsif.auxiliary_MD_present,
+		devp->vfp->dv_vsif.eff_tmax_PQ_hi,
+		devp->vfp->dv_vsif.eff_tmax_PQ_low,
+		devp->vfp->dv_vsif.auxiliary_runmode,
+		devp->vfp->dv_vsif.auxiliary_runversion,
+		devp->vfp->dv_vsif.auxiliary_debug0);
 	pr_info("Vdin driver version :  %s\n", VDIN_VER);
 }
 
@@ -909,7 +908,7 @@ static int seq_file_vdin_state_show(struct seq_file *seq, void *v)
 	seq_printf(seq, "frontend_fps:%d\n", devp->prop.fps);
 	seq_printf(seq, "frontend_colordepth:%d\n", devp->prop.colordepth);
 	seq_printf(seq, "source_bitdepth:%d\n", devp->source_bitdepth);
-	seq_printf(seq, "color_depth_config:%d\n", devp->color_depth_config);
+	seq_printf(seq, "color_depth_config:0x%x\n", devp->color_depth_config);
 	seq_printf(seq, "color_depth_mode:%d\n", devp->color_depth_mode);
 	seq_printf(seq, "color_depth_support:0x%x\n",
 		devp->color_depth_support);
@@ -1491,8 +1490,16 @@ static ssize_t vdin_attr_store(struct device *dev,
 		ret = request_irq(devp->irq, vdin_isr, IRQF_SHARED,
 				devp->irq_name, (void *)devp);
 
+		if (vdin_dbg_en)
+			pr_info("%s vdin.%d request_irq\n", __func__,
+				devp->index);
+
 		/*disable irq until vdin is configured completely*/
 		disable_irq_nosync(devp->irq);
+
+		if (vdin_dbg_en)
+			pr_info("%s vdin.%d disable_irq_nosync\n", __func__,
+				devp->index);
 		/*init queue*/
 		init_waitqueue_head(&devp->queue);
 		/* remove the hardware limit to vertical [0-max]*/
@@ -1552,6 +1559,10 @@ start_chk:
 		devp->flags &= (~VDIN_FLAG_DEC_STARTED);
 		/* free irq */
 		free_irq(devp->irq, (void *)devp);
+
+		if (vdin_dbg_en)
+			pr_info("%s vdin.%d free_irq\n", __func__,
+				devp->index);
 		/* reset the hardware limit to vertical [0-1079]  */
 		/* WRITE_VCBUS_REG(VPP_PREBLEND_VD1_V_START_END, 0x00000437); */
 	} else if (!strcmp(parm[0], "v4l2stop")) {
@@ -1784,21 +1795,46 @@ start_chk:
 		reg = VDIN_MISC_CTRL;
 		pr_info("0x%04x = 0x%08x\n", (reg), R_VCBUS(reg));
 		pr_info("\n");
-	} else if (!strcmp(parm[0], "rgb_xy")) {
+	} else if (!strcmp(parm[0], "prob_xy")) {
 		unsigned int x = 0, y = 0;
-
+#ifdef CONFIG_AMLOGIC_PIXEL_PROBE
+		vdin_probe_enable();
+#endif
 		if (parm[1] && parm[2]) {
 			if (kstrtoul(parm[1], 10, &val) == 0)
 				x = val;
 			if (kstrtoul(parm[2], 10, &val) == 0)
 				y = val;
-			vdin_set_prob_xy(devp->addr_offset, x, y, devp);
+			vdin_prob_set_xy(devp->addr_offset, x, y, devp);
 		} else
 			pr_err("miss parameters .\n");
-	} else if (!strcmp(parm[0], "rgb_info")) {
+	} else if (!strcmp(parm[0], "prob_rgb")) {
 		unsigned int r, g, b;
-		vdin_get_prob_rgb(devp->addr_offset, &r, &g, &b);
-		pr_info("rgb_info-->r:%d,g:%d,b:%d\n", r, g, b);
+		vdin_prob_get_rgb(devp->addr_offset, &r, &g, &b);
+		pr_info("rgb_info-->r:%x,g:%x,b:%x\n", r, g, b);
+	} else if (!strcmp(parm[0], "prob_yuv")) {
+		unsigned int r, g, b;
+
+		vdin_prob_get_yuv(devp->addr_offset, &r, &g, &b);
+		pr_info("yuv_info-->u:%x,v:%x,y:%x\n", r, g, b);
+	} else if (!strcmp(parm[0], "prob_pre_post")) {
+		unsigned int x = 0;
+
+		if (!parm[1])
+			pr_err("miss parameters .\n");
+		if (kstrtoul(parm[1], 10, &val) == 0)
+			x = val;
+		pr_info("matrix post sel: %d\n", x);
+		vdin_prob_set_before_or_after_mat(devp->addr_offset, x, devp);
+	} else if (!strcmp(parm[0], "prob_mat_sel")) {
+		unsigned int x = 0;
+
+		if (!parm[1])
+			pr_err("miss parameters .\n");
+		if (kstrtoul(parm[1], 10, &val) == 0)
+			x = val;
+		pr_info("matrix sel : %d\n", x);
+		vdin_prob_matrix_sel(devp->addr_offset, x, devp);
 	} else if (!strcmp(parm[0], "mpeg2vdin")) {
 		if (parm[1] && parm[2]) {
 			if (kstrtoul(parm[1], 10, &val) == 0)
@@ -1810,33 +1846,6 @@ start_chk:
 				devp->h_active, devp->v_active);
 		} else
 			pr_err("miss parameters .\n");
-	} else if (!strcmp(parm[0], "yuv_rgb_info")) {
-		unsigned int rgb_yuv0, rgb_yuv1, rgb_yuv2;
-		vdin_get_vdin_yuv_rgb_mat0(devp->addr_offset,
-				&rgb_yuv0, &rgb_yuv1, &rgb_yuv2);
-		pr_info("rgb_yuv0 :%d, rgb_yuv1 :%d , rgb_yuv2 :%d\n",
-				rgb_yuv0, rgb_yuv1, rgb_yuv2);
-	} else if (!strcmp(parm[0], "mat0_xy")) {
-		unsigned int x = 0, y = 0;
-
-		if (parm[1] && parm[2]) {
-			if (kstrtoul(parm[1], 10, &val) == 0)
-				x = val;
-			if (kstrtoul(parm[2], 10, &val) == 0)
-				y = val;
-			pr_info("pos x  :%d, pos y  :%d\n", x, y);
-			vdin_set_prob_matrix0_xy(devp->addr_offset, x, y, devp);
-		} else
-			pr_err("miss parameters .\n");
-	} else if (!strcmp(parm[0], "mat0_set")) {
-		unsigned int x = 0;
-
-		if (!parm[1])
-			pr_err("miss parameters .\n");
-		if (kstrtoul(parm[1], 10, &val) == 0)
-			x = val;
-		pr_info("matrix set : %d\n", x);
-		vdin_set_before_after_mat0(devp->addr_offset, x, devp);
 	} else if (!strcmp(parm[0], "hdr")) {
 		int i;
 		struct vframe_master_display_colour_s *prop;
@@ -1934,8 +1943,8 @@ start_chk:
 		if (!parm[1])
 			pr_err("miss parameters .\n");
 		else if (kstrtoul(parm[1], 10, &val) == 0) {
-			devp->color_depth_config = val;
-			pr_info("color_depth(%d):%d\n\n", devp->index,
+			devp->color_depth_config = val | COLOR_DEEPS_MANUAL;
+			pr_info("color_depth(%d):0x%x\n\n", devp->index,
 				devp->color_depth_config);
 		}
 	} else if (!strcmp(parm[0], "color_depth_support")) {
@@ -2133,16 +2142,6 @@ start_chk:
 					skip_frame_debug);
 		} else {
 			pr_info("skip_frame_debug: %d\n", skip_frame_debug);
-		}
-	} else if (!strcmp(parm[0], "max_recycle_cnt")) {
-		if (parm[1] != NULL) {
-			if (kstrtouint(parm[1], 10,
-				&max_recycle_frame_cnt) == 0)
-				pr_info("set max_recycle_frame_cnt: %d\n",
-					max_recycle_frame_cnt);
-		} else {
-			pr_info("max_recycle_frame_cnt: %d\n",
-				max_recycle_frame_cnt);
 		}
 	} else if (!strcmp(parm[0], "max_ignore_cnt")) {
 		if (parm[1] != NULL) {

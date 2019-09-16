@@ -33,6 +33,8 @@
 #include "deinterlace.h"
 #include "register.h"
 #include "register_nr4.h"
+#include "nr_drv.h"
+
 #ifdef DET3D
 #include "detect3d.h"
 #endif
@@ -870,7 +872,7 @@ const unsigned int reg_AFBC[AFBC_DEC_NUB][AFBC_REG_INDEX_NUB] = {
 
 };
 
-static enum eAFBC_DEC afbc_get_decnub(void)
+enum eAFBC_DEC afbc_get_decnub(void)
 {
 	enum eAFBC_DEC sel_dec = eAFBC_DEC0;
 	/* info from vlsi feijun
@@ -908,7 +910,7 @@ bool afbc_is_supported(void)
 	else if (is_meson_g12a_cpu())
 		ret = false;
 	else if (is_meson_tl1_cpu() || is_meson_tm2_cpu())
-		ret = true;
+		ret = false;
 
 	return ret;
 
@@ -1069,6 +1071,8 @@ u32 enable_afbc_input(struct vframe_s *vf)
 	}
 	RDMA_WR(reg[eAFBC_ENABLE], r);
 
+	/*pr_info("AFBC_ENABLE:0x%x\n", RDMA_RD(reg[eAFBC_ENABLE]));*/
+
 	r = 0x100;
 	/* TL1 add bit[13:12]: fmt_mode; 0:yuv444; 1:yuv422; 2:yuv420
 	 * di does not support yuv444, so for fmt yuv444 di will bypass+
@@ -1183,8 +1187,11 @@ static void afbcx_sw(bool on)	/*g12a*/
 
 	if (on) {
 		tmp = tmp
+			/*0:go_file 1:go_filed_pre*/
 			| (2<<20)
+			/*0:afbc0 mif to axi 1:vd1 mif to axi*/
 			| (1<<12)
+			/*0:afbc0 to vpp 1:afbc0 to di*/
 			| (1<<9);
 		RDMA_WR(reg_ctrl, tmp);
 		/*0:vd1 to di	1:vd2 to di */
@@ -1300,6 +1307,25 @@ void afbc_reg_sw(bool on)
 		afbc_reg_unreg_flag = 0;
 	}
 }
+
+bool afbc_is_free(void)
+{
+	bool sts = 0;
+	u32 afbc_num = afbc_get_decnub();
+
+	if (afbc_num == eAFBC_DEC0)
+		sts = RDMA_RD_BITS(VD1_AFBCD0_MISC_CTRL, 8, 2);
+	else
+		sts = RDMA_RD_BITS(VD2_AFBCD1_MISC_CTRL, 8, 2);
+
+	if (sts)
+		return true;
+	else
+		return false;
+
+	return sts;
+}
+
 #if 0
 void afbc_sw_trig(bool  on)
 {
@@ -1332,7 +1358,11 @@ void enable_mc_di_pre_g12(struct DI_MC_MIF_s *mcinford_mif,
 
 
 	RDMA_WR_BITS(MCDI_MOTINEN, (mcdi_en?3:0), 0, 2);
-	RDMA_WR(MCDI_CTRL_MODE, (mcdi_en ? 0x1bfff7ff : 0));
+	if (is_meson_g12a_cpu() || is_meson_g12b_cpu() ||
+		is_meson_sm1_cpu())
+		RDMA_WR(MCDI_CTRL_MODE, (mcdi_en ? 0x1bfef7ff : 0));
+	else
+		RDMA_WR(MCDI_CTRL_MODE, (mcdi_en ? 0x1bfff7ff : 0));
 	RDMA_WR_BITS(DI_PRE_CTRL, (mcdi_en?3:0), 16, 2);
 
 	RDMA_WR_BITS(MCINFRD_SCOPE_X, mcinford_mif->size_x, 16, 13);
@@ -1984,6 +2014,8 @@ static void set_di_if2_mif(struct DI_MIF_s *mif, int urgent,
 {
 	unsigned int bytes_per_pixel, demux_mode;
 	unsigned int pat, loop = 0, chro_rpt_lastl_ctrl = 0;
+	/*crop issue*/
+	unsigned int hz_ini_phase = 0;
 
 	if (mif->set_separate_en == 1) {
 		pat = vpat[(vskip_cnt<<1)+1];
@@ -2056,10 +2088,13 @@ static void set_di_if2_mif(struct DI_MIF_s *mif, int urgent,
 
 	/* Dummy pixel value */
 	DI_VSYNC_WR_MPEG_REG(DI_IF2_DUMMY_PIXEL, 0x00808000);
+	/*crop issue*/
+	if (mif->luma_x_start0 % 2)
+		hz_ini_phase = 8;
 	if (mif->set_separate_en != 0) { /* 4:2:0 block mode. */
 		set_di_if2_fmt_more(1, /* hfmt_en */
 		1,/* hz_yc_ratio */
-		0,/* hz_ini_phase */
+		hz_ini_phase,/* hz_ini_phase */
 		1,	/* vfmt_en */
 		1, /* vt_yc_ratio */
 		0, /* vt_ini_phase */
@@ -2069,7 +2104,7 @@ static void set_di_if2_mif(struct DI_MIF_s *mif, int urgent,
 	} else {
 		set_di_if2_fmt_more(1,	/* hfmt_en */
 		1, /* hz_yc_ratio */
-		0, /* hz_ini_phase */
+		hz_ini_phase, /* hz_ini_phase */
 		0,	/* vfmt_en */
 		0,	/* vt_yc_ratio */
 		0, /* vt_ini_phase */
@@ -2084,6 +2119,8 @@ static void set_di_if1_mif(struct DI_MIF_s *mif, int urgent,
 {
 	unsigned int bytes_per_pixel, demux_mode;
 	unsigned int pat, loop = 0, chro_rpt_lastl_ctrl = 0;
+	/*crop issue*/
+	unsigned int hz_ini_phase = 0;
 
 	if (mif->set_separate_en == 1) {
 		pat = vpat[(vskip_cnt<<1)+1];
@@ -2153,10 +2190,14 @@ static void set_di_if1_mif(struct DI_MIF_s *mif, int urgent,
 
 	/* Dummy pixel value */
 	DI_VSYNC_WR_MPEG_REG(DI_IF1_DUMMY_PIXEL, 0x00808000);
+	/*crop issue*/
+	if (mif->luma_x_start0 % 2)
+		hz_ini_phase = 8;
+
 	if (mif->set_separate_en != 0) { /* 4:2:0 block mode. */
 		set_di_if1_fmt_more(1, /* hfmt_en */
 		1,/* hz_yc_ratio */
-		0,/* hz_ini_phase */
+		hz_ini_phase,/* hz_ini_phase */
 		1,	/* vfmt_en */
 		1, /* vt_yc_ratio */
 		0, /* vt_ini_phase */
@@ -2166,7 +2207,7 @@ static void set_di_if1_mif(struct DI_MIF_s *mif, int urgent,
 	} else {
 		set_di_if1_fmt_more(1,	/* hfmt_en */
 		1, /* hz_yc_ratio */
-		0, /* hz_ini_phase */
+		hz_ini_phase, /* hz_ini_phase */
 		0,	/* vfmt_en */
 		0,	/* vt_yc_ratio */
 		0, /* vt_ini_phase */
@@ -2450,7 +2491,8 @@ static void set_di_if0_mif_g12(struct DI_MIF_s *mif, int urgent, int hold_line,
 {
 	unsigned int pat, loop = 0;
 	unsigned int bytes_per_pixel, demux_mode;
-
+	/*crop issue*/
+	unsigned int hz_ini_phase = 0;
 
 	if (mif->set_separate_en == 1) {
 		pat = vpat[(vskip_cnt<<1)+1];
@@ -2516,12 +2558,16 @@ static void set_di_if0_mif_g12(struct DI_MIF_s *mif, int urgent, int hold_line,
 	DI_VSYNC_WR_MPEG_REG(DI_IF0_LUMA0_RPT_PAT,   pat);
 	DI_VSYNC_WR_MPEG_REG(DI_IF0_CHROMA0_RPT_PAT, pat);
 
+	/*crop issue*/
+	if (mif->luma_x_start0 % 2)
+		hz_ini_phase = 8;
+
 	/* 4:2:0 block mode. */
 	if (mif->set_separate_en != 0) {
 		set_di_if0_fmt_more_g12(
 			1, /* hfmt_en */
 			1,	/* hz_yc_ratio */
-			0,	/* hz_ini_phase */
+			hz_ini_phase,	/* hz_ini_phase */
 			1,	/* vfmt_en */
 			1, /* vt_yc_ratio */
 			0, /* vt_ini_phase */
@@ -2532,7 +2578,7 @@ mif->chroma_x_end0 - mif->chroma_x_start0 + 1, /* c length */
 		set_di_if0_fmt_more_g12(
 		1,	/* hfmt_en */
 		1,	/* hz_yc_ratio */
-		0,  /* hz_ini_phase */
+		hz_ini_phase,  /* hz_ini_phase */
 		0,	/* vfmt_en */
 		0,	/* vt_yc_ratio */
 		0,  /* vt_ini_phase */
@@ -3845,6 +3891,11 @@ void di_load_regs(struct di_pq_parm_s *di_pq_ptr)
 		addr = regs_p->addr;
 		value = regs_p->val;
 		mask = regs_p->mask;
+		if (nr_demo_flag) {
+			if (addr == NR4_TOP_CTRL)
+				mask &= ~(0x7 << 6);
+		}
+
 		if (pq_load_dbg == 2)
 			pr_info("[%u][0x%x] = [0x%x]&[0x%x]\n",
 				i, addr, value, mask);
@@ -3935,3 +3986,174 @@ module_param_named(line_num_post_frst, line_num_post_frst, ushort, 0644);
 module_param_named(line_num_pre_frst, line_num_pre_frst, ushort, 0644);
 module_param_named(pd22_flg_calc_en, pd22_flg_calc_en, bool, 0644);
 #endif
+
+/**********************/
+/* register table     */
+/**********************/
+struct reg_t {
+	unsigned int add;
+	unsigned int bit;
+	unsigned int wid;
+//	unsigned int id;
+	unsigned int df_val;
+	char *name;
+	char *bname;
+	char *info;
+};
+struct reg_acc {
+	void (*wr)(unsigned int adr, unsigned int val);
+	unsigned int (*rd)(unsigned int adr);
+	unsigned int (*bwr)(unsigned int adr, unsigned int val,
+			unsigned int start, unsigned int len);
+	unsigned int (*brd)(unsigned int adr, unsigned int start,
+			unsigned int len);
+
+};
+
+static unsigned int get_reg_bits(unsigned int val, unsigned int bstart,
+			unsigned int bw)
+{
+	//unsigned int valori;
+
+	//PR_INFO("%s\n", __func__);
+	//valori = reg_read(add);
+	//PR_INFO("read:0x%x,0x%x\n", add,valori);
+	return((val &
+		(((1L << bw) - 1) << bstart)) >> (bstart));
+
+}
+
+static void dbg_reg_tab(struct seq_file *s, const struct reg_t *pRegTab)
+{
+	struct reg_t creg;
+	int i;
+	unsigned int l_add;
+	unsigned int val32 = 1, val;
+	char *bname;
+	char *info;
+
+	i = 0;
+	l_add = 0;
+	creg = pRegTab[i];
+
+	do {
+		if (creg.add != l_add) {
+			val32 = Rd(creg.add);		/*RD*/
+			seq_printf(s, "add:0x%x = 0x%08x, %s\n",
+				creg.add, val32, creg.name);
+			l_add = creg.add;
+		}
+		val = get_reg_bits(val32, creg.bit, creg.wid);	/*RD_B*/
+
+		if (creg.bname)
+			bname = creg.bname;
+		else
+			bname = "";
+		if (creg.info)
+			info = creg.info;
+		else
+			info = "";
+
+		seq_printf(s, "\tbit[%d,%d]:\t0x%x[%d]:\t%s:\t%s\n",
+			creg.bit, creg.wid, val, val, bname, info);
+
+		i++;
+		creg = pRegTab[i];
+		if (i > TABLE_LEN_MAX) {
+			pr_info("warn: too long, stop\n");
+			break;
+		}
+	} while (creg.add != TABLE_FLG_END);
+}
+
+
+static const struct reg_t rtab_cue_int[] = {
+	//-----
+	{NR2_CUE_CON_DIF0, 0, 32, 0x1400, "NR2_CUE_CON_DIF0",
+			NULL,
+			NULL},
+	{NR2_CUE_CON_DIF1, 0, 32, 0x80064, "NR2_CUE_CON_DIF1",
+			NULL,
+			NULL},
+	{NR2_CUE_CON_DIF2, 0, 32, 0x80064, "NR2_CUE_CON_DIF2",
+			NULL,
+			NULL},
+	{NR2_CUE_CON_DIF3, 0, 32, 0x80a0a, "NR2_CUE_CON_DIF3",
+			NULL,
+			NULL},
+	{NR2_CUE_PRG_DIF, 0, 32, 0x80a0a, "NR2_CUE_PRG_DIF",
+			NULL,
+			NULL},
+	{TABLE_FLG_END, 0, 0, 0, "end", "end", ""},
+	//-----
+};
+/************************************************
+ * register table
+ ************************************************/
+static bool di_g_rtab_cue(const struct reg_t **tab, unsigned int *tabsize)
+{
+	*tab = &rtab_cue_int[0];
+	*tabsize = ARRAY_SIZE(rtab_cue_int);
+
+	return true;
+}
+static unsigned int dim_reg_read(unsigned int addr)
+{
+	return aml_read_vcbus(addr);
+}
+static const struct reg_acc di_pre_regset = {
+	.wr = DI_Wr,
+	.rd = dim_reg_read,
+	.bwr = RDMA_WR_BITS,
+	.brd = RDMA_RD_BITS,
+};
+
+static bool di_wr_tab(const struct reg_acc *ops,
+	const struct reg_t *ptab, unsigned int tabsize)
+{
+	int i;
+	const struct reg_t *pl;
+
+	pl = ptab;
+
+	if (!ops
+		|| !tabsize
+		|| !ptab)
+		return false;
+
+	for (i = 0; i < tabsize; i++) {
+		if (pl->add == TABLE_FLG_END
+			|| i > TABLE_LEN_MAX) {
+			break;
+		}
+
+		if (pl->wid == 32)
+			ops->wr(pl->add, pl->df_val);
+		else
+			ops->bwr(pl->add, pl->df_val, pl->bit, pl->wid);
+
+		pl++;
+	}
+
+	return true;
+}
+
+bool di_wr_cue_int(void)
+{
+	const struct reg_t *ptab;
+	unsigned int tabsize;
+
+	di_g_rtab_cue(&ptab, &tabsize);
+	di_wr_tab(&di_pre_regset,
+		ptab,
+		tabsize);
+	di_pr_info("%s:finish\n", __func__);
+
+	return true;
+}
+int reg_cue_int_show(struct seq_file *seq, void *v)
+{
+	dbg_reg_tab(seq, &rtab_cue_int[0]);
+	return 0;
+}
+

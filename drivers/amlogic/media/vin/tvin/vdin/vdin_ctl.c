@@ -563,8 +563,15 @@ void vdin_get_format_convert(struct vdin_dev_s *devp)
 	}
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 	if ((devp->dv.dolby_input & (1 << devp->index)) ||
-		(devp->dv.dv_flag && is_dolby_vision_enable()))
-		format_convert = VDIN_FORMAT_CONVERT_YUV_YUV444;
+		(devp->dv.dv_flag && is_dolby_vision_enable())) {
+		if (devp->dv.low_latency) {
+			if (devp->prop.color_format == TVIN_YUV422)
+				format_convert = VDIN_FORMAT_CONVERT_YUV_YUV444;
+			else if (devp->prop.color_format == TVIN_RGB444)
+				format_convert = VDIN_FORMAT_CONVERT_RGB_RGB;
+		} else
+			format_convert = VDIN_FORMAT_CONVERT_YUV_YUV444;
+	}
 #endif
 	devp->format_convert = format_convert;
 }
@@ -624,16 +631,130 @@ enum vdin_format_convert_e vdin_get_format_convert_matrix1(
  *	g 19:10
  *	b 29:20
  */
-void vdin_get_prob_rgb(unsigned int offset,
+void vdin_prob_get_rgb(unsigned int offset,
 		unsigned int *r, unsigned int *g, unsigned int *b)
 {
 	*b = rgb_info_b = rd_bits(offset, VDIN_MATRIX_PROBE_COLOR,
-		COMPONENT0_PROBE_COLOR_BIT, COMPONENT0_PROBE_COLOR_WID);
+		COMPONENT2_PROBE_COLOR_BIT, COMPONENT0_PROBE_COLOR_WID);
 	*g = rgb_info_g = rd_bits(offset, VDIN_MATRIX_PROBE_COLOR,
 		COMPONENT1_PROBE_COLOR_BIT, COMPONENT1_PROBE_COLOR_WID);
 	*r = rgb_info_r = rd_bits(offset, VDIN_MATRIX_PROBE_COLOR,
 		COMPONENT0_PROBE_COLOR_BIT, COMPONENT0_PROBE_COLOR_WID);
 }
+
+void vdin_prob_get_yuv(unsigned int offset,
+		unsigned int *rgb_yuv0,
+		unsigned int *rgb_yuv1,
+		unsigned int *rgb_yuv2)
+{
+	*rgb_yuv0 = ((rd_bits(offset, VDIN_MATRIX_PROBE_COLOR,
+		COMPONENT2_PROBE_COLOR_BIT, COMPONENT2_PROBE_COLOR_WID)
+			<< 8) >> 10);
+	*rgb_yuv1 = ((rd_bits(offset, VDIN_MATRIX_PROBE_COLOR,
+		COMPONENT1_PROBE_COLOR_BIT, COMPONENT1_PROBE_COLOR_WID)
+			<< 8) >> 10);
+	*rgb_yuv2 = ((rd_bits(offset, VDIN_MATRIX_PROBE_COLOR,
+		COMPONENT0_PROBE_COLOR_BIT, COMPONENT0_PROBE_COLOR_WID)
+			<< 8) >> 10);
+}
+
+#if 0
+void vdin_prob_set_xy(unsigned int offset,
+		unsigned int x, unsigned int y, struct vdin_dev_s *devp)
+{
+
+	if (devp->fmt_info_p->scan_mode == TVIN_SCAN_MODE_INTERLACED)
+		y = y / 2;
+
+	wr_bits(offset, VDIN_MATRIX_PROBE_POS, y,
+		PROBE_POX_Y_BIT, PROBE_POX_Y_WID);
+	wr_bits(offset, VDIN_MATRIX_PROBE_POS, x,
+		PROBE_POS_X_BIT, PROBE_POS_X_WID);
+}
+#endif
+void vdin_prob_set_before_or_after_mat(unsigned int offset,
+		unsigned int x, struct vdin_dev_s *devp)
+{
+	if ((x != 0) && (x != 1))
+		return;
+	/* 1:probe pixel data after matrix */
+	wr_bits(offset, VDIN_MATRIX_CTRL, x,
+			VDIN_PROBE_POST_BIT, VDIN_PROBE_POST_WID);
+}
+
+void vdin_prob_matrix_sel(unsigned int offset,
+		unsigned int sel, struct vdin_dev_s *devp)
+{
+	unsigned int x;
+
+	x = sel & 0x03;
+	/* 1:select matrix 1 */
+	wr_bits(offset, VDIN_MATRIX_CTRL, x,
+		VDIN_PROBE_SEL_BIT, VDIN_PROBE_SEL_WID);
+}
+
+
+/* this function set flowing parameters:
+ *a.rgb_info_x	b.rgb_info_y
+ *debug usage:
+ *echo rgb_xy x y > /sys/class/vdin/vdinx/attr
+ */
+void vdin_prob_set_xy(unsigned int offset,
+		unsigned int x, unsigned int y, struct vdin_dev_s *devp)
+{
+#if 0
+	enum vdin_format_convert_e format_convert_matrix0;
+	enum vdin_format_convert_e format_convert_matrix1;
+
+	/* set matrix */
+	rgb_info_enable = 1;
+	format_convert_matrix0 = vdin_get_format_convert_matrix0(devp);
+	format_convert_matrix1 = vdin_get_format_convert_matrix1(devp);
+	vdin_set_color_matrix1(devp->addr_offset, devp->fmt_info_p,
+			format_convert_matrix1,
+			devp->parm.port,
+			devp->prop.color_fmt_range,
+			devp->prop.vdin_hdr_Flag,
+			devp->color_range_mode);
+	if (is_meson_g12a_cpu() || is_meson_g12b_cpu() ||
+		is_meson_sm1_cpu() || is_meson_tm2_cpu())
+		vdin_set_color_matrix0_g12a(devp->addr_offset,
+			devp->fmt_info_p,
+			devp->format_convert,
+			devp->parm.port,
+			devp->prop.color_fmt_range,
+			devp->prop.vdin_hdr_Flag,
+			devp->color_range_mode);
+	else
+		vdin_set_color_matrix0(devp->addr_offset, devp->fmt_info_p,
+			format_convert_matrix0,
+			devp->parm.port,
+			devp->prop.color_fmt_range,
+			devp->prop.vdin_hdr_Flag,
+			devp->color_range_mode);
+#endif
+
+	/* set position */
+	rgb_info_x = x;
+	if (devp->fmt_info_p->scan_mode == TVIN_SCAN_MODE_INTERLACED)
+		rgb_info_y = y / 2;
+	else
+		rgb_info_y = y;
+/* #if defined(VDIN_V1) */
+	wr_bits(offset, VDIN_MATRIX_PROBE_POS, rgb_info_y,
+		PROBE_POX_Y_BIT, PROBE_POX_Y_WID);
+	wr_bits(offset, VDIN_MATRIX_PROBE_POS, rgb_info_x,
+		PROBE_POS_X_BIT, PROBE_POS_X_WID);
+	#if 0
+	/* 1:probe pixel data after matrix */
+	wr_bits(offset, VDIN_MATRIX_CTRL, 1,
+		VDIN_PROBE_POST_BIT, VDIN_PROBE_POST_WID);
+	/* 1:select matrix 1 */
+	wr_bits(offset, VDIN_MATRIX_CTRL, 1,
+		VDIN_PROBE_SEL_BIT, VDIN_PROBE_SEL_WID);
+	#endif
+}
+
 
 /*function:
  *	1.set meas mux based on port_:
@@ -817,6 +938,13 @@ void vdin_set_top(struct vdin_dev_s *devp, unsigned int offset,
 		vdin_mux = VDIN_MUX_HDMI;
 		wr_bits(offset, VDIN_ASFIFO_CTRL1, 0xe4,
 				VDI4_ASFIFO_CTRL_BIT, VDI4_ASFIFO_CTRL_WID);
+
+		/*reset top afifo for green screen when enter the channel*/
+		if (is_meson_tl1_cpu()) {
+			wr_bits(offset, VPU_SW_RESET, 1, 26, 1);
+			wr_bits(offset, VPU_SW_RESET, 0, 26, 1);
+		}
+
 		break;
 	case 0x80: /* dvin */
 		vdin_mux = VDIN_MUX_DVIN;
@@ -1019,6 +1147,9 @@ void vdin_set_cutwin(struct vdin_dev_s *devp)
 			devp->prop.hs, devp->prop.he,
 			devp->prop.vs, devp->prop.ve);
 	}
+	if (vdin_ctl_dbg)
+		pr_info("h_active=%d, v_active=%d\n",
+			devp->h_active, devp->v_active);
 
 }
 
@@ -1026,9 +1157,17 @@ void vdin_set_cutwin(struct vdin_dev_s *devp)
 void vdin_adjust_tvafesnow_brightness(void)
 {
 	wr(0, VDIN_MATRIX_CTRL, 0x7);
+
+	/*post offset*/
 	wr(0, VDIN_MATRIX_OFFSET0_1, 0x200);
 	wr(0, VDIN_MATRIX_OFFSET2, 0x200);
+
+	/*coef*/
 	wr(0, VDIN_MATRIX_COEF00_01, 0x6000000);
+	wr(0, VDIN_MATRIX_COEF02_10, 0);
+	wr(0, VDIN_MATRIX_COEF11_12, 0);
+	wr(0, VDIN_MATRIX_COEF20_21, 0);
+	wr(0, VDIN_MATRIX_COEF22, 0);
 }
 EXPORT_SYMBOL(vdin_adjust_tvafesnow_brightness);
 
@@ -1227,6 +1366,7 @@ static inline void vdin_set_color_matrix1(unsigned int offset,
 		wr_bits(offset, VDIN_MATRIX_CTRL, 1,
 			VDIN_MATRIX1_EN_BIT, VDIN_MATRIX1_EN_WID);
 	}
+	pr_info("%s id:%d\n", __func__, matrix_csc);
 }
 
 static inline void vdin_set_color_matrix0(unsigned int offset,
@@ -1403,6 +1543,7 @@ static inline void vdin_set_color_matrix0(unsigned int offset,
 		wr_bits(offset, VDIN_MATRIX_CTRL, 1,
 			VDIN_MATRIX_EN_BIT, VDIN_MATRIX_EN_WID);
 	}
+	pr_info("%s id:%d\n", __func__, matrix_csc);
 }
 static void vdin_set_color_matrix0_g12a(unsigned int offset,
 		struct tvin_format_s *tvin_fmt_p,
@@ -1552,9 +1693,14 @@ static void vdin_set_color_matrix0_g12a(unsigned int offset,
 		break;
 	}
 
-	if (matrix_csc == VDIN_MATRIX_NULL)	{
+	if (matrix_csc == VDIN_MATRIX_NULL) {
 		wr_bits(offset, VDIN_MATRIX_CTRL, 0,
 				VDIN_MATRIX_EN_BIT, VDIN_MATRIX_EN_WID);
+
+		if (is_meson_tm2_cpu())
+			wr_bits(offset, VDIN_HDR2_MATRIXI_EN_CTRL, 0,
+					VDIN_MATRIX_EN_BIT,
+					VDIN_MATRIX_EN_WID);
 	} else {
 		matrix_tbl = &vdin_matrix_lup[matrix_csc - 1];
 
@@ -1583,6 +1729,7 @@ static void vdin_set_color_matrix0_g12a(unsigned int offset,
 		wr_bits(offset, VDIN_MATRIX_CTRL, 1,
 			VDIN_MATRIX_EN_BIT, VDIN_MATRIX_EN_WID);
 	}
+	pr_info("%s id:%d\n", __func__, matrix_csc);
 }
 
 /*set matrix based on rgb_info_enable:
@@ -1619,13 +1766,13 @@ void vdin_set_matrix(struct vdin_dev_s *devp)
 				devp->prop.color_fmt_range,
 				devp->prop.vdin_hdr_Flag,
 				devp->color_range_mode);
-#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
+		#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 		if ((devp->dv.dolby_input & (1 << devp->index)) ||
 		(devp->dv.dv_flag && is_dolby_vision_enable()) ||
 		devp->parm.info.fmt == TVIN_SIG_FMT_CVBS_SECAM)
 			wr_bits(offset, VDIN_MATRIX_CTRL, 0,
 				VDIN_MATRIX_EN_BIT, VDIN_MATRIX_EN_WID);
-#endif
+		#endif
 		wr_bits(offset, VDIN_MATRIX_CTRL, 3,
 			VDIN_PROBE_SEL_BIT, VDIN_PROBE_SEL_WID);
 	} else {
@@ -1704,63 +1851,6 @@ void vdin_set_matrixs(struct vdin_dev_s *devp, unsigned char id,
 	default:
 		break;
 	}
-}
-
-/* this function set flowing parameters:
- *a.rgb_info_x	b.rgb_info_y
- *debug usage:
- *echo rgb_xy x y > /sys/class/vdin/vdinx/attr
- */
-void vdin_set_prob_xy(unsigned int offset,
-		unsigned int x, unsigned int y, struct vdin_dev_s *devp)
-{
-	enum vdin_format_convert_e format_convert_matrix0;
-	enum vdin_format_convert_e format_convert_matrix1;
-
-	/* set matrix */
-	rgb_info_enable = 1;
-	format_convert_matrix0 = vdin_get_format_convert_matrix0(devp);
-	format_convert_matrix1 = vdin_get_format_convert_matrix1(devp);
-	vdin_set_color_matrix1(devp->addr_offset, devp->fmt_info_p,
-			format_convert_matrix1,
-			devp->parm.port,
-			devp->prop.color_fmt_range,
-			devp->prop.vdin_hdr_Flag,
-			devp->color_range_mode);
-	if (is_meson_g12a_cpu() || is_meson_g12b_cpu() ||
-		is_meson_sm1_cpu() || is_meson_tm2_cpu())
-		vdin_set_color_matrix0_g12a(devp->addr_offset,
-			devp->fmt_info_p,
-			devp->format_convert,
-			devp->parm.port,
-			devp->prop.color_fmt_range,
-			devp->prop.vdin_hdr_Flag,
-			devp->color_range_mode);
-	else
-		vdin_set_color_matrix0(devp->addr_offset, devp->fmt_info_p,
-			format_convert_matrix0,
-			devp->parm.port,
-			devp->prop.color_fmt_range,
-			devp->prop.vdin_hdr_Flag,
-			devp->color_range_mode);
-	/* set position */
-	rgb_info_x = x;
-	if (devp->fmt_info_p->scan_mode == TVIN_SCAN_MODE_INTERLACED)
-		rgb_info_y = y/2;
-	else
-		rgb_info_y = y;
-/* #if defined(VDIN_V1) */
-	wr_bits(offset, VDIN_MATRIX_PROBE_POS, rgb_info_y,
-		PROBE_POX_Y_BIT, PROBE_POX_Y_WID);
-	wr_bits(offset, VDIN_MATRIX_PROBE_POS, rgb_info_x,
-		PROBE_POS_X_BIT, PROBE_POS_X_WID);
-	/* 1:probe pixel data after matrix */
-	wr_bits(offset, VDIN_MATRIX_CTRL, 1,
-		VDIN_PROBE_POST_BIT, VDIN_PROBE_POST_WID);
-	/* 1:select matrix 1 */
-	wr_bits(offset, VDIN_MATRIX_CTRL, 1,
-		VDIN_PROBE_SEL_BIT, VDIN_PROBE_SEL_WID);
-/* #endif */
 }
 
 /*set block bar
@@ -1942,11 +2032,11 @@ static inline void vdin_set_wr_ctrl(struct vdin_dev_s *devp,
 		(format_convert == VDIN_FORMAT_CONVERT_RGB_YUV422) ||
 		(format_convert == VDIN_FORMAT_CONVERT_GBR_YUV422) ||
 		(format_convert == VDIN_FORMAT_CONVERT_BRG_YUV422)) &&
-		color_depth_mode && (source_bitdeth > 8))
+		color_depth_mode && (source_bitdeth > VDIN_COLOR_DEEPS_8BIT))
 		write_format444 = 3;
 
 	/* win_he */
-	if ((h%2) && (devp->source_bitdepth > 8) &&
+	if ((h%2) && (devp->source_bitdepth > VDIN_COLOR_DEEPS_8BIT) &&
 		(devp->color_depth_mode == 1) &&
 		((devp->format_convert == VDIN_FORMAT_CONVERT_YUV_YUV422) ||
 		(devp->format_convert == VDIN_FORMAT_CONVERT_RGB_YUV422) ||
@@ -2607,6 +2697,34 @@ void vdin_set_all_regs(struct vdin_dev_s *devp)
 			devp->bt_path);
 }
 
+void vdin_set_dolby_ll_tunnel(struct vdin_dev_s *devp)
+{
+	unsigned int vdin_data_bus_0 = VDIN_MAP_BPB;
+	unsigned int vdin_data_bus_1 = VDIN_MAP_Y_G;
+	unsigned int vdin_data_bus_2 = VDIN_MAP_RCR;
+	unsigned int offset;
+	struct tvin_state_machine_ops_s *sm_ops;
+
+	/* avoid null pointer oops */
+	if (!devp || !(devp->frontend) || !(devp->frontend->sm_ops)
+		|| !(devp->frontend->sm_ops->hdmi_dv_config))
+		return;
+
+	if ((devp->dv.dv_flag) && is_dolby_vision_enable()
+		&& (devp->dv.low_latency)
+		&& (devp->prop.color_format == TVIN_YUV422)) {
+		offset = devp->addr_offset;
+		wr_bits(offset, VDIN_COM_CTRL0, vdin_data_bus_0,
+				COMP0_OUT_SWT_BIT, COMP0_OUT_SWT_WID);
+		wr_bits(offset, VDIN_COM_CTRL0, vdin_data_bus_1,
+				COMP1_OUT_SWT_BIT, COMP1_OUT_SWT_WID);
+		wr_bits(offset, VDIN_COM_CTRL0, vdin_data_bus_2,
+				COMP2_OUT_SWT_BIT, COMP2_OUT_SWT_WID);
+		sm_ops = devp->frontend->sm_ops;
+		sm_ops->hdmi_dv_config(true, devp->frontend);
+	}
+}
+
 static void vdin_delay_line(unsigned short num, unsigned int offset)
 {
 	wr_bits(offset, VDIN_COM_CTRL0, num,
@@ -2748,9 +2866,10 @@ void vdin_set_default_regmap(unsigned int offset)
 		is_meson_gxtvbb_cpu() || is_meson_txl_cpu() ||
 		is_meson_txlx_cpu() || is_meson_tl1_cpu())
 		wr(offset, VDIN_LFIFO_CTRL,     0x00000f00);
-	else if (is_meson_tm2_cpu())
+	else if (is_meson_tm2_cpu()) {
 		wr(offset, VDIN_LFIFO_CTRL,     0xc0020f00);
-	else
+		wr(offset, VDIN_HDR2_MATRIXI_EN_CTRL, 0);
+	} else
 		wr(offset, VDIN_LFIFO_CTRL,     0x00000780);
 	/* [15:14]     clkgate.bbar             = 0/(auto, off, on, on) */
 	/* [13:12]     clkgate.bbar             = 0/(auto, off, on, on) */
@@ -2950,6 +3069,9 @@ void vdin_hw_enable(unsigned int offset)
 
 void vdin_hw_disable(unsigned int offset)
 {
+	unsigned int def_canvas;
+
+	def_canvas = offset ? vdin_canvas_ids[1][0] : vdin_canvas_ids[0][0];
 	/* disable cm2 */
 	wr_bits(offset, VDIN_CM_BRI_CON_CTRL, 0, CM_TOP_EN_BIT, CM_TOP_EN_WID);
 	/* disable video data input */
@@ -2963,10 +3085,9 @@ void vdin_hw_disable(unsigned int offset)
 	wr(offset, VDIN_COM_CTRL0, 0x00000910);
 	vdin_delay_line(delay_line_num, offset);
 	if (enable_reset)
-		wr(offset, VDIN_WR_CTRL, 0x0b401000);
+		wr(offset, VDIN_WR_CTRL, 0x0b401000 | def_canvas);
 	else
-		wr(offset, VDIN_WR_CTRL, 0x0bc01000);
-
+		wr(offset, VDIN_WR_CTRL, 0x0bc01000 | def_canvas);
 	/* disable clock of blackbar, histogram, histogram, line fifo1, matrix,
 	 * hscaler, pre hscaler, clock0
 	 */
@@ -3104,6 +3225,7 @@ void vdin_enable_module(unsigned int offset, bool enable)
 		/* else */
 		/* aml_write_cbus(HHI_VDIN_MEAS_CLK_CNTL, 0x00000000); */
 		vdin_hw_disable(offset);
+		vdin_dobly_mdata_write_en(offset, false);
 	}
 }
 #if 0
@@ -3449,28 +3571,38 @@ void vdin_set_bitdepth(struct vdin_dev_s *devp)
 {
 	unsigned int offset = devp->addr_offset;
 	unsigned int set_width = 0;
+	unsigned int port;
 
 	if ((devp->output_color_depth) &&
 		((devp->prop.fps == 50) || (devp->prop.fps == 60)) &&
 		((devp->parm.info.fmt == TVIN_SIG_FMT_HDMI_3840_2160_00HZ) ||
 		(devp->parm.info.fmt == TVIN_SIG_FMT_HDMI_4096_2160_00HZ)) &&
-		(devp->prop.colordepth == 10)) {
+		(devp->prop.colordepth == VDIN_COLOR_DEEPS_10BIT)) {
 		set_width = devp->output_color_depth;
 		pr_info("set output color depth %d bit from dts\n", set_width);
 	}
 
-	switch (devp->color_depth_config) {
-	case 8:
-		devp->source_bitdepth = 8;
+	switch (devp->color_depth_config & 0xff) {
+	case COLOR_DEEPS_8BIT:
+		devp->source_bitdepth = VDIN_COLOR_DEEPS_8BIT;
 		wr_bits(offset, VDIN_WR_CTRL2, 0,
 			VDIN_WR_10BIT_MODE_BIT, VDIN_WR_10BIT_MODE_WID);
 		break;
-	case 10:
-		devp->source_bitdepth = 10;
+	case COLOR_DEEPS_10BIT:
+		devp->source_bitdepth = VDIN_COLOR_DEEPS_10BIT;
 		wr_bits(offset, VDIN_WR_CTRL2, 1,
 			VDIN_WR_10BIT_MODE_BIT, VDIN_WR_10BIT_MODE_WID);
 		break;
-	case 0:
+	/*
+	 * vdin not support 12bit now, when rx submit is 12bit,
+	 *	vdin config it as 10bit , 12 to 10
+	 */
+	case COLOR_DEEPS_12BIT:
+		devp->source_bitdepth = VDIN_COLOR_DEEPS_10BIT;
+		wr_bits(offset, VDIN_WR_CTRL2, 1,
+			VDIN_WR_10BIT_MODE_BIT, VDIN_WR_10BIT_MODE_WID);
+		break;
+	case COLOR_DEEPS_AUTO:
 		/* vdin_bit_depth is set to 0 by defaut, in this case,
 		devp->source_bitdepth is controlled by colordepth
 		change default to 10bit for 8in8out detail maybe lost
@@ -3481,35 +3613,53 @@ void vdin_set_bitdepth(struct vdin_dev_s *devp)
 			(devp->prop.color_format == TVIN_RGGB) ||
 			(devp->prop.color_format == TVIN_GBRG) ||
 			(devp->prop.color_format == TVIN_GRBG)) {
-			devp->source_bitdepth = 8;
+			devp->source_bitdepth = VDIN_COLOR_DEEPS_8BIT;
 			wr_bits(offset, VDIN_WR_CTRL2, 0,
 				VDIN_WR_10BIT_MODE_BIT, VDIN_WR_10BIT_MODE_WID);
-		} else if (devp->prop.colordepth == 8) {
-			devp->source_bitdepth = 8;
-			wr_bits(offset, VDIN_WR_CTRL2, 0,
-				VDIN_WR_10BIT_MODE_BIT, VDIN_WR_10BIT_MODE_WID);
+		} else if (devp->prop.colordepth == VDIN_COLOR_DEEPS_8BIT) {
+			/* hdmi YUV422, 8 or 10 bit valid is unknown*/
+			/* so need vdin 10bit to frame buffer*/
+			port = devp->parm.port;
+			if (((port >= TVIN_PORT_HDMI0) &&
+				(port <= TVIN_PORT_HDMI7)) &&
+				(devp->prop.color_format == TVIN_YUV422) &&
+				(devp->color_depth_support &
+				VDIN_WR_COLOR_DEPTH_10BIT)) {
+				/*10 bit mode*/
+				devp->source_bitdepth = VDIN_COLOR_DEEPS_10BIT;
+				wr_bits(offset, VDIN_WR_CTRL2, 1,
+					VDIN_WR_10BIT_MODE_BIT,
+					VDIN_WR_10BIT_MODE_WID);
+			} else {
+				/*8bit mode*/
+				devp->source_bitdepth = VDIN_COLOR_DEEPS_8BIT;
+				wr_bits(offset, VDIN_WR_CTRL2, 0,
+					VDIN_WR_10BIT_MODE_BIT,
+					VDIN_WR_10BIT_MODE_WID);
+			}
 		} else if ((devp->color_depth_support &
-			VDIN_WR_COLOR_DEPTH_10BIT) &&
-			(devp->prop.colordepth == 10)) {
-			if (set_width == 8) {
-				devp->source_bitdepth = 8;
+			VDIN_WR_COLOR_DEPTH_10BIT)
+			&& ((devp->prop.colordepth == VDIN_COLOR_DEEPS_10BIT) ||
+			(devp->prop.colordepth == VDIN_COLOR_DEEPS_12BIT))) {
+			if (set_width == VDIN_COLOR_DEEPS_8BIT) {
+				devp->source_bitdepth = VDIN_COLOR_DEEPS_8BIT;
 				wr_bits(offset, VDIN_WR_CTRL2, 0,
 					VDIN_WR_10BIT_MODE_BIT,
 					VDIN_WR_10BIT_MODE_WID);
 			} else {
-				devp->source_bitdepth = 10;
+				devp->source_bitdepth = VDIN_COLOR_DEEPS_10BIT;
 				wr_bits(offset, VDIN_WR_CTRL2, 1,
 					VDIN_WR_10BIT_MODE_BIT,
 					VDIN_WR_10BIT_MODE_WID);
 			}
 		} else {
-			devp->source_bitdepth = 8;
+			devp->source_bitdepth = VDIN_COLOR_DEEPS_8BIT;
 			wr_bits(offset, VDIN_WR_CTRL2, 0,
 				VDIN_WR_10BIT_MODE_BIT, VDIN_WR_10BIT_MODE_WID);
 		}
 		break;
 	default:
-		devp->source_bitdepth = 8;
+		devp->source_bitdepth = VDIN_COLOR_DEEPS_8BIT;
 		wr_bits(offset, VDIN_WR_CTRL2, 0,
 			VDIN_WR_10BIT_MODE_BIT, VDIN_WR_10BIT_MODE_WID);
 		break;
@@ -3954,6 +4104,9 @@ void vdin_dolby_config(struct vdin_dev_s *devp)
 	unsigned int offset = devp->addr_offset;
 
 	devp->dv.dv_config = 1;
+	devp->vfp->low_latency = devp->dv.low_latency;
+	memcpy(&devp->vfp->dv_vsif,
+		&devp->dv.dv_vsif, sizeof(struct tvin_dv_vsif_s));
 	wr_bits(offset, VDIN_DOLBY_DSC_CTRL0, 1, 30, 1);
 	wr_bits(offset, VDIN_DOLBY_DSC_CTRL0, 1, 26, 1);
 	wr_bits(offset, VDIN_DOLBY_DSC_CTRL0, 0, 26, 1);
@@ -3966,9 +4119,29 @@ void vdin_dolby_config(struct vdin_dev_s *devp)
 		wr_bits(offset, VDIN_DOLBY_AXI_CTRL0, 1, 5, 1);
 		wr_bits(offset, VDIN_DOLBY_AXI_CTRL0, 0, 5, 1);
 		wr_bits(offset, VDIN_DOLBY_AXI_CTRL0, 0, 4, 1);
+		/*enable wr memory*/
+		vdin_dobly_mdata_write_en(offset, 1);
 	} else {
+		/*disable wr memory*/
+		vdin_dobly_mdata_write_en(offset, 0);
 		wr(offset, VDIN_DOLBY_DSC_CTRL2, 0x5180c0d5);
 		wr(offset, VDIN_DOLBY_DSC_CTRL3, 0x0);
+	}
+}
+
+void vdin_dobly_mdata_write_en(unsigned int offset, unsigned int en)
+{
+	/*printk("=========>> wr memory %d\n", en);*/
+	if (en) {
+		/*enable write metadate to memory*/
+		wr_bits(offset, VDIN_DOLBY_AXI_CTRL0, 1, 30, 1);
+		/*vdin0 dolby meta write enable*/
+		/*W_VCBUS_BIT(0x27af, 1, 2, 1);*/
+	} else {
+		/*disable write metadate to memory*/
+		wr_bits(offset, VDIN_DOLBY_AXI_CTRL0, 0, 30, 1);
+		/*vdin0 dolby meta write disable*/
+		/*W_VCBUS_BIT(0x27af, 0, 2, 1);*/
 	}
 }
 
@@ -4004,7 +4177,10 @@ int vdin_event_cb(int type, void *data, void *op_arg)
 		req->aux_size = 0;
 		req->dv_enhance_exist = 0;
 		/* TODO: need change the low latency flag when LL mode */
-		req->low_latency = 0;
+		req->low_latency = p->low_latency;
+		memcpy(&req->dv_vsif,
+			&p->dv_vsif, sizeof(struct tvin_dv_vsif_s));
+
 		if (req->bot_flag)
 			index = (req->vf->index >> 8) & 0xff;
 		if (index != 0xff
@@ -4127,6 +4303,29 @@ static int vdin_hdr_sei_error_check(struct vdin_dev_s *devp)
 		return 0;
 }
 
+void vdin_hdr10plus_check(struct vdin_dev_s *devp,
+		struct vframe_s *vf) {
+
+	if (devp->prop.hdr10p_info.hdr10p_on) {
+		/*devp->prop.hdr10p_info.hdr10p_on = false;*/
+
+		vf->signal_type |= (1 << 29);/*present_flag*/
+		vf->signal_type |= (0 << 25);/*0:limited*/
+		/*color_primaries*/
+		vf->signal_type = ((9 << 16) |
+			(vf->signal_type & (~0xFF0000)));
+		/*transfer_characteristic*/
+		vf->signal_type = ((0x30 << 8) |
+			(vf->signal_type & (~0xFF00)));
+		/*matrix_coefficient*/
+		vf->signal_type = ((9 << 0) |
+			(vf->signal_type & (~0xFF)));
+		memcpy(&vf->prop.hdr10p_data,
+			&devp->prop.hdr10p_info.hdr10p_data,
+			sizeof(struct tvin_hdr10p_data_s));
+	}
+}
+
 void vdin_set_drm_data(struct vdin_dev_s *devp,
 		struct vframe_s *vf)
 {
@@ -4214,6 +4413,69 @@ void vdin_set_drm_data(struct vdin_dev_s *devp,
 		vf->signal_type = ((1 << 8) |
 			(vf->signal_type & (~0xFF00)));
 	}
+
+	devp->parm.info.signal_type = vf->signal_type;
+	/*hdr10+ check*/
+	vdin_hdr10plus_check(devp, vf);
+}
+
+
+void vdin_check_hdmi_hdr(struct vdin_dev_s *devp)
+{
+	struct tvin_state_machine_ops_s *sm_ops;
+	enum tvin_port_e port = TVIN_PORT_NULL;
+	struct tvin_sig_property_s *prop;
+	/*enum tvin_color_fmt_e color_format;*/
+
+	if (!devp)
+		return;
+
+	if (devp->color_depth_config & COLOR_DEEPS_MANUAL)
+		return;
+
+	devp->color_depth_config = COLOR_DEEPS_AUTO;
+	port = devp->parm.port;
+	if ((port < TVIN_PORT_HDMI0) || (port > TVIN_PORT_HDMI7))
+		return;
+
+	prop = &devp->prop;
+	sm_ops = devp->frontend->sm_ops;
+	if (sm_ops->get_sig_property) {
+		sm_ops->get_sig_property(devp->frontend, prop);
+		pr_info("vdin hdmi hdr eotf:0x%x\n",
+				devp->prop.hdr_info.hdr_data.eotf);
+		if (devp->prop.hdr_info.hdr_state == HDR_STATE_GET) {
+			if ((devp->prop.hdr_info.hdr_data.eotf ==
+					EOTF_HDR) ||
+				(devp->prop.hdr_info.hdr_data.eotf ==
+					EOTF_SMPTE_ST_2048) ||
+				(devp->prop.hdr_info.hdr_data.eotf ==
+					EOTF_HLG)) {
+				#if 0
+				/*4k 444, afbc mode not support 10bit mode*/
+				color_format = devp->prop.color_format;
+				if (!(((color_format == TVIN_RGB444) ||
+					(color_format == TVIN_YUV444) ||
+					(color_format == TVIN_BGGR) ||
+					(color_format == TVIN_RGGB) ||
+					(color_format == TVIN_GBRG) ||
+					(color_format == TVIN_GRBG)) &&
+					((devp->h_active > 1920) &&
+						(devp->v_active > 1080)) &&
+					devp->afbce_valid)) {
+					devp->color_depth_config =
+						COLOR_DEEPS_10BIT;
+					pr_info("vdin is hdr mode,force 10bit\n");
+				}
+				#else
+				devp->color_depth_config =
+					COLOR_DEEPS_10BIT;
+				pr_info("vdin is hdr mode,force 10bit\n");
+				#endif
+			}
+		}
+		/*devp->prop.hdr_info.hdr_data.eotf = 0;*/
+	}
 }
 
 u32 vdin_get_curr_field_type(struct vdin_dev_s *devp)
@@ -4230,6 +4492,7 @@ u32 vdin_get_curr_field_type(struct vdin_dev_s *devp)
 	} else {
 		field_status = vdin_get_field_type(devp->addr_offset);
 		/*tvafe FIELD POLARITY 0 TOP,vdin must invert for correct*/
+
 		if (invert_top_bot ||
 			(devp->parm.port >= TVIN_PORT_CVBS0 &&
 			devp->parm.port <= TVIN_PORT_CVBS3))
@@ -4238,7 +4501,20 @@ u32 vdin_get_curr_field_type(struct vdin_dev_s *devp)
 		else
 			type |= field_status ?
 			VIDTYPE_INTERLACE_BOTTOM : VIDTYPE_INTERLACE_TOP;
+
+		/*md2 get pre field sts, need invert for cur*/
+		if ((devp->game_mode & VDIN_GAME_MODE_2) == VDIN_GAME_MODE_2) {
+			if ((type & VIDTYPE_INTERLACE_BOTTOM) ==
+				VIDTYPE_INTERLACE_TOP) {
+				type |= VIDTYPE_INTERLACE_BOTTOM;
+			} else if ((type & VIDTYPE_INTERLACE_BOTTOM) ==
+				VIDTYPE_INTERLACE_BOTTOM) {
+				type &= ~VIDTYPE_INTERLACE_BOTTOM;
+				type |= VIDTYPE_INTERLACE_TOP;
+			}
+		}
 	}
+
 	format_convert = devp->format_convert;
 	if ((format_convert == VDIN_FORMAT_CONVERT_YUV_YUV444) ||
 			(format_convert == VDIN_FORMAT_CONVERT_RGB_YUV444)) {
@@ -4246,15 +4522,17 @@ u32 vdin_get_curr_field_type(struct vdin_dev_s *devp)
 		if (devp->afbce_mode_pre)
 			type |= VIDTYPE_COMB_MODE;
 	} else if ((format_convert == VDIN_FORMAT_CONVERT_YUV_YUV422) ||
-			(format_convert == VDIN_FORMAT_CONVERT_RGB_YUV422))
+			(format_convert == VDIN_FORMAT_CONVERT_RGB_YUV422)) {
 		type |= VIDTYPE_VIU_422;
-	else if (devp->prop.dest_cfmt == TVIN_NV21) {
+	} else if ((format_convert == VDIN_FORMAT_CONVERT_YUV_RGB) ||
+		(format_convert == VDIN_FORMAT_CONVERT_RGB_RGB)) {
+		type |= VIDTYPE_RGB_444;
+	} else if (devp->prop.dest_cfmt == TVIN_NV21) {
 		type |= VIDTYPE_VIU_NV21;
 		type &= (~VIDTYPE_VIU_SINGLE_PLANE);
 	} else if (devp->prop.dest_cfmt == TVIN_NV12) {
 		/* type |= VIDTYPE_VIU_NV12; */
 		type &= (~VIDTYPE_VIU_SINGLE_PLANE);
-
 	}
 
 	if (devp->afbce_valid)
@@ -4508,13 +4786,13 @@ inline void vdin_set_source_bitdepth(struct vdin_dev_s *devp,
 		struct vframe_s *vf)
 {
 	switch (devp->source_bitdepth) {
-	case 10:
+	case VDIN_COLOR_DEEPS_10BIT:
 		vf->bitdepth = BITDEPTH_Y10 | BITDEPTH_U10 | BITDEPTH_V10;
 		break;
-	case 9:
+	case VDIN_COLOR_DEEPS_9BIT:
 		vf->bitdepth = BITDEPTH_Y9 | BITDEPTH_U9 | BITDEPTH_V9;
 		break;
-	case 8:
+	case VDIN_COLOR_DEEPS_8BIT:
 		vf->bitdepth = BITDEPTH_Y8 | BITDEPTH_U8 | BITDEPTH_V8;
 		break;
 	default:
@@ -4558,5 +4836,4 @@ void vdin_clk_onoff(struct vdin_dev_s *devp, bool onoff)
 		wr(offset, VDIN_COM_GCLK_CTRL2, 0x55555555);
 	}
 }
-
 

@@ -56,27 +56,22 @@
 #include <linux/amlogic/cpu_version.h>
 #include <linux/amlogic/jtag.h>
 #include <linux/amlogic/scpi_protocol.h>
-
-#ifdef CONFIG_HAS_EARLYSUSPEND
-#include <linux/earlysuspend.h>
-static struct early_suspend aocec_suspend_handler;
-#endif
+#include <linux/amlogic/pm.h>
 #include "hdmi_ao_cec.h"
 
 
 #define CEC_FRAME_DELAY		msecs_to_jiffies(400)
 #define CEC_DEV_NAME		"cec"
 
-#define CEC_POWER_ON		(0 << 0)
-#define CEC_EARLY_SUSPEND	(1 << 0)
-#define CEC_DEEP_SUSPEND	(1 << 1)
-#define CEC_POWER_RESUME	(1 << 2)
-
 #define HR_DELAY(n)		(ktime_set(0, n * 1000 * 1000))
 #define MAX_INT    0x7ffffff
 
+#ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
+static struct early_suspend aocec_suspend_handler;
+#endif
+
 struct cec_platform_data_s {
-	/*unsigned int chip_id;*/
+	enum cec_chip_ver chip_id;
 	unsigned char line_reg;/*cec gpio_i reg:0  ao;1 periph*/
 	unsigned int line_bit;/*cec gpio position in reg*/
 	bool ee_to_ao;/*ee cec hw module mv to ao;ao cec delete*/
@@ -143,6 +138,7 @@ static struct cec_msg_last *last_cec_msg;
 static struct dbgflg stdbgflg;
 
 static int phy_addr_test;
+static struct tasklet_struct ceca_tasklet;
 
 /* from android cec hal */
 enum {
@@ -1227,15 +1223,21 @@ void cec_clear_all_logical_addr(unsigned int cec_sel)
 void cec_enable_arc_pin(bool enable)
 {
 	unsigned int data;
+	unsigned int chipid = cec_dev->plat_data->chip_id;
 
-	if (is_meson_sm1_cpu() ||
-			cpu_after_eq(MESON_CPU_MAJOR_ID_TM2)) {
-		/*sm1 and tm2 later, audio module handle this*/
-
+	/* box no arc out*/
+	if ((chipid != CEC_CHIP_TXL) &&
+		(chipid != CEC_CHIP_TXLX) &&
+		(chipid != CEC_CHIP_TL1) &&
+		(chipid != CEC_CHIP_TM2))
 		return;
-	}
 
-	if (cec_dev->plat_data->cecb_ver >= CECB_VER_2) {
+	/*tm2 later, audio module handle this*/
+	if (chipid >= CEC_CHIP_TM2)
+		return;
+
+	/* tl1 tm2*/
+	if (chipid == CEC_CHIP_TL1) {
 		data = rd_reg_hhi(HHI_HDMIRX_ARC_CNTL);
 		/* enable bit 1:1 bit 0: 0*/
 		if (enable)
@@ -1245,7 +1247,7 @@ void cec_enable_arc_pin(bool enable)
 		wr_reg_hhi(HHI_HDMIRX_ARC_CNTL, data);
 		CEC_INFO("set arc en:%d, reg:%x\n", enable, data);
 	} else {
-		/* select arc according arg */
+		/* only tv chip select arc according arg */
 		if (enable)
 			hdmirx_wr_top(TOP_ARCTX_CNTL, 0x01);
 		else
@@ -1865,10 +1867,7 @@ void cec_key_report(int suspend)
 	input_sync(cec_dev->cec_info.remote_cec_dev);
 	input_event(cec_dev->cec_info.remote_cec_dev, EV_KEY, KEY_POWER, 0);
 	input_sync(cec_dev->cec_info.remote_cec_dev);
-	if (!suspend)
-		CEC_INFO("== WAKE UP BY CEC ==\n")
-	else
-		CEC_INFO("== SLEEP by CEC==\n")
+	CEC_INFO("event %s %d\n", __func__, suspend);
 }
 
 void cec_give_version(unsigned int dest)
@@ -2045,25 +2044,24 @@ static void cec_rx_process(void)
 		return;
 	}
 	opcode = msg[1];
+	CEC_INFO("%s op 0x%x\n", __func__, opcode);
 	switch (opcode) {
 	case CEC_OC_ACTIVE_SOURCE:
-		/*if (wake_ok == 0) */
-		{
-			int phy_addr = msg[2] << 8 | msg[3];
-
-			if (phy_addr == 0xffff)
-				break;
-			/*wake_ok = 1;*/
-			phy_addr |= (initiator << 16);
-			writel(phy_addr, cec_dev->cec_reg + AO_RTI_STATUS_REG1);
-			CEC_INFO("found wake up source:%x", phy_addr);
+		dest_phy_addr = msg[2] << 8 | msg[3];
+		if (dest_phy_addr == 0xffff)
+			break;
+		dest_phy_addr |= (initiator << 16);
+		if (cec_dev->cec_suspend == CEC_PW_STANDBY) {
+			writel(dest_phy_addr,
+				cec_dev->cec_reg + AO_RTI_STATUS_REG1);
+			CEC_INFO("found wake up source:%x", dest_phy_addr);
 		}
 		break;
 
 	case CEC_OC_ROUTING_CHANGE:
 		dest_phy_addr = msg[4] << 8 | msg[5];
 		if ((dest_phy_addr == cec_dev->phy_addr) &&
-			(cec_dev->cec_suspend == CEC_EARLY_SUSPEND)) {
+			(cec_dev->cec_suspend == CEC_PW_STANDBY)) {
 			CEC_INFO("wake up by ROUTING_CHANGE\n");
 			cec_key_report(0);
 		}
@@ -2097,36 +2095,32 @@ static void cec_rx_process(void)
 	case CEC_OC_SET_STREAM_PATH:
 		cec_set_stream_path(msg);
 		/* wake up if in early suspend */
-		if (cec_dev->cec_suspend != CEC_POWER_ON)
+		if (cec_dev->cec_suspend == CEC_PW_STANDBY)
 			cec_key_report(0);
 		break;
 
 	case CEC_OC_REQUEST_ACTIVE_SOURCE:
-		if (cec_dev->cec_suspend == CEC_POWER_ON)
+		if (cec_dev->cec_suspend == CEC_PW_POWER_ON)
 			cec_active_source_smp();
 		break;
 
 	case CEC_OC_GIVE_DEVICE_POWER_STATUS:
-		if (cec_dev->cec_suspend == CEC_DEEP_SUSPEND)
-			cec_report_power_status(initiator, POWER_STANDBY);
-		else if (cec_dev->cec_suspend == CEC_EARLY_SUSPEND)
-			cec_report_power_status(initiator, TRANS_ON_TO_STANDBY);
-		else if (cec_dev->cec_suspend == CEC_POWER_RESUME)
-			cec_report_power_status(initiator, TRANS_STANDBY_TO_ON);
+		if (cec_dev->cec_suspend == CEC_PW_POWER_ON)
+			cec_report_power_status(initiator, CEC_PW_POWER_ON);
 		else
-			cec_report_power_status(initiator, POWER_ON);
+			cec_report_power_status(initiator, CEC_PW_STANDBY);
 		break;
 
 	case CEC_OC_USER_CONTROL_PRESSED:
 		/* wake up by key function */
-		if (cec_dev->cec_suspend != CEC_POWER_ON) {
+		if (cec_dev->cec_suspend == CEC_PW_STANDBY) {
 			if (msg[2] == 0x40 || msg[2] == 0x6d)
 				cec_key_report(0);
 		}
 		break;
 
 	case CEC_OC_MENU_REQUEST:
-		if (cec_dev->cec_suspend != CEC_POWER_ON)
+		if (cec_dev->cec_suspend != CEC_PW_POWER_ON)
 			cec_menu_status_smp(initiator, DEVICE_MENU_INACTIVE);
 		else
 			cec_menu_status_smp(initiator, DEVICE_MENU_ACTIVE);
@@ -2138,8 +2132,10 @@ static void cec_rx_process(void)
 		dest_phy_addr = 0xffff;
 		dest_phy_addr =	(dest_phy_addr << 0) | (initiator << 16);
 		writel(dest_phy_addr, cec_dev->cec_reg + AO_RTI_STATUS_REG1);
-		CEC_INFO("weak up by otp\n");
-		cec_key_report(0);
+		if (cec_dev->cec_suspend == CEC_PW_STANDBY) {
+			CEC_INFO("weak up by otp\n");
+			cec_key_report(0);
+		}
 		break;
 
 	default:
@@ -2188,29 +2184,36 @@ static void cec_task(struct work_struct *work)
 	queue_delayed_work(cec_dev->cec_thread, dwork, CEC_FRAME_DELAY);
 }
 
-static irqreturn_t ceca_isr(int irq, void *dev_instance)
+static void ceca_tasklet_pro(unsigned long arg)
 {
 	unsigned int intr_stat = 0;
 	struct delayed_work *dwork;
 
 	dwork = &cec_dev->cec_work;
-	intr_stat = cec_intr_stat();
-	CEC_INFO_L(L_2, "ceca_isr 0x%x\n", intr_stat);
-	if (intr_stat & AO_CEC_TX_INT) {   /* aocec tx intr */
+	intr_stat = ao_cec_intr_stat();
+	CEC_INFO_L(L_2, "ceca_tsklet 0x%x\n", intr_stat);
+	if (intr_stat & AO_CEC_TX_INT) {
+		/* cec a tx intr */
 		ceca_tx_irq_handle();
-		return IRQ_HANDLED;
+		return;
 	} else if (intr_stat & AO_CEC_RX_INT) {
+		/* cec a rx intr */
 		if ((-1) == ceca_rx_irq_handle(rx_msg, &rx_len))
-			return IRQ_HANDLED;
+			return;
 
 		complete(&cec_dev->rx_ok);
 		/* check rx buffer is full */
 		new_msg = 1;
 		mod_delayed_work(cec_dev->cec_thread, dwork, 0);
 	}
+}
 
+static irqreturn_t ceca_isr(int irq, void *dev_instance)
+{
+	tasklet_schedule(&ceca_tasklet);
 	return IRQ_HANDLED;
 }
+
 /*
 static void check_wake_up(void)
 {
@@ -2546,7 +2549,7 @@ static ssize_t log_addr_store(struct class *cla, struct class_attribute *attr,
 	cec_logicaddr_set(val);
 	/* add by hal, to init some data structure */
 	cec_dev->cec_info.log_addr = val;
-	cec_dev->cec_info.power_status = POWER_ON;
+	cec_dev->cec_info.power_status = CEC_PW_POWER_ON;
 
 	return count;
 }
@@ -2793,8 +2796,6 @@ static ssize_t hdmitx_cec_read(struct file *f, char __user *buf,
 {
 	int ret;
 
-	if ((cec_dev->hal_flag & (1 << HDMI_OPTION_SYSTEM_CEC_CONTROL)))
-		rx_len = 0;
 	/*CEC_ERR("read msg start\n");*/
 	ret = wait_for_completion_timeout(&cec_dev->rx_ok, CEC_FRAME_DELAY);
 	if (ret <= 0) {
@@ -3161,7 +3162,7 @@ static long hdmitx_cec_ioctl(struct file *f,
 
 		/* add by hal, to init some data structure */
 		cec_dev->cec_info.log_addr = tmp;
-		cec_dev->cec_info.power_status = POWER_ON;
+		cec_dev->cec_info.power_status = CEC_PW_POWER_ON;
 		cec_dev->cec_info.vendor_id = cec_dev->v_data.vendor_id;
 		strncpy(cec_dev->cec_info.osd_name,
 		       cec_dev->v_data.cec_osd_string, 14);
@@ -3251,16 +3252,16 @@ static const struct file_operations hdmitx_cec_fops = {
 };
 
 /************************ cec high level code *****************************/
-#ifdef CONFIG_HAS_EARLYSUSPEND
+#ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
 static void aocec_early_suspend(struct early_suspend *h)
 {
-	cec_dev->cec_suspend = CEC_EARLY_SUSPEND;
+	cec_dev->cec_suspend = CEC_PW_STANDBY;
 	CEC_INFO("%s, suspend:%d\n", __func__, cec_dev->cec_suspend);
 }
 
 static void aocec_late_resume(struct early_suspend *h)
 {
-	cec_dev->cec_suspend = CEC_POWER_ON;
+	cec_dev->cec_suspend = CEC_PW_POWER_ON;
 	CEC_INFO("%s, suspend:%d\n", __func__, cec_dev->cec_suspend);
 
 }
@@ -3268,6 +3269,7 @@ static void aocec_late_resume(struct early_suspend *h)
 
 #ifdef CONFIG_OF
 static const struct cec_platform_data_s cec_gxl_data = {
+	.chip_id = CEC_CHIP_GXL,
 	.line_reg = 0,
 	.line_bit = 8,
 	.ee_to_ao = 0,
@@ -3278,6 +3280,7 @@ static const struct cec_platform_data_s cec_gxl_data = {
 };
 
 static const struct cec_platform_data_s cec_txlx_data = {
+	.chip_id = CEC_CHIP_TXLX,
 	.line_reg = 0,
 	.line_bit = 7,
 	.ee_to_ao = 1,
@@ -3288,6 +3291,18 @@ static const struct cec_platform_data_s cec_txlx_data = {
 };
 
 static const struct cec_platform_data_s cec_g12a_data = {
+	.chip_id = CEC_CHIP_G12A,
+	.line_reg = 1,
+	.line_bit = 3,
+	.ee_to_ao = 1,
+	.ceca_sts_reg = 0,
+	.ceca_ver = CECA_VER_0,
+	.cecb_ver = CECB_VER_1,
+	.share_io = false,
+};
+
+static const struct cec_platform_data_s cec_g12b_data = {
+	.chip_id = CEC_CHIP_G12B,
 	.line_reg = 1,
 	.line_bit = 3,
 	.ee_to_ao = 1,
@@ -3298,6 +3313,7 @@ static const struct cec_platform_data_s cec_g12a_data = {
 };
 
 static const struct cec_platform_data_s cec_txl_data = {
+	.chip_id = CEC_CHIP_TXL,
 	.line_reg = 0,
 	.line_bit = 7,
 	.ee_to_ao = 0,
@@ -3308,6 +3324,7 @@ static const struct cec_platform_data_s cec_txl_data = {
 };
 
 static const struct cec_platform_data_s cec_tl1_data = {
+	.chip_id = CEC_CHIP_TL1,
 	.line_reg = 0,
 	.line_bit = 10,
 	.ee_to_ao = 1,
@@ -3318,6 +3335,7 @@ static const struct cec_platform_data_s cec_tl1_data = {
 };
 
 static const struct cec_platform_data_s cec_sm1_data = {
+	.chip_id = CEC_CHIP_SM1,
 	.line_reg = 1,
 	.line_bit = 3,
 	.ee_to_ao = 1,
@@ -3328,6 +3346,7 @@ static const struct cec_platform_data_s cec_sm1_data = {
 };
 
 static const struct cec_platform_data_s cec_tm2_data = {
+	.chip_id = CEC_CHIP_TM2,
 	.line_reg = 0,
 	.line_bit = 3,
 	.ee_to_ao = 1,
@@ -3349,6 +3368,10 @@ static const struct of_device_id aml_cec_dt_match[] = {
 	{
 		.compatible = "amlogic, aocec-g12a",
 		.data = &cec_g12a_data,
+	},
+	{
+		.compatible = "amlogic, aocec-g12b",
+		.data = &cec_g12b_data,
 	},
 	{
 		.compatible = "amlogic, aocec-txl",
@@ -3712,13 +3735,14 @@ static int aml_cec_probe(struct platform_device *pdev)
 		goto tag_cec_msg_alloc_err;
 	}
 
-#ifdef CONFIG_HAS_EARLYSUSPEND
+#ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
 	aocec_suspend_handler.level   = EARLY_SUSPEND_LEVEL_BLANK_SCREEN - 20;
 	aocec_suspend_handler.suspend = aocec_early_suspend;
 	aocec_suspend_handler.resume  = aocec_late_resume;
 	aocec_suspend_handler.param   = cec_dev;
 	register_early_suspend(&aocec_suspend_handler);
 #endif
+
 	hrtimer_init(&start_bit_check, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 	start_bit_check.function = cec_line_check;
 	cec_dev->cec_thread = create_workqueue("cec_work");
@@ -3729,7 +3753,8 @@ static int aml_cec_probe(struct platform_device *pdev)
 	}
 	INIT_DELAYED_WORK(&cec_dev->cec_work, cec_task);
 	queue_delayed_work(cec_dev->cec_thread, &cec_dev->cec_work, 0);
-
+	tasklet_init(&ceca_tasklet, ceca_tasklet_pro,
+		(unsigned long)cec_dev);
 	scpi_get_wakeup_reason(&cec_dev->wakeup_reason);
 	CEC_ERR("wakeup_reason:0x%x\n", cec_dev->wakeup_reason);
 	scpi_get_cec_val(SCPI_CMD_GET_CEC1,
@@ -3798,26 +3823,29 @@ static int aml_cec_remove(struct platform_device *pdev)
 #ifdef CONFIG_PM
 static int aml_cec_pm_prepare(struct device *dev)
 {
-	cec_dev->cec_suspend = CEC_DEEP_SUSPEND;
-	CEC_INFO("%s, cec_suspend:%d\n", __func__, cec_dev->cec_suspend);
+	//cec_dev->cec_suspend = CEC_DEEP_SUSPEND;
+	CEC_INFO("%s\n", __func__);
 	return 0;
 }
 
 static void aml_cec_pm_complete(struct device *dev)
 {
-	int exit = 0;
-
-	if (cec_dev->exit_reg) {
-		exit = readl(cec_dev->exit_reg);
-		CEC_INFO("wake up flag:%x\n", exit);
-	}
-	if (((exit >> 28) & 0xf) == CEC_WAKEUP)
+	if (get_resume_method() == CEC_WAKEUP) {
 		cec_key_report(0);
+
+		if (scpi_clr_wakeup_reason())
+			CEC_ERR("clr wakeup reason fail\n");
+	}
+
+	CEC_INFO("%s\n", __func__);
 }
 
 static int aml_cec_suspend_noirq(struct device *dev)
 {
 	int ret = 0;
+
+	cec_dev->cec_info.power_status = CEC_PW_TRANS_ON_TO_STANDBY;
+	cec_dev->cec_suspend = CEC_PW_TRANS_ON_TO_STANDBY;
 
 	CEC_INFO("cec suspend noirq\n");
 	if (cec_dev->cec_num > ENABLE_ONE_CEC)
@@ -3829,6 +3857,9 @@ static int aml_cec_suspend_noirq(struct device *dev)
 		ret = pinctrl_pm_select_sleep_state(cec_dev->dbg_dev);
 	else
 		CEC_ERR("pinctrl sleep_state error\n");
+
+	cec_dev->cec_info.power_status = CEC_PW_STANDBY;
+	cec_dev->cec_suspend = CEC_PW_STANDBY;
 	return 0;
 }
 
@@ -3839,7 +3870,8 @@ static int aml_cec_resume_noirq(struct device *dev)
 
 	CEC_INFO("cec resume noirq!\n");
 
-	cec_dev->cec_info.power_status = TRANS_STANDBY_TO_ON;
+	cec_dev->cec_info.power_status = CEC_PW_TRANS_STANDBY_TO_ON;
+	cec_dev->cec_suspend = CEC_PW_TRANS_STANDBY_TO_ON;
 
 	scpi_get_wakeup_reason(&cec_dev->wakeup_reason);
 	CEC_ERR("wakeup_reason:0x%x\n", cec_dev->wakeup_reason);
@@ -3850,13 +3882,14 @@ static int aml_cec_resume_noirq(struct device *dev)
 	CEC_ERR("cev val1: %#x;val2: %#x\n",
 					*((unsigned int *)&cec_dev->wakup_data),
 						temp);
-	cec_dev->cec_info.power_status = TRANS_STANDBY_TO_ON;
-	cec_dev->cec_suspend = CEC_POWER_RESUME;
 	cec_pre_init();
 	if (!IS_ERR(cec_dev->dbg_dev->pins->default_state))
 		ret = pinctrl_pm_select_default_state(cec_dev->dbg_dev);
 	else
 		CEC_ERR("pinctrl default_state error\n");
+
+	cec_dev->cec_info.power_status = CEC_PW_POWER_ON;
+	cec_dev->cec_suspend = CEC_PW_POWER_ON;
 	return 0;
 }
 

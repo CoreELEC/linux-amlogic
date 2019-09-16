@@ -181,9 +181,13 @@ static void lcd_venc_set(struct lcd_config_s *pconf)
 
 	switch (lcd_drv->data->chip_type) {
 	case LCD_CHIP_TL1:
-	case LCD_CHIP_TM2:
 		/*[15:14]: 2'b10 or 2'b01*/
 		lcd_vcbus_write(ENCL_INBUF_CNTL1, (2 << 14) | (h_active - 1));
+		lcd_vcbus_write(ENCL_INBUF_CNTL0, 0x200);
+		break;
+	case LCD_CHIP_TM2:
+		/*[15:14]: 2'b10 or 2'b01, bit13:1*/
+		lcd_vcbus_write(ENCL_INBUF_CNTL1, (5 << 13) | (h_active - 1));
 		lcd_vcbus_write(ENCL_INBUF_CNTL0, 0x200);
 		break;
 	default:
@@ -522,7 +526,7 @@ static void lcd_vbyone_hw_filter(int flag)
 	struct vbyone_config_s *vx1_conf;
 	unsigned int temp, period;
 	unsigned int tick_period[] = {
-		0xfffff,
+		0xfff,
 		0xff,    /* 1: 0.8us */
 		0x1ff,   /* 2: 1.7us */
 		0x3ff,   /* 3: 3.4us */
@@ -564,14 +568,15 @@ static void lcd_vbyone_hw_filter(int flag)
 		} else {
 			temp = (vx1_conf->hw_filter_time >> 8) & 0x1;
 			if (temp) {
-				LCDPR("%s: %d bypass for debug\n",
-					__func__, flag);
-				break;
+				lcd_vcbus_write(VBO_INFILTER_TICK_PERIOD_L,
+						0xff);
+				lcd_vcbus_write(VBO_INFILTER_TICK_PERIOD_H,
+						0x0);
+				lcd_vcbus_setb(VBO_INSGN_CTRL, 0x7, 8, 4);
+				lcd_vcbus_setb(VBO_INSGN_CTRL, 0x7, 12, 4);
+				LCDPR("%s: %d change to min for debug\n",
+				       __func__, flag);
 			}
-			lcd_vcbus_write(VBO_INFILTER_TICK_PERIOD_L, 0xff);
-			lcd_vcbus_write(VBO_INFILTER_TICK_PERIOD_H, 0x0);
-			lcd_vcbus_setb(VBO_INSGN_CTRL, 0x7, 8, 4);
-			lcd_vcbus_setb(VBO_INSGN_CTRL, 0x7, 12, 4);
 		}
 		break;
 	default:
@@ -1337,8 +1342,8 @@ static void lcd_vbyone_config_set(struct lcd_config_s *pconf)
 		LCDPR("change to min lane_num %d\n", minlane);
 	}
 
-	bit_rate = band_width / minlane;
-	phy_div = lane_count / minlane;
+	bit_rate = band_width / lane_count;
+	phy_div = lane_count / lane_count;
 	if (phy_div == 8) {
 		phy_div /= 2;
 		bit_rate /= 2;

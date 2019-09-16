@@ -84,6 +84,15 @@ do { \
 			&_name##_gate.hw, &clk_gate_ops, \
 			CLK_SET_RATE_NO_REPARENT)
 
+#define REGISTER_CLK_COM_PARENTS(_name, pnames) \
+	clk_register_composite(NULL, #_name, \
+			pnames##_parent_names, \
+			ARRAY_SIZE(pnames##_parent_names), \
+			&_name##_mux.hw, &clk_mux_ops, \
+			&_name##_div.hw, &clk_divider_ops, \
+			&_name##_gate.hw, &clk_gate_ops, \
+			CLK_SET_RATE_NO_REPARENT)
+
 struct audio_clk_init {
 	int clk_num;
 	int (*clk_gates)(struct clk **clks, void __iomem *iobase);
@@ -95,6 +104,7 @@ extern struct audio_clk_init g12a_audio_clks_init;
 extern struct audio_clk_init tl1_audio_clks_init;
 extern struct audio_clk_init sm1_audio_clks_init;
 extern struct audio_clk_init tm2_audio_clks_init;
+extern spinlock_t aclk_lock;
 
 struct clk_chipinfo {
 	/* force clock source as oscin(24M) */

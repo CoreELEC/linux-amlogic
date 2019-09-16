@@ -57,6 +57,7 @@ struct ve_regs_s {
 	unsigned int rsv:5;
 };
 
+extern unsigned int gamma_loadprotect_en;
 extern struct ve_hist_s video_ve_hist;
 extern void ve_hist_gamma_reset(void);
 extern unsigned int ve_size;
@@ -157,7 +158,6 @@ extern void amve_sharpness_adaptive_setting(struct vframe_s *vf,
 extern void amve_sharpness_init(void);
 extern struct am_regs_s sr1reg_sd_scale;
 extern struct am_regs_s sr1reg_hd_scale;
-extern struct am_regs_s sr0reg_cvbs;
 extern struct am_regs_s sr1reg_cvbs;
 extern struct am_regs_s sr1reg_hv_noscale;
 extern void amvecm_fresh_overscan(struct vframe_s *vf);
@@ -169,6 +169,6 @@ extern void dump_plut3d_table(void);
 extern void dump_plut3d_reg_table(void);
 
 extern void amvecm_gamma_init(bool en);
-
+extern void set_gamma_regs(int en, int sel);
 #endif
 

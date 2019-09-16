@@ -623,18 +623,9 @@
 
 	tuner: tuner {
 		compatible = "amlogic, tuner";
-		status = "disabled";
-		tuner_cur = <0>; /* default use tuner */
-		tuner_num = <1>; /* tuner number, multi tuner support */
-		tuner_name_0 = "mxl661_tuner";
-		tuner_i2c_adap_0 = <&i2c1>;
-		tuner_i2c_addr_0 = <0x60>;
-		tuner_xtal_0 = <0>; /* 0: 16MHz, 1: 24MHz */
-		tuner_xtal_mode_0 = <0>;
-					/* NO_SHARE_XTAL(0)
-					 * SLAVE_XTAL_SHARE(1)
-					 */
-		tuner_xtal_cap_0 = <30>; /* when tuner_xtal_mode = 1, set 25 */
+		status = "okay";
+		tuner0_i2c_addr = <0x61>;
+		tuner1_i2c_addr = <0x62>;
 	};
 
 	atv-demod {

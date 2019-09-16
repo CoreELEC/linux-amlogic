@@ -63,6 +63,13 @@
 			reg = <0x0 0x05300000 0x0 0x2000000>;
 			no-map;
 		};
+		logo_reserved:linux,meson-fb {
+			compatible = "shared-dma-pool";
+			reusable;
+			size = <0x0 0x800000>;
+			alignment = <0x0 0x400000>;
+			alloc-ranges = <0x0 0x7f800000 0x0 0x800000>;
+		};
 		ion_reserved:linux,ion-dev {
 			compatible = "shared-dma-pool";
 			reusable;
@@ -496,7 +503,7 @@
 				min_state = <500>;
 				dyn_coeff = <437>;
 				cluster_id = <0>;
-				node_name = "gpufreq_cool0";
+				node_name = "mali";
 				device_type = "gpufreq";
 			};
 			gpucore_cool {
@@ -511,9 +518,6 @@
 			#cooling-cells = <2>; /* min followed by max */
 		};
 		cpucore_cool0:cpucore_cool0 {
-			#cooling-cells = <2>; /* min followed by max */
-		};
-		gpufreq_cool0:gpufreq_cool0 {
 			#cooling-cells = <2>; /* min followed by max */
 		};
 		gpucore_cool0:gpucore_cool0 {
@@ -564,7 +568,7 @@
 				};
 				gpufreq_cooling_map {
 					trip = <&control>;
-					cooling-device = <&gpufreq_cool0 0 4>;
+					cooling-device = <&gpu 0 4>;
 					contribution = <1024>;
 				};
 				gpucore_cooling_map {
@@ -716,6 +720,7 @@
 		compatible = "amlogic, meson-gxl";
 		dev_name = "meson-fb";
 		status = "okay";
+		memory-region = <&logo_reserved>;
 		interrupts = <0 3 1
 			0 89 1>;
 		interrupt-names = "viu-vsync", "rdma";
@@ -727,7 +732,7 @@
 		display_size_default = <1920 1080 1920 3240 32>;
 		/*1920*1080*4*3 = 0x17BB000*/
 		mem_alloc = <1>;
-		logo_addr = "0x7dc00000";
+		logo_addr = "0x7f800000";
 	};
 	ge2d {
 		compatible = "amlogic, ge2d-gxl";
@@ -828,6 +833,11 @@
 			"pcm_mclk",
 			"pcm_sclk";
 		pcm_mode = <1>; /* 0=slave mode, 1=master mode */
+		dai-format = "dsp_a";
+		dai-tdm-slot-tx-mask = <1>;
+		dai-tdm-slot-rx-mask = <1>;
+		dai-tdm-slot-num = <2>;
+		dai-tdm-slot-width = <16>;
 	};
 	i2s_plat: i2s_platform {
 		compatible = "amlogic, aml-i2s";

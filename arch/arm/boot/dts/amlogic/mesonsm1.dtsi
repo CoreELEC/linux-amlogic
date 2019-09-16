@@ -317,8 +317,9 @@
 		compatible = "amlogic, g12a-eth-dwmac","snps,dwmac";
 		reg = <0xff3f0000 0x10000
 			0xff634540 0x8
-			0xff64c000 0xa0>;
-		reg-names = "eth_base", "eth_cfg", "eth_pll";
+			0xff64c000 0xa0
+			0xffd01008 0x4>;
+		reg-names = "eth_base", "eth_cfg", "eth_pll", "eth_reset";
 		interrupts = <0 8 1>;
 		interrupt-names = "macirq";
 		status = "disabled";
@@ -500,6 +501,11 @@
 		      <0xff63c100 0x10>;
 	};
 
+	bl40: bl40 {
+		compatible = "amlogic, bl40-bootup";
+		status = "okay";
+	};
+
 	soc {
 		compatible = "simple-bus";
 		#address-cells = <1>;
@@ -666,6 +672,7 @@
 			aoclkc: clock-controller@0 {
 				compatible = "amlogic,sm1-aoclkc";
 				#clock-cells = <1>;
+				#reset-cells = <1>;
 				reg = <0x0 0x3dc>;
 			};
 
@@ -1107,7 +1114,7 @@
 	galcore {
 		compatible = "amlogic, galcore";
 		dev_name = "galcore";
-		status = "disabled";
+		status = "okay";
 		clocks = <&clkc CLKID_VNANOQ_AXI_CLK_COMP>,
 			<&clkc CLKID_VNANOQ_CORE_CLK_COMP>;
 		clock-names = "cts_vipnanoq_axi_clk_composite",
@@ -1115,15 +1122,16 @@
 		interrupts = <0 186 4>;
 		interrupt-names = "galcore";
 		reg = <0xff100000 0x800
-			/*reg base value:0xff100000 */
 			0xff000000 0x400000
-			/*Sram bse value:0xff000000*/
 			0xff63c118 0x0
 			0xff63c11c 0x0
-			/*0xff63c118,0xff63c11c :nanoq mem regs*/
 			0xffd01088 0x0
-			/*0xffd01088:reset reg*/
+			0xff63c1c8 0x0
 			>;
+		reg-names = "NN_REG","NN_SRAM","NN_MEM0",
+			"NN_MEM1","NN_RESET","NN_CLK";
+		nn_power_version = <3>;
+		nn_efuse = <0xff63003c 0x20>;
 	};
 	aocec: aocec {
 		compatible = "amlogic, aocec-sm1";
@@ -1138,6 +1146,7 @@
 		cec_osd_string = "AML_MBOX"; /* Max Chars: 14    */
 		cec_version = <5>;/*5:1.4;6:2.0*/
 		port_num = <1>;
+		output = <1>;
 		ee_cec;
 		arc_port_mask = <0x2>;
 		interrupts = <0 203 1

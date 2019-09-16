@@ -1393,7 +1393,7 @@
 		 *	LOOPBACK,
 		 */
 		resample_module = <3>;
-		status = "okay";
+		status = "disabled";
 	};
 	aml_pwrdet: pwrdet {
 		compatible = "amlogic, axg-power-detect";

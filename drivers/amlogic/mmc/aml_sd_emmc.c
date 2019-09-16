@@ -2970,6 +2970,7 @@ static int aml_sd_emmc_card_busy(struct mmc_host *mmc)
 		vconf = readl(host->base + SD_EMMC_CFG);
 		pconf->auto_clk = 1;
 		writel(vconf, host->base + SD_EMMC_CFG);
+		host->sd_sdio_switch_volat_done = 0;
 		if ((host->mem->start == host->data->port_b_base)
 				&& host->data->tdma_f)
 			host->init_volt = 0;
@@ -3334,6 +3335,10 @@ static int meson_mmc_probe(struct platform_device *pdev)
 			dev_warn(mmc_dev(host->mmc),
 					"Unable to creat sysfs attributes\n");
 		ret = device_create_file(&pdev->dev, &dev_attr_emmc_clktest);
+		if (ret)
+			dev_warn(mmc_dev(host->mmc),
+					"Unable to creat sysfs attributes\n");
+		ret = device_create_file(&pdev->dev, &dev_attr_emmc_cmd_window);
 		if (ret)
 			dev_warn(mmc_dev(host->mmc),
 					"Unable to creat sysfs attributes\n");

@@ -932,7 +932,17 @@ done_merging:
 		}
 	}
 
+#if defined(CONFIG_AMLOGIC_MEMORY_EXTEND) && defined(CONFIG_KASAN)
+	/*
+	 * always put freed page to tail of buddy system, in
+	 * order to increase probability of use-after-free
+	 * for KASAN check.
+	 */
+	list_add_tail(&page->lru,
+		      &zone->free_area[order].free_list[migratetype]);
+#else
 	list_add(&page->lru, &zone->free_area[order].free_list[migratetype]);
+#endif
 out:
 	zone->free_area[order].nr_free++;
 #ifdef CONFIG_AMLOGIC_MEMORY_EXTEND
@@ -2284,7 +2294,7 @@ __rmqueue_fallback(struct zone *zone, unsigned int order, int start_migratetype)
  */
 #ifdef CONFIG_AMLOGIC_CMA
 static struct page *__rmqueue(struct zone *zone, unsigned int order,
-				int migratetype, gfp_t gfp_flags)
+				int migratetype, bool cma)
 #else
 static struct page *__rmqueue(struct zone *zone, unsigned int order,
 				int migratetype)
@@ -2294,7 +2304,7 @@ static struct page *__rmqueue(struct zone *zone, unsigned int order,
 
 #ifdef CONFIG_AMLOGIC_CMA
 	/* use CMA first */
-	if (migratetype == MIGRATE_MOVABLE && can_use_cma(gfp_flags)) {
+	if (migratetype == MIGRATE_MOVABLE && cma) {
 		page = __rmqueue_cma_fallback(zone, order);
 		if (page) {
 			trace_mm_page_alloc_zone_locked(page, order,
@@ -2348,7 +2358,7 @@ static struct page *rmqueue_no_cma(struct zone *zone, unsigned int order,
 #ifdef CONFIG_AMLOGIC_CMA
 static int rmqueue_bulk(struct zone *zone, unsigned int order,
 			unsigned long count, struct list_head *list,
-			int migratetype, bool cold, gfp_t flags)
+			int migratetype, bool cold, bool cma)
 #else
 static int rmqueue_bulk(struct zone *zone, unsigned int order,
 			unsigned long count, struct list_head *list,
@@ -2360,7 +2370,7 @@ static int rmqueue_bulk(struct zone *zone, unsigned int order,
 	spin_lock(&zone->lock);
 	for (i = 0; i < count; ++i) {
 	#ifdef CONFIG_AMLOGIC_CMA
-		struct page *page = __rmqueue(zone, order, migratetype, flags);
+		struct page *page = __rmqueue(zone, order, migratetype, cma);
 	#else
 		struct page *page = __rmqueue(zone, order, migratetype);
 	#endif /* CONFIG_AMLOGIC_CMA */
@@ -2623,10 +2633,19 @@ void free_hot_cold_page(struct page *page, bool cold)
 	}
 
 	pcp = &this_cpu_ptr(zone->pageset)->pcp;
+#if defined(CONFIG_AMLOGIC_MEMORY_EXTEND) && defined(CONFIG_KASAN)
+	/*
+	 * always put freed page to tail of buddy system, in
+	 * order to increase probability of use-after-free
+	 * for KASAN check.
+	 */
+	list_add_tail(&page->lru, &pcp->lists[migratetype]);
+#else
 	if (!cold)
 		list_add(&page->lru, &pcp->lists[migratetype]);
 	else
 		list_add_tail(&page->lru, &pcp->lists[migratetype]);
+#endif
 	pcp->count++;
 	if (pcp->count >= pcp->high) {
 		unsigned long batch = READ_ONCE(pcp->batch);
@@ -2769,6 +2788,9 @@ struct page *buffered_rmqueue(struct zone *preferred_zone,
 	unsigned long flags;
 	struct page *page;
 	bool cold = ((gfp_flags & __GFP_COLD) != 0);
+#ifdef CONFIG_AMLOGIC_CMA
+	bool cma = can_use_cma(gfp_flags);
+#endif
 
 	if (likely(order == 0)) {
 		struct per_cpu_pages *pcp;
@@ -2783,7 +2805,7 @@ struct page *buffered_rmqueue(struct zone *preferred_zone,
 				pcp->count += rmqueue_bulk(zone, 0,
 						pcp->batch, list,
 						migratetype, cold,
-						gfp_flags);
+						cma);
 			#else
 				pcp->count += rmqueue_bulk(zone, 0,
 						pcp->batch, list,
@@ -2810,8 +2832,7 @@ struct page *buffered_rmqueue(struct zone *preferred_zone,
 			 * For 2, we should replace with a cma page
 			 * before page is deleted from PCP list.
 			 */
-			if (!can_use_cma(gfp_flags) &&
-			    is_migrate_cma_page(page)) {
+			if (!cma && is_migrate_cma_page(page)) {
 				/* case 1 */
 				page = rmqueue_no_cma(zone, order, migratetype);
 				if (page)
@@ -2819,7 +2840,7 @@ struct page *buffered_rmqueue(struct zone *preferred_zone,
 				goto failed;
 			} else if ((migratetype == MIGRATE_MOVABLE) &&
 			    (get_pcppage_migratetype(page) != MIGRATE_CMA) &&
-			    can_use_cma(gfp_flags)) {
+			    cma) {
 				struct page *tmp_page;
 
 				spin_lock(&zone->lock);
@@ -2860,7 +2881,7 @@ use_pcp:
 			if (!page)
 			#ifdef CONFIG_AMLOGIC_CMA
 				page = __rmqueue(zone, order,
-						 migratetype, gfp_flags);
+						 migratetype, cma);
 			#else
 				page = __rmqueue(zone, order, migratetype);
 			#endif /* CONFIG_AMLOGIC_CMA */

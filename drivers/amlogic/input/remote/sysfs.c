@@ -362,6 +362,8 @@ static ssize_t ir_learning_store(struct device *dev,
 		chip->set_register_config(chip, REMOTE_TYPE_RAW_NEC);
 		r_dev->protocol = chip->protocol;/*backup protocol*/
 		chip->protocol = REMOTE_TYPE_RAW_NEC;
+		irq_set_affinity(chip->irqno,
+				 cpumask_of(chip->irq_cpumask));
 	} else {
 		chip->protocol = r_dev->protocol;
 		chip->set_register_config(chip, chip->protocol);

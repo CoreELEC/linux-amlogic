@@ -52,7 +52,9 @@ extern void register_early_suspend(struct early_suspend *handler);
 extern void unregister_early_suspend(struct early_suspend *handler);
 extern unsigned int lgcy_early_suspend_init(void);
 extern unsigned int is_pm_freeze_mode(void);
-
+#ifdef CONFIG_AMLOGIC_ADC_KEYPADS
+extern bool keep_adc_alive(void);
+#endif
 
 #endif //CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
 

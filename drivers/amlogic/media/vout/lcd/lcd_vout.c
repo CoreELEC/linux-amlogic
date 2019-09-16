@@ -1122,10 +1122,10 @@ static int lcd_mode_probe(struct device *dev)
 		LCDERR("invalid lcd mode: %d\n", lcd_driver->lcd_mode);
 		break;
 	}
-	lcd_tcon_probe(lcd_driver);
 	if (lcd_driver->lcd_status & LCD_STATUS_ENCL_ON)
 		lcd_clk_gate_switch(1);
 
+	lcd_tcon_probe(lcd_driver);
 	lcd_debug_probe();
 	lcd_fops_create();
 
@@ -1196,6 +1196,13 @@ static void lcd_config_probe_delayed(struct work_struct *work)
 		kfree(lcd_driver);
 		lcd_driver = NULL;
 		LCDERR("probe exit\n");
+	}
+
+	if ((lcd_driver->lcd_status & LCD_STATUS_VMODE_ACTIVE)
+	&& !(lcd_driver->lcd_status & LCD_STATUS_ENCL_ON)) {
+		LCDPR("%s: lcd_enable in kernel\n", __func__);
+		aml_lcd_notifier_call_chain(LCD_EVENT_POWER_ON, NULL);
+		lcd_if_enable_retry(lcd_driver->lcd_config);
 	}
 }
 

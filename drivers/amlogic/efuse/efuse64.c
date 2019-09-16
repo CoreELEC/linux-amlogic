@@ -174,6 +174,7 @@ static long efuse_unlocked_ioctl(struct file *file, unsigned int cmd,
 				__func__, __LINE__);
 			return ret;
 		}
+		info.keyname[sizeof(info.keyname) - 1] = '\0';
 		if (efuse_getinfo(info.keyname, &info) < 0) {
 			pr_err("%s if not found\n", info.keyname);
 			return -EFAULT;

@@ -1703,9 +1703,12 @@ static int __maybe_unused meson_sar_adc_suspend(struct device *dev)
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 	int ret;
 
-	if (is_pm_freeze_mode())
+#ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
+#ifdef CONFIG_AMLOGIC_ADC_KEYPADS
+	if (keep_adc_alive())
 		return 0;
-
+#endif
+#endif
 	if (iio_buffer_enabled(indio_dev)) {
 		ret = meson_sar_adc_buffer_predisable(indio_dev);
 		if (ret)
@@ -1724,9 +1727,12 @@ static int __maybe_unused meson_sar_adc_resume(struct device *dev)
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 	int ret;
 
-	if (is_pm_freeze_mode())
+#ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
+#ifdef CONFIG_AMLOGIC_ADC_KEYPADS
+	if (keep_adc_alive())
 		return 0;
-
+#endif
+#endif
 	ret = meson_sar_adc_hw_enable(indio_dev);
 	if (ret)
 		return ret;

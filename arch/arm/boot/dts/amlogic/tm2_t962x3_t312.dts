@@ -19,7 +19,7 @@
 
 #include "mesontm2.dtsi"
 #include "partition_mbox_normal.dtsi"
-#include "mesontm2_t962x3_ab301-panel.dtsi"
+#include "mesontm2_t962x3_t312-panel.dtsi"
 
 / {
 	model = "Amlogic TM2 T962X3 T312";
@@ -41,7 +41,7 @@
 		i2c3 = &i2c3;
 		i2c4 = &i2c_AO;
 		spi0 = &spicc0;
-		spi1 = &spicc1;
+		spi1 = &spicc_b;
 	};
 
 	memory@00000000 {
@@ -270,30 +270,6 @@
 		dat1_ch_sel = <1>;
 	};
 
-	aml_dtv_demod {
-		compatible = "amlogic, ddemod-tm2";
-		dev_name = "aml_dtv_demod";
-		status = "okay";
-
-		//pinctrl-names="dtvdemod_agc";
-		//pinctrl-0=<&dtvdemod_agc>;
-
-		clocks = <&clkc CLKID_DAC_CLK>;
-		clock-names = "vdac_clk_gate";
-
-		reg = <0xff650000 0x4000	/*dtv demod base*/
-			   0xff63c000 0x2000	/*hiu reg base*/
-			   0xff800000 0x1000	/*io_aobus_base*/
-			   0xffd01000 0x1000	/*reset*/
-			>;
-
-		dtv_demod0_mem = <0>;	// need move to aml_dtv_demod ?
-		spectrum = <1>;
-		cma_flag = <1>;
-		cma_mem_size = <8>;
-		memory-region = <&demod_cma_reserved>;//<&demod_reserved>;
-	};
-
 	auge_sound {
 		compatible = "amlogic, tm2-sound-card";
 		aml-audio-card,name = "AML-AUGESOUND";
@@ -329,7 +305,7 @@
 			tdmacodec: codec {
 				//sound-dai = <&dummy_codec>;
 				prefix-names = "AMP";
-				sound-dai = <&tas5805 &tl1_codec>;
+				sound-dai = <&ad82584f &tl1_codec>;
 			};
 		};
 
@@ -473,32 +449,62 @@
 
 	dvb {
 		compatible = "amlogic, dvb";
+		dev_name = "dvb";
 		status = "okay";
-		fe0_mode = "internal";
-		fe0_tuner = <&tuner>;
+		fe0_mode = "external";
+		fe0_demod = "Si2168";
+		fe0_i2c_adap_id = <&i2c0>;
+		fe0_demod_i2c_addr = <0x64>;
+		fe0_ts = <0>;
+		fe0_reset_value = <0>;
+		fe0_reset_gpio = <&gpio GPIODV_11 GPIO_ACTIVE_HIGH>;
 
 		/*"parallel","serial","disable"*/
-		ts2 = "parallel";
-		ts2_control = <0>;
-		ts2_invert = <0>;
+		ts0 = "serial";
+		ts0_control = <0x800>;
+		ts0_invert = <0>;
+		ts_out_invert = <1>;
+
 		interrupts = <0 23 1
-				0 5 1
-				0 53 1
-				0 19 1
-				0 25 1
-				0 17 1>;
+					0 5 1
+					0 53 1
+					0 19 1
+					0 25 1
+					0 18 1
+					0 24 1>;
 		interrupt-names = "demux0_irq",
-				"demux1_irq",
-				"demux2_irq",
-				"dvr0_irq",
-				"dvr1_irq",
-				"dvr2_irq";
+						"demux1_irq",
+						"demux2_irq",
+						"dvr0_irq",
+						"dvr1_irq",
+						"dvr2_irq",
+						"dvrfill0_fill",
+						"dvrfill1_flush";
+		pinctrl-names = "s_ts0";
+		pinctrl-0 = <&dvb_s_ts0_pins>;
 		clocks = <&clkc CLKID_DEMUX
 			&clkc CLKID_ASYNC_FIFO
 			&clkc CLKID_AHB_ARB0
-/*		&clkc CLKID_DOS_PARSER>;*/
-		&clkc CLKID_U_PARSER>;
+			&clkc CLKID_U_PARSER>;
 		clock-names = "demux", "asyncfifo", "ahbarb0", "uparsertop";
+	};
+
+	dvbci {
+		compatible = "amlogic, dvbci";
+		dev_name = "dvbci";
+		io_type = <3>; /* 0=iobus,1=spi,2=cimax,3=spi-t312*/
+		dvbci_io {
+			/*mcu irq pin*/
+			mcu_irq_pin = <&gpio GPIOH_9 GPIO_ACTIVE_HIGH>;
+			/*below is spi config*/
+		    /*if use iobus you need add iobus config below */
+			spi_bus_num = <1>;
+			spi_chip_select = <0>;
+			spi_max_frequency = <300000>; /* unit: hz */
+			spi_mode = <3>; /* mode: 0, 1, 2, 3 */
+			spi_cs_delay = <10 100>; /*h delay, cs delay(unit:us)*/
+			spi_write_check = <0>; /* 0=disable, 1=enable */
+		};
 	};
 
 	tvafe_avin_detect {
@@ -510,7 +516,7 @@
 	};
 
 	amlvecm {
-		compatible = "amlogic, vecm-tl1";
+		compatible = "amlogic, vecm-tm2";
 		dev_name = "aml_vecm";
 		status = "okay";
 		gamma_en = <1>;/*1:enabel ;0:disable*/
@@ -693,7 +699,7 @@
 		compatible = "amlogic, unifykey";
 		status = "okay";
 
-		unifykey-num = <21>;
+		unifykey-num = <24>;
 		unifykey-index-0 = <&keysn_0>;
 		unifykey-index-1 = <&keysn_1>;
 		unifykey-index-2 = <&keysn_2>;
@@ -715,6 +721,9 @@
 		unifykey-index-18 = <&keysn_18>;
 		unifykey-index-19 = <&keysn_19>;
 		unifykey-index-20 = <&keysn_20>;
+		unifykey-index-21 = <&keysn_21>;
+		unifykey-index-22 = <&keysn_22>;
+		unifykey-index-23 = <&keysn_23>;
 
 		keysn_0: key_0{
 			key-name = "usid";
@@ -826,6 +835,21 @@
 			key-device = "secure";
 			key-permit = "read","write","del";
 		};
+		keysn_21:key_21{
+			key-name = "hdcp22_rprx_fw";
+			key-device = "normal";
+			key-permit = "read","write","del";
+		};
+		keysn_22:key_22{
+			key-name = "hdcp22_rprp_fw";
+			key-device = "normal";
+			key-permit = "read","write","del";
+		};
+		keysn_23:key_23{
+			key-name = "hdcp22_rp_private";
+			key-device = "secure";
+			key-permit = "read","write","del";
+		};
 	}; /* End unifykey */
 
 	amlvideo2_0 {
@@ -900,6 +924,13 @@
 			0x0 0x0
 			0x0 0x0
 			0xff610000 0xa000>;
+	};
+
+	amhdmitx: amhdmitx {
+		compatible = "amlogic, amhdmitx";
+		dev_name = "amhdmitx";
+		status = "okay";
+		repeater_tx = <0x0>;
 	};
 
 	aocec: aocec {
@@ -1003,7 +1034,7 @@
 			};
 			gpufreq_cool {
 				min_state = <400>;
-				dyn_coeff = <140>;
+				dyn_coeff = <160>;
 				gpu_pp = <2>;
 				cluster_id = <0>;
 				node_name = "gpufreq_cool0";
@@ -1036,7 +1067,7 @@
 		pll_thermal: pll_thermal {
 			polling-delay = <1000>;
 			polling-delay-passive = <100>;
-			sustainable-power = <1322>;
+			sustainable-power = <1230>;
 			thermal-sensors = <&p_tsensor 0>;
 			trips {
 				pswitch_on: trip-point@0 {
@@ -1081,7 +1112,7 @@
 		ddr_thermal: ddr_thermal {
 			polling-delay = <2000>;
 			polling-delay-passive = <1000>;
-			sustainable-power = <1322>;
+			sustainable-power = <1230>;
 			thermal-sensors = <&d_tsensor 1>;
 			trips {
 				dswitch_on: trip-point@0 {
@@ -1109,7 +1140,7 @@
 		sar_thermal: sar_thermal {
 			polling-delay = <2000>;
 			polling-delay-passive = <1000>;
-			sustainable-power = <1322>;
+			sustainable-power = <1230>;
 			thermal-sensors = <&s_tsensor 2>;
 			trips {
 				sswitch_on: trip-point@0 {
@@ -1200,33 +1231,8 @@
 	tuner: tuner {
 		compatible = "amlogic, tuner";
 		status = "okay";
-		tuner_cur = <0>; /* default use tuner */
-		tuner_num = <1>; /* tuner number, multi tuner support */
-		tuner_name_0 = "mxl661_tuner";
-		tuner_i2c_adap_0 = <&i2c0>;
-		tuner_i2c_addr_0 = <0x60>;
-		tuner_xtal_0 = <1>; /* 0: 16MHz, 1: 24MHz */
-		tuner_xtal_mode_0 = <3>;
-					/* NO_SHARE_XTAL(0)
-					 * SLAVE_XTAL_SHARE(3)
-					 */
-		tuner_xtal_cap_0 = <25>; /* when tuner_xtal_mode = 3, set 25 */
-	};
-
-	atv-demod {
-		compatible = "amlogic, atv-demod";
-		status = "okay";
-		tuner = <&tuner>;
-		btsc_sap_mode = <1>;
-		interrupts = <0 236 1>;
-		/* pinctrl-names="atvdemod_agc_pins"; */
-		/* pinctrl-0=<&atvdemod_agc_pins>; */
-		reg = <0xff656000 0x2000 /* demod reg */
-				0xff63c000 0x2000 /* hiu reg */
-				0xff634000 0x2000 /* periphs reg */
-				0xff64a000 0x2000>; /* audio reg */
-		reg_23cf = <0x88188832>;
-		/*default:0x88188832;r840 on haier:0x48188832*/
+		tuner0_i2c_addr = <0x60>;
+		tuner1_i2c_addr = <0x62>;
 	};
 
 	bt-dev{
@@ -1237,7 +1243,7 @@
 
 	wifi{
 		compatible = "amlogic, aml_wifi";
-		status = "okay";
+		status = "disabled";
 		interrupt_pin = <&gpio       GPIOC_12       GPIO_ACTIVE_HIGH>;
 		irq_trigger_type = "GPIO_IRQ_LOW";
 		dhd_static_buf;    //dhd_static_buf support
@@ -1261,9 +1267,9 @@
 	};
 
 	sd_emmc_b: sdio@ffe05000 {
-		status = "okay";
+		status = "disabled";
 		compatible = "amlogic, meson-mmc-tm2";
-		reg = <0x0 0xffe05000 0x0 0x800>;
+		reg = <0xffe05000 0x800>;
 		interrupts = <0 190 4>;
 
 		pinctrl-names = "sdio_all_pins",
@@ -1368,14 +1374,15 @@
 		dai-tdm-clk-sel = <0>;
 
 		clocks = <&clkaudio CLKID_AUDIO_MCLK_A
+				&clkaudio CLKID_AUDIO_MCLK_PAD0
 				&clkc CLKID_MPLL0
 				&clkc CLKID_MPLL1
 				&clkaudio CLKID_AUDIO_SPDIFOUT_A>;
-		clock-names = "mclk", "clk_srcpll",
+		clock-names = "mclk", "mclk_pad", "clk_srcpll",
 			"samesource_srcpll", "samesource_clk";
 
 		pinctrl-names = "tdm_pins";
-		pinctrl-0 = <&tdma_mclk &tdmout_a>;
+		pinctrl-0 = </*&tdma_mclk*/ &tdmout_a>;
 
 		/*
 		 * 0: tdmout_a;
@@ -1430,7 +1437,7 @@
 		clock-names = "mclk", "clk_srcpll";
 
 		pinctrl-names = "tdm_pins";
-		pinctrl-0 = <&tdmout_c &tdmin_c>;
+		pinctrl-0 = </*&tdmout_c &tdmin_c*/>;
 
 		status = "okay";
 	};
@@ -1500,7 +1507,7 @@
 			"pdm_sysclk";
 
 		pinctrl-names = "pdm_pins";
-		pinctrl-0 = <&pdmin>;
+		pinctrl-0 = </*&pdmin*/>;
 
 		/* mode 0~4, defalut:1 */
 		filter_mode = <1>;
@@ -1608,7 +1615,7 @@
 	};
 
 	aed:effect {
-		compatible = "amlogic, snd-effect-v2";
+		compatible = "amlogic, snd-effect-v3";
 		#sound-dai-cells = <0>;
 
 		clocks = <&clkaudio CLKID_AUDIO_GATE_EQDRC
@@ -1629,7 +1636,7 @@
 		/* max 0xff, each bit for one channel */
 		channel_mask = <0xff>;
 
-		status = "disable";
+		status = "okay";
 	};
 
 	asrca: resample@0 {
@@ -1827,17 +1834,17 @@
 	/* audio pin mux */
 
 	tdma_mclk: tdma_mclk {
-		mux { /* GPIOZ_0 */
-			groups = "mclk0_z";
+		mux { /* GPIOH_4 */
+			groups = "mclk0_h";
 			function = "mclk0";
 		};
 	};
 
 	tdmout_a: tdmout_a {
-		mux { /* GPIOZ_1, GPIOZ_2, GPIOZ_3*/
-			groups = "tdma_sclk_z",
-				"tdma_fs_z",
-				"tdma_dout0_z";
+		mux { /* GPIOH_5, GPIOH_6, GPIOH_7*/
+			groups = "tdma_sclk_h",
+				"tdma_fs_h",
+				"tdma_dout0_h";
 			function = "tdma_out";
 			bias-pull-down;
 		};
@@ -1931,7 +1938,15 @@
 			output-low;
 		};
 	};
-
+	dvb_s_ts0_pins: dvb_s_ts0_pins {
+		mux {
+			groups = "tsin_a_din0",
+			"tsin_a_clk",
+			"tsin_a_sop",
+			"tsin_a_valid";
+			function = "tsin_a";
+		};
+	};
 }; /* end of pinctrl_periphs */
 
 &pinctrl_aobus {
@@ -1947,37 +1962,9 @@
 	status = "okay";
 };
 
-&i2c2 {
-	status = "okay";
-	pinctrl-names="default";
-	pinctrl-0=<&i2c2_z_pins>;
-	clock-frequency = <400000>;
 
-	tas5805: tas5805@5c {
-		compatible = "ti,tas5805";
-		#sound-dai-cells = <0>;
-		codec_name = "tas5805";
-		reg = <0x2e>;
-		reset_pin = <&gpio_ao GPIOAO_6 GPIO_ACTIVE_HIGH>;
-		status = "okay";
-	};
-};
 
-&i2c3 {
-	status = "okay";
-	pinctrl-names="default";
-	pinctrl-0=<&i2c3_h1_pins>;
-	clock-frequency = <400000>;
 
-	ad82584f: ad82584f@62 {
-		compatible = "ESMT, ad82584f";
-		#sound-dai-cells = <0>;
-		reg = <0x31>;
-		status = "disabled";
-		reset_pin = <&gpio GPIOH_13 0>;
-		no_mclk;
-	};
-};
 
 
 &sd_emmc_c {
@@ -2124,10 +2111,25 @@
 };
 
 &spicc0 {
-	status = "okay";
+	status = "disable";
 	pinctrl-names = "default";
 	pinctrl-0 = <&spicc0_pins_h>;
 	cs-gpios = <&gpio GPIOH_20 0>;
+};
+
+&spicc1 {
+	status = "disable";
+	pinctrl-names = "default";
+	pinctrl-0 = <&spicc1_pins_h>;
+	cs-gpios = <&gpio GPIOH_0 0>;
+};
+
+&spicc_b {
+	status = "okay";
+	pinctrl-names= "default";
+	pinctrl-0=<&spicc1_pins_h>;
+	num_chipselect = <1>;
+	cs-gpios = <&gpio GPIOH_0 GPIO_ACTIVE_HIGH>;
 };
 
 &meson_fb {
@@ -2173,6 +2175,14 @@
 		reg = <0x74>;
 		status = "okay";
 	};
+	ad82584f: ad82584f@62 {
+		compatible = "ESMT, ad82584f";
+		#sound-dai-cells = <0>;
+		reg = <0x31>;
+		status = "okay";
+		reset_pin = <&gpio GPIOH_4 0>;
+		no_mclk;
+	};
 };
 
 &pwm_ab {
@@ -2187,3 +2197,8 @@
 	status = "okay";
 };
 
+&irblaster {
+	pinctrl-names = "default";
+	pinctrl-0 = <&irblaster_pins>;
+	status = "okay";
+};

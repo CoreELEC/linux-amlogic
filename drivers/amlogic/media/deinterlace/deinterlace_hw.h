@@ -18,7 +18,7 @@
 #ifndef _DI_HW_H
 #define _DI_HW_H
 #include <linux/amlogic/media/amvecm/amvecm.h>
-#include "pulldown_drv.h"
+#include "di_pqa.h"
 #include "nr_drv.h"
 
 /* if post size < 80, filter of ei can't work */
@@ -231,6 +231,8 @@ extern void di_patch_post_update_mc_sw(unsigned int cmd, bool on);
 extern void di_rst_protect(bool on);
 extern void di_pre_nr_wr_done_sel(bool on);
 extern void di_arb_sw(bool on);
+extern bool afbc_is_free(void);
+extern enum eAFBC_DEC afbc_get_decnub(void);
 
 /*also see: dbg_mode_name*/
 enum eDI_DBG_MOD {

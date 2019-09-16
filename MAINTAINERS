@@ -13932,7 +13932,7 @@ F:	drivers/amlogic/media/enhancement/amvecm/arch/*
 F:	drivers/amlogic/media/enhancement/amvecm/dnlp_algorithm/*
 F:	include/linux/amlogic/media/amvecm/*
 F:	drivers/amlogic/media/enhancement/amvecm/hdr/*
-F:      drivers/amlogic/media/enhancement/amvecm/amprime_sl/*
+F:  drivers/amlogic/media/enhancement/amvecm/amprime_sl/*
 
 AMLOGIC GXL ADD SKT DTS
 M: Yun Cai <yun.cai@amlogic.com>
@@ -14375,6 +14375,8 @@ F:      drivers/amlogic/media/vout/vout_serve/vout2_notify.c
 F:      drivers/amlogic/media/vout/vout_serve/vout2_serve.c
 F:      drivers/amlogic/media/vout/vout_serve/vout_func.c
 F:      drivers/amlogic/media/vout/vout_serve/vout_func.h
+F:	drivers/amlogic/media/vout/vout_serve/vout_reg.h
+F:	drivers/amlogic/media/vout/vout_serve/dummy_lcd.c
 
 AMLOGIC GPIO IRQ
 M: Xingyu Chen <xingyu.chen@amlogic.com>
@@ -14899,6 +14901,8 @@ F:	arch/arm64/boot/dts/amlogic/g12a_s905x2_u212.dts
 F:	arch/arm64/boot/dts/amlogic/g12a_s905x2_u212_1g.dts
 F:	arch/arm/boot/dts/amlogic/sm1_s905x3_ac213.dts
 F:	arch/arm64/boot/dts/amlogic/sm1_s905x3_ac213.dts
+F:      arch/arm/boot/dts/amlogic/sm1_s905x3_ac214.dts
+F:      arch/arm64/boot/dts/amlogic/sm1_s905x3_ac214.dts
 
 AMLOGIC SM1 MIPI CSI DRIVER
 M:	Guosong Zhou <guosong.zhou@amlogic.com>
@@ -14942,12 +14946,14 @@ ANLOGIC HIFI4DSP
 M: Shuyu Li <Shuyu.Li@amlogic.com>
 F: drivers/amlogic/hifi4dsp/*
 
-AMLOGIC SM1 AC200/AC213 BUILDROOT DTS
+AMLOGIC SM1 AC200/AC213/AC214 BUILDROOT DTS
 M:  Guofeang Tang <guofeng.tang@amlogic.com>
 F:  arch/arm/boot/dts/amlogic/sm1_s905d3_ac200_buildroot.dts
 F:  arch/arm/boot/dts/amlogic/sm1_s905x3_ac213_buildroot.dts
+F:  arch/arm/boot/dts/amlogic/sm1_s905x3_ac214_buildroot.dts
 F:  arch/arm64/boot/dts/amlogic/sm1_s905d3_ac200_buildroot.dts
 F:  arch/arm64/boot/dts/amlogic/sm1_s905x3_ac213_buildroot.dts
+F:  arch/arm64/boot/dts/amlogic/sm1_s905x3_ac214_buildroot.dts
 
 AMLOGIC G12B W400 DRM BUILDROOT DTS
 M:  Guofeang Tang <guofeng.tang@amlogic.com>
@@ -14977,8 +14983,195 @@ F:  arch/arm64/boot/dts/amlogic/firmware_avb_Q.dtsi
 F:  arch/arm64/boot/dts/amlogic/firmware_normal_Q.dtsi
 F:  arch/arm64/boot/dts/amlogic/partition_mbox_normal_dynamic.dtsi
 
+AMLOGIC CAMERA GC2145 MIPI DRIVER
+M:  Guosong Zhou <guosong.zhou@amlogic.com>
+F:  arch/arm/boot/dts/amlogic/sm1_s905d3_ac202.dts
+F:  arch/arm/boot/dts/amlogic/sm1_s905d3_ac202_1g.dts
+F:  arch/arm/configs/meson64_a32_defconfig
+F:  arch/arm64/boot/dts/amlogic/sm1_s905d3_ac202.dts
+F:  arch/arm64/boot/dts/amlogic/sm1_s905d3_ac202_1g.dts
+F:  arch/arm64/configs/meson64_defconfig
+F:  drivers/amlogic/media/camera/gc2145_mipi.c
+
+AMLOGIC GDC DRIVER
+M:	Pengcheng Chen <pengcheng.chen@amlogic.com>
+F:	drivers/amlogic/media/gdc/app/gdc_wq.c
+F:	drivers/amlogic/media/gdc/app/gdc_wq.h
+
+LAB126 PRIVACY
+M:	LAB126
+F:	drivers/misc/amz_priv*
+
+LAB126 lifecycle and log
+M:	LAB126
+F:	drivers/staging/amazon/*
+
+LAB126 tmp103
+M:	LAB126
+F:	drivers/hwmon/tmp103.c
+
+LAB126 RAVEN DTS
+M:	Yong Yu <yonyu@lab126.com>
+F:	arch/arm64/boot/dts/amlogic/raven.dts
+F:	arch/arm64/boot/dts/amlogic/raven_proto.dts
+F:	Documentation/devicetree/bindings/iio/light/tsl2540.txt
+
+LAB126 RAVEN DEFCONFIG
+M:	Yong Yu <yonyu@lab126.com>
+F:	arch/arm64/configs/raven_defconfig
+F:	arch/arm64/configs/raven_debug_defconfig
+
+LAB126 RAVEN THERMISTOR
+M:	Kevin Ow <krow@amazon.com>
+F:	Documentation/devicetree/bindings/thermal/ntc-bts-thermistor.txt
+F:	drivers/amlogic/iio/adc/saradc_ntc_bts.c
+F:	drivers/amlogic/iio/adc/Makefile
+F:	drivers/amlogic/iio/adc/Kconfig
+
+LAB126 RAVEN VIRTUAL THERMAL SENSOR
+M:	Kevin Ow <krow@amazon.com>
+F:	arch/arm64/boot/dts/amlogic/raven_thermal_zones.dtsi
+F:	Documentation/devicetree/bindings/thermal/virtual_sensor_thermal.txt
+F:	drivers/thermal/Kconfig
+F:	drivers/thermal/Makefile
+F:	drivers/thermal/trip_step_wise.c
+F:	drivers/thermal/virtual_sensor_thermal.c
+F:	include/linux/virtual_sensor_thermal.h
+
+LAB126 RAVEN WIFI_COOLING
+M:	Kevin Ow <krow@amazon.com>
+F:	Documentation/devicetree/bindings/thermal/wifi-temp-sensor.txt
+F:	drivers/thermal/wifi_cooling.c
+F:	drivers/amlogic/thermal/aml_thermal_cooling.c
+F:	drivers/amlogic/thermal/aml_thermal_hw.c
+F:	include/linux/amlogic/aml_thermal_cooling.h
+F:	include/linux/amlogic/aml_thermal_hw.h
+
+THIRD PARTY AUDIO CODEC TLV320DAC3203
+M: Xing Fang <xing.fang@amlogic.com>
+F: sound/soc/codecs/tlv320dac3203.c
+F: sound/soc/codecs/tlv320dac3203.h
+
+LAB126 PERFORMANCE BOOST DRIVER
+M: Yong Yu <yonyu@lab126.com>
+F: drivers/amlogic/cpufreq/cpufreq-boost.c
+F: include/linux/cpufreq-boost.h
+
+ADD OSD SW_SYNC DRIVER
+M: Pengcheng Chen <pengcheng.chen@amlogic.com>
+F: drivers/amlogic/media/osd/osd_sw_sync.c
+F: drivers/amlogic/media/osd/osd_sw_sync.h
+
+AMLOGIC VIRTUAL_FB DRIVER
+M:	Pengcheng Chen <pengcheng.chen@amlogic.com>
+F:	drivers/amlogic/media/osd/osd_virtual.c
+F:	drivers/amlogic/media/osd/osd_virtual.h
+
+AMLOGIC TL1 PIXEL PROBE
+M:  Yan Wang <yan.wang@amlogic.com>
+F:	drivers/amlogic/pixel_probe/*
+F:	include/linux/amlogic/pixel_probe.h
+
 AMLOGIC ADD HDR10+ FUNCTION FOR ANDROID Q
 M:  Cheng Wang <cheng.wang@amlogic.com>
 F:  drivers/amlogic/media/enhancement/amvecm/hdr/am_hdr10_plus_ootf.c
 F:  drivers/amlogic/media/enhancement/amvecm/hdr/am_hdr10_plus_ootf.h
 
+AMLOGIC PATTERN DETECTION FUNCTION
+M:  Xihai ZHu <xihai.zhu@amlogic.com>
+F:  drivers/amlogic/media/enhancement/amvecm/pattern_detection.c
+F:  drivers/amlogic/media/enhancement/amvecm/pattern_detection.h
+F:  drivers/amlogic/media/enhancement/amvecm/pattern_detection_bar_settings.h
+F:  drivers/amlogic/media/enhancement/amvecm/pattern_detection_corn_settings.h
+F:  drivers/amlogic/media/enhancement/amvecm/pattern_detection_face_settings.h
+
+AMLOGIC DRM
+M:	Ao Xu <ao.xu@amlogic.com>
+M:	Dezhi Kong <dezhi.kong@amlogic.com>
+F:	include/linux/meson_ion.h
+F:	include/uapi/drm/meson_drm.h
+F:	include/uapi/drm/drm_fourcc.c
+F:	drivers/gpu/Makefile
+F:	drivers/amlogic/Kconfig
+F:	drivers/amlogic/Makefile
+F:	drivers/amlogic/drm/*
+F:	drivers/staging/android/ion/ion.h
+F:	drivers/staging/android/ion/ion_cma_heap.c
+F:	drivers/amlogic/media/osd/osd_fb.c
+F:	drivers/amlogic/media/common/ion_dev/dev_ion.c
+F:	drivers/amlogic/media/common/ion_dev/dev_ion.h
+F:	arch/arm/boot/dts/amlogic/meson-g12a-u200.dts
+F:	arch/arm/boot/dts/amlogic/mesong12a_drm.dtsi
+F:	arch/arm/boot/dts/amlogic/sm1_s905d3_ac200.dts
+F:	arch/arm/boot/dts/amlogic/sm1_s905x3_ac213.dts
+F:	arch/arm64/boot/dts/amlogic/meson-g12a-u200.dts
+F:	arch/arm64/boot/dts/amlogic/mesong12a_drm.dtsi
+F:	arch/arm64/boot/dts/amlogic/sm1_s905d3_ac200.dts
+F:	arch/arm64/boot/dts/amlogic/sm1_s905x3_ac213.dts
+F:	arch/arm/configs/meson64_a32_defconfig
+F:	arch/arm64/configs/meson64_a64_defconfig
+F:	arch/arm/boot/dts/amlogic/Makefile
+F:	arch/arm64/boot/dts/amlogic/Makefile
+
+AMLOGIC DRM
+M:	Dezhi Kong <dezhi.kong@amlogic.com>
+F:	arch/arm/boot/dts/amlogic/mesonsm1_drm.dtsi
+F:	arch/arm64/boot/dts/amlogic/mesonsm1_drm.dtsi
+F:	arch/arm/boot/dts/amlogic/sm1_s905d3_ac200_drm_buildroot.dts
+F:	arch/arm64/boot/dts/amlogic/sm1_s905d3_ac200_drm_buildroot.dts
+F:	drivers/amlogic/drm/meson_vpu.c
+
+AMLOGIC ADD DTS FOR T312 PLATFORM
+M:  hualing chen <hualing.chen@amlogic.com>
+F:  arch/arm64/boot/dts/amlogic/mesontm2_t962x3_t312-panel.dtsi
+F:  arch/arm/boot/dts/amlogic/mesontm2_t962x3_t312-panel.dtsi
+
+AMLOGIC ADD DRM FOR P212
+M: lingjie li <lingjie.li@amlogic.com>
+F: arch/arm/boot/dts/amlogic/gxl_p212_2g_drm_buildroot.dts
+
+AMLOGIC ADD DTS FOR AC223 PLATFORM
+M:  huijie huang <huijie.huang@amlogic.com>
+F:  arch/arm/boot/dts/amlogic/sm1_s905y3_ac223.dts
+F:  arch/arm64/boot/dts/amlogic/sm1_s905y3_ac223.dts
+
+AMLOGIC TVAFE DRIVER
+M:      Evoke Zhang <evoke.zhang@amlogic.com>
+F:      drivers/amlogic/media/vin/tvin/tvafe/tvafe_pq_table.c
+
+AMLOGIC DEINTERLACE DRIVER
+M:	Jihong Sui <jihong.sui@amlogic.com>
+F:	drivers/amlogic/media/deinterlace/di_pqa.h
+F:	drivers/amlogic/media/di_local/*
+
+AMLOGIC ADD DI_MULTI DRIVER
+M:	Jihong Sui <jihong.sui@amlogic.com>
+F:	drivers/amlogic/media/di_multi/*
+
+AMLOGIC DRM
+M:	Ao Xu <ao.xu@amlogic.com>
+F:	drivers/amlogic/drm/meson_debugfs.c
+
+AMLOGIC DRM
+M:	Dezhi Kong <dezhi.kong@amlogic.com>
+F:	arch/arm/boot/dts/amlogic/mesontl1_drm.dtsi
+F:	arch/arm/boot/dts/amlogic/tl1_t962x2_x301_1g_drm.dts
+F:	arch/arm/boot/dts/amlogic/tl1_t962x2_x301_2g_drm.dts
+F:	arch/arm64/boot/dts/amlogic/mesontl1_drm.dtsi
+F:	arch/arm64/boot/dts/amlogic/tl1_t962x2_x301_1g_drm.dts
+F:	arch/arm64/boot/dts/amlogic/tl1_t962x2_x301_2g_drm.dts
+F:	drivers/amlogic/drm/meson_lcd.c
+F:	drivers/amlogic/drm/meson_vpu.c
+F:	drivers/amlogic/drm/meson_vpu_pipeline.c
+F:	drivers/amlogic/drm/meson_vpu_pipeline_traverse.c
+F:	include/dt-bindings/display/meson-drm-ids.h
+
+AMLOGIC LCD EXTERN DRIVER
+M:      Shaochan Liu <shaochan.liu@amlogic.com>
+F:      drivers/amlogic/media/vout/lcd/lcd_extern/i2c_CS602.c
+
+AMLOGIC SM1/G12A BL40 BOOTUP DRIVER
+M: shunzhou jiang <shunzhou.jiang@amlogic.com>
+F: drivers/amlogic/firmware/bl40_module.c
+F: drivers/amlogic/firmware/Makefile
+F: drivers/amlogic/firmware/Kconfig

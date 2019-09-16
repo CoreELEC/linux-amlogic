@@ -686,13 +686,16 @@ int rx_get_ceadata_offset(uint8_t *cur_edid, uint8_t *addition)
 {
 	int i;
 	int type;
+	unsigned char max_offset;
 
 	if ((cur_edid == NULL) || (addition == NULL))
 		return 0;
 
 	type = rx_get_tag_code(addition);
 	i = EDID_DEFAULT_START;/*block check start index*/
-	while (i < 255) {
+	max_offset = cur_edid[130] + EDID_EXT_BLK_OFF;
+
+	while (i < max_offset) {
 		if (type == rx_get_tag_code(cur_edid + i))
 			return i;
 		i += (1 + (*(cur_edid + i) & 0x1f));
@@ -1334,6 +1337,14 @@ unsigned char rx_edid_update_atmos(unsigned char *p_edid)
 	return 0;
 }
 
+static enum edid_ver_e rx_get_edid_ver(uint8_t *p_edid)
+{
+	if (edid_tag_extract(p_edid, VENDOR_TAG + HF_VSDB_OFFSET))
+		return EDID_V20;
+	else
+		return EDID_V14;
+}
+
 unsigned int hdmi_rx_top_edid_update(void)
 {
 	int edid_index = rx_get_edid_index();
@@ -1348,6 +1359,7 @@ unsigned int hdmi_rx_top_edid_update(void)
 		return 0;
 	/* get edid from buffer, return buffer addr */
 	pedid_data = rx_get_edid(edid_index);
+	rx.edid_ver = rx_get_edid_ver(pedid_data);
 
 	/* update hdr info to edid buffer */
 	rx_edid_update_hdr_info(pedid_data, edid_index);
@@ -1500,17 +1512,17 @@ static void get_edid_manufacture_date(unsigned char *buff,
 	edid_info->product_year = buff[start+1] + 1990;
 }
 
-/* The version of EDID version
+/* The EDID version in base block
  * offset 0x12 and 0x13
+ *static void get_edid_version(unsigned char *buff,
+ *	unsigned char start, struct edid_info_s *edid_info)
+ *{
+ *	if (!edid_info || !buff)
+ *		return;
+ *	edid_info->edid_version = buff[start];
+ *	edid_info->edid_revision = buff[start+1];
+ *}
  */
-static void get_edid_version(unsigned char *buff,
-	unsigned char start, struct edid_info_s *edid_info)
-{
-	if (!edid_info || !buff)
-		return;
-	edid_info->edid_version = buff[start];
-	edid_info->edid_revision = buff[start+1];
-}
 
 /* Basic Display Parameters and Features
  * offset 0x14~0x18
@@ -1656,7 +1668,7 @@ void edid_parse_block0(uint8_t *p_edid, struct edid_info_s *edid_info)
 	/* product date offset 0x10~0x11 */
 	get_edid_manufacture_date(p_edid, 0x10, edid_info);
 	/* EDID version offset 0x12~0x13*/
-	get_edid_version(p_edid, 0x12, edid_info);
+	/* get_edid_version(p_edid, 0x12, edid_info); */
 	/* Basic Display Parameters and Features offset 0x14~0x18 */
 	get_edid_display_parameters(p_edid, 0x14, edid_info);
 	/* Color Characteristics offset 0x19~0x22 */
@@ -3339,13 +3351,15 @@ uint8_t *edid_tag_extract(uint8_t *p_edid, uint16_t tagid)
 	unsigned int index = EDID_EXT_BLK_OFF;
 	uint8_t tag_length;
 	int tag_code;
+	unsigned char max_offset;
 
 	if (!p_edid)
 		return NULL;
 	 /* check if a cea extension block */
 	if (p_edid[126]) {
 		index += 4;
-		while (index < EDID_SIZE) {
+		max_offset = p_edid[130] + EDID_EXT_BLK_OFF;
+		while (index < max_offset) {
 			tag_code = rx_get_tag_code(p_edid+index);
 			tag_length = BLK_LENGTH(p_edid[index]);
 			if (tag_code == tagid)

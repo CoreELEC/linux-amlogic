@@ -21,6 +21,8 @@
 struct v4l2_frontend;
 struct atv_demod_priv;
 
+#define AUIDO_CARRIER_POWER_MIN    150
+
 #define HHI_ATV_DMD_SYS_CLK_CNTL		0x10f3
 
 extern unsigned int reg_23cf; /* IIR filter */
@@ -29,6 +31,8 @@ extern unsigned int aud_std;
 extern unsigned int aud_mode;
 extern bool audio_thd_en;
 extern bool aud_reinit;
+extern bool atv_audio_overmodulated_en;
+extern unsigned int non_std_en;
 
 enum broadcast_standard_e {
 	ATVDEMOD_STD_NTSC = 0,
@@ -78,7 +82,8 @@ extern void atv_dmd_set_std(unsigned long std);
 extern void retrieve_adc_power(int *adc_level);
 extern void retrieve_vpll_carrier_lock(int *lock);
 extern void retrieve_vpll_carrier_line_lock(int *lock);
-extern void retrieve_vpll_carrier_audio_power(int *power);
+extern void retrieve_vpll_carrier_audio_power(unsigned int *power,
+		unsigned int try_times);
 extern void retrieve_video_lock(int *lock);
 extern int retrieve_vpll_carrier_afc(void);
 
@@ -158,6 +163,7 @@ extern void atvdemod_mixer_tune(void);
 #define AML_ATV_DEMOD_VIDEO_MODE_PROP_NTSC_BG	13
 #define AML_ATV_DEMOD_VIDEO_MODE_PROP_NTSC_I	14
 #define AML_ATV_DEMOD_VIDEO_MODE_PROP_NTSC_M    15
+#define AML_ATV_DEMOD_VIDEO_MODE_PROP_SECAM_LC  16
 /* new add @20150813 end */
 
 /*GDE_Curve*/

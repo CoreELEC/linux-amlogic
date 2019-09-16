@@ -48,7 +48,7 @@
 /* Ref.2019/04/25: tl1 vdin0 afbce dynamically switch support,
  *                 vpp also should support this function
  */
-#define VDIN_VER "Ref.2019/05/31"
+#define VDIN_VER "Ref.2019/08/22:add vdin pixel probe feature"
 
 /*the counter of vdin*/
 #define VDIN_MAX_DEVS			2
@@ -91,9 +91,9 @@
 /*values of vdin game mode process flag */
 /*enable*/
 #define VDIN_GAME_MODE_0                (1 << 0)
-/*delay 1 frame*/
+/*delay 1 frame, vdin have one frame buffer delay*/
 #define VDIN_GAME_MODE_1                (1 << 1)
-/*delay 2 frame*/
+/*delay 2 frame write, read at same buffer*/
 #define VDIN_GAME_MODE_2                (1 << 2)
 /*when phase lock, will switch 2 to 1*/
 #define VDIN_GAME_MODE_SWITCH_EN        (1 << 3)
@@ -106,12 +106,17 @@
 /* #define VDIN_DEBUG */
 
 /*vdin write mem color-depth support*/
-#define VDIN_WR_COLOR_DEPTH_8BIT	1
-#define VDIN_WR_COLOR_DEPTH_9BIT	(1 << 1)
-#define VDIN_WR_COLOR_DEPTH_10BIT	(1 << 2)
-#define VDIN_WR_COLOR_DEPTH_12BIT	(1 << 3)
-/*TXL new add*/
-#define VDIN_WR_COLOR_DEPTH_10BIT_FULL_PCAK_MODE	(1 << 4)
+enum VDIN_WR_COLOR_DEPTHe {
+	VDIN_WR_COLOR_DEPTH_8BIT = 0x01,
+	VDIN_WR_COLOR_DEPTH_9BIT = 0x02,
+	VDIN_WR_COLOR_DEPTH_10BIT = 0x04,
+	VDIN_WR_COLOR_DEPTH_12BIT = 0x08,
+	/*TXL new add*/
+	VDIN_WR_COLOR_DEPTH_10BIT_FULL_PCAK_MODE = 0x10,
+};
+
+#define VDIN_422_FULL_PK_EN			1
+#define VDIN_422_FULL_PK_DIS			0
 
 /* vdin afbce flag */
 #define VDIN_AFBCE_EN                   (1 << 0)
@@ -120,6 +125,21 @@
 #define VDIN_AFBCE_EN_1080P             (1 << 5)
 #define VDIN_AFBCE_EN_720P              (1 << 6)
 #define VDIN_AFBCE_EN_SMALL             (1 << 7)
+
+enum COLOR_DEEPS_CFGe {
+	COLOR_DEEPS_AUTO = 0,
+	COLOR_DEEPS_8BIT = 8,
+	COLOR_DEEPS_10BIT = 10,
+	COLOR_DEEPS_12BIT = 12,
+	COLOR_DEEPS_MANUAL = 0x100,
+};
+
+enum vdin_color_deeps_e {
+	VDIN_COLOR_DEEPS_8BIT = 8,
+	VDIN_COLOR_DEEPS_9BIT = 9,
+	VDIN_COLOR_DEEPS_10BIT = 10,
+	VDIN_COLOR_DEEPS_12BIT = 12,
+};
 
 static inline const char *vdin_fmt_convert_str(
 		enum vdin_format_convert_e fmt_cvt)
@@ -196,6 +216,8 @@ struct vdin_dv_s {
 	bool dv_config;
 	bool dv_crc_check;/*0:fail;1:ok*/
 	unsigned int dv_mem_alloced;
+	struct tvin_dv_vsif_s dv_vsif;/*dolby vsi info*/
+	bool low_latency;
 };
 
 struct vdin_afbce_s {
@@ -242,7 +264,7 @@ struct vdin_dev_s {
 
 	struct vdin_debug_s debug;
 	enum vdin_format_convert_e format_convert;
-	unsigned int source_bitdepth;
+	enum vdin_color_deeps_e source_bitdepth;
 
 	struct vf_entry *curr_wr_vfe;
 	struct vf_entry *last_wr_vfe;
@@ -317,14 +339,14 @@ struct vdin_dev_s {
 	 *bit3:support 12bit
 	 *bit4:support yuv422 10bit full pack mode (from txl new add)
 	 */
-	unsigned int color_depth_support;
+	enum VDIN_WR_COLOR_DEPTHe color_depth_support;
 	/*color depth config
 	 *0:auto config as frontend
 	 *8:force config as 8bit
 	 *10:force config as 10bit
 	 *12:force config as 12bit
 	 */
-	unsigned int color_depth_config;
+	enum COLOR_DEEPS_CFGe color_depth_config;
 	/* new add from txl:color depth mode for 10bit
 	 *1: full pack mode;config 10bit as 10bit
 	 *0: config 10bit as 12bit
@@ -383,7 +405,6 @@ struct vdin_dev_s {
 	bool black_bar_enable;
 	bool hist_bar_enable;
 	unsigned int ignore_frames;
-	unsigned int recycle_frames;
 	/*use frame rate to cal duraton*/
 	unsigned int use_frame_rate;
 	unsigned int irq_cnt;
@@ -394,6 +415,9 @@ struct vdin_dev_s {
 	unsigned int vdin_dev_ssize;
 	wait_queue_head_t queue;
 	struct dentry *dbg_root;	/*dbg_fs*/
+
+	/*atv non-std signal,force drop the field if previous already dropped*/
+	unsigned int interlace_force_drop;
 };
 
 struct vdin_hist_s {
@@ -401,6 +425,7 @@ struct vdin_hist_s {
 	int width;
 	int height;
 	int ave;
+	unsigned short hist[64];
 };
 
 struct vdin_v4l2_param_s {
@@ -409,7 +434,6 @@ struct vdin_v4l2_param_s {
 	int fps;
 };
 
-extern unsigned int max_recycle_frame_cnt;
 extern unsigned int max_ignore_frame_cnt;
 extern unsigned int skip_frame_debug;
 extern unsigned int vdin_drop_cnt;

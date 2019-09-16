@@ -23,6 +23,7 @@
 #include <linux/interrupt.h>
 #include <linux/slab.h>
 #include <linux/amlogic/pm.h>
+#include <linux/amlogic/scpi_protocol.h>
 
 #undef pr_fmt
 #define pr_fmt(fmt) "gpio-keypad: " fmt
@@ -182,7 +183,7 @@ static int meson_gpio_kp_probe(struct platform_device *pdev)
 	for (i = 0; i < keypad->key_size; i++) {
 		//get all gpio desc.
 		desc = devm_gpiod_get_index(&pdev->dev, "key", i, GPIOD_IN);
-		if (!desc)
+		if (IS_ERR_OR_NULL(desc))
 			return -EINVAL;
 		keypad->key[i].desc = desc;
 		//The gpio default is high level.
@@ -279,11 +280,17 @@ static int meson_gpio_kp_suspend(struct platform_device *dev,
 	pm_message_t state)
 {
 	struct gpio_keypad *pdata;
-
-	if (is_pm_freeze_mode())
-		return 0;
+	int i;
 
 	pdata = (struct gpio_keypad *)platform_get_drvdata(dev);
+#ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
+	if (is_pm_freeze_mode()) {
+		for (i = 0; i < pdata->key_size; i++) {
+			if (pdata->key[i].code == KEY_POWER)
+				return 0;
+		}
+	}
+#endif
 	if (!pdata->use_irq)
 		del_timer(&(pdata->polling_timer));
 	return 0;
@@ -294,10 +301,16 @@ static int meson_gpio_kp_resume(struct platform_device *dev)
 	int i;
 	struct gpio_keypad *pdata;
 
-	if (is_pm_freeze_mode())
-		return 0;
-
 	pdata = (struct gpio_keypad *)platform_get_drvdata(dev);
+#ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
+	if (is_pm_freeze_mode()) {
+		for (i = 0; i < pdata->key_size; i++) {
+			if (pdata->key[i].code == KEY_POWER)
+				return 0;
+		}
+	}
+#endif
+
 	if (!pdata->use_irq)
 		mod_timer(&(pdata->polling_timer),
 			jiffies+msecs_to_jiffies(5));
@@ -314,6 +327,8 @@ static int meson_gpio_kp_resume(struct platform_device *dev)
 				break;
 			}
 		}
+		if (scpi_clr_wakeup_reason())
+			pr_debug("clr gpio kp wakeup reason fail.\n");
 	}
 	return 0;
 }

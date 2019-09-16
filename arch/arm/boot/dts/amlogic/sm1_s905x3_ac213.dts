@@ -332,6 +332,23 @@
 		dev_name = "ionvideo";
 		status = "okay";
 	};
+
+	amlvideo2_0 {
+		compatible = "amlogic, amlvideo2";
+		dev_name = "amlvideo2";
+		status = "okay";
+		amlvideo2_id = <0>;
+		cma_mode = <1>;
+	};
+
+	amlvideo2_1 {
+		compatible = "amlogic, amlvideo2";
+		dev_name = "amlvideo2";
+		status = "okay";
+		amlvideo2_id = <1>;
+		cma_mode = <1>;
+	};
+
 	dvb {
 		compatible = "amlogic, dvb";
 		dev_name = "dvb";
@@ -988,6 +1005,45 @@
 
 }; /* end of / */
 
+&vddcpu0 {
+	pwms = <&pwm_AO_cd MESON_PWM_1 1250 0>;
+	regulator-min-microvolt = <720000>;
+	regulator-max-microvolt = <1020000>;
+	max-duty-cycle = <1250>;
+	/* Voltage Duty-Cycle */
+	voltage-table = <1020000 0>,
+		<1010000 3>,
+		<1000000 6>,
+		<990000 10>,
+		<980000 13>,
+		<970000 16>,
+		<960000 20>,
+		<950000 23>,
+		<940000 26>,
+		<930000 30>,
+		<920000 33>,
+		<910000 36>,
+		<900000 40>,
+		<890000 43>,
+		<880000 46>,
+		<870000 50>,
+		<860000 53>,
+		<850000 56>,
+		<840000 60>,
+		<830000 63>,
+		<820000 67>,
+		<810000 70>,
+		<800000 73>,
+		<790000 76>,
+		<780000 80>,
+		<770000 83>,
+		<760000 86>,
+		<750000 90>,
+		<740000 93>,
+		<730000 96>,
+		<720000 100>;
+};
+
 &meson_fb {
 	status = "okay";
 	display_size_default = <1920 1080 1920 2160 32>;
@@ -1039,7 +1095,7 @@
 	status = "ok";
 	pinctrl-names="default";
 	pinctrl-0=<&i2c3_master_pins2>;
-	clock-frequency = <100000>; /* default 100k */
+	clock-frequency = <300000>; /* default 100k */
 
 	/* for ref board */
 	ad82584f_62: ad82584f_62@62 {
@@ -1082,10 +1138,11 @@
 		dai-tdm-lane-slot-mask-out = <1 0 0 0>;
 		dai-tdm-clk-sel = <1>;
 		clocks = <&clkaudio CLKID_AUDIO_MCLK_B
+				&clkaudio CLKID_AUDIO_MCLK_PAD0
 				&clkc CLKID_MPLL1
 				&clkc CLKID_MPLL0
 				&clkaudio CLKID_AUDIO_SPDIFOUT_A>;
-		clock-names = "mclk", "clk_srcpll",
+		clock-names = "mclk", "mclk_pad", "clk_srcpll",
 			"samesource_srcpll", "samesource_clk";
 		pinctrl-names = "tdm_pins";
 		pinctrl-0 = <&tdmb_mclk &tdmout_b &tdmin_b>;
@@ -1424,6 +1481,27 @@
 
 		status = "disabled";
 	};
+	aed:effect {
+		compatible = "amlogic, snd-effect-v3";
+		#sound-dai-cells = <0>;
+		clocks = <&clkaudio CLKID_AUDIO_GATE_EQDRC
+			&clkc CLKID_FCLK_DIV5
+			&clkaudio CLKID_AUDIO_EQDRC>;
+		clock-names = "gate", "srcpll", "eqdrc";
+		/*
+		 * 0:tdmout_a
+		 * 1:tdmout_b
+		 * 2:tdmout_c
+		 * 3:spdifout
+		 * 4:spdifout_b
+		 */
+		eqdrc_module = <1>;
+		/* max 0xf, each bit for one lane, usually one lane */
+		lane_mask = <0x1>;
+		/* max 0xff, each bit for one channel */
+		channel_mask = <0x3>;
+		status = "okay";
+	};
 }; /* end of audiobus */
 
 &pinctrl_periphs {
@@ -1647,8 +1725,7 @@
 			 "MMC_CAP_ERASE",
 			 "MMC_CAP_CMD23",
 			 "MMC_CAP_DRIVER_TYPE_D";
-		caps2 = "MMC_CAP2_HS200";
-		/*MMC_CAP2_HS400"*/
+		caps2 = "MMC_CAP2_HS200", "MMC_CAP2_HS400";
 		f_min = <400000>;
 		f_max = <200000000>;
 	};

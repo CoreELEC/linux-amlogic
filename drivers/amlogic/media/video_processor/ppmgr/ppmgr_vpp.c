@@ -168,7 +168,7 @@ static u8 tb_detect_last_flag;
 static u32 tb_buff_wptr;
 static u32 tb_buff_rptr;
 static s32 tb_canvas = -1;
-static u32 tb_src_canvas;
+static s32 tb_src_canvas[3] = {-1, -1, -1};
 static s8 tb_buffer_status;
 static u32 tb_buffer_start;
 static u32 tb_buffer_size;
@@ -183,6 +183,10 @@ static struct TB_DetectFuncPtr *gfunc;
 static int tb_buffer_init(void);
 static int tb_buffer_uninit(void);
 #endif
+static s32 ppmgr_src_canvas[3] = {-1, -1, -1};
+static int dumpfirstframe;
+static int count_scr;
+static int count_dst;
 
 const struct vframe_receiver_op_s *vf_ppmgr_reg_provider(void);
 
@@ -216,7 +220,7 @@ u32 index2canvas(u32 index)
 	return ppmgr_canvas_tab[index];
 }
 
-/* ***********************************************
+/************************************************
  *
  *   ppmgr as a frame provider
  *
@@ -328,73 +332,141 @@ int vf_ppmgr_get_states(struct vframe_states *states)
 	return ret;
 }
 
-static int get_input_format(struct vframe_s *vf)
+static int get_source_type(struct vframe_s *vf)
 {
-	int format = GE2D_FORMAT_M24_YUV420;
+	enum ppmgr_source_type ret;
 	int interlace_mode;
 
 	interlace_mode = vf->type & VIDTYPE_TYPEMASK;
-	if (vf->type & VIDTYPE_VIU_422) {
-#if 0
-		if (vf->type & VIDTYPE_INTERLACE_BOTTOM)
-			format =
-					GE2D_FORMAT_S16_YUV422|
-					(GE2D_FORMAT_S16_YUV422B & (3<<3));
-
-		else if (vf->type & VIDTYPE_INTERLACE_TOP)
-			format =
-				GE2D_FORMAT_S16_YUV422|
-				(GE2D_FORMAT_S16_YUV422T & (3<<3));
-
+	if ((vf->source_type == VFRAME_SOURCE_TYPE_HDMI)
+		|| (vf->source_type == VFRAME_SOURCE_TYPE_CVBS)) {
+		if ((vf->bitdepth & BITDEPTH_Y10)
+			&& (!(vf->type & VIDTYPE_COMPRESS))
+			&& (get_cpu_type() >= MESON_CPU_MAJOR_ID_TXL))
+			ret = VDIN_10BIT_NORMAL;
 		else
-			format = GE2D_FORMAT_S16_YUV422;
-
-#else
-		if (interlace_mode == VIDTYPE_INTERLACE_BOTTOM) {
-			format = GE2D_FORMAT_S16_YUV422;
-		} else if (interlace_mode == VIDTYPE_INTERLACE_TOP) {
-			format = GE2D_FORMAT_S16_YUV422;
-		} else {
-			format = GE2D_FORMAT_S16_YUV422
-					| (GE2D_FORMAT_S16_YUV422T & (3 << 3));
-		}
-#endif
-
-	} else if (vf->type & VIDTYPE_VIU_NV21) {
-		if (vf->type & VIDTYPE_INTERLACE_BOTTOM) {
-			format =
-					GE2D_FORMAT_M24_NV21 |
-					(GE2D_FORMAT_M24_NV21B & (3 << 3));
-		} else if (vf->type & VIDTYPE_INTERLACE_TOP) {
-			format =
-				GE2D_FORMAT_M24_NV21
-				| (GE2D_FORMAT_M24_NV21T & (3 << 3));
-		} else {
-			format = GE2D_FORMAT_M24_NV21;
-		}
+			ret = VDIN_8BIT_NORMAL;
 	} else {
-		if (vf->type & VIDTYPE_INTERLACE_BOTTOM) {
-			format = GE2D_FORMAT_M24_YUV420
-				| (GE2D_FMT_M24_YUV420B & (3 << 3));
-
-		} else if (vf->type & VIDTYPE_INTERLACE_TOP) {
-			format = GE2D_FORMAT_M24_YUV420
-					| (GE2D_FORMAT_M24_YUV420T & (3 << 3));
+		if ((vf->bitdepth & BITDEPTH_Y10)
+			&& (!(vf->type & VIDTYPE_COMPRESS))
+			&& (get_cpu_type() >= MESON_CPU_MAJOR_ID_TXL)) {
+			if (interlace_mode == VIDTYPE_INTERLACE_TOP)
+				ret = DECODER_10BIT_TOP;
+			else if (interlace_mode == VIDTYPE_INTERLACE_BOTTOM)
+				ret = DECODER_10BIT_BOTTOM;
+			else
+				ret = DECODER_10BIT_NORMAL;
 		} else {
-			format = GE2D_FORMAT_M24_YUV420;
+			if (interlace_mode == VIDTYPE_INTERLACE_TOP)
+				ret = DECODER_8BIT_TOP;
+			else if (interlace_mode == VIDTYPE_INTERLACE_BOTTOM)
+				ret = DECODER_8BIT_BOTTOM;
+			else
+				ret = DECODER_8BIT_NORMAL;
 		}
 	}
-	return format;
+	return ret;
 }
 
-static void dma_flush(u32 buf_start, u32 buf_size)
+static int get_input_format(struct vframe_s *vf)
 {
-	return;
-	/*
-	dma_sync_single_for_device(
-		&ppmgr_device.pdev->dev, buf_start,
-		buf_size, DMA_TO_DEVICE);
-	*/
+	int format = GE2D_FORMAT_M24_YUV420;
+	enum ppmgr_source_type soure_type;
+
+	soure_type = get_source_type(vf);
+	switch (soure_type) {
+	case DECODER_8BIT_NORMAL:
+		if (vf->type & VIDTYPE_VIU_422)
+			format = GE2D_FORMAT_S16_YUV422;
+		else if (vf->type & VIDTYPE_VIU_NV21)
+			format = GE2D_FORMAT_M24_NV21;
+		else if (vf->type & VIDTYPE_VIU_444)
+			format = GE2D_FORMAT_S24_YUV444;
+		else
+			format = GE2D_FORMAT_M24_YUV420;
+		break;
+	case DECODER_8BIT_BOTTOM:
+		if (vf->type & VIDTYPE_VIU_422)
+			format = GE2D_FORMAT_S16_YUV422
+				| (GE2D_FORMAT_S16_YUV422B & (3 << 3));
+		else if (vf->type & VIDTYPE_VIU_NV21)
+			format = GE2D_FORMAT_M24_NV21
+				| (GE2D_FORMAT_M24_NV21B & (3 << 3));
+		else if (vf->type & VIDTYPE_VIU_444)
+			format = GE2D_FORMAT_S24_YUV444
+				| (GE2D_FORMAT_S24_YUV444B & (3 << 3));
+		else
+			format = GE2D_FORMAT_M24_YUV420
+				| (GE2D_FMT_M24_YUV420B & (3 << 3));
+		break;
+	case DECODER_8BIT_TOP:
+		if (vf->type & VIDTYPE_VIU_422)
+			format = GE2D_FORMAT_S16_YUV422
+				| (GE2D_FORMAT_S16_YUV422T & (3 << 3));
+		else if (vf->type & VIDTYPE_VIU_NV21)
+			format = GE2D_FORMAT_M24_NV21
+				| (GE2D_FORMAT_M24_NV21T & (3 << 3));
+		else if (vf->type & VIDTYPE_VIU_444)
+			format = GE2D_FORMAT_S24_YUV444
+				| (GE2D_FORMAT_S24_YUV444T & (3 << 3));
+		else
+			format = GE2D_FORMAT_M24_YUV420
+				| (GE2D_FMT_M24_YUV420T & (3 << 3));
+		break;
+	case DECODER_10BIT_NORMAL:
+		if (vf->type & VIDTYPE_VIU_422) {
+			if (vf->bitdepth & FULL_PACK_422_MODE)
+				format = GE2D_FORMAT_S16_10BIT_YUV422;
+			else
+				format = GE2D_FORMAT_S16_12BIT_YUV422;
+		}
+		break;
+	case DECODER_10BIT_BOTTOM:
+		if (vf->type & VIDTYPE_VIU_422) {
+			if (vf->bitdepth & FULL_PACK_422_MODE)
+				format = GE2D_FORMAT_S16_10BIT_YUV422
+					| (GE2D_FORMAT_S16_10BIT_YUV422B
+					& (3 << 3));
+			else
+				format = GE2D_FORMAT_S16_12BIT_YUV422
+					| (GE2D_FORMAT_S16_12BIT_YUV422B
+					& (3 << 3));
+		}
+		break;
+	case DECODER_10BIT_TOP:
+		if (vf->type & VIDTYPE_VIU_422) {
+			if (vf->bitdepth & FULL_PACK_422_MODE)
+				format = GE2D_FORMAT_S16_10BIT_YUV422
+					| (GE2D_FORMAT_S16_10BIT_YUV422T
+					& (3 << 3));
+			else
+				format = GE2D_FORMAT_S16_12BIT_YUV422
+					| (GE2D_FORMAT_S16_12BIT_YUV422T
+					& (3 << 3));
+		}
+		break;
+	case VDIN_8BIT_NORMAL:
+		if (vf->type & VIDTYPE_VIU_422)
+			format = GE2D_FORMAT_S16_YUV422;
+		else if (vf->type & VIDTYPE_VIU_NV21)
+			format = GE2D_FORMAT_M24_NV21;
+		else if (vf->type & VIDTYPE_VIU_444)
+			format = GE2D_FORMAT_S24_YUV444;
+		else
+			format = GE2D_FORMAT_M24_YUV420;
+		break;
+	case VDIN_10BIT_NORMAL:
+		if (vf->type & VIDTYPE_VIU_422) {
+			if (vf->bitdepth & FULL_PACK_422_MODE)
+				format = GE2D_FORMAT_S16_10BIT_YUV422;
+			else
+				format = GE2D_FORMAT_S16_12BIT_YUV422;
+		}
+		break;
+	default:
+		format = GE2D_FORMAT_M24_YUV420;
+	}
+	return format;
 }
 
 /* extern int get_property_change(void); */
@@ -582,6 +654,12 @@ static const struct vframe_provider_s *dec_vfp;
 const struct vframe_receiver_op_s *vf_ppmgr_reg_provider(void)
 {
 	const struct vframe_receiver_op_s *r = NULL;
+	if (ppmgr_device.debug_first_frame == 1) {
+		dumpfirstframe = 1;
+		count_scr = 0;
+		count_dst = 0;
+		PPMGRVPP_INFO("need dump first frame!\n");
+	}
 
 	mutex_lock(&ppmgr_mutex);
 
@@ -714,54 +792,85 @@ static void vf_rotate_adjust(struct vframe_s *vf, struct vframe_s *new_vf,
 		int angle)
 {
 	int w = 0, h = 0, disp_w = 0, disp_h = 0;
+	int input_height = 0, input_width = 0;
 	int scale_down_value = 1;
+	int interlace_mode = 0;
 #ifdef CONFIG_AMLOGIC_POST_PROCESS_MANAGER_3D_PROCESS
 	scale_down_value = ppmgr_device.scale_down + 1;
 #endif
+
 	disp_w = ppmgr_device.disp_width / scale_down_value;
 	disp_h = ppmgr_device.disp_height / scale_down_value;
-
+	interlace_mode = vf->type & VIDTYPE_TYPEMASK;
+	input_width = vf->width;
+	if (interlace_mode)
+		input_height = vf->height * 2;
+	else
+		input_height = vf->height;
+	if (ppmgr_device.ppmgr_debug) {
+		PPMGRVPP_INFO("disp_width: %d, disp_height: %d\n",
+			disp_w, disp_h);
+		PPMGRVPP_INFO("input_width: %d, input_height: %d\n",
+			input_width, input_height);
+	}
 	if (angle & 1) {
 		int ar = (vf->ratio_control
 			>> DISP_RATIO_ASPECT_RATIO_BIT) & 0x3ff;
+		if (ppmgr_device.ppmgr_debug == 2)
+			ar = 0;
 
-		/* h = min((int)vf->width, disp_h); */
-		h = min_t(int, vf->width, disp_h);
+		if (input_width > input_height) {
+			h = min_t(int, input_width, disp_h);
 
-		if (ar == 0)
-			w = vf->height * h / vf->width;
-		else
-			w = (ar * h) >> 8;
+			if (ar == 0 || ar == 0x3ff)
+				w = input_height * h / input_width;
+			else
+				w = (ar * h) >> 8;
 
-		if (w > disp_w) {
-			h = (h * disp_w) / w;
-			w = disp_w;
+			if (w > disp_w) {
+				h = (h * disp_w) / w;
+				w = disp_w;
+			}
+		} else {
+			w = min_t(int, input_height, disp_w);
+
+			if (ar == 0 || ar == 0x3ff)
+				h = input_width * w / input_height;
+			else
+				h = (w << 8) / ar;
+
+			if (h > disp_h) {
+				w = (w * disp_h) / h;
+				h = disp_h;
+			}
 		}
-
+		if (ppmgr_device.ppmgr_debug)
+			PPMGRVPP_INFO("width: %d, height: %d, ar: %d\n",
+				w, h, ar);
 		new_vf->ratio_control = DISP_RATIO_PORTRAIT_MODE;
 		new_vf->ratio_control |=
 				(h * 0x100 / w) << DISP_RATIO_ASPECT_RATIO_BIT;
 		/*set video aspect ratio*/
 	} else {
-		if ((vf->width < disp_w) && (vf->height < disp_h)) {
-			w = vf->width;
-			h = vf->height;
+		if ((input_width < disp_w) && (input_height < disp_h)) {
+			w = input_width;
+			h = input_height;
 		} else {
-			if ((vf->width * disp_h) > (disp_w * vf->height)) {
+			if ((input_width * disp_h) > (disp_w * input_height)) {
 				w = disp_w;
-				h = disp_w * vf->height / vf->width;
+				h = disp_w * input_height / input_width;
 			} else {
 				h = disp_h;
-				w = disp_h * vf->width / vf->height;
+				w = disp_h * input_width / input_height;
 			}
 		}
 
 		new_vf->ratio_control = vf->ratio_control;
 	}
 
-	if (h > 1080) {
-		w = w * 1080 / h;
-		h = 1080;
+	if (h > 1280) {
+		w = w * 1280 / h;
+		h = 1280;
 	}
 
 	new_vf->width = w;
@@ -769,7 +878,7 @@ static void vf_rotate_adjust(struct vframe_s *vf, struct vframe_s *new_vf,
 }
 #ifdef CONFIG_AMLOGIC_POST_PROCESS_MANAGER_PPSCALER
 static void display_mode_adjust(struct ge2d_context_s *context,
-		struct vframe_s *new_vf, int pic_struct)
+		struct vframe_s *new_vf)
 {
 	int canvas_width = ppmgr_device.canvas_width;
 	int canvas_height = ppmgr_device.canvas_height;
@@ -788,50 +897,48 @@ static void display_mode_adjust(struct ge2d_context_s *context,
 	}
 	if (ppmgr_device.display_mode == 0) {/*stretch full*/
 		stretchblt_noalpha(context, 0, 0, vf_width,
-				(pic_struct) ? (vf_height / 2) : vf_height,
+				vf_height,
 				0, 0, canvas_width,
 				canvas_height);
 	} else if (ppmgr_device.display_mode == 1) {/*keep size*/
 		stretchblt_noalpha(context, 0, 0, vf_width,
-				(pic_struct) ? (vf_height / 2) : vf_height,
+				vf_height,
 				(canvas_width - vf_width) / 2,
 				(canvas_height - vf_height) / 2,
 				vf_width, vf_height);
 	} else if (ppmgr_device.display_mode == 2) {/*keep ration black*/
 		int dw = 0, dh = 0;
-
 		if (vf_width / vf_height >= canvas_width / canvas_height) {
 			dw = canvas_width;
 			dh = dw * vf_height / vf_width;
 			stretchblt_noalpha(context, 0, 0, vf_width,
-				(pic_struct) ? (vf_height / 2) : vf_height,
+				vf_height,
 				(canvas_width - dw) / 2,
 				(canvas_height - dh) / 2, dw, dh);
 		} else {
 			dh = canvas_height;
 			dw = dh * vf_width / vf_height;
 			stretchblt_noalpha(context, 0, 0, vf_width,
-				(pic_struct) ? (vf_height / 2) : vf_height,
+				vf_height,
 				(canvas_width - dw) / 2,
 				(canvas_height - dh) / 2, dw, dh);
 		}
 	} else if (ppmgr_device.display_mode == 3) {
 		int dw = 0, dh = 0;
-
 		if (vf_width / vf_height
 				>= canvas_width / canvas_height) {
 			dh = canvas_height;
 			dw = dh * vf_width / vf_height;
 			stretchblt_noalpha(
 				context, 0, 0, vf_width,
-				(pic_struct) ? (vf_height / 2) : vf_height,
+				vf_height,
 				(canvas_width - dw) / 2,
 				(canvas_height - dh) / 2, dw, dh);
 		} else {
 			dw = canvas_width;
 			dh = dw * vf_height / vf_width;
 			stretchblt_noalpha(context, 0, 0, vf_width,
-				(pic_struct) ? (vf_height / 2) : vf_height,
+				vf_height,
 				(canvas_width - dw) / 2,
 				(canvas_height - dh) / 2, dw, dh);
 		}
@@ -894,23 +1001,25 @@ static int process_vf_tb_detect(struct vframe_s *vf,
 	ge2d_config->dst_xy_swap = 0;
 
 	src_vf = *vf;
+
 	if (vf->canvas0Addr == (u32)-1) {
 		canvas_config_config(
-			tb_src_canvas & 0xff,
+			tb_src_canvas[0] & 0xff,
 			&src_vf.canvas0_config[0]);
-		canvas_config_config(
-			(tb_src_canvas >> 8) & 0xff,
-			&src_vf.canvas0_config[1]);
 		if (src_vf.plane_num == 2) {
-			src_vf.canvas0Addr =
-				tb_src_canvas & 0xffff;
+			canvas_config_config(
+				tb_src_canvas[1] & 0xff,
+				&src_vf.canvas0_config[1]);
 		} else if (src_vf.plane_num == 3) {
 			canvas_config_config(
-				(tb_src_canvas >> 16) & 0xff,
+				tb_src_canvas[2] & 0xff,
 				&src_vf.canvas0_config[2]);
-			src_vf.canvas0Addr =
-				tb_src_canvas & 0xffffff;
 		}
+		src_vf.canvas0Addr =
+			(tb_src_canvas[0] & 0xff)
+			| ((tb_src_canvas[1] & 0xff) << 8)
+			| ((tb_src_canvas[2] & 0xff) << 16);
+
 		canvas_read(
 			src_vf.canvas0Addr & 0xff, &cs0);
 		canvas_read(
@@ -992,617 +1101,56 @@ static int process_vf_tb_detect(struct vframe_s *vf,
 }
 #endif
 
-static int process_vf_deinterlace_nv21(struct vframe_s *vf,
-		struct ge2d_context_s *context,
-		struct config_para_ex_s *ge2d_config)
+static int copy_phybuf_to_file(ulong phys, u32 size,
+					   struct file *fp, loff_t pos)
 {
-	struct canvas_s cs0, cs1, cs2, cd;
+	u32 span = SZ_1M;
+	u8 *p;
+	int remain_size = 0;
+	ssize_t ret;
 
-	if (!vf)
-		return -1;
+	remain_size = size;
+	while (remain_size > 0) {
+		if (remain_size < span)
+			span = remain_size;
+		p = codec_mm_vmap(phys, PAGE_ALIGN(span));
+		if (!p) {
+			PPMGRVPP_INFO("vmap failed\n");
+			return -1;
+		}
+		codec_mm_dma_flush(p, span, DMA_FROM_DEVICE);
+		ret = vfs_write(fp, (char *)p,
+			span, &pos);
+		if (ret <= 0)
+			PPMGRVPP_INFO("vfs write failed!\n");
+		phys += span;
+		codec_mm_unmap_phyaddr(p);
+		remain_size -= span;
 
-	if (vf->type & VIDTYPE_MVC)
-		return 0;
-
-	if (vf->type & VIDTYPE_COMPRESS)
-		return 0;
-	if ((vf->canvas0Addr == vf->canvas1Addr) || (ppmgr_device.angle == 0)) {
-		/*printk("++ppmgr interlace skip.\n");*/
-		return 0;
+		PPMGRVPP_INFO("pos: %lld, phys: %lx, remain_size: %d\n",
+			pos, phys, remain_size);
 	}
-	/* operation top line*/
-	/* Y data*/
-	ge2d_config->alu_const_color = 0;
-	ge2d_config->bitmask_en = 0;
-	ge2d_config->src1_gb_alpha = 0;
-	ge2d_config->dst_xy_swap = 0;
-
-	canvas_read(vf->canvas0Addr & 0xff, &cs0);
-	canvas_read((vf->canvas0Addr >> 8) & 0xff, &cs1);
-	canvas_read((vf->canvas0Addr >> 16) & 0xff, &cs2);
-	ge2d_config->src_planes[0].addr = cs0.addr;
-	ge2d_config->src_planes[0].w = cs0.width;
-	ge2d_config->src_planes[0].h = cs0.height;
-	ge2d_config->src_planes[1].addr = cs1.addr;
-	ge2d_config->src_planes[1].w = cs1.width;
-	ge2d_config->src_planes[1].h = cs1.height;
-	ge2d_config->src_planes[2].addr = cs2.addr;
-	ge2d_config->src_planes[2].w = cs2.width;
-	ge2d_config->src_planes[2].h = cs2.height;
-
-	canvas_read(PPMGR_DEINTERLACE_BUF_NV21_CANVAS, &cd);
-	ge2d_config->dst_planes[0].addr = cd.addr;
-	ge2d_config->dst_planes[0].w = cd.width;
-	ge2d_config->dst_planes[0].h = cd.height;
-	ge2d_config->dst_planes[1].addr = 0;
-	ge2d_config->dst_planes[1].w = 0;
-	ge2d_config->dst_planes[1].h = 0;
-	ge2d_config->dst_planes[2].addr = 0;
-	ge2d_config->dst_planes[2].w = 0;
-	ge2d_config->dst_planes[2].h = 0;
-
-	ge2d_config->src_key.key_enable = 0;
-	ge2d_config->src_key.key_mask = 0;
-	ge2d_config->src_key.key_mode = 0;
-	ge2d_config->src_key.key_color = 0;
-
-	ge2d_config->src_para.canvas_index = vf->canvas0Addr;
-	ge2d_config->src_para.mem_type = CANVAS_TYPE_INVALID;
-	ge2d_config->src_para.format = GE2D_FORMAT_M24_NV21;
-	ge2d_config->src_para.fill_color_en = 0;
-	ge2d_config->src_para.fill_mode = 0;
-	ge2d_config->src_para.x_rev = 0;
-	ge2d_config->src_para.y_rev = 0;
-	ge2d_config->src_para.color = 0;
-	ge2d_config->src_para.top = 0;
-	ge2d_config->src_para.left = 0;
-	ge2d_config->src_para.width = vf->width;
-	ge2d_config->src_para.height = vf->height / 2;
-
-	ge2d_config->dst_para.canvas_index = PPMGR_DEINTERLACE_BUF_NV21_CANVAS;
-	ge2d_config->dst_para.mem_type = CANVAS_TYPE_INVALID;
-	ge2d_config->dst_para.format = (GE2D_FORMAT_S24_YUV444T & (3 << 3));
-	ge2d_config->dst_para.fill_color_en = 0;
-	ge2d_config->dst_para.fill_mode = 0;
-	ge2d_config->dst_para.x_rev = 0;
-	ge2d_config->dst_para.y_rev = 0;
-	ge2d_config->dst_xy_swap = 0;
-	ge2d_config->dst_para.color = 0;
-	ge2d_config->dst_para.top = 0;
-	ge2d_config->dst_para.left = 0;
-	ge2d_config->dst_para.width = vf->width;
-	ge2d_config->dst_para.height = vf->height / 2;
-
-	if (ge2d_context_config_ex(context, ge2d_config) < 0) {
-		PPMGRVPP_ERR("++ge2d configing error.\n");
-		return -1;
-	}
-	stretchblt_noalpha(context, 0, 0, vf->width, vf->height / 2, 0, 0,
-			vf->width, vf->height / 2);
-
-	/* operation bottom line*/
-	/*Y data*/
-	ge2d_config->alu_const_color = 0;
-	ge2d_config->bitmask_en = 0;
-	ge2d_config->src1_gb_alpha = 0;
-	ge2d_config->dst_xy_swap = 0;
-
-	canvas_read(vf->canvas1Addr & 0xff, &cs0);
-	canvas_read((vf->canvas1Addr >> 8) & 0xff, &cs1);
-	canvas_read((vf->canvas1Addr >> 16) & 0xff, &cs2);
-	ge2d_config->src_planes[0].addr = cs0.addr;
-	ge2d_config->src_planes[0].w = cs0.width;
-	ge2d_config->src_planes[0].h = cs0.height;
-	ge2d_config->src_planes[1].addr = cs1.addr;
-	ge2d_config->src_planes[1].w = cs1.width;
-	ge2d_config->src_planes[1].h = cs1.height;
-	ge2d_config->src_planes[2].addr = cs2.addr;
-	ge2d_config->src_planes[2].w = cs2.width;
-	ge2d_config->src_planes[2].h = cs2.height;
-
-	canvas_read(PPMGR_DEINTERLACE_BUF_NV21_CANVAS, &cd);
-	ge2d_config->dst_planes[0].addr = cd.addr;
-	ge2d_config->dst_planes[0].w = cd.width;
-	ge2d_config->dst_planes[0].h = cd.height;
-	ge2d_config->dst_planes[1].addr = 0;
-	ge2d_config->dst_planes[1].w = 0;
-	ge2d_config->dst_planes[1].h = 0;
-	ge2d_config->dst_planes[2].addr = 0;
-	ge2d_config->dst_planes[2].w = 0;
-	ge2d_config->dst_planes[2].h = 0;
-
-	ge2d_config->src_key.key_enable = 0;
-	ge2d_config->src_key.key_mask = 0;
-	ge2d_config->src_key.key_mode = 0;
-	ge2d_config->src_key.key_color = 0;
-
-	ge2d_config->src_para.canvas_index = vf->canvas1Addr;
-	ge2d_config->src_para.mem_type = CANVAS_TYPE_INVALID;
-	ge2d_config->src_para.format = GE2D_FORMAT_M24_NV21;
-	ge2d_config->src_para.fill_color_en = 0;
-	ge2d_config->src_para.fill_mode = 0;
-	ge2d_config->src_para.x_rev = 0;
-	ge2d_config->src_para.y_rev = 0;
-	ge2d_config->src_para.color = 0;
-	ge2d_config->src_para.top = 0;
-	ge2d_config->src_para.left = 0;
-	ge2d_config->src_para.width = vf->width;
-	ge2d_config->src_para.height = vf->height / 2;
-
-	ge2d_config->dst_para.canvas_index = PPMGR_DEINTERLACE_BUF_NV21_CANVAS;
-	ge2d_config->dst_para.mem_type = CANVAS_TYPE_INVALID;
-	ge2d_config->dst_para.format = (GE2D_FORMAT_S24_YUV444B & (3 << 3));
-	ge2d_config->dst_para.fill_color_en = 0;
-	ge2d_config->dst_para.fill_mode = 0;
-	ge2d_config->dst_para.x_rev = 0;
-	ge2d_config->dst_para.y_rev = 0;
-	ge2d_config->dst_xy_swap = 0;
-	ge2d_config->dst_para.color = 0;
-	ge2d_config->dst_para.top = 0;
-	ge2d_config->dst_para.left = 0;
-	ge2d_config->dst_para.width = vf->width;
-	ge2d_config->dst_para.height = vf->height / 2;
-
-	if (ge2d_context_config_ex(context, ge2d_config) < 0) {
-		PPMGRVPP_ERR("++ge2d configing error.\n");
-		return -1;
-	}
-	stretchblt_noalpha(context, 0, 0, vf->width, vf->height / 2, 0, 0,
-			vf->width, vf->height / 2);
-
-	return 2;
+	return 0;
 }
 
-static int process_vf_deinterlace(struct vframe_s *vf,
-		struct ge2d_context_s *context,
-		struct config_para_ex_s *ge2d_config)
-{
-	struct canvas_s cs, cd;
-	int ret = 0;
-
-	if (!vf)
-		return -1;
-
-	if (vf->type & VIDTYPE_MVC)
-		return 0;
-
-	if (vf->type & VIDTYPE_COMPRESS)
-		return 0;
-	if ((vf->canvas0Addr == vf->canvas1Addr) || (ppmgr_device.bypass)
-			|| (ppmgr_device.angle == 0)) {
-		/*printk("++ppmgr interlace skip.\n");*/
-		return 0;
-	}
-
-	if (vf->type & VIDTYPE_VIU_NV21) {
-		ret = process_vf_deinterlace_nv21(vf, context, ge2d_config);
-		return ret;
-	}
-	/* operation top line*/
-	/* Y data*/
-	ge2d_config->alu_const_color = 0;
-	ge2d_config->bitmask_en = 0;
-	ge2d_config->src1_gb_alpha = 0;
-	ge2d_config->dst_xy_swap = 0;
-
-	canvas_read(vf->canvas0Addr & 0xff, &cs);
-	ge2d_config->src_planes[0].addr = cs.addr;
-	ge2d_config->src_planes[0].w = cs.width;
-	ge2d_config->src_planes[0].h = cs.height;
-	ge2d_config->src_planes[1].addr = 0;
-	ge2d_config->src_planes[1].w = 0;
-	ge2d_config->src_planes[1].h = 0;
-	ge2d_config->src_planes[2].addr = 0;
-	ge2d_config->src_planes[2].w = 0;
-	ge2d_config->src_planes[2].h = 0;
-
-	canvas_read(PPMGR_DEINTERLACE_BUF_CANVAS, &cd);
-	ge2d_config->dst_planes[0].addr = cd.addr;
-	ge2d_config->dst_planes[0].w = cd.width;
-	ge2d_config->dst_planes[0].h = cd.height;
-	ge2d_config->dst_planes[1].addr = 0;
-	ge2d_config->dst_planes[1].w = 0;
-	ge2d_config->dst_planes[1].h = 0;
-	ge2d_config->dst_planes[2].addr = 0;
-	ge2d_config->dst_planes[2].w = 0;
-	ge2d_config->dst_planes[2].h = 0;
-
-	ge2d_config->src_key.key_enable = 0;
-	ge2d_config->src_key.key_mask = 0;
-	ge2d_config->src_key.key_mode = 0;
-	ge2d_config->src_key.key_color = 0;
-
-	ge2d_config->src_para.canvas_index = vf->canvas0Addr & 0xff;
-	ge2d_config->src_para.mem_type = CANVAS_TYPE_INVALID;
-	ge2d_config->src_para.format = GE2D_FMT_S8_Y;
-	ge2d_config->src_para.fill_color_en = 0;
-	ge2d_config->src_para.fill_mode = 0;
-	ge2d_config->src_para.x_rev = 0;
-	ge2d_config->src_para.y_rev = 0;
-	ge2d_config->src_para.color = 0;
-	ge2d_config->src_para.top = 0;
-	ge2d_config->src_para.left = 0;
-	ge2d_config->src_para.width = vf->width;
-	ge2d_config->src_para.height = vf->height / 2;
-
-	ge2d_config->dst_para.canvas_index = PPMGR_DEINTERLACE_BUF_CANVAS;
-	ge2d_config->dst_para.mem_type = CANVAS_TYPE_INVALID;
-	ge2d_config->dst_para.format = GE2D_FMT_S8_Y
-			| (GE2D_FORMAT_M24_YUV420T & (3 << 3));
-	ge2d_config->dst_para.fill_color_en = 0;
-	ge2d_config->dst_para.fill_mode = 0;
-	ge2d_config->dst_para.x_rev = 0;
-	ge2d_config->dst_para.y_rev = 0;
-	ge2d_config->dst_xy_swap = 0;
-	ge2d_config->dst_para.color = 0;
-	ge2d_config->dst_para.top = 0;
-	ge2d_config->dst_para.left = 0;
-	ge2d_config->dst_para.width = vf->width;
-	ge2d_config->dst_para.height = vf->height / 2;
-
-	if (ge2d_context_config_ex(context, ge2d_config) < 0) {
-		PPMGRVPP_ERR("++ge2d configing error.\n");
-		return -1;
-	}
-	stretchblt_noalpha(context, 0, 0, vf->width, vf->height / 2, 0, 0,
-			vf->width, vf->height / 2);
-
-	/*U data*/
-	ge2d_config->alu_const_color = 0;
-	ge2d_config->bitmask_en = 0;
-	ge2d_config->src1_gb_alpha = 0;
-	ge2d_config->dst_xy_swap = 0;
-
-	canvas_read((vf->canvas0Addr >> 8) & 0xff, &cs);
-	ge2d_config->src_planes[0].addr = cs.addr;
-	ge2d_config->src_planes[0].w = cs.width;
-	ge2d_config->src_planes[0].h = cs.height;
-	ge2d_config->src_planes[1].addr = 0;
-	ge2d_config->src_planes[1].w = 0;
-	ge2d_config->src_planes[1].h = 0;
-	ge2d_config->src_planes[2].addr = 0;
-	ge2d_config->src_planes[2].w = 0;
-	ge2d_config->src_planes[2].h = 0;
-
-	canvas_read(PPMGR_DEINTERLACE_BUF_CANVAS + 1, &cd);
-	ge2d_config->dst_planes[0].addr = cd.addr;
-	ge2d_config->dst_planes[0].w = cd.width;
-	ge2d_config->dst_planes[0].h = cd.height;
-	ge2d_config->dst_planes[1].addr = 0;
-	ge2d_config->dst_planes[1].w = 0;
-	ge2d_config->dst_planes[1].h = 0;
-	ge2d_config->dst_planes[2].addr = 0;
-	ge2d_config->dst_planes[2].w = 0;
-	ge2d_config->dst_planes[2].h = 0;
-
-	ge2d_config->src_key.key_enable = 0;
-	ge2d_config->src_key.key_mask = 0;
-	ge2d_config->src_key.key_mode = 0;
-	ge2d_config->src_key.key_color = 0;
-
-	ge2d_config->src_para.canvas_index = (vf->canvas0Addr >> 8) & 0xff;
-	ge2d_config->src_para.mem_type = CANVAS_TYPE_INVALID;
-	ge2d_config->src_para.format = GE2D_FMT_S8_CB;
-	ge2d_config->src_para.fill_color_en = 0;
-	ge2d_config->src_para.fill_mode = 0;
-	ge2d_config->src_para.x_rev = 0;
-	ge2d_config->src_para.y_rev = 0;
-	ge2d_config->src_para.color = 0;
-	ge2d_config->src_para.top = 0;
-	ge2d_config->src_para.left = 0;
-	ge2d_config->src_para.width = vf->width / 2;
-	ge2d_config->src_para.height = vf->height / 4;
-
-	ge2d_config->dst_para.canvas_index = PPMGR_DEINTERLACE_BUF_CANVAS + 1;
-	ge2d_config->dst_para.mem_type = CANVAS_TYPE_INVALID;
-	ge2d_config->dst_para.format = GE2D_FMT_S8_CB
-			| (GE2D_FORMAT_M24_YUV420T & (3 << 3));
-	ge2d_config->dst_para.fill_color_en = 0;
-	ge2d_config->dst_para.fill_mode = 0;
-	ge2d_config->dst_para.x_rev = 0;
-	ge2d_config->dst_para.y_rev = 0;
-	ge2d_config->dst_xy_swap = 0;
-	ge2d_config->dst_para.color = 0;
-	ge2d_config->dst_para.top = 0;
-	ge2d_config->dst_para.left = 0;
-	ge2d_config->dst_para.width = vf->width / 2;
-	ge2d_config->dst_para.height = vf->height / 4;
-
-	if (ge2d_context_config_ex(context, ge2d_config) < 0) {
-		PPMGRVPP_ERR("++ge2d configing error.\n");
-		return -1;
-	}
-	stretchblt_noalpha(context, 0, 0, vf->width / 2, vf->height / 4, 0, 0,
-			vf->width / 2, vf->height / 4);
-
-	/*V data*/
-	ge2d_config->alu_const_color = 0;
-	ge2d_config->bitmask_en = 0;
-	ge2d_config->src1_gb_alpha = 0;
-	ge2d_config->dst_xy_swap = 0;
-
-	canvas_read((vf->canvas0Addr >> 16) & 0xff, &cs);
-	ge2d_config->src_planes[0].addr = cs.addr;
-	ge2d_config->src_planes[0].w = cs.width;
-	ge2d_config->src_planes[0].h = cs.height;
-	ge2d_config->src_planes[1].addr = 0;
-	ge2d_config->src_planes[1].w = 0;
-	ge2d_config->src_planes[1].h = 0;
-	ge2d_config->src_planes[2].addr = 0;
-	ge2d_config->src_planes[2].w = 0;
-	ge2d_config->src_planes[2].h = 0;
-
-	canvas_read(PPMGR_DEINTERLACE_BUF_CANVAS + 2, &cd);
-	ge2d_config->dst_planes[0].addr = cd.addr;
-	ge2d_config->dst_planes[0].w = cd.width;
-	ge2d_config->dst_planes[0].h = cd.height;
-	ge2d_config->dst_planes[1].addr = 0;
-	ge2d_config->dst_planes[1].w = 0;
-	ge2d_config->dst_planes[1].h = 0;
-	ge2d_config->dst_planes[2].addr = 0;
-	ge2d_config->dst_planes[2].w = 0;
-	ge2d_config->dst_planes[2].h = 0;
-
-	ge2d_config->src_key.key_enable = 0;
-	ge2d_config->src_key.key_mask = 0;
-	ge2d_config->src_key.key_mode = 0;
-	ge2d_config->src_key.key_color = 0;
-
-	ge2d_config->src_para.canvas_index = (vf->canvas0Addr >> 16) & 0xff;
-	ge2d_config->src_para.mem_type = CANVAS_TYPE_INVALID;
-	ge2d_config->src_para.format = GE2D_FMT_S8_CR;
-	ge2d_config->src_para.fill_color_en = 0;
-	ge2d_config->src_para.fill_mode = 0;
-	ge2d_config->src_para.x_rev = 0;
-	ge2d_config->src_para.y_rev = 0;
-	ge2d_config->src_para.color = 0;
-	ge2d_config->src_para.top = 0;
-	ge2d_config->src_para.left = 0;
-	ge2d_config->src_para.width = vf->width / 2;
-	ge2d_config->src_para.height = vf->height / 4;
-
-	ge2d_config->dst_para.canvas_index = PPMGR_DEINTERLACE_BUF_CANVAS + 2;
-	ge2d_config->dst_para.mem_type = CANVAS_TYPE_INVALID;
-	ge2d_config->dst_para.format = GE2D_FMT_S8_CR
-			| (GE2D_FORMAT_M24_YUV420T & (3 << 3));
-	ge2d_config->dst_para.fill_color_en = 0;
-	ge2d_config->dst_para.fill_mode = 0;
-	ge2d_config->dst_para.x_rev = 0;
-	ge2d_config->dst_para.y_rev = 0;
-	ge2d_config->dst_xy_swap = 0;
-	ge2d_config->dst_para.color = 0;
-	ge2d_config->dst_para.top = 0;
-	ge2d_config->dst_para.left = 0;
-	ge2d_config->dst_para.width = vf->width / 2;
-	ge2d_config->dst_para.height = vf->height / 4;
-
-	if (ge2d_context_config_ex(context, ge2d_config) < 0) {
-		PPMGRVPP_ERR("++ge2d configing error.\n");
-		return -1;
-	}
-	stretchblt_noalpha(context, 0, 0, vf->width / 2, vf->height / 4, 0, 0,
-			vf->width / 2, vf->height / 4);
-
-	/* operation bottom line*/
-	/*Y data*/
-	ge2d_config->alu_const_color = 0;
-	ge2d_config->bitmask_en = 0;
-	ge2d_config->src1_gb_alpha = 0;
-	ge2d_config->dst_xy_swap = 0;
-
-	canvas_read(vf->canvas1Addr & 0xff, &cs);
-	ge2d_config->src_planes[0].addr = cs.addr;
-	ge2d_config->src_planes[0].w = cs.width;
-	ge2d_config->src_planes[0].h = cs.height;
-	ge2d_config->src_planes[1].addr = 0;
-	ge2d_config->src_planes[1].w = 0;
-	ge2d_config->src_planes[1].h = 0;
-	ge2d_config->src_planes[2].addr = 0;
-	ge2d_config->src_planes[2].w = 0;
-	ge2d_config->src_planes[2].h = 0;
-
-	canvas_read(PPMGR_DEINTERLACE_BUF_CANVAS, &cd);
-	ge2d_config->dst_planes[0].addr = cd.addr;
-	ge2d_config->dst_planes[0].w = cd.width;
-	ge2d_config->dst_planes[0].h = cd.height;
-	ge2d_config->dst_planes[1].addr = 0;
-	ge2d_config->dst_planes[1].w = 0;
-	ge2d_config->dst_planes[1].h = 0;
-	ge2d_config->dst_planes[2].addr = 0;
-	ge2d_config->dst_planes[2].w = 0;
-	ge2d_config->dst_planes[2].h = 0;
-
-	ge2d_config->src_key.key_enable = 0;
-	ge2d_config->src_key.key_mask = 0;
-	ge2d_config->src_key.key_mode = 0;
-	ge2d_config->src_key.key_color = 0;
-
-	ge2d_config->src_para.canvas_index = vf->canvas1Addr & 0xff;
-	ge2d_config->src_para.mem_type = CANVAS_TYPE_INVALID;
-	ge2d_config->src_para.format = GE2D_FMT_S8_Y;
-	ge2d_config->src_para.fill_color_en = 0;
-	ge2d_config->src_para.fill_mode = 0;
-	ge2d_config->src_para.x_rev = 0;
-	ge2d_config->src_para.y_rev = 0;
-	ge2d_config->src_para.color = 0;
-	ge2d_config->src_para.top = 0;
-	ge2d_config->src_para.left = 0;
-	ge2d_config->src_para.width = vf->width;
-	ge2d_config->src_para.height = vf->height / 2;
-
-	ge2d_config->dst_para.canvas_index = PPMGR_DEINTERLACE_BUF_CANVAS;
-	ge2d_config->dst_para.mem_type = CANVAS_TYPE_INVALID;
-	ge2d_config->dst_para.format = GE2D_FMT_S8_Y
-			| (GE2D_FORMAT_M24_YUV420B & (3 << 3));
-	ge2d_config->dst_para.fill_color_en = 0;
-	ge2d_config->dst_para.fill_mode = 0;
-	ge2d_config->dst_para.x_rev = 0;
-	ge2d_config->dst_para.y_rev = 0;
-	ge2d_config->dst_xy_swap = 0;
-	ge2d_config->dst_para.color = 0;
-	ge2d_config->dst_para.top = 0;
-	ge2d_config->dst_para.left = 0;
-	ge2d_config->dst_para.width = vf->width;
-	ge2d_config->dst_para.height = vf->height / 2;
-
-	if (ge2d_context_config_ex(context, ge2d_config) < 0) {
-		PPMGRVPP_ERR("++ge2d configing error.\n");
-		return -1;
-	}
-	stretchblt_noalpha(context, 0, 0, vf->width, vf->height / 2, 0, 0,
-			vf->width, vf->height / 2);
-
-	/*U data*/
-	ge2d_config->alu_const_color = 0;
-	ge2d_config->bitmask_en = 0;
-	ge2d_config->src1_gb_alpha = 0;
-	ge2d_config->dst_xy_swap = 0;
-
-	canvas_read((vf->canvas1Addr >> 8) & 0xff, &cs);
-	ge2d_config->src_planes[0].addr = cs.addr;
-	ge2d_config->src_planes[0].w = cs.width;
-	ge2d_config->src_planes[0].h = cs.height;
-	ge2d_config->src_planes[1].addr = 0;
-	ge2d_config->src_planes[1].w = 0;
-	ge2d_config->src_planes[1].h = 0;
-	ge2d_config->src_planes[2].addr = 0;
-	ge2d_config->src_planes[2].w = 0;
-	ge2d_config->src_planes[2].h = 0;
-
-	canvas_read(PPMGR_DEINTERLACE_BUF_CANVAS + 1, &cd);
-	ge2d_config->dst_planes[0].addr = cd.addr;
-	ge2d_config->dst_planes[0].w = cd.width;
-	ge2d_config->dst_planes[0].h = cd.height;
-	ge2d_config->dst_planes[1].addr = 0;
-	ge2d_config->dst_planes[1].w = 0;
-	ge2d_config->dst_planes[1].h = 0;
-	ge2d_config->dst_planes[2].addr = 0;
-	ge2d_config->dst_planes[2].w = 0;
-	ge2d_config->dst_planes[2].h = 0;
-
-	ge2d_config->src_key.key_enable = 0;
-	ge2d_config->src_key.key_mask = 0;
-	ge2d_config->src_key.key_mode = 0;
-	ge2d_config->src_key.key_color = 0;
-
-	ge2d_config->src_para.canvas_index = (vf->canvas1Addr >> 8) & 0xff;
-	ge2d_config->src_para.mem_type = CANVAS_TYPE_INVALID;
-	ge2d_config->src_para.format = GE2D_FMT_S8_CB;
-	ge2d_config->src_para.fill_color_en = 0;
-	ge2d_config->src_para.fill_mode = 0;
-	ge2d_config->src_para.x_rev = 0;
-	ge2d_config->src_para.y_rev = 0;
-	ge2d_config->src_para.color = 0;
-	ge2d_config->src_para.top = 0;
-	ge2d_config->src_para.left = 0;
-	ge2d_config->src_para.width = vf->width / 2;
-	ge2d_config->src_para.height = vf->height / 4;
-
-	ge2d_config->dst_para.canvas_index = PPMGR_DEINTERLACE_BUF_CANVAS + 1;
-	ge2d_config->dst_para.mem_type = CANVAS_TYPE_INVALID;
-	ge2d_config->dst_para.format = GE2D_FMT_S8_CB
-			| (GE2D_FORMAT_M24_YUV420B & (3 << 3));
-	ge2d_config->dst_para.fill_color_en = 0;
-	ge2d_config->dst_para.fill_mode = 0;
-	ge2d_config->dst_para.x_rev = 0;
-	ge2d_config->dst_para.y_rev = 0;
-	ge2d_config->dst_xy_swap = 0;
-	ge2d_config->dst_para.color = 0;
-	ge2d_config->dst_para.top = 0;
-	ge2d_config->dst_para.left = 0;
-	ge2d_config->dst_para.width = vf->width / 2;
-	ge2d_config->dst_para.height = vf->height / 4;
-
-	if (ge2d_context_config_ex(context, ge2d_config) < 0) {
-		PPMGRVPP_ERR("++ge2d configing error.\n");
-		return -1;
-	}
-	stretchblt_noalpha(context, 0, 0, vf->width / 2, vf->height / 4, 0, 0,
-			vf->width / 2, vf->height / 4);
-
-	/*V data*/
-	ge2d_config->alu_const_color = 0;
-	ge2d_config->bitmask_en = 0;
-	ge2d_config->src1_gb_alpha = 0;
-	ge2d_config->dst_xy_swap = 0;
-
-	canvas_read((vf->canvas1Addr >> 16) & 0xff, &cs);
-	ge2d_config->src_planes[0].addr = cs.addr;
-	ge2d_config->src_planes[0].w = cs.width;
-	ge2d_config->src_planes[0].h = cs.height;
-	ge2d_config->src_planes[1].addr = 0;
-	ge2d_config->src_planes[1].w = 0;
-	ge2d_config->src_planes[1].h = 0;
-	ge2d_config->src_planes[2].addr = 0;
-	ge2d_config->src_planes[2].w = 0;
-	ge2d_config->src_planes[2].h = 0;
-
-	canvas_read(PPMGR_DEINTERLACE_BUF_CANVAS + 2, &cd);
-	ge2d_config->dst_planes[0].addr = cd.addr;
-	ge2d_config->dst_planes[0].w = cd.width;
-	ge2d_config->dst_planes[0].h = cd.height;
-	ge2d_config->dst_planes[1].addr = 0;
-	ge2d_config->dst_planes[1].w = 0;
-	ge2d_config->dst_planes[1].h = 0;
-	ge2d_config->dst_planes[2].addr = 0;
-	ge2d_config->dst_planes[2].w = 0;
-	ge2d_config->dst_planes[2].h = 0;
-
-	ge2d_config->src_key.key_enable = 0;
-	ge2d_config->src_key.key_mask = 0;
-	ge2d_config->src_key.key_mode = 0;
-	ge2d_config->src_key.key_color = 0;
-
-	ge2d_config->src_para.canvas_index = (vf->canvas1Addr >> 16) & 0xff;
-	ge2d_config->src_para.mem_type = CANVAS_TYPE_INVALID;
-	ge2d_config->src_para.format = GE2D_FMT_S8_CR;
-	ge2d_config->src_para.fill_color_en = 0;
-	ge2d_config->src_para.fill_mode = 0;
-	ge2d_config->src_para.x_rev = 0;
-	ge2d_config->src_para.y_rev = 0;
-	ge2d_config->src_para.color = 0;
-	ge2d_config->src_para.top = 0;
-	ge2d_config->src_para.left = 0;
-	ge2d_config->src_para.width = vf->width / 2;
-	ge2d_config->src_para.height = vf->height / 4;
-
-	ge2d_config->dst_para.canvas_index = PPMGR_DEINTERLACE_BUF_CANVAS + 2;
-	ge2d_config->dst_para.mem_type = CANVAS_TYPE_INVALID;
-	ge2d_config->dst_para.format = GE2D_FMT_S8_CR
-			| (GE2D_FORMAT_M24_YUV420B & (3 << 3));
-	ge2d_config->dst_para.fill_color_en = 0;
-	ge2d_config->dst_para.fill_mode = 0;
-	ge2d_config->dst_para.x_rev = 0;
-	ge2d_config->dst_para.y_rev = 0;
-	ge2d_config->dst_xy_swap = 0;
-	ge2d_config->dst_para.color = 0;
-	ge2d_config->dst_para.top = 0;
-	ge2d_config->dst_para.left = 0;
-	ge2d_config->dst_para.width = vf->width / 2;
-	ge2d_config->dst_para.height = vf->height / 4;
-
-	if (ge2d_context_config_ex(context, ge2d_config) < 0) {
-		PPMGRVPP_ERR("++ge2d configing error.\n");
-		return -1;
-	}
-	stretchblt_noalpha(context, 0, 0, vf->width / 2, vf->height / 4, 0, 0,
-			vf->width / 2, vf->height / 4);
-	/*printk("++ppmgr interlace success.\n");*/
-	return 1;
-}
-
-static int mycount;
 static void process_vf_rotate(struct vframe_s *vf,
 		struct ge2d_context_s *context,
-		struct config_para_ex_s *ge2d_config,
-		int deinterlace)
+		struct config_para_ex_s *ge2d_config)
 {
 	struct vframe_s *new_vf;
 	struct ppframe_s *pp_vf;
 	struct canvas_s cs0, cs1, cs2, cd;
+	static struct vframe_s src_vf;
 	int ret = 0;
 	unsigned int cur_angle = 0;
-	int pic_struct = 0, interlace_mode;
+	int interlace_mode;
+	struct file *filp_scr = NULL;
+	struct file *filp_dst = NULL;
+	char source_path[64];
+	char dst_path[64];
+	int count;
+	int result = 0;
+	mm_segment_t old_fs;
 #ifdef CONFIG_AMLOGIC_POST_PROCESS_MANAGER_3D_PROCESS
 	enum platform_type_t platform_type;
 #endif
@@ -1668,9 +1216,49 @@ static void process_vf_rotate(struct vframe_s *vf,
 	if (vf->type & VIDTYPE_MVC)
 		pp_vf->dec_frame = vf;
 
-	if (vf->type & VIDTYPE_COMPRESS)
-		pp_vf->dec_frame = vf;
+	if (vf->type & VIDTYPE_COMPRESS) {
+		if ((vf->bitdepth == (
+			BITDEPTH_Y10 |
+			BITDEPTH_U10 |
+			BITDEPTH_V10))
+			&& (!ppmgr_device.debug_10bit_frame))
+			pp_vf->dec_frame = vf;
+		if (vf->canvas0Addr != (u32)-1) {
+			canvas_copy(vf->canvas0Addr & 0xff,
+				ppmgr_src_canvas[0]);
+			canvas_copy((vf->canvas0Addr >> 8) & 0xff,
+				ppmgr_src_canvas[1]);
+			canvas_copy((vf->canvas0Addr >> 16) & 0xff,
+				ppmgr_src_canvas[2]);
+			if (dumpfirstframe)
+				PPMGRVPP_INFO("compress canvas copy!\n");
+		} else if (vf->plane_num > 0) {
+			canvas_config_config(ppmgr_src_canvas[0],
+					&vf->canvas0_config[0]);
+			if (vf->plane_num == 2) {
+				canvas_config_config(
+					ppmgr_src_canvas[1],
+					&vf->canvas0_config[1]);
+			} else if (vf->plane_num == 3) {
+				canvas_config_config(
+						ppmgr_src_canvas[2],
+						&vf->canvas0_config[2]);
+			}
+			vf->canvas0Addr =
+				ppmgr_src_canvas[0]
+				| (ppmgr_src_canvas[1] << 8)
+				| (ppmgr_src_canvas[2] << 16);
+			if (dumpfirstframe)
+				PPMGRVPP_INFO("compress canvas config\n");
 
+		} else {
+			pp_vf->dec_frame = vf;
+			if (ppmgr_device.ppmgr_debug)
+				PPMGRVPP_INFO("vframe is compress!\n");
+		}
+		if (dumpfirstframe == 1)
+			dumpfirstframe = 2;
+	}
 	if (pp_vf->dec_frame) {
 		/* bypass mode */
 		*new_vf = *vf;
@@ -1693,13 +1281,10 @@ static void process_vf_rotate(struct vframe_s *vf,
 		return;
 	}
 #ifdef INTERLACE_DROP_MODE
-	if (interlace_mode) {
-		mycount++;
-		if (mycount % 2 == 0) {
-			ppmgr_vf_put_dec(vf);
-			vfq_push(&q_free, new_vf);
-			return;
-		}
+	if (interlace_mode == VIDTYPE_INTERLACE_BOTTOM) {
+		ppmgr_vf_put_dec(vf);
+		vfq_push(&q_free, new_vf);
+		return;
 	}
 	pp_vf->angle = cur_angle;
 	if (interlace_mode)
@@ -1714,31 +1299,18 @@ static void process_vf_rotate(struct vframe_s *vf,
 	new_vf->duration_pulldown = vf->duration_pulldown;
 	new_vf->pts = vf->pts;
 	new_vf->pts_us64 = vf->pts_us64;
+	new_vf->bitdepth = BITDEPTH_Y8 | BITDEPTH_U8 | BITDEPTH_V8;
+	new_vf->signal_type = vf->signal_type;
+	new_vf->omx_index = vf->omx_index;
 	new_vf->type = VIDTYPE_VIU_444 | VIDTYPE_VIU_SINGLE_PLANE
 			| VIDTYPE_VIU_FIELD;
 	new_vf->canvas0Addr = new_vf->canvas1Addr = index2canvas(pp_vf->index);
 	new_vf->orientation = vf->orientation;
 	new_vf->flag = vf->flag;
 
-	if (vf->type & VIDTYPE_VIU_422) {
-		if (interlace_mode == VIDTYPE_INTERLACE_TOP)
-			vf->height >>= 1;
-		else if (interlace_mode == VIDTYPE_INTERLACE_BOTTOM)
-			vf->height >>= 1;
-		else
-			pic_struct = (GE2D_FORMAT_S16_YUV422T & (3 << 3));
-
-	} else if (vf->type & VIDTYPE_VIU_NV21) {
-		if (interlace_mode == VIDTYPE_INTERLACE_TOP)
-			pic_struct = (GE2D_FORMAT_M24_NV21T & (3 << 3));
-		else if (interlace_mode == VIDTYPE_INTERLACE_BOTTOM)
-			pic_struct = (GE2D_FORMAT_M24_NV21B & (3 << 3));
-	} else {
-		if (interlace_mode == VIDTYPE_INTERLACE_TOP)
-			pic_struct = (GE2D_FORMAT_M24_YUV420T & (3 << 3));
-		else if (interlace_mode == VIDTYPE_INTERLACE_BOTTOM)
-			pic_struct = (GE2D_FORMAT_M24_YUV420B & (3 << 3));
-	}
+	if ((interlace_mode == VIDTYPE_INTERLACE_TOP)
+		|| (interlace_mode == VIDTYPE_INTERLACE_BOTTOM))
+		vf->height >>= 1;
 
 #ifndef CONFIG_AMLOGIC_POST_PROCESS_MANAGER_PPSCALER
 	vf_rotate_adjust(vf, new_vf, cur_angle);
@@ -1875,18 +1447,58 @@ static void process_vf_rotate(struct vframe_s *vf,
 		ge2d_config->src1_gb_alpha = 0;/*0xff;*/
 		ge2d_config->dst_xy_swap = 0;
 
-		canvas_read(vf->canvas0Addr & 0xff, &cs0);
-		canvas_read((vf->canvas0Addr >> 8) & 0xff, &cs1);
-		canvas_read((vf->canvas0Addr >> 16) & 0xff, &cs2);
-		ge2d_config->src_planes[0].addr = cs0.addr;
-		ge2d_config->src_planes[0].w = cs0.width;
-		ge2d_config->src_planes[0].h = cs0.height;
-		ge2d_config->src_planes[1].addr = cs1.addr;
-		ge2d_config->src_planes[1].w = cs1.width;
-		ge2d_config->src_planes[1].h = cs1.height;
-		ge2d_config->src_planes[2].addr = cs2.addr;
-		ge2d_config->src_planes[2].w = cs2.width;
-		ge2d_config->src_planes[2].h = cs2.height;
+		src_vf = *vf;
+		if (vf->canvas0Addr == (u32)-1) {
+			canvas_config_config(ppmgr_src_canvas[0],
+					&src_vf.canvas0_config[0]);
+			if (src_vf.plane_num == 2) {
+				canvas_config_config(
+					ppmgr_src_canvas[1],
+					&src_vf.canvas0_config[1]);
+			} else if (src_vf.plane_num == 3) {
+				canvas_config_config(
+						ppmgr_src_canvas[2],
+						&src_vf.canvas0_config[2]);
+			}
+			src_vf.canvas0Addr =
+				ppmgr_src_canvas[0]
+				| (ppmgr_src_canvas[1] << 8)
+				| (ppmgr_src_canvas[2] << 16);
+
+			ge2d_config->src_planes[0].addr =
+					src_vf.canvas0_config[0].phy_addr;
+			ge2d_config->src_planes[0].w =
+					src_vf.canvas0_config[0].width;
+			ge2d_config->src_planes[0].h =
+					src_vf.canvas0_config[0].height;
+			ge2d_config->src_planes[1].addr =
+					src_vf.canvas0_config[1].phy_addr;
+			ge2d_config->src_planes[1].w =
+					src_vf.canvas0_config[1].width;
+			ge2d_config->src_planes[1].h =
+					src_vf.canvas0_config[1].height >> 1;
+			if (src_vf.plane_num == 3) {
+				ge2d_config->src_planes[2].addr =
+					src_vf.canvas0_config[2].phy_addr;
+				ge2d_config->src_planes[2].w =
+					src_vf.canvas0_config[2].width;
+				ge2d_config->src_planes[2].h =
+					src_vf.canvas0_config[2].height >> 1;
+			}
+		} else {
+			canvas_read(vf->canvas0Addr & 0xff, &cs0);
+			canvas_read((vf->canvas0Addr >> 8) & 0xff, &cs1);
+			canvas_read((vf->canvas0Addr >> 16) & 0xff, &cs2);
+			ge2d_config->src_planes[0].addr = cs0.addr;
+			ge2d_config->src_planes[0].w = cs0.width;
+			ge2d_config->src_planes[0].h = cs0.height;
+			ge2d_config->src_planes[1].addr = cs1.addr;
+			ge2d_config->src_planes[1].w = cs1.width;
+			ge2d_config->src_planes[1].h = cs1.height;
+			ge2d_config->src_planes[2].addr = cs2.addr;
+			ge2d_config->src_planes[2].w = cs2.width;
+			ge2d_config->src_planes[2].h = cs2.height;
+		}
 
 		canvas_read(new_vf->canvas0Addr & 0xff, &cd);
 		ge2d_config->dst_planes[0].addr = cd.addr;
@@ -1909,8 +1521,7 @@ static void process_vf_rotate(struct vframe_s *vf,
 		ge2d_config->src_para.top = 0;
 		ge2d_config->src_para.left = 0;
 		ge2d_config->src_para.width = vf->width;
-		ge2d_config->src_para.height =
-				(pic_struct) ? (vf->height / 2) : vf->height;
+		ge2d_config->src_para.height = vf->height;
 
 		ge2d_config->src2_para.mem_type = CANVAS_TYPE_INVALID;
 
@@ -1936,8 +1547,6 @@ static void process_vf_rotate(struct vframe_s *vf,
 			return;
 		}
 		stretchblt_noalpha(context, 0, 0, vf->width,
-				(pic_struct) ?
-				(vf->height / 2) :
 				vf->height, 0, 0, dst_w,
 				dst_h);
 
@@ -1966,60 +1575,46 @@ static void process_vf_rotate(struct vframe_s *vf,
 	ge2d_config->src_key.key_mode = 0;
 	ge2d_config->src_para.mem_type = CANVAS_TYPE_INVALID;
 
-	if (deinterlace) {
-		switch (deinterlace) {
-		case 1:
-			canvas_read(PPMGR_DEINTERLACE_BUF_CANVAS, &cs0);
-			canvas_read(PPMGR_DEINTERLACE_BUF_CANVAS + 1, &cs1);
-			canvas_read(PPMGR_DEINTERLACE_BUF_CANVAS + 2, &cs2);
-			ge2d_config->src_planes[0].addr = cs0.addr;
-			ge2d_config->src_planes[0].w = cs0.width;
-			ge2d_config->src_planes[0].h = cs0.height;
-			ge2d_config->src_planes[1].addr = cs1.addr;
-			ge2d_config->src_planes[1].w = cs1.width;
-			ge2d_config->src_planes[1].h = cs1.height;
-			ge2d_config->src_planes[2].addr = cs2.addr;
-			ge2d_config->src_planes[2].w = cs2.width;
-			ge2d_config->src_planes[2].h = cs2.height;
-			ge2d_config->src_para.canvas_index =
-				(PPMGR_DEINTERLACE_BUF_CANVAS)
-				| ((PPMGR_DEINTERLACE_BUF_CANVAS + 1) << 8)
-				| ((PPMGR_DEINTERLACE_BUF_CANVAS + 2) << 16);
-
-			ge2d_config->src_para.format = GE2D_FORMAT_M24_YUV420;
-			break;
-		case 2:
-			canvas_read(PPMGR_DEINTERLACE_BUF_NV21_CANVAS, &cs0);
-			ge2d_config->src_planes[0].addr = cs0.addr;
-			ge2d_config->src_planes[0].w = cs0.width;
-			ge2d_config->src_planes[0].h = cs0.height;
-			ge2d_config->src_para.canvas_index =
-			PPMGR_DEINTERLACE_BUF_NV21_CANVAS;
-			ge2d_config->src_para.format = GE2D_FORMAT_M24_YUV444;
-			break;
-		default:
-			canvas_read(PPMGR_DEINTERLACE_BUF_CANVAS, &cs0);
-			canvas_read(PPMGR_DEINTERLACE_BUF_CANVAS + 1, &cs1);
-			canvas_read(PPMGR_DEINTERLACE_BUF_CANVAS + 2, &cs2);
-			ge2d_config->src_planes[0].addr = cs0.addr;
-			ge2d_config->src_planes[0].w = cs0.width;
-			ge2d_config->src_planes[0].h = cs0.height;
-			ge2d_config->src_planes[1].addr = cs1.addr;
-			ge2d_config->src_planes[1].w = cs1.width;
-			ge2d_config->src_planes[1].h = cs1.height;
-			ge2d_config->src_planes[2].addr = cs2.addr;
-			ge2d_config->src_planes[2].w = cs2.width;
-			ge2d_config->src_planes[2].h = cs2.height;
-			ge2d_config->src_para.canvas_index =
-				(PPMGR_DEINTERLACE_BUF_CANVAS)
-				| ((PPMGR_DEINTERLACE_BUF_CANVAS + 1) << 8)
-				| ((PPMGR_DEINTERLACE_BUF_CANVAS + 2) << 16);
-			ge2d_config->src_para.format = GE2D_FORMAT_M24_YUV420;
-			break;
+	src_vf = *vf;
+	if (vf->canvas0Addr == (u32)-1) {
+		canvas_config_config(ppmgr_src_canvas[0],
+				&src_vf.canvas0_config[0]);
+		if (src_vf.plane_num == 2) {
+			canvas_config_config(
+				ppmgr_src_canvas[1],
+				&src_vf.canvas0_config[1]);
+		} else if (src_vf.plane_num == 3) {
+			canvas_config_config(
+					ppmgr_src_canvas[2],
+					&src_vf.canvas0_config[2]);
 		}
+		src_vf.canvas0Addr =
+			ppmgr_src_canvas[0]
+			| (ppmgr_src_canvas[1] << 8)
+			| (ppmgr_src_canvas[2] << 16);
 
+		ge2d_config->src_planes[0].addr =
+				src_vf.canvas0_config[0].phy_addr;
+		ge2d_config->src_planes[0].w =
+				src_vf.canvas0_config[0].width;
+		ge2d_config->src_planes[0].h =
+				src_vf.canvas0_config[0].height;
+		ge2d_config->src_planes[1].addr =
+				src_vf.canvas0_config[1].phy_addr;
+		ge2d_config->src_planes[1].w =
+				src_vf.canvas0_config[1].width;
+		ge2d_config->src_planes[1].h =
+				src_vf.canvas0_config[1].height >> 1;
+		if (src_vf.plane_num == 3) {
+			ge2d_config->src_planes[2].addr =
+				src_vf.canvas0_config[2].phy_addr;
+			ge2d_config->src_planes[2].w =
+				src_vf.canvas0_config[2].width;
+			ge2d_config->src_planes[2].h =
+				src_vf.canvas0_config[2].height >> 1;
+		}
+		ge2d_config->src_para.canvas_index = src_vf.canvas0Addr;
 	} else {
-
 		canvas_read(vf->canvas0Addr & 0xff, &cs0);
 		canvas_read((vf->canvas0Addr >> 8) & 0xff, &cs1);
 		canvas_read((vf->canvas0Addr >> 16) & 0xff, &cs2);
@@ -2033,8 +1628,9 @@ static void process_vf_rotate(struct vframe_s *vf,
 		ge2d_config->src_planes[2].w = cs2.width;
 		ge2d_config->src_planes[2].h = cs2.height;
 		ge2d_config->src_para.canvas_index = vf->canvas0Addr;
-		ge2d_config->src_para.format = get_input_format(vf);
 	}
+	ge2d_config->src_para.format = get_input_format(vf);
+
 	ge2d_config->src_para.fill_color_en = 0;
 	ge2d_config->src_para.fill_mode = 0;
 	ge2d_config->src_para.x_rev = 0;
@@ -2043,8 +1639,7 @@ static void process_vf_rotate(struct vframe_s *vf,
 	ge2d_config->src_para.top = 0;
 	ge2d_config->src_para.left = 0;
 	ge2d_config->src_para.width = vf->width;
-	ge2d_config->src_para.height =
-			(pic_struct) ? (vf->height / 2) : vf->height;
+	ge2d_config->src_para.height = vf->height;
 
 	ge2d_config->src2_para.mem_type = CANVAS_TYPE_INVALID;
 
@@ -2163,38 +1758,90 @@ static void process_vf_rotate(struct vframe_s *vf,
 				dh = rect_h;
 		}
 
-		stretchblt_noalpha(context, sx,
-				(pic_struct) ? (sy / 2) : sy, sw,
-				(pic_struct) ? (sh / 2) : sh, dx, dy, dw, dh);
+		stretchblt_noalpha(context, sx, sy, sw,
+				sh, dx, dy, dw, dh);
 	} else {
 		if (ppmgr_device.receiver == 0)
 			stretchblt_noalpha(context, 0, 0, vf->width,
-					(pic_struct) ?
-					(vf->height / 2) :
 					vf->height, 0, 0,
 					new_vf->width, new_vf->height);
 		else
-			display_mode_adjust(context, vf, pic_struct);
+			display_mode_adjust(context, vf);
 	}
 #else
 	stretchblt_noalpha(context, 0, 0,
 			vf->width,
-			(pic_struct)?(vf->height/2):vf->height,
+			vf->height,
 			0, 0, new_vf->width, new_vf->height);
 
 #endif
+	if (strstr(ppmgr_device.dump_path, "scr")
+		&& (dumpfirstframe == 2)) {
+		old_fs = get_fs();
+		set_fs(KERNEL_DS);
+		count = strlen(ppmgr_device.dump_path);
+		ppmgr_device.dump_path[count] = count_scr;
+		sprintf(source_path, "%s_scr", ppmgr_device.dump_path);
+		count_scr++;
+		filp_scr = filp_open(source_path, O_RDWR | O_CREAT, 0666);
+		if (IS_ERR(filp_scr))
+			PPMGRVPP_INFO("open %s failed\n", source_path);
+		else {
+			result = copy_phybuf_to_file(
+				vf->canvas0_config[0].phy_addr,
+				(vf->canvas0_config[0].width)
+				* (vf->canvas0_config[0].height),
+				filp_scr, 0);
+			if (result < 0)
+				PPMGRVPP_INFO("write %s failed\n", source_path);
+			PPMGRVPP_INFO("scr addr: %0x, width: %d, height: %d\n",
+				vf->canvas0_config[0].phy_addr,
+				vf->canvas0_config[0].width,
+				vf->canvas0_config[0].height);
+			PPMGRVPP_INFO("dump source type: %d\n",
+				get_input_format(vf));
+			vfs_fsync(filp_scr, 0);
+			filp_close(filp_scr, NULL);
+			set_fs(old_fs);
+		}
+	}
 	ppmgr_vf_put_dec(vf);
-
-	vfq_push(&q_ready, new_vf);
+	new_vf->source_type = VFRAME_SOURCE_TYPE_PPMGR;
+	if (dumpfirstframe != 2)
+		vfq_push(&q_ready, new_vf);
+	if (strstr(ppmgr_device.dump_path, "dst")
+		&& (dumpfirstframe == 2)) {
+		old_fs = get_fs();
+		set_fs(KERNEL_DS);
+		count = strlen(ppmgr_device.dump_path);
+		ppmgr_device.dump_path[count] = count_dst;
+		sprintf(dst_path, "%s_dst", ppmgr_device.dump_path);
+		count_dst++;
+		filp_dst = filp_open(dst_path,	O_RDWR | O_CREAT, 0666);
+		if (IS_ERR(filp_dst))
+			PPMGRVPP_INFO("open %s failed\n", dst_path);
+		else {
+			result = copy_phybuf_to_file(cd.addr,
+				cd.width * cd.height,
+				filp_dst, 0);
+			if (result < 0)
+				PPMGRVPP_INFO("write %s failed\n", dst_path);
+			PPMGRVPP_INFO("dst addr: %lx, width: %d, height: %d\n",
+				cd.addr, cd.width, cd.height);
+			PPMGRVPP_INFO("dump dst type: %d\n",
+				get_input_format(new_vf));
+			vfs_fsync(filp_dst, 0);
+			filp_close(filp_dst, NULL);
+			set_fs(old_fs);
+		}
+		if (count_dst >= ppmgr_device.ppmgr_debug)
+			dumpfirstframe = 0;
+	}
 
 #ifdef DDD
 	PPMGRVPP_WARN("rotate avail=%d, free=%d\n",
 		vfq_level(&q_ready), vfq_level(&q_free));
 #endif
-	if ((!ppmgr_device.use_reserved) &&
-	    (ppmgr_device.buffer_start)) {
-		dma_flush(ppmgr_device.buffer_start, ppmgr_device.buffer_size);
-	}
 }
 
 static void process_vf_change(struct vframe_s *vf,
@@ -2204,7 +1851,7 @@ static void process_vf_change(struct vframe_s *vf,
 	struct vframe_s temp_vf;
 	struct ppframe_s *pp_vf = to_ppframe(vf);
 	struct canvas_s cs0, cs1, cs2, cd;
-	int pic_struct = 0, interlace_mode;
+	int interlace_mode;
 	unsigned int temp_angle = 0;
 	unsigned int cur_angle = 0;
 	int ret = 0;
@@ -2223,6 +1870,9 @@ static void process_vf_change(struct vframe_s *vf,
 	temp_vf.pts = vf->pts;
 	temp_vf.pts_us64 = vf->pts_us64;
 	temp_vf.flag = vf->flag;
+	temp_vf.bitdepth = BITDEPTH_Y8 | BITDEPTH_U8 | BITDEPTH_V8;
+	temp_vf.signal_type = vf->signal_type;
+	temp_vf.omx_index = vf->omx_index;
 	temp_vf.type = VIDTYPE_VIU_444 | VIDTYPE_VIU_SINGLE_PLANE
 			| VIDTYPE_VIU_FIELD;
 	temp_vf.canvas0Addr = temp_vf.canvas1Addr = ass_index;
@@ -2237,25 +1887,9 @@ static void process_vf_change(struct vframe_s *vf,
 
 	interlace_mode = vf->type & VIDTYPE_TYPEMASK;
 
-	if (vf->type & VIDTYPE_VIU_422)
-		if (interlace_mode == VIDTYPE_INTERLACE_TOP)
-			vf->height >>= 1;
-		else if (interlace_mode == VIDTYPE_INTERLACE_BOTTOM)
-			vf->height >>= 1;
-		else
-			pic_struct = (GE2D_FORMAT_S16_YUV422T & (3 << 3));
-
-	else if (vf->type & VIDTYPE_VIU_NV21) {
-		if (interlace_mode == VIDTYPE_INTERLACE_TOP)
-			pic_struct = (GE2D_FORMAT_M24_NV21T & (3 << 3));
-		else if (interlace_mode == VIDTYPE_INTERLACE_BOTTOM)
-			pic_struct = (GE2D_FORMAT_M24_NV21B & (3 << 3));
-	} else {
-		if (interlace_mode == VIDTYPE_INTERLACE_TOP)
-			pic_struct = (GE2D_FORMAT_M24_YUV420T & (3 << 3));
-		else if (interlace_mode == VIDTYPE_INTERLACE_BOTTOM)
-			pic_struct = (GE2D_FORMAT_M24_YUV420B & (3 << 3));
-	}
+	if ((interlace_mode == VIDTYPE_INTERLACE_TOP)
+		|| (interlace_mode == VIDTYPE_INTERLACE_BOTTOM))
+		vf->height >>= 1;
 
 	memset(ge2d_config, 0, sizeof(struct config_para_ex_s));
 	/* data operating. */
@@ -2276,19 +1910,13 @@ static void process_vf_change(struct vframe_s *vf,
 		ge2d_config->src_planes[2].addr = cs2.addr;
 		ge2d_config->src_planes[2].w = cs2.width;
 		ge2d_config->src_planes[2].h = cs2.height;
-		if (vf->type & VIDTYPE_VIU_NV21)
-			ge2d_config->src_para.format =
-					GE2D_FORMAT_M24_NV21 | pic_struct;
-		else
-			ge2d_config->src_para.format =
-					GE2D_FORMAT_M24_YUV420 | pic_struct;
+		ge2d_config->src_para.format = get_input_format(vf);
 	} else {
 		canvas_read(vf->canvas0Addr & 0xff, &cd);
 		ge2d_config->src_planes[0].addr = cd.addr;
 		ge2d_config->src_planes[0].w = cd.width;
 		ge2d_config->src_planes[0].h = cd.height;
-		ge2d_config->src_para.format =
-				GE2D_FORMAT_S24_YUV444 | pic_struct;
+		ge2d_config->src_para.format = get_input_format(vf);
 	}
 
 	canvas_read(temp_vf.canvas0Addr & 0xff, &cd);
@@ -2311,8 +1939,7 @@ static void process_vf_change(struct vframe_s *vf,
 	ge2d_config->src_para.top = 0;
 	ge2d_config->src_para.left = 0;
 	ge2d_config->src_para.width = vf->width;
-	ge2d_config->src_para.height =
-			(pic_struct) ? (vf->height / 2) : vf->height;
+	ge2d_config->src_para.height = vf->height;
 
 	ge2d_config->src2_para.mem_type = CANVAS_TYPE_INVALID;
 
@@ -2348,7 +1975,7 @@ static void process_vf_change(struct vframe_s *vf,
 	}
 
 	stretchblt_noalpha(context, 0, 0, vf->width,
-			(pic_struct) ? (vf->height / 2) : vf->height,
+			vf->height,
 			0, 0, temp_vf.width,
 			temp_vf.height);
 
@@ -2804,9 +2431,11 @@ static int ppmgr_task(void *data)
 			vf = get_cur_dispbuf();
 			if (!is_valid_ppframe(to_ppframe(vf)))
 				continue;
-			if (vf && (vf->type & VIDTYPE_COMPRESS))
+			if ((vf->type & VIDTYPE_COMPRESS) &&
+				(vf->plane_num < 1) &&
+				(vf->canvas0Addr == (u32)-1)) {
 				continue;
-
+			}
 			if (vf) {
 				if (process_vf_adjust(vf,
 						context,
@@ -2832,9 +2461,11 @@ static int ppmgr_task(void *data)
 			vf = get_cur_dispbuf();
 			if (!is_valid_ppframe(to_ppframe(vf)))
 				continue;
-			if (vf->type & VIDTYPE_COMPRESS)
+			if ((vf->type & VIDTYPE_COMPRESS) &&
+				(vf->plane_num < 1) &&
+				(vf->canvas0Addr == (u32)-1)) {
 				continue;
-
+			}
 			process_vf_change(vf, context, &ge2d_config);
 			vf_notify_receiver(
 				PROVIDER_NAME,
@@ -2913,11 +2544,6 @@ static int ppmgr_task(void *data)
 
 			if (process_type == TYPE_NONE) {
 				int ret = 0;
-
-				if (platform_type != PLATFORM_TV)
-					ret = process_vf_deinterlace(vf,
-							context,
-							&ge2d_config);
 
 				process_vf_rotate(vf,
 						context,
@@ -3211,11 +2837,9 @@ SKIP_DETECT:
 				skip_picture =
 					ppmgr_device.tb_detect_period;
 #endif
-			ret = process_vf_deinterlace(vf, context, &ge2d_config);
 			process_vf_rotate(
 					vf, context,
-					&ge2d_config,
-					(ret > 0) ? ret : 0);
+					&ge2d_config);
 #endif
 			vf_notify_receiver(
 				PROVIDER_NAME,
@@ -3329,6 +2953,19 @@ int ppmgr_buffer_uninit(void)
 		ppmgr_device.buffer_start = 0;
 		ppmgr_device.buffer_size = 0;
 	}
+
+	if (ppmgr_src_canvas[0] >= 0)
+		canvas_pool_map_free_canvas(ppmgr_src_canvas[0]);
+	ppmgr_src_canvas[0] = -1;
+
+	if (ppmgr_src_canvas[1] >= 0)
+		canvas_pool_map_free_canvas(ppmgr_src_canvas[1]);
+	ppmgr_src_canvas[1] = -1;
+
+	if (ppmgr_src_canvas[2] >= 0)
+		canvas_pool_map_free_canvas(ppmgr_src_canvas[2]);
+	ppmgr_src_canvas[2] = -1;
+
 	ppmgr_buffer_status = 0;
 	return 0;
 }
@@ -3343,9 +2980,8 @@ int ppmgr_buffer_init(int vout_mode)
 	struct vinfo_s vinfo = {.width = 1280, .height = 720, };
 	/* int flags = CODEC_MM_FLAGS_DMA; */
 	int flags = CODEC_MM_FLAGS_DMA | CODEC_MM_FLAGS_CMA_CLEAR;
-#ifdef INTERLACE_DROP_MODE
-	mycount = 0;
-#endif
+	const char *keep_owner = "ppmgr_scr";
+
 	switch (ppmgr_buffer_status) {
 	case 0:/*not config*/
 		break;
@@ -3378,6 +3014,31 @@ int ppmgr_buffer_init(int vout_mode)
 			return -1;
 		}
 	}
+
+	if (ppmgr_src_canvas[0] < 0)
+		ppmgr_src_canvas[0] = canvas_pool_map_alloc_canvas(keep_owner);
+
+	if (ppmgr_src_canvas[0] < 0) {
+		PPMGRVPP_INFO("tb_detect tb_src_canvas[0] alloc failed\n");
+		return -1;
+	}
+
+	if (ppmgr_src_canvas[1] < 0)
+		ppmgr_src_canvas[1] = canvas_pool_map_alloc_canvas(keep_owner);
+
+	if (ppmgr_src_canvas[1] < 0) {
+		PPMGRVPP_INFO("tb_detect tb_src_canvas[1] alloc failed\n");
+		return -1;
+	}
+
+	if (ppmgr_src_canvas[2] < 0)
+		ppmgr_src_canvas[2] = canvas_pool_map_alloc_canvas(keep_owner);
+
+	if (ppmgr_src_canvas[2] < 0) {
+		PPMGRVPP_INFO("tb_detect tb_src_canvas[2] alloc failed\n");
+		return -1;
+	}
+
 	ppmgr_buffer_status = 1;
 	get_ppmgr_buf_info(&buf_start, &buf_size);
 #ifdef CONFIG_V4L_AMLOGIC_VIDEO
@@ -3646,22 +3307,33 @@ static int tb_buffer_init(void)
 	int i;
 	//int flags = CODEC_MM_FLAGS_DMA_CPU | CODEC_MM_FLAGS_CMA_CLEAR;
 	int flags = 0;
+	const char *keep_owner = "tb_detect";
 
 	if (tb_buffer_status)
 		return tb_buffer_status;
 
-	if (tb_src_canvas == 0) {
-		if (canvas_pool_alloc_canvas_table(
-			"tb_detect_src",
-			&tb_src_canvas, 1,
-			CANVAS_MAP_TYPE_YUV)) {
-			pr_err(
-				"%s alloc tb src canvas error.\n",
-				__func__);
-			return -1;
-		}
-		pr_info("alloc tb src canvas 0x%x.\n",
-			tb_src_canvas);
+	if (tb_src_canvas[0] < 0)
+		tb_src_canvas[0] = canvas_pool_map_alloc_canvas(keep_owner);
+
+	if (tb_src_canvas[0] < 0) {
+		PPMGRVPP_INFO("tb_detect tb_src_canvas[0] alloc failed\n");
+		return -1;
+	}
+
+	if (tb_src_canvas[1] < 0)
+		tb_src_canvas[1] = canvas_pool_map_alloc_canvas(keep_owner);
+
+	if (tb_src_canvas[1] < 0) {
+		PPMGRVPP_INFO("tb_detect tb_src_canvas[1] alloc failed\n");
+		return -1;
+	}
+
+	if (tb_src_canvas[2] < 0)
+		tb_src_canvas[2] = canvas_pool_map_alloc_canvas(keep_owner);
+
+	if (tb_src_canvas[2] < 0) {
+		PPMGRVPP_INFO("tb_detect tb_src_canvas[2] alloc failed\n");
+		return -1;
 	}
 
 	if (tb_canvas < 0)
@@ -3712,18 +3384,18 @@ static int tb_buffer_init(void)
 static int tb_buffer_uninit(void)
 {
 	int i;
-	if (tb_src_canvas) {
-		if (tb_src_canvas & 0xff)
-			canvas_pool_map_free_canvas(
-				tb_src_canvas & 0xff);
-		if ((tb_src_canvas >> 8) & 0xff)
-			canvas_pool_map_free_canvas(
-				(tb_src_canvas >> 8) & 0xff);
-		if ((tb_src_canvas >> 16) & 0xff)
-			canvas_pool_map_free_canvas(
-				(tb_src_canvas >> 16) & 0xff);
-	}
-	tb_src_canvas = 0;
+
+	if (tb_src_canvas[0] >= 0)
+		canvas_pool_map_free_canvas(tb_src_canvas[0]);
+	tb_src_canvas[0] = -1;
+
+	if (tb_src_canvas[1] >= 0)
+		canvas_pool_map_free_canvas(tb_src_canvas[1]);
+	tb_src_canvas[1] = -1;
+
+	if (tb_src_canvas[2] >= 0)
+		canvas_pool_map_free_canvas(tb_src_canvas[2]);
+	tb_src_canvas[2] = -1;
 
 	if (tb_canvas >= 0)
 		canvas_pool_map_free_canvas(tb_canvas);
@@ -3775,17 +3447,26 @@ static void tb_detect_init(void)
 static int tb_task(void *data)
 {
 	int tbff_flag;
-	struct tbff_stats pReg;
+	struct tbff_stats *pReg = NULL;
 	ulong y5fld[5];
 	int is_top;
 	int inited = 0;
+	int i;
+	int inter_flag;
 	static const char * const detect_type[] = {"NC", "TFF", "BFF", "TBF"};
 	struct sched_param param = {.sched_priority = MAX_RT_PRIO - 1};
-
 	sched_setscheduler(current, SCHED_FIFO, &param);
 
+	inter_flag = 0;
+	pReg = kmalloc(sizeof(struct tbff_stats), GFP_KERNEL);
+	if (IS_ERR_OR_NULL(pReg)) {
+		PPMGRVPP_INFO("pReg malloc fail\n");
+		return 0;
+	}
+	memset(pReg, 0, sizeof(struct tbff_stats));
+
 	if (gfunc)
-		gfunc->stats_init((&pReg), TB_DETECT_H, TB_DETECT_W);
+		gfunc->stats_init(pReg, TB_DETECT_H, TB_DETECT_W);
 	allow_signal(SIGTERM);
 	while (down_interruptible(&tb_sem) == 0) {
 		if (kthread_should_stop() || tb_quit_flag)
@@ -3805,14 +3486,30 @@ static int tb_task(void *data)
 		y5fld[2] = detect_buf[tb_buff_rptr + 2].vaddr;
 		y5fld[3] = detect_buf[tb_buff_rptr + 1].vaddr;
 		y5fld[4] = detect_buf[tb_buff_rptr].vaddr;
-		if (gfunc)
-			gfunc->stats_get(y5fld, &pReg);
-
+		if (gfunc) {
+			if (IS_ERR_OR_NULL(pReg)) {
+				PPMGRVPP_INFO("pReg is NULL!\n");
+				return 0;
+			}
+			for (i = 0; i < 5; i++) {
+				if (IS_ERR_OR_NULL((void *)(y5fld[i]))) {
+					PPMGRVPP_INFO(
+						"y5fld[%d] is NULL!\n", i);
+					inter_flag = 1;
+					break;
+				}
+			}
+			if (inter_flag) {
+				inter_flag = 0;
+				continue;
+			}
+			gfunc->stats_get(y5fld, pReg);
+		}
 		is_top = is_top ^ 1;
 		tbff_flag = -1;
 		if (gfunc)
 			tbff_flag = gfunc->fwalg_get(
-				&pReg, is_top,
+				pReg, is_top,
 				(tb_first_frame_type == 3) ? 0 : 1,
 				tb_buff_rptr,
 				atomic_read(&tb_skip_flag),
@@ -3859,6 +3556,7 @@ static int tb_task(void *data)
 		}
 	}
 	atomic_set(&tb_run_flag, 0);
+	kfree(pReg);
 	while (!kthread_should_stop())
 		usleep_range(9000, 10000);
 	return 0;

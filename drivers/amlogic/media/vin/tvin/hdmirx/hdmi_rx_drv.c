@@ -129,6 +129,7 @@ bool en_4096_2_3840;
 int en_4k_2_2k;
 int en_4k_timing = 1;
 bool hdmi_cec_en;
+static bool tv_auto_power_on;
 int vdin_drop_frame_cnt = 1;
 /* suspend_pddq_sel:
  * 0: keep phy on when suspend(don't need phy init when
@@ -727,11 +728,45 @@ int hdmirx_hw_get_3d_structure(void)
  */
 void hdmirx_get_vsi_info(struct tvin_sig_property_s *prop)
 {
-	rx_get_vsi_info();
+	static uint8_t last_vsi_state;
+	uint8_t vsi_state = rx_get_vsi_info();
 
-	prop->trans_fmt = TVIN_TFMT_2D;
-	prop->dolby_vision = false;
-	if (hdmirx_hw_get_3d_structure() == 1) {
+	if (last_vsi_state != vsi_state) {
+		if (log_level & PACKET_LOG) {
+			rx_pr("!!!vsi state = %d\n", vsi_state);
+			rx_pr("1:4K3D 2:DV10 3:DV15 4:HDR10+\n");
+		}
+		prop->trans_fmt = TVIN_TFMT_2D;
+		prop->dolby_vision = false;
+		prop->hdr10p_info.hdr10p_on = false;
+		last_vsi_state = vsi_state;
+	}
+
+	switch (vsi_state) {
+	case E_VSI_HDR10PLUS:
+		prop->hdr10p_info.hdr10p_on = rx.vs_info_details.hdr10plus;
+		memcpy(&(prop->hdr10p_info.hdr10p_data),
+			&(rx_pkt.vs_info),
+			sizeof(struct tvin_hdr10p_data_s));
+		break;
+	case E_VSI_DV10:
+	case E_VSI_DV15:
+		prop->dolby_vision = rx.vs_info_details.dolby_vision;
+		prop->low_latency = rx.vs_info_details.low_latency;
+		if ((rx.vs_info_details.dolby_vision == true) &&
+			(rx.vs_info_details.dolby_timeout <=
+				dv_nopacket_timeout) &&
+			(rx.vs_info_details.dolby_timeout != 0)) {
+			rx.vs_info_details.dolby_timeout--;
+			if (rx.vs_info_details.dolby_timeout == 0) {
+				rx.vs_info_details.dolby_vision = false;
+					rx_pr("dv10 timeout\n");
+			}
+		}
+		break;
+	case E_VSI_4K3D:
+	case E_VSI_VSI21:
+		if (hdmirx_hw_get_3d_structure() == 1) {
 		if (rx.vs_info_details._3d_structure == 0x1) {
 			/* field alternative */
 			prop->trans_fmt = TVIN_TFMT_3D_FA;
@@ -772,23 +807,10 @@ void hdmirx_get_vsi_info(struct tvin_sig_property_s *prop)
 				break;
 			}
 		}
-	} else {
-		prop->dolby_vision = rx.vs_info_details.dolby_vision;
-		prop->low_latency = rx.vs_info_details.low_latency;
-		if ((rx.vs_info_details.dolby_vision == true) &&
-			(rx.vs_info_details.dolby_timeout <=
-				dv_nopacket_timeout) &&
-			(rx.vs_info_details.dolby_timeout != 0)) {
-			rx.vs_info_details.dolby_timeout--;
-			if (rx.vs_info_details.dolby_timeout == 0) {
-				rx.vs_info_details.dolby_vision = false;
-					rx_pr("dv type 0x18 timeout\n");
-			}
-		}
-		if (log_level & VSI_LOG) {
-			rx_pr("prop->dolby_vision:%d\n", prop->dolby_vision);
-			rx_pr("prop->low_latency:%d\n", prop->low_latency);
-		}
+	}
+		break;
+	default:
+		break;
 	}
 }
 /*
@@ -919,6 +941,13 @@ bool hdmirx_check_frame_skip(struct tvin_frontend_s *fe)
 	return hdmirx_hw_check_frame_skip();
 }
 
+bool hdmirx_dv_config(bool en, struct tvin_frontend_s *fe)
+{
+	set_dv_ll_mode(en);
+
+	return true;
+}
+
 static struct tvin_state_machine_ops_s hdmirx_sm_ops = {
 	.nosig            = hdmirx_is_nosig,
 	.fmt_changed      = hdmirx_fmt_chg,
@@ -930,6 +959,7 @@ static struct tvin_state_machine_ops_s hdmirx_sm_ops = {
 	.vga_set_param    = NULL,
 	.vga_get_param    = NULL,
 	.check_frame_skip = hdmirx_check_frame_skip,
+	.hdmi_dv_config   = hdmirx_dv_config,
 };
 
 /*
@@ -1515,20 +1545,24 @@ static ssize_t cec_set_state(struct device *dev,
 	cnt = kstrtoint(buf, 0, &val);
 	if (cnt < 0 || val > 0xff)
 		return -EINVAL;
-	if (val == 0) {
+	/* val: 0xAB
+	 * A: tv_auto_power_on, B: hdmi_cec_en
+	 */
+	if ((val & 0xF) == 0) {
 		hdmi_cec_en = 0;
 		/* fix source can't get edid if cec off */
 		if (rx.boot_flag) {
 			if (hpd_low_cec_off == 0)
 				rx_force_hpd_rxsense_cfg(1);
 		}
-	} else if (val == 1)
+	} else if ((val & 0xF) == 1)
 		hdmi_cec_en = 1;
-	else if (val == 2) {
+	else if ((val & 0xF) == 2) {
 		hdmi_cec_en = 1;
 		rx_force_hpd_rxsense_cfg(1);
 	}
 	rx.boot_flag = false;
+	tv_auto_power_on = (val >> 4) & 0xF;
 	rx_pr("cec sts = %d\n", val);
 	return count;
 }
@@ -1759,14 +1793,14 @@ static int hdmirx_switch_pinmux(struct device *dev)
 
 static void rx_phy_suspend(void)
 {
-	/* set HPD low when cec off. */
-	if (!hdmi_cec_en)
+	/* set HPD low when cec off or TV auto power on disabled. */
+	if (!hdmi_cec_en || !tv_auto_power_on)
 		rx_set_port_hpd(ALL_PORTS, 0);
 	if (suspend_pddq_sel == 0)
 		rx_pr("don't set phy pddq down\n");
 	else {
-		/* there's no SDA low issue on MTK box when CEC off */
-		if (hdmi_cec_en != 0) {
+		/* there's no SDA low issue on MTK box when hpd low */
+		if (hdmi_cec_en && tv_auto_power_on) {
 			if (suspend_pddq_sel == 2) {
 				/* set rxsense pulse */
 				rx_phy_rxsense_pulse(10, 10, 0);
@@ -1780,7 +1814,10 @@ static void rx_phy_suspend(void)
 
 static void rx_phy_resume(void)
 {
-	if (hdmi_cec_en != 0) {
+	/* set below rxsense pulse only if hpd = high,
+	 * there's no SDA low issue on MTK box when hpd low
+	 */
+	if (hdmi_cec_en && tv_auto_power_on) {
 		if (suspend_pddq_sel == 1) {
 			/* set rxsense pulse, if delay time between
 			 * rxsense pulse and phy_int shottern than
@@ -2272,25 +2309,24 @@ static int hdmirx_probe(struct platform_device *pdev)
 	}
 
 	hdcp22_on = rx_is_hdcp22_support();
-	if (hdcp22_on) {
-		hdevp->esm_clk = clk_get(&pdev->dev, "hdcp_rx22_esm");
-		if (IS_ERR(hdevp->esm_clk)) {
-			rx_pr("get esm_clk err\n");
-		} else {
-			clk_set_parent(hdevp->esm_clk, fclk_div7_clk);
-			clk_set_rate(hdevp->esm_clk, 285714285);
-			clk_prepare_enable(hdevp->esm_clk);
-			clk_rate = clk_get_rate(hdevp->esm_clk);
-		}
-		hdevp->skp_clk = clk_get(&pdev->dev, "hdcp_rx22_skp");
-		if (IS_ERR(hdevp->skp_clk)) {
-			rx_pr("get skp_clk err\n");
-		} else {
-			clk_set_parent(hdevp->skp_clk, xtal_clk);
-			clk_set_rate(hdevp->skp_clk, 24000000);
-			clk_prepare_enable(hdevp->skp_clk);
-			clk_rate = clk_get_rate(hdevp->skp_clk);
-		}
+
+	hdevp->esm_clk = clk_get(&pdev->dev, "hdcp_rx22_esm");
+	if (IS_ERR(hdevp->esm_clk)) {
+		rx_pr("get esm_clk err\n");
+	} else {
+		clk_set_parent(hdevp->esm_clk, fclk_div7_clk);
+		clk_set_rate(hdevp->esm_clk, 285714285);
+		clk_prepare_enable(hdevp->esm_clk);
+		clk_rate = clk_get_rate(hdevp->esm_clk);
+	}
+	hdevp->skp_clk = clk_get(&pdev->dev, "hdcp_rx22_skp");
+	if (IS_ERR(hdevp->skp_clk)) {
+		rx_pr("get skp_clk err\n");
+	} else {
+		clk_set_parent(hdevp->skp_clk, xtal_clk);
+		clk_set_rate(hdevp->skp_clk, 24000000);
+		clk_prepare_enable(hdevp->skp_clk);
+		clk_rate = clk_get_rate(hdevp->skp_clk);
 	}
 	if ((rx.chip_id == CHIP_ID_TXLX) ||
 		(rx.chip_id == CHIP_ID_TXHD)) {
@@ -2403,6 +2439,15 @@ static int hdmirx_probe(struct platform_device *pdev)
 		rx.arc_port = 0x1;
 		rx_pr("not find arc_port, portB by default\n");
 	}
+	ret = of_property_read_u32(pdev->dev.of_node,
+				   "scdc_force_en",
+				   &scdc_force_en);
+	if (ret) {
+		/* enable scdc accroding to edid version */
+		scdc_force_en = 0;
+		rx_pr("not find scdc_force_en, disable by default\n");
+	}
+
 	ret = of_reserved_mem_device_init(&(pdev->dev));
 	if (ret != 0)
 		rx_pr("warning: no rev cmd mem\n");
@@ -2581,8 +2626,8 @@ static void hdmirx_shutdown(struct platform_device *pdev)
 	hdevp = platform_get_drvdata(pdev);
 	rx_pr("[hdmirx]: hdmirx_shutdown\n");
 	del_timer_sync(&hdevp->timer);
-	/* set HPD low when cec off. */
-	if (!hdmi_cec_en)
+	/* set HPD low when cec off or TV auto power on disabled.*/
+	if (!hdmi_cec_en || !tv_auto_power_on)
 		rx_set_port_hpd(ALL_PORTS, 0);
 	/* phy powerdown */
 	rx_phy_power_on(0);

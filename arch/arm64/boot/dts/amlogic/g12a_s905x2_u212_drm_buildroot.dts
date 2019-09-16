@@ -820,7 +820,7 @@
 
 &drm_amhdmitx {
 	status = "okay";
-	hdcp = "disabled";
+	hdcp = "okay";
 };
 
 &drm_lcd {

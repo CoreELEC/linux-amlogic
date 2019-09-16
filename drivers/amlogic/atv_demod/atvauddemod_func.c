@@ -15,9 +15,6 @@
  *
  */
 
-#ifndef __ATVAUDDEMOD_FUN_H
-#define __ATVAUDDEMOD_FUN_H
-
 #include <linux/types.h>
 #include <linux/module.h>
 #include <linux/delay.h>
@@ -32,6 +29,15 @@
 #include "atvdemod_func.h"
 #include "atv_demod_driver.h"
 #include "atv_demod_access.h"
+
+#ifdef CONFIG_AMLOGIC_SND_SOC_AUGE
+#include "sound/soc/amlogic/auge/audio_utils.h"
+#endif
+
+#ifdef CONFIG_AMLOGIC_SND_SOC_MESON
+#include "sound/soc/amlogic/meson/audio_hw.h"
+#endif
+
 
 /* #define AUDIO_MOD_DET_INTERNAL */
 
@@ -311,7 +317,7 @@ static void set_deem_and_gain(int standard)
 	case AUDIO_STANDARD_BTSC:
 		deem = AUDIO_DEEM_75US;
 		lmr_gain = 0x1e8;
-		lpr_gain = 0x3e0;
+		lpr_gain = 0x3c0;
 		demod_gain = 0x2;
 		break;
 	case AUDIO_STANDARD_A2_K:
@@ -329,25 +335,25 @@ static void set_deem_and_gain(int standard)
 	case AUDIO_STANDARD_A2_BG:
 		deem = AUDIO_DEEM_50US;
 		lmr_gain = 0x3a8;
-		lpr_gain = 0x1d0;
+		lpr_gain = 0x1f6;
 		demod_gain = 0x222;
 		break;
 	case AUDIO_STANDARD_A2_DK1:
 		deem = AUDIO_DEEM_50US;
 		lmr_gain = 0x3a8;
-		lpr_gain = 0x1d0;
+		lpr_gain = 0x1f6;
 		demod_gain = 0x222;
 		break;
 	case AUDIO_STANDARD_A2_DK2:
 		deem = AUDIO_DEEM_50US;
 		lmr_gain = 0x3a8;
-		lpr_gain = 0x1d0;
+		lpr_gain = 0x1f6;
 		demod_gain = 0x222;
 		break;
 	case AUDIO_STANDARD_A2_DK3:
 		deem = AUDIO_DEEM_50US;
 		lmr_gain = 0x3a8;
-		lpr_gain = 0x1d0;
+		lpr_gain = 0x1f6;
 		demod_gain = 0x222;
 		break;
 	case AUDIO_STANDARD_NICAM_DK:
@@ -357,7 +363,7 @@ static void set_deem_and_gain(int standard)
 		break;
 	case AUDIO_STANDARD_NICAM_I:
 		deem = AUDIO_DEEM_J17_2;
-		lpr_gain = 0x200;
+		lpr_gain = 0x177;
 		demod_gain = 0x233;
 		break;
 	case AUDIO_STANDARD_NICAM_BG:
@@ -385,7 +391,7 @@ static void set_deem_and_gain(int standard)
 	case AUDIO_STANDARD_MONO_I:
 		deem = AUDIO_DEEM_J17_2;
 		lmr_gain = 0x3a8;
-		lpr_gain = 0x200;
+		lpr_gain = 0x1c5;
 		demod_gain = 0x233;
 		break;
 	case AUDIO_STANDARD_MONO_BG:
@@ -1094,6 +1100,17 @@ void update_btsc_mode(int auto_en, int *stereo_flag, int *sap_flag)
 
 }
 
+int get_nicam_lock_status(void)
+{
+	uint32_t reg_value = 0;
+
+	reg_value = adec_rd_reg(NICAM_LEVEL_REPORT);
+
+	pr_info("%s nicam_lock:%d\n", __func__, ((reg_value >> 28) & 1));
+
+	return ((reg_value >> 28) & 1);
+}
+
 void update_nicam_mode(int *nicam_flag, int *nicam_mono_flag,
 		int *nicam_stereo_flag, int *nicam_dual_flag)
 {
@@ -1419,6 +1436,13 @@ void set_nicam_outputmode(uint32_t outmode)
 			set_deem_and_gain(aud_std);
 	}
 
+	if (aud_std == AUDIO_STANDARD_NICAM_L
+		&& outmode == AUDIO_OUTMODE_NICAM_MONO) {
+		audio_source_select(0);
+	} else {
+		audio_source_select(1);
+	}
+
 	switch (outmode) {
 	case AUDIO_OUTMODE_NICAM_MONO:/* fm mono */
 		if (is_meson_tl1_cpu() || is_meson_tm2_cpu()) {
@@ -1539,6 +1563,18 @@ void set_outputmode(uint32_t standard, uint32_t outmode)
 			adec_wr_reg(DUAL_DET_THD, 0x4000);
 		}
 
+		/* for FM MONO system to detection nicam status */
+		if (!aud_reinit && get_nicam_lock_status()) {
+			if (standard == AUDIO_STANDARD_A2_DK1
+				|| standard == AUDIO_STANDARD_A2_DK1
+				|| standard == AUDIO_STANDARD_A2_DK3)
+				aud_std = AUDIO_STANDARD_NICAM_DK;
+			else if (standard == AUDIO_STANDARD_A2_BG)
+				aud_std = AUDIO_STANDARD_NICAM_BG;
+
+			break;
+		}
+
 		set_a2_eiaj_outputmode(outmode);
 		break;
 	case AUDIO_STANDARD_NICAM_DK:
@@ -1546,6 +1582,22 @@ void set_outputmode(uint32_t standard, uint32_t outmode)
 	case AUDIO_STANDARD_NICAM_BG:
 	case AUDIO_STANDARD_NICAM_L:
 		set_nicam_outputmode(outmode);
+		break;
+	case AUDIO_STANDARD_MONO_I:
+	case AUDIO_STANDARD_MONO_L:
+		/* for FM MONO system to detection nicam status */
+		if (!aud_reinit && get_nicam_lock_status()) {
+			if (standard == AUDIO_STANDARD_MONO_I)
+				aud_std = AUDIO_STANDARD_NICAM_I;
+			else if (standard == AUDIO_STANDARD_MONO_L)
+				aud_std = AUDIO_STANDARD_NICAM_L;
+
+			audio_source_select(1);
+		} else {
+			if (standard == AUDIO_STANDARD_MONO_L)
+				audio_source_select(0);
+		}
+
 		break;
 	}
 #endif
@@ -1670,19 +1722,44 @@ void set_outputmode_status_init(void)
 
 void set_output_left_right_exchange(unsigned int ch)
 {
-	unsigned int read = 0;
-
-	atvaudio_ctrl_read(&read);
-
-	if (is_meson_tl1_cpu() || is_meson_tm2_cpu()) { /* bit[19] */
-		if ((read & (1 << 19)) != ((ch & 0x01) << 19))
-			atvaudio_ctrl_write((read & ~(1 << 19)) |
-					((ch & 0x01) << 19));
-	} else { /* bit[2] */
-		if ((read & (1 << 2)) != ((ch & 0x01) << 2))
-			atvaudio_ctrl_write((read & ~(1 << 2)) |
-					((ch & 0x01) << 2));
+	/* after tl */
+	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
+#ifdef CONFIG_AMLOGIC_SND_SOC_AUGE
+		if (ch)
+			fratv_LR_swap(true);
+		else
+			fratv_LR_swap(false);
+#endif
+	} else {
+#ifdef CONFIG_AMLOGIC_SND_SOC_MESON
+		if (ch)
+			atv_LR_swap(true);
+		else
+			atv_LR_swap(false);
+#endif
 	}
 }
 
-#endif /* __ATVAUDDEMOD_FUN_H */
+/* atv audio source select
+ * 0: select from ATV;
+ * 1: select from ADEC;
+ */
+void audio_source_select(int source)
+{
+	/* after tl */
+	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
+#ifdef CONFIG_AMLOGIC_SND_SOC_AUGE
+		if (source)
+			fratv_src_select(true);
+		else
+			fratv_src_select(false);
+#endif
+	} else {
+#ifdef CONFIG_AMLOGIC_SND_SOC_MESON
+		if (source)
+			atv_src_select(true);
+		else
+			atv_src_select(false);
+#endif
+	}
+}

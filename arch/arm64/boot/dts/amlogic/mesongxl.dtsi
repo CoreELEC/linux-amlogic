@@ -539,6 +539,7 @@
 			clkc: clock-controller@0 {
 				compatible = "amlogic,gxl-clkc";
 				#clock-cells = <1>;
+				#reset-cells = <1>;
 				reg = <0x0 0x0 0x0 0x3db>;
 			};
 		};
@@ -692,9 +693,14 @@
 		mux {
 			groups = "uart_tx_a",
 				"uart_rx_a",
-				"uart_cts_a",
 				"uart_rts_a";
 			function = "uart_a";
+		};
+
+		mux1 {
+			groups = "uart_cts_a";
+			function = "uart_a";
+			bias-pull-down;
 		};
 	};
 

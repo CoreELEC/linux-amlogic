@@ -986,8 +986,13 @@ int demod_set_sys(struct aml_demod_sta *demod_sta,
 		front_write_reg_v4(0x20, ((front_read_reg_v4(0x20) & ~0xff)
 				| (nco_rate & 0xff)));
 		front_write_reg_v4(0x20, (front_read_reg_v4(0x20) | (1 << 8)));
-		front_write_reg_v4(0x2f, 0x5);//for timsshift mosaic
-		dd_tvafe_hiu_reg_write(0x1d0, 0x502);//sys_clk=167M
+
+		if (is_ic_ver(IC_VER_TL1)) {
+			/*for timeshift mosaic issue, already fixed with tm2*/
+			front_write_reg_v4(0x2f, 0x5);
+			/*sys_clk=167M*/
+			dd_tvafe_hiu_reg_write(0x1d0, 0x502);
+		}
 	}
 
 	demod_sta->adc_freq = clk_adc;

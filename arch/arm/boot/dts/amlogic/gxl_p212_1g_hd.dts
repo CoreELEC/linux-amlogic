@@ -429,7 +429,7 @@
 				min_state = <400>;
 				dyn_coeff = <437>;
 				cluster_id = <0>;
-				node_name = "gpufreq_cool0";
+				node_name = "mali";
 				device_type = "gpufreq";
 			};
 			gpucore_cool {
@@ -444,9 +444,6 @@
 			#cooling-cells = <2>; /* min followed by max */
 		};
 		cpucore_cool0:cpucore_cool0 {
-			#cooling-cells = <2>; /* min followed by max */
-		};
-		gpufreq_cool0:gpufreq_cool0 {
 			#cooling-cells = <2>; /* min followed by max */
 		};
 		gpucore_cool0:gpucore_cool0 {
@@ -497,7 +494,7 @@
 				};
 				gpufreq_cooling_map {
 					trip = <&control>;
-					cooling-device = <&gpufreq_cool0 0 4>;
+					cooling-device = <&gpu 0 4>;
 					contribution = <1024>;
 				};
 				gpucore_cooling_map {
@@ -848,6 +845,11 @@
 			"pcm_mclk",
 			"pcm_sclk";
 		pcm_mode = <1>; /* 0=slave mode, 1=master mode */
+		dai-format = "dsp_a";
+		dai-tdm-slot-tx-mask = <1>;
+		dai-tdm-slot-rx-mask = <1>;
+		dai-tdm-slot-num = <2>;
+		dai-tdm-slot-width = <16>;
 	};
 	i2s_plat: i2s_platform {
 		compatible = "amlogic, aml-i2s";

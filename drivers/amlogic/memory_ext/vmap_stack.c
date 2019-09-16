@@ -445,7 +445,7 @@ static void check_sp_fault_again(struct pt_regs *regs)
 {
 	unsigned long sp = 0, addr;
 	struct page *page;
-	int cache;
+	int cache = 0;
 
 #ifdef CONFIG_ARM
 	sp = regs->ARM_sp;

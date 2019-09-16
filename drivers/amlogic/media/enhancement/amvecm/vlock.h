@@ -23,9 +23,15 @@
 #include <linux/amlogic/media/vfm/vframe.h>
 #include "linux/amlogic/media/amvecm/ve.h"
 
-#define VLOCK_VER "Ref.2019/5/23:vlock for hdmi pll"
+#define VLOCK_VER "Ref.2019/8/18:vlock for double frq out"
 
 #define VLOCK_REG_NUM	33
+
+struct vdin_sts {
+	unsigned int lcnt_sts;
+	unsigned int com_sts0;
+	unsigned int com_sts1;
+};
 
 struct vlock_log_s {
 	unsigned int pll_m;
@@ -81,6 +87,7 @@ struct stvlock_sig_sts {
 	struct vecm_match_data_s *dtdata;
 	u32 val_frac;
 	u32 val_m;
+	struct vdin_sts vdinsts;
 };
 extern void amve_vlock_process(struct vframe_s *vf);
 extern void amve_vlock_resume(void);

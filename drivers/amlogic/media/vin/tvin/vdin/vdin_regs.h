@@ -64,6 +64,7 @@
 #define VPU_DI_DIWR_MMC_CTRL 0x270c
 #define VPU_TVD3D_MMC_CTRL 0x2710
 #define VPU_TVDVBI_MMC_CTRL 0x2711
+#define VPU_SW_RESET 0x2720
 
 /* vpp */
 #define VPP_VDO_MEAS_CTRL 0x1da8

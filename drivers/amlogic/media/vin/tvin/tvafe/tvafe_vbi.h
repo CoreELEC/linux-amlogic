@@ -24,6 +24,8 @@
 #include <linux/mutex.h>
 #include <linux/spinlock.h>
 
+#define VBI_DRV_VER    "Ref.20190715"
+
 /* *************************************************** */
 /* *** macro definitions ***************************** */
 /* *************************************************** */
@@ -252,6 +254,7 @@ struct vbi_slicer_s {
 	struct mutex mutex;
 	struct mutex task_mutex;
 	unsigned int busy;
+	unsigned int slicer_cnt;
 
 	unsigned int reserve;
 };
@@ -270,13 +273,15 @@ struct vbi_dev_s {
 	unsigned int irq_free_status;
 	spinlock_t vbi_isr_lock;
 
-    /* vbi memory */
+	/* vbi memory */
 	unsigned int mem_start;
 	unsigned int mem_size;
 
 	unsigned char *pac_addr;
 	unsigned char *pac_addr_start;
 	unsigned char *pac_addr_end;
+	unsigned char *temp_addr_start;
+	unsigned char *temp_addr_end;
 	unsigned int current_pac_wptr;
 	unsigned int vs_delay;
 	/* skip start frame vs for the vbi data is not ready so quickly */
@@ -291,7 +296,9 @@ struct vbi_dev_s {
 	struct mutex mutex;
 	spinlock_t lock;
 	struct timer_list timer;
-	bool tasklet_enable;
+	bool slicer_enable;
+
+	unsigned int isr_cnt;
 };
 
 /*1: tvafe clk enable;*/

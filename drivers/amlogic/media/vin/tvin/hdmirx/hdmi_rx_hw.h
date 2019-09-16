@@ -1117,6 +1117,8 @@ extern int cdr_lock_level;
 extern int top_intr_maskn_value;
 extern int hbr_force_8ch;
 extern int clock_lock_th;
+extern int scdc_force_en;
+extern bool hdcp_hpd_ctrl_en;
 extern void rx_get_best_eq_setting(void);
 extern void wr_reg_hhi(unsigned int offset, unsigned int val);
 extern void wr_reg_hhi_bits(unsigned int offset, unsigned int mask,
@@ -1202,6 +1204,7 @@ extern void rx_get_video_info(void);
 extern void hdmirx_set_video_mute(bool mute);
 extern void hdmirx_config_video(void);
 extern void hdmirx_config_audio(void);
+extern void set_dv_ll_mode(bool en);
 extern void rx_get_audinfo(struct aud_info_s *audio_info);
 extern bool rx_clkrate_monitor(void);
 

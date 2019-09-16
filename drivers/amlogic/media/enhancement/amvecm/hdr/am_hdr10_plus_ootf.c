@@ -126,7 +126,7 @@ void BasisOOTF_Params_init(struct BasisOOTF_Params *BasisOOTF_Params)
 
 	/*u12*/
 	BasisOOTF_Params->SY1_V1  = 0 << (PROCESSING_MAX - 12);
-	BasisOOTF_Params->SY1_V2  = 1229 << (PROCESSING_MAX - 12);
+	BasisOOTF_Params->SY1_V2 = 1229 << (PROCESSING_MAX - 12);
 	BasisOOTF_Params->SY1_T1  = 901 << (PROCESSING_MAX - 12);
 	BasisOOTF_Params->SY1_T2  = 4095 << (PROCESSING_MAX - 12);
 	BasisOOTF_Params->SY2_V1  = 0 << (PROCESSING_MAX - 12);
@@ -556,8 +556,8 @@ int genEBZCurve(uint64_t *CurveX, uint64_t *CurveY,
 
 
 	/*u12->U16*/
-	Kx = nKx << (U32 - PROCESSING_MAX);
-	Ky = nKy << (U32 - PROCESSING_MAX);
+	Kx = nKx<<(U32 - PROCESSING_MAX);
+	Ky = nKy<<(U32 - PROCESSING_MAX);
 
 	range_ebz_x = _U32_MAX - Kx;
 	range_ebz_y = _U32_MAX - Ky;
@@ -634,7 +634,7 @@ int genEBZCurve(uint64_t *CurveX, uint64_t *CurveY,
 void vframe_hdr_plus_sei_s_init(struct hdr10_plus_sei_s *hdr10_plus_sei)
 {
 
-	int i, temp;
+	int i;
 
 	int percentilePercent_init[PERCENTILE_ORDER] = {
 		1, 5, 10, 25, 50, 75, 90, 95, 99};
@@ -665,8 +665,7 @@ void vframe_hdr_plus_sei_s_init(struct hdr10_plus_sei_s *hdr10_plus_sei)
 
 	for (i = 0; i < (hdr10_plus_sei->num_bezier_curve_anchors[0]); i++) {
 		hdr10_plus_sei->bezier_curve_anchors[0][i] =
-		hdr_plus_sei.bezier_curve_anchors[0][i] <<
-		(PROCESSING_MAX - 10);
+		hdr_plus_sei.bezier_curve_anchors[0][i]<<(PROCESSING_MAX-10);
 	}
 
 	/*debug--*/
@@ -704,12 +703,16 @@ void vframe_hdr_plus_sei_s_init(struct hdr10_plus_sei_s *hdr10_plus_sei)
 			pr_hdr("%d\n", hdr_plus_sei.average_maxrgb[i]);
 		}
 
-		temp = hdr_plus_sei.num_distribution_maxrgb_percentiles[0];
-
-		for (i = 0; i < temp; i++) {
+		for (i = 0;
+		i < (hdr_plus_sei.num_distribution_maxrgb_percentiles[0]);
+		i++) {
 			pr_hdr("distribution_maxrgb_percentages[0][%d] = ", i);
 			pr_hdr("%d\n",
 			hdr_plus_sei.distribution_maxrgb_percentages[0][i]);
+		}
+		for (i = 0;
+		i < (hdr_plus_sei.num_distribution_maxrgb_percentiles[0]);
+		i++) {
 			pr_hdr("distribution_maxrgb_percentiles[0][%d] = ", i);
 			pr_hdr("%d\n",
 			hdr_plus_sei.distribution_maxrgb_percentiles[0][i]);
@@ -721,6 +724,8 @@ void vframe_hdr_plus_sei_s_init(struct hdr10_plus_sei_s *hdr10_plus_sei)
 unsigned int gain[POINTS];
 unsigned int gain_ter[POINTS];
 uint64_t curveX[POINTS], curveY[POINTS];
+// //mapping
+// struct hdr_proc_lut_param_s _hdr_lut_param;
 
 int hdr10_plus_ootf_gen(void)
 {
@@ -737,7 +742,7 @@ int hdr10_plus_ootf_gen(void)
 	struct EBZCurveParameters productBezierParams;
 	struct BasisOOTF_Params basisOOTF_Params;
 
-	/* mapping */
+	// mapping
 	enum hdr_module_sel {
 		VD1_HDR = 0x1,
 		VD2_HDR = 0x2,
@@ -818,3 +823,4 @@ int hdr10_plus_ootf_gen(void)
 	}
 	return 0;
 }
+

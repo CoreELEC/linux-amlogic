@@ -22,8 +22,6 @@
 #include "audio_clks.h"
 #include "regs.h"
 
-static spinlock_t aclk_lock;
-
 static const char *const mclk_parent_names[] = {
 	"mpll0", "mpll1", "mpll2", "mpll3", "hifi_pll",
 	"fclk_div3", "fclk_div4", "fclk_div5"};
@@ -33,6 +31,11 @@ static const char *const audioclk_parent_names[] = {
 	"mclk_f", "i_slv_sclk_a", "i_slv_sclk_b", "i_slv_sclk_c",
 	"i_slv_sclk_d", "i_slv_sclk_e", "i_slv_sclk_f", "i_slv_sclk_g",
 	"i_slv_sclk_h", "i_slv_sclk_i", "i_slv_sclk_j"};
+
+static const char *const mclk_pad_parent_names[] = {
+	"mclk_a", "mclk_b", "mclk_c",
+	"mclk_d", "mclk_e", "mclk_f"
+};
 
 CLOCK_GATE(audio_ddr_arb, AUD_ADDR_OFFSET(EE_AUDIO_CLK_GATE_EN0), 0);
 CLOCK_GATE(audio_pdm, AUD_ADDR_OFFSET(EE_AUDIO_CLK_GATE_EN0), 1);
@@ -163,7 +166,10 @@ static int sm1_clk_gates_init(struct clk **clks, void __iomem *iobase)
 	}
 
 	for (clkid = 0; clkid < MCLK_BASE; clkid++) {
-		sm1_audio_clk_gates[clkid]->reg = iobase;
+		unsigned long offset =
+			(unsigned long)sm1_audio_clk_gates[clkid]->reg;
+		sm1_audio_clk_gates[clkid]->reg =
+			(void __iomem *)((unsigned long)iobase + offset);
 		clks[clkid] = clk_register(NULL, sm1_audio_clk_hws[clkid]);
 		WARN_ON(IS_ERR_OR_NULL(clks[clkid]));
 	}
@@ -191,6 +197,15 @@ CLOCK_COM_GATE(mclk_d, AUD_ADDR_OFFSET(EE_AUDIO_MCLK_D_CTRL(1)), 31);
 CLOCK_COM_MUX(mclk_e, AUD_ADDR_OFFSET(EE_AUDIO_MCLK_E_CTRL(1)), 0x7, 24);
 CLOCK_COM_DIV(mclk_e, AUD_ADDR_OFFSET(EE_AUDIO_MCLK_E_CTRL(1)), 0, 16);
 CLOCK_COM_GATE(mclk_e, AUD_ADDR_OFFSET(EE_AUDIO_MCLK_E_CTRL(1)), 31);
+/* mclk_pad0 */
+CLOCK_COM_MUX(mclk_pad0, AUD_ADDR_OFFSET(EE_AUDIO_MST_PAD_CTRL0(1)), 0x7, 8);
+CLOCK_COM_DIV(mclk_pad0, AUD_ADDR_OFFSET(EE_AUDIO_MST_PAD_CTRL0(1)), 0, 8);
+CLOCK_COM_GATE(mclk_pad0, AUD_ADDR_OFFSET(EE_AUDIO_MST_PAD_CTRL0(1)), 15);
+/* mclk_pad1 */
+CLOCK_COM_MUX(mclk_pad1, AUD_ADDR_OFFSET(EE_AUDIO_MST_PAD_CTRL0(1)), 0x7, 24);
+CLOCK_COM_DIV(mclk_pad1, AUD_ADDR_OFFSET(EE_AUDIO_MST_PAD_CTRL0(1)), 16, 8);
+CLOCK_COM_GATE(mclk_pad1, AUD_ADDR_OFFSET(EE_AUDIO_MST_PAD_CTRL0(1)), 31);
+
 /* mclk_f */
 CLOCK_COM_MUX(mclk_f, AUD_ADDR_OFFSET(EE_AUDIO_MCLK_F_CTRL(1)), 0x7, 24);
 CLOCK_COM_DIV(mclk_f, AUD_ADDR_OFFSET(EE_AUDIO_MCLK_F_CTRL(1)), 0, 16);
@@ -365,6 +380,16 @@ static int sm1_clks_init(struct clk **clks, void __iomem *iobase)
 	IOMAP_COM_CLK(earcrx_dmac, iobase);
 	clks[CLKID_EARCRX_DMAC] = REGISTER_CLK_COM(earcrx_dmac);
 	WARN_ON(IS_ERR_OR_NULL(clks[CLKID_EARCRX_DMAC]));
+
+	IOMAP_COM_CLK(mclk_pad0, iobase);
+	clks[CLKID_AUDIO_MCLK_PAD0] =
+			REGISTER_CLK_COM_PARENTS(mclk_pad0, mclk_pad);
+	WARN_ON(IS_ERR_OR_NULL(clks[CLKID_AUDIO_MCLK_PAD0]));
+
+	IOMAP_COM_CLK(mclk_pad1, iobase);
+	clks[CLKID_AUDIO_MCLK_PAD1] =
+			REGISTER_CLK_COM_PARENTS(mclk_pad1, mclk_pad);
+	WARN_ON(IS_ERR_OR_NULL(clks[CLKID_AUDIO_MCLK_PAD1]));
 
 	return 0;
 }

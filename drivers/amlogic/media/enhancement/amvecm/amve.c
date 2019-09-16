@@ -47,6 +47,7 @@
 /* printk(KERN_##(KERN_INFO) "AMVECM: " fmt, ## args) */
 
 #define GAMMA_RETRY        1000
+unsigned int gamma_loadprotect_en = 1;
 
 /* 0: Invalid */
 /* 1: Valid */
@@ -292,8 +293,8 @@ void vpp_set_lcd_gamma_table(u16 *data, u32 rgb_mask)
 
 	spin_lock_irqsave(&vpp_lcd_gamma_lock, flags);
 
-	WRITE_VPP_REG_BITS(L_GAMMA_CNTL_PORT,
-				0, GAMMA_EN, 1);
+	if (gamma_loadprotect_en)
+		WRITE_VPP_REG_BITS(L_GAMMA_CNTL_PORT, 0, GAMMA_EN, 1);
 
 	while (!(READ_VPP_REG(L_GAMMA_CNTL_PORT) & (0x1 << ADR_RDY))) {
 		udelay(10);
@@ -322,8 +323,9 @@ void vpp_set_lcd_gamma_table(u16 *data, u32 rgb_mask)
 				    (0x1 << rgb_mask)   |
 				    (0x23 << HADR));
 
-	VSYNC_WR_MPEG_REG_BITS(L_GAMMA_CNTL_PORT,
-					gamma_en, GAMMA_EN, 1);
+	if (gamma_loadprotect_en)
+		VSYNC_WR_MPEG_REG_BITS(L_GAMMA_CNTL_PORT,
+			gamma_en, GAMMA_EN, 1);
 
 	spin_unlock_irqrestore(&vpp_lcd_gamma_lock, flags);
 }
@@ -1325,9 +1327,6 @@ void amvecm_3d_sync_process(void)
 #define SR_NOSCALE_LEVEL 0x10
 static void amve_sr_reg_setting(unsigned int adaptive_level)
 {
-	if (is_meson_g12a_cpu() || is_meson_g12b_cpu() ||
-		is_meson_sm1_cpu())
-		goto g12_sr_reg_setting;
 	if (adaptive_level & SR_SD_SCALE_LEVEL)
 		am_set_regmap(&sr1reg_sd_scale);
 	else if (adaptive_level & SR_HD_SCALE_LEVEL)
@@ -1344,12 +1343,6 @@ static void amve_sr_reg_setting(unsigned int adaptive_level)
 		am_set_regmap(&sr1reg_cvbs);
 	else if (adaptive_level & SR_NOSCALE_LEVEL)
 		am_set_regmap(&sr1reg_hv_noscale);
-	return;
-g12_sr_reg_setting:
-	/*for g12a and g12b, load sr0 cvbs table when output cvbs mode*/
-	if (adaptive_level & SR_CVBS_LEVEL)
-		am_set_regmap(&sr0reg_cvbs);
-	return;
 }
 void amve_sharpness_adaptive_setting(struct vframe_s *vf,
 	 unsigned int sps_h_en, unsigned int sps_v_en)
@@ -1681,4 +1674,49 @@ void dump_plut3d_reg_table(void)
 	}
 }
 
+void set_gamma_regs(int en, int sel)
+{
+	int i;
+	int *gamma_lut = NULL;
+
+	static int gamma_lut_default[66] =  {
+	0, 0, 0, 1, 2, 4, 6, 8, 11, 14, 17, 21, 26, 31,
+	36, 42, 49, 55, 63, 71, 79, 88, 98, 108, 118,
+	129, 141, 153, 166, 179, 193, 208, 223, 238,
+	255, 271, 289, 307, 325, 344, 364, 384, 405,
+	427, 449, 472, 495, 519, 544, 569, 595, 621,
+	649, 676, 705, 734, 763, 794, 825, 856, 888,
+	921, 955, 989, 1023, 0};
+
+	static int gamma_lut_straight[66] =  {
+	 0, 16, 32, 48, 64, 80, 96, 112, 128, 144, 160,
+	 176, 192, 208, 224, 240, 256, 272, 288, 304, 320,
+	 336, 352, 368, 384, 400, 416, 432, 448, 464, 480,
+	 496, 512, 528, 544, 560, 576, 592, 608, 624, 640,
+	 656, 672, 688, 704, 720, 736, 752, 768, 784, 800,
+	 816, 832, 848, 864, 880, 896, 912, 928, 944, 960,
+	 976, 992, 1008, 1023, 0};
+
+	if (!sel)
+		gamma_lut = gamma_lut_default;
+	else
+		gamma_lut = gamma_lut_straight;
+
+	if (en) {
+		WRITE_VPP_REG(VPP_GAMMA_BIN_ADDR, 0);
+		for (i = 0; i < 33; i = i + 1)
+			WRITE_VPP_REG(VPP_GAMMA_BIN_DATA,
+				(((gamma_lut[i*2+1]<<2)&0xffff)<<16 |
+					((gamma_lut[i*2]<<2)&0xffff)));
+		for (i = 0; i < 33; i = i + 1)
+			WRITE_VPP_REG(VPP_GAMMA_BIN_DATA,
+				(((gamma_lut[i*2+1]<<2)&0xffff)<<16 |
+					((gamma_lut[i*2]<<2)&0xffff)));
+		for (i = 0; i < 33; i = i + 1)
+			WRITE_VPP_REG(VPP_GAMMA_BIN_DATA,
+				(((gamma_lut[i*2+1]<<2)&0xffff)<<16 |
+					((gamma_lut[i*2]<<2)&0xffff)));
+		WRITE_VPP_REG_BITS(VPP_GAMMA_CTRL, 0x1, 0, 1);
+	}
+}
 

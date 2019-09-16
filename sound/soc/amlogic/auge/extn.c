@@ -343,6 +343,38 @@ static int extn_mmap(struct snd_pcm_substream *substream,
 	return snd_pcm_lib_default_mmap(substream, vma);
 }
 
+static int extn_copy(struct snd_pcm_substream *substream, int channel,
+			snd_pcm_uframes_t pos,
+			void __user *buf, snd_pcm_uframes_t count)
+{
+	struct snd_pcm_runtime *runtime = substream->runtime;
+	char *hwbuf = runtime->dma_area + frames_to_bytes(runtime, pos);
+	int bytes = frames_to_bytes(runtime, count);
+
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
+		if (copy_from_user(hwbuf, buf, bytes))
+			return -EFAULT;
+	}  else {
+#ifdef CONFIG_AMLOGIC_MEDIA_TVIN_HDMI
+		enum toddr_src src = toddr_src_get();
+
+		/*if hdmirx or N&CTS is unstable, clear all buffer data.*/
+		if (src == FRHDMIRX && (!get_hdmiin_audio_stable() ||
+				get_hdmi_sample_rate_index() == 0)) {
+			char *buffer = runtime->dma_area;
+			int buffer_size = snd_pcm_lib_buffer_bytes(substream);
+
+			memset(buffer, 0, buffer_size);
+		}
+#endif
+		if (copy_to_user(buf, hwbuf, bytes))
+			return -EFAULT;
+
+		memset(hwbuf, 0, bytes);
+	}
+	return 0;
+}
+
 static struct snd_pcm_ops extn_ops = {
 	.open      = extn_open,
 	.close     = extn_close,
@@ -354,6 +386,7 @@ static struct snd_pcm_ops extn_ops = {
 	.pointer   = extn_pointer,
 	.silence   = extn_silence,
 	.mmap      = extn_mmap,
+	.copy      = extn_copy,
 };
 
 static int extn_new(struct snd_soc_pcm_runtime *rtd)
@@ -427,10 +460,6 @@ static int extn_dai_prepare(
 		else
 			toddr_type = 0;
 
-		pr_info("%s Expected toddr src:%s\n",
-			__func__,
-			toddr_src_get_str(src));
-
 		if (src == FRATV) {
 			/* Now tv supports 48k, 16bits */
 			if ((bit_depth != 16) || (runtime->rate != 48000)) {
@@ -442,7 +471,10 @@ static int extn_dai_prepare(
 			msb = 15;
 			lsb = 0;
 
-			fratv_src_select(1);
+			/* commented it, selected by atv demod,
+			 * select 0 for non standard signal.
+			 */
+			/* fratv_src_select(1); */
 		} else if (src == FRHDMIRX) {
 			if (p_extn->hdmirx_mode) { /* PAO */
 
@@ -468,7 +500,9 @@ static int extn_dai_prepare(
 			return -EINVAL;
 		}
 
-		pr_info("%s m:%d, n:%d\n", __func__, msb, lsb);
+		pr_debug("%s Expected toddr src:%s, m:%d, n:%d, toddr type:%d\n",
+			__func__, toddr_src_get_str(src),
+			msb, lsb, toddr_type);
 
 		fmt.type      = toddr_type;
 		fmt.msb       = msb;
@@ -501,7 +535,8 @@ static int extn_dai_trigger(struct snd_pcm_substream *substream, int cmd,
 
 			aml_frddr_enable(p_extn->fddr, true);
 		} else {
-			dev_info(substream->pcm->card->dev, "External Capture enable\n");
+			dev_dbg(substream->pcm->card->dev,
+				"External Capture enable\n");
 
 			if (src == FRATV)
 				fratv_enable(true);
@@ -525,7 +560,9 @@ static int extn_dai_trigger(struct snd_pcm_substream *substream, int cmd,
 				fratv_enable(false);
 			else if (src == FRHDMIRX)
 				frhdmirx_enable(false);
-			dev_info(substream->pcm->card->dev, "External Capture disable\n");
+
+			dev_dbg(substream->pcm->card->dev,
+				"External Capture disable\n");
 
 			toddr_stopped = aml_toddr_burst_finished(p_extn->tddr);
 			if (toddr_stopped)

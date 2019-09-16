@@ -111,9 +111,10 @@ enum color_index_e {
 #define KEYCOLOR_FLAG_ONHOLD  2
 #define KEYCOLOR_FLAG_CURRENT 4
 
-#define HW_OSD_COUNT 4
+#define HW_OSD_COUNT     4
 #define OSD_BLEND_LAYERS 4
-#define VIU_COUNT     2
+#define VIU_COUNT        2
+#define MAX_TRACE_NUM    16
 
 /* OSD block definition */
 #define HW_OSD_BLOCK_COUNT 4
@@ -159,6 +160,12 @@ enum color_index_e {
 
 #define BYPASS_DIN        (1 << 7)
 #define OSD_BACKUP_COUNT 24
+
+#define LOGO_DEV_OSD0      0x0
+#define LOGO_DEV_OSD1      0x1
+#define LOGO_DEV_VIU2_OSD0 0x3
+#define LOGO_DEBUG         0x1001
+#define LOGO_LOADED        0x1002
 
 enum osd_index_e {
 	OSD1 = 0,
@@ -280,6 +287,7 @@ enum cpuid_type_e {
 	__MESON_CPU_MAJOR_ID_TL1,
 	__MESON_CPU_MAJOR_ID_SM1,
 	__MESON_CPU_MAJOR_ID_TM2,
+	__MESON_CPU_MAJOR_ID_A1,
 	__MESON_CPU_MAJOR_ID_UNKNOWN,
 };
 
@@ -293,6 +301,7 @@ enum osd_ver_e {
 	OSD_SIMPLE = 0,
 	OSD_NORMAL,
 	OSD_HIGH_ONE,
+	OSD_NONE,
 	OSD_HIGH_OTHER
 };
 
@@ -672,6 +681,12 @@ struct hw_debug_s {
 	struct osd_debug_backup_s osd_backup[OSD_BACKUP_COUNT];
 };
 
+struct viu2_osd_reg_item {
+	u32 addr;
+	u32 val;
+	u32 mask;
+};
+
 struct hw_para_s {
 	struct pandata_s pandata[HW_OSD_COUNT];
 	struct pandata_s dispdata[HW_OSD_COUNT];
@@ -740,7 +755,7 @@ struct hw_para_s {
 	u32 osd_deband_enable;
 	u32 osd_fps[VIU_COUNT];
 	u32 osd_fps_start[VIU_COUNT];
-	u32 osd_display_debug;
+	u32 osd_display_debug[VIU_COUNT];
 	ulong screen_base[HW_OSD_COUNT];
 	ulong screen_size[HW_OSD_COUNT];
 	ulong screen_base_backup[HW_OSD_COUNT];
@@ -764,6 +779,9 @@ struct hw_para_s {
 	u32 afbc_err_cnt;
 	u32 viu_type;
 	u32 line_n_rdma;
+	u32 rdma_trace_enable;
+	u32 rdma_trace_num;
+	u32 rdma_trace_reg[MAX_TRACE_NUM];
 	struct hw_debug_s osd_debug;
 	int out_fence_fd[VIU_COUNT];
 	int in_fd[HW_OSD_COUNT];

@@ -446,6 +446,11 @@ unsigned int aml_toddr_get_status(struct toddr *to)
 	return aml_audiobus_read(actrl, reg);
 }
 
+unsigned int aml_toddr_get_fifo_cnt(struct toddr *to)
+{
+	return (aml_toddr_get_status(to) & TODDR_FIFO_CNT) >> 8;
+}
+
 void aml_toddr_ack_irq(struct toddr *to, int status)
 {
 	struct aml_audio_controller *actrl = to->actrl;
@@ -529,6 +534,31 @@ bool aml_toddr_burst_finished(struct toddr *to)
 	struct aml_audio_controller *actrl = to->actrl;
 	unsigned int reg_base = to->reg_base;
 	unsigned int reg;
+	bool fifo_stop = false;
+
+	/* This is a SW workaround.
+	 * If not wait until the fifo stops,
+	 * DDR will stuck and could not recover unless reboot.
+	 */
+	for (i = 0; i < 10; i++) {
+		unsigned int cnt0, cnt1, cnt2;
+
+		cnt0 = aml_toddr_get_fifo_cnt(to);
+		udelay(10);
+		cnt1 = aml_toddr_get_fifo_cnt(to);
+		udelay(10);
+		cnt2 = aml_toddr_get_fifo_cnt(to);
+		pr_debug("i: %d, fifo cnt:[%d] cnt1:[%d] cnt2:[%d]\n",
+			i, cnt0, cnt1, cnt2);
+
+		/* fifo stopped */
+		if ((cnt0 == cnt1) && (cnt0 == cnt2) && (cnt0 < (0x40 - 2))) {
+			pr_debug("%s(), i (%d) cnt(%d) break out\n",
+				__func__, i, cnt2);
+			fifo_stop = true;
+			break;
+		}
+	}
 
 	/* max 200us delay */
 	for (i = 0; i < 200; i++) {
@@ -540,12 +570,15 @@ bool aml_toddr_burst_finished(struct toddr *to)
 		aml_audiobus_update_bits(actrl,	reg, 0xf << 8, 0x2 << 8);
 		addr_reply = aml_toddr_get_position(to);
 
-		if (addr_request == addr_reply)
+		if (addr_request == addr_reply) {
+			pr_debug("%s(), fifo_stop %d\n", __func__, fifo_stop);
 			return true;
+		}
 
 		udelay(1);
-		pr_debug("delay:[%dus]; FRDDR_STATUS2: [0x%x] [0x%x]\n",
-			i, addr_request, addr_reply);
+		if ((i % 20) == 0)
+			pr_info("delay:[%dus]; FRDDR_STATUS2: [0x%x] [0x%x]\n",
+				i, addr_request, addr_reply);
 	}
 	pr_err("Error: 200us time out, TODDR_STATUS2: [0x%x] [0x%x]\n",
 				addr_request, addr_reply);
@@ -1322,8 +1355,9 @@ void aml_frddr_set_format(struct frddr *fr,
 static void aml_aed_enable(struct frddr_attach *p_attach_aed, bool enable)
 {
 	struct frddr *fr = fetch_frddr_by_src(p_attach_aed->attach_module);
+	int aed_version = check_aed_version();
 
-	if (check_aed_v2()) {
+	if (aed_version == VERSION2 || aed_version == VERSION3) {
 		struct aml_audio_controller *actrl = fr->actrl;
 		unsigned int reg_base = fr->reg_base;
 		unsigned int reg;
@@ -1332,16 +1366,31 @@ static void aml_aed_enable(struct frddr_attach *p_attach_aed, bool enable)
 		if (enable) {
 			aml_audiobus_update_bits(actrl,
 				reg, 0x1 << 3, enable << 3);
-			aed_set_ctrl(enable, 0, p_attach_aed->attach_module);
-			aed_set_format(fr->msb, fr->type, fr->fifo_id);
+			if (aed_version == VERSION3) {
+				aed_set_ctrl(enable, 0,
+					p_attach_aed->attach_module, 1);
+				aed_set_format(fr->msb,
+					fr->type, fr->fifo_id, 1);
+			} else {
+				aed_set_ctrl(enable, 0,
+					p_attach_aed->attach_module, 0);
+				aed_set_format(fr->msb,
+					fr->type, fr->fifo_id, 0);
+			}
 			aed_enable(enable);
 		} else {
 			aed_enable(enable);
-			aed_set_ctrl(enable, 0, p_attach_aed->attach_module);
+			if (aed_version == VERSION3) {
+				aed_set_ctrl(enable, 0,
+					p_attach_aed->attach_module, 1);
+			} else {
+				aed_set_ctrl(enable, 0,
+					p_attach_aed->attach_module, 0);
+			}
 			aml_audiobus_update_bits(actrl,
 				reg, 0x1 << 3, enable << 3);
 		}
-	} else {
+	} else if (aed_version == VERSION1) {
 		if (enable) {
 			/* frddr type and bit depth for AED */
 			aml_aed_format_set(fr->dest);

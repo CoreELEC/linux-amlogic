@@ -3734,7 +3734,6 @@ static void aml_slub_free_large(struct page *page, const void *obj)
 			__func__, page_address(page), nr_pages, obj);
 		for (i = 0; i < nr_pages; i++)  {
 			__free_pages(page, 0);
-			kasan_free_pages(page, 0);
 			page++;
 		}
 	}

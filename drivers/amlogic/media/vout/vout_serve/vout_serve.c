@@ -35,6 +35,8 @@
 #include <linux/uaccess.h>
 #include <linux/extcon.h>
 #include <linux/cdev.h>
+#include <linux/poll.h>
+#include <linux/workqueue.h>
 
 /* Amlogic Headers */
 #include <linux/amlogic/media/vout/vout_notify.h>
@@ -73,9 +75,19 @@ static char hdmimode[VMODE_NAME_LEN_MAX] = {
 static char cvbsmode[VMODE_NAME_LEN_MAX] = {
 	'i', 'n', 'v', 'a', 'l', 'i', 'd', '\0'
 };
+static char hdmichecksum[VMODE_NAME_LEN_MAX] = {
+	'i', 'n', 'v', 'a', 'l', 'i', 'd', 'c', 'r', 'c', '\0'
+};
+static char invalidchecksum[VMODE_NAME_LEN_MAX] = {
+	'i', 'n', 'v', 'a', 'l', 'i', 'd', 'c', 'r', 'c', '\0'
+};
+static char emptychecksum[VMODE_NAME_LEN_MAX] = {0};
+
 static enum vmode_e last_vmode = VMODE_MAX;
 static int tvout_monitor_flag = 1;
 static unsigned int tvout_monitor_timeout_cnt = 20;
+/* 500ms: 1*HZ/2 */
+static unsigned int tvout_monitor_interval = 500;
 
 static struct delayed_work tvout_mode_work;
 
@@ -114,24 +126,6 @@ static struct vinfo_s nulldisp_vinfo[] = {
 	{
 		.name              = "invalid",
 		.mode              = VMODE_INVALID,
-		.width             = 1920,
-		.height            = 1080,
-		.field_height      = 1080,
-		.aspect_ratio_num  = 16,
-		.aspect_ratio_den  = 9,
-		.sync_duration_num = 60,
-		.sync_duration_den = 1,
-		.video_clk         = 148500000,
-		.htotal            = 2200,
-		.vtotal            = 1125,
-		.fr_adj_type       = VOUT_FR_ADJ_NONE,
-		.viu_color_fmt     = COLOR_FMT_RGB444,
-		.viu_mux           = VIU_MUX_MAX,
-		.vout_device       = NULL,
-	},
-	{
-		.name              = "dummy_panel",
-		.mode              = VMODE_DUMMY_LCD,
 		.width             = 1920,
 		.height            = 1080,
 		.field_height      = 1080,
@@ -241,6 +235,15 @@ char *get_vout_mode_uboot(void)
 }
 EXPORT_SYMBOL(get_vout_mode_uboot);
 
+static inline void vout_setmode_wakeup_queue(void)
+{
+	if (tvout_monitor_flag)
+		return;
+
+	if (vout_cdev)
+		wake_up(&vout_cdev->setmode_queue);
+}
+
 int set_vout_mode(char *name)
 {
 	enum vmode_e mode;
@@ -275,6 +278,7 @@ int set_vout_mode(char *name)
 	vout_notifier_call_chain(VOUT_EVENT_MODE_CHANGE, &mode);
 
 	extcon_set_state_sync(vout_excton_setmode, EXTCON_TYPE_DISP, 0);
+	vout_setmode_wakeup_queue();
 
 	return ret;
 }
@@ -394,43 +398,6 @@ static ssize_t vout_mode_store(struct class *class,
 	snprintf(mode, VMODE_NAME_LEN_MAX, "%s", buf);
 	set_vout_mode(mode);
 	mutex_unlock(&vout_serve_mutex);
-	return count;
-}
-
-static ssize_t vout_dummy_store(struct class *class,
-		struct class_attribute *attr, const char *buf, size_t count)
-{
-	unsigned int tmp[4], sync_duration;
-	enum vmode_e mode;
-	int ret;
-
-	mutex_lock(&vout_serve_mutex);
-	mode = VMODE_DUMMY_LCD;
-	ret = sscanf(buf, "%d %d %d %d", &tmp[0], &tmp[1], &tmp[2], &tmp[3]);
-	if (ret == 2) {
-		vout_notifier_call_chain(VOUT_EVENT_MODE_CHANGE_PRE, &mode);
-		nulldisp_vinfo[2].width = tmp[0];
-		nulldisp_vinfo[2].height = tmp[1];
-		nulldisp_vinfo[2].field_height = tmp[1];
-		VOUTPR("set dummy size: %d x %d\n", tmp[0], tmp[1]);
-		vout_notifier_call_chain(VOUT_EVENT_MODE_CHANGE, &mode);
-	} else if (ret == 4) {
-		vout_notifier_call_chain(VOUT_EVENT_MODE_CHANGE_PRE, &mode);
-		nulldisp_vinfo[2].width = tmp[0];
-		nulldisp_vinfo[2].height = tmp[1];
-		nulldisp_vinfo[2].field_height = tmp[1];
-		nulldisp_vinfo[2].sync_duration_num = tmp[2];
-		nulldisp_vinfo[2].sync_duration_den = tmp[3];
-		sync_duration = (tmp[2] * 100) / tmp[3];
-		VOUTPR("set dummy size: %d x %d, frame_rate: %d.%02dHz\n",
-			tmp[0], tmp[1],
-			(sync_duration / 100), (sync_duration % 100));
-		vout_notifier_call_chain(VOUT_EVENT_MODE_CHANGE, &mode);
-	} else {
-		VOUTERR("invalid data\n");
-	}
-	mutex_unlock(&vout_serve_mutex);
-
 	return count;
 }
 
@@ -610,7 +577,6 @@ static ssize_t vout_vinfo_show(struct class *class,
 
 static struct class_attribute vout_class_attrs[] = {
 	__ATTR(mode,      0644, vout_mode_show, vout_mode_store),
-	__ATTR(dummy,      0644, NULL, vout_dummy_store),
 	__ATTR(axis,      0644, vout_axis_show, vout_axis_store),
 	__ATTR(fr_policy, 0644,
 		vout_fr_policy_show, vout_fr_policy_store),
@@ -737,6 +703,17 @@ static long vout_compat_ioctl(struct file *file, unsigned int cmd,
 }
 #endif
 
+static unsigned int vout_poll(struct file *file, poll_table *wait)
+{
+	struct vout_cdev_s *vcdev = file->private_data;
+	unsigned int mask = 0;
+
+	poll_wait(file, &vcdev->setmode_queue, wait);
+	mask = (POLLIN | POLLRDNORM);
+
+	return mask;
+}
+
 static const struct file_operations vout_fops = {
 	.owner          = THIS_MODULE,
 	.open           = vout_io_open,
@@ -745,6 +722,7 @@ static const struct file_operations vout_fops = {
 #ifdef CONFIG_COMPAT
 	.compat_ioctl   = vout_compat_ioctl,
 #endif
+	.poll = vout_poll,
 };
 
 static int vout_fops_create(void)
@@ -778,6 +756,8 @@ static int vout_fops_create(void)
 		VOUTERR("failed to create vout device: %d\n", ret);
 		goto vout_fops_err3;
 	}
+
+	init_waitqueue_head(&vout_cdev->setmode_queue);
 
 	VOUTPR("%s OK\n", __func__);
 	return 0;
@@ -909,14 +889,32 @@ static int refresh_tvout_mode(void)
 	enum vmode_e cur_vmode = VMODE_MAX;
 	char cur_mode_str[VMODE_NAME_LEN_MAX];
 	int hpd_state = 0;
+	struct vinfo_s *info = get_current_vinfo();
 
 	if (tvout_monitor_flag == 0)
 		return 0;
 
 	hpd_state = vout_get_hpd_state();
 	if (hpd_state) {
-		cur_vmode = validate_vmode(hdmimode);
-		snprintf(cur_mode_str, VMODE_NAME_LEN_MAX, "%s", hdmimode);
+		/* Vout will check the checksum of EDID of uboot and kernel.
+		 * If checksum is different. Vout will set null to display/mode.
+		 * When systemcontrol bootup, it will set the correct mode and
+		 * colorspace according to current EDID from kernel.
+		 */
+		VOUTPR("hdmichecksum [%s], kernel hdmichecksum [%s]\n",
+				hdmichecksum, info->hdmichecksum);
+		if ((memcmp(hdmichecksum, info->hdmichecksum, 10)) &&
+			(memcmp(emptychecksum, info->hdmichecksum, 10)) &&
+			(memcmp(invalidchecksum, hdmichecksum, 10))) {
+			VOUTPR("hdmi crc is diff between uboot and kernel\n");
+			cur_vmode = validate_vmode("null");
+			snprintf(cur_mode_str, VMODE_NAME_LEN_MAX, "null");
+
+		} else {
+			cur_vmode = validate_vmode(hdmimode);
+			snprintf(cur_mode_str, VMODE_NAME_LEN_MAX,
+				"%s", hdmimode);
+		}
 	} else {
 		cur_vmode = validate_vmode(cvbsmode);
 		snprintf(cur_mode_str, VMODE_NAME_LEN_MAX, "%s", cvbsmode);
@@ -959,7 +957,8 @@ static void aml_tvout_mode_work(struct work_struct *work)
 	mutex_unlock(&vout_serve_mutex);
 
 	if (tvout_monitor_flag)
-		schedule_delayed_work(&tvout_mode_work, 1*HZ/2);
+		schedule_delayed_work(&tvout_mode_work,
+			msecs_to_jiffies(tvout_monitor_interval));
 	else
 		VOUTPR("%s: monitor stop\n", __func__);
 }
@@ -981,7 +980,8 @@ static void aml_tvout_mode_monitor(void)
 	refresh_tvout_mode();
 	mutex_unlock(&vout_serve_mutex);
 
-	schedule_delayed_work(&tvout_mode_work, 1*HZ/2);
+	schedule_delayed_work(&tvout_mode_work,
+		msecs_to_jiffies(tvout_monitor_interval));
 }
 
 static void aml_vout_extcon_register(struct platform_device *pdev)
@@ -1013,6 +1013,24 @@ static void aml_vout_extcon_free(void)
 	vout_excton_setmode = NULL;
 }
 
+static void aml_vout_get_dt_info(struct platform_device *pdev)
+{
+	int ret;
+	unsigned int para[2];
+
+	/* e.g. dts: tvout_monitor = <100 250>
+	 * interval = 100(ms), timeout_cnt = 250
+	 */
+	ret = of_property_read_u32_array(pdev->dev.of_node,
+			"tvout_monitor", para, 2);
+	if (!ret) {
+		tvout_monitor_interval = para[0];
+		tvout_monitor_timeout_cnt = para[1];
+	}
+	VOUTPR("tvout monitor interval:%d(ms), timeout cnt:%d\n",
+		tvout_monitor_interval, tvout_monitor_timeout_cnt);
+}
+
 /*****************************************************************
  **
  **	vout driver interface
@@ -1035,7 +1053,7 @@ static int aml_vout_probe(struct platform_device *pdev)
 
 	vout_register_server(&nulldisp_vout_server);
 	aml_vout_extcon_register(pdev);
-
+	aml_vout_get_dt_info(pdev);
 	set_vout_init_mode();
 	aml_tvout_mode_monitor();
 
@@ -1202,6 +1220,15 @@ static int __init get_cvbs_mode(char *str)
 	return 0;
 }
 __setup("cvbsmode=", get_cvbs_mode);
+
+static int __init get_hdmi_checksum(char *str)
+{
+	snprintf(hdmichecksum, VMODE_NAME_LEN_MAX, "%s", str);
+
+	VOUTPR("get hdmi checksum: %s\n", hdmichecksum);
+	return 0;
+}
+__setup("hdmichecksum=", get_hdmi_checksum);
 
 MODULE_AUTHOR("Platform-BJ <platform.bj@amlogic.com>");
 MODULE_DESCRIPTION("VOUT Server Module");

@@ -34,6 +34,7 @@
 #include "atv_demod_afc.h"
 #include "atv_demod_monitor.h"
 #include "atv_demod_isr.h"
+#include "atv_demod_ext.h"
 
 #define DEVICE_NAME "aml_atvdemod"
 
@@ -58,7 +59,7 @@ void aml_fe_get_atvaudio_state(int *state)
 	static bool mute = true;
 #endif
 	int av_status = 0;
-	int power = 0;
+	unsigned int power = 0;
 	int vpll_lock = 0;
 	int line_lock = 0;
 	struct atv_demod_priv *priv = amlatvdemod_devp != NULL
@@ -79,7 +80,7 @@ void aml_fe_get_atvaudio_state(int *state)
 		retrieve_vpll_carrier_lock(&vpll_lock);
 		retrieve_vpll_carrier_line_lock(&line_lock);
 		if ((vpll_lock == 0) && (line_lock == 0)) {
-			/* retrieve_vpll_carrier_audio_power(&power); */
+			/* retrieve_vpll_carrier_audio_power(&power, 1); */
 			*state = 1;
 		} else {
 			*state = 0;
@@ -252,7 +253,7 @@ static void atv_demod_set_params(struct dvb_frontend *fe,
 	if ((fe->ops.info.type == FE_ANALOG)
 			&& (priv->scanning == false)
 			&& (p->param.mode == 0)) {
-		if (priv->afc.enable)
+		if (priv->afc.enable && non_std_en == 0)
 			priv->afc.enable(&priv->afc);
 
 		if (priv->monitor.enable)
@@ -260,6 +261,8 @@ static void atv_demod_set_params(struct dvb_frontend *fe,
 
 		/* for searching mute audio */
 		priv->standby = false;
+
+		pr_dbg("%s: frequency %d.\n", __func__, p->param.frequency);
 	}
 }
 
@@ -381,6 +384,8 @@ static int atv_demod_set_config(struct dvb_frontend *fe, void *priv_cfg)
 
 		if (priv->monitor.disable)
 			priv->monitor.disable(&priv->monitor);
+
+		aml_fe_hook_call_set_mode(true);
 		break;
 
 	case AML_ATVDEMOD_UNSCAN_MODE:
@@ -395,6 +400,7 @@ static int atv_demod_set_config(struct dvb_frontend *fe, void *priv_cfg)
 		if (priv->monitor.enable)
 			priv->monitor.enable(&priv->monitor);
 #endif
+		aml_fe_hook_call_set_mode(false);
 		break;
 	}
 
@@ -424,23 +430,11 @@ bool check_rssi = true;
 /* Less than -85, it means no signal */
 int tuner_rssi = -80;
 
+/* when need to support secam-l, will enable it */
+bool support_secam_l;
+
 bool slow_mode;
 
-typedef int (*hook_func_t) (void);
-hook_func_t aml_fe_hook_atv_status;
-hook_func_t aml_fe_hook_hv_lock;
-hook_func_t aml_fe_hook_get_fmt;
-
-void aml_fe_hook_cvd(hook_func_t atv_mode, hook_func_t cvd_hv_lock,
-	hook_func_t get_fmt)
-{
-	aml_fe_hook_atv_status = atv_mode;
-	aml_fe_hook_hv_lock = cvd_hv_lock;
-	aml_fe_hook_get_fmt = get_fmt;
-
-	pr_info("%s: OK.\n", __func__);
-}
-EXPORT_SYMBOL(aml_fe_hook_cvd);
 
 static v4l2_std_id atvdemod_fmt_2_v4l2_std(int fmt)
 {
@@ -468,6 +462,9 @@ static v4l2_std_id atvdemod_fmt_2_v4l2_std(int fmt)
 		break;
 	case AML_ATV_DEMOD_VIDEO_MODE_PROP_SECAM_L:
 		std = V4L2_STD_SECAM_L;
+		break;
+	case AML_ATV_DEMOD_VIDEO_MODE_PROP_SECAM_LC:
+		std = V4L2_STD_SECAM_LC;
 		break;
 	case AML_ATV_DEMOD_VIDEO_MODE_PROP_SECAM_DK2:
 	case AML_ATV_DEMOD_VIDEO_MODE_PROP_SECAM_DK3:
@@ -536,12 +533,20 @@ static void atvdemod_fe_try_analog_format(struct v4l2_frontend *v4l2_fe,
 
 	if (auto_search_std & AUTO_DETECT_COLOR) {
 		for (i = 0; i < try_vfmt_cnt; i++) {
-			if (aml_fe_hook_get_fmt == NULL) {
+
+			/* SECAM-L/L' */
+			if ((p->std & (V4L2_STD_SECAM_L | V4L2_STD_SECAM_LC))
+				&& (p->std & V4L2_COLOR_STD_SECAM)) {
+				cvbs_std = TVIN_SIG_FMT_CVBS_SECAM;
+				break;
+			}
+
+			if (aml_fe_hook_call_get_fmt(&cvbs_std) == false) {
 				pr_err("%s: aml_fe_hook_get_fmt == NULL.\n",
 						__func__);
 				break;
 			}
-			cvbs_std = aml_fe_hook_get_fmt();
+
 			if (cvbs_std) {
 				varify_cnt++;
 				pr_dbg("get cvbs_std varify_cnt:%d, cnt:%d, cvbs_std:0x%x\n",
@@ -683,7 +688,7 @@ static void atvdemod_fe_try_analog_format(struct v4l2_frontend *v4l2_fe,
 }
 
 static void atvdemod_fe_try_signal(struct v4l2_frontend *v4l2_fe,
-		int auto_search_std, bool *lock)
+		int auto_search, bool *lock)
 {
 	struct analog_parameters params;
 	struct dvb_frontend *fe = &v4l2_fe->fe;
@@ -692,9 +697,10 @@ static void atvdemod_fe_try_signal(struct v4l2_frontend *v4l2_fe,
 	enum v4l2_status tuner_state = V4L2_TIMEDOUT;
 	enum v4l2_status ade_state = V4L2_TIMEDOUT;
 	int try_cnt = tuner_status_cnt;
-	/* v4l2_std_id std_bk = 0; */
-	/* unsigned int audio = 0; */
-	/* bool try_secam = false; */
+	v4l2_std_id std_bk = 0;
+	unsigned int audio = 0;
+	bool try_secaml = false;
+	bool try_secamlc = false;
 	unsigned int tuner_id = priv->atvdemod_param.tuner_id;
 	s16 strength = 0;
 
@@ -705,6 +711,10 @@ static void atvdemod_fe_try_signal(struct v4l2_frontend *v4l2_fe,
 		params.std = p->std;
 		fe->ops.analog_ops.set_params(fe, &params);
 	}
+
+	/* backup the std and audio mode */
+	std_bk = p->std;
+	audio = p->audmode;
 
 	*lock = false;
 	do {
@@ -746,51 +756,54 @@ static void atvdemod_fe_try_signal(struct v4l2_frontend *v4l2_fe,
 		}
 
 		if (try_cnt == 0) {
-#if 0 /* when need to support secam-l, will enable it */
-			if (auto_search_std &&
-				try_secam == false &&
-				!(p->std & V4L2_COLOR_STD_SECAM) &&
-				!(p->std & V4L2_STD_SECAM_L)) {
-				/* backup the std and audio mode */
-				std_bk = p->std;
-				audio = p->audmode;
-
-				p->std = (V4L2_COLOR_STD_SECAM
+			if (support_secam_l && auto_search) {
+				if (!(p->std & V4L2_STD_SECAM_L) &&
+					!try_secaml) {
+					p->std = (V4L2_COLOR_STD_SECAM
 						| V4L2_STD_SECAM_L);
-				p->audmode = V4L2_STD_SECAM_L;
+					p->audmode = V4L2_STD_SECAM_L;
+
+					try_secaml = true;
+				} else if (!(p->std & V4L2_STD_SECAM_LC) &&
+					!try_secamlc &&
+					p->frequency <= ATV_SECAM_LC_100MHZ) {
+
+					p->std = (V4L2_COLOR_STD_SECAM
+						| V4L2_STD_SECAM_LC);
+					p->audmode = V4L2_STD_SECAM_LC;
+
+					try_secamlc = true;
+				} else
+					break;
 
 				params.frequency = p->frequency;
 				params.mode = p->afc_range;
 				params.audmode = p->audmode;
 				params.std = p->std;
-				fe->ops.analog_ops.set_params(fe,
-						&params);
+				fe->ops.analog_ops.set_params(fe, &params);
 
-				try_secam = true;
-
-				try_cnt =
-					tuner_status_cnt / 2;
+				if (tuner_status_cnt > 2)
+					try_cnt = tuner_status_cnt / 2;
+				else
+					try_cnt = tuner_status_cnt;
 
 				continue;
 			}
 
-			if (try_secam) {
-				p->std = std_bk;
-				p->audmode = audio;
-
-				params.frequency = p->frequency;
-				params.mode = p->afc_range;
-				params.audmode = p->audmode;
-				params.std = p->std;
-				fe->ops.analog_ops.set_params(fe,
-						&params);
-
-				try_secam = false;
-			}
-#endif
 			break;
 		}
 	} while (1);
+
+	if (*lock == false && (try_secaml || try_secamlc)) {
+		p->std = std_bk;
+		p->audmode = audio;
+
+		params.frequency = p->frequency;
+		params.mode = p->afc_range;
+		params.audmode = p->audmode;
+		params.std = p->std;
+		fe->ops.analog_ops.set_params(fe, &params);
+	}
 }
 
 static int atvdemod_fe_afc_closer(struct v4l2_frontend *v4l2_fe, int minafcfreq,
@@ -1116,7 +1129,8 @@ static enum v4l2_search atvdemod_fe_search(struct v4l2_frontend *v4l2_fe)
 			!fe->ops.tuner_ops.get_status ||
 			!fe->ops.analog_ops.has_signal ||
 			!fe->ops.analog_ops.set_params ||
-			!fe->ops.analog_ops.set_config)) {
+			!fe->ops.analog_ops.set_config ||
+			(aml_fe_has_hook_up() == false))) {
 		pr_err("[%s] error: NULL function or pointer.\n", __func__);
 		return V4L2_SEARCH_INVALID;
 	}
@@ -1129,6 +1143,7 @@ static enum v4l2_search atvdemod_fe_search(struct v4l2_frontend *v4l2_fe)
 
 	if (p->afc_range == 0) {
 		pr_err("[%s] afc_range == 0, skip the search\n", __func__);
+
 		return V4L2_SEARCH_INVALID;
 	}
 

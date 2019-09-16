@@ -40,7 +40,7 @@
 		i2c2 = &i2c2;
 		i2c3 = &i2c3;
 		i2c4 = &i2c_AO;
-		spi0 = &spicc0;
+		spi0 = &spicc_a;
 		spi1 = &spicc1;
 	};
 
@@ -81,7 +81,7 @@
 		lcd_tcon_reserved:linux,lcd_tcon {
 			compatible = "shared-dma-pool";
 			reusable;
-			size = <0xc00000>;
+			size = <0x0>;
 			alignment = <0x400000>;
 			alloc-ranges = <0x7ec00000 0xc00000>;
 		};
@@ -225,7 +225,8 @@
 		clock-names = "vpu_clkb_tmp_composite",
 			"vpu_clkb_composite",
 			"vpu_mux";
-		clock-range = <334 667>;
+		clock-range = <334 500>;
+		//clock-range = <334 667>;
 		/* buffer-size = <3621952>;(yuv422 8bit) */
 		buffer-size = <4074560>;/*yuv422 fullpack*/
 		/* reserve-iomap = "true"; */
@@ -240,6 +241,27 @@
 		compatible = "amlogic, vout";
 		status = "okay";
 		fr_auto_policy = <0>;
+	};
+
+	vout2 {
+		compatible = "amlogic, vout2";
+		dev_name = "vout";
+		status = "disabled";
+		clocks = <&clkc CLKID_VPU_CLKC_P0_COMP>,
+			<&clkc CLKID_VPU_CLKC_MUX>;
+		clock-names = "vpu_clkc0",
+			"vpu_clkc";
+	};
+
+	dummy_lcd {
+		compatible = "amlogic, dummy_lcd";
+		status = "disabled";
+		clocks = <&clkc CLKID_VCLK2_ENCP
+			&clkc CLKID_VCLK2_VENCP0
+			&clkc CLKID_VCLK2_VENCP1>;
+		clock-names = "encp_top_gate",
+			"encp_int_gate0",
+			"encp_int_gate1";
 	};
 
 	/* Audio Related start */
@@ -603,8 +625,27 @@
 		clocks = <&clkc CLKID_DAC_CLK>;
 		clock-names = "vdac_clk_gate";
 
-		cutwindow_val_h = <0 10 18 20 62>; /* level 0~4 */
-		cutwindow_val_v = <4  8 14 16 24>;  /* level 0~4 */
+		cutwindow_val_h = <0 0 0 0 8>; /* level 0~4 */
+		cutwindow_val_v = <4 8 14 16 24>;  /* level 0~4 */
+		/* auto_adj_en:
+		 * bit0 -- auto cdto
+		 * bit1 -- auto hs
+		 * bit2 -- auto vs
+		 * bit3 -- auto de
+		 * bit4 -- auto 3dcomb
+		 * bit5 -- auto pga
+		 */
+		auto_adj_en = <0x3e>;
+		/* val: default=0, 0x1, 0xf1, 0xe1, 0x11 for special tuner
+		 * force_flag: force setting to std mode, default=0
+		 */
+		nostd_vs_th = <0 0>; /* val, force_flag */
+		/* no_vs_th: default=0xf0
+		 * vs_cntl: default=0x1, support 0x0~0x3
+		 * vloop_tc: default=0x2, support 0x0~0x3
+		 * dmd_clp_step: default=0x10
+		 */
+		nostd_ctrl = <0xf0 0x1 0x2 0x10>;
 	};
 
 	vbi {
@@ -1119,51 +1160,51 @@
 
 		opp00 {
 			opp-hz = /bits/ 64 <100000000>;
-			opp-microvolt = <729000>;
+			opp-microvolt = <749000>;
 		};
 		opp01 {
 			opp-hz = /bits/ 64 <250000000>;
-			opp-microvolt = <729000>;
+			opp-microvolt = <749000>;
 		};
 		opp02 {
 			opp-hz = /bits/ 64 <500000000>;
-			opp-microvolt = <729000>;
+			opp-microvolt = <749000>;
 		};
 		opp03 {
 			opp-hz = /bits/ 64 <667000000>;
-			opp-microvolt = <749000>;
+			opp-microvolt = <769000>;
 		};
 		opp04 {
 			opp-hz = /bits/ 64 <1000000000>;
-			opp-microvolt = <769000>;
+			opp-microvolt = <789000>;
 		};
 		opp05 {
 			opp-hz = /bits/ 64 <1200000000>;
-			opp-microvolt = <779000>;
+			opp-microvolt = <799000>;
 		};
 		opp06 {
 			opp-hz = /bits/ 64 <1404000000>;
-			opp-microvolt = <789000>;
+			opp-microvolt = <799000>;
 		};
 		opp07 {
 			opp-hz = /bits/ 64 <1500000000>;
-			opp-microvolt = <799000>;
+			opp-microvolt = <819000>;
 		};
 		opp08 {
 			opp-hz = /bits/ 64 <1608000000>;
-			opp-microvolt = <809000>;
+			opp-microvolt = <829000>;
 		};
 		opp09 {
 			opp-hz = /bits/ 64 <1704000000>;
-			opp-microvolt = <849000>;
+			opp-microvolt = <869000>;
 		};
 		opp10 {
 			opp-hz = /bits/ 64 <1800000000>;
-			opp-microvolt = <899000>;
+			opp-microvolt = <919000>;
 		};
 		opp11 {
 			opp-hz = /bits/ 64 <1908000000>;
-			opp-microvolt = <949000>;
+			opp-microvolt = <969000>;
 		};
 	};
 
@@ -1935,8 +1976,7 @@
 			 "MMC_CAP_ERASE",
 			 "MMC_CAP_CMD23",
 			 "MMC_CAP_DRIVER_TYPE_D";
-		caps2 = "MMC_CAP2_HS200";
-		/*MMC_CAP2_HS400"*/
+		caps2 = "MMC_CAP2_HS200", "MMC_CAP2_HS400";
 		f_min = <400000>;
 		f_max = <198000000>;
 	};
@@ -2053,10 +2093,22 @@
 };
 
 &spicc0 {
-	status = "okay";
+	status = "disabled";
 	pinctrl-names = "default";
 	pinctrl-0 = <&spicc0_pins_h>;
 	cs-gpios = <&gpio GPIOH_20 0>;
+};
+
+&spicc_a {
+	status = "okay";
+	pinctrl-names= "default";
+	pinctrl-0=<&spicc0_pins_h>;
+	cs-gpios = <&gpio GPIOH_20 GPIO_ACTIVE_HIGH>;
+	spi-nor@0 {
+		compatible = "jedec,spi-nor";
+		status = "okay";
+		frequency = <40000000>;
+	};
 };
 
 &meson_fb {
@@ -2102,6 +2154,13 @@
 		reg = <0x74>;
 		status = "okay";
 	};
+
+	lcd_extern_i2c3: lcd_extern_i2c@3 {
+		compatible = "lcd_ext, i2c";
+		dev_name = "i2c_CS602";
+		reg = <0x66>;
+		status = "disable";
+	};
 };
 
 &pwm_ab {
@@ -2113,5 +2172,9 @@
 };
 
 &efuse {
+	status = "okay";
+};
+
+&pixel_probe {
 	status = "okay";
 };

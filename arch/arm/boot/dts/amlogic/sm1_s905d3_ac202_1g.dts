@@ -85,7 +85,7 @@
 		ion_cma_reserved:linux,ion-dev {
 			compatible = "shared-dma-pool";
 			reusable;
-			size = <0x8000000>;
+			size = <0x3000000>;
 			alignment = <0x400000>;
 			alloc-ranges = <0x0 0x30000000>;
 		};
@@ -190,7 +190,7 @@
 		/* 1:gp0_pll vid2_clk */
 		/* 2:vid_pll vid1_clk */
 		/* 3:gp0_pll vid1_clk */
-		clk_path = <0>;
+		clk_path = <2>;
 
 		/* performance: reg_address, reg_value */
 		/* sm1 */
@@ -306,6 +306,23 @@
 		dev_name = "ionvideo";
 		status = "okay";
 	};
+
+	amlvideo2_0 {
+		compatible = "amlogic, amlvideo2";
+		dev_name = "amlvideo2";
+		status = "okay";
+		amlvideo2_id = <0>;
+		cma_mode = <1>;
+	};
+
+	amlvideo2_1 {
+		compatible = "amlogic, amlvideo2";
+		dev_name = "amlvideo2";
+		status = "okay";
+		amlvideo2_id = <1>;
+		cma_mode = <1>;
+	};
+
 	vm0 {
 		compatible = "amlogic, vm";
 		memory-region = <&vm0_cma_reserved>;
@@ -339,11 +356,10 @@
 		clocks = <&clkc CLKID_GEN_CLK>;
 		clock-names = "g12a_24m";
 		cam_0{
-			cam_name = "ov5640";
+			cam_name = "gc2145_mipi";
 			front_back = <0>;
-			camera-i2c-bus = <&i2c2>;
-			camvdd-gpios = <&gpio GPIOZ_5 GPIO_ACTIVE_HIGH>;
-			gpio_pwdn-gpios = <&gpio GPIOZ_6 GPIO_ACTIVE_HIGH>;
+			camera-i2c-bus = <&i2c0>;
+			gpio_pwdn-gpios = <&gpio GPIOZ_2 GPIO_ACTIVE_HIGH>;
 			gpio_rst-gpios = <&gpio GPIOZ_12 GPIO_ACTIVE_HIGH>;
 			mirror_flip = <1>;
 			vertical_flip = <1>;
@@ -376,16 +392,19 @@
 		compatible = "amlogic, gpio_keypad";
 		status = "okay";
 		scan_period = <20>;
-		key_num = <1>;
-		key_name = "power";
-		key_code = <116>;
-		key-gpios = <&gpio_ao  GPIOAO_3  GPIO_ACTIVE_HIGH>;
+		key_num = <4>;
+		key_name = "power", "vol-", "vol+", "mic_mute";
+		key_code = <116 114 115 65>;
+		key-gpios = <&gpio_ao  GPIOAO_7  GPIO_ACTIVE_HIGH
+				&gpio  GPIOC_3  GPIO_ACTIVE_HIGH
+				&gpio  GPIOC_0  GPIO_ACTIVE_HIGH
+				&gpio  GPIOA_0  GPIO_ACTIVE_HIGH>;
 		detect_mode = <0>;/*0:polling mode, 1:irq mode*/
 	};
 
 	adc_keypad {
 		compatible = "amlogic, adc_keypad";
-		status = "okay";
+		status = "disabled";
 		key_name = "vol-", "vol+", "enter";
 		key_num = <3>;
 		io-channels = <&saradc SARADC_CH2>;
@@ -540,7 +559,7 @@
 		compatible = "amlogic, vecm";
 		dev_name = "aml_vecm";
 		status = "okay";
-		gamma_en = <0>;/*1:enabel ;0:disable*/
+		gamma_en = <1>;/*1:enabel ;0:disable*/
 		wb_en = <0>;/*1:enabel ;0:disable*/
 		cm_en = <0>;/*1:enabel ;0:disable*/
 		/*0: 709/601  1: bt2020*/
@@ -583,7 +602,7 @@
 		aml-audio-card,name = "AML-AUGESOUND";
 
 		/*avout mute gpio*/
-		avout_mute-gpios = <&gpio_ao GPIOAO_2 GPIO_ACTIVE_HIGH>;
+		avout_mute-gpios = <&gpio_ao GPIOAO_8 GPIO_ACTIVE_HIGH>;
 
 		aml-audio-card,dai-link@0 {
 			format = "dsp_a";
@@ -603,15 +622,15 @@
 			tdmacpu: cpu {
 				sound-dai = <&tdma>;
 				dai-tdm-slot-tx-mask =
-							<1 1 1 1 1 1 1 1>;
+							<1>;
 				dai-tdm-slot-rx-mask =
-							<1 1 1 1 1 1 1 1>;
-				dai-tdm-slot-num = <8>;
-				dai-tdm-slot-width = <32>;
-				system-clock-frequency = <24576000>;
+							<1>;
+				dai-tdm-slot-num = <2>;
+				dai-tdm-slot-width = <16>;
+				system-clock-frequency = <256000>;
 			};
 			tdmacodec: codec {
-				sound-dai = <&dummy_codec &dummy_codec>;
+				sound-dai = <&dummy_codec>;
 			};
 		};
 
@@ -1056,8 +1075,8 @@
 &i2c0 {
 	status = "okay";
 	pinctrl-names="default";
-	pinctrl-0=<&i2c0_master_pins2>;
-	clock-frequency = <400000>;
+	pinctrl-0=<&i2c0_master_pins1>;
+	clock-frequency = <100000>;
 
 	gt9xx@5d {
 		compatible = "goodix,gt9xx";
@@ -1123,7 +1142,7 @@
 		compatible = "amlogic, sm1-snd-tdma";
 		#sound-dai-cells = <0>;
 		dai-tdm-lane-slot-mask-in = <0 1>;
-		dai-tdm-oe-lane-slot-mask-out = <1 0>;
+		dai-tdm-lane-slot-mask-out = <1 0>;
 		dai-tdm-clk-sel = <0>;
 		clocks = <&clkaudio CLKID_AUDIO_MCLK_A
 				&clkc CLKID_MPLL0>;
@@ -1143,14 +1162,15 @@
 		//dai-tdm-lane-slot-mask-out = <1 1 1 1 1 1 1 1>;
 		dai-tdm-clk-sel = <1>;
 		clocks = <&clkaudio CLKID_AUDIO_MCLK_B
+				&clkaudio CLKID_AUDIO_MCLK_PAD0
 				&clkc CLKID_MPLL1
 				&clkc CLKID_MPLL0
 				&clkaudio CLKID_AUDIO_SPDIFOUT_A>;
-		clock-names = "mclk", "clk_srcpll",
+		clock-names = "mclk", "mclk_pad", "clk_srcpll",
 			"samesource_srcpll", "samesource_clk";
 		pinctrl-names = "tdm_pins";
-		pinctrl-0 = <&tdmb_mclk &tdmout_b &tdmin_b>;
-
+		/*pinctrl-0 = <&tdmb_mclk &tdmout_b &tdmin_b>;*/
+		pinctrl-0 = < &tdmout_b &tdmin_b>;
 		mclk_pad = <0>;  /* 0: mclk_0; 1: mclk_1 */
 
 		/*
@@ -1487,6 +1507,27 @@
 
 		status = "disabled";
 	};
+	aed:effect {
+		compatible = "amlogic, snd-effect-v3";
+		#sound-dai-cells = <0>;
+		clocks = <&clkaudio CLKID_AUDIO_GATE_EQDRC
+			&clkc CLKID_FCLK_DIV5
+			&clkaudio CLKID_AUDIO_EQDRC>;
+		clock-names = "gate", "srcpll", "eqdrc";
+		/*
+		 * 0:tdmout_a
+		 * 1:tdmout_b
+		 * 2:tdmout_c
+		 * 3:spdifout
+		 * 4:spdifout_b
+		 */
+		eqdrc_module = <1>;
+		/* max 0xf, each bit for one lane, usually one lane */
+		lane_mask = <0x1>;
+		/* max 0xff, each bit for one channel */
+		channel_mask = <0x3>;
+		status = "disabled";
+	};
 }; /* end of audiobus */
 
 &pinctrl_periphs {
@@ -1506,14 +1547,13 @@
 		};
 	};
 
-	tdmb_mclk: tdmb_mclk {
-		mux {
-			groups = "mclk0_a";
-			function = "mclk0";
-			drive-strength = <2>;
-		};
-	};
-
+	//tdmb_mclk: tdmb_mclk {
+	//	mux {
+	//		groups = "mclk0_a";
+	//		function = "mclk0";
+	//		drive-strength = <2>;
+	//	};
+	//};
 	tdmout_b: tdmout_b {
 		mux { /* GPIOA_1, GPIOA_2, GPIOA_3, GPIOA_4, */
 			  /* GPIOA_5, GPIOA_6, GPIOA_7, GPIOA_8, */
@@ -1670,7 +1710,7 @@
 	controller-type = <1>;
 };
 &ethmac {
-	status = "okay";
+	status = "disabled";
 	pinctrl-names = "internal_eth_pins";
 	pinctrl-0 = <&internal_eth_pins>;
 	mc_val = <0x4be04>;
@@ -1720,15 +1760,14 @@
 			 "MMC_CAP_ERASE",
 			 "MMC_CAP_CMD23",
 			 "MMC_CAP_DRIVER_TYPE_D";
-		caps2 = "MMC_CAP2_HS200";
-		/*MMC_CAP2_HS400"*/
+		caps2 = "MMC_CAP2_HS200", "MMC_CAP2_HS400";
 		f_min = <400000>;
 		f_max = <200000000>;
 	};
 };
 
 &sd_emmc_b {
-	status = "okay";
+	status = "disabled";
 	sd {
 		caps = "MMC_CAP_4_BIT_DATA",
 			 "MMC_CAP_MMC_HIGHSPEED",
@@ -1824,6 +1863,10 @@
 	};
 };
 
+&remote{
+	status = "disable";
+};
+
 &pcie_A {
 	reset-gpio = <&gpio GPIOX_7 GPIO_ACTIVE_HIGH>;
 	status = "disable";
@@ -1839,4 +1882,17 @@
 
 &irblaster {
 	status = "okay";
+};
+
+&lcd {
+	clk_path = <1>;
+};
+
+&gpu{
+	tbl =  <&dvfs285_cfg
+		&dvfs400_cfg
+		&dvfs500_cfg
+		&dvfs666_cfg
+		&dvfs800_cfg
+		&dvfs800_cfg>;
 };

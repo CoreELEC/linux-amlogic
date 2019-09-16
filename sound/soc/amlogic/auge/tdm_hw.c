@@ -454,32 +454,62 @@ void aml_update_tdmin_rev_ws(struct aml_audio_controller *actrl,
 
 	off_set = EE_AUDIO_TDMIN_B_CTRL - EE_AUDIO_TDMIN_A_CTRL;
 	reg_in = EE_AUDIO_TDMIN_A_CTRL + off_set * idx;
-	aml_audiobus_update_bits(actrl, reg_in,
+	aml_audiobus_update_bits
+		(actrl, reg_in,
 		0x1 << 25, is_rev << 25);
 }
 
-void aml_tdm_set_slot_out(
+void aml_tdm_set_oe_v1(
 	struct aml_audio_controller *actrl,
-	int index, int slots, int slot_width,
-	int force_oe, int oe_val)
+	int index, int force_oe, int oe_val)
 {
 	unsigned int reg, offset;
 
 	offset = EE_AUDIO_TDMOUT_B_CTRL0 - EE_AUDIO_TDMOUT_A_CTRL0;
 	reg = EE_AUDIO_TDMOUT_A_CTRL0 + offset * index;
-	aml_audiobus_update_bits(actrl, reg,
-				0x3ff, ((slots - 1) << 5) | (slot_width - 1));
 
 	if (force_oe) {
+		offset = EE_AUDIO_TDMOUT_B_CTRL2 - EE_AUDIO_TDMOUT_A_CTRL2;
+		reg = EE_AUDIO_TDMOUT_A_CTRL2 + offset * index;
+
 		aml_audiobus_update_bits(actrl, reg, 0xf << 24, force_oe << 24);
 
 		/* force oe val, in or out */
+		reg = EE_AUDIO_TDMOUT_A_CTRL1 + offset * index;
+		aml_audiobus_update_bits(actrl, reg, 0xf, oe_val);
+	}
+}
+
+void aml_tdm_set_oe_v2(
+	struct aml_audio_controller *actrl,
+	int index, int force_oe, int oe_val)
+{
+	unsigned int reg, offset;
+
+	if (force_oe) {
+		offset = EE_AUDIO_TDMOUT_B_CTRL2 - EE_AUDIO_TDMOUT_A_CTRL2;
+		reg = EE_AUDIO_TDMOUT_A_CTRL2 + offset * index;
+
+		aml_audiobus_update_bits(actrl, reg, 0xff << 8, force_oe << 8);
+
+		/* force oe val, in or out */
 		if (oe_val) {
-			reg = EE_AUDIO_TDMOUT_A_CTRL1 + offset * index;
-			aml_audiobus_update_bits(actrl, reg,
-				0xf << 0, oe_val << 0);
+			aml_audiobus_update_bits
+				(actrl, reg, 0xff << 16, oe_val << 16);
 		}
 	}
+}
+
+void aml_tdm_set_slot_out(
+	struct aml_audio_controller *actrl,
+	int index, int slots, int slot_width)
+{
+	unsigned int reg, offset;
+
+	offset = EE_AUDIO_TDMOUT_B_CTRL0 - EE_AUDIO_TDMOUT_A_CTRL0;
+	reg = EE_AUDIO_TDMOUT_A_CTRL0 + offset * index;
+	aml_audiobus_update_bits
+		(actrl, reg, 0x3ff, ((slots - 1) << 5) | (slot_width - 1));
 }
 
 void aml_tdm_set_slot_in(
@@ -675,39 +705,40 @@ void aml_tdmout_enable_gain(int tdmout_id, int en)
 	audiobus_update_bits(reg, 0x1 << 26, !!en << 26);
 }
 
-void aml_tdm_clk_pad_select(
-	struct aml_audio_controller *actrl,
-	int mpad, int mpad_offset, int mclk_sel,
-	int tdm_index, int clk_sel)
+void aml_tdm_mclk_pad_select(struct aml_audio_controller *actrl,
+			     int mpad, int mpad_offset, int mclk_sel)
 {
 	unsigned int reg, mask_offset, val_offset;
 
-	if (mpad >= 0) {
-		switch (mpad) {
-		case 0:
-			mask_offset = 0x7 << 0;
-			val_offset = mclk_sel << 0;
-			break;
-		case 1:
-			mask_offset = 0x7 << 4;
-			val_offset = mclk_sel << 4;
-			break;
-		default:
-			mask_offset = 0;
-			val_offset = 0;
-			pr_info("unknown tdm mpad:%d\n", mpad);
-			break;
-		}
+	switch (mpad) {
+	case 0:
+		mask_offset = 0x7 << 0;
+		val_offset = mclk_sel << 0;
+		break;
+	case 1:
+		mask_offset = 0x7 << 4;
+		val_offset = mclk_sel << 4;
+		break;
+	default:
+		mask_offset = 0x7 << 4;
+		val_offset = 0;
+		pr_info("unknown tdm mpad:%d\n", mpad);
+		break;
+	}
 
-		reg = EE_AUDIO_MST_PAD_CTRL0(mpad_offset);
-		if (actrl)
-			aml_audiobus_update_bits(actrl, reg,
-				mask_offset, val_offset);
-		else
-			audiobus_update_bits(reg,
-				mask_offset, val_offset);
-	} else
-		pr_warn("mclk is not configured\n");
+	reg = EE_AUDIO_MST_PAD_CTRL0(mpad_offset);
+	if (actrl)
+		aml_audiobus_update_bits(actrl, reg,
+					 mask_offset, val_offset);
+	else
+		audiobus_update_bits(reg,
+				     mask_offset, val_offset);
+}
+
+void aml_tdm_sclk_pad_select(struct aml_audio_controller *actrl,
+			     int mpad_offset, int tdm_index, int clk_sel)
+{
+	unsigned int reg, mask_offset, val_offset;
 
 	reg = EE_AUDIO_MST_PAD_CTRL1(mpad_offset);
 	switch (tdm_index) {

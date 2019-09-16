@@ -101,6 +101,10 @@ int pll_rst_max = 5;
 /* cdr lock threshold */
 int cdr_lock_level;
 int clock_lock_th = 2;
+int scdc_force_en;
+/* for hdcp_hpd debug, disable by default */
+bool hdcp_hpd_ctrl_en;
+
 /*------------------------variable define end------------------------------*/
 
 static int check_regmap_flag(unsigned int addr)
@@ -1701,7 +1705,8 @@ void control_reset(void)
 void rx_esm_tmdsclk_en(bool en)
 {
 	hdmirx_wr_bits_top(TOP_CLK_CNTL, HDCP22_TMDSCLK_EN, en);
-
+	if (hdcp22_on && hdcp_hpd_ctrl_en)
+		hdmirx_hdcp22_hpd(en);
 	if (log_level & HDCP_LOG)
 		rx_pr("%s:%d\n", __func__, en);
 }
@@ -1804,7 +1809,6 @@ void hdmirx_hdcp22_hpd(bool value)
  */
 void hdcp_22_off(void)
 {
-	hdcp22_clk_en(0);
 	/* note: can't pull down hpd before enter suspend */
 	/* it will stop cec wake up func if EE domain still working */
 	/* rx_set_cur_hpd(0); */
@@ -1815,6 +1819,7 @@ void hdcp_22_off(void)
 		hdmirx_hdcp22_esm_rst();
 	else
 		hdcp22_kill_esm = 0;
+	hdcp22_clk_en(0);
 	rx_pr("hdcp22 off\n");
 }
 
@@ -1941,6 +1946,8 @@ void clk_init(void)
 void hdmirx_20_init(void)
 {
 	unsigned long data32;
+	unsigned long scdc_en =
+		scdc_force_en ? 1 : rx.edid_ver;
 
 	data32 = 0;
 	data32 |= 1	<< 12; /* [12]     vid_data_checken */
@@ -1948,7 +1955,7 @@ void hdmirx_20_init(void)
 	data32 |= 1	<< 10; /* [10]     gb_checken */
 	data32 |= 1	<< 9;  /* [9]      preamb_checken */
 	data32 |= 1	<< 8;  /* [8]      ctrl_checken */
-	data32 |= 1	<< 4;  /* [4]      scdc_enable */
+	data32 |= scdc_en	<< 4;  /* [4]      scdc_enable */
 	/* To support some TX that sends out SSCP even when not scrambling:
 	 * 0: Original behaviour
 	 * 1: During TMDS character error detection, treat SSCP character
@@ -1975,8 +1982,8 @@ void hdmirx_20_init(void)
 	hdmirx_wr_dwc(DWC_SCDC_I2CCONFIG,    data32);
 
 	data32  = 0;
-	data32 |= 0    << 1;  /* [1]      hpd_low */
-	data32 |= 1    << 0;  /* [0]      power_provided */
+	data32 |= 1    << 1;  /* [1]      hpd_low */
+	data32 |= 0    << 0;  /* [0]      power_provided */
 	hdmirx_wr_dwc(DWC_SCDC_CONFIG,   data32);
 
 	data32  = 0;
@@ -1990,10 +1997,15 @@ void hdmirx_20_init(void)
 	hdmirx_wr_dwc(DWC_CHLOCK_CONFIG, data32);
 
 	/* hdcp2.2 ctl */
-	if (hdcp22_on)
-		hdmirx_wr_dwc(DWC_HDCP22_CONTROL, 0x1000);
-	else
+	if (hdcp22_on) {
+		/* set hdcp_hpd high later */
+		if (hdcp_hpd_ctrl_en)
+			hdmirx_wr_dwc(DWC_HDCP22_CONTROL, 0);
+		else
+			hdmirx_wr_dwc(DWC_HDCP22_CONTROL, 0x1000);
+	} else {
 		hdmirx_wr_dwc(DWC_HDCP22_CONTROL, 2);
+	}
 }
 
 
@@ -2759,12 +2771,24 @@ void hdmirx_set_video_mute(bool mute)
 		rx_pr("%s-mute:%d\n", __func__, mute);
 }
 
+void set_dv_ll_mode(bool en)
+{
+	if (en) {
+		hdmirx_wr_bits_top(TOP_VID_CNTL, _BIT(17), 1);
+		hdmirx_wr_bits_top(TOP_VID_CNTL, _BIT(19), 1);
+	} else {
+		hdmirx_wr_bits_top(TOP_VID_CNTL, _BIT(17), 0);
+		hdmirx_wr_bits_top(TOP_VID_CNTL, _BIT(19), 0);
+	}
+}
+
 /*
  * hdmirx_config_video - video mute config
  */
 void hdmirx_config_video(void)
 {
 	hdmirx_set_video_mute(0);
+	set_dv_ll_mode(false);
 }
 
 /*
@@ -3033,8 +3057,8 @@ void rx_debug_load22key(void)
 		extcon_set_state_sync(rx.rx_excton_rx22,
 			EXTCON_DISP_HDMI, 1);
 		mdelay(100);
-		hdmirx_hw_config();
 		hdmi_rx_top_edid_update();
+		hdmirx_hw_config();
 		hpd_to_esm = 1;
 		/* mdelay(900); */
 		rx_set_cur_hpd(1);
@@ -3045,8 +3069,8 @@ void rx_debug_load22key(void)
 void rx_debug_loadkey(void)
 {
 	rx_pr("load hdcp key\n");
-	hdmirx_hw_config();
 	hdmi_rx_top_edid_update();
+	hdmirx_hw_config();
 	pre_port = 0xfe;
 }
 

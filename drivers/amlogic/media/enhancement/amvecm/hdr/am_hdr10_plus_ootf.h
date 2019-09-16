@@ -132,3 +132,4 @@ struct BasisOOTF_Params {
 extern int hdr10_plus_ootf_gen(void);
 
 #endif /* AM_HDR10_PLUS_OOTF_H */
+

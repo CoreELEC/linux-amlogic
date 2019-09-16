@@ -495,9 +495,10 @@ void dvbc_reg_initial(struct aml_demod_sta *demod_sta)
 	qam_write_reg(0x7, 0x10f23);
 	qam_write_reg(0x3a, 0x0);
 	qam_write_reg(0x7, 0x10f33);
+	/*enable fsm, sm start work, need wait some time(2ms) for AGC stable*/
 	qam_write_reg(0x3a, 0x4);
-/*auto track*/
-	/*      dvbc_set_auto_symtrack(); */
+	/*auto track*/
+	/*dvbc_set_auto_symtrack(); */
 }
 
 u32 dvbc_set_auto_symtrack(void)

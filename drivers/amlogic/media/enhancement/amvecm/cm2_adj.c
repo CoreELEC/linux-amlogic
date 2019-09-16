@@ -21,28 +21,39 @@
 #include "cm2_adj.h"
 
 #define NUM_MATRIX_PARAM 7
+#define NUM_COLOR_MAX eCM2ColorMd_max
 #define NUM_SMTH_PARAM 11
 static uint lpf_coef_matrix_param = NUM_MATRIX_PARAM;
 static uint lpf_coef[NUM_MATRIX_PARAM] = {
 	0, 16, 32, 32, 32, 16, 0
 };
 
-static uint color_key_pts_matrix_param = NUM_MATRIX_PARAM;
-static uint color_key_pts[NUM_MATRIX_PARAM] = {
-	4, 8, 12, 15, 19, 25, 30
+static uint color_key_pts_matrix_param = NUM_COLOR_MAX;
+static uint color_key_pts[NUM_COLOR_MAX] = {
+	4, 9, 12, 15, 17, 19, 23, 25, 29
 };
 
-static uint smth_coef_hue_matrix_param = NUM_MATRIX_PARAM;
+static uint color_start_param = NUM_COLOR_MAX;
+static uint color_start[NUM_COLOR_MAX] = {
+	0, 7, 11, 14, 16, 18, 23, 25, 29
+};
+
+static uint color_end_param = NUM_COLOR_MAX;
+static uint color_end[NUM_COLOR_MAX] = {
+	6, 10, 13, 15, 17, 22, 24, 28, 31
+};
+
+static uint smth_coef_hue_matrix_param = NUM_SMTH_PARAM;
 static uint smth_coef_hue[NUM_SMTH_PARAM] = {
 	0, 20, 40, 80, 110, 128, 110, 80, 40, 20, 0
 };
 
-static uint smth_coef_luma_matrix_param = NUM_MATRIX_PARAM;
+static uint smth_coef_luma_matrix_param = NUM_SMTH_PARAM;
 static uint smth_coef_luma[NUM_SMTH_PARAM] = {
 	40, 100, 105, 110, 115, 120, 115, 110, 85, 60, 40
 };
 
-static uint smth_coef_sat_matrix_param = NUM_MATRIX_PARAM;
+static uint smth_coef_sat_matrix_param = NUM_SMTH_PARAM;
 static uint smth_coef_sat[NUM_SMTH_PARAM] = {
 	40, 60, 85, 105, 115, 120, 115, 105, 85, 60, 30
 };
@@ -54,6 +65,14 @@ MODULE_PARM_DESC(lpf_coef, "\n lpf_coef\n");
 module_param_array(color_key_pts, uint,
 	&color_key_pts_matrix_param, 0664);
 MODULE_PARM_DESC(color_key_pts, "\n color_key_pts\n");
+
+module_param_array(color_start, uint,
+	&color_start_param, 0664);
+MODULE_PARM_DESC(color_start, "\n color_start\n");
+
+module_param_array(color_end, uint,
+	&color_end_param, 0664);
+MODULE_PARM_DESC(color_end, "\n color_end\n");
 
 module_param_array(smth_coef_hue, uint,
 	&smth_coef_hue_matrix_param, 0664);
@@ -79,7 +98,7 @@ MODULE_PARM_DESC(smth_coef_sat_matrix_param, "\n smth_coef_sat\n");
 /*static int smth_coef[] = {26, 77, 115, 128, 115, 77, 26};*/
 
 /*original value x100 */
-static int huegain_via_sat5[7][5] = {
+static int huegain_via_sat5[NUM_COLOR_MAX][5] = {
 	{100, 100, 100, 100, 100},
 	{30, 60, 80, 100, 100},
 	{100, 100, 80, 50, 30},
@@ -87,10 +106,14 @@ static int huegain_via_sat5[7][5] = {
 	{100, 100, 100, 100, 100},
 	{100, 100, 100, 100, 100},
 	{100, 100, 100, 100, 100},
+	{100, 100, 100, 100, 100},
+	{100, 100, 100, 100, 100},
 };
 
 /*original value x100 */
-static int satgain_via_sat3[7][3] = {
+static int satgain_via_sat3[NUM_COLOR_MAX][3] = {
+	{100, 100, 100},
+	{100, 100, 100},
 	{100, 100, 100},
 	{100, 100, 100},
 	{100, 100, 100},
@@ -165,8 +188,8 @@ static void color_adj(int inp_color, int inp_val, int lpf_en,
 	if (lpf_en) {
 		for (x = 0; x < 32; x++) {
 			inp_val2 = 0;
-			for (k = 0; k < 7; k++) {
-				varargin_1 = (x + k) - 3;
+			for (k = 0; k < NUM_MATRIX_PARAM; k++) {
+				varargin_1 = (x + k) - (NUM_MATRIX_PARAM/2);
 				if (varargin_1 < 0)
 					varargin_1 = 32 - abs(varargin_1);
 
@@ -183,13 +206,15 @@ static void color_adj(int inp_color, int inp_val, int lpf_en,
 
 /**
  * [cm2_curve_update_hue description]
- *	0:purple, node 0-6, key pt as 4
- *	1:red, node 7-10, key pt as 9
- *	2: skin, node 11-14, key pt as 12
- *	3:yellow, node 15-17, key pt as 15
- *	4:green, node 18-22, key pt as 19
- *	5: cyan, node 23-28, key pt as 25
- *	6: blue, node 29-31, key pt as 29
+ *	0:purple
+ *	1:red
+ *	2: skin
+ *	3: yellow
+ *	4: yellow green
+ *	5: green
+ *	6: green blue
+ *	7: cyan
+ *	8: blue
  * @param colormode [description]
  * @param Adj_Hue_via_S[][32]  [description]
  */
@@ -200,28 +225,8 @@ static void cm2_curve_update_hue_by_hs(enum eCM2ColorMd colormode,
 	unsigned int val1[5] = {0}, val2[5] = {0};
 	int temp, reg_node1, reg_node2;
 
-	if (colormode == eCM2ColorMd_purple) {
-		start = 0;
-		end = 6;
-	} else if (colormode == eCM2ColorMd_red) {
-		start = 6;
-		end = 10;
-	} else if (colormode == eCM2ColorMd_skin) {
-		start = 10;
-		end = 14;
-	} else if (colormode == eCM2ColorMd_yellow) {
-		start = 14;
-		end = 18;
-	} else if (colormode == eCM2ColorMd_green) {
-		start = 17;
-		end = 23;
-	} else if (colormode == eCM2ColorMd_cyan) {
-		start = 23;
-		end = 28;
-	} else if (colormode == eCM2ColorMd_blue) {
-		start = 27;
-		end = 31;
-	}
+	start = color_start[colormode];
+	end = color_end[colormode];
 
 	reg_node1 = (CM2_ENH_COEF2_H00 - 0x100) % 8;
 	reg_node2 = (CM2_ENH_COEF3_H00 - 0x100) % 8;
@@ -284,28 +289,8 @@ static void cm2_curve_update_hue(enum eCM2ColorMd colormode,
 	unsigned int val1[5] = {0};
 	int temp = 0, reg_node;
 
-	if (colormode == eCM2ColorMd_purple) {
-		start = 0;
-		end = 6;
-	} else if (colormode == eCM2ColorMd_red) {
-		start = 6;
-		end = 10;
-	} else if (colormode == eCM2ColorMd_skin) {
-		start = 10;
-		end = 14;
-	} else if (colormode == eCM2ColorMd_yellow) {
-		start = 14;
-		end = 18;
-	} else if (colormode == eCM2ColorMd_green) {
-		start = 17;
-		end = 23;
-	} else if (colormode == eCM2ColorMd_cyan) {
-		start = 23;
-		end = 28;
-	} else if (colormode == eCM2ColorMd_blue) {
-		start = 27;
-		end = 31;
-	}
+	start = color_start[colormode];
+	end = color_end[colormode];
 
 	reg_node = (CM2_ENH_COEF1_H00 - 0x100) % 8;
 
@@ -334,52 +319,27 @@ static void cm2_curve_update_hue(enum eCM2ColorMd colormode,
 
 /**
  * [cm2_curve_update_luma description]
- *	0:purple, node 0-6, key pt as 4
- *	1:red, node 7-10, key pt as 9
- *	2: skin, node 11-14, key pt as 12
- *	3:yellow, node 15-17, key pt as 15
- *	4:green, node 18-22, key pt as 19
- *	5: cyan, node 23-28, key pt as 25
- *	6: blue, node 29-31, key pt as 29
+ *	0:purple
+ *	1:red
+ *	2: skin
+ *	3: yellow
+ *	4: yellow green
+ *	5: green
+ *	6: green blue
+ *	7: cyan
+ *	8: blue
  * @param colormode [description]
  * @param luma_lut  [description]
  */
 static void cm2_curve_update_luma(enum eCM2ColorMd colormode,
 						char *luma_lut)
 {
-	/*0:purple, node 0-6, key pt as 4*/
-	/*1:red, node 7-10, key pt as 9*/
-	/*2: skin, node 11-14, key pt as 12*/
-	/*3:yellow, node 15-17, key pt as 15*/
-	/*4:green, node 18-22, key pt as 19*/
-	/*5: cyan, node 23-28, key pt as 25*/
-	/*6: blue, node 29-31, key pt as 29*/
 	unsigned int i, j, start = 0, end = 0;
 	unsigned int val1[5] = {0};
 	int temp = 0, reg_node;
 
-	if (colormode == eCM2ColorMd_purple) {
-		start = 0;
-		end = 6;
-	} else if (colormode == eCM2ColorMd_red) {
-		start = 6;
-		end = 10;
-	} else if (colormode == eCM2ColorMd_skin) {
-		start = 10;
-		end = 14;
-	} else if (colormode == eCM2ColorMd_yellow) {
-		start = 14;
-		end = 18;
-	} else if (colormode == eCM2ColorMd_green) {
-		start = 17;
-		end = 23;
-	} else if (colormode == eCM2ColorMd_cyan) {
-		start = 23;
-		end = 28;
-	} else if (colormode == eCM2ColorMd_blue) {
-		start = 27;
-		end = 31;
-	}
+	start = color_start[colormode];
+	end = color_end[colormode];
 
 	reg_node = (CM2_ENH_COEF0_H00 - 0x100) % 8;
 
@@ -408,13 +368,15 @@ static void cm2_curve_update_luma(enum eCM2ColorMd colormode,
 
 /**
  * [cm2_curve_update_sat description]
- *	0:purple, node 0-6, key pt as 4
- *	1:red, node 7-10, key pt as 9
- *	2: skin, node 11-14, key pt as 12
- *	3:yellow, node 15-17, key pt as 15
- *	4:green, node 18-22, key pt as 19
- *	5: cyan, node 23-28, key pt as 25
- *	6: blue, node 29-31, key pt as 29
+ *	0:purple
+ *	1:red
+ *	2: skin
+ *	3: yellow
+ *	4: yellow green
+ *	5: green
+ *	6: green blue
+ *	7: cyan
+ *	8: blue
  * @param colormode [description]
  * @param Adj_Sat_via_HS[3][32]  [description]
  */
@@ -425,28 +387,8 @@ static void cm2_curve_update_sat(enum eCM2ColorMd colormode,
 	unsigned int val1[5] = {0};
 	int temp = 0, reg_node;
 
-	if (colormode == eCM2ColorMd_purple) {
-		start = 0;
-		end = 6;
-	} else if (colormode == eCM2ColorMd_red) {
-		start = 6;
-		end = 10;
-	} else if (colormode == eCM2ColorMd_skin) {
-		start = 10;
-		end = 14;
-	} else if (colormode == eCM2ColorMd_yellow) {
-		start = 14;
-		end = 18;
-	} else if (colormode == eCM2ColorMd_green) {
-		start = 17;
-		end = 23;
-	} else if (colormode == eCM2ColorMd_cyan) {
-		start = 23;
-		end = 28;
-	} else if (colormode == eCM2ColorMd_blue) {
-		start = 27;
-		end = 31;
-	}
+	start = color_start[colormode];
+	end = color_end[colormode];
 
 	reg_node = (CM2_ENH_COEF0_H00 - 0x100) % 8;
 

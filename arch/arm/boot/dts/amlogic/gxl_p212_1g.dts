@@ -50,6 +50,13 @@
 		#size-cells = <1>;
 		ranges;
 		/* global autoconfigured region for contiguous allocations */
+		ramoops@0x07400000 {
+			compatible = "ramoops";
+			reg = <0x07400000 0x00100000>;
+			record-size = <0x8000>;
+			console-size = <0x8000>;
+			ftrace-size = <0x40000>;
+		};
 		secmon_reserved:linux,secmon {
 			compatible = "shared-dma-pool";
 			reusable;
@@ -443,7 +450,7 @@
 				min_state = <500>;
 				dyn_coeff = <437>;
 				cluster_id = <0>;
-				node_name = "gpufreq_cool0";
+				node_name = "mali";
 				device_type = "gpufreq";
 			};
 			gpucore_cool {
@@ -458,9 +465,6 @@
 			#cooling-cells = <2>; /* min followed by max */
 		};
 		cpucore_cool0:cpucore_cool0 {
-			#cooling-cells = <2>; /* min followed by max */
-		};
-		gpufreq_cool0:gpufreq_cool0 {
 			#cooling-cells = <2>; /* min followed by max */
 		};
 		gpucore_cool0:gpucore_cool0 {
@@ -511,7 +515,7 @@
 				};
 				gpufreq_cooling_map {
 					trip = <&control>;
-					cooling-device = <&gpufreq_cool0 0 4>;
+					cooling-device = <&gpu 0 4>;
 					contribution = <1024>;
 				};
 				gpucore_cooling_map {
@@ -862,6 +866,11 @@
 			"pcm_mclk",
 			"pcm_sclk";
 		pcm_mode = <1>; /* 0=slave mode, 1=master mode */
+		dai-format = "dsp_a";
+		dai-tdm-slot-tx-mask = <1>;
+		dai-tdm-slot-rx-mask = <1>;
+		dai-tdm-slot-num = <2>;
+		dai-tdm-slot-width = <16>;
 	};
 	i2s_plat: i2s_platform {
 		compatible = "amlogic, aml-i2s";
@@ -1210,7 +1219,44 @@
 			key-permit = "read","write","del";
 		};
 	};//End unifykey
+	dvb {
+		compatible = "amlogic, dvb";
+		dev_name = "dvb";
 
+	//	fe0_mode = "external";
+	//	fe0_demod = "Atbm8881";
+	//	fe0_i2c_adap_id = <&i2c1>;
+	//	fe0_demod_i2c_addr = <0xc0>;
+	//	fe0_ts = <0>;
+	//	fe0_reset_value = <0>;
+	//	fe0_reset_gpio = <&gpio GPIODV_14 GPIO_ACTIVE_HIGH>;
+
+	//	ts0 = "parallel";
+	//	ts0_control = <0>;
+	//	ts0_invert = <0>;
+		interrupts = <0 23 1
+		0 5 1
+		0 21 1
+		0 19 1
+		0 25 1
+		0 18 1
+		0 24 1>;
+		interrupt-names = "demux0_irq",
+		"demux1_irq",
+		"demux2_irq",
+		"dvr0_irq",
+		"dvr1_irq",
+		"dvrfill0_fill",
+		"dvrfill1_flush";
+	//	pinctrl-names = "p_ts0", "s_ts0";
+	//	pinctrl-0 = <&dvb_p_ts0_pins>;
+	//	pinctrl-1 = <&dvb_s_ts0_pins>;
+		clocks = <&clkc CLKID_DEMUX
+		&clkc CLKID_ASYNC_FIFO
+		&clkc CLKID_AHB_ARB0
+		&clkc CLKID_HIU_IFACE>;
+		clock-names = "demux", "asyncfifo", "ahbarb0", "uparsertop";
+	};
 };
 &efuse {
 	status = "ok";
@@ -1223,6 +1269,7 @@
 &audio_data{
 	status = "okay";
 };
+
 &spicc{
 	status = "disabled";
 	pinctrl-names = "spicc_pulldown","spicc_pullup";

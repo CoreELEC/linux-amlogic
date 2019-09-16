@@ -35,6 +35,7 @@ extern bool super_scaler;
 #define VPP_FLAG_PORTRAIT_MODE      0x00040000
 #define VPP_FLAG_VSCALE_DISABLE     0x00080000
 #define VPP_FLAG_MORE_LOG     0x00100000
+#define VPP_FLAG_FORCE_NO_COMPRESS     0x00200000
 
 #define IDX_H           (2 << 8)
 #define IDX_V_Y         (1 << 13)
@@ -194,6 +195,8 @@ struct disp_info_s {
 
 	bool afbc_support;
 	bool pps_support;
+
+	bool need_no_compress;
 };
 
 enum select_scaler_path_e {
@@ -219,11 +222,18 @@ enum select_scaler_path_e {
 * if core1 v disable,core1 input width max=4096;
 * gxlx only have core1,txhd/g12a only have core0
 */
-#define SUPER_CORE0_WIDTH_MAX  2048
-#define SUPER_CORE1_WIDTH_MAX  4096
 #define SUPER_CORE0_SUPPORT  (1 << 0)
 #define SUPER_CORE1_SUPPORT  (1 << 1)
 
+struct sr_info_s {
+	u32 sr_support;
+	u32 core0_v_enable_width_max;
+	u32 core0_v_disable_width_max;
+	u32 core1_v_enable_width_max;
+	u32 core1_v_disable_width_max;
+	u32 sr_reg_offt;
+	u32 sr_reg_offt2;	/*for tl1*/
+};
 
 #ifdef TV_3D_FUNCTION_OPEN
 /*cmd use for 3d operation*/

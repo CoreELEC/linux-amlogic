@@ -18,17 +18,26 @@
 #ifndef __AO_CEC_H__
 #define __AO_CEC_H__
 
-
-
-#define CEC_DRIVER_VERSION	"2019/5/10:tm2 verify two ip share pinmux"
+#define CEC_DRIVER_VERSION	"2019/7/11: pretect resume received OTP again msg\n"
 
 #define CEC_FRAME_DELAY		msecs_to_jiffies(400)
 #define CEC_DEV_NAME		"cec"
 
-#define CEC_EARLY_SUSPEND	(1 << 0)
-#define CEC_DEEP_SUSPEND	(1 << 1)
 #define CEC_PHY_PORT_NUM		4
 #define HR_DELAY(n)		(ktime_set(0, n * 1000 * 1000))
+
+enum cec_chip_ver {
+	CEC_CHIP_GXL = 0,
+	CEC_CHIP_GXM,
+	CEC_CHIP_TXL,
+	CEC_CHIP_TXLX,
+	CEC_CHIP_TXHD,
+	CEC_CHIP_G12A,
+	CEC_CHIP_G12B,
+	CEC_CHIP_SM1,
+	CEC_CHIP_TL1,
+	CEC_CHIP_TM2,
+};
 
 enum cecaver {
 	/*

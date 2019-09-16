@@ -165,6 +165,10 @@ ssize_t dtb_read(struct file *file,
 		read_size = count;
 
 	ret = copy_to_user(buf, (dtb_ptr + *ppos), read_size);
+	if (ret) {
+		read_size = -EFAULT;
+		goto exit;
+	}
 	*ppos += read_size;
 exit:
 	chip->select_chip(mtd, -1);
@@ -214,6 +218,10 @@ ssize_t dtb_write(struct file *file,
 		write_size = count;
 
 	ret = copy_from_user((dtb_ptr + *ppos), buf, write_size);
+	if (ret) {
+		write_size = -EFAULT;
+		goto exit;
+	}
 
 	ret = amlnf_dtb_save(dtb_ptr, aml_chip_dtb->dtbsize);
 	if (ret) {
