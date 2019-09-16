@@ -6681,6 +6681,7 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 	struct vframe_s *cur_dispbuf_back = cur_dispbuf;
 	static  struct vframe_s *pause_vf;
 	int force_flush = 0;
+	bool di_post_process_done = false;
 	static u32 interrupt_count;
 	int ret = 0;
 	u32 next_afbc_request = atomic_read(&gAfbc_request);
@@ -8290,9 +8291,15 @@ SET_FILTER:
 					  24) | (frame_par_di_set << 16),
 					 zoom_end_x_lines, zoom_start_y_lines,
 					 zoom_end_y_lines, cur_dispbuf);
+		di_post_process_done = true;
 	}
 
  exit:
+	if (legacy_vpp &&
+	    !di_post_process_done &&
+	    (DI_POST_REG_RD(DI_POST_CTRL) & 0x100))
+		DI_POST_UPDATE_MC();
+
 #if defined(PTS_LOGGING) || defined(PTS_TRACE_DEBUG)
 		pts_trace++;
 #endif

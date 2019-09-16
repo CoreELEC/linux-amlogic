@@ -21,6 +21,7 @@
 struct di_ext_ops {
 	unsigned int (*di_post_reg_rd)(unsigned int addr);
 	int (*di_post_wr_reg_bits)(u32 adr, u32 val, u32 start, u32 len);
+	void (*post_update_mc)(void);
 };
 
 #endif	/*__DI_LOCAL_H__*/

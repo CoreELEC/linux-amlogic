@@ -462,6 +462,7 @@ static int lDI_POST_WR_REG_BITS(u32 adr, u32 val, u32 start, u32 len)
 static const struct di_ext_ops di_ext = {
 	.di_post_reg_rd             = lDI_POST_REG_RD,
 	.di_post_wr_reg_bits        = lDI_POST_WR_REG_BITS,
+	.post_update_mc		    = di_patch_post_update_mc,
 };
 
 #endif
@@ -7320,7 +7321,7 @@ static enum hrtimer_restart di_pre_hrtimer_func(struct hrtimer *timer)
 	if (!di_pre_stru.bypass_flag)
 		di_pre_trigger_work(&di_pre_stru);
 	hrtimer_forward_now(&di_pre_hrtimer, ms_to_ktime(10));
-	di_patch_post_update_mc();
+	/*di_patch_post_update_mc();*/
 	return HRTIMER_RESTART;
 }
 

@@ -26,6 +26,7 @@
 static const struct di_ext_ops di_ext = {
 	.di_post_reg_rd             = l_DI_POST_REG_RD,
 	.di_post_wr_reg_bits        = l_DI_POST_WR_REG_BITS,
+	.post_update_mc		    = NULL,
 };
 
 void dim_attach_to_local(void)
