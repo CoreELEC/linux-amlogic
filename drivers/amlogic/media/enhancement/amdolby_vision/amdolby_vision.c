@@ -3467,6 +3467,7 @@ void enable_dolby_vision(int enable)
 						0,
 						16, 1); /* core1 */
 				dolby_vision_core1_on = true;
+				pr_dolby_dbg("dolby_vision_core1_on\n");
 			} else if (dolby_vision_core1_on
 				&& (!(dolby_vision_mask & 1)
 				|| !dovi_setting_video_flag)) {
@@ -7613,17 +7614,19 @@ unsigned int dolby_vision_check_enable(void)
 			if ((READ_VPP_DV_REG(DOLBY_CORE3_DIAG_CTRL) & 0xff)
 				== 0x20) {
 				/*LL YUV422 mode*/
-				dv_mode = dv_mode_table[1];
+				dv_mode = dv_mode_table[2];
 				/*set_dolby_vision_mode(dv_mode);*/
 				dolby_vision_mode = dv_mode;
+				dolby_vision_status = DV_PROCESS;
 				dolby_vision_ll_policy = DOLBY_VISION_LL_YUV422;
 				pr_info("dovi enable in uboot and mode is LL 422\n");
 			} else if ((READ_VPP_DV_REG(DOLBY_CORE3_DIAG_CTRL)
 				& 0xff) == 0x3) {
 				/*LL RGB444 mode*/
-				dv_mode = dv_mode_table[1];
+				dv_mode = dv_mode_table[2];
 				/*set_dolby_vision_mode(dv_mode);*/
 				dolby_vision_mode = dv_mode;
+				dolby_vision_status = DV_PROCESS;
 				dolby_vision_ll_policy = DOLBY_VISION_LL_RGB444;
 				pr_info("dovi enable in uboot and mode is LL RGB\n");
 			} else {
@@ -7634,6 +7637,7 @@ unsigned int dolby_vision_check_enable(void)
 					dv_mode = dv_mode_table[3];
 					/*set_dolby_vision_mode(dv_mmde);*/
 					dolby_vision_mode = dv_mode;
+					dolby_vision_status = HDR_PROCESS;
 					pr_info("dovi enable in uboot and mode is HDR10\n");
 				} else if (READ_VPP_DV_REG(DOLBY_CORE3_REG_START
 					+ 1) == 4) {
@@ -7641,12 +7645,14 @@ unsigned int dolby_vision_check_enable(void)
 					dv_mode = dv_mode_table[4];
 					/*set_dolby_vision_mode(dv_mode);*/
 					dolby_vision_mode = dv_mode;
+					dolby_vision_status = SDR_PROCESS;
 					pr_info("dovi enable in uboot and mode is SDR\n");
 				} else {
 					/*STANDARD RGB444 mode*/
 					dv_mode = dv_mode_table[2];
 					/*set_dolby_vision_mode(dv_mode);*/
 					dolby_vision_mode = dv_mode;
+					dolby_vision_status = DV_PROCESS;
 					dolby_vision_ll_policy =
 						DOLBY_VISION_LL_DISABLE;
 					pr_info("dovi enable in uboot and mode is DV ST\n");
