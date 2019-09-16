@@ -44,7 +44,7 @@ static struct free_node_t *get_free_node(struct mtd_info *mtd)
 
 	index = find_first_zero_bit((void *)&aml_chip->freeNodeBitmask,
 				    RESERVED_BLOCK_NUM);
-	if (index > RESERVED_BLOCK_NUM) {
+	if (index >= RESERVED_BLOCK_NUM) {
 		pr_info("%s %d: index is greater than max! error",
 			__func__, __LINE__);
 		return NULL;
