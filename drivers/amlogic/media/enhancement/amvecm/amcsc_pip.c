@@ -556,8 +556,8 @@ int hdr_policy_process(
 					} else if (target_format[oth_path]
 					== BT2020_HLG) {
 						/* hdr->hlg */
-						hdr_process_mode[vd_path] =
-							PROC_HDR_TO_HLG;
+						hdr10_plus_process_mode[vd_path]
+							= PROC_HDR_TO_HLG;
 						target_format[vd_path] =
 							BT2020_HLG;
 					} else {
@@ -732,8 +732,8 @@ int hdr_policy_process(
 					} else if (target_format[oth_path]
 					== BT2020_HLG) {
 						/* hdr->hlg */
-						hdr_process_mode[vd_path] =
-							PROC_HDR_TO_HLG;
+						hdr10_plus_process_mode[vd_path]
+							= PROC_HDR_TO_HLG;
 						target_format[vd_path] =
 							BT2020_HLG;
 					} else {

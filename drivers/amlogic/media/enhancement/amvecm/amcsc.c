@@ -124,11 +124,12 @@ static ssize_t write_file_hdr_cfgosd(
 	int val;
 	char buf[20];
 	int ret = 0;
+	int cont2;
 
-	count = min_t(size_t, count, (sizeof(buf)-1));
-	if (copy_from_user(buf, userbuf, count))
+	cont2 = min_t(size_t, count, (sizeof(buf) - 1));
+	if (copy_from_user(buf, userbuf, cont2))
 		return -EFAULT;
-	buf[count] = 0;
+	buf[cont2] = 0;
 	ret = kstrtoint(buf, 0, &val);
 	if (ret != 0) {
 		pr_info("cfg_en_osd_100 do nothing!\n");
@@ -6541,6 +6542,8 @@ void update_hdr10_plus_pkt(bool enable,
 		hdr10_plus_pkt_update = HDRPLUS_PKT_UPDATE;
 		pr_csc(2, "update_hdr10_plus_pkt on\n");
 	} else {
+		if (!vdev)
+			return;
 		vdev->fresh_tx_hdr_pkt(
 			&cur_send_info);
 		vdev->fresh_tx_hdr10plus_pkt(0,
@@ -6566,6 +6569,8 @@ void send_hdr10_plus_pkt(enum vd_path_e vd_path)
 			return;
 	}
 	if (hdr10_plus_pkt_update == HDRPLUS_PKT_UPDATE) {
+		if (!vdev)
+			return;
 		vdev->fresh_tx_hdr_pkt(
 			&cur_send_info);
 		vdev->fresh_tx_hdr10plus_pkt(
@@ -6578,6 +6583,8 @@ void send_hdr10_plus_pkt(enum vd_path_e vd_path)
 		pr_csc(2, "send_hdr10_plus_pkt update\n");
 	} else if ((hdr10_plus_pkt_update == HDRPLUS_PKT_REPEAT) &&
 		(get_hdr10_plus_pkt_delay() > 1)) {
+		if (!vdev)
+			return;
 		vdev->fresh_tx_hdr_pkt(
 			&cur_send_info);
 		vdev->fresh_tx_hdr10plus_pkt(

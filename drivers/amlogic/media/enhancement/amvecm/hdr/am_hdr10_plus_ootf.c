@@ -729,8 +729,7 @@ uint64_t curveX[POINTS], curveY[POINTS];
 
 int hdr10_plus_ootf_gen(void)
 {
-	int referenceCurve_flag = 1;
-
+	/*int referenceCurve_flag = 1;*/
 	int order, i;
 	uint64_t Kx, Ky;
 	uint64_t  AnchorY[15];
@@ -753,15 +752,7 @@ int hdr10_plus_ootf_gen(void)
 		HDR_MAX
 	};
 
-	int productPeak = 700;
-
-/*	for (i = 0; i < POINTS; i++) {
- *	curveX[i] = 0;
- *  curveY[i] = 0;
- *	gain[i]   = 0;
- *	gain_ter[i] = 0;
- *	}
- */
+	int productpeak = 700;
 
 	memset(curveX,   0, sizeof(uint64_t) * POINTS);
 	memset(curveY,   0, sizeof(uint64_t) * POINTS);
@@ -772,6 +763,7 @@ int hdr10_plus_ootf_gen(void)
 
 	/* the final tv OOTF curve params init*/
 	EBZCurveParametersInit(&productBezierParams);
+
 	/* the bezier parameters from metadata init*/
 	EBZCurveParametersInit(&referenceBezierParams);
 
@@ -780,18 +772,23 @@ int hdr10_plus_ootf_gen(void)
 
 	/*step 1. get metadata from vframe*/
 	MetaDataInit(&metadata, &hdr10_plus_sei);
+
 	/*step 2. get bezier params from metadata*/
 	getMetaData(&metadata, &referenceBezierParams);
+
 	/*step 3. gen final guided OOTF*/
-	if (referenceCurve_flag == 0)
+	/*if (referenceCurve_flag == 0)*/
 		/* Basis OOTF : Direct calculation of product TM curve from*/
 		/*ST-2094 percentile metadata */
-		basisOOTF(&metadata, &basisOOTF_Params, productPeak,
+		/*basisOOTF(&metadata, &basisOOTF_Params, productPeak,*/
 		/* here  length(minBezierParams->Anchor) =order*/
-		metadata.maxSceneSourceLuminance, &productBezierParams);
-	else
-		GuidedOOTF(&metadata, &basisOOTF_Params, &referenceBezierParams,
-			productPeak, &productBezierParams);
+		/*metadata.maxSceneSourceLuminance, &productBezierParams);*/
+	/*else*/
+
+	GuidedOOTF(
+		&metadata, &basisOOTF_Params,
+		&referenceBezierParams, productpeak,
+		&productBezierParams);
 
 	/*step 4. get guided bezier params*/
 	Kx    = (uint64_t)productBezierParams.Sx;
