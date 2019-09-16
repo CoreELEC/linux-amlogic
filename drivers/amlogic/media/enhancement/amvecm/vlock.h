@@ -23,7 +23,7 @@
 #include <linux/amlogic/media/vfm/vframe.h>
 #include "linux/amlogic/media/amvecm/ve.h"
 
-#define VLOCK_VER "Ref.2019/8/18:vlock for double frq out"
+#define VLOCK_VER "Ref.2019/9/17:log level 3 enc mode not work properly"
 
 #define VLOCK_REG_NUM	33
 
