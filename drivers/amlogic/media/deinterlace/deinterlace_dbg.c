@@ -475,8 +475,10 @@ void dump_di_pre_stru(struct di_pre_stru_s *di_pre_stru_p)
 		di_pre_stru_p->unreg_req_flag_irq);
 	pr_info("reg_req_flag		   = %d\n",
 		di_pre_stru_p->reg_req_flag);
+	#ifdef DI_KEEP_HIS
 	pr_info("reg_req_flag_irq		   = %d\n",
 		di_pre_stru_p->reg_req_flag_irq);
+	#endif
 	pr_info("cur_width			   = %d\n",
 		di_pre_stru_p->cur_width);
 	pr_info("cur_height			   = %d\n",
@@ -547,8 +549,10 @@ static int dump_di_pre_stru_seq(struct seq_file *seq, void *v)
 		di_pre_stru_p->unreg_req_flag_irq);
 	seq_printf(seq, "%-25s = %d\n", "reg_req_flag",
 		di_pre_stru_p->reg_req_flag);
+	#ifdef DI_KEEP_HIS
 	seq_printf(seq, "%-25s = %d\n", "reg_req_flag_irq",
 		di_pre_stru_p->reg_req_flag_irq);
+	#endif
 	seq_printf(seq, "%-25s = %d\n", "cur_width",
 		di_pre_stru_p->cur_width);
 	seq_printf(seq, "%-25s = %d\n", "cur_height",

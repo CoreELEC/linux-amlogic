@@ -6994,7 +6994,7 @@ static void di_reg_process_irq(void)
 		di_pre_stru.retry_index = 0;
 
 		init_flag = 1;
-		di_pre_stru.reg_req_flag_irq = 1;
+		/*di_pre_stru.reg_req_flag_irq = 1;*/
 	}
 	di_pre_stru.reg_irq_busy = false;
 }
@@ -7209,11 +7209,11 @@ static int di_task_handle(void *data)
 			}
 				#endif
 		}
-		if (di_pre_stru.reg_req_flag_irq ||
+		if (/*di_pre_stru.reg_req_flag_irq ||*/
 		    di_pre_stru.reg_req_flag) {
 			di_reg_process();
 			di_pre_stru.reg_req_flag = 0;
-			di_pre_stru.reg_req_flag_irq = 0;
+			/*di_pre_stru.reg_req_flag_irq = 0;*/
 		}
 		#ifdef CONFIG_CMA
 		/* mutex_lock(&de_devp->cma_mutex);*/
@@ -7282,7 +7282,7 @@ static void di_pre_process_irq(struct di_pre_stru_s *pre_stru_p)
 		if (pre_stru_p->unreg_req_flag_irq &&
 			(di_pre_stru.pre_de_busy == 0))
 			di_unreg_process_irq();
-		if (init_flag == 0 && pre_stru_p->reg_req_flag_irq == 0
+		if (init_flag == 0 /*&& pre_stru_p->reg_req_flag_irq == 0*/
 			&& (!atomic_read(&di_flag_unreg)))
 			di_reg_process_irq();
 	}
