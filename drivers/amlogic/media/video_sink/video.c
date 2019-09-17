@@ -530,6 +530,9 @@ static unsigned int videopip_drop_vf_cnt;
 MODULE_PARM_DESC(videopip_drop_vf_cnt, "\n videopip_drop_vf_cnt\n");
 module_param(videopip_drop_vf_cnt, uint, 0664);
 
+static unsigned int disable_dv_drop;
+MODULE_PARM_DESC(disable_dv_drop, "\n disable_dv_drop\n");
+module_param(disable_dv_drop, uint, 0664);
 
 enum toggle_out_fl_frame_e {
 	OUT_FA_A_FRAME,
@@ -6166,7 +6169,8 @@ static int dolby_vision_drop_frame(void)
 	vf = video_vf_get();
 
 	if (debug_flag & DEBUG_FLAG_OMX_DV_DROP_FRAME)
-		pr_info("drop vf %p, index %d\n", vf, vf->omx_index);
+		pr_info("drop vf %p, index %d, pts %d\n",
+			vf, vf->omx_index, vf->pts);
 
 	dolby_vision_update_metadata(vf, true);
 	video_vf_put(vf);
@@ -6830,7 +6834,8 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 					omx_drop_done = true;
 					pr_info("dolby vision drop done\n");
 					break;
-				}
+				} else
+					break;
 			} else {
 				break;
 			}
@@ -7498,7 +7503,7 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 			    && is_dolby_vision_enable()) {
 				toggle_vf = pause_vf;
 				dolby_vision_parse_metadata(
-					cur_dispbuf, 2, false);
+					cur_dispbuf, 2, false, false);
 				dolby_vision_set_toggle_flag(1);
 				//use previous setting
 				//pr_info("DOLBY: pause frame %p\n", toggle_vf);
@@ -7655,7 +7660,7 @@ SET_FILTER:
 			&& get_video_enabled()) {
 			toggle_vf = cur_dispbuf;
 			dolby_vision_parse_metadata(
-				toggle_vf, 2, false);
+				toggle_vf, 2, false, false);
 			dolby_vision_set_toggle_flag(1);
 			//pr_info("DOLBY: keep frame %p", toggle_vf);
 		}
@@ -7669,7 +7674,7 @@ SET_FILTER:
 			&& !for_dolby_vision_certification()) {
 			toggle_vf = cur_dispbuf;
 			dolby_vision_parse_metadata(
-				cur_dispbuf, 0, false);
+				cur_dispbuf, 0, false, false);
 			dolby_vision_set_toggle_flag(1);
 		}
 #endif
@@ -9653,6 +9658,13 @@ static void set_omx_pts(u32 *p)
 						frame_num);
 				dovi_drop_flag = true;
 				dovi_drop_frame_num = frame_num;
+
+				if (disable_dv_drop) {
+					omx_run = true;
+					dovi_drop_flag = false;
+					dovi_drop_frame_num = 0;
+					omx_drop_done = true;
+				}
 				break;
 			}
 #endif
