@@ -3842,25 +3842,29 @@ void pulldown_vof_win_config(struct pulldown_detected_s *wins)
 		(wins->regs[0].win_ve > wins->regs[0].win_vs)
 		? 1 : 0, 16, 1);
 	DI_VSYNC_WR_MPEG_REG_BITS(DI_BLEND_CTRL,
-		wins->regs[0].blend_mode, 8, 2);
+		/*wins->regs[0].blend_mode*/
+				  0x03, 8, 2);
 
 	DI_VSYNC_WR_MPEG_REG_BITS(DI_BLEND_CTRL,
 		(wins->regs[1].win_ve > wins->regs[1].win_vs)
 		? 1 : 0, 17, 1);
 	DI_VSYNC_WR_MPEG_REG_BITS(DI_BLEND_CTRL,
-		wins->regs[1].blend_mode, 10, 2);
+		/*wins->regs[1].blend_mode*/
+				  0x03, 10, 2);
 
 	DI_VSYNC_WR_MPEG_REG_BITS(DI_BLEND_CTRL,
 		(wins->regs[2].win_ve > wins->regs[2].win_vs)
 		? 1 : 0, 18, 1);
 	DI_VSYNC_WR_MPEG_REG_BITS(DI_BLEND_CTRL,
-		wins->regs[2].blend_mode, 12, 2);
+		/*wins->regs[2].blend_mode*/
+				  0x03, 12, 2);
 
 	DI_VSYNC_WR_MPEG_REG_BITS(DI_BLEND_CTRL,
 		(wins->regs[3].win_ve > wins->regs[3].win_vs)
 		? 1 : 0, 19, 1);
 	DI_VSYNC_WR_MPEG_REG_BITS(DI_BLEND_CTRL,
-		wins->regs[3].blend_mode, 14, 2);
+		/*wins->regs[3].blend_mode*/
+					  0x03, 14, 2);
 }
 
 
