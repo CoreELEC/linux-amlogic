@@ -51,6 +51,7 @@
 #include <linux/pm_wakeup.h>
 #include <linux/pm_wakeirq.h>
 #include <linux/pm.h>
+#include <linux/poll.h>
 #include <linux/amlogic/media/frame_provider/tvin/tvin.h>
 #include <linux/amlogic/media/vout/hdmi_tx/hdmi_tx_cec_20.h>
 #include <linux/amlogic/media/vout/hdmi_tx/hdmi_tx_module.h>
@@ -67,6 +68,8 @@
 
 #define HR_DELAY(n)		(ktime_set(0, n * 1000 * 1000))
 #define MAX_INT    0x7ffffff
+
+DECLARE_WAIT_QUEUE_HEAD(cec_msg_wait_queue);
 
 #ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
 static struct early_suspend aocec_suspend_handler;
@@ -599,8 +602,9 @@ void cecb_irq_handle(void)
 	if ((intr_cec & CEC_IRQ_RX_EOM) || lock) {
 		cecb_pick_msg(rx_msg, &rx_len);
 		CEC_INFO_L(L_2, "irqflg:RX_EOM\n");
-		complete(&cec_dev->rx_ok);
-		new_msg = 1;
+		/*complete(&cec_dev->rx_ok);*/
+		/*new_msg = 1;*/
+		cec_new_msg_push();
 		dwork = &cec_dev->cec_work;
 		mod_delayed_work(cec_dev->cec_thread, dwork, 0);
 	}
@@ -2326,9 +2330,9 @@ static void ceca_tasklet_pro(unsigned long arg)
 		if ((-1) == ceca_rx_irq_handle(rx_msg, &rx_len))
 			return;
 
-		complete(&cec_dev->rx_ok);
-		/* check rx buffer is full */
-		new_msg = 1;
+		/*complete(&cec_dev->rx_ok);*/
+		/*new_msg = 1;*/
+		cec_new_msg_push();
 		mod_delayed_work(cec_dev->cec_thread, dwork, 0);
 	}
 }
@@ -2938,6 +2942,7 @@ static ssize_t hdmitx_cec_read(struct file *f, char __user *buf,
 		return 0;
 	}
 
+	new_msg = 0;
 	/*CEC_ERR("read msg end\n");*/
 	if (copy_to_user(buf, rx_msg, rx_len))
 		return -EINVAL;
@@ -3381,6 +3386,30 @@ static long hdmitx_cec_compat_ioctl(struct file *f,
 }
 #endif
 
+/*
+ * For android framework check new message
+ */
+static unsigned int cec_poll(struct file *filp, poll_table *wait)
+{
+	unsigned int mask = 0;
+
+	poll_wait(filp, &cec_msg_wait_queue, wait);
+	if (new_msg)
+		mask |= POLLIN | POLLRDNORM;
+
+	return mask;
+}
+
+/*
+ * cec new message wait queue - wake up poll process
+ */
+void cec_new_msg_push(void)
+{
+	complete(&cec_dev->rx_ok);
+	new_msg = 1;
+	wake_up(&cec_msg_wait_queue);
+}
+
 /* for improve rw permission */
 static char *aml_cec_class_devnode(struct device *dev, umode_t *mode)
 {
@@ -3406,6 +3435,7 @@ static const struct file_operations hdmitx_cec_fops = {
 	.write          = hdmitx_cec_write,
 	.release        = hdmitx_cec_release,
 	.unlocked_ioctl = hdmitx_cec_ioctl,
+	.poll		= cec_poll,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl   = hdmitx_cec_compat_ioctl,
 #endif
