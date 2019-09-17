@@ -3039,7 +3039,8 @@ void osd_set_free_scale_enable_hw(u32 index, u32 enable)
 			height_src = osd_hw.free_src_data[index].y_end -
 				osd_hw.free_src_data[index].y_start + 1;
 			if (height_dst != height_src &&
-				osd_hw.free_dst_data[index].y_end < 2159)
+				osd_hw.free_dst_data[index].y_end <
+						osd_hw.vinfo_height[index] - 1)
 				osd_set_dummy_data(index, 0);
 			else
 				osd_set_dummy_data(index, 0xff);
@@ -3216,7 +3217,7 @@ void osd_set_window_axis_hw(u32 index, s32 x0, s32 y0, s32 x1, s32 y1)
 	osd_hw.dst_data[index].w = x1 - x0 + 1;
 	osd_hw.dst_data[index].h = y1 - y0 + 1;
 
-	if (osd_hw.free_dst_data[index].y_end >= 2159)
+	if (osd_hw.free_dst_data[index].y_end >= osd_hw.vinfo_height[index] - 1)
 		osd_set_dummy_data(index, 0xff);
 	osd_update_window_axis = true;
 	if (osd_hw.hwc_enable[output_index] &&
@@ -4438,7 +4439,8 @@ static bool osd_direct_compose_pan_display(struct osd_fence_map_s *fence_map)
 
 			if (((height_dst != height_src) ||
 				(width_dst != width_src)) &&
-				osd_hw.free_dst_data[index].y_end < 2159)
+				osd_hw.free_dst_data[index].y_end <
+						osd_hw.vinfo_height[index] - 1)
 				osd_set_dummy_data(index, 0);
 			else
 				osd_set_dummy_data(index, 0xff);
@@ -7079,7 +7081,8 @@ static void osd_set_freescale(u32 index,
 	if ((osd_hw.osd_meson_dev.cpu_id ==
 		__MESON_CPU_MAJOR_ID_G12A) &&
 		(height != src_height) &&
-		osd_hw.free_dst_data[index].y_end < 2159)
+		osd_hw.free_dst_data[index].y_end <
+					osd_hw.vinfo_height[index] - 1)
 		osd_set_dummy_data(index, 0);
 	else
 		osd_set_dummy_data(index, 0xff);
@@ -8737,7 +8740,8 @@ static bool set_old_hwc_freescale(u32 index)
 	height_src = osd_hw.free_src_data[index].y_end -
 			osd_hw.free_src_data[index].y_start + 1;
 	if (height_dst != height_src &&
-		osd_hw.free_dst_data[index].y_end < 2159)
+		osd_hw.free_dst_data[index].y_end <
+					osd_hw.vinfo_height[index] - 1)
 		osd_set_dummy_data(index, 0);
 	else
 		osd_set_dummy_data(index, 0xff);
@@ -10788,7 +10792,8 @@ static bool osd_direct_render(struct osd_plane_map_s *plane_map)
 
 			if (((height_dst != height_src) ||
 				(width_dst != width_src)) &&
-				osd_hw.free_dst_data[index].y_end < 2159)
+				osd_hw.free_dst_data[index].y_end <
+						osd_hw.vinfo_height[index] - 1)
 				osd_set_dummy_data(index, 0);
 			else
 				osd_set_dummy_data(index, 0xff);
