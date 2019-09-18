@@ -70,16 +70,20 @@ int aml_regmap_update_bits(u32 bus_type,
 					unsigned int reg, unsigned int mask,
 					unsigned int val)
 {
-	if (bus_type < IO_BUS_MAX && (meson_reg_map[bus_type] != NULL)) {
-		unsigned int tmp, orig;
+	int ret = 0;
+	unsigned int tmp, orig;
 
-		aml_reg_read(bus_type, reg, &orig);
-		tmp = orig & ~mask;
-		tmp |= val & mask;
-		aml_reg_write(bus_type, reg, tmp);
-		return 0;
-	} else
-		return -1;
+	ret = aml_reg_read(bus_type, reg, &orig);
+	if (ret) {
+		pr_err("read bus reg %x error %d\n", reg, ret);
+		return ret;
+	}
+	tmp = orig & ~mask;
+	tmp |= val & mask;
+	ret = aml_reg_write(bus_type, reg, tmp);
+	if (ret)
+		pr_err("write bus reg %x error %d\n", reg, ret);
+	return ret;
 }
 EXPORT_SYMBOL(aml_regmap_update_bits);
 
