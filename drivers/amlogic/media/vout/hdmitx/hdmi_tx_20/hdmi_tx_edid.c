@@ -1702,7 +1702,8 @@ static int hdmitx_edid_block_parse(struct hdmitx_dev *hdmitx_device,
 				switch (ext_tag) {
 				case EXTENSION_VENDOR_SPECIFIC:
 					t = &blockbuf[offset];
-					Edid_ParsingVendSpec(prxcap, t);
+					if (!hdmitx_device->hdr_priority)
+						Edid_ParsingVendSpec(prxcap, t);
 					break;
 				case EXTENSION_COLORMETRY_TAG:
 					prxcap->colorimetry_data =

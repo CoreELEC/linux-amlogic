@@ -476,6 +476,7 @@ struct hdmitx_dev {
 	unsigned int flag_3dss:1;
 	unsigned int dongle_mode:1;
 	unsigned int cedst_en:1; /* configure in DTS */
+	unsigned int hdr_priority:1;
 	unsigned int drm_feature;/*Direct Rander Management*/
 };
 

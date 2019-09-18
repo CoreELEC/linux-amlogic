@@ -2889,7 +2889,7 @@ static ssize_t show_dv_cap(struct device *dev,
 	int i;
 	const struct dv_info *dv = &hdmitx_device.rxcap.dv_info;
 
-	if (dv->ieeeoui != DV_IEEE_OUI) {
+	if (dv->ieeeoui != DV_IEEE_OUI || hdmitx_device.hdr_priority) {
 		pos += snprintf(buf + pos, PAGE_SIZE,
 			"The Rx don't support DolbyVision\n");
 		return pos;
@@ -4144,6 +4144,14 @@ static void hdmitx_get_edid(struct hdmitx_dev *hdev)
 	hdmitx_edid_clear(hdev);
 	hdmitx_edid_parse(hdev);
 	hdmitx_edid_buf_compare_print(hdev);
+
+	if (hdev->hdr_priority) { /* clear dv_info */
+		struct dv_info *dv = &hdev->rxcap.dv_info;
+
+		memset(dv, 0, sizeof(struct dv_info));
+		pr_info("clear dv_info\n");
+	}
+
 	mutex_unlock(&getedid_mutex);
 }
 
@@ -5339,3 +5347,15 @@ static int __init hdmitx_boot_frac_rate(char *str)
 }
 
 __setup("frac_rate_policy=", hdmitx_boot_frac_rate);
+
+static int __init hdmitx_boot_hdr_priority(char *str)
+{
+	if (strncmp("1", str, 1) == 0) {
+		hdmitx_device.hdr_priority = 1;
+		pr_info("hdmitx boot hdr_priority: 1\n");
+	}
+	return 0;
+}
+
+__setup("hdr_priority=", hdmitx_boot_hdr_priority);
+
