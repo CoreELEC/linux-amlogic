@@ -28,6 +28,8 @@
 //#define HDR2_MODULE
 //#define HDR2_PRINT
 
+int use_rgb_to_yuv = -1;
+
 #ifndef HDR2_MODULE
 
 // sdr to hdr table  12bit
@@ -1998,12 +2000,34 @@ void hdr_func(enum hdr_module_sel module_sel,
 	} else
 		return;
 #endif
+
+	if (!cpu_after_eq(MESON_CPU_MAJOR_ID_SM1)) {
+		// Print dump of possible register for autodetect of
+		// the 'close osd matrix' patch in the bootloader.
+		pr_info("1A2B com register: %08x\n", READ_VPP_REG(0x1A2B));
+		pr_info("1A4B com register: %08x\n", READ_VPP_REG(0x1A4B));
+		pr_info("1A4C com register: %08x\n", READ_VPP_REG(0x1A4C));
+		pr_info("1C32 com register: %08x\n", READ_VPP_REG(0x1C32));
+		pr_info("1C34 com register: %08x\n", READ_VPP_REG(0x1C34));
+		pr_info("1C3D com register: %08x\n", READ_VPP_REG(0x1C3D));
+
+		// Read register to find out if the bootloader is including
+		// the 'close osd matrix' patch.
+		// The register got found by trial & error and may need
+		// to be adjusted in future.
+		if (use_rgb_to_yuv == -1)
+			use_rgb_to_yuv = READ_VPP_REG_BITS(0x1A2B, 8, 1);
+	}
+	else
+		use_rgb_to_yuv = 1;
+
 	/*mtx parameters*/
 	if (hdr_process_select & (HDR_BYPASS | HLG_BYPASS)) {
 		hdr_mtx_param.mtx_only = HDR_ONLY;
 		/*for g12a/g12b osd blend shift rtl bug*/
 		if ((is_meson_g12a_cpu() ||
 			(is_meson_g12b_cpu() && is_meson_rev_a())) &&
+			use_rgb_to_yuv &&
 			(module_sel & OSD1_HDR)) {
 			for (i = 0; i < 15; i++) {
 				hdr_mtx_param.mtx_in[i] = bypass_coeff[i];
@@ -2029,6 +2053,7 @@ void hdr_func(enum hdr_module_sel module_sel,
 		} else if ((is_meson_sm1_cpu() ||
 			is_meson_tl1_cpu() ||
 			(is_meson_g12b_cpu() && is_meson_rev_b())) &&
+			use_rgb_to_yuv &&
 			(module_sel & OSD1_HDR)) {
 			/*for rtl bug osd1 green line at the bottom*/
 			for (i = 0; i < 15; i++) {
@@ -2115,6 +2140,7 @@ void hdr_func(enum hdr_module_sel module_sel,
 			is_meson_tl1_cpu() ||
 			is_meson_g12b_cpu() ||
 			is_meson_g12a_cpu()) &&
+			use_rgb_to_yuv &&
 			(module_sel & OSD1_HDR)) {
 			/*for rtl bug osd1 green line at the bottom*/
 			for (i = 0; i < 15; i++) {
@@ -2189,6 +2215,7 @@ void hdr_func(enum hdr_module_sel module_sel,
 			is_meson_tl1_cpu() ||
 			is_meson_g12b_cpu() ||
 			is_meson_g12a_cpu()) &&
+			use_rgb_to_yuv &&
 			(module_sel & OSD1_HDR)) {
 			/*for rtl bug osd1 green line at the bottom*/
 			for (i = 0; i < 15; i++) {
@@ -2367,3 +2394,13 @@ void enable_osd1_mtx(unsigned int en)
 		VSYNC_WR_MPEG_REG_BITS(OSD1_HDR2_MATRIXI_EN_CTRL, en, 0, 1);
 }
 EXPORT_SYMBOL(enable_osd1_mtx);
+
+static int __init override_use_rgb_to_yuv_autodetect(char *str)
+{
+	if (kstrtoul(str, 16, (unsigned long *)&use_rgb_to_yuv) == 0)
+		pr_info("AMVECM: override 'use_rgb_to_yuv' autodetect: %d\n",
+			use_rgb_to_yuv);
+
+	return 0;
+}
+__setup("use_rgb_to_yuv=", override_use_rgb_to_yuv_autodetect);
