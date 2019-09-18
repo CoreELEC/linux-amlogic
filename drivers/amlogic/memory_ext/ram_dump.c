@@ -467,21 +467,22 @@ static int __init ramdump_probe(struct platform_device *pdev)
 			WARN_ON(!ram->mnt_buf);
 		}
 		schedule_delayed_work(&ram->work, 1);
-	}
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
-					   "PREG_STICKY_REG8");
-	if (res) {
-		base = devm_ioremap(&pdev->dev, res->start,
-						res->end - res->start);
-		if (!base) {
-			pr_err("%s, map reg failed\n", __func__);
-			goto err;
+		/* if ramdump is disabled in env, no need to set sticky reg */
+		res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
+						   "PREG_STICKY_REG8");
+		if (res) {
+			base = devm_ioremap(&pdev->dev, res->start,
+					    res->end - res->start);
+			if (!base) {
+				pr_err("%s, map reg failed\n", __func__);
+				goto err;
+			}
+			dump_set = readl(base);
+			dump_set &= ~RAMDUMP_STICKY_DATA_MASK;
+			dump_set |= ((total_mem >> 20) | AMLOGIC_KERNEL_BOOTED);
+			writel(dump_set, base);
+			pr_info("%s, set sticky to %x\n", __func__, dump_set);
 		}
-		dump_set = readl(base);
-		dump_set &= ~RAMDUMP_STICKY_DATA_MASK;
-		dump_set |= ((total_mem >> 20) | AMLOGIC_KERNEL_BOOTED);
-		writel(dump_set, base);
-		pr_info("%s, set sticky to %x\n", __func__, dump_set);
 	}
 	return 0;
 
