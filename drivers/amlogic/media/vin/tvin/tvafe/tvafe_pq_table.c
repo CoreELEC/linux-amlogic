@@ -340,7 +340,7 @@ static struct tvafe_reg_table_s cvbs_ntscm_table_tl1[] = {
 	{CVD2_REG_87, 0xc0, 0xc0},
 	{CVD2_REG_FA, 0x00, 0xa0},
 	/*set for wipe off vertical stripes*/
-	{ACD_REG_25, 0xeafb4e8e, 0xffffffff},
+	{ACD_REG_25, 0x00e941a8, 0xffffffff},
 	{0xffffffff, 0, 0},
 };
 
@@ -365,7 +365,7 @@ static struct tvafe_reg_table_s cvbs_pali_table_tl1[] = {
 	{ACD_REG_8A, 0x100004, 0xffffffff},
 	{ACD_REG_8C, 0x38000, 0xffffffff},
 	/*set for wipe off vertical stripes*/
-	{ACD_REG_25, 0xeafb4e8e, 0xffffffff},
+	{ACD_REG_25, 0x00e941a8, 0xffffffff},
 	{0xffffffff, 0, 0},
 };
 
