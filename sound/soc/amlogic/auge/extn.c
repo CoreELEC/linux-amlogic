@@ -682,8 +682,10 @@ static int arc_get_src(
 	struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
-	struct extn *p_extn = dev_get_drvdata(component->dev);
+	struct extn *p_extn = snd_kcontrol_chip(kcontrol);
+
+	if (!p_extn)
+		return 0;
 
 	ucontrol->value.integer.value[0] = p_extn->arc_src;
 
@@ -694,8 +696,10 @@ static int arc_set_src(
 	struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
-	struct extn *p_extn = dev_get_drvdata(component->dev);
+	struct extn *p_extn = snd_kcontrol_chip(kcontrol);
+
+	if (!p_extn)
+		return 0;
 
 	p_extn->arc_src = ucontrol->value.integer.value[0];
 
@@ -708,8 +712,10 @@ static int arc_get_enable(
 	struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
-	struct extn *p_extn = dev_get_drvdata(component->dev);
+	struct extn *p_extn = snd_kcontrol_chip(kcontrol);
+
+	if (!p_extn)
+		return 0;
 
 	ucontrol->value.integer.value[0] = p_extn->arc_en;
 
@@ -720,8 +726,10 @@ static int arc_set_enable(
 	struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
-	struct extn *p_extn = dev_get_drvdata(component->dev);
+	struct extn *p_extn = snd_kcontrol_chip(kcontrol);
+
+	if (!p_extn)
+		return 0;
 
 	p_extn->arc_en = ucontrol->value.integer.value[0];
 
@@ -737,6 +745,9 @@ static int frhdmirx_get_mode(
 	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct extn *p_extn = dev_get_drvdata(component->dev);
 
+	if (!p_extn)
+		return 0;
+
 	ucontrol->value.integer.value[0] = p_extn->hdmirx_mode;
 
 	return 0;
@@ -748,6 +759,9 @@ static int frhdmirx_set_mode(
 {
 	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct extn *p_extn = dev_get_drvdata(component->dev);
+
+	if (!p_extn)
+		return 0;
 
 	p_extn->hdmirx_mode = ucontrol->value.integer.value[0];
 
@@ -820,6 +834,9 @@ static int hdmirx_audio_type_get_enum(
 	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct extn *p_extn = dev_get_drvdata(component->dev);
 
+	if (!p_extn)
+		return 0;
+
 	ucontrol->value.enumerated.item[0] =
 		hdmiin_check_audio_type(p_extn);
 
@@ -848,7 +865,7 @@ static int extn_create_controls(struct snd_card *card,
 
 	for (i = 0; i < DYNC_KCNTL_CNT; i++) {
 		p_extn->controls[i] =
-			snd_ctl_new1(&extn_arc_controls[i], NULL);
+			snd_ctl_new1(&extn_arc_controls[i], p_extn);
 		err = snd_ctl_add(card, p_extn->controls[i]);
 		if (err < 0)
 			goto __error;
@@ -1000,10 +1017,10 @@ static int extn_platform_probe(struct platform_device *pdev)
 	/* Default: PAO mode */
 	p_extn->hdmirx_mode = 1;
 
-	ret = snd_soc_register_component(&pdev->dev,
-				&extn_component,
-				extn_dai,
-				ARRAY_SIZE(extn_dai));
+	ret = devm_snd_soc_register_component(&pdev->dev,
+					      &extn_component,
+					      extn_dai,
+					      ARRAY_SIZE(extn_dai));
 	if (ret) {
 		dev_err(&pdev->dev,
 			"snd_soc_register_component failed\n");
