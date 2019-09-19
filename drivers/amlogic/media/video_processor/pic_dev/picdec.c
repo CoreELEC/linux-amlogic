@@ -278,8 +278,8 @@ static int render_frame(struct ge2d_context_s *context,
 	dev->p2p_mode = p2p_mode;
 	switch (dev->p2p_mode) {
 	case 0:
-		if ((input->frame_width < dev->disp_width) &&
-		(input->frame_height < dev->disp_height)) {
+		if ((input->frame_width <= dev->disp_width) &&
+		    (input->frame_height <= dev->disp_height)) {
 			dev->target_width = input->frame_width;
 			dev->target_height = input->frame_height;
 		} else {
@@ -290,8 +290,8 @@ static int render_frame(struct ge2d_context_s *context,
 		new_vf->height = dev->target_height;
 		break;
 	case 1:
-		if ((input->frame_width < dev->disp_width) &&
-		(input->frame_height < dev->disp_height)) {
+		if ((input->frame_width <= dev->disp_width) &&
+		    (input->frame_height <= dev->disp_height)) {
 			dev->target_width = input->frame_width;
 			dev->target_height = input->frame_height;
 		} else {
@@ -395,8 +395,8 @@ static int render_frame_block(void)
 	dev->p2p_mode = p2p_mode;
 	switch (dev->p2p_mode) {
 	case 0:
-		if ((input->frame_width < dev->disp_width) &&
-		(input->frame_height < dev->disp_height)) {
+		if ((input->frame_width <= dev->disp_width) &&
+		    (input->frame_height <= dev->disp_height)) {
 			dev->target_width = input->frame_width;
 			dev->target_height = input->frame_height;
 		} else {
@@ -407,8 +407,8 @@ static int render_frame_block(void)
 		new_vf->height = dev->target_height;
 		break;
 	case 1:
-		if ((input->frame_width < dev->disp_width) &&
-		(input->frame_height < dev->disp_height)) {
+		if ((input->frame_width <= dev->disp_width) &&
+		    (input->frame_height <= dev->disp_height)) {
 			dev->target_width = input->frame_width;
 			dev->target_height = input->frame_height;
 		} else {
