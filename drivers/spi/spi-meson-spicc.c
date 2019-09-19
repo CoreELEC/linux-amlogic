@@ -555,9 +555,9 @@ static void meson_spicc_setup_xfer(struct meson_spicc_device *spicc,
 	meson_spicc_auto_io_delay(spicc);
 
 	spicc->using_dma = 0;
-	if ((xfer->bits_per_word == 64)
-	    && (spicc->message->is_dma_mapped
-		|| !meson_spicc_dma_map(spicc, xfer))) {
+	if (spicc->message->is_dma_mapped ||
+	    ((xfer->bits_per_word == 64) &&
+	     !meson_spicc_dma_map(spicc, xfer))) {
 		spicc->using_dma = 1;
 		writel_relaxed(xfer->tx_dma, spicc->base + SPICC_DRADDR);
 		writel_relaxed(xfer->rx_dma, spicc->base + SPICC_DWADDR);
@@ -584,6 +584,9 @@ static int meson_spicc_transfer_one(struct spi_master *master,
 	/* Pre-calculate word size */
 	spicc->bytes_per_word =
 	   DIV_ROUND_UP(spicc->xfer->bits_per_word, 8);
+
+	if (spicc->message->is_dma_mapped)
+		spicc->bytes_per_word = 8;
 
 	if (xfer->len % spicc->bytes_per_word)
 		return -EINVAL;
