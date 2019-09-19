@@ -7199,7 +7199,7 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 	}
 
 	/* setting video display property in underflow mode */
-	if ((!vf) && cur_dispbuf && (video_property_changed))
+	if ((!vf || hold_video) && cur_dispbuf && (video_property_changed))
 		vsync_toggle_frame(cur_dispbuf, __LINE__);
 
 	/*debug info for skip & repeate vframe case*/
@@ -7219,6 +7219,7 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 	} else {
 		ATRACE_COUNTER("underflow",  0);
 	}
+
 	video_get_vf_cnt = 0;
 	if (platform_type == 1) {
 		/* toggle_3d_fa_frame*/
