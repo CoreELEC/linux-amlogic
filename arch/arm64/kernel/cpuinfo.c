@@ -113,6 +113,36 @@ static int c_show(struct seq_file *m, void *v)
 	bool compat = personality(current->personality) == PER_LINUX32;
 #ifdef CONFIG_AMLOGIC_CPU_INFO
 	unsigned char chipid[CHIPID_LEN];
+	unsigned int meson_major, meson_minor, meson_pack;
+	const char *meson_name;
+	static const struct meson_package_id {
+		const char *name;
+		unsigned int major_id;
+		unsigned int pack_id;
+		unsigned int pack_mask;
+	} meson_packages[] = {
+		{ "S905", MESON_CPU_MAJOR_ID_GXBB, 0x0, 0x20 },
+		{ "S905H", MESON_CPU_MAJOR_ID_GXBB, 0x3, 0xf },
+		{ "S905M", MESON_CPU_MAJOR_ID_GXBB, 0x20, 0xf0 },
+		{ "S905D", MESON_CPU_MAJOR_ID_GXL, 0x0, 0xf0 },
+		{ "S905X", MESON_CPU_MAJOR_ID_GXL, 0x80, 0xf0 },
+		{ "S905W", MESON_CPU_MAJOR_ID_GXL, 0xa0, 0xf0 },
+		{ "S905L", MESON_CPU_MAJOR_ID_GXL, 0xc0, 0xf0 },
+		{ "S905M2", MESON_CPU_MAJOR_ID_GXL, 0xe0, 0xf0 },
+		{ "S805X", MESON_CPU_MAJOR_ID_GXL, 0x30, 0xf0 },
+		{ "S805Y", MESON_CPU_MAJOR_ID_GXL, 0xb0, 0xf0 },
+		{ "S912", MESON_CPU_MAJOR_ID_GXM, 0x0, 0x0 },
+		{ "962X", MESON_CPU_MAJOR_ID_TXLX, 0x10, 0xf0 },
+		{ "962E", MESON_CPU_MAJOR_ID_TXLX, 0x20, 0xf0 },
+		{ "A113X", MESON_CPU_MAJOR_ID_AXG, 0x37, 0xff },
+		{ "A113D", MESON_CPU_MAJOR_ID_AXG, 0x22, 0xff },
+		{ "S905D2", MESON_CPU_MAJOR_ID_G12A, 0x10, 0xf0 },
+		{ "S905X2", MESON_CPU_MAJOR_ID_G12A, 0x40, 0xf0 },
+		{ "S922X", MESON_CPU_MAJOR_ID_G12B, 0x40, 0xf0 },
+		{ "A311D", MESON_CPU_MAJOR_ID_G12B, 0x10, 0xf0 },
+		{ "S905X3", MESON_CPU_MAJOR_ID_SM1, 0x5, 0xf },
+		{ "S905D3", MESON_CPU_MAJOR_ID_SM1, 0xb0, 0xf0 },
+	};
 #endif
 
 	for_each_online_cpu(i) {
@@ -170,6 +200,19 @@ static int c_show(struct seq_file *m, void *v)
 	for (i = 0; i < 16; i++)
 		seq_printf(m, "%02x", chipid[i]);
 	seq_puts(m, "\n");
+
+	meson_major = chipid[0];
+	meson_minor = chipid[1];
+	meson_pack = chipid[2];
+    meson_name = "unkown_soc"; /* Give it a default name */
+
+	for (i = 0 ; i < ARRAY_SIZE(meson_packages) ; ++i) {
+		if (meson_packages[i].major_id == meson_major &&
+		    meson_packages[i].pack_id ==
+				(meson_pack & meson_packages[i].pack_mask))
+			meson_name = meson_packages[i].name;
+	}
+	seq_printf(m, "model name\t: Amlogic %s rev %01x\n", meson_name, meson_minor);
 #endif
 
 	seq_printf(m, "Hardware\t: %s\n\n", "Amlogic");
