@@ -320,7 +320,8 @@ void trigger_pre_di_process(unsigned char idx)
 {
 	if (di_sema_init_flag == 0)
 		return;
-
+	if (!active_flag)
+		return;
 	log_buffer_state((idx == 'i') ? "irq" : ((idx == 'p') ?
 		"put" : ((idx == 'r') ? "rdy" : "oth")));
 
@@ -8781,9 +8782,11 @@ static void di_clear_for_suspend(struct di_dev_s *di_devp)
 		di_pre_stru.cma_alloc_done = 0;
 	}
 #endif
+	#ifdef DI_KEEP_HIS
 	hrtimer_cancel(&di_pre_hrtimer);
 	tasklet_kill(&di_pre_tasklet);	//ary.sui
 	tasklet_disable(&di_pre_tasklet);
+	#endif
 	pr_info("%s end\n", __func__);
 }
 static int save_init_flag;
@@ -8797,10 +8800,16 @@ static int di_suspend(struct device *dev)
 	di_devp->flags |= DI_SUSPEND_FLAG;
 
 	di_clear_for_suspend(di_devp);//add
+	active_flag = 0;
 
 	/* fix suspend/resume crash problem */
 	save_init_flag = init_flag;
 	init_flag = 0;
+
+	hrtimer_cancel(&di_pre_hrtimer);
+	tasklet_kill(&di_pre_tasklet);
+	tasklet_disable(&di_pre_tasklet);
+
 #if 0	/*2019-01-18*/
 	if (di_pre_stru.di_inp_buf) {
 		if (vframe_in[di_pre_stru.di_inp_buf->index]) {
