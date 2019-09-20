@@ -5320,6 +5320,7 @@ static int prepare_vsif_pkt(
 /* #define HDMI_SEND_ALL_PKT */
 static u32 last_dst_format = FORMAT_SDR;
 static bool send_hdmi_pkt(
+	enum signal_format_e src_format,
 	enum signal_format_e dst_format,
 	const struct vinfo_s *vinfo, struct vframe_s *vf)
 {
@@ -5339,54 +5340,103 @@ static bool send_hdmi_pkt(
 			| (9 << 16)	/* bt2020 */
 			| (0x10 << 8)	/* bt2020-10 */
 			| (10 << 0);/* bt2020c */
-		/* need invert to g,b,r */
-		if (hdr10_data.primaries[0][0] !=
-			((p_hdr->display_primaries_x_1_MSB << 8)
-			| p_hdr->display_primaries_x_1_LSB))
-			flag = true;
-		hdr10_data.primaries[0][0] =
-			(p_hdr->display_primaries_x_1_MSB << 8)
-			| p_hdr->display_primaries_x_1_LSB;
+		if (src_format != FORMAT_HDR10PLUS) {
+			/* keep as r,g,b when src not HDR+ */
+			if (hdr10_data.primaries[0][0] !=
+				((p_hdr->display_primaries_x_0_MSB << 8)
+				| p_hdr->display_primaries_x_0_LSB))
+				flag = true;
+			hdr10_data.primaries[0][0] =
+				(p_hdr->display_primaries_x_0_MSB << 8)
+				| p_hdr->display_primaries_x_0_LSB;
 
-		if (hdr10_data.primaries[0][1] !=
-			((p_hdr->display_primaries_y_1_MSB << 8)
-			| p_hdr->display_primaries_y_1_LSB))
-			flag = true;
-		hdr10_data.primaries[0][1] =
-			(p_hdr->display_primaries_y_1_MSB << 8)
-			| p_hdr->display_primaries_y_1_LSB;
+			if (hdr10_data.primaries[0][1] !=
+				((p_hdr->display_primaries_y_0_MSB << 8)
+				| p_hdr->display_primaries_y_0_LSB))
+				flag = true;
+			hdr10_data.primaries[0][1] =
+				(p_hdr->display_primaries_y_0_MSB << 8)
+				| p_hdr->display_primaries_y_0_LSB;
 
-		if (hdr10_data.primaries[1][0] !=
-			((p_hdr->display_primaries_x_2_MSB << 8)
-			| p_hdr->display_primaries_x_2_LSB))
-			flag = true;
-		hdr10_data.primaries[1][0] =
-			(p_hdr->display_primaries_x_2_MSB << 8)
-			| p_hdr->display_primaries_x_2_LSB;
+			if (hdr10_data.primaries[1][0] !=
+				((p_hdr->display_primaries_x_1_MSB << 8)
+				| p_hdr->display_primaries_x_1_LSB))
+				flag = true;
+			hdr10_data.primaries[1][0] =
+				(p_hdr->display_primaries_x_1_MSB << 8)
+				| p_hdr->display_primaries_x_1_LSB;
 
-		if (hdr10_data.primaries[1][1] !=
-			((p_hdr->display_primaries_y_2_MSB << 8)
-			| p_hdr->display_primaries_y_2_LSB))
-			flag = true;
-		hdr10_data.primaries[1][1] =
-			(p_hdr->display_primaries_y_2_MSB << 8)
-			| p_hdr->display_primaries_y_2_LSB;
-		if (hdr10_data.primaries[2][0] !=
-			((p_hdr->display_primaries_x_0_MSB << 8)
-			| p_hdr->display_primaries_x_0_LSB))
-			flag = true;
-		hdr10_data.primaries[2][0] =
-			(p_hdr->display_primaries_x_0_MSB << 8)
-			| p_hdr->display_primaries_x_0_LSB;
+			if (hdr10_data.primaries[1][1] !=
+				((p_hdr->display_primaries_y_1_MSB << 8)
+				| p_hdr->display_primaries_y_1_LSB))
+				flag = true;
+			hdr10_data.primaries[1][1] =
+				(p_hdr->display_primaries_y_1_MSB << 8)
+				| p_hdr->display_primaries_y_1_LSB;
+			if (hdr10_data.primaries[2][0] !=
+				((p_hdr->display_primaries_x_2_MSB << 8)
+				| p_hdr->display_primaries_x_2_LSB))
+				flag = true;
+			hdr10_data.primaries[2][0] =
+				(p_hdr->display_primaries_x_2_MSB << 8)
+				| p_hdr->display_primaries_x_2_LSB;
 
-		if (hdr10_data.primaries[2][1] !=
-			((p_hdr->display_primaries_y_0_MSB << 8)
-			| p_hdr->display_primaries_y_0_LSB))
-			flag = true;
-		hdr10_data.primaries[2][1] =
-			(p_hdr->display_primaries_y_0_MSB << 8)
-			| p_hdr->display_primaries_y_0_LSB;
+			if (hdr10_data.primaries[2][1] !=
+				((p_hdr->display_primaries_y_2_MSB << 8)
+				| p_hdr->display_primaries_y_2_LSB))
+				flag = true;
+			hdr10_data.primaries[2][1] =
+				(p_hdr->display_primaries_y_2_MSB << 8)
+				| p_hdr->display_primaries_y_2_LSB;
+		} else {
+			/* need invert to g,b,r */
+			if (hdr10_data.primaries[0][0] !=
+				((p_hdr->display_primaries_x_1_MSB << 8)
+				| p_hdr->display_primaries_x_1_LSB))
+				flag = true;
+			hdr10_data.primaries[0][0] =
+				(p_hdr->display_primaries_x_1_MSB << 8)
+				| p_hdr->display_primaries_x_1_LSB;
 
+			if (hdr10_data.primaries[0][1] !=
+				((p_hdr->display_primaries_y_1_MSB << 8)
+				| p_hdr->display_primaries_y_1_LSB))
+				flag = true;
+			hdr10_data.primaries[0][1] =
+				(p_hdr->display_primaries_y_1_MSB << 8)
+				| p_hdr->display_primaries_y_1_LSB;
+
+			if (hdr10_data.primaries[1][0] !=
+				((p_hdr->display_primaries_x_2_MSB << 8)
+				| p_hdr->display_primaries_x_2_LSB))
+				flag = true;
+			hdr10_data.primaries[1][0] =
+				(p_hdr->display_primaries_x_2_MSB << 8)
+				| p_hdr->display_primaries_x_2_LSB;
+
+			if (hdr10_data.primaries[1][1] !=
+				((p_hdr->display_primaries_y_2_MSB << 8)
+				| p_hdr->display_primaries_y_2_LSB))
+				flag = true;
+			hdr10_data.primaries[1][1] =
+				(p_hdr->display_primaries_y_2_MSB << 8)
+				| p_hdr->display_primaries_y_2_LSB;
+			if (hdr10_data.primaries[2][0] !=
+				((p_hdr->display_primaries_x_0_MSB << 8)
+				| p_hdr->display_primaries_x_0_LSB))
+				flag = true;
+			hdr10_data.primaries[2][0] =
+				(p_hdr->display_primaries_x_0_MSB << 8)
+				| p_hdr->display_primaries_x_0_LSB;
+
+			if (hdr10_data.primaries[2][1] !=
+				((p_hdr->display_primaries_y_0_MSB << 8)
+				| p_hdr->display_primaries_y_0_LSB))
+				flag = true;
+			hdr10_data.primaries[2][1] =
+				(p_hdr->display_primaries_y_0_MSB << 8)
+				| p_hdr->display_primaries_y_0_LSB;
+		}
 		if (hdr10_data.white_point[0] !=
 			((p_hdr->white_point_x_MSB << 8)
 			| p_hdr->white_point_x_LSB))
@@ -6916,21 +6966,25 @@ int dolby_vision_process(struct vframe_s *vf, u32 display_size,
 				if (vf && is_hdr10plus_frame(vf)) {
 					/* disable dolby immediately */
 					pr_info("Dolby bypass: HDR10+: Switched to SDR first\n");
-					send_hdmi_pkt(FORMAT_SDR, vinfo, vf);
+					send_hdmi_pkt(FORMAT_HDR10PLUS,
+						      FORMAT_SDR, vinfo, vf);
 					enable_dolby_vision(0);
 				} else if (vf && is_hlg_frame(vf)) {
 					/* disable dolby immediately */
 					pr_info("Dolby bypass: HLG: Switched to SDR first\n");
-					send_hdmi_pkt(FORMAT_SDR, vinfo, vf);
+					send_hdmi_pkt(FORMAT_HLG,
+						      FORMAT_SDR, vinfo, vf);
 					enable_dolby_vision(0);
 				} else if (last_dst_format != FORMAT_DOVI) {
 					/* disable dolby immediately */
 					pr_info("Dolby bypass: Switched %d to SDR\n",
 						last_dst_format);
-					send_hdmi_pkt(FORMAT_SDR, vinfo, vf);
+					send_hdmi_pkt(dolby_vision_src_format,
+						      FORMAT_SDR, vinfo, vf);
 					enable_dolby_vision(0);
 				} else {
-					send_hdmi_pkt(FORMAT_SDR, vinfo, vf);
+					send_hdmi_pkt(dolby_vision_src_format,
+						      FORMAT_SDR, vinfo, vf);
 					if (sdr_delay >= MAX_TRANSITION_DELAY) {
 						pr_info("Dolby bypass: Done - Switched to SDR\n");
 						enable_dolby_vision(0);
@@ -7041,6 +7095,7 @@ int dolby_vision_process(struct vframe_s *vf, u32 display_size,
 				/* send HDMI packet according to dst_format */
 				if (vinfo && !force_stb_mode)
 					send_hdmi_pkt(
+						dovi_setting.src_format,
 						dovi_setting.dst_format,
 						vinfo, vf);
 				update_dolby_vision_status(
