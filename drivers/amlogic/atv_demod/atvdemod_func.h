@@ -31,6 +31,7 @@ extern unsigned int aud_std;
 extern unsigned int aud_mode;
 extern bool audio_thd_en;
 extern bool aud_reinit;
+extern bool aud_mono_only;
 extern bool atv_audio_overmodulated_en;
 extern unsigned int non_std_en;
 
