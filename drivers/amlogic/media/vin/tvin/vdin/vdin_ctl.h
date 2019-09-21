@@ -87,6 +87,7 @@ enum vdin_matrix_csc_e {
 	VDIN_MATRIX_YUV709F_YUV601F,/*35*/
 	VDIN_MATRIX_RGBS_RGB,
 	VDIN_MATRIX_RGB_RGBS,
+	VDIN_MATRIX_RGB2020_YUV2020,
 };
 
 /* *************************************************** */

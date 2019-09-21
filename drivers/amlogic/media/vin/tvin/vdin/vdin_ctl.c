@@ -498,6 +498,12 @@ static struct vdin_matrix_lup_s vdin_matrix_lup[] = {
 	/* 0     0      0      0.859     16 */
 	{0x00000000, 0x00000000, 0x03700000, 0x00000000, 0x03700000, 0x00000000,
 		0x00000370, 0x00400040, 0x00000040,},
+	/* VDIN_MATRIX_2020RGB_YUV2020 */
+	/* 0	 0.224732	0.580008  0.050729	 16 */
+	/* 0	-0.122176 -0.315324  0.437500	128 */
+	/* 0	 0.437500 -0.402312 -0.035188	128 */
+	{0x00000000, 0x00000000, 0x00e60252, 0x00341f84, 0x1ebe01c0, 0x01c01e65,
+		0x00001fdd, 0x00400200, 0x00000200,},
 };
 
 /***************************Local function**********************************/
@@ -1224,9 +1230,14 @@ static inline void vdin_set_color_matrix1(unsigned int offset,
 						VDIN_MATRIX_RGBS_YUV709;
 				}
 			} else {
-				if (color_fmt_range == TVIN_RGB_FULL)
-					matrix_csc = VDIN_MATRIX_RGB_YUV709;
-				else
+				if (color_fmt_range == TVIN_RGB_FULL) {
+					if (vdin_hdr_flag == 1)
+						matrix_csc =
+						VDIN_MATRIX_RGB2020_YUV2020;
+					else
+						matrix_csc =
+						VDIN_MATRIX_RGB_YUV709;
+				} else
 					matrix_csc = VDIN_MATRIX_RGBS_YUV709;
 			}
 		} else {
@@ -1258,9 +1269,14 @@ static inline void vdin_set_color_matrix1(unsigned int offset,
 						VDIN_MATRIX_RGBS_YUV709;
 				}
 			} else {
-				if (color_fmt_range == TVIN_RGB_FULL)
-					matrix_csc = VDIN_MATRIX_RGB_YUV709;
-				else
+				if (color_fmt_range == TVIN_RGB_FULL) {
+					if (vdin_hdr_flag == 1)
+						matrix_csc =
+						VDIN_MATRIX_RGB2020_YUV2020;
+					else
+						matrix_csc =
+						VDIN_MATRIX_RGB_YUV709;
+				} else
 					matrix_csc = VDIN_MATRIX_RGBS_YUV709;
 			}
 		} else {
@@ -1404,9 +1420,14 @@ static inline void vdin_set_color_matrix0(unsigned int offset,
 						VDIN_MATRIX_RGBS_YUV709;
 				}
 			} else {
-				if (color_fmt_range == TVIN_RGB_FULL)
-					matrix_csc = VDIN_MATRIX_RGB_YUV709;
-				else
+				if (color_fmt_range == TVIN_RGB_FULL) {
+					if (vdin_hdr_flag == 1)
+						matrix_csc =
+						VDIN_MATRIX_RGB2020_YUV2020;
+					else
+						matrix_csc =
+						VDIN_MATRIX_RGB_YUV709;
+				} else
 					matrix_csc = VDIN_MATRIX_RGBS_YUV709;
 			}
 		} else {
@@ -1438,9 +1459,14 @@ static inline void vdin_set_color_matrix0(unsigned int offset,
 						VDIN_MATRIX_RGBS_YUV709;
 				}
 			} else {
-				if (color_fmt_range == TVIN_RGB_FULL)
-					matrix_csc = VDIN_MATRIX_RGB_YUV709;
-				else
+				if (color_fmt_range == TVIN_RGB_FULL) {
+					if (vdin_hdr_flag == 1)
+						matrix_csc =
+						VDIN_MATRIX_RGB2020_YUV2020;
+					else
+						matrix_csc =
+						VDIN_MATRIX_RGB_YUV709;
+				} else
 					matrix_csc = VDIN_MATRIX_RGBS_YUV709;
 			}
 		} else {
@@ -1580,9 +1606,14 @@ static void vdin_set_color_matrix0_g12a(unsigned int offset,
 						VDIN_MATRIX_RGBS_YUV709;
 				}
 			} else {
-				if (color_fmt_range == TVIN_RGB_FULL)
-					matrix_csc = VDIN_MATRIX_RGB_YUV709;
-				else
+				if (color_fmt_range == TVIN_RGB_FULL) {
+					if (vdin_hdr_flag == 1)
+						matrix_csc =
+						VDIN_MATRIX_RGB2020_YUV2020;
+					else
+						matrix_csc =
+						VDIN_MATRIX_RGB_YUV709;
+				} else
 					matrix_csc = VDIN_MATRIX_RGBS_YUV709;
 			}
 		} else {
@@ -1614,9 +1645,14 @@ static void vdin_set_color_matrix0_g12a(unsigned int offset,
 						VDIN_MATRIX_RGBS_YUV709;
 				}
 			} else {
-				if (color_fmt_range == TVIN_RGB_FULL)
-					matrix_csc = VDIN_MATRIX_RGB_YUV709;
-				else
+				if (color_fmt_range == TVIN_RGB_FULL) {
+					if (vdin_hdr_flag == 1)
+						matrix_csc =
+						VDIN_MATRIX_RGB2020_YUV2020;
+					else
+						matrix_csc =
+						VDIN_MATRIX_RGB_YUV709;
+				} else
 					matrix_csc = VDIN_MATRIX_RGBS_YUV709;
 			}
 		} else {

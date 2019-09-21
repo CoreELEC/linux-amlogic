@@ -1492,7 +1492,7 @@ static void hdr_tone_mapping_get(
 
 	if (hdr_tm) {
 		for (i = 0; i < length; i++)
-			oo_y_lut_hdr_sdr[i] = hdr_tm[i];
+			oo_y_lut_hdr_sdr_def[i] = hdr_tm[i];
 	}
 
 	vecm_latch_flag |= FLAG_HDR_OOTF_LATCH;
@@ -1500,7 +1500,7 @@ static void hdr_tone_mapping_get(
 	if (debug_amvecm & 4) {
 		for (i = 0; i < length; i++) {
 			pr_info("oo_y_lut_hdr_sdr[%d] = %d",
-				i, oo_y_lut_hdr_sdr[i]);
+				i, oo_y_lut_hdr_sdr_def[i]);
 			if (i % 8 == 0)
 				pr_info("\n");
 		}
@@ -2716,8 +2716,6 @@ void vpp_vd_adj1_saturation_hue(signed int sat_val,
 	if (mb < -512)
 		mb = -512;
 	mab =  ((ma & 0x3ff) << 16) | (mb & 0x3ff);
-	pr_info("\n[amvideo..] saturation_pre:%d hue_pre:%d mab:%x\n",
-			sat_val, hue_val, mab);
 	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A)
 		WRITE_VPP_REG(VPP_VADJ1_MA_MB_2, mab);
 	else
@@ -3884,21 +3882,73 @@ static ssize_t amvecm_hdr_dbg_store(struct class *cla,
 {
 	long val = 0;
 	char *buf_orig, *parm[5] = {NULL};
+	int i;
 
 	if (!buf)
 		return count;
 	buf_orig = kstrdup(buf, GFP_KERNEL);
 	parse_param_amvecm(buf_orig, (char **)&parm);
 
-	if (!strncmp(parm[0], "hdr_dbg", 10)) {
+	if (!strncmp(parm[0], "hdr_dbg", 7)) {
 		if (kstrtoul(parm[1], 16, &val) < 0) {
 			kfree(buf_orig);
 			return -EINVAL;
 		}
 		debug_hdr = val;
 		pr_info("debug_hdr=0x%x\n", debug_hdr);
-	} else
+	} else if (!strncmp(parm[0], "hdr10_pr", 8)) {
+		if (kstrtoul(parm[1], 16, &val) < 0) {
+			kfree(buf_orig);
+			return -EINVAL;
+		}
+		hdr10_pr = val;
+		pr_info("hdr10_pr=0x%x\n", hdr10_pr);
+	} else if (!strncmp(parm[0], "clip_disable", 12)) {
+		if (kstrtoul(parm[1], 16, &val) < 0) {
+			kfree(buf_orig);
+			return -EINVAL;
+		}
+		hdr10_clip_disable = val;
+		pr_info("hdr10_clip_disable=0x%x\n",
+			hdr10_clip_disable);
+	} else if (!strncmp(parm[0], "force_clip", 10)) {
+		if (kstrtoul(parm[1], 16, &val) < 0) {
+			kfree(buf_orig);
+			return -EINVAL;
+		}
+		hdr10_force_clip = val;
+		pr_info("hdr10_force_clip=0x%x\n", hdr10_force_clip);
+	} else if (!strncmp(parm[0], "clip_luma", 9)) {
+		if (kstrtoul(parm[1], 16, &val) < 0) {
+			kfree(buf_orig);
+			return -EINVAL;
+		}
+		hdr10_clip_luma = val;
+		pr_info("clip_luma=0x%x\n", hdr10_clip_luma);
+	} else if (!strncmp(parm[0], "clip_margin", 11)) {
+		if (kstrtoul(parm[1], 16, &val) < 0) {
+			kfree(buf_orig);
+			return -EINVAL;
+		}
+		hdr10_clip_margin = val;
+		pr_info("hdr10_clip_margin=0x%x\n", hdr10_clip_margin);
+	} else if (!strncmp(parm[0], "clip_mode", 9)) {
+		if (kstrtoul(parm[1], 16, &val) < 0) {
+			kfree(buf_orig);
+			return -EINVAL;
+		}
+		hdr10_clip_mode = val;
+		pr_info("hdr10_clip_mode=0x%x\n", hdr10_clip_mode);
+	} else if (!strncmp(parm[0], "hdr_sdr_ootf", 12)) {
+		for (i = 0; i < HDR2_OOTF_LUT_SIZE; i++) {
+			pr_info("%d ", oo_y_lut_hdr_sdr_def[i]);
+			if ((i + 1) % 10 == 0)
+				pr_info("\n");
+		}
+		pr_info("\n");
+	} else {
 		pr_info("error cmd\n");
+	}
 
 	kfree(buf_orig);
 	return count;

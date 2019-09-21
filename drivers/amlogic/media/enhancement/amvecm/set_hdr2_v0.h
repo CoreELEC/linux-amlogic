@@ -187,5 +187,13 @@ extern void set_ootf_lut(
 	enum hdr_module_sel module_sel,
 	struct hdr_proc_lut_param_s *hdr_lut_param);
 extern struct hdr_proc_lut_param_s hdr_lut_param;
-extern int oo_y_lut_hdr_sdr[149];
+extern int oo_y_lut_hdr_sdr_def[149];
+void hdr_highclip_by_luma(
+	struct vframe_master_display_colour_s *master_info);
+extern unsigned int hdr10_pr;
+extern unsigned int hdr10_clip_disable;
+extern unsigned int hdr10_force_clip;
+extern unsigned int hdr10_clip_luma;
+extern unsigned int hdr10_clip_margin;
+extern unsigned int hdr10_clip_mode;
 

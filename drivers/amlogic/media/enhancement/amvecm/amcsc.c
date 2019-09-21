@@ -295,7 +295,7 @@ struct hdr_osd_reg_s hdr_osd_reg = {
 	-1 /* shadow mode */
 };
 
-#define HDR_VERSION   "----gxl_20180830---g12a_20180917-----\n"
+#define HDR_VERSION   "----gxl_20180830---g12a_20191015-----\n"
 
 static struct vframe_s *dbg_vf;
 static struct master_display_info_s dbg_hdr_send;
@@ -3777,7 +3777,7 @@ int signal_type_changed(struct vframe_s *vf,
 			change_flag |= SIG_SRC_CHG;
 			cur_mvc_type[vd_path] = vf->type & VIDTYPE_MVC;
 			pr_csc(1, "VIDTYPE MVC changed.\n");
-			return change_flag;
+			/*return change_flag;*/
 		}
 	} else
 		cur_mvc_type[vd_path] = 0;
@@ -4725,6 +4725,7 @@ static int hdr_process(
 	int i, j;
 
 	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A) {
+		hdr_highclip_by_luma(master_info);
 		hdr_func(OSD1_HDR, HDR_BYPASS, vinfo);
 		if (vd_path == VD1_PATH)
 			hdr_func(VD1_HDR, HDR_SDR, vinfo);
