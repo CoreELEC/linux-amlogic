@@ -499,6 +499,9 @@ static void meson_tl1_pll_disable(struct clk_hw *hw)
 	if (pll->lock)
 		spin_lock_irqsave(pll->lock, flags);
 
+	if (!strcmp(clk_hw_get_name(hw), "fixed_pll"))
+		pr_warn("Pay Attention, fixed pll will be disabled\n");
+
 	writel(readl(pll->base + p->reg_off) | (MESON_PLL_RESET),
 		pll->base + p->reg_off);
 	writel(readl(pll->base + p->reg_off) & (~MESON_PLL_ENABLE),

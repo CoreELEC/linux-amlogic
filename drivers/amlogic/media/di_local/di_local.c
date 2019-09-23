@@ -127,6 +127,13 @@ int DI_POST_WR_REG_BITS(u32 adr, u32 val, u32 start, u32 len)
 }
 EXPORT_SYMBOL(DI_POST_WR_REG_BITS);
 
+void DI_POST_UPDATE_MC(void)
+{
+	if (dil_api && dil_api->post_update_mc)
+		dil_api->post_update_mc();
+}
+EXPORT_SYMBOL(DI_POST_UPDATE_MC);
+
 /***************************************
  * reserved mem for di *
  **************************************/

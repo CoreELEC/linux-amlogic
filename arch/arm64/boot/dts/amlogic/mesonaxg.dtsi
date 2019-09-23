@@ -831,6 +831,12 @@
 	cpu_ver_name{
 		compatible = "amlogic, cpu-major-id-axg";
 	};
+
+	defendkey: defendkey {
+		compatible = "amlogic, defendkey";
+		mem_size = <0x0 0x100000>;
+		status = "okay";
+	};
 };/* end of / */
 
 &pinctrl_aobus {

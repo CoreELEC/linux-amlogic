@@ -34,6 +34,7 @@
 /*if not g12a use genphy driver*/
 /* if it's internal phy we will shutdown analog*/
 static unsigned int is_internal_phy;
+static unsigned int external_invert_flag;
 /* Ethernet register for G12A PHY */
 #define REG_ETH_REG1_OFFSET 0x4
 #define ETH_PLL_CTL0 0x44
@@ -71,7 +72,26 @@ struct meson_dwmac {
 static void meson6_dwmac_fix_mac_speed(void *priv, unsigned int speed)
 {
 #ifdef CONFIG_AMLOGIC_ETH_PRIVE
+	struct meson_dwmac *dwmac = priv;
+	unsigned int val;
 
+	if ((dwmac->data->g12a_phy) && (!is_internal_phy)) {
+		if (!external_invert_flag)
+			return;
+		val = readl(dwmac->reg);
+
+		switch (speed) {
+		case SPEED_10:
+		case SPEED_100:
+			val &= ~(1 << 3);
+			break;
+		case SPEED_1000:
+			val |= (1 << 3);
+		break;
+		}
+
+		writel(val, dwmac->reg);
+	}
 #else
 	struct meson_dwmac *dwmac = priv;
 	unsigned int val;
@@ -228,6 +248,21 @@ static void __iomem *network_interface_setup(struct platform_device *pdev)
 	} else {
 		pin_ctl = devm_pinctrl_get_select(&pdev->dev, "eth_pins");
 	}
+
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 3);
+	if (res) {
+		addr = devm_ioremap_resource(dev, res);
+		if (IS_ERR(addr)) {
+			dev_err(&pdev->dev, "Unable to map %d\n", __LINE__);
+			return NULL;
+		}
+
+		ee_reset_base = addr;
+		pr_info(" ee eth reset:Addr = %p\n", ee_reset_base);
+	} else {
+		ee_reset_base = NULL;
+		dev_err(&pdev->dev, "Unable to get resource(%d)\n", __LINE__);
+	}
 	pr_debug("Ethernet: pinmux setup ok\n");
 	return PREG_ETH_REG0;
 }
@@ -315,6 +350,7 @@ static void __iomem *g12a_network_interface_setup(struct platform_device *pdev)
 	u32 internal_phy = 0;
 	int auto_cali_idx = -1;
 	is_internal_phy = 0;
+	external_invert_flag = 0;
 
 	ppdev = pdev;
 	pr_debug("g12a_network_interface_setup\n");
@@ -420,6 +456,9 @@ static void __iomem *g12a_network_interface_setup(struct platform_device *pdev)
 		if (of_property_read_u32(np, "rx_delay", &external_rx_delay))
 			pr_debug("set exphy rx delay\n");
 		}
+
+		if (mc_val & (1 << 3))
+			external_invert_flag = 1;
 		/* only exphy support wol since g12a*/
 		/*we enable/disable wol with item in dts with "wol=<1>"*/
 		if (of_property_read_u32(np, "wol",
@@ -512,11 +551,11 @@ static int meson6_dwmac_resume(struct device *dev)
 	struct pinctrl *pin_ctrl;
 	struct pinctrl_state *turnon_tes = NULL;
 	pr_info("resuem inter = %d\n", is_internal_phy);
-	if ((is_internal_phy) && (support_mac_wol == 0)) {
-		if (ee_reset_base)
-			writel((1 << 11), (void __iomem	*)
-				(unsigned long)ee_reset_base);
+	if (ee_reset_base)
+		writel((1 << 11), (void __iomem	*)
+			(unsigned long)ee_reset_base);
 
+	if ((is_internal_phy) && (support_mac_wol == 0)) {
 		pin_ctrl = devm_pinctrl_get(dev);
 		if (IS_ERR_OR_NULL(pin_ctrl)) {
 			pr_info("pinctrl is null\n");

@@ -1,5 +1,5 @@
 /*
- * drivers/amlogic/media/di_local/di_local.h
+ * drivers/amlogic/pm/vad_power.h
  *
  * Copyright (C) 2017 Amlogic, Inc. All rights reserved.
  *
@@ -15,13 +15,19 @@
  *
  */
 
-#ifndef __DI_LOCAL_H__
-#define __DI_LOCAL_H__
-
-struct di_ext_ops {
-	unsigned int (*di_post_reg_rd)(unsigned int addr);
-	int (*di_post_wr_reg_bits)(u32 adr, u32 val, u32 start, u32 len);
-	void (*post_update_mc)(void);
+struct pm_data {
+	struct device *dev;
+	int vddio3v3_en;
+	bool vad_wakeup_disable;
+	void __iomem *dmc_asr;
+	void __iomem *cpu_reg;
+	struct clk *switch_clk81;
+	struct clk *clk81;
+	struct clk *fixed_pll;
+	struct clk *xtal;
 };
 
-#endif	/*__DI_LOCAL_H__*/
+int vad_wakeup_power_init(struct platform_device *pdev, struct pm_data *p_data);
+int vad_wakeup_power_suspend(struct device *dev);
+int vad_wakeup_power_resume(struct device *dev);
+

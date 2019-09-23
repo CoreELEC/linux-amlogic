@@ -3685,12 +3685,6 @@ int stmmac_resume(struct device *dev)
 	if (priv->phydev)
 		phy_start(priv->phydev);
 
-#ifdef TX_MONITOR
-	if (!ee_reset_base) {
-		stmmac_release(priv_monitor->dev);
-		stmmac_open(priv_monitor->dev);
-	}
-#endif
 	return 0;
 }
 EXPORT_SYMBOL_GPL(stmmac_resume);

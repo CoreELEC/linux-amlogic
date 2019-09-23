@@ -433,6 +433,7 @@ static int vad_set_clks(struct vad *p_vad, bool enable)
 		/* enable clock gate */
 		ret = clk_prepare_enable(p_vad->gate);
 
+		clk_set_rate(p_vad->pll, 25000000);
 		/* enable clock */
 		ret = clk_prepare_enable(p_vad->pll);
 		if (ret) {

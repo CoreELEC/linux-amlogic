@@ -556,29 +556,48 @@ static int aml_card_dai_link_of(struct device_node *node,
 		goto dai_link_of_err;
 	}
 
+	dai_link->cpu_of_node = of_parse_phandle(cpu, DAI, 0);
+	if (!dai_link->cpu_of_node) {
+		dev_err(dev, "error getting cpu phandle\n");
+		return -EINVAL;
+	}
+
 	ret = aml_card_parse_daifmt(dev, node, codec,
 					    prefix, &dai_link->dai_fmt);
-	if (ret < 0)
+	if (ret < 0) {
+		dev_err(dev, "%s, dai fmt not found\n",
+			__func__);
 		goto dai_link_of_err;
-
+	}
 	of_property_read_u32(node, "mclk-fs", &dai_props->mclk_fs);
 
 	ret = aml_card_parse_cpu(cpu, dai_link,
 					 DAI, CELL, &single_cpu);
-	if (ret < 0)
+	if (ret < 0) {
+		dev_err(dev, "%s, dai-link idx:%d, error getting cpu dai name:%s\n",
+			__func__,
+			idx,
+			dai_link->cpu_dai_name);
 		goto dai_link_of_err;
+	}
 
-#if 0
-	ret = aml_card_parse_codec(codec, dai_link, DAI, CELL);
-#else
 	ret = snd_soc_of_get_dai_link_codecs(dev, codec, dai_link);
-#endif
-	if (ret < 0)
+
+	if (ret < 0) {
+		dev_err(dev, "%s, dai-link idx:%d, error getting codec dai name:%s\n",
+			__func__,
+			idx,
+			dai_link->codec_dai_name);
 		goto dai_link_of_err;
+	}
 
 	ret = aml_card_parse_platform(plat, dai_link, DAI, CELL);
-	if (ret < 0)
+	if (ret < 0) {
+		dev_err(dev, "%s, platform not found\n",
+			__func__);
+
 		goto dai_link_of_err;
+	}
 
 	ret = snd_soc_of_parse_tdm_slot(cpu,	&cpu_dai->tx_slot_mask,
 						&cpu_dai->rx_slot_mask,
@@ -601,12 +620,6 @@ static int aml_card_dai_link_of(struct device_node *node,
 	ret = aml_card_parse_clk_cpu(cpu, dai_link, cpu_dai);
 	if (ret < 0)
 		goto dai_link_of_err;
-
-#if 0
-	ret = aml_card_parse_clk_codec(codec, dai_link, codec_dai);
-	if (ret < 0)
-		goto dai_link_of_err;
-#endif
 
 	ret = aml_card_canonicalize_dailink(dai_link);
 	if (ret < 0)
@@ -949,8 +962,10 @@ static int aml_card_probe(struct platform_device *pdev)
 
 		ret = aml_card_parse_of(np, priv);
 		if (ret < 0) {
-			dev_err(dev, "%s, parse error %d\n",
-			    __func__, ret);
+			dev_err(dev, "%s, aml_card_parse_of error %d %s\n",
+				__func__,
+				ret,
+				(ret == -EPROBE_DEFER) ? "PROBE RETRY" : "");
 			goto err;
 		}
 
@@ -988,6 +1003,7 @@ static int aml_card_probe(struct platform_device *pdev)
 					sizeof(priv->dai_props->codec_dai));
 	}
 
+	platform_set_drvdata(pdev, priv);
 	snd_soc_card_set_drvdata(&priv->snd_card, priv);
 
 	ret = devm_snd_soc_register_card(&pdev->dev, &priv->snd_card);

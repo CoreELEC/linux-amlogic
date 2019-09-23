@@ -800,10 +800,10 @@
 
 		audiobus: audiobus@0xFF660000 {
 			compatible = "amlogic, audio-controller", "simple-bus";
-			reg = <0x0 0xFF660000 0x0 0x4000>;
+			reg = <0x0 0xFF660000 0x0 0x3000>;
 			#address-cells = <2>;
 			#size-cells = <2>;
-			ranges = <0x0 0x0 0x0 0xFF660000 0x0 0x4000>;
+			ranges = <0x0 0x0 0x0 0xFF660000 0x0 0x3000>;
 			clkaudio: audio_clocks {
 				compatible = "amlogic, sm1-audio-clocks";
 				#clock-cells = <1>;
@@ -829,6 +829,76 @@
 			};
 		};/* end of audiobus*/
 
+		/* eARC */
+		audio_earc: bus@ff663000 {
+			compatible = "simple-bus";
+			reg = <0x0 0xff663000 0x0 0x1000>;
+			#address-cells = <2>;
+			#size-cells = <2>;
+			ranges = <0x0 0x0 0x0 0xff663000 0x0 0x1000>;
+
+			earc: earc@0 {
+				compatible = "amlogic, sm1-snd-earc";
+				#sound-dai-cells = <0>;
+
+				status = "disabled";
+
+				reg =
+					<0x0 0x800 0x0 0x400>,
+					<0x0 0xc00 0x0 0x200>,
+					<0x0 0xe00 0x0 0x200>;
+				reg-names =
+					"rx_cmdc",
+					"rx_dmac",
+					"rx_top";
+
+				clocks = < &clkaudio CLKID_EARCRX_CMDC
+					&clkaudio CLKID_EARCRX_DMAC
+					&clkc CLKID_FCLK_DIV4
+					&clkc CLKID_FCLK_DIV4
+					&clkaudio CLKID_EARCTX_CMDC
+					&clkaudio CLKID_EARCTX_DMAC
+					&clkc CLKID_FCLK_DIV4
+					&clkc CLKID_MPLL1
+					>;
+				clock-names =
+					"rx_cmdc",
+					"rx_dmac",
+					"rx_cmdc_srcpll",
+					"rx_dmac_srcpll";
+
+				interrupts = <
+					GIC_SPI 87 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-names = "earc_rx";
+			};
+		};
+
+		/* Sound iomap */
+		aml_snd_iomap {
+			compatible = "amlogic, snd-iomap";
+			status = "okay";
+			#address-cells=<2>;
+			#size-cells=<2>;
+			ranges;
+			pdm_bus {
+				reg = <0x0 0xFF661000 0x0 0x400>;
+			};
+			audiobus_base {
+				reg = <0x0 0xFF660000 0x0 0x1000>;
+			};
+			audiolocker_base {
+				reg = <0x0 0xFF661400 0x0 0x400>;
+			};
+			eqdrc_base {
+				reg = <0x0 0xFF662000 0x0 0x1000>;
+			};
+			reset_base {
+				reg = <0x0 0xFFD01000 0x0 0x1000>;
+			};
+			vad_base {
+				reg = <0x0 0xFF661800 0x0 0x400>;
+			};
+		};
 	}; /* end of soc*/
 
 	remote:rc@0xff808040 {
@@ -1538,42 +1608,6 @@
 		fip_size = <0x200000>;
 		nand_clk_ctrl = <0xFFE07000>;
 		/*partions defined in dts */
-	};
-
-	/* Sound iomap */
-	aml_snd_iomap {
-		compatible = "amlogic, snd-iomap";
-		status = "okay";
-		#address-cells=<2>;
-		#size-cells=<2>;
-		ranges;
-		pdm_bus {
-			reg = <0x0 0xFF661000 0x0 0x400>;
-		};
-		audiobus_base {
-			reg = <0x0 0xFF660000 0x0 0x1000>;
-		};
-		audiolocker_base {
-			reg = <0x0 0xFF661400 0x0 0x400>;
-		};
-		eqdrc_base {
-			reg = <0x0 0xFF662000 0x0 0x1000>;
-		};
-		reset_base {
-			reg = <0x0 0xFFD01000 0x0 0x1000>;
-		};
-		vad_base {
-			reg = <0x0 0xFF661800 0x0 0x400>;
-		};
-		earcrx_cdmc_base {
-			reg = <0x0 0xFF663800 0x0 0x30>;
-		};
-		earcrx_dmac_base {
-			reg = <0x0 0xFF663C00 0x0 0x20>;
-		};
-		earcrx_top_base {
-			reg = <0x0 0xFF663E00 0x0 0x10>;
-		};
 	};
 
 	vddcpu0: pwmao_d-regulator {

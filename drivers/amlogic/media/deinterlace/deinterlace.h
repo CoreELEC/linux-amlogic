@@ -299,7 +299,7 @@ struct di_pre_stru_s {
 	int	unreg_req_flag_irq;
 	int	unreg_req_flag_cnt;
 	int	reg_req_flag;
-	int	reg_req_flag_irq;
+	/*int	reg_req_flag_irq;*/
 	int	reg_req_flag_cnt;
 	int	reg_irq_busy;
 	int	force_unreg_req_flag;
@@ -473,4 +473,6 @@ struct di_buf_s *get_di_buf(int queue_idx, int *start_pos);
 
 #define pr_error(fmt, args ...)     pr_err("DI: " fmt, ## args)
 
+/******************************************/
+/*#define DI_KEEP_HIS	0*/
 #endif

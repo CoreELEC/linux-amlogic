@@ -789,7 +789,7 @@ int dwc_otg_save_global_regs(dwc_otg_core_if_t *core_if)
 	gr->pcgcctl_local = DWC_READ_REG32(core_if->pcgcctl);
 	gr->gdfifocfg_local =
 	    DWC_READ_REG32(&core_if->core_global_regs->gdfifocfg);
-	for (i = 0; i < MAX_EPS_CHANNELS; i++) {
+	for (i = 0; i < MAX_EPS_CHANNELS - 1; i++) {
 		gr->dtxfsiz_local[i] =
 		    DWC_READ_REG32(&(core_if->core_global_regs->dtxfsiz[i]));
 	}
@@ -948,7 +948,7 @@ int dwc_otg_restore_global_regs(dwc_otg_core_if_t *core_if)
 			gr->hptxfsiz_local);
 	DWC_WRITE_REG32(&core_if->core_global_regs->gdfifocfg,
 			gr->gdfifocfg_local);
-	for (i = 0; i < MAX_EPS_CHANNELS; i++)
+	for (i = 0; i < MAX_EPS_CHANNELS - 1; i++)
 		DWC_WRITE_REG32(&core_if->core_global_regs->dtxfsiz[i],
 				gr->dtxfsiz_local[i]);
 
@@ -1070,7 +1070,7 @@ int restore_essential_regs(dwc_otg_core_if_t *core_if, int rmode, int is_host)
 		dwc_udelay(10);
 
 		/* Load restore values for [31:14] bits and set EssRegRestored bit */
-		pcgcctl.d32 = ((gr->pcgcctl_local | 0xffffc000) & 0xffffc000);
+		pcgcctl.d32 = 0xffffc000;
 		pcgcctl.b.ess_reg_restored = 1;
 		if (rmode)
 			pcgcctl.b.restoremode = 1;

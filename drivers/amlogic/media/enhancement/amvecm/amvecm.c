@@ -6626,9 +6626,11 @@ tvchip_pq_setting:
 	}
 	/*probe close sr0 peaking for switch on video*/
 	WRITE_VPP_REG_BITS(VPP_SRSHARP0_CTRL, 1, 0, 1);
-	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1))
+	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
 		WRITE_VPP_REG_BITS(VPP_SRSHARP1_CTRL, 0, 0, 1);
-	else
+		/*VPP_VADJ1_MISC bit1: minus black level enable for vadj1*/
+		WRITE_VPP_REG_BITS(VPP_VADJ1_MISC, 1, 1, 1);
+	} else
 		WRITE_VPP_REG_BITS(VPP_SRSHARP1_CTRL, 1, 0, 1);
 	/*default dnlp off*/
 	WRITE_VPP_REG_BITS(SRSHARP0_PK_NR_ENABLE + sr_offset[0],

@@ -1188,6 +1188,11 @@ static void __init tl1_clkc_init(struct device_node *np)
 		goto iounmap;
 	}
 
+	/* fixed pll init */
+	ret = clk_prepare_enable(tl1_fixed_pll.hw.clk);
+	if (ret)
+		pr_err("%s, failed to init fixed pll\n", __func__);
+
 	ret = of_clk_add_provider(np, of_clk_src_onecell_get,
 			&clk_data);
 	if (ret < 0) {

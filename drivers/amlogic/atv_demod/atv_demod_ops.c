@@ -1117,7 +1117,7 @@ static enum v4l2_search atvdemod_fe_search(struct v4l2_frontend *v4l2_fe)
 	v4l2_std_id std_bk = 0;
 	unsigned int audio = 0;
 	unsigned int soundsys = 0;
-	int double_check_cnt = 1;
+	/* int double_check_cnt = 1; */
 	int auto_search_std = 0;
 	int search_count = 0;
 	/* bool try_secam = false; */
@@ -1266,7 +1266,7 @@ static enum v4l2_search atvdemod_fe_search(struct v4l2_frontend *v4l2_fe)
 		/* when manual search, just search current freq */
 		if (p->flag == ANALOG_FLAG_MANUL_SCAN)
 			break;
-
+#ifdef DOUBLE_CHECK_44_25MHZ
 		if (p->frequency >= 44200000 &&
 			p->frequency <= 44300000 &&
 			double_check_cnt) {
@@ -1277,6 +1277,11 @@ static enum v4l2_search atvdemod_fe_search(struct v4l2_frontend *v4l2_fe)
 			p->frequency += afc_step * ((search_count % 2) ?
 					-search_count : search_count);
 		}
+#else
+		++search_count;
+		p->frequency += afc_step * ((search_count % 2) ?
+				-search_count : search_count);
+#endif
 	}
 
 	pr_dbg("[%s] [%d] over of range [min=%d, max=%d], search failed.\n",

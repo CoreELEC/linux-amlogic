@@ -872,7 +872,7 @@ void set_mono_dk(void)
 {
 	int aa;
 
-	adec_wr_reg(ADDR_ADEC_CTRL, AUDIO_STANDARD_NICAM_DK);
+	adec_wr_reg(ADDR_ADEC_CTRL, AUDIO_STANDARD_NICAM_DK | (3 << 4));
 
 	set_filter(filter_100k, ADDR_DDC_FIR0_COEF, 65);
 	set_filter(filter_100k, ADDR_DDC_FIR1_COEF, 65);
@@ -889,7 +889,7 @@ void set_mono_i(void)
 {
 	int aa;
 
-	adec_wr_reg(ADDR_ADEC_CTRL, AUDIO_STANDARD_NICAM_I);
+	adec_wr_reg(ADDR_ADEC_CTRL, AUDIO_STANDARD_NICAM_I | (3 << 4));
 
 	set_filter(filter_100k, ADDR_DDC_FIR0_COEF, 65);
 	set_filter(filter_100k, ADDR_DDC_FIR1_COEF, 65);
@@ -906,7 +906,7 @@ void set_mono_bg(void)
 {
 	int aa;
 
-	adec_wr_reg(ADDR_ADEC_CTRL, AUDIO_STANDARD_NICAM_BG);
+	adec_wr_reg(ADDR_ADEC_CTRL, AUDIO_STANDARD_NICAM_BG | (3 << 4));
 
 	set_filter(filter_100k, ADDR_DDC_FIR0_COEF, 65);
 	set_filter(filter_100k, ADDR_DDC_FIR1_COEF, 65);
@@ -923,7 +923,7 @@ void set_mono_l(void)
 {
 	int aa;
 
-	adec_wr_reg(ADDR_ADEC_CTRL, AUDIO_STANDARD_NICAM_L);
+	adec_wr_reg(ADDR_ADEC_CTRL, AUDIO_STANDARD_NICAM_L | (3 << 4));
 
 	set_filter(filter_100k, ADDR_DDC_FIR0_COEF, 65);
 	set_filter(filter_100k, ADDR_DDC_FIR1_COEF, 65);
@@ -1586,7 +1586,7 @@ void set_outputmode(uint32_t standard, uint32_t outmode)
 	case AUDIO_STANDARD_MONO_I:
 	case AUDIO_STANDARD_MONO_L:
 		/* for FM MONO system to detection nicam status */
-		if (!aud_reinit && get_nicam_lock_status()) {
+		if (!aud_mono_only && !aud_reinit && get_nicam_lock_status()) {
 			if (standard == AUDIO_STANDARD_MONO_I)
 				aud_std = AUDIO_STANDARD_NICAM_I;
 			else if (standard == AUDIO_STANDARD_MONO_L)

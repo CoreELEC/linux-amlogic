@@ -81,7 +81,7 @@ static unsigned int pre_input_freq;
 static unsigned int pre_output_freq;
 static unsigned int vlock_dis_cnt;
 static bool vlock_vmode_changed;
-static unsigned int vlock_notify_event;
+static unsigned int vlock_notify_event = VOUT_EVENT_MODE_CHANGE;
 static unsigned int pre_hiu_reg_m;
 static unsigned int pre_hiu_reg_frac;
 static signed int pre_enc_max_line;
@@ -511,6 +511,8 @@ static void vlock_setting(struct vframe_s *vf,
 			WRITE_VPP_REG_BITS(VPU_VLOCK_MISC_CTRL,
 				input_hz, 16, 8);
 		temp_value = READ_VPP_REG(enc_max_line_addr);
+		if (!temp_value)
+			pr_info("vlock err: enc_max_line %d\n", temp_value);
 		WRITE_VPP_REG_BITS(VPU_VLOCK_OROW_OCOL_MAX,
 			temp_value + 1, 0, 14);
 
@@ -686,8 +688,8 @@ void vlock_vmode_check(void)
 	const struct vinfo_s *vinfo;
 	/*unsigned int t0, t1;*/
 
-	if (vlock_en == 0)
-		return;
+	/*if (vlock_en == 0)*/
+	/*	return;*/
 
 	vinfo = get_current_vinfo();
 	vlock_vmode_changed = 0;
@@ -760,6 +762,9 @@ void vlock_vmode_check(void)
 			#endif
 			pre_enc_max_line = READ_VPP_REG(enc_max_line_addr);
 			pre_enc_max_pixel = READ_VPP_REG(enc_max_pixel_addr);
+			if (!pre_enc_max_line || !pre_enc_max_pixel)
+				pr_info("vlock chk err: maxLine %d,maxPixel %d\n",
+					pre_enc_max_line, pre_enc_max_pixel);
 			vlock_capture_limit =
 				((1024*1024*16)*vlock_line_limit) /
 				(vinfo->vtotal + 1);
@@ -1022,6 +1027,13 @@ static void vlock_enable_step3_enc(void)
 {
 	unsigned int line_num = 0, enc_max_line = 0, polity_line_num = 0;
 	unsigned int pixel_num = 0, enc_max_pixel = 0, polity_pixel_num = 0;
+	unsigned int val;
+
+	if (!pre_enc_max_pixel || !pre_enc_max_line) {
+		pr_info("vlock enc max val err P:%d L:%d\n",
+			pre_enc_max_pixel, pre_enc_max_line);
+		return;
+	}
 
 	/*vlock pixel num adjust*/
 	if (!(vlock_debug & VLOCK_DEBUG_ENC_PIXEL_ADJ_DIS)) {
@@ -1034,12 +1046,21 @@ static void vlock_enable_step3_enc(void)
 		} else {
 			enc_max_pixel = pre_enc_max_pixel + pixel_num;
 		}
-		if (enc_max_pixel > 0x1fff)
+		if (enc_max_pixel > 0x1fff) {
 			WRITE_VPP_REG_BITS(enc_max_line_switch_addr,
 				pixel_num, 0, 13);
-		else
+			val = pixel_num;
+		} else {
 			WRITE_VPP_REG_BITS(enc_max_line_switch_addr,
 				enc_max_pixel, 0, 13);
+			val = enc_max_pixel;
+		}
+		if (vlock_debug & VLOCK_DEBUG_INFO) {
+			pr_info("pixel:polity_pixel_num=%d, pixel_num=%d, maxP=%d\n",
+				polity_pixel_num, pixel_num, pre_enc_max_pixel);
+			pr_info("pixel:wr addr:0x%x, 0x%x\n",
+				enc_max_line_switch_addr, val);
+		}
 	}
 	/*vlock line num adjust*/
 	if (!(vlock_debug & VLOCK_DEBUG_ENC_LINE_ADJ_DIS)) {
@@ -1055,6 +1076,12 @@ static void vlock_enable_step3_enc(void)
 		if (enc_max_pixel > 0x1fff)
 			enc_max_line += 1;
 		WRITE_VPP_REG(enc_max_line_addr, enc_max_line);
+		if (vlock_debug & VLOCK_DEBUG_INFO) {
+			pr_info("line:polity_line_num=%d line_num=%d, maxL=%d\n",
+				polity_pixel_num, line_num, pre_enc_max_line);
+			pr_info("line:wr addr:0x%x, 0x%x\n",
+				enc_max_line_addr, enc_max_line);
+		}
 	}
 
 	if (vlock_log_en && (vlock_log_cnt < vlock_log_size)) {
@@ -1065,8 +1092,8 @@ static void vlock_enable_step3_enc(void)
 		vlock_reg_get();
 		vlock_log_cnt++;
 	}
-	if (vlock_debug & VLOCK_DEBUG_INFO)
-		pr_info(">>>[%s]\n", __func__);
+	/*if (vlock_debug & VLOCK_DEBUG_INFO)*/
+	/*	pr_info(">>>[%s]\n", __func__);*/
 }
 
 static void vlock_enable_step3_soft_enc(void)
@@ -1730,7 +1757,11 @@ void vlock_status_init(void)
 	/*back up orignal pll value*/
 	vlock.val_m = vlock_get_panel_pll_m();
 	vlock.val_frac = vlock_get_panel_pll_frac();
-
+	/*enc mode initial val*/
+	pre_enc_max_line = READ_VPP_REG(enc_max_line_addr);
+	pre_enc_max_pixel = READ_VPP_REG(enc_max_pixel_addr);
+	pr_info("vlock: maxLine %d,maxPixel %d\n",
+		pre_enc_max_line, pre_enc_max_pixel);
 	vlock.fsm_sts = VLOCK_STATE_NULL;
 	vlock.fsm_prests = VLOCK_STATE_NULL;
 	vlock.vf_sts = false;
@@ -2445,13 +2476,13 @@ void vlock_status(void)
 	pr_info("vlock_sync_limit_flag:%d\n", vlock_sync_limit_flag);
 	pr_info("pre_hiu_reg_m:0x%x\n", pre_hiu_reg_m);
 	pr_info("pre_hiu_reg_frac:0x%x\n", pre_hiu_reg_frac);
-	pr_info("pre_enc_max_line:0x%x\n", pre_enc_max_line);
-	pr_info("pre_enc_max_pixel:0x%x\n", pre_enc_max_pixel);
+	pr_info("enc_max_line_addr:0x%x 0x%x\n",
+		enc_max_line_addr, pre_enc_max_line);
+	pr_info("enc_max_pixel_addr:0x%x 0x%x\n",
+		enc_max_pixel_addr, pre_enc_max_pixel);
 	pr_info("vlock_dis_cnt:%d\n", vlock_dis_cnt);
 	pr_info("vlock_dis_cnt_no_vf:%d\n", vlock_dis_cnt_no_vf);
 	pr_info("vlock_dis_cnt_no_vf_limit:%d\n", vlock_dis_cnt_no_vf_limit);
-	pr_info("enc_max_line_addr:0x%x\n", enc_max_line_addr);
-	pr_info("enc_max_pixel_addr:0x%x\n", enc_max_pixel_addr);
 	pr_info("enc_video_mode_addr:0x%x\n", enc_video_mode_addr);
 	pr_info("enc_max_line_switch_addr:0x%x\n", enc_max_line_switch_addr);
 	pr_info("vlock_capture_limit:0x%x\n", vlock_capture_limit);
@@ -2509,6 +2540,10 @@ void vlock_reg_dump(void)
 	pr_info("[0x1cb3]=0x%08x\n", READ_VPP_REG(0x1cb3));
 	pr_info("[0x1cb4]=0x%08x\n", READ_VPP_REG(0x1cb4));
 	pr_info("[0x1cc8]=0x%08x\n", READ_VPP_REG(0x1cc8));
+	pr_info("[0x%x]=0x%08x\n", enc_max_line_addr,
+		READ_VPP_REG(enc_max_line_addr));
+	pr_info("[0x%x]=0x%08x\n", enc_max_pixel_addr,
+		READ_VPP_REG(enc_max_pixel_addr));
 
 	/*amvecm_hiu_reg_read(hhi_pll_reg_m, &val);*/
 	val = vlock_get_panel_pll_m();
@@ -2525,6 +2560,7 @@ void vlock_reg_dump(void)
 		pr_info("HIU HDMI_PLL_CNTL2 0x%x=0x%x\n",
 			HHI_HDMI_PLL_CNTL2, val);
 	}
+
 	/*back up orignal pll value*/
 	/*pr_info("HIU pll m[0x%x]=0x%x\n", hhi_pll_reg_m, vlock.val_m);*/
 	/*pr_info("HIU pll f[0x%x]=0x%x\n", hhi_pll_reg_frac, vlock.val_frac);*/
@@ -2652,7 +2688,7 @@ int vlock_notify_callback(struct notifier_block *block, unsigned long cmd,
 		return -1;
 	}
 	if (vlock_debug & VLOCK_DEBUG_INFO)
-		pr_info("current vmode=%s, vinfo w=%d,h=%d, cmd: 0x%lx\n",
+		pr_info("vlock notify vmode=%s, vinfo w=%d,h=%d, cmd: 0x%lx\n",
 			vinfo->name, vinfo->width, vinfo->height, cmd);
 
 	switch (cmd) {
