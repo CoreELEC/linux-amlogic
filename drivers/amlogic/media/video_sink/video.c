@@ -9576,6 +9576,7 @@ static void set_omx_pts(u32 *p)
 			mutex_unlock(&omx_mutex);
 			pr_info("check session return: tmp_pts %d"
 				"session=0x%x\n", tmp_pts, omx_cur_session);
+			omx_pts_set_index = 0;
 			return;
 		}
 	}
