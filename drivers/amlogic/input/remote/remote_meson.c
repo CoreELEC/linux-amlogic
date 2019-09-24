@@ -764,8 +764,8 @@ static int ir_hardware_init(struct platform_device *pdev)
 	if (ret < 0)
 		return ret;
 	chip->set_register_config(chip, chip->protocol);
-	ret = request_irq(chip->irqno, ir_interrupt, IRQF_SHARED,
-				"keypad", (void *)chip);
+	ret = request_irq(chip->irqno, ir_interrupt, IRQF_SHARED
+		| IRQF_NO_SUSPEND, "keypad", (void *)chip);
 	if (ret < 0)
 		goto error_irq;
 
