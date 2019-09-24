@@ -123,6 +123,7 @@ struct mtn_op_s {
 					   enum vframe_source_type_e src_type,
 					   bool prog,
 					   enum tvin_sig_fmt_e fmt);
+	void (*com_patch_pre_sw_set)(unsigned int mode);
 	int (*module_para)(struct seq_file *seq);
 };
 

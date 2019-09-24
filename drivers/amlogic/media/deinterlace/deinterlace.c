@@ -3593,7 +3593,7 @@ static void pre_de_done_buf_config(void)
 
 			}
 			post_wr_buf->vframe->di_pulldown |= 0x08;
-			if (combing_fix_en)
+			if (di_pre_stru.combing_fix_en)
 				cur_lev = adaptive_combing_fixing(
 				di_pre_stru.mtn_status,
 					glb_field_mot_num,
@@ -3932,6 +3932,7 @@ static unsigned char pre_de_buf_config(void)
 	u32 rls_timeout;
 	u32 afbc_busy;
 	u32 is_afbc_mode;
+	bool flg_1080i = false;
 
 	if (di_blocking || !atomic_read(&de_devp->mem_flag))
 		return 0;
@@ -4436,14 +4437,8 @@ jiffies_to_msecs(jiffies_64 - vframe->ready_jiffies64));
 		} else {
 		/*********************************/
 		if ((di_buf->vframe->width >= 1920) &&
-			(di_buf->vframe->height >= 1080) &&
-			is_meson_tl1_cpu()) {
-			if (combing_fix_en) {
-				combing_fix_en = false;
-				fix_tl1_1080i_sawtooth_patch();
-			}
-		} else
-			combing_fix_en = true;
+		    (di_buf->vframe->height >= 1080))
+			flg_1080i = true;
 
 		/*********************************/
 			if (
@@ -4626,6 +4621,21 @@ jiffies_to_msecs(jiffies_64 - vframe->ready_jiffies64));
 
 		recovery_flag++;
 		return 0;
+	}
+	if (is_meson_tl1_cpu()	&&
+	    combing_fix_en	&&
+	    flg_1080i) {
+		di_pre_stru.combing_fix_en = false;
+		fix_tl1_1080i_sawtooth_patch();
+	} else {
+		di_pre_stru.combing_fix_en = combing_fix_en;
+	}
+
+	if (di_pre_stru.combing_fix_en) {
+		if (flg_1080i)
+			com_patch_pre_sw_set(1);
+		else
+			com_patch_pre_sw_set(0);
 	}
 	return 1;
 }

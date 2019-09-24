@@ -587,6 +587,8 @@ static int dump_di_pre_stru_seq(struct seq_file *seq, void *v)
 		di_pre_stru_p->bypass_pre ? "true" : "false");
 	seq_printf(seq, "%-25s = %s\n", "invert_flag",
 		di_pre_stru_p->invert_flag ? "true" : "false");
+	seq_printf(seq, "%-25s = %s\n", "combing_fix_en",
+		   di_pre_stru_p->combing_fix_en ? "true" : "false");
 
 	return 0;
 }

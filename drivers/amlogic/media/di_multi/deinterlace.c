@@ -3294,7 +3294,8 @@ void dim_pre_de_done_buf_config(unsigned int channel, bool flg_timeout)
 						overturn,
 						ppre->di_inp_buf->vframe);
 			/*if (combing_fix_en)*/
-			if (dimp_get(eDI_MP_combing_fix_en)) {
+			/*if (dimp_get(eDI_MP_combing_fix_en)) {*/
+			if (ppre->combing_fix_en) {
 				tmp_cur_lev /*cur_lev*/
 				= get_ops_mtn()->adaptive_combing_fixing(
 					ppre->mtn_status,
@@ -3759,6 +3760,7 @@ unsigned char dim_pre_de_buf_config(unsigned int channel)
 	struct di_post_stru_s *ppost = get_post_stru(channel);
 	struct di_dev_s *de_devp = get_dim_de_devp();
 	int cfg_prog_proc = dimp_get(eDI_MP_prog_proc_config);
+	bool flg_1080i = false;
 
 	if (di_blocking || !dip_cma_st_is_ready(channel))
 		return 0;
@@ -4215,21 +4217,11 @@ unsigned char dim_pre_de_buf_config(unsigned int channel)
 			}
 		} else {
 		/*********************************/
-		if ((di_buf->vframe->width >= 1920)	&&
-		    (di_buf->vframe->height >= 1080)	&&
-		    is_meson_tl1_cpu()) {
-			/*if (combing_fix_en) {*/
-			if (dimp_get(eDI_MP_combing_fix_en)) {
-				/*combing_fix_en = false;*/
-				dimp_set(eDI_MP_combing_fix_en, 0);
-				get_ops_mtn()->fix_tl1_1080i_sawtooth_patch();
-			}
-		} else {
-			/*combing_fix_en = true;*/
-			dimp_set(eDI_MP_combing_fix_en, 1);
-		}
-
+		if ((di_buf->vframe->width >= 1920) &&
+		    (di_buf->vframe->height >= 1080))
+			flg_1080i = true;
 		/*********************************/
+
 			if (!ppre->di_chan2_buf_dup_p) {
 				ppre->field_count_for_cont = 0;
 				/* ignore contp2rd and contprd */
@@ -4405,6 +4397,21 @@ unsigned char dim_pre_de_buf_config(unsigned int channel)
 
 		recovery_flag++;
 		return 0;
+	}
+	if (is_meson_tl1_cpu()			&&
+	    di_mpr(combing_fix_en)		&&
+	    flg_1080i) {
+		ppre->combing_fix_en = false;
+		get_ops_mtn()->fix_tl1_1080i_sawtooth_patch();
+	} else {
+		ppre->combing_fix_en = di_mpr(combing_fix_en);
+	}
+
+	if (ppre->combing_fix_en) {
+		if (flg_1080i)
+			get_ops_mtn()->com_patch_pre_sw_set(1);
+		else
+			get_ops_mtn()->com_patch_pre_sw_set(0);
 	}
 	return 1;
 }

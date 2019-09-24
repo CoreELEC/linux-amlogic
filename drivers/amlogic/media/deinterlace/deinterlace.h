@@ -376,6 +376,8 @@ struct di_pre_stru_s {
 	bool retry_en;
 	unsigned int retry_index;
 	unsigned int retry_cnt;
+	/*****************/
+	bool combing_fix_en;
 };
 
 struct di_post_stru_s {

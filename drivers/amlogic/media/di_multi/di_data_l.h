@@ -483,7 +483,7 @@ enum eDI_MP_UI_T {
 	eDI_MP_SUB_DI_B,
 
 	eDI_MP_force_prog,	/*force_prog bool*/
-	eDI_MP_combing_fix_en,	/*combing_fix_en bool*/
+	edi_mp_combing_fix_en,	/*combing_fix_en bool*/
 	eDI_MP_cur_lev,		/*cur_lev*/
 	eDI_MP_pps_dstw,	/*pps_dstw*/
 	eDI_MP_pps_dsth,	/*pps_dsth*/
@@ -1356,6 +1356,8 @@ static inline int dimp_dec(enum eDI_MP_UI_T idx)
 	get_datal()->mp_uit[idx]--;
 	return get_datal()->mp_uit[idx];
 }
+
+#define di_mpr(x) dimp_get(edi_mp_##x)
 
 /******************************************
  *	mm

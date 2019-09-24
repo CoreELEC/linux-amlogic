@@ -46,5 +46,6 @@ int adaptive_combing_fixing(
 	int bit_mode);
 void adpative_combing_exit(void);
 extern void mtn_int_combing_glbmot(void);
+void com_patch_pre_sw_set(unsigned int mode);
 
 #endif
