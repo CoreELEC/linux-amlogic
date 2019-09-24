@@ -131,6 +131,13 @@ struct hdmi_cea_timing *get_custom_timing(void)
 }
 EXPORT_SYMBOL(get_custom_timing);
 
+static struct modeline_table custom_modeline;
+struct modeline_table *get_custom_modeline(void)
+{
+	return &custom_modeline;
+}
+EXPORT_SYMBOL(get_custom_modeline);
+
 static inline void hdmitx_notify_hpd(int hpd)
 {
 	if (hpd)
@@ -2364,6 +2371,22 @@ static ssize_t show_disp_cap(struct device *dev,
 	return pos;
 }
 
+static ssize_t show_custom_mode(struct device *dev,
+	struct device_attribute *attr, char *buf)
+{
+	int pos = 0;
+	struct modeline_table *custom_modeline = get_custom_modeline();
+	char* pmd[] = {"i","p"};
+
+	if (custom_modeline->horpixels != NULL) {
+		pos += snprintf(buf+pos, PAGE_SIZE, "%dx%d%s%dhz\n", custom_modeline->horpixels, custom_modeline->verpixels, pmd[custom_modeline->progress_mode], custom_modeline->ver_freq);
+	} else {
+		pos += snprintf(buf+pos, PAGE_SIZE, "\n");
+	}
+	return pos;
+}
+
+
 static ssize_t show_preferred_mode(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
@@ -3596,6 +3619,7 @@ static DEVICE_ATTR(edid_parsing, 0444, show_edid_parsing, NULL);
 static DEVICE_ATTR(config, 0664, show_config, store_config);
 static DEVICE_ATTR(debug, 0200, NULL, store_debug);
 static DEVICE_ATTR(disp_cap, 0444, show_disp_cap, NULL);
+static DEVICE_ATTR(custom_mode, 0444, show_custom_mode, NULL);
 static DEVICE_ATTR(preferred_mode, 0444, show_preferred_mode, NULL);
 static DEVICE_ATTR(aud_cap, 0444, show_aud_cap, NULL);
 static DEVICE_ATTR(hdr_cap, 0444, show_hdr_cap, NULL);
@@ -4725,6 +4749,7 @@ static int amhdmitx_probe(struct platform_device *pdev)
 	ret = device_create_file(dev, &dev_attr_config);
 	ret = device_create_file(dev, &dev_attr_debug);
 	ret = device_create_file(dev, &dev_attr_disp_cap);
+	ret = device_create_file(dev, &dev_attr_custom_mode);
 	ret = device_create_file(dev, &dev_attr_preferred_mode);
 	ret = device_create_file(dev, &dev_attr_disp_cap_3d);
 	ret = device_create_file(dev, &dev_attr_aud_cap);
@@ -4827,6 +4852,7 @@ static int amhdmitx_remove(struct platform_device *pdev)
 	device_remove_file(dev, &dev_attr_config);
 	device_remove_file(dev, &dev_attr_debug);
 	device_remove_file(dev, &dev_attr_disp_cap);
+	device_remove_file(dev, &dev_attr_custom_mode);
 	device_remove_file(dev, &dev_attr_preferred_mode);
 	device_remove_file(dev, &dev_attr_disp_cap_3d);
 	device_remove_file(dev, &dev_attr_hdr_cap);

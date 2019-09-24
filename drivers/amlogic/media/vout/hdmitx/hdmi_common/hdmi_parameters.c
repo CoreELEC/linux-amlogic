@@ -20,30 +20,6 @@
 #include <linux/amlogic/media/vout/hdmi_tx/hdmi_tx_module.h>
 #include <linux/string.h>
 
-struct modeline_table {
-	/* resolutions */
-	unsigned int horpixels;
-	unsigned int verpixels;
-	/* clock and frequency */
-	unsigned int pixel_clock;
-	unsigned int hor_freq;
-	unsigned int ver_freq;
-	/* htimings */
-	unsigned int hdisp;
-	unsigned int hsyncstart;
-	unsigned int hsyncend;
-	unsigned int htotal;
-	/* vtiminigs */
-	unsigned int vdisp;
-	unsigned int vsyncstart;
-	unsigned int vsyncend;
-	unsigned int vtotal;
-	/* polarity and scan mode */
-	unsigned int hsync_polarity; /* 1:+hsync, 0:-hsync */
-	unsigned int vsync_polarity; /* 1:+vsync, 0:-vsync */
-	unsigned int progress_mode; /* 1:progress, 0:interlaced */
-};
-
 static struct hdmi_format_para fmt_para_1920x1080p60_16x9 = {
 	.vic = HDMI_1920x1080p60_16x9,
 	.name = "1920x1080p60hz",
@@ -2484,6 +2460,7 @@ static int __init setup_modeline(char *s)
 {
 	struct hdmi_cea_timing *custom_timing;
 	struct modeline_table tbl;
+	struct modeline_table *custom_modeline;
 	unsigned int *buf;
 	char *item = NULL;
 	unsigned long temp = 0;
@@ -2562,6 +2539,10 @@ static int __init setup_modeline(char *s)
 	custom_timing = get_custom_timing();
 	memcpy(custom_timing, &fmt_para_custombuilt.timing,
 		sizeof(fmt_para_custombuilt.timing));
+
+	custom_modeline = get_custom_modeline();
+	memcpy(custom_modeline, &tbl,
+		sizeof(tbl));
 
 	return 0;
 }
