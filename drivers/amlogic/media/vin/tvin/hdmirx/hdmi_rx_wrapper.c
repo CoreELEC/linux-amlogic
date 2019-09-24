@@ -1906,7 +1906,7 @@ void hdmirx_open_port(enum tvin_port_e port)
 		}
 		if (rx.state > FSM_HPD_LOW)
 			rx.state = FSM_HPD_LOW;
-		rx_set_cur_hpd(0);
+		rx_set_cur_hpd(0, 0);
 		/* need reset the whole module when switch port */
 		wait_ddc_idle();
 		hdmi_rx_top_edid_update();
@@ -2139,7 +2139,7 @@ void rx_main_state_machine(void)
 		fsm_restart();
 		break;
 	case FSM_HPD_LOW:
-		rx_set_cur_hpd(0);
+		rx_set_cur_hpd(0, 0);
 		set_scdc_cfg(1, 0);
 		rx.state = FSM_INIT;
 		break;
@@ -2160,7 +2160,7 @@ void rx_main_state_machine(void)
 		downstream_hpd_flag = 0;
 		edid_update_flag = 0;
 		pre_port = rx.port;
-		rx_set_cur_hpd(1);
+		rx_set_cur_hpd(1, 0);
 		rx.phy.cable_clk = 0;
 		rx.phy.cablesel = 0;
 		set_scdc_cfg(0, 1);
@@ -2229,7 +2229,7 @@ void rx_main_state_machine(void)
 				} else
 					rx.err_rec_mode = ERR_REC_HPD_RST;
 			} else if (rx.err_rec_mode == ERR_REC_HPD_RST) {
-				rx_set_cur_hpd(0);
+				rx_set_cur_hpd(0, 2);
 				rx.phy.cable_clk = 0;
 				rx.state = FSM_INIT;
 				rx.err_rec_mode = ERR_REC_EQ_RETRY;
@@ -2323,7 +2323,7 @@ void rx_main_state_machine(void)
 				rx.err_rec_mode = ERR_REC_HPD_RST;
 				rx_set_eq_run_state(E_EQ_START);
 			} else if (rx.err_rec_mode == ERR_REC_HPD_RST) {
-				rx_set_cur_hpd(0);
+				rx_set_cur_hpd(0, 2);
 				rx.phy.cable_clk = 0;
 				rx.state = FSM_INIT;
 				rx.err_rec_mode = ERR_REC_EQ_RETRY;
@@ -2839,7 +2839,7 @@ int hdmirx_debug(const char *buf, int size)
 	if (strncmp(tmpbuf, "help", 4) == 0) {
 		rx_debug_help();
 	} else if (strncmp(tmpbuf, "hpd", 3) == 0)
-		rx_set_cur_hpd(tmpbuf[3] == '0' ? 0 : 1);
+		rx_set_cur_hpd((tmpbuf[3] == '0' ? 0 : 1), 4);
 	else if (strncmp(tmpbuf, "cable_status", 12) == 0) {
 		size = hdmirx_rd_top(TOP_HPD_PWR5V) >> 20;
 		rx_pr("cable_status = %x\n", size);
@@ -2980,7 +2980,7 @@ int hdmirx_debug(const char *buf, int size)
 
 void rx_dw_edid_monitor(void)
 {
-	if (!hdmi_cec_en)
+	if ((!hdmi_cec_en) || (hdmirx_repeat_support()))
 		return;
 	if (tx_hpd_event == E_RCV) {
 		if (rx.open_fg)

@@ -1024,18 +1024,18 @@ static long hdmirx_ioctl(struct file *file, unsigned int cmd,
 	}
 	case HDMI_IOC_HDCP_ON:
 		hdcp_enable = 1;
-		rx_set_cur_hpd(0);
+		rx_set_cur_hpd(0, 4);
 		/*fsm_restart();*/
 		break;
 	case HDMI_IOC_HDCP_OFF:
 		hdcp_enable = 0;
-		rx_set_cur_hpd(0);
+		rx_set_cur_hpd(0, 4);
 		hdmirx_hw_config();
 		/*fsm_restart();*/
 		break;
 	case HDMI_IOC_EDID_UPDATE:
 		if (rx.open_fg) {
-			rx_set_cur_hpd(0);
+			rx_set_cur_hpd(0, 4);
 			edid_update_flag = 1;
 		}
 		#if 0

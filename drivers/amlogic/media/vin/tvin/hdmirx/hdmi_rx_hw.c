@@ -1602,8 +1602,12 @@ int rx_set_port_hpd(uint8_t port_id, bool val)
 	return 0;
 }
 
-void rx_set_cur_hpd(uint8_t val)
+/* add param to differentiate repeater/main state machine/etc
+ * 0: main loop; 2: workaround; 3: repeater flow; 4: special use
+ */
+void rx_set_cur_hpd(u8 val, u8 func)
 {
+	rx_pr("func-%d to", func);
 	rx_set_port_hpd(rx.port, val);
 }
 
@@ -2362,7 +2366,7 @@ void hdmirx_load_firm_reset(int type)
 	rx.firm_change = 1;
 	msleep(20);
 	/*External_Mute(1);rx_aud_pll_ctl(0);*/
-	rx_set_cur_hpd(0);
+	rx_set_cur_hpd(0, 4);
 	/*type 2 only pull down hpd*/
 	if (type == 2) {
 		downstream_hpd_flag = 0;
@@ -3035,7 +3039,7 @@ void rx_debug_load22key(void)
 	if (ret) {
 		rx_pr("load 2.2 key\n");
 		sm_pause = 1;
-		rx_set_cur_hpd(0);
+		rx_set_cur_hpd(0, 4);
 		hdcp22_on = 1;
 		hdcp22_kill_esm = 1;
 		while (wait_kill_done_cnt++ < 10) {
@@ -3061,7 +3065,7 @@ void rx_debug_load22key(void)
 		hdmirx_hw_config();
 		hpd_to_esm = 1;
 		/* mdelay(900); */
-		rx_set_cur_hpd(1);
+		rx_set_cur_hpd(1, 4);
 		sm_pause = 0;
 	}
 }

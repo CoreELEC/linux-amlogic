@@ -101,7 +101,8 @@ void rx_check_repeat(void)
 
 	if (rx.hdcp.repeat != repeat_plug) {
 		/*pull down hpd if downstream plug low*/
-		rx_set_cur_hpd(0);
+		/* rx_set_cur_hpd(0, 3); */
+		rx_send_hpd_pulse();
 		rx_pr("firm_change:%d,repeat_plug:%d,repeat:%d\n",
 			rx.firm_change, repeat_plug, rx.hdcp.repeat);
 		rx_set_repeat_signal(repeat_plug);
@@ -113,7 +114,7 @@ void rx_check_repeat(void)
 			memset(&receive_edid, 0, sizeof(receive_edid));
 			up_phy_addr = 0;
 			/*new_edid = true;*/
-			/* rx_set_cur_hpd(1); */
+			/* rx_set_cur_hpd(1, 3); */
 			/*rx.firm_change = 0;*/
 			rx_pr("1firm_change:%d,repeat_plug:%d,repeat:%d\n",
 				rx.firm_change, repeat_plug, rx.hdcp.repeat);
