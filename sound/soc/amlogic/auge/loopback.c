@@ -759,6 +759,7 @@ static int loopback_dai_trigger(
 				pm_audio_set_suspend(false);
 				/* VAD switch to alsa buffer */
 				vad_update_buffer(0);
+				audio_toddr_irq_enable(p_loopback->tddr, true);
 				break;
 			}
 
@@ -786,6 +787,7 @@ static int loopback_dai_trigger(
 			    pm_audio_is_suspend()) {
 				/* switch to VAD buffer */
 				vad_update_buffer(1);
+				audio_toddr_irq_enable(p_loopback->tddr, false);
 				break;
 			}
 

@@ -248,6 +248,7 @@ struct toddr *aml_audio_register_toddr(struct device *dev,
 		struct aml_audio_controller *actrl,
 		irq_handler_t handler, void *data);
 int aml_audio_unregister_toddr(struct device *dev, void *data);
+void audio_toddr_irq_enable(struct toddr *to, bool en);
 int aml_toddr_set_buf(struct toddr *to, unsigned int start,
 			unsigned int end);
 int aml_toddr_set_buf_startaddr(struct toddr *to, unsigned int start);

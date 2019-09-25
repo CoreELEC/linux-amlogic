@@ -201,6 +201,19 @@ int aml_audio_unregister_toddr(struct device *dev, void *data)
 	return ret;
 }
 
+void audio_toddr_irq_enable(struct toddr *to, bool en)
+{
+	if (!to || !to->in_use || to->irq < 0)
+		return;
+
+	mutex_lock(&ddr_mutex);
+	if (en)
+		enable_irq(to->irq);
+	else
+		disable_irq_nosync(to->irq);
+	mutex_unlock(&ddr_mutex);
+}
+
 static inline unsigned int
 	calc_toddr_address(unsigned int reg, unsigned int base)
 {
