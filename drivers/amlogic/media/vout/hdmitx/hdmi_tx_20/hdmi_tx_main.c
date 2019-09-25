@@ -88,6 +88,7 @@ static DEFINE_MUTEX(getedid_mutex);
 
 static struct hdmitx_dev hdmitx_device = {
 	.frac_rate_policy = 1,
+	.cec_func_config = 0x3f
 };
 
 struct vout_device_s hdmitx_vdev = {
@@ -5056,16 +5057,6 @@ static void check_hdmiuboot_attr(char *token)
 		}
 	}
 }
-
-static int __init hdmitx_boot_android_device(char *str)
-{
-	hdmitx_device.cec_func_config = 0x3f;
-	pr_info("hdmitx: android device found, setting cec mode to:0x%x\n",
-		hdmitx_device.cec_func_config);
-	return 0;
-}
-
-__setup("androidboot.hardware=", hdmitx_boot_android_device);
 
 static  int __init hdmitx_boot_para_setup(char *s)
 {
