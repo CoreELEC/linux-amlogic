@@ -325,7 +325,8 @@ static long init(struct file *f, void __user *arg)
 		rc = alloc_dma_areas(esm, &info);
 		if (rc < 0)
 			goto err_free;
-
+		info.hpi_base =
+		reg_maps[MAP_ADDR_MODULE_HDMIRX_CAPB3].phy_addr;
 		hpi_mem = request_mem_region(info.hpi_base, 128, "esm-hpi");
 		if (!hpi_mem) {
 			rc = -EADDRNOTAVAIL;
