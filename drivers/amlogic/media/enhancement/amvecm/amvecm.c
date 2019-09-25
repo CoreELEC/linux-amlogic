@@ -3935,6 +3935,7 @@ void pc_mode_process(void)
 	if ((pc_mode == 1) && (pc_mode != pc_mode_last)) {
 		/* open dnlp clock gate */
 		dnlp_en = 1;
+		lc_en = 1;
 		ve_enable_dnlp();
 		/* open cm clock gate */
 		cm_en = 1;
@@ -3992,6 +3993,7 @@ void pc_mode_process(void)
 		pc_mode_last = pc_mode;
 	} else if ((pc_mode == 0) && (pc_mode != pc_mode_last)) {
 		dnlp_en = 0;
+		lc_en = 0;
 		ve_disable_dnlp();
 		cm_en = 0;
 
