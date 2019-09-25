@@ -263,6 +263,7 @@ static int tvafe_work_mode(bool mode)
 {
 	tvafe_pr_info("%s: %d\n", __func__, mode);
 	tvafe_mode = mode;
+	reinit_scan = true;
 
 	return 0;
 }

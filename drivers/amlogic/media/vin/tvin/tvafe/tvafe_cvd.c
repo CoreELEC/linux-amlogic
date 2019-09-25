@@ -111,6 +111,7 @@ static int force_fmt_flag;
 static bool scene_colorful_old;
 static int lock_cnt;
 static bool ntsc50_en;
+bool reinit_scan;
 
 static int cdto_adj_th = TVAFE_CVD2_CDTO_ADJ_TH;
 module_param(cdto_adj_th, int, 0664);
@@ -2059,7 +2060,8 @@ inline bool tvafe_cvd2_no_sig(struct tvafe_cvd2_s *cvd2,
 	tvafe_cvd2_search_video_mode(cvd2, mem);
 
 	/* init if no signal input */
-	if (cvd2->hw.no_sig) {
+	if (cvd2->hw.no_sig || reinit_scan) {
+		reinit_scan = false;
 		ret = true;
 		tvafe_cvd2_reinit(cvd2);
 	} else {

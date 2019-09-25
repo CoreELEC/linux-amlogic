@@ -224,6 +224,7 @@ extern void tvafe_cvd2_rf_ntsc50_en(bool v);
 extern void tvafe_cvd2_non_std_config(struct tvafe_cvd2_s *cvd2);
 
 extern bool tvafe_snow_function_flag;
+extern bool reinit_scan;
 
 extern unsigned int try_fmt_max_atv;
 extern unsigned int try_fmt_max_av;
