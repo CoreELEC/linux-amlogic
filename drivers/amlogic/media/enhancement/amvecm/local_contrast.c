@@ -243,11 +243,11 @@ static void lc_mtx_set(enum lc_mtx_sel_e mtx_sel,
 		break;
 	case LC_MTX_RGB_YUV709L:
 		if (mtx_sel & (INP_MTX | OUTP_MTX)) {
-			WRITE_VPP_REG(matrix_coef00_01, 0xba0273);
-			WRITE_VPP_REG(matrix_coef02_10, 0x3f0f9a);
-			WRITE_VPP_REG(matrix_coef11_12, 0xea701c0);
-			WRITE_VPP_REG(matrix_coef20_21, 0x1c00e6a);
-			WRITE_VPP_REG(matrix_coef22, 0xfd7);
+			WRITE_VPP_REG(matrix_coef00_01, 0x00bb0275);
+			WRITE_VPP_REG(matrix_coef02_10, 0x003f1f99);
+			WRITE_VPP_REG(matrix_coef11_12, 0x1ea601c2);
+			WRITE_VPP_REG(matrix_coef20_21, 0x01c21e67);
+			WRITE_VPP_REG(matrix_coef22, 0x00001fd7);
 			if (bitdepth == 10) {
 				WRITE_VPP_REG(matrix_offset0_1, 0x00400200);
 				WRITE_VPP_REG(matrix_clip, 0x3ff);
@@ -269,15 +269,20 @@ static void lc_mtx_set(enum lc_mtx_sel_e mtx_sel,
 		break;
 	case LC_MTX_YUV709L_RGB:
 		if (mtx_sel & (INP_MTX | OUTP_MTX)) {
-			WRITE_VPP_REG(matrix_coef00_01, 0x12b0000);
-			WRITE_VPP_REG(matrix_coef02_10, 0x1cc012b);
-			WRITE_VPP_REG(matrix_coef11_12, 0xfc90f77);
-			WRITE_VPP_REG(matrix_coef20_21, 0x12b021f);
+			WRITE_VPP_REG(matrix_coef00_01, 0x012a0000);
+			WRITE_VPP_REG(matrix_coef02_10, 0x01cb012a);
+			WRITE_VPP_REG(matrix_coef11_12, 0x1fc90f77);
+			WRITE_VPP_REG(matrix_coef20_21, 0x012a021d);
 			WRITE_VPP_REG(matrix_coef22, 0x0);
 			if (bitdepth == 10) {
-				WRITE_VPP_REG(matrix_pre_offset0_1, 0x00400200);
+				WRITE_VPP_REG(matrix_pre_offset0_1, 0x400200);
 				WRITE_VPP_REG(matrix_clip, 0x3ff);
 			} else {
+				/* for YUV->RGB
+				 * 12bit matrix is not supported actually
+				 * the HW use 8bit conversion by default
+				 * but the shift extra bit only 2bits
+				 */
 				WRITE_VPP_REG(matrix_pre_offset0_1, 0x01000800);
 				WRITE_VPP_REG(matrix_clip, 0xfff);
 			}
@@ -475,6 +480,8 @@ static void lc_stts_en(int enable,
 	}
 
 	WRITE_VPP_REG_BITS(LC_STTS_CTRL0, din_sel, 3, 3);
+	/*lc input probe enable*/
+	WRITE_VPP_REG_BITS(LC_STTS_CTRL0, 1, 10, 1);
 	/*lc hist stts enable*/
 	WRITE_VPP_REG_BITS(LC_STTS_HIST_REGION_IDX, enable, 31, 1);
 }
