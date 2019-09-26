@@ -325,9 +325,48 @@
 		nrds-enable = <1>;
 		pps-enable = <1>;
 	};
-	dvb {
+
+	dvb_avl6762 {
 		compatible = "amlogic, dvb";
 		dev_name = "dvb";
+		status = "disabled";
+		fe0_mode = "external";
+		fe0_demod = "Avl6762";
+		fe0_i2c_adap_id = <&i2c3>;
+		fe0_demod_i2c_addr = <0x14>;
+		fe0_ts = <0>;
+		fe0_reset_value = <0>;
+		fe0_reset_gpio = <&gpio GPIOZ_10 GPIO_ACTIVE_HIGH>;
+
+		ts0 = "serial";
+		ts0_control = <0x800>;
+		ts0_invert = <0>;
+		interrupts = <0 23 1
+		0 5 1
+		0 21 1
+		0 19 1
+		0 25 1
+		0 18 1
+		0 24 1>;
+		interrupt-names = "demux0_irq",
+		"demux1_irq",
+		"demux2_irq",
+		"dvr0_irq",
+		"dvr1_irq",
+		"dvrfill0_fill",
+		"dvrfill1_flush";
+		pinctrl-names = "s_ts0";
+		pinctrl-0 = <&dvb_s_ts0_pins>;
+		clocks = <&clkc CLKID_DEMUX
+		&clkc CLKID_AHB_ARB0
+		&clkc CLKID_DOS_PARSER>;
+		clock-names = "demux", "ahbarb0", "parser_top";
+	};
+
+	dvb_mn88436 {
+		compatible = "amlogic, dvb";
+		dev_name = "dvb";
+		status = "disabled";
 
 		dtv_demod0 = "Mn88436";
 		dtv_demod0_i2c_adap = <&i2c3>;

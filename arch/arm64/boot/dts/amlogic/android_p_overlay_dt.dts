@@ -40,4 +40,24 @@
 			};
 		};
 	};
+
+	fragment@2 {
+		//target = <&some_node>;
+		target-path="/";
+		__overlay__ {
+			dvb_avl6762 {
+				status = "disabled";
+			};
+		};
+	};
+
+	fragment@3 {
+		//target = <&some_node>;
+		target-path="/";
+		__overlay__ {
+			dvb_mn88436 {
+				status = "okay";
+			};
+		};
+	};
 };
