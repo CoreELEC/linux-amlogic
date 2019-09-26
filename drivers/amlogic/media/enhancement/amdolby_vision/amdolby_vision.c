@@ -2651,6 +2651,9 @@ static void adjust_vpotch(void)
 				(vinfo->height < 720) &&
 				(vinfo->field_height < 720))
 				g_vpotch = 0x60;
+			else if ((vinfo->width == 1280) &&
+				 (vinfo->height == 720))
+				g_vpotch = 0x30;
 			else
 				g_vpotch = 0x20;
 			if (vinfo->width > 1920)
