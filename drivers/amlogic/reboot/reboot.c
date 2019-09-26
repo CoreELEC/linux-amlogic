@@ -46,6 +46,8 @@ static u32 parse_reason(const char *cmd)
 		if (strcmp(cmd, "recovery") == 0 ||
 				strcmp(cmd, "factory_reset") == 0)
 			reboot_reason = MESON_FACTORY_RESET_REBOOT;
+		else if (strcmp(cmd, "cold_boot") == 0)
+			reboot_reason = MESON_COLD_REBOOT;
 		else if (strcmp(cmd, "update") == 0)
 			reboot_reason = MESON_UPDATE_REBOOT;
 		else if (strcmp(cmd, "fastboot") == 0)
@@ -66,6 +68,8 @@ static u32 parse_reason(const char *cmd)
 				strcmp(cmd, "quiescent,recovery") == 0 ||
 				strcmp(cmd, "quiescent,factory_reset") == 0)
 			reboot_reason = MESON_RECOVERY_QUIESCENT_REBOOT;
+		else if (strcmp(cmd, "ffv_reboot") == 0)
+			reboot_reason = MESON_FFV_REBOOT;
 	} else {
 		if (kernel_panic) {
 			if (strcmp(kernel_panic, "kernel_panic") == 0) {
