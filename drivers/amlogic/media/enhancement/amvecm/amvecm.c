@@ -103,6 +103,7 @@ struct work_struct aml_lcd_vlock_param_work;
 #endif
 
 static struct amvecm_dev_s amvecm_dev;
+static struct resource *res_viu2_vsync_irq;
 
 spinlock_t vpp_lcd_gamma_lock;
 
@@ -1109,7 +1110,8 @@ void amvecm_video_latch(void)
 	cm_latch_process();
 	/*amvecm_size_patch();*/
 	ve_dnlp_latch_process();
-	ve_lcd_gamma_process();
+	if (vpp_get_encl_viu_mux() == 1)
+		ve_lcd_gamma_process();
 	lvds_freq_process();
 /* #if (MESON_CPU_TYPE >= MESON_CPU_TYPE_MESONG9TV) */
 	if (0) {
@@ -1238,6 +1240,13 @@ void refresh_on_vs(struct vframe_s *vf)
 	}
 }
 EXPORT_SYMBOL(refresh_on_vs);
+
+static irqreturn_t amvecm_viu2_vsync_isr(int irq, void *dev_id)
+{
+	if (vpp_get_encl_viu_mux() == 2)
+		ve_lcd_gamma_process();
+	return IRQ_HANDLED;
+}
 
 static int amvecm_open(struct inode *inode, struct file *file)
 {
@@ -7060,6 +7069,9 @@ static void aml_vecm_dt_parse(struct platform_device *pdev)
 	else
 		amcm_disable();
 	/* WRITE_VPP_REG_BITS(VPP_MISC, cm_en, 28, 1); */
+
+	res_viu2_vsync_irq =
+		platform_get_resource_byname(pdev, IORESOURCE_IRQ, "vsync2");
 }
 
 #ifdef CONFIG_AMLOGIC_LCD
@@ -7070,9 +7082,9 @@ static int aml_lcd_gamma_notifier(struct notifier_block *nb,
 		return NOTIFY_DONE;
 
 #if 0
-	vpp_set_lcd_gamma_table(video_gamma_table_r.data, H_SEL_R);
-	vpp_set_lcd_gamma_table(video_gamma_table_g.data, H_SEL_G);
-	vpp_set_lcd_gamma_table(video_gamma_table_b.data, H_SEL_B);
+	amve_write_gamma_table(video_gamma_table_r.data, H_SEL_R);
+	amve_write_gamma_table(video_gamma_table_g.data, H_SEL_G);
+	amve_write_gamma_table(video_gamma_table_b.data, H_SEL_B);
 #else
 	vecm_latch_flag |= FLAG_GAMMA_TABLE_R;
 	vecm_latch_flag |= FLAG_GAMMA_TABLE_G;
@@ -7090,6 +7102,21 @@ static struct notifier_block aml_lcd_gamma_nb = {
 static struct notifier_block vlock_notifier_nb = {
 	.notifier_call	= vlock_notify_callback,
 };
+
+static int aml_vecm_viu2_vsync_irq_init(void)
+{
+	if (res_viu2_vsync_irq) {
+		if (request_irq(res_viu2_vsync_irq->start,
+				amvecm_viu2_vsync_isr, IRQF_SHARED,
+				"amvecm_vsync2", (void *)"amvecm_vsync2")) {
+			pr_err("can't request amvecm_vsync2_irq\n");
+		} else {
+			pr_info("request amvecm_vsync2_irq successful\n");
+		}
+	}
+
+	return 0;
+}
 
 static int aml_vecm_probe(struct platform_device *pdev)
 {
@@ -7165,6 +7192,8 @@ static int aml_vecm_probe(struct platform_device *pdev)
 	hdr_init(&amvecm_dev.hdr_d);
 	aml_vecm_dt_parse(pdev);
 
+	aml_vecm_viu2_vsync_irq_init();
+
 	probe_ok = 1;
 	pr_info("%s: ok\n", __func__);
 	return 0;
@@ -7193,6 +7222,11 @@ fail_alloc_region:
 static int __exit aml_vecm_remove(struct platform_device *pdev)
 {
 	struct amvecm_dev_s *devp = &amvecm_dev;
+
+	if (res_viu2_vsync_irq) {
+		free_irq(res_viu2_vsync_irq->start,
+			 (void *)"amvecm_vsync2");
+	}
 
 	hdr_exit();
 	device_destroy(devp->clsp, devp->devno);
