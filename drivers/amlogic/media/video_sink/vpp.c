@@ -1758,10 +1758,10 @@ int vpp_set_super_scaler_regs(
 	sr_reg_offt = sr->sr_reg_offt;
 	sr_reg_offt2 = sr->sr_reg_offt2;
 	/* just work around for g12a not to disable sr core2 bit2 */
-	if (is_meson_g12a_cpu() && (reg_srscl0_vert_ratio == 0))
-		sr_core0_max_width = sr->core0_v_enable_width_max;
-	else
+	if (reg_srscl0_vert_ratio == 0)
 		sr_core0_max_width = sr->core0_v_disable_width_max;
+	else
+		sr_core0_max_width = sr->core0_v_enable_width_max;
 
 	/* top config */
 	tmp_data = VSYNC_RD_MPEG_REG(VPP_SRSHARP0_CTRL);
