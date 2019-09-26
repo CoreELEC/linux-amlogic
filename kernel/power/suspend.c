@@ -33,6 +33,9 @@
 #include <linux/wakeup_reason.h>
 
 #include "power.h"
+#ifdef CONFIG_AMLOGIC_MODIFY
+#include "../../drivers/base/base.h"
+#endif
 
 const char *pm_labels[] = { "mem", "standby", "freeze", NULL };
 const char *pm_states[PM_SUSPEND_MAX];
@@ -289,6 +292,22 @@ static int suspend_prepare(suspend_state_t state)
 		goto Finish;
 	}
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+	/*
+	 * Give a chance for the known devices to complete their probes, before
+	 * disable probing of devices. This sync point is important at least
+	 * at boot time + hibernation restore.
+	 */
+	wait_for_device_probe();
+	/*
+	 * It is unsafe if probing of devices will happen during suspend or
+	 * hibernation and system behavior will be unpredictable in this case.
+	 * So, let's prohibit device's probing here and defer their probes
+	 * instead. The normal behavior will be restored in dpm_complete().
+	 */
+	device_block_probing();
+#endif
+
 	trace_suspend_resume(TPS("freeze_processes"), 0, true);
 	error = suspend_freeze_processes();
 	trace_suspend_resume(TPS("freeze_processes"), 0, false);
@@ -500,6 +519,10 @@ int suspend_devices_and_enter(suspend_state_t state)
 static void suspend_finish(void)
 {
 	suspend_thaw_processes();
+#ifdef CONFIG_AMLOGIC_MODIFY
+	/* Allow device probing and trigger re-probing of deferred devices */
+	device_unblock_probing();
+#endif
 	pm_notifier_call_chain(PM_POST_SUSPEND);
 	pm_restore_console();
 }
