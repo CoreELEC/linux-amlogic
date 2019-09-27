@@ -31,6 +31,7 @@
 #include <linux/amlogic/cpu_version.h>
 
 #include <linux/amlogic/media/vout/hdmi_tx_ext.h>
+#include "../../../../drivers/amlogic/media/vout/hdmitx21/hdmi_tx_ext.h"
 #include <linux/amlogic/media/sound/aout_notify.h>
 #include <linux/amlogic/cpu_version.h>
 #include <linux/mutex.h>
@@ -1622,6 +1623,22 @@ static int aml_dai_tdm_prepare(struct snd_pcm_substream *substream,
 				p_tdm->id, codec_type);
 			i2s_to_hdmitx_ctrl(separated, p_tdm->id, p_tdm->clk_sel);
 
+#if defined(CONFIG_AMLOGIC_HDMITX)
+			if (get_hdmitx20_init() == 1) {
+				if (aud_param.chs > 6) {
+					hdmitx_ext_set_i2s_mask(aud_param.chs, 0xf);
+				}
+				else if (aud_param.chs > 4) {
+					hdmitx_ext_set_i2s_mask(aud_param.chs, 0x7);
+				}
+				else if (aud_param.chs > 2) {
+					hdmitx_ext_set_i2s_mask(aud_param.chs, 0x3);
+				}
+				else {
+					hdmitx_ext_set_i2s_mask(aud_param.chs, 0x1);
+				}
+			}
+#endif
 			if (codec_type == AUD_CODEC_TYPE_TRUEHD)
 				event_type = AOUT_EVENT_RAWDATA_MAT_MLP;
 			else if (codec_type == AUD_CODEC_TYPE_DTS_HD_MA)
