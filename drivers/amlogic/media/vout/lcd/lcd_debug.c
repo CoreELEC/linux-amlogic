@@ -232,6 +232,7 @@ static int lcd_power_step_print(struct lcd_config_s *pconf, int status,
 		case LCD_POWER_TYPE_CPU:
 		case LCD_POWER_TYPE_PMU:
 		case LCD_POWER_TYPE_WAIT_GPIO:
+		case LCD_POWER_TYPE_CLK_SS:
 			n = lcd_debug_info_len(len + offset);
 			len += snprintf((buf+len), n,
 				"%d: type=%d, index=%d, value=%d, delay=%d\n",

@@ -408,7 +408,7 @@ int lcd_power_load_from_dts(struct lcd_config_s *pconf,
 	unsigned int para[5];
 	unsigned int val;
 	struct lcd_power_ctrl_s *lcd_power = pconf->lcd_power;
-	int i, j;
+	int i, j, temp;
 	unsigned int index;
 
 	if (lcd_debug_print_flag)
@@ -457,6 +457,10 @@ int lcd_power_load_from_dts(struct lcd_config_s *pconf,
 			case LCD_POWER_TYPE_EXTERN:
 				pconf->extern_index = index;
 				break;
+			case LCD_POWER_TYPE_CLK_SS:
+				temp = pconf->lcd_power->power_on_step[i].value;
+				pconf->lcd_timing.ss_level |= temp << 8;
+			break;
 			default:
 				break;
 			}
@@ -544,7 +548,7 @@ int lcd_power_load_from_dts(struct lcd_config_s *pconf,
 int lcd_power_load_from_unifykey(struct lcd_config_s *pconf,
 		unsigned char *buf, int key_len, int len)
 {
-	int i, j;
+	int i, j, temp;
 	unsigned char *p;
 	unsigned int index;
 	int ret;
@@ -584,6 +588,10 @@ int lcd_power_load_from_unifykey(struct lcd_config_s *pconf,
 			break;
 		case LCD_POWER_TYPE_EXTERN:
 			pconf->extern_index = index;
+			break;
+		case LCD_POWER_TYPE_CLK_SS:
+			temp = pconf->lcd_power->power_on_step[i].value;
+			pconf->lcd_timing.ss_level |= temp << 8;
 			break;
 		default:
 			break;
