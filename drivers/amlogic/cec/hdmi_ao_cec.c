@@ -1478,11 +1478,13 @@ static bool check_physical_addr_valid(int timeout)
 		if (phy_addr_test)
 			break;
 		/* physical address for box */
-		if (cec_dev->tx_dev->hdmi_info.vsdb_phy_addr.valid == 0) {
-			msleep(100);
+		if (cec_dev->tx_dev->hpd_state &&
+		    (cec_dev->tx_dev->hdmi_info.vsdb_phy_addr.valid == 0)) {
+			msleep(40);
 			timeout--;
-		} else
+		} else {
 			break;
+		}
 	}
 	if (timeout <= 0)
 		return false;
@@ -3086,7 +3088,7 @@ static long hdmitx_cec_ioctl(struct file *f,
 	mutex_lock(&cec_dev->cec_ioctl_mutex);
 	switch (cmd) {
 	case CEC_IOC_GET_PHYSICAL_ADDR:
-		check_physical_addr_valid(20);
+		/*check_physical_addr_valid(20);*/
 		/* physical address for TV or repeator */
 		tx_dev = cec_dev->tx_dev;
 		if (!tx_dev || cec_dev->dev_type == CEC_TV_ADDR) {
@@ -3307,7 +3309,7 @@ static long hdmitx_cec_ioctl(struct file *f,
 		break;
 
 	default:
-		CEC_ERR("error ioctrl\n");
+		CEC_ERR("error ioctrl: 0x%x\n", cmd);
 		break;
 	}
 	mutex_unlock(&cec_dev->cec_ioctl_mutex);
