@@ -2884,7 +2884,7 @@ void hdmitx21_ext_set_i2s_mask(char ch_num, char ch_msk)
 	static u32 update_flag = -1;
 
 	if (!ch_num || !(ch_num % 2 == 0)) {
-		pr_info("err chn setting, must be 2, 4, 6 or 8, Rst as def\n");
+		pr_debug("err chn setting, must be 2, 4, 6 or 8, Rst as def\n");
 		hdev->aud_output_ch = 0;
 		if (update_flag != hdev->aud_output_ch) {
 			update_flag = hdev->aud_output_ch;
@@ -2893,7 +2893,7 @@ void hdmitx21_ext_set_i2s_mask(char ch_num, char ch_msk)
 		}
 	}
 	if (ch_msk == 0) {
-		pr_info("err chn msk, must larger than 0\n");
+		pr_debug("err chn msk, must larger than 0\n");
 		return;
 	}
 	hdev->aud_output_ch = ((ch_num << 4) & 0xf0) | (ch_msk & 0xf);
