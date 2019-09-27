@@ -350,6 +350,12 @@ void vdin_afbce_config(struct vdin_dev_s *devp)
 
 	W_VCBUS_BIT(AFBCE_MMU_RMIF_CTRL4, devp->afbce_info->table_paddr, 0, 32);
 	W_VCBUS_BIT(AFBCE_MMU_RMIF_SCOPE_X, cur_mmu_used, 0, 12);
+	/*for almost uncompressed pattern,garbage at bottom
+	 *(h_active * v_active * bytes per pixel + 3M) / page_size - 1
+	 *where 3M is the rest bytes of block,since every block must not be\
+	 *separated by 2 pages
+	 */
+	W_VCBUS_BIT(AFBCE_MMU_RMIF_SCOPE_X, 0x1c4f, 16, 13);
 
 	W_VCBUS_BIT(AFBCE_ENABLE, 1, 12, 1); //set afbce pulse mode
 	W_VCBUS_BIT(AFBCE_ENABLE, 0, 8, 1);//disable afbce

@@ -427,14 +427,10 @@ unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 		CODEC_MM_FLAGS_DMA;
 	unsigned int max_buffer_num = min_buf_num;
 	unsigned int i, j;
-	/*head_size:3840*2160*3*9/32*/
-	unsigned int afbce_head_size_byte = PAGE_SIZE * 1712;
-	/*afbce map_table need 218700 byte at most*/
-	unsigned int afbce_table_size_byte = PAGE_SIZE * 60;/*0.3M*/
+	unsigned int afbce_head_total_bytes;
+	unsigned int afbce_table_total_bytes;
 	unsigned long ref_paddr;
 	unsigned int mem_used;
-	unsigned int frame_head_size;
-	unsigned int mmu_used;
 
 	if (devp->rdma_enable)
 		max_buffer_num++;
@@ -456,8 +452,11 @@ unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 			devp->cma_mem_alloc);
 		return 0;
 	}
+
+	/*pixels*/
 	h_size = devp->h_active;
 	v_size = devp->v_active;
+
 	if (devp->canvas_config_mode == 1) {
 		h_size = max_buf_width;
 		v_size = max_buf_height;
@@ -518,12 +517,20 @@ unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 				VDIN_YUV422_8BIT_PER_PIXEL_BYTE;
 		}
 	}
+
+	/*1 frame bytes*/
 	mem_size = h_size * v_size;
+	/*for almost uncompressed pattern,garbage at bottom
+	 *1024x1658 is the worst case,each page wast 2160x3x256byte for 4096
+	 *since every block must not be separated by 2 pages
+	 */
+	mem_size += 1024 * 1658;
+
 	if ((devp->format_convert >= VDIN_FORMAT_CONVERT_YUV_NV12) &&
 		(devp->format_convert <= VDIN_FORMAT_CONVERT_RGB_NV21))
 		mem_size = (mem_size * 3)/2;
 	devp->vfmem_size = PAGE_ALIGN(mem_size) + dolby_size_byte;
-	devp->vfmem_size = (devp->vfmem_size/PAGE_SIZE + 1)*PAGE_SIZE;
+	devp->vfmem_size = roundup(devp->vfmem_size, PAGE_SIZE);
 
 	if (devp->set_canvas_manual == 1) {
 		for (i = 0; i < VDIN_CANVAS_MAX_CNT; i++) {
@@ -539,10 +546,10 @@ unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 		devp->vfmem_max_cnt = max_buffer_num;
 	}
 
-
+	/*total frames bytes*/
 	mem_size = PAGE_ALIGN(mem_size) * max_buffer_num +
 		dolby_size_byte * max_buffer_num;
-	mem_size = (mem_size/PAGE_SIZE + 1)*PAGE_SIZE;
+	mem_size = roundup(mem_size, PAGE_SIZE);
 
 	if (mem_size > devp->cma_mem_size) {
 		mem_size = devp->cma_mem_size;
@@ -554,6 +561,24 @@ unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 		strcpy(vdin_name, "vdin0");
 	else if (devp->index == 1)
 		strcpy(vdin_name, "vdin1");
+
+	/*allocate mem according to resolution
+	 *each block contains 32 * 4 pixels
+	 *one block associated to one header(4 bytes)
+	 *dolby has one page size, & each vframe aligned to page size
+	 *(((h(align 32 pixel) * v(4 pixel)) / (32 * 4)) * 4)  + dolby
+	 *total max_buffer_num
+	 */
+	afbce_head_total_bytes =  PAGE_ALIGN((roundup(devp->h_active, 32) *
+		roundup(devp->v_active, 4)) / 32 + dolby_size_byte);
+	afbce_head_total_bytes *= max_buffer_num;
+
+	/*((h * v * byte_per_pixel + dolby) / page_size) * 4(one address size)
+	 * total max_buffer_num
+	 */
+	afbce_table_total_bytes = PAGE_ALIGN
+		((devp->vfmem_size * 4) / PAGE_SIZE);
+	afbce_table_total_bytes *= max_buffer_num;
 
 	if (devp->cma_config_flag == 0x101) {
 		/* canvas or afbce paddr */
@@ -589,13 +614,12 @@ unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 				devp->index, i,
 				devp->vfmem_start[i], devp->vfmem_size);
 		}
-		if (devp->afbce_info)
-			devp->afbce_info->frame_body_size = devp->vfmem_size;
+
 		devp->mem_size = mem_size;
 
 		if (devp->afbce_info) {
 			devp->afbce_info->head_paddr = codec_mm_alloc_for_dma(
-				vdin_name, afbce_head_size_byte/PAGE_SIZE,
+				vdin_name, afbce_head_total_bytes / PAGE_SIZE,
 				0, flags);
 			if (devp->afbce_info->head_paddr == 0) {
 				pr_err("\nvdin%d header codec alloc fail!!!\n",
@@ -604,7 +628,7 @@ unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 				return 1;
 			}
 			devp->afbce_info->table_paddr = codec_mm_alloc_for_dma(
-				vdin_name, afbce_table_size_byte/PAGE_SIZE,
+				vdin_name, afbce_table_total_bytes / PAGE_SIZE,
 				0, flags);
 			if (devp->afbce_info->table_paddr == 0) {
 				pr_err("\nvdin%d table codec alloc fail!!!\n",
@@ -614,8 +638,9 @@ unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 				devp->cma_mem_alloc = 0;
 				return 1;
 			}
-			devp->afbce_info->head_size = afbce_head_size_byte;
-			devp->afbce_info->table_size = afbce_table_size_byte;
+			devp->afbce_info->frame_body_size = devp->vfmem_size;
+			devp->afbce_info->head_size = afbce_head_total_bytes;
+			devp->afbce_info->table_size = afbce_table_total_bytes;
 
 			pr_info("vdin%d head_start = 0x%lx, head_size = 0x%x\n",
 				devp->index, devp->afbce_info->head_paddr,
@@ -722,34 +747,31 @@ unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 
 	/* set afbce head paddr */
 	if (devp->afbce_info) {
-		/* 1 block = 32 * 4 pixle = 128 pixel */
-		/* there is a header in one block, a header has 4 bytes */
-		frame_head_size = (int)roundup(devp->vfmem_size, 128);
-		/*h_active * v_active / 128 * 4 = frame_head_size*/
-		frame_head_size = PAGE_ALIGN(frame_head_size / 32);
+		/*h_active align to 32 pixel, v_active align to 4 pixel*/
+		devp->afbce_info->frame_head_size =
+			PAGE_ALIGN((roundup(devp->h_active, 32) *
+			roundup(devp->v_active, 4)) / 32 + dolby_size_byte);
 
-		devp->afbce_info->frame_head_size = frame_head_size;
 
 		for (i = 0; i < max_buffer_num; i++) {
 			devp->afbce_info->fm_head_paddr[i] =
 				devp->afbce_info->head_paddr +
-				(frame_head_size*i);
+				(devp->afbce_info->frame_head_size * i);
 
 			pr_info("vdin%d fm_head_paddr[%d] = 0x%lx, frame_head_size = 0x%x\n",
 				devp->index, i,
 				devp->afbce_info->fm_head_paddr[i],
-				frame_head_size);
+				devp->afbce_info->frame_head_size);
 		}
 
 		/* set afbce table paddr */
-		mmu_used = devp->afbce_info->frame_body_size >> 12;
-		mmu_used = mmu_used * 4;
-		mmu_used = PAGE_ALIGN(mmu_used);
-		devp->afbce_info->frame_table_size = mmu_used;
+		devp->afbce_info->frame_table_size = PAGE_ALIGN
+			((devp->afbce_info->frame_body_size >> 12) * 4);
 
 		for (i = 0; i < max_buffer_num; i++) {
 			devp->afbce_info->fm_table_paddr[i] =
-				devp->afbce_info->table_paddr + (mmu_used*i);
+				devp->afbce_info->table_paddr +
+				(devp->afbce_info->frame_table_size * i);
 
 			pr_info("vdin%d fm_table_paddr[%d]=0x%lx, frame_table_size = 0x%x\n",
 				devp->index, i,

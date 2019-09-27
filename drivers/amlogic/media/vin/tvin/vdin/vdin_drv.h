@@ -48,7 +48,7 @@
 /* Ref.2019/04/25: tl1 vdin0 afbce dynamically switch support,
  *                 vpp also should support this function
  */
-#define VDIN_VER "Ref.2019/08/22:add vdin pixel probe feature"
+#define VDIN_VER "Ref.2019/09/30:afbce,optimize mem alloc & enable 1080p"
 
 /*the counter of vdin*/
 #define VDIN_MAX_DEVS			2
