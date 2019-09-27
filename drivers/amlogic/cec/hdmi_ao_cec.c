@@ -2731,9 +2731,11 @@ static ssize_t dbg_store(struct class *cla, struct class_attribute *attr,
 		hdmirx_cec_write(addr, val);
 	} else if (token && strncmp(token, "dump", 4) == 0) {
 		token = kmalloc(2048, GFP_KERNEL);
-		dump_cecrx_reg(token);
-		CEC_ERR("%s\n", token);
-		kfree(token);
+		if (token) {
+			dump_cecrx_reg(token);
+			CEC_ERR("%s\n", token);
+			kfree(token);
+		}
 	} else if (token && strncmp(token, "status", 6) == 0) {
 		cec_status();
 	} else if (token && strncmp(token, "rao", 3) == 0) {
