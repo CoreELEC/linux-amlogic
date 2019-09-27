@@ -1202,6 +1202,11 @@ int tsync_set_apts(unsigned int pts)
 	unsigned int oldpts = timestamp_apts_get();
 	int oldmod = tsync_mode;
 
+	if (tsync_mode == TSYNC_MODE_PCRMASTER) {
+		tsync_pcr_set_apts(pts);
+		return 0;
+	}
+
 	if (tsync_abreak)
 		tsync_abreak = 0;
 	if (!tsync_enable) {
