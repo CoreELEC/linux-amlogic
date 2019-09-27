@@ -128,6 +128,9 @@ void spdif_get_channel_status_info(
 
 void spdif_notify_to_hdmitx(struct snd_pcm_substream *substream)
 {
+	//0 signals audio is coming from spdif rather than i2s
+	hdmitx_ext_set_i2s_mask(0x0, 0x0);
+	
 	if (IEC958_mode_codec == 2) {
 		aout_notifier_call_chain(
 			AOUT_EVENT_RAWDATA_AC_3,
