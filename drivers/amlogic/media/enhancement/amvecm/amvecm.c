@@ -6982,7 +6982,7 @@ static void aml_vecm_dt_parse(struct platform_device *pdev)
 			if (val == 0)
 				pattern_mask =
 				pattern_mask &
-				(!PATTERN_MASK(PATTERN_75COLORBAR));
+				(~PATTERN_MASK(PATTERN_75COLORBAR));
 			else
 				pattern_mask =
 				pattern_mask |
@@ -6995,7 +6995,7 @@ static void aml_vecm_dt_parse(struct platform_device *pdev)
 			if (val == 0)
 				pattern_mask =
 				pattern_mask &
-				(!PATTERN_MASK(PATTERN_SKIN_TONE_FACE));
+				(~PATTERN_MASK(PATTERN_SKIN_TONE_FACE));
 			else
 				pattern_mask =
 				pattern_mask |
@@ -7008,7 +7008,7 @@ static void aml_vecm_dt_parse(struct platform_device *pdev)
 			if (val == 0)
 				pattern_mask =
 				pattern_mask &
-				(!PATTERN_MASK(PATTERN_GREEN_CORN));
+				(~PATTERN_MASK(PATTERN_GREEN_CORN));
 			else
 				pattern_mask =
 				pattern_mask |
