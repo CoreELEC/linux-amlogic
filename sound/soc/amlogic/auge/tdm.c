@@ -1066,6 +1066,20 @@ static int aml_dai_tdm_prepare(struct snd_pcm_substream *substream,
 			}
 
 			i2s_to_hdmitx_ctrl(separated, p_tdm->id);
+
+			if (runtime->channels > 6) {
+				hdmitx_ext_set_i2s_mask(runtime->channels, 0xf);
+			}
+			else if (runtime->channels > 4) {
+				hdmitx_ext_set_i2s_mask(runtime->channels, 0x7);
+			}
+			else if (runtime->channels > 2) {
+				hdmitx_ext_set_i2s_mask(runtime->channels, 0x3);
+			}
+			else {
+				hdmitx_ext_set_i2s_mask(runtime->channels, 0x1);
+			}
+
 			if (spdif_get_codec() == AUD_CODEC_TYPE_MULTI_LPCM)
 			aout_notifier_call_chain(AOUT_EVENT_IEC_60958_PCM,
 						 substream);
