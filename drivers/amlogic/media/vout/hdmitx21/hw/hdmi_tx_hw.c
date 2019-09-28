@@ -1353,7 +1353,7 @@ static int hdmitx_set_audmode(struct hdmitx_dev *hdev,
 	 */
 	hdmitx21_set_reg_bits(HDMITX_TOP_CLK_CNTL, 1 - hdev->tx_aud_src, 13, 1);
 
-	pr_info(HW "hdmitx tx_aud_src = %d\n", hdev->tx_aud_src);
+	pr_info(HW "hdmitx tx_aud_src = %d, audio_param->channel_num = %u, hdev->aud_output_ch = %u\n", hdev->tx_aud_src, audio_param->channel_num, hdev->aud_output_ch);
 
 	// config I2S
 	//---------------
