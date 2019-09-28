@@ -8,6 +8,7 @@
 
 #include "audio_io.h"
 #include "regs.h"
+#include <linux/mutex.h>
 
 #define TDM_A	0
 #define TDM_B	1
@@ -61,6 +62,11 @@ struct pcm_setting {
 	bool sclk_ws_inv;
 	/* Standardization value by normal setting */
 	unsigned int standard_sysclk;
+};
+
+struct aml_chmap {
+	struct mutex chmap_lock;
+	int chmap_layout;
 };
 
 void aml_tdm_enable(struct aml_audio_controller *actrl,

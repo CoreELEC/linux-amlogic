@@ -2843,7 +2843,7 @@ static int hdmitx_set_audmode(struct hdmitx_dev *hdev,
 	/* if hdev->aud_output_ch is true, select I2S as 8ch in, 2ch out */
 	if (hdev->aud_output_ch) {
 		audio_param->aud_src_if = 1;
-		pr_info("hdmitx aud_output_ch %d\n", hdev->aud_output_ch);
+		pr_info(HW "hdmitx audio_param->channel_num = %u, hdev->aud_output_ch = %u\n", audio_param->channel_num, hdev->aud_output_ch);
 	}
 
 /* config IP */
