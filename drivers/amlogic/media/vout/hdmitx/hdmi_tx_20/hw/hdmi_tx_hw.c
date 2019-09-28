@@ -2655,7 +2655,7 @@ static int hdmitx_set_audmode(struct hdmitx_dev *hdev,
 	if (hdev->aud_output_ch)
 		hdev->tx_aud_src = 1;
 
-	pr_info(HW "hdmitx tx_aud_src = %d\n", hdev->tx_aud_src);
+	pr_info(HW "hdmitx tx_aud_src = %d, audio_param->channel_num = %u, hdev->aud_output_ch = %u\n", hdev->tx_aud_src, audio_param->channel_num, hdev->aud_output_ch);
 
 	/* set_hdmi_audio_source(tx_aud_src ? 1 : 2); */
 	set_hdmi_audio_source(2);
