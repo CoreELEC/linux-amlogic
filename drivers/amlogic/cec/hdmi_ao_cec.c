@@ -48,7 +48,9 @@
 #include <linux/notifier.h>
 #include <linux/random.h>
 #include <linux/pinctrl/consumer.h>
-
+#include <linux/pm_wakeup.h>
+#include <linux/pm_wakeirq.h>
+#include <linux/pm.h>
 #include <linux/amlogic/media/frame_provider/tvin/tvin.h>
 #include <linux/amlogic/media/vout/hdmi_tx/hdmi_tx_cec_20.h>
 #include <linux/amlogic/media/vout/hdmi_tx/hdmi_tx_module.h>
@@ -579,6 +581,8 @@ void cecb_irq_handle(void)
 		complete(&cec_dev->rx_ok);
 		new_msg = 1;
 		dwork = &cec_dev->cec_work;
+		if (is_pm_freeze_mode())
+			cec_freeze_mode_process();
 		mod_delayed_work(cec_dev->cec_thread, dwork, 0);
 	}
 
@@ -1863,6 +1867,10 @@ static int cec_late_check_rx_buffer(void)
 
 void cec_key_report(int suspend)
 {
+	if (is_pm_freeze_mode()) {
+		pm_wakeup_event(cec_dev->dbg_dev, 2000);
+		CEC_INFO("freeze mode:pm_wakeup_event\n");
+	}
 	input_event(cec_dev->cec_info.remote_cec_dev, EV_KEY, KEY_POWER, 1);
 	input_sync(cec_dev->cec_info.remote_cec_dev);
 	input_event(cec_dev->cec_info.remote_cec_dev, EV_KEY, KEY_POWER, 0);
@@ -2158,6 +2166,63 @@ static bool cec_service_suspended(void)
 	return false;
 }
 
+static void cec_save_pre_setting(void)
+{
+	unsigned int config_data;
+
+	/*if (is_pm_freeze_mode())*/
+	/*	cec_config(CEC_FUNC_CFG_ALL, 1);*/
+	/* AO_DEBUG_REG1
+	 * 0-15 : phy addr
+	 * 16-20: logical address
+	 * 21-23: device type
+	 */
+	config_data = cec_dev->cec_info.log_addr;
+	cec_set_reg_bits(AO_DEBUG_REG1, config_data, 16, 4);
+	config_data = cec_dev->dev_type;
+	cec_set_reg_bits(AO_DEBUG_REG1, config_data, 20, 4);
+	CEC_ERR("%s: logaddr:0x%x, devtype:0x%x\n", __func__,
+		cec_dev->cec_info.log_addr,
+		config_data = cec_dev->dev_type);
+}
+
+static void cec_restore_pre_setting(void)
+{
+	unsigned int logaddr;
+	unsigned int devtype;
+	unsigned int config_data;
+	char *token;
+
+	config_data = cec_config(0, 0);
+	/*get device type*/
+	logaddr = (config_data >> 16) & 0xf;
+	devtype = (config_data >> 20) & 0xf;
+	/*get logical address*/
+	if (cec_dev->cec_num > ENABLE_ONE_CEC)
+		cec_logicaddr_add(CEC_B, logaddr);
+	else
+		cec_logicaddr_add(ee_cec, logaddr);
+	cec_dev->cec_info.addr_enable |= (1 << logaddr);
+
+	/* add by hal, to init some data structure */
+	cec_dev->dev_type = devtype;
+	cec_dev->cec_info.log_addr = logaddr;
+	cec_dev->cec_info.vendor_id = cec_dev->v_data.vendor_id;
+	CEC_ERR("%s: logaddr:0x%x, devtype:0x%x\n", __func__,
+		cec_dev->cec_info.log_addr,
+		config_data = cec_dev->dev_type);
+
+	/*suspend freeze mode, driver handle cec msg*/
+	cec_dev->hal_flag &= ~(1 << HDMI_OPTION_SERVICE_FLAG);
+	if (cec_msg_dbg_en) {
+		cec_status();
+		token = kmalloc(2048, GFP_KERNEL);
+		dump_cecrx_reg(token);
+		CEC_ERR("%s\n", token);
+		kfree(token);
+	}
+}
+
 static void cec_task(struct work_struct *work)
 {
 	struct delayed_work *dwork = &cec_dev->cec_work;
@@ -2182,6 +2247,16 @@ static void cec_task(struct work_struct *work)
 	}
 	/*triger next process*/
 	queue_delayed_work(cec_dev->cec_thread, dwork, CEC_FRAME_DELAY);
+}
+
+void cec_freeze_mode_process(void)
+{
+	unsigned int cec_cfg;
+
+	CEC_ERR("%s\n", __func__);
+	cec_cfg = cec_config(0, 0);
+	if (cec_cfg & CEC_FUNC_CFG_CEC_ON)
+		cec_rx_process();
 }
 
 static void ceca_tasklet_pro(unsigned long arg)
@@ -2714,6 +2789,9 @@ static ssize_t dbg_store(struct class *cla, struct class_attribute *attr,
 			return count;
 		cec_ip_share_io(true, val);
 		pr_info("share_io %d (0:a to b, 1:b to a)\n", val);
+	} else if (token && strncmp(token, "setfreeze", 9) == 0) {
+		cec_save_pre_setting();
+		CEC_ERR("Set enter freeze mode\n");
 	} else {
 		if (token)
 			CEC_ERR("no cmd:%s, supported list:\n", token);
@@ -2747,7 +2825,6 @@ static ssize_t dbg_show(struct class *cla,
 	CEC_INFO("dbg_show\n");
 	return 0;
 }
-
 
 static struct class_attribute aocec_class_attr[] = {
 	__ATTR_WO(cmd),
@@ -3203,7 +3280,13 @@ static long hdmitx_cec_ioctl(struct file *f,
 			return -EINVAL;
 		}
 		break;
-
+	case CEC_IOC_SET_FREEZE_MODE:
+		/* system enter power down freeze mode
+		 * need save current device type and logical addr
+		 */
+		cec_save_pre_setting();
+		CEC_ERR("need enter freeze mode\n");
+		break;
 	default:
 		CEC_ERR("error ioctrl\n");
 		break;
@@ -3256,13 +3339,13 @@ static const struct file_operations hdmitx_cec_fops = {
 static void aocec_early_suspend(struct early_suspend *h)
 {
 	cec_dev->cec_suspend = CEC_PW_STANDBY;
-	CEC_INFO("%s, suspend:%d\n", __func__, cec_dev->cec_suspend);
+	CEC_ERR("%s, suspend sts:%d\n", __func__, cec_dev->cec_suspend);
 }
 
 static void aocec_late_resume(struct early_suspend *h)
 {
 	cec_dev->cec_suspend = CEC_PW_POWER_ON;
-	CEC_INFO("%s, suspend:%d\n", __func__, cec_dev->cec_suspend);
+	CEC_ERR("%s, suspend sts:%d\n", __func__, cec_dev->cec_suspend);
 
 }
 #endif
@@ -3702,25 +3785,29 @@ static int aml_cec_probe(struct platform_device *pdev)
 			/* request two int source */
 			CEC_ERR("request_irq two irq src\n");
 			r = request_irq(cec_dev->irq_ceca, &ceca_isr,
-				IRQF_SHARED, irq_name_a, (void *)cec_dev);
+				IRQF_SHARED | IRQF_NO_SUSPEND, irq_name_a,
+				(void *)cec_dev);
 			if (r < 0)
 				CEC_INFO("aocec irq request fail\n");
 
 			r = request_irq(cec_dev->irq_cecb, &cecb_isr,
-				IRQF_SHARED, irq_name_b, (void *)cec_dev);
+				IRQF_SHARED | IRQF_NO_SUSPEND, irq_name_b,
+				(void *)cec_dev);
 			if (r < 0)
 				CEC_INFO("cecb irq request fail\n");
 		} else {
 			if (!r && (ee_cec == CEC_A)) {
 				r = request_irq(cec_dev->irq_ceca, &ceca_isr,
-				IRQF_SHARED, irq_name_a, (void *)cec_dev);
+				IRQF_SHARED | IRQF_NO_SUSPEND, irq_name_a,
+				(void *)cec_dev);
 				if (r < 0)
 					CEC_INFO("aocec irq request fail\n");
 			}
 
 			if (!r && (ee_cec == CEC_B)) {
 				r = request_irq(cec_dev->irq_cecb, &cecb_isr,
-				IRQF_SHARED, irq_name_b, (void *)cec_dev);
+				IRQF_SHARED | IRQF_NO_SUSPEND, irq_name_b,
+				(void *)cec_dev);
 				if (r < 0)
 					CEC_INFO("cecb irq request fail\n");
 			}
@@ -3751,6 +3838,19 @@ static int aml_cec_probe(struct platform_device *pdev)
 		ret = -EFAULT;
 		goto tag_cec_threat_err;
 	}
+	/*freeze wakeup init*/
+	device_init_wakeup(&pdev->dev, 1);
+	CEC_INFO("dev init wakeup\n");
+	if (cec_dev->cec_num > ENABLE_ONE_CEC) {
+		dev_pm_set_wake_irq(&pdev->dev, cec_dev->irq_ceca);
+		dev_pm_set_wake_irq(&pdev->dev, cec_dev->irq_cecb);
+	} else {
+		if (ee_cec == CEC_A)
+			dev_pm_set_wake_irq(&pdev->dev, cec_dev->irq_ceca);
+		else
+			dev_pm_set_wake_irq(&pdev->dev, cec_dev->irq_cecb);
+	}
+
 	INIT_DELAYED_WORK(&cec_dev->cec_work, cec_task);
 	queue_delayed_work(cec_dev->cec_thread, &cec_dev->cec_work, 0);
 	tasklet_init(&ceca_tasklet, ceca_tasklet_pro,
@@ -3824,7 +3924,7 @@ static int aml_cec_remove(struct platform_device *pdev)
 static int aml_cec_pm_prepare(struct device *dev)
 {
 	//cec_dev->cec_suspend = CEC_DEEP_SUSPEND;
-	CEC_INFO("%s\n", __func__);
+	CEC_ERR("%s\n", __func__);
 	return 0;
 }
 
@@ -3837,7 +3937,7 @@ static void aml_cec_pm_complete(struct device *dev)
 			CEC_ERR("clr wakeup reason fail\n");
 	}
 
-	CEC_INFO("%s\n", __func__);
+	CEC_ERR("%s\n", __func__);
 }
 
 static int aml_cec_suspend_noirq(struct device *dev)
@@ -3847,17 +3947,20 @@ static int aml_cec_suspend_noirq(struct device *dev)
 	cec_dev->cec_info.power_status = CEC_PW_TRANS_ON_TO_STANDBY;
 	cec_dev->cec_suspend = CEC_PW_TRANS_ON_TO_STANDBY;
 
-	CEC_INFO("cec suspend noirq\n");
-	if (cec_dev->cec_num > ENABLE_ONE_CEC)
-		cec_clear_all_logical_addr(CEC_B);
-	else
-		cec_clear_all_logical_addr(ee_cec);
+	if (is_pm_freeze_mode()) {
+		CEC_ERR("%s:freeze mode\n", __func__);
+		cec_restore_pre_setting();
+	} else {
+		if (cec_dev->cec_num > ENABLE_ONE_CEC)
+			cec_clear_all_logical_addr(CEC_B);
+		else
+			cec_clear_all_logical_addr(ee_cec);
 
-	if (!IS_ERR(cec_dev->dbg_dev->pins->sleep_state))
-		ret = pinctrl_pm_select_sleep_state(cec_dev->dbg_dev);
-	else
-		CEC_ERR("pinctrl sleep_state error\n");
-
+		if (!IS_ERR(cec_dev->dbg_dev->pins->sleep_state))
+			ret = pinctrl_pm_select_sleep_state(cec_dev->dbg_dev);
+		else
+			CEC_ERR("pinctrl sleep_state error\n");
+	}
 	cec_dev->cec_info.power_status = CEC_PW_STANDBY;
 	cec_dev->cec_suspend = CEC_PW_STANDBY;
 	return 0;
@@ -3868,20 +3971,25 @@ static int aml_cec_resume_noirq(struct device *dev)
 	int ret = 0;
 	unsigned int temp;
 
-	CEC_INFO("cec resume noirq!\n");
+	CEC_ERR("cec resume noirq!\n");
 
 	cec_dev->cec_info.power_status = CEC_PW_TRANS_STANDBY_TO_ON;
 	cec_dev->cec_suspend = CEC_PW_TRANS_STANDBY_TO_ON;
+	if (!is_pm_freeze_mode()) {
+		scpi_get_wakeup_reason(&cec_dev->wakeup_reason);
+		CEC_ERR("wakeup_reason:0x%x\n", cec_dev->wakeup_reason);
 
-	scpi_get_wakeup_reason(&cec_dev->wakeup_reason);
-	CEC_ERR("wakeup_reason:0x%x\n", cec_dev->wakeup_reason);
-
-	scpi_get_cec_val(SCPI_CMD_GET_CEC1,
-				(unsigned int *)&cec_dev->wakup_data);
-	scpi_get_cec_val(SCPI_CMD_GET_CEC2, &temp);
-	CEC_ERR("cev val1: %#x;val2: %#x\n",
-					*((unsigned int *)&cec_dev->wakup_data),
-						temp);
+		scpi_get_cec_val(SCPI_CMD_GET_CEC1,
+				 (unsigned int *)&cec_dev->wakup_data);
+		CEC_ERR("cev val1:0x%x,0x%x,0x%x\n",
+			cec_dev->wakup_data.wk_logic_addr,
+			cec_dev->wakup_data.wk_phy_addr,
+			cec_dev->wakup_data.wk_port_id);
+		scpi_get_cec_val(SCPI_CMD_GET_CEC2, &temp);
+		CEC_ERR("cev val2: 0x%#x\n", temp);
+	} else {
+		CEC_ERR("freeze mode\n");
+	}
 	cec_pre_init();
 	if (!IS_ERR(cec_dev->dbg_dev->pins->default_state))
 		ret = pinctrl_pm_select_default_state(cec_dev->dbg_dev);
