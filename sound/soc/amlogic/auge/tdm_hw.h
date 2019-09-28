@@ -20,6 +20,7 @@
 
 #include "audio_io.h"
 #include "regs.h"
+#include <linux/mutex.h>
 
 #define TDM_A	0
 #define TDM_B	1
@@ -68,6 +69,11 @@ struct pcm_setting {
 
 	/* eco or sclk_ws_inv */
 	bool sclk_ws_inv;
+};
+
+struct aml_chmap {
+	struct mutex chmap_lock;
+	int chmap_layout;
 };
 
 extern void aml_tdm_enable(
