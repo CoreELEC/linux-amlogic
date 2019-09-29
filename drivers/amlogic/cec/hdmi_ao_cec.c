@@ -545,10 +545,14 @@ static int cecb_pick_msg(unsigned char *msg, unsigned char *out_len)
 	/* clr CEC lock bit */
 	hdmirx_cec_write(DWC_CEC_LOCK, 0);
 	CEC_INFO("%s", msg_log_buf);
-	if (cec_message_op(msg, len))
+	if (is_pm_freeze_mode()) {
 		*out_len = len;
-	else
-		*out_len = 0;
+	} else {
+		if (cec_message_op(msg, len))
+			*out_len = len;
+		else
+			*out_len = 0;
+	}
 	pin_status = 1;
 	return 0;
 }
@@ -581,8 +585,6 @@ void cecb_irq_handle(void)
 		complete(&cec_dev->rx_ok);
 		new_msg = 1;
 		dwork = &cec_dev->cec_work;
-		if (is_pm_freeze_mode())
-			cec_freeze_mode_process();
 		mod_delayed_work(cec_dev->cec_thread, dwork, 0);
 	}
 
@@ -1867,6 +1869,11 @@ static int cec_late_check_rx_buffer(void)
 
 void cec_key_report(int suspend)
 {
+	if (!(cec_config(0, 0) & CEC_FUNC_CFG_AUTO_POWER_ON)) {
+		CEC_ERR("auto pw on is off (cfg:0x%x)\n", cec_config(0, 0));
+		return;
+	}
+
 	if (is_pm_freeze_mode()) {
 		pm_wakeup_event(cec_dev->dbg_dev, 2000);
 		CEC_INFO("freeze mode:pm_wakeup_event\n");
@@ -2184,39 +2191,50 @@ static void cec_save_pre_setting(void)
 	CEC_ERR("%s: logaddr:0x%x, devtype:0x%x\n", __func__,
 		cec_dev->cec_info.log_addr,
 		config_data = cec_dev->dev_type);
+	cec_set_reg_bits(AO_DEBUG_REG1, cec_dev->phy_addr, 0, 8);
 }
 
 static void cec_restore_pre_setting(void)
 {
 	unsigned int logaddr;
 	unsigned int devtype;
-	unsigned int config_data;
+	unsigned int cec_cfg;
+	unsigned int data32;
 	char *token;
 
-	config_data = cec_config(0, 0);
+	cec_msg_dbg_en = 1;
+	cec_cfg = cec_config(0, 0);
 	/*get device type*/
-	logaddr = (config_data >> 16) & 0xf;
-	devtype = (config_data >> 20) & 0xf;
+	/* AO_DEBUG_REG1+
+	 * 0-15 : phy addr+
+	 * 16-20: logical address+
+	 * 21-23: device type+
+	 */
+	 data32 = readl(cec_dev->cec_reg + AO_DEBUG_REG1);
+	 logaddr = (data32 >> 16) & 0xf;
+	 devtype = (data32 >> 20) & 0xf;
+
 	/*get logical address*/
 	if (cec_dev->cec_num > ENABLE_ONE_CEC)
 		cec_logicaddr_add(CEC_B, logaddr);
 	else
 		cec_logicaddr_add(ee_cec, logaddr);
 	cec_dev->cec_info.addr_enable |= (1 << logaddr);
-
 	/* add by hal, to init some data structure */
 	cec_dev->dev_type = devtype;
 	cec_dev->cec_info.log_addr = logaddr;
 	cec_dev->cec_info.vendor_id = cec_dev->v_data.vendor_id;
-	CEC_ERR("%s: logaddr:0x%x, devtype:0x%x\n", __func__,
+	cec_dev->phy_addr = data32 & 0xffff;
+
+	CEC_ERR("%s: logaddr:0x%x, devtype:%d\n", __func__,
 		cec_dev->cec_info.log_addr,
-		config_data = cec_dev->dev_type);
+		(unsigned int)cec_dev->dev_type);
 
 	/*suspend freeze mode, driver handle cec msg*/
 	cec_dev->hal_flag &= ~(1 << HDMI_OPTION_SERVICE_FLAG);
-	if (cec_msg_dbg_en) {
-		cec_status();
-		token = kmalloc(2048, GFP_KERNEL);
+
+	token = kmalloc(2048, GFP_KERNEL);
+	if (token) {
 		dump_cecrx_reg(token);
 		CEC_ERR("%s\n", token);
 		kfree(token);
@@ -2231,7 +2249,7 @@ static void cec_task(struct work_struct *work)
 	cec_cfg = cec_config(0, 0);
 	if (cec_cfg & CEC_FUNC_CFG_CEC_ON) {
 		/*cec module on*/
-		if (cec_dev && (/*!wake_ok || */cec_service_suspended()))
+		if ((cec_dev && cec_service_suspended()) || is_pm_freeze_mode())
 			cec_rx_process();
 
 		/*for check rx buffer for old chip version, cec rx irq process*/
@@ -2247,16 +2265,6 @@ static void cec_task(struct work_struct *work)
 	}
 	/*triger next process*/
 	queue_delayed_work(cec_dev->cec_thread, dwork, CEC_FRAME_DELAY);
-}
-
-void cec_freeze_mode_process(void)
-{
-	unsigned int cec_cfg;
-
-	CEC_ERR("%s\n", __func__);
-	cec_cfg = cec_config(0, 0);
-	if (cec_cfg & CEC_FUNC_CFG_CEC_ON)
-		cec_rx_process();
 }
 
 static void ceca_tasklet_pro(unsigned long arg)
