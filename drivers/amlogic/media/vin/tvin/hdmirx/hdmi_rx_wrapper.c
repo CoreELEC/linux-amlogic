@@ -96,7 +96,7 @@ int force_vic;
 uint32_t fsm_log_en;
 uint32_t err_chk_en;
 
-static int aud_sr_stb_max = 20;
+static int aud_sr_stb_max = 30;
 
 /* used in other module */
 static int audio_sample_rate;
@@ -2417,16 +2417,14 @@ void rx_main_state_machine(void)
 					rx_pr("reqclk err->wait_clk\n");
 				} else if (aud_sts == E_PLLRATE_CHG)
 					rx_aud_pll_ctl(1);
-				else if (aud_sts == E_AUDCLK_ERR) {
+				else if (aud_sts == E_AUDCLK_ERR)
 					rx_audio_bandgap_rst();
-					rx.aud_sr_stable_cnt = 0;
-				} else {
+				else {
 					rx_acr_info_sw_update();
 					rx_audio_pll_sw_update();
-					if (log_level & AUDIO_LOG)
-						rx_pr("update audio-err\n");
 				}
-
+				if (log_level & AUDIO_LOG)
+					rx_pr("update audio-err:%d\n, aud_sts");
 				rx.aud_sr_unstable_cnt = 0;
 			}
 		} else

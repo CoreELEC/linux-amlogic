@@ -34,7 +34,7 @@
 #include "hdmi_rx_edid.h"
 
 
-#define RX_VER0 "ver.2019-09-26"
+#define RX_VER0 "ver.2019-09-27"
 /*
  *
  *
@@ -366,6 +366,7 @@ struct aud_info_s {
 	int real_channel_num;
 	int real_sample_size;
 	int real_sr;
+	u32 aud_clk;
 };
 
 struct phy_sts {

@@ -972,6 +972,8 @@ void rx_get_audinfo(struct aud_info_s *audio_info)
 			audio_info->n/128;
 	} else
 		audio_info->arc = 0;
+
+	audio_info->aud_clk = rx_measure_clock(MEASURE_CLK_AUD_PLL);
 }
 
 /*
@@ -2399,9 +2401,26 @@ void hdmirx_load_firm_reset(int type)
  */
 void rx_audio_bandgap_rst(void)
 {
-	vdac_enable(0, 0x10);
-	udelay(20);
-	vdac_enable(1, 0x10);
+	if (rx.chip_id >= CHIP_ID_TL1)
+		return;
+
+	wr_reg_hhi_bits(HHI_VDAC_CNTL0_TXLX, _BIT(13), 1);
+	udelay(10);
+	wr_reg_hhi_bits(HHI_VDAC_CNTL0_TXLX, _BIT(13), 0);
+	if (log_level & AUDIO_LOG)
+		rx_pr("%s\n", __func__);
+}
+
+void rx_audio_bandgap_en(void)
+{
+	if (rx.chip_id >= CHIP_ID_TL1)
+		return;
+
+	wr_reg_hhi_bits(HHI_VDAC_CNTL0_TXLX, _BIT(9), 1);
+	wr_reg_hhi_bits(HHI_VDAC_CNTL0_TXLX, _BIT(13), 1);
+	udelay(10);
+	wr_reg_hhi_bits(HHI_VDAC_CNTL0_TXLX, _BIT(13), 0);
+
 	if (log_level & AUDIO_LOG)
 		rx_pr("%s\n", __func__);
 }
@@ -2538,7 +2557,7 @@ bool is_afifo_error(void)
 bool is_aud_pll_error(void)
 {
 	bool ret = true;
-	int32_t clk = rx_measure_clock(MEASURE_CLK_AUD_PLL);
+	u32 clk = rx.aud_info.aud_clk;
 	int32_t aud_128fs = rx.aud_info.real_sr * 128;
 	int32_t aud_512fs = rx.aud_info.real_sr * 512;
 
@@ -2595,6 +2614,7 @@ void rx_aud_pll_ctl(bool en)
 		}
 	} else {
 		if (en) {
+			rx_audio_bandgap_en();
 			tmp = hdmirx_rd_phy(PHY_MAINFSM_STATUS1);
 			wr_reg_hhi(HHI_AUD_PLL_CNTL, 0x20000000);
 			/* audio pll div depends on input freq */
@@ -3332,7 +3352,7 @@ int rx_get_aud_pll_err_sts(void)
 {
 	int ret = E_AUDPLL_OK;
 	int32_t req_clk = rx_measure_clock(MEASURE_CLK_MPLL);
-	int32_t aud_clk = rx_measure_clock(MEASURE_CLK_AUD_PLL);
+	u32 aud_clk = rx.aud_info.aud_clk;
 	uint32_t phy_pll_rate = (hdmirx_rd_phy(PHY_MAINFSM_STATUS1)>>9)&0x3;
 	uint32_t aud_pll_cntl = (rd_reg_hhi(HHI_AUD_PLL_CNTL6)>>28)&0x3;
 

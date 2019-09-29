@@ -53,7 +53,7 @@
 /* TXLX */
 /* unified_register.h by wujun */
 #define HHI_AUDPLL_CLK_OUT_CNTL (0x8c << 2)
-
+#define HHI_VDAC_CNTL0_TXLX		(0xBD * 4)
 #define PREG_PAD_GPIO0_EN_N		(0x0c * 4)
 #define PREG_PAD_GPIO0_O		(0x0d * 4)
 #define PREG_PAD_GPIO0_I		(0x0e * 4)
@@ -1221,8 +1221,8 @@ extern void cec_hw_reset(unsigned int cec_sel);
 extern void rx_force_hpd_cfg(uint8_t hpd_level);
 extern void rx_force_rxsense_cfg(uint8_t level);
 extern void rx_force_hpd_rxsense_cfg(uint8_t level);
-extern void rx_audio_bandgap_rst(void);
-extern void rx_audio_bandgap_rst(void);
+void rx_audio_bandgap_rst(void);
+void rx_audio_bandgap_en(void);
 extern void rx_phy_rxsense_pulse(unsigned int t1, unsigned int t2, bool en);
 extern void rx_phy_power_on(unsigned int onoff);
 

@@ -312,8 +312,7 @@ int hdmirx_dec_open(struct tvin_frontend_s *fe, enum tvin_port_e port)
 	devp->param.port = port;
 
 	/* should enable the adc ref signal for audio pll */
-	vdac_enable(1, 0x10);
-
+	/* vdac_enable(1, 0x10); */
 	hdmirx_open_port(port);
 	rx.open_fg = 1;
 	rx_pr("%s port:%x ok nosignal:%d\n", __func__, port, rx.no_signal);
