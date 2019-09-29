@@ -51,12 +51,39 @@
 				sound-dai = <&dummy_codec>;
 			};
 		};
+
+		aml-audio-card,dai-link@3 {
+			format = "i2s";// "dsp_a";
+			mclk-fs = <256>;
+			bitclock-master = <&aml_tdmc>;
+			frame-master = <&aml_tdmc>;
+			continuous-clock;
+			cpu {
+				sound-dai = <&aml_tdmc>;
+				dai-tdm-slot-tx-mask = <1 1>;
+				dai-tdm-slot-rx-mask = <1 1>;
+				dai-tdm-slot-num = <2>;
+				dai-tdm-slot-width = <32>;
+				system-clock-frequency = <12288000>;
+			};
+			codec {
+				sound-dai = <&dummy_codec>;
+			};
+		};
 	};
 
 	gpioleds {
 		/delete-node/ net_red;
 		/delete-node/ net_green;
 		/delete-node/ remote_led;
+	};
+};
+
+&audiobus {
+	aml_tdmc: tdmc {
+		/delete-property/ dai-tdm-lane-oe-slot-mask-out;
+		dai-tdm-lane-slot-mask-out = <1 1 1 1>;
+		status = "okay";
 	};
 };
 
