@@ -287,8 +287,8 @@ void atv_dmd_misc(void)
 		atv_dmd_wr_long(APB_BLOCK_ADDR_VDAGC, 0x0c, 0x387c0831);
 		atv_dmd_wr_long(APB_BLOCK_ADDR_CARR_RCVY, 0x24, 0xc020901);
 	} else {
-		if (tuner_id == AM_TUNER_R840 || tuner_id == AM_TUNER_R842
-				|| non_std_en == 4) {
+		if ((tuner_id == AM_TUNER_R840 || tuner_id == AM_TUNER_R842) &&
+		    non_std_en == 4) {
 			/* Reduce target amplitude and response speed */
 			atv_dmd_wr_long(APB_BLOCK_ADDR_AGC_PWM, 0x08,
 					0x17070200);
