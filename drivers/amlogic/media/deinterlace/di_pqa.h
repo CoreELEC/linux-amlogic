@@ -111,7 +111,7 @@ bool di_attach_ops_nr(const struct nr_op_s **ops);
 struct mtn_op_s {
 	void (*mtn_int_combing_glbmot)(void);
 	void (*adpative_combing_exit)(void);
-	void (*fix_tl1_1080i_sawtooth_patch)(void);
+	void (*fix_tl1_1080i_patch_sel)(unsigned int mode);
 	int (*adaptive_combing_fixing)(
 		struct combing_status_s *cmb_status,
 		unsigned int field_diff, unsigned int frame_diff,

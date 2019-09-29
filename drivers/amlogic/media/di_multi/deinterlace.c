@@ -4399,10 +4399,10 @@ unsigned char dim_pre_de_buf_config(unsigned int channel)
 		return 0;
 	}
 	if (is_meson_tl1_cpu()			&&
-	    di_mpr(combing_fix_en)		&&
+	    ppre->comb_mode			&&
 	    flg_1080i) {
 		ppre->combing_fix_en = false;
-		get_ops_mtn()->fix_tl1_1080i_sawtooth_patch();
+		get_ops_mtn()->fix_tl1_1080i_patch_sel(ppre->comb_mode);
 	} else {
 		ppre->combing_fix_en = di_mpr(combing_fix_en);
 	}

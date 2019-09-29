@@ -589,6 +589,8 @@ static int dump_di_pre_stru_seq(struct seq_file *seq, void *v)
 		di_pre_stru_p->invert_flag ? "true" : "false");
 	seq_printf(seq, "%-25s = %s\n", "combing_fix_en",
 		   di_pre_stru_p->combing_fix_en ? "true" : "false");
+	seq_printf(seq, "%-25s = %d\n", "comb_mode",
+		   di_pre_stru_p->comb_mode);
 
 	return 0;
 }
@@ -881,6 +883,7 @@ void dump_vframe(struct vframe_s *vf)
 	pr_info("pixel_ratio %d list %p\n",
 		vf->pixel_ratio, &vf->list);
 	pr_info("di_pulldown 0x%x\n", vf->di_pulldown);
+	pr_info("di_gmv 0x%x\n", vf->di_gmv);
 }
 
 void print_di_buf(struct di_buf_s *di_buf, int format)
@@ -1077,6 +1080,30 @@ void dump_afbcd_reg(void)
 		VD2_AFBCD1_MISC_CTRL, RDMA_RD(VD2_AFBCD1_MISC_CTRL));
 }
 
+static int dbg_patch_mov_data_show(struct seq_file *seq, void *v)
+{
+	struct di_dev_s *de_devp = get_di_de_devp();
+	struct di_patch_mov_s *pmov = &de_devp->mov;
+	int i;
+
+	seq_printf(seq, "mode:%d\n", pmov->mode);
+	seq_printf(seq, "en_support:%d\n", pmov->en_support);
+	seq_printf(seq, "number:%d\n", pmov->nub);
+	seq_printf(seq, "update:%d\n", pmov->update);
+	for (i = 0; i < DI_PATCH_MOV_MAX_NUB; i++) {
+		seq_printf(seq, "index:[%d]\n", i);
+		seq_printf(seq, "\treg:0x%x\n", pmov->reg_addr[i]);
+		if (i < pmov->nub)
+			seq_printf(seq, "\t\t= 0x%x\n",
+				   RDMA_RD(pmov->reg_addr[i]));
+		seq_printf(seq, "\tdb_val:0x%x\n", pmov->val_db[i].val);
+		seq_printf(seq, "\tdb_en :0x%x\n", pmov->val_db[i].en);
+		seq_printf(seq, "\tpq_val:0x%x\n", pmov->val_pq[i].val);
+		seq_printf(seq, "\tpq_val:0x%x\n", pmov->val_pq[i].en);
+	}
+	return 0;
+}
+
 /*2018-08-17 add debugfs*/
 /*same as dump_state*/
 static int seq_file_di_state_show(struct seq_file *seq, void *v)
@@ -1256,6 +1283,7 @@ DEFINE_SHOW_DI(seq_file_dump_di_reg);
 DEFINE_SHOW_DI(seq_file_dump_mif_size_state);
 DEFINE_SHOW_DI(seq_file_afbc);
 DEFINE_SHOW_DI(reg_cue_int);
+DEFINE_SHOW_DI(dbg_patch_mov_data);
 
 struct di_debugfs_files_t {
 	const char *name;
@@ -1269,6 +1297,7 @@ static struct di_debugfs_files_t di_debugfs_files[] = {
 	{"dumpmif", S_IFREG | 0644, &seq_file_dump_mif_size_state_fops},
 	{"dumpafbc", S_IFREG | 0644, &seq_file_afbc_fops},
 	{"reg_cue", S_IFREG | 0644, &reg_cue_int_fops},
+	{"dumpmov", S_IFREG | 0644, &dbg_patch_mov_data_fops},
 };
 
 void di_debugfs_init(void)

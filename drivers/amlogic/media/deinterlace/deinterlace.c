@@ -2448,6 +2448,173 @@ static void di_cma_release(struct di_dev_s *devp)
 			__func__, rels_cnt, delta_time, start_time, end_time);
 }
 #endif
+
+static void di_patch_mov_ini(void)
+{
+	struct di_patch_mov_s *pmov;
+
+	if (!de_devp)
+		return;
+
+	pmov = &de_devp->mov;
+	if (!cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
+		pmov->en_support = false;
+		return;
+	}
+	pmov->en_support = true;
+	pmov->mode = -1;
+	pmov->nub = 0;
+}
+
+bool di_patch_mov_db(unsigned int addr, unsigned int val)
+{
+	bool ret = false;
+	int i;
+	struct di_patch_mov_s *pmov;
+	struct di_patch_mov_d_s *pmv;
+
+	if (!de_devp)
+		return ret;
+
+	pmov = &de_devp->mov;
+
+	if (!pmov->en_support || !pmov->nub)
+		return ret;
+
+	for (i = 0; i < pmov->nub; i++) {
+		if (addr == pmov->reg_addr[i]) {
+			pmv = &pmov->val_db[i];
+			pmv->val = val;
+			pmv->en = true;
+			pmv->mask = 0xffffffff;
+			ret = true;
+		}
+	}
+	return ret;
+}
+
+void di_patch_mov_setreg(unsigned int nub, unsigned int *preg)
+{
+	struct di_patch_mov_s *pmov;
+	unsigned int i;
+
+	if (!de_devp)
+		return;
+
+	pmov = &de_devp->mov;
+
+	if (!pmov->en_support)
+		return;
+
+	pmov->nub = nub;
+	if (nub > DI_PATCH_MOV_MAX_NUB) {
+		pr_error("err: %s:nub is overflow %d\n",
+			 __func__, nub);
+		pmov->nub = DI_PATCH_MOV_MAX_NUB;
+	}
+
+	pmov->mode = -1;
+	for (i = 0; i < pmov->nub; i++) {
+		pmov->reg_addr[i] = preg[i];
+		di_pr_info("reg:0x%x\n", preg[i]);
+	}
+}
+EXPORT_SYMBOL(di_patch_mov_setreg);
+
+/**************************************************
+ * pdate:
+ *	value / mask
+ *	value / mask
+ *	need keep same order with di_patch_mov_setreg
+ **************************************************/
+bool di_api_mov_sel(unsigned int mode, unsigned int *pdate)
+{
+	struct di_patch_mov_s *pmov;
+	int i;
+	struct di_patch_mov_d_s *pmv;
+	bool ret = true;
+
+	if (!de_devp)
+		return false;
+
+	pmov = &de_devp->mov;
+
+	if (!pmov		||
+	    !pmov->en_support	||
+	    !init_flag)
+		return false;
+
+	switch (mode) {
+	case 0:/*setting from db*/
+		pmov->mode = 0;
+		pmov->update = 1;
+		break;
+	case 1:/*setting from pq*/
+		pmov->update = 0;
+		for (i = 0; i < pmov->nub; i++) {
+			pmv = &pmov->val_pq[i];
+			pmv->val = pdate[i * 2];
+			pmv->mask = pdate[i * 2 + 1];
+			pmv->en = true;
+		}
+		pmov->mode = 1;
+		pmov->update = true;
+
+		break;
+	default:
+		ret = false;
+		break;
+	}
+	return ret;
+}
+EXPORT_SYMBOL(di_api_mov_sel);
+
+static void di_patch_mov_setting(void)
+{
+	struct di_patch_mov_s *pmov;
+	int i;
+	struct di_patch_mov_d_s *pmv;
+	unsigned int val;
+
+	if (!de_devp)
+		return;
+
+	pmov = &de_devp->mov;
+
+	if (!pmov		||
+	    !pmov->en_support	||
+	    pmov->mode < 0	||
+	    pmov->mode > 1	||
+	    !pmov->update)
+		return;
+
+	if (pmov->mode == 0)
+		pmv = &pmov->val_db[0];
+	else
+		pmv = &pmov->val_pq[0];
+
+	for (i = 0; i < pmov->nub; i++) {
+		if (pmv->en) {
+			if (pmv->mask != 0xffffffff) {
+				val = ((RDMA_RD(pmov->reg_addr[i]) &
+					(~(pmv->mask))) |
+					(pmv->val & pmv->mask));
+			} else {
+				val = pmv->val;
+			}
+			DI_Wr(pmov->reg_addr[i], val);
+		}
+		pmv++;
+	}
+	pmov->update = 0;
+}
+
+void di_set_comb_mode(unsigned int mode)
+{
+	di_pre_stru.comb_mode = mode;
+}
+EXPORT_SYMBOL(di_set_comb_mode);
+
 static int di_init_buf(int width, int height, unsigned char prog_flag)
 {
 	int i;
@@ -3391,6 +3558,7 @@ static void pre_de_process(void)
 		di_pre_stru.input_size_change_flag = false;
 	}
 
+	di_patch_mov_setting();
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12A)) {
 		if (de_devp->nrds_enable) {
 			nr_ds_mif_config();
@@ -4629,10 +4797,10 @@ jiffies_to_msecs(jiffies_64 - vframe->ready_jiffies64));
 		return 0;
 	}
 	if (is_meson_tl1_cpu()	&&
-	    combing_fix_en	&&
+	    di_pre_stru.comb_mode &&
 	    flg_1080i) {
 		di_pre_stru.combing_fix_en = false;
-		fix_tl1_1080i_sawtooth_patch();
+		fix_tl1_1080i_patch_sel(di_pre_stru.comb_mode);
 	} else {
 		di_pre_stru.combing_fix_en = combing_fix_en;
 	}
@@ -8664,6 +8832,7 @@ static int di_probe(struct platform_device *pdev)
 	di_patch_post_update_mc_sw(DI_MC_SW_IC, true);
 
 	dil_attach_ext_api(&di_ext);
+	di_patch_mov_ini();
 
 	di_pr_info("%s:ok\n", __func__);
 	return ret;

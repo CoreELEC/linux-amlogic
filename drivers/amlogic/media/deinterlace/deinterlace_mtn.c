@@ -705,7 +705,7 @@ MODULE_PARM_DESC(di_debug_readreg, "di_debug_readreg");
 /*from VLSI yanling.liu, the patch fix TL1 1080I in some dark */
 /*scenes and roller coasters have small sawtooth, when turn off*/
 /*combing_fix_en, set the registers*/
-void fix_tl1_1080i_sawtooth_patch(void)
+static void fix_tl1_1080i_sawtooth_patch(void)
 {
 	DI_Wr(0x1741, 0x0A0A1A22);
 	DI_Wr(0x1742, 0x0a100101);
@@ -718,6 +718,35 @@ void fix_tl1_1080i_sawtooth_patch(void)
 	DI_Wr(0x17ad, 0x04040606);
 	DI_Wr(0x17ae, 0x02030202);
 	DI_Wr(0x17af, 0x60020a60);
+}
+
+static void fix_tl1_1080i_patch2(void)
+{
+	DI_Wr(0x1741, 0x010a010a);
+	DI_Wr(0x1742, 0x01010101);
+	DI_Wr(0x1743, 0x00000101);
+	DI_Wr(0x1744, 0x00000101);
+	DI_Wr(0x17a9, 0x01010102);
+	DI_Wr(0x17aa, 0x02020101);
+	DI_Wr(0x17ab, 0x010a010a);
+	DI_Wr(0x17ac, 0x010a0102);
+	DI_Wr(0x17ad, 0x08080808);
+	DI_Wr(0x17ae, 0x01010101);
+	DI_Wr(0x17af, 0xff00031f);
+}
+
+void fix_tl1_1080i_patch_sel(unsigned int mode)
+{
+	switch (mode) {
+	case 0:/*not set*/
+		break;
+	case 1:
+		fix_tl1_1080i_sawtooth_patch();
+		break;
+	case 2:
+		fix_tl1_1080i_patch2();
+		break;
+	}
 }
 
 static int combing_cnt;
@@ -885,7 +914,7 @@ module_param_named(cmb_adpset_cnt, cmb_adpset_cnt, int, 0644);
 static const struct mtn_op_s di_ops_mtn = {
 	.mtn_int_combing_glbmot		= mtn_int_combing_glbmot,
 	.adpative_combing_exit		= adpative_combing_exit,
-	.fix_tl1_1080i_sawtooth_patch	= fix_tl1_1080i_sawtooth_patch,
+	.fix_tl1_1080i_patch_sel	= fix_tl1_1080i_patch_sel,
 	.adaptive_combing_fixing	= adaptive_combing_fixing,
 	.adpative_combing_config	= adpative_combing_config,
 	.com_patch_pre_sw_set		= com_patch_pre_sw_set,

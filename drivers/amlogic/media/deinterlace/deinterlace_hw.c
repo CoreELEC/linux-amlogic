@@ -3878,6 +3878,7 @@ void di_load_regs(struct di_pq_parm_s *di_pq_ptr)
 	unsigned int table_name = 0, nr_table = 0;
 	bool ctrl_reg_flag = false;
 	struct am_reg_s *regs_p = NULL;
+	bool mov_flg = false;
 
 	if (pq_load_dbg == 1)
 		return;
@@ -3926,7 +3927,9 @@ void di_load_regs(struct di_pq_parm_s *di_pq_ptr)
 		}
 		if (table_name & nr_table)
 			ctrl_reg_flag = set_nr_ctrl_reg_table(addr, value);
-		if (!ctrl_reg_flag)
+		if (table_name & TABLE_NAME_DI)
+			mov_flg = di_patch_mov_db(addr, value);
+		if (!ctrl_reg_flag && !mov_flg)
 			DI_Wr(addr, value);
 		if (pq_load_dbg == 2)
 			pr_info("[%u][0x%x] = [0x%x] %s\n", i, addr,
