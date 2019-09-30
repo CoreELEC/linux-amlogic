@@ -1621,6 +1621,7 @@ static const struct file_operations slabtrace_file_ops = {
 
 static int __init page_trace_module_init(void)
 {
+#ifndef CONFIG_64BIT
 
 	if (!page_trace_disable)
 		d_pagetrace = proc_create("pagetrace", 0444,
@@ -1629,6 +1630,7 @@ static int __init page_trace_module_init(void)
 		pr_err("%s, create sysfs failed\n", __func__);
 		return -1;
 	}
+#endif
 
 #ifdef CONFIG_AMLOGIC_SLAB_TRACE
 	if (slab_trace_en)
