@@ -2636,8 +2636,7 @@ static int is_graphic_changed(void)
 		is_osd_off = false;
 		ret |= 2;
 	}
-	/* do not need to monitor osd change, */
-	/* because scaler is after dolby core2 */
+
 	if ((osd_graphic_width != new_osd_graphic_width) ||
 	(osd_graphic_height != new_osd_graphic_height)) {
 		if (debug_dolby & 0x10)
@@ -2646,11 +2645,12 @@ static int is_graphic_changed(void)
 				     osd_graphic_height,
 				     new_osd_graphic_width,
 				     new_osd_graphic_height);
-		/* ignore osd size change */
-		/* osd scaler is after dobly core */
-		/* osd_graphic_width = new_osd_graphic_width; */
-		/* osd_graphic_height = new_osd_graphic_height; */
-		/* ret |= 4; */
+		/* TODO: since tm2 can change osd pps position */
+		if (!is_osd_off && !is_meson_tm2()) {
+			osd_graphic_width = new_osd_graphic_width;
+			osd_graphic_height = new_osd_graphic_height;
+			ret |= 2;
+		}
 	}
 	return ret;
 }
