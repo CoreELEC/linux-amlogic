@@ -5827,6 +5827,8 @@ int dolby_vision_parse_metadata(
 	enum signal_format_e src_format = FORMAT_SDR;
 	enum signal_format_e check_format;
 	enum signal_format_e dst_format;
+	enum signal_format_e cur_src_format;
+	enum signal_format_e cur_dst_format;
 	int total_md_size = 0;
 	int total_comp_size = 0;
 	bool el_flag = 0;
@@ -6477,10 +6479,25 @@ int dolby_vision_parse_metadata(
 		graphic_min = graphic_max = 0;
 
 #ifdef V2_4
-	if ((src_format != dovi_setting.src_format)
-		|| (dst_format != dovi_setting.dst_format) ||
-		((!(dolby_vision_flags & FLAG_CERTIFICAION))
-		&& (frame_count == 0))) {
+	if (new_dovi_setting.video_width && new_dovi_setting.video_height) {
+	/* Toggle multiple frames in one vsync case: */
+	/* new_dovi_setting.video_width will be available, but not be applied */
+	/* So use new_dovi_setting as reference instead of dovi_setting. */
+	/* To avoid unnecessary reset control_path. */
+		cur_src_format = new_dovi_setting.src_format;
+		cur_dst_format = new_dovi_setting.dst_format;
+	} else {
+		cur_src_format = dovi_setting.src_format;
+		cur_dst_format = dovi_setting.dst_format;
+	}
+
+	if ((src_format != cur_src_format) ||
+	    (dst_format != cur_dst_format)) {
+		pr_dolby_dbg(
+			"reset control path: format changed: src:%d->%d, dst:%d-%d, frame_count:%d, dolby_vision_flags:0x%x\n",
+			cur_src_format, src_format,
+			cur_dst_format, dst_format,
+			frame_count, dolby_vision_flags);
 		p_funcs_stb->control_path(
 			FORMAT_INVALID, 0,
 			comp_buf[currentId], 0,
@@ -6490,11 +6507,6 @@ int dolby_vision_parse_metadata(
 			0,
 			&hdr10_param,
 			&new_dovi_setting);
-		pr_dolby_dbg(
-			"reset control path: format changed: src:%d->%d, dst:%d-%d, frame_count:%d, dolby_vision_flags:0x%x\n",
-			dovi_setting.src_format, src_format,
-			dovi_setting.dst_format, dst_format,
-			frame_count, dolby_vision_flags);
 	}
 	if (!vsvdb_config_set_flag) {
 		memset(&new_dovi_setting.vsvdb_tbl[0],
@@ -7087,7 +7099,7 @@ int dolby_vision_process(
 	    get_hdr_module_status(VD1_PATH)
 	    != HDR_MODULE_ON) {
 		vf = NULL;
-		rpt_vf = NULL;
+		/* rpt_vf = NULL; */
 	}
 
 	graphic_status = is_graphic_changed();
@@ -7131,7 +7143,8 @@ int dolby_vision_process(
 		}
 	}
 
-	if (!vf && video_turn_off) {
+	if ((!vf && !rpt_vf && video_turn_off) ||
+	    (video_status == -1)) {
 		if (dolby_vision_policy_process(&mode, FORMAT_SDR)) {
 			pr_dolby_dbg("Fake SDR, mode->%d\n", mode);
 			if (dolby_vision_policy == DOLBY_VISION_FOLLOW_SOURCE &&
@@ -7143,9 +7156,11 @@ int dolby_vision_process(
 			} else
 				dolby_vision_set_toggle_flag(1);
 		}
-		if (dolby_vision_flags & FLAG_TOGGLE_FRAME)
+		if (dolby_vision_flags & FLAG_TOGGLE_FRAME) {
+			pr_dolby_dbg("update when video off\n");
 			dolby_vision_parse_metadata(
 				NULL, 1, false, false);
+		}
 	}
 
 	if (dolby_vision_mode == DOLBY_VISION_OUTPUT_MODE_BYPASS) {

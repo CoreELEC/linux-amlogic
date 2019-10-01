@@ -1024,13 +1024,13 @@ static u32 hold_video;
 
 u32 get_video_enabled(void)
 {
-	return video_enabled;
+	return video_enabled && video_global_output;
 }
 EXPORT_SYMBOL(get_video_enabled);
 
 u32 get_videopip_enabled(void)
 {
-	return video2_enabled;
+	return video2_enabled && pip_global_output;
 }
 EXPORT_SYMBOL(get_videopip_enabled);
 
