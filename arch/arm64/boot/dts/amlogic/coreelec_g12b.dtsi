@@ -1,0 +1,17 @@
+#include "g12b_a311d_w400_buildroot.dts"
+#include "coreelec_g12_common.dtsi"
+
+/{
+	reserved-memory {
+		galcore_reserved:linux,galcore {
+			size = <0x0 0x1000000>;
+		};
+	};
+};
+
+&ethmac {
+	pinctrl-names = "external_eth_pins";
+	pinctrl-0 = <&external_eth_pins>;
+	mc_val = <0x1621>;
+	internal_phy=<0>;
+};
