@@ -1,0 +1,199 @@
+#include "sm1_s905x3_2g_1gbit.dts"
+
+/{
+	model = "Khadas VIM3L";
+	amlogic-dt-id = "sm1_kvim3l";
+	coreelec-dt-id = "sm1_s905d3_khadas_vim3l";
+
+	/delete-node/ memory@00000000;
+
+	gpioleds {
+		status = "okay";
+
+		sys_led {
+			gpios=<&gpio_ao GPIOAO_4 GPIO_ACTIVE_HIGH>;
+			retain-state-suspended;
+			linux,default-trigger="default-on";
+		};
+
+		red_led {
+			label = "red_red";
+			gpios = <&gpio_expander 5 GPIO_ACTIVE_HIGH>;
+			default-state ="off";
+			linux,default-trigger="none";
+		};
+	};
+
+	gpio_keypad {
+		key-gpios = <&gpio_ao GPIOAO_7 GPIO_ACTIVE_HIGH>;
+	};
+
+	adc_keypad {
+		compatible = "amlogic, adc_keypad";
+		status = "okay";
+		key_name = "home";
+		key_num = <1>;
+		io-channels = <&saradc SARADC_CH2>;
+		io-channel-names = "key-chan-2";
+		key_chan = <SARADC_CH2 SARADC_CH2 SARADC_CH2>;
+		key_code = <102>;
+		key_val = <108>; //val=voltage/1800mV*1023
+		key_tolerance = <40>;
+	};
+
+	/delete-node/ efusekey;
+	efusekey:efusekey{
+		keynum = <1>;
+		key0 = <&key_0>;
+		key_0:key_0{
+			keyname = "mac";
+			offset = <0>;
+			size = <6>;
+		};
+	};
+
+	meson-ir {
+		status = "disabled";
+	};
+
+	meson-remote {
+		status = "okay";
+		map = <&custom_maps>;
+	};
+
+	custom_maps:custom_maps {
+		mapnum = <1>;
+		map0 = <&map_0>;
+		map_0: map_0{
+			mapname = "khadas-ir";
+			customcode = <0xff00>;
+			release_delay = <80>;
+			fn_key_scancode = <0x5b>;
+			cursor_left_scancode = <0x0e>;
+			cursor_right_scancode = <0x1a>;
+			cursor_up_scancode = <0x03>;
+			cursor_down_scancode = <0x02>;
+			cursor_ok_scancode = <0x07>;
+			size = <12>;
+			keymap = <REMOTE_KEY(0x14,116)
+				REMOTE_KEY(0x13,46)
+				REMOTE_KEY(0x03,103)
+				REMOTE_KEY(0x02,108)
+				REMOTE_KEY(0x0e,105)
+				REMOTE_KEY(0x1a,106)
+				REMOTE_KEY(0x07,28)
+				REMOTE_KEY(0x58,114)
+				REMOTE_KEY(0x5c,90)
+				REMOTE_KEY(0x0b,115)
+				REMOTE_KEY(0x01,1)
+				REMOTE_KEY(0x48,172)>;
+		};
+	};
+
+	/delete-node/ dvb;
+	/delete-node/ tuner;
+	/delete-node/ lcd;
+	/delete-node/ lcd_extern;
+	/delete-node/ backlight;
+	/delete-node/ bl_pwm_conf;
+	/delete-node/ bl_extern;
+};
+
+&pinctrl_periphs {
+	/delete-node/ bl_pwm_off_pin;
+	/delete-node/ spdifout;
+};
+
+&pinctrl_aobus {
+	/delete-node/ dvb_s_ts0_pins;
+
+	spdifout: spdifout {
+		mux {
+			groups = "spdif_out_ao";
+			function = "spdif_out_ao";
+		};
+	};
+
+	spdifout_a_mute: spdifout_a_mute {
+		mux {
+			groups = "GPIOAO_10";
+			function = "gpio_aobus";
+		};
+	};
+};
+
+&i2c0 {
+	/delete-property/ pinctrl-names;
+	/delete-property/ pinctrl-0;
+	/delete-property/ clock-frequency;
+	/delete-node/ gt9xx@5d;
+	/delete-node/ ftxx@38;
+};
+
+&i2c3 {
+	status = "okay";
+	pinctrl-names="default";
+	pinctrl-0=<&i2c3_master_pins2>;
+	clock-frequency = <100000>;
+
+	/delete-node/ ad82584f_62@62;
+	/delete-node/ bl_extern_i2c;
+};
+
+&i2c_AO {
+	status = "okay";
+	pinctrl-names="default";
+	pinctrl-0=<&ao_i2c_master_pins1>;
+	clock-frequency = <400000>;
+
+	gpio_expander: gpio-controller@20 {
+		compatible = "ti,tca6408";
+		reg = <0x20>;
+		gpio-controller;
+		#gpio-cells = <2>;
+		status = "okay";
+	};
+
+	hym8563: hym8563@51 {
+		compatible = "haoyu,hym8563";
+		reg = <0x51>;
+		#clock-cells = <0>;
+	};
+
+	khadas-mcu {
+		compatible = "khadas-mcu";
+		reg = <0x18>;
+		fan,trig_temp_level0 = <50>;
+		fan,trig_temp_level1 = <60>;
+		fan,trig_temp_level2 = <70>;
+		hwver = "VIM3.V11";
+	};
+};
+
+&pwm_ef {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pwm_f_pins2>;
+};
+
+&usb2_phy_v2 {
+	gpio-vbus-power = "GPIOA_6";
+	gpios = <&gpio GPIOA_6 GPIO_ACTIVE_HIGH>;
+};
+
+&usb3_phy_v2 {
+	otg = <1>;
+};
+
+&pcie_A {
+	reset-gpio = <&gpio GPIOA_8 GPIO_ACTIVE_HIGH>;
+};
+
+&sd_emmc_c {
+	emmc {
+		caps2 = "MMC_CAP2_HS200";
+	};
+};
+
+&saradc {
+	status = "okay";
+};

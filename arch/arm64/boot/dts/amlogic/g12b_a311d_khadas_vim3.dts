@@ -1,0 +1,45 @@
+#include "coreelec_g12b.dtsi"
+
+/{
+	model = "Khadas VIM3";
+	coreelec-dt-id = "g12b_a311d_khadas_vim3";
+
+	/delete-node/ memory@00000000;
+
+	auge_sound {
+		/delete-property/ spk_mute-gpios;
+	};
+
+	gpioleds {
+		sys_led {
+			gpios=<&gpio_ao GPIOAO_4 GPIO_ACTIVE_HIGH>;
+		};
+	};
+
+	gpio_keypad {
+		key-gpios = <&gpio_ao GPIOAO_7 GPIO_ACTIVE_HIGH>;
+	};
+
+	/delete-node/ rtc;
+};
+
+&i2c_AO {
+	status = "okay";
+	pinctrl-names="default";
+	pinctrl-0=<&ao_i2c_master_pins1>;
+	clock-frequency = <400000>;
+
+	hym8563: hym8563@51 {
+		compatible = "haoyu,hym8563";
+		reg = <0x51>;
+	};
+
+	khadas-mcu {
+		compatible = "khadas-mcu";
+		reg = <0x18>;
+		fan,trig_temp_level0 = <50>;
+		fan,trig_temp_level1 = <60>;
+		fan,trig_temp_level2 = <70>;
+		hwver = "VIM3.V11"; /* Will be updated in uboot. */
+	};
+};
