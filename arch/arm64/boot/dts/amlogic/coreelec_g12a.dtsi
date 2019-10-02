@@ -1,0 +1,65 @@
+#include "g12a_s905x2_u211_buildroot.dts"
+#include "coreelec_common.dtsi"
+
+/{
+	/delete-node/ auge_sound;
+	auge_sound {
+		compatible = "amlogic, g12a-sound-card";
+		aml-audio-card,name = "AML-AUGESOUND";
+		mute_gpio = <&gpio_ao GPIOAO_2 GPIO_ACTIVE_LOW>;
+		aml-audio-card,effect = <&audio_effect>;
+
+		aml-audio-card,dai-link@0 {
+			mclk-fs = <128>;
+			continuous-clock;
+			cpu {
+				sound-dai = <&aml_spdif_b>;
+				system-clock-frequency = <6144000>;
+			};
+			codec {
+				sound-dai = <&dummy_codec>;
+			};
+		};
+
+		aml-audio-card,dai-link@1 {
+			format = "i2s";// "dsp_a";
+			mclk-fs = <256>;
+			bitclock-master = <&aml_tdmb>;
+			frame-master = <&aml_tdmb>;
+			continuous-clock;
+			cpu {
+				sound-dai = <&aml_tdmb>;
+				dai-tdm-slot-tx-mask = <1 1>;
+				dai-tdm-slot-rx-mask = <1 1>;
+				dai-tdm-slot-num = <2>;
+				dai-tdm-slot-width = <32>;
+				system-clock-frequency = <12288000>;
+			};
+			codec {
+				sound-dai = <&amlogic_codec>;
+			};
+		};
+
+		aml-audio-card,dai-link@2 {
+			mclk-fs = <128>;
+			continuous-clock;
+			cpu {
+				sound-dai = <&aml_spdif>;
+				system-clock-frequency = <6144000>;
+			};
+			codec {
+				sound-dai = <&dummy_codec>;
+			};
+		};
+	};
+
+	gpioleds {
+		/delete-node/ net_red;
+		/delete-node/ net_green;
+		/delete-node/ remote_led;
+	};
+};
+
+&sd_emmc_b2 {
+	status = "okay";
+};

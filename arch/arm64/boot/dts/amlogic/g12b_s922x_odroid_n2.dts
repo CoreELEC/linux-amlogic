@@ -1,0 +1,10 @@
+#include "meson64_odroidn2.dts"
+#include "coreelec_common.dtsi"
+
+/{
+	coreelec-dt-id = "g12b_s922x_odroid_n2";
+};
+
+&i2c2 {
+	status = "okay";
+};
