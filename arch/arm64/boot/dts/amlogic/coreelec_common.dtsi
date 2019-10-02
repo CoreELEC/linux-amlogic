@@ -1,0 +1,146 @@
+/{
+	coreelec;
+	/delete-property/ amlogic-dt-id;
+
+	chosen { };
+
+	reserved-memory {
+		linux,meson-fb {
+			alloc-ranges = <0x0 0x77800000 0x0 0x800000>;
+		};
+		linux,vdin0_cma {
+			status = "disabled";
+		};
+		linux,vdin1_cma {
+			status = "disabled";
+		};
+		linux,isp_cma {
+			status = "disabled";
+		};
+		linux,adapt_cma {
+			status = "disabled";
+		};
+		linux,gdc_cma {
+			status = "disabled";
+		};
+	};
+
+	gpioleds {
+		sys_led {
+			/delete-property/ retain-state-suspended;
+		};
+	};
+
+	codec_mm {
+		clear-map;
+	};
+
+	gpio_keypad {
+		reg = <0x0 0xFF800000 0x0 0x400>;
+	};
+
+	/delete-node/ partitions;
+	/delete-node/ firmware;
+
+	/delete-node/ rc@0xff808040;
+	/delete-node/ custom_maps;
+	meson-ir {
+		compatible = "amlogic,meson6-ir";
+		/* Multi-format IR controller */
+		reg = <0x0 0xff808040 0x0 0x44>;
+		interrupts = <0 196 1>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&remote_pins>;
+		pulse-inverted;
+		status = "ok";
+	};
+	meson-remote {
+		compatible = "amlogic, aml_remote";
+		dev_name = "meson-remote";
+		reg = <0x0 0xff808040 0x00 0x44>, /*Multi-format IR controller*/
+			<0x0 0xff808000 0x00 0x20>; /*Legacy IR controller*/
+		status = "disabled";
+		protocol = <REMOTE_TYPE_NEC>;
+		led_blink = <1>;
+		led_blink_frq = <100>;
+		interrupts = <0 196 1>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&remote_pins>;
+		max_frame_time = <200>; /*set software decoder max frame time*/
+	};
+
+	amvideocap {
+		compatible = "amlogic, amvideocap";
+		dev_name = "amvideocap.0";
+		status = "okay";
+		max_size = <8>;//8M
+	};
+
+	openvfd {
+		compatible = "open,vfd";
+		dev_name = "openvfd";
+		status = "okay";
+	};
+
+	/delete-node/ sensor;
+	/delete-node/ iq;
+
+	/delete-node/ lcd;
+	/delete-node/ lcd_extern;
+	/delete-node/ backlight;
+	/delete-node/ bl_pwm_conf;
+	/delete-node/ bl_extern;
+};
+
+&meson_fb {
+	mem_size = <0x00800000 0x4b80000 0x100000 0x100000 0x800000>;
+	4k2k_fb = <1>;
+};
+
+&i2c0 {
+	status = "disabled";
+	/delete-node/ gt9xx@5d;
+	/delete-node/ ftxx@38;
+	/delete-node/ touchscreen@38;
+};
+
+&i2c2 {
+	status = "disabled";
+	/delete-node/ sensor-i2c@6c;
+};
+
+&i2c3 {
+	/delete-node/ ad82584f_62@62;
+	/delete-node/ tlv320adc3101_32@32;
+	/delete-node/ bl_extern_i2c;
+	/delete-node/ tas5707_36@36;
+};
+
+&audiobus {
+	/delete-node/ pdm;
+};
+
+&pinctrl_periphs {
+	/delete-node/ spdifin;
+	/delete-node/ pdmin;
+	/delete-node/ bl_pwm_off_pin;
+	/delete-node/ clk12_24_z_pins;
+};
+
+&vdin0 {
+	status = "disabled";
+};
+
+&vdin1 {
+	status = "disabled";
+};
+
+/delete-node/ &nand;
+
+&pcie_A {
+	status = "disabled";
+};
+
+&aocec {
+	/delete-property/ ee_cec;
+};

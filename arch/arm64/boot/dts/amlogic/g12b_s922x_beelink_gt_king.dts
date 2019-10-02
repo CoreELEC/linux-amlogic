@@ -1,0 +1,23 @@
+#include "coreelec_g12b.dtsi"
+
+/{
+	model = "Beelink GT-King rev. B";
+	coreelec-dt-id = "g12b_s922x_beelink_gt_king";
+
+	memory@00000000 {
+		linux,usable-memory = <0x0 0x100000 0x0 0xf0800000>;
+	};
+
+	/delete-node/ rtc;
+};
+
+&usb3_phy_v2 {
+	otg = <0>;
+};
+
+&i2c3 {
+	hym8563: hym8563@51 {
+		compatible = "haoyu,hym8563";
+		reg = <0x51>;
+	};
+};

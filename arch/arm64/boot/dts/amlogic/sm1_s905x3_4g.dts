@@ -1,0 +1,9 @@
+#include "sm1_s905x3_2g.dts"
+
+/{
+	coreelec-dt-id = "sm1_s905x3_4g";
+
+	memory@00000000 {
+		linux,usable-memory = <0x0 0x100000 0x0 0xf5700000>;
+	};
+};

@@ -1,0 +1,12 @@
+#include "sm1_s905x3_2g.dts"
+
+/{
+	coreelec-dt-id = "sm1_s905x3_2g_1gbit";
+};
+
+&ethmac {
+	pinctrl-names = "external_eth_pins";
+	pinctrl-0 = <&external_eth_pins>;
+	mc_val = <0x1621>;
+	internal_phy=<0>;
+};
