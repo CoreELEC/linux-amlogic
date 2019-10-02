@@ -1,0 +1,113 @@
+#include "coreelec_g12b.dtsi"
+
+/{
+	model = "UGOOS AM6 rev. B";
+	coreelec-dt-id = "g12b_s922x_ugoos_am6";
+
+	/delete-node/ memory@00000000;
+
+	auge_sound {
+		/delete-property/ spk_mute-gpios;
+	};
+
+	sys_green {
+		compatible = "amlogic, sysled";
+		dev_name = "sysled";
+		label = "sys_green";
+		status = "okay";
+		led_gpio = <&gpio GPIOC_7 GPIO_ACTIVE_HIGH>;
+		led_active_low = <0>;
+		led_gpio_workaround;    /* GPIOC_7 cant control output */
+	};
+
+	wifi{
+		power_on_pin = <&gpio_ao GPIOAO_10 GPIO_ACTIVE_HIGH>;
+	};
+
+	gpio_keypad {
+		key-gpios = <&gpio_ao  GPIOAO_6  GPIO_ACTIVE_HIGH>;
+	};
+
+	/delete-node/ sensor;
+	/delete-node/ iq;
+};
+
+&usb2_phy_v2 {
+	gpio-vbus-power = "GPIOA_8";
+	gpios = <&gpio GPIOA_8 GPIO_ACTIVE_HIGH>;
+};
+
+&usb3_phy_v2 {
+	otg = <1>;
+	default-host; // or default-otg, or nothing for auto
+	gpio-vbus-power = "GPIOAO_7";
+	gpios = <&gpio_ao GPIOAO_7 GPIO_ACTIVE_HIGH>;
+};
+
+&isp {
+	status = "disabled";
+	/*memory-region = <&isp_cma_reserved>;*/
+};
+
+&adapter {
+	status = "disabled";
+	/*memory-region = <&adapt_cma_reserved>;*/
+};
+
+&i2c3 {
+	ad82584f_62: ad82584f_62@62 {
+		status = "disabled";
+	};
+
+	rt5651: rt5651@1a {
+		compatible = "realtek,rt5651";
+		#sound-dai-cells = <0>;
+		reg = <0x1a>;
+		status = "okay";
+		realtek,dmic-en = "false";
+		realtek,in2-differential = "false";
+	};
+
+	hym8563: hym8563@51 {
+		compatible = "haoyu,hym8563";
+		reg = <0x51>;
+		#clock-cells = <0>;
+		clock-frequency = <32768>;
+		clock-output-names = "xin32k";
+	};
+};
+
+&audiobus {
+	aml_tdmc: tdmc {
+		pinctrl-0 = </*&tdmc_mclk &tdmout_c &tdmin_c*/>;
+	};
+
+	tdm@3 {
+		status = "disabled";
+	};
+}; /* end of audiobus */
+
+&pinctrl_aobus {
+	/delete-node/ spdifout;
+	/delete-node/ spdifout_a_mute;
+};
+
+&pinctrl_periphs {
+	/delete-node/ tdmc_mclk;
+	/delete-node/ tdmout_c;
+	/delete-node/ tdmin_c;
+
+	spdifout: spdifout {
+		mux { /* GPIOA_11 */
+			groups = "spdif_out_a11";
+			function = "spdif_out";
+		};
+	};
+
+	spdifout_a_mute: spdifout_a_mute {
+		mux { /* GPIOA_11 */
+			groups = "GPIOA_11";
+			function = "gpio_periphs";
+		};
+	};
+}; /* end of pinctrl_periphs */

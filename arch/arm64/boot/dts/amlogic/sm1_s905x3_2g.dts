@@ -1,0 +1,6 @@
+#include "coreelec_sm1.dtsi"
+
+/{
+	model = "Amlogic S905X3";
+	coreelec-dt-id = "sm1_s905x3_2g";
+};
