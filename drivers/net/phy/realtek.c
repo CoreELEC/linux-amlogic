@@ -24,6 +24,7 @@
 #include <linux/netdevice.h>
 
 #include <linux/amlogic/pm.h>
+#include <linux/amlogic/scpi_protocol.h>
 #endif
 #define RTL821x_LCR		0x10
 #define RTL821x_PHYSR		0x11
@@ -43,11 +44,24 @@ MODULE_DESCRIPTION("Realtek PHY driver");
 MODULE_AUTHOR("Johnson Leung");
 MODULE_LICENSE("GPL");
 
+static int enable_wol = 0;
+
 #ifdef CONFIG_AMLOGIC_ETH_PRIVE
 unsigned int support_external_phy_wol;
 unsigned int external_rx_delay;
 unsigned int external_tx_delay;
 #endif
+
+static int __init init_wol_state(char *str)
+{
+	enable_wol = simple_strtol(str, NULL, 0);
+	support_external_phy_wol = enable_wol;
+	pr_info("%s, enable_wol=%d\n",__func__, enable_wol);
+
+	return 0;
+}
+__setup("enable_wol=", init_wol_state);
+
 static int rtl821x_ack_interrupt(struct phy_device *phydev)
 {
 	int err;
@@ -161,6 +175,10 @@ static int rtl8211f_config_init(struct phy_device *phydev)
 	/* config mac address for wol*/
 	if ((phydev->attached_dev) && (support_external_phy_wol)) {
 		mac_addr = phydev->attached_dev->dev_addr;
+
+		pr_info("set mac for wol = %02x:%02x:%02x:%02x:%02x:%02x\n",
+			mac_addr[0], mac_addr[1], mac_addr[2], mac_addr[3], mac_addr[4], mac_addr[5]);
+
 		phy_write(phydev, RTL8211F_PAGE_SELECT, 0xd8c);
 		phy_write(phydev, 0x10, mac_addr[0] | (mac_addr[1] << 8));
 		phy_write(phydev, 0x11, mac_addr[2] | (mac_addr[3] << 8));
@@ -191,7 +209,7 @@ int rtl8211f_suspend(struct phy_device *phydev)
 		phy_write(phydev, 0x11, 0x9fff);
 		/*pad isolation*/
 		value = phy_read(phydev, 0x13);
-		phy_write(phydev, 0x13, value | (0x1 << 15));
+		phy_write(phydev, 0x13, value | (0x1 << 12));
 		/*pin 31 pull high*/
 		phy_write(phydev, RTL8211F_PAGE_SELECT, 0xd40);
 		value = phy_read(phydev, 0x16);
@@ -208,6 +226,8 @@ int rtl8211f_suspend(struct phy_device *phydev)
 int rtl8211f_resume(struct phy_device *phydev)
 {
 	int value;
+
+	scpi_send_usr_data(SCPI_CL_WOL, &enable_wol, sizeof(enable_wol));
 
 	if (support_external_phy_wol) {
 		mutex_lock(&phydev->lock);
