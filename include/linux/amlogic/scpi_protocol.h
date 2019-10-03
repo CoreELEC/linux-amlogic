@@ -29,7 +29,8 @@ enum scpi_client_id {
 	SCPI_CL_REMOTE,
 	SCPI_CL_LED_TIMER,
 	SCPI_CL_SET_CEC_DATA,
-	SCPI_MAX,
+	SCPI_CL_WOL = 100,
+	SCPI_MAX = 0xff,
 };
 
 enum scpi_std_cmd {
