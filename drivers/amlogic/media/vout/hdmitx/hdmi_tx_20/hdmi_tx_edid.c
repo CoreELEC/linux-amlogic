@@ -177,6 +177,19 @@ static int Edid_find_name_block(unsigned char *data)
 	return ret;
 }
 
+static int Edid_find_range_block(unsigned char *data)
+{
+	int ret = 0;
+	int i;
+	for (i = 0; i < 3; i++) {
+		if (data[i])
+			return ret;
+	}
+	if (data[3] == 0xfd)
+		ret = 1;
+	return ret;
+}
+
 static void Edid_ReceiverProductNameParse(struct rx_cap *pRxCap,
 	unsigned char *data)
 {
@@ -2025,6 +2038,7 @@ int hdmitx_edid_parse(struct hdmitx_dev *hdmitx_device)
 	unsigned char BlockCount;
 	unsigned char *EDID_buf;
 	int i, j, ret_val;
+	int maxPixelClock = 0;
 	int idx[4];
 	struct rx_cap *pRXCap = &(hdmitx_device->RXCap);
 	struct vinfo_s *info = NULL;
@@ -2071,6 +2085,9 @@ int hdmitx_edid_parse(struct hdmitx_dev *hdmitx_device)
 		if (Edid_find_name_block(&EDID_buf[idx[i]]))
 			Edid_ReceiverProductNameParse(&hdmitx_device->RXCap,
 				&EDID_buf[idx[i]+5]);
+
+		if (Edid_find_range_block(&EDID_buf[idx[i]]))
+			maxPixelClock = EDID_buf[idx[i]+9];
 	}
 
 	Edid_ManufactureDateParse(&hdmitx_device->RXCap, &EDID_buf[16]);
@@ -2218,6 +2235,11 @@ int hdmitx_edid_parse(struct hdmitx_dev *hdmitx_device)
 			hdrinfo_to_vinfo(info, pRXCap);
 			rxlatency_to_vinfo(info, pRXCap);
 		}
+	}
+
+	if (pRXCap->Max_TMDS_Clock1 < 15){
+		pr_info(EDID "Setting maxTMDSclock from range block\n");
+		pRXCap->Max_TMDS_Clock1 = maxPixelClock * 2;
 	}
 	return 0;
 
