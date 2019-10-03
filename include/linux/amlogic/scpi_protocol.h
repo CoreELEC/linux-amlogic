@@ -27,6 +27,7 @@ enum scpi_client_id {
 	SCPI_CL_THERMAL,
 	SCPI_CL_REMOTE,
 	SCPI_CL_LED_TIMER,
+	SCPI_CL_WOL,
 	SCPI_MAX,
 };
 
