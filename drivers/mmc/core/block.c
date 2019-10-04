@@ -2950,6 +2950,39 @@ static void mmc_blk_remove_debugfs(struct mmc_card *card,
 
 #endif /* CONFIG_DEBUG_FS */
 
+#ifdef CONFIG_MMC_MESON_GX
+static int mmc_validate_mpt_partition(struct mmc_card *card)
+{
+	char *buf;
+	int ret;
+
+	/* check only if 'card' is eMMC device */
+	if (strcmp(mmc_hostname(card->host), "mmc0"))
+		return -EINVAL;
+
+	buf = (char*)kmalloc(1 << card->csd.read_blkbits, GFP_KERNEL);
+	if (buf == NULL)
+		return -ENOMEM;
+
+	mmc_claim_host(card->host);
+
+	/* FIXME: fix up the magic number for start block to check MPT partition */
+	ret = mmc_read_internal(card,
+		(MMC_BOOT_PARTITION_SIZE + MMC_BOOT_PARTITION_RESERVED) / 512, 1, buf);
+	if (ret == 0) {
+		if (strncmp(buf, MMC_PARTITIONS_MAGIC,
+			sizeof(((struct mmc_partitions_fmt*)0)->magic)) != 0) {
+			ret = -EINVAL;
+		}
+	}
+
+	mmc_release_host(card->host);
+
+	kfree(buf);
+	return ret;
+}
+#endif
+
 static int mmc_blk_probe(struct mmc_card *card)
 {
 	struct mmc_blk_data *md, *part_md;
@@ -2991,7 +3024,8 @@ static int mmc_blk_probe(struct mmc_card *card)
 	if (mmc_add_disk(md))
 		goto out;
 #ifdef CONFIG_MMC_MESON_GX
-	aml_emmc_partition_ops(card, md->disk);
+	if (mmc_validate_mpt_partition(card) == 0)
+		aml_emmc_partition_ops(card, md->disk);
 #endif
 
 	list_for_each_entry(part_md, &md->part, part) {
@@ -3157,4 +3191,3 @@ module_exit(mmc_blk_exit);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Multimedia Card (MMC) block device driver");
-
