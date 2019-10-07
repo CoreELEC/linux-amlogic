@@ -232,7 +232,8 @@ int calculation_stream_delayed_ms(u8 type, u32 *latestbitrate,
 			outtime = timestamp_pcrscr_get();
 	if (outtime == 0 || outtime == 0xffffffff)
 		outtime = pTable->last_checkout_pts;
-	timestampe_delayed = (pTable->last_checkin_pts - outtime) / 90;
+	if (pTable->last_checkin_pts > outtime)
+		timestampe_delayed = (pTable->last_checkin_pts - outtime) / 90;
 	pTable->last_pts_delay_ms = timestampe_delayed;
 	if (get_buf_by_type_cb && stbuf_level_cb && stbuf_space_cb) {
 		if ((timestampe_delayed < 10)
@@ -278,7 +279,7 @@ int calculation_stream_delayed_ms(u8 type, u32 *latestbitrate,
 						type)))
 				diff = diff2;
 		}
-		delay_ms = diff * 1000 / (1 + pTable->last_avg_bitrate / 8);
+		delay_ms = (diff * 1000) / (int)(1 + pTable->last_avg_bitrate / 8);
 		if ((timestampe_delayed < 10) ||
 			((abs
 			(timestampe_delayed - delay_ms) > (3 * 1000))
