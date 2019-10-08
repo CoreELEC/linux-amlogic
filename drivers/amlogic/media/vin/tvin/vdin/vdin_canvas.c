@@ -523,8 +523,11 @@ unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 	/*for almost uncompressed pattern,garbage at bottom
 	 *1024x1658 is the worst case,each page wast 2160x3x256byte for 4096
 	 *since every block must not be separated by 2 pages
+	 *screen cap & v4l2 debug doesn't use afbce,no need inc mem
 	 */
-	mem_size += 1024 * 1658;
+	if (!(devp->parm.reserved & PARAM_STATE_SCREENCAP) &&
+	    (!(devp->flags & VDIN_FLAG_V4L2_DEBUG)))
+		mem_size += 1024 * 1658;
 
 	if ((devp->format_convert >= VDIN_FORMAT_CONVERT_YUV_NV12) &&
 		(devp->format_convert <= VDIN_FORMAT_CONVERT_RGB_NV21))
