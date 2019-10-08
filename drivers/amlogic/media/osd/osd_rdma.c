@@ -70,7 +70,7 @@ static void *table_vaddr;
 static u32 rdma_enable;
 static u32 item_count;
 static u32 rdma_debug;
-static u32 rdma_hdr_delay = 1;
+static u32 rdma_hdr_delay;
 static bool osd_rdma_init_flag;
 #define OSD_RDMA_UPDATE_RETRY_COUNT 100
 static unsigned int debug_rdma_status;
