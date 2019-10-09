@@ -56,6 +56,12 @@ struct gpio_keypad {
 	struct input_dev *input_dev;
 };
 
+enum gpio_bank {
+	PERIPHS,
+	AOBUS,
+	UNKNOWN = 0xFF
+};
+
 static int __init gpiopower_setup(char *str)
 {
 	int ret;
@@ -166,6 +172,8 @@ static void polling_timer_handler(unsigned long data)
 static int meson_gpio_kp_probe(struct platform_device *pdev)
 {
 	struct gpio_desc *desc;
+	struct gpio_chip *chip;
+	enum gpio_bank bank = UNKNOWN;
 	int ret, i;
 	struct input_dev *input_dev;
 	struct gpio_keypad *keypad;
@@ -228,11 +236,26 @@ static int meson_gpio_kp_probe(struct platform_device *pdev)
 					return -EINVAL;
 				}
 
-				if (ao_reg) {
-					val = readl((ao_reg + AO_DEBUG_REG0));
-					val |= (gpiopower << 16);
+				chip = gpiod_to_chip(desc);
+
+				if (!chip) {
+					dev_err(&pdev->dev, "Failed to get chip from desc\n");
+					return -EINVAL;
+				}
+
+				if (!strcmp(chip->label, "periphs-banks"))
+					bank = PERIPHS;
+				else if (!strcmp(chip->label, "aobus-banks"))
+					bank = AOBUS;
+
+				if (ao_reg && bank != UNKNOWN) {
+					val = readl((ao_reg + AO_DEBUG_REG0)) & 0xFFFF;
+					val |= ((gpiopower - chip->base) & 0xFFF) << 16;
+					val |= bank << 28;
 					writel(val, (ao_reg + AO_DEBUG_REG0));
 				}
+				else
+					dev_err(&pdev->dev, "invalid chip->label: %s, ao_reg: %p\n", chip->label, ao_reg);
 			} else {
 				dev_err(&pdev->dev, "invalid gpio %ld\n",
 						gpiopower);
