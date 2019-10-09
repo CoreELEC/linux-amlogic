@@ -9715,8 +9715,8 @@ static void set_omx_pts(u32 *p)
 				frame_num > 0 ? frame_num-1 : 0;
 			if (omx_need_drop_frame_num == 0)
 				omx_drop_done = true;
-			pr_info("omx_need_drop_frame_num %d\n",
-			omx_need_drop_frame_num);
+			pr_info("omx need drop %d\n",
+				omx_need_drop_frame_num);
 		}
 		omx_run = true;
 		if (omx_pts_set_from_hwc_count < OMX_MAX_COUNT_RESET_SYSTEMTIME)

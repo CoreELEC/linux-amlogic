@@ -5981,7 +5981,7 @@ int dolby_vision_parse_metadata(
 					dv_provider,
 					VFRAME_EVENT_RECEIVER_DOLBY_BYPASS_EL,
 					(void *)&req);
-				pr_info("bypass mel\n");
+				pr_dolby_dbg("bypass mel\n");
 			}
 			if (ret_flags == 1)
 				mel_flag = true;
@@ -6042,7 +6042,7 @@ int dolby_vision_parse_metadata(
 			|| (frame_count == 0))
 			&& (toggle_mode == 1))
 			pr_info(
-			"DOLBY: dolby_vision_parse_metadata frame %d pts %lld, src bdp: %d format: %s, aux_size:%d, enhance: %d\n",
+			"DV:[%d,%lld,%d,%s,%d,%d]\n",
 			frame_count, vf->pts_us64, src_bdp,
 			(src_format == FORMAT_HDR10) ? "HDR10" :
 			(src_format == FORMAT_DOVI ? "DOVI" :
