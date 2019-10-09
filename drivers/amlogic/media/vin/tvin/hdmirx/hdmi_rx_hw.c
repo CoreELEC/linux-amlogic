@@ -101,7 +101,7 @@ int pll_rst_max = 5;
 /* cdr lock threshold */
 int cdr_lock_level;
 int clock_lock_th = 2;
-int scdc_force_en;
+int scdc_force_en = 1;
 /* for hdcp_hpd debug, disable by default */
 bool hdcp_hpd_ctrl_en;
 
@@ -3863,7 +3863,6 @@ void aml_phy_pll_setting(void)
 	uint32_t data, data2;
 	uint32_t cableclk = rx.phy.cable_clk / KHz;
 	int pll_rst_cnt = 0;
-	int m_div;
 
 	od_div = apll_tab[bw].od_div;
 	od = apll_tab[bw].od;
@@ -3883,17 +3882,19 @@ void aml_phy_pll_setting(void)
 	if (is_tl1_former())
 		od2 += 1;
 	do {
-		if ((vco_clk > (3000 * KHz)) && (vco_clk < (4800 * KHz)) &&
-			(M <= 80)) {
-			data2 = 0x300b8f30 | od2;
-			m_div = 2;
-		} else {
-			data2 = 0x300d8f30 | od2;
-			m_div = 1;
-		}
-
+		/*cntl0 M <7:0> N<14:10>*/
+		data = 0x00090400 & 0xffff8300;
+		data |= M;
+		data |= (N << 10);
+		wr_reg_hhi(HHI_HDMIRX_APLL_CNTL0, data | 0x20000000);
+		udelay(5);
+		wr_reg_hhi(HHI_HDMIRX_APLL_CNTL0, data | 0x30000000);
+		udelay(5);
 		wr_reg_hhi(HHI_HDMIRX_APLL_CNTL1, 0x00000000);
-		wr_reg_hhi(HHI_HDMIRX_APLL_CNTL2, 0x0000503c);
+		udelay(5);
+		wr_reg_hhi(HHI_HDMIRX_APLL_CNTL2, 0x00001118);
+		udelay(5);
+		data2 = 0x10058f30 | od2;
 		wr_reg_hhi(HHI_HDMIRX_APLL_CNTL3, data2);
 		if (is_tl1_former())
 			data2 = 0x000100c0;
@@ -3901,27 +3902,15 @@ void aml_phy_pll_setting(void)
 			data2 = 0x080130c0;
 		data2 |= (od << 24);
 		wr_reg_hhi(HHI_HDMIRX_APLL_CNTL4, data2);
-		udelay(1);
-		/*cntl0 M <7:0> N<14:10>*/
-		data = 0x00090000;
-		data |= M * m_div;
-		data |= (N << 10);
-		wr_reg_hhi(HHI_HDMIRX_APLL_CNTL0, data | 0x20000000);
-		wr_reg_hhi(HHI_HDMIRX_APLL_CNTL0, data | 0x30000000);
-		udelay(50);
+		udelay(5);
+		/*apll_vctrl_mon_en*/
 		wr_reg_hhi(HHI_HDMIRX_APLL_CNTL4, data2 | 0x00800000);
-		udelay(50);
+		udelay(5);
 		wr_reg_hhi(HHI_HDMIRX_APLL_CNTL0, data | 0x34000000);
-		udelay(50);
-		if (m_div == 2) {
-			m_div = 1;
-			data &= 0xffffff00;
-			data |= M * m_div;
-			wr_reg_hhi(HHI_HDMIRX_APLL_CNTL0, data | 0x34000000);
-			udelay(50);
-		}
-		data &= 0xdfffffff;
+		udelay(5);
 		wr_reg_hhi(HHI_HDMIRX_APLL_CNTL0, data | 0x14000000);
+		udelay(5);
+
 		/* bit'5: force lock bit'2: improve phy ldo voltage */
 		wr_reg_hhi(HHI_HDMIRX_APLL_CNTL2, 0x0000303c);
 
