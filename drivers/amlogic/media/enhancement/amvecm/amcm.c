@@ -473,27 +473,21 @@ void cm_latch_process(void)
 	do {
 		if (vecm_latch_flag & FLAG_REG_MAP0) {
 			cm_regmap_latch(&amregs0, FLAG_REG_MAP0);
-			break;
 		}
 		if (vecm_latch_flag & FLAG_REG_MAP1) {
 			cm_regmap_latch(&amregs1, FLAG_REG_MAP1);
-			break;
 		}
 		if (vecm_latch_flag & FLAG_REG_MAP2) {
 			cm_regmap_latch(&amregs2, FLAG_REG_MAP2);
-			break;
 		}
 		if (vecm_latch_flag & FLAG_REG_MAP3) {
 			cm_regmap_latch(&amregs3, FLAG_REG_MAP3);
-			break;
 		}
 		if (vecm_latch_flag & FLAG_REG_MAP4) {
 			cm_regmap_latch(&amregs4, FLAG_REG_MAP4);
-			break;
 		}
 		if (vecm_latch_flag & FLAG_REG_MAP5) {
 			cm_regmap_latch(&amregs5, FLAG_REG_MAP5);
-			break;
 		}
 		if ((cm2_patch_flag & 0xff) > 0)
 			cm2_frame_switch_patch();

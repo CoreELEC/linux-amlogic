@@ -71,6 +71,10 @@
 #define VPP_DEMO_CM_EN              (1 << 0)
 
 /*PQ USER LATCH*/
+#define PQ_USER_CMS_CURVE_HUE_HS   BIT(23)
+#define PQ_USER_CMS_CURVE_HUE      BIT(22)
+#define PQ_USER_CMS_CURVE_LUMA     BIT(21)
+#define PQ_USER_CMS_CURVE_SAT      BIT(20)
 #define PQ_USER_SR1_DERECTION_DIS  (1 << 19)
 #define PQ_USER_SR1_DERECTION_EN   (1 << 18)
 #define PQ_USER_SR0_DERECTION_DIS  (1 << 17)

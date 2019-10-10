@@ -21,7 +21,7 @@
 #include "cm2_adj.h"
 
 #define NUM_MATRIX_PARAM 7
-#define NUM_COLOR_MAX eCM2ColorMd_max
+#define NUM_COLOR_MAX ecm2colormd_max
 #define NUM_SMTH_PARAM 11
 static uint lpf_coef_matrix_param = NUM_MATRIX_PARAM;
 static uint lpf_coef[NUM_MATRIX_PARAM] = {
@@ -57,6 +57,11 @@ static uint smth_coef_sat_matrix_param = NUM_SMTH_PARAM;
 static uint smth_coef_sat[NUM_SMTH_PARAM] = {
 	40, 60, 85, 105, 115, 120, 115, 105, 85, 60, 30
 };
+
+static char adj_hue_via_s[NUM_COLOR_MAX][5][32];
+static char adj_hue_via_hue[NUM_COLOR_MAX][32];
+static char adj_sat_via_hs[NUM_COLOR_MAX][3][32];
+static char adj_luma_via_hue[NUM_COLOR_MAX][32];
 
 module_param_array(lpf_coef, uint,
 	&lpf_coef_matrix_param, 0664);
@@ -218,8 +223,7 @@ static void color_adj(int inp_color, int inp_val, int lpf_en,
  * @param colormode [description]
  * @param Adj_Hue_via_S[][32]  [description]
  */
-static void cm2_curve_update_hue_by_hs(enum eCM2ColorMd colormode,
-						char Adj_Hue_via_S[][32])
+void cm2_curve_update_hue_by_hs(enum ecm2colormd colormode)
 {
 	unsigned int i, j, start = 0, end = 0;
 	unsigned int val1[5] = {0}, val2[5] = {0};
@@ -242,17 +246,18 @@ static void cm2_curve_update_hue_by_hs(enum eCM2ColorMd colormode,
 			if (j == reg_node1) {
 				/*curve 0,1*/
 				val1[j] &= 0x0000ffff;
-				temp = Adj_Hue_via_S[0][i];
+				temp = adj_hue_via_s[colormode][0][i];
 				val1[j] |= (temp << 16) & 0x00ff0000;
-				temp = Adj_Hue_via_S[1][i];
+				temp = adj_hue_via_s[colormode][1][i];
 				val1[j] |= (temp << 24) & 0xff000000;
 				continue;
 			}
 		}
 
 		for (j = 0; j < 5; j++) {
-			WRITE_VPP_REG(VPP_CHROMA_ADDR_PORT,
-				0x100 + i*8 + j);
+			WRITE_VPP_REG(
+				VPP_CHROMA_ADDR_PORT,
+				0x100 + i * 8 + j);
 			WRITE_VPP_REG(VPP_CHROMA_DATA_PORT, val1[j]);
 		}
 
@@ -263,11 +268,11 @@ static void cm2_curve_update_hue_by_hs(enum eCM2ColorMd colormode,
 			if (j == reg_node2) {
 				/*curve 2,3,4*/
 				val2[j] &= 0xff000000;
-				val2[j] |= Adj_Hue_via_S[2][i]
+				val2[j] |= adj_hue_via_s[colormode][2][i]
 					& 0x000000ff;
-				temp = Adj_Hue_via_S[3][i];
+				temp = adj_hue_via_s[colormode][3][i];
 				val2[j] |= (temp << 8) & 0x0000ff00;
-				temp = Adj_Hue_via_S[4][i];
+				temp = adj_hue_via_s[colormode][4][i];
 				val2[j] |= (temp << 16) & 0x00ff0000;
 				continue;
 			}
@@ -275,15 +280,15 @@ static void cm2_curve_update_hue_by_hs(enum eCM2ColorMd colormode,
 		}
 
 		for (j = 0; j < 5; j++) {
-			WRITE_VPP_REG(VPP_CHROMA_ADDR_PORT,
-				0x100 + i*8 + j);
+			WRITE_VPP_REG(
+				VPP_CHROMA_ADDR_PORT,
+				0x100 + i * 8 + j);
 			WRITE_VPP_REG(VPP_CHROMA_DATA_PORT, val2[j]);
 		}
 	}
 }
 
-static void cm2_curve_update_hue(enum eCM2ColorMd colormode,
-						char *hue_lut)
+void cm2_curve_update_hue(enum ecm2colormd colormode)
 {
 	unsigned int i, j, start = 0, end = 0;
 	unsigned int val1[5] = {0};
@@ -304,14 +309,15 @@ static void cm2_curve_update_hue(enum eCM2ColorMd colormode,
 			if (j == reg_node) {
 				/*curve 0*/
 				val1[j] &= 0xffffff00;
-				temp = hue_lut[i];
+				temp = adj_hue_via_hue[colormode][i];
 				val1[j] |= (temp) & 0x000000ff;
 				continue;
 			}
 		}
 		for (j = 0; j < 5; j++) {
-			WRITE_VPP_REG(VPP_CHROMA_ADDR_PORT,
-				0x100 + i*8 + j);
+			WRITE_VPP_REG(
+				VPP_CHROMA_ADDR_PORT,
+				0x100 + i * 8 + j);
 			WRITE_VPP_REG(VPP_CHROMA_DATA_PORT, val1[j]);
 		}
 	}
@@ -331,8 +337,7 @@ static void cm2_curve_update_hue(enum eCM2ColorMd colormode,
  * @param colormode [description]
  * @param luma_lut  [description]
  */
-static void cm2_curve_update_luma(enum eCM2ColorMd colormode,
-						char *luma_lut)
+void cm2_curve_update_luma(enum ecm2colormd colormode)
 {
 	unsigned int i, j, start = 0, end = 0;
 	unsigned int val1[5] = {0};
@@ -353,14 +358,15 @@ static void cm2_curve_update_luma(enum eCM2ColorMd colormode,
 			if (j == reg_node) {
 				/*curve 0*/
 				val1[j] &= 0xffffff00;
-				temp = luma_lut[i];
+				temp = adj_luma_via_hue[colormode][i];
 				val1[j] |= (temp) & 0x000000ff;
 				continue;
 			}
 		}
 		for (j = 0; j < 5; j++) {
-			WRITE_VPP_REG(VPP_CHROMA_ADDR_PORT,
-				CM2_ENH_COEF0_H00 + i*8 + j);
+			WRITE_VPP_REG(
+				VPP_CHROMA_ADDR_PORT,
+				CM2_ENH_COEF0_H00 + i * 8 + j);
 			WRITE_VPP_REG(VPP_CHROMA_DATA_PORT, val1[j]);
 		}
 	}
@@ -380,8 +386,7 @@ static void cm2_curve_update_luma(enum eCM2ColorMd colormode,
  * @param colormode [description]
  * @param Adj_Sat_via_HS[3][32]  [description]
  */
-static void cm2_curve_update_sat(enum eCM2ColorMd colormode,
-						char Adj_Sat_via_HS[3][32])
+void cm2_curve_update_sat(enum ecm2colormd colormode)
 {
 	unsigned int i, j, start = 0, end = 0;
 	unsigned int val1[5] = {0};
@@ -402,22 +407,22 @@ static void cm2_curve_update_sat(enum eCM2ColorMd colormode,
 			if (j == reg_node) {
 				val1[j] &= 0x000000ff;
 				/*curve 0*/
-				temp = Adj_Sat_via_HS[0][i];
+				temp = adj_sat_via_hs[colormode][0][i];
 				val1[j] |= (temp << 8) & 0x0000ff00;
 				/*curve 1*/
-				temp = Adj_Sat_via_HS[1][i];
+				temp = adj_sat_via_hs[colormode][1][i];
 				val1[j] |= (temp << 16) & 0x00ff0000;
 				/*curve 2*/
-				temp = Adj_Sat_via_HS[2][i];
+				temp = adj_sat_via_hs[colormode][2][i];
 				val1[j] |= (temp << 24) & 0xff000000;
 				continue;
 			}
 		}
 		for (j = 0; j < 5; j++) {
-			WRITE_VPP_REG(VPP_CHROMA_ADDR_PORT,
-				CM2_ENH_COEF0_H00 + i*8 + j);
-		    WRITE_VPP_REG(VPP_CHROMA_DATA_PORT, val1[j]);
-			/*pr_info("0x%x,\n", val1);*/
+			WRITE_VPP_REG(
+				VPP_CHROMA_ADDR_PORT,
+				CM2_ENH_COEF0_H00 + i * 8 + j);
+			WRITE_VPP_REG(VPP_CHROMA_DATA_PORT, val1[j]);
 		}
 	}
 }
@@ -428,19 +433,18 @@ static void cm2_curve_update_sat(enum eCM2ColorMd colormode,
  * @param sat_val   [-100 ~ 100]
  * @param lpf_en    [1:on 0:off]
  */
-void cm2_hue_by_hs(enum eCM2ColorMd colormode, int hue_val, int lpf_en)
+void cm2_hue_by_hs(enum ecm2colormd colormode, int hue_val, int lpf_en)
 {
 	int inp_color = colormode;
 	/*[-100, 100], color_adj will mapping to value [-128, 127]*/
 	int inp_val = hue_val;
 	int temp;
 	int out_lut[32];
-	char reg_CM2_Adj_Hue_via_S[5][32];
 	/*int lpf_en = 0;*/
 	int k, i;
 
-	memset(out_lut, 0, sizeof(int)*32);
-	memset(reg_CM2_Adj_Hue_via_S, 0, sizeof(char)*32*5);
+	memset(out_lut, 0, sizeof(int) * 32);
+	memset(adj_hue_via_s[colormode], 0, sizeof(char) * 32 * 5);
 	/*pr_info("color mode:%d, input val =%d\n", colormode, hue_val);*/
 
 	color_adj(inp_color, inp_val, lpf_en, lpf_coef,
@@ -450,11 +454,11 @@ void cm2_hue_by_hs(enum eCM2ColorMd colormode, int hue_val, int lpf_en)
 		/*pr_info("\n Adj_Hue via %d\n", k);*/
 		for (i = 0; i < 32; i++) {
 			temp = out_lut[i] * huegain_via_sat5[inp_color][k];
-			reg_CM2_Adj_Hue_via_S[k][i] = (char)(rsround(temp)/100);
+			adj_hue_via_s[colormode][k][i] =
+						(char)(rsround(temp) / 100);
 			/*pr_info("%d  ", reg_CM2_Adj_Hue_via_S[k][i]);*/
 		}
 	}
-	cm2_curve_update_hue_by_hs(colormode, reg_CM2_Adj_Hue_via_S);
 	/*pr_info("\n ---end\n");*/
 }
 
@@ -465,28 +469,26 @@ void cm2_hue_by_hs(enum eCM2ColorMd colormode, int hue_val, int lpf_en)
  * @param lpf_en    [1:on 0:off]
  */
 
-void cm2_hue(enum eCM2ColorMd colormode, int hue_val, int lpf_en)
+void cm2_hue(enum ecm2colormd colormode, int hue_val, int lpf_en)
 {
 	int inp_color = colormode;
 	/*[-100, 100], color_adj will mapping to value [-128, 127]*/
 	int inp_val = hue_val;
 	int i;
 	int out_lut[32];
-	char reg_CM2_Adj_Hue_via_Hue[32];
 	/*int lpf_en = 0;*/
 
-	memset(out_lut, 0, sizeof(int)*32);
-	memset(reg_CM2_Adj_Hue_via_Hue, 0, sizeof(char)*32);
+	memset(out_lut, 0, sizeof(int) * 32);
+	memset(adj_hue_via_hue[colormode], 0, sizeof(char) * 32);
 	/*pr_info("color mode:%d, input val =%d\n", colormode, hue_val);*/
 
 	color_adj(inp_color, inp_val, lpf_en, lpf_coef,
 				color_key_pts, smth_coef_hue, out_lut);
 
 	for (i = 0; i < 32; i++) {
-		reg_CM2_Adj_Hue_via_Hue[i] = (char)out_lut[i];
+		adj_hue_via_hue[colormode][i] = (char)out_lut[i];
 		/*pr_info("%d  ", reg_CM2_Adj_Hue_via_S[k][i]);*/
 	}
-	cm2_curve_update_hue(colormode, reg_CM2_Adj_Hue_via_Hue);
 	/*pr_info("\n ---end\n");*/
 }
 
@@ -496,27 +498,25 @@ void cm2_hue(enum eCM2ColorMd colormode, int hue_val, int lpf_en)
  * @param sat_val   [-100 ~ 100]
  * @param lpf_en    [1:on 0:off]
  */
-void cm2_luma(enum eCM2ColorMd colormode, int luma_val, int lpf_en)
+void cm2_luma(enum ecm2colormd colormode, int luma_val, int lpf_en)
 {
-	char reg_CM2_Adj_Luma_via_Hue[32];
 	int out_luma_lut[32];
 	int i;
 	int inp_color = colormode;
 	int inp_val = luma_val;
 
 	/*pr_info("colormode:%d, input val %d\n",colormode, luma_val);*/
-	memset(reg_CM2_Adj_Luma_via_Hue, 0, sizeof(char)*32);
-	memset(out_luma_lut, 0, sizeof(int)*32);
+	memset(adj_luma_via_hue[colormode], 0, sizeof(char) * 32);
+	memset(out_luma_lut, 0, sizeof(int) * 32);
 
 	color_adj(inp_color, inp_val, lpf_en, lpf_coef, color_key_pts,
 				smth_coef_luma, out_luma_lut);
 
 	for (i = 0; i < 32; i++) {
-		reg_CM2_Adj_Luma_via_Hue[i] = (char)out_luma_lut[i];
+		adj_luma_via_hue[colormode][i] = (char)out_luma_lut[i];
 		/*pr_info("%d,", out_luma_lut[i]);*/
 	}
 
-	cm2_curve_update_luma(colormode, reg_CM2_Adj_Luma_via_Hue);
 	/*pr_info("\n---end\n");*/
 }
 
@@ -526,19 +526,18 @@ void cm2_luma(enum eCM2ColorMd colormode, int luma_val, int lpf_en)
  * @param sat_val   [-100 ~ 100]
  * @param lpf_en    [1:on 0:off]
  */
-void cm2_sat(enum eCM2ColorMd colormode, int sat_val, int lpf_en)
+void cm2_sat(enum ecm2colormd colormode, int sat_val, int lpf_en)
 {
 	int inp_color = colormode;
 	int inp_val = sat_val;
 
-	char reg_CM2_Adj_Sat_via_HS[3][32];
 	int out_sat_lut[32];
 	int k, i;
 	int temp;
 
 	/*pr_info("colormode:%d, input val %d\n",colormode, sat_val);*/
-	memset(reg_CM2_Adj_Sat_via_HS, 0, sizeof(char)*32*3);
-	memset(out_sat_lut, 0, sizeof(int)*32);
+	memset(adj_sat_via_hs[colormode], 0, sizeof(char) * 32 * 3);
+	memset(out_sat_lut, 0, sizeof(int) * 32);
 
 	color_adj(inp_color, inp_val, lpf_en, lpf_coef, color_key_pts,
 		smth_coef_sat, out_sat_lut);
@@ -547,12 +546,11 @@ void cm2_sat(enum eCM2ColorMd colormode, int sat_val, int lpf_en)
 		/*pr_info("\n Adj_sat %d\n", k);*/
 		for (i = 0; i < 32; i++) {
 			temp = out_sat_lut[i] * satgain_via_sat3[inp_color][k];
-			reg_CM2_Adj_Sat_via_HS[k][i] =
+			adj_sat_via_hs[colormode][k][i] =
 				(char)(rsround(temp)/100);
 			/*pr_info("%d  ", reg_CM2_Adj_Sat_via_HS[k][i]);*/
 		}
 	}
-	cm2_curve_update_sat(colormode, reg_CM2_Adj_Sat_via_HS);
 	/*pr_info("\n---end\n");*/
 }
 
