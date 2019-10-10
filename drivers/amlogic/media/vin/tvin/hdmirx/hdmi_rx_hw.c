@@ -105,6 +105,7 @@ int clock_lock_th = 2;
 int scdc_force_en = 1;
 /* for hdcp_hpd debug, disable by default */
 bool hdcp_hpd_ctrl_en;
+int eq_dbg_lvl;
 
 /*------------------------variable define end------------------------------*/
 
@@ -3549,6 +3550,43 @@ static const uint32_t phy_dchd_2[][3] = {
 	},
 };
 
+static const u32 eq_debug[] = {
+	/* value     eq gain */
+	0xffffffff,
+	0xffff1030,/* min */
+	0x7fff1030,
+	0x7f7f1030,
+	0x3f7f1030,
+	0x3f3f1030,
+	0x1f3f1030,
+	0x1f1f1030,
+	0x0f0f1030,/* half of all range max */
+	0x0f071030,
+	0x07071030,
+	0x07031030,
+	0x03031030,
+	0x03011030,
+	0x01011030,
+	0x01001030,
+	0x00001030,/* max */
+	0xffff0000,/* min */
+	0x7fff0000,
+	0x7f7f0000,
+	0x3f7f0000,
+	0x3f3f0000,
+	0x1f3f0000,
+	0x1f1f0000,
+	0x0f0f0000,/* half of all range max */
+	0x0f070000,
+	0x07070000,
+	0x07030000,
+	0x03030000,
+	0x03010000,
+	0x01010000,
+	0x01000000,
+	0x00000000,/* max */
+};
+
 void aml_phy_switch_port(void)
 {
 	   uint32_t data32;
@@ -3640,10 +3678,14 @@ void aml_phy_init_1(void)
 void aml_phy_init(void)
 {
 	uint32_t idx = rx.phy.phy_bw;
-	uint32_t data32;
+	u32 data32, c1, c2, r1, r2;
 	uint32_t term_value =
 		hdmirx_rd_top(TOP_HPD_PWR5V) & 0x7;
 
+	c1 = eq_debug[eq_dbg_lvl] & 0xff;
+	c2 = (eq_debug[eq_dbg_lvl] >> 8) & 0xff;
+	r1 = (eq_debug[eq_dbg_lvl] >> 16) & 0xff;
+	r2 = (eq_debug[eq_dbg_lvl] >> 24) & 0xff;
 	data32 = phy_misci[idx][0];
 	data32 = (data32 & (~0x7));
 	data32 |= term_value;
@@ -3685,14 +3727,27 @@ void aml_phy_init(void)
 		wr_reg_hhi(HHI_HDMIRX_PHY_DCHA_CNTL2,
 			phy_dcha_reva[idx][2]);
 	} else {
-		wr_reg_hhi(HHI_HDMIRX_PHY_DCHA_CNTL0,
-			phy_dcha[idx][0]);
+		if (eq_dbg_lvl == 0) {
+			wr_reg_hhi(HHI_HDMIRX_PHY_DCHA_CNTL0,
+				   phy_dcha[idx][0]);
 
-		wr_reg_hhi(HHI_HDMIRX_PHY_DCHA_CNTL1,
-			phy_dcha[idx][1]);
+			wr_reg_hhi(HHI_HDMIRX_PHY_DCHA_CNTL1,
+				   phy_dcha[idx][1]);
 
-		wr_reg_hhi(HHI_HDMIRX_PHY_DCHA_CNTL2,
-			phy_dcha[idx][2]);
+			wr_reg_hhi(HHI_HDMIRX_PHY_DCHA_CNTL2,
+				   phy_dcha[idx][2]);
+		} else {
+			wr_reg_hhi(HHI_HDMIRX_PHY_DCHA_CNTL0,
+				   (phy_dcha[idx][0] | (c1 << 10)
+				| (c2 << 18) | (r1 << 26)));
+
+			wr_reg_hhi(HHI_HDMIRX_PHY_DCHA_CNTL1,
+				   (phy_dcha[idx][1] | (r1 >> 6))
+				| (r2 << 2));
+
+			wr_reg_hhi(HHI_HDMIRX_PHY_DCHA_CNTL2,
+				   (phy_dcha[idx][2] & (~(1 << 24))));
+		}
 	}
 
 	if (cdr_lock_level == 0)

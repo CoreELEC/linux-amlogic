@@ -1119,6 +1119,8 @@ extern int hbr_force_8ch;
 extern int clock_lock_th;
 extern int scdc_force_en;
 extern bool hdcp_hpd_ctrl_en;
+extern int eq_dbg_lvl;
+
 extern void rx_get_best_eq_setting(void);
 extern void wr_reg_hhi(unsigned int offset, unsigned int val);
 extern void wr_reg_hhi_bits(unsigned int offset, unsigned int mask,
@@ -1223,9 +1225,9 @@ extern void rx_force_rxsense_cfg(uint8_t level);
 extern void rx_force_hpd_rxsense_cfg(uint8_t level);
 void rx_audio_bandgap_rst(void);
 void rx_audio_bandgap_en(void);
+void rx_aml_eq_debug(int eq_lvl);
 extern void rx_phy_rxsense_pulse(unsigned int t1, unsigned int t2, bool en);
 extern void rx_phy_power_on(unsigned int onoff);
-
 
 enum measure_clk_top_e {
 	TOP_HDMI_TMDSCLK = 0,
