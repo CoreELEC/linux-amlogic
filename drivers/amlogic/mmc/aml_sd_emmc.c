@@ -3256,6 +3256,7 @@ static int meson_mmc_probe(struct platform_device *pdev)
 		mmc->f_max = pdata->f_max;
 		mmc->max_current_180 = 300; /* 300 mA in 1.8V */
 		mmc->max_current_330 = 300; /* 300 mA in 3.3V */
+		pdata->signal_voltage = 0xff;
 
 		if (aml_card_type_sdio(pdata)) { /* if sdio_wifi */
 			/*	mmc->host_rescan_disable = true;*/

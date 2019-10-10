@@ -335,18 +335,6 @@ void of_amlsd_pwr_prepare(struct amlsd_platform *pdata)
 {
 }
 
-void of_amlsd_pwr_on(struct amlsd_platform *pdata)
-{
-	if (pdata->gpio_power)
-		gpio_set_value(pdata->gpio_power, pdata->power_level);
-}
-
-void of_amlsd_pwr_off(struct amlsd_platform *pdata)
-{
-	if (pdata->gpio_power)
-		gpio_set_value(pdata->gpio_power, !pdata->power_level);
-}
-
 #ifdef CARD_DETECT_IRQ
 void of_amlsd_irq_init(struct amlsd_platform *pdata)
 {
@@ -383,7 +371,8 @@ int of_amlsd_init(struct amlsd_platform *pdata)
 	}
 #endif
 	if (pdata->gpio_power) {
-		if (pdata->power_level) {
+		if (pdata->power_level &&
+		    !aml_card_type_non_sdio(pdata)) {
 			ret = gpio_request_one(pdata->gpio_power,
 					GPIOF_OUT_INIT_LOW, MODULE_NAME);
 			CHECK_RET(ret);
@@ -431,14 +420,14 @@ static struct pinctrl * __must_check aml_devm_pinctrl_get_select(
 	s = pinctrl_lookup_state(p, name);
 	if (IS_ERR(s)) {
 		pr_err("lookup %s fail\n", name);
-		devm_pinctrl_put(p);
+		aml_devm_pinctrl_put(host);
 		return ERR_CAST(s);
 	}
 
 	ret = pinctrl_select_state(p, s);
 	if (ret < 0) {
 		pr_err("select %s fail\n", name);
-		devm_pinctrl_put(p);
+		aml_devm_pinctrl_put(host);
 		return ERR_PTR(ret);
 	}
 	if ((host->mem->start == host->data->port_b_base)
@@ -474,6 +463,47 @@ static struct pinctrl * __must_check aml_devm_pinctrl_get_select(
 	return NULL;
 }
 #endif /* SD_EMMC_PIN_CTRL */
+
+#define sd3_pwr_dbg 1
+void of_amlsd_pwr_on(struct amlsd_platform *pdata)
+{
+#if sd3_pwr_dbg
+	struct pinctrl *p = NULL;
+	struct amlsd_host *host = pdata->host;
+#endif
+
+	if (pdata->gpio_power) {
+		gpio_set_value(pdata->gpio_power, pdata->power_level);
+#if sd3_pwr_dbg
+		if (aml_card_type_non_sdio(pdata)) {
+			mutex_lock(&host->pinmux_lock);
+			p = aml_devm_pinctrl_get_select(host, "sd_all_pins");
+			mutex_unlock(&host->pinmux_lock);
+		}
+#endif
+	}
+}
+
+void of_amlsd_pwr_off(struct amlsd_platform *pdata)
+{
+#if sd3_pwr_dbg
+	struct pinctrl *p = NULL;
+	struct amlsd_host *host = pdata->host;
+#endif
+
+	if (pdata->gpio_power) {
+		gpio_set_value(pdata->gpio_power, !pdata->power_level);
+
+#if sd3_pwr_dbg
+		if (aml_card_type_non_sdio(pdata)) {
+			mutex_lock(&host->pinmux_lock);
+			p = aml_devm_pinctrl_get_select(host, "sd_all_pd_pins");
+			mutex_unlock(&host->pinmux_lock);
+			mdelay(200);	//pull down need 200ms.
+		}
+#endif
+	}
+}
 
 void of_amlsd_xfer_pre(struct amlsd_platform *pdata)
 {

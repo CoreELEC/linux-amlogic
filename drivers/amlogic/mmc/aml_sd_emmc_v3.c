@@ -472,6 +472,10 @@ static void aml_sd_emmc_set_power_v3(struct amlsd_platform *pdata,
 			pdata->pwr_on(pdata);
 		break;
 	case MMC_POWER_UP:
+		if (aml_card_type_non_sdio(pdata)) {
+			of_amlsd_pwr_off(pdata);
+			of_amlsd_pwr_on(pdata);
+		}
 		break;
 	case MMC_POWER_OFF:
 		writel(0, host->base + SD_EMMC_DELAY1_V3);
