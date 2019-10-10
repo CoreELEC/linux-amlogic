@@ -37,6 +37,7 @@
 #include <linux/hidraw.h>
 
 #include "hid-ids.h"
+#define GET_COMPLETE_USAGE(page, id) (((page) << 16) + ((id) & 0xffff))
 
 /*
  * Version Information
@@ -206,7 +207,14 @@ static int hid_add_usage(struct hid_parser *parser, unsigned usage, u8 size)
 		hid_err(parser->device, "usage index exceeded\n");
 		return -1;
 	}
-	parser->local.usage[parser->local.usage_index] = usage;
+	if (size <= 2) {
+		parser->local.usage_page_last = false;
+		parser->local.usage[parser->local.usage_index] =
+			GET_COMPLETE_USAGE(parser->global.usage_page, usage);
+	} else {
+		parser->local.usage[parser->local.usage_index] = usage;
+	}
+
 	parser->local.usage_size[parser->local.usage_index] = size;
 	parser->local.collection_index[parser->local.usage_index] =
 		parser->collection_stack_ptr ?
@@ -346,6 +354,7 @@ static int hid_parser_global(struct hid_parser *parser, struct hid_item *item)
 
 	case HID_GLOBAL_ITEM_TAG_USAGE_PAGE:
 		parser->global.usage_page = item_udata(item);
+		parser->local.usage_page_last = true;
 		return 0;
 
 	case HID_GLOBAL_ITEM_TAG_LOGICAL_MINIMUM:
@@ -523,13 +532,20 @@ static int hid_parser_local(struct hid_parser *parser, struct hid_item *item)
  * usage value."
  */
 
-static void hid_concatenate_usage_page(struct hid_parser *parser)
+static void hid_concatenate_last_usage_page(struct hid_parser *parser)
 {
 	int i;
+	unsigned int usage;
+	unsigned int usage_page = parser->global.usage_page;
 
+	if (!parser->local.usage_page_last)
+		return;
 	for (i = 0; i < parser->local.usage_index; i++)
-		if (parser->local.usage_size[i] <= 2)
-			parser->local.usage[i] += parser->global.usage_page << 16;
+		if (parser->local.usage_size[i] <= 2) {
+			usage = parser->local.usage[i];
+			parser->local.usage[i] =
+				GET_COMPLETE_USAGE(usage_page, usage);
+		}
 }
 
 /*
@@ -541,7 +557,7 @@ static int hid_parser_main(struct hid_parser *parser, struct hid_item *item)
 	__u32 data;
 	int ret;
 
-	hid_concatenate_usage_page(parser);
+	hid_concatenate_last_usage_page(parser);
 
 	data = item_udata(item);
 
@@ -756,7 +772,7 @@ static int hid_scan_main(struct hid_parser *parser, struct hid_item *item)
 	__u32 data;
 	int i;
 
-	hid_concatenate_usage_page(parser);
+	hid_concatenate_last_usage_page(parser);
 
 	data = item_udata(item);
 
