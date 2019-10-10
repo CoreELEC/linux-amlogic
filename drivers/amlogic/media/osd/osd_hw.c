@@ -4935,6 +4935,11 @@ static void osd_pan_display_update_info(struct layer_fence_map_s *layer_map)
 		osd_hw.dst_data[index].y = layer_map->dst_y;
 		osd_hw.dst_data[index].w = layer_map->dst_w;
 		osd_hw.dst_data[index].h = layer_map->dst_h;
+		if ((layer_map->fb_height != layer_map->src_h) ||
+		    (layer_map->fb_width != layer_map->src_w))
+			osd_hw.src_crop[index] = 1;
+		else
+			osd_hw.src_crop[index] = 0;
 		if (osd_hw.osd_meson_dev.osd_ver <= OSD_NORMAL) {
 			osd_hw.free_src_data[index].x_start = layer_map->src_x;
 			osd_hw.free_src_data[index].y_start = layer_map->src_y;
@@ -8419,6 +8424,12 @@ static void set_blend_reg(struct layer_blend_reg_s *blend_reg)
 static void uniformization_fb(u32 index,
 	struct hw_osd_blending_s *blending)
 {
+	if ((index == OSD1) && osd_hw.src_crop[index]) {
+		blending->screen_ratio_w_den =
+			osd_hw.src_data[index].w;
+		blending->screen_ratio_h_den =
+			osd_hw.src_data[index].h;
+	}
 	blending->dst_data.x = osd_hw.dst_data[index].x *
 		blending->screen_ratio_w_den /
 		blending->screen_ratio_w_num;

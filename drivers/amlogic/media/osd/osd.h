@@ -700,6 +700,7 @@ struct hw_para_s {
 	struct pandata_s cursor_dispdata[HW_OSD_COUNT];
 	struct dispdata_s src_data[HW_OSD_COUNT];
 	struct dispdata_s dst_data[HW_OSD_COUNT];
+	u32 src_crop[HW_OSD_COUNT];
 	u32 buffer_alloc[HW_OSD_COUNT];
 	u32 gbl_alpha[HW_OSD_COUNT];
 	u32 color_key[HW_OSD_COUNT];
