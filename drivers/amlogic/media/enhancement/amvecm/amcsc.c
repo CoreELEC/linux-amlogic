@@ -7291,10 +7291,15 @@ int amvecm_matrix_process(
 	bool send_fake_frame = false;
 
 	if ((get_cpu_type() < MESON_CPU_MAJOR_ID_GXTVBB) ||
-	    is_meson_gxl_package_905M2() || (csc_en == 0) ||
-	    !vinfo || vinfo->mode == VMODE_NULL ||
-	    vinfo->mode == VMODE_INVALID)
+	    is_meson_gxl_package_905M2() || (csc_en == 0) || !vinfo)
 		return 0;
+
+	if (vinfo->mode == VMODE_NULL ||
+	    vinfo->mode == VMODE_INVALID) {
+		current_hdr_cap[vd_path] = 0;
+		current_sink_available[vd_path] = 0;
+		return 0;
+	}
 
 	if (reload_mtx) {
 		for (i = 0; i < NUM_MATRIX; i++)
@@ -7427,6 +7432,8 @@ int amvecm_matrix_process(
 		null_vf_cnt[vd_path] = 0;
 		fg_vf_sw_dbg = 3;
 	} else {
+		bool force_fake = false;
+
 		last_vf[vd_path] = NULL;
 
 		if (null_vf_cnt[vd_path] <= null_vf_max)
@@ -7436,6 +7443,8 @@ int amvecm_matrix_process(
 		if (cap_changed) {
 			if (is_video_layer_on(vd_path))
 				null_vf_cnt[vd_path] = 0;
+			else
+				force_fake = true;
 			pr_csc(4, "vd%d: sink cap changed when idle\n",
 			       vd_path + 1);
 		}
@@ -7444,6 +7453,8 @@ int amvecm_matrix_process(
 		if (prev_color_fmt != vinfo->viu_color_fmt) {
 			if (is_video_layer_on(vd_path))
 				null_vf_cnt[vd_path] = 0;
+			else
+				force_fake = true;
 			prev_color_fmt = vinfo->viu_color_fmt;
 			pr_csc(4, "vd%d: output color format changed\n",
 			       vd_path + 1);
@@ -7451,9 +7462,11 @@ int amvecm_matrix_process(
 
 		/* handle eye protect mode */
 		if ((cur_eye_protect_mode != wb_val[0]) &&
-		    (vd_path == VD1_PATH) &&
-		    is_video_layer_on(vd_path)) {
-			null_vf_cnt[vd_path] = 0;
+		    (vd_path == VD1_PATH)) {
+			if (is_video_layer_on(vd_path))
+				null_vf_cnt[vd_path] = 0;
+			else
+				force_fake = true;
 			pr_csc(4, "vd%d: eye_protect_mode changed\n",
 			       vd_path + 1);
 		}
@@ -7492,6 +7505,9 @@ int amvecm_matrix_process(
 		} else if (!is_video_layer_on(vd_path) &&
 			(video_process_status[vd_path]
 			== HDR_MODULE_ON)) {
+			null_vf_cnt[vd_path] = 1;
+			toggle_frame = 1;
+		} else if (force_fake) {
 			null_vf_cnt[vd_path] = 1;
 			toggle_frame = 1;
 		} else if (csc_en & 0x10) {
