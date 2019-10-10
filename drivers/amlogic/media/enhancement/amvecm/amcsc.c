@@ -3776,6 +3776,7 @@ int signal_type_changed(struct vframe_s *vf,
 		if (cur_mvc_type[vd_path] != (vf->type & VIDTYPE_MVC)) {
 			change_flag |= SIG_SRC_CHG;
 			cur_mvc_type[vd_path] = vf->type & VIDTYPE_MVC;
+			pr_csc(1, "VIDTYPE MVC changed.\n");
 			return change_flag;
 		}
 	} else
@@ -3977,6 +3978,7 @@ int signal_type_changed(struct vframe_s *vf,
 	if (vecm_latch_flag & FLAG_HDR_OOTF_LATCH) {
 		change_flag |= SIG_HDR_OOTF_CHG;
 		vecm_latch_flag &= ~FLAG_HDR_OOTF_LATCH;
+		pr_csc(1, "ootf curve changed.\n");
 	}
 
 	return change_flag;
@@ -4724,7 +4726,10 @@ static int hdr_process(
 
 	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A) {
 		hdr_func(OSD1_HDR, HDR_BYPASS, vinfo);
-		hdr_func(VD1_HDR, HDR_SDR, vinfo);
+		if (vd_path == VD1_PATH)
+			hdr_func(VD1_HDR, HDR_SDR, vinfo);
+		else
+			hdr_func(VD2_HDR, HDR_SDR, vinfo);
 		return need_adjust_contrast_saturation;
 	}
 
@@ -4970,7 +4975,10 @@ static int hlg_process(
 	int i, j;
 
 	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A) {
-		hdr_func(VD1_HDR, HLG_SDR, vinfo);
+		if (vd_path == VD1_PATH)
+			hdr_func(VD1_HDR, HLG_SDR, vinfo);
+		else
+			hdr_func(VD2_HDR, HLG_SDR, vinfo);
 		hdr_func(OSD1_HDR, HDR_BYPASS, vinfo);
 		return need_adjust_contrast_saturation;
 	}
@@ -5190,7 +5198,10 @@ static void bypass_hdr_process(
 	int i, j;
 
 	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A) {
-		hdr_func(VD1_HDR, HDR_BYPASS, vinfo);
+		if (vd_path == VD1_PATH)
+			hdr_func(VD1_HDR, HDR_BYPASS, vinfo);
+		else
+			hdr_func(VD2_HDR, HDR_BYPASS, vinfo);
 		if ((csc_type == VPP_MATRIX_BT2020YUV_BT2020RGB) &&
 			((vinfo->hdr_info.hdr_support & 0xc) &&
 			(vinfo->viu_color_fmt != COLOR_FMT_RGB444))) {
@@ -5840,7 +5851,10 @@ static void hlg_hdr_process(
 	int i, j;
 
 	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A) {
-		hdr_func(VD1_HDR, HLG_HDR, vinfo);
+		if (vd_path == VD1_PATH)
+			hdr_func(VD1_HDR, HLG_HDR, vinfo);
+		else if (vd_path == VD2_PATH)
+			hdr_func(VD2_HDR, HLG_HDR, vinfo);
 		hdr_func(OSD1_HDR, SDR_HDR, vinfo);
 		return;
 	}
@@ -6084,7 +6098,10 @@ static void sdr_hdr_process(
 {
 	if (vinfo->viu_color_fmt != COLOR_FMT_RGB444) {
 		if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A) {
-			hdr_func(VD1_HDR, SDR_HDR, vinfo);
+			if (vd_path == VD1_PATH)
+				hdr_func(VD1_HDR, SDR_HDR, vinfo);
+			else
+				hdr_func(VD2_HDR, SDR_HDR, vinfo);
 			hdr_func(OSD1_HDR, SDR_HDR, vinfo);
 			return;
 		}
@@ -7233,13 +7250,12 @@ static int vpp_matrix_update(
 		SIG_SRC_OUTPUT_CHG | SIG_HDR10_PLUS_MODE |
 		SIG_SRC_CHG | SIG_HDR_OOTF_CHG))) {
 		if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12A) &&
-		(get_cpu_type() != MESON_CPU_MAJOR_ID_TL1)) {
+		(get_cpu_type() != MESON_CPU_MAJOR_ID_TL1))
 			video_post_process(csc_type, vinfo, vd_path);
-			cur_hdr_policy = get_hdr_policy();
-		} else {
+		else
 			video_process(vf, csc_type, signal_change_flag,
 				vinfo, p, vd_path);
-		}
+		cur_hdr_policy = get_hdr_policy();
 	}
 
 	/* eye protection mode */
@@ -7524,13 +7540,14 @@ int amvecm_matrix_process(
 			} else {
 				/* dolby disable */
 				pr_csc(8,
-				       "vd%d: %d %d Fake SDR frame%s, policy =%d\n",
+				       "vd%d: %d %d Fake SDR frame%s, policy =%d, cur_policy =%d\n",
 				       vd_path + 1,
 				       null_vf_cnt[vd_path],
 				       toggle_frame,
 				       is_video_layer_on(vd_path) ?
 				       " " : ", video off",
-				       get_hdr_policy());
+				       get_hdr_policy(),
+				       cur_hdr_policy);
 				send_fake_frame = true;
 				if (get_hdr_policy() == 1) {
 				/* adaptive hdr */
@@ -7556,6 +7573,10 @@ int amvecm_matrix_process(
 				fake_vframe.prop.
 				master_display_colour.present_flag
 					= 0x80000000;
+				memset(
+				&fake_vframe.prop.master_display_colour,
+				0,
+				sizeof(struct vframe_master_display_colour_s));
 				vpp_matrix_update(
 					&fake_vframe, vinfo,
 					CSC_FLAG_TOGGLE_FRAME, vd_path);
