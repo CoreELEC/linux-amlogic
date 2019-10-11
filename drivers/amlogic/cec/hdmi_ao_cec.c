@@ -3288,6 +3288,7 @@ static long hdmitx_cec_ioctl(struct file *f,
 			return -EINVAL;
 		}
 		break;
+
 	case CEC_IOC_SET_FREEZE_MODE:
 		/* system enter power down freeze mode
 		 * need save current device type and logical addr
@@ -3295,6 +3296,16 @@ static long hdmitx_cec_ioctl(struct file *f,
 		cec_save_pre_setting();
 		CEC_ERR("need enter freeze mode\n");
 		break;
+
+	case CEC_IOC_GET_BOOT_PORT:
+		tmp = cec_dev->wakup_data.wk_port_id;
+		CEC_ERR("Boot port:%#x\n", (unsigned int)tmp);
+		if (copy_to_user(argp, &tmp, _IOC_SIZE(cmd))) {
+			mutex_unlock(&cec_dev->cec_ioctl_mutex);
+			return -EINVAL;
+		}
+		break;
+
 	default:
 		CEC_ERR("error ioctrl\n");
 		break;
@@ -3348,6 +3359,8 @@ static void aocec_early_suspend(struct early_suspend *h)
 {
 	cec_dev->cec_suspend = CEC_PW_STANDBY;
 	CEC_ERR("%s, suspend sts:%d\n", __func__, cec_dev->cec_suspend);
+	/* reset wakeup reason for considering light sleep situation*/
+	cec_dev->wakeup_reason = 0;
 }
 
 static void aocec_late_resume(struct early_suspend *h)

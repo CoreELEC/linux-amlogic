@@ -101,7 +101,7 @@ enum _cec_log_dev_addr_e {
 #define CEC_IOC_GET_BOOT_ADDR           _IOW(CEC_IOC_MAGIC, 0x10, uint32_t)
 #define CEC_IOC_GET_BOOT_REASON         _IOW(CEC_IOC_MAGIC, 0x11, uint32_t)
 #define CEC_IOC_SET_FREEZE_MODE         _IOW(CEC_IOC_MAGIC, 0x12, uint32_t)
-
+#define CEC_IOC_GET_BOOT_PORT           _IOW(CEC_IOC_MAGIC, 0x13, uint32_t)
 
 #define CEC_FAIL_NONE                   0
 #define CEC_FAIL_NACK                   1
