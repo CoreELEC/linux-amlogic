@@ -7184,7 +7184,9 @@ static int vpp_matrix_update(
 		}
 	}
 
-	if (is_dolby_vision_on() && (vd_path == VD1_PATH))
+	if (is_dolby_vision_on() &&
+	    ((vd_path == VD1_PATH) ||
+	    !cpu_after_eq(MESON_CPU_MAJOR_ID_G12A)))
 		return 0;
 
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12A) &&

@@ -167,6 +167,8 @@ MODULE_PARM_DESC(dolby_vision_run_mode, "\n dolby_vision_run_mode\n");
 
 /* number of fake frame (run mode = 1) */
 #define RUN_MODE_DELAY 2
+#define RUN_MODE_DELAY_GXM 3
+
 static uint dolby_vision_run_mode_delay = RUN_MODE_DELAY;
 module_param(dolby_vision_run_mode_delay, uint, 0664);
 MODULE_PARM_DESC(dolby_vision_run_mode_delay, "\n dolby_vision_run_mode_delay\n");
@@ -278,6 +280,9 @@ static bool force_reset_core2;
 static int core1_switch;
 static int core3_switch;
 static bool force_set_lut;
+
+/*core reg must be set at first time. bit0 is for core2, bit1 is for core3*/
+static bool first_reseted;
 
 module_param(vtotal_add, uint, 0664);
 MODULE_PARM_DESC(vtotal_add, "\n vtotal_add\n");
@@ -2281,8 +2286,15 @@ static int dolby_core2_set(
 	if (dolby_vision_flags & FLAG_CERTIFICAION)
 		reset = true;
 
-	if (dolby_vision_on_count == 0)
-		reset = true;
+	if (is_meson_gxm()) {
+		if ((first_reseted & 0x1) == 0) {
+			first_reseted = (first_reseted | 0x1);
+			reset = true;
+		}
+	} else {
+		if (dolby_vision_on_count == 0)
+			reset = true;
+	}
 
 	if (stb_core_setting_update_flag & FLAG_CHANGE_TC2)
 		set_lut = true;
@@ -2427,8 +2439,15 @@ static int dolby_core3_set(
 		(dolby_vision_flags & FLAG_CERTIFICAION))
 		reset = true;
 
-	if (dolby_vision_on_count == 0)
-		reset = true;
+	if (is_meson_gxm()) {
+		if ((first_reseted & 0x2) == 0) {
+			first_reseted = (first_reseted | 0x2);
+			reset = true;
+		}
+	} else {
+		if (dolby_vision_on_count == 0)
+			reset = true;
+	}
 #ifdef V2_4
 	if (((cur_dv_mode == DOLBY_VISION_OUTPUT_MODE_IPT_TUNNEL)
 		|| (cur_dv_mode == DOLBY_VISION_OUTPUT_MODE_IPT))
@@ -3147,7 +3166,7 @@ static void osd_path_enable(int on)
 		hdr_osd_reg.viu_osd1_matrix_ctrl);
 }
 
-static uint32_t dolby_ctrl_backup;
+static u32 dolby_ctrl_backup = 0x22000;
 static uint32_t viu_misc_ctrl_backup;
 static uint32_t vpp_matrix_backup;
 static uint32_t vpp_dummy1_backup;
@@ -3570,8 +3589,6 @@ void enable_dolby_vision(int enable)
 					video_effect_bypass(1);
 				VSYNC_WR_DV_REG(VPP_MATRIX_CTRL, 0);
 				VSYNC_WR_DV_REG(VPP_DUMMY_DATA1, 0x20000000);
-				/* disable osd effect and shadow mode */
-				osd_path_enable(0);
 #ifdef V2_4
 				if (((dolby_vision_mode ==
 					DOLBY_VISION_OUTPUT_MODE_IPT_TUNNEL)
@@ -3592,6 +3609,8 @@ void enable_dolby_vision(int enable)
 				last_dolby_vision_ll_policy =
 					dolby_vision_ll_policy;
 #endif
+				/* disable osd effect and shadow mode */
+				osd_path_enable(0);
 				pr_dolby_dbg(
 					"Dolby Vision turn on%s\n",
 					dolby_vision_core1_on ?
@@ -3824,9 +3843,23 @@ void enable_dolby_vision(int enable)
 				VPP_VD1_CLIP_MISC1,
 				0);
 			video_effect_bypass(0);
+			if (is_meson_gxm())
+				VSYNC_WR_DV_REG(VPP_DOLBY_CTRL,
+						dolby_ctrl_backup);
 			/* always vd2 to vpp and bypass core 1 */
 			viu_misc_ctrl_backup |=
 				(VSYNC_RD_DV_REG(VIU_MISC_CTRL1) & 2);
+			if (is_meson_gxm()) {
+				if ((VSYNC_RD_DV_REG(VIU_MISC_CTRL1) &
+					(0xff << 8)) != 0) {
+					/*sometimes misc_ctrl_backup*/
+					/*didn't record afbc bits, need */
+					/*update afbc bit8~bit15 to 0x90*/
+					viu_misc_ctrl_backup |=
+						((viu_misc_ctrl_backup &
+						 0xFFFF90FF) | 0x9000);
+				}
+			}
 			VSYNC_WR_DV_REG(VIU_MISC_CTRL1,
 				viu_misc_ctrl_backup
 				| (3 << 16));
@@ -3852,8 +3885,10 @@ void enable_dolby_vision(int enable)
 		cur_csc_type[VD1_PATH] = VPP_MATRIX_NULL;
 		/* clean mute flag for next time dv on */
 		dolby_vision_flags &= ~FLAG_MUTE;
-		hdr_osd_off();
-		hdr_vd1_off();
+		if (!is_meson_gxm()) {
+			hdr_osd_off();
+			hdr_vd1_off();
+		}
 	}
 }
 EXPORT_SYMBOL(enable_dolby_vision);
@@ -7728,9 +7763,11 @@ int register_dv_functions(const struct dolby_vision_func_s *func)
 			efuse_mode, reg_value);
 		/*stb core doesn't need run mode*/
 		/*TV core need run mode and the value is 2*/
-		if (is_meson_box() || is_meson_txlx_stbmode()
+		if (is_meson_g12() || is_meson_txlx_stbmode()
 			|| is_meson_tm2_stbmode()  || force_stb_mode)
 			dolby_vision_run_mode_delay = 0;
+		else if (is_meson_gxm())
+			dolby_vision_run_mode_delay = RUN_MODE_DELAY_GXM;
 		else
 			dolby_vision_run_mode_delay = RUN_MODE_DELAY;
 
