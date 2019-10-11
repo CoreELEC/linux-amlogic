@@ -436,6 +436,7 @@ static void vdin_dump_mem(char *path, struct vdin_dev_s *devp)
 static void vdin_dump_one_afbce_mem(char *path, struct vdin_dev_s *devp,
 	unsigned int buf_num)
 {
+	#define K_PATH_BUFF_LENGTH	150
 	struct file *filp = NULL;
 	loff_t pos = 0;
 	void *buf_head = NULL;
@@ -449,7 +450,7 @@ static void vdin_dump_one_afbce_mem(char *path, struct vdin_dev_s *devp,
 	unsigned int count = 0;
 	unsigned int j = 0;
 	void *vbuf = NULL;
-	unsigned char buff[100];
+	unsigned char buff[K_PATH_BUFF_LENGTH];
 	mm_segment_t old_fs = get_fs();
 
 	if (buf_num >= devp->canvas_max_num) {
@@ -512,9 +513,14 @@ static void vdin_dump_one_afbce_mem(char *path, struct vdin_dev_s *devp,
 	}
 
 	set_fs(KERNEL_DS);
-
 	/*write header bin*/
-	strcpy(buff, path);
+
+	if (strlen(path) < K_PATH_BUFF_LENGTH) {
+		strcpy(buff, path);
+	} else {
+		pr_info("err path len\n");
+		return;
+	}
 	strcat(buff, "_1header.bin");
 	filp = filp_open(buff, O_RDWR|O_CREAT, 0666);
 	if (IS_ERR(filp)) {

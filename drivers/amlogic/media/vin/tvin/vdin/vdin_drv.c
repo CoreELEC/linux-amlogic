@@ -2167,15 +2167,16 @@ static void vdin_vlock_dwork(struct work_struct *work)
 	struct vdin_dev_s *devp =
 		container_of(dwork, struct vdin_dev_s, vlock_dwork);
 
+	if (!devp || !devp->frontend || !devp->curr_wr_vfe) {
+		pr_info("%s, dwork error !!!\n", __func__);
+		return;
+	}
+
 	if (!(devp->flags & VDIN_FLAG_DEC_OPENED)) {
 		cancel_delayed_work(&devp->vlock_dwork);
 		return;
 	}
 
-	if (!devp || !devp->frontend || !devp->curr_wr_vfe) {
-		pr_info("%s, dwork error !!!\n", __func__);
-		return;
-	}
 	vdin_vlock_input_sel(devp->curr_field_type,
 		devp->curr_wr_vfe->vf.source_type);
 
@@ -2912,30 +2913,33 @@ static long vdin_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			}
 
 			idx = vdinsetcanvas[i].index;
+			if (idx < VDIN_CANVAS_MAX_CNT) {
+				vdin_set_canvas_addr[idx].dmabuff =
+					dma_buf_get(vdinsetcanvas[i].fd);
 
-			vdin_set_canvas_addr[idx].dmabuff =
-				dma_buf_get(vdinsetcanvas[i].fd);
+				vdin_set_canvas_addr[idx].dmabufattach =
+					dma_buf_attach(
+					vdin_set_canvas_addr[idx].dmabuff,
+					devp->dev);
+				vdin_set_canvas_addr[idx].sgtable =
+					dma_buf_map_attachment(
+					vdin_set_canvas_addr[idx].dmabufattach,
+					DMA_BIDIRECTIONAL);
 
-			vdin_set_canvas_addr[idx].dmabufattach =
-				dma_buf_attach(
-				vdin_set_canvas_addr[idx].dmabuff,
-				devp->dev);
-			vdin_set_canvas_addr[idx].sgtable =
-				dma_buf_map_attachment(
-				vdin_set_canvas_addr[idx].dmabufattach,
-				DMA_BIDIRECTIONAL);
+				page =
+				sg_page(vdin_set_canvas_addr[idx].sgtable->sgl);
+				vdin_set_canvas_addr[idx].paddr =
+					PFN_PHYS(page_to_pfn(page));
+				vdin_set_canvas_addr[idx].size =
+					vdin_set_canvas_addr[idx].dmabuff->size;
 
-			page = sg_page(vdin_set_canvas_addr[idx].sgtable->sgl);
-			vdin_set_canvas_addr[idx].paddr =
-				PFN_PHYS(page_to_pfn(page));
-			vdin_set_canvas_addr[idx].size =
-				vdin_set_canvas_addr[idx].dmabuff->size;
-
-			pr_info("TVIN_IOC_S_CANVAS_ADDR[%d] addr=0x%lx, len=0x%x.\n",
-				i,
-				vdin_set_canvas_addr[idx].paddr,
-				vdin_set_canvas_addr[idx].size);
-
+				pr_info("TVIN_IOC_S_CANVAS_ADDR[%d] addr=0x%lx, len=0x%x.\n",
+					i,
+					vdin_set_canvas_addr[idx].paddr,
+					vdin_set_canvas_addr[idx].size);
+			} else {
+				pr_info("VDIN err canvas idx:%d\n", idx);
+			}
 			__close_fd(current->files, vdinsetcanvas[i].fd);
 		}
 		break;
@@ -2951,7 +2955,8 @@ static long vdin_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			return -EFAULT;
 		}
 
-		if (devp->keystone_entry[recov_idx]) {
+		if ((recov_idx < VDIN_CANVAS_MAX_CNT) &&
+		    (devp->keystone_entry[recov_idx])) {
 			receiver_vf_put(&devp->keystone_entry[recov_idx]->vf,
 				devp->vfp);
 			devp->keystone_entry[recov_idx] = NULL;
