@@ -2462,7 +2462,7 @@ static ssize_t cmda_store(struct class *cla, struct class_attribute *attr,
 	for (i = 0; i < cnt; i++)
 		buf[i] = (char)tmpbuf[i];
 
-	if (cec_dev && (cec_dev->cec_num > ENABLE_ONE_CEC))
+	if (cec_dev->cec_num > ENABLE_ONE_CEC)
 		ceca_trigle_tx(buf, cnt);
 	else
 		CEC_ERR("ceca not valid\n");
@@ -2491,7 +2491,7 @@ static ssize_t cmdb_store(struct class *cla, struct class_attribute *attr,
 	for (i = 0; i < cnt; i++)
 		buf[i] = (char)tmpbuf[i];
 
-	if (cec_dev && (cec_dev->cec_num > ENABLE_ONE_CEC))
+	if (cec_dev->cec_num > ENABLE_ONE_CEC)
 		cecb_trigle_tx(buf, cnt);
 	else
 		CEC_ERR("cecb not valid\n");
