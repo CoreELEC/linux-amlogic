@@ -2080,7 +2080,8 @@ void osd_hw_reset(void)
 		&& !(backup_mask & HW_RESET_OSD1_REGS))
 		reset_bit &= ~HW_RESET_OSD1_REGS;
 
-	if ((osd_hw.osd_meson_dev.afbc_type == MESON_AFBC)
+	if (((get_cpu_type() == MESON_CPU_MAJOR_ID_GXTVBB) &&
+	     (osd_hw.osd_meson_dev.afbc_type == MESON_AFBC))
 		&& (reset_bit & HW_RESET_AFBCD_REGS)
 		&& !(backup_mask & HW_RESET_AFBCD_REGS))
 		reset_bit &= ~HW_RESET_AFBCD_REGS;
