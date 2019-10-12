@@ -3877,8 +3877,6 @@ static int dvel_receiver_event_fun(int type, void *data, void *arg)
 		/*	p_funcs->metadata_parser_release();*/
 		/*	metadata_parser = NULL;*/
 		/*} */
-		new_dovi_setting.video_width =
-		new_dovi_setting.video_height = 0;
 		spin_unlock_irqrestore(&dovi_lock, flags);
 		memset(&hdr10_data, 0, sizeof(hdr10_data));
 		memset(&hdr10_param, 0, sizeof(hdr10_param));
@@ -3896,8 +3894,6 @@ static int dvel_receiver_event_fun(int type, void *data, void *arg)
 		spin_lock_irqsave(&dovi_lock, flags);
 		for (i = 0; i < 16; i++)
 			dv_vf[i][0] = dv_vf[i][1] = NULL;
-		new_dovi_setting.video_width =
-		new_dovi_setting.video_height = 0;
 		spin_unlock_irqrestore(&dovi_lock, flags);
 		memset(&hdr10_data, 0, sizeof(hdr10_data));
 		memset(&hdr10_param, 0, sizeof(hdr10_param));
