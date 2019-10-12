@@ -596,7 +596,7 @@ u32 aml_sd_emmc_tuning_transfer(struct mmc_host *mmc,
 				break;
 			}
 		} else {
-			pr_err("Tuning transfer error: nmatch=%d tuning_err:0x%x\n",
+			pr_debug("Tuning transfer error: nmatch=%d tuning_err:0x%x\n",
 					nmatch, tuning_err);
 			break;
 		}
@@ -617,6 +617,8 @@ static int aml_tuning_adj(struct mmc_host *mmc, u32 opcode,
 	u32 vctrl;
 	struct sd_emmc_config *ctrl = (struct sd_emmc_config *)&vctrl;
 	u32 clk_rate = 1000000000, clock, clk_div, nmatch = 0;
+	u8 *adj_print = host->adj_win;
+	u32 len = 0;
 	int adj_delay = 0;
 	const u8 *blk_pattern = tuning_data->blk_pattern;
 	unsigned int blksz = tuning_data->blksz;
@@ -638,6 +640,8 @@ static int aml_tuning_adj(struct mmc_host *mmc, u32 opcode,
 	pr_info("%s: clk %d %s tuning start\n",
 		mmc_hostname(mmc), (ctrl->ddr ? (clock / 2) : clock),
 			(ctrl->ddr ? "DDR mode" : "SDR mode"));
+	memset(adj_print, 0, sizeof(u8) * ADJ_WIN_PRINT_MAXLEN);
+	len += sprintf(adj_print + len, "%s: adj_win: < ", pdata->pinname);
 	for (adj_delay = 0; adj_delay < clk_div; adj_delay++) {
 		adjust = readl(host->base + SD_EMMC_ADJUST);
 		gadjust->adj_delay = adj_delay;
@@ -656,7 +660,9 @@ static int aml_tuning_adj(struct mmc_host *mmc, u32 opcode,
 			if (curr_win_start < 0)
 				curr_win_start = adj_delay;
 			curr_win_size++;
-			pr_info("%s: rx_tuning_result[%d] = %d\n",
+			len += sprintf(adj_print + len,
+				"%d ", adj_delay);
+			pr_debug("%s: rx_tuning_result[%d] = %d\n",
 				mmc_hostname(host->mmc), adj_delay, nmatch);
 		} else {
 			if (curr_win_start >= 0) {
@@ -675,6 +681,9 @@ static int aml_tuning_adj(struct mmc_host *mmc, u32 opcode,
 			}
 		}
 	}
+	len += sprintf(adj_print + len, ">\n");
+	pr_info("%s", host->adj_win);
+
 	/* last point is ok! */
 	if (curr_win_start >= 0) {
 		if (best_win_start < 0) {
@@ -3118,6 +3127,11 @@ static int meson_mmc_probe(struct platform_device *pdev)
 		ret = -ENOMEM;
 		goto fail_init_host;
 	}
+	host->adj_win = kzalloc(sizeof(u8) * ADJ_WIN_PRINT_MAXLEN, GFP_KERNEL);
+	if (host->adj_win == NULL) {
+		ret = -ENOMEM;
+		goto fail_init_host;
+	}
 
 	spin_lock_init(&host->mrq_lock);
 	mutex_init(&host->pinmux_lock);
@@ -3354,6 +3368,7 @@ free_cali:
 	kfree(host->desc_bn);
 #endif
 	kfree(host->blk_test);
+	kfree(host->adj_win);
 fail_init_host:
 	kfree(host);
 	pr_err("%s() fail!\n", __func__);
@@ -3385,6 +3400,7 @@ static int meson_mmc_remove(struct platform_device *pdev)
 		clk_disable_unprepare(host->core_clk);
 
 	kfree(host->blk_test);
+	kfree(host->adj_win);
 	mmc_free_host(host->mmc);
 	kfree(pdata);
 	kfree(host);

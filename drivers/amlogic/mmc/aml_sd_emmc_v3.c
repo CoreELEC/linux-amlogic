@@ -1555,10 +1555,10 @@ static void pr_adj_info(char *name,
 {
 	int i;
 
-	pr_info("[%s] fixed_adj_win_map:%lu\n",
+	pr_debug("[%s] fixed_adj_win_map:%lu\n",
 			name, x);
 	for (i = 0; i < div; i++)
-		pr_info("[%d]=%d\n", (fir_adj + i) % div,
+		pr_debug("[%d]=%d\n", (fir_adj + i) % div,
 				((x >> i) & 0x1) ? 1 : 0);
 }
 
@@ -1568,6 +1568,8 @@ static unsigned long _test_fixed_adj(struct amlsd_platform *pdata,
 {
 	struct amlsd_host *host = pdata->host;
 	int i = 0;
+	u8 *adj_print = host->adj_win;
+	u32 len = 0;
 	u32 nmatch = 0;
 	u32 adjust = readl(host->base + SD_EMMC_ADJUST_V3);
 	struct sd_emmc_adjust_v3 *gadjust =
@@ -1576,6 +1578,8 @@ static unsigned long _test_fixed_adj(struct amlsd_platform *pdata,
 	unsigned int blksz = tuning_data->blksz;
 	DECLARE_BITMAP(fixed_adj_map, div);
 
+	memset(adj_print, 0, sizeof(u8) * ADJ_WIN_PRINT_MAXLEN);
+	len += sprintf(adj_print + len, "%s: adj_win: < ", pdata->pinname);
 	bitmap_zero(fixed_adj_map, div);
 	for (i = 0; i < div; i++) {
 		gadjust->adj_delay = adj + i;
@@ -1589,10 +1593,15 @@ static unsigned long _test_fixed_adj(struct amlsd_platform *pdata,
 		/*get a ok adjust point!*/
 		if (nmatch == TUNING_NUM_PER_POINT) {
 			set_bit(adj+i, fixed_adj_map);
-			pr_info("%s: rx_tuning_result[%d] = %d\n",
+			len += sprintf(adj_print + len,
+				"%d ", gadjust->adj_delay);
+			pr_debug("%s: rx_tuning_result[%d] = %d\n",
 				mmc_hostname(host->mmc), adj+i, nmatch);
 		}
 	}
+	len += sprintf(adj_print + len, ">\n");
+	pr_info("%s", host->adj_win);
+
 	return *fixed_adj_map;
 }
 
@@ -1660,7 +1669,7 @@ static u32 _find_fixed_adj_valid_win(struct amlsd_platform *pdata,
 	*prev_map = *fixed_adj_map;
 	pr_adj_info("prev_map", *prev_map, 0, div);
 	for (; step <= 63;) {
-		pr_info("[%s]retry test fixed adj...\n", __func__);
+		pr_debug("[%s]retry test fixed adj...\n", __func__);
 		step += AML_FIXED_ADJ_STEP;
 		set_fixed_adj_line_delay(step, pdata);
 		*cur_map = _test_fixed_adj(pdata, tuning_data, opcode, 0, div);
@@ -1670,7 +1679,7 @@ static u32 _find_fixed_adj_valid_win(struct amlsd_platform *pdata,
 		if (*dst != 0) {
 			fir_adj = find_first_bit(dst, div);
 			pr_adj_info(">>>>>>>>bitmap_xor_dst", *dst, 0, div);
-			pr_info("[%s] fir_adj:%u\n", __func__, fir_adj);
+			pr_debug("[%s] fir_adj:%u\n", __func__, fir_adj);
 
 			*prev_map = _swap_fixed_adj_win(*prev_map,
 					fir_adj, div);
@@ -1726,6 +1735,8 @@ static int _aml_sd_emmc_execute_tuning(struct mmc_host *mmc, u32 opcode,
 	u32 old_dly, d1_dly, dly;
 	unsigned long fixed_adj_map[1];
 	bool all_flag = false;
+	u8 *adj_print = host->adj_win;
+	u32 len = 0;
 
 	if ((host->mem->start == host->data->port_b_base)
 			&& host->data->tdma_f)
@@ -1745,6 +1756,8 @@ tunning:
 	curr_win_start = -1;
 	curr_win_size = 0;
 
+	memset(adj_print, 0, sizeof(u8) * ADJ_WIN_PRINT_MAXLEN);
+	len += sprintf(adj_print + len, "%s: adj_win: < ", pdata->pinname);
 	spin_lock_irqsave(&host->mrq_lock, flags);
 	pdata->need_retuning = false;
 	spin_unlock_irqrestore(&host->mrq_lock, flags);
@@ -1778,7 +1791,8 @@ tunning:
 				curr_win_start = adj_delay;
 
 			curr_win_size++;
-			pr_info("%s: rx_tuning_result[%d] = %d\n",
+			len += sprintf(adj_print + len, "%d ", adj_delay);
+			pr_debug("%s: rx_tuning_result[%d] = %d\n",
 				mmc_hostname(host->mmc), adj_delay, nmatch);
 			if (clk_div <= AML_FIXED_ADJ_MAX)
 				set_bit(adj_delay, fixed_adj_map);
@@ -1800,6 +1814,9 @@ tunning:
 			}
 		}
 	}
+	len += sprintf(adj_print + len, ">\n");
+	pr_info("%s", host->adj_win);
+
 	/* last point is ok! */
 	if (curr_win_start >= 0) {
 		if (best_win_start < 0) {

@@ -45,6 +45,7 @@
 #define SD_EMMC_MANUAL_CMD23
 #define MAX_TUNING_RETRY 4
 #define TUNING_NUM_PER_POINT 40
+#define ADJ_WIN_PRINT_MAXLEN 256
 #define CALI_PATTERN_OFFSET ((SZ_1M * (36 + 3)) / 512)
 /* #define AML_RESP_WR_EXT */
 /* pio to transfer data */
@@ -478,6 +479,7 @@ struct amlsd_host {
 	unsigned long		clk_rate;
 
 	u8 *blk_test;
+	u8 *adj_win;
 	char *desc_buf;
 #ifdef CFG_SDEMMC_PIO
 	/* bounce buffer to accomplish 32bit apb access */
