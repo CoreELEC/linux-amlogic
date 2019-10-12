@@ -64,6 +64,7 @@ static unsigned int rgb_info_b;
 static int vdin_det_idle_wait = 100;
 static unsigned int delay_line_num;
 static bool invert_top_bot;
+unsigned int vdin0_afbce_debug_force;
 
 #ifdef DEBUG_SUPPORT
 module_param(rgb_info_enable, bool, 0644);
@@ -2832,6 +2833,7 @@ void vdin_set_dolby_ll_tunnel(struct vdin_dev_s *devp)
 		&& (devp->dv.low_latency)
 		&& (devp->prop.color_format == TVIN_YUV422)) {
 		offset = devp->addr_offset;
+		/*channel map*/
 		wr_bits(offset, VDIN_COM_CTRL0, vdin_data_bus_0,
 				COMP0_OUT_SWT_BIT, COMP0_OUT_SWT_WID);
 		wr_bits(offset, VDIN_COM_CTRL0, vdin_data_bus_1,
@@ -2839,7 +2841,13 @@ void vdin_set_dolby_ll_tunnel(struct vdin_dev_s *devp)
 		wr_bits(offset, VDIN_COM_CTRL0, vdin_data_bus_2,
 				COMP2_OUT_SWT_BIT, COMP2_OUT_SWT_WID);
 		sm_ops = devp->frontend->sm_ops;
+		/*hdmi rs call back, 422 tunnel to 444*/
 		sm_ops->hdmi_dv_config(true, devp->frontend);
+		/*vdin de tunnel and tunnel for vdin scaling*/
+		if (devp->dv.de_scramble)
+			vdin_dolby_desc_sc_enable(devp, 1);
+		else
+			vdin_dolby_desc_sc_enable(devp, 0);
 	}
 }
 
@@ -2858,6 +2866,7 @@ static void vdin_delay_line(unsigned short num, unsigned int offset)
 void vdin_set_default_regmap(unsigned int offset)
 {
 	unsigned int def_canvas_id;
+
 	/* unsigned int offset = devp->addr_offset; */
 
 	/* [   31]        mpeg.en               = 0 ***sub_module.enable*** */
@@ -2986,7 +2995,6 @@ void vdin_set_default_regmap(unsigned int offset)
 		wr(offset, VDIN_LFIFO_CTRL,     0x00000f00);
 	else if (is_meson_tm2_cpu()) {
 		wr(offset, VDIN_LFIFO_CTRL,     0xc0020f00);
-
 		/*set vdin0 out to mif0 normal begin*/
 		if (offset == 0) {
 			wr_bits(0, VDIN_TOP_DOUBLE_CTRL, WR_SEL_DIS,
@@ -2995,7 +3003,6 @@ void vdin_set_default_regmap(unsigned int offset)
 				MIF0_OUT_SEL_BIT, VDIN_REORDER_SEL_WID);
 		}
 		/*set vdin0 out to mif0 normal end*/
-
 		wr(offset, VDIN_HDR2_MATRIXI_EN_CTRL, 0);
 	} else
 		wr(offset, VDIN_LFIFO_CTRL,     0x00000780);
@@ -3649,6 +3656,10 @@ void vdin_set_hvscale(struct vdin_dev_s *devp)
 {
 	unsigned int offset = devp->addr_offset;
 	unsigned int vshrk_mode = 0;
+
+	/*backup current h v size*/
+	devp->h_active_org = devp->h_active;
+	devp->v_active_org = devp->v_active;
 	if ((devp->prop.scaling4w < devp->h_active) &&
 		(devp->prop.scaling4w > 0)) {
 		if (devp->prehsc_en && (devp->prop.scaling4w <=
@@ -4273,7 +4284,67 @@ void vdin_dobly_mdata_write_en(unsigned int offset, unsigned int en)
 	}
 }
 
-unsigned int vdin0_afbce_debug_force;
+/*
+ * set dv de-scramble scramble, and this function
+ * need call after vdin_set_hvscale if vdin scaling down
+ * enable
+ * parm: devp
+ * on:1 off:0
+ */
+void vdin_dolby_desc_sc_enable(struct vdin_dev_s *devp,
+			       unsigned int onoff)
+{
+	unsigned int data;
+	unsigned int offset = 0;
+
+	if (is_meson_tm2_cpu()) {
+		if (onoff) {
+			/*for test dolby vision de-scramble to scramble*/
+			/*dolby vision scramble locate in small path*/
+			data = (1 << 31) | /*Linebuffer soft reset enable*/
+				(1 << 30) | /*Frame reset enable*/
+				(1 << 18) | /*Discard data enable*/
+				(0 << 17) | /*
+					     * Vdin ch0 output enable :
+					     * normal size
+					     */
+				(0 << 16) | /*Pps_path_sel*/
+				(0xf00);   /*lfifo_buf_size*/
+			wr(offset, VDIN_LFIFO_CTRL, data);
+			wr(offset, VDIN_LFIFO_CTRL, 0xc0040f00);
+
+			/*switch vdin 0 wr mif to small*/
+			data = (5 << 24) | /*Vdin1_interrupt mask*/
+				(5 << 20) | /*Vdin0_interrupt mask*/
+				(0 << 16) | /*Done flag clear*/
+				(0 << 12) | /*vdin2 wr mif sel*/
+				(3 << 8) | /*vdin1 wr mif sel*/
+				(2 << 4) | /*vdin0 wr mif sel*/
+				(0);/*afbce sel*/
+			wr(0, VDIN_TOP_DOUBLE_CTRL, data);
+			wr(0, VDIN_TOP_DOUBLE_CTRL, 0x5500320);
+
+			wr(0, VDIN_DSC_DETUNNEL_SEL, 0x2c2d0);
+			wr(0, VDIN_DSC_TUNNEL_SEL, 0x3d11);
+
+			/*de-scramble h size in*/
+			wr_bits(0, VDIN_CFMT_W, devp->h_active_org / 2, 0, 13);
+			wr_bits(0, VDIN_CFMT_W, devp->h_active_org, 16, 13);
+			/**/
+			wr_bits(0, VDIN_DSC_HSIZE, devp->h_active_org, 0, 13);
+			wr_bits(0, VDIN_DSC_HSIZE, devp->h_active_org, 16, 13);
+			/*scaler out size*/
+			wr_bits(0, VDIN_SCB_CTRL1, devp->v_active, 0, 13);
+			wr_bits(0, VDIN_SCB_CTRL1, devp->h_active, 16, 13);
+			/*enable descramble & scramble*/
+			wr_bits(0, VDIN_VSHRK_CTRL, 0x3, 28, 2);
+		} else {
+			/*enable descramble & scramble*/
+			wr_bits(0, VDIN_VSHRK_CTRL, 0x0, 28, 2);
+		}
+	}
+}
+
 int vdin_event_cb(int type, void *data, void *op_arg)
 {
 	unsigned long flags;

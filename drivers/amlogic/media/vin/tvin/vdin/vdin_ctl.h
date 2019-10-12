@@ -189,6 +189,8 @@ extern void vdin_prob_matrix_sel(unsigned int offset,
 		unsigned int sel, struct vdin_dev_s *devp);
 void vdin_change_matrix(unsigned int offset,
 			unsigned int matrix_csc);
+void vdin_dolby_desc_sc_enable(struct vdin_dev_s *devp,
+			       unsigned int  onoff);
 
 #endif
 

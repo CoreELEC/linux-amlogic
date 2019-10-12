@@ -152,6 +152,10 @@ unsigned int vdin_drop_cnt;
 module_param(vdin_drop_cnt, uint, 0664);
 MODULE_PARM_DESC(vdin_drop_cnt, "vdin_drop_cnt");
 
+unsigned int dv_de_scramble;
+module_param(dv_de_scramble, uint, 0664);
+MODULE_PARM_DESC(dv_de_scramble, "dv_de_scramble");
+
 static unsigned int panel_reverse;
 
 
@@ -630,6 +634,7 @@ void vdin_start_dec(struct vdin_dev_s *devp)
 		if (vdin_dbg_en)
 			pr_info("vdin start dec dv input config\n");
 	} else {
+		/*disable dv mdata write*/
 		vdin_dobly_mdata_write_en(devp->addr_offset, 0);
 	}
 #endif
@@ -651,6 +656,7 @@ void vdin_start_dec(struct vdin_dev_s *devp)
 
 	vdin_hw_enable(devp->addr_offset);
 	vdin_set_all_regs(devp);
+	devp->dv.de_scramble = dv_de_scramble;
 	vdin_set_dolby_ll_tunnel(devp);
 	vdin_write_mif_or_afbce_init(devp);
 	if (!(devp->parm.flag & TVIN_PARM_FLAG_CAP) &&
@@ -776,6 +782,8 @@ void vdin_stop_dec(struct vdin_dev_s *devp)
 #endif
 		vf_unreg_provider(&devp->vprov);
 	devp->dv.dv_config = 0;
+	devp->dv.de_scramble = 0;
+	vdin_dolby_desc_sc_enable(devp, 0);
 
 	if (devp->afbce_mode == 1) {
 		vdin_afbce_hw_disable();
@@ -2968,7 +2976,13 @@ static long vdin_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			pr_err("[vdin.%d] idx %d RECOVERY error\n",
 					devp->index, recov_idx);
 		break;
-
+	case TVIN_IOC_S_DV_DESCRAMBLE:
+		if (copy_from_user(&idx, argp, sizeof(idx)))
+			return -EFAULT;
+		dv_de_scramble = idx;
+		devp->dv.de_scramble = dv_de_scramble;
+		vdin_dolby_desc_sc_enable(devp, dv_de_scramble);
+		break;
 	default:
 		ret = -ENOIOCTLCMD;
 	/* pr_info("%s %d is not supported command\n", __func__, cmd); */

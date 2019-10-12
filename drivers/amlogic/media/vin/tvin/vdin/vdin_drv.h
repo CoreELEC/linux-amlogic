@@ -48,7 +48,7 @@
 /* Ref.2019/04/25: tl1 vdin0 afbce dynamically switch support,
  *                 vpp also should support this function
  */
-#define VDIN_VER "Ref.2019/10/11:Fix coverify error"
+#define VDIN_VER "ver:2019-1030: add dv descramble scramble feature"
 
 /*the counter of vdin*/
 #define VDIN_MAX_DEVS			2
@@ -271,6 +271,7 @@ struct vdin_dv_s {
 	unsigned int dv_mem_alloced;
 	struct tvin_dv_vsif_s dv_vsif;/*dolby vsi info*/
 	bool low_latency;
+	bool de_scramble;
 };
 
 struct vdin_afbce_s {
@@ -338,6 +339,8 @@ struct vdin_dev_s {
 
 	unsigned int h_active;
 	unsigned int v_active;
+	unsigned int h_active_org;/*vdin scaler in*/
+	unsigned int v_active_org;/*vdin scaler in*/
 	unsigned int canvas_h;
 	unsigned int canvas_w;
 	unsigned int canvas_active_w;
@@ -492,6 +495,7 @@ extern unsigned int max_ignore_frame_cnt;
 extern unsigned int skip_frame_debug;
 extern unsigned int vdin_drop_cnt;
 extern unsigned int vdin0_afbce_debug_force;
+extern unsigned int dv_de_scramble;
 
 extern struct vframe_provider_s *vf_get_provider_by_name(
 		const char *provider_name);

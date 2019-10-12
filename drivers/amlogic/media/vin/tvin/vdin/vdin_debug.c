@@ -1515,6 +1515,7 @@ static ssize_t vdin_attr_store(struct device *dev,
 	unsigned int time_start, time_end, time_delta;
 	long val = 0;
 	unsigned int temp;
+	unsigned int mode = 0, flag = 0;
 
 	if (!buf)
 		return len;
@@ -1885,6 +1886,13 @@ start_chk:
 				(reg+offset), rd(offset, reg));
 		}
 		pr_info("vdin%d regs end----\n", devp->index);
+		pr_info("vdin descramble scramble----start\n");
+		for (reg = VDIN_DSC_CTRL; reg <= VDIN_DSC_TUNNEL_SEL;
+			reg++) {
+			pr_info("0x%04x = 0x%08x\n",
+				(reg), R_VCBUS(reg));
+		}
+		pr_info("vdin descramble scramble----end\n");
 		if (devp->afbce_flag & VDIN_AFBCE_EN) {
 			pr_info("vdin%d afbce regs start----\n", devp->index);
 			for (reg = AFBCE_ENABLE; reg <= AFBCE_MMU_RMIF_RO_STAT;
@@ -2264,8 +2272,6 @@ start_chk:
 			pr_info("vdin_afbce_flag: 0x%x\n", devp->afbce_flag);
 		}
 	} else if (!strcmp(parm[0], "afbce_mode")) {
-		unsigned int mode = 0, flag = 0;
-
 		if (parm[2] != NULL) {
 			if ((kstrtouint(parm[1], 10, &mode) == 0) &&
 				(kstrtouint(parm[2], 10, &flag) == 0)) {
@@ -2312,6 +2318,15 @@ start_chk:
 		if (parm[1]) {
 			if (kstrtouint(parm[1], 10, &temp) == 0)
 				vdin_change_matrix(0, temp);
+		}
+	} else if (!strcmp(parm[0], "scramble")) {
+		if (parm[1]) {
+			if (kstrtouint(parm[1], 10, &mode) == 0) {
+				pr_info("dv scramble %d\n", mode);
+				dv_de_scramble = mode;
+				devp->dv.de_scramble = mode;
+				vdin_dolby_desc_sc_enable(devp, mode);
+			}
 		}
 	} else {
 		pr_info("unknown command\n");

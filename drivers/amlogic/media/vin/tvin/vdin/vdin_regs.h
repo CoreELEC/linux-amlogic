@@ -641,21 +641,18 @@
 /* Bit 5:0, vdi9_asfifo_cnt */
 #define VDIN_COM_STATUS3         ((0x1273))/* + 0xd0100000) */
 
-/* dolby vdin regs */
-#define VDIN_DOLBY_DSC_CTRL0                       0x1275
-/*((0x1275  << 2) + 0xff900000)*/
-#define VDIN_DOLBY_DSC_CTRL1                       0x1276
-#define VDIN_DOLBY_DSC_CTRL2                       0x1277
-#define VDIN_DOLBY_DSC_CTRL3                       0x1278
-#define VDIN_DOLBY_AXI_CTRL0                       0x1279
-#define VDIN_DOLBY_AXI_CTRL1                       0x127a
-#define VDIN_DOLBY_AXI_CTRL2                       0x127b
-#define VDIN_DOLBY_AXI_CTRL3                       0x127c
-#define VDIN_DOLBY_DSC_STATUS0                     0x127d
-#define VDIN_DOLBY_DSC_STATUS1                     0x127e
-#define VDIN_DOLBY_DSC_STATUS2                     0x127f
-#define VDIN_DOLBY_DSC_STATUS3                     0x121d
-
+#define VDIN_DOLBY_DSC_CTRL0	0x1275
+#define VDIN_DOLBY_DSC_CTRL1	0x1276
+#define VDIN_DOLBY_DSC_CTRL2	0x1277
+#define VDIN_DOLBY_DSC_CTRL3	0x1278
+#define VDIN_DOLBY_AXI_CTRL0	0x1279
+#define VDIN_DOLBY_AXI_CTRL1	0x127a
+#define VDIN_DOLBY_AXI_CTRL2	0x127b
+#define VDIN_DOLBY_AXI_CTRL3	0x127c
+#define VDIN_DOLBY_DSC_STATUS0	0x127d
+#define VDIN_DOLBY_DSC_STATUS1	0x127e
+#define VDIN_DOLBY_DSC_STATUS2	0x127f
+#define VDIN_DOLBY_DSC_STATUS3	0x121d
 
 /*g12a new add begin*/
 #define VDIN_HDR2_CTRL 0x1280
@@ -760,10 +757,18 @@
 
 /*tm2 new add end*/
 
-/* #define VDIN_SCALE_COEF_IDX                        0x1200 */
-/* #define VDIN_SCALE_COEF                            0x1201 */
+/* dolby de-scramble scramble register */
+#define VDIN_DSC_CTRL		0x12d0
+#define VDIN_CFMT_CTRL		0x12d1
+#define VDIN_CFMT_W		0x12d2
+#define VDIN_SCB_CTRL0		0x12d3
+#define VDIN_SCB_CTRL1		0x12d4
+#define VDIN_DSC_HSIZE		0x12d5
+#define VDIN_DSC_DETUNNEL_SEL	0x12d6
+#define VDIN_DSC_TUNNEL_SEL	0x12d7
 
-/* #define VDIN_COM_CTRL0                             0x1202 */
+#define VDIN_TOP_MISC		0x410d
+
 /* used by other modules,indicates that MPEG input.
  *0: mpeg source to NR directly,
  *1: mpeg source pass through here
