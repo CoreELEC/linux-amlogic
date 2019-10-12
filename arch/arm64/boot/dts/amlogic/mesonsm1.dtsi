@@ -1519,7 +1519,7 @@
 		pinctrl-7 = <&sd_all_pins &sd_to_ao_uart_pins>;
 		pinctrl-8 = <&sd_to_ao_uart_clr_pins
 			&ao_to_sd_uart_pins>;
-			pinctrl-8 = <&sd_all_pd_pins>;
+		pinctrl-9 = <&sd_all_pd_pins>;
 
 		clocks = <&clkc CLKID_SD_EMMC_B>,
 			<&clkc CLKID_SD_EMMC_B_P0_COMP>,
