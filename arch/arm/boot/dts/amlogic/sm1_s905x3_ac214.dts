@@ -18,7 +18,7 @@
 /dts-v1/;
 
 #include "mesonsm1.dtsi"
-#include "partition_mbox_normal.dtsi"
+#include "partition_mbox_normal_dynamic.dtsi"
 #include "mesonsm1_skt-panel.dtsi"
 
 / {
@@ -333,6 +333,22 @@
 		status = "okay";
 	};
 
+	amlvideo2_0 {
+		compatible = "amlogic, amlvideo2";
+		dev_name = "amlvideo2";
+		status = "okay";
+		amlvideo2_id = <0>;
+		cma_mode = <1>;
+	};
+
+	amlvideo2_1 {
+		compatible = "amlogic, amlvideo2";
+		dev_name = "amlvideo2";
+		status = "okay";
+		amlvideo2_id = <1>;
+		cma_mode = <1>;
+	};
+
 	dvb {
 		compatible = "amlogic, dvb";
 		dev_name = "dvb";
@@ -376,7 +392,7 @@
 	unifykey{
 		compatible = "amlogic, unifykey";
 		status = "ok";
-		unifykey-num = <16>;
+		unifykey-num = <17>;
 		unifykey-index-0 = <&keysn_0>;
 		unifykey-index-1 = <&keysn_1>;
 		unifykey-index-2 = <&keysn_2>;
@@ -393,6 +409,7 @@
 		unifykey-index-13= <&keysn_13>;
 		unifykey-index-14= <&keysn_14>;
 		unifykey-index-15= <&keysn_15>;
+		unifykey-index-16= <&keysn_16>;
 		keysn_0: key_0{
 			key-name = "usid";
 			key-device = "normal";
@@ -474,6 +491,11 @@
 		keysn_15:key_15{
 			key-name = "netflix_mgkid";
 			key-device = "secure";
+			key-permit = "read","write","del";
+		};
+		keysn_16:key_16{
+			key-name = "oemkey";
+			key-device = "normal";
 			key-permit = "read","write","del";
 		};
 	};//End unifykey
@@ -1071,7 +1093,7 @@
 	status = "ok";
 	pinctrl-names="default";
 	pinctrl-0=<&i2c3_master_pins2>;
-	clock-frequency = <100000>; /* default 100k */
+	clock-frequency = <300000>; /* default 100k */
 
 	/* for ref board */
 	ad82584f_62: ad82584f_62@62 {
@@ -1686,7 +1708,7 @@
 			 "MMC_CAP_DRIVER_TYPE_D";
 		caps2 = "MMC_CAP2_HS200", "MMC_CAP2_HS400";
 		f_min = <400000>;
-		f_max = <166666666>;
+		f_max = <200000000>;
 	};
 };
 
@@ -1814,4 +1836,8 @@
 			function = "tsin_a_ao";
 		};
 	};
+};
+
+&irblaster {
+	status = "okay";
 };
