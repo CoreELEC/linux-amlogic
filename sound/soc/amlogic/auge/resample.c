@@ -81,10 +81,8 @@ struct audioresample *get_audioresample(enum resample_idx id)
 
 	p_resample = ((id == RESAMPLE_A) ? s_resample_a : s_resample_b);
 
-	if (!p_resample) {
-		pr_debug("Not init audio resample\n");
+	if (!p_resample)
 		return NULL;
-	}
 
 	return p_resample;
 }
