@@ -56,6 +56,16 @@
 		target-path="/";
 		__overlay__ {
 			dvb_mn88436 {
+				status = "disabled";
+			};
+		};
+	};
+
+	fragment@4 {
+		//target = <&some_node>;
+		target-path="/";
+		__overlay__ {
+			dvb_cxd2856 {
 				status = "okay";
 			};
 		};
