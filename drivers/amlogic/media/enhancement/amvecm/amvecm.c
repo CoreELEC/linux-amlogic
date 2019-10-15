@@ -4017,7 +4017,9 @@ void pc_mode_process(void)
 		lc_en = 1;
 		ve_enable_dnlp();
 		/* open cm clock gate */
-		cm_en = 1;
+		if (!(is_meson_g12a_cpu() || is_meson_g12b_cpu() ||
+		      is_meson_sm1_cpu()))
+			cm_en = 1;
 			/* sharpness on */
 		VSYNC_WR_MPEG_REG_BITS(
 			SRSHARP0_PK_NR_ENABLE + sr_offset[0],
