@@ -42,7 +42,6 @@ static struct cpufreq_frequency_table *freq_table[MAX_CLUSTERS];
 /*mid rate for set parent,Khz*/
 static unsigned int mid_rate = (1000 * 1000);
 static unsigned int gap_rate = (10 * 1000 * 1000);
-static struct cpufreq_freqs freqs;
 
 /*
  * DSU_LOW_RATE:cpu clk less than DSU_LOW_RATE(1.2G)

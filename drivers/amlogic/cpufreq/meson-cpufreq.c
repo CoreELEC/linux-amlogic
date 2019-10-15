@@ -208,6 +208,7 @@ static int meson_cpufreq_set_target(struct cpufreq_policy *policy,
 	struct meson_cpufreq_driver_data *cpufreq_data;
 	struct device *cpu_dev;
 	struct regulator *cpu_reg;
+	struct cpufreq_freqs freqs[MAX_CLUSTERS];
 	int ret = 0;
 
 	if (!policy) {
@@ -260,9 +261,9 @@ static int meson_cpufreq_set_target(struct cpufreq_policy *policy,
 		}
 	}
 
-	freqs.old = freq_old / 1000;
-	freqs.new = freq_new / 1000;
-	cpufreq_freq_transition_begin(policy, &freqs);
+	freqs[cur_cluster].old = freq_old / 1000;
+	freqs[cur_cluster].new = freq_new / 1000;
+	cpufreq_freq_transition_begin(policy, &freqs[cur_cluster]);
 	/*scale clock frequency*/
 	ret = meson_cpufreq_set_rate(policy, cur_cluster,
 					freq_new / 1000);
@@ -277,7 +278,7 @@ static int meson_cpufreq_set_target(struct cpufreq_policy *policy,
 		return ret;
 	}
 
-	cpufreq_freq_transition_end(policy, &freqs, ret);
+	cpufreq_freq_transition_end(policy, &freqs[cur_cluster], ret);
 	/*cpufreq down,change voltage after frequency*/
 	if (freq_new < freq_old) {
 		ret = meson_regulator_set_volate(cpu_reg, volt_old,
@@ -285,14 +286,15 @@ static int meson_cpufreq_set_target(struct cpufreq_policy *policy,
 		if (ret) {
 			pr_err("failed to scale volt %u %u down: %d\n",
 				volt_new, volt_tol, ret);
-			freqs.old = freq_new / 1000;
-			freqs.new = freq_old / 1000;
-			cpufreq_freq_transition_begin(policy, &freqs);
+			freqs[cur_cluster].old = freq_new / 1000;
+			freqs[cur_cluster].new = freq_old / 1000;
+			cpufreq_freq_transition_begin(policy,
+						      &freqs[cur_cluster]);
 
 			ret = meson_cpufreq_set_rate(policy, cur_cluster,
 				freq_old / 1000);
 			cpufreq_freq_transition_end(policy,
-					&freqs, ret);
+						    &freqs[cur_cluster], ret);
 		}
 	}
 
