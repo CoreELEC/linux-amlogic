@@ -682,6 +682,90 @@ static void vdin_channel_order_status(unsigned int offset)
 		offset, c0, c1, c2);
 }
 
+const char *vdin_trans_matrix_str(enum vdin_matrix_csc_e csc_idx)
+{
+	switch (csc_idx) {
+	case VDIN_MATRIX_XXX_YUV601_BLACK:
+		return "VDIN_MATRIX_XXX_YUV601_BLACK";
+	case VDIN_MATRIX_RGB_YUV601:
+		return "VDIN_MATRIX_RGB_YUV601";
+	case VDIN_MATRIX_GBR_YUV601:
+		return "VDIN_MATRIX_GBR_YUV601";
+	case VDIN_MATRIX_BRG_YUV601:
+		return "VDIN_MATRIX_BRG_YUV601";
+	case VDIN_MATRIX_YUV601_RGB:
+		return "VDIN_MATRIX_YUV601_RGB";
+	case VDIN_MATRIX_YUV601_GBR:
+		return "VDIN_MATRIX_YUV601_GBR";
+	case VDIN_MATRIX_YUV601_BRG:
+		return "VDIN_MATRIX_YUV601_BRG";
+	case VDIN_MATRIX_RGB_YUV601F:
+		return "VDIN_MATRIX_RGB_YUV601F";
+	case VDIN_MATRIX_YUV601F_RGB:
+		return "VDIN_MATRIX_YUV601F_RGB";
+	case VDIN_MATRIX_RGBS_YUV601:
+		return "VDIN_MATRIX_RGBS_YUV601";
+	case VDIN_MATRIX_YUV601_RGBS:
+		return "VDIN_MATRIX_YUV601_RGBS";
+	case VDIN_MATRIX_RGBS_YUV601F:
+		return "VDIN_MATRIX_RGBS_YUV601F";
+	case VDIN_MATRIX_YUV601F_RGBS:
+		return "VDIN_MATRIX_YUV601F_RGBS";
+	case VDIN_MATRIX_YUV601F_YUV601:
+		return "VDIN_MATRIX_YUV601F_YUV601";
+	case VDIN_MATRIX_YUV601_YUV601F:
+		return "VDIN_MATRIX_YUV601_YUV601F";
+	case VDIN_MATRIX_RGB_YUV709:
+		return "VDIN_MATRIX_RGB_YUV709";
+	case VDIN_MATRIX_YUV709_RGB:
+		return "VDIN_MATRIX_YUV709_RGB";
+	case VDIN_MATRIX_YUV709_GBR:
+		return "VDIN_MATRIX_YUV709_GBR";
+	case VDIN_MATRIX_YUV709_BRG:
+		return "VDIN_MATRIX_YUV709_BRG";
+	case VDIN_MATRIX_RGB_YUV709F:
+		return "VDIN_MATRIX_RGB_YUV709F";
+	case VDIN_MATRIX_YUV709F_RGB:
+		return "VDIN_MATRIX_YUV709F_RGB";
+	case VDIN_MATRIX_RGBS_YUV709:
+		return "VDIN_MATRIX_RGBS_YUV709";
+	case VDIN_MATRIX_YUV709_RGBS:
+		return "VDIN_MATRIX_YUV709_RGBS";
+	case VDIN_MATRIX_RGBS_YUV709F:
+		return "VDIN_MATRIX_RGBS_YUV709F";
+	case VDIN_MATRIX_YUV709F_RGBS:
+		return "VDIN_MATRIX_YUV709F_RGBS";
+	case VDIN_MATRIX_YUV709F_YUV709:
+		return "VDIN_MATRIX_YUV709F_YUV709";
+	case VDIN_MATRIX_YUV709_YUV709F:
+		return "VDIN_MATRIX_YUV709_YUV709F";
+	case VDIN_MATRIX_YUV601_YUV709:
+		return "VDIN_MATRIX_YUV601_YUV709";
+	case VDIN_MATRIX_YUV709_YUV601:
+		return "VDIN_MATRIX_YUV709_YUV601";
+	case VDIN_MATRIX_YUV601_YUV709F:
+		return "VDIN_MATRIX_YUV601_YUV709F";
+	case VDIN_MATRIX_YUV709F_YUV601:
+		return "VDIN_MATRIX_YUV709F_YUV601";
+	case VDIN_MATRIX_YUV601F_YUV709:
+		return "VDIN_MATRIX_YUV601F_YUV709";
+	case VDIN_MATRIX_YUV709_YUV601F:
+		return "VDIN_MATRIX_YUV709_YUV601F";
+	case VDIN_MATRIX_YUV601F_YUV709F:
+		return "VDIN_MATRIX_YUV601F_YUV709F";
+	case VDIN_MATRIX_YUV709F_YUV601F:
+		return "VDIN_MATRIX_YUV709F_YUV601F";
+	case VDIN_MATRIX_RGBS_RGB:
+		return "VDIN_MATRIX_RGBS_RGB";
+	case VDIN_MATRIX_RGB_RGBS:
+		return "VDIN_MATRIX_RGB_RGBS";
+	case VDIN_MATRIX_RGB2020_YUV2020:
+		return "VDIN_MATRIX_RGB2020_YUV2020";
+	default:
+		return "VDIN_MATRIX_NULL";
+	}
+};
+
 static void vdin_dump_state(struct vdin_dev_s *devp)
 {
 	unsigned int i;
@@ -706,16 +790,27 @@ static void vdin_dump_state(struct vdin_dev_s *devp)
 	pr_info("signal format	= %s(0x%x)\n",
 		tvin_sig_fmt_str(devp->parm.info.fmt),
 		devp->parm.info.fmt);
-	pr_info("trans_fmt	= %s(%d)\n",
+	pr_info("prop.trans_fmt	= %s(%d)\n",
 		tvin_trans_fmt_str(devp->prop.trans_fmt),
 		devp->prop.trans_fmt);
-	pr_info("color_format	= %s(%d)\n",
+	pr_info("prop.color_format= %s(%d)\n",
 		tvin_color_fmt_str(devp->prop.color_format),
 		devp->prop.color_format);
-	pr_info("format_convert = %s(%d)\n",
+	pr_info("prop.dest_cfmt	= %s(%d)\n",
+		tvin_color_fmt_str(devp->prop.dest_cfmt),
+		devp->prop.dest_cfmt);
+	pr_info("prop.color_fmt_range	= (%s)%d\n",
+		tvin_trans_color_range_str(devp->prop.color_fmt_range),
+		devp->prop.color_fmt_range);
+	pr_info("format_convert	= %s(%d)\n",
 		vdin_fmt_convert_str(devp->format_convert),
 		devp->format_convert);
-	pr_info("aspect_ratio	= %s(%d)\ndecimation_ratio/dvi	= %u / %u\n",
+	pr_info("vdin csc_idx	= %s(%d)\n",
+		vdin_trans_matrix_str(devp->csc_idx),
+		devp->csc_idx);
+	pr_info("signal_type	= 0x%x\n", devp->parm.info.signal_type);
+	pr_info("color_range_force = %d\n", color_range_force);
+	pr_info("aspect_ratio = %s(%d)\ndecimation_ratio/dvi	= %u / %u\n",
 		tvin_aspect_ratio_str(devp->prop.aspect_ratio),
 		devp->prop.aspect_ratio,
 		devp->prop.decimation_ratio, devp->prop.dvi_info);
@@ -1419,6 +1514,7 @@ static ssize_t vdin_attr_store(struct device *dev,
 	struct vdin_dev_s *devp;
 	unsigned int time_start, time_end, time_delta;
 	long val = 0;
+	unsigned int temp;
 
 	if (!buf)
 		return len;
@@ -2198,12 +2294,12 @@ start_chk:
 		} else {
 			pr_info("vdin_afbce_mode: %d\n", devp->afbce_mode);
 		}
-	} else if (!strcmp(parm[0], "vdi6_afifo_overflow"))
+	} else if (!strcmp(parm[0], "vdi6_afifo_overflow")) {
 		pr_info("%d\n",
 			vdin_check_vdi6_afifo_overflow(devp->addr_offset));
-	else if (!strcmp(parm[0], "vdi6_afifo_clear"))
+	} else if (!strcmp(parm[0], "vdi6_afifo_clear")) {
 		vdin_clear_vdi6_afifo_overflow_flg(devp->addr_offset);
-	else if (!strcmp(parm[0], "skip_frame_check")) {
+	} else if (!strcmp(parm[0], "skip_frame_check")) {
 		if (parm[1] != NULL) {
 			if (kstrtouint(parm[1], 10, &devp->skip_disp_md_check)
 				== 0)
@@ -2212,8 +2308,14 @@ start_chk:
 		} else
 			pr_info("skip frame check para err, ori: %d\n",
 				devp->skip_disp_md_check);
-	} else
+	} else if (!strcmp(parm[0], "vdinmtx")) {
+		if (parm[1]) {
+			if (kstrtouint(parm[1], 10, &temp) == 0)
+				vdin_change_matrix(0, temp);
+		}
+	} else {
 		pr_info("unknown command\n");
+	}
 
 	kfree(buf_orig);
 	return len;

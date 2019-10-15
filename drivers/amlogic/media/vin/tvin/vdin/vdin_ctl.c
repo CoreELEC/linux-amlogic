@@ -507,6 +507,59 @@ static struct vdin_matrix_lup_s vdin_matrix_lup[] = {
 };
 
 /***************************Local function**********************************/
+
+/*set csc idx conter to ranage
+ * parameters:
+ *	a.csc_idx
+ * return
+ *	0: limit
+ *	1: full
+ */
+u32 vdin_matrix_range_chk(enum vdin_matrix_csc_e csc_idx)
+{
+	switch (csc_idx) {
+	case VDIN_MATRIX_YUV601F_RGB:
+	case VDIN_MATRIX_RGBS_YUV601F:
+	case VDIN_MATRIX_YUV601_YUV601F:
+	case VDIN_MATRIX_YUV709_RGB:
+	case VDIN_MATRIX_YUV709_GBR:
+	case VDIN_MATRIX_YUV709_BRG:
+	case VDIN_MATRIX_RGB_YUV709F:
+	case VDIN_MATRIX_YUV709F_RGB:
+	case VDIN_MATRIX_RGBS_YUV709F:
+	case VDIN_MATRIX_YUV709_YUV709F:
+	case VDIN_MATRIX_YUV601_YUV709F:
+	case VDIN_MATRIX_YUV601F_YUV709F:
+	case VDIN_MATRIX_YUV709F_YUV601F:
+	case VDIN_MATRIX_YUV709_YUV601F:
+	case VDIN_MATRIX_RGBS_RGB:
+		return 1;
+
+	case VDIN_MATRIX_NULL:
+	case VDIN_MATRIX_XXX_YUV601_BLACK:
+	case VDIN_MATRIX_RGB_YUV601:
+	case VDIN_MATRIX_GBR_YUV601:
+	case VDIN_MATRIX_BRG_YUV601:
+	case VDIN_MATRIX_RGBS_YUV601:
+	case VDIN_MATRIX_YUV601_RGBS:
+	case VDIN_MATRIX_YUV601F_RGBS:
+	case VDIN_MATRIX_YUV601F_YUV601:
+	case VDIN_MATRIX_RGB_YUV709:
+	case VDIN_MATRIX_RGBS_YUV709:
+	case VDIN_MATRIX_YUV709_RGBS:
+	case VDIN_MATRIX_YUV709F_RGBS:
+	case VDIN_MATRIX_YUV709F_YUV709:
+	case VDIN_MATRIX_YUV601_YUV709:
+	case VDIN_MATRIX_YUV709_YUV601:
+	case VDIN_MATRIX_YUV709F_YUV601:
+	case VDIN_MATRIX_YUV601F_YUV709:
+	case VDIN_MATRIX_RGB_RGBS:
+	case VDIN_MATRIX_RGB2020_YUV2020:
+	default:
+		return 0;
+	}
+}
+
 /*set format_convert
  *base on parameters:
  *	a.color_format
@@ -716,7 +769,8 @@ void vdin_prob_set_xy(unsigned int offset,
 	rgb_info_enable = 1;
 	format_convert_matrix0 = vdin_get_format_convert_matrix0(devp);
 	format_convert_matrix1 = vdin_get_format_convert_matrix1(devp);
-	vdin_set_color_matrix1(devp->addr_offset, devp->fmt_info_p,
+	devp->csc_idx = vdin_set_color_matrix1(devp->addr_offset,
+			devp->fmt_info_p,
 			format_convert_matrix1,
 			devp->parm.port,
 			devp->prop.color_fmt_range,
@@ -724,7 +778,7 @@ void vdin_prob_set_xy(unsigned int offset,
 			devp->color_range_mode);
 	if (is_meson_g12a_cpu() || is_meson_g12b_cpu() ||
 		is_meson_sm1_cpu() || is_meson_tm2_cpu())
-		vdin_set_color_matrix0_g12a(devp->addr_offset,
+		devp->csc_idx = vdin_set_color_matrix0_g12a(devp->addr_offset,
 			devp->fmt_info_p,
 			devp->format_convert,
 			devp->parm.port,
@@ -732,7 +786,8 @@ void vdin_prob_set_xy(unsigned int offset,
 			devp->prop.vdin_hdr_Flag,
 			devp->color_range_mode);
 	else
-		vdin_set_color_matrix0(devp->addr_offset, devp->fmt_info_p,
+		devp->csc_idx = vdin_set_color_matrix0(devp->addr_offset,
+			devp->fmt_info_p,
 			format_convert_matrix0,
 			devp->parm.port,
 			devp->prop.color_fmt_range,
@@ -1188,6 +1243,41 @@ void vdin_set_config(struct vdin_dev_s *devp)
 			VDIN_PIXELCLK_4K_60HZ; /* 2160p60hz*/
 }
 
+void vdin_change_matrix(unsigned int offset,
+			unsigned int matrix_csc)
+{
+	struct vdin_matrix_lup_s *matrix_tbl;
+
+	if (matrix_csc == VDIN_MATRIX_NULL)	{
+		wr_bits(offset, VDIN_MATRIX_CTRL, 0,
+			VDIN_MATRIX_EN_BIT, VDIN_MATRIX_EN_WID);
+	} else {
+		matrix_tbl = &vdin_matrix_lup[matrix_csc - 1];
+
+		/*coefficient index select matrix0*/
+		wr_bits(offset, VDIN_MATRIX_CTRL, 0,
+			VDIN_MATRIX_COEF_INDEX_BIT, VDIN_MATRIX_COEF_INDEX_WID);
+
+		wr(offset,
+		   VDIN_MATRIX_PRE_OFFSET0_1, matrix_tbl->pre_offset0_1);
+		wr(offset,
+		   VDIN_MATRIX_PRE_OFFSET2, matrix_tbl->pre_offset2);
+		wr(offset, VDIN_MATRIX_COEF00_01, matrix_tbl->coef00_01);
+		wr(offset, VDIN_MATRIX_COEF02_10, matrix_tbl->coef02_10);
+		wr(offset, VDIN_MATRIX_COEF11_12, matrix_tbl->coef11_12);
+		wr(offset, VDIN_MATRIX_COEF20_21, matrix_tbl->coef20_21);
+		wr(offset, VDIN_MATRIX_COEF22, matrix_tbl->coef22);
+		wr(offset, VDIN_MATRIX_OFFSET0_1, matrix_tbl->post_offset0_1);
+		wr(offset, VDIN_MATRIX_OFFSET2, matrix_tbl->post_offset2);
+		wr_bits(offset, VDIN_MATRIX_CTRL, 0,
+			VDIN_MATRIX0_BYPASS_BIT, VDIN_MATRIX0_BYPASS_WID);
+		wr_bits(offset, VDIN_MATRIX_CTRL, 1,
+			VDIN_MATRIX_EN_BIT, VDIN_MATRIX_EN_WID);
+	}
+
+	pr_info("%s id:%d\n", __func__, matrix_csc);
+}
+
 /*set matrix_csc
  * based on parameters:
  *	a.format_convert
@@ -1195,13 +1285,14 @@ void vdin_set_config(struct vdin_dev_s *devp)
  *	c.color_range_mode
  *	d.vdin_hdr_flag
  */
-static inline void vdin_set_color_matrix1(unsigned int offset,
-		struct tvin_format_s *tvin_fmt_p,
-		enum vdin_format_convert_e format_convert,
-		enum tvin_port_e port,
-		enum tvin_color_fmt_range_e color_fmt_range,
-		unsigned int vdin_hdr_flag,
-		unsigned int color_range_mode)
+static enum vdin_matrix_csc_e
+vdin_set_color_matrix1(unsigned int offset,
+		       struct tvin_format_s *tvin_fmt_p,
+		       enum vdin_format_convert_e format_convert,
+		       enum tvin_port_e port,
+		       enum tvin_color_fmt_range_e color_fmt_range,
+		       unsigned int vdin_hdr_flag,
+		       unsigned int color_range_mode)
 {
 	/* unsigned int offset = devp->addr_offset; */
 	enum vdin_matrix_csc_e    matrix_csc = VDIN_MATRIX_NULL;
@@ -1275,7 +1366,7 @@ static inline void vdin_set_color_matrix1(unsigned int offset,
 						VDIN_MATRIX_RGB2020_YUV2020;
 					else
 						matrix_csc =
-						VDIN_MATRIX_RGB_YUV709;
+						VDIN_MATRIX_RGB_YUV709F;
 				} else
 					matrix_csc = VDIN_MATRIX_RGBS_YUV709;
 			}
@@ -1383,18 +1474,20 @@ static inline void vdin_set_color_matrix1(unsigned int offset,
 			VDIN_MATRIX1_EN_BIT, VDIN_MATRIX1_EN_WID);
 	}
 	pr_info("%s id:%d\n", __func__, matrix_csc);
+	return matrix_csc;
 }
 
-static inline void vdin_set_color_matrix0(unsigned int offset,
-		struct tvin_format_s *tvin_fmt_p,
-		enum vdin_format_convert_e format_convert,
-		enum tvin_port_e port,
-		enum tvin_color_fmt_range_e color_fmt_range,
-		unsigned int vdin_hdr_flag,
-		unsigned int color_range_mode)
+static enum vdin_matrix_csc_e
+vdin_set_color_matrix0(unsigned int offset,
+		       struct tvin_format_s *tvin_fmt_p,
+		       enum vdin_format_convert_e format_convert,
+		       enum tvin_port_e port,
+		       enum tvin_color_fmt_range_e color_fmt_range,
+		       unsigned int vdin_hdr_flag,
+		       unsigned int color_range_mode)
 {
 	enum vdin_matrix_csc_e    matrix_csc = VDIN_MATRIX_NULL;
-	struct vdin_matrix_lup_s *matrix_tbl;
+	/*struct vdin_matrix_lup_s *matrix_tbl;*/
 	struct tvin_format_s *fmt_info = tvin_fmt_p;
 
 	switch (format_convert)	{
@@ -1465,7 +1558,7 @@ static inline void vdin_set_color_matrix0(unsigned int offset,
 						VDIN_MATRIX_RGB2020_YUV2020;
 					else
 						matrix_csc =
-						VDIN_MATRIX_RGB_YUV709;
+						VDIN_MATRIX_RGB_YUV709F;
 				} else
 					matrix_csc = VDIN_MATRIX_RGBS_YUV709;
 			}
@@ -1543,41 +1636,20 @@ static inline void vdin_set_color_matrix0(unsigned int offset,
 		break;
 	}
 
-	if (matrix_csc == VDIN_MATRIX_NULL)	{
-		wr_bits(offset, VDIN_MATRIX_CTRL, 0,
-				VDIN_MATRIX_EN_BIT, VDIN_MATRIX_EN_WID);
-	} else {
-		matrix_tbl = &vdin_matrix_lup[matrix_csc - 1];
-
-		/*coefficient index select matrix0*/
-		wr_bits(offset, VDIN_MATRIX_CTRL, 0,
-			VDIN_MATRIX_COEF_INDEX_BIT, VDIN_MATRIX_COEF_INDEX_WID);
-
-		wr(offset,
-			VDIN_MATRIX_PRE_OFFSET0_1, matrix_tbl->pre_offset0_1);
-		wr(offset,
-			VDIN_MATRIX_PRE_OFFSET2, matrix_tbl->pre_offset2);
-		wr(offset, VDIN_MATRIX_COEF00_01, matrix_tbl->coef00_01);
-		wr(offset, VDIN_MATRIX_COEF02_10, matrix_tbl->coef02_10);
-		wr(offset, VDIN_MATRIX_COEF11_12, matrix_tbl->coef11_12);
-		wr(offset, VDIN_MATRIX_COEF20_21, matrix_tbl->coef20_21);
-		wr(offset, VDIN_MATRIX_COEF22, matrix_tbl->coef22);
-		wr(offset, VDIN_MATRIX_OFFSET0_1, matrix_tbl->post_offset0_1);
-		wr(offset, VDIN_MATRIX_OFFSET2, matrix_tbl->post_offset2);
-		wr_bits(offset, VDIN_MATRIX_CTRL, 0,
-			VDIN_MATRIX0_BYPASS_BIT, VDIN_MATRIX0_BYPASS_WID);
-		wr_bits(offset, VDIN_MATRIX_CTRL, 1,
-			VDIN_MATRIX_EN_BIT, VDIN_MATRIX_EN_WID);
-	}
-	pr_info("%s id:%d\n", __func__, matrix_csc);
+	vdin_change_matrix(offset, matrix_csc);
+	return matrix_csc;
 }
-static void vdin_set_color_matrix0_g12a(unsigned int offset,
-		struct tvin_format_s *tvin_fmt_p,
-		enum vdin_format_convert_e format_convert,
-		enum tvin_port_e port,
-		enum tvin_color_fmt_range_e color_fmt_range,
-		unsigned int vdin_hdr_flag,
-		unsigned int color_range_mode)
+
+static enum vdin_matrix_csc_e
+vdin_set_color_matrix0_g12a(unsigned int offset,
+			    struct tvin_format_s *tvin_fmt_p,
+			    enum vdin_format_convert_e
+			    format_convert,
+			    enum tvin_port_e port,
+			    enum tvin_color_fmt_range_e
+			    color_fmt_range,
+			    unsigned int vdin_hdr_flag,
+			    unsigned int color_range_mode)
 {
 	enum vdin_matrix_csc_e    matrix_csc = VDIN_MATRIX_NULL;
 	struct vdin_matrix_lup_s *matrix_tbl;
@@ -1651,7 +1723,7 @@ static void vdin_set_color_matrix0_g12a(unsigned int offset,
 						VDIN_MATRIX_RGB2020_YUV2020;
 					else
 						matrix_csc =
-						VDIN_MATRIX_RGB_YUV709;
+						VDIN_MATRIX_RGB_YUV709F;
 				} else
 					matrix_csc = VDIN_MATRIX_RGBS_YUV709;
 			}
@@ -1766,6 +1838,7 @@ static void vdin_set_color_matrix0_g12a(unsigned int offset,
 			VDIN_MATRIX_EN_BIT, VDIN_MATRIX_EN_WID);
 	}
 	pr_info("%s id:%d\n", __func__, matrix_csc);
+	return matrix_csc;
 }
 
 /*set matrix based on rgb_info_enable:
@@ -1787,7 +1860,8 @@ void vdin_set_matrix(struct vdin_dev_s *devp)
 				VDIN_MATRIX1_EN_BIT, VDIN_MATRIX1_EN_WID);
 		if (is_meson_g12a_cpu() || is_meson_g12b_cpu() ||
 			is_meson_sm1_cpu() || is_meson_tm2_cpu())
-			vdin_set_color_matrix0_g12a(devp->addr_offset,
+			devp->csc_idx = vdin_set_color_matrix0_g12a(
+				devp->addr_offset,
 				devp->fmt_info_p,
 				devp->format_convert,
 				devp->parm.port,
@@ -1795,7 +1869,8 @@ void vdin_set_matrix(struct vdin_dev_s *devp)
 				devp->prop.vdin_hdr_Flag,
 				devp->color_range_mode);
 		else
-			vdin_set_color_matrix0(devp->addr_offset,
+			devp->csc_idx = vdin_set_color_matrix0(
+				devp->addr_offset,
 				devp->fmt_info_p,
 				devp->format_convert,
 				devp->parm.port,
@@ -1814,7 +1889,9 @@ void vdin_set_matrix(struct vdin_dev_s *devp)
 	} else {
 		format_convert_matrix0 = vdin_get_format_convert_matrix0(devp);
 		format_convert_matrix1 = vdin_get_format_convert_matrix1(devp);
-		vdin_set_color_matrix1(devp->addr_offset, devp->fmt_info_p,
+		devp->csc_idx = vdin_set_color_matrix1(
+				devp->addr_offset,
+				devp->fmt_info_p,
 				format_convert_matrix1,
 				devp->parm.port,
 				devp->prop.color_fmt_range,
@@ -1822,7 +1899,8 @@ void vdin_set_matrix(struct vdin_dev_s *devp)
 				devp->color_range_mode);
 		if (is_meson_g12a_cpu() || is_meson_g12b_cpu() ||
 			is_meson_sm1_cpu() || is_meson_tm2_cpu())
-			vdin_set_color_matrix0_g12a(devp->addr_offset,
+			devp->csc_idx = vdin_set_color_matrix0_g12a(
+				devp->addr_offset,
 				devp->fmt_info_p,
 				devp->format_convert,
 				devp->parm.port,
@@ -1830,7 +1908,8 @@ void vdin_set_matrix(struct vdin_dev_s *devp)
 				devp->prop.vdin_hdr_Flag,
 				devp->color_range_mode);
 		else
-			vdin_set_color_matrix0(devp->addr_offset,
+			devp->csc_idx = vdin_set_color_matrix0(
+				devp->addr_offset,
 				devp->fmt_info_p,
 				format_convert_matrix0,
 				devp->parm.port,
@@ -1861,7 +1940,8 @@ void vdin_set_matrixs(struct vdin_dev_s *devp, unsigned char id,
 	case 0:
 		if (is_meson_g12a_cpu() || is_meson_g12b_cpu() ||
 			is_meson_sm1_cpu() || is_meson_tm2_cpu())
-			vdin_set_color_matrix0_g12a(devp->addr_offset,
+			devp->csc_idx = vdin_set_color_matrix0_g12a(
+				devp->addr_offset,
 				devp->fmt_info_p,
 				devp->format_convert,
 				devp->parm.port,
@@ -1869,7 +1949,8 @@ void vdin_set_matrixs(struct vdin_dev_s *devp, unsigned char id,
 				devp->prop.vdin_hdr_Flag,
 				devp->color_range_mode);
 		else
-			vdin_set_color_matrix0(devp->addr_offset,
+			devp->csc_idx = vdin_set_color_matrix0(
+				devp->addr_offset,
 				devp->fmt_info_p, csc,
 				devp->parm.port,
 				devp->prop.color_fmt_range,
@@ -1877,7 +1958,8 @@ void vdin_set_matrixs(struct vdin_dev_s *devp, unsigned char id,
 				devp->color_range_mode);
 		break;
 	case 1:
-		vdin_set_color_matrix1(devp->addr_offset,
+		devp->csc_idx = vdin_set_color_matrix1(
+				devp->addr_offset,
 				devp->fmt_info_p, csc,
 				devp->parm.port,
 				devp->prop.color_fmt_range,
@@ -4377,6 +4459,7 @@ void vdin_set_drm_data(struct vdin_dev_s *devp,
 {
 	struct vframe_master_display_colour_s *vf_dp
 		= &vf->prop.master_display_colour;
+	u32 val = 0;
 
 	if (devp->prop.hdr_info.hdr_state == HDR_STATE_GET) {
 		if (vdin_hdr_sei_error_check(devp) == 1) {
@@ -4453,6 +4536,8 @@ void vdin_set_drm_data(struct vdin_dev_s *devp,
 		vf_dp->present_flag = false;
 		vf->signal_type &= ~(1 << 29);
 		vf->signal_type &= ~(1 << 25);
+		val = vdin_matrix_range_chk(devp->csc_idx);
+		vf->signal_type |= (val << 25);
 		/*todo;default is bt709,if change need sync*/
 		vf->signal_type = ((1 << 16) |
 			(vf->signal_type & (~0xFF0000)));
