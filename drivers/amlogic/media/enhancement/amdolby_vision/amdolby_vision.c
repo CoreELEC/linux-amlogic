@@ -2682,6 +2682,7 @@ int get_mute_type(void)
 static void adjust_vpotch(void)
 {
 	const struct vinfo_s *vinfo = get_current_vinfo();
+	int sync_duration_num = 60;
 
 	if (is_meson_txlx_stbmode()
 		|| force_stb_mode) {
@@ -2701,11 +2702,17 @@ static void adjust_vpotch(void)
 			g_vpotch = 0x20;
 	} else if (is_meson_g12()) {
 		if (vinfo) {
+			if (vinfo->sync_duration_den)
+				sync_duration_num = vinfo->sync_duration_num /
+						    vinfo->sync_duration_den;
 			if (debug_dolby & 2)
-				pr_dolby_dbg("vinfo %d %d %d\n",
-					vinfo->width,
-					vinfo->height,
-					vinfo->field_height);
+				pr_dolby_dbg("vinfo %d %d %d %d %d %d\n",
+					     vinfo->width,
+					     vinfo->height,
+					     vinfo->field_height,
+					     vinfo->sync_duration_num,
+					     vinfo->sync_duration_den,
+					     sync_duration_num);
 			if ((vinfo->width < 1280) &&
 				(vinfo->height < 720) &&
 				(vinfo->field_height < 720))
@@ -2713,6 +2720,10 @@ static void adjust_vpotch(void)
 			else if ((vinfo->width == 1280) &&
 				 (vinfo->height == 720))
 				g_vpotch = 0x38;
+			else if ((vinfo->width == 1920) &&
+				 (vinfo->height == 1080) &&
+				 (sync_duration_num < 30))
+				g_vpotch = 0x60;
 			else
 				g_vpotch = 0x20;
 			if (vinfo->width > 1920)
