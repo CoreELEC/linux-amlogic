@@ -86,7 +86,7 @@
 #define VDIN_BYPASS_STOP_CHECK          0x00000001
 #define VDIN_BYPASS_CYC_CHECK           0x00000002
 #define VDIN_BYPASS_VGA_CHECK           0x00000008
-#define VDIN_CANVAS_MAX_CNT				9
+#define VDIN_CANVAS_MAX_CNT	10
 
 /*values of vdin game mode process flag */
 /*enable*/
@@ -418,6 +418,7 @@ struct vdin_dev_s {
 
 	/*atv non-std signal,force drop the field if previous already dropped*/
 	unsigned int interlace_force_drop;
+	unsigned int skip_disp_md_check;
 };
 
 struct vdin_hist_s {

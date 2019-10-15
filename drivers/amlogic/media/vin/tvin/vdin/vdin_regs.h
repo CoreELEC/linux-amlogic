@@ -238,6 +238,9 @@
 #define VDIN_MATRIX_PRE_OFFSET2     ((0x1219))/* + 0xd0100000) */
 /* 12:0 lfifo_buf_size */
 #define VDIN_LFIFO_CTRL             ((0x121a))/* + 0xd0100000) */
+#define LFIFO_BUF_SIZE_BIT	0
+#define LFIFO_BUF_SIZE_WID	12
+
 #define VDIN_COM_GCLK_CTRL          ((0x121b))/* + 0xd0100000) */
 /* 12:0 VDIN input interface width minus 1,
  * before the window function, after the de decimation
@@ -720,6 +723,43 @@
 
 #define VDIN_WRARB_REQEN_SLV       0x12c1
 
+/*tm2 new add begin*/
+#define VDIN_VSHRK_SIZE_M1	0x12d9
+#define VSHRK_IN_HSIZE_BIT	0
+#define VSHRK_IN_HSIZE_WID	13
+#define VSHRK_IN_VSIZE_BIT	16
+#define VSHRK_IN_VSIZE_WID	13
+
+#define VDIN_HSK_CTRL	0x12ef
+#define HSK_MD_BIT	16
+#define HSK_MD_WID	7
+#define HSK_HSIZE_IN_BIT	0
+#define HSK_HSIZE_IN_WID	13
+
+#define VDIN2_WR_CTRL	0x4101
+#define VDIN2_WR_CVS_ADDR_BIT	0
+#define VDIN2_WR_CVS_ADDR_WID	8
+
+#define VDIN2_WR_CTRL2	0x4102
+#define VDIN2_WR_H_START_END	0x4103
+#define VDIN2_WR_V_START_END	0x4104
+
+/*[15:0] vdin reorder sel
+ *0:disable, 1:vdin0 normal, 2:vdin0 small, 3:vdin1 normal, 4:vdin1 small
+ */
+#define VDIN_TOP_DOUBLE_CTRL	0x410b
+#define VDIN_REORDER_SEL_WID	4
+/*[3:0] afbce sel*/
+#define AFBCE_OUT_SEL_BIT	0
+/*[7:4] wr mif 0 sel*/
+#define MIF0_OUT_SEL_BIT	4
+/*[11:8] wr mif 1 sel*/
+#define MIF1_OUT_SEL_BIT	8
+/*[15:12] wr mif 2 sel*/
+#define MIF2_OUT_SEL_BIT	12
+
+/*tm2 new add end*/
+
 /* #define VDIN_SCALE_COEF_IDX                        0x1200 */
 /* #define VDIN_SCALE_COEF                            0x1201 */
 
@@ -1064,10 +1104,6 @@
 /* #define VDIN_MATRIX_PRE_OFFSET2                 0x1219 */
 #define MATRIX_PRE_OFFSET2_BIT          0
 #define MATRIX_PRE_OFFSET2_WID          11   /* s8.2 */
-
-/* #define VDIN_LFIFO_CTRL                         0x121a */
-#define LFIFO_BUF_SIZE_BIT              0
-#define LFIFO_BUF_SIZE_WID              12
 
 /* #define VDIN_COM_GCLK_CTRL                      0x121b */
 #define COM_GCLK_BLKBAR_BIT             14

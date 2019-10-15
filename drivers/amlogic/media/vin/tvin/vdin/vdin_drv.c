@@ -3120,7 +3120,6 @@ static int vdin_drv_probe(struct platform_device *pdev)
 	int ret = 0;
 	struct vdin_dev_s *vdevp;
 	struct resource *res;
-	unsigned int urgent_en = 0;
 	unsigned int bit_mode = VDIN_WR_COLOR_DEPTH_8BIT;
 	/* const void *name; */
 	/* int offset, size; */
@@ -3279,28 +3278,26 @@ static int vdin_drv_probe(struct platform_device *pdev)
 	}
 
 	/*vdin urgent en*/
-	ret = of_property_read_u32(pdev->dev.of_node,
-			"urgent_en", &urgent_en);
-	if (ret) {
-		vdevp->urgent_en = 0;
-		pr_info("no urgent_en found\n");
-	} else
-		vdevp->urgent_en = urgent_en;
+	vdevp->urgent_en = of_property_read_bool(pdev->dev.of_node,
+		"urgent_en");
+
 	/* init vdin parameters */
 	vdevp->flags = VDIN_FLAG_NULL;
-	vdevp->flags &= (~VDIN_FLAG_FS_OPENED);
 	mutex_init(&vdevp->fe_lock);
 	spin_lock_init(&vdevp->isr_lock);
 	spin_lock_init(&vdevp->hist_lock);
 	vdevp->frontend = NULL;
 
-	/* @todo vdin_addr_offset */
-	if (is_meson_gxbb_cpu() && vdevp->index)
-		vdin_addr_offset[vdevp->index] = 0x70;
-	else if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12A) && vdevp->index)
-		vdin_addr_offset[vdevp->index] = 0x100;
+	/* vdin_addr_offset */
+	if (vdevp->index == 1) {
+		if (is_meson_gxbb_cpu())
+			vdin_addr_offset[1] = 0x70;
+		else if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12A))
+			vdin_addr_offset[1] = 0x100;
+	}
+
 	vdevp->addr_offset = vdin_addr_offset[vdevp->index];
-	vdevp->flags = 0;
+
 	/*canvas align number*/
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12A))
 		vdevp->canvas_align = 64;

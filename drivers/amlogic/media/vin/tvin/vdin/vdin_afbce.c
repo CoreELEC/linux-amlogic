@@ -122,12 +122,30 @@ void vdin_write_mif_or_afbce(struct vdin_dev_s *devp,
 		return;
 
 	if (sel == VDIN_OUTPUT_TO_MIF) {
+		if (is_meson_tm2_cpu()) {
+			rdma_write_reg_bits(devp->rdma_handle,
+				VDIN_TOP_DOUBLE_CTRL, WR_SEL_VDIN0_NOR,
+				MIF0_OUT_SEL_BIT, VDIN_REORDER_SEL_WID);
+			rdma_write_reg_bits(devp->rdma_handle,
+				VDIN_TOP_DOUBLE_CTRL, WR_SEL_DIS,
+				AFBCE_OUT_SEL_BIT, VDIN_REORDER_SEL_WID);
+		}
+
 		rdma_write_reg_bits(devp->rdma_handle, AFBCE_ENABLE, 0, 8, 1);
 		rdma_write_reg_bits(devp->rdma_handle, VDIN_MISC_CTRL,
 			0, VDIN0_OUT_AFBCE_BIT, 1);
 		rdma_write_reg_bits(devp->rdma_handle, VDIN_MISC_CTRL,
 			1, VDIN0_OUT_MIF_BIT, 1);
 	} else if (sel == VDIN_OUTPUT_TO_AFBCE) {
+		if (is_meson_tm2_cpu()) {
+			rdma_write_reg_bits(devp->rdma_handle,
+				VDIN_TOP_DOUBLE_CTRL, WR_SEL_DIS,
+				MIF0_OUT_SEL_BIT, VDIN_REORDER_SEL_WID);
+			rdma_write_reg_bits(devp->rdma_handle,
+				VDIN_TOP_DOUBLE_CTRL, WR_SEL_VDIN0_NOR,
+				AFBCE_OUT_SEL_BIT, VDIN_REORDER_SEL_WID);
+		}
+
 		rdma_write_reg_bits(devp->rdma_handle, VDIN_MISC_CTRL,
 			0, VDIN0_OUT_MIF_BIT, 1);
 		rdma_write_reg_bits(devp->rdma_handle, VDIN_MISC_CTRL,

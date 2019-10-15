@@ -2203,7 +2203,16 @@ start_chk:
 			vdin_check_vdi6_afifo_overflow(devp->addr_offset));
 	else if (!strcmp(parm[0], "vdi6_afifo_clear"))
 		vdin_clear_vdi6_afifo_overflow_flg(devp->addr_offset);
-	else
+	else if (!strcmp(parm[0], "skip_frame_check")) {
+		if (parm[1] != NULL) {
+			if (kstrtouint(parm[1], 10, &devp->skip_disp_md_check)
+				== 0)
+				pr_info("skip frame check: %d\n",
+					devp->skip_disp_md_check);
+		} else
+			pr_info("skip frame check para err, ori: %d\n",
+				devp->skip_disp_md_check);
+	} else
 		pr_info("unknown command\n");
 
 	kfree(buf_orig);

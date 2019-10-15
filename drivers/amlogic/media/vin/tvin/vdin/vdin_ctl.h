@@ -37,6 +37,14 @@ enum vdin_output_mif_e {
 	VDIN_OUTPUT_TO_AFBCE = 1,
 };
 
+enum wr_sel_vdin_e {
+	WR_SEL_DIS = 0,
+	WR_SEL_VDIN0_NOR = 1,
+	WR_SEL_VDIN0_SML = 2,
+	WR_SEL_VDIN1_NOR = 3,
+	WR_SEL_VDIN1_SML = 4,
+};
+
 /* *********************************************************************** */
 /* *** enum definitions ********************************************* */
 /* *********************************************************************** */

@@ -2904,6 +2904,16 @@ void vdin_set_default_regmap(unsigned int offset)
 		wr(offset, VDIN_LFIFO_CTRL,     0x00000f00);
 	else if (is_meson_tm2_cpu()) {
 		wr(offset, VDIN_LFIFO_CTRL,     0xc0020f00);
+
+		/*set vdin0 out to mif0 normal begin*/
+		if (offset == 0) {
+			wr_bits(0, VDIN_TOP_DOUBLE_CTRL, WR_SEL_DIS,
+				AFBCE_OUT_SEL_BIT, VDIN_REORDER_SEL_WID);
+			wr_bits(0, VDIN_TOP_DOUBLE_CTRL, WR_SEL_VDIN0_NOR,
+				MIF0_OUT_SEL_BIT, VDIN_REORDER_SEL_WID);
+		}
+		/*set vdin0 out to mif0 normal end*/
+
 		wr(offset, VDIN_HDR2_MATRIXI_EN_CTRL, 0);
 	} else
 		wr(offset, VDIN_LFIFO_CTRL,     0x00000780);
@@ -4186,6 +4196,7 @@ int vdin_event_cb(int type, void *data, void *op_arg)
 {
 	unsigned long flags;
 	struct vf_pool *p;
+	struct vdin_dev_s *devp = vdin_get_dev(0);
 
 	if (!op_arg) {
 		if (vdin_ctl_dbg&(1<<3))
@@ -4246,7 +4257,7 @@ int vdin_event_cb(int type, void *data, void *op_arg)
 					__func__, index_disp);
 			return -1;
 		}
-		if (game_mode)
+		if (game_mode || devp->skip_disp_md_check)
 			req->disp_mode = VFRAME_DISP_MODE_NULL;
 		else
 			req->disp_mode = p->disp_mode[index_disp];
@@ -4257,7 +4268,6 @@ int vdin_event_cb(int type, void *data, void *op_arg)
 				__func__, type, index_disp, req->disp_mode,
 				req->req_mode);
 	} else if (type & VFRAME_EVENT_RECEIVER_NEED_NO_COMP) {
-		struct vdin_dev_s *devp = vdin_get_dev(0);
 		unsigned int *cnt;
 
 		/* use for debug */
