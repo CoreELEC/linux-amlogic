@@ -878,7 +878,7 @@
 	spdif_codec: spdif_codec{
 		#sound-dai-cells = <0>;
 		compatible = "amlogic, aml-spdif-codec";
-		pinctrl-names = "audio_spdif";
+		pinctrl-names = "audio_spdif_out";
 		pinctrl-0 = <&audio_spdif_pins>;
 	};
 	pcm_codec: pcm_codec{
