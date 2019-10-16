@@ -211,9 +211,15 @@ static struct esm_device *alloc_esm_slot(
 	/* Check if we have a matching device (same HPI base) */
 	for (i = 0; i < MAX_ESM_DEVICES; i++) {
 		struct esm_device *slot = &esm_devices[i];
-
-		if ((slot->allocated) && (info->hpi_base) ==
-			(slot->hpi_resource->start))
+		/* Modified for SWPL-15872:
+		 * when esm reboot,hpi_base will be the value defined
+		 * in driver dts,not be hpi_resource->start,and it will
+		 * not enter if(), and esm will use a new slot,
+		 * and cause esm init fail.
+		 */
+		/* if ((slot->allocated) && (info->hpi_base) == */
+		/*		(slot->hpi_resource->start)) */
+		if (slot->allocated)
 			return slot;
 	}
 
@@ -325,7 +331,8 @@ static long init(struct file *f, void __user *arg)
 		rc = alloc_dma_areas(esm, &info);
 		if (rc < 0)
 			goto err_free;
-
+		info.hpi_base =
+			reg_maps[MAP_ADDR_MODULE_HDMIRX_CAPB3].phy_addr;
 		hpi_mem = request_mem_region(info.hpi_base, 128, "esm-hpi");
 		if (!hpi_mem) {
 			rc = -EADDRNOTAVAIL;
