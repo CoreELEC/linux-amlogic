@@ -855,6 +855,8 @@ int start_tvin_service(int no, struct vdin_parm_s  *para)
 		if ((devp->parm.reserved & PARAM_STATE_SCREENCAP) &&
 			(devp->parm.reserved & PARAM_STATE_HISTGRAM) &&
 			(devp->index == 1)) {
+			/*always update buf to avoid older data be captured*/
+			devp->flags |= VDIN_FLAG_FORCE_RECYCLE;
 			mutex_unlock(&devp->fe_lock);
 			return 0;
 		} else {
