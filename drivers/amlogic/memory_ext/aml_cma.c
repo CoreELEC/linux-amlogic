@@ -117,13 +117,6 @@ bool can_use_cma(gfp_t gfp_flags)
 	if (cma_forbidden_mask(gfp_flags))
 		return false;
 
-	/*
-	 * do not use cma pages when cma allocate is working. this is the
-	 * weakest condition
-	 */
-	if (cma_alloc_ref())
-		return false;
-
 	if (task_nice(current) > 0)
 		return false;
 
@@ -229,7 +222,7 @@ static unsigned long get_align_pfn_high(unsigned long pfn)
 static struct page *get_migrate_page(struct page *page, unsigned long private,
 				  int **resultp)
 {
-	gfp_t gfp_mask = GFP_USER | __GFP_MOVABLE | __GFP_BDEV;
+	gfp_t gfp_mask = GFP_USER | __GFP_MOVABLE;
 	struct page *new = NULL;
 #ifdef CONFIG_AMLOGIC_PAGE_TRACE
 	struct page_trace *old_trace, *new_trace;
