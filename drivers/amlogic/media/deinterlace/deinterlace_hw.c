@@ -141,6 +141,8 @@ static void ma_di_init(void)
 	/* mtn setting */
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12B)) {
 		DI_Wr_reg_bits(DI_MTN_CTRL, 1, 0, 1);
+		DI_Wr_reg_bits(DI_MTN_CTRL, 1, 30, 1);
+		DI_Wr_reg_bits(DI_MTN_CTRL, 0xf, 24, 4);
 		DI_Wr(DI_MTN_1_CTRL1, 0x202015);
 	} else
 		DI_Wr(DI_MTN_1_CTRL1, 0xa0202015);
@@ -756,9 +758,10 @@ void enable_di_pre_aml(
 	/*
 	 * enable&disable contwr txt
 	 */
-	if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12B))
-		RDMA_WR_BITS(DI_MTN_CTRL, madi_en?5:0, 29, 3);
-	else
+	if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12B)) {
+		RDMA_WR_BITS(DI_MTN_CTRL, madi_en, 29, 1);
+		RDMA_WR_BITS(DI_MTN_CTRL, madi_en, 31, 1);
+	} else
 		RDMA_WR_BITS(DI_MTN_1_CTRL1, madi_en?5:0, 29, 3);
 
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12A)) {

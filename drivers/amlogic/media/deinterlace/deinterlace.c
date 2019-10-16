@@ -3448,6 +3448,9 @@ static void pre_de_process(void)
 	}
 
 	di_pre_stru.field_count_for_cont++;
+	if (di_pre_stru.field_count_for_cont >= 5)
+		DI_Wr_reg_bits(DI_MTN_CTRL, 0, 30, 1);
+
 	di_txl_patch_prog(di_pre_stru.cur_prog_flag,
 		di_pre_stru.field_count_for_cont, mcpre_en);
 
