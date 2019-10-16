@@ -3840,7 +3840,8 @@ void pulldown_vof_win_config(struct pulldown_detected_s *wins)
 	/* revert the setting of top two lines do weave for */
 	/* interlace video, suggest by vlsi-feijun */
 	DI_VSYNC_WR_MPEG_REG_BITS(DI_BLEND_CTRL,
-		0, 16, 1);
+		(wins->regs[0].win_ve > wins->regs[0].win_vs)
+		? 1 : 0, 16, 1);
 	DI_VSYNC_WR_MPEG_REG_BITS(DI_BLEND_CTRL,
 		/*wins->regs[0].blend_mode*/
 				  0x03, 8, 2);
