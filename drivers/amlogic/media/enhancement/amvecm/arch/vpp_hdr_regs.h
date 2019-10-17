@@ -96,6 +96,7 @@ extern struct am_regs_s r_lut_hdr_sdr_level3;
 #define VD1_HDR2_PROC_WIN2                 0x383a
 #define VD1_HDR2_MATRIXI_EN_CTRL           0x383b
 #define VD1_HDR2_MATRIXO_EN_CTRL           0x383c
+#define VD1_HDR2_HIST_CTRL                 0x383d
 
 #define VD2_HDR2_CTRL                      0x3850
 #define VD2_HDR2_CLK_GATE                  0x3851

@@ -37,7 +37,7 @@ static const char *module_str[7] = {
 	"DI"
 };
 
-static const char *process_str[15] = {
+static const char *process_str[16] = {
 	"UNKNOWN",
 	"HDR_BYPASS",
 	"HDR_SDR",
@@ -52,7 +52,8 @@ static const char *process_str[15] = {
 	"HDR_HLG",
 	"RGB_YUV",
 	"RGB_HDR",
-	"RGB_HLG"
+	"RGB_HLG",
+	"HDR10P_SDR"
 };
 
 static const char *policy_str[3] = {
@@ -865,6 +866,8 @@ static void prepare_hdr_info(
 	}
 }
 
+static unsigned int content_max_lumin[VD_PATH_MAX];
+
 void hdmi_packet_process(
 	int signal_change_flag,
 	struct vinfo_s *vinfo,
@@ -875,6 +878,15 @@ void hdmi_packet_process(
 	struct vout_device_s *vdev = NULL;
 	struct master_display_info_s send_info;
 	enum output_format_e cur_output_format = output_format;
+
+	if (customer_hdr_clipping)
+		content_max_lumin[vd_path] =
+			customer_hdr_clipping;
+	else if (p && p->luminance[0])
+		content_max_lumin[vd_path] =
+			p->luminance[0] / 10000;
+	else
+		content_max_lumin[vd_path] = 1250;
 
 	if (!vinfo)
 		return;
@@ -1067,10 +1079,13 @@ void video_post_process(
 				hdr_proc(VD2_HDR, HDR_BYPASS, vinfo);
 			hdr_proc(OSD1_HDR, SDR_HDR, vinfo);
 		} else if (hdr_process_mode[vd_path] == PROC_HDR_TO_SDR) {
-			if (vd_path == VD1_PATH)
+			if (vd_path == VD1_PATH) {
 				hdr_proc(VD1_HDR, HDR_SDR, vinfo);
-			else
+				hdr10_plus_process_update(
+					content_max_lumin[vd_path]);
+			} else {
 				hdr_proc(VD2_HDR, HDR_SDR, vinfo);
+			}
 			hdr_proc(OSD1_HDR, HDR_BYPASS, vinfo);
 		} else if (hdr_process_mode[vd_path] == PROC_HDR_TO_HLG) {
 			if (vd_path == VD1_PATH)
@@ -1124,9 +1139,9 @@ void video_post_process(
 		} else if (hdr10_plus_process_mode[vd_path] ==
 		PROC_HDRP_TO_SDR) {
 			if (vd_path == VD1_PATH)
-				hdr_proc(VD1_HDR, HDR_SDR, vinfo);
+				hdr_proc(VD1_HDR, HDR10P_SDR, vinfo);
 			else
-				hdr_proc(VD2_HDR, HDR_SDR, vinfo);
+				hdr_proc(VD2_HDR, HDR10P_SDR, vinfo);
 			hdr_proc(OSD1_HDR, HDR_BYPASS, vinfo);
 		} else if (hdr10_plus_process_mode[vd_path] ==
 		PROC_HDRP_TO_HLG) {

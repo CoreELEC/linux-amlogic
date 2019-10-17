@@ -136,6 +136,8 @@ void parser_hdr10_plus_medata(char *metadata, uint32_t size)
 	unsigned int num_bezier_curve_anchors = 0;
 	unsigned int color_saturation_mapping_flag = 0;
 
+	memset(&hdr_plus_sei, 0, sizeof(struct vframe_hdr_plus_sei));
+
 	GetBits(metadata, totbitoffset,
 		&value, size, sei_md_bits.len_itu_t_t35_country_code);
 	hdr_plus_sei.itu_t_t35_country_code = (u16)value;
@@ -506,69 +508,142 @@ static void hdr10_plus_vf_md_parse(struct vframe_s *vf)
 
 	hdr10p_md_param.application_version =
 		vf->prop.hdr10p_data.pb4_st.app_ver;
+	pr_hdr("vf:app_ver = 0x%x\n", vf->prop.hdr10p_data.pb4_st.app_ver);
+
 	hdr10p_md_param.targeted_max_lum =
 		vf->prop.hdr10p_data.pb4_st.max_lumin;
+	pr_hdr(
+		"vf:target_max_lumin = 0x%x\n",
+		vf->prop.hdr10p_data.pb4_st.max_lumin);
+
 	hdr10p_md_param.average_maxrgb =
 		vf->prop.hdr10p_data.average_maxrgb;
+	pr_hdr(
+		"vf:average_maxrgb = 0x%x\n",
+		vf->prop.hdr10p_data.average_maxrgb);
+
 	/*distribution value*/
 	memcpy(&hdr10p_md_param.distribution_values[0],
 		&vf->prop.hdr10p_data.distrib_valus0,
 		sizeof(uint8_t) * 9);
+	for (i = 0; i < 9; i++)
+		pr_hdr(
+			"vf:hdr10p_md_param.distribution_values[%d] = 0x%x\n",
+			i, hdr10p_md_param.distribution_values[i]);
 
 	hdr10p_md_param.num_bezier_curve_anchors =
 	vf->prop.hdr10p_data.pb15_18_st.num_bezier_curve_anchors;
+	pr_hdr(
+		"vf:num_bezier_curve_anchors = 0x%x\n",
+		vf->prop.hdr10p_data.pb15_18_st.num_bezier_curve_anchors);
+
+	/*if (!hdr10p_md_param.num_bezier_curve_anchors) {*/
+	/*	hdr10p_md_param.num_bezier_curve_anchors = 9;*/
+	/*	pr_hdr("hdr10p_md_param.num_bezier_curve_anchors = 0\n");*/
+	/*}*/
 
 	hdr10p_md_param.knee_point_x =
 	(vf->prop.hdr10p_data.pb15_18_st.knee_point_x_9_6 << 6) |
 		vf->prop.hdr10p_data.pb15_18_st.knee_point_x_5_0;
+	pr_hdr(
+		"vf:knee_point_x_5_0 = 0x%x, knee_point_x_9_6 = 0x%x\n",
+		vf->prop.hdr10p_data.pb15_18_st.knee_point_x_5_0,
+		vf->prop.hdr10p_data.pb15_18_st.knee_point_x_9_6);
+
 	hdr10p_md_param.knee_point_y =
 	(vf->prop.hdr10p_data.pb15_18_st.knee_point_y_9_8 << 8) |
 		vf->prop.hdr10p_data.pb15_18_st.knee_point_y_7_0;
+	pr_hdr(
+		"vf:knee_point_y_7_0 = 0x%x, knee_point_y_9_8 = 0x%x\n",
+		vf->prop.hdr10p_data.pb15_18_st.knee_point_y_7_0,
+		vf->prop.hdr10p_data.pb15_18_st.knee_point_y_9_8);
+
 	/*bezier curve*/
 	hdr10p_md_param.bezier_curve_anchors[0] =
 		vf->prop.hdr10p_data.pb15_18_st.bezier_curve_anchors0;
+
 	memcpy(&hdr10p_md_param.bezier_curve_anchors[1],
 		&vf->prop.hdr10p_data.bezier_curve_anchors1,
 		sizeof(uint8_t) * 8);
+	for (i = 0; i < 9; i++)
+		pr_hdr(
+		"vf:hdr10p_md_param.bezier_curve_anchors[%d] = 0x%x\n",
+			i, hdr10p_md_param.bezier_curve_anchors[i]);
 
 	hdr10p_md_param.graphics_overlay_flag =
 		vf->prop.hdr10p_data.pb27_st.overlay_flag;
 	hdr10p_md_param.no_delay_flag =
 		vf->prop.hdr10p_data.pb27_st.no_delay_flag;
+	pr_hdr(
+		"vf:overlay_flag = 0x%x\n",
+		vf->prop.hdr10p_data.pb27_st.overlay_flag);
+	pr_hdr(
+		"vf:no_delay_flag = 0x%x\n",
+		vf->prop.hdr10p_data.pb27_st.no_delay_flag);
+
 
 	hdr_plus_sei.application_identifier =
 		hdr10p_md_param.application_version;
+
+	pr_hdr(
+		"hdr_plus_sei.application_identifier = %d\n",
+		hdr_plus_sei.application_identifier);
 
 	/*hdr10 plus default one window*/
 	hdr_plus_sei.num_windows = 1;
 
 	hdr_plus_sei.tgt_sys_disp_max_lumi =
 		hdr10p_md_param.targeted_max_lum << 5;
+	pr_hdr(
+		"hdr_plus_sei.tgt_sys_disp_max_lumi = %d\n",
+		hdr_plus_sei.tgt_sys_disp_max_lumi);
 
 	hdr_plus_sei.average_maxrgb[0] =
-		hdr10p_md_param.average_maxrgb << 4;
+		(hdr10p_md_param.average_maxrgb << 4) * 10;
+	pr_hdr(
+		"hdr_plus_sei.average_maxrgb[0] = %d\n",
+		hdr_plus_sei.average_maxrgb[0]);
 
 	for (i = 0; i < 9; i++) {
 		if (i == 2) {
 			hdr_plus_sei.distribution_maxrgb_percentiles[0][2] =
 				hdr10p_md_param.distribution_values[2];
+			pr_hdr(
+			"hdr_plus_sei.distribution_maxrgb_percentiles[0][%d] = %d\n",
+			i, hdr_plus_sei.distribution_maxrgb_percentiles[0][i]);
 			continue;
 		}
 		hdr_plus_sei.distribution_maxrgb_percentiles[0][i] =
 			(hdr10p_md_param.distribution_values[i] << 4) * 10;
+		pr_hdr(
+		"hdr_plus_sei.distribution_maxrgb_percentiles[0][%d] = %d\n",
+		i, hdr_plus_sei.distribution_maxrgb_percentiles[0][i]);
 	}
 
 	hdr_plus_sei.num_bezier_curve_anchors[0] =
 		hdr10p_md_param.num_bezier_curve_anchors;
+	pr_hdr(
+		"hdr_plus_sei.num_bezier_curve_anchors[0] = %d\n",
+		hdr_plus_sei.num_bezier_curve_anchors[0]);
 
 	hdr_plus_sei.knee_point_x[0] =
 		hdr10p_md_param.knee_point_x << 2;
 	hdr_plus_sei.knee_point_y[0] =
 		hdr10p_md_param.knee_point_y << 2;
+	pr_hdr(
+		"hdr_plus_sei.knee_point_x[0] = %d\n",
+		hdr_plus_sei.knee_point_x[0]);
+	pr_hdr(
+		"hdr_plus_sei.knee_point_y[0] = %d\n",
+		hdr_plus_sei.knee_point_y[0]);
 
-	for (i = 0; i < 9; i++)
+	for (i = 0; i < 9; i++) {
 		hdr_plus_sei.bezier_curve_anchors[0][i] =
 			hdr10p_md_param.bezier_curve_anchors[i] << 2;
+		pr_hdr(
+			"hdr_plus_sei.bezier_curve_anchors[0][%d] = %d\n",
+			i, hdr_plus_sei.bezier_curve_anchors[0][i]);
+	}
 
 	for (i = 0; i < 9; i++) {
 		if (hdr_plus_sei.bezier_curve_anchors[0][i] != 0) {
@@ -624,6 +699,9 @@ void hdr10_plus_parser_metadata(struct vframe_s *vf)
 			}
 		}
 	}
+
+	if (debug_hdr >= 1)
+		debug_hdr--;
 }
 
 struct hdr10plus_para dbg_hdr10plus_pkt;
@@ -780,57 +858,50 @@ void hdr10_plus_hdmitx_vsif_parser(
 		sizeof(struct hdr10plus_para));
 }
 
-void hdr10_plus_process(struct vframe_s *vf)
-{
-	if (!vf)
-		return;
-	hdr10_plus_ootf_gen();
-}
-
 void hdr10_plus_debug(void)
 {
 	int i = 0;
 	int j = 0;
 
-	pr_hdr("itu_t_t35_country_code = 0x%x\n",
+	pr_info("itu_t_t35_country_code = 0x%x\n",
 		hdr_plus_sei.itu_t_t35_country_code);
-	pr_hdr("itu_t_t35_terminal_provider_code = 0x%x\n",
+	pr_info("itu_t_t35_terminal_provider_code = 0x%x\n",
 		hdr_plus_sei.itu_t_t35_terminal_provider_code);
-	pr_hdr("itu_t_t35_terminal_provider_oriented_code = 0x%x\n",
+	pr_info("itu_t_t35_terminal_provider_oriented_code = 0x%x\n",
 		hdr_plus_sei.itu_t_t35_terminal_provider_oriented_code);
-	pr_hdr("application_identifier = 0x%x\n",
+	pr_info("application_identifier = 0x%x\n",
 		hdr_plus_sei.application_identifier);
-	pr_hdr("application_version = 0x%x\n",
+	pr_info("application_version = 0x%x\n",
 		hdr_plus_sei.application_version);
-	pr_hdr("num_windows = 0x%x\n",
+	pr_info("num_windows = 0x%x\n",
 		hdr_plus_sei.num_windows);
 	for (i = 1; i < hdr_plus_sei.num_windows; i++) {
-		pr_hdr("window_upper_left_corner_x[%d] = 0x%x\n",
+		pr_info("window_upper_left_corner_x[%d] = 0x%x\n",
 			i, hdr_plus_sei.window_upper_left_corner_x[i]);
-		pr_hdr("window_upper_left_corner_y[%d] = 0x%x\n",
+		pr_info("window_upper_left_corner_y[%d] = 0x%x\n",
 			i, hdr_plus_sei.window_upper_left_corner_y[i]);
-		pr_hdr("window_lower_right_corner_x[%d] = 0x%x\n",
+		pr_info("window_lower_right_corner_x[%d] = 0x%x\n",
 			i, hdr_plus_sei.window_lower_right_corner_x[i]);
-		pr_hdr("window_lower_right_corner_y[%d] = 0x%x\n",
+		pr_info("window_lower_right_corner_y[%d] = 0x%x\n",
 			i, hdr_plus_sei.window_lower_right_corner_y[i]);
-		pr_hdr("center_of_ellipse_x[%d] = 0x%x\n",
+		pr_info("center_of_ellipse_x[%d] = 0x%x\n",
 			i, hdr_plus_sei.center_of_ellipse_x[i]);
-		pr_hdr("center_of_ellipse_y[%d] = 0x%x\n",
+		pr_info("center_of_ellipse_y[%d] = 0x%x\n",
 			i, hdr_plus_sei.center_of_ellipse_y[i]);
-		pr_hdr("rotation_angle[%d] = 0x%x\n",
+		pr_info("rotation_angle[%d] = 0x%x\n",
 			i, hdr_plus_sei.rotation_angle[i]);
-		pr_hdr("semimajor_axis_internal_ellipse[%d] = 0x%x\n",
+		pr_info("semimajor_axis_internal_ellipse[%d] = 0x%x\n",
 			i, hdr_plus_sei.semimajor_axis_internal_ellipse[i]);
-		pr_hdr("semimajor_axis_external_ellipse[%d] = 0x%x\n",
+		pr_info("semimajor_axis_external_ellipse[%d] = 0x%x\n",
 			i, hdr_plus_sei.semimajor_axis_external_ellipse[i]);
-		pr_hdr("semiminor_axis_external_ellipse[%d] = 0x%x\n",
+		pr_info("semiminor_axis_external_ellipse[%d] = 0x%x\n",
 			i, hdr_plus_sei.semiminor_axis_external_ellipse[i]);
-		pr_hdr("overlap_process_option[%d] = 0x%x\n",
+		pr_info("overlap_process_option[%d] = 0x%x\n",
 			i, hdr_plus_sei.overlap_process_option[i]);
 	}
-	pr_hdr("targeted_system_display_maximum_luminance = 0x%x\n",
+	pr_info("targeted_system_display_maximum_luminance = 0x%x\n",
 		hdr_plus_sei.tgt_sys_disp_max_lumi);
-	pr_hdr("targeted_system_display_actual_peak_luminance_flag = 0x%x\n",
+	pr_info("targeted_system_display_actual_peak_luminance_flag = 0x%x\n",
 		hdr_plus_sei.tgt_sys_disp_act_pk_lumi_flag);
 	if (hdr_plus_sei.tgt_sys_disp_act_pk_lumi_flag) {
 		for (i = 0;
@@ -839,8 +910,9 @@ void hdr10_plus_debug(void)
 			for (j = 0;
 			j < hdr_plus_sei.num_cols_tgt_sys_disp_act_pk_lumi;
 			j++) {
-				pr_hdr("tgt_sys_disp_act_pk_lumi");
-				pr_hdr("[%d][%d] = 0x%x\n",
+				pr_info("tgt_sys_disp_act_pk_lumi");
+				pr_info(
+				"[%d][%d] = 0x%x\n",
 				i, j,
 				hdr_plus_sei.tgt_sys_disp_act_pk_lumi[i][j]);
 			}
@@ -849,33 +921,35 @@ void hdr10_plus_debug(void)
 
 	for (i = 0; i < hdr_plus_sei.num_windows; i++) {
 		for (j = 0; j < 3; j++)
-			pr_hdr("maxscl[%d][%d] = 0x%x\n",
+			pr_info("maxscl[%d][%d] = 0x%x\n",
 				i, j, hdr_plus_sei.maxscl[i][j]);
 
-		pr_hdr("average_maxrgb[%d] = 0x%x\n",
+		pr_info("average_maxrgb[%d] = 0x%x\n",
 			i, hdr_plus_sei.average_maxrgb[i]);
-		pr_hdr("num_distribution_maxrgb_percentiles[%d] = 0x%x\n",
+		pr_info("num_distribution_maxrgb_percentiles[%d] = 0x%x\n",
 			i, hdr_plus_sei.num_distribution_maxrgb_percentiles[i]);
 		for (j = 0;
 		j < hdr_plus_sei.num_distribution_maxrgb_percentiles[i];
 		j++) {
-			pr_hdr("distribution_maxrgb_pcntages[%d][%d] = 0x%x\n",
+			pr_info(
+			"distribution_maxrgb_pcntages[%d][%d] = 0x%x\n",
 			i, j,
 			hdr_plus_sei.distribution_maxrgb_percentages[i][j]);
-			pr_hdr("distribution_maxrgb_pcntiles[%d][%d] = 0x%x\n",
+			pr_info(
+			"distribution_maxrgb_pcntiles[%d][%d] = 0x%x\n",
 			i, j,
 			hdr_plus_sei.distribution_maxrgb_percentiles[i][j]);
 		}
-		pr_hdr("fraction_bright_pixels[%d] = 0x%x\n",
+		pr_info("fraction_bright_pixels[%d] = 0x%x\n",
 			i, hdr_plus_sei.fraction_bright_pixels[i]);
 	}
 
-	pr_hdr("mast_disp_act_pk_lumi_flag = 0x%x\n",
+	pr_info("mast_disp_act_pk_lumi_flag = 0x%x\n",
 		hdr_plus_sei.mast_disp_act_pk_lumi_flag);
 	if (hdr_plus_sei.mast_disp_act_pk_lumi_flag) {
-		pr_hdr("num_rows_mast_disp_act_pk_lumi = 0x%x\n",
+		pr_info("num_rows_mast_disp_act_pk_lumi = 0x%x\n",
 			hdr_plus_sei.num_rows_mast_disp_act_pk_lumi);
-		pr_hdr("num_cols_mast_disp_act_pk_lumi = 0x%x\n",
+		pr_info("num_cols_mast_disp_act_pk_lumi = 0x%x\n",
 			hdr_plus_sei.num_cols_mast_disp_act_pk_lumi);
 		for (i = 0;
 			i < hdr_plus_sei.num_rows_mast_disp_act_pk_lumi;
@@ -883,56 +957,59 @@ void hdr10_plus_debug(void)
 			for (j = 0;
 				j < hdr_plus_sei.num_cols_mast_disp_act_pk_lumi;
 				j++)
-				pr_hdr("mast_disp_act_pk_lumi[%d][%d] = 0x%x\n",
+				pr_info(
+				"mast_disp_act_pk_lumi[%d][%d] = 0x%x\n",
 				i, j, hdr_plus_sei.mast_disp_act_pk_lumi[i][j]);
 		}
 	}
 
 	for (i = 0; i < hdr_plus_sei.num_windows; i++) {
-		pr_hdr("tone_mapping_flag[%d] = 0x%x\n",
+		pr_info("tone_mapping_flag[%d] = 0x%x\n",
 			i, hdr_plus_sei.tone_mapping_flag[i]);
-		pr_hdr("knee_point_x[%d] = 0x%x\n",
+		pr_info("knee_point_x[%d] = 0x%x\n",
 			i, hdr_plus_sei.knee_point_x[i]);
-		pr_hdr("knee_point_y[%d] = 0x%x\n",
+		pr_info("knee_point_y[%d] = 0x%x\n",
 			i, hdr_plus_sei.knee_point_y[i]);
-		pr_hdr("num_bezier_curve_anchors[%d] = 0x%x\n",
+		pr_info("num_bezier_curve_anchors[%d] = 0x%x\n",
 			i, hdr_plus_sei.num_bezier_curve_anchors[i]);
 		for (j = 0; j < hdr_plus_sei.num_bezier_curve_anchors[i]; j++)
-			pr_hdr("bezier_curve_anchors[%d][%d] = 0x%x\n",
+			pr_info("bezier_curve_anchors[%d][%d] = 0x%x\n",
 				i, j, hdr_plus_sei.bezier_curve_anchors[i][j]);
 
-		pr_hdr("color_saturation_mapping_flag[%d] = 0x%x\n",
+		pr_info("color_saturation_mapping_flag[%d] = 0x%x\n",
 			i, hdr_plus_sei.color_saturation_mapping_flag[i]);
-		pr_hdr("color_saturation_weight[%d] = 0x%x\n",
+		pr_info("color_saturation_weight[%d] = 0x%x\n",
 			i, hdr_plus_sei.color_saturation_weight[i]);
 	}
 
-	pr_hdr("\ntx vsif packet data print begin\n");
-	pr_hdr("application_version = 0x%x\n",
+	pr_info("\ntx vsif packet data print begin\n");
+	pr_info("application_version = 0x%x\n",
 		dbg_hdr10plus_pkt.application_version);
-	pr_hdr("targeted_max_lum = 0x%x\n",
+	pr_info("targeted_max_lum = 0x%x\n",
 		dbg_hdr10plus_pkt.targeted_max_lum);
-	pr_hdr("average_maxrgb = 0x%x\n",
+	pr_info("average_maxrgb = 0x%x\n",
 		dbg_hdr10plus_pkt.average_maxrgb);
 	for (i = 0; i < 9; i++)
-		pr_hdr("distribution_values[%d] = 0x%x\n",
+		pr_info(
+		"distribution_values[%d] = 0x%x\n",
 		i, dbg_hdr10plus_pkt.distribution_values[i]);
-	pr_hdr("num_bezier_curve_anchors = 0x%x\n",
+	pr_info("num_bezier_curve_anchors = 0x%x\n",
 		dbg_hdr10plus_pkt.num_bezier_curve_anchors);
-	pr_hdr("knee_point_x = 0x%x\n",
+	pr_info("knee_point_x = 0x%x\n",
 		dbg_hdr10plus_pkt.knee_point_x);
-	pr_hdr("knee_point_y = 0x%x\n",
+	pr_info("knee_point_y = 0x%x\n",
 		dbg_hdr10plus_pkt.knee_point_y);
 
 	for (i = 0; i < 9; i++)
-		pr_hdr("bezier_curve_anchors[%d] = 0x%x\n",
+		pr_info(
+		"bezier_curve_anchors[%d] = 0x%x\n",
 		i, dbg_hdr10plus_pkt.bezier_curve_anchors[i]);
-	pr_hdr("graphics_overlay_flag = 0x%x\n",
+	pr_info("graphics_overlay_flag = 0x%x\n",
 		dbg_hdr10plus_pkt.graphics_overlay_flag);
-	pr_hdr("no_delay_flag = 0x%x\n",
+	pr_info("no_delay_flag = 0x%x\n",
 		dbg_hdr10plus_pkt.no_delay_flag);
-	pr_hdr("\ntx vsif packet data print end\n");
+	pr_info("\ntx vsif packet data print end\n");
 
-	pr_hdr(HDR10_PLUS_VERSION);
+	pr_info(HDR10_PLUS_VERSION);
 }
 

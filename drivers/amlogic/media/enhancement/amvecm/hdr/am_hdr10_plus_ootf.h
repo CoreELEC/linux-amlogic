@@ -26,7 +26,7 @@
 #define PROCESSING_MAX 12
 #define PORCESSING_DATA_MAX ((1 << PROCESSING_MAX) - 1)
 #define PROCESSING_MAX_HALF ((1 << (PROCESSING_MAX - 1)) - 1)
-#define GAIN_BIT 7
+#define GAIN_BIT 6
 #define U16 16
 #define U16_MAXI ((1 << U16) - 1)
 #define MIN_LUMINANCE 200
@@ -34,24 +34,24 @@
 #define U32 32
 #define _U32_MAX 0xffffffff
 
-struct EBZCurveParameters {
+struct ebzcurveparameters {
 	int order;
-	int Sx, Sy;
-	int Anchor[N + 1];
+	int sx, sy;
+	int anchor[N + 1];
 };
 
-struct Percentiles {
+struct percentiles {
 	int num_percentile;
-	int percentilePercent[PERCENTILE_ORDER];
-	int percentileValue[PERCENTILE_ORDER];
+	int percentilepercent[PERCENTILE_ORDER];
+	int percentilevalue[PERCENTILE_ORDER];
 };
 
-struct Scene2094Metadata {
-	int maxSceneSourceLuminance;
-	int referenceLuminance;
-	int minLuminance;
-	struct Percentiles percentiles;
-	struct EBZCurveParameters EBZCurveParameters;
+struct scene2094metadata {
+	int maxscenesourceluminance;
+	int referenceluminance;
+	int minluminance;
+	struct percentiles percentiles;
+	struct ebzcurveparameters ebzcurveparameters;
 };
 
 struct hdr10_plus_sei_s {
@@ -73,7 +73,7 @@ struct hdr10_plus_sei_s {
 #define ORDER 10
 #define NPCOEFF (ORDER - 1)
 #define P1MIN (PORCESSING_DATA_MAX / ORDER)
-struct BasisOOTF_Params {
+struct basisootf_params {
 	/*Knee-Point (KP) parameters*/
 	/*KP ramp base thresholds (two bounds KP 1 and KP 2 are computed)*/
 	int SY1_V1;
@@ -102,13 +102,13 @@ struct BasisOOTF_Params {
 
 	/* Thresholds to compute relative shape of curve (P2~P9 coefficient)*/
 	/* by pre-defined bounds - as a function of scene percentile*/
-	int P2To9_T1;
-	int P2To9_T2;
+	int P2TO9_T1;
+	int P2TO9_T2;
 
 	/* Defined relative shape bounds (P2~P9 coefficient) for*/
 	/*a given maximum TM dynamic compression (eg : 20x )*/
-	int P2ToP9_MAX1[ORDER - 2];
-	int P2ToP9_MAX2[ORDER - 2];
+	int P2TOP9_MAX1[ORDER - 2];
+	int P2TOP9_MAX2[ORDER - 2];
 
 	/* Ps mixing gain (obtain all Ps coefficients) -*/
 	/*as a function of TM dynamic compression ratio*/
@@ -129,7 +129,16 @@ struct BasisOOTF_Params {
 	int RED_P2_T2;
 };
 
-extern int hdr10_plus_ootf_gen(void);
+struct hdr10pgen_param_s {
+	unsigned int shift;
+	/* scale * 1000 for 3bit float point*/
+	unsigned int scale_gmt;
+	unsigned int gain[POINTS];
+};
 
+int hdr10_plus_ootf_gen(
+	int panel_lumin,
+	int force_source_lumin,
+	struct hdr10pgen_param_s *hdr10pgen_param);
 #endif /* AM_HDR10_PLUS_OOTF_H */
 

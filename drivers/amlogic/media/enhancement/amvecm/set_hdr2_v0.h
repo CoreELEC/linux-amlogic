@@ -17,6 +17,7 @@
 
 #include <linux/types.h>
 #include <linux/amlogic/media/vout/vinfo.h>
+#include "hdr/am_hdr10_plus_ootf.h"
 
 #ifndef MAX
 #define MAX(x1, x2) (double)(x1 > x2 ? x1 : x2)
@@ -90,7 +91,17 @@ enum hdr_process_sel {
 	RGB_YUV = 12,
 	RGB_HDR = 13,
 	RGB_HLG = 14,
+	HDR10P_SDR = 15,
 	HDR_p_MAX
+};
+
+enum hdr_hist_sel {
+	HIST_E_RGBMAX = 0,
+	HIST_E_LUMA = 1,
+	HIST_E_SAT = 2,
+	HIST_O_BEFORE = 4,
+	HIST_O_AFTER = 6,
+	HIST_MAX
 };
 
 #define MTX_ON  1
@@ -183,6 +194,15 @@ extern void mtx_setting(enum vpp_matrix_e mtx_sel,
 	enum mtx_csc_e mtx_csc,
 	int mtx_on);
 
+unsigned int _log2(unsigned int value);
+int hdr10p_ebzcurve_update(
+	enum hdr_module_sel module_sel,
+	enum hdr_process_sel hdr_process_select,
+	struct hdr10pgen_param_s *hdr10pgen_param);
+enum hdr_process_sel hdr10p_func(
+	enum hdr_module_sel module_sel,
+	enum hdr_process_sel hdr_process_select,
+	struct vinfo_s *vinfo);
 extern void set_ootf_lut(
 	enum hdr_module_sel module_sel,
 	struct hdr_proc_lut_param_s *hdr_lut_param);
@@ -196,4 +216,6 @@ extern unsigned int hdr10_force_clip;
 extern unsigned int hdr10_clip_luma;
 extern unsigned int hdr10_clip_margin;
 extern unsigned int hdr10_clip_mode;
-
+void get_hist(
+	enum hdr_module_sel module_sel,
+	enum hdr_hist_sel hist_sel);
