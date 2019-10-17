@@ -18,7 +18,7 @@
 /dts-v1/;
 
 #include "mesontm2.dtsi"
-#include "partition_mbox_normal_P_32.dtsi"
+#include "partition_mbox_normal_dynamic.dtsi"
 
 / {
 	model = "Amlogic TM2 T962E2 AB311";
