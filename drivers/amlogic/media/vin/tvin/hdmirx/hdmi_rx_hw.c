@@ -4023,6 +4023,26 @@ void rx_phy_rxsense_pulse(unsigned int t1, unsigned int t2, bool en)
 	mdelay(t2);
 }
 
+void aml_phy_power_off(void)
+{
+	/* pll power down */
+	wr_reg_hhi_bits(HHI_HDMIRX_APLL_CNTL0, _BIT(28), 0);
+	wr_reg_hhi_bits(HHI_HDMIRX_APLL_CNTL0, _BIT(29), 1);
+
+	/* phy power down */
+	wr_reg_hhi(HHI_HDMIRX_PHY_MISC_CNTL0, 0x32037800);
+	wr_reg_hhi(HHI_HDMIRX_PHY_MISC_CNTL1, 0x1000000);
+	wr_reg_hhi(HHI_HDMIRX_PHY_MISC_CNTL2, 0x62208002);
+	wr_reg_hhi(HHI_HDMIRX_PHY_MISC_CNTL3, 0x7);
+	wr_reg_hhi(HHI_HDMIRX_PHY_DCHA_CNTL0, 0x1e);
+	wr_reg_hhi(HHI_HDMIRX_PHY_DCHA_CNTL1, 0x10000800);
+	wr_reg_hhi(HHI_HDMIRX_PHY_DCHD_CNTL0, 0x200000);
+	wr_reg_hhi(HHI_HDMIRX_PHY_DCHD_CNTL1, 0x0);
+
+	if (log_level & VIDEO_LOG)
+		rx_pr("%s\n", __func__);
+}
+
 void rx_phy_power_on(unsigned int onoff)
 {
 	if (onoff)
@@ -4032,10 +4052,7 @@ void rx_phy_power_on(unsigned int onoff)
 	if (rx.chip_id >= CHIP_ID_TL1) {
 		/*the enable of these regs are in phy init*/
 		if (onoff == 0) {
-			wr_reg_hhi_bits(HHI_HDMIRX_APLL_CNTL0, _BIT(28), onoff);
-			/*close termination 3.3v*/
-			wr_reg_hhi_bits(HHI_HDMIRX_PHY_MISC_CNTL0,
-					MSK(3, 0), onoff);
+			aml_phy_power_off();
 		}
 	}
 }
