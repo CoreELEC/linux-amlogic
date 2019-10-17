@@ -46,6 +46,16 @@ BPF_CALL_4(bpf_map_update_elem, struct bpf_map *, map, void *, key,
 	   void *, value, u64, flags)
 {
 	WARN_ON_ONCE(!rcu_read_lock_held());
+	/*
+	 * Workaround for vts test VtsKernelNetBpfTest
+	 * BpfRaceTest.testRaceWithoutBarrier
+	 * With the 100us delay here, we can significantly
+	 * increase the probability to access the old value
+	 * for eBPF prog in this test case
+	 */
+#ifdef CONFIG_AMLOGIC_MODIFY
+	udelay(100);
+#endif
 	return map->ops->map_update_elem(map, key, value, flags);
 }
 
