@@ -2750,7 +2750,20 @@ void mtx_setting(enum vpp_matrix_e mtx_sel,
 		WRITE_VPP_REG(matrix_pre_offset0_1, 0x7c00600);
 		WRITE_VPP_REG(matrix_pre_offset2, 0x00000600);
 		break;
+	case MATRIX_YUV709F_RGB:/*full to full*/
+		WRITE_VPP_REG(matrix_coef00_01, 0x04000000);
+		WRITE_VPP_REG(matrix_coef02_10, 0x064D0400);
+		WRITE_VPP_REG(matrix_coef11_12, 0x1F411E21);
+		WRITE_VPP_REG(matrix_coef20_21, 0x0400076D);
+		WRITE_VPP_REG(matrix_coef22, 0x0);
+		WRITE_VPP_REG(matrix_offset0_1, 0x0);
+		WRITE_VPP_REG(matrix_offset2, 0x0);
+		WRITE_VPP_REG(matrix_pre_offset0_1, 0x0000600);
+		WRITE_VPP_REG(matrix_pre_offset2, 0x00000600);
+		break;
 	default:
 		break;
 	}
+
+	/*pr_info("mtx_sel:%d, mtx_csc:0x%x\n", mtx_sel, mtx_csc);*/
 }

@@ -3770,6 +3770,7 @@ int signal_type_changed(struct vframe_s *vf,
 	struct vframe_master_display_colour_s *p_new = NULL;
 	struct vframe_master_display_colour_s cus;
 	int ret;
+	u32 limit_full = 0;
 
 	if (!vf)
 		return 0;
@@ -3782,6 +3783,7 @@ int signal_type_changed(struct vframe_s *vf,
 		}
 	} else
 		cur_mvc_type[vd_path] = 0;
+	limit_full = (vf->signal_type >> 25) & 0x01;
 	if ((vf->source_type == VFRAME_SOURCE_TYPE_TUNER) ||
 		(vf->source_type == VFRAME_SOURCE_TYPE_CVBS) ||
 		(vf->source_type == VFRAME_SOURCE_TYPE_COMP) ||
@@ -3801,7 +3803,7 @@ int signal_type_changed(struct vframe_s *vf,
 				/* default 709 limit */
 				  (1 << 29)	/* video available */
 				| (5 << 26)	/* unspecified */
-				| (0 << 25)	/* limit */
+				| (limit_full << 25)	/* limit */
 				| (1 << 24)	/* color available */
 				| (1 << 16)	/* bt709 */
 				| (1 << 8)	/* bt709 */
@@ -7015,7 +7017,7 @@ static void video_process(
 			mtx_setting(POST2_MTX, MATRIX_NULL, MTX_OFF);
 		else
 			mtx_setting(POST2_MTX,
-				MATRIX_YUV709_RGB, MTX_ON);
+				csc_type/*MATRIX_YUV709_RGB*/, MTX_ON);
 	}
 
 	if (cur_hdr_process_mode[vd_path] !=

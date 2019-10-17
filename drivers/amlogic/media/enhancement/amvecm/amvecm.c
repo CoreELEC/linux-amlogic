@@ -6003,6 +6003,12 @@ static ssize_t amvecm_debug_store(struct class *cla,
 				goto free_buf;
 		}
 		gmv_th = val;
+	} else if (!strcmp(parm[0], "post2mtx")) {
+		if (parm[1]) {
+			if (kstrtoul(parm[1], 16, &val) < 0)
+				goto free_buf;
+			mtx_setting(POST2_MTX, val, 1);
+		}
 	} else
 		pr_info("unsupport cmd\n");
 
