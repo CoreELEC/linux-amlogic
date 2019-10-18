@@ -203,6 +203,14 @@ static void videosync_vf_put(struct vframe_s *vf, void *op_arg)
 	}
 }
 
+void vsync_notify_videosync(void)
+{
+	if (videosync_inited) {
+		vp_dev->wakeup = 1;
+		wake_up_interruptible(&vp_dev->videosync_wait);
+	}
+}
+
 static int videosync_event_cb(int type, void *data, void *private_data)
 {
 	return 0;
@@ -923,7 +931,7 @@ static void prepare_queued_queue(struct videosync_dev *dev)
 			continue;
 		}
 
-		if (vf_peek(dev_s->vf_receiver_name)) {
+		while (vf_peek(dev_s->vf_receiver_name)) {
 			vf = vf_get(dev_s->vf_receiver_name);
 			if (vf) {
 				vfq_push(&dev_s->queued_q, vf);
@@ -935,9 +943,6 @@ static void prepare_queued_queue(struct videosync_dev *dev)
 					vf->index,
 					vfq_level(&dev_s->queued_q));
 			}
-		} else {
-			vp_print(dev_s->vf_receiver_name, PRINT_OTHER,
-				"peek failed %d\n");
 		}
 	}
 
@@ -1006,6 +1011,8 @@ static int videosync_receiver_event_fun(int type, void *data,
 
 		if (dev_s->active_state == VIDEOSYNC_ACTIVE) {
 			dev_s->active_state = VIDEOSYNC_INACTIVE_REQ;
+			dev->wakeup = 1;
+			wake_up_interruptible(&dev->videosync_wait);
 			time_left = wait_for_completion_timeout(
 				&dev_s->inactive_done,
 				msecs_to_jiffies(100));
@@ -1149,6 +1156,9 @@ static void videosync_thread_tick(struct videosync_dev *dev)
 	if (!dev)
 		return;
 
+	wait_event_interruptible(dev->videosync_wait, dev->wakeup);
+	dev->wakeup = 0;
+
 	for (i = 0; i < VIDEOSYNC_S_COUNT; i++) {
 		dev_s = &dev->video_prov[i];
 		if (dev_s->active_state == VIDEOSYNC_INACTIVE_REQ) {
@@ -1165,7 +1175,6 @@ static void videosync_thread_tick(struct videosync_dev *dev)
 		spin_unlock_irqrestore(&dev->dev_s_num_slock, flags);
 		prepare_queued_queue(dev);
 		prepare_ready_queue(dev);
-		usleep_range(7000, 8000);
 	} else {
 		spin_unlock_irqrestore(&dev->dev_s_num_slock, flags);
 		vp_print(RECEIVER_NAME, PRINT_OTHER,
@@ -1248,6 +1257,8 @@ static int __init videosync_init(void)
 	}
 
 	init_completion(&vp_dev->thread_active);
+	vp_dev->wakeup = 0;
+	init_waitqueue_head(&vp_dev->videosync_wait);
 	vp_dev->kthread = kthread_run(videosync_thread, vp_dev, "videosync");
 	videosync_inited = true;
 	return ret;

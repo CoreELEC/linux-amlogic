@@ -7656,6 +7656,7 @@ SET_FILTER:
 		}
 		vf = pip_vf_peek();
 	}
+	vsync_notify_videosync();
 	if (videopip_get_vf_cnt >= 2) {
 		videopip_drop_vf_cnt += (videopip_get_vf_cnt - 1);
 		if (debug_flag & DEBUG_FLAG_PRINT_DROP_FRAME)
