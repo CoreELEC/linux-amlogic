@@ -507,6 +507,9 @@ static void meson_tl1_pll_disable(struct clk_hw *hw)
 	writel(readl(pll->base + p->reg_off) & (~MESON_PLL_ENABLE),
 		pll->base + p->reg_off);
 
+	if (!strcmp(clk_hw_get_name(hw), "pcie_pll"))
+		writel(0x60000000, pll->base + p->reg_off + 54 * 4);
+
 	if (pll->lock)
 		spin_unlock_irqrestore(pll->lock, flags);
 }
