@@ -15197,3 +15197,8 @@ AMLOGIC VAD WAKEUP POWER
 M: Zhiqiang Liang <zhiqiang.liang@amlogic.com>
 F: drivers/amlogic/pm/vad_power.c
 F: drivers/amlogic/pm/vad_power.h
+
+AMLOGIC T962E2 SBR DTS
+M:  Bing Jiang <Bing.Jiang@amlogic.com>
+F:  arch/arm/boot/dts/amlogic/tm2_t962e2_ab311_sbr.dts
+F:  arch/arm64/boot/dts/amlogic/tm2_t962e2_ab311_sbr.dts
