@@ -1786,11 +1786,11 @@ static int aml_tdm_platform_suspend(struct platform_device *pdev,
 
 	/*mute default clk */
 	if (p_tdm->start_clk_enable == 1 && p_tdm->pin_ctl) {
-		struct pinctrl_state *state = NULL;
+		struct pinctrl_state *ps = NULL;
 
-		state = pinctrl_lookup_state(p_tdm->pin_ctl, "tdmout_a_gpio");
-		if (!IS_ERR_OR_NULL(state)) {
-			pinctrl_select_state(p_tdm->pin_ctl, state);
+		ps = pinctrl_lookup_state(p_tdm->pin_ctl, "tdmout_a_gpio");
+		if (!IS_ERR_OR_NULL(ps)) {
+			pinctrl_select_state(p_tdm->pin_ctl, ps);
 			pr_info("%s tdm pins disable!\n", __func__);
 		}
 	}
