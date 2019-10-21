@@ -2720,9 +2720,17 @@ static void adjust_vpotch(void)
 			else if ((vinfo->width == 1280) &&
 				 (vinfo->height == 720))
 				g_vpotch = 0x38;
+			else if ((vinfo->width == 1280) &&
+				 (vinfo->height == 720) &&
+				 (vinfo->field_height < 720))
+				g_vpotch = 0x60;
 			else if ((vinfo->width == 1920) &&
 				 (vinfo->height == 1080) &&
 				 (sync_duration_num < 30))
+				g_vpotch = 0x60;
+			else if ((vinfo->width == 1920) &&
+				 (vinfo->height == 1080) &&
+				 (vinfo->field_height < 1080))
 				g_vpotch = 0x60;
 			else
 				g_vpotch = 0x20;
