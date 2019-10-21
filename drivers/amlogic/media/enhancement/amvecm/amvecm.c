@@ -206,6 +206,8 @@ unsigned int sr_demo_flag;
 bool pd_detect_en;
 int pd_fix_lvl = PD_HIG_LVL;
 
+unsigned int gmv_th = 17;
+
 static int wb_init_bypass_coef[24] = {
 	0, 0, 0, /* pre offset */
 	1024,	0,	0,
@@ -1105,7 +1107,7 @@ void amvecm_dejaggy_patch(struct vframe_s *vf)
 	if ((vf->height == 1080) &&
 		(vf->width == 1920) &&
 		(vf->di_pulldown & (1 << 3)) &&
-		(vf->di_pulldown & 0x7)) {
+		((vf->di_pulldown & 0x7) || ((vf->di_gmv / 10000) >= gmv_th))) {
 		if (pd_detect_en == 1)
 			return;
 		pd_detect_en = 1;
@@ -5995,6 +5997,12 @@ static ssize_t amvecm_debug_store(struct class *cla,
 			pd_fix_lvl = PD_DEF_LVL;
 		else
 			pd_fix_lvl = val;
+	} else if (!strcmp(parm[0], "gmv_th")) {
+		if (parm[1]) {
+			if (kstrtoul(parm[1], 10, &val) < 0)
+				goto free_buf;
+		}
+		gmv_th = val;
 	} else
 		pr_info("unsupport cmd\n");
 
