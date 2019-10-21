@@ -435,6 +435,7 @@ struct vframe_s {
 	 * bit 0: flm32
 	 *****************/
 	u32 di_pulldown;
+	u32 di_gmv;
 } /*vframe_t */;
 
 #if 0

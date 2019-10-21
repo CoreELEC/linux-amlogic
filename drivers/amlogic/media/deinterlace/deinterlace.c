@@ -3580,8 +3580,10 @@ static void pre_de_done_buf_config(void)
 			di_pre_stru.di_post_wr_buf = di_pre_stru.di_wr_buf;
 		post_wr_buf = di_pre_stru.di_post_wr_buf;
 
-		if (post_wr_buf)
+		if (post_wr_buf) {
 			post_wr_buf->vframe->di_pulldown = 0;
+			post_wr_buf->vframe->di_gmv = 0;
+		}
 
 		if (post_wr_buf && !di_pre_stru.cur_prog_flag) {
 			read_pulldown_info(&glb_frame_mot_num,
@@ -3596,6 +3598,7 @@ static void pre_de_done_buf_config(void)
 
 			}
 			post_wr_buf->vframe->di_pulldown |= 0x08;
+			post_wr_buf->vframe->di_gmv = glb_frame_mot_num;
 			if (di_pre_stru.combing_fix_en)
 				cur_lev = adaptive_combing_fixing(
 				di_pre_stru.mtn_status,
