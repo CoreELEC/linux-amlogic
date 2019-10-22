@@ -150,9 +150,6 @@ static irqreturn_t earc_rx_isr(int irq, void *data)
 	struct earc *p_earc = (struct earc *)data;
 	unsigned int status0 = earcrx_cdmc_get_irqs(p_earc->rx_top_map);
 
-	if (status0)
-		earcrx_cdmc_clr_irqs(p_earc->rx_top_map, status0);
-
 	if (status0 & INT_EARCRX_CMDC_IDLE2) {
 		earcrx_update_attend_event(p_earc,
 					   false, true);
@@ -175,10 +172,8 @@ static irqreturn_t earc_rx_isr(int irq, void *data)
 
 		pr_info("%s EARCRX_CMDC_EARC\n", __func__);
 	}
-	/*
-	 * if (status0 & INT_EARCRX_CMDC_HB_STATUS)
-	 *	pr_debug("%s EARCRX_CMDC_HB_STATUS\n", __func__);
-	 */
+	if (status0 & INT_EARCRX_CMDC_HB_STATUS)
+		pr_debug("%s EARCRX_CMDC_HB_STATUS\n", __func__);
 	if (status0 & INT_EARCRX_CMDC_LOSTHB)
 		pr_debug("%s EARCRX_CMDC_LOSTHB\n", __func__);
 	if (status0 & INT_EARCRX_CMDC_TIMEOUT) {
@@ -188,11 +183,11 @@ static irqreturn_t earc_rx_isr(int irq, void *data)
 		pr_debug("%s EARCRX_CMDC_TIMEOUT\n", __func__);
 	}
 
+	if (status0)
+		earcrx_cdmc_clr_irqs(p_earc->rx_top_map, status0);
+
 	if (p_earc->rx_dmac_clk_on) {
 		unsigned int status1 = earcrx_dmac_get_irqs(p_earc->rx_top_map);
-
-		if (status1)
-			earcrx_dmac_clr_irqs(p_earc->rx_top_map, status1);
 
 		if (status1 & INT_ARCRX_BIPHASE_DECODE_C_FIND_PAPB)
 			pr_debug("%s ARCRX_C_FIND_PAPB\n", __func__);
@@ -208,6 +203,9 @@ static irqreturn_t earc_rx_isr(int irq, void *data)
 			pr_debug("%s ARCRX_I_SAMPLE_MODE_CHANGE\n", __func__);
 		if (status1 & INT_ARCRX_BIPHASE_DECODE_R_PARITY_ERR)
 			pr_debug("%s ARCRX_R_PARITY_ERR\n", __func__);
+
+		if (status1)
+			earcrx_dmac_clr_irqs(p_earc->rx_top_map, status1);
 	}
 
 	return IRQ_HANDLED;
@@ -246,9 +244,6 @@ static irqreturn_t earc_tx_isr(int irq, void *data)
 {
 	struct earc *p_earc = (struct earc *)data;
 	unsigned int status0 = earctx_cdmc_get_irqs(p_earc->tx_top_map);
-
-	if (status0)
-		earctx_cdmc_clr_irqs(p_earc->tx_top_map, status0);
 
 	if (status0 & INT_EARCTX_CMDC_IDLE2) {
 		earctx_update_attend_event(p_earc,
@@ -291,11 +286,11 @@ static irqreturn_t earc_tx_isr(int irq, void *data)
 	if (status0 & INT_EARCTX_CMDC_RECV_UNEXP)
 		pr_debug("%s EARCTX_CMDC_RECV_UNEXP\n", __func__);
 
+	if (status0)
+		earctx_cdmc_clr_irqs(p_earc->tx_top_map, status0);
+
 	if (p_earc->tx_dmac_clk_on) {
 		unsigned int status1 = earctx_dmac_get_irqs(p_earc->tx_top_map);
-
-		if (status1)
-			earctx_dmac_clr_irqs(p_earc->tx_top_map, status1);
 
 		if (status1 & INT_EARCTX_FEM_C_HOLD_CLR)
 			pr_debug("%s EARCTX_FEM_C_HOLD_CLR\n", __func__);
@@ -309,6 +304,9 @@ static irqreturn_t earc_tx_isr(int irq, void *data)
 				 __func__);
 		if (status1 & INT_EARCTX_ERRCORR_C_FIFO_EMPTY)
 			pr_debug("%s EARCTX_ERRCORR_C_FIFO_EMPTY\n", __func__);
+
+		if (status1)
+			earctx_dmac_clr_irqs(p_earc->tx_top_map, status1);
 	}
 
 	return IRQ_HANDLED;
@@ -761,8 +759,6 @@ static int earc_dai_startup(
 				goto err;
 			}
 		}
-
-		earcrx_pll_refresh(p_earc->rx_top_map);
 	}
 
 	return 0;
@@ -889,40 +885,9 @@ static int earcrx_arc_set_enable(
 	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct earc *p_earc = dev_get_drvdata(component->dev);
 
-	if (!p_earc)
-		return 0;
-
 	earcrx_cmdc_arc_connect(
 		p_earc->rx_cmdc_map,
 		(bool)ucontrol->value.integer.value[0]);
-
-	return 0;
-}
-
-int earctx_get_attend_type(struct snd_kcontrol *kcontrol,
-			   struct snd_ctl_elem_value *ucontrol)
-{
-	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
-	struct earc *p_earc = dev_get_drvdata(component->dev);
-	enum attend_type type =
-		earctx_cmdc_get_attended_type(p_earc->tx_cmdc_map);
-
-	ucontrol->value.integer.value[0] = type;
-
-	return 0;
-}
-
-int earctx_set_attend_type(struct snd_kcontrol *kcontrol,
-			   struct snd_ctl_elem_value *ucontrol)
-{
-	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
-	struct earc *p_earc = dev_get_drvdata(component->dev);
-	enum cmdc_st state = earctx_cmdc_get_state(p_earc->tx_cmdc_map);
-
-	if (state != CMDC_ST_IDLE2)
-		return 0;
-
-	/* only support set cmdc from idle to ARC */
 
 	return 0;
 }
@@ -937,11 +902,6 @@ static const struct snd_kcontrol_new earc_controls[] = {
 			    0,
 			    earcrx_arc_get_enable,
 			    earcrx_arc_set_enable),
-
-	SOC_ENUM_EXT("eARC_TX attended type",
-		     attended_type_enum,
-		     earctx_get_attend_type,
-		     earctx_set_attend_type),
 };
 
 static const struct snd_soc_component_driver earc_component = {
@@ -1089,8 +1049,7 @@ void earc_hdmirx_hpdst(int earc_port, bool st)
 		earc_port,
 		st ? "plugin" : "plugout");
 
-	if (st)
-		earctx_cmdc_int_mask(p_earc->tx_top_map);
+	earctx_cmdc_int_mask(p_earc->tx_top_map);
 	earctx_cmdc_arc_connect(p_earc->tx_cmdc_map, st);
 	earctx_cmdc_hpd_detect(p_earc->tx_top_map,
 			       p_earc->tx_cmdc_map,

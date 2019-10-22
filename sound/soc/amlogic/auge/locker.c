@@ -182,8 +182,10 @@ static DEVICE_ATTR(locker_enable, 0644,
 
 void audio_locker_set(int enable)
 {
-	if (!s_locker)
+	if (!s_locker) {
+		pr_debug("audio locker is not init\n");
 		return;
+	}
 
 	s_locker->enable = enable;
 	audiolocker_init(s_locker);
@@ -191,8 +193,10 @@ void audio_locker_set(int enable)
 
 int audio_locker_get(void)
 {
-	if (!s_locker)
-		return 0;
+	if (!s_locker) {
+		pr_debug("audio locker is not init\n");
+		return -1;
+	}
 
 	return s_locker->enable;
 }

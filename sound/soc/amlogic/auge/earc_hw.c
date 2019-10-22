@@ -20,22 +20,6 @@
 #include <linux/amlogic/media/sound/spdif_info.h>
 #include "earc_hw.h"
 
-void earcrx_pll_refresh(struct regmap *top_map)
-{
-	/* pll tdc mode */
-	mmio_update_bits(top_map, EARCRX_PLL_CTRL3,
-			 0x1 << 15, 0x1 << 15);
-
-	/* pll self reset */
-	mmio_update_bits(top_map, EARCRX_PLL_CTRL0,
-			 0x1 << 29, 0x1 << 29);
-	mmio_update_bits(top_map, EARCRX_PLL_CTRL0,
-			 0x1 << 29, 0x0 << 29);
-
-	mmio_update_bits(top_map, EARCRX_PLL_CTRL3,
-			 0x1 << 15, 0x0 << 15);
-}
-
 void earcrx_cmdc_init(struct regmap *top_map)
 {
 	/* set irq mask */
@@ -232,8 +216,7 @@ void earcrx_arc_init(struct regmap *dmac_map)
 		   0x1 << 30 | /* reg_chnum_sel */
 		   0x1 << 25 | /* reg_findpapb_en */
 		   0x1 << 24 | /* nonpcm2pcm_th enable */
-		   0xFFF << 12 |  /* reg_nonpcm2pcm_th */
-		   0x1 << 2    /* reg_check_parity */
+		   0xFFF << 12   /* reg_nonpcm2pcm_th */
 		  );
 	mmio_write(dmac_map,
 		   EARCRX_SPDIFIN_CTRL2,
@@ -436,10 +419,17 @@ void earctx_cmdc_hpd_detect(struct regmap *top_map,
 				 0x3 << 20 | 0x3 << 22
 				);
 
+		/* no timeout */
+		mmio_update_bits(cmdc_map,
+				 EARC_TX_CMDC_VSM_CTRL5,
+				 0x3 << 0,
+				 0x1 << 1
+				 );
+
 		mmio_update_bits(cmdc_map,
 				 EARC_TX_CMDC_VSM_CTRL1,
 				 0xff << 0,
-				 0x4 << 0   /* comma_cnt_th */
+				 0xa << 0   /* comma_cnt_th */
 				);
 	} else {
 		/* soft reset */
@@ -532,14 +522,6 @@ void earctx_set_channel_status_info(struct regmap *dmac_map,
 	/* R Channel */
 	mmio_write(dmac_map, EARCTX_SPDIFOUT_CHSTS6,
 		   ((chsts->chstat1_r >> 8) & 0xf) << 24 | chsts->chstat0_r);
-}
-
-enum cmdc_st earctx_cmdc_get_state(struct regmap *cmdc_map)
-{
-	int val = mmio_read(cmdc_map, EARC_TX_CMDC_STATUS0);
-	enum cmdc_st state = (enum cmdc_st)(val & 0x7);
-
-	return state;
 }
 
 enum attend_type earctx_cmdc_get_attended_type(struct regmap *cmdc_map)
