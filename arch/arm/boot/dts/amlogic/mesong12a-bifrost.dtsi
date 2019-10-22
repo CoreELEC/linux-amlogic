@@ -37,9 +37,7 @@
 		clock-names = "gpu_mux","gp0_pll";
 
 
-		tbl =  <&dvfs285_cfg
-			&dvfs400_cfg
-			&dvfs500_cfg
+		tbl =  <&dvfs500_cfg
 			&dvfs666_cfg
 			&dvfs850_cfg
 			&dvfs850_cfg>;
@@ -71,7 +69,7 @@
 			clk_reg = <0xE00>;
 			voltage = <1150>;
 			keep_count = <5>;
-			threshold = <100 190>;
+			threshold = <0 76>;
 		};
 
 		dvfs400_cfg:dvfs400_cfg {
@@ -91,7 +89,7 @@
 			clk_reg = <0xA00>;
 			voltage = <1150>;
 			keep_count = <5>;
-			threshold = <180 220>;
+			threshold = <38 194>;
 		};
 
 		dvfs666_cfg:dvfs666_cfg {
@@ -101,7 +99,7 @@
 			clk_reg = <0x800>;
 			voltage = <1150>;
 			keep_count = <5>;
-			threshold = <210 236>;
+			threshold = <150 203>;
 		};
 
 		dvfs800_cfg:dvfs800_cfg {
@@ -121,7 +119,7 @@
 			clk_reg = <0x200>;
 			voltage = <1150>;
 			keep_count = <5>;
-			threshold = <230 255>;
+			threshold = <156 255>;
 		};
 	};
 
