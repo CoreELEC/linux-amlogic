@@ -18,7 +18,7 @@
 #ifndef __AO_CEC_H__
 #define __AO_CEC_H__
 
-#define CEC_DRIVER_VERSION	"2019/10/16: reduce box get phy addr timeout time\n"
+#define CEC_DRIVER_VERSION	"2019/10/22: finetune ARB rising time\n"
 
 #define CEC_FRAME_DELAY		msecs_to_jiffies(400)
 #define CEC_DEV_NAME		"cec"

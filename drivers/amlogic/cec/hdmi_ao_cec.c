@@ -707,7 +707,7 @@ static void ao_cecb_init(void)
 			reg = 0;
 			reg |= (0 << 6);/*curb_err_init*/
 			reg |= (0 << 5);/*en_chk_sbitlow*/
-			reg |= (2 << 0);/*rise_del_max*/
+			reg |= (0x15 << 0);/*rise_del_max*/
 			hdmirx_cec_write(DWC_CEC_CTRL2, reg);
 		}
 
@@ -864,38 +864,38 @@ int dump_cecrx_reg(char *b)
 
 	s += sprintf(b + s, "CEC MODULE REGS:\n");
 	s += sprintf(b + s, "CEC_CTRL	  = 0x%02x\n",
-		hdmirx_cec_read(0x1f00));
+		hdmirx_cec_read(DWC_CEC_CTRL));
 	if (cec_dev->plat_data->cecb_ver >= CECB_VER_2)
 		s += sprintf(b + s, "CEC_CTRL2	  = 0x%02x\n",
-			hdmirx_cec_read(0x1f04));
+			hdmirx_cec_read(DWC_CEC_CTRL2));
 	s += sprintf(b + s, "CEC_MASK	  = 0x%02x\n",
-		hdmirx_cec_read(0x1f08));
+		hdmirx_cec_read(DWC_CEC_MASK));
 	s += sprintf(b + s, "CEC_ADDR_L   = 0x%02x\n",
-		hdmirx_cec_read(0x1f14));
+		hdmirx_cec_read(DWC_CEC_ADDR_L));
 	s += sprintf(b + s, "CEC_ADDR_H   = 0x%02x\n",
-		hdmirx_cec_read(0x1f18));
+		hdmirx_cec_read(DWC_CEC_ADDR_H));
 	s += sprintf(b + s, "CEC_TX_CNT   = 0x%02x\n",
-		hdmirx_cec_read(0x1f1c));
+		hdmirx_cec_read(DWC_CEC_TX_CNT));
 	s += sprintf(b + s, "CEC_RX_CNT   = 0x%02x\n",
-		hdmirx_cec_read(0x1f20));
+		hdmirx_cec_read(DWC_CEC_RX_CNT));
 	if (cec_dev->plat_data->cecb_ver >= CECB_VER_2)
 		s += sprintf(b + s, "CEC_STAT0	 = 0x%02x\n",
-			hdmirx_cec_read(0x1f24));
+			hdmirx_cec_read(DWC_CEC_STAT0));
 	s += sprintf(b + s, "CEC_LOCK	  = 0x%02x\n",
-		hdmirx_cec_read(0x1fc0));
+		hdmirx_cec_read(DWC_CEC_LOCK));
 	s += sprintf(b + s, "CEC_WKUPCTRL = 0x%02x\n",
-		hdmirx_cec_read(0x1fc4));
+		hdmirx_cec_read(DWC_CEC_WKUPCTRL));
 
 	s += sprintf(b + s, "%s", "RX buffer:");
 	for (i = 0; i < 16; i++) {
-		reg = (hdmirx_cec_read(0x1f80 + i * 4) & 0xff);
+		reg = (hdmirx_cec_read(DWC_CEC_RX_DATA0 + i * 4) & 0xff);
 		s += sprintf(b + s, " %02x", reg);
 	}
 	s += sprintf(b + s, "\n");
 
 	s += sprintf(b + s, "%s", "TX buffer:");
 	for (i = 0; i < 16; i++) {
-		reg = (hdmirx_cec_read(0x1f40 + i * 4) & 0xff);
+		reg = (hdmirx_cec_read(DWC_CEC_TX_DATA0 + i * 4) & 0xff);
 		s += sprintf(b + s, " %02x", reg);
 	}
 	s += sprintf(b + s, "\n");
@@ -1154,9 +1154,19 @@ void ceca_hw_reset(void)
 
 void cec_hw_reset(unsigned int cec_sel)
 {
+	unsigned int reg;
+
 	if (cec_sel == CEC_B) {
 		cecb_hw_reset();
 		/* cec_logicaddr_set(cec_dev->cec_info.log_addr); */
+		/* DWC_CEC_CTRL2 will be reset to 0*/
+		if (cec_dev->plat_data->cecb_ver >= CECB_VER_2) {
+			reg = 0;
+			reg |= (0 << 6);/*curb_err_init*/
+			reg |= (0 << 5);/*en_chk_sbitlow*/
+			reg |= (0x15 << 0);/*rise_del_max*/
+			hdmirx_cec_write(DWC_CEC_CTRL2, reg);
+		}
 	} else {
 		ceca_hw_reset();
 	}
