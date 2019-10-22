@@ -3177,6 +3177,7 @@ void osd_set_window_axis_hw(u32 index, s32 x0, s32 y0, s32 x1, s32 y1)
 	struct vinfo_s *vinfo = NULL;
 	s32 temp_y0, temp_y1;
 	u32 output_index;
+	u32 height_dst, height_src;
 
 	output_index = get_output_device_id(index);
 	if (output_index == VIU1)
@@ -3217,6 +3218,16 @@ void osd_set_window_axis_hw(u32 index, s32 x0, s32 y0, s32 x1, s32 y1)
 	osd_hw.dst_data[index].y = y0;
 	osd_hw.dst_data[index].w = x1 - x0 + 1;
 	osd_hw.dst_data[index].h = y1 - y0 + 1;
+
+	height_dst = osd_hw.free_dst_data[index].y_end -
+		osd_hw.free_dst_data[index].y_start + 1;
+	height_src = osd_hw.free_src_data[index].y_end -
+		osd_hw.free_src_data[index].y_start + 1;
+
+	if (height_dst != height_src)
+		osd_set_dummy_data(index, 0);
+	else
+		osd_set_dummy_data(index, 0xff);
 
 	if (osd_hw.free_dst_data[index].y_end >= osd_hw.vinfo_height[index] - 1)
 		osd_set_dummy_data(index, 0xff);
