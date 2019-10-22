@@ -277,6 +277,7 @@ static bool is_osd_off;
 static bool force_reset_core2;
 static int core1_switch;
 static int core3_switch;
+static bool force_set_lut;
 
 module_param(vtotal_add, uint, 0664);
 MODULE_PARM_DESC(vtotal_add, "\n vtotal_add\n");
@@ -313,10 +314,16 @@ static unsigned int dolby_vision_default_max[3][3] = {
 
 static unsigned int dolby_vision_graphic_min = 50; /* 0.0001 */
 static unsigned int dolby_vision_graphic_max; /* 100 */
+static unsigned int old_dolby_vision_graphic_max;
 module_param(dolby_vision_graphic_min, uint, 0664);
 MODULE_PARM_DESC(dolby_vision_graphic_min, "\n dolby_vision_graphic_min\n");
 module_param(dolby_vision_graphic_max, uint, 0664);
 MODULE_PARM_DESC(dolby_vision_graphic_max, "\n dolby_vision_graphic_max\n");
+
+static unsigned int dv_HDR10_graphics_max = 300;
+static unsigned int dv_graphic_blend_test;
+module_param(dv_graphic_blend_test, uint, 0664);
+MODULE_PARM_DESC(dv_graphic_blend_test, "\n dv_graphic_blend_test\n");
 
 static unsigned int dv_target_graphics_max[3][3] = {
 	{ 300, 375, 380 }, /* DOVI => DOVI/HDR/SDR */
@@ -2346,7 +2353,7 @@ static int dolby_core2_set(
 		count = 256 * 5;
 	else
 		count = lut_count;
-	if (count && (set_lut || reset)) {
+	if (count && (set_lut || reset || force_set_lut)) {
 		if (dolby_vision_flags & FLAG_CLKGATE_WHEN_LOAD_LUT)
 			VSYNC_WR_DV_REG_BITS(DOLBY_CORE2A_CLKGATE_CTRL,
 				2, 2, 2);
@@ -2371,6 +2378,7 @@ static int dolby_core2_set(
 			VSYNC_WR_DV_REG_BITS(
 				DOLBY_CORE2A_CLKGATE_CTRL, 0, 2, 2);
 	}
+	force_set_lut = false;
 
 	/* enable core2 */
 	VSYNC_WR_DV_REG(DOLBY_CORE2A_SWAP_CTRL0, dolby_enable << 0);
@@ -2650,6 +2658,19 @@ static int is_graphic_changed(void)
 			osd_graphic_width = new_osd_graphic_width;
 			osd_graphic_height = new_osd_graphic_height;
 			ret |= 2;
+		}
+	}
+	if (old_dolby_vision_graphic_max !=
+	    dolby_vision_graphic_max) {
+		if (debug_dolby & 0x10)
+			pr_dolby_dbg("graphic max changed %d-%d\n",
+				     old_dolby_vision_graphic_max,
+				     dolby_vision_graphic_max);
+		if (!is_osd_off) {
+			old_dolby_vision_graphic_max =
+				dolby_vision_graphic_max;
+			ret |= 2;
+			force_set_lut = true;
 		}
 	}
 	return ret;
@@ -6482,6 +6503,9 @@ int dolby_vision_parse_metadata(
 			graphic_max =
 				dv_target_graphics_max
 					[src_format][dst_format];
+		}
+		if (dv_graphic_blend_test && dst_format == FORMAT_HDR10) {
+			graphic_max = dv_HDR10_graphics_max;
 		}
 	}
 

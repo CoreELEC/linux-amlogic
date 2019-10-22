@@ -8604,10 +8604,9 @@ static int osd_setting_order(u32 output_index)
 			osd_hw.reg[DISP_GEOMETRY].update_func(i);
 			osd_hw.reg[OSD_GBL_ALPHA].update_func(i);
 			osd_hw.reg[DISP_OSD_REVERSE].update_func(i);
+			osd_hw.reg[OSD_FREESCALE_COEF].update_func(i);
 			if (update || osd_update_window_axis) {
 				osd_set_scan_mode(i);
-				osd_hw.reg
-					[OSD_FREESCALE_COEF].update_func(i);
 				osd_hw.reg[DISP_FREESCALE_ENABLE]
 				.update_func(i);
 				osd_update_window_axis = false;
