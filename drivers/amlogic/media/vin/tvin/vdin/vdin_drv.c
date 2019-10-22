@@ -824,9 +824,9 @@ int start_tvin_service(int no, struct vdin_parm_s  *para)
 	enum tvin_sig_fmt_e fmt;
 
 	mutex_lock(&devp->fe_lock);
-	if (IS_ERR(devp)) {
-		pr_err("[vdin]%s vdin%d has't registered,please register.\n",
-				__func__, no);
+	if (IS_ERR_OR_NULL(devp)) {
+		pr_err("[vdin]%s vdin%d has't registered or devp is NULL\n",
+		       __func__, no);
 		mutex_unlock(&devp->fe_lock);
 		return -1;
 	}
@@ -1043,9 +1043,9 @@ static int vdin_ioctl_fe(int no, struct fe_arg_s *parm)
 {
 	struct vdin_dev_s *devp = vdin_devp[no];
 	int ret = 0;
-	if (IS_ERR(devp)) {
-		pr_err("[vdin]%s vdin%d has't registered,please register.\n",
-				__func__, no);
+	if (IS_ERR_OR_NULL(devp)) {
+		pr_err("[vdin]%s vdin%d has't registered or devp is NULL\n",
+		       __func__, no);
 		return -1;
 	}
 	if (devp->frontend &&
@@ -2752,10 +2752,12 @@ static long vdin_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			pr_info("TVIN_IOC_GET_ALLM_MODE err\n\n");
 			break;
 		}
-		pr_info("allm mode-%d,IT=%d,CN=%d\n\n",
-			devp->prop.latency.allm_mode,
-			devp->prop.latency.it_content,
-			devp->prop.latency.cn_type);
+
+		if (vdin_dbg_en)
+			pr_info("allm mode-%d,IT=%d,CN=%d\n\n",
+				devp->prop.latency.allm_mode,
+				devp->prop.latency.it_content,
+				devp->prop.latency.cn_type);
 		mutex_unlock(&devp->fe_lock);
 		break;
 	case TVIN_IOC_G_VDIN_HIST:
@@ -3154,8 +3156,8 @@ static int vdin_drv_probe(struct platform_device *pdev)
 		goto fail_add_cdev;
 	}
 	vdevp->dev = vdin_create_device(&pdev->dev, vdevp->index);
-	if (IS_ERR(vdevp->dev)) {
-		pr_err("%s: failed to create device. !!!!!!!!!!\n", __func__);
+	if (IS_ERR_OR_NULL(vdevp->dev)) {
+		pr_err("%s: failed to create device. or dev=NULL\n", __func__);
 		ret = PTR_ERR(vdevp->dev);
 		goto fail_create_device;
 	}
@@ -3589,9 +3591,9 @@ static int __init vdin_drv_init(void)
 	pr_info("%s: major %d\n", __func__, MAJOR(vdin_devno));
 
 	vdin_clsp = class_create(THIS_MODULE, VDIN_CLS_NAME);
-	if (IS_ERR(vdin_clsp)) {
+	if (IS_ERR_OR_NULL(vdin_clsp)) {
 		ret = PTR_ERR(vdin_clsp);
-		pr_err("%s: failed to create class\n", __func__);
+		pr_err("%s: failed to create class or ret=NULL\n", __func__);
 		goto fail_class_create;
 	}
 #ifdef DEBUG_SUPPORT

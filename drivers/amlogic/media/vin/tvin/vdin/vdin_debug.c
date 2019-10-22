@@ -248,8 +248,8 @@ static void vdin_dump_one_buf_mem(char *path, struct vdin_dev_s *devp,
 	set_fs(KERNEL_DS);
 	filp = filp_open(path, O_RDWR|O_CREAT, 0666);
 
-	if (IS_ERR(filp)) {
-		pr_info("create %s error.\n", path);
+	if (IS_ERR_OR_NULL(filp)) {
+		pr_info("create %s error or filp is NULL.\n", path);
 		return;
 	}
 	if ((devp->cma_config_flag & 0x1) &&
@@ -345,8 +345,8 @@ static void vdin_dump_mem(char *path, struct vdin_dev_s *devp)
 	mem_size = (loff_t)devp->canvas_active_w * devp->canvas_h;
 	for (i = 0; i < VDIN_CANVAS_MAX_CNT; i++)
 		vfbuf[i] = NULL;
-	if (IS_ERR(filp)) {
-		pr_info("create %s error.\n", path);
+	if (IS_ERR_OR_NULL(filp)) {
+		pr_info("create %s error or filp is NULL.\n", path);
 		return;
 	}
 	if ((devp->cma_config_flag & 0x1) &&
@@ -523,8 +523,8 @@ static void vdin_dump_one_afbce_mem(char *path, struct vdin_dev_s *devp,
 	}
 	strcat(buff, "_1header.bin");
 	filp = filp_open(buff, O_RDWR|O_CREAT, 0666);
-	if (IS_ERR(filp)) {
-		pr_info("create %s header error.\n", buff);
+	if (IS_ERR_OR_NULL(filp)) {
+		pr_info("create %s header error or filp is NULL.\n", buff);
 		return;
 	}
 
@@ -544,8 +544,8 @@ static void vdin_dump_one_afbce_mem(char *path, struct vdin_dev_s *devp,
 	strcpy(buff, path);
 	strcat(buff, "_1table.bin");
 	filp = filp_open(buff, O_RDWR|O_CREAT, 0666);
-	if (IS_ERR(filp)) {
-		pr_info("create %s table error.\n", buff);
+	if (IS_ERR_OR_NULL(filp)) {
+		pr_info("create %s table error or filp is NULL.\n", buff);
 		return;
 	}
 	vdin_dma_flush(devp, buf_table,
@@ -564,8 +564,8 @@ static void vdin_dump_one_afbce_mem(char *path, struct vdin_dev_s *devp,
 	strcpy(buff, path);
 	strcat(buff, "_1body.bin");
 	filp = filp_open(buff, O_RDWR|O_CREAT, 0666);
-	if (IS_ERR(filp)) {
-		pr_info("create %s body error.\n", buff);
+	if (IS_ERR_OR_NULL(filp)) {
+		pr_info("create %s body error or filp is NULL.\n", buff);
 		return;
 	}
 	if (highmem_flag == 0) {
@@ -622,8 +622,8 @@ static void dump_other_mem(char *path,
 	set_fs(KERNEL_DS);
 	filp = filp_open(path, O_RDWR|O_CREAT, 0666);
 
-	if (IS_ERR(filp)) {
-		pr_info("create %s error.\n", path);
+	if (IS_ERR_OR_NULL(filp)) {
+		pr_info("create %s error or filp is NULL.\n", path);
 		return;
 	}
 	buf = phys_to_virt(start);
@@ -1078,8 +1078,8 @@ static void vdin_write_afbce_mem(struct vdin_dev_s *devp, char *type,
 	set_fs(KERNEL_DS);
 	pr_info("head bin file path = %s\n", md_path_head);
 	filp = filp_open(md_path_head, O_RDONLY, 0);
-	if (IS_ERR(filp)) {
-		pr_info("read %s error.\n", md_path_head);
+	if (IS_ERR_OR_NULL(filp)) {
+		pr_info("read %s error or filp is NULL.\n", md_path_head);
 		return;
 	}
 
@@ -1097,8 +1097,8 @@ static void vdin_write_afbce_mem(struct vdin_dev_s *devp, char *type,
 	set_fs(KERNEL_DS);
 	pr_info("body bin file path = %s\n", md_path_body);
 	filp = filp_open(md_path_body, O_RDONLY, 0);
-	if (IS_ERR(filp)) {
-		pr_info("read %s error.\n", md_path_body);
+	if (IS_ERR_OR_NULL(filp)) {
+		pr_info("read %s error or filp is NULL.\n", md_path_body);
 		return;
 	}
 
@@ -1169,8 +1169,8 @@ static void vdin_write_mem(
 	set_fs(KERNEL_DS);
 	pr_info("bin file path = %s\n", path);
 	filp = filp_open(path, O_RDONLY, 0);
-	if (IS_ERR(filp)) {
-		pr_info("read %s error.\n", path);
+	if (IS_ERR_OR_NULL(filp)) {
+		pr_info("read %s error or filp is NULL.\n", path);
 		return;
 	}
 	devp->curr_wr_vfe->vf.type = VIDTYPE_VIU_SINGLE_PLANE |
@@ -1241,8 +1241,8 @@ static void vdin_write_mem(
 		set_fs(KERNEL_DS);
 		pr_info("md file path = %s\n", md_path);
 		md_flip = filp_open(md_path, O_RDONLY, 0);
-		if (IS_ERR(md_flip)) {
-			pr_info("read %s error.\n", md_path);
+		if (IS_ERR_OR_NULL(md_flip)) {
+			pr_info("read %s error or md_flip = NULL.\n", md_path);
 			return;
 		}
 		index = devp->curr_wr_vfe->vf.index & 0xff;
@@ -1295,8 +1295,8 @@ static void vdin_write_cont_mem(struct vdin_dev_s *devp, char *type,
 	set_fs(KERNEL_DS);
 	pr_info("bin file path = %s\n", path);
 	filp = filp_open(path, O_RDONLY, 0);
-	if (IS_ERR(filp)) {
-		pr_info("read %s error.\n", path);
+	if (IS_ERR_OR_NULL(filp)) {
+		pr_info("read %s error or filp is NULL.\n", path);
 		return;
 	}
 	for (i = 0; i < field_num; i++) {
