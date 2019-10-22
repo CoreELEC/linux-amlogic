@@ -43,15 +43,51 @@
 #include <linux/of_device.h>
 #include <linux/of_reserved_mem.h>
 #include <linux/amlogic/scpi_protocol.h>
+#include <linux/mailbox_client.h>
+#include <linux/spinlock.h>
+#include "bl40_module.h"
 
 #define AMLOGIC_BL40_BOOTUP	0x8200004E
 struct bl40_info {
 	char name[30];
 };
 
+struct bl40_msg {
+	struct list_head list;
+	struct bl40_msg_buf msg_buf;
+	struct completion complete;
+};
+
+/*for listen list*/
+spinlock_t lock;
 struct device *device;
+static LIST_HEAD(bl40_list);
 #define BL40_IOC_MAGIC  'H'
-#define BL40_FIRMWARE_LOAD	_IOWR(BL40_IOC_MAGIC, 1, struct bl40_info)
+#define BL40_FIRMWARE_LOAD      _IOWR(BL40_IOC_MAGIC, 1, struct bl40_info)
+#define BL40_CMD_SEND           _IOWR(BL40_IOC_MAGIC, 2, struct bl40_msg_buf)
+#define BL40_CMD_LISTEN         _IOWR(BL40_IOC_MAGIC, 3, struct bl40_msg_buf)
+
+void bl40_rx_msg(void *msg, int size)
+{
+	struct list_head *list;
+	struct bl40_msg *bl40_msg;
+	unsigned long flags;
+
+	spin_lock_irqsave(&lock, flags);
+	if (list_empty(&bl40_list)) {
+		spin_unlock_irqrestore(&lock, flags);
+		dev_err(device, "List is NULL\n");
+		return;
+	}
+	list_for_each(list, &bl40_list) {
+		bl40_msg = list_entry(list, struct bl40_msg, list);
+		bl40_msg->msg_buf.size = size;
+		memcpy(bl40_msg->msg_buf.buf, msg, size);
+		complete(&bl40_msg->complete);
+		break;
+	}
+	spin_unlock_irqrestore(&lock, flags);
+}
 
 static long bl40_miscdev_ioctl(struct file *fp, unsigned int cmd,
 			       unsigned long arg)
@@ -59,14 +95,15 @@ static long bl40_miscdev_ioctl(struct file *fp, unsigned int cmd,
 	int ret = 0;
 	const struct firmware *firmware;
 	void __user *argp = (void __user *)arg;
-	struct bl40_info bl40_info;
-	unsigned long phy_addr;
-	void *virt_addr = NULL;
-	struct arm_smccc_res res = {0};
-	size_t size;
 
 	switch (cmd) {
-	case BL40_FIRMWARE_LOAD:
+	case BL40_FIRMWARE_LOAD: {
+		struct bl40_info bl40_info;
+		unsigned long phy_addr;
+		void *virt_addr = NULL;
+		struct arm_smccc_res res = {0};
+		size_t size;
+
 		ret = copy_from_user((void *)&bl40_info,
 				     argp, sizeof(bl40_info));
 		if (ret < 0)
@@ -96,12 +133,39 @@ static long bl40_miscdev_ioctl(struct file *fp, unsigned int cmd,
 		pr_info("free memory\n");
 		devm_kfree(device, virt_addr);
 		ret = res.a0;
+	}
+	break;
+	case BL40_CMD_SEND: {
+		struct bl40_msg_buf bl40_buf;
+
+		ret = copy_from_user((void *)&bl40_buf,
+				     argp, sizeof(bl40_buf));
+		pr_debug("Enter BL40_CMD_SEND\n");
+		scpi_send_bl40(SCPI_CMD_BL4_SEND, &bl40_buf);
+		ret = copy_to_user(argp, &bl40_buf, sizeof(bl40_buf));
+	}
+	break;
+	case BL40_CMD_LISTEN: {
+		struct bl40_msg bl40_msg;
+		unsigned long flags;
+
+		init_completion(&bl40_msg.complete);
+		spin_lock_irqsave(&lock, flags);
+		list_add_tail(&bl40_msg.list, &bl40_list);
+		spin_unlock_irqrestore(&lock, flags);
+		wait_for_completion(&bl40_msg.complete);
+		ret = copy_to_user(argp, &bl40_msg.msg_buf,
+				   sizeof(struct bl40_msg_buf));
+		spin_lock_irqsave(&lock, flags);
+		list_del(&bl40_msg.list);
+		spin_unlock_irqrestore(&lock, flags);
+	}
 	break;
 	default:
 		pr_info("Not have this cmd\n");
 	break;
 	};
-	pr_info("bl40 ioctl\n");
+	pr_debug("bl40 ioctl\n");
 	return ret;
 }
 

@@ -15255,3 +15255,7 @@ AMLOGIC UVM DRIVER
 M:	Ao.Xu <ao.xu@amlogic.com>
 F:	drivers/amlogic/uvm/meson_uvm.c
 F:	drivers/amlogic/uvm/meson_uvm.h
+
+AMLOGIC SM1/G12A BL40 HEADER
+M: shunzhou jiang <shunzhou.jiang@amlogic.com>
+F: drivers/amlogic/firmware/bl40_module.h

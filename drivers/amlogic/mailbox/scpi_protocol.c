@@ -123,7 +123,10 @@ static int high_priority_cmds[] = {
 	SCPI_CMD_INIT_DSP,
 };
 
-static int m4_cmds[] = {-1};
+static int bl4_cmds[] = {
+	SCPI_CMD_BL4_SEND,
+	SCPI_CMD_BL4_LISTEN,
+};
 
 static struct scpi_dvfs_info *scpi_opps[MAX_DVFS_DOMAINS];
 
@@ -149,8 +152,8 @@ static bool high_priority_chan_supported(int cmd)
 			if (cmd == high_priority_cmds[idx])
 				return true;
 	} else {
-		for (idx = 0; idx < ARRAY_SIZE(m4_cmds); idx++)
-			if (cmd == m4_cmds[idx])
+		for (idx = 0; idx < ARRAY_SIZE(bl4_cmds); idx++)
+			if (cmd == bl4_cmds[idx])
 				return true;
 	}
 	return false;
@@ -170,11 +173,22 @@ static int send_scpi_cmd(struct scpi_data_buf *scpi_buf, bool high_priority)
 	struct mbox_client cl = {0};
 	struct mhu_data_buf *data = scpi_buf->data;
 	u32 status;
+	int chan_idx;
 
 	cl.dev = the_scpi_device;
 	cl.rx_callback = scpi_rx_callback;
 
-	chan = mbox_request_channel(&cl, high_priority);
+	/* use to find send mbox index */
+	if (send_listen_chans) {
+		chan_idx = 31 - __builtin_clz(send_listen_chans);
+		if (!high_priority)
+			chan_idx = 31 - __builtin_clz(
+					send_listen_chans ^ BIT(chan_idx));
+	} else {
+		chan_idx = high_priority;
+	}
+
+	chan = mbox_request_channel(&cl, chan_idx);
 	if (IS_ERR(chan))
 		return PTR_ERR(chan);
 
@@ -228,8 +242,12 @@ static int scpi_execute_cmd(struct scpi_data_buf *scpi_buf)
 		return -EINVAL;
 	data = scpi_buf->data;
 	high_priority = high_priority_chan_supported(data->cmd);
-	data->cmd = PACK_SCPI_CMD(data->cmd, scpi_buf->client_id,
-				  data->tx_size);
+	if (!high_priority || (num_scp_chans == CHANNEL_MAX)) {
+		data->cmd = PACK_SCPI_CMD(data->cmd, scpi_buf->client_id,
+					  data->tx_size);
+	} else if (high_priority && (num_scp_chans != CHANNEL_MAX)) {
+		data->cmd = data->tx_size;
+	}
 	data->cl_data = scpi_buf;
 
 	return send_scpi_cmd(scpi_buf, high_priority);
@@ -697,3 +715,14 @@ int scpi_unlock_bl40(void)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(scpi_unlock_bl40);
+
+int scpi_send_bl40(unsigned int cmd, struct bl40_msg_buf *bl40_buf)
+{
+	struct scpi_data_buf sdata;
+	struct mhu_data_buf mdata;
+
+	SCPI_SETUP_DBUF_SIZE(sdata, mdata, SCPI_CL_NONE,
+			     cmd, bl40_buf->buf, bl40_buf->size,
+			     bl40_buf, sizeof(struct bl40_msg_buf));
+	return scpi_execute_cmd(&sdata);
+}

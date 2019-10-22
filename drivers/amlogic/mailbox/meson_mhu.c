@@ -31,15 +31,19 @@
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/types.h>
+#include <linux/mailbox_client.h>
 
 #include "meson_mhu.h"
+#include "../firmware/bl40_module.h"
 
 struct device *the_scpi_device;
 u32 num_scp_chans;
-
+u32 send_listen_chans;
+u32 isr_send;
+u32 isr_m4;
 
 #define DRIVER_NAME		"meson_mhu"
-
+#define MHU_BUFFER_SIZE		0x100
 /*
  * +--------------------+-------+---------------+
  * |  Hardware Register | Offset|  Driver View  |
@@ -99,8 +103,16 @@ struct mhu_ctlr {
 	void __iomem *mbox_base;
 	void __iomem *payload_base;
 	struct mbox_controller mbox_con;
-	struct mhu_chan channels[CHANNEL_MAX];
+	struct mhu_chan *channels;
 };
+
+void bl40_rx_callback(struct mbox_client *cl, void *msg)
+{
+	struct mhu_data_buf *data = (struct mhu_data_buf *)msg;
+
+	pr_debug("call %s\n", __func__);
+	bl40_rx_msg(data->rx_buf, data->rx_size);
+}
 
 static irqreturn_t mbox_handler(int irq, void *p)
 {
@@ -111,18 +123,42 @@ static irqreturn_t mbox_handler(int irq, void *p)
 	void __iomem *payload = ctlr->payload_base;
 	int idx = chan->index;
 	struct mhu_data_buf *data;
-	u32 status = readl(mbox_base + RX_STATUS(idx));
+	u32 status = 0;
+	u32 is_send_isr = BIT(idx) & isr_send;
+	u32 is_send_chan = BIT(idx) & send_listen_chans;
 
+	if (isr_m4) {
+		if (BIT(idx) & isr_m4)
+			idx = 1;
+		else
+			idx = 0;
+	}
+
+	if (is_send_isr)
+		status = 1;
+	else
+		status = readl(mbox_base + RX_STATUS(idx));
+
+	pr_debug("isr %d idx %x sts %x\n", irq, idx, status);
 	if (status && irq == chan->rx_irq) {
 		data = chan->data;
-		if (!data)
+		if (!data) {
+			pr_err("data is null\n");
 			return IRQ_NONE; /* spurious */
-		if (data->rx_buf)
-			memcpy(data->rx_buf, payload + RX_PAYLOAD(idx),
-			       data->rx_size);
-		chan->data = NULL;
+		}
+		if (data->rx_buf) {
+			if (is_send_isr) {
+				memcpy(data->rx_buf, payload + TX_PAYLOAD(idx),
+				       data->rx_size);
+			} else
+				memcpy(data->rx_buf, payload + RX_PAYLOAD(idx),
+				       data->rx_size);
+		}
 		mbox_chan_received_data(link, data);
-		writel(~0, mbox_base + RX_CLEAR(idx));
+		if (!is_send_isr)
+			writel(~0, mbox_base + RX_CLEAR(idx));
+		if (is_send_chan)
+			chan->data = NULL;
 	}
 
 	return IRQ_HANDLED;
@@ -141,6 +177,12 @@ static int mhu_send_data(struct mbox_chan *link, void *msg)
 		return -EINVAL;
 
 	chan->data = data;
+	if (isr_m4) {
+		if (BIT(idx) & isr_m4)
+			idx = 1;
+		else
+			idx = 0;
+	}
 	if (data->tx_buf)
 		memcpy(payload + TX_PAYLOAD(idx), data->tx_buf, data->tx_size);
 	writel(data->cmd, mbox_base + TX_SET(idx));
@@ -190,7 +232,10 @@ static int mhu_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct mbox_chan *l;
 	struct resource *res;
-	int idx;
+	struct mbox_client *cl;
+	int idx, err;
+	u32 mbox_chans = 0;
+	int bit_chans = 0;
 	static const char * const channel_names[] = {
 		CHANNEL_LOW_PRIORITY,
 		CHANNEL_HIGH_PRIORITY
@@ -227,18 +272,30 @@ static int mhu_probe(struct platform_device *pdev)
 	of_property_read_u32(dev->of_node, "num-chans-to-scp", &num_scp_chans);
 	if (num_scp_chans == 0 || num_scp_chans > 2)
 		num_scp_chans = CHANNEL_MAX;
+	send_listen_chans = 0;
+	of_property_read_u32(dev->of_node, "send-isr-bits", &send_listen_chans);
+	of_property_read_u32(dev->of_node, "ack-isr-bits", &isr_send);
+	of_property_read_u32(dev->of_node, "m4-isr-bits", &isr_m4);
 
-	l = devm_kzalloc(dev, sizeof(*l) * CHANNEL_MAX, GFP_KERNEL);
+	of_property_read_u32(dev->of_node, "mbox-chans", &mbox_chans);
+	if (!mbox_chans)
+		mbox_chans = CHANNEL_MAX;
+	l = devm_kzalloc(dev, sizeof(*l) * mbox_chans, GFP_KERNEL);
 	if (!l)
 		return -ENOMEM;
 
+	ctlr->channels = devm_kzalloc(dev,
+				      sizeof(struct mhu_chan) * mbox_chans,
+				      GFP_KERNEL);
+	if (!ctlr->channels)
+		return -ENOMEM;
 	ctlr->mbox_con.chans = l;
-	ctlr->mbox_con.num_chans = CHANNEL_MAX;
+	ctlr->mbox_con.num_chans = mbox_chans;
 	ctlr->mbox_con.txdone_irq = true;
 	ctlr->mbox_con.ops = &mhu_ops;
 	ctlr->mbox_con.dev = dev;
 
-	for (idx = 0; idx < CHANNEL_MAX; idx++) {
+	for (idx = 0; idx < mbox_chans; idx++) {
 		chan = &ctlr->channels[idx];
 		chan->index = idx;
 		chan->ctlr = ctlr;
@@ -250,6 +307,7 @@ static int mhu_probe(struct platform_device *pdev)
 			return -ENXIO;
 		}
 		l[idx].con_priv = chan;
+		bit_chans |= BIT(idx);
 	}
 
 	if (mbox_controller_register(&ctlr->mbox_con)) {
@@ -258,6 +316,37 @@ static int mhu_probe(struct platform_device *pdev)
 	}
 
 	the_scpi_device = dev;
+
+	if (!send_listen_chans)
+		goto probe_done;
+
+	for (idx = 0; idx < mbox_chans; idx++) {
+		if (BIT(idx) & send_listen_chans)
+			continue;
+		cl = devm_kzalloc(dev, sizeof(struct mbox_client),
+				  GFP_KERNEL);
+		cl->dev = dev;
+		cl->rx_callback = bl40_rx_callback;
+		l[idx].cl = cl;
+		chan =  &ctlr->channels[idx];
+		chan->data = devm_kzalloc(dev,
+					  sizeof(struct mhu_data_buf),
+					  GFP_KERNEL);
+		chan->data->rx_buf = devm_kzalloc(dev,
+						  MHU_BUFFER_SIZE,
+						  GFP_KERNEL);
+		if (!chan->data->rx_buf)
+			return -ENOMEM;
+		chan->data->rx_size = MHU_BUFFER_SIZE;
+		err = request_threaded_irq(chan->rx_irq, mbox_handler,
+					   NULL, IRQF_ONESHOT, DRIVER_NAME,
+					   &l[idx]);
+		if (err) {
+			dev_err(dev, "request irq error\n");
+			return err;
+		}
+	}
+probe_done:
 	return 0;
 }
 

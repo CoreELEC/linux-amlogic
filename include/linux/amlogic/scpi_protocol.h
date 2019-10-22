@@ -74,6 +74,8 @@ enum scpi_std_cmd {
 	SCPI_CMD_GET_CEC1		= 0xB4,
 	SCPI_CMD_GET_CEC2		= 0xB5,
 	SCPI_CMD_BL4_WAIT_UNLOCK	= 0xD6,
+	SCPI_CMD_BL4_SEND		= 0xD7,
+	SCPI_CMD_BL4_LISTEN		= 0xD8,
 	SCPI_CMD_COUNT
 };
 
@@ -96,6 +98,11 @@ struct scpi_dvfs_info {
 	struct scpi_opp_entry *opp;
 } __packed;
 
+struct bl40_msg_buf {
+	int size;
+	char buf[256];
+} __packed;
+
 unsigned long scpi_clk_get_val(u16 clk_id);
 int scpi_clk_set_val(u16 clk_id, unsigned long rate);
 int scpi_dvfs_get_idx(u8 domain);
@@ -114,4 +121,5 @@ u8  scpi_get_ethernet_calc(void);
 int scpi_get_cpuinfo(enum scpi_get_pfm_type type, u32 *freq, u32 *vol);
 int scpi_init_dsp_cfg0(u32 id, u32 addr, u32 cfg0);
 int scpi_unlock_bl40(void);
+int scpi_send_bl40(unsigned int cmd, struct bl40_msg_buf *bl40_buf);
 #endif /*_SCPI_PROTOCOL_H_*/

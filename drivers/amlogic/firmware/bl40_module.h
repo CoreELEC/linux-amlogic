@@ -1,5 +1,5 @@
 /*
- * drivers/amlogic/mailbox/meson_mhu.h
+ * drivers/amlogic/firmware/bl40_module.h
  *
  * Copyright (C) 2017 Amlogic, Inc. All rights reserved.
  *
@@ -15,21 +15,15 @@
  *
  */
 
-#define CONTROLLER_NAME		"mhu_ctlr"
+#ifndef __BL40_MODULE_H__
+#define __BL40_MODULE_H__
 
-#define CHANNEL_MAX		2
-#define CHANNEL_LOW_PRIORITY	"cpu_to_scp_low"
-#define CHANNEL_HIGH_PRIORITY	"cpu_to_scp_high"
+#ifdef CONFIG_AMLOGIC_FIRMWARE
+void bl40_rx_msg(void *msg, int size);
+#else
+static inline void bl40_rx_msg(void *msg, int size)
+{
+}
+#endif
 
-struct mhu_data_buf {
-	u32 cmd;
-	int tx_size;
-	void *tx_buf;
-	int rx_size;
-	void *rx_buf;
-	void *cl_data;
-};
-
-extern struct device *the_scpi_device;
-extern u32 num_scp_chans;
-extern u32 send_listen_chans;
+#endif /*__BL40_MODULE_H__*/
