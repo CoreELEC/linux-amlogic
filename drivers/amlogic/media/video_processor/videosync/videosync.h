@@ -142,6 +142,7 @@ struct videosync_s {
 	u32 zorder;
 	struct vframe_provider_s video_vf_prov;
 	char vf_provider_name[VIDEOSYNC_VF_NAME_SIZE];
+	long long time_update;
 };
 
 

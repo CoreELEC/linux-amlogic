@@ -104,6 +104,8 @@ int video_vsync = -ENXIO;
 /*global video manage cmd. */
 
 static bool legacy_vpp = true;
+static int get_count;
+static int get_count_pip;
 
 #define DEBUG_TMP 0
 
@@ -1305,6 +1307,7 @@ static inline struct vframe_s *pip_vf_get(void)
 	vf = vf_get(RECEIVERPIP_NAME);
 
 	if (vf) {
+		get_count_pip++;
 		/* video_notify_flag |= VIDEO_NOTIFY_PROVIDER_GET; */
 		atomic_set(&vf->use_cnt, 1);
 	}
@@ -1372,6 +1375,7 @@ static inline struct vframe_s *video_vf_get(void)
 
 	vf = vf_get(RECEIVER_NAME);
 	if (vf) {
+		get_count++;
 		if (vf->disp_pts && vf->disp_pts_us64) {
 			vf->pts = vf->disp_pts;
 			vf->pts_us64 = vf->disp_pts_us64;
@@ -6770,6 +6774,9 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 	int ret = 0;
 	u32 next_afbc_request = atomic_read(&gAfbc_request);
 
+	get_count = 0;
+	get_count_pip = 0;
+
 	glayer_info[0].need_no_compress =
 		(next_afbc_request & 1) ? true : false;
 	glayer_info[1].need_no_compress =
@@ -8862,6 +8869,9 @@ SET_FILTER:
 		}
 #endif
 	}
+
+	if (debug_flag & DEBUG_FLAG_GET_COUNT)
+		pr_info("count=%d pip=%d\n", get_count, get_count_pip);
 
 	switch (READ_VCBUS_REG(VPU_VIU_VENC_MUX_CTRL) & 0x3) {
 	case 0:
