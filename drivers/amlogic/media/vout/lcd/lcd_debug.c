@@ -3545,6 +3545,14 @@ static ssize_t lcd_tcon_debug_show(struct class *class,
 	return sprintf(buf, "%s\n", lcd_debug_tcon_usage_str);
 }
 
+static ssize_t lcd_tcon_status_show(struct class *class,
+				    struct class_attribute *attr, char *buf)
+{
+	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
+
+	return sprintf(buf, "%d\n", lcd_drv->tcon_status);
+}
+
 static ssize_t lcd_ttl_debug_store(struct class *class,
 		struct class_attribute *attr, const char *buf, size_t count)
 {
@@ -4573,6 +4581,8 @@ static struct class_attribute lcd_debug_class_attrs_mlvds[] = {
 		lcd_phy_debug_show, lcd_phy_debug_store),
 	__ATTR(tcon,   0644,
 		lcd_tcon_debug_show, lcd_tcon_debug_store),
+	__ATTR(tcon_status,   0644,
+	       lcd_tcon_status_show, NULL),
 	__ATTR(null,   0644, NULL, NULL),
 };
 
@@ -4583,6 +4593,8 @@ static struct class_attribute lcd_debug_class_attrs_p2p[] = {
 		lcd_phy_debug_show, lcd_phy_debug_store),
 	__ATTR(tcon,   0644,
 		lcd_tcon_debug_show, lcd_tcon_debug_store),
+	__ATTR(tcon_status,   0644,
+	       lcd_tcon_status_show, NULL),
 	__ATTR(null,   0644, NULL, NULL),
 };
 

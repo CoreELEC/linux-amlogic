@@ -503,6 +503,8 @@ struct aml_lcd_drv_s {
 	int fr_mode;
 	struct lcd_duration_s std_duration;
 
+	int tcon_status;
+
 	void (*driver_init_pre)(void);
 	void (*driver_disable_post)(void);
 	int (*driver_init)(void);

@@ -261,6 +261,7 @@ static void lcd_tcon_chpi_bbc_init_tl1(int delay)
 
 static int lcd_tcon_enable_tl1(struct lcd_config_s *pconf)
 {
+	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
 	unsigned int n = 10;
 	int ret;
 
@@ -282,6 +283,11 @@ static int lcd_tcon_enable_tl1(struct lcd_config_s *pconf)
 			break;
 		}
 	}
+
+	if (lcd_tcon_getb_byte(0x23d, 0, 1))
+		lcd_drv->tcon_status = 3;
+	else
+		lcd_drv->tcon_status = 0;
 
 	/* step 3: tcon_top_output_set */
 	lcd_tcon_write(TCON_OUT_CH_SEL0, 0x76543210);
@@ -740,7 +746,13 @@ int lcd_tcon_probe(struct aml_lcd_drv_s *lcd_drv)
 	}
 	if (lcd_tcon_data == NULL)
 		return 0;
+	if (lcd_tcon_data->tcon_valid == 0)
+		return 0;
 
+	if (lcd_tcon_getb_byte(0x23d, 0, 1))
+		lcd_drv->tcon_status = 3;
+	else
+		lcd_drv->tcon_status = 0;
 	/* init reserved memory */
 	ret = of_reserved_mem_device_init(lcd_drv->dev);
 	if (ret) {
