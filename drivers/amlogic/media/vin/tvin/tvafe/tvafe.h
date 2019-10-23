@@ -140,6 +140,8 @@ extern int tvafe_hiu_reg_write(unsigned int reg, unsigned int val);
 extern int tvafe_device_create_file(struct device *dev);
 extern void tvafe_remove_device_files(struct device *dev);
 int tvafe_pq_config_probe(struct meson_tvafe_data *tvafe_data);
+void cvd_set_shift_cnt(enum tvafe_cvd2_shift_cnt_e src, unsigned int val);
+unsigned int cvd_get_shift_cnt(enum tvafe_cvd2_shift_cnt_e src);
 
 extern bool disableapi;
 extern bool force_stable;

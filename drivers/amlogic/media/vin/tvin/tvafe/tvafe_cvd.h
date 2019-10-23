@@ -68,6 +68,11 @@ enum tvafe_cvd2_state_e {
 	TVAFE_CVD2_STATE_FIND,
 };
 
+enum tvafe_cvd2_shift_cnt_e {
+	TVAFE_CVD2_SHIFT_CNT_ATV = 0,
+	TVAFE_CVD2_SHIFT_CNT_AV,
+};
+
 /* ****************************************** */
 /* *** structure definitions *********** */
 /***************************************************** */

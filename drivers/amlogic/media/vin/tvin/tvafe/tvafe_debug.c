@@ -484,6 +484,34 @@ static ssize_t tvafe_store(struct device *dev,
 		}
 		pr_info("[tvafe..]%s: tvafe_dbg_print = 0x%x\n",
 			__func__, tvafe_dbg_print);
+	} else if  (!strcmp(parm[0], "shift_cnt_av")) {
+		if (parm[1]) {
+			if (kstrtouint(parm[1], 10, &val) < 0) {
+				pr_info("str->uint error.\n");
+				goto tvafe_store_err;
+			} else {
+				cvd_set_shift_cnt(TVAFE_CVD2_SHIFT_CNT_AV,
+						  val);
+				pr_info("[tvafe]%s: av shift cnt = %d\n",
+					__func__, val);
+			}
+		} else
+			pr_info("[shift_cnt_av]miss parameter,ori val = %d\n",
+				cvd_get_shift_cnt(TVAFE_CVD2_SHIFT_CNT_AV));
+	} else if  (!strcmp(parm[0], "shift_cnt_atv")) {
+		if (parm[1]) {
+			if (kstrtouint(parm[1], 10, &val) < 0) {
+				pr_info("str->uint error.\n");
+				goto tvafe_store_err;
+			} else {
+				cvd_set_shift_cnt(TVAFE_CVD2_SHIFT_CNT_ATV,
+						  val);
+				pr_info("[tvafe]%s: atv shift cnt = %d\n",
+					__func__, val);
+			}
+		} else
+			pr_info("[shift_cnt_atv]miss parameter,ori val = %d\n",
+				cvd_get_shift_cnt(TVAFE_CVD2_SHIFT_CNT_ATV));
 	} else
 		tvafe_pr_info("[%s]:invaild command.\n", __func__);
 	kfree(buf_orig);
