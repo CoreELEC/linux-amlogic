@@ -74,8 +74,8 @@ struct earc {
 	struct extcon_dev *rx_edev;
 	struct extcon_dev *tx_edev;
 
-	bool tx_dmac_clk_on;
 	bool rx_dmac_clk_on;
+	bool tx_dmac_clk_on;
 };
 
 static struct earc *s_earc;
@@ -150,6 +150,9 @@ static irqreturn_t earc_rx_isr(int irq, void *data)
 	struct earc *p_earc = (struct earc *)data;
 	unsigned int status0 = earcrx_cdmc_get_irqs(p_earc->rx_top_map);
 
+	if (status0)
+		earcrx_cdmc_clr_irqs(p_earc->rx_top_map, status0);
+
 	if (status0 & INT_EARCRX_CMDC_IDLE2) {
 		earcrx_update_attend_event(p_earc,
 					   false, true);
@@ -172,8 +175,10 @@ static irqreturn_t earc_rx_isr(int irq, void *data)
 
 		pr_info("%s EARCRX_CMDC_EARC\n", __func__);
 	}
-	if (status0 & INT_EARCRX_CMDC_HB_STATUS)
-		pr_debug("%s EARCRX_CMDC_HB_STATUS\n", __func__);
+	/*
+	 * if (status0 & INT_EARCRX_CMDC_HB_STATUS)
+	 *	pr_debug("%s EARCRX_CMDC_HB_STATUS\n", __func__);
+	 */
 	if (status0 & INT_EARCRX_CMDC_LOSTHB)
 		pr_debug("%s EARCRX_CMDC_LOSTHB\n", __func__);
 	if (status0 & INT_EARCRX_CMDC_TIMEOUT) {
@@ -183,11 +188,11 @@ static irqreturn_t earc_rx_isr(int irq, void *data)
 		pr_debug("%s EARCRX_CMDC_TIMEOUT\n", __func__);
 	}
 
-	if (status0)
-		earcrx_cdmc_clr_irqs(p_earc->rx_top_map, status0);
-
 	if (p_earc->rx_dmac_clk_on) {
 		unsigned int status1 = earcrx_dmac_get_irqs(p_earc->rx_top_map);
+
+		if (status1)
+			earcrx_dmac_clr_irqs(p_earc->rx_top_map, status1);
 
 		if (status1 & INT_ARCRX_BIPHASE_DECODE_C_FIND_PAPB)
 			pr_debug("%s ARCRX_C_FIND_PAPB\n", __func__);
@@ -203,9 +208,6 @@ static irqreturn_t earc_rx_isr(int irq, void *data)
 			pr_debug("%s ARCRX_I_SAMPLE_MODE_CHANGE\n", __func__);
 		if (status1 & INT_ARCRX_BIPHASE_DECODE_R_PARITY_ERR)
 			pr_debug("%s ARCRX_R_PARITY_ERR\n", __func__);
-
-		if (status1)
-			earcrx_dmac_clr_irqs(p_earc->rx_top_map, status1);
 	}
 
 	return IRQ_HANDLED;
@@ -216,25 +218,25 @@ static void earctx_update_attend_event(struct earc *p_earc,
 {
 	if (state) {
 		if (is_earc) {
-			extcon_set_state_sync(p_earc->rx_edev,
+			extcon_set_state_sync(p_earc->tx_edev,
 					      EXTCON_EARCTX_ATNDTYP_ARC,
 					      false);
-			extcon_set_state_sync(p_earc->rx_edev,
+			extcon_set_state_sync(p_earc->tx_edev,
 					      EXTCON_EARCTX_ATNDTYP_EARC,
 					      state);
 		} else {
-			extcon_set_state_sync(p_earc->rx_edev,
+			extcon_set_state_sync(p_earc->tx_edev,
 					      EXTCON_EARCTX_ATNDTYP_ARC,
 					      state);
-			extcon_set_state_sync(p_earc->rx_edev,
+			extcon_set_state_sync(p_earc->tx_edev,
 					      EXTCON_EARCTX_ATNDTYP_EARC,
 					      false);
 		}
 	} else {
-		extcon_set_state_sync(p_earc->rx_edev,
+		extcon_set_state_sync(p_earc->tx_edev,
 				      EXTCON_EARCTX_ATNDTYP_ARC,
 				      state);
-		extcon_set_state_sync(p_earc->rx_edev,
+		extcon_set_state_sync(p_earc->tx_edev,
 				      EXTCON_EARCTX_ATNDTYP_EARC,
 				      state);
 	}
@@ -244,6 +246,9 @@ static irqreturn_t earc_tx_isr(int irq, void *data)
 {
 	struct earc *p_earc = (struct earc *)data;
 	unsigned int status0 = earctx_cdmc_get_irqs(p_earc->tx_top_map);
+
+	if (status0)
+		earctx_cdmc_clr_irqs(p_earc->tx_top_map, status0);
 
 	if (status0 & INT_EARCTX_CMDC_IDLE2) {
 		earctx_update_attend_event(p_earc,
@@ -286,11 +291,11 @@ static irqreturn_t earc_tx_isr(int irq, void *data)
 	if (status0 & INT_EARCTX_CMDC_RECV_UNEXP)
 		pr_debug("%s EARCTX_CMDC_RECV_UNEXP\n", __func__);
 
-	if (status0)
-		earctx_cdmc_clr_irqs(p_earc->tx_top_map, status0);
-
 	if (p_earc->tx_dmac_clk_on) {
 		unsigned int status1 = earctx_dmac_get_irqs(p_earc->tx_top_map);
+
+		if (status1)
+			earctx_dmac_clr_irqs(p_earc->tx_top_map, status1);
 
 		if (status1 & INT_EARCTX_FEM_C_HOLD_CLR)
 			pr_debug("%s EARCTX_FEM_C_HOLD_CLR\n", __func__);
@@ -304,9 +309,6 @@ static irqreturn_t earc_tx_isr(int irq, void *data)
 				 __func__);
 		if (status1 & INT_EARCTX_ERRCORR_C_FIFO_EMPTY)
 			pr_debug("%s EARCTX_ERRCORR_C_FIFO_EMPTY\n", __func__);
-
-		if (status1)
-			earctx_dmac_clr_irqs(p_earc->tx_top_map, status1);
 	}
 
 	return IRQ_HANDLED;
@@ -759,6 +761,8 @@ static int earc_dai_startup(
 				goto err;
 			}
 		}
+
+		earcrx_pll_refresh(p_earc->rx_top_map);
 	}
 
 	return 0;
@@ -885,9 +889,49 @@ static int earcrx_arc_set_enable(
 	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct earc *p_earc = dev_get_drvdata(component->dev);
 
+	if (!p_earc)
+		return 0;
+
 	earcrx_cmdc_arc_connect(
 		p_earc->rx_cmdc_map,
 		(bool)ucontrol->value.integer.value[0]);
+
+	return 0;
+}
+
+int earctx_get_attend_type(struct snd_kcontrol *kcontrol,
+			   struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
+	struct earc *p_earc = dev_get_drvdata(component->dev);
+	enum attend_type type;
+
+	if (!p_earc || IS_ERR(p_earc->tx_top_map))
+		return 0;
+
+	type = earctx_cmdc_get_attended_type(p_earc->tx_cmdc_map);
+
+	ucontrol->value.integer.value[0] = type;
+
+	return 0;
+}
+
+int earctx_set_attend_type(struct snd_kcontrol *kcontrol,
+			   struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
+	struct earc *p_earc = dev_get_drvdata(component->dev);
+	enum cmdc_st state;
+
+	if (!p_earc || IS_ERR(p_earc->tx_top_map))
+		return 0;
+
+	state = earctx_cmdc_get_state(p_earc->tx_cmdc_map);
+
+	if (state != CMDC_ST_IDLE2)
+		return 0;
+
+	/* only support set cmdc from idle to ARC */
 
 	return 0;
 }
@@ -902,6 +946,11 @@ static const struct snd_kcontrol_new earc_controls[] = {
 			    0,
 			    earcrx_arc_get_enable,
 			    earcrx_arc_set_enable),
+
+	SOC_ENUM_EXT("eARC_TX attended type",
+		     attended_type_enum,
+		     earctx_get_attend_type,
+		     earctx_set_attend_type),
 };
 
 static const struct snd_soc_component_driver earc_component = {
@@ -966,6 +1015,8 @@ void earc_hdmitx_hpdst(bool st)
 	/* ensure clock gate */
 	audiobus_update_bits(EE_AUDIO_CLK_GATE_EN1, 0x1 << 6, 0x1 << 6);
 
+	earcrx_cmdc_arc_connect(p_earc->rx_cmdc_map, st);
+
 	earcrx_cmdc_hpd_detect(p_earc->rx_cmdc_map, st);
 }
 
@@ -1018,7 +1069,7 @@ static int earctx_extcon_register(struct earc *p_earc)
 	int ret = 0;
 
 	/* earc or arc connect */
-	p_earc->tx_edev = devm_extcon_dev_allocate(p_earc->dev, earcrx_extcon);
+	p_earc->tx_edev = devm_extcon_dev_allocate(p_earc->dev, earctx_extcon);
 	if (IS_ERR(p_earc->tx_edev)) {
 		pr_err("failed to allocate earc extcon!!!\n");
 		ret = -ENOMEM;

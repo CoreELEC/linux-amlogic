@@ -107,6 +107,7 @@ enum tx_hd_hdp_mux {
 	GPIOW_5
 };
 
+void earcrx_pll_refresh(struct regmap *top_map);
 void earcrx_cmdc_init(struct regmap *top_map);
 void earcrx_cmdc_arc_connect(struct regmap *cmdc_map, bool init);
 void earcrx_cmdc_hpd_detect(struct regmap *cmdc_map, bool st);
@@ -132,6 +133,8 @@ void earctx_dmac_set_format(struct regmap *dmac_map,
 			    int frddr_idx, int msb, int frddr_type);
 void earctx_set_channel_status_info(struct regmap *dmac_map,
 				    struct iec958_chsts *chsts);
+enum cmdc_st earctx_cmdc_get_state(struct regmap *cmdc_map);
+enum attend_type earctx_cmdc_get_attended_type(struct regmap *cmdc_map);
 void earctx_cdmc_clr_irqs(struct regmap *top_map, int clr);
 int earctx_cdmc_get_irqs(struct regmap *top_map);
 void earctx_dmac_clr_irqs(struct regmap *top_map, int clr);
