@@ -59,7 +59,9 @@ static ssize_t meson_dump_write(struct file *file, const char __user *ubuf,
 
 	if (copy_from_user(buf, ubuf, len))
 		return -EFAULT;
-	buf[len - 1] = '\0';
+	if (buf[len - 1] == '\n')
+		buf[len - 1] = '\0';
+	buf[len] = '\0';
 
 	if (strncmp(buf, "0", 1) == 0) {
 		amc->dump_enable = 0;
@@ -193,7 +195,9 @@ static ssize_t meson_blank_write(struct file *file, const char __user *ubuf,
 
 	if (copy_from_user(buf, ubuf, len))
 		return -EFAULT;
-	buf[len - 1] = '\0';
+	if (buf[len - 1] == '\n')
+		buf[len - 1] = '\0';
+	buf[len] = '\0';
 
 	if (strncmp(buf, "1", 1) == 0) {
 		amc->blank_enable = 1;
