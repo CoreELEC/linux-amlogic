@@ -2502,6 +2502,10 @@ int osd_set_scan_mode(u32 index)
 			osd_h_filter_mode = 1;
 			osd_v_filter_mode = 1;
 		}
+		if ((osd_hw.fb_for_4k2k) &&
+		    (osd_hw.free_scale_enable[index]))
+			osd_hw.scale_workaround = 1;
+
 		if (is_interlaced(vinfo)) {
 			osd_hw.scan_mode[index] = SCAN_MODE_INTERLACE;
 			if (osd_hw.osd_meson_dev.osd_ver == OSD_NORMAL)
@@ -2570,9 +2574,6 @@ int osd_set_scan_mode(u32 index)
 				&& (vinfo->height == 2160))
 				|| ((vinfo->width == 4096)
 				&& (vinfo->height == 2160))) {
-				if ((osd_hw.fb_for_4k2k)
-					&& (osd_hw.free_scale_enable[index]))
-						osd_hw.scale_workaround = 1;
 				osd_hw.field_out_en[output_index] = 0;
 			} else if (((vinfo->width == 720)
 				&& (vinfo->height == 480))
