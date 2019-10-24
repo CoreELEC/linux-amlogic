@@ -205,7 +205,21 @@ static void videosync_vf_put(struct vframe_s *vf, void *op_arg)
 
 void vsync_notify_videosync(void)
 {
-	if (videosync_inited) {
+	int i = 0;
+	struct videosync_s *dev_s = NULL;
+	bool has_active = false;
+
+	if (!videosync_inited)
+		return;
+
+	for (i = 0; i < VIDEOSYNC_S_COUNT; i++) {
+		dev_s = &vp_dev->video_prov[i];
+		if (dev_s && dev_s->active_state == VIDEOSYNC_ACTIVE) {
+			has_active = true;
+			break;
+		}
+	}
+	if (has_active) {
 		vp_dev->wakeup = 1;
 		wake_up_interruptible(&vp_dev->videosync_wait);
 	}
@@ -1156,7 +1170,8 @@ static void videosync_thread_tick(struct videosync_dev *dev)
 	if (!dev)
 		return;
 
-	wait_event_interruptible(dev->videosync_wait, dev->wakeup);
+	wait_event_interruptible_timeout(dev->videosync_wait, dev->wakeup,
+					 msecs_to_jiffies(500));
 	dev->wakeup = 0;
 
 	for (i = 0; i < VIDEOSYNC_S_COUNT; i++) {
