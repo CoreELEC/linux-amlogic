@@ -16,7 +16,7 @@
 #include <linux/bitfield.h>
 
 #include <media/rc-core.h>
-
+#include <linux/amlogic/iomap.h>
 #define DRIVER_NAME		"meson-ir"
 
 /* valid on all Meson platforms */
@@ -53,8 +53,10 @@
 #define REG1_IRQSEL_RISE	3
 
 #define REG1_RESET		BIT(0)
+#define REG1_POL		BIT(1)
 #define REG1_ENABLE		BIT(15)
 
+#define AO_RTI_PIN_MUX_REG	0x14	/* offset 0x5 */
 #define STATUS_IR_DEC_IN	BIT(8)
 
 #define MESON_TRATE		10	/* us */
@@ -63,6 +65,7 @@ struct meson_ir {
 	void __iomem	*reg;
 	struct rc_dev	*rc;
 	spinlock_t	lock;
+	struct timer_list flush_timer;
 };
 
 static void meson_ir_set_mask(struct meson_ir *ir, unsigned int reg,
@@ -79,23 +82,32 @@ static void meson_ir_set_mask(struct meson_ir *ir, unsigned int reg,
 static irqreturn_t meson_ir_irq(int irqno, void *dev_id)
 {
 	struct meson_ir *ir = dev_id;
-	u32 duration, status;
-	struct ir_raw_event rawir = {};
 
 	spin_lock(&ir->lock);
 
-	duration = readl_relaxed(ir->reg + IR_DEC_REG1);
-	duration = FIELD_GET(REG1_TIME_IV_MASK, duration);
-	rawir.duration = US_TO_NS(duration * MESON_TRATE);
+	ir_raw_event_store_edge(ir->rc,
+		(readl(ir->reg + IR_DEC_STATUS) & STATUS_IR_DEC_IN)
+		? true : false);
 
-	status = readl_relaxed(ir->reg + IR_DEC_STATUS);
-	rawir.pulse = !!(status & STATUS_IR_DEC_IN);
+	mod_timer(&ir->flush_timer,
+		jiffies + nsecs_to_jiffies(ir->rc->timeout));
 
-	ir_raw_event_store_with_timeout(ir->rc, &rawir);
+	ir_raw_event_handle(ir->rc);
 
 	spin_unlock(&ir->lock);
 
 	return IRQ_HANDLED;
+}
+
+static void flush_timer(struct timer_list *t)
+{
+	struct meson_ir *ir = from_timer(ir, t, flush_timer);
+	struct ir_raw_event rawir = {};
+
+	rawir.timeout = true;
+	rawir.duration = ir->rc->timeout;
+	ir_raw_event_store(ir->rc, &rawir);
+	ir_raw_event_handle(ir->rc);
 }
 
 static int meson_ir_probe(struct platform_device *pdev)
@@ -106,6 +118,8 @@ static int meson_ir_probe(struct platform_device *pdev)
 	const char *map_name;
 	struct meson_ir *ir;
 	int irq, ret;
+	unsigned int reg_val;
+	bool pulse_inverted = false;
 
 	ir = devm_kzalloc(dev, sizeof(struct meson_ir), GFP_KERNEL);
 	if (!ir)
@@ -135,9 +149,10 @@ static int meson_ir_probe(struct platform_device *pdev)
 	ir->rc->allowed_protocols = RC_PROTO_BIT_ALL_IR_DECODER;
 	ir->rc->rx_resolution = US_TO_NS(MESON_TRATE);
 	ir->rc->min_timeout = 1;
-	ir->rc->timeout = IR_DEFAULT_TIMEOUT;
-	ir->rc->max_timeout = 10 * IR_DEFAULT_TIMEOUT;
+	ir->rc->timeout = MS_TO_NS(125);
+	ir->rc->max_timeout = MS_TO_NS(1250);
 	ir->rc->driver_name = DRIVER_NAME;
+	pulse_inverted = of_property_read_bool(node, "pulse-inverted");
 
 	spin_lock_init(&ir->lock);
 	platform_set_drvdata(pdev, ir);
@@ -148,11 +163,21 @@ static int meson_ir_probe(struct platform_device *pdev)
 		return ret;
 	}
 
+	timer_setup(&ir->flush_timer, flush_timer, 0);
+
 	ret = devm_request_irq(dev, irq, meson_ir_irq, 0, NULL, ir);
 	if (ret) {
 		dev_err(dev, "failed to request irq\n");
 		return ret;
 	}
+
+	/* Set remote_input alternative function - GPIOAO.BIT5 */
+	reg_val = aml_read_aobus(AO_RTI_PIN_MUX_REG);
+	reg_val |= (0x1 << 20); /* [23:20], func1 IR_REMOTE_IN */
+	aml_write_aobus(AO_RTI_PIN_MUX_REG, reg_val);
+
+	reg_val = aml_read_aobus(AO_RTI_PIN_MUX_REG);
+	dev_info(dev, "AO_RTI_PIN_MUX : 0x%x\n", reg_val);
 
 	/* Reset the decoder */
 	meson_ir_set_mask(ir, IR_DEC_REG1, REG1_RESET, REG1_RESET);
@@ -171,6 +196,9 @@ static int meson_ir_probe(struct platform_device *pdev)
 	/* IRQ on rising and falling edges */
 	meson_ir_set_mask(ir, IR_DEC_REG1, REG1_IRQSEL_MASK,
 			  FIELD_PREP(REG1_IRQSEL_MASK, REG1_IRQSEL_RISE_FALL));
+	/* Set polarity Invert input polarity */
+	meson_ir_set_mask(ir, IR_DEC_REG1, REG1_POL,
+			pulse_inverted ? REG1_POL : 0);
 	/* Enable the decoder */
 	meson_ir_set_mask(ir, IR_DEC_REG1, REG1_ENABLE, REG1_ENABLE);
 
@@ -188,6 +216,8 @@ static int meson_ir_remove(struct platform_device *pdev)
 	spin_lock_irqsave(&ir->lock, flags);
 	meson_ir_set_mask(ir, IR_DEC_REG1, REG1_ENABLE, 0);
 	spin_unlock_irqrestore(&ir->lock, flags);
+
+	del_timer_sync(&ir->flush_timer);
 
 	return 0;
 }
