@@ -1343,6 +1343,7 @@ static int lcd_config_probe(struct platform_device *pdev)
 	lcd_driver->vsync_none_timer_flag = 0;
 	lcd_driver->power_ctrl = lcd_power_ctrl;
 	lcd_driver->module_reset = lcd_module_reset;
+	lcd_phy_probe();
 	lcd_clk_config_probe();
 	lcd_config_default();
 	lcd_init_vout();

@@ -41,7 +41,8 @@
 /* 20190308: add more panel clk_ss_level step for tl1 */
 /* 20190520: add vbyone hw filter user define support */
 /* 20190911: add lcd_init_level for tl1 */
-#define LCD_DRV_VERSION    "20190911"
+/* 20191025: tcon chpi phy setting update */
+#define LCD_DRV_VERSION    "20191025"
 
 #define VPP_OUT_SATURATE            (1 << 0)
 
@@ -86,6 +87,8 @@ extern void lcd_vbyone_phy_set(struct lcd_config_s *pconf, int status);
 extern void lcd_mlvds_phy_set(struct lcd_config_s *pconf, int status);
 extern void lcd_p2p_phy_set(struct lcd_config_s *pconf, int status);
 extern void lcd_mipi_phy_set(struct lcd_config_s *pconf, int status);
+int lcd_phy_probe(void);
+void lcd_phy_tcon_chpi_bbc_init_tl1(int delay);
 
 /* lcd tcon */
 extern unsigned int lcd_tcon_reg_read(unsigned int addr);

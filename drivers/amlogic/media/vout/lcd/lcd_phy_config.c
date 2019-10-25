@@ -29,6 +29,8 @@
 #include "lcd_phy_config.h"
 #include "lcd_common.h"
 
+static int phy_ctrl_bit_on;
+
 static unsigned int lcd_lvds_channel_on_value(struct lcd_config_s *pconf)
 {
 	unsigned int channel_on = 0;
@@ -98,24 +100,27 @@ static unsigned int lcd_lvds_channel_on_value(struct lcd_config_s *pconf)
 void lcd_phy_cntl_set_tl1(int status, unsigned int data32, int flag)
 {
 	unsigned int cntl16 = 0x80000000;
+	unsigned int data = 0;
 	unsigned int tmp = 0;
 
 	if (lcd_debug_print_flag)
 		LCDPR("%s: %d\n", __func__, status);
 
 	if (status) {
-		if (is_meson_rev_c())
-			data32 |= ((1 << 16) | (1 << 0));
+		data32 |= ((phy_ctrl_bit_on << 16) | (phy_ctrl_bit_on << 0));
 		if (flag)
-			cntl16 = flag;
-		tmp |= ((1 << 18) | (1 << 2));
+			tmp |= ((1 << 18) | (1 << 2));
 	} else {
-		if (is_meson_rev_a() || is_meson_rev_b())
-			data32 |= ((1 << 16) | (1 << 0));
+		if (phy_ctrl_bit_on)
+			data = 0;
+		else
+			data = 1;
+		data32 |= ((data << 16) | (data << 0));
+		cntl16 = 0;
 		lcd_hiu_write(HHI_DIF_CSI_PHY_CNTL14, 0);
 	}
 
-	lcd_hiu_write(HHI_DIF_CSI_PHY_CNTL15, 0);
+	lcd_hiu_write(HHI_DIF_CSI_PHY_CNTL15, tmp);
 	lcd_hiu_write(HHI_DIF_CSI_PHY_CNTL16, cntl16);
 	lcd_hiu_write(HHI_DIF_CSI_PHY_CNTL8, tmp);
 	lcd_hiu_write(HHI_DIF_CSI_PHY_CNTL1, data32);
@@ -480,4 +485,69 @@ void lcd_mipi_phy_set(struct lcd_config_s *pconf, int status)
 			break;
 		}
 	}
+}
+
+void lcd_phy_tcon_chpi_bbc_init_tl1(int delay)
+{
+	unsigned int data32 = 0x06020602;
+	unsigned int tmp = 0;
+
+	udelay(delay);
+	lcd_hiu_setb(HHI_DIF_CSI_PHY_CNTL1, 1, 3, 1);
+	lcd_hiu_setb(HHI_DIF_CSI_PHY_CNTL1, 1, 19, 1);
+	lcd_hiu_setb(HHI_DIF_CSI_PHY_CNTL2, 1, 3, 1);
+	lcd_hiu_setb(HHI_DIF_CSI_PHY_CNTL2, 1, 19, 1);
+	lcd_hiu_setb(HHI_DIF_CSI_PHY_CNTL3, 1, 3, 1);
+	lcd_hiu_setb(HHI_DIF_CSI_PHY_CNTL3, 1, 19, 1);
+	lcd_hiu_setb(HHI_DIF_CSI_PHY_CNTL4, 1, 3, 1);
+	lcd_hiu_setb(HHI_DIF_CSI_PHY_CNTL4, 1, 19, 1);
+	lcd_hiu_setb(HHI_DIF_CSI_PHY_CNTL6, 1, 3, 1);
+	lcd_hiu_setb(HHI_DIF_CSI_PHY_CNTL6, 1, 19, 1);
+	lcd_hiu_setb(HHI_DIF_CSI_PHY_CNTL7, 1, 3, 1);
+	lcd_hiu_setb(HHI_DIF_CSI_PHY_CNTL7, 1, 19, 1);
+	LCDPR("%s: delay: %dus\n", __func__, delay);
+
+	data32 |= ((phy_ctrl_bit_on << 16) |
+		   (phy_ctrl_bit_on << 0));
+	tmp |= ((1 << 18) | (1 << 2));
+
+	lcd_hiu_write(HHI_DIF_CSI_PHY_CNTL14, 0xff2027ef);
+	lcd_hiu_write(HHI_DIF_CSI_PHY_CNTL15, tmp);
+	lcd_hiu_write(HHI_DIF_CSI_PHY_CNTL16, 0x80000000);
+	lcd_hiu_write(HHI_DIF_CSI_PHY_CNTL8, tmp);
+	lcd_hiu_write(HHI_DIF_CSI_PHY_CNTL1, data32);
+	lcd_hiu_write(HHI_DIF_CSI_PHY_CNTL9, tmp);
+	lcd_hiu_write(HHI_DIF_CSI_PHY_CNTL2, data32);
+	lcd_hiu_write(HHI_DIF_CSI_PHY_CNTL10, tmp);
+	lcd_hiu_write(HHI_DIF_CSI_PHY_CNTL3, data32);
+	lcd_hiu_write(HHI_DIF_CSI_PHY_CNTL11, tmp);
+	lcd_hiu_write(HHI_DIF_CSI_PHY_CNTL4, data32);
+	lcd_hiu_write(HHI_DIF_CSI_PHY_CNTL12, tmp);
+	lcd_hiu_write(HHI_DIF_CSI_PHY_CNTL6, data32);
+	lcd_hiu_write(HHI_DIF_CSI_PHY_CNTL13, tmp);
+	lcd_hiu_write(HHI_DIF_CSI_PHY_CNTL7, data32);
+}
+
+int lcd_phy_probe(void)
+{
+	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
+
+	switch (lcd_drv->data->chip_type) {
+	case LCD_CHIP_TL1:
+		if (is_meson_rev_c())
+			phy_ctrl_bit_on = 1;
+		else
+			phy_ctrl_bit_on = 0;
+		break;
+	case LCD_CHIP_G12B:
+		if (is_meson_rev_b())
+			phy_ctrl_bit_on = 1;
+		else
+			phy_ctrl_bit_on = 0;
+		break;
+	default:
+		break;
+	}
+
+	return 0;
 }
