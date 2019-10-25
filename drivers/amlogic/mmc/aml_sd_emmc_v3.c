@@ -1735,7 +1735,7 @@ static int _aml_sd_emmc_execute_tuning(struct mmc_host *mmc, u32 opcode,
 	u32 old_dly, d1_dly, dly;
 	unsigned long fixed_adj_map[1];
 	bool all_flag = false;
-	u8 *adj_print = host->adj_win;
+	u8 *adj_print = NULL;
 	u32 len = 0;
 
 	if ((host->mem->start == host->data->port_b_base)
@@ -1756,6 +1756,8 @@ tunning:
 	curr_win_start = -1;
 	curr_win_size = 0;
 
+	len = 0;
+	adj_print = host->adj_win;
 	memset(adj_print, 0, sizeof(u8) * ADJ_WIN_PRINT_MAXLEN);
 	len += sprintf(adj_print + len, "%s: adj_win: < ", pdata->pinname);
 	spin_lock_irqsave(&host->mrq_lock, flags);
