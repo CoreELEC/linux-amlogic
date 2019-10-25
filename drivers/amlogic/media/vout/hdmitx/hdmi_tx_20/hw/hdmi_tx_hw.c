@@ -624,24 +624,24 @@ static void hdmi_hwi_init(struct hdmitx_dev *hdev)
 
 void HDMITX_Meson_Init(struct hdmitx_dev *hdev)
 {
-	hdev->HWOp.SetPacket = hdmitx_set_packet;
-	hdev->HWOp.SetDataPacket = hdmitx_set_datapacket;
-	hdev->HWOp.SetAudioInfoFrame = hdmitx_setaudioinfoframe;
-	hdev->HWOp.SetDispMode = hdmitx_set_dispmode;
-	hdev->HWOp.SetAudMode = hdmitx_set_audmode;
-	hdev->HWOp.SetupIRQ = hdmitx_setupirq;
-	hdev->HWOp.DebugFun = hdmitx_debug;
-	hdev->HWOp.UnInit = hdmitx_uninit;
-	hdev->HWOp.Cntl = hdmitx_cntl;	/* todo */
-	hdev->HWOp.CntlDDC = hdmitx_cntl_ddc;
-	hdev->HWOp.GetState = hdmitx_get_state;
-	hdev->HWOp.CntlPacket = hdmitx_cntl;
-	hdev->HWOp.CntlConfig = hdmitx_cntl_config;
-	hdev->HWOp.CntlMisc = hdmitx_cntl_misc;
+	hdev->hwop.setpacket = hdmitx_set_packet;
+	hdev->hwop.setdatapacket = hdmitx_set_datapacket;
+	hdev->hwop.setaudioinfoframe = hdmitx_setaudioinfoframe;
+	hdev->hwop.setdispmode = hdmitx_set_dispmode;
+	hdev->hwop.setaudmode = hdmitx_set_audmode;
+	hdev->hwop.setupirq = hdmitx_setupirq;
+	hdev->hwop.debugfun = hdmitx_debug;
+	hdev->hwop.uninit = hdmitx_uninit;
+	hdev->hwop.cntl = hdmitx_cntl;	/* todo */
+	hdev->hwop.cntlddc = hdmitx_cntl_ddc;
+	hdev->hwop.getstate = hdmitx_get_state;
+	hdev->hwop.cntlpacket = hdmitx_cntl;
+	hdev->hwop.cntlconfig = hdmitx_cntl_config;
+	hdev->hwop.cntlmisc = hdmitx_cntl_misc;
 	init_reg_map(hdev->chip_type);
 	hdmi_hwp_init(hdev);
 	hdmi_hwi_init(hdev);
-	hdev->HWOp.CntlMisc(hdev, MISC_AVMUTE_OP, CLR_AVMUTE);
+	hdev->hwop.cntlmisc(hdev, MISC_AVMUTE_OP, CLR_AVMUTE);
 }
 
 static void hdmitx_phy_bandgap_en(struct hdmitx_dev *hdev)
@@ -4172,8 +4172,8 @@ static void hdmitx_debug(struct hdmitx_dev *hdev, const char *buf)
 		set_vmode_clk(hdev);
 		return;
 	} else if (strncmp(tmpbuf, "testedid", 8) == 0) {
-		hdev->HWOp.CntlDDC(hdev, DDC_RESET_EDID, 0);
-		hdev->HWOp.CntlDDC(hdev, DDC_EDID_READ_DATA, 0);
+		hdev->hwop.cntlddc(hdev, DDC_RESET_EDID, 0);
+		hdev->hwop.cntlddc(hdev, DDC_EDID_READ_DATA, 0);
 		return;
 	} else if (strncmp(tmpbuf, "bist", 4) == 0) {
 		if (strncmp(tmpbuf + 4, "off", 3) == 0) {
@@ -4221,7 +4221,7 @@ static void hdmitx_debug(struct hdmitx_dev *hdev, const char *buf)
 		if (i == 2)
 			pr_info("hdcp rslt = %d", hdmitx_hdcp_opr(2));
 		if (i == 1)
-			hdev->HWOp.CntlDDC(hdev, DDC_HDCP_OP, HDCP14_ON);
+			hdev->hwop.cntlddc(hdev, DDC_HDCP_OP, HDCP14_ON);
 		return;
 	} else if (strncmp(tmpbuf, "chkfmt", 6) == 0) {
 		check_detail_fmt();
@@ -5161,7 +5161,7 @@ static int hdmitx_tmds_rxsense(void)
 			hd_write_reg(P_HHI_HDMI_PHY_CNTL0, 0);
 		break;
 	}
-	if (!(hdev->HWOp.CntlMisc(hdev, MISC_HPD_GPI_ST, 0)))
+	if (!(hdev->hwop.cntlmisc(hdev, MISC_HPD_GPI_ST, 0)))
 		return 0;
 	return ret;
 }
@@ -5812,7 +5812,7 @@ static void config_hdmi20_tx(enum hdmi_vic vic,
 
 	hdmitx_set_avi_colorimetry(para);
 	if (hdev->hdr_color_feature == C_BT2020)
-		hdev->HWOp.CntlConfig(hdev, CONF_AVI_BT2020, SET_AVI_BT2020);
+		hdev->hwop.cntlconfig(hdev, CONF_AVI_BT2020, SET_AVI_BT2020);
 
 	data32  = 0;
 	data32 |= (((0 == COLORRANGE_FUL) ? 1 : 0) << 2);
@@ -5894,9 +5894,9 @@ static void config_hdmi20_tx(enum hdmi_vic vic,
 	/* If RX  support 2084 or hlg , and the hdr_src_feature is 2020
 	 *  then enable HDR send out
 	 */
-	if ((hdev->RXCap.hdr_sup_eotf_smpte_st_2084 ||
-		hdev->RXCap.hdr_sup_eotf_hlg) &&
-		(hdev->hdr_color_feature == C_BT2020)) {
+	if ((hdev->rxcap.hdr_sup_eotf_smpte_st_2084 ||
+	     hdev->rxcap.hdr_sup_eotf_hlg) &&
+	     (hdev->hdr_color_feature == C_BT2020)) {
 		hdmitx_set_reg_bits(HDMITX_DWC_FC_DATAUTO3, 1, 6, 1);
 		hdmitx_set_reg_bits(HDMITX_DWC_FC_PACKET_TX_EN, 1, 7, 1);
 	} else {
