@@ -1332,6 +1332,8 @@ void tsync_pcr_stop(void)
 	tsync_pcr_started = 0;
 	tsync_audio_state = 0;
 	tsync_video_state = 0;
+	timestamp_vpts_set(0);
+	timestamp_pcrscr_set(0);
 }
 EXPORT_SYMBOL(tsync_pcr_stop);
 
