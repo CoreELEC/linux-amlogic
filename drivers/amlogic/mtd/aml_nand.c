@@ -91,42 +91,14 @@ static int aml_ooblayout_ecc(struct mtd_info *mtd, int section,
 static int aml_ooblayout_free(struct mtd_info *mtd, int section,
 				   struct mtd_oob_region *oobregion)
 {
-	struct aml_nand_chip *aml_chip = mtd_to_nand_chip(mtd);
-	struct aml_nand_platform *plat = aml_chip->platform;
+	struct nand_chip *chip = mtd_to_nand(mtd);
+	struct nand_ecc_ctrl *ecc = &chip->ecc;
 
-	if (section)
+	if (section < 0 || section > ecc->steps)
 		return -ERANGE;
 
-	if (!strncmp((char *)plat->name,
-		NAND_BOOT_NAME, strlen((const char *)NAND_BOOT_NAME))) {
-		oobregion->length = 8;
-		oobregion->offset = 0;
-	}
-	switch (aml_chip->oob_size) {
-	case 64:
-	case 128:
-	case 218:
-	case 224:
-		oobregion->length = 8;
-		oobregion->offset = 0;
-		break;
-	case 256:
-	case 376:
-	case 436:
-	case 448:
-	case 640:
-	case 744:
-		oobregion->length = 16;
-		oobregion->offset = 0;
-		break;
-	case 1280:
-	case 1664:
-		oobregion->length = 32;
-		oobregion->offset = 0;
-		break;
-	default:
-		break;
-	}
+	oobregion->length = 2;
+	oobregion->offset = 2 * section;
 
 	return 0;
 }
@@ -2042,7 +2014,7 @@ int aml_nand_init(struct aml_nand_chip *aml_chip)
 
 	mtd_set_ooblayout(mtd, &aml_ooblayout_ops);
 	mtd_ooblayout_free(mtd, 0, &oobregion);
-	mtd->oobavail = oobregion.length;
+
 	chip->options = 0;
 	chip->options |=  NAND_SKIP_BBTSCAN;
 	chip->options |= NAND_NO_SUBPAGE_WRITE;
