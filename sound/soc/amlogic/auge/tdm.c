@@ -958,12 +958,6 @@ static int aml_dai_tdm_hw_params(struct snd_pcm_substream *substream,
 	if (ret)
 		return ret;
 
-	if (p_tdm->chipinfo && (!p_tdm->chipinfo->no_mclkpad_ctrl)) {
-		ret = aml_tdm_set_clk_pad(p_tdm);
-		if (ret)
-			return ret;
-	}
-
 	/* Must enabe channel number for VAD */
 	if ((substream->stream == SNDRV_PCM_STREAM_CAPTURE)
 		&& (vad_tdm_is_running(p_tdm->id)))
@@ -1728,6 +1722,12 @@ static int aml_tdm_platform_probe(struct platform_device *pdev)
 			dev_warn_once(&pdev->dev,
 				      "neither mclk_pad nor mclk2pad set\n");
 		}
+	}
+
+	if (p_tdm->chipinfo && (!p_tdm->chipinfo->no_mclkpad_ctrl)) {
+		ret = aml_tdm_set_clk_pad(p_tdm);
+		if (ret)
+			dev_warn_once(&pdev->dev, "clk_pad set failed\n");
 	}
 
 	/* complete mclk for tdm */
