@@ -260,7 +260,7 @@ void atv_dmd_misc(void)
 	/* for audio non-standard signal, first set gain 0 to mute,
 	 * then unmute in detection.
 	 */
-	if (audio_atv_ov || atv_audio_overmodulated_en)
+	if ((audio_atv_ov || atv_audio_overmodulated_en) && non_std_en == 0)
 		aml_audio_valume_gain_set(0);
 	else
 		aml_audio_valume_gain_set(audio_gain_val);
