@@ -499,6 +499,7 @@ static int earc_dai_prepare(
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct earc *p_earc = snd_soc_dai_get_drvdata(cpu_dai);
 	unsigned int bit_depth = snd_pcm_format_width(runtime->format);
+	unsigned int spdif_codec = spdif_get_codec();
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		struct frddr *fr = p_earc->fddr;
@@ -548,7 +549,9 @@ static int earc_dai_prepare(
 				       frddr_type);
 
 		/* check and set channel status info */
-		spdif_get_channel_status_info(&chsts, runtime->rate);
+		spdif_get_channel_status_info(&chsts,
+					      runtime->rate,
+					      spdif_codec);
 		earctx_set_channel_status_info(p_earc->tx_dmac_map, &chsts);
 	} else {
 		struct toddr *to = p_earc->tddr;

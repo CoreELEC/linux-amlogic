@@ -24,6 +24,7 @@
 #include <linux/amlogic/media/vout/hdmi_tx/hdmi_tx_ext.h>
 #endif
 
+//#include "spdif_info.h"
 /*
  * 0 --  other formats except(DD,DD+,DTS)
  * 1 --  DTS
@@ -34,26 +35,36 @@
 unsigned int IEC958_mode_codec;
 EXPORT_SYMBOL(IEC958_mode_codec);
 
+unsigned int spdif_get_codec(void)
+{
+	return IEC958_mode_codec;
+}
+
 bool spdifout_is_raw(void)
 {
-	return (IEC958_mode_codec && IEC958_mode_codec != 9);
+	return (IEC958_mode_codec != STEREO_PCM &&
+		IEC958_mode_codec != MULTI_CHANNEL_LPCM &&
+		IEC958_mode_codec != HIGH_SR_STEREO_LPCM);
+}
+
+bool spdif_4x_rate_fmt(unsigned int fmt)
+{
+	if (fmt == DD_PLUS || fmt == DTS_HD ||
+	    fmt == TRUEHD || fmt == _DTS_HD_MA) {
+		return true;
+	}
+
+	return false;
 }
 
 bool spdif_is_4x_clk(void)
 {
-	bool is_4x = false;
-
-	if (IEC958_mode_codec == 4 || IEC958_mode_codec == 5 ||
-		IEC958_mode_codec == 7 || IEC958_mode_codec == 8) {
-		is_4x = true;
-	}
-
-	return is_4x;
+	return spdif_4x_rate_fmt(IEC958_mode_codec);
 }
 
 void spdif_get_channel_status_info(
 	struct iec958_chsts *chsts,
-	unsigned int rate)
+	unsigned int rate, unsigned int codec)
 {
 	int rate_bit = snd_pcm_rate_to_rate_bit(rate);
 
@@ -62,8 +73,8 @@ void spdif_get_channel_status_info(
 		return;
 	}
 
-	if (IEC958_mode_codec && IEC958_mode_codec != 9) {
-		if (IEC958_mode_codec == 1) {
+	if (codec && codec != HIGH_SR_STEREO_LPCM) {
+		if (codec == DTS_RAW_MODE) {
 			/* dts, use raw sync-word mode */
 			pr_info("iec958 mode RAW\n");
 		} else {
@@ -72,7 +83,7 @@ void spdif_get_channel_status_info(
 
 		chsts->chstat0_l = 0x1902;
 		chsts->chstat0_r = 0x1902;
-		if (IEC958_mode_codec == 4 || IEC958_mode_codec == 5) {
+		if (codec == DD_PLUS || codec == DTS_HD) {
 			/* DD+ */
 			if (rate_bit == SNDRV_PCM_RATE_32000) {
 				chsts->chstat1_l = 0x300;
@@ -129,31 +140,31 @@ void spdif_get_channel_status_info(
 }
 
 
-void spdif_notify_to_hdmitx(struct snd_pcm_substream *substream)
+void spdif_notify_to_hdmitx(struct snd_pcm_substream *substream,
+			    unsigned int codec)
 {
-	if (IEC958_mode_codec == 2) {
+	if (codec == DOLBY_DIGITAL) {
 		aout_notifier_call_chain(
 			AOUT_EVENT_RAWDATA_AC_3,
 			substream);
-	} else if (IEC958_mode_codec == 3) {
+	} else if (codec == DTS) {
 		aout_notifier_call_chain(
 			AOUT_EVENT_RAWDATA_DTS,
 			substream);
-	} else if (IEC958_mode_codec == 4) {
+	} else if (codec == DD_PLUS) {
 		aout_notifier_call_chain(
 			AOUT_EVENT_RAWDATA_DOBLY_DIGITAL_PLUS,
 			substream);
-	} else if (IEC958_mode_codec == 5) {
+	} else if (codec == DTS_HD) {
 		aout_notifier_call_chain(
 			AOUT_EVENT_RAWDATA_DTS_HD,
 			substream);
-	} else if (IEC958_mode_codec == 7 ||
-				IEC958_mode_codec == 8) {
+	} else if (codec == TRUEHD || codec == _DTS_HD_MA) {
 		//aml_aiu_write(AIU_958_CHSTAT_L0, 0x1902);
 		//aml_aiu_write(AIU_958_CHSTAT_L1, 0x900);
 		//aml_aiu_write(AIU_958_CHSTAT_R0, 0x1902);
 		//aml_aiu_write(AIU_958_CHSTAT_R1, 0x900);
-		if (IEC958_mode_codec == 8)
+		if (codec == _DTS_HD_MA)
 			aout_notifier_call_chain(
 			AOUT_EVENT_RAWDATA_DTS_HD_MA,
 			substream);
@@ -192,7 +203,7 @@ int spdif_format_set_enum(
 {
 	int index = ucontrol->value.enumerated.item[0];
 
-	if (index >= 10) {
+	if (index > HIGH_SR_STEREO_LPCM) {
 		pr_err("bad parameter for spdif format set\n");
 		return -1;
 	}

@@ -394,18 +394,32 @@ void aml_spdifout_get_aed_info(int spdifout_id,
 		*frddrtype = (val >> 4) & 0x7;
 }
 
-/* spdifout to hdmix ctrl
- * allow spdif out data to hdmitx
- */
-void spdifout_to_hdmitx_ctrl(int spdif_index)
+void enable_spdifout_to_hdmitx(void)
 {
-	audiobus_write(EE_AUDIO_TOHDMITX_CTRL0,
-		1 << 31
-		| 1 << 3 /* spdif_clk_cap_inv */
-		| 0 << 2 /* spdif_clk_inv */
-		| spdif_index << 1 /* spdif_out */
-		| spdif_index << 0 /* spdif_clk */
-	);
+	audiobus_update_bits(EE_AUDIO_TOHDMITX_CTRL0,
+			     1 << 31 | 1 << 3 | 1 << 2,
+			     1 << 31 | 1 << 3);
+}
+
+int get_spdif_to_hdmitx_id(void)
+{
+	int val = audiobus_read(EE_AUDIO_TOHDMITX_CTRL0) & 0x3;
+	int ret = 0;
+
+	if (val == 3)
+		ret = 1;
+	else if (val == 0)
+		ret = 0;
+	else
+		pr_err("%s(), inval config\n", __func__);
+
+	return ret;
+}
+
+void set_spdif_to_hdmitx_id(int spdif_id)
+{
+	audiobus_update_bits(EE_AUDIO_TOHDMITX_CTRL0,
+			     0x3, spdif_id << 1 | spdif_id);
 }
 #if 0
 static void spdifout_clk_ctrl(int spdif_id, bool is_enable)
@@ -664,14 +678,16 @@ void spdifout_play_with_zerodata(unsigned int spdif_id, bool reenable)
 		/* spdif clk */
 		//spdifout_clk_ctrl(spdif_id, true);
 		/* spdif to hdmitx */
-		spdifout_to_hdmitx_ctrl(spdif_id);
+		//spdifout_to_hdmitx_ctrl(spdif_id);
+		set_spdif_to_hdmitx_id(spdif_id);
+		enable_spdifout_to_hdmitx();
 
 		/* spdif ctrl */
 		spdifout_fifo_ctrl(spdif_id,
 			frddr_index, bitwidth, runtime.channels, 0);
 
 		/* channel status info */
-		spdif_get_channel_status_info(&chsts, sample_rate);
+		spdif_get_channel_status_info(&chsts, sample_rate, STEREO_PCM);
 		spdif_set_channel_status_info(&chsts, spdif_id);
 
 		/* notify hdmitx audio */

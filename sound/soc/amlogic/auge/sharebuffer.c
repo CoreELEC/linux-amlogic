@@ -40,9 +40,11 @@ static int sharebuffer_spdifout_prepare(struct snd_pcm_substream *substream,
 		lane_i2s);
 
 	/* spdif to hdmitx */
-	spdifout_to_hdmitx_ctrl(spdif_id);
+	//spdifout_to_hdmitx_ctrl(spdif_id);
+	//set_spdif_to_hdmitx_id(spdif_id);
+	enable_spdifout_to_hdmitx();
 	/* check and set channel status */
-	spdif_get_channel_status_info(&chsts, runtime->rate);
+	spdif_get_channel_status_info(&chsts, runtime->rate, STEREO_PCM);
 	spdif_set_channel_status_info(&chsts, spdif_id);
 	/* notify hdmitx audio */
 	aout_notifier_call_chain(0x1, substream);
