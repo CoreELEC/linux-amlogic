@@ -237,6 +237,11 @@ static unsigned int dolby_vision_flags = FLAG_BYPASS_VPP | FLAG_FORCE_CVM;
 module_param(dolby_vision_flags, uint, 0664);
 MODULE_PARM_DESC(dolby_vision_flags, "\n dolby_vision_flags\n");
 
+/*bit0:set core1 lut; bit1: set core2 lut; bit 3: set all reg*/
+static unsigned int force_set;
+module_param(force_set, uint, 0664);
+MODULE_PARM_DESC(force_set, "\n force_set\n");
+
 #define DV_NAME_LEN_MAX 32
 
 static unsigned int htotal_add = 0x140;
@@ -1951,6 +1956,12 @@ static int dolby_core1_set(
 	if (dolby_vision_flags & FLAG_DISABLE_COMPOSER)
 		composer_enable = 0;
 
+	if (force_set & 1)
+		set_lut = true;
+
+	if (force_set & 4)
+		reset = true;
+
 	if (dolby_vision_on_count
 		== dolby_vision_run_mode_delay)
 		reset = true;
@@ -2296,6 +2307,12 @@ static int dolby_core2_set(
 			reset = true;
 	}
 
+	if (force_set & 2)
+		set_lut = true;
+
+	if (force_set & 4)
+		reset = true;
+
 	if (stb_core_setting_update_flag & FLAG_CHANGE_TC2)
 		set_lut = true;
 
@@ -2437,6 +2454,9 @@ static int dolby_core3_set(
 
 	if (!dolby_vision_on ||
 		(dolby_vision_flags & FLAG_CERTIFICAION))
+		reset = true;
+
+	if (force_set & 4)
 		reset = true;
 
 	if (is_meson_gxm()) {
@@ -2945,6 +2965,7 @@ static void apply_stb_core_settings(
 			DOLBY_VISION_OUTPUT_MODE_IPT_TUNNEL,
 			pps_state);
 	}
+	stb_core_setting_update_flag = 0;
 }
 
 static void osd_bypass(int bypass)
@@ -6804,7 +6825,7 @@ int dolby_vision_parse_metadata(
 		&new_dovi_setting);
 	if (flag >= 0) {
 #ifdef V2_4
-		stb_core_setting_update_flag = flag;
+		stb_core_setting_update_flag |= flag;
 		if ((dolby_vision_flags
 			& FLAG_FORCE_DOVI_LL)
 			&& (dst_format == FORMAT_DOVI))

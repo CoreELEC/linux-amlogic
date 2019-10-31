@@ -6919,7 +6919,9 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 					/* all drop done*/
 					dovi_drop_flag = false;
 					omx_drop_done = true;
-					pr_info("dolby vision drop done\n");
+					if (debug_flag &
+					    DEBUG_FLAG_OMX_DV_DROP_FRAME)
+						pr_info("dolby vision drop done\n");
 					break;
 				} else
 					break;
