@@ -100,7 +100,7 @@ struct scpi_dvfs_info {
 
 struct bl40_msg_buf {
 	int size;
-	char buf[256];
+	char buf[512];
 } __packed;
 
 unsigned long scpi_clk_get_val(u16 clk_id);

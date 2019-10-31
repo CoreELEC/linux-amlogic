@@ -150,9 +150,12 @@ static irqreturn_t mbox_handler(int irq, void *p)
 			if (is_send_isr) {
 				memcpy(data->rx_buf, payload + TX_PAYLOAD(idx),
 				       data->rx_size);
-			} else
+			} else {
+				data->rx_size =
+					readl(mbox_base + RX_STATUS(idx));
 				memcpy(data->rx_buf, payload + RX_PAYLOAD(idx),
 				       data->rx_size);
+			}
 		}
 		mbox_chan_received_data(link, data);
 		if (!is_send_isr)
@@ -172,6 +175,7 @@ static int mhu_send_data(struct mbox_chan *link, void *msg)
 	void __iomem *payload = ctlr->payload_base;
 	struct mhu_data_buf *data = (struct mhu_data_buf *)msg;
 	int idx = chan->index;
+	u8 datatmp[512] = {0};
 
 	if (!data)
 		return -EINVAL;
@@ -183,8 +187,10 @@ static int mhu_send_data(struct mbox_chan *link, void *msg)
 		else
 			idx = 0;
 	}
+	memcpy(datatmp, data->tx_buf, data->tx_size);
 	if (data->tx_buf)
-		memcpy(payload + TX_PAYLOAD(idx), data->tx_buf, data->tx_size);
+		memcpy(payload + TX_PAYLOAD(idx), datatmp, data->tx_size);
+
 	writel(data->cmd, mbox_base + TX_SET(idx));
 
 	return 0;

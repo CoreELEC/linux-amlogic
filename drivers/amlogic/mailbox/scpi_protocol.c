@@ -723,6 +723,6 @@ int scpi_send_bl40(unsigned int cmd, struct bl40_msg_buf *bl40_buf)
 
 	SCPI_SETUP_DBUF_SIZE(sdata, mdata, SCPI_CL_NONE,
 			     cmd, bl40_buf->buf, bl40_buf->size,
-			     bl40_buf, sizeof(struct bl40_msg_buf));
+			     bl40_buf->buf, sizeof(bl40_buf->buf));
 	return scpi_execute_cmd(&sdata);
 }
