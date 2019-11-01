@@ -1431,7 +1431,7 @@
 				&clkc CLKID_MPLL1>;
 		clock-names = "mclk", "clk_srcpll";
 
-		mclk_pad = <0>;  /* 0: mclk_0; 1: mclk_1 */
+		mclk_pad = <1>;  /* 0: mclk_0; 1: mclk_1 */
 
 		status = "okay";
 	};
@@ -1450,8 +1450,6 @@
 
 		pinctrl-names = "tdm_pins";
 		pinctrl-0 = <&tdmout_c &tdmin_c>;
-
-		mclk_pad = <0>;  /* 0: mclk_0; 1: mclk_1 */
 
 		status = "okay";
 	};
