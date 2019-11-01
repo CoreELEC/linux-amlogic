@@ -3367,6 +3367,15 @@ void diwr_set_power_control(unsigned char enable)
 		enable?VPU_MEM_POWER_ON:VPU_MEM_POWER_DOWN);
 }
 
+void di_hdr2_hist_init(void)
+{
+	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2)) {
+		RDMA_WR(DI_HDR2_HIST_CTRL, 0x5510);
+		RDMA_WR(DI_HDR2_HIST_H_START_END, 0x10000);
+		RDMA_WR(DI_HDR2_HIST_V_START_END, 0x0);
+	}
+}
+
 void di_top_gate_control(bool top_en, bool mc_en)
 {
 	if (top_en) {

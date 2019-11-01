@@ -7116,6 +7116,7 @@ static void di_reg_process_irq(void)
 			DI_Wr(DI_CLKG_CTRL, 0xfef60001);
 			/* nr/blend0/ei0/mtn0 clock gate */
 		}
+		di_hdr2_hist_init();
 		if (di_printk_flag & 2)
 			di_printk_flag = 1;
 
