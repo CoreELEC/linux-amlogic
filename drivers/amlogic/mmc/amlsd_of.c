@@ -57,7 +57,6 @@ static const struct sd_caps host_caps[] = {
 	SD_CAPS(MMC_CAP_CMD23, "MMC_CAP_CMD23"),
 	SD_CAPS(MMC_CAP_HW_RESET, "MMC_CAP_HW_RESET"),
 	SD_CAPS(MMC_CAP_AGGRESSIVE_PM, "MMC_CAP_AGGRESSIVE_PM"),
-	SD_CAPS(MMC_PM_KEEP_POWER, "MMC_PM_KEEP_POWER"),
 };
 
 static int amlsd_get_host_caps(struct device_node *of_node,

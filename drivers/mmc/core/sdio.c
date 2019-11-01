@@ -919,6 +919,9 @@ static int mmc_sdio_suspend(struct mmc_host *host)
 {
 	mmc_claim_host(host);
 
+	if (host->wifi_down_f)
+		host->pm_flags |= MMC_PM_KEEP_POWER;
+
 	if (mmc_card_keep_power(host) && mmc_card_wake_sdio_irq(host))
 		sdio_disable_wide(host->card);
 

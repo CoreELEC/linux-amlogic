@@ -245,6 +245,10 @@ static int meson_mmc_clk_set_rate_v3(struct mmc_host *mmc,
 		writel(vcfg, host->base + SD_EMMC_CFG);
 		pdata->stop_clk = 1;
 	}
+	if (!clk_ios) {
+		mmc->actual_clock = clk_ios;
+		return 0;
+	}
 
 	if (aml_card_type_mmc(pdata)) {
 		if ((clk_ios >= 200000000) && conf->ddr) {
