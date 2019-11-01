@@ -6731,6 +6731,21 @@ static void def_hdr_sdr_mode(void)
 		sdr_mode = 2;
 }
 
+void hdr_hist_config_int(void)
+{
+	VSYNC_WR_MPEG_REG(VD1_HDR2_HIST_CTRL, 0x5510);
+	VSYNC_WR_MPEG_REG(VD1_HDR2_HIST_H_START_END, 0x10000);
+	VSYNC_WR_MPEG_REG(VD1_HDR2_HIST_V_START_END, 0x0);
+
+	VSYNC_WR_MPEG_REG(VD2_HDR2_HIST_CTRL, 0x5510);
+	VSYNC_WR_MPEG_REG(VD2_HDR2_HIST_H_START_END, 0x10000);
+	VSYNC_WR_MPEG_REG(VD2_HDR2_HIST_V_START_END, 0x0);
+
+	VSYNC_WR_MPEG_REG(OSD1_HDR2_HIST_CTRL, 0x5510);
+	VSYNC_WR_MPEG_REG(OSD1_HDR2_HIST_H_START_END, 0x10000);
+	VSYNC_WR_MPEG_REG(OSD1_HDR2_HIST_V_START_END, 0x0);
+}
+
 /* #if (MESON_CPU_TYPE == MESON_CPU_TYPE_MESONG9TV) */
 void init_pq_setting(void)
 {
@@ -6779,6 +6794,9 @@ tvchip_pq_setting:
 		cm_init_config(bitdepth);
 		/*lc init*/
 		lc_init(bitdepth);
+
+		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2))
+			hdr_hist_config_int();
 	}
 	/*probe close sr0 peaking for switch on video*/
 	WRITE_VPP_REG_BITS(VPP_SRSHARP0_CTRL, 1, 0, 1);

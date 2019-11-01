@@ -7270,11 +7270,8 @@ static int vpp_matrix_update(
 			&hdmitx_hdr10plus_params[vd_path]);
 
 		if ((csc_type == VPP_MATRIX_BT2020YUV_BT2020RGB_DYNAMIC) ||
-		    (csc_type == VPP_MATRIX_BT2020YUV_BT2020RGB)) {
-			if ((vd_path == VD1_PATH) &&
-			    (cpu_after_eq(MESON_CPU_MAJOR_ID_G12A)))
-				get_hist(VD1_HDR, HIST_O_BEFORE);
-		}
+		    (csc_type == VPP_MATRIX_BT2020YUV_BT2020RGB))
+			get_hist(VD1_HDR, HIST_O_BEFORE);
 
 	}
 

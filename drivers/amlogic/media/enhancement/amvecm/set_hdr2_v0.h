@@ -148,6 +148,7 @@ struct hdr_proc_lut_param_s {
 	unsigned int lut_on;
 	unsigned int bitdepth;
 	unsigned int cgain_en;
+	unsigned int hist_en;
 };
 
 typedef int64_t(*MenuFun)(int64_t);
