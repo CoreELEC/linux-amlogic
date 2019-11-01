@@ -44,8 +44,10 @@
 #include "atvdemod_func.h"
 #include "atvauddemod_func.h"
 
-
-#define AMLATVDEMOD_VER "V2.14"
+/********************************CODE CHANGE LIST*****************************/
+/* Date --- Version --- Note *************************************************/
+/* 2019/11/05 --- V2.15 --- Add dynamic monitoring line frequency deviation. */
+#define AMLATVDEMOD_VER "V2.15"
 
 struct aml_atvdemod_device *amlatvdemod_devp;
 

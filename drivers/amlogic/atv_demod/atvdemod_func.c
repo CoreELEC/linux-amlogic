@@ -2545,3 +2545,45 @@ void aml_audio_overmodulation(int enable)
 #endif
 	}
 }
+
+void atvdemod_horiz_freq_detection(void)
+{
+	unsigned long data = 0;
+	int field_lock = 0;
+	int line_lock = 0;
+	int line = 0;
+	int std_line = 0;
+	unsigned long horiz_freq = 0;
+
+	data = atv_dmd_rd_long(APB_BLOCK_ADDR_VDAGC, 0x4c);
+	field_lock = data & 0x4;    /* bit2 */
+	line_lock = data & 0x10;    /* bit4 */
+	line = (data >> 6) & 0x3ff; /* bit[15-6] */
+
+	switch (broad_std) {
+	case AML_ATV_DEMOD_VIDEO_MODE_PROP_NTSC:
+	case AML_ATV_DEMOD_VIDEO_MODE_PROP_PAL_M:
+		std_line = 525;
+		break;
+	default:
+		std_line = 625;
+		break;
+	}
+
+	if (field_lock == 0 && line_lock == 0) {
+		/* bit[31-8] */
+		data = atv_dmd_rd_long(APB_BLOCK_ADDR_VDAGC, 0x10);
+
+		/* fh +/- (200 / 0.23841858) */
+		if ((line - std_line) > 7)
+			horiz_freq = freq_hz_cvrt + 0x347;
+		else if ((line - std_line) < -7)
+			horiz_freq = freq_hz_cvrt - 0x347;
+		else
+			horiz_freq = freq_hz_cvrt;
+
+		data = (horiz_freq << 8) | (data & 0xff);
+
+		atv_dmd_wr_long(APB_BLOCK_ADDR_VDAGC, 0x10, data);
+	}
+}

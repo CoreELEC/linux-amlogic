@@ -215,6 +215,7 @@ extern void set_atvdemod_scan_mode(int val);
 extern int atvauddemod_init(void);
 extern int amlfmt_aud_standard(int broad_std);
 extern void atvauddemod_set_outputmode(void);
+void atvdemod_horiz_freq_detection(void);
 
 /*from amldemod/amlfrontend.c*/
 extern int vdac_enable_check_dtv(void);

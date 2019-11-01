@@ -104,6 +104,7 @@
 	DEBUGFS_CREATE_NODE(atvdemod_isr_en, 0640, dentry, bool)\
 	DEBUGFS_CREATE_NODE(atv_audio_overmodulated_cnt, 0640, dentry, u32)\
 	DEBUGFS_CREATE_NODE(support_secam_l, 0640, dentry, bool)\
+	DEBUGFS_CREATE_NODE(atvdemod_horiz_freq_det_en, 0640, dentry, bool)\
 }
 
 
