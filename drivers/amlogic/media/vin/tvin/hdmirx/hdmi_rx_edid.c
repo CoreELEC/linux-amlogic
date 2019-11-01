@@ -3439,7 +3439,8 @@ unsigned char *compose_audio_db(uint8_t *aud_db, uint8_t *add_buf)
 	/* copy ramin Short Audio Descriptors
 	 * in add_buf, except blk header
 	 */
-	memcpy(com_aud+idx, tmp_buf+1, add_buf_len-1);
+	if (idx + add_buf_len - 1 <= sizeof(com_aud))
+		memcpy(com_aud + idx, tmp_buf + 1, add_buf_len - 1);
 	payload_len = (idx - 1) + (add_buf_len - 1);
 	/* data blk header */
 	com_aud[0] = (AUDIO_TAG << 5) | payload_len;
@@ -3586,10 +3587,6 @@ void splice_data_blk_to_edid(uint8_t *p_edid, uint8_t *add_buf,
 			free_size += (tag_db_len-add_db_len);
 			free_space_off = 255-free_size;
 			memset(&p_edid[free_space_off], 0, free_size);
-		} else if (add_db_len - tag_db_len > DB_LEN_MAX-1) {
-			/* data block is maxmium 32bytes, minimum 1byte */
-			rx_pr("illegal add data blk len: %d\n", add_db_len);
-			return;
 		} else if (add_db_len - tag_db_len <= free_size) {
 			/* move data behind current data
 			 * block, except checksum
