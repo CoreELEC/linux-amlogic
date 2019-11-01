@@ -1289,6 +1289,11 @@ static int vbi_set_buffer_size(struct vbi_dev_s *dev,
 		tvafe_pr_info("%s: buffer size is 0!!!\n", __func__);
 		return -EINVAL;
 	}
+	if (size > VBI_DEFAULT_BUFFER_SIZE) {
+		tvafe_pr_info("%s: buffer size %d can't over %d\n",
+			      __func__, size, VBI_DEFAULT_BUFFER_SIZE);
+		return -EINVAL;
+	}
 	if (vbi_slicer->state >= VBI_STATE_GO) {
 		tvafe_pr_info("%s: vbi_slicer busy!!!\n", __func__);
 		return -EBUSY;
@@ -1737,6 +1742,13 @@ static long vbi_ioctl(struct file *file,
 			mutex_unlock(&vbi_slicer->mutex);
 			break;
 		}
+		if ((!buffer_size_t) ||
+		    (buffer_size_t > VBI_DEFAULT_BUFFER_SIZE)) {
+			mutex_unlock(&vbi_slicer->mutex);
+			tvafe_pr_info("%s: invalid buf size %d\n",
+				      __func__, buffer_size_t);
+			break;
+		}
 		ret = vbi_set_buffer_size(vbi_dev, buffer_size_t);
 		mutex_unlock(&vbi_slicer->mutex);
 		tvafe_pr_info("%s: set buf size to %d, state:%d\n",
@@ -1957,8 +1969,9 @@ static ssize_t vbi_store(struct device *dev,
 				vbi_buffer->size, vbi_buffer->data_num,
 				vbi_buffer->pread, vbi_buffer->pwrite,
 				vbi_buffer->data_wmode);
-		tvafe_pr_info("isr_cnt:%d,slicer_cnt:%d\n",
-			devp->isr_cnt, vbi_slicer->slicer_cnt);
+		if (vbi_slicer)
+			tvafe_pr_info("isr_cnt:%d,slicer_cnt:%d\n",
+				      devp->isr_cnt, vbi_slicer->slicer_cnt);
 		tvafe_pr_info("drv_version:%s\n", VBI_DRV_VER);
 		tvafe_pr_info("dump satus done!!\n");
 	} else if (!strncmp(parm[0], "dbg_en", strlen("dbg_en"))) {
