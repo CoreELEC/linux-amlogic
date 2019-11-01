@@ -3906,7 +3906,7 @@ void enable_dolby_vision(int enable)
 		cur_csc_type[VD1_PATH] = VPP_MATRIX_NULL;
 		/* clean mute flag for next time dv on */
 		dolby_vision_flags &= ~FLAG_MUTE;
-		if (!is_meson_gxm()) {
+		if (!is_meson_gxm() && !is_meson_txlx()) {
 			hdr_osd_off();
 			hdr_vd1_off();
 		}
