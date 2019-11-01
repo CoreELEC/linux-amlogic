@@ -612,3 +612,250 @@ void earctx_enable(struct regmap *top_map,
 				 enable << 30);
 	}
 }
+
+static void earcrx_cmdc_get_reg(struct regmap *cmdc_map, int dev_id, int offset,
+				u8 *data, int bytes)
+{
+	int i;
+
+	mmio_update_bits(cmdc_map, EARC_RX_CMDC_DEVICE_ID_CTRL,
+			 0x1 << 31 | /* apb_write  */
+			 0x1 << 30 | /* apb_read */
+			 0x1 << 29 | /* apb_w_r_done */
+			 0xff << 8 | /* apb_rwid */
+			 0xff << 0,   /* apbrw_start_addr */
+			 0x0 << 31 |
+			 0x1 << 30 |
+			 0x0 << 29 |
+			 dev_id << 8 |
+			 offset << 0);
+
+	for (i = 0; i < bytes; i++) {
+		data[i] = mmio_read(cmdc_map, EARC_RX_CMDC_DEVICE_RDATA);
+		pr_info("%s, data[%d]:%#x\n", __func__, i, data[i]);
+	}
+
+	mmio_update_bits(cmdc_map, EARC_RX_CMDC_DEVICE_ID_CTRL,
+			 0x1 << 29, 0x1 << 29);
+	mmio_update_bits(cmdc_map, EARC_RX_CMDC_DEVICE_ID_CTRL,
+			 0x1 << 29, 0x0 << 29);
+}
+
+static void earcrx_cmdc_set_reg(struct regmap *cmdc_map, int dev_id, int offset,
+				u8 *data, int bytes)
+{
+	int i;
+
+	mmio_update_bits(cmdc_map, EARC_RX_CMDC_DEVICE_ID_CTRL,
+			 0x1 << 31 | /* apb_write  */
+			 0x1 << 30 | /* apb_read */
+			 0x1 << 29 | /* apb_w_r_done */
+			 0xff << 8 | /* apb_rwid */
+			 0xff << 0,   /* apbrw_start_addr */
+			 0x1 << 31 |
+			 0x0 << 30 |
+			 0x0 << 29 |
+			 dev_id << 8 |
+			 offset << 0);
+
+	for (i = 0; i < bytes; i++) {
+		pr_info("%s, data[%d]:%#x\n", __func__, i, data[i]);
+		mmio_write(cmdc_map, EARC_RX_CMDC_DEVICE_WDATA, data[i]);
+	}
+
+	mmio_update_bits(cmdc_map, EARC_RX_CMDC_DEVICE_ID_CTRL,
+			 0x1 << 29, 0x1 << 29);
+	mmio_update_bits(cmdc_map, EARC_RX_CMDC_DEVICE_ID_CTRL,
+			 0x1 << 29, 0x0 << 29);
+}
+
+/* Latency */
+void earcrx_cmdc_get_latency(struct regmap *cmdc_map, u8 *latency)
+{
+	earcrx_cmdc_get_reg(cmdc_map,
+			    STAT_CTRL_DEV_ID,
+			    ERX_LATENCY_REG,
+			    latency,
+			    1);
+}
+
+void earcrx_cmdc_set_latency(struct regmap *cmdc_map, u8 *latency)
+{
+	earcrx_cmdc_set_reg(cmdc_map,
+			    STAT_CTRL_DEV_ID,
+			    ERX_LATENCY_REG,
+			    latency,
+			    1);
+}
+
+void earcrx_cmdc_get_cds(struct regmap *cmdc_map, u8 *cds)
+{
+	earcrx_cmdc_get_reg(cmdc_map,
+			    CAP_DEV_ID,
+			    0x0,
+			    cds,
+			    CDS_MAX_BYTES);
+}
+
+void earcrx_cmdc_set_cds(struct regmap *cmdc_map, u8 *cds)
+{
+	earcrx_cmdc_set_reg(cmdc_map,
+			    CAP_DEV_ID,
+			    0x0,
+			    cds,
+			    CDS_MAX_BYTES);
+}
+
+static int earctx_cmdc_get_reg(struct regmap *cmdc_map, int dev_id, int offset,
+			       u8 *data, int bytes)
+{
+	int val = 0, i;
+	int ret = -1;
+
+	mmio_update_bits(cmdc_map, EARC_TX_CMDC_MASTER_CTRL,
+			 0x1 << 31 | /* master_cmd_rw, read */
+			 0x1 << 30 | /* master_hb_ignore */
+			 0xf << 24 | /* hb_cmd_val_th */
+			 0xff << 16 | /* master_cmd_count */
+			 0xff << 8 | /* master_cmd_id */
+			 0xff << 0,  /* master_cmd_address */
+			 0x0 << 31 |
+			 0x1 << 30 |
+			 0x4 << 24 |
+			 (bytes - 1) << 16 |
+			 dev_id << 8 |
+			 offset << 0);
+
+	/* wait read from rx done */
+	while (!(val & (1 << 29))) {
+		usleep_range(500, 1500);
+		val = mmio_read(cmdc_map, EARC_TX_CMDC_MASTER_CTRL);
+	}
+
+	mmio_update_bits(cmdc_map, EARC_TX_CMDC_DEVICE_ID_CTRL,
+			 0x1 << 31 | /* apb_write */
+			 0x1 << 30 | /* apb_read */
+			 0x1 << 29 | /* apb_rw_done */
+			 0x1 << 16 | /* hpb_rst_enable */
+			 0xff << 8 | /* apb_rwid */
+			 0xff << 0,   /* apbrw_start_addr */
+			 0x0 << 31 |
+			 0x1 << 30 |
+			 0x0 << 29 |
+			 0x1 << 16 |
+			 dev_id << 8 |
+			 offset << 0);
+
+	for (i = 0; i < bytes; i++) {
+		data[i] = mmio_read(cmdc_map, EARC_TX_CMDC_DEVICE_RDATA);
+		pr_info("%s, bytes:%d, data[%d]:%#x\n",
+			__func__,
+			bytes,
+			i,
+			data[i]);
+	}
+
+	mmio_update_bits(cmdc_map, EARC_TX_CMDC_DEVICE_ID_CTRL,
+			 0x1 << 29, 0x1 << 29);
+	mmio_update_bits(cmdc_map, EARC_TX_CMDC_DEVICE_ID_CTRL,
+			 0x1 << 29, 0x0 << 29);
+
+	if (val & (1 << 29))
+		ret = 0;
+
+	return ret;
+}
+
+static int earctx_cmdc_set_reg(struct regmap *cmdc_map, int dev_id, int offset,
+			       u8 *data, int bytes)
+{
+	int val = 0, i;
+	int ret = -1;
+	int cnt = 0;
+
+	mmio_update_bits(cmdc_map, EARC_TX_CMDC_DEVICE_ID_CTRL,
+			 0x1 << 31 | /* apb_write */
+			 0x1 << 30 | /* apb_read */
+			 0x1 << 29 | /* apb_rw_done */
+			 0x1 << 16 | /* hpb_rst_enable */
+			 0xff << 8 | /* apb_rwid */
+			 0xff << 0,   /* apbrw_start_addr */
+			 0x1 << 31 |
+			 0x0 << 30 |
+			 0x0 << 29 |
+			 0x1 << 16 |
+			 dev_id << 8 |
+			 offset << 0);
+
+	for (i = 0; i < bytes; i++) {
+		mmio_update_bits(cmdc_map, EARC_TX_CMDC_DEVICE_WDATA,
+				 0xff << 0,
+				 data[i] << 0);
+		pr_info("%s, data[%d]:%#x, bytes:%d\n",
+			__func__,
+			i,
+			data[i],
+			bytes);
+	}
+
+	mmio_update_bits(cmdc_map, EARC_TX_CMDC_MASTER_CTRL,
+			 0x1 << 31 | /* master_cmd_rw, write */
+			 0x1 << 30 | /* master_hb_ignore */
+			 0xf << 24 | /* hb_cmd_cal_th */
+			 0xff << 16 | /* master_cmd_count */
+			 0xff << 8 | /* master_cmd_id */
+			 0xff << 0,  /* master_cmd_address */
+			 0x1 << 31 |
+			 0x1 << 30 |
+			 4 << 24 |
+			 (bytes - 1) << 16 |
+			 dev_id << 8 |
+			 offset << 0);
+
+	/* wait write done */
+	while (!(val & (1 << 29))) {
+		usleep_range(500, 1500);
+		val = mmio_read(cmdc_map, EARC_TX_CMDC_MASTER_CTRL);
+		cnt++;
+	}
+	pr_info("%s, cnt:%d\n", __func__, cnt);
+
+	mmio_update_bits(cmdc_map, EARC_TX_CMDC_DEVICE_ID_CTRL,
+			 0x1 << 29, 0x1 << 29);
+	mmio_update_bits(cmdc_map, EARC_TX_CMDC_DEVICE_ID_CTRL,
+			 0x1 << 29, 0x0 << 29);
+
+	if (val & (1 << 29))
+		ret = 0;
+
+	return ret;
+}
+
+/* Latency */
+void earctx_cmdc_get_latency(struct regmap *cmdc_map, u8 *latency)
+{
+	earctx_cmdc_get_reg(cmdc_map,
+			    STAT_CTRL_DEV_ID,
+			    ERX_LATENCY_REG,
+			    latency,
+			    1);
+}
+
+void earctx_cmdc_set_latency(struct regmap *cmdc_map, u8 *latency)
+{
+	earctx_cmdc_set_reg(cmdc_map,
+			    STAT_CTRL_DEV_ID,
+			    ERX_LATENCY_REQ_REG,
+			    latency,
+			    1);
+}
+
+/* Capability Data Structure, fetch CDS from RX */
+void earctx_cmdc_get_cds(struct regmap *cmdc_map, u8 *cds)
+{
+	earctx_cmdc_get_reg(cmdc_map,
+			    CAP_DEV_ID,
+			    0x0,
+			    cds,
+			    CDS_MAX_BYTES);
+}

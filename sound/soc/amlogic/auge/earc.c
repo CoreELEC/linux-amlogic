@@ -37,6 +37,7 @@
 #include <sound/pcm_params.h>
 
 #include <linux/amlogic/media/sound/hdmi_earc.h>
+#include <linux/amlogic/media/sound/mixer.h>
 #include "ddr_mngr.h"
 #include "earc_hw.h"
 
@@ -153,17 +154,24 @@ static irqreturn_t earc_rx_isr(int irq, void *data)
 	if (status0)
 		earcrx_cdmc_clr_irqs(p_earc->rx_top_map, status0);
 
+	if (status0 & INT_EARCRX_CMDC_TIMEOUT) {
+		earcrx_update_attend_event(p_earc,
+					   false, false);
+
+		pr_debug("%s EARCRX_CMDC_TIMEOUT\n", __func__);
+	}
+
 	if (status0 & INT_EARCRX_CMDC_IDLE2) {
 		earcrx_update_attend_event(p_earc,
 					   false, true);
 
-		pr_debug("%s EARCRX_CMDC_IDLE2\n", __func__);
+		pr_info("%s EARCRX_CMDC_IDLE2\n", __func__);
 	}
 	if (status0 & INT_EARCRX_CMDC_IDLE1) {
 		earcrx_update_attend_event(p_earc,
 					   false, false);
 
-		pr_debug("%s EARCRX_CMDC_IDLE1\n", __func__);
+		pr_info("%s EARCRX_CMDC_IDLE1\n", __func__);
 	}
 	if (status0 & INT_EARCRX_CMDC_DISC2)
 		pr_debug("%s EARCRX_CMDC_DISC2\n", __func__);
@@ -181,12 +189,6 @@ static irqreturn_t earc_rx_isr(int irq, void *data)
 	 */
 	if (status0 & INT_EARCRX_CMDC_LOSTHB)
 		pr_debug("%s EARCRX_CMDC_LOSTHB\n", __func__);
-	if (status0 & INT_EARCRX_CMDC_TIMEOUT) {
-		earcrx_update_attend_event(p_earc,
-					   false, false);
-
-		pr_debug("%s EARCRX_CMDC_TIMEOUT\n", __func__);
-	}
 
 	if (p_earc->rx_dmac_clk_on) {
 		unsigned int status1 = earcrx_dmac_get_irqs(p_earc->rx_top_map);
@@ -936,21 +938,205 @@ int earctx_set_attend_type(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-static const struct snd_kcontrol_new earc_controls[] = {
-	SOC_ENUM_EXT("eARC_RX attended type",
-		     attended_type_enum,
-		     earcrx_get_attend_type,
-		     earcrx_set_attend_type),
+int earcrx_get_latency(struct snd_kcontrol *kcontrol,
+		       struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
+	struct earc *p_earc = dev_get_drvdata(component->dev);
+	enum cmdc_st state;
+	u8  val = 0;
 
+	if (!p_earc || IS_ERR(p_earc->rx_top_map))
+		return 0;
+
+	state = earcrx_cmdc_get_state(p_earc->rx_cmdc_map);
+	if (state != CMDC_ST_EARC)
+		return 0;
+
+	earcrx_cmdc_get_latency(p_earc->rx_cmdc_map, &val);
+
+	ucontrol->value.integer.value[0] = val;
+
+	return 0;
+}
+
+int earcrx_set_latency(struct snd_kcontrol *kcontrol,
+		       struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
+	struct earc *p_earc = dev_get_drvdata(component->dev);
+	u8 latency = ucontrol->value.integer.value[0];
+	enum cmdc_st state;
+
+	if (!p_earc || IS_ERR(p_earc->rx_top_map))
+		return 0;
+
+	state = earcrx_cmdc_get_state(p_earc->rx_cmdc_map);
+	if (state != CMDC_ST_EARC)
+		return 0;
+
+	earcrx_cmdc_set_latency(p_earc->rx_cmdc_map, &latency);
+
+	return 0;
+}
+
+int earcrx_get_cds(struct snd_kcontrol *kcontrol,
+		   struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
+	struct earc *p_earc = dev_get_drvdata(component->dev);
+	struct soc_bytes_ext *bytes_ext =
+		(struct soc_bytes_ext *)kcontrol->private_value;
+	u8 *value = (u8 *)ucontrol->value.bytes.data;
+	enum cmdc_st state;
+	int i;
+	u8 data[256];
+
+	if (!p_earc || IS_ERR(p_earc->rx_top_map))
+		return 0;
+
+	state = earcrx_cmdc_get_state(p_earc->rx_cmdc_map);
+	if (state != CMDC_ST_EARC)
+		return 0;
+
+	earcrx_cmdc_get_cds(p_earc->rx_cmdc_map, data);
+
+	for (i = 0; i < bytes_ext->max; i++)
+		*value++ = data[i];
+
+	return 0;
+}
+
+int earcrx_set_cds(struct snd_kcontrol *kcontrol,
+		   struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
+	struct earc *p_earc = dev_get_drvdata(component->dev);
+	struct soc_bytes_ext *params = (void *)kcontrol->private_value;
+	u8 *data;
+	enum cmdc_st state;
+
+	if (!p_earc || IS_ERR(p_earc->rx_top_map))
+		return 0;
+
+	state = earcrx_cmdc_get_state(p_earc->rx_cmdc_map);
+	if (state != CMDC_ST_EARC)
+		return 0;
+
+	data = kmemdup(ucontrol->value.bytes.data,
+		       params->max, GFP_KERNEL | GFP_DMA);
+	if (!data)
+		return -ENOMEM;
+
+	earcrx_cmdc_set_cds(p_earc->rx_cmdc_map, data);
+
+	kfree(data);
+
+	return 0;
+}
+
+int earctx_get_latency(struct snd_kcontrol *kcontrol,
+		       struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
+	struct earc *p_earc = dev_get_drvdata(component->dev);
+	enum cmdc_st state;
+	u8 val = 0;
+
+	if (!p_earc || IS_ERR(p_earc->tx_top_map))
+		return 0;
+
+	state = earctx_cmdc_get_state(p_earc->tx_cmdc_map);
+	if (state != CMDC_ST_EARC)
+		return 0;
+
+	earctx_cmdc_get_latency(p_earc->tx_cmdc_map, &val);
+
+	ucontrol->value.integer.value[0] = val;
+
+	return 0;
+}
+
+int earctx_set_latency(struct snd_kcontrol *kcontrol,
+		       struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
+	struct earc *p_earc = dev_get_drvdata(component->dev);
+	u8 latency = ucontrol->value.integer.value[0];
+	enum cmdc_st state;
+
+	if (!p_earc || IS_ERR(p_earc->tx_top_map))
+		return 0;
+
+	state = earctx_cmdc_get_state(p_earc->tx_cmdc_map);
+	if (state != CMDC_ST_EARC)
+		return 0;
+
+	earctx_cmdc_set_latency(p_earc->tx_cmdc_map, &latency);
+
+	return 0;
+}
+
+int earctx_get_cds(struct snd_kcontrol *kcontrol,
+		   struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
+	struct earc *p_earc = dev_get_drvdata(component->dev);
+	struct soc_bytes_ext *bytes_ext =
+		(struct soc_bytes_ext *)kcontrol->private_value;
+	u8 *value = (u8 *)ucontrol->value.bytes.data;
+	enum cmdc_st state;
+	u8 data[256];
+	int i;
+
+	if (!p_earc || IS_ERR(p_earc->tx_top_map))
+		return 0;
+
+	state = earctx_cmdc_get_state(p_earc->tx_cmdc_map);
+	if (state != CMDC_ST_EARC)
+		return 0;
+
+	earctx_cmdc_get_cds(p_earc->tx_cmdc_map, data);
+
+	for (i = 0; i < bytes_ext->max; i++)
+		*value++ = data[i];
+
+	return 0;
+}
+
+static const struct snd_kcontrol_new earc_controls[] = {
 	SOC_SINGLE_BOOL_EXT("HDMI ARC Switch",
 			    0,
 			    earcrx_arc_get_enable,
 			    earcrx_arc_set_enable),
 
+	SOC_ENUM_EXT("eARC_RX attended type",
+		     attended_type_enum,
+		     earcrx_get_attend_type,
+		     earcrx_set_attend_type),
+
 	SOC_ENUM_EXT("eARC_TX attended type",
 		     attended_type_enum,
 		     earctx_get_attend_type,
 		     earctx_set_attend_type),
+
+	SND_INT("eARC_RX Latency",
+		earcrx_get_latency,
+		earcrx_set_latency),
+
+	SND_INT("eARC_TX Latency",
+		earctx_get_latency,
+		earctx_set_latency),
+
+	SND_SOC_BYTES_EXT("eARC_RX CDS",
+			  CDS_MAX_BYTES,
+			  earcrx_get_cds,
+			  earcrx_set_cds),
+
+	SND_SOC_BYTES_EXT("eARC_TX CDS",
+			  CDS_MAX_BYTES,
+			  earctx_get_cds,
+			  NULL),
 };
 
 static const struct snd_soc_component_driver earc_component = {
