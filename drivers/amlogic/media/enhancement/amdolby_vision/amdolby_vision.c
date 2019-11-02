@@ -7150,7 +7150,9 @@ int dolby_vision_process(
 			}
 
 			/* tvcore need a reset for resolution change */
-			if (is_meson_tvmode() &&
+			/* remove txlx tv case by Brian.zhu 20191102 */
+			/* TODO: need check for tm2 */
+			if (is_meson_tm2_tvmode() &&
 			    ((core1_disp_hsize != h_size) ||
 			     (core1_disp_vsize != v_size)))
 				force_set = true;
