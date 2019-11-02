@@ -3439,8 +3439,9 @@ unsigned char *compose_audio_db(uint8_t *aud_db, uint8_t *add_buf)
 	/* copy ramin Short Audio Descriptors
 	 * in add_buf, except blk header
 	 */
-	if (idx + add_buf_len - 1 <= sizeof(com_aud))
-		memcpy(com_aud + idx, tmp_buf + 1, add_buf_len - 1);
+	if (idx < sizeof(com_aud))
+		if (idx + add_buf_len - 1 <= sizeof(com_aud))
+			memcpy(com_aud + idx, tmp_buf + 1, add_buf_len - 1);
 	payload_len = (idx - 1) + (add_buf_len - 1);
 	/* data blk header */
 	com_aud[0] = (AUDIO_TAG << 5) | payload_len;
