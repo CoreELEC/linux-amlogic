@@ -554,25 +554,16 @@ static int vidioc_qbuf(struct file *file, void *priv, struct v4l2_buffer *p)
 	while ((vf = vfq_peek(&dev->q_omx)))
 	{
 		index = (u32)vf->pts_us64;
-		if (p->index > index)
-		{
-			vf_put(vfq_pop(&dev->q_omx), dev->vf_receiver_name);
-			ATRACE_COUNTER(dev->v4l2_dev.name, vfq_level(&dev->q_omx));
-			printk("vidioc_qbuf skip: index:%u:%u\n", p->index, index);
-			continue;
-		}
-		else if (p->index == index)
-		{
-			vf = vfq_pop(&dev->q_omx);
-			ATRACE_COUNTER(dev->v4l2_dev.name, vfq_level(&dev->q_omx));
-			if (p->flags & V4L2_BUF_FLAG_DONE)
-				vf_put(vf, dev->vf_receiver_name);
-			else {
-				vfq_push(&dev->q_ready, vf);
-				ATRACE_COUNTER(dev->v4l2_dev.name, vfq_level(&dev->q_ready));
-			}
-		}
-		break;
+		vfq_push(&dev->q_ready, vfq_pop(&dev->q_omx));
+		ATRACE_COUNTER(dev->v4l2_dev.name, vfq_level(&dev->q_omx));
+		ATRACE_COUNTER(dev->v4l2_dev.name, vfq_level(&dev->q_ready));
+		vf_notify_receiver(
+				dev->vf_provider_name,
+				VFRAME_EVENT_PROVIDER_VFRAME_READY,
+				NULL);
+
+		if (p->index == index)
+			break;
 	}
 	return 0;
 }
