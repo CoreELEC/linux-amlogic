@@ -75,4 +75,10 @@ void lb_enable(int id, bool enable, bool chnum_en);
 
 void lb_set_chnum_en(int id, bool en, bool chnum_en);
 
+enum lb_out_rate {
+	MIC_RATE,
+	LB_RATE,
+};
+
+void lb_set_mode(int id, enum lb_out_rate rate);
 #endif
