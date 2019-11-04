@@ -2104,8 +2104,8 @@
 
 	internal_gpio_pins: internal_gpio_pins {
 		mux {
-			groups = "GPIOZ_14",
-				"GPIOZ_15";
+			groups = "GPIOH_0",
+				"GPIOH_1";
 			function = "gpio_periphs";
 			bias-disable;
 			input-enable;
