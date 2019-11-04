@@ -15216,3 +15216,8 @@ F: arch/arm/boot/dts/amlogic/firmware_avb_Q_ab.dtsi
 F: arch/arm/boot/dts/amlogic/partition_mbox_normal_dynamic_ab.dtsi
 F: arch/arm64/boot/dts/amlogic/firmware_avb_Q_ab.dtsi
 F: arch/arm64/boot/dts/amlogic/partition_mbox_normal_dynamic_ab.dtsi
+
+AMLOGIC VPP DRIVER
+M:	Brian Zhu <brian.zhu@amlogic.com>
+F: drivers/amlogic/media/video_sink/video_hw.c
+

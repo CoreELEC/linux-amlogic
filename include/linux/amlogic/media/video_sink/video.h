@@ -51,12 +51,6 @@ enum {
 	VIDEO_WIDEOPTION_MAX = 16
 };
 
-enum {
-	VFRAME_NONE,
-	VFRAME_MVC,
-	VFRAME_NO_MVC
-};
-
 /* TODO: move to register headers */
 #define VPP_VADJ2_BLMINUS_EN        (1 << 3)
 #define VPP_VADJ2_EN                (1 << 2)
@@ -183,9 +177,11 @@ enum {
 #define VPP_PHASECTL_INIRPTNUMT_BIT 5
 #define VPP_PHASECTL_INIRCVNUMT_BIT 0
 
+#define VPP_PPS_LAST_LINE_FIX_BIT     24
 #define VPP_LINE_BUFFER_EN_BIT          21
 #define VPP_SC_PREHORZ_EN_BIT           20
 #define VPP_SC_PREVERT_EN_BIT           19
+#define VPP_PPS_LAST_LINE_FIX      BIT(24)
 #define VPP_LINE_BUFFER_EN          (1 << 21)
 #define VPP_SC_PREHORZ_EN           (1 << 20)
 #define VPP_SC_PREVERT_EN           (1 << 19)
