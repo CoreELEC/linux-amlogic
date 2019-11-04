@@ -15202,3 +15202,10 @@ AMLOGIC T962E2 SBR DTS
 M:  Bing Jiang <Bing.Jiang@amlogic.com>
 F:  arch/arm/boot/dts/amlogic/tm2_t962e2_ab311_sbr.dts
 F:  arch/arm64/boot/dts/amlogic/tm2_t962e2_ab311_sbr.dts
+
+AMLOGIC S805Y DTS
+M:  Luan Yuan <luan.yuan@amlogic.com>
+F:  arch/arm/boot/dts/amlogic/gxl_p244_1g.dts
+F:  arch/arm/boot/dts/amlogic/gxl_p244_2g.dts
+F:  arch/arm64/boot/dts/amlogic/gxl_p244_1g.dts
+F:  arch/arm64/boot/dts/amlogic/gxl_p244_2g.dts
