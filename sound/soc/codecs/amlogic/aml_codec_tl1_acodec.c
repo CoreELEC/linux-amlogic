@@ -699,6 +699,7 @@ static const struct regmap_config tl1_acodec_regmap_config = {
 	.reg_stride = 4,
 	.val_bits = 32,
 	.max_register = 0x1c,
+	.num_reg_defaults_raw = ARRAY_SIZE(tl1_acodec_init_list),
 	.cache_type = REGCACHE_RBTREE,
 };
 
