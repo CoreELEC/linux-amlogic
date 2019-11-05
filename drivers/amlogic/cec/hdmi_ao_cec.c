@@ -1925,6 +1925,10 @@ static void cec_rx_process(void)
 	memcpy(msg, rx_msg, len);
 	initiator = ((msg[0] >> 4) & 0xf);
 	follower  = msg[0] & 0xf;
+
+	if (!(cec_dev->cec_info.addr_enable >> follower))
+		return;
+
 	if (follower != 0xf && follower != cec_dev->cec_info.log_addr) {
 		CEC_ERR("wrong rx message of bad follower:%x", follower);
 		return;
