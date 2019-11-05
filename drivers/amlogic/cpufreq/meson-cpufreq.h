@@ -57,14 +57,7 @@ static unsigned int gap_rate = (10 * 1000 * 1000);
 unsigned int gp1_clk_target;
 /*whether use different tables or not*/
 bool cpufreq_tables_supply;
-static unsigned int hispeed_cpufreq_max;
-static unsigned int medspeed_cpufreq_max;
-static unsigned int lospeed_cpufreq_max;
-enum cpufreq_index {
-	LOSPEED_INDEX,
-	MEDSPEED_INDEX,
-	HISPEED_INDEX
-};
+#define GET_DVFS_TABLE_INDEX           0x82000088
 
 struct meson_cpufreq_driver_data {
 	struct device *cpu_dev;
@@ -84,6 +77,5 @@ static unsigned int meson_cpufreq_set_rate(struct cpufreq_policy *policy,
 					   u32 cur_cluster, u32 rate);
 static int meson_regulator_set_volate(struct regulator *regulator, int old_uv,
 				      int new_uv, int tol_uv);
-int get_cpufreq_tables_efuse(u32 cur_cluster);
 int choose_cpufreq_tables_index(const struct device_node *np, u32 cur_cluster);
 #endif /* __MESON_CPUFREQ_H */

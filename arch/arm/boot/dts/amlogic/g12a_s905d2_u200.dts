@@ -974,44 +974,32 @@
 }; /* end of / */
 
 &CPU0 {
-	/*set differents table cpufreq max*/
-	diff_tables_supply;
-	hispeed_cpufreq_max = <2100>;
-	medspeed_cpufreq_max = <1908>;
-	lospeed_cpufreq_max = <1800>;
+	/*set multi table cpufreq max*/
+	/*multi_tables_available;*/
 	operating-points-v2 = <&cpu_opp_table0>,
 			<&cpu_opp_table1>,
 			<&cpu_opp_table2>;
 };
 
 &CPU1 {
-	/*set differents table cpufreq max*/
-	diff_tables_supply;
-	hispeed_cpufreq_max = <2100>;
-	medspeed_cpufreq_max = <1908>;
-	lospeed_cpufreq_max = <1800>;
+	/*set multi table cpufreq max*/
+	/*multi_tables_available;*/
 	operating-points-v2 = <&cpu_opp_table0>,
 			<&cpu_opp_table1>,
 			<&cpu_opp_table2>;
 };
 
 &CPU2 {
-	/*set differents table cpufreq max*/
-	diff_tables_supply;
-	hispeed_cpufreq_max = <2100>;
-	medspeed_cpufreq_max = <1908>;
-	lospeed_cpufreq_max = <1800>;
+	/*set multi table cpufreq max*/
+	/*multi_tables_available;*/
 	operating-points-v2 = <&cpu_opp_table0>,
 			<&cpu_opp_table1>,
 			<&cpu_opp_table2>;
 };
 
 &CPU3 {
-	/*set differents table cpufreq max*/
-	diff_tables_supply;
-	hispeed_cpufreq_max = <2100>;
-	medspeed_cpufreq_max = <1908>;
-	lospeed_cpufreq_max = <1800>;
+	/*set multi table cpufreq max*/
+	/*multi_tables_available;*/
 	operating-points-v2 = <&cpu_opp_table0>,
 			<&cpu_opp_table1>,
 			<&cpu_opp_table2>;

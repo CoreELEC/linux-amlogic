@@ -42,6 +42,20 @@
 #include <linux/amlogic/scpi_protocol.h>
 #include "../../base/power/opp/opp.h"
 #include "meson-cpufreq.h"
+#include <linux/arm-smccc.h>
+
+static unsigned int get_cpufreq_table_index(u64 function_id,
+					    u64 arg0, u64 arg1, u64 arg2)
+{
+	struct arm_smccc_res res;
+
+	arm_smccc_smc((unsigned long)function_id,
+		      (unsigned long)arg0,
+		      (unsigned long)arg1,
+		      (unsigned long)arg2,
+		      0, 0, 0, 0, &res);
+	return res.a0;
+}
 
 static DEFINE_MUTEX(cpufreq_target_lock);
 
@@ -387,66 +401,17 @@ static inline u32 get_table_max(struct cpufreq_frequency_table *table)
 	return max_freq;
 }
 
-int get_cpufreq_tables_efuse(u32 cur_cluster)
-{
-	int ret, efuse_info;
-	u32 freq, vol;
-
-	efuse_info = scpi_get_cpuinfo(cur_cluster, &freq, &vol);
-	if (efuse_info)
-		pr_err("%s,get invalid efuse_info = %d by mailbox!\n",
-			__func__, efuse_info);
-
-	pr_info("%s:efuse info for cpufreq =  %u\n", __func__, freq);
-	BUG_ON(freq && freq < EFUSE_CPUFREQ_MIN);
-	freq = DIV_ROUND_UP(freq, CLK_DIV) * CLK_DIV;
-	pr_info("%s:efuse adjust cpufreq =  %u\n", __func__, freq);
-	if (freq >= hispeed_cpufreq_max)
-		ret = HISPEED_INDEX;
-	else if (freq >= medspeed_cpufreq_max && freq < hispeed_cpufreq_max)
-		ret = MEDSPEED_INDEX;
-	else
-		ret = LOSPEED_INDEX;
-
-	return ret;
-}
-
 int choose_cpufreq_tables_index(const struct device_node *np, u32 cur_cluster)
 {
 	int ret = 0;
 
-	cpufreq_tables_supply = of_property_read_bool(np, "diff_tables_supply");
+	cpufreq_tables_supply = of_property_read_bool(np,
+						      "multi_tables_available");
 	if (cpufreq_tables_supply) {
 		/*choose appropriate cpufreq tables according efuse info*/
-		if (of_property_read_u32(np, "hispeed_cpufreq_max",
-					&hispeed_cpufreq_max)) {
-			pr_err("%s:don't find the node <dynamic_cpufreq_max>\n",
-					__func__);
-			hispeed_cpufreq_max = 0;
-			return ret;
-		}
-
-		if (of_property_read_u32(np, "medspeed_cpufreq_max",
-			&medspeed_cpufreq_max)) {
-			pr_err("%s:don't find the node <medspeed_cpufreq_max>\n",
-				__func__);
-			medspeed_cpufreq_max = 0;
-			return ret;
-		}
-
-		if (of_property_read_u32(np, "lospeed_cpufreq_max",
-			&lospeed_cpufreq_max)) {
-			pr_err("%s:don't find the node <lospeed_cpufreq_max>\n",
-				__func__);
-			lospeed_cpufreq_max = 0;
-			return ret;
-		}
-
-		ret = get_cpufreq_tables_efuse(cur_cluster);
-		pr_info("%s:hispeed_max %u,medspeed_max %u,lospeed_max %u,tables_index %u\n",
-				__func__, hispeed_cpufreq_max,
-				medspeed_cpufreq_max, lospeed_cpufreq_max, ret);
-
+		ret = get_cpufreq_table_index(GET_DVFS_TABLE_INDEX,
+					      cur_cluster, 0, 0);
+		pr_info("%s:tables_index %u\n", __func__, ret);
 	}
 
 	return ret;
