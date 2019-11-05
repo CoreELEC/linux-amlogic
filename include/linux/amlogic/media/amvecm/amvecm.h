@@ -447,12 +447,12 @@ struct am_pq_parm_s {
 static inline void WRITE_VPP_REG(uint32_t reg,
 		const uint32_t value)
 {
-	aml_write_vcbus_s(reg, value);
+	aml_write_vcbus(reg, value);
 }
 
 static inline uint32_t READ_VPP_REG(uint32_t reg)
 {
-	return aml_read_vcbus_s(reg);
+	return aml_read_vcbus(reg);
 }
 
 static inline void WRITE_VPP_REG_BITS(uint32_t reg,
@@ -460,7 +460,9 @@ static inline void WRITE_VPP_REG_BITS(uint32_t reg,
 		const uint32_t start,
 		const uint32_t len)
 {
-	aml_vcbus_update_bits_s(reg, value, start, len);
+	WRITE_VPP_REG(reg, ((READ_VPP_REG(reg) &
+		~(((1L << (len)) - 1) << (start))) |
+		(((value) & ((1L << (len)) - 1)) << (start))));
 }
 
 static inline uint32_t READ_VPP_REG_BITS(uint32_t reg,
@@ -469,7 +471,7 @@ static inline uint32_t READ_VPP_REG_BITS(uint32_t reg,
 {
 	uint32_t val;
 
-	val = ((aml_read_vcbus_s(reg) >> (start)) & ((1L << (len)) - 1));
+	val = ((READ_VPP_REG(reg) >> (start)) & ((1L << (len)) - 1));
 
 	return val;
 }
