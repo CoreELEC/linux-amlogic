@@ -331,6 +331,20 @@ void sdio_reinit(void)
 }
 EXPORT_SYMBOL(sdio_reinit);
 
+void sdio_notify(int on)
+{
+	if (sdio_host) {
+		if (sdio_host->card) {
+			if (on)
+				sdio_host->wifi_down_f = 0;
+			else
+				sdio_host->wifi_down_f = 1;
+		}
+	}
+	pr_info("[%s] finish\n", __func__);
+}
+EXPORT_SYMBOL(sdio_notify);
+
 void of_amlsd_pwr_prepare(struct amlsd_platform *pdata)
 {
 }
