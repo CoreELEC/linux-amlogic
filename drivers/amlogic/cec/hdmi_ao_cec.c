@@ -118,7 +118,7 @@ struct ao_cec_dev {
 	struct completion rx_ok;
 	struct completion tx_ok;
 	spinlock_t cec_reg_lock;
-	struct mutex cec_mutex;
+	struct mutex cec_tx_mutex;/*pretect tx cec msg*/
 	struct mutex cec_ioctl_mutex;
 	struct cec_wakeup_t wakup_data;
 	unsigned int wakeup_reason;
@@ -154,7 +154,7 @@ enum {
 };
 
 static struct ao_cec_dev *cec_dev;
-static int cec_tx_result;
+static enum cec_tx_ret cec_tx_result;
 
 static int cec_line_cnt;
 static struct hrtimer start_bit_check;
@@ -393,6 +393,21 @@ static inline void hdmirx_set_bits_dwc(uint32_t reg, uint32_t bits,
 	hdmirx_cec_write(reg, tmp);
 }
 
+const char *cec_tx_ret_str(int ret)
+{
+	switch (ret) {
+	case CEC_FAIL_NONE:
+		return "RET_NONE";
+	case CEC_FAIL_NACK:
+		return "RET_NACK";
+	case CEC_FAIL_BUSY:
+		return "RET_BUSY";
+	case CEC_FAIL_OTHER:
+	default:
+		return "RET_OTHER";
+	}
+}
+
 void cec_dbg_init(void)
 {
 	stdbgflg.hal_cmd_bypass = 0;
@@ -574,14 +589,16 @@ void cecb_irq_handle(void)
 	if (cec_dev->plat_data->ee_to_ao)
 		shift = 16;
 	/* TX DONE irq, increase tx buffer pointer */
-	if (intr_cec & CEC_IRQ_TX_DONE) {
+	if (intr_cec == CEC_IRQ_TX_DONE) {
 		cec_tx_result = CEC_FAIL_NONE;
+		CEC_INFO_L(L_2, "irqflg:TX_DONE\n");
 		complete(&cec_dev->tx_ok);
 	}
 	lock = hdmirx_cec_read(DWC_CEC_LOCK);
 	/* EOM irq, message is coming */
 	if ((intr_cec & CEC_IRQ_RX_EOM) || lock) {
 		cecb_pick_msg(rx_msg, &rx_len);
+		CEC_INFO_L(L_2, "irqflg:RX_EOM\n");
 		complete(&cec_dev->rx_ok);
 		new_msg = 1;
 		dwork = &cec_dev->cec_work;
@@ -594,31 +611,33 @@ void cecb_irq_handle(void)
 	    (intr_cec & CEC_IRQ_TX_ERR_INITIATOR)) {
 		if (intr_cec & CEC_IRQ_TX_NACK) {
 			cec_tx_result = CEC_FAIL_NACK;
-			CEC_INFO_L(L_2, "warning:TX_NACK\n");
+			CEC_INFO_L(L_2, "irqflg:TX_NACK\n");
 		} else if (intr_cec & CEC_IRQ_TX_ARB_LOST) {
 			cec_tx_result = CEC_FAIL_BUSY;
 			/* clear start */
 			hdmirx_cec_write(DWC_CEC_TX_CNT, 0);
 			hdmirx_set_bits_dwc(DWC_CEC_CTRL, 0, 0, 3);
-			CEC_INFO("warning:ARB_LOST\n");
+			CEC_INFO_L(L_2, "irqflg:ARB_LOST\n");
 		} else if (intr_cec & CEC_IRQ_TX_ERR_INITIATOR) {
-			CEC_INFO("warning:INITIATOR\n");
+			CEC_INFO_L(L_2, "irqflg:INITIATOR\n");
 			cec_tx_result = CEC_FAIL_OTHER;
-		} else
+		} else {
+			CEC_INFO_L(L_2, "irqflg:Other\n");
 			cec_tx_result = CEC_FAIL_OTHER;
+		}
 		complete(&cec_dev->tx_ok);
 	}
 
 	/* RX error irq flag */
 	if (intr_cec & CEC_IRQ_RX_ERR_FOLLOWER) {
-		CEC_INFO("warning:FOLLOWER\n");
+		CEC_INFO_L(L_2, "warning:FOLLOWER\n");
 		hdmirx_cec_write(DWC_CEC_LOCK, 0);
 		/* TODO: need reset cec hw logic? */
 	}
 
 	/* wakeup op code will triger this int*/
 	if (intr_cec & CEC_IRQ_RX_WAKEUP) {
-		CEC_ERR("warning:RX_WAKEUP\n");
+		CEC_INFO_L(L_2, "warning:RX_WAKEUP\n");
 		hdmirx_cec_write(DWC_CEC_WKUPCTRL, WAKEUP_EN_MASK);
 		/* TODO: wake up system if needed */
 	}
@@ -626,7 +645,6 @@ void cecb_irq_handle(void)
 
 static irqreturn_t cecb_isr(int irq, void *dev_instance)
 {
-	CEC_INFO_L(L_2, "cecb_isr\n");
 	cecb_irq_handle();
 	return IRQ_HANDLED;
 }
@@ -1509,6 +1527,7 @@ int cec_ll_tx(const unsigned char *msg, unsigned char len)
 	int retry = 2;
 	unsigned int cec_sel;
 
+	mutex_lock(&cec_dev->cec_tx_mutex);
 	/* only use cec a send msg */
 	if (cec_dev->cec_num > ENABLE_ONE_CEC)
 		cec_sel = CEC_A;
@@ -1517,9 +1536,11 @@ int cec_ll_tx(const unsigned char *msg, unsigned char len)
 
 	t = msecs_to_jiffies((cec_sel == CEC_B) ? 2000 : 5000);
 
-	if (len == 0)
+	if (len == 0) {
+		CEC_INFO("err len 0\n");
+		mutex_unlock(&cec_dev->cec_tx_mutex);
 		return CEC_FAIL_NONE;
-
+	}
 	/*
 	 * AO CEC controller will ack poll message itself if logical
 	 *	address already set. Must clear it before poll again
@@ -1537,11 +1558,11 @@ int cec_ll_tx(const unsigned char *msg, unsigned char len)
 	if ((cec_sel == CEC_A) && need_nack_repeat_msg(msg, len, t)) {
 		if (!memcmp(msg, last_cec_msg->msg, len)) {
 			CEC_INFO("NACK repeat message:%x\n", len);
+			mutex_unlock(&cec_dev->cec_tx_mutex);
 			return CEC_FAIL_NACK;
 		}
 	}
 
-	mutex_lock(&cec_dev->cec_mutex);
 	/* make sure we got valid physical address */
 	if (len >= 2 && msg[1] == CEC_OC_REPORT_PHYSICAL_ADDRESS)
 		check_physical_addr_valid(3);
@@ -1556,7 +1577,7 @@ try_again:
 	 */
 	if (check_confilct()) {
 		CEC_ERR("bus confilct too long\n");
-		mutex_unlock(&cec_dev->cec_mutex);
+		mutex_unlock(&cec_dev->cec_tx_mutex);
 		return CEC_FAIL_BUSY;
 	}
 
@@ -1570,9 +1591,10 @@ try_again:
 		if (retry > 0) {
 			retry--;
 			msleep(100 + (prandom_u32() & 0x07) * 10);
+			CEC_INFO_L(L_2, "retry0 %d\n", retry);
 			goto try_again;
 		}
-		mutex_unlock(&cec_dev->cec_mutex);
+		mutex_unlock(&cec_dev->cec_tx_mutex);
 		return CEC_FAIL_BUSY;
 	}
 	cec_tx_result = -1;
@@ -1591,10 +1613,10 @@ try_again:
 		if (retry > 0) {
 			retry--;
 			msleep(100 + (prandom_u32() & 0x07) * 10);
+			CEC_INFO_L(L_2, "retry1 %d\n", retry);
 			goto try_again;
 		}
 	}
-	mutex_unlock(&cec_dev->cec_mutex);
 
 	if (cec_sel == CEC_A) {
 		last_cec_msg->last_result = ret;
@@ -1604,6 +1626,9 @@ try_again:
 			last_cec_msg->last_jiffies = jiffies;
 		}
 	}
+
+	CEC_INFO_L(L_2, "%s ret:%d, %s\n", __func__, ret, cec_tx_ret_str(ret));
+	mutex_unlock(&cec_dev->cec_tx_mutex);
 	return ret;
 }
 
@@ -2522,7 +2547,7 @@ static ssize_t cmd_store(struct class *cla, struct class_attribute *attr,
 	int tmpbuf[20] = {};
 	int i;
 	int cnt;
-
+	int ret;
 	cnt = sscanf(bu, "%x %x %x %x %x %x %x %x %x %x %x %x %x %x %x %x",
 		    &tmpbuf[0], &tmpbuf[1], &tmpbuf[2], &tmpbuf[3],
 		    &tmpbuf[4], &tmpbuf[5], &tmpbuf[6], &tmpbuf[7],
@@ -2537,7 +2562,8 @@ static ssize_t cmd_store(struct class *cla, struct class_attribute *attr,
 		buf[i] = (char)tmpbuf[i];
 
 	/*CEC_ERR("cnt=%d\n", cnt);*/
-	cec_ll_tx(buf, cnt);
+	ret = cec_ll_tx(buf, cnt);
+	CEC_INFO_L(L_2, "%s ret:%d, %s\n", __func__, ret, cec_tx_ret_str(ret));
 	return count;
 }
 
@@ -2943,7 +2969,6 @@ static ssize_t hdmitx_cec_write(struct file *f, const char __user *buf,
 	} else {
 		CEC_ERR("err:cec module disabled\n");
 	}
-
 	return ret;
 }
 
@@ -3489,7 +3514,7 @@ static const struct cec_platform_data_s cec_tl1_data = {
 static const struct cec_platform_data_s cec_sm1_data = {
 	.chip_id = CEC_CHIP_SM1,
 	.line_reg = 1,
-	.line_bit = 3,
+	.line_bit = 10,
 	.ee_to_ao = 1,
 	.ceca_sts_reg = 1,
 	.ceca_ver = CECA_VER_1,
@@ -3500,7 +3525,7 @@ static const struct cec_platform_data_s cec_sm1_data = {
 static const struct cec_platform_data_s cec_tm2_data = {
 	.chip_id = CEC_CHIP_TM2,
 	.line_reg = 0,
-	.line_bit = 3,
+	.line_bit = 10,
 	.ee_to_ao = 1,
 	.ceca_sts_reg = 1,
 	.ceca_ver = CECA_VER_1,
@@ -3629,7 +3654,7 @@ static int aml_cec_probe(struct platform_device *pdev)
 	cec_node_val_init();
 	init_completion(&cec_dev->rx_ok);
 	init_completion(&cec_dev->tx_ok);
-	mutex_init(&cec_dev->cec_mutex);
+	mutex_init(&cec_dev->cec_tx_mutex);
 	mutex_init(&cec_dev->cec_ioctl_mutex);
 	spin_lock_init(&cec_dev->cec_reg_lock);
 	cec_dev->cec_info.remote_cec_dev = input_allocate_device();
