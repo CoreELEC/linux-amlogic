@@ -3581,7 +3581,9 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 		chk_vf = (vf != NULL) ? vf : cur_dispbuf;
 		if (chk_vf)
 			force_adjust =
-				(chk_vf->type & VIDTYPE_VIU_444) ? true : false;
+				((chk_vf->type & VIDTYPE_VIU_444) ||
+				(chk_vf->type & VIDTYPE_RGB_444))
+				? true : false;
 		if (chk_vf) {
 			if (cur_frame_par &&
 				cur_frame_par->nocomp) {

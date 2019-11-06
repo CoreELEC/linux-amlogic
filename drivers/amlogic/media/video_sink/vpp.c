@@ -728,8 +728,9 @@ static int vpp_process_speed_check(
 			|| (height_screen <= 0))
 			return SPEED_CHECK_DONE;
 
-		if ((next_frame_par->vscale_skip_count > 0)
-			&& (vf->type & VIDTYPE_VIU_444))
+		if ((next_frame_par->vscale_skip_count > 0) &&
+		    ((vf->type & VIDTYPE_VIU_444) ||
+		     (vf->type & VIDTYPE_RGB_444)))
 			bpp = 2;
 		if (height_in * bpp > height_out) {
 			/*
@@ -749,8 +750,9 @@ static int vpp_process_speed_check(
 				/* di process first, need more a bit of ratio */
 				if (vf->type & VIDTYPE_PRE_INTERLACE)
 					cur_ratio = (cur_ratio * 105) / 100;
-				if ((next_frame_par->vscale_skip_count > 0)
-					&& (vf->type & VIDTYPE_VIU_444))
+				if ((next_frame_par->vscale_skip_count > 0) &&
+				    ((vf->type & VIDTYPE_VIU_444) ||
+				     (vf->type & VIDTYPE_RGB_444)))
 					cur_ratio = cur_ratio * 2;
 
 				/* store the debug info for legacy */
