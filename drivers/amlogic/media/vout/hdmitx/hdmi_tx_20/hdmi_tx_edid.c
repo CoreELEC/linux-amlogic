@@ -2113,47 +2113,6 @@ static void edid_check_pcm_declare(struct rx_cap *prxcap)
 	}
 }
 
-static void hdrinfo_to_vinfo(struct vinfo_s *info, struct rx_cap *prxcap)
-{
-	unsigned int  k, l;
-	/*static hdr*/
-	info->hdr_info.hdr_support =
-		(prxcap->hdr_sup_eotf_sdr << 0) |
-		(prxcap->hdr_sup_eotf_hdr << 1) |
-		(prxcap->hdr_sup_eotf_smpte_st_2084 << 2) |
-		(prxcap->hdr_sup_eotf_hlg << 3);
-	memcpy(info->hdr_info.rawdata, prxcap->hdr_rawdata, 7);
-	/*dynamic hdr*/
-	for (l = 0; l < 4; l++) {
-		if (prxcap->hdr_dynamic_info[l].type == 0) {
-			memset(&info->hdr_info.dynamic_info[l],
-				0, sizeof(struct hdr_dynamic));
-			continue;
-		}
-		info->hdr_info.dynamic_info[l].type =
-			prxcap->hdr_dynamic_info[l].type;
-		info->hdr_info.dynamic_info[l].of_len =
-			prxcap->hdr_dynamic_info[l].hd_len - 3;
-		info->hdr_info.dynamic_info[l].support_flags =
-			prxcap->hdr_dynamic_info[l].support_flags;
-		for (k = 0; k < (prxcap->hdr_dynamic_info[l].hd_len - 3); k++) {
-			info->hdr_info.dynamic_info[l].optional_fields[k] =
-				prxcap->hdr_dynamic_info[l].optional_fields[k];
-		}
-	}
-	/*hdr 10+*/
-	memcpy(&info->hdr_info.hdr10plus_info,
-	       &prxcap->hdr10plus_info, sizeof(struct hdr10_plus_info));
-
-	info->hdr_info.colorimetry_support =
-		prxcap->colorimetry_data;
-	info->hdr_info.lumi_max = prxcap->hdr_lum_max;
-	info->hdr_info.lumi_avg = prxcap->hdr_lum_avg;
-	info->hdr_info.lumi_min = prxcap->hdr_lum_min;
-	pr_info(EDID "update rx hdr info %x at edid parsing\n",
-		info->hdr_info.hdr_support);
-}
-
 static bool is_4k60_supported(struct rx_cap *prxcap)
 {
 	int i = 0;
@@ -2168,16 +2127,6 @@ static bool is_4k60_supported(struct rx_cap *prxcap)
 		}
 	}
 	return false;
-}
-
-static void rxlatency_to_vinfo(struct vinfo_s *info, struct rx_cap *rx)
-{
-	if (!info || !rx)
-		return;
-	info->rx_latency.vLatency = rx->vLatency;
-	info->rx_latency.aLatency = rx->aLatency;
-	info->rx_latency.i_vLatency = rx->i_vLatency;
-	info->rx_latency.i_aLatency = rx->i_aLatency;
 }
 
 static void Edid_Descriptor_PMT(struct rx_cap *prxcap,
@@ -2281,7 +2230,6 @@ int hdmitx_edid_parse(struct hdmitx_dev *hdmitx_device)
 	int idx[4];
 	struct rx_cap *prxcap = &hdmitx_device->rxcap;
 	struct dv_info *dv = &hdmitx_device->rxcap.dv_info;
-	struct vinfo_s *info = NULL;
 	unsigned int max_tmds_clk = 0;
 
 	if (check_dvi_hdmi_edid_valid(hdmitx_device->EDID_buf)) {
@@ -2546,18 +2494,6 @@ int hdmitx_edid_parse(struct hdmitx_dev *hdmitx_device)
 	if (!hdmitx_edid_check_valid_blocks(&EDID_buf[0])) {
 		prxcap->ieeeoui = HDMI_IEEEOUI;
 		pr_info(EDID "Invalid edid, consider RX as HDMI device\n");
-	}
-	/* update RX HDR information */
-	info = get_current_vinfo();
-	if (info) {
-		/*update hdmi checksum to vout*/
-		memcpy(info->hdmichecksum, prxcap->chksum, 10);
-		if (!((strncmp(info->name, "480cvbs", 7) == 0) ||
-		(strncmp(info->name, "576cvbs", 7) == 0) ||
-		(strncmp(info->name, "null", 4) == 0))) {
-			hdrinfo_to_vinfo(info, prxcap);
-			rxlatency_to_vinfo(info, prxcap);
-		}
 	}
 	/* if sup_2160p60hz of dv is true, check the MAX_TMDS*/
 	if (dv->sup_2160p60hz) {

@@ -81,6 +81,10 @@ static void hdmitx_set_emp_pkt(unsigned char *data,
 static int check_fbc_special(unsigned char *edid_dat);
 static struct vinfo_s *hdmitx_get_current_vinfo(void);
 static void hdmitx_fmt_attr(struct hdmitx_dev *hdev);
+static void clear_rx_vinfo(struct hdmitx_dev *hdev);
+static void edidinfo_attach_to_vinfo(struct hdmitx_dev *hdev);
+static void edidinfo_detach_to_vinfo(struct hdmitx_dev *hdev);
+
 
 static DEFINE_MUTEX(setclk_mutex);
 static DEFINE_MUTEX(getedid_mutex);
@@ -88,6 +92,9 @@ static DEFINE_MUTEX(getedid_mutex);
 static struct hdmitx_dev hdmitx_device = {
 	.frac_rate_policy = 1,
 };
+
+static const struct dv_info dv_dummy;
+static int log_level;
 
 struct vout_device_s hdmitx_vdev = {
 	.dv_info = &hdmitx_device.rxcap.dv_info,
@@ -135,6 +142,7 @@ static inline void hdmitx_notify_hpd(int hpd)
 static void hdmitx_early_suspend(struct early_suspend *h)
 {
 	struct hdmitx_dev *phdmi = (struct hdmitx_dev *)h->param;
+	struct hdmitx_dev *hdev = phdmi;
 
 	phdmi->ready = 0;
 	phdmi->hpd_lock = 1;
@@ -148,6 +156,12 @@ static void hdmitx_early_suspend(struct early_suspend *h)
 	phdmi->output_blank_flag = 0;
 	phdmi->hwop.cntlddc(phdmi, DDC_HDCP_MUX_INIT, 1);
 	phdmi->hwop.cntlddc(phdmi, DDC_HDCP_OP, HDCP14_OFF);
+	hdmitx_set_vsif_pkt(0, 0, NULL, true);
+	hdmitx_set_hdr10plus_pkt(0, NULL);
+	clear_rx_vinfo(hdev);
+	hdmitx_edid_clear(hdev);
+	hdmitx_edid_ram_buffer_clear(hdev);
+	edidinfo_detach_to_vinfo(hdev);
 	extcon_set_state_sync(hdmitx_extcon_power, EXTCON_DISP_HDMI, 0);
 	phdmi->hwop.cntlconfig(&hdmitx_device, CONF_CLR_AVI_PACKET, 0);
 	phdmi->hwop.cntlconfig(&hdmitx_device, CONF_CLR_VSDB_PACKET, 0);
@@ -403,6 +417,7 @@ static void hdrinfo_to_vinfo(struct vinfo_s *info, struct hdmitx_dev *hdev)
 			| (hdev->rxcap.hdr_sup_eotf_hdr << 1)
 			| (hdev->rxcap.hdr_sup_eotf_smpte_st_2084 << 2)
 			| (hdev->rxcap.hdr_sup_eotf_hlg << 3);
+	memcpy(info->hdr_info.rawdata, hdev->rxcap.hdr_rawdata, 7);
 	/*dynamic hdr*/
 	for (i = 0; i < 4; i++) {
 		if (hdev->rxcap.hdr_dynamic_info[i].type == 0) {
@@ -444,6 +459,38 @@ static void rxlatency_to_vinfo(struct vinfo_s *info, struct rx_cap *rx)
 	info->rx_latency.i_aLatency = rx->i_aLatency;
 }
 
+static void edidinfo_attach_to_vinfo(struct hdmitx_dev *hdev)
+{
+	struct vinfo_s *info = NULL;
+
+	/* get current vinfo */
+	info = hdmitx_get_current_vinfo();
+	if ((info == NULL) || (info->name == NULL))
+		return;
+
+	if ((strncmp(info->name, "480cvbs", 7) == 0) ||
+		(strncmp(info->name, "576cvbs", 7) == 0) ||
+		(strncmp(info->name, "null", 4) == 0))
+		return;
+
+	hdrinfo_to_vinfo(info, hdev);
+	rxlatency_to_vinfo(info, &hdev->rxcap);
+	hdmitx_vdev.dv_info = &hdmitx_device.rxcap.dv_info;
+}
+
+static void edidinfo_detach_to_vinfo(struct hdmitx_dev *hdev)
+{
+	struct vinfo_s *info = NULL;
+
+	/* get current vinfo */
+	info = hdmitx_get_current_vinfo();
+	if ((info == NULL) || (info->name == NULL))
+		return;
+
+	edidinfo_attach_to_vinfo(hdev);
+	hdmitx_vdev.dv_info = &dv_dummy;
+}
+
 static int set_disp_mode_auto(void)
 {
 	int ret =  -1;
@@ -469,13 +516,6 @@ static int set_disp_mode_auto(void)
 
 	/*update hdmi checksum to vout*/
 	memcpy(info->hdmichecksum, hdev->rxcap.chksum, 10);
-
-	if (!((strncmp(info->name, "480cvbs", 7) == 0) ||
-		(strncmp(info->name, "576cvbs", 7) == 0) ||
-		(strncmp(info->name, "null", 4) == 0))) {
-		hdrinfo_to_vinfo(info, hdev);
-		rxlatency_to_vinfo(info, &hdev->rxcap);
-	}
 
 	hdmi_physcial_size_update(hdev);
 
@@ -561,6 +601,8 @@ static int set_disp_mode_auto(void)
 		hdev->cur_VIC = vic;
 		hdev->output_blank_flag = 1;
 		hdev->ready = 1;
+		edidinfo_attach_to_vinfo(hdev);
+
 		return 1;
 	}
 
@@ -597,6 +639,7 @@ static int set_disp_mode_auto(void)
 	}
 	hdev->output_blank_flag = 1;
 	hdev->ready = 1;
+	edidinfo_attach_to_vinfo(hdev);
 	return ret;
 }
 
@@ -1274,6 +1317,12 @@ static void hdr_work_func(struct work_struct *work)
 	}
 }
 
+#define hdmi_debug() \
+	do { \
+		if (log_level == 0xff) \
+			pr_info("%s[%d]\n", __func__, __LINE__); \
+	} while (0)
+
 #define GET_LOW8BIT(a)	((a) & 0xff)
 #define GET_HIGH8BIT(a)	(((a) >> 8) & 0xff)
 static void hdmitx_set_drm_pkt(struct master_display_info_s *data)
@@ -1282,6 +1331,7 @@ static void hdmitx_set_drm_pkt(struct master_display_info_s *data)
 	unsigned char DRM_HB[3] = {0x87, 0x1, 26};
 	static unsigned char DRM_DB[26] = {0x0};
 
+	hdmi_debug();
 	if (hdr_status_pos == 4) {
 		/* zero hdr10+ VSIF being sent - disable it */
 		pr_info("hdmitx_set_drm_pkt: disable hdr10+ zero vsif\n");
@@ -1487,6 +1537,7 @@ static void hdmitx_set_vsif_pkt(enum eotf_type type,
 	static enum eotf_type ltype = EOTF_T_NULL;
 	static uint8_t ltmode = -1;
 
+	hdmi_debug();
 	if ((hdev->ready == 0) || (hdev->rxcap.dv_info.ieeeoui
 		!= DV_IEEE_OUI)) {
 		ltype = EOTF_T_NULL;
@@ -1708,6 +1759,7 @@ static void hdmitx_set_hdr10plus_pkt(unsigned int flag,
 	unsigned char VEN_HB[3] = {0x81, 0x01, 0x1b};
 	unsigned char VEN_DB[27] = {0x00};
 
+	hdmi_debug();
 	if (flag == HDR10_PLUS_ZERO_VSIF) {
 		/* needed during hdr10+ to sdr transition */
 		pr_info("hdmitx_set_hdr10plus_pkt: zero vsif\n");
@@ -1793,6 +1845,7 @@ static void hdmitx_set_emp_pkt(unsigned char *data, unsigned int type,
 	unsigned int Data_Set_Tag = 0;
 	unsigned int Data_Set_Lemgth = 0;
 
+	hdmi_debug();
 	if (hdmitx_device.chip_type < MESON_CPU_ID_G12A) {
 		pr_info("this chip doesn't support emp function\n");
 		return;
@@ -4288,6 +4341,7 @@ static void hdmitx_hpd_plugout_handler(struct work_struct *work)
 	hdmitx_edid_clear(hdev);
 	hdmi_physcial_size_update(hdev);
 	hdmitx_edid_ram_buffer_clear(hdev);
+	edidinfo_detach_to_vinfo(hdev);
 	hdev->hpd_state = 0;
 	hdmitx_notify_hpd(hdev->hpd_state);
 	extcon_set_state_sync(hdmitx_extcon_hdmi, EXTCON_DISP_HDMI, 0);
@@ -5061,7 +5115,7 @@ static int amhdmitx_probe(struct platform_device *pdev)
 
 	hdmitx_device.task = kthread_run(hdmi_task_handle,
 		&hdmitx_device, "kthread_hdmi");
-
+	edidinfo_attach_to_vinfo(&hdmitx_device);
 	pr_info(SYS "amhdmitx_probe end\n");
 
 	return r;
@@ -5358,4 +5412,7 @@ static int __init hdmitx_boot_hdr_priority(char *str)
 }
 
 __setup("hdr_priority=", hdmitx_boot_hdr_priority);
+
+MODULE_PARM_DESC(log_level, "\n log_level\n");
+module_param(log_level, int, 0644);
 
