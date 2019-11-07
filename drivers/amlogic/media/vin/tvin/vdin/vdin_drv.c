@@ -853,6 +853,11 @@ int start_tvin_service(int no, struct vdin_parm_s  *para)
 
 	if (devp->index == 1) {
 		devp->parm.reserved |= para->reserved;
+
+		/*always update buf to avoid older data be captured*/
+		if (devp->parm.reserved & PARAM_STATE_SCREENCAP)
+			devp->flags |= VDIN_FLAG_FORCE_RECYCLE;
+
 		pr_info("vdin1 add reserved = 0x%lx\n", para->reserved);
 		pr_info("vdin1 all reserved = 0x%x\n", devp->parm.reserved);
 	}
@@ -863,8 +868,6 @@ int start_tvin_service(int no, struct vdin_parm_s  *para)
 		if ((devp->parm.reserved & PARAM_STATE_SCREENCAP) &&
 			(devp->parm.reserved & PARAM_STATE_HISTGRAM) &&
 			(devp->index == 1)) {
-			/*always update buf to avoid older data be captured*/
-			devp->flags |= VDIN_FLAG_FORCE_RECYCLE;
 			mutex_unlock(&devp->fe_lock);
 			return 0;
 		} else {
@@ -2102,9 +2105,11 @@ irqreturn_t vdin_v4l2_isr(int irq, void *dev_id)
 			next_wr_vfe = receiver_vf_get(devp->vfp);
 			if (next_wr_vfe)
 				receiver_vf_put(&next_wr_vfe->vf, devp->vfp);
-			else
-				pr_err("[vdin.%d]force recycle error,no buffer in ready list",
-						devp->index);
+			else {
+				pr_err("[vdin.%d]force recycle error\n",
+				       devp->index);
+				goto irq_handled;
+			}
 		} else {
 			goto irq_handled;
 		}
@@ -3068,8 +3073,9 @@ static ssize_t vdin_read(struct file *file, char __user *buf,
 	vfe = receiver_vf_peek(devp->vfp);
 	if (!vfe)
 		return 0;
-
 	vfe = receiver_vf_get(devp->vfp);
+  	if (!vfe)
+		return 0;
 	/*index = report_canvas_index;*/
 	index = vfe->vf.index;
 	devp->keystone_entry[index] = vfe;
