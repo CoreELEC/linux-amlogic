@@ -1621,16 +1621,18 @@ static const struct file_operations slabtrace_file_ops = {
 
 static int __init page_trace_module_init(void)
 {
-#ifndef CONFIG_64BIT
-
+#ifdef CONFIG_64BIT
+	d_pagetrace = proc_create("pagetrace", 0444,
+				  NULL, &pagetrace_file_ops);
+#else
 	if (!page_trace_disable)
 		d_pagetrace = proc_create("pagetrace", 0444,
 					  NULL, &pagetrace_file_ops);
+#endif
 	if (IS_ERR_OR_NULL(d_pagetrace)) {
 		pr_err("%s, create sysfs failed\n", __func__);
 		return -1;
 	}
-#endif
 
 #ifdef CONFIG_AMLOGIC_SLAB_TRACE
 	if (slab_trace_en)
