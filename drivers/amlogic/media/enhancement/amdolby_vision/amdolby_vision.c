@@ -82,6 +82,10 @@ static unsigned int dolby_vision_mode = DOLBY_VISION_OUTPUT_MODE_BYPASS;
 module_param(dolby_vision_mode, uint, 0664);
 MODULE_PARM_DESC(dolby_vision_mode, "\n dolby_vision_mode\n");
 
+static unsigned int dolby_vision_target_mode = DOLBY_VISION_OUTPUT_MODE_BYPASS;
+module_param(dolby_vision_target_mode, uint, 0444);
+MODULE_PARM_DESC(dolby_vision_target_mode, "\n dolby_vision_target_mode\n");
+
 static unsigned int dolby_vision_profile = 0xff;
 module_param(dolby_vision_profile, uint, 0664);
 MODULE_PARM_DESC(dolby_vision_profile, "\n dolby_vision_profile\n");
@@ -3900,6 +3904,7 @@ void enable_dolby_vision(int enable)
 		dolby_vision_wait_init = false;
 		dolby_vision_wait_count = 0;
 		dolby_vision_status = BYPASS_PROCESS;
+		dolby_vision_target_mode = DOLBY_VISION_OUTPUT_MODE_BYPASS;
 		dolby_vision_mode = DOLBY_VISION_OUTPUT_MODE_BYPASS;
 		dolby_vision_src_format = 0;
 		dolby_vision_on_count = 0;
@@ -4868,10 +4873,11 @@ int dolby_vision_check_mvc(struct vframe_s *vf)
 		mode = dolby_vision_mode;
 		if (dolby_vision_policy_process(
 			&mode, FORMAT_MVC)) {
-			if ((mode == DOLBY_VISION_OUTPUT_MODE_BYPASS) &&
-			    (dolby_vision_mode !=
+			if ((mode != DOLBY_VISION_OUTPUT_MODE_BYPASS) &&
+			    (dolby_vision_mode ==
 				DOLBY_VISION_OUTPUT_MODE_BYPASS))
 				dolby_vision_wait_on = true;
+			dolby_vision_target_mode = mode;
 			return 1;
 		}
 	}
@@ -4892,6 +4898,7 @@ int dolby_vision_check_hlg(struct vframe_s *vf)
 				&& (dolby_vision_mode ==
 				DOLBY_VISION_OUTPUT_MODE_BYPASS))
 				dolby_vision_wait_on = true;
+			dolby_vision_target_mode = mode;
 			return 1;
 		}
 	}
@@ -4912,6 +4919,7 @@ int dolby_vision_check_hdr10plus(struct vframe_s *vf)
 				&& (dolby_vision_mode ==
 				DOLBY_VISION_OUTPUT_MODE_BYPASS))
 				dolby_vision_wait_on = true;
+			dolby_vision_target_mode = mode;
 			return 1;
 		}
 	}
@@ -4932,6 +4940,7 @@ int dolby_vision_check_hdr10(struct vframe_s *vf)
 				&& (dolby_vision_mode ==
 				DOLBY_VISION_OUTPUT_MODE_BYPASS))
 				dolby_vision_wait_on = true;
+			dolby_vision_target_mode = mode;
 			return 1;
 		}
 	}
@@ -6348,6 +6357,7 @@ int dolby_vision_parse_metadata(
 			dolby_vision_set_toggle_flag(1);
 		pr_info("[dolby_vision_parse_metadata] output change from %d to %d\n",
 			dolby_vision_mode, current_mode);
+		dolby_vision_target_mode = current_mode;
 		dolby_vision_mode = current_mode;
 		if (is_dolby_vision_stb_mode())
 			new_dovi_setting.mode_changed = 1;
@@ -7010,6 +7020,7 @@ int dolby_vision_wait_metadata(struct vframe_s *vf)
 				dolby_vision_wait_init = true;
 				dolby_vision_wait_count =
 					dolby_vision_wait_delay;
+				dolby_vision_target_mode = mode;
 				dolby_vision_wait_on = true;
 				pr_dolby_dbg("dolby_vision_need_wait src=%d mode=%d\n",
 					check_format, mode);
@@ -7122,6 +7133,7 @@ int dolby_vision_process(
 	int graphic_status = 0;
 	int policy_changed = 0;
 	int sink_changed = 0;
+	int format_changed = 0;
 
 	if (!is_meson_box() && !is_meson_txlx() && !is_meson_tm2())
 		return -1;
@@ -7249,14 +7261,14 @@ int dolby_vision_process(
 		/* rpt_vf = NULL; */
 	}
 
+	if (dolby_vision_mode != dolby_vision_target_mode)
+		format_changed = 1;
+
 	graphic_status = is_graphic_changed();
 
 	/* monitor policy changes */
 	policy_changed = is_policy_changed();
-	if (policy_changed)
-		dolby_vision_set_toggle_flag(1);
-
-	if (graphic_status & 2)
+	if (policy_changed || format_changed || (graphic_status & 2))
 		dolby_vision_set_toggle_flag(1);
 
 	if (!is_dolby_vision_on())
@@ -7264,7 +7276,7 @@ int dolby_vision_process(
 
 	sink_changed = (is_sink_cap_changed(vinfo,
 		&current_hdr_cap, &current_sink_available) & 2) ? 1 : 0;
-	if (sink_changed || policy_changed ||
+	if (sink_changed || policy_changed || format_changed ||
 	    (video_status == 1) || (graphic_status & 2) ||
 	    (dolby_vision_flags & FLAG_FORCE_HDMI_PKT)) {
 		u8 toggle_mode;
@@ -7296,6 +7308,8 @@ int dolby_vision_process(
 			pr_dolby_dbg("Fake SDR, mode->%d\n", mode);
 			if (dolby_vision_policy == DOLBY_VISION_FOLLOW_SOURCE &&
 			    mode == DOLBY_VISION_OUTPUT_MODE_BYPASS) {
+				dolby_vision_target_mode =
+					DOLBY_VISION_OUTPUT_MODE_BYPASS;
 				dolby_vision_mode =
 					DOLBY_VISION_OUTPUT_MODE_BYPASS;
 				dolby_vision_set_toggle_flag(0);
@@ -7682,6 +7696,7 @@ void set_dolby_vision_mode(int mode)
 				dolby_vision_wait_on = true;
 			pr_info("DOVI output change from %d to %d\n",
 				dolby_vision_mode, mode);
+			dolby_vision_target_mode = mode;
 			dolby_vision_mode = mode;
 		}
 	}
@@ -7693,6 +7708,12 @@ int get_dolby_vision_mode(void)
 	return dolby_vision_mode;
 }
 EXPORT_SYMBOL(get_dolby_vision_mode);
+
+int get_dolby_vision_target_mode(void)
+{
+	return dolby_vision_target_mode;
+}
+EXPORT_SYMBOL(get_dolby_vision_target_mode);
 
 bool is_dolby_vision_enable(void)
 {

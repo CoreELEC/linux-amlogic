@@ -137,7 +137,7 @@ int hdr_policy_process(
 		/* sync hdr_policy with dolby_vision_policy */
 		/* get current dolby_vision_mode */
 		dv_policy = get_dolby_vision_policy();
-		dv_mode = get_dolby_vision_mode();
+		dv_mode = get_dolby_vision_target_mode();
 		dv_format = get_dolby_vision_src_format();
 	}
 

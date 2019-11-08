@@ -2504,11 +2504,12 @@ enum hdr_process_sel hdr_func(enum hdr_module_sel module_sel,
 	} else if (hdr_process_select == SDR_IPT) {
 		for (i = 0; i < HDR2_OETF_LUT_SIZE; i++) {
 			hdr_lut_param.oetf_lut[i]  = oe_y_lut_hdr[i];
-			output_mode = get_dolby_vision_mode();
+			output_mode = get_dolby_vision_target_mode();
 			if (output_mode == DOLBY_VISION_OUTPUT_MODE_SDR10 ||
 			output_mode == DOLBY_VISION_OUTPUT_MODE_SDR8)
 				hdr_lut_param.ogain_lut[i] =
-					oo_y_lut_sdr_hdr_250[i];
+					512 * 80 / 10000;
+					/* oo_y_lut_sdr_hdr_250[i]; */
 			else if (output_mode == DOLBY_VISION_OUTPUT_MODE_HDR10)
 				hdr_lut_param.ogain_lut[i] =
 					oo_y_lut_sdr_hdr_250[i];
@@ -2532,7 +2533,7 @@ enum hdr_process_sel hdr_func(enum hdr_module_sel module_sel,
 		for (i = 0; i < HDR2_OETF_LUT_SIZE; i++) {
 			hdr_lut_param.oetf_lut[i]  = oe_y_lut_hdr[i];
 			// hdr_lut_param.ogain_lut[i] = oo_y_lut_bypass[i];
-			output_mode = get_dolby_vision_mode();
+			output_mode = get_dolby_vision_target_mode();
 			if (output_mode == DOLBY_VISION_OUTPUT_MODE_SDR10 ||
 			output_mode == DOLBY_VISION_OUTPUT_MODE_SDR8)
 				hdr_lut_param.ogain_lut[i] =
@@ -2560,7 +2561,7 @@ enum hdr_process_sel hdr_func(enum hdr_module_sel module_sel,
 	} else if (hdr_process_select == HDR_IPT) {
 		for (i = 0; i < HDR2_OETF_LUT_SIZE; i++) {
 			hdr_lut_param.oetf_lut[i]  = oe_y_lut_hdr[i];
-			output_mode = get_dolby_vision_mode();
+			output_mode = get_dolby_vision_target_mode();
 			if (output_mode == DOLBY_VISION_OUTPUT_MODE_SDR10 ||
 			output_mode == DOLBY_VISION_OUTPUT_MODE_SDR8)
 				hdr_lut_param.ogain_lut[i] =
