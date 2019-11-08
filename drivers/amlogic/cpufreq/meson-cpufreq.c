@@ -558,8 +558,7 @@ static int meson_cpufreq_init(struct cpufreq_policy *policy)
 	}
 	pr_info("value of gp1_clk_target %u\n", gp1_clk_target);
 
-	if (cur_cluster < MAX_CLUSTERS)
-		cpumask_copy(policy->cpus, topology_core_cpumask(policy->cpu));
+	cpumask_copy(policy->cpus, topology_core_cpumask(policy->cpu));
 
 	tables_index = choose_cpufreq_tables_index(np, cur_cluster);
 	ret = dev_pm_opp_of_cpumask_add_table_indexed(policy->cpus,
