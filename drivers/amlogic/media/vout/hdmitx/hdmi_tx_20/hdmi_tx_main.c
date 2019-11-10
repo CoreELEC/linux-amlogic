@@ -2721,7 +2721,7 @@ static ssize_t show_hdr_cap(struct device *dev,
 		pRXCap->hdr_sup_eotf_hdr);
 	pos += snprintf(buf + pos, PAGE_SIZE, "        SMPTE ST 2084: %d\n",
 		pRXCap->hdr_sup_eotf_smpte_st_2084);
-	pos += snprintf(buf + pos, PAGE_SIZE, "        Hybrif Log-Gamma: %d\n",
+	pos += snprintf(buf + pos, PAGE_SIZE, "        Hybrid Log-Gamma: %d\n",
 		pRXCap->hdr_sup_eotf_hlg);
 	pos += snprintf(buf + pos, PAGE_SIZE, "    Supported SMD type1: %d\n",
 		pRXCap->hdr_sup_SMD_type1);
