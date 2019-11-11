@@ -1230,7 +1230,7 @@ static void lcd_config_default(void)
 
 static int lcd_config_probe(struct platform_device *pdev)
 {
-	const char *str;
+	const char *str = "none";
 	unsigned int val;
 	int ret = 0;
 
@@ -1259,7 +1259,6 @@ static int lcd_config_probe(struct platform_device *pdev)
 		ret = of_property_read_string(lcd_driver->dev->of_node,
 		"mode", &str);
 		if (ret) {
-			str = "none";
 			LCDERR("failed to get mode\n");
 			return -1;
 		}
