@@ -216,9 +216,9 @@ void dtmb_all_reset(void)
 		/*fix agc problem,skip warm_up status*/
 		dtmb_write_reg(DTMB_FRONT_46_CONFIG, 0x1a000f0f);
 		dtmb_write_reg(DTMB_FRONT_ST_FREQ, 0xf2400000);
-		dtmb_clk_set(Adc_Clk_24M);
+		dtmb_clk_set(ADC_CLK_24M);
 	} else if (is_ic_ver(IC_VER_TL1) || is_ic_ver(IC_VER_TM2)) {
-		if (demod_get_adc_clk() == Adc_Clk_24M) {
+		if (demod_get_adc_clk() == ADC_CLK_24M) {
 			dtmb_write_reg(DTMB_FRONT_DDC_BYPASS, 0x6aaaaa);
 			dtmb_write_reg(DTMB_FRONT_SRC_CONFIG1, 0x13196596);
 			dtmb_write_reg(0x5b << 2, 0x50a30a25);
