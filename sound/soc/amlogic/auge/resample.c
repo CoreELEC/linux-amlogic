@@ -534,6 +534,10 @@ static int new_resample_init(struct audioresample *p_resample)
 	return 0;
 }
 
+static struct resample_chipinfo axg_resample_chipinfo = {
+	.resample_version = 0,
+};
+
 static struct resample_chipinfo g12a_resample_chipinfo = {
 	.dividor_fn = true,
 	.resample_version = 0,
@@ -570,6 +574,7 @@ static struct resample_chipinfo sm1_resample_b_chipinfo = {
 static const struct of_device_id resample_device_id[] = {
 	{
 		.compatible = "amlogic, axg-resample",
+		.data = &axg_resample_chipinfo,
 	},
 	{
 		.compatible = "amlogic, g12a-resample",
@@ -616,11 +621,12 @@ static int resample_platform_probe(struct platform_device *pdev)
 	/* match data */
 	p_chipinfo = (struct resample_chipinfo *)
 		of_device_get_match_data(dev);
-	if (!p_chipinfo)
+	if (!p_chipinfo) {
 		dev_warn_once(dev, "check whether to update resample chipinfo\n");
-	else
-		p_resample->id = p_chipinfo->id;
+		return -EINVAL;
+	}
 
+	p_resample->id = p_chipinfo->id;
 	p_resample->chipinfo = p_chipinfo;
 
 	if (p_chipinfo->id == 0) {
