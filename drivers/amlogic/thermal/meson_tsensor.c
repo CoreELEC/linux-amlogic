@@ -189,9 +189,9 @@ static void meson_report_trigger(struct meson_tsensor_data *p)
 static u32 temp_to_code(struct meson_tsensor_data *data, int temp, bool trend)
 {
 	struct meson_tsensor_platform_data *pdata = data->pdata;
-	int64_t div_tmp1, div_tmp2;
+	s64 div_tmp1, div_tmp2;
 	u32 uefuse, reg_code;
-	int cal_a, cal_b, cal_c, cal_d, cal_type;
+	u32 cal_a, cal_b, cal_c, cal_d, cal_type;
 
 	uefuse = data->trim_info;
 	uefuse = uefuse & 0xffff;
@@ -207,7 +207,9 @@ static u32 temp_to_code(struct meson_tsensor_data *data, int temp, bool trend)
 	cal_d = pdata->cal_d;
 	switch (cal_type) {
 	case 0x1:
-		div_tmp2 = (1 << 16) * (temp * 10 + cal_c);
+		div_tmp2 = cal_c;
+		div_tmp2 = div_tmp2 + temp * 10;
+		div_tmp2 = (1 << 16) * div_tmp2;
 		div_tmp2 = div_s64(div_tmp2, cal_d);
 		if (uefuse & 0x8000) {
 			div_tmp2 = div_tmp2 + (uefuse & 0x7fff);
@@ -239,8 +241,8 @@ static u32 temp_to_code(struct meson_tsensor_data *data, int temp, bool trend)
 static int code_to_temp(struct meson_tsensor_data *data, int temp_code)
 {
 	struct meson_tsensor_platform_data *pdata = data->pdata;
-	int temp, cal_type, cal_a, cal_b, cal_c, cal_d;
-	int64_t div_tmp1, div_tmp2;
+	u32 cal_type, cal_a, cal_b, cal_c, cal_d;
+	s64 temp, div_tmp1, div_tmp2;
 	u32 uefuse;
 
 	uefuse = data->trim_info;
