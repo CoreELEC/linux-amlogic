@@ -116,6 +116,10 @@ struct rx_cap {
 	unsigned int max_frl_rate:4;
 	unsigned int fpap_start_loc:1;
 	unsigned int allm:1;
+	unsigned int cnc0:1; /* Graphics */
+	unsigned int cnc1:1; /* Photo */
+	unsigned int cnc2:1; /* Cinema */
+	unsigned int cnc3:1; /* Game */
 	unsigned int mdelta:1;
 	unsigned int fva:1;
 	unsigned int hdr_sup_eotf_sdr:1;
@@ -447,8 +451,8 @@ struct hdmitx_dev {
 	unsigned int cedst_policy;
 	struct ced_cnt ced_cnt;
 	struct scdc_locked_st chlocked_st;
-	/* allm_mode: 1/game, 2/graphcis, 3/photo, 4/cinema */
-	unsigned int allm_mode;
+	unsigned int allm_mode; /* allm_mode: 1/on 0/off */
+	unsigned int ct_mode; /* 0/off 1/game, 2/graphcis, 3/photo, 4/cinema */
 	unsigned int sspll;
 	/* configure for I2S: 8ch in, 2ch out */
 	/* 0: default setting  1:ch0/1  2:ch2/3  3:ch4/5  4:ch6/7 */
@@ -538,13 +542,12 @@ struct hdmitx_dev {
 	#define YCC_RANGE_LIM		0
 	#define YCC_RANGE_FUL		1
 	#define YCC_RANGE_RSVD		2
-#define CONF_ALLM_MODE		(CMD_CONF_OFFSET + 0X2000 + 0x04)
-	#define SET_ALLM_GRAPHICS	0
-	#define SET_ALLM_PHOTO		1
-	#define SET_ALLM_CINEMA		2
-	#define SET_ALLM_GAME		3
-	#define CLEAR_ALLM_MODE		0xf
-	#define GET_ALLM_MODE		0x10
+#define CONF_CT_MODE		(CMD_CONF_OFFSET + 0X2000 + 0x04)
+	#define SET_CT_OFF		0
+	#define SET_CT_GAME		1
+	#define SET_CT_GRAPHICS	2
+	#define SET_CT_PHOTO	3
+	#define SET_CT_CINEMA	4
 #define CONF_VIDEO_MUTE_OP      (CMD_CONF_OFFSET + 0x1000 + 0x04)
 #define VIDEO_MUTE          0x1
 #define VIDEO_UNMUTE        0x2

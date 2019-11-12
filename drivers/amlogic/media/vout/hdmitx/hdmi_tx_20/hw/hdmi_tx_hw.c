@@ -5060,26 +5060,26 @@ static int hdmitx_cntl_config(struct hdmitx_dev *hdev, unsigned int cmd,
 	case CONF_AVI_YQ01:
 		hdmitx_set_reg_bits(HDMITX_DWC_FC_AVICONF3, argv, 2, 2);
 		break;
-	case CONF_ALLM_MODE:
-		if (argv == CLEAR_ALLM_MODE) {
+	case CONF_CT_MODE:
+		if (argv == SET_CT_OFF) {
 			hdmitx_set_reg_bits(HDMITX_DWC_FC_AVICONF2, 0, 7, 1);
 			hdmitx_set_reg_bits(HDMITX_DWC_FC_AVICONF3, 0, 0, 2);
-			break;
 		}
-		if (argv == GET_ALLM_MODE) {
-			if (hdmitx_rd_reg(HDMITX_DWC_FC_AVICONF2) & (1 << 7))
-				ret = hdmitx_rd_reg(HDMITX_DWC_FC_AVICONF3) & 3;
-			else
-				ret = -1;
-			break;
+		if (argv == SET_CT_GAME) {
+			hdmitx_set_reg_bits(HDMITX_DWC_FC_AVICONF2, 1, 7, 1);
+			hdmitx_set_reg_bits(HDMITX_DWC_FC_AVICONF3, 3, 0, 2);
 		}
-		/* set ALLM mode */
-		hdmitx_set_reg_bits(HDMITX_DWC_FC_AVICONF2, 1, 7, 1);
-		hdmitx_set_reg_bits(HDMITX_DWC_FC_AVICONF3, argv & 3, 0, 2);
-		if (argv == SET_ALLM_PHOTO) {
-			// TODO
-			// Extended colorimetry field may be
-			// sYcc601, AdobeYcc601 or AdobeRGB
+		if (argv == SET_CT_GRAPHICS) {
+			hdmitx_set_reg_bits(HDMITX_DWC_FC_AVICONF2, 1, 7, 1);
+			hdmitx_set_reg_bits(HDMITX_DWC_FC_AVICONF3, 0, 0, 2);
+		}
+		if (argv == SET_CT_PHOTO) {
+			hdmitx_set_reg_bits(HDMITX_DWC_FC_AVICONF2, 1, 7, 1);
+			hdmitx_set_reg_bits(HDMITX_DWC_FC_AVICONF3, 1, 0, 2);
+		}
+		if (argv == SET_CT_CINEMA) {
+			hdmitx_set_reg_bits(HDMITX_DWC_FC_AVICONF2, 1, 7, 1);
+			hdmitx_set_reg_bits(HDMITX_DWC_FC_AVICONF3, 2, 0, 2);
 		}
 		break;
 	case CONF_EMP_NUMBER:

@@ -1620,7 +1620,6 @@ static int hdmitx_edid_block_parse(struct hdmitx_dev *hdmitx_device,
 				set_vsdb_dc_cap(prxcap);
 				prxcap->Max_TMDS_Clock1 =
 					(count > 6) ? blockbuf[offset + 6] : 0;
-
 				if (count > 7) {
 					tmp = blockbuf[offset + 7];
 					idx = offset + 8;
@@ -1640,6 +1639,10 @@ static int hdmitx_edid_block_parse(struct hdmitx_dev *hdmitx_device,
 						get_ilatency(prxcap, val);
 						idx += 2;
 					}
+					prxcap->cnc0 = (tmp >> 0) & 1;
+					prxcap->cnc1 = (tmp >> 1) & 1;
+					prxcap->cnc2 = (tmp >> 2) & 1;
+					prxcap->cnc3 = (tmp >> 3) & 1;
 					if (tmp & (1<<5)) {
 						idx += 1;
 						/* valid 4k */

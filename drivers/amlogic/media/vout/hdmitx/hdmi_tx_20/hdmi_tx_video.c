@@ -971,27 +971,13 @@ int hdmitx_set_display(struct hdmitx_dev *hdev, enum hdmi_vic VideoCode)
 			else
 				;
 
-			switch (hdev->rxcap.allm ? hdev->allm_mode : 0) {
-			case 1: /* game */
+			if (hdev->allm_mode) {
 				hdmitx_construct_vsif(hdev, VT_ALLM, 1, NULL);
-				hdev->hwop.cntlconfig(hdev, CONF_ALLM_MODE,
-					SET_ALLM_GAME);
-				break;
-			case 2: /* graphics */
-				hdev->hwop.cntlconfig(hdev, CONF_ALLM_MODE,
-					SET_ALLM_GRAPHICS);
-				break;
-			case 3: /* photo */
-				hdev->hwop.cntlconfig(hdev, CONF_ALLM_MODE,
-					SET_ALLM_PHOTO);
-				break;
-			case 4: /* cinema */
-				hdev->hwop.cntlconfig(hdev, CONF_ALLM_MODE,
-					SET_ALLM_CINEMA);
-				break;
-			default:
-				break;
+				hdev->hwop.cntlconfig(hdev, CONF_CT_MODE,
+					SET_CT_OFF);
 			}
+			hdev->hwop.cntlconfig(hdev, CONF_CT_MODE,
+				hdev->ct_mode);
 
 			ret = 0;
 		}
