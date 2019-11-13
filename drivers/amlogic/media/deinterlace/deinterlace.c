@@ -1104,10 +1104,10 @@ struct di_buf_s *get_di_buf(int queue_idx, int *start_pos)
 
 	if (di_log_flag & DI_LOG_QUEUE) {
 		if (di_buf)
-			di_print("%s: %x(%d,%d)\n", __func__, di_buf,
-				pool_idx, di_buf_idx);
+			di_print("%s: 0x%p(%d,%d)\n", __func__, di_buf,
+				 pool_idx, di_buf_idx);
 		else
-			di_print("%s: %x\n", __func__, di_buf);
+			di_print("%s: 0x%p\n", __func__, di_buf);
 	}
 
 	return di_buf;
@@ -1162,10 +1162,10 @@ static struct di_buf_s *get_di_buf_head(int queue_idx)
 
 	if (di_log_flag & DI_LOG_QUEUE) {
 		if (di_buf)
-			di_print("%s: %x(%d,%d)\n", __func__, di_buf,
-				pool_idx, di_buf_idx);
+			di_print("%s: 0x%p(%d,%d)\n", __func__, di_buf,
+				 pool_idx, di_buf_idx);
 		else
-			di_print("%s: %x\n", __func__, di_buf);
+			di_print("%s: 0x%p\n", __func__, di_buf);
 	}
 
 	return di_buf;
@@ -1190,9 +1190,9 @@ static void queue_out(struct di_buf_s *di_buf)
 		q = &(queue[di_buf->queue_index]);
 
 		if (di_log_flag & DI_LOG_QUEUE)
-			di_print("%s:<%d:%d,%d,%d> %x\n", __func__,
-				di_buf->queue_index, q->num, q->in_idx,
-				q->out_idx, di_buf);
+			di_print("%s:<%d:%d,%d,%d> 0x%p\n", __func__,
+				 di_buf->queue_index, q->num, q->in_idx,
+				 q->out_idx, di_buf);
 
 		if (q->num > 0) {
 			if (q->type == 0) {
@@ -1313,8 +1313,8 @@ static void queue_in(struct di_buf_s *di_buf, int queue_idx)
 	}
 	q = &(queue[queue_idx]);
 	if (di_log_flag & DI_LOG_QUEUE)
-		di_print("%s:<%d:%d,%d,%d> %x\n", __func__, queue_idx,
-			q->num, q->in_idx, q->out_idx, di_buf);
+		di_print("%s:<%d:%d,%d,%d> 0x%p\n", __func__, queue_idx,
+			 q->num, q->in_idx, q->out_idx, di_buf);
 
 	if (q->type == 0) {
 		q->pool[q->in_idx] = (di_buf->type << 8) | (di_buf->index);
@@ -4113,7 +4113,7 @@ static unsigned char pre_de_buf_config(void)
 	unsigned int width_roundup = 2;
 	u32 rls_timeout;
 	u32 afbc_busy;
-	u32 is_afbc_mode;
+	u32 is_afbc_mode = 0;
 	bool flg_1080i = false;
 
 	if (di_blocking || !atomic_read(&de_devp->mem_flag))
@@ -4849,7 +4849,7 @@ static int check_recycle_buf(void)
 						VFRAME_EVENT_RECEIVER_PUT,
 						NULL);
 					di_print(
-						"%s: vf_put(%d) %x, %u ms\n",
+						"%s: vf_put(%d) 0x%p, %u ms\n",
 						__func__,
 						di_pre_stru.recycle_seq,
 						vframe_in[di_buf->index],
@@ -8097,9 +8097,11 @@ get_vframe:
 		log_buffer_state("get");
 	}
 	if (vframe_ret) {
-		di_print("%s: %s[%d]:%x %u ms\n", __func__,
-		vframe_type_name[di_buf->type], di_buf->index, vframe_ret,
-		jiffies_to_msecs(jiffies_64 - vframe_ret->ready_jiffies64));
+		di_print("%s: %s[%d]:0x%p %u ms\n", __func__,
+			 vframe_type_name[di_buf->type],
+			 di_buf->index, vframe_ret,
+			 jiffies_to_msecs
+			 (jiffies_64 - vframe_ret->ready_jiffies64));
 	}
 
 	if (!post_wr_en && di_post_stru.run_early_proc_fun_flag && vframe_ret) {
