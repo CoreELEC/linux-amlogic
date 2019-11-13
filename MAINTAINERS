@@ -15209,3 +15209,10 @@ F:  arch/arm/boot/dts/amlogic/gxl_p244_1g.dts
 F:  arch/arm/boot/dts/amlogic/gxl_p244_2g.dts
 F:  arch/arm64/boot/dts/amlogic/gxl_p244_1g.dts
 F:  arch/arm64/boot/dts/amlogic/gxl_p244_2g.dts
+
+AMLOGIC PARTITION DTSI FOR Q AB UPDATE
+M: Xindong Xu <xindong.xu@amlogic.com>
+F: arch/arm/boot/dts/amlogic/firmware_avb_Q_ab.dtsi
+F: arch/arm/boot/dts/amlogic/partition_mbox_normal_dynamic_ab.dtsi
+F: arch/arm64/boot/dts/amlogic/firmware_avb_Q_ab.dtsi
+F: arch/arm64/boot/dts/amlogic/partition_mbox_normal_dynamic_ab.dtsi
