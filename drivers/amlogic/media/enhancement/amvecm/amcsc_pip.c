@@ -882,7 +882,7 @@ void hdmi_packet_process(
 	if (customer_hdr_clipping)
 		content_max_lumin[vd_path] =
 			customer_hdr_clipping;
-	else if (p && p->luminance[0])
+	else if (p->luminance[0])
 		content_max_lumin[vd_path] =
 			p->luminance[0] / 10000;
 	else
