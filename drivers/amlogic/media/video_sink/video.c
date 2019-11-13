@@ -3332,7 +3332,8 @@ static s32 primary_render_frame(struct video_layer_s *layer)
 #endif
 #ifdef TV_3D_FUNCTION_OPEN
 	/*turn off vertical scaler when 3d display */
-	if ((layer->dispbuf->type & VIDTYPE_MVC) ||
+	if ((layer->dispbuf &&
+	     (layer->dispbuf->type & VIDTYPE_MVC)) ||
 	    last_mode_3d) {
 		layer->sc_setting.sc_v_enable = false;
 		config_3d_vd2_pps(
@@ -4794,15 +4795,16 @@ SET_FILTER:
 				pr_info("call process_fun\n");
 		}
 #endif
-		cur_dispbuf->process_fun(
-			cur_dispbuf->private_data,
-			vd_layer[0].start_x_lines |
-			(cur_frame_par->vscale_skip_count <<
-			24) | (frame_par_di_set << 16),
-			vd_layer[0].end_x_lines,
-			vd_layer[0].start_y_lines,
-			vd_layer[0].end_y_lines,
-			cur_dispbuf);
+		if (cur_frame_par)
+			cur_dispbuf->process_fun(
+				cur_dispbuf->private_data,
+				vd_layer[0].start_x_lines |
+				(cur_frame_par->vscale_skip_count <<
+				24) | (frame_par_di_set << 16),
+				vd_layer[0].end_x_lines,
+				vd_layer[0].start_y_lines,
+				vd_layer[0].end_y_lines,
+				cur_dispbuf);
 		di_post_process_done = true;
 	}
 exit:
@@ -7764,7 +7766,7 @@ static ssize_t hdmin_delay_start_store(struct class *class,
 			struct class_attribute *attr,
 			const char *buf, size_t count)
 {
-	size_t r;
+	int r;
 	int value;
 
 	r = kstrtoint(buf, 0, &value);
@@ -7786,7 +7788,7 @@ static ssize_t hdmin_delay_duration_store(struct class *class,
 			struct class_attribute *attr,
 			const char *buf, size_t count)
 {
-	size_t r;
+	int r;
 	int value;
 
 	r = kstrtoint(buf, 0, &value);
@@ -8714,8 +8716,7 @@ static ssize_t hist_test_store(
 					VI_HIST_V_START_END, 0);
 					WRITE_VCBUS_REG(
 					VI_HIST_PIC_SIZE,
-					(ginfo->width & 0xfff) |
-					(ginfo->field_height << 16));
+					1080 | 1920);
 					WRITE_VCBUS_REG(VI_HIST_CTRL, 0x3801);
 				}
 			}

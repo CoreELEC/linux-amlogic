@@ -916,10 +916,11 @@ static long videosync_ioctl(struct file *file,
 			if (dev_id < VIDEOSYNC_S_COUNT)
 				dev_s = &vp_dev->video_prov[dev_id];
 
-			if (dev_s != NULL && dev_s->mapped)
+			if (dev_s && dev_s->mapped) {
 				dev_s->show_first_frame_nosync = info[1];
-			pr_info("show_first_frame_nosync =%d\n",
-				dev_s->show_first_frame_nosync);
+				pr_info("show_first_frame_nosync =%d\n",
+					dev_s->show_first_frame_nosync);
+			}
 		}
 	}
 	break;
@@ -985,7 +986,7 @@ static inline bool omx_vpts_expire(struct vframe_s *cur_vf,
 			       int toggled_cnt)
 
 {
-	u32 pts = next_vf->pts;
+	u32 pts;
 #ifdef VIDEO_PTS_CHASE
 	u32 vid_pts, scr_pts;
 #endif
@@ -995,6 +996,11 @@ static inline bool omx_vpts_expire(struct vframe_s *cur_vf,
 	int delta_32 = 0;
 	/*u32 dur_pts = 0;*/
 	bool expired;
+
+	if (!next_vf)
+		return false;
+
+	pts = next_vf->pts;
 
 	if (dev_s->freerun_mode == FREERUN_NODUR)
 		return true;
@@ -1091,7 +1097,7 @@ static inline bool omx_vpts_expire(struct vframe_s *cur_vf,
 		 systime,
 		 vsync_pts_inc);
 
-	if (expired && next_vf && next_vf->next_vf_pts_valid &&
+	if (expired && next_vf->next_vf_pts_valid &&
 	    pts_enforce_pulldown &&
 	    next_vf->next_vf_pts &&
 	    (toggled_cnt > 0) &&
@@ -1100,7 +1106,7 @@ static inline bool omx_vpts_expire(struct vframe_s *cur_vf,
 		expired = false;
 		vp_print(dev_s->vf_receiver_name, PRINT_PATTERN,
 			 "force expired false\n");
-	} else if (!expired && next_vf && next_vf->next_vf_pts_valid &&
+	} else if (!expired && next_vf->next_vf_pts_valid &&
 		pts_enforce_pulldown &&
 		next_vf->next_vf_pts &&
 		(toggled_cnt == 0) &&
