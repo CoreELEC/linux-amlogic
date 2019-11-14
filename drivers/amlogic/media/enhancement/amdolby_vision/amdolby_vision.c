@@ -291,7 +291,7 @@ static int core3_switch;
 static bool force_set_lut;
 
 /*core reg must be set at first time. bit0 is for core2, bit1 is for core3*/
-static bool first_reseted;
+static u32 first_reseted;
 
 module_param(vtotal_add, uint, 0664);
 MODULE_PARM_DESC(vtotal_add, "\n vtotal_add\n");
@@ -4145,14 +4145,14 @@ static void dump_setting(
 					READ_VPP_DV_REG(
 					DOLBY_CORE1_REG_START
 					+ 50 + i));
-		} else if (is_meson_txlx()) {
+		} else if (is_meson_txlx_stbmode()) {
 			pr_info("core1 swap\n");
-			for (i = DOLBY_TV_SWAP_CTRL0;
-				i <= DOLBY_TV_STATUS1; i++)
+			for (i = DOLBY_CORE1_CLKGATE_CTRL;
+				i <= DOLBY_CORE1_DMA_PORT; i++)
 				pr_info("[0x%4x] = 0x%x\n",
 					i, READ_VPP_DV_REG(i));
 			pr_info("core1 real reg\n");
-			for (i = DOLBY_TV_REG_START;
+			for (i = DOLBY_CORE1_REG_START;
 				i <= DOLBY_CORE1_REG_START + 5;
 				i++)
 				pr_info("[0x%4x] = 0x%x\n",
