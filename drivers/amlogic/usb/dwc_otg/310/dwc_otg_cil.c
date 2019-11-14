@@ -3806,10 +3806,6 @@ void dwc_otg_ep_start_transfer(dwc_otg_core_if_t *core_if, dwc_ep_t *ep)
 			deptsiz.b.pktcnt =
 			    (ep->xfer_len - ep->xfer_count - 1 +
 			     ep->maxpacket) / ep->maxpacket;
-			if (deptsiz.b.pktcnt > MAX_PKT_CNT) {
-				deptsiz.b.pktcnt = MAX_PKT_CNT;
-				deptsiz.b.xfersize = deptsiz.b.pktcnt * ep->maxpacket;
-			}
 			if (ep->type == DWC_OTG_EP_TYPE_ISOC)
 				deptsiz.b.mc = deptsiz.b.pktcnt;
 		}
@@ -3925,8 +3921,6 @@ void dwc_otg_ep_start_transfer(dwc_otg_core_if_t *core_if, dwc_ep_t *ep)
 			deptsiz.b.pktcnt =
 			    (ep->xfer_len - ep->xfer_count +
 			     (ep->maxpacket - 1)) / ep->maxpacket;
-			if (deptsiz.b.pktcnt > MAX_PKT_CNT)
-				deptsiz.b.pktcnt = MAX_PKT_CNT;
 
 			if (!core_if->dma_desc_enable)
 				ep->xfer_len =

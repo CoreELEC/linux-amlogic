@@ -1082,6 +1082,8 @@ static int dwc_otg_driver_probe(struct platform_device *pdev)
 			DWC_PRINTF("%s NOT match\n", __func__);
 			return -ENODEV;
 		}
+	} else {
+		return 0;
 	}
 
 	if (controller_type == USB_HOST_ONLY && !force_device_mode) {
