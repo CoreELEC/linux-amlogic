@@ -806,7 +806,7 @@ static int build_ge2d_config(struct ge2d_context_s *context,
 					update_canvas_cfg(canvas_cfg,
 						cfg->dst_planes[i].addr,
 						cfg->dst_planes[i].w *
-						src->bpp / 8,
+						dst->bpp / 8,
 						cfg->dst_planes[i].h);
 				}
 			}
@@ -824,7 +824,8 @@ static int setup_display_property(struct src_dst_para_s *src_dst, int index)
 	u32 cs_width = 0, cs_height = 0, cs_addr = 0;
 	unsigned	int	data32;
 	unsigned	int	bpp;
-	unsigned int	block_mode[] = {2, 4, 8, 16, 16, 32, 0, 24};
+	unsigned int	block_mode[] = {2, 4, 8, 16, 16, 32, 0, 24,
+					0, 0, 0, 0, 0, 0, 0, 0};
 
 	src_dst->canvas_index = index;
 	if (ge2d_meson_dev.canvas_status == 0) {
