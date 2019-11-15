@@ -48,7 +48,7 @@
 #include "gdc_dmabuf.h"
 #include "gdc_wq.h"
 
-unsigned int gdc_log_level;
+int gdc_log_level;
 struct gdc_manager_s gdc_manager;
 unsigned int gdc_reg_store_mode;
 int trace_mode_enable;
@@ -526,11 +526,6 @@ static int gdc_buffer_get_phys(struct aml_dma_cfg *cfg, unsigned long *addr)
 	return gdc_dma_buffer_get_phys(gdc_manager.buffer, cfg, addr);
 }
 
-static int gdc_buffer_unmap(struct aml_dma_cfg *cfg)
-{
-	return gdc_dma_buffer_unmap_info(gdc_manager.buffer, cfg);
-}
-
 static int gdc_get_buffer_fd(int plane_id, struct gdc_buffer_info *buf_info)
 {
 	int fd;
@@ -718,29 +713,39 @@ static long gdc_process_input_dma_info(struct gdc_context_s *context,
 			ret = meson_gdc_set_input_addr(addr, gdc_cmd);
 			if (ret != 0) {
 				gdc_log(LOG_ERR, "set input addr err\n");
-				return -EINVAL;
+				goto dma_buf_unmap;
 			}
 		} else {
 			size = gdc_set_input_addr(i, addr, gdc_cmd);
 			if (size < 0) {
 				gdc_log(LOG_ERR, "set input addr err\n");
-				return -EINVAL;
+				goto dma_buf_unmap;
 			}
 
 		}
-		gdc_log(LOG_INFO, "plane[%d] get input addr=%lx\n",
+		gdc_log(LOG_DEBUG, "plane[%d] get input addr=%lx\n",
 			i, addr);
 		if (plane_number == 1) {
 			size = gdc_get_input_size(gdc_cmd);
 			if (size < 0) {
 				gdc_log(LOG_ERR, "set input addr err\n");
-				return -EINVAL;
+				ret = -EINVAL;
+				goto dma_buf_unmap;
 			}
 		}
 		meson_gdc_dma_flush(&gdc_manager.gdc_dev->pdev->dev,
 			addr, size);
 	}
 	return 0;
+
+dma_buf_unmap:
+	while (i >= 0) {
+		cfg = &context->dma_cfg.input_cfg[i].dma_cfg;
+		gdc_dma_buffer_unmap(cfg);
+		context->dma_cfg.input_cfg[i].dma_used = 0;
+		i--;
+	}
+	return ret;
 }
 
 static long gdc_process_input_ion_info(struct gdc_context_s *context,
@@ -787,7 +792,7 @@ static long gdc_process_input_ion_info(struct gdc_context_s *context,
 			}
 
 		}
-		gdc_log(LOG_INFO, "plane[%d] get input addr=%lx\n",
+		gdc_log(LOG_DEBUG, "plane[%d] get input addr=%lx\n",
 			i, addr);
 	}
 	return 0;
@@ -834,13 +839,26 @@ static long gdc_process_output_dma_info(struct gdc_context_s *context,
 			ret = gdc_set_output_addr(i, addr, gdc_cmd);
 			if (ret < 0) {
 				gdc_log(LOG_ERR, "set input addr err\n");
-				return -EINVAL;
+				ret = -EINVAL;
+				goto dma_buf_unmap;
 			}
 		}
-		gdc_log(LOG_INFO, "plane[%d] get output addr=%lx\n",
+		gdc_log(LOG_DEBUG, "plane[%d] get output addr=%lx\n",
 			i, addr);
 	}
+
 	return 0;
+
+dma_buf_unmap:
+	while (i >= 0) {
+		cfg = &context->dma_cfg.output_cfg[i].dma_cfg;
+		gdc_dma_buffer_unmap(cfg);
+		context->dma_cfg.output_cfg[i].dma_used = 0;
+		i--;
+	}
+
+	return ret;
+
 }
 
 static long gdc_process_output_ion_info(struct gdc_context_s *context,
@@ -883,7 +901,7 @@ static long gdc_process_output_ion_info(struct gdc_context_s *context,
 				return -EINVAL;
 			}
 		}
-		gdc_log(LOG_INFO, "plane[%d] get output addr=%lx\n",
+		gdc_log(LOG_DEBUG, "plane[%d] get output addr=%lx\n",
 			i, addr);
 	}
 	return 0;
@@ -897,7 +915,7 @@ static long gdc_process_ex_info(struct gdc_context_s *context,
 	size_t len;
 	struct aml_dma_cfg *cfg = NULL;
 	struct gdc_cmd_s *gdc_cmd = &context->cmd;
-	struct gdc_queue_item_s *pitem;
+	struct gdc_queue_item_s *pitem = NULL;
 	int i;
 
 	if (context == NULL || gs_ex == NULL) {
@@ -916,14 +934,14 @@ static long gdc_process_ex_info(struct gdc_context_s *context,
 	if (gs_ex->output_buffer.mem_alloc_type == AML_GDC_MEM_ION) {
 		ret = gdc_process_output_ion_info(context, gs_ex);
 		if (ret < 0) {
-			mutex_unlock(&context->d_mutext);
-			return -EINVAL;
+			ret = -EINVAL;
+			goto unlock_return;
 		}
 	} else if (gs_ex->output_buffer.mem_alloc_type == AML_GDC_MEM_DMABUF) {
 		ret = gdc_process_output_dma_info(context, gs_ex);
 		if (ret < 0) {
 			ret = -EINVAL;
-			goto unmap;
+			goto unlock_return;
 		}
 	}
 	gdc_cmd->base_gdc = 0;
@@ -937,7 +955,7 @@ static long gdc_process_ex_info(struct gdc_context_s *context,
 			gdc_log(LOG_ERR, "ion import config fd %d failed\n",
 				gs_ex->config_buffer.shared_fd);
 			ret = -EINVAL;
-			goto unmap;
+			goto unlock_return;
 		}
 	} else if (gs_ex->config_buffer.mem_alloc_type == AML_GDC_MEM_DMABUF) {
 		/* dma alloc */
@@ -951,25 +969,25 @@ static long gdc_process_ex_info(struct gdc_context_s *context,
 			gdc_log(LOG_ERR, "dma import config fd %d failed\n",
 				gs_ex->config_buffer.shared_fd);
 			ret = -EINVAL;
-			goto unmap;
+			goto unlock_return;
 		}
 	}
 	gdc_cmd->gdc_config.config_addr = addr;
-	gdc_log(LOG_INFO, "%s, config addr=%lx\n", __func__, addr);
+	gdc_log(LOG_DEBUG, "%s, config addr=%lx\n", __func__, addr);
 
 	if (gs_ex->input_buffer.mem_alloc_type == AML_GDC_MEM_ION) {
 		/* ion alloc */
 		ret = gdc_process_input_ion_info(context, gs_ex);
 		if (ret < 0) {
 			ret = -EINVAL;
-			goto unmap;
+			goto unlock_return;
 		}
 	} else if (gs_ex->input_buffer.mem_alloc_type == AML_GDC_MEM_DMABUF) {
 		/* dma alloc */
 		ret = gdc_process_input_dma_info(context, gs_ex);
 		if (ret < 0) {
 			ret = -EINVAL;
-			goto unmap;
+			goto unlock_return;
 		}
 	}
 	gdc_cmd->outplane = gs_ex->output_buffer.plane_number;
@@ -985,7 +1003,7 @@ static long gdc_process_ex_info(struct gdc_context_s *context,
 	if (pitem == NULL) {
 		gdc_log(LOG_ERR, "get item error\n");
 		ret = -ENOMEM;
-		goto unmap;
+		goto unlock_return;
 	}
 	mutex_unlock(&context->d_mutext);
 	if (gs_ex->config_buffer.mem_alloc_type == AML_GDC_MEM_DMABUF)
@@ -993,25 +1011,8 @@ static long gdc_process_ex_info(struct gdc_context_s *context,
 
 	gdc_wq_add_work(context, pitem);
 	return 0;
-unmap:
-	/* if dma buf detach it */
-	for (i = 0; i < MAX_PLANE; i++) {
-		if (pitem->dma_cfg.input_cfg[i].dma_used) {
-			gdc_buffer_unmap
-				(&pitem->dma_cfg.input_cfg[i].dma_cfg);
-			pitem->dma_cfg.input_cfg[i].dma_used = 0;
-		}
-		if (pitem->dma_cfg.output_cfg[i].dma_used) {
-			gdc_buffer_unmap
-				(&pitem->dma_cfg.output_cfg[i].dma_cfg);
-			pitem->dma_cfg.output_cfg[i].dma_used = 0;
-		}
-	}
-	if (pitem->dma_cfg.config_cfg.dma_used) {
-		gdc_buffer_unmap
-			(&pitem->dma_cfg.config_cfg.dma_cfg);
-		pitem->dma_cfg.config_cfg.dma_used = 0;
-	}
+
+unlock_return:
 	mutex_unlock(&context->d_mutext);
 	return ret;
 }
@@ -1118,8 +1119,7 @@ static long gdc_process_with_fw(struct gdc_context_s *context,
 	long ret = -1;
 	struct gdc_cmd_s *gdc_cmd = &context->cmd;
 	char *fw_name = NULL;
-	struct gdc_queue_item_s *pitem;
-	int i;
+	struct gdc_queue_item_s *pitem = NULL;
 
 	if (context == NULL || gs_with_fw == NULL) {
 		gdc_log(LOG_ERR, "Error input param\n");
@@ -1163,13 +1163,19 @@ static long gdc_process_with_fw(struct gdc_context_s *context,
 					(struct gdc_settings_ex *)gs_with_fw);
 		if (ret < 0) {
 			ret = -EINVAL;
-			goto unmap;
+			goto release_fw_name;
 		}
 	} else if (gs_with_fw->input_buffer.mem_alloc_type ==
 						AML_GDC_MEM_DMABUF) {
 		/* dma alloc */
+		ret =
 		gdc_process_input_dma_info(context,
-					(struct gdc_settings_ex *)gs_with_fw);
+					   (struct gdc_settings_ex *)
+					   gs_with_fw);
+		if (ret < 0) {
+			ret = -EINVAL;
+			goto release_fw_name;
+		}
 	}
 
 	gdc_cmd->outplane = gs_with_fw->output_buffer.plane_number;
@@ -1318,29 +1324,12 @@ static long gdc_process_with_fw(struct gdc_context_s *context,
 	release_config_firmware(gs_with_fw);
 	kfree(fw_name);
 	return 0;
+
 release_fw:
 	release_config_firmware(gs_with_fw);
-unmap:
-	/* if dma buf detach it */
-	for (i = 0; i < MAX_PLANE; i++) {
-		if (pitem->dma_cfg.input_cfg[i].dma_used) {
-			gdc_dma_buffer_unmap
-				(&pitem->dma_cfg.input_cfg[i].dma_cfg);
-			pitem->dma_cfg.input_cfg[i].dma_used = 0;
-		}
-		if (pitem->dma_cfg.output_cfg[i].dma_used) {
-			gdc_dma_buffer_unmap
-				(&pitem->dma_cfg.output_cfg[i].dma_cfg);
-			pitem->dma_cfg.output_cfg[i].dma_used = 0;
-		}
-	}
-	if (pitem->dma_cfg.config_cfg.dma_used) {
-		gdc_dma_buffer_unmap
-			(&pitem->dma_cfg.config_cfg.dma_cfg);
-		pitem->dma_cfg.config_cfg.dma_used = 0;
-	}
-	mutex_unlock(&context->d_mutext);
+
 release_fw_name:
+	mutex_unlock(&context->d_mutext);
 	kfree(fw_name);
 
 	return ret;
@@ -1365,7 +1354,7 @@ static long meson_gdc_ioctl(struct file *file, unsigned int cmd,
 	ion_phys_addr_t addr;
 	int index, dma_fd;
 	void __user *argp = (void __user *)arg;
-	struct gdc_queue_item_s *pitem;
+	struct gdc_queue_item_s *pitem = NULL;
 	struct device *dev = NULL;
 
 	context = (struct gdc_context_s *)file->private_data;
@@ -1840,7 +1829,9 @@ static int gdc_platform_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
-	of_reserved_mem_device_init(&(pdev->dev));
+	rc = of_reserved_mem_device_init(&pdev->dev);
+	if (rc != 0)
+		gdc_log(LOG_INFO, "reserve_mem is not used\n");
 
 	/* alloc mem to store config out path*/
 	config_out_file = kzalloc(CONFIG_PATH_LENG, GFP_KERNEL);
