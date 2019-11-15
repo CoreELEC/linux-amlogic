@@ -1164,7 +1164,7 @@ static int osd_compat_ioctl(struct fb_info *info,
 
 static int malloc_osd_memory(struct fb_info *info)
 {
-	int j;
+	int j = 0;
 	int ret = 0;
 	u32 fb_index;
 	int logo_index = -1;
@@ -1432,14 +1432,16 @@ static int malloc_osd_memory(struct fb_info *info)
 		if (fbdev->fb_mem_vaddr)
 			memset(fbdev->fb_mem_vaddr, 0x0, fbdev->fb_len);
 		if (osd_meson_dev.afbc_type && osd_get_afbc(fb_index)) {
-			for (j = 1; j < OSD_MAX_BUF_NUM; j++) {
-				osd_log_info(
-					"---------------clear fb%d memory %p\n",
-					fb_index,
-					fbdev->fb_mem_afbc_vaddr[j]);
-				memset(fbdev->fb_mem_afbc_vaddr[j],
-					0x0,
-					fbdev->fb_afbc_len[j]);
+			for (j = 0; j < OSD_MAX_BUF_NUM; j++) {
+				if (j > 0) {
+					osd_log_info(
+						"---------------clear fb%d memory %p\n",
+						fb_index,
+						fbdev->fb_mem_afbc_vaddr[j]);
+					memset(fbdev->fb_mem_afbc_vaddr[j],
+					       0x0,
+					       fbdev->fb_afbc_len[j]);
+				}
 			}
 		} else {
 			/* two case in one
