@@ -36,6 +36,7 @@
 #include "vdin_drv.h"
 #include "vdin_vf.h"
 #include "vdin_canvas.h"
+#include "vdin_afbce.h"
 
 #define VDIN_VSHRINK_HLIMIT 1280
 #define TVIN_MAX_PIXCLK 20000
@@ -4831,8 +4832,8 @@ u32 vdin_get_curr_field_type(struct vdin_dev_s *devp)
 	if ((format_convert == VDIN_FORMAT_CONVERT_YUV_YUV444) ||
 			(format_convert == VDIN_FORMAT_CONVERT_RGB_YUV444)) {
 		type |= VIDTYPE_VIU_444;
-		if (devp->afbce_mode_pre)
-			type |= VIDTYPE_COMB_MODE;
+		/*if (devp->afbce_mode_pre)*/
+		/*	type |= VIDTYPE_COMB_MODE;*/
 	} else if ((format_convert == VDIN_FORMAT_CONVERT_YUV_YUV422) ||
 			(format_convert == VDIN_FORMAT_CONVERT_RGB_YUV422)) {
 		type |= VIDTYPE_VIU_422;
@@ -4855,6 +4856,8 @@ u32 vdin_get_curr_field_type(struct vdin_dev_s *devp)
 		type |= VIDTYPE_SCATTER;
 		if (devp->afbce_flag & VDIN_AFBCE_EN_LOOSY)
 			type |= VIDTYPE_COMPRESS_LOSS;
+		if (vdin_chk_is_comb_mode(devp))
+			type |= VIDTYPE_COMB_MODE;
 	}
 
 	return type;
