@@ -3228,9 +3228,9 @@ void dump_edid_reg(void)
 		for (i = 0; i < 16; i++) {
 			rx_pr("[%2d] ", i);
 			for (j = 0; j < 16; j++) {
-				rx_pr("0x%02lx, ",
-					   hdmirx_rd_top(TOP_EDID_OFFSET +
-							 (i * 16 + j)));
+				rx_pr("0x%02x, ",
+				      hdmirx_rd_top(TOP_EDID_OFFSET +
+							(i * 16 + j)));
 			}
 			rx_pr("\n");
 		}
@@ -3238,9 +3238,9 @@ void dump_edid_reg(void)
 		for (i = 0; i < 16; i++) {
 			rx_pr("[%2d] ", i);
 			for (j = 0; j < 16; j++) {
-				rx_pr("0x%02lx, ",
-					   hdmirx_rd_top(TOP_EDID_ADDR_S +
-							 (i * 16 + j)));
+				rx_pr("0x%02x, ",
+				      hdmirx_rd_top(TOP_EDID_ADDR_S +
+							(i * 16 + j)));
 			}
 			rx_pr("\n");
 		}
@@ -3248,27 +3248,27 @@ void dump_edid_reg(void)
 		for (i = 0; i < 16; i++) {
 			rx_pr("[%2d] ", i);
 			for (j = 0; j < 16; j++) {
-				rx_pr("0x%02lx, ",
-					   hdmirx_rd_top(TOP_EDID_ADDR_S +
-							 (i * 16 + j)));
+				rx_pr("0x%02x, ",
+				      hdmirx_rd_top(TOP_EDID_ADDR_S +
+							(i * 16 + j)));
 			}
 			rx_pr("\n");
 		}
 		for (i = 0; i < 16; i++) {
 			rx_pr("[%2d] ", i);
 			for (j = 0; j < 16; j++) {
-				rx_pr("0x%02lx, ",
-					   hdmirx_rd_top(TOP_EDID_PORT2_ADDR_S +
-							 (i * 16 + j)));
+				rx_pr("0x%02x, ",
+				      hdmirx_rd_top(TOP_EDID_PORT2_ADDR_S +
+							(i * 16 + j)));
 			}
 			rx_pr("\n");
 		}
 		for (i = 0; i < 16; i++) {
 			rx_pr("[%2d] ", i);
 			for (j = 0; j < 16; j++) {
-				rx_pr("0x%02lx, ",
-					   hdmirx_rd_top(TOP_EDID_PORT3_ADDR_S +
-							 (i * 16 + j)));
+				rx_pr("0x%02x, ",
+				      hdmirx_rd_top(TOP_EDID_PORT3_ADDR_S +
+							(i * 16 + j)));
 			}
 			rx_pr("\n");
 		}
@@ -4204,9 +4204,9 @@ void rx_emp_field_done_irq(void)
 	recv_pagenum = (recv_byte_cnt >> PAGE_SHIFT) + 1;
 
 	if (rx.empbuff.irqcnt & 0x1)
-		dts_addr = rx.empbuff.storeB;
+		dts_addr = rx.empbuff.store_b;
 	else
-		dts_addr = rx.empbuff.storeA;
+		dts_addr = rx.empbuff.store_a;
 
 	if (recv_pkt_cnt >= EMP_BUFF_MAX_PKT_CNT) {
 		recv_pkt_cnt = EMP_BUFF_MAX_PKT_CNT - 1;
@@ -4263,11 +4263,11 @@ void rx_emp_field_done_irq(void)
 
 void rx_emp_status(void)
 {
-	rx_pr("p_addr_a=0x%x\n", rx.empbuff.p_addr_a);
-	rx_pr("p_addr_b=0x%x\n", rx.empbuff.p_addr_b);
-	rx_pr("storeA=0x%x\n", rx.empbuff.storeB);
-	rx_pr("storeB=0x%x\n", rx.empbuff.storeB);
-	rx_pr("irq cnt =0x%x\n", rx.empbuff.irqcnt);
+	rx_pr("p_addr_a=0x%p\n", (void *)rx.empbuff.p_addr_a);
+	rx_pr("p_addr_b=0x%p\n", (void *)rx.empbuff.p_addr_b);
+	rx_pr("store_a=0x%p\n", rx.empbuff.store_a);
+	rx_pr("store_b=0x%p\n", rx.empbuff.store_b);
+	rx_pr("irq cnt =0x%x\n", (unsigned int)rx.empbuff.irqcnt);
 	rx_pr("ready=0x%p\n", rx.empbuff.ready);
 	rx_pr("dump_mode =0x%x\n", rx.empbuff.dump_mode);
 	rx_pr("recv tmp pkt cnt=0x%x\n", rx.empbuff.emppktcnt);
@@ -4311,7 +4311,8 @@ void rx_tmds_to_ddr_init(void)
 				rx.empbuff.p_addr_a);
 			hdmirx_wr_top(TOP_EMP_DDR_START_B,
 				rx.empbuff.p_addr_a);
-			rx_pr("cfg hw addr=0x%x\n", rx.empbuff.p_addr_a);
+			rx_pr("cfg hw addr=0x%p\n",
+			      (void *)rx.empbuff.p_addr_a);
 		}
 
 		/* max pkt count to avoid buffer overflow */

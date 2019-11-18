@@ -2427,7 +2427,7 @@ void rx_main_state_machine(void)
 					rx_audio_pll_sw_update();
 				}
 				if (log_level & AUDIO_LOG)
-					rx_pr("update audio-err:%d\n, aud_sts");
+					rx_pr("update audio-err:%d\n", aud_sts);
 				rx.aud_sr_unstable_cnt = 0;
 			}
 		} else
