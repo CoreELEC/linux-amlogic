@@ -4281,7 +4281,6 @@ static int osd_probe(struct platform_device *pdev)
 	prop = of_get_property(pdev->dev.of_node, "scale_mode", NULL);
 	if (prop)
 		prop_idx = of_read_ulong(prop, 1);
-	prop_idx = 0;
 	/* Todo: only osd0 */
 	osd_set_free_scale_mode_hw(DEV_OSD0, prop_idx);
 	prop_idx = 0;

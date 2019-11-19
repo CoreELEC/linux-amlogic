@@ -336,12 +336,12 @@ module_param(dv_graphic_blend_test, uint, 0664);
 MODULE_PARM_DESC(dv_graphic_blend_test, "\n dv_graphic_blend_test\n");
 
 static unsigned int dv_target_graphics_max[3][3] = {
-	{ 400, 316, 380 }, /* DOVI => DOVI/HDR/SDR */
+	{ 300, 316, 380 }, /* DOVI => DOVI/HDR/SDR */
 	{ 300, 316, 100 }, /* HDR =>  DOVI/HDR/SDR */
 	{ 300, 316, 100 }, /* SDR =>  DOVI/HDR/SDR */
 };
 static unsigned int dv_target_graphics_LL_max[3][3] = {
-	{ 400, 316, 100 }, /* DOVI => DOVI/HDR/SDR */
+	{ 300, 316, 100 }, /* DOVI => DOVI/HDR/SDR */
 	{ 210, 316, 100 }, /* HDR =>  DOVI/HDR/SDR */
 	{ 300, 316, 100 }, /* SDR =>  DOVI/HDR/SDR */
 };
