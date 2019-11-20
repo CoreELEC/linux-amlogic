@@ -4441,10 +4441,11 @@ static int hdmi_task_handle(void *data)
 	struct vinfo_s *info = NULL;
 	struct hdmitx_dev *hdmitx_device = (struct hdmitx_dev *)data;
 
-	hdmitx_extcon_hdmi->state = !!(hdmitx_device->hwop.cntlmisc(
-		hdmitx_device, MISC_HPD_GPI_ST, 0));
-	hdmitx_device->hpd_state = hdmitx_extcon_hdmi->state;
-	hdmitx_notify_hpd(hdmitx_device->hpd_state);
+	/* hdmitx_extcon_hdmi->state = !!(hdmitx_device->hwop.cntlmisc(
+	 * hdmitx_device, MISC_HPD_GPI_ST, 0));
+	 * hdmitx_device->hpd_state = hdmitx_extcon_hdmi->state;
+	 * hdmitx_notify_hpd(hdmitx_device->hpd_state);
+	 */
 	extcon_set_state_sync(hdmitx_extcon_power, EXTCON_DISP_HDMI,
 						hdmitx_device->hpd_state);
 	INIT_WORK(&hdmitx_device->work_hdr, hdr_work_func);
