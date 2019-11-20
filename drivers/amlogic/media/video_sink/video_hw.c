@@ -1415,6 +1415,94 @@ static void vd2_set_dcu(
 	}
 }
 
+static s32 vd1_afbc_setting_tl1(struct mif_pos_s *setting)
+{
+	u32 vd_off, afbc_off;
+	int crop_left, crop_top;
+	int vsize_in, hsize_in;
+	int mif_blk_bgn_h, mif_blk_end_h;
+	int mif_blk_bgn_v, mif_blk_end_v;
+	int pix_bgn_h, pix_end_h;
+	int pix_bgn_v, pix_end_v;
+
+	if (!setting)
+		return -1;
+
+	vd_off = setting->vd_reg_offt;
+	afbc_off = setting->afbc_reg_offt;
+	/* afbc horizontal setting */
+	crop_left = setting->start_x_lines;
+	hsize_in = round_up(
+			(setting->src_w - 1) + 1, 32);
+	mif_blk_bgn_h = crop_left / 32;
+	mif_blk_end_h = (crop_left + setting->end_x_lines -
+		setting->start_x_lines + 1) / 32;
+	pix_bgn_h = crop_left - mif_blk_bgn_h * 32;
+	pix_end_h = pix_bgn_h + setting->end_x_lines -
+		setting->start_x_lines;
+
+	VSYNC_WR_MPEG_REG(
+		AFBC_MIF_HOR_SCOPE + afbc_off,
+		(mif_blk_bgn_h << 16) |
+		mif_blk_end_h);
+
+	if (((process_3d_type & MODE_3D_FA) ||
+	     (process_3d_type & MODE_FORCE_3D_FA_LR)) &&
+	    (setting->vpp_3d_mode == 1)) {
+			/* do nothing*/
+	} else {
+		VSYNC_WR_MPEG_REG(
+			AFBC_PIXEL_HOR_SCOPE + afbc_off,
+			((pix_bgn_h << 16) |
+			pix_end_h));
+	}
+
+	/* afbc vertical setting */
+	crop_top = setting->start_y_lines;
+	vsize_in = round_up((setting->src_h - 1) + 1, 4);
+	mif_blk_bgn_v = crop_top / 4;
+	mif_blk_end_v = (crop_top + setting->end_y_lines -
+		setting->start_y_lines + 1) / 4;
+	pix_bgn_v = crop_top - mif_blk_bgn_v * 4;
+	pix_end_v = pix_bgn_v + setting->end_y_lines -
+		setting->start_y_lines;
+
+	if (((process_3d_type & MODE_3D_FA) ||
+	     (process_3d_type & MODE_FORCE_3D_FA_TB)) &&
+	    (setting->vpp_3d_mode == 2)) {
+		int block_h;
+
+		block_h = vsize_in;
+		block_h = block_h / 8;
+		if (toggle_3d_fa_frame == OUT_FA_B_FRAME) {
+			VSYNC_WR_MPEG_REG(
+				AFBC_MIF_VER_SCOPE,
+				(block_h << 16) |
+				(vsize_in / 4));
+		} else {
+			VSYNC_WR_MPEG_REG(
+				AFBC_MIF_VER_SCOPE,
+				(0 << 16) |
+				block_h);
+		}
+	} else {
+		VSYNC_WR_MPEG_REG(
+			AFBC_MIF_VER_SCOPE + afbc_off,
+			(mif_blk_bgn_v << 16) |
+			mif_blk_end_v);
+	}
+	VSYNC_WR_MPEG_REG(
+		AFBC_PIXEL_VER_SCOPE + afbc_off,
+		(pix_bgn_v << 16) |
+		pix_end_v);
+
+	VSYNC_WR_MPEG_REG(
+		AFBC_SIZE_IN + afbc_off,
+		(hsize_in << 16) |
+		(vsize_in & 0xffff));
+	return 0;
+}
+
 static s32 vd1_mif_setting(struct mif_pos_s *setting)
 {
 	u32 vd_off, afbc_off;
@@ -1423,7 +1511,6 @@ static s32 vd1_mif_setting(struct mif_pos_s *setting)
 	int l_aligned, r_aligned;
 	int t_aligned, b_aligned, ori_t_aligned, ori_b_aligned;
 	int content_w, content_l, content_r;
-
 	if (!setting)
 		return -1;
 
@@ -1488,6 +1575,9 @@ static s32 vd1_mif_setting(struct mif_pos_s *setting)
 	if (setting->skip_afbc)
 		goto SKIP_VD1_AFBC;
 
+	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_TL1)
+		return vd1_afbc_setting_tl1(setting);
+
 	/* afbc horizontal setting */
 	if ((setting->start_x_lines > 0) ||
 	    (setting->end_x_lines < (setting->src_w - 1))) {
@@ -1501,6 +1591,7 @@ static s32 vd1_mif_setting(struct mif_pos_s *setting)
 		r_aligned = round_up(
 			setting->end_x_lines + 1, 32);
 	}
+
 	VSYNC_WR_MPEG_REG(
 		AFBC_VD_CFMT_W + afbc_off,
 		(((r_aligned - l_aligned) / h_skip) << 16) |
@@ -1603,6 +1694,94 @@ SKIP_VD1_AFBC:
 	return 0;
 }
 
+static s32 vd2_afbc_setting_tl1(struct mif_pos_s *setting)
+{
+	u32 vd_off, afbc_off;
+	int crop_left, crop_top;
+	int vsize_in, hsize_in;
+	int mif_blk_bgn_h, mif_blk_end_h;
+	int mif_blk_bgn_v, mif_blk_end_v;
+	int pix_bgn_h, pix_end_h;
+	int pix_bgn_v, pix_end_v;
+
+	if (!setting)
+		return -1;
+
+	vd_off = setting->vd_reg_offt;
+	afbc_off = setting->afbc_reg_offt;
+	/* afbc horizontal setting */
+	crop_left = setting->start_x_lines;
+	hsize_in = round_up(
+			(setting->src_w - 1) + 1, 32);
+	mif_blk_bgn_h = crop_left / 32;
+	mif_blk_end_h = (crop_left + setting->end_x_lines -
+		setting->start_x_lines + 1) / 32;
+	pix_bgn_h = crop_left - mif_blk_bgn_h * 32;
+	pix_end_h = pix_bgn_h + setting->end_x_lines -
+		setting->start_x_lines;
+
+	VSYNC_WR_MPEG_REG(
+		AFBC_MIF_HOR_SCOPE + afbc_off,
+		(mif_blk_bgn_h << 16) |
+		mif_blk_end_h);
+
+	if (((process_3d_type & MODE_3D_FA) ||
+	     (process_3d_type & MODE_FORCE_3D_FA_LR)) &&
+	    (setting->vpp_3d_mode == 1)) {
+			/* do nothing*/
+	} else {
+		VSYNC_WR_MPEG_REG(
+			AFBC_PIXEL_HOR_SCOPE + afbc_off,
+			((pix_bgn_h << 16) |
+			pix_end_h));
+	}
+
+	/* afbc vertical setting */
+	crop_top = setting->start_y_lines;
+	vsize_in = round_up((setting->src_h - 1) + 1, 4);
+	mif_blk_bgn_v = crop_top / 4;
+	mif_blk_end_v = (crop_top + setting->end_y_lines -
+		setting->start_y_lines + 1) / 4;
+	pix_bgn_v = crop_top - mif_blk_bgn_v * 4;
+	pix_end_v = pix_bgn_v + setting->end_y_lines -
+		setting->start_y_lines;
+
+	if (((process_3d_type & MODE_3D_FA) ||
+	     (process_3d_type & MODE_FORCE_3D_FA_TB)) &&
+	    (setting->vpp_3d_mode == 2)) {
+		int block_h;
+
+		block_h = vsize_in;
+		block_h = block_h / 8;
+		if (toggle_3d_fa_frame == OUT_FA_B_FRAME) {
+			VSYNC_WR_MPEG_REG(
+				VD2_AFBC_MIF_VER_SCOPE,
+				(block_h << 16) |
+				(vsize_in / 4));
+		} else {
+			VSYNC_WR_MPEG_REG(
+				VD2_AFBC_MIF_VER_SCOPE,
+				(0 << 16) |
+				block_h);
+		}
+	} else {
+		VSYNC_WR_MPEG_REG(
+			VD2_AFBC_MIF_VER_SCOPE + afbc_off,
+			(mif_blk_bgn_v << 16) |
+			mif_blk_end_v);
+	}
+	VSYNC_WR_MPEG_REG(
+		VD2_AFBC_PIXEL_VER_SCOPE + afbc_off,
+		(pix_bgn_v << 16) |
+		pix_end_v);
+
+	VSYNC_WR_MPEG_REG(
+		VD2_AFBC_SIZE_IN + afbc_off,
+		(hsize_in << 16) |
+		(vsize_in & 0xffff));
+	return 0;
+}
+
 static s32 vd2_mif_setting(struct mif_pos_s *setting)
 {
 	u32 vd_off, afbc_off;
@@ -1675,6 +1854,9 @@ static s32 vd2_mif_setting(struct mif_pos_s *setting)
 
 	if (setting->skip_afbc)
 		goto SKIP_VD2_AFBC;
+
+	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_TL1)
+		return vd2_afbc_setting_tl1(setting);
 
 	/* afbc horizontal setting */
 	if ((setting->start_x_lines > 0) ||
