@@ -601,7 +601,7 @@ static int tsync_mode_switch(int mode, unsigned long diff_pts, int jump_pts)
 	("%c-discontinue,pcr=%d,vpts=%d,apts=%d,diff_pts=%lu,jump_Pts=%d\n",
 	 mode, timestamp_pcrscr_get(), timestamp_vpts_get(),
 	 timestamp_apts_get(), diff_pts, jump_pts);
-	if (!tsync_enable) {
+	if (!tsync_enable || !timestamp_apts_started()) {
 		if (tsync_mode != TSYNC_MODE_VMASTER)
 			tsync_mode = TSYNC_MODE_VMASTER;
 		tsync_av_mode = TSYNC_STATE_S;
@@ -697,7 +697,7 @@ static int tsync_mode_switch(int mode, unsigned long diff_pts, int jump_pts)
 
 static void tsync_state_switch_timer_fun(unsigned long arg)
 {
-	if (!vpause_flag && !apause_flag) {
+	if (!vpause_flag && !apause_flag && timestamp_apts_started()) {
 		if (tsync_av_mode == TSYNC_STATE_D
 			|| tsync_av_mode == TSYNC_STATE_A) {
 			if (tsync_av_dynamic_timeout_ms < jiffies_ms) {
@@ -829,7 +829,8 @@ void tsync_avevent_locked(enum avevent_e event, u32 param)
 	case VIDEO_TSTAMP_DISCONTINUITY: {
 		unsigned int oldpts = timestamp_vpts_get();
 		int oldmod = tsync_mode;
-		if (tsync_mode == TSYNC_MODE_VMASTER)
+		if (tsync_mode == TSYNC_MODE_VMASTER &&
+				timestamp_apts_started())
 			t = timestamp_apts_get();
 		else
 			t = timestamp_pcrscr_get();

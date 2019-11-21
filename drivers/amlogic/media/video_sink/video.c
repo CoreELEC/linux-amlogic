@@ -3845,6 +3845,12 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 	/*debug info for skip & repeate vframe case*/
 	if (!vf) {
 		underflow++;
+		/* video master mode, reduce pcrscr */
+		if (tsync_get_mode() == TSYNC_MODE_VMASTER) {
+			s32 pts_inc = 0 - vsync_pts_inc;
+
+			timestamp_pcrscr_inc(pts_inc);
+		}
 		ATRACE_COUNTER("underflow",  1);
 		if (video_dbg_vf&(1<<0))
 			dump_vframe_status("vdin0");

@@ -334,7 +334,7 @@ void timestamp_pcrscr_inc(s32 inc)
 {
 	if (system_time_up) {
 #ifdef MODIFY_TIMESTAMP_INC_WITH_PLL
-		inc = inc * timestamp_inc_factor / PLL_FACTOR;
+		inc = inc * (s32)timestamp_inc_factor / PLL_FACTOR;
 #endif
 		system_time += inc + system_time_inc_adj;
 		ATRACE_COUNTER("PCRSCR",  system_time);
