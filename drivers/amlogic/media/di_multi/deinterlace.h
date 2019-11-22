@@ -221,10 +221,12 @@ struct di_buf_s {
 
 /*new use this for put back control*/
 #define QUEUE_POST_PUT_BACK		(9)
+#define QUEUE_POST_KEEP			(10)/*below use pw_queue_in*/
+#define QUEUE_POST_KEEP_BACK		(11)
 
 #define QUEUE_NUM			5	/* 9 */
 #define QUEUE_NEW_THD_MIN		(QUEUE_IN_FREE - 1)
-#define QUEUE_NEW_THD_MAX		(QUEUE_POST_READY + 1)
+#define QUEUE_NEW_THD_MAX		(QUEUE_POST_KEEP_BACK + 1)
 
 #endif
 

@@ -2149,7 +2149,7 @@ static int di_init_buf(int width, int height, unsigned char prog_flag,
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12A))
 		canvas_align_width = 64;
 
-	pr_info("%s:begin\n", __func__);
+	dbg_reg("%s:begin\n", __func__);
 	frame_count = 0;
 	disp_frame_count = 0;
 	cur_post_ready_di_buf = NULL;
@@ -8108,14 +8108,14 @@ void dim_recycle_post_back(unsigned int channel)
 		di_lock_irqfiq_save(irq_flag2); /**/
 		di_que_out(channel, QUE_POST_BACK, di_buf);
 		di_buf->queue_index = QUEUE_DISPLAY;
-		queue_out(channel, di_buf);
+		/*queue_out(channel, di_buf);*/
 
 		if (!atomic_dec_and_test(&di_buf->di_cnt))
 			PR_ERR("%s,di_cnt > 0\n", __func__);
 
-		/*recycle_vframe_type_post(di_buf, channel);*/
-		di_buf->invert_top_bot_flag = 0;
-		di_que_in(channel, QUE_POST_FREE, di_buf);
+		recycle_vframe_type_post(di_buf, channel);
+		//di_buf->invert_top_bot_flag = 0;
+		//di_que_in(channel, QUE_POST_FREE, di_buf);
 
 		di_unlock_irqfiq_restore(irq_flag2);
 	}
@@ -8168,7 +8168,7 @@ struct vframe_s *di_vf_l_peek(unsigned int channel)
 	}
 	/**************************/
 	dim_log_buffer_state("pek", channel);
-	task_send_ready();
+
 #ifdef SUPPORT_START_FRAME_HOLD
 	if ((disp_frame_count == 0) && (dim_is_bypass(NULL, channel) == 0)) {
 		int ready_count = di_que_list_count(channel, QUE_POST_READY);
@@ -8195,8 +8195,10 @@ struct vframe_s *di_vf_l_peek(unsigned int channel)
 #endif
 	if (vframe_ret)
 		dim_tr_ops.post_peek(9);
-	else
+	else {
+		task_send_ready();
 		dim_tr_ops.post_peek(4);
+	}
 	return vframe_ret;
 }
 

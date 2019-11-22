@@ -36,10 +36,38 @@
 #define COM_MV(a, m, v)	(((a) & (m)) == (v))
 #define COM_ME(a, m)	(((a) & (m)) == (m))
 
-#define DI_BIT0		0x01
-#define DI_BIT1		0x02
-#define DI_BIT2		0x04
-#define DI_BIT3		0x08
+#define DI_BIT0		0x00000001
+#define DI_BIT1		0x00000002
+#define DI_BIT2		0x00000004
+#define DI_BIT3		0x00000008
+#define DI_BIT4		0x00000010
+#define DI_BIT5		0x00000020
+#define DI_BIT6		0x00000040
+#define DI_BIT7		0x00000080
+#define DI_BIT8		0x00000100
+#define DI_BIT9		0x00000200
+#define DI_BIT10	0x00000400
+#define DI_BIT11	0x00000800
+#define DI_BIT12	0x00001000
+#define DI_BIT13	0x00002000
+#define DI_BIT14	0x00004000
+#define DI_BIT15	0x00008000
+#define DI_BIT16	0x00010000
+#define DI_BIT17	0x00020000
+#define DI_BIT18	0x00040000
+#define DI_BIT19	0x00080000
+#define DI_BIT20	0x00100000
+#define DI_BIT21	0x00200000
+#define DI_BIT22	0x00400000
+#define DI_BIT23	0x00800000
+#define DI_BIT24	0x01000000
+#define DI_BIT25	0x02000000
+#define DI_BIT26	0x04000000
+#define DI_BIT27	0x08000000
+#define DI_BIT28	0x10000000
+#define DI_BIT29	0x20000000
+#define DI_BIT30	0x40000000
+#define DI_BIT31	0x80000000
 
 /*****************************************
  *
@@ -972,6 +1000,7 @@ struct di_data_l_s {
 #define DBG_M_POLLING		0x100
 #define DBG_M_ONCE		0x200
 #define DBG_M_KEEP		0x400
+#define DBG_M_WQ		DI_BIT14	/*work que*/
 
 extern unsigned int di_dbg;
 
@@ -1001,6 +1030,7 @@ extern unsigned int di_dbg;
 #define dbg_dbg(fmt, args ...)		dbg_m(DBG_M_DBG, fmt, ##args)
 #define dbg_once(fmt, args ...)		dbg_m(DBG_M_ONCE, fmt, ##args)
 #define dbg_keep(fmt, args ...)		dbg_m(DBG_M_KEEP, fmt, ##args)
+#define dbg_wq(fmt, args ...)		dbg_m(DBG_M_WQ, fmt, ##args)
 
 char *di_cfgx_get_name(enum eDI_CFGX_IDX idx);
 bool di_cfgx_get(unsigned int ch, enum eDI_CFGX_IDX idx);

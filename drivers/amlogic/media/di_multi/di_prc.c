@@ -46,11 +46,11 @@ const struct di_cfg_ctr_s di_cfg_top_ctr[K_DI_CFG_NUB] = {
 	[eDI_CFG_BEGIN]  = {"cfg top begin ", eDI_CFG_BEGIN, 0},
 
 	[eDI_CFG_first_bypass]  = {"first_bypass",
-		eDI_CFG_first_bypass, 1},
+		eDI_CFG_first_bypass, 0},
 	[eDI_CFG_ref_2]  = {"ref_2",
 		eDI_CFG_ref_2, 0},
 	[EDI_CFG_KEEP_CLEAR_AUTO]  = {"keep_buf clear auto",
-		EDI_CFG_KEEP_CLEAR_AUTO, 1},
+		EDI_CFG_KEEP_CLEAR_AUTO, 0},
 	[eDI_CFG_END]  = {"cfg top end ", eDI_CFG_END, 0},
 
 };
@@ -860,10 +860,10 @@ static void dip_wq_cma_handler(struct work_struct *work)
 
 	unsigned int ch = wq->ch;
 
-	pr_info("%s:ch[%d],start\n", __func__, ch);
-
 	do_flg = false;
 	cma_st = dip_cma_get_st(ch);
+	dbg_wq("%s:ch[%d],cmd[%d],st[%d]\n",
+	       __func__, ch, pbm->cma_reg_cmd[ch], cma_st);
 	switch (cma_st) {
 	case EDI_CMA_ST_IDL:
 		if (pbm->cma_reg_cmd[ch]) {
@@ -921,11 +921,11 @@ static void dip_wq_cma_handler(struct work_struct *work)
 		break;
 	}
 	if (!do_flg)
-		pr_info("\tch[%d],do nothing[%d]\n", ch, cma_st);
+		PR_INF("\tch[%d],do nothing[%d]\n", ch, cma_st);
 	else
 		task_send_ready();
 
-	pr_info("%s:end\n", __func__);
+	dbg_wq("%s:end\n", __func__);
 }
 
 static void dip_wq_prob(void)
@@ -949,6 +949,7 @@ void dip_wq_cma_run(unsigned char ch, bool reg_cmd)
 {
 	struct di_mng_s *pbm = get_bufmng();
 
+	dbg_wq("%s:ch[%d] [%d]\n", __func__, ch, reg_cmd);
 	if (reg_cmd)
 		pbm->cma_reg_cmd[ch] = 1;
 	else
@@ -1007,14 +1008,15 @@ const char * const di_cma_state_name[] = {
 	"do_alloc",
 	"READY",
 	"do_release",
+	"PART",
 };
 
 const char *di_cma_dbg_get_st_name(unsigned int ch)
 {
 	enum eDI_CMA_ST st = dip_cma_get_st(ch);
-	const char *p = "";
+	const char *p = "overflow";
 
-	if (st <= EDI_CMA_ST_RELEASE)
+	if (st <= ARRAY_SIZE(di_cma_state_name))
 		p = di_cma_state_name[st];
 	return p;
 }
@@ -1898,7 +1900,7 @@ void dip_init_value_reg(unsigned int ch)
 	struct di_post_stru_s *ppost;
 	struct di_pre_stru_s *ppre = get_pre_stru(ch);
 
-	pr_info("%s:\n", __func__);
+	dbg_reg("%s:\n", __func__);
 
 	/*post*/
 	ppost = get_post_stru(ch);

@@ -3804,7 +3804,7 @@ void hpst_power_ctr(bool on)
 		ext_ops.switch_vpu_mem_pd_vmod(VPU_DI_POST,
 			false);
 	}
-	pr_info("%s:%d\n", __func__, on);
+	/*pr_info("%s:%d\n", __func__, on);*/
 }
 
 void hpst_dbg_power_ctr_trig(unsigned int cmd)

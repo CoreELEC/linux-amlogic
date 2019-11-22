@@ -399,7 +399,8 @@ bool di_que_in(unsigned int ch, enum QUE_TYPE qtype, struct di_buf_s *di_buf)
 		PR_ERR("di:%s:buf in some que,ch[%d],qt[%d],qi[%d],bi[%d]\n",
 		       __func__,
 		       ch, qtype, di_buf->queue_index, di_buf->index);
-		return false;
+		dump_stack();
+		di_buf->queue_index = -1;
 	}
 
 	q_index = pw_buf_2_qindex(ch, di_buf);
