@@ -47,7 +47,6 @@ ion_phys_addr_t ion_codec_mm_allocate(struct ion_heap *heap,
 			"ion_codec_mm_allocate failed out size %ld,alloced %d\n",
 			size,
 			codec_heap->alloced_size);
-		return ION_CODEC_MM_ALLOCATE_FAIL;
 	}
 
 	offset = codec_mm_alloc_for_dma(
