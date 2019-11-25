@@ -787,7 +787,10 @@ static int seq_file_curr_vframe_show(struct seq_file *seq, void *v)
 	/* post_doing_list		*/
 	/********************************/
 	seq_puts(seq, "vfm for: post_doing_list:\n");
-	queue_for_each_entry(p, ch, QUEUE_POST_DOING, list) {
+	//queue_for_each_entry(p, ch, QUEUE_POST_DOING, list) {
+	di_que_list(ch, QUE_POST_DOING, &tmpa[0], &psize);
+	for (itmp = 0; itmp < psize; itmp++) {
+		p = pw_qindex_2_buf(ch, tmpa[itmp]);
 		pvfm = p->vframe;
 		seq_file_vframe(seq, v, pvfm);
 		seq_printf(seq, "%s\n", splt2);
@@ -1044,6 +1047,137 @@ ssize_t keep_buf_clear_store(struct file *file, const char __user *userbuf,
 
 	return count;
 }
+
+static int cfgt_help_show(struct seq_file *s, void *what)
+{
+	seq_puts(s, "cat list\n");
+	seq_printf(s, "\t%-10s:%s\n", "cfg_ai", "all cfg infor");
+	seq_printf(s, "\t%-10s:%s\n", "cfg_av", "all cfg val");
+	seq_printf(s, "\t%-10s:%s\n", "cfg_one", "sel val or infor");
+	seq_printf(s, "\t%-10s:%s\n", "cfg_sel", "sel infor");
+	seq_puts(s, "echo list\n");
+	seq_printf(s, "\t%-10s:%s\n", "val > cfgw_one",
+		   "change cfg that have sel");
+	seq_printf(s, "\t%-10s:%s\n", "index val > cfgw_index",
+		   "change cfg by index");
+	seq_printf(s, "\t%-10s:%s\n", "mode sel(0/1) index > cfgw_sel",
+		   "change sel");
+	return 0;
+}
+
+static int cfgt_itme_all_show(struct seq_file *s, void *what)
+{
+	di_cfgt_show_item_all(s);
+	return 0;
+}
+
+static int cfgt_val_all_show(struct seq_file *s, void *what)
+{
+	di_cfgt_show_val_all(s);
+	return 0;
+}
+
+static int cfgt_one_show(struct seq_file *s, void *what)
+{
+	if (get_datal()->cfg_dbg_mode)
+		di_cfgt_show_item_sel(s);
+	else
+		di_cfgt_show_val_sel(s);
+	return 0;
+}
+
+static int cfgt_sel_show(struct seq_file *s, void *what)
+{
+	unsigned int i;
+
+	i = get_datal()->cfg_sel;
+	seq_printf(s, "mode[%d]:index[%d]\n",
+		   get_datal()->cfg_dbg_mode, i);
+	if (!di_cfg_top_check(i))
+		return 0;
+	seq_printf(s, "%s\n", di_cfg_top_get_name(i));
+	return 0;
+}
+
+static ssize_t cfgt_sel_store(struct file *file, const char __user *userbuf,
+			      size_t count, loff_t *ppos)
+{
+	unsigned int sel, index;
+	char buf[80];
+	int ret;
+
+	count = min_t(size_t, count, (sizeof(buf) - 1));
+	if (copy_from_user(buf, userbuf, count))
+		return -EFAULT;
+	buf[count] = 0;
+	ret = sscanf(buf, "%i %i", &sel, &index);
+	switch (ret) {
+	case 2:
+		di_cfgt_set_sel(sel, index);
+		break;
+	default:
+		pr_info("err:please enter: cfg_item, index\n");
+		return -EINVAL;
+	}
+	return count;
+}
+
+static ssize_t cfgtw_id_store(struct file *file, const char __user *userbuf,
+			      size_t count, loff_t *ppos)
+{
+	unsigned int index, val;
+	char buf[80];
+	int ret;
+
+	count = min_t(size_t, count, (sizeof(buf) - 1));
+	if (copy_from_user(buf, userbuf, count))
+		return -EFAULT;
+	buf[count] = 0;
+	ret = sscanf(buf, "%i %i", &index, &val);
+	switch (ret) {
+	case 2:
+		if (!di_cfg_top_check(index))
+			break;
+		pr_info("%s:%d->%d\n",
+			di_cfg_top_get_name(index),
+			di_cfg_top_get(index),
+			val);
+		di_cfg_top_set(index, val);
+		break;
+	default:
+		pr_info("err:please enter: cfg_item, index\n");
+		return -EINVAL;
+	}
+	return count;
+}
+
+static ssize_t cfgt_one_store(struct file *file, const char __user *userbuf,
+			      size_t count, loff_t *ppos)
+{
+	unsigned int index, val;
+	char buf[80];
+	int ret;
+
+	count = min_t(size_t, count, (sizeof(buf) - 1));
+	if (copy_from_user(buf, userbuf, count))
+		return -EFAULT;
+	buf[count] = 0;
+	ret = kstrtouint(buf, 0, &val);
+	if (ret) {
+		pr_info("war:please enter val\n");
+		return 0;
+	}
+	index = get_datal()->cfg_sel;
+	if (!di_cfg_top_check(index))
+		return count;
+	pr_info("%s:%d->%d\n",
+		di_cfg_top_get_name(index),
+		di_cfg_top_get(index),
+		val);
+	di_cfg_top_set(index, val);
+	return count;
+}
+
 /***************************************************************
  * parameter show and store for top : DI
  **************************************************************/
@@ -1542,6 +1676,12 @@ DEFINE_SEQ_SHOW_ONLY(mpr_di);
 DEFINE_SEQ_SHOW_ONLY(mpr_nr);
 DEFINE_SEQ_SHOW_ONLY(mpr_pd);
 DEFINE_SEQ_SHOW_ONLY(mpr_mtn);
+DEFINE_SEQ_SHOW_ONLY(cfgt_help);
+DEFINE_SEQ_SHOW_ONLY(cfgt_itme_all);
+DEFINE_SEQ_SHOW_ONLY(cfgt_val_all);
+DEFINE_STORE_ONLY(cfgtw_id);
+DEFINE_SEQ_SHOW_STORE(cfgt_one);
+DEFINE_SEQ_SHOW_STORE(cfgt_sel);
 
 DEFINE_SEQ_SHOW_ONLY(seq_file_curr_vframe);
 
@@ -1586,6 +1726,12 @@ static const struct di_dbgfs_files_t di_debugfs_files_top[] = {
 	{"mw_mtn", S_IFREG | 0644, &mpw_mtn_fops},
 	{"buf_cnt", S_IFREG | 0644, &buf_cnt_fops},
 	{"keep_clear", S_IFREG | 0644, &keep_buf_clear_fops},
+	{"cfghelp", S_IFREG | 0644, &cfgt_help_fops},
+	{"cfgr_ai", S_IFREG | 0644, &cfgt_itme_all_fops},
+	{"cfgr_av", S_IFREG | 0644, &cfgt_val_all_fops},
+	{"cfgw_id", S_IFREG | 0644, &cfgtw_id_fops},
+	{"cfg_one", S_IFREG | 0644, &cfgt_one_fops},
+	{"cfg_sel", S_IFREG | 0644, &cfgt_sel_fops},
 };
 
 static const struct di_dbgfs_files_t di_debugfs_files[] = {

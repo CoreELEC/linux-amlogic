@@ -83,25 +83,57 @@
 	| VIDTYPE_COMPRESS		\
 	| VIDTYPE_MVC)
 
+enum eDI_MEM_M {
+	eDI_MEM_M_rev = 0,
+	eDI_MEM_M_cma = 1,
+	eDI_MEM_M_cma_all = 2,
+	eDI_MEM_M_codec_a = 3,
+	eDI_MEM_M_codec_b = 4,
+	eDI_MEM_M_max	/**/
+};
 /* ************************************** */
 /* *************** cfg top ************** */
 /* ************************************** */
 /* also see: di_cfg_top_ctr*/
 enum eDI_CFG_TOP_IDX {
 	/* cfg for top */
-	eDI_CFG_BEGIN,
-	eDI_CFG_first_bypass,
-	eDI_CFG_ref_2,
+	EDI_CFG_BEGIN,
+	EDI_CFG_mem_flg,
+	EDI_CFG_first_bypass,
+	EDI_CFG_ref_2,
 	EDI_CFG_KEEP_CLEAR_AUTO,
-	eDI_CFG_END,
+	EDI_CFG_END,
 
 };
 
-#define K_DI_CFG_NUB	(eDI_CFG_END - eDI_CFG_BEGIN + 1)
+#define cfgeq(a, b) ((di_cfg_top_get(EDI_CFG_##a) == (b)) ? true : false)
+#define cfgnq(a, b) ((di_cfg_top_get(EDI_CFG_##a) != (b)) ? true : false)
+#define cfgg(a) di_cfg_top_get(EDI_CFG_##a)
+#define cfgs(a, b) di_cfg_top_set(EDI_CFG_##a, b)
+#define K_DI_CFG_NUB	(EDI_CFG_END - EDI_CFG_BEGIN + 1)
+#define K_DI_CFG_T_FLG_NOTHING	(0x00)
+#define K_DI_CFG_T_FLG_DTS	(0x01)
+#define K_DI_CFG_T_FLG_NONE	(0x80)
+union di_cfg_tdata_u {
+	unsigned int d32;
+	struct {
+		unsigned int val_df:4,/**/
+		val_dts:4,
+		val_dbg:4,
+		val_c:4,
+		dts_en:1,
+		dts_have:1,
+		dbg_have:1,
+		rev_en:1,
+		en_update:4,
+		reserved:8;
+	} b;
+};
 struct di_cfg_ctr_s {
-	char *name;
+	char *dts_name;
 	enum eDI_CFG_TOP_IDX id;
-	bool	default_val;
+	unsigned char	default_val;
+	unsigned char	flg;
 };
 
 /* ************************************** */
@@ -466,6 +498,7 @@ enum QUE_TYPE {	/*mast start from 0 */
 	QUE_POST_FREE,	/*7*/
 	QUE_POST_READY,	/*8*/
 	QUE_POST_BACK,		/*new*/
+	QUE_POST_DOING,
 	QUE_POST_KEEP,	/*below use pw_queue_in*/
 	QUE_POST_KEEP_BACK,
 	/*----------------*/
@@ -785,18 +818,26 @@ struct di_mm_cfg_s {
 	/**/
 	unsigned int num_local;
 	unsigned int num_post;
+	unsigned int size_local;
+	unsigned int size_post;
+	int nr_size;
+	int count_size;
+	int mcinfo_size;
+	int mv_size;
+	int mtn_size;
+	unsigned char buf_alloc_mode;
 };
 
-struct di_mm_st_s {
+struct dim_mm_t_s {
 	/* use for reserved and alloc all*/
 	unsigned long	mem_start;
 	unsigned int	mem_size;
 	struct page	*total_pages;
+};
 
-	unsigned int	flag_cma;
-
-	unsigned int	size_local;
-	unsigned int	size_post;
+struct di_mm_st_s {
+	unsigned long	mem_start;
+	unsigned int	mem_size;
 	int	num_local;
 	int	num_post;	/*ppost*/
 };
@@ -804,6 +845,16 @@ struct di_mm_st_s {
 struct di_mm_s {
 	struct di_mm_cfg_s cfg;
 	struct di_mm_st_s sts;
+};
+
+struct dim_sum_s {
+	/*buf*/
+	unsigned int b_pre_free;
+	unsigned int b_pst_ready;
+	unsigned int b_recyc;
+	unsigned int b_pre_ready;
+	unsigned int b_pst_free;
+	unsigned int b_display;
 };
 
 struct di_ch_s {
@@ -831,6 +882,7 @@ struct di_ch_s {
 	unsigned int sum[eDI_SUM_NUB + 1];
 	unsigned int sum_get;
 	unsigned int sum_put;
+	struct dim_sum_s	sumx;
 
 };
 
@@ -877,7 +929,8 @@ struct di_mng_s {
 
 	bool flg_hw_int;	/*only once*/
 
-	struct di_mm_s	mm;
+	struct dim_mm_t_s mmt;
+	struct di_mm_s	mm[DI_CHANNEL_NUB];
 };
 
 /*************************
@@ -959,7 +1012,10 @@ struct di_dbg_data {
 };
 
 struct di_data_l_s {
-	bool cfg_en[K_DI_CFG_NUB];	/*cfg_top*/
+	/*bool cfg_en[K_DI_CFG_NUB];*/	/*cfg_top*/
+	union di_cfg_tdata_u cfg_en[K_DI_CFG_NUB];
+	unsigned int cfg_sel;
+	unsigned int cfg_dbg_mode; /*val or item*/
 	int mp_uit[K_DI_MP_UIT_NUB];	/*eDI_MP_UI_T*/
 	struct di_ch_s ch_data[DI_CHANNEL_NUB];
 	int plane[DI_CHANNEL_NUB];	/*use for debugfs*/
@@ -985,21 +1041,22 @@ struct di_data_l_s {
  *
  *************************************/
 
-#define DBG_M_C_ALL		0x2000	/*all debug close*/
-#define DBG_M_O_ALL		0x1000	/*all debug open*/
+#define DBG_M_C_ALL		DI_BIT30	/*all debug close*/
+#define DBG_M_O_ALL		DI_BIT31	/*all debug open*/
 
-#define DBG_M_DT		0x01	/*do table work*/
-#define DBG_M_REG		0x02	/*reg/unreg*/
-#define DBG_M_POST_REF		0x04
-#define DBG_M_TSK		0x08
-#define DBG_M_INIT		0x10
-#define DBG_M_EVENT		0x20
-#define DBG_M_FIRSTFRAME	0x40
-#define DBG_M_DBG		0x80
+#define DBG_M_DT		DI_BIT0	/*do table work*/
+#define DBG_M_REG		DI_BIT1	/*reg/unreg*/
+#define DBG_M_POST_REF		DI_BIT2
+#define DBG_M_TSK		DI_BIT3
+#define DBG_M_INIT		DI_BIT4
+#define DBG_M_EVENT		DI_BIT5
+#define DBG_M_FIRSTFRAME	DI_BIT6
+#define DBG_M_DBG		DI_BIT7
 
-#define DBG_M_POLLING		0x100
-#define DBG_M_ONCE		0x200
-#define DBG_M_KEEP		0x400
+#define DBG_M_POLLING		DI_BIT8
+#define DBG_M_ONCE		DI_BIT9
+#define DBG_M_KEEP		DI_BIT10	/*keep buf*/
+#define DBG_M_MEM		DI_BIT11	/*mem alloc release*/
 #define DBG_M_WQ		DI_BIT14	/*work que*/
 
 extern unsigned int di_dbg;
@@ -1029,6 +1086,7 @@ extern unsigned int di_dbg;
 #define dbg_first_frame(fmt, args ...)	dbg_m(DBG_M_FIRSTFRAME, fmt, ##args)
 #define dbg_dbg(fmt, args ...)		dbg_m(DBG_M_DBG, fmt, ##args)
 #define dbg_once(fmt, args ...)		dbg_m(DBG_M_ONCE, fmt, ##args)
+#define dbg_mem(fmt, args ...)		dbg_m(DBG_M_MEM, fmt, ##args)
 #define dbg_keep(fmt, args ...)		dbg_m(DBG_M_KEEP, fmt, ##args)
 #define dbg_wq(fmt, args ...)		dbg_m(DBG_M_WQ, fmt, ##args)
 
@@ -1051,22 +1109,6 @@ static inline struct di_mng_s *get_bufmng(void)
 	return &get_datal()->mng;
 }
 
-static inline unsigned long di_get_mem_start(unsigned int ch)
-{
-	return get_datal()->mng.mem_start[ch];
-}
-
-static inline void di_set_mem_info(unsigned int ch,
-				   unsigned long mstart, unsigned int size)
-{
-	get_datal()->mng.mem_start[ch] = mstart;
-	get_datal()->mng.mem_size[ch] = size;
-}
-
-static inline unsigned int *di_get_mem_size(unsigned int ch)
-{
-	return &get_datal()->mng.mem_size[ch];
-}
 
 static inline struct di_hpre_s  *get_hw_pre(void)
 {
@@ -1322,6 +1364,10 @@ static inline void sum_p_clear(unsigned int ch)
 	get_datal()->ch_data[ch].sum_put = 0;
 }
 
+static inline struct dim_sum_s *get_sumx(unsigned int ch)
+{
+	return &get_datal()->ch_data[ch].sumx;
+}
 /*bypass_state*/
 static inline bool di_bypass_state_get(unsigned int ch)
 {
@@ -1407,12 +1453,34 @@ static inline int dimp_dec(enum eDI_MP_UI_T idx)
 /******************************************
  *	mm
  *****************************************/
-static inline struct di_mm_s *dim_mm_get(void)
+static inline struct di_mm_s *dim_mm_get(unsigned int ch)
 {
-	return &get_datal()->mng.mm;
+	return &get_datal()->mng.mm[ch];
 }
 
-/**/
+static inline struct dim_mm_t_s *dim_mmt_get(void)
+{
+	return &get_datal()->mng.mmt;
+}
+
+static inline unsigned long di_get_mem_start(unsigned int ch)
+{
+	return get_datal()->mng.mm[ch].sts.mem_start;
+}
+
+static inline void di_set_mem_info(unsigned int ch,
+				   unsigned long mstart,
+				   unsigned int size)
+{
+	get_datal()->mng.mm[ch].sts.mem_start = mstart;
+	get_datal()->mng.mm[ch].sts.mem_size = size;
+}
+
+static inline unsigned int di_get_mem_size(unsigned int ch)
+{
+	return get_datal()->mng.mm[ch].sts.mem_size;
+}
+
 void di_tout_int(struct di_time_out_s *tout, unsigned int thd);
 bool di_tout_contr(enum eDI_TOUT_CONTR cmd, struct di_time_out_s *tout);
 

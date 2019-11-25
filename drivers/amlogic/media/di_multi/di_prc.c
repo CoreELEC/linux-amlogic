@@ -25,6 +25,7 @@
 #include "di_data_l.h"
 #include "di_data.h"
 #include "di_dbg.h"
+#include "di_sys.h"
 #include "di_vframe.h"
 #include "di_que.h"
 #include "di_task.h"
@@ -43,21 +44,29 @@
 const struct di_cfg_ctr_s di_cfg_top_ctr[K_DI_CFG_NUB] = {
 	/*same order with enum eDI_DBG_CFG*/
 	/* cfg for top */
-	[eDI_CFG_BEGIN]  = {"cfg top begin ", eDI_CFG_BEGIN, 0},
-
-	[eDI_CFG_first_bypass]  = {"first_bypass",
-		eDI_CFG_first_bypass, 0},
-	[eDI_CFG_ref_2]  = {"ref_2",
-		eDI_CFG_ref_2, 0},
+	[EDI_CFG_BEGIN]  = {"cfg top begin ", EDI_CFG_BEGIN, 0,
+			K_DI_CFG_T_FLG_NONE},
+	[EDI_CFG_mem_flg]  = {"flag_cma", EDI_CFG_mem_flg,
+				eDI_MEM_M_cma,
+				K_DI_CFG_T_FLG_DTS},
+	[EDI_CFG_first_bypass]  = {"first_bypass",
+				EDI_CFG_first_bypass,
+				0,
+				K_DI_CFG_T_FLG_DTS},
+	[EDI_CFG_ref_2]  = {"ref_2",
+		EDI_CFG_ref_2, 0, K_DI_CFG_T_FLG_NOTHING},
 	[EDI_CFG_KEEP_CLEAR_AUTO]  = {"keep_buf clear auto",
-		EDI_CFG_KEEP_CLEAR_AUTO, 0},
-	[eDI_CFG_END]  = {"cfg top end ", eDI_CFG_END, 0},
+			EDI_CFG_KEEP_CLEAR_AUTO,
+			0,
+			K_DI_CFG_T_FLG_NOTHING},
+	[EDI_CFG_END]  = {"cfg top end ", EDI_CFG_END, 0,
+			K_DI_CFG_T_FLG_NONE},
 
 };
 
 char *di_cfg_top_get_name(enum eDI_CFG_TOP_IDX idx)
 {
-	return di_cfg_top_ctr[idx].name;
+	return di_cfg_top_ctr[idx].dts_name;
 }
 
 void di_cfg_top_get_info(unsigned int idx, char **name)
@@ -66,7 +75,7 @@ void di_cfg_top_get_info(unsigned int idx, char **name)
 		PR_ERR("%s:err:idx not map [%d->%d]\n", __func__,
 		       idx, di_cfg_top_ctr[idx].id);
 
-	*name = di_cfg_top_ctr[idx].name;
+	*name = di_cfg_top_ctr[idx].dts_name;
 }
 
 bool di_cfg_top_check(unsigned int idx)
@@ -79,37 +88,171 @@ bool di_cfg_top_check(unsigned int idx)
 		       __func__, idx, tsize);
 		return false;
 	}
+	if (di_cfg_top_ctr[idx].flg & K_DI_CFG_T_FLG_NONE)
+		return false;
 	if (idx != di_cfg_top_ctr[idx].id) {
-		PR_ERR("%s:err:not map:%d->%d\n",
-		       __func__, idx, di_cfg_top_ctr[idx].id);
+		PR_ERR("%s:%s:err:not map:%d->%d\n",
+		       __func__,
+		       di_cfg_top_ctr[idx].dts_name,
+		       idx,
+		       di_cfg_top_ctr[idx].id);
 		return false;
 	}
-	pr_info("\t%-15s=%d\n", di_cfg_top_ctr[idx].name,
-		di_cfg_top_ctr[idx].default_val);
 	return true;
 }
 
 void di_cfg_top_init_val(void)
 {
 	int i;
+	union di_cfg_tdata_u *pd;
+	const struct di_cfg_ctr_s *pt;
 
-	pr_info("%s:\n", __func__);
-	for (i = eDI_CFG_BEGIN; i < eDI_CFG_END; i++) {
+	PR_INF("%s:\n", __func__);
+	for (i = EDI_CFG_BEGIN; i < EDI_CFG_END; i++) {
 		if (!di_cfg_top_check(i))
 			continue;
-		di_cfg_top_set(i, di_cfg_top_ctr[i].default_val);
+		pd = &get_datal()->cfg_en[i];
+		pt = &di_cfg_top_ctr[i];
+		/*di_cfg_top_set(i, di_cfg_top_ctr[i].default_val);*/
+		pd->d32 = 0;/*clear*/
+		pd->b.val_df = pt->default_val;
+		pd->b.val_c = pd->b.val_df;
 	}
-	pr_info("%s:finish\n", __func__);
+	PR_INF("%s:finish\n", __func__);
 }
 
-bool di_cfg_top_get(enum eDI_CFG_TOP_IDX id)
+void di_cfg_top_dts(void)
 {
-	return get_datal()->cfg_en[id];
+	struct platform_device *pdev = get_dim_de_devp()->pdev;
+	int i;
+	union di_cfg_tdata_u *pd;
+	const struct di_cfg_ctr_s *pt;
+	int ret;
+	unsigned int uval;
+
+	if (!pdev) {
+		PR_ERR("%s:no pdev\n", __func__);
+		return;
+	}
+	PR_INF("%s\n", __func__);
+	for (i = EDI_CFG_BEGIN; i < EDI_CFG_END; i++) {
+		if (!di_cfg_top_check(i))
+			continue;
+		if (!(di_cfg_top_ctr[i].flg & K_DI_CFG_T_FLG_DTS))
+			continue;
+		pd = &get_datal()->cfg_en[i];
+		pt = &di_cfg_top_ctr[i];
+		pd->b.dts_en = 1;
+		ret = of_property_read_u32(pdev->dev.of_node,
+					   pt->dts_name,
+					   &uval);
+		if (ret)
+			continue;
+		PR_INF("\t%s:%d\n", pt->dts_name, uval);
+		pd->b.dts_have = 1;
+		pd->b.val_dts = uval;
+		pd->b.val_c = pd->b.val_dts;
+	}
+	PR_INF("%s end\n", __func__);
 }
 
-void di_cfg_top_set(enum eDI_CFG_TOP_IDX id, bool en)
+static void di_cfgt_show_item_one(struct seq_file *s, unsigned int index)
 {
-	get_datal()->cfg_en[id] = en;
+	union di_cfg_tdata_u *pd;
+	const struct di_cfg_ctr_s *pt;
+
+	if (!di_cfg_top_check(index))
+		return;
+	pd = &get_datal()->cfg_en[index];
+	pt = &di_cfg_top_ctr[index];
+	seq_printf(s, "id:%2d:%-10s\n", index, pt->dts_name);
+	seq_printf(s, "\t%-5s:0x%2x[%d]\n",
+		   "tdf", pt->default_val, pt->default_val);
+	seq_printf(s, "\t%-5s:%d\n",
+		   "tdts", pt->flg & K_DI_CFG_T_FLG_DTS);
+	seq_printf(s, "\t%-5s:0x%-4x\n", "d32", pd->d32);
+	seq_printf(s, "\t%-5s:0x%2x[%d]\n",
+		   "vdf", pd->b.val_df, pd->b.val_df);
+	seq_printf(s, "\t%-5s:0x%2x[%d]\n",
+		   "vdts", pd->b.val_dts, pd->b.val_dts);
+	seq_printf(s, "\t%-5s:0x%2x[%d]\n",
+		   "vdbg", pd->b.val_dbg, pd->b.val_dbg);
+	seq_printf(s, "\t%-5s:0x%2x[%d]\n", "vc", pd->b.val_c, pd->b.val_c);
+	seq_printf(s, "\t%-5s:%d\n", "endts", pd->b.dts_en);
+	seq_printf(s, "\t%-5s:%d\n", "hdts", pd->b.dts_have);
+	seq_printf(s, "\t%-5s:%d\n", "hdbg", pd->b.dbg_have);
+}
+
+void di_cfgt_show_item_sel(struct seq_file *s)
+{
+	int i = get_datal()->cfg_sel;
+
+	di_cfgt_show_item_one(s, i);
+}
+
+void di_cfgt_set_sel(unsigned int dbg_mode, unsigned int id)
+{
+	if (!di_cfg_top_check(id)) {
+		PR_ERR("%s:%d is overflow\n", __func__, id);
+		return;
+	}
+	get_datal()->cfg_sel = id;
+	get_datal()->cfg_dbg_mode = dbg_mode;
+}
+
+void di_cfgt_show_item_all(struct seq_file *s)
+{
+	int i;
+
+	for (i = EDI_CFG_BEGIN; i < EDI_CFG_END; i++)
+		di_cfgt_show_item_one(s, i);
+}
+
+static void di_cfgt_show_val_one(struct seq_file *s, unsigned int index)
+{
+	union di_cfg_tdata_u *pd;
+	const struct di_cfg_ctr_s *pt;
+
+	if (!di_cfg_top_check(index))
+		return;
+	pd = &get_datal()->cfg_en[index];
+	pt = &di_cfg_top_ctr[index];
+	seq_printf(s, "id:%2d:%-10s\n", index, pt->dts_name);
+	seq_printf(s, "\t%-5s:0x%-4x\n", "d32", pd->d32);
+	seq_printf(s, "\t%-5s:0x%2x[%d]\n", "vc", pd->b.val_c, pd->b.val_c);
+}
+
+void di_cfgt_show_val_sel(struct seq_file *s)
+{
+	unsigned int i = get_datal()->cfg_sel;
+
+	di_cfgt_show_val_one(s, i);
+}
+
+void di_cfgt_show_val_all(struct seq_file *s)
+{
+	int i;
+
+	for (i = EDI_CFG_BEGIN; i < EDI_CFG_END; i++)
+		di_cfgt_show_val_one(s, i);
+}
+
+unsigned int di_cfg_top_get(enum eDI_CFG_TOP_IDX id)
+{
+	union di_cfg_tdata_u *pd;
+
+	pd = &get_datal()->cfg_en[id];
+	return pd->b.val_c;
+}
+
+void di_cfg_top_set(enum eDI_CFG_TOP_IDX id, unsigned int val)
+{
+	union di_cfg_tdata_u *pd;
+
+	pd = &get_datal()->cfg_en[id];
+	pd->b.val_dbg = val;
+	pd->b.dbg_have = 1;
+	pd->b.val_c = val;
 }
 
 /**************************************
@@ -806,6 +949,25 @@ unsigned int di_sum_get(unsigned int ch, enum eDI_SUM id)
 	return di_sum_get_l(ch, id);
 }
 
+void dim_sumx_clear(unsigned int ch)
+{
+	struct dim_sum_s *psumx = get_sumx(ch);
+
+	memset(psumx, 0, sizeof(*psumx));
+}
+
+void dim_sumx_set(unsigned int ch)
+{
+	struct dim_sum_s *psumx = get_sumx(ch);
+
+	psumx->b_pre_free	= list_count(ch, QUEUE_LOCAL_FREE);
+	psumx->b_pre_ready	= di_que_list_count(ch, QUE_PRE_READY);
+	psumx->b_pst_free	= di_que_list_count(ch, QUE_POST_FREE);
+	psumx->b_pst_ready	= di_que_list_count(ch, QUE_POST_READY);
+	psumx->b_recyc		= list_count(ch, QUEUE_RECYCLE);
+	psumx->b_display	= list_count(ch, QUEUE_DISPLAY);
+}
+
 /****************************/
 /*call by event*/
 /****************************/
@@ -1399,7 +1561,7 @@ void dip_chst_process_reg(unsigned int ch)
 		break;
 	case eDI_TOP_STATE_REG_STEP2:/*now no change to do*/
 		if (dip_cma_get_st(ch) == EDI_CMA_ST_READY) {
-			if (di_cfg_top_get(eDI_CFG_first_bypass)) {
+			if (di_cfg_top_get(EDI_CFG_first_bypass)) {
 				if (get_sum_g(ch) == 0)
 					dim_bypass_first_frame(ch);
 				else
@@ -1460,7 +1622,7 @@ void dip_chst_process_ch(void)
 		switch (chst) {
 		case eDI_TOP_STATE_REG_STEP2:
 			if (dip_cma_get_st(ch) == EDI_CMA_ST_READY) {
-				if (di_cfg_top_get(eDI_CFG_first_bypass)) {
+				if (di_cfg_top_get(EDI_CFG_first_bypass)) {
 					if (get_sum_g(ch) == 0)
 						dim_bypass_first_frame(ch);
 					else
@@ -1494,6 +1656,7 @@ void dip_chst_process_ch(void)
 			break;
 		case EDI_TOP_STATE_READY:
 			dim_post_keep_back_recycle(ch);
+			dim_sumx_set(ch);
 			break;
 		default:
 			break;
@@ -1576,6 +1739,13 @@ const char *dip_chst_get_name(enum EDI_TOP_STATE chst)
 
 	return p;
 }
+
+static const struct di_mm_cfg_s c_mm_cfg_normal = {
+	.di_h	=	1088,
+	.di_w	=	1920,
+	.num_local	=	MAX_LOCAL_BUF_NUM,
+	.num_post	=	MAX_POST_BUF_NUM,
+};
 
 /**********************************/
 /* TIME OUT CHEKC api*/
@@ -1918,10 +2088,14 @@ static bool dip_init_value(void)
 {
 	unsigned int ch;
 	struct di_post_stru_s *ppost;
-	struct di_mm_s *mm = dim_mm_get();
+	struct di_mm_s *mm;
+	struct dim_mm_t_s *mmt = dim_mmt_get();
+	struct di_ch_s *pch;
 	bool ret = false;
 
 	for (ch = 0; ch < DI_CHANNEL_NUB; ch++) {
+		pch = get_chdata(ch);
+		pch->ch_id = ch;
 		ppost = get_post_stru(ch);
 		memset(ppost, 0, sizeof(struct di_post_stru_s));
 		ppost->next_canvas_id = 1;
@@ -1932,19 +2106,13 @@ static bool dip_init_value(void)
 			pw_queue_clear(ch, QUE_POST_KEEP);
 			pw_queue_clear(ch, QUE_POST_KEEP_BACK);
 		}
+		mm = dim_mm_get(ch);
+		memcpy(&mm->cfg, &c_mm_cfg_normal, sizeof(struct di_mm_cfg_s));
 	}
+	mmt->mem_start = 0;
+	mmt->mem_size = 0;
+	mmt->total_pages = NULL;
 	set_current_channel(0);
-
-	/*mm cfg*/
-	mm->cfg.di_h = 1080;
-	mm->cfg.di_w = 1920;
-	mm->cfg.num_local = MAX_LOCAL_BUF_NUM;
-	mm->cfg.num_post = MAX_POST_BUF_NUM;
-	/*mm sts*/
-	mm->sts.mem_start = 0;
-	mm->sts.mem_size = 0;
-	mm->sts.total_pages = NULL;
-	mm->sts.flag_cma = 0;
 
 	return ret;
 }

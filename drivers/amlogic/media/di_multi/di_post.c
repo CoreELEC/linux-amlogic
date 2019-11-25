@@ -120,7 +120,8 @@ bool dpst_step_check(void)
 	ch = pst->curr_ch;
 	ppost = get_post_stru(ch);
 
-	if (queue_empty(ch, QUEUE_POST_DOING)) {
+	//if (queue_empty(ch, QUEUE_POST_DOING)) {
+	if (di_que_is_empty(ch, QUE_POST_DOING)) {
 		ppost->post_peek_underflow++;
 		pst->state--;
 		return reflesh;
@@ -145,7 +146,8 @@ bool dpst_step_set(void)
 	ch = pst->curr_ch;
 	ppost = get_post_stru(ch);
 
-	di_buf = get_di_buf_head(ch, QUEUE_POST_DOING);
+	//di_buf = get_di_buf_head(ch, QUEUE_POST_DOING);
+	di_buf = di_que_peek(ch, QUE_POST_DOING);
 	if (dim_check_di_buf(di_buf, 20, ch)) {
 		PR_ERR("%s:err1\n", __func__);
 		return reflesh;

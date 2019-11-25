@@ -71,11 +71,18 @@ bool di_sum_check(unsigned int ch, enum eDI_SUM id);
  * cfg ctr top
  *	bool
  **************************************/
+bool di_cfg_top_check(unsigned int idx);
 char *di_cfg_top_get_name(enum eDI_CFG_TOP_IDX idx);
 void di_cfg_top_get_info(unsigned int idx, char **name);
 void di_cfg_top_init_val(void);
-bool di_cfg_top_get(enum eDI_CFG_TOP_IDX id);
-void di_cfg_top_set(enum eDI_CFG_TOP_IDX id, bool en);
+void di_cfg_top_dts(void);
+unsigned int di_cfg_top_get(enum eDI_CFG_TOP_IDX id);
+void di_cfg_top_set(enum eDI_CFG_TOP_IDX id, unsigned int en);
+void di_cfgt_show_item_sel(struct seq_file *s);
+void di_cfgt_show_item_all(struct seq_file *s);
+void di_cfgt_show_val_sel(struct seq_file *s);
+void di_cfgt_show_val_all(struct seq_file *s);
+void di_cfgt_set_sel(unsigned int dbg_mode, unsigned int id);
 
 /**************************************
  *
@@ -128,4 +135,6 @@ bool di_is_pause(unsigned int ch);
 void di_pause_step_done(unsigned int ch);
 void di_pause(unsigned int ch, bool on);
 
+void dim_sumx_clear(unsigned int ch);
+void dim_sumx_set(unsigned int ch);
 #endif	/*__DI_PRC_H__*/

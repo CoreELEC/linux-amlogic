@@ -199,7 +199,7 @@ void dimh_enable_di_post_mif(enum gate_mode_e mode);
 void dimh_combing_pd22_window_config(unsigned int width, unsigned int height);
 void dimh_calc_lmv_init(void);
 void dimh_calc_lmv_base_mcinfo(unsigned int vf_height,
-			       unsigned long mcinfo_adr,
+			       unsigned short *mcinfo_adr_v,
 			       unsigned int mcinfo_size);
 void dimh_init_field_mode(unsigned short height);
 void dim_film_mode_win_config(unsigned int width, unsigned int height);
@@ -217,8 +217,6 @@ void dimh_afbc_reg_sw(bool on);
 
 void dump_vd2_afbc(void);
 
-u8 *dim_vmap(ulong addr, u32 size, bool *bflg);
-void dim_unmap_phyaddr(u8 *vaddr);
 int dim_print(const char *fmt, ...);
 
 #define DI_MC_SW_OTHER	(1 << 0)

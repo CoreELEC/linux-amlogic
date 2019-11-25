@@ -134,6 +134,8 @@ struct di_buf_s {
 	unsigned long cnt_adr;
 	int cnt_canvas_idx;
 	unsigned long mcinfo_adr;
+	unsigned short	*mcinfo_adr_v;/**/
+	bool		mcinfo_alloc_flg; /**/
 	int mcinfo_canvas_idx;
 	unsigned long mcvec_adr;
 	int mcvec_canvas_idx;
@@ -221,8 +223,9 @@ struct di_buf_s {
 
 /*new use this for put back control*/
 #define QUEUE_POST_PUT_BACK		(9)
-#define QUEUE_POST_KEEP			(10)/*below use pw_queue_in*/
-#define QUEUE_POST_KEEP_BACK		(11)
+#define QUEUE_POST_DOING2		(10)
+#define QUEUE_POST_KEEP			(11)/*below use pw_queue_in*/
+#define QUEUE_POST_KEEP_BACK		(12)
 
 #define QUEUE_NUM			5	/* 9 */
 #define QUEUE_NEW_THD_MIN		(QUEUE_IN_FREE - 1)
@@ -278,11 +281,7 @@ struct di_dev_s {
 	unsigned int	   post_irq;
 	unsigned int	   flags;
 	unsigned long	   jiffy;
-	unsigned long	   mem_start;
-	unsigned int	   mem_size;
 	bool	mem_flg;	/*ary add for make sure mem is ok*/
-	unsigned int	   buffer_size;
-	unsigned int	   post_buffer_size;
 	unsigned int	   buf_num_avail;
 	int		rdma_handle;
 	/* is support nr10bit */
@@ -293,8 +292,6 @@ struct di_dev_s {
 	unsigned int pps_enable;
 	unsigned int h_sc_down_en;/*sm1, tm2 ...*/
 	/*struct	mutex      cma_mutex;*/
-	unsigned int	   flag_cma;
-	struct page			*total_pages;
 	struct dentry *dbg_root;	/*dbg_fs*/
 	/***************************/
 	/*struct di_data_l_s	data_l;*/
@@ -370,8 +367,6 @@ struct di_pre_stru_s {
 /* ary: loacal play p mode is 0
  * local play i mode is 0
  */
-
-	unsigned char buf_alloc_mode;
 /* alloc di buf as p or i;0: alloc buf as i;
  * 1: alloc buf as p;
  */
@@ -404,12 +399,6 @@ struct di_pre_stru_s {
 	bool bypass_pre;
 	bool invert_flag;
 	bool vdin_source;
-	int nr_size;
-	int count_size;
-	int mcinfo_size;
-	int mv_size;
-	int mtn_size;
-
 	int cma_release_req;
 	/* for performance debug */
 	unsigned long irq_time[2];
@@ -470,16 +459,7 @@ struct di_buf_pool_s {
 	unsigned int size;
 };
 
-struct dim_mm_s {
-	struct page	*ppage;
-	unsigned long	addr;
-};
 
-bool dim_mm_alloc(int cma_mode, size_t count, struct dim_mm_s *o);
-bool dim_mm_release(int cma_mode,
-		    struct page *pages,
-		    int count,
-		    unsigned long addr);
 
 unsigned char dim_is_bypass(vframe_t *vf_in, unsigned int channel);
 bool dim_bypass_first_frame(unsigned int ch);
@@ -539,7 +519,6 @@ void dim_pre_de_done_buf_clear(unsigned int channel);
 void di_reg_setting(unsigned int channel, struct vframe_s *vframe);
 void di_reg_variable(unsigned int channel, struct vframe_s *vframe);
 
-void dim_unreg_process_irq(unsigned int channel);
 void di_unreg_variable(unsigned int channel);
 void di_unreg_setting(void);
 
@@ -576,9 +555,7 @@ void dim_vcry_set(unsigned int reason, unsigned int idx,
 		  struct di_buf_s *di_bufp);
 
 const char *dim_get_vfm_type_name(unsigned int nub);
-
-bool dim_cma_top_alloc(unsigned int ch);
-bool dim_cma_top_release(unsigned int ch);
+bool dim_get_mcmem_alloc(void);
 
 int dim_get_reg_unreg_cnt(void);
 void dim_reg_timeout_inc(void);

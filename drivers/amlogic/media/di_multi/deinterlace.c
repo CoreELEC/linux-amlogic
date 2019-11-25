@@ -109,6 +109,10 @@ int dim_get_reg_unreg_cnt(void)
 
 static bool mc_mem_alloc;
 
+bool dim_get_mcmem_alloc(void)
+{
+	return mc_mem_alloc;
+}
 static unsigned int di_pre_rdma_enable;
 
 /**************************************
@@ -850,61 +854,7 @@ struct di_buf_s *dim_get_buf(unsigned int channel, int queue_idx,
 }
 
 /*--------------------------*/
-u8 *dim_vmap(ulong addr, u32 size, bool *bflg)
-{
-	u8 *vaddr = NULL;
-	ulong phys = addr;
-	u32 offset = phys & ~PAGE_MASK;
-	u32 npages = PAGE_ALIGN(size) / PAGE_SIZE;
-	struct page **pages = NULL;
-	pgprot_t pgprot;
-	int i;
 
-	if (!PageHighMem(phys_to_page(phys)))
-		return phys_to_virt(phys);
-
-	if (offset)
-		npages++;
-
-	pages = vmalloc(sizeof(struct page *) * npages);
-	if (!pages)
-		return NULL;
-
-	for (i = 0; i < npages; i++) {
-		pages[i] = phys_to_page(phys);
-		phys += PAGE_SIZE;
-	}
-
-	/*nocache*/
-	pgprot = pgprot_writecombine(PAGE_KERNEL);
-
-	vaddr = vmap(pages, npages, VM_MAP, pgprot);
-	if (!vaddr) {
-		PR_ERR("the phy(%lx) vmaped fail, size: %d\n",
-		       addr - offset, npages << PAGE_SHIFT);
-		vfree(pages);
-		return NULL;
-	}
-
-	vfree(pages);
-#if 0
-	if (debug_mode & 0x20) {
-		dim_print("[HIGH-MEM-MAP] %s, pa(%lx) to va(%p), size: %d\n",
-			  __func__, addr, vaddr + offset,
-			  npages << PAGE_SHIFT);
-	}
-#endif
-	*bflg = true;
-
-	return vaddr + offset;
-}
-
-void dim_unmap_phyaddr(u8 *vaddr)
-{
-	void *addr = (void *)(PAGE_MASK & (ulong)vaddr);
-
-	vunmap(addr);
-}
 
 /*--------------------------*/
 ssize_t
@@ -932,7 +882,7 @@ store_dump_mem(struct device *dev, struct device_attribute *attr,
 	struct di_buf_s *pbuf_post;
 	struct di_buf_s *pbuf_local;
 	struct di_post_stru_s *ppost;
-	struct di_mm_s *mm = dim_mm_get();/*mm-0705*/
+	struct di_mm_s *mm;
 	/*************************/
 
 	buf_orig = kstrdup(buf, GFP_KERNEL);
@@ -961,6 +911,7 @@ store_dump_mem(struct device *dev, struct device_attribute *attr,
 			return 0;
 		}
 		di_pr_info("c_post:ch[%d],index[%d]\n", channel, indx);
+		mm = dim_mm_get(channel);
 
 		ppre = get_pre_stru(channel);
 		ppost = get_post_stru(channel);
@@ -1628,380 +1579,7 @@ static void config_canvas(struct di_buf_s *di_buf)
 }
 
 #endif
-
-#ifdef CONFIG_CMA
-/**********************************************************
- * ./include/linux/amlogic/media/codec_mm/codec_mm.h:
- *	unsigned long codec_mm_alloc_for_dma(const char *owner,
- *					int page_cnt,
- *					int align2n,
- *					int memflags);
- *	int codec_mm_free_for_dma(const char *owner,
- *				unsigned long phy_addr);
- *	void *codec_mm_phys_to_virt(unsigned long phy_addr);
- ***********************************************************/
-
-#define TVP_MEM_PAGES	0xffff
-/**********************************************************
- * alloc mm from codec mm
- * o: out:
- * return:
- *	true: seccuss
- *	false: failed
- ***********************************************************/
-static bool mm_codec_alloc(const char *owner, size_t count,
-			   int cma_mode,
-			   struct dim_mm_s *o)
-{
-	int flags = 0;
-	bool istvp = false;
-
-	if (codec_mm_video_tvp_enabled()) {
-		istvp = true;
-		flags |= CODEC_MM_FLAGS_TVP;
-	} else {
-		flags |= CODEC_MM_FLAGS_RESERVED | CODEC_MM_FLAGS_CPU;
-	}
-
-	if (cma_mode == 4 && !istvp)
-		flags = CODEC_MM_FLAGS_CMA_FIRST |
-			CODEC_MM_FLAGS_CPU;
-
-	o->addr = codec_mm_alloc_for_dma(owner,
-					count,
-					0,
-					flags);
-
-	if (o->addr == 0) {
-		/*failed*/
-		PR_ERR("%s: failed\n", __func__);
-		return false;
-	}
-
-	if (istvp)
-		o->ppage = (struct page *)TVP_MEM_PAGES;
-	else
-		o->ppage = codec_mm_phys_to_virt(o->addr);
-
-	/*PR_INF("%s:page:0x%p,add:0x%lx\n", __func__, o->ppage, o->addr);*/
-	return true;
-}
-
-/**********************************************************
- *	./include/linux/dma-contiguous.h:
- * struct page *dma_alloc_from_contiguous(struct device *dev,
- *					size_t count,
- *					unsigned int order);
- * bool dma_release_from_contiguous(struct device *dev,
- *					struct page *pages,
- *					int count);
- *
- ***********************************************************/
-
-/**********************************************************
- * alloc mm by cma
- * o: out:
- * return:
- *	true: seccuss
- *	false: failed
- ***********************************************************/
-static bool mm_cma_alloc(struct device *dev, size_t count,
-			 struct dim_mm_s *o)
-{
-	o->ppage = dma_alloc_from_contiguous(dev, count, 0);
-	if (o->ppage) {
-		o->addr = page_to_phys(o->ppage);
-		return true;
-	}
-	PR_ERR("%s: failed\n", __func__);
-	return false;
-}
-
-bool dim_mm_alloc(int cma_mode, size_t count, struct dim_mm_s *o)
-{
-	struct di_dev_s *de_devp = get_dim_de_devp();
-	bool ret;
-
-	if (cma_mode == 3 || cma_mode == 4)
-		ret = mm_codec_alloc(DEVICE_NAME,
-				     count,
-				     cma_mode,
-				     o);
-	else
-		ret = mm_cma_alloc(&de_devp->pdev->dev, count, o);
-
-	return ret;
-}
-
-bool dim_mm_release(int cma_mode,
-		    struct page *pages,
-		    int count,
-		    unsigned long addr)
-{
-	struct di_dev_s *de_devp = get_dim_de_devp();
-	bool ret = true;
-
-	if (cma_mode == 3 || cma_mode == 4)
-		codec_mm_free_for_dma(DEVICE_NAME, addr);
-	else
-		ret = dma_release_from_contiguous(&de_devp->pdev->dev,
-						  pages,
-						  count);
-	return ret;
-}
-
-/***********************************************************/
-unsigned int dim_cma_alloc_total(struct di_dev_s *de_devp)
-{
-	/*struct di_dev_s *de_devp = get_dim_de_devp();*/
-	/*****************************************************/
-	struct dim_mm_s omm;
-	bool ret;
-
-	ret = dim_mm_alloc(de_devp->flag_cma,
-			   de_devp->mem_size >> PAGE_SHIFT, &omm);
-
-	if (!ret) /*failed*/
-		return 0;
-
-	de_devp->total_pages = omm.ppage;
-	de_devp->mem_start = omm.addr;
-
-	if (de_devp->flag_cma != 0 && de_devp->nrds_enable) {
-		dim_nr_ds_buf_init(de_devp->flag_cma, 0,
-				   &de_devp->pdev->dev);
-	}
-
-	return 1;
-}
-
-static unsigned int di_cma_alloc(struct di_dev_s *devp, unsigned int channel)
-{
-	unsigned int start_time, end_time, delta_time;
-	struct di_buf_s *buf_p = NULL;
-	int itmp, alloc_cnt = 0;
-	struct di_pre_stru_s *ppre = get_pre_stru(channel);
-	struct di_dev_s *de_devp = get_dim_de_devp();
-
-	unsigned int tmpa[MAX_FIFO_SIZE]; /*new que*/
-	unsigned int psize; /*new que*/
-	struct di_mm_s *mm = dim_mm_get();/*mm-0705*/
-
-	bool aret;
-	struct dim_mm_s omm;
-
-	start_time = jiffies_to_msecs(jiffies);
-	queue_for_each_entry(buf_p, channel, QUEUE_LOCAL_FREE, list) {
-		if (buf_p->pages) {
-			PR_ERR("1:%s:buf[%d] page:0x%p alloced skip\n",
-			       __func__, buf_p->index, buf_p->pages);
-			continue;
-		}
-
-		aret = dim_mm_alloc(devp->flag_cma,
-			devp->buffer_size >> PAGE_SHIFT,
-			&omm);
-
-		if (!aret) {
-			buf_p->pages = NULL;
-			PR_ERR("2:%s: alloc failed %d fail.\n",
-			       __func__, buf_p->index);
-			return 0;
-		}
-
-		buf_p->pages = omm.ppage;
-		buf_p->nr_adr = omm.addr;
-		alloc_cnt++;
-		mm->sts.num_local++;
-		if (dimp_get(eDI_MP_cma_print))
-			PR_INF("CMA  allocate buf[%d]page:0x%p\n",
-			       buf_p->index, buf_p->pages);
-
-		if (dimp_get(eDI_MP_cma_print))
-			pr_info(" addr 0x%lx ok.\n", buf_p->nr_adr);
-		if (ppre->buf_alloc_mode == 0) {
-			buf_p->mtn_adr = buf_p->nr_adr +
-				ppre->nr_size;
-			buf_p->cnt_adr = buf_p->nr_adr +
-				ppre->nr_size +
-				ppre->mtn_size;
-			if (mc_mem_alloc) {
-				buf_p->mcvec_adr = buf_p->nr_adr +
-					ppre->nr_size +
-					ppre->mtn_size +
-					ppre->count_size;
-				buf_p->mcinfo_adr =
-					buf_p->nr_adr +
-					ppre->nr_size +
-					ppre->mtn_size +
-					ppre->count_size +
-					ppre->mv_size;
-			}
-		}
-	}
-	PR_INF("%s:num_local[%d]:[%d]\n", __func__, mm->sts.num_local,
-	       alloc_cnt);
-	alloc_cnt = 0;
-	if (dimp_get(eDI_MP_post_wr_en)	&& dimp_get(eDI_MP_post_wr_support)) {
-		di_que_list(channel, QUE_POST_FREE, &tmpa[0], &psize);
-
-		for (itmp = 0; itmp < psize; itmp++) {
-			buf_p = pw_qindex_2_buf(channel, tmpa[itmp]);
-
-			if (buf_p->pages) {
-				PR_ERR("3:%s:buf[%d] page:0x%p skip\n",
-				       __func__,
-				       buf_p->index, buf_p->pages);
-				continue;
-			}
-
-			aret = dim_mm_alloc(devp->flag_cma,
-					devp->post_buffer_size >> PAGE_SHIFT,
-					&omm);
-
-			if (!aret) {
-				buf_p->pages = NULL;
-				PR_ERR("4:%s: alloc failed %d fail.\n",
-				       __func__, buf_p->index);
-				return 0;
-			}
-
-			buf_p->pages = omm.ppage;
-			buf_p->nr_adr = omm.addr;
-			mm->sts.num_post++;
-			alloc_cnt++;
-			if (dimp_get(eDI_MP_cma_print))
-				PR_INF("%s:pbuf[%d]page:0x%p\n",
-				       __func__,
-				       buf_p->index, buf_p->pages);
-			if (dimp_get(eDI_MP_cma_print))
-				pr_info(" addr 0x%lx ok.\n", buf_p->nr_adr);
-		}
-		PR_INF("%s:num_pst[%d]:%d\n", __func__, mm->sts.num_post,
-		       alloc_cnt);
-	}
-	if (de_devp->flag_cma != 0 && de_devp->nrds_enable) {
-		dim_nr_ds_buf_init(de_devp->flag_cma, 0,
-				   &de_devp->pdev->dev);
-	}
-
-	end_time = jiffies_to_msecs(jiffies);
-	delta_time = end_time - start_time;
-	pr_info("%s:alloc use %u ms(%u~%u)\n",
-		__func__, delta_time, start_time, end_time);
-	return 1;
-}
-
-static void di_cma_release(struct di_dev_s *devp, unsigned int channel)
-{
-	unsigned int i, ii, rels_cnt = 0, start_time, end_time, delta_time;
-	struct di_buf_s *buf_p;
-	struct di_buf_s *pbuf_local = get_buf_local(channel);
-	struct di_buf_s *pbuf_post = get_buf_post(channel);
-/*	struct di_post_stru_s *ppost = get_post_stru(channel);*/
-	struct di_dev_s *de_devp = get_dim_de_devp();
-	bool ret;
-	struct di_mm_s *mm = dim_mm_get();
-
-	start_time = jiffies_to_msecs(jiffies);
-	for (i = 0; (i < mm->cfg.num_local); i++) {
-		buf_p = &pbuf_local[i];
-		ii = USED_LOCAL_BUF_MAX;
-
-		if ((ii >= USED_LOCAL_BUF_MAX) &&
-		    buf_p->pages) {
-			ret = dim_mm_release(devp->flag_cma, buf_p->pages,
-					     devp->buffer_size >> PAGE_SHIFT,
-					     buf_p->nr_adr);
-			if (ret) {
-				buf_p->pages = NULL;
-				mm->sts.num_local--;
-				rels_cnt++;
-				if (dimp_get(eDI_MP_cma_print))
-					pr_info(
-					"DI release buf[%d] ok.\n", i);
-			} else {
-				PR_ERR("%s:release buf[%d] fail.\n",
-				       __func__, i);
-			}
-		} else {
-			if (!IS_ERR_OR_NULL(buf_p->pages)	&&
-			    dimp_get(eDI_MP_cma_print)) {
-				pr_info("DI buf[%d] page:0x%p no release.\n",
-					buf_p->index, buf_p->pages);
-			}
-		}
-	}
-	if (dimp_get(eDI_MP_post_wr_en) && dimp_get(eDI_MP_post_wr_support)) {
-		/*mm-0705 for (i = 0; i < ppost->di_post_num; i++) {*/
-		for (i = 0; i < mm->cfg.num_post; i++) {
-			buf_p = &pbuf_post[i];
-
-			if (di_que_is_in_que(channel, QUE_POST_KEEP, buf_p))
-				continue;
-
-			if (!buf_p->pages) {
-				PR_INF("2:%s:post buf[%d] is null\n",
-				       __func__, i);
-				continue;
-			}
-
-			ret = dim_mm_release(devp->flag_cma,
-					     buf_p->pages,
-				     devp->post_buffer_size >> PAGE_SHIFT,
-					     buf_p->nr_adr);
-			if (ret) {
-				buf_p->pages = NULL;
-				mm->sts.num_post--;
-				rels_cnt++;
-				if (dimp_get(eDI_MP_cma_print))
-					pr_info(
-					"DI release post buf[%d] ok.\n", i);
-			} else {
-				PR_ERR("%s:release post buf[%d] fail\n",
-				       __func__, i);
-			}
-		}
-	}
-	if (de_devp->nrds_enable) {
-		dim_nr_ds_buf_uninit(de_devp->flag_cma,
-				     &de_devp->pdev->dev);
-	}
-	if (mm->sts.num_local < 0 || mm->sts.num_post < 0)
-		PR_ERR("%s:mm:nub_local=%d,nub_post=%d\n",
-		       __func__,
-		       mm->sts.num_local,
-		       mm->sts.num_post);
-	end_time = jiffies_to_msecs(jiffies);
-	delta_time = end_time - start_time;
-	pr_info("%s:release %u buffer use %u ms(%u~%u)\n",
-		__func__, rels_cnt, delta_time, start_time, end_time);
-}
-#endif
-
-bool dim_cma_top_alloc(unsigned int ch)
-{
-	struct di_dev_s *de_devp = get_dim_de_devp();
-	bool ret = false;
-
-#ifdef CONFIG_CMA
-
-	if (di_cma_alloc(de_devp, ch))
-		ret = true;
-#endif
-	return ret;
-}
-
-bool dim_cma_top_release(unsigned int ch)
-{
-	struct di_dev_s *de_devp = get_dim_de_devp();
-
-#ifdef CONFIG_CMA
-	di_cma_release(de_devp, ch);
-#endif
-	return true;
-}
-
+//----begin
 #ifdef DIM_HIS	/*no use*/
 /*******************************************
  *
@@ -2139,7 +1717,7 @@ static int di_init_buf(int width, int height, unsigned char prog_flag,
 	struct di_buf_s *keep_buf = ppost->keep_buf;
 	struct di_dev_s *de_devp = get_dim_de_devp();
 /*	struct di_buf_s *keep_buf_post = ppost->keep_buf_post;*/
-	struct di_mm_s *mm = dim_mm_get(); /*mm-0705*/
+	struct di_mm_s *mm = dim_mm_get(channel); /*mm-0705*/
 
 	unsigned int mem_st_local;
 
@@ -2180,13 +1758,13 @@ static int di_init_buf(int width, int height, unsigned char prog_flag,
 
 	if (prog_flag) {
 		ppre->prog_proc_type = 1;
-		ppre->buf_alloc_mode = 1;
+		mm->cfg.buf_alloc_mode = 1;
 		di_buf_size = nr_width * canvas_height * 2;
 		di_buf_size = roundup(di_buf_size, PAGE_SIZE);
 	} else {
 		/*pr_info("canvas_height=%d\n", canvas_height);*/
 		ppre->prog_proc_type = 0;
-		ppre->buf_alloc_mode = 0;
+		mm->cfg.buf_alloc_mode = 0;
 		/*nr_size(bits) = w * active_h * 8 * 2(yuv422)
 		 * mtn(bits) = w * active_h * 4
 		 * cont(bits) = w * active_h * 4 mv(bits) = w * active_h / 5*16
@@ -2206,20 +1784,23 @@ static int di_init_buf(int width, int height, unsigned char prog_flag,
 		}
 		di_buf_size = roundup(di_buf_size, PAGE_SIZE);
 	}
-	de_devp->buffer_size = di_buf_size;
-	ppre->nr_size = nr_size;
-	ppre->count_size = count_size;
-	ppre->mtn_size = mtn_size;
-	ppre->mv_size = mv_size;
-	ppre->mcinfo_size = mc_size;
+	/*de_devp->buffer_size = di_buf_size;*/
+	mm->cfg.size_local = di_buf_size;
+
+	mm->cfg.nr_size = nr_size;
+	mm->cfg.count_size = count_size;
+	mm->cfg.mtn_size = mtn_size;
+	mm->cfg.mv_size = mv_size;
+	mm->cfg.mcinfo_size = mc_size;
+
 	dimp_set(eDI_MP_same_field_top_count, 0);
 	same_field_bot_count = 0;
 	dbg_init("size:\n");
-	dbg_init("\t%-15s:0x%x\n", "nr_size", ppre->nr_size);
-	dbg_init("\t%-15s:0x%x\n", "count", ppre->count_size);
-	dbg_init("\t%-15s:0x%x\n", "mtn", ppre->mtn_size);
-	dbg_init("\t%-15s:0x%x\n", "mv", ppre->mv_size);
-	dbg_init("\t%-15s:0x%x\n", "mcinfo", ppre->mcinfo_size);
+	dbg_init("\t%-15s:0x%x\n", "nr_size", mm->cfg.nr_size);
+	dbg_init("\t%-15s:0x%x\n", "count", mm->cfg.count_size);
+	dbg_init("\t%-15s:0x%x\n", "mtn", mm->cfg.mtn_size);
+	dbg_init("\t%-15s:0x%x\n", "mv", mm->cfg.mv_size);
+	dbg_init("\t%-15s:0x%x\n", "mcinfo", mm->cfg.mcinfo_size);
 
 	/**********************************************/
 	/* que init */
@@ -2288,6 +1869,10 @@ static int di_init_buf(int width, int height, unsigned char prog_flag,
 						di_buf_size * i + nr_size +
 						mtn_size + count_size
 						+ mv_size;
+				if (cfgeq(mem_flg, eDI_MEM_M_rev) ||
+				    cfgeq(mem_flg, eDI_MEM_M_cma_all))
+					dim_mcinfo_v_alloc(di_buf,
+							   mm->cfg.mcinfo_size);
 				}
 				di_buf->canvas_config_flag = 2;
 			}
@@ -2305,9 +1890,9 @@ static int di_init_buf(int width, int height, unsigned char prog_flag,
 		}
 	}
 
-	if (de_devp->flag_cma == 1	||
-	    de_devp->flag_cma == 4	||
-	    de_devp->flag_cma == 3) {	/*trig cma alloc*/
+	if (cfgeq(mem_flg, eDI_MEM_M_cma)	||
+	    cfgeq(mem_flg, eDI_MEM_M_codec_a)	||
+	    cfgeq(mem_flg, eDI_MEM_M_codec_b)) {	/*trig cma alloc*/
 		dip_wq_cma_run(channel, true);
 	}
 
@@ -2332,7 +1917,8 @@ static int di_init_buf(int width, int height, unsigned char prog_flag,
 		/*mm-0705 ppost->di_post_num = MAX_POST_BUF_NUM;*/
 		di_post_buf_size = 0;
 	}
-	de_devp->post_buffer_size = di_post_buf_size;
+	/*de_devp->post_buffer_size = di_post_buf_size;*/
+	mm->cfg.size_post = di_post_buf_size;
 
 	/**********************************************/
 	/* input buf init */
@@ -2373,8 +1959,9 @@ static int di_init_buf(int width, int height, unsigned char prog_flag,
 					continue;
 				}
 			}
-
+			tmp_page = di_buf->pages;
 			memset(di_buf, 0, sizeof(struct di_buf_s));
+			di_buf->pages		= tmp_page;
 			di_buf->type = VFRAME_TYPE_POST;
 			di_buf->index = i;
 			di_buf->vframe = &pvframe_post[i];
@@ -2400,10 +1987,10 @@ static int di_init_buf(int width, int height, unsigned char prog_flag,
 			PR_ERR("%s:%d:post buf is null\n", __func__, i);
 		}
 	}
-	if (de_devp->flag_cma == 0 && de_devp->nrds_enable) {
+	if (cfgeq(mem_flg, eDI_MEM_M_rev) && de_devp->nrds_enable) {
 		nrds_mem = di_post_mem + mm->cfg.num_post * di_post_buf_size;
 		/*mm-0705 ppost->di_post_num * di_post_buf_size;*/
-		dim_nr_ds_buf_init(de_devp->flag_cma, nrds_mem,
+		dim_nr_ds_buf_init(cfgg(mem_flg), nrds_mem,
 				   &de_devp->pdev->dev);
 	}
 	return 0;
@@ -2601,10 +2188,16 @@ void dim_post_keep_cmd_release2(struct vframe_s *vframe)
 		PR_WARN("%s:ch[%d]:not post\n", __func__, di_buf->channel);
 		return;
 	}
-	dbg_keep("release keep ch[%d],index[%d]\n",
-		 di_buf->channel,
-		 di_buf->index);
-	task_send_cmd(LCMD2(ECMD_RL_KEEP, di_buf->channel, di_buf->index));
+
+	if (!di_que_is_in_que(di_buf->channel, QUE_POST_KEEP, di_buf)) {
+		PR_ERR("%s:not keep buf %d\n", __func__, di_buf->index);
+	} else {
+		dbg_keep("release keep ch[%d],index[%d]\n",
+			 di_buf->channel,
+			 di_buf->index);
+		task_send_cmd(LCMD2(ECMD_RL_KEEP, di_buf->channel,
+				    di_buf->index));
+	}
 }
 EXPORT_SYMBOL(dim_post_keep_cmd_release2);
 
@@ -2764,8 +2357,8 @@ void dim_uninit_buf(unsigned int disable_mirror, unsigned int channel)
 		ppost->de_post_process_done = 0;
 		ppost->post_wr_cnt = 0;
 	}
-	if (de_devp->flag_cma == 0 && de_devp->nrds_enable) {
-		dim_nr_ds_buf_uninit(de_devp->flag_cma,
+	if (cfgeq(mem_flg, eDI_MEM_M_rev) && de_devp->nrds_enable) {
+		dim_nr_ds_buf_uninit(cfgg(mem_flg),
 				     &de_devp->pdev->dev);
 	}
 }
@@ -2858,10 +2451,10 @@ static void dump_state(unsigned int channel)
 	struct vframe_s **pvframe_in = get_vframe_in(channel);
 	struct di_pre_stru_s *ppre = get_pre_stru(channel);
 	struct di_post_stru_s *ppost = get_post_stru(channel);
-	struct di_dev_s *de_devp = get_dim_de_devp();
+	/*struct di_dev_s *de_devp = get_dim_de_devp();*/
 	unsigned int tmpa[MAX_FIFO_SIZE];	/*new que*/
 	unsigned int psize;		/*new que*/
-	struct di_mm_s *mm = dim_mm_get(); /*mm-0705*/
+	struct di_mm_s *mm = dim_mm_get(channel); /*mm-0705*/
 
 	dump_state_flag = 1;
 	pr_info("version %s, init_flag %d, is_bypass %d\n",
@@ -2873,8 +2466,8 @@ static void dump_state(unsigned int channel)
 		recovery_log_queue_idx, recovery_log_di_buf);
 	pr_info("buffer_size=%d, mem_flag=%s, cma_flag=%d\n",
 		/*atomic_read(&de_devp->mem_flag)*/
-		de_devp->buffer_size, di_cma_dbg_get_st_name(channel),
-		de_devp->flag_cma);
+		mm->cfg.size_local, di_cma_dbg_get_st_name(channel),
+		cfgg(mem_flg));
 	keep_buf = ppost->keep_buf;
 	pr_info("used_post_buf_index %d(0x%p),",
 		IS_ERR_OR_NULL(keep_buf) ?
@@ -2904,7 +2497,10 @@ static void dump_state(unsigned int channel)
 	}
 
 	pr_info("post_doing_list:\n");
-	queue_for_each_entry(p, channel, QUEUE_POST_DOING, list) {
+	//queue_for_each_entry(p, channel, QUEUE_POST_DOING, list) {
+	di_que_list(channel, QUE_POST_DOING, &tmpa[0], &psize);
+	for (itmp = 0; itmp < psize; itmp++) {
+		p = pw_qindex_2_buf(channel, tmpa[itmp]);
 		dim_print_di_buf(p, 2);
 	}
 	pr_info("pre_ready_list:\n");
@@ -5008,8 +4604,8 @@ irqreturn_t dim_irq(int irq, void *dev_instance)
 			    is_meson_txhd_cpu())
 				dimh_mc_pre_mv_irq();
 			dimh_calc_lmv_base_mcinfo((ppre->cur_height >> 1),
-						  ppre->di_wr_buf->mcinfo_adr,
-						  ppre->mcinfo_size);
+						  ppre->di_wr_buf->mcinfo_adr_v,
+						  /*ppre->mcinfo_size*/0);
 		}
 		get_ops_nr()->nr_process_in_irq();
 		if ((data32 & 0x200) && de_devp->nrds_enable)
@@ -5953,7 +5549,7 @@ int dim_post_process(void *arg, unsigned int zoom_start_x_lines,
 		    is_meson_tl1_cpu()		||
 		    is_meson_tm2_cpu()		||
 		    is_meson_sm1_cpu()) {
-			if (di_cfg_top_get(eDI_CFG_ref_2)	&&
+			if (di_cfg_top_get(EDI_CFG_ref_2)	&&
 			    mc_pre_flag				&&
 			    dimp_get(eDI_MP_post_wr_en)) { /*OTT-3210*/
 				dbg_once("mc_old=%d\n", mc_pre_flag);
@@ -6070,15 +5666,18 @@ void dim_post_de_done_buf_config(unsigned int channel)
 	struct di_post_stru_s *ppost = get_post_stru(channel);
 	struct di_dev_s *de_devp = get_dim_de_devp();
 
-	if (!ppost->cur_post_buf)
+	if (!ppost->cur_post_buf) {
+		PR_ERR("%s:no cur\n", __func__);
 		return;
+	}
 	dbg_post_cnt(channel, "pd1");
 	/*dbg*/
 	dim_ddbg_mod_save(eDI_DBG_MOD_POST_DB, channel, ppost->frame_cnt);
+	di_buf = ppost->cur_post_buf;
 
 	di_lock_irqfiq_save(irq_flag2);
 	queue_out(channel, ppost->cur_post_buf);/*? which que?post free*/
-	di_buf = ppost->cur_post_buf;
+
 
 	if (de_devp->pps_enable && dimp_get(eDI_MP_pps_position) == 0) {
 		di_buf->vframe->width = dimp_get(eDI_MP_pps_dstw);
@@ -6296,7 +5895,8 @@ static void drop_frame(int check_drop, int throw_flag, struct di_buf_s *di_buf,
 
 		if (dimp_get(eDI_MP_post_wr_en) &&
 		    dimp_get(eDI_MP_post_wr_support))
-			queue_in(channel, di_buf, QUEUE_POST_DOING);
+			//queue_in(channel, di_buf, QUEUE_POST_DOING);
+			di_que_in(channel, QUE_POST_DOING, di_buf);
 		else
 			di_que_in(channel, QUE_POST_READY, di_buf);
 
@@ -6338,7 +5938,8 @@ int dim_process_post_vframe(unsigned int channel)
 	if (di_que_is_empty(channel, QUE_POST_FREE))
 		return 0;
 	/*add : for now post buf only 3.*/
-	if (list_count(channel, QUEUE_POST_DOING) > 2)
+	//if (list_count(channel, QUEUE_POST_DOING) > 2)
+	if (di_que_list_count(channel, QUE_POST_DOING) > 2)
 		return 0;
 #else
 	/*for post write mode ,need reserved a post free buf;*/
@@ -6996,6 +6597,7 @@ void di_unreg_variable(unsigned int channel)
 #endif
 	pr_info("%s:\n", __func__);
 	set_init_flag(channel, false);	/*init_flag = 0;*/
+	dim_sumx_clear(channel);
 	/*mirror_disable = get_blackout_policy();*/
 	mirror_disable = 0;
 	di_lock_irqfiq_save(irq_flag2);
@@ -7019,9 +6621,9 @@ void di_unreg_variable(unsigned int channel)
 	recovery_flag = 0;
 	ppre->cur_prog_flag = 0;
 
-	if (de_devp->flag_cma == 1	||
-	    de_devp->flag_cma == 3	||
-	    de_devp->flag_cma == 4)
+	if (cfgeq(mem_flg, eDI_MEM_M_cma)	||
+	    cfgeq(mem_flg, eDI_MEM_M_codec_a)	||
+	    cfgeq(mem_flg, eDI_MEM_M_codec_b))
 		dip_wq_cma_run(channel, false);
 
 	sum_g_clear(channel);
@@ -7029,6 +6631,7 @@ void di_unreg_variable(unsigned int channel)
 	dbg_reg("%s:end\n", __func__);
 }
 
+#ifdef HIS_CODE
 void dim_unreg_process_irq(unsigned int channel)
 {
 	ulong irq_flag2 = 0;
@@ -7126,6 +6729,7 @@ void dim_unreg_process_irq(unsigned int channel)
 
 #endif
 }
+#endif
 
 void diext_clk_b_sw(bool on)
 {
@@ -7502,7 +7106,7 @@ void di_reg_variable(unsigned int channel, struct vframe_s *vframe)
 
 		dim_print("%s: vframe come => di_init_buf\n", __func__);
 
-		if (de_devp->flag_cma == 0 && !de_devp->mem_flg)
+		if (cfgeq(mem_flg, eDI_MEM_M_rev) && !de_devp->mem_flg)
 			dim_rev_mem_check();
 
 		/*(is_progressive(vframe) && (prog_proc_config & 0x10)) {*/
@@ -8012,45 +7616,20 @@ void di_vf_l_put(struct vframe_s *vf, unsigned char channel)
 		       __func__, vf);
 		return;
 	}
-#if 0
-	if (ppost->keep_buf == di_buf) {
-		pr_info("[DI]recycle buffer %d, get cnt %d.\n",
-			di_buf->index, disp_frame_count);
-		recycle_keep_buffer(channel);
-	}
-#else
 
-#endif
-
-	if (di_buf->type == VFRAME_TYPE_POST
-		) {
-#if 0
-		dim_print("%s:put:%d\n", __func__, di_buf->index);
-
+	if (di_buf->type == VFRAME_TYPE_POST) {
 		di_lock_irqfiq_save(irq_flag2);
 
 		if (is_in_queue(channel, di_buf, QUEUE_DISPLAY)) {
-			if (!atomic_dec_and_test(&di_buf->di_cnt))
-				dim_print("%s,di_cnt > 0\n", __func__);
-			dim_print("%s:put:%d\n", __func__, di_buf->index);
-			recycle_vframe_type_post(di_buf, channel);
+			di_buf->queue_index = -1;
+			di_que_in(channel, QUE_POST_BACK, di_buf);
+			di_unlock_irqfiq_restore(irq_flag2);
 		} else {
-			dim_print("%s: %s[%d] not in display list\n", __func__,
-				   vframe_type_name[di_buf->type],
-				   di_buf->index);
-		}
 		di_unlock_irqfiq_restore(irq_flag2);
-#ifdef DI_BUFFER_DEBUG
-		recycle_vframe_type_post_print(di_buf, __func__, __LINE__);
-#endif
-#else
-		#ifdef DIM_HIS /*no use*/
-		pw_queue_in(channel, QUE_POST_BACK, di_buf->index);
-		#else
-		di_buf->queue_index = -1;
-		di_que_in(channel, QUE_POST_BACK, di_buf);
-		#endif
-#endif
+			PR_ERR("%s:not in display %d\n",
+			       __func__,
+			       di_buf->index);
+		}
 	} else {
 		di_lock_irqfiq_save(irq_flag2);
 		queue_in(channel, di_buf, QUEUE_RECYCLE);
@@ -8204,22 +7783,20 @@ struct vframe_s *di_vf_l_peek(unsigned int channel)
 
 int di_vf_l_states(struct vframe_states *states, unsigned int channel)
 {
-	struct di_mm_s *mm = dim_mm_get();
+	struct di_mm_s *mm = dim_mm_get(channel);
+	struct dim_sum_s *psumx = get_sumx(channel);
 
 	/*pr_info("%s: ch[%d]\n", __func__, channel);*/
 	if (!states)
 		return -1;
 	states->vf_pool_size = mm->sts.num_local;
-	states->buf_free_num = list_count(channel, QUEUE_LOCAL_FREE);
+	states->buf_free_num = psumx->b_pre_free;
 
-	states->buf_avail_num = di_que_list_count(channel, QUE_POST_READY);
-	states->buf_recycle_num = list_count(channel, QUEUE_RECYCLE);
+	states->buf_avail_num = psumx->b_pst_ready;
+	states->buf_recycle_num = psumx->b_recyc;
 	if (dimp_get(eDI_MP_di_dbg_mask) & 0x1) {
-		di_pr_info("di-pre-ready-num:%d\n",
-			   /*new que list_count(channel, QUEUE_PRE_READY));*/
-			   di_que_list_count(channel, QUE_PRE_READY));
-		di_pr_info("di-display-num:%d\n",
-			   list_count(channel, QUEUE_DISPLAY));
+		di_pr_info("di-pre-ready-num:%d\n", psumx->b_pre_ready);
+		di_pr_info("di-display-num:%d\n", psumx->b_display);
 	}
 	return 0;
 }

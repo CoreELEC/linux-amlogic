@@ -287,7 +287,8 @@ void dimh_calc_lmv_init(void)
 
 static struct mcinfo_lmv_s lines_mv[540];
 
-void dimh_calc_lmv_base_mcinfo(unsigned int vf_height, unsigned long mcinfo_adr,
+void dimh_calc_lmv_base_mcinfo(unsigned int vf_height,
+			       unsigned short *mcinfo_adr_v,
 			       unsigned int mcinfo_size)
 {
 	unsigned short i, top_str, bot_str, top_end, bot_end, j = 0;
@@ -295,20 +296,13 @@ void dimh_calc_lmv_base_mcinfo(unsigned int vf_height, unsigned long mcinfo_adr,
 	unsigned short flg_m1 = 0, flg_i = 0, nLmvLckSt = 0;
 	unsigned short lmv_lckstext[3] = {0, 0, 0}, nLmvLckEd;
 	unsigned short lmv_lckedext[3] = {0, 0, 0}, nLmvLckNum;
-	bool bflg_vmap = false;
-	u8 *tmp;
 
 	/*mcinfo_vadr = (unsigned short *)phys_to_virt(mcinfo_adr);*/
 
 	if (!dimp_get(eDI_MP_lmv_lock_win_en))
 		return;
 
-	tmp = dim_vmap(mcinfo_adr, mcinfo_size, &bflg_vmap);
-	if (!tmp) {
-		dim_print("err:dim_vmap failed\n");
-		return;
-	}
-	mcinfo_vadr = (unsigned short *)tmp;
+	mcinfo_vadr = mcinfo_adr_v;
 
 	for (i = 0; i < (vf_height >> 1); i++) {
 		lmvs_init(&lines_mv[i], *(mcinfo_vadr + i));
@@ -322,8 +316,6 @@ void dimh_calc_lmv_base_mcinfo(unsigned int vf_height, unsigned long mcinfo_adr,
 				pr_info("\n");
 		}
 	}
-	if (bflg_vmap)
-		dim_unmap_phyaddr(tmp);
 
 	/*pr_mcinfo_cnt ? pr_mcinfo_cnt-- : (pr_mcinfo_cnt = 0);*/
 	dimp_get(eDI_MP_pr_mcinfo_cnt) ?
@@ -1371,7 +1363,7 @@ void dimh_enable_mc_di_post_g12(struct DI_MC_MIF_s *mcvecrd_mif,
 	if (mcvecrd_mif->blend_en) {
 		dim_VSYNC_WR_MPEG_REG_BITS(MCDI_MC_CRTL,
 					   dimp_get(eDI_MP_mcen_mode), 0, 2);
-		if (!di_cfg_top_get(eDI_CFG_ref_2)) {
+		if (!di_cfg_top_get(EDI_CFG_ref_2)) {
 			/*(!dimp_get(eDI_MP_post_wr_en)) {*/
 			dim_VSYNC_WR_MPEG_REG_BITS(MCDI_MC_CRTL, 1, 11, 1);
 			dim_VSYNC_WR_MPEG_REG_BITS(MCDI_MC_CRTL, 3, 18, 2);

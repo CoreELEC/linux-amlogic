@@ -31,6 +31,7 @@
 #include "deinterlace.h"
 
 #include "di_data_l.h"
+#include "di_sys.h"
 #include "di_api.h"
 
 static struct nr_ds_s nrds_dev;
@@ -86,7 +87,7 @@ void dim_nr_ds_buf_init(unsigned int cma_flag, unsigned long mem_start,
 		else
 			PR_ERR("DI: alloc nr ds mem error.\n");
 		#else
-		ret = dim_mm_alloc(cma_flag, NR_DS_PAGE_NUM, &omm);
+		ret = dim_mm_alloc_api(cma_flag, NR_DS_PAGE_NUM, &omm);
 		if (ret) {
 			nrds_dev.nrds_pages = omm.ppage;
 			nrds_dev.nrds_addr = omm.addr;
@@ -109,20 +110,14 @@ void dim_nr_ds_buf_uninit(unsigned int cma_flag, struct device *dev)
 		nrds_dev.nrds_addr = 0;
 	} else {
 		if (nrds_dev.nrds_pages) {
-			#if 0
-			dma_release_from_contiguous(dev,
-						    nrds_dev.nrds_pages,
-						    NR_DS_PAGE_NUM);
-			#else
-			dim_mm_release(cma_flag,
-				       nrds_dev.nrds_pages,
-				       NR_DS_PAGE_NUM,
-				       nrds_dev.nrds_addr);
-			#endif
+			dim_mm_release_api(cma_flag,
+					   nrds_dev.nrds_pages,
+					   NR_DS_PAGE_NUM,
+					   nrds_dev.nrds_addr);
 			nrds_dev.nrds_addr = 0;
 			nrds_dev.nrds_pages = NULL;
 		} else
-			pr_info("DI: no release nr ds mem.\n");
+			PR_INF("no release nr ds mem.\n");
 	}
 	for (i = 0; i < NR_DS_BUF_NUM; i++)
 		nrds_dev.buf[i] = 0;
@@ -145,8 +140,7 @@ void dim_nr_ds_init(unsigned int width, unsigned int height)
 		PR_ERR("%s alloc nrds canvas error.\n", __func__);
 		return;
 	}
-	pr_info("%s alloc nrds canvas %u.\n",
-		__func__, nrds_dev.canvas_idx);
+	PR_INF("%s alloc nrds canvas %u.\n", __func__, nrds_dev.canvas_idx);
 }
 
 /*
@@ -194,8 +188,7 @@ void dim_get_nr_ds_buf(unsigned long *addr, unsigned long *size)
 {
 	*addr = nrds_dev.nrds_addr;
 	*size =	NR_DS_BUF_SIZE;
-	pr_info("%s addr 0x%lx, size 0x%lx.\n",
-		__func__, *addr, *size);
+	PR_INF("%s addr 0x%lx, size 0x%lx.\n", __func__, *addr, *size);
 }
 
 /*

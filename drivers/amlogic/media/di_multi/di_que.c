@@ -35,6 +35,7 @@ const char * const di_name_new_que[QUE_NUB] = {
 	"QUE_POST_FREE",	/*2*/
 	"QUE_POST_READY",	/*3*/
 	"QUE_POST_BACK",	/*4*/
+	"QUE_POST_DOING",
 	"QUE_POST_KEEP",
 	"QUE_POST_KEEP_BACK",
 	"QUE_DBG",
@@ -92,8 +93,11 @@ bool pw_queue_out(unsigned int ch, enum QUE_TYPE qtype,
 		return false;
 #endif
 	if (kfifo_out(&pch->fifo[qtype], &index, sizeof(unsigned int))
-		!= sizeof(unsigned int))
+		!= sizeof(unsigned int)) {
+		PR_ERR("%s:ch[%d],qtye[%d],buf[%d]\n",
+		       __func__, ch, qtype, *buf_index);
 		return false;
+	}
 
 	*buf_index = index;
 
@@ -351,12 +355,14 @@ struct di_buf_s *di_que_out_to_di_buf(unsigned int ch, enum QUE_TYPE qtype)
 	unsigned int q_index;
 	struct di_buf_s *pdi_buf = NULL;
 
-	if (!pw_queue_peek(ch, qtype, &q_index))
+	if (!pw_queue_peek(ch, qtype, &q_index)) {
+		PR_ERR("%s:no buf\n", __func__);
 		return pdi_buf;
+	}
 
 	pdi_buf = pw_qindex_2_buf(ch, q_index);
 	if (!pdi_buf) {
-		PR_ERR("di:err:%s:buf is null[%d]\n", __func__, q_index);
+		PR_ERR("%s:buf is null[%d]\n", __func__, q_index);
 		return NULL;
 	}
 
@@ -372,12 +378,15 @@ bool di_que_out(unsigned int ch, enum QUE_TYPE qtype, struct di_buf_s *di_buf)
 	unsigned int q_index;
 	unsigned int q_index2;
 
-	if (!pw_queue_peek(ch, qtype, &q_index))
+	if (!pw_queue_peek(ch, qtype, &q_index)) {
+		PR_ERR("%s:no buf ch[%d], qtype[%d], buf[%d,%d]\n", __func__,
+		       ch, qtype, di_buf->type, di_buf->index);
 		return false;
-
+	}
 	q_index2 = pw_buf_2_qindex(ch, di_buf);
 	if (q_index2 != q_index) {
-		PR_ERR("di:%s:not map[%d,%d]\n", __func__, q_index2, q_index);
+		PR_ERR("di:%s:%d not map[0x%x,0x%x]\n", __func__,
+		       qtype, q_index2, q_index);
 		return false;
 	}
 
@@ -396,7 +405,7 @@ bool di_que_in(unsigned int ch, enum QUE_TYPE qtype, struct di_buf_s *di_buf)
 		return false;
 	}
 	if (di_buf->queue_index != -1) {
-		PR_ERR("di:%s:buf in some que,ch[%d],qt[%d],qi[%d],bi[%d]\n",
+		PR_ERR("%s:buf in some que,ch[%d],qt[%d],qi[%d],bi[%d]\n",
 		       __func__,
 		       ch, qtype, di_buf->queue_index, di_buf->index);
 		dump_stack();
@@ -406,7 +415,7 @@ bool di_que_in(unsigned int ch, enum QUE_TYPE qtype, struct di_buf_s *di_buf)
 	q_index = pw_buf_2_qindex(ch, di_buf);
 
 	if (!pw_queue_in(ch, qtype, q_index)) {
-		PR_ERR("di:%s:err:can't que in,ch[%d],qtype[%d],q_index[%d]\n",
+		PR_ERR("%s:can't que in,ch[%d],qtype[%d],q_index[%d]\n",
 		       __func__,
 		       ch, qtype, q_index);
 		return false;
@@ -466,8 +475,10 @@ bool di_que_out_not_fifo(unsigned int ch, enum QUE_TYPE qtype,
 
 	pw_queue_clear(ch, qtype);
 
-	if (asize == 0)
+	if (asize == 0) {
+		PR_ERR("%s:size 0\n", __func__);
 		return ret;
+	}
 
 	for (i = 0; i < asize; i++) {
 		if (arr[i] == q_index) {
@@ -741,7 +752,7 @@ void queue_out(unsigned int channel, struct di_buf_s *di_buf)
 			}
 		}
 	} else {
-		PR_ERR("%s: Error, queue_index %d is not right\n",
+		PR_ERR("%s: queue_index %d is not right\n",
 		       __func__, di_buf->queue_index);
 
 		if (dim_vcry_get_flg() == 0) {

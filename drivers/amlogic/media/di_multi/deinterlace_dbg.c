@@ -886,7 +886,6 @@ int dim_state_show(struct seq_file *seq, void *v, unsigned int channel)
 	struct di_buf_s *p = NULL, *keep_buf;/* ptmp; */
 	struct di_pre_stru_s *di_pre_stru_p;
 	struct di_post_stru_s *di_post_stru_p;
-	struct di_dev_s *de_devp = get_dim_de_devp();
 	const char *version_s = dim_get_version_s();
 	int dump_state_flag = dim_get_dump_state_flag();
 	unsigned char recovery_flag = dim_vcry_get_flg();
@@ -901,7 +900,7 @@ int dim_state_show(struct seq_file *seq, void *v, unsigned int channel)
 	struct di_hpre_s  *pre = get_hw_pre();
 	struct di_hpst_s *post = get_hw_pst();
 	char *splt = "---------------------------";
-	struct di_mm_s *mm = dim_mm_get();	/*mm-0705*/
+	struct di_mm_s *mm = dim_mm_get(channel);	/*mm-0705*/
 
 	di_pre_stru_p = get_pre_stru(channel);
 	di_post_stru_p = get_post_stru(channel);
@@ -917,9 +916,9 @@ int dim_state_show(struct seq_file *seq, void *v, unsigned int channel)
 	seq_printf(seq, "recovery_log_q_idx=%d, recovery_log_di_buf=0x%p\n",
 		   recovery_log_queue_idx, recovery_log_di_buf);
 	seq_printf(seq, "buffer_size=%d, mem_flag=%s, cma_flag=%d\n",
-		   de_devp->buffer_size,
+		   mm->cfg.size_local,
 		   di_cma_dbg_get_st_name(channel),
-		   de_devp->flag_cma);
+		   cfgg(mem_flg));
 	keep_buf = di_post_stru_p->keep_buf;
 	seq_printf(seq, "used_post_buf_index %d(0x%p),",
 		   IS_ERR_OR_NULL(keep_buf) ?
@@ -949,7 +948,9 @@ int dim_state_show(struct seq_file *seq, void *v, unsigned int channel)
 	/********************************/
 	/* local_free_list		*/
 	/********************************/
-	seq_printf(seq, "local_free_list (max %d):\n", mm->cfg.num_local);
+	itmp = list_count(channel, QUEUE_LOCAL_FREE);
+	seq_printf(seq, "local_free_list (max %d):(curr %d)\n",
+		   mm->cfg.num_local, itmp);
 	queue_for_each_entry(p, channel, QUEUE_LOCAL_FREE, list) {
 		seq_printf(seq, "index %2d, 0x%p, type %d\n",
 			   p->index, p, p->type);
@@ -960,7 +961,10 @@ int dim_state_show(struct seq_file *seq, void *v, unsigned int channel)
 	/* post_doing_list		*/
 	/********************************/
 	seq_puts(seq, "post_doing_list:\n");
-	queue_for_each_entry(p, channel, QUEUE_POST_DOING, list) {
+	//queue_for_each_entry(p, channel, QUEUE_POST_DOING, list) {
+	di_que_list(channel, QUE_POST_DOING, &tmpa[0], &psize);
+	for (itmp = 0; itmp < psize; itmp++) {
+		p = pw_qindex_2_buf(channel, tmpa[itmp]);
 		print_di_buf_seq(p, 2, seq);
 	}
 	seq_printf(seq, "%s\n", splt);
