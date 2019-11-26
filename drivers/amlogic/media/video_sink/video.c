@@ -2392,6 +2392,7 @@ static int dvel_swap_frame(struct vframe_s *vf)
 			dvel_changed = true;
 			dvel_size = new_dvel_w;
 			need_disable_vd2 = false;
+			safe_switch_videolayer(1, true, true);
 		}
 		/* check the el size */
 		if (dvel_size != new_dvel_w)
@@ -2409,7 +2410,7 @@ static int dvel_swap_frame(struct vframe_s *vf)
 	return ret;
 }
 
-static struct vframe_s *dvel_toggle_frame(
+struct vframe_s *dvel_toggle_frame(
 	struct vframe_s *vf, bool new_frame)
 {
 	struct vframe_s *toggle_vf = NULL;
@@ -4268,10 +4269,6 @@ SET_FILTER:
 		path2_new_frame =
 			gvideo_recv[0]->func->dequeue_frame(gvideo_recv[0]);
 		if (vd1_path_id == gvideo_recv[0]->path_id) {
-			/* FIXME: need DV dual layer case */
-#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
-			dv_new_vf = dvel_toggle_frame(vf, true);
-#endif
 			amvecm_on_vs(
 				(gvideo_recv[0]->cur_buf !=
 				 &gvideo_recv[0]->local_buf)
@@ -4307,10 +4304,6 @@ SET_FILTER:
 		path3_new_frame =
 			gvideo_recv[1]->func->dequeue_frame(gvideo_recv[1]);
 		if (vd1_path_id == gvideo_recv[1]->path_id) {
-			/* FIXME: need DV dual layer case */
-#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
-			dv_new_vf = dvel_toggle_frame(vf, true);
-#endif
 			amvecm_on_vs(
 				(gvideo_recv[1]->cur_buf !=
 				 &gvideo_recv[1]->local_buf)
@@ -4742,8 +4735,13 @@ SET_FILTER:
 		VD2_PATH);
 #endif
 
-	if (need_disable_vd2)
+	if (need_disable_vd2) {
 		safe_switch_videolayer(1, false, true);
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
+		/* reset dvel statue when disable vd2 */
+		dvel_status = false;
+#endif
+	}
 
 	/* filter setting management */
 	frame_par_di_set = primary_render_frame(

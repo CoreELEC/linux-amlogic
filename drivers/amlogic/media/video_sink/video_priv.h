@@ -405,6 +405,10 @@ int get_video_debug_flags(void);
 int _video_set_disable(u32 val);
 int _videopip_set_disable(u32 val);
 struct device *get_video_device(void);
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
+struct vframe_s *dvel_toggle_frame(
+	struct vframe_s *vf, bool new_frame);
+#endif
 
 #ifdef CONFIG_AMLOGIC_MEDIA_VIDEOCAPTURE
 int ext_frame_capture_poll(int endflags);

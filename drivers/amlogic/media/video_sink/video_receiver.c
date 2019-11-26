@@ -38,6 +38,7 @@
 #include <linux/amlogic/media/vfm/vframe_receiver.h>
 #include <linux/amlogic/media/video_sink/vpp.h>
 #include <linux/amlogic/media/video_sink/video.h>
+#include <linux/amlogic/media/amdolbyvision/dolby_vision.h>
 
 #include "video_priv.h"
 #include "video_receiver.h"
@@ -115,8 +116,7 @@ static inline void common_vf_put(
 	vfp = vf_get_provider(ins->recv_name);
 	if (vfp && vf) {
 		vf_put(vf, ins->recv_name);
-/* FIXME: chek if need enable */
-#ifdef ENABLE_DV /* CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION */
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 		if ((glayer_info[0].display_path_id == ins->path_id) &&
 		    is_dolby_vision_enable())
 			dolby_vision_vf_put(vf);
@@ -229,11 +229,31 @@ static int common_receiver_event_fun(
 	return 0;
 }
 
+static inline int recycle_dvel_vf_put(void)
+{
+#define DVEL_RECV_NAME "dvel"
+
+	int event = 0, ret = 0;
+	struct vframe_s *vf = NULL;
+	struct vframe_provider_s *vfp = vf_get_provider(DVEL_RECV_NAME);
+
+	if (vfp) {
+		vf = vf_get(DVEL_RECV_NAME);
+		if (vf) {
+			vf_put(vf, DVEL_RECV_NAME);
+			event |= VFRAME_EVENT_RECEIVER_PUT;
+			vf_notify_provider(DVEL_RECV_NAME, event, NULL);
+			ret = 1;
+		}
+	}
+	return ret;
+}
+
 static const struct vframe_receiver_op_s common_recv_func = {
 	.event_cb = common_receiver_event_fun
 };
 
-#ifdef ENABLE_DV /* CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION */
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 static int dolby_vision_need_wait_common(struct video_recv_s *ins)
 {
 	struct vframe_s *vf;
@@ -311,6 +331,8 @@ static struct vframe_s *recv_common_dequeue_frame(
 	struct video_recv_s *ins)
 {
 	struct vframe_s *vf = NULL;
+	struct vframe_s *toggle_vf = NULL;
+	s32 drop_count = -1;
 
 	if (!ins) {
 		pr_err("recv_common_dequeue_frame error, empty ins\n");
@@ -318,33 +340,76 @@ static struct vframe_s *recv_common_dequeue_frame(
 	}
 
 	vf = common_vf_peek(ins);
-/* FIXME: chek if need enable */
-#ifdef ENABLE_DV /* CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION */
-	if ((glayer_info[0].display_path_id == ins->path_id) && vf &&
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
+	if ((glayer_info[0].display_path_id == ins->path_id) &&
 	    is_dolby_vision_enable()) {
-		dolby_vision_check_hdr10(vf);
-		dolby_vision_check_hdr10plus(vf);
-		dolby_vision_check_hlg(vf);
+		struct provider_aux_req_s req;
+		u32 i, bl_cnt = 0xffffffff;
+
+		if (vf) {
+			dolby_vision_check_mvc(vf);
+			dolby_vision_check_hdr10(vf);
+			dolby_vision_check_hdr10plus(vf);
+			dolby_vision_check_hlg(vf);
+		}
+		if (vf_peek("dvel")) {
+			req.vf = NULL;
+			req.bot_flag = 0;
+			req.aux_buf = NULL;
+			req.aux_size = 0xffffffff;
+			req.dv_enhance_exist = 0;
+			vf_notify_provider_by_name(
+				"dvbldec",
+				VFRAME_EVENT_RECEIVER_GET_AUX_DATA,
+				(void *)&req);
+			bl_cnt = req.aux_size;
+
+			req.vf = NULL;
+			req.bot_flag = 0;
+			req.aux_buf = NULL;
+			req.aux_size = 0xffffffff;
+			req.dv_enhance_exist = 0;
+			vf_notify_provider_by_name(
+				"dveldec",
+				VFRAME_EVENT_RECEIVER_GET_AUX_DATA,
+				(void *)&req);
+			if ((req.aux_size != 0xffffffff) &&
+			    (bl_cnt != 0xffffffff) &&
+			    (bl_cnt > req.aux_size)) {
+				i = bl_cnt - req.aux_size;
+				while (i > 0) {
+					if (!recycle_dvel_vf_put())
+						break;
+					i--;
+				}
+			}
+		}
 	}
 #endif
 	while (vf) {
 		if (!vf->frame_dirty) {
-#ifdef ENABLE_DV /* CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION */
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 			if ((glayer_info[0].display_path_id == ins->path_id) &&
 			    dolby_vision_need_wait_common(ins))
 				break;
 #endif
 			vf = common_vf_get(ins);
-			if (vf)
+			if (vf) {
 				common_toggle_frame(ins, vf);
+				toggle_vf = vf;
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
+				dvel_toggle_frame(vf, true);
+#endif
+			}
 		} else {
 			vf = common_vf_get(ins);
 			if (vf)
 				common_vf_put(ins, vf);
 		}
+		drop_count++;
 		vf = common_vf_peek(ins);
 	}
-	return vf;
+	return toggle_vf;
 }
 
 static s32 recv_common_return_frame(
