@@ -1311,6 +1311,8 @@ static void set_frames_info(struct composer_dev *dev,
 				dev->need_empty_ready = true;
 				wake_up_interruptible(&dev->wq);
 			}
+			if (!dev->is_sideband)
+				set_blackout_policy(0);
 			dev->is_sideband = true;
 			current_is_sideband = true;
 		}
@@ -1324,9 +1326,11 @@ static void set_frames_info(struct composer_dev *dev,
 
 	if ((dev->is_sideband && !current_is_sideband) ||
 	    (dev->received_count == 0)) {
-		if (dev->is_sideband && !current_is_sideband)
+		if (dev->is_sideband && !current_is_sideband) {
+			set_blackout_policy(1);
 			vc_print(dev->index, PRINT_OTHER,
 				 "sideband to non\n");
+		}
 		dev->is_sideband = false;
 		if (dev->index == 0)
 			set_video_path_select("video_render.0", 0);
@@ -1670,6 +1674,9 @@ static int video_composer_uninit(struct composer_dev *dev)
 {
 	int ret;
 	int timeout = 0;
+
+	if (dev->is_sideband)
+		set_blackout_policy(1);
 
 	disable_video_layer(dev, 1);
 	video_set_global_output(dev->index, 0);
