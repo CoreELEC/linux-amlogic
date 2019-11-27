@@ -1531,7 +1531,8 @@ static void vc_vf_put(struct vframe_s *vf, void *op_arg)
 
 	if (!is_composer) {
 		for (i = 0; i <= repeat_count; i++) {
-			fput(file_vf);
+			if (file_vf)
+				fput(file_vf);
 			dev->fput_count++;
 		}
 	} else {
