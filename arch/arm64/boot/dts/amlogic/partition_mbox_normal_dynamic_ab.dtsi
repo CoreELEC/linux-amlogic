@@ -11,25 +11,26 @@
 
 / {
     partitions: partitions{
-		parts = <18>;
+		parts = <19>;
 		part-0 = <&logo>;
 		part-1 = <&recovery_a>;
 		part-2 = <&recovery_b>;
 		part-3 = <&tee>;
-		part-4 = <&misc>;
-		part-5 = <&dtbo_a>;
-		part-6 = <&dtbo_b>;
-		part-7 = <&cri_data>;
-		part-8 = <&param>;
-		part-9 = <&boot_a>;
-		part-10 = <&boot_b>;
-		part-11 = <&rsv>;
-		part-12 = <&metadata_a>;
-		part-13 = <&metadata_b>;
-		part-14 = <&vbmeta_a>;
-		part-15 = <&vbmeta_b>;
-		part-16 = <&super>;
-		part-17 = <&data>;
+		part-4 = <&factory>;
+		part-5 = <&misc>;
+		part-6 = <&dtbo_a>;
+		part-7 = <&dtbo_b>;
+		part-8 = <&cri_data>;
+		part-9 = <&param>;
+		part-10 = <&boot_a>;
+		part-11 = <&boot_b>;
+		part-12 = <&rsv>;
+		part-13 = <&metadata_a>;
+		part-14 = <&metadata_b>;
+		part-15 = <&vbmeta_a>;
+		part-16 = <&vbmeta_b>;
+		part-17 = <&super>;
+		part-18 = <&data>;
 
 		logo:logo{
 			pname = "logo";
@@ -48,7 +49,12 @@
 		};
 		tee:tee{
 			pname = "tee";
-			size = <0x0 0x400000>;
+			size = <0x0 0x2000000>;
+			mask = <1>;
+		};
+		factory:factory{
+			pname = "factory";
+			size = <0x0 0x800000>;
 			mask = <1>;
 		};
 		misc:misc{
@@ -117,7 +123,7 @@
 		super:super
 		{
 			pname = "super";
-			size = <0x0 0xF0800000>;
+			size = <0x0 0xC8800000>;
 			mask = <1>;
 		};
 		data:data
