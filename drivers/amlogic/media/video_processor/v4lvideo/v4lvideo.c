@@ -544,6 +544,13 @@ static int vidioc_close(struct file *file)
 	return 0;
 }
 
+static ssize_t vidioc_read(struct file *file, char __user *data,
+			   size_t count, loff_t *ppos)
+{
+	pr_info("v4lvideo read\n");
+	return 0;
+}
+
 static int vidioc_querycap(struct file *file,
 			   void *priv,
 			   struct v4l2_capability *cap)
@@ -791,7 +798,7 @@ static const struct v4l2_file_operations v4lvideo_v4l2_fops = {
 	.owner = THIS_MODULE,
 	.open = vidioc_open,
 	.release = vidioc_close,
-	.read = vb2_fop_read,
+	.read = vidioc_read,
 	.poll = vb2_fop_poll,
 	.unlocked_ioctl = video_ioctl2,/* V4L2 ioctl handler */
 	.mmap = vb2_fop_mmap,
