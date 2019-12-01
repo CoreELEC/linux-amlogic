@@ -18,7 +18,7 @@
 #ifndef __AO_CEC_H__
 #define __AO_CEC_H__
 
-#define CEC_DRIVER_VERSION	"2019/11/12: store msg during bootup from st\n"
+#define CEC_DRIVER_VERSION     "2019/12/01:finetune ARB time, cause cts 9.6.1\n"
 
 #define CEC_FRAME_DELAY		msecs_to_jiffies(30)
 #define CEC_CHK_BUS_CNT		20
@@ -84,6 +84,8 @@ enum cecbver {
 
 #define ENABLE_ONE_CEC	1
 #define ENABLE_TWO_CEC	2
+
+#define CEC_B_ARB_TIME 8
 
 #define CEC_MSG_BUFF_MAX	30
 
