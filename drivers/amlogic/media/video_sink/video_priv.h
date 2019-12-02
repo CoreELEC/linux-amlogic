@@ -394,7 +394,6 @@ extern atomic_t video_inirq_flag;
 extern struct video_recv_s *gvideo_recv[2];
 
 bool black_threshold_check(u8 id);
-void update_cur_dispbuf(void *buf);
 struct vframe_s *get_cur_dispbuf(void);
 s32 set_video_path_select(const char *recv_name, u8 layer_id);
 

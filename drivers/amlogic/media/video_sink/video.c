@@ -715,10 +715,6 @@ struct vframe_s *cur_dispbuf;
 static struct vframe_s *cur_dispbuf2;
 bool need_disable_vd2;
 static bool last_mvc_status;
-void update_cur_dispbuf(void *buf)
-{
-	cur_dispbuf = buf;
-}
 
 struct vframe_s vf_local, vf_local2;
 static u32 vsync_pts_inc;
@@ -3109,7 +3105,6 @@ static void primary_swap_frame(
 
 	/* switch buffer */
 	post_canvas = vf->canvas0Addr;
-
 	ret = layer_swap_frame(
 		vf, layer->layer_id, force_toggle, vinfo);
 	if (ret >= vppfilter_success) {
@@ -5212,6 +5207,37 @@ static int  get_display_info(void *data)
 
 	return 0;
 }
+
+static struct vframe_s *get_dispbuf(void)
+{
+	struct vframe_s *dispbuf = NULL;
+
+	switch (glayer_info[0].display_path_id) {
+	case VFM_PATH_DEF:
+	case VFM_PATH_AMVIDEO:
+		if (cur_dispbuf)
+			dispbuf = cur_dispbuf;
+		break;
+	case VFM_PATH_PIP:
+		if (cur_pipbuf)
+			dispbuf = cur_pipbuf;
+		break;
+	case VFM_PATH_VIDEO_RENDER0:
+		if (gvideo_recv[0] &&
+		    gvideo_recv[0]->cur_buf)
+			dispbuf = gvideo_recv[0]->cur_buf;
+		break;
+	case VFM_PATH_VIDEO_RENDER1:
+		if (gvideo_recv[1] &&
+		    gvideo_recv[1]->cur_buf)
+			dispbuf = gvideo_recv[1]->cur_buf;
+		break;
+	default:
+		break;
+	}
+	return dispbuf;
+}
+
 #if ENABLE_UPDATE_HDR_FROM_USER
 void init_hdr_info(void)
 {
@@ -6161,15 +6187,17 @@ static long amvideo_ioctl(struct file *file, unsigned int cmd, ulong arg)
 			unsigned int set_3d =
 				VFRAME_EVENT_PROVIDER_SET_3D_VFRAME_INTERLEAVE;
 			unsigned int type = (unsigned int)arg;
+			struct vframe_s *dispbuf = NULL;
 
 			if (type != process_3d_type) {
 				process_3d_type = type;
 				if (mvc_flag)
 					process_3d_type |= MODE_3D_MVC;
 				vd_layer[0].property_changed = true;
+				dispbuf = get_dispbuf();
 				if ((process_3d_type & MODE_3D_FA) &&
-				    cur_dispbuf &&
-				    !cur_dispbuf->trans_fmt)
+				    dispbuf &&
+				    !dispbuf->trans_fmt)
 					/*notify di 3d mode is frame*/
 					  /*alternative mode,passing two*/
 					  /*buffer in one frame */
@@ -7656,6 +7684,7 @@ static ssize_t threedim_mode_store(struct class *cla,
 
 	u32 type;
 	int r;
+	struct vframe_s *dispbuf = NULL;
 
 	r = kstrtoint(buf, 0, &type);
 	if (r < 0)
@@ -7666,8 +7695,10 @@ static ssize_t threedim_mode_store(struct class *cla,
 		if (mvc_flag)
 			process_3d_type |= MODE_3D_MVC;
 		vd_layer[0].property_changed = true;
+
+		dispbuf = get_dispbuf();
 		if ((process_3d_type & MODE_3D_FA) &&
-		    cur_dispbuf && !cur_dispbuf->trans_fmt)
+		    dispbuf && !dispbuf->trans_fmt)
 			/*notify di 3d mode is frame alternative mode,1*/
 			/*passing two buffer in one frame */
 			vf_notify_receiver_by_name(
@@ -7700,13 +7731,17 @@ static ssize_t frame_addr_show(struct class *cla, struct class_attribute *attr,
 {
 	struct canvas_s canvas;
 	u32 addr[3];
+	struct vframe_s *dispbuf = NULL;
+	unsigned int canvas0Addr;
 
-	if (cur_dispbuf) {
-		canvas_read(cur_dispbuf->canvas0Addr & 0xff, &canvas);
+	dispbuf = get_dispbuf();
+	if (dispbuf) {
+		canvas0Addr = get_layer_display_canvas(0);
+		canvas_read(canvas0Addr & 0xff, &canvas);
 		addr[0] = canvas.addr;
-		canvas_read((cur_dispbuf->canvas0Addr >> 8) & 0xff, &canvas);
+		canvas_read((canvas0Addr >> 8) & 0xff, &canvas);
 		addr[1] = canvas.addr;
-		canvas_read((cur_dispbuf->canvas0Addr >> 16) & 0xff, &canvas);
+		canvas_read((canvas0Addr >> 16) & 0xff, &canvas);
 		addr[2] = canvas.addr;
 
 		return sprintf(buf, "0x%x-0x%x-0x%x\n", addr[0], addr[1],
@@ -7769,15 +7804,19 @@ static ssize_t vframe_walk_delay_show(struct class *class,
 static ssize_t frame_canvas_width_show(struct class *cla,
 				       struct class_attribute *attr, char *buf)
 {
+	struct vframe_s *dispbuf = NULL;
 	struct canvas_s canvas;
 	u32 width[3];
+	unsigned int canvas0Addr;
 
-	if (cur_dispbuf) {
-		canvas_read(cur_dispbuf->canvas0Addr & 0xff, &canvas);
+	dispbuf = get_dispbuf();
+	if (dispbuf) {
+		canvas0Addr = get_layer_display_canvas(0);
+		canvas_read(canvas0Addr & 0xff, &canvas);
 		width[0] = canvas.width;
-		canvas_read((cur_dispbuf->canvas0Addr >> 8) & 0xff, &canvas);
+		canvas_read((canvas0Addr >> 8) & 0xff, &canvas);
 		width[1] = canvas.width;
-		canvas_read((cur_dispbuf->canvas0Addr >> 16) & 0xff, &canvas);
+		canvas_read((canvas0Addr >> 16) & 0xff, &canvas);
 		width[2] = canvas.width;
 
 		return sprintf(buf, "%d-%d-%d\n",
@@ -7790,15 +7829,19 @@ static ssize_t frame_canvas_width_show(struct class *cla,
 static ssize_t frame_canvas_height_show(struct class *cla,
 			struct class_attribute *attr, char *buf)
 {
+	struct vframe_s *dispbuf = NULL;
 	struct canvas_s canvas;
 	u32 height[3];
+	unsigned int canvas0Addr;
 
-	if (cur_dispbuf) {
-		canvas_read(cur_dispbuf->canvas0Addr & 0xff, &canvas);
+	dispbuf = get_dispbuf();
+	if (dispbuf) {
+		canvas0Addr = get_layer_display_canvas(0);
+		canvas_read(canvas0Addr & 0xff, &canvas);
 		height[0] = canvas.height;
-		canvas_read((cur_dispbuf->canvas0Addr >> 8) & 0xff, &canvas);
+		canvas_read((canvas0Addr >> 8) & 0xff, &canvas);
 		height[1] = canvas.height;
-		canvas_read((cur_dispbuf->canvas0Addr >> 16) & 0xff, &canvas);
+		canvas_read((canvas0Addr >> 16) & 0xff, &canvas);
 		height[2] = canvas.height;
 
 		return sprintf(buf, "%d-%d-%d\n", height[0], height[1],
@@ -7812,13 +7855,21 @@ static ssize_t frame_width_show(struct class *cla,
 			struct class_attribute *attr,
 			char *buf)
 {
-	if (hold_video == 1)
+	struct vframe_s *dispbuf = NULL;
+
+	dispbuf = get_dispbuf();
+
+	if ((hold_video == 1) &&
+	    ((glayer_info[0].display_path_id ==
+	     VFM_PATH_AMVIDEO) ||
+	     (glayer_info[0].display_path_id ==
+	     VFM_PATH_DEF)))
 		return sprintf(buf, "%d\n", cur_width);
-	if (cur_dispbuf) {
-		if (cur_dispbuf->type & VIDTYPE_COMPRESS)
-			return sprintf(buf, "%d\n", cur_dispbuf->compWidth);
+	if (dispbuf) {
+		if (dispbuf->type & VIDTYPE_COMPRESS)
+			return sprintf(buf, "%d\n", dispbuf->compWidth);
 		else
-			return sprintf(buf, "%d\n", cur_dispbuf->width);
+			return sprintf(buf, "%d\n", dispbuf->width);
 	}
 
 	return sprintf(buf, "NA\n");
@@ -7827,34 +7878,43 @@ static ssize_t frame_width_show(struct class *cla,
 static ssize_t frame_height_show(struct class *cla,
 				 struct class_attribute *attr, char *buf)
 {
-	if (hold_video == 1)
-		return sprintf(buf, "%d\n", cur_height);
-	if (cur_dispbuf) {
-		if (cur_dispbuf->type & VIDTYPE_COMPRESS)
-			return sprintf(buf, "%d\n", cur_dispbuf->compHeight);
-		else
-			return sprintf(buf, "%d\n", cur_dispbuf->height);
-	}
+	struct vframe_s *dispbuf = NULL;
 
+	if ((hold_video == 1) &&
+	    ((glayer_info[0].display_path_id ==
+	     VFM_PATH_AMVIDEO) ||
+	     (glayer_info[0].display_path_id ==
+	     VFM_PATH_DEF)))
+		return sprintf(buf, "%d\n", cur_height);
+
+	dispbuf = get_dispbuf();
+	if (dispbuf) {
+		if (dispbuf->type & VIDTYPE_COMPRESS)
+			return sprintf(buf, "%d\n", dispbuf->compHeight);
+		else
+			return sprintf(buf, "%d\n", dispbuf->height);
+	}
 	return sprintf(buf, "NA\n");
 }
 
 static ssize_t frame_format_show(struct class *cla,
 				 struct class_attribute *attr, char *buf)
 {
+	struct vframe_s *dispbuf = NULL;
 	ssize_t ret = 0;
 
-	if (cur_dispbuf) {
-		if ((cur_dispbuf->type & VIDTYPE_TYPEMASK) ==
+	dispbuf = get_dispbuf();
+	if (dispbuf) {
+		if ((dispbuf->type & VIDTYPE_TYPEMASK) ==
 		    VIDTYPE_INTERLACE_TOP)
 			ret = sprintf(buf, "interlace-top\n");
-		else if ((cur_dispbuf->type & VIDTYPE_TYPEMASK) ==
+		else if ((dispbuf->type & VIDTYPE_TYPEMASK) ==
 			 VIDTYPE_INTERLACE_BOTTOM)
 			ret = sprintf(buf, "interlace-bottom\n");
 		else
 			ret = sprintf(buf, "progressive\n");
 
-		if (cur_dispbuf->type & VIDTYPE_COMPRESS)
+		if (dispbuf->type & VIDTYPE_COMPRESS)
 			ret += sprintf(buf + ret, "Compressed\n");
 
 		return ret;
@@ -7866,8 +7926,11 @@ static ssize_t frame_format_show(struct class *cla,
 static ssize_t frame_aspect_ratio_show(struct class *cla,
 			struct class_attribute *attr, char *buf)
 {
-	if (cur_dispbuf) {
-		u32 ar = (cur_dispbuf->ratio_control &
+	struct vframe_s *dispbuf = NULL;
+
+	dispbuf = get_dispbuf();
+	if (dispbuf) {
+		u32 ar = (dispbuf->ratio_control &
 			DISP_RATIO_ASPECT_RATIO_MASK) >>
 			DISP_RATIO_ASPECT_RATIO_BIT;
 
@@ -7875,8 +7938,8 @@ static ssize_t frame_aspect_ratio_show(struct class *cla,
 			return sprintf(buf, "0x%x\n", ar);
 		else
 			return sprintf(buf, "0x%x\n",
-				       (cur_dispbuf->width << 8) /
-				       cur_dispbuf->height);
+				       (dispbuf->width << 8) /
+				       dispbuf->height);
 	}
 
 	return sprintf(buf, "NA\n");
@@ -8341,31 +8404,33 @@ static ssize_t pic_mode_info_show(struct class *cla,
 			struct class_attribute *attr, char *buf)
 {
 	int ret = 0;
+	struct vframe_s *dispbuf = NULL;
 
-	if (cur_dispbuf) {
-		u32 adapted_mode = (cur_dispbuf->ratio_control
+	dispbuf = get_dispbuf();
+	if (dispbuf) {
+		u32 adapted_mode = (dispbuf->ratio_control
 			& DISP_RATIO_ADAPTED_PICMODE) ? 1 : 0;
-		u32 info_frame = (cur_dispbuf->ratio_control
+		u32 info_frame = (dispbuf->ratio_control
 			& DISP_RATIO_INFOFRAME_AVAIL) ? 1 : 0;
 
 		ret += sprintf(buf + ret, "ratio_control=0x%x\n",
-			cur_dispbuf->ratio_control);
+			dispbuf->ratio_control);
 		ret += sprintf(buf + ret, "adapted_mode=%d\n",
 			adapted_mode);
 		ret += sprintf(buf + ret, "info_frame=%d\n",
 			info_frame);
 		ret += sprintf(buf + ret,
 			"hs=%d, he=%d, vs=%d, ve=%d\n",
-			cur_dispbuf->pic_mode.hs,
-			cur_dispbuf->pic_mode.he,
-			cur_dispbuf->pic_mode.vs,
-			cur_dispbuf->pic_mode.ve);
+			dispbuf->pic_mode.hs,
+			dispbuf->pic_mode.he,
+			dispbuf->pic_mode.vs,
+			dispbuf->pic_mode.ve);
 		ret += sprintf(buf + ret, "screen_mode=%d\n",
-			cur_dispbuf->pic_mode.screen_mode);
+			dispbuf->pic_mode.screen_mode);
 		ret += sprintf(buf + ret, "custom_ar=%d\n",
-			cur_dispbuf->pic_mode.custom_ar);
+			dispbuf->pic_mode.custom_ar);
 		ret += sprintf(buf + ret, "AFD_enable=%d\n",
-			cur_dispbuf->pic_mode.AFD_enable);
+			dispbuf->pic_mode.AFD_enable);
 		return ret;
 	}
 	return sprintf(buf, "NA\n");
