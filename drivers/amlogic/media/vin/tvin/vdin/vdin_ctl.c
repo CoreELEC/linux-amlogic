@@ -505,6 +505,12 @@ static struct vdin_matrix_lup_s vdin_matrix_lup[] = {
 	/* 0	 0.437500 -0.402312 -0.035188	128 */
 	{0x00000000, 0x00000000, 0x00e60252, 0x00341f84, 0x1ebe01c0, 0x01c01e65,
 		0x00001fdd, 0x00400200, 0x00000200,},
+	/* VDIN_MATRIX_YUV2020F_YUV2020 */
+	/* 0 0.859 0 0 16 */
+	/* -128 0 0.878 0 128 */
+	/* -128 0 0 0.878 128 */
+	{0x00000600, 0x00000600, 0x03700000, 0x00000000, 0x03830000, 0x00000000,
+		0x00000383, 0x00400200, 0x00000200,},
 };
 
 /***************************Local function**********************************/
@@ -1437,8 +1443,12 @@ vdin_set_color_matrix1(unsigned int offset,
 					matrix_csc = VDIN_MATRIX_YUV601_YUV709;
 			}
 		}
-		if (vdin_hdr_flag == 1)
-			matrix_csc = VDIN_MATRIX_NULL;
+		if (vdin_hdr_flag == 1) {
+			if (color_fmt_range == TVIN_YUV_FULL)
+				matrix_csc = VDIN_MATRIX_YUV2020F_YUV2020;
+			else
+				matrix_csc = VDIN_MATRIX_NULL;
+		}
 		break;
 	default:
 		matrix_csc = VDIN_MATRIX_NULL;
@@ -1629,8 +1639,12 @@ vdin_set_color_matrix0(unsigned int offset,
 					matrix_csc = VDIN_MATRIX_YUV601_YUV709;
 			}
 		}
-		if (vdin_hdr_flag == 1)
-			matrix_csc = VDIN_MATRIX_NULL;
+		if (vdin_hdr_flag == 1) {
+			if (color_fmt_range == TVIN_YUV_FULL)
+				matrix_csc = VDIN_MATRIX_YUV2020F_YUV2020;
+			else
+				matrix_csc = VDIN_MATRIX_NULL;
+		}
 		break;
 	default:
 		matrix_csc = VDIN_MATRIX_NULL;
