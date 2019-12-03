@@ -99,7 +99,7 @@ static DEFINE_MUTEX(getedid_mutex);
 
 static struct hdmitx_dev hdmitx_device = {
 	.frac_rate_policy = 1,
-	.cec_func_config = 0x3f
+	.cec_func_config = 0x7f
 };
 
 static const struct dv_info dv_dummy;
