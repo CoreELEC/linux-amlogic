@@ -30,6 +30,9 @@
 #include <ion/ion_priv.h>
 #include "video_composer.h"
 
+#define KERNEL_ATRACE_TAG KERNEL_ATRACE_TAG_VIDEO_COMPOSER
+#include <trace/events/meson_atrace.h>
+
 #define VIDEO_COMPOSER_VERSION "1.0"
 
 #define VIDEO_COMPOSER_NAME_SIZE 32
@@ -114,6 +117,7 @@ static struct class video_composer_class = {
 #define PRINT_FENCE		0X0002
 #define PRINT_PERFORMANCE	0X0004
 #define PRINT_OTHER		0X0008
+#define PRINT_INDEX_DISP	0X0010
 
 #define to_dst_buf(vf)	\
 	container_of(vf, struct dst_buf_t, frame)
@@ -1398,12 +1402,15 @@ static void set_frames_info(struct composer_dev *dev,
 			file_private_data =
 			(struct file_private_data *)(file_vf->private_data);
 			vf = &file_private_data->vf;
-			vc_print(dev->index, PRINT_OTHER,
-				 "received_cnt=%lld,i=%d,z=%d,omx_index=%d\n",
+			vc_print(dev->index, PRINT_INDEX_DISP,
+				 "received_cnt=%lld,i=%d,z=%d,omx_index=%d, fence_fd=%d, index_disp=%d\n",
 				 dev->received_count + 1,
 				 i,
 				 frames_info->frame_info[j].zorder,
-				 vf->omx_index);
+				 vf->omx_index,
+				 fence_fd,
+				vf->index_disp);
+			ATRACE_COUNTER("video_composer", vf->index_disp);
 		} else if (frames_info->frame_info[j].type == 1) {
 			vc_print(dev->index, PRINT_OTHER,
 				 "received_cnt=%lld,i=%d,z=%d,DMA_fd=%d\n",
