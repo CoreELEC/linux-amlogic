@@ -104,6 +104,7 @@ static void aml_dma_put(void *buf_priv)
 	put_device(buf->dev);
 	ge2d_log_dbg("ge2d free:aml_dma_buf=0x%p,buf->index=%d\n",
 		buf, buf->index);
+
 	kfree(buf);
 }
 

@@ -806,10 +806,10 @@ static int build_ge2d_config(struct ge2d_context_s *context,
 				} else if (ge2d_meson_dev.canvas_status == 2) {
 					dst->canvas_index = 0;
 					dst->phy_addr[i] =
-						cfg->src_planes[i].addr;
+						cfg->dst_planes[i].addr;
 					dst->stride[i] =
-						cfg->src_planes[i].w *
-						src->bpp / 8;
+						cfg->dst_planes[i].w *
+						dst->bpp / 8;
 				} else {
 					dst->canvas_index = 0;
 					canvas_cfg = ge2d_wq_get_canvas_cfg
@@ -2574,14 +2574,17 @@ struct ge2d_context_s *create_ge2d_work_queue(void)
 
 	if (!ge2d_manager.probe)
 		return NULL;
-	ge2d_work_queue = kzalloc(sizeof(struct ge2d_context_s), GFP_KERNEL);
-	ge2d_work_queue->config.h_scale_coef_type = FILTER_TYPE_BILINEAR;
-	ge2d_work_queue->config.v_scale_coef_type = FILTER_TYPE_BILINEAR;
-	ge2d_work_queue->ge2d_request_exit = 0;
-	if (IS_ERR(ge2d_work_queue)) {
+
+	ge2d_work_queue = kzalloc(sizeof(*ge2d_work_queue), GFP_KERNEL);
+	if (!ge2d_work_queue) {
 		ge2d_log_err("can't create work queue\n");
 		return NULL;
 	}
+
+	ge2d_work_queue->config.h_scale_coef_type = FILTER_TYPE_BILINEAR;
+	ge2d_work_queue->config.v_scale_coef_type = FILTER_TYPE_BILINEAR;
+	ge2d_work_queue->ge2d_request_exit = 0;
+
 	INIT_LIST_HEAD(&ge2d_work_queue->work_queue);
 	INIT_LIST_HEAD(&ge2d_work_queue->free_queue);
 	init_waitqueue_head(&ge2d_work_queue->cmd_complete);
@@ -2590,7 +2593,7 @@ struct ge2d_context_s *create_ge2d_work_queue(void)
 		p_item = kcalloc(1,
 				sizeof(struct ge2d_queue_item_s),
 				GFP_KERNEL);
-		if (IS_ERR(p_item)) {
+		if (!p_item) {
 			ge2d_log_err("can't request queue item memory\n");
 			return NULL;
 		}
