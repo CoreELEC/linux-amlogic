@@ -1436,7 +1436,7 @@ static s32 vd1_afbc_setting_tl1(struct mif_pos_s *setting)
 			(setting->src_w - 1) + 1, 32);
 	mif_blk_bgn_h = crop_left / 32;
 	mif_blk_end_h = (crop_left + setting->end_x_lines -
-		setting->start_x_lines + 1) / 32;
+		setting->start_x_lines) / 32;
 	pix_bgn_h = crop_left - mif_blk_bgn_h * 32;
 	pix_end_h = pix_bgn_h + setting->end_x_lines -
 		setting->start_x_lines;
@@ -1462,7 +1462,7 @@ static s32 vd1_afbc_setting_tl1(struct mif_pos_s *setting)
 	vsize_in = round_up((setting->src_h - 1) + 1, 4);
 	mif_blk_bgn_v = crop_top / 4;
 	mif_blk_end_v = (crop_top + setting->end_y_lines -
-		setting->start_y_lines + 1) / 4;
+		setting->start_y_lines) / 4;
 	pix_bgn_v = crop_top - mif_blk_bgn_v * 4;
 	pix_end_v = pix_bgn_v + setting->end_y_lines -
 		setting->start_y_lines;
