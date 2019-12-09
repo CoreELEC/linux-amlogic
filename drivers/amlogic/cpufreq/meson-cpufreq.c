@@ -57,6 +57,14 @@ static unsigned int get_cpufreq_table_index(u64 function_id,
 	return res.a0;
 }
 
+#define OF_NODE_CPU_OPP_0	"/cpu_opp_table0/"	/* Core A53 */
+#define OF_NODE_CPU_OPP_1	"/cpu_opp_table1/"	/* Core A73 */
+
+static unsigned long max_freq[2] = {
+		0, /* freq for A53 */
+		0  /* freq for A73 */
+};
+
 static DEFINE_MUTEX(cpufreq_target_lock);
 
 static unsigned int meson_cpufreq_get_rate(unsigned int cpu)
@@ -429,6 +437,7 @@ static int meson_cpufreq_init(struct cpufreq_policy *policy)
 	unsigned int volt_tol = 0;
 	unsigned long freq_hz = 0;
 	int cpu = 0, ret = 0, tables_index;
+	int i = 0;
 
 	if (!policy) {
 		pr_err("invalid cpufreq_policy\n");
@@ -539,6 +548,17 @@ static int meson_cpufreq_init(struct cpufreq_policy *policy)
 		goto free_reg;
 	}
 
+	for (i = 0; (freq_table[cur_cluster][i].frequency != CPUFREQ_TABLE_END)
+		&& max_freq[cur_cluster]; i++) {
+		if (freq_table[cur_cluster][i].frequency > max_freq[cur_cluster]) {
+			pr_info("dvfs [%s] - cluster %d freq %d\n",
+				__func__, cur_cluster,
+				freq_table[cur_cluster][i].frequency);
+
+			freq_table[cur_cluster][i].frequency = CPUFREQ_TABLE_END;
+		}
+	}
+
 	ret = cpufreq_table_validate_and_show(policy, freq_table[cur_cluster]);
 	if (ret) {
 		dev_err(cpu_dev, "CPU %d, cluster: %d invalid freq table\n",
@@ -562,6 +582,7 @@ static int meson_cpufreq_init(struct cpufreq_policy *policy)
 	policy->cpuinfo.transition_latency = transition_latency;
 	policy->suspend_freq = get_table_max(freq_table[cur_cluster]);
 	policy->cur = clk_get_rate(clk[cur_cluster]) / 1000;
+	policy->min = 667000;
 
 	/*
 	 * if uboot default cpufreq larger than freq_table's max,
@@ -597,6 +618,54 @@ free_np:
 		of_node_put(np);
 	return ret;
 }
+
+static int __init get_max_freq_a53(char *str)
+{
+	int ret;
+
+	if (str == NULL) {
+		/* default freq value for A53 core is 1.896GHz */
+		pr_info("[%s] no data\n", __func__);
+		return -EINVAL;
+	}
+	ret = kstrtoul(str, 0, &max_freq[0]);
+	if (ret != 0) {
+		pr_info("[%s] invalid data - err %d, str %s\n",
+			__func__, ret, str);
+		return -EINVAL;
+	}
+
+	/* in unit kHz */
+	max_freq[0] *= 1000;
+	pr_info("[%s] - max_freq : %ld\n", __func__, max_freq[0]);
+
+	return 0;
+}
+__setup("max_freq_a53=", get_max_freq_a53);
+
+static int __init get_max_freq_a73(char *str)
+{
+	int ret;
+
+	if (str == NULL) {
+		/* default freq value for A73 core is 1.800GHz */
+		pr_info("[%s] no data\n", __func__);
+		return -EINVAL;
+	}
+	ret = kstrtoul(str, 0, &max_freq[1]);
+	if (ret != 0) {
+		pr_info("[%s] invalid data - err %d, str %s\n",
+			__func__, ret, str);
+		return -EINVAL;
+	}
+
+	/* in unit kHz */
+	max_freq[1] *= 1000;
+	pr_info("[%s] - max_freq : %ld\n", __func__, max_freq[1]);
+
+	return 0;
+}
+__setup("max_freq_a73=", get_max_freq_a73);
 
 static int meson_cpufreq_exit(struct cpufreq_policy *policy)
 {
