@@ -109,7 +109,7 @@
 			 * 10x4074560=40M(0x28) support 10bit
 			 */
 			//size = <0x02800000>;
-			size = <0x05800000>;
+			size = <0x0B000000>;
 			alignment = <0x400000>;
 		};
 		/*  POST PROCESS MANAGER */
