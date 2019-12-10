@@ -25,6 +25,10 @@
 		};
 	};
 
+	codec_mm {
+		clear-map;
+	};
+
 	/delete-node/ partitions;
 	partitions {
 		bootloader {};
