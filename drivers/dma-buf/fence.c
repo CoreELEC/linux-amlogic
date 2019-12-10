@@ -331,8 +331,16 @@ fence_remove_callback(struct fence *fence, struct fence_cb *cb)
 	if (ret) {
 		list_del_init(&cb->node);
 		if (list_empty(&fence->cb_list))
+#ifdef CONFIG_AMLOGIC_MODIFY
+			if (fence->ops->disable_signaling) {
+				fence->ops->disable_signaling(fence);
+				clear_bit(FENCE_FLAG_ENABLE_SIGNAL_BIT,
+					  &fence->flags);
+			}
+#else
 			if (fence->ops->disable_signaling)
 				fence->ops->disable_signaling(fence);
+#endif
 	}
 
 	spin_unlock_irqrestore(fence->lock, flags);
