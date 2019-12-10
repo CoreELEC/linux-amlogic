@@ -1721,7 +1721,7 @@ static s32 vd2_afbc_setting_tl1(struct mif_pos_s *setting)
 		setting->start_x_lines;
 
 	VSYNC_WR_MPEG_REG(
-		AFBC_MIF_HOR_SCOPE + afbc_off,
+		VD2_AFBC_MIF_HOR_SCOPE + afbc_off,
 		(mif_blk_bgn_h << 16) |
 		mif_blk_end_h);
 
@@ -1731,7 +1731,7 @@ static s32 vd2_afbc_setting_tl1(struct mif_pos_s *setting)
 			/* do nothing*/
 	} else {
 		VSYNC_WR_MPEG_REG(
-			AFBC_PIXEL_HOR_SCOPE + afbc_off,
+			VD2_AFBC_PIXEL_HOR_SCOPE + afbc_off,
 			((pix_bgn_h << 16) |
 			pix_end_h));
 	}
