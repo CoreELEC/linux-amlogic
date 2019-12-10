@@ -32,6 +32,7 @@
 #include <linux/anon_inodes.h>
 #include <linux/file.h>
 #include <linux/amlogic/media/canvas/canvas_mgr.h>
+#include <linux/amlogic/media/vfm/amlogic_fbc_hook_v1.h>
 
 #define V4LVIDEO_MODULE_NAME "v4lvideo"
 
@@ -407,49 +408,234 @@ void v4lvideo_release_map_force(struct v4lvideo_dev *dev)
 	v4lvideo_devlist_unlock(flags);
 }
 
-void v4lvideo_data_copy(struct v4l_data_t *v4l_data)
+static struct ge2d_context_s *context;
+static int canvas_src_id[3];
+static int canvas_dst_id[3];
+
+static void do_vframe_afbc_soft_decode(struct v4l_data_t *v4l_data)
 {
+	int i, j, ret, y_size;
+	short *planes[4];
+	short *y_src, *u_src, *v_src, *s2c, *s2c1;
+	u8 *tmp, *tmp1;
+	u8 *y_dst, *vu_dst;
+	int bit_10;
+	struct timeval start, end;
+	unsigned long time_use = 0;
 	struct vframe_s *vf = NULL;
-	char *src_ptr_y = NULL;
-	char *src_ptr_uv = NULL;
-	char *dst_ptr = NULL;
-	u32 src_phy_addr_y;
-	u32 src_phy_addr_uv;
-	u32 size_y;
-	u32 size_uv;
-	u32 size_pic;
 
 	vf = v4l_data->vf;
-	size_y = vf->width * vf->height;
-	size_uv = size_y >> 1;
-	size_pic = size_y + size_uv;
 
-	if ((vf->canvas0Addr == vf->canvas1Addr) &&
-	    (vf->canvas0Addr != 0) &&
-	    (vf->canvas0Addr != -1)) {
-		src_phy_addr_y = canvas_get_addr(canvasY(vf->canvas0Addr));
-		src_phy_addr_uv = canvas_get_addr(canvasUV(vf->canvas0Addr));
+	if ((vf->bitdepth & BITDEPTH_YMASK)  == (BITDEPTH_Y10))
+		bit_10 = 1;
+	else
+		bit_10 = 0;
+
+	y_size = vf->compWidth * vf->compHeight * sizeof(short);
+	pr_debug("width: %d, height: %d, compWidth: %u, compHeight: %u.\n",
+		vf->width, vf->height, vf->compWidth, vf->compHeight);
+	for (i = 0; i < 4; i++) {
+		planes[i] = vmalloc(y_size);
+		pr_debug("plane %d size: %d, vmalloc addr: %p.\n",
+			i, y_size, planes[i]);
+	}
+
+	do_gettimeofday(&start);
+	ret = AMLOGIC_FBC_vframe_decoder_v1((void **)planes, vf, 0, 0);
+	if (ret < 0) {
+		pr_err("amlogic_fbc_lib.ko error %d", ret);
+		goto free;
+	}
+
+	do_gettimeofday(&end);
+	time_use = (end.tv_sec - start.tv_sec) * 1000 +
+				(end.tv_usec - start.tv_usec) / 1000;
+	pr_debug("FBC Decompress time: %ldms\n", time_use);
+
+	y_src = planes[0];
+	u_src = planes[1];
+	v_src = planes[2];
+
+	y_dst = v4l_data->dst_addr;
+	vu_dst = v4l_data->dst_addr + v4l_data->byte_stride * v4l_data->height;
+
+	do_gettimeofday(&start);
+	for (i = 0; i < vf->compHeight; i++) {
+		for (j = 0; j < vf->compWidth; j++) {
+			s2c = y_src + j;
+			tmp = (u8 *)(s2c);
+			if (bit_10)
+				*(y_dst + j) = *s2c >> 2;
+			else
+				*(y_dst + j) = tmp[0];
+		}
+
+			y_dst += v4l_data->byte_stride;
+			y_src += vf->compWidth;
+	}
+
+	for (i = 0; i < (vf->compHeight / 2); i++) {
+
+		for (j = 0; j < vf->compWidth; j += 2) {
+			s2c = v_src + j/2;
+			s2c1 = u_src + j/2;
+			tmp = (u8 *)(s2c);
+			tmp1 = (u8 *)(s2c1);
+
+			if (bit_10) {
+				*(vu_dst + j) = *s2c >> 2;
+				*(vu_dst + j + 1) = *s2c1 >> 2;
+			} else {
+				*(vu_dst + j) = tmp[0];
+				*(vu_dst + j + 1) = tmp1[0];
+			}
+		}
+
+			vu_dst += v4l_data->byte_stride;
+			u_src += (vf->compWidth / 2);
+			v_src += (vf->compWidth / 2);
+	}
+
+	do_gettimeofday(&end);
+	time_use = (end.tv_sec - start.tv_sec) * 1000 +
+				(end.tv_usec - start.tv_usec) / 1000;
+	pr_debug("bitblk time: %ldms\n", time_use);
+
+free:
+	for (i = 0; i < 4; i++)
+		vfree(planes[i]);
+}
+
+void v4lvideo_data_copy(struct v4l_data_t *v4l_data)
+{
+	struct config_para_ex_s ge2d_config;
+	struct canvas_config_s dst_canvas_config[3];
+	struct vframe_s *vf = NULL;
+	const char *keep_owner = "ge2d_dest_comp";
+
+	vf = v4l_data->vf;
+
+	if ((vf->type & VIDTYPE_COMPRESS)) {
+		do_vframe_afbc_soft_decode(v4l_data);
+		return;
+	}
+	memset(&ge2d_config, 0, sizeof(ge2d_config));
+	memset(dst_canvas_config, 0, sizeof(dst_canvas_config));
+
+	if (!context)
+		context = create_ge2d_work_queue();
+
+	if (context == NULL) {
+		pr_err("create_ge2d_work_queue failed.\n");
+		return;
+	}
+
+	dst_canvas_config[0].phy_addr = v4l_data->phy_addr[0];
+	dst_canvas_config[0].width = v4l_data->byte_stride;
+
+	dst_canvas_config[0].height = v4l_data->height;
+	dst_canvas_config[0].block_mode = 0;
+	dst_canvas_config[0].endian = 0;
+	dst_canvas_config[1].phy_addr = v4l_data->phy_addr[0] +
+		v4l_data->byte_stride * v4l_data->height;
+	dst_canvas_config[1].width = v4l_data->byte_stride;
+	dst_canvas_config[1].height = v4l_data->height/2;
+	dst_canvas_config[1].block_mode = 0;
+	dst_canvas_config[1].endian = 0;
+
+	pr_debug("compWidth: %u, compHeight: %u.\n", vf->compWidth,
+		vf->compHeight);
+	pr_debug("vf-width:%u, vf-height:%u, vf-widht-align:%u, umm-bytestride: %d, umm-width:%u, umm-height:%u, y_addr:%u, uv_addr:%u.\n",
+		vf->width, vf->height, ALIGN(vf->width, 32),
+		v4l_data->byte_stride, v4l_data->width,
+		v4l_data->height,
+		dst_canvas_config[0].phy_addr,
+		dst_canvas_config[1].phy_addr);
+
+	if (vf->canvas0Addr == (u32)-1) {
+		if (canvas_src_id[0] <= 0)
+			canvas_src_id[0] =
+			canvas_pool_map_alloc_canvas(keep_owner);
+
+		if (canvas_src_id[1] <= 0)
+			canvas_src_id[1] =
+			canvas_pool_map_alloc_canvas(keep_owner);
+
+		if (canvas_src_id[0] <= 0 || canvas_src_id[1] <= 0) {
+			pr_err("canvas pool alloc fail.%d, %d, %d.\n",
+			canvas_src_id[0], canvas_src_id[1], canvas_src_id[2]);
+			return;
+		}
+
+		canvas_config_config(canvas_src_id[0], &vf->canvas0_config[0]);
+		canvas_config_config(canvas_src_id[1], &vf->canvas0_config[1]);
+		ge2d_config.src_para.canvas_index = canvas_src_id[0] |
+			canvas_src_id[1] << 8;
+		pr_debug("src index: %d.\n", ge2d_config.src_para.canvas_index);
+
 	} else {
-		src_phy_addr_y = vf->canvas0_config[0].phy_addr;
-		src_phy_addr_uv = vf->canvas0_config[1].phy_addr;
+		ge2d_config.src_para.canvas_index = vf->canvas0Addr;
+		pr_debug("src1 : %d.\n", ge2d_config.src_para.canvas_index);
 	}
-	dst_ptr = v4l_data->dst_addr;
 
-	src_ptr_y = codec_mm_vmap(src_phy_addr_y, size_y);
-	if (!src_ptr_y) {
-		pr_err("src_phy_addr_y map fail size_y=%d\n", size_y);
+	if (canvas_dst_id[0] <= 0)
+		canvas_dst_id[0] = canvas_pool_map_alloc_canvas(keep_owner);
+	if (canvas_dst_id[1] <= 0)
+		canvas_dst_id[1] = canvas_pool_map_alloc_canvas(keep_owner);
+	if (canvas_dst_id[0] <= 0 || canvas_dst_id[1] <= 0) {
+		pr_err("canvas pool alloc dst fail. %d, %d.\n",
+			canvas_dst_id[0], canvas_dst_id[1]);
 		return;
 	}
-	memcpy(dst_ptr, src_ptr_y, size_y);
-	codec_mm_unmap_phyaddr(src_ptr_y);
+	canvas_config_config(canvas_dst_id[0], &dst_canvas_config[0]);
+	canvas_config_config(canvas_dst_id[1], &dst_canvas_config[1]);
 
-	src_ptr_uv = codec_mm_vmap(src_phy_addr_uv, size_uv);
-	if (!src_ptr_uv) {
-		pr_err("src_phy_addr_uv map fail size_uv=%d\n", size_uv);
+	ge2d_config.dst_para.canvas_index = canvas_dst_id[0] |
+			canvas_dst_id[1] << 8;
+
+	pr_debug("dst canvas index: %d.\n", ge2d_config.dst_para.canvas_index);
+
+	ge2d_config.alu_const_color = 0;
+	ge2d_config.bitmask_en = 0;
+	ge2d_config.src1_gb_alpha = 0;
+	ge2d_config.dst_xy_swap = 0;
+
+	ge2d_config.src_key.key_enable = 0;
+	ge2d_config.src_key.key_mask = 0;
+	ge2d_config.src_key.key_mode = 0;
+
+	ge2d_config.src_para.mem_type = CANVAS_TYPE_INVALID;
+	ge2d_config.src_para.format = GE2D_FORMAT_M24_NV21;
+	ge2d_config.src_para.fill_color_en = 0;
+	ge2d_config.src_para.fill_mode = 0;
+	ge2d_config.src_para.x_rev = 0;
+	ge2d_config.src_para.y_rev = 0;
+	ge2d_config.src_para.color = 0xffffffff;
+	ge2d_config.src_para.top = 0;
+	ge2d_config.src_para.left = 0;
+	ge2d_config.src_para.width = vf->width;
+	ge2d_config.src_para.height = vf->height;
+	ge2d_config.src2_para.mem_type = CANVAS_TYPE_INVALID;
+
+	ge2d_config.dst_para.mem_type = CANVAS_TYPE_INVALID;
+	ge2d_config.dst_para.fill_color_en = 0;
+	ge2d_config.dst_para.fill_mode = 0;
+	ge2d_config.dst_para.x_rev = 0;
+	ge2d_config.dst_para.y_rev = 0;
+	ge2d_config.dst_para.color = 0;
+	ge2d_config.dst_para.top = 0;
+	ge2d_config.dst_para.left = 0;
+	ge2d_config.dst_para.format = GE2D_FORMAT_M24_NV21 | GE2D_LITTLE_ENDIAN;
+	ge2d_config.dst_para.width = vf->width;
+	ge2d_config.dst_para.height = vf->height;
+
+	if (ge2d_context_config_ex(context, &ge2d_config) < 0) {
+		pr_err("ge2d_context_config_ex error.\n");
 		return;
 	}
-	memcpy(dst_ptr + size_y, src_ptr_uv, size_uv);
-	codec_mm_unmap_phyaddr(src_ptr_uv);
+
+	stretchblt_noalpha(context, 0, 0, vf->width, vf->height,
+			0, 0, vf->width, vf->height);
 }
 
 struct vframe_s *v4lvideo_get_vf(int fd)

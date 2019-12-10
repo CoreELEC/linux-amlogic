@@ -36,6 +36,10 @@ struct file_private_data {
 struct v4l_data_t {
 	struct vframe_s *vf;
 	char *dst_addr;
+	u32 phy_addr[3];
+	int byte_stride;
+	uint32_t width;
+	uint32_t height;
 };
 
 void v4lvideo_data_copy(struct v4l_data_t *v4l_data);

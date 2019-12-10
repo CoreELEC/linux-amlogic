@@ -15250,3 +15250,8 @@ AMLOGIC VPP DRIVER
 M:	Brian Zhu <brian.zhu@amlogic.com>
 F: drivers/amlogic/media/video_sink/video_receiver.c
 F: drivers/amlogic/media/video_sink/video_receiver.h
+
+AMLOGIC UVM DRIVER
+M:	Ao.Xu <ao.xu@amlogic.com>
+F:	drivers/amlogic/uvm/meson_uvm.c
+F:	drivers/amlogic/uvm/meson_uvm.h
