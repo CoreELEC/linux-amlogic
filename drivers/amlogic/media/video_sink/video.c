@@ -3194,11 +3194,6 @@ static s32 primary_render_frame(struct video_layer_s *layer)
 
 	frame_par = layer->cur_frame_par;
 
-	/* dolby vision process for each vsync */
-#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
-	dolby_vision_proc(layer, frame_par);
-#endif
-
 	/* process cur frame for each vsync */
 	if (layer->dispbuf) {
 		int need_afbc =
@@ -3246,9 +3241,13 @@ static s32 primary_render_frame(struct video_layer_s *layer)
 	}
 
 	/* no frame parameter change */
-	if ((!layer->new_vpp_setting && !force_setting) || !frame_par)
+	if ((!layer->new_vpp_setting && !force_setting) || !frame_par) {
+		/* dolby vision process for each vsync */
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
+		dolby_vision_proc(layer, frame_par);
+#endif
 		return 0;
-
+	}
 	/* VPP one time settings */
 	if (layer->dispbuf) {
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
@@ -3351,6 +3350,11 @@ static s32 primary_render_frame(struct video_layer_s *layer)
 		vd_scaler_setting(1, &local_vd2_pps);
 		vd_blend_setting(1, &local_vd2_blend);
 	}
+	/* dolby vision process for each vsync */
+	/* need set after correct_vd1_mif_size_for_DV */
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
+	dolby_vision_proc(layer, frame_par);
+#endif
 	layer->new_vpp_setting = false;
 	return 1;
 }
