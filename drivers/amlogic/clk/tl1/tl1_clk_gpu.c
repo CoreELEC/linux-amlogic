@@ -100,9 +100,4 @@ void meson_tl1_gpu_init(void)
 
 	clks[CLKID_GPU_MUX] = clk_register(NULL, &gpu_mux.hw);
 	WARN_ON(IS_ERR(clks[CLKID_GPU_MUX]));
-
-	clk_set_parent(clks[CLKID_GPU_MUX], clks[CLKID_GPU_P0_COMP]);
-	clk_prepare_enable(clks[CLKID_GPU_P0_COMP]);
-	clk_prepare_enable(clks[CLKID_GPU_P1_COMP]);
-	clk_set_rate(clks[CLKID_GPU_MUX], 400000000);
 }

@@ -308,6 +308,12 @@ static int meson_mmc_clk_set_rate_v3(struct mmc_host *mmc,
 				pr_warn("set src0: xtal as comp0 parent error\n");
 		}
 	}
+	if (host->data->chip_type == MMC_CHIP_TL1 && !host->gp0_clk) {
+		host->gp0_clk = src0_clk;
+		ret = clk_prepare_enable(host->gp0_clk);
+		if (ret)
+			pr_warn("set comp0 enable failed\n");
+	}
 
 	dev_dbg(host->dev, "change clock rate %u -> %lu\n",
 		mmc->actual_clock, clk_ios);
