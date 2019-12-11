@@ -2397,7 +2397,7 @@ EXPORT_SYMBOL(enable_osd1_mtx);
 
 static int __init override_use_rgb_to_yuv_autodetect(char *str)
 {
-	if (kstrtoul(str, 16, (unsigned long *)&use_rgb_to_yuv) == 0)
+	if (kstrtoint(str, 0, &use_rgb_to_yuv) == 0)
 		pr_info("AMVECM: override 'use_rgb_to_yuv' autodetect: %d\n",
 			use_rgb_to_yuv);
 
