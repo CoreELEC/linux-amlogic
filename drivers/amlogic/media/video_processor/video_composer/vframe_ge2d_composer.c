@@ -303,6 +303,7 @@ int fill_vframe_black(struct ge2d_composer_para *ge2d_comp_para)
 	struct canvas_config_s dst_canvas0_config[3];
 	u32 dst_plane_num;
 
+	memset(dst_canvas0_config, 0, sizeof(dst_canvas0_config));
 	memset(ge2d_comp_para->ge2d_config, 0, sizeof(struct config_para_ex_s));
 
 	if (ge2d_comp_para->format == GE2D_FORMAT_S24_YUV444) {
@@ -312,7 +313,7 @@ int fill_vframe_black(struct ge2d_composer_para *ge2d_comp_para)
 		dst_canvas0_config[0].block_mode = 0;
 		dst_canvas0_config[0].endian = 0;
 	}
-	dst_plane_num = 1;
+	dst_plane_num = ge2d_comp_para->plane_num;
 
 	if (ge2d_comp_para->canvas0Addr == (u32)-1) {
 		canvas_config_config(
@@ -414,7 +415,7 @@ int ge2d_data_composer(
 		dst_canvas0_config[0].block_mode = 0;
 		dst_canvas0_config[0].endian = 0;
 	}
-	dst_plane_num = 1;
+	dst_plane_num = ge2d_comp_para->plane_num;
 
 	if (scr_data->canvas0Addr == (u32)-1) {
 		ret = alloc_src_canvas(ge2d_comp_para);
@@ -552,9 +553,13 @@ int ge2d_data_composer(
 			   position_width,
 			   position_height);
 	if (ge2d_com_debug & 1)
-		VIDEOCOM_INFO("scr format: %0x, dst format: %0x!\n",
+		VIDEOCOM_INFO("scr %0x,dst: %0x!,%d, %d, %d, %d\n",
 			      ge2d_comp_para->ge2d_config->src_para.format,
-			      ge2d_comp_para->ge2d_config->dst_para.format);
+			      ge2d_comp_para->ge2d_config->dst_para.format,
+			      position_left,
+			      position_top,
+			      position_width,
+			      position_height);
 	return 0;
 }
 

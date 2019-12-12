@@ -56,6 +56,8 @@
 #define DMA_BUF_COUNT 4
 
 #define VCOM_MAP_NAME_SIZE 90
+#define VCOM_MAP_STRUCT_SIZE 120
+
 #define VCOM_PROVIDER_NAME_SIZE 32
 
 enum vc_transform_t {
@@ -164,8 +166,8 @@ struct composer_dev {
 	DECLARE_KFIFO(display_q, struct vframe_s *, COMPOSER_READY_POOL_SIZE);
 	DECLARE_KFIFO(dma_free_q, struct vframe_s *, BUFFER_LEN);
 	char vf_provider_name[VCOM_PROVIDER_NAME_SIZE];
-	char vfm_map_id[VCOM_MAP_NAME_SIZE];
-	char vfm_map_chain[VCOM_MAP_NAME_SIZE];
+	char vfm_map_id[VCOM_MAP_STRUCT_SIZE];
+	char vfm_map_chain[VCOM_MAP_STRUCT_SIZE];
 	struct vframe_provider_s vc_vf_prov;
 	void *video_timeline;
 	u32 cur_streamline_val;

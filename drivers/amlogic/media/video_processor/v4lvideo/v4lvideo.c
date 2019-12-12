@@ -55,6 +55,14 @@ static unsigned int debug;
 module_param(debug, uint, 0644);
 MODULE_PARM_DESC(debug, "activates debug info");
 
+static unsigned int get_count;
+module_param(get_count, uint, 0644);
+MODULE_PARM_DESC(get_count, "get_count");
+
+static unsigned int put_count;
+module_param(put_count, uint, 0644);
+MODULE_PARM_DESC(put_count, "put_count");
+
 #define MAX_KEEP_FRAME 64
 
 struct keep_mem_info {
@@ -233,7 +241,7 @@ static void video_keeper_free_mem(
 
 static void vf_keep(struct file_private_data *file_private_data)
 {
-	struct vframe_s *vf_p = file_private_data->vf_p;
+	struct vframe_s *vf_p;
 	int type = MEM_TYPE_CODEC_MM;
 	int keep_id = 0;
 	int keep_head_id = 0;
@@ -242,6 +250,13 @@ static void vf_keep(struct file_private_data *file_private_data)
 		V4LVID_ERR("vf_keep error: file_private_data is NULL");
 		return;
 	}
+	vf_p = file_private_data->vf_p;
+
+	if (!vf_p) {
+		V4LVID_ERR("vf_keep error: vf_p is NULL");
+		return;
+	}
+
 	if (vf_p->type & VIDTYPE_SCATTER)
 		type = MEM_TYPE_CODEC_MM_SCATTER;
 	video_keeper_keep_mem(
@@ -444,6 +459,10 @@ struct vframe_s *v4lvideo_get_vf(int fd)
 	struct file_private_data *file_private_data;
 
 	file_vf = fget(fd);
+	if (!file_vf) {
+		pr_err("v4lvideo_get_vf file_vf is NULL\n");
+		return NULL;
+	}
 	file_private_data = (struct file_private_data *)file_vf->private_data;
 	vf = &file_private_data->vf;
 	fput(file_vf);
@@ -667,7 +686,15 @@ static int vidioc_qbuf(struct file *file, void *priv, struct v4l2_buffer *p)
 	dev->v4lvideo_input[p->index] = *p;
 
 	file_vf = fget(p->m.fd);
+	if (!file_vf) {
+		pr_err("v4lvideo: qbuf fget fail\n");
+		return 0;
+	}
 	file_private_data = (struct file_private_data *)(file_vf->private_data);
+	if (!file_private_data) {
+		pr_err("v4lvideo: qbuf file_private_data NULL\n");
+		return 0;
+	}
 	vf_p = file_private_data->vf_p;
 
 	mutex_lock(&dev->mutex_input);
@@ -679,6 +706,7 @@ static int vidioc_qbuf(struct file *file, void *priv, struct v4l2_buffer *p)
 					       file_private_data)) {
 				if (dev->receiver_register) {
 					vf_put(vf_p, dev->vf_receiver_name);
+					put_count++;
 				} else {
 					vf_free(file_private_data);
 					pr_err("vidioc_qbuf: vfm is unreg\n");
@@ -727,6 +755,7 @@ static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *p)
 	vf = vf_get(dev->vf_receiver_name);
 	if (!vf)
 		return -EAGAIN;
+	get_count++;
 	vf->omx_index = dev->frame_num;
 	dev->am_parm.signal_type = vf->signal_type;
 	dev->am_parm.master_display_colour
@@ -736,7 +765,17 @@ static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *p)
 	buf = v4l2q_pop(&dev->input_queue);
 	dev->vf_wait_cnt = 0;
 	file_vf = fget(buf->m.fd);
+	if (!file_vf) {
+		mutex_unlock(&dev->mutex_input);
+		pr_err("v4lvideo: dqbuf fget fail\n");
+		return -EAGAIN;
+	}
 	file_private_data = (struct file_private_data *)(file_vf->private_data);
+	if (!file_private_data) {
+		mutex_unlock(&dev->mutex_input);
+		pr_err("v4lvideo: file_private_data NULL\n");
+		return -EAGAIN;
+	}
 	file_private_data->vf = *vf;
 	file_private_data->vf_p = vf;
 	//pr_err("dqbuf: file_private_data=%p, vf=%p\n", file_private_data, vf);
@@ -879,6 +918,8 @@ static int video_receiver_event_fun(int type, void *data, void *private_data)
 		dev->frame_num = 0;
 		dev->first_frame = 0;
 		mutex_unlock(&dev->mutex_input);
+		get_count = 0;
+		put_count = 0;
 		pr_err("reg:v4lvideo\n");
 	} else if (type == VFRAME_EVENT_PROVIDER_QUREY_STATE) {
 		if (dev->vf_wait_cnt > 1)

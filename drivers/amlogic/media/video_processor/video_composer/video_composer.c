@@ -116,8 +116,9 @@ static struct class video_composer_class = {
 #define PRINT_QUEUE_STATUS	0X0001
 #define PRINT_FENCE		0X0002
 #define PRINT_PERFORMANCE	0X0004
-#define PRINT_OTHER		0X0008
+#define PRINT_AXIS		0X0008
 #define PRINT_INDEX_DISP	0X0010
+#define PRINT_OTHER		0X0020
 
 #define to_dst_buf(vf)	\
 	container_of(vf, struct dst_buf_t, frame)
@@ -371,7 +372,7 @@ static void display_q_uninit(struct composer_dev *dev)
 	int repeat_count;
 	int i;
 
-	vc_print(dev->index, PRINT_OTHER, "vc: unit display_q len=%d\n",
+	vc_print(dev->index, PRINT_QUEUE_STATUS, "vc: unit display_q len=%d\n",
 		 kfifo_len(&dev->display_q));
 
 	while (kfifo_len(&dev->display_q) > 0) {
@@ -379,7 +380,7 @@ static void display_q_uninit(struct composer_dev *dev)
 			if (dis_vf->flag
 			    & VFRAME_FLAG_VIDEO_COMPOSER_BYPASS) {
 				repeat_count = dis_vf->repeat_count[dev->index];
-				vc_print(dev->index, PRINT_OTHER,
+				vc_print(dev->index, PRINT_FENCE,
 					 "vc: unit repeat_count=%d\n",
 					 repeat_count);
 				for (i = 0; i <= repeat_count; i++) {
@@ -399,7 +400,7 @@ static void receive_q_uninit(struct composer_dev *dev)
 	int i = 0;
 	struct received_frames_t *received_frames = NULL;
 
-	vc_print(dev->index, PRINT_OTHER, "vc: unit receive_q len=%d\n",
+	vc_print(dev->index, PRINT_QUEUE_STATUS, "vc: unit receive_q len=%d\n",
 		 kfifo_len(&dev->receive_q));
 	while (kfifo_len(&dev->receive_q) > 0) {
 		if (kfifo_get(&dev->receive_q, &received_frames))
@@ -418,7 +419,7 @@ static void ready_q_uninit(struct composer_dev *dev)
 	int repeat_count;
 	int i;
 
-	vc_print(dev->index, PRINT_OTHER, "vc: unit ready_q len=%d\n",
+	vc_print(dev->index, PRINT_QUEUE_STATUS, "vc: unit ready_q len=%d\n",
 		 kfifo_len(&dev->ready_q));
 
 	while (kfifo_len(&dev->ready_q) > 0) {
@@ -491,14 +492,14 @@ static struct vframe_s *get_dst_vframe_buffer(struct composer_dev *dev)
 	struct vframe_s *dst_vf;
 
 	if (!kfifo_get(&dev->free_q, &dst_vf)) {
-		vc_print(dev->index, PRINT_OTHER, "free q is empty\n");
+		vc_print(dev->index, PRINT_QUEUE_STATUS, "free q is empty\n");
 		return NULL;
 	}
 	return dst_vf;
 }
 
 static void check_window_change(struct composer_dev *dev,
-				struct frames_info_t cur_frame_info)
+				struct frames_info_t *cur_frame_info)
 {
 	int last_width, last_height, current_width, current_height;
 	int cur_pos_x, cur_pos_y, cur_pos_w, cur_pos_h;
@@ -509,16 +510,16 @@ static void check_window_change(struct composer_dev *dev,
 	int i;
 
 	last_frame_info = dev->last_frames.frames_info;
-	if (cur_frame_info.frame_count != last_frame_info.frame_count) {
+	if (cur_frame_info->frame_count != last_frame_info.frame_count) {
 		window_changed = true;
 		vc_print(dev->index, PRINT_ERROR,
 			 "last count=%d, current count=%d\n",
 			 last_frame_info.frame_count,
-			 cur_frame_info.frame_count);
+			 cur_frame_info->frame_count);
 	} else {
-		for (i = 0; i < cur_frame_info.frame_count; i++) {
-			current_width = cur_frame_info.frame_info[i].crop_w;
-			current_height = cur_frame_info.frame_info[i].crop_h;
+		for (i = 0; i < cur_frame_info->frame_count; i++) {
+			current_width = cur_frame_info->frame_info[i].crop_w;
+			current_height = cur_frame_info->frame_info[i].crop_h;
 			last_width = last_frame_info.frame_info[i].crop_w;
 			last_height = last_frame_info.frame_info[i].crop_h;
 
@@ -530,10 +531,10 @@ static void check_window_change(struct composer_dev *dev,
 				break;
 			}
 
-			cur_pos_x = cur_frame_info.frame_info[i].dst_x;
-			cur_pos_y = cur_frame_info.frame_info[i].dst_y;
-			cur_pos_w = cur_frame_info.frame_info[i].dst_w;
-			cur_pos_h = cur_frame_info.frame_info[i].dst_h;
+			cur_pos_x = cur_frame_info->frame_info[i].dst_x;
+			cur_pos_y = cur_frame_info->frame_info[i].dst_y;
+			cur_pos_w = cur_frame_info->frame_info[i].dst_w;
+			cur_pos_h = cur_frame_info->frame_info[i].dst_h;
 			last_pos_x = last_frame_info.frame_info[i].dst_x;
 			last_pos_y = last_frame_info.frame_info[i].dst_y;
 			last_pos_w = last_frame_info.frame_info[i].dst_w;
@@ -543,16 +544,16 @@ static void check_window_change(struct composer_dev *dev,
 			    (cur_pos_y != last_pos_y) ||
 			    (cur_pos_w != last_pos_w) ||
 			    (cur_pos_h != last_pos_h)) {
-				vc_print(dev->index, PRINT_ERROR,
+				vc_print(dev->index, PRINT_OTHER,
 					 "frame axis changed!");
 				window_changed = true;
 				break;
 			}
 
-			cur_zorder = cur_frame_info.frame_info[i].zorder;
+			cur_zorder = cur_frame_info->frame_info[i].zorder;
 			last_zorder = last_frame_info.frame_info[i].zorder;
 			if (cur_zorder != last_zorder) {
-				vc_print(dev->index, PRINT_ERROR,
+				vc_print(dev->index, PRINT_OTHER,
 					 "frame zorder changed!");
 				window_changed = true;
 				break;
@@ -652,7 +653,7 @@ static void vframe_composer(struct composer_dev *dev)
 		dst_vf = get_dst_vframe_buffer(dev);
 	}
 	if (IS_ERR_OR_NULL(dst_vf)) {
-		vc_print(dev->index, PRINT_OTHER, "dst vf is NULL\n");
+		vc_print(dev->index, PRINT_ERROR, "dst vf is NULL\n");
 		return;
 	}
 	memset(dst_vf, 0, sizeof(struct vframe_s));
@@ -666,13 +667,13 @@ static void vframe_composer(struct composer_dev *dev)
 			break;
 		drop_count++;
 		frames_put_file(dev, received_frames);
-		vc_print(dev->index, PRINT_ERROR, "com: drop frame\n");
+		vc_print(dev->index, PRINT_PERFORMANCE, "com: drop frame\n");
 		atomic_set(&received_frames->on_use, false);
 	}
 
 	frames_info = &received_frames->frames_info;
 	count = frames_info->frame_count;
-	check_window_change(dev, received_frames->frames_info);
+	check_window_change(dev, &received_frames->frames_info);
 
 	dst_buf = to_dst_buf(dst_vf);
 	dev->ge2d_para.format = GE2D_FORMAT_S24_YUV444;
@@ -680,6 +681,7 @@ static void vframe_composer(struct composer_dev *dev)
 	dev->ge2d_para.buffer_w = dst_buf->buf_w;
 	dev->ge2d_para.buffer_h = dst_buf->buf_h;
 	dev->ge2d_para.canvas0Addr = -1;
+	dev->ge2d_para.plane_num = 1;
 
 	if (dst_buf->dirty && !close_black) {
 		ret = fill_vframe_black(&dev->ge2d_para);
@@ -709,8 +711,6 @@ static void vframe_composer(struct composer_dev *dev)
 	}
 	min_left = vframe_info[0]->dst_x;
 	min_top = vframe_info[0]->dst_y;
-	max_right = vframe_info[0]->dst_x + vframe_info[0]->dst_w;
-	max_bottom = vframe_info[0]->dst_y + vframe_info[0]->dst_h;
 	for (i = 0; i < count; i++) {
 		if (vframe_info[vf_dev[i]]->type == 1) {
 			src_data.canvas0Addr = -1;
@@ -776,18 +776,6 @@ static void vframe_composer(struct composer_dev *dev)
 				src_data.is_vframe = true;
 		}
 		cur_transform = vframe_info[vf_dev[i]]->transform;
-		if (min_left > vframe_info[vf_dev[i]]->dst_x)
-			min_left = vframe_info[vf_dev[i]]->dst_x;
-		if (min_top > vframe_info[vf_dev[i]]->dst_y)
-			min_top = vframe_info[vf_dev[i]]->dst_y;
-		if (max_right < (vframe_info[vf_dev[i]]->dst_x +
-			vframe_info[vf_dev[i]]->dst_w))
-			max_right = vframe_info[vf_dev[i]]->dst_x +
-				vframe_info[vf_dev[i]]->dst_w;
-		if (max_bottom < (vframe_info[vf_dev[i]]->dst_y +
-			vframe_info[vf_dev[i]]->dst_h))
-			max_bottom = vframe_info[vf_dev[i]]->dst_y +
-				vframe_info[vf_dev[i]]->dst_h;
 		dev->ge2d_para.position_left =
 			vframe_info[vf_dev[i]]->dst_x;
 		dev->ge2d_para.position_top =
@@ -814,7 +802,16 @@ static void vframe_composer(struct composer_dev *dev)
 			dev->ge2d_para.position_top = dst_axis.top;
 			dev->ge2d_para.position_width = dst_axis.width;
 			dev->ge2d_para.position_height = dst_axis.height;
+			if (min_left > dst_axis.left)
+				min_left = dst_axis.left;
+			if (min_top > dst_axis.top)
+				min_top = dst_axis.top;
+			if (max_right < (dst_axis.left + dst_axis.width))
+				max_right = dst_axis.left + dst_axis.width;
+			if (max_bottom < (dst_axis.top + dst_axis.height))
+				max_bottom = dst_axis.top + dst_axis.height;
 		}
+		dev->ge2d_para.plane_num = 1;
 
 		ret = ge2d_data_composer(&src_data, &dev->ge2d_para);
 		if (ret < 0)
@@ -851,6 +848,7 @@ static void vframe_composer(struct composer_dev *dev)
 	dst_vf->crop[1] = min_left;
 	dst_vf->crop[2] = dst_buf->buf_h - max_bottom;
 	dst_vf->crop[3] = dst_buf->buf_w - max_right;
+
 	dst_vf->zorder = frames_info->disp_zorder;
 	dst_vf->canvas0_config[0].phy_addr = dst_buf->phy_addr;
 	dst_vf->canvas0Addr = -1;
@@ -993,7 +991,11 @@ static void video_composer_task(struct composer_dev *dev)
 				 "task: get failed\n");
 			return;
 		}
-
+		if (vf == NULL) {
+			vc_print(dev->index, PRINT_ERROR,
+				 "vf is NULL\n");
+			return;
+		}
 		vf->axis[0] = frame_info->dst_x;
 		vf->axis[1] = frame_info->dst_y;
 		vf->axis[2] = frame_info->dst_w + frame_info->dst_x - 1;
@@ -1042,31 +1044,31 @@ static void video_composer_task(struct composer_dev *dev)
 				- frame_info->crop_w
 				- frame_info->crop_x;
 		}
-		vc_print(dev->index, PRINT_OTHER,
+		vc_print(dev->index, PRINT_AXIS,
 			 "axis: %d %d %d %d\ncrop: %d %d %d %d\n",
 			 vf->axis[0], vf->axis[1], vf->axis[2], vf->axis[3],
 			 vf->crop[0], vf->crop[1], vf->crop[2], vf->crop[3]);
-		vc_print(dev->index, PRINT_OTHER,
+		vc_print(dev->index, PRINT_AXIS,
 			 "vf_width: %d, vf_height: %d\n",
 			 vf->width, vf->height);
-		vc_print(dev->index, PRINT_OTHER,
+		vc_print(dev->index, PRINT_AXIS,
 			 "=========frame info:==========\n");
-		vc_print(dev->index, PRINT_OTHER,
+		vc_print(dev->index, PRINT_AXIS,
 			 "frame aixs x,y,w,h: %d %d %d %d\n",
 			 frame_info->dst_x, frame_info->dst_y,
 			 frame_info->dst_w, frame_info->dst_h);
-		vc_print(dev->index, PRINT_OTHER,
+		vc_print(dev->index, PRINT_AXIS,
 			 "frame crop t,l,b,r: %d %d %d %d\n",
 			 frame_info->crop_y, frame_info->crop_x,
 			 frame_info->crop_h, frame_info->crop_w);
-		vc_print(dev->index, PRINT_OTHER,
+		vc_print(dev->index, PRINT_AXIS,
 			 "frame buffer Width X Height: %d X %d\n",
 			 frame_info->buffer_w, frame_info->buffer_h);
-		vc_print(dev->index, PRINT_OTHER,
+		vc_print(dev->index, PRINT_AXIS,
 			 "===============================\n");
 		if (dev->last_file == file_vf && frame_info->type == 0) {
 			vf->repeat_count[dev->index]++;
-			vc_print(dev->index, PRINT_OTHER,
+			vc_print(dev->index, PRINT_FENCE,
 				 "repeat =%d, omx_index=%d\n",
 				 vf->repeat_count[dev->index],
 				 vf->omx_index);
@@ -1081,7 +1083,7 @@ static void video_composer_task(struct composer_dev *dev)
 			if (ready_count > 1)
 				vc_print(dev->index, PRINT_ERROR,
 					 "ready len=%d\n", ready_count);
-			vc_print(dev->index, PRINT_OTHER,
+			vc_print(dev->index, PRINT_QUEUE_STATUS,
 				 "ready len=%d\n", kfifo_len(&dev->ready_q));
 		}
 		dev->fake_vf = *vf;
@@ -1397,22 +1399,27 @@ static void set_frames_info(struct composer_dev *dev,
 	for (j = 0; j < frames_info->frame_count; j++) {
 		frames_info->frame_info[j].composer_fen_fd = fence_fd;
 		file_vf = fget(frames_info->frame_info[j].fd);
+		if (!file_vf) {
+			vc_print(dev->index, PRINT_ERROR, "fget fd fail\n");
+			return;
+		}
 		dev->received_frames[i].file_vf[j] = file_vf;
 		if (frames_info->frame_info[j].type == 0) {
 			file_private_data =
 			(struct file_private_data *)(file_vf->private_data);
 			vf = &file_private_data->vf;
-			vc_print(dev->index, PRINT_INDEX_DISP,
-				 "received_cnt=%lld,i=%d,z=%d,omx_index=%d, fence_fd=%d, index_disp=%d\n",
+			vc_print(dev->index, PRINT_FENCE,
+				 "received_cnt=%lld,i=%d,z=%d,omx_index=%d, fence_fd=%d, fc_no=%d, index_disp=%d\n",
 				 dev->received_count + 1,
 				 i,
 				 frames_info->frame_info[j].zorder,
 				 vf->omx_index,
 				 fence_fd,
-				vf->index_disp);
+				 dev->cur_streamline_val,
+				 vf->index_disp);
 			ATRACE_COUNTER("video_composer", vf->index_disp);
 		} else if (frames_info->frame_info[j].type == 1) {
-			vc_print(dev->index, PRINT_OTHER,
+			vc_print(dev->index, PRINT_FENCE,
 				 "received_cnt=%lld,i=%d,z=%d,DMA_fd=%d\n",
 				 dev->received_count + 1,
 				 i,
@@ -1477,12 +1484,14 @@ static struct vframe_s *vc_vf_get(void *op_arg)
 	struct vframe_s *vf = NULL;
 
 	if (kfifo_get(&dev->ready_q, &vf)) {
-		if (vf) {
-			if (!kfifo_put(&dev->display_q, vf))
-				vc_print(dev->index, PRINT_ERROR,
-					 "display_q is full!\n");
-			get_count[dev->index]++;
-		}
+		if (!vf)
+			return NULL;
+
+		if (!kfifo_put(&dev->display_q, vf))
+			vc_print(dev->index, PRINT_ERROR,
+				 "display_q is full!\n");
+		get_count[dev->index]++;
+
 		vc_print(dev->index, PRINT_OTHER,
 			 "get: omx_index=%d\n",
 			 vf->omx_index);
@@ -1520,7 +1529,7 @@ static void vc_vf_put(struct vframe_s *vf, void *op_arg)
 		return;
 	}
 
-	vc_print(dev->index, PRINT_OTHER,
+	vc_print(dev->index, PRINT_FENCE,
 		 "put: repeat_count =%d, omx_index=%d\n",
 		 repeat_count, omx_index);
 
@@ -1532,7 +1541,7 @@ static void vc_vf_put(struct vframe_s *vf, void *op_arg)
 		dev->drop_frame_count = 0;
 	} else {
 		dev->drop_frame_count += repeat_count + 1;
-		vc_print(dev->index, PRINT_ERROR,
+		vc_print(dev->index, PRINT_PERFORMANCE,
 			 "put: drop repeat_count=%d\n", repeat_count);
 	}
 
