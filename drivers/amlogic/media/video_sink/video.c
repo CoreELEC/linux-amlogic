@@ -3384,6 +3384,8 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 	u32 next_afbc_request = atomic_read(&gafbc_request);
 	s32 vd1_path_id = glayer_info[0].display_path_id;
 	s32 vd2_path_id = glayer_info[1].display_path_id;
+	int axis[4];
+	int crop[4];
 
 	if (debug_flag & DEBUG_FLAG_VSYNC_DONONE)
 		return IRQ_HANDLED;
@@ -4507,6 +4509,21 @@ SET_FILTER:
 				get_layer_display_canvas(0);
 		}
 	}
+	if (vd_layer[0].dispbuf &&
+	    (vd_layer[0].dispbuf->flag & VFRAME_FLAG_VIDEO_COMPOSER) &&
+	    !(debug_flag & DEBUG_FLAG_AXIS_NO_UPDATE)) {
+		axis[0] = vd_layer[0].dispbuf->axis[0];
+		axis[1] = vd_layer[0].dispbuf->axis[1];
+		axis[2] = vd_layer[0].dispbuf->axis[2];
+		axis[3] = vd_layer[0].dispbuf->axis[3];
+		crop[0] = vd_layer[0].dispbuf->crop[0];
+		crop[1] = vd_layer[0].dispbuf->crop[1];
+		crop[2] = vd_layer[0].dispbuf->crop[2];
+		crop[3] = vd_layer[0].dispbuf->crop[3];
+		_set_video_window(&glayer_info[0], axis);
+		_set_video_crop(&glayer_info[0], crop);
+		glayer_info[0].zorder = vd_layer[0].dispbuf->zorder;
+	}
 	/* setting video display property in underflow mode */
 	if (!new_frame &&
 	    vd_layer[0].dispbuf &&
@@ -4687,6 +4704,22 @@ SET_FILTER:
 			vd_layer[1].dispbuf->canvas0Addr =
 				get_layer_display_canvas(1);
 		}
+	}
+
+	if (vd_layer[1].dispbuf &&
+	    (vd_layer[1].dispbuf->flag & VFRAME_FLAG_VIDEO_COMPOSER) &&
+	    !(debug_flag & DEBUG_FLAG_AXIS_NO_UPDATE)) {
+		axis[0] = vd_layer[1].dispbuf->axis[0];
+		axis[1] = vd_layer[1].dispbuf->axis[1];
+		axis[2] = vd_layer[1].dispbuf->axis[2];
+		axis[3] = vd_layer[1].dispbuf->axis[3];
+		crop[0] = vd_layer[1].dispbuf->crop[0];
+		crop[1] = vd_layer[1].dispbuf->crop[1];
+		crop[2] = vd_layer[1].dispbuf->crop[2];
+		crop[3] = vd_layer[1].dispbuf->crop[3];
+		_set_video_window(&glayer_info[1], axis);
+		_set_video_crop(&glayer_info[1], crop);
+		glayer_info[1].zorder = vd_layer[1].dispbuf->zorder;
 	}
 
 	/* setting video display property in underflow mode */
