@@ -19,6 +19,9 @@
 #define VIDEO_PRIV_HEADER_HH
 
 #include <linux/amlogic/media/video_sink/vpp.h>
+#ifdef CONFIG_AMLOGIC_MEDIA_VIDEOCAPTURE
+#include "amvideocap_priv.h"
+#endif
 
 #define VIDEO_ENABLE_STATE_IDLE       0
 #define VIDEO_ENABLE_STATE_ON_REQ     1
@@ -252,7 +255,20 @@ struct video_layer_s {
 	u8 enable_3d_mode;
 
 	u32 global_debug;
+
+#ifdef CONFIG_AMLOGIC_MEDIA_VIDEOCAPTURE
+	atomic_t capture_use_cnt;
+	struct amvideocap_req *capture_frame_req;
+#endif
 };
+
+#ifdef CONFIG_AMLOGIC_MEDIA_VIDEOCAPTURE
+enum video_capture_state {
+	CAPTURE_STATE_OFF = 0,
+	CAPTURE_STATE_ON = 1,
+	CAPTURE_STATE_CAPTURE = 2,
+};
+#endif
 
 /* from video_hw.c */
 extern struct video_layer_s vd_layer[MAX_VD_LAYER];
@@ -398,7 +414,11 @@ int _videopip_set_disable(u32 val);
 struct device *get_video_device(void);
 
 #ifdef CONFIG_AMLOGIC_MEDIA_VIDEOCAPTURE
-int ext_frame_capture_poll(int endflags);
+int ext_frame_capture_poll(struct vframe_s *vf);
+int ext_get_cur_video_frame(struct vframe_s **vf, int *canvas_index);
+int ext_put_video_frame(struct vframe_s *vf);
+struct amvideocap_req;
+int ext_register_end_frame_callback(struct amvideocap_req *req);
 #endif
 
 #endif
