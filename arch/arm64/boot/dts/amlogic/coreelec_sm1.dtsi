@@ -1,0 +1,2 @@
+#include "sm1_s905x3_ac213.dts"
+#include "coreelec_common.dtsi"
