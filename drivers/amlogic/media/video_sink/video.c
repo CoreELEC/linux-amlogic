@@ -67,9 +67,6 @@
 #include <linux/amlogic/media/utils/amports_config.h>
 #include <linux/amlogic/media/vpu/vpu.h>
 #include "videolog.h"
-#ifdef CONFIG_AMLOGIC_MEDIA_VIDEOCAPTURE
-#include "amvideocap_priv.h"
-#endif
 #ifdef CONFIG_AM_VIDEO_LOG
 #define AMLOG
 #endif
@@ -417,7 +414,6 @@ static int content_top = 0, content_left = 0, content_w = 0, content_h;
 static int scaler_pos_changed;
 #endif
 
-static struct amvideocap_req *capture_frame_req;
 u32 get_video_angle(void)
 {
 	return glayer_info[0].angle;
@@ -896,7 +892,6 @@ static inline struct vframe_s *pip_vf_get(void)
 	if (vf) {
 		get_count_pip++;
 		/* video_notify_flag |= VIDEO_NOTIFY_PROVIDER_GET; */
-		atomic_set(&vf->use_cnt, 1);
 	}
 	return vf;
 
@@ -922,7 +917,7 @@ static inline void pip_vf_put(struct vframe_s *vf)
 	if (pip_loop)
 		return;
 
-	if (vfp && vf && atomic_dec_and_test(&vf->use_cnt)) {
+	if (vfp && vf) {
 		vf_put(vf, RECEIVERPIP_NAME);
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 		if ((glayer_info[0].display_path_id
@@ -982,8 +977,6 @@ static inline struct vframe_s *video_vf_get(void)
 			frame_height = vf->height;
 		}
 		video_notify_flag |= VIDEO_NOTIFY_PROVIDER_GET;
-		atomic_set(&vf->use_cnt, 1);
-		/*always to 1,for first get from vfm provider */
 		if ((vf->type & VIDTYPE_MVC) && (framepacking_support)
 		&&(framepacking_width) && (framepacking_height)) {
 			vf->width = framepacking_width;
@@ -1052,12 +1045,10 @@ static int video_vf_get_states(struct vframe_states *states)
 
 static inline void video_vf_put(struct vframe_s *vf)
 {
-	struct vframe_provider_s *vfp = vf_get_provider(RECEIVER_NAME);
-
 	if (vf == &hist_test_vf)
 		return;
 
-	if (vfp && vf && atomic_dec_and_test(&vf->use_cnt)) {
+	if (vf) {
 		vf_put(vf, RECEIVER_NAME);
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 		if (is_dolby_vision_enable())
@@ -1067,15 +1058,6 @@ static inline void video_vf_put(struct vframe_s *vf)
 	}
 }
 
-int ext_get_cur_video_frame(struct vframe_s **vf, int *canvas_index)
-{
-	if (cur_dispbuf == NULL)
-		return -1;
-	atomic_inc(&cur_dispbuf->use_cnt);
-	*canvas_index = READ_VCBUS_REG(VD1_IF0_CANVAS0 + cur_dev->viu_off);
-	*vf = cur_dispbuf;
-	return 0;
-}
 static void dump_vframe_status(const char *name)
 {
 	int ret = -1;
@@ -1109,38 +1091,72 @@ static void dump_vdin_reg(void)
 }
 
 #ifdef CONFIG_AMLOGIC_MEDIA_VIDEOCAPTURE
+int ext_get_cur_video_frame(struct vframe_s **vf, int *canvas_index)
+{
+	if (cur_dispbuf == NULL)
+		return -1;
+	*canvas_index = READ_VCBUS_REG(VD1_IF0_CANVAS0 + cur_dev->viu_off);
+	*vf = cur_dispbuf;
+	return 0;
+}
+
 int ext_put_video_frame(struct vframe_s *vf)
 {
-	if (vf == &vf_local)
-		return 0;
-	video_vf_put(vf);
 	return 0;
 }
 
 int ext_register_end_frame_callback(struct amvideocap_req *req)
 {
-	mutex_lock(&video_module_mutex);
-	capture_frame_req = req;
-	mutex_unlock(&video_module_mutex);
+	struct video_layer_s *layer = &vd_layer[0];
+	enum video_capture_state capture_state = atomic_read(&layer->capture_use_cnt);
+
+	if (capture_state == CAPTURE_STATE_OFF)
+	{
+		return -ENODATA;
+	}
+	else if (capture_state == CAPTURE_STATE_CAPTURE)
+	{
+		if (req && !req->callback) {
+			atomic_set(&layer->capture_use_cnt, CAPTURE_STATE_ON);
+			layer->capture_frame_req = NULL;
+		}
+		return -EBUSY;
+	}
+	else if (capture_state == CAPTURE_STATE_ON && req)
+	{
+		layer->capture_frame_req = req;
+		atomic_set(&layer->capture_use_cnt, CAPTURE_STATE_CAPTURE);
+		return -EBUSY;
+	}
+
 	return 0;
 }
-int ext_frame_capture_poll(int endflags)
-{
-	mutex_lock(&video_module_mutex);
-	if (capture_frame_req && capture_frame_req->callback) {
-		struct vframe_s *vf;
-		int index;
-		int ret;
-		struct amvideocap_req *req = capture_frame_req;
 
-		ret = ext_get_cur_video_frame(&vf, &index);
-		if (!ret) {
-			req->callback(req->data, vf, index);
-			capture_frame_req = NULL;
+int ext_frame_capture_poll(struct vframe_s *vf)
+{
+	int ret = -EAGAIN;
+	static int capture_frame_toggle = 0;
+	struct video_layer_s *layer = &vd_layer[0];
+
+	if (capture_frame_toggle == 0 && vf) {
+		if (vf->duration > 0 && (96000 / vf->duration) > 30)
+			capture_frame_toggle = 1;
+		if ((atomic_read(&layer->capture_use_cnt) == CAPTURE_STATE_CAPTURE) && layer->capture_frame_req) {
+			struct amvideocap_req_data *reqdata =
+				(struct amvideocap_req_data *)layer->capture_frame_req->data;
+			int index = READ_VCBUS_REG(VD1_IF0_CANVAS0 + cur_dev->viu_off);
+
+			if (layer->capture_frame_req->callback && reqdata && reqdata->privdata)
+				ret = layer->capture_frame_req->callback(reqdata->privdata, vf, index);
+
+			layer->capture_frame_req = NULL;
+			atomic_set(&layer->capture_use_cnt, CAPTURE_STATE_ON);
 		}
 	}
-	mutex_unlock(&video_module_mutex);
-	return 0;
+	else
+		capture_frame_toggle = 0;
+
+	return ret;
 }
 #endif
 
@@ -1661,6 +1677,10 @@ static void vsync_toggle_frame(struct vframe_s *vf, int line)
 
 	if (cur_dispbuf && omx_secret_mode)
 		cur_disp_omx_index = cur_dispbuf->omx_index;
+
+#ifdef CONFIG_AMLOGIC_MEDIA_VIDEOCAPTURE
+	ext_frame_capture_poll(cur_dispbuf);
+#endif
 
 	if (first_picture) {
 		first_frame_toggled = 1;
