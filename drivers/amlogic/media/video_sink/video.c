@@ -189,6 +189,7 @@ static bool bypass_pps = true;
 int bit_depth_flag = 8;
 
 bool omx_secret_mode;
+EXPORT_SYMBOL(omx_secret_mode);
 static int omx_continuous_drop_count;
 static bool omx_continuous_drop_flag;
 static u32 cur_disp_omx_index;
