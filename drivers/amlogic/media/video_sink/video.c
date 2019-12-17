@@ -793,6 +793,7 @@ static int hdmin_delay_duration;
 static int vframe_walk_delay;
 /* video_inuse */
 u32 video_inuse;
+EXPORT_SYMBOL(video_inuse);
 
 void set_freerun_mode(int mode)
 {
