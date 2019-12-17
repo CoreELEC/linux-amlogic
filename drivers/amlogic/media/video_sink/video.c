@@ -1026,6 +1026,7 @@ static bool enable_hdmi_delay_normal_check;/*default is false*/
 #define HDMI_VIDEO_MIN_DELAY 3
 /* video_inuse */
 u32 video_inuse;
+EXPORT_SYMBOL(video_inuse);
 
 void set_freerun_mode(int mode)
 {
