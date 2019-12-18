@@ -1541,7 +1541,7 @@ static void vc_vf_put(struct vframe_s *vf, void *op_arg)
 		dev->drop_frame_count = 0;
 	} else {
 		dev->drop_frame_count += repeat_count + 1;
-		vc_print(dev->index, PRINT_PERFORMANCE,
+		vc_print(dev->index, PRINT_PERFORMANCE | PRINT_FENCE,
 			 "put: drop repeat_count=%d\n", repeat_count);
 	}
 
@@ -1673,6 +1673,7 @@ static int video_composer_init(struct composer_dev *dev)
 	dev->drop_frame_count = 0;
 	dev->is_sideband = false;
 	dev->need_empty_ready = false;
+	dev->last_file = NULL;
 	init_completion(&dev->task_done);
 
 	disable_video_layer(dev, 2);
