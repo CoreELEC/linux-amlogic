@@ -95,3 +95,13 @@
 		status = "okay";
 	};
 };
+
+&dwc2_a {
+	controller-type = <3>;
+};
+
+&ethmac {
+	cali_val = <0x10000>;
+	rx_delay = <0>;
+	auto_cali_idx = <0>;
+};
