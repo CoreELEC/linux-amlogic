@@ -678,12 +678,7 @@ static int dispbuf_to_put_num;
 
 static u32 post_canvas;
 
-/* black out policy */
-#if defined(CONFIG_JPEGLOGO)
 static u32 blackout;
-#else
-static u32 blackout = 1;
-#endif
 u32 force_blackout;
 static u32 blackout_pip;
 
