@@ -1215,7 +1215,7 @@ static int video_composer_open(struct inode *inode, struct file *file)
 	}
 
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
-	if (IS_ERR_OR_NULL(dev)) {
+	if (!dev) {
 		mutex_unlock(&video_composer_mutex);
 		pr_err("video_composer: instance %d alloc dev failed",
 		       port->index);
@@ -1387,10 +1387,10 @@ static void set_frames_info(struct composer_dev *dev,
 
 	time1 = dev->start_time;
 	do_gettimeofday(&time2);
-	time_us64 = 1000000 * (time2.tv_sec - time1.tv_sec)
+	time_us64 = (u64)1000000 * (time2.tv_sec - time1.tv_sec)
 			+ time2.tv_usec - time1.tv_usec;
 
-	time_vsync = 1000000 * (time2.tv_sec - vsync_time.tv_sec)
+	time_vsync = (u64)1000000 * (time2.tv_sec - vsync_time.tv_sec)
 					+ time2.tv_usec - vsync_time.tv_usec;
 
 	if ((frames_info->frame_count > MXA_LAYER_COUNT) ||
@@ -1500,7 +1500,8 @@ static struct vframe_s *vc_vf_peek(void *op_arg)
 	time2 = vsync_time;
 	if (kfifo_peek(&dev->ready_q, &vf)) {
 		if (vf && get_count[dev->index] > 0) {
-			time_vsync = 1000000 * (time2.tv_sec - time1.tv_sec)
+			time_vsync = (u64)1000000
+				* (time2.tv_sec - time1.tv_sec)
 				+ time2.tv_usec - time1.tv_usec;
 			interval_time = abs(time_vsync - vf->pts_us64);
 			vc_print(dev->index, PRINT_PERFORMANCE,

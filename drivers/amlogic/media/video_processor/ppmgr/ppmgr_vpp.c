@@ -2424,14 +2424,14 @@ static int ppmgr_task(void *data)
 		if (scaler_pos_changed) {
 			scaler_pos_changed = 0;
 			vf = get_cur_dispbuf();
-			if (!is_valid_ppframe(to_ppframe(vf)))
-				continue;
-			if ((vf->type & VIDTYPE_COMPRESS) &&
-				(vf->plane_num < 1) &&
-				(vf->canvas0Addr == (u32)-1)) {
-				continue;
-			}
 			if (vf) {
+				if (!is_valid_ppframe(to_ppframe(vf)))
+					continue;
+				if ((vf->type & VIDTYPE_COMPRESS) &&
+				    (vf->plane_num < 1) &&
+				    (vf->canvas0Addr == (u32)-1)) {
+					continue;
+				}
 				if (process_vf_adjust(vf,
 						context,
 						&ge2d_config) >= 0)
@@ -3442,7 +3442,7 @@ static void tb_detect_init(void)
 static int tb_task(void *data)
 {
 	int tbff_flag;
-	struct tbff_stats *pReg = NULL;
+	struct tbff_stats *preg = NULL;
 	ulong y5fld[5];
 	int is_top;
 	int inited = 0;
@@ -3453,15 +3453,15 @@ static int tb_task(void *data)
 	sched_setscheduler(current, SCHED_FIFO, &param);
 
 	inter_flag = 0;
-	pReg = kmalloc(sizeof(struct tbff_stats), GFP_KERNEL);
-	if (IS_ERR_OR_NULL(pReg)) {
-		PPMGRVPP_INFO("pReg malloc fail\n");
+	preg = kmalloc(sizeof(*preg), GFP_KERNEL);
+	if (!preg) {
+		PPMGRVPP_INFO("preg malloc fail\n");
 		return 0;
 	}
-	memset(pReg, 0, sizeof(struct tbff_stats));
+	memset(preg, 0, sizeof(struct tbff_stats));
 
 	if (gfunc)
-		gfunc->stats_init(pReg, TB_DETECT_H, TB_DETECT_W);
+		gfunc->stats_init(preg, TB_DETECT_H, TB_DETECT_W);
 	allow_signal(SIGTERM);
 	while (down_interruptible(&tb_sem) == 0) {
 		if (kthread_should_stop() || tb_quit_flag)
@@ -3482,8 +3482,8 @@ static int tb_task(void *data)
 		y5fld[3] = detect_buf[tb_buff_rptr + 1].vaddr;
 		y5fld[4] = detect_buf[tb_buff_rptr].vaddr;
 		if (gfunc) {
-			if (IS_ERR_OR_NULL(pReg)) {
-				PPMGRVPP_INFO("pReg is NULL!\n");
+			if (IS_ERR_OR_NULL(preg)) {
+				PPMGRVPP_INFO("preg is NULL!\n");
 				return 0;
 			}
 			for (i = 0; i < 5; i++) {
@@ -3498,13 +3498,13 @@ static int tb_task(void *data)
 				inter_flag = 0;
 				continue;
 			}
-			gfunc->stats_get(y5fld, pReg);
+			gfunc->stats_get(y5fld, preg);
 		}
 		is_top = is_top ^ 1;
 		tbff_flag = -1;
 		if (gfunc)
 			tbff_flag = gfunc->fwalg_get(
-				pReg, is_top,
+				preg, is_top,
 				(tb_first_frame_type == 3) ? 0 : 1,
 				tb_buff_rptr,
 				atomic_read(&tb_skip_flag),
@@ -3551,7 +3551,7 @@ static int tb_task(void *data)
 		}
 	}
 	atomic_set(&tb_run_flag, 0);
-	kfree(pReg);
+	kfree(preg);
 	while (!kthread_should_stop())
 		usleep_range(9000, 10000);
 	return 0;

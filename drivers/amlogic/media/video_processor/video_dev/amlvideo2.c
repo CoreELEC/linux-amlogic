@@ -6253,7 +6253,7 @@ static int amlvideo2_create_node(struct platform_device *pdev, int node_id)
 	vid_node->amlvideo2_pool_ready = NULL;
 	vid_node->amlvideo2_pool_size = 12;
 	vid_node->amlvideo2_pool_ready =
-		kmalloc((sizeof(struct vframe_s *) *
+		kmalloc((sizeof(struct vframe_s) *
 		(vid_node->amlvideo2_pool_size)),
 		GFP_KERNEL);
 	if (!vid_node->amlvideo2_pool_ready) {

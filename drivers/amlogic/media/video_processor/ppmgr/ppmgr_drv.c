@@ -588,13 +588,17 @@ static ssize_t dump_path_write(struct class *cla, struct class_attribute *attr,
 				const char *buf, size_t count)
 {
 	char *tmp;
+	int length = sizeof(ppmgr_device.dump_path);
 
 	tmp = kstrdup(buf, GFP_KERNEL);
 	if (!tmp) {
 		PPMGRDRV_INFO("buf kstrdup failed\n");
 		return 0;
 	}
-	strcpy(ppmgr_device.dump_path, tmp);
+	strncpy(ppmgr_device.dump_path, tmp,
+		length - 1);
+	ppmgr_device.dump_path[length - 1] = '\0';
+
 
 	return count;
 

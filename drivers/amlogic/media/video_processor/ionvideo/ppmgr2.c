@@ -385,14 +385,17 @@ int ppmgr2_init(struct ppmgr2_device *ppd)
 
 int ppmgr2_canvas_config(struct ppmgr2_device *ppd, int index)
 {
-	int canvas_width = ppd->dst_buffer_width;
-	int canvas_height = ppd->dst_buffer_height;
+	int canvas_width;
+	int canvas_height;
 	void *phy_addr;
 
-	if (!ppd->phy_addr) {
+	if (!ppd) {
 		ppmgr2_printk(1, "NULL physical address!\n");
 		return -1;
 	}
+
+	canvas_width = ppd->dst_buffer_width;
+	canvas_height = ppd->dst_buffer_height;
 
 	phy_addr = ppd->phy_addr[index];
 

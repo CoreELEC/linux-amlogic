@@ -203,7 +203,7 @@ static int ionvideo_vf_get_states(struct vframe_states *states)
  * DMA and thread functions
  * ------------------------------------------------------------------
  */
-unsigned int get_ionvideo_debug(void)
+int get_ionvideo_debug(void)
 {
 	return debug;
 }

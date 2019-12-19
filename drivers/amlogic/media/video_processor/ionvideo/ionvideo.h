@@ -315,7 +315,7 @@ struct ionvideo_dev {
 	struct v4l2_amlogic_parm am_parm;
 };
 
-unsigned int get_ionvideo_debug(void);
+int get_ionvideo_debug(void);
 
 int ppmgr2_init(struct ppmgr2_device *ppd);
 int ppmgr2_canvas_config(struct ppmgr2_device *ppd, int index);
