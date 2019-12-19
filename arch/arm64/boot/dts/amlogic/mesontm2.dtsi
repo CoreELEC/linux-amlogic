@@ -306,6 +306,11 @@
 		/* 4: 333.3M    5: 400.0M    6: 500.0M    7: 666.7M */
 	};
 
+	meson_uvm{
+		compatible = "amlogic, meson_uvm";
+		status = "okay";
+	};
+
 	ethmac: ethernet@ff3f0000 {
 		compatible = "amlogic, g12a-eth-dwmac","snps,dwmac";
 		reg = <0x0 0xff3f0000 0x0 0x10000
@@ -1552,6 +1557,12 @@
 			"mailbox_1",
 			"mailbox_2",
 			"parser_b";
+	};
+
+	video_composer {
+		compatible = "amlogic, video_composer";
+		dev_name = "video_composer";
+		status = "okay";
 	};
 
 	amvenc_avc{
