@@ -18,8 +18,22 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
+#ifdef CONFIG_AMLOGIC_MODIFY
+#include <linux/irqflags.h>
+#include <asm/proc-fns.h>
+#endif
 
 #include "dt_idle_states.h"
+
+#ifdef CONFIG_AMLOGIC_MODIFY
+static void meson_enter_freeze(struct cpuidle_device *dev,
+			       struct cpuidle_driver *drv,
+			       int index)
+{
+	local_irq_disable();
+	cpu_do_idle();
+}
+#endif
 
 static int init_state_node(struct cpuidle_state *idle_state,
 			   const struct of_device_id *matches,
@@ -73,6 +87,11 @@ static int init_state_node(struct cpuidle_state *idle_state,
 			     state_node->full_name);
 		return -EINVAL;
 	}
+
+#ifdef CONFIG_AMLOGIC_MODIFY
+	if (idle_state->target_residency == UINT_MAX)
+		idle_state->enter_freeze = meson_enter_freeze;
+#endif
 
 	err = of_property_read_string(state_node, "idle-state-name", &desc);
 	if (err)
