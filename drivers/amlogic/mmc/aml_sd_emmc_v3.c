@@ -274,6 +274,7 @@ static int meson_mmc_clk_set_rate_v3(struct mmc_host *mmc,
 				ret = clk_set_rate(src0_clk, 792000000);
 				if (ret)
 					pr_warn("not set tl1-gp0\n");
+				host->gp0_enable = 1;
 			}
 			pr_warn("set rate clkin2>>>>>>>>clk:%lu\n",
 						clk_get_rate(src0_clk));

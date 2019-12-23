@@ -456,6 +456,7 @@ struct amlsd_host {
 	char cmd_retune;
 	char find_win;
 	char tuning_mode;
+	int gp0_enable;
 	unsigned int is_sduart;
 	unsigned int irq;
 	unsigned int irq_in;

@@ -2054,6 +2054,7 @@ static int _mmc_suspend(struct mmc_host *host, bool is_suspend)
 		mmc_power_off(host);
 		mmc_card_set_suspended(host->card);
 	}
+
 out:
 	mmc_release_host(host);
 	return err;

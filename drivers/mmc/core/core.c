@@ -35,6 +35,7 @@
 #include <linux/mmc/mmc.h>
 #include <linux/mmc/sd.h>
 #include <linux/mmc/slot-gpio.h>
+#include <linux/amlogic/sd.h>
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/mmc.h>
@@ -1888,6 +1889,13 @@ void mmc_power_up(struct mmc_host *host, u32 ocr)
 
 void mmc_power_off(struct mmc_host *host)
 {
+#ifdef CONFIG_AMLOGIC_MMC
+	struct amlsd_platform *pdata = mmc_priv(host);
+	struct amlsd_host *mmc = pdata->host;
+	struct clk *src0_clk = NULL;
+	int ret;
+#endif
+
 	if (host->ios.power_mode == MMC_POWER_OFF)
 		return;
 
@@ -1895,6 +1903,16 @@ void mmc_power_off(struct mmc_host *host)
 
 	host->ios.clock = 0;
 	host->ios.vdd = 0;
+
+#ifdef CONFIG_AMLOGIC_MMC
+	if (mmc->gp0_enable == 1) {
+		src0_clk = devm_clk_get(mmc->dev, "xtal");
+		ret = clk_set_parent(mmc->mux_parent[0], src0_clk);
+		if (ret)
+			pr_warn("set src0: xtal as comp0 parent error\n");
+		mmc->gp0_enable = 0;
+	}
+#endif
 
 	host->ios.power_mode = MMC_POWER_OFF;
 	/* Set initial state and call mmc_set_ios */
