@@ -30,6 +30,9 @@
 
 int use_rgb_to_yuv = -1;
 
+module_param(use_rgb_to_yuv, int, 0444);
+MODULE_PARM_DESC(use_rgb_to_yuv, "\n use_rgb_to_yuv\n");
+
 #ifndef HDR2_MODULE
 
 // sdr to hdr table  12bit
