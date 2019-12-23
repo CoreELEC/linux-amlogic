@@ -2105,7 +2105,14 @@ bool dim_post_keep_release_one(unsigned int ch, unsigned int di_buf_index)
 	di_buf = &pbuf_post[di_buf_index];
 
 	if (!di_que_is_in_que(ch, QUE_POST_KEEP, di_buf)) {
-		PR_ERR("%s:buf[%d] is not in keep\n", __func__, di_buf_index);
+		if (is_in_queue(ch, di_buf, QUEUE_DISPLAY)) {
+			di_buf->queue_index = -1;
+			di_que_in(ch, QUE_POST_BACK, di_buf);
+			dbg_keep("%s:to back[%d]\n", __func__, di_buf_index);
+		} else {
+			PR_ERR("%s:buf[%d] is not in keep or display\n",
+			       __func__, di_buf_index);
+		}
 		return false;
 	}
 	di_que_out_not_fifo(ch, QUE_POST_KEEP, di_buf);
@@ -2168,11 +2175,13 @@ void dim_post_keep_cmd_release(unsigned int ch, struct vframe_s *vframe)
 		 di_buf->index);
 	task_send_cmd(LCMD2(ECMD_RL_KEEP, di_buf->channel, di_buf->index));
 }
-EXPORT_SYMBOL(dim_post_keep_cmd_release);
 
 void dim_post_keep_cmd_release2(struct vframe_s *vframe)
 {
 	struct di_buf_s *di_buf;
+
+	if (!dil_get_diffver_flag())
+		return;
 
 	if (!vframe)
 		return;
@@ -2189,15 +2198,11 @@ void dim_post_keep_cmd_release2(struct vframe_s *vframe)
 		return;
 	}
 
-	if (!di_que_is_in_que(di_buf->channel, QUE_POST_KEEP, di_buf)) {
-		PR_ERR("%s:not keep buf %d\n", __func__, di_buf->index);
-	} else {
-		dbg_keep("release keep ch[%d],index[%d]\n",
-			 di_buf->channel,
-			 di_buf->index);
-		task_send_cmd(LCMD2(ECMD_RL_KEEP, di_buf->channel,
-				    di_buf->index));
-	}
+	dbg_keep("release keep ch[%d],index[%d]\n",
+		 di_buf->channel,
+		 di_buf->index);
+	task_send_cmd(LCMD2(ECMD_RL_KEEP, di_buf->channel,
+			    di_buf->index));
 }
 EXPORT_SYMBOL(dim_post_keep_cmd_release2);
 
@@ -2255,6 +2260,7 @@ void dim_post_keep_cmd_proc(unsigned int ch, unsigned int index)
 	chst = dip_chst_get(ch);
 	switch (chst) {
 	case EDI_TOP_STATE_READY:
+	case eDI_TOP_STATE_UNREG_STEP2:
 		dim_post_keep_release_one(ch, index);
 		break;
 	case EDI_TOP_STATE_IDLE:
@@ -2299,8 +2305,14 @@ void dim_post_keep_cmd_proc(unsigned int ch, unsigned int index)
 		}
 
 		di_buf = &pbuf_post[index];
-		di_buf->queue_index = -1;
-		di_que_in(ch, QUE_POST_KEEP_BACK, di_buf);
+		if (is_in_queue(ch, di_buf, QUEUE_DISPLAY)) {
+			di_buf->queue_index = -1;
+			di_que_in(ch, QUE_POST_BACK, di_buf);
+			dbg_keep("%s:to back[%d]\n", __func__, index);
+		} else {
+			PR_ERR("%s:buf[%d] is not in display\n",
+			       __func__, index);
+		}
 		break;
 	default:
 		PR_ERR("%s:do nothing? %s:%d\n",

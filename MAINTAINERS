@@ -15161,6 +15161,10 @@ M:	Jihong Sui <jihong.sui@amlogic.com>
 F:	drivers/amlogic/media/deinterlace/di_pqa.h
 F:	drivers/amlogic/media/di_local/*
 
+AMLOGIC DEINTERLACE DRIVER
+M:	qianqian cai <qianqian.cai@amlogic.com>
+F:	include/linux/amlogic/media/di/di.h
+
 AMLOGIC ADD DI_MULTI DRIVER
 M:	Jihong Sui <jihong.sui@amlogic.com>
 F:	drivers/amlogic/media/di_multi/*

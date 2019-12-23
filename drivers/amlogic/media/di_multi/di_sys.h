@@ -38,5 +38,9 @@ bool dim_mm_release_api(int cma_mode,
 bool dim_cma_top_alloc(unsigned int ch);
 bool dim_cma_top_release(unsigned int ch);
 bool dim_rev_mem_check(void);
+/*--Different DI versions flag---*/
+void dil_set_diffver_flag(unsigned int para);
 
+unsigned int dil_get_diffver_flag(void);
+/*-------------------------*/
 #endif	/*__DI_SYS_H__*/

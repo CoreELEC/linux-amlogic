@@ -486,8 +486,11 @@ extern bool di_wr_cue_int(void);
 extern int reg_cue_int_show(struct seq_file *seq, void *v);
 
 bool dil_attach_ext_api(const struct di_ext_ops *di_api);
-/*---------------------*/
+/*--Different DI versions flag---*/
+void dil_set_diffver_flag(unsigned int para);
 
+unsigned int dil_get_diffver_flag(void);
+/*-------------------------*/
 struct di_buf_s *get_di_buf(int queue_idx, int *start_pos);
 
 #define queue_for_each_entry(di_buf, ptm, queue_idx, list)      \

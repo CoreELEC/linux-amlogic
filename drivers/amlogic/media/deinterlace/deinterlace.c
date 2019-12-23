@@ -570,6 +570,9 @@ int get_di_dump_state_flag(void)
  ********************************************/
 void di_trig_free_mirror_mem(void)
 {
+	if (dil_get_diffver_flag())
+		return;
+
 	if (atomic_read(&di_flag_unreg)
 		&& de_devp->flag_cma != 2
 		&& de_devp->flag_cma != 0
@@ -8840,6 +8843,8 @@ static int di_probe(struct platform_device *pdev)
 
 	dil_attach_ext_api(&di_ext);
 	di_patch_mov_ini();
+
+	dil_set_diffver_flag(0);
 
 	di_pr_info("%s:ok\n", __func__);
 	return ret;

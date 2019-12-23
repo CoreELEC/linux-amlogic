@@ -972,6 +972,8 @@ static int dim_probe(struct platform_device *pdev)
 
 	dimh_patch_post_update_mc_sw(DI_MC_SW_IC, true);
 
+	dil_set_diffver_flag(1);
+
 	pr_info("%s:ok\n", __func__);
 	return ret;
 

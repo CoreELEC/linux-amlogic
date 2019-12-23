@@ -68,6 +68,22 @@ static struct dil_dev_s *pdv;
 
 static const struct di_ext_ops *dil_api;	//temp
 
+static unsigned int diffver_flag;
+
+/***************************************
+ * dil api for make a distinction between old/new DI function *
+ **************************************/
+void dil_set_diffver_flag(unsigned int para)
+{
+	diffver_flag = para;
+}
+EXPORT_SYMBOL(dil_set_diffver_flag);
+unsigned int dil_get_diffver_flag(void)
+{
+	return diffver_flag;
+}
+EXPORT_SYMBOL(dil_get_diffver_flag);
+
 /***************************************
  * di api for other module *
  **************************************/
