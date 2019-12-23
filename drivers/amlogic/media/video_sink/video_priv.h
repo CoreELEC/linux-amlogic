@@ -64,8 +64,6 @@
 
 #define MAX_VD_LAYER 2
 
-#define DISPBUF_TO_PUT_MAX  8
-
 #define COMPOSE_MODE_NONE			0
 #define COMPOSE_MODE_3D			1
 #define COMPOSE_MODE_DV			2

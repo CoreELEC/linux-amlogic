@@ -88,6 +88,8 @@ MODULE_AMLOG(LOG_LEVEL_ERROR, 0, LOG_DEFAULT_LEVEL_DESC, LOG_MASK_DESC);
 #include "../common/vfm/vfm.h"
 #include <linux/amlogic/media/amdolbyvision/dolby_vision.h>
 
+#include <linux/amlogic/media/di/di.h>
+
 #ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
 #include <linux/amlogic/pm.h>
 #endif
@@ -672,9 +674,12 @@ bool rdma_enable_pre;
 static struct vframe_s *pip_rdma_buf;
 static struct vframe_s *pipbuf_to_put;
 
-static struct vframe_s *dispbuf_to_put[DISPBUF_TO_PUT_MAX];
-static int dispbuf_to_put_num;
+static struct vframe_s *dispbuf_to_put;
 #endif
+/* 0: amvideo, 1: pip */
+/* rdma buf + dispbuf + to_put_buf */
+static struct vframe_s *recycle_buf[2][2];
+static u32 recycle_cnt[2];
 
 static u32 post_canvas;
 
@@ -1372,7 +1377,6 @@ bool has_enhanced_layer(struct vframe_s *vf)
 
 static bool has_receive_dummy_vframe(void)
 {
-	int i;
 	struct vframe_s *vf;
 
 	vf = video_vf_peek();
@@ -1382,12 +1386,9 @@ static bool has_receive_dummy_vframe(void)
 		vf = video_vf_get();
 
 #ifdef CONFIG_AMLOGIC_MEDIA_VSYNC_RDMA /* recycle vframe. */
-		for (i = 0; i < dispbuf_to_put_num; i++) {
-			if (dispbuf_to_put[i]) {
-				video_vf_put(dispbuf_to_put[i]);
-				dispbuf_to_put[i] = NULL;
-			}
-			dispbuf_to_put_num = 0;
+		if (dispbuf_to_put) {
+			video_vf_put(dispbuf_to_put);
+			dispbuf_to_put = NULL;
 		}
 #endif
 		/* recycle the last vframe. */
@@ -1563,32 +1564,15 @@ static void vsync_toggle_frame(struct vframe_s *vf, int line)
 	    (cur_dispbuf != vf)) {
 #ifdef CONFIG_AMLOGIC_MEDIA_VSYNC_RDMA
 		if (is_vsync_rdma_enable()) {
-#ifdef RDMA_RECYCLE_ORDERED_VFRAMES
-			if (dispbuf_to_put_num < DISPBUF_TO_PUT_MAX) {
-				dispbuf_to_put[dispbuf_to_put_num] =
-				    cur_dispbuf;
-				dispbuf_to_put_num++;
-			} else {
+			if (cur_rdma_buf == cur_dispbuf)
+				dispbuf_to_put = cur_dispbuf;
+			else
 				video_vf_put(cur_dispbuf);
-			}
-#else
-			if (cur_rdma_buf == cur_dispbuf) {
-				dispbuf_to_put[0] = cur_dispbuf;
-				dispbuf_to_put_num = 1;
-			} else {
-				video_vf_put(cur_dispbuf);
-			}
-#endif
 		} else {
-			int i;
-
-			for (i = 0; i < dispbuf_to_put_num; i++) {
-				if (dispbuf_to_put[i]) {
-					video_vf_put(
-						dispbuf_to_put[i]);
-					dispbuf_to_put[i] = NULL;
-				}
-				dispbuf_to_put_num = 0;
+			if (dispbuf_to_put) {
+				video_vf_put(
+					dispbuf_to_put);
+				dispbuf_to_put = NULL;
 			}
 			video_vf_put(cur_dispbuf);
 		}
@@ -3354,6 +3338,90 @@ static s32 primary_render_frame(struct video_layer_s *layer)
 	return 1;
 }
 
+static s32 update_amvideo_recycle_buffer(void)
+{
+	struct vframe_s *rdma_buf = NULL;
+	struct vframe_s *to_put_buf = NULL;
+
+#ifdef CONFIG_AMLOGIC_MEDIA_VSYNC_RDMA
+	/* after one vsync processing, should be same */
+	if (cur_rdma_buf != cur_dispbuf) {
+		pr_err("expection: amvideo rdma_buf:%p, dispbuf:%p!\n",
+		       cur_rdma_buf, cur_dispbuf);
+		return -1;
+	}
+	to_put_buf = dispbuf_to_put;
+#endif
+
+	if (cur_dispbuf != &vf_local)
+		rdma_buf = cur_dispbuf;
+
+	if (recycle_cnt[0] &&
+	    (to_put_buf || rdma_buf)) {
+		pr_err("expection: amvideo recycle_cnt:%d, recycle_buf:%p-%p, to_put:%p, rdma_buf:%p!\n",
+		       recycle_cnt[0], recycle_buf[0][0], recycle_buf[0][1],
+		       to_put_buf, rdma_buf);
+		return -1;
+	}
+	if (!recycle_cnt[0]) {
+		recycle_buf[0][0] = NULL;
+		recycle_buf[0][1] = NULL;
+		if (to_put_buf)
+			recycle_buf[0][recycle_cnt[0]++] = to_put_buf;
+		if (rdma_buf &&
+		    (rdma_buf != to_put_buf))
+			recycle_buf[0][recycle_cnt[0]++] = rdma_buf;
+		pr_info("amvideo need recycle %d new buffers: %p, %p\n",
+			recycle_cnt[0], recycle_buf[0][0], recycle_buf[0][1]);
+	} else {
+		pr_info("amvideo need recycle %d remained buffers: %p, %p\n",
+			recycle_cnt[0], recycle_buf[0][0], recycle_buf[0][1]);
+	}
+	return 0;
+}
+
+static s32 update_pip_recycle_buffer(void)
+{
+	struct vframe_s *rdma_buf = NULL;
+	struct vframe_s *to_put_buf = NULL;
+
+#ifdef CONFIG_AMLOGIC_MEDIA_VSYNC_RDMA
+	/* after one vsync processing, should be same */
+	if (pip_rdma_buf != cur_pipbuf) {
+		pr_err("expection: pip rdma_buf:%p, dispbuf:%p!\n",
+		       pip_rdma_buf, cur_pipbuf);
+		return -1;
+	}
+	to_put_buf = pipbuf_to_put;
+#endif
+
+	if (cur_pipbuf != &local_pip)
+		rdma_buf = cur_pipbuf;
+
+	if (recycle_cnt[1] &&
+	    (to_put_buf || rdma_buf)) {
+		pr_err("expection: pip recycle_cnt:%d, recycle_buf:%p-%p, to_put:%p, rdma_buf:%p!\n",
+		       recycle_cnt[1], recycle_buf[1][0], recycle_buf[1][1],
+		       to_put_buf, rdma_buf);
+		return -1;
+	}
+	if (!recycle_cnt[1]) {
+		recycle_buf[1][0] = NULL;
+		recycle_buf[1][1] = NULL;
+		if (to_put_buf)
+			recycle_buf[1][recycle_cnt[1]++] = to_put_buf;
+		if (rdma_buf &&
+		    (rdma_buf != to_put_buf))
+			recycle_buf[1][recycle_cnt[1]++] = rdma_buf;
+		pr_info("pip need recycle %d new buffers: %p, %p\n",
+			recycle_cnt[1], recycle_buf[1][0], recycle_buf[1][1]);
+	} else {
+		pr_info("pip need recycle %d remained buffers: %p, %p\n",
+			recycle_cnt[1], recycle_buf[1][0], recycle_buf[1][1]);
+	}
+	return 0;
+}
+
 #ifdef FIQ_VSYNC
 void vsync_fisr_in(void)
 #else
@@ -3363,7 +3431,7 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 	int hold_line;
 	int enc_line;
 	unsigned char frame_par_di_set = 0;
-	s32 i, vout_type;
+	s32 vout_type;
 	struct vframe_s *vf;
 	bool show_nosync = false;
 	int toggle_cnt;
@@ -3776,6 +3844,26 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 	if (atomic_read(&video_unreg_flag))
 		goto exit;
 
+	if (recycle_cnt[0]) {
+		if (recycle_buf[0][0])
+			dim_post_keep_cmd_release2(recycle_buf[0][0]);
+		recycle_buf[0][0] = NULL;
+		if (recycle_buf[0][1])
+			dim_post_keep_cmd_release2(recycle_buf[0][1]);
+		recycle_buf[0][1] = NULL;
+		recycle_cnt[0] = 0;
+	}
+
+	if (recycle_cnt[1]) {
+		if (recycle_buf[1][0])
+			dim_post_keep_cmd_release2(recycle_buf[1][0]);
+		recycle_buf[1][0] = NULL;
+		if (recycle_buf[1][1])
+			dim_post_keep_cmd_release2(recycle_buf[1][1]);
+		recycle_buf[1][1] = NULL;
+		recycle_cnt[1] = 0;
+	}
+
 	if (atomic_read(&video_pause_flag) &&
 	    !((vd_layer[0].global_output == 1) &&
 	      (vd_layer[0].enabled !=
@@ -3796,13 +3884,10 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 		vd_layer[1].next_canvas_id = 1;
 	}
 
-	for (i = 0; i < dispbuf_to_put_num; i++) {
-		if (dispbuf_to_put[i]) {
-			dispbuf_to_put[i]->rendered = true;
-			video_vf_put(dispbuf_to_put[i]);
-			dispbuf_to_put[i] = NULL;
-		}
-		dispbuf_to_put_num = 0;
+	if (dispbuf_to_put) {
+		dispbuf_to_put->rendered = true;
+		video_vf_put(dispbuf_to_put);
+		dispbuf_to_put = NULL;
 	}
 	if (pipbuf_to_put) {
 		pipbuf_to_put->rendered = true;
@@ -5034,12 +5119,9 @@ static void video_vf_unreg_provider(void)
 	frame_detect_receive_count = 0;
 	spin_lock_irqsave(&lock, flags);
 
+	update_amvideo_recycle_buffer();
 #ifdef CONFIG_AMLOGIC_MEDIA_VSYNC_RDMA
-	dispbuf_to_put_num = DISPBUF_TO_PUT_MAX;
-	while (dispbuf_to_put_num > 0) {
-		dispbuf_to_put_num--;
-		dispbuf_to_put[dispbuf_to_put_num] = NULL;
-	}
+	dispbuf_to_put = NULL;
 	cur_rdma_buf = NULL;
 #endif
 	if (cur_dispbuf) {
@@ -5182,12 +5264,10 @@ static void video_vf_light_unreg_provider(int need_keep_frame)
 		schedule();
 
 	spin_lock_irqsave(&lock, flags);
+
+	update_amvideo_recycle_buffer();
 #ifdef CONFIG_AMLOGIC_MEDIA_VSYNC_RDMA
-	dispbuf_to_put_num = DISPBUF_TO_PUT_MAX;
-	while (dispbuf_to_put_num > 0) {
-		dispbuf_to_put_num--;
-		dispbuf_to_put[dispbuf_to_put_num] = NULL;
-	}
+	dispbuf_to_put = NULL;
 	cur_rdma_buf = NULL;
 #endif
 
@@ -5393,6 +5473,7 @@ static void pip_vf_unreg_provider(void)
 		schedule();
 	spin_lock_irqsave(&lock, flags);
 
+	update_pip_recycle_buffer();
 #ifdef CONFIG_AMLOGIC_MEDIA_VSYNC_RDMA
 	pipbuf_to_put = NULL;
 	pip_rdma_buf = NULL;
@@ -5468,6 +5549,8 @@ static void pip_vf_light_unreg_provider(int need_keep_frame)
 		schedule();
 
 	spin_lock_irqsave(&lock, flags);
+
+	update_pip_recycle_buffer();
 #ifdef CONFIG_AMLOGIC_MEDIA_VSYNC_RDMA
 	pipbuf_to_put = NULL;
 	pip_rdma_buf = NULL;
@@ -9966,13 +10049,9 @@ static int __init video_init(void)
 	vout_hook();
 #endif
 
-#ifdef CONFIG_AMLOGIC_MEDIA_VSYNC_RDMA
-	dispbuf_to_put_num = DISPBUF_TO_PUT_MAX;
-	while (dispbuf_to_put_num > 0) {
-		dispbuf_to_put_num--;
-		dispbuf_to_put[dispbuf_to_put_num] = NULL;
-	}
-#endif
+	memset(recycle_buf, 0, sizeof(recycle_buf));
+	memset(recycle_cnt, 0, sizeof(recycle_cnt));
+
 	gvideo_recv[0] = create_video_receiver(
 		"video_render.0", VFM_PATH_VIDEO_RENDER0);
 	gvideo_recv[1] = create_video_receiver(
