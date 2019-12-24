@@ -225,6 +225,17 @@ struct v4lvideo_dev {
 	u8 first_frame;
 };
 
+enum vframe_source_type {
+	DECODER_8BIT_NORMAL = 0,
+	DECODER_8BIT_BOTTOM,
+	DECODER_8BIT_TOP,
+	DECODER_10BIT_NORMAL,
+	DECODER_10BIT_BOTTOM,
+	DECODER_10BIT_TOP,
+	VDIN_8BIT_NORMAL,
+	VDIN_10BIT_NORMAL,
+};
+
 unsigned int get_v4lvideo_debug(void);
 
 #define V4LVIDEO_IOC_MAGIC  'I'

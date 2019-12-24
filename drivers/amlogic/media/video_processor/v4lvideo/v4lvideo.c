@@ -20,6 +20,7 @@
 #include <linux/amlogic/media/vfm/vframe.h>
 #include <linux/amlogic/media/vfm/vframe_provider.h>
 #include <linux/amlogic/media/vfm/vframe_receiver.h>
+#include <linux/amlogic/cpu_version.h>
 #include "v4lvideo.h"
 #include <media/videobuf2-core.h>
 #include <media/videobuf2-v4l2.h>
@@ -412,6 +413,143 @@ static struct ge2d_context_s *context;
 static int canvas_src_id[3];
 static int canvas_dst_id[3];
 
+static int get_source_type(struct vframe_s *vf)
+{
+	enum vframe_source_type ret;
+	int interlace_mode;
+
+	interlace_mode = vf->type & VIDTYPE_TYPEMASK;
+	if ((vf->source_type == VFRAME_SOURCE_TYPE_HDMI) ||
+	    (vf->source_type == VFRAME_SOURCE_TYPE_CVBS)) {
+		if ((vf->bitdepth & BITDEPTH_Y10) &&
+		    (!(vf->type & VIDTYPE_COMPRESS)) &&
+		    (get_cpu_type() >= MESON_CPU_MAJOR_ID_TXL))
+			ret = VDIN_10BIT_NORMAL;
+		else
+			ret = VDIN_8BIT_NORMAL;
+	} else {
+		if ((vf->bitdepth & BITDEPTH_Y10) &&
+		    (!(vf->type & VIDTYPE_COMPRESS)) &&
+		    (get_cpu_type() >= MESON_CPU_MAJOR_ID_TXL)) {
+			if (interlace_mode == VIDTYPE_INTERLACE_TOP)
+				ret = DECODER_10BIT_TOP;
+			else if (interlace_mode == VIDTYPE_INTERLACE_BOTTOM)
+				ret = DECODER_10BIT_BOTTOM;
+			else
+				ret = DECODER_10BIT_NORMAL;
+		} else {
+			if (interlace_mode == VIDTYPE_INTERLACE_TOP)
+				ret = DECODER_8BIT_TOP;
+			else if (interlace_mode == VIDTYPE_INTERLACE_BOTTOM)
+				ret = DECODER_8BIT_BOTTOM;
+			else
+				ret = DECODER_8BIT_NORMAL;
+		}
+	}
+	return ret;
+}
+
+static int get_input_format(struct vframe_s *vf)
+{
+	int format = GE2D_FORMAT_M24_YUV420;
+	enum vframe_source_type soure_type;
+
+	soure_type = get_source_type(vf);
+	switch (soure_type) {
+	case DECODER_8BIT_NORMAL:
+		if (vf->type & VIDTYPE_VIU_422)
+			format = GE2D_FORMAT_S16_YUV422;
+		else if (vf->type & VIDTYPE_VIU_NV21)
+			format = GE2D_FORMAT_M24_NV21;
+		else if (vf->type & VIDTYPE_VIU_444)
+			format = GE2D_FORMAT_S24_YUV444;
+		else
+			format = GE2D_FORMAT_M24_YUV420;
+		break;
+	case DECODER_8BIT_BOTTOM:
+		if (vf->type & VIDTYPE_VIU_422)
+			format = GE2D_FORMAT_S16_YUV422
+				| (GE2D_FORMAT_S16_YUV422B & (3 << 3));
+		else if (vf->type & VIDTYPE_VIU_NV21)
+			format = GE2D_FORMAT_M24_NV21
+				| (GE2D_FORMAT_M24_NV21B & (3 << 3));
+		else if (vf->type & VIDTYPE_VIU_444)
+			format = GE2D_FORMAT_S24_YUV444
+				| (GE2D_FORMAT_S24_YUV444B & (3 << 3));
+		else
+			format = GE2D_FORMAT_M24_YUV420
+				| (GE2D_FMT_M24_YUV420B & (3 << 3));
+		break;
+	case DECODER_8BIT_TOP:
+		if (vf->type & VIDTYPE_VIU_422)
+			format = GE2D_FORMAT_S16_YUV422
+				| (GE2D_FORMAT_S16_YUV422T & (3 << 3));
+		else if (vf->type & VIDTYPE_VIU_NV21)
+			format = GE2D_FORMAT_M24_NV21
+				| (GE2D_FORMAT_M24_NV21T & (3 << 3));
+		else if (vf->type & VIDTYPE_VIU_444)
+			format = GE2D_FORMAT_S24_YUV444
+				| (GE2D_FORMAT_S24_YUV444T & (3 << 3));
+		else
+			format = GE2D_FORMAT_M24_YUV420
+				| (GE2D_FMT_M24_YUV420T & (3 << 3));
+		break;
+	case DECODER_10BIT_NORMAL:
+		if (vf->type & VIDTYPE_VIU_422) {
+			if (vf->bitdepth & FULL_PACK_422_MODE)
+				format = GE2D_FORMAT_S16_10BIT_YUV422;
+			else
+				format = GE2D_FORMAT_S16_12BIT_YUV422;
+		}
+		break;
+	case DECODER_10BIT_BOTTOM:
+		if (vf->type & VIDTYPE_VIU_422) {
+			if (vf->bitdepth & FULL_PACK_422_MODE)
+				format = GE2D_FORMAT_S16_10BIT_YUV422
+					| (GE2D_FORMAT_S16_10BIT_YUV422B
+					& (3 << 3));
+			else
+				format = GE2D_FORMAT_S16_12BIT_YUV422
+					| (GE2D_FORMAT_S16_12BIT_YUV422B
+					& (3 << 3));
+		}
+		break;
+	case DECODER_10BIT_TOP:
+		if (vf->type & VIDTYPE_VIU_422) {
+			if (vf->bitdepth & FULL_PACK_422_MODE)
+				format = GE2D_FORMAT_S16_10BIT_YUV422
+					| (GE2D_FORMAT_S16_10BIT_YUV422T
+					& (3 << 3));
+			else
+				format = GE2D_FORMAT_S16_12BIT_YUV422
+					| (GE2D_FORMAT_S16_12BIT_YUV422T
+					& (3 << 3));
+		}
+		break;
+	case VDIN_8BIT_NORMAL:
+		if (vf->type & VIDTYPE_VIU_422)
+			format = GE2D_FORMAT_S16_YUV422;
+		else if (vf->type & VIDTYPE_VIU_NV21)
+			format = GE2D_FORMAT_M24_NV21;
+		else if (vf->type & VIDTYPE_VIU_444)
+			format = GE2D_FORMAT_S24_YUV444;
+		else
+			format = GE2D_FORMAT_M24_YUV420;
+		break;
+	case VDIN_10BIT_NORMAL:
+		if (vf->type & VIDTYPE_VIU_422) {
+			if (vf->bitdepth & FULL_PACK_422_MODE)
+				format = GE2D_FORMAT_S16_10BIT_YUV422;
+			else
+				format = GE2D_FORMAT_S16_12BIT_YUV422;
+		}
+		break;
+	default:
+		format = GE2D_FORMAT_M24_YUV420;
+	}
+	return format;
+}
+
 static void do_vframe_afbc_soft_decode(struct v4l_data_t *v4l_data)
 {
 	int i, j, ret, y_size;
@@ -512,6 +650,8 @@ void v4lvideo_data_copy(struct v4l_data_t *v4l_data)
 	struct canvas_config_s dst_canvas_config[3];
 	struct vframe_s *vf = NULL;
 	const char *keep_owner = "ge2d_dest_comp";
+	bool di_mode = false;
+	bool is_10bit = false;
 
 	vf = v4l_data->vf;
 
@@ -519,6 +659,13 @@ void v4lvideo_data_copy(struct v4l_data_t *v4l_data)
 		do_vframe_afbc_soft_decode(v4l_data);
 		return;
 	}
+	is_10bit = vf->bitdepth & BITDEPTH_Y10;
+	di_mode = vf->type & VIDTYPE_DI_PW;
+	if (is_10bit && (!di_mode)) {
+		pr_err("vframe 10bit copy is not supported.\n");
+		return;
+	}
+
 	memset(&ge2d_config, 0, sizeof(ge2d_config));
 	memset(dst_canvas_config, 0, sizeof(dst_canvas_config));
 
@@ -605,7 +752,7 @@ void v4lvideo_data_copy(struct v4l_data_t *v4l_data)
 	ge2d_config.src_key.key_mode = 0;
 
 	ge2d_config.src_para.mem_type = CANVAS_TYPE_INVALID;
-	ge2d_config.src_para.format = GE2D_FORMAT_M24_NV21;
+	ge2d_config.src_para.format = get_input_format(vf);
 	ge2d_config.src_para.fill_color_en = 0;
 	ge2d_config.src_para.fill_mode = 0;
 	ge2d_config.src_para.x_rev = 0;
