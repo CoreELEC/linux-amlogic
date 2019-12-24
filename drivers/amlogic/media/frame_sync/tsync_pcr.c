@@ -203,9 +203,11 @@ static u32 tsync_audio_mode;
 static u32 tsync_audio_state;
 static u32 tsync_video_state;
 static int tsync_audio_discontinue;
+static int tsync_video_discontinue;
 static int tsync_audio_continue_count;
 static u32 tsync_video_continue_count;
 static u32 last_discontinue_checkin_apts;
+static u32 last_discontinue_checkin_vpts;
 static u32 last_pcr_checkin_apts;
 static u32 last_pcr_checkin_vpts;
 static u32 last_pcr_checkin_apts_count;
@@ -849,14 +851,15 @@ void tsync_pcr_check_checinpts(void)
 				> 2 * 90000) {
 				tsync_pcr_tsdemuxpcr_discontinue |=
 				VIDEO_DISCONTINUE;
+				tsync_video_discontinue = 1;
+				last_discontinue_checkin_vpts = 0;
 				tsync_video_continue_count = 0;
 				if (tsync_pcr_debug & 0x03) {
 					pr_info("v_discontinue,last %x,cur %x\n",
 						last_pcr_checkin_vpts,
 						checkin_vpts);
 				}
-			} else
-				tsync_video_continue_count++;
+			}
 			if (last_pcr_checkin_vpts == checkin_vpts) {
 				if (tsync_pcr_demux_pcr_used() == 1)
 					max_gap = 50;
@@ -866,13 +869,36 @@ void tsync_pcr_check_checinpts(void)
 				if (last_pcr_checkin_vpts_count > max_gap) {
 					tsync_pcr_tsdemuxpcr_discontinue |=
 					VIDEO_DISCONTINUE;
+					tsync_video_discontinue = 1;
+					last_discontinue_checkin_vpts = 0;
 					tsync_video_continue_count = 0;
 					if (tsync_pcr_debug & 0x03)
 						pr_info("v_discontinue,count\n");
 				}
 			} else {
+				if (tsync_video_discontinue == 1 &&
+					checkin_vpts != 0xffffffff &&
+					last_discontinue_checkin_vpts == 0 &&
+					checkin_vpts > last_pcr_checkin_vpts &&
+					(abs(checkin_vpts
+						- last_pcr_checkin_vpts)
+						< 500 * 90)) {
+					last_discontinue_checkin_vpts =
+						last_pcr_checkin_vpts;
+					tsync_video_continue_count = 1;
+				}
 				last_pcr_checkin_vpts = checkin_vpts;
 				last_pcr_checkin_vpts_count = 0;
+			}
+			if (tsync_video_continue_count) {
+				tsync_video_continue_count++;
+			}
+			if (tsync_video_continue_count > 15 &&
+				tsync_video_discontinue &&
+				last_discontinue_checkin_vpts) {
+				tsync_video_discontinue = 0;
+				if (tsync_pcr_debug & 0x03)
+					pr_info("v_continued,resumed\n");
 			}
 		} else {
 			last_pcr_checkin_vpts = checkin_vpts;
@@ -1493,6 +1519,17 @@ static ssize_t tsync_audio_level_show(struct class *cla,
 	return sprintf(buf, "%d\n", audio_level);
 }
 
+static ssize_t tsync_video_discontinue_show(struct class *cla,
+		struct class_attribute *attr,
+		char *buf)
+{
+	u32 vdiscontinue;
+
+	vdiscontinue = tsync_video_discontinue & 0xff;
+	return sprintf(buf, "%d\n", vdiscontinue);
+}
+
+
 static ssize_t tsync_pcr_apts_diff_show(struct class *cla,
 		struct class_attribute *attr,
 		char *buf)
@@ -1676,6 +1713,8 @@ static struct class_attribute tsync_pcr_class_attrs[] = {
 
 	__ATTR(tsync_audio_level, 0644,
 	tsync_audio_level_show, NULL),
+	__ATTR(tsync_vdiscontinue, 0644,
+	tsync_video_discontinue_show, NULL),
 	__ATTR(tsync_pcr_apts_diff, 0644,
 	tsync_pcr_apts_diff_show, NULL),
 	__ATTR(tsync_last_discontinue_checkin_apts, 0644,
