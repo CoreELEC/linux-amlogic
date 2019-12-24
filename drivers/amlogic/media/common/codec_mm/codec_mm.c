@@ -1236,7 +1236,6 @@ EXPORT_SYMBOL(codec_mm_extpool_pool_alloc);
  */
 static int codec_mm_extpool_pool_release(struct extpool_mgt_s *tvp_pool)
 {
-	struct codec_mm_mgt_s *mgt = get_mem_mgt();
 	int i;
 	int ignored = 0;
 	mutex_lock(&tvp_pool->pool_lock);
@@ -1246,7 +1245,7 @@ static int codec_mm_extpool_pool_release(struct extpool_mgt_s *tvp_pool)
 
 		if (gpool) {
 			if (gen_pool_avail(gpool) != gen_pool_size(gpool)) {
-				pr_err("ERROR: TVP pool is not free.\n");
+				pr_err("ext pool is not free.\n");
 				ignored++;
 				continue;	/*ignore this free now, */
 			}
@@ -1266,7 +1265,7 @@ static int codec_mm_extpool_pool_release(struct extpool_mgt_s *tvp_pool)
 					TVP_POOL_NAME);
 			}
 		}
-		mgt->tvp_pool.total_size -= slot_mem_size;
+		tvp_pool->total_size -= slot_mem_size;
 		tvp_pool->gen_pool[i] = NULL;
 		tvp_pool->mm[i] = NULL;
 	}
