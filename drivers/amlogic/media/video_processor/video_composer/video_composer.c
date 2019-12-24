@@ -102,6 +102,14 @@ static u32  close_black;
 MODULE_PARM_DESC(close_black, "\n close_black\n");
 module_param(close_black, uint, 0664);
 
+static u32  debug_axis_pip;
+MODULE_PARM_DESC(debug_axis_pip, "\n close_black\n");
+module_param(debug_axis_pip, uint, 0664);
+
+static u32  debug_crop_pip;
+MODULE_PARM_DESC(debug_crop_pip, "\n close_black\n");
+module_param(debug_crop_pip, uint, 0664);
+
 static struct class *video_composer_dev_class;
 
 static struct class_attribute video_composer_class_attrs[] = {
@@ -573,45 +581,54 @@ static struct output_axis output_axis_adjust(
 	struct frame_info_t *vframe_info,
 	struct ge2d_composer_para *ge2d_comp_para)
 {
-	int input_width = 0, input_height = 0;
-	int output_w = 0, output_h = 0;
+	int vf_width = 0, vf_height = 0;
+	int render_w = 0, render_h = 0;
 	int disp_w, disp_h;
 	struct output_axis axis;
 
-	input_width = vframe_info->crop_w;
-	input_height = vframe_info->crop_h;
+	vf_width = vframe_info->crop_w;
+	vf_height = vframe_info->crop_h;
 	disp_w = ge2d_comp_para->position_width;
 	disp_h = ge2d_comp_para->position_height;
 
 	if (ge2d_comp_para->angle & 1) {
-		output_h = disp_h;
-		output_w =
-			(input_height * disp_h) / input_width;
-		if (output_w > disp_w) {
-			output_h =
-				(output_h * disp_w) / output_w;
-			output_w = disp_w;
+		if (vf_height < disp_w) {
+			render_h = disp_w;
+			render_w = render_h * vf_height / vf_width;
+		} else {
+			render_w = vf_height;
+			render_h = (vf_width * vf_height) / render_w;
+		}
+		if (render_w > disp_w) {
+			render_h = (render_h * disp_w) / render_w;
+			render_w = disp_w;
+		}
+		if (render_h > disp_h) {
+			render_w = (render_w * disp_h) / render_h;
+			render_h = disp_h;
 		}
 	} else {
-		output_w = disp_w;
-		output_h = disp_w * input_height / input_width;
-		if (output_h > disp_h) {
-			output_h = disp_h;
-			output_w = disp_h * input_width / input_height;
+		render_w = disp_w;
+		render_h = disp_w * vf_height / vf_width;
+		if (render_h > disp_h) {
+			render_h = disp_h;
+			render_w = disp_h * vf_width / vf_height;
 		}
 	}
-	axis.left = ge2d_comp_para->position_left +
-		(ge2d_comp_para->position_width - output_w) / 2;
-	axis.top = ge2d_comp_para->position_top +
-		(ge2d_comp_para->position_height - output_h) / 2;
-	axis.width = output_w;
-	axis.height = output_h;
+	axis.left = ge2d_comp_para->position_left + (disp_w - render_w) / 2;
+	axis.top = ge2d_comp_para->position_top + (disp_h - render_h) / 2;
+	axis.width = render_w;
+	axis.height = render_h;
+	vc_print(dev->index, PRINT_AXIS,
+		 "position left top width height: %d %d %d %d\n",
+		 ge2d_comp_para->position_left,
+		 ge2d_comp_para->position_top,
+		 ge2d_comp_para->position_width,
+		 ge2d_comp_para->position_height);
 
-	axis.left = axis.left * dev->composer_buf_w / dev->vinfo_w;
-	axis.top = axis.top * dev->composer_buf_h / dev->vinfo_h;
-	axis.width = axis.width * dev->composer_buf_w / dev->vinfo_w;
-	axis.height = axis.height * dev->composer_buf_h / dev->vinfo_h;
-
+	vc_print(dev->index, PRINT_AXIS,
+		 "frame out data axis left top width height: %d %d %d %d\n",
+		 axis.left, axis.top, axis.width, axis.height);
 	return axis;
 }
 
@@ -798,10 +815,15 @@ static void vframe_composer(struct composer_dev *dev)
 			dst_axis =
 				output_axis_adjust(dev, vframe_info[vf_dev[i]],
 						   &dev->ge2d_para);
-			dev->ge2d_para.position_left = dst_axis.left;
-			dev->ge2d_para.position_top = dst_axis.top;
-			dev->ge2d_para.position_width = dst_axis.width;
-			dev->ge2d_para.position_height = dst_axis.height;
+			dev->ge2d_para.position_left =
+				dst_axis.left * dst_buf->buf_w / dev->vinfo_w;
+			dev->ge2d_para.position_top =
+				dst_axis.top * dst_buf->buf_h / dev->vinfo_h;
+			dev->ge2d_para.position_width =
+				dst_axis.width * dst_buf->buf_w / dev->vinfo_w;
+			dev->ge2d_para.position_height = dst_axis.height
+				* dst_buf->buf_h / dev->vinfo_h;
+
 			if (min_left > dst_axis.left)
 				min_left = dst_axis.left;
 			if (min_top > dst_axis.top)
@@ -839,15 +861,33 @@ static void vframe_composer(struct composer_dev *dev)
 		VIDTYPE_VIU_444
 		| VIDTYPE_VIU_SINGLE_PLANE
 		| VIDTYPE_VIU_FIELD;
-
-	dst_vf->axis[0] = 0;
-	dst_vf->axis[1] = 0;
-	dst_vf->axis[2] = 0;
-	dst_vf->axis[3] = 0;
-	dst_vf->crop[0] = min_top;
-	dst_vf->crop[1] = min_left;
-	dst_vf->crop[2] = dst_buf->buf_h - max_bottom;
-	dst_vf->crop[3] = dst_buf->buf_w - max_right;
+	if (debug_axis_pip) {
+		dst_vf->axis[0] = 0;
+		dst_vf->axis[1] = 0;
+		dst_vf->axis[2] = 0;
+		dst_vf->axis[3] = 0;
+	} else {
+		dst_vf->axis[0] = min_left;
+		dst_vf->axis[1] = min_top;
+		dst_vf->axis[2] = max_right;
+		dst_vf->axis[3] = max_bottom;
+	}
+	if (debug_crop_pip) {
+		dst_vf->crop[0] = 0;
+		dst_vf->crop[1] = 0;
+		dst_vf->crop[2] = 0;
+		dst_vf->crop[3] = 0;
+	} else {
+		dst_vf->crop[0] = min_top * dst_buf->buf_h / dev->vinfo_h;
+		dst_vf->crop[1] = min_left * dst_buf->buf_w / dev->vinfo_w;
+		dst_vf->crop[2] = dst_buf->buf_h -
+			max_bottom * dst_buf->buf_h / dev->vinfo_h;
+		dst_vf->crop[3] = dst_buf->buf_w -
+			max_right * dst_buf->buf_w / dev->vinfo_w;
+	}
+	vc_print(dev->index, PRINT_AXIS,
+		 "min_top,min_left,max_bottom,max_right: %d %d %d %d\n",
+		 min_top, min_left, max_bottom, max_right);
 
 	dst_vf->zorder = frames_info->disp_zorder;
 	dst_vf->canvas0_config[0].phy_addr = dst_buf->phy_addr;

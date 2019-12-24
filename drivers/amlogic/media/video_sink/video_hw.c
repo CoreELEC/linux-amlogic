@@ -2548,7 +2548,6 @@ static void disable_vd1_blend(struct video_layer_s *layer)
 
 	if (!layer)
 		return;
-
 	misc_off = layer->misc_reg_offt;
 	vd_off = layer->vd_reg_offt;
 	afbc_off = layer->afbc_reg_offt;
@@ -2562,9 +2561,6 @@ static void disable_vd1_blend(struct video_layer_s *layer)
 			gvideo_recv[1] ? &gvideo_recv[1]->local_buf : NULL);
 	VSYNC_WR_MPEG_REG(AFBC_ENABLE + afbc_off, 0);
 	VSYNC_WR_MPEG_REG(VD1_IF0_GEN_REG + vd_off, 0);
-	if (!legacy_vpp)
-		VSYNC_WR_MPEG_REG(
-			VD1_BLEND_SRC_CTRL + misc_off, 0);
 
 	if (is_dolby_vision_enable()) {
 		if (is_meson_txlx_cpu() ||
@@ -2600,12 +2596,11 @@ static void disable_vd1_blend(struct video_layer_s *layer)
 
 static void disable_vd2_blend(struct video_layer_s *layer)
 {
-	u32 misc_off, vd_off, afbc_off;
+	u32 vd_off, afbc_off;
 
 	if (!layer)
 		return;
 
-	misc_off = layer->misc_reg_offt;
 	vd_off = layer->vd_reg_offt;
 	afbc_off = layer->afbc_reg_offt;
 	if (layer->global_debug & DEBUG_FLAG_BLACKOUT)
@@ -2618,9 +2613,6 @@ static void disable_vd2_blend(struct video_layer_s *layer)
 			gvideo_recv[1] ? &gvideo_recv[1]->local_buf : NULL);
 	VSYNC_WR_MPEG_REG(VD2_AFBC_ENABLE + afbc_off, 0);
 	VSYNC_WR_MPEG_REG(VD2_IF0_GEN_REG + vd_off, 0);
-	if (!legacy_vpp)
-		VSYNC_WR_MPEG_REG(
-			VD2_BLEND_SRC_CTRL + misc_off, 0);
 
 	if (layer->dispbuf &&
 	    is_local_vf(layer->dispbuf))
