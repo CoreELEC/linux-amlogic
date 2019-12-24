@@ -94,6 +94,10 @@
 		mclk_pad = <1>;  /* 0: mclk_0; 1: mclk_1 */
 		status = "okay";
 	};
+
+	spdifa: spdif@0 {
+		pinctrl-0 = <&spdifout /*&spdifin*/>;
+	};
 };
 
 &dwc2_a {
