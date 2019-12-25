@@ -5866,8 +5866,10 @@ static void drop_frame(int check_drop, int throw_flag, struct di_buf_s *di_buf,
 	struct di_post_stru_s *ppost = get_post_stru(channel);
 
 	di_lock_irqfiq_save(irq_flag2);
-	if ((frame_count == 0) && check_drop)
+	if ((frame_count == 0) && check_drop) {
 		ppost->start_pts = di_buf->vframe->pts;
+		ppost->start_pts64 = di_buf->vframe->pts_us64;
+	}
 	if ((check_drop &&
 	     (frame_count < dimp_get(eDI_MP_start_frame_drop_count))) ||
 	     throw_flag) {
@@ -5876,8 +5878,10 @@ static void drop_frame(int check_drop, int throw_flag, struct di_buf_s *di_buf,
 		if (check_drop && (frame_count
 			== dimp_get(eDI_MP_start_frame_drop_count))) {
 			if ((ppost->start_pts) &&
-			    (di_buf->vframe->pts == 0))
+			    (di_buf->vframe->pts == 0)) {
 				di_buf->vframe->pts = ppost->start_pts;
+				di_buf->vframe->pts_us64 = ppost->start_pts64;
+			}
 			ppost->start_pts = 0;
 		}
 		for (i = 0; i < 3; i++) {
