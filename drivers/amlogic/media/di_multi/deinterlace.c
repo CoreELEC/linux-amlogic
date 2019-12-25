@@ -3025,14 +3025,16 @@ void dim_pre_de_process(unsigned int channel)
 	 * otherwise may cause watch dog reboot
 	 */
 	di_lock_irqfiq_save(irq_flag2);
-	if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12A))
+	if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12A)) {
+		/* enable mc pre mif*/
+		dimh_enable_di_pre_mif(true, dimp_get(eDI_MP_mcpre_en));
 		dim_pre_frame_reset_g12(ppre->madi_enable,
 					ppre->mcdi_enable);
-	else
+	} else {
 		dim_pre_frame_reset();
-
-	/* enable mc pre mif*/
-	dimh_enable_di_pre_mif(true, dimp_get(eDI_MP_mcpre_en));
+		/* enable mc pre mif*/
+		dimh_enable_di_pre_mif(true, dimp_get(eDI_MP_mcpre_en));
+	}
 	/*dbg_set_DI_PRE_CTRL();*/
 	di_pre_wait_irq_set(true);
 	di_unlock_irqfiq_restore(irq_flag2);
@@ -4585,9 +4587,11 @@ irqreturn_t dim_irq(int irq, void *dev_instance)
 		dim_DI_Wr(DI_INTR_CTRL, data32);
 	}
 #else
-	if (flag)
+	if (flag) {
+		hpre_gl_sw(false);
 		dim_DI_Wr(DI_INTR_CTRL,
 			  (data32 & 0xfffffffb) | (intr_mode << 30));
+	}
 #endif
 
 	/*if (ppre->pre_de_busy == 0) {*/
@@ -6897,9 +6901,10 @@ static void di_pre_size_change(unsigned short width,
 	if (channel == 0 ||
 	    (channel == 1 && !get_reg_flag(0)))
 		di_load_pq_table();
-
+	#ifdef OLD_PRE_GL
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12A))
 		dim_RDMA_WR(DI_PRE_GL_CTRL, 0x80000005);
+	#endif
 	if (de_devp->nrds_enable)
 		dim_nr_ds_init(width, height);
 	if (de_devp->pps_enable	&& dimp_get(eDI_MP_pps_position)) {

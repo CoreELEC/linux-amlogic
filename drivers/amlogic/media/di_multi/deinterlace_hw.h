@@ -268,6 +268,7 @@ void hpst_dbg_trig_gate(unsigned int cmd);
 void hpst_dbg_trig_mif(unsigned int cmd);
 void hpst_mem_pd_sw(unsigned int on);
 void hpst_vd1_sw(unsigned int on);
+void hpre_gl_sw(bool on);
 
 void dim_init_setting_once(void);
 void dim_hw_init_reg(void);
