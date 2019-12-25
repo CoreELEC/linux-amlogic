@@ -54,6 +54,7 @@ struct uvm_buffer {
 	struct dma_buf *dmabuf;
 
 	struct vframe_s *vf;
+	u32 index;
 };
 
 struct uvm_device {

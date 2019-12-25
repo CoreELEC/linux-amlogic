@@ -48,15 +48,23 @@ static int meson_uvm_alloc_buffer(struct dma_buf *dmabuf)
 	struct ion_handle *handle;
 	phys_addr_t pat;
 	size_t len;
+	struct vframe_s *vf;
+	enum ion_heap_type heap_type;
 
 	struct uvm_buffer *buffer = dmabuf->priv;
 
 	/* use ion_alloc to alloc the buffer */
 	num_pages = PAGE_ALIGN(buffer->size) / PAGE_SIZE;
+	vf = buffer->vf;
+
+	if ((vf->type & VIDTYPE_COMPRESS))
+		heap_type = ION_HEAP_TYPE_SYSTEM;
+	else
+		heap_type = ION_HEAP_TYPE_DMA;
 
 	pr_debug("num_pages: %d.\n", num_pages);
 	handle = ion_alloc(uvm_dev->uvm_client, buffer->size, 0,
-						(1 << ION_HEAP_TYPE_DMA), 0);
+						(1 << heap_type), 0);
 	if (IS_ERR(handle)) {
 		pr_err("%s: ion_alloc fail.\n", __func__);
 		return -1;
@@ -163,7 +171,10 @@ static int meson_uvm_fill_pattern(struct dma_buf *dmabuf)
 
 	pr_debug("the phy addr is %pa.\n", &val_data.phy_addr[0]);
 
-	v4lvideo_data_copy(&val_data);
+	if (!buffer->index || buffer->index != buffer->vf->omx_index) {
+		v4lvideo_data_copy(&val_data);
+		buffer->index = buffer->vf->omx_index;
+	}
 
 	vunmap(buffer->vaddr);
 	return 0;
@@ -200,8 +211,10 @@ static struct sg_table *meson_uvm_map_dma_buf(
 
 	pr_debug("meson_uvm_map_dma_buf called, %s.\n", current->comm);
 
-	if (!buffer->handle)
-		meson_uvm_alloc_buffer(dmabuf);
+	if (!buffer->handle && meson_uvm_alloc_buffer(dmabuf)) {
+		pr_err("uvm_map_dma_buf fail.\n");
+		return ERR_PTR(-ENOMEM);
+	}
 
 	meson_uvm_map_buffer(dmabuf);
 	meson_uvm_fill_pattern(dmabuf);
