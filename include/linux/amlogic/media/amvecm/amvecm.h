@@ -357,7 +357,7 @@ enum ve_pq_timing_e {
 
 enum vlock_hw_ver_e {
 	/*gxtvbb*/
-	vlock_hw_org,
+	vlock_hw_org = 0,
 	/*
 	 *txl
 	 *txlx
@@ -370,6 +370,10 @@ enum vlock_hw_ver_e {
 	 * tm2: have separate pll:tcon pll and hdmitx pll
 	 */
 	vlock_hw_ver2,
+	/* tm2 verion B
+	 * fix some bug
+	 */
+	vlock_hw_tm2verb,
 };
 
 struct vecm_match_data_s {

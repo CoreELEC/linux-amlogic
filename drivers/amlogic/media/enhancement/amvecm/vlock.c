@@ -349,6 +349,39 @@ static void vlock_pll_select(u32 vlock_mode, u32 workmd)
 	}
 }
 
+/*
+ * TM2 verB
+ * when vlk_hwver config is vlock_hw_tm2verB, then this function
+ * is valid.
+ */
+void vlock_set_phase_frq_lock_speed(void)
+{
+	u32 data = 0;
+
+	/*27-24	RW reg_loop1_err_rs*/
+	data |= (0 << 24);
+	/*23-16	RW reg_loop1_err_gain*/
+	data |= (0 << 16);
+	/*11-8	RW reg_loop0_err_rs*/
+	data |= (0 << 8);
+	/*7-0	RW reg_loop0_err_gain*/
+	data |= (0 << 0);
+	WRITE_VPP_REG(VPU_VLOCK_ERR_CTRL0, data);
+	data = 0;
+	/*23	RW reg_loop1_err_lmt_en*/
+	data |= (0 << 23);
+	/*22-0	RW reg_loop1_err_lmt*/
+	data |= (0 << 0);
+	WRITE_VPP_REG(VPU_VLOCK_LOOP1_ERR_LMT, data);
+
+	data |= 0;
+	/*23	RW reg_loop0_err_lmt_en*/
+	data |= (0 << 23);
+	/*22-0	RW reg_loop0_err_lmt*/
+	data |= (0 << 0);
+	WRITE_VPP_REG(VPU_VLOCK_LOOP0_ERR_LMT, data);
+}
+
 void vlock_reset(u32 onoff)
 {
 	if (onoff) {
@@ -1876,7 +1909,10 @@ bool vlock_get_phlock_flag(void)
 	if (!vlock.phlock_en)
 		return false;
 
-	flag = READ_VPP_REG(VPU_VLOCK_RO_LCK_FRM) >> 16;
+	if (vlock.dtdata->vlk_hwver >= vlock_hw_tm2verb)
+		flag = READ_VPP_REG(VPU_VLOCK_RO_LCK_FRM) >> 17;
+	else
+		flag = READ_VPP_REG(VPU_VLOCK_RO_LCK_FRM) >> 16;
 	flag = flag&0x01;
 
 	if (vlock.dtdata->vlk_new_fsm)
@@ -1895,7 +1931,10 @@ bool vlock_get_vlock_flag(void)
 	u32 flag;
 	u32 sts;
 
-	flag = READ_VPP_REG(VPU_VLOCK_RO_LCK_FRM) >> 17;
+	if (vlock.dtdata->vlk_hwver >= vlock_hw_tm2verb)
+		flag = READ_VPP_REG(VPU_VLOCK_RO_LCK_FRM) >> 16;
+	else
+		flag = READ_VPP_REG(VPU_VLOCK_RO_LCK_FRM) >> 17;
 	flag = flag&0x01;
 
 	if (vlock.dtdata->vlk_new_fsm)
