@@ -3351,10 +3351,17 @@ static s32 update_amvideo_recycle_buffer(void)
 		return -1;
 	}
 	to_put_buf = dispbuf_to_put;
+	if (to_put_buf &&
+	    !(to_put_buf->type & VIDTYPE_DI_PW))
+		to_put_buf = NULL;
 #endif
 
 	if (cur_dispbuf != &vf_local)
 		rdma_buf = cur_dispbuf;
+
+	if (rdma_buf &&
+	    !(rdma_buf->type & VIDTYPE_DI_PW))
+		rdma_buf = NULL;
 
 	if (recycle_cnt[0] &&
 	    (to_put_buf || rdma_buf)) {
@@ -3393,10 +3400,17 @@ static s32 update_pip_recycle_buffer(void)
 		return -1;
 	}
 	to_put_buf = pipbuf_to_put;
+	if (to_put_buf &&
+	    !(to_put_buf->type & VIDTYPE_DI_PW))
+		to_put_buf = NULL;
 #endif
 
 	if (cur_pipbuf != &local_pip)
 		rdma_buf = cur_pipbuf;
+
+	if (rdma_buf &&
+	    !(rdma_buf->type & VIDTYPE_DI_PW))
+		rdma_buf = NULL;
 
 	if (recycle_cnt[1] &&
 	    (to_put_buf || rdma_buf)) {
