@@ -314,6 +314,11 @@ static int suspend_prepare(suspend_state_t state)
 	if (!error)
 		return 0;
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+	/* Allow device probing and trigger re-probing of deferred devices */
+	device_unblock_probing();
+#endif
+
 	suspend_stats.failed_freeze++;
 	dpm_save_failed_step(SUSPEND_FREEZE);
  Finish:
