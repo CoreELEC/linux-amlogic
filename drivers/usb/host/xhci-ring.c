@@ -3496,7 +3496,7 @@ int xhci_test_single_step(struct xhci_hcd *xhci, gfp_t mem_flags,
 	/* 15 second delay per the test spec */
 	spin_unlock_irqrestore(&xhci->lock, flags);
 	xhci_err(xhci, "step 1\n");
-	msleep(15000);
+	msleep(30000);
 	spin_lock_irqsave(&xhci->lock, flags);
 
 	start_trb = &ep_ring->enqueue->generic;
@@ -3533,7 +3533,7 @@ int xhci_test_single_step(struct xhci_hcd *xhci, gfp_t mem_flags,
 	/* 15 second delay per the test spec */
 	spin_unlock_irqrestore(&xhci->lock, flags);
 	xhci_err(xhci, "step 2\n");
-	msleep(15000);
+	msleep(30000);
 	spin_lock_irqsave(&xhci->lock, flags);
 
 	/* Save the DMA address of the last TRB in the TD */
@@ -3559,7 +3559,7 @@ int xhci_test_single_step(struct xhci_hcd *xhci, gfp_t mem_flags,
 	/* 15 second delay per the test spec */
 	spin_unlock_irqrestore(&xhci->lock, flags);
 	xhci_err(xhci, "step 3\n");
-	msleep(15000);
+	msleep(30000);
 
 	return 0;
 }

@@ -51,8 +51,10 @@ static void amlogic_new_usb3phy_shutdown(struct usb_phy *x)
 
 	if (phy->phy.flags == AML_USB3_PHY_ENABLE) {
 		clk_disable_unprepare(phy->clk);
-		clk_disable_unprepare(phy->gate1_clk);
-		clk_disable_unprepare(phy->gate0_clk);
+		if (phy->portconfig_31)
+			clk_disable_unprepare(phy->gate1_clk);
+		if (phy->portconfig_30)
+			clk_disable_unprepare(phy->gate0_clk);
 	}
 
 	phy->suspend_flag = 1;
@@ -425,8 +427,10 @@ static int amlogic_new_usb3_init_v3(struct usb_phy *x)
 
 	if (phy->suspend_flag) {
 		if (phy->phy.flags == AML_USB3_PHY_ENABLE) {
-			clk_prepare_enable(phy->gate0_clk);
-			clk_prepare_enable(phy->gate1_clk);
+			if (phy->portconfig_30)
+				clk_prepare_enable(phy->gate0_clk);
+			if (phy->portconfig_31)
+				clk_prepare_enable(phy->gate1_clk);
 			clk_prepare_enable(phy->clk);
 		}
 		phy->suspend_flag = 0;

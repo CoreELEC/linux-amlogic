@@ -1725,6 +1725,9 @@ static void usb_EHtest_poll_status(struct work_struct *ws)
 	} else if ((poll_status_flag == 1) && !(portstatus & 0x01)) {
 		dev_info(&dev->dev,
 			"PORT IS disCONNECT portstatus=0x%04x\n", portstatus);
+		queue_delayed_work(system_wq,
+				   &dev->portstatus_work,
+				   msecs_to_jiffies(1000));
 
 	} else {
 		queue_delayed_work(system_wq,
@@ -2190,7 +2193,7 @@ free_interfaces:
 	if (usb_host_test_vid > 0) {
 		if (dev->descriptor.idVendor == USB_HSET_TEST_VID) {
 			usb_host_test_vid = dev->descriptor.idVendor;
-			usb_host_test_pid = dev->descriptor.idProduct;
+			//usb_host_test_pid = dev->descriptor.idProduct;
 			dev_info(&dev->dev,
 			"the dev port is %d, and this is test udisk vid = 0x%04x\n",
 			dev->portnum, usb_host_test_vid);
