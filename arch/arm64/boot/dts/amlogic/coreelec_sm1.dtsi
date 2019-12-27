@@ -109,3 +109,9 @@
 	rx_delay = <0>;
 	auto_cali_idx = <0>;
 };
+
+&sd_emmc_a {
+	sdio {
+		f_max = <170000000>;
+	};
+};
