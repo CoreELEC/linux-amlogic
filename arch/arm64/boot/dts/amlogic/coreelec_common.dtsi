@@ -95,10 +95,6 @@
 	status = "disabled";
 };
 
-&i2c3 {
-	status = "disabled";
-};
-
 &vdin0 {
 	status = "disabled";
 };
