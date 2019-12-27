@@ -34,6 +34,7 @@
 #include <linux/file.h>
 #include <linux/amlogic/media/canvas/canvas_mgr.h>
 #include <linux/amlogic/media/vfm/amlogic_fbc_hook_v1.h>
+#include "../../common/vfm/vfm.h"
 
 #define V4LVIDEO_MODULE_NAME "v4lvideo"
 
@@ -41,6 +42,9 @@
 #define RECEIVER_NAME "v4lvideo"
 #define V4LVIDEO_DEVICE_NAME   "v4lvideo"
 #define DUR2PTS(x) ((x) - ((x) >> 4))
+
+static atomic_t global_set_cnt = ATOMIC_INIT(0);
+static u32 alloc_sei = 1;
 
 #define V4L2_CID_USER_AMLOGIC_V4LVIDEO_BASE  (V4L2_CID_USER_BASE + 0x1100)
 
@@ -802,6 +806,78 @@ struct vframe_s *v4lvideo_get_vf(int fd)
 	return vf;
 }
 
+static s32 v4lvideo_release_sei_data(struct vframe_s *vf)
+{
+	void *p;
+	s32 ret = -2;
+	u32 size = 0;
+
+	if (!vf)
+		return ret;
+
+	p = get_sei_from_src_fmt(vf, &size);
+	if (p) {
+		vfree(p);
+		atomic_dec(&global_set_cnt);
+	}
+	ret = clear_vframe_src_fmt(vf);
+	return ret;
+}
+
+static s32 v4lvideo_import_sei_data(
+	struct vframe_s *vf,
+	struct vframe_s *dup_vf,
+	char *provider)
+{
+	struct provider_aux_req_s req;
+	s32 ret = -2;
+	char *p;
+
+	if (!vf || !dup_vf || !provider || !alloc_sei)
+		return ret;
+
+	req.vf = vf;
+	req.bot_flag = 0;
+	req.aux_buf = NULL;
+	req.aux_size = 0;
+	req.dv_enhance_exist = 0;
+	vf_notify_provider_by_name(
+		provider,
+		VFRAME_EVENT_RECEIVER_GET_AUX_DATA,
+		(void *)&req);
+
+	if (req.aux_buf && req.aux_size) {
+		p = vmalloc(req.aux_size);
+		if (p) {
+			memcpy(p, req.aux_buf, req.aux_size);
+			ret = update_vframe_src_fmt(
+				dup_vf, (void *)p, (u32)req.aux_size,
+				req.dv_enhance_exist ? true : false);
+			if (!ret) {
+				/* FIXME: work around for sei/el out of sync */
+				if ((dup_vf->src_fmt.fmt ==
+				     VFRAME_SIGNAL_FMT_SDR) &&
+				    !strcmp(provider, "dvbldec"))
+					dup_vf->src_fmt.fmt =
+						VFRAME_SIGNAL_FMT_DOVI;
+				atomic_inc(&global_set_cnt);
+			} else {
+				vfree(p);
+			}
+		} else {
+			ret = update_vframe_src_fmt(
+				dup_vf, NULL, 0, false);
+		}
+	} else {
+		ret = update_vframe_src_fmt(dup_vf, NULL, 0, false);
+	}
+	if (alloc_sei & 2)
+		pr_info("import sei: provider:%s, vf:%p, dup_vf:%p, req.aux_buf:%p, req.aux_size:%d, req.dv_enhance_exist:%d, vf->src_fmt.fmt:%d\n",
+			provider, vf, dup_vf,
+			req.aux_buf, req.aux_size,
+			req.dv_enhance_exist, dup_vf->src_fmt.fmt);
+	return ret;
+}
 /* ------------------------------------------------------------------
  * DMA and thread functions
  * ------------------------------------------------------------------
@@ -817,6 +893,8 @@ static int vidioc_streamon(struct file *file, void *priv, enum v4l2_buf_type i)
 	struct v4lvideo_dev *dev = video_drvdata(file);
 
 	dprintk(dev, 2, "%s\n", __func__);
+
+	dev->provider_name = NULL;
 
 	dprintk(dev, 2, "returning from %s\n", __func__);
 
@@ -1052,6 +1130,8 @@ static int vidioc_qbuf(struct file *file, void *priv, struct v4l2_buffer *p)
 		dprintk(dev, 1,
 			"vidioc_qbuf: vf is NULL, at the start of playback\n");
 	}
+
+	v4lvideo_release_sei_data(&file_private_data->vf);
 	init_file_private_data(file_private_data);
 	fput(file_vf);
 
@@ -1070,6 +1150,7 @@ static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *p)
 	struct file_private_data *file_private_data = NULL;
 	u64 pts_us64 = 0;
 	u64 pts_tmp;
+	char *provider_name = NULL;
 
 	mutex_lock(&dev->mutex_input);
 	buf = v4l2q_peek(&dev->input_queue);
@@ -1088,6 +1169,21 @@ static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *p)
 	vf = vf_get(dev->vf_receiver_name);
 	if (!vf)
 		return -EAGAIN;
+
+	if (!dev->provider_name) {
+		provider_name = vf_get_provider_name(
+			dev->vf_receiver_name);
+		while (provider_name) {
+			if (!vf_get_provider_name(provider_name))
+				break;
+			provider_name =
+				vf_get_provider_name(provider_name);
+		}
+		dev->provider_name = provider_name;
+		pr_info("v4lvideo: provider name: %s\n",
+			dev->provider_name ? dev->provider_name : "NULL");
+	}
+
 	get_count++;
 	vf->omx_index = dev->frame_num;
 	dev->am_parm.signal_type = vf->signal_type;
@@ -1111,6 +1207,10 @@ static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *p)
 	}
 	file_private_data->vf = *vf;
 	file_private_data->vf_p = vf;
+	v4lvideo_import_sei_data(
+		vf, &file_private_data->vf,
+		dev->provider_name);
+
 	//pr_err("dqbuf: file_private_data=%p, vf=%p\n", file_private_data, vf);
 	v4l2q_push(&dev->display_queue, file_private_data);
 	fput(file_vf);
@@ -1347,6 +1447,7 @@ static int v4lvideo_file_release(struct inode *inode, struct file *file)
 	if (file_private_data) {
 		if (file_private_data->is_keep)
 			vf_free(file_private_data);
+		v4lvideo_release_sei_data(&file_private_data->vf);
 		memset(file_private_data, 0, sizeof(struct file_private_data));
 		kfree((u8 *)file_private_data);
 		file->private_data = NULL;
@@ -1364,7 +1465,7 @@ static const struct file_operations v4lvideo_file_fops = {
 int v4lvideo_alloc_fd(int *fd)
 {
 	struct file *file = NULL;
-	struct file_private_data *private_date = NULL;
+	struct file_private_data *private_data = NULL;
 	int file_fd = get_unused_fd_flags(O_CLOEXEC);
 
 	if (file_fd < 0) {
@@ -1372,19 +1473,19 @@ int v4lvideo_alloc_fd(int *fd)
 		return -ENODEV;
 	}
 
-	private_date = kzalloc(sizeof(*private_date), GFP_KERNEL);
-	if (!private_date) {
+	private_data = kzalloc(sizeof(*private_data), GFP_KERNEL);
+	if (!private_data) {
 		put_unused_fd(file_fd);
 		pr_err("v4lvideo_alloc_fd: private_date fail\n");
 		return -ENOMEM;
 	}
-	init_file_private_data(private_date);
+	init_file_private_data(private_data);
 
 	file = anon_inode_getfile("v4lvideo_file",
 				  &v4lvideo_file_fops,
-				  private_date, 0);
+				  private_data, 0);
 	if (IS_ERR(file)) {
-		kfree((u8 *)private_date);
+		kfree((u8 *)private_data);
 		put_unused_fd(file_fd);
 		pr_err("v4lvideo_alloc_fd: anon_inode_getfile fail\n");
 		return -ENODEV;
@@ -1394,12 +1495,75 @@ int v4lvideo_alloc_fd(int *fd)
 	return 0;
 }
 
-static struct class_attribute ion_video_class_attrs[] = {
+static ssize_t sei_cnt_show(
+	struct class *class, struct class_attribute *attr, char *buf)
+{
+	ssize_t r;
+	int cnt;
+
+	cnt = atomic_read(&global_set_cnt);
+	r = sprintf(buf, "allocated sei buffer cnt: %d\n", cnt);
+	return r;
+}
+
+static ssize_t sei_cnt_store(
+	struct class *class,
+	struct class_attribute *attr,
+	const char *buf, size_t count)
+{
+	ssize_t r;
+	int val;
+
+	r = kstrtoint(buf, 0, &val);
+	if (r < 0)
+		return -EINVAL;
+
+	pr_info("set sei_cnt val:%d\n", val);
+	atomic_set(&global_set_cnt, val);
+	return count;
+}
+
+static ssize_t alloc_sei_show(
+	struct class *class, struct class_attribute *attr, char *buf)
+{
+	return sprintf(buf, "alloc sei: %d\n", alloc_sei);
+}
+
+static ssize_t alloc_sei_store(
+	struct class *class,
+	struct class_attribute *attr,
+	const char *buf, size_t count)
+{
+	ssize_t r;
+	int val;
+
+	r = kstrtoint(buf, 0, &val);
+	if (r < 0)
+		return -EINVAL;
+
+	if (val > 0)
+		alloc_sei = val;
+	else
+		alloc_sei = 0;
+	pr_info("set alloc_sei val:%d\n", alloc_sei);
+	return count;
+}
+
+static struct class_attribute v4lvideo_class_attrs[] = {
+	__ATTR(sei_cnt,
+	       0664,
+	       sei_cnt_show,
+	       sei_cnt_store),
+	__ATTR(alloc_sei,
+	       0664,
+	       alloc_sei_show,
+	       alloc_sei_store),
+	__ATTR_NULL
 };
 
 static struct class v4lvideo_class = {
 	.name = "v4lvideo",
-	.class_attrs = ion_video_class_attrs,
+	.class_attrs = v4lvideo_class_attrs,
 };
 
 static int v4lvideo_open(struct inode *inode, struct file *file)

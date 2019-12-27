@@ -333,6 +333,7 @@ static struct vframe_s *recv_common_dequeue_frame(
 	struct vframe_s *vf = NULL;
 	struct vframe_s *toggle_vf = NULL;
 	s32 drop_count = -1;
+	enum vframe_signal_fmt_e fmt;
 
 	if (!ins) {
 		pr_err("recv_common_dequeue_frame error, empty ins\n");
@@ -352,7 +353,11 @@ static struct vframe_s *recv_common_dequeue_frame(
 			dolby_vision_check_hdr10plus(vf);
 			dolby_vision_check_hlg(vf);
 		}
-		if (vf_peek("dvel")) {
+
+		fmt = get_vframe_src_fmt(vf);
+		if (((fmt == VFRAME_SIGNAL_FMT_DOVI) ||
+		     (fmt == VFRAME_SIGNAL_FMT_INVALID)) &&
+		    vf_peek("dvel")) {
 			req.vf = NULL;
 			req.bot_flag = 0;
 			req.aux_buf = NULL;

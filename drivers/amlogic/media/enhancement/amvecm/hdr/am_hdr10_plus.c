@@ -672,14 +672,22 @@ void hdr10_plus_parser_metadata(struct vframe_s *vf)
 		req.aux_size = 0;
 		req.dv_enhance_exist = 0;
 		req.low_latency = 0;
-
-		vf_notify_provider_by_name("vdec.h265.00",
+		if (get_vframe_src_fmt(vf) ==
+		    VFRAME_SIGNAL_FMT_HDR10PLUS) {
+			size = 0;
+			req.aux_buf = (char *)get_sei_from_src_fmt(vf, &size);
+			req.aux_size = size;
+		} else {
+			vf_notify_provider_by_name(
+				"vdec.h265.00",
 				VFRAME_EVENT_RECEIVER_GET_AUX_DATA,
 				(void *)&req);
-		if (!req.aux_buf)
-			vf_notify_provider_by_name("decoder",
+			if (!req.aux_buf)
+				vf_notify_provider_by_name(
+				"decoder",
 				VFRAME_EVENT_RECEIVER_GET_AUX_DATA,
 				(void *)&req);
+		}
 		if (req.aux_buf && req.aux_size) {
 			p = req.aux_buf;
 			while (p < req.aux_buf

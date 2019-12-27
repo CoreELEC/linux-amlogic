@@ -281,6 +281,29 @@ enum vframe_disp_mode_e {
 	VFRAME_DISP_MODE_OK,
 };
 
+enum vframe_signal_fmt_e {
+	VFRAME_SIGNAL_FMT_INVALID = -1,
+	VFRAME_SIGNAL_FMT_SDR = 0,
+	VFRAME_SIGNAL_FMT_HDR10 = 1,
+	VFRAME_SIGNAL_FMT_HDR10PLUS = 2,
+	VFRAME_SIGNAL_FMT_HDR10PRIME = 3,
+	VFRAME_SIGNAL_FMT_HLG = 4,
+	VFRAME_SIGNAL_FMT_DOVI = 5,
+	VFRAME_SIGNAL_FMT_DOVI_LL = 6,
+	VFRAME_SIGNAL_FMT_MVC = 7
+};
+
+#define SEI_MAGIC_CODE 0x53656920 /* SEI */
+
+/* signal format and sei data */
+struct vframe_src_fmt_s {
+	enum vframe_signal_fmt_e fmt;
+	u32 sei_magic_code;
+	void *sei_ptr;
+	u32 sei_size;
+	bool dual_layer;
+};
+
 enum pic_mode_provider_e {
 	PIC_MODE_PROVIDER_DB = 0,
 	PIC_MODE_PROVIDER_WSS,
@@ -461,6 +484,9 @@ struct vframe_s {
 	bool rendered;
 
 	struct codec_mm_box_s mm_box;
+
+	/* signal format and sei data */
+	struct vframe_src_fmt_s src_fmt;
 } /*vframe_t */;
 
 #if 0
@@ -471,4 +497,12 @@ int get_curren_frame_para(int *top, int *left, int *bottom, int *right);
 u8 is_vpp_postblend(void);
 
 void pause_video(unsigned char pause_flag);
+
+s32 update_vframe_src_fmt(
+	struct vframe_s *vf, void *sei,
+	u32 size, bool dual_layer);
+void *get_sei_from_src_fmt(struct vframe_s *vf, u32 *sei_size);
+enum vframe_signal_fmt_e get_vframe_src_fmt(struct vframe_s *vf);
+s32 clear_vframe_src_fmt(struct vframe_s *vf);
+
 #endif /* VFRAME_H */

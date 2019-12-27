@@ -3990,7 +3990,7 @@ static int dvel_receiver_event_fun(int type, void *data, void *arg)
 		setting_update_count = 0;
 		crc_count = 0;
 		crc_bypass_count = 0;
-		dolby_vision_el_disable = 0;
+		dolby_vision_el_disable = false;
 		return -1;
 	} else if (type == VFRAME_EVENT_PROVIDER_QUREY_STATE) {
 		return RECEIVER_ACTIVE;
@@ -4007,7 +4007,7 @@ static int dvel_receiver_event_fun(int type, void *data, void *arg)
 		setting_update_count = 0;
 		crc_count = 0;
 		crc_bypass_count = 0;
-		dolby_vision_el_disable = 0;
+		dolby_vision_el_disable = false;
 	}
 	return 0;
 }
@@ -4710,8 +4710,16 @@ bool is_dovi_frame(struct vframe_s *vf)
 	char *p;
 	unsigned int size = 0;
 	unsigned int type = 0;
+	enum vframe_signal_fmt_e fmt;
 
 	if (!vf)
+		return false;
+
+	fmt = get_vframe_src_fmt(vf);
+	if (fmt == VFRAME_SIGNAL_FMT_DOVI)
+		return true;
+
+	if (fmt != VFRAME_SIGNAL_FMT_INVALID)
 		return false;
 
 	req.vf = vf;
@@ -4731,9 +4739,10 @@ bool is_dovi_frame(struct vframe_s *vf)
 		else
 			return 0;
 	} else if (vf->source_type == VFRAME_SOURCE_TYPE_OTHERS) {
-		vf_notify_provider_by_name(dv_provider,
-					   VFRAME_EVENT_RECEIVER_GET_AUX_DATA,
-					   (void *)&req);
+		vf_notify_provider_by_name(
+			dv_provider,
+			VFRAME_EVENT_RECEIVER_GET_AUX_DATA,
+			(void *)&req);
 		if (req.dv_enhance_exist)
 			return true;
 		if (!req.aux_buf || !req.aux_size)
@@ -4760,6 +4769,17 @@ EXPORT_SYMBOL(is_dovi_frame);
 bool is_dovi_dual_layer_frame(struct vframe_s *vf)
 {
 	struct provider_aux_req_s req;
+	enum vframe_signal_fmt_e fmt;
+
+	if (!vf)
+		return false;
+
+	fmt = get_vframe_src_fmt(vf);
+	/* valid src_fmt = DOVI or invalid src_fmt will check dual layer */
+	/* otherwise, it certainly is a non-dv vframe */
+	if ((fmt != VFRAME_SIGNAL_FMT_DOVI) &&
+	    (fmt != VFRAME_SIGNAL_FMT_INVALID))
+		return false;
 
 	req.vf = vf;
 	req.bot_flag = 0;
@@ -6103,16 +6123,39 @@ int dolby_vision_parse_metadata(
 			dolby_vision_vf_add(vf, NULL);
 		}
 	} else if (vf && (vf->source_type == VFRAME_SOURCE_TYPE_OTHERS)) {
-		/* check source format */
+		enum vframe_signal_fmt_e fmt;
+
 		input_mode = INPUT_MODE_OTT;
+
 		req.vf = vf;
 		req.bot_flag = 0;
 		req.aux_buf = NULL;
 		req.aux_size = 0;
 		req.dv_enhance_exist = 0;
-		vf_notify_provider_by_name(dv_provider,
-					   VFRAME_EVENT_RECEIVER_GET_AUX_DATA,
-					   (void *)&req);
+
+		/* check source format */
+		fmt = get_vframe_src_fmt(vf);
+		if ((fmt == VFRAME_SIGNAL_FMT_DOVI) ||
+		    (fmt == VFRAME_SIGNAL_FMT_INVALID)) {
+			u32 sei_size = 0;
+			char *sei;
+
+			vf_notify_provider_by_name(
+				dv_provider,
+				VFRAME_EVENT_RECEIVER_GET_AUX_DATA,
+				(void *)&req);
+			/* use aux date first, if invaild, use sei_ptr */
+			if ((!req.aux_buf || !req.aux_size) &&
+			    (fmt == VFRAME_SIGNAL_FMT_DOVI)) {
+				sei = (char *)get_sei_from_src_fmt(
+					vf, &sei_size);
+				if (sei && sei_size) {
+					req.aux_buf = sei;
+					req.aux_size = sei_size;
+				}
+			}
+		}
+
 		if (debug_dolby & 1 && req.aux_buf && req.aux_size)
 			pr_dolby_dbg("dvbldec get aux data %p %x\n",
 				req.aux_buf, req.aux_size);
@@ -6313,7 +6356,7 @@ int dolby_vision_parse_metadata(
 			(el_flag && !mel_flag &&
 			((dolby_vision_flags & FLAG_CERTIFICAION) == 0))) {
 			el_flag = 0;
-			dolby_vision_el_disable = 1;
+			dolby_vision_el_disable = true;
 		}
 		if (src_format != FORMAT_DOVI) {
 			el_flag = 0;
@@ -6920,7 +6963,6 @@ EXPORT_SYMBOL(dolby_vision_parse_metadata);
 /* 3: found match el     */
 int dolby_vision_wait_metadata(struct vframe_s *vf)
 {
-	struct provider_aux_req_s req;
 	struct vframe_s *el_vf;
 	int ret = 0;
 	unsigned int mode = dolby_vision_mode;
@@ -6946,20 +6988,7 @@ int dolby_vision_wait_metadata(struct vframe_s *vf)
 			return 1;
 	}
 
-	if (vf) {
-		req.vf = vf;
-		req.bot_flag = 0;
-		req.aux_buf = NULL;
-		req.aux_size = 0;
-		req.dv_enhance_exist = 0;
-
-		if (vf->source_type == VFRAME_SOURCE_TYPE_OTHERS)
-			vf_notify_provider_by_name(
-				dv_provider,
-				VFRAME_EVENT_RECEIVER_GET_AUX_DATA,
-				(void *)&req);
-	}
-	if (vf && req.dv_enhance_exist) {
+	if (is_dovi_dual_layer_frame(vf)) {
 		el_vf = dvel_vf_peek();
 		while (el_vf) {
 			if (debug_dolby & 2)

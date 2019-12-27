@@ -223,6 +223,7 @@ struct v4lvideo_dev {
 	struct v4l2_buffer v4lvideo_input[V4LVIDEO_POOL_SIZE];
 	struct v4l2_amlogic_parm am_parm;
 	u8 first_frame;
+	char *provider_name;
 };
 
 enum vframe_source_type {
