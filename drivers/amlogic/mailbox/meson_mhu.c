@@ -151,8 +151,12 @@ static irqreturn_t mbox_handler(int irq, void *p)
 				memcpy(data->rx_buf, payload + TX_PAYLOAD(idx),
 				       data->rx_size);
 			} else {
-				data->rx_size =
-					readl(mbox_base + RX_STATUS(idx));
+				/*idx=0 means there is an old machenism:
+				 *  AP SET0 send/ MCU SET1 ack
+				 */
+				if (idx)
+					data->rx_size =
+						readl(mbox_base + RX_STATUS(idx));
 				memcpy(data->rx_buf, payload + RX_PAYLOAD(idx),
 				       data->rx_size);
 			}
