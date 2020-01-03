@@ -581,40 +581,30 @@ static struct output_axis output_axis_adjust(
 	struct frame_info_t *vframe_info,
 	struct ge2d_composer_para *ge2d_comp_para)
 {
-	int vf_width = 0, vf_height = 0;
+	int picture_width = 0, picture_height = 0;
 	int render_w = 0, render_h = 0;
 	int disp_w, disp_h;
 	struct output_axis axis;
+	int tmp;
 
-	vf_width = vframe_info->crop_w;
-	vf_height = vframe_info->crop_h;
+	picture_width = vframe_info->crop_w;
+	picture_height = vframe_info->crop_h;
 	disp_w = ge2d_comp_para->position_width;
 	disp_h = ge2d_comp_para->position_height;
 
 	if (ge2d_comp_para->angle & 1) {
-		if (vf_height < disp_w) {
-			render_h = disp_w;
-			render_w = render_h * vf_height / vf_width;
-		} else {
-			render_w = vf_height;
-			render_h = (vf_width * vf_height) / render_w;
-		}
-		if (render_w > disp_w) {
-			render_h = (render_h * disp_w) / render_w;
-			render_w = disp_w;
-		}
-		if (render_h > disp_h) {
-			render_w = (render_w * disp_h) / render_h;
-			render_h = disp_h;
-		}
-	} else {
-		render_w = disp_w;
-		render_h = disp_w * vf_height / vf_width;
-		if (render_h > disp_h) {
-			render_h = disp_h;
-			render_w = disp_h * vf_width / vf_height;
-		}
+		tmp = picture_height;
+		picture_height = picture_width;
+		picture_width = tmp;
 	}
+
+	render_w = disp_w;
+	render_h = disp_w * picture_height / picture_width;
+	if (render_h > disp_h) {
+		render_h = disp_h;
+		render_w = disp_h * picture_width / picture_height;
+	}
+
 	axis.left = ge2d_comp_para->position_left + (disp_w - render_w) / 2;
 	axis.top = ge2d_comp_para->position_top + (disp_h - render_h) / 2;
 	axis.width = render_w;

@@ -3355,7 +3355,8 @@ static s32 update_amvideo_recycle_buffer(void)
 
 #ifdef CONFIG_AMLOGIC_MEDIA_VSYNC_RDMA
 	/* after one vsync processing, should be same */
-	if (cur_rdma_buf != cur_dispbuf) {
+	if ((cur_rdma_buf != cur_dispbuf) &&
+	    (cur_dispbuf != &vf_local)) {
 		pr_err("expection: amvideo rdma_buf:%p, dispbuf:%p!\n",
 		       cur_rdma_buf, cur_dispbuf);
 		return -1;
@@ -3404,7 +3405,8 @@ static s32 update_pip_recycle_buffer(void)
 
 #ifdef CONFIG_AMLOGIC_MEDIA_VSYNC_RDMA
 	/* after one vsync processing, should be same */
-	if (pip_rdma_buf != cur_pipbuf) {
+	if ((pip_rdma_buf != cur_pipbuf) &&
+	    (cur_pipbuf != &local_pip)) {
 		pr_err("expection: pip rdma_buf:%p, dispbuf:%p!\n",
 		       pip_rdma_buf, cur_pipbuf);
 		return -1;
