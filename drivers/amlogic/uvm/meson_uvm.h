@@ -55,6 +55,8 @@ struct uvm_buffer {
 
 	struct vframe_s *vf;
 	u32 index;
+
+	int commit_display;
 };
 
 struct uvm_device {
@@ -64,6 +66,7 @@ struct uvm_device {
 	struct mutex buffer_lock;
 
 	struct ion_client *uvm_client;
+	int pid;
 };
 
 struct uvm_alloc_data {
@@ -77,10 +80,29 @@ struct uvm_alloc_data {
 	uint32_t height;
 };
 
+struct uvm_pid_data {
+	int pid;
+};
+
+struct uvm_fd_data {
+	int fd;
+	int commit_display;
+};
+
+union uvm_ioctl_arg {
+	struct uvm_alloc_data alloc_data;
+	struct uvm_pid_data pid_data;
+	struct uvm_fd_data fd_data;
+};
+
 #define UVM_IOC_MAGIC 'U'
 #define UVM_IOC_ALLOC _IOWR(UVM_IOC_MAGIC, 0, \
 				struct uvm_alloc_data)
 #define UVM_IOC_FREE _IOWR(UVM_IOC_MAGIC, 1, \
 				struct uvm_alloc_data)
+#define UVM_IOC_SET_PID _IOWR(UVM_IOC_MAGIC, 2, \
+				struct uvm_pid_data)
+#define UVM_IOC_SET_FD _IOWR(UVM_IOC_MAGIC, 3, \
+				struct uvm_fd_data)
 #endif
 

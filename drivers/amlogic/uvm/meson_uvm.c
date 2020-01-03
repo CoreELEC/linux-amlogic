@@ -42,6 +42,9 @@
 static struct uvm_device *uvm_dev;
 static struct dma_buf_ops uvm_dma_buf_ops;
 
+static int enable_screencap;
+module_param_named(enable_screencap, enable_screencap, int, 0664);
+
 static int meson_uvm_alloc_buffer(struct dma_buf *dmabuf)
 {
 	int num_pages;
@@ -204,12 +207,20 @@ static struct sg_table *meson_uvm_map_dma_buf(
 {
 	struct dma_buf *dmabuf;
 	struct uvm_buffer *buffer;
+	struct uvm_device *ud;
 	struct sg_table *sgt;
 
 	dmabuf = attachment->dmabuf;
 	buffer = dmabuf->priv;
+	ud = buffer->dev;
 
 	pr_debug("meson_uvm_map_dma_buf called, %s.\n", current->comm);
+
+	if (!enable_screencap && current->tgid == ud->pid &&
+	    buffer->commit_display) {
+		pr_err("screen cap should not access the uvm buffer.\n");
+		return ERR_PTR(-ENODEV);
+	}
 
 	if (!buffer->handle && meson_uvm_alloc_buffer(dmabuf)) {
 		pr_err("uvm_map_dma_buf fail.\n");
@@ -434,11 +445,33 @@ err:
 	return -ENOMEM;
 }
 
+int uvm_set_commit_display(int fd, int commit_display)
+{
+	struct dma_buf *dmabuf;
+	struct uvm_buffer *buffer;
+
+	dmabuf = dma_buf_get(fd);
+	if (IS_ERR_OR_NULL(dmabuf)) {
+		pr_err("invalid dmabuf fd.\n");
+		return -EINVAL;
+	}
+
+	buffer = dmabuf->priv;
+	buffer->commit_display = commit_display;
+
+	dma_buf_put(dmabuf);
+	return 0;
+}
+
 static long uvm_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
-	struct uvm_alloc_data data;
+	struct uvm_device *ud;
+	union uvm_ioctl_arg data;
+	int pid;
 	int ret = 0;
 	int fd = 0;
+
+	ud = file->private_data;
 
 	if (_IOC_SIZE(cmd) > sizeof(data))
 		return -EINVAL;
@@ -448,19 +481,35 @@ static long uvm_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 	switch (cmd) {
 	case UVM_IOC_ALLOC:
-		fd = uvm_alloc_buffer(&data);
+		fd = uvm_alloc_buffer(&data.alloc_data);
 		if (fd < 0)
 			return -ENOMEM;
 
-		data.fd = fd;
-		break;
+		data.alloc_data.fd = fd;
 
+		if (copy_to_user((void __user *)arg, &data, _IOC_SIZE(cmd)))
+			return -EFAULT;
+
+		break;
+	case UVM_IOC_SET_PID:
+		pid = data.pid_data.pid;
+		if (pid < 0)
+			return -ENOMEM;
+
+		ud->pid = pid;
+		break;
+	case UVM_IOC_SET_FD:
+		fd = data.fd_data.fd;
+		ret = uvm_set_commit_display(fd, data.fd_data.commit_display);
+
+		if (ret < 0) {
+			pr_err("invalid dambuf fd.\n");
+			return -EINVAL;
+		}
+		break;
 	default:
 		return -ENOTTY;
 	}
-
-	if (copy_to_user((void __user *)arg, &data, _IOC_SIZE(cmd)))
-		return -EFAULT;
 
 	return ret;
 
