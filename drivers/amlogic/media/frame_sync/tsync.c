@@ -31,10 +31,14 @@
 #include <linux/amlogic/media/frame_sync/tsync_pcr.h>
 #include <linux/amlogic/media/registers/register.h>
 #include <linux/amlogic/media/codec_mm/configs.h>
+#include <linux/amlogic/major.h>
+#include <linux/err.h>
+#include <linux/uaccess.h>
 
 /* #if MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON6 */
 /* TODO: for stream buffer register bit define only */
 /* #endif */
+#define TSYNC_DEVICE_NAME   "tsync"
 
 #if !defined(CONFIG_PREEMPT)
 #define CONFIG_AM_TIMESYNC_LOG
@@ -134,6 +138,7 @@ static const char * const tsync_mode_str[] = {
 	"vmaster", "amaster", "pcrmaster"
 };
 
+static struct device *tsync_dev;
 static DEFINE_SPINLOCK(lock);
 static enum tsync_mode_e tsync_mode = TSYNC_MODE_AMASTER;
 static enum tsync_stat_e tsync_stat = TSYNC_STAT_PCRSCR_SETUP_NONE;
@@ -795,7 +800,7 @@ void tsync_avevent_locked(enum avevent_e event, u32 param)
 				set_pts_realign();
 			}
 		}
-		if (/*tsync_mode == TSYNC_MODE_VMASTER && */ !vpause_flag)
+		if (!vpause_flag && !tsync_get_tunnel_mode())
 			timestamp_pcrscr_enable(1);
 
 		if (!timestamp_firstvpts_get() && param)
@@ -2311,6 +2316,75 @@ static struct mconfig tsync_configs[] = {
 	MC_FUN_ID("checkin_firstvpts", tsync_show_fun, NULL, 21),
 };
 
+static int tsync_open(struct inode *inode, struct file *file)
+{
+	return 0;
+}
+
+static int tsync_release(struct inode *inode, struct file *file)
+{
+	return 0;
+}
+
+static long tsync_ioctl(struct file *file, unsigned int cmd, ulong arg)
+{
+	long ret = 0;
+	void __user *argp = (void __user *)arg;
+
+	switch (cmd) {
+	case TSYNC_IOC_SET_TUNNEL_MODE:{
+		u32 tunnel_mode;
+
+		if (copy_from_user(&tunnel_mode, argp,
+		   sizeof(is_tunnel_mode)) == 0)
+			tsync_set_tunnel_mode(tunnel_mode);
+		else
+			ret = -EFAULT;
+		break;
+	}
+	case TSYNC_IOC_SET_VIDEO_PEEK:
+		set_video_peek();
+		break;
+
+	case TSYNC_IOC_GET_FIRST_FRAME_TOGGLED:
+		put_user(get_first_frame_toggled(), (u32 __user *)argp);
+		break;
+
+	default:
+		pr_info("invalid cmd:%d\n", cmd);
+		break;
+	}
+
+	return ret;
+}
+
+#ifdef CONFIG_COMPAT
+static long tsync_compat_ioctl(struct file *file, unsigned int cmd, ulong arg)
+{
+	long ret = 0;
+
+	switch (cmd) {
+	case TSYNC_IOC_SET_TUNNEL_MODE:
+	case TSYNC_IOC_SET_VIDEO_PEEK:
+	case TSYNC_IOC_GET_FIRST_FRAME_TOGGLED:
+		return tsync_ioctl(file, cmd, arg);
+	default:
+		return -EINVAL;
+	}
+
+	return ret;
+}
+#endif
+
+static const struct file_operations tsync_fops = {
+	.owner = THIS_MODULE,
+	.open = tsync_open,
+	.release = tsync_release,
+	.unlocked_ioctl = tsync_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl = tsync_compat_ioctl,
+#endif
+};
 
 static int __init tsync_module_init(void)
 {
@@ -2321,6 +2395,21 @@ static int __init tsync_module_init(void)
 	if (r) {
 		amlog_level(LOG_LEVEL_ERROR, "tsync class create fail.\n");
 		return r;
+	}
+
+	/* create tsync device */
+	r = register_chrdev(TSYNC_MAJOR, "tsync", &tsync_fops);
+	if (r < 0) {
+		pr_info("Can't register major for tsync\n");
+		goto err2;
+	}
+
+	tsync_dev = device_create(&tsync_class, NULL,
+				MKDEV(TSYNC_MAJOR, 0), NULL, TSYNC_DEVICE_NAME);
+
+	if (IS_ERR(tsync_dev)) {
+		amlog_level(LOG_LEVEL_ERROR, "Can't create tsync_dev device\n");
+		goto err1;
 	}
 
 	/* init audio pts to -1, others to 0 */
@@ -2343,18 +2432,31 @@ static int __init tsync_module_init(void)
 
 	add_timer(&tsync_state_switch_timer);
 	REG_PATH_CONFIGS("media.tsync", tsync_configs);
+
+	return 0;
+
+err1:
+	unregister_chrdev(TSYNC_MAJOR, "tsync");
+err2:
+	class_unregister(&tsync_class);
+
 	return 0;
 }
 
 static void __exit tsync_module_exit(void)
 {
-		del_timer_sync(&tsync_pcr_recover_timer);
-
+	del_timer_sync(&tsync_pcr_recover_timer);
+	device_destroy(&tsync_class, MKDEV(TSYNC_MAJOR, 0));
+	unregister_chrdev(TSYNC_MAJOR, "tsync");
 	class_unregister(&tsync_class);
 }
 
 module_init(tsync_module_init);
 module_exit(tsync_module_exit);
+
+MODULE_PARM_DESC(is_tunnel_mode, "\n is_tunnel_mode\n");
+module_param(is_tunnel_mode, uint, 0664);
+
 MODULE_DESCRIPTION("AMLOGIC time sync management driver");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Tim Yao <timyao@amlogic.com>");

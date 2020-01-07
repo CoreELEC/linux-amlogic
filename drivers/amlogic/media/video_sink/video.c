@@ -805,6 +805,18 @@ void set_pts_realign(void)
 }
 EXPORT_SYMBOL(set_pts_realign);
 
+void set_video_peek(void)
+{
+	videopeek = true;
+}
+EXPORT_SYMBOL(set_video_peek);
+
+u32 get_first_frame_toggled(void)
+{
+	return first_frame_toggled;
+}
+EXPORT_SYMBOL(get_first_frame_toggled);
+
 /* wait queue for poll */
 static wait_queue_head_t amvideo_trick_wait;
 

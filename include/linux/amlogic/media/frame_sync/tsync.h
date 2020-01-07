@@ -24,6 +24,12 @@
 #define AV_DISCONTINUE_THREDHOLD_MIN    (TIME_UNIT90K * 3)
 #define AV_DISCONTINUE_THREDHOLD_MAX    (TIME_UNIT90K * 60)
 
+#define TSYNC_IOC_MAGIC 'T'
+#define TSYNC_IOC_SET_TUNNEL_MODE  _IOW(TSYNC_IOC_MAGIC, 0x00, int)
+#define TSYNC_IOC_SET_VIDEO_PEEK _IOW(TSYNC_IOC_MAGIC, 0x01, int)
+
+#define TSYNC_IOC_GET_FIRST_FRAME_TOGGLED _IOR(TSYNC_IOC_MAGIC, 0x20, int)
+
 enum avevent_e {
 	VIDEO_START,
 	VIDEO_PAUSE,
@@ -168,6 +174,8 @@ extern void timestamp_clac_pts_latency(u8 type, u32 pts);
 extern u32 timestamp_get_pts_latency(u8 type);
 extern void timestamp_clean_pts_latency(u8 type);
 extern int tsync_get_vpts_adjust(void);
+extern void set_video_peek(void);
+extern u32 get_first_frame_toggled(void);
 void tsync_set_av_state(u8 type, int state);
 
 static inline u32 tsync_vpts_discontinuity_margin(void)
