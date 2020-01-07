@@ -46,13 +46,13 @@ struct mmc_host *sdio_host;
 
 static unsigned int log2i(unsigned int val)
 {
-	unsigned int ret = -1;
+	int ret = -1;
 
 	while (val != 0) {
 		val >>= 1;
 		ret++;
 	}
-	return ret;
+	return (ret == -1) ? 0 : ret;
 }
 
 #ifdef AML_CALIBRATION
