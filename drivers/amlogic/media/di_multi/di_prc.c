@@ -1178,7 +1178,7 @@ const char *di_cma_dbg_get_st_name(unsigned int ch)
 	enum eDI_CMA_ST st = dip_cma_get_st(ch);
 	const char *p = "overflow";
 
-	if (st <= ARRAY_SIZE(di_cma_state_name))
+	if (st < ARRAY_SIZE(di_cma_state_name))
 		p = di_cma_state_name[st];
 	return p;
 }
