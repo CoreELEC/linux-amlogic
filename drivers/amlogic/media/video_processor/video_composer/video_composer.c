@@ -47,6 +47,9 @@
 
 static u32 video_composer_instance_num;
 static unsigned int force_composer;
+static unsigned int vc_active[2];
+static unsigned int countinue_vsync_count[2];
+
 MODULE_PARM_DESC(force_composer, "\n vidc_bypass\n");
 module_param(force_composer, uint, 0664);
 
@@ -61,6 +64,10 @@ module_param(transform, uint, 0664);
 static unsigned int vidc_debug;
 MODULE_PARM_DESC(vidc_debug, "\n vidc_debug\n");
 module_param(vidc_debug, uint, 0664);
+
+static unsigned int vidc_pattern_debug;
+MODULE_PARM_DESC(vidc_pattern_debug, "\n vidc_pattern_debug\n");
+module_param(vidc_pattern_debug, uint, 0664);
 
 static u32 print_flag;
 MODULE_PARM_DESC(print_flag, "\n print_flag\n");
@@ -118,7 +125,8 @@ static struct class *video_composer_dev_class;
 #define PRINT_PERFORMANCE	0X0004
 #define PRINT_AXIS		0X0008
 #define PRINT_INDEX_DISP	0X0010
-#define PRINT_OTHER		0X0020
+#define PRINT_PATTERN	        0X0020
+#define PRINT_OTHER		0X0040
 
 #define to_dst_buf(vf)	\
 	container_of(vf, struct dst_buf_t, frame)
@@ -166,9 +174,17 @@ void vsync_notify_video_composer(void)
 	int i;
 	int count = MAX_VIDEO_COMPOSER_INSTANCE_NUM;
 
+	countinue_vsync_count[0]++;
+	countinue_vsync_count[1]++;
+	if ((vidc_pattern_debug & 1) && vc_active[0])
+		pr_info("vc: get_count[0]=%d\n", get_count[0]);
+	else if ((vidc_pattern_debug & 2) && vc_active[1])
+		pr_info("vc: get_count[1]=%d\n", get_count[1]);
+
 	for (i = 0; i < count; i++)
 		get_count[i] = 0;
 	do_gettimeofday(&vsync_time);
+
 }
 
 static void *video_timeline_create(struct composer_dev *dev)
@@ -1105,8 +1121,11 @@ static void video_composer_task(struct composer_dev *dev)
 				vc_print(dev->index, PRINT_ERROR,
 					 "by_pass ready_q is full\n");
 			ready_count = kfifo_len(&dev->ready_q);
-			if (ready_count > 1)
+			if (ready_count > 2)
 				vc_print(dev->index, PRINT_ERROR,
+					 "ready len=%d\n", ready_count);
+			else if (ready_count > 1)
+				vc_print(dev->index, PRINT_PATTERN,
 					 "ready len=%d\n", ready_count);
 			vc_print(dev->index, PRINT_QUEUE_STATUS,
 				 "ready len=%d\n", kfifo_len(&dev->ready_q));
@@ -1456,15 +1475,16 @@ static void set_frames_info(struct composer_dev *dev,
 			file_private_data =
 			(struct file_private_data *)(file_vf->private_data);
 			vf = &file_private_data->vf;
-			vc_print(dev->index, PRINT_FENCE,
-				 "received_cnt=%lld,i=%d,z=%d,omx_index=%d, fence_fd=%d, fc_no=%d, index_disp=%d\n",
+			vc_print(dev->index, PRINT_FENCE | PRINT_PATTERN,
+				 "received_cnt=%lld,i=%d,z=%d,omx_index=%d, fence_fd=%d, fc_no=%d, index_disp=%d,pts=%lld\n",
 				 dev->received_count + 1,
 				 i,
 				 frames_info->frame_info[j].zorder,
 				 vf->omx_index,
 				 fence_fd,
 				 dev->cur_streamline_val,
-				 vf->index_disp);
+				 vf->index_disp,
+				 vf->pts_us64);
 			ATRACE_COUNTER("video_composer", vf->index_disp);
 		} else if (frames_info->frame_info[j].type == 1) {
 			vc_print(dev->index, PRINT_FENCE,
@@ -1516,7 +1536,7 @@ static struct vframe_s *vc_vf_peek(void *op_arg)
 				 "time_vsync=%lld, vf->pts_us64=%lld\n",
 				 time_vsync, vf->pts_us64);
 			if (interval_time < margin_time) {
-				vc_print(dev->index, PRINT_ERROR,
+				vc_print(dev->index, PRINT_PATTERN,
 					 "display next vsync\n");
 				return NULL;
 			}
@@ -1549,9 +1569,12 @@ static struct vframe_s *vc_vf_get(void *op_arg)
 
 		get_count[dev->index]++;
 
-		vc_print(dev->index, PRINT_OTHER,
-			 "get: omx_index=%d\n",
-			 vf->omx_index);
+		vc_print(dev->index, PRINT_OTHER | PRINT_PATTERN,
+			 "get: omx_index=%d, get_count=%d, vsync_count=%d\n",
+			 vf->omx_index,
+			 get_count[dev->index],
+			 countinue_vsync_count[dev->index]);
+		countinue_vsync_count[dev->index] = 0;
 
 		return vf;
 	} else {
@@ -1734,6 +1757,8 @@ static int video_composer_init(struct composer_dev *dev)
 	else if (dev->index == 1)
 		set_video_path_select("video_render.1", 1);
 
+	vc_active[dev->index] = 1;
+
 	return ret;
 }
 
@@ -1784,6 +1809,8 @@ static int video_composer_uninit(struct composer_dev *dev)
 				- dev->fence_release_count);
 	dev->is_sideband = false;
 	dev->need_empty_ready = false;
+
+	vc_active[dev->index] = 0;
 
 	return ret;
 }
