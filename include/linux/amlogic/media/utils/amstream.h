@@ -643,6 +643,7 @@ struct usr_crc_info_t {
 #define AMSTREAM_SET_NO_POWERDOWN   0x178
 #define AMSTREAM_SET_DV_META_WITH_EL 0x179
 #define AMSTREAM_SET_FCC_MODE 0x180
+#define AMSTREAM_SET_DMC_URGENT  0x17a
 
 /*  video set ex cmd */
 #define AMSTREAM_SET_EX_VIDEO_AXIS 0x260
