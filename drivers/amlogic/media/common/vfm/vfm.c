@@ -487,7 +487,7 @@ static inline struct vframe_s *vfm_vf_peek(
 	return vfp->ops->peek(vfp->op_arg);
 }
 
-static void vfm_dump_provider(const char *name)
+void vfm_dump_one(const char *name)
 {
 	struct vframe_provider_s *prov;
 	struct vframe_states states;
@@ -507,6 +507,7 @@ static void vfm_dump_provider(const char *name)
 
 	pbuf = buf;
 
+	pr_info("\n --- dumping provider %s---\n", name);
 	if (!vfm_vf_get_states(prov, &states)) {
 		pr_info("vframe_pool_size=%d\n",
 			states.vf_pool_size);
@@ -561,6 +562,15 @@ static void vfm_dump_provider(const char *name)
 	vftrace_dump_trace_infos(prov->traceput);
 
 	kfree(buf);
+}
+EXPORT_SYMBOL(vfm_dump_one);
+
+static void vfm_dump_provider(const char *name)
+{
+	if (strcasecmp(name, "all") == 0 || name[0] == '\0')
+		dump_all_provider(vfm_dump_one);
+	else
+		vfm_dump_one(name);
 }
 
 #define VFM_CMD_ADD 1

@@ -106,6 +106,7 @@ int vf_get_states(struct vframe_provider_s *vfp,
 	struct vframe_states *states);
 int vf_get_states_by_name(const char *receiver_name,
 	struct vframe_states *states);
+void dump_all_provider(void (*callback)(const char *name));
 
 unsigned int get_post_canvas(void);
 
