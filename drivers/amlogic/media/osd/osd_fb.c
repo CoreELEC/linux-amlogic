@@ -615,6 +615,11 @@ static int osd_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 	struct osd_fb_dev_s *fbdev = (struct osd_fb_dev_s *)info->par;
 	const struct color_bit_define_s *color_format_pt;
 
+	if (osd_meson_dev.cpu_id < __MESON_CPU_MAJOR_ID_GXM) {
+		var->xres_virtual = info->var.xres_virtual;
+		var->yres_virtual = info->var.yres_virtual;
+	}
+
 	fix = &info->fix;
 	color_format_pt = _find_color_format(var);
 	if (color_format_pt == NULL || color_format_pt->color_index == 0)
