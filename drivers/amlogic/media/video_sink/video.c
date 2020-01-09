@@ -2930,7 +2930,8 @@ static void pip_swap_frame(struct vframe_s *vf)
 		DEBUG_FLAG_PRINT_TOGGLE_FRAME)
 		pr_info("%s()\n", __func__);
 
-	if (vf->flag & VFRAME_FLAG_VIDEO_COMPOSER) {
+	if ((vf->flag & VFRAME_FLAG_VIDEO_COMPOSER) &&
+	    !(debug_flag & DEBUG_FLAG_AXIS_NO_UPDATE)) {
 		axis[0] = vf->axis[0];
 		axis[1] = vf->axis[1];
 		axis[2] = vf->axis[2];
@@ -3051,7 +3052,8 @@ static void primary_swap_frame(
 	layer = &vd_layer[0];
 	layer_info = &glayer_info[0];
 
-	if (vf->flag & VFRAME_FLAG_VIDEO_COMPOSER) {
+	if ((vf->flag & VFRAME_FLAG_VIDEO_COMPOSER) &&
+	    !(debug_flag & DEBUG_FLAG_AXIS_NO_UPDATE)) {
 		axis[0] = vf->axis[0];
 		axis[1] = vf->axis[1];
 		axis[2] = vf->axis[2];
@@ -3660,6 +3662,15 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 	}
 
 	vf = video_vf_peek();
+
+	if (vf) {
+		if ((glayer_info[0].display_path_id == VFM_PATH_AUTO) &&
+		    (receive_frame_count == 0)) {
+			glayer_info[0].display_path_id = VFM_PATH_AMVIDEO;
+			vd1_path_id = glayer_info[0].display_path_id;
+	}
+	}
+
 	if ((vf) && ((vf->type & VIDTYPE_NO_VIDEO_ENABLE) == 0)) {
 		if ((old_vmode != new_vmode) || (debug_flag == 8)) {
 			debug_flag = 1;
@@ -4603,7 +4614,8 @@ SET_FILTER:
 		if (new_frame || cur_pipbuf)
 			vd_layer[0].dispbuf_mapping = &cur_pipbuf;
 		cur_blackout = blackout_pip | force_blackout;
-	} else if (vd1_path_id != VFM_PATH_INVAILD) {
+	} else if ((vd1_path_id != VFM_PATH_INVAILD) &&
+		   (vd1_path_id != VFM_PATH_AUTO)) {
 		/* priamry display on VD1 */
 		new_frame = path0_new_frame;
 		if (!new_frame) {
@@ -9482,6 +9494,8 @@ s32 set_video_path_select(const char *recv_name, u8 layer_id)
 		new_path_id = VFM_PATH_VIDEO_RENDER0;
 	else if (!strcmp(recv_name, "video_render.1"))
 		new_path_id = VFM_PATH_VIDEO_RENDER1;
+	else if (!strcmp(recv_name, "auto"))
+		new_path_id = VFM_PATH_AUTO;
 	else if (!strcmp(recv_name, "invalid"))
 		new_path_id = VFM_PATH_INVAILD;
 	if (layer_info->display_path_id != new_path_id) {

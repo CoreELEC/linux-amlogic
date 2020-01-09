@@ -200,6 +200,7 @@ struct composer_dev {
 	bool is_sideband;
 	bool need_empty_ready;
 	struct vframe_s fake_vf;
+	bool select_path_done;
 };
 
 #define VIDEO_COMPOSER_IOC_MAGIC  'V'

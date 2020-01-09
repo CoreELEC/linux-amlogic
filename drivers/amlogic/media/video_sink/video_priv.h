@@ -88,6 +88,7 @@ enum vd_path_id {
 	VFM_PATH_PIP = 1,
 	VFM_PATH_VIDEO_RENDER0 = 2,
 	VFM_PATH_VIDEO_RENDER1 = 3,
+	VFM_PATH_AUTO = 0xfe,
 	VFM_PATH_INVAILD = 0xff
 };
 

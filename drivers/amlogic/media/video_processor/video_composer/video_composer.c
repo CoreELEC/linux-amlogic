@@ -1294,6 +1294,15 @@ static int video_composer_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
+static void disable_video_layer(struct composer_dev *dev, int val)
+{
+	pr_info("dev->index =%d, val=%d", dev->index, val);
+	if (dev->index == 0)
+		_video_set_disable(val);
+	else if (dev->index == 1)
+		_videopip_set_disable(val);
+}
+
 static void set_frames_info(struct composer_dev *dev,
 			    struct frames_info_t *frames_info)
 {
@@ -1318,10 +1327,6 @@ static void set_frames_info(struct composer_dev *dev,
 				 "sideband:i=%d,z=%d\n",
 				 i,
 				 frames_info->disp_zorder);
-			if (dev->index == 0)
-				set_video_path_select("amvideo", 0);
-			else if (dev->index == 1)
-				set_video_path_select("pipvideo", 1);
 			ready_len = kfifo_len(&dev->ready_q);
 			vc_print(dev->index, PRINT_OTHER,
 				 "sideband: ready_len =%d\n",
@@ -1347,11 +1352,29 @@ static void set_frames_info(struct composer_dev *dev,
 				dev->need_empty_ready = true;
 				wake_up_interruptible(&dev->wq);
 			}
-			if (!dev->is_sideband)
+			if (!dev->is_sideband) {
 				set_blackout_policy(0);
+				dev->select_path_done = false;
+			}
 			dev->is_sideband = true;
 			current_is_sideband = true;
 		}
+	}
+	if (!dev->select_path_done) {
+		if (current_is_sideband) {
+			if (dev->received_count > 0) {
+				if (dev->index == 0)
+					set_video_path_select("amvideo", 0);
+				else if (dev->index == 1)
+					set_video_path_select("pipvideo", 1);
+			} else {
+				if (dev->index == 0)
+					set_video_path_select("auto", 0);
+				else if (dev->index == 1)
+					set_video_path_select("pipvideo", 1);
+			}
+		}
+		dev->select_path_done = true;
 	}
 	if (current_is_sideband) {
 		if (frames_info->frame_count > 1)
@@ -1623,15 +1646,6 @@ static const struct vframe_operations_s vc_vf_provider = {
 	.vf_states = vc_vf_states,
 };
 
-static void disable_video_layer(struct composer_dev *dev, int val)
-{
-	pr_info("dev->index =%d, val=%d", dev->index, val);
-	if (dev->index == 0)
-		_video_set_disable(val);
-	else if (dev->index == 1)
-		_videopip_set_disable(val);
-}
-
 static int video_composer_creat_path(struct composer_dev *dev)
 {
 	if (dev->index == 0)
@@ -1705,6 +1719,7 @@ static int video_composer_init(struct composer_dev *dev)
 	dev->is_sideband = false;
 	dev->need_empty_ready = false;
 	dev->last_file = NULL;
+	dev->select_path_done = false;
 	init_completion(&dev->task_done);
 
 	disable_video_layer(dev, 2);
@@ -1724,8 +1739,11 @@ static int video_composer_uninit(struct composer_dev *dev)
 	int ret;
 	int timeout = 0;
 
-	if (dev->is_sideband)
+	if (dev->is_sideband) {
+		if (dev->index == 0)
+			set_video_path_select("auto", 0);
 		set_blackout_policy(1);
+	}
 
 	disable_video_layer(dev, 1);
 	video_set_global_output(dev->index, 0);
