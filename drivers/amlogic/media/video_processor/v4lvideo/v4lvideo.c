@@ -1141,6 +1141,45 @@ static int vidioc_qbuf(struct file *file, void *priv, struct v4l2_buffer *p)
 	return 0;
 }
 
+static void canvas_to_addr(struct vframe_s *vf)
+{
+	struct canvas_s src_cs0, src_cs1, src_cs2;
+
+	if (vf->canvas0Addr == (u32)-1)
+		return;
+
+	canvas_read(vf->canvas0Addr & 0xff, &src_cs0);
+	canvas_read(vf->canvas0Addr >> 8 & 0xff, &src_cs1);
+	canvas_read(vf->canvas0Addr >> 16 & 0xff, &src_cs2);
+
+	vf->canvas0_config[0].phy_addr = src_cs0.addr;
+	vf->canvas0_config[0].width = src_cs0.width;
+	vf->canvas0_config[0].height = src_cs0.height;
+	vf->canvas0_config[0].block_mode = src_cs0.blkmode;
+	vf->canvas0_config[0].endian = src_cs0.endian;
+
+	vf->canvas0_config[1].phy_addr = src_cs1.addr;
+	vf->canvas0_config[1].width = src_cs1.width;
+	vf->canvas0_config[1].height = src_cs1.height;
+	vf->canvas0_config[1].block_mode = src_cs1.blkmode;
+	vf->canvas0_config[1].endian = src_cs1.endian;
+
+	vf->canvas0_config[2].phy_addr = src_cs2.addr;
+	vf->canvas0_config[2].width = src_cs2.width;
+	vf->canvas0_config[2].height = src_cs2.height;
+	vf->canvas0_config[2].block_mode = src_cs2.blkmode;
+	vf->canvas0_config[2].endian = src_cs2.endian;
+
+	if (vf->type & VIDTYPE_VIU_NV21)
+		vf->plane_num = 2;
+
+	if (vf->plane_num == 0)
+		pr_err("v4lvideo: plane_num is 0\n");
+
+	vf->canvas0Addr = (u32)-1;
+	vf->canvas1Addr = (u32)-1;
+}
+
 static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *p)
 {
 	struct v4lvideo_dev *dev = video_drvdata(file);
@@ -1210,6 +1249,7 @@ static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *p)
 	v4lvideo_import_sei_data(
 		vf, &file_private_data->vf,
 		dev->provider_name);
+	canvas_to_addr(&file_private_data->vf);
 
 	//pr_err("dqbuf: file_private_data=%p, vf=%p\n", file_private_data, vf);
 	v4l2q_push(&dev->display_queue, file_private_data);
