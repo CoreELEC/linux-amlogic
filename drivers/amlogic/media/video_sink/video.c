@@ -2452,9 +2452,8 @@ static void dolby_vision_proc(
 	struct video_layer_s *layer,
 	struct vpp_frame_par_s *cur_frame_par)
 {
-#ifdef OLD_DV_FLOW
+
 	static struct vframe_s *cur_dv_vf;
-#endif
 	static u32 cur_frame_size;
 	struct vframe_s *disp_vf;
 	u8 toggle_mode;
@@ -2526,13 +2525,12 @@ static void dolby_vision_proc(
 			frame_size = (h_size << 16) | v_size;
 		}
 
-#ifdef OLD_DV_FLOW
 		/* trigger dv process once when stop playing */
 		/* because disp_vf is not sync with video off */
 		if (cur_dv_vf && !disp_vf)
 			dolby_vision_set_toggle_flag(1);
 		cur_dv_vf = disp_vf;
-#endif
+
 		if (cur_frame_size != frame_size) {
 			cur_frame_size = frame_size;
 			dolby_vision_set_toggle_flag(1);
@@ -5734,7 +5732,14 @@ s32 update_vframe_src_fmt(
 	vf->src_fmt.sei_ptr = sei;
 	vf->src_fmt.sei_size = size;
 	vf->src_fmt.dual_layer = false;
-	if (((signal_transfer_characteristic == 14) ||
+
+	if (sei && size &&
+	    (vf->src_fmt.fmt == VFRAME_SIGNAL_FMT_INVALID)) {
+		if (dual_layer || check_media_sei(sei, size, DV_SEI)) {
+			vf->src_fmt.fmt = VFRAME_SIGNAL_FMT_DOVI;
+			vf->src_fmt.dual_layer = dual_layer;
+		}
+	} else if (((signal_transfer_characteristic == 14) ||
 	     (signal_transfer_characteristic == 18)) &&
 	    (signal_color_primaries == 9)) {
 		vf->src_fmt.fmt = VFRAME_SIGNAL_FMT_HLG;
@@ -5752,13 +5757,7 @@ s32 update_vframe_src_fmt(
 	} else if (vf->type & VIDTYPE_MVC) {
 		vf->src_fmt.fmt = VFRAME_SIGNAL_FMT_MVC;
 	}
-	if (sei && size &&
-	    (vf->src_fmt.fmt == VFRAME_SIGNAL_FMT_INVALID)) {
-		if (dual_layer || check_media_sei(sei, size, DV_SEI)) {
-			vf->src_fmt.fmt = VFRAME_SIGNAL_FMT_DOVI;
-			vf->src_fmt.dual_layer = dual_layer;
-		}
-	}
+
 	if (vf->src_fmt.fmt == VFRAME_SIGNAL_FMT_INVALID)
 		vf->src_fmt.fmt = VFRAME_SIGNAL_FMT_SDR;
 	return 0;
