@@ -43,7 +43,7 @@ ion_phys_addr_t ion_codec_mm_allocate(struct ion_heap *heap,
 	unsigned long offset;
 
 	if (codec_heap->alloced_size + size > codec_heap->max_can_alloc_size) {
-		pr_err(
+		pr_debug(
 			"ion_codec_mm_allocate failed out size %ld,alloced %d\n",
 			size,
 			codec_heap->alloced_size);
