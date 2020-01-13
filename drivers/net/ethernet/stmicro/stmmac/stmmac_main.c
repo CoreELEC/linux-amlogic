@@ -61,6 +61,9 @@
 #ifdef CONFIG_DWMAC_MESON
 #include <phy_debug.h>
 #endif
+#ifdef CONFIG_AMLOGIC_CPU_INFO
+#include <linux/amlogic/cpu_version.h>
+#endif
 
 #define	STMMAC_ALIGN(x)		ALIGN(ALIGN(x, SMP_CACHE_BYTES), 16)
 #define	TSO_MAX_BUFF_SIZE	(SZ_16K - 1)
@@ -1586,6 +1589,32 @@ static int stmmac_get_hw_features(struct stmmac_priv *priv)
 	return ret;
 }
 
+
+/**
+ * eth_hw_addr_chipid - Generate software assigned Ethernet address
+ * based on chipid.
+ * @addr: Pointer to a six-byte array containing the Ethernet address
+ *
+ * Use chipid to generate a Ethernet address (MAC) that is not multicast
+ * and has the local assigned bit set.
+ */
+static void eth_hw_addr_chipid(u8 *addr)
+{
+#ifdef CONFIG_AMLOGIC_CPU_INFO
+	unsigned char chipid[16];
+	cpuinfo_get_chipid(chipid, 16);
+	addr[0] = chipid[15];
+	addr[1] = chipid[14];
+	addr[2] = chipid[13];
+	addr[3] = chipid[12];
+	addr[4] = chipid[11];
+	addr[5] = chipid[10];
+	addr[0] &= 0xfe;	/* clear multicast bit */
+	addr[0] |= 0x02;	/* set local assignment bit (IEEE802) */
+#endif
+}
+
+
 /**
  * stmmac_check_ether_addr - check if the MAC addr is valid
  * @priv: driver private structure
@@ -1598,6 +1627,8 @@ static void stmmac_check_ether_addr(struct stmmac_priv *priv)
 	if (!is_valid_ether_addr(priv->dev->dev_addr)) {
 		priv->hw->mac->get_umac_addr(priv->hw,
 					     priv->dev->dev_addr, 0);
+		if (is_local_ether_addr(priv->dev->dev_addr))
+			eth_hw_addr_chipid(priv->dev->dev_addr);
 		if (!is_valid_ether_addr(priv->dev->dev_addr))
 			eth_hw_addr_random(priv->dev);
 		pr_info("%s: device MAC address %pM\n", priv->dev->name,
