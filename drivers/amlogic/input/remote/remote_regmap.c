@@ -164,6 +164,24 @@ static struct remote_reg_map regs_default_rca[] = {
 	{ REG_DURATN3,      0x00}
 };
 
+static struct remote_reg_map regs_default_rcmm[] = {
+	{REG_LDR_ACTIVE,    (35 << 16) | (17 << 0)},
+	{REG_LDR_IDLE,      (17 << 16) | (8 << 0)},
+	{REG_LDR_REPEAT,    (31 << 16) | (11 << 0)},
+	/* for 00 duration */
+	{REG_BIT_0,         (25 << 16) | (21 << 0)},
+	{REG_REG0,          (7 << 28)  | (0x590 << 12) | 0x13},
+	/* for 01 duration */
+	{REG_STATUS,        (36 << 20) | (29 << 10)},
+	{REG_REG1,          0x9f00},
+	{REG_REG2,          0x3D0A},
+	/* for 10 duration */
+	{REG_DURATN2,       ((43 << 16) | (37 << 0))},
+	/* for 11 duration */
+	{REG_DURATN3,       ((50 << 16) | (44 << 0))},
+	{REG_REG3,          1200 << 0},
+};
+
 static int ir_toshiba_get_scancode(struct remote_chip *chip)
 {
 	int  code = 0;
@@ -516,6 +534,42 @@ static u32 ir_rca_get_custom_code(struct remote_chip *chip)
 	return custom_code;
 }
 
+static int ir_rcmm_get_scancode(struct remote_chip *chip)
+{
+	int code = 0;
+	int status = 0;
+	int decode_status = 0;
+
+	/*get status*/
+	remote_reg_read(chip, MULTI_IR_ID, REG_STATUS, &decode_status);
+	decode_status &= 0xf;
+	if (decode_status & 0x01)
+		status |= REMOTE_REPEAT;
+	chip->decode_status = status;
+
+	/*get frame*/
+	remote_reg_read(chip, MULTI_IR_ID, REG_FRAME, &code);
+	remote_dbg(chip->dev, "framecode=0x%x\n", code);
+	chip->r_dev->cur_hardcode = code;
+	code = code & 0xff;
+	return code;
+}
+
+static int ir_rcmm_get_decode_status(struct remote_chip *chip)
+{
+	int status = chip->decode_status;
+
+	return status;
+}
+
+static u32 ir_rcmm_get_custom_code(struct remote_chip *chip)
+{
+	u32 custom_code;
+
+	custom_code = (chip->r_dev->cur_hardcode >> 16) & GENMASK(15, 0);
+	return custom_code;
+}
+
 /*legacy IR controller support protocols*/
 static struct aml_remote_reg_proto reg_legacy_nec = {
 	.protocol = REMOTE_TYPE_LEGACY_NEC,
@@ -620,6 +674,16 @@ static struct aml_remote_reg_proto reg_rca = {
 	.get_custom_code   = ir_rca_get_custom_code,
 };
 
+static struct aml_remote_reg_proto reg_rcmm = {
+	.protocol = REMOTE_TYPE_RCMM,
+	.name     = "RCMM",
+	.reg_map      = regs_default_rcmm,
+	.reg_map_size = ARRAY_SIZE(regs_default_rcmm),
+	.get_scancode      = ir_rcmm_get_scancode,
+	.get_decode_status = ir_rcmm_get_decode_status,
+	.get_custom_code   = ir_rcmm_get_custom_code,
+};
+
 const struct aml_remote_reg_proto *remote_reg_proto[] = {
 	&reg_nec,
 	&reg_duokan,
@@ -631,6 +695,7 @@ const struct aml_remote_reg_proto *remote_reg_proto[] = {
 	&reg_legacy_nec,
 	&reg_toshiba,
 	&reg_rca,
+	&reg_rcmm,
 	NULL
 };
 
