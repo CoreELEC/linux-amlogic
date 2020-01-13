@@ -112,14 +112,6 @@ module_param(debug_crop_pip, uint, 0664);
 
 static struct class *video_composer_dev_class;
 
-static struct class_attribute video_composer_class_attrs[] = {
-};
-
-static struct class video_composer_class = {
-	.name = "video_composer",
-	.class_attrs = video_composer_class_attrs,
-};
-
 #define PRINT_ERROR		0X0
 #define PRINT_QUEUE_STATUS	0X0001
 #define PRINT_FENCE		0X0002
@@ -1882,10 +1874,6 @@ static int video_composer_probe(struct platform_device *pdev)
 	if (layer_cap & LAYER1_SCALER)
 		video_composer_instance_num++;
 
-	ret = class_register(&video_composer_class);
-	if (ret < 0)
-		return ret;
-
 	ret = register_chrdev(VIDEO_COMPOSER_MAJOR,
 			      "video_composer", &video_composer_fops);
 	if (ret < 0) {
@@ -1910,7 +1898,6 @@ static int video_composer_probe(struct platform_device *pdev)
 error1:
 	pr_err("video_composer_probe error\n");
 	unregister_chrdev(VIDEO_COMPOSER_MAJOR, "video_composer");
-	class_unregister(&video_composer_class);
 	return ret;
 }
 
@@ -1936,7 +1923,6 @@ static int video_composer_remove(struct platform_device *pdev)
 
 	unregister_chrdev(VIDEO_COMPOSER_MAJOR, VIDEO_COMPOSER_DEVICE_NAME);
 
-	class_unregister(&video_composer_class);
 	return 0;
 };
 
