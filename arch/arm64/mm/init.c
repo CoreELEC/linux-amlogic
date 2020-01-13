@@ -436,15 +436,15 @@ void __init mem_init(void)
 		MLM(MODULES_VADDR, MODULES_END));
 	pr_notice("    vmalloc : 0x%16lx - 0x%16lx   (%6ld GB)\n",
 		MLG(VMALLOC_START, VMALLOC_END));
-	pr_notice("      .text : 0x%p" " - 0x%p" "   (%6ld KB)\n",
+	pr_notice("      .text : 0x%px" " - 0x%px" "   (%6ld KB)\n",
 		MLK_ROUNDUP(_text, _etext));
-	pr_notice("    .rodata : 0x%p" " - 0x%p" "   (%6ld KB)\n",
+	pr_notice("    .rodata : 0x%px" " - 0x%px" "   (%6ld KB)\n",
 		MLK_ROUNDUP(__start_rodata, __init_begin));
-	pr_notice("      .init : 0x%p" " - 0x%p" "   (%6ld KB)\n",
+	pr_notice("      .init : 0x%px" " - 0x%px" "   (%6ld KB)\n",
 		MLK_ROUNDUP(__init_begin, __init_end));
-	pr_notice("      .data : 0x%p" " - 0x%p" "   (%6ld KB)\n",
+	pr_notice("      .data : 0x%px" " - 0x%px" "   (%6ld KB)\n",
 		MLK_ROUNDUP(_sdata, _edata));
-	pr_notice("       .bss : 0x%p" " - 0x%p" "   (%6ld KB)\n",
+	pr_notice("       .bss : 0x%px" " - 0x%px" "   (%6ld KB)\n",
 		MLK_ROUNDUP(__bss_start, __bss_stop));
 	pr_notice("    fixed   : 0x%16lx - 0x%16lx   (%6ld KB)\n",
 		MLK(FIXADDR_START, FIXADDR_TOP));

@@ -299,7 +299,7 @@ static void show_vmalloc_pfn(struct pt_regs *regs)
 	int i;
 	struct page *page;
 
-	for (i = 0; i < 16; i++) {
+	for (i = 0; i < 31; i++) {
 		if (is_vmalloc_or_module_addr((void *)regs->regs[i])) {
 			page = vmalloc_to_page((void *)regs->regs[i]);
 			if (!page)
