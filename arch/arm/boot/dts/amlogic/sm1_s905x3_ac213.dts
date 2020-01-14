@@ -420,13 +420,12 @@
 		dtv_demod0_i2c_addr = <0x14>;
 		dtv_demod0_reset_value = <0>;
 		dtv_demod0_reset_gpio = <&gpio_ao GPIOAO_10 GPIO_ACTIVE_HIGH>;
-		dtv_demod0_ant_poweron_value = <0>;
-		dtv_demod0_ant_power_gpio = <&gpio GPIOH_5 GPIO_ACTIVE_HIGH>;
+		fe0_ant_poweron_value = <0>;
+		fe0_ant_power_gpio = <&gpio GPIOH_5 GPIO_ACTIVE_HIGH>;
 		dtv_demod0_tuner_type = <52>;
 		fe0_dtv_demod = <0>;
 		fe0_ts  = <0>;
 		fe0_dev = <0>;
-
 
 		ts0 = "serial";
 		ts0_control = <0x800>;
