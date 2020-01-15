@@ -84,6 +84,12 @@
 	gpio_keypad {
 		reg = <0x0 0xFF800000 0x0 0x400>;
 	};
+
+	gpioleds {
+		sys_led {
+			/delete-property/ retain-state-suspended;
+		};
+	};
 };
 
 &meson_fb {
