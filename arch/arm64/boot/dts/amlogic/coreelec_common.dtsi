@@ -80,6 +80,12 @@
 		dev_name = "openvfd";
 		status = "okay";
 	};
+
+	gpioleds {
+		sys_led {
+			/delete-property/ retain-state-suspended;
+		};
+	};
 };
 
 &meson_fb {
