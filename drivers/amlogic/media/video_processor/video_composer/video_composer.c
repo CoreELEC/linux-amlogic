@@ -1533,6 +1533,9 @@ static struct vframe_s *vc_vf_get(void *op_arg)
 		if (!vf)
 			return NULL;
 
+		if (vf->flag & VFRAME_FLAG_FAKE_FRAME)
+			return vf;
+
 		if (!kfifo_put(&dev->display_q, vf))
 			vc_print(dev->index, PRINT_ERROR,
 				 "display_q is full!\n");
