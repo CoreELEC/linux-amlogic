@@ -183,7 +183,8 @@ static int vpu_mem_power_off_count;
 		unsigned long flags; \
 		spin_lock_irqsave(&video_onoff_lock, flags); \
 		if (vd_layer[0].onoff_state != VIDEO_ENABLE_STATE_ON_PENDING) \
-			vd_layer[0].onoff_state = VIDEO_ENABLE_STATE_ON_REQ; \
+			vd_layer[0].onoff_state = \
+			VIDEO_ENABLE_STATE_ON_PENDING; \
 		vd_layer[0].enabled = 1; \
 		vd_layer[0].enabled_status_saved = 1; \
 		spin_unlock_irqrestore(&video_onoff_lock, flags); \
@@ -204,7 +205,8 @@ static int vpu_mem_power_off_count;
 		unsigned long flags; \
 		spin_lock_irqsave(&video2_onoff_lock, flags); \
 		if (vd_layer[1].onoff_state != VIDEO_ENABLE_STATE_ON_PENDING) \
-			vd_layer[1].onoff_state = VIDEO_ENABLE_STATE_ON_REQ; \
+			vd_layer[1].onoff_state = \
+			VIDEO_ENABLE_STATE_ON_PENDING; \
 		vd_layer[1].enabled = 1; \
 		vd_layer[1].enabled_status_saved = 1; \
 		spin_unlock_irqrestore(&video2_onoff_lock, flags); \
