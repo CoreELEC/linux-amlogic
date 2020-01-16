@@ -1449,6 +1449,7 @@ static long amvecm_ioctl(struct file *file,
 	unsigned int *hdr_tm = NULL;
 	struct vpp_pq_ctrl_s pq_ctrl;
 	enum meson_cpu_ver_e cpu_ver;
+	struct cms_data_s data;
 
 	if (debug_amvecm & 2)
 		pr_info("[amvecm..] %s: cmd_nr = 0x%x\n",
@@ -1875,6 +1876,74 @@ static long amvecm_ioctl(struct file *file,
 				break;
 			ret = -EINVAL;
 			pr_amvecm_dbg("cpu version doesn't match\n");
+		}
+		break;
+	case AMVECM_IOC_S_CMS_LUMA:
+		if (copy_from_user(
+			&data,
+			(void __user *)arg,
+			sizeof(struct cms_data_s))) {
+			ret = -EFAULT;
+		} else {
+			cm2_luma_array[data.color][0] = data.value;
+			cm2_luma_array[data.color][1] = 0;
+			cm2_luma_array[data.color][2] = 1;
+			cm2_luma(
+				data.color,
+				cm2_luma_array[data.color][0],
+				cm2_luma_array[data.color][1]);
+			pq_user_latch_flag |= PQ_USER_CMS_CURVE_LUMA;
+		}
+		break;
+	case AMVECM_IOC_S_CMS_SAT:
+		if (copy_from_user(
+			&data,
+			(void __user *)arg,
+			sizeof(struct cms_data_s))) {
+			ret = -EFAULT;
+		} else {
+			cm2_sat_array[data.color][0] = data.value;
+			cm2_sat_array[data.color][1] = 0;
+			cm2_sat_array[data.color][2] = 1;
+			cm2_sat(
+				data.color,
+				cm2_sat_array[data.color][0],
+				cm2_sat_array[data.color][1]);
+			pq_user_latch_flag |= PQ_USER_CMS_CURVE_SAT;
+		}
+		break;
+	case AMVECM_IOC_S_CMS_HUE:
+		if (copy_from_user(
+			&data,
+			(void __user *)arg,
+			sizeof(struct cms_data_s))) {
+			ret = -EFAULT;
+		} else {
+			cm2_hue_array[data.color][0] = data.value;
+			cm2_hue_array[data.color][1] = 0;
+			cm2_hue_array[data.color][2] = 1;
+			cm2_hue(
+				data.color,
+				cm2_hue_array[data.color][0],
+				cm2_hue_array[data.color][1]);
+			pq_user_latch_flag |= PQ_USER_CMS_CURVE_HUE;
+		}
+		break;
+	case AMVECM_IOC_S_CMS_HUE_HS:
+		if (copy_from_user(
+			&data,
+			(void __user *)arg,
+			sizeof(struct cms_data_s))) {
+			ret = -EFAULT;
+		} else {
+			cm2_hue_by_hs_array[data.color][0] = data.value;
+			cm2_hue_by_hs_array[data.color][1] = 0;
+			cm2_hue_by_hs_array[data.color][2] = 1;
+			cm2_hue_by_hs(
+				data.color,
+				cm2_hue_by_hs_array[data.color][0],
+				cm2_hue_by_hs_array[data.color][1]);
+			pq_user_latch_flag |= PQ_USER_CMS_CURVE_HUE_HS;
 		}
 		break;
 	default:

@@ -243,8 +243,19 @@ struct hdr_tone_mapping_s {
 #define AMVECM_IOC_S_HDR_TM  _IOW(_VE_CM, 0x63, struct hdr_tone_mapping_s)
 #define AMVECM_IOC_G_HDR_TM  _IOR(_VE_CM, 0x64, struct hdr_tone_mapping_s)
 
-#define AMVECM_IOC_S_PQ_CTRL  _IOW(_VE_CM, 0x65, struct vpp_pq_ctrl_s)
-#define AMVECM_IOC_G_PQ_CTRL  _IOR(_VE_CM, 0x66, struct vpp_pq_ctrl_s)
+/* CMS ioctl data structure */
+struct cms_data_s {
+	int color;
+	int value;
+};
+
+#define AMVECM_IOC_S_CMS_LUMA   _IOW(_VE_CM, 0x65, struct cms_data_s)
+#define AMVECM_IOC_S_CMS_SAT    _IOW(_VE_CM, 0x66, struct cms_data_s)
+#define AMVECM_IOC_S_CMS_HUE    _IOW(_VE_CM, 0x67, struct cms_data_s)
+#define AMVECM_IOC_S_CMS_HUE_HS _IOW(_VE_CM, 0x68, struct cms_data_s)
+
+#define AMVECM_IOC_S_PQ_CTRL  _IOW(_VE_CM, 0x69, struct vpp_pq_ctrl_s)
+#define AMVECM_IOC_G_PQ_CTRL  _IOR(_VE_CM, 0x6a, struct vpp_pq_ctrl_s)
 
 enum meson_cpu_ver_e {
 	VER_NULL = 0,
@@ -255,7 +266,7 @@ enum meson_cpu_ver_e {
 };
 
 /*cpu ver ioc*/
-#define AMVECM_IOC_S_MESON_CPU_VER _IOW(_VE_CM, 0x67, enum meson_cpu_ver_e)
+#define AMVECM_IOC_S_MESON_CPU_VER _IOW(_VE_CM, 0x6b, enum meson_cpu_ver_e)
 
 struct am_vdj_mode_s {
 	int flag;
