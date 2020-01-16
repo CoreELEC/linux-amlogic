@@ -556,7 +556,7 @@ static void vd1_path_select(
 				20, 2);
 		}
 	} else {
-		if (di_post)
+		if (!di_post)
 			VSYNC_WR_MPEG_REG_BITS(
 				VIU_MISC_CTRL0 + misc_off,
 				0, 16, 3);
@@ -639,7 +639,8 @@ static void vd1_set_dcu(
 		 __func__, layer->layer_id, vf, type);
 
 #ifdef CONFIG_AMLOGIC_MEDIA_DEINTERLACE
-	if ((glayer_info[0].display_path_id != VFM_PATH_PIP) &&
+	if (((glayer_info[0].display_path_id == VFM_PATH_AMVIDEO) ||
+	     (glayer_info[0].display_path_id == VFM_PATH_DEF)) &&
 	    is_di_post_mode(vf) && is_di_post_on())
 		di_post = true;
 #endif
