@@ -151,10 +151,13 @@ static irqreturn_t mbox_handler(int irq, void *p)
 				memcpy(data->rx_buf, payload + TX_PAYLOAD(idx),
 				       data->rx_size);
 			} else {
-				/*idx=0 means there is an old machenism:
-				 *  AP SET0 send/ MCU SET1 ack
-				 */
-				if (idx)
+			/*
+			 * idx = 1 & to scp chans = 1 mailbox to m4
+			 * need to get size, to m3 only low no need to get size
+			 * idx = 1 & to scp chans = 2 mailbox no to m4
+			 * mailbox chan low high all to m3, no need get size
+			 */
+				if (idx && (num_scp_chans != CHANNEL_MAX))
 					data->rx_size =
 						readl(mbox_base + RX_STATUS(idx));
 				memcpy(data->rx_buf, payload + RX_PAYLOAD(idx),
