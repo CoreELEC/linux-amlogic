@@ -57,7 +57,9 @@ void dev_vframe_reg(struct dev_vfram_t *pvfm)
 void dev_vframe_unreg(struct dev_vfram_t *pvfm)
 {
 	if (pvfm->reg) {
+		pr_debug("%s:ch[%s]:begin\n", __func__, pvfm->name);
 		vf_unreg_provider(&pvfm->di_vf_prov);
+		pr_debug("%s:ch[%s]:end\n", __func__, pvfm->name);
 		pvfm->reg = 0;
 	} else {
 		PR_WARN("duplicate ureg\n");

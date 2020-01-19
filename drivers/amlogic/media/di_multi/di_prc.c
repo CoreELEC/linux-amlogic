@@ -1302,12 +1302,11 @@ bool dip_event_unreg_chst(unsigned int ch)
 	if (chst > eDI_TOP_STATE_IDLE)
 		set_reg_flag(ch, false);/*set_flag_trig_unreg(ch, true);*/
 	#endif
-	if (chst > eDI_TOP_STATE_NOPROB)
+	if (chst > eDI_TOP_STATE_NOPROB) {
 		set_flag_trig_unreg(ch, true);
-
+	}
 	switch (chst) {
 	case EDI_TOP_STATE_READY:
-
 		di_vframe_unreg(ch);
 		/*trig unreg*/
 		dip_chst_set(ch, eDI_TOP_STATE_UNREG_STEP1);
@@ -1377,14 +1376,29 @@ bool dip_event_unreg_chst(unsigned int ch)
 		/*wait:*/
 		cnt = 0;
 		chst2 = dip_chst_get(ch);
-		while (chst2 == eDI_TOP_STATE_REG_STEP1_P1 || cnt < 5) {
+		while (chst2 == eDI_TOP_STATE_REG_STEP1_P1 && cnt < 5) {
 			task_send_ready();
 			usleep_range(3000, 3001);
 			cnt++;
+			chst2 = dip_chst_get(ch);
 		}
+
 		if (cnt >= 5)
 			PR_ERR("%s:ch[%d] in p1 timeout\n", __func__, ch);
+		if (chst2 == eDI_TOP_STATE_BYPASS) {
+			di_vframe_unreg(ch);
+			di_unreg_variable(ch);
 
+			set_reg_flag(ch, false);
+			if (!get_reg_flag_all()) {
+				di_unreg_setting();
+				dpre_init();
+				dpost_init();
+			}
+			dip_chst_set(ch, EDI_TOP_STATE_IDLE);
+			ret = true;
+			break;
+		}
 		set_reg_flag(ch, false);
 
 		di_vframe_unreg(ch);
@@ -1414,7 +1428,6 @@ bool dip_event_unreg_chst(unsigned int ch)
 
 			chst2 = dip_chst_get(ch);
 		}
-
 		/*debug only di_dbg = di_dbg & (~DBG_M_TSK);*/
 		dbg_reg("%s:ch[%d] ready end\n", __func__, ch);
 		ret = true;
@@ -1431,13 +1444,11 @@ bool dip_event_unreg_chst(unsigned int ch)
 		}
 
 		dip_chst_set(ch, EDI_TOP_STATE_IDLE);
-
 		ret = true;
 		break;
 	case eDI_TOP_STATE_UNREG_STEP1:
 	case eDI_TOP_STATE_UNREG_STEP2:
 		task_send_cmd(LCMD1(eCMD_UNREG, ch));
-
 		/*wait*/
 		ppre->unreg_req_flag_cnt = 0;
 		while (dip_chst_get(ch) != EDI_TOP_STATE_IDLE) {
@@ -1581,7 +1592,6 @@ void dip_chst_process_reg(unsigned int ch)
 		/*do nothing;*/
 		break;
 	case eDI_TOP_STATE_UNREG_STEP1:
-
 #if 0
 		if (!get_reg_flag(ch)) {	/*need wait pre/post done*/
 			dip_chst_set(ch, eDI_TOP_STATE_UNREG_STEP2);
