@@ -612,7 +612,7 @@ static void lc_top_config(int enable, int h_num, int v_num,
 
 }
 
-static void lc_disable(void)
+void lc_disable(void)
 {
 	/*lc enable need set at last*/
 	WRITE_VPP_REG_BITS(SRSHARP1_LC_TOP_CTRL, 0, 4, 1);

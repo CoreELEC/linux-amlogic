@@ -887,6 +887,9 @@
 #define VPP_VADJ2_MA_MB_2 0x32a3
 #define VPP_VADJ2_MC_MD_2 0x32a4
 
+#define VPP_VD1_RGB_CTRST 0x3289
+#define VPP_POST_RGB_CTRST 0x32a9
+
 /*TL1 add cm hist reg*/
 #define XVYCC_YSCP_REG 0x21c
 #define XVYCC_USCP_REG 0x21d

@@ -37,6 +37,7 @@
 #include <linux/io.h>
 #include "dnlp_cal.h"
 #include "local_contrast.h"
+#include "amcm.h"
 
 #define pr_amve_dbg(fmt, args...)\
 	do {\
@@ -1849,5 +1850,184 @@ void set_gamma_regs(int en, int sel)
 					((gamma_lut[i*2]<<2)&0xffff)));
 		WRITE_VPP_REG_BITS(VPP_GAMMA_CTRL, 0x1, 0, 1);
 	}
+}
+
+void amvecm_wb_enable(int enable)
+{
+	if (enable) {
+		wb_en = 1;
+		if (video_rgb_ogo_xvy_mtx)
+			WRITE_VPP_REG_BITS(VPP_MATRIX_CTRL, 1, 6, 1);
+		else
+			WRITE_VPP_REG_BITS(VPP_GAINOFF_CTRL0, 1, 31, 1);
+	} else {
+		wb_en = 0;
+		if (video_rgb_ogo_xvy_mtx)
+			WRITE_VPP_REG_BITS(VPP_MATRIX_CTRL, 0, 6, 1);
+		else
+			WRITE_VPP_REG_BITS(VPP_GAINOFF_CTRL0, 0, 31, 1);
+	}
+}
+
+int vpp_pq_ctrl_config(struct pq_ctrl_s pq_cfg)
+{
+	VSYNC_WR_MPEG_REG_BITS(
+		SRSHARP0_PK_NR_ENABLE + sr_offset[0],
+		pq_cfg.sharpness0_en, 1, 1);
+
+	VSYNC_WR_MPEG_REG_BITS(
+		SRSHARP1_PK_NR_ENABLE + sr_offset[1],
+		pq_cfg.sharpness1_en, 1, 1);
+
+	if (pq_cfg.dnlp_en) {
+		ve_enable_dnlp();
+		dnlp_en = 1;
+	} else {
+		ve_disable_dnlp();
+		dnlp_en = 0;
+	}
+
+	if (pq_cfg.cm_en) {
+		amcm_enable();
+		cm_en = 1;
+	} else {
+		amcm_disable();
+		cm_en = 0;
+	}
+
+	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A)
+		VSYNC_WR_MPEG_REG_BITS(
+			VPP_VADJ1_MISC,
+			pq_cfg.vadj1_en, 0, 1);
+	else
+		VSYNC_WR_MPEG_REG_BITS(
+			VPP_VADJ_CTRL,
+			pq_cfg.vadj1_en, 0, 1);
+
+	VSYNC_WR_MPEG_REG_BITS(
+		VPP_VD1_RGB_CTRST,
+		pq_cfg.vd1_ctrst_en, 1, 1);
+
+	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A)
+		VSYNC_WR_MPEG_REG_BITS(
+			VPP_VADJ2_MISC,
+			pq_cfg.vadj2_en, 0, 1);
+	else
+		VSYNC_WR_MPEG_REG_BITS(
+			VPP_VADJ2_Y,
+			pq_cfg.vadj2_en, 0, 1);
+
+	VSYNC_WR_MPEG_REG_BITS(
+		VPP_POST_RGB_CTRST,
+		pq_cfg.post_ctrst_en, 1, 1);
+
+	amvecm_wb_enable(pq_cfg.wb_en);
+
+	gamma_en = pq_cfg.gamma_en;
+	VSYNC_WR_MPEG_REG_BITS(
+		L_GAMMA_CNTL_PORT,
+		pq_cfg.gamma_en, GAMMA_EN, 1);
+
+	if (pq_cfg.lc_en) {
+		lc_en = 1;
+	} else {
+		lc_en = 0;
+		if (is_meson_tl1_cpu() ||
+		    is_meson_tm2_cpu())
+			lc_disable();
+	}
+
+	VSYNC_WR_MPEG_REG_BITS(
+		VPP_VE_ENABLE_CTRL,
+		pq_cfg.black_ext_en, 3, 1);
+
+	VSYNC_WR_MPEG_REG_BITS(
+		VPP_VE_ENABLE_CTRL,
+		pq_cfg.chroma_cor_en, 4, 1);
+
+	return 0;
+}
+
+unsigned int skip_pq_ctrl_load(struct am_reg_s *p)
+{
+	unsigned int ret = 0;
+
+	if (!pq_cfg.sharpness0_en) {
+		if (p->addr ==
+			(SRSHARP0_PK_NR_ENABLE + sr_offset[0])) {
+			ret |= 1 << 1;
+			return ret;
+		}
+	}
+
+	if (!pq_cfg.sharpness1_en) {
+		if (p->addr ==
+			(SRSHARP1_PK_NR_ENABLE + sr_offset[1])) {
+			ret |= 1 << 1;
+			return ret;
+		}
+	}
+
+	if (!pq_cfg.cm_en) {
+		if (p->addr == 0x208) {
+			if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A)
+				ret |= 1 << 0;
+			else
+				ret |= 1 << 1;
+			return ret;
+		}
+	}
+
+	if (!pq_cfg.vadj1_en) {
+		if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A) {
+			if (p->addr == VPP_VADJ1_MISC) {
+				ret |= 1 << 0;
+				return ret;
+			}
+		} else {
+			if (p->addr == VPP_VADJ_CTRL) {
+				ret |= 1 << 0;
+				return ret;
+			}
+		}
+	}
+
+	if (!pq_cfg.vd1_ctrst_en) {
+		if (p->addr == VPP_VD1_RGB_CTRST) {
+			ret |= 1 << 1;
+			return ret;
+		}
+	}
+
+	if (!pq_cfg.vadj2_en) {
+		if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A) {
+			if (p->addr == VPP_VADJ2_MISC) {
+				ret |= 1 << 0;
+				return ret;
+			}
+		} else {
+			if (p->addr == VPP_VADJ2_Y) {
+				ret |= 1 << 0;
+				return ret;
+			}
+		}
+	}
+
+	if (!pq_cfg.post_ctrst_en) {
+		if (p->addr == VPP_POST_RGB_CTRST) {
+			ret |= 1 << 1;
+			return ret;
+		}
+	}
+
+	if (p->addr == VPP_VE_ENABLE_CTRL) {
+		if (!pq_cfg.black_ext_en)
+			ret |= 1 << 3;
+		if (!pq_cfg.chroma_cor_en)
+			ret |= 1 << 4;
+		return ret;
+	}
+
+	return ret;
 }
 

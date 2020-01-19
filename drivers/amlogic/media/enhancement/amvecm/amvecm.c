@@ -142,6 +142,44 @@ unsigned int atv_source_flg;
 
 static int vdj_mode_flg;
 struct am_vdj_mode_s vdj_mode_s;
+struct pq_ctrl_s pq_cfg;
+
+struct pq_ctrl_s pq_cfg_init[2] = {
+	/*for tv enable pq module*/
+	{
+		.sharpness0_en = 1,
+		.sharpness1_en = 1,
+		.dnlp_en = 1,
+		.cm_en = 1,
+		.vadj1_en = 1,
+		.vd1_ctrst_en = 0,
+		.vadj2_en = 0,
+		.post_ctrst_en = 0,
+		.wb_en = 1,
+		.gamma_en = 1,
+		.lc_en = 1,
+		.black_ext_en = 1,
+		.chroma_cor_en = 0,
+		.reserved = 0,
+	},
+	/*for box disable all pq module*/
+	{
+		.sharpness0_en = 0,
+		.sharpness1_en = 0,
+		.dnlp_en = 0,
+		.cm_en = 0,
+		.vadj1_en = 0,
+		.vd1_ctrst_en = 0,
+		.vadj2_en = 0,
+		.post_ctrst_en = 0,
+		.wb_en = 0,
+		.gamma_en = 0,
+		.lc_en = 0,
+		.black_ext_en = 0,
+		.chroma_cor_en = 0,
+		.reserved = 0,
+	}
+};
 
 /*void __iomem *amvecm_hiu_reg_base;*//* = *ioremap(0xc883c000, 0x2000); */
 
@@ -1526,6 +1564,7 @@ static long amvecm_ioctl(struct file *file,
 	enum color_primary_e color_pri;
 	struct hdr_tone_mapping_s hdr_tone_mapping;
 	unsigned int *hdr_tm = NULL;
+	struct vpp_pq_ctrl_s pq_ctrl;
 
 	if (debug_amvecm & 2)
 		pr_info("[amvecm..] %s: cmd_nr = 0x%x\n",
@@ -1885,6 +1924,47 @@ static long amvecm_ioctl(struct file *file,
 		if (copy_to_user(argp,
 				&hdr_source_type, sizeof(enum hdr_type_e)))
 			ret = -EFAULT;
+		break;
+	case AMVECM_IOC_S_PQ_CTRL:
+		if (copy_from_user(
+			&pq_ctrl,
+			(void __user *)arg,
+			sizeof(struct vpp_pq_ctrl_s))) {
+			ret = -EFAULT;
+			pr_amvecm_dbg("pq control cp vpp_pq_ctrl_s fail\n");
+		} else {
+			argp = (void __user *)pq_ctrl.ptr;
+			pr_amvecm_dbg("argp = %p\n", argp);
+			mem_size = sizeof(struct pq_ctrl_s);
+			if (pq_ctrl.length > mem_size) {
+				pq_ctrl.length = mem_size;
+				pr_amvecm_dbg("system control length > kernel length\n");
+			}
+			if (copy_from_user(
+				&pq_cfg,
+				argp,
+				mem_size)) {
+				ret = -EFAULT;
+				pr_amvecm_dbg("pq control cp pq_ctrl_s fail\n");
+			} else {
+				vpp_pq_ctrl_config(pq_cfg);
+				pr_amvecm_dbg("pq control load success\n");
+			}
+		}
+		break;
+	case AMVECM_IOC_G_PQ_CTRL:
+		argp = (void __user *)arg;
+		pq_ctrl.length = sizeof(struct pq_ctrl_s);
+		pq_ctrl.ptr = (void *)&pq_cfg;
+		if (copy_to_user(
+			argp,
+			&pq_ctrl,
+			sizeof(struct vpp_pq_ctrl_s))) {
+			ret = -EFAULT;
+			pr_info("pq control cp to user fail\n");
+		} else {
+			pr_info("pq control cp to user success\n");
+		}
 		break;
 	default:
 		ret = -EINVAL;
@@ -4594,24 +4674,6 @@ static void dump_vpp_size_info(void)
 		cm_hsize, cm_vsize);
 }
 
-static void amvecm_wb_enable(int enable)
-{
-	if (enable) {
-		wb_en = 1;
-		if (video_rgb_ogo_xvy_mtx)
-			WRITE_VPP_REG_BITS(VPP_MATRIX_CTRL, 1, 6, 1);
-		else
-			WRITE_VPP_REG_BITS(VPP_GAINOFF_CTRL0, 1, 31, 1);
-	} else {
-		wb_en = 0;
-		if (video_rgb_ogo_xvy_mtx)
-			WRITE_VPP_REG_BITS(VPP_MATRIX_CTRL, 0, 6, 1);
-		else
-			WRITE_VPP_REG_BITS(VPP_GAINOFF_CTRL0, 0, 31, 1);
-	}
-}
-
-
 void amvecm_sharpness_enable(int sel)
 {
 	/*0:peaking enable   1:peaking disable*/
@@ -6746,11 +6808,26 @@ void hdr_hist_config_int(void)
 	VSYNC_WR_MPEG_REG(OSD1_HDR2_HIST_V_START_END, 0x0);
 }
 
+#define PQ_TV 1
+#define PQ_BOX 0
+void init_pq_control(unsigned int enable)
+{
+	if (enable)
+		memcpy(&pq_cfg, &pq_cfg_init[0], sizeof(struct pq_ctrl_s));
+	else
+		memcpy(&pq_cfg, &pq_cfg_init[1], sizeof(struct pq_ctrl_s));
+}
 /* #if (MESON_CPU_TYPE == MESON_CPU_TYPE_MESONG9TV) */
 void init_pq_setting(void)
 {
+	struct vinfo_s *vinfo = get_current_vinfo();
 
 	int bitdepth;
+
+	if (vinfo->viu_color_fmt == COLOR_FMT_RGB444)
+		init_pq_control(PQ_TV);
+	else
+		init_pq_control(PQ_BOX);
 
 	if (is_meson_gxtvbb_cpu() || is_meson_txl_cpu() ||
 		is_meson_txlx_cpu() || is_meson_txhd_cpu() ||
@@ -6776,6 +6853,7 @@ void init_pq_setting(void)
 
 		/*kernel sdr2hdr match uboot setting*/
 		def_hdr_sdr_mode();
+		vpp_pq_ctrl_config(pq_cfg);
 	}
 	return;
 
@@ -6832,6 +6910,8 @@ tvchip_pq_setting:
 
 	/*dnlp alg parameters init*/
 	dnlp_alg_param_init();
+
+	vpp_pq_ctrl_config(pq_cfg);
 }
 /* #endif*/
 
@@ -7327,7 +7407,6 @@ static int aml_vecm_probe(struct platform_device *pdev)
 	/* register vout client */
 	vout_register_client(&vlock_notifier_nb);
 
-	init_pq_setting();
 	init_pattern_detect();
 	/* #endif */
 	vpp_get_hist_en();
@@ -7355,6 +7434,7 @@ static int aml_vecm_probe(struct platform_device *pdev)
 	hdr_init(&amvecm_dev.hdr_d);
 	aml_vecm_dt_parse(pdev);
 
+	init_pq_setting();
 	aml_vecm_viu2_vsync_irq_init();
 
 	probe_ok = 1;

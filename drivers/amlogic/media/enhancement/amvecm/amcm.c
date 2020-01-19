@@ -31,6 +31,7 @@
 #include <linux/amlogic/media/amdolbyvision/dolby_vision.h>
 #include "amcsc.h"
 #include "local_contrast.h"
+#include "amve.h"
 
 #define pr_amcm_dbg(fmt, args...)\
 	do {\
@@ -90,8 +91,13 @@ void am_set_regmap(struct am_regs_s *p)
 	unsigned short i;
 	unsigned int temp = 0;
 	unsigned short sr1_temp = 0;
+	unsigned int skip = 0;
 
 	for (i = 0; i < p->length; i++) {
+		skip = skip_pq_ctrl_load(&p->am_reg[i]);
+		if (skip != 0)
+			p->am_reg[i].mask &= ~skip;
+
 		switch (p->am_reg[i].type) {
 		case REG_TYPE_PHY:
 			break;

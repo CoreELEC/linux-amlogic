@@ -107,5 +107,6 @@ extern void lc_process(struct vframe_s *vf,
 	unsigned int sps_w_in,
 	unsigned int sps_h_in);
 extern void lc_free(void);
+void lc_disable(void);
 #endif
 

@@ -20,6 +20,7 @@
 
 #include <linux/amlogic/media/vfm/vframe.h>
 #include <linux/amlogic/media/amvecm/ve.h>
+#include "linux/amlogic/media/amvecm/cm.h"
 
 /* #if (MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON8) */
 /* #define WRITE_VPP_REG(x,val) */
@@ -41,6 +42,30 @@
 /* READ_CBUS_REG_BITS(x,start,length) */
 /* #endif */
 
+struct pq_ctrl_s {
+	u8 sharpness0_en;
+	u8 sharpness1_en;
+	u8 dnlp_en;
+	u8 cm_en;
+	u8 vadj1_en;
+	u8 vd1_ctrst_en;
+	u8 vadj2_en;
+	u8 post_ctrst_en;
+	u8 wb_en;
+	u8 gamma_en;
+	u8 lc_en;
+	u8 black_ext_en;
+	u8 chroma_cor_en;
+	u8 reserved;
+};
+
+struct vpp_pq_ctrl_s {
+	unsigned int length;
+	union {
+		void *ptr;/*point to pq_ctrl_s*/
+		long long ptr_length;
+	};
+};
 
 struct ve_regs_s {
 	unsigned int val:32;
@@ -171,5 +196,8 @@ extern void dump_plut3d_reg_table(void);
 
 extern void amvecm_gamma_init(bool en);
 extern void set_gamma_regs(int en, int sel);
+void amvecm_wb_enable(int enable);
+int vpp_pq_ctrl_config(struct pq_ctrl_s pq_cfg);
+unsigned int skip_pq_ctrl_load(struct am_reg_s *p);
 #endif
 
