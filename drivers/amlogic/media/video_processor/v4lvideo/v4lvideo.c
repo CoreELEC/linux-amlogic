@@ -1170,11 +1170,39 @@ static void canvas_to_addr(struct vframe_s *vf)
 	vf->canvas0_config[2].block_mode = src_cs2.blkmode;
 	vf->canvas0_config[2].endian = src_cs2.endian;
 
+	if ((vf->type & VIDTYPE_MVC) &&
+	    (vf->canvas1Addr != (u32)-1)) {
+		canvas_read(vf->canvas1Addr & 0xff, &src_cs0);
+		canvas_read(vf->canvas1Addr >> 8 & 0xff, &src_cs1);
+		canvas_read(vf->canvas1Addr >> 16 & 0xff, &src_cs2);
+
+		vf->canvas1_config[0].phy_addr = src_cs0.addr;
+		vf->canvas1_config[0].width = src_cs0.width;
+		vf->canvas1_config[0].height = src_cs0.height;
+		vf->canvas1_config[0].block_mode = src_cs0.blkmode;
+		vf->canvas1_config[0].endian = src_cs0.endian;
+
+		vf->canvas1_config[1].phy_addr = src_cs1.addr;
+		vf->canvas1_config[1].width = src_cs1.width;
+		vf->canvas1_config[1].height = src_cs1.height;
+		vf->canvas1_config[1].block_mode = src_cs1.blkmode;
+		vf->canvas1_config[1].endian = src_cs1.endian;
+
+		vf->canvas1_config[2].phy_addr = src_cs2.addr;
+		vf->canvas1_config[2].width = src_cs2.width;
+		vf->canvas1_config[2].height = src_cs2.height;
+		vf->canvas1_config[2].block_mode = src_cs2.blkmode;
+		vf->canvas1_config[2].endian = src_cs2.endian;
+	}
+
 	if (vf->type & VIDTYPE_VIU_NV21)
 		vf->plane_num = 2;
-
-	if (vf->plane_num == 0)
-		pr_err("v4lvideo: plane_num is 0\n");
+	else if (vf->type & VIDTYPE_VIU_444)
+		vf->plane_num = 1;
+	else if (vf->type & VIDTYPE_VIU_422)
+		vf->plane_num = 1;
+	else
+		vf->plane_num = 3;
 
 	vf->canvas0Addr = (u32)-1;
 	vf->canvas1Addr = (u32)-1;
