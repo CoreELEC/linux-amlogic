@@ -2520,6 +2520,7 @@ const char *disp_mode_t[] = {
 	"720p60hz",
 	"1080i60hz",
 	"1080p60hz",
+	"1080p120hz",
 	"720p50hz",
 	"1080i50hz",
 	"1080p30hz",

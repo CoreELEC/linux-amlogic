@@ -1711,6 +1711,7 @@ static void hdmi_tvenc_set(struct hdmitx_vidpara *param)
 		break;
 	case HDMI_1080p60:
 	case HDMI_1080p30:
+	case HDMI_1080p120:
 		INTERLACE_MODE	= 0U;
 		PIXEL_REPEAT_VENC  = 0;
 		PIXEL_REPEAT_HDMI  = 0;
@@ -2038,6 +2039,8 @@ do { \
 	case HDMI_4k2k_24:
 	case HDMI_4k2k_25:
 	case HDMI_4k2k_30:
+	case HDMI_1920x1080p120_16x9:
+	case HDMI_1920x1080p120_64x27:
 	case HDMI_4k2k_smpte_24:
 	case HDMI_4096x2160p25_256x135:
 	case HDMI_4096x2160p30_256x135:
@@ -2115,6 +2118,8 @@ static void hdmitx_set_scdc(struct hdmitx_dev *hdev)
 	case HDMI_3840x2160p30_16x9:
 	case HDMI_3840x2160p30_64x27:
 	case HDMI_4096x2160p30_256x135:
+	case HDMI_1920x1080p120_16x9:
+	case HDMI_1920x1080p120_64x27:
 		if ((hdev->para->cs == COLORSPACE_YUV422)
 			|| (hdev->para->cd == COLORDEPTH_24B))
 			hdev->para->tmds_clk_div40 = 0;

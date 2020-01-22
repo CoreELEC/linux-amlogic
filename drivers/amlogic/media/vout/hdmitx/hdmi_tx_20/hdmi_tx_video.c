@@ -293,6 +293,17 @@ static struct hdmitx_vidpara hdmi_tx_video_params[] = {
 		.sc		= SC_SCALE_HORIZ_VERT,
 	},
 	{
+		.VIC		= HDMI_1080p120,
+		.color_prefer   = COLORSPACE_RGB444,
+		.color_depth	= COLORDEPTH_24B,
+		.bar_info	= B_BAR_VERT_HORIZ,
+		.repeat_time	= NO_REPEAT,
+		.aspect_ratio   = TV_ASPECT_RATIO_16_9,
+		.cc		= CC_ITU709,
+		.ss		= SS_SCAN_UNDER,
+		.sc		= SC_SCALE_HORIZ_VERT,
+	},
+	{
 		.VIC		= HDMI_4k2k_30,
 		.color_prefer   = COLORSPACE_RGB444,
 		.color_depth	= COLORDEPTH_24B,
