@@ -1358,7 +1358,7 @@ static void hdmitx_set_drm_pkt(struct master_display_info_s *data)
 		hsty_drm_config_loc = 0;
 	memcpy(&hsty_drm_config_data[hsty_drm_config_loc++],
 	       &drm_config_data, sizeof(struct master_display_info_s));
-	if (hsty_drm_config_num < 8)
+	if (hsty_drm_config_num < 0xfffffff0)
 		hsty_drm_config_num++;
 	else
 		hsty_drm_config_num = 8;
@@ -1573,6 +1573,9 @@ static void hdmitx_set_vsif_pkt(enum eotf_type type,
 	static uint8_t ltmode = -1;
 
 	hdmi_debug();
+	if (hdev->bist_lock)
+		return;
+
 	if (data == NULL)
 		memcpy(&vsif_debug_info.data, &para,
 		       sizeof(struct dv_vsif_para));
@@ -1587,7 +1590,7 @@ static void hdmitx_set_vsif_pkt(enum eotf_type type,
 		hsty_vsif_config_loc = 0;
 	memcpy(&hsty_vsif_config_data[hsty_vsif_config_loc++],
 	       &vsif_debug_info, sizeof(struct vsif_debug_save));
-	if (hsty_vsif_config_num < 8)
+	if (hsty_vsif_config_num < 0xfffffff0)
 		hsty_vsif_config_num++;
 	else
 		hsty_vsif_config_num = 8;
@@ -1822,7 +1825,8 @@ static void hdmitx_set_hdr10plus_pkt(unsigned int flag,
 	unsigned char VEN_DB[27] = {0x00};
 
 	hdmi_debug();
-
+	if (hdev->bist_lock)
+		return;
 	if (data)
 		memcpy(&hdr10p_config_data, data,
 		       sizeof(struct hdr10plus_para));
@@ -1833,7 +1837,7 @@ static void hdmitx_set_hdr10plus_pkt(unsigned int flag,
 		hsty_hdr10p_config_loc = 0;
 	memcpy(&hsty_hdr10p_config_data[hsty_hdr10p_config_loc++],
 	       &hdr10p_config_data, sizeof(struct hdr10plus_para));
-	if (hsty_hdr10p_config_num < 8)
+	if (hsty_hdr10p_config_num < 0xfffffff0)
 		hsty_hdr10p_config_num++;
 	else
 		hsty_hdr10p_config_num = 8;
@@ -2957,6 +2961,7 @@ static inline int com_str(const char *buf, const char *str)
 {
 	return strncmp(buf, str, strlen(str)) == 0;
 }
+
 static ssize_t store_allm_mode(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t count)
 {
@@ -4059,6 +4064,8 @@ static ssize_t show_support_3d(struct device *dev,
 	return pos;
 }
 
+#undef pr_fmt
+#define pr_fmt(fmt) "" fmt
 void print_drm_config_data(void)
 {
 	enum hdmi_hdr_transfer hdr_transfer_feature;
@@ -4153,6 +4160,16 @@ void print_hdr10p_config_data(void)
 		hdr10p_config_data.no_delay_flag);
 }
 
+void print_hdmiaud_config_data(void)
+{
+	pr_info("***hdmiaud_config_data***\n");
+	pr_info("type: %u, chnum: %u, samrate: %u, samsize: %u\n",
+		hdmiaud_config_data.type,
+		hdmiaud_config_data.channel_num,
+		hdmiaud_config_data.sample_rate,
+		hdmiaud_config_data.sample_size);
+}
+
 void print_emp_config_data(void)
 {
 	unsigned char *data;
@@ -4160,7 +4177,7 @@ void print_emp_config_data(void)
 
 	data = emp_config_data.data;
 
-	pr_info("***emp_config_data***\n");
+	pr_info("******emp_config_data******\n");
 	pr_info("type: %u, size: %u\n",
 		emp_config_data.type,
 		emp_config_data.size);
@@ -4314,17 +4331,13 @@ static ssize_t create_hdmitx_out_hdr(char *buf)
 	return pos;
 }
 
-#undef pr_fmt
-#define pr_fmt(fmt) "" fmt
 static ssize_t show_hdmi_config(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
 	int pos = 0;
 	enum hdmi_vic vic;
 
-	pr_info("************");
-	pr_info("hdmi_config_info");
-	pr_info("************\n");
+	pr_info("************hdmi_config_info************\n");
 	pr_info("display_mode\nin:%s\t",
 		get_vout_mode_internal());
 
@@ -4378,53 +4391,53 @@ static ssize_t show_hdmi_config(struct device *dev,
 	buf[pos] = '\0';
 	pr_info("sspll:%s\n", buf);
 
-	pr_info("******dv_vsif_info******\n");
+	pr_info("******dv vsif info config vs reg******\n");
 	print_vsif_config_data();
 	strcpy(buf, "vsif_info");
 	hdmitx_device.hwop.debugfun(&hdmitx_device, buf);
 
-	pr_info("******drm_info******\n");
+	pr_info("******drm info config vs reg******\n");
 	print_drm_config_data();
 	strcpy(buf, "drm_info");
 	hdmitx_device.hwop.debugfun(&hdmitx_device, buf);
 
-	pr_info("******hdr10p_vsif_info******\n");
+	pr_info("******hdr10p vsif info config vs reg******\n");
 	print_hdr10p_config_data();
 	strcpy(buf, "vsif_info");
 	hdmitx_device.hwop.debugfun(&hdmitx_device, buf);
 
-	pr_info("******avi_info******\n");
+	pr_info("******avi_info reg******\n");
 	strcpy(buf, "avi_info");
 	hdmitx_device.hwop.debugfun(&hdmitx_device, buf);
 
-	pr_info("******gcp_info******\n");
+	pr_info("******gcp_info reg******\n");
 	strcpy(buf, "gcp_info");
 	hdmitx_device.hwop.debugfun(&hdmitx_device, buf);
 
-	pr_info("******aud_info******\n");
+	print_emp_config_data();
+
+	pr_info("******hdmiaud info config vs reg******\n");
+	print_hdmiaud_config_data();
+	pr_info("***aud_info in reg***\n");
 	strcpy(buf, "aud_info");
 	hdmitx_device.hwop.debugfun(&hdmitx_device, buf);
 
-	pr_info("******acr_info******\n");
+	pr_info("***acr_info in reg***\n");
 	strcpy(buf, "acr_info");
 	hdmitx_device.hwop.debugfun(&hdmitx_device, buf);
 
-	pr_info("******aud_sample******\n");
+	pr_info("***aud_sample in reg***\n");
 	strcpy(buf, "aud_sample");
 	hdmitx_device.hwop.debugfun(&hdmitx_device, buf);
 
-	pr_info("******aud_chls******\n");
+	pr_info("***aud_chls in reg***\n");
 	strcpy(buf, "aud_chls");
 	hdmitx_device.hwop.debugfun(&hdmitx_device, buf);
-
-	print_emp_config_data();
 
 	memset(buf, 0, PAGE_SIZE);
 	return 0;
 }
 
-#undef pr_fmt
-#define pr_fmt(fmt) "hdmitx: " fmt
 static ssize_t show_hdmirx_info(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
@@ -4490,11 +4503,16 @@ void print_hsty_drm_config_data(void)
 	unsigned int colormetry;
 	unsigned int hcnt, vcnt;
 	unsigned int arr_cnt, pr_loc;
+	unsigned int print_num;
 
 	pr_loc = hsty_drm_config_loc - 1;
-	for (arr_cnt = 0;
-		 arr_cnt < hsty_drm_config_num;
-		 arr_cnt++)	{
+	if (hsty_drm_config_num > 8)
+		print_num = 8;
+	else
+		print_num = hsty_drm_config_num;
+	pr_info("******drm_config_data have trans %d times******\n",
+		hsty_drm_config_num);
+	for (arr_cnt = 0; arr_cnt < print_num; arr_cnt++) {
 		pr_info("***hsty_drm_config_data[%u]***\n", arr_cnt);
 		drmcfg = &hsty_drm_config_data[pr_loc];
 		hdr_transfer_feature = (drmcfg->features >> 8) & 0xff;
@@ -4532,9 +4550,16 @@ void print_hsty_vsif_config_data(void)
 {
 	struct dv_vsif_para *data;
 	unsigned int arr_cnt, pr_loc;
+	unsigned int print_num;
 
 	pr_loc = hsty_vsif_config_loc - 1;
-	for (arr_cnt = 0; arr_cnt < hsty_vsif_config_num; arr_cnt++) {
+	if (hsty_vsif_config_num > 8)
+		print_num = 8;
+	else
+		print_num = hsty_vsif_config_num;
+	pr_info("******vsif_config_data have trans %d times******\n",
+		hsty_vsif_config_num);
+	for (arr_cnt = 0; arr_cnt < print_num; arr_cnt++) {
 		pr_info("***hsty_vsif_config_data[%u]***\n", arr_cnt);
 		data = &hsty_vsif_config_data[pr_loc].data;
 		pr_info("***vsif_config_data***\n");
@@ -4569,9 +4594,16 @@ void print_hsty_hdr10p_config_data(void)
 	unsigned int arr_cnt, pr_loc;
 	unsigned int hcnt, vcnt;
 	unsigned char *tmp;
+	unsigned int print_num;
 
 	pr_loc = hsty_hdr10p_config_loc - 1;
-	for (arr_cnt = 0; arr_cnt < hsty_hdr10p_config_num; arr_cnt++) {
+	if (hsty_hdr10p_config_num > 8)
+		print_num = 8;
+	else
+		print_num = hsty_hdr10p_config_num;
+	pr_info("******hdr10p_config_data have trans %d times******\n",
+		hsty_hdr10p_config_num);
+	for (arr_cnt = 0; arr_cnt < print_num; arr_cnt++) {
 		pr_info("***hsty_hdr10p_config_data[%u]***\n", arr_cnt);
 		data = &hsty_hdr10p_config_data[pr_loc];
 		pr_info("appver: %u, tlum: %u, avgrgb: %u\n",
@@ -4603,13 +4635,38 @@ void print_hsty_hdr10p_config_data(void)
 	}
 }
 
+void print_hsty_hdmiaud_config_data(void)
+{
+	struct hdmitx_audpara *data;
+	unsigned int arr_cnt, pr_loc;
+	unsigned int print_num;
+
+	pr_loc = hsty_hdmiaud_config_loc - 1;
+	if (hsty_hdmiaud_config_num > 8)
+		print_num = 8;
+	else
+		print_num = hsty_hdmiaud_config_num;
+	pr_info("******hdmitx_audpara have trans %d times******\n",
+		hsty_hdmiaud_config_num);
+	for (arr_cnt = 0; arr_cnt < print_num; arr_cnt++) {
+		pr_info("***hsty_hdmiaud_config_data[%u]***\n", arr_cnt);
+		data = &hsty_hdmiaud_config_data[pr_loc];
+		pr_info("type: %u, chnum: %u, samrate: %u, samsize: %u\n",
+			data->type,	data->channel_num,
+			data->sample_rate, data->sample_size);
+		pr_loc = pr_loc > 0 ? pr_loc - 1 : 7;
+	}
+}
+#undef pr_fmt
+#define pr_fmt(fmt) "hdmitx: " fmt
+
 static ssize_t show_hdmi_hsty_config(struct device *dev,
 				     struct device_attribute *attr, char *buf)
 {
 	print_hsty_drm_config_data();
 	print_hsty_vsif_config_data();
 	print_hsty_hdr10p_config_data();
-
+	print_hsty_hdmiaud_config_data();
 	memset(buf, 0, PAGE_SIZE);
 	return 0;
 }

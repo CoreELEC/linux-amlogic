@@ -1752,5 +1752,7 @@ void set_vmode_enc_hw(struct hdmitx_dev *hdev)
 	} else
 		pr_info("set enc not find VIC: %d\n",
 			hdev->cur_video_param->VIC);
+	if (hdev->bist_lock)
+		hd_set_reg_bits(P_ENCP_VIDEO_MODE_ADV, 0, 3, 1);
 }
 

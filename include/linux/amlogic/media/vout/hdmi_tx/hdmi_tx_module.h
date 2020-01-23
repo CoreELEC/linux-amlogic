@@ -27,7 +27,7 @@
 #include <linux/pinctrl/consumer.h>
 
 /* HDMITX driver version */
-#define HDMITX_VER "20190815"
+#define HDMITX_VER "20200122"
 
 /* chip type */
 #define MESON_CPU_ID_M8B		0
@@ -486,6 +486,7 @@ struct hdmitx_dev {
 	unsigned int dongle_mode:1;
 	unsigned int cedst_en:1; /* configure in DTS */
 	unsigned int hdr_priority:1;
+	unsigned int bist_lock:1;
 	unsigned int drm_feature;/*Direct Rander Management*/
 };
 
@@ -662,6 +663,10 @@ extern void hdmitx_edid_ram_buffer_clear(struct hdmitx_dev *hdmitx_device);
 extern void hdmitx_edid_buf_compare_print(struct hdmitx_dev *hdmitx_device);
 
 extern const char *hdmitx_edid_get_native_VIC(struct hdmitx_dev *hdmitx_device);
+
+extern struct hdmitx_audpara hdmiaud_config_data;
+extern struct hdmitx_audpara hsty_hdmiaud_config_data[8];
+extern unsigned int hsty_hdmiaud_config_loc, hsty_hdmiaud_config_num;
 
 /* VSIF: Vendor Specific InfoFrame
  * It has multiple purposes:
