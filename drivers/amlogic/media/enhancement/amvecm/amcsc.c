@@ -350,7 +350,7 @@ MODULE_PARM_DESC(hdmi_csc_type, "\n current color space convert type\n");
 
 /* 0: follow sink, 1: follow source, 2: debug, 0xff: bootup default value */
 /* by default follow source to match default sdr_mode*/
-static uint hdr_policy;
+static uint hdr_policy = 1;
 static uint cur_hdr_policy = 0xff;
 module_param(hdr_policy, uint, 0664);
 MODULE_PARM_DESC(hdr_policy, "\n current hdr_policy\n");
