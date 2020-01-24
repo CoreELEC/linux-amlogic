@@ -111,7 +111,7 @@ MODULE_PARM_DESC(dolby_vision_level, "\n dolby_vision_level\n");
 /*		else bypass Dolby Vision */
 /* #define DOLBY_VISION_FORCE_OUTPUT_MODE	2 */
 
-static unsigned int dolby_vision_policy;
+static unsigned int dolby_vision_policy = 1;
 module_param(dolby_vision_policy, uint, 0664);
 MODULE_PARM_DESC(dolby_vision_policy, "\n dolby_vision_policy\n");
 static unsigned int last_dolby_vision_policy;
