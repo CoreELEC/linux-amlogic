@@ -75,6 +75,12 @@ struct ppmgr_device_t {
 	unsigned int ppmgr_debug;
 	unsigned int debug_first_frame;
 	unsigned int debug_10bit_frame;
+	unsigned int debug_ppmgr_flag;
+	unsigned int get_count;
+	unsigned int put_count;
+	unsigned int get_dec_count;
+	unsigned int put_dec_count;
+	unsigned int peek_dec;
 	char dump_path[32];
 };
 
