@@ -381,15 +381,18 @@ static void display_q_uninit(struct composer_dev *dev)
 			    & VFRAME_FLAG_VIDEO_COMPOSER_BYPASS) {
 				repeat_count = dis_vf->repeat_count[dev->index];
 				vc_print(dev->index, PRINT_FENCE,
-					 "vc: unit repeat_count=%d\n",
-					 repeat_count);
+					 "vc: unit repeat_count=%d, omx_index=%d\n",
+					 repeat_count,
+					 dis_vf->omx_index);
 				for (i = 0; i <= repeat_count; i++) {
 					fput(dis_vf->file_vf);
 					dev->fput_count++;
 				}
 			} else if (!(dis_vf->flag
 				     & VFRAME_FLAG_VIDEO_COMPOSER)) {
-				pr_err("vc: unit display_q flag is null\n");
+				vc_print(dev->index, PRINT_ERROR,
+					 "vc: unit display_q flag is null, omx_index=%d\n",
+					 dis_vf->omx_index);
 			}
 		}
 	}
@@ -1539,6 +1542,11 @@ static struct vframe_s *vc_vf_get(void *op_arg)
 		if (!kfifo_put(&dev->display_q, vf))
 			vc_print(dev->index, PRINT_ERROR,
 				 "display_q is full!\n");
+		if (!(vf->flag
+		      & VFRAME_FLAG_VIDEO_COMPOSER)) {
+			pr_err("vc: vf_get: flag is null\n");
+		}
+
 		get_count[dev->index]++;
 
 		vc_print(dev->index, PRINT_OTHER,
@@ -1732,7 +1740,7 @@ static int video_composer_init(struct composer_dev *dev)
 static int video_composer_uninit(struct composer_dev *dev)
 {
 	int ret;
-	int timeout = 0;
+	int time_left = 0;
 
 	if (dev->is_sideband) {
 		if (dev->index == 0)
@@ -1750,10 +1758,13 @@ static int video_composer_uninit(struct composer_dev *dev)
 	dev->need_free_buffer = true;
 	wake_up_interruptible(&dev->wq);
 
-	timeout = wait_for_completion_timeout(&dev->task_done,
-					      msecs_to_jiffies(100));
-	if (!timeout)
+	time_left = wait_for_completion_timeout(&dev->task_done,
+						msecs_to_jiffies(500));
+	if (!time_left)
 		vc_print(dev->index, PRINT_ERROR, "unreg:wait timeout\n");
+	else if (time_left < 100)
+		vc_print(dev->index, PRINT_ERROR,
+			 "unreg:wait time %d\n", time_left);
 
 	display_q_uninit(dev);
 
