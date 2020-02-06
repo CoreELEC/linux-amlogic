@@ -34,6 +34,7 @@
 #include "di_pre.h"
 #include "di_post.h"
 #include "di_api.h"
+#include <linux/amlogic/media/di/di.h>
 
 /**************************************
  *
@@ -1627,9 +1628,12 @@ void dip_chst_process_ch(void)
 {
 	unsigned int ch;
 	unsigned int chst;
+	struct vframe_s *vframe;
+	struct di_pre_stru_s *ppre;// = get_pre_stru(ch);
 
 	for (ch = 0; ch < DI_CHANNEL_NUB; ch++) {
 		chst = dip_chst_get(ch);
+		ppre = get_pre_stru(ch);
 		switch (chst) {
 		case eDI_TOP_STATE_REG_STEP2:
 			if (dip_cma_get_st(ch) == EDI_CMA_ST_READY) {
@@ -1669,6 +1673,21 @@ void dip_chst_process_ch(void)
 			dim_post_keep_back_recycle(ch);
 			dim_sumx_set(ch);
 			break;
+		case eDI_TOP_STATE_BYPASS:
+			vframe = pw_vf_peek(ch);
+			if (!vframe)
+				break;
+			if (dim_need_bypass(ch, vframe))
+				break;
+
+			di_reg_variable(ch, vframe);
+			if (!ppre->bypass_flag) {
+				set_bypass2_complete(ch, false);
+				/*this will cause first local buf not alloc*/
+				/*dim_bypass_first_frame(ch);*/
+				dip_chst_set(ch, eDI_TOP_STATE_REG_STEP2);
+			}
+			break;
 		default:
 			break;
 		}
@@ -1693,17 +1712,6 @@ bool dip_chst_change_2unreg(void)
 	}
 	return ret;
 }
-
-#if 0
-void di_reg_flg_check(void)
-{
-	int ch;
-	unsigned int chst;
-
-	for (ch = 0; ch < DI_CHANNEL_NUB; ch++)
-		chst = dip_chst_get(ch);
-}
-#endif
 
 void dip_hw_process(void)
 {
@@ -2075,13 +2083,175 @@ void do_table_working(struct do_table_s *pdo)
 	}
 }
 
-/**********************************/
+/***********************************************/
+void dim_bypass_st_clear(struct di_ch_s *pch)
+{
+	pch->bypass.d32 = 0;
+}
 
+void dim_bypass_set(struct di_ch_s *pch, bool which, unsigned int reason)
+{
+	bool on = false;
+	struct dim_policy_s *pp = get_dpolicy();
+
+	if (reason)
+		on = true;
+
+	if (!which) {
+		if (pch->bypass.b.lst_n != on) {
+			dbg_pl("ch[%d]:bypass change:n:%d->%d\n",
+			       pch->ch_id,
+			       pch->bypass.b.lst_n,
+			       on);
+			pch->bypass.b.lst_n = on;
+		}
+		if (on) {
+			pch->bypass.b.need_bypass = 1;
+			pch->bypass.b.reason_n = reason;
+			pp->ch[pch->ch_id] = 0;
+		} else {
+			pch->bypass.b.need_bypass = 0;
+			pch->bypass.b.reason_n = 0;
+		}
+	} else {
+		if (pch->bypass.b.lst_i != on) {
+			dbg_pl("ch[%d]:bypass change:i:%d->%d\n",
+			       pch->ch_id,
+			       pch->bypass.b.lst_i,
+			       on);
+			pch->bypass.b.lst_i = on;
+		}
+		if (on) {
+			pch->bypass.b.is_bypass = 1;
+			pch->bypass.b.reason_i = reason;
+			pp->ch[pch->ch_id] = 0;
+		} else {
+			pch->bypass.b.is_bypass = 0;
+			pch->bypass.b.reason_i = 0;
+		}
+	}
+}
+
+#define DIM_POLICY_STD_OLD	(125)
+#define DIM_POLICY_STD	(250)
+#define DIM_POLICY_SHIFT_H	(7)
+#define DIM_POLICY_SHIFT_W	(6)
+
+void dim_polic_cfg(unsigned int cmd, bool on)
+{
+	struct dim_policy_s *pp;
+
+	if (dil_get_diffver_flag() != 1)
+		return;
+
+	pp = get_dpolicy();
+	switch (cmd) {
+	case K_DIM_BYPASS_CLEAR_ALL:
+		pp->cfg_d32 = 0x0;
+		break;
+	case K_DIM_I_FIRST:
+		pp->cfg_b.i_first = on;
+		break;
+	case K_DIM_BYPASS_ALL_P:
+		pp->cfg_b.bypass_all_p = on;
+		break;
+	default:
+		PR_WARN("%s:cmd is overflow[%d]\n", __func__, cmd);
+		break;
+	}
+}
+EXPORT_SYMBOL(dim_polic_cfg);
+
+void dim_polic_prob(void)
+{
+	struct dim_policy_s *pp = get_dpolicy();
+
+	if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12A))
+		pp->std = DIM_POLICY_STD;
+	else
+		pp->std = DIM_POLICY_STD_OLD;
+
+	pp->cfg_b.i_first = 1;
+}
+
+void dim_polic_unreg(struct di_ch_s *pch)
+{
+	struct dim_policy_s *pp	= get_dpolicy();
+	unsigned int ch;
+
+	ch = pch->ch_id;
+
+	pp->ch[ch] = 0;
+	pp->order_i &= ~(1 << ch);
+}
+
+unsigned int dim_polic_is_bypass(struct di_ch_s *pch, struct vframe_s *vf)
+{
+	struct dim_policy_s *pp	= get_dpolicy();
+	unsigned int reason = 0;
+	unsigned int ptt, pcu, i;
+	unsigned int ch;
+
+	ch = pch->ch_id;
+
+	/* cfg */
+	if (pp->cfg_d32) {
+		if (!IS_I_SRC(vf->type)) {
+			if (pp->cfg_b.bypass_all_p) {
+				reason = 0x61;
+			} else if (pp->cfg_b.i_first && pp->order_i) {
+				reason = 0x62;
+				dbg_pl("ch[%d],bapass for order\n",
+				       ch);
+			}
+		}
+	}
+	if (reason)
+		return reason;
+
+	if (!vf) {
+		pr_info("no_vf\n");
+		dump_stack();
+		return reason;
+	}
+	/*count total*/
+	ptt = 0;
+	for (i = 0; i < DI_CHANNEL_NUB; i++)
+		ptt += pp->ch[i];
+
+	ptt -= pp->ch[ch];
+
+	/*count current*/
+	pcu = (vf->height >> DIM_POLICY_SHIFT_H) *
+		(vf->width >> DIM_POLICY_SHIFT_W);
+	if (IS_I_SRC(vf->type))
+		pcu >>= 1;
+
+	/*check bypass*/
+	if ((ptt + pcu) > pp->std) {
+		/* bypass */
+		reason = 0x62;
+		pp->ch[ch] = 0;
+	} else {
+		pp->ch[ch] = pcu;
+	}
+
+	if (pp->cfg_b.i_first	&&
+	    IS_I_SRC(vf->type)	&&
+	    reason) {
+		pp->order_i |= (1 << ch);
+		dbg_pl("ch[%d],bapass order[1]\n", ch);
+	} else {
+		pp->order_i &= ~(1 << ch);
+	}
+	return reason;
+}
 /****************************/
 void dip_init_value_reg(unsigned int ch)
 {
 	struct di_post_stru_s *ppost;
 	struct di_pre_stru_s *ppre = get_pre_stru(ch);
+	struct di_ch_s *pch = get_chdata(ch);
 
 	dbg_reg("%s:\n", __func__);
 
@@ -2095,6 +2265,9 @@ void dip_init_value_reg(unsigned int ch)
 
 	/*pre*/
 	memset(ppre, 0, sizeof(struct di_pre_stru_s));
+
+	/* bypass state */
+	dim_bypass_st_clear(pch);
 }
 
 static bool dip_init_value(void)
@@ -2175,6 +2348,7 @@ bool dip_prob(void)
 	dpost_init();
 
 	dip_init_pq_ops();
+	dim_polic_prob();
 
 	return ret;
 }

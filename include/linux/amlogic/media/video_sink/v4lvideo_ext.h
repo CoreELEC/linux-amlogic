@@ -18,9 +18,16 @@
 #ifndef V4LVIDEO_EXT_H
 #define V4LVIDEO_EXT_H
 
+#define V4LVIDEO_FLAG_DI_NR      1
+#define V4LVIDEO_FLAG_DI_DEC     2
+
 int v4lvideo_assign_map(char **receiver_name, int *inst);
 
 int v4lvideo_alloc_map(int *inst);
+
+void v4lvideo_dec_count_increase(void);
+
+void v4lvideo_dec_count_decrease(void);
 
 void v4lvideo_release_map(int inst);
 
@@ -34,10 +41,13 @@ struct file_private_data {
 	ulong v4l_dev_handle;
 	ulong v4l_inst_handle;
 	u32 v4l_inst_id;
+	struct vframe_s vf_ext;
+	struct vframe_s *vf_ext_p;
+	u32 flag;
 };
 
 struct v4l_data_t {
-	struct vframe_s *vf;
+	struct file_private_data *file_private_data;
 	char *dst_addr;
 	u32 phy_addr[3];
 	int byte_stride;
@@ -46,7 +56,7 @@ struct v4l_data_t {
 };
 
 void v4lvideo_data_copy(struct v4l_data_t *v4l_data);
-struct vframe_s *v4lvideo_get_vf(int fd);
+struct file_private_data *v4lvideo_get_vf(int fd);
 void dim_post_keep_cmd_release2(struct vframe_s *vframe);
 
 #endif /* V4LVIDEO_EXT_H */

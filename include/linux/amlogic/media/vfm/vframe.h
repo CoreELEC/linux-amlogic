@@ -91,6 +91,7 @@
 #define VFRAME_FLAG_VIDEO_LINEAR     0x400
 #define VFRAME_FLAG_EMPTY_FRAME_V4L		0x800
 #define VFRAME_FLAG_FAKE_FRAME		0x1000
+#define VFRAME_FLAG_DOUBLE_FRAM		0x2000
 
 enum pixel_aspect_ratio_e {
 	PIXEL_ASPECT_RATIO_1_1,
@@ -487,6 +488,8 @@ struct vframe_s {
 
 	/* signal format and sei data */
 	struct vframe_src_fmt_s src_fmt;
+	/*for di process NR and cts, storage dec vf*/
+	void *vf_ext;
 } /*vframe_t */;
 
 #if 0

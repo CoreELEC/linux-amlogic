@@ -129,6 +129,18 @@ bool do_table_is_crr(struct do_table_s *pdo, unsigned int state);
 
 enum eDI_SUB_ID pw_ch_next_count(enum eDI_SUB_ID channel);
 
+/************************************************
+ * bypass state
+ ************************************************/
+void dim_bypass_st_clear(struct di_ch_s *pch);
+void dim_bypass_set(struct di_ch_s *pch, bool which, unsigned int reason);
+/************************************************
+ * bypass polic
+ ************************************************/
+void dim_polic_prob(void);
+void dim_polic_unreg(struct di_ch_s *pch);
+unsigned int dim_polic_is_bypass(struct di_ch_s *pch, struct vframe_s *vf);
+
 void dip_init_value_reg(unsigned int ch);
 
 bool di_is_pause(unsigned int ch);

@@ -1661,8 +1661,46 @@ static ssize_t reg_store(struct file *file, const char __user *userbuf,
 	return count;
 }
 
+static int policy_show(struct seq_file *s, void *what)
+{
+	int ch;
+	struct dim_policy_s *pp = get_dpolicy();
+	struct di_ch_s *pch;
+	unsigned int ptt;
+
+	/*bypass*/
+	for (ch = 0; ch < DI_CHANNEL_NUB; ch++) {
+		pch = get_chdata(ch);
+		seq_printf(s, "ch[%d]:\n", ch);
+		seq_printf(s, "\tneed:%d,0x%x\n",
+			   pch->bypass.b.need_bypass,
+			   pch->bypass.b.reason_n);
+		seq_printf(s, "\tis:%d,0x%x\n",
+			   pch->bypass.b.is_bypass,
+			   pch->bypass.b.reason_i);
+	}
+	/*config*/
+	seq_puts(s, "cfg:\n");
+	seq_printf(s, "\tbypass_all_p:\t%d\n",
+		   pp->cfg_b.bypass_all_p);
+	seq_printf(s, "\ti_first:\t%d\n",
+		   pp->cfg_b.i_first);
+	/*policy*/
+	seq_puts(s, "policy:\n");
+	ptt = 0;
+	for (ch = 0; ch < DI_CHANNEL_NUB; ch++) {
+		seq_printf(s, "\tch[%d]\t:%d\n", ch, pp->ch[ch]);
+		ptt += pp->ch[ch];
+	}
+	seq_printf(s, "order=0x%x\n", pp->order_i);
+	seq_printf(s, "std=%d, total:%d\n", pp->std, ptt);
+
+	return 0;
+}
+
 /**********************/
 DEFINE_SEQ_SHOW_ONLY(dim_reg_cue_int);
+DEFINE_SEQ_SHOW_ONLY(policy);
 /**********************/
 DEFINE_SEQ_SHOW_ONLY(rcfgx);
 DEFINE_SEQ_SHOW_ONLY(seq_file_vframe_in);
@@ -1734,6 +1772,7 @@ static const struct di_dbgfs_files_t di_debugfs_files_top[] = {
 	{"cfgw_id", S_IFREG | 0644, &cfgtw_id_fops},
 	{"cfg_one", S_IFREG | 0644, &cfgt_one_fops},
 	{"cfg_sel", S_IFREG | 0644, &cfgt_sel_fops},
+	{"policy", S_IFREG | 0644, &policy_fops},
 };
 
 static const struct di_dbgfs_files_t di_debugfs_files[] = {

@@ -389,13 +389,13 @@ enum eDI_PRE_MT {
 unsigned int dpre_mtotal_check(void *data)
 {
 	struct di_hpre_s  *pre = get_hw_pre();
-	unsigned int ret = K_DO_R_NOT_FINISH;
+	unsigned int ret = K_DO_R_JUMP(K_DO_TABLE_ID_STOP);//K_DO_R_NOT_FINISH;
 
 	if ((pre_run_flag == DI_RUN_FLAG_RUN)	||
 	    (pre_run_flag == DI_RUN_FLAG_STEP)) {
 		if (pre_run_flag == DI_RUN_FLAG_STEP)
 			pre_run_flag = DI_RUN_FLAG_STEP_DONE;
-		/*dim_print("%s:\n", __func__);*/
+		dim_print("%s:\n", __func__);
 		if (dim_pre_de_buf_config(pre->curr_ch))
 			ret = K_DO_R_FINISH;
 		else
@@ -636,13 +636,13 @@ enum eDI_PRE_MP {
 unsigned int dpre_mp_check(void *data)
 {
 	struct di_hpre_s  *pre = get_hw_pre();
-	unsigned int ret = K_DO_R_NOT_FINISH;
+	unsigned int ret = K_DO_R_JUMP(K_DO_TABLE_ID_STOP);//K_DO_R_NOT_FINISH;
 
 	if ((pre_run_flag == DI_RUN_FLAG_RUN)	||
 	    (pre_run_flag == DI_RUN_FLAG_STEP)) {
 		if (pre_run_flag == DI_RUN_FLAG_STEP)
 			pre_run_flag = DI_RUN_FLAG_STEP_DONE;
-			/*dim_print("%s:\n", __func__);*/
+		dim_print("%s:\n", __func__);
 		if (dim_pre_de_buf_config(pre->curr_ch)) {
 			/*pre->flg_wait_int = false;*/
 			/*pre_p_asi_set_next(pre->curr_ch);*/

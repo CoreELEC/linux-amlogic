@@ -53,7 +53,7 @@ struct uvm_buffer {
 	struct page **pages;
 	struct dma_buf *dmabuf;
 
-	struct vframe_s *vf;
+	struct file_private_data *file_private_data;
 	u32 index;
 
 	int commit_display;

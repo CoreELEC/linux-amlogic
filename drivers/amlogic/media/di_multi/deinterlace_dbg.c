@@ -901,16 +901,23 @@ int dim_state_show(struct seq_file *seq, void *v, unsigned int channel)
 	struct di_hpst_s *post = get_hw_pst();
 	char *splt = "---------------------------";
 	struct di_mm_s *mm = dim_mm_get(channel);	/*mm-0705*/
+	struct di_ch_s *pch = get_chdata(channel);
 
 	di_pre_stru_p = get_pre_stru(channel);
 	di_post_stru_p = get_post_stru(channel);
 
 	dump_state_flag = 1;
 	seq_printf(seq, "%s:ch[%d]\n", __func__, channel);
-	seq_printf(seq, "version %s, init_flag %d, is_bypass %d\n",
+	seq_printf(seq, "version %s, init_flag %d\n",
 		   version_s,
-		   get_init_flag(channel),
-		   dim_is_bypass(NULL, channel));
+		   get_init_flag(channel));
+	seq_printf(seq, "bypass:need:%d,0x%x\n",
+		   pch->bypass.b.need_bypass,
+		   pch->bypass.b.reason_n);
+	seq_printf(seq, "bypass:is:%d,0x%x\n",
+		   pch->bypass.b.is_bypass,
+		   pch->bypass.b.reason_i);
+
 	seq_printf(seq, "recovery_flag = %d, reason=%d, di_blocking=%d",
 		   recovery_flag, recovery_log_reason, di_blocking);
 	seq_printf(seq, "recovery_log_q_idx=%d, recovery_log_di_buf=0x%p\n",

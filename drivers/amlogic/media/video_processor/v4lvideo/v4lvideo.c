@@ -34,6 +34,7 @@
 #include <linux/file.h>
 #include <linux/amlogic/media/canvas/canvas_mgr.h>
 #include <linux/amlogic/media/vfm/amlogic_fbc_hook_v1.h>
+#include <linux/amlogic/media/di/di.h>
 #include "../../common/vfm/vfm.h"
 
 #define V4LVIDEO_MODULE_NAME "v4lvideo"
@@ -69,7 +70,25 @@ static unsigned int put_count;
 module_param(put_count, uint, 0644);
 MODULE_PARM_DESC(put_count, "put_count");
 
+static unsigned int cts_use_di;
+module_param(cts_use_di, uint, 0644);
+MODULE_PARM_DESC(cts_use_di, "cts_use_di");
+
+/*set 1 means video_composer use dec vf when di NR; only debug!!!*/
+static unsigned int render_use_dec;
+module_param(render_use_dec, uint, 0644);
+MODULE_PARM_DESC(render_use_dec, "render_use_dec");
+
+static unsigned int dec_count;
+module_param(dec_count, uint, 0644);
+MODULE_PARM_DESC(dec_count, "dec_count");
+
+bool di_bypass_p;
+/*dec set count mutex*/
+struct mutex mutex_dec_count;
+
 #define MAX_KEEP_FRAME 64
+#define DI_NR_COUNT 1
 
 struct keep_mem_info {
 	void *handle;
@@ -84,6 +103,36 @@ struct keeper_mgr {
 };
 
 static struct keeper_mgr keeper_mgr_private;
+
+void v4lvideo_dec_count_increase(void)
+{
+	mutex_lock(&mutex_dec_count);
+	dec_count++;
+	if (dec_count > DI_NR_COUNT && !di_bypass_p) {
+		dim_polic_cfg(K_DIM_BYPASS_ALL_P, 1);
+		di_bypass_p = true;
+		pr_info("v4lvideo: di_p bypass 1\n");
+	}
+	if (dec_count > 9)
+		pr_err("v4lvideo: dec count >9\n");
+	mutex_unlock(&mutex_dec_count);
+}
+EXPORT_SYMBOL(v4lvideo_dec_count_increase);
+
+void v4lvideo_dec_count_decrease(void)
+{
+	mutex_lock(&mutex_dec_count);
+	if (dec_count == 0)
+		pr_err("v4lvideo: dec count -1\n");
+	dec_count--;
+	if (dec_count <= DI_NR_COUNT && di_bypass_p) {
+		dim_polic_cfg(K_DIM_BYPASS_ALL_P, 0);
+		di_bypass_p = false;
+		pr_info("v4lvideo: di_p bypass 0\n");
+	}
+	mutex_unlock(&mutex_dec_count);
+}
+EXPORT_SYMBOL(v4lvideo_dec_count_decrease);
 
 static struct keeper_mgr *get_keeper_mgr(void)
 {
@@ -248,6 +297,7 @@ static void video_keeper_free_mem(
 static void vf_keep(struct file_private_data *file_private_data)
 {
 	struct vframe_s *vf_p;
+	struct vframe_s *vf_ext_p = NULL;
 	int type = MEM_TYPE_CODEC_MM;
 	int keep_id = 0;
 	int keep_head_id = 0;
@@ -261,6 +311,15 @@ static void vf_keep(struct file_private_data *file_private_data)
 	if (!vf_p) {
 		V4LVID_ERR("vf_keep error: vf_p is NULL");
 		return;
+	}
+
+	if (file_private_data->flag & V4LVIDEO_FLAG_DI_NR) {
+		vf_ext_p = file_private_data->vf_ext_p;
+		if (!vf_ext_p) {
+			V4LVID_ERR("vf_keep error: vf_ext is NULL");
+			return;
+		}
+		vf_p = vf_ext_p;
 	}
 
 	if (vf_p->type & VIDTYPE_SCATTER)
@@ -282,8 +341,8 @@ static void vf_keep(struct file_private_data *file_private_data)
 static void vf_free(struct file_private_data *file_private_data)
 {
 	struct vframe_s *vf_p;
-	struct vframe_s vf;
-
+	struct vframe_s *vf;
+	u32 flag;
 	if (file_private_data->keep_id > 0) {
 		video_keeper_free_mem(
 				file_private_data->keep_id, 0);
@@ -295,10 +354,15 @@ static void vf_free(struct file_private_data *file_private_data)
 		file_private_data->keep_head_id = -1;
 	}
 
-	vf = file_private_data->vf;
+	vf = &file_private_data->vf;
 	vf_p = file_private_data->vf_p;
+	flag = file_private_data->flag;
+	if (flag & V4LVIDEO_FLAG_DI_DEC) {
+		vf = &file_private_data->vf_ext;
+		vf_p = file_private_data->vf_ext_p;
+	}
 
-	if (vf.type & VIDTYPE_DI_PW)
+	if (vf->type & VIDTYPE_DI_PW)
 		dim_post_keep_cmd_release2(vf_p);
 }
 
@@ -306,11 +370,14 @@ void init_file_private_data(struct file_private_data *file_private_data)
 {
 	if (file_private_data) {
 		memset(&file_private_data->vf, 0, sizeof(struct vframe_s));
+		memset(&file_private_data->vf_ext, 0, sizeof(struct vframe_s));
 		file_private_data->vf_p = NULL;
+		file_private_data->vf_ext_p = NULL;
 		file_private_data->is_keep = false;
 		file_private_data->keep_id = -1;
 		file_private_data->keep_head_id = -1;
 		file_private_data->file = NULL;
+		file_private_data->flag = 0;
 	} else {
 		V4LVID_ERR("init_file_private_data is NULL!!");
 	}
@@ -565,8 +632,13 @@ static void do_vframe_afbc_soft_decode(struct v4l_data_t *v4l_data)
 	struct timeval start, end;
 	unsigned long time_use = 0;
 	struct vframe_s *vf = NULL;
+	struct file_private_data *file_private_data;
 
-	vf = v4l_data->vf;
+	file_private_data = v4l_data->file_private_data;
+	if (file_private_data->flag & V4LVIDEO_FLAG_DI_NR)
+		vf = &file_private_data->vf_ext;
+	else
+		vf = &file_private_data->vf;
 
 	if ((vf->bitdepth & BITDEPTH_YMASK)  == (BITDEPTH_Y10))
 		bit_10 = 1;
@@ -656,9 +728,17 @@ void v4lvideo_data_copy(struct v4l_data_t *v4l_data)
 	const char *keep_owner = "ge2d_dest_comp";
 	bool di_mode = false;
 	bool is_10bit = false;
+	struct file_private_data *file_private_data;
 
-	vf = v4l_data->vf;
+	file_private_data = v4l_data->file_private_data;
+	if (file_private_data->flag & V4LVIDEO_FLAG_DI_NR)
+		vf = &file_private_data->vf_ext;
+	else
+		vf = &file_private_data->vf;
 
+	if (cts_use_di) {
+		vf = &file_private_data->vf;
+	}
 	if ((vf->type & VIDTYPE_COMPRESS)) {
 		do_vframe_afbc_soft_decode(v4l_data);
 		return;
@@ -694,14 +774,13 @@ void v4lvideo_data_copy(struct v4l_data_t *v4l_data)
 	dst_canvas_config[1].block_mode = 0;
 	dst_canvas_config[1].endian = 0;
 
-	pr_debug("compWidth: %u, compHeight: %u.\n", vf->compWidth,
-		vf->compHeight);
-	pr_debug("vf-width:%u, vf-height:%u, vf-widht-align:%u, umm-bytestride: %d, umm-width:%u, umm-height:%u, y_addr:%u, uv_addr:%u.\n",
-		vf->width, vf->height, ALIGN(vf->width, 32),
-		v4l_data->byte_stride, v4l_data->width,
-		v4l_data->height,
-		dst_canvas_config[0].phy_addr,
-		dst_canvas_config[1].phy_addr);
+	pr_debug("width:%u, height:%u, widht-align:%u, bytestride: %d, umm-width:%u, umm-height:%u, y_addr:%u, uv_addr:%u.,flag=%d\n",
+		 vf->width, vf->height, ALIGN(vf->width, 32),
+		 v4l_data->byte_stride, v4l_data->width,
+		 v4l_data->height,
+		 dst_canvas_config[0].phy_addr,
+		 dst_canvas_config[1].phy_addr,
+		 vf->flag);
 
 	if (vf->canvas0Addr == (u32)-1) {
 		if (canvas_src_id[0] <= 0)
@@ -789,10 +868,9 @@ void v4lvideo_data_copy(struct v4l_data_t *v4l_data)
 			0, 0, vf->width, vf->height);
 }
 
-struct vframe_s *v4lvideo_get_vf(int fd)
+struct file_private_data *v4lvideo_get_vf(int fd)
 {
 	struct file *file_vf = NULL;
-	struct vframe_s *vf = NULL;
 	struct file_private_data *file_private_data;
 
 	file_vf = fget(fd);
@@ -801,9 +879,8 @@ struct vframe_s *v4lvideo_get_vf(int fd)
 		return NULL;
 	}
 	file_private_data = (struct file_private_data *)file_vf->private_data;
-	vf = &file_private_data->vf;
 	fput(file_vf);
-	return vf;
+	return file_private_data;
 }
 
 static s32 v4lvideo_release_sei_data(struct vframe_s *vf)
@@ -1091,8 +1168,10 @@ static int vidioc_qbuf(struct file *file, void *priv, struct v4l2_buffer *p)
 {
 	struct v4lvideo_dev *dev = video_drvdata(file);
 	struct vframe_s *vf_p;
+	struct vframe_s *vf_ext_p;
 	struct file *file_vf = NULL;
 	struct file_private_data *file_private_data = NULL;
+	u32 flag;
 
 	dev->v4lvideo_input[p->index] = *p;
 
@@ -1107,6 +1186,8 @@ static int vidioc_qbuf(struct file *file, void *priv, struct v4l2_buffer *p)
 		return 0;
 	}
 	vf_p = file_private_data->vf_p;
+	vf_ext_p = file_private_data->vf_ext_p;
+	flag = file_private_data->flag;
 
 	mutex_lock(&dev->mutex_input);
 	if (vf_p) {
@@ -1116,6 +1197,8 @@ static int vidioc_qbuf(struct file *file, void *priv, struct v4l2_buffer *p)
 			if (v4l2q_pop_specific(&dev->display_queue,
 					       file_private_data)) {
 				if (dev->receiver_register) {
+					if (flag & V4LVIDEO_FLAG_DI_DEC)
+						vf_p = vf_ext_p;
 					vf_put(vf_p, dev->vf_receiver_name);
 					put_count++;
 				} else {
@@ -1218,6 +1301,7 @@ static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *p)
 	u64 pts_us64 = 0;
 	u64 pts_tmp;
 	char *provider_name = NULL;
+	struct vframe_s *vf_ext = NULL;
 
 	mutex_lock(&dev->mutex_input);
 	buf = v4l2q_peek(&dev->input_queue);
@@ -1272,12 +1356,39 @@ static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *p)
 		pr_err("v4lvideo: file_private_data NULL\n");
 		return -EAGAIN;
 	}
-	file_private_data->vf = *vf;
-	file_private_data->vf_p = vf;
+
+	if (vf->flag & VFRAME_FLAG_DOUBLE_FRAM) {
+		pr_debug("%d,p\n", dev->inst);
+		vf_ext = (struct vframe_s *)vf->vf_ext;
+		if (render_use_dec) {
+			file_private_data->vf = *vf_ext;
+			file_private_data->vf_p = vf_ext;
+			file_private_data->vf_ext = *vf;
+			file_private_data->vf_ext_p = vf;
+			file_private_data->flag |= V4LVIDEO_FLAG_DI_DEC;
+			canvas_to_addr(&file_private_data->vf);
+			canvas_to_addr(&file_private_data->vf_ext);
+		} else {
+			file_private_data->vf = *vf;
+			file_private_data->vf_p = vf;
+			file_private_data->vf_ext = *vf_ext;
+			file_private_data->vf_ext_p = vf_ext;
+			file_private_data->flag |= V4LVIDEO_FLAG_DI_NR;
+			canvas_to_addr(&file_private_data->vf);
+			canvas_to_addr(&file_private_data->vf_ext);
+			file_private_data->vf.canvas0_config[0].block_mode = 0;
+			file_private_data->vf.canvas0_config[0].endian = 0;
+		}
+	} else {
+		file_private_data->vf = *vf;
+		file_private_data->vf_p = vf;
+		canvas_to_addr(&file_private_data->vf);
+	}
+	if (vf->type & VIDTYPE_DI_PW)
+		pr_debug("%d,I\n", dev->inst);
 	v4lvideo_import_sei_data(
 		vf, &file_private_data->vf,
 		dev->provider_name);
-	canvas_to_addr(&file_private_data->vf);
 
 	//pr_err("dqbuf: file_private_data=%p, vf=%p\n", file_private_data, vf);
 	v4l2q_push(&dev->display_queue, file_private_data);
@@ -1314,9 +1425,9 @@ static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *p)
 	}
 
 	*p = *buf;
-	 p->timestamp.tv_sec = pts_us64 >> 32;
-	 p->timestamp.tv_usec = pts_us64 & 0xFFFFFFFF;
-	 dev->last_pts_us64 = pts_us64;
+	p->timestamp.tv_sec = pts_us64 >> 32;
+	p->timestamp.tv_usec = pts_us64 & 0xFFFFFFFF;
+	dev->last_pts_us64 = pts_us64;
 
 	if ((vf->type & VIDTYPE_COMPRESS) != 0) {
 		p->timecode.type = vf->compWidth;
@@ -1709,6 +1820,8 @@ static int __init v4lvideo_init(void)
 {
 	int ret = -1, i;
 	struct device *devp;
+
+	mutex_init(&mutex_dec_count);
 
 	keeper_mgr_init();
 

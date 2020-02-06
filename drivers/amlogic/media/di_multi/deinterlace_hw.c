@@ -1482,6 +1482,7 @@ static void set_di_inp_mif(struct DI_MIF_s *mif, int urgent, int hold_line)
 	unsigned int chroma0_rpt_loop_pat;
 	unsigned int vt_ini_phase = 0;
 	unsigned int reset_on_gofield;
+	unsigned int burst_len = 2;
 
 	if (mif->set_separate_en != 0 && mif->src_field_mode == 1) {
 		chro_rpt_lastl_ctrl = 1;
@@ -1563,6 +1564,12 @@ static void set_di_inp_mif(struct DI_MIF_s *mif, int urgent, int hold_line)
 		dim_RDMA_WR_BITS(DI_INP_GEN_REG2, 0, 0, 1);
 	}
 
+	if (mif->canvas_w % 32)
+		burst_len = 0;
+	else if (mif->canvas_w % 64)
+		burst_len = 1;
+	dim_print("burst_len=%d\n", burst_len);
+	dim_RDMA_WR_BITS(DI_INP_GEN_REG3, burst_len & 0x3, 1, 2);
 	dim_RDMA_WR_BITS(DI_INP_GEN_REG3, mif->bit_mode & 0x3, 8, 2);
 	dim_RDMA_WR(DI_INP_CANVAS0,
 		    (mif->canvas0_addr2 << 16)	| /* cntl_canvas0_addr2 */

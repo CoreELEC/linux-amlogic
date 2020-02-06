@@ -857,6 +857,22 @@ struct dim_sum_s {
 	unsigned int b_display;
 };
 
+struct dim_bypass_s {
+	union {
+		unsigned int d32;
+		struct {
+			unsigned int need_bypass	: 1,
+					is_bypass	: 1,
+					lst_n		: 1,
+					lst_i		: 1,
+					rev1		: 4,
+					reason_n	: 8,
+					reason_i	: 8,
+					rev2		: 8;
+		} b;
+	};
+};
+
 struct di_ch_s {
 	/*struct di_cfgx_s dbg_cfg;*/
 	bool cfgx_en[K_DI_CFGX_NUB];
@@ -883,7 +899,22 @@ struct di_ch_s {
 	unsigned int sum_get;
 	unsigned int sum_put;
 	struct dim_sum_s	sumx;
+	struct dim_bypass_s	bypass; /*state only*/
+};
 
+struct dim_policy_s {
+	unsigned int std;
+	unsigned int ch[DI_CHANNEL_NUB];
+	unsigned int order_i;
+	unsigned int idle; /*no use*/
+	union {
+		unsigned int cfg_d32;
+		struct {
+			unsigned int bypass_all_p	: 1,
+					i_first		: 1,
+					rev1		: 30;
+		} cfg_b;
+	};
 };
 
 struct di_meson_data {
@@ -928,7 +959,7 @@ struct di_mng_s {
 	bool act_flg		;/*active_flag*/
 
 	bool flg_hw_int;	/*only once*/
-
+	struct dim_policy_s	policy;
 	struct dim_mm_t_s mmt;
 	struct di_mm_s	mm[DI_CHANNEL_NUB];
 };
@@ -1058,6 +1089,7 @@ struct di_data_l_s {
 #define DBG_M_KEEP		DI_BIT10	/*keep buf*/
 #define DBG_M_MEM		DI_BIT11	/*mem alloc release*/
 #define DBG_M_WQ		DI_BIT14	/*work que*/
+#define DBG_M_PL		DI_BIT15
 
 extern unsigned int di_dbg;
 
@@ -1089,6 +1121,7 @@ extern unsigned int di_dbg;
 #define dbg_mem(fmt, args ...)		dbg_m(DBG_M_MEM, fmt, ##args)
 #define dbg_keep(fmt, args ...)		dbg_m(DBG_M_KEEP, fmt, ##args)
 #define dbg_wq(fmt, args ...)		dbg_m(DBG_M_WQ, fmt, ##args)
+#define dbg_pl(fmt, args ...)		dbg_m(DBG_M_PL, fmt, ##args)
 
 char *di_cfgx_get_name(enum eDI_CFGX_IDX idx);
 bool di_cfgx_get(unsigned int ch, enum eDI_CFGX_IDX idx);
@@ -1230,6 +1263,11 @@ static inline void set_current_channel(unsigned int channel)
 static inline bool get_init_flag(unsigned char ch)
 {
 	return get_bufmng()->init_flg[ch];
+}
+
+static inline struct dim_policy_s *get_dpolicy(void)
+{
+	return &get_bufmng()->policy;
 }
 
 static inline void set_init_flag(unsigned char ch, bool on)

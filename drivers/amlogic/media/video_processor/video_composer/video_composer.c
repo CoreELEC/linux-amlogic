@@ -1107,6 +1107,7 @@ static void video_composer_task(struct composer_dev *dev)
 			 frame_info->buffer_w, frame_info->buffer_h);
 		vc_print(dev->index, PRINT_AXIS,
 			 "===============================\n");
+		/*dump_yuv_data(vf);*/
 		if (dev->last_file == file_vf && frame_info->type == 0) {
 			vf->repeat_count[dev->index]++;
 			vc_print(dev->index, PRINT_FENCE,

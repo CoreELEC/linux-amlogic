@@ -53,12 +53,18 @@ static int meson_uvm_alloc_buffer(struct dma_buf *dmabuf)
 	size_t len;
 	struct vframe_s *vf;
 	enum ion_heap_type heap_type;
+	struct file_private_data *file_private_data;
 
 	struct uvm_buffer *buffer = dmabuf->priv;
 
 	/* use ion_alloc to alloc the buffer */
 	num_pages = PAGE_ALIGN(buffer->size) / PAGE_SIZE;
-	vf = buffer->vf;
+
+	file_private_data = buffer->file_private_data;
+	if (file_private_data->flag & V4LVIDEO_FLAG_DI_NR)
+		vf = &file_private_data->vf_ext;
+	else
+		vf = &file_private_data->vf;
 
 	if ((vf->type & VIDTYPE_COMPRESS))
 		heap_type = ION_HEAP_TYPE_SYSTEM;
@@ -164,8 +170,12 @@ static int meson_uvm_fill_pattern(struct dma_buf *dmabuf)
 {
 	struct v4l_data_t val_data;
 	struct uvm_buffer *buffer = dmabuf->priv;
+	struct vframe_s *vf;
+	struct file_private_data *file_private_data;
 
-	val_data.vf = buffer->vf;
+	file_private_data = buffer->file_private_data;
+
+	val_data.file_private_data = file_private_data;
 	val_data.dst_addr = buffer->vaddr;
 	val_data.byte_stride = buffer->byte_stride;
 	val_data.width = buffer->width;
@@ -174,9 +184,14 @@ static int meson_uvm_fill_pattern(struct dma_buf *dmabuf)
 
 	pr_debug("the phy addr is %pa.\n", &val_data.phy_addr[0]);
 
-	if (!buffer->index || buffer->index != buffer->vf->omx_index) {
+	if (file_private_data->flag & V4LVIDEO_FLAG_DI_NR)
+		vf = &file_private_data->vf_ext;
+	else
+		vf = &file_private_data->vf;
+
+	if (!buffer->index || buffer->index != vf->omx_index) {
 		v4lvideo_data_copy(&val_data);
-		buffer->index = buffer->vf->omx_index;
+		buffer->index = vf->omx_index;
 	}
 
 	vunmap(buffer->vaddr);
@@ -426,8 +441,8 @@ static int uvm_alloc_buffer(struct uvm_alloc_data *uad)
 		goto err;
 
 	buffer->dmabuf = dmabuf;
-	buffer->vf = v4lvideo_get_vf(uad->v4l2_fd);
-	if (!buffer->vf)
+	buffer->file_private_data = v4lvideo_get_vf(uad->v4l2_fd);
+	if (!buffer->file_private_data)
 		pr_err("v4lvideo_get_vf failed.\n");
 
 	dmabuf->priv = buffer;

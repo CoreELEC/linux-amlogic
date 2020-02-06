@@ -49,7 +49,7 @@
 #define BYPASS_GET_MAX_BUF_NUM			4
 
 /* buffer management related */
-#define MAX_IN_BUF_NUM				(4)
+#define MAX_IN_BUF_NUM				(10)	/*change 4 to 8*/
 #define MAX_LOCAL_BUF_NUM			(7)
 #define MAX_POST_BUF_NUM			(11)	/*(5)*/ /* 16 */
 
@@ -173,6 +173,8 @@ struct di_buf_s {
 	 * 1: after get
 	 * 0: after put
 	 */
+	struct di_buf_s *in_buf; /*keep dec vf: link in buf*/
+	unsigned int dec_vf_state;	/*keep dec vf:*/
 	atomic_t di_cnt;
 	struct page	*pages;
 	/*ary add */
@@ -564,6 +566,7 @@ void dim_reg_timeout_inc(void);
 void dim_reg_process(unsigned int channel);
 bool is_bypass2(struct vframe_s *vf_in, unsigned int ch);
 void dim_post_keep_cmd_proc(unsigned int ch, unsigned int index);
+bool dim_need_bypass(unsigned int ch, struct vframe_s *vf);
 
 /*--------------------------*/
 int di_ori_event_unreg(unsigned int channel);
