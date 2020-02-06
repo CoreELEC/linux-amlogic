@@ -3569,7 +3569,7 @@ static const struct cec_platform_data_s cec_sm1_data = {
 	.line_bit = 3,
 	.ee_to_ao = 1,
 	.ceca_sts_reg = 1,
-	.ceca_ver = CECA_VER_1,
+	.ceca_ver = CECA_VER_0,
 	.cecb_ver = CECB_VER_2,
 	.share_io = true,
 };
@@ -3580,7 +3580,7 @@ static const struct cec_platform_data_s cec_tm2_data = {
 	.line_bit = 10,
 	.ee_to_ao = 1,
 	.ceca_sts_reg = 1,
-	.ceca_ver = CECA_VER_1,
+	.ceca_ver = CECA_VER_0,
 	.cecb_ver = CECB_VER_2,
 	.share_io = true,
 };
