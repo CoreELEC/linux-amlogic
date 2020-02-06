@@ -5,7 +5,7 @@
 	auge_sound {
 		compatible = "amlogic, g12a-sound-card";
 		aml-audio-card,name = "AML-AUGESOUND";
-		mute_gpio = <&gpio_ao GPIOAO_2 GPIO_ACTIVE_LOW>;
+		spk_mute-gpios = <&gpio_ao GPIOAO_2 GPIO_ACTIVE_LOW>;
 		aml-audio-card,effect = <&audio_effect>;
 
 		aml-audio-card,dai-link@0 {
