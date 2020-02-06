@@ -557,7 +557,7 @@
 	unifykey{
 		compatible = "amlogic, unifykey";
 		status = "ok";
-		unifykey-num = <19>;
+		unifykey-num = <26>;
 		unifykey-index-0 = <&keysn_0>;
 		unifykey-index-1 = <&keysn_1>;
 		unifykey-index-2 = <&keysn_2>;
@@ -577,6 +577,13 @@
 		unifykey-index-16= <&keysn_16>;
 		unifykey-index-17= <&keysn_17>;
 		unifykey-index-18= <&keysn_18>;
+		unifykey-index-19= <&keysn_19>;
+		unifykey-index-20= <&keysn_20>;
+		unifykey-index-21= <&keysn_21>;
+		unifykey-index-22= <&keysn_22>;
+		unifykey-index-23= <&keysn_23>;
+		unifykey-index-24= <&keysn_24>;
+		unifykey-index-25= <&keysn_25>;
 
 		keysn_0: key_0{
 			key-name = "usid";
@@ -674,6 +681,41 @@
 		keysn_18:key_18{
 			key-name = "oemkey";
 			key-device = "normal";
+			key-permit = "read","write","del";
+		};
+		keysn_19:key_19{
+			key-name = "KEY_WIDEVINE";
+			key-device = "provision";
+			key-permit = "read","write","del";
+		};
+		keysn_20:key_20{
+			key-name = "KEY_PLAYREADY_PRIVATE";
+			key-device = "provision";
+			key-permit = "read","write","del";
+		};
+		keysn_21:key_21{
+			key-name = "KEY_PLAYREADY_PUBLIC";
+			key-device = "provision";
+			key-permit = "read","write","del";
+		};
+		keysn_22:key_22{
+			key-name = "KEY_HDCP_TX14";
+			key-device = "provision";
+			key-permit = "read","write","del";
+		};
+		keysn_23:key_23{
+			key-name = "KEY_HDCP_TX22";
+			key-device = "provision";
+			key-permit = "read","write","del";
+		};
+		keysn_24:key_24{
+			key-name = "KEY_HDCP_RX14";
+			key-device = "provision";
+			key-permit = "read","write","del";
+		};
+		keysn_25:key_25{
+			key-name = "KEY_HDCP_RX22";
+			key-device = "provision";
 			key-permit = "read","write","del";
 		};
 	};//End unifykey

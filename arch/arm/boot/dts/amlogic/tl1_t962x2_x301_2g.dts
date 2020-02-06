@@ -714,7 +714,7 @@
 		compatible = "amlogic, unifykey";
 		status = "okay";
 
-		unifykey-num = <23>;
+		unifykey-num = <33>;
 		unifykey-index-0 = <&keysn_0>;
 		unifykey-index-1 = <&keysn_1>;
 		unifykey-index-2 = <&keysn_2>;
@@ -738,6 +738,16 @@
 		unifykey-index-20 = <&keysn_20>;
 		unifykey-index-21 = <&keysn_21>;
 		unifykey-index-22 = <&keysn_22>;
+		unifykey-index-23= <&keysn_23>;
+		unifykey-index-24= <&keysn_24>;
+		unifykey-index-25= <&keysn_25>;
+		unifykey-index-26= <&keysn_26>;
+		unifykey-index-27= <&keysn_27>;
+		unifykey-index-28= <&keysn_28>;
+		unifykey-index-29= <&keysn_29>;
+		unifykey-index-30= <&keysn_30>;
+		unifykey-index-31= <&keysn_31>;
+		unifykey-index-32= <&keysn_32>;
 
 		keysn_0: key_0{
 			key-name = "usid";
@@ -857,6 +867,56 @@
 		keysn_22:key_22{
 			key-name = "oemkey";
 			key-device = "normal";
+			key-permit = "read","write","del";
+		};
+		keysn_23:key_23{
+			key-name = "KEY_HDCP_RX14";
+			key-device = "provision";
+			key-permit = "read","write","del";
+		};
+		keysn_24:key_24{
+			key-name = "KEY_HDCP_RX22";
+			key-device = "provision";
+			key-permit = "read","write","del";
+		};
+		keysn_25:key_25{
+			key-name = "KEY_HDCP_RX22_FW_PRIVATE";
+			key-device = "provision";
+			key-permit = "read","write","del";
+		};
+		keysn_26:key_26{
+			key-name = "KEY_HDCP_RX22_FW";
+			key-device = "provision";
+			key-permit = "read","write","del";
+		};
+		keysn_27:key_27{
+			key-name = "KEY_HDCP_RX22";
+			key-device = "provision";
+			key-permit = "read","write","del";
+		};
+		keysn_28:key_28{
+			key-name = "KEY_PLAYREADY_PRIVATE";
+			key-device = "provision";
+			key-permit = "read","write","del";
+		};
+		keysn_29:key_29{
+			key-name = "KEY_PLAYREADY_PUBLIC";
+			key-device = "provision";
+			key-permit = "read","write","del";
+		};
+		keysn_30:key_30{
+			key-name = "KEY_HDCP_TX22";
+			key-device = "provision";
+			key-permit = "read","write","del";
+		};
+		keysn_31:key_31{
+			key-name = "KEY_HDCP_TX14";
+			key-device = "provision";
+			key-permit = "read","write","del";
+		};
+		keysn_32:key_32{
+			key-name = "KEY_WIDEVINE";
+			key-device = "provision";
 			key-permit = "read","write","del";
 		};
 	}; /* End unifykey */
