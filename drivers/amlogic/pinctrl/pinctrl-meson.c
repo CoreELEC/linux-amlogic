@@ -558,6 +558,25 @@ static int meson_gpio_to_irq(struct gpio_chip *chip, unsigned int gpio)
 	return irq_create_fwspec_mapping(&fwspec);
 }
 
+static int meson_gpio_get_direction(struct gpio_chip *chip, unsigned int gpio)
+{
+	struct meson_pinctrl *pc = gpiochip_get_data(chip);
+	unsigned int reg, bit, val;
+	struct meson_bank *bank;
+	int ret;
+
+	ret = meson_get_bank(pc, gpio, &bank);
+	if (ret)
+		return ret;
+
+	meson_calc_reg_and_bit(bank, gpio, REG_DIR, &reg, &bit);
+	ret = regmap_read(pc->reg_gpio, reg, &val);
+	if (ret)
+		return ret;
+
+	return !!(val & BIT(bit));
+}
+
 static int meson_gpiolib_register(struct meson_pinctrl *pc)
 {
 	int ret;
@@ -577,6 +596,7 @@ static int meson_gpiolib_register(struct meson_pinctrl *pc)
 	pc->chip.can_sleep = false;
 	pc->chip.of_node = pc->of_node;
 	pc->chip.of_gpio_n_cells = 2;
+	pc->chip.get_direction = meson_gpio_get_direction;
 
 	ret = gpiochip_add_data(&pc->chip, pc);
 	if (ret) {
