@@ -296,16 +296,12 @@ __setup("pq=", amvecm_load_pq_val);
 static int amvecm_set_contrast2(int val)
 {
 	val += 0x80;
-	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A) {
+	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A)
 		WRITE_VPP_REG_BITS(VPP_VADJ2_Y_2,
 			val, 0, 8);
-		WRITE_VPP_REG_BITS(VPP_VADJ2_MISC, 1, 0, 1);
-
-	} else {
+	else
 		WRITE_VPP_REG_BITS(VPP_VADJ2_Y,
 			val, 0, 8);
-		WRITE_VPP_REG_BITS(VPP_VADJ_CTRL, 1, 2, 1);
-	}
 	return 0;
 }
 
@@ -321,10 +317,6 @@ static int amvecm_set_brightness2(int val)
 		WRITE_VPP_REG_BITS(VPP_VADJ2_Y,
 			val >> 1, 8, 10);
 
-	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A)
-		WRITE_VPP_REG_BITS(VPP_VADJ2_MISC, 1, 0, 1);
-	else
-		WRITE_VPP_REG_BITS(VPP_VADJ_CTRL, 1, 2, 1);
 	return 0;
 }
 
@@ -384,12 +376,6 @@ static ssize_t video_adj1_brightness_store(struct class *cla,
 		WRITE_VPP_REG_BITS(VPP_VADJ1_Y_2, val, 8, 11);
 	else
 		WRITE_VPP_REG_BITS(VPP_VADJ1_Y, val >> 1, 8, 10);
-
-	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A)
-		WRITE_VPP_REG_BITS(VPP_VADJ1_MISC, 1, 0, 1);
-	else
-		WRITE_VPP_REG_BITS(VPP_VADJ_CTRL, 1, 0, 1);
-
 	return count;
 }
 
@@ -417,13 +403,10 @@ static ssize_t video_adj1_contrast_store(struct class *cla,
 
 	val += 0x80;
 
-	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A) {
+	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A)
 		WRITE_VPP_REG_BITS(VPP_VADJ1_Y_2, val, 0, 8);
-		WRITE_VPP_REG_BITS(VPP_VADJ1_MISC, 1, 0, 1);
-	} else {
+	else
 		WRITE_VPP_REG_BITS(VPP_VADJ1_Y, val, 0, 8);
-		WRITE_VPP_REG_BITS(VPP_VADJ_CTRL, 1, 0, 1);
-	}
 
 	return count;
 }
@@ -1404,13 +1387,11 @@ static int amvecm_set_saturation_hue(int mab)
 	md = (s16)((mab<<6)>>22);  /* md =  ma; */
 	mab = ((mc&0x3ff)<<16)|(md&0x3ff);
 
-	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A) {
+	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A)
 		WRITE_VPP_REG(VPP_VADJ1_MC_MD_2, mab);
-		WRITE_VPP_REG_BITS(VPP_VADJ1_MISC, 1, 0, 1);
-	} else {
+	else
 		WRITE_VPP_REG(VPP_VADJ1_MC_MD, mab);
-		WRITE_VPP_REG_BITS(VPP_VADJ_CTRL, 1, 0, 1);
-	}
+
 	pr_amvecm_dbg("%s set video_saturation_hue OK!!!\n", __func__);
 	return 0;
 }
@@ -1470,13 +1451,10 @@ static int amvecm_set_saturation_hue_post(int val1,
 		mc = -512;
 	md = (s16)((mab<<6)>>22);  /* md =	ma; */
 	mab = ((mc&0x3ff)<<16)|(md&0x3ff);
-	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A) {
+	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A)
 		WRITE_VPP_REG(VPP_VADJ2_MC_MD_2, mab);
-		WRITE_VPP_REG_BITS(VPP_VADJ2_MISC, 1, 0, 1);
-	} else {
+	else
 		WRITE_VPP_REG(VPP_VADJ2_MC_MD, mab);
-		WRITE_VPP_REG_BITS(VPP_VADJ_CTRL, 1, 2, 1);
-	}
 	return 0;
 }
 
@@ -2816,13 +2794,11 @@ void vpp_vd_adj1_saturation_hue(signed int sat_val,
 	md = (s16)((mab<<6)>>22);  /* md =	ma; */
 	mab = ((mc&0x3ff)<<16)|(md&0x3ff);
 
-	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A) {
+	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A)
 		WRITE_VPP_REG(VPP_VADJ1_MC_MD_2, mab);
-		WRITE_VPP_REG_BITS(VPP_VADJ1_MISC, 1, 0, 1);
-	} else {
+	else
 		WRITE_VPP_REG(VPP_VADJ1_MC_MD, mab);
-		WRITE_VPP_REG_BITS(VPP_VADJ_CTRL, 1, 0, 1);
-	}
+
 };
 
 static ssize_t amvecm_saturation_hue_pre_show(struct class *cla,
