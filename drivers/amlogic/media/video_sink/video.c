@@ -3662,8 +3662,7 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 	vf = video_vf_peek();
 
 	if (vf) {
-		if ((glayer_info[0].display_path_id == VFM_PATH_AUTO) &&
-		    (receive_frame_count == 0)) {
+		if (glayer_info[0].display_path_id == VFM_PATH_AUTO) {
 			glayer_info[0].display_path_id = VFM_PATH_AMVIDEO;
 			vd1_path_id = glayer_info[0].display_path_id;
 	}
