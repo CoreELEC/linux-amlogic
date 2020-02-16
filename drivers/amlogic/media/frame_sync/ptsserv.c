@@ -1399,6 +1399,8 @@ int pts_start(u8 type)
 	ulong flags;
 	struct pts_table_s *pTable;
 
+	pr_info("%s, type=%d\n", __func__, type);
+
 	if (type >= PTS_TYPE_MAX)
 		return -EINVAL;
 	/* #if MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON8 */
@@ -1520,6 +1522,8 @@ int pts_stop(u8 type)
 	ulong flags;
 	struct pts_table_s *pTable;
 
+	pr_info("%s, type=%d\n", __func__, type);
+
 	if (type >= PTS_TYPE_MAX)
 		return -EINVAL;
 	/* #if MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON8 */
@@ -1543,6 +1547,18 @@ int pts_stop(u8 type)
 
 		if (type == PTS_TYPE_AUDIO)
 			timestamp_apts_set(-1);
+		/*+[SE][BUG][SWPL-20085][chengshun] some drm stream
+		 * begin not have audio and video info, lead save
+		 * last program pts info
+		 */
+#ifdef CALC_CACHED_TIME
+		pTable->last_checkin_offset = 0;
+		pTable->last_checkin_pts = -1;
+		pTable->last_checkout_pts = -1;
+		pTable->last_checkout_offset = -1;
+		pTable->last_avg_bitrate = 0;
+		pTable->last_bitrate = 0;
+#endif
 		tsync_mode_reinit();
 		return 0;
 

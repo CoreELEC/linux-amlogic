@@ -489,8 +489,9 @@ void tsync_pcr_pcrscr_set(void)
 			(int)(cur_pcr - cur_checkin_apts) / 90,
 			(int)(cur_pcr - cur_checkin_vpts) / 90,
 			(int)(cur_checkin_apts - cur_checkin_vpts) / 90);
-		pr_info("alevel=%d vlevel=%d\n",
-			abuf_level, vbuf_level);
+		pr_info("alevel=%d vlevel=%d mode=%d min_checkinpts=0x%x\n",
+			abuf_level, vbuf_level, tsync_use_demux_pcr,
+			min_checkinpts);
 	}
 	/* check the valid of the pcr */
 	if (cur_pcr && cur_checkin_vpts && cur_checkin_apts &&
@@ -543,7 +544,7 @@ void tsync_pcr_pcrscr_set(void)
 			tsync_set_pcr_mode(1, ref_pcr);
 			tsync_pcr_inited_mode = INIT_PRIORITY_PCR;
 		}
-		pr_info("tsync_set:pcrsrc %x,vpts %x,mode-%d\n",
+		pr_info("tsync_set:pcrsrc %x,vpts %x,mode:%d\n",
 			timestamp_pcrscr_get(), timestamp_firstvpts_get(),
 			tsync_use_demux_pcr);
 		if (tsdemux_pcrscr_get_cb)
@@ -984,7 +985,7 @@ void tsync_pcr_avevent_locked(enum avevent_e event, u32 param)
 		if (tsync_pcr_vstart_flag == 0) {
 			/* play_mode=PLAY_MODE_NORMAL; */
 			tsync_pcr_first_video_frame_pts = param;
-			pr_info("video start! param=%x cur_pcr=%x\n", param,
+			pr_info("VIDEO_START! param=%x cur_pcr=%x\n", param,
 				   timestamp_pcrscr_get());
 		}
 		tsync_set_av_state(0, 2);
@@ -996,9 +997,11 @@ void tsync_pcr_avevent_locked(enum avevent_e event, u32 param)
 
 	case VIDEO_STOP:
 		timestamp_pcrscr_enable(0);
-		pr_info("timestamp_firstvpts_set !\n");
+		pr_info("VIDEO_STOP: reset pts !\n");
 		timestamp_firstvpts_set(0);
 		timestamp_firstapts_set(0);
+		timestamp_checkin_firstvpts_set(0);
+		timestamp_checkin_firstapts_set(0);
 		timestamp_vpts_set(0);
 		/* tsync_pcr_debug_pcrscr=100; */
 		tsync_set_av_state(0, 3);
@@ -1076,7 +1079,7 @@ void tsync_pcr_avevent_locked(enum avevent_e event, u32 param)
 		tsync_pcr_first_audio_frame_pts = param;
 		tsync_pcr_astart_flag = 1;
 		tsync_pcr_apause_flag = 0;
-		pr_info("audio start!timestamp_apts_set =%x. cur_pcr %x\n",
+		pr_info("AUDIO_START!timestamp_apts_set =%x. cur_pcr %x\n",
 			param, timestamp_pcrscr_get());
 		break;
 
@@ -1091,11 +1094,13 @@ void tsync_pcr_avevent_locked(enum avevent_e event, u32 param)
 		timestamp_apts_enable(0);
 		timestamp_apts_set(-1);
 		timestamp_firstapts_set(0);
+		timestamp_checkin_firstvpts_set(0);
+		timestamp_checkin_firstapts_set(0);
 		timestamp_apts_start(0);
 		tsync_pcr_astart_flag = 0;
 		tsync_pcr_apause_flag = 0;
 		tsync_pcr_first_audio_frame_pts = 0;
-		pr_info("audio stop!\n");
+		pr_info("AUDIO_STOP!\n");
 		break;
 
 	case AUDIO_PAUSE:
