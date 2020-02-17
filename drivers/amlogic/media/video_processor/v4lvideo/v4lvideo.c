@@ -1226,17 +1226,18 @@ static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *p)
 		mutex_unlock(&dev->mutex_input);
 		return -EAGAIN;
 	}
-	mutex_unlock(&dev->mutex_input);
 
 	vf = vf_peek(dev->vf_receiver_name);
 	if (!vf) {
 		dev->vf_wait_cnt++;
+		mutex_unlock(&dev->mutex_input);
 		return -EAGAIN;
 	}
 	vf = vf_get(dev->vf_receiver_name);
-	if (!vf)
+	if (!vf) {
+		mutex_unlock(&dev->mutex_input);
 		return -EAGAIN;
-
+	}
 	if (!dev->provider_name) {
 		provider_name = vf_get_provider_name(
 			dev->vf_receiver_name);
@@ -1257,7 +1258,6 @@ static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *p)
 	dev->am_parm.master_display_colour
 		= vf->prop.master_display_colour;
 
-	mutex_lock(&dev->mutex_input);
 	buf = v4l2q_pop(&dev->input_queue);
 	dev->vf_wait_cnt = 0;
 	file_vf = fget(buf->m.fd);
