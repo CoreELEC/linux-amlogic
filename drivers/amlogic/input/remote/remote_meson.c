@@ -922,7 +922,8 @@ static int remote_resume(struct device *dev)
 	spin_unlock_irqrestore(&chip->slock, flags);
 
 #ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
-	if (get_resume_method() == REMOTE_WAKEUP) {
+	if ((get_resume_method() == REMOTE_WAKEUP) ||
+			(get_resume_method() == BT_WAKEUP)) {
 		input_event(chip->r_dev->input_device,
 		    EV_KEY, KEY_POWER, 1);
 		input_sync(chip->r_dev->input_device);
