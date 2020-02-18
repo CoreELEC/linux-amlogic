@@ -94,11 +94,11 @@ static int aml_ooblayout_free(struct mtd_info *mtd, int section,
 	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct nand_ecc_ctrl *ecc = &chip->ecc;
 
-	if (section < 0 || section > ecc->steps)
+	if (section < 0 || section >= ecc->steps)
 		return -ERANGE;
 
 	oobregion->length = 2;
-	oobregion->offset = 2 * section;
+	oobregion->offset =  2 * section;
 
 	return 0;
 }
@@ -1960,7 +1960,7 @@ int aml_nand_init(struct aml_nand_chip *aml_chip)
 	struct nand_chip *chip = &aml_chip->chip;
 	struct mtd_info *mtd = aml_chip->mtd;
 	struct mtd_oob_region oobregion;
-	int err = 0, i = 0;
+	int err = 0, i = 0, ret = 0;
 	unsigned int valid_chip_num = 0;
 	struct new_tech_nand_t *new_nand_info = &aml_chip->new_nand_info;
 	struct aml_nand_read_retry *nand_read_retry;
@@ -2015,11 +2015,11 @@ int aml_nand_init(struct aml_nand_chip *aml_chip)
 
 	mtd_set_ooblayout(mtd, &aml_ooblayout_ops);
 	mtd_ooblayout_free(mtd, 0, &oobregion);
-
 	chip->options = 0;
 	chip->options |=  NAND_SKIP_BBTSCAN;
 	chip->options |= NAND_NO_SUBPAGE_WRITE;
-	if (aml_nand_scan(mtd, controller->chip_num)) {
+	ret = aml_nand_scan(mtd, controller->chip_num);
+	if (ret) {
 		err = -ENXIO;
 		goto exit_error;
 	}
@@ -2038,6 +2038,15 @@ int aml_nand_init(struct aml_nand_chip *aml_chip)
 		err = -ENXIO;
 		goto exit_error;
 	}
+
+	if (!ret)
+		ret = nand_scan_tail(mtd);
+
+	if (ret) {
+		err = -ENXIO;
+		goto exit_error;
+	}
+	pr_info("mtd->oobavail: 0x%x\n", mtd->oobavail);
 
 	aml_chip->virtual_page_size = mtd->writesize;
 	aml_chip->virtual_block_size = mtd->erasesize;
@@ -2147,12 +2156,6 @@ exit_error:
 	}
 	kfree(chip->buffers);
 	chip->buffers = NULL;
-
-/*#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 9, 13) */
-#if 0
-	kfree(chip->ecc.layout);
-	chip->ecc.layout = NULL;
-#endif
 
 	if (aml_chip->aml_nand_data_buf) {
 #ifndef AML_NAND_UBOOT

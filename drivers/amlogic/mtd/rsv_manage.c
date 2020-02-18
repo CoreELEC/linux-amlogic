@@ -1278,7 +1278,7 @@ int aml_nand_ddr_check(struct mtd_info *mtd)
 		pr_info("%s %d\n", __func__, __LINE__);
 
 	if (aml_chip->aml_nandddr_info->valid == 0)
-		pr_info("%s %d NO dtb exist\n", __func__, __LINE__);
+		pr_info("%s %d NO ddr exist\n", __func__, __LINE__);
 
 	return ret;
 }

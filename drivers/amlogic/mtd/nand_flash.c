@@ -1703,8 +1703,8 @@ int aml_nand_scan(struct mtd_info *mtd, int maxchips)
 	int ret;
 
 	ret = aml_nand_scan_ident(mtd, maxchips);
-	if (!ret)
-		ret = nand_scan_tail(mtd);
+	//if (!ret)
+	//	ret = nand_scan_tail(mtd);
 	return ret;
 }
 
