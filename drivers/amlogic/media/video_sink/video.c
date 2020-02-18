@@ -105,6 +105,7 @@ static int get_count_pip;
 u32 osd_vpp_misc;
 u32 osd_vpp_misc_mask;
 bool update_osd_vpp_misc;
+u32 osd_preblend_en;
 int video_vsync = -ENXIO;
 
 static u32 cur_omx_index;
@@ -10090,6 +10091,10 @@ static int amvideo_notify_callback(
 		osd_vpp_misc = val;
 		if (!update_osd_vpp_misc)
 			update_osd_vpp_misc = true;
+		break;
+	case AMVIDEO_UPDATE_PREBLEND_MODE:
+		p = (u32 *)para;
+		osd_preblend_en = p[0];
 		break;
 	default:
 		break;

@@ -3915,7 +3915,6 @@ void vpp_blend_update(
 		    (VPP_OSD1_POSTBLEND | VPP_OSD2_POSTBLEND))
 			vpp_misc_set |= VPP_POSTBLEND_EN;
 	}
-
 	if (likely(vd_layer[0].onoff_state != VIDEO_ENABLE_STATE_IDLE)) {
 		/* state change for video layer enable/disable */
 		spin_lock_irqsave(&video_onoff_lock, flags);
@@ -4203,6 +4202,11 @@ void vpp_blend_update(
 			if (mode & COMPOSE_MODE_BYPASS_CM)
 				set_value &= ~VPP_CM_ENABLE;
 			set_value |= VPP_POSTBLEND_EN;
+			set_value |= VPP_PREBLEND_EN;
+			if (osd_preblend_en) {
+				set_value |= VPP_VD1_POSTBLEND;
+				set_value |= VPP_VD1_PREBLEND;
+			}
 			VSYNC_WR_MPEG_REG(
 				VPP_MISC + vpp_off,
 				set_value);

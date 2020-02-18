@@ -590,6 +590,11 @@ struct layer_blend_reg_s {
 	u32 osd_blend_din_scope_v[OSD_BLEND_LAYERS];
 	u32 osd_blend_blend0_size;
 	u32 osd_blend_blend1_size;
+	/* pre blend */
+	u32 prebld_src3_sel;
+	u32 prebld_osd1_premult;
+	u32 prebld_src4_sel;
+	u32 prebld_osd2_premult;
 	/* post blend */
 	u32 postbld_src3_sel;
 	u32 postbld_osd1_premult;
@@ -780,6 +785,11 @@ struct hw_para_s {
 	u32 afbc_err_cnt;
 	u32 viu_type;
 	u32 line_n_rdma;
+	u32 osd_preblend_en; /* only for viu1 */
+	u32 fix_target_width;
+	u32 fix_target_height;
+	u32 adjust_position_x;
+	u32 adjust_position_y;
 	u32 rdma_trace_enable;
 	u32 rdma_trace_num;
 	u32 rdma_trace_reg[MAX_TRACE_NUM];

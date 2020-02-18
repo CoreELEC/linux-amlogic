@@ -236,4 +236,5 @@ void viu2_osd_reg_set(u32 addr, u32 val);
 void viu2_osd_reg_set_bits(u32 addr, u32 val, u32 start, u32 len);
 void viu2_osd_reg_set_mask(u32 addr, u32 _mask);
 void viu2_osd_reg_clr_mask(u32 addr, u32 _mask);
+int notify_preblend_to_amvideo(u32 preblend_en);
 #endif
