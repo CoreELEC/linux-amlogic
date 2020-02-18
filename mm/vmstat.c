@@ -945,8 +945,27 @@ const char * const vmstat_text[] = {
 	"numa_local",
 	"numa_other",
 #endif
+#ifdef CONFIG_AMLOGIC_MEMORY_EXTEND
+	"nr_free_unmovable",
+	"nr_free_movable",
+	"nr_free_reclaimable",
+	"nr_free_highatomic",
+#endif /* CONFIG_AMLOGIC_MEMORY_EXTEND */
 	"nr_free_cma",
 
+#ifdef CONFIG_AMLOGIC_MEMORY_EXTEND
+#ifdef CONFIG_MEMORY_ISOLATION
+	"nr_free_isolate",
+#endif
+#ifdef CONFIG_AMLOGIC_CMA
+	"nr_inactive_anon_cma",
+	"nr_active_anon_cma",
+	"nr_inactive_file_cma",
+	"nr_active_file_cma",
+	"nr_unevictable_file_cma",
+	"nr_cma_isolated",
+#endif
+#endif
 	/* Node-based counters */
 	"nr_inactive_anon",
 	"nr_active_anon",
