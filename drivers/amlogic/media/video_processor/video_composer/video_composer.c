@@ -1167,9 +1167,11 @@ static int video_composer_thread(void *data)
 				 "empty_ready_queue\n");
 			dev->need_empty_ready = false;
 			empty_ready_queue(dev);
+			dev->last_file = NULL;
 			dev->fake_vf.flag |= VFRAME_FLAG_FAKE_FRAME;
+			dev->fake_back_vf = dev->fake_vf;
 			if (!kfifo_put(&dev->ready_q,
-				       (const struct vframe_s *)&dev->fake_vf))
+				       &dev->fake_back_vf))
 				vc_print(dev->index, PRINT_ERROR,
 					 "by_pass ready_q is full\n");
 		}
@@ -1206,7 +1208,7 @@ static int video_composer_open(struct inode *inode, struct file *file)
 	int i;
 	struct sched_param param = {.sched_priority = 2};
 
-	pr_err("video_composer_open iminor(inode) =%d\n", iminor(inode));
+	pr_info("video_composer_open iminor(inode) =%d\n", iminor(inode));
 	if (iminor(inode) >= video_composer_instance_num)
 		return -ENODEV;
 
@@ -1280,6 +1282,8 @@ static int video_composer_release(struct inode *inode, struct file *file)
 	struct composer_dev *dev = file->private_data;
 	struct video_composer_port_s *port = dev->port;
 	int i = 0;
+
+	pr_info("video_composer_release\n");
 
 	if (iminor(inode) >= video_composer_instance_num)
 		return -ENODEV;
