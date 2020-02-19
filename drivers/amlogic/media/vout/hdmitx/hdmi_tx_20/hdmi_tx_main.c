@@ -146,10 +146,11 @@ static void hdmitx_early_suspend(struct early_suspend *h)
 
 	phdmi->ready = 0;
 	phdmi->hpd_lock = 1;
-	msleep(20);
+	hdev->hwop.cntlmisc(hdev, MISC_SUSFLAG, 1);
+	usleep_range(10000, 10010);
 	phdmi->hwop.cntlmisc(phdmi, MISC_AVMUTE_OP, SET_AVMUTE);
-	mdelay(100);
-	pr_info(SYS "HDMITX: early suspend\n");
+	usleep_range(10000, 10010);
+	pr_info(SYS "HDMITX: Early Suspend\n");
 	phdmi->hwop.cntl((struct hdmitx_dev *)h->param,
 		HDMITX_EARLY_SUSPEND_RESUME_CNTL, HDMITX_EARLY_SUSPEND);
 	phdmi->cur_VIC = HDMI_Unknown;
@@ -223,7 +224,8 @@ static void hdmitx_late_resume(struct early_suspend *h)
 	pr_info("amhdmitx: late resume module %d\n", __LINE__);
 	phdmi->hwop.cntl((struct hdmitx_dev *)h->param,
 		HDMITX_EARLY_SUSPEND_RESUME_CNTL, HDMITX_LATE_RESUME);
-	pr_info(SYS "late resume\n");
+	phdmi->hwop.cntlmisc(phdmi, MISC_SUSFLAG, 0);
+	pr_info(SYS "HDMITX: Late Resume\n");
 }
 
 /* Set avmute_set signal to HDMIRX */
@@ -234,7 +236,7 @@ static int hdmitx_reboot_notifier(struct notifier_block *nb,
 
 	hdev->ready = 0;
 	hdev->hwop.cntlmisc(hdev, MISC_AVMUTE_OP, SET_AVMUTE);
-	mdelay(100);
+	usleep_range(10000, 10010);
 	hdev->hwop.cntlmisc(hdev, MISC_TMDS_PHY_OP, TMDS_PHY_DISABLE);
 	hdev->hwop.cntl(hdev, HDMITX_EARLY_SUSPEND_RESUME_CNTL,
 		HDMITX_EARLY_SUSPEND);
@@ -2924,7 +2926,7 @@ static ssize_t store_valid_mode(struct device *dev,
 }
 
 static ssize_t show_allm_cap(struct device *dev,
-	struct device_attribute *attr, char *buf)
+			     struct device_attribute *attr, char *buf)
 {
 	int pos = 0;
 	struct rx_cap *prxcap = &hdmitx_device.rxcap;
@@ -2934,7 +2936,7 @@ static ssize_t show_allm_cap(struct device *dev,
 }
 
 static ssize_t show_allm_mode(struct device *dev,
-	struct device_attribute *attr, char *buf)
+			      struct device_attribute *attr, char *buf)
 {
 	int pos = 0;
 	struct hdmitx_dev *hdev = &hdmitx_device;
@@ -2944,7 +2946,10 @@ static ssize_t show_allm_mode(struct device *dev,
 	return pos;
 }
 
-#define CMP_STR(str)	(strncmp(buf, str, strlen(str)) == 0)
+static inline int com_str(const char *buf, const char *str)
+{
+	return strncmp(buf, str, strlen(str)) == 0;
+}
 static ssize_t store_allm_mode(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t count)
 {
@@ -2952,14 +2957,14 @@ static ssize_t store_allm_mode(struct device *dev,
 
 	pr_info("hdmitx: store allm_mode as %s\n", buf);
 
-	if (CMP_STR("0")) {
+	if (com_str(buf, "0")) {
 		// disable ALLM
 		hdev->allm_mode = 0;
 		hdmitx_construct_vsif(hdev, VT_ALLM, 0, NULL);
 		if (is_hdmi14_4k(hdev->cur_VIC))
 			hdmitx_construct_vsif(hdev, VT_HDMI14_4K, 1, NULL);
 	}
-	if (CMP_STR("1")) {
+	if (com_str(buf, "1")) {
 		hdev->allm_mode = 1;
 		hdmitx_construct_vsif(hdev, VT_ALLM, 1, NULL);
 		hdev->hwop.cntlconfig(hdev, CONF_CT_MODE, SET_CT_OFF);
@@ -2969,7 +2974,7 @@ static ssize_t store_allm_mode(struct device *dev,
 }
 
 static ssize_t show_contenttype_cap(struct device *dev,
-	struct device_attribute *attr, char *buf)
+				    struct device_attribute *attr, char *buf)
 {
 	int pos = 0;
 	struct rx_cap *prxcap = &hdmitx_device.rxcap;
@@ -2987,7 +2992,7 @@ static ssize_t show_contenttype_cap(struct device *dev,
 }
 
 static ssize_t show_contenttype_mode(struct device *dev,
-	struct device_attribute *attr, char *buf)
+				     struct device_attribute *attr, char *buf)
 {
 	int pos = 0;
 	struct hdmitx_dev *hdev = &hdmitx_device;
@@ -3007,7 +3012,8 @@ static ssize_t show_contenttype_mode(struct device *dev,
 }
 
 static ssize_t store_contenttype_mode(struct device *dev,
-	struct device_attribute *attr, const char *buf, size_t count)
+				      struct device_attribute *attr,
+				      const char *buf, size_t count)
 {
 	struct hdmitx_dev *hdev = &hdmitx_device;
 
@@ -3020,19 +3026,19 @@ static ssize_t store_contenttype_mode(struct device *dev,
 	hdev->ct_mode = 0;
 	hdev->hwop.cntlconfig(hdev, CONF_CT_MODE, SET_CT_OFF);
 
-	if (CMP_STR("1") || CMP_STR("game")) {
+	if (com_str(buf, "1") || com_str(buf, "game")) {
 		hdev->ct_mode = 1;
 		hdev->hwop.cntlconfig(hdev, CONF_CT_MODE, SET_CT_GAME);
 	}
-	if (CMP_STR("2") || CMP_STR("graphics")) {
+	if (com_str(buf, "2") || com_str(buf, "graphics")) {
 		hdev->ct_mode = 2;
 		hdev->hwop.cntlconfig(hdev, CONF_CT_MODE, SET_CT_GRAPHICS);
 	}
-	if (CMP_STR("3") || CMP_STR("photo")) {
+	if (com_str(buf, "3") || com_str(buf, "photo")) {
 		hdev->ct_mode = 3;
 		hdev->hwop.cntlconfig(hdev, CONF_CT_MODE, SET_CT_PHOTO);
 	}
-	if (CMP_STR("4") || CMP_STR("cinema")) {
+	if (com_str(buf, "4") || com_str(buf, "cinema")) {
 		hdev->ct_mode = 4;
 		hdev->hwop.cntlconfig(hdev, CONF_CT_MODE, SET_CT_CINEMA);
 	}
@@ -5034,6 +5040,7 @@ static void hdmitx_hpd_plugin_handler(struct work_struct *work)
 	/* start reading E-EDID */
 	if (hdev->repeater_tx)
 		rx_repeat_hpd_state(1);
+	edidinfo_detach_to_vinfo(hdev);
 	hdmitx_get_edid(hdev);
 	hdev->cedst_policy = hdev->cedst_en & hdev->rxcap.scdc_present;
 	hdmi_physcial_size_update(hdev);
