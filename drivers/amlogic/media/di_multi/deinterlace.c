@@ -5012,6 +5012,7 @@ int dim_post_process(void *arg, unsigned int zoom_start_x_lines,
 	if (ppost->vscale_skip_flag)
 		return 0;
 
+	dim_mp_update_post();
 	get_vscale_skip_count(zoom_start_x_lines);
 
 	if (IS_ERR_OR_NULL(di_buf))
@@ -7175,6 +7176,7 @@ void di_reg_variable(unsigned int channel, struct vframe_s *vframe)
 			dimh_patch_post_update_mc_sw(DI_MC_SW_OTHER, false);
 			return;
 		}
+		dim_mp_update_reg();
 		ppre->bypass_flag = false;
 		/* patch for vdin progressive input */
 		if ((is_from_vdin(vframe)	&&

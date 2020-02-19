@@ -149,4 +149,8 @@ void di_pause(unsigned int ch, bool on);
 
 void dim_sumx_clear(unsigned int ch);
 void dim_sumx_set(unsigned int ch);
+
+void dim_mp_update_reg(void);
+void dim_mp_update_post(void);
+
 #endif	/*__DI_PRC_H__*/

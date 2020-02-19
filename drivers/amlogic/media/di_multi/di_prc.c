@@ -761,12 +761,62 @@ void di_mp_uit_set(enum eDI_MP_UI_T idx, int val)
 	get_datal()->mp_uit[idx] = val;
 }
 
+/************************************************
+ * asked by pq tune
+ ************************************************/
+static bool pulldown_enable = true;
+module_param_named(pulldown_enable, pulldown_enable, bool, 0664);
+
+static bool mcpre_en = true;
+module_param_named(mcpre_en, mcpre_en, bool, 0664);
+
+static unsigned int mcen_mode = 1;
+module_param_named(mcen_mode, mcen_mode, uint, 0664);
+/************************************************/
+
+void dim_mp_update_reg(void)
+{
+	int val;
+
+	val = dimp_get(eDI_MP_pulldown_enable);
+	if (pulldown_enable != val) {
+		PR_INF("mp:pulldown_enable: %d -> %d\n",
+		       val, pulldown_enable);
+		dimp_set(eDI_MP_pulldown_enable, pulldown_enable);
+	}
+
+	val = dimp_get(eDI_MP_mcpre_en);
+	if (mcpre_en != val) {
+		PR_INF("mp:mcpre_en: %d -> %d\n",
+		       val, mcpre_en);
+		dimp_set(eDI_MP_mcpre_en, mcpre_en);
+	}
+
+	val = dimp_get(eDI_MP_mcen_mode);
+	if (mcen_mode != val) {
+		PR_INF("mp:mcen_mode: %d -> %d\n",
+		       val, mcen_mode);
+		dimp_set(eDI_MP_mcen_mode, mcen_mode);
+	}
+}
+
+void dim_mp_update_post(void)
+{
+	int val;
+
+	val = dimp_get(eDI_MP_mcen_mode);
+	if (mcen_mode != val) {
+		PR_INF("mp:mcen_mode: %d -> %d\n",
+		       val, mcen_mode);
+		dimp_set(eDI_MP_mcen_mode, mcen_mode);
+	}
+}
+
 /**************************************
  *
  * module para x
  *	unsigned int
  **************************************/
-
 const struct di_mp_uix_s di_mpx[] = {
 	/*same order with enum eDI_MP_UI*/
 
