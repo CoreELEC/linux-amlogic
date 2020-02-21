@@ -3023,7 +3023,7 @@ void dim_pre_de_process(unsigned int channel)
 	ppre->irq_time[0] = cur_to_msecs();
 	ppre->irq_time[1] = cur_to_msecs();
 	dim_ddbg_mod_save(eDI_DBG_MOD_PRE_SETE, channel, ppre->in_seq);/*dbg*/
-	dim_tr_ops.pre_set(ppre->di_wr_buf->vframe->omx_index);
+	dim_tr_ops.pre_set(ppre->di_wr_buf->vframe->index_disp);
 #ifdef CONFIG_AMLOGIC_MEDIA_RDMA
 	if (di_pre_rdma_enable & 0x2)
 		rdma_config(de_devp->rdma_handle, RDMA_TRIGGER_MANUAL);
@@ -3093,7 +3093,7 @@ void dim_pre_de_done_buf_config(unsigned int channel, bool flg_timeout)
 	dim_dbg_pre_cnt(channel, "d1");
 	dim_ddbg_mod_save(eDI_DBG_MOD_PRE_DONEB, channel, ppre->in_seq);/*dbg*/
 	if (ppre->di_wr_buf) {
-		dim_tr_ops.pre_ready(ppre->di_wr_buf->vframe->omx_index);
+		dim_tr_ops.pre_ready(ppre->di_wr_buf->vframe->index_disp);
 		if (ppre->pre_throw_flag > 0) {
 			ppre->di_wr_buf->throw_flag = 1;
 			ppre->pre_throw_flag--;
@@ -3689,7 +3689,7 @@ unsigned char dim_pre_de_buf_config(unsigned int channel)
 		if (!vframe)
 			return 0;
 
-		dim_tr_ops.pre_get(vframe->omx_index);
+		dim_tr_ops.pre_get(vframe->index_disp);
 		didbg_vframe_in_copy(channel, vframe);
 
 		if (vframe->type & VIDTYPE_COMPRESS) {
@@ -5052,7 +5052,7 @@ int dim_post_process(void *arg, unsigned int zoom_start_x_lines,
 		return 0;
 	}
 	if (di_buf->vframe)
-		dim_tr_ops.post_set(di_buf->vframe->omx_index);
+		dim_tr_ops.post_set(di_buf->vframe->index_disp);
 	else
 		return 0;
 	/*dbg*/
@@ -5742,7 +5742,7 @@ void dim_post_de_done_buf_config(unsigned int channel)
 	recycle_post_ready_local(ppost->cur_post_buf, channel);
 	#endif
 	di_unlock_irqfiq_restore(irq_flag2);
-	dim_tr_ops.post_ready(di_buf->vframe->omx_index);
+	dim_tr_ops.post_ready(di_buf->vframe->index_disp);
 	pw_vf_notify_receiver(channel,
 			      VFRAME_EVENT_PROVIDER_VFRAME_READY, NULL);
 	ppost->cur_post_buf = NULL;
@@ -5959,7 +5959,7 @@ static void drop_frame(int check_drop, int throw_flag, struct di_buf_s *di_buf,
 		else
 			di_que_in(channel, QUE_POST_READY, di_buf);
 
-		dim_tr_ops.post_do(di_buf->vframe->omx_index);
+		dim_tr_ops.post_do(di_buf->vframe->index_disp);
 		dim_print("di:ch[%d]:%dth %s[%d] => post ready %u ms.\n",
 			  channel,
 			  frame_count,
@@ -7656,7 +7656,7 @@ get_vframe:
 			  vframe_ret->ready_jiffies64));
 		didbg_vframe_out_save(vframe_ret);
 
-		dim_tr_ops.post_get(vframe_ret->omx_index);
+		dim_tr_ops.post_get(vframe_ret->index_disp);
 	} else {
 		dim_tr_ops.post_get2(3);
 	}

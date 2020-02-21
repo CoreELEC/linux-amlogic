@@ -1499,7 +1499,7 @@ void dip_chst_process_reg(unsigned int ch)
 		vframe = pw_vf_peek(ch);
 
 		if (vframe) {
-			dim_tr_ops.pre_get(vframe->omx_index);
+			dim_tr_ops.pre_get(vframe->index_disp);
 			set_flag_trig_unreg(ch, false);
 			#if 0
 			di_reg_variable(ch);

@@ -107,7 +107,7 @@ static void trace_post(unsigned int index, unsigned long ctime)
 	trace_dim_post("POST-IRQ-1", index, ctime);
 }
 
-#define DI_TRACE_LIMIT		8
+#define DI_TRACE_LIMIT		50
 static void trace_pre_get(unsigned int index)
 {
 	u64 ustime;
