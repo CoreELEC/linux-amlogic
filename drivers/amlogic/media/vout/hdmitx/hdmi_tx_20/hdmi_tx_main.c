@@ -5070,7 +5070,6 @@ static void hdmitx_hpd_plugin_handler(struct work_struct *work)
 	/* start reading E-EDID */
 	if (hdev->repeater_tx)
 		rx_repeat_hpd_state(1);
-	edidinfo_detach_to_vinfo(hdev);
 	hdmitx_get_edid(hdev);
 	hdev->cedst_policy = hdev->cedst_en & hdev->rxcap.scdc_present;
 	hdmi_physcial_size_update(hdev);
@@ -5134,6 +5133,7 @@ static void hdmitx_hpd_plugout_handler(struct work_struct *work)
 	mutex_lock(&setclk_mutex);
 	if (hdev->cedst_policy)
 		cancel_delayed_work(&hdev->work_cedst);
+	edidinfo_detach_to_vinfo(hdev);
 	pr_info(SYS "plugout\n");
 	if (!!(hdev->hwop.cntlmisc(hdev, MISC_HPD_GPI_ST, 0))) {
 		pr_info(SYS "hpd gpio high\n");
@@ -5159,7 +5159,6 @@ static void hdmitx_hpd_plugout_handler(struct work_struct *work)
 	hdmitx_edid_clear(hdev);
 	hdmi_physcial_size_update(hdev);
 	hdmitx_edid_ram_buffer_clear(hdev);
-	edidinfo_detach_to_vinfo(hdev);
 	hdev->hpd_state = 0;
 	hdmitx_notify_hpd(hdev->hpd_state);
 	extcon_set_state_sync(hdmitx_extcon_hdmi, EXTCON_DISP_HDMI, 0);
