@@ -25,21 +25,22 @@
 		};
 	};
 
+	gpioleds {
+		sys_led {
+			/delete-property/ retain-state-suspended;
+		};
+	};
+
 	codec_mm {
 		clear-map;
 	};
 
-	/delete-node/ partitions;
-	partitions {
-		bootloader {};
-		reserved {};
-		env {};
-		system {};
-		CE_FLASH {};
-		CE_STORAGE {};
-		coreelec {};
-		storage {};
+	gpio_keypad {
+		reg = <0x0 0xFF800000 0x0 0x400>;
 	};
+
+	/delete-node/ partitions;
+	/delete-node/ firmware;
 
 	/delete-node/ rc@0xff808040;
 	/delete-node/ custom_maps;
@@ -80,16 +81,6 @@
 		dev_name = "openvfd";
 		status = "okay";
 	};
-
-	gpio_keypad {
-		reg = <0x0 0xFF800000 0x0 0x400>;
-	};
-
-	gpioleds {
-		sys_led {
-			/delete-property/ retain-state-suspended;
-		};
-	};
 };
 
 &meson_fb {
@@ -103,6 +94,15 @@
 
 &i2c2 {
 	status = "disabled";
+};
+
+&audiobus {
+	/delete-node/ pdm;
+};
+
+&pinctrl_periphs {
+	/delete-node/ spdifin;
+	/delete-node/ pdmin;
 };
 
 &vdin0 {

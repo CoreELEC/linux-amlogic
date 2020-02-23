@@ -2,6 +2,12 @@
 #include "coreelec_common.dtsi"
 
 /{
+	gpioleds {
+		/delete-node/ net_red;
+		/delete-node/ net_green;
+		/delete-node/ remote_led;
+	};
+
 	/delete-node/ auge_sound;
 	auge_sound {
 		compatible = "amlogic, g12a-sound-card";
@@ -66,10 +72,8 @@
 		};
 	};
 
-	gpioleds {
-		/delete-node/ net_red;
-		/delete-node/ net_green;
-		/delete-node/ remote_led;
+	audiolocker: locker {
+		status = "okay";
 	};
 };
 
@@ -77,11 +81,11 @@
 	mem_alloc = <1>;
 };
 
-&audiolocker {
-	status = "okay";
-};
-
 &audiobus {
+	spdifa: spdif@0 {
+		pinctrl-0 = <&spdifout>;
+	};
+
 	aml_i2s2hdmi: i2s2hdmi {
 		compatible = "amlogic, sm1-snd-tdmc";
 		#sound-dai-cells = <0>;
@@ -93,10 +97,6 @@
 		i2s2hdmi = <1>;
 		mclk_pad = <1>;  /* 0: mclk_0; 1: mclk_1 */
 		status = "okay";
-	};
-
-	spdifa: spdif@0 {
-		pinctrl-0 = <&spdifout /*&spdifin*/>;
 	};
 };
 
@@ -114,8 +114,6 @@
 	auto_cali_idx = <0>;
 };
 
-&sd_emmc_a {
-	sdio {
-		f_max = <170000000>;
-	};
+&earc {
+	status = "disabled";
 };

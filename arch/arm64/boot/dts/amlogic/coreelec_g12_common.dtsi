@@ -73,14 +73,20 @@
 };
 
 &audiobus {
+	aml_spdif: spdif {
+		pinctrl-0 = <&spdifout>;
+	};
+
 	aml_spdif_b: spdif_b {
 		status = "okay";
 	};
+
 	aml_tdmb: tdmb {
 		/delete-property/ samesource_sel;
 		i2s2hdmi = <0>;
 		status = "okay";
 	};
+
 	aml_i2s2hdmi: i2s2hdmi {
 		compatible = "amlogic, g12a-snd-tdmc";
 		#sound-dai-cells = <0>;
