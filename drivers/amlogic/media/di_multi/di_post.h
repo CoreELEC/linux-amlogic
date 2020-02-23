@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: (GPL-2.0+ OR MIT) */
 /*
  * drivers/amlogic/media/di_multi/di_post.h
  *
@@ -20,7 +21,7 @@
 
 void dpost_init(void);
 void dpst_process(void);
-const char *dpst_state_name_get(enum eDI_PST_ST state);
+const char *dpst_state_name_get(enum EDI_PST_ST state);
 void dpst_dbg_f_trig(unsigned int cmd);
 bool dpst_can_exit(unsigned int ch);
 

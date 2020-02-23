@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
  * drivers/amlogic/media/di_multi/di_dbg.c
  *
@@ -237,16 +238,16 @@ const struct dim_tr_ops_s dim_tr_ops = {
 
 static unsigned int seq_get_channel(struct seq_file *s)
 {
-	int *pCh;
+	int *pch;
 
-	pCh = (int *)s->private;
-	return *pCh;
+	pch = (int *)s->private;
+	return *pch;
 }
 
 /********************************
  *debug register:
  *******************************/
-/* also see enum eDI_DBG_MOD */
+/* also see enum EDI_DBG_MOD */
 const char * const dbg_mode_name[] = {
 	"REGB",
 	"REGE",
@@ -271,7 +272,7 @@ const char * const dbg_mode_name[] = {
 
 const char *ddbg_get_mod_name(unsigned int mod)
 {
-	if (mod >= eDI_DBG_MOD_END)
+	if (mod >= EDI_DBG_MOD_END)
 		return "nothing!";
 
 	return dbg_mode_name[mod];
@@ -317,14 +318,14 @@ void dim_ddbg_mod_save(unsigned int mod, unsigned int ch, unsigned int cnt)
 	struct di_dbg_mod dbg_mod;
 	struct di_dbg_reg_log *plog = get_dbg_reg_log();
 	unsigned int pos;
-#if 1
+
 /*--------------------------*/
 	if (ch)
 		h_dbg_reg_set(mod | 0x80000000);
 	else
 		h_dbg_reg_set(mod);
 /*--------------------------*/
-#endif
+
 	if (!plog->en_mod)
 		return;
 	if (plog->en_notoverwrite && plog->overflow)
@@ -352,7 +353,7 @@ void dim_ddbg_mod_save(unsigned int mod, unsigned int ch, unsigned int cnt)
 	plog->pos = pos;
 }
 
-#if 0
+#ifdef MARK_HIS
 void ddbg_sw(bool on)
 {
 	struct di_dbg_reg_log *plog = get_dbg_reg_log();
@@ -361,18 +362,18 @@ void ddbg_sw(bool on)
 }
 #else
 
-void ddbg_sw(enum eDI_LOG_TYPE mode, bool on)
+void ddbg_sw(enum EDI_LOG_TYPE mode, bool on)
 {
 	struct di_dbg_reg_log *plog = get_dbg_reg_log();
 
 	switch (mode) {
-	case eDI_LOG_TYPE_ALL:
+	case EDI_LOG_TYPE_ALL:
 		plog->en_all = on;
 		break;
-	case eDI_LOG_TYPE_REG:
+	case EDI_LOG_TYPE_REG:
 		plog->en_reg = on;
 		break;
-	case eDI_LOG_TYPE_MOD:
+	case EDI_LOG_TYPE_MOD:
 		plog->en_mod = on;
 		break;
 	default:
@@ -479,46 +480,46 @@ static ssize_t ddbg_log_reg_store(struct file *file, const char __user *userbuf,
 }
 
 /**********************/
-static int seq_file_vframe(struct seq_file *seq, void *v, struct vframe_s *pVfm)
+static int seq_file_vframe(struct seq_file *seq, void *v, struct vframe_s *pvfm)
 {
-	if (!pVfm) {
+	if (!pvfm) {
 		seq_puts(seq, "war: dump vframe NULL\n");
 		return 0;
 	}
-	seq_printf(seq, "%-15s:0x%p\n", "addr", pVfm);
-	seq_printf(seq, "%-15s:%d\n", "index", pVfm->index);
-	seq_printf(seq, "%-15s:%d\n", "index_disp", pVfm->index_disp);
-	seq_printf(seq, "%-15s:%d\n", "omx_index", pVfm->omx_index);
-	seq_printf(seq, "%-15s:0x%x\n", "type", pVfm->type);
-	seq_printf(seq, "%-15s:0x%x\n", "type_backup", pVfm->type_backup);
-	seq_printf(seq, "%-15s:0x%x\n", "type_original", pVfm->type_original);
-	seq_printf(seq, "%-15s:%d\n", "blend_mode", pVfm->blend_mode);
-	seq_printf(seq, "%-15s:%d\n", "duration",  pVfm->duration);
-	seq_printf(seq, "%-15s:%d\n", "duration_pull", pVfm->duration_pulldown);
-	seq_printf(seq, "%-15s:%d\n", "pts", pVfm->pts);
+	seq_printf(seq, "%-15s:0x%p\n", "addr", pvfm);
+	seq_printf(seq, "%-15s:%d\n", "index", pvfm->index);
+	seq_printf(seq, "%-15s:%d\n", "index_disp", pvfm->index_disp);
+	seq_printf(seq, "%-15s:%d\n", "omx_index", pvfm->omx_index);
+	seq_printf(seq, "%-15s:0x%x\n", "type", pvfm->type);
+	seq_printf(seq, "%-15s:0x%x\n", "type_backup", pvfm->type_backup);
+	seq_printf(seq, "%-15s:0x%x\n", "type_original", pvfm->type_original);
+	seq_printf(seq, "%-15s:%d\n", "blend_mode", pvfm->blend_mode);
+	seq_printf(seq, "%-15s:%d\n", "duration",  pvfm->duration);
+	seq_printf(seq, "%-15s:%d\n", "duration_pull", pvfm->duration_pulldown);
+	seq_printf(seq, "%-15s:%d\n", "pts", pvfm->pts);
 
-	seq_printf(seq, "%-15s:%lld\n", "pts_us64", pVfm->pts_us64);
+	seq_printf(seq, "%-15s:%lld\n", "pts_us64", pvfm->pts_us64);
 	seq_printf(seq, "%-15s:%d\n", "next_vf_pts_valid",
-		   pVfm->next_vf_pts_valid);
-	seq_printf(seq, "%-15s:%d\n", "next_vf_pts", pVfm->next_vf_pts);
-	seq_printf(seq, "%-15s:%d\n", "disp_pts", pVfm->disp_pts);
-	seq_printf(seq, "%-15s:%lld\n", "disp_pts_us64", pVfm->disp_pts_us64);
-	seq_printf(seq, "%-15s:%lld\n", "timestamp", pVfm->timestamp);
-	seq_printf(seq, "%-15s:%d\n", "flag", pVfm->flag);
-	seq_printf(seq, "%-15s:0x%x\n", "canvas0Addr", pVfm->canvas0Addr);
-	seq_printf(seq, "%-15s:0x%x\n", "canvas1Addr", pVfm->canvas1Addr);
-	seq_printf(seq, "%-15s:0x%x\n", "compHeadAddr", pVfm->compHeadAddr);
-	seq_printf(seq, "%-15s:0x%x\n", "compBodyAddr", pVfm->compBodyAddr);
-	seq_printf(seq, "%-15s:%d\n", "plane_num", pVfm->plane_num);
+		   pvfm->next_vf_pts_valid);
+	seq_printf(seq, "%-15s:%d\n", "next_vf_pts", pvfm->next_vf_pts);
+	seq_printf(seq, "%-15s:%d\n", "disp_pts", pvfm->disp_pts);
+	seq_printf(seq, "%-15s:%lld\n", "disp_pts_us64", pvfm->disp_pts_us64);
+	seq_printf(seq, "%-15s:%lld\n", "timestamp", pvfm->timestamp);
+	seq_printf(seq, "%-15s:%d\n", "flag", pvfm->flag);
+	seq_printf(seq, "%-15s:0x%x\n", "canvas0Addr", pvfm->canvas0Addr);
+	seq_printf(seq, "%-15s:0x%x\n", "canvas1Addr", pvfm->canvas1Addr);
+	seq_printf(seq, "%-15s:0x%x\n", "compHeadAddr", pvfm->compHeadAddr);
+	seq_printf(seq, "%-15s:0x%x\n", "compBodyAddr", pvfm->compBodyAddr);
+	seq_printf(seq, "%-15s:%d\n", "plane_num", pvfm->plane_num);
 
-	seq_printf(seq, "%-15s:%d\n", "bufWidth", pVfm->bufWidth);
-	seq_printf(seq, "%-15s:%d\n", "width", pVfm->width);
-	seq_printf(seq, "%-15s:%d\n", "height", pVfm->height);
-	seq_printf(seq, "%-15s:%d\n", "compWidth", pVfm->compWidth);
-	seq_printf(seq, "%-15s:%d\n", "compHeight", pVfm->compHeight);
-	seq_printf(seq, "%-15s:%d\n", "ratio_control", pVfm->ratio_control);
-	seq_printf(seq, "%-15s:%d\n", "bitdepth", pVfm->bitdepth);
-	seq_printf(seq, "%-15s:%d\n", "signal_type", pVfm->signal_type);
+	seq_printf(seq, "%-15s:%d\n", "bufWidth", pvfm->bufWidth);
+	seq_printf(seq, "%-15s:%d\n", "width", pvfm->width);
+	seq_printf(seq, "%-15s:%d\n", "height", pvfm->height);
+	seq_printf(seq, "%-15s:%d\n", "compWidth", pvfm->compWidth);
+	seq_printf(seq, "%-15s:%d\n", "compHeight", pvfm->compHeight);
+	seq_printf(seq, "%-15s:%d\n", "ratio_control", pvfm->ratio_control);
+	seq_printf(seq, "%-15s:%d\n", "bitdepth", pvfm->bitdepth);
+	seq_printf(seq, "%-15s:%d\n", "signal_type", pvfm->signal_type);
 
 	/*
 	 *	   bit 29: present_flag
@@ -542,46 +543,43 @@ static int seq_file_vframe(struct seq_file *seq, void *v, struct vframe_s *pVfm)
 	 *	   "fcc", "bt470bg", "smpte170m", "smpte240m",
 	 *	   "YCgCo", "bt2020nc", "bt2020c"
 	 */
-	seq_printf(seq, "%-15s:0x%x\n", "orientation", pVfm->orientation);
-	seq_printf(seq, "%-15s:0x%x\n", "video_angle", pVfm->video_angle);
-	seq_printf(seq, "%-15s:0x%x\n", "source_type", pVfm->source_type);
+	seq_printf(seq, "%-15s:0x%x\n", "orientation", pvfm->orientation);
+	seq_printf(seq, "%-15s:0x%x\n", "video_angle", pvfm->video_angle);
+	seq_printf(seq, "%-15s:0x%x\n", "source_type", pvfm->source_type);
 
-	seq_printf(seq, "%-15s:0x%x\n", "phase", pVfm->phase);
-	seq_printf(seq, "%-15s:0x%x\n", "source_mode", pVfm->source_mode);
-	seq_printf(seq, "%-15s:0x%x\n", "sig_fmt", pVfm->sig_fmt);
-	seq_printf(seq, "%-15s:0x%x\n", "trans_fmt", pVfm->trans_fmt);
+	seq_printf(seq, "%-15s:0x%x\n", "phase", pvfm->phase);
+	seq_printf(seq, "%-15s:0x%x\n", "source_mode", pvfm->source_mode);
+	seq_printf(seq, "%-15s:0x%x\n", "sig_fmt", pvfm->sig_fmt);
+	seq_printf(seq, "%-15s:0x%x\n", "trans_fmt", pvfm->trans_fmt);
 
 	seq_printf(seq, "%-15s:0x%x\n", "mode_3d_enable",
-		   pVfm->mode_3d_enable);
+		   pvfm->mode_3d_enable);
 
 	seq_printf(seq, "%-15s:0x%p\n", "early_process_fun",
-		   pVfm->early_process_fun);
+		   pvfm->early_process_fun);
 	seq_printf(seq, "%-15s:0x%p\n", "process_fun",
-		   pVfm->early_process_fun);
+		   pvfm->early_process_fun);
 	seq_printf(seq, "%-15s:0x%p\n", "private_data",
-		   pVfm->early_process_fun);
+		   pvfm->early_process_fun);
 
-#if 1
 	/* vframe properties */
 
-#endif
-
 	/* pixel aspect ratio */
-	seq_printf(seq, "%-15s:%d\n", "pixel_ratio", pVfm->pixel_ratio);
+	seq_printf(seq, "%-15s:%d\n", "pixel_ratio", pvfm->pixel_ratio);
 
 	/* ready from decode on  jiffies_64 */
-	seq_printf(seq, "%-15s:%d\n", "use_cnt", atomic_read(&pVfm->use_cnt));
-	seq_printf(seq, "%-15s:%d\n", "frame_dirty", pVfm->frame_dirty);
+	seq_printf(seq, "%-15s:%d\n", "use_cnt", atomic_read(&pvfm->use_cnt));
+	seq_printf(seq, "%-15s:%d\n", "frame_dirty", pvfm->frame_dirty);
 	/*
 	 *prog_proc_config:
 	 *1: process p from decoder as filed
 	 *0: process p from decoder as frame
 	 */
 	seq_printf(seq, "%-15s:0x%x\n", "prog_proc_config",
-		   pVfm->prog_proc_config);
+		   pvfm->prog_proc_config);
 		/* used for indicate current video is motion or static */
 	seq_printf(seq, "%-15s:%d\n", "combing_cur_lev",
-		   pVfm->combing_cur_lev);
+		   pvfm->combing_cur_lev);
 	return 0;
 }
 
@@ -592,7 +590,7 @@ void didbg_vframe_in_copy(unsigned int ch, struct vframe_s *pvfm)
 {
 	struct vframe_s *pvfm_t;
 
-	if (!di_cfgx_get(ch, eDI_DBG_CFGX_IDX_VFM_IN))
+	if (!di_cfgx_get(ch, EDI_DBG_CFGX_IDX_VFM_IN))
 		return;
 
 	pvfm_t = di_get_dbg_vframe_in(ch);
@@ -607,8 +605,8 @@ static int seq_file_vframe_in_show(struct seq_file *seq, void *v)
 	ch = seq_get_channel(seq);
 	seq_printf(seq, "%s:ch[%d]\n", __func__, ch);
 
-	if (!di_cfgx_get(ch, eDI_DBG_CFGX_IDX_VFM_IN)) {
-		seq_puts(seq, "war: cfg[eDI_DBG_CFGX_IDX_VFM_IN] disable\n");
+	if (!di_cfgx_get(ch, EDI_DBG_CFGX_IDX_VFM_IN)) {
+		seq_puts(seq, "war: cfg[EDI_DBG_CFGX_IDX_VFM_IN] disable\n");
 		return 0;
 	}
 
@@ -626,7 +624,7 @@ void didbg_vframe_out_save(struct vframe_s *pvfm)
 	struct vframe_s **pvfm_t;
 
 	ch = DI_SUB_ID_S0;
-	if (!di_cfgx_get(ch, eDI_DBG_CFGX_IDX_VFM_OT))
+	if (!di_cfgx_get(ch, EDI_DBG_CFGX_IDX_VFM_OT))
 		return;
 
 	pvfm_t = di_get_dbg_vframe_out(ch);
@@ -640,8 +638,8 @@ static int seq_file_vframe_out_show(struct seq_file *seq, void *v)
 	ch = seq_get_channel(seq);
 	seq_printf(seq, "%s:ch[%d]\n", __func__, ch);
 
-	if (!di_cfgx_get(ch, eDI_DBG_CFGX_IDX_VFM_OT)) {
-		seq_puts(seq, "war: cfg[eDI_DBG_CFGX_IDX_VFM_OT] disable\n");
+	if (!di_cfgx_get(ch, EDI_DBG_CFGX_IDX_VFM_OT)) {
+		seq_puts(seq, "war: cfg[EDI_DBG_CFGX_IDX_VFM_OT] disable\n");
 		return 0;
 	}
 
@@ -737,16 +735,7 @@ ssize_t seq_file_vtype_store(struct file *file, const char __user *userbuf,
 
 	buf[count] = 0;
 	/*reg, bit, width, val*/
-	#if 1
-	ret = kstrtouint(buf, 0, &vtype);
-	if (ret) {
-		pr_info("war:please enter vtype\n");
-		return 0;
-	}
-	pr_info("save type:0x%x", vtype);
-	didbg_vtype_set(vtype);
-	#else
-
+	#ifdef MARK_HIS
 	ret = sscanfxxx(buf, "%x", &vtype);
 
 	/*--------------------------*/
@@ -760,6 +749,15 @@ ssize_t seq_file_vtype_store(struct file *file, const char __user *userbuf,
 		pr_info("war:please enter vtype\n");
 		break;
 	}
+
+	#else
+	ret = kstrtouint(buf, 0, &vtype);
+	if (ret) {
+		pr_info("war:please enter vtype\n");
+		return 0;
+	}
+	pr_info("save type:0x%x", vtype);
+	didbg_vtype_set(vtype);
 	#endif
 	return count;
 }
@@ -915,7 +913,6 @@ static const struct file_operations __name ## _fops = {			\
 }
 
 /*--------------------------*/
-#if 1
 /*note: this define can't used for x*/
 #define DEFINE_SEQ_SHOW_STORE(__name) \
 static int __name ## _open(struct inode *inode, struct file *file)	\
@@ -931,8 +928,9 @@ static const struct file_operations __name ## _fops = {			\
 	.llseek = seq_lseek,		\
 	.release = single_release,	\
 }
-#endif
+
 /*--------------------------*/
+
 #define DEFINE_SHOW_STORE(__name) \
 static const struct file_operations __name ## _fops = {			\
 	.owner = THIS_MODULE,		\
@@ -955,16 +953,16 @@ static const struct file_operations __name ## _fops = {			\
 static int rcfgx_show(struct seq_file *s, void *what)
 {
 	int i;
-	int *pCh;
+	int *pch;
 
-	pCh = (int *)s->private;
+	pch = (int *)s->private;
 
-	seq_printf(s, "%s:ch[%d]\n", __func__, *pCh);
+	seq_printf(s, "%s:ch[%d]\n", __func__, *pch);
 
-	for (i = eDI_CFGX_BEGIN; i < eDI_DBG_CFGX_END; i++) {
+	for (i = EDI_CFGX_BEGIN; i < EDI_DBG_CFGX_END; i++) {
 		seq_printf(s, "\tidx[%2d]:%-15s:%d\n", i,
 			   di_cfgx_get_name(i),
-			   di_cfgx_get(*pCh, i));
+			   di_cfgx_get(*pch, i));
 	}
 
 	return 0;
@@ -977,7 +975,7 @@ static ssize_t wcfgx_store(struct file *file, const char __user *userbuf,
 	unsigned int item, val;
 	char buf[80];
 	int ret;
-	int *pCh;
+	int *pch;
 
 	count = min_t(size_t, count, (sizeof(buf) - 1));
 	if (copy_from_user(buf, userbuf, count))
@@ -987,16 +985,16 @@ static ssize_t wcfgx_store(struct file *file, const char __user *userbuf,
 
 	ret = sscanf(buf, "%i %i", &item, &val);
 
-	pCh = (int *)file->private_data;
-	pr_info("%s:ch[%d]\n", __func__, *pCh);
+	pch = (int *)file->private_data;
+	pr_info("%s:ch[%d]\n", __func__, *pch);
 
 	switch (ret) {
 	case 2:
-		if ((item <= eDI_CFGX_BEGIN)	||
-		    (item >= eDI_DBG_CFGX_END)) {
+		if (item <= EDI_CFGX_BEGIN	||
+		    item >= EDI_DBG_CFGX_END) {
 			pr_info("war:cfg_item is overflow[%d,%d]:%d\n",
-				eDI_CFGX_BEGIN,
-				eDI_DBG_CFGX_END,
+				EDI_CFGX_BEGIN,
+				EDI_DBG_CFGX_END,
 				item);
 			break;
 		}
@@ -1004,8 +1002,8 @@ static ssize_t wcfgx_store(struct file *file, const char __user *userbuf,
 			pr_info("war:cfg value[%d] is not bool\n", val);
 
 		pr_info("change cfg:%s\n", di_cfgx_get_name(item));
-		pr_info("\t%d -> %d\n", di_cfgx_get(*pCh, item), val);
-		di_cfgx_set(*pCh, item, val);
+		pr_info("\t%d -> %d\n", di_cfgx_get(*pch, item), val);
+		di_cfgx_set(*pch, item, val);
 		break;
 	default:
 		pr_info("err:please enter: cfg_item, value(bool)\n");
@@ -1189,9 +1187,9 @@ static int mpr_di_show(struct seq_file *s, void *what)
 
 	seq_printf(s, "%s:\n", __func__);
 
-	for (i = eDI_MP_SUB_DI_B; i < eDI_MP_SUB_DI_E; i++) {
+	for (i = EDI_MP_SUB_DI_B; i < EDI_MP_SUB_DI_E; i++) {
 		seq_printf(s, "\tidx[%2d]:%-15s:%d\n",
-			   i - eDI_MP_SUB_DI_B,
+			   i - EDI_MP_SUB_DI_B,
 			   di_mp_uit_get_name(i),
 			   di_mp_uit_get(i));
 	}
@@ -1219,14 +1217,14 @@ static ssize_t mpw_di_store(struct file *file, const char __user *userbuf,
 	switch (ret) {
 	case 2:
 		/*check []*/
-		if (item >= (eDI_MP_SUB_DI_E - eDI_MP_SUB_DI_B)) {
+		if (item >= (EDI_MP_SUB_DI_E - EDI_MP_SUB_DI_B)) {
 			PR_WARN("index is overflow[%d,%d]:%d\n",
 				0,
-				eDI_MP_SUB_DI_E - eDI_MP_SUB_DI_B,
+				EDI_MP_SUB_DI_E - EDI_MP_SUB_DI_B,
 				item);
 			break;
 		}
-		rid = item + eDI_MP_SUB_DI_B;
+		rid = item + EDI_MP_SUB_DI_B;
 		pr_info("change mp :%s\n",
 			di_mp_uit_get_name(rid));
 		pr_info("\t%d -> %d\n", di_mp_uit_get(rid), val);
@@ -1249,9 +1247,9 @@ static int mpr_nr_show(struct seq_file *s, void *what)
 
 	seq_printf(s, "%s:\n", __func__);
 
-	for (i = eDI_MP_SUB_NR_B; i < eDI_MP_SUB_NR_E; i++) {
+	for (i = EDI_MP_SUB_NR_B; i < EDI_MP_SUB_NR_E; i++) {
 		seq_printf(s, "\tidx[%2d]:%-15s:%d\n",
-			   i - eDI_MP_SUB_NR_B,
+			   i - EDI_MP_SUB_NR_B,
 			   di_mp_uit_get_name(i),
 			   di_mp_uit_get(i));
 	}
@@ -1279,14 +1277,14 @@ static ssize_t mpw_nr_store(struct file *file, const char __user *userbuf,
 	switch (ret) {
 	case 2:
 		/*check []*/
-		if (item >= (eDI_MP_SUB_NR_E - eDI_MP_SUB_NR_B)) {
+		if (item >= (EDI_MP_SUB_NR_E - EDI_MP_SUB_NR_B)) {
 			PR_WARN("index is overflow[%d,%d]:%d\n",
 				0,
-				eDI_MP_SUB_NR_E - eDI_MP_SUB_NR_B,
+				EDI_MP_SUB_NR_E - EDI_MP_SUB_NR_B,
 				item);
 			break;
 		}
-		rid = item + eDI_MP_SUB_NR_B;
+		rid = item + EDI_MP_SUB_NR_B;
 		pr_info("change mp:%s\n",
 			di_mp_uit_get_name(rid));
 		pr_info("\t%d -> %d\n", di_mp_uit_get(rid), val);
@@ -1309,9 +1307,9 @@ static int mpr_pd_show(struct seq_file *s, void *what)
 
 	seq_printf(s, "%s:\n", __func__);
 
-	for (i = eDI_MP_SUB_PD_B; i < eDI_MP_SUB_PD_E; i++) {
+	for (i = EDI_MP_SUB_PD_B; i < EDI_MP_SUB_PD_E; i++) {
 		seq_printf(s, "\tidx[%2d]:%-15s:%d\n",
-			   i - eDI_MP_SUB_PD_B,
+			   i - EDI_MP_SUB_PD_B,
 			   di_mp_uit_get_name(i),
 			   di_mp_uit_get(i));
 	}
@@ -1339,14 +1337,14 @@ static ssize_t mpw_pd_store(struct file *file, const char __user *userbuf,
 	switch (ret) {
 	case 2:
 		/*check []*/
-		if (item >= (eDI_MP_SUB_PD_E - eDI_MP_SUB_PD_B)) {
+		if (item >= (EDI_MP_SUB_PD_E - EDI_MP_SUB_PD_B)) {
 			PR_WARN("index is overflow[%d,%d]:%d\n",
 				0,
-				eDI_MP_SUB_PD_E - eDI_MP_SUB_PD_B,
+				EDI_MP_SUB_PD_E - EDI_MP_SUB_PD_B,
 				item);
 			break;
 		}
-		rid = item + eDI_MP_SUB_PD_B;
+		rid = item + EDI_MP_SUB_PD_B;
 		pr_info("change mp:%s\n",
 			di_mp_uit_get_name(rid));
 		pr_info("\t%d -> %d\n", di_mp_uit_get(rid), val);
@@ -1369,9 +1367,9 @@ static int mpr_mtn_show(struct seq_file *s, void *what)
 
 	seq_printf(s, "%s:\n", __func__);
 
-	for (i = eDI_MP_SUB_MTN_B; i < eDI_MP_SUB_MTN_E; i++) {
+	for (i = EDI_MP_SUB_MTN_B; i < EDI_MP_SUB_MTN_E; i++) {
 		seq_printf(s, "\tidx[%2d]:%-15s:%d\n",
-			   i - eDI_MP_SUB_MTN_B,
+			   i - EDI_MP_SUB_MTN_B,
 			   di_mp_uit_get_name(i),
 			   di_mp_uit_get(i));
 	}
@@ -1399,14 +1397,14 @@ static ssize_t mpw_mtn_store(struct file *file, const char __user *userbuf,
 	switch (ret) {
 	case 2:
 		/*check []*/
-		if (item >= (eDI_MP_SUB_MTN_E - eDI_MP_SUB_MTN_B)) {
+		if (item >= (EDI_MP_SUB_MTN_E - EDI_MP_SUB_MTN_B)) {
 			PR_WARN("index is overflow[%d,%d]:%d\n",
 				0,
-				eDI_MP_SUB_MTN_E - eDI_MP_SUB_MTN_B,
+				EDI_MP_SUB_MTN_E - EDI_MP_SUB_MTN_B,
 				item);
 			break;
 		}
-		rid = item + eDI_MP_SUB_MTN_B;
+		rid = item + EDI_MP_SUB_MTN_B;
 		pr_info("change mp:%s\n",
 			di_mp_uit_get_name(rid));
 		pr_info("\t%d -> %d\n", di_mp_uit_get(rid), val);
@@ -1424,16 +1422,16 @@ static ssize_t mpw_mtn_store(struct file *file, const char __user *userbuf,
 static int mpxr_show(struct seq_file *s, void *what)
 {
 	int i;
-	int *pCh;
+	int *pch;
 
-	pCh = (int *)s->private;
+	pch = (int *)s->private;
 
-	seq_printf(s, "%s:ch[%d]\n", __func__, *pCh);
+	seq_printf(s, "%s:ch[%d]\n", __func__, *pch);
 
-	for (i = eDI_MP_UIX_BEGIN; i < eDI_MP_UIX_END; i++) {
+	for (i = EDI_MP_UIX_BEGIN; i < EDI_MP_UIX_END; i++) {
 		seq_printf(s, "\tidx[%2d]:%-15s:%d\n", i,
 			   di_mp_uix_get_name(i),
-			   di_mp_uix_get(*pCh, i));
+			   di_mp_uix_get(*pch, i));
 	}
 
 	return 0;
@@ -1446,7 +1444,7 @@ static ssize_t mpxw_store(struct file *file, const char __user *userbuf,
 	unsigned int item, val;
 	char buf[80];
 	int ret;
-	int *pCh;
+	int *pch;
 
 	count = min_t(size_t, count, (sizeof(buf) - 1));
 	if (copy_from_user(buf, userbuf, count))
@@ -1456,24 +1454,24 @@ static ssize_t mpxw_store(struct file *file, const char __user *userbuf,
 
 	ret = sscanf(buf, "%i %i", &item, &val);
 
-	pCh = (int *)file->private_data;
-	pr_info("%s:ch[%d]\n", __func__, *pCh);
+	pch = (int *)file->private_data;
+	pr_info("%s:ch[%d]\n", __func__, *pch);
 
 	switch (ret) {
 	case 2:
-		if ((item <= eDI_MP_UIX_BEGIN)	||
-		    (item >= eDI_MP_UIX_END)) {
+		if (item <= EDI_MP_UIX_BEGIN	||
+		    item >= EDI_MP_UIX_END) {
 			PR_WARN("mpxw is overflow[%d,%d]:%d\n",
-				eDI_MP_UIX_BEGIN,
-				eDI_MP_UIX_END,
+				EDI_MP_UIX_BEGIN,
+				EDI_MP_UIX_END,
 				item);
 			break;
 		}
 
-		pr_info("change mp ch[%d]:%s\n", *pCh,
+		pr_info("change mp ch[%d]:%s\n", *pch,
 			di_mp_uix_get_name(item));
-		pr_info("\t%d -> %d\n", di_mp_uix_get(*pCh, item), val);
-		di_mp_uix_set(*pCh, item, val);
+		pr_info("\t%d -> %d\n", di_mp_uix_get(*pch, item), val);
+		di_mp_uix_set(*pch, item, val);
 		break;
 	default:
 		PR_ERR("please enter: mpxw, value(unsigned int)\n");
@@ -1535,22 +1533,22 @@ void dbg_f_trig_task(unsigned int para)
 }
 
 const struct di_dbg_func_s di_func_tab[] = {
-	{eDI_DBG_F_00, dbg_f_post_disable,
+	{EDI_DBG_F_00, dbg_f_post_disable,
 		"dimh_disable_post_deinterlace_2", "no para"},
-	{eDI_DBG_F_01, dbg_f_trig_task,
+	{EDI_DBG_F_01, dbg_f_trig_task,
 		"trig task", "no para"},
-	{eDI_DBG_F_02, dpre_dbg_f_trig,
+	{EDI_DBG_F_02, dpre_dbg_f_trig,
 		"trig pre flow debug", "bit[4]:ddebug on/off;bi[3:0]:cnt"},
-	{eDI_DBG_F_03, dpst_dbg_f_trig,
+	{EDI_DBG_F_03, dpst_dbg_f_trig,
 		"trig post flow debug", "bit[4]:ddebug on/off;bi[3:0]:cnt"},
-	{eDI_DBG_F_04, hpst_dbg_power_ctr_trig,
+	{EDI_DBG_F_04, hpst_dbg_power_ctr_trig,
 		"trig post power", "1: on; 0: off"},
 
-	{eDI_DBG_F_05, hpst_dbg_mem_pd_trig,
+	{EDI_DBG_F_05, hpst_dbg_mem_pd_trig,
 		"trig post mem pd", "no para"},
-	{eDI_DBG_F_06, hpst_dbg_trig_gate,
+	{EDI_DBG_F_06, hpst_dbg_trig_gate,
 		"trig post gate off/on", "no para"},
-	{eDI_DBG_F_07, hpst_dbg_trig_mif,
+	{EDI_DBG_F_07, hpst_dbg_trig_mif,
 		"trig post mif off/free", "no para"},
 };
 
@@ -1617,10 +1615,10 @@ static ssize_t reg_show(struct file *file, char __user *userbuf,
 	char buf[80];
 
 	ssize_t len;
-	int *pInt;
+	int *pint;
 
-	pInt = (int *)file->private_data;
-	pr_info("pInt=0x%p,val=%d\n", pInt, *pInt);
+	pint = (int *)file->private_data;
+	pr_info("pint=0x%p,val=%d\n", pint, *pint);
 
 	len = snprintf(buf, sizeof(buf), "%s\n",
 		       __func__);
@@ -1634,7 +1632,7 @@ static ssize_t reg_store(struct file *file, const char __user *userbuf,
 	unsigned int reg, val;
 	char buf[80];
 	int ret;
-	int *pInt;
+	int *pint;
 
 	count = min_t(size_t, count, (sizeof(buf) - 1));
 	if (copy_from_user(buf, userbuf, count))
@@ -1648,8 +1646,8 @@ static ssize_t reg_store(struct file *file, const char __user *userbuf,
 	case 1:
 		pr_info("reg:0x%x\n", reg);
 
-		pInt = (int *)file->private_data;
-		pr_info("pInt=0x%p,val=%d\n", pInt, *pInt);
+		pint = (int *)file->private_data;
+		pr_info("pint=0x%p,val=%d\n", pint, *pint);
 		break;
 	case 2:
 		pr_info("reg:0x%x,val=%d\n", reg, val);
@@ -1798,10 +1796,10 @@ void didbg_fs_init(void)
 	struct dentry **root_ent;
 
 	struct dentry *ent;
-	int *pPlane = di_get_plane();
+	int *pplane = di_get_plane();
 
 	for (i = 0; i < DI_CHANNEL_NUB; i++) {
-#if 0
+#ifdef MARK_HIS
 		strcpy(name, "di");
 		sprintf(buf, "%01d", i);
 		strncat(name, buf, sizeof(buf) - 1);
@@ -1813,12 +1811,12 @@ void didbg_fs_init(void)
 		*root_ent = debugfs_create_dir(name, NULL);
 		if (IS_ERR_OR_NULL(*root_ent))
 			continue;
-		*(pPlane + i) = i;
+		*(pplane + i) = i;
 		/*printk("plane 0x%p\n", &plane_ch[i]);*/
 		for (j = 0; j < ARRAY_SIZE(di_debugfs_files); j++) {
 			ent = debugfs_create_file(di_debugfs_files[j].name,
 						  di_debugfs_files[j].mode,
-						  *root_ent, (pPlane + i),
+						  *root_ent, (pplane + i),
 						  di_debugfs_files[j].fops);
 			if (!ent)
 				PR_ERR("debugfs create failed\n");

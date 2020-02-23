@@ -119,7 +119,7 @@ DET3D_INTR_EN_BIT, DET3D_INTR_EN_WID);
 		else
 			DI_Wr_reg_bits(NR2_SW_EN, 1,
 				DET3D_EN_BIT, DET3D_EN_WID);
-	} else{
+	} else {
 		/* Det 3D interrupt disable */
 		DI_Wr_reg_bits(DET3D_MOTN_CFG, 0,
 DET3D_INTR_EN_BIT, DET3D_INTR_EN_WID);
@@ -177,7 +177,7 @@ static void det3d_accumulate_score(int lr_score, int tb_score,
 		det3d_info.int_valid_his[0] = int_score;
 		det3d_info.tscore_3d_lr_accum = (lr_score <= 0) ? 1 : 0;
 		det3d_info.tscore_3d_tb_accum = (tb_score <= 0) ? 1 : 0;
-	} else{
+	} else {
 		det3d_info.score_3d_lr = det3d_info.score_3d_lr + lr_score;
 		det3d_info.score_3d_tb = det3d_info.score_3d_tb + tb_score;
 
@@ -418,7 +418,7 @@ chessbd_ver_thrd);
 	} else if ((det3d_info.score_3d_tb < NOT_LR_SCORE_UPPER_LIMIT) &&
 (det3d_info.score_3d_lr < NOT_TB_SCORE_UPPER_LIMIT)) {
 		det3d_info.tfw_det3d_fmt = TVIN_TFMT_2D;
-	} else{
+	} else {
 		/* keep previous status */
 
 		if ((det3d_info.score_3d_lr > LR_SCORE_LOWER_LIMIT) &&

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
  * drivers/amlogic/media/di_multi/di_pre.c
  *
@@ -92,20 +93,19 @@ unsigned int is_vinfo_change(unsigned int ch)
 		ret = 2;
 
 	if (ret) {
-		dim_print(
-		"%s:ch[%d]: %dth source change 2: 0x%x/%d/%d/%d=>0x%x/%d/%d/%d\n",
-			__func__,
-			ch,
-			/*jiffies_to_msecs(jiffies_64),*/
-			ppre->in_seq,
-			vl->vtype,
-			vl->h,
-			vl->v,
-			vl->src_type,
-			vc->vtype,
-			vc->h,
-			vc->v,
-			vc->src_type);
+		dim_print("%s:ch[%d]:%dth scchg2:0x%x/%d/%d/%d>0x%x/%d/%d/%d\n",
+			  __func__,
+			  ch,
+			  /*jiffies_to_msecs(jiffies_64),*/
+			  ppre->in_seq,
+			  vl->vtype,
+			  vl->h,
+			  vl->v,
+			  vl->src_type,
+			  vc->vtype,
+			  vc->h,
+			  vc->v,
+			  vc->src_type);
 	}
 
 	return ret;
@@ -123,7 +123,7 @@ bool dim_bypass_detect(unsigned int ch, struct vframe_s *vfm)
 			set_bypass2_complete(ch, false);
 			PR_INF("%s:\n", __func__);
 			/*task_send_ready();*/
-			task_send_cmd(LCMD1(eCMD_CHG, ch));
+			task_send_cmd(LCMD1(ECMD_CHG, ch));
 			ret = true;
 		}
 	}
@@ -140,7 +140,7 @@ bool is_bypass_i_p(void)
 	bool ret = false;
 	struct di_hpre_s  *pre = get_hw_pre();
 	struct di_vinfo_s *vc = &pre->vinf_curr;
-	#if 0
+	#ifdef MARK_HIS
 	struct di_vinfo_s *vl = &pre->vinf_lst;
 
 	if (vl->ch != vc->ch			&&
@@ -182,13 +182,13 @@ void dpre_init(void)
 {/*reg:*/
 	struct di_hpre_s  *pre = get_hw_pre();
 
-	pre->pre_st = eDI_PRE_ST_IDLE;
+	pre->pre_st = EDI_PRE_ST_IDLE;
 
 	/*timer out*/
 	di_tout_int(&pre->tout, 40);	/*ms*/
 }
 
-void pw_use_hw_pre(enum eDI_SUB_ID channel, bool on)
+void pw_use_hw_pre(enum EDI_SUB_ID channel, bool on)
 {
 	struct di_hpre_s  *pre = get_hw_pre();
 
@@ -197,7 +197,7 @@ void pw_use_hw_pre(enum eDI_SUB_ID channel, bool on)
 		pre->curr_ch = channel;
 }
 
-enum eDI_SUB_ID pw_ch_next_count(enum eDI_SUB_ID channel)
+enum EDI_SUB_ID pw_ch_next_count(enum EDI_SUB_ID channel)
 {
 	int i;
 	unsigned int lch, nch;
@@ -207,7 +207,7 @@ enum eDI_SUB_ID pw_ch_next_count(enum eDI_SUB_ID channel)
 		lch = channel + i + 1;
 		if (lch >= DI_CHANNEL_NUB)
 			lch -= DI_CHANNEL_NUB;
-		#if 0
+		#ifdef MARK_HIS
 		if (pbm->sub_act_flg[lch]) {
 			nch = lch;
 			break;
@@ -225,11 +225,11 @@ enum eDI_SUB_ID pw_ch_next_count(enum eDI_SUB_ID channel)
 }
 
 /****************************************/
-static bool pw_try_sw_ch_next_pre(enum eDI_SUB_ID channel)
+static bool pw_try_sw_ch_next_pre(enum EDI_SUB_ID channel)
 {
 	bool ret = false;
 	struct di_hpre_s  *pre = get_hw_pre();
-	enum eDI_SUB_ID lst_ch, nch;
+	enum EDI_SUB_ID lst_ch, nch;
 
 	lst_ch = channel;
 
@@ -312,7 +312,7 @@ bool dpre_can_exit(unsigned int ch)
 	if (ch != pre->curr_ch) {
 		ret = true;
 	} else {
-		if (pre->pre_st <= eDI_PRE_ST4_IDLE)
+		if (pre->pre_st <= EDI_PRE_ST4_IDLE)
 			ret = true;
 	}
 	pr_info("%s:ch[%d]:curr[%d]:stat[%s] ret[%d]\n",
@@ -371,18 +371,18 @@ void dpre_process(void)
 
 	while (reflesh) {
 		reflesh = dpre_process_step4();
-		#if 0	/*debug only*/
+		#ifdef MARK_HIS	/*debug only*/
 		dbg_tsk("ch[%d]:st[%s]r[%d]\n", pre->curr_ch,
 			dpre_state4_name_get(pre->pre_st), reflesh);
 		#endif
 	}
 }
 
-enum eDI_PRE_MT {
-	eDI_PRE_MT_CHECK = K_DO_TABLE_ID_START,
-	eDI_PRE_MT_SET,
-	eDI_PRE_MT_WAIT_INT,
-	eDI_PRE_MT_TIME_OUT,
+enum EDI_PRE_MT {
+	EDI_PRE_MT_CHECK = K_DO_TABLE_ID_START,
+	EDI_PRE_MT_SET,
+	EDI_PRE_MT_WAIT_INT,
+	EDI_PRE_MT_TIME_OUT,
 };
 
 /*use do_table:*/
@@ -391,8 +391,8 @@ unsigned int dpre_mtotal_check(void *data)
 	struct di_hpre_s  *pre = get_hw_pre();
 	unsigned int ret = K_DO_R_JUMP(K_DO_TABLE_ID_STOP);//K_DO_R_NOT_FINISH;
 
-	if ((pre_run_flag == DI_RUN_FLAG_RUN)	||
-	    (pre_run_flag == DI_RUN_FLAG_STEP)) {
+	if (pre_run_flag == DI_RUN_FLAG_RUN	||
+	    pre_run_flag == DI_RUN_FLAG_STEP) {
 		if (pre_run_flag == DI_RUN_FLAG_STEP)
 			pre_run_flag = DI_RUN_FLAG_STEP_DONE;
 		dim_print("%s:\n", __func__);
@@ -417,28 +417,28 @@ unsigned int dpre_mtotal_set(void *data)
 	dim_pre_de_process(pre->curr_ch);
 	spin_unlock_irqrestore(&plist_lock, flags);
 	/*begin to count timer*/
-	di_tout_contr(eDI_TOUT_CONTR_EN, &pre->tout);
+	di_tout_contr(EDI_TOUT_CONTR_EN, &pre->tout);
 
 	return K_DO_R_FINISH;
 }
 
-enum eDI_WAIT_INT {
-	eDI_WAIT_INT_NEED_WAIT,
-	eDI_WAIT_INT_HAVE_INT,
-	eDI_WAIT_INT_TIME_OUT,
+enum EDI_WAIT_INT {
+	EDI_WAIT_INT_NEED_WAIT,
+	EDI_WAIT_INT_HAVE_INT,
+	EDI_WAIT_INT_TIME_OUT,
 };
 
 /*
- *return:	enum eDI_WAIT_INT
+ *return:	enum EDI_WAIT_INT
  *
  */
-enum eDI_WAIT_INT di_pre_wait_int(void *data)
+enum EDI_WAIT_INT di_pre_wait_int(void *data)
 {
 	struct di_hpre_s  *pre = get_hw_pre();
 	ulong flags = 0;
 	struct di_pre_stru_s *ppre;
 
-	enum eDI_WAIT_INT ret = eDI_WAIT_INT_NEED_WAIT;
+	enum EDI_WAIT_INT ret = EDI_WAIT_INT_NEED_WAIT;
 
 	if (pre->flg_int_done) {
 		/*have INT done flg*/
@@ -454,17 +454,17 @@ enum eDI_WAIT_INT di_pre_wait_int(void *data)
 		 * interrupts are raised if both
 		 * DI_INTR_CTRL[16] and DI_INTR_CTRL[17] are 0
 		 */
-#if 0
-		data32 = Rd(DI_INTR_CTRL);
+#ifdef MARK_HIS
+		data32 = RD(DI_INTR_CTRL);
 		if (((data32 & 0x1) &&
-		    ((ppre->enable_mtnwr == 0) || (data32 & 0x2))) ||
-		    (ppre->pre_de_clear_flag == 2)) {
-			dim_RDMA_WR(DI_INTR_CTRL, data32);
+		     (ppre->enable_mtnwr == 0 || (data32 & 0x2))) ||
+		      ppre->pre_de_clear_flag == 2) {
+			DIM_RDMA_WR(DI_INTR_CTRL, data32);
 		}
 #endif
 		di_pre_wait_irq_set(false);
 		/*finish to count timer*/
-		di_tout_contr(eDI_TOUT_CONTR_FINISH, &pre->tout);
+		di_tout_contr(EDI_TOUT_CONTR_FINISH, &pre->tout);
 		spin_lock_irqsave(&plist_lock, flags);
 
 		dim_pre_de_done_buf_config(pre->curr_ch, false);
@@ -477,21 +477,21 @@ enum eDI_WAIT_INT di_pre_wait_int(void *data)
 		spin_unlock_irqrestore(&plist_lock, flags);
 
 		ppre = get_pre_stru(pre->curr_ch);
-#if 0
+#ifdef MARK_HIS
 		if (ppre->field_count_for_cont == 1) {
 			usleep_range(2000, 2001);
 			pr_info("delay 1ms\n");
 		}
 #endif
 
-		ret = eDI_WAIT_INT_HAVE_INT;
+		ret = EDI_WAIT_INT_HAVE_INT;
 
 	} else {
 		/*check if timeout:*/
-		if (di_tout_contr(eDI_TOUT_CONTR_CHECK, &pre->tout)) {
+		if (di_tout_contr(EDI_TOUT_CONTR_CHECK, &pre->tout)) {
 			di_pre_wait_irq_set(false);
 			/*return K_DO_R_FINISH;*/
-			ret = eDI_WAIT_INT_TIME_OUT;
+			ret = EDI_WAIT_INT_TIME_OUT;
 		}
 	}
 	/*debug:*/
@@ -503,18 +503,18 @@ enum eDI_WAIT_INT di_pre_wait_int(void *data)
 
 unsigned int dpre_mtotal_wait_int(void *data)
 {
-	enum eDI_WAIT_INT wret;
+	enum EDI_WAIT_INT wret;
 	unsigned int ret = K_DO_R_NOT_FINISH;
 
 	wret = di_pre_wait_int(NULL);
 	switch (wret) {
-	case eDI_WAIT_INT_NEED_WAIT:
+	case EDI_WAIT_INT_NEED_WAIT:
 		ret = K_DO_R_NOT_FINISH;
 		break;
-	case eDI_WAIT_INT_HAVE_INT:
+	case EDI_WAIT_INT_HAVE_INT:
 		ret = K_DO_R_JUMP(K_DO_TABLE_ID_STOP);
 		break;
-	case eDI_WAIT_INT_TIME_OUT:
+	case EDI_WAIT_INT_TIME_OUT:
 		ret = K_DO_R_FINISH;
 		break;
 	}
@@ -526,21 +526,21 @@ void dpre_mtotal_timeout_contr(void)
 	struct di_hpre_s  *pre = get_hw_pre();
 
 	/*move from di_pre_trigger_work*/
-	if (dimp_get(eDI_MP_di_dbg_mask) & 4)
+	if (dimp_get(edi_mp_di_dbg_mask) & 4)
 		dim_dump_mif_size_state(pre->pres, pre->psts);
 
-	dimh_enable_di_pre_mif(false, dimp_get(eDI_MP_mcpre_en));
+	dimh_enable_di_pre_mif(false, dimp_get(edi_mp_mcpre_en));
 	if (di_get_dts_nrds_en())
 		dim_nr_ds_hw_ctrl(false);
 	pre->pres->pre_de_irq_timeout_count++;
 
 	pre->pres->pre_de_busy = 0;
 	pre->pres->pre_de_clear_flag = 2;
-	if ((dimp_get(eDI_MP_di_dbg_mask) & 0x2)) {
+	if ((dimp_get(edi_mp_di_dbg_mask) & 0x2)) {
 		pr_info("DI:ch[%d]*****wait %d timeout 0x%x(%d ms)*****\n",
 			pre->curr_ch,
 			pre->pres->field_count_for_cont,
-			Rd(DI_INTR_CTRL),
+			RD(DI_INTR_CTRL),
 			(unsigned int)(cur_to_msecs() -
 			pre->pres->irq_time[1]));
 	}
@@ -583,7 +583,7 @@ const struct do_table_ops_s pr_mode_total[] = {
 	.name = "stop",
 	},
 	/******************/
-	[K_DO_TABLE_ID_START] = {	/*eDI_PRE_MT_CHECK*/
+	[K_DO_TABLE_ID_START] = {	/*EDI_PRE_MT_CHECK*/
 	.id = K_DO_TABLE_ID_START,
 	.mark = 0,
 	.con = NULL,
@@ -591,24 +591,24 @@ const struct do_table_ops_s pr_mode_total[] = {
 	.do_stop_op = NULL,
 	.name = "start-check",
 	},
-	[eDI_PRE_MT_SET] = {
-	.id = eDI_PRE_MT_SET,
+	[EDI_PRE_MT_SET] = {
+	.id = EDI_PRE_MT_SET,
 	.mark = 0,
 	.con = NULL,
 	.do_op = dpre_mtotal_set,
 	.do_stop_op = NULL,
 	.name = "set",
 	},
-	[eDI_PRE_MT_WAIT_INT] = {
-	.id = eDI_PRE_MT_WAIT_INT,
+	[EDI_PRE_MT_WAIT_INT] = {
+	.id = EDI_PRE_MT_WAIT_INT,
 	.mark = 0,
 	.con = NULL,
 	.do_op = dpre_mtotal_wait_int,
 	.do_stop_op = NULL,
 	.name = "wait_int",
 	},
-	[eDI_PRE_MT_TIME_OUT] = {
-	.id = eDI_PRE_MT_TIME_OUT,
+	[EDI_PRE_MT_TIME_OUT] = {
+	.id = EDI_PRE_MT_TIME_OUT,
 	.mark = 0,
 	.con = NULL,
 	.do_op = dpre_mtotal_timeout,
@@ -622,15 +622,15 @@ const struct do_table_ops_s pr_mode_total[] = {
  * mode for p
  *
  ****************************/
-enum eDI_PRE_MP {
-	eDI_PRE_MP_CHECK = K_DO_TABLE_ID_START,
-	eDI_PRE_MP_SET,
-	eDI_PRE_MP_WAIT_INT,
-	eDI_PRE_MP_TIME_OUT,
-	eDI_PRE_MP_CHECK2,
-	eDI_PRE_MP_SET2,
-	eDI_PRE_MP_WAIT_INT2,
-	eDI_PRE_MP_TIME_OUT2,
+enum EDI_PRE_MP {
+	EDI_PRE_MP_CHECK = K_DO_TABLE_ID_START,
+	EDI_PRE_MP_SET,
+	EDI_PRE_MP_WAIT_INT,
+	EDI_PRE_MP_TIME_OUT,
+	EDI_PRE_MP_CHECK2,
+	EDI_PRE_MP_SET2,
+	EDI_PRE_MP_WAIT_INT2,
+	EDI_PRE_MP_TIME_OUT2,
 };
 
 unsigned int dpre_mp_check(void *data)
@@ -638,8 +638,8 @@ unsigned int dpre_mp_check(void *data)
 	struct di_hpre_s  *pre = get_hw_pre();
 	unsigned int ret = K_DO_R_JUMP(K_DO_TABLE_ID_STOP);//K_DO_R_NOT_FINISH;
 
-	if ((pre_run_flag == DI_RUN_FLAG_RUN)	||
-	    (pre_run_flag == DI_RUN_FLAG_STEP)) {
+	if (pre_run_flag == DI_RUN_FLAG_RUN	||
+	    pre_run_flag == DI_RUN_FLAG_STEP) {
 		if (pre_run_flag == DI_RUN_FLAG_STEP)
 			pre_run_flag = DI_RUN_FLAG_STEP_DONE;
 		dim_print("%s:\n", __func__);
@@ -665,31 +665,30 @@ unsigned int dpre_mp_check2(void *data)
 	if (dim_pre_de_buf_config(pre->curr_ch)) {
 		/*pre->flg_wait_int = false;*/
 		ret = K_DO_R_FINISH;
-	}
-	#if 0
-	else {
+	} else {
+		#ifdef MARK_HIS
 		PR_ERR("%s:not second?ch[%d]\n", __func__, pre->curr_ch);
 		ret = K_DO_R_JUMP(K_DO_TABLE_ID_STOP);
+		#endif
 	}
-	#endif
 
 	return ret;
 }
 
 unsigned int dpre_mp_wait_int(void *data)
 {
-	enum eDI_WAIT_INT wret;
+	enum EDI_WAIT_INT wret;
 	unsigned int ret = K_DO_R_NOT_FINISH;
 
 	wret = di_pre_wait_int(NULL);
 	switch (wret) {
-	case eDI_WAIT_INT_NEED_WAIT:
+	case EDI_WAIT_INT_NEED_WAIT:
 		ret = K_DO_R_NOT_FINISH;
 		break;
-	case eDI_WAIT_INT_HAVE_INT:
-		ret = K_DO_R_JUMP(eDI_PRE_MP_CHECK2);
+	case EDI_WAIT_INT_HAVE_INT:
+		ret = K_DO_R_JUMP(EDI_PRE_MP_CHECK2);
 		break;
-	case eDI_WAIT_INT_TIME_OUT:
+	case EDI_WAIT_INT_TIME_OUT:
 		ret = K_DO_R_FINISH;
 		break;
 	}
@@ -698,18 +697,18 @@ unsigned int dpre_mp_wait_int(void *data)
 
 unsigned int dpre_mp_wait_int2(void *data)
 {
-	enum eDI_WAIT_INT wret;
+	enum EDI_WAIT_INT wret;
 	unsigned int ret = K_DO_R_NOT_FINISH;
 
 	wret = di_pre_wait_int(NULL);
 	switch (wret) {
-	case eDI_WAIT_INT_NEED_WAIT:
+	case EDI_WAIT_INT_NEED_WAIT:
 		ret = K_DO_R_NOT_FINISH;
 		break;
-	case eDI_WAIT_INT_HAVE_INT:
+	case EDI_WAIT_INT_HAVE_INT:
 		ret = K_DO_R_JUMP(K_DO_TABLE_ID_STOP);
 		break;
-	case eDI_WAIT_INT_TIME_OUT:
+	case EDI_WAIT_INT_TIME_OUT:
 		ret = K_DO_R_FINISH;
 		break;
 	}
@@ -749,7 +748,7 @@ const struct do_table_ops_s pre_mode_proc[] = {
 	.name = "stop",
 	},
 	/******************/
-	[K_DO_TABLE_ID_START] = {	/*eDI_PRE_MP_CHECK*/
+	[K_DO_TABLE_ID_START] = {	/*EDI_PRE_MP_CHECK*/
 	.id = K_DO_TABLE_ID_START,
 	.mark = 0,			/*stop / pause*/
 	.con = NULL,
@@ -757,24 +756,24 @@ const struct do_table_ops_s pre_mode_proc[] = {
 	.do_stop_op = NULL,
 	.name = "start-check",
 	},
-	[eDI_PRE_MP_SET] = {
-	.id = eDI_PRE_MP_SET,
+	[EDI_PRE_MP_SET] = {
+	.id = EDI_PRE_MP_SET,
 	.mark = 0,			/*stop / pause*/
 	.con = NULL,			/*condition*/
 	.do_op = dpre_mtotal_set,
 	.do_stop_op = NULL,
 	.name = "pset",
 	},
-	[eDI_PRE_MP_WAIT_INT] = {
-	.id = eDI_PRE_MP_WAIT_INT,
+	[EDI_PRE_MP_WAIT_INT] = {
+	.id = EDI_PRE_MP_WAIT_INT,
 	.mark = 0,			/*stop / pause*/
 	.con = NULL,			/*condition*/
 	.do_op = dpre_mp_wait_int,
 	.do_stop_op = NULL,
 	.name = "pwait_int",
 	},
-	[eDI_PRE_MP_TIME_OUT] = {
-	.id = eDI_PRE_MP_TIME_OUT,
+	[EDI_PRE_MP_TIME_OUT] = {
+	.id = EDI_PRE_MP_TIME_OUT,
 	.mark = 0,			/*stop / pause*/
 	.con = NULL,			/*condition*/
 	.do_op = dpre_mp_timeout,
@@ -782,32 +781,32 @@ const struct do_table_ops_s pre_mode_proc[] = {
 	.name = "ptimeout",
 	},
 	/******/
-	[eDI_PRE_MP_CHECK2] = {		/*eDI_PRE_MP_CHECK2*/
-	.id = eDI_PRE_MP_CHECK2,
+	[EDI_PRE_MP_CHECK2] = {		/*eDI_PRE_MP_CHECK2*/
+	.id = EDI_PRE_MP_CHECK2,
 	.mark = 0,			/*stop / pause*/
 	.con = NULL,			/*condition*/
 	.do_op = dpre_mp_check2,
 	.do_stop_op = NULL,
 	.name = "start-check",
 	},
-	[eDI_PRE_MP_SET2] = {
-	.id = eDI_PRE_MP_SET2,
+	[EDI_PRE_MP_SET2] = {
+	.id = EDI_PRE_MP_SET2,
 	.mark = 0,			/*stop / pause*/
 	.con = NULL,			/*condition*/
 	.do_op = dpre_mtotal_set,
 	.do_stop_op = NULL,
 	.name = "psetp2",
 	},
-	[eDI_PRE_MP_WAIT_INT2] = {
-	.id = eDI_PRE_MP_WAIT_INT2,
+	[EDI_PRE_MP_WAIT_INT2] = {
+	.id = EDI_PRE_MP_WAIT_INT2,
 	.mark = 0,			/*stop / pause*/
 	.con = NULL,			/*condition*/
 	.do_op = dpre_mp_wait_int2,
 	.do_stop_op = NULL,
 	.name = "pwait_int2",
 	},
-	[eDI_PRE_MP_TIME_OUT2] = {
-	.id = eDI_PRE_MP_TIME_OUT2,
+	[EDI_PRE_MP_TIME_OUT2] = {
+	.id = EDI_PRE_MP_TIME_OUT2,
 	.mark = 0,			/*stop / pause*/
 	.con = NULL,			/*condition*/
 	.do_op = dpre_mp_timeout2,
@@ -821,34 +820,34 @@ void pre_mode_setting(void)
 {
 	struct di_hpre_s  *pre = get_hw_pre();
 
-	if (pre->pre_st != eDI_PRE_ST4_DO_TABLE)
+	if (pre->pre_st != EDI_PRE_ST4_DO_TABLE)
 		return;
 
 	do_table_working(&pre->sdt_mode);
 }
 
 /*--------------------------*/
-enum eDI_WORK_MODE pre_cfg_count_mode(unsigned int ch, struct vframe_s *vframe)
+enum EDI_WORK_MODE pre_cfg_count_mode(unsigned int ch, struct vframe_s *vframe)
 {
-	enum eDI_WORK_MODE pmode;
+	enum EDI_WORK_MODE pmode;
 
 	if (is_bypass2(vframe, ch)) {
-		pmode = eDI_WORK_MODE_bypass_all;
+		pmode = EDI_WORK_MODE_BYPASS_ALL;
 		return pmode;
 	}
 
 	if (COM_ME(vframe->type, VIDTYPE_INTERLACE)) {
 		/*interlace:*/
-		pmode = eDI_WORK_MODE_i;
+		pmode = EDI_WORK_MODE_I;
 		return pmode;
 	}
 
-	if (dimp_get(eDI_MP_prog_proc_config) & 0x10)
-		pmode = eDI_WORK_MODE_p_as_p;
+	if (dimp_get(edi_mp_prog_proc_config) & 0x10)
+		pmode = EDI_WORK_MODE_P_AS_P;
 	else if (is_from_vdin(vframe))
-		pmode = eDI_WORK_MODE_p_use_ibuf;
+		pmode = EDI_WORK_MODE_P_USE_IBUF;
 	else
-		pmode = eDI_WORK_MODE_p_as_i;
+		pmode = EDI_WORK_MODE_P_AS_I;
 
 	return pmode;
 }
@@ -861,8 +860,8 @@ unsigned int dpre_check_mode(unsigned int ch)
 	vframe = pw_vf_peek(ch);
 
 	if (!vframe)
-		return eDI_WORK_MODE_NONE;
-	mode = pre_cfg_count_mode(ch, vframe);/*eDI_WORK_MODE_all;*/
+		return EDI_WORK_MODE_NONE;
+	mode = pre_cfg_count_mode(ch, vframe);/*EDI_WORK_MODE_ALL;*/
 
 	return mode;
 }
@@ -904,13 +903,13 @@ bool dpre_step4_check(void)
 
 	mode = dpre_check_mode(pre->curr_ch);
 
-	if (mode == eDI_WORK_MODE_NONE) {
+	if (mode == EDI_WORK_MODE_NONE) {
 		pre->pre_st--;
 		pre->idle_cnt++;
 		return true;
 	}
 	pre->idle_cnt = 0;
-	if (mode == eDI_WORK_MODE_p_as_i) {
+	if (mode == EDI_WORK_MODE_P_AS_I) {
 		do_table_init(&pre->sdt_mode,
 			      &pre_mode_proc[0],
 			      ARRAY_SIZE(pre_mode_proc));
@@ -920,7 +919,7 @@ bool dpre_step4_check(void)
 			      &pr_mode_total[0],
 			      ARRAY_SIZE(pr_mode_total));
 	}
-	do_talbe_cmd(&pre->sdt_mode, eDO_TABLE_CMD_START);
+	do_talbe_cmd(&pre->sdt_mode, EDO_TABLE_CMD_START);
 
 	/*state*/
 	pre->pre_st++;
@@ -935,29 +934,29 @@ bool dpre_step4_do_table(void)
 	bool reflesh = false;
 
 	if (do_table_is_crr(&pre->sdt_mode, K_DO_TABLE_ID_STOP)) {
-		pre->pre_st = eDI_PRE_ST4_IDLE;
+		pre->pre_st = EDI_PRE_ST4_IDLE;
 		reflesh = true;
 	}
 	return reflesh;
 }
 
 const struct di_func_tab_s di_pre_func_tab4[] = {
-	{eDI_PRE_ST4_EXIT, NULL},
-	{eDI_PRE_ST4_IDLE, dpre_step4_idle},
-	{eDI_PRE_ST4_CHECK, dpre_step4_check},
-	{eDI_PRE_ST4_DO_TABLE, dpre_step4_do_table},
+	{EDI_PRE_ST4_EXIT, NULL},
+	{EDI_PRE_ST4_IDLE, dpre_step4_idle},
+	{EDI_PRE_ST4_CHECK, dpre_step4_check},
+	{EDI_PRE_ST4_DO_TABLE, dpre_step4_do_table},
 };
 
 const char * const dpre_state_name4[] = {
 	"EXIT",
-	"IDLE",	/*swith to next channel?*/
+	"IDLE",	/*switch to next channel?*/
 	"CHECK",
 	"DO_TABLE",
 };
 
-const char *dpre_state4_name_get(enum eDI_PRE_ST4 state)
+const char *dpre_state4_name_get(enum EDI_PRE_ST4 state)
 {
-	if (state > eDI_PRE_ST4_DO_TABLE)
+	if (state > EDI_PRE_ST4_DO_TABLE)
 		return "nothing";
 
 	return dpre_state_name4[state];
@@ -966,17 +965,17 @@ const char *dpre_state4_name_get(enum eDI_PRE_ST4 state)
 bool dpre_process_step4(void)
 {
 	struct di_hpre_s  *pre = get_hw_pre();
-	enum eDI_PRE_ST4 pre_st = pre->pre_st;
+	enum EDI_PRE_ST4 pre_st = pre->pre_st;
 	ulong flags = 0;
 
-	if (pre_st > eDI_PRE_ST4_EXIT) {
+	if (pre_st > EDI_PRE_ST4_EXIT) {
 		spin_lock_irqsave(&plist_lock, flags);
 		dim_recycle_post_back(pre->curr_ch);
 		dpre_recyc(pre->curr_ch);
 		dpre_vdoing(pre->curr_ch);
 		spin_unlock_irqrestore(&plist_lock, flags);
 	}
-	if ((pre_st <= eDI_PRE_ST4_DO_TABLE)	&&
+	if (pre_st <= EDI_PRE_ST4_DO_TABLE	&&
 	    di_pre_func_tab4[pre_st].func) {
 		return di_pre_func_tab4[pre_st].func();
 	}

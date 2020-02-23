@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: (GPL-2.0+ OR MIT) */
 /*
  * drivers/amlogic/media/di_multi/di_api.h
  *
@@ -21,6 +22,7 @@
 #include <linux/amlogic/media/canvas/canvas_mgr.h>
 #include <linux/amlogic/media/vfm/vframe.h>
 #include "../di_local/di_local.h"
+//#include "deinterlace.h"
 
 /*--------------------------*/
 unsigned int l_DI_POST_REG_RD(unsigned int addr);
@@ -32,6 +34,8 @@ bool di_attach_ext_api(struct di_ext_ops *di_api);
 /*attach di_ops to di_local*/
 bool dil_attach_ext_api(const struct di_ext_ops *di_api);
 void dim_attach_to_local(void);
+
+void diext_clk_b_sw(bool on);
 
 /*--------------------------*/
 int get_current_vscale_skip_count(struct vframe_s *vf);

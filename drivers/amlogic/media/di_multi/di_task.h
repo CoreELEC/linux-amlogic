@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: (GPL-2.0+ OR MIT) */
 /*
  * drivers/amlogic/media/di_multi/di_task.h
  *
@@ -20,9 +21,9 @@
 
 extern unsigned int di_dbg_task_flg;	/*debug only*/
 
-enum eTSK_STATE {
-	eTSK_STATE_IDLE,
-	eTSK_STATE_WORKING,
+enum ETSK_STATE {
+	ETSK_STATE_IDLE,
+	ETSK_STATE_WORKING,
 };
 
 void task_stop(void);

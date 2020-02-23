@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: (GPL-2.0+ OR MIT) */
 /*
  * drivers/amlogic/media/di_multi/di_pps.h
  *
@@ -19,7 +20,7 @@
 #define DI_PPS_H
 #include <linux/amlogic/media/video_sink/video.h>
 #include <linux/amlogic/media/video_sink/vpp.h>
-#if 0
+#ifdef MARK_HIS
 #define VPP_FLAG_WIDEMODE_MASK      0x0000000F
 #define VPP_FLAG_INTERLACE_OUT      0x00000010
 #define VPP_FLAG_INTERLACE_IN       0x00000020
@@ -31,7 +32,7 @@
 #define VPP_FLAG_VSCALE_DISABLE     0x00080000
 
 #define IDX_H           (2 << 8)
-#define IDX_V_Y         (1 << 13)
+#define IDX_V_Y         (0x1 << 13)
 #define IDX_V_CBCR      ((1 << 13) | (1 << 8))
 
 #define ASPECT_4_3      ((3 << 8) / 4)

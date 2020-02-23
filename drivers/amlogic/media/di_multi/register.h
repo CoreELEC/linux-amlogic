@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: (GPL-2.0+ OR MIT) */
 /*
  * drivers/amlogic/media/di_multi/register.h
  *
@@ -22,30 +23,36 @@
 #include <linux/amlogic/media/registers/regs/viu_regs.h>
 #include <linux/amlogic/media/registers/regs/vdin_regs.h>
 
-#define Wr(adr, val) aml_write_vcbus(adr, val)
-#define Rd(adr) aml_read_vcbus(adr)
-#define Wr_reg_bits(adr, val, start, len)			\
-	aml_vcbus_update_bits(adr,				\
-	((1 << (len)) - 1) << (start), (val) << (start))
+#define WR(adr, val) aml_write_vcbus(adr, val)
+#define RD(adr) aml_read_vcbus(adr)
 
-#define Rd_reg_bits(adr, start, len)				\
-	((aml_read_vcbus(adr) &					\
-	(((1UL << (len)) - 1UL) << (start))) >> (start))
+/* #define wr_reg_bits(adr, val, start, len)		  \ */
+/*	aml_vcbus_update_bits(adr,		  \ */
+/*	((1 << (len)) - 1) << (start), (val) << (start))    */
 
-unsigned int dim_RDMA_WR(unsigned int adr, unsigned int val);
-unsigned int dim_RDMA_RD(unsigned int adr);
-unsigned int dim_RDMA_WR_BITS(unsigned int adr, unsigned int val,
+/* #define rd_reg_bits(adr, start, len)	\ */
+/* ((aml_read_vcbus(adr) &		\ */
+/* (((1UL << (len)) - 1UL) << (start))) >> (start)) */
+
+void wr_reg_bits(unsigned int adr, unsigned int val,
+		 unsigned int start, unsigned int len);
+
+unsigned int rd_reg_bits(unsigned int adr, unsigned int start,
+			 unsigned int len);
+unsigned int DIM_RDMA_WR(unsigned int adr, unsigned int val);
+unsigned int DIM_RDMA_RD(unsigned int adr);
+unsigned int DIM_RDMA_WR_BITS(unsigned int adr, unsigned int val,
 			      unsigned int start, unsigned int len);
-unsigned int dim_RDMA_RD_BITS(unsigned int adr, unsigned int start,
+unsigned int DIM_RDMA_RD_BITS(unsigned int adr, unsigned int start,
 			      unsigned int len);
-void dim_DI_Wr(unsigned int addr, unsigned int val);
-void dim_DI_Wr_reg_bits(unsigned int adr, unsigned int val,
+void DIM_DI_WR(unsigned int addr, unsigned int val);
+void DIM_DI_WR_REG_BITS(unsigned int adr, unsigned int val,
 			unsigned int start, unsigned int len);
-void dim_VSYNC_WR_MPEG_REG(unsigned int addr, unsigned int val);
-void dim_VSYNC_WR_MPEG_REG_BITS(unsigned int addr,
-				unsigned int val,
-				unsigned int start,
-				unsigned int len);
+void DIM_VSYNC_WR_MPEG_REG(unsigned int addr, unsigned int val);
+void DIM_VSC_WR_MPG_BT(unsigned int addr,
+		       unsigned int val,
+		       unsigned int start,
+		       unsigned int len);
 
 #define HHI_VPU_CLKB_CNTL	0x83
 
@@ -2827,7 +2834,7 @@ void dim_VSYNC_WR_MPEG_REG_BITS(unsigned int addr,
  */
 /* Bit  9: 8, reg_mcdi_chkedgeedgesel.
  * final edge select mode, 0: original start edge, 1: lpf start edge,
- * 2: orignal start+end edge, 3: lpf start+end edge, default = 1
+ * 2: original start+end edge, 3: lpf start+end edge, default = 1
  */
 /* Bit  7: 3, reg_mcdi_chkedgesaddstgain.
  * distance gain for sad calc while getting edges, default = 4
@@ -2968,19 +2975,23 @@ void dim_VSYNC_WR_MPEG_REG_BITS(unsigned int addr,
 #define MCDI_GMV_RT                                ((0x2f14))
 /* Bit 31,    reserved */
 /* Bit 30:24, reg_mcdi_gmvmtnrt0
- * ratio 0 for motion senario, set 127 to 128, normalized 128 as '1',default =32
+ * ratio 0 for motion scenario, set 127 to 128, normalized 128 as '1',
+ * default =32
  */
 /* Bit 23,    reserved */
 /* Bit 22:16, reg_mcdi_gmvmtnrt1
- * ratio 1 for motion senario, set 127 to 128 normalized 128 as '1',default = 56
+ * ratio 1 for motion scenario, set 127 to 128 normalized 128 as '1',
+ * default = 56
  */
 /* Bit 15,    reserved */
 /* Bit 14: 8, reg_mcdi_gmvstlrt0
- * ratio 0 for still senario, set 127 to 128,normalized 128 as '1', default = 56
+ * ratio 0 for still scenario, set 127 to 128,normalized 128 as '1',
+ * default = 56
  */
 /* Bit  7,    reserved */
 /* Bit  6: 0, reg_mcdi_gmvstlrt1
- * ratio 1 for still senario, set 127 to 128, normalized 128 as '1',default = 80
+ * ratio 1 for still scenario, set 127 to 128, normalized 128 as '1',
+ * default = 80
  */
 #define MCDI_GMV_GAIN                              ((0x2f15))
 /* Bit 31:25, reg_mcdi_gmvzeromvlockrt0

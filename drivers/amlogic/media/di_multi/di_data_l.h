@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: (GPL-2.0+ OR MIT) */
 /*
  * drivers/amlogic/media/di_multi/di_data_l.h
  *
@@ -83,24 +84,26 @@
 	| VIDTYPE_COMPRESS		\
 	| VIDTYPE_MVC)
 
-enum eDI_MEM_M {
-	eDI_MEM_M_rev = 0,
-	eDI_MEM_M_cma = 1,
-	eDI_MEM_M_cma_all = 2,
-	eDI_MEM_M_codec_a = 3,
-	eDI_MEM_M_codec_b = 4,
-	eDI_MEM_M_max	/**/
+enum EDI_MEM_M {
+	EDI_MEM_M_REV = 0,
+	EDI_MEM_M_CMA = 1,
+	EDI_MEM_M_CMA_ALL = 2,
+	EDI_MEM_M_CODEC_A = 3,
+	EDI_MEM_M_CODEC_B = 4,
+	EDI_MEM_M_MAX	/**/
 };
+
 /* ************************************** */
 /* *************** cfg top ************** */
 /* ************************************** */
 /* also see: di_cfg_top_ctr*/
-enum eDI_CFG_TOP_IDX {
+
+enum EDI_CFG_TOP_IDX {
 	/* cfg for top */
 	EDI_CFG_BEGIN,
-	EDI_CFG_mem_flg,
-	EDI_CFG_first_bypass,
-	EDI_CFG_ref_2,
+	EDI_CFG_MEM_FLAG,
+	EDI_CFG_FIRST_BYPASS,
+	EDI_CFG_REF_2,
 	EDI_CFG_KEEP_CLEAR_AUTO,
 	EDI_CFG_END,
 
@@ -129,9 +132,10 @@ union di_cfg_tdata_u {
 		reserved:8;
 	} b;
 };
+
 struct di_cfg_ctr_s {
 	char *dts_name;
-	enum eDI_CFG_TOP_IDX id;
+	enum EDI_CFG_TOP_IDX id;
 	unsigned char	default_val;
 	unsigned char	flg;
 };
@@ -140,29 +144,29 @@ struct di_cfg_ctr_s {
 /* *************** cfg x *************** */
 /* ************************************** */
 /*also see di_cfgx_ctr*/
-enum eDI_CFGX_IDX {
+enum EDI_CFGX_IDX {
 	/* cfg channel x*/
-	eDI_CFGX_BEGIN,
-	eDI_CFGX_BYPASS_ALL,	/*bypass_all*/
-	eDI_CFGX_END,
+	EDI_CFGX_BEGIN,
+	EDI_CFGX_BYPASS_ALL,	/*bypass_all*/
+	EDI_CFGX_END,
 
 	/* debug cfg x */
-	eDI_DBG_CFGX_BEGIN,
-	eDI_DBG_CFGX_IDX_VFM_IN,
-	eDI_DBG_CFGX_IDX_VFM_OT,
-	eDI_DBG_CFGX_END,
+	EDI_DBG_CFGX_BEGIN,
+	EDI_DBG_CFGX_IDX_VFM_IN,
+	EDI_DBG_CFGX_IDX_VFM_OT,
+	EDI_DBG_CFGX_END,
 };
 
-#define K_DI_CFGX_NUB	(eDI_DBG_CFGX_END - eDI_CFGX_BEGIN + 1)
+#define K_DI_CFGX_NUB	(EDI_DBG_CFGX_END - EDI_CFGX_BEGIN + 1)
 
 struct di_cfgx_ctr_s {
 	char *name;
-	enum eDI_CFGX_IDX id;
+	enum EDI_CFGX_IDX id;
 	bool	default_val;
 };
 
 /* ****************************** */
-enum eDI_SUB_ID {
+enum EDI_SUB_ID {
 	DI_SUB_ID_S0,	/*DI_SUB_ID_MARST,*/
 	DI_SUB_ID_S1,
 	DI_SUB_ID_S2,
@@ -184,20 +188,20 @@ struct di_dbg_datax_s {
 };
 
 /*debug function*/
-enum eDI_DBG_F {
-	eDI_DBG_F_00,
-	eDI_DBG_F_01,
-	eDI_DBG_F_02,
-	eDI_DBG_F_03,
-	eDI_DBG_F_04,
-	eDI_DBG_F_05,
-	eDI_DBG_F_06,
-	eDI_DBG_F_07,
-	eDI_DBG_F_08,
+enum EDI_DBG_F {
+	EDI_DBG_F_00,
+	EDI_DBG_F_01,
+	EDI_DBG_F_02,
+	EDI_DBG_F_03,
+	EDI_DBG_F_04,
+	EDI_DBG_F_05,
+	EDI_DBG_F_06,
+	EDI_DBG_F_07,
+	EDI_DBG_F_08,
 };
 
 struct di_dbg_func_s {
-	enum eDI_DBG_F index;
+	enum EDI_DBG_F index;
 	void (*func)(unsigned int para);
 	char *name;
 	char *info;
@@ -228,14 +232,14 @@ struct reg_acc {
 /* time out */
 /**************************************/
 
-enum eDI_TOUT_CONTR {
+enum EDI_TOUT_CONTR {
 /*	eDI_TOUT_CONTR_INT,*/
-	eDI_TOUT_CONTR_EN,
-	eDI_TOUT_CONTR_FINISH,
-	eDI_TOUT_CONTR_CHECK,
+	EDI_TOUT_CONTR_EN,
+	EDI_TOUT_CONTR_FINISH,
+	EDI_TOUT_CONTR_CHECK,
 
-	eDI_TOUT_CONTR_CLEAR,
-	eDI_TOUT_CONTR_RESET,
+	EDI_TOUT_CONTR_CLEAR,
+	EDI_TOUT_CONTR_RESET,
 };
 
 struct di_time_out_s {
@@ -276,13 +280,13 @@ struct di_func_tab_s {
 #define K_DO_R_JUMP(a)	(K_DO_TABLE_R_B_FINISH |	\
 	(((a) << K_DO_TABLE_R_B_OTHER_SHIFT) & K_DO_TABLE_R_B_OTHER))
 
-enum eDO_TABLE_CMD {
-	eDO_TABLE_CMD_NONE,
-	eDO_TABLE_CMD_STOP,
-	eDO_TABLE_CMD_START,
-	eDO_TABLE_CMD_PAUSE,
-	eDO_TABLE_CMD_STEP,
-	eDO_TABLE_CMD_STEP_BACK,
+enum EDO_TABLE_CMD {
+	EDO_TABLE_CMD_NONE,
+	EDO_TABLE_CMD_STOP,
+	EDO_TABLE_CMD_START,
+	EDO_TABLE_CMD_PAUSE,
+	EDO_TABLE_CMD_STEP,
+	EDO_TABLE_CMD_STEP_BACK,
 };
 
 struct do_table_ops_s {
@@ -331,20 +335,20 @@ struct di_vinfo_s {
 /**************************************/
 /* PRE */
 /**************************************/
-enum eDI_PRE_ST {
-	eDI_PRE_ST_EXIT,
-	eDI_PRE_ST_IDLE,	/*swith to next channel?*/
-	eDI_PRE_ST_CHECK,
-	eDI_PRE_ST_SET,
-	eDI_PRE_ST_WAIT_INT,
-	eDI_PRE_ST_TIMEOUT,
+enum EDI_PRE_ST {
+	EDI_PRE_ST_EXIT,
+	EDI_PRE_ST_IDLE,	/*switch to next channel?*/
+	EDI_PRE_ST_CHECK,
+	EDI_PRE_ST_SET,
+	EDI_PRE_ST_WAIT_INT,
+	EDI_PRE_ST_TIMEOUT,
 };
 
-enum eDI_PRE_ST4 {	/*use this for co work with do table*/
-	eDI_PRE_ST4_EXIT,
-	eDI_PRE_ST4_IDLE,	/*swith to next channel?*/
-	eDI_PRE_ST4_CHECK,	/*check mode do_table and set*/
-	eDI_PRE_ST4_DO_TABLE,	/* do table statue;*/
+enum EDI_PRE_ST4 {	/*use this for co work with do table*/
+	EDI_PRE_ST4_EXIT,
+	EDI_PRE_ST4_IDLE,	/*switch to next channel?*/
+	EDI_PRE_ST4_CHECK,	/*check mode do_table and set*/
+	EDI_PRE_ST4_DO_TABLE,	/* do table statue;*/
 };
 
 struct di_pre_set_s {
@@ -359,12 +363,12 @@ struct di_pre_set_s {
 };
 
 struct di_hpre_s {
-	enum eDI_PRE_ST4 pre_st;
+	enum EDI_PRE_ST4 pre_st;
 	unsigned int curr_ch;
 	/*set when have vframe in; clear when int have get*/
 	bool hw_flg_busy_pre;
 /*	bool trig_unreg;*/	/*add for unreg flow;*/
-/*	enum eDI_SUB_ID hw_owner_pre;*/
+/*	enum EDI_SUB_ID hw_owner_pre;*/
 	bool flg_wait_int;
 	struct di_pre_stru_s *pres;
 	struct di_post_stru_s *psts;
@@ -378,7 +382,7 @@ struct di_hpre_s {
 	struct di_vinfo_s vinf_lst;
 	struct di_vinfo_s vinf_curr;
 
-	/* use do table to swith mode*/
+	/* use do table to switch mode*/
 	struct do_table_s sdt_mode;
 
 	unsigned int idle_cnt;	/*use this avoid repeat idle <->check*/
@@ -391,18 +395,18 @@ struct di_hpre_s {
 /**************************************/
 /* POST */
 /**************************************/
-enum eDI_PST_ST {
-	eDI_PST_ST_EXIT,
-	eDI_PST_ST_IDLE,	/*swith to next channel?*/
-	eDI_PST_ST_CHECK,
-	eDI_PST_ST_SET,
-	eDI_PST_ST_WAIT_INT,
-	eDI_PST_ST_TIMEOUT,
-	eDI_PST_ST_DONE,	/*use for bypass_all*/
+enum EDI_PST_ST {
+	EDI_PST_ST_EXIT,
+	EDI_PST_ST_IDLE,	/*switch to next channel?*/
+	EDI_PST_ST_CHECK,
+	EDI_PST_ST_SET,
+	EDI_PST_ST_WAIT_INT,
+	EDI_PST_ST_TIMEOUT,
+	EDI_PST_ST_DONE,	/*use for bypass_all*/
 };
 
 struct di_hpst_s {
-	enum eDI_PST_ST state;
+	enum EDI_PST_ST state;
 	unsigned int curr_ch;
 	/*set when have vframe in; clear when int have get*/
 	bool hw_flg_busy_post;
@@ -422,21 +426,21 @@ struct di_hpst_s {
 /* channel status */
 /**************************************/
 enum EDI_TOP_STATE {
-	eDI_TOP_STATE_NOPROB,
+	EDI_TOP_STATE_NOPROB,
 	EDI_TOP_STATE_IDLE,	/*idle not work*/
 	/* STEP1
 	 * till peek vframe and set irq;before this state, event reg finish
 	 */
-	eDI_TOP_STATE_REG_STEP1,
-	eDI_TOP_STATE_REG_STEP1_P1,	/*2019-05-21*/
-	eDI_TOP_STATE_REG_STEP2,	/*till alloc and ready*/
+	EDI_TOP_STATE_REG_STEP1,
+	EDI_TOP_STATE_REG_STEP1_P1,	/*2019-05-21*/
+	EDI_TOP_STATE_REG_STEP2,	/*till alloc and ready*/
 	EDI_TOP_STATE_READY,		/*can do DI*/
-	eDI_TOP_STATE_BYPASS,		/*complet bypass*/
-	eDI_TOP_STATE_UNREG_STEP1,	/*till pre/post is finish;*/
+	EDI_TOP_STATE_BYPASS,		/*complet bypass*/
+	EDI_TOP_STATE_UNREG_STEP1,	/*till pre/post is finish;*/
 	/* do unreg and to IDLE.
 	 * no need to wait cma release after  this unreg event finish
 	 */
-	eDI_TOP_STATE_UNREG_STEP2,
+	EDI_TOP_STATE_UNREG_STEP2,
 
 };
 
@@ -453,14 +457,12 @@ struct di_task {
 	unsigned int wakeup;
 	unsigned int delay;
 	bool exit;
-#if 1	/*not use cmd*/
-
+	/*not use cmd*/
 	/*local event*/
 	struct kfifo	fifo_cmd;
-	spinlock_t     lock_cmd;
+	spinlock_t     lock_cmd; /*spinlock*/
 	bool flg_cmd;
 	unsigned int err_cmd_cnt;
-#endif
 };
 
 #define MAX_KFIFO_L_CMD_NUB	32
@@ -478,12 +480,12 @@ union   DI_L_CMD_BITS {
 #define LCMD1(id, ch)	((id) | ((ch) << 8))
 #define LCMD2(id, ch, p2)	((id) | ((ch) << 8) | ((p2) << 16))
 
-enum eCMD_LOCAL {
-	eCMD_NONE,
-	eCMD_REG,
-	eCMD_UNREG,
-	eCMD_READY,
-	eCMD_CHG,
+enum ECMD_LOCAL {
+	ECMD_NONE,
+	ECMD_REG,
+	ECMD_UNREG,
+	ECMD_READY,
+	ECMD_CHG,
 	ECMD_RL_KEEP,
 	NR_FINISH,
 };
@@ -507,10 +509,10 @@ enum QUE_TYPE {	/*mast start from 0 */
 };
 
 /*#define QUE_NUB  (5)*/
-enum eDI_BUF_TYPE {
-	eDI_BUF_T_IN = 1,	/*VFRAME_TYPE_IN*/
-	eDI_BUF_T_LOCAL,	/*VFRAME_TYPE_LOCAL*/
-	eDI_BUF_T_POST,		/*VFRAME_TYPE_POST*/
+enum EDI_BUF_TYPE {
+	EDI_BUF_T_IN = 1,	/*VFRAME_TYPE_IN*/
+	EDI_BUF_T_LOCAL,	/*VFRAME_TYPE_LOCAL*/
+	EDI_BUF_T_POST,		/*VFRAME_TYPE_POST*/
 };
 
 #define MAX_FIFO_SIZE	(32)
@@ -521,15 +523,15 @@ enum eDI_BUF_TYPE {
  * also see:di_sum_name_tab
  **************************************/
 
-enum eDI_SUM {
-	eDI_SUM_O_PEEK_CNT,	/*video_peek_cnt*/
-	eDI_SUM_REG_UNREG_CNT,	/*di_reg_unreg_cnt*/
-	eDI_SUM_NUB,
+enum EDI_SUM {
+	EDI_SUM_O_PEEK_CNT,	/*video_peek_cnt*/
+	EDI_SUM_REG_UNREG_CNT,	/*di_reg_unreg_cnt*/
+	EDI_SUM_NUB,
 };
 
 struct di_sum_s {
 	char *name;
-	enum eDI_SUM	index;
+	enum EDI_SUM	index;
 	unsigned int	default_val;
 };
 
@@ -537,229 +539,229 @@ struct di_sum_s {
  *
  * module para
  *	int
- *	eDI_MP_SUB_DI_B
- *	eDI_MP_SUB_NR_B
- *	eDI_MP_SUB_PD_B
- *	eDI_MP_SUB_MTN_B
- *	eDI_MP_SUB_3D_B
+ *	EDI_MP_SUB_DI_B
+ *	EDI_MP_SUB_NR_B
+ *	EDI_MP_SUB_PD_B
+ *	EDI_MP_SUB_MTN_B
+ *	EDI_MP_SUB_3D_B
  **************************************/
-enum eDI_MP_UI_T {
+enum EDI_MP_UI_T {
 	/*keep same order with di_mp_ui_top*/
-	eDI_MP_UI_T_BEGIN,
+	EDI_MP_UI_T_BEGIN,
 	/**************************************/
-	eDI_MP_SUB_DI_B,
+	EDI_MP_SUB_DI_B,
 
-	eDI_MP_force_prog,	/*force_prog bool*/
+	edi_mp_force_prog,	/*force_prog bool*/
 	edi_mp_combing_fix_en,	/*combing_fix_en bool*/
-	eDI_MP_cur_lev,		/*cur_lev*/
-	eDI_MP_pps_dstw,	/*pps_dstw*/
-	eDI_MP_pps_dsth,	/*pps_dsth*/
-	eDI_MP_pps_en,		/*pps_en*/
-	eDI_MP_pps_position,	/*pps_position*/
-	eDI_MP_pre_enable_mask,	/*pre_enable_mask*/
-	eDI_MP_post_refresh,	/*post_refresh*/
-	eDI_MP_nrds_en,		/*nrds_en*/
-	eDI_MP_bypass_3d,	/*bypass_3d*/
-	eDI_MP_bypass_trick_mode,	/*bypass_trick_mode*/
-	eDI_MP_invert_top_bot,	/*invert_top_bot */
-	eDI_MP_skip_top_bot,
-	eDI_MP_force_width,
-	eDI_MP_force_height,
-	eDI_MP_prog_proc_config,
-	eDI_MP_start_frame_drop_count,
-	eDI_MP_same_field_top_count,	/*long?*/
-	eDI_MP_same_field_bot_count,	/*long?*/
-	eDI_MP_vpp_3d_mode,
-	eDI_MP_force_recovery_count,
-	eDI_MP_pre_process_time,	/*no use?*/
-	eDI_MP_bypass_post,
-	eDI_MP_post_wr_en,
-	eDI_MP_post_wr_support,
-	eDI_MP_bypass_post_state,
-	eDI_MP_use_2_interlace_buff,
-	eDI_MP_debug_blend_mode,
-	eDI_MP_nr10bit_support,
-	eDI_MP_di_stop_reg_flag,
-	eDI_MP_mcpre_en,
-	eDI_MP_check_start_drop_prog,
-	eDI_MP_overturn,			/*? in init*/
-	eDI_MP_full_422_pack,
-	eDI_MP_cma_print,
-	eDI_MP_pulldown_enable,
-	eDI_MP_di_force_bit_mode,
-	eDI_MP_calc_mcinfo_en,
-	eDI_MP_colcfd_thr,
-	eDI_MP_post_blend,
-	eDI_MP_post_ei,
-	eDI_MP_post_cnt,
-	eDI_MP_di_log_flag,
-	eDI_MP_di_debug_flag,
-	eDI_MP_buf_state_log_threshold,
-	eDI_MP_di_vscale_skip_enable,
-	eDI_MP_di_vscale_skip_count,
-	eDI_MP_di_vscale_skip_count_real,
-	eDI_MP_det3d_en,
-	eDI_MP_post_hold_line,
-	eDI_MP_post_urgent,
-	eDI_MP_di_printk_flag,
-	eDI_MP_force_recovery,
-/*	eDI_MP_debug_blend_mode,*/
-	eDI_MP_di_dbg_mask,
-	eDI_MP_nr_done_check_cnt,
-	eDI_MP_pre_hsc_down_en,
-	eDI_MP_pre_hsc_down_width,
-	eDI_MP_show_nrwr,
+	edi_mp_cur_lev,		/*cur_lev*/
+	edi_mp_pps_dstw,	/*pps_dstw*/
+	edi_mp_pps_dsth,	/*pps_dsth*/
+	edi_mp_pps_en,		/*pps_en*/
+	edi_mp_pps_position,	/*pps_position*/
+	edi_mp_pre_enable_mask,	/*pre_enable_mask*/
+	edi_mp_post_refresh,	/*post_refresh*/
+	edi_mp_nrds_en,		/*nrds_en*/
+	edi_mp_bypass_3d,	/*bypass_3d*/
+	edi_mp_bypass_trick_mode,	/*bypass_trick_mode*/
+	edi_mp_invert_top_bot,	/*invert_top_bot */
+	edi_mp_skip_top_bot,
+	edi_mp_force_width,
+	edi_mp_force_height,
+	edi_mp_prog_proc_config,
+	edi_mp_start_frame_drop_count,
+	edi_mp_same_field_top_count,	/*long?*/
+	edi_mp_same_field_bot_count,	/*long?*/
+	edi_mp_vpp_3d_mode,
+	edi_mp_force_recovery_count,
+	edi_mp_pre_process_time,	/*no use?*/
+	edi_mp_bypass_post,
+	edi_mp_post_wr_en,
+	edi_mp_post_wr_support,
+	edi_mp_bypass_post_state,
+	edi_mp_use_2_interlace_buff,
+	edi_mp_debug_blend_mode,
+	edi_mp_nr10bit_support,
+	edi_mp_di_stop_reg_flag,
+	edi_mp_mcpre_en,
+	edi_mp_check_start_drop, /* eDI_MP_check_start_drop_prog */
+	edi_mp_overturn,			/*? in init*/
+	edi_mp_full_422_pack,
+	edi_mp_cma_print,
+	edi_mp_pulldown_enable,
+	edi_mp_di_force_bit_mode,
+	edi_mp_calc_mcinfo_en,
+	edi_mp_colcfd_thr,
+	edi_mp_post_blend,
+	edi_mp_post_ei,
+	edi_mp_post_cnt,
+	edi_mp_di_log_flag,
+	edi_mp_di_debug_flag,
+	edi_mp_buf_state_log_threshold,
+	edi_mp_di_vscale_skip_enable,
+	edi_mp_di_vscale_skip_count,
+	edi_mp_di_vscale_skip_real, /* eDI_MP_di_vscale_skip_count_real */
+	edi_mp_det3d_en,
+	edi_mp_post_hold_line,
+	edi_mp_post_urgent,
+	edi_mp_di_printk_flag,
+	edi_mp_force_recovery,
+/*	edi_mp_debug_blend_mode,*/
+	edi_mp_di_dbg_mask,
+	edi_mp_nr_done_check_cnt,
+	edi_mp_pre_hsc_down_en,
+	edi_mp_pre_hsc_down_width,
+	edi_mp_show_nrwr,
 	/********deinterlace_hw.c*********/
-	eDI_MP_pq_load_dbg,
-	eDI_MP_lmv_lock_win_en,
-	eDI_MP_lmv_dist,
-	eDI_MP_pr_mcinfo_cnt,
-	eDI_MP_offset_lmv,
-	eDI_MP_post_ctrl,
-	eDI_MP_if2_disable,
-	eDI_MP_pre_flag,
-	eDI_MP_pre_mif_gate,
-	eDI_MP_pre_urgent,
-	eDI_MP_pre_hold_line,
-	eDI_MP_pre_ctrl,
-	eDI_MP_line_num_post_frst,
-	eDI_MP_line_num_pre_frst,
-	eDI_MP_pd22_flg_calc_en,
-	eDI_MP_mcen_mode,
-	eDI_MP_mcuv_en,
-	eDI_MP_mcdebug_mode,
-	eDI_MP_pldn_ctrl_rflsh,
+	edi_mp_pq_load_dbg,
+	edi_mp_lmv_lock_win_en,
+	edi_mp_lmv_dist,
+	edi_mp_pr_mcinfo_cnt,
+	edi_mp_offset_lmv,
+	edi_mp_post_ctrl,
+	edi_mp_if2_disable,
+	edi_mp_pre, /* eDI_MP_pre_flag */
+	edi_mp_pre_mif_gate,
+	edi_mp_pre_urgent,
+	edi_mp_pre_hold_line,
+	edi_mp_pre_ctrl,
+	edi_mp_line_num_post_frst,
+	edi_mp_line_num_pre_frst,
+	edi_mp_pd22_flg_calc_en,
+	edi_mp_mcen_mode,
+	edi_mp_mcuv_en,
+	edi_mp_mcdebug_mode,
+	edi_mp_pldn_ctrl_rflsh,
 
-	eDI_MP_SUB_DI_E,
+	EDI_MP_SUB_DI_E,
 	/**************************************/
-	eDI_MP_SUB_NR_B,
-	eDI_MP_dnr_en,
-	eDI_MP_nr2_en,
-	eDI_MP_cue_en,
-	eDI_MP_invert_cue_phase,
-	eDI_MP_cue_pr_cnt,
-	eDI_MP_cue_glb_mot_check_en,
-	eDI_MP_glb_fieldck_en,
-	eDI_MP_dnr_pr,
-	eDI_MP_dnr_dm_en,
-	eDI_MP_SUB_NR_E,
+	EDI_MP_SUB_NR_B,
+	edi_mp_dnr_en,
+	edi_mp_nr2_en,
+	edi_mp_cue_en,
+	edi_mp_invert_cue_phase,
+	edi_mp_cue_pr_cnt,
+	edi_mp_cue_glb_mot_check_en,
+	edi_mp_glb_fieldck_en,
+	edi_mp_dnr_pr,
+	edi_mp_dnr_dm_en,
+	EDI_MP_SUB_NR_E,
 	/**************************************/
-	eDI_MP_SUB_PD_B,
-	eDI_MP_flm22_ratio,
-	eDI_MP_pldn_cmb0,
-	eDI_MP_pldn_cmb1,
-	eDI_MP_flm22_sure_num,
-	eDI_MP_flm22_glbpxlnum_rat,
-	eDI_MP_flag_di_weave,
-	eDI_MP_flm22_glbpxl_maxrow,
-	eDI_MP_flm22_glbpxl_minrow,
-	eDI_MP_cmb_3point_rnum,
-	eDI_MP_cmb_3point_rrat,
+	EDI_MP_SUB_PD_B,
+	edi_mp_flm22_ratio,
+	edi_mp_pldn_cmb0,
+	edi_mp_pldn_cmb1,
+	edi_mp_flm22_sure_num,
+	edi_mp_flm22_glbpxlnum_rat,
+	edi_mp_flag_di_weave,
+	edi_mp_flm22_glbpxl_maxrow,
+	edi_mp_flm22_glbpxl_minrow,
+	edi_mp_cmb_3point_rnum,
+	edi_mp_cmb_3point_rrat,
 	/******film_fw1.c**/
-	eDI_MP_pr_pd,
-	eDI_MP_prt_flg,
-	eDI_MP_flmxx_maybe_num,
-	eDI_MP_flm32_mim_frms,
-	eDI_MP_flm22_dif01a_flag,
-	eDI_MP_flm22_mim_frms,
-	eDI_MP_flm22_mim_smfrms,
-	eDI_MP_flm32_f2fdif_min0,
-	eDI_MP_flm32_f2fdif_min1,
-	eDI_MP_flm32_chk1_rtn,
-	eDI_MP_flm32_ck13_rtn,
-	eDI_MP_flm32_chk2_rtn,
-	eDI_MP_flm32_chk3_rtn,
-	eDI_MP_flm32_dif02_ratio,
-	eDI_MP_flm22_chk20_sml,
-	eDI_MP_flm22_chk21_sml,
-	eDI_MP_flm22_chk21_sm2,
-	eDI_MP_flm22_lavg_sft,
-	eDI_MP_flm22_lavg_lg,
-	eDI_MP_flm22_stl_sft,
-	eDI_MP_flm22_chk5_avg,
-	eDI_MP_flm22_chk6_max,
-	eDI_MP_flm22_anti_chk1,
-	eDI_MP_flm22_anti_chk3,
-	eDI_MP_flm22_anti_chk4,
-	eDI_MP_flm22_anti_ck140,
-	eDI_MP_flm22_anti_ck141,
-	eDI_MP_flm22_frmdif_max,
-	eDI_MP_flm22_flddif_max,
-	eDI_MP_flm22_minus_cntmax,
-	eDI_MP_flagdif01chk,
-	eDI_MP_dif01_ratio,
+	edi_mp_pr_pd,
+	edi_mp_prt_flg,
+	edi_mp_flmxx_maybe_num,
+	edi_mp_flm32_mim_frms,
+	edi_mp_flm22_dif01a_flag,
+	edi_mp_flm22_mim_frms,
+	edi_mp_flm22_mim_smfrms,
+	edi_mp_flm32_f2fdif_min0,
+	edi_mp_flm32_f2fdif_min1,
+	edi_mp_flm32_chk1_rtn,
+	edi_mp_flm32_ck13_rtn,
+	edi_mp_flm32_chk2_rtn,
+	edi_mp_flm32_chk3_rtn,
+	edi_mp_flm32_dif02_ratio,
+	edi_mp_flm22_chk20_sml,
+	edi_mp_flm22_chk21_sml,
+	edi_mp_flm22_chk21_sm2,
+	edi_mp_flm22_lavg_sft,
+	edi_mp_flm22_lavg_lg,
+	edi_mp_flm22_stl_sft,
+	edi_mp_flm22_chk5_avg,
+	edi_mp_flm22_chk6_max,
+	edi_mp_flm22_anti_chk1,
+	edi_mp_flm22_anti_chk3,
+	edi_mp_flm22_anti_chk4,
+	edi_mp_flm22_anti_ck140,
+	edi_mp_flm22_anti_ck141,
+	edi_mp_flm22_frmdif_max,
+	edi_mp_flm22_flddif_max,
+	edi_mp_flm22_minus_cntmax,
+	edi_mp_flagdif01chk,
+	edi_mp_dif01_ratio,
 	/*******vof_soft_top*****/
-	eDI_MP_cmb32_blw_wnd,
-	eDI_MP_cmb32_wnd_ext,
-	eDI_MP_cmb32_wnd_tol,
-	eDI_MP_cmb32_frm_nocmb,
-	eDI_MP_cmb32_min02_sft,
-	eDI_MP_cmb32_cmb_tol,
-	eDI_MP_cmb32_avg_dff,
-	eDI_MP_cmb32_smfrm_num,
-	eDI_MP_cmb32_nocmb_num,
-	eDI_MP_cmb22_gcmb_rnum,
-	eDI_MP_flmxx_cal_lcmb,
-	eDI_MP_flm2224_stl_sft,
-	eDI_MP_SUB_PD_E,
+	edi_mp_cmb32_blw_wnd,
+	edi_mp_cmb32_wnd_ext,
+	edi_mp_cmb32_wnd_tol,
+	edi_mp_cmb32_frm_nocmb,
+	edi_mp_cmb32_min02_sft,
+	edi_mp_cmb32_cmb_tol,
+	edi_mp_cmb32_avg_dff,
+	edi_mp_cmb32_smfrm_num,
+	edi_mp_cmb32_nocmb_num,
+	edi_mp_cmb22_gcmb_rnum,
+	edi_mp_flmxx_cal_lcmb,
+	edi_mp_flm2224_stl_sft,
+	EDI_MP_SUB_PD_E,
 	/**************************************/
-	eDI_MP_SUB_MTN_B,
-	eDI_MP_force_lev,
-	eDI_MP_dejaggy_flag,
-	eDI_MP_dejaggy_enable,
-	eDI_MP_cmb_adpset_cnt,
-	eDI_MP_cmb_num_rat_ctl4,
-	eDI_MP_cmb_rat_ctl4_minthd,
-	eDI_MP_small_local_mtn,
-	eDI_MP_di_debug_readreg,
-	eDI_MP_SUB_MTN_E,
+	EDI_MP_SUB_MTN_B,
+	edi_mp_force_lev,
+	edi_mp_dejaggy_flag,
+	edi_mp_dejaggy_enable,
+	edi_mp_cmb_adpset_cnt,
+	edi_mp_cmb_num_rat_ctl4,
+	edi_mp_cmb_rat_ctl4_minthd,
+	edi_mp_small_local_mtn,
+	edi_mp_di_debug_readreg,
+	EDI_MP_SUB_MTN_E,
 	/**************************************/
-	eDI_MP_SUB_3D_B,
-	eDI_MP_chessbd_vrate,
-	eDI_MP_det3d_debug,
+	EDI_MP_SUB_3D_B,
+	edi_mp_chessbd_vrate,
+	edi_mp_det3d_debug,
 
-	eDI_MP_SUB_3D_E,
+	EDI_MP_SUB_3D_E,
 	/**************************************/
-	eDI_MP_UI_T_END,
+	EDI_MP_UI_T_END,
 };
 
-#define K_DI_MP_UIT_NUB (eDI_MP_UI_T_END - eDI_MP_UI_T_BEGIN + 1)
+#define K_DI_MP_UIT_NUB (EDI_MP_UI_T_END - EDI_MP_UI_T_BEGIN + 1)
 
 struct di_mp_uit_s {
 	char *name;
-	enum eDI_MP_UI_T	id;
+	enum EDI_MP_UI_T	id;
 	int	default_val;
 };
 
 /*also see: di_mpx*/
-enum eDI_MP_UIX_T {
-	eDI_MP_UIX_BEGIN,
-	eDI_MP_UIX_RUN_FLG, /*run_flag*/
-	eDI_MP_UIX_END,
+enum EDI_MP_UIX_T {
+	EDI_MP_UIX_BEGIN,
+	EDI_MP_UIX_RUN_FLG, /*run_flag*/
+	EDI_MP_UIX_END,
 };
 
-#define K_DI_MP_UIX_NUB (eDI_MP_UIX_END - eDI_MP_UIX_BEGIN + 1)
+#define K_DI_MP_UIX_NUB (EDI_MP_UIX_END - EDI_MP_UIX_BEGIN + 1)
 
 struct di_mp_uix_s {
 	char *name;
-	enum eDI_MP_UIX_T	id;
+	enum EDI_MP_UIX_T	id;
 	unsigned int	default_val;
 };
 
 /**************************************/
 /* DI WORKING MODE */
 /**************************************/
-enum eDI_WORK_MODE {
-	eDI_WORK_MODE_NONE,
-	eDI_WORK_MODE_bypass_complet,
-	eDI_WORK_MODE_bypass_all,	/*dim_is_bypass*/
-	eDI_WORK_MODE_bypass_pre,
-	eDI_WORK_MODE_bypass_post,
-	eDI_WORK_MODE_i,
-	eDI_WORK_MODE_p_as_i,
-	eDI_WORK_MODE_p_as_p,
-	eDI_WORK_MODE_p_use_ibuf,
-	eDI_WORK_MODE_all,
+enum EDI_WORK_MODE {
+	EDI_WORK_MODE_NONE,
+	EDI_WORK_MODE_BYPASS_COMPLET,
+	EDI_WORK_MODE_BYPASS_ALL,	/*dim_is_bypass*/
+	EDI_WORK_MODE_BYPASS_PRE,
+	EDI_WORK_MODE_BYPASS_POST,
+	EDI_WORK_MODE_I,
+	EDI_WORK_MODE_P_AS_I,
+	EDI_WORK_MODE_P_AS_P,
+	EDI_WORK_MODE_P_USE_IBUF,
+	EDI_WORK_MODE_ALL,
 
 };
 
@@ -800,7 +802,7 @@ struct di_ores_s {
 	/* ********** */
 };
 
-enum eDI_CMA_ST {
+enum EDI_CMA_ST {
 	EDI_CMA_ST_IDL,
 	EDI_CMA_ST_ALLOC,	/*do*/
 	EDI_CMA_ST_READY,
@@ -895,7 +897,7 @@ struct di_ch_s {
 	bool bypass_state;
 
 	/*video_peek_cnt*/
-	unsigned int sum[eDI_SUM_NUB + 1];
+	unsigned int sum[EDI_SUM_NUB + 1];
 	unsigned int sum_get;
 	unsigned int sum_put;
 	struct dim_sum_s	sumx;
@@ -934,7 +936,7 @@ struct di_mng_s {
 	/*workqueue*/
 	struct dim_wq_s		wq;
 
-	/*use enum eDI_CMA_ST*/
+	/*use enum EDI_CMA_ST*/
 	atomic_t cma_mem_state[DI_CHANNEL_NUB];
 	/*1:alloc cma, 0:release cma set by mng, read by work que*/
 	unsigned char cma_reg_cmd[DI_CHANNEL_NUB];
@@ -970,36 +972,36 @@ struct di_mng_s {
 #define K_DI_SIZE_REG_LOG	(1000)
 #define K_DI_LAB_MOD		(0xf001)
 /*also see: dbg_mode_name*/
-enum eDI_DBG_MOD {
-	eDI_DBG_MOD_REGB,	/* 0 */
-	eDI_DBG_MOD_REGE,	/* 1 */
-	eDI_DBG_MOD_UNREGB,	/* 2 */
-	eDI_DBG_MOD_UNREGE,	/* 3 */
-	eDI_DBG_MOD_PRE_SETB,	/* 4 */
-	eDI_DBG_MOD_PRE_SETE,	/* 5 */
-	eDI_DBG_MOD_PRE_DONEB,	/* 6 */
-	eDI_DBG_MOD_PRE_DONEE,	/* 7 */
-	eDI_DBG_MOD_POST_SETB,	/* 8 */
-	eDI_DBG_MOD_POST_SETE,	/* 9 */
-	eDI_DBG_MOD_POST_IRQB,	/* a */
-	eDI_DBG_MOD_POST_IRQE,	/* b */
-	eDI_DBG_MOD_POST_DB,	/* c */
-	eDI_DBG_MOD_POST_DE,	/* d */
-	eDI_DBG_MOD_POST_CH_CHG,	/* e */
-	eDI_DBG_MOD_POST_TIMEOUT,	/* F */
+enum EDI_DBG_MOD {
+	EDI_DBG_MOD_REGB,	/* 0 */
+	EDI_DBG_MOD_REGE,	/* 1 */
+	EDI_DBG_MOD_UNREGB,	/* 2 */
+	EDI_DBG_MOD_UNREGE,	/* 3 */
+	EDI_DBG_MOD_PRE_SETB,	/* 4 */
+	EDI_DBG_MOD_PRE_SETE,	/* 5 */
+	EDI_DBG_MOD_PRE_DONEB,	/* 6 */
+	EDI_DBG_MOD_PRE_DONEE,	/* 7 */
+	EDI_DBG_MOD_POST_SETB,	/* 8 */
+	EDI_DBG_MOD_POST_SETE,	/* 9 */
+	EDI_DBG_MOD_POST_IRQB,	/* a */
+	EDI_DBG_MOD_POST_IRQE,	/* b */
+	EDI_DBG_MOD_POST_DB,	/* c */
+	EDI_DBG_MOD_POST_DE,	/* d */
+	EDI_DBG_MOD_POST_CH_CHG,	/* e */
+	EDI_DBG_MOD_POST_TIMEOUT,	/* F */
 
-	eDI_DBG_MOD_RVB,	/*10 */
-	eDI_DBG_MOD_RVE,	/*11 */
+	EDI_DBG_MOD_RVB,	/*10 */
+	EDI_DBG_MOD_RVE,	/*11 */
 
-	eDI_DBG_MOD_POST_RESIZE, /*0x12 */
-	eDI_DBG_MOD_END,
+	EDI_DBG_MOD_POST_RESIZE, /*0x12 */
+	EDI_DBG_MOD_END,
 
 };
 
-enum eDI_LOG_TYPE {
-	eDI_LOG_TYPE_ALL = 1,
-	eDI_LOG_TYPE_REG,
-	eDI_LOG_TYPE_MOD,
+enum EDI_LOG_TYPE {
+	EDI_LOG_TYPE_ALL = 1,
+	EDI_LOG_TYPE_REG,
+	EDI_LOG_TYPE_MOD,
 };
 
 struct di_dbg_reg {
@@ -1047,7 +1049,7 @@ struct di_data_l_s {
 	union di_cfg_tdata_u cfg_en[K_DI_CFG_NUB];
 	unsigned int cfg_sel;
 	unsigned int cfg_dbg_mode; /*val or item*/
-	int mp_uit[K_DI_MP_UIT_NUB];	/*eDI_MP_UI_T*/
+	int mp_uit[K_DI_MP_UIT_NUB];	/*EDI_MP_UI_T*/
 	struct di_ch_s ch_data[DI_CHANNEL_NUB];
 	int plane[DI_CHANNEL_NUB];	/*use for debugfs*/
 
@@ -1099,13 +1101,13 @@ extern unsigned int di_dbg;
 			break;			\
 		if ((di_dbg & DBG_M_O_ALL) ||	\
 		    (di_dbg & (mark))) {		\
-			pr_info("dim:"fmt, ##args); \
+			pr_info("dim:" fmt, ##args); \
 		}				\
 	} while (0)
 
-#define PR_ERR(fmt, args ...)		pr_err("dim:err:"fmt, ## args)
-#define PR_WARN(fmt, args ...)		pr_err("dim:warn:"fmt, ## args)
-#define PR_INF(fmt, args ...)		pr_info("dim:"fmt, ## args)
+#define PR_ERR(fmt, args ...)		pr_err("dim:err:" fmt, ##args)
+#define PR_WARN(fmt, args ...)		pr_err("dim:warn:" fmt, ##args)
+#define PR_INF(fmt, args ...)		pr_info("dim:" fmt, ##args)
 
 #define dbg_dt(fmt, args ...)		dbg_m(DBG_M_DT, fmt, ##args)
 #define dbg_reg(fmt, args ...)		dbg_m(DBG_M_REG, fmt, ##args)
@@ -1123,9 +1125,9 @@ extern unsigned int di_dbg;
 #define dbg_wq(fmt, args ...)		dbg_m(DBG_M_WQ, fmt, ##args)
 #define dbg_pl(fmt, args ...)		dbg_m(DBG_M_PL, fmt, ##args)
 
-char *di_cfgx_get_name(enum eDI_CFGX_IDX idx);
-bool di_cfgx_get(unsigned int ch, enum eDI_CFGX_IDX idx);
-void di_cfgx_set(unsigned int ch, enum eDI_CFGX_IDX idx, bool en);
+char *di_cfgx_get_name(enum EDI_CFGX_IDX idx);
+bool di_cfgx_get(unsigned int ch, enum EDI_CFGX_IDX idx);
+void di_cfgx_set(unsigned int ch, enum EDI_CFGX_IDX idx, bool en);
 
 static inline struct di_data_l_s *get_datal(void)
 {
@@ -1141,7 +1143,6 @@ static inline struct di_mng_s *get_bufmng(void)
 {
 	return &get_datal()->mng;
 }
-
 
 static inline struct di_hpre_s  *get_hw_pre(void)
 {
@@ -1250,7 +1251,7 @@ static inline struct di_post_stru_s *get_post_stru(unsigned int ch)
 	return &get_orsc(ch)->di_post_stru;
 }
 
-static inline enum eDI_SUB_ID get_current_channel(void)
+static inline enum EDI_SUB_ID get_current_channel(void)
 {
 	return get_datal()->dbg_data.cur_channel;
 }
@@ -1321,7 +1322,7 @@ static inline bool get_flag_trig_unreg(unsigned char ch)
 	return get_bufmng()->trig_unreg[ch];
 }
 
-#if 0
+#ifdef MARK_HIS
 static inline unsigned int get_reg_flag_all(void)
 {
 	return get_bufmng()->reg_flg_ch;
@@ -1354,19 +1355,19 @@ static inline void set_or_act_flag(bool on)
 }
 
 /*sum*/
-static inline void di_sum_set_l(unsigned int ch, enum eDI_SUM id,
+static inline void di_sum_set_l(unsigned int ch, enum EDI_SUM id,
 				unsigned int val)
 {
 	get_chdata(ch)->sum[id] = val;
 }
 
-static inline unsigned int di_sum_inc_l(unsigned int ch, enum eDI_SUM id)
+static inline unsigned int di_sum_inc_l(unsigned int ch, enum EDI_SUM id)
 {
 	get_chdata(ch)->sum[id]++;
 	return get_chdata(ch)->sum[id];
 }
 
-static inline unsigned int di_sum_get_l(unsigned int ch, enum eDI_SUM id)
+static inline unsigned int di_sum_get_l(unsigned int ch, enum EDI_SUM id)
 {
 	return get_chdata(ch)->sum[id];
 }
@@ -1406,7 +1407,9 @@ static inline struct dim_sum_s *get_sumx(unsigned int ch)
 {
 	return &get_datal()->ch_data[ch].sumx;
 }
+
 /*bypass_state*/
+
 static inline bool di_bypass_state_get(unsigned int ch)
 {
 	return get_chdata(ch)->bypass_state;
@@ -1417,7 +1420,7 @@ static inline void di_bypass_state_set(unsigned int ch, bool on)
 	get_chdata(ch)->bypass_state =  on;
 }
 
-#if 0
+#ifdef MARK_HIS
 static inline struct semaphore *get_sema(void)
 {
 	return &get_dim_de_devp()->sema;
@@ -1453,7 +1456,7 @@ static inline const struct mtn_op_s *get_ops_mtn(void)
 	return get_datal()->ops_mtn;
 }
 
-#if 0
+#ifdef MARK_HIS
 static inline struct di_ext_ops *get_ops_api(void)
 {
 	return get_datal()->di_api;
@@ -1464,23 +1467,23 @@ static inline struct di_ext_ops *get_ops_api(void)
  *	module para for di
  *****************************************/
 
-static inline int dimp_get(enum eDI_MP_UI_T idx)
+static inline int dimp_get(enum EDI_MP_UI_T idx)
 {
 	return get_datal()->mp_uit[idx];
 }
 
-static inline void dimp_set(enum eDI_MP_UI_T idx, int val)
+static inline void dimp_set(enum EDI_MP_UI_T idx, int val)
 {
 	get_datal()->mp_uit[idx] = val;
 }
 
-static inline int dimp_inc(enum eDI_MP_UI_T idx)
+static inline int dimp_inc(enum EDI_MP_UI_T idx)
 {
 	get_datal()->mp_uit[idx]++;
 	return get_datal()->mp_uit[idx];
 }
 
-static inline int dimp_dec(enum eDI_MP_UI_T idx)
+static inline int dimp_dec(enum EDI_MP_UI_T idx)
 {
 	get_datal()->mp_uit[idx]--;
 	return get_datal()->mp_uit[idx];
@@ -1520,6 +1523,6 @@ static inline unsigned int di_get_mem_size(unsigned int ch)
 }
 
 void di_tout_int(struct di_time_out_s *tout, unsigned int thd);
-bool di_tout_contr(enum eDI_TOUT_CONTR cmd, struct di_time_out_s *tout);
+bool di_tout_contr(enum EDI_TOUT_CONTR cmd, struct di_time_out_s *tout);
 
 #endif	/*__DI_DATA_L_H__*/

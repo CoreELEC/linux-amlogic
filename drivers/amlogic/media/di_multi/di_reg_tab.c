@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
  * drivers/amlogic/media/di_multi/di_reg_tab.c
  *
@@ -104,7 +105,7 @@ static unsigned int get_reg_bits(unsigned int val, unsigned int bstart,
 	       (((1L << bw) - 1) << bstart)) >> (bstart));
 }
 
-static void dbg_reg_tab(struct seq_file *s, const struct reg_t *pRegTab)
+static void dbg_reg_tab(struct seq_file *s, const struct reg_t *pregtab)
 {
 	struct reg_t creg;
 	int i;
@@ -115,11 +116,11 @@ static void dbg_reg_tab(struct seq_file *s, const struct reg_t *pRegTab)
 
 	i = 0;
 	l_add = 0;
-	creg = pRegTab[i];
+	creg = pregtab[i];
 
 	do {
 		if (creg.add != l_add) {
-			val32 = Rd(creg.add);		/*RD*/
+			val32 = RD(creg.add);		/*RD*/
 			seq_printf(s, "add:0x%x = 0x%08x, %s\n",
 				   creg.add, val32, creg.name);
 			l_add = creg.add;
@@ -139,7 +140,7 @@ static void dbg_reg_tab(struct seq_file *s, const struct reg_t *pRegTab)
 			   creg.bit, creg.wid, val, val, bname, info);
 
 		i++;
-		creg = pRegTab[i];
+		creg = pregtab[i];
 		if (i > TABLE_LEN_MAX) {
 			pr_info("warn: too long, stop\n");
 			break;
@@ -191,10 +192,10 @@ static unsigned int dim_reg_read(unsigned int addr)
 }
 
 static const struct reg_acc di_pre_regset = {
-	.wr = dim_DI_Wr,
+	.wr = DIM_DI_WR,
 	.rd = dim_reg_read,
-	.bwr = dim_RDMA_WR_BITS,
-	.brd = dim_RDMA_RD_BITS,
+	.bwr = DIM_RDMA_WR_BITS,
+	.brd = DIM_RDMA_RD_BITS,
 };
 
 static bool di_wr_tab(const struct reg_acc *ops,

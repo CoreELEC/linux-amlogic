@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: (GPL-2.0+ OR MIT) */
 /*
  * drivers/amlogic/media/di_multi/deinterlace.h
  *
@@ -80,12 +81,6 @@
 #define VSYNC_RD_MPEG_REG(adr) aml_read_vcbus(adr)
 #endif
 #endif
-
-#define IS_VDIN_SRC(src) (				\
-	((src) == VFRAME_SOURCE_TYPE_TUNER)	||	\
-	((src) == VFRAME_SOURCE_TYPE_CVBS)	||	\
-	((src) == VFRAME_SOURCE_TYPE_COMP)	||	\
-	((src) == VFRAME_SOURCE_TYPE_HDMI))
 
 #define IS_I_SRC(vftype) ((vftype) & VIDTYPE_INTERLACE_BOTTOM)
 
@@ -200,7 +195,7 @@ struct di_buf_s {
 #define DI_LOG_QUEUE			0x40
 #define DI_LOG_VFRAME			0x80
 
-#if 0
+#ifdef MARK_HIS
 #define QUEUE_LOCAL_FREE		0
 #define QUEUE_IN_FREE			1
 #define QUEUE_PRE_READY			2
@@ -462,8 +457,6 @@ struct di_buf_pool_s {
 	unsigned int size;
 };
 
-
-
 unsigned char dim_is_bypass(vframe_t *vf_in, unsigned int channel);
 bool dim_bypass_first_frame(unsigned int ch);
 
@@ -585,8 +578,6 @@ extern unsigned int dbg_first_cnt_pre;
 extern spinlock_t plist_lock;
 
 void dim_dbg_pre_cnt(unsigned int channel, char *item);
-
-void diext_clk_b_sw(bool on);
 
 int di_vf_l_states(struct vframe_states *states, unsigned int channel);
 struct vframe_s *di_vf_l_peek(unsigned int channel);

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: (GPL-2.0+ OR MIT) */
 /*
  * drivers/amlogic/media/di_multi/di_que.h
  *
@@ -42,7 +43,7 @@ void pw_queue_clear(unsigned int ch, enum QUE_TYPE qtype);
 /******************************************/
 /*new api*/
 /******************************************/
-union   uDI_QBUF_INDEX {
+union   UDI_QBUF_INDEX {
 	unsigned int d32;
 	struct {
 		unsigned int index:8,	/*low*/

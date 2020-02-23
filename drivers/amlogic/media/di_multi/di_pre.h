@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: (GPL-2.0+ OR MIT) */
 /*
  * drivers/amlogic/media/di_multi/di_pre.h
  *
@@ -22,7 +23,7 @@ void dpre_process(void);
 
 void dpre_init(void);
 
-const char *dpre_state_name_get(enum eDI_PRE_ST state);
+const char *dpre_state_name_get(enum EDI_PRE_ST state);
 void dpre_dbg_f_trig(unsigned int cmd);
 void pre_vinfo_set(unsigned int ch,
 		   struct vframe_s *ori_vframe);
@@ -33,6 +34,6 @@ bool dim_bypass_detect(unsigned int ch, struct vframe_s *vfm);
 
 void pre_mode_setting(void);
 bool dpre_process_step4(void);
-const char *dpre_state4_name_get(enum eDI_PRE_ST4 state);
+const char *dpre_state4_name_get(enum EDI_PRE_ST4 state);
 
 #endif	/*__DI_PRE_H__*/

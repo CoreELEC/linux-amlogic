@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
  * drivers/amlogic/media/di_multi/di_pps.c
  *
@@ -24,7 +25,7 @@
 
 #include <linux/seq_file.h>
 
-#if 0
+#ifdef MARK_HIS
 /* pps filter coefficients */
 #define COEF_BICUBIC         0
 #define COEF_3POINT_TRIANGLE 1
@@ -353,7 +354,7 @@ static unsigned int prevsc_en;
 
 static const unsigned char f2v_420_in_pos_luma[F2V_TYPE_MAX] = {
 0, 2, 0, 2, 0, 0, 0, 2, 0};
-#if 0
+#ifdef MARK_HIS
 static const unsigned char f2v_420_in_pos_chroma[F2V_TYPE_MAX] = {
 	1, 5, 1, 5, 2, 2, 1, 5, 2};
 #endif
@@ -426,12 +427,12 @@ void dim_pps_config(unsigned char path, int src_w, int src_h,
 	if (src_w != dst_w)
 		hsc_en = 1;
 	/* config hdr size */
-	Wr_reg_bits(DI_HDR_IN_HSIZE, dst_w, 0, 13);
-	Wr_reg_bits(DI_HDR_IN_VSIZE, dst_h, 0, 13);
+	wr_reg_bits(DI_HDR_IN_HSIZE, dst_w, 0, 13);
+	wr_reg_bits(DI_HDR_IN_VSIZE, dst_h, 0, 13);
 	p_src_w = (prehsc_en ? ((src_w + 1) >> 1) : src_w);
 	p_src_h = prevsc_en ? ((src_h + 1) >> 1) : src_h;
 
-	Wr(DI_SC_HOLD_LINE, 0x10);
+	WR(DI_SC_HOLD_LINE, 0x10);
 
 	if (p_src_w > 2048) {
 		/*force vert bank length = 2*/
@@ -440,18 +441,18 @@ void dim_pps_config(unsigned char path, int src_w, int src_h,
 	}
 
 	/*write vert filter coefs*/
-	Wr(DI_SC_COEF_IDX, 0x0000);
+	WR(DI_SC_COEF_IDX, 0x0000);
 	for (i = 0; i < 33; i++) {
 		if (vert_bank_length == 2)
-			Wr(DI_SC_COEF, filt_coef2[i]); /*bilinear*/
+			WR(DI_SC_COEF, filt_coef2[i]); /*bilinear*/
 		else
-			Wr(DI_SC_COEF, filt_coef0[i]); /*bicubic*/
+			WR(DI_SC_COEF, filt_coef0[i]); /*bicubic*/
 	}
 
 	/*write horz filter coefs*/
-	Wr(DI_SC_COEF_IDX, 0x0100);
+	WR(DI_SC_COEF_IDX, 0x0100);
 	for (i = 0; i < 33; i++)
-		Wr(DI_SC_COEF, filt_coef0[i]); /*bicubic*/
+		WR(DI_SC_COEF, filt_coef0[i]); /*bicubic*/
 
 	if (p_src_h > 2048)
 		vert_phase_step = ((p_src_h << 18) / dst_h) << 2;
@@ -492,19 +493,19 @@ void dim_pps_config(unsigned char path, int src_w, int src_h,
 	vert_phase_step = (vert_phase_step << 4);
 	horz_phase_step = (horz_phase_step << 4);
 
-	Wr(DI_SC_LINE_IN_LENGTH, src_w);
-	Wr(DI_SC_PIC_IN_HEIGHT, src_h);
-	Wr(DI_VSC_REGION12_STARTP,  0);
-	Wr(DI_VSC_REGION34_STARTP, ((dst_h << 16) | dst_h));
-	Wr(DI_VSC_REGION4_ENDP, (dst_h - 1));
+	WR(DI_SC_LINE_IN_LENGTH, src_w);
+	WR(DI_SC_PIC_IN_HEIGHT, src_h);
+	WR(DI_VSC_REGION12_STARTP,  0);
+	WR(DI_VSC_REGION34_STARTP, ((dst_h << 16) | dst_h));
+	WR(DI_VSC_REGION4_ENDP, (dst_h - 1));
 
-	Wr(DI_VSC_START_PHASE_STEP, vert_phase_step);
-	Wr(DI_VSC_REGION0_PHASE_SLOPE, 0);
-	Wr(DI_VSC_REGION1_PHASE_SLOPE, 0);
-	Wr(DI_VSC_REGION3_PHASE_SLOPE, 0);
-	Wr(DI_VSC_REGION4_PHASE_SLOPE, 0);
+	WR(DI_VSC_START_PHASE_STEP, vert_phase_step);
+	WR(DI_VSC_REGION0_PHASE_SLOPE, 0);
+	WR(DI_VSC_REGION1_PHASE_SLOPE, 0);
+	WR(DI_VSC_REGION3_PHASE_SLOPE, 0);
+	WR(DI_VSC_REGION4_PHASE_SLOPE, 0);
 
-	Wr(DI_VSC_PHASE_CTRL,
+	WR(DI_VSC_PHASE_CTRL,
 	   ((vsc_double_line_mode << 17)	|
 	   (!is_frame) << 16)			|
 	   (0 << 15)				|
@@ -513,20 +514,20 @@ void dim_pps_config(unsigned char path, int src_w, int src_h,
 	   (0 << 7)				|
 	   (top_rpt_num << 5)			|
 	   (top_rcv_num));
-	Wr(DI_VSC_INI_PHASE, (bot_vphase << 16) | top_vphase);
-	Wr(DI_HSC_REGION12_STARTP, 0);
-	Wr(DI_HSC_REGION34_STARTP, (dst_w << 16) | dst_w);
-	Wr(DI_HSC_REGION4_ENDP, dst_w - 1);
+	WR(DI_VSC_INI_PHASE, (bot_vphase << 16) | top_vphase);
+	WR(DI_HSC_REGION12_STARTP, 0);
+	WR(DI_HSC_REGION34_STARTP, (dst_w << 16) | dst_w);
+	WR(DI_HSC_REGION4_ENDP, dst_w - 1);
 
-	Wr(DI_HSC_START_PHASE_STEP, horz_phase_step);
-	Wr(DI_HSC_REGION0_PHASE_SLOPE, 0);
-	Wr(DI_HSC_REGION1_PHASE_SLOPE, 0);
-	Wr(DI_HSC_REGION3_PHASE_SLOPE, 0);
-	Wr(DI_HSC_REGION4_PHASE_SLOPE, 0);
+	WR(DI_HSC_START_PHASE_STEP, horz_phase_step);
+	WR(DI_HSC_REGION0_PHASE_SLOPE, 0);
+	WR(DI_HSC_REGION1_PHASE_SLOPE, 0);
+	WR(DI_HSC_REGION3_PHASE_SLOPE, 0);
+	WR(DI_HSC_REGION4_PHASE_SLOPE, 0);
 
-	Wr(DI_HSC_PHASE_CTRL, (1 << 21) | (4 << 16) | 0);
-	Wr_reg_bits(DI_SC_TOP_CTRL, (path ? 3 : 0), 29, 2);
-	Wr(DI_SC_MISC,
+	WR(DI_HSC_PHASE_CTRL, (1 << 21) | (4 << 16) | 0);
+	wr_reg_bits(DI_SC_TOP_CTRL, (path ? 3 : 0), 29, 2);
+	WR(DI_SC_MISC,
 	   (prevsc_en << 21)	|
 	   (prehsc_en << 20)	|	/* prehsc_en */
 	   (prevsc_en << 19)	|	/* prevsc_en */
@@ -556,7 +557,7 @@ void dim_dump_pps_reg(unsigned int base_addr)
 	for (i = 0x374e; i < 0x376e; i++) {
 		pr_info("[0x%x][0x%x]=0x%x\n",
 			base_addr + (i << 2),
-			i, dim_RDMA_RD(i));
+			i, DIM_RDMA_RD(i));
 	}
 	pr_info("-----dump pps end-----\n");
 }
@@ -581,18 +582,18 @@ void dim_inp_hsc_setting(u32 src_w, u32 dst_w)
 	} else {
 		hsc_en = 1;
 		/*write horz filter coefs*/
-		dim_RDMA_WR(DI_VIU_HSC_COEF_IDX, 0x0100);
+		DIM_RDMA_WR(DI_VIU_HSC_COEF_IDX, 0x0100);
 		for (i = 0; i < 33; i++)	/*bicubic*/
-			dim_RDMA_WR(DI_VIU_HSC_COEF, filt_coef0[i]);
+			DIM_RDMA_WR(DI_VIU_HSC_COEF, filt_coef0[i]);
 
 		horz_phase_step = (src_w << 20) / dst_w;
 		horz_phase_step = (horz_phase_step << 4);
-		dim_RDMA_WR(DI_VIU_HSC_WIDTHM1,
+		DIM_RDMA_WR(DI_VIU_HSC_WIDTHM1,
 			    (src_w - 1) << 16 | (dst_w - 1));
-		dim_RDMA_WR(DI_VIU_HSC_PHASE_STEP, horz_phase_step);
-		dim_RDMA_WR(DI_VIU_HSC_PHASE_CTRL, 0);
+		DIM_RDMA_WR(DI_VIU_HSC_PHASE_STEP, horz_phase_step);
+		DIM_RDMA_WR(DI_VIU_HSC_PHASE_CTRL, 0);
 	}
-	dim_RDMA_WR(DI_VIU_HSC_CTRL,
+	DIM_RDMA_WR(DI_VIU_HSC_CTRL,
 		    (4 << 20)	|	/* initial receive number*/
 		    (0 << 12)	|	/* initial pixel ptr*/
 		    (1 << 10)	|	/* repeat first pixel number*/
@@ -614,7 +615,7 @@ void dim_dump_hdownscler_reg(unsigned int base_addr)
 	for (i = 0x37b0; i < 0x37b5; i++) {
 		pr_info("[0x%x][0x%x]=0x%x\n",
 			base_addr + (i << 2),
-			i, dim_RDMA_RD(i));
+			i, DIM_RDMA_RD(i));
 	}
 	pr_info("-----dump hdownscler end-----\n");
 }

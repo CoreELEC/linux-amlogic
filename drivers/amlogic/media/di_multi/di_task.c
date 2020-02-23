@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
  * drivers/amlogic/media/di_multi/di_task.c
  *
@@ -64,7 +65,7 @@ void task_send_ready(void)
 	task_wakeup(tsk);
 }
 
-#if 0
+#ifdef MARK_HIS
 bool task_have_vf(unsigned int ch)
 {
 	struct di_task *tsk = get_task();
@@ -142,7 +143,7 @@ static int di_test_thread(void *data)
 	tsk->delay = HZ;
 	tsk->status = 0;
 	tsk->wakeup = 0;
-	#if 0
+	#ifdef MARK_HIS
 	tsk->reinitialise = 0;
 	tsk->needfinish = 0;
 	tsk->finishflg = 0;
@@ -171,7 +172,7 @@ restart:
 
 		if (down_interruptible(&tsk->sem))
 			break;
-#if 0
+#ifdef MARK_HIS
 		if (tsk->reinitialise) {
 			/*dvb_frontend_init(fe);*/
 
@@ -207,7 +208,7 @@ void task_stop(void/*struct di_task *tsk*/)
 {
 	struct di_task *tsk = get_task();
 
-#if 1	/*not use cmd*/
+	/*not use cmd*/
 	pr_info(".");
 	/*--------------------*/
 	/*cmd buf*/
@@ -219,7 +220,7 @@ void task_stop(void/*struct di_task *tsk*/)
 	spin_lock_init(&tsk->lock_cmd);
 	tsk->err_cmd_cnt = 0;
 	/*--------------------*/
-#endif
+
 	tsk->exit = 1;
 	/*mb();*/
 
@@ -247,7 +248,7 @@ int task_start(void)
 
 	pr_info(".");
 	flg_err = 0;
-#if 1	/*not use cmd*/
+	/*not use cmd*/
 	/*--------------------*/
 	/*cmd buf*/
 	/*tsk->lock_cmd = SPIN_LOCK_UNLOCKED;*/
@@ -263,7 +264,6 @@ int task_start(void)
 	}
 	tsk->flg_cmd = true;
 
-#endif
 	/*--------------------*/
 	sema_init(&tsk->sem, 1);
 	init_waitqueue_head(&tsk->wait_queue);

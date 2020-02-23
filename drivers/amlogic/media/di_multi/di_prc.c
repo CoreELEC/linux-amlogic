@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
  * drivers/amlogic/media/di_multi/di_prc.c
  *
@@ -47,15 +48,15 @@ const struct di_cfg_ctr_s di_cfg_top_ctr[K_DI_CFG_NUB] = {
 	/* cfg for top */
 	[EDI_CFG_BEGIN]  = {"cfg top begin ", EDI_CFG_BEGIN, 0,
 			K_DI_CFG_T_FLG_NONE},
-	[EDI_CFG_mem_flg]  = {"flag_cma", EDI_CFG_mem_flg,
-				eDI_MEM_M_cma,
+	[EDI_CFG_MEM_FLAG]  = {"flag_cma", EDI_CFG_MEM_FLAG,
+				EDI_MEM_M_CMA,
 				K_DI_CFG_T_FLG_DTS},
-	[EDI_CFG_first_bypass]  = {"first_bypass",
-				EDI_CFG_first_bypass,
+	[EDI_CFG_FIRST_BYPASS]  = {"first_bypass",
+				EDI_CFG_FIRST_BYPASS,
 				0,
 				K_DI_CFG_T_FLG_DTS},
-	[EDI_CFG_ref_2]  = {"ref_2",
-		EDI_CFG_ref_2, 0, K_DI_CFG_T_FLG_NOTHING},
+	[EDI_CFG_REF_2]  = {"ref_2",
+		EDI_CFG_REF_2, 0, K_DI_CFG_T_FLG_NOTHING},
 	[EDI_CFG_KEEP_CLEAR_AUTO]  = {"keep_buf clear auto",
 			EDI_CFG_KEEP_CLEAR_AUTO,
 			0,
@@ -65,7 +66,7 @@ const struct di_cfg_ctr_s di_cfg_top_ctr[K_DI_CFG_NUB] = {
 
 };
 
-char *di_cfg_top_get_name(enum eDI_CFG_TOP_IDX idx)
+char *di_cfg_top_get_name(enum EDI_CFG_TOP_IDX idx)
 {
 	return di_cfg_top_ctr[idx].dts_name;
 }
@@ -238,7 +239,7 @@ void di_cfgt_show_val_all(struct seq_file *s)
 		di_cfgt_show_val_one(s, i);
 }
 
-unsigned int di_cfg_top_get(enum eDI_CFG_TOP_IDX id)
+unsigned int di_cfg_top_get(enum EDI_CFG_TOP_IDX id)
 {
 	union di_cfg_tdata_u *pd;
 
@@ -246,7 +247,7 @@ unsigned int di_cfg_top_get(enum eDI_CFG_TOP_IDX id)
 	return pd->b.val_c;
 }
 
-void di_cfg_top_set(enum eDI_CFG_TOP_IDX id, unsigned int val)
+void di_cfg_top_set(enum EDI_CFG_TOP_IDX id, unsigned int val)
 {
 	union di_cfg_tdata_u *pd;
 
@@ -266,24 +267,24 @@ const struct di_cfgx_ctr_s di_cfgx_ctr[K_DI_CFGX_NUB] = {
 	/*same order with enum eDI_DBG_CFG*/
 
 	/* cfg channel x*/
-	[eDI_CFGX_BEGIN]  = {"cfg x begin ", eDI_CFGX_BEGIN, 0},
+	[EDI_CFGX_BEGIN]  = {"cfg x begin ", EDI_CFGX_BEGIN, 0},
 	/* bypass_all */
-	[eDI_CFGX_BYPASS_ALL]  = {"bypass_all", eDI_CFGX_BYPASS_ALL, 0},
-	[eDI_CFGX_END]  = {"cfg x end ", eDI_CFGX_END, 0},
+	[EDI_CFGX_BYPASS_ALL]  = {"bypass_all", EDI_CFGX_BYPASS_ALL, 0},
+	[EDI_CFGX_END]  = {"cfg x end ", EDI_CFGX_END, 0},
 
 	/* debug cfg x */
-	[eDI_DBG_CFGX_BEGIN]  = {"cfg dbg begin ", eDI_DBG_CFGX_BEGIN, 0},
-	[eDI_DBG_CFGX_IDX_VFM_IN] = {"vfm_in", eDI_DBG_CFGX_IDX_VFM_IN, 0},
-	[eDI_DBG_CFGX_IDX_VFM_OT] = {"vfm_out", eDI_DBG_CFGX_IDX_VFM_OT, 1},
-	[eDI_DBG_CFGX_END]    = {"cfg dbg end", eDI_DBG_CFGX_END, 0},
+	[EDI_DBG_CFGX_BEGIN]  = {"cfg dbg begin ", EDI_DBG_CFGX_BEGIN, 0},
+	[EDI_DBG_CFGX_IDX_VFM_IN] = {"vfm_in", EDI_DBG_CFGX_IDX_VFM_IN, 0},
+	[EDI_DBG_CFGX_IDX_VFM_OT] = {"vfm_out", EDI_DBG_CFGX_IDX_VFM_OT, 1},
+	[EDI_DBG_CFGX_END]    = {"cfg dbg end", EDI_DBG_CFGX_END, 0},
 };
 
-char *di_cfgx_get_name(enum eDI_CFGX_IDX idx)
+char *di_cfgx_get_name(enum EDI_CFGX_IDX idx)
 {
 	return di_cfgx_ctr[idx].name;
 }
 
-void di_cfgx_get_info(enum eDI_CFGX_IDX idx, char **name)
+void di_cfgx_get_info(enum EDI_CFGX_IDX idx, char **name)
 {
 	if (di_cfgx_ctr[idx].id != idx)
 		PR_ERR("%s:err:idx not map [%d->%d]\n", __func__,
@@ -317,17 +318,17 @@ void di_cfgx_init_val(void)
 	int i, ch;
 
 	for (ch = 0; ch < DI_CHANNEL_NUB; ch++) {
-		for (i = eDI_CFGX_BEGIN; i < eDI_DBG_CFGX_END; i++)
+		for (i = EDI_CFGX_BEGIN; i < EDI_DBG_CFGX_END; i++)
 			di_cfgx_set(ch, i, di_cfgx_ctr[i].default_val);
 	}
 }
 
-bool di_cfgx_get(unsigned int ch, enum eDI_CFGX_IDX idx)
+bool di_cfgx_get(unsigned int ch, enum EDI_CFGX_IDX idx)
 {
 	return get_datal()->ch_data[ch].cfgx_en[idx];
 }
 
-void di_cfgx_set(unsigned int ch, enum eDI_CFGX_IDX idx, bool en)
+void di_cfgx_set(unsigned int ch, enum EDI_CFGX_IDX idx, bool en)
 {
 	get_datal()->ch_data[ch].cfgx_en[idx] = en;
 }
@@ -341,45 +342,45 @@ void di_cfgx_set(unsigned int ch, enum eDI_CFGX_IDX idx, bool en)
 const struct di_mp_uit_s di_mp_ui_top[] = {
 	/*same order with enum eDI_MP_UI*/
 	/* for top */
-	[eDI_MP_UI_T_BEGIN]  = {"module para top begin ",
-			eDI_MP_UI_T_BEGIN, 0},
+	[EDI_MP_UI_T_BEGIN]  = {"module para top begin ",
+			EDI_MP_UI_T_BEGIN, 0},
 	/**************************************/
-	[eDI_MP_SUB_DI_B]  = {"di begin ",
-			eDI_MP_SUB_DI_B, 0},
-	[eDI_MP_force_prog]  = {"bool:force_prog:1",
-			eDI_MP_force_prog, 1},
+	[EDI_MP_SUB_DI_B]  = {"di begin ",
+			EDI_MP_SUB_DI_B, 0},
+	[edi_mp_force_prog]  = {"bool:force_prog:1",
+			edi_mp_force_prog, 1},
 	[edi_mp_combing_fix_en]  = {"bool:combing_fix_en,def:1",
 			edi_mp_combing_fix_en, 1},
-	[eDI_MP_cur_lev]  = {"int cur_lev,def:2",
-			eDI_MP_cur_lev, 2},
-	[eDI_MP_pps_dstw]  = {"pps_dstw:int",
-			eDI_MP_pps_dstw, 0},
-	[eDI_MP_pps_dsth]  = {"pps_dsth:int",
-			eDI_MP_pps_dsth, 0},
-	[eDI_MP_pps_en]  = {"pps_en:bool",
-			eDI_MP_pps_en, 0},
-	[eDI_MP_pps_position]  = {"pps_position:uint:def:1",
-			eDI_MP_pps_position, 1},
-	[eDI_MP_pre_enable_mask]  = {"pre_enable_mask:bit0:ma;bit1:mc:def:3",
-			eDI_MP_pre_enable_mask, 3},
-	[eDI_MP_post_refresh]  = {"post_refresh:bool",
-			eDI_MP_post_refresh, 0},
-	[eDI_MP_nrds_en]  = {"nrds_en:bool",
-			eDI_MP_nrds_en, 0},
-	[eDI_MP_bypass_3d]  = {"bypass_3d:int:def:1",
-			eDI_MP_bypass_3d, 1},
-	[eDI_MP_bypass_trick_mode]  = {"bypass_trick_mode:int:def:1",
-			eDI_MP_bypass_trick_mode, 1},
-	[eDI_MP_invert_top_bot]  = {"invert_top_bot:int",
-			eDI_MP_invert_top_bot, 0},
-	[eDI_MP_skip_top_bot]  = {"skip_top_bot:int:",
+	[edi_mp_cur_lev]  = {"int cur_lev,def:2",
+			edi_mp_cur_lev, 2},
+	[edi_mp_pps_dstw]  = {"pps_dstw:int",
+			edi_mp_pps_dstw, 0},
+	[edi_mp_pps_dsth]  = {"pps_dsth:int",
+			edi_mp_pps_dsth, 0},
+	[edi_mp_pps_en]  = {"pps_en:bool",
+			edi_mp_pps_en, 0},
+	[edi_mp_pps_position]  = {"pps_position:uint:def:1",
+			edi_mp_pps_position, 1},
+	[edi_mp_pre_enable_mask]  = {"pre_enable_mask:bit0:ma;bit1:mc:def:3",
+			edi_mp_pre_enable_mask, 3},
+	[edi_mp_post_refresh]  = {"post_refresh:bool",
+			edi_mp_post_refresh, 0},
+	[edi_mp_nrds_en]  = {"nrds_en:bool",
+			edi_mp_nrds_en, 0},
+	[edi_mp_bypass_3d]  = {"bypass_3d:int:def:1",
+			edi_mp_bypass_3d, 1},
+	[edi_mp_bypass_trick_mode]  = {"bypass_trick_mode:int:def:1",
+			edi_mp_bypass_trick_mode, 1},
+	[edi_mp_invert_top_bot]  = {"invert_top_bot:int",
+			edi_mp_invert_top_bot, 0},
+	[edi_mp_skip_top_bot]  = {"skip_top_bot:int:",
 			/*1or2: may affect atv when bypass di*/
-			eDI_MP_skip_top_bot, 0},
-	[eDI_MP_force_width]  = {"force_width:int",
-			eDI_MP_force_width, 0},
-	[eDI_MP_force_height]  = {"force_height:int",
-			eDI_MP_force_height, 0},
-	[eDI_MP_prog_proc_config]  = {"prog_proc_config:int:def:0x",
+			edi_mp_skip_top_bot, 0},
+	[edi_mp_force_width]  = {"force_width:int",
+			edi_mp_force_width, 0},
+	[edi_mp_force_height]  = {"force_height:int",
+			edi_mp_force_height, 0},
+	[edi_mp_prog_proc_config]  = {"prog_proc_config:int:def:0x",
 /* prog_proc_config,
  * bit[2:1]: when two field buffers are used,
  * 0 use vpp for blending ,
@@ -399,320 +400,320 @@ const struct di_mp_uit_s di_mp_ui_top[] = {
  * process progress frame as field,blend by post;
  * 1, process progress frame as field,process by normal di
  */
-			eDI_MP_prog_proc_config, ((1 << 5) | (1 << 1) | 1)},
-	[eDI_MP_start_frame_drop_count]  = {"start_frame_drop_count:int:2",
-			eDI_MP_start_frame_drop_count, 2},
-	[eDI_MP_same_field_top_count]  = {"same_field_top_count:long?",
-			eDI_MP_same_field_top_count, 0},
-	[eDI_MP_same_field_bot_count]  = {"same_field_bot_count:long?",
-			eDI_MP_same_field_bot_count, 0},
-	[eDI_MP_vpp_3d_mode]  = {"vpp_3d_mode:int",
-			eDI_MP_vpp_3d_mode, 0},
-	[eDI_MP_force_recovery_count]  = {"force_recovery_count:uint",
-			eDI_MP_force_recovery_count, 0},
-	[eDI_MP_pre_process_time]  = {"pre_process_time:int",
-			eDI_MP_pre_process_time, 0},
-	[eDI_MP_bypass_post]  = {"bypass_post:int",
-			eDI_MP_bypass_post, 0},
-	[eDI_MP_post_wr_en]  = {"post_wr_en:bool:1",
-			eDI_MP_post_wr_en, 1},
-	[eDI_MP_post_wr_support]  = {"post_wr_support:uint",
-			eDI_MP_post_wr_support, 0},
-	[eDI_MP_bypass_post_state]  = {"bypass_post_state:int",
+			edi_mp_prog_proc_config, ((1 << 5) | (1 << 1) | 1)},
+	[edi_mp_start_frame_drop_count]  = {"start_frame_drop_count:int:2",
+			edi_mp_start_frame_drop_count, 2},
+	[edi_mp_same_field_top_count]  = {"same_field_top_count:long?",
+			edi_mp_same_field_top_count, 0},
+	[edi_mp_same_field_bot_count]  = {"same_field_bot_count:long?",
+			edi_mp_same_field_bot_count, 0},
+	[edi_mp_vpp_3d_mode]  = {"vpp_3d_mode:int",
+			edi_mp_vpp_3d_mode, 0},
+	[edi_mp_force_recovery_count]  = {"force_recovery_count:uint",
+			edi_mp_force_recovery_count, 0},
+	[edi_mp_pre_process_time]  = {"pre_process_time:int",
+			edi_mp_pre_process_time, 0},
+	[edi_mp_bypass_post]  = {"bypass_post:int",
+			edi_mp_bypass_post, 0},
+	[edi_mp_post_wr_en]  = {"post_wr_en:bool:1",
+			edi_mp_post_wr_en, 1},
+	[edi_mp_post_wr_support]  = {"post_wr_support:uint",
+			edi_mp_post_wr_support, 0},
+	[edi_mp_bypass_post_state]  = {"bypass_post_state:int",
 /* 0, use di_wr_buf still;
  * 1, call dim_pre_de_done_buf_clear to clear di_wr_buf;
  * 2, do nothing
  */
-			eDI_MP_bypass_post_state, 0},
-	[eDI_MP_use_2_interlace_buff]  = {"use_2_interlace_buff:int",
-			eDI_MP_use_2_interlace_buff, 0},
-	[eDI_MP_debug_blend_mode]  = {"debug_blend_mode:int:-1",
-			eDI_MP_debug_blend_mode, -1},
-	[eDI_MP_nr10bit_support]  = {"nr10bit_support:uint",
+			edi_mp_bypass_post_state, 0},
+	[edi_mp_use_2_interlace_buff]  = {"use_2_interlace_buff:int",
+			edi_mp_use_2_interlace_buff, 0},
+	[edi_mp_debug_blend_mode]  = {"debug_blend_mode:int:-1",
+			edi_mp_debug_blend_mode, -1},
+	[edi_mp_nr10bit_support]  = {"nr10bit_support:uint",
 		/* 0: not support nr10bit, 1: support nr10bit */
-			eDI_MP_nr10bit_support, 0},
-	[eDI_MP_di_stop_reg_flag]  = {"di_stop_reg_flag:uint",
-			eDI_MP_di_stop_reg_flag, 0},
-	[eDI_MP_mcpre_en]  = {"mcpre_en:bool:true",
-			eDI_MP_mcpre_en, 1},
-	[eDI_MP_check_start_drop_prog]  = {"check_start_drop_prog:bool",
-			eDI_MP_check_start_drop_prog, 0},
-	[eDI_MP_overturn]  = {"overturn:bool:?",
-			eDI_MP_overturn, 0},
-	[eDI_MP_full_422_pack]  = {"full_422_pack:bool",
-			eDI_MP_full_422_pack, 0},
-	[eDI_MP_cma_print]  = {"cma_print:bool:1",
-			eDI_MP_cma_print, 0},
-	[eDI_MP_pulldown_enable]  = {"pulldown_enable:bool:1",
-			eDI_MP_pulldown_enable, 1},
-	[eDI_MP_di_force_bit_mode]  = {"di_force_bit_mode:uint:10",
-			eDI_MP_di_force_bit_mode, 10},
-	[eDI_MP_calc_mcinfo_en]  = {"calc_mcinfo_en:bool:1",
-			eDI_MP_calc_mcinfo_en, 1},
-	[eDI_MP_colcfd_thr]  = {"colcfd_thr:uint:128",
-			eDI_MP_colcfd_thr, 128},
-	[eDI_MP_post_blend]  = {"post_blend:uint",
-			eDI_MP_post_blend, 0},
-	[eDI_MP_post_ei]  = {"post_ei:uint",
-			eDI_MP_post_ei, 0},
-	[eDI_MP_post_cnt]  = {"post_cnt:uint",
-			eDI_MP_post_cnt, 0},
-	[eDI_MP_di_log_flag]  = {"di_log_flag:uint",
-			eDI_MP_di_log_flag, 0},
-	[eDI_MP_di_debug_flag]  = {"di_debug_flag:uint",
-			eDI_MP_di_debug_flag, 0},
-	[eDI_MP_buf_state_log_threshold]  = {"buf_state_log_threshold:unit:16",
-			eDI_MP_buf_state_log_threshold, 16},
-	[eDI_MP_di_vscale_skip_enable]  = {"di_vscale_skip_enable:int",
+			edi_mp_nr10bit_support, 0},
+	[edi_mp_di_stop_reg_flag]  = {"di_stop_reg_flag:uint",
+			edi_mp_di_stop_reg_flag, 0},
+	[edi_mp_mcpre_en]  = {"mcpre_en:bool:true",
+			edi_mp_mcpre_en, 1},
+	[edi_mp_check_start_drop]  = {"check_start_drop_prog:bool",
+			edi_mp_check_start_drop, 0},
+	[edi_mp_overturn]  = {"overturn:bool:?",
+			edi_mp_overturn, 0},
+	[edi_mp_full_422_pack]  = {"full_422_pack:bool",
+			edi_mp_full_422_pack, 0},
+	[edi_mp_cma_print]  = {"cma_print:bool:1",
+			edi_mp_cma_print, 0},
+	[edi_mp_pulldown_enable]  = {"pulldown_enable:bool:1",
+			edi_mp_pulldown_enable, 1},
+	[edi_mp_di_force_bit_mode]  = {"di_force_bit_mode:uint:10",
+			edi_mp_di_force_bit_mode, 10},
+	[edi_mp_calc_mcinfo_en]  = {"calc_mcinfo_en:bool:1",
+			edi_mp_calc_mcinfo_en, 1},
+	[edi_mp_colcfd_thr]  = {"colcfd_thr:uint:128",
+			edi_mp_colcfd_thr, 128},
+	[edi_mp_post_blend]  = {"post_blend:uint",
+			edi_mp_post_blend, 0},
+	[edi_mp_post_ei]  = {"post_ei:uint",
+			edi_mp_post_ei, 0},
+	[edi_mp_post_cnt]  = {"post_cnt:uint",
+			edi_mp_post_cnt, 0},
+	[edi_mp_di_log_flag]  = {"di_log_flag:uint",
+			edi_mp_di_log_flag, 0},
+	[edi_mp_di_debug_flag]  = {"di_debug_flag:uint",
+			edi_mp_di_debug_flag, 0},
+	[edi_mp_buf_state_log_threshold]  = {"buf_state_log_threshold:unit:16",
+			edi_mp_buf_state_log_threshold, 16},
+	[edi_mp_di_vscale_skip_enable]  = {"di_vscale_skip_enable:int",
 /*
  * bit[2]: enable bypass all when skip
  * bit[1:0]: enable bypass post when skip
  */
-			eDI_MP_di_vscale_skip_enable, 0},
-	[eDI_MP_di_vscale_skip_count]  = {"di_vscale_skip_count:int",
-			eDI_MP_di_vscale_skip_count, 0},
-	[eDI_MP_di_vscale_skip_count_real]  = {"di_vscale_skip_count_real:int",
-			eDI_MP_di_vscale_skip_count_real, 0},
-	[eDI_MP_det3d_en]  = {"det3d_en:bool",
-			eDI_MP_det3d_en, 0},
-	[eDI_MP_post_hold_line]  = {"post_hold_line:int:8",
-			eDI_MP_post_hold_line, 8},
-	[eDI_MP_post_urgent]  = {"post_urgent:int:1",
-			eDI_MP_post_urgent, 1},
-	[eDI_MP_di_printk_flag]  = {"di_printk_flag:uint",
-			eDI_MP_di_printk_flag, 0},
-	[eDI_MP_force_recovery]  = {"force_recovery:uint:1",
-			eDI_MP_force_recovery, 1},
-#if 0
-	[eDI_MP_debug_blend_mode]  = {"debug_blend_mode:int:-1",
-			eDI_MP_debug_blend_mode, -1},
+			edi_mp_di_vscale_skip_enable, 0},
+	[edi_mp_di_vscale_skip_count]  = {"di_vscale_skip_count:int",
+			edi_mp_di_vscale_skip_count, 0},
+	[edi_mp_di_vscale_skip_real]  = {"di_vscale_skip_count_real:int",
+			edi_mp_di_vscale_skip_real, 0},
+	[edi_mp_det3d_en]  = {"det3d_en:bool",
+			edi_mp_det3d_en, 0},
+	[edi_mp_post_hold_line]  = {"post_hold_line:int:8",
+			edi_mp_post_hold_line, 8},
+	[edi_mp_post_urgent]  = {"post_urgent:int:1",
+			edi_mp_post_urgent, 1},
+	[edi_mp_di_printk_flag]  = {"di_printk_flag:uint",
+			edi_mp_di_printk_flag, 0},
+	[edi_mp_force_recovery]  = {"force_recovery:uint:1",
+			edi_mp_force_recovery, 1},
+#ifdef MARK_HIS
+	[edi_mp_debug_blend_mode]  = {"debug_blend_mode:int:-1",
+			edi_mp_debug_blend_mode, -1},
 #endif
-	[eDI_MP_di_dbg_mask]  = {"di_dbg_mask:uint:0x02",
-			eDI_MP_di_dbg_mask, 2},
-	[eDI_MP_nr_done_check_cnt]  = {"nr_done_check_cnt:uint:5",
-			eDI_MP_nr_done_check_cnt, 5},
-	[eDI_MP_pre_hsc_down_en]  = {"pre_hsc_down_en:bool:0",
-			eDI_MP_pre_hsc_down_en, 0},
-	[eDI_MP_pre_hsc_down_width]  = {"pre_hsc_down_width:int:480",
-				eDI_MP_pre_hsc_down_width, 480},
-	[eDI_MP_show_nrwr]  = {"show_nrwr:bool:0",
-				eDI_MP_show_nrwr, 0},
+	[edi_mp_di_dbg_mask]  = {"di_dbg_mask:uint:0x02",
+			edi_mp_di_dbg_mask, 2},
+	[edi_mp_nr_done_check_cnt]  = {"nr_done_check_cnt:uint:5",
+			edi_mp_nr_done_check_cnt, 5},
+	[edi_mp_pre_hsc_down_en]  = {"pre_hsc_down_en:bool:0",
+			edi_mp_pre_hsc_down_en, 0},
+	[edi_mp_pre_hsc_down_width]  = {"pre_hsc_down_width:int:480",
+				edi_mp_pre_hsc_down_width, 480},
+	[edi_mp_show_nrwr]  = {"show_nrwr:bool:0",
+				edi_mp_show_nrwr, 0},
 
 	/******deinterlace_hw.c**********/
-	[eDI_MP_pq_load_dbg]  = {"pq_load_dbg:uint",
-			eDI_MP_pq_load_dbg, 0},
-	[eDI_MP_lmv_lock_win_en]  = {"lmv_lock_win_en:bool",
-			eDI_MP_lmv_lock_win_en, 0},
-	[eDI_MP_lmv_dist]  = {"lmv_dist:short:5",
-			eDI_MP_lmv_dist, 5},
-	[eDI_MP_pr_mcinfo_cnt]  = {"pr_mcinfo_cnt:ushort",
-			eDI_MP_pr_mcinfo_cnt, 0},
-	[eDI_MP_offset_lmv]  = {"offset_lmv:short:100",
-			eDI_MP_offset_lmv, 100},
-	[eDI_MP_post_ctrl]  = {"post_ctrl:uint",
-			eDI_MP_post_ctrl, 0},
-	[eDI_MP_if2_disable]  = {"if2_disable:bool",
-			eDI_MP_if2_disable, 0},
-	[eDI_MP_pre_flag]  = {"pre_flag:ushort:2",
-			eDI_MP_pre_flag, 2},
-	[eDI_MP_pre_mif_gate]  = {"pre_mif_gate:bool",
-			eDI_MP_pre_mif_gate, 0},
-	[eDI_MP_pre_urgent]  = {"pre_urgent:ushort",
-			eDI_MP_pre_urgent, 0},
-	[eDI_MP_pre_hold_line]  = {"pre_hold_line:ushort:10",
-			eDI_MP_pre_hold_line, 10},
-	[eDI_MP_pre_ctrl]  = {"pre_ctrl:uint",
-			eDI_MP_pre_ctrl, 0},
-	[eDI_MP_line_num_post_frst]  = {"line_num_post_frst:ushort:5",
-			eDI_MP_line_num_post_frst, 5},
-	[eDI_MP_line_num_pre_frst]  = {"line_num_pre_frst:ushort:5",
-			eDI_MP_line_num_pre_frst, 5},
-	[eDI_MP_pd22_flg_calc_en]  = {"pd22_flg_calc_en:bool:true",
-			eDI_MP_pd22_flg_calc_en, 1},
-	[eDI_MP_mcen_mode]  = {"mcen_mode:ushort:1",
-			eDI_MP_mcen_mode, 1},
-	[eDI_MP_mcuv_en]  = {"mcuv_en:ushort:1",
-			eDI_MP_mcuv_en, 1},
-	[eDI_MP_mcdebug_mode]  = {"mcdebug_mode:ushort",
-			eDI_MP_mcdebug_mode, 0},
-	[eDI_MP_pldn_ctrl_rflsh]  = {"pldn_ctrl_rflsh:uint:1",
-			eDI_MP_pldn_ctrl_rflsh, 1},
+	[edi_mp_pq_load_dbg]  = {"pq_load_dbg:uint",
+			edi_mp_pq_load_dbg, 0},
+	[edi_mp_lmv_lock_win_en]  = {"lmv_lock_win_en:bool",
+			edi_mp_lmv_lock_win_en, 0},
+	[edi_mp_lmv_dist]  = {"lmv_dist:short:5",
+			edi_mp_lmv_dist, 5},
+	[edi_mp_pr_mcinfo_cnt]  = {"pr_mcinfo_cnt:ushort",
+			edi_mp_pr_mcinfo_cnt, 0},
+	[edi_mp_offset_lmv]  = {"offset_lmv:short:100",
+			edi_mp_offset_lmv, 100},
+	[edi_mp_post_ctrl]  = {"post_ctrl:uint",
+			edi_mp_post_ctrl, 0},
+	[edi_mp_if2_disable]  = {"if2_disable:bool",
+			edi_mp_if2_disable, 0},
+	[edi_mp_pre]  = {"pre_flag:ushort:2",
+			edi_mp_pre, 2},
+	[edi_mp_pre_mif_gate]  = {"pre_mif_gate:bool",
+			edi_mp_pre_mif_gate, 0},
+	[edi_mp_pre_urgent]  = {"pre_urgent:ushort",
+			edi_mp_pre_urgent, 0},
+	[edi_mp_pre_hold_line]  = {"pre_hold_line:ushort:10",
+			edi_mp_pre_hold_line, 10},
+	[edi_mp_pre_ctrl]  = {"pre_ctrl:uint",
+			edi_mp_pre_ctrl, 0},
+	[edi_mp_line_num_post_frst]  = {"line_num_post_frst:ushort:5",
+			edi_mp_line_num_post_frst, 5},
+	[edi_mp_line_num_pre_frst]  = {"line_num_pre_frst:ushort:5",
+			edi_mp_line_num_pre_frst, 5},
+	[edi_mp_pd22_flg_calc_en]  = {"pd22_flg_calc_en:bool:true",
+			edi_mp_pd22_flg_calc_en, 1},
+	[edi_mp_mcen_mode]  = {"mcen_mode:ushort:1",
+			edi_mp_mcen_mode, 1},
+	[edi_mp_mcuv_en]  = {"mcuv_en:ushort:1",
+			edi_mp_mcuv_en, 1},
+	[edi_mp_mcdebug_mode]  = {"mcdebug_mode:ushort",
+			edi_mp_mcdebug_mode, 0},
+	[edi_mp_pldn_ctrl_rflsh]  = {"pldn_ctrl_rflsh:uint:1",
+			edi_mp_pldn_ctrl_rflsh, 1},
 
-	[eDI_MP_SUB_DI_E]  = {"di end-------",
-				eDI_MP_SUB_DI_E, 0},
+	[EDI_MP_SUB_DI_E]  = {"di end-------",
+				EDI_MP_SUB_DI_E, 0},
 	/**************************************/
-	[eDI_MP_SUB_NR_B]  = {"nr begin",
-			eDI_MP_SUB_NR_B, 0},
-	[eDI_MP_dnr_en]  = {"dnr_en:bool:true",
-			eDI_MP_dnr_en, 1},
-	[eDI_MP_nr2_en]  = {"nr2_en:uint:1",
-			eDI_MP_nr2_en, 1},
-	[eDI_MP_cue_en]  = {"cue_en:bool:true",
-			eDI_MP_cue_en, 1},
-	[eDI_MP_invert_cue_phase]  = {"invert_cue_phase:bool",
-			eDI_MP_invert_cue_phase, 0},
-	[eDI_MP_cue_pr_cnt]  = {"cue_pr_cnt:uint",
-			eDI_MP_cue_pr_cnt, 0},
-	[eDI_MP_cue_glb_mot_check_en]  = {"cue_glb_mot_check_en:bool:true",
-			eDI_MP_cue_glb_mot_check_en, 1},
-	[eDI_MP_glb_fieldck_en]  = {"glb_fieldck_en:bool:true",
-			eDI_MP_glb_fieldck_en, 1},
-	[eDI_MP_dnr_pr]  = {"dnr_pr:bool",
-			eDI_MP_dnr_pr, 0},
-	[eDI_MP_dnr_dm_en]  = {"dnr_dm_en:bool",
-			eDI_MP_dnr_dm_en, 0},
-	[eDI_MP_SUB_NR_E]  = {"nr end-------",
-			eDI_MP_SUB_NR_E, 0},
+	[EDI_MP_SUB_NR_B]  = {"nr begin",
+			EDI_MP_SUB_NR_B, 0},
+	[edi_mp_dnr_en]  = {"dnr_en:bool:true",
+			edi_mp_dnr_en, 1},
+	[edi_mp_nr2_en]  = {"nr2_en:uint:1",
+			edi_mp_nr2_en, 1},
+	[edi_mp_cue_en]  = {"cue_en:bool:true",
+			edi_mp_cue_en, 1},
+	[edi_mp_invert_cue_phase]  = {"invert_cue_phase:bool",
+			edi_mp_invert_cue_phase, 0},
+	[edi_mp_cue_pr_cnt]  = {"cue_pr_cnt:uint",
+			edi_mp_cue_pr_cnt, 0},
+	[edi_mp_cue_glb_mot_check_en]  = {"cue_glb_mot_check_en:bool:true",
+			edi_mp_cue_glb_mot_check_en, 1},
+	[edi_mp_glb_fieldck_en]  = {"glb_fieldck_en:bool:true",
+			edi_mp_glb_fieldck_en, 1},
+	[edi_mp_dnr_pr]  = {"dnr_pr:bool",
+			edi_mp_dnr_pr, 0},
+	[edi_mp_dnr_dm_en]  = {"dnr_dm_en:bool",
+			edi_mp_dnr_dm_en, 0},
+	[EDI_MP_SUB_NR_E]  = {"nr end-------",
+			EDI_MP_SUB_NR_E, 0},
 	/**************************************/
-	[eDI_MP_SUB_PD_B]  = {"pd begin",
-			eDI_MP_SUB_PD_B, 0},
-	[eDI_MP_flm22_ratio]  = {"flm22_ratio:uint:200",
-			eDI_MP_flm22_ratio, 200},
-	[eDI_MP_pldn_cmb0]  = {"pldn_cmb0:uint:1",
-			eDI_MP_pldn_cmb0, 1},
-	[eDI_MP_pldn_cmb1]  = {"pldn_cmb1:uint",
-			eDI_MP_pldn_cmb1, 0},
-	[eDI_MP_flm22_sure_num]  = {"flm22_sure_num:uint:100",
-			eDI_MP_flm22_sure_num, 100},
-	[eDI_MP_flm22_glbpxlnum_rat]  = {"flm22_glbpxlnum_rat:uint:4",
-			eDI_MP_flm22_glbpxlnum_rat, 4},
-	[eDI_MP_flag_di_weave]  = {"flag_di_weave:int:1",
-			eDI_MP_flag_di_weave, 1},
-	[eDI_MP_flm22_glbpxl_maxrow]  = {"flm22_glbpxl_maxrow:uint:16",
-			eDI_MP_flm22_glbpxl_maxrow, 16},
-	[eDI_MP_flm22_glbpxl_minrow]  = {"flm22_glbpxl_minrow:uint:3",
-			eDI_MP_flm22_glbpxl_minrow, 3},
-	[eDI_MP_cmb_3point_rnum]  = {"cmb_3point_rnum:uint",
-			eDI_MP_cmb_3point_rnum, 0},
-	[eDI_MP_cmb_3point_rrat]  = {"cmb_3point_rrat:unit:32",
-			eDI_MP_cmb_3point_rrat, 32},
+	[EDI_MP_SUB_PD_B]  = {"pd begin",
+			EDI_MP_SUB_PD_B, 0},
+	[edi_mp_flm22_ratio]  = {"flm22_ratio:uint:200",
+			edi_mp_flm22_ratio, 200},
+	[edi_mp_pldn_cmb0]  = {"pldn_cmb0:uint:1",
+			edi_mp_pldn_cmb0, 1},
+	[edi_mp_pldn_cmb1]  = {"pldn_cmb1:uint",
+			edi_mp_pldn_cmb1, 0},
+	[edi_mp_flm22_sure_num]  = {"flm22_sure_num:uint:100",
+			edi_mp_flm22_sure_num, 100},
+	[edi_mp_flm22_glbpxlnum_rat]  = {"flm22_glbpxlnum_rat:uint:4",
+			edi_mp_flm22_glbpxlnum_rat, 4},
+	[edi_mp_flag_di_weave]  = {"flag_di_weave:int:1",
+			edi_mp_flag_di_weave, 1},
+	[edi_mp_flm22_glbpxl_maxrow]  = {"flm22_glbpxl_maxrow:uint:16",
+			edi_mp_flm22_glbpxl_maxrow, 16},
+	[edi_mp_flm22_glbpxl_minrow]  = {"flm22_glbpxl_minrow:uint:3",
+			edi_mp_flm22_glbpxl_minrow, 3},
+	[edi_mp_cmb_3point_rnum]  = {"cmb_3point_rnum:uint",
+			edi_mp_cmb_3point_rnum, 0},
+	[edi_mp_cmb_3point_rrat]  = {"cmb_3point_rrat:unit:32",
+			edi_mp_cmb_3point_rrat, 32},
 	/********************************/
-	[eDI_MP_pr_pd]  = {"pr_pd:uint",
-			eDI_MP_pr_pd, 0},
-	[eDI_MP_prt_flg]  = {"prt_flg:bool",
-			eDI_MP_prt_flg, 0},
-	[eDI_MP_flmxx_maybe_num]  = {"flmxx_maybe_num:uint:15",
+	[edi_mp_pr_pd]  = {"pr_pd:uint",
+			edi_mp_pr_pd, 0},
+	[edi_mp_prt_flg]  = {"prt_flg:bool",
+			edi_mp_prt_flg, 0},
+	[edi_mp_flmxx_maybe_num]  = {"flmxx_maybe_num:uint:15",
 	/* if flmxx level > flmxx_maybe_num */
 	/* mabye flmxx: when 2-2 3-2 not detected */
-			eDI_MP_flmxx_maybe_num, 15},
-	[eDI_MP_flm32_mim_frms]  = {"flm32_mim_frms:int:6",
-			eDI_MP_flm32_mim_frms, 6},
-	[eDI_MP_flm22_dif01a_flag]  = {"flm22_dif01a_flag:int:1",
-			eDI_MP_flm22_dif01a_flag, 1},
-	[eDI_MP_flm22_mim_frms]  = {"flm22_mim_frms:int:60",
-			eDI_MP_flm22_mim_frms, 60},
-	[eDI_MP_flm22_mim_smfrms]  = {"flm22_mim_smfrms:int:40",
-			eDI_MP_flm22_mim_smfrms, 40},
-	[eDI_MP_flm32_f2fdif_min0]  = {"flm32_f2fdif_min0:int:11",
-			eDI_MP_flm32_f2fdif_min0, 11},
-	[eDI_MP_flm32_f2fdif_min1]  = {"flm32_f2fdif_min1:int:11",
-			eDI_MP_flm32_f2fdif_min1, 11},
-	[eDI_MP_flm32_chk1_rtn]  = {"flm32_chk1_rtn:int:25",
-			eDI_MP_flm32_chk1_rtn, 25},
-	[eDI_MP_flm32_ck13_rtn]  = {"flm32_ck13_rtn:int:8",
-			eDI_MP_flm32_ck13_rtn, 8},
-	[eDI_MP_flm32_chk2_rtn]  = {"flm32_chk2_rtn:int:16",
-			eDI_MP_flm32_chk2_rtn, 16},
-	[eDI_MP_flm32_chk3_rtn]  = {"flm32_chk3_rtn:int:16",
-			eDI_MP_flm32_chk3_rtn, 16},
-	[eDI_MP_flm32_dif02_ratio]  = {"flm32_dif02_ratio:int:8",
-			eDI_MP_flm32_dif02_ratio, 8},
-	[eDI_MP_flm22_chk20_sml]  = {"flm22_chk20_sml:int:6",
-			eDI_MP_flm22_chk20_sml, 6},
-	[eDI_MP_flm22_chk21_sml]  = {"flm22_chk21_sml:int:6",
-			eDI_MP_flm22_chk21_sml, 6},
-	[eDI_MP_flm22_chk21_sm2]  = {"flm22_chk21_sm2:int:10",
-			eDI_MP_flm22_chk21_sm2, 10},
-	[eDI_MP_flm22_lavg_sft]  = {"flm22_lavg_sft:int:4",
-			eDI_MP_flm22_lavg_sft, 4},
-	[eDI_MP_flm22_lavg_lg]  = {"flm22_lavg_lg:int:24",
-			eDI_MP_flm22_lavg_lg, 24},
-	[eDI_MP_flm22_stl_sft]  = {"flm22_stl_sft:int:7",
-			eDI_MP_flm22_stl_sft, 7},
-	[eDI_MP_flm22_chk5_avg]  = {"flm22_chk5_avg:int:50",
-			eDI_MP_flm22_chk5_avg, 50},
-	[eDI_MP_flm22_chk6_max]  = {"flm22_chk6_max:int:20",
-			eDI_MP_flm22_chk6_max, 20},
-	[eDI_MP_flm22_anti_chk1]  = {"flm22_anti_chk1:int:61",
-			eDI_MP_flm22_anti_chk1, 61},
-	[eDI_MP_flm22_anti_chk3]  = {"flm22_anti_chk3:int:140",
-			eDI_MP_flm22_anti_chk3, 140},
-	[eDI_MP_flm22_anti_chk4]  = {"flm22_anti_chk4:int:128",
-			eDI_MP_flm22_anti_chk4, 128},
-	[eDI_MP_flm22_anti_ck140]  = {"flm22_anti_ck140:int:32",
-			eDI_MP_flm22_anti_ck140, 32},
-	[eDI_MP_flm22_anti_ck141]  = {"flm22_anti_ck141:int:80",
-			eDI_MP_flm22_anti_ck141, 80},
-	[eDI_MP_flm22_frmdif_max]  = {"flm22_frmdif_max:int:50",
-			eDI_MP_flm22_frmdif_max, 50},
-	[eDI_MP_flm22_flddif_max]  = {"flm22_flddif_max:int:100",
-			eDI_MP_flm22_flddif_max, 100},
-	[eDI_MP_flm22_minus_cntmax]  = {"flm22_minus_cntmax:int:2",
-			eDI_MP_flm22_minus_cntmax, 2},
-	[eDI_MP_flagdif01chk]  = {"flagdif01chk:int:1",
-			eDI_MP_flagdif01chk, 1},
-	[eDI_MP_dif01_ratio]  = {"dif01_ratio:int:10",
-			eDI_MP_dif01_ratio, 10},
+			edi_mp_flmxx_maybe_num, 15},
+	[edi_mp_flm32_mim_frms]  = {"flm32_mim_frms:int:6",
+			edi_mp_flm32_mim_frms, 6},
+	[edi_mp_flm22_dif01a_flag]  = {"flm22_dif01a_flag:int:1",
+			edi_mp_flm22_dif01a_flag, 1},
+	[edi_mp_flm22_mim_frms]  = {"flm22_mim_frms:int:60",
+			edi_mp_flm22_mim_frms, 60},
+	[edi_mp_flm22_mim_smfrms]  = {"flm22_mim_smfrms:int:40",
+			edi_mp_flm22_mim_smfrms, 40},
+	[edi_mp_flm32_f2fdif_min0]  = {"flm32_f2fdif_min0:int:11",
+			edi_mp_flm32_f2fdif_min0, 11},
+	[edi_mp_flm32_f2fdif_min1]  = {"flm32_f2fdif_min1:int:11",
+			edi_mp_flm32_f2fdif_min1, 11},
+	[edi_mp_flm32_chk1_rtn]  = {"flm32_chk1_rtn:int:25",
+			edi_mp_flm32_chk1_rtn, 25},
+	[edi_mp_flm32_ck13_rtn]  = {"flm32_ck13_rtn:int:8",
+			edi_mp_flm32_ck13_rtn, 8},
+	[edi_mp_flm32_chk2_rtn]  = {"flm32_chk2_rtn:int:16",
+			edi_mp_flm32_chk2_rtn, 16},
+	[edi_mp_flm32_chk3_rtn]  = {"flm32_chk3_rtn:int:16",
+			edi_mp_flm32_chk3_rtn, 16},
+	[edi_mp_flm32_dif02_ratio]  = {"flm32_dif02_ratio:int:8",
+			edi_mp_flm32_dif02_ratio, 8},
+	[edi_mp_flm22_chk20_sml]  = {"flm22_chk20_sml:int:6",
+			edi_mp_flm22_chk20_sml, 6},
+	[edi_mp_flm22_chk21_sml]  = {"flm22_chk21_sml:int:6",
+			edi_mp_flm22_chk21_sml, 6},
+	[edi_mp_flm22_chk21_sm2]  = {"flm22_chk21_sm2:int:10",
+			edi_mp_flm22_chk21_sm2, 10},
+	[edi_mp_flm22_lavg_sft]  = {"flm22_lavg_sft:int:4",
+			edi_mp_flm22_lavg_sft, 4},
+	[edi_mp_flm22_lavg_lg]  = {"flm22_lavg_lg:int:24",
+			edi_mp_flm22_lavg_lg, 24},
+	[edi_mp_flm22_stl_sft]  = {"flm22_stl_sft:int:7",
+			edi_mp_flm22_stl_sft, 7},
+	[edi_mp_flm22_chk5_avg]  = {"flm22_chk5_avg:int:50",
+			edi_mp_flm22_chk5_avg, 50},
+	[edi_mp_flm22_chk6_max]  = {"flm22_chk6_max:int:20",
+			edi_mp_flm22_chk6_max, 20},
+	[edi_mp_flm22_anti_chk1]  = {"flm22_anti_chk1:int:61",
+			edi_mp_flm22_anti_chk1, 61},
+	[edi_mp_flm22_anti_chk3]  = {"flm22_anti_chk3:int:140",
+			edi_mp_flm22_anti_chk3, 140},
+	[edi_mp_flm22_anti_chk4]  = {"flm22_anti_chk4:int:128",
+			edi_mp_flm22_anti_chk4, 128},
+	[edi_mp_flm22_anti_ck140]  = {"flm22_anti_ck140:int:32",
+			edi_mp_flm22_anti_ck140, 32},
+	[edi_mp_flm22_anti_ck141]  = {"flm22_anti_ck141:int:80",
+			edi_mp_flm22_anti_ck141, 80},
+	[edi_mp_flm22_frmdif_max]  = {"flm22_frmdif_max:int:50",
+			edi_mp_flm22_frmdif_max, 50},
+	[edi_mp_flm22_flddif_max]  = {"flm22_flddif_max:int:100",
+			edi_mp_flm22_flddif_max, 100},
+	[edi_mp_flm22_minus_cntmax]  = {"flm22_minus_cntmax:int:2",
+			edi_mp_flm22_minus_cntmax, 2},
+	[edi_mp_flagdif01chk]  = {"flagdif01chk:int:1",
+			edi_mp_flagdif01chk, 1},
+	[edi_mp_dif01_ratio]  = {"dif01_ratio:int:10",
+			edi_mp_dif01_ratio, 10},
 	/*************vof_soft_top**************/
-	[eDI_MP_cmb32_blw_wnd]  = {"cmb32_blw_wnd:int:180",
-			eDI_MP_cmb32_blw_wnd, 180},
-	[eDI_MP_cmb32_wnd_ext]  = {"cmb32_wnd_ext:int:11",
-			eDI_MP_cmb32_wnd_ext, 11},
-	[eDI_MP_cmb32_wnd_tol]  = {"cmb32_wnd_tol:int:4",
-			eDI_MP_cmb32_wnd_tol, 4},
-	[eDI_MP_cmb32_frm_nocmb]  = {"cmb32_frm_nocmb:int:40",
-			eDI_MP_cmb32_frm_nocmb, 40},
-	[eDI_MP_cmb32_min02_sft]  = {"cmb32_min02_sft:int:7",
-			eDI_MP_cmb32_min02_sft, 7},
-	[eDI_MP_cmb32_cmb_tol]  = {"cmb32_cmb_tol:int:10",
-			eDI_MP_cmb32_cmb_tol, 10},
-	[eDI_MP_cmb32_avg_dff]  = {"cmb32_avg_dff:int:48",
-			eDI_MP_cmb32_avg_dff, 48},
-	[eDI_MP_cmb32_smfrm_num]  = {"cmb32_smfrm_num:int:4",
-			eDI_MP_cmb32_smfrm_num, 4},
-	[eDI_MP_cmb32_nocmb_num]  = {"cmb32_nocmb_num:int:20",
-			eDI_MP_cmb32_nocmb_num, 20},
-	[eDI_MP_cmb22_gcmb_rnum]  = {"cmb22_gcmb_rnum:int:8",
-			eDI_MP_cmb22_gcmb_rnum, 8},
-	[eDI_MP_flmxx_cal_lcmb]  = {"flmxx_cal_lcmb:int:1",
-			eDI_MP_flmxx_cal_lcmb, 1},
-	[eDI_MP_flm2224_stl_sft]  = {"flm2224_stl_sft:int:7",
-			eDI_MP_flm2224_stl_sft, 7},
-	[eDI_MP_SUB_PD_E]  = {"pd end------",
-			eDI_MP_SUB_PD_E, 0},
+	[edi_mp_cmb32_blw_wnd]  = {"cmb32_blw_wnd:int:180",
+			edi_mp_cmb32_blw_wnd, 180},
+	[edi_mp_cmb32_wnd_ext]  = {"cmb32_wnd_ext:int:11",
+			edi_mp_cmb32_wnd_ext, 11},
+	[edi_mp_cmb32_wnd_tol]  = {"cmb32_wnd_tol:int:4",
+			edi_mp_cmb32_wnd_tol, 4},
+	[edi_mp_cmb32_frm_nocmb]  = {"cmb32_frm_nocmb:int:40",
+			edi_mp_cmb32_frm_nocmb, 40},
+	[edi_mp_cmb32_min02_sft]  = {"cmb32_min02_sft:int:7",
+			edi_mp_cmb32_min02_sft, 7},
+	[edi_mp_cmb32_cmb_tol]  = {"cmb32_cmb_tol:int:10",
+			edi_mp_cmb32_cmb_tol, 10},
+	[edi_mp_cmb32_avg_dff]  = {"cmb32_avg_dff:int:48",
+			edi_mp_cmb32_avg_dff, 48},
+	[edi_mp_cmb32_smfrm_num]  = {"cmb32_smfrm_num:int:4",
+			edi_mp_cmb32_smfrm_num, 4},
+	[edi_mp_cmb32_nocmb_num]  = {"cmb32_nocmb_num:int:20",
+			edi_mp_cmb32_nocmb_num, 20},
+	[edi_mp_cmb22_gcmb_rnum]  = {"cmb22_gcmb_rnum:int:8",
+			edi_mp_cmb22_gcmb_rnum, 8},
+	[edi_mp_flmxx_cal_lcmb]  = {"flmxx_cal_lcmb:int:1",
+			edi_mp_flmxx_cal_lcmb, 1},
+	[edi_mp_flm2224_stl_sft]  = {"flm2224_stl_sft:int:7",
+			edi_mp_flm2224_stl_sft, 7},
+	[EDI_MP_SUB_PD_E]  = {"pd end------",
+			EDI_MP_SUB_PD_E, 0},
 	/**************************************/
-	[eDI_MP_SUB_MTN_B]  = {"mtn begin",
-			eDI_MP_SUB_MTN_B, 0},
-	[eDI_MP_force_lev]  = {"force_lev:int:0xff",
-			eDI_MP_force_lev, 0xff},
-	[eDI_MP_dejaggy_flag]  = {"dejaggy_flag:int:-1",
-			eDI_MP_dejaggy_flag, -1},
-	[eDI_MP_dejaggy_enable]  = {"dejaggy_enable:int:1",
-			eDI_MP_dejaggy_enable, 1},
-	[eDI_MP_cmb_adpset_cnt]  = {"cmb_adpset_cnt:int",
-			eDI_MP_cmb_adpset_cnt, 0},
-	[eDI_MP_cmb_num_rat_ctl4]  = {"cmb_num_rat_ctl4:int:64:0~255",
-			eDI_MP_cmb_num_rat_ctl4, 64},
-	[eDI_MP_cmb_rat_ctl4_minthd]  = {"cmb_rat_ctl4_minthd:int:64",
-			eDI_MP_cmb_rat_ctl4_minthd, 64},
-	[eDI_MP_small_local_mtn]  = {"small_local_mtn:uint:70",
-			eDI_MP_small_local_mtn, 70},
-	[eDI_MP_di_debug_readreg]  = {"di_debug_readreg:int",
-			eDI_MP_di_debug_readreg, 0},
-	[eDI_MP_SUB_MTN_E]  = {"mtn end----",
-			eDI_MP_SUB_MTN_E, 0},
+	[EDI_MP_SUB_MTN_B]  = {"mtn begin",
+			EDI_MP_SUB_MTN_B, 0},
+	[edi_mp_force_lev]  = {"force_lev:int:0xff",
+			edi_mp_force_lev, 0xff},
+	[edi_mp_dejaggy_flag]  = {"dejaggy_flag:int:-1",
+			edi_mp_dejaggy_flag, -1},
+	[edi_mp_dejaggy_enable]  = {"dejaggy_enable:int:1",
+			edi_mp_dejaggy_enable, 1},
+	[edi_mp_cmb_adpset_cnt]  = {"cmb_adpset_cnt:int",
+			edi_mp_cmb_adpset_cnt, 0},
+	[edi_mp_cmb_num_rat_ctl4]  = {"cmb_num_rat_ctl4:int:64:0~255",
+			edi_mp_cmb_num_rat_ctl4, 64},
+	[edi_mp_cmb_rat_ctl4_minthd]  = {"cmb_rat_ctl4_minthd:int:64",
+			edi_mp_cmb_rat_ctl4_minthd, 64},
+	[edi_mp_small_local_mtn]  = {"small_local_mtn:uint:70",
+			edi_mp_small_local_mtn, 70},
+	[edi_mp_di_debug_readreg]  = {"di_debug_readreg:int",
+			edi_mp_di_debug_readreg, 0},
+	[EDI_MP_SUB_MTN_E]  = {"mtn end----",
+			EDI_MP_SUB_MTN_E, 0},
 	/**************************************/
-	[eDI_MP_SUB_3D_B]  = {"3d begin",
-			eDI_MP_SUB_3D_B, 0},
-	[eDI_MP_chessbd_vrate]  = {"chessbd_vrate:int:29",
-				eDI_MP_chessbd_vrate, 29},
-	[eDI_MP_det3d_debug]  = {"det3d_debug:bool:0",
-				eDI_MP_det3d_debug, 0},
-	[eDI_MP_SUB_3D_E]  = {"3d begin",
-				eDI_MP_SUB_3D_E, 0},
+	[EDI_MP_SUB_3D_B]  = {"3d begin",
+			EDI_MP_SUB_3D_B, 0},
+	[edi_mp_chessbd_vrate]  = {"chessbd_vrate:int:29",
+				edi_mp_chessbd_vrate, 29},
+	[edi_mp_det3d_debug]  = {"det3d_debug:bool:0",
+				edi_mp_det3d_debug, 0},
+	[EDI_MP_SUB_3D_E]  = {"3d begin",
+				EDI_MP_SUB_3D_E, 0},
 
 	/**************************************/
-	[eDI_MP_UI_T_END]  = {"module para top end ", eDI_MP_UI_T_END, 0},
+	[EDI_MP_UI_T_END]  = {"module para top end ", EDI_MP_UI_T_END, 0},
 };
 
 bool di_mp_uit_check(unsigned int idx)
@@ -735,7 +736,7 @@ bool di_mp_uit_check(unsigned int idx)
 	return true;
 }
 
-char *di_mp_uit_get_name(enum eDI_MP_UI_T idx)
+char *di_mp_uit_get_name(enum EDI_MP_UI_T idx)
 {
 	return di_mp_ui_top[idx].name;
 }
@@ -744,19 +745,19 @@ void di_mp_uit_init_val(void)
 {
 	int i;
 
-	for (i = eDI_MP_UI_T_BEGIN; i < eDI_MP_UI_T_END; i++) {
+	for (i = EDI_MP_UI_T_BEGIN; i < EDI_MP_UI_T_END; i++) {
 		if (!di_mp_uit_check(i))
 			continue;
 		di_mp_uit_set(i, di_mp_ui_top[i].default_val);
 	}
 }
 
-int di_mp_uit_get(enum eDI_MP_UI_T idx)
+int di_mp_uit_get(enum EDI_MP_UI_T idx)
 {
 	return get_datal()->mp_uit[idx];
 }
 
-void di_mp_uit_set(enum eDI_MP_UI_T idx, int val)
+void di_mp_uit_set(enum EDI_MP_UI_T idx, int val)
 {
 	get_datal()->mp_uit[idx] = val;
 }
@@ -778,25 +779,25 @@ void dim_mp_update_reg(void)
 {
 	int val;
 
-	val = dimp_get(eDI_MP_pulldown_enable);
+	val = dimp_get(edi_mp_pulldown_enable);
 	if (pulldown_enable != val) {
 		PR_INF("mp:pulldown_enable: %d -> %d\n",
 		       val, pulldown_enable);
-		dimp_set(eDI_MP_pulldown_enable, pulldown_enable);
+		dimp_set(edi_mp_pulldown_enable, pulldown_enable);
 	}
 
-	val = dimp_get(eDI_MP_mcpre_en);
+	val = dimp_get(edi_mp_mcpre_en);
 	if (mcpre_en != val) {
 		PR_INF("mp:mcpre_en: %d -> %d\n",
 		       val, mcpre_en);
-		dimp_set(eDI_MP_mcpre_en, mcpre_en);
+		dimp_set(edi_mp_mcpre_en, mcpre_en);
 	}
 
-	val = dimp_get(eDI_MP_mcen_mode);
+	val = dimp_get(edi_mp_mcen_mode);
 	if (mcen_mode != val) {
 		PR_INF("mp:mcen_mode: %d -> %d\n",
 		       val, mcen_mode);
-		dimp_set(eDI_MP_mcen_mode, mcen_mode);
+		dimp_set(edi_mp_mcen_mode, mcen_mode);
 	}
 }
 
@@ -804,11 +805,11 @@ void dim_mp_update_post(void)
 {
 	int val;
 
-	val = dimp_get(eDI_MP_mcen_mode);
+	val = dimp_get(edi_mp_mcen_mode);
 	if (mcen_mode != val) {
 		PR_INF("mp:mcen_mode: %d -> %d\n",
 		       val, mcen_mode);
-		dimp_set(eDI_MP_mcen_mode, mcen_mode);
+		dimp_set(edi_mp_mcen_mode, mcen_mode);
 	}
 }
 
@@ -821,11 +822,11 @@ const struct di_mp_uix_s di_mpx[] = {
 	/*same order with enum eDI_MP_UI*/
 
 	/* module para for channel x*/
-	[eDI_MP_UIX_BEGIN]  = {"module para x begin ", eDI_MP_UIX_BEGIN, 0},
+	[EDI_MP_UIX_BEGIN]  = {"module para x begin ", EDI_MP_UIX_BEGIN, 0},
 	/*debug:	run_flag*/
-	[eDI_MP_UIX_RUN_FLG]  = {"run_flag(0:run;1:pause;2:step)",
-				eDI_MP_UIX_RUN_FLG, DI_RUN_FLAG_RUN},
-	[eDI_MP_UIX_END]  = {"module para x end ", eDI_MP_UIX_END, 0},
+	[EDI_MP_UIX_RUN_FLG]  = {"run_flag(0:run;1:pause;2:step)",
+				EDI_MP_UIX_RUN_FLG, DI_RUN_FLAG_RUN},
+	[EDI_MP_UIX_END]  = {"module para x end ", EDI_MP_UIX_END, 0},
 
 };
 
@@ -849,7 +850,7 @@ bool di_mp_uix_check(unsigned int idx)
 	return true;
 }
 
-char *di_mp_uix_get_name(enum eDI_MP_UIX_T idx)
+char *di_mp_uix_get_name(enum EDI_MP_UIX_T idx)
 {
 	return di_mpx[idx].name;
 }
@@ -860,7 +861,7 @@ void di_mp_uix_init_val(void)
 
 	for (ch = 0; ch < DI_CHANNEL_NUB; ch++) {
 		dbg_init("%s:ch[%d]\n", __func__, ch);
-		for (i = eDI_MP_UIX_BEGIN; i < eDI_MP_UIX_END; i++) {
+		for (i = EDI_MP_UIX_BEGIN; i < EDI_MP_UIX_END; i++) {
 			if (ch == 0) {
 				if (!di_mp_uix_check(i))
 					continue;
@@ -870,12 +871,12 @@ void di_mp_uix_init_val(void)
 	}
 }
 
-unsigned int di_mp_uix_get(unsigned int ch, enum eDI_MP_UIX_T idx)
+unsigned int di_mp_uix_get(unsigned int ch, enum EDI_MP_UIX_T idx)
 {
 	return get_datal()->ch_data[ch].mp_uix[idx];
 }
 
-void di_mp_uix_set(unsigned int ch, enum eDI_MP_UIX_T idx, unsigned int val)
+void di_mp_uix_set(unsigned int ch, enum EDI_MP_UIX_T idx, unsigned int val)
 {
 	get_datal()->ch_data[ch].mp_uix[idx] = val;
 }
@@ -884,7 +885,7 @@ bool di_is_pause(unsigned int ch)
 {
 	unsigned int run_flag;
 
-	run_flag = di_mp_uix_get(ch, eDI_MP_UIX_RUN_FLG);
+	run_flag = di_mp_uix_get(ch, EDI_MP_UIX_RUN_FLG);
 
 	if (run_flag == DI_RUN_FLAG_PAUSE	||
 	    run_flag == DI_RUN_FLAG_STEP_DONE)
@@ -897,9 +898,9 @@ void di_pause_step_done(unsigned int ch)
 {
 	unsigned int run_flag;
 
-	run_flag = di_mp_uix_get(ch, eDI_MP_UIX_RUN_FLG);
+	run_flag = di_mp_uix_get(ch, EDI_MP_UIX_RUN_FLG);
 	if (run_flag == DI_RUN_FLAG_STEP) {
-		di_mp_uix_set(ch, eDI_MP_UIX_RUN_FLG,
+		di_mp_uix_set(ch, EDI_MP_UIX_RUN_FLG,
 			      DI_RUN_FLAG_STEP_DONE);
 	}
 }
@@ -908,10 +909,10 @@ void di_pause(unsigned int ch, bool on)
 {
 	pr_info("%s:%d\n", __func__, on);
 	if (on)
-		di_mp_uix_set(ch, eDI_MP_UIX_RUN_FLG,
+		di_mp_uix_set(ch, EDI_MP_UIX_RUN_FLG,
 			      DI_RUN_FLAG_PAUSE);
 	else
-		di_mp_uix_set(ch, eDI_MP_UIX_RUN_FLG,
+		di_mp_uix_set(ch, EDI_MP_UIX_RUN_FLG,
 			      DI_RUN_FLAG_RUN);
 }
 
@@ -922,12 +923,12 @@ void di_pause(unsigned int ch, bool on)
  **************************************/
 const struct di_sum_s di_sum_tab[] = {
 	/*video_peek_cnt*/
-	[eDI_SUM_O_PEEK_CNT] = {"o_peek_cnt", eDI_SUM_O_PEEK_CNT, 0},
+	[EDI_SUM_O_PEEK_CNT] = {"o_peek_cnt", EDI_SUM_O_PEEK_CNT, 0},
 	/*di_reg_unreg_cnt*/
-	[eDI_SUM_REG_UNREG_CNT] = {
-			"di_reg_unreg_cnt", eDI_SUM_REG_UNREG_CNT, 100},
+	[EDI_SUM_REG_UNREG_CNT] = {
+			"di_reg_unreg_cnt", EDI_SUM_REG_UNREG_CNT, 100},
 
-	[eDI_SUM_NUB] = {"end", eDI_SUM_NUB, 0},
+	[EDI_SUM_NUB] = {"end", EDI_SUM_NUB, 0},
 };
 
 unsigned int di_sum_get_tab_size(void)
@@ -935,7 +936,7 @@ unsigned int di_sum_get_tab_size(void)
 	return ARRAY_SIZE(di_sum_tab);
 }
 
-bool di_sum_check(unsigned int ch, enum eDI_SUM id)
+bool di_sum_check(unsigned int ch, enum EDI_SUM id)
 {
 	unsigned int tsize;
 
@@ -971,14 +972,14 @@ void di_sum_reg_init(unsigned int ch)
 	}
 }
 
-void di_sum_get_info(unsigned int ch,  enum eDI_SUM id, char **name,
+void di_sum_get_info(unsigned int ch,  enum EDI_SUM id, char **name,
 		     unsigned int *pval)
 {
 	*name = di_sum_tab[id].name;
 	*pval = di_sum_get(ch, id);
 }
 
-void di_sum_set(unsigned int ch, enum eDI_SUM id, unsigned int val)
+void di_sum_set(unsigned int ch, enum EDI_SUM id, unsigned int val)
 {
 	if (!di_sum_check(ch, id))
 		return;
@@ -986,14 +987,14 @@ void di_sum_set(unsigned int ch, enum eDI_SUM id, unsigned int val)
 	di_sum_set_l(ch, id, val);
 }
 
-unsigned int di_sum_inc(unsigned int ch, enum eDI_SUM id)
+unsigned int di_sum_inc(unsigned int ch, enum EDI_SUM id)
 {
 	if (!di_sum_check(ch, id))
 		return 0;
 	return di_sum_inc_l(ch, id);
 }
 
-unsigned int di_sum_get(unsigned int ch, enum eDI_SUM id)
+unsigned int di_sum_get(unsigned int ch, enum EDI_SUM id)
 {
 	if (!di_sum_check(ch, id))
 		return 0;
@@ -1067,7 +1068,7 @@ void dip_cma_close(void)
 static void dip_wq_cma_handler(struct work_struct *work)
 {
 	struct di_mng_s *pbm = get_bufmng();
-	enum eDI_CMA_ST cma_st;
+	enum EDI_CMA_ST cma_st;
 	bool do_flg;
 	struct dim_wq_s *wq = container_of(work, struct dim_wq_s, wq_work);
 
@@ -1124,7 +1125,6 @@ static void dip_wq_cma_handler(struct work_struct *work)
 			else
 				atomic_set(&pbm->cma_mem_state[ch],
 					   EDI_CMA_ST_PART);
-
 		}
 
 		break;
@@ -1209,7 +1209,7 @@ bool dip_cma_st_is_idl_all(void)
 	return ret;
 }
 
-enum eDI_CMA_ST dip_cma_get_st(unsigned int ch)
+enum EDI_CMA_ST dip_cma_get_st(unsigned int ch)
 {
 	struct di_mng_s *pbm = get_bufmng();
 
@@ -1226,7 +1226,7 @@ const char * const di_cma_state_name[] = {
 
 const char *di_cma_dbg_get_st_name(unsigned int ch)
 {
-	enum eDI_CMA_ST st = dip_cma_get_st(ch);
+	enum EDI_CMA_ST st = dip_cma_get_st(ch);
 	const char *p = "overflow";
 
 	if (st < ARRAY_SIZE(di_cma_state_name))
@@ -1278,8 +1278,8 @@ bool dip_event_reg_chst(unsigned int ch)
 	dbg_dbg("%s:ch[%d]\n", __func__, ch);
 
 	chst = dip_chst_get(ch);
-#if 0	/*move*/
-	if (chst > eDI_TOP_STATE_NOPROB)
+#ifdef MARK_HIS	/*move*/
+	if (chst > EDI_TOP_STATE_NOPROB)
 		set_flag_trig_unreg(ch, false);
 #endif
 	switch (chst) {
@@ -1289,20 +1289,20 @@ bool dip_event_reg_chst(unsigned int ch)
 		di_que_init(ch);
 		di_vframe_reg(ch);
 
-		dip_chst_set(ch, eDI_TOP_STATE_REG_STEP1);
-		task_send_cmd(LCMD1(eCMD_REG, ch));
+		dip_chst_set(ch, EDI_TOP_STATE_REG_STEP1);
+		task_send_cmd(LCMD1(ECMD_REG, ch));
 		dbg_dbg("reg ok\n");
 		break;
-	case eDI_TOP_STATE_REG_STEP1:
-	case eDI_TOP_STATE_REG_STEP1_P1:
-	case eDI_TOP_STATE_REG_STEP2:
+	case EDI_TOP_STATE_REG_STEP1:
+	case EDI_TOP_STATE_REG_STEP1_P1:
+	case EDI_TOP_STATE_REG_STEP2:
 	case EDI_TOP_STATE_READY:
-	case eDI_TOP_STATE_BYPASS:
+	case EDI_TOP_STATE_BYPASS:
 		PR_WARN("have reg\n");
 		ret = false;
 		break;
-	case eDI_TOP_STATE_UNREG_STEP1:
-	case eDI_TOP_STATE_UNREG_STEP2:
+	case EDI_TOP_STATE_UNREG_STEP1:
+	case EDI_TOP_STATE_UNREG_STEP2:
 		/*wait*/
 		ppre->reg_req_flag_cnt = 0;
 		while (dip_chst_get(ch) != EDI_TOP_STATE_IDLE) {
@@ -1323,12 +1323,12 @@ bool dip_event_reg_chst(unsigned int ch)
 			di_que_init(ch);
 			di_vframe_reg(ch);
 
-			dip_chst_set(ch, eDI_TOP_STATE_REG_STEP1);
-			task_send_cmd(LCMD1(eCMD_REG, ch));
+			dip_chst_set(ch, EDI_TOP_STATE_REG_STEP1);
+			task_send_cmd(LCMD1(ECMD_REG, ch));
 			dbg_dbg("reg retry ok\n");
 		}
 		break;
-	case eDI_TOP_STATE_NOPROB:
+	case EDI_TOP_STATE_NOPROB:
 	default:
 		ret = false;
 		PR_ERR("err: not prob[%d]\n", chst);
@@ -1349,19 +1349,18 @@ bool dip_event_unreg_chst(unsigned int ch)
 
 	chst = dip_chst_get(ch);
 	dbg_reg("%s:ch[%d]:%s\n", __func__, ch, dip_chst_get_name(chst));
-	#if 0
-	if (chst > eDI_TOP_STATE_IDLE)
+	#ifdef MARK_HIS
+	if (chst > EDI_TOP_STATE_IDLE)
 		set_reg_flag(ch, false);/*set_flag_trig_unreg(ch, true);*/
 	#endif
-	if (chst > eDI_TOP_STATE_NOPROB) {
+	if (chst > EDI_TOP_STATE_NOPROB)
 		set_flag_trig_unreg(ch, true);
-	}
 	switch (chst) {
 	case EDI_TOP_STATE_READY:
 		di_vframe_unreg(ch);
 		/*trig unreg*/
-		dip_chst_set(ch, eDI_TOP_STATE_UNREG_STEP1);
-		task_send_cmd(LCMD1(eCMD_UNREG, ch));
+		dip_chst_set(ch, EDI_TOP_STATE_UNREG_STEP1);
+		task_send_cmd(LCMD1(ECMD_UNREG, ch));
 		/*debug only di_dbg = di_dbg|DBG_M_TSK;*/
 
 		/*wait*/
@@ -1381,7 +1380,7 @@ bool dip_event_unreg_chst(unsigned int ch)
 				err_flg = true;
 				break;
 			}
-			#if 0	/*debug only*/
+			#ifdef MARK_HIS	/*debug only*/
 			dbg_reg("\tch[%d]:s[%s],ecnt[%d]\n",
 				ch,
 				dip_chst_get_name(chst2),
@@ -1392,12 +1391,12 @@ bool dip_event_unreg_chst(unsigned int ch)
 
 		/*debug only di_dbg = di_dbg & (~DBG_M_TSK);*/
 		dbg_reg("%s:ch[%d] ready end\n", __func__, ch);
-		#if 0
+		#ifdef MARK_HIS
 		if (!err_flg)
 			set_reg_flag(ch, false);
 		#endif
 		break;
-	case eDI_TOP_STATE_BYPASS:
+	case EDI_TOP_STATE_BYPASS:
 		/*from bypass complet to unreg*/
 		di_vframe_unreg(ch);
 		di_unreg_variable(ch);
@@ -1415,7 +1414,7 @@ bool dip_event_unreg_chst(unsigned int ch)
 	case EDI_TOP_STATE_IDLE:
 		PR_WARN("have unreg\n");
 		break;
-	case eDI_TOP_STATE_REG_STEP1:
+	case EDI_TOP_STATE_REG_STEP1:
 		dbg_dbg("%s:in reg step1\n", __func__);
 		di_vframe_unreg(ch);
 		set_reg_flag(ch, false);
@@ -1423,11 +1422,11 @@ bool dip_event_unreg_chst(unsigned int ch)
 
 		ret = true;
 		break;
-	case eDI_TOP_STATE_REG_STEP1_P1:
+	case EDI_TOP_STATE_REG_STEP1_P1:
 		/*wait:*/
 		cnt = 0;
 		chst2 = dip_chst_get(ch);
-		while (chst2 == eDI_TOP_STATE_REG_STEP1_P1 && cnt < 5) {
+		while (chst2 == EDI_TOP_STATE_REG_STEP1_P1 && cnt < 5) {
 			task_send_ready();
 			usleep_range(3000, 3001);
 			cnt++;
@@ -1436,7 +1435,7 @@ bool dip_event_unreg_chst(unsigned int ch)
 
 		if (cnt >= 5)
 			PR_ERR("%s:ch[%d] in p1 timeout\n", __func__, ch);
-		if (chst2 == eDI_TOP_STATE_BYPASS) {
+		if (chst2 == EDI_TOP_STATE_BYPASS) {
 			di_vframe_unreg(ch);
 			di_unreg_variable(ch);
 
@@ -1454,8 +1453,8 @@ bool dip_event_unreg_chst(unsigned int ch)
 
 		di_vframe_unreg(ch);
 		/*trig unreg*/
-		dip_chst_set(ch, eDI_TOP_STATE_UNREG_STEP1);
-		task_send_cmd(LCMD1(eCMD_UNREG, ch));
+		dip_chst_set(ch, EDI_TOP_STATE_UNREG_STEP1);
+		task_send_cmd(LCMD1(ECMD_UNREG, ch));
 		/*debug only di_dbg = di_dbg|DBG_M_TSK;*/
 
 		/*wait*/
@@ -1484,7 +1483,7 @@ bool dip_event_unreg_chst(unsigned int ch)
 		ret = true;
 
 		break;
-	case eDI_TOP_STATE_REG_STEP2:
+	case EDI_TOP_STATE_REG_STEP2:
 		di_vframe_unreg(ch);
 		di_unreg_variable(ch);
 		set_reg_flag(ch, false);
@@ -1497,9 +1496,9 @@ bool dip_event_unreg_chst(unsigned int ch)
 		dip_chst_set(ch, EDI_TOP_STATE_IDLE);
 		ret = true;
 		break;
-	case eDI_TOP_STATE_UNREG_STEP1:
-	case eDI_TOP_STATE_UNREG_STEP2:
-		task_send_cmd(LCMD1(eCMD_UNREG, ch));
+	case EDI_TOP_STATE_UNREG_STEP1:
+	case EDI_TOP_STATE_UNREG_STEP2:
+		task_send_cmd(LCMD1(ECMD_UNREG, ch));
 		/*wait*/
 		ppre->unreg_req_flag_cnt = 0;
 		while (dip_chst_get(ch) != EDI_TOP_STATE_IDLE) {
@@ -1515,7 +1514,7 @@ bool dip_event_unreg_chst(unsigned int ch)
 			}
 		}
 		break;
-	case eDI_TOP_STATE_NOPROB:
+	case EDI_TOP_STATE_NOPROB:
 	default:
 		PR_ERR("err: not prob[%d]\n", chst);
 		break;
@@ -1542,16 +1541,16 @@ void dip_chst_process_reg(unsigned int ch)
 	/*dbg_reg("%s:ch[%d]%s\n", __func__, ch, dip_chst_get_name(chst));*/
 
 	switch (chst) {
-	case eDI_TOP_STATE_NOPROB:
+	case EDI_TOP_STATE_NOPROB:
 	case EDI_TOP_STATE_IDLE:
 		break;
-	case eDI_TOP_STATE_REG_STEP1:/*wait peek*/
+	case EDI_TOP_STATE_REG_STEP1:/*wait peek*/
 		vframe = pw_vf_peek(ch);
 
 		if (vframe) {
 			dim_tr_ops.pre_get(vframe->index_disp);
 			set_flag_trig_unreg(ch, false);
-			#if 0
+			#ifdef MARK_HIS
 			di_reg_variable(ch);
 
 			/*?how  about bypass ?*/
@@ -1564,7 +1563,7 @@ void dip_chst_process_reg(unsigned int ch)
 					dpost_init();
 					di_reg_setting(ch, vframe);
 				}
-				dip_chst_set(ch, eDI_TOP_STATE_BYPASS);
+				dip_chst_set(ch, EDI_TOP_STATE_BYPASS);
 				set_reg_flag(ch, true);
 			} else {
 				set_bypass2_complete(ch, false);
@@ -1574,20 +1573,20 @@ void dip_chst_process_reg(unsigned int ch)
 					dpost_init();
 					di_reg_setting(ch, vframe);
 				}
-				dip_chst_set(ch, eDI_TOP_STATE_REG_STEP2);
+				dip_chst_set(ch, EDI_TOP_STATE_REG_STEP2);
 			}
 			#else
-			dip_chst_set(ch, eDI_TOP_STATE_REG_STEP1_P1);
+			dip_chst_set(ch, EDI_TOP_STATE_REG_STEP1_P1);
 			#endif
 
 			reflesh = true;
 		}
 		break;
-	case eDI_TOP_STATE_REG_STEP1_P1:
+	case EDI_TOP_STATE_REG_STEP1_P1:
 		vframe = pw_vf_peek(ch);
 		if (!vframe) {
 			PR_ERR("%s:p1 vfm nop\n", __func__);
-			dip_chst_set(ch, eDI_TOP_STATE_REG_STEP1);
+			dip_chst_set(ch, EDI_TOP_STATE_REG_STEP1);
 
 			break;
 		}
@@ -1604,7 +1603,7 @@ void dip_chst_process_reg(unsigned int ch)
 				dpost_init();
 				di_reg_setting(ch, vframe);
 			}
-			dip_chst_set(ch, eDI_TOP_STATE_BYPASS);
+			dip_chst_set(ch, EDI_TOP_STATE_BYPASS);
 			set_reg_flag(ch, true);
 		} else {
 			set_bypass2_complete(ch, false);
@@ -1616,15 +1615,15 @@ void dip_chst_process_reg(unsigned int ch)
 			}
 			/*this will cause first local buf not alloc*/
 			/*dim_bypass_first_frame(ch);*/
-			dip_chst_set(ch, eDI_TOP_STATE_REG_STEP2);
+			dip_chst_set(ch, EDI_TOP_STATE_REG_STEP2);
 			/*set_reg_flag(ch, true);*/
 		}
 
 		reflesh = true;
 		break;
-	case eDI_TOP_STATE_REG_STEP2:/*now no change to do*/
+	case EDI_TOP_STATE_REG_STEP2:/*now no change to do*/
 		if (dip_cma_get_st(ch) == EDI_CMA_ST_READY) {
-			if (di_cfg_top_get(EDI_CFG_first_bypass)) {
+			if (di_cfg_top_get(EDI_CFG_FIRST_BYPASS)) {
 				if (get_sum_g(ch) == 0)
 					dim_bypass_first_frame(ch);
 				else
@@ -1639,26 +1638,26 @@ void dip_chst_process_reg(unsigned int ch)
 	case EDI_TOP_STATE_READY:
 
 		break;
-	case eDI_TOP_STATE_BYPASS:
+	case EDI_TOP_STATE_BYPASS:
 		/*do nothing;*/
 		break;
-	case eDI_TOP_STATE_UNREG_STEP1:
-#if 0
+	case EDI_TOP_STATE_UNREG_STEP1:
+#ifdef MARK_HIS
 		if (!get_reg_flag(ch)) {	/*need wait pre/post done*/
-			dip_chst_set(ch, eDI_TOP_STATE_UNREG_STEP2);
+			dip_chst_set(ch, EDI_TOP_STATE_UNREG_STEP2);
 			reflesh = true;
 		}
 #else
 		/*debug only dbg_reg("%s:UNREG_STEP1\n", __func__);*/
 
 		if (dpre_can_exit(ch) && dpst_can_exit(ch)) {
-			dip_chst_set(ch, eDI_TOP_STATE_UNREG_STEP2);
+			dip_chst_set(ch, EDI_TOP_STATE_UNREG_STEP2);
 			set_reg_flag(ch, false);
 			reflesh = true;
 		}
 #endif
 		break;
-	case eDI_TOP_STATE_UNREG_STEP2:
+	case EDI_TOP_STATE_UNREG_STEP2:
 		/*debug only dbg_reg("%s:ch[%d]:UNREG_STEP2\n",__func__, ch);*/
 		di_unreg_variable(ch);
 		if (!get_reg_flag_all()) {
@@ -1685,9 +1684,9 @@ void dip_chst_process_ch(void)
 		chst = dip_chst_get(ch);
 		ppre = get_pre_stru(ch);
 		switch (chst) {
-		case eDI_TOP_STATE_REG_STEP2:
+		case EDI_TOP_STATE_REG_STEP2:
 			if (dip_cma_get_st(ch) == EDI_CMA_ST_READY) {
-				if (di_cfg_top_get(EDI_CFG_first_bypass)) {
+				if (di_cfg_top_get(EDI_CFG_FIRST_BYPASS)) {
 					if (get_sum_g(ch) == 0)
 						dim_bypass_first_frame(ch);
 					else
@@ -1698,16 +1697,14 @@ void dip_chst_process_ch(void)
 				set_reg_flag(ch, true);
 			}
 			break;
-#if 1
-		case eDI_TOP_STATE_UNREG_STEP1:
+		case EDI_TOP_STATE_UNREG_STEP1:
 			if (dpre_can_exit(ch) && dpst_can_exit(ch)) {
-				dip_chst_set(ch, eDI_TOP_STATE_UNREG_STEP2);
+				dip_chst_set(ch, EDI_TOP_STATE_UNREG_STEP2);
 				set_reg_flag(ch, false);
 			}
 
 			break;
-#endif
-		case eDI_TOP_STATE_UNREG_STEP2:
+		case EDI_TOP_STATE_UNREG_STEP2:
 			dbg_reg("%s:ch[%d]:at UNREG_STEP2\n", __func__, ch);
 			di_unreg_variable(ch);
 			if (!get_reg_flag_all()) {
@@ -1723,7 +1720,7 @@ void dip_chst_process_ch(void)
 			dim_post_keep_back_recycle(ch);
 			dim_sumx_set(ch);
 			break;
-		case eDI_TOP_STATE_BYPASS:
+		case EDI_TOP_STATE_BYPASS:
 			vframe = pw_vf_peek(ch);
 			if (!vframe)
 				break;
@@ -1735,7 +1732,7 @@ void dip_chst_process_ch(void)
 				set_bypass2_complete(ch, false);
 				/*this will cause first local buf not alloc*/
 				/*dim_bypass_first_frame(ch);*/
-				dip_chst_set(ch, eDI_TOP_STATE_REG_STEP2);
+				dip_chst_set(ch, EDI_TOP_STATE_REG_STEP2);
 			}
 			break;
 		default:
@@ -1753,10 +1750,10 @@ bool dip_chst_change_2unreg(void)
 	for (ch = 0; ch < DI_CHANNEL_NUB; ch++) {
 		chst = dip_chst_get(ch);
 		dbg_poll("[%d]%d\n", ch, chst);
-		if (chst == eDI_TOP_STATE_UNREG_STEP1) {
+		if (chst == EDI_TOP_STATE_UNREG_STEP1) {
 			dbg_reg("%s:ch[%d]to UNREG_STEP2\n", __func__, ch);
 			set_reg_flag(ch, false);
-			dip_chst_set(ch, eDI_TOP_STATE_UNREG_STEP2);
+			dip_chst_set(ch, EDI_TOP_STATE_UNREG_STEP2);
 			ret = true;
 		}
 	}
@@ -1827,7 +1824,7 @@ void di_tout_int(struct di_time_out_s *tout, unsigned int thd)
 	tout->timer_thd = thd;
 }
 
-bool di_tout_contr(enum eDI_TOUT_CONTR cmd, struct di_time_out_s *tout)
+bool di_tout_contr(enum EDI_TOUT_CONTR cmd, struct di_time_out_s *tout)
 {
 	unsigned long ctimer;
 	unsigned long diff;
@@ -1836,11 +1833,11 @@ bool di_tout_contr(enum eDI_TOUT_CONTR cmd, struct di_time_out_s *tout)
 	ctimer = cur_to_msecs();
 
 	switch (cmd) {
-	case eDI_TOUT_CONTR_EN:
+	case EDI_TOUT_CONTR_EN:
 		tout->en = true;
 		tout->timer_start = ctimer;
 		break;
-	case eDI_TOUT_CONTR_FINISH:
+	case EDI_TOUT_CONTR_FINISH:
 		if (tout->en) {
 			diff = ctimer - tout->timer_start;
 
@@ -1851,7 +1848,7 @@ bool di_tout_contr(enum eDI_TOUT_CONTR cmd, struct di_time_out_s *tout)
 					tout->over_flow_cnt = 0;
 					tout->flg_over = 1;
 				}
-		#if 0
+		#ifdef MARK_HIS
 				if (tout->do_func)
 					tout->do_func();
 
@@ -1862,7 +1859,7 @@ bool di_tout_contr(enum eDI_TOUT_CONTR cmd, struct di_time_out_s *tout)
 		}
 		break;
 
-	case eDI_TOUT_CONTR_CHECK:	/*if time is overflow, disable timer*/
+	case EDI_TOUT_CONTR_CHECK:	/*if time is overflow, disable timer*/
 		if (tout->en) {
 			diff = ctimer - tout->timer_start;
 
@@ -1873,7 +1870,7 @@ bool di_tout_contr(enum eDI_TOUT_CONTR cmd, struct di_time_out_s *tout)
 					tout->over_flow_cnt = 0;
 					tout->flg_over = 1;
 				}
-				#if 0
+				#ifdef MARK_HIS
 				if (tout->do_func)
 					tout->do_func();
 
@@ -1883,11 +1880,11 @@ bool di_tout_contr(enum eDI_TOUT_CONTR cmd, struct di_time_out_s *tout)
 			}
 		}
 		break;
-	case eDI_TOUT_CONTR_CLEAR:
+	case EDI_TOUT_CONTR_CLEAR:
 		tout->en = false;
 		tout->timer_start = ctimer;
 		break;
-	case eDI_TOUT_CONTR_RESET:
+	case EDI_TOUT_CONTR_RESET:
 		tout->en = true;
 		tout->timer_start = ctimer;
 		break;
@@ -1938,16 +1935,16 @@ void do_table_init(struct do_table_s *pdo,
 
 /*if change to async?*/
 /* now only call in same thread */
-void do_talbe_cmd(struct do_table_s *pdo, enum eDO_TABLE_CMD cmd)
+void do_talbe_cmd(struct do_table_s *pdo, enum EDO_TABLE_CMD cmd)
 {
 	switch (cmd) {
-	case eDO_TABLE_CMD_NONE:
+	case EDO_TABLE_CMD_NONE:
 		pr_info("test:%s\n", __func__);
 		break;
-	case eDO_TABLE_CMD_STOP:
+	case EDO_TABLE_CMD_STOP:
 		pdo->do_stop = true;
 		break;
-	case eDO_TABLE_CMD_START:
+	case EDO_TABLE_CMD_START:
 		if (pdo->op_crr == K_DO_TABLE_ID_STOP) {
 			pdo->op_lst = pdo->op_crr;
 			pdo->op_crr = K_DO_TABLE_ID_START;
@@ -1961,7 +1958,7 @@ void do_talbe_cmd(struct do_table_s *pdo, enum eDO_TABLE_CMD cmd)
 			pr_info("crr is [%d], not start\n", pdo->op_crr);
 		}
 		break;
-	case eDO_TABLE_CMD_PAUSE:
+	case EDO_TABLE_CMD_PAUSE:
 		if (pdo->op_crr <= K_DO_TABLE_ID_STOP) {
 			/*do nothing*/
 		} else {
@@ -1970,10 +1967,10 @@ void do_talbe_cmd(struct do_table_s *pdo, enum eDO_TABLE_CMD cmd)
 			pdo->do_pause = true;
 		}
 		break;
-	case eDO_TABLE_CMD_STEP:
+	case EDO_TABLE_CMD_STEP:
 		pdo->do_step = true;
 		break;
-	case eDO_TABLE_CMD_STEP_BACK:
+	case EDO_TABLE_CMD_STEP_BACK:
 		pdo->do_step = false;
 		break;
 	default:
@@ -2296,6 +2293,7 @@ unsigned int dim_polic_is_bypass(struct di_ch_s *pch, struct vframe_s *vf)
 	}
 	return reason;
 }
+
 /****************************/
 void dip_init_value_reg(unsigned int ch)
 {

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: (GPL-2.0+ OR MIT) */
 /*
  * drivers/amlogic/media/di_multi/deinterlace_hw.h
  *
@@ -27,30 +28,30 @@
 
 #define	SKIP_CTRE_NUM	13
 /*move from deinterlace.c*/
-enum eAFBC_REG {
-	eAFBC_ENABLE,
-	eAFBC_MODE,
-	eAFBC_SIZE_IN,
-	eAFBC_DEC_DEF_COLOR,
-	eAFBC_CONV_CTRL,
-	eAFBC_LBUF_DEPTH,
-	eAFBC_HEAD_BADDR,
-	eAFBC_BODY_BADDR,
-	eAFBC_SIZE_OUT,
-	eAFBC_OUT_YSCOPE,
-	eAFBC_STAT,
-	eAFBC_VD_CFMT_CTRL,
-	eAFBC_VD_CFMT_W,
-	eAFBC_MIF_HOR_SCOPE,
-	eAFBC_MIF_VER_SCOPE,
-	eAFBC_PIXEL_HOR_SCOPE,
-	eAFBC_PIXEL_VER_SCOPE,
-	eAFBC_VD_CFMT_H,
+enum EAFBC_REG {
+	EAFBC_ENABLE,
+	EAFBC_MODE,
+	EAFBC_SIZE_IN,
+	EAFBC_DEC_DEF_COLOR,
+	EAFBC_CONV_CTRL,
+	EAFBC_LBUF_DEPTH,
+	EAFBC_HEAD_BADDR,
+	EAFBC_BODY_BADDR,
+	EAFBC_SIZE_OUT,
+	EAFBC_OUT_YSCOPE,
+	EAFBC_STAT,
+	EAFBC_VD_CFMT_CTRL,
+	EAFBC_VD_CFMT_W,
+	EAFBC_MIF_HOR_SCOPE,
+	EAFBC_MIF_VER_SCOPE,
+	EAFBC_PIXEL_HOR_SCOPE,
+	EAFBC_PIXEL_VER_SCOPE,
+	EAFBC_VD_CFMT_H,
 };
 
-enum eAFBC_DEC {
-	eAFBC_DEC0,
-	eAFBC_DEC1,
+enum EAFBC_DEC {
+	EAFBC_DEC0,
+	EAFBC_DEC1,
 };
 
 #define AFBC_REG_INDEX_NUB	(18)
@@ -125,8 +126,7 @@ struct di_pq_parm_s {
 void dim_read_pulldown_info(unsigned int *glb_frm_mot_num,
 			    unsigned int *glb_fid_mot_num);
 
-#if 0
-
+#ifdef MARK_HIS
 void read_new_pulldown_info(struct FlmModReg_t *pFMRegp);
 #endif
 void dim_pulldown_info_clear_g12a(void);
@@ -158,35 +158,37 @@ void dimh_enable_mc_di_pre_g12(struct DI_MC_MIF_s *di_mcinford_mif,
 
 void dimh_enable_mc_di_post(struct DI_MC_MIF_s *di_mcvecrd_mif,
 			    int urgent, bool reverse, int invert_mv);
-void dimh_enable_mc_di_post_g12(struct DI_MC_MIF_s *di_mcvecrd_mif,
-				int urgent, bool reverse, int invert_mv);
+void dimh_en_mc_di_post_g12(struct DI_MC_MIF_s *di_mcvecrd_mif,
+			    int urgent, bool reverse, int invert_mv);
 
 void dimh_disable_post_deinterlace_2(void);
 void dimh_initial_di_post_2(int hsize_post, int vsize_post,
 			    int hold_line, bool write_en);
-void dimh_enable_di_post_2(
-	struct DI_MIF_s		*di_buf0_mif,
-	struct DI_MIF_s		*di_buf1_mif,
-	struct DI_MIF_s		*di_buf2_mif,
-	struct DI_SIM_MIF_s	*di_diwr_mif,
-	struct DI_SIM_MIF_s	*di_mtnprd_mif,
-	int ei_en, int blend_en, int blend_mtn_en, int blend_mode,
-	int di_vpp_en, int di_ddr_en,
-	int post_field_num, int hold_line, int urgent,
-	int invert_mv, int vskip_cnt
+void dimh_enable_di_post_2(struct DI_MIF_s *di_buf0_mif,
+			   struct DI_MIF_s *di_buf1_mif,
+			   struct DI_MIF_s *di_buf2_mif,
+			   struct DI_SIM_MIF_s *di_diwr_mif,
+			   struct DI_SIM_MIF_s *di_mtnprd_mif,
+			   int ei_en, int blend_en, int blend_mtn_en,
+			   int blend_mode, int di_vpp_en,
+			   int di_ddr_en, int post_field_num,
+			   int hold_line, int urgent,
+			   int invert_mv, int vskip_cnt
 );
-void dimh_post_switch_buffer(
-	struct DI_MIF_s		*di_buf0_mif,
-	struct DI_MIF_s		*di_buf1_mif,
-	struct DI_MIF_s		*di_buf2_mif,
-	struct DI_SIM_MIF_s	*di_diwr_mif,
-	struct DI_SIM_MIF_s	*di_mtnprd_mif,
-	struct DI_MC_MIF_s	*di_mcvecrd_mif,
-	int ei_en, int blend_en, int blend_mtn_en, int blend_mode,
-	int di_vpp_en, int di_ddr_en,
-	int post_field_num, int hold_line, int urgent,
-	int invert_mv, bool pd_en, bool mc_enable,
-	int vskip_cnt
+
+void dimh_post_switch_buffer(struct DI_MIF_s *di_buf0_mif,
+			     struct DI_MIF_s *di_buf1_mif,
+			     struct DI_MIF_s *di_buf2_mif,
+			     struct DI_SIM_MIF_s *di_diwr_mif,
+			     struct DI_SIM_MIF_s *di_mtnprd_mif,
+			     struct DI_MC_MIF_s	*di_mcvecrd_mif,
+			     int ei_en, int blend_en,
+			     int blend_mtn_en, int blend_mode,
+			     int di_vpp_en, int di_ddr_en,
+			     int post_field_num, int hold_line,
+			     int urgent,
+			     int invert_mv, bool pd_en, bool mc_enable,
+			     int vskip_cnt
 );
 void dim_post_read_reverse_irq(bool reverse,
 			       unsigned char mc_pre_flag, bool mc_enable);
@@ -221,10 +223,10 @@ void dump_vd2_afbc(void);
 
 int dim_print(const char *fmt, ...);
 
-#define DI_MC_SW_OTHER	(1 << 0)
-#define DI_MC_SW_REG	(1 << 1)
+#define DI_MC_SW_OTHER	(0x1 << 0)
+#define DI_MC_SW_REG	(0x1 << 1)
 /*#define DI_MC_SW_POST	(1 << 2)*/
-#define DI_MC_SW_IC	(1 << 2)
+#define DI_MC_SW_IC	(0x1 << 2)
 
 #define DI_MC_SW_ON_MASK	(DI_MC_SW_REG | DI_MC_SW_OTHER | DI_MC_SW_IC)
 
@@ -249,14 +251,13 @@ void dimh_int_ctr(unsigned int set_mod, unsigned char ma_en,
 		  unsigned char post_wr, unsigned char mc_en);
 
 void h_dbg_reg_set(unsigned int val);
-
-enum eDI_POST_FLOW {
-	eDI_POST_FLOW_STEP1_STOP,
-	eDI_POST_FLOW_STEP2_START,
+enum EDI_POST_FLOW {
+	EDI_POST_FLOW_STEP1_STOP,
+	EDI_POST_FLOW_STEP2_START,
 	EDI_POST_FLOW_STEP3_IRQ,
 };
 
-void di_post_set_flow(unsigned int post_wr_en, enum eDI_POST_FLOW step);
+void di_post_set_flow(unsigned int post_wr_en, enum EDI_POST_FLOW step);
 void post_mif_sw(bool on);
 void post_dbg_contr(void);
 void post_close_new(void);

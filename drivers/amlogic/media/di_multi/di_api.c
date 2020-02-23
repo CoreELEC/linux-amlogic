@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
  * drivers/amlogic/media/di_multi/di_api.c
  *
@@ -36,15 +37,25 @@ void dim_attach_to_local(void)
 
 bool dim_attach_ext_api(struct di_ext_ops *di_api)
 {
-	#if 1
+	#ifdef MARK_HIS
+	di_api = &di_ext;
+	#else
 	if (!di_api)
 		return false;
 
 	memcpy(di_api, &di_ext, sizeof(struct di_ext_ops));
-	#else
-	di_api = &di_ext;
 	#endif
 	return true;
+}
+
+void diext_clk_b_sw(bool on)
+{
+	if (on)
+		ext_ops.switch_vpu_clk_gate_vmod(VPU_VPU_CLKB,
+				VPU_CLK_GATE_ON);
+	else
+		ext_ops.switch_vpu_clk_gate_vmod(VPU_VPU_CLKB,
+				VPU_CLK_GATE_OFF);
 }
 
 /*EXPORT_SYMBOL(dim_attach_ext_api);*/
