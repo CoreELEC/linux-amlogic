@@ -859,7 +859,9 @@ static int pts_lookup_offset_inline_locked(u8 type, u32 offset, u32 *val,
 			if (!pTable->first_lookup_ok) {
 				pTable->first_lookup_ok = 1;
 				if (type == PTS_TYPE_VIDEO)
-					timestamp_firstvpts_set(*val);
+					pr_info("video first pts = 0x%x offset:0x%x\n",
+							*val, offset);
+					/*timestamp_firstvpts_set(*val);*/
 				if (tsync_get_debug_pts_checkout()) {
 					if (tsync_get_debug_vpts()
 						&& (type == PTS_TYPE_VIDEO)) {
@@ -964,6 +966,8 @@ static int pts_lookup_offset_inline_locked(u8 type, u32 offset, u32 *val,
 					else
 						timestamp_firstvpts_set(
 						timestamp_vpts_get());
+					pr_info("video first pts lookup failed. offset:0x%x\n",
+						offset);
 				}
 
 				if (tsync_get_debug_pts_checkout()) {

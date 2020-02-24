@@ -806,6 +806,7 @@ struct av_info_t {
 	unsigned int dec_frame_count;/*vdec frame count*/
 	unsigned int dec_drop_frame_count;/*drop frame num*/
 	int tsync_mode;
+	unsigned int dec_video_bps;/*video bitrate*/
 };
 
 struct av_param_info_t {

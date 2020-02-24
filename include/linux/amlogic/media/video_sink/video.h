@@ -246,6 +246,8 @@ static inline int amvideo_notifier_call_chain(unsigned long val, void *v)
 #define VIDEO_MUTE_ON_DV	2
 void set_video_mute(bool on);
 int get_video_mute(void);
+u32 get_first_pic_coming(void);
+u32 get_toggle_frame_count(void);
 
 int query_video_status(int type, int *value);
 u32 set_blackout_policy(int policy);
