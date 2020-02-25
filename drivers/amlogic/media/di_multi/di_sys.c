@@ -683,6 +683,8 @@ static DEVICE_ATTR(dump_pic, 0200, NULL, store_dump_mem);
 static DEVICE_ATTR(log, 0640, show_log, store_log);
 static DEVICE_ATTR(provider_vframe_status, 0444, show_vframe_status, NULL);
 static DEVICE_ATTR(tvp_region, 0444, show_tvp_region, NULL);
+static DEVICE_ATTR(kpi_frame_num, 0640, show_kpi_frame_num,
+	store_kpi_frame_num);
 
 /********************************************/
 static int di_open(struct inode *node, struct file *file)
@@ -933,6 +935,7 @@ static int dim_probe(struct platform_device *pdev)
 	device_create_file(di_devp->dev, &dev_attr_provider_vframe_status);
 	device_create_file(di_devp->dev, &dev_attr_frame_format);
 	device_create_file(di_devp->dev, &dev_attr_tvp_region);
+	device_create_file(di_devp->dev, &dev_attr_kpi_frame_num);
 
 	/*pd_device_files_add*/
 	get_ops_pd()->prob(di_devp->dev);
@@ -1027,6 +1030,8 @@ static int dim_remove(struct platform_device *pdev)
 	device_remove_file(di_devp->dev, &dev_attr_provider_vframe_status);
 	device_remove_file(di_devp->dev, &dev_attr_frame_format);
 	device_remove_file(di_devp->dev, &dev_attr_tvp_region);
+	device_remove_file(di_devp->dev, &dev_attr_kpi_frame_num);
+
 	/*pd_device_files_del*/
 	get_ops_pd()->remove(di_devp->dev);
 	get_ops_nr()->nr_drv_uninit(di_devp->dev);

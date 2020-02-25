@@ -231,7 +231,6 @@ static u32 next_peek_underflow;
 
 static u32 frame_skip_check_cnt;
 
-
 /*frame_detect_flag: 1 enable, 0 disable */
 /*frame_detect_time: */
 /*	How often "frame_detect_receive_count" and */
@@ -1634,7 +1633,7 @@ static void vsync_toggle_frame(struct vframe_s *vf, int line)
 		first_picture = 1;
 
 	if ((debug_flag & DEBUG_FLAG_BLACKOUT) && first_picture)
-		pr_info("first toggle picture {%d,%d} pts:%x\n",
+		pr_info("[vpp-kpi] first toggle picture {%d,%d} pts:%x\n",
 			vf->width, vf->height, vf->pts);
 	vframe_walk_delay = (int)div_u64(((jiffies_64 -
 		vf->ready_jiffies64) * 1000), HZ);

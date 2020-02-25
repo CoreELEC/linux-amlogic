@@ -452,8 +452,8 @@ static int pts_checkin_offset_inline(u8 type, u32 offset, u32 val, u64 uS64)
 			 *if(tsync_get_debug_pts_checkin() &&
 			 * tsync_get_debug_vpts()) {
 			 */
-			pr_debug(
-				"first check in vpts <0x%x:0x%x(0x%llx)> ok!\n",
+			pr_info(
+				"[pts_kpi] first check in vpts <0x%x:0x%x(0x%llx)> ok!\n",
 				offset, val, uS64);
 			/* } */
 		}
@@ -466,7 +466,7 @@ static int pts_checkin_offset_inline(u8 type, u32 offset, u32 val, u64 uS64)
 			 * tsync_get_debug_apts()) {
 			 */
 			pr_info(
-				"first check in apts <0x%x:0x%x(0x%llx)> ok!\n",
+				"[pts_kpi] first check in apts <0x%x:0x%x(0x%llx)> ok!\n",
 				offset, val, uS64);
 			/* } */
 		}
@@ -858,10 +858,13 @@ static int pts_lookup_offset_inline_locked(u8 type, u32 offset, u32 *val,
 
 			if (!pTable->first_lookup_ok) {
 				pTable->first_lookup_ok = 1;
-				if (type == PTS_TYPE_VIDEO)
-					pr_info("video first pts = 0x%x offset:0x%x\n",
-							*val, offset);
+				if (type == PTS_TYPE_VIDEO ||
+					type == PTS_TYPE_AUDIO) {
+					pr_info("[pts_kpi] first lookup %spts=0x%x offset:0x%x\n",
+						(type == PTS_TYPE_VIDEO)?"v":"a",
+						*val, offset);
 					/*timestamp_firstvpts_set(*val);*/
+				}
 				if (tsync_get_debug_pts_checkout()) {
 					if (tsync_get_debug_vpts()
 						&& (type == PTS_TYPE_VIDEO)) {

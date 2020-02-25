@@ -117,6 +117,8 @@ bool dim_get_mcmem_alloc(void)
 
 static unsigned int di_pre_rdma_enable;
 
+static int kpi_frame_num = 3; // default print first comming n frames
+
 /**************************************
  *
  *
@@ -749,6 +751,27 @@ show_vframe_status(struct device *dev,
 		}
 	}
 	return ret;
+}
+
+ssize_t
+show_kpi_frame_num(struct device *dev,
+		   struct device_attribute *attr,
+		   char *buf)
+{
+	return sprintf(buf, "kpi_frame_num:%d\n", kpi_frame_num);
+}
+
+ssize_t
+store_kpi_frame_num(struct device *dev, struct device_attribute *attr,
+	       const char *buf, size_t len)
+{
+	unsigned long num;
+	int ret = kstrtoul(buf, 0, (unsigned long *)&num);
+
+	if (ret < 0)
+		return -EINVAL;
+	kpi_frame_num = (int)num;
+	return len;
 }
 
 /***************************
@@ -3706,7 +3729,13 @@ unsigned char dim_pre_de_buf_config(unsigned int channel)
 
 		if (!vframe)
 			return 0;
-
+		if (ppre->in_seq < kpi_frame_num) {
+			pr_dbg("[di_kpi] DI:ch[%d] get %dth vf[0x%p] from frontend %u ms.\n",
+				channel,
+				ppre->in_seq, vframe,
+				jiffies_to_msecs(jiffies_64 -
+				vframe->ready_jiffies64));
+		}
 		dim_tr_ops.pre_get(vframe->index_disp);
 		didbg_vframe_in_copy(channel, vframe);
 
@@ -3715,10 +3744,10 @@ unsigned char dim_pre_de_buf_config(unsigned int channel)
 			vframe->height = vframe->compHeight;
 		}
 		dim_print("DI:ch[%d] get %dth vf[0x%p] from frontend %u ms.\n",
-			  channel,
-			  ppre->in_seq, vframe,
-			  jiffies_to_msecs(jiffies_64 -
-			  vframe->ready_jiffies64));
+			channel,
+			ppre->in_seq, vframe,
+			jiffies_to_msecs(jiffies_64 -
+			vframe->ready_jiffies64));
 		vframe->prog_proc_config = (cfg_prog_proc & 0x20) >> 5;
 
 		if (vframe->width > 10000 || vframe->height > 10000 ||
@@ -5064,6 +5093,10 @@ int dim_post_process(void *arg, unsigned int zoom_start_x_lines,
 	else
 		return 0;
 	/*dbg*/
+	if (ppost->frame_cnt == 1) {
+		pr_dbg("[di_kpi] di:ch[%d]:queue 1st frame to post ready.\n",
+			channel);
+	}
 	dim_ddbg_mod_save(EDI_DBG_MOD_POST_SETB, channel, ppost->frame_cnt);
 	dbg_post_cnt(channel, "ps1");
 	di_start_x = zoom_start_x_lines;
@@ -5948,9 +5981,9 @@ static void drop_frame(int check_drop, int throw_flag, struct di_buf_s *di_buf,
 		    dimp_get(edi_mp_post_wr_support))
 			//queue_in(channel, di_buf, QUEUE_POST_DOING);
 			di_que_in(channel, QUE_POST_DOING, di_buf);
-		else
+		else {
 			di_que_in(channel, QUE_POST_READY, di_buf);
-
+		}
 		dim_tr_ops.post_do(di_buf->vframe->index_disp);
 		dim_print("di:ch[%d]:%dth %s[%d] => post ready %u ms.\n",
 			  channel,
@@ -7611,6 +7644,15 @@ struct vframe_s *di_vf_l_get(unsigned int channel)
 			  vframe_ret->ready_jiffies64));
 		didbg_vframe_out_save(vframe_ret);
 
+		if (disp_frame_count == 1) {
+			pr_dbg("[di_kpi] %s: 1st frame get success. %s[%d]:0x%p %u ms\n",
+				__func__,
+				vframe_type_name[di_buf->type],
+				di_buf->index,
+				vframe_ret,
+				jiffies_to_msecs(jiffies_64 -
+				vframe_ret->ready_jiffies64));
+		}
 		dim_tr_ops.post_get(vframe_ret->index_disp);
 	} else {
 		dim_tr_ops.post_get2(3);

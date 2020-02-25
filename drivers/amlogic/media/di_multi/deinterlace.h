@@ -609,6 +609,13 @@ ssize_t
 show_vframe_status(struct device *dev,
 		   struct device_attribute *attr,
 		   char *buf);
+ssize_t
+show_kpi_frame_num(struct device *dev,
+		   struct device_attribute *attr,
+		   char *buf);
+ssize_t
+store_kpi_frame_num(struct device *dev, struct device_attribute *attr,
+	       const char *buf, size_t len);
 
 ssize_t dim_read_log(char *buf);
 
