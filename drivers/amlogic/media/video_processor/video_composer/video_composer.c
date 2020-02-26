@@ -1336,7 +1336,6 @@ static void set_frames_info(struct composer_dev *dev,
 	u64 time_us64;
 	u64 time_vsync;
 	int axis[4];
-	int crop[4];
 	int ready_len = 0;
 	bool current_is_sideband = false;
 
@@ -1357,12 +1356,7 @@ static void set_frames_info(struct composer_dev *dev,
 				+ axis[0] - 1;
 			axis[3] = frames_info->frame_info[j].dst_h
 				+ axis[1] - 1;
-			crop[0] = frames_info->frame_info[j].crop_x;
-			crop[1] = frames_info->frame_info[j].crop_y;
-			crop[2] = frames_info->frame_info[j].crop_w;
-			crop[3] = frames_info->frame_info[j].crop_h;
 			set_video_window_ext(dev->index, axis);
-			set_video_crop_ext(dev->index, crop);
 			set_video_zorder_ext(dev->index,
 					     frames_info->disp_zorder);
 			if (!dev->is_sideband && dev->received_count > 0) {
