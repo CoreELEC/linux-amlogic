@@ -1358,7 +1358,6 @@ static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *p)
 	}
 
 	if (vf->flag & VFRAME_FLAG_DOUBLE_FRAM) {
-		pr_debug("%d,p\n", dev->inst);
 		vf_ext = (struct vframe_s *)vf->vf_ext;
 		if (render_use_dec) {
 			file_private_data->vf = *vf_ext;
@@ -1384,8 +1383,7 @@ static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *p)
 		file_private_data->vf_p = vf;
 		canvas_to_addr(&file_private_data->vf);
 	}
-	if (vf->type & VIDTYPE_DI_PW)
-		pr_debug("%d,I\n", dev->inst);
+
 	v4lvideo_import_sei_data(
 		vf, &file_private_data->vf,
 		dev->provider_name);
