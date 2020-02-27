@@ -1959,6 +1959,13 @@ static ssize_t show_firstvpts(struct class *class,
 	return sprintf(buf, "0x%x\n", timestamp_firstvpts_get());
 }
 
+static ssize_t show_videostarted(struct class *class,
+				struct class_attribute *attr, char *buf)
+{
+	return sprintf(buf, "0x%x\n", tsync_video_started);
+}
+
+
 static ssize_t show_firstapts(struct class *class,
 		struct class_attribute *attr, char *buf)
 {
@@ -2156,6 +2163,7 @@ static struct class_attribute tsync_class_attrs[] = {
 	__ATTR(checkin_firstapts, 0644, show_checkin_firstapts,
 	NULL),
 	__ATTR(pts_latency, 0664, show_latency, store_latency),
+	__ATTR(videostarted, 0664, show_videostarted, NULL),
 	__ATTR_NULL
 };
 
@@ -2278,6 +2286,9 @@ int tsync_show_fun(const char *trigger, int id, char *sbuf, int size)
 	case 21:
 		ret = show_checkin_firstvpts(NULL, NULL, buf);
 		break;
+	case 22:
+		ret = show_videostarted(NULL, NULL, buf);
+		break;
 	default:
 		ret = -1;
 	}
@@ -2314,6 +2325,7 @@ static struct mconfig tsync_configs[] = {
 	MC_FUN_ID("startsync_mode", tsync_show_fun, tsync_store_fun, 19),
 	MC_FUN_ID("firstapts", tsync_show_fun, tsync_store_fun, 20),
 	MC_FUN_ID("checkin_firstvpts", tsync_show_fun, NULL, 21),
+	MC_FUN_ID("videostarted", tsync_show_fun, NULL, 22),
 };
 
 static int tsync_open(struct inode *inode, struct file *file)
