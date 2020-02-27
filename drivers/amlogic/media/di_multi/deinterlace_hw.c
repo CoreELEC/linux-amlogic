@@ -3280,6 +3280,7 @@ void dim_pre_frame_reset_g12(unsigned char madi_en,
 	reg_val = 0x83200000 | dimp_get(eDI_MP_line_num_pre_frst);
 	dim_RDMA_WR(DI_PRE_GL_CTRL, reg_val);
 	#else
+	hpre_gl_sw(false);
 	hpre_gl_sw(true);
 	#endif
 }
