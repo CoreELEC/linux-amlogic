@@ -3666,10 +3666,9 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 		    (receive_frame_count == 0)) {
 			glayer_info[0].display_path_id = VFM_PATH_AMVIDEO;
 			vd1_path_id = glayer_info[0].display_path_id;
-		}
+	}
 	}
 
-	/* vout mode detection under old tunnel mode */
 	if ((vf) && ((vf->type & VIDTYPE_NO_VIDEO_ENABLE) == 0)) {
 		if ((old_vmode != new_vmode) || (debug_flag == 8)) {
 			debug_flag = 1;
@@ -3895,20 +3894,6 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 
 	if (atomic_read(&video_unreg_flag))
 		goto exit;
-
-	/* vout mode detection under new non-tunnel mode */
-	if ((vd_layer[0].dispbuf &&
-	     !(vd_layer[0].dispbuf->type & VIDTYPE_NO_VIDEO_ENABLE)) ||
-	    (vd_layer[1].dispbuf &&
-	     !(vd_layer[1].dispbuf->type & VIDTYPE_NO_VIDEO_ENABLE))) {
-		if ((old_vmode != new_vmode) || (debug_flag == 8)) {
-			debug_flag = 1;
-			vd_layer[0].property_changed = true;
-			vd_layer[1].property_changed = true;
-			pr_info("detect vout mode change!!!!!!!!!!!!\n");
-			old_vmode = new_vmode;
-		}
-	}
 
 	if (recycle_cnt[0]) {
 		if (recycle_buf[0][0])
