@@ -233,20 +233,23 @@ int rtl8211f_resume(struct phy_device *phydev)
 	if (support_external_phy_wol) {
 		mutex_lock(&phydev->lock);
 
-		phy_write(phydev, RTL8211F_PAGE_SELECT, 0xd8a);
-		phy_write(phydev, 0x10, 0x0);
-		/*reset wol*/
-		value = phy_read(phydev, 0x11);
-		phy_write(phydev, 0x11, value & ~(0x1 << 15));
 		/*pad isolantion*/
+		phy_write(phydev, RTL8211F_PAGE_SELECT, 0xd8a);
 		value = phy_read(phydev, 0x13);
-		phy_write(phydev, 0x13, value & ~(0x1 << 15));
-
+		phy_write(phydev, 0x13, value & ~(0x1 << 12));
 		phy_write(phydev, RTL8211F_PAGE_SELECT, 0);
+
+		/*pin 31 pull high*/
+		phy_write(phydev, RTL8211F_PAGE_SELECT, 0xd40);
+		value = phy_read(phydev, 0x16);
+		phy_write(phydev, 0x16, value | (1 << 5));
+		phy_write(phydev, RTL8211F_PAGE_SELECT, 0);
+
 		mutex_unlock(&phydev->lock);
-	} else {
-		rtl8211f_config_init(phydev);
 	}
+
+	rtl8211f_config_init(phydev);
+
 	pr_debug("%s %d\n", __func__, __LINE__);
 
 	return 0;
