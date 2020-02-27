@@ -3665,9 +3665,10 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 		if (glayer_info[0].display_path_id == VFM_PATH_AUTO) {
 			glayer_info[0].display_path_id = VFM_PATH_AMVIDEO;
 			vd1_path_id = glayer_info[0].display_path_id;
-	}
+		}
 	}
 
+	/* vout mode detection under old tunnel mode */
 	if ((vf) && ((vf->type & VIDTYPE_NO_VIDEO_ENABLE) == 0)) {
 		if ((old_vmode != new_vmode) || (debug_flag == 8)) {
 			debug_flag = 1;
@@ -4639,6 +4640,16 @@ SET_FILTER:
 		cur_blackout = blackout | force_blackout;
 	} else {
 		cur_blackout = 1;
+	}
+
+	/* vout mode detection under new non-tunnel mode */
+	if (vd_layer[0].dispbuf || vd_layer[1].dispbuf) {
+		if ((old_vmode != new_vmode) || (debug_flag == 8)) {
+			vd_layer[0].property_changed = true;
+			vd_layer[1].property_changed = true;
+			pr_info("detect vout mode change!!!!!!!!!!!!\n");
+			old_vmode = new_vmode;
+		}
 	}
 
 	if (!new_frame && vd_layer[0].dispbuf &&
