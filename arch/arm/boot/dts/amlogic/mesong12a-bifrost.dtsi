@@ -37,7 +37,9 @@
 		clock-names = "gpu_mux","gp0_pll";
 
 
-		tbl =  <&dvfs500_cfg
+		tbl =  <&dvfs285_cfg
+			&dvfs400_cfg
+			&dvfs500_cfg
 			&dvfs666_cfg
 			&dvfs850_cfg
 			&dvfs850_cfg>;
