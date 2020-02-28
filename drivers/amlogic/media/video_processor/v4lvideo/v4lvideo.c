@@ -1409,9 +1409,9 @@ static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *p)
 		vf->pts = pts_tmp;
 	}
 	/*workrun for decoder i pts err, if decoder fix it, this should remove*/
-	if ((vf->type & VIDTYPE_DI_PW ||
-	     vf->type & VIDTYPE_INTERLACE) &&
-	    (vf->pts_us64 == dev->last_pts_us64)) {
+	if ((!(vf->flag & VFRAME_FLAG_DOUBLE_FRAM))
+	    && (vf->type & VIDTYPE_DI_PW || vf->type & VIDTYPE_INTERLACE)
+	    && (vf->pts_us64 == dev->last_pts_us64)) {
 		dprintk(dev, 1, "pts same\n");
 		pts_tmp = DUR2PTS(vf->duration) * 100;
 		do_div(pts_tmp, 9);
@@ -1527,6 +1527,7 @@ static int video_receiver_event_fun(int type, void *data, void *private_data)
 		dev->receiver_register = true;
 		dev->frame_num = 0;
 		dev->first_frame = 0;
+		dev->last_pts_us64 = U64_MAX;
 		mutex_unlock(&dev->mutex_input);
 		get_count = 0;
 		put_count = 0;
