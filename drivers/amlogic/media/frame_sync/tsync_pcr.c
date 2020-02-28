@@ -348,8 +348,8 @@ EXPORT_SYMBOL(tsync_pcr_get_min_checkinpts);
 static void tsync_set_pcr_mode(int mode, u32 param)
 {
 	if (tsync_pcr_debug & 0x03) {
-		pr_info("tsync_use_demux_pcr: %d to %d\n",
-			tsync_use_demux_pcr, mode);
+		pr_info("tsync_use_demux_pcr: %d to %d, param=0x%x\n",
+			tsync_use_demux_pcr, mode, param);
 	}
 	if (mode == 0) {
 		tsync_use_demux_pcr = 0;
@@ -1365,7 +1365,8 @@ static void tsync_pcr_param_reset(void)
 	tsync_video_continue_count = 0;
 	last_discontinue_checkin_apts = 0;
 	tsync_vpts_adjust = 0;
-
+	last_discontinue_checkin_vpts = 0;
+	tsync_video_discontinue = 0;
 }
 
 int tsync_pcr_set_apts(unsigned int pts)
