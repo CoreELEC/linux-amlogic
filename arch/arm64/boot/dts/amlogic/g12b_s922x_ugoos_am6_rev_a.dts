@@ -27,6 +27,9 @@
 	gpio_keypad {
 		key-gpios = <&gpio_ao  GPIOAO_6  GPIO_ACTIVE_HIGH>;
 	};
+
+	/delete-node/ sensor;
+	/delete-node/ iq;
 };
 
 &usb2_phy_v2 {
@@ -41,7 +44,21 @@
 	gpios = <&gpio_ao GPIOAO_7 GPIO_ACTIVE_HIGH>;
 };
 
+&isp {
+	status = "disabled";
+	/*memory-region = <&isp_cma_reserved>;*/
+};
+
+&adapter {
+	status = "disabled";
+	/*memory-region = <&adapt_cma_reserved>;*/
+};
+
 &i2c3 {
+	ad82584f_62: ad82584f_62@62 {
+		status = "disabled";
+	};
+	
 	rt5651: rt5651@1a {
 		compatible = "realtek,rt5651";
 		#sound-dai-cells = <0>;
@@ -52,14 +69,12 @@
 	};
 
 	hym8563: hym8563@51 {
+		compatible = "haoyu,hym8563";
+		reg = <0x51>;
 		#clock-cells = <0>;
 		clock-frequency = <32768>;
 		clock-output-names = "xin32k";
 	};
-};
-
-&uart_AO_B {
-	status = "okay";
 };
 
 &audiobus {
@@ -67,12 +82,8 @@
 		pinctrl-0 = </*&tdmc_mclk &tdmout_c &tdmin_c*/>;
 	};
 
-	aml_spdif: spdif {
-		pinctrl-0 = <&spdifout /*&spdifin*/>;
-		pinctrl-1 = <&spdifout_a_mute>;
-	};
-	aml_pdm: pdm {
-		pinctrl-0 = </*&pdmin*/>;
+	tdm@3 {
+		status = "disabled";
 	};
 }; /* end of audiobus */
 
@@ -82,6 +93,10 @@
 };
 
 &pinctrl_periphs {
+	/delete-node/ tdmc_mclk;
+	/delete-node/ tdmout_c;
+	/delete-node/ tdmin_c;
+
 	spdifout: spdifout {
 		mux { /* GPIOA_11 */
 			groups = "spdif_out_a11";
