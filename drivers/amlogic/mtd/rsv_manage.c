@@ -448,7 +448,7 @@ READ_RSV_AGAIN:
 			goto READ_RSV_AGAIN;
 		}
 
-		memcpy(oob_buf, chip->oob_poi, mtd->oobavail);
+		memcpy(oob_buf, chip->oob_poi, sizeof(struct oobinfo_t));
 		if (memcmp(oobinfo->name, nandrsv_info->name, 4))
 			pr_info("invalid nand info %s magic: %llx\n",
 				nandrsv_info->name, (uint64_t)addr);
@@ -1052,7 +1052,7 @@ RE_RSV_INFO:
 		goto RE_RSV_INFO;
 	}
 
-	memcpy(oob_buf, chip->oob_poi, mtd->oobavail);
+	memcpy(oob_buf, chip->oob_poi, sizeof(struct oobinfo_t));
 	nandrsv_info->init = 1;
 	nandrsv_info->valid_node->status = 0;
 
@@ -1168,7 +1168,7 @@ RE_RSV_INFO:
 			continue;
 		}
 
-		memcpy(oob_buf, chip->oob_poi, mtd->oobavail);
+		memcpy(oob_buf, chip->oob_poi, sizeof(struct oobinfo_t));
 		if (!memcmp(oobinfo->name, nandrsv_info->name, 4)) {
 			good_addr[i] = 1;
 			nandrsv_info->valid_node->phy_page_addr = i;
