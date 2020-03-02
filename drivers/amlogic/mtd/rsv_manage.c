@@ -419,7 +419,7 @@ READ_RSV_AGAIN:
 	addr = nandrsv_info->valid_node->phy_blk_addr;
 	addr *= mtd->erasesize;
 	addr += nandrsv_info->valid_node->phy_page_addr * mtd->writesize;
-	pr_info("%s:%d,read %s info to %llx\n", __func__, __LINE__,
+	pr_info("%s:%d,read %s info at %llx\n", __func__, __LINE__,
 		nandrsv_info->name, addr);
 
 	data_buf = aml_chip->rsv_data_buf;
@@ -452,8 +452,8 @@ READ_RSV_AGAIN:
 		if (memcmp(oobinfo->name, nandrsv_info->name, 4))
 			pr_info("invalid nand info %s magic: %llx\n",
 				nandrsv_info->name, (uint64_t)addr);
+
 		addr += mtd->writesize;
-		page++;
 		len = min_t(uint32_t, mtd->writesize,
 			(nandrsv_info->size - amount_loaded));
 		memcpy(buf + amount_loaded, data_buf, len);
@@ -512,6 +512,7 @@ int aml_nand_read_key(struct mtd_info *mtd, size_t offset, u_char *buf)
 	if (aml_nand_read_rsv_info(mtd,
 		aml_chip->aml_nandkey_info, offset, (u_char *)buf))
 		return 1;
+
 	return 0;
 }
 
@@ -1054,6 +1055,7 @@ RE_RSV_INFO:
 	memcpy(oob_buf, chip->oob_poi, mtd->oobavail);
 	nandrsv_info->init = 1;
 	nandrsv_info->valid_node->status = 0;
+
 	if (!memcmp(oobinfo->name, nandrsv_info->name, 4)) {
 		nandrsv_info->valid = 1;
 		if (nandrsv_info->valid_node->phy_blk_addr >= 0) {
@@ -1139,8 +1141,6 @@ RE_RSV_INFO:
 	pr_info("%s %d: page_num=%d\n", __func__, __LINE__, page_num);
 
 	if (nandrsv_info->valid == 1) {
-		pr_info("%s %d\n", __func__, __LINE__);
-
 	for (i = 0; i < pages_per_blk; i++) {
 		memset((unsigned char *)data_buf,
 			0x0, mtd->writesize);
@@ -1155,6 +1155,7 @@ RE_RSV_INFO:
 		page = realpage & chip->pagemask;
 		chipnr = (int)(offset >> chip->chip_shift);
 		chip->select_chip(mtd, chipnr);
+
 		chip->cmdfunc(mtd, NAND_CMD_READ0, 0x00, page);
 		error = chip->ecc.read_page(mtd, chip, data_buf,
 							  1, page);

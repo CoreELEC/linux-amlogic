@@ -34,7 +34,7 @@ int32_t amlnf_key_read(uint8_t *buf, uint32_t len, uint32_t *actual_length)
 	u32 keysize = 0;
 	size_t offset = 0;
 	int error = 0;
-	/*struct mtd_info *mtd = aml_chip->mtd;*/
+	struct mtd_info *mtd = aml_chip->mtd;
 
 	if (aml_chip_key == NULL) {
 		pr_info("%s(): amlnf key not ready yet!",
@@ -48,7 +48,7 @@ int32_t amlnf_key_read(uint8_t *buf, uint32_t len, uint32_t *actual_length)
 		return -EFAULT;
 	}
 
-	keysize = aml_chip->keysize - sizeof(u32);
+	keysize = aml_chip->keysize;
 	*actual_length = keysize;
 
 	if (len > keysize) {
@@ -64,7 +64,7 @@ int32_t amlnf_key_read(uint8_t *buf, uint32_t len, uint32_t *actual_length)
 	key_ptr = kzalloc(aml_chip->keysize, GFP_KERNEL);
 	if (key_ptr == NULL)
 		return -ENOMEM;
-
+	nand_get_device(mtd, FL_READING);
 	error = aml_nand_read_key(aml_chip->mtd, offset, key_ptr);
 	if (error) {
 		pr_info("%s, %d, read key failed\n", __func__, __LINE__);
@@ -74,6 +74,7 @@ int32_t amlnf_key_read(uint8_t *buf, uint32_t len, uint32_t *actual_length)
 	//reset the memory addr data
 	memzero_explicit(key_ptr, aml_chip->keysize);
 exit:
+	nand_release_device(mtd);
 	kfree(key_ptr);
 	return error;
 }
@@ -84,7 +85,7 @@ exit:
 int32_t amlnf_key_write(uint8_t *buf, uint32_t len, uint32_t *actual_length)
 {
 	struct aml_nand_chip *aml_chip = aml_chip_key;
-	/*struct mtd_info *mtd = aml_chip->mtd;*/
+	struct mtd_info *mtd = aml_chip->mtd;
 	uint8_t *key_ptr = NULL;
 	u32 keysize = 0;
 	int error = 0;
@@ -101,7 +102,7 @@ int32_t amlnf_key_write(uint8_t *buf, uint32_t len, uint32_t *actual_length)
 		return -EFAULT;
 	}
 
-	keysize = aml_chip->keysize - sizeof(u32);
+	keysize = aml_chip->keysize;
 	*actual_length = keysize;
 
 	if (len > keysize) {
@@ -119,10 +120,11 @@ int32_t amlnf_key_write(uint8_t *buf, uint32_t len, uint32_t *actual_length)
 
 	memset(key_ptr, 0, aml_chip->keysize);
 	memcpy(key_ptr, buf, keysize);
+	nand_get_device(mtd, FL_WRITING);
 	error = aml_nand_save_key(aml_chip->mtd, key_ptr);
 	//reset the memory addr data
 	memzero_explicit(key_ptr, aml_chip->keysize);
-
+	nand_release_device(mtd);
 	kfree(key_ptr);
 	return error;
 }
