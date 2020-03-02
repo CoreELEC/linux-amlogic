@@ -13861,6 +13861,7 @@ F:	drivers/amlogic/watchdog/*
 AMLOGIC LED DRIVER SUPPORT
 M: Bo Yang <bo.yang@amlogic.com>
 F: drivers/amlogic/led/*
+F: Documentation/devicetree/bindings/leds/leds-meson.txt
 
 AMLOGIC JTAG DRIVER SUPPORT
 M: Bo Yang <bo.yang@amlogic.com>
@@ -15268,3 +15269,8 @@ F: drivers/amlogic/firmware/bl40_module.h
 AMLOGIC DECORD RESOURCE MANAGE
 M: Baoguo Chen <baoguo.chen@amlogic.com>
 F: drivers/amlogic/media/common/resource_mgr/*
+
+AMLOGIC SM1 S905C1 DTS
+M: Huijie Huang <huijie.huang@amlogic.com>
+F: arch/arm/boot/dts/amlogic/sm1_s905c1_ac232.dts
+F: arch/arm64/boot/dts/amlogic/sm1_s905c1_ac232.dts
