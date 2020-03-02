@@ -262,39 +262,24 @@ static void m3_nand_select_chip(struct aml_nand_chip *aml_chip, int chipnr)
 	controller_select_chip(controller, chipnr);
 }
 
-#define GATE_CLK	0
-#define GATE_CLKIN	1
 static int aml_nfc_clk_init(struct hw_controller *controller)
 {
-	char *clk_name[2] = {"core", "clkin"};
-	int i, ret = 0;
+	int ret = 0;
 
-	for (i = 0; i < 2; i++) {
-		controller->clk[i] =
-			devm_clk_get(controller->device, clk_name[i]);
-		if (IS_ERR(controller->clk[i])) {
-			dev_err(controller->device,
-				"failed to get %s\n", clk_name[i]);
-			return PTR_ERR(controller->clk[i]);
-		}
+	controller->clk[0] =
+		devm_clk_get(controller->device, "core");
+	if (IS_ERR(controller->clk[0])) {
+		dev_err(controller->device,
+			"failed to get core\n");
+		return PTR_ERR(controller->clk[0]);
 	}
 
-	ret = clk_prepare_enable(controller->clk[GATE_CLK]);
+	ret = clk_prepare_enable(controller->clk[0]);
 	if (ret) {
 		dev_err(controller->device, "failed to set nand gate\n");
 		return ret;
 	}
-
-	ret = clk_prepare_enable(controller->clk[GATE_CLKIN]);
-	if (ret) {
-		dev_err(controller->device, "failed to enable nand clk\n");
-		goto clk_enbale_error;
-	}
 	return 0;
-
-clk_enbale_error:
-	clk_disable_unprepare(controller->clk[GATE_CLK]);
-	return ret;
 }
 
 void get_sys_clk_rate_mtd(struct hw_controller *controller, int *rate)
@@ -397,8 +382,10 @@ static void m3_nand_adjust_timing(struct aml_nand_chip *aml_chip)
 		bus_timing = bus_cycle + 1;
 	}
 	*/
+
 	bus_cycle  = 6;
 	bus_timing = bus_cycle + 1;
+
 	get_sys_clk_rate_mtd(controller, &sys_clk_rate);
 
 	NFC_SET_CFG(controller, 0);
@@ -1132,7 +1119,12 @@ int nand_init(struct platform_device *pdev)
 	controller->nand_clk_upper = devm_ioremap_nocache(&pdev->dev,
 					NAND_CLK_CNTL_INNER,
 					sizeof(int));
-
+	controller->pimux_reg0 = devm_ioremap_nocache(&pdev->dev,
+					P_PERIPHS_PIN_MUX_0,
+					sizeof(int));
+	controller->pimux_reg1 = devm_ioremap_nocache(&pdev->dev,
+					P_PERIPHS_PIN_MUX_1,
+					sizeof(int));
 	if (controller->nand_clk_reg == NULL) {
 		dev_err(&pdev->dev, "ioremap External Nand Clock IO fail\n");
 		return -ENOMEM;

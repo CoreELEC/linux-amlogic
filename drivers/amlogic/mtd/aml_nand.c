@@ -1579,15 +1579,15 @@ dma_retry_plane1:
 			}
 		}
 	}
-				/* memset(buf, 0xff, nand_page_size); */
-				memset(oob_buf, 0x22, user_byte_num);
-				pr_info("%s %d read ecc failed here at",
-					__func__, __LINE__);
-				pr_info("page:%d, blk:%d chip[%d]\n",
-					page_addr,
-					(page_addr >> pages_per_blk_shift),
-					i);
-				mtd->ecc_stats.failed++;
+			/* memset(buf, 0xff, nand_page_size); */
+			memset(oob_buf, 0x22, user_byte_num);
+			pr_info("%s %d read ecc failed here at",
+				__func__, __LINE__);
+			pr_info("page:%d, blk:%d chip[%d]\n",
+				page_addr,
+				(page_addr >> pages_per_blk_shift),
+				i);
+			mtd->ecc_stats.failed++;
 			if (aml_chip->support_new_nand == 1) {
 				if ((new_nand_info->type)
 					&& (new_nand_info->type < 10)) {

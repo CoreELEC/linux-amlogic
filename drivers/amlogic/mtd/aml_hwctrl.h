@@ -53,6 +53,8 @@ struct hw_controller {
 	void __iomem *reg_base;
 	void __iomem *nand_clk_reg;
 	void __iomem *nand_clk_upper;
+	void __iomem *pimux_reg1;
+	void __iomem *pimux_reg0;
 	u32 irq;
 #ifndef AML_NAND_UBOOT
 	/*dma_addr_t data_dma_addr;*/
@@ -104,6 +106,8 @@ struct hw_controller {
 #endif /* AML_NAND_UBOOT */
 
 #define NAND_CLK_CNTL_INNER	(0xff63c000+(0x097 << 2))
+#define P_PERIPHS_PIN_MUX_1 (0xff634400 + (0x021 << 2))
+#define P_PERIPHS_PIN_MUX_0 (0xff634400 + (0x020 << 2))
 
 #define A0_GP_CFG0	(0xc8100240)
 #define A0_GP_CFG2	(0xc8100248)
@@ -365,6 +369,8 @@ static inline void amlnf_clr_reg32_mask(uint32_t *_reg,
 	AMLNF_READ_REG((host)->reg_base + P_NAND_BUF)
 #define NFC_SET_CFG(host, val) \
 	(AMLNF_WRITE_REG((host)->reg_base + P_NAND_CFG, (u32)val))
+#define NFC_GET_CFG(host) \
+	AMLNF_READ_REG((host)->reg_base + P_NAND_CFG)
 
 /*
  *Common Nand Read Flow

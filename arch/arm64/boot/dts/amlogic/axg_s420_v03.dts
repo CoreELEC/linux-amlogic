@@ -77,6 +77,8 @@
 		pinctrl-1 = <&all_nand_pins>;
 		pinctrl-2 = <&nand_cs_pins>;
 		device_id = <0>;
+		clocks = <&clkc CLKID_SD_EMMC_C_P0_COMP>;
+		clock-names = "core";
 
 		/*fip/tpl configurations, must be same
 		 * with uboot if bl_mode was set as 1
