@@ -25,6 +25,7 @@
 #include <linux/amlogic/media/amvecm/amvecm.h>
 #include <linux/amlogic/media/vout/vinfo.h>
 #include <linux/amlogic/media/vout/vout_notify.h>
+#include <linux/amlogic/media/video_sink/vpp.h>
 #include <linux/io.h>
 #ifdef CONFIG_AMLOGIC_LCD
 #include <linux/amlogic/media/vout/lcd/lcd_notify.h>
@@ -2388,15 +2389,41 @@ void vlock_fsm_monitor(struct vframe_s *vf)
 }
 #endif
 
+/*
+ * If is small window, output vs phase is not mif read phase. when is full
+ * window, mif read phase is output vpp vs phase.
+ * game mode will cause phase over lay at small window.
+ */
+u32 vlock_chk_is_small_win(struct vpp_frame_par_s *cur_video_sts)
+{
+	struct vinfo_s *vinfo = get_current_vinfo();
+	u32 scaler_vout;
+	u32 panel_vout;
+
+	panel_vout = (vinfo->vtotal * 75) / 100;
+	scaler_vout = cur_video_sts->VPP_vsc_endp -
+		cur_video_sts->VPP_vsc_startp;
+
+	if (scaler_vout < panel_vout &&
+	    cur_video_sts->VPP_vsc_endp > cur_video_sts->VPP_vsc_startp)
+		return 1;
+
+	return 0;
+}
+
 /*new packed separeted from amvecm_on_vs,avoid the influencec of repeate call,
  *which may affect vlock process
  */
-void vlock_process(struct vframe_s *vf)
+void vlock_process(struct vframe_s *vf,
+			struct vpp_frame_par_s *cur_video_sts)
 {
-	if (probe_ok == 0 || !vlock_en)
+	if (probe_ok == 0 || !vlock_en || !cur_video_sts)
 		return;
 
 	if (vlock_debug & VLOCK_DEBUG_FSM_DIS)
+		return;
+
+	if (vlock_chk_is_small_win(cur_video_sts))
 		return;
 
 	/* todo:vlock processs only for tv chip */

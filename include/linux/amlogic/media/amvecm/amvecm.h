@@ -22,6 +22,7 @@
 #include "linux/amlogic/media/amvecm/cm.h"
 #include <linux/amlogic/media/vfm/vframe.h>
 #include <linux/amlogic/media/utils/amstream.h>
+#include <linux/amlogic/media/video_sink/vpp.h>
 #include <linux/amlogic/cpu_version.h>
 #include <drm/drmP.h>
 
@@ -506,7 +507,8 @@ extern int amvecm_on_vs(
 extern void refresh_on_vs(struct vframe_s *vf);
 extern void pc_mode_process(void);
 extern void pq_user_latch_process(void);
-extern void vlock_process(struct vframe_s *vf);
+extern void vlock_process(struct vframe_s *vf,
+		struct vpp_frame_par_s *cur_video_sts);
 
 /* master_display_info for display device */
 struct hdr_metadata_info_s {
