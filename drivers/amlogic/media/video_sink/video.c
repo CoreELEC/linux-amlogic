@@ -963,6 +963,10 @@ static u32 video_frame_repeat_count;
 static u32 smooth_sync_enable;
 static u32 hdmi_in_onvideo;
 
+/* vpp_crc */
+static u32 vpp_crc_en;
+static int vpp_crc_result;
+
 #define CONFIG_AM_VOUT
 
 static s32 is_afbc_for_vpp(u8 id)
@@ -5226,6 +5230,7 @@ exit:
 		vsync_notify();
 
 	vpu_work_process();
+	vpp_crc_result = vpp_crc_check(vpp_crc_en);
 
 	cur_vd1_path_id = vd1_path_id;
 	cur_vd2_path_id = vd2_path_id;
@@ -9783,6 +9788,29 @@ static ssize_t path_select_store(
 	return strnlen(buf, count);
 }
 
+static ssize_t vpp_crc_show(
+	struct class *cla,
+	struct class_attribute *attr,
+	char *buf)
+{
+	return snprintf(buf, 64, "vpp_crc_en: %d vpp_crc_result: %x\n\n",
+		vpp_crc_en,
+		vpp_crc_result);
+}
+
+static ssize_t vpp_crc_store(
+	struct class *cla,
+	struct class_attribute *attr,
+	const char *buf, size_t count)
+{
+	int ret;
+
+	ret = kstrtoint(buf, 0, &vpp_crc_en);
+	if (ret < 0)
+		return -EINVAL;
+	return count;
+}
+
 static struct class_attribute amvideo_class_attrs[] = {
 	__ATTR(axis,
 	       0664,
@@ -10005,6 +10033,10 @@ static struct class_attribute amvideo_class_attrs[] = {
 	       0664,
 	       path_select_show,
 	       path_select_store),
+	__ATTR(vpp_crc,
+	       0664,
+	       vpp_crc_show,
+	       vpp_crc_store),
 	__ATTR_NULL
 };
 

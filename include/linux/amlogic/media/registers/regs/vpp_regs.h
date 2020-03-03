@@ -257,5 +257,11 @@
 #define VPU_RDARB_MODE_L2C1          0x279d
 #define VPU_WRARB_MODE_L2C1          0x27a2
 
+#define VPP_XVYCC_MISC   0x1dcf
+#define VPP_XVYCC_MISC0  0x1ddf
+
+/* vpp crc */
+#define VPP_RO_CRCSUM           0x1db2
+#define VPP_CRC_CHK             0x1db3
 #endif
 

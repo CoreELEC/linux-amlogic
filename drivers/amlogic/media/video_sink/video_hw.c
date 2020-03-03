@@ -4752,6 +4752,29 @@ void vpu_work_process(void)
 		schedule_work(&vpu_delay_work);
 }
 
+int vpp_crc_check(u32 vpp_crc_en)
+{
+	u32 val = 0;
+	int vpp_crc_result = 0;
+	static u32 val_pre, crc_cnt;
+
+	if (vpp_crc_en && cpu_after_eq(MESON_CPU_MAJOR_ID_SM1)) {
+		VSYNC_WR_MPEG_REG(VPP_CRC_CHK, 1);
+		if (crc_cnt >= 1) {
+			val = VSYNC_RD_MPEG_REG(VPP_RO_CRCSUM);
+			if (val_pre && (val != val_pre))
+				vpp_crc_result = -1;
+			else
+				vpp_crc_result = val;
+		}
+		val_pre = val;
+		crc_cnt++;
+	} else {
+		crc_cnt  = 0;
+	}
+	return vpp_crc_result;
+}
+
 /*********************************************************
  * Init APIs
  *********************************************************/
