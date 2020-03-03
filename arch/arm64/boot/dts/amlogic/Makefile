@@ -5,6 +5,7 @@ dtb-$(CONFIG_ARM64) += g12a_s905x2_4g_1gbit.dtb
 dtb-$(CONFIG_ARM64) += g12b_a311d_khadas_vim3.dtb
 dtb-$(CONFIG_ARM64) += g12b_s922x_beelink_gt_king.dtb
 dtb-$(CONFIG_ARM64) += g12b_s922x_beelink_gt_king_rev_a.dtb
+dtb-$(CONFIG_ARM64) += g12b_s922x_minix_u22xj.dtb
 dtb-$(CONFIG_ARM64) += g12b_s922x_odroid_n2.dtb
 dtb-$(CONFIG_ARM64) += g12b_s922x_odroid_n2_dvb.dtb
 dtb-$(CONFIG_ARM64) += g12b_s922x_ugoos_am6.dtb
