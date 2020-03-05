@@ -201,7 +201,8 @@ static int meson_uvm_fill_pattern(struct dma_buf *dmabuf)
 static int meson_uvm_attach(struct dma_buf *dmabuf, struct device *dev,
 					struct dma_buf_attachment *attach)
 {
-	if (!strstr(dev_name(dev), "bifrost")) {
+	if (!strstr(dev_name(dev), "bifrost") &&
+		!strstr(dev_name(dev), "mali")) {
 		pr_err("non gpu device should not be attached.\n");
 		return -ENODEV;
 	}
