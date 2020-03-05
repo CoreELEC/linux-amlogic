@@ -153,8 +153,7 @@ static int ge2d_clk_config(bool enable)
 	return 0;
 }
 
-
-void ge2d_pwr_config(bool enable)
+static void ge2d_pwr_config(bool enable)
 {
 	int i, table_size;
 	struct ge2d_ctrl_s tmp;
@@ -378,6 +377,102 @@ static void ge2d_set_canvas(struct ge2d_config_s *cfg)
 		ge2d_log_dbg("dst canvas_index:%x\n", index_dst);
 	}
 }
+
+static void ge2d_update_matrix(struct ge2d_queue_item_s *pitem)
+{
+	unsigned int format_src, format_src2, format_dst;
+	struct ge2d_cmd_s *cmd;
+	struct ge2d_config_s *config;
+	struct ge2d_dp_gen_s *dp_gen_cfg;
+
+	cmd = &pitem->cmd;
+	config = &pitem->config;
+	dp_gen_cfg = &config->dp_gen;
+
+	format_src = config->src1_data.format_all;
+	format_src2 = config->src2_dst_data.src2_format_all;
+	format_dst = config->src2_dst_data.dst_format_all;
+
+	if (ge2d_meson_dev.adv_matrix && cmd->is_blend) {
+		/* in blend case
+		 * src & src2 should be transform to RGB first for ALU
+		 * if output is YUV, dst matrix will be used
+		 */
+		if (format_src & GE2D_FORMAT_YUV) {
+			/* src1: yuv2rgb */
+			dp_gen_cfg->use_matrix_default =
+				(format_src & GE2D_FORMAT_FULL_RANGE) ?
+				MATRIX_FULL_RANGE_YCC_TO_RGB :
+				MATRIX_YCC_TO_RGB;
+			dp_gen_cfg->conv_matrix_en = 1;
+		} else {
+			dp_gen_cfg->use_matrix_default = 0;
+			dp_gen_cfg->conv_matrix_en = 0;
+		}
+
+		if (format_src2 & GE2D_FORMAT_YUV) {
+			/* src2: yuv2rgb */
+			dp_gen_cfg->use_matrix_default_src2 =
+				(format_src2 & GE2D_FORMAT_FULL_RANGE) ?
+				MATRIX_FULL_RANGE_YCC_TO_RGB :
+				MATRIX_YCC_TO_RGB;
+			dp_gen_cfg->conv_matrix_en_src2 = 1;
+		} else {
+			dp_gen_cfg->use_matrix_default_src2 = 0;
+			dp_gen_cfg->conv_matrix_en_src2 = 0;
+		}
+
+		if (format_dst & GE2D_FORMAT_YUV) {
+			/* dst: rgb2yuv */
+			dp_gen_cfg->use_matrix_default_dst =
+				(format_dst & GE2D_FORMAT_FULL_RANGE) ?
+				MATRIX_RGB_TO_FULL_RANGE_YCC :
+				MATRIX_RGB_TO_YCC;
+			dp_gen_cfg->use_matrix_default_dst |=
+				((format_dst & GE2D_FORMAT_BT_STANDARD) ?
+					MATRIX_BT_709 :
+					MATRIX_BT_601);
+			dp_gen_cfg->conv_matrix_en_dst = 1;
+		} else {
+			dp_gen_cfg->use_matrix_default_dst = 0;
+			dp_gen_cfg->conv_matrix_en_dst = 0;
+		}
+	} else {
+		/* not blend case
+		 * disable src2 and dst matrix, just use src matrix
+		 */
+		dp_gen_cfg->use_matrix_default_dst = 0;
+		dp_gen_cfg->conv_matrix_en_dst = 0;
+		dp_gen_cfg->use_matrix_default_src2 = 0;
+		dp_gen_cfg->conv_matrix_en_src2 = 0;
+
+		if ((format_src & GE2D_FORMAT_YUV) &&
+		    ((format_dst & GE2D_FORMAT_YUV) == 0)) {
+			/* src1: yuv2rgb */
+			dp_gen_cfg->use_matrix_default =
+				(format_src & GE2D_FORMAT_FULL_RANGE) ?
+				MATRIX_FULL_RANGE_YCC_TO_RGB :
+				MATRIX_YCC_TO_RGB;
+			dp_gen_cfg->conv_matrix_en = 1;
+		} else if (((format_src & GE2D_FORMAT_YUV) == 0) &&
+			   (format_dst & GE2D_FORMAT_YUV)) {
+			/* src1: rgb2yuv */
+			dp_gen_cfg->use_matrix_default =
+				(format_dst & GE2D_FORMAT_FULL_RANGE) ?
+				MATRIX_RGB_TO_FULL_RANGE_YCC :
+				MATRIX_RGB_TO_YCC;
+			dp_gen_cfg->use_matrix_default |=
+				((format_dst & GE2D_FORMAT_BT_STANDARD) ?
+					MATRIX_BT_709 :
+					MATRIX_BT_601);
+			dp_gen_cfg->conv_matrix_en = 1;
+		} else {
+			dp_gen_cfg->use_matrix_default = 0;
+			dp_gen_cfg->conv_matrix_en = 0;
+		}
+	}
+}
+
 static int ge2d_process_work_queue(struct ge2d_context_s *wq)
 {
 	struct ge2d_config_s *cfg;
@@ -431,6 +526,7 @@ static int ge2d_process_work_queue(struct ge2d_context_s *wq)
 				ge2d_set_src2_dst_gen(&cfg->src2_dst_gen);
 				break;
 			case UPDATE_DP_GEN:
+				ge2d_update_matrix(pitem);
 				ge2d_set_dp_gen(&cfg->dp_gen);
 				break;
 			case UPDATE_SCALE_COEF:
@@ -639,8 +735,8 @@ int ge2d_wq_add_work(struct ge2d_context_s *wq)
 	spin_unlock(&wq->lock);
 	ge2d_log_dbg("add new work ok\n");
 	/* only read not need lock */
-	if (ge2d_manager.event.cmd_in_sem.count == 0)
-		up(&ge2d_manager.event.cmd_in_sem);/* new cmd come in */
+	if (ge2d_manager.event.cmd_in_com.done == 0)
+		complete(&ge2d_manager.event.cmd_in_com);/* new cmd come in */
 	/* add block mode   if() */
 	if (pitem->cmd.wait_done_flag) {
 		wait_event_interruptible(wq->cmd_complete,
@@ -679,7 +775,8 @@ static int ge2d_monitor_thread(void *data)
 	ge2d_log_info("ge2d workqueue monitor start\n");
 	/* setup current_wq here. */
 	while (ge2d_manager.process_queue_state != GE2D_PROCESS_QUEUE_STOP) {
-		ret = down_interruptible(&manager->event.cmd_in_sem);
+		ret =
+		wait_for_completion_interruptible(&manager->event.cmd_in_com);
 		ge2d_pwr_config(true);
 		while ((manager->current_wq =
 				get_next_work_queue(manager)) != NULL)
@@ -712,7 +809,6 @@ static int ge2d_stop_monitor(void)
 	ge2d_log_info("stop ge2d monitor thread\n");
 	if (ge2d_manager.ge2d_thread) {
 		ge2d_manager.process_queue_state = GE2D_PROCESS_QUEUE_STOP;
-		up(&ge2d_manager.event.cmd_in_sem);
 		kthread_stop(ge2d_manager.ge2d_thread);
 		ge2d_manager.ge2d_thread = NULL;
 	}
@@ -2681,7 +2777,7 @@ int ge2d_wq_init(struct platform_device *pdev,
 
 	/* prepare bottom half */
 	spin_lock_init(&ge2d_manager.event.sem_lock);
-	sema_init(&ge2d_manager.event.cmd_in_sem, 1);
+	init_completion(&ge2d_manager.event.cmd_in_com);
 	init_waitqueue_head(&ge2d_manager.event.cmd_complete);
 	init_completion(&ge2d_manager.event.process_complete);
 	INIT_LIST_HEAD(&ge2d_manager.process_queue);

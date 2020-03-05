@@ -521,8 +521,12 @@ struct ge2d_dp_gen_s {
 	unsigned int      antiflick_alpha_filter_n3[4];
 	unsigned int      antiflick_alpha_filter_th[3];
 	/* matrix related */
-	unsigned char     use_matrix_default;
-	unsigned char     conv_matrix_en;
+	unsigned char     use_matrix_default;         /* src1 matrix */
+	unsigned char     use_matrix_default_src2;    /* src2_matrix */
+	unsigned char     use_matrix_default_dst;     /* dst  matrix */
+	unsigned char     conv_matrix_en;             /* src1 matrix enable */
+	unsigned char     conv_matrix_en_src2;        /* src2 matrix enable */
+	unsigned char     conv_matrix_en_dst;         /* dst  matrix enable */
 	unsigned char     matrix_sat_in_en;
 	unsigned char     matrix_minus_16_ctrl; /* 3bit */
 	unsigned char     matrix_sign_ctrl;     /* 3bit */
@@ -626,6 +630,7 @@ struct ge2d_cmd_s {
 	unsigned char    release_flag;
 	unsigned char    wait_done_flag;
 	unsigned char    hang_flag;
+	unsigned char    is_blend;
 };
 
 struct ge2d_canvas_cfg_s {
@@ -716,7 +721,7 @@ struct ge2d_event_s {
 	struct completion process_complete;
 	/* for queue switch and create destroy queue. */
 	spinlock_t sem_lock;
-	struct semaphore cmd_in_sem;
+	struct completion cmd_in_com;
 };
 
 struct ge2d_manager_s {
@@ -1098,6 +1103,8 @@ struct ge2d_device_data_s {
 	struct ge2d_power_table_s *poweron_table;
 	struct ge2d_power_table_s *poweroff_table;
 	int chip_type;
+	unsigned int adv_matrix;
+	unsigned int src2_repeat;
 };
 extern struct ge2d_device_data_s ge2d_meson_dev;
 
