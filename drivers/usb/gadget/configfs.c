@@ -1301,8 +1301,12 @@ static int configfs_composite_bind(struct usb_gadget *gadget,
 	wakeup_source_init(&Gadget_Lock.wakesrc, "gadget-connect");
 #endif
 	ret = composite_dev_prepare(composite, cdev);
-	if (ret)
+	if (ret) {
+#ifdef CONFIG_AMLOGIC_USB
+		wakeup_source_trash(&Gadget_Lock.wakesrc);
+#endif
 		return ret;
+	}
 	/* and now the gadget bind */
 	ret = -EINVAL;
 
@@ -1423,6 +1427,9 @@ err_purge_funcs:
 	purge_configs_funcs(gi);
 err_comp_cleanup:
 	composite_dev_cleanup(cdev);
+#ifdef CONFIG_AMLOGIC_USB
+	wakeup_source_trash(&Gadget_Lock.wakesrc);
+#endif
 	return ret;
 }
 
