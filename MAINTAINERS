@@ -15264,3 +15264,7 @@ F:	drivers/amlogic/uvm/meson_uvm.h
 AMLOGIC SM1/G12A BL40 HEADER
 M: shunzhou jiang <shunzhou.jiang@amlogic.com>
 F: drivers/amlogic/firmware/bl40_module.h
+
+AMLOGIC DECORD RESOURCE MANAGE
+M: Baoguo Chen <baoguo.chen@amlogic.com>
+F: drivers/amlogic/media/common/resource_mgr/*
