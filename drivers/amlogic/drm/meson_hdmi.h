@@ -73,6 +73,7 @@ struct am_hdmi_tx {
 	const char *hpd_pin;
 	const char *ddc_pin;
 	unsigned int hpd_flag;/*0:none   1:up    2:down*/
+	unsigned int drm_mode_setting;
 	struct mutex hdcp_mutex;
 	unsigned int hdcp_feature;
 	unsigned int hdcp_tx_type;/*bit0:hdcp14 bit 1:hdcp22*/

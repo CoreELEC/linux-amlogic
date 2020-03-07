@@ -201,14 +201,17 @@ void am_hdmi_hdcp_work_state_change(struct am_hdmi_tx *am_hdmi, int stop)
 		DRM_INFO("hdcp not support\n");
 		return;
 	}
-	if (am_hdmi->hdcp_work == NULL && stop != 1) {
-		am_hdmi->hdcp_work = kthread_run(am_hdcp_work,
-				(void *)am_hdmi, "kthread_hdcp_task");
-		if (IS_ERR(am_hdmi->hdcp_work)) {
-			DRM_INFO("hdcp work create failed\n");
-			am_hdmi->hdcp_work = NULL;
+	if (stop != 1) {
+		is_hdcp_hdmitx_supported(am_hdmi);
+		if (am_hdmi->hdcp_work == NULL) {
+			am_hdmi->hdcp_work = kthread_run(am_hdcp_work,
+					(void *)am_hdmi, "kthread_hdcp_task");
+			if (IS_ERR(am_hdmi->hdcp_work)) {
+				DRM_INFO("hdcp work create failed\n");
+				am_hdmi->hdcp_work = NULL;
+			}
+			return;
 		}
-		return;
 	}
 	if (am_hdmi->hdcp_work != NULL && stop == 1) {
 		DRM_INFO("stop hdcp work\n");
@@ -432,6 +435,7 @@ void am_hdmi_encoder_enable(struct drm_encoder *encoder)
 {
 	enum vmode_e vmode = get_current_vmode();
 	struct am_hdmi_tx *am_hdmi = to_am_hdmi(encoder);
+	struct drm_connector_state *state = am_hdmi->connector.state;
 
 	if (vmode == VMODE_HDMI)
 		DRM_INFO("enable\n");
@@ -439,10 +443,22 @@ void am_hdmi_encoder_enable(struct drm_encoder *encoder)
 		DRM_INFO("enable fail! vmode:%d\n", vmode);
 
 	vout_notifier_call_chain(VOUT_EVENT_MODE_CHANGE_PRE, &vmode);
+	is_hdcp_hdmitx_supported(am_hdmi);
+	/* Update mode setting flag,
+	 * the flag will transfer to hdcp22 process.
+	 */
+	am_hdmi->drm_mode_setting = 1;
+	setup_drm_mode_setting(1);
 	set_vout_vmode(vmode);
+	am_hdmi->drm_mode_setting = 0;
+	setup_drm_mode_setting(0);
 	vout_notifier_call_chain(VOUT_EVENT_MODE_CHANGE, &vmode);
-	am_hdmi->hdcp_work = NULL;
-	mdelay(1000);
+	if (am_hdmi->hdcp_tx_type == 0)
+		state->content_protection =
+			DRM_MODE_CONTENT_PROTECTION_UNDESIRED;
+	else
+		state->content_protection =
+			DRM_MODE_CONTENT_PROTECTION_DESIRED;
 	am_hdmi_hdcp_work_state_change(am_hdmi, 0);
 }
 
@@ -452,8 +468,6 @@ void am_hdmi_encoder_disable(struct drm_encoder *encoder)
 	struct drm_connector_state *state = am_hdmi->connector.state;
 
 	state->content_protection = DRM_MODE_CONTENT_PROTECTION_UNDESIRED;
-	am_hdmi_hdcp_work_state_change(am_hdmi, 1);
-
 }
 
 static int am_hdmi_encoder_atomic_check(struct drm_encoder *encoder,
@@ -666,7 +680,8 @@ static irqreturn_t am_hdmi_hardirq(int irq, void *dev_id)
 	irqreturn_t ret = IRQ_NONE;
 
 	data32 = hdmitx_rd_reg(HDMITX_TOP_INTR_STAT);
-
+	/* Clear The Interrupt ot TX Controller IP*/
+	hdmitx_wr_reg(HDMITX_TOP_INTR_STAT_CLR, ~0);
 	/* check HPD status */
 	if ((data32 & (1 << 1)) && (data32 & (1 << 2))) {
 		if (hdmitx_hpd_hw_op(HPD_READ_HPD_GPIO))
@@ -679,10 +694,16 @@ static irqreturn_t am_hdmi_hardirq(int irq, void *dev_id)
 		ret = IRQ_WAKE_THREAD;
 		DRM_INFO("hotplug irq: %x\n", data32);
 		am_hdmi_info.hpd_flag = 0;
-		if (data32 & (1 << 1))
+		if (data32 & (1 << 1)) {
 			am_hdmi_info.hpd_flag = 1;/* HPD rising */
-		if (data32 & (1 << 2))
+			/* Update the hpd status to sysfs. */
+			setup_drm_hdmi_hpd(1);
+		}
+		if (data32 & (1 << 2)) {
 			am_hdmi_info.hpd_flag = 2;/* HPD falling */
+			/* Update the hpd status to sysfs. */
+			setup_drm_hdmi_hpd(0);
+		}
 		/* ack INTERNAL_INTR or else*/
 		hdmitx_wr_reg(HDMITX_TOP_INTR_STAT_CLR, data32 | 0x7);
 	}
@@ -696,33 +717,6 @@ static irqreturn_t am_hdmi_irq(int irq, void *dev_id)
 	drm_helper_hpd_irq_event(am_hdmi->connector.dev);
 	return IRQ_HANDLED;
 }
-
-static int amhdmitx_get_dt_info(struct am_hdmi_tx *am_hdmi)
-{
-	struct device_node *hdcp_node;
-	unsigned char *hdcp_status;
-	int ret = 0;
-
-	hdcp_node = of_find_node_by_path("/drm-amhdmitx");
-	if (hdcp_node) {
-		ret = of_property_read_string(hdcp_node, "hdcp",
-					      (const char **)&(hdcp_status));
-		if (ret) {
-			DRM_INFO("not find hdcp_feature\n");
-		} else {
-			if (memcmp(hdcp_status, "okay", 4) == 0)
-				am_hdmi->hdcp_feature = 1;
-			else
-				am_hdmi->hdcp_feature = 0;
-			DRM_INFO("hdcp_feature: %d\n",
-				am_hdmi->hdcp_feature);
-		}
-	} else {
-		DRM_INFO("not find drm_amhdmitx\n");
-	}
-	return 0;
-}
-
 
 static const struct of_device_id am_meson_hdmi_dt_ids[] = {
 	{ .compatible = "amlogic,drm-amhdmitx", },
@@ -833,13 +827,10 @@ static int am_meson_hdmi_bind(struct device *dev,
 	}
 
 	/*HDCP INIT*/
-	amhdmitx_get_dt_info(am_hdmi);
-	if (am_hdmi->hdcp_feature) {
-		if (is_hdcp_hdmitx_supported(am_hdmi)) {
-			ret = am_hdcp_init(am_hdmi);
-			if (ret)
-				DRM_DEBUG_KMS("HDCP init failed, skipping.\n");
-		}
+	if (is_hdcp_hdmitx_supported(am_hdmi)) {
+		ret = am_hdcp_init(am_hdmi);
+		if (ret)
+			DRM_DEBUG_KMS("HDCP init failed, skipping.\n");
 	}
 	return 0;
 }

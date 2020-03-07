@@ -429,6 +429,7 @@ struct hdmitx_dev {
 	/**/
 	unsigned char hpd_event; /* 1, plugin; 2, plugout */
 	unsigned char hpd_state; /* 1, connect; 0, disconnect */
+	unsigned char drm_mode_setting; /* 1, setting; 0, keeping */
 	unsigned char rhpd_state; /* For repeater use only, no delay */
 	unsigned char hdcp_max_exceed_state;
 	unsigned int hdcp_max_exceed_cnt;
@@ -873,6 +874,8 @@ struct Hdcp_Sub {
 };
 extern void setup_attr(const char *buf);
 extern void get_attr(char attr[16]);
+extern void setup_drm_hdmi_hpd(unsigned char hpd_state);
+extern void setup_drm_mode_setting(unsigned char drm_mode_setting);
 extern unsigned int hd_read_reg(unsigned int addr);
 extern void hd_write_reg(unsigned int addr, unsigned int val);
 extern void hd_set_reg_bits(unsigned int addr, unsigned int value,

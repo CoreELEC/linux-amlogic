@@ -304,6 +304,8 @@ int am_hdcp_work(void *data)
 	struct drm_connector *conn = &(am_hdmi->connector);
 	int hdcp_fsm = HDCP_READY;
 	int hdcp_feature = 0;
+	unsigned int wait_cnt = 0;
+	unsigned int   ss_flag;
 
 	DRM_INFO("start hdcp work CP=%u\n", conn->state->content_protection);
 	is_hdcp_hdmirx_supported(am_hdmi);
@@ -313,57 +315,76 @@ int am_hdcp_work(void *data)
 	else
 		hdcp_feature = HDCP14_ENABLE;
 
+	hdcp_fsm = hdcp_feature;
 	do {
-		/* The state ptr will update pre atomic commit */
-		if (conn->state->content_protection ==
-				DRM_MODE_CONTENT_PROTECTION_UNDESIRED) {
-			if (hdcp_fsm != HDCP_READY) {
-				hdcp_fsm = HDCP_READY;
-				DRM_INFO("HDCP status reset!\n");
-			}
-		} else if (hdcp_fsm == HDCP_READY) {
-			hdcp_fsm = hdcp_feature;
-		}
-		if (hdcp_fsm == HDCP_QUIT)
-			conn->state->content_protection =
-				DRM_MODE_CONTENT_PROTECTION_UNDESIRED;
-
 		switch (hdcp_fsm) {
 		case HDCP_READY:
 			/* wait for content_protection change. */
 			msleep_interruptible(5000);
 			break;
 		case HDCP22_ENABLE:
+			DRM_INFO("hdcp22 work after 200ms\n");
 			am_hdcp22_enable(am_hdmi);
-			DRM_INFO("hdcp22 work after 10s\n");
 			/*this time is used to debug*/
-			msleep_interruptible(10000);
+			msleep_interruptible(200);
 			hdcp_fsm = HDCP22_AUTH;
+			wait_cnt = 0;
+			ss_flag = 0;
 			break;
 		case HDCP22_AUTH:
-			if (am_hdcp22_auth(am_hdmi))
+		/* Wait the HDCP22 success, the timeout is 50s.*/
+			if (am_hdcp22_auth(am_hdmi)) {
 				hdcp_fsm = HDCP22_SUCCESS;
-			else
-				hdcp_fsm = HDCP22_FAIL;
+				wait_cnt = 5001;
+			} else {
+				if (wait_cnt > 5000)
+					hdcp_fsm = HDCP22_FAIL;
+				else {
+					msleep_interruptible(10);
+					wait_cnt++;
+				}
+			}
 			break;
 		case HDCP22_SUCCESS:
 			conn->state->content_protection =
 				DRM_MODE_CONTENT_PROTECTION_ENABLED;
 			hdcp_fsm = HDCP22_AUTH;
 			msleep_interruptible(200);
+			if (ss_flag == 0) {
+				ss_flag = 1;
+				DRM_INFO("hdcp22 succeed\n");
+			}
 			break;
 		case HDCP22_FAIL:
 			am_hdcp22_disable(am_hdmi);
-			DRM_INFO("hdcp22 failure and start hdcp14\n");
-			hdcp_fsm = HDCP14_ENABLE;
-			msleep_interruptible(2000);
+			DRM_INFO("hdcp22 failure\n");
+			msleep_interruptible(100);
+			/* Check the reason of HDCP22 fail.
+			 * If the hpd is low or mode setting is running,
+			 * wait finishing.
+			 */
+			while ((am_hdmi->hpd_flag == 2) ||
+				   (am_hdmi->drm_mode_setting))
+				msleep_interruptible(100);
+			/* Base the HDCP capability of TX and RX,
+			 * Decide the verification type.
+			 */
+			is_hdcp_hdmirx_supported(am_hdmi);
+			if ((am_hdmi->hdcp_tx_type & 0x2) &&
+				(am_hdmi->hdcp_rx_type & 0x2)) {
+				DRM_INFO("hdcp22 Fail to 22 Enable\n");
+				hdcp_fsm = HDCP22_ENABLE;
+			} else {
+				DRM_INFO("hdcp22 Fail to 14 Enable\n");
+				hdcp_fsm = HDCP14_ENABLE;
+			}
 			break;
 		case HDCP14_ENABLE:
 			if ((am_hdmi->hdcp_tx_type & 0x1) == 0) {
 				hdcp_fsm = HDCP_QUIT;
 				break;
 			}
-			DRM_INFO("hdcp14 work start");
+			DRM_INFO("hdcp14 work start\n");
 			am_hdcp14_enable(am_hdmi);
 			msleep_interruptible(500);
 			hdcp_fsm = HDCP14_AUTH;
@@ -383,10 +404,30 @@ int am_hdcp_work(void *data)
 		case HDCP14_FAIL:
 			am_hdcp14_disable(am_hdmi);
 			DRM_INFO("hdcp14 failure\n");
-			hdcp_fsm = HDCP_QUIT;
+			msleep_interruptible(100);
+			/* Check the reason of HDCP22 fail.
+			 * If the hpd is low or mode setting is running,
+			 * wait finishing.
+			 */
+			while ((am_hdmi->hpd_flag == 2) ||
+				   (am_hdmi->drm_mode_setting))
+				msleep_interruptible(100);
+			is_hdcp_hdmirx_supported(am_hdmi);
+			/* Base the HDCP capability of TX and RX,
+			 * Decide the verification type.
+			 */
+			if ((am_hdmi->hdcp_tx_type & 0x2) &&
+				(am_hdmi->hdcp_rx_type & 0x2)) {
+				DRM_INFO("hdcp14 Fail to 22 Enable\n");
+				hdcp_fsm = HDCP22_ENABLE;
+			} else {
+				DRM_INFO("hdcp14 Fail to 14 Enable\n");
+				hdcp_fsm = HDCP14_ENABLE;
+			}
 			break;
 		case HDCP_QUIT:
 		default:
+			msleep_interruptible(100);
 			break;
 		}
 	} while (!kthread_should_stop());

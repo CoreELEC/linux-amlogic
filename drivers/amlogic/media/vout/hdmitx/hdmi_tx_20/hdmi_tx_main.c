@@ -3998,6 +3998,16 @@ next:	/* Detect RX support HDCP14 */
 
 }
 
+void setup_drm_hdmi_hpd(unsigned char hpd_state)
+{
+	hdmitx_device.hpd_state = hpd_state;
+}
+
+void setup_drm_mode_setting(unsigned char drm_mode_setting)
+{
+	hdmitx_device.drm_mode_setting = drm_mode_setting;
+}
+
 static ssize_t show_hpd_state(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
@@ -4005,6 +4015,16 @@ static ssize_t show_hpd_state(struct device *dev,
 
 	pos += snprintf(buf+pos, PAGE_SIZE, "%d",
 		hdmitx_device.hpd_state);
+	return pos;
+}
+
+static ssize_t show_mode_setting(struct device *dev,
+	struct device_attribute *attr, char *buf)
+{
+	int pos = 0;
+
+	pos += snprintf(buf+pos, PAGE_SIZE, "%d",
+		hdmitx_device.drm_mode_setting);
 	return pos;
 }
 
@@ -4770,6 +4790,7 @@ static DEVICE_ATTR(disp_cap_3d, 0444, show_disp_cap_3d, NULL);
 static DEVICE_ATTR(hdcp_ksv_info, 0444, show_hdcp_ksv_info, NULL);
 static DEVICE_ATTR(hdcp_ver, 0444, show_hdcp_ver, NULL);
 static DEVICE_ATTR(hpd_state, 0444, show_hpd_state, NULL);
+static DEVICE_ATTR(drm_mode_setting, 0444, show_mode_setting, NULL);
 static DEVICE_ATTR(hdmi_used, 0444, show_hdmi_used, NULL);
 static DEVICE_ATTR(rhpd_state, 0444, show_rhpd_state, NULL);
 static DEVICE_ATTR(max_exceed, 0444, show_max_exceed_state, NULL);
@@ -6023,6 +6044,7 @@ static int amhdmitx_probe(struct platform_device *pdev)
 	ret = device_create_file(dev, &dev_attr_hdmi_config_info);
 	ret = device_create_file(dev, &dev_attr_hdmi_rx_info);
 	ret = device_create_file(dev, &dev_attr_hdmi_hsty_config_info);
+	ret = device_create_file(dev, &dev_attr_drm_mode_setting);
 
 #ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
 	register_early_suspend(&hdmitx_early_suspend_handler);
@@ -6135,6 +6157,7 @@ static int amhdmitx_remove(struct platform_device *pdev)
 	device_remove_file(dev, &dev_attr_hdmi_config_info);
 	device_remove_file(dev, &dev_attr_hdmi_rx_info);
 	device_remove_file(dev, &dev_attr_hdmi_hsty_config_info);
+	device_remove_file(dev, &dev_attr_drm_mode_setting);
 
 	cdev_del(&hdmitx_device.cdev);
 
