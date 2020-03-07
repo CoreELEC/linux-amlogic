@@ -2631,7 +2631,7 @@ config_di_pre_mc_mif(struct DI_MC_MIF_s *di_mcinfo_mif,
 	if (di_buf) {
 		pre_size_w = di_buf->vframe->width;
 		pre_size_h = (di_buf->vframe->height + 1) / 2;
-		di_mcinfo_mif->size_x = (pre_size_h + 1) / 2 - 1;
+		di_mcinfo_mif->size_x = pre_size_h / 2 - 1;
 		di_mcinfo_mif->size_y = 1;
 		di_mcinfo_mif->canvas_num = di_buf->mcinfo_canvas_idx;
 
@@ -2766,7 +2766,7 @@ static void config_di_mif(struct DI_MIF_s *di_mif, struct di_buf_s *di_buf,
 				di_buf->vframe->width / 2 - 1;
 			di_mif->chroma_y_start0 = 0;
 			di_mif->chroma_y_end0 =
-				di_buf->vframe->height / 2 - 1;
+				(di_buf->vframe->height + 1) / 2 - 1;
 		} else {
 			/*move to mp	di_mif->src_prog = force_prog?1:0;*/
 			if (ppre->cur_inp_type  & VIDTYPE_INTERLACE)
@@ -2784,14 +2784,13 @@ static void config_di_mif(struct DI_MIF_s *di_mif, struct di_buf_s *di_buf,
 					di_buf->vframe->width - 1;
 				di_mif->luma_y_start0 = 0;
 				di_mif->luma_y_end0 =
-					di_buf->vframe->height - 2;
+					di_buf->vframe->height - 1;
 				di_mif->chroma_x_start0 = 0;
 				di_mif->chroma_x_end0 =
 					di_buf->vframe->width / 2 - 1;
 				di_mif->chroma_y_start0 = 0;
 				di_mif->chroma_y_end0 =
-					di_buf->vframe->height / 2
-						- (di_mif->src_prog ? 1 : 2);
+					(di_buf->vframe->height + 1) / 2 - 1;
 			} else {
 				di_mif->output_field_num = 1;
 				/* bottom */
@@ -2807,7 +2806,7 @@ static void config_di_mif(struct DI_MIF_s *di_mif, struct di_buf_s *di_buf,
 				di_mif->chroma_y_start0 =
 					(di_mif->src_prog ? 0 : 1);
 				di_mif->chroma_y_end0 =
-					di_buf->vframe->height / 2 - 1;
+					(di_buf->vframe->height + 1) / 2 - 1;
 			}
 		}
 	}
@@ -3123,7 +3122,7 @@ void dim_pre_de_done_buf_config(unsigned int channel, bool flg_timeout)
 		post_wr_buf = ppre->di_post_wr_buf;
 
 		if (post_wr_buf && !ppre->cur_prog_flag &&
-		    !flg_timeout) {
+		    !flg_timeout && ppre->di_inp_buf) {
 			dim_read_pulldown_info(&glb_frame_mot_num,
 					       &glb_field_mot_num);
 			if (dimp_get(eDI_MP_pulldown_enable))
