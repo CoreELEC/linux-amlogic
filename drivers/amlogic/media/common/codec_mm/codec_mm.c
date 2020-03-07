@@ -722,8 +722,11 @@ static void codec_mm_free_in(struct codec_mm_mgt_s *mgt,
 	    (tvp_mode == 1)) {
 		mutex_lock(&mgt->tvp_protect_lock);
 		if (atomic_read(&mgt->tvp_user_count) == 0) {
-			if (codec_mm_tvp_pool_unprotect(&mgt->tvp_pool) == 0)
+			if (codec_mm_tvp_pool_unprotect(&mgt->tvp_pool) == 0) {
 				codec_mm_extpool_pool_release(&mgt->tvp_pool);
+				mgt->tvp_enable = 0;
+				pr_info("disalbe tvp\n");
+			}
 		}
 		mutex_unlock(&mgt->tvp_protect_lock);
 	}
