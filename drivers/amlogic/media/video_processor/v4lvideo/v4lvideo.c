@@ -960,10 +960,11 @@ static s32 v4lvideo_import_sei_data(
 	}
 	if (!fmt_update) {
 		ret = update_vframe_src_fmt(dup_vf, NULL, 0, false);
-		pr_info("try %d, no aux data\n", try_count);
+		if ((alloc_sei & 2) && max_count > 1)
+			pr_info("try %d, no aux data\n", try_count);
 	}
 
-	if (alloc_sei & 2)
+	if ((alloc_sei & 2) && max_count > 1)
 		pr_info("sei try_count %d\n", try_count);
 	if (alloc_sei & 2)
 		pr_info("import sei: provider:%s, vf:%p, dup_vf:%p, req.aux_buf:%p, req.aux_size:%d, req.dv_enhance_exist:%d, vf->src_fmt.fmt:%d\n",
