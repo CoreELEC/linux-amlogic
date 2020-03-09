@@ -81,6 +81,15 @@
 		dev_name = "openvfd";
 		status = "okay";
 	};
+
+	/delete-node/ sensor;
+	/delete-node/ iq;
+
+	/delete-node/ lcd;
+	/delete-node/ lcd_extern;
+	/delete-node/ backlight;
+	/delete-node/ bl_pwm_conf;
+	/delete-node/ bl_extern;
 };
 
 &meson_fb {
@@ -90,10 +99,21 @@
 
 &i2c0 {
 	status = "disabled";
+	/delete-node/ gt9xx@5d;
+	/delete-node/ ftxx@38;
+	/delete-node/ touchscreen@38;
 };
 
 &i2c2 {
 	status = "disabled";
+	/delete-node/ sensor-i2c@6c;
+};
+
+&i2c3 {
+	/delete-node/ ad82584f_62@62;
+	/delete-node/ tlv320adc3101_32@32;
+	/delete-node/ bl_extern_i2c;
+	/delete-node/ tas5707_36@36;
 };
 
 &audiobus {
@@ -103,6 +123,8 @@
 &pinctrl_periphs {
 	/delete-node/ spdifin;
 	/delete-node/ pdmin;
+	/delete-node/ bl_pwm_off_pin;
+	/delete-node/ clk12_24_z_pins;
 };
 
 &vdin0 {
