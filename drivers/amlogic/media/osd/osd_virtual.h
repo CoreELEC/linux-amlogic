@@ -53,6 +53,8 @@ struct virt_fb_para_s {
 	u32 stride;
 	u32 offset;
 	u32 size;
+	u32 xres;
+	u32 yres;
 	u32 osd_fps;
 	u32 osd_fps_start;
 };
