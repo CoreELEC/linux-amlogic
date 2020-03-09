@@ -486,6 +486,7 @@ static void videocom_vf_put(struct vframe_s *vf, struct composer_dev *dev)
 		vc_print(dev->index, PRINT_ERROR,
 			 "free_q is full, could uninit buffer!\n");
 	}
+	vc_print(dev->index, PRINT_PATTERN, "put: vf=%p\n", vf);
 	wake_up_interruptible(&dev->wq);
 }
 
@@ -671,7 +672,7 @@ static void vframe_composer(struct composer_dev *dev)
 		dst_vf = get_dst_vframe_buffer(dev);
 	}
 	if (IS_ERR_OR_NULL(dst_vf)) {
-		vc_print(dev->index, PRINT_ERROR, "dst vf is NULL\n");
+		vc_print(dev->index, PRINT_PATTERN, "dst vf is NULL\n");
 		return;
 	}
 	memset(dst_vf, 0, sizeof(struct vframe_s));
@@ -1569,10 +1570,11 @@ static struct vframe_s *vc_vf_get(void *op_arg)
 		get_count[dev->index]++;
 
 		vc_print(dev->index, PRINT_OTHER | PRINT_PATTERN,
-			 "get: omx_index=%d, get_count=%d, vsync_count=%d\n",
+			 "get: omx_index=%d, get_count=%d, vsync =%d, vf=%p\n",
 			 vf->omx_index,
 			 get_count[dev->index],
-			 countinue_vsync_count[dev->index]);
+			 countinue_vsync_count[dev->index],
+			 vf);
 		countinue_vsync_count[dev->index] = 0;
 
 		return vf;
