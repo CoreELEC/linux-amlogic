@@ -304,7 +304,6 @@ static int am_hdmi_connector_atomic_set_property
 	struct drm_property *property, uint64_t val)
 {
 	struct am_hdmi_tx *am_hdmi = to_am_hdmi(connector);
-	struct drm_connector_state *state = am_hdmi->connector.state;
 	char attr[16];
 	int rtn_val;
 
@@ -350,10 +349,24 @@ static int am_hdmi_connector_atomic_get_property
 	const struct drm_connector_state *state,
 	struct drm_property *property, uint64_t *val)
 {
+	struct am_hdmi_tx *am_hdmi = to_am_hdmi(connector);
 	if (property == connector->content_protection_property) {
 		DRM_INFO("get content_protection val: %d\n",
 			state->content_protection);
 		*val = state->content_protection;
+		return 0;
+	}
+
+	if (property == am_hdmi->color_depth_property) {
+		*val = am_hdmi->color_depth;
+		DRM_DEBUG_KMS("Get Color Depth val: %llu\n", *val);
+		return 0;
+	}
+
+	if (property == am_hdmi->color_space_property) {
+		*val = am_hdmi->color_space;
+		DRM_DEBUG_KMS("Get Color Space val: %llu\n", *val);
+		return 0;
 	} else {
 		DRM_DEBUG_ATOMIC("Unknown property %s\n", property->name);
 		return -EINVAL;
@@ -378,7 +391,8 @@ static const struct drm_connector_funcs am_hdmi_connector_funcs = {
 	.dpms			= drm_atomic_helper_connector_dpms,
 	.detect			= am_hdmi_connector_detect,
 	.fill_modes		= drm_helper_probe_single_connector_modes,
-	.set_property		= am_hdmi_connector_set_property,
+	.set_property   = drm_atomic_helper_connector_set_property,
+	.atomic_set_property	= am_hdmi_connector_atomic_set_property,
 	.atomic_get_property	= am_hdmi_connector_atomic_get_property,
 	.destroy		= am_hdmi_connector_destroy,
 	.reset			= drm_atomic_helper_connector_reset,
@@ -711,6 +725,37 @@ static const struct of_device_id am_meson_hdmi_dt_ids[] = {
 
 MODULE_DEVICE_TABLE(of, am_meson_hdmi_dt_ids);
 
+static void am_meson_hdmi_connector_init_property(struct drm_device *drm_dev,
+		struct am_hdmi_tx *am_hdmi)
+{
+	struct drm_property *prop;
+	/* Connector */
+	am_hdmi->color_depth = MESON_DEFAULT_COLOR_DEPTH;
+	prop = drm_property_create_enum(drm_dev, 0, "Color Depth",
+			am_color_depth_enum_names,
+			ARRAY_SIZE(am_color_depth_enum_names));
+	if (prop) {
+		am_hdmi->color_depth_property = prop;
+		drm_object_attach_property(&am_hdmi->connector.base, prop,
+				am_hdmi->color_depth);
+	} else {
+		DRM_ERROR("Failed to add Color Depth property\n");
+	}
+
+	am_hdmi->color_space = MESON_DEFAULT_COLOR_SPACE;
+	prop = drm_property_create_enum(drm_dev, 0, "Color Space",
+			am_color_space_enum_names,
+			ARRAY_SIZE(am_color_space_enum_names));
+	if (prop) {
+		am_hdmi->color_space_property = prop;
+		drm_object_attach_property(&am_hdmi->connector.base, prop,
+				am_hdmi->color_space);
+	} else {
+		DRM_ERROR("Failed to add Color Space property\n");
+	}
+
+}
+
 static int am_meson_hdmi_bind(struct device *dev,
 	struct device *master, void *data)
 {
@@ -746,6 +791,7 @@ static int am_meson_hdmi_bind(struct device *dev,
 		dev_err(priv->dev, "Failed to init hdmi tx connector\n");
 		return ret;
 	}
+	am_meson_hdmi_connector_init_property(drm, am_hdmi);
 
 	connector->interlace_allowed = 1;
 
