@@ -679,7 +679,7 @@ static struct vframe_s *dispbuf_to_put;
 /* 0: amvideo, 1: pip */
 /* rdma buf + dispbuf + to_put_buf */
 static struct vframe_s *recycle_buf[2][2];
-static u32 recycle_cnt[2];
+static s32 recycle_cnt[2];
 
 static u32 post_canvas;
 
@@ -3915,24 +3915,34 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 	if (atomic_read(&video_unreg_flag))
 		goto exit;
 
-	if (recycle_cnt[0]) {
-		if (recycle_buf[0][0])
+	if ((recycle_cnt[0] > 0) && (cur_dispbuf != &vf_local)) {
+		if (recycle_buf[0][0] &&
+		    (cur_dispbuf != recycle_buf[0][0])) {
 			dim_post_keep_cmd_release2(recycle_buf[0][0]);
-		recycle_buf[0][0] = NULL;
-		if (recycle_buf[0][1])
+			recycle_buf[0][0] = NULL;
+			recycle_cnt[0]--;
+		}
+		if (recycle_buf[0][1] &&
+		    (cur_dispbuf != recycle_buf[0][1])) {
 			dim_post_keep_cmd_release2(recycle_buf[0][1]);
-		recycle_buf[0][1] = NULL;
-		recycle_cnt[0] = 0;
+			recycle_buf[0][1] = NULL;
+			recycle_cnt[0]--;
+		}
 	}
 
-	if (recycle_cnt[1]) {
-		if (recycle_buf[1][0])
+	if ((recycle_cnt[1] > 0) && (cur_pipbuf != &local_pip)) {
+		if (recycle_buf[1][0] &&
+		    (cur_pipbuf != recycle_buf[1][0])) {
 			dim_post_keep_cmd_release2(recycle_buf[1][0]);
-		recycle_buf[1][0] = NULL;
-		if (recycle_buf[1][1])
+			recycle_buf[1][0] = NULL;
+			recycle_cnt[1]--;
+		}
+		if (recycle_buf[1][1] &&
+		    (cur_pipbuf != recycle_buf[1][1])) {
 			dim_post_keep_cmd_release2(recycle_buf[1][1]);
-		recycle_buf[1][1] = NULL;
-		recycle_cnt[1] = 0;
+			recycle_buf[1][1] = NULL;
+			recycle_cnt[1]--;
+		}
 	}
 
 	if (atomic_read(&video_pause_flag) &&
