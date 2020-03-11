@@ -203,6 +203,8 @@ static void hdmitx_late_resume(struct early_suspend *h)
 	/* update status for hpd and switch/state */
 	hdmitx_device.hpd_state = !!(hdmitx_device.hwop.cntlmisc(&hdmitx_device,
 		MISC_HPD_GPI_ST, 0));
+	if (hdmitx_device.hpd_state)
+		hdmitx_device.already_used = 1;
 
 	pr_info("hdmitx hpd state: %d\n", hdmitx_device.hpd_state);
 	hdmitx_notify_hpd(hdmitx_device.hpd_state);
@@ -4000,6 +4002,16 @@ static ssize_t show_hpd_state(struct device *dev,
 	return pos;
 }
 
+static ssize_t show_hdmi_used(struct device *dev,
+	struct device_attribute *attr, char *buf)
+{
+	int pos = 0;
+
+	pos += snprintf(buf+pos, PAGE_SIZE, "%d",
+		hdmitx_device.already_used);
+	return pos;
+}
+
 static ssize_t show_fake_plug(struct device *dev,
 			      struct device_attribute *attr, char *buf)
 {
@@ -4752,6 +4764,7 @@ static DEVICE_ATTR(disp_cap_3d, 0444, show_disp_cap_3d, NULL);
 static DEVICE_ATTR(hdcp_ksv_info, 0444, show_hdcp_ksv_info, NULL);
 static DEVICE_ATTR(hdcp_ver, 0444, show_hdcp_ver, NULL);
 static DEVICE_ATTR(hpd_state, 0444, show_hpd_state, NULL);
+static DEVICE_ATTR(hdmi_used, 0444, show_hdmi_used, NULL);
 static DEVICE_ATTR(rhpd_state, 0444, show_rhpd_state, NULL);
 static DEVICE_ATTR(max_exceed, 0444, show_max_exceed_state, NULL);
 static DEVICE_ATTR(fake_plug, 0664, show_fake_plug, store_fake_plug);
@@ -5134,6 +5147,7 @@ static void hdmitx_hpd_plugin_handler(struct work_struct *work)
 	struct hdmitx_dev *hdev = container_of((struct delayed_work *)work,
 		struct hdmitx_dev, work_hpd_plugin);
 
+	hdev->already_used = 1;
 	if (!(hdev->hdmitx_event & (HDMI_TX_HPD_PLUGIN)))
 		return;
 	if (hdev->rxsense_policy) {
@@ -5287,6 +5301,8 @@ static int hdmi_task_handle(void *data)
 		hdmitx_device, MISC_HPD_GPI_ST, 0));
 	hdmitx_device->hpd_state = hdmitx_extcon_hdmi->state;
 	hdmitx_notify_hpd(hdmitx_device->hpd_state);
+	if (hdmitx_device->hpd_state)
+		hdmitx_device->already_used = 1;
 
 	extcon_set_state_sync(hdmitx_extcon_power, EXTCON_DISP_HDMI,
 		hdmitx_device->hpd_state);
@@ -5326,9 +5342,11 @@ static int hdmi_task_handle(void *data)
 
 	/* Trigger HDMITX IRQ*/
 	hdmitx_device->hwop.cntlmisc(hdmitx_device, MISC_HPD_MUX_OP, PIN_MUX);
-	if (hdmitx_device->hwop.cntlmisc(hdmitx_device, MISC_HPD_GPI_ST, 0))
+	if (hdmitx_device->hwop.cntlmisc(hdmitx_device, MISC_HPD_GPI_ST, 0)) {
 		hdmitx_device->hwop.cntlmisc(hdmitx_device,
 			MISC_TRIGGER_HPD, 0);
+		hdmitx_device->already_used = 1;
+	}
 
 	hdmitx_device->hdmi_init = 1;
 	info = hdmitx_get_current_vinfo();
@@ -5983,6 +6001,7 @@ static int amhdmitx_probe(struct platform_device *pdev)
 	ret = device_create_file(dev, &dev_attr_div40);
 	ret = device_create_file(dev, &dev_attr_hdcp_ctrl);
 	ret = device_create_file(dev, &dev_attr_hpd_state);
+	ret = device_create_file(dev, &dev_attr_hdmi_used);
 	ret = device_create_file(dev, &dev_attr_rhpd_state);
 	ret = device_create_file(dev, &dev_attr_max_exceed);
 	ret = device_create_file(dev, &dev_attr_fake_plug);
@@ -6010,6 +6029,8 @@ static int amhdmitx_probe(struct platform_device *pdev)
 
 	hdmitx_device.hpd_state = !!(hdmitx_device.hwop.cntlmisc(
 		&hdmitx_device, MISC_HPD_GPI_ST, 0));
+	if (hdmitx_device.hpd_state)
+		hdmitx_device.already_used = 1;
 
 
 	vout_register_server(&hdmitx_vout_server);
@@ -6080,6 +6101,7 @@ static int amhdmitx_remove(struct platform_device *pdev)
 	device_remove_file(dev, &dev_attr_contenttype_cap);
 	device_remove_file(dev, &dev_attr_contenttype_mode);
 	device_remove_file(dev, &dev_attr_hpd_state);
+	device_remove_file(dev, &dev_attr_hdmi_used);
 	device_remove_file(dev, &dev_attr_fake_plug);
 	device_remove_file(dev, &dev_attr_rhpd_state);
 	device_remove_file(dev, &dev_attr_max_exceed);
