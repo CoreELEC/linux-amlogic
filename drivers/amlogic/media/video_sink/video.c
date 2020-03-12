@@ -1965,7 +1965,15 @@ static inline bool vpts_expire(struct vframe_s *cur_vf,
 		    (cur_vf ? DUR2PTS(cur_vf->duration) : 0);
 		/* pr_info("system=0x%x vpts=0x%x\n", systime,*/
 		/*timestamp_vpts_get()); */
-		if ((int)(systime - pts) >= 0) {
+		/* [SWPL-21116] If pts and systime diff is smaller than
+		 * vsync_pts_align, will return true at end of this
+		 * function and show this frame. In this bug, next_vf->pts
+		 * is not 0 and have large diff with systime, need get into
+		 * discontinue process and shouldn't send out this frame.
+		 */
+		if (((int)(systime - pts) >= 0) ||
+			((next_vf->pts > 0) &&
+			((int)(systime + vsync_pts_align - pts) >= 0))) {
 			if (next_vf->pts != 0)
 				tsync_avevent_locked(VIDEO_TSTAMP_DISCONTINUITY,
 						     next_vf->pts);
@@ -1975,7 +1983,7 @@ static inline bool vpts_expire(struct vframe_s *cur_vf,
 						     pts);
 
 			/* pr_info("discontinue,
-			 *   systime=0x%x vpts=0x%x next_vf->pts = 0x%x\n",
+			 *	systime=0x%x vpts=0x%x next_vf->pts = 0x%x\n",
 			 *	systime,
 			 *	pts,
 			 *	next_vf->pts);
