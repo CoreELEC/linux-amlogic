@@ -966,6 +966,8 @@ static int pts_lookup_offset_inline_locked(u8 type, u32 offset, u32 *val,
 					else
 						timestamp_firstvpts_set(
 						timestamp_vpts_get());
+					pr_info("video first pts lookup failed. offset:0x%x\n",
+						offset);
 				}
 
 				if (tsync_get_debug_pts_checkout()) {
