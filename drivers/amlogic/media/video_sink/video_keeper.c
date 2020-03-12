@@ -614,19 +614,19 @@ static int ge2d_store_frame_YUV420(u32 cur_index)
 static void ge2d_keeplastframe_block(int cur_index, int format)
 {
 	u32 y_index, u_index, v_index;
-#if 0 /*def CONFIG_VSYNC_RDMA*/
+#ifdef CONFIG_AMLOGIC_MEDIA_VSYNC_RDMA
 	u32 y_index2, u_index2, v_index2;
 #endif
 
 	video_module_lock();
 
-#if 0 /*def CONFIG_VSYNC_RDMA*/
-	y_index = disp_canvas_index[0][0];
-	y_index2 = disp_canvas_index[1][0];
-	u_index = disp_canvas_index[0][1];
-	u_index2 = disp_canvas_index[1][1];
-	v_index = disp_canvas_index[0][2];
-	v_index2 = disp_canvas_index[1][2];
+#ifdef CONFIG_AMLOGIC_MEDIA_VSYNC_RDMA
+	y_index = vd_layer[0].canvas_tbl[0][0];
+	y_index2 = vd_layer[0].canvas_tbl[1][0];
+	u_index = vd_layer[0].canvas_tbl[0][1];
+	u_index2 = vd_layer[0].canvas_tbl[1][1];
+	v_index = vd_layer[0].canvas_tbl[0][2];
+	v_index2 = vd_layer[0].canvas_tbl[1][2];
 #else
 	/*
 	 *cur_index = READ_VCBUS_REG(VD1_IF0_CANVAS0 +
@@ -642,12 +642,20 @@ static void ge2d_keeplastframe_block(int cur_index, int format)
 		pr_info("GE2D_FORMAT_S24_YUV444\n");
 		ge2d_store_frame_S_YUV444(cur_index);
 		canvas_update_addr(y_index, keep_phy_addr(keep_y_addr));
+#ifdef CONFIG_AMLOGIC_MEDIA_VSYNC_RDMA
+		canvas_update_addr(y_index2, keep_phy_addr(keep_y_addr));
+		pr_info("y_index: [0x%x],y_index2: [0x%x]\n",
+			y_index, y_index2);
+#endif
+		pr_info("cur_index: [0x%x],keep_y_addr: [0x%lx]\n",
+			cur_index, keep_y_addr);
+
 		break;
 	case GE2D_FORMAT_M24_YUV444:
 		pr_info("GE2D_FORMAT_M24_YUV444\n");
 		ge2d_store_frame_YUV444(cur_index);
 		canvas_update_addr(y_index, keep_phy_addr(keep_y_addr));
-#if 0 /*def CONFIG_VSYNC_RDMA*/
+#ifdef CONFIG_AMLOGIC_MEDIA_VSYNC_RDMA
 		canvas_update_addr(y_index2, keep_phy_addr(keep_y_addr));
 #endif
 		break;
@@ -656,7 +664,7 @@ static void ge2d_keeplastframe_block(int cur_index, int format)
 		ge2d_store_frame_NV21(cur_index);
 		canvas_update_addr(y_index, keep_phy_addr(keep_y_addr));
 		canvas_update_addr(u_index, keep_phy_addr(keep_u_addr));
-#if 0 /*def CONFIG_VSYNC_RDMA*/
+#ifdef CONFIG_AMLOGIC_MEDIA_VSYNC_RDMA
 		canvas_update_addr(y_index2, keep_phy_addr(keep_y_addr));
 		canvas_update_addr(u_index2, keep_phy_addr(keep_u_addr));
 #endif
@@ -667,7 +675,7 @@ static void ge2d_keeplastframe_block(int cur_index, int format)
 		canvas_update_addr(y_index, keep_phy_addr(keep_y_addr));
 		canvas_update_addr(u_index, keep_phy_addr(keep_u_addr));
 		canvas_update_addr(v_index, keep_phy_addr(keep_v_addr));
-#if 0 /*def CONFIG_VSYNC_RDMA*/
+#ifdef CONFIG_AMLOGIC_MEDIA_VSYNC_RDMA
 		canvas_update_addr(y_index2, keep_phy_addr(keep_y_addr));
 		canvas_update_addr(u_index2, keep_phy_addr(keep_u_addr));
 		canvas_update_addr(v_index2, keep_phy_addr(keep_v_addr));
@@ -796,7 +804,7 @@ void try_free_keep_video(int flags)
 	if (vd_layer[0].dispbuf_mapping
 		== &cur_dispbuf)
 		layer1_used = true;
-	else if (vd_layer[1].dispbuf_mapping
+	if (vd_layer[1].dispbuf_mapping
 		== &cur_dispbuf)
 		layer2_used = true;
 
@@ -841,7 +849,7 @@ void try_free_keep_videopip(int flags)
 	if (vd_layer[0].dispbuf_mapping
 		== &cur_pipbuf)
 		layer1_used = true;
-	else if (vd_layer[1].dispbuf_mapping
+	if (vd_layer[1].dispbuf_mapping
 		== &cur_pipbuf)
 		layer2_used = true;
 
@@ -896,31 +904,32 @@ static void video_keeper_update_keeper_mem(
 }
 
 static int video_keeper_frame_keep_locked(
-	struct vframe_s *cur_dispbuf,
-	struct vframe_s *cur_dispbuf_el)
+	struct vframe_s *cur_buf,
+	struct vframe_s *cur_buf_el)
 {
 	int type = MEM_TYPE_CODEC_MM;
-	if (cur_dispbuf->type & VIDTYPE_SCATTER)
+
+	if (cur_buf->type & VIDTYPE_SCATTER)
 		type = MEM_TYPE_CODEC_MM_SCATTER;
 	video_keeper_update_keeper_mem(
-		cur_dispbuf->mem_handle,
+		cur_buf->mem_handle,
 		type,
 		&keep_id);
 	video_keeper_update_keeper_mem(
-		cur_dispbuf->mem_head_handle,
+		cur_buf->mem_head_handle,
 		MEM_TYPE_CODEC_MM,
 		&keep_head_id);
-	if (cur_dispbuf_el) {
-		if (cur_dispbuf->type & VIDTYPE_SCATTER)
+	if (cur_buf_el) {
+		if (cur_buf->type & VIDTYPE_SCATTER)
 			type = MEM_TYPE_CODEC_MM_SCATTER;
 		else
 			type = MEM_TYPE_CODEC_MM;
 		video_keeper_update_keeper_mem(
-			cur_dispbuf_el->mem_handle,
+			cur_buf_el->mem_handle,
 			type,
 			&keep_el_id);
 		video_keeper_update_keeper_mem(
-			cur_dispbuf_el->mem_head_handle,
+			cur_buf_el->mem_head_handle,
 			MEM_TYPE_CODEC_MM,
 			&keep_el_head_id);
 	}
@@ -928,34 +937,34 @@ static int video_keeper_frame_keep_locked(
 }
 
 static int video_pip_keeper_frame_keep_locked(
-	struct vframe_s *cur_dispbuf,
-	struct vframe_s *cur_dispbuf_el)
+	struct vframe_s *cur_buf,
+	struct vframe_s *cur_buf_el)
 {
 	int type = MEM_TYPE_CODEC_MM;
 
-	if (cur_dispbuf) {
-		if (cur_dispbuf->type & VIDTYPE_SCATTER)
+	if (cur_buf) {
+		if (cur_buf->type & VIDTYPE_SCATTER)
 			type = MEM_TYPE_CODEC_MM_SCATTER;
 		video_keeper_update_keeper_mem(
-			cur_dispbuf->mem_handle,
+			cur_buf->mem_handle,
 			type,
 			&keep_pip_id);
 		video_keeper_update_keeper_mem(
-			cur_dispbuf->mem_head_handle,
+			cur_buf->mem_head_handle,
 			MEM_TYPE_CODEC_MM,
 			&keep_pip_head_id);
 	}
-	if (cur_dispbuf_el) {
-		if (cur_dispbuf_el->type & VIDTYPE_SCATTER)
+	if (cur_buf_el) {
+		if (cur_buf_el->type & VIDTYPE_SCATTER)
 			type = MEM_TYPE_CODEC_MM_SCATTER;
 		else
 			type = MEM_TYPE_CODEC_MM;
 		video_keeper_update_keeper_mem(
-			cur_dispbuf_el->mem_handle,
+			cur_buf_el->mem_handle,
 			type,
 			&keep_pip_el_id);
 		video_keeper_update_keeper_mem(
-			cur_dispbuf_el->mem_head_handle,
+			cur_buf_el->mem_head_handle,
 			MEM_TYPE_CODEC_MM,
 			&keep_pip_el_head_id);
 	}
@@ -1026,9 +1035,9 @@ void video_pip_keeper_new_frame_notify(void)
 }
 
 #ifdef CONFIG_AMLOGIC_MEDIA_GE2D
-static unsigned int vf_ge2d_keep_frame_locked(struct vframe_s *cur_dispbuf)
+static unsigned int vf_ge2d_keep_frame_locked(struct vframe_s *ge2d_buf)
 {
-	u32 cur_index;
+	u32 cur_index = 0;
 	u32 y_index, u_index, v_index;
 	struct canvas_s cs0, cs1, cs2, cd;
 	bool layer1_used = false;
@@ -1037,7 +1046,7 @@ static unsigned int vf_ge2d_keep_frame_locked(struct vframe_s *cur_dispbuf)
 	if (vd_layer[0].dispbuf_mapping
 		== &cur_dispbuf)
 		layer1_used = true;
-	else if (vd_layer[1].dispbuf_mapping
+	if (vd_layer[1].dispbuf_mapping
 		== &cur_dispbuf)
 		layer2_used = true;
 
@@ -1048,7 +1057,7 @@ static unsigned int vf_ge2d_keep_frame_locked(struct vframe_s *cur_dispbuf)
 	}
 #endif
 
-	if (cur_dispbuf->type & VIDTYPE_COMPRESS) {
+	if (ge2d_buf->type & VIDTYPE_COMPRESS) {
 		/* todo: duplicate compressed video frame */
 		pr_info("keep exit is skip VIDTYPE_COMPRESS\n");
 		return 0;
@@ -1086,10 +1095,10 @@ static unsigned int vf_ge2d_keep_frame_locked(struct vframe_s *cur_dispbuf)
 			canvas_get_addr(y_index));
 	}
 
-	if ((cur_dispbuf->type & VIDTYPE_VIU_422) == VIDTYPE_VIU_422) {
+	if ((ge2d_buf->type & VIDTYPE_VIU_422) == VIDTYPE_VIU_422) {
 		pr_info("%s:no support VIDTYPE_VIU_422\n", __func__);
 		return 0;
-	} else if ((cur_dispbuf->type & VIDTYPE_VIU_444) == VIDTYPE_VIU_444) {
+	} else if ((ge2d_buf->type & VIDTYPE_VIU_444) == VIDTYPE_VIU_444) {
 		if ((Y_BUFFER_SIZE < (cd.width * cd.height))) {
 			pr_info
 			    ("[%s::%d] error:data>buf size: %x,%x,%x, %x,%x\n",
@@ -1101,7 +1110,7 @@ static unsigned int vf_ge2d_keep_frame_locked(struct vframe_s *cur_dispbuf)
 		ge2d_keeplastframe_block(cur_index, GE2D_FORMAT_S24_YUV444);
 		if (get_video_debug_flags() & DEBUG_FLAG_BLACKOUT)
 			pr_info("%s: VIDTYPE_VIU_444\n", __func__);
-	} else if ((cur_dispbuf->type & VIDTYPE_VIU_NV21) == VIDTYPE_VIU_NV21) {
+	} else if ((ge2d_buf->type & VIDTYPE_VIU_NV21) == VIDTYPE_VIU_NV21) {
 		canvas_read(y_index, &cs0);
 		canvas_read(u_index, &cs1);
 		if ((Y_BUFFER_SIZE < (cs0.width * cs0.height))
@@ -1136,13 +1145,13 @@ static unsigned int vf_ge2d_keep_frame_locked(struct vframe_s *cur_dispbuf)
 #endif
 
 static unsigned int vf_keep_current_locked(
-	struct vframe_s *cur_dispbuf,
-	struct vframe_s *cur_dispbuf_el)
+	struct vframe_s *cur_buf,
+	struct vframe_s *cur_buf_el)
 {
 	int ret;
 
-	if (!cur_dispbuf) {
-		pr_info("keep exit without cur_dispbuf\n");
+	if (!cur_buf) {
+		pr_info("keep exit without cur_buf\n");
 		return 0;
 	}
 
@@ -1162,7 +1171,7 @@ static unsigned int vf_keep_current_locked(
 	}
 
 #if 1
-	if (cur_dispbuf->type & VIDTYPE_PRE_INTERLACE) {
+	if (cur_buf->type & VIDTYPE_PRE_INTERLACE) {
 		pr_info("keep exit is di\n");
 		return 2;
 	}
@@ -1172,14 +1181,14 @@ static unsigned int vf_keep_current_locked(
 		return 0;
 	}
 #endif
-	if (cur_dispbuf->source_type == VFRAME_SOURCE_TYPE_PPMGR) {
+	if (cur_buf->source_type == VFRAME_SOURCE_TYPE_PPMGR) {
 		pr_info("ppmgr use ge2d keep frame!\n");
-		ret = vf_ge2d_keep_frame_locked(cur_dispbuf);
+		ret = vf_ge2d_keep_frame_locked(cur_buf);
 	} else {
 		pr_info("use keep buffer keep frame!\n");
 		ret = video_keeper_frame_keep_locked(
-			cur_dispbuf,
-			cur_dispbuf_el);
+			cur_buf,
+			cur_buf_el);
 	}
 
 	if (ret) {
@@ -1193,16 +1202,13 @@ static unsigned int vf_keep_current_locked(
 }
 
 unsigned int vf_keep_pip_current_locked(
-	struct vframe_s *cur_dispbuf,
-	struct vframe_s *cur_dispbuf_el)
+	struct vframe_s *cur_buf,
+	struct vframe_s *cur_buf_el)
 {
-	//u32 cur_index;
-	//u32 y_index, u_index, v_index;
-	//struct canvas_s cs0, cs1, cs2, cd;
 	int ret;
 
-	if (!cur_dispbuf) {
-		pr_info("keep pip exit without cur_dispbuf\n");
+	if (!cur_buf) {
+		pr_info("keep pip exit without cur_buf\n");
 		return 0;
 	}
 
@@ -1222,8 +1228,8 @@ unsigned int vf_keep_pip_current_locked(
 	}
 
 	ret = video_pip_keeper_frame_keep_locked(
-		cur_dispbuf,
-		cur_dispbuf_el);
+		cur_buf,
+		cur_buf_el);
 
 	if (ret) {
 		/*keeped ok with codec keeper!*/
@@ -1237,14 +1243,14 @@ unsigned int vf_keep_pip_current_locked(
 }
 
 unsigned int vf_keep_current(
-	struct vframe_s *cur_dispbuf,
-	struct vframe_s *cur_dispbuf2)
+	struct vframe_s *cur_buf,
+	struct vframe_s *cur_buf2)
 {
 	unsigned int ret;
 
 	mutex_lock(&video_keeper_mutex);
 	ret = vf_keep_current_locked(
-		cur_dispbuf, cur_dispbuf2);
+		cur_buf, cur_buf2);
 	mutex_unlock(&video_keeper_mutex);
 	return ret;
 }
