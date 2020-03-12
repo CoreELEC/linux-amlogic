@@ -5367,6 +5367,12 @@ static void osd_update_disp_freescale_enable(u32 index)
 	data32 = top_ini_phase;
 	if (osd_hw.free_scale_enable[index]) {
 		data32 |= (bot_ini_phase & 0xffff) << 16;
+		if (osd_hw.field_out_en[output_index]) {
+			if (shift_workaround)
+				src_h--;
+			if (src_h == dst_h * 2)
+				data32 |= 0x80008000;
+		}
 		VSYNCOSD_WR_MPEG_REG_BITS(
 			osd_reg->osd_hsc_phase_step,
 			hf_phase_step, 0, 28);
