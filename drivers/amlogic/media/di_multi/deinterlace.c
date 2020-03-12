@@ -4684,9 +4684,15 @@ irqreturn_t dim_post_irq(int irq, void *dev_instance)
 
 		dim_DI_Wr(DI_INTR_CTRL,
 			  (data32 & 0xffff0004) | (intr_mode << 30));
+		#if 1
+		/* disable wr back avoid pps sreay in g12a */
+		/* dim_DI_Wr_reg_bits(DI_POST_CTRL, 0, 7, 1); */
+		di_post_set_flow(1, EDI_POST_FLOW_STEP3_IRQ);
+		#else
 		/* disable wr back avoid pps sreay in g12a */
 		dim_DI_Wr_reg_bits(DI_POST_CTRL, 0, 7, 1);
 		di_post_set_flow(1, eDI_POST_FLOW_STEP1_STOP);	/*dbg a*/
+		#endif
 		dim_print("irq p ch[%d]done\n", channel);
 		pst->flg_int_done = true;
 	}

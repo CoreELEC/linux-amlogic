@@ -253,7 +253,7 @@ void h_dbg_reg_set(unsigned int val);
 enum eDI_POST_FLOW {
 	eDI_POST_FLOW_STEP1_STOP,
 	eDI_POST_FLOW_STEP2_START,
-/*	eDI_POST_FLOW_STEP3_RESET_INT,*/
+	EDI_POST_FLOW_STEP3_IRQ,
 };
 
 void di_post_set_flow(unsigned int post_wr_en, enum eDI_POST_FLOW step);

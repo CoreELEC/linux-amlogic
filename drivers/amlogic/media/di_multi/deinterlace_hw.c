@@ -3806,6 +3806,15 @@ void di_post_set_flow(unsigned int post_wr_en, enum eDI_POST_FLOW step)
 		val = (0x80200000 | 1);
 		dim_VSYNC_WR_MPEG_REG(DI_POST_GL_CTRL, val);
 		break;
+	case EDI_POST_FLOW_STEP3_IRQ:
+		Wr(DI_POST_GL_CTRL, 0x1);
+		/* DI_POST_CTRL
+		 *	disable wr back avoid pps sreay in g12a
+		 *	[7]: set 0;
+		 */
+		Wr(DI_POST_CTRL, 0x80000045);
+		Wr(DI_POST_GL_CTRL, 0xc0000001);
+		break;
 	}
 }
 
