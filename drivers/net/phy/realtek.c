@@ -122,30 +122,57 @@ static int rtl8211f_config_intr(struct phy_device *phydev)
 	return err;
 }
 
+static int rtl8211f_reset(struct phy_device *phydev)
+{
+	u16 ret;
+	unsigned int retries;
+
+	/* reset phy */
+	phy_write(phydev, RTL8211F_PAGE_SELECT, 0x0);
+	phy_write(phydev, MII_BMCR, BMCR_RESET | BMCR_ANENABLE | BMCR_ANRESTART);
+
+	/* wait for ready */
+	/* Poll until the reset bit clears (50ms per retry == 0.6 sec) */
+	retries = 12;
+	do {
+		msleep(50);
+		ret = phy_read(phydev, MII_BMCR);
+	} while (ret & BMCR_RESET && --retries);
+
+	/* Poll until the auto negotiation get set (50ms per retry == 5s sec) */
+	retries = 100;
+	do {
+		msleep(50);
+		ret = phy_read(phydev, MII_BMSR);
+	} while (!(ret & BMSR_ANEGCOMPLETE) && --retries);
+
+	return 0;
+}
+
 static int rtl8211f_config_init(struct phy_device *phydev)
 {
 	int ret;
 	u16 reg;
 
-#ifdef CONFIG_AMLOGIC_ETH_PRIVE
-	unsigned char *mac_addr = NULL;
-#endif
 	ret = genphy_config_init(phydev);
 	if (ret < 0)
 		return ret;
 
+	scpi_send_usr_data(SCPI_CL_WOL, &enable_wol, sizeof(enable_wol));
+
+	/* enable TX-delay for rgmii-id and rgmii-txid, otherwise disable it */
 	phy_write(phydev, RTL8211F_PAGE_SELECT, 0xd08);
 	reg = phy_read(phydev, 0x11);
 
-	/* enable TX-delay for rgmii-id and rgmii-txid, otherwise disable it */
 	if (phydev->interface == PHY_INTERFACE_MODE_RGMII_ID ||
-	    phydev->interface == PHY_INTERFACE_MODE_RGMII_TXID)
-		reg |= RTL8211F_TX_DELAY;
+		phydev->interface == PHY_INTERFACE_MODE_RGMII_TXID ||
+		external_tx_delay)
+			reg |= RTL8211F_TX_DELAY;
 	else
-		reg &= ~RTL8211F_TX_DELAY;
+			reg &= ~RTL8211F_TX_DELAY;
 
 	phy_write(phydev, 0x11, reg);
-#ifdef CONFIG_AMLOGIC_ETH_PRIVE
+
 	/*switch page d08*/
 	phy_write(phydev, RTL8211F_PAGE_SELECT, 0xd08);
 	reg = phy_read(phydev, 0x15);
@@ -157,32 +184,41 @@ static int rtl8211f_config_init(struct phy_device *phydev)
 		phy_write(phydev, 0x15, reg & 0xfff7);
 	}
 
-	if (external_tx_delay) {
-		reg = phy_read(phydev, 0x11);
-		phy_write(phydev, 0x11, reg | 0x100);
-	}
 	phy_write(phydev, RTL8211F_PAGE_SELECT, 0x0);
 
 	/*disable clk_out pin 35 set page 0x0a43 reg25.0 as 0*/
 	phy_write(phydev, RTL8211F_PAGE_SELECT, 0x0a43);
 	reg = phy_read(phydev, 0x19);
 	/*set reg25 bit0 as 0*/
-	reg = phy_write(phydev, 0x19, reg & 0xfffe);
-	/* switch to page 0 */
-	phy_write(phydev, RTL8211F_PAGE_SELECT, 0x0);
-	/*reset phy to apply*/
-	reg = phy_write(phydev, 0x0, 0x9200);
+	phy_write(phydev, 0x19, reg & 0xfffe);
+#ifdef CONFIG_AMLOGIC_ETH_PRIVE
+	/*pad isolation*/
+	phy_write(phydev, RTL8211F_PAGE_SELECT, 0xd8a);
+	reg = phy_read(phydev, 0x13);
+	reg &= ~(0x1 << 15);
+	reg |= (0x1 << 12);
+	phy_write(phydev, 0x13, reg);
+
+	/*pin 31 pull high*/
+	phy_write(phydev, RTL8211F_PAGE_SELECT, 0xd40);
+	reg = phy_read(phydev, 0x16);
+	phy_write(phydev, 0x16, reg | (1 << 5));
+
 	/* config mac address for wol*/
 	if ((phydev->attached_dev) && (support_external_phy_wol)) {
-		mac_addr = phydev->attached_dev->dev_addr;
-
-		pr_info("set mac for wol = %02x:%02x:%02x:%02x:%02x:%02x\n",
+		unsigned char *mac_addr = phydev->attached_dev->dev_addr;
+		pr_info("use mac for wol = %02x:%02x:%02x:%02x:%02x:%02x\n",
 			mac_addr[0], mac_addr[1], mac_addr[2], mac_addr[3], mac_addr[4], mac_addr[5]);
 
 		phy_write(phydev, RTL8211F_PAGE_SELECT, 0xd8c);
 		phy_write(phydev, 0x10, mac_addr[0] | (mac_addr[1] << 8));
 		phy_write(phydev, 0x11, mac_addr[2] | (mac_addr[3] << 8));
 		phy_write(phydev, 0x12, mac_addr[4] | (mac_addr[5] << 8));
+
+		/*set magic packet for wol*/
+		phy_write(phydev, RTL8211F_PAGE_SELECT, 0xd8a);
+		phy_write(phydev, 0x10, 0x1000);
+		phy_write(phydev, 0x11, 0x9fff);
 	} else {
 		pr_debug("not set wol mac\n");
 	}
@@ -191,70 +227,50 @@ static int rtl8211f_config_init(struct phy_device *phydev)
 	phy_write(phydev, RTL821x_LCR, 0XC171); /*led configuration*/
 	phy_write(phydev, RTL821x_PHYSR, 0); /*disable eee led indication*/
 
-	/* restore to default page 0 */
-	phy_write(phydev, RTL8211F_PAGE_SELECT, 0x0);
-
-	return 0;
+	/*reset phy to apply*/
+	return rtl8211f_reset(phydev);
 }
 
 #ifdef CONFIG_AMLOGIC_ETH_PRIVE
-int rtl8211f_suspend(struct phy_device *phydev)
-{
-	int value = 0;
-
-	if (support_external_phy_wol) {
-		mutex_lock(&phydev->lock);
-		phy_write(phydev, RTL8211F_PAGE_SELECT, 0xd8a);
-		/*set magic packet for wol*/
-		phy_write(phydev, 0x10, 0x1000);
-		phy_write(phydev, 0x11, 0x9fff);
-		/*pad isolation*/
-		value = phy_read(phydev, 0x13);
-		phy_write(phydev, 0x13, value | (0x1 << 12));
-		/*pin 31 pull high*/
-		phy_write(phydev, RTL8211F_PAGE_SELECT, 0xd40);
-		value = phy_read(phydev, 0x16);
-		phy_write(phydev, 0x16, value | (1 << 5));
-		phy_write(phydev, RTL8211F_PAGE_SELECT, 0);
-
-		mutex_unlock(&phydev->lock);
-	} else {
-		genphy_suspend(phydev);
-	}
-	return 0;
-}
-
 int rtl8211f_resume(struct phy_device *phydev)
 {
-	int value;
+	int ret;
+	u16 reg;
 
-	scpi_send_usr_data(SCPI_CL_WOL, &enable_wol, sizeof(enable_wol));
+	mutex_lock(&phydev->lock);
 
-	if (support_external_phy_wol) {
-		mutex_lock(&phydev->lock);
+	/* enable TX-delay for rgmii-id and rgmii-txid, otherwise disable it */
+	phy_write(phydev, RTL8211F_PAGE_SELECT, 0xd08);
+	reg = phy_read(phydev, 0x11);
+	if (phydev->interface == PHY_INTERFACE_MODE_RGMII_ID ||
+		phydev->interface == PHY_INTERFACE_MODE_RGMII_TXID ||
+		external_tx_delay)
+			reg |= RTL8211F_TX_DELAY;
+	else
+			reg &= ~RTL8211F_TX_DELAY;
+	phy_write(phydev, 0x11, reg);
 
-		/*pad isolantion*/
-		phy_write(phydev, RTL8211F_PAGE_SELECT, 0xd8a);
-		value = phy_read(phydev, 0x13);
-		phy_write(phydev, 0x13, value & ~(0x1 << 12));
-		phy_write(phydev, RTL8211F_PAGE_SELECT, 0);
+	/*pad isolation*/
+	phy_write(phydev, RTL8211F_PAGE_SELECT, 0xd8a);
+	reg = phy_read(phydev, 0x13);
+	phy_write(phydev, 0x13, reg | (0x1 << 12));
 
-		/*pin 31 pull high*/
-		phy_write(phydev, RTL8211F_PAGE_SELECT, 0xd40);
-		value = phy_read(phydev, 0x16);
-		phy_write(phydev, 0x16, value | (1 << 5));
-		phy_write(phydev, RTL8211F_PAGE_SELECT, 0);
+	/*pin 31 pull high*/
+	phy_write(phydev, RTL8211F_PAGE_SELECT, 0xd40);
+	reg = phy_read(phydev, 0x16);
+	phy_write(phydev, 0x16, reg | (1 << 5));
 
-		mutex_unlock(&phydev->lock);
-	}
+	/*reset phy to apply*/
+	ret = rtl8211f_reset(phydev);
 
-	rtl8211f_config_init(phydev);
+	mutex_unlock(&phydev->lock);
 
 	pr_debug("%s %d\n", __func__, __LINE__);
 
-	return 0;
+	return ret;
 }
 #endif
+
 static struct phy_driver realtek_drvs[] = {
 	{
 		.phy_id         = 0x00008201,
@@ -310,7 +326,6 @@ static struct phy_driver realtek_drvs[] = {
 		.ack_interrupt	= &rtl8211f_ack_interrupt,
 		.config_intr	= &rtl8211f_config_intr,
 #ifdef CONFIG_AMLOGIC_ETH_PRIVE
-		.suspend	= rtl8211f_suspend,
 		.resume		= rtl8211f_resume,
 #else
 		.suspend	= genphy_suspend,
