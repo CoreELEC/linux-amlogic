@@ -961,6 +961,7 @@ static int dim_probe(struct platform_device *pdev)
 		     dimp_get(edi_mp_mcpre_en));
 
 	dim_set_di_flag();
+	dim_polic_prob();
 
 	task_start();
 
