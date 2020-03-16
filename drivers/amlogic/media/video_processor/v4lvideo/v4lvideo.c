@@ -955,7 +955,8 @@ static s32 v4lvideo_import_sei_data(
 			fmt_update = true;
 			break;
 		} else {
-			usleep_range(1000, 2000);
+			if (max_count > 1)
+				usleep_range(1000, 2000);
 		}
 	}
 	if (!fmt_update) {
