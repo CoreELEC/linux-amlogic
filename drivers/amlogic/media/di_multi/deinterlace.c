@@ -2774,6 +2774,23 @@ static void config_di_mif(struct DI_MIF_s *di_mif, struct di_buf_s *di_buf,
 			di_mif->chroma_y_start0 = 0;
 			di_mif->chroma_y_end0 =
 				(di_buf->vframe->height + 1) / 2 - 1;
+		} else if ((ppre->cur_inp_type & VIDTYPE_INTERLACE) &&
+				(ppre->cur_inp_type & VIDTYPE_VIU_FIELD)) {
+			di_mif->src_prog = 0;
+			di_mif->src_field_mode = 0;
+			di_mif->output_field_num = 0; /* top */
+			di_mif->luma_x_start0 = 0;
+			di_mif->luma_x_end0 =
+				di_buf->vframe->width - 1;
+			di_mif->luma_y_start0 = 0;
+			di_mif->luma_y_end0 =
+				di_buf->vframe->height / 2 - 1;
+			di_mif->chroma_x_start0 = 0;
+			di_mif->chroma_x_end0 =
+				di_buf->vframe->width / 2 - 1;
+			di_mif->chroma_y_start0 = 0;
+			di_mif->chroma_y_end0 =
+				di_buf->vframe->height / 4 - 1;
 		} else {
 			/*move to mp	di_mif->src_prog = force_prog?1:0;*/
 			if (ppre->cur_inp_type  & VIDTYPE_INTERLACE)
@@ -3451,7 +3468,11 @@ static void pre_inp_canvas_config(struct vframe_s *vf)
 
 static void pre_inp_mif_w(struct DI_MIF_s *di_mif, struct vframe_s *vf)
 {
-	di_mif->canvas_w = vf->canvas0_config[0].width;
+	if (vf->canvas0Addr != (u32)-1)
+		di_mif->canvas_w = canvas_get_width(
+			vf->canvas0Addr & 0xff);
+	else
+		di_mif->canvas_w = vf->canvas0_config[0].width;
 }
 
 #ifdef MARK_HIS

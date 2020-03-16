@@ -3213,7 +3213,7 @@ config_di_pre_mc_mif(struct DI_MC_MIF_s *di_mcinfo_mif,
 	if (di_buf) {
 		pre_size_w = di_buf->vframe->width;
 		pre_size_h = (di_buf->vframe->height + 1) / 2;
-		di_mcinfo_mif->size_x = (pre_size_h + 1) / 2 - 1;
+		di_mcinfo_mif->size_x = pre_size_h / 2 - 1;
 		di_mcinfo_mif->size_y = 1;
 		di_mcinfo_mif->canvas_num = di_buf->mcinfo_canvas_idx;
 
@@ -3327,7 +3327,6 @@ static void config_di_mif(struct DI_MIF_s *di_mif, struct di_buf_s *di_buf)
 		else
 			di_mif->set_separate_en = 1;
 
-
 		if (is_progressive(di_buf->vframe) &&
 		    (di_pre_stru.prog_proc_type)) {
 			di_mif->src_field_mode = 0;
@@ -3343,7 +3342,24 @@ static void config_di_mif(struct DI_MIF_s *di_mif, struct di_buf_s *di_buf)
 				di_buf->vframe->width / 2 - 1;
 			di_mif->chroma_y_start0 = 0;
 			di_mif->chroma_y_end0 =
+				(di_buf->vframe->height + 1) / 2 - 1;
+		} else if ((di_pre_stru.cur_inp_type & VIDTYPE_INTERLACE) &&
+			   (di_pre_stru.cur_inp_type & VIDTYPE_VIU_FIELD)) {
+			di_mif->src_prog = 0;
+			di_mif->src_field_mode = 0;
+			di_mif->output_field_num = 0; /* top */
+			di_mif->luma_x_start0 = 0;
+			di_mif->luma_x_end0 =
+				di_buf->vframe->width - 1;
+			di_mif->luma_y_start0 = 0;
+			di_mif->luma_y_end0 =
 				di_buf->vframe->height / 2 - 1;
+			di_mif->chroma_x_start0 = 0;
+			di_mif->chroma_x_end0 =
+				di_buf->vframe->width / 2 - 1;
+			di_mif->chroma_y_start0 = 0;
+			di_mif->chroma_y_end0 =
+				di_buf->vframe->height / 4 - 1;
 		} else {
 			if (di_pre_stru.cur_inp_type  & VIDTYPE_INTERLACE)
 				di_mif->src_prog = 0;
@@ -3359,14 +3375,13 @@ static void config_di_mif(struct DI_MIF_s *di_mif, struct di_buf_s *di_buf)
 					di_buf->vframe->width - 1;
 				di_mif->luma_y_start0 = 0;
 				di_mif->luma_y_end0 =
-					di_buf->vframe->height - 2;
+					di_buf->vframe->height - 1;
 				di_mif->chroma_x_start0 = 0;
 				di_mif->chroma_x_end0 =
 					di_buf->vframe->width / 2 - 1;
 				di_mif->chroma_y_start0 = 0;
 				di_mif->chroma_y_end0 =
-					di_buf->vframe->height / 2
-						- (di_mif->src_prog?1:2);
+					(di_buf->vframe->height + 1) / 2 - 1;
 			} else {
 				di_mif->output_field_num = 1;
 				/* bottom */
@@ -3382,7 +3397,7 @@ static void config_di_mif(struct DI_MIF_s *di_mif, struct di_buf_s *di_buf)
 				di_mif->chroma_y_start0 =
 					(di_mif->src_prog?0:1);
 				di_mif->chroma_y_end0 =
-					di_buf->vframe->height / 2 - 1;
+					(di_buf->vframe->height + 1) / 2 - 1;
 			}
 		}
 	}
@@ -3394,6 +3409,8 @@ static void di_pre_size_change(unsigned short width,
 #ifdef CONFIG_AMLOGIC_MEDIA_MULTI_DEC
 static void pre_inp_canvas_config(struct vframe_s *vf);
 #endif
+
+static void pre_inp_mif_w(struct DI_MIF_s *di_mif, struct vframe_s *vf);
 
 bool secam_cfr_en = true;
 unsigned int cfr_phase1 = 1;/*0x179c[6]*/
@@ -3472,7 +3489,7 @@ static void pre_de_process(void)
 	#ifdef CONFIG_AMLOGIC_MEDIA_MULTI_DEC
 	pre_inp_canvas_config(di_pre_stru.di_inp_buf->vframe);
 	#endif
-
+	pre_inp_mif_w(&di_pre_stru.di_inp_mif, di_pre_stru.di_inp_buf->vframe);
 	config_di_mif(&di_pre_stru.di_inp_mif, di_pre_stru.di_inp_buf);
 	/* pr_dbg("set_separate_en=%d vframe->type %d\n",
 	 * di_pre_stru.di_inp_mif.set_separate_en,
@@ -4074,6 +4091,16 @@ static void pre_inp_canvas_config(struct vframe_s *vf)
 	}
 }
 #endif
+
+static void pre_inp_mif_w(struct DI_MIF_s *di_mif, struct vframe_s *vf)
+{
+	if (vf->canvas0Addr != (u32)-1)
+		di_mif->canvas_w = canvas_get_width(
+			vf->canvas0Addr & 0xff);
+	else
+		di_mif->canvas_w = vf->canvas0_config[0].width;
+}
+
 static int pps_dstw;
 module_param_named(pps_dstw, pps_dstw, int, 0644);
 static int pps_dsth;
