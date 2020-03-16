@@ -167,19 +167,19 @@
 
 		net_red {
 			label="net_red";
-			gpios=<&gpio GPIOA_14 GPIO_ACTIVE_LOW>;
+			/*gpios=<&gpio GPIOA_14 GPIO_ACTIVE_LOW>;*/
 			default-state ="on";
 		};
 
 		net_green {
 			label="net_green";
-			gpios=<&gpio GPIOA_15 GPIO_ACTIVE_HIGH>;
+			/*gpios=<&gpio GPIOA_15 GPIO_ACTIVE_HIGH>;*/
 			default-state ="on";
 		};
 
 		remote_led {
 			label = "remote_led";
-			gpios = <&gpio_ao GPIOAO_10 GPIO_ACTIVE_LOW>;
+			/*gpios = <&gpio_ao GPIOAO_10 GPIO_ACTIVE_LOW>;*/
 			default-state = "off";
 			linux,default-trigger = "rc_feedback";
 		};
@@ -346,46 +346,27 @@
 		nrds-enable = <1>;
 		pps-enable = <1>;
 	};
-	ionvideo {
-		compatible = "amlogic, ionvideo";
-		dev_name = "ionvideo";
-		status = "okay";
-	};
 
-	amlvideo2_0 {
-		compatible = "amlogic, amlvideo2";
-		dev_name = "amlvideo2";
-		status = "okay";
-		amlvideo2_id = <0>;
-		cma_mode = <1>;
-	};
-
-	amlvideo2_1 {
-		compatible = "amlogic, amlvideo2";
-		dev_name = "amlvideo2";
-		status = "okay";
-		amlvideo2_id = <1>;
-		cma_mode = <1>;
-	};
-
-	dvb {
+	/* avl6762, cxd2856 mn88436 Si2168 */
+	/* Choose one of four and change status to 'okay' */
+	dvb_avl6762 {
 		compatible = "amlogic, dvb";
 		dev_name = "dvb";
+		status = "disabled";
+		fe0_mode = "external";
+		fe0_demod = "Avl6762";
+		fe0_i2c_adap_id = <&i2c3>;
+		fe0_demod_i2c_addr = <0x14>;
+		fe0_ts = <0>;
+		fe0_reset_value = <0>;
+		fe0_reset_gpio = <&gpio GPIOZ_10 GPIO_ACTIVE_HIGH>;
 
-	//	fe0_mode = "external";
-	//	fe0_demod = "Atbm8881";
-	//	fe0_i2c_adap_id = <&i2c2>;
-	//	fe0_demod_i2c_addr = <0xc0>;
-	//	fe0_ts = <1>;
-	//	fe0_reset_value = <0>;
-	//	fe0_reset_gpio = <&gpio GPIOZ_1 GPIO_ACTIVE_HIGH>;
-
-	//	ts1 = "parallel";
-	//	ts1_control = <0>;
-	//	ts1_invert = <0>;
+		ts0 = "serial";
+		ts0_control = <0x800>;
+		ts0_invert = <0>;
 		interrupts = <0 23 1
 		0 5 1
-		0 21 1
+		0 53 1
 		0 19 1
 		0 25 1
 		0 18 1
@@ -397,18 +378,102 @@
 		"dvr1_irq",
 		"dvrfill0_fill",
 		"dvrfill1_flush";
-	//	pinctrl-names = "p_ts1";
-	//	pinctrl-0 = <&dvb_p_ts1_pins>;
+		pinctrl-names = "s_ts0";
+		pinctrl-0 = <&dvb_s_ts0_pins>;
 		clocks = <&clkc CLKID_DEMUX
 		&clkc CLKID_AHB_ARB0
 		&clkc CLKID_DOS_PARSER>;
 		clock-names = "demux", "ahbarb0", "parser_top";
 	};
 
-	/*this just for U212-D814(dual demod)*/
-	/* dvb {
+	dvb_mn88436 {
+		compatible = "amlogic, dvb";
+		dev_name = "dvb";
+		status = "disabled";
+
+		dtv_demod0 = "Mn88436";
+		dtv_demod0_i2c_adap = <&i2c3>;
+		dtv_demod0_i2c_addr = <0x14>;
+		dtv_demod0_reset_value = <0>;
+		dtv_demod0_reset_gpio = <&gpio_ao GPIOAO_10 GPIO_ACTIVE_HIGH>;
+		dtv_demod0_ant_poweron_value = <0>;
+		dtv_demod0_ant_power_gpio = <&gpio GPIOH_5 GPIO_ACTIVE_HIGH>;
+		dtv_demod0_tuner_type = <52>;
+		fe0_dtv_demod = <0>;
+		fe0_ts  = <0>;
+		fe0_dev = <0>;
+
+		ts0 = "serial";
+		ts0_control = <0x800>;
+		ts0_invert = <0>;
+		interrupts = <0 23 1
+		0 5 1
+		0 53 1
+		0 19 1
+		0 25 1
+		0 18 1
+		0 24 1>;
+		interrupt-names = "demux0_irq",
+		"demux1_irq",
+		"demux2_irq",
+		"dvr0_irq",
+		"dvr1_irq",
+		"dvrfill0_fill",
+		"dvrfill1_flush";
+		pinctrl-names = "s_ts0";
+		pinctrl-0 = <&dvb_s_ts0_pins>;
+		clocks = <&clkc CLKID_DEMUX
+		&clkc CLKID_AHB_ARB0
+		&clkc CLKID_DOS_PARSER>;
+		clock-names = "demux", "ahbarb0", "parser_top";
+	};
+
+	dvb_cxd2856 {
+		compatible = "amlogic, dvb";
+		dev_name = "dvb";
+		status = "disabled";
+
+		fe0_mode = "external";
+		fe0_demod = "cxd2856";
+		fe0_i2c_adap_id = <&i2c3>;
+		fe0_demod_i2c_addr = <0xD8>;
+		fe0_reset_value = <0>;
+		fe0_reset_gpio = <&gpio_ao GPIOAO_10 GPIO_ACTIVE_HIGH>;
+		fe0_ant_poweron_value = <0>;
+		fe0_ant_power_gpio = <&gpio GPIOH_5 GPIO_ACTIVE_HIGH>;
+		fe0_dtv_demod = <0>;
+		fe0_ts  = <0>;
+		fe0_dev = <0>;
+
+		ts0 = "serial";
+		ts0_control = <0x800>;
+		ts0_invert = <0>;
+		interrupts = <0 23 1
+		0 5 1
+		0 53 1
+		0 19 1
+		0 25 1
+		0 18 1
+		0 24 1>;
+		interrupt-names = "demux0_irq",
+		"demux1_irq",
+		"demux2_irq",
+		"dvr0_irq",
+		"dvr1_irq",
+		"dvrfill0_fill",
+		"dvrfill1_flush";
+		pinctrl-names = "s_ts0";
+		pinctrl-0 = <&dvb_s_ts0_pins>;
+		clocks = <&clkc CLKID_DEMUX
+		&clkc CLKID_AHB_ARB0
+		&clkc CLKID_DOS_PARSER>;
+		clock-names = "demux", "ahbarb0", "parser_top";
+	};
+
+	/* dvb_Si2168 {
 	 *   compatible = "amlogic, dvb";
 	 *   dev_name = "dvb";
+	 *   status = "disabled";
 
 	 *   fe0_mode = "external";
 	 *   fe0_demod = "Si2168";
@@ -466,6 +531,28 @@
 	 *   clock-names = "demux", "ahbarb0", "parser_top";
 	 * };
 	 */
+
+	ionvideo {
+		compatible = "amlogic, ionvideo";
+		dev_name = "ionvideo";
+		status = "okay";
+	};
+
+	amlvideo2_0 {
+		compatible = "amlogic, amlvideo2";
+		dev_name = "amlvideo2";
+		status = "okay";
+		amlvideo2_id = <0>;
+		cma_mode = <1>;
+	};
+
+	amlvideo2_1 {
+		compatible = "amlogic, amlvideo2";
+		dev_name = "amlvideo2";
+		status = "okay";
+		amlvideo2_id = <1>;
+		cma_mode = <1>;
+	};
 
 	unifykey{
 		compatible = "amlogic, unifykey";
@@ -1025,10 +1112,10 @@
  */
 
 &i2c3 {
-	status = "disabled";
+	status = "okay";
 	pinctrl-names="default";
 	pinctrl-0=<&i2c3_master_pins2>;
-	clock-frequency = <100000>; /* default 100k */
+	clock-frequency = <300000>; /* default 100k */
 
 	/* for ref board */
 	ad82584f_62: ad82584f_62@62 {
@@ -1114,7 +1201,6 @@
 		pinctrl-0 = <&tdmc_mclk &tdmout_c &tdmin_c>;
 		mclk_pad = <1>;  /* 0: mclk_0; 1: mclk_1 */
 	};
-
 
 	tdmlb: tdm@3 {
 		compatible = "amlogic, g12a-snd-tdmlb";
@@ -1406,6 +1492,7 @@
 		};
 	};
 }; /* end of pinctrl_periphs */
+
 &pinctrl_aobus {
 	/*gpiao_10*/
 	/*spdifout: spdifout {			  */
@@ -1415,15 +1502,15 @@
 	/*	};							  */
 	/*};							  */
 
-	/*dvb_s_ts0_pins: dvb_s_ts0_pins {*/
-	/*	tsin_a{                       */
-	/*		groups = "tsin_a_din0_ao",*/
-	/*		"tsin_a_clk_ao",          */
-	/*		"tsin_a_sop_ao",          */
-	/*		"tsin_a_valid_ao";        */
-	/*		function = "tsin_a_ao";   */
-	/*	};                            */
-	/*};                              */
+	dvb_s_ts0_pins: dvb_s_ts0_pins {
+		tsin_a {
+			groups = "tsin_a_sop_ao",
+			"tsin_a_valid_ao",
+			"tsin_a_clk_ao",
+			"tsin_a_din0_ao";
+			function = "tsin_a_ao";
+		};
+	};
 
 };  /* end of pinctrl_aobus */
 
