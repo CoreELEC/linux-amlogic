@@ -1303,8 +1303,10 @@ static int aml_dai_spdif_prepare(
 		 */
 		//spdifout_to_hdmitx_ctrl(p_spdif->id);
 		enable_spdifout_to_hdmitx();
-		/* notify to hdmitx */
-		spdif_notify_to_hdmitx(substream, spdif_codec);
+		if (get_spdif_to_hdmitx_id() == p_spdif->id) {
+			/* notify to hdmitx */
+			spdif_notify_to_hdmitx(substream, spdif_codec);
+		}
 	} else {
 		struct toddr *to = p_spdif->tddr;
 		struct toddr_fmt fmt;
