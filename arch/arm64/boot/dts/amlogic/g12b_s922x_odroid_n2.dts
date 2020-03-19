@@ -85,8 +85,6 @@
 		write_cmd = <0x82000031>;
 		get_max_cmd = <0x82000033>;
 		key = <&efusekey>;
-		clocks = <&clkc CLKID_EFUSE>;
-		clock-names = "efuse_clk";
 		status = "okay";
 	};
 
@@ -102,21 +100,18 @@
 	};
 };
 
+&i2c0 {
+	/delete-property/ pinctrl-names;
+	/delete-property/ pinctrl-0;
+	/delete-property/ clock-frequency;
+};
+
 &i2c2 {
-	status = "okay";
-	pinctrl-names = "default","gpio_periphs";
 	pinctrl-0 = <&i2c2_master_pins1>;
-	pinctrl-1 = <&i2c2_to_gpiox>;
 	clock-frequency = <400000>;
 };
 
 &i2c3 {
-	status = "okay";
-	pinctrl-names = "default","gpio_periphs";
-	pinctrl-0 = <&i2c3_master_pins2>;
-	pinctrl-1 = <&i2c3_to_gpioa>;
-	clock-frequency = <100000>;
-
 	pcf8563: rtc@51 {
 		compatible = "nxp,pcf8563";
 		reg = <0x51>;
@@ -153,26 +148,8 @@
 	/delete-node/ tdmout_c;
 	/delete-node/ tdmin_c;
 
-	i2c2_to_gpiox: i2c2_gpiox {
-		mux {
-			groups = "GPIOX_17",
-				"GPIOX_18";
-			function = "gpio_periphs";
-			drive-strength = <3>;
-		};
-	};
-
 	i2c3_master_pins2: i2c3_pins2 {
 		mux {
-			drive-strength = <3>;
-		};
-	};
-
-	i2c3_to_gpioa: i2c3_gpioa {
-		mux {
-			groups = "GPIOA_14",
-				"GPIOA_15";
-			function = "gpio_periphs";
 			drive-strength = <3>;
 		};
 	};
@@ -223,7 +200,6 @@
 		vol_switch = <&gpio_ao GPIOAO_9 GPIO_ACTIVE_HIGH>;
 		gpio_power = <&gpio_ao GPIOAO_8 GPIO_ACTIVE_HIGH>;
 		vol_switch_18 = <1>;
-		power_level = <1>;
 	};
 };
 
