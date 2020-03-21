@@ -51,6 +51,7 @@ static struct early_suspend bt_early_suspend;
 
 char bt_addr[18] = "";
 static struct class *bt_addr_class;
+static int btwake_evt;
 static ssize_t bt_addr_show(struct class *cls,
 	struct class_attribute *attr, char *_buf)
 {
@@ -243,7 +244,7 @@ static int bt_suspend(struct platform_device *pdev,
 	pm_message_t state)
 {
 	struct bt_dev_data *pdata = platform_get_drvdata(pdev);
-
+	btwake_evt = 0;
 	pr_info("bt suspend\n");
 	enable_irq(pdata->irqno_wakeup);
 
@@ -256,7 +257,9 @@ static int bt_resume(struct platform_device *pdev)
 
 	pr_info("bt resume\n");
 	disable_irq(pdata->irqno_wakeup);
-
+	btwake_evt = 0;
+	if (get_resume_method() == RTC_WAKEUP)
+		btwake_evt = 1;
 	return 0;
 }
 
@@ -494,6 +497,8 @@ static void __exit bt_exit(void)
 	platform_driver_unregister(&bt_driver);
 }
 
+module_param(btwake_evt, int, 0664);
+MODULE_PARM_DESC(btwake_evt, "btwake_evt");
 module_init(bt_init);
 module_exit(bt_exit);
 MODULE_DESCRIPTION("bt rfkill");
