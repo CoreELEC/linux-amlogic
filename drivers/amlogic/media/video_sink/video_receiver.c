@@ -403,7 +403,9 @@ static struct vframe_s *recv_common_dequeue_frame(
 				common_toggle_frame(ins, vf);
 				toggle_vf = vf;
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
-				dvel_toggle_frame(vf, true);
+				if (glayer_info[0].display_path_id ==
+				    ins->path_id)
+					dvel_toggle_frame(vf, true);
 #endif
 			}
 		} else {
