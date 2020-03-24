@@ -1183,7 +1183,9 @@ static unsigned char is_source_change(vframe_t *vframe, unsigned int channel)
 	    (((ppre->cur_inp_type & VFRAME_FORMAT_MASK)		!=
 	    (vframe->type & VFRAME_FORMAT_MASK))		&&
 	    (!is_handle_prog_frame_as_interlace(vframe)))	||
-	    ppre->cur_source_type != vframe->source_type) {
+	    (ppre->cur_source_type != vframe->source_type)	||
+	    ((ppre->cur_inp_type & VIDTYPE_INTERLACE_TOP)	!=
+	     (vframe->type & VIDTYPE_INTERLACE_TOP))) {
 		/* video format changed */
 		return 1;
 	} else if (((ppre->cur_prog_flag != is_progressive(vframe)) &&
@@ -3116,6 +3118,8 @@ void dim_pre_de_done_buf_config(unsigned int channel, bool flg_timeout)
 	dim_dbg_pre_cnt(channel, "d1");
 	dim_ddbg_mod_save(EDI_DBG_MOD_PRE_DONEB, channel, ppre->in_seq);/*dbg*/
 	if (ppre->di_wr_buf) {
+		if (flg_timeout)
+			hpre_gl_sw(false);
 		dim_tr_ops.pre_ready(ppre->di_wr_buf->vframe->index_disp);
 		if (ppre->pre_throw_flag > 0) {
 			ppre->di_wr_buf->throw_flag = 1;
