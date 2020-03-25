@@ -8,95 +8,44 @@
 		/delete-node/ remote_led;
 	};
 
-	/delete-node/ auge_sound;
 	auge_sound {
-		compatible = "amlogic, g12a-sound-card";
-		aml-audio-card,name = "AML-AUGESOUND";
+		spk_mute-gpios = <&gpio_ao GPIOAO_2 GPIO_ACTIVE_HIGH>;
 
 		aml-audio-card,dai-link@0 {
-			mclk-fs = <128>;
 			cpu {
 				sound-dai = <&spdifb>;
-				system-clock-frequency = <6144000>;
-			};
-			codec {
-				sound-dai = <&dummy_codec>;
 			};
 		};
 
 		aml-audio-card,dai-link@1 {
-			format = "i2s";// "dsp_a";
-			mclk-fs = <256>;
 			bitclock-master = <&tdmb>;
 			frame-master = <&tdmb>;
 			cpu {
 				sound-dai = <&tdmb>;
-				dai-tdm-slot-tx-mask = <1 1>;
-				dai-tdm-slot-rx-mask = <1 1>;
-				dai-tdm-slot-num = <2>;
-				dai-tdm-slot-width = <32>;
-				system-clock-frequency = <12288000>;
-			};
-			codec {
-				sound-dai = <&amlogic_codec>;
 			};
 		};
 
 		aml-audio-card,dai-link@2 {
-			mclk-fs = <128>;
 			cpu {
 				sound-dai = <&spdifa>;
-				system-clock-frequency = <6144000>;
-			};
-			codec {
-				sound-dai = <&dummy_codec>;
-			};
-		};
-
-		aml-audio-card,dai-link@3 {
-			format = "i2s";// "dsp_a";
-			mclk-fs = <256>;
-			bitclock-master = <&aml_i2s2hdmi>;
-			frame-master = <&aml_i2s2hdmi>;
-			cpu {
-				sound-dai = <&aml_i2s2hdmi>;
-				dai-tdm-slot-tx-mask = <1 1>;
-				dai-tdm-slot-rx-mask = <1 1>;
-				dai-tdm-slot-num = <2>;
-				dai-tdm-slot-width = <32>;
-				system-clock-frequency = <12288000>;
-			};
-			codec {
-				sound-dai = <&dummy_codec>;
 			};
 		};
 	};
-
-	audiolocker: locker {
-		status = "okay";
-	};
-};
-
-&meson_fb {
-	mem_alloc = <1>;
 };
 
 &audiobus {
-	spdifa: spdif@0 {
-		pinctrl-0 = <&spdifout>;
-	};
-
 	aml_i2s2hdmi: i2s2hdmi {
 		compatible = "amlogic, sm1-snd-tdmc";
-		#sound-dai-cells = <0>;
-		dai-tdm-lane-slot-mask-out = <1 1 1 1>;
-		dai-tdm-clk-sel = <2>;
-		clocks = <&clkaudio CLKID_AUDIO_MCLK_C
-				&clkc CLKID_MPLL2>;
-		clock-names = "mclk", "clk_srcpll";
-		i2s2hdmi = <1>;
-		mclk_pad = <1>;  /* 0: mclk_0; 1: mclk_1 */
-		status = "okay";
+	};
+
+	tdmb: tdm@1 {
+		/delete-property/ pinctrl-names;
+		/delete-property/ pinctrl-0;
+		/delete-property/ samesource_sel;
+	};
+
+	spdifa: spdif@0 {
+		pinctrl-0 = <&spdifout>;
 	};
 };
 

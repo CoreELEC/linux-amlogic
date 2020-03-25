@@ -1,0 +1,11 @@
+#include "sm1_s905x3_4g_1gbit.dts"
+
+/{
+	coreelec-dt-id = "sm1_s905x3_4g_1gbit_slowsdio";
+};
+
+&sd_emmc_a {
+	sdio {
+		f_max = <170000000>;
+	};
+};
