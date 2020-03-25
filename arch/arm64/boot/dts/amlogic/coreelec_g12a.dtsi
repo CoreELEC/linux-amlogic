@@ -1,4 +1,4 @@
-#include "g12a_s905x2_u211_buildroot.dts"
+#include "g12a_s905x2_u211.dts"
 #include "coreelec_g12_common.dtsi"
 
 /{

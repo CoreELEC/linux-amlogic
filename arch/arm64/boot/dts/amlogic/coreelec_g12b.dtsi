@@ -1,4 +1,4 @@
-#include "g12b_a311d_w400_buildroot.dts"
+#include "g12b_a311d_w400.dts"
 #include "coreelec_g12_common.dtsi"
 
 /{
