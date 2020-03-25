@@ -12,7 +12,6 @@
 
 		sys_led {
 			gpios=<&gpio_ao GPIOAO_4 GPIO_ACTIVE_HIGH>;
-			retain-state-suspended;
 			linux,default-trigger="default-on";
 		};
 
@@ -90,23 +89,21 @@
 		};
 	};
 
-	/delete-node/ dvb;
-	/delete-node/ tuner;
-	/delete-node/ lcd;
-	/delete-node/ lcd_extern;
-	/delete-node/ backlight;
-	/delete-node/ bl_pwm_conf;
-	/delete-node/ bl_extern;
+	/delete-node/ rtc;
+};
+
+&audiobus {
+	spdifa: spdif@0 {
+		pinctrl-names = "spdif_pins", "spdif_pins_mute";
+		pinctrl-1 = <&spdifout_a_mute>;
+	};
 };
 
 &pinctrl_periphs {
-	/delete-node/ bl_pwm_off_pin;
 	/delete-node/ spdifout;
 };
 
 &pinctrl_aobus {
-	/delete-node/ dvb_s_ts0_pins;
-
 	spdifout: spdifout {
 		mux {
 			groups = "spdif_out_ao";
@@ -126,8 +123,6 @@
 	/delete-property/ pinctrl-names;
 	/delete-property/ pinctrl-0;
 	/delete-property/ clock-frequency;
-	/delete-node/ gt9xx@5d;
-	/delete-node/ ftxx@38;
 };
 
 &i2c3 {
@@ -135,9 +130,6 @@
 	pinctrl-names="default";
 	pinctrl-0=<&i2c3_master_pins2>;
 	clock-frequency = <100000>;
-
-	/delete-node/ ad82584f_62@62;
-	/delete-node/ bl_extern_i2c;
 };
 
 &i2c_AO {
