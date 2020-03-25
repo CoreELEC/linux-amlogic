@@ -20,9 +20,6 @@
 		linux,adapt_cma {
 			status = "disabled";
 		};
-		linux,gdc_cma {
-			status = "disabled";
-		};
 	};
 
 	gpioleds {
@@ -37,6 +34,69 @@
 
 	gpio_keypad {
 		reg = <0x0 0xFF800000 0x0 0x400>;
+	};
+
+	/delete-node/ auge_sound;
+	auge_sound {
+		compatible = "amlogic, g12a-sound-card";
+		aml-audio-card,name = "AML-AUGESOUND";
+
+		aml-audio-card,dai-link@0 {
+			mclk-fs = <128>;
+			cpu {
+				system-clock-frequency = <6144000>;
+			};
+			codec {
+				sound-dai = <&dummy_codec>;
+			};
+		};
+
+		aml-audio-card,dai-link@1 {
+			format = "i2s";
+			mclk-fs = <256>;
+			cpu {
+				dai-tdm-slot-tx-mask = <1 1>;
+				dai-tdm-slot-rx-mask = <1 1>;
+				dai-tdm-slot-num = <2>;
+				dai-tdm-slot-width = <32>;
+				system-clock-frequency = <12288000>;
+			};
+			codec {
+				sound-dai = <&amlogic_codec>;
+			};
+		};
+
+		aml-audio-card,dai-link@2 {
+			mclk-fs = <128>;
+			cpu {
+				system-clock-frequency = <6144000>;
+			};
+			codec {
+				sound-dai = <&dummy_codec>;
+			};
+		};
+
+		aml-audio-card,dai-link@3 {
+			format = "i2s";
+			mclk-fs = <256>;
+			bitclock-master = <&aml_i2s2hdmi>;
+			frame-master = <&aml_i2s2hdmi>;
+			cpu {
+				sound-dai = <&aml_i2s2hdmi>;
+				dai-tdm-slot-tx-mask = <1 1>;
+				dai-tdm-slot-rx-mask = <1 1>;
+				dai-tdm-slot-num = <2>;
+				dai-tdm-slot-width = <32>;
+				system-clock-frequency = <12288000>;
+			};
+			codec {
+				sound-dai = <&dummy_codec>;
+			};
+		};
+	};
+
+	audiolocker: locker {
+		status = "okay";
 	};
 
 	/delete-node/ partitions;
@@ -84,6 +144,9 @@
 
 	/delete-node/ sensor;
 	/delete-node/ iq;
+	/delete-node/ dvb;
+	/delete-node/ amvdec_656in;
+	/delete-node/ aml_cams;
 
 	/delete-node/ lcd;
 	/delete-node/ lcd_extern;
@@ -93,7 +156,9 @@
 };
 
 &meson_fb {
+	display_size_default = <1920 1080 1920 2160 32>;
 	mem_size = <0x00800000 0x4b80000 0x100000 0x100000 0x800000>;
+	mem_alloc = <1>;
 	4k2k_fb = <1>;
 };
 
@@ -101,6 +166,7 @@
 	status = "disabled";
 	/delete-node/ gt9xx@5d;
 	/delete-node/ ftxx@38;
+	/delete-node/ touchscreen@5d;
 	/delete-node/ touchscreen@38;
 };
 
@@ -117,14 +183,44 @@
 };
 
 &audiobus {
+	aml_i2s2hdmi: i2s2hdmi {
+		#sound-dai-cells = <0>;
+		dai-tdm-lane-slot-mask-out = <1 1 1 1>;
+		dai-tdm-clk-sel = <2>;
+		clocks = <&clkaudio CLKID_AUDIO_MCLK_C
+				&clkc CLKID_MPLL2>;
+		clock-names = "mclk", "clk_srcpll";
+		i2s2hdmi = <1>;
+		status = "okay";
+	};
+
+	/delete-node/ tdma;
+	/delete-node/ tdm@0;
+	/delete-node/ tdmc;
+	/delete-node/ tdm@2;
+	/delete-node/ tdm@3;
 	/delete-node/ pdm;
 };
 
 &pinctrl_periphs {
+	/delete-node/ tdmout_a;
+	/delete-node/ tdmin_a;
+	/delete-node/ tdmb_mclk;
+	/delete-node/ tdmout_b;
+	/delete-node/ tdmin_b;
+	/delete-node/ tdmc_mclk;
+	/delete-node/ tdmout_c;
+	/delete-node/ tdmin_c;
 	/delete-node/ spdifin;
 	/delete-node/ pdmin;
 	/delete-node/ bl_pwm_off_pin;
 	/delete-node/ clk12_24_z_pins;
+	/delete-node/ gen_clk_ee_z;
+	/delete-node/ cam_dvp_pins;
+};
+
+&pinctrl_aobus {
+	/delete-node/ dvb_s_ts0_pins;
 };
 
 &vdin0 {

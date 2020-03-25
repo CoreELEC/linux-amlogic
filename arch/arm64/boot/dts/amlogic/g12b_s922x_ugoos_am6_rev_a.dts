@@ -27,9 +27,6 @@
 	gpio_keypad {
 		key-gpios = <&gpio_ao  GPIOAO_6  GPIO_ACTIVE_HIGH>;
 	};
-
-	/delete-node/ sensor;
-	/delete-node/ iq;
 };
 
 &usb2_phy_v2 {
@@ -44,21 +41,7 @@
 	gpios = <&gpio_ao GPIOAO_7 GPIO_ACTIVE_HIGH>;
 };
 
-&isp {
-	status = "disabled";
-	/*memory-region = <&isp_cma_reserved>;*/
-};
-
-&adapter {
-	status = "disabled";
-	/*memory-region = <&adapt_cma_reserved>;*/
-};
-
 &i2c3 {
-	ad82584f_62: ad82584f_62@62 {
-		status = "disabled";
-	};
-
 	rt5651: rt5651@1a {
 		compatible = "realtek,rt5651";
 		#sound-dai-cells = <0>;
