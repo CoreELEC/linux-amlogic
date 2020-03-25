@@ -528,7 +528,7 @@
 				reg = <0x0 0xc0 0x0 0xc>,
 					<0x0 0x40 0x0 0x4>;
 				#irblaster-cells = <2>;
-				status = "disabled";
+				status = "okay";
 			};
 		};
 
