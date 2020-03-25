@@ -37,6 +37,13 @@
 #include "di_api.h"
 #include <linux/amlogic/media/di/di.h>
 
+/************************************************
+ * dim_cfg
+ *	[0] bypass_all_p
+ ***********************************************/
+static unsigned int dim_cfg = 1;
+module_param_named(dim_cfg, dim_cfg, uint, 0664);
+
 /**************************************
  *
  * cfg ctr top
@@ -2212,11 +2219,16 @@ EXPORT_SYMBOL(dim_polic_cfg);
 void dim_polic_prob(void)
 {
 	struct dim_policy_s *pp = get_dpolicy();
+	struct di_dev_s *de_devp = get_dim_de_devp();
 
-	if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12A))
-		pp->std = DIM_POLICY_STD;
-	else
+	if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12A)) {
+		if (de_devp->clkb_max_rate >= 340000000)
+			pp->std = DIM_POLICY_STD;
+		else
+			pp->std = DIM_POLICY_STD_OLD;
+	} else {
 		pp->std = DIM_POLICY_STD_OLD;
+	}
 
 	pp->cfg_b.i_first = 1;
 }
@@ -2244,7 +2256,9 @@ unsigned int dim_polic_is_bypass(struct di_ch_s *pch, struct vframe_s *vf)
 	/* cfg */
 	if (pp->cfg_d32) {
 		if (!IS_I_SRC(vf->type)) {
-			if (pp->cfg_b.bypass_all_p) {
+			if (dim_cfg & DI_BIT0) {
+				reason = 0x60;
+			} else if (pp->cfg_b.bypass_all_p) {
 				reason = 0x61;
 			} else if (pp->cfg_b.i_first && pp->order_i) {
 				reason = 0x62;
@@ -2396,7 +2410,7 @@ bool dip_prob(void)
 	dpost_init();
 
 	dip_init_pq_ops();
-	dim_polic_prob();
+	/*dim_polic_prob();*/
 
 	return ret;
 }
