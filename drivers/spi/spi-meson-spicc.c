@@ -218,6 +218,8 @@ struct meson_spicc_device {
 	unsigned long			rxb_remain;
 	unsigned long			xfer_remain;
 	bool				using_dma;
+	bool				dma_mapped;
+	bool				err;
 #ifdef MESON_SPICC_TEST_ENTRY
 	struct				class cls;
 	u8				test_data;
@@ -341,6 +343,8 @@ static int meson_spicc_dma_map(struct meson_spicc_device *spicc,
 		return -ENOMEM;
 	}
 
+	spicc->dma_mapped = 1;
+
 	return 0;
 }
 
@@ -351,6 +355,7 @@ static void meson_spicc_dma_unmap(struct meson_spicc_device *spicc,
 
 	dma_unmap_single(dev, t->tx_dma, t->len, DMA_TO_DEVICE);
 	dma_unmap_single(dev, t->rx_dma, t->len, DMA_FROM_DEVICE);
+	spicc->dma_mapped = 0;
 }
 
 #define DMA_BURST_MAX	0xffff
@@ -501,6 +506,9 @@ static irqreturn_t meson_spicc_irq(int irq, void *data)
 
 	writel_bits_relaxed(SPICC_TC, SPICC_TC, spicc->base + SPICC_STATREG);
 
+	if (spicc->err)
+		return IRQ_HANDLED;
+
 	if (!spicc->using_dma)
 		/* Empty RX FIFO */
 		meson_spicc_rx(spicc);
@@ -520,7 +528,7 @@ static irqreturn_t meson_spicc_irq(int irq, void *data)
 			//spicc->using_dma = 0;
 			writel_relaxed(0, spicc->base + SPICC_DMAREG);
 			writel_relaxed(0, spicc->base + SPICC_LD_CNTL0);
-			if (!spicc->message->is_dma_mapped)
+			if (spicc->dma_mapped)
 				meson_spicc_dma_unmap(spicc, spicc->xfer);
 		}
 		spi_finalize_current_transfer(spicc->master);
@@ -567,6 +575,8 @@ static void meson_spicc_setup_xfer(struct meson_spicc_device *spicc,
 	meson_spicc_auto_io_delay(spicc);
 
 	spicc->using_dma = 0;
+	spicc->dma_mapped = 0;
+	spicc->err = 0;
 	if (spicc->message->is_dma_mapped ||
 	    ((xfer->bits_per_word == 64) &&
 	     !meson_spicc_dma_map(spicc, xfer))) {
@@ -1044,6 +1054,21 @@ static int meson_spicc_clk_init(struct meson_spicc_device *spicc)
 	return 0;
 }
 
+static void meson_spicc_handle_err(struct spi_master *master,
+				   struct spi_message *message)
+{
+	struct meson_spicc_device *spicc = spi_master_get_devdata(master);
+
+	/* Disable all IRQs */
+	writel(0, spicc->base + SPICC_INTREG);
+	writel_relaxed(0, spicc->base + SPICC_DMAREG);
+	writel_relaxed(0, spicc->base + SPICC_LD_CNTL0);
+	if (spicc->dma_mapped)
+		meson_spicc_dma_unmap(spicc, spicc->xfer);
+	spicc->err = 1;
+	dev_err(master->dev.parent, "SPICC hande error\n");
+}
+
 static int meson_spicc_probe(struct platform_device *pdev)
 {
 	struct spi_master *master;
@@ -1108,6 +1133,7 @@ static int meson_spicc_probe(struct platform_device *pdev)
 	master->prepare_message = meson_spicc_prepare_message;
 	master->unprepare_transfer_hardware = meson_spicc_unprepare_transfer;
 	master->transfer_one = meson_spicc_transfer_one;
+	master->handle_err = meson_spicc_handle_err;
 
 	ret = devm_spi_register_master(&pdev->dev, master);
 	if (!ret) {
