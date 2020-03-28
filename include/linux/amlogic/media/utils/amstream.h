@@ -338,22 +338,34 @@ struct vdec_status {
 
 struct vdec_info {
 	char vdec_name[16];
-	unsigned int ver;
-	unsigned int frame_width;
-	unsigned int frame_height;
-	unsigned int frame_rate;
-	unsigned int bit_rate;
-	unsigned int frame_dur;
-	unsigned int frame_data;
-	unsigned int error_count;
-	unsigned int status;
-	unsigned int frame_count;
-	unsigned int error_frame_count;
-	unsigned int drop_frame_count;
-	unsigned long long total_data;
-	unsigned int samp_cnt;
-	unsigned int offset;
-	unsigned int ratio_control;
+	u32 ver;
+	u32 frame_width;
+	u32 frame_height;
+	u32 frame_rate;
+	union {
+		u32 bit_rate;
+		/* Effective in h265,vp9,avs2 multi-instance */
+		u32 bit_depth_luma;
+	};
+	u32 frame_dur;
+	union {
+		u32 frame_data;
+		/* Effective in h265,vp9,avs2 multi-instance */
+		u32 bit_depth_chroma;
+	};
+	u32 error_count;
+	u32 status;
+	u32 frame_count;
+	u32 error_frame_count;
+	u32 drop_frame_count;
+	u64 total_data;
+	union {
+		u32 samp_cnt;
+		/* Effective in h265,vp9,avs2 multi-instance */
+		u32 double_write_mode;
+	};
+	u32 offset;
+	u32 ratio_control;
 	char reserved[32];
 };
 
@@ -747,16 +759,28 @@ struct vframe_counter_s {
 	u32 frame_width;
 	u32 frame_height;
 	u32 frame_rate;
-	u32 bit_depth_luma;//original bit_rate;
+	union {
+		u32 bit_rate;
+		/* Effective in h265,vp9,avs2 multi-instance */
+		u32 bit_depth_luma;
+	};
 	u32 frame_dur;
-	u32 bit_depth_chroma;//original frame_data;
+	union {
+		u32 frame_data;
+		/* Effective in h265,vp9,avs2 multi-instance */
+		u32 bit_depth_chroma;
+	};
 	u32 error_count;
 	u32 status;
 	u32 frame_count;
 	u32 error_frame_count;
 	u32 drop_frame_count;
 	u64 total_data;//this member must be 8 bytes alignment
-	u32 double_write_mode;//original samp_cnt;
+	union {
+		u32 samp_cnt;
+		/* Effective in h265,vp9,avs2 multi-instance */
+		u32 double_write_mode;
+	};
 	u32 offset;
 	u32 ratio_control;
 	u32 vf_type;
