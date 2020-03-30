@@ -1237,7 +1237,7 @@ unsigned char dim_is_bypass(vframe_t *vf_in, unsigned int ch)
 		    (ppre->cur_height > 1080)	||
 		    (ppre->cur_inp_type & VIDTYPE_VIU_444))) {
 		reason = 0x82;
-	} else if ((ppre->cur_width < 16) || (ppre->cur_height < 16)) {
+	} else if ((ppre->cur_width < 128) || (ppre->cur_height < 16)) {
 		reason = 0x83;
 	} else if (ppre->cur_inp_type & VIDTYPE_MVC) {
 		reason = 0x84;
