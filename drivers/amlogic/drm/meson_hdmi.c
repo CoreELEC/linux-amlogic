@@ -550,6 +550,7 @@ static int am_hdmi_i2c_xfer(struct i2c_adapter *adap,
 	struct am_hdmi_i2c *i2c = am_hdmi->i2c;
 	u8 addr = msgs[0].addr;
 	int i, ret = 0;
+	unsigned int   data32;
 
 	dev_dbg(am_hdmi->dev, "xfer: num: %d, addr: %#x\n", num, addr);
 
@@ -566,7 +567,12 @@ static int am_hdmi_i2c_xfer(struct i2c_adapter *adap,
 
 	/* Clear the EDID interrupt flag and unmute the interrupt */
 	hdmitx_wr_reg(HDMITX_DWC_I2CM_SOFTRSTZ, 0);
-	hdmitx_wr_reg(HDMITX_DWC_IH_MUTE_I2CM_STAT0, 0);
+	/* Mute The Interrupt of I2Cmasterdone, Otherwise Affect the Interrupt of HPD.*/
+	data32  = 0;
+	data32 |= (0 << 2);
+	data32 |= (1 << 1);
+	data32 |= (0 << 0);
+	hdmitx_wr_reg(HDMITX_DWC_IH_MUTE_I2CM_STAT0, data32);
 	/* TODO */
 	hdmitx_ddc_hw_op(DDC_MUX_DDC);
 
