@@ -124,6 +124,7 @@ struct di_pq_parm_s {
 extern u32 afbc_disable_flag;
 void read_pulldown_info(unsigned int *glb_frm_mot_num,
 	unsigned int *glb_fid_mot_num);
+unsigned int di_rd_mcdi_fldcnt(void);
 void read_new_pulldown_info(struct FlmModReg_t *pFMRegp);
 void pulldown_info_clear_g12a(void);
 void combing_pd22_window_config(unsigned int width, unsigned int height);
@@ -205,6 +206,7 @@ void pulldown_vof_win_config(struct pulldown_detected_s *wins);
 void di_load_regs(struct di_pq_parm_s *di_pq_ptr);
 void pre_frame_reset_g12(unsigned char madi_en, unsigned char mcdi_en);
 void pre_frame_reset(void);
+void di_hpre_gl_sw(bool on);
 void di_interrupt_ctrl(unsigned char ma_en,
 	unsigned char det3d_en, unsigned char nrds_en,
 	unsigned char post_wr, unsigned char mc_en);

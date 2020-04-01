@@ -240,12 +240,18 @@ unsigned int pulldown_detection(struct pulldown_detected_s *res,
 		}
 
 		flm22 = (dectres.rFlmPstMod == 1  &&
-			dectres.rF22Flag >= flm22_surenum);
+			dectres.rF22Flag >= flm22_surenum) ||
+			dectres.rF22Flag == 135;
+		/*ensure force22 from vlsi-yanling*/
 		if (dectres.rFlmPstMod >= 4)
 			flmxx = (dectres.rF22Flag >=
 				flmxx_sure_num[dectres.rFlmPstMod - 4]);
 		else
 			flmxx = 0;
+
+		if ((pr_pd >> 1) & 0x1)
+			pr_info("flm22 = %d, dectres.rF22Flag = %d, flm22_surenum = %d\n",
+			    flm22, dectres.rF22Flag, flm22_surenum);
 
 		/* 2-2 force */
 		if ((pldn_mod == 0) &&
@@ -347,7 +353,7 @@ unsigned int pulldown_detection(struct pulldown_detected_s *res,
 
 unsigned char pulldown_init(unsigned short width, unsigned short height)
 {
-	flm22_sure_num = (height * 100)/480;
+	flm22_sure_num = 50; /*ensure force22 from vlsi-yanling*/
 	flm22_sure_smnum = (flm22_sure_num * flm22_ratio)/100;
 	pd_param.width = width;
 	pd_param.height = height;
@@ -403,6 +409,8 @@ static struct pd_param_s pd_params[] = {
 	  &(pd_param.flm22_en)      },
 	{ "flm32_en",
 	     &(pd_param.flm32_en)   },
+	{ "flm22_force",
+	     &(pd_param.flm22_force)   },
 	{ "flm22_flag",
 	  &(pd_param.flm22_flag)    },
 	{ "flm22_avg_flag",

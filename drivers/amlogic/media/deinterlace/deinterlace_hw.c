@@ -435,7 +435,11 @@ static void pre_hold_block_mode_config(void)
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12A)) {
 		DI_Wr(DI_PRE_HOLD, 0);
 		/* go field after 2 lines */
+		#ifdef OLD_PRE_GL
 		DI_Wr(DI_PRE_GL_CTRL, (0x80000000|line_num_pre_frst));
+		#else
+		di_hpre_gl_sw(false);
+		#endif
 	} else if (is_meson_txlx_cpu()) {
 		/* setup pre process ratio to 66.6%*/
 		DI_Wr(DI_PRE_HOLD, (1 << 31) | (1 << 16) | 3);
@@ -3157,6 +3161,11 @@ void read_pulldown_info(unsigned int *glb_frm_mot_num,
 	*glb_fid_mot_num = (Rd(DI_INFO_DATA)&0xffffff);
 }
 
+unsigned int di_rd_mcdi_fldcnt(void)
+{
+	return RDMA_RD(MCDI_RO_FLD_MTN_CNT);
+}
+
 void read_new_pulldown_info(struct FlmModReg_t *pFMReg)
 {
 	int i = 0;
@@ -3238,11 +3247,29 @@ void pre_frame_reset_g12(unsigned char madi_en,
 	RDMA_WR_BITS(MCVECWR_CAN_SIZE, 0, 14, 1);
 	RDMA_WR_BITS(MCINFWR_CAN_SIZE, 0, 14, 1);
 
+	#ifdef OLD_PRE_GL
 	reg_val = 0xc3200000 | line_num_pre_frst;
 	RDMA_WR(DI_PRE_GL_CTRL, reg_val);
 	reg_val = 0x83200000 | line_num_pre_frst;
 	RDMA_WR(DI_PRE_GL_CTRL, reg_val);
+	#else
+	di_hpre_gl_sw(false);
+	di_hpre_gl_sw(true);
+	#endif
 }
+
+/*2019-12-25 by feijun*/
+void di_hpre_gl_sw(bool on)
+{
+	if (!cpu_after_eq(MESON_CPU_MAJOR_ID_G12A))
+		return;
+	if (on)
+		RDMA_WR(DI_PRE_GL_CTRL,
+			0x80200000 | line_num_pre_frst);
+	else
+		RDMA_WR(DI_PRE_GL_CTRL, 0xc0000000);
+}
+
 /*
  * frame + soft reset for the pre modules
  */
@@ -3948,7 +3975,7 @@ void di_load_regs(struct di_pq_parm_s *di_pq_ptr)
 		}
 		if (table_name & nr_table)
 			ctrl_reg_flag = set_nr_ctrl_reg_table(addr, value);
-		if (table_name & TABLE_NAME_DI)
+		if (table_name & (TABLE_NAME_DI | TABLE_NAME_NR))
 			mov_flg = di_patch_mov_db(addr, value);
 		if (!ctrl_reg_flag && !mov_flg)
 			DI_Wr(addr, value);

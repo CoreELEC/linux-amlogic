@@ -3500,6 +3500,7 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 	struct vframe_s *new_frame = NULL;
 	struct vframe_s *new_frame2 = NULL;
 	struct vframe_s *cur_dispbuf_back = cur_dispbuf;
+	struct vframe_s *di_post_vf = NULL;
 	bool di_post_process_done = false;
 	u32 cur_blackout;
 	static u32 interrupt_count;
@@ -5003,7 +5004,14 @@ SET_FILTER:
 
 	if (cur_dispbuf && cur_dispbuf->process_fun &&
 	    ((vd1_path_id == VFM_PATH_AMVIDEO) ||
-	     (vd1_path_id == VFM_PATH_DEF))) {
+	     (vd1_path_id == VFM_PATH_DEF)))
+		di_post_vf = cur_dispbuf;
+	else if (vd_layer[0].dispbuf &&
+		 vd_layer[0].dispbuf->process_fun &&
+		 is_di_post_mode(vd_layer[0].dispbuf))
+		di_post_vf = vd_layer[0].dispbuf;
+
+	if (di_post_vf) {
 		/* for new deinterlace driver */
 #ifdef CONFIG_AMLOGIC_MEDIA_VSYNC_RDMA
 		if (debug_flag & DEBUG_FLAG_PRINT_RDMA) {
@@ -5012,15 +5020,15 @@ SET_FILTER:
 		}
 #endif
 		if (cur_frame_par)
-			cur_dispbuf->process_fun(
-				cur_dispbuf->private_data,
+			di_post_vf->process_fun(
+				di_post_vf->private_data,
 				vd_layer[0].start_x_lines |
 				(cur_frame_par->vscale_skip_count <<
 				24) | (frame_par_di_set << 16),
 				vd_layer[0].end_x_lines,
 				vd_layer[0].start_y_lines,
 				vd_layer[0].end_y_lines,
-				cur_dispbuf);
+				di_post_vf);
 		di_post_process_done = true;
 	}
 exit:
@@ -5724,6 +5732,34 @@ void pause_video(unsigned char pause_flag)
 	atomic_set(&video_pause_flag, pause_flag ? 1 : 0);
 }
 EXPORT_SYMBOL(pause_video);
+
+void di_unreg_notify(void)
+{
+	u32 sleep_time = 40;
+
+	if (!gvideo_recv[0])
+		return;
+
+	if (!gvideo_recv[0]->active)
+		return;
+
+	while (atomic_read(&video_inirq_flag) > 0)
+		schedule();
+
+	switch_vf(gvideo_recv[0], true);
+	if (vinfo) {
+		sleep_time = vinfo->sync_duration_den * 1000;
+		if (vinfo->sync_duration_num) {
+			sleep_time /= vinfo->sync_duration_num;
+			/* need two vsync */
+			sleep_time = (sleep_time + 1) * 2;
+		} else {
+			sleep_time = 40;
+		}
+	}
+	msleep(sleep_time);
+}
+EXPORT_SYMBOL(di_unreg_notify);
 
 /*********************************************************
  * Vframe src fmt API

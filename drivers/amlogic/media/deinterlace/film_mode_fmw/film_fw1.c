@@ -59,6 +59,7 @@ UINT8 FlmVOFSftInt(struct sFlmSftPar *pPar)
 	pPar->cmb22_nocmb_num = 30;
 	pPar->flm22_en = 1;
 	pPar->flm32_en = 1;
+	pPar->flm22_force = 0;
 	pPar->flm22_flag = 1;
 	pPar->flm22_avg_flag = 0;
 	pPar->flm2224_flag = 1;
@@ -243,7 +244,7 @@ static int nflagch5_ratio = 2;
 module_param(nflagch5_ratio,  int, 0644);
 MODULE_PARM_DESC(nflagch5_ratio, "nflagch5_ratio");
 
-static int nflagch4_th;
+static int nflagch4_th; /*0*/
 module_param(nflagch4_th,  int, 0644);
 MODULE_PARM_DESC(nflagch4_th, "nflagch4_th");
 
@@ -259,7 +260,7 @@ static int dif02_ratio = 20;
 module_param(dif02_ratio,  int, 0644);
 MODULE_PARM_DESC(dif02_ratio, "dif02_ratio");
 
-static int flm22_force;
+
 
 int comsum;
 
@@ -306,6 +307,7 @@ int FlmVOFSftTop(UINT8 *rCmb32Spcl, unsigned short *rPstCYWnd0,
 	int flm2224_flag = pPar->flm2224_flag;
 	int flm22_comth = pPar->flm22_comth;
 	int flm22_avg_flag = pPar->flm22_avg_flag;
+	int flm22_force =  pPar->flm22_force;
 	int comdif = 0;
 	int dif01avg = 0;
 

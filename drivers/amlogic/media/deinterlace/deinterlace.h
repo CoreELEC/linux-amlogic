@@ -27,6 +27,11 @@
 #include "deinterlace_hw.h"
 #include "nr_drv.h"
 #include "../di_local/di_local.h"
+
+#define DI_KEEP_DEC_VF		(1)
+/* for android q s805 */
+#define DI_UNREG_RELEAS_ALL_BUF		(1)
+
 /*trigger_pre_di_process param*/
 #define TRIGGER_PRE_BY_PUT			'p'
 #define TRIGGER_PRE_BY_DE_IRQ		'i'
@@ -49,7 +54,7 @@
 
 /* buffer management related */
 #define MAX_IN_BUF_NUM				20
-#define MAX_LOCAL_BUF_NUM			10
+#define MAX_LOCAL_BUF_NUM			14 //10
 #define MAX_POST_BUF_NUM			16
 
 #define VFRAME_TYPE_IN				1
@@ -158,6 +163,10 @@ struct di_buf_s {
 	 * 1: after get
 	 * 0: after put
 	 */
+#ifdef DI_KEEP_DEC_VF
+	struct di_buf_s *in_buf; /*keep dec vf: link in buf*/
+	unsigned int dec_vf_state;	/*keep dec vf:*/
+#endif
 	atomic_t di_cnt;
 	struct page	*pages;
 	u32 width_bk;
@@ -277,7 +286,9 @@ struct di_dev_s {
 	struct page			*total_pages;
 	atomic_t			mem_flag;
 	struct dentry *dbg_root;	/*dbg_fs*/
+	struct vframe_s vfm_local[MAX_LOCAL_BUF_NUM * 2];
 	struct di_patch_mov_s mov;
+	u32 instance_id; /* di_instance_id; */
 };
 
 struct di_pre_stru_s {
@@ -478,6 +489,7 @@ struct di_buf_s *get_di_recovery_log_di_buf(void);
 int get_di_video_peek_cnt(void);
 unsigned long get_di_reg_unreg_timeout_cnt(void);
 struct vframe_s **get_di_vframe_in(void);
+void di_unreg_notify(void); //from video.c
 
 extern s32 di_request_afbc_hw(u8 id, bool on);
 u32 di_requeset_afbc(u32 onoff);
@@ -506,4 +518,5 @@ struct di_buf_s *get_di_buf(int queue_idx, int *start_pos);
 
 /******************************************/
 /*#define DI_KEEP_HIS	0*/
+
 #endif

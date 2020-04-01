@@ -497,6 +497,7 @@ struct vframe_s {
 	bool fgs_valid;
 	u32 fgs_table_adr;
 
+	u32 di_instance_id;
 } /*vframe_t */;
 
 #if 0

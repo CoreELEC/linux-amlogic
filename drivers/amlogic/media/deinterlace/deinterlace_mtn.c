@@ -161,7 +161,6 @@ static unsigned int combing_bias_static_setting[MAX_NUM_DI_REG] = {
 	0x00000166
 };
 
-
 static unsigned int combing_normal_setting[MAX_NUM_DI_REG] = {
 	0x00202015,
 	0x1A1A3A62,
@@ -226,41 +225,137 @@ static unsigned int combing_very_motion_setting[MAX_NUM_DI_REG] = {
 /**************************************************
  *
  **************************************************/
-static const unsigned int combing_bias_p_1080i[] = {
-	/**/
-	0x40020a04,	/* 11 */
-	/*idea from mingliang.dong & vlsi zheng.bao begin*/
-	0x0001ff0c,
-	0x00400204,
-	0x00016404,
-};
-
+/*same as: combing_bias_motion_setting*/
 static const unsigned int combing_bias_p_ori[] = {
 	/**/
+	0x00202015,	/* 0 */
+	0x1A1A3A62,	/* 1 */
+	0x15200101,	/* 2 */
+	0x01200440,	/* 3 */
+	0x74200D0D,	/* 4 */
+	0x0D5A1520,	/* 5 */
+	0x0A0A0201,	/* 6 */
+	0x1A1A2662,	/* 7 */
+	0x0D200302,	/* 8 */
+	0x02020606,	/* 9 */
+	0x05080344,	/* 10 */
 	0x40020a04,	/* 11 */
 	/*idea from mingliang.dong & vlsi zheng.bao begin*/
 	0x0001FF12, /* 0x0001ff0c */
 	0x00200204, /* 0x00400204 */
 	0x00012002, /* 0x00016404 */
-};
-
-static const unsigned int combing_very_p_1080i[] = {
-	/*idea from mingliang.dong & vlsi zheng.bao begin*/
-	0x40020a04,
-	0x0001ff0c,
-	0x00400204,
-	0x00016404,
 	/*idea from mingliang.dong & vlsi zheng.bao end*/
-
+	0x00000142
 };
 
 static const unsigned int combing_very_p_ori[] = {
+	0x00202015,	/* 0 */
+	0x1A1A3A62,	/* 1 */
+	0x15200101,	/* 2 */
+	0x01200440,	/* 3 */
+	0x74200D0D,	/* 4 */
+	0x0D5A1520,	/* 5 */
+	0x0A0A0201,	/* 6 */
+	0x1A1A2662,	/* 7 */
+	0x0D200302,	/* 8 */
+	0x02020606,	/* 9 */
+	0x05080344,	/* 10 */
 	/*idea from mingliang.dong & vlsi zheng.bao begin*/
 	0x60000404, /* 0x40020a04*/
 	0x0001FF12, /* 0x0001ff0c */
 	0x00200204, /* 0x00400204 */
 	0x00012002, /* 0x00016404 */
 	/*idea from mingliang.dong & vlsi zheng.bao end*/
+	0x00000131
+};
+
+static const unsigned int combing_bias_p_1080i[] = {
+	/**/
+	0x00202015,	/* 0 */
+	0x1A1A3A62,	/* 1 */
+	0x15200101,	/* 2 */
+	0x01200440,	/* 3 */
+	0x74200D0D,	/* 4 */
+	0x0D5A1520,	/* 5 */
+	0x0A0A0201,	/* 6 */
+	0x1A1A2662,	/* 7 */
+	0x0D200302,	/* 8 */
+	0x02020606,	/* 9 */
+	0x05080344,	/* 10 */
+	0x40020a04,	/* 11 */
+	/*idea from mingliang.dong & vlsi zheng.bao begin*/
+	0x0001ff0c,
+	0x00400204,
+	0x00016404,
+	/*idea from mingliang.dong & vlsi zheng.bao end*/
+	0x00000142
+};
+
+static const unsigned int combing_very_p_1080i[] = {
+	0x00202015,	/* 0 */
+	0x1A1A3A62,	/* 1 */
+	0x15200101,	/* 2 */
+	0x01200440,	/* 3 */
+	0x74200D0D,	/* 4 */
+	0x0D5A1520,	/* 5 */
+	0x0A0A0201,	/* 6 */
+	0x1A1A2662,	/* 7 */
+	0x0D200302,	/* 8 */
+	0x02020606,	/* 9 */
+	0x05080344,	/* 10 */
+	/*idea from mingliang.dong & vlsi zheng.bao begin*/
+	0x40020a04,
+	0x0001ff0c,
+	0x00400204,
+	0x00016404,
+	/*idea from mingliang.dong & vlsi zheng.bao end*/
+	0x00000131
+};
+
+/*same as combing_bias_motion_setting ex:*/
+/*	3nd : from 0x15200101 to 0x15200301*/
+static unsigned int combing_bias_p_480i[] = {
+	0x00202015,	/* 0 */
+	0x1A1A3A62,	/* 1 */
+	0x15200301,	/* 2 */
+	0x01200440,	/* 3 */
+	0x74200D0D,	/* 4 */
+	0x0D5A1520,	/* 5 */
+	0x0A0A0201,	/* 6 */
+	0x1A1A2662,	/* 7 */
+	0x0D200302,	/* 8 */
+	0x02020606,	/* 9 */
+	0x05080344,	/* 10 */
+	0x40020a04,	/* 11 */
+	/*idea from mingliang.dong & vlsi zheng.bao begin*/
+	0x0001FF12, /* 0x0001ff0c */
+	0x00200204, /* 0x00400204 */
+	0x00012002, /* 0x00016404 */
+	/*idea from mingliang.dong & vlsi zheng.bao end*/
+	0x00000142
+};
+
+/*same as combing_very_motion_setting ex:*/
+/*	3nd : from 0x15200101 to 0x15200301*/
+static unsigned int combing_very_p_480i[] = {
+	0x00202015,	/* 0 */
+	0x1A1A3A62,	/* 1 */
+	0x15200301,	/* 2 */
+	0x01200440,	/* 3 */
+	0x74200D0D,	/* 4 */
+	0x0D5A1520,	/* 5 */
+	0x0A0A0201,	/* 6 */
+	0x1A1A2662,	/* 7 */
+	0x0D200302,	/* 8 */
+	0x02020606,	/* 9 */
+	0x05080344,	/* 10 */
+	/*idea from mingliang.dong & vlsi zheng.bao begin*/
+	0x60000404, /* 0x40020a04*/
+	0x0001FF12, /* 0x0001ff0c */
+	0x00200204, /* 0x00400204 */
+	0x00012002, /* 0x00016404 */
+	/*idea from mingliang.dong & vlsi zheng.bao end*/
+	0x00000131
 };
 
 static unsigned int di_mtn_p_mode;
@@ -268,13 +363,14 @@ static unsigned int di_mtn_p_mode;
 void com_patch_pre_sw_set(unsigned int mode)
 {
 	unsigned int *p1, *p2;
-	/*mode is 0: ori*/
-	/*mode is 1: 1080i*/
+	/* mode is 0: ori */
+	/* mode is 1: 1080i */
+	/* mode is 2: 480i */
 	if (mode == di_mtn_p_mode)
 		return;
 
-	p1 = &combing_bias_motion_setting[11];
-	p2 = &combing_very_motion_setting[11];
+	p1 = &combing_bias_motion_setting[0];
+	p2 = &combing_very_motion_setting[0];
 	if (mode == 0) {
 		memcpy(p1, &combing_bias_p_ori[0],
 		       sizeof(combing_bias_p_ori));
@@ -287,6 +383,12 @@ void com_patch_pre_sw_set(unsigned int mode)
 		memcpy(p2, &combing_very_p_1080i[0],
 		       sizeof(combing_very_p_1080i));
 		di_mtn_p_mode = 1;
+	} else if (mode == 2) {
+		memcpy(p1, &combing_bias_p_480i[0],
+		       sizeof(combing_bias_p_480i));
+		memcpy(p2, &combing_very_p_480i[0],
+		       sizeof(combing_very_p_480i));
+		di_mtn_p_mode = 2;
 	}
 }
 
@@ -685,8 +787,10 @@ static void set_combing_regs(int lvl, int bit_mode)
 			 *confirmed with vlsi-baozheng, G12a/G12B/SM1
 			 *is same as TL1, Change the condition to cpu after G12a
 			 */
-		if (((bit_mode != 10) || cpu_after_eq(MESON_CPU_MAJOR_ID_G12A))
-			&& combing_setting_registers[i] == NR2_MATNR_DEGHOST)
+		if (((bit_mode != 10) ||
+		     cpu_after_eq(MESON_CPU_MAJOR_ID_G12A) ||
+		     is_meson_txlx_cpu()) &&
+		    combing_setting_registers[i] == NR2_MATNR_DEGHOST)
 			break;
 		else if (i < GXTVBB_REG_START) {
 			/* TODO: need change to check if

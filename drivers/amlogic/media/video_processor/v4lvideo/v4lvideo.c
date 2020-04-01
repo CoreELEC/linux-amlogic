@@ -70,6 +70,14 @@ static unsigned int put_count;
 module_param(put_count, uint, 0644);
 MODULE_PARM_DESC(put_count, "put_count");
 
+static unsigned int q_count;
+module_param(q_count, uint, 0644);
+MODULE_PARM_DESC(q_count, "q_count");
+
+static unsigned int dq_count;
+module_param(dq_count, uint, 0644);
+MODULE_PARM_DESC(dq_count, "dq_count");
+
 static unsigned int cts_use_di;
 module_param(cts_use_di, uint, 0644);
 MODULE_PARM_DESC(cts_use_di, "cts_use_di");
@@ -1194,6 +1202,7 @@ static int vidioc_qbuf(struct file *file, void *priv, struct v4l2_buffer *p)
 
 	dev->v4lvideo_input[p->index] = *p;
 
+	q_count++;
 	file_vf = fget(p->m.fd);
 	if (!file_vf) {
 		pr_err("v4lvideo: qbuf fget fail\n");
@@ -1396,7 +1405,10 @@ static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *p)
 			canvas_to_addr(&file_private_data->vf_ext);
 			file_private_data->vf.canvas0_config[0].block_mode = 0;
 			file_private_data->vf.canvas0_config[0].endian = 0;
+			file_private_data->vf.vf_ext =
+				&(file_private_data->vf_ext);
 		}
+		file_private_data->vf.vf_ext = &(file_private_data->vf_ext);
 	} else {
 		file_private_data->vf = *vf;
 		file_private_data->vf_p = vf;
@@ -1455,6 +1467,7 @@ static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *p)
 	}
 	p->sequence = dev->frame_num++;
 	//pr_err("dqbuf: frame_num=%d\n", p->sequence);
+	dq_count++;
 	return 0;
 }
 
@@ -1550,6 +1563,8 @@ static int video_receiver_event_fun(int type, void *data, void *private_data)
 		mutex_unlock(&dev->mutex_input);
 		get_count = 0;
 		put_count = 0;
+		q_count = 0;
+		dq_count = 0;
 		pr_err("reg:v4lvideo\n");
 	} else if (type == VFRAME_EVENT_PROVIDER_QUREY_STATE) {
 		if (dev->vf_wait_cnt > 1)

@@ -93,7 +93,7 @@
 			/** 10x3552320=34M(0x22) support 8bit **/
 			/** 10x44596800=44M(0x2c) support 12bit **/
 			/** 10x4074560=39M(0x27) support 10bit **/
-			size = <0x0 0x02400000>;
+			size = <0x0 0x02800000>;
 			alignment = <0x0 0x400000>;
 		};
 		ion_reserved:linux,ion-dev {

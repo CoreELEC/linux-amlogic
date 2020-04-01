@@ -976,6 +976,7 @@ static void video_composer_task(struct composer_dev *dev)
 	int ready_count = 0;
 	unsigned long phy_addr;
 	u64 time_us64;
+	struct vframe_s *vf_ext = NULL;
 
 	if (!kfifo_peek(&dev->receive_q, &received_frames)) {
 		vc_print(dev->index, PRINT_ERROR, "task: peek failed\n");
@@ -1108,7 +1109,26 @@ static void video_composer_task(struct composer_dev *dev)
 			 frame_info->buffer_w, frame_info->buffer_h);
 		vc_print(dev->index, PRINT_AXIS,
 			 "===============================\n");
-		/*dump_yuv_data(vf);*/
+
+		if (vf->flag & VFRAME_FLAG_DOUBLE_FRAM) {
+			vf_ext = vf->vf_ext;
+			if (vf_ext) {
+				vf_ext->axis[0] = vf->axis[0];
+				vf_ext->axis[1] = vf->axis[1];
+				vf_ext->axis[2] = vf->axis[2];
+				vf_ext->axis[3] = vf->axis[3];
+				vf_ext->crop[0] = vf->crop[0];
+				vf_ext->crop[1] = vf->crop[1];
+				vf_ext->crop[2] = vf->crop[2];
+				vf_ext->crop[3] = vf->crop[3];
+				vf_ext->zorder = vf->zorder;
+				vf_ext->flag |= VFRAME_FLAG_VIDEO_COMPOSER
+					| VFRAME_FLAG_VIDEO_COMPOSER_BYPASS;
+			} else
+				vc_print(dev->index, PRINT_ERROR,
+					 "vf_ext is null\n");
+		}
+
 		if (dev->last_file == file_vf && frame_info->type == 0) {
 			vf->repeat_count[dev->index]++;
 			vc_print(dev->index, PRINT_FENCE,
