@@ -557,7 +557,7 @@
 	unifykey{
 		compatible = "amlogic, unifykey";
 		status = "ok";
-		unifykey-num = <31>;
+		unifykey-num = <32>;
 		unifykey-index-0 = <&keysn_0>;
 		unifykey-index-1 = <&keysn_1>;
 		unifykey-index-2 = <&keysn_2>;
@@ -589,6 +589,7 @@
 		unifykey-index-28= <&keysn_28>;
 		unifykey-index-29= <&keysn_29>;
 		unifykey-index-30= <&keysn_30>;
+		unifykey-index-31= <&keysn_31>;
 
 		keysn_0: key_0{
 			key-name = "usid";
@@ -745,6 +746,11 @@
 		};
 		keysn_30:key_30{
 			key-name = "PROVISION_FIELD_PROTECT_KEY";
+			key-device = "provision";
+			key-permit = "read","write","del";
+		};
+		keysn_31:key_31{
+			key-name = "KEY_KM3_ATTEST_DEV_ID_BOX";
 			key-device = "provision";
 			key-permit = "read","write","del";
 		};
