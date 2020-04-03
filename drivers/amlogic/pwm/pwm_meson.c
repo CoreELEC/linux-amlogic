@@ -258,6 +258,9 @@ static void meson_pwm_enable(struct meson_pwm *meson,
 {
 	u32 value, clk_shift, clk_enable, enable;
 	unsigned int offset;
+#ifdef MESON_PWM_SPINLOCK
+	unsigned long flags;
+#endif
 
 	switch (id) {
 	case MESON_PWM_0:
@@ -292,7 +295,9 @@ static void meson_pwm_enable(struct meson_pwm *meson,
 		return;
 	}
 
-
+#ifdef MESON_PWM_SPINLOCK
+	spin_lock_irqsave(&meson->lock, flags);
+#endif
 	value = readl(meson->base + REG_MISC_AB);
 	value &= ~(MISC_CLK_DIV_MASK << clk_shift);
 	value |= channel->pre_div << clk_shift;
@@ -305,11 +310,17 @@ static void meson_pwm_enable(struct meson_pwm *meson,
 	value = readl(meson->base + REG_MISC_AB);
 	value |= enable;
 	writel(value, meson->base + REG_MISC_AB);
+#ifdef MESON_PWM_SPINLOCK
+	spin_unlock_irqrestore(&meson->lock, flags);
+#endif
 }
 
 static void meson_pwm_disable(struct meson_pwm *meson, unsigned int id)
 {
 	u32 value, enable;
+#ifdef MESON_PWM_SPINLOCK
+	unsigned long flags;
+#endif
 
 	switch (id) {
 	case MESON_PWM_0:
@@ -332,9 +343,16 @@ static void meson_pwm_disable(struct meson_pwm *meson, unsigned int id)
 		return;
 	}
 
+#ifdef MESON_PWM_SPINLOCK
+	spin_lock_irqsave(&meson->lock, flags);
+#endif
 	value = readl(meson->base + REG_MISC_AB);
 	value &= ~enable;
 	writel(value, meson->base + REG_MISC_AB);
+#ifdef MESON_PWM_SPINLOCK
+	spin_unlock_irqrestore(&meson->lock, flags);
+#endif
+
 }
 
 static int meson_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
@@ -347,7 +365,9 @@ static int meson_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 	if (!state)
 		return -EINVAL;
 
+#ifndef MESON_PWM_SPINLOCK
 	mutex_lock(&meson->lock);
+#endif
 
 	if (!state->enabled) {
 		meson_pwm_disable(meson, pwm->hwpwm);
@@ -390,7 +410,9 @@ static int meson_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 	}
 
 unlock:
+#ifndef MESON_PWM_SPINLOCK
 	mutex_unlock(&meson->lock);
+#endif
 	return err;
 
 }
@@ -641,8 +663,11 @@ static int meson_pwm_probe(struct platform_device *pdev)
 	meson->base = devm_ioremap_resource(&pdev->dev, regs);
 	if (IS_ERR(meson->base))
 		return PTR_ERR(meson->base);
-
+#ifdef MESON_PWM_SPINLOCK
+	spin_lock_init(&meson->lock);
+#else
 	mutex_init(&meson->lock);
+#endif
 	spin_lock_init(&meson->pwm_lock);
 	meson->chip.dev = &pdev->dev;
 	meson->chip.ops = &meson_pwm_ops;

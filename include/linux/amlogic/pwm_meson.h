@@ -41,6 +41,11 @@
 /* for pwm extern clk*/
 #define DEFAULT_EXTERN_CLK		24000000
 
+/* Project requirements: calling pwm interface in interrupt,
+ * Use spinlock instead of mutex
+ */
+#define MESON_PWM_SPINLOCK 1
+
 /*a group pwm registers offset address
  * for example:
  * PWM A B
@@ -127,7 +132,12 @@ struct meson_pwm {
 	const struct meson_pwm_data *data;
 	struct meson_pwm_variant variant;
 	u32 inverter_mask;
+#ifdef MESON_PWM_SPINLOCK
+	/* sync register operation */
+	spinlock_t lock;
+#else
 	struct mutex lock;
+#endif
 	spinlock_t pwm_lock;
 	unsigned int clk_mask;
 };
