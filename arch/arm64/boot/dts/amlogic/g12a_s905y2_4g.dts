@@ -1,0 +1,9 @@
+#include "g12a_s905y2_2g.dts"
+
+/{
+	coreelec-dt-id = "g12a_s905y2_4g";
+
+	memory@00000000 {
+		linux,usable-memory = <0x0 0x100000 0x0 0xf0800000>;
+	};
+};
