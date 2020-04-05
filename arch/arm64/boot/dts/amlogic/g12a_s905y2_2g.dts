@@ -1,0 +1,51 @@
+#include "coreelec_g12a.dtsi"
+
+/{
+	model = "Amlogic S905Y2";
+	coreelec-dt-id = "g12a_s905y2_2g";
+
+	/delete-node/ gpioleds;
+
+	cvbsout {
+		status = "disabled";
+	};
+};
+
+&i2c0 {
+	status = "disabled";
+};
+
+&pinctrl_periphs {
+	/delete-node/ spdifout;
+	/delete-node/ spdifout_a_mute;
+};
+
+&pinctrl_aobus {
+	spdifout: spdifout {
+		mux {
+			groups = "spdif_out_ao";
+			function = "spdif_out_ao";
+		};
+	};
+
+	spdifout_a_mute: spdifout_a_mute {
+		mux {
+			groups = "GPIOAO_10";
+			function = "gpio_aobus";
+		};
+	};
+};
+
+&usb3_phy_v2 {
+	portnum = <0>;
+	gpio-vbus-power = "GPIOH_6";
+	gpios = <&gpio GPIOH_6 GPIO_ACTIVE_HIGH>;
+};
+
+&ethmac {
+	status = "disabled";
+};
+
+&amhdmitx {
+	dongle_mode = <0>;
+};
