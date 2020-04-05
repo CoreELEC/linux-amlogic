@@ -2,6 +2,7 @@
 
 /{
 	model = "Khadas VIM3";
+	amlogic-dt-id = "g12b_kvim3";
 	coreelec-dt-id = "g12b_a311d_khadas_vim3";
 
 	/delete-node/ memory@00000000;
@@ -11,16 +12,117 @@
 	};
 
 	gpioleds {
+		status = "okay";
+
 		sys_led {
 			gpios=<&gpio_ao GPIOAO_4 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger="default-on";
 		};
+
+		red_led {
+			label = "red_red";
+			gpios = <&gpio_expander 5 GPIO_ACTIVE_HIGH>;
+			default-state ="off";
+			linux,default-trigger="none";
+		};
+	};
+
+	cvbsout {
+		/delete-property/ clk_path;
 	};
 
 	gpio_keypad {
 		key-gpios = <&gpio_ao GPIOAO_7 GPIO_ACTIVE_HIGH>;
 	};
 
+	adc_keypad {
+		compatible = "amlogic, adc_keypad";
+		status = "okay";
+		key_name = "home";
+		key_num = <1>;
+		io-channels = <&saradc SARADC_CH2>;
+		io-channel-names = "key-chan-2";
+		key_chan = <SARADC_CH2 SARADC_CH2 SARADC_CH2>;
+		key_code = <102>;
+		key_val = <108>; //val=voltage/1800mV*1023
+		key_tolerance = <40>;
+	};
+
+	efuse: efuse {
+		compatible = "amlogic, efuse";
+		read_cmd = <0x82000030>;
+		write_cmd = <0x82000031>;
+		get_max_cmd = <0x82000033>;
+		key = <&efusekey>;
+		status = "okay";
+	};
+
+	/delete-node/ efusekey;
+	efusekey: efusekey {
+		keynum = <1>;
+		key0 = <&key_0>;
+		key_0:key_0{
+			keyname = "mac";
+			offset = <0>;
+			size = <6>;
+		};
+	};
+
+	amlvecm {
+		interrupts = <0 56 1>;
+		interrupt-names = "vsync2";
+	};
+
 	/delete-node/ rtc;
+};
+
+&audiobus {
+	aml_spdif: spdif {
+		pinctrl-names = "spdif_pins", "spdif_pins_mute";
+		pinctrl-0 = <&spdifout>;
+		pinctrl-1 = <&spdifout_a_mute>;
+	};
+};
+
+&pinctrl_periphs {
+	/delete-node/ spdifout;
+	/delete-node/ spdifout_a_mute;
+};
+
+&pinctrl_aobus {
+	spdifout: spdifout {
+		mux {
+			groups = "spdif_out_ao";
+			function = "spdif_out_ao";
+		};
+	};
+
+	spdifout_a_mute: spdifout_a_mute {
+		mux {
+			groups = "GPIOAO_10";
+			function = "gpio_aobus";
+		};
+	};
+};
+
+&i2c0 {
+	/delete-property/ pinctrl-names;
+	/delete-property/ pinctrl-0;
+	/delete-property/ clock-frequency;
+};
+
+&i2c2 {
+	status = "disabled";
+	/delete-property/ pinctrl-names;
+	/delete-property/ pinctrl-0;
+	/delete-property/ clock-frequency;
+};
+
+&i2c3 {
+	status = "okay";
+	pinctrl-names="default";
+	pinctrl-0=<&i2c3_master_pins2>;
+	clock-frequency = <100000>;
 };
 
 &i2c_AO {
@@ -29,9 +131,18 @@
 	pinctrl-0=<&ao_i2c_master_pins1>;
 	clock-frequency = <400000>;
 
+	gpio_expander: gpio-controller@20 {
+		compatible = "ti,tca6408";
+		reg = <0x20>;
+		gpio-controller;
+		#gpio-cells = <2>;
+		status = "okay";
+	};
+
 	hym8563: hym8563@51 {
 		compatible = "haoyu,hym8563";
 		reg = <0x51>;
+		#clock-cells = <0>;
 	};
 
 	khadas-mcu {
@@ -40,6 +151,37 @@
 		fan,trig_temp_level0 = <50>;
 		fan,trig_temp_level1 = <60>;
 		fan,trig_temp_level2 = <70>;
-		hwver = "VIM3.V11"; /* Will be updated in uboot. */
+		hwver = "VIM3.V11";
 	};
+};
+
+&pwm_ef {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pwm_f_pins2>;
+};
+
+&sd_emmc_c {
+	emmc {
+		caps2 = "MMC_CAP2_HS200";
+	};
+};
+
+&usb2_phy_v2 {
+	gpio-vbus-power = "GPIOA_6";
+	gpios = <&gpio GPIOA_6 GPIO_ACTIVE_HIGH>;
+};
+
+&usb3_phy_v2 {
+	/delete-property/ gpio-vbus-power;
+	/delete-property/ gpios;
+	otg = <1>;
+};
+
+&pcie_A {
+	reset-gpio = <&gpio GPIOA_8 GPIO_ACTIVE_HIGH>;
+	status = "disabled";
+};
+
+&saradc {
+	status = "okay";
 };
