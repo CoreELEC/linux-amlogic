@@ -7,6 +7,10 @@
 
 	/delete-node/ memory@00000000;
 
+	auge_sound {
+		/delete-property/ spk_mute-gpios;
+	};
+
 	gpioleds {
 		status = "okay";
 
@@ -21,6 +25,10 @@
 			default-state ="off";
 			linux,default-trigger="none";
 		};
+	};
+
+	cvbsout {
+		/delete-property/ clk_path;
 	};
 
 	gpio_keypad {
@@ -40,8 +48,17 @@
 		key_tolerance = <40>;
 	};
 
+	efuse: efuse {
+		compatible = "amlogic, efuse";
+		read_cmd = <0x82000030>;
+		write_cmd = <0x82000031>;
+		get_max_cmd = <0x82000033>;
+		key = <&efusekey>;
+		status = "okay";
+	};
+
 	/delete-node/ efusekey;
-	efusekey:efusekey{
+	efusekey: efusekey {
 		keynum = <1>;
 		key0 = <&key_0>;
 		key_0:key_0{
@@ -49,6 +66,11 @@
 			offset = <0>;
 			size = <6>;
 		};
+	};
+
+	amlvecm {
+		interrupts = <0 56 1>;
+		interrupt-names = "vsync2";
 	};
 
 	meson-ir {
@@ -95,12 +117,14 @@
 &audiobus {
 	spdifa: spdif@0 {
 		pinctrl-names = "spdif_pins", "spdif_pins_mute";
+		pinctrl-0 = <&spdifout>;
 		pinctrl-1 = <&spdifout_a_mute>;
 	};
 };
 
 &pinctrl_periphs {
 	/delete-node/ spdifout;
+	/delete-node/ spdifout_a_mute;
 };
 
 &pinctrl_aobus {
@@ -120,6 +144,13 @@
 };
 
 &i2c0 {
+	/delete-property/ pinctrl-names;
+	/delete-property/ pinctrl-0;
+	/delete-property/ clock-frequency;
+};
+
+&i2c2 {
+	status = "disabled";
 	/delete-property/ pinctrl-names;
 	/delete-property/ pinctrl-0;
 	/delete-property/ clock-frequency;
@@ -167,23 +198,26 @@
 	pinctrl-0 = <&pwm_f_pins2>;
 };
 
+&sd_emmc_c {
+	emmc {
+		caps2 = "MMC_CAP2_HS200";
+	};
+};
+
 &usb2_phy_v2 {
 	gpio-vbus-power = "GPIOA_6";
 	gpios = <&gpio GPIOA_6 GPIO_ACTIVE_HIGH>;
 };
 
 &usb3_phy_v2 {
+	/delete-property/ gpio-vbus-power;
+	/delete-property/ gpios;
 	otg = <1>;
 };
 
 &pcie_A {
 	reset-gpio = <&gpio GPIOA_8 GPIO_ACTIVE_HIGH>;
-};
-
-&sd_emmc_c {
-	emmc {
-		caps2 = "MMC_CAP2_HS200";
-	};
+	status = "disabled";
 };
 
 &saradc {
