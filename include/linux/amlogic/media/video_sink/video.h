@@ -258,6 +258,12 @@ extern unsigned int DI_POST_REG_RD(unsigned int addr);
 extern int DI_POST_WR_REG_BITS(u32 adr, u32 val, u32 start, u32 len);
 void DI_POST_UPDATE_MC(void);
 
+#ifdef CONFIG_AMLOGIC_VIDEOSYNC
 extern void videosync_pcrscr_update(s32 inc, u32 base);
 void vsync_notify_videosync(void);
+#else
+#define videosync_pcrscr_update(inc, base)
+#define vsync_notify_videosync()
+#endif
+
 #endif /* VIDEO_H */
