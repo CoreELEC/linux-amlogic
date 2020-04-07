@@ -22,6 +22,12 @@
 
 #include <linux/amlogic/media/sound/spdif_info.h>
 
+enum spdif_id {
+	SPDIF_A = 0,
+	SPDIF_B,
+	SPDIF_ID_CNT
+};
+
 extern unsigned int aml_spdif_ctrl_read(struct aml_audio_controller *actrl,
 	int stream, int index);
 extern void aml_spdif_ctrl_write(struct aml_audio_controller *actrl,

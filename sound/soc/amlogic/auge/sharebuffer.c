@@ -17,6 +17,7 @@
 #include <sound/pcm.h>
 
 #include <linux/amlogic/media/sound/aout_notify.h>
+#include <linux/amlogic/media/sound/spdif_info.h>
 
 #include "sharebuffer.h"
 #include "ddr_mngr.h"
@@ -46,8 +47,10 @@ static int sharebuffer_spdifout_prepare(struct snd_pcm_substream *substream,
 	/* check and set channel status */
 	spdif_get_channel_status_info(&chsts, runtime->rate, STEREO_PCM);
 	spdif_set_channel_status_info(&chsts, spdif_id);
-	/* notify hdmitx audio */
-	aout_notifier_call_chain(0x1, substream);
+	/* notify hdmitx audio, only spdifa pcm case share buffer */
+	if (spdif_get_codec() == STEREO_PCM &&
+	    get_spdif_to_hdmitx_id() == SPDIF_A)
+		aout_notifier_call_chain(AOUT_EVENT_IEC_60958_PCM, substream);
 
 	return 0;
 }

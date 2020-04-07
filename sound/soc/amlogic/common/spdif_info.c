@@ -143,6 +143,11 @@ void spdif_get_channel_status_info(
 void spdif_notify_to_hdmitx(struct snd_pcm_substream *substream,
 			    unsigned int codec)
 {
+	if (codec == MULTI_CHANNEL_LPCM) {
+		pr_warn("%s(), multi-ch pcm priority, exit\n", __func__);
+		return;
+	}
+
 	if (codec == DOLBY_DIGITAL) {
 		aout_notifier_call_chain(
 			AOUT_EVENT_RAWDATA_AC_3,

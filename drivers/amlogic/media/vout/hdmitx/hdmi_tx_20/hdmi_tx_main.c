@@ -5048,8 +5048,16 @@ static int hdmitx_notify_callback_a(struct notifier_block *block,
 
 	if (audio_param->channel_num !=
 		(substream->runtime->channels - 1)) {
-		audio_param->channel_num =
-		substream->runtime->channels - 1;
+		int chnum = substream->runtime->channels;
+		int lane_cnt = chnum / 2;
+		int lane_mask = (1 << lane_cnt) - 1;
+
+		pr_info(AUD "aout notify channel num: %d\n", chnum);
+		audio_param->channel_num = chnum - 1;
+		if (cmd == CT_PCM && chnum > 2)
+			hdmitx_device.aud_output_ch = chnum << 4 | lane_mask;
+		else
+			hdmitx_device.aud_output_ch = 0;
 		hdmitx_device.audio_param_update_flag = 1;
 	}
 	if (hdmitx_device.tx_aud_cfg == 2) {

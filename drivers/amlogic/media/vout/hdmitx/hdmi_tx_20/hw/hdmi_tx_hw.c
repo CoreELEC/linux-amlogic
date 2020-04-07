@@ -2525,11 +2525,11 @@ static void set_aud_chnls(struct hdmitx_dev *hdev,
 	/* set default 48k 2ch pcm */
 	if ((audio_param->type == CT_PCM) &&
 		(audio_param->channel_num == (2 - 1))) {
-		hdmitx_wr_reg(HDMITX_DWC_FC_AUDSV, 0x11);
+		hdmitx_wr_reg(HDMITX_DWC_FC_AUDSV, 0);
 		hdmitx_wr_reg(HDMITX_DWC_FC_AUDSCHNLS7, 0x02);
 		hdmitx_wr_reg(HDMITX_DWC_FC_AUDSCHNLS8, 0xd2);
 	} else {
-		hdmitx_wr_reg(HDMITX_DWC_FC_AUDSV, 0xff);
+		hdmitx_wr_reg(HDMITX_DWC_FC_AUDSV, 0);
 	}
 	switch (audio_param->type) {
 	case CT_AC_3:
@@ -2539,8 +2539,10 @@ static void set_aud_chnls(struct hdmitx_dev *hdev,
 		hdmitx_wr_reg(HDMITX_DWC_FC_AUDSCHNLS5, 0x02); /* CSB 21 */
 		break;
 	default:
-		hdmitx_wr_reg(HDMITX_DWC_FC_AUDSCHNLS3, 0x00);
-		hdmitx_wr_reg(HDMITX_DWC_FC_AUDSCHNLS5, 0x00);
+		hdmitx_wr_reg(HDMITX_DWC_FC_AUDSCHNLS3, 0x42);
+		hdmitx_wr_reg(HDMITX_DWC_FC_AUDSCHNLS4, 0x86);
+		hdmitx_wr_reg(HDMITX_DWC_FC_AUDSCHNLS5, 0x31);
+		hdmitx_wr_reg(HDMITX_DWC_FC_AUDSCHNLS6, 0x75);
 		break;
 	}
 	hdmitx_set_reg_bits(HDMITX_DWC_FC_AUDSCHNLS7,
@@ -2770,9 +2772,9 @@ static int hdmitx_set_audmode(struct hdmitx_dev *hdev,
 		hsty_hdmiaud_config_num = 8;
 
 	audio_mute_op(hdev->tx_aud_cfg);
-	/* PCM & 8 ch */
-	if ((audio_param->type == CT_PCM) &&
-		(audio_param->channel_num == (8 - 1)))
+	/* PCM & multi channel use I2S */
+	if (audio_param->type == CT_PCM &&
+	    audio_param->channel_num > 2)
 		hdev->tx_aud_src = 1;
 	else
 		hdev->tx_aud_src = 0;

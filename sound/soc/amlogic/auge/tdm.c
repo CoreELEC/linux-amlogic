@@ -33,7 +33,7 @@
 
 #include <linux/amlogic/clk_measure.h>
 #include <linux/amlogic/cpu_version.h>
-
+#include <linux/amlogic/media/sound/spdif_info.h>
 #include <linux/amlogic/media/sound/aout_notify.h>
 
 #include "ddr_mngr.h"
@@ -506,8 +506,12 @@ static int aml_dai_tdm_prepare(struct snd_pcm_substream *substream,
 		/* i2s source to hdmix */
 		if (p_tdm->i2s2hdmitx) {
 			i2s_to_hdmitx_ctrl(p_tdm->id);
-			aout_notifier_call_chain(AOUT_EVENT_IEC_60958_PCM,
-				substream);
+			if (spdif_get_codec() == MULTI_CHANNEL_LPCM)
+				aout_notifier_call_chain
+					(AOUT_EVENT_IEC_60958_PCM, substream);
+			else
+				pr_warn("%s(), i2s2hdmi with wrong fmt\n",
+					__func__);
 		}
 
 		fifo_id = aml_frddr_get_fifo_id(fr);
@@ -804,6 +808,9 @@ static int aml_tdm_set_lanes(struct aml_tdm *p_tdm,
 			}
 		}
 		swap_val = 0x76543210;
+		/* TODO: find why LFE and FC(2ch, 3ch) HDMITX needs swap */
+		if (p_tdm->i2s2hdmitx)
+			swap_val = 0x76542310;
 		if (p_tdm->lane_cnt > LANE_MAX1)
 			swap_val1 = 0xfedcba98;
 		aml_tdm_set_lane_channel_swap(p_tdm->actrl,
@@ -1028,7 +1035,7 @@ static int aml_dai_tdm_hw_free(struct snd_pcm_substream *substream,
 
 	/* disable clock and gate */
 	if (!p_tdm->contns_clk && !IS_ERR(p_tdm->mclk)) {
-		pr_info("%s(), disable mclk for %s", __func__, cpu_dai->name);
+		pr_info("%s(), disable mclk for %s\n", __func__, cpu_dai->name);
 		clk_disable_unprepare(p_tdm->mclk);
 	}
 
