@@ -2864,7 +2864,14 @@ enum hdmi_vic hdmitx_edid_get_VIC(struct hdmitx_dev *hdev,
 	struct rx_cap *prxcap = &hdev->rxcap;
 	int  j;
 	enum hdmi_vic vic = hdmitx_edid_vic_tab_map_vic(disp_mode);
+	struct hdmi_format_para *para = NULL;
+	enum hdmi_vic *vesa_t = &hdev->rxcap.vesa_timing[0];
+	enum hdmi_vic vesa_vic;
 
+	if (vic >= HDMITX_VESA_OFFSET)
+		vesa_vic = vic;
+	else
+		vesa_vic = HDMI_Unknown;
 	if (vic != HDMI_Unknown) {
 		if (force_flag == 0) {
 			for (j = 0 ; j < prxcap->VIC_count ; j++) {
@@ -2873,6 +2880,19 @@ enum hdmi_vic hdmitx_edid_get_VIC(struct hdmitx_dev *hdev,
 			}
 			if (j >= prxcap->VIC_count)
 				vic = HDMI_Unknown;
+		}
+	}
+	if ((vic == HDMI_Unknown) &&
+		(vesa_vic != HDMI_Unknown)) {
+		for (j = 0; vesa_t[j] && j < VESA_MAX_TIMING; j++) {
+			para = hdmi_get_fmt_paras(vesa_t[j]);
+			if (para) {
+				if ((para->vic >= HDMITX_VESA_OFFSET) &&
+					(vesa_vic == para->vic)) {
+					vic = para->vic;
+					break;
+				}
+			}
 		}
 	}
 	return vic;
