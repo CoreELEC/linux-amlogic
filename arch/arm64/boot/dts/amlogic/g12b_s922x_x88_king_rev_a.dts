@@ -5,7 +5,7 @@
 	coreelec-dt-id = "g12b_s922x_x88_king_rev_a";
 
 	memory@00000000 {
-		linux,usable-memory = <0x0 0x100000 0x0 0xf0800000>;
+		linux,usable-memory = <0x0 0x0 0x0 0xeff00000>;
 	};
 };
 
@@ -13,4 +13,25 @@
 	portnum = <0>;
 	/delete-property/ gpio-vbus-power;
 	/delete-property/ gpios;
+};
+
+&pinctrl_periphs {
+	external_eth_pins {
+		mux {
+			groups = "eth_mdio",
+			"eth_mdc",
+			"eth_rgmii_rx_clk",
+			"eth_rx_dv",
+			"eth_rxd0",
+			"eth_rxd1",
+			"eth_rxd2_rgmii",
+			"eth_rxd3_rgmii",
+			"eth_rgmii_tx_clk",
+			"eth_txen",
+			"eth_txd0",
+			"eth_txd1",
+			"eth_txd2_rgmii",
+			"eth_txd3_rgmii";
+		};
+	};
 };
