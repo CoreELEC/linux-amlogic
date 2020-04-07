@@ -1,0 +1,92 @@
+#include "coreelec_g12b_a.dtsi"
+
+/{
+	model = "Minix U22-XJ";
+	coreelec-dt-id = "g12b_s922x_minix_u22xj";
+
+	memory@00000000 {
+		linux,usable-memory = <0x0 0x0 0x0 0xf5000000>;
+	};
+
+	/delete-node/ t9015;
+	/delete-node/ rtc;
+
+	auge_sound {
+		/delete-property/ spk_mute-gpios;
+		aml-audio-card,dai-link@1 {
+			codec {
+				sound-dai = <&RT5651_1A>;
+			};
+		};
+	};
+
+	/* Minix original gpio driver settings */
+	jw_io_init {
+		compatible = "amlogic, jw_io_control";
+		dev_name = "jw_io_control";
+		status = "okay";
+		hdmi_5v_gpio = <&gpio GPIOH_8 GPIO_ACTIVE_HIGH>;
+		usb_hub_reset = <&gpio GPIOH_4 GPIO_ACTIVE_HIGH>;
+		ethernet_reset = <&gpio GPIOZ_15 GPIO_ACTIVE_HIGH>;
+		ethernet_int = <&gpio GPIOZ_14 GPIO_ACTIVE_HIGH>;
+		otg_ctl_gpio = <&gpio GPIOC_7 GPIO_ACTIVE_HIGH>;
+		earphone_ctl_gpio = <&gpio_ao GPIOAO_7 GPIO_ACTIVE_HIGH>;
+	};
+
+	gpio-reset {
+		compatible = "linux,gpio-reset";
+		usb_hub_reset {
+			gpios = <&gpio GPIOH_4 GPIO_ACTIVE_LOW>;
+			asserted-state = <0>;
+			duration-ms = <1000>;
+		};
+	};
+};
+
+&i2c1 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c1_master_pins3>;
+	clock-frequency = <100000>;
+
+	/* Minix power control MCU */
+	jw_mcu: jw_mcu@15 {
+		compatible = "everest,jw_mcu";
+		reg = <0x15>;
+		mcu_watchdog_gpio = <&gpio_ao GPIOAO_8 GPIO_ACTIVE_HIGH>;
+		status = "okay";
+	};
+
+	/* Minix extra control MCU */
+	jw_mcu_isp: jw_mcu_isp@35 {
+		compatible = "everest,jw_mcu_isp";
+		reg = <0x35>;
+		status = "okay";
+	};
+
+	rtc_hym8563: rtc_hym8563@51 {
+		compatible = "haoyu,hym8563";
+		reg = <0x51>;
+		irq_gpio = <&gpio_ao GPIOAO_6 GPIO_ACTIVE_HIGH>;
+	};
+};
+
+&i2c3 {
+	RT5651_1A: RT5651_1A@1a {
+		compatible = "realtek,rt5651";
+		#sound-dai-cells = <0>;
+		reg = <0x1a>;
+		status = "okay";
+	};
+};
+
+&sd_emmc_b {
+	sd {
+		vol_switch = <&gpio_ao GPIOAO_2 GPIO_ACTIVE_HIGH>;
+	};
+};
+
+&usb3_phy_v2 {
+	gpio-vbus-power = "GPIOH_5";
+	gpios = <&gpio GPIOH_5 GPIO_ACTIVE_HIGH>;
+};
