@@ -3001,7 +3001,8 @@ static ssize_t store_allm_mode(struct device *dev,
 		hdmitx_construct_vsif(hdev, VT_ALLM, 1, NULL);
 		hdev->hwop.cntlconfig(hdev, CONF_CT_MODE, SET_CT_OFF);
 	}
-
+	if (com_str(buf, "-1"))
+		hdev->hwop.disablepacket(HDMI_PACKET_VEND);
 	return count;
 }
 

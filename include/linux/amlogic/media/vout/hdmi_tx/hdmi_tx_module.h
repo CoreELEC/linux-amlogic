@@ -362,6 +362,7 @@ struct hdmitx_dev {
 	struct {
 		void (*setpacket)(int type, unsigned char *DB,
 				  unsigned char *HB);
+		void (*disablepacket)(int type);
 		/* In original setpacket, there are many policys, like
 		 *  if ((DB[4] >> 4) == T3D_FRAME_PACKING)
 		 * Need a only pure data packet to call

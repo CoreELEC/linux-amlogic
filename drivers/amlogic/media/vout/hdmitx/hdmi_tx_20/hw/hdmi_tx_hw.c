@@ -69,6 +69,7 @@ struct ksv_lists_ {
 static struct ksv_lists_ tmp_ksv_lists;
 
 static void hdmitx_set_packet(int type, unsigned char *DB, unsigned char *HB);
+static void hdmitx_disable_packet(int type);
 static void hdmitx_set_datapacket(int type, unsigned char *DB,
 	unsigned char *HB);
 static void hdmitx_setaudioinfoframe(unsigned char *AUD_DB,
@@ -632,6 +633,7 @@ void HDMITX_Meson_Init(struct hdmitx_dev *hdev)
 {
 	hdev->hwop.setpacket = hdmitx_set_packet;
 	hdev->hwop.setdatapacket = hdmitx_set_datapacket;
+	hdev->hwop.disablepacket = hdmitx_disable_packet;
 	hdev->hwop.setaudioinfoframe = hdmitx_setaudioinfoframe;
 	hdev->hwop.setdispmode = hdmitx_set_dispmode;
 	hdev->hwop.setaudmode = hdmitx_set_audmode;
@@ -2394,6 +2396,29 @@ static void hdmitx_set_packet(int type, unsigned char *DB, unsigned char *HB)
 		hdmitx_set_reg_bits(HDMITX_DWC_FC_DATAUTO0, 1, 4, 1);
 		hdmitx_set_reg_bits(HDMITX_DWC_FC_DATAUTO2, 0x1, 4, 4);
 		hdmitx_set_reg_bits(HDMITX_DWC_FC_PACKET_TX_EN, 1, 4, 1);
+		break;
+	default:
+		break;
+	}
+}
+
+static void hdmitx_disable_packet(int type)
+{
+	switch (type) {
+	case HDMI_PACKET_AVI:
+		break;
+	case HDMI_PACKET_VEND:
+		/* disable VSI packet */
+		hdmitx_set_reg_bits(HDMITX_DWC_FC_DATAUTO0, 0, 3, 1);
+		hdmitx_wr_reg(HDMITX_DWC_FC_DATAUTO1, 0);
+		hdmitx_wr_reg(HDMITX_DWC_FC_DATAUTO2, 0x10);
+		hdmitx_set_reg_bits(HDMITX_DWC_FC_PACKET_TX_EN, 1, 4, 1);
+		break;
+	case HDMI_PACKET_DRM:
+		break;
+	case HDMI_AUDIO_INFO:
+		break;
+	case HDMI_SOURCE_DESCRIPTION:
 		break;
 	default:
 		break;
@@ -4745,6 +4770,8 @@ static void hdmitx_debug(struct hdmitx_dev *hdev, const char *buf)
 	} else if (strncmp(tmpbuf, "vsif_info", 9) == 0) {
 		hdmitx_dump_vsif_cfg();
 		return;
+	} else if (strncmp(tmpbuf, "stop_vsif", 9) == 0) {
+		hdmitx_disable_packet(HDMI_PACKET_VEND);
 	}
 }
 
