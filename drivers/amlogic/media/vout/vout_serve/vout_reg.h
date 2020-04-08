@@ -35,6 +35,97 @@
 #define VPP2_POSTBLEND_H_SIZE                      0x1921
 #define VPP_WRBAK_CTRL                             0x1df9
 
+#define ENCI_VIDEO_MODE                            0x1b00
+#define ENCI_VIDEO_MODE_ADV                        0x1b01
+#define ENCI_VIDEO_FSC_ADJ                         0x1b02
+#define ENCI_VIDEO_BRIGHT                          0x1b03
+#define ENCI_VIDEO_CONT                            0x1b04
+#define ENCI_VIDEO_SAT                             0x1b05
+#define ENCI_VIDEO_HUE                             0x1b06
+#define ENCI_VIDEO_SCH                             0x1b07
+#define ENCI_SYNC_MODE                             0x1b08
+#define ENCI_SYNC_CTRL                             0x1b09
+#define ENCI_SYNC_HSO_BEGIN                        0x1b0a
+#define ENCI_SYNC_HSO_END                          0x1b0b
+#define ENCI_SYNC_VSO_EVN                          5
+#define ENCI_SYNC_VSO_ODD                          0x1b0d
+#define ENCI_SYNC_VSO_EVNLN                        0x1b0e
+#define ENCI_SYNC_VSO_ODDLN                        0x1b0f
+#define ENCI_SYNC_HOFFST                           0x1b10
+#define ENCI_SYNC_VOFFST                           0x1b11
+#define ENCI_SYNC_ADJ                              0x1b12
+#define ENCI_RGB_SETTING                           0x1b13
+
+#define ENCI_DE_H_BEGIN                            0x1b16
+#define ENCI_DE_H_END                              0x1b17
+#define ENCI_DE_V_BEGIN_EVEN                       0x1b18
+#define ENCI_DE_V_END_EVEN                         0x1b19
+#define ENCI_DE_V_BEGIN_ODD                        0x1b1a
+#define ENCI_DE_V_END_ODD                          0x1b1b
+
+#define ENCI_DBG_PX_RST                            0x1b48
+#define ENCI_DBG_FLDLN_RST                         0x1b49
+#define ENCI_DBG_PX_INT                            0x1b4a
+#define ENCI_DBG_FLDLN_INT                         0x1b4b
+#define ENCI_DBG_MAXPX                             0x1b4c
+#define ENCI_DBG_MAXLN                             0x1b4d
+#define ENCI_MACV_MAX_AMP                          0x1b50
+#define ENCI_MACV_PULSE_LO                         0x1b51
+#define ENCI_MACV_PULSE_HI                         0x1b52
+#define ENCI_MACV_BKP_MAX                          0x1b53
+#define ENCI_CFILT_CTRL                            0x1b54
+#define ENCI_CFILT7                                0x1b55
+#define ENCI_YC_DELAY                              0x1b56
+#define ENCI_VIDEO_EN                              0x1b57
+
+#define VENC_SYNC_ROUTE                            0x1b60
+#define VENC_UPSAMPLE_CTRL0                        0x1b64
+#define VENC_UPSAMPLE_CTRL1                        0x1b65
+#define VENC_UPSAMPLE_CTRL2                        0x1b66
+#define VENC_VIDEO_PROG_MODE                       0x1b68
+#define VENC_INTCTRL                               0x1b6e
+
+#define ENCI_DVI_HSO_BEGIN                         0x1c00
+#define ENCI_DVI_HSO_END                           0x1c01
+#define ENCI_DVI_VSO_BLINE_EVN                     0x1c02
+#define ENCI_DVI_VSO_BLINE_ODD                     0x1c03
+#define ENCI_DVI_VSO_ELINE_EVN                     0x1c04
+#define ENCI_DVI_VSO_ELINE_ODD                     0x1c05
+#define ENCI_DVI_VSO_BEGIN_EVN                     0x1c06
+#define ENCI_DVI_VSO_BEGIN_ODD                     0x1c07
+#define ENCI_DVI_VSO_END_EVN                       0x1c08
+#define ENCI_DVI_VSO_END_ODD                       0x1c09
+
+#define ENCI_CFILT_CTRL2                           0x1c0a
+#define ENCI_DACSEL_0                              0x1c0b
+#define ENCI_DACSEL_1                              0x1c0c
+#define ENCP_DACSEL_0                              0x1c0d
+#define ENCP_DACSEL_1                              0x1c0e
+#define ENCP_MAX_LINE_SWITCH_POINT                 0x1c0f
+#define ENCI_TST_EN                                0x1c10
+#define ENCI_TST_MDSEL                             0x1c11
+#define ENCI_TST_Y                                 0x1c12
+#define ENCI_TST_CB                                0x1c13
+#define ENCI_TST_CR                                0x1c14
+#define ENCI_TST_CLRBAR_STRT                       0x1c15
+#define ENCI_TST_CLRBAR_WIDTH                      0x1c16
+#define ENCI_TST_VDCNT_STSET                       0x1c17
+
+#define ENCI_VFIFO2VD_CTL                          0x1c18
+
+#define ENCI_VFIFO2VD_PIXEL_START                  0x1c19
+
+#define ENCI_VFIFO2VD_PIXEL_END                    0x1c1a
+
+#define ENCI_VFIFO2VD_LINE_TOP_START               0x1c1b
+
+#define ENCI_VFIFO2VD_LINE_TOP_END                 0x1c1c
+
+#define ENCI_VFIFO2VD_LINE_BOT_START               0x1c1d
+
+#define ENCI_VFIFO2VD_LINE_BOT_END                 0x1c1e
+#define ENCI_VFIFO2VD_CTL2                         0x1c1f
+
 /* ENCL registers */
 #define ENCL_VIDEO_EN                              0x1ca0
 #define ENCL_VIDEO_Y_SCL                           0x1ca1
@@ -158,6 +249,16 @@
 #define ENCL_CLK_SEL           12
 #define VCLK2_XD                0
 
+#define HHI_VIID_CLK_CNTL                          0x4b
+#define VCLK2_EN               19
+#define VCLK2_CLK_IN_SEL       16
+#define VCLK2_SOFT_RST         15
+#define VCLK2_DIV12_EN          4
+#define VCLK2_DIV6_EN           3
+#define VCLK2_DIV4_EN           2
+#define VCLK2_DIV2_EN           1
+#define VCLK2_DIV1_EN           0
+
 #define HHI_VID_CLK_DIV                            0x59
 #define ENCI_CLK_SEL           28
 #define ENCP_CLK_SEL           24
@@ -167,6 +268,17 @@
 #define ENCL_CLK_SEL           12
 #define VCLK_XD1                8
 #define VCLK_XD0                0
+
+#define HHI_VID_CLK_CNTL                           0x5f
+#define VCLK_EN1               20
+#define VCLK_EN0               19
+#define VCLK_CLK_IN_SEL        16
+#define VCLK_SOFT_RST          15
+#define VCLK_DIV12_EN           4
+#define VCLK_DIV6_EN            3
+#define VCLK_DIV4_EN            2
+#define VCLK_DIV2_EN            1
+#define VCLK_DIV1_EN            0
 
 #define HHI_VID_CLK_CNTL2                          0x65
 #define HDMI_TX_PIXEL_GATE_VCLK  5

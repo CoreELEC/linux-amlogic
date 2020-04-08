@@ -31,7 +31,9 @@ enum vmode_e {
 	VMODE_LCD,
 	VMODE_NULL, /* null mode is used as temporary witch mode state */
 	VMODE_INVALID,
-	VMODE_DUMMY_LCD,
+	VMODE_DUMMY_ENCP,
+	VMODE_DUMMY_ENCI,
+	VMODE_DUMMY_ENCL,
 	VMODE_MAX,
 	VMODE_INIT_NULL,
 	VMODE_MASK = 0xFF,

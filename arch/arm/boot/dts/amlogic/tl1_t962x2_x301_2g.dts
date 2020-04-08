@@ -251,17 +251,6 @@
 			"vpu_clkc";
 	};
 
-	dummy_lcd {
-		compatible = "amlogic, dummy_lcd";
-		status = "disabled";
-		clocks = <&clkc CLKID_VCLK2_ENCP
-			&clkc CLKID_VCLK2_VENCP0
-			&clkc CLKID_VCLK2_VENCP1>;
-		clock-names = "encp_top_gate",
-			"encp_int_gate0",
-			"encp_int_gate1";
-	};
-
 	/* Audio Related start */
 	pdm_codec:dummy {
 		#sound-dai-cells = <0>;

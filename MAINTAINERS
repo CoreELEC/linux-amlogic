@@ -14385,6 +14385,7 @@ F:      drivers/amlogic/media/vout/vout_serve/vout_func.c
 F:      drivers/amlogic/media/vout/vout_serve/vout_func.h
 F:	drivers/amlogic/media/vout/vout_serve/vout_reg.h
 F:	drivers/amlogic/media/vout/vout_serve/dummy_lcd.c
+F:	drivers/amlogic/media/vout/vout_serve/dummy_venc.c
 
 AMLOGIC GPIO IRQ
 M: Xingyu Chen <xingyu.chen@amlogic.com>
