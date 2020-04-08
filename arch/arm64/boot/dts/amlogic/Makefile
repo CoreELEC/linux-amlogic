@@ -19,6 +19,7 @@ dtb-$(CONFIG_ARM64) += sm1_s905x3_2g_1gbit.dtb
 dtb-$(CONFIG_ARM64) += sm1_s905x3_4g.dtb
 dtb-$(CONFIG_ARM64) += sm1_s905x3_4g_1gbit.dtb
 dtb-$(CONFIG_ARM64) += sm1_s905x3_4g_1gbit_slowsdio.dtb
+dtb-$(CONFIG_ARM64) += sm1_s905x3_odroid_c4.dtb
 
 always		:= $(dtb-y)
 subdir-y	:= $(dts-dirs)
