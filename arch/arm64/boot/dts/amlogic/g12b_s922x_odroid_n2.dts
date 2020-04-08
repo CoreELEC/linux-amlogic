@@ -201,3 +201,7 @@
 &ethmac {
 	rst_pin-gpios = <&gpio GPIOZ_15 GPIO_ACTIVE_LOW>;
 };
+
+&uart_A {
+	status = "disabled";
+};
