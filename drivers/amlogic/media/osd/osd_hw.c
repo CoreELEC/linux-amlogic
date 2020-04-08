@@ -2763,6 +2763,7 @@ int osd_set_scan_mode(u32 index)
 	u32 data32 = 0x0;
 	s32 y_end = 0;
 	u32 output_index;
+	u32 scale_input_w;
 
 	output_index = get_output_device_id(index);
 	osd_hw.scan_mode[index] = SCAN_MODE_PROGRESSIVE;
@@ -2779,7 +2780,11 @@ int osd_set_scan_mode(u32 index)
 			osd_h_filter_mode = 1;
 			osd_v_filter_mode = 1;
 		}
-		if ((osd_hw.fb_for_4k2k) &&
+
+		scale_input_w = osd_hw.free_src_data[index].x_end -
+				osd_hw.free_src_data[index].x_start + 1;
+		if (((osd_hw.fb_for_4k2k) ||
+		     scale_input_w > FREE_SCALE_MAX_WIDTH) &&
 		    (osd_hw.free_scale_enable[index]))
 			osd_hw.scale_workaround = 1;
 
@@ -7422,8 +7427,6 @@ static void osd_set_freescale(u32 index,
 			height = osd_hw.dst_data[index].h *
 				blending->screen_ratio_h_den /
 				blending->screen_ratio_h_num;
-			if (width > FREE_SCALE_MAX_WIDTH)
-				width = FREE_SCALE_MAX_WIDTH;
 		} else if (blending->osd_blend_mode == OSD_BLEND_AB_C) {
 			osd_log_dbg(MODULE_BLEND, "blending->blend_din=%d\n",
 				blending->blend_din);
