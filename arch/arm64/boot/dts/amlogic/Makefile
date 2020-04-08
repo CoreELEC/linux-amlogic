@@ -12,6 +12,7 @@ dtb-$(CONFIG_ARM64) += g12b_s922x_odroid_n2.dtb
 dtb-$(CONFIG_ARM64) += g12b_s922x_odroid_n2_dvb.dtb
 dtb-$(CONFIG_ARM64) += g12b_s922x_ugoos_am6.dtb
 dtb-$(CONFIG_ARM64) += g12b_s922x_ugoos_am6_rev_a.dtb
+dtb-$(CONFIG_ARM64) += g12b_s922x_x88_king_rev_a.dtb
 dtb-$(CONFIG_ARM64) += sm1_s905d3_khadas_vim3l.dtb
 dtb-$(CONFIG_ARM64) += sm1_s905x3_2g.dtb
 dtb-$(CONFIG_ARM64) += sm1_s905x3_2g_1gbit.dtb

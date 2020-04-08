@@ -1,0 +1,16 @@
+#include "coreelec_g12b_a.dtsi"
+
+/{
+	model = "Amlogic S922X rev. A";
+	coreelec-dt-id = "g12b_s922x_x88_king_rev_a";
+
+	memory@00000000 {
+		linux,usable-memory = <0x0 0x100000 0x0 0xf0800000>;
+	};
+};
+
+&usb3_phy_v2 {
+	portnum = <0>;
+	/delete-property/ gpio-vbus-power;
+	/delete-property/ gpios;
+};
