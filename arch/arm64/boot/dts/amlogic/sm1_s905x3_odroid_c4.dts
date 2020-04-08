@@ -1,0 +1,119 @@
+#include "sm1_s905x3_2g_1gbit.dts"
+
+/{
+	model = "Hardkernel ODROID-C4";
+	/delete-property/ amlogic-dt-id;
+	coreelec-dt-id = "sm1_s905x3_odroid_c4";
+
+	/delete-node/ memory@00000000;
+	/delete-node/ gpioleds;
+	/delete-node/ bt-dev;
+	/delete-node/ wifi;
+	/delete-node/ wifi_pwm_conf;
+	/delete-node/ adc_keypad;
+	/delete-node/ unifykey;
+
+	auge_sound {
+		avout_mute-gpios = <&gpio_ao GPIOAO_2 GPIO_ACTIVE_HIGH>;
+	};
+
+	leds {
+		compatible = "gpio-leds";
+		blueled {
+			label = "blue:heartbeat";
+			gpios = <&gpio_ao GPIOAO_11 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "heartbeat";
+		};
+	};
+
+	gpio-reset {
+		compatible = "linux,gpio-reset";
+		usb_hub_en {
+			gpios = <&gpio GPIOH_5 GPIO_ACTIVE_HIGH>;
+			asserted-state = <0>;
+			duration-ms = <100>;
+		};
+		usb_hub {
+			gpios = <&gpio GPIOH_4 GPIO_ACTIVE_HIGH>;
+			asserted-state = <0>;
+			duration-ms = <100>;
+		};
+	};
+
+	efuse: efuse {
+		compatible = "amlogic, efuse";
+		read_cmd = <0x82000030>;
+		write_cmd = <0x82000031>;
+		get_max_cmd = <0x82000033>;
+		key = <&efusekey>;
+		status = "okay";
+	};
+
+	efusekey: efusekey {
+		keynum = <1>;
+		key0 = <&key_0>;
+
+		key_0: key_0 {
+			keyname = "uuid";
+			offset = <0>;
+			size = <32>;
+		};
+	};
+};
+
+&audiobus {
+	spdifa: spdif@0 {
+		pinctrl-0 = <&spdifout>;
+	};
+};
+
+&pinctrl_periphs {
+	i2c3_master_pins2: i2c3_pins2 {
+		mux {
+			drive-strength = <3>;
+		};
+	};
+
+	spdifout: spdifout {
+		mux {/* GPIOA_11 */
+			groups = "spdif_out_a11";
+			function = "spdif_out";
+		};
+	};
+};
+
+&sd_emmc_c {
+	mmc-ddr-1_8v;
+	mmc-hs200-1_8v;
+	emmc {
+		caps = "MMC_CAP_8_BIT_DATA",
+			 "MMC_CAP_MMC_HIGHSPEED",
+			 "MMC_CAP_SD_HIGHSPEED",
+			 "MMC_CAP_NONREMOVABLE",
+			 "MMC_CAP_HW_RESET",
+			 "MMC_CAP_ERASE",
+			 "MMC_CAP_CMD23";
+		caps2 = "MMC_CAP2_HS200_1_8V_SDR",
+			"MMC_CAP2_BROKEN_VOLTAGE";
+		hw_reset = <&gpio BOOT_12 GPIO_ACTIVE_HIGH>;
+	};
+};
+
+&sd_emmc_a {
+	status = "disabled";
+	/delete-node/ sdio;
+};
+
+&ethmac {
+	rst_pin-gpios = <&gpio GPIOZ_15 GPIO_ACTIVE_LOW>;
+};
+
+&usb3_phy_v2 {
+	otg = <1>;
+	gpio-vbus-power = "GPIOH_6";
+	gpios = <&gpio_ao GPIOAO_2 GPIO_ACTIVE_HIGH>;
+};
+
+&uart_A {
+	status = "disabled";
+};
