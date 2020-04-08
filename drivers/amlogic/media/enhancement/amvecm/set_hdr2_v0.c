@@ -2304,10 +2304,7 @@ enum hdr_process_sel hdr_func(enum hdr_module_sel module_sel,
 	memset(&hdr_lut_param, 0, sizeof(struct hdr_proc_lut_param_s));
 
 	if ((module_sel == OSD1_HDR) &&
-	    (is_meson_g12a_cpu() ||
-	     is_meson_g12b_cpu() ||
-	     is_meson_sm1_cpu() ||
-	     is_meson_tl1_cpu())) {
+	    (cpu_after_eq(MESON_CPU_MAJOR_ID_G12A))) {
 		/* turn off OSD mtx and use HDR for g12, sm1, tl1 */
 		VSYNC_WR_MPEG_REG(
 			VPP_WRAP_OSD1_MATRIX_EN_CTRL, 0);
@@ -2320,7 +2317,7 @@ enum hdr_process_sel hdr_func(enum hdr_module_sel module_sel,
 				hdr_process_select = RGB_HLG;
 			/* use in_mtx for g12b rev b, sm1, tl1 */
 			if (hdr_process_select == RGB_YUV
-			&& (is_meson_sm1_cpu() || is_meson_tl1_cpu()))
+			&& (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)))
 				mtx_only_mode = true;
 		}
 	}
@@ -2937,10 +2934,7 @@ enum hdr_process_sel hdr10p_func(
 	memset(&hdr_lut_param, 0, sizeof(struct hdr_proc_lut_param_s));
 
 	if ((module_sel == OSD1_HDR) &&
-	    (is_meson_g12a_cpu() ||
-	     is_meson_g12b_cpu() ||
-	     is_meson_sm1_cpu() ||
-	     is_meson_tl1_cpu())) {
+	    (cpu_after_eq(MESON_CPU_MAJOR_ID_G12A))) {
 		/* turn off OSD mtx and use HDR for g12, sm1, tl1 */
 		VSYNC_WR_MPEG_REG(
 			VPP_WRAP_OSD1_MATRIX_EN_CTRL, 0);
@@ -2949,8 +2943,7 @@ enum hdr_process_sel hdr10p_func(
 				hdr_process_select = RGB_YUV;
 			/* use in_mtx for g12b rev b, sm1, tl1 */
 			if (hdr_process_select == RGB_YUV &&
-			    (is_meson_sm1_cpu() ||
-			     is_meson_tl1_cpu()))
+			    (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)))
 				mtx_only_mode = true;
 		}
 	}
