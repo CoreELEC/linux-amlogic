@@ -42,6 +42,7 @@
 		/delete-property/ pinctrl-names;
 		/delete-property/ pinctrl-0;
 		/delete-property/ samesource_sel;
+		/delete-property/ start_clk_enable;
 	};
 
 	spdifa: spdif@0 {
