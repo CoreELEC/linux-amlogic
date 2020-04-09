@@ -78,7 +78,7 @@ struct aml_atvdemod_device {
 
 extern struct aml_atvdemod_device *amlatvdemod_devp;
 
-extern int aml_attach_demod(struct aml_atvdemod_device *dev);
-extern int aml_attach_tuner(struct aml_atvdemod_device *dev);
+extern int aml_atvdemod_attach_demod(struct aml_atvdemod_device *dev);
+extern int aml_atvdemod_attach_tuner(struct aml_atvdemod_device *dev);
 
 #endif /* __ATV_DEMOD_DRIVER_H__ */

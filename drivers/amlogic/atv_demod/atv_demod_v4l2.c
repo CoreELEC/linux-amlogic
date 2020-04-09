@@ -901,7 +901,7 @@ static int v4l2_frontend_open(struct file *filp)
 
 	/* Because tuner ko insmod after demod, so need check */
 	if (!amlatvdemod_devp->analog_attached) {
-		ret = aml_attach_demod(amlatvdemod_devp);
+		ret = aml_atvdemod_attach_demod(amlatvdemod_devp);
 		if (ret < 0) {
 			pr_err("%s: line %d, error ret %d.\n",
 					__func__, __LINE__, ret);
@@ -910,7 +910,7 @@ static int v4l2_frontend_open(struct file *filp)
 	}
 
 	if (!amlatvdemod_devp->tuner_attached) {
-		ret = aml_attach_tuner(amlatvdemod_devp);
+		ret = aml_atvdemod_attach_tuner(amlatvdemod_devp);
 		if (ret < 0) {
 			pr_err("%s: line %d, error ret %d.\n",
 					__func__, __LINE__, ret);

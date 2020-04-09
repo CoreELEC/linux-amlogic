@@ -14492,6 +14492,7 @@ M:      nengwen.chen <nengwen.chen@amlogic.com>
 F:      drivers/amlogic/atv_demod/*
 F:      include/linux/amlogic/aml_atvdemod.h
 F:      include/linux/amlogic/aml_dtvdemod.h
+F:      include/linux/amlogic/aml_tuner.h
 F:      include/linux/amlogic/aml_demod_common.h
 
 AMLOGIC ADD EXT MIPI DEFAULT DRIVER
