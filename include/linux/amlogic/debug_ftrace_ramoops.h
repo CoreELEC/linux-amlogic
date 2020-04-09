@@ -19,9 +19,11 @@
 #define  __DEBUG_FTRACE_RAMOOPS_H__
 #define __DEBUG_FTRACE_RAMOOPS_H__
 #include <linux/ftrace.h>
+#include <linux/pstore_ram.h>
 
 extern unsigned int ramoops_ftrace_en;
 extern int ramoops_io_en;
+extern int ramoops_io_dump;
 extern unsigned int dump_iomap;
 
 #define PSTORE_FLAG_FUNC	0x1
@@ -29,7 +31,7 @@ extern unsigned int dump_iomap;
 #define PSTORE_FLAG_IO_W	0x3
 #define PSTORE_FLAG_IO_R_END	0x4
 #define PSTORE_FLAG_IO_W_END	0x5
-#define PSTORE_FLAG_IO_MAX	0x6
+#define PSTORE_FLAG_IO_TAG	0x6
 #define PSTORE_FLAG_MASK	0xF
 
 void notrace pstore_io_save(unsigned long reg, unsigned long val,
@@ -53,13 +55,19 @@ pstore_io_save(reg, 0, CALLER_ADDR0, PSTORE_FLAG_IO_R_END, &irqflg)
 
 #define need_dump_iomap()		(ramoops_io_en | dump_iomap)
 
+#define pstore_ftrace_io_tag(reg, val)	\
+pstore_io_save(reg, val, CALLER_ADDR0, PSTORE_FLAG_IO_TAG, NULL)
+
 #else
 #define pstore_ftrace_io_wr(reg, val)		do {	} while (0)
 #define pstore_ftrace_io_rd(reg)		do {	} while (0)
 #define need_dump_iomap()			0
 #define pstore_ftrace_io_wr_end(reg, val)	do {	} while (0)
 #define pstore_ftrace_io_rd_end(reg)		do {	} while (0)
+#define pstore_ftrace_io_tag(reg, val)		do {    } while (0)
 
 #endif
+
+void pstore_ftrace_dump_old(struct persistent_ram_zone *prz);
 
 #endif

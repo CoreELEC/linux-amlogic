@@ -683,10 +683,12 @@ static int ramoops_probe(struct platform_device *pdev)
 		cxt->fprz->flags |= (PRZ_FLAG_NO_LOCK | PRZ_FLAG_BIG_LOCK);
 		ramoops_ftrace_en = 1;
 	}
-	pr_info("ramoops_io_en:%d %d old:0x%lx ftrace_size:0x%lx",
+	pr_info("ramoops_io_en:%d %d old:0x%lx ftrace_size:0x%lx\n",
 		ramoops_io_en, ramoops_ftrace_en,
 		cxt->fprz ? (unsigned long)persistent_ram_old_size(cxt->fprz)
 		: 0, ramoops_ftrace_size);
+
+	pstore_ftrace_dump_old(cxt->fprz);
 #endif
 
 	return 0;

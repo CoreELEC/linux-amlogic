@@ -23,7 +23,10 @@ struct pstore_ftrace_record {
 	unsigned long val2;
 	unsigned long long time;
 	unsigned char comm[8];
-	unsigned int flag;
+	struct {
+		unsigned int flag:31;
+		unsigned int in_irq:1;
+	};
 #endif
 };
 

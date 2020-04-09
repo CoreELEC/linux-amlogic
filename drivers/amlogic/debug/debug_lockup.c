@@ -26,6 +26,7 @@
 #include <linux/debugfs.h>
 #include <linux/module.h>
 #include <linux/uaccess.h>
+#include <linux/amlogic/debug_ftrace_ramoops.h>
 
 /*isr trace*/
 #define ns2ms			(1000 * 1000)
@@ -73,6 +74,9 @@ void notrace isr_in_hook(unsigned int cpu, unsigned long long *tin,
 {
 	if (irq >= IRQ_CNT || !isr_check_en || oops_in_progress)
 		return;
+
+	pstore_ftrace_io_tag((unsigned long)irq, (unsigned long)act);
+
 	cpu_irq[cpu] = irq;
 	cpu_action[cpu] = act;
 	*tin = sched_clock();
@@ -102,6 +106,8 @@ void notrace isr_out_hook(unsigned int cpu, unsigned long long tin,
 	t_isr[irq] += (tout > tin) ? (tout-tin) : 0;
 	t_total[irq] = (tout-t_base[irq]);
 	cnt_total[irq]++;
+
+	pstore_ftrace_io_tag(0xFFF1, (unsigned long)irq);
 
 	if (tout > isr_thr + tin) {
 		t_diff = tout - tin;
@@ -135,11 +141,14 @@ void notrace sirq_in_hook(unsigned int cpu, unsigned long long *tin, void *p)
 {
 	cpu_sirq[cpu] = p;
 	*tin = sched_clock();
+	pstore_ftrace_io_tag(0xFFE0, (unsigned long)p);
 }
 void notrace sirq_out_hook(unsigned int cpu, unsigned long long tin, void *p)
 {
 	unsigned long long tout = sched_clock();
 	unsigned long long t_diff;
+
+	pstore_ftrace_io_tag(0xFFE1, (unsigned long)p);
 
 	if (cpu_sirq[cpu] && tin && (tout > tin + sirq_thr) &&
 		!oops_in_progress) {

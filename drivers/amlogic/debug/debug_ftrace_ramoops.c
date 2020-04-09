@@ -31,6 +31,7 @@
 #include <linux/trace_clock.h>
 #include <linux/percpu.h>
 #include <linux/moduleparam.h>
+#include <linux/pstore_ram.h>
 
 static DEFINE_PER_CPU(int, en);
 
@@ -46,13 +47,22 @@ int ramoops_io_en;
 EXPORT_SYMBOL(ramoops_io_en);
 core_param(ramoops_io_en, ramoops_io_en, int, 0664);
 
-const char *record_name[PSTORE_FLAG_IO_MAX] = {
+int ramoops_io_dump;
+EXPORT_SYMBOL(ramoops_io_dump);
+core_param(ramoops_io_dump, ramoops_io_dump, int, 0664);
+
+int ramoops_io_skip;
+EXPORT_SYMBOL(ramoops_io_skip);
+core_param(ramoops_io_skip, ramoops_io_skip, int, 0664);
+
+const char *record_name[] = {
 	"NULL",
 	"FUNC",
 	"IO-R",
 	"IO-W",
 	"IO-R-E",
 	"IO-W-E",
+	"IO-TAG",
 };
 
 void notrace pstore_ftrace_save(struct pstore_ftrace_record *rec)
@@ -75,30 +85,32 @@ EXPORT_SYMBOL(pstore_ftrace_save);
 static void notrace pstore_function_dump(struct pstore_ftrace_record *rec,
 					 struct seq_file *s)
 {
-	unsigned long sec = 0, ms = 0;
+	unsigned long sec = 0, us = 0;
 	unsigned long long time = rec->time;
 
-	do_div(time, 1000000);
-	sec = (unsigned long)time / 1000;
-	ms = (unsigned long)time % 1000;
-	seq_printf(s, "[%04ld.%03ld@%d] <%5d-%s>  <%pf <- %pF>\n",
-		   sec, ms, pstore_ftrace_decode_cpu(rec), rec->pid, rec->comm,
-		   (void *)rec->ip, (void *)rec->parent_ip);
+	do_div(time, 1000);
+	sec = (unsigned long)time / 1000000;
+	us = (unsigned long)time % 1000000;
+	seq_printf(s, "[%04ld.%06ld@%d %d] <%5d-%s>  <%pf <- %pF>\n",
+		   sec, us, pstore_ftrace_decode_cpu(rec), rec->in_irq,
+		   rec->pid, rec->comm, (void *)rec->ip,
+		   (void *)rec->parent_ip);
 }
 
 void notrace pstore_io_rw_dump(struct pstore_ftrace_record *rec,
 			       struct seq_file *s)
 {
-	unsigned long sec = 0, ms = 0;
+	unsigned long sec = 0, us = 0;
 	unsigned long long time = rec->time;
 	unsigned int cpu = pstore_ftrace_decode_cpu(rec);
 
-	do_div(time, 1000000);
-	sec = (unsigned long)time / 1000;
-	ms = (unsigned long)time % 1000;
-	seq_printf(s, "[%04ld.%03ld@%d] <%5d-%6s> <%6s %08lx-%8lx>  <%pf <- %pF>\n",
-		   sec, ms, cpu, rec->pid, rec->comm, record_name[rec->flag],
-		   rec->val1, (rec->flag == PSTORE_FLAG_IO_W) ? rec->val2 : 0,
+	do_div(time, 1000);
+	sec = (unsigned long)time / 1000000;
+	us = (unsigned long)time % 1000000;
+	seq_printf(s, "[%04ld.%06ld@%d %d] <%5d-%6s> <%6s %08lx-%8lx>  <%pf <- %pF>\n",
+		   sec, us, cpu, rec->in_irq, rec->pid, rec->comm,
+		   record_name[rec->flag], rec->val1,
+		   (rec->flag == PSTORE_FLAG_IO_W) ? rec->val2 : 0,
 		   (void *)rec->ip, (void *)rec->parent_ip);
 }
 
@@ -113,6 +125,7 @@ void notrace pstore_ftrace_dump(struct pstore_ftrace_record *rec,
 	case PSTORE_FLAG_IO_W:
 	case PSTORE_FLAG_IO_W_END:
 	case PSTORE_FLAG_IO_R_END:
+	case PSTORE_FLAG_IO_TAG:
 		pstore_io_rw_dump(rec, s);
 		break;
 	default:
@@ -132,9 +145,27 @@ void notrace pstore_io_save(unsigned long reg, unsigned long val,
 	if ((flag == PSTORE_FLAG_IO_R || flag == PSTORE_FLAG_IO_W) && IRQ_D)
 		local_irq_save(*irq_flag);
 
-	rec.ip = CALLER_ADDR0;
-	rec.parent_ip = parant;
+	switch (ramoops_io_skip) {
+	case 1:
+		rec.ip = CALLER_ADDR1;
+		rec.parent_ip = CALLER_ADDR2;
+		break;
+	case 2:
+		rec.ip = CALLER_ADDR2;
+		rec.parent_ip = CALLER_ADDR3;
+		break;
+	case 3:
+		rec.ip = CALLER_ADDR3;
+		rec.parent_ip = CALLER_ADDR4;
+		break;
+	default:
+		rec.ip = CALLER_ADDR0;
+		rec.parent_ip = parant;
+		break;
+	}
+
 	rec.flag = flag;
+	rec.in_irq = !!in_irq();
 	rec.val1 = reg;
 	rec.val2 = val;
 	pstore_ftrace_save(&rec);
@@ -145,3 +176,63 @@ void notrace pstore_io_save(unsigned long reg, unsigned long val,
 }
 EXPORT_SYMBOL(pstore_io_save);
 
+static void notrace __pstore_io_rw_dump(struct pstore_ftrace_record *rec)
+{
+	unsigned long sec = 0, us = 0;
+	unsigned long long time = rec->time;
+	unsigned int cpu = pstore_ftrace_decode_cpu(rec);
+
+	do_div(time, 1000);
+	sec = (unsigned long)time / 1000000;
+	us = (unsigned long)time % 1000000;
+	pr_info("[%04ld.%06ld@%d %d] <%5d-%6s> <%6s %08lx-%8lx>  <%pf <- %pF>\n",
+		sec, us, cpu, rec->in_irq, rec->pid, rec->comm,
+		record_name[rec->flag], rec->val1,
+		(rec->flag == PSTORE_FLAG_IO_W) ? rec->val2 : 0,
+		(void *)rec->ip, (void *)rec->parent_ip);
+}
+
+static void notrace __pstore_ftrace_dump_old(struct pstore_ftrace_record *rec)
+{
+	switch (rec->flag & PSTORE_FLAG_MASK) {
+	case PSTORE_FLAG_FUNC:
+		break;
+	case PSTORE_FLAG_IO_R:
+	case PSTORE_FLAG_IO_W:
+	case PSTORE_FLAG_IO_W_END:
+	case PSTORE_FLAG_IO_R_END:
+	case PSTORE_FLAG_IO_TAG:
+		__pstore_io_rw_dump(rec);
+		break;
+	default:
+		pr_err("Unknown Msg:%x\n", rec->flag);
+	}
+}
+
+void notrace pstore_ftrace_dump_old(struct persistent_ram_zone *prz)
+{
+	struct pstore_ftrace_record *rec;
+	void *rec_end;
+
+	rec = (struct pstore_ftrace_record *)prz->old_log;
+	rec_end = (void *)rec + prz->old_log_size;
+
+	pr_info("ramoops_io_dump=%d, buffer=%p ftrace_old_log=%p, size=%u\n",
+			ramoops_io_dump,
+			prz->buffer,
+			rec,
+			(unsigned int)prz->old_log_size);
+
+	if (!ramoops_io_dump)
+		return;
+
+	if (!persistent_ram_old_size(prz))
+		return;
+
+	rec = (void *)rec + prz->old_log_size % sizeof(*rec);
+
+	while ((void *)rec < rec_end) {
+		__pstore_ftrace_dump_old(rec);
+		rec++;
+	}
+}
