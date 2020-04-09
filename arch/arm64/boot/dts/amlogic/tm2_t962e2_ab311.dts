@@ -79,7 +79,8 @@
 			compatible = "shared-dma-pool";
 			reusable;
 			/* ion_codec_mm max can alloc size 80M*/
-			size = <0x0 0x16400000>;
+			//size = <0x0 0x16400000>;
+			size = <0x0 0x1bc00000>;
 			alignment = <0x0 0x400000>;
 			linux,contiguous-region;
 		};
@@ -137,6 +138,7 @@
 		/*di CMA pool */
 		di_cma_reserved:linux,di_cma {
 			compatible = "shared-dma-pool";
+			status = "disable";
 			reusable;
 			/* buffer_size = 3621952(yuv422 8bit)
 			 *  | 4736064(yuv422 10bit)
@@ -145,7 +147,8 @@
 			 * 10x4736064=45.2M(0x2e) support 12bit
 			 * 10x4074560=40M(0x28) support 10bit
 			 */
-			size = <0x0 0x05800000>;
+			//size = <0x0 0x05800000>;
+			size = <0x0 0x0>;
 			alignment = <0x0 0x400000>;
 		};
 
@@ -208,7 +211,7 @@
 		compatible = "amlogic, dim-g12a";
 		status = "okay";
 		/* 0:use reserved; 1:use cma; 2:use cma as reserved */
-		flag_cma = <1>;
+		flag_cma = <4>;	//<1>;
 		//memory-region = <&di_reserved>;
 		memory-region = <&di_cma_reserved>;
 		interrupts = <0 46 1
