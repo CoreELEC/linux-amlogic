@@ -25,4 +25,11 @@ config AMLOGIC_LED_SYS
 	  Enable this option to allow the userspace to control
 	  the system led.
 
+config AMLOGIC_LEDS_TLC59116
+	tristate "LED Support for the TLC59116"
+	depends on LEDS_CLASS
+	default n
+	help
+	  Choose this option if you want to use the LED on
+	  TLC59116.
 endif
