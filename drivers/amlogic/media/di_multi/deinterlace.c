@@ -5082,7 +5082,7 @@ int dim_post_process(void *arg, unsigned int zoom_start_x_lines,
 		    dimp_get(edi_mp_di_vscale_skip_real))
 			di_height = di_height - 3;
 		else
-			di_height--;
+			di_height++;
 	}
 	#ifdef MARK_HIS
 	dimh_post_ctrl(DI_HW_POST_CTRL_INIT,
