@@ -171,28 +171,6 @@
 	};
 };
 
-&sd_emmc_b {
-	sd-uhs-sdr25;
-	sd-uhs-sdr50;
-	sd-uhs-sdr104;
-	max-frequency = <200000000>;
-	sd {
-		caps = "MMC_CAP_4_BIT_DATA",
-			 "MMC_CAP_UHS_SDR25",
-			 "MMC_CAP_UHS_SDR50",
-			 "MMC_CAP_UHS_SDR104",
-			 "MMC_CAP_MMC_HIGHSPEED",
-			 "MMC_CAP_SD_HIGHSPEED",
-			 "MMC_CAP_ERASE",
-			 "MMC_CAP_CMD23";
-		vol_switch = <&gpio_ao GPIOAO_9 GPIO_ACTIVE_HIGH>;
-		gpio_power = <&gpio_ao GPIOAO_8 GPIO_ACTIVE_HIGH>;
-		vol_switch_18 = <1>;
-		power_level = <1>;
-		f_max = <200000000>;
-	};
-};
-
 &sd_emmc_a {
 	status = "disabled";
 	/delete-node/ sdio;
