@@ -386,7 +386,7 @@ static __maybe_unused int aml_get_dts_demod_config(struct device_node *node,
 		cfg->ant_power.dir = value;
 
 	memset(buf, 0, 32);
-	snprintf(buf, sizeof(buf), "fe%d_ant_power_value", index);
+	snprintf(buf, sizeof(buf), "fe%d_ant_poweron_value", index);
 	ret = of_property_read_u32(node, buf, &value);
 	if (ret) {
 		pr_err("can't get %s error[NULL].\n", buf);

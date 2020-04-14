@@ -170,7 +170,7 @@ struct aml_tuner {
 static __maybe_unused int aml_demod_gpio_set(int gpio, int dir, int value,
 		const char *label)
 {
-	if (!gpio_is_valid(gpio)) {
+	if (gpio_is_valid(gpio)) {
 		gpio_request(gpio, label);
 		if (dir == GPIOF_DIR_OUT)
 			gpio_direction_output(gpio, value);
@@ -178,7 +178,7 @@ static __maybe_unused int aml_demod_gpio_set(int gpio, int dir, int value,
 			gpio_direction_input(gpio);
 			gpio_set_value(gpio, value);
 		}
-	}
+	} else
 		return -1;
 
 	return 0;

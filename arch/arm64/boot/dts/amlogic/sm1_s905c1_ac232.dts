@@ -442,6 +442,7 @@
 		fe1_demod_i2c_addr = <0xCA>;
 		fe1_reset_value = <0>;
 		fe1_reset_gpio = <&gpio GPIOC_7 GPIO_ACTIVE_HIGH>;
+		fe1_reset_dir = <1>; /* 0: out, 1: in. */
 		fe1_ant_poweron_value = <0>;
 		fe1_ant_power_gpio = <&gpio GPIOC_1 GPIO_ACTIVE_HIGH>;
 		fe1_dtv_demod = <1>;
