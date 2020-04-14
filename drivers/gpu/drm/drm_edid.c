@@ -2045,16 +2045,15 @@ drm_mode_std(struct drm_connector *connector, struct edid *edid,
 	}
 
 	/* check whether it can be found in default mode table */
+	mode = drm_mode_find_dmt(dev, hsize, vsize, vrefresh_rate, false);
+	if (mode)
+		return mode;
 	if (drm_monitor_supports_rb(edid)) {
 		mode = drm_mode_find_dmt(dev, hsize, vsize, vrefresh_rate,
 					 true);
 		if (mode)
 			return mode;
 	}
-	mode = drm_mode_find_dmt(dev, hsize, vsize, vrefresh_rate, false);
-	if (mode)
-		return mode;
-
 	/* okay, generate it */
 	switch (timing_level) {
 	case LEVEL_DMT:

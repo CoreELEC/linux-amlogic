@@ -71,6 +71,8 @@ static struct am_vout_mode am_vout_modes[] = {
 	{ "576p50hz", VMODE_HDMI, 720, 576, 50, 0},
 	{ "576i50hz", VMODE_HDMI, 720, 576, 50, DRM_MODE_FLAG_INTERLACE},
 	{ "480p60hz", VMODE_HDMI, 720, 480, 60, 0},
+	{ "1280x1024p60hz", VMODE_HDMI, 1280, 1024, 60, 0},
+	{ "1680x1050p60hz", VMODE_HDMI, 1680, 1050, 60, 0},
 };
 
 char *am_meson_hdmi_get_voutmode(struct drm_display_mode *mode)
