@@ -1546,6 +1546,40 @@
 		};
 	};
 
+	sd_emmc_b3:sd3@ffe05000 {
+		status = "disabled";
+		compatible = "amlogic, meson-mmc-g12a";
+		reg = <0x0 0xffe05000 0x0 0x800>;
+		interrupts = <0 190 4>;
+
+		pinctrl-names = "sdio_all_pins",
+			"sdio_clk_cmd_pins";
+		pinctrl-0 = <&sdio_x_en_pins &sdio_x_all_pins>;
+		pinctrl-1 = <&sdio_x_en_pins &sdio_x_clk_cmd_pins>;
+
+		clocks = <&clkc CLKID_SD_EMMC_B>,
+			<&clkc CLKID_SD_EMMC_B_P0_COMP>,
+			<&clkc CLKID_FCLK_DIV2>,
+			<&clkc CLKID_FCLK_DIV5>,
+			<&xtal>;
+		clock-names = "core", "clkin0", "clkin1", "clkin2", "xtal";
+
+		bus-width = <4>;
+		cap-sd-highspeed;
+		cap-mmc-highspeed;
+		max-frequency = <100000000>;
+		disable-wp;
+		sdio {
+			pinname = "sdio";
+			ocr_avail = <0x200080>; /**VDD voltage 3.3 ~ 3.4 */
+			max_req_size = <0x20000>; /**128KB*/
+			card_type = <3>;
+			/* 3:sdio device(ie:sdio-wifi),
+			 * 5:NON sdio device(means sd/mmc card)
+			 */
+		};
+	};
+
 	sd_emmc_a:sdio@ffe03000 {
 		status = "disabled";
 		compatible = "amlogic, meson-mmc-g12a";
