@@ -4983,7 +4983,8 @@ loop:
 done:
 	hub_port_disable(hub, port1, 1);
 #ifdef CONFIG_AMLOGIC_USB2PHY
-	set_usb_phy_host_tuning(port1 - 1, 1);
+	if (!status && !hub_is_superspeed(hub->hdev))
+		set_usb_phy_host_tuning(port1 - 1, 1);
 #endif
 	if (hcd->driver->relinquish_port && !hub->hdev->parent) {
 		if (status != -ENOTCONN && status != -ENODEV)
