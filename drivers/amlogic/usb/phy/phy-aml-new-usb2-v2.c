@@ -44,7 +44,7 @@ void set_usb_phy_host_tuning(int port, int default_val)
 	if (g_phy2_v2->phy_version)
 		return;
 
-	if (port > g_phy2_v2->portnum)
+	if (port >= g_phy2_v2->portnum)
 		return;
 	if (default_val == g_phy2_v2->phy_cfg_state[port])
 		return;
@@ -73,7 +73,7 @@ void set_usb_phy_device_tuning(int port, int default_val)
 	if (g_phy2_v2->phy_version)
 		return;
 
-	if (port > g_phy2_v2->portnum)
+	if (port >= g_phy2_v2->portnum)
 		return;
 	if (default_val == g_phy2_v2->phy_cfg_state[port])
 		return;
@@ -99,7 +99,7 @@ void set_usb_phy_host_low_reset(int port)
 
 	if (!g_phy2_v2)
 		return;
-	if (port > g_phy2_v2->portnum)
+	if (port >= g_phy2_v2->portnum)
 		return;
 
 	if (g_phy2_v2->phy_version) {
