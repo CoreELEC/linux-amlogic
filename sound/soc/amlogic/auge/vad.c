@@ -49,7 +49,7 @@
 
 #define DRV_NAME "VAD"
 
-#define DMA_BUFFER_BYTES_MAX (2 * 1024 * 1024)
+#define DMA_BUFFER_BYTES_MAX (96 * 1024)
 
 
 #define VAD_READ_FRAME_COUNT    (1024 / 2)
