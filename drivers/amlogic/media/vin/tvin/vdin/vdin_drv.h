@@ -192,6 +192,7 @@ enum vdin_matrix_csc_e {
 	VDIN_MATRIX_RGBS_RGB,
 	VDIN_MATRIX_RGB_RGBS,
 	VDIN_MATRIX_RGB2020_YUV2020,
+	VDIN_MATRIX_YUV2020F_YUV2020,
 };
 
 static inline const char *vdin_fmt_convert_str(
