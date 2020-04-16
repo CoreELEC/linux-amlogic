@@ -32,6 +32,7 @@
 #include <linux/uaccess.h>
 #include <linux/list.h>
 #include <linux/sched.h>
+#include <linux/amlogic/media/codec_mm/codec_mm.h>
 #include "resourcemanage.h"
 
 #define DEVICE_NAME "amresource_mgr"
@@ -43,11 +44,17 @@ struct resman_session {
 	char app_name[32];
 	int app_type;
 };
+
+struct session_ptr {
+	struct list_head node;
+	struct resman_session *sess_ptr;
+};
+
 struct video_resource {
 	char res_name[32];
 	u32 max_rescn;
 	u32 res_count;
-	struct resman_session **sess_ptr;
+	struct session_ptr ptr_listhead;
 };
 
 static dev_t resman_devno;
@@ -56,18 +63,25 @@ static struct cdev *resman_cdev;
 static struct class *resman_class;
 static DEFINE_MUTEX(resman_mutex);
 static struct resman_session resman_listhead;
-static struct video_resource resman_video[MAX_AVAILAB_RES] = {
-		{.res_name = "vfm_default", .res_count = 1, .max_rescn = 1},
-		{.res_name = "amvideo", .res_count = 1, .max_rescn = 1},
-		{.res_name = "videopip", .res_count = 1, .max_rescn = 1}
+static struct video_resource resman_src[MAX_AVAILAB_RES] = {
+		{.res_name = "vfm_default", .max_rescn = 1},
+		{.res_name = "amvideo", .max_rescn = 1},
+		{.res_name = "videopip", .max_rescn = 1},
+		{.res_name = "sec_tvp", .max_rescn = 0},
+		{.res_name = "tsparser", .max_rescn = 1}
 		};
 
 static void all_resource_uninit(void)
 {
 	int i = 0;
+	struct session_ptr *pos, *tmp;
 
 	for (i = BASE_AVAILAB_RES; i < MAX_AVAILAB_RES; i++)
-		kfree(resman_video[i].sess_ptr);
+		list_for_each_entry_safe(pos, tmp,
+		&resman_src[i].ptr_listhead.node, node) {
+			list_del(&pos->node);
+			kfree(pos);
+		}
 }
 
 static void all_resource_init(void)
@@ -77,44 +91,42 @@ static void all_resource_init(void)
 	INIT_LIST_HEAD(&resman_listhead.list);
 
 	for (i = BASE_AVAILAB_RES; i < MAX_AVAILAB_RES; i++) {
-		resman_video[i].sess_ptr =
-			kzalloc(sizeof(struct resman_session *) *
-				resman_video[i].max_rescn, GFP_KERNEL);
-		if (!resman_video[i].sess_ptr)
-			pr_err("alloc %s session pointer fail\n",
-			       resman_video[i].res_name);
+		INIT_LIST_HEAD(&resman_src[i].ptr_listhead.node);
+		resman_src[i].res_count = 0;
 	}
 }
 
-static int resman_release_res(struct resman_session *session_ptr,
+static int resman_release_res(struct resman_session *sess_ptr,
 			       int selec_res)
 {
-	int i = 0;
+	struct session_ptr *pos, *tmp;
 
-	if (session_ptr->used_resource[selec_res]) {
-		if (resman_video[selec_res].sess_ptr) {
-			for (i = 0; i < resman_video[selec_res].max_rescn;
-			     i++) {
-				if (resman_video[selec_res].sess_ptr[i]
-						== session_ptr) {
-					resman_video[selec_res].sess_ptr[i]
-						= NULL;
-					break;
-				}
-			}
-			if (i == resman_video[selec_res].max_rescn) {
-				pr_info("resman recovery resource error\n");
+	if (!sess_ptr->used_resource[selec_res])
+		return 0;
+
+	list_for_each_entry_safe(pos, tmp,
+	&resman_src[selec_res].ptr_listhead.node, node) {
+		if (pos->sess_ptr == sess_ptr) {
+			list_del(&pos->node);
+			kfree(pos);
+			if (resman_src[selec_res].res_count == 0) {
+				pr_err("relese res %s error\n",
+					resman_src[selec_res].res_name);
 				return -1;
 			}
-			resman_video[selec_res].res_count++;
-			session_ptr->used_resource[selec_res] = false;
+
+			resman_src[selec_res].res_count--;
+			sess_ptr->used_resource[selec_res] = false;
+
+			if (selec_res == SEC_TVP)
+				codec_mm_disable_tvp();
+
 			pr_info("resman release res [%s], proc:%s, (tgid:%d), (pid:%d)\n",
-					resman_video[selec_res].res_name,
-					current->comm,
-					current->tgid,
-					current->pid);
-		} else {
-			return -1;
+				resman_src[selec_res].res_name,
+				current->comm,
+				current->tgid,
+				current->pid);
+			break;
 		}
 	}
 
@@ -132,9 +144,9 @@ static void resman_recov_resource(struct resman_session *session_ptr)
 static long resman_ioctl_acquire(struct file *filp, unsigned long arg)
 {
 	long r = 0;
-	int i = 0;
 	int selec_res = (int)arg;
 	struct resman_session *session_ptr;
+	struct session_ptr *ptr;
 
 	session_ptr = filp->private_data;
 	if (selec_res < BASE_AVAILAB_RES ||
@@ -144,27 +156,25 @@ static long resman_ioctl_acquire(struct file *filp, unsigned long arg)
 	if (session_ptr->used_resource[selec_res])
 		return r;
 
-	if (resman_video[selec_res].res_count > 0) {
-		for (i = 0; i < resman_video[selec_res].max_rescn;
-			i++) {
-			if (!resman_video[selec_res].sess_ptr[i]) {
-				resman_video[selec_res].sess_ptr[i]
-					= session_ptr;
-				pr_info("resman acquire res [%s], proc:%s, (tgid:%d), (pid:%d)\n",
-					resman_video[selec_res].res_name,
-					current->comm,
-					current->tgid,
-					current->pid);
-				break;
-			}
-		}
-		if (i == resman_video[selec_res].max_rescn) {
-			pr_info("choice resource error\n");
-			r = -EAGAIN;
-		} else {
-			resman_video[selec_res].res_count--;
-			session_ptr->used_resource[selec_res] = true;
-		}
+	if (resman_src[selec_res].res_count < resman_src[selec_res].max_rescn
+		|| resman_src[selec_res].max_rescn == 0) {
+		ptr = kzalloc(sizeof(*ptr), GFP_KERNEL);
+		if (!ptr)
+			return -ENOMEM;
+
+		ptr->sess_ptr = session_ptr;
+		list_add_tail(&ptr->node,
+			&resman_src[selec_res].ptr_listhead.node);
+		resman_src[selec_res].res_count++;
+		session_ptr->used_resource[selec_res] = true;
+		if (selec_res == SEC_TVP)
+			codec_mm_enable_tvp();
+
+		pr_info("resman acquire res [%s], proc:%s, (tgid:%d), (pid:%d)\n",
+			resman_src[selec_res].res_name,
+			current->comm,
+			current->tgid,
+			current->pid);
 	} else {
 		r = -EBUSY;
 	}
@@ -178,10 +188,10 @@ static long resman_ioctl_query(struct file *filp, unsigned long arg)
 	ssize_t size = 0;
 	int selec_res = 0;
 	struct resman_para __user *argp = (void __user *)arg;
-	char reourceusage[32];
+	char usage[32];
 	struct resman_para resman;
 
-	memset(reourceusage, 0, sizeof(reourceusage));
+	memset(usage, 0, sizeof(usage));
 
 	if (copy_from_user((void *)&resman, argp, sizeof(resman))) {
 		r = -EINVAL;
@@ -189,12 +199,13 @@ static long resman_ioctl_query(struct file *filp, unsigned long arg)
 		selec_res = resman.para_in;
 		if (selec_res >= BASE_AVAILAB_RES &&
 			selec_res < MAX_AVAILAB_RES) {
-			size += sprintf(reourceusage + size, "%s:%d",
-					resman_video[selec_res].res_name,
-					resman_video[selec_res].res_count);
+			size += sprintf(usage + size, "%s:%d:%d",
+				resman_src[selec_res].res_name,
+				resman_src[selec_res].max_rescn,
+				resman_src[selec_res].res_count);
 
 			if (copy_to_user((void *)argp->para_str,
-			    reourceusage, sizeof(reourceusage)))
+					usage, sizeof(usage)))
 				r = -EFAULT;
 		} else {
 			r = -EINVAL;
@@ -244,26 +255,53 @@ static long resman_ioctl_setappinfo(struct file *filp, unsigned long arg)
 	return r;
 }
 
+static long resman_ioctl_checksupportres(struct file *filp, unsigned long arg)
+{
+	long r = 0;
+	int i = 0;
+	struct resman_para __user *argp = (void __user *)arg;
+	struct resman_para resman;
+
+	memset(&resman, 0, sizeof(resman));
+
+	if (copy_from_user((void *)&resman, argp, sizeof(resman))) {
+		r = -EINVAL;
+	} else {
+		if (resman.para_in > sizeof(resman.para_str)-1)
+			return -EINVAL;
+
+		for (i = BASE_AVAILAB_RES; i < MAX_AVAILAB_RES; i++)
+			if (!strncmp(resman_src[i].res_name, resman.para_str,
+					resman.para_in))
+				return 0;
+		r = -EINVAL;
+	}
+
+	return r;
+}
+
 static ssize_t res_usage_show(struct class *class,
 			      struct class_attribute *attr, char *buf)
 {
-	int i = 0, j = 0;
+	int i = 0;
 	ssize_t size = 0;
+	struct list_head *curr;
+	struct session_ptr *p = NULL;
 
 	for (i = BASE_AVAILAB_RES; i < MAX_AVAILAB_RES; i++) {
-		size += sprintf(buf + size, "(%02d) %-12s:total %d, avai %d;",
+		size += sprintf(buf + size, "(%02d) %-12s:total %d, used %d;",
 				i,
-				resman_video[i].res_name,
-				resman_video[i].max_rescn,
-				resman_video[i].res_count);
-		if (resman_video[i].res_count < resman_video[i].max_rescn) {
+				resman_src[i].res_name,
+				resman_src[i].max_rescn,
+				resman_src[i].res_count);
+
+		if (resman_src[i].res_count > 0) {
 			size += sprintf(buf + size, " used_by:");
-			for (j = 0; j < resman_video[i].max_rescn &&
-				resman_video[i].sess_ptr;
-				j++) {
-				if (resman_video[i].sess_ptr[j])
-					size += sprintf(buf + size, " %s",
-					resman_video[i].sess_ptr[j]->app_name);
+			list_for_each(curr, &resman_src[i].ptr_listhead.node) {
+				p = list_entry(curr, struct session_ptr, node);
+				if (p->sess_ptr)
+					size += sprintf(buf + size, " %s,",
+							p->sess_ptr->app_name);
 			}
 		}
 		size += sprintf(buf + size, "\n");
@@ -318,6 +356,9 @@ long resman_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		break;
 	case RESMAN_IOC_SETAPPINFO:
 		retval = resman_ioctl_setappinfo(filp, arg);
+		break;
+	case RESMAN_IOC_SUPPORT_RES:
+		retval = resman_ioctl_checksupportres(filp, arg);
 		break;
 	default:
 		retval = -EINVAL;
