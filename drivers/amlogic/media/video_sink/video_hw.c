@@ -3845,6 +3845,24 @@ static int vpp_zorder_check(void)
 		    (glayer_info[0].zorder < reference_zorder))
 			layer1_sel++;
 	}
+	if ((glayer_info[0].zorder >= reference_zorder) &&
+	    (glayer_info[1].zorder >= reference_zorder)) {
+		if (vd_layer[0].enabled && vd_layer[1].enabled) {
+			if (glayer_info[1].zorder < glayer_info[0].zorder) {
+				layer0_sel = 1;
+				layer1_sel = 0;
+			} else {
+				layer0_sel = 0;
+				layer1_sel = 1;
+			}
+		} else if (vd_layer[0].enabled) {
+			layer0_sel = 2;
+			layer1_sel = 0;
+		} else if (vd_layer[1].enabled) {
+			layer0_sel = 0;
+			layer1_sel = 2;
+		}
+	}
 
 	glayer_info[0].cur_sel_port = layer0_sel;
 	glayer_info[1].cur_sel_port = layer1_sel;
@@ -3868,7 +3886,7 @@ void vpp_blend_update(
 	unsigned long flags;
 	struct vpp_frame_par_s *vd1_frame_par =
 		vd_layer[0].cur_frame_par;
-	bool force_flush = vpp_zorder_check();
+	bool force_flush = false;
 
 	check_video_mute();
 
@@ -4080,6 +4098,8 @@ void vpp_blend_update(
 	     (vpp_misc_set & VPP_VD2_PREBLEND)))
 		vpp_misc_set &= ~(VPP_VD2_PREBLEND |
 			VPP_VD2_POSTBLEND);
+
+	force_flush |= vpp_zorder_check();
 
 	if (!legacy_vpp) {
 		u32 set_value = 0;
