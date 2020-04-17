@@ -36,6 +36,7 @@ enum EDI_CMA_ST dip_cma_get_st(unsigned int ch);
 void dip_cma_st_set_ready_all(void);
 void dip_cma_close(void);
 const char *di_cma_dbg_get_st_name(unsigned int ch);
+void dip_wq_check_unreg(unsigned int ch);
 
 /*************************/
 /* STATE*/

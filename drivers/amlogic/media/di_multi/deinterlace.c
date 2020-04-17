@@ -1863,12 +1863,6 @@ static int di_init_buf(int width, int height, unsigned char prog_flag,
 		}
 	}
 
-	if (cfgeq(MEM_FLAG, EDI_MEM_M_CMA)	||
-	    cfgeq(MEM_FLAG, EDI_MEM_M_CODEC_A)	||
-	    cfgeq(MEM_FLAG, EDI_MEM_M_CODEC_B)) {	/*trig cma alloc*/
-		dip_wq_cma_run(channel, true);
-	}
-
 	dbg_init("one local buf size:0x%x\n", di_buf_size);
 	/*mm-0705	di_post_mem = mem_st_local +*/
 	/*mm-0705		di_buf_size*de_devp->buf_num_avail;*/
@@ -1929,6 +1923,7 @@ static int di_init_buf(int width, int height, unsigned char prog_flag,
 					dbg_reg("%s:post keep buf %d\n",
 						__func__,
 						di_buf->index);
+					dbg_wq("k:b[%d]\n", di_buf->index);
 					continue;
 				}
 			}
@@ -1959,6 +1954,11 @@ static int di_init_buf(int width, int height, unsigned char prog_flag,
 		} else {
 			PR_ERR("%s:%d:post buf is null\n", __func__, i);
 		}
+	}
+	if (cfgeq(MEM_FLAG, EDI_MEM_M_CMA)	||
+	    cfgeq(MEM_FLAG, EDI_MEM_M_CODEC_A)	||
+	    cfgeq(MEM_FLAG, EDI_MEM_M_CODEC_B)) {	/*trig cma alloc*/
+		dip_wq_cma_run(channel, true);
 	}
 	if (cfgeq(MEM_FLAG, EDI_MEM_M_REV) && de_devp->nrds_enable) {
 		nrds_mem = di_post_mem + mm->cfg.num_post * di_post_buf_size;
@@ -2066,6 +2066,7 @@ void dim_post_keep_mirror_buffer2(unsigned int ch)
 
 		p->queue_index = -1;
 		di_que_in(ch, QUE_POST_KEEP, p);
+		dbg_wq("k:k[%d]\n", p->index);
 		p->invert_top_bot_flag = 0;
 
 		dbg_keep("%s %d\n", __func__, p->index);
@@ -2185,6 +2186,7 @@ void dim_post_keep_cmd_release2(struct vframe_s *vframe)
 	dbg_keep("release keep ch[%d],index[%d]\n",
 		 di_buf->channel,
 		 di_buf->index);
+	dbg_wq("k:c[%d]\n", di_buf->index);
 	task_send_cmd(LCMD2(ECMD_RL_KEEP, di_buf->channel,
 			    di_buf->index));
 }
@@ -2232,6 +2234,7 @@ void dim_post_keep_cmd_proc(unsigned int ch, unsigned int index)
 	unsigned int len_keep, len_back;
 	struct di_buf_s *pbuf_post;
 	struct di_buf_s *di_buf;
+	ulong flags = 0;
 
 	/*must post or err*/
 	di_dev = get_dim_de_devp();
@@ -2240,8 +2243,10 @@ void dim_post_keep_cmd_proc(unsigned int ch, unsigned int index)
 		PR_WARN("%s: no di_dev\n", __func__);
 		return;
 	}
+	spin_lock_irqsave(&plist_lock, flags);
 
 	chst = dip_chst_get(ch);
+	dbg_wq("k:p[%d]%d\n", chst, index);
 	switch (chst) {
 	case EDI_TOP_STATE_READY:
 	case EDI_TOP_STATE_UNREG_STEP2:
@@ -2305,6 +2310,7 @@ void dim_post_keep_cmd_proc(unsigned int ch, unsigned int index)
 		       index);
 		break;
 	}
+	spin_unlock_irqrestore(&plist_lock, flags);
 }
 
 void dim_uninit_buf(unsigned int disable_mirror, unsigned int channel)
@@ -6669,113 +6675,15 @@ void di_unreg_variable(unsigned int channel)
 
 	if (cfgeq(MEM_FLAG, EDI_MEM_M_CMA)	||
 	    cfgeq(MEM_FLAG, EDI_MEM_M_CODEC_A)	||
-	    cfgeq(MEM_FLAG, EDI_MEM_M_CODEC_B))
+	    cfgeq(MEM_FLAG, EDI_MEM_M_CODEC_B)) {
 		dip_wq_cma_run(channel, false);
+		dip_wq_check_unreg(channel);
+	}
 
 	sum_g_clear(channel);
 	sum_p_clear(channel);
 	dbg_reg("%s:end\n", __func__);
 }
-
-#ifdef HIS_CODE
-void dim_unreg_process_irq(unsigned int channel)
-{
-	ulong irq_flag2 = 0;
-	unsigned int mirror_disable = 0;
-	struct di_pre_stru_s *ppre = get_pre_stru(channel);
-	struct di_dev_s *de_devp = get_dim_de_devp();
-
-#if (defined ENABLE_SPIN_LOCK_ALWAYS)
-	ulong flags = 0;
-
-	spin_lock_irqsave(&plist_lock, flags);
-#endif
-	pr_info("%s:warn:not use\n", __func__);
-	set_init_flag(channel, false);	/*init_flag = 0;*/
-	mirror_disable = 1;	/*get_blackout_policy()*/;
-	di_lock_irqfiq_save(irq_flag2);
-	dim_print("%s: dim_uninit_buf\n", __func__);
-	dim_uninit_buf(mirror_disable, channel);
-#ifdef CONFIG_AMLOGIC_MEDIA_RDMA
-	if (di_pre_rdma_enable)
-		rdma_clear(de_devp->rdma_handle);
-#endif
-	get_ops_mtn()->adpative_combing_exit();
-	dimh_enable_di_pre_mif(false, dimp_get(edi_mp_mcpre_en));
-	dimh_afbc_reg_sw(false);
-	dimh_hw_uninit();
-	if (is_meson_txlx_cpu() ||
-	    is_meson_txhd_cpu()	||
-	    is_meson_g12a_cpu() ||
-	    is_meson_g12b_cpu()	||
-	    is_meson_tl1_cpu()	||
-	    is_meson_sm1_cpu()	||
-	    is_meson_tm2_cpu()) {
-		dim_pre_gate_control(false, dimp_get(edi_mp_mcpre_en));
-		get_ops_nr()->nr_gate_control(false);
-	} else if (cpu_after_eq(MESON_CPU_MAJOR_ID_GXTVBB)) {
-		DIM_DI_WR(DI_CLKG_CTRL, 0x80f60000);
-		DIM_DI_WR(DI_PRE_CTRL, 0);
-	} else {
-		DIM_DI_WR(DI_CLKG_CTRL, 0xf60000);
-	}
-	/*ary add for switch to post wr, can't display*/
-	pr_info("di: patch dimh_disable_post_deinterlace_2\n");
-	dimh_disable_post_deinterlace_2();
-
-/* nr/blend0/ei0/mtn0 clock gate */
-	if (mirror_disable) {
-		dim_hw_disable(dimp_get(edi_mp_mcpre_en));
-		if (is_meson_txlx_cpu()	||
-		    is_meson_txhd_cpu()	||
-		    is_meson_g12a_cpu()	||
-		    is_meson_g12b_cpu()	||
-		    is_meson_tl1_cpu()	||
-		    is_meson_sm1_cpu()	||
-		    is_meson_tm2_cpu()) {
-			dimh_enable_di_post_mif(GATE_OFF);
-			dim_post_gate_control(false);
-			dim_top_gate_control(false, false);
-		} else {
-			DIM_DI_WR(DI_CLKG_CTRL, 0x80000000);
-		}
-		if (!is_meson_gxl_cpu()		&&
-		    !is_meson_gxm_cpu()		&&
-		    !is_meson_gxbb_cpu()	&&
-		    !is_meson_txlx_cpu())
-			diext_clk_b_sw(false);
-
-		pr_info("%s disable di mirror image.\n", __func__);
-	}
-	if (dimp_get(edi_mp_post_wr_en)	&& dimp_get(edi_mp_post_wr_support))
-		dim_set_power_control(0);
-	di_unlock_irqfiq_restore(irq_flag2);
-
-#if (defined ENABLE_SPIN_LOCK_ALWAYS)
-	spin_unlock_irqrestore(&plist_lock, flags);
-#endif
-	dimh_patch_post_update_mc_sw(DI_MC_SW_REG, false);
-	ppre->force_unreg_req_flag = 0;
-	ppre->disable_req_flag = 0;
-	recovery_flag = 0;
-	ppre->cur_prog_flag = 0;
-
-#ifdef MARK_HIS
-#ifdef CONFIG_CMA
-	if (de_devp->flag_cma == 1) {
-		pr_dbg("%s:cma release req time: %d ms\n",
-		       __func__, jiffies_to_msecs(jiffies));
-		ppre->cma_release_req = 1;
-		up(get_sema());
-	}
-#endif
-#else
-	if (de_devp->flag_cma == 1)
-		dip_wq_cma_run(channel, false);
-
-#endif
-}
-#endif
 
 void dim_reg_process(unsigned int channel)
 {
