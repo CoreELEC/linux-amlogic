@@ -185,14 +185,14 @@
 
 		remote_led {
 			label = "remote_led";
-			gpios = <&gpio_ao GPIOAO_10 GPIO_ACTIVE_LOW>;
+			/*gpios = <&gpio_ao GPIOAO_10 GPIO_ACTIVE_LOW>;*/
 			default-state = "off";
 			linux,default-trigger = "rc_feedback";
 		};
 
 		sys_led {
 			label="sys_led";
-			gpios=<&gpio_ao GPIOAO_11 GPIO_ACTIVE_LOW>;
+			/*gpios=<&gpio_ao GPIOAO_11 GPIO_ACTIVE_LOW>;*/
 			default-state ="on";
 		};
 	};
@@ -397,9 +397,9 @@
 		dtv_demod0_i2c_adap = <&i2c3>;
 		dtv_demod0_i2c_addr = <0x14>;
 		dtv_demod0_reset_value = <0>;
-		dtv_demod0_reset_gpio = <&gpio_ao GPIOAO_10 GPIO_ACTIVE_HIGH>;
+		//dtv_demod0_reset_gpio = <&gpio_ao GPIOAO_10 GPIO_ACTIVE_HIGH>;
 		dtv_demod0_ant_poweron_value = <0>;
-		dtv_demod0_ant_power_gpio = <&gpio GPIOH_5 GPIO_ACTIVE_HIGH>;
+		//dtv_demod0_ant_power_gpio = <&gpio GPIOH_5 GPIO_ACTIVE_HIGH>;
 		dtv_demod0_tuner_type = <52>;
 		fe0_dtv_demod = <0>;
 		fe0_ts  = <0>;
@@ -440,9 +440,9 @@
 		fe0_i2c_adap_id = <&i2c3>;
 		fe0_demod_i2c_addr = <0xD8>;
 		fe0_reset_value = <0>;
-		fe0_reset_gpio = <&gpio_ao GPIOAO_10 GPIO_ACTIVE_HIGH>;
+		//fe0_reset_gpio = <&gpio_ao GPIOAO_10 GPIO_ACTIVE_HIGH>;
 		fe0_ant_poweron_value = <0>;
-		fe0_ant_power_gpio = <&gpio GPIOH_5 GPIO_ACTIVE_HIGH>;
+		//fe0_ant_power_gpio = <&gpio GPIOH_5 GPIO_ACTIVE_HIGH>;
 		fe0_dtv_demod = <0>;
 		fe0_ts  = <0>;
 		fe0_dev = <0>;
@@ -550,7 +550,7 @@
 		key_num = <1>;
 		key_name = "power";
 		key_code = <116>;
-		key-gpios = <&gpio_ao  GPIOAO_3  GPIO_ACTIVE_HIGH>;
+		//key-gpios = <&gpio_ao  GPIOAO_3  GPIO_ACTIVE_HIGH>;
 		detect_mode = <0>;/*0:polling mode, 1:irq mode*/
 	};
 
@@ -848,7 +848,7 @@
 		aml-audio-card,name = "AML-AUGESOUND";
 
 		/*avout mute gpio*/
-		avout_mute-gpios = <&gpio_ao GPIOAO_2 GPIO_ACTIVE_HIGH>;
+		//avout_mute-gpios = <&gpio_ao GPIOAO_2 GPIO_ACTIVE_HIGH>;
 
 		aml-audio-card,dai-link@0 {
 			format = "dsp_a";
@@ -1189,7 +1189,7 @@
 		#sound-dai-cells = <0>;
 		reg = <0x31>;
 		status = "disabled";
-		reset_pin = <&gpio GPIOA_5 0>;
+		//reset_pin = <&gpio GPIOA_5 0>;
 		no_mclk;
 	};
 
@@ -1570,7 +1570,6 @@
 };
 
 &pinctrl_periphs {
-	status = "disabled";
 	tdmout_a: tdmout_a {
 		mux { /* GPIOX_11, GPIOX_10, GPIOX_9 */
 			groups = "tdma_sclk",
