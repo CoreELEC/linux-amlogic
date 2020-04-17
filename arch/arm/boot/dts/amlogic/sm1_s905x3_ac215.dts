@@ -465,6 +465,7 @@
 		fe1_demod_i2c_addr = <0xCA>;
 		fe1_reset_value = <0>;
 		fe1_reset_gpio = <&gpio GPIOC_7 GPIO_ACTIVE_HIGH>;
+		fe1_reset_dir = <1>; /* 0: out, 1: in. */
 		fe1_ant_poweron_value = <0>;
 		fe1_ant_power_gpio = <&gpio GPIOC_1 GPIO_ACTIVE_HIGH>;
 		fe1_dtv_demod = <1>;
@@ -1749,7 +1750,7 @@
 			 "MMC_CAP_ERASE",
 			 "MMC_CAP_CMD23",
 			 "MMC_CAP_DRIVER_TYPE_D";
-		caps2 = "MMC_CAP2_HS200";
+		caps2 = "MMC_CAP2_HS200","MMC_CAP2_HS400";
 		f_min = <400000>;
 		f_max = <200000000>;
 	};
