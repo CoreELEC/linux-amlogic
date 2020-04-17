@@ -15289,7 +15289,3 @@ F: arch/arm64/boot/dts/amlogic/g12a_s905x2_u215.dts
 F: arch/arm/boot/dts/amlogic/sm1_s905x3_ac215.dts
 F: arch/arm64/boot/dts/amlogic/sm1_s905x3_ac215.dts
 
-AMLOGIC SC2 PXP DTS
-M: changqing gao <changqing.gao@amlogic.com>
-F: arch/arm64/boot/dts/amlogic/sc2_pxp.dts
-F: arch/arm64/boot/dts/amlogic/mesonsc2_pxp.dtsi
