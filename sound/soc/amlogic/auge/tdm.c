@@ -958,9 +958,7 @@ static int aml_dai_tdm_hw_params(struct snd_pcm_substream *substream,
 	if (ret)
 		return ret;
 
-	/* Must enabe channel number for VAD */
-	if ((substream->stream == SNDRV_PCM_STREAM_CAPTURE)
-		&& (vad_tdm_is_running(p_tdm->id)))
+	if (substream->stream == SNDRV_PCM_STREAM_CAPTURE)
 		tdmin_set_chnum_en(p_tdm->actrl, p_tdm->id, true);
 
 	/* share buffer trigger */
@@ -1013,9 +1011,7 @@ static int aml_dai_tdm_hw_free(struct snd_pcm_substream *substream,
 		aml_tdm_set_channel_mask(p_tdm->actrl,
 			substream->stream, p_tdm->id, i, 0);
 
-	/* Disable channel number for VAD */
-	if ((substream->stream == SNDRV_PCM_STREAM_CAPTURE)
-		&& (vad_tdm_is_running(p_tdm->id)))
+	if (substream->stream == SNDRV_PCM_STREAM_CAPTURE)
 		tdmin_set_chnum_en(p_tdm->actrl, p_tdm->id, false);
 
 	/* share buffer free */

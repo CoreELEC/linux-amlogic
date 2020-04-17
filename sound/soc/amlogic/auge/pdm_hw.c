@@ -34,11 +34,12 @@ void pdm_enable(int is_enable)
 
 	spin_lock_irqsave(&pdm_lock, flags);
 	if (is_enable) {
+		/* en chnum sync default */
 		if (pdm_enable_cnt == 0)
 			aml_pdm_update_bits(
 				PDM_CTRL,
-				0x1 << 31,
-				is_enable << 31);
+				0x1 << 31 | 1 << 17,
+				is_enable << 31 | 1 << 17);
 		pdm_enable_cnt++;
 	} else {
 		if (WARN_ON(pdm_enable_cnt == 0))
@@ -477,14 +478,9 @@ int pdm_get_mute_channel(void)
 
 void pdm_set_mute_channel(int mute_chmask)
 {
-	int mute_en = 0;
-
-	if (mute_chmask)
-		mute_en = 1;
-
 	aml_pdm_update_bits(PDM_CTRL,
-		(0xff << 20 | 0x1 << 17),
-		(mute_chmask << 20 | mute_en << 17));
+		0xff << 20,
+		mute_chmask << 20);
 }
 
 void pdm_set_bypass_data(bool bypass)

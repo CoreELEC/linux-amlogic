@@ -1355,11 +1355,9 @@ static int aml_dai_spdif_prepare(
 	aml_spdif_fifo_ctrl(p_spdif->actrl, bit_depth,
 			substream->stream, p_spdif->id, fifo_id);
 
-#ifdef __SPDIFIN_INSERT_CHNUM__
 	if (substream->stream == SNDRV_PCM_STREAM_CAPTURE)
 		aml_spdifin_chnum_en(p_spdif->actrl,
 			p_spdif->id, true);
-#endif
 
 	return 0;
 }
