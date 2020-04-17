@@ -858,9 +858,12 @@ static void vd1_set_dcu(
 			    VDIF_DEMUX_MODE_RGB_444;
 	}
 
-	if (frame_par->hscale_skip_count)
-		r |= VDIF_CHROMA_HZ_AVG | VDIF_LUMA_HZ_AVG;
-
+	if (frame_par->hscale_skip_count) {
+		if ((type & VIDTYPE_VIU_444) || (type & VIDTYPE_RGB_444))
+			r |= VDIF_LUMA_HZ_AVG;
+		else
+			r |= VDIF_CHROMA_HZ_AVG | VDIF_LUMA_HZ_AVG;
+	}
 	if (vf->flag & VFRAME_FLAG_VIDEO_LINEAR)
 		r |= (1 << 4);
 
@@ -903,8 +906,6 @@ static void vd1_set_dcu(
 	if ((type & VIDTYPE_VIU_444) ||
 	    (type & VIDTYPE_RGB_444)) {
 		r = HFORMATTER_YC_RATIO_1_1;
-		if (frame_par->hscale_skip_count)
-			r |= HFORMATTER_EN;
 		VSYNC_WR_MPEG_REG(
 			VIU_VD1_FMT_CTRL + vd_off, r);
 		if (is_mvc)
@@ -918,17 +919,18 @@ static void vd1_set_dcu(
 				(type & VIDTYPE_VIU_422))
 				hphase = 0x8 << HFORMATTER_PHASE_BIT;
 		}
-		if (is_dolby_vision_on())
-			hformatter = (HFORMATTER_REPEAT |
-				HFORMATTER_YC_RATIO_2_1 |
-				hphase |
-				HFORMATTER_EN);
+		if ((frame_par->hscale_skip_count) &&
+		    (type & VIDTYPE_VIU_422))
+			hformatter =
+			(HFORMATTER_YC_RATIO_2_1 |
+			hphase);
 		else
 			hformatter =
 				(HFORMATTER_YC_RATIO_2_1 |
 				hphase |
 				HFORMATTER_EN);
-
+		if (is_dolby_vision_on())
+			hformatter |= HFORMATTER_REPEAT;
 		vrepeat = VFORMATTER_RPTLINE0_EN;
 		vini_phase = (0xc << VFORMATTER_INIPHASE_BIT);
 		if (type & VIDTYPE_VIU_422) {
@@ -1274,8 +1276,12 @@ static void vd2_set_dcu(
 			    VDIF_DEMUX_MODE_RGB_444;
 	}
 
-	if (frame_par->hscale_skip_count)
-		r |= VDIF_CHROMA_HZ_AVG | VDIF_LUMA_HZ_AVG;
+	if (frame_par->hscale_skip_count) {
+		if ((type & VIDTYPE_VIU_444) || (type & VIDTYPE_RGB_444))
+			r |= VDIF_LUMA_HZ_AVG;
+		else
+			r |= VDIF_CHROMA_HZ_AVG | VDIF_LUMA_HZ_AVG;
+	}
 
 	if (vf->flag & VFRAME_FLAG_VIDEO_LINEAR)
 		r |= (1 << 4);
@@ -1309,8 +1315,6 @@ static void vd2_set_dcu(
 	if ((type & VIDTYPE_VIU_444) ||
 	    (type & VIDTYPE_RGB_444)) {
 		r = HFORMATTER_YC_RATIO_1_1;
-		if (frame_par->hscale_skip_count)
-			r |= HFORMATTER_EN;
 		VSYNC_WR_MPEG_REG(
 			VIU_VD2_FMT_CTRL + vd_off, r);
 	} else {
@@ -1321,17 +1325,18 @@ static void vd2_set_dcu(
 				(type & VIDTYPE_VIU_422))
 				hphase = 0x8 << HFORMATTER_PHASE_BIT;
 		}
-		if (is_dolby_vision_on())
-			hformatter = (HFORMATTER_REPEAT |
-				HFORMATTER_YC_RATIO_2_1 |
-				hphase |
-				HFORMATTER_EN);
+		if ((frame_par->hscale_skip_count) &&
+		    (type & VIDTYPE_VIU_422))
+			hformatter =
+			(HFORMATTER_YC_RATIO_2_1 |
+			hphase);
 		else
 			hformatter =
 				(HFORMATTER_YC_RATIO_2_1 |
 				hphase |
 				HFORMATTER_EN);
-
+		if (is_dolby_vision_on())
+			hformatter |= HFORMATTER_REPEAT;
 		vrepeat = VFORMATTER_RPTLINE0_EN;
 		vini_phase = (0xc << VFORMATTER_INIPHASE_BIT);
 		if (type & VIDTYPE_VIU_422) {
@@ -2691,7 +2696,8 @@ void correct_vd1_mif_size_for_DV(
 				&= 0xfffffffe;
 			par->VPP_hd_start_lines_ =
 				par->VPP_hd_end_lines_ + 1
-				- par->VPP_line_in_length_;
+				- (par->VPP_line_in_length_ <<
+				par->hscale_skip_count);
 		} else
 #endif
 		{
@@ -2701,7 +2707,8 @@ void correct_vd1_mif_size_for_DV(
 			&= aligned_mask;
 		par->VPP_hd_end_lines_ =
 			par->VPP_hd_start_lines_ +
-			par->VPP_line_in_length_ - 1;
+			(par->VPP_line_in_length_ <<
+			par->hscale_skip_count) - 1;
 		/* if have el layer, need 2 pixel align by height */
 		if (el_vf) {
 			old_len =
