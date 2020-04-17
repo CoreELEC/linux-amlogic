@@ -422,7 +422,7 @@
 		fe0_i2c_adap_id = <&i2c2>;
 		fe0_demod_i2c_addr = <0xD8>;
 		fe0_reset_value = <0>;
-		fe0_reset_gpio = <&gpioo GPIOC_7 GPIO_ACTIVE_HIGH>;
+		fe0_reset_gpio = <&gpio GPIOC_7 GPIO_ACTIVE_HIGH>;
                 fe0_reset_dir = <1>; /* 0: out, 1: in. */
 		fe0_ant_poweron_value = <0>;
 		fe0_ant_power_gpio = <&gpio GPIOC_1 GPIO_ACTIVE_HIGH>;
