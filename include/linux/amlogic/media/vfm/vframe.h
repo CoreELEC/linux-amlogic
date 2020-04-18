@@ -501,6 +501,9 @@ struct vframe_s {
 
 	int sidebind_type;
 	int sidebind_channel_id;
+
+	/*for double write VP9/AV1 vf*/
+	void *mem_dw_handle;
 } /*vframe_t */;
 
 #if 0
