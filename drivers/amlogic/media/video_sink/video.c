@@ -3637,10 +3637,12 @@ static s32 update_amvideo_recycle_buffer(void)
 		if (rdma_buf &&
 		    (rdma_buf != to_put_buf))
 			recycle_buf[0][recycle_cnt[0]++] = rdma_buf;
-		pr_info("amvideo need recycle %d new buffers: %p, %p\n",
+		pr_debug(
+			"amvideo need recycle %d new buffers: %p, %p\n",
 			recycle_cnt[0], recycle_buf[0][0], recycle_buf[0][1]);
 	} else {
-		pr_info("amvideo need recycle %d remained buffers: %p, %p\n",
+		pr_debug(
+			"amvideo need recycle %d remained buffers: %p, %p\n",
 			recycle_cnt[0], recycle_buf[0][0], recycle_buf[0][1]);
 	}
 	return 0;
