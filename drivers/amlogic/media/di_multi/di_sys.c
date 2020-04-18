@@ -353,6 +353,7 @@ static unsigned int dpst_cma_alloc(struct di_dev_s *devp, unsigned int channel)
 				dbg_mem("3:%s:buf[%d] page:0x%p skip\n",
 					__func__,
 					buf_p->index, buf_p->pages);
+				dbg_wq("k:a[%d]\n", buf_p->index);
 				continue;
 			}
 			aret = dim_mm_alloc(cfgg(MEM_FLAG),
@@ -448,8 +449,10 @@ static void dpst_cma_release(struct di_dev_s *devp, unsigned int ch)
 	if (dimp_get(edi_mp_post_wr_en) && dimp_get(edi_mp_post_wr_support)) {
 		for (i = 0; i < mm->cfg.num_post; i++) {
 			buf_p = &pbuf_post[i];
-			if (di_que_is_in_que(ch, QUE_POST_KEEP, buf_p))
+			if (di_que_is_in_que(ch, QUE_POST_KEEP, buf_p)) {
+				dbg_wq("k:r[%d]\n", buf_p->index);
 				continue;
+			}
 			if (!buf_p->pages) {
 				PR_INF("2:%s:post buf[%d] is null\n",
 				       __func__, i);

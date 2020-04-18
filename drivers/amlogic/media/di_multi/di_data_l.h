@@ -928,6 +928,8 @@ struct di_meson_data {
 struct dim_wq_s {
 	char *name;
 	unsigned int ch;
+	unsigned int cmd;
+	unsigned int cnt;
 	struct workqueue_struct *wq_cma;
 	struct work_struct wq_work;
 };
@@ -939,8 +941,9 @@ struct di_mng_s {
 	/*use enum EDI_CMA_ST*/
 	atomic_t cma_mem_state[DI_CHANNEL_NUB];
 	/*1:alloc cma, 0:release cma set by mng, read by work que*/
-	unsigned char cma_reg_cmd[DI_CHANNEL_NUB];
-
+	unsigned int cma_wqsts[DI_CHANNEL_NUB];
+	unsigned int cma_wqcnt;
+	unsigned int cma_flg_run;
 	/*task:*/
 	struct di_task		tsk;
 
