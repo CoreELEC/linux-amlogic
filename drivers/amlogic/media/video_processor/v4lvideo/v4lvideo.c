@@ -91,6 +91,10 @@ static unsigned int dec_count;
 module_param(dec_count, uint, 0644);
 MODULE_PARM_DESC(dec_count, "dec_count");
 
+static unsigned int vf_dump;
+module_param(vf_dump, uint, 0644);
+MODULE_PARM_DESC(vf_dump, "vf_dump");
+
 bool di_bypass_p;
 /*dec set count mutex*/
 struct mutex mutex_dec_count;
@@ -546,19 +550,6 @@ static int get_input_format(struct vframe_s *vf)
 			format = GE2D_FORMAT_M24_YUV420;
 		break;
 	case DECODER_8BIT_BOTTOM:
-		if (vf->type & VIDTYPE_VIU_422)
-			format = GE2D_FORMAT_S16_YUV422
-				| (GE2D_FORMAT_S16_YUV422B & (3 << 3));
-		else if (vf->type & VIDTYPE_VIU_NV21)
-			format = GE2D_FORMAT_M24_NV21
-				| (GE2D_FORMAT_M24_NV21B & (3 << 3));
-		else if (vf->type & VIDTYPE_VIU_444)
-			format = GE2D_FORMAT_S24_YUV444
-				| (GE2D_FORMAT_S24_YUV444B & (3 << 3));
-		else
-			format = GE2D_FORMAT_M24_YUV420
-				| (GE2D_FMT_M24_YUV420B & (3 << 3));
-		break;
 	case DECODER_8BIT_TOP:
 		if (vf->type & VIDTYPE_VIU_422)
 			format = GE2D_FORMAT_S16_YUV422
@@ -730,6 +721,12 @@ free:
 
 void v4lvideo_data_copy(struct v4l_data_t *v4l_data)
 {
+	struct file *fp;
+	mm_segment_t fs;
+	loff_t pos;
+	char name_buf[32];
+	uint32_t write_size;
+
 	struct config_para_ex_s ge2d_config;
 	struct canvas_config_s dst_canvas_config[3];
 	struct vframe_s *vf = NULL;
@@ -852,7 +849,10 @@ void v4lvideo_data_copy(struct v4l_data_t *v4l_data)
 	ge2d_config.src_para.top = 0;
 	ge2d_config.src_para.left = 0;
 	ge2d_config.src_para.width = vf->width;
-	ge2d_config.src_para.height = vf->height;
+	if (vf->type & VIDTYPE_INTERLACE)
+		ge2d_config.src_para.height = vf->height >> 1;
+	else
+		ge2d_config.src_para.height = vf->height;
 	ge2d_config.src2_para.mem_type = CANVAS_TYPE_INVALID;
 
 	ge2d_config.dst_para.mem_type = CANVAS_TYPE_INVALID;
@@ -872,8 +872,32 @@ void v4lvideo_data_copy(struct v4l_data_t *v4l_data)
 		return;
 	}
 
-	stretchblt_noalpha(context, 0, 0, vf->width, vf->height,
+	if (vf->type & VIDTYPE_INTERLACE)
+		stretchblt_noalpha(context, 0, 0, vf->width, vf->height / 2,
 			0, 0, vf->width, vf->height);
+	else
+		stretchblt_noalpha(context, 0, 0, vf->width, vf->height,
+			0, 0, vf->width, vf->height);
+
+	if (vf_dump) {
+		snprintf(name_buf, sizeof(name_buf), "/data/tmp/%d-%d.raw",
+				vf->width, vf->height);
+		fs = get_fs();
+		set_fs(KERNEL_DS);
+		pos = 0;
+		fp = filp_open(name_buf, O_CREAT | O_RDWR, 0644);
+		if (IS_ERR(fp)) {
+			pr_err("create %s fail.\n", name_buf);
+		} else {
+			write_size = v4l_data->byte_stride *
+				v4l_data->height * 3 / 2;
+			vfs_write(fp, phys_to_virt(v4l_data->phy_addr[0]),
+				write_size, &pos);
+			pr_debug("write %u size to file.\n", write_size);
+			filp_close(fp, NULL);
+		}
+		set_fs(fs);
+	}
 }
 
 struct file_private_data *v4lvideo_get_vf(int fd)
@@ -1387,6 +1411,7 @@ static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *p)
 
 	if (vf->flag & VFRAME_FLAG_DOUBLE_FRAM) {
 		vf_ext = (struct vframe_s *)vf->vf_ext;
+		vf_ext->omx_index = vf->omx_index;
 		if (render_use_dec) {
 			file_private_data->vf = *vf_ext;
 			file_private_data->vf_p = vf_ext;

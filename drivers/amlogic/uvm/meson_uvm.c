@@ -430,7 +430,7 @@ static int uvm_alloc_buffer(struct uvm_alloc_data *uad)
 		return -ENOMEM;
 
 	buffer->dev = uvm_dev;
-	buffer->size = uad->size;
+	buffer->size = PAGE_ALIGN(uad->size);
 	buffer->align = uad->align;
 	buffer->flags = uad->flags;
 	buffer->byte_stride = uad->byte_stride;
