@@ -304,7 +304,7 @@ void aed_set_format(int msb, enum ddr_types frddr_type,
 				enum ddr_num source, int offset)
 {
 	eqdrc_update_bits(AED_TOP_CTL,
-		0x7 << 11 | 0x1f << 6 | 0x3 << 4,
+		0x7 << 11 | 0x1f << 6 | 0x3 << (4 - offset),
 		frddr_type << 11 | msb << 6 | source << (4 - offset));
 }
 
