@@ -160,12 +160,6 @@
 	pinctrl-0 = <&pwm_f_pins2>;
 };
 
-&sd_emmc_c {
-	emmc {
-		caps2 = "MMC_CAP2_HS200";
-	};
-};
-
 &usb2_phy_v2 {
 	gpio-vbus-power = "GPIOA_6";
 	gpios = <&gpio GPIOA_6 GPIO_ACTIVE_HIGH>;
