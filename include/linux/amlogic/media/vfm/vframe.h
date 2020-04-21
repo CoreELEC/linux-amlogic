@@ -498,6 +498,9 @@ struct vframe_s {
 	u32 fgs_table_adr;
 
 	u32 di_instance_id;
+
+	int sidebind_type;
+	int sidebind_channel_id;
 } /*vframe_t */;
 
 #if 0
