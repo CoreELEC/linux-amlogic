@@ -240,3 +240,9 @@
 &aocec {
 	/delete-property/ ee_cec;
 };
+
+&sd_emmc_c {
+	emmc {
+		caps2 = "MMC_CAP2_HS200";
+	};
+};
