@@ -310,20 +310,21 @@ static int aml_nand_add_partition(struct aml_nand_chip *aml_chip)
 	int reserved_part_blk_num = RESERVED_BLOCK_NUM;
 	uint8_t bl_mode, base_part = 0;
 	uint32_t fip_copies, fip_size, fip_part_size = 0;
+	int plane_num_shift = 0;
+
 #ifndef CONFIG_NOT_SKIP_BAD_BLOCK
 	uint64_t start_blk = 0, part_blk = 0;
 	loff_t offset;
 	int phys_erase_shift, error = 0;
-	int plane_num_shift = 0;
 
 	if (!mtd->erasesize)
 		return -EINVAL;
 	phys_erase_shift = fls(mtd->erasesize) - 1;
+#endif
 
 	if (!aml_chip->plane_num)
 		return -EINVAL;
 	plane_num_shift = fls(aml_chip->plane_num) - 1;
-#endif
 
 	parts = plat->platform_nand_data.chip.partitions;
 	nr = plat->platform_nand_data.chip.nr_partitions;

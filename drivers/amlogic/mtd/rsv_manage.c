@@ -182,7 +182,8 @@ int aml_nand_scan_shipped_bbt(struct mtd_info *mtd)
 	for (i = 0; i < controller->chip_num; i++) {
 		/* if (aml_chip->valid_chip[i]) { */
 		for (read_cnt = 0; read_cnt < 2; read_cnt++) {
-			if (aml_chip->mfr_type  == NAND_MFR_SANDISK) {
+			if ((aml_chip->mfr_type  == NAND_MFR_SANDISK) ||
+			    (aml_chip->mfr_type  == 0xc8)) {
 				addr = (loff_t)offset + read_cnt*mtd->writesize;
 			} else
 				addr = (loff_t)offset +
@@ -296,7 +297,7 @@ int aml_nand_scan_shipped_bbt(struct mtd_info *mtd)
 			}
 
 	if ((aml_chip->mfr_type  == 0xC8)) {
-		if ((col0_oob != 0xFF) || (col0_data != 0xFF)) {
+		if (col0_oob != 0xFF) {
 			pr_info("detect factory Bad blk:%llx blk:%d chip:%d\n",
 				(uint64_t)addr, start_blk, i);
 			aml_chip->nand_bbt_info->nand_bbt[bad_blk_cnt++] =
