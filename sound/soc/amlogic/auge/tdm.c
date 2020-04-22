@@ -726,9 +726,8 @@ static int aml_dai_tdm_trigger(struct snd_pcm_substream *substream, int cmd,
 					p_tdm->samesource_sel,
 					p_tdm->chipinfo->same_src_spdif_reen);
 
-			if (p_tdm->chipinfo	&&
-				p_tdm->chipinfo->async_fifo)
-				aml_frddr_check(p_tdm->fddr);
+			if (!aml_frddr_burst_finished(p_tdm->fddr))
+				pr_err("%s() frddr check fail\n", __func__);
 
 			aml_frddr_enable(p_tdm->fddr, false);
 		} else {

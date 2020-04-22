@@ -596,6 +596,40 @@ bool aml_toddr_burst_finished(struct toddr *to)
 	return false;
 }
 
+bool aml_frddr_burst_finished(struct frddr *fr)
+{
+	unsigned int cnt0, cnt1, cnt2;
+	unsigned int i = 0;
+	bool fifo_stop = false;
+
+	/* This is a SW workaround.
+	 * If not wait until the fifo stops,
+	 * DDR will stuck and could not recover unless reboot.
+	 */
+	for (i = 0; i < 10; i++) {
+		cnt0 = aml_frddr_get_fifo_cnt(fr);
+		udelay(10);
+		cnt1 = aml_frddr_get_fifo_cnt(fr);
+		udelay(10);
+		cnt2 = aml_frddr_get_fifo_cnt(fr);
+		pr_debug("i: %d, fifo cnt:[%d] cnt1:[%d] cnt2:[%d]\n",
+			i, cnt0, cnt1, cnt2);
+
+		/* ddr stopped */
+		if (cnt0 == cnt1 && cnt0 == cnt2) {
+			pr_info("%s(), i (%d) cnt(%d) break out\n",
+				__func__, i, cnt2);
+			fifo_stop = true;
+			break;
+		}
+	}
+
+	if (!fifo_stop)
+		pr_err("%s() fail, 20*10us time out\n", __func__);
+
+	return fifo_stop;
+}
+
 /* not for tl1 */
 static void aml_toddr_set_resample(struct toddr *to, bool enable)
 {
@@ -1324,6 +1358,22 @@ void aml_frddr_set_format(struct frddr *fr,
 	fr->channels = chnum;
 	fr->msb  = msb;
 	fr->type = frddr_type;
+}
+
+static unsigned int aml_frddr_get_status1(struct frddr *fr)
+{
+	struct aml_audio_controller *actrl = fr->actrl;
+	unsigned int reg_base = fr->reg_base;
+	unsigned int reg;
+
+	reg = calc_frddr_address(EE_AUDIO_FRDDR_A_STATUS1, reg_base);
+
+	return aml_audiobus_read(actrl, reg);
+}
+
+unsigned int aml_frddr_get_fifo_cnt(struct frddr *fr)
+{
+	return (aml_frddr_get_status1(fr) & FRDDR_FIFO_CNT) >> 8;
 }
 
 static void aml_aed_enable(struct frddr_attach *p_attach_aed, bool enable)

@@ -1403,14 +1403,15 @@ static int aml_dai_spdif_trigger(struct snd_pcm_substream *substream, int cmd,
 			if (p_spdif->clk_cont) {
 				aml_spdif_mute(p_spdif->actrl,
 					substream->stream, p_spdif->id, true);
+				/* set dest to non-exist to fix stuck */
+				aml_frddr_select_dst(p_spdif->fddr, FRDDR_MAX);
 			} else {
 				aml_spdif_enable(p_spdif->actrl,
 					substream->stream, p_spdif->id, false);
 			}
 
-			if (p_spdif->chipinfo &&
-				p_spdif->chipinfo->async_fifo)
-				aml_frddr_check(p_spdif->fddr);
+			if (!aml_frddr_burst_finished(p_spdif->fddr))
+				pr_err("%s() frddr check fail\n", __func__);
 			aml_frddr_enable(p_spdif->fddr, 0);
 		} else {
 			bool toddr_stopped = false;
