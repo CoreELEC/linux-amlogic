@@ -26,6 +26,7 @@
 /* #include <linux/amlogic/aml_common.h> */
 #include <linux/amlogic/cpu_version.h>
 #include <linux/amlogic/media/vfm/vframe.h>
+#include <linux/amlogic/media/video_sink/video.h>
 #include <linux/amlogic/media/amvecm/amvecm.h>
 #include <linux/amlogic/media/amdolbyvision/dolby_vision.h>
 #include <linux/amlogic/media/vout/vinfo.h>
@@ -1604,16 +1605,26 @@ void amvecm_fresh_overscan(struct vframe_s *vf)
 		vf->pic_mode.AFD_enable =
 			overscan_table[overscan_timing].afd_enable;
 		/*local play screen mode set by decoder*/
-		if (overscan_table[0].source == SOURCE_MPEG)
-			vf->pic_mode.screen_mode = 0xff;
-		else
-			vf->pic_mode.screen_mode =
-				overscan_table[overscan_timing].screen_mode;
+		if (!(vf->pic_mode.screen_mode == VIDEO_WIDEOPTION_CUSTOM &&
+		      vf->pic_mode.AFD_enable)) {
+			if (overscan_table[0].source == SOURCE_MPEG)
+				vf->pic_mode.screen_mode = 0xff;
+			else
+				vf->pic_mode.screen_mode = overscan_screen_mode;
+		}
 
-		vf->pic_mode.hs = overscan_table[overscan_timing].hs;
-		vf->pic_mode.he = overscan_table[overscan_timing].he;
-		vf->pic_mode.vs = overscan_table[overscan_timing].vs;
-		vf->pic_mode.ve = overscan_table[overscan_timing].ve;
+		if (vf->pic_mode.provider == PIC_MODE_PROVIDER_WSS &&
+		    vf->pic_mode.AFD_enable) {
+			vf->pic_mode.hs += overscan_table[overscan_timing].hs;
+			vf->pic_mode.he += overscan_table[overscan_timing].he;
+			vf->pic_mode.vs += overscan_table[overscan_timing].vs;
+			vf->pic_mode.ve += overscan_table[overscan_timing].ve;
+		} else {
+			vf->pic_mode.hs = overscan_table[overscan_timing].hs;
+			vf->pic_mode.he = overscan_table[overscan_timing].he;
+			vf->pic_mode.vs = overscan_table[overscan_timing].vs;
+			vf->pic_mode.ve = overscan_table[overscan_timing].ve;
+		}
 		vf->ratio_control |= DISP_RATIO_ADAPTED_PICMODE;
 	}
 	if (overscan_table[offset].load_flag) {
@@ -1641,11 +1652,23 @@ void amvecm_fresh_overscan(struct vframe_s *vf)
 			overscan_table[overscan_timing].screen_mode;
 		vf->pic_mode.AFD_enable =
 			overscan_table[overscan_timing].afd_enable;
-		vf->pic_mode.screen_mode = overscan_screen_mode;
-		vf->pic_mode.hs = overscan_table[overscan_timing].hs;
-		vf->pic_mode.he = overscan_table[overscan_timing].he;
-		vf->pic_mode.vs = overscan_table[overscan_timing].vs;
-		vf->pic_mode.ve = overscan_table[overscan_timing].ve;
+
+		if (!(vf->pic_mode.screen_mode == VIDEO_WIDEOPTION_CUSTOM &&
+		      vf->pic_mode.AFD_enable))
+			vf->pic_mode.screen_mode = overscan_screen_mode;
+
+		if (vf->pic_mode.provider == PIC_MODE_PROVIDER_WSS &&
+		    vf->pic_mode.AFD_enable) {
+			vf->pic_mode.hs += overscan_table[overscan_timing].hs;
+			vf->pic_mode.he += overscan_table[overscan_timing].he;
+			vf->pic_mode.vs += overscan_table[overscan_timing].vs;
+			vf->pic_mode.ve += overscan_table[overscan_timing].ve;
+		} else {
+			vf->pic_mode.hs = overscan_table[overscan_timing].hs;
+			vf->pic_mode.he = overscan_table[overscan_timing].he;
+			vf->pic_mode.vs = overscan_table[overscan_timing].vs;
+			vf->pic_mode.ve = overscan_table[overscan_timing].ve;
+		}
 		vf->ratio_control |= DISP_RATIO_ADAPTED_PICMODE;
 	}
 }

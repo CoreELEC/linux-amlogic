@@ -3252,19 +3252,11 @@ int vpp_set_filters(
 				local_input.custom_ar =
 					vf->pic_mode.custom_ar;
 		}
-		if (vf->pic_mode.provider == PIC_MODE_PROVIDER_WSS) {
-			/* from wss, need add global setting */
-			local_input.crop_top += vf->pic_mode.vs;
-			local_input.crop_left += vf->pic_mode.hs;
-			local_input.crop_bottom += vf->pic_mode.ve;
-			local_input.crop_right += vf->pic_mode.he;
-		} else {
-			/* from PQ database, final setting */
-			local_input.crop_top = vf->pic_mode.vs;
-			local_input.crop_left = vf->pic_mode.hs;
-			local_input.crop_bottom = vf->pic_mode.ve;
-			local_input.crop_right = vf->pic_mode.he;
-		}
+
+		local_input.crop_top = vf->pic_mode.vs;
+		local_input.crop_left = vf->pic_mode.hs;
+		local_input.crop_bottom = vf->pic_mode.ve;
+		local_input.crop_right = vf->pic_mode.he;
 	}
 
 	if (!local_input.pps_support)
