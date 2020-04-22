@@ -82,7 +82,8 @@
 			compatible = "shared-dma-pool";
 			reusable;
 			/* ion_codec_mm max can alloc size 80M*/
-			size = <0xd000000>;
+			//size = <0xd000000>;
+			size = <0xF800000>;
 			alignment = <0x400000>;
 			linux,contiguous-region;
 			alloc-ranges = <0x30000000 0x10000000>;
@@ -97,10 +98,12 @@
 		//};
 		di_cma_reserved:linux,di_cma {
 			compatible = "shared-dma-pool";
+			status = "disable";
 			reusable;
 			/** 10x3133440=30M(0x1e) support 8bit **/
 			//size = <0x2000000>;
-			size = <0x2800000>;
+			//size = <0x2800000>;
+			size = <0x0>;
 			alignment = <0x400000>;
 			alloc-ranges = <0x30000000 0x10000000>;
 		};
@@ -998,7 +1001,7 @@
 	deinterlace {
 		compatible = "amlogic, deinterlace";
 		status = "okay";
-		flag_cma = <1>;/*0:use reserved;1:use cma*/
+		flag_cma = <4>;/*0:use reserved;1:use cma*/
 		//memory-region = <&di_reserved>;
 		memory-region = <&di_cma_reserved>;
 		interrupts = <0 46 1 0 6 1>;
