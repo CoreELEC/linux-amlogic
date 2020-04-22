@@ -94,7 +94,8 @@ struct frame_info_t {
 	u32 zorder;
 	u32 transform;
 	u32 type;
-	u32 reserved[4];
+	u32 sideband_type;
+	u32 reserved[3];
 };
 
 struct frames_info_t {

@@ -3683,8 +3683,19 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 
 	if (vf) {
 		if (glayer_info[0].display_path_id == VFM_PATH_AUTO) {
-			glayer_info[0].display_path_id = VFM_PATH_AMVIDEO;
-			vd1_path_id = glayer_info[0].display_path_id;
+			if ((vf->sidebind_type
+				== glayer_info[0].sideband_type)
+				|| (vf->sidebind_type == 0)) {
+				pr_info("VID: path_id %d -> %d\n",
+					glayer_info[0].display_path_id,
+					VFM_PATH_AMVIDEO);
+				glayer_info[0].display_path_id
+					= VFM_PATH_AMVIDEO;
+				vd1_path_id = glayer_info[0].display_path_id;
+			} else if (glayer_info[0].sideband_type != -1)
+				pr_info("vf->sideband_type =%d,layertype=%d\n",
+					vf->sidebind_type,
+					glayer_info[0].sideband_type);
 		}
 	}
 
@@ -9586,10 +9597,28 @@ s32 set_video_path_select(const char *recv_name, u8 layer_id)
 			layer_id, layer_info->display_path_id, new_path_id);
 		layer_info->display_path_id = new_path_id;
 		layer->property_changed = true;
+		if (new_path_id == VFM_PATH_AUTO)
+			layer_info->sideband_type = -1;
 	}
 	return 0;
 }
 EXPORT_SYMBOL(set_video_path_select);
+
+s32 set_sideband_type(s32 type, u8 layer_id)
+{
+	struct disp_info_s *layer_info;
+
+	if (layer_id >= MAX_VD_LAYERS)
+		return -1;
+
+	layer_info = &glayer_info[layer_id];
+	pr_info("VID: sideband_type %d changed to %d\n",
+		layer_info->sideband_type, type);
+	layer_info->sideband_type = type;
+
+	return 0;
+}
+EXPORT_SYMBOL(set_sideband_type);
 
 static ssize_t path_select_show(
 	struct class *cla,

@@ -198,6 +198,7 @@ struct disp_info_s {
 	bool pps_support;
 
 	bool need_no_compress;
+	s32 sideband_type;
 };
 
 enum select_scaler_path_e {

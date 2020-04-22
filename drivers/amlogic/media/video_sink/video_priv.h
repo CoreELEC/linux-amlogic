@@ -397,6 +397,7 @@ extern struct video_recv_s *gvideo_recv[2];
 bool black_threshold_check(u8 id);
 struct vframe_s *get_cur_dispbuf(void);
 s32 set_video_path_select(const char *recv_name, u8 layer_id);
+s32 set_sideband_type(s32 type, u8 layer_id);
 
 /*for video related files only.*/
 void video_module_lock(void);

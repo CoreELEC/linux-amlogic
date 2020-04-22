@@ -272,5 +272,6 @@ void set_video_crop_ext(int layer_index, int *p);
 void set_video_window_ext(int layer_index, int *p);
 void set_video_zorder_ext(int layer_index, int zorder);
 s32 set_video_path_select(const char *recv_name, u8 layer_id);
+s32 set_sideband_type(s32 type, u8 layer_id);
 
 #endif /* VIDEO_H */

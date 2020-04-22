@@ -1359,6 +1359,7 @@ static void set_frames_info(struct composer_dev *dev,
 	int axis[4];
 	int ready_len = 0;
 	bool current_is_sideband = false;
+	s32 sideband_type = -1;
 
 	for (j = 0; j < frames_info->frame_count; j++) {
 		if (frames_info->frame_info[j].type == 2) {
@@ -1371,6 +1372,7 @@ static void set_frames_info(struct composer_dev *dev,
 				 "sideband: ready_len =%d\n",
 				 ready_len);
 			frames_info->frame_info[j].composer_fen_fd = -1;
+			sideband_type = frames_info->frame_info[j].sideband_type;
 			axis[0] = frames_info->frame_info[j].dst_x;
 			axis[1] = frames_info->frame_info[j].dst_y;
 			axis[2] = frames_info->frame_info[j].dst_w
@@ -1402,12 +1404,15 @@ static void set_frames_info(struct composer_dev *dev,
 				else if (dev->index == 1)
 					set_video_path_select("pipvideo", 1);
 			} else {
-				if (dev->index == 0)
+				if (dev->index == 0) {
 					set_video_path_select("auto", 0);
-				else if (dev->index == 1)
+					set_sideband_type(sideband_type, 0);
+				} else if (dev->index == 1)
 					set_video_path_select("pipvideo", 1);
 			}
 		}
+		vc_print(dev->index, PRINT_ERROR,
+			 "sideband_type =%d\n", sideband_type);
 		dev->select_path_done = true;
 	}
 	if (current_is_sideband) {
