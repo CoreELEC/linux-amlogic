@@ -42,6 +42,15 @@
 #include "../../gpio/gpiolib.h"
 #define OWNER_NAME "sdio_wifi"
 
+struct pcie_wifi_chip {
+	unsigned int vendor;
+	unsigned int device;
+};
+
+static const struct pcie_wifi_chip pcie_wifi[] = {
+	{0x16c3, 0xabcd}
+};
+
 int wifi_power_gpio;
 int wifi_power_gpio2;
 
@@ -260,6 +269,32 @@ static int  wifi_power_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
+void pci_remove(void)
+{
+	struct pci_dev *device = NULL;
+	struct pci_dev *devicebus = NULL;
+	int n = 0;
+	int i = 0;
+
+	WIFI_INFO("pci remove!\n");
+	n = (int)(sizeof(pcie_wifi) / sizeof(struct pcie_wifi_chip));
+	for (i = 0; i < n; i++) {
+		device = pci_get_device(pcie_wifi[i].vendor,
+			pcie_wifi[i].device, NULL);
+		if (device) {
+			WIFI_INFO("found device 0x%x:0x%x, remove it!\n",
+				pcie_wifi[i].vendor, pcie_wifi[i].device);
+			devicebus = device->bus->self;
+			pci_stop_and_remove_bus_device_locked(device);
+			if (devicebus) {
+				WIFI_INFO("remove bus!\n");
+				pci_stop_and_remove_bus_device_locked(
+					devicebus);
+			}
+		}
+	}
+}
+EXPORT_SYMBOL(pci_remove);
 
 void pci_reinit(void)
 {
@@ -338,6 +373,7 @@ static long wifi_power_ioctl(struct file *filp,
 		WIFI_INFO(KERN_INFO "ioctl Set usb_sdio wifi power down!\n");
 		break;
 	case WIFI_POWER_UP:
+		pci_remove();
 		set_usb_wifi_power(0);
 		mdelay(200);
 		set_usb_wifi_power(1);
