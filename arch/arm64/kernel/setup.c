@@ -184,6 +184,7 @@ static void __init setup_machine_fdt(phys_addr_t dt_phys)
 {
 	void *dt_virt = fixmap_remap_fdt(dt_phys);
 	const char *name;
+	const char *name_dtid;
 
 	if (!dt_virt || !early_init_dt_scan(dt_virt)) {
 		pr_crit("\n"
@@ -195,6 +196,10 @@ static void __init setup_machine_fdt(phys_addr_t dt_phys)
 		while (true)
 			cpu_relax();
 	}
+	
+	name_dtid = of_flat_dt_get_coreelec_dt_id();
+	if (name_dtid)
+		pr_info("CoreELEC dt-id: %s\n", name_dtid);
 
 	name = of_flat_dt_get_machine_name();
 	if (!name)
