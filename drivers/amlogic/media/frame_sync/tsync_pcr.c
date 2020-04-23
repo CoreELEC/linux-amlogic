@@ -1433,8 +1433,6 @@ static unsigned long tsync_pcr_check(void)
 		if ((cur_system_time - first_time_record) < 270000
 			&& video_pid_valid) {
 		} else {
-			pr_info("%s, video_pid_valid=%d\n",
-				__func__, video_pid_valid);
 			if (video_pid_valid)
 				tsync_pcr_inited_mode = INIT_PRIORITY_VIDEO;
 			else
