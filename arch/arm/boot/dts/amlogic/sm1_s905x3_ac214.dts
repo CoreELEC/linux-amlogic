@@ -1844,6 +1844,3 @@
 	status = "okay";
 };
 
-&dummy_venc {
-	status = "okay";
-};
