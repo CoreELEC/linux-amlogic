@@ -112,7 +112,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&remote_pins>;
 		pulse-inverted;
-		status = "ok";
+		status = "okay";
 	};
 	meson-remote {
 		compatible = "amlogic, aml_remote";
