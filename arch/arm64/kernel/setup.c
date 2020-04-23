@@ -283,6 +283,8 @@ static void __init setup_processor(void)
 
 static void __init setup_machine_fdt(phys_addr_t dt_phys)
 {
+	const char *name_dtid;
+
 	if (!dt_phys || !early_init_dt_scan(phys_to_virt(dt_phys))) {
 		early_print("\n"
 			"Error: invalid device tree blob at physical address 0x%p (virtual address 0x%p)\n"
@@ -294,7 +296,13 @@ static void __init setup_machine_fdt(phys_addr_t dt_phys)
 			cpu_relax();
 	}
 
+	name_dtid = of_flat_dt_get_le_dt_id();
+	if (name_dtid)
+		pr_info("CoreELEC dt-id: %s\n", name_dtid);
+
 	machine_name = of_flat_dt_get_machine_name();
+	if (machine_name)
+		pr_info("Machine model: %s\n", machine_name);
 }
 
 /*

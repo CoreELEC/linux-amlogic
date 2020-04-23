@@ -593,6 +593,13 @@ const char * __init of_flat_dt_get_machine_name(void)
 	return name;
 }
 
+const char * __init of_flat_dt_get_le_dt_id(void)
+{
+	unsigned long dt_root = of_get_flat_dt_root();
+
+	return of_get_flat_dt_prop(dt_root, "le-dt-id", NULL);
+}
+
 /**
  * of_flat_dt_match_machine - Iterate match tables to find matching machine.
  *
