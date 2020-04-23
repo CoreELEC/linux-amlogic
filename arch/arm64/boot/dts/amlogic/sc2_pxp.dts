@@ -19,11 +19,11 @@
 
 #include "mesonsc2.dtsi"
 #include "partition_mbox_normal_dynamic.dtsi"
-#include "mesonsm1_skt-panel.dtsi"
+//#include "mesonsm1_skt-panel.dtsi"
 
 / {
 	model = "Amlogic";
-	amlogic-dt-id = "sm1_ac214_2g";
+	amlogic-dt-id = "sc2_pxp";
 	compatible = "amlogic, g12a";
 	interrupt-parent = <&gic>;
 	#address-cells = <2>;
@@ -32,16 +32,13 @@
 	aliases {
 		serial0 = &uart_B;
 		serial1 = &uart_A;
-		//serial2 = &uart_B;
 		serial3 = &uart_C;
-		//serial4 = &uart_AO_B;
 		tsensor0 = &p_tsensor;
 		tsensor1 = &d_tsensor;
 		i2c0 = &i2c0;
 		i2c1 = &i2c1;
 		i2c2 = &i2c2;
 		i2c3 = &i2c3;
-		//i2c4 = &i2c_AO;
 	};
 
 	memory@00000000 {
@@ -1145,9 +1142,6 @@
 	pxp_mode = <0>; /** 0:normal mode 1:pxp mode */
 };
 
-//&pwm_AO_cd {
-//		status = "disabled";
-//};
 
 &i2c0 {
 	status = "disabled";
@@ -1929,6 +1923,6 @@
 	};
 };
 
-//&irblaster {
-//	status = "disabled";
-//};
+&irblaster {
+	status = "disabled";
+};
