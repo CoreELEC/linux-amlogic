@@ -188,6 +188,7 @@ static void __init setup_machine_fdt(phys_addr_t dt_phys)
 	int size;
 	void *dt_virt = fixmap_remap_fdt(dt_phys, &size, PAGE_KERNEL);
 	const char *name;
+	const char *name_dtid;
 
 	if (dt_virt)
 		memblock_reserve(dt_phys, size);
@@ -202,6 +203,10 @@ static void __init setup_machine_fdt(phys_addr_t dt_phys)
 		while (true)
 			cpu_relax();
 	}
+	
+	name_dtid = of_flat_dt_get_coreelec_dt_id();
+	if (name_dtid)
+		pr_info("CoreELEC dt-id: %s\n", name_dtid);
 
 	/* Early fixups are done, map the FDT as read-only now */
 	fixmap_remap_fdt(dt_phys, &size, PAGE_KERNEL_RO);
