@@ -106,6 +106,7 @@ extern bool early_init_dt_verify(void *params);
 extern void early_init_dt_scan_nodes(void);
 
 extern const char *of_flat_dt_get_machine_name(void);
+extern const char *of_flat_dt_get_coreelec_dt_id(void);
 extern const void *of_flat_dt_match_machine(const void *default_match,
 		const void * (*get_next_compat)(const char * const**));
 
