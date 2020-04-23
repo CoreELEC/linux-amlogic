@@ -1709,8 +1709,18 @@ static long amvecm_ioctl(struct file *file,
 			ret = amvecm_set_brightness2(vdj_mode_s.brightness2);
 		}
 		if (vdj_mode_flg & VDJ_FLAG_SAT_HUE)	{ /*saturation_hue*/
-			ret =
-			amvecm_set_saturation_hue(vdj_mode_s.saturation_hue);
+			int sat_hue_pre;
+
+			sat_hue_pre = vdj_mode_s.saturation_hue;
+			saturation_pre =
+			(((sat_hue_pre >> 16) & 0xffff) / 2) - 128;
+			hue_pre = sat_hue_pre & 0xffff;
+			if (hue_pre >= 0 && hue_pre <= 150)
+				hue_pre = hue_pre / 6;
+			else
+				hue_pre = (hue_pre - 1024) / 6;
+
+			vecm_latch_flag |= FLAG_VADJ1_COLOR;
 		}
 		if (vdj_mode_flg & VDJ_FLAG_SAT_HUE_POST) {
 			/*saturation_hue_post*/
