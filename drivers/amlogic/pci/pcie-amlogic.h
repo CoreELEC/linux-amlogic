@@ -18,6 +18,10 @@
 #ifndef __AMLOGIC_PCI_H__
 #define __AMLOGIC_PCI_H__
 
+#ifdef CONFIG_AMLOGIC_PCIE
+#include <linux/irqdesc.h>
+#endif
+
 /* PCIe Port Logic registers */
 #define PLR_OFFSET			0x700
 #define PCIE_PORT_LINK_CTRL_OFF	(PLR_OFFSET + 0x10)
@@ -169,5 +173,9 @@ struct pcie_phy {
 	u32 pcie_ctrl_a_rst_bit;
 };
 
+#ifdef CONFIG_AMLOGIC_PCIE
+extern void mask_irq(struct irq_desc *desc);
+extern void unmask_irq(struct irq_desc *desc);
+#endif
 
 #endif

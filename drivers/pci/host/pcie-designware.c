@@ -246,10 +246,29 @@ static void dw_pcie_prog_outbound_atu(struct pcie_port *pp, int index,
 	dev_err(pp->dev, "iATU is not being enabled\n");
 }
 
+#ifdef CONFIG_AMLOGIC_PCIE
+static void amlogic_msi_mask_irq(struct irq_data *data)
+{
+	mask_pcie_irq();
+	pci_msi_mask_irq(data);
+}
+
+static void amlogic_msi_unmask_irq(struct irq_data *data)
+{
+	unmask_pcie_irq();
+	pci_msi_unmask_irq(data);
+}
+#endif
+
 static struct irq_chip dw_msi_irq_chip = {
 	.name = "PCI-MSI",
+#ifdef CONFIG_AMLOGIC_PCIE
+	.irq_enable = amlogic_msi_unmask_irq,
+	.irq_disable = amlogic_msi_mask_irq,
+#else
 	.irq_enable = pci_msi_unmask_irq,
 	.irq_disable = pci_msi_mask_irq,
+#endif
 	.irq_mask = pci_msi_mask_irq,
 	.irq_unmask = pci_msi_unmask_irq,
 };

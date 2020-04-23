@@ -83,4 +83,9 @@ int dw_pcie_link_up(struct pcie_port *pp);
 void dw_pcie_setup_rc(struct pcie_port *pp);
 int dw_pcie_host_init(struct pcie_port *pp);
 
+#ifdef CONFIG_AMLOGIC_PCIE
+extern void mask_pcie_irq(void);
+extern void unmask_pcie_irq(void);
+#endif
+
 #endif /* _PCIE_DESIGNWARE_H */

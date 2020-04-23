@@ -35,7 +35,9 @@
 #include <dt-bindings/clock/amlogic,axg-clkc.h>
 #include <linux/clk-provider.h>
 #include "../clk/clkc.h"
-
+#ifdef CONFIG_AMLOGIC_PCIE
+#include <linux/irqnr.h>
+#endif
 
 struct amlogic_pcie {
 	struct pcie_port	pp;
@@ -57,6 +59,34 @@ struct amlogic_pcie {
 };
 
 #define to_amlogic_pcie(x)	container_of(x, struct amlogic_pcie, pp)
+
+#ifdef CONFIG_AMLOGIC_PCIE
+static struct amlogic_pcie *pcie_host;
+
+void mask_pcie_irq(void)
+{
+	struct irq_desc *desc = NULL;
+
+	if (pcie_host) {
+		desc = irq_to_desc(
+			(unsigned int)(pcie_host->pp.msi_irq));
+		if (desc)
+			mask_irq(desc);
+	}
+}
+
+void unmask_pcie_irq(void)
+{
+	struct irq_desc *desc = NULL;
+
+	if (pcie_host) {
+		desc = irq_to_desc(
+			(unsigned int)(pcie_host->pp.msi_irq));
+		if (desc)
+			unmask_irq(desc);
+	}
+}
+#endif
 
 static void amlogic_elb_writel(struct amlogic_pcie *amlogic_pcie, u32 val,
 								u32 reg)
@@ -998,6 +1028,9 @@ static int __init amlogic_pcie_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, amlogic_pcie);
 	device_create_file(&pdev->dev, &dev_attr_phyread_v2);
 	device_create_file(&pdev->dev, &dev_attr_phywrite_v2);
+#ifdef CONFIG_AMLOGIC_PCIE
+	pcie_host = amlogic_pcie;
+#endif
 	return 0;
 
 fail_clk:
