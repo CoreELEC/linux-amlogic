@@ -2719,9 +2719,11 @@ static void post_bit_mode_config(unsigned char if0,
 		DIM_DI_WR_REG_BITS(VD1_IF0_GEN_REG3, if0 & 0x3, 8, 2);
 	DIM_DI_WR_REG_BITS(DI_IF1_GEN_REG3, if1 & 0x3, 8, 2);
 	DIM_DI_WR_REG_BITS(DI_IF2_GEN_REG3, if2 & 0x3, 8, 2);
+	#ifndef DIM_OUT_NV21 /* NO_NV21 */
 	DIM_DI_WR_REG_BITS(DI_DIWR_Y, post_wr & 0x1, 14, 1);
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXL) && ((post_wr & 0x3) == 0x3))
 		DIM_DI_WR_REG_BITS(DI_DIWR_CTRL, 0x3, 22, 2);
+	#endif
 }
 
 void dimh_post_switch_buffer(struct DI_MIF_s *di_buf0_mif,
@@ -2801,6 +2803,7 @@ void dimh_post_switch_buffer(struct DI_MIF_s *di_buf0_mif,
 	}
 
 	if (di_ddr_en) {
+		#ifndef DIM_OUT_NV21 /* NO_NV21 */
 		DIM_VSYNC_WR_MPEG_REG(DI_DIWR_CTRL,
 				      di_diwr_mif->canvas_num	|
 				      (urgent << 16)		|
@@ -2810,6 +2813,7 @@ void dimh_post_switch_buffer(struct DI_MIF_s *di_buf0_mif,
 				     di_buf1_mif->bit_mode,
 				     di_buf2_mif->bit_mode,
 				     di_diwr_mif->bit_mode);
+		#endif
 	}
 
 	DIM_VSC_WR_MPG_BT(DI_BLEND_CTRL, blend_en, 31, 1);
@@ -2922,6 +2926,11 @@ static void set_post_mtnrd_mif_g12(struct DI_SIM_MIF_s *mtnprd_mif)
 	DIM_VSC_WR_MPG_BT(MTNRD_CTRL1, 0, 0, 3);
 }
 
+#ifdef DIM_OUT_NV21
+static void dimh_pst_mif_set(struct DI_SIM_MIF_s *cfg_mif,
+			     unsigned int urgent,
+			     unsigned int ddr_en);
+#endif
 void dimh_enable_di_post_2(struct DI_MIF_s		   *di_buf0_mif,
 			   struct DI_MIF_s		   *di_buf1_mif,
 			   struct DI_MIF_s		   *di_buf2_mif,
@@ -2962,6 +2971,13 @@ void dimh_enable_di_post_2(struct DI_MIF_s		   *di_buf0_mif,
 	else
 		set_post_mtnrd_mif(di_mtnprd_mif, urgent);
 	if (di_ddr_en) {
+		#ifdef DIM_OUT_NV21 /* NO_NV21 */
+		dimh_pst_mif_set(di_diwr_mif, urgent, di_ddr_en);
+		post_bit_mode_config(di_buf0_mif->bit_mode,
+				     di_buf1_mif->bit_mode,
+				     di_buf2_mif->bit_mode,
+				     di_diwr_mif->bit_mode);
+		#else
 		DIM_VSYNC_WR_MPEG_REG(DI_DIWR_X,
 				      (di_diwr_mif->start_x << 16)	|
 				      (di_diwr_mif->end_x));
@@ -2980,6 +2996,7 @@ void dimh_enable_di_post_2(struct DI_MIF_s		   *di_buf0_mif,
 				     di_buf1_mif->bit_mode,
 				     di_buf2_mif->bit_mode,
 				     di_diwr_mif->bit_mode);
+		#endif
 	}
 	DIM_VSC_WR_MPG_BT(DI_BLEND_CTRL, 7, 22, 3);
 	DIM_VSC_WR_MPG_BT(DI_BLEND_CTRL, blend_en & 0x1, 31, 1);
@@ -4193,6 +4210,166 @@ void dimh_txl_patch_prog(int prog_flg, unsigned int cnt, bool mc_en)
 	DIM_RDMA_WR(DI_MTN_1_CTRL1, di_mtn_1_ctrl1);
 }
 
+#ifdef DIM_OUT_NV21
+/**********************************************************
+ * rebuild setting
+ **********************************************************/
+static const unsigned int reg_mifs[EDI_MIFS_NUB][EDI_MIFS_REG_NUB] = {
+	{ /* pre nr mif */
+		DI_NRWR_X,
+		DI_NRWR_Y,
+		DI_NRWR_CTRL,	/*write only once*/
+	},
+	{ /* post wr mif */
+		DI_DIWR_X,
+		DI_DIWR_Y,
+		DI_DIWR_CTRL,
+	},
+};
+
+static void dimh_wrmif_switch_buf(struct DI_SIM_MIF_s *cfg_mif,
+				  const struct reg_acc *ops,
+				  struct cfg_mifset_s *cfgs,
+				  enum EDI_MIFSM mifsel)
+{
+	const unsigned int *reg;
+	unsigned int ctr;
+
+	reg = &reg_mifs[mifsel][0];
+	ctr = 0;
+
+	ctr |= ((2 << 26)		|
+		(cfg_mif->urgent << 16)	|    /*urgent*/
+		/* swap cbcrworking in rgb mode =2: swap cbcr*/
+		(cfg_mif->cbcr_swap << 17)	|
+		/*vcon working in rgb mode =2:*/
+		(0 << 18)		|
+		/* hconv. output even pixel*/
+		(0 << 20)		|
+		/*rgb mode =0, 422 YCBCR to one canvas.*/
+		(0 << 22)		|
+		(0 << 24)		|
+		(cfg_mif->ddr_en << 30));
+
+	if (cfg_mif->set_separate_en == 0) {
+		ctr |= (cfg_mif->canvas_num & 0xff);	/* canvas index.*/
+	} else if (cfg_mif->set_separate_en == 2) {
+		ctr = (cfg_mif->canvas_num & 0x00ff)	| /* Y canvas index.*/
+		      /*CBCR canvas index*/
+		      (cfg_mif->canvas_num & 0xff00)	|
+		      /*vcon working in rgb mode =2: 3 : output all.*/
+		      (((cfg_mif->video_mode == 0) ? 0 : 3) << 18) |
+		      /* hconv. output even pixel */
+		      (((cfg_mif->video_mode == 2) ? 3 : 0) << 20) |
+		      (2 << 22); /*enable auto clock gating in nrwr_mif.*/
+	}
+	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXL) &&
+	    ((cfg_mif->bit_mode & 0x3) == 0x3))
+		ctr = ctr | (3 << 22);
+
+	ops->wr(reg[EDI_MIFS_CTRL], ctr);
+}
+
+static void dimh_wrmif_set(struct DI_SIM_MIF_s *cfg_mif,
+			   const struct reg_acc *ops,
+			   struct cfg_mifset_s *cfgs,
+			   enum EDI_MIFSM mifsel)
+{
+	const unsigned int *reg;
+	unsigned int ctr;
+
+	reg = &reg_mifs[mifsel][0];
+
+	//dimh_enable_di_post_2
+	/*set all*/
+
+	if (!cfg_mif->ddr_en)
+		return;
+
+	ops->wr(reg[EDI_MIFS_X],
+		(cfg_mif->l_endian		<< 31)	|
+		(cfg_mif->start_x	<< 16)	|	/* [29:16]*/
+		(cfg_mif->end_x));			/* [13:0] */
+	ops->wr(reg[EDI_MIFS_Y],
+		(3			<< 30)	|
+		(cfg_mif->start_y	<< 16)	|
+		/* wr ext en from gxtvbb */
+		(1			<< 15)	|
+		((cfg_mif->bit_mode & 0x1) << 14)	|
+		(cfg_mif->end_y));
+
+	/* MIFS_CTRL */
+	ctr = 0;
+	ctr |= (2 << 26)		|
+	       (cfg_mif->urgent << 16)	|	/*urgent*/
+	       /* swap cbcrworking in rgb mode =2: swap cbcr */
+	       (cfg_mif->cbcr_swap << 17)	|
+	       (0 << 18)		| /*vcon working in rgb mode =2:*/
+	       (0 << 20)		| /* hconv. output even pixel*/
+	       /*rgb mode =0, 422 YCBCR to one canvas.*/
+	       (0 << 22)		|
+	       (0 << 24)		|
+	       (cfg_mif->ddr_en << 30);
+	if (cfg_mif->set_separate_en == 0) {
+		ctr |= (cfg_mif->canvas_num & 0xff);	/* canvas index.*/
+	} else if (cfg_mif->set_separate_en == 2) {
+		ctr |= (cfg_mif->canvas_num & 0x00ff)	| /* Y canvas index.*/
+			/*CBCR canvas index*/
+		       (cfg_mif->canvas_num & 0xff00)	|
+		       /* vcon working in rgb mode =2: 3 : output all.*/
+		       (((cfg_mif->video_mode == 0) ? 0 : 3) << 18) |
+		       /* hconv. output even pixel */
+		       (((cfg_mif->video_mode == 2) ? 3 : 0) << 20) |
+		       (2 << 22);      //enable auto clock gating in nrwr_mif.
+	}
+	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXL) &&
+	    ((cfg_mif->bit_mode & 0x3) == 0x3))
+		ctr = ctr | (3 << 22);
+
+	ops->wr(reg[EDI_MIFS_CTRL], ctr);
+
+	dim_print("bit_mode[%d] 0x%x=[0x%x]\n",
+		  cfg_mif->bit_mode, reg[EDI_MIFS_Y], RD(reg[EDI_MIFS_Y]));
+	dim_print("0x%x=[0x%x]\n", reg[EDI_MIFS_CTRL], RD(reg[EDI_MIFS_CTRL]));
+}
+
+const struct reg_acc di_pst_regset = {
+	.wr = DIM_VSYNC_WR_MPEG_REG,
+	.rd = NULL,
+	.bwr = DIM_VSC_WR_MPG_BT,
+	.brd = NULL,
+};
+
+static void dimh_pst_mif_set(struct DI_SIM_MIF_s *cfg_mif,
+			     unsigned int urgent,
+			     unsigned int ddr_en)
+{
+	//struct cfg_mifset_s mifset;
+
+	//cfg_mif->ddr_en = ddr_en;
+	cfg_mif->urgent = urgent;
+	cfg_mif->cbcr_swap = 0;
+	cfg_mif->l_endian = 0;
+
+	dimh_wrmif_set(cfg_mif, &di_pst_regset, NULL, EDI_MIFSM_WR);
+}
+
+void dimh_pst_mif_update(struct DI_SIM_MIF_s *cfg_mif,
+			 unsigned int urgent,
+			 unsigned int ddr_en)
+{
+	struct cfg_mifset_s mifset;
+
+	mifset.ddr_en = ddr_en;
+	mifset.urgent = urgent;
+	mifset.cbcr_swap = 0;
+	mifset.l_endian = 0;
+
+	dimh_wrmif_switch_buf(cfg_mif, &di_pst_regset, &mifset, EDI_MIFSM_WR);
+}
+#endif
+
+/**********************************************************/
 void dim_init_setting_once(void)
 {
 	if (di_get_flg_hw_int())

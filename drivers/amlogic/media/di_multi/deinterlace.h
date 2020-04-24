@@ -29,6 +29,11 @@
 #include "deinterlace_hw.h"
 #include "../deinterlace/di_pqa.h"
 
+/************************************************
+ * config define
+ ***********************************************/
+/*#define DIM_OUT_NV21	(1)*/
+
 /*trigger_pre_di_process param*/
 #define TRIGGER_PRE_BY_PUT			'p'
 #define TRIGGER_PRE_BY_DE_IRQ			'i'
@@ -492,6 +497,7 @@ int dim_seq_file_module_para_(struct seq_file *seq);
 
 unsigned int di_get_dts_nrds_en(void);
 int di_get_disp_cnt(void);
+void dbg_vfm(struct vframe_s *vf, unsigned int cnt);
 
 /*---------------------*/
 long dim_pq_load_io(unsigned long arg);

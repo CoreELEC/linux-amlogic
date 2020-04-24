@@ -49,10 +49,10 @@ void DIM_DI_WR(unsigned int addr, unsigned int val);
 void DIM_DI_WR_REG_BITS(unsigned int adr, unsigned int val,
 			unsigned int start, unsigned int len);
 void DIM_VSYNC_WR_MPEG_REG(unsigned int addr, unsigned int val);
-void DIM_VSC_WR_MPG_BT(unsigned int addr,
-		       unsigned int val,
-		       unsigned int start,
-		       unsigned int len);
+unsigned int DIM_VSC_WR_MPG_BT(unsigned int addr,
+			       unsigned int val,
+			       unsigned int start,
+			       unsigned int len);
 
 #define HHI_VPU_CLKB_CNTL	0x83
 

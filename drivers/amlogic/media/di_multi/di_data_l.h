@@ -93,6 +93,19 @@ enum EDI_MEM_M {
 	EDI_MEM_M_MAX	/**/
 };
 
+enum EDPST_OUT_MODE {
+	EDPST_OUT_MODE_DEF,
+	EDPST_OUT_MODE_NV21,
+	EDPST_OUT_MODE_NV12,
+};
+
+struct di_win_s {
+	unsigned int x_size;
+	unsigned int y_size;
+	unsigned int x_st;
+	unsigned int y_st;
+};
+
 /* ************************************** */
 /* *************** cfg top ************** */
 /* ************************************** */
@@ -419,6 +432,7 @@ struct di_hpst_s {
 	bool dbg_f_en;
 	unsigned int dbg_f_lstate;
 	unsigned int dbg_f_cnt;
+	struct vframe_s		vf_post;
 
 };
 

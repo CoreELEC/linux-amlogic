@@ -91,7 +91,16 @@ struct DI_SIM_MIF_s {
 	unsigned short	start_y;
 	unsigned short	end_y;
 	unsigned short	canvas_num;
-	unsigned short	bit_mode;
+	unsigned int	bit_mode	:4;
+	unsigned int	set_separate_en	:4; /*ary add below is only for wr buf*/
+
+	unsigned int	video_mode	:4;
+	unsigned int	ddr_en		:1;
+	unsigned int	urgent		:1;
+	unsigned int	l_endian	:1;
+	unsigned int	cbcr_swap	:1;
+
+	unsigned int	reserved	:16;
 };
 
 struct DI_MC_MIF_s {
@@ -123,6 +132,36 @@ struct di_pq_parm_s {
 	struct list_head list;
 };
 
+/***********************************************
+ * setting rebuild
+ *	by ary
+ ***********************************************/
+enum EDI_MIFSM {
+	EDI_MIFSM_NR,
+	EDI_MIFSM_WR,
+};
+
+enum EDI_MIFSR {
+	EDI_MIFS_X,
+	EDI_MIFS_Y,
+	EDI_MIFS_CTRL,
+};
+
+/*keep same as EDI_MIFSM*/
+#define EDI_MIFS_NUB	(2)
+
+/*keep same as EDI_MIFSR*/
+#define EDI_MIFS_REG_NUB (3)
+
+struct cfg_mifset_s {
+	bool ddr_en;
+	bool urgent;
+	bool l_endian; /* little_endian */
+	bool cbcr_swap;
+	//unsigned int bit_mode;
+};
+
+/**********************************************/
 void dim_read_pulldown_info(unsigned int *glb_frm_mot_num,
 			    unsigned int *glb_fid_mot_num);
 

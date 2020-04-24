@@ -377,15 +377,17 @@ void DIM_VSYNC_WR_MPEG_REG(unsigned int addr, unsigned int val)
 
 /* dim_VSYNC_WR_MPEG_REG_BITS */
 
-void DIM_VSC_WR_MPG_BT(unsigned int addr, unsigned int val,
-		       unsigned int start, unsigned int len)
+unsigned int DIM_VSC_WR_MPG_BT(unsigned int addr, unsigned int val,
+			       unsigned int start, unsigned int len)
 {
 	if (is_need_stop_reg(addr))
-		return;
+		return 0;
 	if (dimp_get(edi_mp_post_wr_en) && dimp_get(edi_mp_post_wr_support))
 		DIM_DI_WR_REG_BITS(addr, val, start, len);
 	else
 		VSYNC_WR_MPEG_REG_BITS(addr, val, start, len);
+
+	return 0;
 }
 
 #ifdef DI_V2
@@ -3834,6 +3836,8 @@ unsigned char dim_pre_de_buf_config(unsigned int channel)
 
 		if (!vframe)
 			return 0;
+
+		/*dbg_vfm(vframe, 1);*/
 		if (ppre->in_seq < kpi_frame_num) {
 			pr_dbg("[di_kpi] DI:ch[%d] get %dth vf[0x%p] from frontend %u ms.\n",
 				channel,
@@ -5124,6 +5128,242 @@ static void get_vscale_skip_count(unsigned int par)
 
 static unsigned int pldn_dly = 1;
 
+/******************************************
+ *
+ ******************************************/
+
+#ifdef DIM_OUT_NV21
+
+static unsigned int cfg_nv21/* = DI_BIT0*/;
+module_param_named(cfg_nv21, cfg_nv21, uint, 0664);
+
+#ifdef NV21_DBG
+static unsigned int cfg_vf;
+module_param_named(cfg_vf, cfg_vf, uint, 0664);
+#endif
+/**********************************************************
+ * canvans
+ *	set vfm canvas by config | planes | index
+ *	set vf->canvas0Addr
+ *
+ **********************************************************/
+static void dim_canvas_set2(struct vframe_s *vf, u32 *index)
+{
+	int i;
+	u32 *canvas_index = index;
+	unsigned int shift;
+	struct canvas_config_s *cfg = &vf->canvas0_config[0];
+	u32 planes = vf->plane_num;
+
+	if (vf->canvas0Addr != ((u32)-1))
+		return;
+	if (planes > 3) {
+		PR_ERR("%s:planes overflow[%d]\n", __func__, planes);
+		return;
+	}
+	dim_print("%s:p[%d]\n", __func__, planes);
+
+	vf->canvas0Addr = 0;
+	for (i = 0; i < planes; i++, canvas_index++, cfg++) {
+		canvas_config_config(*canvas_index, cfg);
+		dim_print("\tw[%d],h[%d],cid[%d]\n",
+			  cfg->width, cfg->height, *canvas_index);
+		shift = 8 * i;
+		vf->canvas0Addr |= (*canvas_index << shift);
+		//vf->plane_num = planes;
+	}
+}
+
+static void di_cnt_cvs_nv21(unsigned int mode,
+			    unsigned int *h,
+			    unsigned int *v,
+			    unsigned int ch)
+{
+	struct di_mm_s *mm = dim_mm_get(ch); /*mm-0705*/
+	int width = mm->cfg.di_w;
+	int height = mm->cfg.di_h;
+	int canvas_height = height + 8;
+	unsigned int nr_width = width;
+	unsigned int nr_canvas_width = width;
+	unsigned int canvas_align_width = 32;
+
+	if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12A))
+		canvas_align_width = 64;
+
+	nr_width = width;
+	nr_canvas_width = nr_width;//nr_width << 1;
+	nr_canvas_width = roundup(nr_canvas_width, canvas_align_width);
+	*h = nr_canvas_width;
+	*v = canvas_height;
+}
+
+static void dimpst_fill_outvf(struct vframe_s *vfm,
+			      struct di_buf_s *di_buf,
+			      enum EDPST_OUT_MODE mode)
+{
+	struct canvas_config_s *cvsp;
+	unsigned int cvsh, cvsv, csize;
+
+	memcpy(vfm, di_buf->vframe, sizeof(*vfm));
+
+	/* canvas */
+	vfm->canvas0Addr = (u32)-1;
+
+	if (mode == EDPST_OUT_MODE_DEF) {
+		vfm->plane_num = 1;
+		cvsp = &vfm->canvas0_config[0];
+		cvsp->phy_addr = di_buf->nr_adr;
+		cvsp->block_mode = 0;
+		cvsp->endian = 0;
+		cvsp->width = di_buf->canvas_width[NR_CANVAS];
+		cvsp->height = di_buf->canvas_height;
+	} else {
+		vfm->plane_num = 2;
+		/* count canvs size */
+		di_cnt_cvs_nv21(0, &cvsh, &cvsv, 0);
+		/* 0 */
+		cvsp = &vfm->canvas0_config[0];
+		cvsp->phy_addr = di_buf->nr_adr;
+		cvsp->block_mode = 0;
+		cvsp->endian = 0;
+		cvsp->width = cvsh;
+		cvsp->height = cvsv;
+		csize = roundup((cvsh * cvsv), PAGE_SIZE);
+		/* 1 */
+		cvsp = &vfm->canvas0_config[1];
+		cvsp->width = cvsh;
+		cvsp->height = cvsv;
+		cvsp->phy_addr = di_buf->nr_adr + csize;
+		cvsp->block_mode = 0;
+		cvsp->endian = 0;
+	}
+
+	/* type */
+	if (mode == EDPST_OUT_MODE_NV21 ||
+	    mode == EDPST_OUT_MODE_NV12) {
+		/*clear*/
+		vfm->type &= ~(VIDTYPE_VIU_NV12	|
+			       VIDTYPE_VIU_444	|
+			       VIDTYPE_VIU_NV21	|
+			       VIDTYPE_VIU_422	|
+			       VIDTYPE_VIU_SINGLE_PLANE	|
+			       VIDTYPE_PRE_INTERLACE);
+		vfm->type |= VIDTYPE_VIU_FIELD;
+		vfm->type |= VIDTYPE_DI_PW;
+		if (mode == EDPST_OUT_MODE_NV21)
+			vfm->type |= VIDTYPE_VIU_NV21;
+		else
+			vfm->type |= VIDTYPE_VIU_NV12;
+
+		/* bit */
+		vfm->bitdepth &= ~(BITDEPTH_MASK);
+		vfm->bitdepth &= ~(FULL_PACK_422_MODE);
+		vfm->bitdepth |= (BITDEPTH_Y8	|
+				  BITDEPTH_U8	|
+				  BITDEPTH_V8);
+	}
+#ifdef NV21_DBG
+	if (cfg_vf)
+		vfm->type = cfg_vf;
+#endif
+}
+
+static void dim_cfg_s_mif(struct DI_SIM_MIF_s *smif,
+			  struct vframe_s *vf,
+			  struct di_win_s *win)
+{
+	struct di_dev_s *de_devp = get_dim_de_devp();
+
+	//vframe_t *vf = di_buf->vframe;
+
+	//smif->canvas_num = di_buf->nr_canvas_idx;
+	/* bit mode config */
+	if (vf->bitdepth & BITDEPTH_Y10) {
+		if (vf->type & VIDTYPE_VIU_444) {
+			smif->bit_mode = (vf->bitdepth & FULL_PACK_422_MODE) ?
+						3 : 2;
+		} else {
+			smif->bit_mode = (vf->bitdepth & FULL_PACK_422_MODE) ?
+						3 : 1;
+		}
+	} else {
+		smif->bit_mode = 0;
+	}
+
+	/* video mode */
+	if (vf->type & VIDTYPE_VIU_444)
+		smif->video_mode = 1;
+	else
+		smif->video_mode = 0;
+
+	/* separate */
+	if (vf->type & VIDTYPE_VIU_422)
+		smif->set_separate_en = 0;
+	else
+		smif->set_separate_en = 2; /*nv12 ? nv 21?*/
+
+	/*x,y,*/
+
+	if (de_devp->pps_enable &&
+	    dimp_get(edi_mp_pps_position) == 0) {
+		//dim_pps_config(0, di_width, di_height,
+		//	       dimp_get(edi_mp_pps_dstw),
+		//	       dimp_get(edi_mp_pps_dsth));
+		if (win) {
+			smif->start_x = win->x_st;
+			smif->end_x = win->x_st +
+				dimp_get(edi_mp_pps_dstw) - 1;
+			smif->start_y = win->y_st;
+			smif->end_y = win->y_st +
+				dimp_get(edi_mp_pps_dsth) - 1;
+		} else {
+			smif->start_x = 0;
+			smif->end_x =
+				dimp_get(edi_mp_pps_dstw) - 1;
+			smif->start_y = 0;
+			smif->end_y =
+				dimp_get(edi_mp_pps_dsth) - 1;
+		}
+	} else {
+		if (win) {
+			smif->start_x = win->x_st;
+			smif->end_x   = win->x_st + win->x_size - 1;
+			smif->start_y = win->y_st;
+			smif->end_y   = win->y_st + win->y_size - 1;
+
+		} else {
+			smif->start_x = 0;
+			smif->end_x   = vf->width - 1;
+			smif->start_y = 0;
+			smif->end_y   = vf->height - 1;
+		}
+	}
+}
+
+void dbg_vfm(struct vframe_s *vf, unsigned int dbgpos)
+{
+	int i;
+	struct canvas_config_s *cvsp;
+
+	if (!(cfg_nv21 & DI_BIT1))
+		return;
+	PR_INF("%d:type=0x%x\n", dbgpos, vf->type);
+	PR_INF("plane_num=0x%x\n", vf->plane_num);
+	PR_INF("0Addr=0x%x\n", vf->canvas0Addr);
+	PR_INF("1Addr=0x%x\n", vf->canvas1Addr);
+	PR_INF("plane_num=0x%x\n", vf->plane_num);
+	for (i = 0; i < vf->plane_num; i++) {
+		PR_INF("%d:\n", i);
+		cvsp = &vf->canvas0_config[i];
+		PR_INF("\tph=0x%x\n", cvsp->phy_addr);
+		PR_INF("\tw=%d\n", cvsp->width);
+		PR_INF("\th=%d\n", cvsp->height);
+		PR_INF("\tb=%d\n", cvsp->block_mode);
+		PR_INF("\tendian=%d\n", cvsp->endian);
+	}
+}
+#endif /* DIM_OUT_NV21 */
+
 int dim_post_process(void *arg, unsigned int zoom_start_x_lines,
 		     unsigned int zoom_end_x_lines,
 		     unsigned int zoom_start_y_lines,
@@ -5148,6 +5388,9 @@ int dim_post_process(void *arg, unsigned int zoom_start_x_lines,
 	unsigned char channel = pst->curr_ch;
 	struct di_pre_stru_s *ppre = get_pre_stru(channel);
 	struct di_post_stru_s *ppost = get_post_stru(channel);
+#ifdef DIM_OUT_NV21
+	u32	cvs_nv21[2];
+#endif
 
 	dimp_inc(edi_mp_post_cnt);
 	if (ppost->vscale_skip_flag)
@@ -5227,6 +5470,15 @@ int dim_post_process(void *arg, unsigned int zoom_start_x_lines,
 		       (post_wr_en && post_wr_support));
 	#endif
 
+#ifdef DIM_OUT_NV21
+	/* nv 21*/
+	if (cfg_nv21 & DI_BIT0)
+		dimpst_fill_outvf(&pst->vf_post, di_buf, EDPST_OUT_MODE_NV21);
+	else
+		dimpst_fill_outvf(&pst->vf_post, di_buf, EDPST_OUT_MODE_DEF);
+	/*************************************************/
+#endif
+
 	if (RD(DI_POST_SIZE) != ((di_width - 1) | ((di_height - 1) << 16)) ||
 	    ppost->buf_type != di_buf->di_buf_dup_p[0]->type ||
 	    ppost->di_buf0_mif.luma_x_start0 != di_start_x ||
@@ -5244,6 +5496,11 @@ int dim_post_process(void *arg, unsigned int zoom_start_x_lines,
 			PR_ERR("%s 3:\n", __func__);
 			return 0;
 		}
+#ifdef DIM_OUT_NV21
+		/* nv 21*/
+		dim_cfg_s_mif(&ppost->di_diwr_mif, &pst->vf_post, NULL);
+#endif
+		/******************************************/
 		/* bit mode config */
 		if (di_buf->vframe->bitdepth & BITDEPTH_Y10) {
 			if (di_buf->vframe->type & VIDTYPE_VIU_444) {
@@ -5253,9 +5510,10 @@ int dim_post_process(void *arg, unsigned int zoom_start_x_lines,
 		(di_buf->vframe->bitdepth & FULL_PACK_422_MODE) ? 3 : 2;
 				ppost->di_buf2_mif.bit_mode =
 		(di_buf->vframe->bitdepth & FULL_PACK_422_MODE) ? 3 : 2;
+#ifndef DIM_OUT_NV21
 				ppost->di_diwr_mif.bit_mode =
 		(di_buf->vframe->bitdepth & FULL_PACK_422_MODE) ? 3 : 2;
-
+#endif
 			} else {
 				ppost->di_buf0_mif.bit_mode =
 		(di_buf->vframe->bitdepth & FULL_PACK_422_MODE) ? 3 : 1;
@@ -5263,14 +5521,18 @@ int dim_post_process(void *arg, unsigned int zoom_start_x_lines,
 		(di_buf->vframe->bitdepth & FULL_PACK_422_MODE) ? 3 : 1;
 				ppost->di_buf2_mif.bit_mode =
 		(di_buf->vframe->bitdepth & FULL_PACK_422_MODE) ? 3 : 1;
+#ifndef DIM_OUT_NV21
 				ppost->di_diwr_mif.bit_mode =
 		(di_buf->vframe->bitdepth & FULL_PACK_422_MODE) ? 3 : 1;
+#endif
 			}
 		} else {
 			ppost->di_buf0_mif.bit_mode = 0;
 			ppost->di_buf1_mif.bit_mode = 0;
 			ppost->di_buf2_mif.bit_mode = 0;
+#ifndef DIM_OUT_NV21
 			ppost->di_diwr_mif.bit_mode = 0;
+#endif
 		}
 		if (di_buf->vframe->type & VIDTYPE_VIU_444) {
 			ppost->di_buf0_mif.video_mode = 1;
@@ -5323,6 +5585,7 @@ int dim_post_process(void *arg, unsigned int zoom_start_x_lines,
 				dim_pps_config(0, di_width, di_height,
 					       dimp_get(edi_mp_pps_dstw),
 					       dimp_get(edi_mp_pps_dsth));
+#ifndef DIM_OUT_NV21
 				ppost->di_diwr_mif.start_x = 0;
 				ppost->di_diwr_mif.end_x =
 					dimp_get(edi_mp_pps_dstw) - 1;
@@ -5334,6 +5597,7 @@ int dim_post_process(void *arg, unsigned int zoom_start_x_lines,
 				ppost->di_diwr_mif.end_x   = di_end_x;
 				ppost->di_diwr_mif.start_y = di_start_y;
 				ppost->di_diwr_mif.end_y   = di_end_y;
+#endif
 			}
 		}
 
@@ -5363,7 +5627,15 @@ int dim_post_process(void *arg, unsigned int zoom_start_x_lines,
 #ifdef DI_USE_FIXED_CANVAS_IDX
 #ifdef CONFIG_AMLOGIC_MEDIA_VSYNC_RDMA
 	if (is_vsync_rdma_enable()) {
+#ifdef DIM_OUT_NV21
+		if (dimp_get(edi_mp_post_wr_en) &&
+		    dimp_get(edi_mp_post_wr_support))
+			ppost->canvas_id = 0;
+		else
+			ppost->canvas_id = ppost->next_canvas_id;
+#else
 		ppost->canvas_id = ppost->next_canvas_id;
+#endif
 	} else {
 		ppost->canvas_id = 0;
 		ppost->next_canvas_id = 1;
@@ -5611,14 +5883,26 @@ int dim_post_process(void *arg, unsigned int zoom_start_x_lines,
 	}
 
 	if (dimp_get(edi_mp_post_wr_en) && dimp_get(edi_mp_post_wr_support)) {
+		#ifdef DIM_OUT_NV21
+		cvs_nv21[0] = di_post_idx[0][5];
+		cvs_nv21[1] = di_post_idx[1][0];
+		dim_canvas_set2(&pst->vf_post, &cvs_nv21[0]);
+		ppost->di_diwr_mif.canvas_num = pst->vf_post.canvas0Addr;
+		ppost->di_diwr_mif.ddr_en = 1;
+		#else
 		config_canvas_idx(di_buf,
 				  di_post_idx[ppost->canvas_id][5], -1);
 		ppost->di_diwr_mif.canvas_num = di_buf->nr_canvas_idx;
+		#endif
+
 		di_vpp_en = 0;
 		di_ddr_en = 1;
 	} else {
 		di_vpp_en = 1;
 		di_ddr_en = 0;
+		#ifdef DIM_OUT_NV21
+		ppost->di_diwr_mif.ddr_en = 0;
+		#endif
 	}
 
 	/* if post size < MIN_POST_WIDTH, force ei */
@@ -5769,6 +6053,9 @@ static void post_ready_buf_set(unsigned int ch, struct di_buf_s *di_buf)
 	struct di_buf_s *nr_buf = NULL;
 	struct vframe_s **pvframe_in = get_vframe_in(ch);
 	struct vframe_s *vf;
+#ifdef DIM_OUT_NV21
+	struct di_hpst_s  *pst = get_hw_pst();
+#endif
 
 	vframe_ret = di_buf->vframe;
 	nr_buf = di_buf->di_buf_dup_p[1];
@@ -5776,6 +6063,19 @@ static void post_ready_buf_set(unsigned int ch, struct di_buf_s *di_buf)
 	     dimp_get(edi_mp_post_wr_support))	&&
 	    di_buf->process_fun_index != PROCESS_FUN_NULL) {
 	#ifdef CONFIG_AMLOGIC_MEDIA_MULTI_DEC
+	#ifdef DIM_OUT_NV21
+		vframe_ret->type = pst->vf_post.type;
+		vframe_ret->bitdepth = pst->vf_post.bitdepth;
+		vframe_ret->plane_num = pst->vf_post.plane_num;
+		vframe_ret->canvas0Addr = -1;
+		vframe_ret->canvas1Addr = -1;
+		memcpy(&vframe_ret->canvas0_config[0],
+		       &pst->vf_post.canvas0_config[0],
+		       sizeof(vframe_ret->canvas0_config[0]));
+		memcpy(&vframe_ret->canvas0_config[1],
+		       &pst->vf_post.canvas0_config[1],
+		       sizeof(vframe_ret->canvas0_config[1]));
+	#else
 		vframe_ret->canvas0_config[0].phy_addr =
 			di_buf->nr_adr;
 		vframe_ret->canvas0_config[0].width =
@@ -5787,6 +6087,7 @@ static void post_ready_buf_set(unsigned int ch, struct di_buf_s *di_buf)
 		vframe_ret->plane_num = 1;
 		vframe_ret->canvas0Addr = -1;
 		vframe_ret->canvas1Addr = -1;
+	#endif
 		if (di_mp_uit_get(edi_mp_show_nrwr)) {
 			vframe_ret->canvas0_config[0].phy_addr =
 				nr_buf->nr_adr;
@@ -5834,6 +6135,7 @@ static void post_ready_buf_set(unsigned int ch, struct di_buf_s *di_buf)
 					  di_buf->index, di_buf->in_buf->index);
 			}
 		}
+		/* dbg_vfm(vframe_ret, 2);*/
 	}
 }
 
