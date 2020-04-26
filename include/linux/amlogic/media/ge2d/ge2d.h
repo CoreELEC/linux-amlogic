@@ -662,6 +662,8 @@ struct ge2d_config_s {
 	struct ge2d_dma_cfg_s src_dma_cfg[MAX_PLANE];
 	struct ge2d_dma_cfg_s src2_dma_cfg[MAX_PLANE];
 	struct ge2d_dma_cfg_s dst_dma_cfg[MAX_PLANE];
+	/* operate on secure memory */
+	int mem_sec;
 };
 
 struct ge2d_dma_buf_s {
@@ -859,6 +861,8 @@ struct config_para_ex_s {
 	struct config_planes_s src_planes[4];
 	struct config_planes_s src2_planes[4];
 	struct config_planes_s dst_planes[4];
+	/* operate on secure memory */
+	int mem_sec;
 };
 
 #ifdef CONFIG_COMPAT
@@ -902,6 +906,8 @@ struct compat_config_para_ex_s {
 	struct compat_config_planes_s src_planes[4];
 	struct compat_config_planes_s src2_planes[4];
 	struct compat_config_planes_s dst_planes[4];
+	/* operate on secure memory */
+	int mem_sec;
 };
 #endif
 

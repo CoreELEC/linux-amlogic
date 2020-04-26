@@ -1270,21 +1270,21 @@ void ge2d_set_cmd(struct ge2d_cmd_s *cfg)
 	 */
 	if (ge2d_meson_dev.hang_flag == 1)
 		ge2d_reg_set_bits(GE2D_GEN_CTRL4, cfg->hang_flag, 0, 1);
-	ge2d_reg_write(GE2D_CMD_CTRL,
-		       (src2_x_interp_ctrl << 14) |
-		       (src2_x_repeat << 12) |
-		       (src2_y_repeat << 10) |
-		       (cfg->src2_fill_color_en << 9) |
-		       (cfg->src1_fill_color_en << 8) |
-		       (cfg->dst_xy_swap << 7) |
-		       (cfg->dst_x_rev << 6) |
-		       (cfg->dst_y_rev << 5) |
-		       (cfg->src2_x_rev << 4) |
-		       (cfg->src2_y_rev << 3) |
-		       (cfg->src1_x_rev << 2) |
-		       (cfg->src1_y_rev << 1) |
-		       1  << 0 /* start cmd */
-		       );
+	ge2d_reg_set_bits(GE2D_CMD_CTRL,
+			  (src2_x_interp_ctrl << 14) |
+			  (src2_x_repeat << 12) |
+			  (src2_y_repeat << 10) |
+			  (cfg->src2_fill_color_en << 9) |
+			  (cfg->src1_fill_color_en << 8) |
+			  (cfg->dst_xy_swap << 7) |
+			  (cfg->dst_x_rev << 6) |
+			  (cfg->dst_y_rev << 5) |
+			  (cfg->src2_x_rev << 4) |
+			  (cfg->src2_y_rev << 3) |
+			  (cfg->src1_x_rev << 2) |
+			  (cfg->src1_y_rev << 1) |
+			  1 << 0, /* start cmd */
+			  0, 16);
 	cfg->release_flag |= START_FLAG;
 }
 

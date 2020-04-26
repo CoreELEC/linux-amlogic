@@ -514,6 +514,12 @@ static int ge2d_process_work_queue(struct ge2d_context_s *wq)
 
 	do {
 		cfg = &pitem->config;
+		ge2d_log_dbg("secure mode:%d\n", cfg->mem_sec);
+		if (ge2d_meson_dev.chip_type >= MESON_CPU_MAJOR_ID_SC2) {
+			ge2d_reg_set_bits(GE2D_CMD_CTRL,
+					  cfg->mem_sec ? 1 : 0, 28, 1);
+			/* invoke dmc interface heare, if it is required */
+		}
 		ge2d_set_canvas(cfg);
 		mask = 0x1;
 		while (cfg->update_flag && mask <= UPDATE_SCALE_COEF) {
@@ -1775,6 +1781,7 @@ int ge2d_context_config_ex(struct ge2d_context_s *context,
 	/* context->config.src1_data.ddr_burst_size_cb = 3; */
 	/* context->config.src1_data.ddr_burst_size_cr = 3; */
 	/* context->config.src2_dst_data.ddr_burst_size= 3; */
+	context->config.mem_sec = ge2d_config->mem_sec;
 
 	return  0;
 }
