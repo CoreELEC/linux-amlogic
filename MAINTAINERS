@@ -13517,6 +13517,7 @@ M: Tao Zeng <tao.zeng@amlogic.com>
 F: drivers/amlogic/ddr_tool/dmc_g12.c
 F: drivers/amlogic/ddr_tool/dmc_gx.c
 F: drivers/amlogic/ddr_tool/dmc_monitor.c
+F: drivers/amlogic/ddr_tool/dmc_tm2.c
 F: include/linux/amlogic/dmc_monitor.h
 F: include/linux/amlogic/ddr_port.h
 

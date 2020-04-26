@@ -655,6 +655,25 @@ static void ddr_extcon_free(void)
 	ddr_extcon_bandwidth = NULL;
 }
 
+static void get_ddr_external_bus_width(struct ddr_bandwidth *db,
+				       unsigned long sec_base)
+{
+	unsigned long reg, base;
+
+	if ((db->cpu_type == MESON_CPU_MAJOR_ID_TM2) && is_meson_rev_b())
+		base = sec_base + (0x0100 << 2);
+	else
+		base = sec_base + (0x00da << 2);
+
+	/* each axi cycle transfer 4 external bus */
+	reg = dmc_rw(base, 0, DMC_READ);
+	if (reg & BIT(16))	/* 16bit external bus width, 2 * 4 = 8*/
+		db->bytes_per_cycle = 8;
+	else			/* 32bit external bus width, 4 * 4 = 16 */
+		db->bytes_per_cycle = 16;
+	pr_info("bytes_per_cycle:%d, reg:%lx\n", db->bytes_per_cycle, reg);
+}
+
 /*
  *    ddr_bandwidth_probe only executes before the init process starts
  * to run, so add __ref to indicate it is okay to call __init function
@@ -668,6 +687,7 @@ static int __init ddr_bandwidth_probe(struct platform_device *pdev)
 	/*struct pinctrl *p;*/
 	struct resource *res;
 	resource_size_t *base;
+	unsigned int sec_base;
 #endif
 	struct ddr_port_desc *desc = NULL;
 	int pcnt;
@@ -683,11 +703,6 @@ static int __init ddr_bandwidth_probe(struct platform_device *pdev)
 		pr_info("unsupport chip type:%d\n", aml_db->cpu_type);
 		goto inval;
 	}
-
-	if (is_meson_txl_package_950() || is_meson_gxl_package_805X())
-		aml_db->bytes_per_cycle = 8;
-	else
-		aml_db->bytes_per_cycle = 16;
 
 	/* set channel */
 	if (aml_db->cpu_type < MESON_CPU_MAJOR_ID_GXTVBB) {
@@ -740,6 +755,13 @@ static int __init ddr_bandwidth_probe(struct platform_device *pdev)
 	}
 
 	aml_db->irq_num = of_irq_get(node, 0);
+	r = of_property_read_u32(node, "sec_base", &sec_base);
+	if (r < 0) {
+		aml_db->bytes_per_cycle = 16;
+		pr_info("can't find sec_base, set bytes_per_cycle to 16\n");
+	} else {
+		get_ddr_external_bus_width(aml_db, sec_base);
+	}
 #endif
 	spin_lock_init(&aml_db->lock);
 	aml_db->clock_count = DEFAULT_CLK_CNT;

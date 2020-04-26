@@ -969,6 +969,7 @@ dwc2_b {
 		status = "okay";
 		reg = <0x0 0xc8006000 0x0 0x100
 		       0x0 0xc8000400 0x0 0x100>;
+		sec_base = <0xda838400>;
 		interrupts = <0 52 1>;
 		interrupt-names = "ddr_bandwidth";
 	};

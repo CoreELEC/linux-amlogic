@@ -1,5 +1,5 @@
 /*
- * drivers/amlogic/ddr_tool/dmc_g12.c
+ * drivers/amlogic/ddr_tool/dmc_tm2.c
  *
  * Copyright (C) 2017 Amlogic, Inc. All rights reserved.
  *
@@ -29,7 +29,6 @@
 #include <linux/irqreturn.h>
 #include <linux/module.h>
 #include <linux/mm.h>
-#include <linux/highmem.h>
 
 #include <linux/cpu.h>
 #include <linux/smp.h>
@@ -41,38 +40,44 @@
 #include <linux/amlogic/dmc_monitor.h>
 #include <linux/amlogic/ddr_port.h>
 
-#define DMC_PROT0_RANGE		((0x00a0  << 2))
-#define DMC_PROT0_CTRL		((0x00a1  << 2))
-#define DMC_PROT1_RANGE		((0x00a2  << 2))
-#define DMC_PROT1_CTRL		((0x00a3  << 2))
-#define DMC_SEC_STATUS		((0x00b8  << 2))
-#define DMC_VIO_ADDR0		((0x00b9  << 2))
-#define DMC_VIO_ADDR1		((0x00ba  << 2))
-#define DMC_VIO_ADDR2		((0x00bb  << 2))
-#define DMC_VIO_ADDR3		((0x00bc  << 2))
+#define DMC_PROT0_RANGE		((0x0030  << 2))
+#define DMC_PROT0_CTRL		((0x0031  << 2))
+#define DMC_PROT0_CTRL1		((0x0032  << 2))
 
-#define DMC_VIO_PROT_RANGE0	(1 << 21)
-#define DMC_VIO_PROT_RANGE1	(1 << 22)
+#define DMC_PROT1_RANGE		((0x0033  << 2))
+#define DMC_PROT1_CTRL		((0x0034  << 2))
+#define DMC_PROT1_CTRL1		((0x0035  << 2))
 
-static size_t g12_dmc_dump_reg(char *buf)
+#define DMC_PROT_VIO_0		((0x0036  << 2))
+#define DMC_PROT_VIO_1		((0x0037  << 2))
+
+#define DMC_PROT_VIO_2		((0x0038  << 2))
+#define DMC_PROT_VIO_3		((0x0039  << 2))
+
+#define DMC_PROT_IRQ_CTRL	((0x003a  << 2))
+#define DMC_IRQ_STS		((0x003b  << 2))
+
+static size_t tm2_dmc_dump_reg(char *buf)
 {
 	size_t sz = 0, i;
 	unsigned long val;
 
-	val = dmc_prot_rw(DMC_PROT0_RANGE, 0, DMC_READ);
-	sz += sprintf(buf + sz, "DMC_PROT0_RANGE:%lx\n", val);
-	val = dmc_prot_rw(DMC_PROT0_CTRL, 0, DMC_READ);
-	sz += sprintf(buf + sz, "DMC_PROT0_CTRL:%lx\n", val);
-	val = dmc_prot_rw(DMC_PROT1_RANGE, 0, DMC_READ);
-	sz += sprintf(buf + sz, "DMC_PROT1_RANGE:%lx\n", val);
-	val = dmc_prot_rw(DMC_PROT1_CTRL, 0, DMC_READ);
-	sz += sprintf(buf + sz, "DMC_PROT1_CTRL:%lx\n", val);
-	val = dmc_prot_rw(DMC_SEC_STATUS, 0, DMC_READ);
-	sz += sprintf(buf + sz, "DMC_SEC_STATUS:%lx\n", val);
-	for (i = 0; i < 4; i++) {
-		val = dmc_prot_rw(DMC_VIO_ADDR0 + (i << 2), 0, DMC_READ);
-		sz += sprintf(buf + sz, "DMC_VIO_ADDR%zu:%lx\n", i, val);
+	for (i = 0; i < 2; i++) {
+		val = dmc_prot_rw(DMC_PROT0_RANGE + (i * 12), 0, DMC_READ);
+		sz += sprintf(buf + sz, "DMC_PROT%zu_RANGE:%lx\n", i, val);
+		val = dmc_prot_rw(DMC_PROT0_CTRL + (i * 12), 0, DMC_READ);
+		sz += sprintf(buf + sz, "DMC_PROT%zu_CTRL:%lx\n", i, val);
+		val = dmc_prot_rw(DMC_PROT0_CTRL1 + (i * 12), 0, DMC_READ);
+		sz += sprintf(buf + sz, "DMC_PROT%zu_CTRL1:%lx\n", i, val);
 	}
+	for (i = 0; i < 4; i++) {
+		val = dmc_prot_rw(DMC_PROT_VIO_0 + (i << 2), 0, DMC_READ);
+		sz += sprintf(buf + sz, "DMC_PROT_VIO_%zu:%lx\n", i, val);
+	}
+	val = dmc_prot_rw(DMC_PROT_IRQ_CTRL, 0, DMC_READ);
+	sz += sprintf(buf + sz, "DMC_PROT_IRQ_CTRL:%lx\n", val);
+	val = dmc_prot_rw(DMC_IRQ_STS, 0, DMC_READ);
+	sz += sprintf(buf + sz, "DMC_IRQ_STS:%lx\n", val);
 
 	return sz;
 }
@@ -82,35 +87,14 @@ static void check_violation(struct dmc_monitor *mon, void *data)
 	int i, port, subport;
 	unsigned long addr, status;
 	char id_str[4];
-	char off1, off2;
 	struct page *page;
 	struct page_trace *trace;
 
-	switch (mon->chip) {
-	case MESON_CPU_MAJOR_ID_G12B:
-		/* bit fix for G12B */
-		off1 = 24;
-		off2 = 13;
-		break;
-	case MESON_CPU_MAJOR_ID_SM1:
-	case MESON_CPU_MAJOR_ID_TL1:
-	case MESON_CPU_MAJOR_ID_TM2:
-		/* bit fix for SM1/TL1/TM2 */
-		off1 = 22;
-		off2 = 11;
-		break;
-
-	default: /* G12A */
-		off1 = 21;
-		off2 = 10;
-		break;
-	}
-
 	for (i = 1; i < 4; i += 2) {
-		status = dmc_prot_rw(DMC_VIO_ADDR0 + (i << 2), 0, DMC_READ);
-		if (!(status & (1 << off1)))
+		status = dmc_prot_rw(DMC_PROT_VIO_0 + (i << 2), 0, DMC_READ);
+		if (!(status & (1 << 19)))
 			continue;
-		addr = dmc_prot_rw(DMC_VIO_ADDR0 + ((i - 1) << 2), 0,
+		addr = dmc_prot_rw(DMC_PROT_VIO_0 + ((i - 1) << 2), 0,
 				   DMC_READ);
 		if (addr > mon->addr_end)
 			continue;
@@ -127,7 +111,7 @@ static void check_violation(struct dmc_monitor *mon, void *data)
 		if (!trace || trace->migrate_type == MIGRATE_CMA)
 			continue;
 
-		port = (status >> off2) & 0x1f;
+		port = (status >> 11) & 0x1f;
 		subport = (status >> 6) & 0xf;
 		pr_emerg(DMC_TAG", addr:%08lx, s:%08lx, ID:%s, sub:%s, c:%ld, d:%p\n",
 			addr, status, to_ports(port),
@@ -143,11 +127,11 @@ static void check_violation(struct dmc_monitor *mon, void *data)
 	}
 }
 
-static void g12_dmc_mon_irq(struct dmc_monitor *mon, void *data)
+static void tm2_dmc_mon_irq(struct dmc_monitor *mon, void *data)
 {
 	unsigned long value;
 
-	value = dmc_prot_rw(DMC_SEC_STATUS, 0, DMC_READ);
+	value = dmc_prot_rw(DMC_IRQ_STS, 0, DMC_READ);
 	if (in_interrupt()) {
 		if (value & DMC_WRITE_VIOLATION)
 			check_violation(mon, data);
@@ -156,10 +140,12 @@ static void g12_dmc_mon_irq(struct dmc_monitor *mon, void *data)
 		mod_delayed_work(system_wq, &mon->work, 0);
 	}
 	/* clear irq */
-	dmc_prot_rw(DMC_SEC_STATUS, value, DMC_WRITE);
+	value &= 0x03;		/* irq flags */
+	value |= 0x04;		/* en */
+	dmc_prot_rw(DMC_PROT_IRQ_CTRL, value, DMC_WRITE);
 }
 
-static int g12_dmc_mon_set(struct dmc_monitor *mon)
+static int tm2_dmc_mon_set(struct dmc_monitor *mon)
 {
 	unsigned long value, end;
 
@@ -168,26 +154,29 @@ static int g12_dmc_mon_set(struct dmc_monitor *mon)
 	value = (mon->addr_start >> 16) | ((end >> 16) << 16);
 	dmc_prot_rw(DMC_PROT0_RANGE, value, DMC_WRITE);
 
-	value = (1 << 24) | mon->device;
-	dmc_prot_rw(DMC_PROT0_CTRL, value, DMC_WRITE);
+	dmc_prot_rw(DMC_PROT0_CTRL, mon->device | 1 << 24, DMC_WRITE);
+	dmc_prot_rw(DMC_PROT0_CTRL1, 1 << 24, DMC_WRITE);
+	dmc_prot_rw(DMC_PROT_IRQ_CTRL, 0x06, DMC_WRITE);
 
 	pr_emerg("range:%08lx - %08lx, device:%x\n",
 		mon->addr_start, mon->addr_end, mon->device);
 	return 0;
 }
 
-void g12_dmc_mon_disable(struct dmc_monitor *mon)
+void tm2_dmc_mon_disable(struct dmc_monitor *mon)
 {
 	dmc_prot_rw(DMC_PROT0_RANGE, 0, DMC_WRITE);
 	dmc_prot_rw(DMC_PROT0_CTRL, 0, DMC_WRITE);
+	dmc_prot_rw(DMC_PROT0_CTRL1, 0, DMC_WRITE);
+	dmc_prot_rw(DMC_PROT_IRQ_CTRL, 0, DMC_WRITE);
 	mon->device     = 0;
 	mon->addr_start = 0;
 	mon->addr_end   = 0;
 }
 
-struct dmc_mon_ops g12_dmc_mon_ops = {
-	.handle_irq = g12_dmc_mon_irq,
-	.set_montor = g12_dmc_mon_set,
-	.disable    = g12_dmc_mon_disable,
-	.dump_reg   = g12_dmc_dump_reg,
+struct dmc_mon_ops tm2_dmc_mon_ops = {
+	.handle_irq = tm2_dmc_mon_irq,
+	.set_montor = tm2_dmc_mon_set,
+	.disable    = tm2_dmc_mon_disable,
+	.dump_reg   = tm2_dmc_dump_reg,
 };

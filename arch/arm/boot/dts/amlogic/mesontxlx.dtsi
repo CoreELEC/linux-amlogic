@@ -927,6 +927,7 @@
 		status = "okay";
 		reg = <0xff638000 0x100
 		       0xff637000 0x100>;
+		sec_base = <0xff638800>;
 		interrupts = <0 52 1>;
 		interrupt-names = "ddr_bandwidth";
 	};

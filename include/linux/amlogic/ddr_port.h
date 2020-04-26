@@ -22,6 +22,10 @@
 #define MAX_NAME			15
 #define PORT_MAJOR			32
 
+#define DMC_MON_RW		0x8200004A
+
+#define DMC_READ		0
+#define DMC_WRITE		1
 
 struct ddr_port_desc {
 	char port_name[MAX_NAME];
@@ -29,4 +33,5 @@ struct ddr_port_desc {
 };
 
 extern int ddr_find_port_desc(int cpu_type, struct ddr_port_desc **desc);
+unsigned long dmc_rw(unsigned long addr, unsigned long value, int rw);
 #endif /* __DDR_PORT_DESC_H__ */
