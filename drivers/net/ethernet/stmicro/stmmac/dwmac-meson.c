@@ -551,7 +551,7 @@ static int meson6_dwmac_resume(struct device *dev)
 	struct pinctrl *pin_ctrl;
 	struct pinctrl_state *turnon_tes = NULL;
 	pr_info("resuem inter = %d\n", is_internal_phy);
-	if (ee_reset_base)
+	if ((ee_reset_base) && (support_mac_wol == 0))
 		writel((1 << 11), (void __iomem	*)
 			(unsigned long)ee_reset_base);
 

@@ -86,6 +86,10 @@ static void dwmac4_dma_init_channel(void __iomem *ioaddr, int pbl,
 
 	value = readl(ioaddr + DMA_CHAN_TX_CONTROL(channel));
 	value = value | (pbl << DMA_BUS_MODE_PBL_SHIFT);
+#ifdef CONFIG_AMLOGIC_ETH_PRIVE
+	/*OSF*/
+	value = value | 0x10;
+#endif
 	writel(value, ioaddr + DMA_CHAN_TX_CONTROL(channel));
 
 	value = readl(ioaddr + DMA_CHAN_RX_CONTROL(channel));
@@ -215,9 +219,11 @@ static void dwmac4_dma_chan_op_mode(void __iomem *ioaddr, int txmode,
 		else
 			mtl_tx_op |= MTL_OP_MODE_TTC_512;
 	}
-
+#ifdef CONFIG_AMLOGIC_ETH_PRIVE
+	writel(0x7000a, ioaddr +  MTL_CHAN_TX_OP_MODE(channel));
+#else
 	writel(mtl_tx_op, ioaddr +  MTL_CHAN_TX_OP_MODE(channel));
-
+#endif
 	mtl_rx_op = readl(ioaddr + MTL_CHAN_RX_OP_MODE(channel));
 
 	if (rxmode == SF_DMA_MODE) {
@@ -236,9 +242,11 @@ static void dwmac4_dma_chan_op_mode(void __iomem *ioaddr, int txmode,
 		else
 			mtl_rx_op |= MTL_OP_MODE_RTC_128;
 	}
-
+#ifdef CONFIG_AMLOGIC_ETH_PRIVE
+	writel(0x700033, ioaddr + MTL_CHAN_RX_OP_MODE(channel));
+#else
 	writel(mtl_rx_op, ioaddr + MTL_CHAN_RX_OP_MODE(channel));
-
+#endif
 	/* Enable MTL RX overflow */
 	mtl_rx_int = readl(ioaddr + MTL_CHAN_INT_CTRL(channel));
 	writel(mtl_rx_int | MTL_RX_OVERFLOW_INT_EN,

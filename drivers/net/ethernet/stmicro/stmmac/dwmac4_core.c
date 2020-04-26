@@ -57,6 +57,9 @@ static void dwmac4_core_init(struct mac_device_info *hw, int mtu)
 		value |= GMAC_PCS_IRQ_DEFAULT;
 
 	writel(value, ioaddr + GMAC_INT_EN);
+#ifdef CONFIG_AMLOGIC_ETH_PRIVE
+	writel(0x2, ioaddr + GMAC_RXQ_CTRL0);
+#endif
 }
 
 static void dwmac4_dump_regs(struct mac_device_info *hw)
@@ -182,8 +185,12 @@ static void dwmac4_set_filter(struct mac_device_info *hw,
 			reg++;
 		}
 	}
-
+#ifdef CONFIG_AMLOGIC_ETH_PRIVE
+	/*patch to support 5.1a*/
+	writel(value | 0x80000000, ioaddr + GMAC_PACKET_FILTER);
+#else
 	writel(value, ioaddr + GMAC_PACKET_FILTER);
+#endif
 }
 
 static void dwmac4_flow_ctrl(struct mac_device_info *hw, unsigned int duplex,
@@ -250,7 +257,13 @@ static void dwmac4_phystatus(void __iomem *ioaddr, struct stmmac_extra_stats *x)
 			x->pcs_speed = SPEED_100;
 		else
 			x->pcs_speed = SPEED_10;
-
+#ifdef CONFIG_AMLOGIC_ETH_PRIVE
+		/*1g patch*/
+		if (x->pcs_speed == SPEED_1000) {
+			status |= GMAC_PHYIF_CTRLSTATUS_LNKMOD_MASK;
+			writel(status, ioaddr + GMAC_PHYIF_CONTROL_STATUS);
+		}
+#endif
 		x->pcs_duplex = (status & GMAC_PHYIF_CTRLSTATUS_LNKMOD_MASK);
 
 		pr_info("Link is Up - %d/%s\n", (int)x->pcs_speed,
