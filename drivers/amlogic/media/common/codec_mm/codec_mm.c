@@ -59,7 +59,7 @@
 #define MM_ALIGN_UP2N(addr, alg2n) ((addr+(1<<alg2n)-1)&(~((1<<alg2n)-1)))
 
 #define RES_IS_MAPED
-#define DEFAULT_TVP_SIZE_FOR_4K (192 * SZ_1M)
+#define DEFAULT_TVP_SIZE_FOR_4K (236 * SZ_1M)
 #define DEFAULT_TVP_SIZE_FOR_NO4K (160 * SZ_1M)
 
 #define ALLOC_MAX_RETRY 1
@@ -779,7 +779,10 @@ struct codec_mm_s *codec_mm_alloc(const char *owner, int size,
 		/*if not scatter, free scatter caches. */
 		pr_err(" No mem ret=%d, clear scatter cache!!\n", ret);
 		dump_free_mem_infos(NULL, 0);
-		codec_mm_scatter_free_all_ignorecache(1);
+		if (memflags & CODEC_MM_FLAGS_TVP)
+			codec_mm_scatter_free_all_ignorecache(2);
+		else
+			codec_mm_scatter_free_all_ignorecache(1);
 		ret = codec_mm_alloc_in(mgt, mem);
 	}
 	if (ret < 0) {
