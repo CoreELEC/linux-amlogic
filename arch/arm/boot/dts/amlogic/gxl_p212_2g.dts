@@ -734,6 +734,7 @@
 		cec_osd_string = "MBox"; /* Max Chars: 14    */
 		cec_version = <5>; /* 5: 1.4, 6: 2.0 */
 		port_num = <1>;
+		output = <1>;
 		arc_port_mask = <0x0>;
 		interrupts = <0 199 1>;
 		interrupt-names = "hdmi_aocec";
