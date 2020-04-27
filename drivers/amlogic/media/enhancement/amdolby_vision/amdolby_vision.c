@@ -7065,11 +7065,15 @@ int dolby_vision_parse_metadata(
 	}
 
 	/* check video/graphics priority on the fly */
-	if (get_video_enabled() && is_graphics_output_off())
+	/* cert: some graphic test also need video pri 5223,5243,5253,5263 */
+	if (dolby_vision_flags & FLAG_CERTIFICAION) {
 		dolby_vision_graphics_priority = 0;
-	else
-		dolby_vision_graphics_priority = 1;
-
+	} else {
+		if (get_video_enabled() && is_graphics_output_off())
+			dolby_vision_graphics_priority = 0;
+		else
+			dolby_vision_graphics_priority = 1;
+	}
 	if (dolby_vision_graphics_priority ||
 		(dolby_vision_flags &
 		FLAG_PRIORITY_GRAPHIC))
