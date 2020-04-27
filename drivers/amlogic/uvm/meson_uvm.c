@@ -66,10 +66,10 @@ static int meson_uvm_alloc_buffer(struct dma_buf *dmabuf)
 	else
 		vf = &file_private_data->vf;
 
-	if ((vf->type & VIDTYPE_COMPRESS))
+	if (vf && (vf->type & VIDTYPE_COMPRESS))
 		heap_type = ION_HEAP_TYPE_SYSTEM;
 	else
-		heap_type = ION_HEAP_TYPE_DMA;
+		heap_type = ION_HEAP_TYPE_CUSTOM;
 
 	pr_debug("num_pages: %d.\n", num_pages);
 	handle = ion_alloc(uvm_dev->uvm_client, buffer->size, 0,
