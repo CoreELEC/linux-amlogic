@@ -808,11 +808,29 @@ static void vd1_set_dcu(
 			VD1_IF0_GEN_REG3 +
 			vd_off,
 			(bit_mode & 0x3), 8, 2);
-		if (is_mvc)
+		if (vf->flag & VFRAME_FLAG_VIDEO_LINEAR)
 			VSYNC_WR_MPEG_REG_BITS(
-				VD2_IF0_GEN_REG3 +
-				vd_off,
+				VD1_IF0_GEN_REG3 + vd_off,
+				0, 0, 1);
+		else
+			VSYNC_WR_MPEG_REG_BITS(
+				VD1_IF0_GEN_REG3 + vd_off,
+				1, 0, 1);
+
+		if (is_mvc) {
+			VSYNC_WR_MPEG_REG_BITS(
+				VD2_IF0_GEN_REG3 + vd_off,
 				(bit_mode & 0x3), 8, 2);
+			if (vf->flag & VFRAME_FLAG_VIDEO_LINEAR)
+				VSYNC_WR_MPEG_REG_BITS(
+					VD2_IF0_GEN_REG3 + vd_off,
+					0, 0, 1);
+			else
+				VSYNC_WR_MPEG_REG_BITS(
+					VD2_IF0_GEN_REG3 + vd_off,
+					1, 0, 1);
+
+		}
 	}
 #ifdef CONFIG_AMLOGIC_MEDIA_DEINTERLACE
 	if (is_di_post_mode(vf)) {
@@ -1253,6 +1271,14 @@ static void vd2_set_dcu(
 		VSYNC_WR_MPEG_REG_BITS(
 			VD2_IF0_GEN_REG3 + vd_off,
 			(bit_mode & 0x3), 8, 2);
+		if (vf->flag & VFRAME_FLAG_VIDEO_LINEAR)
+			VSYNC_WR_MPEG_REG_BITS(
+				VD2_IF0_GEN_REG3 + vd_off,
+				0, 0, 1);
+		else
+			VSYNC_WR_MPEG_REG_BITS(
+				VD2_IF0_GEN_REG3 + vd_off,
+				1, 0, 1);
 	}
 	if (!(VSYNC_RD_MPEG_REG(VIU_MISC_CTRL1) & 0x1))
 		VSYNC_WR_MPEG_REG(
