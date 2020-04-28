@@ -1235,8 +1235,11 @@ int sdio_reset_comm(struct mmc_card *card)
 	/* for realtek sdio wifi && mtk7668
 	 * need send IO reset command firstly
 	 */
-	if ((card->cis.vendor == 588) || (card->cis.vendor == 890))
+	if ((card->cis.vendor == 588) || (card->cis.vendor == 890)
+		|| (card->cis.vendor == 0x0271)) {
+		pr_warn("%s(): sdio_reset...\n", __func__);
 		sdio_reset(host);
+	}
 
 	host->ios.power_mode = MMC_POWER_OFF;
 
