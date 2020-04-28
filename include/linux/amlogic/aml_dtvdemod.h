@@ -258,9 +258,9 @@ static __maybe_unused int aml_get_dts_demod_config(struct device_node *node,
 	if (!ret) {
 		cfg->id = aml_get_dtvdemod_type(str);
 		if (cfg->id == AM_DTV_DEMOD_NONE)
-			pr_err("can't support demod type: %s.\n", str);
+			pr_err("Demod: can't support demod type: %s.\n", str);
 	} else {
-		pr_err("can't get %s error[NULL].\n", buf);
+		pr_err("Demod: can't get %s ret[%d].\n", buf, ret);
 
 		cfg->id = AM_DTV_DEMOD_NONE;
 
@@ -274,12 +274,12 @@ static __maybe_unused int aml_get_dts_demod_config(struct device_node *node,
 		cfg->i2c_adap = of_find_i2c_adapter_by_node(node_i2c);
 		of_node_put(node_i2c);
 		if (cfg->i2c_adap == NULL) {
-			pr_err("can't get i2c_adapter error[NULL].\n");
+			pr_err("Demod: can't get i2c_adapter ret[NULL].\n");
 
 			return -1;
 		}
 	} else {
-		pr_err("can't get %s error[NULL].\n", buf);
+		pr_err("Demod: can't get %s ret[NULL].\n", buf);
 
 		cfg->i2c_adap = NULL;
 
@@ -292,7 +292,7 @@ static __maybe_unused int aml_get_dts_demod_config(struct device_node *node,
 	if (!ret)
 		cfg->i2c_addr = value;
 	else {
-		pr_err("can't get %s error[NULL].\n", buf);
+		pr_err("Demod: can't get %s ret[%d].\n", buf, ret);
 
 		cfg->i2c_addr = 0;
 
@@ -305,7 +305,7 @@ static __maybe_unused int aml_get_dts_demod_config(struct device_node *node,
 	if (!ret)
 		cfg->ts = value;
 	else {
-		pr_err("can't get %s error[NULL].\n", buf);
+		pr_err("Demod: can't get %s ret[%d].\n", buf, ret);
 
 		cfg->ts = 0;
 
@@ -318,7 +318,7 @@ static __maybe_unused int aml_get_dts_demod_config(struct device_node *node,
 	if (!ret)
 		cfg->code = value;
 	else {
-		pr_err("can't get %s error[%d].\n", buf, ret);
+		pr_err("Demod: can't get %s ret[%d].\n", buf, ret);
 
 		cfg->code = 0;
 		ret = 0;
@@ -329,20 +329,20 @@ static __maybe_unused int aml_get_dts_demod_config(struct device_node *node,
 	snprintf(buf, sizeof(buf), "fe%d_reset_gpio", index);
 	ret = of_property_read_string(node, buf, &str);
 	if (ret) {
-		pr_err("can't get %s error[NULL].\n", buf);
+		pr_err("Demod: can't get %s ret[%d].\n", buf, ret);
 
 		cfg->reset.pin = -1;
 		ret = 0;
 	} else {
 		cfg->reset.pin = of_get_named_gpio_flags(node, buf, 0, NULL);
-		pr_err("get %s: %d.\n", buf, cfg->reset.pin);
+		pr_err("Demod: get %s: %d.\n", buf, cfg->reset.pin);
 	}
 
 	memset(buf, 0, 32);
 	snprintf(buf, sizeof(buf), "fe%d_reset_dir", index);
 	ret = of_property_read_u32(node, buf, &value);
 	if (ret) {
-		pr_err("can't get %s error[NULL].\n", buf);
+		pr_err("Demod: can't get %s ret[%d].\n", buf, ret);
 
 		cfg->reset.dir = 0;
 		ret = 0;
@@ -353,7 +353,7 @@ static __maybe_unused int aml_get_dts_demod_config(struct device_node *node,
 	snprintf(buf, sizeof(buf), "fe%d_reset_value", index);
 	ret = of_property_read_u32(node, buf, &value);
 	if (ret) {
-		pr_err("can't get %s error[NULL].\n", buf);
+		pr_err("Demod: can't get %s ret[%d].\n", buf, ret);
 
 		cfg->reset.value = 0;
 		ret = 0;
@@ -364,21 +364,21 @@ static __maybe_unused int aml_get_dts_demod_config(struct device_node *node,
 	snprintf(buf, sizeof(buf), "fe%d_ant_power_gpio", index);
 	ret = of_property_read_string(node, buf, &str);
 	if (ret) {
-		pr_err("can't get %s error[NULL].\n", buf);
+		pr_err("Demod: can't get %s ret[%d].\n", buf, ret);
 
 		cfg->ant_power.pin = -1;
 		ret = 0;
 	} else {
 		cfg->ant_power.pin = of_get_named_gpio_flags(
 				node, buf, 0, NULL);
-		pr_err("get %s: %d\n", buf, cfg->ant_power.pin);
+		pr_err("Demod: get %s: %d\n", buf, cfg->ant_power.pin);
 	}
 
 	memset(buf, 0, 32);
 	snprintf(buf, sizeof(buf), "fe%d_ant_power_dir", index);
 	ret = of_property_read_u32(node, buf, &value);
 	if (ret) {
-		pr_err("can't get %s error[NULL].\n", buf);
+		pr_err("Demod: can't get %s ret[%d].\n", buf, ret);
 
 		cfg->ant_power.dir = 0;
 		ret = 0;
@@ -389,7 +389,7 @@ static __maybe_unused int aml_get_dts_demod_config(struct device_node *node,
 	snprintf(buf, sizeof(buf), "fe%d_ant_poweron_value", index);
 	ret = of_property_read_u32(node, buf, &value);
 	if (ret) {
-		pr_err("can't get %s error[NULL].\n", buf);
+		pr_err("Demod: can't get %s ret[%d].\n", buf, ret);
 
 		cfg->ant_power.value = 0;
 		ret = 0;

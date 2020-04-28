@@ -292,9 +292,9 @@ static __maybe_unused int aml_get_dts_tuner_config(struct device_node *node,
 	if (!ret) {
 		cfg->id = aml_get_tuner_type(str);
 		if (cfg->id == AM_TUNER_NONE)
-			pr_err("can't support tuner type: %s.\n", str);
+			pr_err("Tuner: can't support tuner type: %s.\n", str);
 	} else {
-		pr_err("can't get %s error[%d].\n", buf, ret);
+		pr_err("Tuner: can't get %s ret[%d].\n", buf, ret);
 
 		cfg->id = AM_TUNER_NONE;
 
@@ -308,12 +308,12 @@ static __maybe_unused int aml_get_dts_tuner_config(struct device_node *node,
 		cfg->i2c_adap = of_find_i2c_adapter_by_node(node_i2c);
 		of_node_put(node_i2c);
 		if (cfg->i2c_adap == NULL) {
-			pr_err("can't get i2c_get_adapter error[NULL].\n");
+			pr_err("Tuner: can't get i2c_get_adapter ret[NULL].\n");
 
 			return -1;
 		}
 	} else {
-		pr_err("can't get %s error[NULL].\n", buf);
+		pr_err("Tuner: can't get %s ret[NULL].\n", buf);
 
 		cfg->i2c_adap = NULL;
 
@@ -326,7 +326,7 @@ static __maybe_unused int aml_get_dts_tuner_config(struct device_node *node,
 	if (!ret)
 		cfg->i2c_addr = value;
 	else {
-		pr_err("can't get %s error[%d].\n", buf, ret);
+		pr_err("Tuner: can't get %s ret[%d].\n", buf, ret);
 
 		cfg->i2c_addr = 0;
 
@@ -339,7 +339,7 @@ static __maybe_unused int aml_get_dts_tuner_config(struct device_node *node,
 	if (!ret)
 		cfg->code = value;
 	else {
-		pr_err("can't get %s error[%d].\n", buf, ret);
+		pr_err("Tuner: can't get %s ret[%d].\n", buf, ret);
 
 		cfg->code = 0;
 		ret = 0;
@@ -349,7 +349,7 @@ static __maybe_unused int aml_get_dts_tuner_config(struct device_node *node,
 	snprintf(buf, sizeof(buf), "tuner_xtal_%d", index);
 	ret = of_property_read_u32(node, buf, &value);
 	if (ret) {
-		pr_err("can't get %s error[%d].\n", buf, ret);
+		pr_err("Tuner: can't get %s ret[%d].\n", buf, ret);
 
 		cfg->xtal = 0;
 		ret = 0;
@@ -360,7 +360,7 @@ static __maybe_unused int aml_get_dts_tuner_config(struct device_node *node,
 	snprintf(buf, sizeof(buf), "tuner_xtal_mode_%d", index);
 	ret = of_property_read_u32(node, buf, &value);
 	if (ret) {
-		pr_err("can't get %s error[%d].\n", buf, ret);
+		pr_err("Tuner: can't get %s ret[%d].\n", buf, ret);
 
 		cfg->xtal_mode = 0;
 		ret = 0;
@@ -371,7 +371,7 @@ static __maybe_unused int aml_get_dts_tuner_config(struct device_node *node,
 	snprintf(buf, sizeof(buf), "tuner_xtal_cap_%d", index);
 	ret = of_property_read_u32(node, buf, &value);
 	if (ret) {
-		pr_err("can't get %s error[%d].\n", buf, ret);
+		pr_err("Tuner: can't get %s ret[%d].\n", buf, ret);
 
 		cfg->xtal_cap = 0;
 		ret = 0;
@@ -382,7 +382,7 @@ static __maybe_unused int aml_get_dts_tuner_config(struct device_node *node,
 	snprintf(buf, sizeof(buf), "tuner_lt_out_%d", index);
 	ret = of_property_read_u32(node, buf, &value);
 	if (ret) {
-		pr_err("can't get %s error[%d].\n", buf, ret);
+		pr_err("Tuner: can't get %s ret[%d].\n", buf, ret);
 
 		cfg->lt_out = 0;
 		ret = 0;
