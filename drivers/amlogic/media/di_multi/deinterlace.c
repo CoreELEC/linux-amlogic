@@ -117,7 +117,7 @@ bool dim_get_mcmem_alloc(void)
 
 static unsigned int di_pre_rdma_enable;
 
-static int kpi_frame_num = 3; // default print first comming n frames
+static int kpi_frame_num = 0; // default print first comming n frames
 
 /**************************************
  *
@@ -5107,7 +5107,7 @@ int dim_post_process(void *arg, unsigned int zoom_start_x_lines,
 	else
 		return 0;
 	/*dbg*/
-	if (ppost->frame_cnt == 1) {
+	if (ppost->frame_cnt == 1 && kpi_frame_num > 0) {
 		pr_dbg("[di_kpi] di:ch[%d]:queue 1st frame to post ready.\n",
 			channel);
 	}
@@ -7560,7 +7560,7 @@ struct vframe_s *di_vf_l_get(unsigned int channel)
 			  vframe_ret->ready_jiffies64));
 		didbg_vframe_out_save(vframe_ret);
 
-		if (disp_frame_count == 1) {
+		if (disp_frame_count == 1 && kpi_frame_num > 0) {
 			pr_dbg("[di_kpi] %s: 1st frame get success. %s[%d]:0x%p %u ms\n",
 				__func__,
 				vframe_type_name[di_buf->type],
