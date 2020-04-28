@@ -67,12 +67,16 @@ static int keep_video_on;
 static int keep_video_pip_on;
 static int keep_id;
 static int keep_head_id;
+static int keep_dw_id;
 static int keep_pip_id;
 static int keep_pip_head_id;
+static int keep_pip_dw_id;
 static int keep_el_id;
 static int keep_el_head_id;
+static int keep_el_dw_id;
 static int keep_pip_el_id;
 static int keep_pip_el_head_id;
+static int keep_pip_el_dw_id;
 
 #define Y_BUFFER_SIZE   0x600000	/* for 1920*1088 */
 #define U_BUFFER_SIZE   0x100000	/* compatible with NV21 */
@@ -919,6 +923,10 @@ static int video_keeper_frame_keep_locked(
 		cur_buf->mem_head_handle,
 		MEM_TYPE_CODEC_MM,
 		&keep_head_id);
+	video_keeper_update_keeper_mem(
+		cur_buf->mem_dw_handle,
+		MEM_TYPE_CODEC_MM,
+		&keep_dw_id);
 	if (cur_buf_el) {
 		if (cur_buf->type & VIDTYPE_SCATTER)
 			type = MEM_TYPE_CODEC_MM_SCATTER;
@@ -932,8 +940,12 @@ static int video_keeper_frame_keep_locked(
 			cur_buf_el->mem_head_handle,
 			MEM_TYPE_CODEC_MM,
 			&keep_el_head_id);
+		video_keeper_update_keeper_mem(
+			cur_buf_el->mem_dw_handle,
+			MEM_TYPE_CODEC_MM,
+			&keep_el_dw_id);
 	}
-	return (keep_id + keep_head_id) > 0;
+	return (keep_id + keep_head_id + keep_dw_id) > 0;
 }
 
 static int video_pip_keeper_frame_keep_locked(
@@ -953,6 +965,10 @@ static int video_pip_keeper_frame_keep_locked(
 			cur_buf->mem_head_handle,
 			MEM_TYPE_CODEC_MM,
 			&keep_pip_head_id);
+		video_keeper_update_keeper_mem(
+			cur_buf->mem_dw_handle,
+			MEM_TYPE_CODEC_MM,
+			&keep_pip_dw_id);
 	}
 	if (cur_buf_el) {
 		if (cur_buf_el->type & VIDTYPE_SCATTER)
@@ -967,8 +983,12 @@ static int video_pip_keeper_frame_keep_locked(
 			cur_buf_el->mem_head_handle,
 			MEM_TYPE_CODEC_MM,
 			&keep_pip_el_head_id);
+		video_keeper_update_keeper_mem(
+			cur_buf_el->mem_dw_handle,
+			MEM_TYPE_CODEC_MM,
+			&keep_pip_el_dw_id);
 	}
-	return (keep_pip_id + keep_pip_head_id) > 0;
+	return (keep_pip_id + keep_pip_head_id + keep_pip_el_dw_id) > 0;
 }
 
 /*
@@ -984,23 +1004,33 @@ void video_keeper_new_frame_notify(void)
 	if (keep_id > 0) {
 		/*wait 80 ms for vsync post.*/
 		codec_mm_keeper_unmask_keeper(keep_id, 120);
-		keep_id = -1;
+		keep_id = 0;
 	}
 	if (keep_head_id > 0) {
 		/*wait 80 ms for vsync post.*/
 		codec_mm_keeper_unmask_keeper(keep_head_id, 120);
-		keep_head_id = -1;
+		keep_head_id = 0;
+	}
+	if (keep_dw_id > 0) {
+		/*wait 80 ms for vsync post.*/
+		codec_mm_keeper_unmask_keeper(keep_dw_id, 120);
+		keep_dw_id = 0;
 	}
 
 	if (keep_el_id > 0) {
 		/*wait 80 ms for vsync post.*/
 		codec_mm_keeper_unmask_keeper(keep_el_id, 120);
-		keep_el_id = -1;
+		keep_el_id = 0;
 	}
 	if (keep_el_head_id > 0) {
 		/*wait 80 ms for vsync post.*/
 		codec_mm_keeper_unmask_keeper(keep_el_head_id, 120);
-		keep_el_head_id = -1;
+		keep_el_head_id = 0;
+	}
+	if (keep_el_dw_id > 0) {
+		/*wait 80 ms for vsync post.*/
+		codec_mm_keeper_unmask_keeper(keep_el_dw_id, 120);
+		keep_el_dw_id = 0;
 	}
 	return;
 }
@@ -1014,22 +1044,33 @@ void video_pip_keeper_new_frame_notify(void)
 	if (keep_pip_id > 0) {
 		/*wait 80 ms for vsync post.*/
 		codec_mm_keeper_unmask_keeper(keep_pip_id, 120);
-		keep_pip_id = -1;
+		keep_pip_id = 0;
 	}
 	if (keep_pip_head_id > 0) {
 		/*wait 80 ms for vsync post.*/
 		codec_mm_keeper_unmask_keeper(keep_pip_head_id, 120);
-		keep_pip_head_id = -1;
+		keep_pip_head_id = 0;
 	}
+	if (keep_pip_dw_id > 0) {
+		/*wait 80 ms for vsync post.*/
+		codec_mm_keeper_unmask_keeper(keep_pip_dw_id, 120);
+		keep_pip_dw_id = 0;
+	}
+
 	if (keep_pip_el_id > 0) {
 		/*wait 80 ms for vsync post.*/
 		codec_mm_keeper_unmask_keeper(keep_pip_el_id, 120);
-		keep_pip_el_id = -1;
+		keep_pip_el_id = 0;
 	}
 	if (keep_pip_el_head_id > 0) {
 		/*wait 80 ms for vsync post.*/
 		codec_mm_keeper_unmask_keeper(keep_pip_el_head_id, 120);
-		keep_pip_el_head_id = -1;
+		keep_pip_el_head_id = 0;
+	}
+	if (keep_pip_el_dw_id > 0) {
+		/*wait 80 ms for vsync post.*/
+		codec_mm_keeper_unmask_keeper(keep_pip_el_dw_id, 120);
+		keep_pip_el_dw_id = 0;
 	}
 
 }
