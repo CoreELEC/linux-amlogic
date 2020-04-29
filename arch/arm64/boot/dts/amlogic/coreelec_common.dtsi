@@ -40,6 +40,7 @@
 	auge_sound {
 		compatible = "amlogic, g12a-sound-card";
 		aml-audio-card,name = "AML-AUGESOUND";
+		avout_mute-gpios = <&gpio_ao GPIOAO_2 GPIO_ACTIVE_HIGH>;
 
 		aml-audio-card,dai-link@0 {
 			mclk-fs = <128>;
