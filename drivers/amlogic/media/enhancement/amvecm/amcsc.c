@@ -8163,7 +8163,7 @@ reg_dump:
 	pr_err("----dump regs VPP_LUT_EOTF----\n");
 	print_vpp_lut(VPP_LUT_EOTF, READ_VPP_REG(VIU_EOTF_CTL) & (7 << 27));
 	pr_err("----dump regs VPP_LUT_OETF----\n");
-	print_vpp_lut(VPP_LUT_OETF, READ_VPP_REG(XVYCC_LUT_CTL) & 0x7f);
+	print_vpp_lut(VPP_LUT_OETF, READ_VPP_REG(XVYCC_LUT_CTL) & 0x70);
 	/*********************dump reg end*********************/
 dbg_end:
 
