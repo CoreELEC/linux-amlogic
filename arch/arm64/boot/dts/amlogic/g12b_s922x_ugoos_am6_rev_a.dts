@@ -6,10 +6,6 @@
 
 	/delete-node/ memory@00000000;
 
-	auge_sound {
-		/delete-property/ spk_mute-gpios;
-	};
-
 	sys_green {
 		compatible = "amlogic, sysled";
 		dev_name = "sysled";
