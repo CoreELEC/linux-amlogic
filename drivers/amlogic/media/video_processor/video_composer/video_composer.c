@@ -963,6 +963,24 @@ static void empty_ready_queue(struct composer_dev *dev)
 	}
 }
 
+static void video_wait_decode_fence(struct composer_dev *dev,
+				    struct vframe_s *vf)
+{
+	if (vf && vf->fence) {
+		u64 timestamp = local_clock();
+		s32 ret = fence_wait_timeout(vf->fence, false, 2000);
+
+		vc_print(dev->index, PRINT_FENCE,
+			 "%s, fence %lx, state: %d, wait cost time: %d ns\n",
+			 __func__, (ulong)vf->fence, ret,
+			 local_clock() - timestamp);
+		vf->fence = NULL;
+	} else {
+		vc_print(dev->index, PRINT_FENCE,
+			 "decoder fence is NULL\n");
+	}
+}
+
 static void video_composer_task(struct composer_dev *dev)
 {
 	struct vframe_s *vf = NULL;
@@ -1018,9 +1036,11 @@ static void video_composer_task(struct composer_dev *dev)
 			 kfifo_len(&dev->receive_q));
 		file_vf = received_frames->file_vf[0];
 		if (frame_info->type == 0) {
-			file_private_data =
-			(struct file_private_data *)(file_vf->private_data);
+			file_private_data = (struct file_private_data *)
+				(file_vf->private_data);
 			vf = &file_private_data->vf;
+
+			video_wait_decode_fence(dev, vf);
 		} else if (frame_info->type == 1) {
 			if (!kfifo_get(&dev->dma_free_q, &vf)) {
 				vc_print(dev->index, PRINT_ERROR,

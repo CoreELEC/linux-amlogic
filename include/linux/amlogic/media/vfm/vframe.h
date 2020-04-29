@@ -504,6 +504,7 @@ struct vframe_s {
 
 	/*for double write VP9/AV1 vf*/
 	void *mem_dw_handle;
+	struct fence *fence;
 } /*vframe_t */;
 
 #if 0
