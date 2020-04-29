@@ -52,7 +52,7 @@ enum DM_MP {
 
 static unsigned int dm_mp(enum DM_MP emp)
 {
-	unsigned int val;
+	unsigned int val = 0;
 
 	switch (emp) {
 	case DM_EN:
