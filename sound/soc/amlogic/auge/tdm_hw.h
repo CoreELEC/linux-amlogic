@@ -162,7 +162,6 @@ void aml_tdm_sclk_pad_select(struct aml_audio_controller *actrl,
 			     int mpad_offset, int tdm_index, int clk_sel);
 
 extern void i2s_to_hdmitx_ctrl(int tdm_index);
-extern void i2s_to_hdmitx_disable(void);
 void aml_tdm_mute_playback(
 		struct aml_audio_controller *actrl,
 		int index,
