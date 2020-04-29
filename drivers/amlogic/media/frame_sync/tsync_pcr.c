@@ -1993,6 +1993,32 @@ static ssize_t tsync_enable_bufferlevel_tune_store(struct class *cla,
 		return -EINVAL;
 	return count;
 }
+
+static ssize_t tsync_pcr_inited_flag_show(struct class *cla,
+		struct class_attribute *attr,
+		char *buf)
+{
+	return sprintf(buf, "%d\n", tsync_pcr_inited_flag);
+}
+
+static ssize_t tsync_pcr_ref_latency_show(struct class *cla,
+		struct class_attribute *attr,
+		char *buf)
+{
+	return sprintf(buf, "%d\n", tsync_pcr_ref_latency);
+}
+
+static ssize_t tsync_pcr_ref_latency_store(struct class *cla,
+		struct class_attribute *attr,
+		const char *buf, size_t count)
+{
+	size_t r;
+
+	r = kstrtoint(buf, 0, &tsync_pcr_ref_latency);
+	if (r != 0)
+		return -EINVAL;
+	return count;
+}
 /* ----------------------------------------------------------------------- */
 /* define of tsync pcr module */
 
@@ -2047,6 +2073,10 @@ static struct class_attribute tsync_pcr_class_attrs[] = {
 	__ATTR(tsync_enable_bufferlevel_tune, 0644,
 	tsync_enable_bufferlevel_tune_show,
 	tsync_enable_bufferlevel_tune_store),
+	__ATTR(tsync_pcr_inited_flag, 0644,
+	tsync_pcr_inited_flag_show, NULL),
+	__ATTR(tsync_pcr_ref_latency, 0644,
+	tsync_pcr_ref_latency_show, tsync_pcr_ref_latency_store),
 	__ATTR_NULL};
 
 static struct class tsync_pcr_class = {
