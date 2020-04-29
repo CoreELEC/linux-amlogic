@@ -1695,6 +1695,7 @@ static int di_init_buf(int width, int height, unsigned char prog_flag,
 	int i;
 	int canvas_height = height + 8;
 	struct page *tmp_page = NULL;
+	unsigned long tmp_addr;
 	unsigned int di_buf_size = 0, di_post_buf_size = 0, mtn_size = 0;
 	unsigned int nr_size = 0, count_size = 0, mv_size = 0, mc_size = 0;
 	unsigned int nr_width = width, mtn_width = width, mv_width = width;
@@ -1951,8 +1952,10 @@ static int di_init_buf(int width, int height, unsigned char prog_flag,
 				}
 			}
 			tmp_page = di_buf->pages;
+			tmp_addr = di_buf->nr_adr;
 			memset(di_buf, 0, sizeof(struct di_buf_s));
 			di_buf->pages		= tmp_page;
+			di_buf->nr_adr		= tmp_addr;
 			di_buf->type = VFRAME_TYPE_POST;
 			di_buf->index = i;
 			di_buf->vframe = &pvframe_post[i];
@@ -1966,8 +1969,11 @@ static int di_init_buf(int width, int height, unsigned char prog_flag,
 					(nr_width << 1);
 				di_buf->canvas_height = canvas_height;
 				di_buf->canvas_config_flag = 1;
-				di_buf->nr_adr = di_post_mem
-					+ di_post_buf_size * i;
+				if (cfgeq(MEM_FLAG, EDI_MEM_M_REV)	||
+				    cfgeq(MEM_FLAG, EDI_MEM_M_CMA_ALL)) {
+					di_buf->nr_adr = di_post_mem
+						+ di_post_buf_size * i;
+				}
 				dbg_init("[%d]post buf:%d: addr=0x%lx\n", i,
 					 di_buf->index, di_buf->nr_adr);
 			}
@@ -2181,7 +2187,7 @@ void dim_post_keep_cmd_release(unsigned int ch, struct vframe_s *vframe)
 	dbg_keep("release keep ch[%d],index[%d]\n",
 		 di_buf->channel,
 		 di_buf->index);
-	task_send_cmd(LCMD2(ECMD_RL_KEEP, di_buf->channel, di_buf->index));
+	task_send_cmd2(ch, LCMD2(ECMD_RL_KEEP, di_buf->channel, di_buf->index));
 }
 
 void dim_post_keep_cmd_release2(struct vframe_s *vframe)
@@ -2210,8 +2216,10 @@ void dim_post_keep_cmd_release2(struct vframe_s *vframe)
 		 di_buf->channel,
 		 di_buf->index);
 	dbg_wq("k:c[%d]\n", di_buf->index);
-	task_send_cmd(LCMD2(ECMD_RL_KEEP, di_buf->channel,
-			    di_buf->index));
+	task_send_cmd2(di_buf->channel,
+		       LCMD2(ECMD_RL_KEEP,
+			     di_buf->channel,
+			     di_buf->index));
 }
 EXPORT_SYMBOL(dim_post_keep_cmd_release2);
 

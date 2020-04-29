@@ -98,10 +98,64 @@ void task_polling_cmd(void)
 		if (!task_get_cmd(&cmdbyte.cmd32))
 			break;
 		if (cmdbyte.b.id == ECMD_RL_KEEP) {
-			dim_post_keep_cmd_proc(cmdbyte.b.ch, cmdbyte.b.p2);
-			continue;
+			/*dim_post_keep_cmd_proc(cmdbyte.b.ch, cmdbyte.b.p2);*/
+			/*continue;*/
 		}
 		dip_chst_process_reg(cmdbyte.b.ch);
+	}
+}
+
+bool task_send_cmd2(unsigned int ch, unsigned int cmd)
+{
+	struct di_task *tsk = get_task();
+	unsigned int val;
+
+	dbg_reg("%s:cmd[%d]:\n", __func__, cmd);
+	if (kfifo_is_full(&tsk->fifo_cmd2[ch])) {
+		if (kfifo_out(&tsk->fifo_cmd2[ch], &val, sizeof(unsigned int))
+		    != sizeof(unsigned int)) {
+			PR_ERR("%s:can't out\n", __func__);
+			return false;
+		}
+
+		PR_ERR("%s:lost cmd[%d]\n", __func__, val);
+		tsk->err_cmd_cnt++;
+		/*return false;*/
+	}
+	kfifo_in_spinlocked(&tsk->fifo_cmd2[ch], &cmd, sizeof(unsigned int),
+			    &tsk->lock_cmd2[ch]);
+	return true;
+}
+
+bool task_get_cmd2(unsigned int ch, unsigned int *cmd)
+{
+	struct di_task *tsk = get_task();
+	unsigned int val;
+
+	if (kfifo_is_empty(&tsk->fifo_cmd2[ch]))
+		return false;
+
+	if (kfifo_out(&tsk->fifo_cmd2[ch], &val, sizeof(unsigned int))
+		!= sizeof(unsigned int))
+		return false;
+
+	*cmd = val;
+	return true;
+}
+
+void task_polling_cmd_keep(unsigned int ch)
+{
+	int i;
+	union DI_L_CMD_BITS cmdbyte;
+
+	for (i = 0; i < MAX_KFIFO_L_CMD_NUB; i++) {
+		if (!task_get_cmd2(ch, &cmdbyte.cmd32))
+			break;
+		if (cmdbyte.b.id == ECMD_RL_KEEP) {
+			dim_post_keep_cmd_proc(cmdbyte.b.ch, cmdbyte.b.p2);
+		} else {
+			PR_ERR("%s\n", __func__);
+		}
 	}
 }
 
@@ -207,6 +261,7 @@ restart:
 void task_stop(void/*struct di_task *tsk*/)
 {
 	struct di_task *tsk = get_task();
+	int i;
 
 	/*not use cmd*/
 	pr_info(".");
@@ -218,6 +273,16 @@ void task_stop(void/*struct di_task *tsk*/)
 	}
 	/*tsk->lock_cmd = SPIN_LOCK_UNLOCKED;*/
 	spin_lock_init(&tsk->lock_cmd);
+
+	/*cmd2 buf*/
+	for (i = 0; i < DI_CHANNEL_NUB; i++) {
+		if (tsk->flg_cmd2[i]) {
+			kfifo_free(&tsk->fifo_cmd2[i]);
+			tsk->flg_cmd2[i] = 0;
+		}
+
+		spin_lock_init(&tsk->lock_cmd2[i]);
+	}
 	tsk->err_cmd_cnt = 0;
 	/*--------------------*/
 
@@ -242,7 +307,7 @@ int task_start(void)
 	int ret;
 	int flg_err;
 	struct di_task *tsk = get_task();
-
+	int i;
 	struct task_struct *fe_thread;
 	struct sched_param param = { .sched_priority = MAX_RT_PRIO - 1 };
 
@@ -264,6 +329,35 @@ int task_start(void)
 	}
 	tsk->flg_cmd = true;
 
+	for (i = 0; i < DI_CHANNEL_NUB; i++) {
+		spin_lock_init(&tsk->lock_cmd2[i]);
+		ret = kfifo_alloc(&tsk->fifo_cmd2[i],
+				  sizeof(unsigned int) * MAX_KFIFO_L_CMD_NUB,
+				  GFP_KERNEL);
+		if (ret < 0) {
+			tsk->flg_cmd2[i] = false;
+			PR_ERR("%s:can't get kfifo2,ch[%d]\n",
+			       __func__, i);
+			flg_err++;
+			break;
+		}
+
+		tsk->flg_cmd2[i] = true;
+	}
+
+	if (flg_err) {
+		if (tsk->flg_cmd) {
+			kfifo_free(&tsk->fifo_cmd);
+			tsk->flg_cmd = false;
+		}
+		for (i = 0; i < DI_CHANNEL_NUB; i++) {
+			if (tsk->flg_cmd2[i]) {
+				kfifo_free(&tsk->fifo_cmd2[i]);
+				tsk->flg_cmd2[i] = false;
+			}
+		}
+		return -1;
+	}
 	/*--------------------*/
 	sema_init(&tsk->sem, 1);
 	init_waitqueue_head(&tsk->wait_queue);
@@ -280,12 +374,24 @@ int task_start(void)
 			kfifo_free(&tsk->fifo_cmd);
 			tsk->flg_cmd = 0;
 		}
+		for (i = 0; i < DI_CHANNEL_NUB; i++) {
+			if (tsk->flg_cmd2[i]) {
+				kfifo_free(&tsk->fifo_cmd2[i]);
+				tsk->flg_cmd2[i] = 0;
+			}
+		}
 		return -EINTR;
 	}
 	if (down_interruptible(&tsk->sem)) {
 		if (tsk->flg_cmd) {
 			kfifo_free(&tsk->fifo_cmd);
 			tsk->flg_cmd = 0;
+		}
+		for (i = 0; i < DI_CHANNEL_NUB; i++) {
+			if (tsk->flg_cmd2[i]) {
+				kfifo_free(&tsk->fifo_cmd2[i]);
+				tsk->flg_cmd2[i] = 0;
+			}
 		}
 		return -EINTR;
 	}

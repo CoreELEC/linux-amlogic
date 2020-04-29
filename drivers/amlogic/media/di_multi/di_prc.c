@@ -1768,6 +1768,7 @@ void dip_chst_process_ch(void)
 	unsigned int chst;
 	struct vframe_s *vframe;
 	struct di_pre_stru_s *ppre;// = get_pre_stru(ch);
+	enum EDI_CMA_ST cma_st;
 	struct di_mng_s *pbm = get_bufmng();
 	ulong flags = 0;
 
@@ -1832,6 +1833,19 @@ void dip_chst_process_ch(void)
 				/*this will cause first local buf not alloc*/
 				/*dim_bypass_first_frame(ch);*/
 				dip_chst_set(ch, EDI_TOP_STATE_REG_STEP2);
+			}
+			break;
+		case EDI_TOP_STATE_IDLE:
+			if (pbm->cma_flg_run)
+				break;
+			cma_st = dip_cma_get_st(ch);
+			switch (cma_st) {
+			case EDI_CMA_ST_IDL:
+			case EDI_CMA_ST_PART:
+				task_polling_cmd_keep(ch);
+				break;
+			default:
+				break;
 			}
 			break;
 		default:

@@ -462,6 +462,9 @@ struct di_task {
 	struct kfifo	fifo_cmd;
 	spinlock_t     lock_cmd; /*spinlock*/
 	bool flg_cmd;
+	struct kfifo	fifo_cmd2[DI_CHANNEL_NUB];
+	spinlock_t     lock_cmd2[DI_CHANNEL_NUB]; /*spinlock*/
+	bool flg_cmd2[DI_CHANNEL_NUB];
 	unsigned int err_cmd_cnt;
 };
 

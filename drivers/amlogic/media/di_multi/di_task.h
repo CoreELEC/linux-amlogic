@@ -33,5 +33,7 @@ void dbg_task(void);
 
 bool task_send_cmd(unsigned int cmd);
 void task_send_ready(void);
+bool task_send_cmd2(unsigned int ch, unsigned int cmd);
+void task_polling_cmd_keep(unsigned int ch);
 
 #endif /*__DI_TASK_H__*/
