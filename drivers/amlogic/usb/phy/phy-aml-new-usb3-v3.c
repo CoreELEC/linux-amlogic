@@ -39,6 +39,7 @@
 #define DEVICE_MODE	1
 
 struct usb_aml_regs_v2 usb_new_aml_regs_v3;
+static void power_switch_to_pcie(struct amlogic_usb_v2 *phy);
 
 static int amlogic_new_usb3_suspend(struct usb_phy *x, int suspend)
 {
@@ -51,10 +52,14 @@ static void amlogic_new_usb3phy_shutdown(struct usb_phy *x)
 
 	if (phy->phy.flags == AML_USB3_PHY_ENABLE) {
 		clk_disable_unprepare(phy->clk);
-		if (phy->portconfig_31)
+		if (phy->portconfig_31) {
 			clk_disable_unprepare(phy->gate1_clk);
-		if (phy->portconfig_30)
+			writel(0x1d, phy->phy31_cfg);
+		}
+		if (phy->portconfig_30) {
 			clk_disable_unprepare(phy->gate0_clk);
+			writel(0x1d, phy->phy3_cfg);
+		}
 	}
 
 	phy->suspend_flag = 1;
@@ -427,14 +432,20 @@ static int amlogic_new_usb3_init_v3(struct usb_phy *x)
 
 	if (phy->suspend_flag) {
 		if (phy->phy.flags == AML_USB3_PHY_ENABLE) {
-			if (phy->portconfig_30)
+			power_switch_to_pcie(phy);
+			if (phy->portconfig_30) {
+				writel((readl(phy->phy3_cfg) | (3<<5)),
+					phy->phy3_cfg);
 				clk_prepare_enable(phy->gate0_clk);
-			if (phy->portconfig_31)
+			}
+			if (phy->portconfig_31) {
+				writel((readl(phy->phy31_cfg) | (3<<5)),
+					phy->phy31_cfg);
 				clk_prepare_enable(phy->gate1_clk);
+			}
 			clk_prepare_enable(phy->clk);
 		}
 		phy->suspend_flag = 0;
-		return 0;
 	}
 
 	if (phy->phy.flags != AML_USB3_PHY_ENABLE)
@@ -927,7 +938,6 @@ static int amlogic_new_usb3_v3_remove(struct platform_device *pdev)
 }
 
 #ifdef CONFIG_PM_RUNTIME
-
 static int amlogic_new_usb3_v3_runtime_suspend(struct device *dev)
 {
 	return 0;
