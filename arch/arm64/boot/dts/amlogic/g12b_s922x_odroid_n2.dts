@@ -20,10 +20,6 @@
 		reg = <0x0 0xFF800000 0x0 0x400>;
 	};
 
-	auge_sound {
-		spk_mute-gpios = <&gpio_ao GPIOAO_2 GPIO_ACTIVE_LOW>;
-	};
-
 	cpu_opp_table0: cpu_opp_table0 {
 		opp09 {
 			opp-hz = /bits/ 64 <1896000000>;

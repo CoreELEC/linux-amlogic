@@ -12,7 +12,6 @@
 	/delete-node/ rtc;
 
 	auge_sound {
-		/delete-property/ spk_mute-gpios;
 		aml-audio-card,dai-link@1 {
 			codec {
 				sound-dai = <&RT5651_1A>;

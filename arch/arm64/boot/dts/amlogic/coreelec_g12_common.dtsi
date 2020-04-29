@@ -2,7 +2,6 @@
 
 /{
 	auge_sound {
-		spk_mute-gpios = <&gpio_ao GPIOAO_2 GPIO_ACTIVE_LOW>;
 		aml-audio-card,effect = <&audio_effect>;
 
 		aml-audio-card,dai-link@0 {
