@@ -9,8 +9,6 @@
 	};
 
 	auge_sound {
-		spk_mute-gpios = <&gpio_ao GPIOAO_2 GPIO_ACTIVE_HIGH>;
-
 		aml-audio-card,dai-link@0 {
 			cpu {
 				sound-dai = <&spdifb>;
