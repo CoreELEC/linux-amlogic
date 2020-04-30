@@ -893,6 +893,8 @@ static int remote_remove(struct platform_device *pdev)
 	ir_cdev_free(chip);
 	remote_unregister_device(chip->r_dev);
 	remote_free_device(chip->r_dev);
+	dev_pm_clear_wake_irq(&pdev->dev);
+	device_init_wakeup(&pdev->dev, false);
 
 	kfree(chip);
 	return 0;
@@ -969,6 +971,7 @@ static const struct of_device_id remote_dt_match[] = {
 	},
 	{},
 };
+MODULE_DEVICE_TABLE(of, remote_dt_match);
 
 #ifdef CONFIG_PM
 static const struct dev_pm_ops remote_pm_ops = {

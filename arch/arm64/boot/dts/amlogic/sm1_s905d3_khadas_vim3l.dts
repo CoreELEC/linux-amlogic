@@ -69,12 +69,7 @@
 		interrupt-names = "vsync2";
 	};
 
-	meson-ir {
-		status = "disabled";
-	};
-
 	meson-remote {
-		status = "okay";
 		map = <&custom_maps>;
 	};
 

@@ -120,7 +120,7 @@
 		dev_name = "meson-remote";
 		reg = <0x0 0xff808040 0x00 0x44>, /*Multi-format IR controller*/
 			<0x0 0xff808000 0x00 0x20>; /*Legacy IR controller*/
-		status = "disabled";
+		status = "okay";
 		protocol = <REMOTE_TYPE_NEC>;
 		led_blink = <1>;
 		led_blink_frq = <100>;
