@@ -166,7 +166,7 @@ static long remote_ioctl(struct file *file, unsigned int cmd,
 			/*backup protocol*/
 			chip->r_dev->protocol = chip->protocol;
 			chip->protocol = REMOTE_TYPE_RAW_NEC;
-			irq_set_affinity(chip->irqno,
+			irq_set_affinity_hint(chip->irqno,
 					 cpumask_of(chip->irq_cpumask));
 		} else {
 			chip->protocol = chip->r_dev->protocol;
