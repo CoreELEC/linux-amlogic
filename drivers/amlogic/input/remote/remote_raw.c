@@ -181,6 +181,7 @@ int remote_raw_handler_register(struct remote_raw_handler *handler)
 	mutex_unlock(&remote_raw_handler_lock);
 	return 0;
 }
+EXPORT_SYMBOL(remote_raw_handler_register);
 
 void remote_raw_handler_unregister(struct remote_raw_handler *handler)
 {
@@ -188,6 +189,7 @@ void remote_raw_handler_unregister(struct remote_raw_handler *handler)
 	list_del(&(handler->list));
 	mutex_unlock(&remote_raw_handler_lock);
 }
+EXPORT_SYMBOL(remote_raw_handler_unregister);
 
 
 void remote_raw_init(void)
