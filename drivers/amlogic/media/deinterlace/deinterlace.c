@@ -2656,6 +2656,45 @@ void di_set_comb_mode(unsigned int mode)
 }
 EXPORT_SYMBOL(di_set_comb_mode);
 
+/************************************************
+ * di_limit_local
+ *	805x limit local buf:
+ *	bit[7:0]: omx keep buf, max 8, now 6
+ *	bit[15:8]: di use local buf
+ *	set 0: no use
+ ***********************************************/
+static unsigned int di_limit_local;
+module_param_named(di_limit_local, di_limit_local, uint, 0664);
+
+static bool limit_is_s805x(void)
+{
+	if (is_meson_gxl_package_805X() || is_meson_gxl_package_805Y())
+		return true;
+	return false;
+}
+
+static unsigned int limit_buf_cnt(void)
+{
+	unsigned int cnt;
+	unsigned int omx_buf, local_buf;
+	/****************************************
+	 * omx_buf: omx keep buf number
+	 * normal is 8
+	 ***************************************/
+	if (di_limit_local & 0xff)
+		omx_buf = di_limit_local & 0xff;
+	else
+		omx_buf = 8;
+
+	if (di_limit_local & 0xff00)
+		local_buf = (di_limit_local & 0xff00) >> 8;
+	else
+		local_buf = 5;
+	cnt = omx_buf + local_buf;
+
+	return cnt;
+}
+
 static int di_init_buf(int width, int height, unsigned char prog_flag)
 {
 	int i;
@@ -2669,6 +2708,7 @@ static int di_init_buf(int width, int height, unsigned char prog_flag)
 	unsigned long di_post_mem = 0, nrds_mem = 0;
 	struct di_buf_s *keep_buf = di_post_stru.keep_buf;
 	u8 *tmp;
+	unsigned int buf_limit; /* for s805 */
 
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12A))
 		canvas_align_width = 64;
@@ -2739,7 +2779,16 @@ static int di_init_buf(int width, int height, unsigned char prog_flag)
 
 		if (de_devp->buf_num_avail > MAX_LOCAL_BUF_NUM)
 			de_devp->buf_num_avail = MAX_LOCAL_BUF_NUM;
-
+	}
+	/**/
+	if (limit_is_s805x()) {
+		buf_limit = limit_buf_cnt();
+		if ((de_devp->buf_num_avail > buf_limit) &&
+		    (buf_limit > 4)) {
+			de_devp->buf_num_avail = buf_limit;
+			di_print("%s:avail[%d], limit[%d]\n", __func__,
+				 de_devp->buf_num_avail, buf_limit);
+		}
 	}
 	de_devp->buffer_size = di_buf_size;
 	di_pre_stru.nr_size = nr_size;
@@ -8809,6 +8858,9 @@ static void set_di_flag(void)
 		pldn_dly = 2;
 		pldn_dly1 = 2;
 	}
+
+	if (limit_is_s805x())
+		di_limit_local = 6;
 
 	mtn_int_combing_glbmot();
 }
