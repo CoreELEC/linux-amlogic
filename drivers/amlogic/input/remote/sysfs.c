@@ -197,6 +197,7 @@ int debug_log_printk(struct remote_dev *dev, const char *fmt)
 	dev->debug_current += (len-1);
 	return 0;
 }
+EXPORT_SYMBOL(debug_log_printk);
 
 static ssize_t debug_log_show(struct device *dev,
 	struct device_attribute *attr, char *buf)
@@ -362,7 +363,7 @@ static ssize_t ir_learning_store(struct device *dev,
 		chip->set_register_config(chip, REMOTE_TYPE_RAW_NEC);
 		r_dev->protocol = chip->protocol;/*backup protocol*/
 		chip->protocol = REMOTE_TYPE_RAW_NEC;
-		irq_set_affinity(chip->irqno,
+		irq_set_affinity_hint(chip->irqno,
 				 cpumask_of(chip->irq_cpumask));
 	} else {
 		chip->protocol = r_dev->protocol;
@@ -540,5 +541,6 @@ EXPORT_SYMBOL_GPL(ir_sys_device_attribute_init);
 void ir_sys_device_attribute_sys(struct remote_chip *chip)
 {
 	device_destroy(&remote_class, chip->chr_devno);
+	class_unregister(&remote_class);
 }
 EXPORT_SYMBOL_GPL(ir_sys_device_attribute_sys);
