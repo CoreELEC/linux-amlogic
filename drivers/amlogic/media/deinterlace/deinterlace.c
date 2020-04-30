@@ -3839,7 +3839,7 @@ static void pre_de_done_buf_config(void)
 		if (post_wr_buf && !di_pre_stru.cur_prog_flag) {
 			read_pulldown_info(&glb_frame_mot_num,
 				&glb_field_mot_num);
-			if (pulldown_enable) {
+			if (pulldown_enable && di_pre_stru.di_inp_buf) {
 				pull_down_info = pulldown_detection(
 					&post_wr_buf->pd_config,
 					di_pre_stru.mtn_status, overturn,

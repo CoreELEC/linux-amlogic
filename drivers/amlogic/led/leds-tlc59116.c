@@ -368,7 +368,10 @@ static int tlc59116_hw_reset(struct tlc59116 *tlc59116)
 		gpio_set_value_cansleep(tlc59116->reset_gpio, 1);
 		//msleep(1);
 	} else {
-		dev_err(tlc59116->dev, "%s:  failed\n", __func__);
+		if (tlc59116)
+			dev_err(tlc59116->dev, "%s:  failed\n", __func__);
+		else
+			pr_info("%s: %s: failed\n", __FILE__, __func__);
 	}
 	return 0;
 }
