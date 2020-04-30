@@ -714,7 +714,7 @@ static const struct of_device_id remote_dt_match[] = {
 	},
 	{},
 };
-
+MODULE_DEVICE_TABLE(of, remote_dt_match);
 
 static int remote_probe(struct platform_device *pdev)
 {
