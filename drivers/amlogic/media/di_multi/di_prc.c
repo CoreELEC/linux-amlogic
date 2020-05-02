@@ -1098,9 +1098,31 @@ static void dip_wq_cma_handler(struct work_struct *work)
 
 	dbg_wq("%s:ch[%d],cmd[%d],st[%d][%d]\n",
 	       "k:h:", ch, cma_cmd, cma_st, wq->cnt);
+
+	/* release alloc one ******************************/
+	if (cma_cmd == ECMA_CMD_ONE_RE_AL) {
+		dpst_cma_re_alloc_re_alloc(ch);
+
+		spin_lock_irqsave(&plist_lock, flags);
+		pbm->cma_flg_run &= (~DI_BIT0);
+		pbm->cma_flg_run &= (~DI_BIT3);
+		task_send_ready();
+		spin_unlock_irqrestore(&plist_lock, flags);
+		return;
+	} else if (cma_cmd == ECMA_CMD_ONE_RELEAS) {
+		dpst_cma_r_back_unreg(ch);
+
+		spin_lock_irqsave(&plist_lock, flags);
+		pbm->cma_flg_run &= (~DI_BIT0);
+		pbm->cma_flg_run &= (~DI_BIT3);
+		task_send_ready();
+		spin_unlock_irqrestore(&plist_lock, flags);
+		return;
+	}
+	/**************************************************/
 	switch (cma_st) {
 	case EDI_CMA_ST_IDL:
-		if (cma_cmd) {
+		if (cma_cmd == ECMA_CMD_ALLOC) {
 			do_flg = true;
 			/*set:alloc:*/
 			atomic_set(&pbm->cma_mem_state[ch], EDI_CMA_ST_ALLOC);
@@ -1111,8 +1133,8 @@ static void dip_wq_cma_handler(struct work_struct *work)
 		}
 		break;
 	case EDI_CMA_ST_READY:
-
-		if (!cma_cmd) {
+		if ((cma_cmd == ECMA_CMD_RELEASE) ||
+		    (cma_cmd == ECMA_CMD_BACK)) {
 			do_flg = true;
 			atomic_set(&pbm->cma_mem_state[ch],
 				   EDI_CMA_ST_RELEASE);
@@ -1123,10 +1145,11 @@ static void dip_wq_cma_handler(struct work_struct *work)
 			else
 				atomic_set(&pbm->cma_mem_state[ch],
 					   EDI_CMA_ST_PART);
+			dpst_cma_re_alloc_unreg(ch);
 		}
 		break;
 	case EDI_CMA_ST_PART:
-		if (cma_cmd) {
+		if (cma_cmd == ECMA_CMD_ALLOC) {
 			do_flg = true;
 			/*set:alloc:*/
 			atomic_set(&pbm->cma_mem_state[ch], EDI_CMA_ST_ALLOC);
@@ -1134,7 +1157,8 @@ static void dip_wq_cma_handler(struct work_struct *work)
 				atomic_set(&pbm->cma_mem_state[ch],
 					   EDI_CMA_ST_READY);
 			}
-		} else {
+		} else if ((cma_cmd == ECMA_CMD_RELEASE) ||
+			   (cma_cmd == ECMA_CMD_BACK)) {
 			do_flg = true;
 			atomic_set(&pbm->cma_mem_state[ch],
 				   EDI_CMA_ST_RELEASE);
@@ -1155,11 +1179,13 @@ static void dip_wq_cma_handler(struct work_struct *work)
 	}
 	if (!do_flg)
 		PR_INF("\tch[%d],do nothing[%d]\n", ch, cma_st);
-	else
-		task_send_ready();
 
 	dbg_wq("%s:end\n", __func__);
+	spin_lock_irqsave(&plist_lock, flags);
 	pbm->cma_flg_run &= (~DI_BIT0);
+	pbm->cma_flg_run &= (~DI_BIT3);
+	task_send_ready();
+	spin_unlock_irqrestore(&plist_lock, flags);
 }
 
 static void dip_wq_prob(void)
@@ -1193,8 +1219,8 @@ static void dip_wq_check(unsigned int ch)
 		pbm->cma_wqsts[ch] &= (~DI_BIT1);
 		cma_st = dip_cma_get_st(ch);
 		if (cma_st == EDI_CMA_ST_IDL ||
-		    cma_st == EDI_CMA_ST_RELEASE) {
-			dip_wq_cma_run(ch, true);
+		    cma_st == EDI_CMA_ST_PART) {
+			dip_wq_cma_run(ch, ECMA_CMD_ALLOC);
 			PR_WARN("k:cma_re:ch[%d]\n", ch);
 		}
 	}
@@ -1209,11 +1235,11 @@ void dip_wq_check_unreg(unsigned int ch)
 		/* after unreg */
 		cancel_work_sync(&pbm->wq.wq_work);
 		pbm->cma_wqsts[ch] &= (~DI_BIT0);
-		dip_wq_cma_run(ch, 0);
+		dip_wq_cma_run(ch, ECMA_CMD_RELEASE);
 	}
 }
 
-void dip_wq_cma_run(unsigned char ch, bool reg_cmd)
+void dip_wq_cma_run(unsigned char ch, unsigned int reg_cmd)
 {
 	struct di_mng_s *pbm = get_bufmng();
 	bool ret = true;
@@ -1222,30 +1248,36 @@ void dip_wq_cma_run(unsigned char ch, bool reg_cmd)
 	       "k:u", ch, reg_cmd, pbm->cma_wqcnt);
 	pbm->cma_flg_run |= DI_BIT2;
 	if (pbm->cma_flg_run & DI_BIT0) {
-		if (reg_cmd)
+		if (reg_cmd == ECMA_CMD_ALLOC)
 			pbm->cma_wqsts[ch] |= DI_BIT1;
-		else
+		else if (reg_cmd == ECMA_CMD_RELEASE)
 			pbm->cma_wqsts[ch] |= DI_BIT0;
-
+		else if (reg_cmd == ECMA_CMD_ONE_RE_AL)
+			pbm->cma_wqsts[ch] |= DI_BIT3;
+		else if (reg_cmd == ECMA_CMD_ONE_RELEAS)
+			pbm->cma_wqsts[ch] |= DI_BIT4;
 		PR_WARN("k:cma:2 ch[%d][%d]\n", ch, reg_cmd);
 		pbm->cma_flg_run &= (~DI_BIT2);
 		return;
 	}
 
-	if (reg_cmd)
-		pbm->wq.cmd = 1;
-	else
-		pbm->wq.cmd = 0;
+	pbm->wq.cmd = reg_cmd;
 
 	pbm->wq.ch = ch;
 	pbm->wq.cnt = pbm->cma_wqcnt;
 	ret = queue_work(pbm->wq.wq_cma, &pbm->wq.wq_work);
 	if (!ret) {
 		PR_WARN("k:cma:ch[%d] [%d]\n", ch, reg_cmd);
-		if (reg_cmd)
+		if (reg_cmd == ECMA_CMD_ALLOC)
 			pbm->cma_wqsts[ch] |= DI_BIT1;
-		else
+		else if (reg_cmd == ECMA_CMD_RELEASE)
 			pbm->cma_wqsts[ch] |= DI_BIT0;
+		else if (reg_cmd == ECMA_CMD_ONE_RE_AL)
+			pbm->cma_wqsts[ch] |= DI_BIT3;
+		else if (reg_cmd == ECMA_CMD_ONE_RELEAS)
+			pbm->cma_wqsts[ch] |= DI_BIT4;
+	} else {
+		pbm->cma_flg_run |= DI_BIT3;
 	}
 	pbm->cma_wqcnt++;
 	pbm->cma_flg_run &= (~DI_BIT2);
@@ -1672,6 +1704,9 @@ void dip_chst_process_reg(unsigned int ch)
 
 			break;
 		}
+		if (pbm->cma_flg_run & DI_BIT0)
+			break;
+
 		di_reg_variable(ch, vframe);
 		/*di_reg_process_irq(ch);*/ /*check if bypass*/
 
@@ -1768,13 +1803,13 @@ void dip_chst_process_ch(void)
 	unsigned int chst;
 	struct vframe_s *vframe;
 	struct di_pre_stru_s *ppre;// = get_pre_stru(ch);
-	enum EDI_CMA_ST cma_st;
 	struct di_mng_s *pbm = get_bufmng();
 	ulong flags = 0;
 
 	for (ch = 0; ch < DI_CHANNEL_NUB; ch++) {
 		chst = dip_chst_get(ch);
 		ppre = get_pre_stru(ch);
+		task_polling_cmd_keep(ch, chst);
 		switch (chst) {
 		case EDI_TOP_STATE_REG_STEP2:
 			if (pbm->cma_flg_run)
@@ -1817,7 +1852,9 @@ void dip_chst_process_ch(void)
 			dbg_reg("ch[%d]STEP2 end\n", ch);
 			break;
 		case EDI_TOP_STATE_READY:
+			spin_lock_irqsave(&plist_lock, flags);
 			dim_post_keep_back_recycle(ch);
+			spin_unlock_irqrestore(&plist_lock, flags);
 			dim_sumx_set(ch);
 			break;
 		case EDI_TOP_STATE_BYPASS:
@@ -1835,6 +1872,7 @@ void dip_chst_process_ch(void)
 				dip_chst_set(ch, EDI_TOP_STATE_REG_STEP2);
 			}
 			break;
+		#ifdef HIS_CODE
 		case EDI_TOP_STATE_IDLE:
 			if (pbm->cma_flg_run)
 				break;
@@ -1848,6 +1886,7 @@ void dip_chst_process_ch(void)
 				break;
 			}
 			break;
+		#endif
 		default:
 			break;
 		}
@@ -2397,7 +2436,7 @@ unsigned int dim_polic_is_bypass(struct di_ch_s *pch, struct vframe_s *vf)
 	/*check bypass*/
 	if ((ptt + pcu) > pp->std) {
 		/* bypass */
-		reason = 0x62;
+		reason = 0x63;
 		pp->ch[ch] = 0;
 	} else {
 		pp->ch[ch] = pcu;

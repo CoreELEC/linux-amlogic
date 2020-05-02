@@ -29,6 +29,7 @@ void dim_mcinfo_v_release(struct di_buf_s *pbuf);
 struct dim_mm_s {
 	struct page	*ppage;
 	unsigned long	addr;
+	unsigned int	flg;/*bit0 for tvp*/
 };
 
 bool dim_mm_alloc_api(int cma_mode, size_t count, struct dim_mm_s *o);
@@ -38,6 +39,11 @@ bool dim_mm_release_api(int cma_mode,
 			unsigned long addr);
 bool dim_cma_top_alloc(unsigned int ch);
 bool dim_cma_top_release(unsigned int ch);
+
+int dpst_cma_re_alloc_re_alloc(unsigned int ch);
+int dpst_cma_re_alloc_unreg(unsigned int ch);
+int dpst_cma_r_back_unreg(unsigned int ch);
+
 bool dim_rev_mem_check(void);
 /*--Different DI versions flag---*/
 void dil_set_diffver_flag(unsigned int para);

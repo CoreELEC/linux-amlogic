@@ -260,8 +260,9 @@ void di_que_init(unsigned int ch)
 	int i;
 
 	for (i = 0; i < QUE_NUB; i++) {
-		if (i == QUE_POST_KEEP ||
-		    i == QUE_POST_KEEP_BACK)
+		if (i == QUE_POST_KEEP		||
+		    i == QUE_POST_KEEP_BACK	||
+		    i == QUE_POST_KEEP_RE_ALLOC)
 			continue;
 		pw_queue_clear(ch, i);
 	}

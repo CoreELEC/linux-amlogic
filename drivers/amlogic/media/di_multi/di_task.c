@@ -124,6 +124,7 @@ bool task_send_cmd2(unsigned int ch, unsigned int cmd)
 	}
 	kfifo_in_spinlocked(&tsk->fifo_cmd2[ch], &cmd, sizeof(unsigned int),
 			    &tsk->lock_cmd2[ch]);
+	task_wakeup(tsk);
 	return true;
 }
 
@@ -143,11 +144,25 @@ bool task_get_cmd2(unsigned int ch, unsigned int *cmd)
 	return true;
 }
 
-void task_polling_cmd_keep(unsigned int ch)
+void task_polling_cmd_keep(unsigned int ch, unsigned int top_sts)
 {
 	int i;
 	union DI_L_CMD_BITS cmdbyte;
+	struct di_mng_s *pbm = get_bufmng();
+	struct di_task *tsk = get_task();
+	ulong flags = 0;
 
+	if (pbm->cma_flg_run)
+		return;
+	if ((top_sts != EDI_TOP_STATE_IDLE)	&&
+	    (top_sts != EDI_TOP_STATE_READY)	&&
+	    (top_sts != EDI_TOP_STATE_BYPASS))
+		return;
+
+	if (kfifo_is_empty(&tsk->fifo_cmd2[ch]))
+		return;
+
+//	cma_st = dip_cma_get_st(ch);
 	for (i = 0; i < MAX_KFIFO_L_CMD_NUB; i++) {
 		if (!task_get_cmd2(ch, &cmdbyte.cmd32))
 			break;
@@ -157,6 +172,10 @@ void task_polling_cmd_keep(unsigned int ch)
 			PR_ERR("%s\n", __func__);
 		}
 	}
+	spin_lock_irqsave(&plist_lock, flags);
+	dim_post_re_alloc(ch);
+	dim_post_release(ch);
+	spin_unlock_irqrestore(&plist_lock, flags);
 }
 
 static int task_is_exiting(struct di_task *tsk)

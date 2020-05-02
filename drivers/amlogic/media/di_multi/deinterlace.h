@@ -175,6 +175,7 @@ struct di_buf_s {
 	/*ary add */
 	unsigned int channel;
 	unsigned int width_bk; /*move from ppre*/
+	unsigned int flg_tvp;
 };
 
 #define RDMA_DET3D_IRQ			0x20
@@ -587,6 +588,8 @@ struct vframe_s *di_vf_l_get(unsigned int channel);
 unsigned char pre_p_asi_de_buf_config(unsigned int ch);
 void dim_dbg_release_keep_all(unsigned int ch);
 void dim_post_keep_back_recycle(unsigned int ch);
+void dim_post_re_alloc(unsigned int ch);
+void dim_post_release(unsigned int ch);
 
 /*---------------------*/
 

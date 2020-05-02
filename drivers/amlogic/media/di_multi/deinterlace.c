@@ -1752,6 +1752,11 @@ static int di_init_buf(int width, int height, unsigned char prog_flag,
 	nr_width = nr_canvas_width >> 1;
 	mtn_width = mtn_canvas_width << 1;
 	mv_width = (mv_canvas_width * 5) >> 1;
+	/* tvp flg */
+	if (codec_mm_video_tvp_enabled())
+		mm->sts.flg_tvp = 1;
+	else
+		mm->sts.flg_tvp = 0;
 
 	if (prog_flag) {
 		ppre->prog_proc_type = 1;
@@ -1987,7 +1992,7 @@ static int di_init_buf(int width, int height, unsigned char prog_flag,
 	if (cfgeq(MEM_FLAG, EDI_MEM_M_CMA)	||
 	    cfgeq(MEM_FLAG, EDI_MEM_M_CODEC_A)	||
 	    cfgeq(MEM_FLAG, EDI_MEM_M_CODEC_B)) {	/*trig cma alloc*/
-		dip_wq_cma_run(channel, true);
+		dip_wq_cma_run(channel, ECMA_CMD_ALLOC);
 	}
 	if (cfgeq(MEM_FLAG, EDI_MEM_M_REV) && de_devp->nrds_enable) {
 		nrds_mem = di_post_mem + mm->cfg.num_post * di_post_buf_size;
@@ -2109,7 +2114,8 @@ bool dim_post_keep_is_in(unsigned int ch, struct di_buf_s *di_buf)
 	return false;
 }
 
-bool dim_post_keep_release_one(unsigned int ch, unsigned int di_buf_index)
+static bool dim_post_keep_release_one(unsigned int ch,
+				      unsigned int di_buf_index)
 {
 	struct di_buf_s *pbuf_post;
 	struct di_buf_s *di_buf;
@@ -2133,6 +2139,87 @@ bool dim_post_keep_release_one(unsigned int ch, unsigned int di_buf_index)
 	di_que_in(ch, QUE_POST_FREE, di_buf);
 	dbg_keep("%s:buf[%d]\n", __func__, di_buf_index);
 	return true;
+}
+
+bool dim_post_keep_release_one_check(unsigned int ch, unsigned int di_buf_index)
+{
+	struct di_buf_s *pbuf_post;
+	struct di_buf_s *di_buf;
+	struct di_mm_s *mm = dim_mm_get(ch);
+	bool flg_alloc = false;
+
+	pbuf_post = get_buf_post(ch);
+	di_buf = &pbuf_post[di_buf_index];
+
+	if (!di_que_is_in_que(ch, QUE_POST_KEEP, di_buf)) {
+		if (is_in_queue(ch, di_buf, QUEUE_DISPLAY)) {
+			di_buf->queue_index = -1;
+			di_que_in(ch, QUE_POST_BACK, di_buf);
+			dbg_keep("%s:to back[%d]\n", __func__, di_buf_index);
+		} else {
+			PR_ERR("%s:buf[%d] is not in keep or display\n",
+			       __func__, di_buf_index);
+		}
+		return false;
+	}
+
+	#if 1
+	if (mm->sts.flg_tvp) {
+		if (!di_buf->flg_tvp) {
+			flg_alloc = true;
+			PR_ERR("%d is not tvp\n", di_buf->index);
+		}
+	}
+	#else	/*use for test flow*/
+	flg_alloc = true;
+	#endif
+#if 1
+	if (flg_alloc) {
+		mm->sts.flg_realloc++;
+		di_buf->queue_index = -1;
+		di_que_in(ch, QUE_POST_KEEP_RE_ALLOC, di_buf);
+
+	} else {
+		di_que_out_not_fifo(ch, QUE_POST_KEEP, di_buf);
+		di_que_in(ch, QUE_POST_FREE, di_buf);
+		dbg_keep("%s:buf[%d]\n", __func__, di_buf_index);
+	}
+#else
+	di_que_out_not_fifo(ch, QUE_POST_KEEP, di_buf);
+	di_que_in(ch, QUE_POST_FREE, di_buf);
+	dbg_keep("%s:buf[%d]\n", __func__, di_buf_index);
+#endif
+	return true;
+}
+
+/* after dim_post_keep_release_one_check */
+void dim_post_re_alloc(unsigned int ch)
+{
+	struct di_mm_s *mm = dim_mm_get(ch);
+	struct di_mng_s *pbm = get_bufmng();
+
+	if (mm->sts.flg_realloc) {
+		dip_wq_cma_run(ch, ECMA_CMD_ONE_RE_AL);
+		if ((pbm->cma_wqsts[ch] & DI_BIT3) == 0) {
+		/* succed */
+			mm->sts.flg_realloc = 0;
+		}
+	}
+}
+
+/* after keep proc*/
+void dim_post_release(unsigned int ch)
+{
+	struct di_mm_s *mm = dim_mm_get(ch);
+	struct di_mng_s *pbm = get_bufmng();
+
+	if (mm->sts.flg_release) {
+		dip_wq_cma_run(ch, ECMA_CMD_ONE_RELEAS);
+		if ((pbm->cma_wqsts[ch] & DI_BIT4) == 0) {
+		/* succed */
+			mm->sts.flg_release = 0;
+		}
+	}
 }
 
 bool dim_post_keep_release_all_2free(unsigned int ch)
@@ -2266,6 +2353,7 @@ void dim_post_keep_cmd_proc(unsigned int ch, unsigned int index)
 	struct di_buf_s *pbuf_post;
 	struct di_buf_s *di_buf;
 	ulong flags = 0;
+	struct di_mm_s *mm = dim_mm_get(ch);
 
 	/*must post or err*/
 	di_dev = get_dim_de_devp();
@@ -2279,9 +2367,10 @@ void dim_post_keep_cmd_proc(unsigned int ch, unsigned int index)
 	chst = dip_chst_get(ch);
 	dbg_wq("k:p[%d]%d\n", chst, index);
 	switch (chst) {
-	case EDI_TOP_STATE_READY:
+	case EDI_TOP_STATE_READY:	/* need check tvp*/
 	case EDI_TOP_STATE_UNREG_STEP2:
-		dim_post_keep_release_one(ch, index);
+		/*dim_post_keep_release_one(ch, index);*/
+		dim_post_keep_release_one_check(ch, index);
 		break;
 	case EDI_TOP_STATE_IDLE:
 	case EDI_TOP_STATE_BYPASS:
@@ -2296,11 +2385,13 @@ void dim_post_keep_cmd_proc(unsigned int ch, unsigned int index)
 		di_que_in(ch, QUE_POST_KEEP_BACK, di_buf);
 		len_keep = di_que_list_count(ch, QUE_POST_KEEP);
 		len_back = di_que_list_count(ch, QUE_POST_KEEP_BACK);
+		mm->sts.flg_release++;
 		if (len_back >= len_keep) {
 			/*release all*/
 			pw_queue_clear(ch, QUE_POST_KEEP);
 			pw_queue_clear(ch, QUE_POST_KEEP_BACK);
-			dip_wq_cma_run(ch, false);
+			dip_wq_cma_run(ch, ECMA_CMD_BACK);
+			mm->sts.flg_release = 0;
 		}
 		break;
 	case EDI_TOP_STATE_REG_STEP1:
@@ -6717,7 +6808,7 @@ void di_unreg_variable(unsigned int channel)
 	if (cfgeq(MEM_FLAG, EDI_MEM_M_CMA)	||
 	    cfgeq(MEM_FLAG, EDI_MEM_M_CODEC_A)	||
 	    cfgeq(MEM_FLAG, EDI_MEM_M_CODEC_B)) {
-		dip_wq_cma_run(channel, false);
+		dip_wq_cma_run(channel, ECMA_CMD_RELEASE);
 		dip_wq_check_unreg(channel);
 	}
 

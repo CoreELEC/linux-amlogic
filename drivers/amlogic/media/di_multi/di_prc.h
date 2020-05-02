@@ -28,7 +28,15 @@ void dip_even_unreg_val(unsigned int ch);
 /************************/
 /* CMA */
 /************************/
-void dip_wq_cma_run(unsigned char ch, bool reg_cmd);
+enum ECMA_CMD {
+	ECMA_CMD_RELEASE,
+	ECMA_CMD_ALLOC,
+	ECMA_CMD_BACK, /*from post*/
+	ECMA_CMD_ONE_RE_AL,
+	ECMA_CMD_ONE_RELEAS,
+};
+
+void dip_wq_cma_run(unsigned char ch, unsigned int reg_cmd);
 bool dip_cma_st_is_ready(unsigned int ch);
 bool dip_cma_st_is_idle(unsigned int ch);
 bool dip_cma_st_is_idl_all(void);

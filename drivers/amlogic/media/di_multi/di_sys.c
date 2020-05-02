@@ -158,8 +158,10 @@ static bool mm_codec_alloc(const char *owner, size_t count,
 	if (codec_mm_video_tvp_enabled()) {
 		istvp = true;
 		flags |= CODEC_MM_FLAGS_TVP;
+		o->flg |= DI_BIT0;
 	} else {
 		flags |= CODEC_MM_FLAGS_RESERVED | CODEC_MM_FLAGS_CPU;
+		o->flg &= (~DI_BIT0);
 	}
 	if (cma_mode == 4 && !istvp)
 		flags = CODEC_MM_FLAGS_CMA_FIRST |
@@ -294,6 +296,10 @@ static unsigned int di_cma_alloc(struct di_dev_s *devp, unsigned int channel)
 		}
 		buf_p->pages = omm.ppage;
 		buf_p->nr_adr = omm.addr;
+		if (omm.flg & DI_BIT0)
+			buf_p->flg_tvp |= DI_BIT0;
+		else
+			buf_p->flg_tvp &= (~DI_BIT0);
 		alloc_cnt++;
 		mm->sts.num_local++;
 		dbg_mem("CMA  allocate buf[%d]page:0x%p\n",
@@ -367,6 +373,13 @@ static unsigned int dpst_cma_alloc(struct di_dev_s *devp, unsigned int channel)
 			}
 			buf_p->pages = omm.ppage;
 			buf_p->nr_adr = omm.addr;
+			/* tvp flg */
+			if (omm.flg & DI_BIT0)
+				buf_p->flg_tvp |= DI_BIT0;
+			else
+				buf_p->flg_tvp &= (~DI_BIT0);
+
+			mm->sts.cnt_alloc++;
 			mm->sts.num_post++;
 			alloc_cnt++;
 			dbg_mem("%s:pbuf[%d]page:0x%p\n",
@@ -454,8 +467,8 @@ static void dpst_cma_release(struct di_dev_s *devp, unsigned int ch)
 				continue;
 			}
 			if (!buf_p->pages) {
-				PR_INF("2:%s:post buf[%d] is null\n",
-				       __func__, i);
+				dbg_mem("2:%s:post buf[%d] is null\n",
+					__func__, i);
 				continue;
 			}
 			ret = dim_mm_release(cfgg(MEM_FLAG),
@@ -465,6 +478,7 @@ static void dpst_cma_release(struct di_dev_s *devp, unsigned int ch)
 			if (ret) {
 				buf_p->pages = NULL;
 				mm->sts.num_post--;
+				mm->sts.cnt_alloc--;
 				rels_cnt++;
 				dbg_mem("post buf[%d] ok.\n", i);
 			} else {
@@ -503,6 +517,215 @@ bool dim_cma_top_release(unsigned int ch)
 	dpst_cma_release(de_devp, ch);
 #endif
 	return true;
+}
+
+static unsigned int dpst_cma_alloc_onebuf(struct di_dev_s *devp,
+					  struct di_buf_s *buf_p,
+					  unsigned int ch)
+{
+	//struct di_buf_s *buf_p = NULL;
+
+	struct di_mm_s *mm = dim_mm_get(ch);
+	bool aret;
+	struct dim_mm_s omm;
+	u64	time1, time2;
+
+#ifdef CONFIG_CMA
+
+	if (buf_p->pages) {
+		dbg_mem("3:%s:buf[%d] page:0x%p skip\n",
+			__func__,
+			buf_p->index, buf_p->pages);
+		dbg_wq("k:a[%d]\n", buf_p->index);
+		return -1;
+	}
+	time1 = cur_to_usecs();
+	aret = dim_mm_alloc(cfgg(MEM_FLAG),
+			    mm->cfg.size_post >> PAGE_SHIFT,
+			&omm);
+	if (!aret) {
+		buf_p->pages = NULL;
+		PR_ERR("4:%s: buf[%d] fail.\n", __func__,
+		       buf_p->index);
+		return 0;
+	}
+	buf_p->pages = omm.ppage;
+	buf_p->nr_adr = omm.addr;
+	mm->sts.cnt_alloc++;
+	/* tvp flg */
+	if (omm.flg & DI_BIT0)
+		buf_p->flg_tvp |= DI_BIT0;
+	else
+		buf_p->flg_tvp &= (~DI_BIT0);
+
+	time2 = cur_to_usecs();
+	dbg_wq("%s:ch[%d]:pbuf[%d]page:0x%p, addr:0x%lx %u us\n",
+	       "k:oa",
+	       ch,
+	       buf_p->index, buf_p->pages,
+	       buf_p->nr_adr,
+	       (unsigned int)(time2 - time1));
+#endif
+	return 1;
+}
+
+static int dpst_cma_release_onebuf(struct di_dev_s *devp,
+				   struct di_buf_s *buf_p,
+				   unsigned int ch)
+{
+	bool ret;
+	struct di_mm_s *mm = dim_mm_get(ch);
+	u64 time1, time2;
+
+#ifdef CONFIG_CMA
+
+	time1 = cur_to_usecs();
+
+	if (!buf_p || !devp)
+		return -1;
+
+	if (!buf_p->pages) {
+		PR_INF("2:%s:post buf[%d] is null\n",
+		       __func__, buf_p->index);
+		return 0;
+	}
+	ret = dim_mm_release(cfgg(MEM_FLAG),
+			     buf_p->pages,
+			     mm->cfg.size_post >> PAGE_SHIFT,
+			     buf_p->nr_adr);
+	time2 = cur_to_usecs();
+	if (ret) {
+		buf_p->pages = NULL;
+		mm->sts.cnt_alloc--;
+		dbg_wq("%s:ch[%d] buf[%d] use %u us.\n",
+		       "k:or",
+		       ch,
+		       buf_p->index,
+		       (unsigned int)(time2 - time1));
+	} else {
+		PR_ERR("%s:ch[%d]buf[%d] %u us\n",
+		       __func__,
+		       ch,
+		       buf_p->index,
+		       (unsigned int)(time2 - time1));
+	}
+#endif
+	return 1;
+}
+
+int dpst_cma_re_alloc_re_alloc(unsigned int ch)
+{
+	/* release alloc one */
+	unsigned int tmpa[MAX_FIFO_SIZE];
+	unsigned int psize, itmp;
+	struct di_buf_s *p;
+	struct di_dev_s *de_devp = get_dim_de_devp();
+	int retr, reta;
+	ulong flags = 0;
+
+	spin_lock_irqsave(&plist_lock, flags);
+	if (di_que_is_empty(ch, QUE_POST_KEEP_RE_ALLOC)) {
+		spin_unlock_irqrestore(&plist_lock, flags);
+		return 0;
+	}
+	di_que_list(ch, QUE_POST_KEEP_RE_ALLOC, &tmpa[0], &psize);
+	spin_unlock_irqrestore(&plist_lock, flags);
+
+	dbg_keep("post_keep_back: curr(%d)\n", psize);
+	for (itmp = 0; itmp < psize; itmp++) {
+		p = pw_qindex_2_buf(ch, tmpa[itmp]);
+		reta = 0;
+		retr = dpst_cma_release_onebuf(de_devp, p, ch);
+		reta = dpst_cma_alloc_onebuf(de_devp, p, ch);
+
+		spin_lock_irqsave(&plist_lock, flags);
+		if (reta > 0) {
+			/* release and alloc is ok*/
+			/* from re_alloc to keep back */
+			di_que_out(ch, QUE_POST_KEEP_RE_ALLOC, p);
+			di_que_in(ch, QUE_POST_KEEP_BACK, p);
+		} else {
+			if (reta == 0) {
+				/* release failed */
+				PR_ERR("%s:%d re release failed\n",
+				       __func__, p->index);
+			} else {
+				/* releas but not alloc */
+				PR_WARN("k:need re-try %d\n", p->index);
+			}
+		}
+		spin_unlock_irqrestore(&plist_lock, flags);
+	}
+	return 1;
+}
+
+int dpst_cma_re_alloc_unreg(unsigned int ch)
+{
+	/* release alloc one */
+	unsigned int tmpa[MAX_FIFO_SIZE];
+	unsigned int psize, itmp;
+	struct di_buf_s *p;
+	struct di_dev_s *de_devp = get_dim_de_devp();
+	int retr;
+	ulong flags = 0;
+
+	dbg_wq("k:ou:ch[%d]\n", ch);
+	spin_lock_irqsave(&plist_lock, flags);
+	if (di_que_is_empty(ch, QUE_POST_KEEP_RE_ALLOC)) {
+		spin_unlock_irqrestore(&plist_lock, flags);
+		return 0;
+	}
+	di_que_list(ch, QUE_POST_KEEP_RE_ALLOC, &tmpa[0], &psize);
+	spin_unlock_irqrestore(&plist_lock, flags);
+
+	dbg_keep("post_keep_back: curr(%d)\n", psize);
+	for (itmp = 0; itmp < psize; itmp++) {
+		p = pw_qindex_2_buf(ch, tmpa[itmp]);
+
+		retr = dpst_cma_release_onebuf(de_devp, p, ch);
+
+		spin_lock_irqsave(&plist_lock, flags);
+		di_que_out(ch, QUE_POST_KEEP_RE_ALLOC, p);
+		di_que_out_not_fifo(ch, QUE_POST_KEEP, p);
+		spin_unlock_irqrestore(&plist_lock, flags);
+	}
+	return 1;
+}
+
+int dpst_cma_r_back_unreg(unsigned int ch)
+{
+	/* release alloc one */
+	unsigned int tmpa[MAX_FIFO_SIZE];
+	unsigned int psize, itmp;
+	struct di_buf_s *p;
+	struct di_dev_s *de_devp = get_dim_de_devp();
+	int retr;
+	ulong flags = 0;
+	unsigned int cnt = 0;
+
+	dbg_wq("k:ob:ch[%d]\n", ch);
+	spin_lock_irqsave(&plist_lock, flags);
+	if (di_que_is_empty(ch, QUE_POST_KEEP_BACK)) {
+		spin_unlock_irqrestore(&plist_lock, flags);
+		return 0;
+	}
+	di_que_list(ch, QUE_POST_KEEP_BACK, &tmpa[0], &psize);
+	spin_unlock_irqrestore(&plist_lock, flags);
+
+	dbg_keep("post_keep_back: curr(%d)\n", psize);
+	for (itmp = 0; itmp < psize; itmp++) {
+		p = pw_qindex_2_buf(ch, tmpa[itmp]);
+
+		retr = dpst_cma_release_onebuf(de_devp, p, ch);
+
+		spin_lock_irqsave(&plist_lock, flags);
+		di_que_out(ch, QUE_POST_KEEP_BACK, p);
+		di_que_out_not_fifo(ch, QUE_POST_KEEP, p);
+		cnt++;
+		spin_unlock_irqrestore(&plist_lock, flags);
+	}
+	dbg_wq("k:obe:[%d]\n", cnt);
+	return 1;
 }
 
 bool dim_mm_alloc_api(int cma_mode, size_t count, struct dim_mm_s *o)

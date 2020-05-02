@@ -506,6 +506,7 @@ enum QUE_TYPE {	/*mast start from 0 */
 	QUE_POST_DOING,
 	QUE_POST_KEEP,	/*below use pw_queue_in*/
 	QUE_POST_KEEP_BACK,
+	QUE_POST_KEEP_RE_ALLOC, /*need*/
 	/*----------------*/
 	QUE_DBG,
 	QUE_NUB,
@@ -845,10 +846,14 @@ struct di_mm_st_s {
 	unsigned int	mem_size;
 	int	num_local;
 	int	num_post;	/*ppost*/
+	unsigned int	flg_tvp;
+	unsigned int	flg_realloc;
+	unsigned int	flg_release;
+	int	cnt_alloc; /* debug only */
 };
 
 struct di_mm_s {
-	struct di_mm_cfg_s cfg;
+	struct di_mm_cfg_s cfg; /* clear in dip_init_value */
 	struct di_mm_st_s sts;
 };
 

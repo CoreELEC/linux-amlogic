@@ -900,6 +900,7 @@ int dim_state_show(struct seq_file *seq, void *v, unsigned int channel)
 	char *splt = "---------------------------";
 	struct di_mm_s *mm = dim_mm_get(channel);	/*mm-0705*/
 	struct di_ch_s *pch = get_chdata(channel);
+	struct di_mng_s *pbm = get_bufmng();
 
 	di_pre_stru_p = get_pre_stru(channel);
 	di_post_stru_p = get_post_stru(channel);
@@ -920,10 +921,15 @@ int dim_state_show(struct seq_file *seq, void *v, unsigned int channel)
 		   recovery_flag, recovery_log_reason, di_blocking);
 	seq_printf(seq, "recovery_log_q_idx=%d, recovery_log_di_buf=0x%p\n",
 		   recovery_log_queue_idx, recovery_log_di_buf);
-	seq_printf(seq, "buffer_size=%d, mem_flag=%s, cma_flag=%d\n",
+	seq_printf(seq, "buffer_size=%d, mem_flag=%s, cma_flag=%d, run=0x%x\n",
 		   mm->cfg.size_local,
 		   di_cma_dbg_get_st_name(channel),
-		   cfgg(MEM_FLAG));
+		   cfgg(MEM_FLAG),
+		   pbm->cma_flg_run);
+	seq_printf(seq, "flg_tvp[%d],flg_realloc[%d],cnt[%d]\n",
+		   mm->sts.flg_tvp,
+		   mm->sts.flg_realloc,
+		   mm->sts.cnt_alloc);
 	keep_buf = di_post_stru_p->keep_buf;
 	seq_printf(seq, "used_post_buf_index %d(0x%p),",
 		   IS_ERR_OR_NULL(keep_buf) ?
@@ -1077,6 +1083,18 @@ int dim_state_show(struct seq_file *seq, void *v, unsigned int channel)
 	 ********************************/
 	di_que_list(channel, QUE_POST_KEEP_BACK, &tmpa[0], &psize);
 	seq_printf(seq, "post_keep_back: curr(%d)\n", psize);
+
+	for (itmp = 0; itmp < psize; itmp++) {
+		p = pw_qindex_2_buf(channel, tmpa[itmp]);
+		seq_printf(seq, "\ttype[%d],index[%d]\n", p->type, p->index);
+	}
+	seq_printf(seq, "%s\n", splt);
+
+	/********************************
+	 * post keep back release alloc
+	 ********************************/
+	di_que_list(channel, QUE_POST_KEEP_RE_ALLOC, &tmpa[0], &psize);
+	seq_printf(seq, "post_keep_re_all: curr(%d)\n", psize);
 
 	for (itmp = 0; itmp < psize; itmp++) {
 		p = pw_qindex_2_buf(channel, tmpa[itmp]);
