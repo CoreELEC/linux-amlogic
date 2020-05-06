@@ -24,7 +24,7 @@
 #define TV_REVERSE
 
 extern bool super_scaler;
-
+extern struct sr_info_s sr_info;
 #define VPP_FLAG_WIDEMODE_MASK      0x0000000F
 #define VPP_FLAG_INTERLACE_OUT      0x00000010
 #define VPP_FLAG_INTERLACE_IN       0x00000020

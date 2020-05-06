@@ -96,6 +96,13 @@ MODULE_AMLOG(LOG_LEVEL_ERROR, 0, LOG_DEFAULT_LEVEL_DESC, LOG_MASK_DESC);
 #include <linux/math64.h>
 
 #include "video_receiver.h"
+#define CREATE_TRACE_POINTS
+#include "video_trace.h"
+#undef TRACE_INCLUDE_PATH
+#undef TRACE_INCLUDE_FILE
+#define TRACE_INCLUDE_PATH .
+#define TRACE_INCLUDE_FILE video_trace
+#include <trace/define_trace.h>
 
 static int get_count;
 static int get_count_pip;
@@ -530,6 +537,112 @@ static ssize_t pts_enforce_pulldown_write_file(struct file *file,
 	return count;
 }
 
+static ssize_t dump_reg_write(struct file *file, const char __user *userbuf,
+			      size_t count, loff_t *ppos)
+{
+	return count;
+}
+
+static int dump_reg_show(struct seq_file *s, void *what)
+{
+	unsigned int  i = 0, count;
+	u32 reg_addr, reg_val = 0;
+	struct sr_info_s *sr;
+
+	/* viu top regs */
+	seq_puts(s, "\nviu top registers:\n");
+	reg_addr = 0x1a04;
+	count = 12;
+	for (i = 0; i < count; i++) {
+		reg_val = READ_VCBUS_REG(reg_addr);
+		seq_printf(s, "[0x%x] = 0x%X\n",
+			   reg_addr, reg_val);
+		reg_addr += 1;
+	}
+	/* vpp registers begin from 0x1d00*/
+	seq_puts(s, "vpp registers:\n");
+	reg_addr = VPP_DUMMY_DATA + cur_dev->vpp_off;
+	count = 256;
+	for (i = 0; i < count; i++) {
+		reg_val = READ_VCBUS_REG(reg_addr);
+		seq_printf(s, "[0x%x] = 0x%X\n",
+			   reg_addr, reg_val);
+		reg_addr += 1;
+	}
+	/* vd1 afbc regs */
+	seq_puts(s, "\nvd1 afbc registers:\n");
+	reg_addr = AFBC_ENABLE + cur_dev->vpp_off;
+	count = 32;
+	for (i = 0; i < count; i++) {
+		reg_val = READ_VCBUS_REG(reg_addr);
+		seq_printf(s, "[0x%x] = 0x%X\n",
+			   reg_addr, reg_val);
+		reg_addr += 1;
+	}
+	/* vd2 afbc regs */
+	seq_puts(s, "\nvd2 afbc registers:\n");
+	reg_addr = VD2_AFBC_ENABLE + cur_dev->vpp_off;
+	count = 32;
+	for (i = 0; i < count; i++) {
+		reg_val = READ_VCBUS_REG(reg_addr);
+		seq_printf(s, "[0x%x] = 0x%X\n",
+			   reg_addr, reg_val);
+		reg_addr += 1;
+	}
+	/* vd1 & vd2 mif */
+	seq_puts(s, "\nvd1 & vd2 mif registers:\n");
+	reg_addr = VD1_IF0_GEN_REG + cur_dev->viu_off;
+	count = 64;
+	for (i = 0; i < count; i++) {
+		reg_val = READ_VCBUS_REG(reg_addr);
+		seq_printf(s, "[0x%x] = 0x%X\n",
+			   reg_addr, reg_val);
+		reg_addr += 1;
+	}
+	/* vd1(0x3800) & vd2(0x3850) hdr */
+	/* osd hdr (0x38a0) */
+	seq_puts(s, "\nvd1(0x3800) & vd2(0x3850) hdr registers:\n");
+	seq_puts(s, "osd hdr (0x38a0) registers:\n");
+	reg_addr = 0x3800;
+	count = 256;
+	for (i = 0; i < count; i++) {
+		reg_val = READ_VCBUS_REG(reg_addr);
+		seq_printf(s, "[0x%x] = 0x%X\n",
+			   reg_addr, reg_val);
+		reg_addr += 1;
+	}
+	/* super scaler */
+	sr = &sr_info;
+	/* g12a ~ tm2: 0x3e00 */
+	/* tm2 revb: 0x5000 */
+	seq_puts(s, "\nsuper scaler 0 registers:\n");
+	reg_addr = SRSHARP0_SHARP_HVSIZE + sr->sr_reg_offt;
+	count = 128;
+	for (i = 0; i < count; i++) {
+		reg_val = READ_VCBUS_REG(reg_addr);
+		seq_printf(s, "[0x%x] = 0x%X\n",
+			   reg_addr, reg_val);
+		reg_addr += 1;
+	}
+	/* tl1, tm2 : 0x3f00*/
+	/* tm2 revb: 0x5200 */
+	seq_puts(s, "\nsuper scaler 1 registers:\n");
+	reg_addr = SRSHARP1_SHARP_HVSIZE + sr->sr_reg_offt2;
+	count = 128;
+	for (i = 0; i < count; i++) {
+		reg_val = READ_VCBUS_REG(reg_addr);
+		seq_printf(s, "[0x%x] = 0x%X\n",
+			   reg_addr, reg_val);
+		reg_addr += 1;
+	}
+	return 0;
+}
+
+static int dump_reg_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, dump_reg_show, inode->i_private);
+}
+
 static const struct file_operations pts_pattern_enter_cnt_file_ops = {
 	.open		= simple_open,
 	.read		= pts_pattern_enter_cnt_read_file,
@@ -553,6 +666,13 @@ static const struct file_operations pts_enforce_pulldown_file_ops = {
 };
 #endif
 
+static const struct file_operations reg_dump_file_ops = {
+	.open		= dump_reg_open,
+	.read		= seq_read,
+	.write		= dump_reg_write,
+	.release	= single_release,
+};
+
 struct video_debugfs_files_s {
 	const char *name;
 	const umode_t mode;
@@ -574,6 +694,9 @@ static struct video_debugfs_files_s video_debugfs_files[] = {
 		&pts_enforce_pulldown_file_ops
 	},
 #endif
+	{"reg_dump", S_IFREG | 0644,
+		&reg_dump_file_ops
+	},
 };
 
 static struct dentry *video_debugfs_root;
@@ -2892,6 +3015,11 @@ static void _set_video_window(
 	new_y = layer->layer_top;
 	new_w = layer->layer_width;
 	new_h = layer->layer_height;
+	trace_axis("VIDEO",
+		   layer->layer_left,
+		   layer->layer_top,
+		   layer->layer_left + layer->layer_width - 1,
+		   layer->layer_top + layer->layer_height - 1);
 
 	if ((last_x != new_x) || (last_y != new_y) ||
 	    (last_w != new_w) || (last_h != new_h)) {

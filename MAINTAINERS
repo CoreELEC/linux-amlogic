@@ -15296,4 +15296,6 @@ M: Lijun Meng <lijun.meng@amlogic.com>
 F: arch/arm/boot/dts/amlogic/sm1_s905x3_ac212.dts
 F: arch/arm64/boot/dts/amlogic/sm1_s905x3_ac212.dts
 
-
+AMLOGIC VIDEO DRIVER
+M:  Pengcheng Chen <pengcheng.chen@amlogic.com>
+F:  drivers/amlogic/media/video_sink/video_trace.h
