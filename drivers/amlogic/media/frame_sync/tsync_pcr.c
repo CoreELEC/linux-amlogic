@@ -981,6 +981,10 @@ static void tsync_process_discontinue(void)
 		VIDEO_DISCONTINUE) {
 		if (abs(cur_checkin_vpts - cur_vpts) >
 			tsync_vpts_discontinuity_margin()) {
+			if (cur_checkin_vpts > cur_vpts) {
+				pr_info("case:cur_checkin_vpts > cur_vpts.");
+				tsync_set_pcr_mode(0, cur_vpts);
+			} else
 			tsync_set_pcr_mode(0, cur_checkin_vpts -
 				tsync_pcr_ref_latency);
 			tsync_pcr_tsdemuxpcr_discontinue = 0;
