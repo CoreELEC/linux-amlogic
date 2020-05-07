@@ -628,12 +628,19 @@ module_param(enable_vd_zorder, uint, 0664);
 static int vsync_enter_line_max;
 static int vsync_exit_line_max;
 static int line_threshold = 90;
+static int vsync_threshold = 10;
+static int vsync_adjust_hit;
 MODULE_PARM_DESC(vsync_enter_line_max, "\n vsync_enter_line_max\n");
 module_param(vsync_enter_line_max, uint, 0664);
 MODULE_PARM_DESC(vsync_exit_line_max, "\n vsync_exit_line_max\n");
 module_param(vsync_exit_line_max, uint, 0664);
 MODULE_PARM_DESC(line_threshold, "\n line_threshold\n");
 module_param(line_threshold, uint, 0664);
+MODULE_PARM_DESC(vsync_threshold, "\n vsync_threshold\n");
+module_param(vsync_threshold, uint, 0664);
+MODULE_PARM_DESC(vsync_adjust_hit, "\n vsync_adjust_hit\n");
+module_param(vsync_adjust_hit, uint, 0664);
+
 
 static unsigned int osd_filter_coefs_bicubic_sharp[] = {
 	0x01fa008c, 0x01fa0100, 0xff7f0200, 0xfe7f0300,
@@ -1620,12 +1627,48 @@ static inline void wait_vsync_wakeup_viu2(void)
 	wake_up_interruptible_all(&osd_vsync2_wq);
 }
 
+static s64 get_adjust_vsynctime(u32 output_index)
+{
+	struct vinfo_s *vinfo = NULL;
+	int line, active_begin_line;
+	int vinfo_height;
+	int thresh_line, vsync_time;
+	s64 adjust_nsec;
+
+	vinfo = get_current_vinfo();
+	if (vinfo && (!strcmp(vinfo->name, "invalid") ||
+		      !strcmp(vinfo->name, "null"))) {
+		active_begin_line = get_active_begin_line(VIU1);
+		line = get_enter_encp_line(VIU1);
+		/* if nearly vsync signal, wait vsync here */
+		vinfo_height = osd_hw.field_out_en[output_index] ?
+			(osd_hw.vinfo_height[output_index] * 2) :
+			osd_hw.vinfo_height[output_index];
+		thresh_line = vsync_threshold;
+		if (line > thresh_line) {
+			vsync_time = 1000000 * vinfo->sync_duration_den /
+				vinfo->sync_duration_num;
+			adjust_nsec = div_u64((u64)vsync_time *
+					      (line - thresh_line),
+					      (vinfo_height +
+					       active_begin_line)) * 1000;
+			vsync_adjust_hit++;
+			return adjust_nsec;
+
+		} else {
+			return 0;
+		}
+	} else {
+		return 0;
+	}
+}
+
 void osd_update_vsync_hit(void)
 {
 	ktime_t stime;
 
 	stime = ktime_get();
-	timestamp[VIU1] = stime.tv64;
+	timestamp[VIU1] = stime.tv64 - get_adjust_vsynctime(VIU1);
 #ifdef FIQ_VSYNC
 	fiq_bridge_pulse_trigger(&osd_hw.fiq_handle_item);
 #else
@@ -1638,7 +1681,7 @@ void osd_update_vsync_hit_viu2(void)
 	ktime_t stime;
 
 	stime = ktime_get();
-	timestamp[VIU2] = stime.tv64;
+	timestamp[VIU2] = stime.tv64 - get_adjust_vsynctime(VIU2);
 #ifdef FIQ_VSYNC
 	fiq_bridge_pulse_trigger(&osd_hw.fiq_handle_item);
 #else
@@ -2424,8 +2467,10 @@ static irqreturn_t vsync_isr(int irq, void *dev_id)
 		osd_mali_afbc_start();
 		osd_update_vsync_hit();
 		osd_hw_reset();
-	} else
+	} else {
+		osd_update_vsync_hit();
 		osd_rdma_interrupt_done_clear();
+	}
 	if (osd_hw.osd_reg_check)
 		check_reg_changed();
 #ifndef FIQ_VSYNC
