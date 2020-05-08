@@ -26,5 +26,19 @@ static inline bool mmc_is_io_op(u32 opcode)
 	return opcode == SD_IO_RW_DIRECT || opcode == SD_IO_RW_EXTENDED;
 }
 
+struct wifi_clk_table {
+	char m_wifi_name[20];
+	unsigned short m_use_flag;
+	unsigned short m_device_id;
+	unsigned int m_uhs_max_dtr;
+};
+
+enum wifi_clk_table_e {
+	WIFI_CLOCK_TABLE_8822BS = 0,
+	WIFI_CLOCK_TABLE_8822CS = 1,
+	WIFI_CLOCK_TABLE_MAX,
+};
+
+extern struct wifi_clk_table aWifi_clk[WIFI_CLOCK_TABLE_MAX];
 #endif
 
