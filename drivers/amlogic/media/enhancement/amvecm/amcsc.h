@@ -146,6 +146,7 @@ extern uint cur_csc_type[VD_PATH_MAX];
 int get_hdr_policy(void);
 void set_cur_hdr_policy(uint policy);
 enum output_format_e get_force_output(void);
+void set_force_output(enum output_format_e output);
 
 /* 0: hdr->hdr, 1:hdr->sdr, 2:hdr->hlg */
 extern uint hdr_process_mode[VD_PATH_MAX];
@@ -238,7 +239,8 @@ extern void send_hdr10_plus_pkt(enum vd_path_e vd_path);
 #define HDRPLUS_PKT_REPEAT	1
 #define HDRPLUS_PKT_IDLE	0
 
-void hdr10_plus_process_update(int force_source_lumin);
+void hdr10_plus_process_update(
+	int force_source_lumin, enum vd_path_e vd_path);
 extern int customer_hdr_clipping;
 
 /* api to get sink capability */

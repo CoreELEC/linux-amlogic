@@ -60,7 +60,8 @@ void hdr_osd_off(void)
 	enum hdr_process_sel cur_hdr_process;
 
 	cur_hdr_process = hdr_func(OSD1_HDR, HDR_BYPASS, get_current_vinfo());
-	pr_csc(8, "am_vecm: module=OSD1_HDR, process=HDR_BYPASS(%d, %d)\n",
+	pr_csc(
+		8, "module=OSD1_HDR, process=HDR_BYPASS(%d, %d)\n",
 		HDR_BYPASS, cur_hdr_process);
 }
 
@@ -69,7 +70,8 @@ void hdr_vd1_off(void)
 	enum hdr_process_sel cur_hdr_process;
 
 	cur_hdr_process = hdr_func(VD1_HDR, HDR_BYPASS, get_current_vinfo());
-	pr_csc(8, "am_vecm: module=VD1_HDR, process=HDR_BYPASS(%d, %d)\n",
+	pr_csc(
+		8, "module=VD1_HDR, process=HDR_BYPASS(%d, %d)\n",
 		HDR_BYPASS, cur_hdr_process);
 }
 
@@ -78,7 +80,8 @@ void hdr_vd2_off(void)
 	enum hdr_process_sel cur_hdr_process;
 
 	cur_hdr_process = hdr_func(VD2_HDR, HDR_BYPASS, get_current_vinfo());
-	pr_csc(8, "am_vecm: module=VD2_HDR, process=HDR_BYPASS(%d, %d)\n",
+	pr_csc(
+		8, "module=VD2_HDR, process=HDR_BYPASS(%d, %d)\n",
 	       HDR_BYPASS, cur_hdr_process);
 }
 
@@ -402,6 +405,16 @@ int get_hdr_policy(void)
 }
 EXPORT_SYMBOL(get_hdr_policy);
 
+void set_hdr_policy(int policy)
+{
+	#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
+	if (is_dolby_vision_enable())
+		set_dolby_vision_policy(policy);
+	#endif
+	hdr_policy = policy;
+}
+EXPORT_SYMBOL(set_hdr_policy);
+
 void set_cur_hdr_policy(uint policy)
 {
 	cur_hdr_policy = policy;
@@ -413,6 +426,12 @@ enum output_format_e get_force_output(void)
 	return force_output;
 }
 EXPORT_SYMBOL(get_force_output);
+
+void set_force_output(enum output_format_e output)
+{
+	force_output = output;
+}
+EXPORT_SYMBOL(set_force_output);
 
 static uint hdr_mode = 2; /* 0: hdr->hdr, 1:hdr->sdr, 2:auto */
 module_param(hdr_mode, uint, 0664);
@@ -500,8 +519,11 @@ MODULE_PARM_DESC(video_process_status, "\n video_process_status\n");
 void set_hdr_module_status(enum vd_path_e vd_path, int status)
 {
 	video_process_status[vd_path] = status;
-	pr_csc(4, "video_process_status[VD%d] = %d",
-	       vd_path + 1, status);
+	pr_csc(4, "video_process_status[VD%d] = %d, dv %s %s %d\n",
+	       vd_path + 1, status,
+	       is_dolby_vision_enable() ? "en" : "",
+	       is_dolby_vision_on() ? "on" : "",
+	       get_dv_support_info());
 }
 EXPORT_SYMBOL(set_hdr_module_status);
 
@@ -2744,14 +2766,21 @@ static void print_vpp_lut(
 	enum vpp_lut_sel_e lut_sel,
 	int on)
 {
-	unsigned short r_map[VIDEO_OETF_LUT_SIZE];
-	unsigned short g_map[VIDEO_OETF_LUT_SIZE];
-	unsigned short b_map[VIDEO_OETF_LUT_SIZE];
+	unsigned short *r_map;
+	unsigned short *g_map;
+	unsigned short *b_map;
 	unsigned int addr_port;
 	unsigned int data_port;
 	unsigned int ctrl_port;
 	unsigned int data;
 	int i;
+
+	r_map = kmalloc(sizeof(unsigned short) * VIDEO_OETF_LUT_SIZE * 3,
+			GFP_ATOMIC);
+	if (!r_map)
+		return;
+	g_map = &r_map[sizeof(unsigned short) * VIDEO_OETF_LUT_SIZE * 1];
+	b_map = &r_map[sizeof(unsigned short) * VIDEO_OETF_LUT_SIZE * 2];
 
 	if (lut_sel == VPP_LUT_OSD_EOTF) {
 		addr_port = VIU_OSD1_EOTF_LUT_ADDR_PORT;
@@ -2773,8 +2802,10 @@ static void print_vpp_lut(
 		addr_port = XVYCC_INV_LUT_Y_ADDR_PORT;
 		data_port = XVYCC_INV_LUT_Y_DATA_PORT;
 		ctrl_port = XVYCC_INV_LUT_CTL;
-	} else
+	} else {
+		kfree(r_map);
 		return;
+	}
 	if (lut_sel == VPP_LUT_OSD_OETF) {
 		for (i = 0; i < 20; i++) {
 			WRITE_VPP_REG(addr_port, i);
@@ -2901,6 +2932,7 @@ static void print_vpp_lut(
 		if (on)
 			WRITE_VPP_REG_BITS(ctrl_port, 1<<2, 12, 3);
 	}
+	kfree(r_map);
 }
 
 void set_vpp_lut(
@@ -3987,7 +4019,8 @@ int signal_type_changed(struct vframe_s *vf,
 		/*vf->signal_type, signal_type);*/
 	}
 
-	if (p_new && p_cur) {
+	/* only check primary for bt2020 */
+	if (p_new && p_cur && ((signal_type >> 16) & 0xff) == 9) {
 		ret = hdr10_primaries_changed(p_new, p_cur);
 		if (ret)
 			change_flag |= SIG_PRI_INFO;
@@ -4909,7 +4942,7 @@ static int hdr_process(
 				osd_eotf_33_709_mapping_100, /* G */
 				osd_eotf_33_709_mapping_100, /* B */
 				CSC_ON);
-		} else if ((is_hdr_cfg_osd_100() == 2)) {
+		} else if (is_hdr_cfg_osd_100() == 2) {
 			set_vpp_lut(VPP_LUT_OSD_EOTF,
 				osd_eotf_33_709_mapping_290, /* R */
 				osd_eotf_33_709_mapping_290, /* G */
@@ -6615,13 +6648,23 @@ static bool hdr10_plus_metadata_update(
 }
 
 static struct hdr10pgen_param_s hdr10pgen_param;
-void hdr10_plus_process_update(int force_source_lumin)
+void hdr10_plus_process_update(
+	int force_source_lumin, enum vd_path_e vd_path)
 {
 	hdr10_plus_ootf_gen(
 		customer_panel_lumin,
 		force_source_lumin,
 		&hdr10pgen_param);
-	hdr10p_ebzcurve_update(VD1_HDR, HDR10P_SDR, &hdr10pgen_param);
+	if (vd_path == VD1_PATH)
+		hdr10p_ebzcurve_update(
+			VD1_HDR,
+			HDR10P_SDR,
+			&hdr10pgen_param);
+	else if (vd_path == VD2_PATH)
+		hdr10p_ebzcurve_update(
+			VD2_HDR,
+			HDR10P_SDR,
+			&hdr10pgen_param);
 }
 EXPORT_SYMBOL(hdr10_plus_process_update);
 
@@ -7292,7 +7335,7 @@ static int vpp_matrix_update(
 			sizeof(struct hdr_info));
 
 	if (!cpu_after_eq(MESON_CPU_MAJOR_ID_G12A) ||
-	(get_cpu_type() == MESON_CPU_MAJOR_ID_TL1))
+	    (get_cpu_type() == MESON_CPU_MAJOR_ID_TL1))
 		hdr_support_process(vinfo, vd_path);
 
 	if (vf && vinfo)
@@ -7411,7 +7454,7 @@ static int vpp_matrix_update(
 
 	if (hdr10p_meta_updated &&
 	    hdr10_plus_process_mode[vd_path] == PROC_MATCH)
-		hdr10_plus_process_update(0);
+		hdr10_plus_process_update(0, vd_path);
 
 	/* eye protection mode */
 	if (signal_change_flag & SIG_WB_CHG)
@@ -7444,6 +7487,7 @@ int amvecm_matrix_process(
 	int sink_changed = 0;
 	bool cap_changed = false;
 	bool send_fake_frame = false;
+	int dv_hdr_policy = 0;
 	static bool dolby_enable;
 
 	if ((get_cpu_type() < MESON_CPU_MAJOR_ID_GXTVBB) ||
@@ -7691,25 +7735,34 @@ int amvecm_matrix_process(
 			/* video off */
 			if (is_dolby_vision_enable()) {
 				/* dolby enable */
+				dv_hdr_policy = get_dolby_vision_hdr_policy();
 				pr_csc(8,
-				       "vd%d: %d %d Fake SDR frame%s, dolby on=%d, dolby policy =%d\n",
+				       "vd%d: %d %d Fake SDR frame%s, dv on=%d, policy=%d, hdr policy=0x%x\n",
 				       vd_path + 1,
 				       null_vf_cnt[vd_path],
 				       toggle_frame,
 				       is_video_layer_on(vd_path) ?
 				       " " : ", video off",
 				       is_dolby_vision_on(),
-				       get_dolby_vision_policy());
+				       get_dolby_vision_policy(),
+				       dv_hdr_policy);
 				if (vd_path == VD2_PATH ||
 				    (vd_path == VD1_PATH &&
-				     (get_dolby_vision_policy() !=
-				      DOLBY_VISION_FOLLOW_SINK ||
-				      get_source_type(VD1_PATH) ==
-				      HDRTYPE_HDR10PLUS ||
-				      get_source_type(VD1_PATH)
-					== HDRTYPE_HLG ||
-					get_source_type(VD1_PATH)
-					== HDRTYPE_MVC))) {
+				    (get_source_type(VD1_PATH) ==
+				     HDRTYPE_HDR10PLUS ||
+					 get_source_type(VD1_PATH)
+					 == HDRTYPE_MVC ||
+					 ((get_dv_support_info() & 7)
+					 != 7) ||
+					 (get_source_type(VD1_PATH)
+					  == HDRTYPE_HDR10 &&
+					  !(dv_hdr_policy & 1)) ||
+					 (get_source_type(VD1_PATH)
+					  == HDRTYPE_HLG &&
+					  !(dv_hdr_policy & 2)) ||
+					 (get_source_type(VD1_PATH)
+					  == HDRTYPE_SDR &&
+					  !(dv_hdr_policy & 0x20))))) {
 					/* and VD1 adaptive or VD2 */
 					/* or always hdr hdr+/hlg bypass */
 					/* faked vframe to switch matrix */
@@ -7757,6 +7810,7 @@ int amvecm_matrix_process(
 				fake_vframe.prop.
 				master_display_colour.present_flag
 					= 0x80000000;
+				fake_vframe.type = 0;
 				memset(
 				&fake_vframe.prop.master_display_colour,
 				0,
@@ -8021,14 +8075,23 @@ reg_dump:
 		READ_VPP_REG(VIU_OSD1_EOTF_CTL));
 
 	{
-		unsigned short r_map[VIDEO_OETF_LUT_SIZE];
-		unsigned short g_map[VIDEO_OETF_LUT_SIZE];
-		unsigned short b_map[VIDEO_OETF_LUT_SIZE];
+		unsigned short *r_map;
+		unsigned short *g_map;
+		unsigned short *b_map;
 		unsigned int addr_port;
 		unsigned int data_port;
 		unsigned int ctrl_port;
 		unsigned int data;
 		int i;
+
+		r_map = kmalloc(sizeof(unsigned short) *
+			VIDEO_OETF_LUT_SIZE * 3, GFP_ATOMIC);
+		if (!r_map)
+			return 0;
+		g_map = &r_map[sizeof(unsigned short) *
+			VIDEO_OETF_LUT_SIZE * 1];
+		b_map = &r_map[sizeof(unsigned short) *
+			VIDEO_OETF_LUT_SIZE * 2];
 
 		pr_err("----dump regs VPP_LUT_OSD_OETF----\n");
 
@@ -8159,6 +8222,7 @@ reg_dump:
 				hdr_osd_reg.lut_val.ob_map[i]);
 		}
 		pr_err("\n");
+		kfree(r_map);
 	}
 	pr_err("----dump regs VPP_LUT_EOTF----\n");
 	print_vpp_lut(VPP_LUT_EOTF, READ_VPP_REG(VIU_EOTF_CTL) & (7 << 27));

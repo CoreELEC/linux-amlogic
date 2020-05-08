@@ -107,4 +107,6 @@ bool is_dolby_vision_el_disable(void);
 bool is_dovi_dual_layer_frame(struct vframe_s *vf);
 void dolby_vision_set_provider(char *prov_name);
 int dolby_vision_check_mvc(struct vframe_s *vf);
+int get_dolby_vision_hdr_policy(void);
+int get_dv_support_info(void);
 #endif
