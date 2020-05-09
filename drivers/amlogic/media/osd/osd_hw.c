@@ -8938,7 +8938,7 @@ static void osd_setting_default_hwc(void)
 
 	osd_log_dbg(MODULE_BASE, "osd_setting_default_hwc\n");
 	/* depend on din0_premult_en */
-	postbld_osd1_premult = 1;
+	postbld_osd1_premult = 0;
 	/* depend on din_premult_en bit 4 */
 	postbld_osd2_premult = 0;
 	/* osd blend ctrl */
