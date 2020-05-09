@@ -595,7 +595,7 @@ int FlmVOFSftTop(UINT8 *rCmb32Spcl, unsigned short *rPstCYWnd0,
 		 * 01: 2-2 film, 10: 2-3 film, 11:-others
 		 */
 		*rFlmPstMod = 1;
-		nS1 = 135;
+		nS1 = 300; /*increase flm22_force level from vlsi-yanling*/
 	}
 	pre_fld_motnum = glb_field_mot_num;
 
