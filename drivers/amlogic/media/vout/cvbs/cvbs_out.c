@@ -156,8 +156,7 @@ unsigned int cvbs_clk_path;
 
 static struct cvbs_drv_s *cvbs_drv;
 static enum cvbs_mode_e local_cvbs_mode;
-static unsigned int vdac_cfg_valid;
-static unsigned int vdac_cfg_value;
+static unsigned int vdac_gsw_config;
 static DEFINE_MUTEX(setmode_mutex);
 static DEFINE_MUTEX(CC_mutex);
 
@@ -187,9 +186,9 @@ int cvbs_cpu_type(void)
 }
 EXPORT_SYMBOL(cvbs_cpu_type);
 
-static unsigned int cvbs_get_trimming_version(unsigned int flag)
+static unsigned char cvbs_get_trimming_version(unsigned int flag)
 {
-	unsigned int version = 0xff;
+	unsigned char version = 0xff;
 
 	if ((flag & 0xf0) == 0xa0)
 		version = 5;
@@ -202,41 +201,38 @@ static unsigned int cvbs_get_trimming_version(unsigned int flag)
 	return version;
 }
 
-static void cvbs_config_vdac(unsigned int flag, unsigned int cfg)
+static unsigned int cvbs_config_vdac(unsigned int value)
 {
 	unsigned char version = 0;
+	unsigned int cfg_valid, gsw_cfg;
 
-	vdac_cfg_value = cfg & 0x7;
-	version = cvbs_get_trimming_version(flag);
+	version = cvbs_get_trimming_version((value >> 8) & 0xff);
 	/* flag 1/0 for validity of vdac config */
-	if ((version == 1) || (version == 2) || (version == 5))
-		vdac_cfg_valid = 1;
-	else
-		vdac_cfg_valid = 0;
-	cvbs_log_info("cvbs trimming.%d.v%d: 0x%x, 0x%x\n",
-		      vdac_cfg_valid, version, flag, cfg);
+	if ((version == 1) || (version == 2) || (version == 5)) {
+		cfg_valid = 1;
+		gsw_cfg = value & 0x7;
+	} else {
+		cfg_valid = 0;
+		gsw_cfg = 0xffff;
+	}
+	if (cfg_valid) {
+		cvbs_log_info("%s: cvbs trimming 0x%x: %d.v%d, 0x%x\n",
+		      __func__, value, cfg_valid, version, gsw_cfg);
+	}
+
+	return gsw_cfg;
 }
 
 static void cvbs_cntl_output(unsigned int open)
 {
-	unsigned int cntl0 = 0, cntl1 = 0;
-
 	if (open == 0) { /* close */
-		cntl0 = 0;
-		cntl1 = 8;
-		vdac_set_ctrl0_ctrl1(cntl0, cntl1);
-
-		/* must enable adc bandgap, the adc ref signal for demod */
 		vdac_enable(0, VDAC_MODULE_CVBS_OUT);
 	} else if (open == 1) { /* open */
-		cntl0 = cvbs_drv->cvbs_data->cntl0_val;
-		cntl1 = (vdac_cfg_valid == 0) ? 0 : vdac_cfg_value;
-				vdac_set_ctrl0_ctrl1(cntl0, cntl1);
-
-		/*vdac ctrl for cvbsout/rf signal,adc bandgap*/
+		vdac_vref_adj(cvbs_drv->cvbs_data->vdac_vref_adj);
+		vdac_gsw_adj(cvbs_drv->cvbs_data->vdac_gsw);
 		vdac_enable(1, VDAC_MODULE_CVBS_OUT);
 	}
-	cvbs_log_info("%s: %d: 0x%x, 0x%x\n", __func__, open, cntl0, cntl1);
+	cvbs_log_info("%s: %d\n", __func__, open);
 }
 
 #ifdef CONFIG_CVBS_PERFORMANCE_COMPATIBILITY_SUPPORT
@@ -1321,6 +1317,30 @@ static void cvbsout_get_config(struct device *dev)
 	struct reg_s *s = NULL;
 	const char *str;
 
+	/*clk path*/
+	/*bit[0]: 0=vid_pll, 1=gp0_pll*/
+	/*bit[1]: 0=vid2_clk, 1=vid_clk*/
+	ret = of_property_read_u32(dev->of_node, "clk_path", &val);
+	if (!ret) {
+		if (val > 0x3) {
+			cvbs_log_err("error: invalid clk_path\n");
+		} else {
+			cvbs_clk_path = val;
+			cvbs_log_info("clk path:0x%x\n", cvbs_clk_path);
+		}
+	}
+
+	/* vdac config */
+	ret = of_property_read_u32(dev->of_node, "vdac_config",
+				   &vdac_gsw_config);
+	if (cvbs_drv->cvbs_data) {
+		if (vdac_gsw_config) {
+			val = cvbs_config_vdac(vdac_gsw_config);
+			if (val < 0xff)
+				cvbs_drv->cvbs_data->vdac_gsw = val;
+		}
+	}
+
 	/* performance: PAL */
 	cvbs_drv->perf_conf_pal.reg_cnt = 0;
 	cvbs_drv->perf_conf_pal.reg_table = NULL;
@@ -1415,27 +1435,6 @@ static void cvbsout_get_config(struct device *dev)
 			i++;
 		}
 	}
-
-	/*clk path*/
-	/*bit[0]: 0=vid_pll, 1=gp0_pll*/
-	/*bit[1]: 0=vid2_clk, 1=vid_clk*/
-	ret = of_property_read_u32(dev->of_node, "clk_path", &val);
-	if (!ret) {
-		if (val > 0x3) {
-			cvbs_log_err("error: invalid clk_path\n");
-		} else {
-			cvbs_clk_path = val;
-			cvbs_log_info("clk path:0x%x\n", cvbs_clk_path);
-		}
-	}
-
-	/* vdac config */
-	ret = of_property_read_u32(dev->of_node, "vdac_config", &val);
-	if (!ret) {
-		cvbs_config_vdac((val & 0xff00) >> 8, val & 0xff);
-		cvbs_log_info("find vdac_config: 0x%x\n", val);
-	}
-
 }
 
 static void cvbsout_clktree_probe(struct device *dev)
@@ -1472,49 +1471,57 @@ static void cvbsout_clktree_remove(struct device *dev)
 
 #ifdef CONFIG_OF
 struct meson_cvbsout_data meson_gxl_cvbsout_data = {
-	.cntl0_val = 0xb0001,
+	.vdac_vref_adj = 0xb,
+	.vdac_gsw = 0x0,
 	.cpu_id = CVBS_CPU_TYPE_GXL,
 	.name = "meson-gxl-cvbsout",
 };
 
 struct meson_cvbsout_data meson_gxm_cvbsout_data = {
-	.cntl0_val = 0xb0001,
+	.vdac_vref_adj = 0xb,
+	.vdac_gsw = 0x0,
 	.cpu_id = CVBS_CPU_TYPE_GXM,
 	.name = "meson-gxm-cvbsout",
 };
 
 struct meson_cvbsout_data meson_txlx_cvbsout_data = {
-	.cntl0_val = 0x620001,
+	.vdac_vref_adj = 0x2,
+	.vdac_gsw = 0x0,
 	.cpu_id = CVBS_CPU_TYPE_TXLX,
 	.name = "meson-txlx-cvbsout",
 };
 
 struct meson_cvbsout_data meson_g12a_cvbsout_data = {
-	.cntl0_val = 0x906001,
+	.vdac_vref_adj = 0x10,
+	.vdac_gsw = 0x0,
 	.cpu_id = CVBS_CPU_TYPE_G12A,
 	.name = "meson-g12a-cvbsout",
 };
 
 struct meson_cvbsout_data meson_g12b_cvbsout_data = {
-	.cntl0_val = 0x8f6001,
+	.vdac_vref_adj = 0xf,
+	.vdac_gsw = 0x0,
 	.cpu_id = CVBS_CPU_TYPE_G12B,
 	.name = "meson-g12b-cvbsout",
 };
 
 struct meson_cvbsout_data meson_tl1_cvbsout_data = {
-	.cntl0_val = 0x906001,
+	.vdac_vref_adj = 0x10,
+	.vdac_gsw = 0x0,
 	.cpu_id = CVBS_CPU_TYPE_TL1,
 	.name = "meson-tl1-cvbsout",
 };
 
 struct meson_cvbsout_data meson_sm1_cvbsout_data = {
-	.cntl0_val = 0x8f6001,
+	.vdac_vref_adj = 0xf,
+	.vdac_gsw = 0x0,
 	.cpu_id = CVBS_CPU_TYPE_SM1,
 	.name = "meson-sm1-cvbsout",
 };
 
 struct meson_cvbsout_data meson_tm2_cvbsout_data = {
-	.cntl0_val = 0x906001,
+	.vdac_vref_adj = 0x10,
+	.vdac_gsw = 0x0,
 	.cpu_id = CVBS_CPU_TYPE_TM2,
 	.name = "meson-tm2-cvbsout",
 };
@@ -1660,12 +1667,10 @@ static __exit void cvbs_exit_module(void)
 
 static int __init vdac_config_bootargs_setup(char *line)
 {
-	unsigned long cfg = 0x0;
 	int ret = 0;
 
 	cvbs_log_info("cvbs trimming line = %s\n", line);
-	ret = kstrtoul(line, 16, (unsigned long *)&cfg);
-	cvbs_config_vdac((cfg & 0xff00) >> 8, cfg & 0xff);
+	ret = kstrtouint(line, 16, &vdac_gsw_config);
 	return 1;
 }
 

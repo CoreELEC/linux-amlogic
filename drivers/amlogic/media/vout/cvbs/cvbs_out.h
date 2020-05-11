@@ -54,7 +54,8 @@ enum cvbs_cpu_type {
 };
 
 struct meson_cvbsout_data {
-	unsigned int cntl0_val;
+	unsigned int vdac_vref_adj;
+	unsigned int vdac_gsw;
 	enum cvbs_cpu_type cpu_id;
 	const char *name;
 };

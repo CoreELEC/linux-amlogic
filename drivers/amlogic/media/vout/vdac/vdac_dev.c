@@ -274,6 +274,10 @@ static void vdac_enable_cvbs_out(bool on)
 	unsigned int reg_cntl1 = s_vdac_data->reg_cntl1;
 
 	if (on) {
+		if (s_vdac_data->cpu_id <= VDAC_CPU_GXLX)
+			vdac_hiu_reg_setb(reg_cntl0, 0, 12, 4);
+		else
+			vdac_hiu_reg_setb(reg_cntl0, 0x6, 12, 4);
 		vdac_ctrl_config(1, reg_cntl1, 3);
 		vdac_ctrl_config(1, reg_cntl0, 0);
 		vdac_ctrl_config(1, reg_cntl0, 9);
@@ -418,8 +422,8 @@ void vdac_enable(bool on, unsigned int module_sel)
 		}
 		break;
 	default:
-		pr_err("%s:module_sel: 0x%x wrong module index !! "
-					, __func__, module_sel);
+		pr_err("%s:module_sel: 0x%x wrong module index !! ",
+		       __func__, module_sel);
 		break;
 	}
 
@@ -438,7 +442,7 @@ void vdac_enable(bool on, unsigned int module_sel)
 }
 EXPORT_SYMBOL(vdac_enable);
 
-void vdac_set_ctrl0_ctrl1(unsigned int ctrl0, unsigned int ctrl1)
+static void vdac_set_ctrl0_ctrl1(unsigned int ctrl0, unsigned int ctrl1)
 {
 	unsigned int reg_cntl0;
 	unsigned int reg_cntl1;
@@ -459,6 +463,76 @@ void vdac_set_ctrl0_ctrl1(unsigned int ctrl0, unsigned int ctrl1)
 		pr_info("vdac: set reg 0x%02x=0x%08x, readback=0x%08x\n",
 			reg_cntl1, ctrl1, vdac_hiu_reg_read(reg_cntl1));
 	}
+}
+
+int vdac_vref_adj(unsigned int value)
+{
+	struct meson_vdac_ctrl_s *table;
+	unsigned int reg;
+	unsigned int bit = 16;
+	int i = 0;
+	int ret = -1;
+
+	if (!s_vdac_data) {
+		pr_err("\n%s: s_vdac_data NULL\n", __func__);
+		return ret;
+	}
+
+	table = s_vdac_data->ctrl_table;
+	reg = s_vdac_data->reg_cntl0;
+
+	while (i < VDAC_CTRL_MAX) {
+		if (table[i].reg == VDAC_REG_MAX)
+			break;
+		if ((table[i].reg == reg) && (table[i].bit == bit)) {
+			vdac_hiu_reg_setb(reg, value, bit, table[i].len);
+			if (vdac_debug_print) {
+				pr_info("vdac: %s: reg=0x%x set bit%d=0x%x, readback=0x%08x\n",
+					__func__, reg, bit, value,
+					vdac_hiu_reg_read(reg));
+			}
+			ret = 0;
+			break;
+		}
+		i++;
+	}
+
+	return ret;
+}
+
+int vdac_gsw_adj(unsigned int value)
+{
+	struct meson_vdac_ctrl_s *table;
+	unsigned int reg;
+	unsigned int bit = 0;
+	int i = 0;
+	int ret = -1;
+
+	if (!s_vdac_data) {
+		pr_err("\n%s: s_vdac_data NULL\n", __func__);
+		return ret;
+	}
+
+	table = s_vdac_data->ctrl_table;
+	reg = s_vdac_data->reg_cntl1;
+
+	while (i < VDAC_CTRL_MAX) {
+		if (table[i].reg == VDAC_REG_MAX)
+			break;
+		if ((table[i].reg == reg) && (table[i].bit == bit)) {
+			vdac_hiu_reg_setb(reg, value, bit, table[i].len);
+			if (vdac_debug_print) {
+				pr_info("vdac: %s: reg=0x%x set bit%d=0x%x, readback=0x%08x\n",
+					__func__, reg, bit, value,
+					vdac_hiu_reg_read(reg));
+			}
+			ret = 0;
+			break;
+		}
+		i++;
+	}
+
+	return ret;
 }
 
 unsigned int vdac_get_reg_addr(unsigned int index)
