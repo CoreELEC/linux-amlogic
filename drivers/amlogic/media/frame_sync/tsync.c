@@ -1476,6 +1476,7 @@ EXPORT_SYMBOL(tsync_set_startsync_mode);
 
 int tsync_set_tunnel_mode(int mode)
 {
+	tsync_mode = TSYNC_MODE_AMASTER;
 	return is_tunnel_mode = mode;
 }
 EXPORT_SYMBOL(tsync_set_tunnel_mode);
