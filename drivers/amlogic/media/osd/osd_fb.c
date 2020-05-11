@@ -3489,6 +3489,60 @@ static ssize_t store_fix_target_size(struct device *device,
 	}
 	return count;
 }
+
+static ssize_t show_osd_v_skip(struct device *device,
+			       struct device_attribute *attr,
+			       char *buf)
+{
+	struct fb_info *fb_info = dev_get_drvdata(device);
+
+	return snprintf(buf, PAGE_SIZE, "%d\n",
+		osd_hw.osd_v_skip[fb_info->node]);
+}
+
+static ssize_t store_osd_v_skip(struct device *device,
+				struct device_attribute *attr,
+				const char *buf, size_t count)
+{
+	struct fb_info *fb_info = dev_get_drvdata(device);
+	int osd_v_skip, ret;
+
+	ret = kstrtoint(buf, 0, &osd_v_skip);
+	if (ret < 0)
+		return -EINVAL;
+	osd_hw.osd_v_skip[fb_info->node] = osd_v_skip;
+	return count;
+}
+
+static ssize_t show_osd_rdma_delayed(struct device *device,
+				     struct device_attribute *attr,
+				     char *buf)
+{
+	return snprintf(buf, PAGE_SIZE, "%d\n",
+		osd_hw.rdma_delayed_cnt);
+}
+
+static ssize_t show_osd_reg_check(struct device *device,
+				  struct device_attribute *attr,
+				  char *buf)
+{
+	return snprintf(buf, PAGE_SIZE, "%d\n",
+		osd_hw.osd_reg_check);
+}
+
+static ssize_t store_osd_reg_check(struct device *device,
+				   struct device_attribute *attr,
+				   const char *buf, size_t count)
+{
+	int osd_reg_check, ret;
+
+	ret = kstrtoint(buf, 0, &osd_reg_check);
+	if (ret < 0)
+		return -EINVAL;
+	osd_hw.osd_reg_check = osd_reg_check;
+	return count;
+}
+
 static inline  int str2lower(char *str)
 {
 	while (*str != '\0') {
@@ -3713,6 +3767,12 @@ static struct device_attribute osd_attrs[] = {
 	       show_osd_preblend_en, store_osd_preblend_en),
 	__ATTR(fix_target_size, 0644,
 	       show_fix_target_size, store_fix_target_size),
+	__ATTR(osd_v_skip, 0644,
+	       show_osd_v_skip, store_osd_v_skip),
+	__ATTR(rdma_delayed_count, 0444,
+	       show_osd_rdma_delayed, NULL),
+	__ATTR(reg_check, 0644,
+	       show_osd_reg_check, store_osd_reg_check),
 };
 
 static struct device_attribute osd_attrs_viu2[] = {

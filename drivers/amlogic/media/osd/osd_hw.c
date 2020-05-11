@@ -2309,6 +2309,101 @@ void viu2_osd_reg_clr_mask(u32 addr, u32 _mask)
 	}
 }
 
+static void check_reg_changed(void)
+{
+	static u32 reg_value[72], reg_value_pre[72];
+	int i;
+
+	for (i = 0; i < 7; i++)
+		reg_value[i] = osd_reg_read(0x39b0 + i);
+
+	reg_value[7] = osd_reg_read(0x39bb);
+	reg_value[8] = osd_reg_read(0x1df1);
+	reg_value[9] = osd_reg_read(0x1df5);
+	reg_value[10] = osd_reg_read(0x1df6);
+	reg_value[11] = osd_reg_read(0x1d21);
+	reg_value[12] = osd_reg_read(0x1da5);
+
+	for (i = 0; i < 12; i++)
+		reg_value[13 + i] = osd_reg_read(0x1dc0 + i);
+	for (i = 0; i < 12; i++)
+		reg_value[25 + i] = osd_reg_read(0x3d00 + i);
+	for (i = 0; i < 12; i++)
+		reg_value[37 + i] = osd_reg_read(0x3d20 + i);
+	for (i = 0; i < 6; i++)
+		reg_value[49 + i] = osd_reg_read(0x3a13 + i);
+	for (i = 0; i < 6; i++)
+		reg_value[55 + i] = osd_reg_read(0x3a33 + i);
+	for (i = 0; i < 6; i++)
+		reg_value[61 + i] = osd_reg_read(0x3a53 + i);
+	reg_value[68] = osd_reg_read(0x1a1b) & 0xff7f;
+	reg_value[69] = osd_reg_read(0x1a3b) & 0xff7f;
+	reg_value[70] = osd_reg_read(0x3d88) & 0xff7f;
+
+	for (i = 0; i < 72; i++) {
+		if (reg_value[i] != reg_value_pre[i]) {
+			if (i < 7)
+				pr_info("Debug [0x%x] changed,pre:%x, now:%x\n",
+					0x39b0 + i,
+					reg_value_pre[i], reg_value[i]);
+			else if (i >= 13 && i < 25)
+				pr_info("Debug [0x%x] changed,pre:%x, now:%x\n",
+					0x1dc0 + i - 13,
+					reg_value_pre[i], reg_value[i]);
+			else if (i >= 25 && i < 37)
+				pr_info("Debug [0x%x] changed,pre:%x, now:%x\n",
+					0x3d00 + i - 25,
+					reg_value_pre[i], reg_value[i]);
+			else if (i >= 37 && i < 49)
+				pr_info("Debug [0x%x] changed,pre:%x, now:%x\n",
+					0x3d20 + i - 37,
+					reg_value_pre[i], reg_value[i]);
+			else if (i >= 49 && i < 55)
+				pr_info("Debug [0x%x] changed,pre:%x, now:%x\n",
+					0x3a13 + i - 49,
+					reg_value_pre[i], reg_value[i]);
+			else if (i >= 55 && i < 61)
+				pr_info("Debug [0x%x] changed,pre:%x, now:%x\n",
+					0x3a33 + i - 55,
+					reg_value_pre[i], reg_value[i]);
+			else if (i >= 61 && i < 67)
+				pr_info("Debug [0x%x] changed,pre:%x, now:%x\n",
+					0x3a53 + i - 61,
+					reg_value_pre[i], reg_value[i]);
+			else if (i == 7)
+				pr_info("Debug [0x39bb] changed,pre:%x, now:%x\n",
+					reg_value_pre[i], reg_value[i]);
+			else if (i == 8)
+				pr_info("Debug [0x1df1] changed,pre:%x, now:%x\n",
+					reg_value_pre[i], reg_value[i]);
+			else if (i == 9)
+				pr_info("Debug [0x1df5] changed,pre:%x, now:%x\n",
+					reg_value_pre[i], reg_value[i]);
+			else if (i == 10)
+				pr_info("Debug [0x1df6] changed,pre:%x, now:%x\n",
+					reg_value_pre[i], reg_value[i]);
+			else if (i == 11)
+				pr_info("Debug [0x1d21] changed,pre:%x, now:%x\n",
+					reg_value_pre[i], reg_value[i]);
+			else if (i == 12)
+				pr_info("Debug [0x1da5] changed,pre:%x, now:%x\n",
+					reg_value_pre[i], reg_value[i]);
+			else if (i == 68)
+				pr_info("Debug [0x1a1b] changed,pre:%x, now:%x\n",
+					reg_value_pre[i], reg_value[i]);
+			else if (i == 69)
+				pr_info("Debug [0x1a3b] changed,pre:%x, now:%x\n",
+					reg_value_pre[i], reg_value[i]);
+			else if (i == 70)
+				pr_info("Debug [0x3d88] changed,pre:%x, now:%x\n",
+					reg_value_pre[i], reg_value[i]);
+		}
+	}
+
+	for (i = 0; i < 72; i++)
+		reg_value_pre[i] = reg_value[i];
+}
+
 #ifdef FIQ_VSYNC
 static irqreturn_t vsync_isr(int irq, void *dev_id)
 {
@@ -2331,7 +2426,8 @@ static irqreturn_t vsync_isr(int irq, void *dev_id)
 		osd_hw_reset();
 	} else
 		osd_rdma_interrupt_done_clear();
-
+	if (osd_hw.osd_reg_check)
+		check_reg_changed();
 #ifndef FIQ_VSYNC
 	return IRQ_HANDLED;
 #endif
@@ -5542,8 +5638,12 @@ static void osd_update_color_mode(u32 index)
 		}
 		/* osd_blk_mode */
 		data32 |=  osd_hw.color_info[index]->hw_blkmode << 8;
+		if (osd_hw.osd_v_skip[index])
+			data32 |= 1 << 24;
+
 		VSYNCOSD_WR_MPEG_REG(
 			osd_reg->osd_blk0_cfg_w0, data32);
+
 		/*
 		 * VSYNCOSD_WR_MPEG_REG(VIU_OSD1_BLK1_CFG_W0, data32);
 		 * VSYNCOSD_WR_MPEG_REG(VIU_OSD1_BLK2_CFG_W0, data32);
@@ -7070,6 +7170,11 @@ static void osd_set_freescale(u32 index,
 		osd_hw.free_src_data[index].y_end =
 			osd_hw.src_data[index].y +
 			osd_hw.src_data[index].h - 1;
+		if (osd_hw.osd_v_skip[index]) {
+			osd_hw.free_src_data[index].y_end =
+				(osd_hw.src_data[index].y +
+			osd_hw.src_data[index].h) / 2 - 1;
+		}
 
 		if ((blending->osd_blend_mode == OSD_BLEND_AC) ||
 			(blending->osd_blend_mode == OSD_BLEND_ABC)) {
@@ -8728,6 +8833,8 @@ static int osd_setting_order(u32 output_index)
 			break;
 		line1 = get_enter_encp_line(VIU1);
 	}
+	if (wait_cnt > 0)
+		osd_hw.rdma_delayed_cnt++;
 	spin_lock_irqsave(&osd_lock, lock_flags);
 	if (blending->osd1_freescale_disable)
 		osd_hw.reg[DISP_FREESCALE_ENABLE].update_func(OSD1);
@@ -8807,6 +8914,7 @@ static int osd_setting_order(u32 output_index)
 	/* if missed, need wait vsync */
 	if (/*(line2 < line1) || */(val != rdma_dt_cnt)) {
 		osd_wait_vsync_hw_viu1();
+		osd_hw.rdma_delayed_cnt++;
 		osd_log_dbg(MODULE_RENDER, "osd line %d,%d\n", line1, line2);
 	}
 	return 0;

@@ -793,6 +793,9 @@ struct hw_para_s {
 	u32 rdma_trace_enable;
 	u32 rdma_trace_num;
 	u32 rdma_trace_reg[MAX_TRACE_NUM];
+	u32 osd_v_skip[HW_OSD_COUNT];
+	u32 rdma_delayed_cnt;
+	u32 osd_reg_check;
 	struct hw_debug_s osd_debug;
 	int out_fence_fd[VIU_COUNT];
 	int in_fd[HW_OSD_COUNT];
