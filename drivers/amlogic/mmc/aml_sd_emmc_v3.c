@@ -622,6 +622,9 @@ irqreturn_t meson_mmc_irq_thread_v3(int irq, void *dev_id)
 	case HOST_DAT_TIMEOUT_ERR:
 	case HOST_RSP_CRC_ERR:
 	case HOST_DAT_CRC_ERR:
+		if (host->is_tunning == 0)
+			pr_info("%s %d %s: cmd:%d\n", __func__, __LINE__,
+				mmc_hostname(host->mmc), mrq->cmd->opcode);
 		if (mrq->cmd->data) {
 			dma_unmap_sg(mmc_dev(host->mmc), mrq->cmd->data->sg,
 				mrq->cmd->data->sg_len,
