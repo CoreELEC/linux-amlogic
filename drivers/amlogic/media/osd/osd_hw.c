@@ -35,6 +35,9 @@
 #include <linux/uaccess.h>
 #include <asm/div64.h>
 #include <linux/amlogic/cpu_version.h>
+#include <linux/cpumask.h>
+#include <linux/cpu.h>
+#include <linux/sched.h>
 /* Android Headers */
 
 /* Amlogic Headers */
@@ -488,10 +491,18 @@ static struct viu2_osd_reg_item viu2_osd_reg_table[VIU2_OSD_REG_NUM] = {
 		{VIU2_OSD1_DIMM_CTRL, 0x0, 0x7fffffff},
 };
 
+struct affinity_info_s {
+	struct completion affinity_task_com;
+	struct cpumask cpu_mask;
+	int run_affinity_task;
+	unsigned long affinity_mask;
+};
+
 static int osd_setting_blending_scope(u32 index);
 static int vpp_blend_setting_default(u32 index);
 
 #ifdef CONFIG_AMLOGIC_MEDIA_FB_OSD_SYNC_FENCE
+static struct affinity_info_s affinity_info;
 /* sync fence relative varible. */
 static int timeline_created[VIU_COUNT];
 static void *osd_timeline[VIU_COUNT];
@@ -1161,8 +1172,9 @@ static void osd_toggle_buffer_viu2(struct kthread_work *work)
 static int out_fence_create(u32 output_index, int *release_fence_fd)
 {
 	int out_fence_fd = -1;
-	struct sched_param param = {.sched_priority = 2};
+	struct sched_param param = {.sched_priority = MAX_RT_PRIO - 1};
 	char toggle_thread_name[32] = {};
+	unsigned long _cpu_mask = *cpumask_bits(&affinity_info.cpu_mask) & (~1);
 
 	if (!timeline_created[output_index]) {
 		/* timeline has not been created */
@@ -1189,6 +1201,9 @@ static int out_fence_create(u32 output_index, int *release_fence_fd)
 				kthread_init_work(
 					&buffer_toggle_work[output_index],
 					osd_toggle_buffer_viu2);
+			/* set cpu affinity mask 0xe(work on cpu1~3) */
+			set_cpus_allowed_ptr(buffer_toggle_thread[output_index],
+					     (struct cpumask *)&_cpu_mask);
 			timeline_created[output_index] = 1;
 		}
 	}
@@ -9724,6 +9739,79 @@ static int osd_extra_canvas_alloc(void)
 	return 0;
 }
 
+#ifdef CONFIG_AMLOGIC_MEDIA_FB_OSD_SYNC_FENCE
+/* kthread affinity set api */
+static void affinity_set(unsigned long mask)
+{
+	int i;
+
+	for (i = 0; i < VIU_COUNT; i++) {
+		if (buffer_toggle_thread[i])
+			set_cpus_allowed_ptr(buffer_toggle_thread[i],
+					     (struct cpumask *)&mask);
+	}
+}
+
+static int affinity_set_task(void *data)
+{
+	struct sched_param param = {.sched_priority = MAX_RT_PRIO - 1};
+
+	sched_setscheduler(current, SCHED_FIFO, &param);
+	allow_signal(SIGTERM);
+
+	while (affinity_info.run_affinity_task) {
+		wait_for_completion(&affinity_info.affinity_task_com);
+		msleep(200);
+		affinity_set(affinity_info.affinity_mask);
+	}
+
+	return 0;
+}
+
+static int cpu_switch_cb(struct notifier_block *nfb,
+			 unsigned long action, void *hcpu)
+{
+	int cpu;
+	static int cpu_down_save;
+	unsigned long _cpu_mask = *cpumask_bits(&affinity_info.cpu_mask);
+
+	if (action == CPU_POST_DEAD) {
+		/* cpu core offline */
+		cpu = (unsigned long)hcpu;
+		cpu_down_save |= (1 << cpu);
+		if (cpu_down_save == (_cpu_mask & (~1))) {
+			/* other cpu all off, except cpu0 */
+			affinity_info.affinity_mask = 1;
+			complete(&affinity_info.affinity_task_com);
+		}
+	} else if (action == CPU_ONLINE) {
+		/* cpu core online */
+		cpu = (unsigned long)hcpu;
+		cpu_down_save &= ~(1 << cpu);
+		if (cpu_down_save != (_cpu_mask & (~1))) {
+			affinity_info.affinity_mask = _cpu_mask & (~1);
+			complete(&affinity_info.affinity_task_com);
+		}
+	}
+	return 0;
+}
+
+static void affinity_set_init(void)
+{
+	struct task_struct *affinity_thread;
+
+	affinity_info.cpu_mask = *cpu_online_mask;
+	init_completion(&affinity_info.affinity_task_com);
+	affinity_info.run_affinity_task = 1;
+	cpu_notifier(cpu_switch_cb, 0);
+	affinity_thread = kthread_run(affinity_set_task,
+				      &affinity_info,
+				      "affinity_set_thread");
+	if (!affinity_thread)
+		pr_err("create affinity thread fail!\n");
+}
+#endif
+
 void osd_init_hw(u32 logo_loaded, u32 osd_probe,
 	struct osd_device_data_s *osd_meson)
 {
@@ -10098,7 +10186,9 @@ void osd_init_hw(u32 logo_loaded, u32 osd_probe,
 	}
 	if (osd_hw.hw_rdma_en)
 		osd_rdma_enable(2);
-
+#ifdef CONFIG_AMLOGIC_MEDIA_FB_OSD_SYNC_FENCE
+	affinity_set_init();
+#endif
 }
 
 void set_viu2_format(u32 format)
