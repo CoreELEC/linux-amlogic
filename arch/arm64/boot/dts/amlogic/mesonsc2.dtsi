@@ -27,6 +27,7 @@
 #include <dt-bindings/input/meson_rc.h>
 #include <dt-bindings/phy/phy-amlogic-pcie.h>
 #include "mesong12a-bifrost.dtsi"
+#include <dt-bindings/power/sc2-pd.h>
 
 / {
 	cpus:cpus {
@@ -516,6 +517,12 @@
 		reg = <0x0 0xff8000e8 0x0 0x10>,
 		      <0x0 0xff63c100 0x0 0x10>;
 		status = "disabled";
+	};
+
+	pwrdm: power-domains {
+		compatible = "amlogic,sc2-power-domain";
+		#power-domain-cells = <1>;
+		status = "okay";
 	};
 
 	bl40: bl40 {
