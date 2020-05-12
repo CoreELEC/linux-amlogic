@@ -13868,7 +13868,6 @@ AMLOGIC LED TLC59116 DRIVER SUPPORT
 M: Bichao Zheng <bichao.zheng@amlogic.com>
 F: drivers/amlogic/led/leds-tlc59116.c
 F: drivers/amlogic/led/leds-tlc59116.h
-F: drivers/amlogic/led/leds-tlc59116_mdata.h
 
 AMLOGIC JTAG DRIVER SUPPORT
 M: Bo Yang <bo.yang@amlogic.com>
