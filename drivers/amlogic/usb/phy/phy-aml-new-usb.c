@@ -30,16 +30,13 @@
 int amlogic_new_usbphy_reset(struct amlogic_usb *phy)
 {
 	static int	init_count;
-	int i = 0;
 
 	if (!init_count) {
 		init_count++;
 		if (!phy->reset_regs)
-		aml_cbus_update_bits(0x1102, 0x1<<2, 0x1<<2);
+			aml_cbus_update_bits(0x1102, 0x1<<2, 0x1<<2);
 		else
 			writel((0x1 << 2), phy->reset_regs);
-		for (i = 0; i < 1000; i++)
-			udelay(500);
 	}
 
 	return 0;
