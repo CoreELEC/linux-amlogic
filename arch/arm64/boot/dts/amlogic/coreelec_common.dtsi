@@ -23,6 +23,10 @@
 	};
 
 	gpioleds {
+		status = "okay";
+		/delete-node/ net_red;
+		/delete-node/ net_green;
+		/delete-node/ remote_led;
 		sys_led {
 			/delete-property/ retain-state-suspended;
 		};

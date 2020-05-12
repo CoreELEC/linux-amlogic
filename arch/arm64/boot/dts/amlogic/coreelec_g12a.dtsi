@@ -1,14 +1,6 @@
 #include "g12a_s905x2_u211.dts"
 #include "coreelec_g12_common.dtsi"
 
-/{
-	gpioleds {
-		/delete-node/ net_red;
-		/delete-node/ net_green;
-		/delete-node/ remote_led;
-	};
-};
-
 &sd_emmc_b2 {
 	status = "okay";
 };

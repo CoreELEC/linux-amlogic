@@ -2,12 +2,6 @@
 #include "coreelec_common.dtsi"
 
 /{
-	gpioleds {
-		/delete-node/ net_red;
-		/delete-node/ net_green;
-		/delete-node/ remote_led;
-	};
-
 	auge_sound {
 		aml-audio-card,dai-link@0 {
 			cpu {
