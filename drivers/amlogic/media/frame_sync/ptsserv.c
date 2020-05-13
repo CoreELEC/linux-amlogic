@@ -216,9 +216,22 @@ int calculation_stream_delayed_ms(u8 type, u32 *latestbitrate,
 		/* #endif */
 		pTable = &pts_table[type];
 
-	if ((pTable->last_checkin_pts == -1)
+	if (((pTable->last_checkin_pts == -1)
 		|| (pTable->last_checkout_pts == -1))
+		&& (type != PTS_TYPE_AUDIO))
 		return 0;
+
+	if (type == PTS_TYPE_AUDIO) {
+		if (pTable->last_checkin_pts == -1)
+			return 0;
+		else if ((pTable->last_checkout_pts == -1)
+			&& (timestamp_apts_started() == 0)) {
+			timestampe_delayed = (pTable->last_checkin_pts -
+						pTable->first_checkin_pts) / 90;
+			pTable->last_pts_delay_ms = timestampe_delayed;
+			return timestampe_delayed;
+		}
+	}
 	/* #if MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON8 */
 	if (has_hevc_vdec() && (type == PTS_TYPE_HEVC))
 		outtime = timestamp_vpts_get();
