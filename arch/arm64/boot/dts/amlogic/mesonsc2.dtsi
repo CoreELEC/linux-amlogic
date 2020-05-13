@@ -549,15 +549,15 @@
 				/*pinctrl-0 = <&ao_uart_pins>;*/
 				support-sysrq = <1>;  /* 0 not support*/
 			};
-			gpio_intc: interrupt-controller@f080 {
+			gpio_intc: interrupt-controller@4080 {
 				compatible = "amlogic,meson-gpio-intc",
-						"amlogic,meson-sm1-gpio-intc";
-				reg = <0x0 0xf080 0x0 0x10>;
+					     "amlogic,meson-sc2-gpio-intc";
+				reg = <0x0 0x4080 0x0 0x20>;
 				interrupt-controller;
 				#interrupt-cells = <2>;
 				amlogic,channel-interrupts =
-						<64 65 66 67 68 69 70 71>;
-				status = "disabled";
+					<10 11 12 13 14 15 16 17 18 19 20 21>;
+				status = "okay";
 			};
 
 		};
