@@ -23,6 +23,8 @@ static struct meson_vdac_ctrl_s vdac_ctrl_enable_gxl[] = {
 	{HHI_VDAC_CNTL0, 0, 9, 1},
 	{HHI_VDAC_CNTL0, 1, 10, 1},
 	{HHI_VDAC_CNTL0, 1, 0, 1},
+	{HHI_VDAC_CNTL0, 0, 16, 5}, /* vref adj */
+	{HHI_VDAC_CNTL1, 0, 0, 3},  /*gsw */
 	{HHI_VDAC_CNTL1, 0, 3, 1},
 	{VDAC_REG_MAX, 0, 0, 0},
 };
@@ -31,6 +33,8 @@ static struct meson_vdac_ctrl_s vdac_ctrl_enable_txl[] = {
 	{HHI_VDAC_CNTL0, 1, 9, 1},
 	{HHI_VDAC_CNTL0, 1, 10, 1},
 	{HHI_VDAC_CNTL0, 1, 0, 1},
+	{HHI_VDAC_CNTL0, 0, 16, 5}, /* vref adj */
+	{HHI_VDAC_CNTL1, 0, 0, 3},  /*gsw */
 	{HHI_VDAC_CNTL1, 1, 3, 1},
 	{VDAC_REG_MAX, 0, 0, 0},
 };
@@ -40,6 +44,8 @@ static struct meson_vdac_ctrl_s vdac_ctrl_enable_txlx[] = {
 	{HHI_VDAC_CNTL0, 1, 10, 1},
 	{HHI_VDAC_CNTL0, 1, 0, 1},
 	{HHI_VDAC_CNTL0, 0, 13, 1}, /* bandgap */
+	{HHI_VDAC_CNTL0, 0, 16, 5}, /* vref adj */
+	{HHI_VDAC_CNTL1, 0, 0, 3},  /*gsw */
 	{HHI_VDAC_CNTL1, 1, 3, 1},
 	{VDAC_REG_MAX, 0, 0, 0},
 };
@@ -47,6 +53,8 @@ static struct meson_vdac_ctrl_s vdac_ctrl_enable_txlx[] = {
 static struct meson_vdac_ctrl_s vdac_ctrl_enable_g12ab[] = {
 	{HHI_VDAC_CNTL0_G12A, 0, 9, 1},
 	{HHI_VDAC_CNTL0_G12A, 1, 0, 1},
+	{HHI_VDAC_CNTL0_G12A, 0, 16, 5}, /* vref adj */
+	{HHI_VDAC_CNTL1_G12A, 0, 0, 3},  /*gsw */
 	{HHI_VDAC_CNTL1_G12A, 0, 3, 1},
 	{VDAC_REG_MAX, 0, 0, 0},
 };
@@ -56,6 +64,8 @@ static struct meson_vdac_ctrl_s vdac_ctrl_enable_tl1[] = {
 	{HHI_VDAC_CNTL0_G12A, 1, 0, 1},
 	{HHI_VDAC_CNTL1_G12A, 0, 3, 1},
 	{HHI_VDAC_CNTL1_G12A, 0, 7, 1}, /* bandgap */
+	{HHI_VDAC_CNTL0_G12A, 0, 16, 5}, /* vref adj */
+	{HHI_VDAC_CNTL1_G12A, 0, 0, 3},  /*gsw */
 	{HHI_VDAC_CNTL1_G12A, 1, 6, 1}, /* bypass avout */
 	{HHI_VDAC_CNTL1_G12A, 1, 8, 1}, /* bypass avout */
 	{VDAC_REG_MAX, 0, 0, 0},
