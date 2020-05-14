@@ -19,3 +19,5 @@ am_vecm-objs += hdr/am_hdr10_plus.o
 am_vecm-objs += local_contrast.o
 am_vecm-objs += amvecm_drm.o
 am_vecm-objs += hdr/am_hdr10_plus_ootf.o
+am_vecm-objs += hdr/gamut_convert.o
+am_vecm-objs += hdr/am_hdr10_tm.o

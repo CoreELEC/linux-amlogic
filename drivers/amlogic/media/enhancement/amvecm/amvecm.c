@@ -270,9 +270,16 @@ MODULE_PARM_DESC(debug_game_mode_1, "\n debug_game_mode_1\n");
 unsigned int pq_user_value;
 enum hdr_type_e hdr_source_type = HDRTYPE_NONE;
 
+/*TL1~TM2 revA*/
 #define SR0_OFFSET 0xc00
 #define SR1_OFFSET 0xc80
+/*after TM2 revB*/
+#define SR0_OFFSET_V2 0x1e00
+#define SR1_OFFSET_V2 0x1f80
+#define LC_OFFSET 0x1300
+
 unsigned int sr_offset[2] = {0, 0};
+unsigned int lc_offset;
 
 unsigned int sr_demo_flag;
 
@@ -331,23 +338,33 @@ __setup("pq=", amvecm_load_pq_val);
 static int amvecm_set_contrast2(int val)
 {
 	val += 0x80;
-	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A)
-		WRITE_VPP_REG_BITS(VPP_VADJ2_Y_2,
+	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A) {
+		VSYNC_WR_MPEG_REG_BITS(
+			VPP_VADJ2_Y_2,
 			val, 0, 8);
-	else
-		WRITE_VPP_REG_BITS(VPP_VADJ2_Y,
+
+	} else {
+		VSYNC_WR_MPEG_REG_BITS(
+			VPP_VADJ2_Y,
 			val, 0, 8);
+	}
 	return 0;
 }
 
 static int amvecm_set_brightness2(int val)
 {
 	if (get_cpu_type() <= MESON_CPU_MAJOR_ID_GXTVBB)
-		VSYNC_WR_MPEG_REG_BITS(VPP_VADJ2_Y, val, 8, 9);
+		VSYNC_WR_MPEG_REG_BITS(
+			VPP_VADJ2_Y,
+			val, 8, 9);
 	else if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A)
-		VSYNC_WR_MPEG_REG_BITS(VPP_VADJ2_Y_2, val, 8, 11);
+		VSYNC_WR_MPEG_REG_BITS(
+			VPP_VADJ2_Y_2,
+			val, 8, 11);
 	else
-		VSYNC_WR_MPEG_REG_BITS(VPP_VADJ2_Y, val >> 1, 8, 10);
+		VSYNC_WR_MPEG_REG_BITS(
+			VPP_VADJ2_Y,
+			val >> 1, 8, 10);
 
 	return 0;
 }
@@ -408,6 +425,7 @@ static ssize_t video_adj1_brightness_store(struct class *cla,
 		WRITE_VPP_REG_BITS(VPP_VADJ1_Y_2, val, 8, 11);
 	else
 		WRITE_VPP_REG_BITS(VPP_VADJ1_Y, val >> 1, 8, 10);
+
 	return count;
 }
 
@@ -692,6 +710,8 @@ static void vpp_backup_histgram(struct vframe_s *vf)
 	vpp_hist_param.vpp_pixel_sum = vf->prop.hist.vpp_pixel_sum;
 	for (i = 0; i < 64; i++)
 		vpp_hist_param.vpp_histgram[i] = vf->prop.hist.vpp_gamma[i];
+	for (i = 0; i < 128; i++)
+		vpp_hist_param.hdr_histgram[i] = hdr_hist[NUM_HDR_HIST - 1][i];
 }
 
 static void vpp_dump_histgram(void)
@@ -699,9 +719,19 @@ static void vpp_dump_histgram(void)
 	uint i;
 
 	pr_info("%s:\n", __func__);
+	if (hdr_source_type == HDRTYPE_HDR10) {
+		for (i = 0; i < 128; i++) {
+			pr_info(
+				"[%d]0x%-8x\t", i,
+				hdr_hist[NUM_HDR_HIST - 1][i]);
+			if ((i + 1) % 8 == 0)
+				pr_info("\n");
+		}
+	}
+
 	for (i = 0; i < 64; i++) {
 		pr_info("[%d]0x%-8x\t", i, vpp_hist_param.vpp_histgram[i]);
-		if ((i+1)%8 == 0)
+		if ((i + 1) % 8 == 0)
 			pr_info("\n");
 	}
 }
@@ -969,16 +999,6 @@ void vpp_demo_config(struct vframe_s *vf)
 	}
 }
 
-void vpp_game_mode_process(struct vframe_s *vf)
-{
-	if (vf->flag & VFRAME_FLAG_GAME_MODE) {
-		if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A)
-			WRITE_VPP_REG_BITS(VPP_VADJ1_MISC, 0, 0, 1);
-		else
-			WRITE_VPP_REG_BITS(VPP_VADJ_CTRL, 0, 0, 1);
-	}
-}
-
 void amvecm_dejaggy_patch(struct vframe_s *vf)
 {
 	if (!vf) {
@@ -1025,6 +1045,30 @@ void amvecm_video_latch(void)
 		ve_lc_latch_process();
 }
 
+static void amvecm_overscan_process(
+	struct vframe_s *vf,
+	struct vframe_s *toggle_vf,
+	int flags,
+	enum vd_path_e vd_path)
+{
+	if (vd_path != VD1_PATH)
+		return;
+	if (flags & CSC_FLAG_CHECK_OUTPUT) {
+		if (toggle_vf)
+			amvecm_fresh_overscan(toggle_vf);
+		else if (vf)
+			amvecm_fresh_overscan(vf);
+		return;
+	}
+	if (!toggle_vf && !vf)
+		amvecm_reset_overscan();
+
+	if (vf)
+		amvecm_fresh_overscan(vf);
+	else
+		amvecm_reset_overscan();
+}
+
 int amvecm_on_vs(
 	struct vframe_s *vf,
 	struct vframe_s *toggle_vf,
@@ -1041,6 +1085,7 @@ int amvecm_on_vs(
 
 	if (probe_ok == 0)
 		return 0;
+	amvecm_overscan_process(vf, toggle_vf, flags, vd_path);
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 	if (for_dolby_vision_certification() && (vd_path == VD1_PATH))
 		return 0;
@@ -1049,12 +1094,6 @@ int amvecm_on_vs(
 		dnlp_alg_param_init();
 
 	if (flags & CSC_FLAG_CHECK_OUTPUT) {
-		if (vd_path == VD1_PATH) {
-			if (toggle_vf)
-				amvecm_fresh_overscan(toggle_vf);
-			else if (vf)
-				amvecm_fresh_overscan(vf);
-		}
 		/* to test if output will change */
 		return amvecm_matrix_process(
 			toggle_vf, vf, flags, vd_path);
@@ -1079,8 +1118,6 @@ int amvecm_on_vs(
 			refresh_on_vs(vf);
 		}
 	} else {
-		if (vd_path == VD1_PATH)
-			amvecm_reset_overscan();
 		result = amvecm_matrix_process(
 			NULL, NULL, flags, vd_path);
 		if (vd_path == VD1_PATH) {
@@ -1095,9 +1132,6 @@ int amvecm_on_vs(
 	if (vd_path != VD1_PATH)
 		return result;
 
-	if (!is_dolby_vision_on())
-		get_hdr_source_type();
-
 	/* add some flag to trigger */
 	if (vf) {
 		/*gxlx sharpness adaptive setting*/
@@ -1105,11 +1139,6 @@ int amvecm_on_vs(
 			amve_sharpness_adaptive_setting(vf,
 				sps_h_en, sps_v_en);
 
-		vpp_game_mode_process(vf);
-
-		if (
-			(pc_mode != 0) &&
-			(!(vf->flag & VFRAME_FLAG_GAME_MODE))) {
 		amvecm_bricon_process(
 			vd1_brightness,
 			vd1_contrast + vd1_contrast_offset, vf);
@@ -1117,14 +1146,9 @@ int amvecm_on_vs(
 		amvecm_color_process(
 			saturation_pre + saturation_offset,
 			hue_pre, vf);
-		}
 
 		vpp_demo_config(vf);
 	}
-	if (vf)
-		amvecm_fresh_overscan(vf);
-	else
-		amvecm_reset_overscan();
 
 	/* pq latch process */
 	amvecm_video_latch();
@@ -1236,9 +1260,9 @@ static int amvecm_set_saturation_hue(int mab)
 	mab =  ((ma & 0x3ff) << 16) | (mb & 0x3ff);
 
 	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A)
-		WRITE_VPP_REG(VPP_VADJ1_MA_MB_2, mab);
+		VSYNC_WR_MPEG_REG(VPP_VADJ1_MA_MB_2, mab);
 	else
-		WRITE_VPP_REG(VPP_VADJ1_MA_MB, mab);
+		VSYNC_WR_MPEG_REG(VPP_VADJ1_MA_MB, mab);
 
 	mc = (s16)((mab<<22)>>22); /* mc = -mb */
 	mc = 0 - mc;
@@ -1250,9 +1274,9 @@ static int amvecm_set_saturation_hue(int mab)
 	mab = ((mc&0x3ff)<<16)|(md&0x3ff);
 
 	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A)
-		WRITE_VPP_REG(VPP_VADJ1_MC_MD_2, mab);
+		VSYNC_WR_MPEG_REG(VPP_VADJ1_MC_MD_2, mab);
 	else
-		WRITE_VPP_REG(VPP_VADJ1_MC_MD, mab);
+		VSYNC_WR_MPEG_REG(VPP_VADJ1_MC_MD, mab);
 
 	pr_amvecm_dbg("%s set video_saturation_hue OK!!!\n", __func__);
 	return 0;
@@ -1302,9 +1326,9 @@ static int amvecm_set_saturation_hue_post(int val1,
 	pr_info("\n[amvideo..] saturation_post:%d hue_post:%d mab:%x\n",
 			saturation_post, hue_post, mab);
 	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A)
-		WRITE_VPP_REG(VPP_VADJ2_MA_MB_2, mab);
+		VSYNC_WR_MPEG_REG(VPP_VADJ2_MA_MB_2, mab);
 	else
-		WRITE_VPP_REG(VPP_VADJ2_MA_MB, mab);
+		VSYNC_WR_MPEG_REG(VPP_VADJ2_MA_MB, mab);
 	mc = (s16)((mab<<22)>>22); /* mc = -mb */
 	mc = 0 - mc;
 	if (mc > 511)
@@ -1313,10 +1337,13 @@ static int amvecm_set_saturation_hue_post(int val1,
 		mc = -512;
 	md = (s16)((mab<<6)>>22);  /* md =	ma; */
 	mab = ((mc&0x3ff)<<16)|(md&0x3ff);
-	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A)
-		WRITE_VPP_REG(VPP_VADJ2_MC_MD_2, mab);
-	else
-		WRITE_VPP_REG(VPP_VADJ2_MC_MD, mab);
+	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A) {
+		VSYNC_WR_MPEG_REG(VPP_VADJ2_MC_MD_2, mab);
+		VSYNC_WR_MPEG_REG_BITS(VPP_VADJ2_MISC, 1, 0, 1);
+	} else {
+		VSYNC_WR_MPEG_REG(VPP_VADJ2_MC_MD, mab);
+		VSYNC_WR_MPEG_REG_BITS(VPP_VADJ_CTRL, 1, 2, 1);
+	}
 	return 0;
 }
 
@@ -1405,6 +1432,7 @@ static long amvecm_ioctl(struct file *file,
 	struct hdr_tone_mapping_s hdr_tone_mapping;
 	unsigned int *hdr_tm = NULL;
 	struct vpp_pq_ctrl_s pq_ctrl;
+	enum meson_cpu_ver_e cpu_ver;
 
 	if (debug_amvecm & 2)
 		pr_info("[amvecm..] %s: cmd_nr = 0x%x\n",
@@ -1816,6 +1844,23 @@ static long amvecm_ioctl(struct file *file,
 			pr_info("pq control cp to user success\n");
 		}
 		break;
+	case AMVECM_IOC_S_MESON_CPU_VER:
+		if (!is_meson_tm2_cpu())
+			break;
+		if (copy_from_user(
+			&cpu_ver,
+			(void __user *)arg,
+			sizeof(enum meson_cpu_ver_e))) {
+			ret = -EFAULT;
+			pr_amvecm_dbg("copy cpu version fail\n");
+		} else {
+			if ((is_meson_rev_a() && (cpu_ver == VER_A)) ||
+			    (is_meson_rev_b() && (cpu_ver == VER_B)))
+				break;
+			ret = -EINVAL;
+			pr_amvecm_dbg("cpu version doesn't match\n");
+		}
+		break;
 	default:
 		ret = -EINVAL;
 		break;
@@ -1899,6 +1944,7 @@ static ssize_t amvecm_dnlp_debug_store(struct class *cla,
 	char *buf_orig, *parm[8] = {NULL};
 	int curve_val[65] = {0};
 	char *stemp = NULL;
+
 	if (!buf)
 		return count;
 
@@ -2190,6 +2236,17 @@ static ssize_t amvecm_dnlp_debug_store(struct class *cla,
 				for (i = 0; i < 65; i++)
 					d_convert_str(ve_dnlp_tgt_copy[i],
 						i, stemp, 4, 10);
+					pr_info("%s\n", stemp);
+			} else
+				pr_info("error cmd\n");
+		} else if (!strcmp(parm[1], "ve_dnlp_tgt_10b")) {
+			/*read only curve*/
+			if (!parm[2]) {
+				goto free_buf;
+			} else if (!strcmp(parm[2], "all")) {
+				for (i = 0; i < 65; i++)
+					d_convert_str(ve_dnlp_tgt_10b_copy[i],
+						      i, stemp, 4, 10);
 					pr_info("%s\n", stemp);
 			} else
 				pr_info("error cmd\n");
@@ -2654,9 +2711,9 @@ void vpp_vd_adj1_saturation_hue(signed int sat_val,
 		mb = -512;
 	mab =  ((ma & 0x3ff) << 16) | (mb & 0x3ff);
 	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A)
-		WRITE_VPP_REG(VPP_VADJ1_MA_MB_2, mab);
+		VSYNC_WR_MPEG_REG(VPP_VADJ1_MA_MB_2, mab);
 	else
-		WRITE_VPP_REG(VPP_VADJ1_MA_MB, mab);
+		VSYNC_WR_MPEG_REG(VPP_VADJ1_MA_MB, mab);
 	mc = (s16)((mab<<22)>>22); /* mc = -mb */
 	mc = 0 - mc;
 	if (mc > 511)
@@ -2667,10 +2724,9 @@ void vpp_vd_adj1_saturation_hue(signed int sat_val,
 	mab = ((mc&0x3ff)<<16)|(md&0x3ff);
 
 	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A)
-		WRITE_VPP_REG(VPP_VADJ1_MC_MD_2, mab);
+		VSYNC_WR_MPEG_REG(VPP_VADJ1_MC_MD_2, mab);
 	else
-		WRITE_VPP_REG(VPP_VADJ1_MC_MD, mab);
-
+		VSYNC_WR_MPEG_REG(VPP_VADJ1_MC_MD, mab);
 };
 
 static ssize_t amvecm_saturation_hue_pre_show(struct class *cla,
@@ -3818,62 +3874,46 @@ static ssize_t amvecm_hdr_dbg_store(struct class *cla,
 	long val = 0;
 	char *buf_orig, *parm[5] = {NULL};
 	int i;
+	int curve_val[65] = {0};
+	char *stemp = NULL;
 
 	if (!buf)
 		return count;
+
+	stemp = kmalloc(400, GFP_KERNEL);
+	if (!stemp)
+		return 0;
+	memset(stemp, 0, 400);
+
 	buf_orig = kstrdup(buf, GFP_KERNEL);
 	parse_param_amvecm(buf_orig, (char **)&parm);
 
 	if (!strncmp(parm[0], "hdr_dbg", 7)) {
-		if (kstrtoul(parm[1], 16, &val) < 0) {
-			kfree(buf_orig);
-			return -EINVAL;
-		}
+		if (kstrtoul(parm[1], 16, &val) < 0)
+			goto free_buf;
 		debug_hdr = val;
 		pr_info("debug_hdr=0x%x\n", debug_hdr);
 	} else if (!strncmp(parm[0], "hdr10_pr", 8)) {
-		if (kstrtoul(parm[1], 16, &val) < 0) {
-			kfree(buf_orig);
-			return -EINVAL;
-		}
+		if (kstrtoul(parm[1], 16, &val) < 0)
+			goto free_buf;
 		hdr10_pr = val;
 		pr_info("hdr10_pr=0x%x\n", hdr10_pr);
 	} else if (!strncmp(parm[0], "clip_disable", 12)) {
-		if (kstrtoul(parm[1], 16, &val) < 0) {
-			kfree(buf_orig);
-			return -EINVAL;
-		}
+		if (kstrtoul(parm[1], 16, &val) < 0)
+			goto free_buf;
 		hdr10_clip_disable = val;
 		pr_info("hdr10_clip_disable=0x%x\n",
 			hdr10_clip_disable);
-	} else if (!strncmp(parm[0], "force_clip", 10)) {
-		if (kstrtoul(parm[1], 16, &val) < 0) {
-			kfree(buf_orig);
-			return -EINVAL;
-		}
-		hdr10_force_clip = val;
-		pr_info("hdr10_force_clip=0x%x\n", hdr10_force_clip);
 	} else if (!strncmp(parm[0], "clip_luma", 9)) {
-		if (kstrtoul(parm[1], 16, &val) < 0) {
-			kfree(buf_orig);
-			return -EINVAL;
-		}
+		if (kstrtoul(parm[1], 16, &val) < 0)
+			goto free_buf;
 		hdr10_clip_luma = val;
 		pr_info("clip_luma=0x%x\n", hdr10_clip_luma);
 	} else if (!strncmp(parm[0], "clip_margin", 11)) {
-		if (kstrtoul(parm[1], 16, &val) < 0) {
-			kfree(buf_orig);
-			return -EINVAL;
-		}
+		if (kstrtoul(parm[1], 16, &val) < 0)
+			goto free_buf;
 		hdr10_clip_margin = val;
 		pr_info("hdr10_clip_margin=0x%x\n", hdr10_clip_margin);
-	} else if (!strncmp(parm[0], "clip_mode", 9)) {
-		if (kstrtoul(parm[1], 16, &val) < 0) {
-			kfree(buf_orig);
-			return -EINVAL;
-		}
-		hdr10_clip_mode = val;
-		pr_info("hdr10_clip_mode=0x%x\n", hdr10_clip_mode);
 	} else if (!strncmp(parm[0], "hdr_sdr_ootf", 12)) {
 		for (i = 0; i < HDR2_OOTF_LUT_SIZE; i++) {
 			pr_info("%d ", oo_y_lut_hdr_sdr_def[i]);
@@ -3881,10 +3921,24 @@ static ssize_t amvecm_hdr_dbg_store(struct class *cla,
 				pr_info("\n");
 		}
 		pr_info("\n");
+	} else if (!strncmp(parm[0], "cgain_lut", 9)) {
+		if (!strncmp(parm[1], "rv", 2)) {
+			for (i = 0; i < 65; i++)
+				d_convert_str(
+					cgain_lut_bypass[i],
+					i, stemp, 4, 10);
+				pr_info("%s\n", stemp);
+		} else if (!strncmp(parm[1], "wv", 2)) {
+			str_sapr_to_d(parm[2], curve_val, 5);
+			for (i = 0; i < 65; i++)
+				cgain_lut_bypass[i] = curve_val[i];
+		}
 	} else {
 		pr_info("error cmd\n");
 	}
 
+free_buf:
+	kfree(stemp);
 	kfree(buf_orig);
 	return count;
 }
@@ -3925,6 +3979,10 @@ static ssize_t amvecm_pc_mode_store(struct class *cla,
 	r = sscanf(buf, "%x\n", &val);
 	if ((r != 1))
 		return -EINVAL;
+
+	if (!pq_load_en) {
+		return count;
+	}
 
 	if (val == 1) {
 		pc_mode = 1;
@@ -4001,10 +4059,6 @@ void pc_mode_process(void)
 				+ sr_offset[1], 1, 28, 3);
 		}
 
-		if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A)
-			WRITE_VPP_REG_BITS(VPP_VADJ1_MISC, 1, 0, 1);
-		else
-			VSYNC_WR_MPEG_REG(VPP_VADJ_CTRL, 0xd);
 		pc_mode_last = pc_mode;
 	} else if ((pc_mode == 0) && (pc_mode != pc_mode_last)) {
 		dnlp_en = 0;
@@ -4061,11 +4115,6 @@ void pc_mode_process(void)
 			VSYNC_WR_MPEG_REG_BITS(SRSHARP1_SR3_DERING_CTRL
 				+ sr_offset[1], 0, 28, 3);
 		}
-
-		if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A)
-			WRITE_VPP_REG_BITS(VPP_VADJ1_MISC, 0, 0, 1);
-		else
-			VSYNC_WR_MPEG_REG(VPP_VADJ_CTRL, 0x0);
 
 		pc_mode_last = pc_mode;
 	}
@@ -4176,6 +4225,7 @@ void amvecm_sr1_derection_enable(unsigned int enable)
 void pq_user_latch_process(void)
 {
 	int i = 0;
+
 	if (pq_user_latch_flag & PQ_USER_BLK_EN) {
 		pq_user_latch_flag &= ~PQ_USER_BLK_EN;
 		amvecm_black_ext_enable(true);
@@ -4714,7 +4764,12 @@ EXPORT_SYMBOL(amvecm_clip_range_limit);
 static void amvecm_pq_enable(int enable)
 {
 	if (enable) {
-		vecm_latch_flag |= FLAG_VE_DNLP_EN;
+		lc_en = 1;
+		/* black_ext_en */
+		WRITE_VPP_REG_BITS(VPP_VE_ENABLE_CTRL, 1, 3, 1);
+		/* chroma_coring */
+		WRITE_VPP_REG_BITS(VPP_VE_ENABLE_CTRL, 1, 4, 1);
+		ve_enable_dnlp();
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 		if (!is_dolby_vision_enable())
 #endif
@@ -4780,7 +4835,73 @@ static void amvecm_pq_enable(int enable)
 				1, 23, 1);
 		}
 
-		amvecm_wb_enable(true);
+		if (
+			cpu_after_eq(MESON_CPU_MAJOR_ID_TM2) &&
+			!(is_meson_tm2_cpu() && is_meson_rev_a())) {
+			WRITE_VPP_REG_BITS(
+				SRSHARP0_SR7_DRTLPF_EN,
+				0x3f, 0, 6);
+			WRITE_VPP_REG_BITS(
+				SRSHARP0_SR7_DRTLPF_EN,
+				0x7, 8, 3);
+			WRITE_VPP_REG_BITS(
+				SRSHARP0_SR7_PKDRT_BLD_EN,
+				1, 0, 1);
+			WRITE_VPP_REG_BITS(
+				SRSHARP0_SR7_TIBLD_PRT,
+				3, 2, 2);
+			WRITE_VPP_REG_BITS(
+				SRSHARP0_SR7_TIBLD_PRT,
+				3, 12, 2);
+			WRITE_VPP_REG_BITS(
+				SRSHARP0_SR7_XTI_SDFDEN,
+				3, 0, 2);
+			WRITE_VPP_REG_BITS(
+				SRSHARP0_SR7_TI_BPF_EN,
+				0xf, 0, 4);
+			WRITE_VPP_REG_BITS(
+				SRSHARP0_SR7_PKLONG_PF_EN,
+				3, 0, 2);
+			WRITE_VPP_REG_BITS(
+				SRSHARP0_SR7_CC_PK_ADJ,
+				1, 24, 1);
+			WRITE_VPP_REG_BITS(
+				SRSHARP0_SR7_GRAPHIC_CTRL,
+				1, 10, 1);
+
+			WRITE_VPP_REG_BITS(
+				SRSHARP1_SR7_DRTLPF_EN,
+				0x3f, 0, 6);
+			WRITE_VPP_REG_BITS(
+				SRSHARP1_SR7_DRTLPF_EN,
+				0x7, 8, 3);
+			WRITE_VPP_REG_BITS(
+				SRSHARP1_SR7_PKDRT_BLD_EN,
+				1, 0, 1);
+			WRITE_VPP_REG_BITS(
+				SRSHARP1_SR7_TIBLD_PRT,
+				3, 2, 2);
+			WRITE_VPP_REG_BITS(
+				SRSHARP1_SR7_TIBLD_PRT,
+				3, 12, 2);
+			WRITE_VPP_REG_BITS(
+				SRSHARP1_SR7_XTI_SDFDEN,
+				3, 0, 2);
+			WRITE_VPP_REG_BITS(
+				SRSHARP1_SR7_TI_BPF_EN,
+				0xf, 0, 4);
+			WRITE_VPP_REG_BITS(
+				SRSHARP1_SR7_PKLONG_PF_EN,
+				3, 0, 2);
+			WRITE_VPP_REG_BITS(
+				SRSHARP1_SR7_CC_PK_ADJ,
+				1, 24, 1);
+			WRITE_VPP_REG_BITS(
+				SRSHARP1_SR7_GRAPHIC_CTRL,
+				1, 10, 1);
+		}
+
+		white_balance_adjust(0, 1);
 
 		vecm_latch_flag |= FLAG_GAMMA_TABLE_EN;
 		if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A)
@@ -4788,72 +4909,168 @@ static void amvecm_pq_enable(int enable)
 		else
 			WRITE_VPP_REG_BITS(VPP_VADJ_CTRL, 1, 0, 1);
 	} else {
-		vecm_latch_flag |= FLAG_VE_DNLP_DIS;
+		lc_en = 0;
+		/* black_ext_en */
+		WRITE_VPP_REG_BITS(VPP_VE_ENABLE_CTRL, 0, 3, 1);
+		/* chroma_coring */
+		WRITE_VPP_REG_BITS(VPP_VE_ENABLE_CTRL, 0, 4, 1);
+		ve_disable_dnlp();
 
 		amcm_disable();
 
-		WRITE_VPP_REG_BITS(SRSHARP0_PK_NR_ENABLE + sr_offset[0],
+		WRITE_VPP_REG_BITS(
+			SRSHARP0_PK_NR_ENABLE + sr_offset[0],
 			0, 1, 1);
-		WRITE_VPP_REG_BITS(SRSHARP1_PK_NR_ENABLE + sr_offset[1],
+		WRITE_VPP_REG_BITS(
+			SRSHARP1_PK_NR_ENABLE + sr_offset[1],
 			0, 1, 1);
 
-		WRITE_VPP_REG_BITS(SRSHARP0_HCTI_FLT_CLP_DC + sr_offset[0],
+		WRITE_VPP_REG_BITS(
+			SRSHARP0_HCTI_FLT_CLP_DC + sr_offset[0],
 			0, 28, 1);
-		WRITE_VPP_REG_BITS(SRSHARP0_HLTI_FLT_CLP_DC + sr_offset[0],
+		WRITE_VPP_REG_BITS(
+			SRSHARP0_HLTI_FLT_CLP_DC + sr_offset[0],
 			0, 28, 1);
-		WRITE_VPP_REG_BITS(SRSHARP0_VLTI_FLT_CON_CLP + sr_offset[0],
+		WRITE_VPP_REG_BITS(
+			SRSHARP0_VLTI_FLT_CON_CLP + sr_offset[0],
 			0, 14, 1);
-		WRITE_VPP_REG_BITS(SRSHARP0_VCTI_FLT_CON_CLP + sr_offset[0],
+		WRITE_VPP_REG_BITS(
+			SRSHARP0_VCTI_FLT_CON_CLP + sr_offset[0],
 			0, 14, 1);
-		WRITE_VPP_REG_BITS(SRSHARP1_HCTI_FLT_CLP_DC + sr_offset[1],
+		WRITE_VPP_REG_BITS(
+			SRSHARP1_HCTI_FLT_CLP_DC + sr_offset[1],
 			0, 28, 1);
-		WRITE_VPP_REG_BITS(SRSHARP1_HLTI_FLT_CLP_DC + sr_offset[1],
+		WRITE_VPP_REG_BITS(
+			SRSHARP1_HLTI_FLT_CLP_DC + sr_offset[1],
 			0, 28, 1);
-		WRITE_VPP_REG_BITS(SRSHARP1_VLTI_FLT_CON_CLP + sr_offset[1],
+		WRITE_VPP_REG_BITS(
+			SRSHARP1_VLTI_FLT_CON_CLP + sr_offset[1],
 			0, 14, 1);
-		WRITE_VPP_REG_BITS(SRSHARP1_VCTI_FLT_CON_CLP + sr_offset[1],
+		WRITE_VPP_REG_BITS(
+			SRSHARP1_VCTI_FLT_CON_CLP + sr_offset[1],
 			0, 14, 1);
 
 		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXL)) {
-			WRITE_VPP_REG_BITS(SRSHARP0_DEJ_CTRL + sr_offset[0],
+			WRITE_VPP_REG_BITS(
+				SRSHARP0_DEJ_CTRL + sr_offset[0],
 				0, 0, 1);
-			WRITE_VPP_REG_BITS(SRSHARP0_SR3_DRTLPF_EN
+			WRITE_VPP_REG_BITS(
+				SRSHARP0_SR3_DRTLPF_EN
 				+ sr_offset[0], 0, 0, 3);
-			WRITE_VPP_REG_BITS(SRSHARP0_SR3_DERING_CTRL
+			WRITE_VPP_REG_BITS(
+				SRSHARP0_SR3_DERING_CTRL
 				+ sr_offset[0], 0, 28, 3);
 
-			WRITE_VPP_REG_BITS(SRSHARP1_DEJ_CTRL + sr_offset[1],
+			WRITE_VPP_REG_BITS(
+				SRSHARP1_DEJ_CTRL + sr_offset[1],
 				0, 0, 1);
-			WRITE_VPP_REG_BITS(SRSHARP1_SR3_DRTLPF_EN
+			WRITE_VPP_REG_BITS(
+				SRSHARP1_SR3_DRTLPF_EN
 				+ sr_offset[1], 0, 0, 3);
-			WRITE_VPP_REG_BITS(SRSHARP1_SR3_DERING_CTRL
+			WRITE_VPP_REG_BITS(
+				SRSHARP1_SR3_DERING_CTRL
 				+ sr_offset[1], 0, 28, 3);
 		}
 		/*sr4 drtlpf theta/ debanding en*/
 		if (is_meson_txlx_cpu()) {
-			WRITE_VPP_REG_BITS(SRSHARP0_SR3_DRTLPF_EN
+			WRITE_VPP_REG_BITS(
+				SRSHARP0_SR3_DRTLPF_EN
 				+ sr_offset[0], 0, 4, 3);
 
-			WRITE_VPP_REG_BITS(SRSHARP0_DB_FLT_CTRL + sr_offset[0],
+			WRITE_VPP_REG_BITS(
+				SRSHARP0_DB_FLT_CTRL + sr_offset[0],
 				0, 4, 1);
-			WRITE_VPP_REG_BITS(SRSHARP0_DB_FLT_CTRL + sr_offset[0],
+			WRITE_VPP_REG_BITS(
+				SRSHARP0_DB_FLT_CTRL + sr_offset[0],
 				0, 5, 1);
-			WRITE_VPP_REG_BITS(SRSHARP0_DB_FLT_CTRL + sr_offset[0],
+			WRITE_VPP_REG_BITS(
+				SRSHARP0_DB_FLT_CTRL + sr_offset[0],
 				0, 22, 1);
-			WRITE_VPP_REG_BITS(SRSHARP0_DB_FLT_CTRL + sr_offset[0],
+			WRITE_VPP_REG_BITS(
+				SRSHARP0_DB_FLT_CTRL + sr_offset[0],
 				0, 23, 1);
 
-			WRITE_VPP_REG_BITS(SRSHARP1_DB_FLT_CTRL + sr_offset[1],
+			WRITE_VPP_REG_BITS(
+				SRSHARP1_DB_FLT_CTRL + sr_offset[1],
 				0, 4, 1);
-			WRITE_VPP_REG_BITS(SRSHARP1_DB_FLT_CTRL + sr_offset[1],
+			WRITE_VPP_REG_BITS(
+				SRSHARP1_DB_FLT_CTRL + sr_offset[1],
 				0, 5, 1);
-			WRITE_VPP_REG_BITS(SRSHARP1_DB_FLT_CTRL + sr_offset[1],
+			WRITE_VPP_REG_BITS(
+				SRSHARP1_DB_FLT_CTRL + sr_offset[1],
 				0, 22, 1);
-			WRITE_VPP_REG_BITS(SRSHARP1_DB_FLT_CTRL + sr_offset[1],
+			WRITE_VPP_REG_BITS(
+				SRSHARP1_DB_FLT_CTRL + sr_offset[1],
 				0, 23, 1);
 		}
 
-		amvecm_wb_enable(false);
+		if (
+			cpu_after_eq(MESON_CPU_MAJOR_ID_TM2) &&
+			!(is_meson_tm2_cpu() && is_meson_rev_a())) {
+			WRITE_VPP_REG_BITS(
+				SRSHARP0_SR7_DRTLPF_EN,
+				0, 0, 6);
+			WRITE_VPP_REG_BITS(
+				SRSHARP0_SR7_DRTLPF_EN,
+				0, 8, 3);
+			WRITE_VPP_REG_BITS(
+				SRSHARP0_SR7_PKDRT_BLD_EN,
+				0, 0, 1);
+			WRITE_VPP_REG_BITS(
+				SRSHARP0_SR7_TIBLD_PRT,
+				0, 2, 2);
+			WRITE_VPP_REG_BITS(
+				SRSHARP0_SR7_TIBLD_PRT,
+				0, 12, 2);
+			WRITE_VPP_REG_BITS(
+				SRSHARP0_SR7_XTI_SDFDEN,
+				0, 0, 2);
+			WRITE_VPP_REG_BITS(
+				SRSHARP0_SR7_TI_BPF_EN,
+				0, 0, 4);
+			WRITE_VPP_REG_BITS(
+				SRSHARP0_SR7_PKLONG_PF_EN,
+				0, 0, 2);
+			WRITE_VPP_REG_BITS(
+				SRSHARP0_SR7_CC_PK_ADJ,
+				0, 24, 1);
+			WRITE_VPP_REG_BITS(
+				SRSHARP0_SR7_GRAPHIC_CTRL,
+				0, 10, 1);
+
+			WRITE_VPP_REG_BITS(
+				SRSHARP1_SR7_DRTLPF_EN,
+				0, 0, 6);
+			WRITE_VPP_REG_BITS(
+				SRSHARP1_SR7_DRTLPF_EN,
+				0, 8, 3);
+			WRITE_VPP_REG_BITS(
+				SRSHARP1_SR7_PKDRT_BLD_EN,
+				0, 0, 1);
+			WRITE_VPP_REG_BITS(
+				SRSHARP1_SR7_TIBLD_PRT,
+				0, 2, 2);
+			WRITE_VPP_REG_BITS(
+				SRSHARP1_SR7_TIBLD_PRT,
+				0, 12, 2);
+			WRITE_VPP_REG_BITS(
+				SRSHARP1_SR7_XTI_SDFDEN,
+				0, 0, 2);
+			WRITE_VPP_REG_BITS(
+				SRSHARP1_SR7_TI_BPF_EN,
+				0, 0, 4);
+			WRITE_VPP_REG_BITS(
+				SRSHARP1_SR7_PKLONG_PF_EN,
+				0, 0, 2);
+			WRITE_VPP_REG_BITS(
+				SRSHARP1_SR7_CC_PK_ADJ,
+				0, 24, 1);
+			WRITE_VPP_REG_BITS(
+				SRSHARP1_SR7_GRAPHIC_CTRL,
+				0, 10, 1);
+		}
+
+		white_balance_adjust(0, 0);
 
 		vecm_latch_flag |= FLAG_GAMMA_TABLE_DIS;
 
@@ -4949,6 +5166,7 @@ static void amvecm_vpp_mtx_debug(int mtx_sel, int coef_sel)
 		WRITE_VPP_REG_BITS(VPP_MATRIX_CLIP, 0, 5, 3);
 	}
 }
+
 static void vpp_clip_config(unsigned int mode_sel, unsigned int color,
 	unsigned int color_mode)
 {
@@ -5007,6 +5225,7 @@ static ssize_t amvecm_clamp_color_top_show(struct class *cla,
 {
 	return sprintf(buf, "0x%08x\n", READ_VPP_REG(VPP_CLIP_MISC0));
 }
+
 static ssize_t amvecm_clamp_color_top_store(struct class *cla,
 			struct class_attribute *attr,
 			const char *buf, size_t count)
@@ -5027,6 +5246,7 @@ static ssize_t amvecm_clamp_color_bottom_show(struct class *cla,
 {
 	return sprintf(buf, "0x%08x\n", READ_VPP_REG(VPP_CLIP_MISC1));
 }
+
 static ssize_t amvecm_clamp_color_bottom_store(struct class *cla,
 			struct class_attribute *attr,
 			const char *buf, size_t count)
@@ -5042,6 +5262,48 @@ static ssize_t amvecm_clamp_color_bottom_store(struct class *cla,
 	return count;
 }
 
+static ssize_t amvecm_cpu_ver_show(
+	struct class *cla,
+	struct class_attribute *attr, char *buf)
+{
+	pr_info("echo r cpu_ver > /sys/class/amvecm/cpu_ver");
+	return 0;
+}
+
+static ssize_t amvecm_cpu_ver_store(
+	struct class *cla,
+	struct class_attribute *attr,
+	const char *buf, size_t count)
+{
+	char *buf_orig, *parm[8] = {NULL};
+
+	if (!buf)
+		return count;
+	buf_orig = kstrdup(buf, GFP_KERNEL);
+	if (!buf_orig)
+		return -ENOMEM;
+	parse_param_amvecm(buf_orig, (char **)&parm);
+
+	if (!strncmp(parm[0], "r", 1)) {
+		if (!strncmp(parm[1], "cpu_ver", 7)) {
+			if (!is_meson_tm2_cpu()) {
+				pr_info("VER_NULL\n");
+				kfree(buf_orig);
+				return count;
+			}
+			if (is_meson_rev_a())
+				pr_info("VER_A\n");
+			else if (is_meson_rev_b())
+				pr_info("VER_B\n");
+			else
+				pr_info("no ver\n");
+		}
+	}
+
+	kfree(buf_orig);
+	return count;
+}
+
 static ssize_t amvecm_cm2_hue_show(struct class *cla,
 		struct class_attribute *attr, char *buf)
 {
@@ -5053,6 +5315,7 @@ static ssize_t amvecm_cm2_hue_show(struct class *cla,
 			cm2_hue_array[i][0], cm2_hue_array[i][1]);
 	return pos;
 }
+
 static ssize_t amvecm_cm2_hue_store(struct class *cla,
 		struct class_attribute *attr,
 		const char *buf, size_t count)
@@ -5356,6 +5619,8 @@ static void get_cm_hist(enum cm_hist_e hist_sel)
 
 static void cm_init_config(int bitdepth)
 {
+	int i, j, reg;
+
 	if (bitdepth == 10) {
 		WRITE_VPP_REG(VPP_CHROMA_ADDR_PORT, XVYCC_YSCP_REG);
 		WRITE_VPP_REG(VPP_CHROMA_DATA_PORT, 0x3ff0000);
@@ -5383,6 +5648,14 @@ static void cm_init_config(int bitdepth)
 		WRITE_VPP_REG(VPP_CHROMA_DATA_PORT, 0x3ff0000);
 		WRITE_VPP_REG(VPP_CHROMA_ADDR_PORT, LUMA_ADJ0_REG);
 		WRITE_VPP_REG(VPP_CHROMA_DATA_PORT, 0x40400);
+	}
+
+	for (i = 0; i < 32; i++) {
+		for (j = 0; j < 5; j++) {
+			reg = CM2_ENH_COEF0_H00 + i * 8 + j;
+			WRITE_VPP_REG(VPP_CHROMA_ADDR_PORT, reg);
+			WRITE_VPP_REG(VPP_CHROMA_DATA_PORT, 0x0);
+		}
 	}
 }
 
@@ -6064,7 +6337,7 @@ static ssize_t amvecm_get_hdr_type_store(struct class *cls,
 
 static void lc_rd_reg(enum lc_reg_lut_e reg_sel, int data_type)
 {
-	int i, tmp, tmp1, tmp2;
+	int i, j, tmp, tmp1, tmp2, len = 12;
 	int lut_data[63] = {0};
 	char *stemp = NULL;
 
@@ -6074,15 +6347,17 @@ static void lc_rd_reg(enum lc_reg_lut_e reg_sel, int data_type)
 	switch (reg_sel) {
 	case SATUR_LUT:
 		for (i = 0; i < 31 ; i++) {
-			tmp = READ_VPP_REG(SRSHARP1_LC_SAT_LUT_0_1 + i);
+			tmp =
+			READ_VPP_REG(SRSHARP1_LC_SAT_LUT_0_1 + i + lc_offset);
 			tmp1 = (tmp >> 16) & 0xfff;
 			tmp2 = tmp & 0xfff;
 			pr_info("reg_lc_satur_lut[%d] =%4d.\n",
-				2*i, tmp1);
+				2 * i, tmp1);
 			pr_info("reg_lc_satur_lut[%d] =%4d.\n",
-				2*i + 1, tmp2);
+				2 * i + 1, tmp2);
 		}
-		tmp = READ_VPP_REG(SRSHARP1_LC_SAT_LUT_62);
+		tmp =
+		READ_VPP_REG(SRSHARP1_LC_SAT_LUT_62 + lc_offset);
 		pr_info("reg_lc_satur_lut[62] =%4d.\n",
 				tmp & 0xfff);
 		break;
@@ -6092,20 +6367,81 @@ static void lc_rd_reg(enum lc_reg_lut_e reg_sel, int data_type)
 			tmp1 = (tmp >> 16) & 0x3ff;
 			tmp2 = tmp & 0x3ff;
 			pr_info("reg_yminVal_lmt[%d] =%4d.\n",
-				2*i, tmp1);
+				2 * i, tmp1);
 			pr_info("reg_yminVal_lmt[%d] =%4d.\n",
-				2*i + 1, tmp2);
+				2 * i + 1, tmp2);
+		}
+		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2) &&
+		    !(is_meson_rev_a() && is_meson_tm2_cpu())) {
+			for (j = 0; j < 2 ; j++) {
+				tmp =
+				READ_VPP_REG(LC_CURVE_YMINVAL_LMT_12_13 + j);
+				tmp1 = (tmp >> 16) & 0x3ff;
+				tmp2 = tmp & 0x3ff;
+				pr_info("reg_yminVal_lmt[%d] =%4d.\n",
+					2 * i, tmp1);
+				pr_info("reg_yminVal_lmt[%d] =%4d.\n",
+					2 * i + 1, tmp2);
+				i++;
+			}
 		}
 		break;
 	case YPKBV_YMAXVAL_LMT:
+		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2) &&
+		    !(is_meson_rev_a() && is_meson_tm2_cpu()))
+			break;
+
 		for (i = 0; i < 6 ; i++) {
-			tmp = READ_VPP_REG(LC_CURVE_YPKBV_YMAXVAL_LMT_0_1 + i);
+			tmp =
+			READ_VPP_REG(LC_CURVE_YPKBV_YMAXVAL_LMT_0_1 + i);
 			tmp1 = (tmp >> 16) & 0x3ff;
 			tmp2 = tmp & 0x3ff;
 			pr_info("reg_lc_ypkBV_ymaxVal_lmt[%d] =%4d.\n",
-				2*i, tmp1);
+				2 * i, tmp1);
 			pr_info("reg_lc_ypkBV_ymaxVal_lmt[%d] =%4d.\n",
-				2*i + 1, tmp2);
+				2 * i + 1, tmp2);
+		}
+		break;
+	case YMAXVAL_LMT:
+		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2) &&
+		    !(is_meson_rev_a() && is_meson_tm2_cpu())) {
+			for (i = 0; i < 6 ; i++) {
+				tmp =
+				READ_VPP_REG(LC_CURVE_YMAXVAL_LMT_0_1 + i);
+				tmp1 = (tmp >> 16) & 0x3ff;
+				tmp2 = tmp & 0x3ff;
+				pr_info("reg_lc_ymaxVal_lmt[%d] =%4d.\n",
+					2 * i, tmp1);
+				pr_info("reg_lc_ymaxVal_lmt[%d] =%4d.\n",
+					2 * i + 1, tmp2);
+			}
+
+			for (j = 0; j < 2 ; j++) {
+				tmp =
+				READ_VPP_REG(LC_CURVE_YMAXVAL_LMT_12_13 + j);
+				tmp1 = (tmp >> 16) & 0x3ff;
+				tmp2 = tmp & 0x3ff;
+				pr_info("reg_lc_ymaxVal_lmt[%d] =%4d.\n",
+					2 * i, tmp1);
+				pr_info("reg_lc_ymaxVal_lmt[%d] =%4d.\n",
+					2 * i + 1, tmp2);
+				i++;
+			}
+		}
+		break;
+	case YPKBV_LMT:
+		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2) &&
+		    !(is_meson_rev_a() && is_meson_tm2_cpu())) {
+			for (i = 0; i < 8 ; i++) {
+				tmp =
+				READ_VPP_REG(LC_CURVE_YPKBV_LMT_0_1 + i);
+				tmp1 = (tmp >> 16) & 0x3ff;
+				tmp2 = tmp & 0x3ff;
+				pr_info("reg_lc_ypkBV_lmt[%d] =%4d.\n",
+					2 * i, tmp1);
+				pr_info("reg_lc_ypkBV_lmt[%d] =%4d.\n",
+					2 * i + 1, tmp2);
+			}
 		}
 		break;
 	case YPKBV_RAT:
@@ -6149,13 +6485,15 @@ dump_as_string:
 	switch (reg_sel) {
 	case SATUR_LUT:
 		for (i = 0; i < 31 ; i++) {
-			tmp = READ_VPP_REG(SRSHARP1_LC_SAT_LUT_0_1 + i);
+			tmp =
+			READ_VPP_REG(SRSHARP1_LC_SAT_LUT_0_1 + i + lc_offset);
 			tmp1 = (tmp >> 16) & 0xfff;
 			tmp2 = tmp & 0xfff;
-			lut_data[2*i] = tmp1;
-			lut_data[2*i + 1] = tmp2;
+			lut_data[2 * i] = tmp1;
+			lut_data[2 * i + 1] = tmp2;
 		}
-		tmp = READ_VPP_REG(SRSHARP1_LC_SAT_LUT_62);
+		tmp =
+		READ_VPP_REG(SRSHARP1_LC_SAT_LUT_62 + lc_offset);
 		lut_data[62] = tmp & 0xfff;
 		for (i = 0; i < 63 ; i++)
 			d_convert_str(lut_data[i],
@@ -6167,26 +6505,88 @@ dump_as_string:
 			tmp = READ_VPP_REG(LC_CURVE_YMINVAL_LMT_0_1 + i);
 			tmp1 = (tmp >> 16) & 0x3ff;
 			tmp2 = tmp & 0x3ff;
-			lut_data[2*i] = tmp1;
-			lut_data[2*i + 1] = tmp2;
+			lut_data[2 * i] = tmp1;
+			lut_data[2 * i + 1] = tmp2;
 		}
-		for (i = 0; i < 12 ; i++)
+		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2) &&
+		    !(is_meson_rev_a() && is_meson_tm2_cpu())) {
+			len = 16;
+			for (j = 0; j < 2 ; j++) {
+				tmp =
+				READ_VPP_REG(LC_CURVE_YMINVAL_LMT_12_13 + j);
+				tmp1 = (tmp >> 16) & 0x3ff;
+				tmp2 = tmp & 0x3ff;
+				lut_data[2 * i] = tmp1;
+				lut_data[2 * i + 1] = tmp2;
+				i++;
+			}
+		}
+		for (i = 0; i < len ; i++)
 			d_convert_str(lut_data[i],
 						i, stemp, 4, 10);
 		pr_info("%s\n", stemp);
 		break;
 	case YPKBV_YMAXVAL_LMT:
+		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2) &&
+		    !(is_meson_rev_a() && is_meson_tm2_cpu()))
+			break;
+
 		for (i = 0; i < 6 ; i++) {
 			tmp = READ_VPP_REG(LC_CURVE_YPKBV_YMAXVAL_LMT_0_1 + i);
 			tmp1 = (tmp >> 16) & 0x3ff;
 			tmp2 = tmp & 0x3ff;
-			lut_data[2*i] = tmp1;
-			lut_data[2*i + 1] = tmp2;
+			lut_data[2 * i] = tmp1;
+			lut_data[2 * i + 1] = tmp2;
 		}
+
 		for (i = 0; i < 12 ; i++)
 			d_convert_str(lut_data[i],
-						i, stemp, 4, 10);
+				      i, stemp, 4, 10);
 		pr_info("%s\n", stemp);
+		break;
+	case YMAXVAL_LMT:
+		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2) &&
+		    !(is_meson_rev_a() && is_meson_tm2_cpu())) {
+			for (i = 0; i < 6 ; i++) {
+				tmp =
+				READ_VPP_REG(LC_CURVE_YMAXVAL_LMT_0_1 + i);
+				tmp1 = (tmp >> 16) & 0x3ff;
+				tmp2 = tmp & 0x3ff;
+				lut_data[2 * i] = tmp1;
+				lut_data[2 * i + 1] = tmp2;
+			}
+
+			len = 16;
+			for (j = 0; j < 2 ; j++) {
+				tmp =
+				READ_VPP_REG(LC_CURVE_YMAXVAL_LMT_12_13 + j);
+				tmp1 = (tmp >> 16) & 0x3ff;
+				tmp2 = tmp & 0x3ff;
+				lut_data[2 * i] = tmp1;
+				lut_data[2 * i + 1] = tmp2;
+				i++;
+			}
+		}
+		for (i = 0; i < len ; i++)
+			d_convert_str(lut_data[i],
+				      i, stemp, 4, 10);
+		pr_info("%s\n", stemp);
+		break;
+	case YPKBV_LMT:
+		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2) &&
+		    !(is_meson_rev_a() && is_meson_tm2_cpu())) {
+			for (i = 0; i < 8 ; i++) {
+				tmp = READ_VPP_REG(LC_CURVE_YPKBV_LMT_0_1 + i);
+				tmp1 = (tmp >> 16) & 0x3ff;
+				tmp2 = tmp & 0x3ff;
+				lut_data[2 * i] = tmp1;
+				lut_data[2 * i + 1] = tmp2;
+			}
+			for (i = 0; i < 16 ; i++)
+				d_convert_str(lut_data[i],
+					      i, stemp, 4, 10);
+			pr_info("%s\n", stemp);
+		}
 		break;
 	case YPKBV_RAT:
 		tmp = READ_VPP_REG(LC_CURVE_YPKBV_RAT);
@@ -6208,7 +6608,7 @@ dump_as_string:
 
 static void lc_wr_reg(int *p, enum lc_reg_lut_e reg_sel)
 {
-	int i, tmp, tmp1, tmp2;
+	int i, j, tmp, tmp1, tmp2;
 
 	switch (reg_sel) {
 	case SATUR_LUT:
@@ -6216,10 +6616,11 @@ static void lc_wr_reg(int *p, enum lc_reg_lut_e reg_sel)
 			tmp1 = *(p + 2*i);
 			tmp2 = *(p + 2*i + 1);
 			tmp = ((tmp1 & 0xfff)<<16) | (tmp2 & 0xfff);
-			WRITE_VPP_REG(SRSHARP1_LC_SAT_LUT_0_1 + i, tmp);
+			WRITE_VPP_REG(SRSHARP1_LC_SAT_LUT_0_1 + i + lc_offset,
+				      tmp);
 		}
 		tmp = (*(p+62)) & 0xfff;
-		WRITE_VPP_REG(SRSHARP1_LC_SAT_LUT_62, tmp);
+		WRITE_VPP_REG(SRSHARP1_LC_SAT_LUT_62 + lc_offset, tmp);
 		break;
 	case YMINVAL_LMT:
 		for (i = 0; i < 6 ; i++) {
@@ -6228,13 +6629,61 @@ static void lc_wr_reg(int *p, enum lc_reg_lut_e reg_sel)
 			tmp = ((tmp1&0x3ff) << 16) | (tmp2 & 0x3ff);
 			WRITE_VPP_REG(LC_CURVE_YMINVAL_LMT_0_1 + i, tmp);
 		}
+		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2) &&
+		    !(is_meson_rev_a() && is_meson_tm2_cpu())) {
+			for (j = 0; j < 2 ; j++) {
+				tmp1 = *(p + 2 * i);
+				tmp2 = *(p + 2 * i + 1);
+				tmp = ((tmp1 & 0x3ff) << 16) | (tmp2 & 0x3ff);
+				WRITE_VPP_REG(LC_CURVE_YMINVAL_LMT_12_13 + j,
+					      tmp);
+				i++;
+			}
+		}
 		break;
 	case YPKBV_YMAXVAL_LMT:
+		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2) &&
+		    !(is_meson_rev_a() && is_meson_tm2_cpu()))
+			break;
+
 		for (i = 0; i < 6 ; i++) {
-			tmp1 = *(p + 2*i);
-			tmp2 = *(p + 2*i + 1);
-			tmp = ((tmp1&0x3ff) << 16) | (tmp2 & 0x3ff);
+			tmp1 = *(p + 2 * i);
+			tmp2 = *(p + 2 * i + 1);
+			tmp = ((tmp1 & 0x3ff) << 16) | (tmp2 & 0x3ff);
 			WRITE_VPP_REG(LC_CURVE_YPKBV_YMAXVAL_LMT_0_1 + i, tmp);
+		}
+		break;
+	case YMAXVAL_LMT:
+		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2) &&
+		    !(is_meson_rev_a() && is_meson_tm2_cpu())) {
+			for (i = 0; i < 6 ; i++) {
+				tmp1 = *(p + 2 * i);
+				tmp2 = *(p + 2 * i + 1);
+				tmp = ((tmp1 & 0x3ff) << 16) | (tmp2 & 0x3ff);
+				WRITE_VPP_REG(LC_CURVE_YMAXVAL_LMT_0_1 + i,
+					      tmp);
+			}
+
+			for (j = 0; j < 2 ; j++) {
+				tmp1 = *(p + 2 * i);
+				tmp2 = *(p + 2 * i + 1);
+				tmp = ((tmp1 & 0x3ff) << 16) | (tmp2 & 0x3ff);
+				WRITE_VPP_REG(LC_CURVE_YMAXVAL_LMT_12_13 + j,
+					      tmp);
+				i++;
+			}
+		}
+		break;
+	case YPKBV_LMT:
+		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2) &&
+		    !(is_meson_rev_a() && is_meson_tm2_cpu())) {
+			for (i = 0; i < 8 ; i++) {
+				tmp1 = *(p + 2 * i);
+				tmp2 = *(p + 2 * i + 1);
+				tmp = ((tmp1 & 0x3ff) << 16) | (tmp2 & 0x3ff);
+				WRITE_VPP_REG(LC_CURVE_YPKBV_LMT_0_1 + i,
+					      tmp);
+			}
 		}
 		break;
 	case YPKBV_RAT:
@@ -6256,15 +6705,8 @@ static void lc_wr_reg(int *p, enum lc_reg_lut_e reg_sel)
 	}
 }
 
-unsigned int lc_saturation_curv[63];
-unsigned int lc_yminval_lmt_curv[12];
-unsigned int lc_ypkbv_ymaxval_lmt_curv[12];
-unsigned int lc_ypkbv_ratio_curv[4];
-
 void lc_load_curve(struct ve_lc_curve_parm_s *p)
 {
-	unsigned int i;
-
 	/*load lc parms*/
 	lc_alg_parm.dbg_parm0 = p->param[lc_dbg_parm0];
 	lc_alg_parm.dbg_parm1 = p->param[lc_dbg_parm1];
@@ -6272,26 +6714,18 @@ void lc_load_curve(struct ve_lc_curve_parm_s *p)
 	lc_alg_parm.dbg_parm3 = p->param[lc_dbg_parm3];
 	lc_alg_parm.dbg_parm4 = p->param[lc_dbg_parm4];
 
-	/*load lc curve*/
-	for (i = 0; i < 63; i++)
-		lc_saturation_curv[i] = p->ve_lc_saturation[i];
-	for (i = 0; i < 12; i++) {
-		lc_yminval_lmt_curv[i] =
-			p->ve_lc_yminval_lmt[i];
-		lc_ypkbv_ymaxval_lmt_curv[i] =
-			p->ve_lc_ypkbv_ymaxval_lmt[i];
-	}
-	for (i = 0; i < 4; i++)
-		lc_ypkbv_ratio_curv[i] = p->ve_lc_ypkbv_ratio[i];
-
 	/*load lc_staturation curve*/
-	lc_wr_reg(lc_saturation_curv, 0x1);
+	lc_wr_reg(p->ve_lc_saturation, 0x1);
 	/*load lc_yminval_lmt*/
-	lc_wr_reg(lc_yminval_lmt_curv, 0x2);
+	lc_wr_reg(p->ve_lc_yminval_lmt, 0x2);
 	/*load lc_ypkbv_ymaxval_lmt*/
-	lc_wr_reg(lc_ypkbv_ymaxval_lmt_curv, 0x4);
+	lc_wr_reg(p->ve_lc_ypkbv_ymaxval_lmt, 0x4);
 	/*load lc_ypkbV_ratio*/
-	lc_wr_reg(lc_ypkbv_ratio_curv, 0x8);
+	lc_wr_reg(p->ve_lc_ypkbv_ratio, 0x8);
+	/*load lc_ymaxval_ratio*/
+	lc_wr_reg(p->ve_lc_ymaxval_lmt, 0x10);
+	/*load lc_ypkbV_ratio*/
+	lc_wr_reg(p->ve_lc_ypkbv_lmt, 0x20);
 }
 
 static ssize_t amvecm_lc_show(struct class *cla,
@@ -6389,6 +6823,10 @@ static ssize_t amvecm_lc_store(struct class *cls,
 			lc_rd_reg(YMINVAL_LMT, 0);
 		else if (reg_sel == YPKBV_YMAXVAL_LMT)
 			lc_rd_reg(YPKBV_YMAXVAL_LMT, 0);
+		else if (reg_sel == YMAXVAL_LMT)
+			lc_rd_reg(YMAXVAL_LMT, 0);
+		else if (reg_sel == YPKBV_LMT)
+			lc_rd_reg(YPKBV_LMT, 0);
 		else if (reg_sel == YPKBV_RAT)
 			lc_rd_reg(YPKBV_RAT, 0);
 		else if (reg_sel == YPKBV_SLP_LMT)
@@ -6407,6 +6845,10 @@ static ssize_t amvecm_lc_store(struct class *cls,
 			lc_rd_reg(YMINVAL_LMT, 1);
 		else if (reg_sel == YPKBV_YMAXVAL_LMT)
 			lc_rd_reg(YPKBV_YMAXVAL_LMT, 1);
+		else if (reg_sel == YMAXVAL_LMT)
+			lc_rd_reg(YMAXVAL_LMT, 1);
+		else if (reg_sel == YPKBV_LMT)
+			lc_rd_reg(YPKBV_LMT, 1);
 		else if (reg_sel == YPKBV_RAT)
 			lc_rd_reg(YPKBV_RAT, 1);
 		else
@@ -6424,6 +6866,10 @@ static ssize_t amvecm_lc_store(struct class *cls,
 			lc_wr_reg(reg_lut, YMINVAL_LMT);
 		else if (reg_sel == YPKBV_YMAXVAL_LMT)
 			lc_wr_reg(reg_lut, YPKBV_YMAXVAL_LMT);
+		else if (reg_sel == YMAXVAL_LMT)
+			lc_wr_reg(reg_lut, YMAXVAL_LMT);
+		else if (reg_sel == YPKBV_LMT)
+			lc_wr_reg(reg_lut, YPKBV_LMT);
 		else if (reg_sel == YPKBV_RAT)
 			lc_wr_reg(reg_lut, YPKBV_RAT);
 		else if (reg_sel == YPKBV_SLP_LMT)
@@ -6594,12 +7040,64 @@ static ssize_t amvecm_lc_store(struct class *cls,
 	else if (!strcmp(parm[0], "reg_lmtrat_sigbin")) {
 		if (kstrtoul(parm[1], 10, &val) < 0)
 			goto free_buf;
-		lc_reg_lmtrat_sigbin = val;
-		pr_info("reg_lmtrat_sigbin = %d\n", lc_reg_lmtrat_sigbin);
+		lc_tune_curve.lc_reg_lmtrat_sigbin = val;
+		pr_info(
+			"reg_lmtrat_sigbin = %d\n",
+			lc_tune_curve.lc_reg_lmtrat_sigbin);
+	} else if (!strcmp(parm[0], "reg_lmtrat_thd_max")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			goto free_buf;
+		lc_tune_curve.lc_reg_lmtrat_thd_max = val;
+		pr_info(
+			"reg_lmtrat_thd_max = %d\n",
+			lc_tune_curve.lc_reg_lmtrat_thd_max);
+	} else if (!strcmp(parm[0], "reg_lmtrat_thd_black")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			goto free_buf;
+		lc_tune_curve.lc_reg_lmtrat_thd_black = val;
+		pr_info(
+			"reg_lmtrat_thd_black = %d\n",
+			lc_tune_curve.lc_reg_lmtrat_thd_black);
+	} else if (!strcmp(parm[0], "reg_thd_black")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			goto free_buf;
+		lc_tune_curve.lc_reg_thd_black = val;
+		WRITE_VPP_REG_BITS(
+			LC_STTS_BLACK_INFO,
+			lc_tune_curve.lc_reg_thd_black, 0, 8);
+		pr_info(
+			"reg_thd_black = %d\n",
+			lc_tune_curve.lc_reg_thd_black);
+	} else if (!strcmp(parm[0], "ypkBV_black_thd")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			goto free_buf;
+		lc_tune_curve.ypkbv_black_thd = val;
+		pr_info(
+			"ypkBV_black_thd = %d\n",
+			lc_tune_curve.ypkbv_black_thd);
+	} else if (!strcmp(parm[0], "yminV_black_thd")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			goto free_buf;
+		lc_tune_curve.yminv_black_thd = val;
+		pr_info(
+			"yminV_black_thd = %d\n",
+			lc_tune_curve.yminv_black_thd);
+	} else if (!strcmp(parm[0], "tune_curve_debug")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			goto free_buf;
+		lc_node_pos_v = val;
+		if (kstrtoul(parm[2], 10, &val) < 0)
+			goto free_buf;
+		lc_node_pos_h = val;
+		pr_info(
+		"tune_curve_debug pos = v %d h %d\n",
+		lc_node_pos_v, lc_node_pos_h);
 	} else if (!strcmp(parm[0], "tune_curve_en")) {
 		if (kstrtoul(parm[1], 10, &val) < 0)
 			goto free_buf;
 		tune_curve_en = val;
+		amlc_debug = 0xc;
+		lc_node_prcnt = 10;
 		pr_info("tune_curve_en = %d\n", tune_curve_en);
 	} else if (!strcmp(parm[0], "detect_signal_range_en")) {
 		if (kstrtoul(parm[1], 10, &val) < 0)
@@ -6725,8 +7223,19 @@ tvchip_pq_setting:
 		else
 			bitdepth = 12;
 		/*sr0 & sr1 register shfit*/
-		sr_offset[0] = SR0_OFFSET;
-		sr_offset[1] = SR1_OFFSET;
+		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2)) {
+			if (is_meson_rev_a() && is_meson_tm2_cpu()) {
+				sr_offset[0] = SR0_OFFSET;
+				sr_offset[1] = SR1_OFFSET;
+			} else {
+				sr_offset[0] = SR0_OFFSET_V2;
+				sr_offset[1] = SR1_OFFSET_V2;
+				lc_offset = LC_OFFSET;
+			}
+		} else {
+			sr_offset[0] = SR0_OFFSET;
+			sr_offset[1] = SR1_OFFSET;
+		}
 		/*cm register init*/
 		cm_init_config(bitdepth);
 		/*lc init*/
@@ -6735,6 +7244,13 @@ tvchip_pq_setting:
 		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2))
 			hdr_hist_config_int();
 	}
+
+	/* enable vadj1 by default */
+	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A)
+		WRITE_VPP_REG_BITS(VPP_VADJ1_MISC, 1, 0, 1);
+	else
+		VSYNC_WR_MPEG_REG(VPP_VADJ_CTRL, 0xd);
+
 	/*probe close sr0 peaking for switch on video*/
 	WRITE_VPP_REG_BITS(VPP_SRSHARP0_CTRL, 1, 0, 1);
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
@@ -6967,6 +7483,10 @@ static struct class_attribute amvecm_class_attrs[] = {
 	__ATTR(color_bottom, 0644,
 		amvecm_clamp_color_bottom_show,
 		amvecm_clamp_color_bottom_store),
+	__ATTR(
+		cpu_ver, 0644,
+		amvecm_cpu_ver_show,
+		amvecm_cpu_ver_store),
 	__ATTR_NULL
 };
 
@@ -7024,11 +7544,11 @@ static const struct vecm_match_data_s vecm_dt_sm1 = {
 };
 
 static const struct vecm_match_data_s vecm_dt_tm2 = {
-	.vlk_support = false,
+	.vlk_support = true,
 	.vlk_new_fsm = 1,
 	.vlk_hwver = vlock_hw_ver2,
-	.vlk_phlock_en = false,
-	.vlk_pll_sel = vlock_pll_sel_hdmi,
+	.vlk_phlock_en = true,
+	.vlk_pll_sel = vlock_pll_sel_tcon,
 };
 
 static const struct vecm_match_data_s vecm_dt_tm2_verb = {
@@ -7179,8 +7699,7 @@ static void aml_vecm_dt_parse(struct platform_device *pdev)
 		if (!is_dolby_vision_enable())
 #endif
 			amcm_enable();
-	}
-	else
+	} else
 		amcm_disable();
 	/* WRITE_VPP_REG_BITS(VPP_MISC, cm_en, 28, 1); */
 

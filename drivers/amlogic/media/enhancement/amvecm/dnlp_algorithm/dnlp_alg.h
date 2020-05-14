@@ -99,8 +99,8 @@ struct param_for_dnlp_s {
 };
 
 struct dnlp_alg_input_param_s {
-	unsigned int *pre_1_gamma;
 	unsigned int *pre_0_gamma;
+	unsigned int *pre_1_gamma;
 	unsigned int *nTstCnt;
 	unsigned int *ve_dnlp_luma_sum;
 	int *RBASE;
@@ -109,6 +109,7 @@ struct dnlp_alg_input_param_s {
 
 struct dnlp_alg_output_param_s {
 	unsigned char *ve_dnlp_tgt;
+	unsigned int *ve_dnlp_tgt_10b;
 };
 
 struct dnlp_dbg_ro_param_s {

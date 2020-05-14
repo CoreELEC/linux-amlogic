@@ -13940,6 +13940,10 @@ F:	drivers/amlogic/media/enhancement/amvecm/dnlp_algorithm/*
 F:	include/linux/amlogic/media/amvecm/*
 F:	drivers/amlogic/media/enhancement/amvecm/hdr/*
 F:  drivers/amlogic/media/enhancement/amvecm/amprime_sl/*
+F:	drivers/amlogic/media/enhancement/amvecm/hdr/am_hdr10_tm.c
+F:	drivers/amlogic/media/enhancement/amvecm/hdr/am_hdr10_tm.h
+F:	drivers/amlogic/media/enhancement/amvecm/hdr/gamut_convert.c
+F:	drivers/amlogic/media/enhancement/amvecm/hdr/gamut_convert.h
 
 AMLOGIC GXL ADD SKT DTS
 M: Yun Cai <yun.cai@amlogic.com>

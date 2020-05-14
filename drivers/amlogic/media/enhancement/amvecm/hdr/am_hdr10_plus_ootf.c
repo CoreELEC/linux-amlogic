@@ -778,6 +778,8 @@ int genEBZCurve(
 			curvex[i] = kx + step_alpha;
 			temp = curvey[i] << GAIN_BIT;
 			gain[i] = div64_u64(temp, curvex[i]);
+			if (gain[i] < (1 << GAIN_BIT))
+				gain[i] = 1 << GAIN_BIT;
 		}
 	}
 	gain[POINTS - 1] = 1 << GAIN_BIT;
@@ -909,17 +911,21 @@ void vframe_hdr_sei_s_init(
 		0, 10000, 90, 2000, 4000, 8000, 10000, 10001, 10002
 	};
 
+	for (i = 0; i < 9; i++)
+		percentilevalue_init[i] = percentile[i];
+
+	if (hdr10_plus_printk & 8) {
+		for (i = 0; i < 9; i++) {
+			pr_hdr(
+				"percentilevalue_init[%d] = %d\n",
+				i, percentilevalue_init[i]);
+		}
+	}
+
 	hdr10_plus_sei->num_distributions[0] = PERCENTILE_ORDER - 1;
 
 	for (i = 0; i < 3; i++)
-		hdr10_plus_sei->maxscl[0][i] = source_lumin * 10;
-	percentilevalue_init[1] = source_lumin * 10;
-	percentilevalue_init[3] = source_lumin * 2;
-	percentilevalue_init[4] = source_lumin * 4;
-	percentilevalue_init[5] = source_lumin * 8;
-	percentilevalue_init[6] = source_lumin * 10;
-	percentilevalue_init[7] = source_lumin * 10 + 1;
-	percentilevalue_init[8] = source_lumin * 10 + 2;
+		hdr10_plus_sei->maxscl[0][i] = percentilevalue_init[8] * 10;
 
 	hdr10_plus_sei->targeted_system_display_maximum_luminance =	0;
 
@@ -940,7 +946,7 @@ void vframe_hdr_sei_s_init(
 			P_init[i] << (PROCESSING_MAX - 10);
 
 	for (i = 0; i < 3; i++)
-		hdr_plus_sei.average_maxrgb[i] = source_lumin;
+		hdr_plus_sei.average_maxrgb[i] = percentilevalue_init[8];
 
 	hdr_plus_sei.num_distribution_maxrgb_percentiles[0] = 0;
 }

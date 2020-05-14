@@ -136,6 +136,12 @@ struct hdr10pgen_param_s {
 	unsigned int gain[POINTS];
 };
 
+void basisootf_params_init(struct basisootf_params *basisootf_params);
+
+int calcp1(
+	int sx, int sy, int tgtL, int calcmaxl,
+	struct basisootf_params *basisootf_params,
+	int *p1_red_gain);
 int hdr10_plus_ootf_gen(
 	int panel_lumin,
 	int force_source_lumin,

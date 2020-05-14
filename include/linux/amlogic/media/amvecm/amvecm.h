@@ -246,6 +246,17 @@ struct hdr_tone_mapping_s {
 #define AMVECM_IOC_S_PQ_CTRL  _IOW(_VE_CM, 0x65, struct vpp_pq_ctrl_s)
 #define AMVECM_IOC_G_PQ_CTRL  _IOR(_VE_CM, 0x66, struct vpp_pq_ctrl_s)
 
+enum meson_cpu_ver_e {
+	VER_NULL = 0,
+	VER_A,
+	VER_B,
+	VER_C,
+	VER_MAX
+};
+
+/*cpu ver ioc*/
+#define AMVECM_IOC_S_MESON_CPU_VER _IOW(_VE_CM, 0x67, enum meson_cpu_ver_e)
+
 struct am_vdj_mode_s {
 	int flag;
 	int brightness;
@@ -501,8 +512,13 @@ extern bool wb_en;
 extern struct pq_ctrl_s pq_cfg;
 extern struct pq_ctrl_s dv_cfg_bypass;
 
+extern bool wb_en;
+extern struct pq_ctrl_s pq_cfg;
+extern unsigned int lc_offset;
+
 #define CSC_FLAG_TOGGLE_FRAME	1
 #define CSC_FLAG_CHECK_OUTPUT	2
+#define CSC_FLAG_FORCE_SIGNAL	4
 
 extern int amvecm_on_vs(
 	struct vframe_s *display_vf,

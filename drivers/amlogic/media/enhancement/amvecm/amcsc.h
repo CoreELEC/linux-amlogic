@@ -15,6 +15,10 @@
  *
  */
 
+#include <linux/amlogic/media/vfm/vframe.h>
+#include <linux/amlogic/media/vout/vout_notify.h>
+#include <linux/amlogic/media/amvecm/amvecm.h>
+
 #ifndef AM_CSC_H
 #define AM_CSC_H
 
@@ -127,6 +131,7 @@ int is_video_turn_on(bool *vd_on, enum vd_path_e vd_path);
 #define SIG_COLORIMETRY_SUPPORT 0x1000
 #define SIG_OUTPUT_MODE_CHG	0x2000
 #define SIG_HDR_OOTF_CHG 0x4000
+#define SIG_FORCE_CHG 0x8000
 
 #define LUT_289_SIZE	289
 extern unsigned int lut_289_mapping[LUT_289_SIZE];
@@ -178,7 +183,6 @@ extern u32 get_videopip_enabled(void);
 void set_video_mute(bool on);
 int get_video_mute(void);
 
-extern void get_hdr_source_type(void);
 extern void get_cur_vd_signal_type(enum vd_path_e vd_path);
 extern enum color_primary_e get_color_primary(void);
 /*hdr*/
@@ -202,6 +206,7 @@ extern void hdr_set_cfg_osd_100(int val);
 extern void hdr_osd_off(void);
 extern void hdr_vd1_off(void);
 void hdr_vd2_off(void);
+void hdr_vd1_iptmap(void);
 extern bool is_video_layer_on(enum vd_path_e vd_path);
 
 #define HDR_MODULE_OFF		0

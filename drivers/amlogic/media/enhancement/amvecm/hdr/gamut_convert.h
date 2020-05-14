@@ -1,5 +1,5 @@
 /*
- * drivers/amlogic/media/enhancement/amvecm/amcsc_pip.h
+ * drivers/amlogic/media/enhancement/amvecm/hdr/gamut_convert.h
  *
  * Copyright (C) 2017 Amlogic, Inc. All rights reserved.
  *
@@ -15,23 +15,15 @@
  *
  */
 
-#ifndef AM_CSC_PIP_H
-#define AM_CSC_PIP_H
-extern int hdr_policy_process(
+#include "../amcsc.h"
+
+#ifndef GAMUT_H
+#define GAMUT_H
+
+int gamut_convert_process(
 	struct vinfo_s *vinfo,
-	enum hdr_type_e *source_format,
-	enum vd_path_e vd_path);
-extern void hdmi_packet_process(
-	int signal_change_flag,
-	struct vinfo_s *vinfo,
-	struct vframe_master_display_colour_s *p,
-	struct hdr10plus_para *hdmitx_hdr10plus_param,
-	enum vd_path_e vd_path);
-extern void video_post_process(
-	struct vframe_s *vf,
-	enum vpp_matrix_csc_e csc_type,
-	struct vinfo_s *vinfo,
+	enum hdr_type_e *source_type,
 	enum vd_path_e vd_path,
-	struct vframe_master_display_colour_s *master_info,
-	enum hdr_type_e *source_type);
+	struct matrix_s *mtx,
+	int mtx_depth);
 #endif

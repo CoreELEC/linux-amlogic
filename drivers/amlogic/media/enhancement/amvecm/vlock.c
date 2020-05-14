@@ -56,7 +56,7 @@ static unsigned int vlock_pll_m_limit = 1;
 /*for 24MHZ clock, 50hz input, delta value (10) of(0x3011-0x3012) == 0.001HZ */
 static unsigned int vlock_delta_cnt_limit = 10;
 /*hdmi support enable default,cvbs support not good,need debug with vlsi*/
-static unsigned int vlock_support = (VLOCK_SUPPORT_HDMI | VLOCK_SUPPORT_CVBS);
+static unsigned int vlock_support = VLOCK_SUP_MODE;
 static unsigned int vlock_enc_stable_flag;
 static unsigned int vlock_pll_stable_cnt;
 static unsigned int vlock_pll_adj_limit;
@@ -66,8 +66,8 @@ static unsigned int vlock_intput_type;
  * change from 4 to 3,for 4 may cause shake issue for 60.3hz input
  */
 static signed int vlock_line_limit = 2;
-static signed int vlock_enc_maxtune_line_num = 15;
-static signed int vlock_enc_maxtune_pixel_num = 25;
+static signed int vlock_enc_maxtune_line_num = 10;
+static signed int vlock_enc_maxtune_pixel_num = 20;
 
 static unsigned int vlock_enc_adj_limit;
 /* 0x3009 default setting for 2 line(1080p-output) is 0x8000 */
@@ -90,6 +90,8 @@ static unsigned int pre_hiu_reg_m;
 static unsigned int pre_hiu_reg_frac;
 static signed int pre_enc_max_line;
 static signed int pre_enc_max_pixel;
+static signed int org_enc_line_num;
+static signed int org_enc_pixel_num;
 static unsigned int enc_max_line_addr;
 static unsigned int enc_max_pixel_addr;
 static unsigned int enc_video_mode_addr;
@@ -154,12 +156,12 @@ struct vlock_log_s **vlock_log;
 static signed int err_accum;
 static unsigned int last_i_vsync;
 
-u32 loop0_err_lmt = 0x4800;
+u32 loop0_err_lmt = 0xb800;
 u32 loop1_err_lmt = 0x4800;
 u32 loop_err_rs = 3;
 u32 loop_err_gain = 128;
-u32 loop0_en;
-u32 loop1_en = 1;
+u32 loop0_en = 2;	/*0:off, 1:on 2:auto*/
+u32 loop1_en = 1;	/*0:off, 1:on 2:auto*/
 u32 speed_up_en = 1;
 
 int amvecm_hiu_reg_read(unsigned int reg, unsigned int *val)
@@ -239,10 +241,12 @@ void vlock_set_panel_pll(u32 m, u32 frac)
 
 void vlock_set_panel_ss(u32 onoff)
 {
-	if (onoff)
-		lcd_ss_enable(1);
-	else
-		lcd_ss_enable(0);
+	if (IS_PLL_MODE(vlock_mode)) {
+		if (onoff)
+			lcd_ss_enable(1);
+		else
+			lcd_ss_enable(0);
+	}
 }
 
 static unsigned int vlock_check_input_hz(struct vframe_s *vf)
@@ -385,9 +389,14 @@ void vlock_set_phase_frq_lock_speed(void)
 		WRITE_VPP_REG(VPU_VLOCK_ERR_CTRL0, data);
 
 		data = 0;
-		/*23	RW reg_loop0_err_lmt_en*/
-		if (loop0_en)
-			data |= (0x1 << 23);
+		/*23	RW reg_loop0_err_lmt_en frq*/
+		if (loop0_en > 1) {
+			/*auto enc mode enable limit lock is too slow*/
+			if (IS_AUTO_PLL_MODE(vlock_mode))
+				data |= (0x1 << 23);
+		} else {
+			data |= (loop0_en << 23);
+		}
 		/*22-0	RW reg_loop0_err_lmt*/
 		data |= (loop0_err_lmt << 0);
 		WRITE_VPP_REG(VPU_VLOCK_LOOP0_ERR_LMT, data);
@@ -395,7 +404,7 @@ void vlock_set_phase_frq_lock_speed(void)
 			READ_VPP_REG(VPU_VLOCK_LOOP0_ERR_LMT));
 
 		data = 0;
-		/*23	RW reg_loop1_err_lmt_en*/
+		/*23	RW reg_loop1_err_lmt_en phase*/
 		if (loop1_en)
 			data |= (0x1 << 23);
 		/*22-0	RW reg_loop1_err_lmt*/
@@ -852,7 +861,10 @@ static void vlock_disable_step1(void)
 	if (IS_AUTO_PLL_MODE(vlock_mode)) {
 		pll_m = (m_f_reg_value >> 16) & 0xff;
 		pll_f = m_f_reg_value & 0xffff;
-		pr_info("vlock m:0x%x f:0x%x\n", pll_m, pll_f);
+		pr_info("vlock exit m:0x%x f:0x%x\n", pll_m, pll_f);
+		if ((vlock_debug & VLOCK_DEBUG_INFO) &&
+		    (diff((vlock.val_m & 0xff), pll_m) > 8))
+			vlock_reg_dump();
 	}
 
 	if ((vlock_mode & (VLOCK_MODE_MANUAL_PLL |
@@ -1103,7 +1115,7 @@ static void vlock_enable_step3_enc(void)
 {
 	unsigned int line_num = 0, enc_max_line = 0, polity_line_num = 0;
 	unsigned int pixel_num = 0, enc_max_pixel = 0, polity_pixel_num = 0;
-	unsigned int val;
+	/*unsigned int val;*/
 	static u32 cnt;
 
 	if (cnt++ > 30)
@@ -1122,27 +1134,28 @@ static void vlock_enable_step3_enc(void)
 		if (polity_pixel_num) {
 			pixel_num = (~(pixel_num - 1)) & 0x3fff;
 			if (pixel_num > vlock_enc_maxtune_pixel_num)
-				line_num = vlock_enc_maxtune_pixel_num;
-			enc_max_pixel = pre_enc_max_pixel - pixel_num;
+				pixel_num = vlock_enc_maxtune_pixel_num;
+			enc_max_pixel = org_enc_pixel_num - pixel_num;
 		} else {
 			if (pixel_num > vlock_enc_maxtune_pixel_num)
-				line_num = vlock_enc_maxtune_pixel_num;
-			enc_max_pixel = pre_enc_max_pixel + pixel_num;
+				pixel_num = vlock_enc_maxtune_pixel_num;
+			enc_max_pixel = org_enc_pixel_num + pixel_num;
 		}
+
 		if (enc_max_pixel > 0x1fff) {
 			WRITE_VPP_REG_BITS(enc_max_line_switch_addr,
-				pixel_num, 0, 13);
-			val = pixel_num;
+				org_enc_pixel_num, 0, 13);
+			/*val = pixel_num;*/
 		} else {
 			WRITE_VPP_REG_BITS(enc_max_line_switch_addr,
 				enc_max_pixel, 0, 13);
-			val = enc_max_pixel;
+			/*val = enc_max_pixel;*/
 		}
 		if ((vlock_debug & VLOCK_DEBUG_INFO) && (cnt == 0)) {
-			pr_info("pixel:polity_pixel_num=%d, pixel_num=%d, pre_maxP=%d\n",
-				polity_pixel_num, pixel_num, pre_enc_max_pixel);
+			pr_info("pixel:polity_pixel_num=%d, pixel_num=%d, org_line=%d\n",
+				polity_pixel_num, pixel_num, org_enc_pixel_num);
 			pr_info("pixel:wr addr:0x%x, 0x%x\n",
-				enc_max_line_switch_addr, val);
+				enc_max_line_switch_addr, enc_max_pixel);
 		}
 	}
 	/*vlock line num adjust*/
@@ -1154,19 +1167,19 @@ static void vlock_enable_step3_enc(void)
 			line_num = (~(line_num - 1)) & 0x3fff;
 			if (line_num > vlock_enc_maxtune_line_num)
 				line_num = vlock_enc_maxtune_line_num;
-			enc_max_line = pre_enc_max_line - line_num;
+			enc_max_line = org_enc_line_num - line_num;
 		} else {
 			if (line_num > vlock_enc_maxtune_line_num)
 				line_num = vlock_enc_maxtune_line_num;
-			enc_max_line = pre_enc_max_line + line_num;
+			enc_max_line = org_enc_line_num + line_num;
 		}
 
 		if (enc_max_pixel > 0x1fff)
 			enc_max_line += 1;
 		WRITE_VPP_REG(enc_max_line_addr, enc_max_line);
 		if ((vlock_debug & VLOCK_DEBUG_INFO) && (cnt == 0)) {
-			pr_info("line:polity_line_num=%d line_num=%d, pre_maxL=%d\n",
-				polity_line_num, line_num, pre_enc_max_line);
+			pr_info("line:polity_line_num=%d line_num=%d, org_line=%d\n",
+				polity_line_num, line_num, org_enc_line_num);
 			pr_info("line:wr addr:0x%x, %d\n",
 				enc_max_line_addr, enc_max_line);
 		}
@@ -1854,6 +1867,8 @@ void vlock_status_init(void)
 	vlock.val_m = vlock_get_panel_pll_m();
 	vlock.val_frac = vlock_get_panel_pll_frac();
 	/*enc mode initial val*/
+	org_enc_line_num = READ_VPP_REG(enc_max_line_addr);
+	org_enc_pixel_num = READ_VPP_REG(enc_max_pixel_addr);
 	pre_enc_max_line = READ_VPP_REG(enc_max_line_addr);
 	pre_enc_max_pixel = READ_VPP_REG(enc_max_pixel_addr);
 	pr_info("vlock: maxLine %d,maxPixel %d\n",
@@ -2041,17 +2056,15 @@ void vlock_enc_timing_monitor(void)
 void vlock_auto_pll_sts_check(void)
 {
 	u32 m_f_reg_value;
-	static u32 vs_cnt;
 	u32 pll_m, pll_f;
 
-	if (vs_cnt++ > 20)
-		vs_cnt = 0;
-	m_f_reg_value = READ_VPP_REG(VPU_VLOCK_RO_M_INT_FRAC);
-
-	if ((vlock_debug & VLOCK_DEBUG_INFO) && (vs_cnt == 4)) {
+	if (vlock_debug & VLOCK_DEBUG_INFO) {
+		m_f_reg_value = READ_VPP_REG(VPU_VLOCK_RO_M_INT_FRAC);
 		pll_m = (m_f_reg_value >> 16) & 0xff;
 		pll_f = m_f_reg_value & 0xffff;
-		pr_info("vlock m:0x%x f:0x%x\n", pll_m, pll_f);
+		if ((vlock.val_m & 0xff) != pll_m)
+			pr_info("vlock m:(0x%x 0x%x) f:0x%x\n",
+				vlock.val_m, pll_m, pll_f);
 	}
 }
 
@@ -2070,7 +2083,8 @@ u32 vlock_fsm_check_support(struct stvlock_sig_sts *pvlock,
 		vs_support = true;
 	/* ex:30Hz->60Hz 25Hz->50Hz */
 	if ((pvlock->input_hz > 0) &&
-	    (pvlock->input_hz * 2 == pvlock->output_hz))
+	    (pvlock->input_hz * 2 == pvlock->output_hz) &&
+	    (vlock_support & VLOCK_SUPPORT_1TO2))
 		vs_support = true;
 
 	if ((!vs_support && (vlock_adapt == 0)) ||
@@ -2166,11 +2180,19 @@ u32 vlock_fsm_to_en_func(struct stvlock_sig_sts *pvlock,
 		/*amvecm_hiu_reg_read(hhi_pll_reg_frac, &vlock.val_frac);*/
 		vlock.val_m = vlock_get_panel_pll_m();
 		vlock.val_frac = vlock_get_panel_pll_frac();
+
+		org_enc_line_num = READ_VPP_REG(enc_max_line_addr);
+		org_enc_pixel_num = READ_VPP_REG(enc_max_pixel_addr);
+		pre_enc_max_line = org_enc_line_num;
+		pre_enc_max_pixel = org_enc_pixel_num;
+
 		if (vlock_debug & VLOCK_DEBUG_INFO) {
-			pr_info("HIU pll m[0x%x]=0x%x\n",
+			pr_info("vlock: HIU pll m[0x%x]=0x%x\n",
 				hhi_pll_reg_m, vlock.val_m);
-			pr_info("HIU pll f[0x%x]=0x%x\n",
+			pr_info("vlock: HIU pll f[0x%x]=0x%x\n",
 				hhi_pll_reg_frac, vlock.val_frac);
+			pr_info("vlock: Line %d,Pixel %d\n",
+				org_enc_line_num, org_enc_pixel_num);
 		}
 		vinfo = get_current_vinfo();
 		vlock_enable_step1(vf, vinfo,
@@ -3001,72 +3023,70 @@ ssize_t vlock_debug_store(struct class *cla,
 	}
 
 	buf_orig = kstrdup(buf, GFP_KERNEL);
-	if (buf_orig == NULL)
-		return count;
 	vlock_parse_param(buf_orig, (char **)&parm);
 	if (!strncmp(parm[0], "vlock_mode", 10)) {
 		if (kstrtol(parm[1], 10, &val) < 0)
-			goto dbg_exit;
+			return -EINVAL;
 		temp_val = val;
 		sel = VLOCK_MODE;
 	} else if (!strncmp(parm[0], "vlock_en", 8)) {
 		if (kstrtol(parm[1], 10, &val) < 0)
-			goto dbg_exit;
+			return -EINVAL;
 		temp_val = val;
 		sel = VLOCK_EN;
 	} else if (!strncmp(parm[0], "vlock_adapt", 11)) {
 		if (kstrtol(parm[1], 10, &val) < 0)
-			goto dbg_exit;
+			return -EINVAL;
 		temp_val = val;
 		sel = VLOCK_ADAPT;
 	} else if (!strncmp(parm[0], "vlock_dis_cnt_limit", 19)) {
 		if (kstrtol(parm[1], 10, &val) < 0)
-			goto dbg_exit;
+			return -EINVAL;
 		temp_val = val;
 		sel = VLOCK_DIS_CNT_LIMIT;
 	} else if (!strncmp(parm[0], "vlock_delta_limit", 17)) {
 		if (kstrtol(parm[1], 10, &val) < 0)
-			goto dbg_exit;
+			return -EINVAL;
 		temp_val = val;
 		sel = VLOCK_DELTA_LIMIT;
 	} else if (!strncmp(parm[0], "vlock_pll_m_limit", 17)) {
 		if (kstrtol(parm[1], 10, &val) < 0)
-			goto dbg_exit;
+			return -EINVAL;
 		temp_val = val;
 		sel = VLOCK_PLL_M_LIMIT;
 	} else if (!strncmp(parm[0], "vlock_delta_cnt_limit", 21)) {
 		if (kstrtol(parm[1], 10, &val) < 0)
-			goto dbg_exit;
+			return -EINVAL;
 		temp_val = val;
 		sel = VLOCK_DELTA_CNT_LIMIT;
 	} else if (!strncmp(parm[0], "vlock_debug", 11)) {
 		if (kstrtol(parm[1], 16, &val) < 0)
-			goto dbg_exit;
+			return -EINVAL;
 		temp_val = val;
 		sel = VLOCK_DEBUG;
 	} else if (!strncmp(parm[0], "vlock_dynamic_adjust", 20)) {
 		if (kstrtol(parm[1], 10, &val) < 0)
-			goto dbg_exit;
+			return -EINVAL;
 		temp_val = val;
 		sel = VLOCK_DYNAMIC_ADJUST;
 	} else if (!strncmp(parm[0], "vlock_line_limit", 17)) {
 		if (kstrtol(parm[1], 10, &val) < 0)
-			goto dbg_exit;
+			return -EINVAL;
 		temp_val = val;
 		sel = VLOCK_LINE_LIMIT;
 	} else if (!strncmp(parm[0], "vlock_dis_cnt_no_vf_limit", 25)) {
 		if (kstrtol(parm[1], 10, &val) < 0)
-			goto dbg_exit;
+			return -EINVAL;
 		temp_val = val;
 		sel = VLOCK_DIS_CNT_NO_VF_LIMIT;
 	} else if (!strncmp(parm[0], "vlock_line_limit", 16)) {
 		if (kstrtol(parm[1], 10, &val) < 0)
-			goto dbg_exit;
+			return -EINVAL;
 		temp_val = val;
 		sel = VLOCK_LINE_LIMIT;
 	} else if (!strncmp(parm[0], "vlock_support", 13)) {
 		if (kstrtol(parm[1], 10, &val) < 0)
-			goto dbg_exit;
+			return -EINVAL;
 		temp_val = val;
 		sel = VLOCK_SUPPORT;
 	} else if (!strncmp(parm[0], "enable", 6)) {
@@ -3086,52 +3106,52 @@ ssize_t vlock_debug_store(struct class *cla,
 		vlock_log_print();
 	} else if (!strncmp(parm[0], "phase", 5)) {
 		if (kstrtol(parm[1], 10, &val) < 0)
-			goto dbg_exit;
+			return -EINVAL;
 		vlock_set_phase(val);
 	} else if (!strncmp(parm[0], "phlock_en", 9)) {
 		if (kstrtol(parm[1], 10, &val) < 0)
-			goto dbg_exit;
+			return -EINVAL;
 		vlock_set_phase_en(val);
 	} else if (!strncmp(parm[0], "ss_en", 5)) {
 		if (kstrtol(parm[1], 10, &val) < 0)
-			goto dbg_exit;
+			return -EINVAL;
 		vlock_ss_en = val;
 		pr_info("vlock_ss_en:%d\n", vlock_ss_en);
 	} else if (!strncmp(parm[0], "loop0lmt", 8)) {
 		if (kstrtol(parm[1], 16, &val) < 0)
-			goto dbg_exit;
+			return -EINVAL;
 		loop0_err_lmt = val;
 		pr_info("loop0_err_lmt:%d\n", loop0_err_lmt);
 	} else if (!strncmp(parm[0], "loop1lmt", 8)) {
 		if (kstrtol(parm[1], 16, &val) < 0)
-			goto dbg_exit;
+			return -EINVAL;
 		loop1_err_lmt = val;
 		pr_info("loop1_err_lmt:%d\n", loop1_err_lmt);
 
 	} else if (!strncmp(parm[0], "loop_err_rs", 11)) {
 		if (kstrtol(parm[1], 10, &val) < 0)
-			goto dbg_exit;
+			return -EINVAL;
 		loop_err_rs = val;
 		pr_info("loop_err_rs:%d\n", loop_err_rs);
 
 	} else if (!strncmp(parm[0], "loop_err_gain", 13)) {
 		if (kstrtol(parm[1], 10, &val) < 0)
-			goto dbg_exit;
+			return -EINVAL;
 		loop_err_gain = val;
 		pr_info("loop_err_gain:%d\n", loop_err_gain);
 	} else if (!strncmp(parm[0], "speedup", 7)) {
 		if (kstrtol(parm[1], 10, &val) < 0)
-			goto dbg_exit;
+			return -EINVAL;
 		speed_up_en = val;
 		pr_info("speed_up_en:%d\n", speed_up_en);
 	} else if (!strncmp(parm[0], "loop0_en", 8)) {
 		if (kstrtol(parm[1], 10, &val) < 0)
-			goto dbg_exit;
+			return -EINVAL;
 		loop0_en = val;
 		pr_info("loop0_en:%d\n", loop0_en);
 	} else if (!strncmp(parm[0], "loop1_en", 8)) {
 		if (kstrtol(parm[1], 10, &val) < 0)
-			goto dbg_exit;
+			return -EINVAL;
 		loop1_en = val;
 		pr_info("loop1_en:%d\n", loop1_en);
 	} else {
@@ -3162,10 +3182,10 @@ ssize_t vlock_debug_store(struct class *cla,
 		pr_info("loop_err_rs val\n");
 		pr_info("loop_err_gain val\n");
 		pr_info("speedup 0 or 1\n");
+		pr_info("not_exit 0 or 1\n");
 	}
 	if (sel < VLOCK_PARAM_MAX)
 		vlock_param_set(temp_val, sel);
-dbg_exit:
 	kfree(buf_orig);
 	return count;
 }

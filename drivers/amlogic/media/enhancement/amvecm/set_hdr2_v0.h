@@ -18,6 +18,7 @@
 #include <linux/types.h>
 #include <linux/amlogic/media/vout/vinfo.h>
 #include "hdr/am_hdr10_plus_ootf.h"
+#include "amcsc.h"
 
 #ifndef MAX
 #define MAX(x1, x2) (double)(x1 > x2 ? x1 : x2)
@@ -92,6 +93,12 @@ enum hdr_process_sel {
 	RGB_HDR = 13,
 	RGB_HLG = 14,
 	HDR10P_SDR = 15,
+	SDR_GMT_CONVERT = 16,
+	RGB_YUVF = 17,
+	SDR_RGB_GMT_CONV = 18,
+	SRGB_YUVF = 19,
+	SDR_SRGB_GMT_CONV = 20,
+	IPT_MAP = 21,
 	HDR_p_MAX
 };
 
@@ -134,6 +141,7 @@ struct hdr_proc_mtx_param_s {
 	int mtxo_pos_offset[3];
 	unsigned int mtx_on;
 	enum hdr_process_sel p_sel;
+	unsigned int gmt_bit_mode;
 };
 
 #define OO_BITS			12
@@ -157,7 +165,8 @@ void oetf_float_gen(int64_t *bin_e, MenuFun oetf);
 void nolinear_lut_gen(int64_t *bin_c, MenuFun cgain);
 extern enum hdr_process_sel hdr_func(enum hdr_module_sel module_sel,
 	enum hdr_process_sel hdr_process_select,
-	struct vinfo_s *vinfo);
+	struct vinfo_s *vinfo,
+	struct matrix_s *gmt_mtx);
 /*G12A vpp matrix*/
 enum vpp_matrix_e {
 	VD1_MTX = 0x1,
@@ -203,20 +212,28 @@ int hdr10p_ebzcurve_update(
 enum hdr_process_sel hdr10p_func(
 	enum hdr_module_sel module_sel,
 	enum hdr_process_sel hdr_process_select,
-	struct vinfo_s *vinfo);
+	struct vinfo_s *vinfo,
+	struct matrix_s *gmt_mtx);
 extern void set_ootf_lut(
 	enum hdr_module_sel module_sel,
 	struct hdr_proc_lut_param_s *hdr_lut_param);
 extern struct hdr_proc_lut_param_s hdr_lut_param;
 extern int oo_y_lut_hdr_sdr_def[149];
-void hdr_highclip_by_luma(
-	struct vframe_master_display_colour_s *master_info);
+extern int oo_y_lut_hdr_sdr[149];
+void eo_clip_proc(
+	struct vframe_master_display_colour_s *master_info,
+	unsigned int eo_sel);
+int hdr10_tm_update(
+	enum hdr_module_sel module_sel,
+	enum hdr_process_sel hdr_process_select);
+extern int cgain_lut_bypass[65];
 extern unsigned int hdr10_pr;
 extern unsigned int hdr10_clip_disable;
-extern unsigned int hdr10_force_clip;
 extern unsigned int hdr10_clip_luma;
 extern unsigned int hdr10_clip_margin;
-extern unsigned int hdr10_clip_mode;
 void get_hist(
-	enum hdr_module_sel module_sel,
+	enum vd_path_e vd_path,
 	enum hdr_hist_sel hist_sel);
+#define NUM_HDR_HIST 16
+extern u32 hdr_hist[NUM_HDR_HIST][128];
+extern u32 percentile[9];

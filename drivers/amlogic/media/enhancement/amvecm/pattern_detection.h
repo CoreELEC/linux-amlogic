@@ -59,6 +59,7 @@ extern int pattern_detect_debug;
 extern int detected_pattern;
 extern int last_detected_pattern;
 extern uint pattern_mask;
+
 int pattern_detect_add_checker(
 	int id,
 	int (*newchecker)(struct vframe_s *vf));

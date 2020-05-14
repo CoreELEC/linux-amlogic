@@ -23,7 +23,7 @@
 #include <linux/amlogic/media/vfm/vframe.h>
 #include "linux/amlogic/media/amvecm/ve.h"
 
-#define VLOCK_VER "Ref.2020/03/23:tm2 verb basic function"
+#define VLOCK_VER "Ref.2020/03/27: improve auto pll mode for tm2 verb"
 
 #define VLOCK_REG_NUM	33
 
@@ -89,6 +89,13 @@ struct stvlock_sig_sts {
 	u32 val_m;
 	struct vdin_sts vdinsts;
 };
+
+#define diff(a, b)	\
+	({typeof(a) x = (a);\
+	  typeof(b) y = (b);\
+	  (x > y) ? (x - y) : (y - x);\
+	  })
+
 extern void amve_vlock_process(struct vframe_s *vf);
 extern void amve_vlock_resume(void);
 extern void vlock_param_set(unsigned int val, enum vlock_param_e sel);
@@ -164,8 +171,13 @@ enum vlock_pll_sel {
 
 #define XTAL_VLOCK_CLOCK   24000000/*vlock use xtal clock*/
 
-#define VLOCK_SUPPORT_HDMI (1 << 0)
-#define VLOCK_SUPPORT_CVBS (1 << 1)
+#define VLOCK_SUPPORT_HDMI 0x1
+#define VLOCK_SUPPORT_CVBS 0x2
+/*25 to 50, 30 to 60*/
+#define VLOCK_SUPPORT_1TO2 0x4
+
+#define VLOCK_SUP_MODE	(VLOCK_SUPPORT_HDMI | VLOCK_SUPPORT_CVBS | \
+			 VLOCK_SUPPORT_1TO2)
 
 /*10s for 60hz input,vlock pll stabel cnt limit*/
 #define VLOCK_PLL_STABLE_LIMIT	600

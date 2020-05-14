@@ -63,6 +63,7 @@ struct ve_bext_s {
 #define TREND_WHT_EXP_LUT_LEN 9
 #define DNLP_PARM_MAX_NUM 100
 #define DNLP_VPP_HIST_BIN_NUM 64
+#define HDR_HIST_BIN_NUM 128
 struct ve_dnlp_s {
 	unsigned int      en;
 	unsigned int rt;    /* 0 ~ 255, */
@@ -82,6 +83,7 @@ struct vpp_hist_param_s {
 	unsigned int vpp_luma_sum;
 	unsigned int vpp_pixel_sum;
 	unsigned short vpp_histgram[DNLP_VPP_HIST_BIN_NUM];
+	unsigned int hdr_histgram[HDR_HIST_BIN_NUM];
 };
 struct ve_dnlp_curve_param_s {
 	unsigned int ve_dnlp_scurv_low[DNLP_SCURV_LEN];
@@ -202,8 +204,10 @@ struct ve_dnlp_s {
 
 struct ve_lc_curve_parm_s {
 	unsigned int ve_lc_saturation[63];
-	unsigned int ve_lc_yminval_lmt[12];
-	unsigned int ve_lc_ypkbv_ymaxval_lmt[12];
+	unsigned int ve_lc_yminval_lmt[16];
+	unsigned int ve_lc_ypkbv_ymaxval_lmt[16];
+	unsigned int ve_lc_ymaxval_lmt[16];
+	unsigned int ve_lc_ypkbv_lmt[16];
 	unsigned int ve_lc_ypkbv_ratio[4];
 	unsigned int param[100];
 };

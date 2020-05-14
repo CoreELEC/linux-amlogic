@@ -89,6 +89,8 @@ int *blkwht_ebld_copy;
 int *dnlp_printk_copy;
 
 unsigned char *ve_dnlp_tgt_copy;
+unsigned int *ve_dnlp_tgt_10b_copy;
+
 
 unsigned int *pre_1_gamma_copy;
 unsigned int *pre_0_gamma_copy;
@@ -213,6 +215,7 @@ void dnlp_alg_param_copy(void)
 	blkwht_ebld_copy = dnlp_dbg_ro_param->blkwht_ebld;
 
 	ve_dnlp_tgt_copy = dnlp_alg_output->ve_dnlp_tgt;
+	ve_dnlp_tgt_10b_copy = dnlp_alg_output->ve_dnlp_tgt_10b;
 
 	pre_1_gamma_copy = dnlp_alg_input->pre_1_gamma;
 	pre_0_gamma_copy = dnlp_alg_input->pre_0_gamma;
@@ -259,7 +262,7 @@ void dnlp_alg_param_init(void)
 	dnlp_alg_param.dnlp_lowrange = 18;
 	dnlp_alg_param.dnlp_hghrange = 18;
 	dnlp_alg_param.dnlp_satur_rat = 30;
-	dnlp_alg_param.dnlp_satur_max = 40;
+	dnlp_alg_param.dnlp_satur_max = 0;
 	dnlp_alg_param.dnlp_set_saturtn = 0;
 	dnlp_alg_param.dnlp_sbgnbnd = 4;
 	dnlp_alg_param.dnlp_sendbnd = 4;
@@ -512,6 +515,7 @@ int ve_dnlp_calculate_tgtx(struct vframe_s *vf)
 void ve_dnlp_calculate_lpf(void)
 {
 	ulong i = 0;
+
 	for (i = 0; i < 64; i++)
 		ve_dnlp_lpf[i] = ve_dnlp_lpf[i] -
 		(ve_dnlp_lpf[i] >> ve_dnlp_rt) + ve_dnlp_tgt_copy[i];
@@ -521,7 +525,7 @@ void ve_dnlp_calculate_reg(void)
 {
 	ulong i = 0, j = 0, cur = 0, data = 0,
 			offset = ve_dnlp_rt ? (1 << (ve_dnlp_rt - 1)) : 0;
-	if (is_meson_tl1_cpu()) {
+	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
 		for (i = 0; i < 32; i++) {
 			ve_dnlp_reg_v2[i] = 0;
 			cur = i << 1;
@@ -838,6 +842,7 @@ void ve_set_v3_dnlp(struct ve_dnlp_curve_param_s *p)
 		/* init tgt & lpf */
 		for (i = 0; i < 64; i++) {
 			ve_dnlp_tgt_copy[i] = i << 2;
+			ve_dnlp_tgt_10b_copy[i] = i << 4;
 			ve_dnlp_lpf[i] = (ulong)(ve_dnlp_tgt_copy[i]
 				<< ve_dnlp_rt);
 		}
