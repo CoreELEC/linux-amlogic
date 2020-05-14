@@ -2344,7 +2344,8 @@ static long vdin_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 	/* Get the per-device structure that contains this cdev */
 	devp = file->private_data;
-
+	if (!devp)
+		return -EFAULT;
 	switch (cmd) {
 	case TVIN_IOC_OPEN: {
 		struct tvin_parm_s parm = {0};
@@ -2452,8 +2453,9 @@ static long vdin_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 		devp->flags |= VDIN_FLAG_DEC_STARTED;
 		if (vdin_dbg_en)
-			pr_info("TVIN_IOC_START_DEC port %s, decode started ok\n\n",
-				tvin_port_str(devp->parm.port));
+			pr_info("TVIN_IOC_START_DEC(%d) port %s, decode started ok flags=0x%x\n",
+				devp->index,
+				tvin_port_str(devp->parm.port), devp->flags);
 		mutex_unlock(&devp->fe_lock);
 		break;
 	}
@@ -2577,6 +2579,10 @@ static long vdin_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 		if (copy_to_user(argp, &info, sizeof(struct tvin_info_s)))
 			ret = -EFAULT;
+		if (vdin_dbg_en)
+			pr_info("%s TVIN_IOC_G_SIG_INFO signal_type: 0x%x\n",
+				__func__, info.signal_type);
+
 		mutex_unlock(&devp->fe_lock);
 		break;
 	}
