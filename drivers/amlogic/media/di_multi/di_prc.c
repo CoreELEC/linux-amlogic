@@ -1538,9 +1538,9 @@ bool dip_event_unreg_chst(unsigned int ch)
 		/*wait:*/
 		cnt = 0;
 		chst2 = dip_chst_get(ch);
-		while (chst2 == EDI_TOP_STATE_REG_STEP1_P1 && cnt < 5) {
+		while ((chst2 == EDI_TOP_STATE_REG_STEP1_P1) && (cnt < 20)) {
 			task_send_ready();
-			usleep_range(3000, 3001);
+			usleep_range(10000, 10001);
 			cnt++;
 			chst2 = dip_chst_get(ch);
 		}
@@ -1652,7 +1652,7 @@ void dip_chst_process_reg(unsigned int ch)
 
 	chst = dip_chst_get(ch);
 
-	/*dbg_reg("%s:ch[%d]%s\n", __func__, ch, dip_chst_get_name(chst));*/
+	dbg_reg("%s:ch[%d]%s\n", __func__, ch, dip_chst_get_name(chst));
 
 	switch (chst) {
 	case EDI_TOP_STATE_NOPROB:
@@ -1697,7 +1697,9 @@ void dip_chst_process_reg(unsigned int ch)
 		}
 		break;
 	case EDI_TOP_STATE_REG_STEP1_P1:
+		dbg_reg("%s:p1 a\n", __func__);
 		vframe = pw_vf_peek(ch);
+		dbg_reg("%s:p1 b\n", __func__);
 		if (!vframe) {
 			PR_ERR("%s:p1 vfm nop\n", __func__);
 			dip_chst_set(ch, EDI_TOP_STATE_REG_STEP1);
@@ -1735,7 +1737,7 @@ void dip_chst_process_reg(unsigned int ch)
 			dip_chst_set(ch, EDI_TOP_STATE_REG_STEP2);
 			/*set_reg_flag(ch, true);*/
 		}
-
+		dbg_reg("%s:p1 end\n", __func__);
 		reflesh = true;
 		break;
 	case EDI_TOP_STATE_REG_STEP2:/**/

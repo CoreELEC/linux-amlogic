@@ -7074,6 +7074,7 @@ void di_unreg_variable(unsigned int channel)
 	struct di_pre_stru_s *ppre = get_pre_stru(channel);
 	struct di_dev_s *de_devp = get_dim_de_devp();
 	struct di_ch_s *pch = get_chdata(channel);
+	enum EDI_CMA_ST cma_st;
 
 #if (defined ENABLE_SPIN_LOCK_ALWAYS)
 	ulong flags = 0;
@@ -7107,9 +7108,12 @@ void di_unreg_variable(unsigned int channel)
 	recovery_flag = 0;
 	ppre->cur_prog_flag = 0;
 
-	if (cfgeq(MEM_FLAG, EDI_MEM_M_CMA)	||
-	    cfgeq(MEM_FLAG, EDI_MEM_M_CODEC_A)	||
-	    cfgeq(MEM_FLAG, EDI_MEM_M_CODEC_B)) {
+	cma_st = dip_cma_get_st(channel);
+	if ((cfgeq(MEM_FLAG, EDI_MEM_M_CMA)	||
+	     cfgeq(MEM_FLAG, EDI_MEM_M_CODEC_A)	||
+	     cfgeq(MEM_FLAG, EDI_MEM_M_CODEC_B))	&&
+	    ((cma_st == EDI_CMA_ST_READY	||
+	      cma_st == EDI_CMA_ST_PART))) {
 		dip_wq_cma_run(channel, ECMA_CMD_RELEASE);
 		dip_wq_check_unreg(channel);
 	}
