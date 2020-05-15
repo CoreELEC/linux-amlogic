@@ -1,5 +1,5 @@
 /*
- * include/linux/amlogic/aml_atvdemod.h
+ * drivers/amlogic/dvb/aml_atvdemod.c
  *
  * Copyright (C) 2017 Amlogic, Inc. All rights reserved.
  *
@@ -15,19 +15,4 @@
  *
  */
 
-#ifndef __AML_ATVDEMOD_H__
-#define __AML_ATVDEMOD_H__
-
-#include <linux/amlogic/aml_demod_common.h>
-
-#if (defined CONFIG_AMLOGIC_ATV_DEMOD)
-/* For audio driver get atv audio state */
-void aml_fe_get_atvaudio_state(int *state);
-#else
-static inline void aml_fe_get_atvaudio_state(int *state)
-{
-	*state = 0;
-}
-#endif
-
-#endif /* __AML_ATVDEMOD_H__ */
+#include <linux/amlogic/aml_atvdemod.h>
