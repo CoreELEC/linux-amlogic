@@ -55,7 +55,7 @@
 #define CONFIG_PATH "media.codec_mm"
 #define CONFIG_PREFIX "media"
 
-#define MM_ALIGN_DOWN(addr, size)  ((addr) & (~((size) - 1)))
+#define MM_ALIGN_DOWN_2N(addr, alg2n)  ((addr) & (~((1 << (alg2n)) - 1)))
 #define MM_ALIGN_UP2N(addr, alg2n) ((addr+(1<<alg2n)-1)&(~((1<<alg2n)-1)))
 
 #define RES_IS_MAPED
@@ -1237,7 +1237,7 @@ int codec_mm_extpool_pool_alloc(
 		int retry = 0;
 		try_alloced_size = min_t(int,
 			size - alloced_size, try_alloced_size);
-		try_alloced_size = MM_ALIGN_DOWN(try_alloced_size,
+		try_alloced_size = MM_ALIGN_DOWN_2N(try_alloced_size,
 			RESERVE_MM_ALIGNED_2N);
 		do {
 			mem = codec_mm_alloc(TVP_POOL_NAME,
@@ -1284,7 +1284,7 @@ int codec_mm_extpool_pool_alloc(
 
 		try_alloced_size = min_t(int,
 			size - alloced_size, try_alloced_size);
-		try_alloced_size = MM_ALIGN_DOWN(try_alloced_size,
+		try_alloced_size = MM_ALIGN_DOWN_2N(try_alloced_size,
 			RESERVE_MM_ALIGNED_2N);
 		do {
 			mem = codec_mm_alloc(
