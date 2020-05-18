@@ -462,7 +462,7 @@ enum EDI_WAIT_INT di_pre_wait_int(void *data)
 			DIM_RDMA_WR(DI_INTR_CTRL, data32);
 		}
 #endif
-		di_pre_wait_irq_set(false);
+		/*di_pre_wait_irq_set(false);*/
 		/*finish to count timer*/
 		di_tout_contr(EDI_TOUT_CONTR_FINISH, &pre->tout);
 		spin_lock_irqsave(&plist_lock, flags);
@@ -489,7 +489,10 @@ enum EDI_WAIT_INT di_pre_wait_int(void *data)
 	} else {
 		/*check if timeout:*/
 		if (di_tout_contr(EDI_TOUT_CONTR_CHECK, &pre->tout)) {
-			di_pre_wait_irq_set(false);
+			/*di_pre_wait_irq_set(false);*/
+			if (!atomic_dec_and_test(&get_hw_pre()->flg_wait_int))
+				PR_WARN("%s:timeout\n", __func__);
+
 			/*return K_DO_R_FINISH;*/
 			ret = EDI_WAIT_INT_TIME_OUT;
 		}

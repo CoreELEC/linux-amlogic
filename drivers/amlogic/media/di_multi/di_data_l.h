@@ -382,7 +382,8 @@ struct di_hpre_s {
 	bool hw_flg_busy_pre;
 /*	bool trig_unreg;*/	/*add for unreg flow;*/
 /*	enum EDI_SUB_ID hw_owner_pre;*/
-	bool flg_wait_int;
+	/*bool flg_wait_int;*/
+	atomic_t flg_wait_int;
 	struct di_pre_stru_s *pres;
 	struct di_post_stru_s *psts;
 	struct di_time_out_s tout;	/*for time out*/
@@ -1200,20 +1201,6 @@ static inline void di_set_flg_hw_int(bool on)
 static inline struct di_dbg_reg_log *get_dbg_reg_log(void)
 {
 	return &get_datal()->dbg_data.reg_log;
-}
-
-/**********************
- *
- *	flg_wait_int
- *********************/
-static inline void di_pre_wait_irq_set(bool on)
-{
-	get_hw_pre()->flg_wait_int = on;
-}
-
-static inline bool di_pre_wait_irq_get(void)
-{
-	return get_hw_pre()->flg_wait_int;
 }
 
 static inline struct di_ores_s *get_orsc(unsigned int ch)

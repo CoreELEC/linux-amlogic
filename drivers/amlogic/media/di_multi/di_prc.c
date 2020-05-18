@@ -1703,7 +1703,7 @@ void dip_chst_process_reg(unsigned int ch)
 		if (!vframe) {
 			PR_ERR("%s:p1 vfm nop\n", __func__);
 			dip_chst_set(ch, EDI_TOP_STATE_REG_STEP1);
-
+			reflesh = true;
 			break;
 		}
 		if (pbm->cma_flg_run & DI_BIT0)
