@@ -104,7 +104,7 @@ static void dummy_encp_venc_set(void)
 {
 	unsigned int temp;
 
-	VOUTPR("%s\n", __func__);
+	VOUTPR("%s: dummy_encp_index=%d\n", __func__, dummy_encp_index);
 
 	if (dummy_encp_index == 0) {
 		vout_vcbus_write(ENCP_VIDEO_EN, 0);
@@ -321,10 +321,10 @@ static enum vmode_e dummy_encp_validate_vmode(char *name)
 	int i;
 
 	for (i = 0; i < 2; i++) {
-		if (strncmp(dummy_encp_vinfo[i].name, name,
-			    strlen(dummy_encp_vinfo[i].name)) == 0) {
+		if (strcmp(dummy_encp_vinfo[i].name, name) == 0) {
 			vmode = dummy_encp_vinfo[i].mode;
 			dummy_encp_index = i;
+			break;
 		}
 	}
 
