@@ -106,7 +106,9 @@
 		//	compatible = "shared-dma-pool";
 		//	linux,phandle = <4>;
 		//	reusable;
-		/* 1920x1080x2x4  =16+4 M */
+			/* up to 1920x1080 yuv422 8bit and 5 buffers
+			 * 1920x1080x2x5 = 20 M
+			 */
 		//	size = <0x01400000>;
 		//	alignment = <0x400000>;
 		//};
@@ -114,8 +116,10 @@
 		vdin1_cma_reserved:linux,vdin1_cma {
 			compatible = "shared-dma-pool";
 			reusable;
-			/* 1920x1080x2x4  =16 M */
-			size = <0x01000000>;
+			/* up to 1920x1080 yuv422 8bit and 5 buffers
+			 * 1920x1080x2x5 = 20 M
+			 */
+			size = <0x01400000>;
 			alignment = <0x400000>;
 		};
 		/*  POST PROCESS MANAGER */
@@ -951,14 +955,10 @@
 		status = "ok";
 		reserve-iomap = "true";
 		flag_cma = <1>;/*1:share with codec_mm;2:cma alone*/
-		/*MByte, if 10bit disable: 64M(YUV422),
-		 *if 10bit enable: 64*1.5 = 96M(YUV422)
-		 *if support 4K2K-YUV444-10bit-WR:3840*2160*4*4 ~= 128M
-		 *if support 4K2K-YUV422-10bit-wr:3840*2160*3*4 ~= 96M
-		 *if support 4K2K-YUV422-8BIT-WR:3840*2160*2*4 ~= 64M
-		 *if support 1080p-YUV422-8BIT-WR:1920*1080*2*4 ~= 16M
+		/* up to 1920x1080 yuv422 8bit and 5 buffers
+		 * 1920x1080x2x5 = 20 M
 		 */
-		cma_size = <16>;
+		cma_size = <20>;
 		interrupts = <0 83 1>;
 		rdma-irq = <2>;
 		/*clocks = <&clock CLK_FPLL_DIV5>,
