@@ -72,7 +72,7 @@ static enum vmode_e lcd_validate_vmode(char *mode)
 	if (mode == NULL)
 		return VMODE_MAX;
 
-	if ((strncmp(mode, PANEL_NAME, strlen(PANEL_NAME))) == 0)
+	if ((strcmp(mode, PANEL_NAME)) == 0)
 		return VMODE_LCD;
 
 	return VMODE_MAX;

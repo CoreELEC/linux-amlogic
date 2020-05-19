@@ -43,6 +43,7 @@
 
 /* Local Headers */
 #include "vout_func.h"
+#include "vout_reg.h"
 
 #ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
 #include <linux/amlogic/pm.h>
@@ -1187,7 +1188,8 @@ static int __init get_vout_init_mode(char *str)
 		return -EINVAL;
 
 	do {
-		if (!isalpha(*ptr) && !isdigit(*ptr)) {
+		if (!isalpha(*ptr) && !isdigit(*ptr) &&
+		    (*ptr != '_') && (*ptr != '-')) {
 			find = 1;
 			break;
 		}

@@ -1131,7 +1131,8 @@ static int __init get_vout2_init_mode(char *str)
 		return -EINVAL;
 
 	do {
-		if (!isalpha(*ptr) && !isdigit(*ptr)) {
+		if (!isalpha(*ptr) && !isdigit(*ptr) &&
+		    (*ptr != '_') && (*ptr != '-')) {
 			find = 1;
 			break;
 		}
