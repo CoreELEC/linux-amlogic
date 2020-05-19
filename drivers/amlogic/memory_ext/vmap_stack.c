@@ -99,7 +99,7 @@ bool on_vmap_stack(unsigned long sp, int cpu)
 void notrace __setup_vmap_stack(unsigned long cpu)
 {
 	void *stack;
-
+#define VMAP_MASK		(GFP_ATOMIC | __GFP_ZERO)
 #ifdef CONFIG_THUMB2_KERNEL
 #define TAG	"r"
 #else
@@ -107,10 +107,11 @@ void notrace __setup_vmap_stack(unsigned long cpu)
 #endif
 	stack = vmap_stack[cpu];
 	if (!stack) {
-		stack = kmalloc(THREAD_SIZE, GFP_ATOMIC | __GFP_ZERO);
+		stack = (void *)__get_free_pages(VMAP_MASK, THREAD_SIZE_ORDER);
 		WARN_ON(!stack);
 		vmap_stack[cpu] = stack;
-		irq_stack[cpu] = kmalloc(THREAD_SIZE, GFP_ATOMIC | __GFP_ZERO);
+		irq_stack[cpu] = (void *)__get_free_pages(VMAP_MASK,
+							  THREAD_SIZE_ORDER);
 		WARN_ON(!irq_stack[cpu]);
 	}
 
@@ -770,7 +771,7 @@ void *aml_stack_alloc(int node, struct task_struct *tsk)
 		 * if vmap address space is full, we still need to try
 		 * to get stack from kmalloc
 		 */
-		addr = (unsigned long)kmalloc(THREAD_SIZE, GFP_KERNEL);
+		addr = __get_free_pages(THREAD_SIZE_ORDER, GFP_KERNEL);
 		E("BITMAP FULL, kmalloc task stack:%lx\n", addr);
 		return (void *)addr;
 	}
@@ -814,7 +815,7 @@ void aml_stack_free(struct task_struct *tsk)
 
 	if (unlikely(!is_vmap_addr(stack))) {
 		/* stack get from kmalloc */
-		kfree((void *)stack);
+		free_pages(stack, THREAD_SIZE_ORDER);
 		return;
 	}
 
