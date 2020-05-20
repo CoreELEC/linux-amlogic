@@ -1210,8 +1210,10 @@
 				<GIC_SPI 151 IRQ_TYPE_EDGE_RISING>;
 
 		interrupt-names = "irq_spdifin";
-		pinctrl-names = "spdif_pins";
+		pinctrl-names = "spdif_pins",
+				"spdif_pins_mute";
 		pinctrl-0 = <&spdifout>;
+		pinctrl-1 = <&spdifout_a_mute>;
 
 		/*spdif clk tuning enable*/
 		clk_tuning_enable = <1>;
@@ -1577,9 +1579,16 @@
 
 &pinctrl_aobus {
 	spdifout: spdifout {
-		mux { /* GPIOH_4 */
+		mux { /* GPIOAO_10 */
 			groups = "spdif_out_ao";
 			function = "spdif_out_ao";
+		};
+	};
+
+	spdifout_a_mute: spdifout_a_mute {
+		mux { /* GPIOAO_10 */
+			groups = "GPIOAO_10";
+			function = "gpio_aobus";
 		};
 	};
 };  /* end of pinctrl_aobus */

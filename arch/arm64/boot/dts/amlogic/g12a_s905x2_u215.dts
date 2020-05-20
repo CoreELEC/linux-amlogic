@@ -1508,12 +1508,12 @@
 	//	};
 	//};
 
-	spdifout_a_mute: spdifout_a_mute {
-		mux { /* GPIOH_4 */
-			groups = "GPIOH_4";
-			function = "gpio_periphs";
-		};
-	};
+	//spdifout_a_mute: spdifout_a_mute {
+	//	mux { /* GPIOH_4 */
+	//		groups = "GPIOH_4";
+	//		function = "gpio_periphs";
+	//	};
+	//};
 
 	pdmin: pdmin {
 		mux { /* GPIOC_0, GPIOC_4 */
@@ -1527,9 +1527,16 @@
 
 &pinctrl_aobus {
 	spdifout: spdifout {
-		mux { /* GPIOH_4 */
+		mux { /* GPIOAO_10 */
 			groups = "spdif_out_ao";
 			function = "spdif_out_ao";
+		};
+	};
+
+	spdifout_a_mute: spdifout_a_mute {
+		mux { /* GPIOAO_10 */
+			groups = "GPIOAO_10";
+			function = "gpio_aobus";
 		};
 	};
 
