@@ -124,7 +124,7 @@
 			reusable;
 			/* ion_codec_mm max can alloc size 80M*/
 			//size = <0x0 0x16400000>;
-			size = <0x0 0x21400000>;/*ary*/
+			size = <0x0 0x1b000000>;/*ary*/
 			alignment = <0x0 0x400000>;
 			linux,contiguous-region;
 		};
@@ -1559,7 +1559,7 @@
 /*if you want to use vdin just modify status to "ok"*/
 &vdin0 {
 	/*memory-region = <&vdin0_cma_reserved>;*/
-	status = "okay";
+	status = "disable";
 	/* up to 1920x1080 yuv422 8bit and 5 buffers
 	 * 1920x1080x2x5 = 20 M
 	 */

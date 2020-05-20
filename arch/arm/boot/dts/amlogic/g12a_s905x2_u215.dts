@@ -125,7 +125,7 @@
 			reusable;
 			/* ion_codec_mm max can alloc size 80M*/
 			//size = <0x16400000>;
-			size = <0x21400000>; //ary
+			size = <0x1b000000>; //ary
 			alignment = <0x400000>;
 			linux,contiguous-region;
 		};
