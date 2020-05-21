@@ -495,7 +495,7 @@ void tsync_pcr_pcrscr_set(void)
 	if (tsdemux_pcrvideo_valid_cb &&
 		tsdemux_pcraudio_valid_cb && tsdemux_pcraudio_valid_cb()) {
 		if (cur_checkin_apts == 0xffffffff) {
-			pr_info("tsync_pcr_pcrscr_set not checkin_apts\n ");
+			pr_debug("tsync_pcr_pcrscr_set not checkin_apts\n ");
 		}
 	} else {
 		if (tsync_pcr_debug&0x01)
