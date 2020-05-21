@@ -22,6 +22,7 @@
 #include <linux/interrupt.h>
 #include <linux/fs.h>
 #include <linux/dma-mapping.h>
+#include <linux/of_address.h>
 
 #include <linux/string.h>
 #include <linux/io.h>
@@ -243,6 +244,14 @@ static struct rdma_regadr_s rdma_regadr_tl1[RDMA_NUM] = {
 		31, 31
 	}
 };
+
+static void __iomem *rdma_reg_map;
+
+static void rdma_cbus_write(unsigned int reg, unsigned int val)
+{
+	if (rdma_reg_map)
+		writel(val, rdma_reg_map + reg);
+}
 
 int rdma_register(struct rdma_op_s *rdma_op, void *op_arg, int table_size)
 {
@@ -972,7 +981,13 @@ static struct rdma_device_data_s rdma_g12b = {
 };
 
 static struct rdma_device_data_s rdma_tl1 = {
-	.cpu_type = CPU_NORMAL,
+	.cpu_type = CPU_TL1,
+	.rdma_ver = RDMA_VER_2,
+	.trigger_mask_len = 16,
+};
+
+static struct rdma_device_data_s rdma_sc2 = {
+	.cpu_type = CPU_SC2,
 	.rdma_ver = RDMA_VER_2,
 	.trigger_mask_len = 16,
 };
@@ -989,6 +1004,10 @@ static const struct of_device_id rdma_dt_match[] = {
 	{
 		.compatible = "amlogic, meson-tl1, rdma",
 		.data = &rdma_tl1,
+	},
+	{
+		.compatible = "amlogic, meson-sc2, rdma",
+		.data = &rdma_sc2,
 	},
 	{},
 };
@@ -1091,6 +1110,32 @@ static ssize_t rdma_mgr_trace_reg_stroe(struct class *cla,
 	return count;
 }
 
+static int rdma_cbus_map(struct platform_device *pdev)
+{
+	int ret;
+	struct resource res;
+
+	ret = of_address_to_resource(pdev->dev.of_node, 0, &res);
+	if (ret == 0) {
+		if (res.start != 0) {
+			rdma_reg_map =
+				ioremap(res.start, resource_size(&res));
+			if (rdma_reg_map) {
+				pr_debug("map io source 0x%p,size=%d to 0x%p\n",
+					 (void *)res.start,
+					 (int)resource_size(&res),
+					 rdma_reg_map);
+			}
+		} else {
+			rdma_reg_map = 0;
+			pr_err("ignore io source start %p,size=%d\n",
+			       (void *)res.start, (int)resource_size(&res));
+			return -1;
+		}
+	}
+	return 0;
+}
+
 static struct class_attribute rdma_attrs[] = {
 	__ATTR(trace_enable, 0664,
 		rdma_mgr_trace_enable_show, rdma_mgr_trace_enable_stroe),
@@ -1168,8 +1213,13 @@ static int rdma_probe(struct platform_device *pdev)
 		info->rdma_ins[i].prev_trigger_type = 0;
 		info->rdma_ins[i].rdma_write_count = 0;
 	}
-
-	WRITE_MPEG_REG(RESET4_REGISTER, (1 << 5));
+	if (rdma_meson_dev.cpu_type == CPU_SC2) {
+		ret = rdma_cbus_map(pdev);
+		if (!ret)
+			rdma_cbus_write(RESETCTRL_RESET4, (1 << 5));
+	} else {
+		rdma_cbus_write(RESET4_REGISTER, (1 << 5));
+	}
 
 #ifdef SKIP_OSD_CHANNEL
 	info->rdma_ins[3].used = 1; /* OSD driver uses this channel */

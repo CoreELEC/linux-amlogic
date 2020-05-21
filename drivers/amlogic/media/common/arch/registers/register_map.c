@@ -62,6 +62,7 @@ static inline int codecio_reg_read(u32 bus_type, u32 reg, u32 *val)
 				"Not supported bus type %d or addr %x to read.\n",
 				bus_type,
 				reg);
+			dump_stack();
 			return -1;
 		}
 
@@ -81,6 +82,7 @@ static inline int codecio_reg_write(u32 bus_type, u32 reg, u32 val)
 				"Not supported bus type %d or addr %x to write.\n",
 				bus_type,
 				reg);
+			dump_stack();
 			return -1;
 		}
 

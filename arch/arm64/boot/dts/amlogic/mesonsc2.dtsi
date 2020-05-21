@@ -1337,8 +1337,8 @@
 	canvas: canvas{
 		compatible = "amlogic, meson, canvas";
 		dev_name = "amlogic-canvas";
-		status = "disabled";
-		reg = <0x0 0xff638000 0x0 0x2000>;
+		status = "okay";
+		reg = <0x0 0xfe036000 0x0 0x2000>;
 	};
 
 	ge2d {
@@ -1366,30 +1366,30 @@
 
 	codec_io: codec_io {
 		compatible = "amlogic, codec_io";
-		status = "disabled";
+		status = "okay";
 		#address-cells=<2>;
 		#size-cells=<2>;
 		ranges;
 		io_cbus_base{
-			reg = <0x0 0xffd00000 0x0 0x100000>;
+			reg = <0x0 0 0x0 0>;
 		};
 		io_dos_base{
-			reg = <0x0 0xff620000 0x0 0x10000>;
+			reg = <0x0 0xfe320000 0x0 0x10000>;
 		};
 		io_hiubus_base{
-			reg = <0x0 0xff63c000 0x0 0x2000>;
+			reg = <0x0 0 0x0 0>;
 		};
 		io_aobus_base{
-			reg = <0x0 0xff800000 0x0 0x10000>;
+			reg = <0x0 0 0x0 0>;
 		};
 		io_vcbus_base{
-			reg = <0x0 0xff900000 0x0 0x40000>;
+			reg = <0x0 0xff000000 0x0 0x40000>;
 		};
 		io_dmc_base{
-			reg = <0x0 0xff638000 0x0 0x2000>;
+			reg = <0x0 0xfe036000 0x0 0x2000>;
 		};
 		io_efuse_base{
-			reg = <0x0 0xff630000 0x0 0x2000>;
+			reg = <0x0 0 0x0 0>;
 		};
 	};
 
@@ -1473,11 +1473,13 @@
 	};
 
 	rdma{
-		compatible = "amlogic, meson, rdma";
+		compatible = "amlogic, meson-sc2, rdma";
 		dev_name = "amlogic-rdma";
-		status = "disabled";
+		status = "okay";
 		interrupts = <0 89 1>;
 		interrupt-names = "rdma";
+		/* after sc2 */
+		reg = <0x0 0xfe002000 0x0 0x400>;
 	};
 
 	meson_fb: fb {

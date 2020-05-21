@@ -34,6 +34,7 @@
 	MESON_CPU_MAJOR_ID_TL1, \
 	MESON_CPU_MAJOR_ID_SM1, \
 	MESON_CPU_MAJOR_ID_TM2, \
+	MESON_CPU_MAJOR_ID_SC2, \
 			0}
 #define REGISTER_FOR_GXCPU {\
 	MESON_CPU_MAJOR_ID_GXBB, \
@@ -48,6 +49,7 @@
 	MESON_CPU_MAJOR_ID_TL1, \
 	MESON_CPU_MAJOR_ID_SM1, \
 	MESON_CPU_MAJOR_ID_TM2, \
+	MESON_CPU_MAJOR_ID_SC2, \
 			0}
 
 static struct chip_register_ops m8_ops[] __initdata = {
