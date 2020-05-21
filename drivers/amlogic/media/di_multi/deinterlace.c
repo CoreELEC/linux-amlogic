@@ -3165,7 +3165,7 @@ void dim_pre_de_process(unsigned int channel)
 		dimh_enable_di_pre_mif(true, dimp_get(edi_mp_mcpre_en));
 	}
 	/*dbg_set_DI_PRE_CTRL();*/
-	di_pre_wait_irq_set(true);
+	atomic_set(&get_hw_pre()->flg_wait_int, 1);
 	di_unlock_irqfiq_restore(irq_flag2);
 	/*reinit pre busy flag*/
 	ppre->pre_de_busy = 1;
@@ -4745,7 +4745,8 @@ irqreturn_t dim_irq(int irq, void *dev_instance)
 #endif
 
 	/*if (ppre->pre_de_busy == 0) {*/
-	if (!di_pre_wait_irq_get()) {
+	/*if (!di_pre_wait_irq_get()) {*/
+	if (!atomic_dec_and_test(&get_hw_pre()->flg_wait_int)) {
 		PR_ERR("%s:ch[%d]:enter:reg[0x%x]= 0x%x,dtab[%d]\n", __func__,
 		       channel,
 		       DI_INTR_CTRL,
