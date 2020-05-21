@@ -1458,6 +1458,7 @@ bool dip_event_unreg_chst(unsigned int ch)
 	bool ret = false;
 	bool err_flg = false;
 	unsigned int cnt;
+	struct di_mng_s *pbm = get_bufmng();
 
 	chst = dip_chst_get(ch);
 	dbg_reg("%s:ch[%d]:%s\n", __func__, ch, dip_chst_get_name(chst));
@@ -1596,6 +1597,7 @@ bool dip_event_unreg_chst(unsigned int ch)
 
 		break;
 	case EDI_TOP_STATE_REG_STEP2:
+		#ifdef MARK_HIS
 		di_vframe_unreg(ch);
 		di_unreg_variable(ch);
 		set_reg_flag(ch, false);
@@ -1604,8 +1606,32 @@ bool dip_event_unreg_chst(unsigned int ch)
 			dpre_init();
 			dpost_init();
 		}
-
+		dbg_reg("%s:unreg reg step2\n", __func__);
+		#else
+		ppre->unreg_req_flag_cnt = 0;
+		while (pbm->cma_flg_run & DI_BIT0) {
+			usleep_range(10000, 10001);
+			if (ppre->unreg_req_flag_cnt++ >
+				dim_get_reg_unreg_cnt()) {
+				dim_reg_timeout_inc();
+				PR_ERR("%s:unreg_reg2_flag timeout!!!\n",
+				       __func__);
+				di_vframe_unreg(ch);
+				err_flg = true;
+				break;
+			}
+		}
+		di_vframe_unreg(ch);
+		di_unreg_variable(ch);
+		set_reg_flag(ch, false);
+		if (!get_reg_flag_all()) {
+			di_unreg_setting();
+			dpre_init();
+			dpost_init();
+		}
 		dip_chst_set(ch, EDI_TOP_STATE_IDLE);
+		dbg_reg("%s:unreg reg step2\n", __func__);
+		#endif
 		ret = true;
 		break;
 	case EDI_TOP_STATE_UNREG_STEP1:
@@ -1706,8 +1732,12 @@ void dip_chst_process_reg(unsigned int ch)
 			reflesh = true;
 			break;
 		}
-		if (pbm->cma_flg_run & DI_BIT0)
+
+		if (pbm->cma_flg_run & DI_BIT0) {
+			dbg_reg("%s:p1 c\n", __func__);
+			dip_chst_set(ch, EDI_TOP_STATE_UNREG_STEP3);
 			break;
+		}
 
 		di_reg_variable(ch, vframe);
 		/*di_reg_process_irq(ch);*/ /*check if bypass*/
@@ -1794,6 +1824,23 @@ void dip_chst_process_reg(unsigned int ch)
 
 		dip_chst_set(ch, EDI_TOP_STATE_IDLE);
 		/*debug only dbg_reg("ch[%d]UNREG_STEP2 end\n",ch);*/
+		break;
+	case EDI_TOP_STATE_UNREG_STEP3:
+		dbg_reg("%s:ch[%d]:UNREG_STEP3\n", __func__, ch);
+		ppre->reg_req_flag_cnt = 0;
+		while (pbm->cma_flg_run & DI_BIT0) {
+			usleep_range(10000, 10001);
+			if (ppre->reg_req_flag_cnt++ >
+				dim_get_reg_unreg_cnt()) {
+				dim_reg_timeout_inc();
+				PR_ERR("%s,ch[%d] reg timeout!!!\n",
+				       __func__, ch);
+				break;
+			}
+		}
+		dip_chst_set(ch, EDI_TOP_STATE_REG_STEP1_P1);
+		task_send_cmd(LCMD1(ECMD_REG, ch));
+		dbg_reg("ch[%d]UNREG_STEP3 end\n", ch);
 		break;
 	}
 	}
