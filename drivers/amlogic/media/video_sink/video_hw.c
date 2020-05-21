@@ -3574,6 +3574,17 @@ s32 config_vd_blend(
 		setting->preblend_h_end =
 			cur_frame_par->video_input_w - 1;
 	}
+	if (layer->dispbuf &&
+	    (layer->dispbuf->type & VIDTYPE_MVC)) {
+		setting->preblend_v_start =
+			cur_frame_par->VPP_vd_start_lines_;
+		setting->preblend_v_end = y_lines;
+		setting->preblend_h_start =
+			cur_frame_par->VPP_hd_start_lines_;
+		setting->preblend_h_end =
+			cur_frame_par->VPP_hd_end_lines_;
+	}
+
 	if ((cur_frame_par->VPP_post_blend_vd_v_end_ -
 	     cur_frame_par->VPP_post_blend_vd_v_start_ + 1)
 	    > VPP_PREBLEND_VD_V_END_LIMIT) {
