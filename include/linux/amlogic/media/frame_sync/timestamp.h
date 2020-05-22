@@ -28,15 +28,25 @@ extern void timestamp_vpts_set(u32 pts);
 
 extern void timestamp_vpts_inc(s32 val);
 
+u64 timestamp_vpts_get_u64(void);
+
+void timestamp_vpts_set_u64(u64 pts);
+
+void timestamp_vpts_inc_u64(s32 val);
+
 extern u32 timestamp_apts_get(void);
 
 extern void timestamp_apts_set(u32 pts);
+
+u64 timestamp_apts_get_u64(void);
 
 extern void timestamp_apts_inc(s32 val);
 
 extern u32 timestamp_pcrscr_get(void);
 
 extern void timestamp_pcrscr_set(u32 pts);
+
+u64 timestamp_pcrscr_get_u64(void);
 
 extern void timestamp_pcrscr_inc(s32 val);
 
