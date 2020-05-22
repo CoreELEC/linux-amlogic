@@ -1698,6 +1698,21 @@
 		status = "okay";
 	};
 
+	vout: vout {
+		compatible = "amlogic, vout";
+		status = "okay";
+		fr_auto_policy = <0>;
+	};
+
+	vout2: vout2 {
+		compatible = "amlogic, vout2";
+		status = "disabled";
+		clocks = <&clkc CLKID_VPU_CLKC_P0_COMP>,
+			<&clkc CLKID_VPU_CLKC_MUX>;
+		clock-names = "vpu_clkc0",
+		"vpu_clkc";
+	};
+
 	vdac {
 		compatible = "amlogic, vdac-tm2";
 		status = "okay";

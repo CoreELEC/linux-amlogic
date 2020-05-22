@@ -256,11 +256,6 @@
 		nrds-enable = <1>;
 		pps-enable = <1>;
 	};
-	vout {
-		compatible = "amlogic, vout";
-		status = "okay";
-		fr_auto_policy = <0>;
-	};
 
 	/* Audio Related start */
 	pdm_codec:dummy {

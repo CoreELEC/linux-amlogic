@@ -198,12 +198,6 @@
 		pps-enable = <1>;
 	};
 
-	vout {
-		compatible = "amlogic, vout";
-		status = "okay";
-		fr_auto_policy = <0>;
-	};
-
 	pdm_codec:dummy {
 		#sound-dai-cells = <0>;
 		compatible = "amlogic, pdm_dummy_codec";
