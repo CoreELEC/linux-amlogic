@@ -1614,7 +1614,7 @@ static unsigned long _test_fixed_adj(struct amlsd_platform *pdata,
 }
 
 static u32 _find_fixed_adj_mid(unsigned long map,
-		u32 adj, u32 div)
+		u32 adj, u32 div, u32 core_phase)
 {
 	u32 left, right, mid, size = 0;
 
@@ -1626,6 +1626,8 @@ static u32 _find_fixed_adj_mid(unsigned long map,
 			left, right, mid, size);
 	if ((size >= 3) && ((mid < right) || (mid > left))) {
 		mid = (adj + (size - 1) / 2 + (size - 1) % 2) % div;
+		if ((mid == (core_phase - 1)) && (div == 5))
+			return NO_FIXED_ADJ_MID;
 		return mid;
 	}
 	return NO_FIXED_ADJ_MID;
@@ -1671,6 +1673,8 @@ static u32 _find_fixed_adj_valid_win(struct amlsd_platform *pdata,
 	unsigned long prev_map[1] = {0};
 	unsigned long tmp[1] = {0};
 	unsigned long dst[1] = {0};
+	struct para_e *para = &pdata->host->data->sdmmc;
+	u32 cop = para->hs2.core_phase;
 
 	div = (div == AML_FIXED_ADJ_MIN) ?
 			AML_FIXED_ADJ_MIN : AML_FIXED_ADJ_MAX;
@@ -1693,9 +1697,14 @@ static u32 _find_fixed_adj_valid_win(struct amlsd_platform *pdata,
 					fir_adj, div);
 			pr_adj_info(">>>>>>>>prev_map_range",
 					*prev_map, fir_adj, div);
-			ret = _find_fixed_adj_mid(*prev_map, fir_adj, div);
+			ret = _find_fixed_adj_mid(*prev_map, fir_adj, div, cop);
 			if (ret != NO_FIXED_ADJ_MID) {
-				set_fixed_adj_line_delay(0, pdata);
+		/* pre adj=core phase-1="hole"&&200MHZ,all line delay+step*/
+				if (((ret - 1) == (cop - 1)) && (div == 5))
+					set_fixed_adj_line_delay(
+					AML_FIXED_ADJ_STEP, pdata);
+				else
+					set_fixed_adj_line_delay(0, pdata);
 				return ret;
 			}
 
@@ -1708,9 +1717,15 @@ static u32 _find_fixed_adj_valid_win(struct amlsd_platform *pdata,
 		*prev_map = *cur_map;
 		*cur_map = _swap_fixed_adj_win(*cur_map, fir_adj, div);
 		pr_adj_info(">>>>>>>>cur_map_range", *cur_map, fir_adj, div);
-		ret = _find_fixed_adj_mid(*cur_map, fir_adj, div);
-		if (ret != NO_FIXED_ADJ_MID)
+		ret = _find_fixed_adj_mid(*cur_map, fir_adj, div, cop);
+		if (ret != NO_FIXED_ADJ_MID) {
+		/* pre adj=core phase-1="hole"&&200MHZ, all line delay+step */
+			if (((ret - 1) == (cop - 1)) && (div == 5)) {
+				step += AML_FIXED_ADJ_STEP;
+				set_fixed_adj_line_delay(step, pdata);
+			}
 			return ret;
+		}
 	}
 
 	pr_info("[%s][%d] no fixed adj\n", __func__, __LINE__);
