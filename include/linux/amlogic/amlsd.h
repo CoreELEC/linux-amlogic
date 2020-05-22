@@ -20,11 +20,11 @@
 #include <linux/of_gpio.h>
 
 /* ptm or pxp simulation */
-/* #define CONFIG_MESON_CPU_EMULATOR */
+/*#define CONFIG_MESON_CPU_EMULATOR*/
 /* #define SD_EMMC_DEBUG_BOARD */
 /* hardcode clock, for debug or bringup */
-/* #define SD_EMMC_CLK_CTRL	(1) */
-/* #define SD_EMMC_PIN_CTRL	(1) */
+#define SD_EMMC_CLK_CTRL	(1)
+/*#define SD_EMMC_PIN_CTRL	(1)*/
 
 #define AML_MMC_MAJOR_VERSION   3
 #define AML_MMC_MINOR_VERSION   02
@@ -42,7 +42,7 @@ extern const u8 tuning_blk_pattern_8bit[128];
 #define DEBUG_SD_OF		0
 #define MODULE_NAME		"amlsd"
 /* #define CARD_DETECT_IRQ    1 */
-#define SD_EMMC_DEBUG_BOARD 1
+/*#define SD_EMMC_DEBUG_BOARD 1*/
 
 #if 0
 #define A0_GP_CFG0			(0xc8100240)

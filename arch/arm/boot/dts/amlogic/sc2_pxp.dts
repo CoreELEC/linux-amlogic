@@ -1678,7 +1678,7 @@
 
 
 &sd_emmc_c {
-	status = "disabled";
+	status = "okay";
 	emmc {
 		caps = "MMC_CAP_8_BIT_DATA",
 			 "MMC_CAP_MMC_HIGHSPEED",
@@ -1689,14 +1689,14 @@
 			 "MMC_CAP_ERASE",
 			 "MMC_CAP_CMD23",
 			 "MMC_CAP_DRIVER_TYPE_D";
-		caps2 = "MMC_CAP2_HS200", "MMC_CAP2_HS400";
+		/*caps2 = "MMC_CAP2_HS200", "MMC_CAP2_HS400";*/
 		f_min = <400000>;
 		f_max = <200000000>;
 	};
 };
 
 &sd_emmc_b {
-	status = "disabled";
+	status = "okay";
 	sd {
 		caps = "MMC_CAP_4_BIT_DATA",
 			 "MMC_CAP_MMC_HIGHSPEED",

@@ -647,6 +647,7 @@ void aml_cs_high(struct mmc_host *mmc) /* chip select high */
 	struct amlsd_platform *pdata = mmc_priv(mmc);
 	struct amlsd_host *host = pdata->host;
 
+	return;
 	if ((mmc->ios.chip_select == MMC_CS_HIGH)
 			&& (pdata->gpio_dat3 != 0)) {
 		aml_devm_pinctrl_put(host);
