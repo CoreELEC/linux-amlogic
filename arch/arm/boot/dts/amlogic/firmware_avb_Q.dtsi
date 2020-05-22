@@ -37,14 +37,14 @@
 				dev = "odm";
 				type = "ext4";
 				mnt_flags = "ro,barrier=1,inode_readahead_blks=8";
-				fsmgr_flags = "wait,logical,first_stage_mount";
+				fsmgr_flags = "wait,avb,logical,first_stage_mount";
 				};
 			product {
 				compatible = "android,product";
 				dev = "product";
 				type = "ext4";
 				mnt_flags = "ro,barrier=1,inode_readahead_blks=8";
-				fsmgr_flags = "wait,logical,first_stage_mount";
+				fsmgr_flags = "wait,avb,logical,first_stage_mount";
 				};
 			metadata {
 				compatible = "android,metadata";
