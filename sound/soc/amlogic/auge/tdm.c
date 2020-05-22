@@ -396,16 +396,17 @@ static int aml_tdm_prepare(struct snd_pcm_substream *substream)
 
 		if (p_tdm->chipinfo && p_tdm->chipinfo->async_fifo) {
 			int offset = p_tdm->chipinfo->reset_reg_offset;
+			int ss = p_tdm->samesource_sel;
 
 			pr_debug("%s(), reset fddr\n", __func__);
 			aml_frddr_reset(p_tdm->fddr, offset);
 			aml_tdm_out_reset(p_tdm->id, offset);
 
-			if (p_tdm->chipinfo->same_src_fn
-				&& (p_tdm->samesource_sel >= 0)
-				&& (aml_check_sharebuffer_valid(p_tdm->fddr,
-					p_tdm->samesource_sel))
-				&& p_tdm->en_share)
+			if (p_tdm->chipinfo->same_src_fn &&
+			    (p_tdm->samesource_sel >= 0) &&
+			    aml_check_sharebuffer_valid(p_tdm->fddr, ss) &&
+			    (runtime->channels > 2) &&
+			    p_tdm->en_share)
 				aml_spdif_out_reset(p_tdm->samesource_sel - 3,
 						offset);
 		}
