@@ -842,16 +842,14 @@
 		};
 	}; /* end of soc*/
 
-	remote:rc@0xff808040 {
+	remote:rc@0xfe084000 {
 		compatible = "amlogic, aml_remote";
 		dev_name = "meson-remote";
-		reg = <0xff808040 0x44>, /*Multi-format IR controller*/
-			<0xff808000 0x20>; /*Legacy IR controller*/
-		status = "disabled";
+		reg = <0xfe084040 0x44>, /*Multi-format IR controller*/
+			<0xfe084000 0x20>; /*Legacy IR controller*/
+		status = "okay";
 		protocol = <REMOTE_TYPE_NEC>;
-		led_blink = <1>;
-		led_blink_frq = <100>;
-		interrupts = <0 196 1>;
+		interrupts = <GIC_SPI 22 IRQ_TYPE_EDGE_RISING>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&remote_pins>;
 		map = <&custom_maps>;
@@ -1943,6 +1941,13 @@
 };
 
 &pinctrl_periphs {
+	remote_pins:remote_pin {
+		mux {
+			groups = "remote_input_d5";
+			function = "remote_input";
+		};
+	};
+
 	/* sdemmc portC */
 	emmc_clk_cmd_pins:emmc_clk_cmd_pins {
 		mux {
@@ -2553,13 +2558,6 @@
 };
 
 &pinctrl_aobus {
-	remote_pins:remote_pin {
-		mux {
-			groups = "remote_input_ao";
-			function = "remote_input_ao";
-		};
-	};
-
 	irblaster_pins:irblaster_pin {
 		mux {
 			groups = "remote_out_ao";
