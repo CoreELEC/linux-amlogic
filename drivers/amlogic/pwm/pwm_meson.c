@@ -170,9 +170,16 @@ static int meson_pwm_calc(struct meson_pwm *meson,
 	if (~(meson->inverter_mask >> id) & 0x1)
 		duty = period - duty;
 
-	if (period == channel->state.period &&
-	    duty == channel->state.duty_cycle)
-		return 0;
+	/* 1. Remove unnecessary logic.
+	 * 2. When the polarity is 1, it may cause false early return.
+	 * For example the following:
+	 * duty_cycle = 0 period = 5555555 enabled = 1 polarity = 1
+	 * duty_cycle = 5555555 period = 5555555 enabled = 1 polarity = 1
+	 *
+	 * if (period == channel->state.period &&
+	 *	duty == channel->state.duty_cycle)
+	 *	return 0;
+	 */
 
 	fin_freq = clk_get_rate(channel->clk);
 	if (fin_freq == 0) {
