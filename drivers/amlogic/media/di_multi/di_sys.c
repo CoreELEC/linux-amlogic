@@ -349,10 +349,13 @@ static unsigned int dpst_cma_alloc(struct di_dev_s *devp, unsigned int channel)
 	bool aret;
 	struct dim_mm_s omm;
 	u64	time1, time2;
+	ulong flags = 0;
 
 	time1 = cur_to_usecs();
 	if (dimp_get(edi_mp_post_wr_en) && dimp_get(edi_mp_post_wr_support)) {
+		spin_lock_irqsave(&plist_lock, flags);
 		di_que_list(channel, QUE_POST_FREE, &tmpa[0], &psize);
+		spin_unlock_irqrestore(&plist_lock, flags);
 		for (itmp = 0; itmp < psize; itmp++) {
 			buf_p = pw_qindex_2_buf(channel, tmpa[itmp]);
 			if (buf_p->pages) {
