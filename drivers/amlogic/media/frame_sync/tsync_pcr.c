@@ -226,6 +226,7 @@ static u32 last_pcr_checkin_vpts;
 static u32 last_pcr_checkin_apts_count;
 static u32 last_pcr_checkin_vpts_count;
 static DEFINE_SPINLOCK(tsync_pcr_lock);
+static bool video_pid_valid;
 
 
 module_param(tsync_pcr_max_cache_time, uint, 0664);
@@ -1021,12 +1022,13 @@ static void tsync_process_discontinue(void)
 		tsync_pcr_tsdemuxpcr_discontinue = 0;
 	}
 }
-
 void tsync_pcr_check_checinpts(void)
 {
 	u32 checkin_vpts = 0;
 	u32 checkin_apts = 0;
 	int max_gap;
+	u32 cur_vpts = 0;
+	int clear_audio_discontinue = 0;
 
 	if (tsync_pcr_astart_flag == 1) {
 		checkin_apts = get_last_checkin_pts(PTS_TYPE_AUDIO);
@@ -1071,13 +1073,34 @@ void tsync_pcr_check_checinpts(void)
 					last_discontinue_checkin_apts =
 						last_pcr_checkin_apts;
 					tsync_audio_continue_count = 1;
+					if (tsync_pcr_debug & 0x03)
+						pr_info("a_last:%x, cur:%x\n",
+							last_pcr_checkin_apts,
+							checkin_apts);
 				}
 				last_pcr_checkin_apts = checkin_apts;
 				last_pcr_checkin_apts_count = 0;
 			}
 			if (tsync_audio_continue_count)
 				tsync_audio_continue_count++;
-			if (tsync_audio_continue_count > 50 &&
+			if (tsync_audio_discontinue && video_pid_valid) {
+				cur_vpts = timestamp_vpts_get();
+				if (last_discontinue_checkin_apts &&
+				    abs(cur_vpts -
+					last_discontinue_checkin_apts) <
+					5000 * 90) {
+					pr_info("cur_vpts=%x,last_apts=%x\n",
+						cur_vpts,
+						last_discontinue_checkin_apts);
+					clear_audio_discontinue = 1;
+				} else if (tsync_audio_continue_count > 500) {
+					pr_info("a_continue timeout,clear\n");
+					clear_audio_discontinue = 1;
+				}
+			}
+			if (((!video_pid_valid &&
+			      tsync_audio_continue_count > 50) ||
+				(video_pid_valid && clear_audio_discontinue)) &&
 				tsync_audio_discontinue &&
 				last_discontinue_checkin_apts) {
 				tsync_audio_discontinue = 0;
@@ -1197,7 +1220,7 @@ void tsync_pcr_avevent_locked(enum avevent_e event, u32 param)
 		tsync_pcr_discontinue_local_point = 0;
 		tsync_pcr_discontinue_waited = 0;
 		tsync_pcr_first_video_frame_pts = 0;
-
+		video_pid_valid = false;
 		tsync_pcr_tsdemux_startpcr = 0;
 		play_mode = PLAY_MODE_NORMAL;
 		pr_info("video stop!\n");
@@ -1343,7 +1366,6 @@ static unsigned long tsync_pcr_check(void)
 	int64_t last_checkin_minpts = 0;
 	u32 cur_apts = 0;
 	u32 cur_vpts = 0;
-	bool video_pid_valid = false;
 
 	if (tsync_get_mode() != TSYNC_MODE_PCRMASTER
 		|| tsync_pcr_freerun_mode == 1)
@@ -1553,6 +1575,7 @@ static void tsync_pcr_param_reset(void)
 	tsync_vpts_adjust = 0;
 	last_discontinue_checkin_vpts = 0;
 	tsync_video_discontinue = 0;
+	video_pid_valid = false;
 }
 
 int tsync_pcr_set_apts(unsigned int pts)
