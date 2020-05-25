@@ -373,8 +373,9 @@ static int dmc_monitor_probe(struct platform_device *pdev)
 	dmc_mon->port_num = ports;
 	dmc_mon->port = desc;
 	if (dmc_mon->chip >= MESON_CPU_MAJOR_ID_G12A) {
-		if ((dmc_mon->chip == MESON_CPU_MAJOR_ID_TM2) &&
-		    is_meson_rev_b())
+		if (((dmc_mon->chip == MESON_CPU_MAJOR_ID_TM2) &&
+		     is_meson_rev_b()) ||
+		    (dmc_mon->chip == MESON_CPU_MAJOR_ID_SC2))
 			dmc_mon->ops = &tm2_dmc_mon_ops;
 		else
 			dmc_mon->ops = &g12_dmc_mon_ops;
