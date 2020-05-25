@@ -6541,16 +6541,30 @@ static int osd_setting_blending_scope(u32 index)
 		osd_log_err("error osd index=%d\n", index);
 		return -1;
 	}
-	bld_osd_h_start =
-		osd_hw.dst_data[index].x;
-	bld_osd_h_end =
-		osd_hw.dst_data[index].x +
-		osd_hw.dst_data[index].w - 1;
-	bld_osd_v_start =
-		osd_hw.dst_data[index].y;
-	bld_osd_v_end =
-		osd_hw.dst_data[index].y +
-		osd_hw.dst_data[index].h - 1;
+
+	if (index == OSD1) {
+		bld_osd_h_start =
+			osd_hw.src_data[index].x;
+		bld_osd_h_end =
+			osd_hw.src_data[index].x +
+			osd_hw.src_data[index].w - 1;
+		bld_osd_v_start =
+			osd_hw.src_data[index].y;
+		bld_osd_v_end =
+			osd_hw.src_data[index].y +
+			osd_hw.src_data[index].h - 1;
+	} else {
+		bld_osd_h_start =
+			osd_hw.dst_data[index].x;
+		bld_osd_h_end =
+			osd_hw.dst_data[index].x +
+			osd_hw.dst_data[index].w - 1;
+		bld_osd_v_start =
+			osd_hw.dst_data[index].y;
+		bld_osd_v_end =
+			osd_hw.dst_data[index].y +
+			osd_hw.dst_data[index].h - 1;
+	}
 
 	osd_log_dbg(MODULE_BLEND, "osd%d_hw.dst_data:%d,%d,%d,%d\n",
 		index,
