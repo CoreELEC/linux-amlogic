@@ -897,12 +897,15 @@ static int refresh_tvout_mode(void)
 	char cur_mode_str[VMODE_NAME_LEN_MAX];
 	int hpd_state = 0;
 	struct vinfo_s *info = get_current_vinfo();
+	static int last_hpd_state;
 
 	if (tvout_monitor_flag == 0)
 		return 0;
 
 	hpd_state = vout_get_hpd_state();
 	if (hpd_state) {
+		if (hpd_state == last_hpd_state)
+			return 0;
 		/* Vout will check the checksum of EDID of uboot and kernel.
 		 * If checksum is different. Vout will set null to display/mode.
 		 * When systemcontrol bootup, it will set the correct mode and
@@ -924,6 +927,7 @@ static int refresh_tvout_mode(void)
 		cur_vmode = validate_vmode(cvbsmode);
 		snprintf(cur_mode_str, VMODE_NAME_LEN_MAX, "%s", cvbsmode);
 	}
+	last_hpd_state = hpd_state;
 	if (cur_vmode >= VMODE_MAX) {
 		VOUTERR("%s: no matched cur_mode: %s, force to invalid\n",
 			__func__, cur_mode_str);

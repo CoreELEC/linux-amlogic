@@ -4832,9 +4832,10 @@ static int hdmitx_set_current_vmode(enum vmode_e mode)
 
 	if (!(mode & VMODE_INIT_BIT_MASK))
 		set_disp_mode_auto();
-	else
+	else {
 		pr_info("alread display in uboot\n");
-
+		edidinfo_attach_to_vinfo(&hdmitx_device);
+	}
 	return 0;
 }
 
@@ -5400,23 +5401,11 @@ static int hdmi_task_handle(void *data)
 	struct vinfo_s *info = NULL;
 	struct hdmitx_dev *hdmitx_device = (struct hdmitx_dev *)data;
 
-	hdmitx_extcon_hdmi->state = !!(hdmitx_device->hwop.cntlmisc(
-		hdmitx_device, MISC_HPD_GPI_ST, 0));
-	hdmitx_device->hpd_state = hdmitx_extcon_hdmi->state;
+	hdmitx_extcon_hdmi->state = hdmitx_device->hpd_state;
 	hdmitx_notify_hpd(hdmitx_device->hpd_state);
-	if (hdmitx_device->hpd_state)
-		hdmitx_device->already_used = 1;
 
 	extcon_set_state_sync(hdmitx_extcon_power, EXTCON_DISP_HDMI,
 		hdmitx_device->hpd_state);
-
-/* When init hdmi, clear the hdmitx module edid ram and edid buffer. */
-	hdmitx_edid_clear(hdmitx_device);
-	hdmitx_edid_ram_buffer_clear(hdmitx_device);
-	if (hdmitx_device->hpd_state) {
-		hdmitx_get_edid(hdmitx_device);
-		edidinfo_attach_to_vinfo(hdmitx_device);
-	}
 
 	INIT_WORK(&hdmitx_device->work_hdr, hdr_work_func);
 	hdmitx_device->hdmi_wq = alloc_workqueue(DEVICE_NAME,
@@ -6134,11 +6123,16 @@ static int amhdmitx_probe(struct platform_device *pdev)
 
 	HDMITX_Meson_Init(&hdmitx_device);
 
+	/* When init hdmi, clear the hdmitx module edid ram and edid buffer. */
+	hdmitx_edid_clear(&hdmitx_device);
+	hdmitx_edid_ram_buffer_clear(&hdmitx_device);
 	hdmitx_device.hpd_state = !!(hdmitx_device.hwop.cntlmisc(
 		&hdmitx_device, MISC_HPD_GPI_ST, 0));
-	if (hdmitx_device.hpd_state)
+	if (hdmitx_device.hpd_state) {
 		hdmitx_device.already_used = 1;
-
+		/* need to get edid before vout probe */
+		hdmitx_get_edid(&hdmitx_device);
+	}
 
 	vout_register_server(&hdmitx_vout_server);
 #ifdef CONFIG_AMLOGIC_VOUT2_SERVE
@@ -6158,7 +6152,6 @@ static int amhdmitx_probe(struct platform_device *pdev)
 
 	hdmitx_device.task = kthread_run(hdmi_task_handle,
 		&hdmitx_device, "kthread_hdmi");
-	edidinfo_attach_to_vinfo(&hdmitx_device);
 	pr_info(SYS "amhdmitx_probe end\n");
 
 	return r;
