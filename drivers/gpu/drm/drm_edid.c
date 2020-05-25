@@ -1535,10 +1535,12 @@ struct edid *drm_do_get_edid(struct drm_connector *connector,
 		if (drm_edid_block_valid(edid, 0, print_bad_edid,
 					 &connector->edid_corrupt))
 			break;
-		if (i == 0 && drm_edid_is_zero(edid, EDID_LENGTH)) {
-			connector->null_edid_counter++;
-			goto carp;
-		}
+		goto carp;
+		/* if (i == 0 && drm_edid_is_zero(edid, EDID_LENGTH)) {
+		 *	connector->null_edid_counter++;
+		 *	goto carp;
+		 * }
+		 */
 	}
 	if (i == 4)
 		goto carp;
@@ -3444,6 +3446,16 @@ add_cea_modes(struct drm_connector *connector, struct edid *edid)
 	if (hdmi)
 		modes += do_hdmi_vsdb_modes(connector, hdmi, hdmi_len, video,
 					    video_len);
+
+	return modes;
+}
+
+int add_default_modes(struct drm_connector *connector)
+{
+	const u8 db[4] = {2, 4, 5, 16};
+	int modes = 0;
+
+	modes += do_cea_modes(connector, db, 4);
 
 	return modes;
 }
