@@ -210,9 +210,6 @@
 &pinctrl_periphs {
 	/delete-node/ tdmout_a;
 	/delete-node/ tdmin_a;
-	/delete-node/ tdmb_mclk;
-	/delete-node/ tdmout_b;
-	/delete-node/ tdmin_b;
 	/delete-node/ tdmc_mclk;
 	/delete-node/ tdmout_c;
 	/delete-node/ tdmin_c;
