@@ -15353,3 +15353,9 @@ AMLOGIC driver for dmx/dsc
 M: chuangcheng peng <chuangcheng.peng@amlogic.com>
 F: drivers/amlogic/dvb/demux/*
 
+AMLOGIC driver for mailbox
+M: Huan Biao <huan.biao@amlogic.com>
+F: drivers/amlogic/mailbox/meson_mhu_fifo.c
+F: drivers/amlogic/mailbox/meson_mhu_fifo.h
+
+

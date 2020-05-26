@@ -246,22 +246,24 @@
 		storage_version = <0x8200006C>;
 	};
 
-	mailbox: mhu@c883c400 {
-		compatible = "amlogic, meson_mhu";
-		status = "disabled";
-		reg = <0x0 0xff63c400 0x0 0x4c>,   /* MHU registers */
-		      <0x0 0xfffe7000 0x0 0x800>;   /* Payload area */
-		interrupts = <0 209 1>,   /* low priority interrupt */
-			     <0 210 1>,   /* bl4 receive interrupt */
-			     <0 213 1>;   /* bl4 send interrupt */
+	mailbox_mhu_fifo: mhu@ffe006000 {
+		status = "okay";
+		compatible = "amlogic, meson_mhu_fifo";
+		reg = <0x0 0xfe006000 0x0 0x800>,  /* mhu wr fifo */
+		      <0x0 0xfe006800 0x0 0x800>,  /* mhu rd fifo */
+		      <0x0 0xfe0070c0 0x0 0x40>,   /* mhu set reg */
+		      <0x0 0xfe007100 0x0 0x40>,   /* mhu clr reg */
+		      <0x0 0xfe007140 0x0 0x40>,   /* mhu sts reg */
+		      <0x0 0xfe007020 0x0 0x40>;   /* mhu irqctrl reg */
+		interrupts = <0 248 1>;   /* irq top */
+		mbox-irqctrl = <0>;
+		mbox-nums = <2>;
+		mbox-names = "dsp_dev",
+			     "ap_to_dspa";
+		mboxes = <&mailbox_mhu_fifo 0>,
+			 <&mailbox_mhu_fifo 1>;
+		mbox-id = <0x0 0x1>;
 		#mbox-cells = <1>;
-		mbox-names = "cpu_to_scp_low", "bl4_to_cpu", "cpu_to_bl4";
-		mboxes = <&mailbox 0 &mailbox 1 &mailbox 2>;
-		num-chans-to-scp = <1>;  /*number of chans to send m3*/
-		send-isr-bits = <5>;     /*BIT(idx) of isr listen when ap send*/
-		ack-isr-bits = <4>;      /*BIT(idx) of ack isr*/
-		m4-isr-bits = <6>;       /*BIT(idx) of m4 isr*/
-		mbox-chans = <3>;        /*chan number*/
 	};
 
 	hifi4dsp: hifi4dsp {
