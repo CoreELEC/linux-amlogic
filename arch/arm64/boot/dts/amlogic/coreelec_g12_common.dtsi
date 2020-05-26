@@ -38,13 +38,6 @@
 		compatible = "amlogic, g12a-snd-tdmc";
 	};
 
-	aml_tdmb: tdmb {
-		/delete-property/ pinctrl-names;
-		/delete-property/ pinctrl-0;
-		/delete-property/ samesource_sel;
-		status = "okay";
-	};
-
 	aml_spdif_b: spdif_b {
 		status = "okay";
 	};
