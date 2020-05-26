@@ -328,6 +328,9 @@ static struct vframe_s *dbg_vf;
 static struct master_display_info_s dbg_hdr_send;
 static struct hdr_info receiver_hdr_info;
 
+/* extra hdr process code, udpated per signal change */
+static u32 hdr_ex;
+
 static bool print_lut_mtx;
 module_param(print_lut_mtx, bool, 0664);
 MODULE_PARM_DESC(print_lut_mtx, "\n print_lut_mtx\n");
@@ -4017,6 +4020,15 @@ int signal_type_changed(struct vframe_s *vf,
 	else
 		signal_type = default_signal_type;
 
+	/* RGB / YUV vdin input handling  prepare extra op code or info */
+	hdr_ex = 0;
+	if (vf->type & VIDTYPE_RGB_444)
+		hdr_ex |= RGB_VDIN;
+
+	if (limit_full)
+		hdr_ex |= FULL_VDIN;
+	/* RGB / YUV input handling */
+
 	p_new = &vf->prop.master_display_colour;
 	p_cur = &cur_master_display_colour[vd_path];
 	/* customer overwrite */
@@ -4913,11 +4925,11 @@ static int hdr10p_process(
 
 	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A) {
 		gamut_convert_process(vinfo, source_type, vd_path, &m, 8);
-		hdr_func(OSD1_HDR, HDR_BYPASS, vinfo, NULL);
+		hdr_func(OSD1_HDR, HDR_BYPASS | hdr_ex, vinfo, NULL);
 		if (vd_path == VD1_PATH)
-			hdr10p_func(VD1_HDR, HDR10P_SDR, vinfo, &m);
+			hdr10p_func(VD1_HDR, HDR10P_SDR | hdr_ex, vinfo, &m);
 		else
-			hdr10p_func(VD2_HDR, HDR10P_SDR, vinfo, &m);
+			hdr10p_func(VD2_HDR, HDR10P_SDR | hdr_ex, vinfo, &m);
 	}
 
 	return 0;
@@ -4975,11 +4987,11 @@ static int hdr_process(
 	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A) {
 		gamut_convert_process(vinfo, source_type, vd_path, &m, 8);
 		eo_clip_proc(master_info, 0);
-		hdr_func(OSD1_HDR, HDR_BYPASS, vinfo, NULL);
+		hdr_func(OSD1_HDR, HDR_BYPASS | hdr_ex, vinfo, NULL);
 		if (vd_path == VD1_PATH)
-			hdr_func(VD1_HDR, HDR_SDR, vinfo, &m);
+			hdr_func(VD1_HDR, HDR_SDR | hdr_ex, vinfo, &m);
 		else
-			hdr_func(VD2_HDR, HDR_SDR, vinfo, &m);
+			hdr_func(VD2_HDR, HDR_SDR | hdr_ex, vinfo, &m);
 		return need_adjust_contrast_saturation;
 	}
 
@@ -5242,10 +5254,10 @@ static int hlg_process(
 	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A) {
 		gamut_convert_process(vinfo, source_type, vd_path, &m, 8);
 		if (vd_path == VD1_PATH)
-			hdr_func(VD1_HDR, HLG_SDR, vinfo, &m);
+			hdr_func(VD1_HDR, HLG_SDR | hdr_ex, vinfo, &m);
 		else
-			hdr_func(VD2_HDR, HLG_SDR, vinfo, &m);
-		hdr_func(OSD1_HDR, HDR_BYPASS, vinfo, NULL);
+			hdr_func(VD2_HDR, HLG_SDR | hdr_ex, vinfo, &m);
+		hdr_func(OSD1_HDR, HDR_BYPASS | hdr_ex, vinfo, NULL);
 		return need_adjust_contrast_saturation;
 	}
 
@@ -5472,7 +5484,7 @@ static void bypass_hdr_process(
 		EOTF_COEFF_NORM(0.895554),
 		EOTF_COEFF_RIGHTSHIFT
 	};
-	int i, j;
+	int i, j, p_sel;
 
 	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A) {
 		if (gamut_conv_enable)
@@ -5480,16 +5492,19 @@ static void bypass_hdr_process(
 				vinfo, source_type,
 				vd_path, &m, 10);
 
+		p_sel = gamut_conv_enable ? SDR_GMT_CONVERT : HDR_BYPASS;
+		p_sel |= hdr_ex;
+
 		if (vd_path == VD1_PATH)
 			hdr_func(
 			VD1_HDR,
-			gamut_conv_enable ? SDR_GMT_CONVERT : HDR_BYPASS,
+			p_sel,
 			vinfo,
 			gamut_conv_enable ? &m : NULL);
 		else
 			hdr_func(
 			VD2_HDR,
-			gamut_conv_enable ? SDR_GMT_CONVERT : HDR_BYPASS,
+			p_sel,
 			vinfo,
 			gamut_conv_enable ? &m : NULL);
 		if ((csc_type == VPP_MATRIX_BT2020YUV_BT2020RGB) &&
@@ -5497,12 +5512,14 @@ static void bypass_hdr_process(
 			(HDR_SUPPORT | HLG_SUPPORT)) &&
 			(vinfo->viu_color_fmt != COLOR_FMT_RGB444))) {
 			if (get_hdr_type() & HLG_FLAG)
-				hdr_func(OSD1_HDR, SDR_HLG, vinfo, NULL);
+				hdr_func(OSD1_HDR,
+					 SDR_HLG | hdr_ex, vinfo, NULL);
 			else
-				hdr_func(OSD1_HDR, SDR_HDR, vinfo, NULL);
+				hdr_func(OSD1_HDR,
+					 SDR_HDR | hdr_ex, vinfo, NULL);
 			pr_csc(1, "\t osd sdr->hdr/hlg\n");
 		} else
-			hdr_func(OSD1_HDR, HDR_BYPASS, vinfo, NULL);
+			hdr_func(OSD1_HDR, HDR_BYPASS | hdr_ex, vinfo, NULL);
 		return;
 	}
 	/*vpp matrix mux read*/
@@ -5826,65 +5843,6 @@ static void bypass_hdr_process(
 	}
 	/*vpp matrix mux write*/
 	vpp_set_mtx_en_write();
-}
-
-static void rgb_mode_process(
-	enum vpp_matrix_csc_e csc_type,
-	struct vinfo_s *vinfo,
-	enum vd_path_e vd_path,
-	enum hdr_type_e *source_type)
-{
-	enum hdr_process_sel m_sel, m_gmt_sel;
-	struct matrix_s m = {
-		{0, 0, 0},
-		{
-			{0x0400, 0x0, 0x0},
-			{0x0, 0x0400, 0x0},
-			{0x0, 0x0, 0x0400},
-		},
-		{0, 0, 0},
-		1
-	};
-
-	if ((get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A) &&
-	    (vinfo->viu_color_fmt == COLOR_FMT_RGB444)) {
-		if (gamut_conv_enable)
-			gamut_convert_process(
-				vinfo, source_type,
-				vd_path, &m, 10);
-		m_sel =
-		signal_range ? RGB_YUVF : SRGB_YUVF;
-		m_gmt_sel =
-		signal_range ? SDR_RGB_GMT_CONV : SDR_SRGB_GMT_CONV;
-		if (vd_path == VD1_PATH)
-			hdr_func(
-				VD1_HDR,
-				gamut_conv_enable ?
-				m_gmt_sel : m_sel,
-				vinfo,
-				gamut_conv_enable ?
-				&m : NULL);
-		else
-			hdr_func(
-				VD2_HDR,
-				gamut_conv_enable ?
-				m_gmt_sel : m_sel,
-				vinfo,
-				gamut_conv_enable ?
-				&m : NULL);
-		if ((csc_type == VPP_MATRIX_BT2020YUV_BT2020RGB) &&
-		    ((sink_hdr_support(vinfo) & (HDR_SUPPORT | HLG_SUPPORT)) &&
-			(vinfo->viu_color_fmt != COLOR_FMT_RGB444))) {
-			if (get_hdr_type() & HLG_FLAG)
-				hdr_func(OSD1_HDR, SDR_HLG, vinfo, NULL);
-			else
-				hdr_func(OSD1_HDR, SDR_HDR, vinfo, NULL);
-			pr_csc(1, "\t osd sdr->hdr/hlg\n");
-		} else {
-			hdr_func(OSD1_HDR, RGB_YUVF, vinfo, NULL);
-		}
-	}
-	pr_csc(1, "\t rgb_mode_process\n");
 }
 
 static void set_bt2020csc_process(
@@ -6217,10 +6175,10 @@ static void hlg_hdr_process(
 
 	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A) {
 		if (vd_path == VD1_PATH)
-			hdr_func(VD1_HDR, HLG_HDR, vinfo, NULL);
+			hdr_func(VD1_HDR, HLG_HDR | hdr_ex, vinfo, NULL);
 		else if (vd_path == VD2_PATH)
-			hdr_func(VD2_HDR, HLG_HDR, vinfo, NULL);
-		hdr_func(OSD1_HDR, SDR_HDR, vinfo, NULL);
+			hdr_func(VD2_HDR, HLG_HDR | hdr_ex, vinfo, NULL);
+		hdr_func(OSD1_HDR, SDR_HDR | hdr_ex, vinfo, NULL);
 		return;
 	}
 	/*vpp matrix mux read*/
@@ -6465,10 +6423,12 @@ static void sdr_hdr_process(
 	if (vinfo->viu_color_fmt != COLOR_FMT_RGB444) {
 		if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A) {
 			if (vd_path == VD1_PATH)
-				hdr_func(VD1_HDR, SDR_HDR, vinfo, NULL);
+				hdr_func(VD1_HDR,
+					 SDR_HDR | hdr_ex, vinfo, NULL);
 			else
-				hdr_func(VD2_HDR, SDR_HDR, vinfo, NULL);
-			hdr_func(OSD1_HDR, SDR_HDR, vinfo, NULL);
+				hdr_func(VD2_HDR,
+					 SDR_HDR | hdr_ex, vinfo, NULL);
+			hdr_func(OSD1_HDR, SDR_HDR | hdr_ex, vinfo, NULL);
 			return;
 		}
 		/*vpp matrix mux read*/
@@ -7407,18 +7367,7 @@ static void video_process(
 				set_bt2020csc_process(csc_type,
 				vinfo, p, vd_path);
 			else {
-				if (vf && (vf->type & VIDTYPE_RGB_444) &&
-				    (get_cpu_type() >=
-					MESON_CPU_MAJOR_ID_G12A) &&
-					(vinfo->viu_color_fmt ==
-					COLOR_FMT_RGB444))
-					rgb_mode_process(
-					csc_type,
-					vinfo,
-					vd_path,
-					source_type);
-				else
-					bypass_hdr_process(
+				bypass_hdr_process(
 					csc_type,
 					vinfo, p,
 					vd_path, source_type);
@@ -7440,7 +7389,8 @@ static void video_process(
 		if (vinfo->viu_color_fmt != COLOR_FMT_RGB444)
 			mtx_setting(POST2_MTX, MATRIX_NULL, MTX_OFF);
 		else {
-			if (vf && vf->type & VIDTYPE_RGB_444) {
+			if (vf && vf->type & VIDTYPE_RGB_444 &&
+			    (source_type[vd_path] == HDRTYPE_SDR)) {
 				WRITE_VPP_REG_BITS(VPP_VADJ1_MISC, 0, 1, 1);
 				WRITE_VPP_REG_BITS(VPP_VADJ2_MISC, 0, 1, 1);
 				mtx_setting(

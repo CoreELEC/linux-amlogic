@@ -39,7 +39,7 @@ static const char *module_str[7] = {
 	"DI"
 };
 
-static const char *process_str[17] = {
+static const char *process_str[15] = {
 	"UNKNOWN",
 	"HDR_BYPASS",
 	"HDR_SDR",
@@ -52,11 +52,9 @@ static const char *process_str[17] = {
 	"HDR_IPT",
 	"HLG_IPT",
 	"HDR_HLG",
-	"RGB_YUV",
-	"RGB_HDR",
-	"RGB_HLG",
 	"HDR10P_SDR",
-	"SDR_GMT_CONVERT"
+	"SDR_GMT_CONVERT",
+	"IPT_MAP"
 };
 
 static const char *policy_str[3] = {
@@ -97,28 +95,42 @@ static const char *dv_output_str[6] = {
 };
 
 void hdr_proc(
+	struct vframe_s *vf,
 	enum hdr_module_sel module_sel,
-	enum hdr_process_sel hdr_process_select,
+	u32 hdr_process_select,
 	struct vinfo_s *vinfo,
 	struct matrix_s *gmt_mtx)
 {
 	enum hdr_process_sel cur_hdr_process;
+	int limit_full =  (vf->signal_type >> 25) & 0x01;
+	int i, index;
 
-	if (hdr_process_select == HDR10P_SDR)
+	/* RGB / YUV vdin input handling  prepare extra op code or info */
+	if (vf->type & VIDTYPE_RGB_444)
+		hdr_process_select |= RGB_VDIN;
+
+	if (limit_full)
+		hdr_process_select |= FULL_VDIN;
+	/* RGB / YUV input handling */
+
+	if (hdr_process_select & HDR10P_SDR)
 		cur_hdr_process = hdr10p_func(
 			module_sel, hdr_process_select, vinfo, gmt_mtx);
 	else
 		cur_hdr_process = hdr_func(
 			module_sel, hdr_process_select, vinfo, gmt_mtx);
-	if (cur_hdr_process != hdr_process_select)
-		pr_csc(8, "am_vecm: module=%s, process=%s(%s)\n",
-			module_str[module_sel],
-			process_str[hdr_process_select],
-			process_str[cur_hdr_process]);
-	else
-		pr_csc(8, "am_vecm: hdr module=%s, process=%s\n",
-			module_str[module_sel],
-			process_str[hdr_process_select]);
+
+	index = 0;
+	for (i = 0; i < 14; i++) {
+		if (BIT(i) == (hdr_process_select & 0x3fff)) {
+			index = i + 1;
+			break;
+		}
+	}
+
+	pr_csc(8, "am_vecm: hdr module=%s, process=%s\n",
+	       module_str[module_sel],
+	       process_str[index]);
 }
 
 int hdr_policy_process(
@@ -1063,8 +1075,6 @@ void video_post_process(
 	enum hdr_type_e *source_type)
 {
 	enum hdr_type_e src_format = cur_source_format[vd_path];
-	uint sig_range;
-	enum hdr_process_sel m_sel;
 	/*eo clip select: 0->23bit eo; 1->32 bit eo*/
 	unsigned int eo_sel = 0;
 	struct matrix_s m = {
@@ -1087,144 +1097,129 @@ void video_post_process(
 
 	if (get_hdr_module_status(vd_path) == HDR_MODULE_OFF) {
 		if (vd_path == VD1_PATH)
-			hdr_proc(VD1_HDR, HDR_BYPASS, vinfo, NULL);
+			hdr_proc(vf, VD1_HDR, HDR_BYPASS, vinfo, NULL);
 		else
-			hdr_proc(VD2_HDR, HDR_BYPASS, vinfo, NULL);
+			hdr_proc(vf, VD2_HDR, HDR_BYPASS, vinfo, NULL);
 		if (((vd_path == VD1_PATH) &&
 		     !is_video_layer_on(VD2_PATH)) ||
 		    ((vd_path == VD2_PATH) &&
 		     !is_video_layer_on(VD1_PATH)))
-			hdr_proc(OSD1_HDR, HDR_BYPASS, vinfo, NULL);
+			hdr_proc(vf, OSD1_HDR, HDR_BYPASS, vinfo, NULL);
 		src_format = HDRTYPE_NONE;
 	}
 
 	switch (src_format) {
 	case HDRTYPE_SDR:
 		if (vd_path == VD2_PATH && is_dolby_vision_on()) {
-			hdr_proc(VD2_HDR, SDR_IPT, vinfo, NULL);
-		} else if (sdr_process_mode[vd_path] == PROC_BYPASS &&
-			   vf && !(vf->type & VIDTYPE_RGB_444)) {
+			hdr_proc(vf, VD2_HDR, SDR_IPT, vinfo, NULL);
+		} else if (sdr_process_mode[vd_path] == PROC_BYPASS) {
 			if (vd_path == VD1_PATH)
-				hdr_proc(VD1_HDR, HDR_BYPASS, vinfo, NULL);
+				hdr_proc(vf, VD1_HDR, HDR_BYPASS, vinfo, NULL);
 			else
-				hdr_proc(VD2_HDR, HDR_BYPASS, vinfo, NULL);
+				hdr_proc(vf, VD2_HDR, HDR_BYPASS, vinfo, NULL);
 			if (((vd_path == VD1_PATH) &&
 			!is_video_layer_on(VD2_PATH))
 			|| ((vd_path == VD2_PATH) &&
 			!is_video_layer_on(VD1_PATH)))
-				hdr_proc(OSD1_HDR, HDR_BYPASS, vinfo, NULL);
-		} else if (sdr_process_mode[vd_path] == PROC_BYPASS &&
-			   vf && (vf->type & VIDTYPE_RGB_444)) {
-			sig_range = (vf->signal_type >> 25) & 0x01;
-			m_sel = sig_range ? RGB_YUVF : SRGB_YUVF;
-			if (vd_path == VD1_PATH)
-				hdr_proc(VD1_HDR, m_sel, vinfo, NULL);
-			else
-				hdr_proc(VD2_HDR, m_sel, vinfo, NULL);
-			if (
-				((vd_path == VD1_PATH) &&
-				!is_video_layer_on(VD2_PATH)) ||
-				((vd_path == VD2_PATH) &&
-			!is_video_layer_on(VD1_PATH)))
-				hdr_proc(OSD1_HDR, RGB_YUVF, vinfo, NULL);
+				hdr_proc(vf, OSD1_HDR, HDR_BYPASS, vinfo, NULL);
 		} else if (sdr_process_mode[vd_path] == PROC_SDR_TO_HDR) {
 			if (vd_path == VD1_PATH)
-				hdr_proc(VD1_HDR, SDR_HDR, vinfo, NULL);
+				hdr_proc(vf, VD1_HDR, SDR_HDR, vinfo, NULL);
 			else
-				hdr_proc(VD2_HDR, SDR_HDR, vinfo, NULL);
-			hdr_proc(OSD1_HDR, SDR_HDR, vinfo, NULL);
+				hdr_proc(vf, VD2_HDR, SDR_HDR, vinfo, NULL);
+			hdr_proc(vf, OSD1_HDR, SDR_HDR, vinfo, NULL);
 		} else if (sdr_process_mode[vd_path] == PROC_SDR_TO_HLG) {
 			if (vd_path == VD1_PATH)
-				hdr_proc(VD1_HDR, SDR_HLG, vinfo, NULL);
+				hdr_proc(vf, VD1_HDR, SDR_HLG, vinfo, NULL);
 			else if (vd_path == VD2_PATH)
-				hdr_proc(VD2_HDR, SDR_HLG, vinfo, NULL);
-			hdr_proc(OSD1_HDR, SDR_HLG, vinfo, NULL);
+				hdr_proc(vf, VD2_HDR, SDR_HLG, vinfo, NULL);
+			hdr_proc(vf, OSD1_HDR, SDR_HLG, vinfo, NULL);
 		}
 		break;
 	case HDRTYPE_HDR10:
 		if (vd_path == VD2_PATH && is_dolby_vision_on()) {
-			hdr_proc(VD2_HDR, HDR_IPT, vinfo, NULL);
+			hdr_proc(vf, VD2_HDR, HDR_IPT, vinfo, NULL);
 		} else if (hdr_process_mode[vd_path] == PROC_BYPASS) {
 			if (vd_path == VD1_PATH)
-				hdr_proc(VD1_HDR, HDR_BYPASS, vinfo, NULL);
+				hdr_proc(vf, VD1_HDR, HDR_BYPASS, vinfo, NULL);
 			else
-				hdr_proc(VD2_HDR, HDR_BYPASS, vinfo, NULL);
-			hdr_proc(OSD1_HDR, SDR_HDR, vinfo, NULL);
+				hdr_proc(vf, VD2_HDR, HDR_BYPASS, vinfo, NULL);
+			hdr_proc(vf, OSD1_HDR, SDR_HDR, vinfo, NULL);
 		} else if (hdr_process_mode[vd_path] == PROC_HDR_TO_SDR) {
 			gamut_convert_process(
 				vinfo, source_type, vd_path, &m, 8);
 			eo_clip_proc(master_info, eo_sel);
 			if (vd_path == VD1_PATH) {
-				hdr_proc(VD1_HDR, HDR_SDR, vinfo, &m);
+				hdr_proc(vf, VD1_HDR, HDR_SDR, vinfo, &m);
 			} else {
-				hdr_proc(VD2_HDR, HDR_SDR, vinfo, &m);
+				hdr_proc(vf, VD2_HDR, HDR_SDR, vinfo, &m);
 			}
-			hdr_proc(OSD1_HDR, HDR_BYPASS, vinfo, NULL);
+			hdr_proc(vf, OSD1_HDR, HDR_BYPASS, vinfo, NULL);
 		} else if (hdr_process_mode[vd_path] == PROC_HDR_TO_HLG) {
 			if (vd_path == VD1_PATH)
-				hdr_proc(VD1_HDR, HDR_HLG, vinfo, NULL);
+				hdr_proc(vf, VD1_HDR, HDR_HLG, vinfo, NULL);
 			else
-				hdr_proc(VD2_HDR, HDR_HLG, vinfo, NULL);
-			hdr_proc(OSD1_HDR, SDR_HLG, vinfo, NULL);
+				hdr_proc(vf, VD2_HDR, HDR_HLG, vinfo, NULL);
+			hdr_proc(vf, OSD1_HDR, SDR_HLG, vinfo, NULL);
 		}
 		break;
 	case HDRTYPE_HLG:
 		if (vd_path == VD2_PATH && is_dolby_vision_on()) {
-			hdr_proc(VD2_HDR, HLG_IPT, vinfo, NULL);
+			hdr_proc(vf, VD2_HDR, HLG_IPT, vinfo, NULL);
 		} else if (hlg_process_mode[vd_path] == PROC_BYPASS) {
 			if (vd_path == VD1_PATH)
-				hdr_proc(VD1_HDR, HDR_BYPASS, vinfo, NULL);
+				hdr_proc(vf, VD1_HDR, HDR_BYPASS, vinfo, NULL);
 			else
-				hdr_proc(VD2_HDR, HDR_BYPASS, vinfo, NULL);
-			hdr_proc(OSD1_HDR, SDR_HLG, vinfo, NULL);
+				hdr_proc(vf, VD2_HDR, HDR_BYPASS, vinfo, NULL);
+			hdr_proc(vf, OSD1_HDR, SDR_HLG, vinfo, NULL);
 		} else if (hlg_process_mode[vd_path] == PROC_HLG_TO_SDR) {
 			if (vd_path == VD1_PATH)
-				hdr_proc(VD1_HDR, HLG_SDR, vinfo, NULL);
+				hdr_proc(vf, VD1_HDR, HLG_SDR, vinfo, NULL);
 			else
-				hdr_proc(VD2_HDR, HLG_SDR, vinfo, NULL);
-			hdr_proc(OSD1_HDR, HDR_BYPASS, vinfo, NULL);
+				hdr_proc(vf, VD2_HDR, HLG_SDR, vinfo, NULL);
+			hdr_proc(vf, OSD1_HDR, HDR_BYPASS, vinfo, NULL);
 		} else if (hlg_process_mode[vd_path] == PROC_HLG_TO_HDR) {
 			if (vd_path == VD1_PATH)
-				hdr_proc(VD1_HDR, HLG_HDR, vinfo, NULL);
+				hdr_proc(vf, VD1_HDR, HLG_HDR, vinfo, NULL);
 			else
-				hdr_proc(VD2_HDR, HLG_HDR, vinfo, NULL);
-			hdr_proc(OSD1_HDR, SDR_HDR, vinfo, NULL);
+				hdr_proc(vf, VD2_HDR, HLG_HDR, vinfo, NULL);
+			hdr_proc(vf, OSD1_HDR, SDR_HDR, vinfo, NULL);
 		}
 
 		break;
 	case HDRTYPE_HDR10PLUS:
 		if ((vd_path == VD2_PATH) && is_dolby_vision_on()) {
-			hdr_proc(VD2_HDR, HDR_IPT, vinfo, NULL);
+			hdr_proc(vf, VD2_HDR, HDR_IPT, vinfo, NULL);
 		} else if (hdr10_plus_process_mode[vd_path] ==
 		PROC_BYPASS) {
 			if (vd_path == VD1_PATH)
-				hdr_proc(VD1_HDR, HDR_BYPASS, vinfo, NULL);
+				hdr_proc(vf, VD1_HDR, HDR_BYPASS, vinfo, NULL);
 			else
-				hdr_proc(VD2_HDR, HDR_BYPASS, vinfo, NULL);
-			hdr_proc(OSD1_HDR, SDR_HDR, vinfo, NULL);
+				hdr_proc(vf, VD2_HDR, HDR_BYPASS, vinfo, NULL);
+			hdr_proc(vf, OSD1_HDR, SDR_HDR, vinfo, NULL);
 		} else if (hdr10_plus_process_mode[vd_path] ==
 		PROC_HDRP_TO_HDR) {
 			gamut_convert_process(
 				vinfo, source_type, vd_path, &m, 8);
 			if (vd_path == VD1_PATH)
-				hdr_proc(VD1_HDR, HDR_BYPASS, vinfo, &m);
+				hdr_proc(vf, VD1_HDR, HDR_BYPASS, vinfo, &m);
 			else
-				hdr_proc(VD2_HDR, HDR_BYPASS, vinfo, &m);
-			hdr_proc(OSD1_HDR, SDR_HDR, vinfo, NULL);
+				hdr_proc(vf, VD2_HDR, HDR_BYPASS, vinfo, &m);
+			hdr_proc(vf, OSD1_HDR, SDR_HDR, vinfo, NULL);
 		} else if (hdr10_plus_process_mode[vd_path] ==
 		PROC_HDRP_TO_SDR) {
 			if (vd_path == VD1_PATH)
-				hdr_proc(VD1_HDR, HDR10P_SDR, vinfo, NULL);
+				hdr_proc(vf, VD1_HDR, HDR10P_SDR, vinfo, NULL);
 			else
-				hdr_proc(VD2_HDR, HDR10P_SDR, vinfo, NULL);
-			hdr_proc(OSD1_HDR, HDR_BYPASS, vinfo, NULL);
+				hdr_proc(vf, VD2_HDR, HDR10P_SDR, vinfo, NULL);
+			hdr_proc(vf, OSD1_HDR, HDR_BYPASS, vinfo, NULL);
 		} else if (hdr10_plus_process_mode[vd_path] ==
 		PROC_HDRP_TO_HLG) {
 			if (vd_path == VD1_PATH)
-				hdr_proc(VD1_HDR, HDR_HLG, vinfo, NULL);
+				hdr_proc(vf, VD1_HDR, HDR_HLG, vinfo, NULL);
 			else
-				hdr_proc(VD2_HDR, HDR_HLG, vinfo, NULL);
-			hdr_proc(OSD1_HDR, SDR_HLG, vinfo, NULL);
+				hdr_proc(vf, VD2_HDR, HDR_HLG, vinfo, NULL);
+			hdr_proc(vf, OSD1_HDR, SDR_HLG, vinfo, NULL);
 		}
 		break;
 	case HDRTYPE_MVC:
@@ -1240,11 +1235,10 @@ void video_post_process(
 		if (vinfo->viu_color_fmt != COLOR_FMT_RGB444) {
 			mtx_setting(POST2_MTX, MATRIX_NULL, MTX_OFF);
 		} else {
-			if (
-			    (vf && vf->type & VIDTYPE_RGB_444) &&
-			    (
-				get_hdr_module_status(vd_path) !=
-				HDR_MODULE_OFF)) {
+			if ((vf && vf->type & VIDTYPE_RGB_444) &&
+			    (source_type[vd_path] == HDRTYPE_SDR) &&
+			    (get_hdr_module_status(vd_path) !=
+			     HDR_MODULE_OFF)) {
 				VSYNC_WR_MPEG_REG_BITS(VPP_VADJ1_MISC, 0, 1, 1);
 				VSYNC_WR_MPEG_REG_BITS(VPP_VADJ2_MISC, 0, 1, 1);
 				mtx_setting(

@@ -78,28 +78,25 @@ enum hdr_lut_sel {
 };
 
 enum hdr_process_sel {
-	HDR_BYPASS = 1,
-	HDR_SDR = 2,
-	SDR_HDR = 3,
-	HLG_BYPASS = 4,
-	HLG_SDR = 5,
-	HLG_HDR = 6,
-	SDR_HLG = 7,
-	SDR_IPT = 8,
-	HDR_IPT = 9,
-	HLG_IPT = 10,
-	HDR_HLG = 11,
-	RGB_YUV = 12,
-	RGB_HDR = 13,
-	RGB_HLG = 14,
-	HDR10P_SDR = 15,
-	SDR_GMT_CONVERT = 16,
-	RGB_YUVF = 17,
-	SDR_RGB_GMT_CONV = 18,
-	SRGB_YUVF = 19,
-	SDR_SRGB_GMT_CONV = 20,
-	IPT_MAP = 21,
-	HDR_p_MAX
+	HDR_BYPASS = BIT(0),
+	HDR_SDR = BIT(1),
+	SDR_HDR = BIT(2),
+	HLG_BYPASS = BIT(3),
+	HLG_SDR = BIT(4),
+	HLG_HDR = BIT(5),
+	SDR_HLG = BIT(6),
+	SDR_IPT = BIT(7),
+	HDR_IPT = BIT(8),
+	HLG_IPT = BIT(9),
+	HDR_HLG = BIT(10),
+	HDR10P_SDR = BIT(11),
+	SDR_GMT_CONVERT = BIT(12),
+	IPT_MAP = BIT(13),
+	PROCESS_MAX = BIT(14),
+	/* reserved  several bits for additional info */
+	RGB_OSD = BIT(29),
+	RGB_VDIN = BIT(30),
+	FULL_VDIN = BIT(31)
 };
 
 enum hdr_hist_sel {
@@ -164,7 +161,7 @@ void eotf_float_gen(int64_t *o_out, MenuFun eotf);
 void oetf_float_gen(int64_t *bin_e, MenuFun oetf);
 void nolinear_lut_gen(int64_t *bin_c, MenuFun cgain);
 extern enum hdr_process_sel hdr_func(enum hdr_module_sel module_sel,
-	enum hdr_process_sel hdr_process_select,
+	u32 hdr_process_select,
 	struct vinfo_s *vinfo,
 	struct matrix_s *gmt_mtx);
 /*G12A vpp matrix*/
@@ -211,7 +208,7 @@ int hdr10p_ebzcurve_update(
 	struct hdr10pgen_param_s *hdr10pgen_param);
 enum hdr_process_sel hdr10p_func(
 	enum hdr_module_sel module_sel,
-	enum hdr_process_sel hdr_process_select,
+	u32 hdr_process_select,
 	struct vinfo_s *vinfo,
 	struct matrix_s *gmt_mtx);
 extern void set_ootf_lut(
