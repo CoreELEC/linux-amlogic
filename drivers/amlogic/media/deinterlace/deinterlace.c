@@ -2689,7 +2689,7 @@ static unsigned int limit_buf_cnt(void)
 	if (di_limit_local & 0xff00)
 		local_buf = (di_limit_local & 0xff00) >> 8;
 	else
-		local_buf = 5;
+		local_buf = 6;
 	cnt = omx_buf + local_buf;
 
 	return cnt;
