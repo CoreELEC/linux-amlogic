@@ -103,6 +103,7 @@
 &sd_emmc_b {
 	sd {
 		vol_switch = <&gpio_ao GPIOAO_2 GPIO_ACTIVE_HIGH>;
+		vol_switch_18 = <1>;
 	};
 };
 
