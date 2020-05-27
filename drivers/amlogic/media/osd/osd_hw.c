@@ -2114,6 +2114,7 @@ static u32 osd_get_hw_reset_flag(void)
 	case __MESON_CPU_MAJOR_ID_TL1:
 	case __MESON_CPU_MAJOR_ID_SM1:
 	case __MESON_CPU_MAJOR_ID_TM2:
+	case __MESON_CPU_MAJOR_ID_SC2:
 		{
 		int i, afbc_enable = 0;
 

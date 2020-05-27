@@ -355,6 +355,9 @@ static void rdma_reset(unsigned char external_reset)
 			__func__, external_reset);
 
 	if (external_reset) {
+		if (rdma_meson_dev.cpu_type == CPU_SC2)
+			rdma_cbus_write(RESETCTRL_RESET0, (1 << 28));
+		else
 		WRITE_MPEG_REG(
 			RESET4_REGISTER,
 			(1 << 5));
@@ -1216,7 +1219,7 @@ static int rdma_probe(struct platform_device *pdev)
 	if (rdma_meson_dev.cpu_type == CPU_SC2) {
 		ret = rdma_cbus_map(pdev);
 		if (!ret)
-			rdma_cbus_write(RESETCTRL_RESET4, (1 << 5));
+			rdma_cbus_write(RESETCTRL_RESET0, (1 << 28));
 	} else {
 		rdma_cbus_write(RESET4_REGISTER, (1 << 5));
 	}

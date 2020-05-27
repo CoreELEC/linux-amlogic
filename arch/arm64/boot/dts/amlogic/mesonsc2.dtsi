@@ -270,7 +270,7 @@
 			reg = <0x0 0 0x0 0>;
 		};
 		io_vapb_base {
-			reg = <0x0 0xfe000000 0x0 0x50000>;
+			reg = <0x0 0xff000000 0x0 0x50000>;
 		};
 		io_hiu_base {
 			reg = <0x0 0 0x0 0>;
@@ -809,7 +809,7 @@
 		ion_dev {
 			compatible = "amlogic, ion_dev";
 			memory-region = <&ion_cma_reserved>;
-			status = "disabled";
+			status = "okay";
 		};/* end of ion_dev*/
 
 		audiobus: audiobus@0xFF660000 {
@@ -1400,20 +1400,20 @@
 		compatible = "amlogic, meson-sc2, rdma";
 		dev_name = "amlogic-rdma";
 		status = "okay";
-		interrupts = <0 89 1>;
+		interrupts = <GIC_SPI 215 IRQ_TYPE_EDGE_RISING>;
 		interrupt-names = "rdma";
 		/* after sc2 */
 		reg = <0x0 0xfe002000 0x0 0x400>;
 	};
 
 	meson_fb: fb {
-		compatible = "amlogic, meson-sm1";
+		compatible = "amlogic, meson-sc2";
 		memory-region = <&logo_reserved>;
 		dev_name = "meson-fb";
 		status = "disable";
-		interrupts = <0 3 1
-			0 56 1
-			0 89 1>;
+		interrupts = <0 197 1
+			0 194 1
+			0 215 1>;
 		interrupt-names = "viu-vsync", "viu2-vsync", "rdma";
 		/* uboot logo,fb0/fb1 memory size,if afbcd fb0=0x01851000*/
 		display_mode_default = "1080p60hz";

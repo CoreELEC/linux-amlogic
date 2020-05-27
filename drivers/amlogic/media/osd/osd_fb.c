@@ -1189,7 +1189,7 @@ static int malloc_osd_memory(struct fb_info *info)
 		if (cma) {
 			base = cma_get_base(cma);
 			size = cma_get_size(cma);
-			pr_info("%s, cma:%p\n", __func__, cma);
+			pr_info("%s, cma:%px\n", __func__, cma);
 		}
 	}
 #else
@@ -1314,11 +1314,11 @@ static int malloc_osd_memory(struct fb_info *info)
 					ion_map_kernel(fb_ion_client,
 						fb_ion_handle[fb_index][j]);
 				dev_alert(&pdev->dev,
-					"create ion_client %p, handle=%p\n",
+					"create ion_client %px, handle=%p\n",
 					fb_ion_client,
 					fb_ion_handle[fb_index][j]);
 				dev_alert(&pdev->dev,
-					"ion memory(%d): created fb at 0x%p, size %lu MiB\n",
+					"ion memory(%d): created fb at 0x%px, size %lu MiB\n",
 					fb_index,
 					(void *)fb_rmem_afbc_paddr
 					[fb_index][j],
@@ -1334,12 +1334,12 @@ static int malloc_osd_memory(struct fb_info *info)
 					osd_log_err("failed to ioremap afbc frame buffer\n");
 					return -1;
 				}
-				osd_log_info(" %d, phy: 0x%p, vir:0x%p, size=%dK\n\n",
-					fb_index,
-					(void *)
-					fbdev->fb_mem_afbc_paddr[j],
-					fbdev->fb_mem_afbc_vaddr[j],
-					fbdev->fb_afbc_len[j] >> 10);
+				osd_log_info(" %d, phy: 0x%px, vir:0x%px, size=%dK\n\n",
+					     fb_index,
+					     (void *)
+					     fbdev->fb_mem_afbc_paddr[j],
+					     fbdev->fb_mem_afbc_vaddr[j],
+					     fbdev->fb_afbc_len[j] >> 10);
 			}
 			fb_rmem_paddr[fb_index] =
 				fb_rmem_afbc_paddr[fb_index][0];
@@ -1368,11 +1368,11 @@ static int malloc_osd_memory(struct fb_info *info)
 				ion_map_kernel(fb_ion_client,
 					fb_ion_handle[fb_index][0]);
 			dev_notice(&pdev->dev,
-				"create ion_client %p, handle=%p\n",
+				"create ion_client %px, handle=%px\n",
 				fb_ion_client,
 				fb_ion_handle[fb_index][0]);
 			dev_notice(&pdev->dev,
-				"ion memory(%d): created fb at 0x%p, size %ld MiB\n",
+				"ion memory(%d): created fb at 0x%px, size %ld MiB\n",
 				fb_index,
 				(void *)fb_rmem_paddr[fb_index],
 				(unsigned long)
@@ -1388,9 +1388,9 @@ static int malloc_osd_memory(struct fb_info *info)
 		return -ENOMEM;
 	}
 	osd_log_info("Frame buffer memory assigned at");
-	osd_log_info(" %d, phy: 0x%p, vir:0x%p, size=%dK\n\n",
-		fb_index, (void *)fbdev->fb_mem_paddr,
-		fbdev->fb_mem_vaddr, fbdev->fb_len >> 10);
+	osd_log_info(" %d, phy: 0x%px, vir:0x%px, size=%dK\n\n",
+		     fb_index, (void *)fbdev->fb_mem_paddr,
+		     fbdev->fb_mem_vaddr, fbdev->fb_len >> 10);
 	if (osd_meson_dev.afbc_type && osd_get_afbc(fb_index)) {
 		for (j = 0; j < OSD_MAX_BUF_NUM; j++) {
 			fbdev->fb_afbc_len[j] =
@@ -1403,12 +1403,12 @@ static int malloc_osd_memory(struct fb_info *info)
 				osd_log_err("failed to ioremap afbc frame buffer\n");
 				return -ENOMEM;
 			}
-			osd_log_info(" %d, phy: 0x%p, vir:0x%p, size=%dK\n\n",
-				fb_index,
-				(void *)
-				fbdev->fb_mem_afbc_paddr[j],
-				fbdev->fb_mem_afbc_vaddr[j],
-				fbdev->fb_afbc_len[j] >> 10);
+			osd_log_info(" %d, phy: 0x%px, vir:0x%px, size=%dK\n\n",
+				     fb_index,
+				     (void *)
+				     fbdev->fb_mem_afbc_paddr[j],
+				     fbdev->fb_mem_afbc_vaddr[j],
+				     fbdev->fb_afbc_len[j] >> 10);
 		}
 	}
 	fix->smem_start = fbdev->fb_mem_paddr;
@@ -4196,6 +4196,22 @@ static struct osd_device_data_s osd_a1 = {
 	.osd0_sc_independ = 0,
 };
 
+static struct osd_device_data_s osd_sc2 = {
+	.cpu_id = __MESON_CPU_MAJOR_ID_SC2,
+	.osd_ver = OSD_HIGH_ONE,
+	.afbc_type = MALI_AFBC,
+	.osd_count = 4,
+	.has_deband = 1,
+	.has_lut = 1,
+	.has_rdma = 1,
+	.has_dolby_vision = 1,
+	.osd_fifo_len = 64, /* fifo len 64*8 = 512 */
+	.vpp_fifo_len = 0xfff,/* 2048 */
+	.dummy_data = 0x00808000,
+	.has_viu2 = 1,
+	.osd0_sc_independ = 0,
+};
+
 static const struct of_device_id meson_fb_dt_match[] = {
 	{
 		.compatible = "amlogic, meson-gxbb",
@@ -4253,6 +4269,10 @@ static const struct of_device_id meson_fb_dt_match[] = {
 	{
 		.compatible = "amlogic, meson-a1",
 		.data = &osd_a1,
+	},
+	{
+		.compatible = "amlogic, meson-sc2",
+		.data = &osd_sc2,
 	},
 	{},
 };
@@ -4316,10 +4336,11 @@ static int osd_probe(struct platform_device *pdev)
 	}
 	if (osd_meson_dev.has_rdma) {
 		int_rdma = platform_get_irq_byname(pdev, "rdma");
-		if (int_viu_vsync  == -ENXIO) {
+		if (int_rdma  == -ENXIO) {
 			osd_log_err("cannot get osd rdma irq resource\n");
 			goto failed1;
-		}
+		} else
+			osd_log_info("rdma irq: %d\n", int_rdma);
 	}
 	if (osd_meson_dev.has_viu2) {
 		osd_meson_dev.vpu_clkc = devm_clk_get(&pdev->dev, "vpu_clkc");
@@ -4327,7 +4348,7 @@ static int osd_probe(struct platform_device *pdev)
 			osd_log_err("cannot get vpu_clkc\n");
 			osd_meson_dev.vpu_clkc = NULL;
 			ret = -ENOENT;
-			goto failed1;
+			//goto failed1;
 		}
 	}
 	osd_meson_dev.viu1_osd_count = osd_meson_dev.osd_count;
