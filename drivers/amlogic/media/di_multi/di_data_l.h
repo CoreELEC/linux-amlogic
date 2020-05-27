@@ -456,7 +456,7 @@ enum EDI_TOP_STATE {
 	 * no need to wait cma release after  this unreg event finish
 	 */
 	EDI_TOP_STATE_UNREG_STEP2,
-
+	EDI_TOP_STATE_UNREG_STEP3,
 };
 
 /**************************************/
