@@ -4635,6 +4635,12 @@ static void get_mcinfo_from_reg_in_irq(unsigned int channel)
 	unsigned int i = 0, ncolcrefsum = 0, blkcount = 0, *reg = NULL;
 	struct di_pre_stru_s *ppre = get_pre_stru(channel);
 
+	if (IS_ERR_OR_NULL(ppre) || IS_ERR_OR_NULL(ppre->di_wr_buf)) {
+		PR_ERR("%s:null p0:%p-p1:%p\n", __func__, ppre,
+		       ppre ? ppre->di_wr_buf : NULL);
+		return;
+	}
+
 /*get info for current field process by post*/
 	ppre->di_wr_buf->curr_field_mcinfo.highvertfrqflg =
 		(RD(MCDI_RO_HIGH_VERT_FRQ_FLG) & 0x1);
