@@ -225,6 +225,7 @@ int drm_connector_init(struct drm_device *dev,
 
 	INIT_LIST_HEAD(&connector->probed_modes);
 	INIT_LIST_HEAD(&connector->modes);
+	INIT_LIST_HEAD(&connector->probed_420_modes);
 	mutex_init(&connector->mutex);
 	connector->edid_blob_ptr = NULL;
 	connector->status = connector_status_unknown;
@@ -340,6 +341,9 @@ void drm_connector_cleanup(struct drm_connector *connector)
 		drm_mode_remove(connector, mode);
 
 	list_for_each_entry_safe(mode, t, &connector->modes, head)
+		drm_mode_remove(connector, mode);
+
+	list_for_each_entry_safe(mode, t, &connector->probed_420_modes, head)
 		drm_mode_remove(connector, mode);
 
 	ida_simple_remove(&drm_connector_enum_list[connector->connector_type].ida,

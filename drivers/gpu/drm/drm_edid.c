@@ -2442,7 +2442,7 @@ do_inferred_modes(struct detailed_timing *timing, void *c)
 	closure->modes += drm_dmt_modes_for_range(closure->connector,
 						  closure->edid,
 						  timing);
-	
+
 	if (!version_greater(closure->edid, 1, 1))
 		return; /* GTF not defined yet */
 
@@ -2682,7 +2682,7 @@ do_cvt_mode(struct detailed_timing *timing, void *c)
 
 static int
 add_cvt_modes(struct drm_connector *connector, struct edid *edid)
-{	
+{
 	struct detailed_mode_closure closure = {
 		.connector = connector,
 		.edid = edid,
@@ -2758,6 +2758,12 @@ add_detailed_modes(struct drm_connector *connector, struct edid *edid,
 #define VENDOR_BLOCK    0x03
 #define SPEAKER_BLOCK	0x04
 #define VIDEO_CAPABILITY_BLOCK	0x07
+
+#define EXTENSION_VENDOR_SPECIFIC 0x1
+#define EXTENSION_DRM_STATIC_TAG    0x6
+#define EXTENSION_DRM_DYNAMIC_TAG   0x7
+#define EXTENSION_Y420_VDB_TAG	0xe
+#define EXTENSION_Y420_CMDB_TAG	0xf
 #define EDID_BASIC_AUDIO	(1 << 6)
 #define EDID_CEA_YCRCB444	(1 << 5)
 #define EDID_CEA_YCRCB422	(1 << 4)
@@ -3084,10 +3090,62 @@ do_cea_modes(struct drm_connector *connector, const u8 *db, u8 len)
 
 	for (i = 0; i < len; i++) {
 		struct drm_display_mode *mode;
+
 		mode = drm_display_mode_from_vic_index(connector, db, len, i);
 		if (mode) {
 			drm_mode_probed_add(connector, mode);
 			modes++;
+		}
+	}
+
+	return modes;
+}
+
+static int
+do_cea_420vdb_modes(struct drm_connector *connector, const u8 *db, u8 len)
+{
+	int i, modes = 0;
+
+	for (i = 0; i < len; i++) {
+		struct drm_display_mode *mode;
+
+		mode = drm_display_mode_from_vic_index(connector, db, len, i);
+		if (mode) {
+			drm_420_mode_probed_add(connector, mode);
+			modes++;
+		}
+	}
+
+	return modes;
+}
+
+static int
+do_cea_420cmdb_modes(struct drm_connector *connector, const u8 *db,
+		     u8 len, u8 cmdb_mask[32])
+{
+	int i, byte, bit, modes = 0;
+	u8 vic;
+
+	if (!db || len == 0)
+		return modes;
+	for (i = 0; i < len; i++) {
+		struct drm_display_mode *mode;
+
+		byte = i >> 3;
+		bit = i & 7;
+		if ((cmdb_mask[byte] & (1 << bit)) != 0) {
+			vic = (db[i] & 127);
+			if (vic == 96 || vic == 97 ||
+			    vic == 101 || vic == 102 ||
+			    vic == 106 || vic == 107) {
+				mode = drm_display_mode_from_vic_index(
+							connector, db, len, i);
+				if (mode) {
+					drm_420_mode_probed_add(connector,
+								mode);
+					modes++;
+				}
+			}
 		}
 	}
 
@@ -3406,6 +3464,47 @@ static bool cea_db_is_hdmi_vsdb(const u8 *db)
 	return hdmi_id == HDMI_IEEE_OUI;
 }
 
+static bool cea_db_is_hdmi20_vsdb(const u8 *db)
+{
+	int hdmi_id;
+
+	if (cea_db_tag(db) != VENDOR_BLOCK)
+		return false;
+
+	if (cea_db_payload_len(db) < 5)
+		return false;
+
+	hdmi_id = db[1] | (db[2] << 8) | (db[3] << 16);
+
+	return hdmi_id == HF_IEEEOUI;
+}
+
+static void hdmi20_vsdb_proc(struct drm_connector *connector,
+			     const u8 *db, u8 len)
+{
+	struct hdmi20_vendor_para *phdmi20_para;
+	unsigned char b7;
+
+	phdmi20_para = &connector->hdmi20_para;
+	phdmi20_para->hf_ieeeoui = HF_IEEEOUI;
+	phdmi20_para->hdmi2ver = 0;
+	phdmi20_para->max_tmds_clock2 = db[5];
+	phdmi20_para->scdc_present =
+		!!(db[6] & (1 << 7));
+	phdmi20_para->scdc_rr_capable =
+		!!(db[6] & (1 << 6));
+	phdmi20_para->lte_340mcsc_scramble =
+		!!(db[6] & (1 << 3));
+	phdmi20_para->dc_30bit_420 = !!(db[7] & (1 << 0));
+	phdmi20_para->dc_36bit_420 = !!(db[7] & (1 << 1));
+	phdmi20_para->dc_48bit_420 = !!(db[7] & (1 << 2));
+	if (len > 7) {
+		b7 = db[8];
+		phdmi20_para->allm = !!(b7 & (1 << 1));
+		phdmi20_para->hdmi2ver = 1;
+	}
+}
+
 #define for_each_cea_db(cea, i, start, end) \
 	for ((i) = (start); (i) < (end) && (i) + cea_db_payload_len(&(cea)[(i)]) < (end); (i) += cea_db_payload_len(&(cea)[(i)]) + 1)
 
@@ -3413,10 +3512,12 @@ static int
 add_cea_modes(struct drm_connector *connector, struct edid *edid)
 {
 	const u8 *cea = drm_find_cea_extension(edid);
-	const u8 *db, *hdmi = NULL, *video = NULL;
-	u8 dbl, hdmi_len, video_len = 0;
+	const u8 *db, *svd = NULL, *hdmi = NULL, *video = NULL;
+	u8 ext_tag, cmdb_mask[32], cmdb_flag = 0;
+	u8 dbl, hdmi_len, svd_len = 0, video_len = 0;
 	int modes = 0;
 
+	memset(cmdb_mask, 0, sizeof(cmdb_mask));
 	if (cea && cea_revision(cea) >= 3) {
 		int i, start, end;
 
@@ -3431,14 +3532,37 @@ add_cea_modes(struct drm_connector *connector, struct edid *edid)
 				video = db + 1;
 				video_len = dbl;
 				modes += do_cea_modes(connector, video, dbl);
-			}
-			else if (cea_db_is_hdmi_vsdb(db)) {
+			} else if (cea_db_is_hdmi_vsdb(db)) {
 				hdmi = db;
 				hdmi_len = dbl;
+			} else if (cea_db_is_hdmi20_vsdb(db)) {
+				hdmi20_vsdb_proc(connector, db, dbl);
+			} else if (cea_db_tag(db) == VIDEO_CAPABILITY_BLOCK) {
+				ext_tag = *(db + 1);
+				if (ext_tag == EXTENSION_Y420_VDB_TAG) {
+					video = db + 2;
+					video_len = dbl - 1;
+					modes += do_cea_420vdb_modes(connector,
+							video, video_len);
+				}
+				if (ext_tag == EXTENSION_Y420_CMDB_TAG) {
+					video = db + 2;
+					video_len = dbl - 1;
+					cmdb_flag = 1;
+					if (video_len > 0)
+						memcpy(cmdb_mask,
+						       video, video_len);
+					else
+						memset(cmdb_mask,
+						       0xff, sizeof(cmdb_mask));
+				}
 			}
 		}
 	}
 
+	if (svd && svd_len != 0 && cmdb_flag)
+		modes += do_cea_420cmdb_modes(connector,
+					      svd, svd_len, cmdb_mask);
 	/*
 	 * We parse the HDMI VSDB after having added the cea modes as we will
 	 * be patching their flags when the sink supports stereo 3D.
@@ -3571,7 +3695,7 @@ void drm_edid_get_monitor_name(struct edid *edid, char *name, int bufsize)
 {
 	int name_length;
 	char buf[13];
-	
+
 	if (bufsize <= 0)
 		return;
 
@@ -4092,6 +4216,155 @@ static void drm_parse_cea_ext(struct drm_connector *connector,
 			drm_parse_hdmi_vsdb_video(connector, db);
 	}
 }
+
+int drm_parse_ceadrm_static(struct drm_connector *connector,
+			    struct edid *edid, u8 **ceadrm_loc, u8 *ceadrm_len)
+{
+	u8 *edid_ext;
+	int i, start, end;
+	u8 dbl, ext_tag;
+	int ret;
+
+	ret = -1;
+	edid_ext = drm_find_cea_extension(edid);
+	if (!edid_ext)
+		return ret;
+
+	if (cea_db_offsets(edid_ext, &start, &end))
+		return ret;
+
+	for_each_cea_db(edid_ext, i, start, end) {
+		u8 *db = &edid_ext[i];
+
+		dbl = cea_db_payload_len(db);
+		if (cea_db_tag(db) == VIDEO_CAPABILITY_BLOCK) {
+			ext_tag = *(db + 1);
+			if (ext_tag == EXTENSION_DRM_STATIC_TAG) {
+				*ceadrm_loc = db + 2;
+				*ceadrm_len = dbl - 1;
+				ret = 0;
+			}
+		}
+	}
+	return ret;
+}
+EXPORT_SYMBOL(drm_parse_ceadrm_static);
+
+int drm_parse_ceadrm_dynamic(struct drm_connector *connector,
+			     struct edid *edid,
+			     u8 **ceadrm_loc, u8 *ceadrm_len)
+{
+	u8 *edid_ext;
+	int i, start, end;
+	u8 dbl, ext_tag;
+	int ret;
+
+	ret = -1;
+	edid_ext = drm_find_cea_extension(edid);
+	if (!edid_ext)
+		return ret;
+
+	if (cea_db_offsets(edid_ext, &start, &end))
+		return ret;
+
+	for_each_cea_db(edid_ext, i, start, end) {
+		u8 *db = &edid_ext[i];
+
+		dbl = cea_db_payload_len(db);
+		if (cea_db_tag(db) == VIDEO_CAPABILITY_BLOCK) {
+			ext_tag = *(db + 1);
+			if (ext_tag == EXTENSION_DRM_DYNAMIC_TAG) {
+				*ceadrm_loc = db + 2;
+				*ceadrm_len = dbl - 1;
+				ret = 0;
+			}
+		}
+	}
+	return ret;
+}
+EXPORT_SYMBOL(drm_parse_ceadrm_dynamic);
+
+int drm_parse_vend_spec_dv(struct drm_connector *connector,
+			   struct edid *edid,
+			   u8 **vend_spec_loc,
+			   u8 *vend_spec_len)
+{
+	u8 *edid_ext;
+	int i, start, end;
+	u8 dbl, ext_tag;
+	unsigned int ieeeoui = 0;
+	int ret;
+
+	ret = -1;
+	edid_ext = drm_find_cea_extension(edid);
+	if (!edid_ext)
+		return ret;
+
+	if (cea_db_offsets(edid_ext, &start, &end))
+		return ret;
+
+	for_each_cea_db(edid_ext, i, start, end) {
+		u8 *db = &edid_ext[i];
+
+		dbl = cea_db_payload_len(db);
+		if (cea_db_tag(db) == VIDEO_CAPABILITY_BLOCK) {
+			ext_tag = *(db + 1);
+			if (ext_tag == EXTENSION_VENDOR_SPECIFIC) {
+				ieeeoui = db[2];
+				ieeeoui += db[3] << 8;
+				ieeeoui += db[4] << 16;
+				if (ieeeoui == DV_IEEE_OUI) {
+					*vend_spec_loc = db + 5;
+					*vend_spec_len = dbl - 4;
+					ret = 0;
+				}
+			}
+		}
+	}
+	return ret;
+}
+EXPORT_SYMBOL(drm_parse_vend_spec_dv);
+
+int drm_parse_vend_spec_hdr10p(struct drm_connector *connector,
+			       struct edid *edid,
+			       u8 **vend_spec_loc,
+			       u8 *vend_spec_len)
+{
+	u8 *edid_ext;
+	int i, start, end;
+	u8 dbl, ext_tag;
+	unsigned int ieeeoui = 0;
+	int ret;
+
+	ret = -1;
+	edid_ext = drm_find_cea_extension(edid);
+	if (!edid_ext)
+		return ret;
+
+	if (cea_db_offsets(edid_ext, &start, &end))
+		return ret;
+
+	for_each_cea_db(edid_ext, i, start, end) {
+		u8 *db = &edid_ext[i];
+
+		dbl = cea_db_payload_len(db);
+		if (cea_db_tag(db) == VIDEO_CAPABILITY_BLOCK) {
+			ext_tag = *(db + 1);
+			if (ext_tag == EXTENSION_VENDOR_SPECIFIC) {
+				ieeeoui = db[2];
+				ieeeoui += db[3] << 8;
+				ieeeoui += db[4] << 16;
+				if (ieeeoui == HDR10_PLUS_IEEE_OUI) {
+					*vend_spec_loc = db + 5;
+					*vend_spec_len = dbl - 4;
+					ret = 0;
+				}
+			}
+		}
+	}
+	return ret;
+}
+EXPORT_SYMBOL(drm_parse_vend_spec_hdr10p);
 
 static void drm_add_display_info(struct drm_connector *connector,
 				 struct edid *edid)

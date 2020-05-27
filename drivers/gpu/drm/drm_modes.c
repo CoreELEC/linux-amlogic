@@ -123,6 +123,24 @@ void drm_mode_probed_add(struct drm_connector *connector,
 EXPORT_SYMBOL(drm_mode_probed_add);
 
 /**
+ * drm_420_mode_probed_add - add a mode to a connector's probed_mode list
+ * @connector: connector the new mode
+ * @mode: mode data
+ *
+ * Add @mode to @connector's probed_mode list for later use. This list should
+ * then in a second step get filtered and all the modes actually supported by
+ * the hardware moved to the @connector's modes list.
+ */
+void drm_420_mode_probed_add(struct drm_connector *connector,
+			     struct drm_display_mode *mode)
+{
+	WARN_ON(!mutex_is_locked(&connector->dev->mode_config.mutex));
+
+	list_add_tail(&mode->head, &connector->probed_420_modes);
+}
+EXPORT_SYMBOL(drm_420_mode_probed_add);
+
+/**
  * drm_cvt_mode -create a modeline based on the CVT algorithm
  * @dev: drm device
  * @hdisplay: hdisplay size
@@ -1264,6 +1282,17 @@ void drm_mode_connector_list_update(struct drm_connector *connector)
 	}
 }
 EXPORT_SYMBOL(drm_mode_connector_list_update);
+
+void drm_mode_420_connector_list_update(struct drm_connector *connector)
+{
+	struct drm_display_mode *pmode, *pt;
+
+	WARN_ON(!mutex_is_locked(&connector->dev->mode_config.mutex));
+
+	list_for_each_entry_safe(pmode, pt, &connector->probed_420_modes, head)
+		list_move_tail(&pmode->head, &connector->modes);
+}
+EXPORT_SYMBOL(drm_mode_420_connector_list_update);
 
 /**
  * drm_mode_parse_command_line_for_connector - parse command line modeline for connector

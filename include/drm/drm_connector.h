@@ -26,6 +26,7 @@
 #include <linux/list.h>
 #include <linux/ctype.h>
 #include <drm/drm_mode_object.h>
+#include <drm/drm_edid.h>
 
 #include <uapi/drm/drm_mode.h>
 
@@ -508,6 +509,19 @@ struct drm_cmdline_mode {
 	enum drm_connector_force force;
 };
 
+struct hdmi20_vendor_para {
+	u32 hf_ieeeoui;
+	u32 hdmi2ver;
+	u32 max_tmds_clock2;
+	u32 scdc_present;
+	u32 scdc_rr_capable;
+	u32 lte_340mcsc_scramble;
+	u32 allm;
+	u32 dc_30bit_420;
+	u32 dc_36bit_420;
+	u32 dc_48bit_420;
+};
+
 /**
  * struct drm_connector - central DRM connector control structure
  * @dev: parent DRM device
@@ -600,7 +614,8 @@ struct drm_connector {
 
 	/* these are modes added by probing with DDC or the BIOS */
 	struct list_head probed_modes;
-
+	struct list_head probed_420_modes;
+	struct hdmi20_vendor_para hdmi20_para;
 	/**
 	 * @display_info: Display information is filled from EDID information
 	 * when a display is detected. For non hot-pluggable displays such as
