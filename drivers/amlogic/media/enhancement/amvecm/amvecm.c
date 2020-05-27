@@ -143,8 +143,9 @@ unsigned int atv_source_flg;
 static int vdj_mode_flg;
 struct am_vdj_mode_s vdj_mode_s;
 struct pq_ctrl_s pq_cfg;
+struct pq_ctrl_s dv_cfg_bypass;
 
-struct pq_ctrl_s pq_cfg_init[2] = {
+struct pq_ctrl_s pq_cfg_init[PQ_CFG_MAX] = {
 	/*for tv enable pq module*/
 	{
 		.sharpness0_en = 1,
@@ -163,6 +164,40 @@ struct pq_ctrl_s pq_cfg_init[2] = {
 		.reserved = 0,
 	},
 	/*for box disable all pq module*/
+	{
+		.sharpness0_en = 0,
+		.sharpness1_en = 0,
+		.dnlp_en = 0,
+		.cm_en = 0,
+		.vadj1_en = 0,
+		.vd1_ctrst_en = 0,
+		.vadj2_en = 0,
+		.post_ctrst_en = 0,
+		.wb_en = 0,
+		.gamma_en = 0,
+		.lc_en = 0,
+		.black_ext_en = 0,
+		.chroma_cor_en = 0,
+		.reserved = 0,
+	},
+	/*for tv dv bypass pq module*/
+	{
+		.sharpness0_en = 0,
+		.sharpness1_en = 0,
+		.dnlp_en = 0,
+		.cm_en = 0,
+		.vadj1_en = 0,
+		.vd1_ctrst_en = 0,
+		.vadj2_en = 0,
+		.post_ctrst_en = 0,
+		.wb_en = 1,
+		.gamma_en = 1,
+		.lc_en = 0,
+		.black_ext_en = 0,
+		.chroma_cor_en = 0,
+		.reserved = 0,
+	},
+	/*for ott dv bypass pq module*/
 	{
 		.sharpness0_en = 0,
 		.sharpness1_en = 0,
@@ -6618,10 +6653,21 @@ void hdr_hist_config_int(void)
 #define PQ_BOX 0
 void init_pq_control(unsigned int enable)
 {
-	if (enable)
-		memcpy(&pq_cfg, &pq_cfg_init[0], sizeof(struct pq_ctrl_s));
-	else
-		memcpy(&pq_cfg, &pq_cfg_init[1], sizeof(struct pq_ctrl_s));
+	if (enable) {
+		memcpy(
+			&pq_cfg, &pq_cfg_init[TV_CFG_DEF],
+			sizeof(struct pq_ctrl_s));
+		memcpy(
+			&dv_cfg_bypass, &pq_cfg_init[TV_DV_BYPASS],
+			sizeof(struct pq_ctrl_s));
+	} else {
+		memcpy(
+			&pq_cfg, &pq_cfg_init[OTT_CFG_DEF],
+			sizeof(struct pq_ctrl_s));
+		memcpy(
+			&dv_cfg_bypass, &pq_cfg_init[OTT_DV_BYPASS],
+			sizeof(struct pq_ctrl_s));
+	}
 }
 /* #if (MESON_CPU_TYPE == MESON_CPU_TYPE_MESONG9TV) */
 void init_pq_setting(void)

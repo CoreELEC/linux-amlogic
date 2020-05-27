@@ -116,6 +116,12 @@ enum cm_hist_e {
 	CM_MAX_HIST
 };
 
+enum dv_pq_ctl_e {
+	DV_PQ_BYPASS = 0,
+	DV_PQ_CERT,
+	DV_PQ_REC,
+};
+
 enum pq_table_name_e {
 	TABLE_NAME_SHARPNESS0 = 0x1,/*in vpp*/
 	TABLE_NAME_SHARPNESS1 = 0x2,/*in vpp*/
@@ -493,6 +499,7 @@ extern enum hdr_type_e hdr_source_type;
 extern bool pd_detect_en;
 extern bool wb_en;
 extern struct pq_ctrl_s pq_cfg;
+extern struct pq_ctrl_s dv_cfg_bypass;
 
 #define CSC_FLAG_TOGGLE_FRAME	1
 #define CSC_FLAG_CHECK_OUTPUT	2
@@ -552,5 +559,6 @@ extern int am_meson_ctm_disable(void);
 
 extern void enable_osd1_mtx(unsigned int en);
 void set_cur_hdr_policy(uint policy);
+int dv_pq_ctl(enum dv_pq_ctl_e ctl);
 #endif /* AMVECM_H */
 

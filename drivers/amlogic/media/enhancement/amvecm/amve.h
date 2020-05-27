@@ -42,6 +42,14 @@
 /* READ_CBUS_REG_BITS(x,start,length) */
 /* #endif */
 
+enum pq_ctl_cfg_e {
+	TV_CFG_DEF = 0,
+	OTT_CFG_DEF,
+	TV_DV_BYPASS,
+	OTT_DV_BYPASS,
+	PQ_CFG_MAX
+};
+
 struct pq_ctrl_s {
 	u8 sharpness0_en;
 	u8 sharpness1_en;

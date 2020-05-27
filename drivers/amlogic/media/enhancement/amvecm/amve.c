@@ -123,6 +123,12 @@ int video_rgb_ogo_xvy_mtx_latch;
 
 static unsigned int assist_cnt;/* ASSIST_SPARE8_REG1; */
 
+/*0: recovery mode
+ *1: certification mode
+ *2: bypass mode, vadj1 follow config for ui setting
+ */
+static int dv_pq_bypass;
+
 /* 3d sync parts begin */
 unsigned int sync_3d_h_start;
 unsigned int sync_3d_h_end;
@@ -1951,8 +1957,18 @@ int vpp_pq_ctrl_config(struct pq_ctrl_s pq_cfg)
 unsigned int skip_pq_ctrl_load(struct am_reg_s *p)
 {
 	unsigned int ret = 0;
+	struct pq_ctrl_s cfg;
 
-	if (!pq_cfg.sharpness0_en) {
+	if (dv_pq_bypass == 2) {
+		memcpy(&cfg, &dv_cfg_bypass, sizeof(struct pq_ctrl_s));
+		cfg.vadj1_en = pq_cfg.vadj1_en;
+	} else if (dv_pq_bypass == 1) {
+		memcpy(&cfg, &dv_cfg_bypass, sizeof(struct pq_ctrl_s));
+	} else {
+		memcpy(&cfg, &pq_cfg, sizeof(struct pq_ctrl_s));
+	}
+
+	if (!cfg.sharpness0_en) {
 		if (p->addr ==
 			(SRSHARP0_PK_NR_ENABLE + sr_offset[0])) {
 			ret |= 1 << 1;
@@ -1960,7 +1976,7 @@ unsigned int skip_pq_ctrl_load(struct am_reg_s *p)
 		}
 	}
 
-	if (!pq_cfg.sharpness1_en) {
+	if (!cfg.sharpness1_en) {
 		if (p->addr ==
 			(SRSHARP1_PK_NR_ENABLE + sr_offset[1])) {
 			ret |= 1 << 1;
@@ -1968,7 +1984,7 @@ unsigned int skip_pq_ctrl_load(struct am_reg_s *p)
 		}
 	}
 
-	if (!pq_cfg.cm_en) {
+	if (!cfg.cm_en) {
 		if (p->addr == 0x208) {
 			if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A)
 				ret |= 1 << 0;
@@ -1978,7 +1994,7 @@ unsigned int skip_pq_ctrl_load(struct am_reg_s *p)
 		}
 	}
 
-	if (!pq_cfg.vadj1_en) {
+	if (!cfg.vadj1_en) {
 		if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A) {
 			if (p->addr == VPP_VADJ1_MISC) {
 				ret |= 1 << 0;
@@ -1992,14 +2008,14 @@ unsigned int skip_pq_ctrl_load(struct am_reg_s *p)
 		}
 	}
 
-	if (!pq_cfg.vd1_ctrst_en) {
+	if (!cfg.vd1_ctrst_en) {
 		if (p->addr == VPP_VD1_RGB_CTRST) {
 			ret |= 1 << 1;
 			return ret;
 		}
 	}
 
-	if (!pq_cfg.vadj2_en) {
+	if (!cfg.vadj2_en) {
 		if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A) {
 			if (p->addr == VPP_VADJ2_MISC) {
 				ret |= 1 << 0;
@@ -2013,7 +2029,7 @@ unsigned int skip_pq_ctrl_load(struct am_reg_s *p)
 		}
 	}
 
-	if (!pq_cfg.post_ctrst_en) {
+	if (!cfg.post_ctrst_en) {
 		if (p->addr == VPP_POST_RGB_CTRST) {
 			ret |= 1 << 1;
 			return ret;
@@ -2021,9 +2037,9 @@ unsigned int skip_pq_ctrl_load(struct am_reg_s *p)
 	}
 
 	if (p->addr == VPP_VE_ENABLE_CTRL) {
-		if (!pq_cfg.black_ext_en)
+		if (!cfg.black_ext_en)
 			ret |= 1 << 3;
-		if (!pq_cfg.chroma_cor_en)
+		if (!cfg.chroma_cor_en)
 			ret |= 1 << 4;
 		return ret;
 	}
@@ -2031,3 +2047,37 @@ unsigned int skip_pq_ctrl_load(struct am_reg_s *p)
 	return ret;
 }
 
+int dv_pq_ctl(enum dv_pq_ctl_e ctl)
+{
+	struct pq_ctrl_s cfg;
+
+	switch (ctl) {
+	case DV_PQ_BYPASS:
+		memcpy(&cfg, &dv_cfg_bypass, sizeof(struct pq_ctrl_s));
+		cfg.vadj1_en = pq_cfg.vadj1_en;
+		vpp_pq_ctrl_config(cfg);
+		dv_pq_bypass = 2;
+		pr_amve_dbg(
+			"dv enable, pq disable, dv_pq_bypass = %d\n",
+			dv_pq_bypass);
+		break;
+	case DV_PQ_CERT:
+		vpp_pq_ctrl_config(dv_cfg_bypass);
+		dv_pq_bypass = 1;
+		pr_amve_dbg(
+			"dv certification mode, pq disable, dv_pq_bypass = %d\n",
+			dv_pq_bypass);
+		break;
+	case DV_PQ_REC:
+		vpp_pq_ctrl_config(pq_cfg);
+		dv_pq_bypass = 0;
+		pr_amve_dbg(
+			"dv disable, pq recovery, dv_pq_bypass = %d\n",
+			dv_pq_bypass);
+		break;
+	default:
+		break;
+	}
+	return 0;
+}
+EXPORT_SYMBOL(dv_pq_ctl);

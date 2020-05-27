@@ -3028,8 +3028,8 @@ static u32 viu_eotf_ctrl_backup;
 static u32 xvycc_lut_ctrl_backup;
 static u32 inv_lut_ctrl_backup;
 static u32 vpp_vadj_backup;
-static u32 vpp_vadj1_backup;
-static u32 vpp_vadj2_backup;
+/*static u32 vpp_vadj1_backup;*/
+/*static u32 vpp_vadj2_backup;*/
 static u32 vpp_gainoff_backup;
 static u32 vpp_ve_enable_ctrl_backup;
 static u32 xvycc_vd1_rgb_ctrst_backup;
@@ -3050,18 +3050,11 @@ static void video_effect_bypass(int bypass)
 					VSYNC_RD_DV_REG(VPP_VADJ_CTRL);
 				xvycc_vd1_rgb_ctrst_backup =
 					VSYNC_RD_DV_REG(XVYCC_VD1_RGB_CTRST);
-			} else {
-				vpp_vadj1_backup =
-					VSYNC_RD_DV_REG(VPP_VADJ1_MISC);
-				vpp_vadj2_backup =
-					VSYNC_RD_DV_REG(VPP_VADJ2_MISC);
-				xvycc_vd1_rgb_ctrst_backup =
-					VSYNC_RD_DV_REG(VPP_VD1_RGB_CTRST);
+				vpp_ve_enable_ctrl_backup =
+					VSYNC_RD_DV_REG(VPP_VE_ENABLE_CTRL);
+				vpp_gainoff_backup =
+					VSYNC_RD_DV_REG(VPP_GAINOFF_CTRL0);
 			}
-			vpp_gainoff_backup =
-				VSYNC_RD_DV_REG(VPP_GAINOFF_CTRL0);
-			vpp_ve_enable_ctrl_backup =
-				VSYNC_RD_DV_REG(VPP_VE_ENABLE_CTRL);
 			is_video_effect_bypass = true;
 		}
 		if (is_meson_txlx()) {
@@ -3070,15 +3063,14 @@ static void video_effect_bypass(int bypass)
 			VSYNC_WR_DV_REG(XVYCC_INV_LUT_CTL, 0);
 			VSYNC_WR_DV_REG(VPP_VADJ_CTRL, 0);
 			VSYNC_WR_DV_REG(XVYCC_VD1_RGB_CTRST, 0);
+			VSYNC_WR_DV_REG(VPP_GAINOFF_CTRL0, 0);
+			VSYNC_WR_DV_REG(VPP_VE_ENABLE_CTRL, 0);
 		} else {
-			VSYNC_WR_DV_REG(VPP_VADJ1_MISC, 0);
-			VSYNC_WR_DV_REG(VPP_VADJ2_MISC, 0);
-			VSYNC_WR_DV_REG(VPP_VD1_RGB_CTRST, 0);
+			if (dolby_vision_flags & FLAG_CERTIFICAION)
+				dv_pq_ctl(DV_PQ_CERT);
+			else
+				dv_pq_ctl(DV_PQ_BYPASS);
 		}
-
-		VSYNC_WR_DV_REG(VPP_GAINOFF_CTRL0, 0);
-		VSYNC_WR_DV_REG(VPP_VE_ENABLE_CTRL, 0);
-
 	} else if (is_video_effect_bypass) {
 		if (is_meson_txlx()) {
 			VSYNC_WR_DV_REG(
@@ -3096,23 +3088,16 @@ static void video_effect_bypass(int bypass)
 			VSYNC_WR_DV_REG(
 				XVYCC_VD1_RGB_CTRST,
 				xvycc_vd1_rgb_ctrst_backup);
+			VSYNC_WR_DV_REG(
+				VPP_GAINOFF_CTRL0,
+				vpp_gainoff_backup);
+			VSYNC_WR_DV_REG(
+				VPP_VE_ENABLE_CTRL,
+				vpp_ve_enable_ctrl_backup);
 		} else {
-			VSYNC_WR_DV_REG(
-				VPP_VADJ1_MISC,
-				vpp_vadj1_backup);
-			VSYNC_WR_DV_REG(
-				VPP_VADJ2_MISC,
-				vpp_vadj2_backup);
-			VSYNC_WR_DV_REG(
-				VPP_VD1_RGB_CTRST,
-				xvycc_vd1_rgb_ctrst_backup);
+			dv_pq_ctl(DV_PQ_REC);
 		}
-		VSYNC_WR_DV_REG(
-			VPP_GAINOFF_CTRL0,
-			vpp_gainoff_backup);
-		VSYNC_WR_DV_REG(
-			VPP_VE_ENABLE_CTRL,
-			vpp_ve_enable_ctrl_backup);
+		is_video_effect_bypass = false;
 	}
 }
 
