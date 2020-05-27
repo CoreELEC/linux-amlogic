@@ -1835,8 +1835,10 @@ static int di_init_buf(int width, int height, unsigned char prog_flag,
 		if (ii >= USED_LOCAL_BUF_MAX) {
 			/* backup cma pages */
 			tmp_page = di_buf->pages;
+			tmp_addr = di_buf->nr_adr;
 			memset(di_buf, 0, sizeof(struct di_buf_s));
 			di_buf->pages = tmp_page;
+			di_buf->nr_adr = tmp_addr;
 			di_buf->type = VFRAME_TYPE_LOCAL;
 			di_buf->pre_ref_count = 0;
 			di_buf->post_ref_count = 0;
@@ -1846,31 +1848,33 @@ static int di_init_buf(int width, int height, unsigned char prog_flag,
 			if (prog_flag) {
 				di_buf->canvas_height = canvas_height;
 				di_buf->canvas_height_mc = canvas_height;
+				if (cfgeq(MEM_FLAG, EDI_MEM_M_REV)	||
+				    cfgeq(MEM_FLAG, EDI_MEM_M_CMA_ALL)) {
 				di_buf->nr_adr = mem_st_local +
 					di_buf_size * i;
+				}
 				di_buf->canvas_config_flag = 1;
 			} else {
 				di_buf->canvas_height = (canvas_height >> 1);
 				di_buf->canvas_height_mc =
 					roundup(di_buf->canvas_height,
 						canvas_align_width);
+				if (cfgeq(MEM_FLAG, EDI_MEM_M_REV)	||
+				    cfgeq(MEM_FLAG, EDI_MEM_M_CMA_ALL)) {
 				di_buf->nr_adr = mem_st_local +
 					di_buf_size * i;
-				di_buf->mtn_adr = mem_st_local +
-					di_buf_size * i +
+				}
+				di_buf->mtn_adr = di_buf->nr_adr +
 					nr_size;
-				di_buf->cnt_adr = mem_st_local +
-					di_buf_size * i +
+				di_buf->cnt_adr = di_buf->nr_adr +
 					nr_size + mtn_size;
 
 				if (mc_mem_alloc) {
-					di_buf->mcvec_adr = mem_st_local +
-						di_buf_size * i +
+					di_buf->mcvec_adr = di_buf->nr_adr +
 						nr_size + mtn_size
 						+ count_size;
 					di_buf->mcinfo_adr =
-						mem_st_local +
-						di_buf_size * i + nr_size +
+						di_buf->nr_adr + nr_size +
 						mtn_size + count_size
 						+ mv_size;
 				if (cfgeq(MEM_FLAG, EDI_MEM_M_REV) ||
@@ -8174,7 +8178,10 @@ struct vframe_s *di_vf_l_peek(unsigned int channel)
 	if (vframe_ret) {
 		dim_tr_ops.post_peek(9);
 	} else {
-		task_send_ready();
+		if (dip_chst_get(channel) == EDI_TOP_STATE_REG_STEP1_P1)
+			task_send_cmd(LCMD1(ECMD_REG, channel));
+		else
+			task_send_ready();
 		dim_tr_ops.post_peek(4);
 	}
 	return vframe_ret;
