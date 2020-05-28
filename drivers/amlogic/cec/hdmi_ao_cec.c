@@ -3420,7 +3420,9 @@ static long hdmitx_cec_ioctl(struct file *f,
 			return -EINVAL;
 		}
 		break;
-
+	case CEC_IOC_SET_DEBUG_EN:
+		cec_msg_dbg_en = arg & 0xff;
+		break;
 	default:
 		CEC_ERR("error ioctrl: 0x%x\n", cmd);
 		break;
