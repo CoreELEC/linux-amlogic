@@ -1759,6 +1759,11 @@
 			};
 		};
 	};/*thermal zone end*/
+
+	lut_dma:lut_dma {
+		compatible = "amlogic, meson-sc2, lut_dma";
+		status = "okay";
+	};
 };/* end of / */
 
 &pinctrl_aobus {

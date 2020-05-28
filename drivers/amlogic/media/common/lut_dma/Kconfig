@@ -1,0 +1,12 @@
+#
+# LUT DMA management driver configuration
+#
+
+menu "LUT DMA management driver"
+
+config AMLOGIC_MEDIA_LUT_DMA
+	bool "Amlogic LUT DMA management driver"
+	default n
+	help
+		Select to enable LUT DMA management driver.
+endmenu
