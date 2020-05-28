@@ -1193,6 +1193,21 @@ static struct ge2d_device_data_s ge2d_c2 = {
 	.src2_repeat = 1,
 };
 
+static struct ge2d_device_data_s ge2d_sc2 = {
+	.ge2d_rate = 400000000,
+	.src2_alp = 1,
+	.canvas_status = 0,
+	.deep_color = 1,
+	.hang_flag = 1,
+	.fifo = 1,
+	.has_self_pwr = 1,
+	.poweron_table = &smc_poweron_table,
+	.poweroff_table = &smc_poweroff_table,
+	.chip_type = MESON_CPU_MAJOR_ID_SC2,
+	.adv_matrix = 1,
+	.src2_repeat = 1,
+};
+
 static const struct of_device_id ge2d_dt_match[] = {
 	{
 		.compatible = "amlogic, ge2d-gxl",
@@ -1229,6 +1244,10 @@ static const struct of_device_id ge2d_dt_match[] = {
 	{
 		.compatible = "amlogic, ge2d-c2",
 		.data = &ge2d_c2,
+	},
+	{
+		.compatible = "amlogic, ge2d-sc2",
+		.data = &ge2d_sc2,
 	},
 	{},
 };
