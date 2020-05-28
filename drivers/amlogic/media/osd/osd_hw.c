@@ -145,6 +145,7 @@ struct hw_osd_reg_s hw_osd_reg_array_g12a[HW_OSD_COUNT] = {
 		VIU_OSD1_PROT_CTRL,
 		VIU_OSD1_MALI_UNPACK_CTRL,
 		VIU_OSD1_DIMM_CTRL,
+		VPP_WRAP_OSD1_MATRIX_EN_CTRL,
 
 		VPP_OSD_SCALE_COEF_IDX,
 		VPP_OSD_SCALE_COEF,
@@ -172,8 +173,6 @@ struct hw_osd_reg_s hw_osd_reg_array_g12a[HW_OSD_COUNT] = {
 		VPU_MAFBC_OUTPUT_BUF_ADDR_HIGH_S0,
 		VPU_MAFBC_OUTPUT_BUF_STRIDE_S0,
 		VPU_MAFBC_PREFETCH_CFG_S0,
-
-
 	},
 	{
 		VIU_OSD2_CTRL_STAT,
@@ -196,6 +195,7 @@ struct hw_osd_reg_s hw_osd_reg_array_g12a[HW_OSD_COUNT] = {
 		VIU_OSD2_PROT_CTRL,
 		VIU_OSD2_MALI_UNPACK_CTRL,
 		VIU_OSD2_DIMM_CTRL,
+		VPP_WRAP_OSD2_MATRIX_EN_CTRL,
 
 		OSD2_SCALE_COEF_IDX,
 		OSD2_SCALE_COEF,
@@ -223,7 +223,6 @@ struct hw_osd_reg_s hw_osd_reg_array_g12a[HW_OSD_COUNT] = {
 		VPU_MAFBC_OUTPUT_BUF_ADDR_HIGH_S1,
 		VPU_MAFBC_OUTPUT_BUF_STRIDE_S1,
 		VPU_MAFBC_PREFETCH_CFG_S1,
-
 	},
 	{
 		VIU_OSD3_CTRL_STAT,
@@ -246,6 +245,7 @@ struct hw_osd_reg_s hw_osd_reg_array_g12a[HW_OSD_COUNT] = {
 		VIU_OSD3_PROT_CTRL,
 		VIU_OSD3_MALI_UNPACK_CTRL,
 		VIU_OSD3_DIMM_CTRL,
+		VPP_WRAP_OSD3_MATRIX_EN_CTRL,
 
 		OSD34_SCALE_COEF_IDX,
 		OSD34_SCALE_COEF,
@@ -295,6 +295,7 @@ struct hw_osd_reg_s hw_osd_reg_array_g12a[HW_OSD_COUNT] = {
 		VIU2_OSD1_PROT_CTRL,
 		VIU2_OSD1_MALI_UNPACK_CTRL,
 		VIU2_OSD1_DIMM_CTRL,
+		VIU2_OSD1_MATRIX_EN_CTRL,
 
 		VIU2_OSD1_UNSUPPORT,
 		VIU2_OSD1_UNSUPPORT,
@@ -347,6 +348,7 @@ struct hw_osd_reg_s hw_osd_reg_array_tl1[HW_OSD_COUNT] = {
 		VIU_OSD1_PROT_CTRL,
 		VIU_OSD1_MALI_UNPACK_CTRL,
 		VIU_OSD1_DIMM_CTRL,
+		VPP_WRAP_OSD1_MATRIX_EN_CTRL,
 
 		VPP_OSD_SCALE_COEF_IDX,
 		VPP_OSD_SCALE_COEF,
@@ -374,8 +376,6 @@ struct hw_osd_reg_s hw_osd_reg_array_tl1[HW_OSD_COUNT] = {
 		VPU_MAFBC_OUTPUT_BUF_ADDR_HIGH_S0,
 		VPU_MAFBC_OUTPUT_BUF_STRIDE_S0,
 		VPU_MAFBC_PREFETCH_CFG_S0,
-
-
 	},
 	{
 		VIU_OSD2_CTRL_STAT,
@@ -398,6 +398,7 @@ struct hw_osd_reg_s hw_osd_reg_array_tl1[HW_OSD_COUNT] = {
 		VIU_OSD2_PROT_CTRL,
 		VIU_OSD2_MALI_UNPACK_CTRL,
 		VIU_OSD2_DIMM_CTRL,
+		VPP_WRAP_OSD2_MATRIX_EN_CTRL,
 
 		OSD2_SCALE_COEF_IDX,
 		OSD2_SCALE_COEF,
@@ -425,7 +426,6 @@ struct hw_osd_reg_s hw_osd_reg_array_tl1[HW_OSD_COUNT] = {
 		VPU_MAFBC_OUTPUT_BUF_ADDR_HIGH_S1,
 		VPU_MAFBC_OUTPUT_BUF_STRIDE_S1,
 		VPU_MAFBC_PREFETCH_CFG_S1,
-
 	},
 	{
 		VIU2_OSD1_CTRL_STAT,
@@ -448,6 +448,7 @@ struct hw_osd_reg_s hw_osd_reg_array_tl1[HW_OSD_COUNT] = {
 		VIU2_OSD1_PROT_CTRL,
 		VIU2_OSD1_MALI_UNPACK_CTRL,
 		VIU2_OSD1_DIMM_CTRL,
+		VIU2_OSD1_MATRIX_EN_CTRL,
 
 		VIU2_OSD1_UNSUPPORT,
 		VIU2_OSD1_UNSUPPORT,
@@ -5264,9 +5265,11 @@ static void _osd_pan_display_layers_fence(
 				osd_log_dbg(MODULE_FENCE,
 					"fence wait ret %d\n", ret);
 		}
-		osd_pan_display_update_info(layer_map);
-		if (backup_en)
-			save_layer_info(layer_map);
+		if (osd_hw.osd_display_debug[output_index] != OSD_DISP_DEBUG) {
+			osd_pan_display_update_info(layer_map);
+			if (backup_en)
+				save_layer_info(layer_map);
+		}
 	}
 	/* set hw regs */
 	if (osd_hw.osd_display_debug[output_index] != OSD_DISP_DEBUG)
