@@ -1,6 +1,6 @@
-obj-$(CONFIG_AMLOGIC_DVB_COMPAT) += aml_dvb_common_fe.o
+obj-$(CONFIG_AMLOGIC_DVB_EXTERN) += aml_dvb_extern.o
 
-aml_dvb_common_fe-objs = \
+aml_dvb_extern-objs = \
 		aml_demod_common.o \
 		aml_tuner.o \
 		aml_atvdemod.o \

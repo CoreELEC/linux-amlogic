@@ -24,7 +24,7 @@
 /* For audio driver get atv audio state */
 void aml_fe_get_atvaudio_state(int *state);
 #else
-static inline void aml_fe_get_atvaudio_state(int *state)
+static inline __maybe_unused void aml_fe_get_atvaudio_state(int *state)
 {
 	*state = 0;
 }

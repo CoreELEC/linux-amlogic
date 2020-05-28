@@ -166,7 +166,7 @@ struct aml_tuner {
 };
 
 /** generic AML DVB attach function. */
-#if (1 || CONFIG_AMLOGIC_DVB_COMPAT)
+#if (defined CONFIG_AMLOGIC_DVB_EXTERN)
 #define aml_dvb_attach(FUNCTION, ARGS...) ({ \
 	void *__r = NULL; \
 	typeof(&FUNCTION) __a = symbol_request(FUNCTION); \
@@ -214,6 +214,7 @@ static inline struct dvb_frontend *name##_attach(struct dvb_frontend *fe,\
 #define V4L2_COLOR_STD_NTSC   ((v4l2_std_id) 0x08000000)
 #define V4L2_COLOR_STD_SECAM  ((v4l2_std_id) 0x10000000)
 
+#if (defined CONFIG_AMLOGIC_DVB_EXTERN)
 const char *v4l2_std_to_str(v4l2_std_id std);
 
 void aml_ktime_get_ts(struct timespec *ts);
@@ -237,5 +238,99 @@ int aml_platform_driver_register(struct platform_driver *drv);
 void aml_platform_driver_unregister(struct platform_driver *drv);
 int aml_platform_device_register(struct platform_device *pdev);
 void aml_platform_device_unregister(struct platform_device *pdev);
+#else
+static inline __maybe_unused const char *v4l2_std_to_str(v4l2_std_id std)
+{
+	return NULL;
+}
+
+static inline __maybe_unused void aml_ktime_get_ts(struct timespec *ts)
+{
+
+}
+
+static inline __maybe_unused bool aml_gpio_is_valid(int number)
+{
+	return false;
+}
+
+static inline __maybe_unused int aml_gpio_get_value(int gpio)
+{
+	return 0;
+}
+
+static inline __maybe_unused void aml_gpio_set_value(int gpio, int value)
+{
+}
+
+static inline __maybe_unused void aml_gpio_free(int gpio)
+{
+}
+
+static inline __maybe_unused int aml_gpio_request(int gpio, const char *label)
+{
+	return 0;
+}
+
+static inline __maybe_unused int aml_demod_gpio_set(int gpio, int dir,
+		int value, const char *label)
+{
+	return 0;
+}
+
+static inline __maybe_unused int aml_demod_gpio_config(struct gpio_config *cfg,
+		const char *label)
+{
+	return 0;
+}
+
+static inline __maybe_unused struct class *aml_class_create(
+		struct module *owner, const char *name)
+{
+	return NULL;
+}
+
+static inline __maybe_unused void aml_class_destroy(struct class *cls)
+{
+}
+
+static inline __maybe_unused int aml_class_create_file(struct class *class,
+		const struct class_attribute *attr)
+{
+	return 0;
+}
+
+static inline __maybe_unused int aml_class_register(struct class *class)
+{
+	return 0;
+}
+
+static inline __maybe_unused void aml_class_unregister(struct class *class)
+{
+}
+
+static inline __maybe_unused int aml_platform_driver_register(
+		struct platform_driver *drv)
+{
+	return 0;
+}
+
+static inline __maybe_unused void aml_platform_driver_unregister(
+		struct platform_driver *drv)
+{
+}
+
+static inline __maybe_unused int aml_platform_device_register(
+		struct platform_device *pdev)
+{
+	return 0;
+}
+
+static inline __maybe_unused void aml_platform_device_unregister(
+		struct platform_device *pdev)
+{
+}
+
+#endif
 
 #endif /* __AML_DEMOD_COMMON_H__ */

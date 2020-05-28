@@ -34,6 +34,7 @@ struct tuner_frontend {
 	void *private;
 };
 
+#if (defined CONFIG_AMLOGIC_DVB_EXTERN)
 enum tuner_type aml_get_tuner_type(const char *name);
 
 struct dvb_frontend *aml_attach_detach_tuner(
@@ -41,6 +42,22 @@ struct dvb_frontend *aml_attach_detach_tuner(
 		struct dvb_frontend *fe,
 		struct tuner_config *cfg,
 		int attach);
+#else
+static inline __maybe_unused enum tuner_type aml_get_tuner_type(
+		const char *name)
+{
+	return AM_TUNER_NONE;
+}
+
+static inline __maybe_unused struct dvb_frontend *aml_attach_detach_tuner(
+		const enum tuner_type type,
+		struct dvb_frontend *fe,
+		struct tuner_config *cfg,
+		int attach)
+{
+	return NULL;
+}
+#endif
 
 static __maybe_unused struct dvb_frontend *aml_attach_tuner(
 		const enum tuner_type type,
@@ -57,7 +74,15 @@ static __maybe_unused int aml_detach_tuner(const enum tuner_type type)
 	return 0;
 }
 
+#if (defined CONFIG_AMLOGIC_DVB_EXTERN)
 int aml_get_dts_tuner_config(struct device_node *node,
 		struct tuner_config *cfg, int index);
+#else
+static inline __maybe_unused int aml_get_dts_tuner_config(
+		struct device_node *node, struct tuner_config *cfg, int index)
+{
+	return 0;
+}
+#endif
 
 #endif /* __AML_TUNER_H__ */

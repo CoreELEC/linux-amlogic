@@ -1,10 +1,10 @@
-menu "AMLOGIC DVB COMPAT support"
+menu "AMLOGIC DVB EXTERN support"
 
-config AMLOGIC_DVB_COMPAT
-	bool "Amlogic DVB drivers"
+config AMLOGIC_DVB_EXTERN
+	bool "Amlogic dvb extern drivers"
 	default N
 	help
-		select it to support amlogic dvb driver.
+		select it to support amlogic dvb extern driver.
 		Y: enable
 		N: disable
 		M: build as module

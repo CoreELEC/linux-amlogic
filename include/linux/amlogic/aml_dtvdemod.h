@@ -51,36 +51,61 @@ struct demod_frontend {
 #if (defined CONFIG_AMLOGIC_DTV_DEMOD)
 struct dvb_frontend *aml_dtvdm_attach(const struct demod_config *cfg);
 #else
-static inline struct dvb_frontend *aml_dtvdm_attach(
+static inline __maybe_unused struct dvb_frontend *aml_dtvdm_attach(
 		const struct demod_config *cfg)
 {
 	return NULL;
 }
 #endif
 
+#if (defined CONFIG_AMLOGIC_DVB_EXTERN)
 enum dtv_demod_type aml_get_dtvdemod_type(const char *name);
 
 struct dvb_frontend *aml_attach_detach_dtvdemod(
 		enum dtv_demod_type type,
 		struct demod_config *cfg,
 		int attch);
+#else
+static inline __maybe_unused enum dtv_demod_type aml_get_dtvdemod_type(
+		const char *name)
+{
+	return AM_DTV_DEMOD_NONE;
+}
 
-static __maybe_unused struct dvb_frontend *aml_attach_dtvdemod(
+static inline __maybe_unused struct dvb_frontend *aml_attach_detach_dtvdemod(
+		enum dtv_demod_type type,
+		struct demod_config *cfg,
+		int attch)
+{
+	return NULL;
+}
+#endif
+
+static inline __maybe_unused struct dvb_frontend *aml_attach_dtvdemod(
 		enum dtv_demod_type type,
 		struct demod_config *cfg)
 {
 	return aml_attach_detach_dtvdemod(type, cfg, 1);
 }
 
-static __maybe_unused int aml_detach_dtvdemod(const enum dtv_demod_type type)
+static inline __maybe_unused int aml_detach_dtvdemod(
+		const enum dtv_demod_type type)
 {
 	aml_attach_detach_dtvdemod(type, NULL, 0);
 
 	return 0;
 }
 
+#if (defined CONFIG_AMLOGIC_DVB_EXTERN)
 int aml_get_dts_demod_config(struct device_node *node,
 		struct demod_config *cfg, int index);
+#else
+static inline __maybe_unused int aml_get_dts_demod_config(
+		struct device_node *node, struct demod_config *cfg, int index)
+{
+	return 0;
+}
+#endif
 
 /* For attach demod driver end*/
 #endif /* __AML_DTVDEMOD_H__ */
