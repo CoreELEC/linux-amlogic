@@ -208,10 +208,6 @@
 		compatible = "amlogic, cvbsout-sm1";
 		dev_name = "cvbsout";
 		status = "disabled";
-		clocks = <&clkc CLKID_VCLK2_ENCI
-			&clkc CLKID_VCLK2_VENCI0
-			&clkc CLKID_VCLK2_VENCI1
-			&clkc CLKID_DAC_CLK>;
 		clock-names = "venci_top_gate",
 			"venci_0_gate",
 			"venci_1_gate",
@@ -318,8 +314,6 @@
 		interrupts = <0 46 1
 				0 40 1>;
 		interrupt-names = "pre_irq", "post_irq";
-		clocks = <&clkc CLKID_VPU_CLKB_TMP_COMP>,
-			<&clkc CLKID_VPU_CLKB_COMP>;
 		clock-names = "vpu_clkb_tmp_composite",
 			"vpu_clkb_composite";
 		clock-range = <334 667>;
@@ -385,9 +379,6 @@
 		"dvrfill1_flush";
 		pinctrl-names = "s_ts0";
 		pinctrl-0 = <&dvb_s_ts0_pins>;
-		clocks = <&clkc CLKID_DEMUX
-		&clkc CLKID_AHB_ARB0
-		&clkc CLKID_DOS_PARSER>;
 		clock-names = "demux", "ahbarb0", "parser_top";
 	};
 
@@ -427,9 +418,6 @@
 		"dvrfill1_flush";
 		pinctrl-names = "s_ts0";
 		pinctrl-0 = <&dvb_s_ts0_pins>;
-		clocks = <&clkc CLKID_DEMUX
-		&clkc CLKID_AHB_ARB0
-		&clkc CLKID_DOS_PARSER>;
 		clock-names = "demux", "ahbarb0", "parser_top";
 	};
 
@@ -468,9 +456,6 @@
 		"dvrfill1_flush";
 		pinctrl-names = "s_ts0";
 		pinctrl-0 = <&dvb_s_ts0_pins>;
-		clocks = <&clkc CLKID_DEMUX
-		&clkc CLKID_AHB_ARB0
-		&clkc CLKID_DOS_PARSER>;
 		clock-names = "demux", "ahbarb0", "parser_top";
 	};
 
@@ -1013,7 +998,6 @@
 
 &vddcpu0 {
 	status = "disabled";
-	pwms = <&pwm_AO_cd MESON_PWM_1 1250 0>;
 	regulator-min-microvolt = <720000>;
 	regulator-max-microvolt = <1020000>;
 	max-duty-cycle = <1250>;
@@ -1125,8 +1109,6 @@
 		dai-tdm-lane-slot-mask-in = <0 1>;
 		dai-tdm-oe-lane-slot-mask-out = <1 0>;
 		dai-tdm-clk-sel = <0>;
-		clocks = <&clkaudio CLKID_AUDIO_MCLK_A
-				&clkc CLKID_MPLL0>;
 		clock-names = "mclk", "clk_srcpll";
 		pinctrl-names = "tdm_pins";
 		pinctrl-0 = <&tdmout_a &tdmin_a>;
@@ -1140,11 +1122,6 @@
 		dai-tdm-lane-slot-mask-in = <0 1 0 0>;
 		dai-tdm-lane-slot-mask-out = <1 0 0 0>;
 		dai-tdm-clk-sel = <1>;
-		clocks = <&clkaudio CLKID_AUDIO_MCLK_B
-				&clkaudio CLKID_AUDIO_MCLK_PAD0
-				&clkc CLKID_MPLL1
-				&clkc CLKID_MPLL0
-				&clkaudio CLKID_AUDIO_SPDIFOUT_A>;
 		clock-names = "mclk", "mclk_pad", "clk_srcpll",
 			"samesource_srcpll", "samesource_clk";
 		pinctrl-names = "tdm_pins";
@@ -1844,6 +1821,3 @@
 	};
 };
 
-&irblaster {
-	status = "disabled";
-};

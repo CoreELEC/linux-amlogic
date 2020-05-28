@@ -28,6 +28,7 @@ Required Properties:
 	"amlogic,tm2-clkc"      - for tm2 additional ee clock
 	"amlogic,tm2-clkc"      - for tm2 additional ee clock
 	"amlogic,tm2-measure"   - for tm2 clock measurement
+	"amlogic,sc2-clkc"      - for sc2 clock
 
 - reg: physical base address of the clock controller and length of memory
        mapped region.

@@ -257,6 +257,11 @@ extern const struct clk_ops meson_g12a_pll_ops;
 extern const struct clk_ops meson_g12a_pcie_pll_ops;
 extern const struct clk_ops meson_g12a_mpll_ro_ops;
 extern const struct clk_ops meson_g12a_mpll_ops;
+extern const struct clk_ops meson_sc2_mpll_ro_ops;
+extern const struct clk_ops meson_sc2_mpll_ops;
+extern const struct clk_ops meson_sc2_pll_ro_ops;
+extern const struct clk_ops meson_sc2_pll_ops;
+extern const struct clk_ops meson_sc2_pcie_pll_ops;
 
 extern const struct clk_ops meson_tl1_pll_ro_ops;
 extern const struct clk_ops meson_tl1_pll_ops;

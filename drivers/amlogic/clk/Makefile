@@ -19,6 +19,7 @@ obj-$(CONFIG_AMLOGIC_GX_CLK) += g12a/
 obj-$(CONFIG_AMLOGIC_GX_CLK) += g12b/
 obj-$(CONFIG_AMLOGIC_GX_CLK) += tl1/
 obj-$(CONFIG_AMLOGIC_GX_CLK) += sm1/
+obj-$(CONFIG_AMLOGIC_GX_CLK) += sc2/
 obj-$(CONFIG_AMLOGIC_GX_CLK) += tm2/
 
 obj-$(CONFIG_AMLOGIC_M8B_CLK) += m8b/
