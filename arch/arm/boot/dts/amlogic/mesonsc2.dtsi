@@ -1210,7 +1210,7 @@
 
 	codec_io: codec_io {
 		compatible = "amlogic, codec_io";
-		status = "disabled";
+		status = "okay";
 		#address-cells=<1>;
 		#size-cells=<1>;
 		ranges;
@@ -1240,28 +1240,29 @@
 	mesonstream {
 		compatible = "amlogic, codec, streambuf";
 		dev_name = "mesonstream";
-		status = "disabled";
-		clock-names = "parser_top",
-			"demux",
-			"ahbarb0",
-			"vdec",
-			"clk_81",
+		status = "okay";
+		clocks = <&clkc CLKID_DOS
+			&clkc CLKID_VDEC_MUX
+			&clkc CLKID_HCODEC_MUX
+			&clkc CLKID_HEVCF_MUX
+			&clkc CLKID_HEVCB_MUX>;
+		clock-names = "vdec",
 			"clk_vdec_mux",
 			"clk_hcodec_mux",
-			"clk_hevc_mux",
+			"clk_hevcf_mux",
 			"clk_hevcb_mux";
 	};
 
 	vdec {
 		compatible = "amlogic, vdec";
 		dev_name = "vdec.0";
-		status = "disabled";
+		status = "okay";
 		interrupts = <0 3 1
 			0 23 1
 			0 32 1
-			0 43 1
-			0 44 1
-			0 45 1
+			0 91 1
+			0 92 1
+			0 93 1
 			0 72 1>;
 		interrupt-names = "vsync",
 			"demux",
@@ -1275,7 +1276,7 @@
 	vcodec_dec {
 		compatible = "amlogic, vcodec-dec";
 		dev_name = "aml-vcodec-dec";
-		status = "disabled";
+		status = "okay";
 	};
 
 	video_composer {
@@ -1585,7 +1586,7 @@
 	};
 
 	cpu_ver_name {
-		compatible = "amlogic, cpu-major-id-sm1";
+		compatible = "amlogic, cpu-major-id-sc2";
 		status = "disabled";
 	};
 
