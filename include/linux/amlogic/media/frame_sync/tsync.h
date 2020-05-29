@@ -103,6 +103,8 @@ extern void set_timestamp_inc_factor(u32 factor);
 extern int pts_cached_time(u8 type);
 #endif
 
+u32 get_first_pic_coming(void);
+
 extern int get_vsync_pts_inc_mode(void);
 
 extern void tsync_avevent_locked(enum avevent_e event, u32 param);

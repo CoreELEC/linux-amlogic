@@ -1007,6 +1007,15 @@ void tsync_avevent_locked(enum avevent_e event, u32 param)
 
 	switch (event) {
 	case VIDEO_START:
+		if (tsync_video_started == 0) {
+			pr_info("[%s %d]VIDEO_START-tsync_mode:%d(%c)\n",
+				__func__, __LINE__,
+				tsync_mode, tsync_av_mode);
+			pr_info("pcr:0x%x,param:0x%x,vpts:0x%x,apts:0x%x\n",
+				timestamp_pcrscr_get(), param,
+				timestamp_vpts_get(),
+				timestamp_apts_get());
+		}
 		tsync_video_started = 1;
 		tsync_set_av_state(0, 2);
 
@@ -1014,9 +1023,14 @@ void tsync_avevent_locked(enum avevent_e event, u32 param)
 	// by avpts-diff too much
 	//threshold 120s is an arbitrary value
 
-		if (tsync_enable && !get_vsync_pts_inc_mode())
-			tsync_mode = TSYNC_MODE_AMASTER;
-		else{
+		if (tsync_enable && !get_vsync_pts_inc_mode()) {
+			t = abs(param - timestamp_apts_get());
+			if (tsync_av_mode == TSYNC_STATE_S ||
+			    (tsync_av_mode == TSYNC_STATE_D &&
+			    (t < tsync_av_threshold_min))) {
+				tsync_mode = TSYNC_MODE_AMASTER;
+			}
+		} else {
 			tsync_mode = TSYNC_MODE_VMASTER;
 			if (get_vsync_pts_inc_mode())
 				tsync_stat = TSYNC_STAT_PCRSCR_SETUP_NONE;
@@ -1203,7 +1217,12 @@ void tsync_avevent_locked(enum avevent_e event, u32 param)
 			set_pts_realign();
 		} else if (tsync_mode != oldmod
 				 && tsync_mode == TSYNC_MODE_VMASTER) {
-			timestamp_pcrscr_set(timestamp_vpts_get());
+			//When no first pic coming, the vpts value is invalid
+			if (get_first_pic_coming())
+				t = timestamp_vpts_get();
+			else
+				t = timestamp_firstvpts_get();
+			timestamp_pcrscr_set(t);
 			set_pts_realign();
 		}
 	}
@@ -1564,7 +1583,8 @@ int tsync_set_apts(unsigned int pts)
 			}
 		}
 	} else if ((oldmod != tsync_mode) && (tsync_mode == TSYNC_MODE_VMASTER))
-		timestamp_pcrscr_set(timestamp_vpts_get());
+		timestamp_pcrscr_set(get_first_pic_coming()
+		? timestamp_vpts_get() : timestamp_firstvpts_get());
 	return 0;
 }
 EXPORT_SYMBOL(tsync_set_apts);
