@@ -305,14 +305,20 @@
 	};
 
 	vpu: vpu {
-		compatible = "amlogic, vpu-sm1";
-		status = "disabled";
-		dev_name = "vpu";
+		compatible = "amlogic, vpu-sc2";
+		status = "okay";
+		clocks = <&clkc CLKID_VAPB_MUX>,
+			<&clkc CLKID_VPU_INTR>,
+			<&clkc CLKID_VPU_A_GATE>,
+			<&clkc CLKID_VPU_B_GATE>,
+			<&clkc CLKID_VPU_MUX>;
 		clock-names = "vapb_clk",
 			"vpu_intr_gate",
 			"vpu_clk0",
 			"vpu_clk1",
 			"vpu_clk";
+		reg = <0x0 0xfe000000 0x0 0x100    /* hiu */
+			0x0 0xff000000 0x0 0xa000>; /* vcbus */
 		clk_level = <7>;
 		/* 0: 100.0M    1: 166.7M    2: 200.0M    3: 250.0M */
 		/* 4: 333.3M    5: 400.0M    6: 500.0M    7: 666.7M */

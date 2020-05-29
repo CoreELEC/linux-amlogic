@@ -21,6 +21,7 @@
 #include <linux/slab.h>
 #include <linux/err.h>
 #include <linux/delay.h>
+#include <linux/amlogic/pwr_ctrl.h>
 #include <linux/amlogic/media/vpu/vpu.h>
 #include "vpu_reg.h"
 #include "vpu.h"
@@ -78,7 +79,7 @@ void vpu_power_on(void)
 	VPUPR("vpu_power_on\n");
 
 	/* power on VPU_HDMI ISO */
-	ctrl_table = vpu_conf.data->hdmi_iso_pre_table;
+	ctrl_table = vpu_conf.data->power_table;
 	if (ctrl_table) {
 		i = 0;
 		while (i < VPU_HDMI_ISO_CNT_MAX) {
@@ -97,50 +98,54 @@ void vpu_power_on(void)
 	/* power up memories */
 	cnt = vpu_conf.data->mem_pd_table_cnt;
 	ctrl_table = vpu_conf.data->mem_pd_table;
-	i = 0;
-	while (i < cnt) {
-		if (ctrl_table[i].vmod == VPU_MOD_MAX)
-			break;
-		_reg = ctrl_table[i].reg;
-		_bit = ctrl_table[i].bit;
-		_len = ctrl_table[i].len;
-		vpu_hiu_setb(_reg, 0x0, _bit, _len);
-		udelay(5);
-		i++;
+	if (ctrl_table) {
+		i = 0;
+		while (i < cnt) {
+			if (ctrl_table[i].vmod == VPU_MOD_MAX)
+				break;
+			_reg = ctrl_table[i].reg;
+			_bit = ctrl_table[i].bit;
+			_len = ctrl_table[i].len;
+			vpu_hiu_setb(_reg, 0x0, _bit, _len);
+			udelay(5);
+			i++;
+		}
+		for (i = 8; i < 16; i++) {
+			vpu_hiu_setb(HHI_MEM_PD_REG0, 0, i, 1);
+			udelay(5);
+		}
+		usleep_range(20, 21);
 	}
-	for (i = 8; i < 16; i++) {
-		vpu_hiu_setb(HHI_MEM_PD_REG0, 0, i, 1);
-		udelay(5);
-	}
-	udelay(20);
 
 	/* Reset VIU + VENC */
 	/* Reset VENCI + VENCP + VADC + VENCL */
 	/* Reset HDMI-APB + HDMI-SYS + HDMI-TX + HDMI-CEC */
 	reset_table = vpu_conf.data->reset_table;
-	i = 0;
-	while (i < VPU_RESET_CNT_MAX) {
-		if (reset_table[i].reg == VPU_REG_END)
-			break;
-		_reg = reset_table[i].reg;
-		mask = reset_table[i].mask;
-		vpu_cbus_clr_mask(_reg, mask);
-		i++;
-	}
-	udelay(5);
-	/* release Reset */
-	i = 0;
-	while (i < VPU_RESET_CNT_MAX) {
-		if (reset_table[i].reg == VPU_REG_END)
-			break;
-		_reg = reset_table[i].reg;
-		mask = reset_table[i].mask;
-		vpu_cbus_set_mask(_reg, mask);
-		i++;
+	if (reset_table) {
+		i = 0;
+		while (i < VPU_RESET_CNT_MAX) {
+			if (reset_table[i].reg == VPU_REG_END)
+				break;
+			_reg = reset_table[i].reg;
+			mask = reset_table[i].mask;
+			vpu_cbus_clr_mask(_reg, mask);
+			i++;
+		}
+		udelay(5);
+		/* release Reset */
+		i = 0;
+		while (i < VPU_RESET_CNT_MAX) {
+			if (reset_table[i].reg == VPU_REG_END)
+				break;
+			_reg = reset_table[i].reg;
+			mask = reset_table[i].mask;
+			vpu_cbus_set_mask(_reg, mask);
+			i++;
+		}
 	}
 
 	/* Remove VPU_HDMI ISO */
-	ctrl_table = vpu_conf.data->hdmi_iso_table;
+	ctrl_table = vpu_conf.data->iso_table;
 	if (ctrl_table) {
 		i = 0;
 		while (i < VPU_HDMI_ISO_CNT_MAX) {
@@ -169,7 +174,7 @@ void vpu_power_off(void)
 
 	/* Power down VPU_HDMI */
 	/* Enable Isolation */
-	ctrl_table = vpu_conf.data->hdmi_iso_table;
+	ctrl_table = vpu_conf.data->iso_table;
 	if (ctrl_table) {
 		i = 0;
 		while (i < VPU_HDMI_ISO_CNT_MAX) {
@@ -183,34 +188,36 @@ void vpu_power_off(void)
 			i++;
 		}
 	}
-	udelay(20);
+	usleep_range(20, 21);
 
 	/* power down memories */
 	cnt = vpu_conf.data->mem_pd_table_cnt;
 	ctrl_table = vpu_conf.data->mem_pd_table;
-	i = 0;
-	while (i < cnt) {
-		if (ctrl_table[i].vmod == VPU_MOD_MAX)
-			break;
-		_reg = ctrl_table[i].reg;
-		_bit = ctrl_table[i].bit;
-		_len = ctrl_table[i].len;
-		if (_len == 32)
-			_val = 0xffffffff;
-		else
-			_val = (1 << _len) - 1;
-		vpu_hiu_setb(_reg, _val, _bit, _len);
-		udelay(5);
-		i++;
+	if (ctrl_table) {
+		i = 0;
+		while (i < cnt) {
+			if (ctrl_table[i].vmod == VPU_MOD_MAX)
+				break;
+			_reg = ctrl_table[i].reg;
+			_bit = ctrl_table[i].bit;
+			_len = ctrl_table[i].len;
+			if (_len == 32)
+				_val = 0xffffffff;
+			else
+				_val = (1 << _len) - 1;
+			vpu_hiu_setb(_reg, _val, _bit, _len);
+			udelay(5);
+			i++;
+		}
+		for (i = 8; i < 16; i++) {
+			vpu_hiu_setb(HHI_MEM_PD_REG0, 0x1, i, 1);
+			udelay(5);
+		}
+		usleep_range(20, 21);
 	}
-	for (i = 8; i < 16; i++) {
-		vpu_hiu_setb(HHI_MEM_PD_REG0, 0x1, i, 1);
-		udelay(5);
-	}
-	udelay(20);
 
 	/* Power down VPU domain */
-	ctrl_table = vpu_conf.data->hdmi_iso_pre_table;
+	ctrl_table = vpu_conf.data->power_table;
 	if (ctrl_table) {
 		i = 0;
 		while (i < VPU_HDMI_ISO_CNT_MAX) {
@@ -225,8 +232,31 @@ void vpu_power_off(void)
 		}
 	}
 
-	vpu_hiu_setb(HHI_VAPBCLK_CNTL, 0, 8, 1);
-	vpu_hiu_setb(HHI_VPU_CLK_CNTL, 0, 8, 1);
+	if (vpu_debug_print_flag)
+		VPUPR("%s finish\n", __func__);
+}
+
+void vpu_power_on_new(void)
+{
+#ifdef CONFIG_AMLOGIC_POWER
+	pwr_ctrl_psci_smc(PM_VPU_HDMI, 1);
+	VPUPR("%s\n", __func__);
+#else
+	VPUERR("%s: no CONFIG_AMLOGIC_POWER\n", __func__);
+#endif
+
+	if (vpu_debug_print_flag)
+		VPUPR("%s finish\n", __func__);
+}
+
+void vpu_power_off_new(void)
+{
+#ifdef CONFIG_AMLOGIC_POWER
+	pwr_ctrl_psci_smc(PM_VPU_HDMI, 0);
+	VPUPR("%s\n", __func__);
+#else
+	VPUERR("%s: no CONFIG_AMLOGIC_POWER\n", __func__);
+#endif
 
 	if (vpu_debug_print_flag)
 		VPUPR("%s finish\n", __func__);

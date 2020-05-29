@@ -17,11 +17,13 @@
 
 #ifndef __VPU_REG_H__
 #define __VPU_REG_H__
+#include <linux/platform_device.h>
 #include <linux/amlogic/iomap.h>
 #include "vpu.h"
 
 /*extern void __iomem *reg_base_aobus;*/
 /*extern void __iomem *reg_base_cbus;*/
+#define VPU_REG_OFFSET(reg)          ((reg) << 2)
 
 /* ********************************
  * register define
@@ -50,6 +52,9 @@
 #define HHI_VPU_CLK_CNTL             0x6f
 #define HHI_VPU_CLKB_CNTL            0x83
 #define HHI_VAPBCLK_CNTL             0x7d
+
+#define CLKCTRL_VPU_CLK_CTRL         0x003a
+#define CLKCTRL_VAPBCLK_CTRL         0x003f
 
 /* cbus */
 #define RESET0_REGISTER              0x1101
@@ -136,6 +141,7 @@
 #define VPU_RDARB_MODE_L2C1          0x279d
 #define VPU_WRARB_MODE_L2C1          0x27a2
 
+int vpu_ioremap(struct platform_device *pdev);
 
 extern unsigned int vpu_hiu_read(unsigned int _reg);
 extern void vpu_hiu_write(unsigned int _reg, unsigned int _value);

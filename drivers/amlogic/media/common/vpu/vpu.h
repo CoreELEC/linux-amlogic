@@ -38,6 +38,7 @@ enum vpu_chip_e {
 	VPU_CHIP_TL1,
 	VPU_CHIP_SM1,
 	VPU_CHIP_TM2,
+	VPU_CHIP_SC2,
 	VPU_CHIP_MAX,
 };
 
@@ -73,9 +74,13 @@ struct vpu_reset_s {
 struct vpu_data_s {
 	enum vpu_chip_e chip_type;
 	const char *chip_name;
+	unsigned char iomap_flag;
 	unsigned char clk_level_dft;
 	unsigned char clk_level_max;
 	struct fclk_div_s *fclk_div_table;
+
+	unsigned int vpu_clk_reg;
+	unsigned int vapb_clk_reg;
 
 	unsigned char gp_pll_valid;
 	unsigned char mem_pd_reg1_valid;
@@ -90,9 +95,12 @@ struct vpu_data_s {
 
 	unsigned int module_init_table_cnt;
 	struct vpu_ctrl_s *module_init_table;
-	struct vpu_ctrl_s *hdmi_iso_pre_table;
-	struct vpu_ctrl_s *hdmi_iso_table;
+	struct vpu_ctrl_s *power_table;
+	struct vpu_ctrl_s *iso_table;
 	struct vpu_reset_s *reset_table;
+
+	void (*power_on)(void);
+	void (*power_off)(void);
 };
 
 struct vpu_conf_s {
@@ -123,5 +131,7 @@ extern void vpu_mem_pd_init_off(void);
 extern void vpu_module_init_config(void);
 extern void vpu_power_on(void);
 extern void vpu_power_off(void);
+void vpu_power_on_new(void);
+void vpu_power_off_new(void);
 
 #endif

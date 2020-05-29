@@ -120,4 +120,15 @@ extern void switch_vpu_mem_pd_vmod(unsigned int vmod, int flag);
 extern int get_vpu_mem_pd_vmod(unsigned int vmod);
 
 extern void switch_vpu_clk_gate_vmod(unsigned int vmod, int flag);
+
+/* vpu vcbus reg access api */
+unsigned int vpu_vcbus_read(unsigned int _reg);
+void vpu_vcbus_write(unsigned int _reg, unsigned int _value);
+void vpu_vcbus_setb(unsigned int _reg, unsigned int _value,
+		    unsigned int _start, unsigned int _len);
+unsigned int vpu_vcbus_getb(unsigned int _reg,
+			    unsigned int _start, unsigned int _len);
+void vpu_vcbus_set_mask(unsigned int _reg, unsigned int _mask);
+void vpu_vcbus_clr_mask(unsigned int _reg, unsigned int _mask);
+
 #endif
