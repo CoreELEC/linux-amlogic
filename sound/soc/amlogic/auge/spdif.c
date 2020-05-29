@@ -422,7 +422,6 @@ static int spdif_clk_set(struct snd_kcontrol *kcontrol,
 	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct aml_spdif *p_spdif = snd_soc_component_get_drvdata(component);
 	unsigned int mpll_freq = 0;
-	int ret;
 
 	int sysclk = p_spdif->sysclk_freq;
 	int value = ucontrol->value.enumerated.item[0];
@@ -440,16 +439,7 @@ static int spdif_clk_set(struct snd_kcontrol *kcontrol,
 	p_spdif->sysclk_freq = sysclk;
 	clk_set_rate(p_spdif->sysclk, mpll_freq);
 	clk_set_rate(p_spdif->clk_spdifout, p_spdif->sysclk_freq);
-	ret = clk_prepare_enable(p_spdif->sysclk);
-	if (ret) {
-		pr_err("Can't enable pcm sysclk clock: %d\n", ret);
-		return 0;
-	}
-	ret = clk_prepare_enable(p_spdif->clk_spdifout);
-	if (ret) {
-		pr_err("Can't enable clk_spdifout clock: %d\n", ret);
-		return 0;
-	}
+
 	return 0;
 }
 
@@ -557,6 +547,9 @@ static const struct snd_kcontrol_new snd_spdif_b_controls[] = {
 		     spdif_select_enum,
 		     spdif_select_get_enum,
 		     spdif_select_set_enum),
+	SOC_SINGLE_EXT("SPDIF_B CLK Fine Setting",
+		       0, 0, 2000000, 0,
+		       spdif_clk_get, spdif_clk_set),
 };
 
 static bool spdifin_check_audiotype_by_sw(struct aml_spdif *p_spdif)
