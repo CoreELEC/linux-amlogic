@@ -1825,3 +1825,6 @@
 	status = "okay";
 };
 
+&dmx_aucpu {
+	status = "okay";
+};
