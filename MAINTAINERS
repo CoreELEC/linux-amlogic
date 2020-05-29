@@ -13559,8 +13559,8 @@ HDMITX OUTPUT DRIVER
 M:      Zongdong Jiao <zongdong.jiao@amlogic.com>
 M:	Zhengrong Zhu <zhengrong.zhu@amlogic.com>
 S:	Maintained
-F:	drivers/amlogic/media/vout/hdmitx/*
 F:	drivers/amlogic/media/vout/hdmitx/hdcp/*
+F:	drivers/amlogic/media/vout/hdmitx/*
 F:	include/linux/amlogic/media/vout/hdmi_tx/*
 F:	drivers/amlogic/esm/*
 

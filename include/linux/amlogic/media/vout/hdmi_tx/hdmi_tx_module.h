@@ -44,7 +44,8 @@
 #define MESON_CPU_ID_G12B		11
 #define MESON_CPU_ID_SM1		12
 #define MESON_CPU_ID_TM2		13
-
+#define MESON_CPU_ID_TM2B		14
+#define MESON_CPU_ID_SC2		15
 
 /*****************************
  *    hdmitx attr management

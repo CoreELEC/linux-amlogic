@@ -35,6 +35,7 @@
 #include "common.h"
 #include "hdmi_tx_reg.h"
 #include "reg_ops.h"
+#include "mach_reg.h"
 
 /* For gxb/gxl/gxm */
 static struct reg_map reg_maps_def[] = {
@@ -74,6 +75,9 @@ static struct reg_map reg_maps_def[] = {
 		.phy_addr = 0xd0044000,
 		.size = 0x100,
 	},
+	[REG_IDX_END] = {
+		.phy_addr = REG_ADDR_END, /* end */
+	}
 };
 
 /* For txlx */
@@ -114,6 +118,9 @@ static struct reg_map reg_maps_txlx[] = {
 		.phy_addr = 0xffe01000,
 		.size = 0x100,
 	},
+	[REG_IDX_END] = {
+		.phy_addr = REG_ADDR_END, /* end */
+	}
 };
 
 /* For g12a */
@@ -154,6 +161,9 @@ static struct reg_map reg_maps_g12a[] = {
 		.phy_addr = 0xffe01000,
 		.size = 0x100,
 	},
+	[REG_IDX_END] = {
+		.phy_addr = REG_ADDR_END, /* end */
+	}
 };
 
 /* For TM2 */
@@ -194,6 +204,60 @@ static struct reg_map reg_maps_tm2[] = {
 		.phy_addr = 0xffe01000,
 		.size = 0x100,
 	},
+	[REG_IDX_END] = {
+		.phy_addr = REG_ADDR_END, /* end */
+	}
+};
+
+/* For sc2 */
+static struct reg_map reg_maps_sc2[] = {
+	[CBUS_REG_IDX] = { /* CBUS */
+		.phy_addr = 0xfe004000, // TODO
+		.size = 0x100000,
+	},
+	[PERIPHS_REG_IDX] = { /* PERIPHS */
+		.phy_addr = 0xfe004000,
+		.size = 0x2000,
+	},
+	[VCBUS_REG_IDX] = { /* VPU */
+		.phy_addr = 0xff000000,
+		.size = 0x40000,
+	},
+	[AOBUS_REG_IDX] = { /* RTI */
+		.phy_addr = 0xfe004000, // TODO
+		.size = 0x100000,
+	},
+	[HHI_REG_IDX] = { /* HIU */
+		.phy_addr = 0xfe000000, // TODO
+		.size = 0x2000,
+	},
+	[RESETCTRL_REG_IDX] = { /* RESET */
+		.phy_addr = 0xfe002000,
+		.size = 0x100 << 2,
+	},
+	[ANACTRL_REG_IDX] = { /* ANACTRL */
+		.phy_addr = 0xfe008000,
+		.size = 0x100 << 2,
+	},
+	[PWRCTRL_REG_IDX] = { /* PWRCTRL */
+		.phy_addr = 0xfe00c000,
+		.size = 0x200 << 2,
+	},
+	[HDMITX_SEC_REG_IDX] = { /* HDMITX DWC LEVEL*/
+		.phy_addr = 0xfe300000,
+		.size = 0x8000,
+	},
+	[HDMITX_REG_IDX] = { /* HDMITX TOP LEVEL*/
+		.phy_addr = 0xfe308000,
+		.size = 0x4000,
+	},
+	[ELP_ESM_REG_IDX] = {
+		.phy_addr = 0xfe032000,
+		.size = 0x100,
+	},
+	[REG_IDX_END] = {
+		.phy_addr = REG_ADDR_END, /* end */
+	}
 };
 
 static struct reg_map *map;
@@ -203,50 +267,35 @@ void init_reg_map(unsigned int type)
 	int i;
 
 	switch (type) {
+	case MESON_CPU_ID_SC2:
+		map = reg_maps_sc2;
+		break;
 	case MESON_CPU_ID_G12A:
 	case MESON_CPU_ID_G12B:
 	case MESON_CPU_ID_SM1:
 		map = reg_maps_g12a;
-		for (i = 0; i < REG_IDX_END; i++) {
-			map[i].p = ioremap(map[i].phy_addr, map[i].size);
-			if (!map[i].p) {
-				pr_info("hdmitx20: failed Mapped PHY: 0x%x\n",
-					map[i].phy_addr);
-			} else {
-				pr_info("hdmitx20: Mapped PHY: 0x%x\n",
-					map[i].phy_addr);
-			}
-		}
 		break;
 	case MESON_CPU_ID_TM2:
 		map = reg_maps_tm2;
-		for (i = 0; i < REG_IDX_END; i++) {
-			map[i].p = ioremap(map[i].phy_addr, map[i].size);
-			if (!map[i].p) {
-				pr_info("hdmitx20: failed Mapped PHY: 0x%x\n",
-					map[i].phy_addr);
-			} else {
-				pr_info("hdmitx20: Mapped PHY: 0x%x\n",
-					map[i].phy_addr);
-			}
-		}
 		break;
 	case MESON_CPU_ID_TXLX:
 		map = reg_maps_txlx;
 		break;
 	default:
 		map = reg_maps_def;
-		for (i = 0; i < REG_IDX_END; i++) {
-			map[i].p = ioremap(map[i].phy_addr, map[i].size);
-			if (!map[i].p) {
-				pr_info("hdmitx20: failed Mapped PHY: 0x%x\n",
-					map[i].phy_addr);
-			} else {
-				pr_info("hdmitx20: Mapped PHY: 0x%x\n",
-					map[i].phy_addr);
-			}
-		}
 		break;
+	}
+	for (i = 0; map[i].phy_addr != REG_ADDR_END; i++) {
+		/* ANACTRL_REG_IDX is new added in SC2,
+		 * and should be skipped for others
+		 */
+		if (!map[i].phy_addr)
+			continue;
+		map[i].p = ioremap(map[i].phy_addr, map[i].size);
+		if (!map[i].p) {
+			pr_info("hdmitx20: failed Mapped PHY: 0x%x\n",
+				map[i].phy_addr);
+		}
 	}
 }
 
@@ -308,6 +357,7 @@ unsigned int hd_read_reg(unsigned int addr)
 	case MESON_CPU_ID_G12B:
 	case MESON_CPU_ID_SM1:
 	case MESON_CPU_ID_TM2:
+	case MESON_CPU_ID_SC2:
 	default:
 		val = readl(TO_PMAP_ADDR(addr));
 		break;
@@ -359,6 +409,7 @@ void hd_write_reg(unsigned int addr, unsigned int val)
 	case MESON_CPU_ID_G12B:
 	case MESON_CPU_ID_SM1:
 	case MESON_CPU_ID_TM2:
+	case MESON_CPU_ID_SC2:
 	default:
 		writel(val, TO_PMAP_ADDR(addr));
 		break;
