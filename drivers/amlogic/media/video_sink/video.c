@@ -49,6 +49,7 @@
 #include <linux/sched.h>
 #include <linux/amlogic/media/video_sink/video_keeper.h>
 #include "video_priv.h"
+#include "video_reg.h"
 #define KERNEL_ATRACE_TAG KERNEL_ATRACE_TAG_VIDEO
 #include <trace/events/meson_atrace.h>
 
@@ -422,6 +423,7 @@ static DEFINE_SPINLOCK(omx_hdr_lock);
 static u32 vpts_remainder;
 static u32 video_notify_flag;
 static int enable_video_discontinue_report = 1;
+static struct amvideo_device_data_s amvideo_meson_dev;
 
 #ifdef CONFIG_AMLOGIC_POST_PROCESS_MANAGER_PPSCALER
 static u32 video_scaler_mode;
@@ -1223,7 +1225,7 @@ int ext_get_cur_video_frame(struct vframe_s **vf, int *canvas_index)
 	if (cur_dispbuf == NULL)
 		return -1;
 	atomic_inc(&cur_dispbuf->use_cnt);
-	*canvas_index = READ_VCBUS_REG(VD1_IF0_CANVAS0 + cur_dev->viu_off);
+	*canvas_index = READ_VCBUS_REG(vd_layer[0].vd_mif_reg.vd_if0_canvas0);
 	*vf = cur_dispbuf;
 	return 0;
 }
@@ -10369,10 +10371,79 @@ static struct early_suspend video_early_suspend_handler = {
 };
 #endif
 
+static struct amvideo_device_data_s amvideo = {
+	.cpu_type = MESON_CPU_MAJOR_ID_COMPATIBALE,
+};
+
+static struct amvideo_device_data_s amvideo_tm2_revb = {
+	.cpu_type = MESON_CPU_MAJOR_ID_TM2_REVB,
+};
+
+static struct amvideo_device_data_s amvideo_sc2 = {
+	.cpu_type = MESON_CPU_MAJOR_ID_SC2_,
+};
+
+static const struct of_device_id amlogic_amvideom_dt_match[] = {
+	{
+		.compatible = "amlogic, amvideom",
+		.data = &amvideo,
+	},
+	{
+		.compatible = "amlogic, amvideom-tm2-revb",
+		.data = &amvideo_tm2_revb,
+	},
+	{
+		.compatible = "amlogic, amvideom-sc2",
+		.data = &amvideo_sc2,
+	},
+	{}
+};
+
+bool is_meson_tm2_revb(void)
+{
+	if (amvideo_meson_dev.cpu_type ==
+		MESON_CPU_MAJOR_ID_TM2_REVB)
+		return true;
+	else
+		return false;
+}
+
+bool is_meson_sc2_cpu(void)
+{
+	if (amvideo_meson_dev.cpu_type ==
+		MESON_CPU_MAJOR_ID_SC2_)
+		return true;
+	else
+		return false;
+}
+
 static int amvideom_probe(struct platform_device *pdev)
 {
 	int ret = 0;
 
+	if (pdev->dev.of_node) {
+		const struct of_device_id *match;
+		struct amvideo_device_data_s *amvideo_meson;
+		struct device_node	*of_node = pdev->dev.of_node;
+
+		match = of_match_node(amlogic_amvideom_dt_match, of_node);
+		if (match) {
+			amvideo_meson =
+				(struct amvideo_device_data_s *)match->data;
+			if (amvideo_meson)
+				memcpy(&amvideo_meson_dev, amvideo_meson,
+				       sizeof(struct amvideo_device_data_s));
+			else {
+				pr_err("%s data NOT match\n", __func__);
+				return -ENODEV;
+			}
+		} else {
+			pr_err("%s NOT match\n", __func__);
+			return -ENODEV;
+		}
+	}
+
+	video_early_init();
 	video_hw_init();
 
 	safe_switch_videolayer(0, false, false);
@@ -10403,13 +10474,6 @@ static int amvideom_remove(struct platform_device *pdev)
 	video_keeper_exit();
 	return 0;
 }
-
-static const struct of_device_id amlogic_amvideom_dt_match[] = {
-	{
-		.compatible = "amlogic, amvideom",
-	},
-	{},
-};
 
 static struct platform_driver amvideom_driver = {
 	.probe = amvideom_probe,
@@ -10454,7 +10518,6 @@ static int __init video_init(void)
 	}
 #endif
 
-	video_early_init();
 
 	if (platform_driver_register(&amvideom_driver)) {
 		pr_info("failed to amvideom driver!\n");

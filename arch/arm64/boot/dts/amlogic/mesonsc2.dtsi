@@ -1304,10 +1304,10 @@
 	};
 
 	meson-amvideom {
-		compatible = "amlogic, amvideom";
+		compatible = "amlogic, amvideom-sc2";
 		dev_name = "amvideom";
-		status = "disabled";
-		interrupts = <0 3 1>;
+		status = "okay";
+		interrupts = <0 197 1>;
 		interrupt-names = "vsync";
 	};
 

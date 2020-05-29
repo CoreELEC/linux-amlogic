@@ -19,6 +19,7 @@
 #define VIDEO_PRIV_HEADER_HH
 
 #include <linux/amlogic/media/video_sink/vpp.h>
+#include "video_reg.h"
 
 #define VIDEO_ENABLE_STATE_IDLE       0
 #define VIDEO_ENABLE_STATE_ON_REQ     1
@@ -61,8 +62,6 @@
 #define VIDEO_NOTIFY_FRAME_WAIT   0x08
 #define VIDEO_NOTIFY_POS_CHANGED  0x10
 #define VIDEO_NOTIFY_NEED_NO_COMP  0x20
-
-#define MAX_VD_LAYER 2
 
 #define COMPOSE_MODE_NONE			0
 #define COMPOSE_MODE_3D			1
@@ -107,8 +106,8 @@ struct video_layer_s;
 
 struct mif_pos_s {
 	u32 id;
-	u32 vd_reg_offt;
 	u32 afbc_reg_offt;
+	struct hw_vd_reg_s *p_vd_mif_reg;
 
 	/* frame original size */
 	u32 src_w;
@@ -203,8 +202,8 @@ struct video_layer_s {
 
 	/* reg map offsett*/
 	u32 misc_reg_offt;
-	u32 vd_reg_offt;
 	u32 afbc_reg_offt;
+	struct hw_vd_reg_s vd_mif_reg;
 
 	u8 cur_canvas_id;
 #ifdef CONFIG_AMLOGIC_MEDIA_VSYNC_RDMA
@@ -255,6 +254,17 @@ struct video_layer_s {
 	u8 enable_3d_mode;
 
 	u32 global_debug;
+};
+
+enum cpu_type_e {
+	MESON_CPU_MAJOR_ID_COMPATIBALE = 0x1,
+	MESON_CPU_MAJOR_ID_TM2_REVB,
+	MESON_CPU_MAJOR_ID_SC2_,
+	MESON_CPU_MAJOR_ID_UNKNOWN,
+};
+
+struct amvideo_device_data_s {
+	enum cpu_type_e cpu_type;
 };
 
 /* from video_hw.c */
@@ -416,6 +426,7 @@ struct vframe_s *dvel_toggle_frame(
 #ifdef CONFIG_AMLOGIC_MEDIA_VIDEOCAPTURE
 int ext_frame_capture_poll(int endflags);
 #endif
-
+bool is_meson_tm2_revb(void);
+bool is_meson_sc2_cpu(void);
 #endif
 /*VIDEO_PRIV_HEADER_HH*/
