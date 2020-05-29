@@ -151,3 +151,6 @@ obj-$(CONFIG_AMLOGIC_UVM) += uvm/
 obj-$(CONFIG_AMLOGIC_DVB_COMPAT) += dvb/
 
 obj-$(CONFIG_AMLOGIC_RESET_MESON) += reset/
+
+obj-$(CONFIG_AMLOGIC_DVB) += dvb/
+

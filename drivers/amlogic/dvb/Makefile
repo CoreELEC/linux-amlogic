@@ -1,3 +1,4 @@
+obj-$(CONFIG_AMLOGIC_AUCPU) += aucpu/
 obj-$(CONFIG_AMLOGIC_DVB_EXTERN) += aml_dvb_extern.o
 
 aml_dvb_extern-objs = \

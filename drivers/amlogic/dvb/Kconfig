@@ -9,3 +9,7 @@ config AMLOGIC_DVB_EXTERN
 		N: disable
 		M: build as module
 endmenu
+
+menu "DVB AUCPU support"
+source "drivers/amlogic/dvb/aucpu/Kconfig"
+endmenu
