@@ -15321,10 +15321,10 @@ AMLOGIC avsync modify for new architecture
 M:  Chen Chen <chen.chen1@amlogic.com>
 F:  drivers/amlogic/media/frame_sync/ptsserv_newarch.c
 
-AMLOGIC driver for cec
-M: Tao Zeng <yong.qin@amlogic.com>
-F: drivers/amlogic/cec/hdmi_tx_cec_20.h
-F: drivers/amlogic/cec/m8_ao_cec.c
+AMLOGIC driver for smartcard
+M: chuangcheng peng <chuangcheng.peng@amlogic.com>
+F: drivers/amlogic/smartcard/dvb_reg.c
+F: drivers/amlogic/smartcard/dvb_reg.h
 
 AMLOGIC driver for dmx/dsc
 M: chuangcheng peng <chuangcheng.peng@amlogic.com>

@@ -457,6 +457,17 @@
 		clock-names = "demux", "ahbarb0", "parser_top";
 	};
 
+	/* SMC */
+	smartcard{
+		compatible = "amlogic,smartcard";
+		dev_name = "smartcard";
+		status = "okay";
+
+		reg = <0x0 0xfe000000 0x0 0x480000>;
+		clocks = <&clkc CLKID_SMARTCARD>;
+		clock-names = "smartcard";
+	};
+
 	unifykey{
 		compatible = "amlogic, unifykey";
 		status = "okay";
