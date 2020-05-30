@@ -17,7 +17,13 @@
 
 #ifndef _VOUT_REG_H_
 #define _VOUT_REG_H_
+#include <linux/platform_device.h>
 #include <linux/amlogic/iomap.h>
+#ifdef CONFIG_AMLOGIC_VPU
+#include <linux/amlogic/media/vpu/vpu.h>
+#endif
+
+#define VOUT_REG_OFFSET(reg)          ((reg) << 2)
 
 /* [3: 2] cntl_viu2_sel_venc:
  *         0=ENCL, 1=ENCI, 2=ENCP, 3=ENCT.
@@ -288,52 +294,25 @@
 #define ENCT_GATE_VCLK           1
 #define ENCI_GATE_VCLK           0
 
-static inline unsigned int vout_vcbus_read(unsigned int _reg)
-{
-	return aml_read_vcbus(_reg);
-};
+#define CLKCTRL_VID_CLK_CTRL                       0x0030
+#define CLKCTRL_VID_CLK_CTRL2                      0x0031
+#define CLKCTRL_VID_CLK_DIV                        0x0032
+#define CLKCTRL_VIID_CLK_DIV                       0x0033
+#define CLKCTRL_VIID_CLK_CTRL                      0x0034
 
-static inline void vout_vcbus_write(unsigned int _reg, unsigned int _value)
-{
-	aml_write_vcbus(_reg, _value);
-};
+int vout_ioremap(struct platform_device *pdev);
+unsigned int vout_hiu_read(unsigned int _reg);
+void vout_hiu_write(unsigned int _reg, unsigned int _value);
+void vout_hiu_setb(unsigned int _reg, unsigned int _value,
+		   unsigned int _start, unsigned int _len);
+unsigned int vout_hiu_getb(unsigned int reg,
+			   unsigned int _start, unsigned int _len);
 
-static inline void vout_vcbus_setb(unsigned int _reg, unsigned int _value,
-		unsigned int _start, unsigned int _len)
-{
-	vout_vcbus_write(_reg, ((vout_vcbus_read(_reg) &
-			~(((1L << (_len)) - 1) << (_start))) |
-			(((_value) & ((1L << (_len)) - 1)) << (_start))));
-}
-
-static inline unsigned int vout_vcbus_getb(unsigned int reg,
-		unsigned int _start, unsigned int _len)
-{
-	return (vout_vcbus_read(reg) >> _start) & ((1L << _len) - 1);
-}
-
-static inline unsigned int vout_hiu_read(unsigned int _reg)
-{
-	return aml_read_hiubus(_reg);
-};
-
-static inline void vout_hiu_write(unsigned int _reg, unsigned int _value)
-{
-	aml_write_hiubus(_reg, _value);
-};
-
-static inline void vout_hiu_setb(unsigned int _reg, unsigned int _value,
-		unsigned int _start, unsigned int _len)
-{
-	vout_hiu_write(_reg, ((vout_hiu_read(_reg) &
-			~(((1L << (_len)) - 1) << (_start))) |
-			(((_value) & ((1L << (_len)) - 1)) << (_start))));
-}
-
-static inline unsigned int vout_hiu_getb(unsigned int _reg,
-		unsigned int _start, unsigned int _len)
-{
-	return (vout_hiu_read(_reg) >> (_start)) & ((1L << (_len)) - 1);
-}
+unsigned int vout_vcbus_read(unsigned int _reg);
+void vout_vcbus_write(unsigned int _reg, unsigned int _value);
+void vout_vcbus_setb(unsigned int _reg, unsigned int _value,
+		     unsigned int _start, unsigned int _len);
+unsigned int vout_vcbus_getb(unsigned int reg,
+			     unsigned int _start, unsigned int _len);
 
 #endif

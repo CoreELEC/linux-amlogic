@@ -1255,17 +1255,21 @@
 	};
 
 	vout {
-		compatible = "amlogic, vout";
-		dev_name = "vout";
-		status = "disabled";
+		compatible = "amlogic, vout_sc2";
+		status = "okay";
+		reg = <0x0 0xfe000000 0x0 0x100>; /* clkctrl */
 	};
 
 	vout2 {
 		compatible = "amlogic, vout2";
-		dev_name = "vout";
 		status = "disabled";
 		clock-names = "vpu_clkc0",
 			"vpu_clkc";
+	};
+
+	dummy_venc: dummy_venc {
+		compatible = "amlogic, dummy_venc_sc2";
+		status = "okay";
 	};
 
 	vdac {

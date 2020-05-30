@@ -29,6 +29,7 @@
 #include <linux/slab.h>
 #include <linux/ctype.h>
 #include <linux/of.h>
+#include <linux/of_device.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
 #ifdef CONFIG_AMLOGIC_VPU
@@ -39,6 +40,16 @@
 /* Local Headers */
 #include "vout_func.h"
 #include "vout_reg.h"
+
+struct dummy_venc_data_s {
+	unsigned int vid_clk_ctrl_reg;
+	unsigned int vid_clk_ctrl2_reg;
+	unsigned int vid_clk_div_reg;
+	unsigned int vid2_clk_ctrl_reg;
+	unsigned int vid2_clk_div_reg;
+};
+
+static struct dummy_venc_data_s *dummy_venc_data;
 
 struct dummy_venc_driver_s {
 	struct device *dev;
@@ -172,37 +183,59 @@ static void dummy_encp_clk_ctrl(int flag)
 {
 	unsigned int temp;
 
+	if (!dummy_venc_data) {
+		VOUTERR("%s: no dummy_venc_data\n", __func__);
+		return;
+	}
+
 	if (dummy_encp_index == 0) {
 		if (flag) {
-			temp = vout_hiu_getb(HHI_VIID_CLK_DIV, ENCL_CLK_SEL, 4);
-			vout_hiu_setb(HHI_VID_CLK_DIV, temp, ENCP_CLK_SEL, 4);
+			temp = vout_hiu_getb(dummy_venc_data->vid2_clk_div_reg,
+					     ENCL_CLK_SEL, 4);
+			vout_hiu_setb(dummy_venc_data->vid_clk_div_reg,
+				      temp, ENCP_CLK_SEL, 4);
 
-			vout_hiu_setb(HHI_VID_CLK_CNTL2, 1, ENCP_GATE_VCLK, 1);
+			vout_hiu_setb(dummy_venc_data->vid_clk_ctrl2_reg,
+				      1, ENCP_GATE_VCLK, 1);
 		} else {
-			vout_hiu_setb(HHI_VID_CLK_CNTL2, 0, ENCP_GATE_VCLK, 1);
+			vout_hiu_setb(dummy_venc_data->vid_clk_ctrl2_reg,
+				      0, ENCP_GATE_VCLK, 1);
 		}
 	} else {
 		if (flag) {
 			/* clk source sel: fckl_div5 */
-			vout_hiu_setb(HHI_VID_CLK_DIV, 0xf, VCLK_XD0, 8);
+			vout_hiu_setb(dummy_venc_data->vid_clk_div_reg,
+				      0xf, VCLK_XD0, 8);
 			udelay(5);
-			vout_hiu_setb(HHI_VID_CLK_CNTL, 6, VCLK_CLK_IN_SEL, 3);
-			vout_hiu_setb(HHI_VID_CLK_CNTL, 1, VCLK_EN0, 1);
+			vout_hiu_setb(dummy_venc_data->vid_clk_ctrl_reg,
+				      6, VCLK_CLK_IN_SEL, 3);
+			vout_hiu_setb(dummy_venc_data->vid_clk_ctrl_reg,
+				      1, VCLK_EN0, 1);
 			udelay(5);
-			vout_hiu_setb(HHI_VID_CLK_DIV, 0, ENCP_CLK_SEL, 4);
-			vout_hiu_setb(HHI_VID_CLK_DIV, 1, VCLK_XD_EN, 1);
+			vout_hiu_setb(dummy_venc_data->vid_clk_div_reg,
+				      0, ENCP_CLK_SEL, 4);
+			vout_hiu_setb(dummy_venc_data->vid_clk_div_reg,
+				      1, VCLK_XD_EN, 1);
 			udelay(5);
-			vout_hiu_setb(HHI_VID_CLK_CNTL, 1, VCLK_DIV1_EN, 1);
-			vout_hiu_setb(HHI_VID_CLK_CNTL, 1, VCLK_SOFT_RST, 1);
+			vout_hiu_setb(dummy_venc_data->vid_clk_ctrl_reg,
+				      1, VCLK_DIV1_EN, 1);
+			vout_hiu_setb(dummy_venc_data->vid_clk_ctrl_reg,
+				      1, VCLK_SOFT_RST, 1);
 			udelay(10);
-			vout_hiu_setb(HHI_VID_CLK_CNTL, 0, VCLK_SOFT_RST, 1);
+			vout_hiu_setb(dummy_venc_data->vid_clk_ctrl_reg,
+				      0, VCLK_SOFT_RST, 1);
 			udelay(5);
-			vout_hiu_setb(HHI_VID_CLK_CNTL2, 1, ENCP_GATE_VCLK, 1);
+			vout_hiu_setb(dummy_venc_data->vid_clk_ctrl2_reg,
+				      1, ENCP_GATE_VCLK, 1);
 		} else {
-			vout_hiu_setb(HHI_VID_CLK_CNTL2, 0, ENCP_GATE_VCLK, 1);
-			vout_hiu_setb(HHI_VID_CLK_CNTL, 0, VCLK_DIV1_EN, 1);
-			vout_hiu_setb(HHI_VID_CLK_CNTL, 0, VCLK_EN0, 1);
-			vout_hiu_setb(HHI_VID_CLK_DIV, 0, VCLK_XD_EN, 1);
+			vout_hiu_setb(dummy_venc_data->vid_clk_ctrl2_reg,
+				      0, ENCP_GATE_VCLK, 1);
+			vout_hiu_setb(dummy_venc_data->vid_clk_ctrl_reg,
+				      0, VCLK_DIV1_EN, 1);
+			vout_hiu_setb(dummy_venc_data->vid_clk_ctrl_reg,
+				      0, VCLK_EN0, 1);
+			vout_hiu_setb(dummy_venc_data->vid_clk_div_reg,
+				      0, VCLK_XD_EN, 1);
 		}
 	}
 }
@@ -515,29 +548,47 @@ static void dummy_enci_venc_set(void)
 
 static void dummy_enci_clk_ctrl(int flag)
 {
+	if (!dummy_venc_data) {
+		VOUTERR("%s: no dummy_venc_data\n", __func__);
+		return;
+	}
+
 	if (flag) {
 		/* clk source sel: fckl_div5 */
-		vout_hiu_setb(HHI_VIID_CLK_DIV, 0xf, VCLK2_XD, 8);
+		vout_hiu_setb(dummy_venc_data->vid2_clk_div_reg,
+			      0xf, VCLK2_XD, 8);
 		udelay(5);
-		vout_hiu_setb(HHI_VIID_CLK_CNTL, 6, VCLK2_CLK_IN_SEL, 3);
-		vout_hiu_setb(HHI_VIID_CLK_CNTL, 1, VCLK2_EN, 1);
+		vout_hiu_setb(dummy_venc_data->vid2_clk_ctrl_reg,
+			      6, VCLK2_CLK_IN_SEL, 3);
+		vout_hiu_setb(dummy_venc_data->vid2_clk_ctrl_reg,
+			      1, VCLK2_EN, 1);
 		udelay(5);
 
-		vout_hiu_setb(HHI_VID_CLK_DIV, 8, ENCI_CLK_SEL, 4);
-		vout_hiu_setb(HHI_VIID_CLK_DIV, 1, VCLK2_XD_EN, 1);
+		vout_hiu_setb(dummy_venc_data->vid_clk_div_reg,
+			      8, ENCI_CLK_SEL, 4);
+		vout_hiu_setb(dummy_venc_data->vid2_clk_div_reg,
+			      1, VCLK2_XD_EN, 1);
 		udelay(5);
 
-		vout_hiu_setb(HHI_VIID_CLK_CNTL, 1, VCLK2_DIV1_EN, 1);
-		vout_hiu_setb(HHI_VIID_CLK_CNTL, 1, VCLK2_SOFT_RST, 1);
+		vout_hiu_setb(dummy_venc_data->vid2_clk_ctrl_reg,
+			      1, VCLK2_DIV1_EN, 1);
+		vout_hiu_setb(dummy_venc_data->vid2_clk_ctrl_reg,
+			      1, VCLK2_SOFT_RST, 1);
 		udelay(10);
-		vout_hiu_setb(HHI_VIID_CLK_CNTL, 0, VCLK2_SOFT_RST, 1);
+		vout_hiu_setb(dummy_venc_data->vid2_clk_ctrl_reg,
+			      0, VCLK2_SOFT_RST, 1);
 		udelay(5);
-		vout_hiu_setb(HHI_VID_CLK_CNTL2, 1, ENCI_GATE_VCLK, 1);
+		vout_hiu_setb(dummy_venc_data->vid_clk_ctrl2_reg,
+			      1, ENCI_GATE_VCLK, 1);
 	} else {
-		vout_hiu_setb(HHI_VID_CLK_CNTL2, 0, ENCI_GATE_VCLK, 1);
-		vout_hiu_setb(HHI_VIID_CLK_CNTL, 0, VCLK2_DIV1_EN, 1);
-		vout_hiu_setb(HHI_VIID_CLK_CNTL, 0, VCLK2_EN, 1);
-		vout_hiu_setb(HHI_VIID_CLK_DIV, 0, VCLK2_XD_EN, 1);
+		vout_hiu_setb(dummy_venc_data->vid_clk_ctrl2_reg,
+			      0, ENCI_GATE_VCLK, 1);
+		vout_hiu_setb(dummy_venc_data->vid2_clk_ctrl_reg,
+			      0, VCLK2_DIV1_EN, 1);
+		vout_hiu_setb(dummy_venc_data->vid2_clk_ctrl_reg,
+			      0, VCLK2_EN, 1);
+		vout_hiu_setb(dummy_venc_data->vid2_clk_div_reg,
+			      0, VCLK2_XD_EN, 1);
 	}
 }
 
@@ -780,27 +831,45 @@ static void dummy_encl_venc_set(void)
 
 static void dummy_encl_clk_ctrl(int flag)
 {
+	if (!dummy_venc_data) {
+		VOUTERR("%s: no dummy_venc_data\n", __func__);
+		return;
+	}
+
 	if (flag) {
 		/* clk source sel: fckl_div5 */
-		vout_hiu_setb(HHI_VIID_CLK_DIV, 0xf, VCLK2_XD, 8);
+		vout_hiu_setb(dummy_venc_data->vid2_clk_div_reg,
+			      0xf, VCLK2_XD, 8);
 		udelay(5);
-		vout_hiu_setb(HHI_VIID_CLK_CNTL, 6, VCLK2_CLK_IN_SEL, 3);
-		vout_hiu_setb(HHI_VIID_CLK_CNTL, 1, VCLK2_EN, 1);
+		vout_hiu_setb(dummy_venc_data->vid2_clk_ctrl_reg,
+			      6, VCLK2_CLK_IN_SEL, 3);
+		vout_hiu_setb(dummy_venc_data->vid2_clk_ctrl_reg,
+			      1, VCLK2_EN, 1);
 		udelay(5);
-		vout_hiu_setb(HHI_VIID_CLK_DIV, 8, ENCL_CLK_SEL, 4);
-		vout_hiu_setb(HHI_VIID_CLK_DIV, 1, VCLK2_XD_EN, 1);
+		vout_hiu_setb(dummy_venc_data->vid2_clk_div_reg,
+			      8, ENCL_CLK_SEL, 4);
+		vout_hiu_setb(dummy_venc_data->vid2_clk_div_reg,
+			      1, VCLK2_XD_EN, 1);
 		udelay(5);
-		vout_hiu_setb(HHI_VIID_CLK_CNTL, 1, VCLK2_DIV1_EN, 1);
-		vout_hiu_setb(HHI_VIID_CLK_CNTL, 1, VCLK2_SOFT_RST, 1);
+		vout_hiu_setb(dummy_venc_data->vid2_clk_ctrl_reg,
+			      1, VCLK2_DIV1_EN, 1);
+		vout_hiu_setb(dummy_venc_data->vid2_clk_ctrl_reg,
+			      1, VCLK2_SOFT_RST, 1);
 		udelay(10);
-		vout_hiu_setb(HHI_VIID_CLK_CNTL, 0, VCLK2_SOFT_RST, 1);
+		vout_hiu_setb(dummy_venc_data->vid2_clk_ctrl_reg,
+			      0, VCLK2_SOFT_RST, 1);
 		udelay(5);
-		vout_hiu_setb(HHI_VID_CLK_CNTL2, 1, ENCL_GATE_VCLK, 1);
+		vout_hiu_setb(dummy_venc_data->vid_clk_ctrl2_reg,
+			      1, ENCL_GATE_VCLK, 1);
 	} else {
-		vout_hiu_setb(HHI_VID_CLK_CNTL2, 0, ENCL_GATE_VCLK, 1);
-		vout_hiu_setb(HHI_VIID_CLK_CNTL, 0, VCLK2_DIV1_EN, 1);
-		vout_hiu_setb(HHI_VIID_CLK_CNTL, 0, VCLK2_EN, 1);
-		vout_hiu_setb(HHI_VIID_CLK_DIV, 0, VCLK2_XD_EN, 1);
+		vout_hiu_setb(dummy_venc_data->vid_clk_ctrl2_reg,
+			      0, ENCL_GATE_VCLK, 1);
+		vout_hiu_setb(dummy_venc_data->vid2_clk_ctrl_reg,
+			      0, VCLK2_DIV1_EN, 1);
+		vout_hiu_setb(dummy_venc_data->vid2_clk_ctrl_reg,
+			      0, VCLK2_EN, 1);
+		vout_hiu_setb(dummy_venc_data->vid2_clk_div_reg,
+			      0, VCLK2_XD_EN, 1);
 	}
 }
 
@@ -1349,20 +1418,49 @@ static void dummy_venc_clktree_remove(struct device *dev)
 		devm_clk_put(dev, dummy_encl_drv->int_gate0);
 }
 
-#ifdef CONFIG_OF
+static struct dummy_venc_data_s dummy_venc_match_data = {
+	.vid_clk_ctrl_reg = HHI_VID_CLK_CNTL,
+	.vid_clk_ctrl2_reg = HHI_VID_CLK_CNTL2,
+	.vid_clk_div_reg = HHI_VID_CLK_DIV,
+	.vid2_clk_ctrl_reg = HHI_VIID_CLK_CNTL,
+	.vid2_clk_div_reg = HHI_VIID_CLK_DIV,
+};
+
+static struct dummy_venc_data_s dummy_venc_match_data_new = {
+	.vid_clk_ctrl_reg = CLKCTRL_VID_CLK_CTRL,
+	.vid_clk_ctrl2_reg = CLKCTRL_VID_CLK_CTRL2,
+	.vid_clk_div_reg = CLKCTRL_VID_CLK_DIV,
+	.vid2_clk_ctrl_reg = CLKCTRL_VIID_CLK_CTRL,
+	.vid2_clk_div_reg = CLKCTRL_VIID_CLK_DIV,
+};
+
 static const struct of_device_id dummy_venc_dt_match_table[] = {
 	{
 		.compatible = "amlogic, dummy_lcd",
+		.data = &dummy_venc_match_data,
 	},
 	{
 		.compatible = "amlogic, dummy_venc",
+		.data = &dummy_venc_match_data,
+	},
+	{
+		.compatible = "amlogic, dummy_venc_sc2",
+		.data = &dummy_venc_match_data_new,
 	},
 	{}
 };
-#endif
 
 static int dummy_venc_probe(struct platform_device *pdev)
 {
+	const struct of_device_id *match;
+
+	match = of_match_device(dummy_venc_dt_match_table, &pdev->dev);
+	if (!match) {
+		VOUTERR("%s: no match table\n", __func__);
+		return -1;
+	}
+	dummy_venc_data = (struct dummy_venc_data_s *)match->data;
+
 	dummy_encp_drv = kzalloc(sizeof(struct dummy_venc_driver_s),
 				 GFP_KERNEL);
 	if (!dummy_encp_drv) {

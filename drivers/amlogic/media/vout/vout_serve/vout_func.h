@@ -45,6 +45,10 @@ struct vout_cdev_s {
 	wait_queue_head_t setmode_queue;
 };
 
+struct vout_data_s {
+	unsigned int ioremap_flag;
+};
+
 #ifdef CONFIG_AMLOGIC_HDMITX
 extern int get_hpd_state(void);
 #endif
