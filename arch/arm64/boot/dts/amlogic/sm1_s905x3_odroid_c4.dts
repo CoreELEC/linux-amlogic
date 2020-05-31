@@ -62,22 +62,30 @@
 };
 
 &audiobus {
-	spdifa: spdif@0 {
+	aml_spdif: spdif {
+		pinctrl-names = "spdif_pins", "spdif_pins_mute";
 		pinctrl-0 = <&spdifout>;
+		pinctrl-1 = <&spdifout_a_mute>;
 	};
 };
 
 &pinctrl_periphs {
-	i2c3_master_pins2: i2c3_pins2 {
+	/delete-node/ spdifout;
+	/delete-node/ spdifout_a_mute;
+};
+
+&pinctrl_aobus {
+	spdifout: spdifout {
 		mux {
-			drive-strength = <3>;
+			groups = "spdif_out_ao";
+			function = "spdif_out_ao";
 		};
 	};
 
-	spdifout: spdifout {
-		mux {/* GPIOA_11 */
-			groups = "spdif_out_a11";
-			function = "spdif_out";
+	spdifout_a_mute: spdifout_a_mute {
+		mux {
+			groups = "GPIOAO_10";
+			function = "gpio_aobus";
 		};
 	};
 };
