@@ -19,22 +19,7 @@
 #include <linux/amlogic/media/vout/hdmi_tx/hdmi_tx_module.h>
 #include "common.h"
 #include "reg_ops.h"
-#include "mach_reg.h"
-
-#ifdef P_RESET0_REGISTER
-#undef P_RESET0_REGISTER
-#endif
-#ifdef P_RESET2_REGISTER
-#undef P_RESET2_REGISTER
-#endif
-#ifdef P_ISA_DEBUG_REG0
-#undef P_ISA_DEBUG_REG0
-#endif
-
-#define P_RESET0_REGISTER RESET_CBUS_REG_ADDR(0x401)
-#define P_RESET2_REGISTER RESET_CBUS_REG_ADDR(0x403)
-#define P_ISA_DEBUG_REG0 CBUS_REG_ADDR(0x3c00)
-
+#include "txlx_reg.h"
 
 unsigned int hdmitx_get_format_txlx(void)
 {

@@ -331,7 +331,7 @@ static const unsigned int gen_clk_x_pins[]		= { GPIOX_19 };
 
 /*bank H func1 */
 static const unsigned int hdmitx_sda_pins[]		= { GPIOH_0 };
-static const unsigned int hdmitx_sck_pins[]		= { GPIOH_1 };
+static const unsigned int hdmitx_scl_pins[]		= { GPIOH_1 };
 static const unsigned int hdmitx_hpd_in_pins[]		= { GPIOH_2 };
 static const unsigned int spdif_out_h_pins[]		= { GPIOH_4 };
 static const unsigned int spdif_in_h_pins[]		= { GPIOH_5 };
@@ -789,7 +789,7 @@ static struct meson_pmx_group meson_sc2_periphs_groups[] = {
 
 	/* bank H func1 */
 	GROUP(hdmitx_sda,		1),
-	GROUP(hdmitx_sck,		1),
+	GROUP(hdmitx_scl,		1),
 	GROUP(hdmitx_hpd_in,		1),
 	GROUP(spdif_out_h,		1),
 	GROUP(spdif_in_h,		1),
@@ -1235,7 +1235,7 @@ static const char * const iso7816_groups[] = {
 };
 
 static const char * const hdmitx_groups[] = {
-	"hdmitx_sda", "hdmitx_sck", "hdmitx_hpd_in",
+	"hdmitx_sda", "hdmitx_scl", "hdmitx_hpd_in",
 };
 
 static struct meson_pmx_func meson_sc2_periphs_functions[] = {

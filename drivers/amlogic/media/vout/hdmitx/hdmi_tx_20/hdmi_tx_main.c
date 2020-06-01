@@ -275,12 +275,7 @@ int get_cur_vout_index(void)
 static  int  set_disp_mode(const char *mode)
 {
 	int ret =  -1;
-	enum hdmi_vic vic = HDMI_1080p60;
-	struct hdmi_format_para *para = NULL;
-	struct hdmitx_dev *hdev = &hdmitx_device;
-
-	para = hdmi_get_fmt_name(mode, hdev->fmt_attr);
-	hdev->para = para;
+	enum hdmi_vic vic;
 
 	vic = hdmitx_edid_get_VIC(&hdmitx_device, mode, 1);
 	if (strncmp(mode, "2160p30hz", strlen("2160p30hz")) == 0)
@@ -298,6 +293,14 @@ static  int  set_disp_mode(const char *mode)
 		vic = HDMI_1080p60;
 	if (strncmp(mode, "1080p50hz", strlen("1080p50hz")) == 0)
 		vic = HDMI_1080p50;
+
+	if (vic != HDMI_Unknown) {
+		hdmitx_device.mux_hpd_if_pin_high_flag = 1;
+		if (hdmitx_device.vic_count == 0) {
+			if (hdmitx_device.unplug_powerdown)
+				return 0;
+		}
+	}
 
 	hdmitx_device.cur_VIC = HDMI_Unknown;
 	ret = hdmitx_set_display(&hdmitx_device, vic);

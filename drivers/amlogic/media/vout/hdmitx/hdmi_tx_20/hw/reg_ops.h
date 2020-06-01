@@ -44,6 +44,38 @@ struct reg_map {
 	void __iomem *p;
 };
 
+#define CBUS_REG_IDX		0
+#define PERIPHS_REG_IDX		1
+#define VCBUS_REG_IDX		2
+#define AOBUS_REG_IDX		3
+#define HHI_REG_IDX		4
+#define RESET_CBUS_REG_IDX	5
+#define HDMITX_REG_IDX		6
+#define HDMITX_SEC_REG_IDX	7
+#define ELP_ESM_REG_IDX		8
+#define REG_IDX_END		9
+
+#define BASE_REG_OFFSET		24
+
+#define CBUS_REG_ADDR(reg) \
+	((CBUS_REG_IDX << BASE_REG_OFFSET) + (reg << 2))
+#define PERIPHS_REG_ADDR(reg) \
+	((PERIPHS_REG_IDX << BASE_REG_OFFSET) + (reg << 2))
+#define VCBUS_REG_ADDR(reg) \
+	((VCBUS_REG_IDX << BASE_REG_OFFSET) + (reg << 2))
+#define AOBUS_REG_ADDR(reg) \
+	((AOBUS_REG_IDX << BASE_REG_OFFSET) + (reg << 2))
+#define HHI_REG_ADDR(reg) \
+	((HHI_REG_IDX << BASE_REG_OFFSET) + (reg << 2))
+#define RESET_CBUS_REG_ADDR(reg) \
+	((RESET_CBUS_REG_IDX << BASE_REG_OFFSET) + (reg << 2))
+#define HDMITX_SEC_REG_ADDR(reg) \
+	((HDMITX_SEC_REG_IDX << BASE_REG_OFFSET) + reg)/*DWC*/
+#define HDMITX_REG_ADDR(reg) \
+	((HDMITX_REG_IDX << BASE_REG_OFFSET) + reg)/*TOP*/
+#define ELP_ESM_REG_ADDR(reg) \
+	((ELP_ESM_REG_IDX << BASE_REG_OFFSET) + (reg << 2))
+
 extern unsigned int hd_read_reg(unsigned int addr);
 extern void hd_write_reg(unsigned int addr, unsigned int val);
 extern void hd_set_reg_bits(unsigned int addr, unsigned int value,
