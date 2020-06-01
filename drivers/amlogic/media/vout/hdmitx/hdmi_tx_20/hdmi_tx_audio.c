@@ -52,7 +52,8 @@ static const unsigned char channel_status_sample_word_length[] = {
 	0x0,
 	0x2, /*16 bits*/
 	0x3, /*20 bits*/
-	0xb  /*24 bits*/
+	0xb,  /*24 bits*/
+	0x0  /*32bits ----> not indicated*/
 };
 
 static void hdmi_tx_construct_aud_packet(
