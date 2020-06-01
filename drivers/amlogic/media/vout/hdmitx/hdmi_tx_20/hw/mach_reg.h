@@ -40,28 +40,40 @@ void init_reg_map(unsigned int type);
 #define HDMITX_REG_IDX		6
 #define HDMITX_SEC_REG_IDX	7
 #define ELP_ESM_REG_IDX		8
-#define REG_IDX_END		9
+/* new added in SC2 */
+#define ANACTRL_REG_IDX		9
+#define PWRCTRL_REG_IDX		10
+#define RESETCTRL_REG_IDX	11
+#define REG_IDX_END		12
+
+#define REG_ADDR_END 0xffffffff
 
 #define BASE_REG_OFFSET		24
 
 #define CBUS_REG_ADDR(reg) \
-	((CBUS_REG_IDX << BASE_REG_OFFSET) + (reg << 2))
+	((CBUS_REG_IDX << BASE_REG_OFFSET) + ((reg) << 2))
 #define PERIPHS_REG_ADDR(reg) \
-	((PERIPHS_REG_IDX << BASE_REG_OFFSET) + (reg << 2))
+	((PERIPHS_REG_IDX << BASE_REG_OFFSET) + ((reg) << 2))
 #define VCBUS_REG_ADDR(reg) \
-	((VCBUS_REG_IDX << BASE_REG_OFFSET) + (reg << 2))
+	((VCBUS_REG_IDX << BASE_REG_OFFSET) + ((reg) << 2))
 #define AOBUS_REG_ADDR(reg) \
-	((AOBUS_REG_IDX << BASE_REG_OFFSET) + (reg << 2))
+	((AOBUS_REG_IDX << BASE_REG_OFFSET) + ((reg) << 2))
 #define HHI_REG_ADDR(reg) \
-	((HHI_REG_IDX << BASE_REG_OFFSET) + (reg << 2))
+	((HHI_REG_IDX << BASE_REG_OFFSET) + ((reg) << 2))
 #define RESET_CBUS_REG_ADDR(reg) \
-	((RESET_CBUS_REG_IDX << BASE_REG_OFFSET) + (reg << 2))
+	((RESET_CBUS_REG_IDX << BASE_REG_OFFSET) + ((reg) << 2))
 #define HDMITX_SEC_REG_ADDR(reg) \
-	((HDMITX_SEC_REG_IDX << BASE_REG_OFFSET) + reg)
+	((HDMITX_SEC_REG_IDX << BASE_REG_OFFSET) + (reg))
 #define HDMITX_REG_ADDR(reg) \
-	((HDMITX_REG_IDX << BASE_REG_OFFSET) + reg)
+	((HDMITX_REG_IDX << BASE_REG_OFFSET) + (reg))
 #define ELP_ESM_REG_ADDR(reg) \
-	((ELP_ESM_REG_IDX << BASE_REG_OFFSET) + (reg << 2))
+	((ELP_ESM_REG_IDX << BASE_REG_OFFSET) + ((reg) << 2))
+#define ANACTRL_REG_ADDR(reg) \
+	((ANACTRL_REG_IDX << BASE_REG_OFFSET) + ((reg) << 2))
+#define PWRCTRL_REG_ADDR(reg) \
+	((PWRCTRL_REG_IDX << BASE_REG_OFFSET) + ((reg) << 2))
+#define RESETCTRL_REG_ADDR(reg) \
+	((RESETCTRL_REG_IDX << BASE_REG_OFFSET) + ((reg) << 2))
 
 #define WAIT_FOR_PLL_LOCKED(reg)				\
 	do {							\

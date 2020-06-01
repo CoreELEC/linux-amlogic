@@ -1145,9 +1145,8 @@
 		dev_name = "amhdmitx";
 		status = "disabled";
 		vend-data = <&vend_data>;
-		pinctrl-names="default", "hdmitx_i2c";
+		pinctrl-names="default";
 		pinctrl-0=<&hdmitx_hpd &hdmitx_ddc>;
-		pinctrl-1=<&hdmitx_hpd_gpio &i2c3_master_pins1>;
 		clock-names = "venci_top_gate",
 			"venci_0_gate",
 			"venci_1_gate",

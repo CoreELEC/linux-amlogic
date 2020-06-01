@@ -1043,9 +1043,8 @@
 		dev_name = "amhdmitx";
 		status = "disabled";
 		vend-data = <&vend_data>;
-		pinctrl-names="default", "hdmitx_i2c";
+		pinctrl-names="default";
 		pinctrl-0=<&hdmitx_hpd &hdmitx_ddc>;
-		pinctrl-1=<&hdmitx_hpd_gpio &i2c3_master_pins1>;
 		clock-names = "venci_top_gate",
 			"venci_0_gate",
 			"venci_1_gate",
@@ -1054,11 +1053,8 @@
 		/* HPD, 57 + 32 = 89; CEC, 151 + 32 = 183*/
 		interrupts = <0 57 1>;
 		interrupt-names = "hdmitx_hpd";
-		/* 0:M8B   1:GXBB 2:GXTVBB 3:GXL  4:GXM
-		 * 5:TXL   6:TXLX 7:AXG    8:GXLX 9:TXHD
-		 * 10:G12A 11:G12B 12:SM1
-		 */
-		ic_type = <12>;
+		/* refer to hdmi_tx_module.h */
+		ic_type = <15>;
 		vend_data: vend_data{ /* Should modified by Customer */
 			vendor_name = "Amlogic"; /* Max Chars: 8 */
 			product_desc = "MBox Meson Ref"; /* Max Chars: 16 */

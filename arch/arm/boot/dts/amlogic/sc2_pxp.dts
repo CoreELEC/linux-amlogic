@@ -1821,3 +1821,7 @@
 	};
 };
 
+&amhdmitx {
+	status = "okay";
+};
+
