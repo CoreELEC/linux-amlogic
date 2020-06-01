@@ -159,6 +159,14 @@ static int apause_flag;
 static bool dobly_avsync_test;
 static int slowsync_enable;
 static int apts_lookup_offset;
+
+bool new_arch;
+u8 demux_pcrscr_valid;
+u8 audio_pid_valid;
+u8 video_pid_valid;
+u32 demux_pcrscr;
+u32 first_demux_pcrscr;
+
 pfun_tsdemux_pcrscr_valid tsdemux_pcrscr_valid_cb;
 
 pfun_tsdemux_pcrscr_get tsdemux_pcrscr_get_cb;
@@ -243,6 +251,10 @@ static int vpts_error_num;
 
 int register_tsync_callbackfunc(enum tysnc_func_type_e ntype, void *pfunc)
 {
+	if (new_arch) {
+		pr_info("no need to register_tync_func.\n");
+		return -1;
+	}
 	if (ntype >= TSYNC_FUNC_TYPE_MAX) {
 		pr_info("register_tync_func ntype is err.\n");
 		return -1;
@@ -290,8 +302,6 @@ int register_tsync_callbackfunc(enum tysnc_func_type_e ntype, void *pfunc)
 	return 0;
 }
 EXPORT_SYMBOL(register_tsync_callbackfunc);
-
-
 
 static void tsync_pcr_recover_with_audio(void)
 {
@@ -751,6 +761,231 @@ static void tsync_state_switch_timer_fun(unsigned long arg)
 	add_timer(&tsync_state_switch_timer);
 }
 
+void tsync_get_demux_pcrscr_valid_for_newarch(void)
+{
+	demux_pcrscr_valid = 1;
+}
+EXPORT_SYMBOL(tsync_get_demux_pcrscr_valid_for_newarch);
+
+u8 tsync_get_demux_pcrscr_valid(void)
+{
+	if (new_arch) {
+		tsync_get_demux_pcrscr_valid_for_newarch();
+	} else {
+		if (tsdemux_pcrscr_valid_cb)
+			demux_pcrscr_valid = tsdemux_pcrscr_valid_cb();
+		else
+			demux_pcrscr_valid = 0;
+	}
+	return demux_pcrscr_valid;
+}
+EXPORT_SYMBOL(tsync_get_demux_pcrscr_valid);
+
+void tsync_get_audio_pid_valid_for_newarch(void)
+{
+	audio_pid_valid = 1;
+}
+EXPORT_SYMBOL(tsync_get_audio_pid_valid_for_newarch);
+
+u8 tsync_get_audio_pid_valid(void)
+{
+	if (new_arch) {
+		tsync_get_audio_pid_valid_for_newarch();
+	} else {
+		if (tsdemux_pcraudio_valid_cb)
+			audio_pid_valid = tsdemux_pcraudio_valid_cb();
+		else
+			audio_pid_valid = 0;
+	}
+	return audio_pid_valid;
+}
+EXPORT_SYMBOL(tsync_get_audio_pid_valid);
+
+void tsync_get_video_pid_valid_for_newarch(void)
+{
+	video_pid_valid = 1;
+}
+EXPORT_SYMBOL(tsync_get_video_pid_valid_for_newarch);
+
+u8 tsync_get_video_pid_valid(void)
+{
+	if (new_arch) {
+		tsync_get_video_pid_valid_for_newarch();
+	} else {
+		if (tsdemux_pcrvideo_valid_cb)
+			video_pid_valid = (tsdemux_pcrvideo_valid_cb)();
+		else
+			video_pid_valid = 0;
+	}
+	return video_pid_valid;
+}
+EXPORT_SYMBOL(tsync_get_video_pid_valid);
+
+void tsync_get_demux_pcr_for_newarch(void)
+{
+	demux_pcrscr = 1;
+}
+EXPORT_SYMBOL(tsync_get_demux_pcr_for_newarch);
+
+u8 tsync_get_demux_pcr(u32 *pcr)
+{
+	u8 ret = 0;
+
+	if (new_arch) {
+		tsync_get_demux_pcr_for_newarch();
+		*pcr = demux_pcrscr;
+		ret = 1;
+	} else {
+		if (tsdemux_pcrscr_get_cb) {
+			demux_pcrscr = tsdemux_pcrscr_get_cb();
+			*pcr = demux_pcrscr;
+			ret = 1;
+		} else {
+			ret = 0;
+		}
+	}
+	return ret;
+}
+EXPORT_SYMBOL(tsync_get_demux_pcr);
+
+void tsync_get_first_demux_pcr_for_newarch(void)
+{
+	first_demux_pcrscr = 1;
+}
+EXPORT_SYMBOL(tsync_get_first_demux_pcr_for_newarch);
+
+u8 tsync_get_first_demux_pcr(u32 *first_pcr)
+{
+	u8 ret = 0;
+
+	if (new_arch) {
+		tsync_get_first_demux_pcr_for_newarch();
+		*first_pcr = first_demux_pcrscr;
+		ret = 1;
+	} else {
+		if (tsdemux_first_pcrscr_get_cb) {
+			first_demux_pcrscr = tsdemux_first_pcrscr_get_cb();
+			*first_pcr = first_demux_pcrscr;
+			ret = 1;
+		} else {
+			ret = 0;
+		}
+	}
+	return ret;
+}
+EXPORT_SYMBOL(tsync_get_first_demux_pcr);
+
+void tsync_get_buf_by_type_for_newarch(u8 type, struct stream_buf_s *pbuf)
+{
+	pbuf = NULL;
+}
+EXPORT_SYMBOL(tsync_get_buf_by_type_for_newarch);
+
+u8 tsync_get_buf_by_type(u8 type, struct stream_buf_s *pbuf)
+{
+	u8 ret = 0;
+
+	if (new_arch) {
+		tsync_get_buf_by_type_for_newarch(type, pbuf);
+		ret = 0;
+	} else {
+		if (get_buf_by_type_cb) {
+			pbuf = get_buf_by_type_cb(type);
+			ret = 1;
+		} else {
+			ret = 0;
+		}
+	}
+	return ret;
+}
+EXPORT_SYMBOL(tsync_get_buf_by_type);
+
+void tsync_get_stbuf_level_for_newarch(struct stream_buf_s *pbuf,
+				       u32 *buf_level)
+{
+	*buf_level = 0;
+}
+EXPORT_SYMBOL(tsync_get_stbuf_level_for_newarch);
+
+u8 tsync_get_stbuf_level(struct stream_buf_s *pbuf, u32 *buf_level)
+{
+	u8 ret = 0;
+
+	if (!pbuf)
+		return 0;
+
+	if (new_arch) {
+		tsync_get_stbuf_level_for_newarch(pbuf, buf_level);
+		ret = 0;
+	} else {
+		if (stbuf_level_cb) {
+			*buf_level = stbuf_level_cb(pbuf);
+			ret = 1;
+		} else {
+			ret = 0;
+		}
+	}
+	return ret;
+}
+EXPORT_SYMBOL(tsync_get_stbuf_level);
+
+void tsync_get_stbuf_space_for_newarch(struct stream_buf_s *pbuf,
+				       u32 *buf_space)
+{
+	*buf_space = 0;
+}
+EXPORT_SYMBOL(tsync_get_stbuf_space_for_newarch);
+
+u8 tsync_get_stbuf_space(struct stream_buf_s *pbuf, u32 *buf_space)
+{
+	u8 ret = 0;
+
+	if (!pbuf)
+		return 0;
+
+	if (new_arch) {
+		tsync_get_stbuf_space_for_newarch(pbuf, buf_space);
+		ret = 0;
+	} else {
+		if (stbuf_space_cb) {
+			*buf_space = stbuf_space_cb(pbuf);
+			ret = 1;
+		} else {
+			ret = 0;
+		}
+	}
+	return ret;
+}
+EXPORT_SYMBOL(tsync_get_stbuf_space);
+
+void tsync_get_stbuf_size_for_newarch(struct stream_buf_s *pbuf, u32 *buf_size)
+{
+	*buf_size = 0;
+}
+EXPORT_SYMBOL(tsync_get_stbuf_size_for_newarch);
+
+u8 tsync_get_stbuf_size(struct stream_buf_s *pbuf, u32 *buf_size)
+{
+	u8 ret = 0;
+
+	if (!pbuf)
+		return 0;
+
+	if (new_arch) {
+		tsync_get_stbuf_size_for_newarch(pbuf, buf_size);
+		ret = 1;
+	} else {
+		if (stbuf_size_cb) {
+			*buf_size = stbuf_size_cb(pbuf);
+			ret = 1;
+		} else {
+			ret = 0;
+		}
+	}
+	return ret;
+}
+EXPORT_SYMBOL(tsync_get_stbuf_size);
+
 void tsync_mode_reinit(void)
 {
 	tsync_av_mode = TSYNC_STATE_S;
@@ -862,7 +1097,7 @@ void tsync_avevent_locked(enum avevent_e event, u32 param)
 			t = timestamp_apts_get();
 		else
 			t = timestamp_pcrscr_get();
-		if (tsdemux_pcrscr_valid_cb && tsdemux_pcrscr_valid_cb() == 1) {
+		if (tsync_get_demux_pcrscr_valid()) {
 			if (abs(param - oldpts) > tsync_av_threshold_min) {
 				vpts_discontinue = 1;
 				if (apts_discontinue == 1) {
@@ -918,7 +1153,7 @@ void tsync_avevent_locked(enum avevent_e event, u32 param)
 		amlog_level(LOG_LEVEL_ATTENTION,
 				"audio discontinue, reset apts, 0x%x\n",
 				param);
-		if (tsdemux_pcrscr_valid_cb && tsdemux_pcrscr_valid_cb() == 1) {
+		if (tsync_get_demux_pcrscr_valid()) {
 			if (abs(param - oldpts) > tsync_av_threshold_min) {
 				apts_discontinue = 1;
 				if (vpts_discontinue == 1) {
@@ -1219,7 +1454,7 @@ EXPORT_SYMBOL(tsync_set_sync_vdiscont);
 
 int tsync_set_video_runmode(void)
 {
-	if (tsdemux_pcrscr_valid_cb && tsdemux_pcrscr_valid_cb() == 1) {
+	if (tsync_get_demux_pcrscr_valid()) {
 		if (vpts_discontinue == 1 || apts_discontinue == 1)
 			return 1;
 	}
@@ -1254,7 +1489,7 @@ int tsync_set_apts(unsigned int pts)
 		t = timestamp_vpts_get();
 	else
 		t = timestamp_pcrscr_get();
-	if (tsdemux_pcrscr_valid_cb && tsdemux_pcrscr_valid_cb() == 1) {
+	if (tsync_get_demux_pcrscr_valid()) {
 		timestamp_apts_set(pts);
 		if ((int)(timestamp_apts_get() - timestamp_pcrscr_get())
 			> 30 * TIME_UNIT90K / 1000
@@ -2530,6 +2765,12 @@ static int __init tsync_module_init(void)
 
 	add_timer(&tsync_state_switch_timer);
 	REG_PATH_CONFIGS("media.tsync", tsync_configs);
+
+#ifdef DISABLE_DEMUX_PARSER
+	new_arch = true;
+#else
+	new_arch = false;
+#endif
 
 	return 0;
 
