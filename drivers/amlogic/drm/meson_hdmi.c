@@ -694,6 +694,7 @@ int am_hdmi_tx_get_modes(struct drm_connector *connector)
 		drm_mode_connector_update_edid_property(connector, edid);
 		count = drm_add_edid_modes(connector, edid);
 		am_hdmi_update_downstream_cap_property(connector, edid);
+		hdmi_tx_edid_proc((unsigned char *)edid);
 		kfree(edid);
 	} else {
 		add_default_modes(connector);
