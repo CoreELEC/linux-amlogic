@@ -939,6 +939,11 @@ static void tsync_process_discontinue(void)
 			else
 				ref_pcr = tsync_pcr_get_min_checkinpts();
 			tsync_set_pcr_mode(0, cur_checkin_vpts);
+			if (tsync_pcr_debug & 0x03) {
+				pr_info("inited_mode=%d, cur_checkin_vpts %x\n",
+					tsync_pcr_inited_mode,
+					cur_checkin_vpts);
+			}
 			tsync_pcr_tsdemuxpcr_discontinue = 0;
 		}
 		return;
@@ -977,6 +982,11 @@ static void tsync_process_discontinue(void)
 		tsync_pcr_inited_mode = INIT_PRIORITY_VIDEO;
 		cur_checkin_vpts -= tsync_pcr_ref_latency;
 		tsync_set_pcr_mode(0, cur_checkin_vpts);
+		if (tsync_pcr_debug & 0x03) {
+			pr_info("pcr_dis_count=%d, cur_checkin_vpts %x\n",
+				tsync_demux_pcr_discontinue_count,
+				cur_checkin_vpts);
+		}
 		return;
 	}
 	if ((tsync_pcr_tsdemuxpcr_discontinue &
@@ -984,12 +994,9 @@ static void tsync_process_discontinue(void)
 		VIDEO_DISCONTINUE) {
 		if (abs(cur_checkin_vpts - cur_vpts) >
 			tsync_vpts_discontinuity_margin()) {
-			if (cur_checkin_vpts > cur_vpts) {
-				pr_info("case:cur_checkin_vpts > cur_vpts.");
-				tsync_set_pcr_mode(0, cur_vpts);
-			} else
-			tsync_set_pcr_mode(0, cur_checkin_vpts -
-				tsync_pcr_ref_latency);
+			pr_info("v_dis cur_checkin_vpts=0x%x, cur_vpts=0x%x\n",
+				cur_checkin_vpts, cur_vpts);
+			tsync_set_pcr_mode(0, cur_vpts);
 			tsync_pcr_tsdemuxpcr_discontinue = 0;
 		} else if (!tsync_check_vpts_discontinuity(cur_vpts) &&
 			tsync_pcr_demux_pcr_used() == 0 &&
@@ -1250,7 +1257,9 @@ void tsync_pcr_avevent_locked(enum avevent_e event, u32 param)
 
 	case VIDEO_TSTAMP_DISCONTINUITY:{
 		unsigned int systime;
-
+		if (tsync_pcr_debug & 0x03)
+			pr_info("VIDEO_TSTAMP_DISCONTINUITY param:0x%x\n",
+				param);
 		if (tsync_pcr_inited_mode != INIT_PRIORITY_PCR) {
 			timestamp_pcrscr_set(param);
 			if (tsync_pcr_debug & 0x03) {
@@ -1268,12 +1277,20 @@ void tsync_pcr_avevent_locked(enum avevent_e event, u32 param)
 			if (tsync_pcr_demux_pcr_used() == 1) {
 				systime = timestamp_pcrscr_get() +
 					timestamp_get_pcrlatency();
+				if (tsync_pcr_debug & 0x03) {
+					pr_info("used sys=0x%x, param=0x%x\n",
+						systime, param);
+				}
 				if (systime + 900000 < param)
 					tsync_set_pcr_mode(0, param);
 				else
 					timestamp_pcrscr_set(param);
 			} else {
 				systime = timestamp_pcrscr_get();
+				if (tsync_pcr_debug & 0x03) {
+					pr_info("unused sys=0x%x, param=0x%x\n",
+						systime, param);
+				}
 				if (systime > param && tsync_demux_pcr_valid)
 					tsync_set_pcr_mode(1, param);
 				else
