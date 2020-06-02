@@ -224,7 +224,11 @@ static int rtl8211f_config_init(struct phy_device *phydev)
 	}
 #endif
 	phy_write(phydev, RTL8211F_PAGE_SELECT, 0xd04); /*set page 0xd04*/
-	phy_write(phydev, RTL821x_LCR, 0XC171); /*led configuration*/
+	phy_write(phydev, RTL821x_LCR, /*led configuration*/
+		(1 << 0)                /*led0 - Link 10*/
+		| (1 << 8)              /*led1 - Link 1000*/
+		| (1 << 11) | (1 << 14) /*led2 - Link 100 + Active 10/100/1000*/
+		| (1 << 15));           /*mode B*/
 	phy_write(phydev, RTL821x_PHYSR, 0); /*disable eee led indication*/
 
 	/*reset phy to apply*/
