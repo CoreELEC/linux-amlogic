@@ -529,7 +529,8 @@ static int ge2d_process_work_queue(struct ge2d_context_s *wq)
 				ge2d_set_src2_dst_data(&cfg->src2_dst_data);
 				break;
 			case UPDATE_DST_GEN:
-				ge2d_set_src2_dst_gen(&cfg->src2_dst_gen);
+				ge2d_set_src2_dst_gen(&cfg->src2_dst_gen,
+						      &pitem->cmd);
 				break;
 			case UPDATE_DP_GEN:
 				ge2d_update_matrix(pitem);

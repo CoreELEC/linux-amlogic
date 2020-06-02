@@ -1156,45 +1156,45 @@ extern struct ge2d_device_data_s ge2d_meson_dev;
 #define GE2D_SYNC_DEVICE _IOW(GE2D_IOC_MAGIC, 0x08, int)
 #define GE2D_SYNC_CPU _IOW(GE2D_IOC_MAGIC, 0x09, int)
 
-extern void ge2d_set_src1_data(struct ge2d_src1_data_s *cfg);
-extern void ge2d_set_src1_gen(struct ge2d_src1_gen_s *cfg);
-extern void ge2d_set_src2_dst_data(struct ge2d_src2_dst_data_s *cfg);
-extern void ge2d_set_src2_dst_gen(struct ge2d_src2_dst_gen_s *cfg);
-extern void ge2d_set_dp_gen(struct ge2d_dp_gen_s *cfg);
-extern void ge2d_set_cmd(struct ge2d_cmd_s *cfg);
-extern void ge2d_wait_done(void);
-extern void ge2d_set_src1_scale_coef(unsigned int v_filt_type,
-				     unsigned int h_filt_type);
-extern void ge2d_set_gen(struct ge2d_gen_s *cfg);
-extern void ge2d_soft_rst(void);
-extern bool ge2d_is_busy(void);
-extern int ge2d_cmd_fifo_full(void);
+void ge2d_set_src1_data(struct ge2d_src1_data_s *cfg);
+void ge2d_set_src1_gen(struct ge2d_src1_gen_s *cfg);
+void ge2d_set_src2_dst_data(struct ge2d_src2_dst_data_s *cfg);
+void ge2d_set_src2_dst_gen(struct ge2d_src2_dst_gen_s *cfg,
+			   struct ge2d_cmd_s *cmd);
+void ge2d_set_dp_gen(struct ge2d_dp_gen_s *cfg);
+void ge2d_set_cmd(struct ge2d_cmd_s *cfg);
+void ge2d_wait_done(void);
+void ge2d_set_src1_scale_coef(unsigned int v_filt_type,
+			      unsigned int h_filt_type);
+void ge2d_set_gen(struct ge2d_gen_s *cfg);
+void ge2d_soft_rst(void);
+bool ge2d_is_busy(void);
+int ge2d_cmd_fifo_full(void);
 
-extern int ge2d_context_config(struct ge2d_context_s *context,
-			       struct config_para_s *ge2d_config);
-extern int ge2d_context_config_ex(struct ge2d_context_s *context,
-				  struct config_para_ex_s *ge2d_config);
-extern int ge2d_context_config_ex_ion(struct ge2d_context_s *context,
-			   struct config_para_ex_ion_s *ge2d_config);
-extern int ge2d_context_config_ex_mem(struct ge2d_context_s *context,
-			   struct config_para_ex_memtype_s *ge2d_config_mem);
-extern struct ge2d_context_s *create_ge2d_work_queue(void);
-extern int destroy_ge2d_work_queue(struct ge2d_context_s *wq);
-extern int ge2d_wq_remove_config(struct ge2d_context_s *wq);
-extern void ge2d_wq_set_scale_coef(struct ge2d_context_s *wq,
-				   unsigned int v_scale_coef,
-				   unsigned int h_scale_coef);
-extern int ge2d_antiflicker_enable(struct ge2d_context_s *context,
-				   unsigned long enable);
-extern struct ge2d_src1_data_s *ge2d_wq_get_src_data(struct ge2d_context_s *wq);
-extern struct ge2d_src1_gen_s *ge2d_wq_get_src_gen(struct ge2d_context_s *wq);
-extern struct ge2d_src2_dst_data_s
-*ge2d_wq_get_dst_data(struct ge2d_context_s *wq);
-extern struct ge2d_src2_dst_gen_s
-*ge2d_wq_get_dst_gen(struct ge2d_context_s *wq);
-extern struct ge2d_dp_gen_s *ge2d_wq_get_dp_gen(struct ge2d_context_s *wq);
-extern struct ge2d_cmd_s *ge2d_wq_get_cmd(struct ge2d_context_s *wq);
-extern int ge2d_wq_add_work(struct ge2d_context_s *wq);
+int ge2d_context_config(struct ge2d_context_s *context,
+			struct config_para_s *ge2d_config);
+int ge2d_context_config_ex(struct ge2d_context_s *context,
+			   struct config_para_ex_s *ge2d_config);
+int ge2d_context_config_ex_ion(struct ge2d_context_s *context,
+			       struct config_para_ex_ion_s *ge2d_config);
+int ge2d_context_config_ex_mem(struct ge2d_context_s *context,
+			       struct config_para_ex_memtype_s *ge2d_config_mem
+			       );
+struct ge2d_context_s *create_ge2d_work_queue(void);
+int destroy_ge2d_work_queue(struct ge2d_context_s *wq);
+int ge2d_wq_remove_config(struct ge2d_context_s *wq);
+void ge2d_wq_set_scale_coef(struct ge2d_context_s *wq,
+			    unsigned int v_scale_coef,
+			    unsigned int h_scale_coef);
+int ge2d_antiflicker_enable(struct ge2d_context_s *context,
+			    unsigned long enable);
+struct ge2d_src1_data_s *ge2d_wq_get_src_data(struct ge2d_context_s *wq);
+struct ge2d_src1_gen_s *ge2d_wq_get_src_gen(struct ge2d_context_s *wq);
+struct ge2d_src2_dst_data_s *ge2d_wq_get_dst_data(struct ge2d_context_s *wq);
+struct ge2d_src2_dst_gen_s *ge2d_wq_get_dst_gen(struct ge2d_context_s *wq);
+struct ge2d_dp_gen_s *ge2d_wq_get_dp_gen(struct ge2d_context_s *wq);
+struct ge2d_cmd_s *ge2d_wq_get_cmd(struct ge2d_context_s *wq);
+int ge2d_wq_add_work(struct ge2d_context_s *wq);
 void ge2d_canv_config(u32 index, u32 *addr, u32 *stride);
 #include "ge2d_func.h"
 

@@ -509,17 +509,40 @@ void ge2d_set_src2_dst_data(struct ge2d_src2_dst_data_s *cfg)
 	ge2d_reg_write(GE2D_SRC2_DEF_COLOR, cfg->src2_def_color);
 }
 
-void ge2d_set_src2_dst_gen(struct ge2d_src2_dst_gen_s *cfg)
+void ge2d_set_src2_dst_gen(struct ge2d_src2_dst_gen_s *cfg,
+			   struct ge2d_cmd_s *cmd)
 {
-	ge2d_reg_write(GE2D_SRC2_CLIPX_START_END,
-			(cfg->src2_clipx_start << 16) |
-			(cfg->src2_clipx_end << 0)
-		       );
+	unsigned int widtho, heighto;
+	unsigned int is_rotate = cmd->dst_xy_swap ? 1 : 0;
+	unsigned int is_blend = cmd->is_blend ? 1 : 0;
 
-	ge2d_reg_write(GE2D_SRC2_CLIPY_START_END,
-			(cfg->src2_clipy_start << 16) |
-			(cfg->src2_clipy_end << 0)
-		       );
+	widtho  = is_rotate ? (cfg->dst_clipy_end - cfg->dst_clipy_start + 1) :
+		  (cfg->dst_clipx_end - cfg->dst_clipx_start + 1);
+	heighto = is_rotate ? (cfg->dst_clipx_end - cfg->dst_clipx_start + 1) :
+		  (cfg->dst_clipy_end - cfg->dst_clipy_start + 1);
+
+	/* in blend case, if src2_repeat is support, use output W H to set */
+	if (is_blend && ge2d_meson_dev.src2_repeat) {
+		ge2d_reg_write(GE2D_SRC2_CLIPX_START_END,
+			       (cfg->src2_clipx_start << 16) |
+			       ((widtho - 1) << 0)
+			       );
+
+		ge2d_reg_write(GE2D_SRC2_CLIPY_START_END,
+			       (cfg->src2_clipy_start << 16) |
+			       ((heighto - 1) << 0)
+			       );
+	} else {
+		ge2d_reg_write(GE2D_SRC2_CLIPX_START_END,
+			       (cfg->src2_clipx_start << 16) |
+			       (cfg->src2_clipx_end << 0)
+			       );
+
+		ge2d_reg_write(GE2D_SRC2_CLIPY_START_END,
+			       (cfg->src2_clipy_start << 16) |
+			       (cfg->src2_clipy_end << 0)
+			       );
+	}
 
 	ge2d_reg_set_bits(GE2D_GEN_CTRL0, cfg->src2_pic_struct, 12, 2);
 	ge2d_reg_set_bits(GE2D_GEN_CTRL0, (cfg->src2_fill_mode & 0x1), 14, 1);
@@ -968,26 +991,6 @@ void ge2d_set_cmd(struct ge2d_cmd_s *cfg)
 		ge2d_reg_set_bits(GE2D_SRC1_FMT_CTRL, 1, 17, 1);
 	}
 
-	ge2d_reg_write(GE2D_SRC2_X_START_END,
-			(cfg->src2_x_start << 16) |
-			(cfg->src2_x_end << 0)
-		       );
-
-	ge2d_reg_write(GE2D_SRC2_Y_START_END,
-			(cfg->src2_y_start << 16) |
-			(cfg->src2_y_end << 0)
-		       );
-
-	ge2d_reg_write(GE2D_DST_X_START_END,
-			(cfg->dst_x_start << 16) |
-			(cfg->dst_x_end << 0)
-		       );
-
-	ge2d_reg_write(GE2D_DST_Y_START_END,
-			(cfg->dst_y_start << 16) |
-			(cfg->dst_y_end << 0)
-		       );
-
 	/* src1 scaler setting */
 	widthi  = cfg->src1_x_end - cfg->src1_x_start + 1;
 	heighti = cfg->src1_y_end - cfg->src1_y_start + 1;
@@ -1011,9 +1014,18 @@ void ge2d_set_cmd(struct ge2d_cmd_s *cfg)
 		cfg->vsc_phase_step = ((tmp_heighti << 18) / heighto) <<
 				      6;/* height no more than 8192 */
 
-	if ((cfg->sc_hsc_en) && (cfg->hsc_div_en)) {
-		cfg->hsc_div_length = (124 << 24) / cfg->hsc_phase_step;
+	if (cfg->sc_hsc_en && cfg->hsc_div_en) {
+		unsigned int hsc_div_length;
 
+		hsc_div_length = (124 << 24) / cfg->hsc_phase_step;
+
+		/* in blend case, for chip after C2
+		 * src2 repeat function needs hsc_div_length 8 alignment
+		 */
+		if (cfg->is_blend &&
+		    ge2d_meson_dev.src2_repeat)
+			hsc_div_length = (hsc_div_length + 7) & ~7;
+		cfg->hsc_div_length = hsc_div_length;
 		multo = cfg->hsc_phase_step * cfg->hsc_div_length;
 		cfg->hsc_adv_num   = multo >> 24;
 		cfg->hsc_adv_phase = multo & 0xffffff;
@@ -1188,6 +1200,38 @@ void ge2d_set_cmd(struct ge2d_cmd_s *cfg)
 			     src2_x_interp_ctrl, src2_x_repeat);
 		ge2d_log_dbg("src2_y_repeat(%d)\n", src2_y_repeat);
 	}
+
+	/* in blend case, if src2_repeat is support, use output W H to set */
+	if (cfg->is_blend && ge2d_meson_dev.src2_repeat) {
+		ge2d_reg_write(GE2D_SRC2_X_START_END,
+			       (cfg->src2_x_start << 16) |
+			       ((widtho - 1) << 0)
+			       );
+
+		ge2d_reg_write(GE2D_SRC2_Y_START_END,
+			       (cfg->src2_y_start << 16) |
+			       ((heighto - 1) << 0)
+			       );
+	} else {
+		ge2d_reg_write(GE2D_SRC2_X_START_END,
+			       (cfg->src2_x_start << 16) |
+			       (cfg->src2_x_end << 0)
+			       );
+
+		ge2d_reg_write(GE2D_SRC2_Y_START_END,
+			       (cfg->src2_y_start << 16) |
+			       (cfg->src2_y_end << 0)
+			       );
+	}
+	ge2d_reg_write(GE2D_DST_X_START_END,
+		       (cfg->dst_x_start << 16) |
+		       (cfg->dst_x_end << 0)
+		       );
+
+	ge2d_reg_write(GE2D_DST_Y_START_END,
+		       (cfg->dst_y_start << 16) |
+		       (cfg->dst_y_end << 0)
+		       );
 #ifdef CONFIG_GE2D_SRC2
 	if (ge2d_meson_dev.src2_alp == 1)
 		ge2d_reg_write(GE2D_ALU_OP_CTRL,
