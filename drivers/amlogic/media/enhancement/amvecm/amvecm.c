@@ -343,14 +343,11 @@ static int amvecm_set_contrast2(int val)
 static int amvecm_set_brightness2(int val)
 {
 	if (get_cpu_type() <= MESON_CPU_MAJOR_ID_GXTVBB)
-		WRITE_VPP_REG_BITS(VPP_VADJ2_Y,
-			val, 8, 9);
+		VSYNC_WR_MPEG_REG_BITS(VPP_VADJ2_Y, val, 8, 9);
 	else if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A)
-		WRITE_VPP_REG_BITS(VPP_VADJ2_Y_2,
-			val, 8, 11);
+		VSYNC_WR_MPEG_REG_BITS(VPP_VADJ2_Y_2, val, 8, 11);
 	else
-		WRITE_VPP_REG_BITS(VPP_VADJ2_Y,
-			val >> 1, 8, 10);
+		VSYNC_WR_MPEG_REG_BITS(VPP_VADJ2_Y, val >> 1, 8, 10);
 
 	return 0;
 }

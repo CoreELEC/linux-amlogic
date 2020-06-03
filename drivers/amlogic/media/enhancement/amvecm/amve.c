@@ -1224,13 +1224,13 @@ void vpp_vd_adj1_brightness(signed int bri_val, struct vframe_s *vf)
 		vd1_brightness = (READ_VPP_REG(VPP_VADJ1_Y_2) & 0xff) |
 			(bri_val << 8);
 
-		WRITE_VPP_REG(VPP_VADJ1_Y_2, vd1_brightness);
+		VSYNC_WR_MPEG_REG(VPP_VADJ1_Y_2, vd1_brightness);
 	} else if (get_cpu_type() > MESON_CPU_MAJOR_ID_GXTVBB) {
 		bri_val = bri_val >> 1;
 		vd1_brightness = (READ_VPP_REG(VPP_VADJ1_Y) & 0xff) |
 			(bri_val << 8);
 
-		WRITE_VPP_REG(VPP_VADJ1_Y, vd1_brightness);
+		VSYNC_WR_MPEG_REG(VPP_VADJ1_Y, vd1_brightness);
 	} else {
 		if ((vf->source_type == VFRAME_SOURCE_TYPE_TUNER) ||
 			(vf->source_type == VFRAME_SOURCE_TYPE_CVBS) ||
