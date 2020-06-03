@@ -1920,8 +1920,8 @@ int vpp_pq_ctrl_config(struct pq_ctrl_s pq_cfg)
 			pq_cfg.vadj2_en, 0, 1);
 	else
 		VSYNC_WR_MPEG_REG_BITS(
-			VPP_VADJ2_Y,
-			pq_cfg.vadj2_en, 0, 1);
+			VPP_VADJ_CTRL,
+			pq_cfg.vadj2_en, 2, 1);
 
 	VSYNC_WR_MPEG_REG_BITS(
 		VPP_POST_RGB_CTRST,
