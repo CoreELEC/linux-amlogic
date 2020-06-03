@@ -366,9 +366,11 @@ void set_phy_by_mode_sc2(unsigned int mode)
 
 void hdmitx_sys_reset_sc2(void)
 {
-	hd_set_reg_bits(P_RESETCTRL_RESET0, 1, 19, 1);
-	hd_set_reg_bits(P_RESETCTRL_RESET2, 1, 15, 1);
-	hd_set_reg_bits(P_RESETCTRL_RESET2, 1,  2, 1);
+	/* Refer to SC2-system-Registers.docx */
+	hd_write_reg(P_RESETCTRL_RESET0, 1 << 29); /* hdmi_tx */
+	hd_write_reg(P_RESETCTRL_RESET0, 1 << 22); /* hdmitxphy */
+	hd_write_reg(P_RESETCTRL_RESET0, 1 << 19); /* vid_pll_div */
+	hd_write_reg(P_RESETCTRL_RESET0, 1 << 16); /* hdmitx_apb */
 }
 
 void set_hpll_sspll_sc2(enum hdmi_vic vic)

@@ -1213,7 +1213,8 @@ static struct clk_mux sc2_hdmiclk_mux = {
 		.parent_names =  (const char *[]){"xtal", "fclk_div4",
 			"fclk_div3", "fclk_div5"},
 		.num_parents = 4,
-		.flags = CLK_GET_RATE_NOCACHE,
+		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT |
+			 CLK_IGNORE_UNUSED,
 	},
 };
 
@@ -1228,7 +1229,8 @@ static struct clk_divider sc2_hdmiclk_div = {
 		.ops = &clk_divider_ops,
 		.parent_names = (const char *[]){ "hdmiclk_mux" },
 		.num_parents = 1,
-		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT,
+		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT |
+			 CLK_IGNORE_UNUSED,
 	},
 };
 
@@ -1241,7 +1243,8 @@ static struct clk_gate sc2_hdmiclk_gate = {
 		.ops = &clk_gate_ops,
 		.parent_names = (const char *[]){ "hdmiclk_div" },
 		.num_parents = 1,
-		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT,
+		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT |
+			 CLK_IGNORE_UNUSED,
 	},
 };
 
