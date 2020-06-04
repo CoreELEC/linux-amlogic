@@ -640,7 +640,15 @@ static int set_disp_mode_auto(void)
 	if ((vic_ready != HDMI_Unknown) && (vic_ready == vic) && (strstr(hdmitx_device.fmt_attr,"now") == NULL)) {
 		pr_info(SYS "[%s] ALREADY init VIC = %d\n",
 			__func__, vic);
-		if (hdev->rxcap.ieeeoui == 0) {
+		if (odroid_voutmode() == VOUTMODE_HDMI) {
+			hdev->hwop.cntlconfig(hdev, CONF_HDMI_DVI_MODE,
+				HDMI_MODE);
+			pr_info(SYS "change to HDMI mode\n");
+		} else if (odroid_voutmode() == VOUTMODE_DVI) {
+			hdev->hwop.cntlconfig(hdev, CONF_HDMI_DVI_MODE,
+				DVI_MODE);
+			pr_info(SYS "change to DVI mode\n");
+		} else if (hdev->rxcap.ieeeoui == 0) {
 			/* DVI case judgement. In uboot, directly output HDMI
 			 * mode
 			 */
@@ -5149,12 +5157,22 @@ static void hdmitx_hpd_plugin_handler(struct work_struct *work)
 	hdmitx_get_edid(hdev);
 	hdev->cedst_policy = hdev->cedst_en & hdev->rxcap.scdc_present;
 	hdmi_physcial_size_update(hdev);
-	if (hdev->rxcap.ieeeoui != HDMI_IEEEOUI)
-		hdev->hwop.cntlconfig(hdev,
-			CONF_HDMI_DVI_MODE, DVI_MODE);
-	else
+	if (odroid_voutmode() == VOUTMODE_HDMI) {
+		pr_info(VID "Sink is HDMI device\n");
 		hdev->hwop.cntlconfig(hdev,
 			CONF_HDMI_DVI_MODE, HDMI_MODE);
+	} else if (odroid_voutmode() == VOUTMODE_DVI) {
+		pr_info(VID "Sink is DVI device\n");
+		hdev->hwop.cntlconfig(hdev,
+			CONF_HDMI_DVI_MODE, DVI_MODE);
+	} else {
+		if (hdev->rxcap.ieeeoui != HDMI_IEEEOUI)
+			hdev->hwop.cntlconfig(hdev,
+				CONF_HDMI_DVI_MODE, DVI_MODE);
+		else
+			hdev->hwop.cntlconfig(hdev,
+				CONF_HDMI_DVI_MODE, HDMI_MODE);
+    }
 	mutex_lock(&getedid_mutex);
 	if (hdev->chip_type < MESON_CPU_ID_G12A)
 		hdev->hwop.cntlmisc(hdev, MISC_I2C_REACTIVE, 0);
