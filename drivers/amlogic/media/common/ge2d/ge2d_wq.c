@@ -447,6 +447,16 @@ static void ge2d_update_matrix(struct ge2d_queue_item_s *pitem)
 		dp_gen_cfg->use_matrix_default_src2 = 0;
 		dp_gen_cfg->conv_matrix_en_src2 = 0;
 
+		/* if customized matrix is used
+		 * skip internal matrix params, use externel directly
+		 */
+		if ((format_src & GE2D_MATRIX_CUSTOM) ||
+		    (format_dst & GE2D_MATRIX_CUSTOM)) {
+			dp_gen_cfg->use_matrix_default = MATRIX_CUSTOM;
+			dp_gen_cfg->conv_matrix_en = 1;
+			return;
+		}
+
 		if ((format_src & GE2D_FORMAT_YUV) &&
 		    ((format_dst & GE2D_FORMAT_YUV) == 0)) {
 			/* src1: yuv2rgb */
@@ -540,7 +550,7 @@ static int ge2d_process_work_queue(struct ge2d_context_s *wq)
 				break;
 			case UPDATE_DP_GEN:
 				ge2d_update_matrix(pitem);
-				ge2d_set_dp_gen(&cfg->dp_gen);
+				ge2d_set_dp_gen(cfg);
 				break;
 			case UPDATE_SCALE_COEF:
 				ge2d_set_src1_scale_coef(cfg->v_scale_coef_type,
@@ -2628,6 +2638,8 @@ int ge2d_context_config_ex_mem(struct ge2d_context_s *context,
 	/* context->config.src1_data.ddr_burst_size_cb = 3; */
 	/* context->config.src1_data.ddr_burst_size_cr = 3; */
 	/* context->config.src2_dst_data.ddr_burst_size= 3; */
+	memcpy(&context->config.matrix_custom, &ge2d_config_mem->matrix_custom,
+	       sizeof(struct ge2d_matrix_s));
 
 	return  0;
 }
