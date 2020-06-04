@@ -1,0 +1,6 @@
+config AMLOGIC_RESET_MESON
+	tristate "Amlogic Reset Driver"
+	depends on RESET_CONTROLLER
+	default y if ARCH_HAS_RESET_CONTROLLER
+	help
+	  This enables the reset driver for Amlogic Meson SoCs.
