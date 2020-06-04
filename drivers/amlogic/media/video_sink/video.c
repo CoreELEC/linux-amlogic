@@ -574,7 +574,8 @@ static int dump_reg_show(struct seq_file *s, void *what)
 	}
 	/* vd1 afbc regs */
 	seq_puts(s, "\nvd1 afbc registers:\n");
-	reg_addr = AFBC_ENABLE + cur_dev->vpp_off;
+	reg_addr = AFBC_ENABLE +
+		vd_layer[0].afbc_reg_offt;
 	count = 32;
 	for (i = 0; i < count; i++) {
 		reg_val = READ_VCBUS_REG(reg_addr);
@@ -584,7 +585,8 @@ static int dump_reg_show(struct seq_file *s, void *what)
 	}
 	/* vd2 afbc regs */
 	seq_puts(s, "\nvd2 afbc registers:\n");
-	reg_addr = VD2_AFBC_ENABLE + cur_dev->vpp_off;
+	reg_addr = VD2_AFBC_ENABLE +
+		vd_layer[1].afbc_reg_offt;
 	count = 32;
 	for (i = 0; i < count; i++) {
 		reg_val = READ_VCBUS_REG(reg_addr);
@@ -592,16 +594,27 @@ static int dump_reg_show(struct seq_file *s, void *what)
 			   reg_addr, reg_val);
 		reg_addr += 1;
 	}
-	/* vd1 & vd2 mif */
-	seq_puts(s, "\nvd1 & vd2 mif registers:\n");
-	reg_addr = VD1_IF0_GEN_REG + cur_dev->viu_off;
-	count = 64;
+	/* vd1 mif */
+	seq_puts(s, "\nvd1 mif registers:\n");
+	reg_addr = vd_layer[0].vd_mif_reg.vd_if0_gen_reg;
+	count = 32;
 	for (i = 0; i < count; i++) {
 		reg_val = READ_VCBUS_REG(reg_addr);
 		seq_printf(s, "[0x%x] = 0x%X\n",
 			   reg_addr, reg_val);
 		reg_addr += 1;
 	}
+	/* vd2 mif */
+	seq_puts(s, "\nvd2 mif registers:\n");
+	reg_addr = vd_layer[1].vd_mif_reg.vd_if0_gen_reg;
+	count = 32;
+	for (i = 0; i < count; i++) {
+		reg_val = READ_VCBUS_REG(reg_addr);
+		seq_printf(s, "[0x%x] = 0x%X\n",
+			   reg_addr, reg_val);
+		reg_addr += 1;
+	}
+
 	/* vd1(0x3800) & vd2(0x3850) hdr */
 	/* osd hdr (0x38a0) */
 	seq_puts(s, "\nvd1(0x3800) & vd2(0x3850) hdr registers:\n");
