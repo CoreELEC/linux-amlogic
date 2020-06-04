@@ -742,8 +742,9 @@ static void bl_power_on(void)
 			/* step 1: power on ldim */
 			if (ldim_drv->power_on) {
 				ret = ldim_drv->power_on();
-				if (ret)
-					BLERR("ldim: power on error\n");
+				if (ret < 0)
+					BLERR("bl: power on error, ret = %d\n",
+					      ret);
 			} else {
 				BLPR("ldim: power on is null\n");
 			}
@@ -1604,10 +1605,15 @@ static int aml_bl_config_load_from_dts(struct bl_config_s *bconf,
 		ret = of_property_read_u32(child,
 			"bl_pwm_en_sequence_reverse", &val);
 		if (ret) {
-			bconf->en_sequence_reverse = 0;
+			ret = of_property_read_u32(child,
+						   "en_sequence_reverse", &val);
+			if (ret)
+				bconf->en_sequence_reverse = 0;
+			else
+				bconf->en_sequence_reverse = val;
 		} else {
 			bconf->en_sequence_reverse = val;
-			BLPR("find bl_pwm_en_sequence_reverse: %d\n", val);
+			BLPR("find en_sequence_reverse: %d\n", val);
 		}
 
 		bl_pwm->pwm_duty = bl_pwm->pwm_duty_min;
@@ -1732,10 +1738,15 @@ static int aml_bl_config_load_from_dts(struct bl_config_s *bconf,
 		ret = of_property_read_u32(child,
 			"bl_pwm_en_sequence_reverse", &val);
 		if (ret) {
-			BLPR("don't find bl_pwm_en_sequence_reverse\n");
-			bconf->en_sequence_reverse = 0;
-		} else
+			ret = of_property_read_u32(child,
+						   "en_sequence_reverse", &val);
+			if (ret)
+				bconf->en_sequence_reverse = 0;
+			else
+				bconf->en_sequence_reverse = val;
+		} else {
 			bconf->en_sequence_reverse = val;
+		}
 
 		pwm_combo0->pwm_duty = pwm_combo0->pwm_duty_min;
 		pwm_combo1->pwm_duty = pwm_combo1->pwm_duty_min;
@@ -1745,11 +1756,25 @@ static int aml_bl_config_load_from_dts(struct bl_config_s *bconf,
 		break;
 #ifdef CONFIG_AMLOGIC_LOCAL_DIMMING
 	case BL_CTRL_LOCAL_DIMMING:
+		ret = of_property_read_u32(child,
+					   "en_sequence_reverse", &val);
+		if (ret)
+			bconf->en_sequence_reverse = 0;
+		else
+			bconf->en_sequence_reverse = val;
+
 		bconf->ldim_flag = 1;
 		break;
 #endif
 #ifdef CONFIG_AMLOGIC_BL_EXTERN
 	case BL_CTRL_EXTERN:
+		ret = of_property_read_u32(child,
+					   "en_sequence_reverse", &val);
+		if (ret)
+			bconf->en_sequence_reverse = 0;
+		else
+			bconf->en_sequence_reverse = val;
+
 		/* get bl_extern_index from dts */
 		ret = of_property_read_u32(child, "bl_extern_index",
 			&bl_para[0]);
