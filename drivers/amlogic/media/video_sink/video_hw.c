@@ -76,6 +76,8 @@
 
 /* #define DI_POST_PWR */
 
+/* #define DI_POST_PWR */
+
 struct video_layer_s vd_layer[MAX_VD_LAYER];
 struct disp_info_s glayer_info[MAX_VD_LAYERS];
 
