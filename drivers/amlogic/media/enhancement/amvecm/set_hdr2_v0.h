@@ -217,6 +217,7 @@ extern void set_ootf_lut(
 extern struct hdr_proc_lut_param_s hdr_lut_param;
 extern int oo_y_lut_hdr_sdr_def[149];
 extern int oo_y_lut_hdr_sdr[149];
+extern int oo_y_lut_hlg_sdr[149];
 void eo_clip_proc(
 	struct vframe_master_display_colour_s *master_info,
 	unsigned int eo_sel);

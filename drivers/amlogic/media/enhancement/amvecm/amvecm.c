@@ -1473,26 +1473,42 @@ static void parse_overscan_table(unsigned int length,
 }
 
 static void hdr_tone_mapping_get(
+	enum lut_type_e lut_type,
 	unsigned int length,
 	unsigned int *hdr_tm)
 {
 	int i;
 
 	if (hdr_tm) {
-		for (i = 0; i < length; i++)
-			oo_y_lut_hdr_sdr_def[i] = hdr_tm[i];
-	}
+		if (lut_type & HLG_LUT) {
+			for (i = 0; i < length; i++)
+				oo_y_lut_hlg_sdr[i] = hdr_tm[i];
 
-	vecm_latch_flag |= FLAG_HDR_OOTF_LATCH;
-
-	if (debug_amvecm & 4) {
-		for (i = 0; i < length; i++) {
-			pr_info("oo_y_lut_hdr_sdr[%d] = %d",
-				i, oo_y_lut_hdr_sdr_def[i]);
-			if (i % 8 == 0)
+			if (debug_amvecm & 4) {
+				for (i = 0; i < length; i++) {
+					pr_info("oo_y_lut_hlg_sdr[%d] = %d",
+						i, oo_y_lut_hlg_sdr[i]);
+					if (i % 8 == 0)
+						pr_info("\n");
+				}
 				pr_info("\n");
+			}
+		} else if (lut_type & HDR_LUT) {
+			for (i = 0; i < length; i++)
+				oo_y_lut_hdr_sdr_def[i] = hdr_tm[i];
+
+			vecm_latch_flag |= FLAG_HDR_OOTF_LATCH;
+
+			if (debug_amvecm & 4) {
+				for (i = 0; i < length; i++) {
+					pr_info("oo_y_lut_hdr_sdr[%d] = %d",
+						i, oo_y_lut_hdr_sdr_def[i]);
+					if (i % 8 == 0)
+						pr_info("\n");
+				}
+				pr_info("\n");
+			}
 		}
-		pr_info("\n");
 	}
 }
 
@@ -1739,7 +1755,11 @@ static long amvecm_ioctl(struct file *file,
 			ret = -EFAULT;
 			break;
 		}
-		hdr_tone_mapping_get(hdr_tone_mapping.lutlength, hdr_tm);
+		hdr_tone_mapping_get(
+			hdr_tone_mapping.lut_type,
+			hdr_tone_mapping.lutlength,
+			hdr_tm);
+
 		break;
 	case AMVECM_IOC_G_DNLP_STATE:
 		if (copy_to_user((void __user *)arg,
