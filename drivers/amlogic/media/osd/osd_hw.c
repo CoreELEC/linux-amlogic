@@ -1678,12 +1678,24 @@ static s64 get_adjust_vsynctime(u32 output_index)
 	}
 }
 
-void osd_update_vsync_hit(void)
+void osd_update_vsync_timestamp(void)
 {
 	ktime_t stime;
 
 	stime = ktime_get();
 	timestamp[VIU1] = stime.tv64 - get_adjust_vsynctime(VIU1);
+}
+
+void osd_update_vsync_timestamp_viu2(void)
+{
+	ktime_t stime;
+
+	stime = ktime_get();
+	timestamp[VIU2] = stime.tv64 - get_adjust_vsynctime(VIU2);
+}
+
+void osd_update_vsync_hit(void)
+{
 #ifdef FIQ_VSYNC
 	fiq_bridge_pulse_trigger(&osd_hw.fiq_handle_item);
 #else
@@ -1693,10 +1705,6 @@ void osd_update_vsync_hit(void)
 
 void osd_update_vsync_hit_viu2(void)
 {
-	ktime_t stime;
-
-	stime = ktime_get();
-	timestamp[VIU2] = stime.tv64 - get_adjust_vsynctime(VIU2);
 #ifdef FIQ_VSYNC
 	fiq_bridge_pulse_trigger(&osd_hw.fiq_handle_item);
 #else
@@ -2475,6 +2483,7 @@ static irqreturn_t vsync_isr(int irq, void *dev_id)
 #endif
 {
 	if (!osd_hw.hw_rdma_en) {
+		osd_update_vsync_timestamp();
 		osd_update_scan_mode();
 		/* go through update list */
 		walk_through_update_list();
@@ -2483,7 +2492,7 @@ static irqreturn_t vsync_isr(int irq, void *dev_id)
 		osd_update_vsync_hit();
 		osd_hw_reset();
 	} else {
-		osd_update_vsync_hit();
+		osd_update_vsync_timestamp();
 		osd_rdma_interrupt_done_clear();
 	}
 	if (osd_hw.osd_reg_check)
@@ -2505,6 +2514,7 @@ static irqreturn_t vsync_viu2_isr(int irq, void *dev_id)
 #endif
 {
 	/* osd_update_scan_mode_viu2(); */
+	osd_update_vsync_timestamp_viu2();
 	osd_update_vsync_hit_viu2();
 #ifndef FIQ_VSYNC
 	return IRQ_HANDLED;

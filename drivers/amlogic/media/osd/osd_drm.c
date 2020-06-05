@@ -843,6 +843,7 @@ void osd_drm_vsync_isr_handler(void)
 {
 
 	if (!osd_hw.hw_rdma_en) {
+		osd_update_vsync_timestamp();
 		osd_update_scan_mode();
 		/* go through update list */
 		walk_through_update_list();
@@ -852,9 +853,10 @@ void osd_drm_vsync_isr_handler(void)
 		osd_hw_reset();
 	} else {
 		if (osd_hw.osd_meson_dev.cpu_id != __MESON_CPU_MAJOR_ID_AXG) {
-			osd_update_vsync_hit();
+			osd_update_vsync_timestamp();
 			osd_rdma_interrupt_done_clear();
 		} else {
+			osd_update_vsync_timestamp();
 			osd_update_scan_mode();
 			/* go through update list */
 			walk_through_update_list();

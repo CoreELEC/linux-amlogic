@@ -177,6 +177,7 @@ extern void osd_get_info(u32 index, u32 *addr, u32 *width, u32 *height);
 void osd_update_scan_mode(void);
 void osd_update_3d_mode(void);
 void osd_update_vsync_hit(void);
+void osd_update_vsync_timestamp(void);
 void osd_hw_reset(void);
 void osd_mali_afbc_start(void);
 int logo_work_init(void);
