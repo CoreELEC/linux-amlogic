@@ -2296,6 +2296,105 @@ static int hdmitx_set_dispmode(struct hdmitx_dev *hdev)
 	return 0;
 }
 
+enum hdmi_tf_type hdmitx_get_cur_hdr_st(void)
+{
+	enum hdmi_tf_type type = HDMI_NONE;
+	unsigned int val = 0;
+
+	if (!hdmitx_get_bit(HDMITX_DWC_FC_DATAUTO3, 6) ||
+	    !hdmitx_get_bit(HDMITX_DWC_FC_PACKET_TX_EN, 7))
+		return type;
+
+	val = hdmitx_rd_reg(HDMITX_DWC_FC_DRM_PB00);
+	switch (val) {
+	case 0:
+		type = HDMI_HDR_SDR;
+		break;
+	case 1:
+		type = HDMI_HDR_HDR;
+		break;
+	case 2:
+		type = HDMI_HDR_SMPTE_2084;
+		break;
+	case 3:
+		type = HDMI_HDR_HLG;
+		break;
+	default:
+		type = HDMI_HDR_TYPE;
+		break;
+	};
+
+	return type;
+}
+
+static bool hdmitx_vsif_en(void)
+{
+	if (!hdmitx_get_bit(HDMITX_DWC_FC_DATAUTO0, 3) ||
+	    !hdmitx_get_bit(HDMITX_DWC_FC_PACKET_TX_EN, 4))
+		return 0;
+	else
+		return 1;
+}
+
+#define GET_IEEEOUI() \
+	(hdmitx_rd_reg(HDMITX_DWC_FC_VSDIEEEID0) | \
+	hdmitx_rd_reg(HDMITX_DWC_FC_VSDIEEEID1) << 8 | \
+	hdmitx_rd_reg(HDMITX_DWC_FC_VSDIEEEID2) << 16)
+
+enum hdmi_tf_type hdmitx_get_cur_dv_st(void)
+{
+	enum hdmi_tf_type type = HDMI_NONE;
+	unsigned int ieee_code = 0;
+	unsigned int size = hdmitx_rd_reg(HDMITX_DWC_FC_VSDSIZE);
+	unsigned int cs = hdmitx_rd_reg(HDMITX_DWC_FC_AVICONF0) & 0x3;
+
+	if (!hdmitx_vsif_en())
+		return type;
+
+	ieee_code = GET_IEEEOUI();
+
+	if ((ieee_code == HDMI_IEEEOUI && size == 0x18) ||
+	    (ieee_code == DOVI_IEEEOUI && size == 0x1b)) {
+		if (cs == 0x1) /* Y422 */
+			type = HDMI_DV_VSIF_LL;
+		if (cs == 0x0) /* RGB */
+			type = HDMI_DV_VSIF_STD;
+	}
+	return type;
+}
+
+enum hdmi_tf_type hdmitx_get_cur_hdr10p_st(void)
+{
+	enum hdmi_tf_type type = HDMI_NONE;
+	unsigned int ieee_code = 0;
+
+	if (!hdmitx_vsif_en())
+		return type;
+
+	ieee_code = GET_IEEEOUI();
+
+	if (ieee_code == HDR10PLUS_IEEEOUI)
+		type = HDMI_HDR10P_DV_VSIF;
+
+	return type;
+}
+
+bool hdmitx_hdr_en(void)
+{
+	return (hdmitx_get_cur_hdr_st() & HDMI_HDR_TYPE) == HDMI_HDR_TYPE;
+}
+
+bool hdmitx_dv_en(void)
+{
+	return (hdmitx_get_cur_dv_st() & HDMI_DV_TYPE) == HDMI_DV_TYPE;
+}
+
+bool hdmitx_hdr10p_en(void)
+{
+	return (hdmitx_get_cur_hdr10p_st() & HDMI_HDR10P_TYPE) ==
+		HDMI_HDR10P_TYPE;
+}
+
 static void hdmitx_set_packet(int type, unsigned char *DB, unsigned char *HB)
 {
 	int i;
@@ -5520,6 +5619,7 @@ static int hdmitx_cntl_config(struct hdmitx_dev *hdev, unsigned int cmd,
 	unsigned int argv)
 {
 	int ret = 0;
+	unsigned int ieee_code = 0;
 
 	if ((cmd & CMD_CONF_OFFSET) != CMD_CONF_OFFSET) {
 		pr_err(HW "config: invalid cmd 0x%x\n", cmd);
@@ -5575,6 +5675,18 @@ static int hdmitx_cntl_config(struct hdmitx_dev *hdev, unsigned int cmd,
 		}
 		if (argv == CLR_AVI_BT2020)
 			hdmitx_set_avi_colorimetry(hdev->para);
+		break;
+	case CONF_CLR_DV_VS10_SIG:
+/* if current is DV/VSIF.DOVI, next will swith to HDR, need set
+ * Dolby_Vision_VS10_Signal_Type as 0
+ */
+		ieee_code = GET_IEEEOUI();
+		if (ieee_code == DOVI_IEEEOUI) {
+			hdmitx_set_reg_bits(HDMITX_DWC_FC_VSDPAYLOAD0, 0, 1, 1);
+			return 1;
+		} else {
+			return 0;
+		}
 		break;
 	case CONF_AVI_RGBYCC_INDIC:
 		hdmitx_set_reg_bits(HDMITX_DWC_FC_AVICONF0, argv, 0, 2);

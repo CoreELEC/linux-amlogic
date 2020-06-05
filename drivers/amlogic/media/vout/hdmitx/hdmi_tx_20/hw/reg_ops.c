@@ -500,6 +500,11 @@ unsigned int hdmitx_rd_reg(unsigned int addr)
 }
 EXPORT_SYMBOL(hdmitx_rd_reg);
 
+bool hdmitx_get_bit(unsigned int addr, unsigned int bit_nr)
+{
+	return (hdmitx_rd_reg(addr) & (1 << bit_nr)) == (1 << bit_nr);
+}
+
 void hdmitx_wr_reg_normal(unsigned int addr, unsigned int data)
 {
 	unsigned long offset = (addr & DWC_OFFSET_MASK) >> 24;

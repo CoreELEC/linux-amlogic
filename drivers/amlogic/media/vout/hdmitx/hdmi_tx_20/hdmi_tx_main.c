@@ -1338,8 +1338,6 @@ static void hdr_work_func(struct work_struct *work)
 
 		pr_info("hdr_work_func: send zero DRM\n");
 		hdev->hwop.setpacket(HDMI_PACKET_DRM, DRM_DB, DRM_HB);
-		hdmitx_device.hwop.cntlconfig(&hdmitx_device,
-			CONF_AVI_BT2020, hdev->colormetry);
 
 		msleep(1500);/*delay 1.5s*/
 		/* disable DRM packets completely ONLY if hdr transfer
@@ -1432,6 +1430,15 @@ static void hdmitx_set_drm_pkt(struct master_display_info_s *data)
 			hdev->hdr_transfer_feature, hdev->hdr_color_feature,
 			hdev->colormetry);
 	hdr_status_pos = 1;
+	/* if VSIF/DV or VSIF/HDR10P packet is enabled, disable it */
+	if (hdmitx_dv_en()) {
+		update_current_para(hdev);
+		hdev->hwop.cntlconfig(hdev, CONF_AVI_RGBYCC_INDIC,
+			hdev->para->cs);
+/* if using VSIF/DOVI, then only clear DV_VS10_SIG, else disable VSIF */
+		if (hdev->hwop.cntlconfig(hdev, CONF_CLR_DV_VS10_SIG, 0) == 0)
+			hdev->hwop.setpacket(HDMI_PACKET_VEND, NULL, NULL);
+	}
 
 	/* hdr10+ content on a hdr10 sink case */
 	if (hdev->hdr_transfer_feature == 0x30) {
@@ -1464,6 +1471,8 @@ static void hdmitx_set_drm_pkt(struct master_display_info_s *data)
 		if ((DRM_DB[0] == 0x02) || (DRM_DB[0] == 0x03)) {
 			pr_info("hdmitx_set_drm_pkt: HDR->SDR, DRM_DB[0]=%d\n",
 				DRM_DB[0]);
+			hdev->colormetry = 0;
+			hdev->hwop.cntlconfig(hdev, CONF_AVI_BT2020, 0);
 			schedule_work(&hdev->work_hdr);
 			DRM_DB[0] = 0;
 		}
@@ -1615,6 +1624,7 @@ void hdmitx_set_vsif_pkt(enum eotf_type type,
 	unsigned int hdmi_vic_4k_flag = 0;
 	static enum eotf_type ltype = EOTF_T_NULL;
 	static uint8_t ltmode = -1;
+	enum hdmi_tf_type hdr_type = HDMI_NONE;
 
 	hdmi_debug();
 	if (hdev->bist_lock)
@@ -1653,6 +1663,17 @@ void hdmitx_set_vsif_pkt(enum eotf_type type,
 	if (hdr_status_pos != 2)
 		pr_info("hdmitx_set_vsif_pkt: type = %d\n", type);
 	hdr_status_pos = 2;
+
+	/* if DRM/HDR packet is enabled, disable it */
+	hdr_type = hdmitx_get_cur_hdr_st();
+	if ((hdr_type != HDMI_NONE) && (hdr_type != HDMI_HDR_SDR)) {
+		hdev->hdr_transfer_feature = T_BT709;
+		hdev->hdr_color_feature = C_BT709;
+		hdev->colormetry = 0;
+		hdev->hwop.cntlconfig(hdev, CONF_AVI_BT2020, hdev->colormetry);
+		schedule_work(&hdev->work_hdr);
+	}
+
 	hdev->hdmi_current_eotf_type = type;
 	hdev->hdmi_current_tunnel_mode = tunnel_mode;
 	/*ver0 and ver1_15 and ver1_12bit with ll= 0 use hdmi 1.4b VSIF*/
@@ -1928,6 +1949,7 @@ static void hdmitx_set_hdr10plus_pkt(unsigned int flag,
 		pr_info("hdmitx_set_hdr10plus_pkt: flag = %d\n", flag);
 	hdev->hdr10plus_feature = 1;
 	hdr_status_pos = 3;
+
 	VEN_DB[0] = 0x8b;
 	VEN_DB[1] = 0x84;
 	VEN_DB[2] = 0x90;
@@ -3212,14 +3234,9 @@ static ssize_t _show_dv_cap(struct device *dev,
 	int pos = 0;
 	int i;
 
-	if (dv->ieeeoui != DV_IEEE_OUI) {
+	if (dv->ieeeoui != DV_IEEE_OUI || dv->block_flag != CORRECT) {
 		pos += snprintf(buf + pos, PAGE_SIZE,
 			"The Rx don't support DolbyVision\n");
-		return pos;
-	}
-	if (dv->block_flag != CORRECT) {
-		pos += snprintf(buf + pos, PAGE_SIZE,
-			"DolbyVision block is error\n");
 		return pos;
 	}
 	pos += snprintf(buf + pos, PAGE_SIZE,

@@ -69,7 +69,6 @@ struct dv_emp_hdmi_cfg {
 };
 
 extern int hdr_status_pos;
-extern void update_current_para(struct hdmitx_dev *hdev);
 extern void hdmitx_set_vsif_pkt(enum eotf_type type,
 		enum mode_type tunnel_mode,
 		struct dv_vsif_para *data,
