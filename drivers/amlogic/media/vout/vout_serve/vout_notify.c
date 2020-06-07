@@ -73,7 +73,7 @@ struct vinfo_s *get_current_vinfo(void)
 			vinfo = p_module->curr_vout_server->op.get_vinfo();
 	}
 	if (vinfo == NULL) /* avoid crash mistake */
-		vinfo = get_invalid_vinfo(1);
+		vinfo = get_invalid_vinfo(1, p_module->init_flag);
 
 	return vinfo;
 }
@@ -113,7 +113,7 @@ const char *get_name_by_vmode(enum vmode_e mode)
 			vinfo = p_module->curr_vout_server->op.get_vinfo();
 	}
 	if (vinfo == NULL)
-		vinfo = get_invalid_vinfo(1);
+		vinfo = get_invalid_vinfo(1, p_module->init_flag);
 	str = vinfo->name;
 
 	return str;

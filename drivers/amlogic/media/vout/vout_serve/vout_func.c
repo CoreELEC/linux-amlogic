@@ -36,6 +36,7 @@ static struct vout_module_s vout_module = {
 		&vout_module.vout_server_list
 	},
 	.curr_vout_server = NULL,
+	.init_flag = 0,
 };
 
 #ifdef CONFIG_AMLOGIC_VOUT2_SERVE
@@ -45,6 +46,7 @@ static struct vout_module_s vout2_module = {
 		&vout2_module.vout_server_list
 	},
 	.curr_vout_server = NULL,
+	.init_flag = 0,
 };
 #endif
 
@@ -66,9 +68,12 @@ static struct vinfo_s invalid_vinfo = {
 	.vout_device       = NULL,
 };
 
-struct vinfo_s *get_invalid_vinfo(int index)
+struct vinfo_s *get_invalid_vinfo(int index, unsigned int flag)
 {
-	VOUTERR("invalid vinfo%d. current vmode is not supported\n", index);
+	if (flag) {
+		VOUTERR("invalid vinfo%d. current vmode is not supported\n",
+			index);
+	}
 	return &invalid_vinfo;
 }
 EXPORT_SYMBOL(get_invalid_vinfo);
@@ -176,6 +181,7 @@ void vout_func_update_viu(int index)
 	struct vout_module_s *p_module = NULL;
 	unsigned int mux_bit = 0xff, mux_sel = VIU_MUX_MAX;
 	unsigned int clk_bit = 0xff, clk_sel = 0;
+	unsigned int flag = 0;
 
 	mutex_lock(&vout_mutex);
 
@@ -197,6 +203,8 @@ void vout_func_update_viu(int index)
 		return;
 	}
 	p_server = p_module->curr_vout_server;
+	flag = p_module->init_flag;
+
 #if 0
 	VOUTPR("%s: before: 0x%04x=0x%08x, 0x%04x=0x%08x\n",
 		__func__, VPU_VIU_VENC_MUX_CTRL,
@@ -209,7 +217,7 @@ void vout_func_update_viu(int index)
 			vinfo = p_server->op.get_vinfo();
 	}
 	if (vinfo == NULL)
-		vinfo = get_invalid_vinfo(index);
+		vinfo = get_invalid_vinfo(index, flag);
 
 	mux_sel = vinfo->viu_mux;
 	switch (mux_sel) {
@@ -265,6 +273,7 @@ int vout_func_set_vmode(int index, enum vmode_e mode)
 		return -1;
 	}
 	ret = p_module->curr_vout_server->op.set_vmode(mode);
+	p_module->init_flag = 1;
 
 	mutex_unlock(&vout_mutex);
 

@@ -51,7 +51,7 @@ extern int get_hpd_state(void);
 extern int vout_get_hpd_state(void);
 extern void vout_trim_string(char *str);
 
-extern struct vinfo_s *get_invalid_vinfo(int index);
+struct vinfo_s *get_invalid_vinfo(int index, unsigned int flag);
 extern struct vout_module_s *vout_func_get_vout_module(void);
 #ifdef CONFIG_AMLOGIC_VOUT2_SERVE
 extern struct vout_module_s *vout_func_get_vout2_module(void);

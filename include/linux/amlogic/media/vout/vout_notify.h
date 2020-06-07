@@ -61,6 +61,7 @@ struct vout_server_s {
 struct vout_module_s {
 	struct list_head vout_server_list;
 	struct vout_server_s *curr_vout_server;
+	unsigned int init_flag;
 };
 
 extern int vout_register_client(struct notifier_block *p);
