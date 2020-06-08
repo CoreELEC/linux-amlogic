@@ -10,17 +10,6 @@
 #include <linux/amlogic/pwr_ctrl.h>
 #include <dt-bindings/power/sc2-pd.h>
 
-#define DSP_INDEX		7
-#define HCODEC_INDEX		8
-#define HEVC_INDEX		9
-#define VDEC_INDEX		10
-#define WAVE_INDEX		11
-#define VPU_INDEX		12
-#define USB_INDEX		14
-#define PCIE_INDEX		15
-#define GE2D_INDEX		16
-#define ETH_INDEX		23
-
 struct sc2_pm_domain {
 	struct generic_pm_domain base;
 	int pd_index;
@@ -37,6 +26,9 @@ static int sc2_pm_domain_power_off(struct generic_pm_domain *genpd)
 {
 	struct sc2_pm_domain *pd = to_sc2_pm_domain(genpd);
 
+	if (pd->base.flags == FLAG_ALWAYS_ON)
+		return 0;
+
 	pwr_ctrl_psci_smc(pd->pd_index, PWR_OFF);
 
 	return 0;
@@ -45,6 +37,9 @@ static int sc2_pm_domain_power_off(struct generic_pm_domain *genpd)
 static int sc2_pm_domain_power_on(struct generic_pm_domain *genpd)
 {
 	struct sc2_pm_domain *pd = to_sc2_pm_domain(genpd);
+
+	if (pd->base.flags == FLAG_ALWAYS_ON)
+		return 0;
 
 	pwr_ctrl_psci_smc(pd->pd_index, PWR_ON);
 
@@ -63,16 +58,16 @@ struct sc2_pm_domain _name = {					\
 		.pd_status = status,				\
 }
 
-static POWER_DOMAIN(dsp, DSP_INDEX, DOMAIN_INIT_OFF, 0);
-static POWER_DOMAIN(hcodec, HCODEC_INDEX, DOMAIN_INIT_OFF, 0);
-static POWER_DOMAIN(hevc, HEVC_INDEX, DOMAIN_INIT_OFF, 0);
-static POWER_DOMAIN(vdec, VDEC_INDEX, DOMAIN_INIT_OFF, 0);
-static POWER_DOMAIN(wave, WAVE_INDEX, DOMAIN_INIT_OFF, 0);
-static POWER_DOMAIN(vpu, VPU_INDEX, DOMAIN_INIT_OFF, 0);
-static POWER_DOMAIN(usb, USB_INDEX, DOMAIN_INIT_ON, 0);
-static POWER_DOMAIN(pcie, PCIE_INDEX, DOMAIN_INIT_OFF, 0);
-static POWER_DOMAIN(ge2d, GE2D_INDEX, DOMAIN_INIT_OFF, 0);
-static POWER_DOMAIN(eth, ETH_INDEX, DOMAIN_INIT_ON, 0);
+static POWER_DOMAIN(dsp, PDID_DSP, DOMAIN_INIT_OFF, 0);
+static POWER_DOMAIN(hcodec, PDID_DOS_HCODEC, DOMAIN_INIT_OFF, 0);
+static POWER_DOMAIN(hevc, PDID_DOS_HEVC, DOMAIN_INIT_OFF, 0);
+static POWER_DOMAIN(vdec, PDID_DOS_VDEC, DOMAIN_INIT_OFF, 0);
+static POWER_DOMAIN(wave, PDID_DOS_WAVE, DOMAIN_INIT_OFF, 0);
+static POWER_DOMAIN(vpu, PDID_VPU_HDMI, DOMAIN_INIT_ON, FLAG_ALWAYS_ON);
+static POWER_DOMAIN(usb, PDID_USB_COMB, DOMAIN_INIT_ON, 0);
+static POWER_DOMAIN(pcie, PDID_PCIE, DOMAIN_INIT_OFF, 0);
+static POWER_DOMAIN(ge2d, PDID_GE2D, DOMAIN_INIT_OFF, 0);
+static POWER_DOMAIN(eth, PDID_ETH, DOMAIN_INIT_ON, 0);
 
 static struct generic_pm_domain *sc2_onecell_domains[] = {
 		[PDID_DSP]			= &dsp.base,
@@ -95,6 +90,7 @@ static struct genpd_onecell_data sc2_pd_onecell_data = {
 static int sc2_pd_probe(struct platform_device *pdev)
 {
 	int ret, i;
+	int init_status;
 	struct sc2_pm_domain *pd;
 
 	for (i = 0; i < sc2_pd_onecell_data.num_domains; i++) {
@@ -104,8 +100,12 @@ static int sc2_pd_probe(struct platform_device *pdev)
 
 		/* Initialize based on pd_status */
 		pd = to_sc2_pm_domain(sc2_pd_onecell_data.domains[i]);
+		init_status = pwr_ctrl_status_psci_smc(pd->pd_index);
+		if (init_status == -1)
+			init_status = pd->pd_status;
+
 		pm_genpd_init(sc2_pd_onecell_data.domains[i],
-			      NULL, pd->pd_status);
+			      NULL, init_status);
 	}
 
 	pd_dev_create_file(&pdev->dev, PDID_DSP, PDID_MAX,

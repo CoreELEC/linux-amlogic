@@ -239,7 +239,7 @@ void vpu_power_off(void)
 void vpu_power_on_new(void)
 {
 #ifdef CONFIG_AMLOGIC_POWER
-	pwr_ctrl_psci_smc(PM_VPU_HDMI, 1);
+	pwr_ctrl_psci_smc(5, 1);
 	VPUPR("%s\n", __func__);
 #else
 	VPUERR("%s: no CONFIG_AMLOGIC_POWER\n", __func__);
@@ -252,7 +252,7 @@ void vpu_power_on_new(void)
 void vpu_power_off_new(void)
 {
 #ifdef CONFIG_AMLOGIC_POWER
-	pwr_ctrl_psci_smc(PM_VPU_HDMI, 0);
+	pwr_ctrl_psci_smc(5, 0);
 	VPUPR("%s\n", __func__);
 #else
 	VPUERR("%s: no CONFIG_AMLOGIC_POWER\n", __func__);

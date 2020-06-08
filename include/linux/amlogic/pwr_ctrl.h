@@ -10,21 +10,10 @@
 #define DOMAIN_INIT_OFF   1
 #define POWER_CTRL_IRQ_SET     0x82000094
 
-enum pm_e {
-	PM_DSP = 7,
-	PM_DOS_HCODEC,
-	PM_DOS_HEVC,
-	PM_DOS_VDEC,
-	PM_DOS_WAVE,
-	PM_VPU_HDMI,
-	PM_USB_COMB = 14,
-	PM_PCIE,
-	PM_GE2D,
-	PM_ETH = 23
-};
+#define FLAG_ALWAYS_ON		2
 
-unsigned long pwr_ctrl_psci_smc(enum pm_e power_domain, bool power_control);
-unsigned long pwr_ctrl_status_psci_smc(enum pm_e power_domain);
+unsigned long pwr_ctrl_psci_smc(int power_domain, bool power_control);
+unsigned long pwr_ctrl_status_psci_smc(int power_domain);
 
 /*
  *irq:irq number for wakeup pwrctrl
