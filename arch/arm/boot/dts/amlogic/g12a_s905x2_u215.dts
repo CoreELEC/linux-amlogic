@@ -218,6 +218,7 @@
 		dev_name = "bt-dev";
 		status = "okay";
 		gpio_reset = <&gpio       GPIOX_17       GPIO_ACTIVE_HIGH>;
+		gpio_btwakeup = <&gpio       GPIOX_18       GPIO_ACTIVE_HIGH>;
 		gpio_hostwake = <&gpio       GPIOX_19       GPIO_ACTIVE_HIGH>;
 	};
 
