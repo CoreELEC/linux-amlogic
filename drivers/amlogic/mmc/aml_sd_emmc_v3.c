@@ -28,6 +28,7 @@
 #include <linux/delay.h>
 #include <linux/mmc/host.h>
 #include <linux/mmc/mmc.h>
+#include <linux/mmc/core.h>
 #include <linux/mmc/sdio.h>
 #include <linux/mmc/sd.h>
 #include <linux/mmc/slot-gpio.h>
@@ -108,6 +109,19 @@ int aml_fixdiv_calc(unsigned int *fixdiv, struct clock_lay_t *clk)
 
 	pr_debug("fixdiv = %d\n", *fixdiv);
 	return ret;
+}
+
+void aml_emmc_erase_timeout(struct work_struct *work)
+{
+	struct amlsd_host *host =
+		container_of(work, struct amlsd_host, timeout.work);
+
+	pr_err("erase eMMC timeout\n");
+	/* stop eMMC controller */
+	writel((readl(host->base + SD_EMMC_START) & ~(1 << 1)),
+	       host->base + SD_EMMC_START);
+	/* release request */
+	meson_mmc_request_done(host->mmc, host->mrq);
 }
 
 int meson_mmc_clk_init_v3(struct amlsd_host *host)
@@ -592,6 +606,12 @@ irqreturn_t meson_mmc_irq_thread_v3(int irq, void *dev_id)
 		/* WARN_ON(aml_sd_emmc_desc_check(host)); */
 		pr_debug("%s %d cmd:%d\n",
 				__func__, __LINE__, mrq->cmd->opcode);
+		if ((mrq->cmd->opcode == MMC_ERASE) &&
+		    ((mrq->cmd->arg == MMC_SECURE_ERASE_ARG) ||
+			 (mrq->cmd->arg == MMC_SECURE_TRIM2_ARG))) {
+			if (delayed_work_pending(&host->timeout))
+				cancel_delayed_work_sync(&host->timeout);
+		}
 		host->error_flag = 0;
 		if (mrq->cmd->data &&  mrq->cmd->opcode) {
 			xfer_bytes = mrq->data->blksz*mrq->data->blocks;

@@ -28,6 +28,7 @@
 #include <linux/delay.h>
 #include <linux/mmc/host.h>
 #include <linux/mmc/mmc.h>
+#include <linux/mmc/core.h>
 #include <linux/mmc/sdio.h>
 #include <linux/mmc/sd.h>
 #include <linux/mmc/slot-gpio.h>
@@ -2248,8 +2249,17 @@ static void meson_mmc_start_cmd(struct mmc_host *mmc, struct mmc_request *mrq)
 
 	if (mrq->cmd->opcode == MMC_SEND_STATUS)
 		des_cmd_cur->timeout = 0xb;
-	if (mrq->cmd->opcode == MMC_ERASE)
+	if (mrq->cmd->opcode == MMC_ERASE) {
 		des_cmd_cur->timeout = 0xf;
+		if ((mrq->cmd->arg == MMC_SECURE_TRIM2_ARG) ||
+		    (mrq->cmd->arg == MMC_SECURE_ERASE_ARG)) {
+			des_cmd_cur->timeout = 0;
+			INIT_DELAYED_WORK(
+				&host->timeout, aml_emmc_erase_timeout);
+			schedule_delayed_work(
+				&host->timeout, EMMC_ERASE_TIMEOUT);
+		}
+	}
 	if (mrq->cmd->opcode == MMC_SWITCH)
 		des_cmd_cur->timeout = 0xf;
 

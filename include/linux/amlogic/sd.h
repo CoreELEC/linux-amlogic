@@ -27,6 +27,8 @@
 #undef pr_fmt
 #define pr_fmt(fmt) "meson-mmc: " fmt
 
+#define EMMC_ERASE_TIMEOUT	(40 * HZ)
+
 #define AML_FIXED_ADJ_MIN	5
 #define AML_FIXED_ADJ_MAX	6
 #define AML_FIXED_ADJ_STEP	4
