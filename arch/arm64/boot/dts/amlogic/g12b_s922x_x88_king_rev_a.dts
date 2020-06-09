@@ -1,7 +1,7 @@
 #include "coreelec_g12b_a.dtsi"
 
 /{
-	model = "Amlogic S922X rev. A";
+	model = "Amlogic";
 	coreelec-dt-id = "g12b_s922x_x88_king_rev_a";
 
 	memory@00000000 {
