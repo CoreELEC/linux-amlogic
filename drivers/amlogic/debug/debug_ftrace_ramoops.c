@@ -209,6 +209,16 @@ static void notrace __pstore_ftrace_dump_old(struct pstore_ftrace_record *rec)
 	}
 }
 
+static char reboot_mode[16];
+static int __init reboot_mode_setup(char *s)
+{
+	if (s != NULL)
+		snprintf(reboot_mode, sizeof(reboot_mode), "%s", s);
+
+	return 0;
+}
+__setup("reboot_mode=", reboot_mode_setup);
+
 void notrace pstore_ftrace_dump_old(struct persistent_ram_zone *prz)
 {
 	struct pstore_ftrace_record *rec;
@@ -217,11 +227,15 @@ void notrace pstore_ftrace_dump_old(struct persistent_ram_zone *prz)
 	rec = (struct pstore_ftrace_record *)prz->old_log;
 	rec_end = (void *)rec + prz->old_log_size;
 
-	pr_info("ramoops_io_dump=%d, buffer=%p ftrace_old_log=%p, size=%u\n",
+	pr_info("ramoops_io_dump=%d, buffer=%p ftrace_old_log=%p, size=%u, reboot_mode=%s\n",
 			ramoops_io_dump,
 			prz->buffer,
 			rec,
-			(unsigned int)prz->old_log_size);
+			(unsigned int)prz->old_log_size,
+			reboot_mode);
+
+	if (!strcmp(reboot_mode, "cold_boot"))
+		return;
 
 	if (!ramoops_io_dump)
 		return;
