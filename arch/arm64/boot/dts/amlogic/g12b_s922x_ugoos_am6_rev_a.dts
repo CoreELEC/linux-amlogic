@@ -1,7 +1,7 @@
 #include "coreelec_g12b_a.dtsi"
 
 /{
-	model = "UGOOS AM6 rev. A";
+	model = "UGOOS AM6";
 	coreelec-dt-id = "g12b_s922x_ugoos_am6_rev_a";
 
 	/delete-node/ memory@00000000;
