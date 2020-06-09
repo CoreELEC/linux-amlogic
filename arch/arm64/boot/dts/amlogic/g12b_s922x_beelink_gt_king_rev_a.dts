@@ -1,7 +1,7 @@
 #include "coreelec_g12b_a.dtsi"
 
 /{
-	model = "Beelink GT-King rev. A";
+	model = "Beelink";
 	coreelec-dt-id = "g12b_s922x_beelink_gt_king_rev_a";
 
 	memory@00000000 {
