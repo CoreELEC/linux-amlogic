@@ -42,6 +42,7 @@ struct vout_op_s {
 	int (*set_state)(int);
 	int (*clr_state)(int);
 	int (*get_state)(void);
+	int (*get_disp_cap)(char *buf);
 	int (*set_vframe_rate_hint)(int);
 	int (*set_vframe_rate_end_hint)(void);
 	int (*set_vframe_rate_policy)(int);
@@ -70,6 +71,7 @@ extern int vout_notifier_call_chain(unsigned int long, void *p);
 extern int vout_register_server(struct vout_server_s *p);
 extern int vout_unregister_server(struct vout_server_s *p);
 
+int get_current_disp_cap(char *buf);
 extern struct vinfo_s *get_current_vinfo(void);
 extern enum vmode_e get_current_vmode(void);
 extern int set_vframe_rate_hint(int duration);
@@ -85,6 +87,7 @@ extern int vout2_notifier_call_chain(unsigned int long, void *p);
 extern int vout2_register_server(struct vout_server_s *p);
 extern int vout2_unregister_server(struct vout_server_s *p);
 
+int get_current_disp2_cap(char *buf);
 extern struct vinfo_s *get_current_vinfo2(void);
 extern enum vmode_e get_current_vmode2(void);
 extern int set_vframe2_rate_hint(int duration);

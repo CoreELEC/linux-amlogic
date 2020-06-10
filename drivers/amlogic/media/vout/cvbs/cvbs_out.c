@@ -59,6 +59,15 @@
 #include "wss.h"
 #endif
 
+const char *cvbs_mode_t[] = {
+	"480cvbs",
+	"576cvbs",
+	"pal_m",
+	"pal_n",
+	"ntsc_n",
+	NULL
+};
+
 static struct vinfo_s cvbs_info[] = {
 	{ /* MODE_480CVBS*/
 		.name              = "480cvbs",
@@ -657,6 +666,15 @@ static int cvbs_vout_get_state(void)
 	return cvbs_vout_state;
 }
 
+static int cvbs_vout_get_disp_cap(char *buf)
+{
+	int ret = 0, i;
+
+	for (i = 0; cvbs_mode_t[i]; i++)
+		ret += snprintf(buf + ret, PAGE_SIZE, "%s\n", cvbs_mode_t[i]);
+	return ret;
+}
+
 #ifdef CONFIG_PM
 static int cvbs_suspend(void)
 {
@@ -687,6 +705,7 @@ static struct vout_server_s cvbs_vout_server = {
 		.set_state = cvbs_vout_set_state,
 		.clr_state = cvbs_vout_clr_state,
 		.get_state = cvbs_vout_get_state,
+		.get_disp_cap = cvbs_vout_get_disp_cap,
 		.set_vframe_rate_hint = NULL,
 		.set_vframe_rate_end_hint = NULL,
 		.set_vframe_rate_policy = NULL,

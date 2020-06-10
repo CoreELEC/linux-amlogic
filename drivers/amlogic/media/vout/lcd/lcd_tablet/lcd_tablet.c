@@ -142,6 +142,14 @@ static int lcd_vout_get_state(void)
 	return lcd_vout_state;
 }
 
+static int lcd_vout_get_disp_cap(char *buf)
+{
+	int ret = 0;
+
+	ret += sprintf(buf + ret, "%s\n", "panel");
+	return ret;
+}
+
 #ifdef CONFIG_AMLOGIC_VOUT_SERVE
 struct lcd_vframe_match_s {
 	int fps;
@@ -375,6 +383,7 @@ static struct vout_server_s lcd_vout_server = {
 		.set_state = lcd_vout_set_state,
 		.clr_state = lcd_vout_clr_state,
 		.get_state = lcd_vout_get_state,
+		.get_disp_cap = lcd_vout_get_disp_cap,
 		.set_vframe_rate_hint = lcd_set_vframe_rate_hint,
 		.set_vframe_rate_end_hint = lcd_set_vframe_rate_end_hint,
 		.set_vframe_rate_policy = lcd_set_vframe_rate_policy,
@@ -399,6 +408,7 @@ static struct vout_server_s lcd_vout2_server = {
 		.set_state = lcd_vout_set_state,
 		.clr_state = lcd_vout_clr_state,
 		.get_state = lcd_vout_get_state,
+		.get_disp_cap = lcd_vout_get_disp_cap,
 		.set_vframe_rate_hint = lcd_set_vframe_rate_hint,
 		.set_vframe_rate_end_hint = lcd_set_vframe_rate_end_hint,
 		.set_vframe_rate_policy = lcd_set_vframe_rate_policy,

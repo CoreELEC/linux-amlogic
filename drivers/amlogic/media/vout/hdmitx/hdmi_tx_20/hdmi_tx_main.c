@@ -4903,6 +4903,11 @@ static int hdmitx_vout_get_state(void)
 	return hdmitx_vout_state;
 }
 
+static int hdmitx_vout_get_disp_cap(char *buf)
+{
+	return show_disp_cap(NULL, NULL, buf);
+}
+
 static struct vout_server_s hdmitx_vout_server = {
 	.name = "hdmitx_vout_server",
 	.op = {
@@ -4914,6 +4919,7 @@ static struct vout_server_s hdmitx_vout_server = {
 		.set_state = hdmitx_vout_set_state,
 		.clr_state = hdmitx_vout_clr_state,
 		.get_state = hdmitx_vout_get_state,
+		.get_disp_cap = hdmitx_vout_get_disp_cap,
 		.set_bist = NULL,
 #ifdef CONFIG_PM
 		.vout_suspend = NULL,
@@ -4934,6 +4940,7 @@ static struct vout_server_s hdmitx_vout2_server = {
 		.set_state = hdmitx_vout_set_state,
 		.clr_state = hdmitx_vout_clr_state,
 		.get_state = hdmitx_vout_get_state,
+		.get_disp_cap = hdmitx_vout_get_disp_cap,
 		.set_bist = NULL,
 #ifdef CONFIG_PM
 		.vout_suspend = NULL,

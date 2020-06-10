@@ -80,6 +80,22 @@ struct vinfo_s *get_current_vinfo2(void)
 EXPORT_SYMBOL(get_current_vinfo2);
 
 /*
+ *interface export to client who want to get display support list.
+ */
+int get_current_disp2_cap(char *buf)
+{
+	struct vout_module_s *p_module = NULL;
+	int ret = 0;
+
+	p_module = vout_func_get_vout2_module();
+	if (!IS_ERR_OR_NULL(p_module->curr_vout_server))
+		if (p_module->curr_vout_server->op.get_disp_cap)
+			ret = p_module->curr_vout_server->op.get_disp_cap(buf);
+	return ret;
+}
+EXPORT_SYMBOL(get_current_disp2_cap);
+
+/*
  *interface export to client who want to get current vmode.
  */
 enum vmode_e get_current_vmode2(void)

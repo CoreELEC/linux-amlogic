@@ -220,6 +220,7 @@ static struct vout_server_s nulldisp_vout_server = {
 		.set_state          = nulldisp_vout_set_state,
 		.clr_state          = nulldisp_vout_clr_state,
 		.get_state          = nulldisp_vout_get_state,
+		.get_disp_cap       = NULL,
 		.set_bist           = NULL,
 	},
 };
@@ -584,6 +585,18 @@ static ssize_t vout_vinfo_show(struct class *class,
 	return len;
 }
 
+static ssize_t vout_cap_show(struct class *class,
+			     struct class_attribute *attr, char *buf)
+{
+	int ret;
+
+	ret = get_current_disp_cap(buf);
+	if (!ret)
+		return sprintf(buf, "null\n");
+
+	return ret;
+}
+
 static struct class_attribute vout_class_attrs[] = {
 	__ATTR(mode,      0644, vout_mode_show, vout_mode_store),
 	__ATTR(axis,      0644, vout_axis_show, vout_axis_store),
@@ -591,6 +604,7 @@ static struct class_attribute vout_class_attrs[] = {
 		vout_fr_policy_show, vout_fr_policy_store),
 	__ATTR(bist,      0644, vout_bist_show, vout_bist_store),
 	__ATTR(vinfo,     0444, vout_vinfo_show, NULL),
+	__ATTR(cap,	  0644, vout_cap_show, NULL)
 };
 
 static int vout_attr_create(void)
