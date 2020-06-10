@@ -393,7 +393,16 @@ static int dummy_encp_disable(enum vmode_e cur_vmod)
 #ifdef CONFIG_PM
 static int dummy_encp_lcd_suspend(void)
 {
-	dummy_encp_disable(VMODE_DUMMY_ENCP);
+	dummy_encp_drv->status = 0;
+
+	vout_vcbus_write(ENCP_VIDEO_EN, 0); /* disable encp */
+	dummy_encp_clk_ctrl(0);
+	dummy_encp_clk_gate_switch(0);
+#ifdef CONFIG_AMLOGIC_VPU
+	switch_vpu_mem_pd_vmod(VPU_VENCP, VPU_MEM_POWER_DOWN);
+	release_vpu_clk_vmod(VPU_VENCP);
+#endif
+
 	return 0;
 }
 
