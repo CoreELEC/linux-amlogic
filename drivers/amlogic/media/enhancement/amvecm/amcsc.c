@@ -7734,7 +7734,7 @@ static int vpp_matrix_update(
 			hdr10p_meta_updated &&
 			hdr10_plus_process_mode[vd_path] == PROC_HDRP_TO_SDR)
 			hdr10_plus_process_update(0, vd_path);
-	} else {
+	} else if (get_cpu_type() == MESON_CPU_MAJOR_ID_TL1) {
 		if (
 			(hdr_process_mode[vd_path] == PROC_MATCH) &&
 		    (csc_type == VPP_MATRIX_BT2020YUV_BT2020RGB) &&
