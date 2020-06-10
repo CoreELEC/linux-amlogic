@@ -263,5 +263,9 @@
 /* vpp crc */
 #define VPP_RO_CRCSUM           0x1db2
 #define VPP_CRC_CHK             0x1db3
+
+/*viu2  vpp crc */
+#define VPP2_CRC_CHK            0x1eb0
+#define VPP2_RO_CRCSUM          0x1eb1
 #endif
 

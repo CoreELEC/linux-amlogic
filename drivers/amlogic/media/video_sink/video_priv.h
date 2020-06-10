@@ -376,6 +376,7 @@ int calc_hold_line(void);
 u32 get_cur_enc_line(void);
 void vpu_work_process(void);
 int vpp_crc_check(u32 vpp_crc_en);
+int vpp_crc_viu2_check(u32 vpp_crc_en);
 
 int video_hw_init(void);
 int video_early_init(void);

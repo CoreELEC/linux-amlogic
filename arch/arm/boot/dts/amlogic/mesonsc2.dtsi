@@ -1204,8 +1204,9 @@
 		compatible = "amlogic, amvideom-sc2";
 		dev_name = "amvideom";
 		status = "okay";
-		interrupts = <0 197 1>;
-		interrupt-names = "vsync";
+		interrupts = <0 197 1
+					0 194 1>;
+		interrupt-names = "vsync", "vsync_viu2";
 	};
 
 	codec_io: codec_io {

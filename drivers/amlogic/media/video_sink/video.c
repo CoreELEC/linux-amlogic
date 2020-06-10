@@ -115,6 +115,7 @@ u32 osd_vpp_misc_mask;
 bool update_osd_vpp_misc;
 u32 osd_preblend_en;
 int video_vsync = -ENXIO;
+int video_vsync_viu2 = -ENXIO;
 
 static u32 cur_omx_index;
 
@@ -968,6 +969,10 @@ static u32 hdmi_in_onvideo;
 /* vpp_crc */
 static u32 vpp_crc_en;
 static int vpp_crc_result;
+
+/* vjiu2 vpp_crc */
+static u32 vpp_crc_viu2_en;
+static int vpp_crc_viu2_result;
 
 #define CONFIG_AM_VOUT
 
@@ -5280,6 +5285,14 @@ static irqreturn_t vsync_isr(int irq, void *dev_id)
 	atomic_set(&video_inirq_flag, 0);
 	return ret;
 }
+
+static irqreturn_t vsync_isr_viu2(int irq, void *dev_id)
+{
+	if (amvideo_meson_dev.cpu_type >= MESON_CPU_MAJOR_ID_SC2_)
+		vpp_crc_viu2_result = vpp_crc_viu2_check(vpp_crc_viu2_en);
+
+	return IRQ_HANDLED;
+}
 #endif
 
 
@@ -5295,6 +5308,10 @@ static void vsync_fiq_up(void)
 	int r;
 	r = request_irq(video_vsync, &vsync_isr,
 		IRQF_SHARED, "vsync", (void *)video_dev_id);
+	if (amvideo_meson_dev.cpu_type >= MESON_CPU_MAJOR_ID_SC2_)
+		r = request_irq(video_vsync_viu2, &vsync_isr_viu2,
+				IRQF_SHARED, "vsync_viu2",
+				(void *)video_dev_id);
 
 #ifdef CONFIG_MESON_TRUSTZONE
 	if (num_online_cpus() > 1)
@@ -5309,6 +5326,8 @@ static void vsync_fiq_down(void)
 	free_fiq(INT_VIU_VSYNC, &vsync_fisr);
 #else
 	free_irq(video_vsync, (void *)video_dev_id);
+	if (amvideo_meson_dev.cpu_type >= MESON_CPU_MAJOR_ID_SC2_)
+		free_irq(video_vsync_viu2, (void *)video_dev_id);
 #endif
 }
 
@@ -9830,6 +9849,29 @@ static ssize_t vpp_crc_store(
 	return count;
 }
 
+static ssize_t vpp_crc_viu2_show(
+	struct class *cla,
+	struct class_attribute *attr,
+	char *buf)
+{
+	return snprintf(buf, 64, "crc_viu2_en: %d crc_vui2_result: %x\n\n",
+		vpp_crc_viu2_en,
+		vpp_crc_viu2_result);
+}
+
+static ssize_t vpp_crc_viu2_store(
+	struct class *cla,
+	struct class_attribute *attr,
+	const char *buf, size_t count)
+{
+	int ret;
+
+	ret = kstrtoint(buf, 0, &vpp_crc_viu2_en);
+	if (ret < 0)
+		return -EINVAL;
+	return count;
+}
+
 static struct class_attribute amvideo_class_attrs[] = {
 	__ATTR(axis,
 	       0664,
@@ -10056,6 +10098,10 @@ static struct class_attribute amvideo_class_attrs[] = {
 	       0664,
 	       vpp_crc_show,
 	       vpp_crc_store),
+	__ATTR(vpp_crc_viu2,
+	       0664,
+	       vpp_crc_viu2_show,
+	       vpp_crc_viu2_store),
 	__ATTR_NULL
 };
 
@@ -10456,8 +10502,17 @@ static int amvideom_probe(struct platform_device *pdev)
 
 		return video_vsync;
 	}
-
 	pr_info("amvideom vsync irq: %d\n", video_vsync);
+
+	if (amvideo_meson_dev.cpu_type >= MESON_CPU_MAJOR_ID_SC2_) {
+		/* get interrupt resource */
+		video_vsync_viu2 = platform_get_irq_byname(pdev, "vsync_viu2");
+		if (video_vsync_viu2  == -ENXIO)
+			pr_info("cannot get amvideom viu2 irq resource\n");
+		else
+			pr_info("amvideom vsync viu2 irq: %d\n",
+				video_vsync_viu2);
+	}
 
 #ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
 	register_early_suspend(&video_early_suspend_handler);
