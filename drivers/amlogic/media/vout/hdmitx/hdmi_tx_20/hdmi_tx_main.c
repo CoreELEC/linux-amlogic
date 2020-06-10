@@ -119,6 +119,69 @@ struct extcon_dev *hdmitx_extcon_rxsense;
 struct extcon_dev *hdmitx_extcon_hdcp;
 struct extcon_dev *hdmitx_extcon_cedst;
 
+/* For compliance with p/r, need both extcon and hdmi_event */
+static struct hdmitx_uevent hdmi_events[] = {
+	{
+		.type = HDMITX_HPD_EVENT,
+		.env = "hdmitx_hpd=",
+	},
+	{
+		.type = HDMITX_HDCP_EVENT,
+		.env = "hdmitx_hdcp=",
+	},
+	{
+		.type = HDMITX_AUDIO_EVENT,
+		.env = "hdmitx_audio=",
+	},
+	{
+		.type = HDMITX_HDCPPWR_EVENT,
+		.env = "hdmitx_hdcppwr=",
+	},
+	{
+		.type = HDMITX_HDR_EVENT,
+		.env = "hdmitx_hdr=",
+	},
+	{
+		.type = HDMITX_RXSENSE_EVENT,
+		.env = "hdmitx_rxsense=",
+	},
+	{
+		.type = HDMITX_CEDST_EVENT,
+		.env = "hdmitx_cedst=",
+	},
+	{ /* end of hdmi_events[] */
+		.type = HDMITX_NONE_EVENT,
+	},
+};
+
+int hdmitx_set_uevent(enum hdmitx_event type, int val)
+{
+	char env[MAX_UEVENT_LEN];
+	struct hdmitx_uevent *event = hdmi_events;
+	struct hdmitx_dev *hdev = &hdmitx_device;
+	char *envp[2];
+	int ret = -1;
+
+	for (event = hdmi_events; event->type != HDMITX_NONE_EVENT; event++) {
+		if (type == event->type)
+			break;
+	}
+	if (event->type == HDMITX_NONE_EVENT)
+		return ret;
+	if (event->state == val)
+		return ret;
+
+	event->state = val;
+	memset(env, 0, sizeof(env));
+	envp[0] = env;
+	envp[1] = NULL;
+	snprintf(env, MAX_UEVENT_LEN, "%s%d", event->env, val);
+
+	ret = kobject_uevent_env(&hdev->hdtx_dev->kobj, KOBJ_CHANGE, envp);
+	/* pr_info("%s[%d] %s %d\n", __func__, __LINE__, env, ret); */
+	return ret;
+}
+
 /* There are 3 callback functions for front HDR/DV/HDR10+ modules to notify
  * hdmi drivers to send out related HDMI infoframe
  * hdmitx_set_drm_pkt() is for HDR 2084 SMPTE, HLG, etc.
@@ -5244,6 +5307,7 @@ static void hdmitx_hpd_plugin_handler(struct work_struct *work)
 	hdmitx_notify_hpd(hdev->hpd_state);
 
 	extcon_set_state_sync(hdmitx_extcon_hdmi, EXTCON_DISP_HDMI, 1);
+	hdmitx_set_uevent(HDMITX_HPD_EVENT, 1);
 	extcon_set_state_sync(hdmitx_extcon_audio, EXTCON_DISP_HDMI, 1);
 	mutex_unlock(&setclk_mutex);
 	/* Should be started at end of output */
@@ -5305,6 +5369,7 @@ static void hdmitx_hpd_plugout_handler(struct work_struct *work)
 	hdev->hpd_state = 0;
 	hdmitx_notify_hpd(hdev->hpd_state);
 	extcon_set_state_sync(hdmitx_extcon_hdmi, EXTCON_DISP_HDMI, 0);
+	hdmitx_set_uevent(HDMITX_HPD_EVENT, 0);
 	extcon_set_state_sync(hdmitx_extcon_audio, EXTCON_DISP_HDMI, 0);
 	mutex_unlock(&setclk_mutex);
 }
@@ -5615,7 +5680,8 @@ void hdmitx_event_notify(unsigned long state, void *arg)
 void hdmitx_hdcp_status(int hdmi_authenticated)
 {
 	extcon_set_state_sync(hdmitx_extcon_hdcp, EXTCON_DISP_HDMI,
-							hdmi_authenticated);
+			      hdmi_authenticated);
+	hdmitx_set_uevent(HDMITX_HDCP_EVENT, hdmi_authenticated);
 }
 
 void hdmitx_extcon_register(struct platform_device *pdev, struct device *dev)
