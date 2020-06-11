@@ -457,6 +457,7 @@ static ssize_t pd_parm_store(struct device *dev,
 		}
 	}
 
+	kfree(buf_orig);
 	return count;
 }
 
