@@ -107,6 +107,20 @@
 #define RESET6_LEVEL_TXLX            0x0426
 #define RESET7_LEVEL_TXLX            0x0427
 
+/* pwrctrl reg */
+#define PWRCTRL_MEM_PD0              0x0010
+#define PWRCTRL_MEM_PD1              0x0011
+#define PWRCTRL_MEM_PD2              0x0012
+#define PWRCTRL_MEM_PD3              0x0013
+#define PWRCTRL_MEM_PD4              0x0014
+#define PWRCTRL_MEM_PD5              0x0015
+#define PWRCTRL_MEM_PD6              0x0016
+#define PWRCTRL_MEM_PD7              0x0017
+#define PWRCTRL_MEM_PD8              0x0018
+#define PWRCTRL_MEM_PD9              0x0019
+#define PWRCTRL_MEM_PD10             0x001a
+#define PWRCTRL_MEM_PD11             0x001b
+
 /* vpu clk gate */
 /* hiu_bus */
 #define HHI_GCLK_OTHER               0x54
@@ -151,6 +165,10 @@ extern unsigned int vpu_hiu_getb(unsigned int _reg,
 		unsigned int _start, unsigned int _len);
 extern void vpu_hiu_set_mask(unsigned int _reg, unsigned int _mask);
 extern void vpu_hiu_clr_mask(unsigned int _reg, unsigned int _mask);
+
+unsigned int vpu_pwrctrl_read(unsigned int _reg);
+unsigned int vpu_pwrctrl_getb(unsigned int _reg,
+			      unsigned int _start, unsigned int _len);
 
 extern unsigned int vpu_vcbus_read(unsigned int _reg);
 extern void vpu_vcbus_write(unsigned int _reg, unsigned int _value);

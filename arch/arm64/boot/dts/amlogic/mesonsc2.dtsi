@@ -326,8 +326,9 @@
 			"vpu_clk0",
 			"vpu_clk1",
 			"vpu_clk";
-		reg = <0x0 0xfe000000 0x0 0x100    /* hiu */
-			0x0 0xff000000 0x0 0xa000>; /* vcbus */
+		reg = <0x0 0xfe000000 0x0 0x100      /* hiu */
+			0x0 0xfe00c000 0x0 0x70      /* pwrctrl */
+			0x0 0xff000000 0x0 0xa000>;  /* vcbus */
 		clk_level = <7>;
 		/* 0: 100.0M    1: 166.7M    2: 200.0M    3: 250.0M */
 		/* 4: 333.3M    5: 400.0M    6: 500.0M    7: 666.7M */

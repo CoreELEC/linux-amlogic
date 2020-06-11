@@ -27,6 +27,7 @@
 #include <linux/clk.h>
 #include <linux/clk-provider.h>
 #include <linux/amlogic/cpu_version.h>
+#include <linux/amlogic/pwr_ctrl.h>
 #include <linux/amlogic/media/vpu/vpu.h>
 #include "vpu_reg.h"
 #include "vpu.h"
@@ -42,7 +43,8 @@
 /* v20190314: add sm1 support */
 /* v20190329: add tm2 support */
 /* v20200529: add sc2 support */
-#define VPU_VERION        "v20200529"
+/* v20200616: add sc2 mempd control support */
+#define VPU_VERION        "v20200616"
 
 int vpu_debug_print_flag;
 static spinlock_t vpu_mem_lock;
@@ -155,6 +157,11 @@ unsigned int get_vpu_clk(void)
 	unsigned int clk_source, div;
 	unsigned int mux_id;
 	struct clk_hw *hw;
+	int ret;
+
+	ret = vpu_chip_valid_check();
+	if (ret)
+		return 0;
 
 	if (IS_ERR_OR_NULL(vpu_conf.vpu_clk)) {
 		VPUERR("%s: vpu_clk\n", __func__);
@@ -488,27 +495,16 @@ int release_vpu_clk_vmod(unsigned int vmod)
  *      switch_vpu_mem_pd_vmod(VPU_VIU_OSD1, VPU_MEM_POWER_DOWN);
  *
  */
-void switch_vpu_mem_pd_vmod(unsigned int vmod, int flag)
+static int vpu_mempd_switch_vmod(unsigned int vmod, int flag)
 {
-	unsigned long flags = 0;
 	unsigned int _val, _reg, _bit, _len;
 	struct vpu_ctrl_s *table;
 	int i = 0, ret = 0, done = 0, cnt;
 
-	ret = vpu_chip_valid_check();
-	if (ret)
-		return;
-	if (vmod >= VPU_MOD_MAX) {
-		VPUERR("switch_vpu_mem_pd: invalid vpu mod: %d\n", vmod);
-		return;
-	}
-
 	cnt = vpu_conf.data->mem_pd_table_cnt;
 	table = vpu_conf.data->mem_pd_table;
 	if (!table)
-		return;
-
-	spin_lock_irqsave(&vpu_mem_lock, flags);
+		return -1;
 
 	while (i < cnt) {
 		if (table[i].vmod == VPU_MOD_MAX)
@@ -531,10 +527,47 @@ void switch_vpu_mem_pd_vmod(unsigned int vmod, int flag)
 		i++;
 	}
 
+	if (done == 0) {
+		VPUPR("switch_vpu_mem_pd: unsupport vpu mod: %d\n", vmod);
+		ret = -1;
+	}
+	return ret;
+}
+
+static int vpu_mempd_switch_vmod_new(unsigned int vmod, int flag)
+{
+	bool state;
+	unsigned int ret;
+
+	state = (flag == VPU_MEM_POWER_ON) ? PWR_ON : PWR_OFF;
+	ret = vpu_mempd_psci_smc(vmod, state);
+	if (ret)
+		VPUPR("switch_vpu_mem_pd: unsupport vpu mod: %d\n", vmod);
+
+	return ret;
+}
+
+void switch_vpu_mem_pd_vmod(unsigned int vmod, int flag)
+{
+	unsigned long flags = 0;
+	int ret = 0;
+
+	ret = vpu_chip_valid_check();
+	if (ret)
+		return;
+	if (!vpu_conf.data->mempd_switch) {
+		VPUERR("switch_vpu_mem_pd: no mempd_switch\n");
+		return;
+	}
+	if (vmod >= VPU_MOD_MAX) {
+		VPUERR("switch_vpu_mem_pd: invalid vpu mod: %d\n", vmod);
+		return;
+	}
+
+	spin_lock_irqsave(&vpu_mem_lock, flags);
+	vpu_conf.data->mempd_switch(vmod, flag);
 	spin_unlock_irqrestore(&vpu_mem_lock, flags);
 
-	if (done == 0)
-		VPUPR("switch_vpu_mem_pd: unsupport vpu mod: %d\n", vmod);
 	if (vpu_debug_print_flag) {
 		if (vmod < VPU_MOD_MAX) {
 			VPUPR("switch_vpu_mem_pd: %s %s\n",
@@ -561,7 +594,7 @@ void switch_vpu_mem_pd_vmod(unsigned int vmod, int flag)
  *      ret = get_vpu_mem_pd_vmod(VPU_VIU_OSD1);
  *
  */
-int get_vpu_mem_pd_vmod(unsigned int vmod)
+static int vpu_mempd_get_vmod(unsigned int vmod)
 {
 	unsigned int _reg, _bit, _len;
 	struct vpu_ctrl_s *table;
@@ -602,6 +635,72 @@ int get_vpu_mem_pd_vmod(unsigned int vmod)
 		return VPU_MEM_POWER_ON;
 	else
 		return VPU_MEM_POWER_DOWN;
+}
+
+static int vpu_mempd_get_vmod_new(unsigned int vmod)
+{
+	unsigned int _reg, _bit, _len;
+	struct vpu_ctrl_s *table;
+	int i = 0, ret = 0, done = 0, cnt;
+
+	ret = vpu_chip_valid_check();
+	if (ret)
+		return -1;
+	if (vmod >= VPU_MOD_MAX) {
+		VPUERR("get_vpu_mem_pd: invalid vpu mod: %d\n", vmod);
+		return -1;
+	}
+
+	cnt = vpu_conf.data->mem_pd_table_cnt;
+	table = vpu_conf.data->mem_pd_table;
+	if (!table)
+		return -1;
+
+	ret = 0;
+	while (i < cnt) {
+		if (table[i].vmod == VPU_MOD_MAX)
+			break;
+		if (table[i].vmod == vmod) {
+			_reg = table[i].reg;
+			_bit = table[i].bit;
+			_len = table[i].len;
+			ret += vpu_pwrctrl_getb(_reg, _bit, _len);
+			done++;
+		}
+		i++;
+	}
+	if (done == 0) {
+		VPUPR("get_vpu_mem_pd: unsupport vpu mod: %d\n", vmod);
+		return -1;
+	}
+
+	if (ret == 0)
+		return VPU_MEM_POWER_ON;
+	else
+		return VPU_MEM_POWER_DOWN;
+}
+
+int get_vpu_mem_pd_vmod(unsigned int vmod)
+{
+	int ret = 0;
+
+	ret = vpu_chip_valid_check();
+	if (ret)
+		return -1;
+	if (!vpu_conf.data->mempd_get) {
+		VPUERR("get_vpu_mem_pd_vmod: no mempd_get\n");
+		return -1;
+	}
+	if (vmod >= VPU_MOD_MAX) {
+		VPUERR("get_vpu_mem_pd: invalid vpu mod: %d\n", vmod);
+		return -1;
+	}
+
+	ret = vpu_conf.data->mempd_get(vmod);
+	if (ret < 0)
+		VPUPR("get_vpu_mem_pd: unsupport vpu mod: %d\n", vmod);
+
+	return ret;
 }
 
 /* *********************************************** */
@@ -799,35 +898,61 @@ static ssize_t vpu_mem_debug(struct class *class, struct class_attribute *attr,
 	unsigned int _reg0, _reg1, _reg2, _reg3, _reg4;
 	int ret = 0, i;
 
-	if (vpu_conf.data->iomap_flag) {
-		VPUPR("%s: don't support yet\n", __func__);
-		return count;
-	}
+	_reg0 = vpu_conf.data->mem_pd_reg0;
+	_reg1 = vpu_conf.data->mem_pd_reg1;
+	_reg2 = vpu_conf.data->mem_pd_reg2;
+	_reg3 = vpu_conf.data->mem_pd_reg3;
+	_reg4 = vpu_conf.data->mem_pd_reg4;
 
-	_reg0 = HHI_VPU_MEM_PD_REG0;
-	_reg1 = HHI_VPU_MEM_PD_REG1;
-	_reg2 = HHI_VPU_MEM_PD_REG2;
-	switch (vpu_conf.data->chip_type) {
-	case VPU_CHIP_SM1:
-		_reg3 = HHI_VPU_MEM_PD_REG3_SM1;
-		_reg4 = HHI_VPU_MEM_PD_REG4_SM1;
-		break;
-	default:
-		_reg3 = HHI_VPU_MEM_PD_REG3;
-		_reg4 = HHI_VPU_MEM_PD_REG4;
-		break;
-	}
 	switch (buf[0]) {
 	case 'r':
-		VPUPR("mem_pd0: 0x%08x\n", vpu_hiu_read(_reg0));
-		if (vpu_conf.data->mem_pd_reg1_valid)
-			VPUPR("mem_pd1: 0x%08x\n", vpu_hiu_read(_reg1));
-		if (vpu_conf.data->mem_pd_reg2_valid)
-			VPUPR("mem_pd2: 0x%08x\n", vpu_hiu_read(_reg2));
-		if (vpu_conf.data->mem_pd_reg3_valid)
-			VPUPR("mem_pd3: 0x%08x\n", vpu_hiu_read(_reg3));
-		if (vpu_conf.data->mem_pd_reg4_valid)
-			VPUPR("mem_pd4: 0x%08x\n", vpu_hiu_read(_reg4));
+		switch (vpu_conf.data->chip_type) {
+		case VPU_CHIP_GXBB:
+		case VPU_CHIP_GXTVBB:
+		case VPU_CHIP_GXL:
+		case VPU_CHIP_GXM:
+		case VPU_CHIP_TXL:
+		case VPU_CHIP_TXLX:
+		case VPU_CHIP_AXG:
+		case VPU_CHIP_G12A:
+		case VPU_CHIP_G12B:
+		case VPU_CHIP_TL1:
+		case VPU_CHIP_SM1:
+		case VPU_CHIP_TM2:
+			if (_reg0 < VPU_REG_END)
+				VPUPR("mem_pd0: 0x%08x\n", vpu_hiu_read(_reg0));
+			if (_reg1 < VPU_REG_END)
+				VPUPR("mem_pd1: 0x%08x\n", vpu_hiu_read(_reg1));
+			if (_reg2 < VPU_REG_END)
+				VPUPR("mem_pd2: 0x%08x\n", vpu_hiu_read(_reg2));
+			if (_reg3 < VPU_REG_END)
+				VPUPR("mem_pd3: 0x%08x\n", vpu_hiu_read(_reg3));
+			if (_reg4 < VPU_REG_END)
+				VPUPR("mem_pd4: 0x%08x\n", vpu_hiu_read(_reg4));
+			break;
+		default:
+			if (_reg0 < VPU_REG_END) {
+				VPUPR("mem_pd5: 0x%08x\n",
+				      vpu_pwrctrl_read(_reg0));
+			}
+			if (_reg1 < VPU_REG_END) {
+				VPUPR("mem_pd6: 0x%08x\n",
+				      vpu_pwrctrl_read(_reg1));
+			}
+			if (_reg2 < VPU_REG_END) {
+				VPUPR("mem_pd7: 0x%08x\n",
+				      vpu_pwrctrl_read(_reg2));
+			}
+			if (_reg3 < VPU_REG_END) {
+				VPUPR("mem_pd8: 0x%08x\n",
+				      vpu_pwrctrl_read(_reg3));
+			}
+			if (_reg4 < VPU_REG_END) {
+				VPUPR("mem_pd9: 0x%08x\n",
+				      vpu_pwrctrl_read(_reg4));
+			}
+			break;
+		}
 		break;
 	case 'w':
 		ret = sscanf(buf, "w %u %u", &tmp[0], &tmp[1]);
@@ -981,20 +1106,6 @@ static ssize_t vpu_debug_info(struct class *class,
 		return len;
 	}
 
-	_reg0 = HHI_VPU_MEM_PD_REG0;
-	_reg1 = HHI_VPU_MEM_PD_REG1;
-	_reg2 = HHI_VPU_MEM_PD_REG2;
-	switch (vpu_conf.data->chip_type) {
-	case VPU_CHIP_SM1:
-		_reg3 = HHI_VPU_MEM_PD_REG3_SM1;
-		_reg4 = HHI_VPU_MEM_PD_REG4_SM1;
-		break;
-	default:
-		_reg3 = HHI_VPU_MEM_PD_REG3;
-		_reg4 = HHI_VPU_MEM_PD_REG4;
-		break;
-	}
-
 	clk = get_vpu_clk();
 	level_max = vpu_conf.data->clk_level_max - 1;
 
@@ -1012,24 +1123,69 @@ static ssize_t vpu_debug_info(struct class *class,
 		vpu_clk_table[vpu_conf.data->clk_level_dft].freq,
 		level_max, vpu_clk_table[level_max].freq);
 
-	len += sprintf(buf+len, "mem_pd:\n"
-		"  mem_pd0:      0x%08x\n",
-		vpu_hiu_read(_reg0));
-	if (vpu_conf.data->mem_pd_reg1_valid) {
-		len += sprintf(buf+len, "  mem_pd1:      0x%08x\n",
-			vpu_hiu_read(_reg1));
-	}
-	if (vpu_conf.data->mem_pd_reg2_valid) {
-		len += sprintf(buf+len, "  mem_pd2:      0x%08x\n",
-			vpu_hiu_read(_reg2));
-	}
-	if (vpu_conf.data->mem_pd_reg3_valid) {
-		len += sprintf(buf+len, "  mem_pd3:      0x%08x\n",
-			vpu_hiu_read(_reg3));
-	}
-	if (vpu_conf.data->mem_pd_reg4_valid) {
-		len += sprintf(buf+len, "  mem_pd4:      0x%08x\n",
-			vpu_hiu_read(_reg4));
+	_reg0 = vpu_conf.data->mem_pd_reg0;
+	_reg1 = vpu_conf.data->mem_pd_reg1;
+	_reg2 = vpu_conf.data->mem_pd_reg2;
+	_reg3 = vpu_conf.data->mem_pd_reg3;
+	_reg4 = vpu_conf.data->mem_pd_reg4;
+	switch (vpu_conf.data->chip_type) {
+	case VPU_CHIP_GXBB:
+	case VPU_CHIP_GXTVBB:
+	case VPU_CHIP_GXL:
+	case VPU_CHIP_GXM:
+	case VPU_CHIP_TXL:
+	case VPU_CHIP_TXLX:
+	case VPU_CHIP_AXG:
+	case VPU_CHIP_G12A:
+	case VPU_CHIP_G12B:
+	case VPU_CHIP_TL1:
+	case VPU_CHIP_SM1:
+	case VPU_CHIP_TM2:
+		len += sprintf(buf + len, "mem_pd:\n");
+		if (_reg0 < VPU_REG_END) {
+			len += sprintf(buf + len, "  mem_pd0:      0x%08x\n",
+				       vpu_hiu_read(_reg0));
+		}
+		if (_reg1 < VPU_REG_END) {
+			len += sprintf(buf + len, "  mem_pd1:      0x%08x\n",
+				       vpu_hiu_read(_reg1));
+		}
+		if (_reg2 < VPU_REG_END) {
+			len += sprintf(buf + len, "  mem_pd2:      0x%08x\n",
+				       vpu_hiu_read(_reg2));
+		}
+		if (_reg3 < VPU_REG_END) {
+			len += sprintf(buf + len, "  mem_pd3:      0x%08x\n",
+				       vpu_hiu_read(_reg3));
+		}
+		if (_reg4 < VPU_REG_END) {
+			len += sprintf(buf + len, "  mem_pd4:      0x%08x\n",
+				       vpu_hiu_read(_reg4));
+		}
+		break;
+	default:
+		len += sprintf(buf + len, "mem_pd:\n");
+		if (_reg0 < VPU_REG_END) {
+			len += sprintf(buf + len, "  mem_pd5:      0x%08x\n",
+				       vpu_pwrctrl_read(_reg0));
+		}
+		if (_reg1 < VPU_REG_END) {
+			len += sprintf(buf + len, "  mem_pd6:      0x%08x\n",
+				       vpu_pwrctrl_read(_reg1));
+		}
+		if (_reg2 < VPU_REG_END) {
+			len += sprintf(buf + len, "  mem_pd7:      0x%08x\n",
+				       vpu_pwrctrl_read(_reg2));
+		}
+		if (_reg3 < VPU_REG_END) {
+			len += sprintf(buf + len, "  mem_pd8:      0x%08x\n",
+				       vpu_pwrctrl_read(_reg3));
+		}
+		if (_reg4 < VPU_REG_END) {
+			len += sprintf(buf + len, "  mem_pd9:      0x%08x\n",
+				       vpu_pwrctrl_read(_reg4));
+		}
+		break;
 	}
 
 #ifdef CONFIG_VPU_DYNAMIC_ADJ
@@ -1249,7 +1405,7 @@ static void vpu_power_init(void)
 		return;
 
 	if (vpu_conf.data->power_on)
-		vpu_power_on();
+		vpu_conf.data->power_on();
 	vpu_mem_pd_init_off();
 	vpu_module_init_config();
 }
@@ -1266,10 +1422,13 @@ static struct vpu_data_s vpu_data_gxb = {
 	.vapb_clk_reg = HHI_VAPBCLK_CNTL,
 
 	.gp_pll_valid = 1,
-	.mem_pd_reg1_valid = 1,
-	.mem_pd_reg2_valid = 0,
-	.mem_pd_reg3_valid = 0,
-	.mem_pd_reg4_valid = 0,
+	.mem_pd_reg0 = HHI_VPU_MEM_PD_REG0,
+	.mem_pd_reg1 = HHI_VPU_MEM_PD_REG1,
+	.mem_pd_reg2 = VPU_REG_END,
+	.mem_pd_reg3 = VPU_REG_END,
+	.mem_pd_reg4 = VPU_REG_END,
+
+	.pwrctrl_id = VPU_PWR_ID_INVALID,
 
 	.mem_pd_table_cnt =
 		sizeof(vpu_mem_pd_gxb) / sizeof(struct vpu_ctrl_s),
@@ -1286,6 +1445,8 @@ static struct vpu_data_s vpu_data_gxb = {
 
 	.power_on = vpu_power_on,
 	.power_off = vpu_power_off,
+	.mempd_switch = vpu_mempd_switch_vmod,
+	.mempd_get = vpu_mempd_get_vmod,
 };
 
 static struct vpu_data_s vpu_data_gxtvbb = {
@@ -1300,10 +1461,13 @@ static struct vpu_data_s vpu_data_gxtvbb = {
 	.vapb_clk_reg = HHI_VAPBCLK_CNTL,
 
 	.gp_pll_valid = 1,
-	.mem_pd_reg1_valid = 1,
-	.mem_pd_reg2_valid = 0,
-	.mem_pd_reg3_valid = 0,
-	.mem_pd_reg4_valid = 0,
+	.mem_pd_reg0 = HHI_VPU_MEM_PD_REG0,
+	.mem_pd_reg1 = HHI_VPU_MEM_PD_REG1,
+	.mem_pd_reg2 = VPU_REG_END,
+	.mem_pd_reg3 = VPU_REG_END,
+	.mem_pd_reg4 = VPU_REG_END,
+
+	.pwrctrl_id = VPU_PWR_ID_INVALID,
 
 	.mem_pd_table_cnt =
 		sizeof(vpu_mem_pd_gxtvbb) / sizeof(struct vpu_ctrl_s),
@@ -1320,6 +1484,8 @@ static struct vpu_data_s vpu_data_gxtvbb = {
 
 	.power_on = vpu_power_on,
 	.power_off = vpu_power_off,
+	.mempd_switch = vpu_mempd_switch_vmod,
+	.mempd_get = vpu_mempd_get_vmod,
 };
 
 static struct vpu_data_s vpu_data_gxl = {
@@ -1334,10 +1500,13 @@ static struct vpu_data_s vpu_data_gxl = {
 	.vapb_clk_reg = HHI_VAPBCLK_CNTL,
 
 	.gp_pll_valid = 1,
-	.mem_pd_reg1_valid = 1,
-	.mem_pd_reg2_valid = 1,
-	.mem_pd_reg3_valid = 0,
-	.mem_pd_reg4_valid = 0,
+	.mem_pd_reg0 = HHI_VPU_MEM_PD_REG0,
+	.mem_pd_reg1 = HHI_VPU_MEM_PD_REG1,
+	.mem_pd_reg2 = HHI_VPU_MEM_PD_REG2,
+	.mem_pd_reg3 = VPU_REG_END,
+	.mem_pd_reg4 = VPU_REG_END,
+
+	.pwrctrl_id = VPU_PWR_ID_INVALID,
 
 	.mem_pd_table_cnt =
 		sizeof(vpu_mem_pd_gxl) / sizeof(struct vpu_ctrl_s),
@@ -1354,6 +1523,8 @@ static struct vpu_data_s vpu_data_gxl = {
 
 	.power_on = vpu_power_on,
 	.power_off = vpu_power_off,
+	.mempd_switch = vpu_mempd_switch_vmod,
+	.mempd_get = vpu_mempd_get_vmod,
 };
 
 static struct vpu_data_s vpu_data_gxm = {
@@ -1368,10 +1539,13 @@ static struct vpu_data_s vpu_data_gxm = {
 	.vapb_clk_reg = HHI_VAPBCLK_CNTL,
 
 	.gp_pll_valid = 1,
-	.mem_pd_reg1_valid = 1,
-	.mem_pd_reg2_valid = 1,
-	.mem_pd_reg3_valid = 0,
-	.mem_pd_reg4_valid = 0,
+	.mem_pd_reg0 = HHI_VPU_MEM_PD_REG0,
+	.mem_pd_reg1 = HHI_VPU_MEM_PD_REG1,
+	.mem_pd_reg2 = HHI_VPU_MEM_PD_REG2,
+	.mem_pd_reg3 = VPU_REG_END,
+	.mem_pd_reg4 = VPU_REG_END,
+
+	.pwrctrl_id = VPU_PWR_ID_INVALID,
 
 	.mem_pd_table_cnt =
 		sizeof(vpu_mem_pd_gxl) / sizeof(struct vpu_ctrl_s),
@@ -1389,6 +1563,8 @@ static struct vpu_data_s vpu_data_gxm = {
 
 	.power_on = vpu_power_on,
 	.power_off = vpu_power_off,
+	.mempd_switch = vpu_mempd_switch_vmod,
+	.mempd_get = vpu_mempd_get_vmod,
 };
 
 static struct vpu_data_s vpu_data_txl = {
@@ -1403,10 +1579,13 @@ static struct vpu_data_s vpu_data_txl = {
 	.vapb_clk_reg = HHI_VAPBCLK_CNTL,
 
 	.gp_pll_valid = 0,
-	.mem_pd_reg1_valid = 1,
-	.mem_pd_reg2_valid = 0,
-	.mem_pd_reg3_valid = 0,
-	.mem_pd_reg4_valid = 0,
+	.mem_pd_reg0 = HHI_VPU_MEM_PD_REG0,
+	.mem_pd_reg1 = HHI_VPU_MEM_PD_REG1,
+	.mem_pd_reg2 = VPU_REG_END,
+	.mem_pd_reg3 = VPU_REG_END,
+	.mem_pd_reg4 = VPU_REG_END,
+
+	.pwrctrl_id = VPU_PWR_ID_INVALID,
 
 	.mem_pd_table_cnt =
 		sizeof(vpu_mem_pd_txl) / sizeof(struct vpu_ctrl_s),
@@ -1423,6 +1602,8 @@ static struct vpu_data_s vpu_data_txl = {
 
 	.power_on = vpu_power_on,
 	.power_off = vpu_power_off,
+	.mempd_switch = vpu_mempd_switch_vmod,
+	.mempd_get = vpu_mempd_get_vmod,
 };
 
 static struct vpu_data_s vpu_data_txlx = {
@@ -1437,10 +1618,13 @@ static struct vpu_data_s vpu_data_txlx = {
 	.vapb_clk_reg = HHI_VAPBCLK_CNTL,
 
 	.gp_pll_valid = 1,
-	.mem_pd_reg1_valid = 1,
-	.mem_pd_reg2_valid = 1,
-	.mem_pd_reg3_valid = 0,
-	.mem_pd_reg4_valid = 0,
+	.mem_pd_reg0 = HHI_VPU_MEM_PD_REG0,
+	.mem_pd_reg1 = HHI_VPU_MEM_PD_REG1,
+	.mem_pd_reg2 = HHI_VPU_MEM_PD_REG2,
+	.mem_pd_reg3 = VPU_REG_END,
+	.mem_pd_reg4 = VPU_REG_END,
+
+	.pwrctrl_id = VPU_PWR_ID_INVALID,
 
 	.mem_pd_table_cnt =
 		sizeof(vpu_mem_pd_txlx) / sizeof(struct vpu_ctrl_s),
@@ -1458,6 +1642,8 @@ static struct vpu_data_s vpu_data_txlx = {
 
 	.power_on = vpu_power_on,
 	.power_off = vpu_power_off,
+	.mempd_switch = vpu_mempd_switch_vmod,
+	.mempd_get = vpu_mempd_get_vmod,
 };
 
 static struct vpu_data_s vpu_data_axg = {
@@ -1472,10 +1658,13 @@ static struct vpu_data_s vpu_data_axg = {
 	.vapb_clk_reg = HHI_VAPBCLK_CNTL,
 
 	.gp_pll_valid = 0,
-	.mem_pd_reg1_valid = 0,
-	.mem_pd_reg2_valid = 0,
-	.mem_pd_reg3_valid = 0,
-	.mem_pd_reg4_valid = 0,
+	.mem_pd_reg0 = HHI_VPU_MEM_PD_REG0,
+	.mem_pd_reg1 = VPU_REG_END,
+	.mem_pd_reg2 = VPU_REG_END,
+	.mem_pd_reg3 = VPU_REG_END,
+	.mem_pd_reg4 = VPU_REG_END,
+
+	.pwrctrl_id = VPU_PWR_ID_INVALID,
 
 	.mem_pd_table_cnt =
 		sizeof(vpu_mem_pd_axg) / sizeof(struct vpu_ctrl_s),
@@ -1492,6 +1681,8 @@ static struct vpu_data_s vpu_data_axg = {
 
 	.power_on = vpu_power_on,
 	.power_off = vpu_power_off,
+	.mempd_switch = vpu_mempd_switch_vmod,
+	.mempd_get = vpu_mempd_get_vmod,
 };
 
 static struct vpu_data_s vpu_data_g12a = {
@@ -1506,10 +1697,13 @@ static struct vpu_data_s vpu_data_g12a = {
 	.vapb_clk_reg = HHI_VAPBCLK_CNTL,
 
 	.gp_pll_valid = 0,
-	.mem_pd_reg1_valid = 1,
-	.mem_pd_reg2_valid = 1,
-	.mem_pd_reg3_valid = 0,
-	.mem_pd_reg4_valid = 0,
+	.mem_pd_reg0 = HHI_VPU_MEM_PD_REG0,
+	.mem_pd_reg1 = HHI_VPU_MEM_PD_REG1,
+	.mem_pd_reg2 = HHI_VPU_MEM_PD_REG2,
+	.mem_pd_reg3 = VPU_REG_END,
+	.mem_pd_reg4 = VPU_REG_END,
+
+	.pwrctrl_id = VPU_PWR_ID_INVALID,
 
 	.mem_pd_table_cnt =
 		sizeof(vpu_mem_pd_g12a) / sizeof(struct vpu_ctrl_s),
@@ -1526,6 +1720,8 @@ static struct vpu_data_s vpu_data_g12a = {
 
 	.power_on = vpu_power_on,
 	.power_off = vpu_power_off,
+	.mempd_switch = vpu_mempd_switch_vmod,
+	.mempd_get = vpu_mempd_get_vmod,
 };
 
 static struct vpu_data_s vpu_data_g12b = {
@@ -1540,10 +1736,13 @@ static struct vpu_data_s vpu_data_g12b = {
 	.vapb_clk_reg = HHI_VAPBCLK_CNTL,
 
 	.gp_pll_valid = 0,
-	.mem_pd_reg1_valid = 1,
-	.mem_pd_reg2_valid = 1,
-	.mem_pd_reg3_valid = 0,
-	.mem_pd_reg4_valid = 0,
+	.mem_pd_reg0 = HHI_VPU_MEM_PD_REG0,
+	.mem_pd_reg1 = HHI_VPU_MEM_PD_REG1,
+	.mem_pd_reg2 = HHI_VPU_MEM_PD_REG2,
+	.mem_pd_reg3 = VPU_REG_END,
+	.mem_pd_reg4 = VPU_REG_END,
+
+	.pwrctrl_id = VPU_PWR_ID_INVALID,
 
 	.mem_pd_table_cnt =
 		sizeof(vpu_mem_pd_g12b) / sizeof(struct vpu_ctrl_s),
@@ -1560,6 +1759,8 @@ static struct vpu_data_s vpu_data_g12b = {
 
 	.power_on = vpu_power_on,
 	.power_off = vpu_power_off,
+	.mempd_switch = vpu_mempd_switch_vmod,
+	.mempd_get = vpu_mempd_get_vmod,
 };
 
 static struct vpu_data_s vpu_data_tl1 = {
@@ -1574,10 +1775,13 @@ static struct vpu_data_s vpu_data_tl1 = {
 	.vapb_clk_reg = HHI_VAPBCLK_CNTL,
 
 	.gp_pll_valid = 0,
-	.mem_pd_reg1_valid = 1,
-	.mem_pd_reg2_valid = 1,
-	.mem_pd_reg3_valid = 1,
-	.mem_pd_reg4_valid = 1,
+	.mem_pd_reg0 = HHI_VPU_MEM_PD_REG0,
+	.mem_pd_reg1 = HHI_VPU_MEM_PD_REG1,
+	.mem_pd_reg2 = HHI_VPU_MEM_PD_REG2,
+	.mem_pd_reg3 = HHI_VPU_MEM_PD_REG3,
+	.mem_pd_reg4 = HHI_VPU_MEM_PD_REG4,
+
+	.pwrctrl_id = VPU_PWR_ID_INVALID,
 
 	.mem_pd_table_cnt =
 		sizeof(vpu_mem_pd_tl1) / sizeof(struct vpu_ctrl_s),
@@ -1594,6 +1798,8 @@ static struct vpu_data_s vpu_data_tl1 = {
 
 	.power_on = vpu_power_on,
 	.power_off = vpu_power_off,
+	.mempd_switch = vpu_mempd_switch_vmod,
+	.mempd_get = vpu_mempd_get_vmod,
 };
 
 static struct vpu_data_s vpu_data_sm1 = {
@@ -1608,10 +1814,13 @@ static struct vpu_data_s vpu_data_sm1 = {
 	.vapb_clk_reg = HHI_VAPBCLK_CNTL,
 
 	.gp_pll_valid = 0,
-	.mem_pd_reg1_valid = 1,
-	.mem_pd_reg2_valid = 1,
-	.mem_pd_reg3_valid = 1,
-	.mem_pd_reg4_valid = 1,
+	.mem_pd_reg0 = HHI_VPU_MEM_PD_REG0,
+	.mem_pd_reg1 = HHI_VPU_MEM_PD_REG1,
+	.mem_pd_reg2 = HHI_VPU_MEM_PD_REG2,
+	.mem_pd_reg3 = HHI_VPU_MEM_PD_REG3,
+	.mem_pd_reg4 = HHI_VPU_MEM_PD_REG4,
+
+	.pwrctrl_id = VPU_PWR_ID_INVALID,
 
 	.mem_pd_table_cnt =
 		sizeof(vpu_mem_pd_sm1) / sizeof(struct vpu_ctrl_s),
@@ -1628,6 +1837,8 @@ static struct vpu_data_s vpu_data_sm1 = {
 
 	.power_on = vpu_power_on,
 	.power_off = vpu_power_off,
+	.mempd_switch = vpu_mempd_switch_vmod,
+	.mempd_get = vpu_mempd_get_vmod,
 };
 
 static struct vpu_data_s vpu_data_tm2 = {
@@ -1642,10 +1853,13 @@ static struct vpu_data_s vpu_data_tm2 = {
 	.vapb_clk_reg = HHI_VAPBCLK_CNTL,
 
 	.gp_pll_valid = 0,
-	.mem_pd_reg1_valid = 1,
-	.mem_pd_reg2_valid = 1,
-	.mem_pd_reg3_valid = 1,
-	.mem_pd_reg4_valid = 1,
+	.mem_pd_reg0 = HHI_VPU_MEM_PD_REG0,
+	.mem_pd_reg1 = HHI_VPU_MEM_PD_REG1,
+	.mem_pd_reg2 = HHI_VPU_MEM_PD_REG2,
+	.mem_pd_reg3 = HHI_VPU_MEM_PD_REG3,
+	.mem_pd_reg4 = HHI_VPU_MEM_PD_REG4,
+
+	.pwrctrl_id = VPU_PWR_ID_INVALID,
 
 	.mem_pd_table_cnt =
 		sizeof(vpu_mem_pd_tm2) / sizeof(struct vpu_ctrl_s),
@@ -1662,6 +1876,8 @@ static struct vpu_data_s vpu_data_tm2 = {
 
 	.power_on = vpu_power_on,
 	.power_off = vpu_power_off,
+	.mempd_switch = vpu_mempd_switch_vmod,
+	.mempd_get = vpu_mempd_get_vmod,
 };
 
 static struct vpu_data_s vpu_data_sc2 = {
@@ -1676,14 +1892,17 @@ static struct vpu_data_s vpu_data_sc2 = {
 	.vapb_clk_reg = CLKCTRL_VAPBCLK_CTRL,
 
 	.gp_pll_valid = 0,
-	.mem_pd_reg1_valid = 0,
-	.mem_pd_reg2_valid = 0,
-	.mem_pd_reg3_valid = 0,
-	.mem_pd_reg4_valid = 0,
+	.mem_pd_reg0 = PWRCTRL_MEM_PD5,
+	.mem_pd_reg1 = PWRCTRL_MEM_PD6,
+	.mem_pd_reg2 = PWRCTRL_MEM_PD7,
+	.mem_pd_reg3 = PWRCTRL_MEM_PD8,
+	.mem_pd_reg4 = PWRCTRL_MEM_PD9,
 
-	.mem_pd_table_cnt = 0,
+	.pwrctrl_id = 5,
+
+	.mem_pd_table_cnt = sizeof(vpu_mem_pd_sc2) / sizeof(struct vpu_ctrl_s),
 	.clk_gate_table_cnt = 0,
-	.mem_pd_table = NULL,
+	.mem_pd_table = vpu_mem_pd_sc2,
 	.clk_gate_table = NULL,
 
 	.module_init_table_cnt = 0,
@@ -1694,6 +1913,8 @@ static struct vpu_data_s vpu_data_sc2 = {
 
 	.power_on = vpu_power_on_new,
 	.power_off = vpu_power_off_new,
+	.mempd_switch = vpu_mempd_switch_vmod_new,
+	.mempd_get = vpu_mempd_get_vmod_new,
 };
 
 static const struct of_device_id vpu_of_table[] = {
