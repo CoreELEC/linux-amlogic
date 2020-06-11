@@ -507,7 +507,7 @@ extern unsigned int atv_source_flg;
 extern unsigned int sr_demo_flag;
 extern unsigned int sr_offset[2];
 extern enum hdr_type_e hdr_source_type;
-extern bool pd_detect_en;
+extern unsigned int pd_detect_en;
 extern bool wb_en;
 extern struct pq_ctrl_s pq_cfg;
 extern struct pq_ctrl_s dv_cfg_bypass;

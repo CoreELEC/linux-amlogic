@@ -283,9 +283,11 @@ unsigned int lc_offset;
 
 unsigned int sr_demo_flag;
 
-bool pd_detect_en;
+unsigned int pd_detect_en;
+int pd_weak_fix_lvl = PD_LOW_LVL;
 int pd_fix_lvl = PD_HIG_LVL;
 
+unsigned int gmv_weak_th = 4;
 unsigned int gmv_th = 17;
 
 static int wb_init_bypass_coef[24] = {
@@ -1001,22 +1003,36 @@ void vpp_demo_config(struct vframe_s *vf)
 
 void amvecm_dejaggy_patch(struct vframe_s *vf)
 {
+	int gmv;
 	if (!vf) {
 		if (pd_detect_en)
 			pd_detect_en = 0;
 		return;
 	}
+	gmv = vf->di_gmv / 10000;
 
 	if ((vf->height == 1080) &&
-		(vf->width == 1920) &&
-		(vf->di_pulldown & (1 << 3)) &&
-		((vf->di_pulldown & 0x7) || ((vf->di_gmv / 10000) >= gmv_th))) {
+	    (vf->width == 1920) &&
+	    (vf->di_pulldown & (1 << 3)) &&
+	    ((vf->di_pulldown & 0x7) || (gmv >= gmv_th))) {
 		if (pd_detect_en == 1)
 			return;
 		pd_detect_en = 1;
+
 		pd_combing_fix_patch(pd_fix_lvl);
-		pr_amvecm_dbg("pd_detect_en = %d; pd_fix_lvl = %d\n",
-			pd_detect_en, pd_fix_lvl);
+		pr_amvecm_dbg("pd_detect_en1 = %d; level = %d, gmv %d\n",
+			      pd_detect_en, pd_fix_lvl, gmv);
+	} else if ((vf->height == 1080) &&
+		 (vf->width == 1920) &&
+		 (vf->di_pulldown & (1 << 3)) &&
+		 (gmv >= gmv_weak_th)) {
+		if (pd_detect_en == 2)
+			return;
+		pd_detect_en = 2;
+
+		pd_combing_fix_patch(pd_weak_fix_lvl);
+		pr_amvecm_dbg("pd_detect_en2 = %d; level = %d, gmv %d\n",
+			      pd_detect_en, pd_weak_fix_lvl, gmv);
 	} else if (pd_detect_en) {
 		pd_detect_en = 0;
 		pd_combing_fix_patch(PD_DEF_LVL);
@@ -6171,7 +6187,7 @@ static ssize_t amvecm_debug_store(struct class *cla,
 			set_gamma_regs(1, 1);
 		else
 			pr_info("unsupport cmd\n");
-	}  else if (!strcmp(parm[0], "pd_fix_lvl")) {
+	} else if (!strcmp(parm[0], "pd_fix_lvl")) {
 		if (parm[1]) {
 			if (kstrtoul(parm[1], 10, &val) < 0)
 				goto free_buf;
@@ -6186,6 +6202,24 @@ static ssize_t amvecm_debug_store(struct class *cla,
 				goto free_buf;
 		}
 		gmv_th = val;
+	} else if (!strcmp(parm[0], "pd_weak_fix_lvl")) {
+		if (parm[1]) {
+			if (kstrtoul(parm[1], 10, &val) < 0)
+				goto free_buf;
+		}
+		if (val > PD_DEF_LVL)
+			pd_weak_fix_lvl = PD_DEF_LVL;
+		else
+			pd_weak_fix_lvl = val;
+	} else if (!strcmp(parm[0], "gmv_weak_th")) {
+		if (parm[1]) {
+			if (kstrtoul(parm[1], 10, &val) < 0)
+				goto free_buf;
+		}
+		if (val >= gmv_th)
+			gmv_weak_th = gmv_th - 1;
+		else
+			gmv_weak_th = val;
 	} else if (!strcmp(parm[0], "post2mtx")) {
 		if (parm[1]) {
 			if (kstrtoul(parm[1], 16, &val) < 0)

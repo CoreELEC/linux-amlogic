@@ -1583,13 +1583,45 @@ struct am_regs_s sr1reg_hv_noscale = {
 	}
 };
 
+struct dejaggy_regs_s {
+	unsigned int    length; /* Length of total am_reg */
+	struct am_reg_s am_reg[2];
+};
 #define DEJAGGY_LEVEL 4
 /*0: weak,  1: middle,  2: strong, 3: from db*/
-struct am_reg_s sr0_dej_setting[DEJAGGY_LEVEL] = {
-	{REG_TYPE_VCBUS, SRSHARP0_DEJ_ALPHA, 0x000000ff, 0x00000046},
-	{REG_TYPE_VCBUS, SRSHARP0_DEJ_ALPHA, 0x000000ff, 0x0000006c},
-	{REG_TYPE_VCBUS, SRSHARP0_DEJ_ALPHA, 0x000000ff, 0x000000ff},
-	{REG_TYPE_VCBUS, SRSHARP0_DEJ_ALPHA, 0x000000ff, 0x00000046}
+struct dejaggy_regs_s sr0_dej_setting[DEJAGGY_LEVEL] = {
+	/* weak */
+	{
+		2,
+		{
+		{REG_TYPE_VCBUS, SRSHARP0_DEJ_CTRL, 0x00000001, 0x00000001},
+		{REG_TYPE_VCBUS, SRSHARP0_DEJ_ALPHA, 0x000000ff, 0x00000046},
+		}
+	},
+	/* middle */
+	{
+		2,
+		{
+		{REG_TYPE_VCBUS, SRSHARP0_DEJ_CTRL, 0x00000001, 0x00000001},
+		{REG_TYPE_VCBUS, SRSHARP0_DEJ_ALPHA, 0x000000ff, 0x0000006c},
+		}
+	},
+	/* strong */
+	{
+		2,
+		{
+		{REG_TYPE_VCBUS, SRSHARP0_DEJ_CTRL, 0x00000001, 0x00000001},
+		{REG_TYPE_VCBUS, SRSHARP0_DEJ_ALPHA, 0x000000ff, 0x000000ff},
+		}
+	},
+	/* db setting */
+	{
+		2,
+		{
+		{REG_TYPE_VCBUS, SRSHARP0_DEJ_CTRL, 0x00000001, 0x00000001},
+		{REG_TYPE_VCBUS, SRSHARP0_DEJ_ALPHA, 0x000000ff, 0x00000046},
+		}
+	},
 };
 #endif
 

@@ -92,6 +92,9 @@ void am_set_regmap(struct am_regs_s *p)
 	unsigned int temp = 0;
 	unsigned short sr1_temp = 0;
 	unsigned int skip = 0;
+	struct am_reg_s *dejaggy_reg;
+
+	dejaggy_reg = sr0_dej_setting[DEJAGGY_LEVEL - 1].am_reg;
 
 	for (i = 0; i < p->length; i++) {
 		skip = skip_pq_ctrl_load(&p->am_reg[i]);
@@ -225,10 +228,18 @@ void am_set_regmap(struct am_regs_s *p)
 		case REG_TYPE_VCBUS:
 			if (p->am_reg[i].addr ==
 			    SRSHARP0_DEJ_ALPHA + sr_offset[0]) {
-				sr0_dej_setting[DEJAGGY_LEVEL - 1].val =
+				dejaggy_reg[1].val =
 					p->am_reg[i].val & 0xff;
 				if (pd_detect_en)
 					p->am_reg[i].mask &= ~(0xff);
+			}
+
+			if (p->am_reg[i].addr ==
+			    SRSHARP0_DEJ_CTRL + sr_offset[0]) {
+				dejaggy_reg[0].val =
+					p->am_reg[i].val & 0x1;
+				if (pd_detect_en)
+					p->am_reg[i].mask &= ~(0x1);
 			}
 
 			if (p->am_reg[i].mask == 0xffffffff) {
@@ -378,6 +389,9 @@ void amcm_enable(void)
 
 void pd_combing_fix_patch(enum pd_comb_fix_lvl_e level)
 {
+	int i, dejaggy_reg_count;
+	struct am_reg_s *dejaggy_reg;
+
 	/* p212 g12a and so on no related register lead to crash*/
 	/* so skip the function */
 	if (!(is_meson_tl1_cpu() || is_meson_txlx_cpu() ||
@@ -386,11 +400,16 @@ void pd_combing_fix_patch(enum pd_comb_fix_lvl_e level)
 		return;
 
 	pr_amcm_dbg("\n[amcm..] pd fix lvl = %d\n", level);
-	WRITE_VPP_REG(
-		sr0_dej_setting[level].addr + sr_offset[0],
-		(aml_read_vcbus(sr0_dej_setting[level].addr + sr_offset[0]) &
-		(~(sr0_dej_setting[level].mask))) |
-		(sr0_dej_setting[level].val & sr0_dej_setting[level].mask));
+
+	dejaggy_reg_count = sr0_dej_setting[level].length;
+	dejaggy_reg = sr0_dej_setting[level].am_reg;
+	for (i = 0; i < dejaggy_reg_count; i++) {
+		WRITE_VPP_REG(
+		dejaggy_reg[i].addr + sr_offset[0],
+		(aml_read_vcbus(dejaggy_reg[i].addr + sr_offset[0]) &
+		(~(dejaggy_reg[i].mask))) |
+		(dejaggy_reg[i].val & dejaggy_reg[i].mask));
+	}
 }
 
 void cm_regmap_latch(struct am_regs_s *am_regs, unsigned int reg_map)
