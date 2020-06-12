@@ -255,8 +255,8 @@ static void amlogic_msi_mask_irq(struct irq_data *data)
 
 static void amlogic_msi_unmask_irq(struct irq_data *data)
 {
-	unmask_pcie_irq();
 	pci_msi_unmask_irq(data);
+	unmask_pcie_irq();
 }
 #endif
 
