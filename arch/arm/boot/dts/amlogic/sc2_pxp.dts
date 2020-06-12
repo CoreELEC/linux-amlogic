@@ -709,24 +709,24 @@
 	pdm_codec:dummy{
 		#sound-dai-cells = <0>;
 		compatible = "amlogic, pdm_dummy_codec";
-		status = "disabled";
+		status = "okay";
 	};
 	dummy_codec:dummy{
 		#sound-dai-cells = <0>;
 		compatible = "amlogic, aml_dummy_codec";
-		status = "disabled";
+		status = "okay";
 	};
 	amlogic_codec:t9015{
 		#sound-dai-cells = <0>;
 		compatible = "amlogic, aml_codec_T9015";
-		reg = <0xFF632000 0x2000>;
+		reg = <0xFE01A000 0x2000>;
 		is_auge_used = <1>; /* meson or auge chipset used */
 		tocodec_inout = <1>;
 		tdmout_index = <1>;
 		ch0_sel = <0>;
 		ch1_sel = <1>;
 
-		status = "disabled";
+		status = "okay";
 	};
 	audio_effect:eqdrc{
 		/*eq_enable = <1>;*/
@@ -1107,11 +1107,13 @@
 		dai-tdm-lane-slot-mask-in = <0 1>;
 		dai-tdm-oe-lane-slot-mask-out = <1 0>;
 		dai-tdm-clk-sel = <0>;
+		clocks = <&clkaudio CLKID_AUDIO_MCLK_A
+				&clkc CLKID_MPLL0>;
 		clock-names = "mclk", "clk_srcpll";
 		pinctrl-names = "tdm_pins";
-		pinctrl-0 = <&tdmout_a &tdmin_a>;
+		pinctrl-0 = </*&tdmout_a &tdmin_a*/>;
 
-		status = "disabled";
+		status = "okay";
 	};
 
 	tdmb: tdm@1 {
@@ -1120,10 +1122,15 @@
 		dai-tdm-lane-slot-mask-in = <0 1 0 0>;
 		dai-tdm-lane-slot-mask-out = <1 0 0 0>;
 		dai-tdm-clk-sel = <1>;
+		clocks = <&clkaudio CLKID_AUDIO_MCLK_B
+				&clkaudio CLKID_AUDIO_MCLK_PAD0
+				&clkc CLKID_MPLL1
+				&clkc CLKID_MPLL0
+				&clkaudio CLKID_AUDIO_SPDIFOUT_A>;
 		clock-names = "mclk", "mclk_pad", "clk_srcpll",
 			"samesource_srcpll", "samesource_clk";
 		pinctrl-names = "tdm_pins";
-		pinctrl-0 = <&tdmb_mclk &tdmout_b &tdmin_b>;
+		pinctrl-0 = </*&tdmb_mclk &tdmout_b &tdmin_b*/>;
 
 		mclk_pad = <0>;  /* 0: mclk_0; 1: mclk_1 */
 
@@ -1142,7 +1149,7 @@
 		/*tdm clk tuning enable*/
 		clk_tuning_enable = <1>;
 
-		status = "disabled";
+		status = "okay";
 	};
 
 	tdmc: tdm@2 {
@@ -1158,9 +1165,9 @@
 				&clkc CLKID_MPLL2>;
 		clock-names = "mclk", "clk_srcpll";
 		pinctrl-names = "tdm_pins";
-		pinctrl-0 = <&tdmc_mclk &tdmout_c &tdmin_c>;
+		pinctrl-0 = </*&tdmc_mclk &tdmout_c &tdmin_c*/>;
 		mclk_pad = <0>;  /* 0: mclk_0; 1: mclk_1 */
-		status = "disabled";
+		status = "okay";
 	};
 
 	tdmlb:tdm@3 {
@@ -1233,7 +1240,7 @@
 		/*spdif clk tuning enable*/
 		clk_tuning_enable = <1>;
 
-		status = "disabled";
+		status = "okay";
 	};
 	spdifb: spdif@1 {
 		compatible = "amlogic, sm1-snd-spdif-b";
@@ -1244,7 +1251,7 @@
 		clock-names = "sysclk",
 				"gate_spdifout", "clk_spdifout";
 
-		status = "disabled";
+		status = "okay";
 	};
 	pdm: pdm {
 		compatible = "amlogic, sm1-snd-pdm";
@@ -1267,7 +1274,7 @@
 		/* mode 0~4, defalut:1 */
 		filter_mode = <1>;
 
-		status = "disabled";
+		status = "okay";
 	};
 
 	asrca: resample@0 {
@@ -1323,7 +1330,7 @@
 		 */
 		level = <1>;
 
-		status = "disabled";
+		status = "okay";
 	};
 
 	loopbacka:loopback@0 {
@@ -1378,7 +1385,7 @@
 		/* config which data pin as loopback */
 		datalb-lane-mask-in = <1 0 0 0>;
 
-		status = "disabled";
+		status = "okay";
 	};
 
 	loopbackb:loopback@1 {
@@ -1457,12 +1464,12 @@
 		lane_mask = <0x1>;
 		/* max 0xff, each bit for one channel */
 		channel_mask = <0x3>;
-		status = "disabled";
+		status = "okay";
 	};
 }; /* end of audiobus */
 
 &earc {
-	status = "disabled";
+	status = "okay";
 };
 
 &pinctrl_periphs {
@@ -1606,7 +1613,7 @@
 //};  /* end of pinctrl_aobus */
 
 &audio_data {
-	status = "disabled";
+	status = "okay";
 };
 
 /* Audio Related End */
