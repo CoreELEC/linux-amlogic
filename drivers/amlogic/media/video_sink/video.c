@@ -3154,6 +3154,7 @@ static void pip_swap_frame(struct vframe_s *vf)
 		else if (layer->keep_frame_id == 0)
 			video_keeper_new_frame_notify();
 	}
+	fgrain_update_table(layer->layer_id, vf);
 	if (stop_update)
 		layer->new_vpp_setting = false;
 }
@@ -3216,6 +3217,11 @@ static s32 pip_render_frame(struct video_layer_s *layer)
 			layer, &layer->mif_setting);
 		vd_mif_setting(
 			layer->layer_id, &layer->mif_setting);
+		fgrain_config(layer->layer_id,
+			      layer->cur_frame_par,
+			      &layer->mif_setting,
+			      &layer->fgrain_setting,
+			      layer->dispbuf);
 	}
 
 	config_vd_pps(
@@ -3227,6 +3233,9 @@ static s32 pip_render_frame(struct video_layer_s *layer)
 		layer, &layer->bld_setting);
 	vd_blend_setting(
 		layer->layer_id, &layer->bld_setting);
+	fgrain_setting(layer->layer_id,
+		       &layer->fgrain_setting,
+		       layer->dispbuf);
 	layer->new_vpp_setting = false;
 	return 1;
 }
@@ -3368,7 +3377,7 @@ static void primary_swap_frame(
 		else if (layer->keep_frame_id == 0)
 			video_keeper_new_frame_notify();
 	}
-
+	fgrain_update_table(layer->layer_id, vf);
 	if (stop_update)
 		layer->new_vpp_setting = false;
 	ATRACE_COUNTER(__func__,  0);
@@ -3501,6 +3510,11 @@ static s32 primary_render_frame(struct video_layer_s *layer)
 		if (update_vd2)
 			vd_mif_setting(
 				1, &local_vd2_mif);
+		fgrain_config(layer->layer_id,
+			      layer->cur_frame_par,
+			      &layer->mif_setting,
+			      &layer->fgrain_setting,
+			      layer->dispbuf);
 	}
 
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
@@ -3556,6 +3570,8 @@ static s32 primary_render_frame(struct video_layer_s *layer)
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 	dolby_vision_proc(layer, frame_par);
 #endif
+	fgrain_setting(0, &layer->fgrain_setting,
+		       layer->dispbuf);
 	layer->new_vpp_setting = false;
 	return 1;
 }
@@ -9947,6 +9963,7 @@ static ssize_t pip_alpha_store(
 			set_alpha(layer_id, win_en, &alpha_win);
 		}
 	}
+
 	return strnlen(buf, count);
 }
 
@@ -10004,6 +10021,30 @@ static ssize_t pre_hscaler_ntap_enable_store(
 		pre_hscaler_ntap_enable = pre_hscaler_ntap_en;
 	}
 	return count;
+}
+
+static ssize_t film_grain_show(
+	struct class *cla,
+	struct class_attribute *attr,
+	char *buf)
+{
+	return snprintf(buf, 40, "fgrain_support vd1: %d vd2: %d\n",
+		glayer_info[0].fgrain_support,
+		glayer_info[1].fgrain_support);
+}
+
+static ssize_t film_grain_store(
+	struct class *cla,
+	struct class_attribute *attr,
+	const char *buf, size_t count)
+{
+	int parsed[2];
+
+	if (likely(parse_para(buf, 2, parsed) == 2)) {
+		glayer_info[0].fgrain_support = parsed[0];
+		glayer_info[1].fgrain_support = parsed[1];
+	}
+	return strnlen(buf, count);
 }
 
 static struct class_attribute amvideo_class_attrs[] = {
@@ -10248,6 +10289,10 @@ static struct class_attribute amvideo_class_attrs[] = {
 	       0664,
 	       pre_hscaler_ntap_enable_show,
 	       pre_hscaler_ntap_enable_store),
+	__ATTR(film_grain,
+	       0664,
+	       film_grain_show,
+	       film_grain_store),
 	__ATTR_NULL
 };
 

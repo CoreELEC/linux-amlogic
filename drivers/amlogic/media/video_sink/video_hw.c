@@ -66,6 +66,9 @@
 #include "../common/vfm/vfm.h"
 #include <linux/amlogic/media/amdolbyvision/dolby_vision.h>
 #include "video_receiver.h"
+#ifdef CONFIG_AMLOGIC_MEDIA_LUT_DMA
+#include <linux/amlogic/media/lut_dma/lut_dma.h>
+#endif
 
 /* #define DI_POST_PWR */
 
@@ -79,6 +82,9 @@ bool legacy_vpp = true;
 static bool bypass_cm;
 bool hscaler_8tap_enable;
 bool pre_hscaler_ntap_enable;
+#ifdef CONFIG_AMLOGIC_MEDIA_LUT_DMA
+static bool fg_supported;
+#endif
 
 static DEFINE_SPINLOCK(video_onoff_lock);
 static DEFINE_SPINLOCK(video2_onoff_lock);
@@ -150,6 +156,10 @@ static int vpu_mem_power_off_count;
 		if (!legacy_vpp) \
 			switch_vpu_mem_pd_vmod( \
 				VPU_VD1_SCALE, VPU_MEM_POWER_ON); \
+		if (is_meson_tm2_revb() || \
+			cpu_after_eq(MESON_CPU_MAJOR_ID_SC2)) \
+			switch_vpu_mem_pd_vmod(VPU_FGRAIN0, \
+			VPU_MEM_POWER_ON); \
 	} while (0)
 #endif
 #define VD2_MEM_POWER_ON() \
@@ -163,6 +173,10 @@ static int vpu_mem_power_off_count;
 		if (!legacy_vpp) \
 			switch_vpu_mem_pd_vmod( \
 				VPU_VD2_SCALE, VPU_MEM_POWER_ON); \
+		if (is_meson_tm2_revb() || \
+			cpu_after_eq(MESON_CPU_MAJOR_ID_SC2)) \
+			switch_vpu_mem_pd_vmod(VPU_FGRAIN1, \
+			VPU_MEM_POWER_ON); \
 	} while (0)
 #define VD1_MEM_POWER_OFF() \
 	do { \
@@ -5092,6 +5106,11 @@ static void do_vpu_delay_work(struct work_struct *work)
 					switch_vpu_mem_pd_vmod(
 						VPU_VD1_SCALE,
 						VPU_MEM_POWER_DOWN);
+				if (is_meson_tm2_revb() ||
+				    cpu_after_eq(MESON_CPU_MAJOR_ID_SC2))
+					switch_vpu_mem_pd_vmod(
+					VPU_FGRAIN0,
+					VPU_MEM_POWER_DOWN);
 			}
 
 			if ((vpu_delay_work_flag &
@@ -5110,6 +5129,11 @@ static void do_vpu_delay_work(struct work_struct *work)
 					switch_vpu_mem_pd_vmod(
 						VPU_VD2_SCALE,
 						VPU_MEM_POWER_DOWN);
+				if (is_meson_tm2_revb() ||
+				    cpu_after_eq(MESON_CPU_MAJOR_ID_SC2))
+					switch_vpu_mem_pd_vmod(
+					VPU_FGRAIN1,
+					VPU_MEM_POWER_DOWN);
 			}
 		}
 	}
@@ -5170,6 +5194,323 @@ int vpp_crc_viu2_check(u32 vpp_crc_en)
 }
 
 /*********************************************************
+ * Film Grain APIs
+ *********************************************************/
+#define FGRAIN_TBL_SIZE  (498 * 16)
+
+#ifdef CONFIG_AMLOGIC_MEDIA_LUT_DMA
+static void fgrain_set_config(struct fgrain_setting_s *setting)
+{
+	u32 reg_fgrain_glb_en = 1 << 0;
+	u32 reg_fgrain_loc_en = 1 << 1;
+	u32 reg_block_mode = 1 << 2;
+	u32 reg_rev_mode = 0 << 4;
+	u32 reg_comp_bits = 0 << 6;
+	/* unsigned , RW, default = 0:8bits; 1:10bits, else 12 bits */
+	u32 reg_fmt_mode = 2 << 8;
+	/* unsigned , RW, default =  0:444; 1:422; 2:420; 3:reserved */
+	u32 reg_last_in_mode = 0 << 14;
+	u32 reg_fgrain_ext_imode = 1;
+	/*  unsigned , RW, default = 0 to indicate the
+	 *input data is *4 in 8bit mode
+	 */
+	u32 layer_id = 0;
+	struct hw_fg_reg_s *fg_reg;
+
+	if (!cpu_after_eq(MESON_CPU_MAJOR_ID_TM2_REVB))
+		return;
+	if (!setting)
+		return;
+	layer_id = setting->id;
+	fg_reg = &vd_layer[layer_id].fg_reg;
+
+	reg_block_mode = setting->afbc << 2;
+	reg_rev_mode = setting->reverse << 4;
+	reg_comp_bits = setting->bitdepth << 6;
+	reg_fmt_mode = setting->fmt_mode << 8;
+	reg_last_in_mode = setting->last_in_mode << 14;
+
+	VSYNC_WR_MPEG_REG_BITS(fg_reg->fgrain_ctrl,
+			       reg_fgrain_glb_en |
+			       reg_fgrain_loc_en |
+			       reg_block_mode |
+			       reg_rev_mode |
+			       reg_comp_bits |
+			       reg_fmt_mode,
+			       0, 10);
+	VSYNC_WR_MPEG_REG_BITS(fg_reg->fgrain_ctrl,
+			       reg_fgrain_ext_imode, 16, 1);
+}
+
+static void fgrain_start(u8 layer_id)
+{
+	u32 reg_fgrain_glb_en = 1 << 0;
+	u32 reg_fgrain_loc_en = 1 << 1;
+	struct hw_fg_reg_s *fg_reg;
+
+	if (!cpu_after_eq(MESON_CPU_MAJOR_ID_TM2_REVB))
+		return;
+	if (glayer_info[layer_id].fgrain_start)
+		return;
+	fg_reg = &vd_layer[layer_id].fg_reg;
+
+	VSYNC_WR_MPEG_REG_BITS(fg_reg->fgrain_ctrl,
+			       reg_fgrain_glb_en |
+			       reg_fgrain_loc_en,
+			       0, 2);
+
+	glayer_info[layer_id].fgrain_start = true;
+}
+
+static void fgrain_stop(u8 layer_id)
+{
+	u32 reg_fgrain_glb_en = 1 << 0;
+	u32 reg_fgrain_loc_en = 0 << 1;
+	struct hw_fg_reg_s *fg_reg;
+
+	if (!cpu_after_eq(MESON_CPU_MAJOR_ID_TM2_REVB))
+		return;
+	if (!glayer_info[layer_id].fgrain_start)
+		return;
+	fg_reg = &vd_layer[layer_id].fg_reg;
+
+	VSYNC_WR_MPEG_REG_BITS(fg_reg->fgrain_ctrl,
+			       reg_fgrain_glb_en |
+			       reg_fgrain_loc_en,
+			       0, 2);
+	glayer_info[layer_id].fgrain_start = false;
+}
+
+static void fgrain_set_window(u32 layer_id,
+			      struct fgrain_setting_s *setting)
+{
+	struct hw_fg_reg_s *fg_reg;
+
+	fg_reg = &vd_layer[layer_id].fg_reg;
+	VSYNC_WR_MPEG_REG(fg_reg->fgrain_win_h,
+			  (setting->start_x / 32 * 32 << 0) |
+			  ((setting->end_x / 32 * 32) << 16));
+	VSYNC_WR_MPEG_REG(fg_reg->fgrain_win_v,
+			  (setting->start_y / 4 * 4 << 0) |
+			  ((setting->end_y / 4 * 4) << 16));
+}
+
+static int fgrain_init(u8 layer_id, u32 table_size)
+{
+	int ret;
+	u32 channel = FILM_GRAIN0_CHAN;
+	struct lut_dma_set_t lut_dma_set;
+
+	if (!cpu_after_eq(MESON_CPU_MAJOR_ID_TM2_REVB))
+		return -1;
+	if (layer_id == 0)
+		channel = FILM_GRAIN0_CHAN;
+	else if (layer_id == 1)
+		channel = FILM_GRAIN1_CHAN;
+	lut_dma_set.channel = channel;
+	lut_dma_set.dma_dir = LUT_DMA_WR;
+	lut_dma_set.irq_source = ENCP_GO_FEILD;
+	lut_dma_set.mode = LUT_DMA_MANUAL;
+	lut_dma_set.table_size = table_size;
+	ret = lut_dma_register(&lut_dma_set);
+	if (ret >= 0) {
+		fg_supported = 1;
+
+	} else {
+		pr_info("%s failed, fg not support\n", __func__);
+		fg_supported = 0;
+	}
+	return ret;
+}
+
+static void fgrain_uninit(u8 layer_id)
+{
+	u32 channel = FILM_GRAIN0_CHAN;
+
+	if (!cpu_after_eq(MESON_CPU_MAJOR_ID_TM2_REVB))
+		return;
+
+	if (layer_id == 0)
+		channel = FILM_GRAIN0_CHAN;
+	else if (layer_id == 1)
+		channel = FILM_GRAIN1_CHAN;
+	lut_dma_unregister(LUT_DMA_WR, channel);
+}
+
+static int fgrain_write(u32 layer_id, u32 fgs_table_addr)
+{
+	int table_size = FGRAIN_TBL_SIZE;
+	u32 channel = 0;
+
+	if (layer_id == 0)
+		channel = FILM_GRAIN0_CHAN;
+	else if (layer_id == 1)
+		channel = FILM_GRAIN1_CHAN;
+
+	lut_dma_write_phy_addr(channel,
+			       fgs_table_addr,
+			       table_size);
+	return 0;
+}
+
+static void fgrain_update_irq_source(u32 layer_id)
+{
+	u32 irq_source = ENCP_GO_FEILD;
+	u32 viu, channel = 0;
+
+	viu = READ_VCBUS_REG(VPU_VIU_VENC_MUX_CTRL) & 0x3;
+
+	switch (viu) {
+	case 0:
+		irq_source = ENCL_GO_FEILD;
+		break;
+	case 1:
+		irq_source = ENCI_GO_FEILD;
+		break;
+	case 2:
+		irq_source = ENCP_GO_FEILD;
+		break;
+	}
+	if (layer_id == 0)
+		channel = FILM_GRAIN0_CHAN;
+	else if (layer_id == 1)
+		channel = FILM_GRAIN1_CHAN;
+
+	lut_dma_update_irq_source(channel, irq_source);
+}
+
+void fgrain_config(u8 layer_id,
+		   struct vpp_frame_par_s *frame_par,
+		   struct mif_pos_s *mif_setting,
+		   struct fgrain_setting_s *setting,
+		   struct vframe_s *vf)
+{
+	u32 type;
+
+	if (!vf || !mif_setting || !setting || !frame_par)
+		return;
+	if (!cpu_after_eq(MESON_CPU_MAJOR_ID_TM2_REVB))
+		return;
+	if (!fg_supported)
+		return;
+	setting->id = layer_id;
+	type = vf->type;
+	if (frame_par->nocomp)
+		type &= ~VIDTYPE_COMPRESS;
+
+	if (type & VIDTYPE_COMPRESS) {
+		/* 1:afbc mode or 0: non-afbc mode  */
+		setting->afbc = 1;
+		/* bit[2]=0, non-afbc mode */
+		setting->last_in_mode = 0;
+		/* afbc copress is always 420 */
+		setting->fmt_mode = 2;
+		setting->used = 1;
+	} else {
+		setting->afbc = 0;
+		setting->last_in_mode = 1;
+		#if 1
+		if (type & VIDTYPE_VIU_NV21) {
+			setting->fmt_mode = 2;
+			setting->used = 1;
+		} else {
+			/* only support 420 */
+			setting->used = 0;
+		}
+		#else
+		setting->used = 0;
+		#endif
+	}
+
+	if (vf->bitdepth & BITDEPTH_Y10)
+		setting->bitdepth = 1;
+	else
+		setting->bitdepth = 0;
+
+	if (glayer_info[layer_id].reverse)
+		setting->reverse = 3;
+	else
+		setting->reverse = 0;
+
+	setting->start_x = mif_setting->start_x_lines;
+	setting->end_x = mif_setting->end_x_lines;
+	setting->start_y = mif_setting->start_y_lines;
+	setting->end_y = mif_setting->end_y_lines;
+}
+
+void fgrain_setting(u8 layer_id,
+		    struct fgrain_setting_s *setting,
+		    struct vframe_s *vf)
+{
+	if (!vf || !setting)
+		return;
+	if (!fg_supported)
+		return;
+	if (!setting->used || !vf->fgs_valid ||
+	    !glayer_info[layer_id].fgrain_support)
+		fgrain_stop(layer_id);
+
+	if (glayer_info[layer_id].fgrain_support) {
+		if (setting->used && vf->fgs_valid &&
+		    vf->fgs_table_adr) {
+			fgrain_set_config(setting);
+			fgrain_set_window(layer_id, setting);
+		}
+	}
+}
+
+void fgrain_update_table(u8 layer_id,
+			 struct vframe_s *vf)
+{
+	if (!vf)
+		return;
+	if (!fg_supported)
+		return;
+	if (!vf->fgs_valid || !glayer_info[layer_id].fgrain_support)
+		fgrain_stop(layer_id);
+
+	if (glayer_info[layer_id].fgrain_support) {
+		if (vf->fgs_valid && vf->fgs_table_adr) {
+			fgrain_start(layer_id);
+			fgrain_update_irq_source(layer_id);
+			fgrain_write(layer_id, vf->fgs_table_adr);
+		}
+	}
+}
+
+#else
+static int fgrain_init(u8 layer_id, u32 table_size)
+{
+	pr_info("warning: film grain not support!\n");
+	return 0;
+}
+
+static void fgrain_uninit(u8 layer_id)
+{
+}
+
+void fgrain_config(u8 layer_id,
+		   struct vpp_frame_par_s *frame_par,
+		   struct mif_pos_s *mif_setting,
+		   struct fgrain_setting_s *setting,
+		   struct vframe_s *vf)
+{
+}
+
+void fgrain_setting(u8 layer_id,
+		    struct fgrain_setting_s *setting,
+		    struct vframe_s *vf)
+{
+}
+
+void fgrain_update_table(u8 layer_id,
+			 struct vframe_s *vf)
+
+{
+}
+#endif
+
+/*********************************************************
  * Init APIs
  *********************************************************/
 static void init_layer_canvas(
@@ -5198,6 +5539,7 @@ static void init_layer_canvas(
 int video_hw_init(void)
 {
 	u32 cur_hold_line;
+	int i;
 
 	if (!legacy_vpp) {
 		WRITE_VCBUS_REG_BITS(
@@ -5266,13 +5608,13 @@ int video_hw_init(void)
 		WRITE_VCBUS_REG_BITS(
 			VPP_MISC1, 0x100, 0, 9);
 	}
-	if (is_meson_tl1_cpu() || is_meson_tm2_cpu() ||
-	    is_meson_sc2_cpu()) {
+	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
 		/* force bypass dolby for TL1, no dolby function */
 		if (is_meson_tl1_cpu())
 			WRITE_VCBUS_REG_BITS(
 				DOLBY_PATH_CTRL, 0xf, 0, 6);
-		if (is_meson_tm2_revb() || is_meson_sc2_cpu()) {
+		if (is_meson_tm2_revb() ||
+		    cpu_after_eq(MESON_CPU_MAJOR_ID_SC2)) {
 			/* disable latch for sr core0/1 scaler */
 			WRITE_VCBUS_REG_BITS(
 				SRSHARP0_SHARP_SYNC_CTRL
@@ -5298,6 +5640,8 @@ int video_hw_init(void)
 		WRITE_VCBUS_REG_BITS(
 			SRSHARP0_SHARP_SYNC_CTRL, 1, 8, 1);
 	}
+	for (i = 0; i < MAX_VD_LAYER; i++)
+		fgrain_init(i, FGRAIN_TBL_SIZE);
 	return 0;
 }
 
@@ -5345,9 +5689,9 @@ int video_early_init(void)
 				(i == 0) ? true : false;
 			glayer_info[i].pps_support =
 				(i == 0) ? true : false;
-		} else if (is_meson_tm2_cpu() ||
-			is_meson_sc2_cpu()) {
-			if (is_meson_tm2_revb() || is_meson_sc2_cpu())
+		} else if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2)) {
+			if (is_meson_tm2_revb() ||
+			    cpu_after_eq(MESON_CPU_MAJOR_ID_SC2))
 				glayer_info[i].afbc_support = true;
 			else
 				glayer_info[i].afbc_support =
@@ -5357,7 +5701,13 @@ int video_early_init(void)
 			glayer_info[i].afbc_support = true;
 			glayer_info[i].pps_support = true;
 		}
+		if ((is_meson_tm2_cpu() && is_meson_tm2_revb()) ||
+		    is_meson_sc2_cpu())
+			glayer_info[i].fgrain_support = true;
+		else
+			glayer_info[i].fgrain_support = false;
 	}
+
 	/* only enable vd1 as default */
 	vd_layer[0].global_output = 1;
 	vd_layer[0].misc_reg_offt = 0 + cur_dev->vpp_off;
@@ -5373,7 +5723,12 @@ int video_early_init(void)
 		memcpy(&vd_layer[1].vd_mif_reg,
 		       &vd_mif_reg_sc2_array[1],
 		       sizeof(struct hw_vd_reg_s));
-
+		memcpy(&vd_layer[0].fg_reg,
+		       &fg_reg_sc2_array[0],
+		       sizeof(struct hw_fg_reg_s));
+		memcpy(&vd_layer[1].fg_reg,
+		       &fg_reg_sc2_array[1],
+		       sizeof(struct hw_fg_reg_s));
 	} else {
 		vd_layer[0].afbc_reg_offt = 0 + cur_dev->vpp_off;
 		vd_layer[1].afbc_reg_offt = 0 + cur_dev->vpp_off;
@@ -5392,6 +5747,12 @@ int video_early_init(void)
 			memcpy(&vd_layer[1].vd_mif_reg,
 			       &vd_mif_reg_legacy_array[1],
 			       sizeof(struct hw_vd_reg_s));
+			memcpy(&vd_layer[0].fg_reg,
+			       &fg_reg_g12_array[0],
+			       sizeof(struct hw_fg_reg_s));
+			memcpy(&vd_layer[1].fg_reg,
+			       &fg_reg_g12_array[1],
+			       sizeof(struct hw_fg_reg_s));
 		}
 	}
 	vd_layer[0].layer_alpha = 0x100;
@@ -5399,6 +5760,7 @@ int video_early_init(void)
 	/* g12a has no alpha overflow check in hardware */
 	vd_layer[1].layer_alpha = legacy_vpp ? 0x1ff : 0x100;
 	hscaler_8tap_enable = is_hscaler_8tap_en();
+	pre_hscaler_ntap_enable = is_pre_hscaler_ntap_en();
 	INIT_WORK(&vpu_delay_work, do_vpu_delay_work);
 
 	init_layer_canvas(&vd_layer[0], LAYER1_CANVAS_BASE_INDEX);
@@ -5408,6 +5770,10 @@ int video_early_init(void)
 
 int video_late_uninit(void)
 {
+	int i;
+
+	for (i = 0; i < MAX_VD_LAYER; i++)
+		fgrain_uninit(i);
 	return 0;
 }
 

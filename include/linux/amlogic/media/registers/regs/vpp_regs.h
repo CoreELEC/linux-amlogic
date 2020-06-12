@@ -340,5 +340,19 @@
 #define VD2_PIP_ALPH_SCP_V_13                      0x58ce
 #define VD2_PIP_ALPH_SCP_V_14                      0x58cf
 #define VD2_PIP_ALPH_SCP_V_15                      0x58d0
+
+#define G12_FGRAIN_CTRL                  0x4800
+#define G12_FGRAIN_WIN_H                 0x4801
+#define G12_FGRAIN_WIN_V                 0x4802
+#define G12_VD2_FGRAIN_CTRL              0x4810
+#define G12_VD2_FGRAIN_WIN_H             0x4811
+#define G12_VD2_FGRAIN_WIN_V             0x4812
+
+#define SC2_FGRAIN_CTRL                  0x4870
+#define SC2_FGRAIN_WIN_H                 0x4871
+#define SC2_FGRAIN_WIN_V                 0x4872
+#define SC2_VD2_FGRAIN_CTRL              0x48f0
+#define SC2_VD2_FGRAIN_WIN_H             0x48f1
+#define SC2_VD2_FGRAIN_WIN_V             0x48f2
 #endif
 

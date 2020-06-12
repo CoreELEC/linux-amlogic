@@ -199,6 +199,8 @@ struct disp_info_s {
 
 	bool need_no_compress;
 	s32 sideband_type;
+	bool fgrain_support;
+	bool fgrain_start;
 };
 
 enum select_scaler_path_e {

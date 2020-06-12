@@ -201,6 +201,23 @@ struct pip_alpha_scpxn_s {
 	u32 scpxn_end_v[MAX_PIP_WINDOW];
 };
 
+struct fgrain_setting_s {
+	u32 id;
+	u32 start_x;
+	u32 end_x;
+	u32 start_y;
+	u32 end_y;
+	u32 fmt_mode; /* only support 420 */
+	u32 bitdepth; /* 8 bit or 10 bit */
+	u32 reverse;
+	u32 afbc; /* afbc or not */
+	u32 last_in_mode; /* related with afbc */
+	u32 used;
+	/* lut dma */
+	u32 fgs_table_adr;
+	u32 table_size;
+};
+
 enum mode_3d_e {
 	mode_3d_disable = 0,
 	mode_3d_enable,
@@ -214,7 +231,7 @@ struct video_layer_s {
 	u32 misc_reg_offt;
 	u32 afbc_reg_offt;
 	struct hw_vd_reg_s vd_mif_reg;
-
+	struct hw_fg_reg_s fg_reg;
 	u8 cur_canvas_id;
 #ifdef CONFIG_AMLOGIC_MEDIA_VSYNC_RDMA
 	u8 next_canvas_id;
@@ -242,6 +259,7 @@ struct video_layer_s {
 	struct mif_pos_s mif_setting;
 	struct scaler_setting_s sc_setting;
 	struct blend_setting_s bld_setting;
+	struct fgrain_setting_s fgrain_setting;
 
 	u32 new_vframe_count;
 
@@ -448,5 +466,15 @@ void set_alpha(u8 layer_id,
 	       struct pip_alpha_scpxn_s *alpha_win);
 bool is_hscaler_8tap_en(void);
 bool is_pre_hscaler_ntap_en(void);
+void fgrain_config(u8 layer_id,
+		   struct vpp_frame_par_s *frame_par,
+		   struct mif_pos_s *mif_setting,
+		   struct fgrain_setting_s *setting,
+		   struct vframe_s *vf);
+void fgrain_setting(u8 layer_id,
+		    struct fgrain_setting_s *setting,
+		    struct vframe_s *vf);
+void fgrain_update_table(u8 layer_id,
+			 struct vframe_s *vf);
 #endif
 /*VIDEO_PRIV_HEADER_HH*/
