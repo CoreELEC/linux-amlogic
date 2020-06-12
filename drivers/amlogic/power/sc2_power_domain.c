@@ -16,6 +16,11 @@ struct sc2_pm_domain {
 	bool pd_status;
 };
 
+int get_max_id(void)
+{
+	return PDID_MAX;
+}
+
 static inline struct sc2_pm_domain *
 to_sc2_pm_domain(struct generic_pm_domain *genpd)
 {
