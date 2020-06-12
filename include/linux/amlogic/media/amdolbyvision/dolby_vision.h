@@ -109,4 +109,5 @@ void dolby_vision_set_provider(char *prov_name);
 int dolby_vision_check_mvc(struct vframe_s *vf);
 int get_dolby_vision_hdr_policy(void);
 int get_dv_support_info(void);
+int dolby_vision_update_src_format(struct vframe_s *vf, u8 toggle_mode);
 #endif
