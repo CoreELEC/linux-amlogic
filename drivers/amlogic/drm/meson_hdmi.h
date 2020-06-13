@@ -18,7 +18,6 @@
 #ifndef __AM_MESON_HDMI_H
 #define __AM_MESON_HDMI_H
 
-#include "meson_drv.h"
 #define DDC_SEGMENT_ADDR   0x30
 #define VIC_MAX_NUM        512
 #define DRM_HDMITX_VER     "20180705"
@@ -73,17 +72,19 @@ struct am_hdmi_tx {
 	const char *hpd_pin;
 	const char *ddc_pin;
 	unsigned int hpd_flag;/*0:none   1:up    2:down*/
-	unsigned int drm_mode_setting;
-	struct mutex hdcp_mutex;
-	unsigned int hdcp_feature;
 	unsigned int hdcp_tx_type;/*bit0:hdcp14 bit 1:hdcp22*/
-	unsigned int hdcp_rx_type;/*bit0:hdcp14 bit 1:hdcp22*/
+	unsigned int hdcp_downstream_type;/*bit0:hdcp14 bit 1:hdcp22*/
+	unsigned int hdcp_user_type;/*0: null hdcp 1: hdcp14 2: hdcp22*/
+	unsigned int hdcp_execute_type;/*0: null hdcp 1: hdcp14 2: hdcp22*/
 	struct timer_list hdcp_timer;
 	unsigned int hdcp_mode;
 	unsigned int hdcp_state;
 	unsigned int hdcp_stop_flag;/*turn off hdcp state machine*/
 	unsigned int hdcp_try_times;
-	struct task_struct *hdcp_work;
+	struct miscdevice hdcp_comm_device;
+	wait_queue_head_t hdcp_comm_queue;
+	int hdcp_report;
+	int hdcp_poll_report;
 };
 
 #define to_am_hdmi(x)	container_of(x, struct am_hdmi_tx, x)
@@ -1117,4 +1118,9 @@ struct am_hdmi_tx {
 #define HDMITX_DWC_I2CM_READ_BUFF7              (DWC_OFFSET_MASK + 0x7E27)
 #define HDMITX_DWC_I2CM_SCDC_UPDATE0            (DWC_OFFSET_MASK + 0x7E30)
 #define HDMITX_DWC_I2CM_SCDC_UPDATE1            (DWC_OFFSET_MASK + 0x7E31)
+
+extern struct am_hdmi_tx am_hdmi_info;
+
+int hdcp_comm_init(struct am_hdmi_tx *am_hdmi);
+void hdcp_comm_exit(struct am_hdmi_tx *am_hdmi);
 #endif

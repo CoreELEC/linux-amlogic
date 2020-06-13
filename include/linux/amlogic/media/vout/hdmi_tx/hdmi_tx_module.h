@@ -396,6 +396,8 @@ struct hdmitx_dev {
 				unsigned int cmd, unsigned int arg);
 		int (*cntl)(struct hdmitx_dev *hdmitx_device, unsigned int cmd,
 			    unsigned int arg); /* Other control */
+		void (*am_hdmitx_hdcp_disable)(void);
+		void (*am_hdmitx_hdcp_enable)(void);
 	} hwop;
 	struct {
 		unsigned int hdcp14_en;
@@ -872,10 +874,9 @@ struct Hdcp_Sub {
 	unsigned int hdcp_sub_addr_start;
 	unsigned int hdcp_sub_len;
 };
+
 extern void setup_attr(const char *buf);
 extern void get_attr(char attr[16]);
-extern void setup_drm_hdmi_hpd(unsigned char hpd_state);
-extern void setup_drm_mode_setting(unsigned char drm_mode_setting);
 extern unsigned int hd_read_reg(unsigned int addr);
 extern void hd_write_reg(unsigned int addr, unsigned int val);
 extern void hd_set_reg_bits(unsigned int addr, unsigned int value,
@@ -890,5 +891,4 @@ extern unsigned int hdmitx_rd_check_reg(unsigned int addr,
 	unsigned int exp_data,
 	unsigned int mask);
 extern void vsem_init_cfg(struct hdmitx_dev *hdev);
-
 #endif

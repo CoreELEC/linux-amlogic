@@ -14100,6 +14100,7 @@ F: sound/soc/codecs/amlogic/tlv320adc3101.c
 
 DRM DRIVERS FOR AMLOGIC SOCS
 M:	Neil Armstrong <narmstrong@baylibre.com>
+M:      Zhengrong Zhu <zhengrong.zhu@amlogic.com>
 L:	dri-devel@lists.freedesktop.org
 L:	linux-amlogic@lists.infradead.org
 W:	http://linux-meson.com/

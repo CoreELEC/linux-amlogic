@@ -5056,6 +5056,13 @@ static void hdcp_start_timer(struct hdmitx_dev *hdev)
 	mod_timer(&hdev->hdcp_timer, jiffies + HZ / 100);
 }
 
+void drm_hdcptx_events_handle(ulong param)
+{
+	struct hdmitx_dev *hdev = get_hdmitx_device();
+
+	hdcp_start_timer(hdev);
+}
+
 static void set_pkf_duk_nonce(void)
 {
 	static int nonce_mode = 1; /* 1: use HW nonce   0: use SW nonce */
