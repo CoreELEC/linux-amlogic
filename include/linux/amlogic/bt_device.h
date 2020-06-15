@@ -28,6 +28,9 @@ struct bt_dev_data {
 	int power_off_flag;
 	int power_down_disable;
 	int irqno_wakeup;
+	struct work_struct btwakeup_work;
+	struct input_dev *input_dev;
+	struct hrtimer timer;
 };
 extern void set_usb_bt_power(int is_power);
 #endif
