@@ -145,7 +145,7 @@ static int tsync_pcr_asynccheck_cnt;
 static int tsync_pcr_vsynccheck_cnt;
 
 static int init_check_first_systemtime;
-static int init_check_first_demuxpcr;
+static u32 init_check_first_demuxpcr;
 
 /* ------------------------------------------------------------------ */
 /* The variate */
@@ -263,24 +263,24 @@ struct stream_buf_s {
 	void *write_thread;
 	int for_4k;
 	bool is_secure;
-} /*stream_buf_t */;
+} /*stream_buf_t*/;
 
 int get_stream_buffer_level(int type)
 {
 	struct stream_buf_s *pbuf = NULL;
+	u32 buf_level = 0;
+
 	if (type == 0) {
 		/* video */
-		if (get_buf_by_type_cb)
-			pbuf = get_buf_by_type_cb(PTS_TYPE_VIDEO);
-		if (pbuf != NULL && stbuf_level_cb
+		tsync_get_buf_by_type(PTS_TYPE_VIDEO, pbuf);
+		if (pbuf && tsync_get_stbuf_level(pbuf, &buf_level)
 			&& pbuf->flag & 0x02/*BUF_FLAG_IN_USE*/)
-			return stbuf_level_cb(pbuf);
+			return buf_level;
 	} else {
 		/* audio */
-		if (get_buf_by_type_cb)
-			pbuf = get_buf_by_type_cb(PTS_TYPE_AUDIO);
-		if (pbuf != NULL && stbuf_level_cb &&
-			pbuf->flag & 0x02/*BUF_FLAG_IN_USE*/)
+		tsync_get_buf_by_type(PTS_TYPE_AUDIO, pbuf);
+		if (pbuf && tsync_get_stbuf_level(pbuf, &buf_level) &&
+		    pbuf->flag & 0x02/*BUF_FLAG_IN_USE*/)
 			return stbuf_level_cb(pbuf);
 		}
 
@@ -291,20 +291,19 @@ EXPORT_SYMBOL(get_stream_buffer_level);
 int get_stream_buffer_size(int type)
 {
 	struct stream_buf_s *pbuf = NULL;
+	u32 buf_size = 0;
 	if (type == 0) {
 		/* video */
-		if (get_buf_by_type_cb)
-			pbuf = get_buf_by_type_cb(PTS_TYPE_VIDEO);
-		if (pbuf != NULL && stbuf_size_cb &&
-			pbuf->flag & 0x02/*BUF_FLAG_IN_USE*/)
-			return stbuf_size_cb(pbuf);
+		tsync_get_buf_by_type(PTS_TYPE_VIDEO, pbuf);
+		if (pbuf && tsync_get_stbuf_size(pbuf, &buf_size) &&
+		    pbuf->flag & 0x02/*BUF_FLAG_IN_USE*/)
+			return buf_size;
 	} else {
 		/* audio */
-		if (get_buf_by_type_cb)
-			pbuf = get_buf_by_type_cb(PTS_TYPE_AUDIO);
-		if (pbuf != NULL && stbuf_size_cb
-			&& pbuf->flag & 0x02/*BUF_FLAG_IN_USE*/)
-			return stbuf_size_cb(pbuf);
+		tsync_get_buf_by_type(PTS_TYPE_AUDIO, pbuf);
+		if (pbuf && tsync_get_stbuf_size(pbuf, &buf_size) &&
+		    pbuf->flag & 0x02/*BUF_FLAG_IN_USE*/)
+			return buf_size;
 	}
 
 	return 0;
@@ -471,6 +470,7 @@ void tsync_pcr_pcrscr_set(void)
 	u32 first_pcr = 0, first_vpts = 0, first_apts = 0;
 	u32 cur_checkin_apts = 0, cur_checkin_vpts = 0, min_checkinpts = 0;
 	u32 cur_pcr = 0, ref_pcr = 0;
+	u32 tmp_pcr = 0;
 	u8 complete_init_flag =
 		TSYNC_PCR_INITCHECK_PCR | TSYNC_PCR_INITCHECK_VPTS |
 		TSYNC_PCR_INITCHECK_APTS;
@@ -479,8 +479,7 @@ void tsync_pcr_pcrscr_set(void)
 		return;
 	}
 
-	if (tsdemux_first_pcrscr_get_cb)
-		first_pcr = tsdemux_first_pcrscr_get_cb();
+	tsync_get_first_demux_pcr(&first_pcr);
 	first_apts = timestamp_firstapts_get();
 	first_vpts = timestamp_firstvpts_get();
 	if (!first_apts)
@@ -490,13 +489,13 @@ void tsync_pcr_pcrscr_set(void)
 	cur_checkin_vpts = get_last_checkin_pts(PTS_TYPE_VIDEO);
 	cur_checkin_apts = get_last_checkin_pts(PTS_TYPE_AUDIO);
 	min_checkinpts = tsync_pcr_get_min_checkinpts();
-	if (tsdemux_pcrscr_get_cb)
-		cur_pcr = tsdemux_pcrscr_get_cb();
+
+	tsync_get_demux_pcr(&cur_pcr);
 	abuf_level = get_stream_buffer_level(1);
 	vbuf_level = get_stream_buffer_level(0);
 
-	if (tsdemux_pcrvideo_valid_cb &&
-		tsdemux_pcraudio_valid_cb && tsdemux_pcraudio_valid_cb()) {
+	if (tsync_get_video_pid_valid() &&
+	    tsync_get_audio_pid_valid()) {
 		if (cur_checkin_apts == 0xffffffff) {
 			pr_debug("tsync_pcr_pcrscr_set not checkin_apts\n ");
 		}
@@ -578,8 +577,7 @@ void tsync_pcr_pcrscr_set(void)
 		pr_info("tsync_set:pcrsrc %x,vpts %x,mode:%d\n",
 			timestamp_pcrscr_get(), timestamp_firstvpts_get(),
 			tsync_use_demux_pcr);
-		if (tsdemux_pcrscr_get_cb)
-			init_check_first_demuxpcr = tsdemux_pcrscr_get_cb();
+		tsync_get_demux_pcr(&init_check_first_demuxpcr);
 		return;
 	}
 
@@ -607,9 +605,10 @@ void tsync_pcr_pcrscr_set(void)
 			tsync_use_demux_pcr = 1;
 			tsync_pcr_inited_mode = INIT_PRIORITY_PCR;
 			ref_pcr = timestamp_pcrscr_get();
-			if ((tsync_pcr_debug & 0x01) && tsdemux_pcrscr_get_cb) {
+			if ((tsync_pcr_debug & 0x01) &&
+			    tsync_get_demux_pcr(&tmp_pcr)) {
 				pr_info("use the pcr from stream , the cur demux pcr is %x\n",
-				tsdemux_pcrscr_get_cb());
+				tmp_pcr);
 				pr_info("the timestamp pcr is %x\n",
 				timestamp_pcrscr_get());
 				pr_info("the timestamp video pts is %x\n",
@@ -621,8 +620,7 @@ void tsync_pcr_pcrscr_set(void)
 		tsync_set_pcr_mode(0, ref_pcr);
 		tsync_pcr_inited_mode = INIT_PRIORITY_AUDIO;
 		init_check_first_systemtime = ref_pcr;
-		if (tsdemux_pcrscr_get_cb)
-			init_check_first_demuxpcr = tsdemux_pcrscr_get_cb();
+		tsync_get_demux_pcr(&init_check_first_demuxpcr);
 	}
 
 	if (first_vpts && !(tsync_pcr_inited_flag & complete_init_flag)
@@ -652,9 +650,10 @@ void tsync_pcr_pcrscr_set(void)
 		} else if (cur_pcr) {
 			ref_pcr = timestamp_pcrscr_get();
 			tsync_use_demux_pcr = 1;
-			if ((tsync_pcr_debug&0x01) && tsdemux_pcrscr_get_cb) {
+			if ((tsync_pcr_debug & 0x01) &&
+			    tsync_get_demux_pcr(&tmp_pcr)) {
 				pr_info("use the pcr from stream , the cur demux pcr is %x\n",
-				tsdemux_pcrscr_get_cb());
+				tmp_pcr);
 				pr_info("the timestamp pcr is %x\n",
 				timestamp_pcrscr_get());
 				pr_info("the timestamp video pts is %x\n",
@@ -685,8 +684,7 @@ static u8 tsync_process_checkspeed(void)
 		return tsync_last_play_mode;
 
 	cur_jiffiestime = jiffies_to_msecs(jiffies);
-	if (tsdemux_pcrscr_get_cb)
-		cur_demuxpcr = tsdemux_pcrscr_get_cb();
+	tsync_get_demux_pcr(&cur_demuxpcr);
 
 	if (timestamp_pcrscr_enable_state() == 0)
 		return PLAY_MODE_NORMAL;
@@ -900,16 +898,14 @@ static void tsync_process_discontinue(void)
 	u32 cur_checkin_vpts = get_last_checkin_pts(PTS_TYPE_VIDEO);
 	u32 cur_checkin_apts = get_last_checkin_pts(PTS_TYPE_AUDIO);
 
-	if (tsdemux_pcrscr_get_cb && (tsync_demux_last_pcr == 0
-		|| tsync_demux_last_pcr == 0xffffffff)) {
-		tsync_demux_last_pcr = tsdemux_pcrscr_get_cb();
+	if (tsync_get_demux_pcr(&tsync_demux_last_pcr) &&
+	    (tsync_demux_last_pcr == 0 ||
+	    tsync_demux_last_pcr == 0xffffffff)) {
 		tsync_last_pcr_get = timestamp_pcrscr_get();
 		tsync_pcr_last_jiffes = jiffies_to_msecs(jiffies);
 	}
-	if (tsdemux_pcrscr_get_cb) {
-		cur_tsdemuxpcr = tsdemux_pcrscr_get_cb();
+	if (tsync_get_demux_pcr(&cur_tsdemuxpcr))
 		cur_pcr_jiffes = jiffies_to_msecs(jiffies);
-	}
 	else
 		return;
 
@@ -1266,8 +1262,7 @@ void tsync_pcr_avevent_locked(enum avevent_e event, u32 param)
 				pr_info("vdiscontinue param %x,pcrsrc %x\n",
 					param, timestamp_pcrscr_get());
 			}
-		} else if (tsdemux_pcrscr_valid_cb &&
-			tsdemux_pcrscr_valid_cb() == 1 &&
+		} else if (tsync_get_demux_pcrscr_valid() &&
 			tsync_check_vpts_discontinuity(param)) {
 			if (tsync_pcr_debug & 0x03) {
 				pr_info("vdiscontinue %d,param %x,pcrsrc %x\n",
@@ -1406,6 +1401,8 @@ static unsigned long tsync_pcr_check(void)
 	int64_t last_checkin_minpts = 0;
 	u32 cur_apts = 0;
 	u32 cur_vpts = 0;
+	u32 tmp_pcr = 0;
+	bool video_pid_valid = false;
 
 	if (tsync_get_mode() != TSYNC_MODE_PCRMASTER
 		|| tsync_pcr_freerun_mode == 1)
@@ -1414,16 +1411,15 @@ static unsigned long tsync_pcr_check(void)
 	if (tsync_pcr_first_jiffes != 0) {
 		tsync_pcr_jiffes_diff = jiffies_to_msecs(jiffies)
 		    - tsync_pcr_first_jiffes;
-		if (tsdemux_pcrscr_get_cb)
+		if (tsync_get_demux_pcr(&tmp_pcr))
 			tysnc_pcr_systime_diff =
-			tsdemux_pcrscr_get_cb()-tsync_pcr_first_systime;
+			tmp_pcr - tsync_pcr_first_systime;
 	}
 
-	video_pid_valid = tsdemux_pcrvideo_valid_cb();
+	video_pid_valid = tsync_get_video_pid_valid();
 
 	tsync_pcr_check_checinpts();
-	if (tsdemux_pcrscr_get_cb)
-		tsdemux_pcr = tsdemux_pcrscr_get_cb();
+	tsync_get_demux_pcr(&tsdemux_pcr);
 	if (tsync_pcr_usepcr == 1) {
 		/* To monitor the pcr discontinue */
 		tsdemux_pcr_diff = abs(tsdemux_pcr - tsync_pcr_last_tsdemuxpcr);
@@ -1649,9 +1645,8 @@ int tsync_pcr_start(void)
 
 		first_time_record = div64_u64((u64)jiffies * TIME_UNIT90K, HZ);
 		tsync_pcr_started = 1;
-		if ((tsdemux_pcrscr_valid_cb &&
-			tsdemux_pcrscr_valid_cb() == 0) ||
-			tsync_disable_demux_pcr == 1) {
+		if ((tsync_get_demux_pcrscr_valid() == 0) ||
+		    tsync_disable_demux_pcr == 1) {
 			tsync_use_demux_pcr = 0;
 			tsync_pcr_inited_mode = INIT_PRIORITY_AUDIO;
 		} else {

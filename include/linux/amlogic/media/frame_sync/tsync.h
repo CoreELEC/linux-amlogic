@@ -178,7 +178,46 @@ extern void timestamp_clean_pts_latency(u8 type);
 extern int tsync_get_vpts_adjust(void);
 extern void set_video_peek(void);
 extern u32 get_first_frame_toggled(void);
+
 void tsync_set_av_state(u8 type, int state);
+
+void tsync_get_demux_pcrscr_valid_for_newarch(void);
+
+u8 tsync_get_demux_pcrscr_valid(void);
+
+void tsync_get_demux_pcr_for_newarch(void);
+
+u8 tsync_get_demux_pcr(u32 *pcr);
+
+void tsync_get_first_demux_pcr_for_newarch(void);
+
+u8 tsync_get_first_demux_pcr(u32 *first_pcr);
+
+void tsync_get_audio_pid_valid_for_newarch(void);
+
+u8 tsync_get_audio_pid_valid(void);
+
+void tsync_get_video_pid_valid_for_newarch(void);
+
+u8 tsync_get_video_pid_valid(void);
+
+void tsync_get_buf_by_type_for_newarch(u8 type, struct stream_buf_s *pbuf);
+
+u8 tsync_get_buf_by_type(u8 type, struct stream_buf_s *pbuf);
+
+void tsync_get_stbuf_level_for_newarch(struct stream_buf_s *pbuf,
+				       u32 *buf_level);
+
+u8 tsync_get_stbuf_level(struct stream_buf_s *pbuf, u32 *buf_level);
+
+void tsync_get_stbuf_space_for_newarch(struct stream_buf_s *pbuf,
+				       u32 *buf_space);
+
+u8 tsync_get_stbuf_space(struct stream_buf_s *pbuf, u32 *buf_space);
+
+void tsync_get_stbuf_size_for_newarch(struct stream_buf_s *pbuf, u32 *buf_size);
+
+u8 tsync_get_stbuf_size(struct stream_buf_s *pbuf, u32 *buf_size);
 
 static inline u32 tsync_vpts_discontinuity_margin(void)
 {
