@@ -240,7 +240,7 @@ static int meson_mmc_clk_set_rate_v3(struct mmc_host *mmc,
 	}
 	clk_div = (clk_rate / clk_ios) + (!!(clk_rate % clk_ios));
 
-	aml_mmc_clk_switch(pdata, clk_div, clk_src_sel);
+	aml_mmc_clk_switch(host, clk_div, clk_src_sel);
 	pdata->clkc = readl(host->base + SD_EMMC_CLOCK_V3);
 
 	mmc->actual_clock = clk_rate / clk_div;
@@ -342,12 +342,12 @@ static int meson_mmc_clk_set_rate_v3(struct mmc_host *mmc,
 		pdata->stop_clk = 0;
 	}
 #endif
-	//pr_info("actual_clock :%u, HHI_nand: 0x%x\n",
-			//mmc->actual_clock,
-			//readl(host->clksrc_base + (HHI_NAND_CLK_CNTL << 2)));
+	pr_info("actual_clock :%u, HHI_nand: 0x%x\n",
+			mmc->actual_clock,
+			readl(host->clksrc_base + (HHI_NAND_CLK_CNTL << 2)));
 
-	//pr_info("[%s] after clock: 0x%x\n",
-		 //__func__, readl(host->base + SD_EMMC_CLOCK_V3));
+	pr_info("[%s] after clock: 0x%x\n",
+		 __func__, readl(host->base + SD_EMMC_CLOCK_V3));
 
 	return ret;
 }

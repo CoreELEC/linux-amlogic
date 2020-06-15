@@ -206,7 +206,6 @@ enum mmc_chip_e {
 	MMC_CHIP_G12B = 0x29b,
 	MMC_CHIP_SM1 = 0X2C,
 	MMC_CHIP_TM2 = 0X2D,
-	MMC_CHIP_SC2 = 0X2E,
 };
 
 struct mmc_phase {
@@ -1774,7 +1773,7 @@ struct sd_emmc_desc_info {
 
 /* pinmux for sdcards, gpioC */
 #define PIN_MUX_REG6	(0xb6 << 2)
-#define PIN_MUX_REG9	(0x9 << 2)
+#define PIN_MUX_REG9	(0xb9 << 2)
 
 #define AML_MMC_DISABLED_TIMEOUT	100
 #define AML_MMC_SLEEP_TIMEOUT		1000
