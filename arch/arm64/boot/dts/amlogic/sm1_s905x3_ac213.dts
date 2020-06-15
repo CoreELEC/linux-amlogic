@@ -868,7 +868,7 @@
 			/* suffix-name, sync with android audio hal
 			 * what's the dai link used for
 			 */
-			suffix-name = "alsaPORT-pdm";
+			suffix-name = "alsaPORT-pdm-builtinmic";
 			cpu {
 				sound-dai = <&pdm>;
 			};
