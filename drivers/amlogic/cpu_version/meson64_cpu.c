@@ -28,8 +28,6 @@ void __iomem  *assist_hw_rev;
 
 int get_meson_cpu_version(int level)
 {
-	if (level == MESON_CPU_VERSION_LVL_MAJOR)
-		return MESON_CPU_MAJOR_ID_SC2;
 	if (level >= 0 && level <= MESON_CPU_VERSION_LVL_MAX)
 		return meson_cpu_version[level];
 	return 0;
