@@ -291,7 +291,7 @@ void am_set_regmap(struct am_regs_s *p)
 				}
 				if (pq_reg_wr_rdma)
 					VSYNC_WR_MPEG_REG(p->am_reg[i].addr,
-					(aml_read_vcbus(p->am_reg[i].addr) &
+					(VSYNC_RD_MPEG_REG(p->am_reg[i].addr) &
 					(~(p->am_reg[i].mask))) |
 					(p->am_reg[i].val & p->am_reg[i].mask));
 				else
