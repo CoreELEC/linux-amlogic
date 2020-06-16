@@ -108,11 +108,16 @@ static void check_violation(struct dmc_monitor *mon, void *data)
 		/* ignore cma driver pages */
 		page = phys_to_page(addr);
 		trace = find_page_base(page);
-		if (!trace || trace->migrate_type == MIGRATE_CMA)
+		if (trace && trace->migrate_type == MIGRATE_CMA)
 			continue;
 
 		port = (status >> 11) & 0x1f;
 		subport = (status >> 6) & 0xf;
+
+		/* ignore sd_emmc in device */
+		if (port == 7 && (subport == 11 || subport == 4))
+			continue;
+
 		pr_emerg(DMC_TAG", addr:%08lx, s:%08lx, ID:%s, sub:%s, c:%ld, d:%p\n",
 			addr, status, to_ports(port),
 			to_sub_ports(port, subport, id_str),
