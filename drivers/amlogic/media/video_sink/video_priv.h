@@ -81,6 +81,8 @@
 #define CANVAS_TABLE_CNT 1
 #endif
 
+#define MAX_PIP_WINDOW    16
+
 enum vd_path_id {
 	VFM_PATH_DEF = -1,
 	VFM_PATH_AMVIDEO = 0,
@@ -189,6 +191,13 @@ struct blend_setting_s {
 	u32 postblend_h_size;
 
 	struct vpp_frame_par_s *frame_par;
+};
+
+struct pip_alpha_scpxn_s {
+	u32 scpxn_bgn_h[MAX_PIP_WINDOW];
+	u32 scpxn_end_h[MAX_PIP_WINDOW];
+	u32 scpxn_bgn_v[MAX_PIP_WINDOW];
+	u32 scpxn_end_v[MAX_PIP_WINDOW];
 };
 
 enum mode_3d_e {
@@ -429,5 +438,8 @@ int ext_frame_capture_poll(int endflags);
 #endif
 bool is_meson_tm2_revb(void);
 bool is_meson_sc2_cpu(void);
+void set_alpha(u8 layer_id,
+	       u32 win_en,
+	       struct pip_alpha_scpxn_s *alpha_win);
 #endif
 /*VIDEO_PRIV_HEADER_HH*/

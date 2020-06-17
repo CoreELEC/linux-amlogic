@@ -4606,6 +4606,68 @@ s32 layer_swap_frame(
 	return ret;
 }
 
+/* pip apha APIs */
+static void vd1_set_alpha(u32 win_en, struct pip_alpha_scpxn_s *alpha_win)
+{
+	int i;
+	u32 alph_gen_mode = 1;
+	/* 0:original, 1:  0.5 alpha 2: 0.25/0.5/0.75 */
+	u32 alph_gen_byps = 0;
+
+	VSYNC_WR_MPEG_REG(VD1_PIP_ALPH_CTRL,
+			  ((0 & 0x1) << 28) |
+			  ((win_en & 0xffff) << 12) |
+			  ((0 & 0x1ff) << 3) |
+			  ((alph_gen_mode & 0x3) << 1) |
+			  ((alph_gen_byps & 0x1) << 0));
+	for (i = 0; i < MAX_PIP_WINDOW; i++) {
+		VSYNC_WR_MPEG_REG(VD1_PIP_ALPH_SCP_H_0 + i,
+				  (alpha_win->scpxn_end_h[i] & 0x1fff) << 16 |
+				  (alpha_win->scpxn_bgn_h[i] & 0x1fff));
+
+		VSYNC_WR_MPEG_REG(VD1_PIP_ALPH_SCP_V_0 + i,
+				  (alpha_win->scpxn_end_v[i] & 0x1fff) << 16 |
+				  (alpha_win->scpxn_bgn_v[i] & 0x1fff));
+	}
+}
+
+static void vd2_set_alpha(u32 win_en, struct pip_alpha_scpxn_s *alpha_win)
+{
+	int i;
+	u32 alph_gen_mode = 1;
+	/* 0:original, 1:  0.5 alpha 2: 0.25/0.5/0.75 */
+	u32 alph_gen_byps = 0;
+
+	VSYNC_WR_MPEG_REG(VD2_PIP_ALPH_CTRL,
+			  ((0 & 0x1) << 28) |
+			  ((win_en & 0xffff) << 12) |
+			  ((0 & 0x1ff) << 3) |
+			  ((alph_gen_mode & 0x3) << 1) |
+			  ((alph_gen_byps & 0x1) << 0));
+
+	for (i = 0; i < MAX_PIP_WINDOW; i++) {
+		VSYNC_WR_MPEG_REG(VD2_PIP_ALPH_SCP_H_0 + i,
+				  (alpha_win->scpxn_end_h[i] & 0x1fff) << 16 |
+				  (alpha_win->scpxn_bgn_h[i] & 0x1fff));
+
+		VSYNC_WR_MPEG_REG(VD2_PIP_ALPH_SCP_V_0 + i,
+				  (alpha_win->scpxn_end_v[i] & 0x1fff) << 16 |
+				  (alpha_win->scpxn_bgn_v[i] & 0x1fff));
+	}
+}
+
+void set_alpha(u8 layer_id,
+	       u32 win_en,
+	       struct pip_alpha_scpxn_s *alpha_win)
+{
+	if (cpu_after_eq(MESON_CPU_MAJOR_ID_SC2)) {
+		if (layer_id == 0)
+			vd1_set_alpha(win_en, alpha_win);
+		else if (layer_id == 1)
+			vd2_set_alpha(win_en, alpha_win);
+	}
+}
+
 /*********************************************************
  * vout APIs
  *********************************************************/

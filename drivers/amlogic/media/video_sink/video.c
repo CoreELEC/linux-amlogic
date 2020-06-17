@@ -9919,6 +9919,37 @@ static ssize_t vpp_crc_viu2_store(
 	return count;
 }
 
+static ssize_t pip_alpha_store(
+	struct class *cla,
+	struct class_attribute *attr,
+	const char *buf, size_t count)
+{
+	int i = 0;
+	int param_num;
+	int parsed[66];
+	int layer_id, win_num, win_en = 0;
+	struct pip_alpha_scpxn_s alpha_win;
+
+	if (likely(parse_para(buf, 2, parsed) >= 2)) {
+		layer_id = parsed[0];
+		win_num = parsed[1];
+		param_num = win_num * 4 + 2;
+		if (likely(parse_para(buf, param_num, parsed) == param_num)) {
+			for (i = 0; i < win_num; i++) {
+				alpha_win.scpxn_bgn_h[i] = parsed[2 + i * 4];
+				alpha_win.scpxn_end_h[i] = parsed[3 + i * 4];
+				alpha_win.scpxn_bgn_v[i] = parsed[4 + i * 4];
+				alpha_win.scpxn_end_v[i] = parsed[5 + i * 4];
+				win_en |= 1 << i;
+			}
+			pr_info("layer_id=%d, win_num=%d, win_en=%d\n",
+				layer_id, win_num, win_en);
+			set_alpha(layer_id, win_en, &alpha_win);
+		}
+	}
+	return strnlen(buf, count);
+}
+
 static struct class_attribute amvideo_class_attrs[] = {
 	__ATTR(axis,
 	       0664,
@@ -10149,6 +10180,10 @@ static struct class_attribute amvideo_class_attrs[] = {
 	       0664,
 	       vpp_crc_viu2_show,
 	       vpp_crc_viu2_store),
+	__ATTR(pip_alpha,
+	       0220,
+	       NULL,
+	       pip_alpha_store),
 	__ATTR_NULL
 };
 
