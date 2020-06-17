@@ -1,5 +1,5 @@
 /*
- * include/linux/amlogic/media/vout/hdmi_tx/hdmi_tx_cec_20.h
+ * drivers/amlogic/cec/hdmi_tx_cec_20.h
  *
  * Copyright (C) 2017 Amlogic, Inc. All rights reserved.
  *
@@ -26,7 +26,7 @@
 #define CEC0_LOG_ADDR 4 /* MBX logical address */
 #define TV_CEC_INTERVAL     (HZ * 3)
 
-#define CEC_VERSION     "v1.4"
+#define CEC_VERSION     "v1.3"
 #define _RX_DATA_BUF_SIZE_ 16
 
 #define AO_CEC  /* for switch between aocec and hdmi cec2.0 */

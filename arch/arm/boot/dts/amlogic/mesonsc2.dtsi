@@ -1106,33 +1106,37 @@
 		nn_power_version = <3>;
 		nn_efuse = <0xff63003c 0x20>;
 	};
+
 	aocec: aocec {
-		compatible = "amlogic, aocec-sm1";
-		device_name = "aocec";
-		status = "disabled";
+		compatible = "amlogic, aocec-sc2";
+		dev_name = "aocec";
+		status = "okay";
 		vendor_name = "Amlogic"; /* Max Chars: 8     */
 		/* Refer to the following URL at:
 		 * http://standards.ieee.org/develop/regauth/oui/oui.txt
 		 */
 		vendor_id = <0x000000>;
-		product_desc = "SM1"; /* Max Chars: 16    */
+		product_desc = "SC2"; /* Max Chars: 16    */
 		cec_osd_string = "AML_MBOX"; /* Max Chars: 14    */
 		cec_version = <5>;/*5:1.4;6:2.0*/
 		port_num = <1>;
 		output = <1>;
+		cec_sel = <1>;/*1:use one ip, 2:use 2 ip*/
 		ee_cec;
-		arc_port_mask = <0x2>;
-		interrupts = <0 203 1
-					0 199 1>;	/*0:snps 1:ts*/
+		arc_port_mask = <0x1>;
+		interrupts = <GIC_SPI 46 IRQ_TYPE_EDGE_RISING/*0:snps*/
+			GIC_SPI 45 IRQ_TYPE_EDGE_RISING>;/*1:ts*/
 		interrupt-names = "hdmi_aocecb","hdmi_aocec";
 		pinctrl-names = "default","hdmitx_aocecb","cec_pin_sleep";
 		pinctrl-0=<&eecec_a>;
 		pinctrl-1=<&eecec_b>;
 		pinctrl-2=<&eecec_b>;
-		reg = <0xFF80023c 0x4
-		       0xFF800000 0x400
-		       0xFF634400 0x70>;
-		reg-names = "ao_exit","ao","periphs";
+		/*clocks = <&clkc CLKID_CEC>, <&clkc CLKID_CEC>;*/
+		/*clock-names = "ceca_clk","cecb_clk";*/
+		reg = <0xfe044000 0x2ff
+		       0xfe005800 0xfff
+		       0xfe000000 0xfff>;
+		reg-names = "ao","periphs","clock";/*ao_exit hdmirx hhi*/
 	};
 
 	/*if you want to use vdin just modify status to "ok"*/
