@@ -286,6 +286,7 @@ struct di_dev_s {
 	struct page			*total_pages;
 	atomic_t			mem_flag;
 	struct dentry *dbg_root;	/*dbg_fs*/
+	struct vframe_s vfm_in_dup[MAX_IN_BUF_NUM];
 	struct vframe_s vfm_local[MAX_LOCAL_BUF_NUM * 2];
 	struct di_patch_mov_s mov;
 	u32 instance_id; /* di_instance_id; */
