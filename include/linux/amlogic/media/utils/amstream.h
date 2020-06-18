@@ -233,7 +233,10 @@
 #define AMSTREAM_IOC_SET_CRC _IOW((_A_M), 0xc9, struct usr_crc_info_t)
 #define AMSTREAM_IOC_GET_CRC_CMP_RESULT _IOWR((_A_M), 0xca, int)
 #define AMSTREAM_IOC_GET_MVDECINFO _IOR((_A_M), 0xcb, int)
-
+/* amstream support external stbuf */
+#define AMSTREAM_IOC_INIT_EX_STBUF    _IOW((_A_M), 0xcc, struct stream_buffer_metainfo)
+#define AMSTREAM_IOC_WR_STBUF_META  _IOW((_A_M), 0xcd, struct stream_buffer_metainfo)
+#define AMSTREAM_IOC_GET_STBUF_STATUS _IOR((_A_M), 0xce, struct stream_buffer_status)
 
 #define TRICKMODE_NONE       0x00
 #define TRICKMODE_I          0x01
