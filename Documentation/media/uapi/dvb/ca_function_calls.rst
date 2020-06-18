@@ -19,3 +19,4 @@ CA Function Calls
     ca-send-msg
     ca-set-descr
     ca-set-pid
+    ca-set-descr-ex

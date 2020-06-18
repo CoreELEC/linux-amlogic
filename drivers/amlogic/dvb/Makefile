@@ -1,4 +1,5 @@
 obj-$(CONFIG_AMLOGIC_AUCPU) += aucpu/
+obj-$(CONFIG_AMLOGIC_DVB_DMX) += demux/
 obj-$(CONFIG_AMLOGIC_DVB_EXTERN) += aml_dvb_extern.o
 
 aml_dvb_extern-objs = \
@@ -10,3 +11,4 @@ aml_dvb_extern-objs = \
 ccflags-y += -I.
 ccflags-y += -I$(srctree)/drivers/media/dvb-core
 ccflags-y += -I$(srctree)/include/media
+

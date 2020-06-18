@@ -154,3 +154,4 @@ obj-$(CONFIG_AMLOGIC_RESET_MESON) += reset/
 
 obj-$(CONFIG_AMLOGIC_DVB) += dvb/
 
+obj-$(CONFIG_AMLOGIC_DVB_DMX)		+= dvb/

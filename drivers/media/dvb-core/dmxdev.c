@@ -1052,6 +1052,16 @@ static int dvb_demux_do_ioctl(struct file *file,
 					     &((struct dmx_stc *)parg)->base);
 		break;
 
+#ifdef CONFIG_AMLOGIC_DVB_COMPAT
+	case DMX_SET_INPUT:
+		if (!dmxdev->demux->set_input) {
+			ret = -EINVAL;
+			break;
+		}
+		ret = dmxdev->demux->set_input(dmxdev->demux, arg);
+		break;
+#endif
+
 	case DMX_ADD_PID:
 		if (mutex_lock_interruptible(&dmxdevfilter->mutex)) {
 			ret = -ERESTARTSYS;
@@ -1179,6 +1189,15 @@ static int dvb_dvr_do_ioctl(struct file *file,
 	case DMX_SET_BUFFER_SIZE:
 		ret = dvb_dvr_set_buffer_size(dmxdev, arg);
 		break;
+#ifdef CONFIG_AMLOGIC_DVB_COMPAT
+	case DMX_SET_INPUT:
+		if (!dmxdev->demux->set_input) {
+			ret = -EINVAL;
+			break;
+		}
+		ret = dmxdev->demux->set_input(dmxdev->demux, arg);
+		break;
+#endif
 
 	default:
 		ret = -EINVAL;
