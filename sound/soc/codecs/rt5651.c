@@ -49,6 +49,8 @@ static const struct regmap_range_cfg rt5651_ranges[] = {
 
 static const struct reg_sequence init_list[] = {
 	{RT5651_PR_BASE + 0x3d,	0x3e00},
+	{RT5651_STO_DAC_MIXER	, 0x1212},
+	{RT5651_HPO_MIXER	, 0x2000}, //DAC -> HPO
 };
 
 static const struct reg_default rt5651_reg[] = {
@@ -797,11 +799,16 @@ static int rt5651_hp_event(struct snd_soc_dapm_widget *w,
 			RT5651_HP_CP_PD | RT5651_HP_SG_EN);
 		regmap_update_bits(rt5651->regmap, RT5651_PR_BASE +
 			RT5651_CHPUMP_INT_REG1, 0x0700, 0x0400);
+		regmap_update_bits(rt5651->regmap, RT5651_HP_VOL,
+			RT5651_L_MUTE | RT5651_R_MUTE, 0);
 		rt5651->hp_mute = 0;
 		break;
 
 	case SND_SOC_DAPM_PRE_PMD:
 		rt5651->hp_mute = 1;
+		regmap_update_bits(rt5651->regmap, RT5651_HP_VOL,
+			RT5651_L_MUTE | RT5651_R_MUTE,
+			RT5651_L_MUTE | RT5651_R_MUTE);
 		usleep_range(70000, 75000);
 		break;
 
@@ -1325,8 +1332,8 @@ static const struct snd_soc_dapm_route rt5651_dapm_routes[] = {
 	{"HP Amp", NULL, "HPOL MIX"},
 	{"HP Amp", NULL, "HPOR MIX"},
 	{"HP Amp", NULL, "Amp Power"},
-	{"HPO L Playback", "Switch", "HP Amp"},
-	{"HPO R Playback", "Switch", "HP Amp"},
+	{"HPO L Playback", NULL, "HP Amp"},
+	{"HPO R Playback", NULL, "HP Amp"},
 	{"HPOL", NULL, "HPO L Playback"},
 	{"HPOR", NULL, "HPO R Playback"},
 
@@ -1630,13 +1637,40 @@ static int rt5651_probe(struct snd_soc_codec *codec)
 	return 0;
 }
 
+void init_audio_reg_list(struct rt5651_priv *rt5651)
+{
+	int ret = 0;
+	ret = regmap_multi_reg_write(rt5651->regmap, init_list,
+					ARRAY_SIZE(init_list));
+
+	if (rt5651->pdata.in2_diff)
+		regmap_update_bits(rt5651->regmap, RT5651_IN1_IN2,
+				RT5651_IN_DF2, RT5651_IN_DF2);
+
+	if (rt5651->pdata.dmic_en)
+		regmap_update_bits(rt5651->regmap, RT5651_GPIO_CTRL1,
+				RT5651_GP2_PIN_MASK, RT5651_GP2_PIN_DMIC1_SCL);
+
+	rt5651->hp_mute = 1;
+
+	regmap_update_bits(rt5651->regmap, RT5651_HP_VOL,
+			RT5651_L_MUTE | RT5651_R_MUTE,
+			RT5651_L_MUTE | RT5651_R_MUTE);
+
+	regmap_update_bits(rt5651->regmap, RT5651_LOUT_CTRL1,
+			RT5651_L_MUTE | RT5651_R_MUTE,
+			RT5651_L_MUTE | RT5651_R_MUTE);
+
+	return;
+}
+
 #ifdef CONFIG_PM
 static int rt5651_suspend(struct snd_soc_codec *codec)
 {
-	struct rt5651_priv *rt5651 = snd_soc_codec_get_drvdata(codec);
+	//struct rt5651_priv *rt5651 = snd_soc_codec_get_drvdata(codec);
 
-	regcache_cache_only(rt5651->regmap, true);
-	regcache_mark_dirty(rt5651->regmap);
+	//regcache_cache_only(rt5651->regmap, true);
+	//regcache_mark_dirty(rt5651->regmap);
 	return 0;
 }
 
@@ -1644,8 +1678,11 @@ static int rt5651_resume(struct snd_soc_codec *codec)
 {
 	struct rt5651_priv *rt5651 = snd_soc_codec_get_drvdata(codec);
 
-	regcache_cache_only(rt5651->regmap, false);
-	snd_soc_cache_sync(codec);
+	//regcache_cache_only(rt5651->regmap, false);
+	//snd_soc_cache_sync(codec);
+
+	if(rt5651)
+		init_audio_reg_list(rt5651);
 
 	return 0;
 }
@@ -1731,7 +1768,7 @@ static const struct regmap_config rt5651_regmap = {
 	.volatile_reg = rt5651_volatile_register,
 	.readable_reg = rt5651_readable_register,
 
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_NONE,
 	.reg_defaults = rt5651_reg,
 	.num_reg_defaults = ARRAY_SIZE(rt5651_reg),
 	.ranges = rt5651_ranges,

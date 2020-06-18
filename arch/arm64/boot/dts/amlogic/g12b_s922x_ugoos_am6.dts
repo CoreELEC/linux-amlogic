@@ -6,6 +6,14 @@
 
 	/delete-node/ memory@00000000;
 
+	auge_sound {
+		aml-audio-card,dai-link@1 {
+			codec {
+				sound-dai = <&rt5651>;
+			};
+		};
+	};
+
 	sys_green {
 		compatible = "amlogic, sysled";
 		dev_name = "sysled";
