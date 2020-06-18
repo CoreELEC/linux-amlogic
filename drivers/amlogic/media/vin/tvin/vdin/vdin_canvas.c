@@ -26,6 +26,9 @@
 
 /* Amlogic headers */
 #include <linux/amlogic/media/vfm/vframe.h>
+/*#ifdef CONFIG_AMLOGIC_TEE*/
+/*#include <linux/amlogic/tee.h>*/
+/*#endif*/
 
 /* Local headers */
 #include "../tvin_format_table.h"
@@ -126,46 +129,53 @@ void vdin_canvas_start_config(struct vdin_dev_s *devp)
 	unsigned int canvas_num = VDIN_CANVAS_MAX_CNT;
 	unsigned int max_buffer_num = max_buf_num;
 
-	/* todo: if new add output YUV444 format,this place should add too!!*/
-	if ((devp->format_convert == VDIN_FORMAT_CONVERT_YUV_YUV444) ||
-		(devp->format_convert == VDIN_FORMAT_CONVERT_YUV_RGB) ||
-		(devp->format_convert == VDIN_FORMAT_CONVERT_RGB_YUV444) ||
-		(devp->format_convert == VDIN_FORMAT_CONVERT_RGB_RGB) ||
-		(devp->format_convert == VDIN_FORMAT_CONVERT_YUV_GBR) ||
-		(devp->format_convert == VDIN_FORMAT_CONVERT_YUV_BRG)) {
+	switch (devp->format_convert) {
+	case VDIN_FORMAT_CONVERT_YUV_YUV444:
+	case VDIN_FORMAT_CONVERT_YUV_RGB:
+	case VDIN_FORMAT_CONVERT_RGB_YUV444:
+	case VDIN_FORMAT_CONVERT_RGB_RGB:
+	case VDIN_FORMAT_CONVERT_YUV_GBR:
+	case VDIN_FORMAT_CONVERT_YUV_BRG:
 		if (devp->source_bitdepth > VDIN_MIN_SOURCE_BITDEPTH)
 			devp->canvas_w = max_buf_width *
 				VDIN_YUV444_10BIT_PER_PIXEL_BYTE;
 		else
 			devp->canvas_w = max_buf_height *
 				VDIN_YUV444_8BIT_PER_PIXEL_BYTE;
-	} else if ((devp->prop.dest_cfmt == TVIN_NV12) ||
-		(devp->prop.dest_cfmt == TVIN_NV21)) {
+		break;
+	case VDIN_FORMAT_CONVERT_YUV_NV12:
+	case VDIN_FORMAT_CONVERT_YUV_NV21:
+	case VDIN_FORMAT_CONVERT_RGB_NV12:
+	case VDIN_FORMAT_CONVERT_RGB_NV21:
 		devp->canvas_w = max_buf_width;
-		canvas_num = canvas_num/2;
+		canvas_num = canvas_num / 2;
 		canvas_step = 2;
-	} else{/*YUV422*/
-		/* txl new add yuv422 pack mode:canvas_w=h*2*10/8*/
+		break;
+	case VDIN_FORMAT_CONVERT_YUV_YUV422:
+	case VDIN_FORMAT_CONVERT_RGB_YUV422:
+	case VDIN_FORMAT_CONVERT_GBR_YUV422:
+	case VDIN_FORMAT_CONVERT_BRG_YUV422:
 		if ((devp->source_bitdepth > VDIN_MIN_SOURCE_BITDEPTH) &&
-		((devp->format_convert == VDIN_FORMAT_CONVERT_YUV_YUV422) ||
-		(devp->format_convert == VDIN_FORMAT_CONVERT_RGB_YUV422) ||
-		(devp->format_convert == VDIN_FORMAT_CONVERT_GBR_YUV422) ||
-		(devp->format_convert == VDIN_FORMAT_CONVERT_BRG_YUV422)) &&
-		(devp->color_depth_mode == VDIN_422_FULL_PK_EN))
-			devp->canvas_w = (max_buf_width * 5)/2;
+		    (devp->full_pack == VDIN_422_FULL_PK_EN))
+			devp->canvas_w = (max_buf_width * 5) / 2;
 		else if ((devp->source_bitdepth > VDIN_MIN_SOURCE_BITDEPTH) &&
-			(devp->color_depth_mode == VDIN_422_FULL_PK_DIS))
+			 (devp->full_pack == VDIN_422_FULL_PK_DIS))
 			devp->canvas_w = max_buf_width *
 				VDIN_YUV422_10BIT_PER_PIXEL_BYTE;
 		else
 			devp->canvas_w = max_buf_width *
 				VDIN_YUV422_8BIT_PER_PIXEL_BYTE;
+		break;
+	default:
+		break;
 	}
+
 	/*backup before roundup*/
 	devp->canvas_active_w = devp->canvas_w;
 	if (devp->force_yuv444_malloc == 1) {
+		/* 4k is not support 10 bit mode in order to save memory */
 		if ((devp->source_bitdepth > VDIN_MIN_SOURCE_BITDEPTH) &&
-			(devp->color_depth_mode != VDIN_422_FULL_PK_EN))
+			!vdin_is_4k(devp))
 			devp->canvas_w = devp->h_active *
 				VDIN_YUV444_10BIT_PER_PIXEL_BYTE;
 		else
@@ -176,9 +186,16 @@ void vdin_canvas_start_config(struct vdin_dev_s *devp)
 	devp->canvas_w = roundup(devp->canvas_w, devp->canvas_align);
 	devp->canvas_h = devp->v_active;
 
-	if ((devp->prop.dest_cfmt == TVIN_NV12) ||
-		(devp->prop.dest_cfmt == TVIN_NV21))
-		chroma_size = devp->canvas_w*devp->canvas_h/2;
+	switch (devp->format_convert) {
+	case VDIN_FORMAT_CONVERT_YUV_NV12:
+	case VDIN_FORMAT_CONVERT_YUV_NV21:
+	case VDIN_FORMAT_CONVERT_RGB_NV12:
+	case VDIN_FORMAT_CONVERT_RGB_NV21:
+		chroma_size = devp->canvas_w * devp->canvas_h / 2;
+		break;
+	default:
+		break;
+	}
 
 	devp->canvas_max_size = PAGE_ALIGN(devp->canvas_w*
 			devp->canvas_h+chroma_size);
@@ -267,65 +284,87 @@ void vdin_canvas_auto_config(struct vdin_dev_s *devp)
 	unsigned int canvas_step = 1;
 	unsigned int canvas_num = VDIN_CANVAS_MAX_CNT;
 	unsigned int max_buffer_num = max_buf_num;
+	unsigned int h_active, v_active;
 
-	/* todo: if new add output YUV444 format,this place should add too!!*/
-	if ((devp->format_convert == VDIN_FORMAT_CONVERT_YUV_YUV444) ||
-		(devp->format_convert == VDIN_FORMAT_CONVERT_YUV_RGB) ||
-		(devp->format_convert == VDIN_FORMAT_CONVERT_RGB_YUV444) ||
-		(devp->format_convert == VDIN_FORMAT_CONVERT_RGB_RGB) ||
-		(devp->format_convert == VDIN_FORMAT_CONVERT_YUV_GBR) ||
-		(devp->format_convert == VDIN_FORMAT_CONVERT_YUV_BRG)) {
+	if (devp->vfmem_size_small) {
+		h_active = devp->h_shrink_out;
+		v_active = devp->v_shrink_out;
+	} else {
+		h_active = devp->h_active;
+		v_active = devp->v_active;
+	}
+
+	switch (devp->format_convert) {
+	case VDIN_FORMAT_CONVERT_YUV_YUV444:
+	case VDIN_FORMAT_CONVERT_YUV_RGB:
+	case VDIN_FORMAT_CONVERT_RGB_YUV444:
+	case VDIN_FORMAT_CONVERT_RGB_RGB:
+	case VDIN_FORMAT_CONVERT_YUV_GBR:
+	case VDIN_FORMAT_CONVERT_YUV_BRG:
 		if (devp->source_bitdepth > VDIN_MIN_SOURCE_BITDEPTH)
-			devp->canvas_w = devp->h_active *
+			devp->canvas_w = h_active *
 				VDIN_YUV444_10BIT_PER_PIXEL_BYTE;
 		else
-			devp->canvas_w = devp->h_active *
+			devp->canvas_w = h_active *
 				VDIN_YUV444_8BIT_PER_PIXEL_BYTE;
-	} else if ((devp->prop.dest_cfmt == TVIN_NV12) ||
-		(devp->prop.dest_cfmt == TVIN_NV21)) {
-		canvas_num = canvas_num/2;
+		break;
+	case VDIN_FORMAT_CONVERT_YUV_NV12:
+	case VDIN_FORMAT_CONVERT_YUV_NV21:
+	case VDIN_FORMAT_CONVERT_RGB_NV12:
+	case VDIN_FORMAT_CONVERT_RGB_NV21:
+		canvas_num = canvas_num / 2;
 		canvas_step = 2;
-		devp->canvas_w = devp->h_active;
-		/* nv21/nv12 only have 8bit mode */
-	} else {/*YUV422*/
-		/* txl new add yuv422 pack mode:canvas-w=h*2*10/8*/
+		devp->canvas_w = h_active;
+		break;
+	case VDIN_FORMAT_CONVERT_YUV_YUV422:
+	case VDIN_FORMAT_CONVERT_RGB_YUV422:
+	case VDIN_FORMAT_CONVERT_GBR_YUV422:
+	case VDIN_FORMAT_CONVERT_BRG_YUV422:
 		if ((devp->source_bitdepth > VDIN_MIN_SOURCE_BITDEPTH) &&
-		((devp->format_convert == VDIN_FORMAT_CONVERT_YUV_YUV422) ||
-		(devp->format_convert == VDIN_FORMAT_CONVERT_RGB_YUV422) ||
-		(devp->format_convert == VDIN_FORMAT_CONVERT_GBR_YUV422) ||
-		(devp->format_convert == VDIN_FORMAT_CONVERT_BRG_YUV422)) &&
-		(devp->color_depth_mode == VDIN_422_FULL_PK_EN))
-			devp->canvas_w = (devp->h_active * 5)/2;
+		    (devp->full_pack == VDIN_422_FULL_PK_EN))
+			devp->canvas_w = (h_active * 5) / 2;
 		else if ((devp->source_bitdepth > VDIN_MIN_SOURCE_BITDEPTH) &&
-			(devp->color_depth_mode == VDIN_422_FULL_PK_DIS))
-			devp->canvas_w = devp->h_active *
+			 (devp->full_pack == VDIN_422_FULL_PK_DIS))
+			devp->canvas_w = h_active *
 				VDIN_YUV422_10BIT_PER_PIXEL_BYTE;
 		else
-			devp->canvas_w = devp->h_active *
+			devp->canvas_w = h_active *
 				VDIN_YUV422_8BIT_PER_PIXEL_BYTE;
+		break;
+	default:
+		break;
 	}
+
 	/*backup before roundup*/
 	devp->canvas_active_w = devp->canvas_w;
 	if (devp->force_yuv444_malloc == 1) {
-		if ((devp->source_bitdepth > VDIN_MIN_SOURCE_BITDEPTH) /*&&*/
-			/*(devp->color_depth_mode != VDIN_422_FULL_PK_EN)*/)
-			devp->canvas_w = devp->h_active *
+		/* 4k is not support 10 bit mode in order to save memory */
+		if ((devp->source_bitdepth > VDIN_MIN_SOURCE_BITDEPTH) &&
+		    !vdin_is_4k(devp))
+			devp->canvas_w = h_active *
 				VDIN_YUV444_10BIT_PER_PIXEL_BYTE;
 		else
-			devp->canvas_w = devp->h_active *
+			devp->canvas_w = h_active *
 				VDIN_YUV444_8BIT_PER_PIXEL_BYTE;
 	}
 	/*canvas_w must ensure divided exact by 256bit(32byte)*/
 	devp->canvas_w = roundup(devp->canvas_w, devp->canvas_align);
-	devp->canvas_h = devp->v_active;
+	devp->canvas_h = v_active;
 
-	if ((devp->prop.dest_cfmt == TVIN_NV12) ||
-		(devp->prop.dest_cfmt == TVIN_NV21))
-		chroma_size = devp->canvas_w*devp->canvas_h/2;
+	switch (devp->format_convert) {
+	case VDIN_FORMAT_CONVERT_YUV_NV12:
+	case VDIN_FORMAT_CONVERT_YUV_NV21:
+	case VDIN_FORMAT_CONVERT_RGB_NV12:
+	case VDIN_FORMAT_CONVERT_RGB_NV21:
+		chroma_size = devp->canvas_w * devp->canvas_h / 2;
+		break;
+	default:
+		break;
+	}
 
 	devp->canvas_max_size = PAGE_ALIGN(devp->canvas_w*
 			devp->canvas_h+chroma_size);
-	devp->canvas_max_num  = devp->mem_size / devp->canvas_max_size;
+	/* devp->canvas_max_num  = devp->mem_size / devp->canvas_max_size; */
 
 	devp->canvas_max_num = min(devp->canvas_max_num, canvas_num);
 	devp->canvas_max_num = min(devp->canvas_max_num, max_buffer_num);
@@ -422,7 +461,7 @@ static char vdin_name[6];
 /* combined canvas and afbce memory */
 unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 {
-	unsigned int mem_size, h_size, v_size;
+	unsigned int mem_size, h_size, v_size, frame_size;
 	int flags = CODEC_MM_FLAGS_CMA_FIRST|CODEC_MM_FLAGS_CMA_CLEAR|
 		CODEC_MM_FLAGS_DMA;
 	unsigned int max_buffer_num = min_buf_num;
@@ -431,6 +470,9 @@ unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 	unsigned int afbce_table_total_bytes;
 	unsigned long ref_paddr;
 	unsigned int mem_used;
+/*#ifdef CONFIG_AMLOGIC_TEE*/
+/*	unsigned int res = 0;*/
+/*#endif*/
 
 	if (devp->rdma_enable)
 		max_buffer_num++;
@@ -443,7 +485,14 @@ unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 		max_buffer_num += devp->vfp->skip_vf_num;
 	if (max_buffer_num > max_buf_num)
 		max_buffer_num = max_buf_num;
-	devp->vfmem_max_cnt = max_buffer_num;
+
+	/* if vfmem_cfg_num define in dts, use dts's setting */
+	if (devp->frame_buff_num >= min_buf_num &&
+	    devp->frame_buff_num <= max_buf_num)
+		max_buffer_num = devp->frame_buff_num;
+
+	devp->canvas_max_num = max_buffer_num;
+	devp->vfmem_max_cnt = devp->canvas_max_num;
 
 	if ((devp->cma_config_en == 0) ||
 		(devp->cma_mem_alloc == 1)) {
@@ -461,15 +510,18 @@ unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 		h_size = max_buf_width;
 		v_size = max_buf_height;
 	}
+
 	if ((devp->format_convert == VDIN_FORMAT_CONVERT_YUV_YUV444) ||
 		(devp->format_convert == VDIN_FORMAT_CONVERT_YUV_RGB) ||
 		(devp->format_convert == VDIN_FORMAT_CONVERT_RGB_YUV444) ||
 		(devp->format_convert == VDIN_FORMAT_CONVERT_RGB_RGB) ||
 		(devp->format_convert == VDIN_FORMAT_CONVERT_YUV_GBR) ||
-		(devp->format_convert == VDIN_FORMAT_CONVERT_YUV_BRG) ||
-		(devp->force_yuv444_malloc == 1)) {
-		if ((devp->source_bitdepth > VDIN_MIN_SOURCE_BITDEPTH)/* &&*/
-			/*(devp->color_depth_mode != VDIN_422_FULL_PK_EN)*/) {
+		(devp->format_convert == VDIN_FORMAT_CONVERT_YUV_BRG)) {
+		/* 4k is not support 10 bit mode in order to save memory
+		 * up to 4k 444 8bit mode
+		 */
+		if (/*devp->source_bitdepth > VDIN_MIN_SOURCE_BITDEPTH &&*/
+		    !vdin_is_4k(devp)) {
 			h_size = roundup(h_size *
 				VDIN_YUV444_10BIT_PER_PIXEL_BYTE,
 				devp->canvas_align);
@@ -491,30 +543,23 @@ unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 		/*todo change with canvas alloc!!*/
 		/* nv21/nv12 only have 8bit mode */
 	} else {
-		/* txl new add mode yuv422 pack mode:canvas-w=h*2*10/8
-		 *canvas_w must ensure divided exact by 256bit(32byte
+		/* 422 mode, 4k upto 444 8bitmode,
+		 * other up to 10 bit mode
 		 */
-		if ((devp->source_bitdepth > VDIN_MIN_SOURCE_BITDEPTH) &&
-		((devp->format_convert == VDIN_FORMAT_CONVERT_YUV_YUV422) ||
-		(devp->format_convert == VDIN_FORMAT_CONVERT_RGB_YUV422) ||
-		(devp->format_convert == VDIN_FORMAT_CONVERT_GBR_YUV422) ||
-		(devp->format_convert == VDIN_FORMAT_CONVERT_BRG_YUV422)) &&
-		(devp->color_depth_mode == VDIN_422_FULL_PK_EN)) {
-			h_size = roundup((h_size * 5)/2, devp->canvas_align);
-			devp->canvas_alin_w = (h_size * 2) / 5;
-		} else if ((devp->source_bitdepth > VDIN_MIN_SOURCE_BITDEPTH) &&
-			(devp->color_depth_mode == VDIN_422_FULL_PK_DIS)) {
+		if (vdin_is_4k(devp)) {
+			/*up to 444 8bit*/
 			h_size = roundup(h_size *
-				VDIN_YUV422_10BIT_PER_PIXEL_BYTE,
+				VDIN_YUV444_8BIT_PER_PIXEL_BYTE,
 				devp->canvas_align);
 			devp->canvas_alin_w = h_size /
-				VDIN_YUV422_10BIT_PER_PIXEL_BYTE;
+				VDIN_YUV444_8BIT_PER_PIXEL_BYTE;
 		} else {
+			/*up to 444 10bit*/
 			h_size = roundup(h_size *
-				VDIN_YUV422_8BIT_PER_PIXEL_BYTE,
+				VDIN_YUV444_10BIT_PER_PIXEL_BYTE,
 				devp->canvas_align);
 			devp->canvas_alin_w = h_size /
-				VDIN_YUV422_8BIT_PER_PIXEL_BYTE;
+				VDIN_YUV444_10BIT_PER_PIXEL_BYTE;
 		}
 	}
 
@@ -535,6 +580,27 @@ unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 	devp->vfmem_size = PAGE_ALIGN(mem_size) + dolby_size_byte;
 	devp->vfmem_size = roundup(devp->vfmem_size, PAGE_SIZE);
 
+	if (devp->double_wr) {
+		if ((devp->h_shrink_out < devp->h_active) &&
+		    (devp->v_shrink_out < devp->v_active))
+			devp->vfmem_size_small = devp->vfmem_size /
+				devp->h_shrink_times / devp->v_shrink_times;
+		else if (devp->h_shrink_out < devp->h_active)
+			devp->vfmem_size_small =
+				devp->vfmem_size / devp->h_shrink_times;
+		else if (devp->v_shrink_out < devp->v_active)
+			devp->vfmem_size_small =
+				devp->vfmem_size / devp->v_shrink_times;
+		else
+			devp->vfmem_size_small = 0;
+	} else {
+		devp->vfmem_size_small = 0;
+	}
+
+	if (devp->vfmem_size_small)
+		devp->vfmem_size_small =
+			roundup(devp->vfmem_size_small, PAGE_SIZE);
+
 	if (devp->set_canvas_manual == 1) {
 		for (i = 0; i < VDIN_CANVAS_MAX_CNT; i++) {
 			if (vdin_set_canvas_addr[i].dmabuff == 0)
@@ -552,11 +618,19 @@ unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 	/*total frames bytes*/
 	mem_size = PAGE_ALIGN(mem_size) * max_buffer_num +
 		dolby_size_byte * max_buffer_num;
+	mem_size += devp->vfmem_size_small * max_buffer_num;
 	mem_size = roundup(mem_size, PAGE_SIZE);
 
+/*#ifdef CONFIG_AMLOGIC_TEE*/
+	/* must align to 64k for secure protection */
+/*	if (devp->secure_en)*/
+/*		mem_size = roundup(mem_size, 64 * 1024);*/
+/*#endif*/
+
 	if (mem_size > devp->cma_mem_size) {
+		pr_err("\nvdin%d cma_mem_size (%d, %d) is not enough!!!\n",
+		       devp->index, mem_size, devp->cma_mem_size);
 		mem_size = devp->cma_mem_size;
-		pr_err("\nvdin%d cma_mem_size is not enough!!!\n", devp->index);
 		devp->cma_mem_alloc = 0;
 		return 1;
 	}
@@ -584,14 +658,30 @@ unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 	afbce_table_total_bytes *= max_buffer_num;
 
 	if (devp->cma_config_flag == 0x101) {
+		if (devp->vfmem_size_small)
+			frame_size = devp->vfmem_size_small;
+		else
+			frame_size = devp->vfmem_size;
+
 		/* canvas or afbce paddr */
 		for (i = 0; i < max_buffer_num; i++) {
-			devp->vfmem_start[i] = codec_mm_alloc_for_dma(vdin_name,
-				devp->vfmem_size/PAGE_SIZE, 0, flags);
+			devp->vfmem_start[i] =
+				codec_mm_alloc_for_dma(vdin_name,
+						       frame_size / PAGE_SIZE,
+						       0, flags);
+
+			if (devp->afbce_info && devp->double_wr)
+				devp->afbce_info->fm_body_paddr[i] =
+					codec_mm_alloc_for_dma(vdin_name,
+							       devp->vfmem_size
+							       / PAGE_SIZE, 0,
+							       flags);
 
 			/*add for 1g config, codec can't release mem in time*/
 			for (j = 0; j < 20; j++) {
-				if (devp->vfmem_start[i] == 0) {
+				if (devp->vfmem_start[i] == 0 ||
+				    (devp->double_wr && devp->afbce_info &&
+				    devp->afbce_info->fm_body_paddr[i] == 0)) {
 					msleep(50);
 					pr_err("alloc mem fail:50*%dms\n", j);
 					devp->vfmem_start[i] =
@@ -603,19 +693,20 @@ unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 					break;
 			}
 
-			if (devp->vfmem_start[i] == 0) {
+			if (j >= 20) {
 				pr_err("\nvdin%d buf[%d]codec alloc fail!!!\n",
 					devp->index, i);
 				devp->cma_mem_alloc = 0;
 				return 1;
 			}
-			if (devp->afbce_info) {
+			if (devp->afbce_info && !devp->double_wr) {
 				devp->afbce_info->fm_body_paddr[i] =
 					devp->vfmem_start[i];
 			}
-			pr_info("vdin%d buf[%d] mem_start = 0x%lx, mem_size = 0x%x\n",
-				devp->index, i,
-				devp->vfmem_start[i], devp->vfmem_size);
+			if (vdin_dbg_en)
+				pr_info("vdin%d buf[%d] mem_start = 0x%lx, mem_size = 0x%x\n",
+					devp->index, i,
+					devp->vfmem_start[i], devp->vfmem_size);
 		}
 
 		devp->mem_size = mem_size;
@@ -644,25 +735,44 @@ unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 			devp->afbce_info->frame_body_size = devp->vfmem_size;
 			devp->afbce_info->head_size = afbce_head_total_bytes;
 			devp->afbce_info->table_size = afbce_table_total_bytes;
-
-			pr_info("vdin%d head_start = 0x%lx, head_size = 0x%x\n",
-				devp->index, devp->afbce_info->head_paddr,
-				devp->afbce_info->head_size);
-			pr_info("vdin%d table_start = 0x%lx, table_size = 0x%x\n",
-				devp->index, devp->afbce_info->table_paddr,
-				devp->afbce_info->table_size);
+			if (vdin_dbg_en) {
+				pr_info("vdin%d head_start = 0x%lx, head_size = 0x%x\n",
+					devp->index,
+					devp->afbce_info->head_paddr,
+					devp->afbce_info->head_size);
+				pr_info("vdin%d table_start = 0x%lx, table_size = 0x%x\n",
+					devp->index,
+					devp->afbce_info->table_paddr,
+					devp->afbce_info->table_size);
+			}
 		}
 
 		devp->cma_mem_alloc = 1;
 	} else if (devp->cma_config_flag == 0x1) {
 		devp->mem_start = codec_mm_alloc_for_dma(vdin_name,
 			mem_size/PAGE_SIZE, 0, flags);
+
 		if (devp->mem_start == 0) {
 			pr_err("\nvdin%d codec alloc fail!!!\n",
 				devp->index);
 			devp->cma_mem_alloc = 0;
 			return 1;
 		}
+
+/*#ifdef CONFIG_AMLOGIC_TEE*/
+/*		if (devp->secure_en) {*/
+/*			devp->secure_handle = 0;*/
+/*			res = tee_protect_mem_by_type(TEE_MEM_TYPE_VDIN,*/
+/*						      devp->mem_start,*/
+/*						      mem_size,*/
+/*						      &devp->secure_handle);*/
+/*			if (res)*/
+/*				devp->mem_protected = 0;*/
+/*			else*/
+/*				devp->mem_protected = 1;*/
+/*		}*/
+/*#endif*/
+
 		devp->mem_size = mem_size;
 		devp->cma_mem_alloc = 1;
 		pr_info("vdin%d mem_start = 0x%lx, mem_size = 0x%x\n",
@@ -680,9 +790,11 @@ unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 			}
 			devp->vfmem_start[i] =
 				page_to_phys(devp->vfvenc_pages[i]);
-			pr_info("vdin%d buf[%d]mem_start = 0x%lx, mem_size = 0x%x\n",
-				devp->index, i,
-				devp->vfmem_start[i], devp->vfmem_size);
+			if (vdin_dbg_en)
+				pr_info("vdin%d buf[%d]mem_start = 0x%lx, mem_size = 0x%x\n",
+					devp->index, i,
+					devp->vfmem_start[i],
+					devp->vfmem_size);
 		}
 		devp->mem_size = mem_size;
 		devp->cma_mem_alloc = 1;
@@ -700,6 +812,19 @@ unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 		devp->mem_start = page_to_phys(devp->venc_pages);
 		devp->mem_size  = mem_size;
 
+/*#ifdef CONFIG_AMLOGIC_TEE*/
+/*		if (devp->secure_en) {*/
+/*			devp->secure_handle = 0;*/
+/*			res = tee_protect_mem_by_type(TEE_MEM_TYPE_VDIN,*/
+/*						      devp->mem_start,*/
+/*						      mem_size,*/
+/*						      &devp->secure_handle);*/
+/*			if (res)*/
+/*				devp->mem_protected = 0;*/
+/*			else*/
+/*				devp->mem_protected = 1;*/
+/*		}*/
+/*#endif*/
 		/* set fm_body_paddr */
 		if (devp->afbce_info) {
 			ref_paddr = devp->mem_start;
@@ -708,11 +833,13 @@ unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 				ref_paddr = devp->mem_start +
 					(devp->vfmem_size * i);
 				devp->afbce_info->fm_body_paddr[i] = ref_paddr;
-
-				pr_info("vdin%d body[%d]_start = 0x%lx, body_size = 0x%x\n",
-					devp->index, i,
-					devp->afbce_info->fm_body_paddr[i],
-					devp->afbce_info->frame_body_size);
+				if (vdin_dbg_en)
+					pr_info("vdin%d body[%d]_start = 0x%lx, body_size = 0x%x\n",
+						devp->index, i,
+						devp->afbce_info->
+						fm_body_paddr[i],
+						devp->afbce_info->
+						frame_body_size);
 			}
 
 			/* afbce header & table paddr */
@@ -723,14 +850,16 @@ unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 				devp->afbce_info->head_paddr +
 				devp->afbce_info->head_size;
 			devp->afbce_info->table_size = 2 * SZ_1M;/*2M*/
-
-			pr_info("vdin%d head_start = 0x%lx, head_size = 0x%x\n",
-				devp->index, devp->afbce_info->head_paddr,
-				devp->afbce_info->head_size);
-			pr_info("vdin%d table_start = 0x%lx, table_size = 0x%x\n",
-				devp->index, devp->afbce_info->table_paddr,
-				devp->afbce_info->table_size);
-
+			if (vdin_dbg_en) {
+				pr_info("vdin%d head_start = 0x%lx, head_size = 0x%x\n",
+					devp->index,
+					devp->afbce_info->head_paddr,
+					devp->afbce_info->head_size);
+				pr_info("vdin%d table_start = 0x%lx, table_size = 0x%x\n",
+					devp->index,
+					devp->afbce_info->table_paddr,
+					devp->afbce_info->table_size);
+			}
 			/*check memory over the boundary*/
 			mem_used = devp->afbce_info->table_paddr +
 				devp->afbce_info->table_size -
@@ -760,11 +889,11 @@ unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 			devp->afbce_info->fm_head_paddr[i] =
 				devp->afbce_info->head_paddr +
 				(devp->afbce_info->frame_head_size * i);
-
-			pr_info("vdin%d fm_head_paddr[%d] = 0x%lx, frame_head_size = 0x%x\n",
-				devp->index, i,
-				devp->afbce_info->fm_head_paddr[i],
-				devp->afbce_info->frame_head_size);
+			if (vdin_dbg_en)
+				pr_info("vdin%d fm_head_paddr[%d] = 0x%lx, frame_head_size = 0x%x\n",
+					devp->index, i,
+					devp->afbce_info->fm_head_paddr[i],
+					devp->afbce_info->frame_head_size);
 		}
 
 		/* set afbce table paddr */
@@ -775,11 +904,11 @@ unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 			devp->afbce_info->fm_table_paddr[i] =
 				devp->afbce_info->table_paddr +
 				(devp->afbce_info->frame_table_size * i);
-
-			pr_info("vdin%d fm_table_paddr[%d]=0x%lx, frame_table_size = 0x%x\n",
-				devp->index, i,
-				devp->afbce_info->fm_table_paddr[i],
-				devp->afbce_info->frame_table_size);
+			if (vdin_dbg_en)
+				pr_info("vdin%d fm_table_paddr[%d]=0x%lx, frame_table_size = 0x%x\n",
+					devp->index, i,
+					devp->afbce_info->fm_table_paddr[i],
+					devp->afbce_info->frame_table_size);
 		}
 	}
 
@@ -821,10 +950,24 @@ void vdin_cma_release(struct vdin_dev_s *devp)
 			}
 		}
 		/* canvas or afbce paddr */
-		for (i = 0; i < devp->vfmem_max_cnt; i++)
+		for (i = 0; i < devp->vfmem_max_cnt; i++) {
 			codec_mm_free_for_dma(vdin_name, devp->vfmem_start[i]);
+
+			if (devp->afbce_info && devp->double_wr)
+				codec_mm_free_for_dma(vdin_name,
+						      devp->afbce_info->
+						      fm_body_paddr[i]);
+		}
+
 		pr_info("vdin%d codec cma release ok!\n", devp->index);
 	} else if (devp->cma_config_flag == 0x1) {
+/*#ifdef CONFIG_AMLOGIC_TEE*/
+/*		if (devp->secure_en && devp->mem_protected) {*/
+/*			tee_unprotect_mem(devp->secure_handle);*/
+/*			devp->mem_protected = 0;*/
+/*		}*/
+/*#endif*/
+
 		codec_mm_free_for_dma(vdin_name, devp->mem_start);
 		pr_info("vdin%d codec cma release ok!\n", devp->index);
 	} else if (devp->cma_config_flag == 0x100) {
@@ -837,6 +980,13 @@ void vdin_cma_release(struct vdin_dev_s *devp)
 	} else if (devp->venc_pages
 		&& devp->cma_mem_size
 		&& (devp->cma_config_flag == 0)) {
+/*#ifdef CONFIG_AMLOGIC_TEE*/
+/*		if (devp->secure_en && devp->mem_protected) {*/
+/*			tee_unprotect_mem(devp->secure_handle);*/
+/*			devp->mem_protected = 0;*/
+/*		}*/
+/*#endif*/
+
 		dma_release_from_contiguous(
 			&(devp->this_pdev->dev),
 			devp->venc_pages,

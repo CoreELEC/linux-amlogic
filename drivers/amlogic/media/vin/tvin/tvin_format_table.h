@@ -40,9 +40,13 @@ extern const unsigned char cvd_part2_table[TVIN_SIG_FMT_CVBS_NTSC_50 -
 extern const unsigned int cvd_part3_table[TVIN_SIG_FMT_CVBS_NTSC_50 -
 	TVIN_SIG_FMT_CVBS_NTSC_M + 1][CVD_PART3_REG_NUM];
 extern const unsigned int cvbs_acd_table[TVIN_SIG_FMT_CVBS_NTSC_50 -
-	TVIN_SIG_FMT_CVBS_NTSC_M + 1][ACD_REG_NUM+1];
+	TVIN_SIG_FMT_CVBS_NTSC_M + 1][ACD_REG_NUM + 1];
 extern const unsigned int rf_acd_table[TVIN_SIG_FMT_CVBS_NTSC_50 -
-	TVIN_SIG_FMT_CVBS_NTSC_M + 1][ACD_REG_NUM+1];
+	TVIN_SIG_FMT_CVBS_NTSC_M + 1][ACD_REG_NUM + 1];
+extern const unsigned int cvbs_acd_table_tm2_b[TVIN_SIG_FMT_CVBS_NTSC_50 -
+	TVIN_SIG_FMT_CVBS_NTSC_M + 1][ACD_REG_NUM + 1];
+extern const unsigned int rf_acd_table_tm2_b[TVIN_SIG_FMT_CVBS_NTSC_50 -
+	TVIN_SIG_FMT_CVBS_NTSC_M + 1][ACD_REG_NUM + 1];
 
 
 extern const unsigned char cvd_yc_reg_0x00_0x03[TVIN_SIG_FMT_CVBS_NTSC_50 -

@@ -265,6 +265,9 @@ static int viuin_open(struct tvin_frontend_s *fe, enum tvin_port_e port)
 			(port == TVIN_PORT_VIU2_WB0_VPP)) {
 			wr_bits_viu(VPP_WRBAK_CTRL, 6, 0, 3);
 			/*increase h banking in case vdin afifo overflow*/
+			/* pre chip have 8bits
+			 * tm2_revb increased 4bits, all 12bit
+			 */
 			wr_bits_viu(VPP_WRBAK_CTRL, 0xff, 16, 8);
 		} else
 			wr_bits_viu(VPP_WRBAK_CTRL, 0, 4, 3);
