@@ -238,6 +238,33 @@ static int chroma_filter_table[] = {
 	COEF_3D_FILTER		  /* can not change */
 };
 
+const u32 vpp_filter_coefs_hscaler_8tap[] = {
+	8,
+	33,
+	0x00000080, 0xff01007f, 0xff02fe7f, 0xfe03fc7f,
+	0xfd04f97f, 0xfd05f77f, 0xfc06f57f, 0xfc07f37f,
+	0xfb07f27f, 0xfb08f07f, 0xfa09ef7f, 0xfa0aee7e,
+	0xf90aec7f, 0xf90beb7c, 0xf80cea7c, 0xf80ce97b,
+	0xf70de879, 0xf70ee778, 0xf60ee677, 0xf60fe576,
+	0xf60fe573, 0xf60fe472, 0xf510e470, 0xf510e36f,
+	0xf510e36b, 0xf511e368, 0xf511e367, 0xf411e364,
+	0xf411e362, 0xf411e360, 0xf411e35c, 0xf411e35a,
+	0xf411e358,
+	0x00000000, 0x02ff01ff, 0x04fe01ff, 0x06fd02ff,
+	0x0afc03fe, 0x0cfb03fe, 0x0ffa04fd, 0x10f905fd,
+	0x14f805fc, 0x15f706fc, 0x18f507fb, 0x1af407fb,
+	0x1df308fa, 0x20f209fa, 0x23f109f9, 0x25f00af9,
+	0x28ef0bf9, 0x2bee0bf8, 0x2eed0cf8, 0x31ec0cf7,
+	0x34eb0df7, 0x37ea0df7, 0x3ae90ef6, 0x3de80ef6,
+	0x40e80ff6, 0x43e70ff6, 0x46e60ff5, 0x49e610f5,
+	0x4ce510f5, 0x4fe410f5, 0x52e411f5, 0x55e311f5,
+	0x58e311f4,
+};
+
+static const u32 *hscaler_8tap_filter_table[] = {
+	vpp_filter_coefs_hscaler_8tap,
+};
+
 static unsigned int sharpness1_sr2_ctrl_32d7 = 0x00181008;
 MODULE_PARM_DESC(sharpness1_sr2_ctrl_32d7, "sharpness1_sr2_ctrl_32d7");
 module_param(sharpness1_sr2_ctrl_32d7, uint, 0664);
@@ -1620,9 +1647,16 @@ RESTART:
 	if ((vinfo->mode == VMODE_CVBS) && //DEBUG_TMP
 		(filter->vpp_hf_start_phase_step == (1 << 24)))
 		filter->vpp_horz_filter = COEF_BICUBIC_SHARP;
-	filter->vpp_horz_coeff =
-		filter_table[filter->vpp_horz_filter];
-
+	if (hscaler_8tap_enable) {
+		/* hscaler 8 tap */
+		filter->vpp_horz_filter = 0;
+		filter->vpp_horz_coeff =
+			hscaler_8tap_filter_table
+			[filter->vpp_horz_filter];
+	} else {
+		filter->vpp_horz_coeff =
+			filter_table[filter->vpp_horz_filter];
+	}
 	/* apply line skip */
 	if (next_frame_par->hscale_skip_count) {
 		filter->vpp_hf_start_phase_step >>= 1;
@@ -1679,8 +1713,15 @@ RESTART:
 	}
 
 	if (horz_scaler_filter <= COEF_3D_FILTER) {
-		filter->vpp_horz_coeff = filter_table[horz_scaler_filter];
-		filter->vpp_horz_filter = horz_scaler_filter;
+		if (hscaler_8tap_enable) {
+			/* hscaler 8 tap */
+			filter->vpp_horz_coeff = hscaler_8tap_filter_table[0];
+			filter->vpp_horz_filter = 0;
+		} else {
+			filter->vpp_horz_coeff =
+				filter_table[horz_scaler_filter];
+			filter->vpp_horz_filter = horz_scaler_filter;
+		}
 	}
 
 #ifdef TV_3D_FUNCTION_OPEN

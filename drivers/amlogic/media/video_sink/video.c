@@ -9950,6 +9950,62 @@ static ssize_t pip_alpha_store(
 	return strnlen(buf, count);
 }
 
+static ssize_t hscaler_8tap_enable_show(
+	struct class *cla,
+	struct class_attribute *attr,
+	char *buf)
+{
+	return snprintf(buf, 64, "hscaler_8tap_en: %d\n\n",
+		hscaler_8tap_enable);
+}
+
+static ssize_t hscaler_8tap_enable_store(
+		struct class *cla,
+		struct class_attribute *attr,
+		const char *buf, size_t count)
+{
+	int ret;
+	int hscaler_8tap_en;
+
+	ret = kstrtoint(buf, 0, &hscaler_8tap_en);
+	if (ret < 0)
+		return -EINVAL;
+
+	if (amvideo_meson_dev.hscaler_8tap_en &&
+	    (hscaler_8tap_en != hscaler_8tap_enable)) {
+		hscaler_8tap_enable = hscaler_8tap_en;
+	}
+	return count;
+}
+
+static ssize_t pre_hscaler_ntap_enable_show(
+	struct class *cla,
+	struct class_attribute *attr,
+	char *buf)
+{
+	return snprintf(buf, 64, "pre_hscaler_ntap_en: %d\n\n",
+		pre_hscaler_ntap_enable);
+}
+
+static ssize_t pre_hscaler_ntap_enable_store(
+	struct class *cla,
+	struct class_attribute *attr,
+	const char *buf, size_t count)
+{
+	int ret;
+	int pre_hscaler_ntap_en;
+
+	ret = kstrtoint(buf, 0, &pre_hscaler_ntap_en);
+	if (ret < 0)
+		return -EINVAL;
+
+	if (amvideo_meson_dev.pre_hscaler_ntap_en &&
+	    (pre_hscaler_ntap_en != pre_hscaler_ntap_enable)) {
+		pre_hscaler_ntap_enable = pre_hscaler_ntap_en;
+	}
+	return count;
+}
+
 static struct class_attribute amvideo_class_attrs[] = {
 	__ATTR(axis,
 	       0664,
@@ -10184,6 +10240,14 @@ static struct class_attribute amvideo_class_attrs[] = {
 	       0220,
 	       NULL,
 	       pip_alpha_store),
+	__ATTR(hscaler_8tap_en,
+	       0664,
+	       hscaler_8tap_enable_show,
+	       hscaler_8tap_enable_store),
+	__ATTR(pre_hscaler_ntap_en,
+	       0664,
+	       pre_hscaler_ntap_enable_show,
+	       pre_hscaler_ntap_enable_store),
 	__ATTR_NULL
 };
 
@@ -10501,14 +10565,20 @@ static struct early_suspend video_early_suspend_handler = {
 
 static struct amvideo_device_data_s amvideo = {
 	.cpu_type = MESON_CPU_MAJOR_ID_COMPATIBALE,
+	.hscaler_8tap_en = 0,
+	.pre_hscaler_ntap_en = 0,
 };
 
 static struct amvideo_device_data_s amvideo_tm2_revb = {
 	.cpu_type = MESON_CPU_MAJOR_ID_TM2_REVB,
+	.hscaler_8tap_en = 0,
+	.pre_hscaler_ntap_en = 0,
 };
 
 static struct amvideo_device_data_s amvideo_sc2 = {
 	.cpu_type = MESON_CPU_MAJOR_ID_SC2_,
+	.hscaler_8tap_en = 1,
+	.pre_hscaler_ntap_en = 1,
 };
 
 static const struct of_device_id amlogic_amvideom_dt_match[] = {
@@ -10540,6 +10610,22 @@ bool is_meson_sc2_cpu(void)
 {
 	if (amvideo_meson_dev.cpu_type ==
 		MESON_CPU_MAJOR_ID_SC2_)
+		return true;
+	else
+		return false;
+}
+
+bool is_hscaler_8tap_en(void)
+{
+	if (amvideo_meson_dev.hscaler_8tap_en)
+		return true;
+	else
+		return false;
+}
+
+bool is_pre_hscaler_ntap_en(void)
+{
+	if (amvideo_meson_dev.pre_hscaler_ntap_en)
 		return true;
 	else
 		return false;

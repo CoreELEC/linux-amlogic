@@ -200,10 +200,25 @@ enum {
 
 #define VPP_HSC_INIRPT_NUM_MASK     0x3
 #define VPP_HSC_INIRPT_NUM_BIT      21
+#define VPP_HSC_INIRPT_NUM_WID      2
+#define VPP_HSC_INIRPT_NUM_BIT_8TAP 20
+#define VPP_HSC_INIRPT_NUM_WID_8TAP 4
 #define VPP_HSC_INIRCV_NUM_MASK     0xf
 #define VPP_HSC_INIRCV_NUM_BIT      16
+#define VPP_HSC_INIRCV_NUM_WID      4
 #define VPP_HSC_TOP_INI_PHASE_WID   16
 #define VPP_HSC_TOP_INI_PHASE_BIT   0
+
+#define VPP_PREHSC_FLT_NUM_BIT      0
+#define VPP_PREHSC_FLT_NUM_WID      4
+#define VPP_PREHSC_COEF3_BIT        24
+#define VPP_PREHSC_COEF3_WID        8
+#define VPP_PREHSC_COEF2_BIT        16
+#define VPP_PREHSC_COEF2_WID        8
+#define VPP_PREHSC_COEF1_BIT        8
+#define VPP_PREHSC_COEF1_WID        8
+#define VPP_PREHSC_COEF0_BIT        0
+#define VPP_PREHSC_COEF0_WID        8
 
 #define VPP_OFIFO_LINELEN_MASK      0xfff
 #define VPP_OFIFO_LINELEN_BIT       20
