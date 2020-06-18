@@ -268,9 +268,11 @@ static int ir_xmp_get_scancode(struct remote_chip *chip)
 	remote_reg_read(chip, MULTI_IR_ID, REG_FRAME, &code);
 	remote_dbg(chip->dev, "framecode=0x%x\n", code);
 	if (!xmp_decode_second) {
-		chip->r_dev->cur_hardcode = 0;
-		chip->r_dev->cur_customcode = code;
-		xmp_decode_second = 1;
+		if (seek_map_tab(chip, code & 0xffff)) {
+			chip->r_dev->cur_hardcode = 0;
+			chip->r_dev->cur_customcode = code;
+			xmp_decode_second = 1;
+		}
 		return -1;
 	}
 	xmp_decode_second = 2;
