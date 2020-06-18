@@ -14,7 +14,7 @@
 	auge_sound {
 		aml-audio-card,dai-link@1 {
 			codec {
-				sound-dai = <&RT5651_1A>;
+				sound-dai = <&rt5651>;
 			};
 		};
 	};
@@ -92,11 +92,13 @@
 };
 
 &i2c3 {
-	RT5651_1A: RT5651_1A@1a {
+	rt5651: rt5651@1a {
 		compatible = "realtek,rt5651";
 		#sound-dai-cells = <0>;
 		reg = <0x1a>;
 		status = "okay";
+		realtek,dmic-en = "false";
+		realtek,in2-differential = "false";
 	};
 };
 
