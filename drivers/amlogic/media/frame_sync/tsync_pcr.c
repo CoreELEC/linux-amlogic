@@ -1054,11 +1054,15 @@ void tsync_pcr_check_checinpts(void)
 						checkin_apts);
 				}
 			}
+			/*+[SE][BUG][SWPL-27742][chengshun]play pvr,in order
+			 * to switch audio lost too audio es data, tsplayer
+			 * limit data write, lead checkin not update
+			 */
 			if (last_pcr_checkin_apts == checkin_apts) {
 				if (tsync_pcr_demux_pcr_used() == 1)
-					max_gap = 40;
-				else
 					max_gap = 100;
+				else
+					max_gap = 300;
 				last_pcr_checkin_apts_count++;
 				if (last_pcr_checkin_apts_count > max_gap) {
 					tsync_pcr_tsdemuxpcr_discontinue |=
@@ -1156,9 +1160,9 @@ void tsync_pcr_check_checinpts(void)
 			}
 			if (last_pcr_checkin_vpts == checkin_vpts) {
 				if (tsync_pcr_demux_pcr_used() == 1)
-					max_gap = 50;
-				else
 					max_gap = 100;
+				else
+					max_gap = 300;
 				last_pcr_checkin_vpts_count++;
 				if (last_pcr_checkin_vpts_count > max_gap) {
 					tsync_pcr_tsdemuxpcr_discontinue |=
