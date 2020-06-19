@@ -195,6 +195,7 @@ static bool dovi_drop_flag;
 static int dovi_drop_frame_num;
 
 #define RECEIVER_NAME "amvideo"
+static char dv_provider[32] = "dvbldec";
 
 static s32 amvideo_poll_major;
 /*static s8 dolby_first_delay;*/ /* for bug 145902 */
@@ -4162,6 +4163,36 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 	vsync_notify_video_composer();
 
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
+	if (is_dolby_vision_enable()) {
+		char *provider_name = NULL;
+
+		if (vd1_path_id == VFM_PATH_PIP) {
+			provider_name = vf_get_provider_name(RECEIVERPIP_NAME);
+			while (provider_name) {
+				if (!vf_get_provider_name(provider_name))
+					break;
+				provider_name =
+					vf_get_provider_name(provider_name);
+			}
+			if (provider_name)
+				dolby_vision_set_provider(provider_name);
+			else
+				dolby_vision_set_provider(dv_provider);
+		} else {
+			provider_name = vf_get_provider_name(RECEIVER_NAME);
+			while (provider_name) {
+				if (!vf_get_provider_name(provider_name))
+					break;
+				provider_name =
+					vf_get_provider_name(provider_name);
+			}
+			if (provider_name)
+				dolby_vision_set_provider(provider_name);
+			else
+				dolby_vision_set_provider(dv_provider);
+		}
+	}
+
 	if (is_dolby_vision_enable() && dovi_drop_flag) {
 		struct vframe_s *vf = NULL;
 		unsigned int cnt = 10;
@@ -4333,38 +4364,6 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 		dolby_vision_check_hlg(vf);
 		dolby_vision_check_cuva(vf);
 	}
-
-	if (cur_vd1_path_id != vd1_path_id) {
-		char *provider_name = NULL;
-
-		/* FIXME: add more receiver check */
-		if (vd1_path_id == VFM_PATH_PIP) {
-			provider_name = vf_get_provider_name("videopip");
-			while (provider_name) {
-				if (!vf_get_provider_name(provider_name))
-					break;
-				provider_name =
-					vf_get_provider_name(provider_name);
-			}
-			if (provider_name)
-				dolby_vision_set_provider(provider_name);
-			else
-				dolby_vision_set_provider("dvbldec");
-		} else {
-			provider_name = vf_get_provider_name("amvideo");
-			while (provider_name) {
-				if (!vf_get_provider_name(provider_name))
-					break;
-				provider_name =
-					vf_get_provider_name(provider_name);
-			}
-			if (provider_name)
-				dolby_vision_set_provider(provider_name);
-			else
-				dolby_vision_set_provider("dvbldec");
-		}
-	}
-
 #endif
 
 	if (vsync_pts_inc_upint) {
