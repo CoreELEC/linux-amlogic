@@ -1122,8 +1122,8 @@ void aml_mmc_clk_switch_on(
 	host->is_gated = false;
 }
 
-static void aml_mmc_clk_switch(struct amlsd_platform *pdata,
-	int clk_div, int clk_src_sel)
+void aml_mmc_clk_switch(struct amlsd_platform *pdata,
+			int clk_div, int clk_src_sel)
 {
 	u32 vclkc = 0;
 	struct amlsd_host *host = pdata->host;
@@ -1307,15 +1307,17 @@ int aml_emmc_clktree_init(struct amlsd_host *host)
 	const char *clk_div_parents[1];
 
 	host->core_clk = devm_clk_get(host->dev, "core");
-	if (IS_ERR(host->core_clk)) {
-		ret = PTR_ERR(host->core_clk);
-		return ret;
+	if (host->data->chip_type != MMC_CHIP_SC2) {
+		if (IS_ERR(host->core_clk)) {
+			ret = PTR_ERR(host->core_clk);
+			return ret;
+		}
+		pr_debug("core->rate: %lu\n", clk_get_rate(host->core_clk));
+		pr_debug("core->name: %s\n", __clk_get_name(host->core_clk));
+		ret = clk_prepare_enable(host->core_clk);
+		if (ret)
+			return ret;
 	}
-	pr_debug("core->rate: %lu\n", clk_get_rate(host->core_clk));
-	pr_debug("core->name: %s\n", __clk_get_name(host->core_clk));
-	ret = clk_prepare_enable(host->core_clk);
-	if (ret)
-		return ret;
 
 	/* get the mux parents */
 	for (i = 0; i < MUX_CLK_NUM_PARENTS; i++) {
@@ -3410,8 +3412,10 @@ static int meson_mmc_remove(struct platform_device *pdev)
 
 	if (host->cfg_div_clk)
 		clk_disable_unprepare(host->cfg_div_clk);
-	if (host->core_clk)
-		clk_disable_unprepare(host->core_clk);
+	if (host->data->chip_type != MMC_CHIP_SC2) {
+		if (host->core_clk)
+			clk_disable_unprepare(host->core_clk);
+	}
 
 	kfree(host->blk_test);
 	kfree(host->adj_win);
@@ -3482,7 +3486,7 @@ static struct meson_mmc_data mmc_data_txlx = {
 	.port_b_base = 0xffe05000,
 	.port_c_base = 0xffe07000,
 	.pinmux_base = 0xff634400,
-	.clksrc_base = 0xff63c000,
+	.clksrc_base = 0xff63c097,
 	.ds_pin_poll = 0x3c,
 	.ds_pin_poll_en = 0x4a,
 	.ds_pin_poll_bit = 11,
@@ -3503,7 +3507,7 @@ static struct meson_mmc_data mmc_data_axg = {
 	.port_b_base = 0xffe05000,
 	.port_c_base = 0xffe07000,
 	.pinmux_base = 0xff634400,
-	.clksrc_base = 0xff63c000,
+	.clksrc_base = 0xff63c097,
 	.ds_pin_poll = 0x3e,
 	.ds_pin_poll_en = 0x4c,
 	.ds_pin_poll_bit = 13,
@@ -3523,7 +3527,7 @@ static struct meson_mmc_data mmc_data_gxlx = {
 	.port_b_base = 0xd0072000,
 	.port_c_base = 0xd0074000,
 	.pinmux_base = 0xc8834400,
-	.clksrc_base = 0xc883c000,
+	.clksrc_base = 0xc883c097,
 	.ds_pin_poll = 0x3c,
 	.ds_pin_poll_en = 0x4a,
 	.ds_pin_poll_bit = 15,
@@ -3543,7 +3547,7 @@ static struct meson_mmc_data mmc_data_txhd = {
 	.port_b_base = 0xffe05000,
 	.port_c_base = 0xffe07000,
 	.pinmux_base = 0xff634400,
-	.clksrc_base = 0xff63c000,
+	.clksrc_base = 0xff63c097,
 	.ds_pin_poll = 0x3c,
 	.ds_pin_poll_en = 0x4a,
 	.ds_pin_poll_bit = 11,
@@ -3564,7 +3568,7 @@ static struct meson_mmc_data mmc_data_g12a = {
 	.port_b_base = 0xffe05000,
 	.port_c_base = 0xffe07000,
 	.pinmux_base = 0xff634400,
-	.clksrc_base = 0xff63c000,
+	.clksrc_base = 0xff63c097,
 	.ds_pin_poll = 0x3a,
 	.ds_pin_poll_en = 0x48,
 	.ds_pin_poll_bit = 13,
@@ -3591,7 +3595,7 @@ static struct meson_mmc_data mmc_data_g12b_a = {
 	.port_b_base = 0xffe05000,
 	.port_c_base = 0xffe07000,
 	.pinmux_base = 0xff634400,
-	.clksrc_base = 0xff63c000,
+	.clksrc_base = 0xff63c097,
 	.ds_pin_poll = 0x3a,
 	.ds_pin_poll_en = 0x48,
 	.ds_pin_poll_bit = 13,
@@ -3616,7 +3620,7 @@ static struct meson_mmc_data mmc_data_g12b = {
 	.port_b_base = 0xffe05000,
 	.port_c_base = 0xffe07000,
 	.pinmux_base = 0xff634400,
-	.clksrc_base = 0xff63c000,
+	.clksrc_base = 0xff63c097,
 	.ds_pin_poll = 0x3a,
 	.ds_pin_poll_en = 0x48,
 	.ds_pin_poll_bit = 13,
@@ -3644,7 +3648,7 @@ static struct meson_mmc_data mmc_data_tl1 = {
 	.port_b_base = 0xffe05000,
 	.port_c_base = 0xffe07000,
 	.pinmux_base = 0xff634400,
-	.clksrc_base = 0xff63c000,
+	.clksrc_base = 0xff63c097,
 	.ds_pin_poll = 0x3a,
 	.ds_pin_poll_en = 0x48,
 	.ds_pin_poll_bit = 13,
@@ -3666,7 +3670,7 @@ static struct meson_mmc_data mmc_data_sm1 = {
 	.port_b_base = 0xffe05000,
 	.port_c_base = 0xffe07000,
 	.pinmux_base = 0xff634400,
-	.clksrc_base = 0xff63c000,
+	.clksrc_base = 0xff63c097,
 	.ds_pin_poll = 0x3a,
 	.ds_pin_poll_en = 0x48,
 	.ds_pin_poll_bit = 13,
@@ -3692,7 +3696,29 @@ static struct meson_mmc_data mmc_data_tm2 = {
 	.port_b_base = 0xffe05000,
 	.port_c_base = 0xffe07000,
 	.pinmux_base = 0xff634400,
-	.clksrc_base = 0xff63c000,
+	.clksrc_base = 0xff63c097,
+	.ds_pin_poll = 0x3a,
+	.ds_pin_poll_en = 0x48,
+	.ds_pin_poll_bit = 13,
+	.sdmmc.init.core_phase = 3,
+	.sdmmc.init.tx_phase = 0,
+	.sdmmc.init.rx_phase = 0,
+	.sdmmc.hs.core_phase = 3,
+	.sdmmc.ddr.core_phase = 2,
+	.sdmmc.hs2.core_phase = 2,
+	.sdmmc.hs4.core_phase = 0,
+	.sdmmc.hs4.tx_delay = 16,
+	.sdmmc.sd_hs.core_phase = 2,
+	.sdmmc.sdr104.core_phase = 2,
+};
+
+static struct meson_mmc_data mmc_data_sc2 = {
+	.chip_type = MMC_CHIP_SC2,
+	.port_a_base = 0xfe088000,
+	.port_b_base = 0xfe08a000,
+	.port_c_base = 0xfe08c000,
+	.pinmux_base = 0xfe004000,
+	.clksrc_base = 0xfe000168,
 	.ds_pin_poll = 0x3a,
 	.ds_pin_poll_en = 0x48,
 	.ds_pin_poll_bit = 13,
@@ -3768,6 +3794,10 @@ static const struct of_device_id meson_mmc_of_match[] = {
 	{
 		.compatible = "amlogic, meson-mmc-tm2",
 		.data = &mmc_data_tm2,
+	},
+	{
+		.compatible = "amlogic, meson-mmc-sc2",
+		.data = &mmc_data_sc2,
 	},
 
 	{}
