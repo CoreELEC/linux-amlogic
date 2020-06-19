@@ -7284,8 +7284,13 @@ void init_pq_setting(void)
 		is_meson_tl1_cpu() || is_meson_tm2_cpu())
 		goto tvchip_pq_setting;
 	else if (is_meson_g12a_cpu() || is_meson_g12b_cpu() ||
-		is_meson_sm1_cpu()) {
-		sr_offset[0] = SR0_OFFSET;
+		is_meson_sm1_cpu() ||
+		(get_cpu_type() == MESON_CPU_MAJOR_ID_SC2)) {
+		if (get_cpu_type() >= MESON_CPU_MAJOR_ID_SC2)
+			sr_offset[0] = SR0_OFFSET_V2;
+		else
+			sr_offset[0] = SR0_OFFSET;
+
 		bitdepth = 12;
 		/*confirm with vlsi-Lunhai.Chen, for G12A/G12B,
 		 *VPP_GCLK_CTRL1 must enable
