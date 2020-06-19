@@ -54,7 +54,7 @@
 
 /* buffer management related */
 #define MAX_IN_BUF_NUM				20
-#define MAX_LOCAL_BUF_NUM			14 //10
+#define MAX_LOCAL_BUF_NUM			16 //10
 #define MAX_POST_BUF_NUM			16
 
 #define VFRAME_TYPE_IN				1

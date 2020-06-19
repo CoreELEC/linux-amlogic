@@ -2689,7 +2689,7 @@ static unsigned int limit_buf_cnt(void)
 	if (di_limit_local & 0xff00)
 		local_buf = (di_limit_local & 0xff00) >> 8;
 	else
-		local_buf = 6;
+		local_buf = 10;
 	cnt = omx_buf + local_buf;
 
 	return cnt;
@@ -8993,7 +8993,7 @@ static int di_probe(struct platform_device *pdev)
 			= dma_get_cma_size_int_byte(&pdev->dev);
 
 		if (di_devp->mem_size <= 0x800000) {
-			di_devp->mem_size = 0x2800000;
+			di_devp->mem_size = 0x3800000;
 			//(flag_cma ? 3) reserved in
 			//codec mm : cma in codec mm
 			if (di_devp->flag_cma != 3) {
