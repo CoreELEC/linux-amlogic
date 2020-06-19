@@ -2456,6 +2456,13 @@ unsigned int pci_rescan_bus(struct pci_bus *bus)
 	pci_assign_unassigned_bus_resources(bus);
 	pci_bus_add_devices(bus);
 
+#ifdef CONFIG_AMLOGIC_PCIE
+#ifdef CONFIG_ARM
+	/* support old dtbs that incorrectly describe IRQs */
+	pci_fixup_irqs(pci_common_swizzle, of_irq_parse_and_map_pci);
+#endif
+#endif
+
 	return max;
 }
 EXPORT_SYMBOL_GPL(pci_rescan_bus);
