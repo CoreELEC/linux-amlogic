@@ -38,6 +38,7 @@
 #include <linux/amlogic/iomap.h>
 #include <linux/io.h>
 #include <linux/mutex.h>
+#include <linux/amlogic/media/vpu/vpu.h>
 #include "vdac_dev.h"
 
 #define AMVDAC_NAME               "amvdac"
@@ -70,60 +71,242 @@ static unsigned int pri_flag;
 
 static unsigned int vdac_debug_print;
 
-static inline unsigned int vdac_hiu_reg_read(unsigned int reg)
+/* ********************************
+ * mem map
+ * *********************************
+ */
+#define VDAC_MAP_ANA	0
+#define VDAC_MAP_CLK	1
+#define VDAC_MAP_MAX	2
+
+static int vdac_reg_table[] = {
+	VDAC_MAP_ANA,
+	VDAC_MAP_CLK,
+	VDAC_MAP_MAX,
+};
+
+struct vdac_reg_map_s {
+	unsigned int base_addr;
+	unsigned int size;
+	void __iomem *p;
+	char flag;
+};
+
+static struct vdac_reg_map_s *vdac_reg_map;
+static int vdac_ioremap_flag;
+
+static int vdac_ioremap(struct platform_device *pdev)
 {
-	return aml_read_hiubus(reg);
+	int i;
+	int *table;
+	struct resource *res;
+
+	vdac_ioremap_flag = 1;
+
+	vdac_reg_map = kcalloc(VDAC_MAP_MAX,
+			       sizeof(struct vdac_reg_map_s), GFP_KERNEL);
+	if (!vdac_reg_map)
+		return -1;
+
+	table = vdac_reg_table;
+	for (i = 0; i < VDAC_MAP_MAX; i++) {
+		if (table[i] == VDAC_MAP_MAX)
+			break;
+
+		res = platform_get_resource(pdev, IORESOURCE_MEM, i);
+		if (!res) {
+			pr_info("%s: resource get error\n", __func__);
+			kfree(vdac_reg_map);
+			vdac_reg_map = NULL;
+			return -1;
+		}
+		vdac_reg_map[table[i]].base_addr = res->start;
+		vdac_reg_map[table[i]].size = resource_size(res);
+		vdac_reg_map[table[i]].p = devm_ioremap_nocache(&pdev->dev,
+			res->start, vdac_reg_map[table[i]].size);
+		if (!vdac_reg_map[table[i]].p) {
+			vdac_reg_map[table[i]].flag = 0;
+			pr_info("%s: reg map failed: 0x%x\n",
+				__func__,
+			       vdac_reg_map[table[i]].base_addr);
+			kfree(vdac_reg_map);
+			vdac_reg_map = NULL;
+			return -1;
+		}
+		vdac_reg_map[table[i]].flag = 1;
+		pr_info("%s: reg mapped: 0x%x -> %p\n",
+			__func__, vdac_reg_map[table[i]].base_addr,
+			      vdac_reg_map[table[i]].p);
+	}
+
+	return 0;
 }
 
-static inline void vdac_hiu_reg_write(unsigned int reg, unsigned int val)
+static int check_vdac_ioremap(int n)
 {
-	aml_write_hiubus(reg, val);
+	if (!vdac_reg_map)
+		return -1;
+	if (n >= VDAC_MAP_MAX)
+		return -1;
+	if (vdac_reg_map[n].flag == 0) {
+		pr_info("reg 0x%x mapped error\n", vdac_reg_map[n].base_addr);
+		return -1;
+	}
+	return 0;
 }
 
-static inline void vdac_hiu_reg_setb(unsigned int reg, unsigned int value,
-		unsigned int start, unsigned int len)
+static inline void __iomem *check_vdac_clk_reg(unsigned int _reg)
 {
-	vdac_hiu_reg_write(reg, ((vdac_hiu_reg_read(reg) &
+	void __iomem *p;
+	int reg_bus;
+	unsigned int reg_offset;
+
+	reg_bus = VDAC_MAP_CLK;
+	if (check_vdac_ioremap(reg_bus))
+		return NULL;
+
+	reg_offset = VDAC_REG_OFFSET(_reg);
+
+	if (reg_offset >= vdac_reg_map[reg_bus].size) {
+		pr_info("invalid clk reg offset: 0x%04x\n", _reg);
+		return NULL;
+	}
+	p = vdac_reg_map[reg_bus].p + reg_offset;
+	return p;
+}
+
+static inline void __iomem *check_vdac_ana_reg(unsigned int _reg)
+{
+	void __iomem *p;
+	int reg_bus;
+	unsigned int reg_offset;
+
+	reg_bus = VDAC_MAP_ANA;
+	if (check_vdac_ioremap(reg_bus))
+		return NULL;
+
+	reg_offset = VDAC_REG_OFFSET(_reg);
+
+	if (reg_offset >= vdac_reg_map[reg_bus].size) {
+		pr_info("invalid ana reg offset: 0x%04x\n", _reg);
+		return NULL;
+	}
+	p = vdac_reg_map[reg_bus].p + reg_offset;
+	return p;
+}
+
+static inline unsigned int vdac_ana_reg_read(unsigned int reg)
+{
+	void __iomem *p;
+	unsigned int ret = 0;
+
+	if (vdac_ioremap_flag) {
+		p = check_vdac_ana_reg(reg);
+		if (p)
+			ret = readl(p);
+		else
+			ret = 0;
+	} else {
+		ret = aml_read_hiubus(reg);
+	}
+
+	return ret;
+}
+
+static inline void vdac_ana_reg_write(unsigned int reg, unsigned int val)
+{
+	void __iomem *p;
+
+	if (vdac_ioremap_flag) {
+		p = check_vdac_ana_reg(reg);
+		if (p)
+			writel(val, p);
+	} else {
+		aml_write_hiubus(reg, val);
+	}
+}
+
+static inline void vdac_ana_reg_setb(unsigned int reg, unsigned int value,
+				     unsigned int start, unsigned int len)
+{
+	vdac_ana_reg_write(reg, ((vdac_ana_reg_read(reg) &
 			~(((1L << (len)) - 1) << (start))) |
 			(((value) & ((1L << (len)) - 1)) << (start))));
 }
 
-static inline unsigned int vdac_hiu_reg_getb(unsigned int reg,
-		unsigned int start, unsigned int len)
+static inline unsigned int vdac_ana_reg_getb(unsigned int reg,
+					     unsigned int start,
+					     unsigned int len)
 {
-	unsigned int val;
+	return (vdac_ana_reg_read(reg) >> (start)) & ((1L << (len)) - 1);
+}
 
-	val = ((vdac_hiu_reg_read(reg) >> (start)) & ((1L << (len)) - 1));
+static inline unsigned int vdac_clk_reg_read(unsigned int reg)
+{
+	void __iomem *p;
+	unsigned int ret = 0;
 
-	return val;
+	if (vdac_ioremap_flag) {
+		p = check_vdac_clk_reg(reg);
+		if (p)
+			ret = readl(p);
+		else
+			ret = 0;
+	} else {
+		ret = aml_read_hiubus(reg);
+	}
+
+	return ret;
+}
+
+static inline void vdac_clk_reg_write(unsigned int reg, unsigned int val)
+{
+	void __iomem *p;
+
+	if (vdac_ioremap_flag) {
+		p = check_vdac_clk_reg(reg);
+		if (p)
+			writel(val, p);
+	} else {
+		aml_write_hiubus(reg, val);
+	}
+}
+
+static inline void vdac_clk_reg_setb(unsigned int reg, unsigned int value,
+				     unsigned int start, unsigned int len)
+{
+	vdac_clk_reg_write(reg, ((vdac_clk_reg_read(reg) &
+			~(((1L << (len)) - 1) << (start))) |
+			(((value) & ((1L << (len)) - 1)) << (start))));
+}
+
+static inline unsigned int vdac_clk_reg_getb(unsigned int reg,
+					     unsigned int start,
+					     unsigned int len)
+{
+	return (vdac_clk_reg_read(reg) >> (start)) & ((1L << (len)) - 1);
 }
 
 static inline unsigned int vdac_vcbus_reg_read(unsigned int reg)
 {
-	return aml_read_vcbus(reg);
+	return vpu_vcbus_read(reg);
 }
 
 static inline void vdac_vcbus_reg_write(unsigned int reg, unsigned int val)
 {
-	aml_write_vcbus(reg, val);
+	vpu_vcbus_write(reg, val);
 }
 
 static inline void vdac_vcbus_reg_setb(unsigned int reg, unsigned int value,
 		unsigned int start, unsigned int len)
 {
-	vdac_vcbus_reg_write(reg, ((vdac_vcbus_reg_read(reg) &
-			~(((1L << (len)) - 1) << (start))) |
-			(((value) & ((1L << (len)) - 1)) << (start))));
+	vpu_vcbus_setb(reg, value, start, len);
 }
 
 static inline unsigned int vdac_vcbus_reg_getb(unsigned int reg,
 		unsigned int start, unsigned int len)
 {
-	unsigned int val;
-
-	val = ((vdac_vcbus_reg_read(reg) >> (start)) & ((1L << (len)) - 1));
-
-	return val;
+	return vpu_vcbus_getb(reg, start, len);
 }
 
 static int vdac_ctrl_config(bool on, unsigned int reg, unsigned int bit)
@@ -141,10 +324,10 @@ static int vdac_ctrl_config(bool on, unsigned int reg, unsigned int bit)
 				val = table[i].val;
 			else
 				val = table[i].val ? 0 : 1;
-			vdac_hiu_reg_setb(reg, val, bit, table[i].len);
+			vdac_ana_reg_setb(reg, val, bit, table[i].len);
 			if (vdac_debug_print) {
 				pr_info("vdac: reg=0x%02x set bit%d=%d, readback=0x%08x\n",
-					reg, bit, val, vdac_hiu_reg_read(reg));
+					reg, bit, val, vdac_ana_reg_read(reg));
 			}
 			ret = 0;
 			break;
@@ -162,10 +345,11 @@ static void vdac_enable_avout_atv(bool on)
 
 	if (on) {
 		/* clock delay control */
-		vdac_hiu_reg_setb(HHI_VIID_CLK_DIV, 1, 19, 1);
+		vdac_clk_reg_setb(s_vdac_data->reg_vid2_clk_div, 1, 19, 1);
 		/* vdac_clock_mux form atv demod */
-		vdac_hiu_reg_setb(HHI_VID_CLK_CNTL2, 1, 8, 1);
-		vdac_hiu_reg_setb(HHI_VID_CLK_CNTL2, 1, 4, 1);
+		vdac_clk_reg_setb(s_vdac_data->reg_vid_clk_ctrl2, 1, 8, 1);
+		vdac_clk_reg_setb(s_vdac_data->reg_vid_clk_ctrl2, 1, 4, 1);
+
 		/* vdac_clk gated clock control */
 		vdac_vcbus_reg_setb(VENC_VDAC_DACSEL0, 1, 5, 1);
 
@@ -198,11 +382,12 @@ static void vdac_enable_avout_atv(bool on)
 
 		/* vdac_clk gated clock control */
 		vdac_vcbus_reg_setb(VENC_VDAC_DACSEL0, 0, 5, 1);
+
 		/* vdac_clock_mux form atv demod */
-		vdac_hiu_reg_setb(HHI_VID_CLK_CNTL2, 0, 4, 1);
-		vdac_hiu_reg_setb(HHI_VID_CLK_CNTL2, 0, 8, 1);
+		vdac_clk_reg_setb(s_vdac_data->reg_vid_clk_ctrl2, 0, 4, 1);
+		vdac_clk_reg_setb(s_vdac_data->reg_vid_clk_ctrl2, 0, 8, 1);
 		/* clock delay control */
-		vdac_hiu_reg_setb(HHI_VIID_CLK_DIV, 0, 19, 1);
+		vdac_clk_reg_setb(s_vdac_data->reg_vid2_clk_div, 0, 19, 1);
 	}
 }
 
@@ -275,9 +460,9 @@ static void vdac_enable_cvbs_out(bool on)
 
 	if (on) {
 		if (s_vdac_data->cpu_id <= VDAC_CPU_GXLX)
-			vdac_hiu_reg_setb(reg_cntl0, 0, 12, 4);
+			vdac_ana_reg_setb(reg_cntl0, 0, 12, 4);
 		else
-			vdac_hiu_reg_setb(reg_cntl0, 0x6, 12, 4);
+			vdac_ana_reg_setb(reg_cntl0, 0x6, 12, 4);
 		vdac_ctrl_config(1, reg_cntl1, 3);
 		vdac_ctrl_config(1, reg_cntl0, 0);
 		vdac_ctrl_config(1, reg_cntl0, 9);
@@ -301,7 +486,7 @@ static void vdac_enable_audio_out(bool on)
 
 	/*Bandgap optimization*/
 	if (s_vdac_data->cpu_id == VDAC_CPU_TXLX)
-		vdac_hiu_reg_setb(reg_cntl0, 0xe, 3, 5);
+		vdac_ana_reg_setb(reg_cntl0, 0xe, 3, 5);
 
 	if (s_vdac_data->cpu_id == VDAC_CPU_TXL ||
 		s_vdac_data->cpu_id == VDAC_CPU_TXLX ||
@@ -433,9 +618,9 @@ void vdac_enable(bool on, unsigned int module_sel)
 			"reg_cntl1:                0x%02x=0x%08x\n",
 			pri_flag,
 			s_vdac_data->reg_cntl0,
-			vdac_hiu_reg_read(s_vdac_data->reg_cntl0),
+			vdac_ana_reg_read(s_vdac_data->reg_cntl0),
 			s_vdac_data->reg_cntl1,
-			vdac_hiu_reg_read(s_vdac_data->reg_cntl1));
+			vdac_ana_reg_read(s_vdac_data->reg_cntl1));
 	}
 
 	mutex_unlock(&vdac_mutex);
@@ -462,11 +647,11 @@ int vdac_vref_adj(unsigned int value)
 		if (table[i].reg == VDAC_REG_MAX)
 			break;
 		if ((table[i].reg == reg) && (table[i].bit == bit)) {
-			vdac_hiu_reg_setb(reg, value, bit, table[i].len);
+			vdac_ana_reg_setb(reg, value, bit, table[i].len);
 			if (vdac_debug_print) {
 				pr_info("vdac: %s: reg=0x%x set bit%d=0x%x, readback=0x%08x\n",
 					__func__, reg, bit, value,
-					vdac_hiu_reg_read(reg));
+					vdac_ana_reg_read(reg));
 			}
 			ret = 0;
 			break;
@@ -497,11 +682,11 @@ int vdac_gsw_adj(unsigned int value)
 		if (table[i].reg == VDAC_REG_MAX)
 			break;
 		if ((table[i].reg == reg) && (table[i].bit == bit)) {
-			vdac_hiu_reg_setb(reg, value, bit, table[i].len);
+			vdac_ana_reg_setb(reg, value, bit, table[i].len);
 			if (vdac_debug_print) {
 				pr_info("vdac: %s: reg=0x%x set bit%d=0x%x, readback=0x%08x\n",
 					__func__, reg, bit, value,
-					vdac_hiu_reg_read(reg));
+					vdac_ana_reg_read(reg));
 			}
 			ret = 0;
 			break;
@@ -567,9 +752,9 @@ static void vdac_dev_disable(void)
 			"reg_cntl1:                0x%02x=0x%08x\n",
 			pri_flag,
 			s_vdac_data->reg_cntl0,
-			vdac_hiu_reg_read(s_vdac_data->reg_cntl0),
+			vdac_ana_reg_read(s_vdac_data->reg_cntl0),
 			s_vdac_data->reg_cntl1,
-			vdac_hiu_reg_read(s_vdac_data->reg_cntl1));
+			vdac_ana_reg_read(s_vdac_data->reg_cntl1));
 	}
 }
 
@@ -586,9 +771,9 @@ static void vdac_dev_enable(void)
 			"reg_cntl1:                0x%02x=0x%08x\n",
 			pri_flag,
 			s_vdac_data->reg_cntl0,
-			vdac_hiu_reg_read(s_vdac_data->reg_cntl0),
+			vdac_ana_reg_read(s_vdac_data->reg_cntl0),
 			s_vdac_data->reg_cntl1,
-			vdac_hiu_reg_read(s_vdac_data->reg_cntl1));
+			vdac_ana_reg_read(s_vdac_data->reg_cntl1));
 	}
 }
 
@@ -610,9 +795,9 @@ static ssize_t vdac_info_show(struct class *class,
 		"debug_print:              %d\n",
 		s_vdac_data->name, s_vdac_data->cpu_id, pri_flag,
 		s_vdac_data->reg_cntl0,
-		vdac_hiu_reg_read(s_vdac_data->reg_cntl0),
+		vdac_ana_reg_read(s_vdac_data->reg_cntl0),
 		s_vdac_data->reg_cntl1,
-		vdac_hiu_reg_read(s_vdac_data->reg_cntl1),
+		vdac_ana_reg_read(s_vdac_data->reg_cntl1),
 		vdac_debug_print);
 
 	return len;
@@ -758,6 +943,9 @@ static int aml_vdac_probe(struct platform_device *pdev)
 		pr_err("%s: config probe failed\n", __func__);
 		return ret;
 	}
+
+	if (s_vdac_data->iomap_flag)
+		vdac_ioremap(pdev);
 
 	mutex_init(&vdac_mutex);
 

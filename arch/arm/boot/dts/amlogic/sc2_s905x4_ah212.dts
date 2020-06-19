@@ -212,9 +212,8 @@
 	};
 
 	cvbsout {
-		compatible = "amlogic, cvbsout-sm1";
-		dev_name = "cvbsout";
-		status = "disabled";
+		compatible = "amlogic, cvbsout-sc2";
+		status = "okay";
 		clock-names = "venci_top_gate",
 			"venci_0_gate",
 			"venci_1_gate",
@@ -226,26 +225,17 @@
 		/* 3:gp0_pll vid1_clk */
 		clk_path = <0>;
 
+		reg = <0xfe008000 0x300    /* ana reg */
+			0xfe000000 0x200>; /* clk reg*/
+
 		/* performance: reg_address, reg_value */
-		/* sm1 */
-		performance = <0x1bf0  0x9
+		performance_pal = <0x1bf0  0x9
 			0x1b56  0x333
 			0x1b12  0x8080
 			0x1b05  0xfd
 			0x1c59  0xf850
 			0xffff  0x0>; /* ending flag */
-		performance_sarft = <0x1bf0  0x9
-			0x1b56  0x333
-			0x1b12  0x0
-			0x1b05  0x9
-			0x1c59  0xfc48
-			0xffff  0x0>; /* ending flag */
-		performance_revB_telecom = <0x1bf0  0x9
-			0x1b56  0x546
-			0x1b12  0x8080
-			0x1b05  0x9
-			0x1c59  0xf850
-			0xffff  0x0>; /* ending flag */
+
 	};
 
 	bt-dev{

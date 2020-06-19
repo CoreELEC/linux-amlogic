@@ -1306,8 +1306,10 @@
 	};
 
 	vdac {
-		compatible = "amlogic, vdac-sm1";
-		status = "disabled";
+		compatible = "amlogic, vdac-sc2";
+		status = "okay";
+		reg = <0x0 0xfe008000 0x0 0x300    /* ana reg */
+			0x0 0xfe000000 0x0 0x100>; /* clk reg*/
 	};
 
 	canvas: canvas{

@@ -191,9 +191,30 @@ static void cvbs_bist_test(unsigned int bist);
 
 int cvbs_cpu_type(void)
 {
+	if (!cvbs_drv) {
+		cvbs_log_err("error: %s: no cvbs drv\n", __func__);
+		return -1;
+	}
+	if (!cvbs_drv->cvbs_data) {
+		cvbs_log_err("error: %s: no cvbs data\n", __func__);
+		return -1;
+	}
 	return cvbs_drv->cvbs_data->cpu_id;
 }
 EXPORT_SYMBOL(cvbs_cpu_type);
+
+struct meson_cvbsout_data *get_cvbs_data(void)
+{
+	if (!cvbs_drv) {
+		cvbs_log_err("error: %s: no cvbs drv\n", __func__);
+		return NULL;
+	}
+	if (!cvbs_drv->cvbs_data) {
+		cvbs_log_err("error: %s: no cvbs data\n", __func__);
+		return NULL;
+	}
+	return cvbs_drv->cvbs_data;
+}
 
 static unsigned char cvbs_get_trimming_version(unsigned int flag)
 {
@@ -1512,59 +1533,156 @@ static void cvbsout_clktree_remove(struct device *dev)
 
 #ifdef CONFIG_OF
 struct meson_cvbsout_data meson_gxl_cvbsout_data = {
-	.vdac_vref_adj = 0xb,
-	.vdac_gsw = 0x0,
 	.cpu_id = CVBS_CPU_TYPE_GXL,
 	.name = "meson-gxl-cvbsout",
+
+	.vdac_vref_adj = 0xb,
+	.vdac_gsw = 0x0,
+
+	.reg_vid_pll_clk_div = HHI_VID_PLL_CLK_DIV,
+	.reg_vid_clk_div = HHI_VID_CLK_DIV,
+	.reg_vid_clk_ctrl = HHI_VID_CLK_CNTL,
+	.reg_vid2_clk_div = HHI_VIID_CLK_DIV,
+	.reg_vid2_clk_ctrl = HHI_VIID_CLK_CNTL,
+	.reg_vid_clk_ctrl2 = HHI_VID_CLK_CNTL2,
+
+	.iomap_flag = 0,
 };
 
 struct meson_cvbsout_data meson_gxm_cvbsout_data = {
-	.vdac_vref_adj = 0xb,
-	.vdac_gsw = 0x0,
 	.cpu_id = CVBS_CPU_TYPE_GXM,
 	.name = "meson-gxm-cvbsout",
+
+	.vdac_vref_adj = 0xb,
+	.vdac_gsw = 0x0,
+
+	.reg_vid_pll_clk_div = HHI_VID_PLL_CLK_DIV,
+	.reg_vid_clk_div = HHI_VID_CLK_DIV,
+	.reg_vid_clk_ctrl = HHI_VID_CLK_CNTL,
+	.reg_vid2_clk_div = HHI_VIID_CLK_DIV,
+	.reg_vid2_clk_ctrl = HHI_VIID_CLK_CNTL,
+	.reg_vid_clk_ctrl2 = HHI_VID_CLK_CNTL2,
+
+	.iomap_flag = 0,
 };
 
 struct meson_cvbsout_data meson_txlx_cvbsout_data = {
-	.vdac_vref_adj = 0x2,
-	.vdac_gsw = 0x0,
 	.cpu_id = CVBS_CPU_TYPE_TXLX,
 	.name = "meson-txlx-cvbsout",
+
+	.vdac_vref_adj = 0x2,
+	.vdac_gsw = 0x0,
+
+	.reg_vid_pll_clk_div = HHI_VID_PLL_CLK_DIV,
+	.reg_vid_clk_div = HHI_VID_CLK_DIV,
+	.reg_vid_clk_ctrl = HHI_VID_CLK_CNTL,
+	.reg_vid2_clk_div = HHI_VIID_CLK_DIV,
+	.reg_vid2_clk_ctrl = HHI_VIID_CLK_CNTL,
+	.reg_vid_clk_ctrl2 = HHI_VID_CLK_CNTL2,
+
+	.iomap_flag = 0,
 };
 
 struct meson_cvbsout_data meson_g12a_cvbsout_data = {
-	.vdac_vref_adj = 0x10,
-	.vdac_gsw = 0x0,
 	.cpu_id = CVBS_CPU_TYPE_G12A,
 	.name = "meson-g12a-cvbsout",
+
+	.vdac_vref_adj = 0x10,
+	.vdac_gsw = 0x0,
+
+	.reg_vid_pll_clk_div = HHI_VID_PLL_CLK_DIV,
+	.reg_vid_clk_div = HHI_VID_CLK_DIV,
+	.reg_vid_clk_ctrl = HHI_VID_CLK_CNTL,
+	.reg_vid2_clk_div = HHI_VIID_CLK_DIV,
+	.reg_vid2_clk_ctrl = HHI_VIID_CLK_CNTL,
+	.reg_vid_clk_ctrl2 = HHI_VID_CLK_CNTL2,
+
+	.iomap_flag = 0,
 };
 
 struct meson_cvbsout_data meson_g12b_cvbsout_data = {
-	.vdac_vref_adj = 0xf,
-	.vdac_gsw = 0x0,
 	.cpu_id = CVBS_CPU_TYPE_G12B,
 	.name = "meson-g12b-cvbsout",
+
+	.vdac_vref_adj = 0xf,
+	.vdac_gsw = 0x0,
+
+	.reg_vid_pll_clk_div = HHI_VID_PLL_CLK_DIV,
+	.reg_vid_clk_div = HHI_VID_CLK_DIV,
+	.reg_vid_clk_ctrl = HHI_VID_CLK_CNTL,
+	.reg_vid2_clk_div = HHI_VIID_CLK_DIV,
+	.reg_vid2_clk_ctrl = HHI_VIID_CLK_CNTL,
+	.reg_vid_clk_ctrl2 = HHI_VID_CLK_CNTL2,
+
+	.iomap_flag = 0,
 };
 
 struct meson_cvbsout_data meson_tl1_cvbsout_data = {
-	.vdac_vref_adj = 0x10,
-	.vdac_gsw = 0x0,
 	.cpu_id = CVBS_CPU_TYPE_TL1,
 	.name = "meson-tl1-cvbsout",
+
+	.vdac_vref_adj = 0x10,
+	.vdac_gsw = 0x0,
+
+	.reg_vid_pll_clk_div = HHI_VID_PLL_CLK_DIV,
+	.reg_vid_clk_div = HHI_VID_CLK_DIV,
+	.reg_vid_clk_ctrl = HHI_VID_CLK_CNTL,
+	.reg_vid2_clk_div = HHI_VIID_CLK_DIV,
+	.reg_vid2_clk_ctrl = HHI_VIID_CLK_CNTL,
+	.reg_vid_clk_ctrl2 = HHI_VID_CLK_CNTL2,
+
+	.iomap_flag = 0,
 };
 
 struct meson_cvbsout_data meson_sm1_cvbsout_data = {
-	.vdac_vref_adj = 0xf,
-	.vdac_gsw = 0x0,
 	.cpu_id = CVBS_CPU_TYPE_SM1,
 	.name = "meson-sm1-cvbsout",
+
+	.vdac_vref_adj = 0xf,
+	.vdac_gsw = 0x0,
+
+	.reg_vid_pll_clk_div = HHI_VID_PLL_CLK_DIV,
+	.reg_vid_clk_div = HHI_VID_CLK_DIV,
+	.reg_vid_clk_ctrl = HHI_VID_CLK_CNTL,
+	.reg_vid2_clk_div = HHI_VIID_CLK_DIV,
+	.reg_vid2_clk_ctrl = HHI_VIID_CLK_CNTL,
+	.reg_vid_clk_ctrl2 = HHI_VID_CLK_CNTL2,
+
+	.iomap_flag = 0,
 };
 
 struct meson_cvbsout_data meson_tm2_cvbsout_data = {
-	.vdac_vref_adj = 0x10,
-	.vdac_gsw = 0x0,
 	.cpu_id = CVBS_CPU_TYPE_TM2,
 	.name = "meson-tm2-cvbsout",
+
+	.vdac_vref_adj = 0x10,
+	.vdac_gsw = 0x0,
+
+	.reg_vid_pll_clk_div = HHI_VID_PLL_CLK_DIV,
+	.reg_vid_clk_div = HHI_VID_CLK_DIV,
+	.reg_vid_clk_ctrl = HHI_VID_CLK_CNTL,
+	.reg_vid2_clk_div = HHI_VIID_CLK_DIV,
+	.reg_vid2_clk_ctrl = HHI_VIID_CLK_CNTL,
+	.reg_vid_clk_ctrl2 = HHI_VID_CLK_CNTL2,
+
+	.iomap_flag = 0,
+};
+
+struct meson_cvbsout_data meson_sc2_cvbsout_data = {
+	.cpu_id = CVBS_CPU_TYPE_SC2,
+	.name = "meson-sc2-cvbsout",
+
+	.vdac_vref_adj = 0x10,
+	.vdac_gsw = 0x0,
+
+	.reg_vid_pll_clk_div = CLKCTRL_VID_PLL_CLK_DIV,
+	.reg_vid_clk_div = CLKCTRL_VID_CLK_DIV,
+	.reg_vid_clk_ctrl = CLKCTRL_VID_CLK_CTRL,
+	.reg_vid2_clk_div = CLKCTRL_VIID_CLK_DIV,
+	.reg_vid2_clk_ctrl = CLKCTRL_VIID_CLK_CTRL,
+	.reg_vid_clk_ctrl2 = CLKCTRL_VID_CLK_CTRL2,
+
+	.iomap_flag = 1,
 };
 
 static const struct of_device_id meson_cvbsout_dt_match[] = {
@@ -1592,8 +1710,11 @@ static const struct of_device_id meson_cvbsout_dt_match[] = {
 	}, {
 		.compatible = "amlogic, cvbsout-tm2",
 		.data		= &meson_tm2_cvbsout_data,
+	}, {
+		.compatible = "amlogic, cvbsout-sc2",
+		.data		= &meson_sc2_cvbsout_data,
 	},
-	{},
+	{}
 };
 #endif
 
@@ -1617,6 +1738,9 @@ static int cvbsout_probe(struct platform_device *pdev)
 	cvbs_drv->cvbs_data = (struct meson_cvbsout_data *)match->data;
 	cvbs_log_info("%s, cpu_id:%d,name:%s\n", __func__,
 		cvbs_drv->cvbs_data->cpu_id, cvbs_drv->cvbs_data->name);
+
+	if (cvbs_drv->cvbs_data->iomap_flag)
+		cvbs_ioremap(pdev);
 
 	cvbsout_clktree_probe(&pdev->dev);
 	cvbsout_get_config(&pdev->dev);

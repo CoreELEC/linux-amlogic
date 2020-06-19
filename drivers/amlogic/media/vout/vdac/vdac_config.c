@@ -71,77 +71,122 @@ static struct meson_vdac_ctrl_s vdac_ctrl_enable_tl1[] = {
 	{VDAC_REG_MAX, 0, 0, 0},
 };
 
+static struct meson_vdac_ctrl_s vdac_ctrl_enable_sc2[] = {
+	{ANACTRL_VDAC_CTRL0, 0, 9, 1},
+	{ANACTRL_VDAC_CTRL0, 1, 0, 1},
+	{ANACTRL_VDAC_CTRL0, 0, 16, 5}, /* vref adj */
+	{ANACTRL_VDAC_CTRL1, 0, 0, 3},  /*gsw */
+	{ANACTRL_VDAC_CTRL1, 0, 3, 1},
+	{VDAC_REG_MAX, 0, 0, 0},
+};
+
 /* ********************************************************* */
 static struct meson_vdac_data meson_gx_l_m_vdac_data = {
 	.cpu_id = VDAC_CPU_GX_L_M,
 	.name = "meson-gx_l_m-vdac",
+	.iomap_flag = 0,
 
 	.reg_cntl0 = HHI_VDAC_CNTL0,
 	.reg_cntl1 = HHI_VDAC_CNTL1,
+	.reg_vid_clk_ctrl2 = HHI_VID_CLK_CNTL2,
+	.reg_vid2_clk_div = HHI_VIID_CLK_DIV,
 	.ctrl_table = vdac_ctrl_enable_gxl,
 };
 
 static struct meson_vdac_data meson_txl_vdac_data = {
 	.cpu_id = VDAC_CPU_TXL,
 	.name = "meson-txl-vdac",
+	.iomap_flag = 0,
 
 	.reg_cntl0 = HHI_VDAC_CNTL0,
 	.reg_cntl1 = HHI_VDAC_CNTL1,
+	.reg_vid_clk_ctrl2 = HHI_VID_CLK_CNTL2,
+	.reg_vid2_clk_div = HHI_VIID_CLK_DIV,
 	.ctrl_table = vdac_ctrl_enable_txl,
 };
 
 static struct meson_vdac_data meson_txlx_vdac_data = {
 	.cpu_id = VDAC_CPU_TXLX,
 	.name = "meson-txlx-vdac",
+	.iomap_flag = 0,
 
 	.reg_cntl0 = HHI_VDAC_CNTL0,
 	.reg_cntl1 = HHI_VDAC_CNTL1,
+	.reg_vid_clk_ctrl2 = HHI_VID_CLK_CNTL2,
+	.reg_vid2_clk_div = HHI_VIID_CLK_DIV,
 	.ctrl_table = vdac_ctrl_enable_txlx,
 };
 
 static struct meson_vdac_data meson_gxlx_vdac_data = {
 	.cpu_id = VDAC_CPU_GXLX,
 	.name = "meson-gxlx-vdac",
+	.iomap_flag = 0,
 
 	.reg_cntl0 = HHI_VDAC_CNTL0,
 	.reg_cntl1 = HHI_VDAC_CNTL1,
+	.reg_vid_clk_ctrl2 = HHI_VID_CLK_CNTL2,
+	.reg_vid2_clk_div = HHI_VIID_CLK_DIV,
 	.ctrl_table = vdac_ctrl_enable_txl,
 };
 
 static struct meson_vdac_data meson_g12ab_vdac_data = {
 	.cpu_id = VDAC_CPU_G12AB,
 	.name = "meson-g12ab-vdac",
+	.iomap_flag = 0,
 
 	.reg_cntl0 = HHI_VDAC_CNTL0_G12A,
 	.reg_cntl1 = HHI_VDAC_CNTL1_G12A,
+	.reg_vid_clk_ctrl2 = HHI_VID_CLK_CNTL2,
+	.reg_vid2_clk_div = HHI_VIID_CLK_DIV,
 	.ctrl_table = vdac_ctrl_enable_g12ab,
 };
 
 static struct meson_vdac_data meson_tl1_vdac_data = {
 	.cpu_id = VDAC_CPU_TL1,
 	.name = "meson-tl1-vdac",
+	.iomap_flag = 0,
 
 	.reg_cntl0 = HHI_VDAC_CNTL0_G12A,
 	.reg_cntl1 = HHI_VDAC_CNTL1_G12A,
+	.reg_vid_clk_ctrl2 = HHI_VID_CLK_CNTL2,
+	.reg_vid2_clk_div = HHI_VIID_CLK_DIV,
 	.ctrl_table = vdac_ctrl_enable_tl1,
 };
 
 static struct meson_vdac_data meson_sm1_vdac_data = {
 	.cpu_id = VDAC_CPU_SM1,
 	.name = "meson-sm1-vdac",
+	.iomap_flag = 0,
 
 	.reg_cntl0 = HHI_VDAC_CNTL0_G12A,
 	.reg_cntl1 = HHI_VDAC_CNTL1_G12A,
+	.reg_vid_clk_ctrl2 = HHI_VID_CLK_CNTL2,
+	.reg_vid2_clk_div = HHI_VIID_CLK_DIV,
 	.ctrl_table = vdac_ctrl_enable_g12ab,
 };
 
 static struct meson_vdac_data meson_tm2_vdac_data = {
 	.cpu_id = VDAC_CPU_TM2,
 	.name = "meson-tm2-vdac",
+	.iomap_flag = 0,
 
 	.reg_cntl0 = HHI_VDAC_CNTL0_G12A,
 	.reg_cntl1 = HHI_VDAC_CNTL1_G12A,
+	.reg_vid_clk_ctrl2 = HHI_VID_CLK_CNTL2,
+	.reg_vid2_clk_div = HHI_VIID_CLK_DIV,
 	.ctrl_table = vdac_ctrl_enable_tl1,
+};
+
+static struct meson_vdac_data meson_sc2_vdac_data = {
+	.cpu_id = VDAC_CPU_SC2,
+	.name = "meson-sc2-vdac",
+	.iomap_flag = 1,
+
+	.reg_cntl0 = ANACTRL_VDAC_CTRL0,
+	.reg_cntl1 = ANACTRL_VDAC_CTRL1,
+	.reg_vid_clk_ctrl2 = CLKCTRL_VID_CLK_CTRL2,
+	.reg_vid2_clk_div = CLKCTRL_VIID_CLK_DIV,
+	.ctrl_table = vdac_ctrl_enable_sc2,
 };
 
 const struct of_device_id meson_vdac_dt_match[] = {
@@ -175,6 +220,9 @@ const struct of_device_id meson_vdac_dt_match[] = {
 	}, {
 		.compatible = "amlogic, vdac-tm2",
 		.data		= &meson_tm2_vdac_data,
+	}, {
+		.compatible = "amlogic, vdac-sc2",
+		.data		= &meson_sc2_vdac_data,
 	},
 	{}
 };
