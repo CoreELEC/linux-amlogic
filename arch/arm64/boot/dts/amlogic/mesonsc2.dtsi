@@ -1731,7 +1731,7 @@
 
 	cpu_ver_name {
 		compatible = "amlogic, cpu-major-id-sc2";
-		status = "disabled";
+		status = "okay";
 	};
 
 	p_tsensor: p_tsensor@ff634800 {
