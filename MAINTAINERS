@@ -14924,6 +14924,7 @@ AMLOGIC MESON TM2 CLOCK DRIVER
 M:	Jian Hu <jian.hu@amlogic.com>
 F:	driver/amlogic/clk/tm2/*
 F:	driver/amlogic/clk/sc2/*
+F:	driver/amlogic/clk/*
 
 AMLOGIC MESON TM2 LCD DTS
 M:	Shaochan Liu <shaochan.liu@amlogic.com>

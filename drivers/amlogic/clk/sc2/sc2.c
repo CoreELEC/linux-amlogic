@@ -26,6 +26,7 @@
 
 #include <linux/amlogic/cpu_version.h>
 #include "../clkc.h"
+#include "../clk-secure.h"
 #include "sc2.h"
 
 static struct clk_onecell_data clk_data;
@@ -37,7 +38,7 @@ struct clk_gate _name = {						\
 	.lock = &clk_lock,						\
 	.hw.init = &(struct clk_init_data) {				\
 		.name = #_name,						\
-		.ops = &clk_gate_ops,					\
+		.ops = &clk_secure_gate_ops,				\
 		.parent_names = (const char *[]){ "xtal" },		\
 		.num_parents = 1,					\
 		.flags = (CLK_IS_CRITICAL | CLK_IGNORE_UNUSED),		\
@@ -110,7 +111,7 @@ static struct meson_clk_pll sc2_sys_pll = {
 	.lock = &clk_lock,
 	.hw.init = &(struct clk_init_data){
 		.name = "sys_pll",
-		.ops = &meson_sc2_pll_ops,
+		.ops = &meson_sc2_secure_pll_ops,
 		.parent_names = (const char *[]){ "xtal" },
 		.num_parents = 1,
 		.flags = CLK_GET_RATE_NOCACHE | CLK_IS_CRITICAL,
@@ -168,7 +169,7 @@ static struct meson_clk_pll sc2_gp1_pll = {
 	.lock = &clk_lock,
 	.hw.init = &(struct clk_init_data){
 		.name = "gp1_pll",
-		.ops = &meson_sc2_pll_ops,
+		.ops = &meson_sc2_secure_pll_ops,
 		.parent_names = (const char *[]){ "xtal" },
 		.num_parents = 1,
 		.flags = CLK_GET_RATE_NOCACHE | CLK_IS_CRITICAL,
@@ -2849,9 +2850,9 @@ static MESON_SC2_SYS_GATE(sc2_pwm_ij, CLKCTRL_SYS_CLK_EN0_REG3, 11);
 
 static struct clk_hw *sc2_clk_hws[] = {
 	[CLKID_FIXED_PLL]	= &sc2_fixed_pll.hw,
-	/*[CLKID_SYS_PLL]	= &sc2_sys_pll.hw,*/
+	[CLKID_SYS_PLL]		= &sc2_sys_pll.hw,
 	[CLKID_GP0_PLL]		= &sc2_gp0_pll.hw,
-	/*[CLKID_GP1_PLL]	= &sc2_gp1_pll.hw,*/
+	[CLKID_GP1_PLL]		= &sc2_gp1_pll.hw,
 	[CLKID_HIFI_PLL]	= &sc2_hifi_pll.hw,
 	[CLKID_PCIE_PLL]	= &sc2_pcie_pll.hw,
 	[CLKID_FCLK_DIV2]	= &sc2_fclk_div2.hw,
