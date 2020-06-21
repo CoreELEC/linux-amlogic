@@ -6,7 +6,6 @@
 	amlogic-dt-id = "g12b_w400_a";
 
 	/delete-node/ memory@00000000;
-	/delete-node/ gpioleds;
 	/delete-node/ bt-dev;
 	/delete-node/ wifi;
 	/delete-node/ wifi_pwm_conf;
@@ -57,11 +56,8 @@
 		};
 	};
 
-	leds {
-		compatible = "gpio-leds";
-		blueled {
-			label = "blue:heartbeat";
-			gpios = <&gpio_ao GPIOAO_11 GPIO_ACTIVE_HIGH>;
+	gpioleds {
+		sys_led {
 			linux,default-trigger = "heartbeat";
 		};
 	};
