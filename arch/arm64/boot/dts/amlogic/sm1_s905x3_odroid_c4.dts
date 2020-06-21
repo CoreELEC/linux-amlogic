@@ -6,7 +6,6 @@
 	coreelec-dt-id = "sm1_s905x3_odroid_c4";
 
 	/delete-node/ memory@00000000;
-	/delete-node/ gpioleds;
 	/delete-node/ bt-dev;
 	/delete-node/ wifi;
 	/delete-node/ wifi_pwm_conf;
@@ -43,10 +42,8 @@
 		};
 	};
 
-	leds {
-		compatible = "gpio-leds";
-		blueled {
-			label = "blue:heartbeat";
+	gpioleds {
+		sys_led {
 			gpios = <&gpio_ao GPIOAO_11 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "heartbeat";
 		};

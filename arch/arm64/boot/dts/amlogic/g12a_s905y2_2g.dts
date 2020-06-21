@@ -4,8 +4,6 @@
 	model = "Amlogic";
 	coreelec-dt-id = "g12a_s905y2_2g";
 
-	/delete-node/ gpioleds;
-
 	cvbsout {
 		status = "disabled";
 	};
