@@ -13,17 +13,9 @@
 		status = "okay";
 	};
 
-	/delete-node/ sysled;
 	gpioleds {
-		compatible = "gpio-leds";
-		status = "okay";
-
 		sys_led {
-			label="sys_led";
 			gpios=<&gpio_ao GPIOAO_9 GPIO_ACTIVE_HIGH>;
-			default-state ="on";
-			retain-state-suspended;
-			linux,default-trigger="default-on";
 		};
 	};
 
