@@ -8,17 +8,13 @@
 	/delete-node/ memory@00000000;
 
 	gpioleds {
-		status = "okay";
-
 		sys_led {
 			gpios=<&gpio_ao GPIOAO_4 GPIO_ACTIVE_HIGH>;
-			linux,default-trigger="default-on";
 		};
 
 		red_led {
-			label = "red_red";
+			label = "red_led";
 			gpios = <&gpio_expander 5 GPIO_ACTIVE_HIGH>;
-			default-state ="off";
 			linux,default-trigger="none";
 		};
 	};

@@ -31,6 +31,8 @@
 		/delete-node/ remote_led;
 		sys_led {
 			/delete-property/ retain-state-suspended;
+			/delete-property/ default-state;
+			linux,default-trigger="default-on";
 		};
 	};
 
