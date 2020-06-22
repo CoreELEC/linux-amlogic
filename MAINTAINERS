@@ -14991,7 +14991,20 @@ F:	scripts/amlogic/weekly_change.py
 
 ANLOGIC HIFI4DSP
 M: Shuyu Li <Shuyu.Li@amlogic.com>
-F: drivers/amlogic/hifi4dsp/*
+F: drivers/amlogic/hifi4dsp/Makefile
+F: drivers/amlogic/hifi4dsp/dsp_top.h
+F: drivers/amlogic/hifi4dsp/dsp_top.c
+F: drivers/amlogic/hifi4dsp/hifi4dsp_api.h
+F: drivers/amlogic/hifi4dsp/hifi4dsp_dsp.h
+F: drivers/amlogic/hifi4dsp/hifi4dsp_dsp.c
+F: drivers/amlogic/hifi4dsp/hifi4dsp_firmware.h
+F: drivers/amlogic/hifi4dsp/hifi4dsp_firmware.c
+F: drivers/amlogic/hifi4dsp/hifi4dsp_module.c
+F: drivers/amlogic/hifi4dsp/hifi4dsp_priv.h
+X: drivers/amlogic/hifi4dsp/tm2_dsp_top.c
+X: drivers/amlogic/hifi4dsp/tm2_dsp_top.h
+X: drivers/amlogic/hifi4dsp/hifi4dsp_ipc.c
+X: drivers/amlogic/hifi4dsp/hifi4dsp_ipc.h
 
 AMLOGIC SM1 AC200/AC213/AC214 BUILDROOT DTS
 M:  Guofeang Tang <guofeng.tang@amlogic.com>

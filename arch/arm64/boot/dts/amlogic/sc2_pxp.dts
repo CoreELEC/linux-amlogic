@@ -155,6 +155,13 @@
 			size = <0x0 0x2000000>;
 			alignment = <0x0 0x400000>;
 		};
+		dsp_fw_reserved:linux,dsp_fw {
+			compatible = "shared-dma-pool";
+			reusable;
+			size = <0x0 0x01000000>;
+			alignment = <0x0 0x00400000>;
+			alloc-ranges = <0x0 0x30000000 0x0 0x01000000>;
+		};
 	};
 
 	amlogic_battery:dummy-battery {

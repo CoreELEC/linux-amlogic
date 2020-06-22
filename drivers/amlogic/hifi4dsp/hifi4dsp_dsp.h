@@ -44,37 +44,28 @@ struct hifi4dsp_addr {
 	void __iomem *reg;
 	void __iomem *fw;
 };
-/*
- * DSP Mailbox configuration.
- */
-struct hifi4dsp_mailbox {
-	void __iomem *in_base;
-	void __iomem *out_base;
-	size_t in_size;
-	size_t out_size;
-};
 
 /*
  * DSP Operations exported by platform Audio DSP driver.
  */
 struct hifi4dsp_ops {
-	int (*boot)(struct hifi4dsp_dsp *);
-	int (*reset)(struct hifi4dsp_dsp *);
-	int (*wake)(struct hifi4dsp_dsp *);
-	int (*sleep)(struct hifi4dsp_dsp *);
+	int (*boot)(struct hifi4dsp_dsp *dsp);
+	int (*reset)(struct hifi4dsp_dsp *dsp);
+	int (*wake)(struct hifi4dsp_dsp *dsp);
+	int (*sleep)(struct hifi4dsp_dsp *dsp);
 	/* Shim IO */
 	void (*write)(void __iomem *addr, u32 offset, u32 value);
 	u32 (*read)(void __iomem *addr, u32 offset);
 
 	/* DSP I/DRAM IO */
 	void (*ram_read)(struct hifi4dsp_dsp *dsp,
-			void  *dest, void __iomem *src, size_t bytes);
+			 void  *dest, void __iomem *src, size_t bytes);
 	void (*ram_write)(struct hifi4dsp_dsp *dsp,
-			void __iomem *dest, void *src, size_t bytes);
+			  void __iomem *dest, void *src, size_t bytes);
 	void (*write64)(void __iomem *addr, u32 offset, u64 value);
 	u64 (*read64)(void __iomem *addr, u32 offset);
 
-	void (*dump)(struct hifi4dsp_dsp *);
+	void (*dump)(struct hifi4dsp_dsp *dsp);
 
 	/* IRQ handlers */
 	irqreturn_t (*irq_handler)(int irq, void *context);
@@ -107,16 +98,12 @@ struct hifi4dsp_pdata {
 	phys_addr_t	reg_paddr;
 	unsigned int	reg_size;
 	void *reg;
-	/* Share memory */
-	phys_addr_t	smem_paddr;
-	unsigned int	smem_size;
 
 	/* Firmware */
 	char fw_name[32];
 	phys_addr_t	fw_paddr;   /*physical address of fw data*/
 	void *fw_buf;
 	int	 fw_size;
-	int  fw_fmt;
 	int  fw_max_size;
 
 	void *ops;
@@ -128,11 +115,11 @@ struct hifi4dsp_dsp {
 	u32 id;
 	int irq;
 	int freq;
+	int regionsize;
 	/* runtime */
 	spinlock_t spinlock;	/* used for IPC */
 	struct mutex mutex;		/* used for fw */
 	struct device *dev;
-	struct device *dma_dev;
 	u32 major_id;
 	void *thread_context;
 
@@ -143,19 +130,15 @@ struct hifi4dsp_dsp {
 	/* base addresses */
 	struct hifi4dsp_addr addr;
 
-	/* mailbox */
-	struct hifi4dsp_mailbox mailbox;
-
 	/* platform data */
 	struct hifi4dsp_pdata *pdata;
 
 	/*fw support*/
 	struct hifi4dsp_firmware *dsp_fw;/*def fw*/
 	u32 fw_cnt;
-	spinlock_t fw_spinlock;
+	spinlock_t fw_spinlock; /*spinlock*/
 	struct list_head fw_list;
 
-	u32 intr_status;
 	struct firmware *fw;
 
 	struct clk *dsp_clk;
@@ -165,64 +148,23 @@ struct hifi4dsp_dsp {
 	void *priv;
 };
 
-/* Internal generic low-level hifi4dsp share memory write/read functions*/
-extern void hifi4dsp_smem_write(void __iomem *addr, u32 offset, u32 value);
-extern u32  hifi4dsp_smem_read(void __iomem *addr, u32 offset);
-extern void hifi4dsp_smem_write64(void __iomem *addr, u32 offset, u64 value);
-extern u64  hifi4dsp_smem_read64(void __iomem *addr, u32 offset);
-extern void hifi4dsp_memcpy_toio_32(struct hifi4dsp_dsp *dsp,
-				void __iomem *dest, void *src, size_t bytes);
-extern void hifi4dsp_memcpy_fromio_32(struct hifi4dsp_dsp *dsp,
-				void *dest, void __iomem *src, size_t bytes);
+void hifi4dsp_memcpy_toio_32(struct hifi4dsp_dsp *dsp,
+			     void __iomem *dest,
+			     void *src, size_t bytes);
+void hifi4dsp_memcpy_fromio_32(struct hifi4dsp_dsp *dsp,
+			       void *dest,
+			       void __iomem *src,
+			       size_t bytes);
 
-extern void hifi4dsp_dsp_smem_write(struct hifi4dsp_dsp *dsp,
-	u32 offset, u32 value);
-extern u32 hifi4dsp_dsp_smem_read(struct hifi4dsp_dsp *dsp,
-	u32 offset);
-extern void hifi4dsp_dsp_smem_write64(struct hifi4dsp_dsp *dsp,
-	u32 offset, u64 value);
-extern u64 hifi4dsp_dsp_smem_read64(struct hifi4dsp_dsp *dsp,
-	u32 offset);
-extern void hifi4dsp_dsp_smem_write_unlocked(struct hifi4dsp_dsp *dsp,
-	u32 offset, u32 value);
-extern u32 hifi4dsp_dsp_smem_read_unlocked(struct hifi4dsp_dsp *dsp,
-	u32 offset);
-extern void hifi4dsp_dsp_smem_write64_unlocked(struct hifi4dsp_dsp *dsp,
-	u32 offset, u64 value);
-extern u64 hifi4dsp_dsp_smem_read64_unlocked(struct hifi4dsp_dsp *dsp,
-	u32 offset);
-extern int hifi4dsp_dsp_smem_update_bits_unlocked(
-	struct hifi4dsp_dsp *dsp, u32 offset, u32 mask, u32 value);
-extern void hifi4dsp_dsp_smem_update_bits_forced_unlocked(
-	struct hifi4dsp_dsp *dsp, u32 offset, u32 mask, u32 value);
-extern int hifi4dsp_dsp_smem_update_bits64_unlocked(
-	struct hifi4dsp_dsp *dsp, u32 offset, u64 mask, u64 value);
-extern int hifi4dsp_dsp_smem_update_bits(struct hifi4dsp_dsp *dsp,
-	u32 offset, u32 mask, u32 value);
-extern void hifi4dsp_dsp_smem_update_bits_forced(struct hifi4dsp_dsp *dsp,
-	u32 offset,	u32 mask, u32 value);
-extern int hifi4dsp_dsp_smem_update_bits64(struct hifi4dsp_dsp *dsp,
-	u32 offset,	u64 mask, u64 value);
-
-extern int hifi4dsp_dsp_mailbox_init(struct hifi4dsp_dsp *dsp,
-	u32 outbox_offset, size_t outbox_size,
-	u32 inbox_offset, size_t inbox_size);
-extern void hifi4dsp_dsp_mailbox_outbox_write(struct hifi4dsp_dsp *dsp,
-	void *message, size_t bytes);
-extern void hifi4dsp_dsp_mailbox_outbox_read(struct hifi4dsp_dsp *dsp,
-	void *message, size_t bytes);
-extern void hifi4dsp_dsp_mailbox_inbox_write(struct hifi4dsp_dsp *dsp,
-	void *message, size_t bytes);
-extern void hifi4dsp_dsp_mailbox_inbox_read(struct hifi4dsp_dsp *dsp,
-	void *message, size_t bytes);
-extern int  hifi4dsp_dsp_boot(struct hifi4dsp_dsp *dsp);
-extern void hifi4dsp_dsp_reset(struct hifi4dsp_dsp *dsp);
-extern void hifi4dsp_dsp_sleep(struct hifi4dsp_dsp *dsp);
-extern int  hifi4dsp_dsp_wake(struct hifi4dsp_dsp *dsp);
-extern void hifi4dsp_dsp_dump(struct hifi4dsp_dsp *dsp);
-//extern struct hifi4dsp_dsp * hifi4dsp_dsp_new(struct hifi4dsp_priv *priv,
-//	struct hifi4dsp_pdata *pdata, struct hifi4dsp_ops *ops);
-extern struct hifi4dsp_dsp *hifi4dsp_dsp_new(struct hifi4dsp_priv *priv,
-	struct hifi4dsp_pdata *pdata, struct hifi4dsp_dsp_device *dsp_dev);
-
+int hifi4dsp_dsp_boot(struct hifi4dsp_dsp *dsp);
+void hifi4dsp_dsp_reset(struct hifi4dsp_dsp *dsp);
+void hifi4dsp_dsp_sleep(struct hifi4dsp_dsp *dsp);
+int hifi4dsp_dsp_wake(struct hifi4dsp_dsp *dsp);
+void hifi4dsp_dsp_dump(struct hifi4dsp_dsp *dsp);
+//struct hifi4dsp_dsp * hifi4dsp_dsp_new(struct hifi4dsp_priv *priv,
+//					 struct hifi4dsp_pdata *pdata,
+//					 struct hifi4dsp_ops *ops);
+struct hifi4dsp_dsp *hifi4dsp_dsp_new(struct hifi4dsp_priv *priv,
+				      struct hifi4dsp_pdata *pdata,
+				      struct hifi4dsp_dsp_device *dsp_dev);
 #endif /*_HIFI4DSP_DSP_H*/

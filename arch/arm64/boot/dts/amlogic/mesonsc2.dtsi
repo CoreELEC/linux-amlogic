@@ -264,6 +264,24 @@
 		mbox-chans = <3>;        /*chan number*/
 	};
 
+	hifi4dsp: hifi4dsp {
+		compatible = "amlogic, hifi4dsp";
+		memory-region = <&dsp_fw_reserved>;
+		reg = <0 0xfe340000 0 0x114>,   /*dspa base address*/
+		      <0 0xfe350000 0 0x114>;   /*dspb base address*/
+		clocks = <&clkc CLKID_DSPA_CLK>;
+		clock-names = "dspa_clk";
+		dspa_clkfreq = <500000000>;
+		dsp-cnt = <1>;
+		dspaoffset = <0>;
+		dspboffset = <0xa00000>;
+		reservesize = <0x1000000>;
+		bootlocation = <1>;   /*1: boot from DDR, 2: from sram, 3...*/
+		boot_sram_addr = <0xfff00000>;
+		boot_sram_size = <0x80000>;
+		status = "okay";
+	};
+
 	cpu_iomap {
 		compatible = "amlogic, iomap";
 		#address-cells=<2>;
@@ -1903,6 +1921,7 @@
 		compatible = "amlogic, meson-sc2, lut_dma";
 		status = "okay";
 	};
+
 };/* end of / */
 
 &pinctrl_aobus {

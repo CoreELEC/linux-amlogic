@@ -1419,7 +1419,7 @@ static struct clk_mux sc2_dspaclk_sel = {
 	.lock = &clk_lock,
 	.hw.init = &(struct clk_init_data){
 		.name = "dspa_clk",
-		.ops = &clk_mux_ro_ops,
+		.ops = &clk_mux_ops,
 		.parent_names = (const char *[]){"dspaclk_a_gate",
 			"dspaclk_b_gate"},
 		.num_parents = 2,
