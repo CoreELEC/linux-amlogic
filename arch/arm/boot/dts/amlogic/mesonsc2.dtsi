@@ -578,6 +578,10 @@
 					<10 11 12 13 14 15 16 17 18 19 20 21>;
 				status = "okay";
 			};
+
+			cpu_version {
+				reg=<0x10300 0x4>;
+			};
 		};
 
 		cbus: cbus@ffd00000 {

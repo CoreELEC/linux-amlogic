@@ -578,6 +578,9 @@
 				status = "okay";
 			};
 
+			cpu_version {
+				reg=<0x0 0x10300 0x0 0x4>;
+			};
 		};
 
 		cbus: cbus@ffd00000 {
