@@ -90,6 +90,12 @@ static DEFINE_MUTEX(setclk_mutex);
 static DEFINE_MUTEX(getedid_mutex);
 
 static struct hdmitx_dev hdmitx_device = {
+	/* vout_fr_policy:
+	 *    0: disable
+	 *    1: nearby (only for 60->59.94 and 30->29.97)
+	 *    2: force (60/50/30/24/59.94/23.97)
+	 */
+	.vout_fr_policy = 1,
 	.frac_rate_policy = 1,
 };
 
@@ -4800,6 +4806,28 @@ static ssize_t show_hdmi_hsty_config(struct device *dev,
 	return 0;
 }
 
+static ssize_t show_hdmitx_vout_fr_policy(struct device *dev,
+					  struct device_attribute *attr,
+					  char *buf)
+{
+	return snprintf(buf, PAGE_SIZE, "%d", hdmitx_device.vout_fr_policy);
+}
+
+static ssize_t store_hdmitx_vout_fr_policy(struct device *dev,
+					   struct device_attribute *attr,
+					   const char *buf, size_t count)
+{
+	int ret;
+
+	ret = kstrtouint(buf, 10, &hdmitx_device.vout_fr_policy);
+	if (ret) {
+		pr_info("invalid data\n");
+		return -EINVAL;
+	}
+
+	return count;
+}
+
 static DEVICE_ATTR(disp_mode, 0664, show_disp_mode, store_disp_mode);
 static DEVICE_ATTR(attr, 0664, show_attr, store_attr);
 static DEVICE_ATTR(aud_mode, 0644, show_aud_mode, store_aud_mode);
@@ -4872,11 +4900,12 @@ static DEVICE_ATTR(support_3d, 0444, show_support_3d, NULL);
 static DEVICE_ATTR(hdmi_config_info, 0444, show_hdmi_config, NULL);
 static DEVICE_ATTR(hdmi_rx_info, 0444, show_hdmirx_info, NULL);
 static DEVICE_ATTR(hdmi_hsty_config_info, 0444, show_hdmi_hsty_config, NULL);
+static DEVICE_ATTR(vout_fr_policy, 0664, show_hdmitx_vout_fr_policy,
+		   store_hdmitx_vout_fr_policy);
 
-static struct vinfo_s *hdmitx_vinfo;
 static struct vinfo_s *hdmitx_get_current_vinfo(void)
 {
-	return hdmitx_vinfo;
+	return hdmitx_device.vinfo;
 }
 
 static int hdmitx_set_current_vmode(enum vmode_e mode)
@@ -4904,18 +4933,18 @@ static enum vmode_e hdmitx_validate_vmode(char *mode)
 	struct vinfo_s *info = hdmi_get_valid_vinfo(mode);
 
 	if (info) {
-		hdmitx_vinfo = info;
-		hdmitx_vinfo->info_3d = NON_3D;
+		hdmitx_device.vinfo = info;
+		hdmitx_device.vinfo->info_3d = NON_3D;
 		if (hdmitx_device.flag_3dfp)
-			hdmitx_vinfo->info_3d = FP_3D;
+			hdmitx_device.vinfo->info_3d = FP_3D;
 
 		if (hdmitx_device.flag_3dtb)
-			hdmitx_vinfo->info_3d = TB_3D;
+			hdmitx_device.vinfo->info_3d = TB_3D;
 
 		if (hdmitx_device.flag_3dss)
-			hdmitx_vinfo->info_3d = SS_3D;
+			hdmitx_device.vinfo->info_3d = SS_3D;
 
-		hdmitx_vinfo->vout_device = &hdmitx_vdev;
+		hdmitx_device.vinfo->vout_device = &hdmitx_vdev;
 		return VMODE_HDMI;
 	}
 	return VMODE_MAX;
@@ -4971,6 +5000,30 @@ static int hdmitx_vout_get_disp_cap(char *buf)
 	return show_disp_cap(NULL, NULL, buf);
 }
 
+static int hdmitx_set_vframe_rate_policy(int policy)
+{
+#ifdef CONFIG_AMLOGIC_VOUT_SERVE
+	pr_info(SYS "set vout_fr_policy as %d\n", policy);
+	hdmitx_device.vout_fr_policy = policy;
+#endif
+	return 0;
+}
+
+static int hdmitx_get_vframe_rate_policy(void)
+{
+#ifdef CONFIG_AMLOGIC_VOUT_SERVE
+	return hdmitx_device.vout_fr_policy;
+#else
+	return 0;
+#endif
+}
+
+static void hdmitx_set_bist(unsigned int num)
+{
+	if (hdmitx_device.hwop.debug_bist)
+		hdmitx_device.hwop.debug_bist(&hdmitx_device, num);
+}
+
 static struct vout_server_s hdmitx_vout_server = {
 	.name = "hdmitx_vout_server",
 	.op = {
@@ -4983,7 +5036,11 @@ static struct vout_server_s hdmitx_vout_server = {
 		.clr_state = hdmitx_vout_clr_state,
 		.get_state = hdmitx_vout_get_state,
 		.get_disp_cap = hdmitx_vout_get_disp_cap,
-		.set_bist = NULL,
+		.set_vframe_rate_hint = NULL,
+		.set_vframe_rate_end_hint = NULL,
+		.set_vframe_rate_policy = hdmitx_set_vframe_rate_policy,
+		.get_vframe_rate_policy = hdmitx_get_vframe_rate_policy,
+		.set_bist = hdmitx_set_bist,
 #ifdef CONFIG_PM
 		.vout_suspend = NULL,
 		.vout_resume = NULL,
@@ -5004,7 +5061,11 @@ static struct vout_server_s hdmitx_vout2_server = {
 		.clr_state = hdmitx_vout_clr_state,
 		.get_state = hdmitx_vout_get_state,
 		.get_disp_cap = hdmitx_vout_get_disp_cap,
-		.set_bist = NULL,
+		.set_vframe_rate_hint = NULL,
+		.set_vframe_rate_end_hint = NULL,
+		.set_vframe_rate_policy = hdmitx_set_vframe_rate_policy,
+		.get_vframe_rate_policy = hdmitx_get_vframe_rate_policy,
+		.set_bist = hdmitx_set_bist,
 #ifdef CONFIG_PM
 		.vout_suspend = NULL,
 		.vout_resume = NULL,
@@ -5923,6 +5984,14 @@ static int amhdmitx_get_dt_info(struct platform_device *pdev)
 			pr_info(SYS "hdmitx_device.chip_type : %d\n",
 				hdmitx_device.chip_type);
 
+		ret = of_property_read_u32(pdev->dev.of_node, "vout_fr_policy",
+					   &hdmitx_device.vout_fr_policy);
+		if (ret)
+			pr_info(SYS "not find vout_fr_policy\n");
+		else
+			pr_info(SYS "hdmitx_device.vout_fr_policy : %d\n",
+				hdmitx_device.vout_fr_policy);
+
 		/* Get dongle_mode information */
 		ret = of_property_read_u32(pdev->dev.of_node, "dongle_mode",
 			&dongle_mode);
@@ -6183,6 +6252,7 @@ static int amhdmitx_probe(struct platform_device *pdev)
 	ret = device_create_file(dev, &dev_attr_hdmi_rx_info);
 	ret = device_create_file(dev, &dev_attr_hdmi_hsty_config_info);
 	ret = device_create_file(dev, &dev_attr_drm_mode_setting);
+	ret = device_create_file(dev, &dev_attr_vout_fr_policy);
 
 #ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
 	register_early_suspend(&hdmitx_early_suspend_handler);
@@ -6300,6 +6370,7 @@ static int amhdmitx_remove(struct platform_device *pdev)
 	device_remove_file(dev, &dev_attr_hdmi_rx_info);
 	device_remove_file(dev, &dev_attr_hdmi_hsty_config_info);
 	device_remove_file(dev, &dev_attr_drm_mode_setting);
+	device_remove_file(dev, &dev_attr_vout_fr_policy);
 
 	cdev_del(&hdmitx_device.cdev);
 

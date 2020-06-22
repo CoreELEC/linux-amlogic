@@ -604,8 +604,8 @@ static int lcd_set_vframe_rate_policy(int policy)
 		LCDPR("vout_serve bypass\n");
 		return 0;
 	}
-	lcd_drv->fr_auto_policy = policy;
-	LCDPR("%s: %d\n", __func__, lcd_drv->fr_auto_policy);
+	lcd_drv->vout_fr_policy = policy;
+	LCDPR("%s: %d\n", __func__, lcd_drv->vout_fr_policy);
 #endif
 	return 0;
 }
@@ -615,7 +615,7 @@ static int lcd_get_vframe_rate_policy(void)
 #ifdef CONFIG_AMLOGIC_VOUT_SERVE
 	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
 
-	return lcd_drv->fr_auto_policy;
+	return lcd_drv->vout_fr_policy;
 #else
 	return 0;
 #endif
