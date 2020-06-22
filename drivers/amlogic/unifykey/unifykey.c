@@ -1774,7 +1774,7 @@ static void __exit aml_unifykeys_exit(void)
 	platform_driver_unregister(&unifykey_platform_driver);
 }
 
-module_init(aml_unifykeys_init);
+rootfs_initcall(aml_unifykeys_init);
 module_exit(aml_unifykeys_exit);
 
 MODULE_DESCRIPTION("Amlogic unifykeys management driver");

@@ -564,7 +564,7 @@ static void __exit efuse_exit(void)
 	platform_driver_unregister(&efuse_driver);
 }
 
-module_init(efuse_init);
+rootfs_initcall(efuse_init);
 module_exit(efuse_exit);
 
 MODULE_DESCRIPTION("AMLOGIC eFuse driver");

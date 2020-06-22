@@ -422,4 +422,4 @@ static int __init meson_securitykey_init(void)
 {
 	return  platform_driver_register(&securitykey_platform_driver);
 }
-module_init(meson_securitykey_init);
+rootfs_initcall(meson_securitykey_init);
