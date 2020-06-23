@@ -1129,8 +1129,8 @@
 		cec_sel = <1>;/*1:use one ip, 2:use 2 ip*/
 		ee_cec;
 		arc_port_mask = <0x1>;
-		interrupts = <GIC_SPI 46 IRQ_TYPE_EDGE_RISING/*0:snps*/
-			GIC_SPI 45 IRQ_TYPE_EDGE_RISING>;/*1:ts*/
+		interrupts = <GIC_SPI 180 IRQ_TYPE_EDGE_RISING/*0:snps*/
+			GIC_SPI 179 IRQ_TYPE_EDGE_RISING>;/*1:ts*/
 		interrupt-names = "hdmi_aocecb","hdmi_aocec";
 		pinctrl-names = "default","hdmitx_aocecb","cec_pin_sleep";
 		pinctrl-0=<&eecec_a>;
