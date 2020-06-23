@@ -2118,6 +2118,12 @@ static inline bool vpts_expire(struct vframe_s *cur_vf,
 		pts =
 		    timestamp_vpts_get() +
 		    (cur_vf ? DUR2PTS(cur_vf->duration) : 0);
+		if (debug_flag & DEBUG_FLAG_OMX_DEBUG_DROP_FRAME) {
+			pr_info("system=0x%x ,dur:%d,pts:0x%x,align:%d\n",
+				systime,
+				DUR2PTS(cur_vf->duration), pts,
+				vsync_pts_align);
+		}
 		/* pr_info("system=0x%x vpts=0x%x\n", systime,*/
 		/*timestamp_vpts_get()); */
 		/* [SWPL-21116] If pts and systime diff is smaller than
@@ -2172,6 +2178,11 @@ static inline bool vpts_expire(struct vframe_s *cur_vf,
 					pts);
 				return true;
 			}
+		} else {
+			/* +[SE] [BUG][SWPL-21070][zihao.ling]
+			 *when vdiscontinue, not displayed
+			 */
+			return false;
 		}
 	} else if (omx_run
 			&& omx_secret_mode
