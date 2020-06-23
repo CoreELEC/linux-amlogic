@@ -336,7 +336,7 @@
 
 	meson_uvm{
 		compatible = "amlogic, meson_uvm";
-		status = "disabled";
+		status = "okay";
 	};
 
 	ethmac: ethernet@ff3f0000 {
@@ -1408,7 +1408,7 @@
 	video_composer {
 		compatible = "amlogic, video_composer";
 		dev_name = "video_composer";
-		status = "disabled";
+		status = "okay";
 	};
 
 	amvenc_avc{
