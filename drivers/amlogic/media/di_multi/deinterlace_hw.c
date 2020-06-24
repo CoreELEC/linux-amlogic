@@ -112,7 +112,9 @@ static void ma_di_init(void)
 	DIM_DI_WR(DI_MTN_1_CTRL4, 0x01800880);
 	DIM_DI_WR(DI_MTN_1_CTRL7, 0x0a800480);
 	/* mtn setting */
-	if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12B)) {
+	if (DIM_IS_IC_EF(SC2)) {
+		DIM_DI_WR(DI_MTN_1_CTRL1, 0x202015);
+	} else if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12B)) {
 		DIM_DI_WR_REG_BITS(DI_MTN_CTRL, 1, 0, 1);
 		DIM_DI_WR(DI_MTN_1_CTRL1, 0x202015);
 	} else {
@@ -475,6 +477,8 @@ void dimh_hw_init(bool pd_enable, bool mc_enable)
 	    is_meson_sm1_cpu()	||
 	    is_meson_tm2_cpu())
 		dim_top_gate_control(true, true);
+	else if (DIM_IS_IC_EF(SC2))
+		dim_top_gate_control_sc2(true, true);
 	else if (is_meson_gxl_cpu()	||
 		 is_meson_gxm_cpu()	||
 		 is_meson_gxlx_cpu())
@@ -531,8 +535,10 @@ void dimh_hw_init(bool pd_enable, bool mc_enable)
 	    is_meson_tm2_cpu()) {
 		dim_pre_gate_control(true, true);
 		dim_post_gate_control(true);
+	} else if (DIM_IS_IC_EF(SC2)) {
+		dim_pre_gate_control_sc2(true, true);
+		dim_post_gate_control_sc2(true);
 	}
-
 	pre_hold_block_mode_config();
 	set_skip_ctrl_size_regs();
 	ma_di_init();
@@ -553,6 +559,10 @@ void dimh_hw_init(bool pd_enable, bool mc_enable)
 		dim_pre_gate_control(false, true);
 		dim_post_gate_control(false);
 		dim_top_gate_control(false, false);
+	} else if (DIM_IS_IC_EF(SC2)) {
+		dim_pre_gate_control_sc2(false, true);
+		dim_post_gate_control_sc2(false);
+		dim_top_gate_control_sc2(false, false);
 	} else if (is_meson_txl_cpu() || is_meson_gxlx_cpu()) {
 		/* di clock div enable for pq load */
 		DIM_DI_WR(DI_CLKG_CTRL, 0x80000000);
@@ -819,7 +829,9 @@ void dimh_enable_di_pre_aml(struct DI_MIF_s *di_inp_mif,
 	/*
 	 * enable&disable contwr txt
 	 */
-	if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12B))
+	if (DIM_IS_IC_EF(SC2))
+		DIM_RDMA_WR_BITS(DI_MTN_1_CTRL1, madi_en ? 5 : 0, 29, 3);
+	else if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12B))
 		DIM_RDMA_WR_BITS(DI_MTN_CTRL, madi_en ? 5 : 0, 29, 3);
 	else
 		DIM_RDMA_WR_BITS(DI_MTN_1_CTRL1, madi_en ? 5 : 0, 29, 3);
@@ -3445,6 +3457,28 @@ void dim_top_gate_control(bool top_en, bool mc_en)
 	}
 }
 
+void dim_top_gate_control_sc2(bool top_en, bool mc_en)
+{
+	if (top_en) {
+		/* enable clkb input */
+		//DIM_DI_WR_REG_BITS(VIUB_GCLK_CTRL0, 1, 0, 1);
+		DIM_DI_WR_REG_BITS(VIUB_GCLK_CTRL0, 1, 15, 1);
+		/* enable slow clk */
+		//DIM_DI_WR_REG_BITS(VIUB_GCLK_CTRL0, mc_en ? 1 : 0, 10, 1);
+		/* enable di arb */
+		//DIM_DI_WR_REG_BITS(VIUB_GCLK_CTRL1, 2, 0, 2);
+
+	} else {
+		/* disable clkb input */
+		//DIM_DI_WR_REG_BITS(VIUB_GCLK_CTRL0, 0, 0, 1);
+		DIM_DI_WR_REG_BITS(VIUB_GCLK_CTRL0, 0, 15, 1);
+		/* disable slow clk */
+		//DIM_DI_WR_REG_BITS(VIUB_GCLK_CTRL0, 0, 10, 1);
+		/* disable di arb */
+		//DIM_DI_WR_REG_BITS(VIUB_GCLK_CTRL1, 1, 0, 2);
+	}
+}
+
 void dim_pre_gate_control(bool gate, bool mc_enable)
 {
 	if (gate) {
@@ -3516,6 +3550,77 @@ void dim_pre_gate_control(bool gate, bool mc_enable)
 	}
 }
 
+void dim_pre_gate_control_sc2(bool gate, bool mc_enable)
+{
+	if (gate) {
+		/* enable ma pre clk */
+		DIM_DI_WR_REG_BITS(VIUB_GCLK_CTRL0, 1, 8, 1);
+		/* enable mc clk */
+		//DIM_DI_WR_REG_BITS(VIUB_GCLK_CTRL0, 1, 11, 1);
+		/* enable pd clk gate */
+		DIM_DI_WR_REG_BITS(VIUB_GCLK_CTRL2, 2, 2, 2);
+		/* enable motion clk gate */
+		DIM_DI_WR_REG_BITS(VIUB_GCLK_CTRL2, 2, 4, 2);
+		/* enable deband clk gate freerun for hw issue */
+		DIM_DI_WR_REG_BITS(VIUB_GCLK_CTRL2, 2, 6, 2);
+		/* enable input mif external gate */
+		//DIM_DI_WR_REG_BITS(VIUB_GCLK_CTRL1, 2, 16, 2);
+		/* enable mem mif external gate */
+		//DIM_DI_WR_REG_BITS(VIUB_GCLK_CTRL1, 2, 18, 2);
+		/* enable chan2 mif external gate */
+		//DIM_DI_WR_REG_BITS(VIUB_GCLK_CTRL1, 2, 20, 2);
+		/* enable nr wr mif external gate */
+		//DIM_DI_WR_REG_BITS(VIUB_GCLK_CTRL1, 2, 22, 2);
+		/* enable mtn wr mif external gate */
+		//DIM_DI_WR_REG_BITS(VIUB_GCLK_CTRL1, 2, 24, 2);
+		if (mc_enable) {
+			if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXHD)) {
+				DIM_DI_WR_REG_BITS(VIUB_GCLK_CTRL2, 0, 12, 2);
+				}
+			else{
+				/* enable me clk always run vlsi issue */
+				DIM_DI_WR_REG_BITS(VIUB_GCLK_CTRL2, 3, 12, 2);
+				}
+			/*
+			 * enable mc pre mv(wr) mcinfo w/r
+			 * mif external gate
+			 */
+			//DIM_DI_WR_REG_BITS(VIUB_GCLK_CTRL1, 2, 26, 2);
+		}
+		/* cowork with auto gate to config reg */
+		DIM_DI_WR_REG_BITS(DI_PRE_CTRL, 3, 2, 2);
+	} else {
+		/* disable ma pre clk */
+		DIM_DI_WR_REG_BITS(VIUB_GCLK_CTRL0, 0, 8, 1);
+		/* disable mc clk */
+		//DIM_DI_WR_REG_BITS(VIUB_GCLK_CTRL0, 0, 11, 1);
+		/* disable pd clk gate */
+		DIM_DI_WR_REG_BITS(VIUB_GCLK_CTRL2, 1, 2, 2);
+		/* disable motion clk gate */
+		DIM_DI_WR_REG_BITS(VIUB_GCLK_CTRL2, 1, 4, 2);
+		/* disable deband clk gate freerun for hw issue */
+		DIM_DI_WR_REG_BITS(VIUB_GCLK_CTRL2, 1, 6, 2);
+		/* disable input mif external gate */
+		//DIM_DI_WR_REG_BITS(VIUB_GCLK_CTRL1, 1, 16, 2);
+		/* disable mem mif external gate */
+		//DIM_DI_WR_REG_BITS(VIUB_GCLK_CTRL1, 1, 18, 2);
+		/* disable chan2 mif external gate */
+		//DIM_DI_WR_REG_BITS(VIUB_GCLK_CTRL1, 1, 20, 2);
+		/* disable nr wr mif external gate */
+		//DIM_DI_WR_REG_BITS(VIUB_GCLK_CTRL1, 1, 22, 2);
+		/* disable mtn wr mif external gate */
+		//DIM_DI_WR_REG_BITS(VIUB_GCLK_CTRL1, 1, 24, 2);
+		if (mc_enable) {
+			/* disable mc pre mv(wr) mcinfo
+			 * w/r mif external gate
+			 */
+			//DIM_DI_WR_REG_BITS(VIUB_GCLK_CTRL1, 1, 26, 2);
+			/* disable me clk gate */
+			DIM_DI_WR_REG_BITS(VIUB_GCLK_CTRL2, 1, 12, 2);
+		}
+	}
+}
+
 void dim_post_gate_control(bool gate)
 {
 	if (gate) {
@@ -3536,6 +3641,34 @@ void dim_post_gate_control(bool gate)
 		DIM_DI_WR_REG_BITS(VIUB_GCLK_CTRL0, 0, 9, 1);
 		/* disable blend1 clk gate */
 		DIM_DI_WR_REG_BITS(VIUB_GCLK_CTRL3, 1, 0, 2);
+		/* disable ei clk gate */
+		DIM_DI_WR_REG_BITS(VIUB_GCLK_CTRL3, 1, 2, 2);
+		/* disable ei_0 clk gate */
+		DIM_DI_WR_REG_BITS(VIUB_GCLK_CTRL3, 1, 4, 2);
+	}
+}
+
+void dim_post_gate_control_sc2(bool gate)
+{
+	if (gate) {
+		/* enable clk post div */
+		//DIM_DI_WR_REG_BITS(VIUB_GCLK_CTRL0, 1, 12, 1);
+		/* enable post line buf/fifo/mux clk */
+		DIM_DI_WR_REG_BITS(VIUB_GCLK_CTRL0, 1, 9, 1);
+		/* enable blend1 clk gate */
+		//DIM_DI_WR_REG_BITS(VIUB_GCLK_CTRL3, 0, 0, 2);
+		/* enable ei clk gate */
+		DIM_DI_WR_REG_BITS(VIUB_GCLK_CTRL3, 0, 2, 2);
+		/* enable ei_0 clk gate */
+		DIM_DI_WR_REG_BITS(VIUB_GCLK_CTRL3, 0, 4, 2);
+	} else {
+		/* disable clk post div */
+		//DIM_DI_WR_REG_BITS(VIUB_GCLK_CTRL0, 0, 12, 1);
+		/* disable post line buf/fifo/mux clk */
+		DIM_DI_WR_REG_BITS(VIUB_GCLK_CTRL0, 0, 9, 1);
+		/* disable blend1 clk gate */
+		//DIM_DI_WR_REG_BITS(VIUB_GCLK_CTRL3, 1, 0, 2);
+		DIM_DI_WR_REG_BITS(VIUB_GCLK_CTRL3, 1, 1, 1);
 		/* disable ei clk gate */
 		DIM_DI_WR_REG_BITS(VIUB_GCLK_CTRL3, 1, 2, 2);
 		/* disable ei_0 clk gate */
@@ -3821,11 +3954,17 @@ void hpst_power_ctr(bool on)
 	if (on) {
 		ext_ops.switch_vpu_mem_pd_vmod(VPU_DI_POST,
 			true);
-		dim_post_gate_control(true);
+		if (DIM_IS_IC_EF(SC2))
+			dim_post_gate_control_sc2(true);
+		else
+			dim_post_gate_control(true);
 		dimh_enable_di_post_mif(GATE_AUTO);
 	} else {
 		dimh_enable_di_post_mif(GATE_OFF);
-		dim_post_gate_control(false);
+		if (DIM_IS_IC_EF(SC2))
+			dim_post_gate_control_sc2(false);
+		else
+			dim_post_gate_control(false);
 		ext_ops.switch_vpu_mem_pd_vmod(VPU_DI_POST,
 			false);
 	}

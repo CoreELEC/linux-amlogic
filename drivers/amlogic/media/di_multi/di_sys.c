@@ -989,10 +989,22 @@ static const struct file_operations di_fops = {
 
 static const struct di_meson_data  data_g12a = {
 	.name = "dim_g12a",
+	.ic_id	= DI_IC_ID_G12A,
+};
+
+static const struct di_meson_data  data_g12b = {
+	.name = "dim_g12b",
+	.ic_id	= DI_IC_ID_G12B,
 };
 
 static const struct di_meson_data  data_sm1 = {
 	.name = "dim_sm1",
+	.ic_id	= DI_IC_ID_SM1,
+};
+
+static const struct di_meson_data  data_sc2 = {
+	.name = "dim_sc2",
+	.ic_id	= DI_IC_ID_SC2,
 };
 
 /* #ifdef CONFIG_USE_OF */
@@ -1001,9 +1013,11 @@ static const struct of_device_id amlogic_deinterlace_dt_match[] = {
 	{	.compatible = "amlogic, dim-g12a",
 		.data = &data_g12a,
 	}, {	.compatible = "amlogic, dim-g12b",
-		.data = &data_sm1,
+		.data = &data_g12b,
 	}, {	.compatible = "amlogic, dim-sm1",
 		.data = &data_sm1,
+	}, {	.compatible = "amlogic, dim-sc2",
+		.data = &data_sc2,
 	}, {}
 };
 #endif
@@ -1082,7 +1096,8 @@ static int dim_probe(struct platform_device *pdev)
 	}
 	pdata = (struct di_data_l_s *)di_pdev->data_l;
 	pdata->mdata = match->data;
-	PR_INF("match name: %s\n", pdata->mdata->name);
+	PR_INF("match name: %s:id[%d]\n", pdata->mdata->name,
+	       pdata->mdata->ic_id);
 #endif
 
 	ret = of_reserved_mem_device_init(&pdev->dev);
@@ -1125,7 +1140,7 @@ static int dim_probe(struct platform_device *pdev)
 		dim_get_vpu_clkb(&pdev->dev, di_devp);
 		#ifdef CLK_TREE_SUPPORT
 		clk_prepare_enable(di_devp->vpu_clkb);
-		PR_INF("enable vpu clkb.\n");
+		PR_INF("vpu clkb =%ld.\n", clk_get_rate(di_devp->vpu_clkb));
 		#else
 		aml_write_hiubus(HHI_VPU_CLKB_CNTL, 0x1000100);
 		#endif

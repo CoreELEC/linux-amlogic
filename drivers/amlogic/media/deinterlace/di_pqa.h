@@ -129,4 +129,56 @@ struct mtn_op_s {
 
 bool di_attach_ops_mtn(const struct mtn_op_s **ops);
 
+/**********************************************************
+ *
+ * IC VERSION
+ *
+ **********************************************************/
+#define DI_IC_ID_M8B		(0x01)
+#define DI_IC_ID_GXBB		(0x02)
+#define DI_IC_ID_GXTVBB		(0x03)
+#define DI_IC_ID_GXL		(0x04)
+#define DI_IC_ID_GXM		(0x05)
+#define DI_IC_ID_TXL		(0x06)
+#define DI_IC_ID_TXLX		(0x07)
+#define DI_IC_ID_AXG		(0x08)
+#define DI_IC_ID_GXLX		(0x09)
+#define DI_IC_ID_TXHD		(0x0a)
+
+#define DI_IC_ID_G12A		(0x10)
+#define DI_IC_ID_G12B		(0x11)
+#define DI_IC_ID_SM1		(0x13)
+#define DI_IC_ID_TL1		(0x16)
+#define DI_IC_ID_TM2		(0x17)
+#define DI_IC_ID_TM2B		(0x18)
+
+#define DI_IC_ID_SC2		(0x1B)
+
+/* is_meson_g12a_cpu */
+static inline bool is_ic_named(unsigned int crr_id, unsigned int ic_id)
+{
+	if (crr_id == ic_id)
+		return true;
+	return false;
+}
+
+/*cpu_after_eq*/
+static inline bool is_ic_after_eq(unsigned int crr_id, unsigned int ic_id)
+{
+	if (crr_id >= ic_id)
+		return true;
+	return false;
+}
+
+static inline bool is_ic_before(unsigned int crr_id, unsigned int ic_id)
+{
+	if (crr_id < ic_id)
+		return true;
+	return false;
+}
+
+#define IS_IC(cid, cc)		is_ic_named(cid, DI_IC_ID_##cc)
+#define IS_IC_EF(cid, cc)	is_ic_after_eq(cid, DI_IC_ID_##cc)
+#define IS_IC_BF(cid, cc)	is_ic_before(cid, DI_IC_ID_##cc)
+
 #endif	/*__DI_PQA_H__*/

@@ -7018,6 +7018,9 @@ void di_unreg_setting(void)
 	    is_meson_sm1_cpu()) {
 		dim_pre_gate_control(false, dimp_get(edi_mp_mcpre_en));
 		get_ops_nr()->nr_gate_control(false);
+	} else if (DIM_IS_IC_EF(SC2)) {
+		dim_pre_gate_control_sc2(false, dimp_get(edi_mp_mcpre_en));
+		get_ops_nr()->nr_gate_control(false);
 	} else if (cpu_after_eq(MESON_CPU_MAJOR_ID_GXTVBB)) {
 		DIM_DI_WR(DI_CLKG_CTRL, 0x80f60000);
 		DIM_DI_WR(DI_PRE_CTRL, 0);
@@ -7041,6 +7044,9 @@ void di_unreg_setting(void)
 		dimh_enable_di_post_mif(GATE_OFF);
 		dim_post_gate_control(false);
 		dim_top_gate_control(false, false);
+	} else if (DIM_IS_IC_EF(SC2)) {
+		dim_post_gate_control_sc2(false);
+		dim_top_gate_control_sc2(false, false);
 	} else {
 		DIM_DI_WR(DI_CLKG_CTRL, 0x80000000);
 	}
@@ -7409,7 +7415,10 @@ void di_reg_setting(unsigned int channel, struct vframe_s *vframe)
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXLX)) {
 		/*if (!use_2_interlace_buff) {*/
 		if (1) {
-			dim_top_gate_control(true, true);
+			if (DIM_IS_IC_EF(SC2))
+				dim_top_gate_control_sc2(true, true);
+			else
+				dim_top_gate_control(true, true);
 			/*dim_post_gate_control(true);*/
 			/* freerun for reg configuration */
 			/*dimh_enable_di_post_mif(GATE_AUTO);*/
@@ -7423,7 +7432,8 @@ void di_reg_setting(unsigned int channel, struct vframe_s *vframe)
 		    is_meson_g12b_cpu()	||
 		    is_meson_tl1_cpu()	||
 		    is_meson_tm2_cpu()	||
-		    is_meson_sm1_cpu()
+		    is_meson_sm1_cpu()	||
+		    DIM_IS_IC_EF(SC2)
 		    ) {
 			#ifdef CLK_TREE_SUPPORT
 			clk_set_rate(de_devp->vpu_clkb,
@@ -7432,7 +7442,11 @@ void di_reg_setting(unsigned int channel, struct vframe_s *vframe)
 		}
 
 		dimh_enable_di_pre_mif(false, dimp_get(edi_mp_mcpre_en));
-		dim_pre_gate_control(true, dimp_get(edi_mp_mcpre_en));
+		if (DIM_IS_IC_EF(SC2))
+			dim_pre_gate_control_sc2(true,
+						 dimp_get(edi_mp_mcpre_en));
+		else
+			dim_pre_gate_control(true, dimp_get(edi_mp_mcpre_en));
 		dim_rst_protect(true);/*2019-01-22 by VLSI feng.wang*/
 		dim_pre_nr_wr_done_sel(true);
 		get_ops_nr()->nr_gate_control(true);
@@ -8532,6 +8546,9 @@ void dim_set_di_flag(void)
 		pldn_dly1 = 2;
 	}
 
+	if (DIM_IS_IC_EF(SC2))
+		dimp_set(edi_mp_di_debug_flag, 0x100000);
+
 	get_ops_mtn()->mtn_int_combing_glbmot();
 }
 
@@ -8561,7 +8578,10 @@ void dim_get_vpu_clkb(struct device *dev, struct di_dev_s *pdev)
 	unsigned int tmp_clk[2] = {0, 0};
 	struct clk *vpu_clk = NULL;
 
-	vpu_clk = clk_get(dev, "vpu_mux");
+	if (DIM_IS_IC_EF(SC2))
+		vpu_clk = clk_get(dev, "vpu_clkb_tmp_mux");
+	else
+		vpu_clk = clk_get(dev, "vpu_mux");
 	if (IS_ERR(vpu_clk))
 		PR_ERR("%s: get clk vpu error.\n", __func__);
 	else
@@ -8579,7 +8599,10 @@ void dim_get_vpu_clkb(struct device *dev, struct di_dev_s *pdev)
 	pr_info("DI: vpu clkb <%lu, %lu>\n", pdev->clkb_min_rate,
 		pdev->clkb_max_rate);
 	#ifdef CLK_TREE_SUPPORT
-	pdev->vpu_clkb = clk_get(dev, "vpu_clkb_composite");
+	if (DIM_IS_IC_EF(SC2))
+		pdev->vpu_clkb = clk_get(dev, "vpu_clkb_gate");
+	else
+		pdev->vpu_clkb = clk_get(dev, "vpu_clkb_composite");
 
 	if (IS_ERR(pdev->vpu_clkb))
 		PR_ERR("%s: get vpu clkb gate error.\n", __func__);

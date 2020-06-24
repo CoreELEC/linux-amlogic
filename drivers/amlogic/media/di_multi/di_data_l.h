@@ -943,6 +943,7 @@ struct dim_policy_s {
 
 struct di_meson_data {
 	const char *name;
+	unsigned int ic_id;
 	/*struct ic_ver icver;*/
 	/*struct ddemod_reg_off regoff;*/
 };
@@ -1535,5 +1536,22 @@ static inline unsigned int di_get_mem_size(unsigned int ch)
 
 void di_tout_int(struct di_time_out_s *tout, unsigned int thd);
 bool di_tout_contr(enum EDI_TOUT_CONTR cmd, struct di_time_out_s *tout);
+
+static inline bool is_ic_between(unsigned int ic_min, unsigned int ic_max)
+{
+	unsigned int id = get_datal()->mdata->ic_id;
+
+	if ((id >= ic_min) && (id <= ic_max))
+		return true;
+	return false;
+}
+
+#define DIM_IS_IC(cc)		is_ic_named((get_datal()->mdata->ic_id), \
+					DI_IC_ID_##cc)
+#define DIM_IS_IC_EF(cc)	is_ic_after_eq((get_datal()->mdata->ic_id), \
+					DI_IC_ID_##cc)
+#define DIM_IS_IC_BF(cc)	is_ic_before((get_datal()->mdata->ic_id), \
+					DI_IC_ID_##cc)
+#define DIM_IS_IC_BT(cc1, cc2)	is_ic_between(DI_IC_ID_##cc1, DI_IC_ID_##cc2)
 
 #endif	/*__DI_DATA_L_H__*/
