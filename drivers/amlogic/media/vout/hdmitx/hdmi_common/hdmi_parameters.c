@@ -2969,6 +2969,7 @@ struct hdmi_format_para *hdmi_tst_fmt_name(char const *name, char const *attr)
 	int i;
 	char *lname;
 	enum hdmi_vic vic = HDMI_Unknown;
+	unsigned int copy_len;
 
 	copy_para(&tst_para, &fmt_para_non_hdmi_fmt);
 	if (!name)
@@ -2990,7 +2991,10 @@ struct hdmi_format_para *hdmi_tst_fmt_name(char const *name, char const *attr)
 		sizeof(struct hdmi_format_para *))) {
 		copy_para(&tst_para, all_fmt_paras[i]);
 		memset(&tst_para.ext_name[0], 0, sizeof(tst_para.ext_name));
-		memcpy(&tst_para.ext_name[0], name, sizeof(tst_para.ext_name));
+		copy_len = strlen(name);
+		if (copy_len >= sizeof(tst_para.ext_name))
+			copy_len = sizeof(tst_para.ext_name) - 1;
+		memcpy(&tst_para.ext_name[0], name, copy_len);
 		hdmi_parse_attr(&tst_para, name);
 		hdmi_parse_attr(&tst_para, attr);
 	} else {
