@@ -296,7 +296,7 @@ EXPORT_SYMBOL(vout_func_set_current_vmode);
 /*
  *interface export to client who want to set current vmode.
  */
-enum vmode_e vout_func_validate_vmode(int index, char *name)
+enum vmode_e vout_func_validate_vmode(int index, char *name, unsigned int frac)
 {
 	enum vmode_e ret = VMODE_MAX;
 	struct vout_server_s  *p_server;
@@ -325,7 +325,7 @@ enum vmode_e vout_func_validate_vmode(int index, char *name)
 				continue;
 		}
 		if (p_server->op.validate_vmode) {
-			ret = p_server->op.validate_vmode(name);
+			ret = p_server->op.validate_vmode(name, frac);
 			if (ret != VMODE_MAX) /* valid vmode find. */
 				break;
 		}
@@ -689,3 +689,26 @@ int vout_get_hpd_state(void)
 	return ret;
 }
 EXPORT_SYMBOL(vout_get_hpd_state);
+
+/* return vout frac */
+unsigned int vout_parse_vout_name(char *name)
+{
+	char *p, *frac_str;
+	unsigned int frac = 0;
+
+	mutex_lock(&vout_mutex);
+
+	p = strchr(name, ',');
+	if (!p) {
+		frac = 0;
+	} else {
+		frac_str = p + 1;
+		*p = '\0';
+		if (strcmp(frac_str, "frac") == 0)
+			frac = 1;
+	}
+
+	mutex_unlock(&vout_mutex);
+
+	return frac;
+}

@@ -469,6 +469,7 @@ struct lcd_config_s {
 struct lcd_duration_s {
 	unsigned int duration_num;
 	unsigned int duration_den;
+	unsigned int frac;
 };
 
 #define LCD_STATUS_IF_ON      (1 << 0)

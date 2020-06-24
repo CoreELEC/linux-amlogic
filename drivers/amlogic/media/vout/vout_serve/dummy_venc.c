@@ -76,6 +76,7 @@ static struct vinfo_s dummy_encp_vinfo[] = {
 	{
 		.name              = "dummy_panel",
 		.mode              = VMODE_DUMMY_ENCP,
+		.frac              = 0,
 		.width             = 1920,
 		.height            = 1080,
 		.field_height      = 1080,
@@ -94,6 +95,7 @@ static struct vinfo_s dummy_encp_vinfo[] = {
 	{
 		.name              = "dummy_p",
 		.mode              = VMODE_DUMMY_ENCP,
+		.frac              = 0,
 		.width             = 720,
 		.height            = 480,
 		.field_height      = 480,
@@ -348,10 +350,13 @@ static int dummy_encp_set_current_vmode(enum vmode_e mode)
 	return 0;
 }
 
-static enum vmode_e dummy_encp_validate_vmode(char *name)
+static enum vmode_e dummy_encp_validate_vmode(char *name, unsigned int frac)
 {
 	enum vmode_e vmode = VMODE_MAX;
 	int i;
+
+	if (frac)
+		return VMODE_MAX;
 
 	for (i = 0; i < 2; i++) {
 		if (strcmp(dummy_encp_vinfo[i].name, name) == 0) {
@@ -497,6 +502,7 @@ static void dummy_encp_vout_server_remove(void)
 static struct vinfo_s dummy_enci_vinfo = {
 	.name              = "dummy_i",
 	.mode              = VMODE_DUMMY_ENCI,
+	.frac              = 0,
 	.width             = 720,
 	.height            = 480,
 	.field_height      = 240,
@@ -660,9 +666,12 @@ static int dummy_enci_set_current_vmode(enum vmode_e mode)
 	return 0;
 }
 
-static enum vmode_e dummy_enci_validate_vmode(char *name)
+static enum vmode_e dummy_enci_validate_vmode(char *name, unsigned int frac)
 {
 	enum vmode_e vmode = VMODE_MAX;
+
+	if (frac)
+		return VMODE_MAX;
 
 	if (strcmp(dummy_enci_vinfo.name, name) == 0)
 		vmode = dummy_enci_vinfo.mode;
@@ -794,6 +803,7 @@ static void dummy_enci_vout_server_remove(void)
 static struct vinfo_s dummy_encl_vinfo = {
 	.name              = "dummy_l",
 	.mode              = VMODE_DUMMY_ENCL,
+	.frac              = 0,
 	.width             = 720,
 	.height            = 480,
 	.field_height      = 480,
@@ -933,9 +943,12 @@ static int dummy_encl_set_current_vmode(enum vmode_e mode)
 	return 0;
 }
 
-static enum vmode_e dummy_encl_validate_vmode(char *name)
+static enum vmode_e dummy_encl_validate_vmode(char *name, unsigned int frac)
 {
 	enum vmode_e vmode = VMODE_MAX;
+
+	if (frac)
+		return VMODE_MAX;
 
 	if (strcmp(dummy_encl_vinfo.name, name) == 0)
 		vmode = dummy_encl_vinfo.mode;

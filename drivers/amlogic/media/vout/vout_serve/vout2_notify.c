@@ -148,9 +148,9 @@ EXPORT_SYMBOL(set_current_vmode2);
 /*
  *interface export to client who want to set current vmode.
  */
-enum vmode_e validate_vmode2(char *name)
+enum vmode_e validate_vmode2(char *name, unsigned int frac)
 {
-	return vout_func_validate_vmode(2, name);
+	return vout_func_validate_vmode(2, name, frac);
 }
 EXPORT_SYMBOL(validate_vmode2);
 

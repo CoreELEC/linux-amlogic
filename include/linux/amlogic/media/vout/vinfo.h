@@ -301,6 +301,7 @@ struct vinfo_s {
 	char *name;
 	enum vmode_e mode;
 	char ext_name[32];
+	u32 frac;
 	u32 width;
 	u32 height;
 	u32 field_height;

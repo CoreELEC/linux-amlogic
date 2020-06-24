@@ -72,6 +72,7 @@ static struct vinfo_s cvbs_info[] = {
 	{ /* MODE_480CVBS*/
 		.name              = "480cvbs",
 		.mode              = VMODE_CVBS,
+		.frac              = 0,
 		.width             = 720,
 		.height            = 480,
 		.field_height      = 240,
@@ -90,6 +91,7 @@ static struct vinfo_s cvbs_info[] = {
 	{ /* MODE_576CVBS */
 		.name              = "576cvbs",
 		.mode              = VMODE_CVBS,
+		.frac              = 0,
 		.width             = 720,
 		.height            = 576,
 		.field_height      = 288,
@@ -108,6 +110,7 @@ static struct vinfo_s cvbs_info[] = {
 	{ /* MODE_PAL_M */
 		.name              = "pal_m",
 		.mode              = VMODE_CVBS,
+		.frac              = 0,
 		.width             = 720,
 		.height            = 480,
 		.field_height      = 240,
@@ -125,6 +128,7 @@ static struct vinfo_s cvbs_info[] = {
 	{ /* MODE_PAL_N */
 		.name              = "pal_n",
 		.mode              = VMODE_CVBS,
+		.frac              = 0,
 		.width             = 720,
 		.height            = 576,
 		.field_height      = 288,
@@ -142,6 +146,7 @@ static struct vinfo_s cvbs_info[] = {
 	{ /* MODE_NTSC_M */
 		.name              = "ntsc_m",
 		.mode              = VMODE_CVBS,
+		.frac              = 0,
 		.width             = 720,
 		.height            = 480,
 		.field_height      = 240,
@@ -641,9 +646,12 @@ static int cvbs_set_current_vmode(enum vmode_e mode)
 	return 0;
 }
 
-static enum vmode_e cvbs_validate_vmode(char *mode)
+static enum vmode_e cvbs_validate_vmode(char *mode, unsigned int frac)
 {
 	const struct vinfo_s *info = get_valid_vinfo(mode);
+
+	if (frac)
+		return VMODE_MAX;
 
 	if (info)
 		return VMODE_CVBS;
