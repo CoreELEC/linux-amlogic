@@ -2792,10 +2792,10 @@
 	interrupt-names = "GPU", "MMU", "JOB";
 	clk_cntl_reg = <0x57>;
 
-	tbl =  <&dvfs500_cfg
-			&dvfs500_cfg
-			&dvfs500_cfg
-			&dvfs500_cfg
-			&dvfs500_cfg
-			&dvfs500_cfg>;
+	tbl =  <&dvfs285_cfg
+		&dvfs400_cfg
+		&dvfs500_cfg
+		&dvfs666_cfg
+		&dvfs800_cfg
+		&dvfs800_cfg>;
 };
