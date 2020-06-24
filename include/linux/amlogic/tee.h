@@ -49,5 +49,7 @@ extern void tee_unprotect_mem(uint32_t handle);
 
 extern int tee_config_device_state(int dev_id, int secure);
 
+extern void tee_demux_config_pipeline(int tsn_in, int tsn_out);
+
 #endif /* __TEE_H__ */
 
