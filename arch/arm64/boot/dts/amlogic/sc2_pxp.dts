@@ -1201,7 +1201,7 @@
 
 &audiobus {
 	tdma: tdm@0 {
-		compatible = "amlogic, sm1-snd-tdma";
+		compatible = "amlogic, tm2-revb-snd-tdma";
 		#sound-dai-cells = <0>;
 		dai-tdm-lane-slot-mask-in = <0 1>;
 		dai-tdm-oe-lane-slot-mask-out = <1 0>;
@@ -1216,7 +1216,7 @@
 	};
 
 	tdmb: tdm@1 {
-		compatible = "amlogic, sm1-snd-tdmb";
+		compatible = "amlogic, tm2-revb-snd-tdmb";
 		#sound-dai-cells = <0>;
 		dai-tdm-lane-slot-mask-in = <0 1 0 0>;
 		dai-tdm-lane-slot-mask-out = <1 0 0 0>;
@@ -1252,7 +1252,7 @@
 	};
 
 	tdmc: tdm@2 {
-		compatible = "amlogic, sm1-snd-tdmc";
+		compatible = "amlogic, tm2-revb-snd-tdmc";
 		#sound-dai-cells = <0>;
 		dai-tdm-lane-slot-mask-in = <1 0 0 0>;
 		#dai-tdm-lane-slot-mask-out = <1 0 1 1>;
@@ -1268,55 +1268,8 @@
 		status = "okay";
 	};
 
-	tdmlb:tdm@3 {
-		compatible = "amlogic, sm1-snd-tdmlb";
-		#sound-dai-cells = <0>;
-
-		dai-tdm-lane-lb-slot-mask-in = <1 0 0 0>;
-		dai-tdm-clk-sel = <1>;
-
-		clock-names = "mclk", "clk_srcpll";
-
-		/*
-		 * select tdmin_lb src;
-		 * AXG
-		 *  0: TDMOUTA
-		 *  1: TDMOUTB
-		 *  2: TDMOUTC
-		 *  3: PAD_TDMINA
-		 *  4: PAD_TDMINB
-		 *  5: PAD_TDMINC
-		 *
-		 * G12A/G12B
-		 *  0: TDMOUTA
-		 *  1: TDMOUTB
-		 *  2: TDMOUTC
-		 *  3: PAD_TDMINA_DIN*
-		 *  4: PAD_TDMINB_DIN*
-		 *  5: PAD_TDMINC_DIN*
-		 *  6: PAD_TDMINA_D*, oe pin
-		 *  7: PAD_TDMINB_D*, oe pin
-		 *
-		 * TL1/SM1
-		 *  0: TDMOUTA
-		 *  1: TDMOUTB
-		 *  2: TDMOUTC
-		 *  3: PAD_TDMINA_DIN*
-		 *  4: PAD_TDMINB_DIN*
-		 *  5: PAD_TDMINC_DIN*
-		 *  6: PAD_TDMINA_D*
-		 *  7: PAD_TDMINB_D*
-		 *  8: PAD_TDMINC_D*
-		 *  9: HDMIRX_I2S
-		 *  10: ACODEC_ADC
-		 */
-		lb-src-sel = <1>;
-
-		status = "disabled";
-	};
-
 	spdifa: spdif@0 {
-		compatible = "amlogic, sm1-snd-spdif-a";
+		compatible = "amlogic, tm2-revb-snd-spdif-a";
 		#sound-dai-cells = <0>;
 		clocks = <&clkc CLKID_MPLL0
 				&clkc CLKID_FCLK_DIV4
@@ -1339,7 +1292,7 @@
 		status = "okay";
 	};
 	spdifb: spdif@1 {
-		compatible = "amlogic, sm1-snd-spdif-b";
+		compatible = "amlogic, tm2-revb-snd-spdif-b";
 		#sound-dai-cells = <0>;
 		clocks = <&clkc CLKID_MPLL0 /*CLKID_HIFI_PLL*/
 				&clkaudio CLKID_AUDIO_GATE_SPDIFOUT_B

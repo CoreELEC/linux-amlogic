@@ -478,7 +478,7 @@ static int aml_dai_tdm_prepare(struct snd_pcm_substream *substream,
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct aml_tdm *p_tdm = snd_soc_dai_get_drvdata(cpu_dai);
-	int bit_depth;
+	int bit_depth, separated = 0;
 
 	bit_depth = snd_pcm_format_width(runtime->format);
 
@@ -494,10 +494,13 @@ static int aml_dai_tdm_prepare(struct snd_pcm_substream *substream,
 			&& (aml_check_sharebuffer_valid(p_tdm->fddr,
 				p_tdm->samesource_sel))
 			&& p_tdm->en_share) {
-				sharebuffer_prepare(substream,
-					fr, p_tdm->samesource_sel,
+				sharebuffer_prepare(
+					substream,
+					fr,
+					p_tdm->samesource_sel,
 					p_tdm->lane_ss,
-					p_tdm->chipinfo->reset_reg_offset);
+					p_tdm->chipinfo->reset_reg_offset,
+					p_tdm->chipinfo->separate_tohdmitx_en);
 					/* sharebuffer default uses spdif_a */
 				spdif_set_audio_clk(p_tdm->samesource_sel - 3,
 					p_tdm->clk,
@@ -506,10 +509,16 @@ static int aml_dai_tdm_prepare(struct snd_pcm_substream *substream,
 
 		/* i2s source to hdmix */
 		if (p_tdm->i2s2hdmitx) {
-			i2s_to_hdmitx_ctrl(p_tdm->id);
+			if (p_tdm->chipinfo) {
+				separated =
+				p_tdm->chipinfo->separate_tohdmitx_en;
+			}
+
+			i2s_to_hdmitx_ctrl(separated, p_tdm->id);
 			if (spdif_get_codec() == MULTI_CHANNEL_LPCM)
 				aout_notifier_call_chain
-					(AOUT_EVENT_IEC_60958_PCM, substream);
+					(AOUT_EVENT_IEC_60958_PCM,
+					 substream);
 			else
 				pr_warn("%s(), i2s2hdmi with wrong fmt\n",
 					__func__);

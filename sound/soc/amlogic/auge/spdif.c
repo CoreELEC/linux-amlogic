@@ -1262,6 +1262,7 @@ static int aml_dai_spdif_prepare(
 	struct aml_spdif *p_spdif = snd_soc_dai_get_drvdata(cpu_dai);
 	unsigned int bit_depth = 0;
 	unsigned int fifo_id = 0;
+	int separated = 0;
 	unsigned int spdif_codec = STEREO_PCM;
 
 	bit_depth = snd_pcm_format_width(runtime->format);
@@ -1304,8 +1305,10 @@ static int aml_dai_spdif_prepare(
 		/* TOHDMITX_CTRL0
 		 * Both spdif_a/spdif_b would notify to hdmitx
 		 */
-		//spdifout_to_hdmitx_ctrl(p_spdif->id);
-		enable_spdifout_to_hdmitx();
+		if (p_spdif->chipinfo)
+			separated = p_spdif->chipinfo->separate_tohdmitx_en;
+		//spdifout_to_hdmitx_ctrl(separated, p_spdif->id);
+		enable_spdifout_to_hdmitx(separated);
 		if (get_spdif_to_hdmitx_id() == p_spdif->id) {
 			/* notify to hdmitx */
 			spdif_notify_to_hdmitx(substream, spdif_codec);
@@ -1718,6 +1721,7 @@ static int aml_spdif_platform_probe(struct platform_device *pdev)
 	struct spdif_chipinfo *p_spdif_chipinfo;
 	int ret = 0;
 	bool reenable = false;
+	int separated = 0;
 
 
 	aml_spdif = devm_kzalloc(dev, sizeof(struct aml_spdif), GFP_KERNEL);
@@ -1743,6 +1747,8 @@ static int aml_spdif_platform_probe(struct platform_device *pdev)
 
 		if (p_spdif_chipinfo->sample_mode_filter_en)
 			aml_spdifin_sample_mode_filter_en();
+
+		separated = p_spdif_chipinfo->separate_tohdmitx_en;
 	} else
 		dev_warn_once(dev,
 			"check whether to update spdif chipinfo\n");
@@ -1764,7 +1770,7 @@ static int aml_spdif_platform_probe(struct platform_device *pdev)
 	if (ret)
 		return -EINVAL;
 	if (aml_spdif->clk_cont && aml_spdif->id == 0)
-		spdifout_play_with_zerodata(aml_spdif->id, reenable);
+		spdifout_play_with_zerodata(aml_spdif->id, reenable, separated);
 
 	ret = devm_snd_soc_register_component
 		(dev,

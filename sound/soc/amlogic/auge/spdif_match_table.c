@@ -43,6 +43,7 @@ struct spdif_chipinfo {
 	bool async_fifo;
 
 	/* from tm2_revb */
+	bool separate_tohdmitx_en;
 	bool sample_mode_filter_en;
 	unsigned int spdifout_lane_mask;
 };
@@ -133,6 +134,7 @@ struct spdif_chipinfo tm2_revb_spdif_a_chipinfo = {
 	.hold_start   = true,
 	.eq_drc_en    = true,
 	.async_fifo   = true,
+	.separate_tohdmitx_en = true,
 	.sample_mode_filter_en = true,
 	.spdifout_lane_mask = SPDIFOUT_LANE_MASK_V2,
 };
@@ -143,6 +145,7 @@ struct spdif_chipinfo tm2_revb_spdif_b_chipinfo = {
 	.hold_start   = true,
 	.eq_drc_en    = true,
 	.async_fifo   = true,
+	.separate_tohdmitx_en = true,
 	.spdifout_lane_mask = SPDIFOUT_LANE_MASK_V2,
 };
 

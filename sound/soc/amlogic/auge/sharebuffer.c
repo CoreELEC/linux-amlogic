@@ -25,7 +25,7 @@
 #include "spdif_hw.h"
 
 static int sharebuffer_spdifout_prepare(struct snd_pcm_substream *substream,
-	struct frddr *fr, int spdif_id, int lane_i2s)
+	struct frddr *fr, int spdif_id, int lane_i2s, int separated)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	int bit_depth;
@@ -41,9 +41,9 @@ static int sharebuffer_spdifout_prepare(struct snd_pcm_substream *substream,
 		lane_i2s);
 
 	/* spdif to hdmitx */
-	//spdifout_to_hdmitx_ctrl(spdif_id);
+	//spdifout_to_hdmitx_ctrl(separated, spdif_id);
 	//set_spdif_to_hdmitx_id(spdif_id);
-	enable_spdifout_to_hdmitx();
+	enable_spdifout_to_hdmitx(separated);
 	/* check and set channel status */
 	spdif_get_channel_status_info(&chsts, runtime->rate, STEREO_PCM);
 	spdif_set_channel_status_info(&chsts, spdif_id);
@@ -88,7 +88,11 @@ void sharebuffer_enable(int sel, bool enable, bool reenable)
 }
 
 int sharebuffer_prepare(struct snd_pcm_substream *substream,
-	void *pfrddr, int samesource_sel, int lane_i2s, int offset)
+			void *pfrddr,
+			int samesource_sel,
+			int lane_i2s,
+			int offset,
+			int separated)
 {
 	struct frddr *fr = (struct frddr *)pfrddr;
 
@@ -101,7 +105,7 @@ int sharebuffer_prepare(struct snd_pcm_substream *substream,
 	} else if (samesource_sel < 5) {
 		/* same source with spdif a/b */
 		sharebuffer_spdifout_prepare(substream,
-			fr, samesource_sel - 3, lane_i2s);
+			fr, samesource_sel - 3, lane_i2s, separated);
 	}
 
 	/* frddr, share buffer, src_sel1 */

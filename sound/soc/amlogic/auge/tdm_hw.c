@@ -763,16 +763,29 @@ void aml_tdm_sclk_pad_select(struct aml_audio_controller *actrl,
 			mask_offset, val_offset);
 }
 
-void i2s_to_hdmitx_ctrl(int tdm_index)
+void i2s_to_hdmitx_ctrl(int i2s_tohdmitxen_separated, int tdm_index)
 {
 	audiobus_write(EE_AUDIO_TOHDMITX_CTRL0,
-		1 << 31
-		| tdm_index << 12 /* dat_sel */
+		tdm_index << 12 /* dat_sel */
 		| tdm_index << 8 /* lrclk_sel */
 		| 1 << 7 /* Bclk_cap_inv */
 		| 0 << 6 /* Bclk_o_inv */
 		| tdm_index << 4 /* Bclk_sel */
 	);
+
+	if (i2s_tohdmitxen_separated) {
+		/* if tohdmitx_en is separated, need do:
+		 * step1: enable/disable clk
+		 * step2: enable/disable dat
+		 */
+		audiobus_update_bits(EE_AUDIO_TOHDMITX_CTRL0,
+				     0x1 << 28, 0x1 << 28);
+		audiobus_update_bits(EE_AUDIO_TOHDMITX_CTRL0,
+				     0x1 << 29, 0x1 << 29);
+	} else {
+		audiobus_update_bits(EE_AUDIO_TOHDMITX_CTRL0,
+				     0x1 << 31, 0x1 << 31);
+	}
 }
 
 void aml_tdm_mute_playback(

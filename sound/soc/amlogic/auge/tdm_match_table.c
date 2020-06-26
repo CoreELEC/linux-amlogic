@@ -57,6 +57,9 @@ struct tdm_chipinfo {
 
 	/* async fifo */
 	bool async_fifo;
+
+	/* from tm2_revb */
+	bool separate_tohdmitx_en;
 };
 
 
@@ -232,6 +235,42 @@ struct tdm_chipinfo tm2_tdminlb_chipinfo = {
 	.async_fifo  = true,
 };
 
+struct tdm_chipinfo tm2_revb_tdma_chipinfo = {
+	.id          = TDM_A,
+	.sclk_ws_inv = true,
+	.oe_fn       = OE_FUNCTION_V2,
+	.same_src_fn = true,
+	.adc_fn      = true,
+	.lane_cnt    = LANE_MAX3,
+	.reset_reg_offset = 1,
+	.async_fifo  = true,
+	.separate_tohdmitx_en = true,
+};
+
+struct tdm_chipinfo tm2_revb_tdmb_chipinfo = {
+	.id          = TDM_B,
+	.sclk_ws_inv = true,
+	.oe_fn       = OE_FUNCTION_V2,
+	.same_src_fn = true,
+	.adc_fn      = true,
+	.lane_cnt    = LANE_MAX1,
+	.reset_reg_offset = 1,
+	.async_fifo  = true,
+	.separate_tohdmitx_en = true,
+};
+
+struct tdm_chipinfo tm2_revb_tdmc_chipinfo = {
+	.id          = TDM_C,
+	.sclk_ws_inv = true,
+	.oe_fn       = OE_FUNCTION_V2,
+	.same_src_fn = true,
+	.adc_fn      = true,
+	.lane_cnt    = LANE_MAX1,
+	.reset_reg_offset = 1,
+	.async_fifo  = true,
+	.separate_tohdmitx_en = true,
+};
+
 static const struct of_device_id aml_tdm_device_id[] = {
 	{
 		.compatible = "amlogic, axg-snd-tdma",
@@ -313,6 +352,18 @@ static const struct of_device_id aml_tdm_device_id[] = {
 		.compatible = "amlogic, tm2-snd-tdmlb",
 		.data       = &tm2_tdminlb_chipinfo,
 	},
-	{},
+	{
+		.compatible = "amlogic, tm2-revb-snd-tdma",
+		.data       = &tm2_revb_tdma_chipinfo,
+	},
+	{
+		.compatible = "amlogic, tm2-revb-snd-tdmb",
+		.data       = &tm2_revb_tdmb_chipinfo,
+	},
+	{
+		.compatible = "amlogic, tm2-revb-snd-tdmc",
+		.data       = &tm2_revb_tdmc_chipinfo,
+	},
+	{}
 };
 MODULE_DEVICE_TABLE(of, aml_tdm_device_id);

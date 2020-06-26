@@ -142,7 +142,7 @@ void new_resample_set_format(enum resample_idx id, int channel, int bits)
 
 		if (get_resample_enable_chnum_sync(RESAMPLE_B))
 			audiobus_update_bits(EE_AUDIO_RSAMP_B_CHSYNC_CTRL,
-					     0x7F << 0,
+					     0xFF << 0,
 					     (2 - 1) << 0);
 	}
 
