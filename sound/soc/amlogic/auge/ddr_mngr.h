@@ -159,6 +159,8 @@ struct ddr_chipinfo {
 	 * 2: vad
 	 */
 	int wakeup;
+
+	bool chnum_sync;
 };
 
 struct toddr {

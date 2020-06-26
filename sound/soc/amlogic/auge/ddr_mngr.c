@@ -444,6 +444,16 @@ void aml_toddr_set_format(struct toddr *to, struct toddr_fmt *fmt)
 		0x1 << 27 | 0x7 << 24 | 0x1fff << 3,
 		0x1 << 27 | fmt->endian << 24 | fmt->type << 13 |
 		fmt->msb << 8 | fmt->lsb << 3);
+
+	/* bit 0-7: chnum_max, same with record channels */
+	if (to->chipinfo && to->chipinfo->chnum_sync) {
+		reg = calc_toddr_address(EE_AUDIO_TODDR_A_CHSYNC_CTRL,
+					 reg_base);
+		aml_audiobus_update_bits(actrl,
+					 reg,
+					 0xFF << 0,
+					 (fmt->ch_num - 1) << 0);
+	}
 }
 
 unsigned int aml_toddr_get_status(struct toddr *to)
@@ -460,6 +470,21 @@ unsigned int aml_toddr_get_status(struct toddr *to)
 unsigned int aml_toddr_get_fifo_cnt(struct toddr *to)
 {
 	return (aml_toddr_get_status(to) & TODDR_FIFO_CNT) >> 8;
+}
+
+void aml_toddr_chsync_enable(struct toddr *to)
+{
+	struct aml_audio_controller *actrl = to->actrl;
+	unsigned int reg, offset;
+
+	offset = EE_AUDIO_TODDR_B_CHSYNC_CTRL - EE_AUDIO_TODDR_A_CHSYNC_CTRL;
+	reg = EE_AUDIO_TODDR_A_CHSYNC_CTRL + offset * to->fifo_id;
+
+	/* bit 31: enable */
+	aml_audiobus_update_bits(actrl,
+				 reg,
+				 0x1 << 31,
+				 0x1 << 31);
 }
 
 void aml_toddr_ack_irq(struct toddr *to, int status)
@@ -1711,6 +1736,16 @@ static struct ddr_chipinfo sm1_ddr_chipinfo = {
 	.wakeup                = 2,
 };
 
+static struct ddr_chipinfo tm2_revb_ddr_chipinfo = {
+	.same_src_fn           = true,
+	.ugt                   = true,
+	.src_sel_ctrl          = true,
+	.asrc_src_sel_ctrl     = true,
+	.wakeup                = 2,
+	.fifo_num              = 4,
+	.chnum_sync            = true,
+};
+
 static const struct of_device_id aml_ddr_mngr_device_id[] = {
 	{
 		.compatible = "amlogic, axg-audio-ddr-manager",
@@ -1728,7 +1763,11 @@ static const struct of_device_id aml_ddr_mngr_device_id[] = {
 		.compatible = "amlogic, sm1-audio-ddr-manager",
 		.data       = &sm1_ddr_chipinfo,
 	},
-	{},
+	{
+		.compatible = "amlogic, tm2-revb-audio-ddr-manager",
+		.data       = &tm2_revb_ddr_chipinfo,
+	},
+	{}
 };
 MODULE_DEVICE_TABLE(of, aml_ddr_mngr_device_id);
 
@@ -1851,6 +1890,9 @@ static int aml_ddr_mngr_platform_probe(struct platform_device *pdev)
 			dev_err(&pdev->dev, "%s, get irq failed\n", __func__);
 			return -ENXIO;
 		}
+
+		if (p_ddr_chipinfo->chnum_sync)
+			aml_toddr_chsync_enable(&toddrs[i]);
 	}
 
 	ret = register_pm_notifier(&ddr_pm_notifier_block);

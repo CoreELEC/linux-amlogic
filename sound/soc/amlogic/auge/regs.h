@@ -172,6 +172,16 @@ struct register_table {
 #define EE_AUDIO_TODDR_A_INIT_ADDR         0x049
 #define EE_AUDIO_TODDR_A_CTRL2             0x04a
 
+#define EE_AUDIO_TODDR_A_CHNUM_ID0         0x300
+#define EE_AUDIO_TODDR_A_CHNUM_ID1         0x301
+#define EE_AUDIO_TODDR_A_CHNUM_ID2         0x302
+#define EE_AUDIO_TODDR_A_CHNUM_ID3         0x303
+#define EE_AUDIO_TODDR_A_CHNUM_ID4         0x304
+#define EE_AUDIO_TODDR_A_CHNUM_ID5         0x305
+#define EE_AUDIO_TODDR_A_CHNUM_ID6         0x306
+#define EE_AUDIO_TODDR_A_CHNUM_ID7         0x307
+#define EE_AUDIO_TODDR_A_CHSYNC_CTRL       0x30F
+
 #define EE_AUDIO_TODDR_B_CTRL0             0x050
 #define EE_AUDIO_TODDR_B_CTRL1             0x051
 #define EE_AUDIO_TODDR_B_START_ADDR        0x052
@@ -184,6 +194,16 @@ struct register_table {
 #define EE_AUDIO_TODDR_B_INIT_ADDR         0x059
 #define EE_AUDIO_TODDR_B_CTRL2             0x05a
 
+#define EE_AUDIO_TODDR_B_CHNUM_ID0         0x310
+#define EE_AUDIO_TODDR_B_CHNUM_ID1         0x311
+#define EE_AUDIO_TODDR_B_CHNUM_ID2         0x312
+#define EE_AUDIO_TODDR_B_CHNUM_ID3         0x313
+#define EE_AUDIO_TODDR_B_CHNUM_ID4         0x314
+#define EE_AUDIO_TODDR_B_CHNUM_ID5         0x315
+#define EE_AUDIO_TODDR_B_CHNUM_ID6         0x316
+#define EE_AUDIO_TODDR_B_CHNUM_ID7         0x317
+#define EE_AUDIO_TODDR_B_CHSYNC_CTRL       0x31F
+
 #define EE_AUDIO_TODDR_C_CTRL0             0x060
 #define EE_AUDIO_TODDR_C_CTRL1             0x061
 #define EE_AUDIO_TODDR_C_START_ADDR        0x062
@@ -195,6 +215,38 @@ struct register_table {
 #define EE_AUDIO_TODDR_C_FINISH_ADDRB      0x068
 #define EE_AUDIO_TODDR_C_INIT_ADDR         0x069
 #define EE_AUDIO_TODDR_C_CTRL2             0x06a
+
+#define EE_AUDIO_TODDR_C_CHNUM_ID0         0x320
+#define EE_AUDIO_TODDR_C_CHNUM_ID1         0x321
+#define EE_AUDIO_TODDR_C_CHNUM_ID2         0x322
+#define EE_AUDIO_TODDR_C_CHNUM_ID3         0x323
+#define EE_AUDIO_TODDR_C_CHNUM_ID4         0x324
+#define EE_AUDIO_TODDR_C_CHNUM_ID5         0x325
+#define EE_AUDIO_TODDR_C_CHNUM_ID6         0x326
+#define EE_AUDIO_TODDR_C_CHNUM_ID7         0x327
+#define EE_AUDIO_TODDR_C_CHSYNC_CTRL       0x32F
+
+#define EE_AUDIO_TODDR_D_CTRL0             0x210
+#define EE_AUDIO_TODDR_D_CTRL1             0x211
+#define EE_AUDIO_TODDR_D_START_ADDR        0x212
+#define EE_AUDIO_TODDR_D_FINISH_ADDR       0x213
+#define EE_AUDIO_TODDR_D_INT_ADDR          0x214
+#define EE_AUDIO_TODDR_D_STATUS1           0x215
+#define EE_AUDIO_TODDR_D_STATUS2           0x216
+#define EE_AUDIO_TODDR_D_START_ADDRB       0x217
+#define EE_AUDIO_TODDR_D_FINISH_ADDRB      0x218
+#define EE_AUDIO_TODDR_D_INIT_ADDR         0x219
+#define EE_AUDIO_TODDR_D_CTRL2             0x21a
+
+#define EE_AUDIO_TODDR_D_CHNUM_ID0         0x330
+#define EE_AUDIO_TODDR_D_CHNUM_ID1         0x331
+#define EE_AUDIO_TODDR_D_CHNUM_ID2         0x332
+#define EE_AUDIO_TODDR_D_CHNUM_ID3         0x333
+#define EE_AUDIO_TODDR_D_CHNUM_ID4         0x334
+#define EE_AUDIO_TODDR_D_CHNUM_ID5         0x335
+#define EE_AUDIO_TODDR_D_CHNUM_ID6         0x336
+#define EE_AUDIO_TODDR_D_CHNUM_ID7         0x337
+#define EE_AUDIO_TODDR_D_CHSYNC_CTRL       0x33F
 
 /*
  *	AUDIO FRDDR
@@ -234,6 +286,18 @@ struct register_table {
 #define EE_AUDIO_FRDDR_C_FINISH_ADDRB      0x098
 #define EE_AUDIO_FRDDR_C_INIT_ADDR         0x099
 #define EE_AUDIO_FRDDR_C_CTRL2             0x09a
+
+#define EE_AUDIO_FRDDR_D_CTRL0             0x220
+#define EE_AUDIO_FRDDR_D_CTRL1             0x221
+#define EE_AUDIO_FRDDR_D_START_ADDR        0x222
+#define EE_AUDIO_FRDDR_D_FINISH_ADDR       0x223
+#define EE_AUDIO_FRDDR_D_INT_ADDR          0x224
+#define EE_AUDIO_FRDDR_D_STATUS1           0x225
+#define EE_AUDIO_FRDDR_D_STATUS2           0x226
+#define EE_AUDIO_FRDDR_D_START_ADDRB       0x227
+#define EE_AUDIO_FRDDR_D_FINISH_ADDRB      0x228
+#define EE_AUDIO_FRDDR_D_INIT_ADDR         0x229
+#define EE_AUDIO_FRDDR_D_CTRL2             0x22a
 
 /*
  *	AUDIO ARB,
@@ -588,30 +652,6 @@ struct register_table {
 #define EE_AUDIO_FRHDMIRX_CTRL5            0x205
 #define EE_AUDIO_FRHDMIRX_STAT0            0x20a
 #define EE_AUDIO_FRHDMIRX_STAT1            0x20b
-
-#define EE_AUDIO_TODDR_D_CTRL0             0x210
-#define EE_AUDIO_TODDR_D_CTRL1             0x211
-#define EE_AUDIO_TODDR_D_START_ADDR        0x212
-#define EE_AUDIO_TODDR_D_FINISH_ADDR       0x213
-#define EE_AUDIO_TODDR_D_INT_ADDR          0x214
-#define EE_AUDIO_TODDR_D_STATUS1           0x215
-#define EE_AUDIO_TODDR_D_STATUS2           0x216
-#define EE_AUDIO_TODDR_D_START_ADDRB       0x217
-#define EE_AUDIO_TODDR_D_FINISH_ADDRB      0x218
-#define EE_AUDIO_TODDR_D_INIT_ADDR         0x219
-#define EE_AUDIO_TODDR_D_CTRL2             0x21a
-
-#define EE_AUDIO_FRDDR_D_CTRL0             0x220
-#define EE_AUDIO_FRDDR_D_CTRL1             0x221
-#define EE_AUDIO_FRDDR_D_START_ADDR        0x222
-#define EE_AUDIO_FRDDR_D_FINISH_ADDR       0x223
-#define EE_AUDIO_FRDDR_D_INT_ADDR          0x224
-#define EE_AUDIO_FRDDR_D_STATUS1           0x225
-#define EE_AUDIO_FRDDR_D_STATUS2           0x226
-#define EE_AUDIO_FRDDR_D_START_ADDRB       0x227
-#define EE_AUDIO_FRDDR_D_FINISH_ADDRB      0x228
-#define EE_AUDIO_FRDDR_D_INIT_ADDR         0x229
-#define EE_AUDIO_FRDDR_D_CTRL2             0x22a
 
 /*
  *	AUDIO LOCKER
@@ -1191,6 +1231,27 @@ struct register_table {
 #define AUDIO_RSAMP_AA_COEF_DATA           0x031
 #define AUDIO_RSAMP_SINC_COEF_ADDR         0x040
 #define AUDIO_RSAMP_SINC_COEF_DATA         0x041
+
+#define EE_AUDIO_RSAMP_A_CHNUM_ID0         0x350
+#define EE_AUDIO_RSAMP_A_CHNUM_ID1         0x351
+#define EE_AUDIO_RSAMP_A_CHNUM_ID2         0x352
+#define EE_AUDIO_RSAMP_A_CHNUM_ID3         0x353
+#define EE_AUDIO_RSAMP_A_CHNUM_ID4         0x354
+#define EE_AUDIO_RSAMP_A_CHNUM_ID5         0x355
+#define EE_AUDIO_RSAMP_A_CHNUM_ID6         0x356
+#define EE_AUDIO_RSAMP_A_CHNUM_ID7         0x357
+#define EE_AUDIO_RSAMP_A_CHNUM_MASK        0x35E
+#define EE_AUDIO_RSAMP_A_CHSYNC_CTRL       0x35F
+
+#define EE_AUDIO_RSAMP_B_CHNUM_ID0         0x360
+#define EE_AUDIO_RSAMP_B_CHNUM_ID1         0x361
+#define EE_AUDIO_RSAMP_B_CHNUM_ID2         0x362
+#define EE_AUDIO_RSAMP_B_CHNUM_ID3         0x363
+#define EE_AUDIO_RSAMP_B_CHNUM_ID4         0x364
+#define EE_AUDIO_RSAMP_B_CHNUM_ID5         0x365
+#define EE_AUDIO_RSAMP_B_CHNUM_ID6         0x366
+#define EE_AUDIO_RSAMP_B_CHNUM_ID7         0x367
+#define EE_AUDIO_RSAMP_B_CHSYNC_CTRL       0x36F
 
 /*HHI bus*/
 #define HHI_AUDIO_MEM_PD_REG0              0x045
