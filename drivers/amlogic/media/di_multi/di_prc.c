@@ -1735,7 +1735,6 @@ void dip_chst_process_reg(unsigned int ch)
 
 		if (pbm->cma_flg_run & DI_BIT0) {
 			dbg_reg("%s:p1 c\n", __func__);
-			dip_chst_set(ch, EDI_TOP_STATE_UNREG_STEP3);
 			break;
 		}
 
@@ -1824,23 +1823,6 @@ void dip_chst_process_reg(unsigned int ch)
 
 		dip_chst_set(ch, EDI_TOP_STATE_IDLE);
 		/*debug only dbg_reg("ch[%d]UNREG_STEP2 end\n",ch);*/
-		break;
-	case EDI_TOP_STATE_UNREG_STEP3:
-		dbg_reg("%s:ch[%d]:UNREG_STEP3\n", __func__, ch);
-		ppre->reg_req_flag_cnt = 0;
-		while (pbm->cma_flg_run & DI_BIT0) {
-			usleep_range(10000, 10001);
-			if (ppre->reg_req_flag_cnt++ >
-				dim_get_reg_unreg_cnt()) {
-				dim_reg_timeout_inc();
-				PR_ERR("%s,ch[%d] reg timeout!!!\n",
-				       __func__, ch);
-				break;
-			}
-		}
-		dip_chst_set(ch, EDI_TOP_STATE_REG_STEP1_P1);
-		task_send_cmd(LCMD1(ECMD_REG, ch));
-		dbg_reg("ch[%d]UNREG_STEP3 end\n", ch);
 		break;
 	}
 	}
