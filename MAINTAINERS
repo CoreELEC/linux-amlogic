@@ -13618,7 +13618,9 @@ F: drivers/amlogic/cpu_hotplug/*
 
 AMLOGIC PWM DRIVER
 M:	Jian Hu <jian.hu@amlogic.com>
-F:	drivers/amlogic/pwm/*
+F:	drivers/amlogic/pwm/pwm_meson.c
+F:	drivers/amlogic/pwm/pwm_meson_v2.c
+F:	drivers/amlogic/pwm/pwm_meson_sysfs.c
 F:	include/linux/amlogic/pwm_meson.h
 F:	Documentation/devicetree/bindings/amlogic/pwm-meson.txt
 F:	arch/arm64/boot/dts/amlogic/gxl_p212_2g.dts

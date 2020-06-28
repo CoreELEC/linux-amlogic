@@ -1084,8 +1084,8 @@
 
 	cpufreq-meson {
 		compatible = "amlogic, cpufreq-meson";
-		pinctrl-names = "default";
-		pinctrl-0 = <&pwm_ao_d_pins3>;
+		//pinctrl-names = "default";
+		//pinctrl-0 = <&pwm_ao_d_pins3>;
 		status = "disabled";
 	};
 
@@ -1662,10 +1662,6 @@
 };
 
 /* Audio Related End */
-
-&pwm_ef {
-	status = "disabled";
-};
 
 &dwc3 {
 	status = "disabled";
