@@ -2873,12 +2873,21 @@ static void apply_stb_core_settings(
 #endif
 	u32 graphics_w = osd_graphic_width;
 	u32 graphics_h = osd_graphic_height;
+	u32 update_bk = stb_core_setting_update_flag;
+	static u32 update_flag_more;
 	int mute_type;
 
 	if (h_size == 0xffff)
 		h_size = 0;
 	if (v_size == 0xffff)
 		v_size = 0;
+
+	if ((stb_core_setting_update_flag != update_flag_more) &&
+	    (debug_dolby & 2))
+		pr_dolby_dbg(
+			"apply_stb_core_settings update setting again %x->%x\n",
+			stb_core_setting_update_flag, update_flag_more);
+	stb_core_setting_update_flag |= update_flag_more;
 
 	if (is_dolby_vision_stb_mode()
 		&& (dolby_vision_flags & FLAG_CERTIFICAION)) {
@@ -3002,6 +3011,7 @@ static void apply_stb_core_settings(
 			pps_state);
 	}
 	stb_core_setting_update_flag = 0;
+	update_flag_more = update_bk;
 }
 
 static void osd_bypass(int bypass)
