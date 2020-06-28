@@ -564,7 +564,89 @@ unsigned int aml_toddr_read_status2(struct toddr *to)
 	return aml_audiobus_read(actrl, reg);
 }
 
-bool aml_toddr_burst_finished(struct toddr *to)
+static bool aml_toddr_check_status_flag(struct toddr *to)
+{
+	struct aml_audio_controller *actrl = to->actrl;
+	unsigned int reg_base = to->reg_base;
+	unsigned int reg, status, arb_status;
+	int i;
+	bool ret = false;
+
+	/*
+	 * reg_stop_ddr; if set from 0 to 1, will:
+	 * step1: stop write data to FIFO;
+	 * step2: stop sending request to DDR;
+	 * step3: keep receiving data from DDR;
+	 * step4: compare request count and receive count;
+	 * step5: done if two count matched;
+	 */
+	reg = calc_toddr_address(EE_AUDIO_TODDR_A_CTRL2, reg_base);
+	aml_audiobus_update_bits(actrl,	reg, 1 << 30, 0 << 30);
+	aml_audiobus_update_bits(actrl,	reg, 1 << 30, 1 << 30);
+
+	/* max 200us delay */
+	for (i = 0; i < 200; i++) {
+		/* STATUS1 bit 23, stop_ddr_done */
+		reg = calc_toddr_address(EE_AUDIO_TODDR_A_STATUS1, reg_base);
+		status = (aml_audiobus_read(actrl, reg) & 0x800000) >> 23;
+		if (status) {
+			arb_status = aml_audiobus_read(actrl, EE_AUDIO_ARB_STS);
+
+			pr_debug("toddr stop success, fifo id %d, regbase:0x%x, arb sts:0x%x\n",
+				 to->fifo_id, reg_base, arb_status);
+
+			if (arb_status & 0x80000000) {
+				if (arb_status & (1 << to->fifo_id)) {
+					aml_audiobus_update_bits
+						(actrl,
+						 EE_AUDIO_ARB_CTRL,
+						 0xff,
+						 0x0);
+					aml_audiobus_update_bits
+						(actrl,
+						 EE_AUDIO_ARB_CTRL,
+						 0x1 << 29,
+						 0x1 << 29);
+					aml_audiobus_update_bits
+						(actrl,
+						 EE_AUDIO_ARB_CTRL,
+						 0x1 << 29,
+						 0x0 << 29);
+					pr_info("toddr sts1 0x%x, arb sts 0x%x\n",
+						aml_audiobus_read(actrl, reg),
+						aml_audiobus_read
+							(actrl,
+							 EE_AUDIO_ARB_STS));
+					aml_audiobus_update_bits
+						(actrl,
+						 EE_AUDIO_ARB_CTRL,
+						 0xff,
+						 0xff);
+				}
+			}
+			ret = true;
+			break;
+		}
+
+		udelay(1);
+		if ((i % 20) == 0)
+			pr_info("toddr:delay:[%dus];fifo id %d,reg_base 0x%x,sts1 0x%x,arb sts 0x%x\n",
+				i, to->fifo_id, reg_base,
+				aml_audiobus_read(actrl, reg),
+				aml_audiobus_read(actrl, EE_AUDIO_ARB_STS));
+	}
+
+	if (!ret)
+		pr_err("Error: 200us time out, TODDR_STATUS1 bit 23: %u\n",
+		       status);
+
+	reg = calc_toddr_address(EE_AUDIO_TODDR_A_CTRL2, reg_base);
+	aml_audiobus_update_bits(actrl,	reg, 1 << 30, 0 << 30);
+
+	return ret;
+}
+
+static bool aml_toddr_check_fifo_count(struct toddr *to)
 {
 	unsigned int addr_request, addr_reply, i = 0;
 	struct aml_audio_controller *actrl = to->actrl;
@@ -621,7 +703,15 @@ bool aml_toddr_burst_finished(struct toddr *to)
 	return false;
 }
 
-bool aml_frddr_burst_finished(struct frddr *fr)
+bool aml_toddr_burst_finished(struct toddr *to)
+{
+	if (to->chipinfo->burst_finished_flag)
+		return aml_toddr_check_status_flag(to);
+	else
+		return aml_toddr_check_fifo_count(to);
+}
+
+bool aml_frddr_check_fifo_count(struct frddr *fr)
 {
 	unsigned int cnt0, cnt1, cnt2;
 	unsigned int i = 0;
@@ -1274,13 +1364,104 @@ unsigned int aml_frddr_get_position(struct frddr *fr)
 	return aml_audiobus_read(actrl, reg);
 }
 
+static bool aml_frddr_check_status_flag(struct frddr *fr)
+{
+	struct aml_audio_controller *actrl = fr->actrl;
+	unsigned int reg_base = fr->reg_base;
+	unsigned int reg, status, arb_status;
+	int i;
+	bool ret = false;
+
+	/*
+	 * reg_stop_ddr; if set from 0 to 1, will:
+	 * step1: stop write data to FIFO;
+	 * step2: stop sending request to DDR;
+	 * step3: keep receiving data from DDR;
+	 * step4: compare request count and receive count;
+	 * step5: done if two count matched;
+	 */
+	reg = calc_frddr_address(EE_AUDIO_FRDDR_A_CTRL2, reg_base);
+	aml_audiobus_update_bits(actrl,	reg, 1 << 21, 0 << 21);
+	aml_audiobus_update_bits(actrl,	reg, 1 << 21, 1 << 21);
+
+	/* max 200us delay */
+	for (i = 0; i < 200; i++) {
+		/* STATUS1 bit 17, stop_ddr_done */
+		reg = calc_frddr_address(EE_AUDIO_FRDDR_A_STATUS1, reg_base);
+		status = (aml_audiobus_read(actrl, reg) & 0x20000) >> 17;
+		if (status) {
+			arb_status = aml_audiobus_read(actrl, EE_AUDIO_ARB_STS);
+
+			pr_debug("frddr stop success, fifo id %d, regbase:0x%x, arb sts:0x%x\n",
+				 fr->fifo_id, reg_base, arb_status);
+
+			if (arb_status & 0x80000000) {
+				if (arb_status & (1 << (fr->fifo_id + 4))) {
+					aml_audiobus_update_bits
+						(actrl,
+						 EE_AUDIO_ARB_CTRL,
+						 0xff,
+						 0x0);
+					aml_audiobus_update_bits
+						(actrl,
+						 EE_AUDIO_ARB_CTRL,
+						 0x1 << 29,
+						 0x1 << 29);
+					aml_audiobus_update_bits
+						(actrl,
+						 EE_AUDIO_ARB_CTRL,
+						 0x1 << 29,
+						 0x0 << 29);
+					pr_info("sts1 0x%x, arb sts 0x%x\n",
+						aml_audiobus_read(actrl, reg),
+						aml_audiobus_read
+							(actrl,
+							 EE_AUDIO_ARB_STS));
+					aml_audiobus_update_bits
+						(actrl,
+						 EE_AUDIO_ARB_CTRL,
+						 0xff,
+						 0xff);
+				}
+			}
+			ret = true;
+			break;
+		}
+
+		udelay(1);
+		if ((i % 20) == 0)
+			pr_info("frddr:delay:[%dus]; id %d, reg_base 0x%x, sts1 0x%x, arb sts 0x%x\n",
+				i, fr->fifo_id, reg_base,
+				aml_audiobus_read(actrl, reg),
+				aml_audiobus_read(actrl, EE_AUDIO_ARB_STS));
+	}
+
+	if (!ret)
+		pr_err("Error: 200us time out, FRDDR_STATUS1 bit 17: %u\n",
+		       status);
+
+	reg = calc_frddr_address(EE_AUDIO_FRDDR_A_CTRL2, reg_base);
+	aml_audiobus_update_bits(actrl,	reg, 1 << 21, 0 << 21);
+
+	return ret;
+}
+
 void aml_frddr_enable(struct frddr *fr, bool enable)
 {
 	struct aml_audio_controller *actrl = fr->actrl;
 	unsigned int reg_base = fr->reg_base;
-	unsigned int reg;
+	unsigned int reg, value;
 
 	reg = calc_frddr_address(EE_AUDIO_FRDDR_A_CTRL0, reg_base);
+
+	value = aml_audiobus_read(actrl, reg);
+	if ((!enable) && (value & (0x1 << 31))) {
+		if (fr->chipinfo && fr->chipinfo->burst_finished_flag)
+			aml_frddr_check_status_flag(fr);
+		else
+			aml_frddr_check_fifo_count(fr);
+	}
+
 	/* ensure disable before enable frddr */
 	aml_audiobus_update_bits(actrl,	reg, 1<<31, enable<<31);
 

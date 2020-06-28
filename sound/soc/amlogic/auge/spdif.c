@@ -1416,8 +1416,6 @@ static int aml_dai_spdif_trigger(struct snd_pcm_substream *substream, int cmd,
 					substream->stream, p_spdif->id, false);
 			}
 
-			if (!aml_frddr_burst_finished(p_spdif->fddr))
-				pr_err("%s() frddr check fail\n", __func__);
 			aml_frddr_enable(p_spdif->fddr, 0);
 		} else {
 			bool toddr_stopped = false;

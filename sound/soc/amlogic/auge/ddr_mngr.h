@@ -161,6 +161,8 @@ struct ddr_chipinfo {
 	int wakeup;
 
 	bool chnum_sync;
+
+	bool burst_finished_flag;
 };
 
 struct toddr {
@@ -333,7 +335,6 @@ void pm_audio_set_suspend(bool is_suspend);
 bool pm_audio_is_suspend(void);
 
 void aml_frddr_check(struct frddr *fr);
-bool aml_frddr_burst_finished(struct frddr *fr);
 void aml_aed_set_frddr_reserved(void);
 
 #endif
