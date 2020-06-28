@@ -15308,6 +15308,12 @@ M:	Brian Zhu <brian.zhu@amlogic.com>
 F: drivers/amlogic/media/video_sink/video_receiver.c
 F: drivers/amlogic/media/video_sink/video_receiver.h
 
+ALOGIC VIDEOTUNNEL DRIVER
+M: Baocheng Sun <baocheng.sun@amlogic.com>
+F: drivers/amlogic/media/video_processor/videotunnel/videotunnel.c
+F: drivers/amlogic/media/video_processor/videotunnel/videotunnel_priv.h
+F: drivers/amlogic/media/video_processor/videotunnel/uapi/videotunnel.h
+
 AMLOGIC UVM DRIVER
 M:	Ao.Xu <ao.xu@amlogic.com>
 F:	drivers/amlogic/uvm/meson_uvm.c
