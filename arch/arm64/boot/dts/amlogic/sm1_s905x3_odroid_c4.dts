@@ -167,3 +167,17 @@
 &uart_A {
 	status = "disabled";
 };
+
+&i2c2 {
+	status = "disabled";
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c2_master_pins1>;
+	clock-frequency = <100000>;
+};
+
+&i2c3 {
+	status = "disabled";
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c3_master_pins2>;
+	clock-frequency = <100000>;
+};
