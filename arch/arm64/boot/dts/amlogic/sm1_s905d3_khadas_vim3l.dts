@@ -208,3 +208,18 @@
 &saradc {
 	status = "okay";
 };
+
+&spicc1 {
+	status = "disabled";
+	pinctrl-names = "default";
+	pinctrl-0 = <&spicc1_pins>;
+	cs-gpios = <&gpio GPIOH_6 GPIO_ACTIVE_HIGH>;
+
+	spidev@0 {
+		status = "disabled";
+		compatible = "linux,spidev";
+		/* spi default max clock 100Mhz */
+		spi-max-frequency = <100000000>;
+		reg = <0>;
+	};
+};
