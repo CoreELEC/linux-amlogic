@@ -919,4 +919,6 @@ extern unsigned int hdmitx_rd_check_reg(unsigned int addr,
 	unsigned int exp_data,
 	unsigned int mask);
 extern void vsem_init_cfg(struct hdmitx_dev *hdev);
+
+bool LGAVIErrorTV(struct rx_cap *prxcap);
 #endif
