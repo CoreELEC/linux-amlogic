@@ -148,12 +148,10 @@ struct swdmx_secfilter {
  *	fprintf(stderr, "\n");
  *}
  */
-#define swdmx_log(f, a...) \
-	dprintk(LOG_DBG, debug_swdemux, "%s:" f, __func__, ## a)
 
-MODULE_PARM_DESC(debug_swdemux, "\n\t\t Enable demux debug information");
-static int debug_swdemux;
-module_param(debug_swdemux, int, 0644);
+#define swdmx_log(f, a...) \
+	dprintk(LOG_DBG, 0, "%s:" f, __func__, ## a)
+
 /**
  * Check if the PID is valid.
  * \param pid The PID.

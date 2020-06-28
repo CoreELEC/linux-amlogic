@@ -63,13 +63,13 @@ struct dsc_channel {
 
 	int state;
 	unsigned int id;
-	enum ca_dsc_type dsc_type;
+	enum ca_sc2_dsc_type dsc_type;
 	int index;
 	int index00;
 
 	int sid;
 	int pid;
-	enum ca_algo_type algo;
+	enum ca_sc2_algo_type algo;
 	struct dsc_channel *next;
 };
 
@@ -295,7 +295,7 @@ static void _dsc_chan_free(struct dsc_channel *ch)
 }
 
 static int _dsc_chan_set_key(struct dsc_channel *ch,
-			     enum ca_key_type parity, int key_index)
+			     enum ca_sc2_key_type parity, int key_index)
 {
 	struct dsc_pid_table *ptmp = NULL;
 
@@ -382,7 +382,7 @@ static int _dvb_dsc_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int handle_desc_ext(struct aml_dsc *dsc, struct ca_descr_ex *d)
+static int handle_desc_ext(struct aml_dsc *dsc, struct ca_sc2_descr_ex *d)
 {
 	int ret = -EINVAL;
 
@@ -394,8 +394,8 @@ static int handle_desc_ext(struct aml_dsc *dsc, struct ca_descr_ex *d)
 				break;
 			}
 			ret = _dsc_chan_alloc(dsc,
-					      d->params.
-					      alloc_params.pid & 0x1FFF,
+					      d->params.alloc_params.
+					      pid & 0x1FFF,
 					      d->params.alloc_params.algo + 1,
 					      d->params.alloc_params.dsc_type,
 					      &d->params.alloc_params.ca_index);
@@ -409,8 +409,8 @@ static int handle_desc_ext(struct aml_dsc *dsc, struct ca_descr_ex *d)
 			pr_dbg("%s CA_FREE:%d\n", __func__,
 			       d->params.alloc_params.ca_index);
 			ch = _get_chan_from_list(dsc,
-						 d->params.
-						 alloc_params.ca_index);
+						 d->params.alloc_params.
+						 ca_index);
 			if (ch)
 				_dsc_chan_free(ch);
 			ret = 0;
@@ -429,10 +429,10 @@ static int handle_desc_ext(struct aml_dsc *dsc, struct ca_descr_ex *d)
 				       d->params.key_params.parity,
 				       d->params.key_params.key_index);
 				ret = _dsc_chan_set_key(ch,
-							d->params.
-							key_params.parity,
-							d->params.
-							key_params.key_index);
+							d->params.key_params.
+							parity,
+							d->params.key_params.
+							key_index);
 			}
 		}
 		break;
@@ -479,8 +479,10 @@ static int _dvb_dsc_do_ioctl(struct file *file, unsigned int cmd, void *parg)
 			descr->type = 0;
 			break;
 		}
-	case CA_SET_DESCR_EX:{
-			ret = handle_desc_ext(dsc, (struct ca_descr_ex *)parg);
+	case CA_SC2_SET_DESCR_EX:{
+			ret =
+			    handle_desc_ext(dsc,
+					    (struct ca_sc2_descr_ex *)parg);
 			break;
 		}
 	}
@@ -493,7 +495,7 @@ static int _dvb_dsc_do_ioctl(struct file *file, unsigned int cmd, void *parg)
 static int _dvb_dsc_usercopy(struct file *file,
 			     unsigned int cmd, unsigned long arg,
 			     int (*func)(struct file *file,
-					 unsigned int cmd, void *arg))
+					  unsigned int cmd, void *arg))
 {
 	char sbuf[128];
 	void *mbuf = NULL;

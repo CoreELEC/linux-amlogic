@@ -474,6 +474,17 @@
 		ts1_dmx = <1>;
 	};
 
+	/* SMC */
+	smartcard {
+		compatible = "amlogic,smartcard";
+		dev_name = "smartcard";
+		status = "okay";
+
+		reg = <0x0 0xfe000000 0x0 0x480000>;
+		clocks = <&clkc CLKID_SMARTCARD>;
+		clock-names = "smartcard";
+	};
+
 	ionvideo {
 		compatible = "amlogic, ionvideo";
 		dev_name = "ionvideo";

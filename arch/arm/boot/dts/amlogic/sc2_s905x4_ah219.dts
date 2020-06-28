@@ -458,6 +458,35 @@
 		clock-names = "demux", "ahbarb0", "parser_top";
 	};
 
+	dvb {
+		compatible = "amlogic, dvb";
+		dev_name = "dvb";
+		status = "okay";
+
+		reg = <0xfe000000 0x480000>;
+
+		dmxdev_num = <4>;
+		tsn_from = "local";
+		/*set pass tse or not, default is 1*/
+		tse_enable = <0>;
+
+		/*single demod setting */
+		/*ts will bind with dmx device*/
+		ts0_dmx = <0>;
+		ts1_dmx = <1>;
+	};
+
+	/* SMC */
+	smartcard {
+		compatible = "amlogic,smartcard";
+		dev_name = "smartcard";
+		status = "okay";
+
+		reg = <0xfe000000 0x480000>;
+		clocks = <&clkc CLKID_SMARTCARD>;
+		clock-names = "smartcard";
+	};
+
 	unifykey{
 		compatible = "amlogic, unifykey";
 		status = "okay";

@@ -518,7 +518,7 @@ static void create_aucpu_inst(struct out_elem *pout)
 		dst.phy_start = pout->aucpu_mem_phy;
 		dst.buf_size = pout->aucpu_mem_size;
 		dst.buf_flags = 0;
-		cfg.media_type = pout->format;	/*MEDIA_MPX; */
+		cfg.media_type = pout->aud_type;	/*MEDIA_MPX; */
 		cfg.dma_chn_id = pout->pchan->id;
 		cfg.config_flags = 0;
 		pout->aucpu_handle = aml_aucpu_strm_create(&src, &dst, &cfg);
@@ -625,12 +625,72 @@ static int write_aucpu_es_data(struct out_elem *pout,
 			len -= ret;
 			if (!isdirty)
 				pout->cb(pout, ptmp, ret, pout->udata);
+		} else {
+			msleep(20);
 		}
 
 		if (pout->running == TASK_DEAD)
 			return -1;
 	}
 	pr_dbg("%s exit\n", __func__);
+	return 0;
+}
+
+static int write_aucpu_sec_es_data(struct out_elem *pout, struct chan_id *pchan,
+				   struct dmx_non_sec_es_header *header)
+{
+	unsigned int len = header->len;
+	struct dmx_sec_es_data sec_es_data;
+	char *ptmp;
+	int ret;
+	unsigned int data_start = 0;
+	unsigned int data_end = 0;
+
+	memset(&sec_es_data, 0, sizeof(struct dmx_sec_es_data));
+	sec_es_data.pts_dts_flag = header->pts_dts_flag;
+	sec_es_data.dts = header->dts;
+	sec_es_data.pts = header->pts;
+	sec_es_data.buf_start = pout->aucpu_mem;
+	sec_es_data.buf_end = pout->aucpu_mem + pout->aucpu_mem_size;
+
+	while (len) {
+		if (!pout->aucpu_start &&
+		    pout->format == ES_FORMAT &&
+		    pout->type == AUDIO_TYPE && pout->aucpu_handle >= 0) {
+			if (wdma_get_active(pout->pchan->id)) {
+				ret = aml_aucpu_strm_start(pout->aucpu_handle);
+				if (ret >= 0) {
+					pr_dbg("aucpu start success\n");
+					pout->aucpu_start = 1;
+				} else {
+					pr_dbg("aucpu start fail ret:%d\n",
+					       ret);
+				}
+			}
+
+			if (!pout->aucpu_start) {
+				if (pout->running == TASK_DEAD)
+					return -1;
+				continue;
+			}
+		}
+		ret = aucpu_bufferid_read(pout, &ptmp, len);
+		if (ret != 0) {
+			if (data_start == 0)
+				data_start = (unsigned long)ptmp;
+			data_end = (unsigned long)ptmp + len;
+			len -= ret;
+		} else {
+			msleep(20);
+		}
+
+		if (pout->running == TASK_DEAD)
+			return -1;
+	}
+	sec_es_data.data_start = data_start;
+	sec_es_data.data_end = data_end;
+	pout->cb(pout, (char *)&sec_es_data,
+		 sizeof(struct dmx_sec_es_data), pout->udata);
 	return 0;
 }
 
@@ -732,19 +792,32 @@ loop:
 					break;
 			} else {
 				//to do for use aucpu to handle non-video data
-				es_len = header.len;
-				pr_dbg("aud pdts_flag:%d, pts:0x%lx,",
-				       header.pts_dts_flag,
-				       (unsigned long)header.pts);
-				pr_dbg("dts:0x%lx, len:%d\n",
-				       (unsigned long)header.dts, header.len);
+				if (pout->output_mode) {
+					ret =
+					    write_aucpu_sec_es_data(pout,
+								    pout->pchan,
+								    &header);
+					if (ret != 0)
+						break;
+				} else {
+					es_len = header.len;
+					pr_dbg("aud pdts_flag:%d, pts:0x%lx,",
+					       header.pts_dts_flag,
+					       (unsigned long)header.pts);
+					pr_dbg("dts:0x%lx, len:%d\n",
+					       (unsigned long)header.dts,
+					       header.len);
 
-				pout->cb(pout, (char *)&header,
-					 sizeof(struct dmx_non_sec_es_header),
-					 pout->udata);
-				ret = write_aucpu_es_data(pout, es_len, 0);
-				if (ret != 0)
-					break;
+					pout->cb(pout, (char *)&header,
+						 sizeof(struct
+							dmx_non_sec_es_header),
+						 pout->udata);
+					ret =
+					    write_aucpu_es_data(pout, es_len,
+								0);
+					if (ret != 0)
+						break;
+				}
 			}
 		} else {
 			es_len = header.len;

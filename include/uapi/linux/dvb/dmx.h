@@ -106,6 +106,9 @@ struct dmx_sct_filter_params
 #define DMX_ONESHOT         2
 #define DMX_IMMEDIATE_START 4
 #define DMX_KERNEL_CLIENT   0x8000
+#ifdef CONFIG_AMLOGIC_DVB_COMPAT
+#define DMX_USE_SWFILTER    0x100
+#endif
 };
 
 #ifdef CONFIG_AMLOGIC_DVB_COMPAT
@@ -176,9 +179,9 @@ enum dmx_audio_format {
  */
 struct dmx_pes_filter_params {
 	__u16           pid;
-	enum dmx_input  input;
-	enum dmx_output output;
-	enum dmx_ts_pes pes_type;
+	dmx_input_t  input;
+	dmx_output_t output;
+	dmx_pes_type_t pes_type;
 	__u32           flags;
 #ifdef CONFIG_AMLOGIC_DVB_COMPAT
 /*bit 8~15 for mem sec_level*/

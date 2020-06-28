@@ -1073,8 +1073,8 @@ static int _dmx_set_input(struct dmx_demux *demux, int source)
 //      pr_dbg("%s line:%d local:%d, input:%d\n",
 //                      __func__, __LINE__, pdmx->source, source);
 
-	if (pdmx->source == source)
-		return 0;
+//	if (pdmx->source == source)
+//		return 0;
 
 	if (source == INPUT_LOCAL || source == INPUT_LOCAL_SEC) {
 //              pr_dbg("%s local:%d\n", __func__, source);

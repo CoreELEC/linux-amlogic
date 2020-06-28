@@ -369,18 +369,21 @@ int SC2_bufferid_recv_data(struct chan_id *pchan)
 int SC2_bufferid_read(struct chan_id *pchan, char **pread, unsigned int len)
 {
 	unsigned int w_offset = 0;
+	unsigned int w_offset_org = 0;
 	unsigned int buf_len = len;
 	unsigned int data_len = 0;
 	int overflow = 0;
 
-	w_offset = wdma_get_wr_len(pchan->id, &overflow);
+	w_offset_org = wdma_get_wr_len(pchan->id, &overflow);
 	if (overflow) {
 		wdma_clean_batch(pchan->id);
 		pr_dbg("it produece batch end\n");
 	}
+	w_offset = w_offset_org % pchan->mem_size;
 	if (w_offset != pchan->r_offset && w_offset != 0) {
-		pr_dbg("%s w:0x%0x, r:0x%0x\n", __func__,
-		       (u32)w_offset, (u32)(pchan->r_offset));
+		pr_dbg("%s w:0x%0x, r:0x%0x, wr_len:0x%0x\n", __func__,
+		       (u32)w_offset, (u32)(pchan->r_offset),
+		       (u32)w_offset_org);
 		if (w_offset > pchan->r_offset) {
 			data_len = min((w_offset - pchan->r_offset), buf_len);
 			dma_sync_single_for_cpu(aml_get_device(),
@@ -397,10 +400,9 @@ int SC2_bufferid_read(struct chan_id *pchan, char **pread, unsigned int len)
 			*pread = (char *)(pchan->mem + pchan->r_offset);
 			if (data_len < part1_len) {
 				dma_sync_single_for_cpu(aml_get_device(),
-							(dma_addr_t)(pchan->
-								      mem_phy +
-								      pchan->
-								      r_offset),
+							(dma_addr_t)
+							(pchan->mem_phy +
+							 pchan->r_offset),
 							data_len,
 							DMA_FROM_DEVICE);
 				pchan->r_offset += data_len;
