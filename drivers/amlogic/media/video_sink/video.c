@@ -3871,8 +3871,7 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 
 	/* vout mode detection under old tunnel mode */
 	if ((vf) && ((vf->type & VIDTYPE_NO_VIDEO_ENABLE) == 0)) {
-		if ((old_vmode != new_vmode) || (debug_flag == 8)) {
-			debug_flag = 1;
+		if (old_vmode != new_vmode) {
 			vd_layer[0].property_changed = true;
 			vd_layer[1].property_changed = true;
 			pr_info("detect vout mode change!!!!!!!!!!!!\n");
@@ -3946,7 +3945,8 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 	/* check video frame before VECM process */
 	if (is_dolby_vision_enable() && vf &&
 	    ((vd1_path_id == VFM_PATH_AMVIDEO) ||
-	     (vd1_path_id == VFM_PATH_DEF))) {
+	     (vd1_path_id == VFM_PATH_DEF) ||
+	     (vd1_path_id == VFM_PATH_AUTO))) {
 		dolby_vision_check_mvc(vf);
 		dolby_vision_check_hdr10(vf);
 		dolby_vision_check_hdr10plus(vf);
@@ -4274,7 +4274,8 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 				      "skipped\n");
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 			if (((vd1_path_id == VFM_PATH_AMVIDEO) ||
-			     (vd1_path_id == VFM_PATH_DEF)) &&
+			     (vd1_path_id == VFM_PATH_DEF) ||
+			     (vd1_path_id == VFM_PATH_AUTO)) &&
 			    dolby_vision_need_wait())
 				break;
 #endif
@@ -4366,7 +4367,8 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 			if ((vd1_path_id == VFM_PATH_AMVIDEO) ||
-			    (vd1_path_id == VFM_PATH_DEF))
+			    (vd1_path_id == VFM_PATH_DEF) ||
+			    (vd1_path_id == VFM_PATH_AUTO))
 				dv_new_vf = dvel_toggle_frame(vf, true);
 #endif
 			if (trickmode_fffb == 1) {
@@ -4402,7 +4404,8 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 				next_peek_underflow++;
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 			if (((vd1_path_id == VFM_PATH_AMVIDEO) ||
-			     (vd1_path_id == VFM_PATH_DEF)) &&
+			     (vd1_path_id == VFM_PATH_DEF) ||
+			     (vd1_path_id == VFM_PATH_AUTO)) &&
 			    for_dolby_vision_certification() &&
 			    dv_new_vf)
 				break;
@@ -4450,7 +4453,9 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 					if (((vd1_path_id ==
 					      VFM_PATH_AMVIDEO) ||
 					     (vd1_path_id ==
-					      VFM_PATH_DEF)) &&
+					      VFM_PATH_DEF) ||
+					     (vd1_path_id ==
+					      VFM_PATH_AUTO)) &&
 					    dolby_vision_need_wait())
 						break;
 #endif
@@ -4494,7 +4499,8 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 					path0_new_frame = vf;
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 					if ((vd1_path_id == VFM_PATH_AMVIDEO) ||
-					    (vd1_path_id == VFM_PATH_DEF))
+					    (vd1_path_id == VFM_PATH_DEF) ||
+					    (vd1_path_id == VFM_PATH_AUTO))
 						dv_new_vf =
 						dvel_toggle_frame(vf, true);
 #endif
@@ -4731,7 +4737,7 @@ SET_FILTER:
 			vd_layer[0].dispbuf, vd_layer[1].dispbuf,
 			&vf_local, &local_pip,
 			gvideo_recv[0] ? &gvideo_recv[0]->local_buf : NULL,
-			gvideo_recv[1] ? &gvideo_recv[0]->local_buf : NULL);
+			gvideo_recv[1] ? &gvideo_recv[1]->local_buf : NULL);
 
 	if ((vd_layer[0].dispbuf_mapping == &cur_dispbuf) &&
 	    ((cur_dispbuf == &vf_local) ||
@@ -4855,13 +4861,30 @@ SET_FILTER:
 
 	/* vout mode detection under new non-tunnel mode */
 	if (vd_layer[0].dispbuf || vd_layer[1].dispbuf) {
-		if ((old_vmode != new_vmode) || (debug_flag == 8)) {
+		if (old_vmode != new_vmode) {
 			vd_layer[0].property_changed = true;
 			vd_layer[1].property_changed = true;
 			pr_info("detect vout mode change!!!!!!!!!!!!\n");
 			old_vmode = new_vmode;
 		}
 	}
+
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
+	if (is_dolby_vision_enable() && vd_layer[0].global_output) {
+		/* no new frame but path switched case, */
+		if (new_frame && !is_local_vf(new_frame) &&
+		    (!path0_new_frame || (new_frame != path0_new_frame)) &&
+		    (!path1_new_frame || (new_frame != path1_new_frame)) &&
+		    (!path2_new_frame || (new_frame != path2_new_frame)) &&
+		    (!path3_new_frame || (new_frame != path3_new_frame)))
+			dolby_vision_update_src_format(new_frame, 1);
+		else if (!new_frame &&
+			 vd_layer[0].dispbuf &&
+			 !is_local_vf(vd_layer[0].dispbuf))
+			dolby_vision_update_src_format(vd_layer[0].dispbuf, 0);
+		/* pause and video off->on case */
+	}
+#endif
 
 	if (!new_frame && vd_layer[0].dispbuf &&
 	    is_local_vf(vd_layer[0].dispbuf)) {

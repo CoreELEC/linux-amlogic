@@ -4438,6 +4438,36 @@ int get_dolby_vision_src_format(void)
 }
 EXPORT_SYMBOL(get_dolby_vision_src_format);
 
+static enum signal_format_e get_cur_src_format(void)
+{
+	int cur_format = dolby_vision_src_format;
+	enum signal_format_e ret = FORMAT_SDR;
+
+	switch (cur_format) {
+	case 1: /* HDR10 */
+		ret = FORMAT_HDR10;
+		break;
+	case 2: /* HDR10+ */
+		ret = FORMAT_HDR10PLUS;
+		break;
+	case 3: /* DOVI */
+		ret = FORMAT_DOVI;
+		break;
+	case 5: /* HLG */
+		ret = FORMAT_HLG;
+		break;
+	case 6: /* SDR */
+		ret = FORMAT_SDR;
+		break;
+	case 7: /* MVC */
+		ret = FORMAT_MVC;
+		break;
+	default:
+		break;
+	}
+	return ret;
+}
+
 static int dolby_vision_policy_process(
 	int *mode, enum signal_format_e src_format)
 {
@@ -7204,6 +7234,69 @@ int dolby_vision_update_metadata(struct vframe_s *vf, bool drop_flag)
 }
 EXPORT_SYMBOL(dolby_vision_update_metadata);
 
+/* to re-init the src format after video off -> on case */
+int dolby_vision_update_src_format(struct vframe_s *vf, u8 toggle_mode)
+{
+	unsigned int mode = dolby_vision_mode;
+	enum signal_format_e check_format;
+
+	if (!dolby_vision_enable || !vf)
+		return -1;
+
+	/* src_format is valid, need not re-init */
+	if (dolby_vision_src_format != 0)
+		return 0;
+
+	/* vf is not in the dv queue, new frame case */
+	if (dolby_vision_vf_check(vf))
+		return 0;
+
+	if (is_dovi_frame(vf))
+		check_format = FORMAT_DOVI;
+	else if (is_hdr10_frame(vf))
+		check_format = FORMAT_HDR10;
+	else if (is_hlg_frame(vf))
+		check_format = FORMAT_HLG;
+	else if (is_hdr10plus_frame(vf))
+		check_format = FORMAT_HDR10PLUS;
+	else if (is_mvc_frame(vf))
+		check_format = FORMAT_MVC;
+	else
+		check_format = FORMAT_SDR;
+	if (vf)
+		update_src_format(check_format, vf);
+
+	if (!dolby_vision_wait_init &&
+	    !dolby_vision_core1_on &&
+	    (dolby_vision_src_format != 0)) {
+		if (dolby_vision_policy_process(
+			&mode, check_format)) {
+			if ((mode != DOLBY_VISION_OUTPUT_MODE_BYPASS) &&
+			    (dolby_vision_mode ==
+			     DOLBY_VISION_OUTPUT_MODE_BYPASS)) {
+				dolby_vision_wait_init = true;
+				dolby_vision_wait_count =
+					dolby_vision_wait_delay;
+				dolby_vision_target_mode = mode;
+				dolby_vision_wait_on = true;
+				pr_dolby_dbg(
+					"dolby_vision_need_wait src=%d mode=%d\n",
+					check_format, mode);
+			}
+		}
+		/* don't use run mode when sdr -> dv and vd1 not disable */
+		if (dolby_vision_wait_init &&
+		    (READ_VPP_DV_REG(VPP_MISC) & (1 << 10)))
+			dolby_vision_on_count =
+				dolby_vision_run_mode_delay + 1;
+	}
+	pr_dolby_dbg(
+		"dolby_vision_update_src_format done vf:%p, src=%d, toggle mode:%d\n",
+		vf, dolby_vision_src_format, toggle_mode);
+	return 1;
+}
+EXPORT_SYMBOL(dolby_vision_update_src_format);
+
 static void update_dolby_vision_status(enum signal_format_e src_format)
 {
 	if (((src_format == FORMAT_DOVI)
@@ -7294,7 +7387,7 @@ int dolby_vision_process(
 			dolby_vision_run_mode_delay;
 	}
 
-	if (dolby_vision_flags & FLAG_TOGGLE_FRAME)	{
+	if (dolby_vision_flags & FLAG_TOGGLE_FRAME) {
 		h_size = (display_size >> 16) & 0xffff;
 		v_size = display_size & 0xffff;
 		if (new_dovi_setting.video_width & 0xffff &&
@@ -7816,7 +7909,7 @@ void set_dolby_vision_mode(int mode)
 		&& dolby_vision_enable
 		&& (dolby_vision_request_mode == 0xff)) {
 		if (dolby_vision_policy_process(
-			&mode, FORMAT_SDR)) {
+			&mode, get_cur_src_format())) {
 			dolby_vision_set_toggle_flag(1);
 			if ((mode != DOLBY_VISION_OUTPUT_MODE_BYPASS)
 			&& (dolby_vision_mode ==
