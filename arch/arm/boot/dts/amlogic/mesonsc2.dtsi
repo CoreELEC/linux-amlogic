@@ -1287,7 +1287,7 @@
 	};
 
 	vdec {
-		compatible = "amlogic, vdec";
+		compatible = "amlogic, vdec-pm-pd-sec-api";
 		dev_name = "vdec.0";
 		status = "okay";
 		interrupts = <0 3 1
