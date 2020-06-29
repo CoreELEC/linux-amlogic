@@ -731,6 +731,9 @@
 		ch0_sel = <0>;
 		ch1_sel = <1>;
 
+		reset-names = "acodec";
+		resets = <&reset RESET_ACODEC>;
+
 		status = "okay";
 	};
 	audio_effect:eqdrc{

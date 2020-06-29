@@ -33,6 +33,7 @@
 #include <sound/tlv.h>
 #include <linux/regmap.h>
 #include <linux/of_device.h>
+#include <linux/reset.h>
 
 #include <linux/amlogic/iomap.h>
 #include <linux/amlogic/media/sound/aiu_regs.h>
@@ -407,17 +408,25 @@ static int aml_T9015_prepare(struct snd_pcm_substream *substream,
 
 static int aml_T9015_audio_reset(struct snd_soc_codec *codec)
 {
+	struct reset_control *rst;
 	struct aml_T9015_audio_priv *T9015_audio =
 		snd_soc_codec_get_drvdata(codec);
 
-	if (T9015_audio && T9015_audio->is_auge_arch)
-		auge_acodec_reset();
-	else
-		aml_cbus_update_bits(RESET1_REGISTER,
-				(1 << ACODEC_RESET),
-				(1 << ACODEC_RESET));
+	/* imporant: please call standard reset interface for new project */
+	rst = devm_reset_control_get(codec->dev, "acodec");
+	if (IS_ERR(rst)) {
+		if (T9015_audio && T9015_audio->is_auge_arch)
+			auge_acodec_reset();
+		else
+			aml_cbus_update_bits(RESET1_REGISTER,
+					     0x1 << ACODEC_RESET,
+					     0x1 << ACODEC_RESET);
 
-	udelay(1000);
+		usleep_range(950, 1000);
+	} else {
+		pr_info("call standard reset interface\n");
+		reset_control_reset(rst);
+	}
 
 	return 0;
 }
