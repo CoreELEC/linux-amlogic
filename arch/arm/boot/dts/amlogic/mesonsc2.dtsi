@@ -1337,11 +1337,11 @@
 	rdma{
 		compatible = "amlogic, meson-sc2, rdma";
 		dev_name = "amlogic-rdma";
-		status = "disabled";
+		status = "okay";
 		interrupts = <GIC_SPI 215 IRQ_TYPE_EDGE_RISING>;
 		interrupt-names = "rdma";
 		/* after sc2 */
-		reg = <0x0 0xfe002000 0x0 0x400>;
+		reg = <0xfe002000 0x400>;
 	};
 
 	dmx_aucpu: aucpu {
