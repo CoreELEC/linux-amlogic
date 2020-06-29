@@ -7732,6 +7732,7 @@ int amvecm_matrix_process(
 	bool send_fake_frame = false;
 	int dv_hdr_policy = 0;
 	static bool dolby_enable;
+	bool viu_format_changed = false;
 
 	if ((get_cpu_type() < MESON_CPU_MAJOR_ID_GXTVBB) ||
 	    is_meson_gxl_package_905M2() || (csc_en == 0) || !vinfo)
@@ -7900,6 +7901,7 @@ int amvecm_matrix_process(
 				null_vf_cnt[vd_path] = 0;
 			else
 				force_fake = true;
+			viu_format_changed = true;
 			prev_color_fmt = vinfo->viu_color_fmt;
 			pr_csc(4, "vd%d: output color format changed\n",
 			       vd_path + 1);
@@ -7993,16 +7995,18 @@ int amvecm_matrix_process(
 				/* dolby enable */
 				dv_hdr_policy = get_dolby_vision_hdr_policy();
 				pr_csc(8,
-				       "vd%d: %d %d Fake SDR frame%s, dv on=%d, policy=%d, hdr policy=0x%x\n",
+				       "vd%d: %d %d, src_type:%d, Fake SDR frame%s, dv on=%d, policy=%d, hdr policy=0x%x\n",
 				       vd_path + 1,
 				       null_vf_cnt[vd_path],
 				       toggle_frame,
+				       get_source_type(vd_path),
 				       is_video_layer_on(vd_path) ?
 				       " " : ", video off",
 				       is_dolby_vision_on(),
 				       get_dolby_vision_policy(),
 				       dv_hdr_policy);
-				if (vd_path == VD2_PATH ||
+				if (viu_format_changed ||
+				    (vd_path == VD2_PATH) ||
 				    (vd_path == VD1_PATH &&
 				    (get_source_type(VD1_PATH) ==
 				     HDRTYPE_HDR10PLUS ||
