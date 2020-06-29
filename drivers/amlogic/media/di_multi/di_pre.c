@@ -531,6 +531,10 @@ void dpre_mtotal_timeout_contr(void)
 	/*move from di_pre_trigger_work*/
 	if (dimp_get(edi_mp_di_dbg_mask) & 4)
 		dim_dump_mif_size_state(pre->pres, pre->psts);
+	hpre_timout_read();
+
+	if (DIM_IS_IC_EF(SC2))
+		opl1()->pre_gl_sw(false);
 
 	dimh_enable_di_pre_mif(false, dimp_get(edi_mp_mcpre_en));
 	if (di_get_dts_nrds_en())

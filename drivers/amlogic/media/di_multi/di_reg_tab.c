@@ -25,6 +25,8 @@
 #include "deinterlace.h"
 #include "di_data_l.h"
 #include "register.h"
+#include "di_reg_v2.h"
+#include "deinterlace_hw.h"
 
 static const struct reg_t rtab_contr[] = {
 	/*--------------------------*/
@@ -154,6 +156,17 @@ int reg_con_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
+int reg_contr_show(struct seq_file *s, void *v)
+{
+	if (DIM_IS_IC_EF(SC2)) {
+		if (opl1()->rtab_contr_bits_tab)
+			dbg_reg_tab(s, opl1()->rtab_contr_bits_tab);
+		else
+			seq_printf(s, "%s:none\n", __func__);
+	}
+	return 0;
+}
+
 static const struct reg_t rtab_cue_int[] = {
 	/*--------------------------*/
 	{NR2_CUE_CON_DIF0, 0, 32, 0x1400, "NR2_CUE_CON_DIF0",
@@ -191,7 +204,7 @@ static unsigned int dim_reg_read(unsigned int addr)
 	return aml_read_vcbus(addr);
 }
 
-static const struct reg_acc di_pre_regset = {
+const struct reg_acc di_pre_regset = {
 	.wr = DIM_DI_WR,
 	.rd = dim_reg_read,
 	.bwr = DIM_RDMA_WR_BITS,

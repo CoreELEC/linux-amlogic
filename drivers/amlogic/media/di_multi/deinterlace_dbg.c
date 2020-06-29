@@ -45,7 +45,7 @@
 #include "di_prc.h"
 #include "di_pre.h"
 #include "di_post.h"
-
+#include "di_reg_v2.h"
 #include "di_vframe.h"
 
 /*2018-07-18 add debugfs*/
@@ -220,7 +220,7 @@ static int seq_file_dump_di_reg_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static void dump_mif_state(struct DI_MIF_s *mif)
+static void dump_mif_state(struct DI_MIF_S *mif)
 {
 	pr_info("luma <%u, %u> <%u %u>.\n",
 		mif->luma_x_start0, mif->luma_x_end0,
@@ -236,7 +236,7 @@ static void dump_mif_state(struct DI_MIF_s *mif)
 
 /*2018-08-17 add debugfs*/
 /*same as dump_mif_state*/
-static void dump_mif_state_seq(struct DI_MIF_s *mif,
+static void dump_mif_state_seq(struct DI_MIF_S *mif,
 			       struct seq_file *seq)
 {
 	seq_printf(seq, "luma <%u, %u> <%u %u>.\n",
@@ -249,6 +249,15 @@ static void dump_mif_state_seq(struct DI_MIF_s *mif,
 		   mif->canvas0_addr0,
 		   mif->canvas0_addr1,
 		   mif->canvas0_addr2);
+	seq_printf(seq, "bit_mode [%u] set_separate_en[%u]\n",
+		   mif->bit_mode,
+		   mif->set_separate_en);
+	seq_printf(seq, "video_mode [%u] src_prog[%u]\n",
+		   mif->video_mode,
+		   mif->src_prog);
+	seq_printf(seq, "src_field_mode [%u] output_field_num[%u]\n",
+		   mif->src_field_mode,
+		   mif->output_field_num);
 }
 
 static void dump_simple_mif_state(struct DI_SIM_MIF_s *simp_mif)
@@ -487,16 +496,21 @@ void dim_dump_mif_size_state(struct di_pre_stru_s *pre_stru_p,
 	pr_info("DI_DBG_SRDY_INF=0x%x\n", RD(DI_DBG_SRDY_INF));
 	pr_info("DI_DBG_RRDY_INF=0x%x\n", RD(DI_DBG_RRDY_INF));
 #endif
-	pr_info("DI_INP_GEN_REG=0x%x\n", RD(DI_INP_GEN_REG));
+	if (DIM_IS_IC_EF(SC2)) {
+		opl1()->dbg_reg_pre_mif_print();
+	} else {
+		pr_info("DI_INP_GEN_REG=0x%x\n", RD(DI_INP_GEN_REG));
+		pr_info("DI_MEM_GEN_REG=0x%x\n", RD(DI_MEM_GEN_REG));
+		pr_info("DI_CHAN2_GEN_REG=0x%x\n", RD(DI_CHAN2_GEN_REG));
+	}
+
 	dump_mif_state(&pre_stru_p->di_inp_mif);
 	pr_info("=====mem mif:\n");
-	pr_info("DI_MEM_GEN_REG=0x%x\n", RD(DI_MEM_GEN_REG));
 	dump_mif_state(&pre_stru_p->di_mem_mif);
 	pr_info("=====chan2 mif:\n");
-	pr_info("DI_CHAN2_GEN_REG=0x%x\n", RD(DI_CHAN2_GEN_REG));
 	dump_mif_state(&pre_stru_p->di_chan2_mif);
 	pr_info("=====nrwr mif:\n");
-	pr_info("DI_NRWR_CTRL=0x%x\n", RD(DI_NRWR_CTRL));
+//	pr_info("DI_NRWR_CTRL=0x%x\n", RD(DI_NRWR_CTRL));
 	dump_simple_mif_state(&pre_stru_p->di_nrwr_mif);
 	pr_info("=====mtnwr mif:\n");
 	dump_simple_mif_state(&pre_stru_p->di_mtnwr_mif);
@@ -514,15 +528,21 @@ void dim_dump_mif_size_state(struct di_pre_stru_s *pre_stru_p,
 	dump_mc_mif_state(&pre_stru_p->di_mcvecwr_mif);
 	pr_info("======post mif status======\n");
 	pr_info("DI_POST_SIZE=0x%x\n", RD(DI_POST_SIZE));
-	pr_info("DECOMB_FRM_SIZE=0x%x\n", RD(0x2d8f));
+	pr_info("DECOMB_FRM_SIZE=0x%x\n", RD(DECOMB_FRM_SIZE));
+
+	if (DIM_IS_IC_EF(SC2)) {
+		opl1()->dbg_reg_pst_mif_print();
+	} else {
+		pr_info("DI_IF0_GEN_REG=0x%x\n", RD(0x2030));
+		pr_info("DI_IF1_GEN_REG=0x%x\n", RD(0x17e8));
+		pr_info("DI_IF2_GEN_REG=0x%x\n", RD(0x2010));
+	}
+
 	pr_info("=====if0 mif:\n");
-	pr_info("DI_IF0_GEN_REG=0x%x\n", RD(0x2030));
 	dump_mif_state(&post_stru_p->di_buf0_mif);
 	pr_info("=====if1 mif:\n");
-	pr_info("DI_IF1_GEN_REG=0x%x\n", RD(0x17e8));
 	dump_mif_state(&post_stru_p->di_buf1_mif);
 	pr_info("=====if2 mif:\n");
-	pr_info("DI_IF2_GEN_REG=0x%x\n", RD(0x2010));
 	dump_mif_state(&post_stru_p->di_buf2_mif);
 	pr_info("=====diwr mif:\n");
 	dump_simple_mif_state(&post_stru_p->di_diwr_mif);
@@ -532,10 +552,11 @@ void dim_dump_mif_size_state(struct di_pre_stru_s *pre_stru_p,
 	dump_mc_mif_state(&post_stru_p->di_mcvecrd_mif);
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12A)) {
 		pr_info("======pps size status======\n");
-		pr_info("DI_SC_LINE_IN_LENGTH=0x%x\n", RD(0x3751));
-		pr_info("DI_SC_PIC_IN_HEIGHT=0x%x\n", RD(0x3752));
-		pr_info("DI_HDR_IN_HSIZE=0x%x\n", RD(0x376e));
-		pr_info("DI_HDR_IN_VSIZE=0x%x\n", RD(0x376f));
+		pr_info("DI_SC_LINE_IN_LENGTH=0x%x\n",
+			RD(DI_SC_LINE_IN_LENGTH));
+		pr_info("DI_SC_PIC_IN_HEIGHT=0x%x\n", RD(DI_SC_PIC_IN_HEIGHT));
+		pr_info("DI_HDR_IN_HSIZE=0x%x\n", RD(DI_HDR_IN_HSIZE));
+		pr_info("DI_HDR_IN_VSIZE=0x%x\n", RD(DI_HDR_IN_VSIZE));
 	}
 }
 
@@ -568,19 +589,21 @@ int dim_dump_mif_size_state_show(struct seq_file *seq,
 		seq_printf(seq, "NRDSWR_CAN_SIZE=0x%x\n", RD(0x37fc));
 		seq_printf(seq, "NR_DS_BUF_SIZE=0x%x\n", RD(0x3740));
 	}
-
+	if (DIM_IS_IC_EF(SC2)) {
+		opl1()->dbg_reg_pre_mif_show(seq);
+	} else {
+		seq_printf(seq, "DI_INP_GEN_REG=0x%x\n", RD(DI_INP_GEN_REG));
+		seq_printf(seq, "DI_MEM_GEN_REG=0x%x\n", RD(DI_MEM_GEN_REG));
+		seq_printf(seq, "DI_CH2_GEN_REG=0x%x\n", RD(DI_CHAN2_GEN_REG));
+	}
 	seq_puts(seq, "=====inp mif:\n");
-
-	seq_printf(seq, "DI_INP_GEN_REG=0x%x\n", RD(DI_INP_GEN_REG));
 	dump_mif_state_seq(&di_pre_stru_p->di_inp_mif, seq);/*dump_mif_state*/
 	seq_puts(seq, "=====mem mif:\n");
-	seq_printf(seq, "DI_MEM_GEN_REG=0x%x\n", RD(DI_MEM_GEN_REG));
 	dump_mif_state_seq(&di_pre_stru_p->di_mem_mif, seq);
 	seq_puts(seq, "=====chan2 mif:\n");
-	seq_printf(seq, "DI_CHAN2_GEN_REG=0x%x\n", RD(DI_CHAN2_GEN_REG));
 	dump_mif_state_seq(&di_pre_stru_p->di_chan2_mif, seq);
 	seq_puts(seq, "=====nrwr mif:\n");
-	seq_printf(seq, "DI_NRWR_CTRL=0x%x\n", RD(DI_NRWR_CTRL));
+//	seq_printf(seq, "DI_NRWR_CTRL=0x%x\n", RD(DI_NRWR_CTRL));
 	/*dump_simple_mif_state*/
 	dump_simple_mif_state_seq(&di_pre_stru_p->di_nrwr_mif, seq);
 	seq_puts(seq, "=====mtnwr mif:\n");
@@ -600,15 +623,25 @@ int dim_dump_mif_size_state_show(struct seq_file *seq,
 	dump_mc_mif_state_seq(&di_pre_stru_p->di_mcvecwr_mif, seq);
 	seq_puts(seq, "======post mif status======\n");
 	seq_printf(seq, "DI_POST_SIZE=0x%x\n", RD(DI_POST_SIZE));
-	seq_printf(seq, "DECOMB_FRM_SIZE=0x%x\n", RD(0x2d8f));
+	seq_printf(seq, "DECOMB_FRM_SIZE=0x%x\n", RD(DECOMB_FRM_SIZE));
+#ifdef MARK_SC2
+	seq_printf(seq, "DI_IF0_GEN_REG=0x%x\n", RD(DI_IF0_GEN_REG));
+	seq_printf(seq, "DI_IF1_GEN_REG=0x%x\n", RD(DI_IF1_GEN_REG));
+	seq_printf(seq, "DI_IF2_GEN_REG=0x%x\n", RD(DI_IF2_GEN_REG));
+#else
+	if (DIM_IS_IC_EF(SC2)) {
+		opl1()->dbg_reg_pst_mif_show(seq);
+	} else {
+		pr_info("DI_IF0_GEN_REG=0x%x\n", RD(0x2030));
+		pr_info("DI_IF1_GEN_REG=0x%x\n", RD(0x17e8));
+		pr_info("DI_IF2_GEN_REG=0x%x\n", RD(0x2010));
+	}
+#endif
 	seq_puts(seq, "=====if0 mif:\n");
-	seq_printf(seq, "DI_IF0_GEN_REG=0x%x\n", RD(0x2030));
 	dump_mif_state_seq(&di_post_stru_p->di_buf0_mif, seq);
 	seq_puts(seq, "=====if1 mif:\n");
-	seq_printf(seq, "DI_IF1_GEN_REG=0x%x\n", RD(0x17e8));
 	dump_mif_state_seq(&di_post_stru_p->di_buf1_mif, seq);
 	seq_puts(seq, "=====if2 mif:\n");
-	seq_printf(seq, "DI_IF2_GEN_REG=0x%x\n", RD(0x2010));
 	dump_mif_state_seq(&di_post_stru_p->di_buf2_mif, seq);
 	seq_puts(seq, "=====diwr mif:\n");
 	dump_simple_mif_state_seq(&di_post_stru_p->di_diwr_mif, seq);
@@ -618,10 +651,12 @@ int dim_dump_mif_size_state_show(struct seq_file *seq,
 	dump_mc_mif_state_seq(&di_post_stru_p->di_mcvecrd_mif, seq);
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12A)) {
 		seq_puts(seq, "======pps size status======\n");
-		seq_printf(seq, "DI_SC_LINE_IN_LENGTH=0x%x\n", RD(0x3751));
-		seq_printf(seq, "DI_SC_PIC_IN_HEIGHT=0x%x\n", RD(0x3752));
-		seq_printf(seq, "DI_HDR_IN_HSIZE=0x%x\n", RD(0x376e));
-		seq_printf(seq, "DI_HDR_IN_VSIZE=0x%x\n", RD(0x376f));
+		seq_printf(seq, "DI_SC_LINE_IN_LENGTH=0x%x\n",
+			   RD(DI_SC_LINE_IN_LENGTH));
+		seq_printf(seq, "DI_SC_PIC_IN_HEIGHT=0x%x\n",
+			   RD(DI_SC_PIC_IN_HEIGHT));
+		seq_printf(seq, "DI_HDR_IN_HSIZE=0x%x\n", RD(DI_HDR_IN_HSIZE));
+		seq_printf(seq, "DI_HDR_IN_VSIZE=0x%x\n", RD(DI_HDR_IN_VSIZE));
 	}
 	return 0;
 }

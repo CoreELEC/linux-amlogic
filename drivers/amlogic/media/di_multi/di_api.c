@@ -19,6 +19,9 @@
 #include <linux/types.h>
 #include <linux/slab.h>
 #include <linux/amlogic/media/vpu/vpu.h>
+#include "deinterlace.h"
+#include "di_data_l.h"
+#include "di_prc.h"
 
 #include "di_api.h"
 /**********************************
@@ -28,6 +31,8 @@ static const struct di_ext_ops di_ext = {
 	.di_post_reg_rd             = l_DI_POST_REG_RD,
 	.di_post_wr_reg_bits        = l_DI_POST_WR_REG_BITS,
 	.post_update_mc		    = NULL,
+	.post_keep_cmd_release2		= dim_post_keep_cmd_release2_local,
+	.polic_cfg			= dim_polic_cfg_local,
 };
 
 void dim_attach_to_local(void)
@@ -51,15 +56,16 @@ bool dim_attach_ext_api(struct di_ext_ops *di_api)
 void diext_clk_b_sw(bool on)
 {
 	if (on)
-		ext_ops.switch_vpu_clk_gate_vmod(VPU_VPU_CLKB,
-				VPU_CLK_GATE_ON);
+		ops_ext()->switch_vpu_clk_gate_vmod(VPU_VPU_CLKB,
+						    VPU_CLK_GATE_ON);
 	else
-		ext_ops.switch_vpu_clk_gate_vmod(VPU_VPU_CLKB,
-				VPU_CLK_GATE_OFF);
+		ops_ext()->switch_vpu_clk_gate_vmod(VPU_VPU_CLKB,
+						    VPU_CLK_GATE_OFF);
 }
 
 /*EXPORT_SYMBOL(dim_attach_ext_api);*/
 
+#ifdef MARK_SC2
 /**********************************
  * ext_api used by DI
  ********************************/
@@ -113,6 +119,34 @@ const struct ext_ops_s ext_ops = {
 	.get_current_vscale_skip_count	= n_get_current_vscale_skip_count,
 	.canvas_pool_alloc_canvas_table	= n_canvas_pool_alloc_canvas_table,
 };
-
 #endif
+#endif
+
+void sc2wr(unsigned int adr, unsigned int val)
+{
+}
+
+unsigned int sc2rd(unsigned int adr)
+{
+	return 0;
+}
+
+unsigned int sc2wr_reg_bits(unsigned int adr, unsigned int val,
+			    unsigned int start, unsigned int len)
+{
+	return 0;
+}
+
+unsigned int sc2brd(unsigned int adr, unsigned int start,
+		    unsigned int len)
+{
+	return 0;
+}
+
+const struct reg_acc sc2reg = {
+	.wr = sc2wr,
+	.rd	= sc2rd,
+	.bwr	= sc2wr_reg_bits,
+	.brd	= sc2brd,
+};
 

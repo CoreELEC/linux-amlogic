@@ -41,6 +41,9 @@
 #include <linux/of_irq.h>
 #include <linux/uaccess.h>
 #include <linux/of_fdt.h>
+#include <linux/amlogic/media/vfm/vframe.h>
+#include <linux/amlogic/media/vpu/vpu.h>	//VPU_MEM_POWER_ON
+#include "di_pqa.h"
 
 /*for di_ext_ops*/
 /*#include <linux/amlogic/media/video_sink/video.h> */
@@ -151,6 +154,20 @@ void DI_POST_UPDATE_MC(void)
 }
 EXPORT_SYMBOL(DI_POST_UPDATE_MC);
 
+void dim_post_keep_cmd_release2(struct vframe_s *vframe)
+{
+	if (dil_api && dil_api->post_keep_cmd_release2)
+		dil_api->post_keep_cmd_release2(vframe);
+}
+EXPORT_SYMBOL(dim_post_keep_cmd_release2);
+
+void dim_polic_cfg(unsigned int cmd, bool on)
+{
+	if (dil_api && dil_api->polic_cfg)
+		dil_api->polic_cfg(cmd, on);
+}
+EXPORT_SYMBOL(dim_polic_cfg);
+
 /***************************************
  * reserved mem for di *
  **************************************/
@@ -173,6 +190,34 @@ void dil_get_flg(unsigned int *flg)
 		*flg = 0;
 }
 EXPORT_SYMBOL(dil_get_flg);
+
+/**********************************
+ * ext_api used by DI
+ ********************************/
+
+void ext_switch_vpu_mem_pd_vmod(unsigned int vmod, bool on)
+{
+	switch_vpu_mem_pd_vmod(vmod,
+			       on ? VPU_MEM_POWER_ON : VPU_MEM_POWER_DOWN);
+}
+
+const struct ext_ops_s ext_ops_4_di = {
+	.switch_vpu_mem_pd_vmod		= ext_switch_vpu_mem_pd_vmod,
+	/*no use ?*/
+/*	.vf_get_receiver_name		= vf_get_receiver_name,*/
+	.switch_vpu_clk_gate_vmod	= switch_vpu_clk_gate_vmod,
+	.get_current_vscale_skip_count	= get_current_vscale_skip_count,
+	.cvs_alloc_table = canvas_pool_alloc_canvas_table,
+	.cvs_free_table	= canvas_pool_free_canvas_table,
+};
+
+bool dil_attch_ext_api(const struct ext_ops_s **exp_4_di)
+{
+	*exp_4_di = &ext_ops_4_di;
+
+	return true;
+}
+EXPORT_SYMBOL(dil_attch_ext_api);
 
 /***************************************
  * reserved mem for di *

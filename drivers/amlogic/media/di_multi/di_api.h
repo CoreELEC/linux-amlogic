@@ -21,7 +21,8 @@
 
 #include <linux/amlogic/media/canvas/canvas_mgr.h>
 #include <linux/amlogic/media/vfm/vframe.h>
-#include "../di_local/di_local.h"
+//#include "../di_local/di_local.h"
+#include "di_local.h"
 //#include "deinterlace.h"
 
 /*--------------------------*/
@@ -40,17 +41,6 @@ void diext_clk_b_sw(bool on);
 /*--------------------------*/
 int get_current_vscale_skip_count(struct vframe_s *vf);
 
-struct ext_ops_s {
-	void (*switch_vpu_mem_pd_vmod)(unsigned int vmod, bool on);
-/*	char *(*vf_get_receiver_name)(const char *provider_name);*/
-	void (*switch_vpu_clk_gate_vmod)(unsigned int vmod, int flag);
-	int (*get_current_vscale_skip_count)(struct vframe_s *vf);
-	u32 (*canvas_pool_alloc_canvas_table)(const char *owner, u32 *tab,
-					      int size,
-					      enum canvas_map_type_e type);
-};
-
-extern const struct ext_ops_s ext_ops;
 
 /*--------------------------*/
 void dil_get_rev_mem(unsigned long *mstart, unsigned int *msize);

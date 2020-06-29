@@ -1002,6 +1002,11 @@ static const struct di_meson_data  data_sm1 = {
 	.ic_id	= DI_IC_ID_SM1,
 };
 
+static const struct di_meson_data  data_tm2_vb = {
+	.name = "dim_tm2_vb",
+	.ic_id	= DI_IC_ID_TM2B,
+};
+
 static const struct di_meson_data  data_sc2 = {
 	.name = "dim_sc2",
 	.ic_id	= DI_IC_ID_SC2,
@@ -1016,6 +1021,8 @@ static const struct of_device_id amlogic_deinterlace_dt_match[] = {
 		.data = &data_g12b,
 	}, {	.compatible = "amlogic, dim-sm1",
 		.data = &data_sm1,
+	}, {	.compatible = "amlogic, dim-tm2vb",
+		.data = &data_tm2_vb,
 	}, {	.compatible = "amlogic, dim-sc2",
 		.data = &data_sc2,
 	}, {}
@@ -1064,7 +1071,7 @@ static int dim_probe(struct platform_device *pdev)
 	/*memset(di_pdev->data_l, 0, sizeof(struct di_data_l_s));*/
 	/*pr_info("\tdata size: %ld\n", sizeof(struct di_data_l_s));*/
 	/************************/
-	if (!dip_prob())
+	if (!dip_prob()) /* load function interface */
 		goto fail_cdev_add;
 
 	di_devp->flags |= DI_SUSPEND_FLAG;
@@ -1097,7 +1104,7 @@ static int dim_probe(struct platform_device *pdev)
 	pdata = (struct di_data_l_s *)di_pdev->data_l;
 	pdata->mdata = match->data;
 	PR_INF("match name: %s:id[%d]\n", pdata->mdata->name,
-	       pdata->mdata->ic_id);
+		pdata->mdata->ic_id);
 #endif
 
 	ret = of_reserved_mem_device_init(&pdev->dev);
@@ -1164,14 +1171,6 @@ static int dim_probe(struct platform_device *pdev)
 	else	/*nr10bit_support = di_devp->nr10bit_support;*/
 		dimp_set(edi_mp_nr10bit_support, di_devp->nr10bit_support);
 
-#ifdef DI_USE_FIXED_CANVAS_IDX
-	if (dim_get_canvas()) {
-		pr_dbg("DI get canvas error.\n");
-		ret = -EEXIST;
-		return ret;
-	}
-#endif
-
 	device_create_file(di_devp->dev, &dev_attr_config);
 	device_create_file(di_devp->dev, &dev_attr_debug);
 	device_create_file(di_devp->dev, &dev_attr_dump_pic);
@@ -1181,10 +1180,15 @@ static int dim_probe(struct platform_device *pdev)
 	device_create_file(di_devp->dev, &dev_attr_tvp_region);
 	device_create_file(di_devp->dev, &dev_attr_kpi_frame_num);
 
-	/*pd_device_files_add*/
-	get_ops_pd()->prob(di_devp->dev);
+	dip_init_pq_ops();
 
-	get_ops_nr()->nr_drv_init(di_devp->dev);
+#ifdef DI_USE_FIXED_CANVAS_IDX
+	if (dim_get_canvas()) {
+		pr_dbg("DI get canvas error.\n");
+		ret = -EEXIST;
+		return ret;
+	}
+#endif
 
 	for (i = 0; i < DI_CHANNEL_NUB; i++) {
 		set_init_flag(i, false);
@@ -1211,8 +1215,10 @@ static int dim_probe(struct platform_device *pdev)
 	dim_polic_prob();
 
 	task_start();
-
-	post_mif_sw(false);
+	if (DIM_IS_IC_EF(SC2))
+		opl1()->pst_mif_sw(false, DI_MIF0_SEL_PST_ALL);
+	else
+		post_mif_sw(false);
 
 	dim_debugfs_init();	/*2018-07-18 add debugfs*/
 

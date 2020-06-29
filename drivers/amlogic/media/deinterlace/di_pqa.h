@@ -20,6 +20,9 @@
 
 #include <linux/amlogic/media/frame_provider/tvin/tvin.h>
 #include <linux/amlogic/media/vfm/vframe.h>
+#include <linux/amlogic/media/canvas/canvas.h>
+#include <linux/amlogic/media/canvas/canvas_mgr.h>
+
 #include <linux/device.h>
 #include "../deinterlace/pulldown_drv.h"
 #include "../deinterlace/deinterlace_mtn.h"
@@ -180,5 +183,180 @@ static inline bool is_ic_before(unsigned int crr_id, unsigned int ic_id)
 #define IS_IC(cid, cc)		is_ic_named(cid, DI_IC_ID_##cc)
 #define IS_IC_EF(cid, cc)	is_ic_after_eq(cid, DI_IC_ID_##cc)
 #define IS_IC_BF(cid, cc)	is_ic_before(cid, DI_IC_ID_##cc)
+
+struct reg_acc {
+	void (*wr)(unsigned int adr, unsigned int val);
+	unsigned int (*rd)(unsigned int adr);
+	unsigned int (*bwr)(unsigned int adr, unsigned int val,
+			    unsigned int start, unsigned int len);
+	unsigned int (*brd)(unsigned int adr, unsigned int start,
+			    unsigned int len);
+
+};
+
+/************************************************
+ * afbc
+ ************************************************/
+enum EAFBC_DEC {
+	EAFBC_DEC0,
+	EAFBC_DEC1,
+	EAFBC_DEC2_DI,
+	EAFBC_DEC3_MEM,
+	EAFBC_DEC_CHAN2,
+	EAFBC_DEC_IF0,
+	EAFBC_DEC_IF1,
+	EAFBC_DEC_IF2,
+	/*sc2*/
+};
+
+enum EAFBC_ENC {
+	EAFBC_ENC0,
+	EAFBC_ENC1,
+};
+
+enum EAFBC_CFG {
+	EAFBC_CFG_EN,
+	EAFBC_CFG_PMODE,
+	EAFBC_CFG_EMODE,
+	EAFBC_CFG_ETEST,
+	EAFBC_CFG_4K,
+	EAFBC_CFG_PRE_LINK,
+	EAFBC_CFG_PAUSE,
+	EAFBC_CFG_LEVE3,
+};
+
+struct afbce_map_s {
+	unsigned long tabadd;
+	unsigned long bodyadd;
+	unsigned int size_buf;
+	unsigned int size_tab;
+};
+
+struct afbcd_ctr_s {
+	struct {
+		unsigned int ver	: 8,
+
+			sp_inp		: 1,
+			sp_mem		: 1,
+			/*0:inp only, 1: inp + mem*/
+			sp_chan2	: 1,
+			sp_if0		: 1,
+			sp_if1		: 1,
+			sp_if2		: 1,
+			rev1		: 2,
+
+			/* mode
+			 *	0: 1 afbcd
+			 *	1: p: 2afbcd + 1 afbce
+			 *	2: i: 6afbcd + 2 afbce
+			 *	3:
+			 */
+			mode		: 2,
+			rev2		: 2,
+			rev3		: 4,
+
+			pre_dec		: 4,
+			mem_dec		: 4,
+
+			ch2_dec		: 4,
+			if0_dec		: 4,
+
+			if1_dec		: 4,
+			if2_dec		: 4,
+
+			rev4		: 8;
+	} fb;
+
+	union {
+		unsigned int d32;
+		struct {
+		unsigned int int_flg	: 1, /*addr ini*/
+			en		: 1,
+			enc_err		: 1,
+			rev1		: 5,
+
+			chg_level	: 2,
+			chg_mem		: 2, /*add*/
+			rev2		: 4,
+
+			rev3		: 8,
+			rev4		: 8;
+		} b;
+	};
+	unsigned int size_tab;
+	unsigned int size_info;
+	unsigned int l_vtype;
+	unsigned int l_vt_mem;
+	unsigned int l_h;
+	unsigned int l_w;
+	unsigned int l_bitdepth;
+	unsigned int addr_h;
+	unsigned int addr_b;
+	unsigned int mem_addr_h;
+	unsigned int mem_addr_b;
+};
+
+struct afd_s {
+	struct afbcd_ctr_s ctr;
+};
+
+struct afd_ops_s {
+	void (*prob)(unsigned int cid, struct afd_s *p);
+	bool (*is_supported)(void);
+	u32 (*en_pre_set)(struct vframe_s *inp_vf,
+			  struct vframe_s *mem_vf,
+			  struct vframe_s *nr_vf);
+	void (*inp_sw)(bool on);
+	bool (*is_used)(void);
+	bool (*is_free)(void);/*?*/
+	bool (*is_cfg)(enum EAFBC_CFG cfg_cmd);
+	unsigned int (*count_info_size)(unsigned int w, unsigned int h);
+	unsigned int (*count_tab_size)(unsigned int buf_size);
+	void (*int_tab)(struct device *dev,
+			struct afbce_map_s *pcfg);
+	void (*dump_reg)(void);
+	void (*reg_sw)(bool on);
+	void (*reg_val)(void);
+	u32 (*rqst_share)(bool onoff);
+	const unsigned int *(*get_d_addrp)(enum EAFBC_DEC eidx);
+	const unsigned int *(*get_e_addrp)(enum EAFBC_ENC eidx);
+	u32 (*dbg_rqst_share)(bool onoff);
+};
+
+enum EDI_MIFSM {
+	EDI_MIFSM_NR,
+	EDI_MIFSM_WR,
+};
+
+int dbg_afbc_cfg_show(struct seq_file *s, void *v);/*debug*/
+void dbg_afbcd_bits_show(struct seq_file *s, enum EAFBC_DEC eidx);
+void dbg_afd_reg(struct seq_file *s, enum EAFBC_DEC eidx);
+void dbg_afbce_bits_show(struct seq_file *s, enum EAFBC_ENC eidx);
+void dbg_afe_reg(struct seq_file *s, enum EAFBC_ENC eidx);
+bool dbg_di_prelink(void);
+void dbg_di_prelink_reg_check(void);
+
+/**/
+int dbg_afbc_cfg_v3_show(struct seq_file *s, void *v);/*debug*/
+void dbg_afd_reg_v3(struct seq_file *s, enum EAFBC_DEC eidx);
+
+bool di_attach_ops_afd_v3(const struct afd_ops_s **ops);
+
+/************************************************
+ * ext api for di
+ ************************************************/
+
+struct ext_ops_s {
+	void (*switch_vpu_mem_pd_vmod)(unsigned int vmod, bool on);
+/*	char *(*vf_get_receiver_name)(const char *provider_name);*/
+	void (*switch_vpu_clk_gate_vmod)(unsigned int vmod, int flag);
+	int (*get_current_vscale_skip_count)(struct vframe_s *vf);
+	u32 (*cvs_alloc_table)(const char *owner, u32 *tab,
+			       int size,
+			       enum canvas_map_type_e type);
+	u32 (*cvs_free_table)(u32 *tab, int size);
+};
+
+bool dil_attch_ext_api(const struct ext_ops_s **exp_4_di);
 
 #endif	/*__DI_PQA_H__*/

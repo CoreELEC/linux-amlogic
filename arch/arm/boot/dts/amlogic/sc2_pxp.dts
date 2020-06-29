@@ -298,7 +298,7 @@
 
 	multi-di {
 		compatible = "amlogic, dim-sc2";
-		status = "disabled";
+		status = "okay";
 		/* 0:use reserved; 1:use cma; 2:use cma as reserved */
 		flag_cma = <4>;	//<1>;
 		//memory-region = <&di_reserved>;

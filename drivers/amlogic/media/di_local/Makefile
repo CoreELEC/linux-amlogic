@@ -9,4 +9,4 @@ CFLAGS_dil.o := -I$(src)
 obj-$(CONFIG_AMLOGIC_MEDIA_DEINTERLACE) += dil.o
 dil-objs += di_local.o
 #ccflags-y += -Idrivers/amlogic/media/deinterlace/
-
+ccflags-y += -Idrivers/amlogic/media/deinterlace/

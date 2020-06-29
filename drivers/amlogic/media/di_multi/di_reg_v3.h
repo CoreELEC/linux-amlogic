@@ -25,7 +25,6 @@
 #define DI_TOP_PRE_CTRL                            0x17c5
 #define DI_TOP_POST_CTRL                           0x17c6
 
-#ifdef REG_V3
 #define DI_SC2_PRE_GL_CTRL                         0x17c7 /* sc2 change add */
 #define DI_SC2_PRE_GL_THD                          0x17c8 /* sc2 change add */
 #define DI_SC2_POST_GL_CTRL                        0x17c9 /* sc2 change add */
@@ -105,6 +104,7 @@
 //Bit   15:13,    reserved
 //Bit   12:0,     reg_crop_vsize
 //unsigned, default = 1080 , pic vert size in  unit: pixel
+
 #define DI_NRWR_CROP_HSCOPE                        0x209d
 //Bit   31:29,    reserved
 //Bit   28:16,    reg_cropwin_end_h      unsigned, default = 1919 ;
@@ -506,6 +506,7 @@
 //Bit   31:1,   ro_dbg_top_info      uns,   default = 0
 //Bit      0,   frm_end_stat         uns, default = 0 frame end status
 #define AFBCDM_VD_CFMT_CTRL                        0x544b
+
 //Bit 31    cfmt_gclk_bit_dis      uns, default = 0    ;
 //  it true, disable clock, otherwise enable clock
 //Bit 30    cfmt_soft_rst_bit      uns, default = 0    ;
@@ -879,47 +880,48 @@
 #define AFBCDM_FGRAIN_PARAM_DATA                   0x5479
 
 /*afbcd for vd1*/
-#define AFBCDM_VD1_ENABLE                              0x2440 //-0x3000
-#define AFBCDM_VD1_MODE                                0x2441
-#define AFBCDM_VD1_SIZE_IN                             0x2442
-#define AFBCDM_VD1_DEC_DEF_COLOR                       0x2443
-#define AFBCDM_VD1_CONV_CTRL                           0x2444
-#define AFBCDM_VD1_LBUF_DEPTH                          0x2445
-#define AFBCDM_VD1_HEAD_BADDR                          0x2446
-#define AFBCDM_VD1_BODY_BADDR                          0x2447
-#define AFBCDM_VD1_SIZE_OUT                            0x2448
-#define AFBCDM_VD1_OUT_YSCOPE                          0x2449
-#define AFBCDM_VD1_STAT                                0x244a
-#define AFBCDM_VD1_VD_CFMT_CTRL                        0x244b
-#define AFBCDM_VD1_VD_CFMT_W                           0x244c
-#define AFBCDM_VD1_MIF_HOR_SCOPE                       0x244d
-#define AFBCDM_VD1_MIF_VER_SCOPE                       0x244e
-#define AFBCDM_VD1_PIXEL_HOR_SCOPE                     0x244f
-#define AFBCDM_VD1_PIXEL_VER_SCOPE                     0x2450
-#define AFBCDM_VD1_VD_CFMT_H                           0x2451
-#define AFBCDM_VD1_IQUANT_ENABLE                       0x2452
-#define AFBCDM_VD1_IQUANT_LUT_1                        0x2453
-#define AFBCDM_VD1_IQUANT_LUT_2                        0x2454
-#define AFBCDM_VD1_IQUANT_LUT_3                        0x2455
-#define AFBCDM_VD1_IQUANT_LUT_4                        0x2456
-#define AFBCDM_VD1_ROT_CTRL                            0x2460
-#define AFBCDM_VD1_ROT_SCOPE                           0x2461
-#define AFBCDM_VD1_RPLC_CTRL                           0x2462
-#define AFBCDM_VD1_RPLC_PICEN                          0x2463
-#define AFBCDM_VD1_RPLC_DEFCOL                         0x2464
-#define AFBCDM_VD1_RPLC_SCPXN_ADDR                     0x2465
-#define AFBCDM_VD1_RPLC_SCPXN_DATA                     0x2466
-#define AFBCDM_VD1_ROT_RO_STAT                         0x2467
-#define AFBCDM_VD1_FGRAIN_CTRL                         0x2470
-#define AFBCDM_VD1_FGRAIN_WIN_H                        0x2471
-#define AFBCDM_VD1_FGRAIN_WIN_V                        0x2472
-#define AFBCDM_VD1_FGRAIN_SW_Y_RANNGE                  0x2473
-#define AFBCDM_VD1_FGRAIN_SW_C_RANNGE                  0x2474
-#define AFBCDM_VD1_FGRAIN_GCLK_CTRL_0                  0x2475
-#define AFBCDM_VD1_FGRAIN_GCLK_CTRL_1                  0x2476
-#define AFBCDM_VD1_FGRAIN_GCLK_CTRL_2                  0x2477
-#define AFBCDM_VD1_FGRAIN_PARAM_ADDR                   0x2478
-#define AFBCDM_VD1_FGRAIN_PARAM_DATA                   0x2479
+#define AFBCDM_VD1_ENABLE                              0x4840 //-0xc00
+#define AFBCDM_VD1_MODE                                0x4841
+#define AFBCDM_VD1_SIZE_IN                             0x4842
+#define AFBCDM_VD1_DEC_DEF_COLOR                       0x4843
+#define AFBCDM_VD1_CONV_CTRL                           0x4844
+#define AFBCDM_VD1_LBUF_DEPTH                          0x4845
+#define AFBCDM_VD1_HEAD_BADDR                          0x4846
+#define AFBCDM_VD1_BODY_BADDR                          0x4847
+#define AFBCDM_VD1_SIZE_OUT                            0x4848
+#define AFBCDM_VD1_OUT_YSCOPE                          0x4849
+#define AFBCDM_VD1_STAT                                0x484a
+#define AFBCDM_VD1_VD_CFMT_CTRL                        0x484b
+#define AFBCDM_VD1_VD_CFMT_W                           0x484c
+#define AFBCDM_VD1_MIF_HOR_SCOPE                       0x484d
+#define AFBCDM_VD1_MIF_VER_SCOPE                       0x484e
+#define AFBCDM_VD1_PIXEL_HOR_SCOPE                     0x484f
+#define AFBCDM_VD1_PIXEL_VER_SCOPE                     0x4850
+#define AFBCDM_VD1_VD_CFMT_H                           0x4851
+#define AFBCDM_VD1_IQUANT_ENABLE                       0x4852
+#define AFBCDM_VD1_IQUANT_LUT_1                        0x4853
+#define AFBCDM_VD1_IQUANT_LUT_2                        0x4854
+#define AFBCDM_VD1_IQUANT_LUT_3                        0x4855
+#define AFBCDM_VD1_IQUANT_LUT_4                        0x4856
+#define AFBCDM_VD1_ROT_CTRL                            0x4860
+#define AFBCDM_VD1_ROT_SCOPE                           0x4861
+#define AFBCDM_VD1_RPLC_CTRL                           0x4862
+#define AFBCDM_VD1_RPLC_PICEN                          0x4863
+#define AFBCDM_VD1_RPLC_DEFCOL                         0x4864
+#define AFBCDM_VD1_RPLC_SCPXN_ADDR                     0x4865
+#define AFBCDM_VD1_RPLC_SCPXN_DATA                     0x4866
+#define AFBCDM_VD1_ROT_RO_STAT                         0x4867
+#define AFBCDM_VD1_FGRAIN_CTRL                         0x4870
+#define AFBCDM_VD1_FGRAIN_WIN_H                        0x4871
+#define AFBCDM_VD1_FGRAIN_WIN_V                        0x4872
+#define AFBCDM_VD1_FGRAIN_SW_Y_RANNGE                  0x4873
+#define AFBCDM_VD1_FGRAIN_SW_C_RANNGE                  0x4874
+#define AFBCDM_VD1_FGRAIN_GCLK_CTRL_0                  0x4875
+#define AFBCDM_VD1_FGRAIN_GCLK_CTRL_1                  0x4876
+#define AFBCDM_VD1_FGRAIN_GCLK_CTRL_2                  0x4877
+#define AFBCDM_VD1_FGRAIN_PARAM_ADDR                   0x4878
+#define AFBCDM_VD1_FGRAIN_PARAM_DATA                   0x4879
+
 
 /*afbcd add*/
 #define AFBCDM_INP_ENABLE                              0x5440
@@ -1173,7 +1175,6 @@
 #define AFBCDM_IF2_FGRAIN_GCLK_CTRL_2                  0x56f7
 #define AFBCDM_IF2_FGRAIN_PARAM_ADDR                   0x56f8
 #define AFBCDM_IF2_FGRAIN_PARAM_DATA                   0x56f9
-
 /* afbce */
 #ifdef DEF_AFBCE
 #define DI_AFBCE_ENABLE                            0x2060
@@ -1259,6 +1260,7 @@
 #define DI_AFBCE_FORMAT                            0x206d
 //Bit 31:12        reserved
 //Bit 11:10        reserved
+
 //Bit  9: 8        reg_format_mode
 // unsigned ,    RW, default = 2  data format;0 :YUV444,1:YUV422,2:YUV420,3:RGB
 //Bit  7: 4        reg_compbits_c
@@ -1723,7 +1725,6 @@
 //Bit 3:0    reg_arb_weight_ch0
 //unsigned , RW,default = 10
 //only pip mode use those bits,ususaly don't need configure
-
 /* afbce */
 
 #define DI_AFBCE1_ENABLE                           0x20c0
@@ -1735,6 +1736,7 @@
 //Bit   11:9,     reserved
 //Bit   8,        enc_enable       unsigned  , default = 0,
 //Bit   7:1,      reserved
+
 //Bit   0,
 //reserved         enc_frm_start pulse use this bit don't use
 #define DI_AFBCE1_MODE                             0x20c1
@@ -2168,6 +2170,7 @@
 //Bit 31:0  reg_baddr        // unsigned , default = 0,
 #define DI_AFBCE1_MMU_RMIF_SCOPE_X                 0x20e4
 //Bit 31:29 reserved
+
 //Bit 28:16 reg_x_end
 // unsigned , default = 4095, the canvas hor end pixel position
 //Bit 15:13 reserved
@@ -2180,6 +2183,7 @@
 //Bit 15:13 reserved
 //Bit 12: 0 reg_y_start
 // unsigned , default = 0, the canvas ver start pixel positio
+
 #define DI_AFBCE1_MMU_RMIF_RO_STAT                 0x20e6
 //Bit 15:0  reg_status        // unsigned ,
 #define DI_AFBCE1_PIP_CTRL                         0x20ea
@@ -2189,6 +2193,7 @@
 //Bit   0         reg_pip_mode         //unsigned  , RW,default = 0,
 #define DI_AFBCE1_ROT_CTRL                         0x20eb
 //Bit   31:5      reserved
+
 //Bit   4         reg_rot_en
 //unsigned  , RW,default = 0, rotation enable
 //Bit   3:0       reg_vstep
@@ -2250,6 +2255,5 @@
 //unsigned , RW,default = 10
 //only pip mode use those bits,ususaly don't need configure
 
-#endif
 #endif	/*__DI_REG_V3_H__*/
 

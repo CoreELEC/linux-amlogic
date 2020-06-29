@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: (GPL-2.0+ OR MIT) */
 /*
- * drivers/amlogic/media/di_local/di_local.h
+ * drivers/amlogic/media/di_multi/sc2/di_afbc_dbg.h
  *
  * Copyright (C) 2017 Amlogic, Inc. All rights reserved.
  *
@@ -16,17 +16,11 @@
  *
  */
 
-#ifndef __DI_LOCAL_H__
-#define __DI_LOCAL_H__
+#ifndef __DI_AFBC_DBG_H__
+#define __DI_AFBC_DBG_H__
 
-int get_current_vscale_skip_count(struct vframe_s *vf);
+void dbg_afbcd_bits_show(struct seq_file *s, enum EAFBC_DEC eidx);
+//void dbg_afd_reg(struct seq_file *s, enum EAFBC_DEC eidx);
+void dbg_afbce_bits_show(struct seq_file *s, enum EAFBC_ENC eidx);
 
-struct di_ext_ops {
-	unsigned int (*di_post_reg_rd)(unsigned int addr);
-	int (*di_post_wr_reg_bits)(u32 adr, u32 val, u32 start, u32 len);
-	void (*post_update_mc)(void);
-	void (*post_keep_cmd_release2)(struct vframe_s *vframe);
-	void (*polic_cfg)(unsigned int cmd, bool on);
-};
-
-#endif	/*__DI_LOCAL_H__*/
+#endif	/*__DI_AFBC_DBG_H__*/

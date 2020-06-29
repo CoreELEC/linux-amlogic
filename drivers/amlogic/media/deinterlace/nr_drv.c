@@ -28,7 +28,6 @@
 #include "nr_drv.h"
 #include "deinterlace.h"
 #include "di_pqa.h"
-
 static DNR_PRM_t dnr_param;
 static struct NR_PARM_s nr_param;
 static bool dnr_pr;
@@ -66,6 +65,7 @@ static unsigned int dm_mp(enum DM_MP emp)
 			    is_meson_g12a_cpu()	||
 			    is_meson_g12b_cpu() ||
 			    is_meson_sm1_cpu()) {
+			    //cpu_after_eq(MESON_CPU_MAJOR_ID_SC2)
 				val = 0;
 			} else {
 				val = (dnr_dm_en & 0x02) >> 1;
@@ -93,7 +93,7 @@ enum DNR_MP {
 
 static unsigned int dnr_mp(enum DNR_MP emp)
 {
-	unsigned int val;
+	unsigned int val = 0;
 
 	switch (emp) {
 	case DNR_M_DNR:
@@ -444,7 +444,8 @@ static void nr2_config(unsigned short width, unsigned short height)
 {
 	if (is_meson_txlx_cpu() || is_meson_g12a_cpu() ||
 		is_meson_g12b_cpu() || is_meson_tl1_cpu() ||
-		is_meson_sm1_cpu() || is_meson_tm2_cpu()) {
+		is_meson_sm1_cpu() || is_meson_tm2_cpu() ||
+		cpu_after_eq(MESON_CPU_MAJOR_ID_SC2)) {
 		DI_Wr_reg_bits(NR4_TOP_CTRL, nr2_en, 2, 1);
 		DI_Wr_reg_bits(NR4_TOP_CTRL, nr2_en, 15, 1);
 		DI_Wr_reg_bits(NR4_TOP_CTRL, nr2_en, 17, 1);
@@ -463,21 +464,36 @@ module_param_named(cue_en, cue_en, bool, 0664);
 /*
  * workaround for nframe count
  * indicating error field type in cue
+ * from sc2 cure en from 0x1717[b26]->2dff[b26]
  */
 static void cue_config(struct CUE_PARM_s *pcue_parm, unsigned short field_type)
 {
 	pcue_parm->field_count = 8;
 	pcue_parm->frame_count = 8;
 	pcue_parm->field_count1 = 8;
-	if (field_type != VIDTYPE_PROGRESSIVE) {
-		DI_Wr_reg_bits(NR2_CUE_PRG_DIF, 0, 20, 1);
-		DI_Wr_reg_bits(DI_NR_CTRL0, 0, 26, 1);
-		/* cur row mode avoid seek error */
-		Wr_reg_bits(NR2_CUE_MODE, 5, 0, 4);
+
+	if (cpu_after_eq(MESON_CPU_MAJOR_ID_SC2)) {
+		if (field_type != VIDTYPE_PROGRESSIVE) {
+			DI_Wr_reg_bits(NR2_CUE_PRG_DIF, 0, 20, 1);
+			DI_Wr_reg_bits(NR4_TOP_CTRL, 0, 26, 1);
+			/* cur row mode avoid seek error */
+			Wr_reg_bits(NR2_CUE_MODE, 5, 0, 4);
+		} else {
+			DI_Wr_reg_bits(NR2_CUE_PRG_DIF, 1, 20, 1);
+			/* disable cue for progressive issue */
+			DI_Wr_reg_bits(NR4_TOP_CTRL, 0, 26, 1);
+		}
 	} else {
-		DI_Wr_reg_bits(NR2_CUE_PRG_DIF, 1, 20, 1);
-		/* disable cue for progressive issue */
-		DI_Wr_reg_bits(DI_NR_CTRL0, 0, 26, 1);
+		if (field_type != VIDTYPE_PROGRESSIVE) {
+			DI_Wr_reg_bits(NR2_CUE_PRG_DIF, 0, 20, 1);
+			DI_Wr_reg_bits(DI_NR_CTRL0, 0, 26, 1);
+			/* cur row mode avoid seek error */
+			Wr_reg_bits(NR2_CUE_MODE, 5, 0, 4);
+		} else {
+			DI_Wr_reg_bits(NR2_CUE_PRG_DIF, 1, 20, 1);
+			/* disable cue for progressive issue */
+			DI_Wr_reg_bits(DI_NR_CTRL0, 0, 26, 1);
+		}
 	}
 }
 
@@ -495,7 +511,8 @@ void nr_all_config(unsigned short width, unsigned short height,
 		cue_config(nr_param.pcue_parm, field_type);
 	if (is_meson_txlx_cpu() || is_meson_g12a_cpu() ||
 		is_meson_g12b_cpu() || is_meson_tl1_cpu() ||
-		is_meson_sm1_cpu() || is_meson_tm2_cpu()) {
+		is_meson_sm1_cpu() || is_meson_tm2_cpu() ||
+		cpu_after_eq(MESON_CPU_MAJOR_ID_SC2)) {
 		linebuffer_config(width);
 		nr4_config(nr_param.pnr4_parm, width, height);
 	}
@@ -811,8 +828,14 @@ static void cue_process_irq(void)
 		Wr_reg_bits(NR2_CUE_MODE, cue_invert, 10, 2);
 	}
 	if (!nr_param.prog_flag) {
-		if (nr_param.frame_count > 1 && cue_glb_mot_check_en)
-			DI_Wr_reg_bits(DI_NR_CTRL0, cue_en?1:0, 26, 1);
+		if (nr_param.frame_count > 1 && cue_glb_mot_check_en) {
+			if (cpu_after_eq(MESON_CPU_MAJOR_ID_SC2))
+				DI_Wr_reg_bits(NR4_TOP_CTRL,
+					       cue_en ? 1 : 0, 26, 1);
+			else
+				DI_Wr_reg_bits(DI_NR_CTRL0,
+					       cue_en ? 1 : 0, 26, 1);
+		}
 	}
 	if (nr_param.frame_count == 5)
 		Wr_reg_bits(NR2_CUE_MODE, 7, 0, 4);
@@ -832,9 +855,12 @@ void cue_int(struct vframe_s *vf)
 		cue_glb_mot_check_en = true;
 	}
 	/*close cue when cue disable*/
-	if (cpu_after_eq(MESON_CPU_MAJOR_ID_GXLX) && !cue_en)
-		DI_Wr_reg_bits(DI_NR_CTRL0, 0, 26, 1);
-
+	if (!cue_en) {
+		if (cpu_after_eq(MESON_CPU_MAJOR_ID_SC2))
+			DI_Wr_reg_bits(NR4_TOP_CTRL, 0, 26, 1);
+		else if (cpu_after_eq(MESON_CPU_MAJOR_ID_GXLX))
+			DI_Wr_reg_bits(DI_NR_CTRL0, 0, 26, 1);
+	}
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12B)) {
 		if (cue_en)
 			Wr_reg_bits(NR2_CUE_MODE, 3, 10, 2);
@@ -966,7 +992,8 @@ void nr_process_in_irq(void)
 		dnr_process(&dnr_param);
 	if (is_meson_txlx_cpu() || is_meson_g12a_cpu()
 		|| is_meson_g12a_cpu() || is_meson_tl1_cpu() ||
-		is_meson_sm1_cpu() || is_meson_tm2_cpu()) {
+		is_meson_sm1_cpu() || is_meson_tm2_cpu() ||
+		cpu_after_eq(MESON_CPU_MAJOR_ID_SC2)) {
 		noise_meter_process(nr_param.pnr4_parm, nr_param.frame_count);
 		luma_enhancement_process(nr_param.pnr4_parm,
 				nr_param.frame_count);
@@ -1348,7 +1375,8 @@ void nr_hw_init(void)
 	else
 		dnr_en = 0x0f;
 
-	if (is_meson_tl1_cpu() || is_meson_tm2_cpu())
+	if (is_meson_tl1_cpu() || is_meson_tm2_cpu() ||
+	    (cpu_after_eq(MESON_CPU_MAJOR_ID_SC2)))
 		DI_Wr(DNR_CTRL, dnr_cfg(0x1df00|(0x03<<18)));//5 line
 	else
 		DI_Wr(DNR_CTRL, dnr_cfg(0x1df00));

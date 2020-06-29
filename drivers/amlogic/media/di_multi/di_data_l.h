@@ -26,12 +26,13 @@
 #include <linux/kfifo.h>	/*ary add*/
 
 #include "../deinterlace/di_pqa.h"
+//#include "di_pqa.h"
 
 #define DI_CHANNEL_NUB	(2)
 #define DI_CHANNEL_MAX  (4)
 
 #define TABLE_FLG_END	(0xfffffffe)
-#define TABLE_LEN_MAX	(1000)
+#define TABLE_LEN_MAX (1000)
 #define F_IN(x, a, b)	(((x) > (a)) && ((x) < (b)))
 #define COM_M(m, a, b)	(((a) & (m)) == ((b) & (m)))
 #define COM_MV(a, m, v)	(((a) & (m)) == (v))
@@ -232,6 +233,7 @@ struct reg_t {
 	char *info;
 };
 
+#ifdef MARK_SC2
 struct reg_acc {
 	void (*wr)(unsigned int adr, unsigned int val);
 	unsigned int (*rd)(unsigned int adr);
@@ -240,7 +242,7 @@ struct reg_acc {
 	unsigned int (*brd)(unsigned int adr, unsigned int start,
 			    unsigned int len);
 };
-
+#endif
 /**************************************/
 /* time out */
 /**************************************/
@@ -404,6 +406,8 @@ struct di_hpre_s {
 	bool dbg_f_en;
 	unsigned int dbg_f_lstate;
 	unsigned int dbg_f_cnt;
+	struct hw_sc2_ctr_pre_s pre_top_cfg;
+
 };
 
 /**************************************/
@@ -434,7 +438,7 @@ struct di_hpst_s {
 	unsigned int dbg_f_lstate;
 	unsigned int dbg_f_cnt;
 	struct vframe_s		vf_post;
-
+	struct hw_sc2_ctr_pst_s pst_top_cfg;
 };
 
 /**************************************/
@@ -1083,12 +1087,16 @@ struct di_data_l_s {
 	struct di_mng_s mng;
 	struct di_hpre_s hw_pre;
 	struct di_hpst_s hw_pst;
+	const struct dim_hw_opsv_s *hop_l1; /* from sc2 */
+	struct afd_s di_afd;
+	const struct afd_ops_s *afds;
 	struct dentry *dbg_root_top;	/* dbg_fs*/
 	/*pq_ops*/
 	const struct pulldown_op_s *ops_pd;	/* pulldown */
 	const struct detect3d_op_s *ops_3d;	/* detect_3d */
 	const struct nr_op_s *ops_nr;	/* nr */
 	const struct mtn_op_s *ops_mtn;	/* deinterlace_mtn */
+	const struct ext_ops_s	*ops_ext;
 	/*di ops for other module */
 	/*struct di_ext_ops *di_api; */
 	const struct di_meson_data *mdata;
@@ -1178,6 +1186,11 @@ static inline struct di_hpre_s  *get_hw_pre(void)
 static inline struct di_hpst_s  *get_hw_pst(void)
 {
 	return &get_datal()->hw_pst;
+}
+
+static inline const struct dim_hw_opsv_s  *opl1(void)
+{
+	return get_datal()->hop_l1;
 }
 
 /****************************************
@@ -1468,6 +1481,11 @@ static inline const struct mtn_op_s *get_ops_mtn(void)
 	return get_datal()->ops_mtn;
 }
 
+static inline const struct ext_ops_s *ops_ext(void)
+{
+	return get_datal()->ops_ext;
+}
+
 #ifdef MARK_HIS
 static inline struct di_ext_ops *get_ops_api(void)
 {
@@ -1537,6 +1555,22 @@ static inline unsigned int di_get_mem_size(unsigned int ch)
 void di_tout_int(struct di_time_out_s *tout, unsigned int thd);
 bool di_tout_contr(enum EDI_TOUT_CONTR cmd, struct di_time_out_s *tout);
 
+#ifdef MARK_SC2
+/*cpu_after_eq*/
+static inline bool is_ic_after_eq(unsigned int ic_id)
+{
+	if (get_datal()->mdata->ic_id >= ic_id)
+		return true;
+	return false;
+}
+
+static inline bool is_ic_before(unsigned int ic_id)
+{
+	if (get_datal()->mdata->ic_id < ic_id)
+		return true;
+	return false;
+}
+#endif
 static inline bool is_ic_between(unsigned int ic_min, unsigned int ic_max)
 {
 	unsigned int id = get_datal()->mdata->ic_id;
@@ -1553,5 +1587,4 @@ static inline bool is_ic_between(unsigned int ic_min, unsigned int ic_max)
 #define DIM_IS_IC_BF(cc)	is_ic_before((get_datal()->mdata->ic_id), \
 					DI_IC_ID_##cc)
 #define DIM_IS_IC_BT(cc1, cc2)	is_ic_between(DI_IC_ID_##cc1, DI_IC_ID_##cc2)
-
 #endif	/*__DI_DATA_L_H__*/

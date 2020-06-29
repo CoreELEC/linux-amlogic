@@ -232,10 +232,7 @@ void dpst_timeout(unsigned int ch)
 {
 	hpst_dbg_mem_pd_trig(0);
 	post_close_new();
-	#ifdef MARK_HIS
-	di_post_set_flow(1, EDI_POST_FLOW_STEP1_STOP);
-	di_post_reset();
-	#endif
+
 	dimh_pst_trig_resize();
 }
 
