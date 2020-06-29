@@ -1178,8 +1178,8 @@
 			"venci_1_gate",
 			"hdmi_vapb_clk",
 			"hdmi_vpu_clk";
-		/* HPD, 57 + 32 = 89; CEC, 151 + 32 = 183*/
-		interrupts = <0 57 1>;
+		/* refer to sc2-system-registers.docx */
+		interrupts = <0 204 1>;
 		interrupt-names = "hdmitx_hpd";
 		/* refer to hdmi_tx_module.h */
 		ic_type = <15>;

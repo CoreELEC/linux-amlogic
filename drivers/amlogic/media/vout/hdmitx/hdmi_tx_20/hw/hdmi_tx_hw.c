@@ -1919,51 +1919,38 @@ static void set_phy_by_mode(unsigned int mode)
 
 static void hdmitx_set_phy(struct hdmitx_dev *hdev)
 {
+	unsigned int phy_addr = P_HHI_HDMI_PHY_CNTL1;
+
 	if (!hdev)
 		return;
 	hd_write_reg(P_HHI_HDMI_PHY_CNTL0, 0x0);
-	if (hdev->chip_type == MESON_CPU_ID_TM2) {
+
+	if (hdev->chip_type == MESON_CPU_ID_TM2)
+		phy_addr = P_TM2_HHI_HDMI_PHY_CNTL1;
+	else if (hdev->chip_type == MESON_CPU_ID_SC2)
+		phy_addr = P_ANACTRL_HDMIPHY_CTRL1;
+	else
+		phy_addr = P_HHI_HDMI_PHY_CNTL1;
 
 /* P_HHI_HDMI_PHY_CNTL1 bit[1]: enable clock	bit[0]: soft reset */
 #define RESET_HDMI_PHY() \
 do { \
-	hd_set_reg_bits(P_TM2_HHI_HDMI_PHY_CNTL1, 0xf, 0, 4); \
+	hd_set_reg_bits(phy_addr, 0xf, 0, 4); \
 	mdelay(2); \
-	hd_set_reg_bits(P_TM2_HHI_HDMI_PHY_CNTL1, 0xe, 0, 4); \
-	mdelay(2); \
-} while (0)
-
-		hd_set_reg_bits(P_TM2_HHI_HDMI_PHY_CNTL1, 0x0390, 16, 16);
-		hd_set_reg_bits(P_TM2_HHI_HDMI_PHY_CNTL1, 0x1, 17, 1);
-		hd_set_reg_bits(P_TM2_HHI_HDMI_PHY_CNTL1, 0x0, 17, 1);
-		hd_set_reg_bits(P_TM2_HHI_HDMI_PHY_CNTL1, 0x0, 0, 4);
-		msleep(20);
-		RESET_HDMI_PHY();
-		RESET_HDMI_PHY();
-		RESET_HDMI_PHY();
-#undef RESET_HDMI_PHY
-
-	} else {
-/* P_HHI_HDMI_PHY_CNTL1	bit[1]: enable clock	bit[0]: soft reset */
-#define RESET_HDMI_PHY() \
-do { \
-	hd_set_reg_bits(P_HHI_HDMI_PHY_CNTL1, 0xf, 0, 4); \
-	mdelay(2); \
-	hd_set_reg_bits(P_HHI_HDMI_PHY_CNTL1, 0xe, 0, 4); \
+	hd_set_reg_bits(phy_addr, 0xe, 0, 4); \
 	mdelay(2); \
 } while (0)
 
-		hd_set_reg_bits(P_HHI_HDMI_PHY_CNTL1, 0x0390, 16, 16);
-		hd_set_reg_bits(P_HHI_HDMI_PHY_CNTL1, 0x1, 17, 1);
-		if (hdev->chip_type >= MESON_CPU_ID_GXL)
-			hd_set_reg_bits(P_HHI_HDMI_PHY_CNTL1, 0x0, 17, 1);
-		hd_set_reg_bits(P_HHI_HDMI_PHY_CNTL1, 0x0, 0, 4);
-		msleep(20);
-		RESET_HDMI_PHY();
-		RESET_HDMI_PHY();
-		RESET_HDMI_PHY();
+	hd_set_reg_bits(phy_addr, 0x0390, 16, 16);
+	hd_set_reg_bits(phy_addr, 0x1, 17, 1);
+	if (hdev->chip_type >= MESON_CPU_ID_GXL)
+		hd_set_reg_bits(phy_addr, 0x0, 17, 1);
+	hd_set_reg_bits(phy_addr, 0x0, 0, 4);
+	msleep(20);
+	RESET_HDMI_PHY();
+	RESET_HDMI_PHY();
+	RESET_HDMI_PHY();
 #undef RESET_HDMI_PHY
-	}
 
 	switch (hdev->cur_VIC) {
 	case HDMI_3840x2160p50_16x9:

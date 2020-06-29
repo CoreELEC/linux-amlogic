@@ -124,8 +124,6 @@ static bool set_hpll_hclk_v3(unsigned int m, unsigned int frac_val)
 
 void set_sc2_hpll_clk_out(unsigned int frac_rate, unsigned int clk)
 {
-	pr_info("TODO %s[%d]\n", __func__, __LINE__);
-	return;
 	switch (clk) {
 	case 5940000:
 		if (set_hpll_hclk_v1(0xf7, frac_rate ? 0x8148 : 0x10000))
