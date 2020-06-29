@@ -668,7 +668,7 @@ int Decasteliau(
 
 #define org_anchory
 
-uint64_t oo_lut_x[OOLUT_NUM] = {
+static u64 oo_lut_x[OOLUT_NUM] = {
 	1, 16, 32, 64, 128, 256, 512, 1024, 2048, 2560, 3072, 3584, 4096,
 	5120, 6144, 7168, 8192, 10240, 12288, 14336, 16384, 20480, 24576,
 	28672, 32768, 40960, 49152, 57344, 65536, 81920, 98304, 114688,
@@ -696,20 +696,18 @@ uint64_t oo_lut_x[OOLUT_NUM] = {
 /*gen OOTF curve and gain from (sx,sy) and P1~pn-1*/
 int genEBZCurve(
 	u64 *curvex, u64 *curvey,
-	unsigned int *gain, unsigned int *gain_ter,
+	unsigned int *gain,
 	u64 nkx, uint64_t nky,
 	u64 *anchory, int order)
 {
 	u64 myAnchorY[16];
 	u64 temp;
-	u64 linearx[POINTS];
 	u64 kx, ky;
 
 	u64 range_ebz_x;
 	u64 range_ebz_y;
 
 	u64 step_alpha;
-	u64 step_ter[POINTS];
 	u64 beziercurve[2];
 	int i;
 	int nump = N - 1;
@@ -739,25 +737,20 @@ int genEBZCurve(
 	for (i = 0; i < POINTS; i++) {
 		#if 0
 		linearX[i] = (uint64_t)(i*_U32_MAX/POINTS); /* x index sample */
-		#else
-		linearx[i] = oo_lut_x[i];/* x index sample,u32 */
 		#endif
 		curvey[i] = 0;
-		step_ter[i] = 1023;
 	}
 
 	for (i = 0; i < POINTS; i++) {
-		if (linearx[i] < kx) {
-			curvex[i] = linearx[i];/*u32*/
-			curvey[i] = linearx[i] * ky;
+		if (oo_lut_x[i] < kx) {
+			curvex[i] = oo_lut_x[i];/*u32*/
+			curvey[i] = oo_lut_x[i] * ky;
 			curvey[i] = div64_u64(curvey[i], kx ? kx : 1);
 			temp = curvey[i] << GAIN_BIT;/*u12*/
-			gain[i] = div64_u64(temp, curvex[i]);
-			step_ter[i] = 1024;
+			gain[i] = div64_u64(temp, oo_lut_x[i]);
 		} else{
 			/*norm in Decasteliau() function*/
-			step_alpha = (linearx[i] - kx);
-			step_ter[i] = step_alpha;
+			step_alpha = (oo_lut_x[i] - kx);
 			/* calc each point from 1st to N-th layer*/
 			Decasteliau(
 				&beziercurve[0], myAnchorY, step_alpha,
@@ -777,7 +770,7 @@ int genEBZCurve(
 			/*range_ebz_x);*/
 			curvex[i] = kx + step_alpha;
 			temp = curvey[i] << GAIN_BIT;
-			gain[i] = div64_u64(temp, curvex[i]);
+			gain[i] = div64_u64(temp, oo_lut_x[i]);
 			if (gain[i] < (1 << GAIN_BIT))
 				gain[i] = 1 << GAIN_BIT;
 		}
@@ -952,7 +945,6 @@ void vframe_hdr_sei_s_init(
 }
 
 unsigned int gain[POINTS];
-unsigned int gain_ter[POINTS];
 u64 curvex[POINTS], curvey[POINTS];
 
 /*input o->10000, should adaptive scale by shift and gamut*/
@@ -1015,7 +1007,6 @@ int hdr10_plus_ootf_gen(
 	memset(curvex,   0, sizeof(uint64_t) * POINTS);
 	memset(curvey,   0, sizeof(uint64_t) * POINTS);
 	memset(gain,	 0, sizeof(unsigned int) * POINTS);
-	memset(gain_ter, 0, sizeof(unsigned int) * POINTS);
 
 	basisootf_params_init(&basisootf_params);
 
@@ -1077,7 +1068,7 @@ int hdr10_plus_ootf_gen(
 
 	/*step 5. gen bezier curve*/
 	genEBZCurve(
-		&curvex[0], &curvey[0], &gain[0], &gain_ter[0],
+		&curvex[0], &curvey[0], &gain[0],
 		kx, ky, &anchory[0], order);
 
 	/* debug */
