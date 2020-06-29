@@ -549,6 +549,13 @@
 				status = "okay";
 			};
 
+			meson_clk_msr {
+				compatible = "amlogic, sc2-measure";
+				reg = <0x48000 0x4
+					0x48008 0x4>;
+				status = "okay";
+			};
+
 			reset: reset-controller@2000 {
 				compatible = "amlogic,meson-sc2-reset";
 				reg = <0x2000 0x98>;
