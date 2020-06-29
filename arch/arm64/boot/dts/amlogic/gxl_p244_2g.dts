@@ -315,6 +315,32 @@
 		};
 	};
 
+	dvb {
+		compatible = "amlogic, dvb";
+		dev_name = "dvb";
+		status = "okay";
+
+		interrupts = <0 23 1
+		0 5 1
+		0 53 1
+		0 19 1
+		0 25 1
+		0 18 1
+		0 24 1>;
+		interrupt-names = "demux0_irq",
+		"demux1_irq",
+		"demux2_irq",
+		"dvr0_irq",
+		"dvr1_irq",
+		"dvrfill0_fill",
+		"dvrfill1_flush";
+		clocks = <&clkc CLKID_DEMUX
+		&clkc CLKID_ASYNC_FIFO
+		&clkc CLKID_AHB_ARB0
+		&clkc CLKID_HIU_IFACE>;
+		clock-names = "demux", "asyncfifo", "ahbarb0", "uparsertop";
+	};
+
 	sd_emmc_a:sdio@d0070000 {
 		status = "okay";
 		compatible = "amlogic, meson-mmc-gxl";
