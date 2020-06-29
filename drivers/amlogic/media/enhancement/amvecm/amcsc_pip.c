@@ -29,6 +29,17 @@ static enum output_format_e target_format[VD_PATH_MAX];
 static enum hdr_type_e cur_source_format[VD_PATH_MAX];
 static enum output_format_e output_format;
 
+#define INORM	50000
+static u32 bt2020_primaries[3][2] = {
+	{0.17 * INORM + 0.5, 0.797 * INORM + 0.5},	/* G */
+	{0.131 * INORM + 0.5, 0.046 * INORM + 0.5},	/* B */
+	{0.708 * INORM + 0.5, 0.292 * INORM + 0.5},	/* R */
+};
+
+static u32 bt2020_white_point[2] = {
+	0.3127 * INORM + 0.5, 0.3290 * INORM + 0.5
+};
+
 static const char *module_str[7] = {
 	"UNKNOWN",
 	"VD1",
@@ -881,32 +892,51 @@ int hdr_policy_process(
 
 static void prepare_hdr_info(
 	struct master_display_info_s *hdr_data,
-	struct vframe_master_display_colour_s *p)
+	struct vframe_master_display_colour_s *p,
+	enum vd_path_e vd_path,
+	enum hdr_type_e *source_type)
 {
 	memset(hdr_data->primaries, 0, sizeof(hdr_data->primaries));
-	if ((p->present_flag & 1)
-	&& (((hdr_data->features >> 16) & 0xff) == 9)) {
-		memcpy(hdr_data->primaries,
-			p->primaries,
-			sizeof(u32)*6);
-		memcpy(hdr_data->white_point,
-			p->white_point,
-			sizeof(u32)*2);
-		hdr_data->luminance[0] =
-			p->luminance[0];
-		hdr_data->luminance[1] =
-			p->luminance[1];
-		if (p->content_light_level.present_flag == 1) {
-			hdr_data->max_content =
-				p->content_light_level.max_content;
-			hdr_data->max_frame_average =
-				p->content_light_level.max_pic_average;
-		} else {
+	if (((hdr_data->features >> 16) & 0xff) == 9) {
+		if (p->present_flag & 1) {
+			memcpy(
+				hdr_data->primaries,
+				p->primaries, sizeof(u32) * 6);
+			memcpy(
+				hdr_data->white_point,
+				p->white_point, sizeof(u32) * 2);
+			hdr_data->luminance[0] =
+				p->luminance[0];
+			hdr_data->luminance[1] =
+				p->luminance[1];
+			if (p->content_light_level.present_flag == 1) {
+				hdr_data->max_content =
+					p->content_light_level.max_content;
+				hdr_data->max_frame_average =
+					p->content_light_level.max_pic_average;
+			} else {
+				hdr_data->max_content = 0;
+				hdr_data->max_frame_average = 0;
+			}
+			hdr_data->luminance[0] = hdr_data->luminance[0] / 10000;
+			hdr_data->present_flag = 1;
+		} else if (source_type[vd_path] == HDRTYPE_SDR) {
+			memcpy(
+				hdr_data->primaries,
+				bt2020_primaries, sizeof(u32) * 6);
+			memcpy(
+				hdr_data->white_point,
+				bt2020_white_point, sizeof(u32) * 2);
+			/* default luminance */
+			hdr_data->luminance[0] = 1000 * 10000;
+			hdr_data->luminance[1] = 50;
+
+			/* content_light_level */
 			hdr_data->max_content = 0;
 			hdr_data->max_frame_average = 0;
+			hdr_data->luminance[0] = hdr_data->luminance[0] / 10000;
+			hdr_data->present_flag = 1;
 		}
-		hdr_data->luminance[0] = hdr_data->luminance[0] / 10000;
-		hdr_data->present_flag = 1;
 	}
 }
 
@@ -917,7 +947,8 @@ void hdmi_packet_process(
 	struct vinfo_s *vinfo,
 	struct vframe_master_display_colour_s *p,
 	struct hdr10plus_para *hdmitx_hdr10plus_param,
-	enum vd_path_e vd_path)
+	enum vd_path_e vd_path,
+	enum hdr_type_e *source_type)
 {
 	struct vout_device_s *vdev = NULL;
 	struct master_display_info_s send_info;
@@ -1043,7 +1074,7 @@ void hdmi_packet_process(
 	}
 
 	/* drm */
-	prepare_hdr_info(&send_info, p);
+	prepare_hdr_info(&send_info, p, vd_path, source_type);
 
 	/* hdr10+ */
 	if ((output_format == BT2020_PQ_DYNAMIC)

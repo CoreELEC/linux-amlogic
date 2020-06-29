@@ -7632,7 +7632,7 @@ static int vpp_matrix_update(
 			hdmi_packet_process(signal_change_flag, vinfo, p,
 				hdr10p_meta_updated ?
 				&hdmitx_hdr10plus_params[vd_path] : NULL,
-				vd_path);
+				vd_path, source_format);
 	} else {
 		if ((vd_path == VD1_PATH)
 		|| ((vd_path == VD2_PATH) && !is_video_layer_on(VD1_PATH)))

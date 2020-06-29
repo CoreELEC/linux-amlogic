@@ -26,7 +26,8 @@ extern void hdmi_packet_process(
 	struct vinfo_s *vinfo,
 	struct vframe_master_display_colour_s *p,
 	struct hdr10plus_para *hdmitx_hdr10plus_param,
-	enum vd_path_e vd_path);
+	enum vd_path_e vd_path,
+	enum hdr_type_e *source_type);
 extern void video_post_process(
 	struct vframe_s *vf,
 	enum vpp_matrix_csc_e csc_type,
