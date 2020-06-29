@@ -13,4 +13,5 @@
 #define PDID_PCIE		7
 #define PDID_GE2D		8
 #define PDID_ETH		9
-#define PDID_MAX		10
+#define PDID_AUDIO		10
+#define PDID_MAX		11

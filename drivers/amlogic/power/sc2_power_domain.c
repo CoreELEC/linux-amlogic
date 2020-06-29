@@ -73,6 +73,7 @@ static POWER_DOMAIN(usb, PDID_USB_COMB, DOMAIN_INIT_ON, 0);
 static POWER_DOMAIN(pcie, PDID_PCIE, DOMAIN_INIT_OFF, 0);
 static POWER_DOMAIN(ge2d, PDID_GE2D, DOMAIN_INIT_OFF, 0);
 static POWER_DOMAIN(eth, PDID_ETH, DOMAIN_INIT_ON, 0);
+static POWER_DOMAIN(audio, PDID_AUDIO, DOMAIN_INIT_OFF, 0);
 
 static struct generic_pm_domain *sc2_onecell_domains[] = {
 		[PDID_DSP]			= &dsp.base,
@@ -85,6 +86,7 @@ static struct generic_pm_domain *sc2_onecell_domains[] = {
 		[PDID_PCIE]			= &pcie.base,
 		[PDID_GE2D]			= &ge2d.base,
 		[PDID_ETH]			= &eth.base,
+		[PDID_AUDIO]			= &audio.base,
 };
 
 static struct genpd_onecell_data sc2_pd_onecell_data = {
