@@ -393,24 +393,25 @@
 		status = "disabled";
 	};
 
-	dwc3: dwc3@ff500000 {
+	dwc3: dwc3@fde00000 {
 		compatible = "synopsys, dwc3";
 		status = "disable";
-		reg = <0x0 0xff500000 0x0 0x100000>;
-		interrupts = <0 30 4>;
+		reg = <0x0 0xfde00000 0x0 0x100000>;
+		interrupts = <0 130 4>;
 		usb-phy = <&usb2_phy_v2>, <&usb3_phy_v2>;
 		cpu-type = "gxl";
 		clock-src = "usb3.0";
+		clocks = <&clkc CLKID_USB>;
 		clock-names = "dwc_general";
 	};
 
-	usb2_phy_v2: usb2phy@ffe09000 {
+	usb2_phy_v2: usb2phy@fe03a000 {
 		compatible = "amlogic, amlogic-new-usb2-v2";
 		status = "disable";
-		reg = <0x0 0xffe09000 0x0 0x80
-				0x0 0xffd01008 0x0 0x100
-				0x0 0xff636000 0x0 0x2000
-				0x0 0xff63a000 0x0 0x2000>;
+		reg = <0x0 0xfe03a000 0x0 0x80
+				0x0 0xFE002000 0x0 0x100
+				0x0 0xfe03c000 0x0 0x2000
+				0x0 0xfe03e000 0x0 0x2000>;
 		pll-setting-1 = <0x09400414>;
 		pll-setting-2 = <0x927E0000>;
 		pll-setting-3 = <0xac5f69e5>;
@@ -420,35 +421,33 @@
 		pll-setting-7 = <0xe0004>;
 		pll-setting-8 = <0xe000c>;
 		version = <2>;
-		pwr-ctl = <1>;
-		u2-ctrl-sleep-shift = <17>;
-		u2-hhi-mem-pd-shift = <30>;
-		u2-hhi-mem-pd-mask = <0x3>;
-		u2-ctrl-iso-shift = <17>;
+		power-domains = <&pwrdm PDID_USB_COMB>;
+		phy20-reset-level-bit = <8>;
+		phy21-reset-level-bit = <9>;
+		usb-reset-bit = <4>;
+		reset-level = <40>;
 	};
 
-	usb3_phy_v2: usb3phy@ffe09080 {
+	usb3_phy_v2: usb3phy@fe03a080 {
 		compatible = "amlogic, amlogic-new-usb3-v2";
 		status = "disable";
-		reg = <0x0 0xffe09080 0x0 0x20
-			0x0 0xffd01008 0x0 0x100>;
-		phy-reg = <0xff646000>;
+		reg = <0x0 0xfe03a080 0x0 0x20
+			0x0 0xfe002000 0x0 0x100>;
+		phy-reg = <0xfe03c000>;
 		phy-reg-size = <0x2000>;
-		usb2-phy-reg = <0xffe09000>;
+		usb2-phy-reg = <0xfe03a000>;
 		usb2-phy-reg-size = <0x80>;
-		interrupts = <0 16 4>;
-		u3-ctrl-sleep-shift = <18>;
-		u3-hhi-mem-pd-shift = <26>;
-		u3-hhi-mem-pd-mask = <0xf>;
-		u3-ctrl-iso-shift = <18>;
+		clocks = <&clkc CLKID_PCIE_PLL>;
+		clock-names = "pcie_refpll";
+		interrupts = <0 129 4>;
 	};
 
-	dwc2_a: dwc2_a@ff400000 {
+	dwc2_a: dwc2_a@fdd00000 {
 		compatible = "amlogic, dwc2";
 		status = "disable";
 		device_name = "dwc2_a";
-		reg = <0x0 0xff400000 0x0 0x40000>;
-		interrupts = <0 31 4>;
+		reg = <0x0 0xfdd00000 0x0 0x100000>;
+		interrupts = <0 131 4>;
 		pl-periph-id = <0>; /** lm name */
 		clock-src = "usb0"; /** clock src */
 		port-id = <0>;  /** ref to mach/usb.h */
@@ -460,10 +459,12 @@
 		port-id-mode = <0>; /** 0: hardware, 1: sw_host, 2: sw_slave*/
 		usb-fifo = <728>;
 		cpu-type = "v2";
-		phy-reg = <0xffe09000>;
+		phy-reg = <0xfe03a000>;
 		phy-reg-size = <0xa0>;
 		/** phy-interface: 0x0: amlogic phy, 0x1: synopsys phy **/
 		phy-interface = <0x2>;
+		clocks = <&clkc CLKID_USB
+					&clkc CLKID_USB1_TO_DDR>;
 		clock-names = "usb_general",
 					"usb1";
 	};
@@ -1127,42 +1128,42 @@
 	};
 
 
-	pcie_A: pcieA@fc000000 {
+	pcie_A: pcieA@f5000000 {
 		compatible = "amlogic, amlogic-pcie-v2", "snps,dw-pcie";
 		reg = <0x0 0xf5000000 0x0 0x400000
-			0x0 0xff648000 0x0 0x2000
-			0x0 0xfc400000 0x0 0x200000
-			0x0 0xff646000 0x0 0x2000
-			0x0 0xffd01080 0x0 0x10>;
+			0x0 0xfe02c000 0x0 0x2000
+			0x0 0xf5400000 0x0 0x200000
+			0x0 0xfe02a000 0x0 0x2000
+			0x0 0xfe002044 0x0 0x10>;
 		reg-names = "elbi", "cfg", "config", "phy", "reset";
-		interrupts = <0 221 0>;
+		interrupts = <0 141 0>;
 		#interrupt-cells = <1>;
 		bus-range = <0x0 0xff>;
 		#address-cells = <3>;
 		#size-cells = <2>;
 		interrupt-map-mask = <0 0 0 0>;
-		interrupt-map = <0 0 0 0 &gic GIC_SPI 223 IRQ_TYPE_EDGE_RISING>;
+		interrupt-map = <0 0 0 0 &gic GIC_SPI 143 IRQ_TYPE_EDGE_RISING>;
 		device_type = "pci";
-		ranges = <0x81000000 0 0 0 0xfc600000 0x0 0x100000
+		ranges = <0x81000000 0 0 0 0xf5600000 0x0 0x100000
 			/* downstream I/O */
-			0x82000000 0 0xfc700000 0x0 0xfc700000 0 0x1900000>;
+			0x82000000 0 0xf5700000 0x0 0xf5700000 0 0x1900000>;
 			/* non-prefetchable memory */
 		num-lanes = <1>;
 		pcie-num = <1>;
 
+		clocks = <&clkc CLKID_PCIE_PLL
+			&clkc CLKID_PCIE
+			&clkc CLKID_PCIE_PHY>;
 		clock-names = "pcie_refpll",
 				"pcie",
 				"pcie_phy";
 		/*reset-gpio-type 0:Shared pad(no reset)1:OD pad2:Normal pad*/
 		gpio-type = <2>;
-		pcie-apb-rst-bit = <15>;
-		pcie-phy-rst-bit = <14>;
+		pcie-apb-rst-bit = <14>;
+		pcie-phy-rst-bit = <13>;
 		pcie-ctrl-a-rst-bit = <12>;
-		pwr-ctl = <1>;
-		pcie-ctrl-sleep-shift = <18>;
-		pcie-hhi-mem-pd-shift = <26>;
-		pcie-hhi-mem-pd-mask = <0xf>;
-		pcie-ctrl-iso-shift = <18>;
+		pwr-ctl = <0>;
+		power-domains = <&pwrdm PDID_PCIE>;
 		status = "disabled";
 	};
 
