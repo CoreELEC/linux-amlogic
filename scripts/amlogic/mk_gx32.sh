@@ -6,7 +6,5 @@ make ARCH=arm meson64_a32_defconfig
 make ARCH=arm  -j16 uImage  || echo "Compile Image Fail !!"
 make ARCH=arm txl_t962_p321.dtb || echo "Compile dtb Fail !!"
 make ARCH=arm sc2_pxp.dtb || echo "Compile dtb Fail !!"
-
-
-
-
+make ARCH=arm sc2_s905x4_ah212.dtb || echo "Compile dtb Fail!!"
+make ARCH=arm sc2_s905x4_ah219.dtb || echo "Compile dtb Fail!!"

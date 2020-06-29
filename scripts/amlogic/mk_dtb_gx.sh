@@ -49,3 +49,7 @@ make ARCH=arm64 g12b_a311d_w400.dtb || echo "Compile dtb Fail!!"
 make ARCH=arm64 tm2_pxp.dtb || echo "Compile dtb Fail!!"
 
 make ARCH=arm64 sc2_pxp.dtb || echo "Compile dtb Fail!!"
+
+make ARCH=arm64 sc2_s905x4_ah212.dtb || echo "Compile dtb Fail!!"
+
+make ARCH=arm64 sc2_s905x4_ah219.dtb || echo "Compile dtb Fail!!"
