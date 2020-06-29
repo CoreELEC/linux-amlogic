@@ -498,7 +498,7 @@
 
 	jtag {
 		compatible = "amlogic, jtag";
-		status = "disabled";
+		status = "okay";
 		select = "disable"; /* disable/apao/apee */
 		pinctrl-names="jtag_apao_pins", "jtag_apee_pins";
 		pinctrl-0=<&jtag_apao_pins>;
@@ -1929,15 +1929,6 @@
 		};
 	};
 
-	jtag_apao_pins:jtag_apao_pin {
-		mux {
-			groups = "jtag_a_tdi",
-			"jtag_a_tdo",
-			"jtag_a_clk",
-			"jtag_a_tms";
-			function = "jtag_a";
-		};
-	};
 };
 
 &pinctrl_periphs {
@@ -2546,13 +2537,23 @@
 		};
 	};
 
+	jtag_apao_pins:jtag_apao_pin {
+		mux {
+			groups = "jtag_1_tdi",
+			"jtag_1_tdo",
+			"jtag_1_clk",
+			"jtag_1_tms";
+			function = "jtag_1";
+		};
+	};
+
 	jtag_apee_pins:jtag_apee_pin {
 		mux {
-			groups = "jtag_b_tdi",
-			"jtag_b_tdo",
-			"jtag_b_clk",
-			"jtag_b_tms";
-			function = "jtag_b";
+			groups = "jtag_2_tdi",
+			"jtag_2_tdo",
+			"jtag_2_clk",
+			"jtag_2_tms";
+			function = "jtag_2";
 		};
 	};
 };
