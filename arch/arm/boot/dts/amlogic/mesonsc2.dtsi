@@ -754,6 +754,9 @@
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges = <0x0 0xFE330000 0x3000>;
+
+			power-domains = <&pwrdm PDID_AUDIO>;
+
 			clkaudio: audio_clocks {
 				compatible = "amlogic, sm1-audio-clocks";
 				#clock-cells = <1>;
