@@ -1793,6 +1793,131 @@ static struct clk_mux sc2_hevcf_mux = {
 };
 
 /*cts_wave420l_a/b/c_clk*/
+const char *sc2_wave_parent_names[] = { "xtal", "fclk_div4",
+	"fclk_div3", "fclk_div5", "fclk_div7", "mpll2", "mpll3", "gp0_pll"};
+
+static struct clk_mux sc2_wave_a_mux = {
+	.reg = (void *)CLKCTRL_WAVE420L_CLK_CTRL2,
+	.mask = 0x7,
+	.shift = 9,
+	.lock = &clk_lock,
+	.hw.init = &(struct clk_init_data){
+		.name = "wave_a_mux",
+		.ops = &clk_mux_ops,
+		.parent_names = sc2_wave_parent_names,
+		.num_parents = ARRAY_SIZE(sc2_wave_parent_names),
+		.flags = CLK_GET_RATE_NOCACHE,
+	},
+};
+
+static struct clk_divider sc2_wave_a_div = {
+	.reg = (void *)CLKCTRL_WAVE420L_CLK_CTRL2,
+	.shift = 0,
+	.width = 7,
+	.lock = &clk_lock,
+	.hw.init = &(struct clk_init_data){
+		.name = "wave_a_div",
+		.ops = &clk_divider_ops,
+		.parent_names = (const char *[]){ "wave_a_mux" },
+		.num_parents = 1,
+		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT,
+	},
+};
+
+static struct clk_gate sc2_wave_a_gate = {
+	.reg = (void *)CLKCTRL_WAVE420L_CLK_CTRL2,
+	.bit_idx = 8,
+	.lock = &clk_lock,
+	.hw.init = &(struct clk_init_data) {
+		.name = "wave_a_gate",
+		.ops = &clk_gate_ops,
+		.parent_names = (const char *[]){ "wave_a_div" },
+		.num_parents = 1,
+		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT,
+	},
+};
+
+static struct clk_mux sc2_wave_b_mux = {
+	.reg = (void *)CLKCTRL_WAVE420L_CLK_CTRL,
+	.mask = 0x7,
+	.shift = 9,
+	.lock = &clk_lock,
+	.hw.init = &(struct clk_init_data){
+		.name = "wave_b_mux",
+		.ops = &clk_mux_ops,
+		.parent_names = sc2_wave_parent_names,
+		.num_parents = ARRAY_SIZE(sc2_wave_parent_names),
+		.flags = CLK_GET_RATE_NOCACHE,
+	},
+};
+
+static struct clk_divider sc2_wave_b_div = {
+	.reg = (void *)CLKCTRL_WAVE420L_CLK_CTRL,
+	.shift = 0,
+	.width = 7,
+	.lock = &clk_lock,
+	.hw.init = &(struct clk_init_data){
+		.name = "wave_b_div",
+		.ops = &clk_divider_ops,
+		.parent_names = (const char *[]){ "wave_b_mux" },
+		.num_parents = 1,
+		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT,
+	},
+};
+
+static struct clk_gate sc2_wave_b_gate = {
+	.reg = (void *)CLKCTRL_WAVE420L_CLK_CTRL,
+	.bit_idx = 8,
+	.lock = &clk_lock,
+	.hw.init = &(struct clk_init_data) {
+		.name = "wave_b_gate",
+		.ops = &clk_gate_ops,
+		.parent_names = (const char *[]){ "wave_b_div" },
+		.num_parents = 1,
+		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT,
+	},
+};
+
+static struct clk_mux sc2_wave_c_mux = {
+	.reg = (void *)CLKCTRL_WAVE420L_CLK_CTRL,
+	.mask = 0x7,
+	.shift = 25,
+	.lock = &clk_lock,
+	.hw.init = &(struct clk_init_data){
+		.name = "wave_c_mux",
+		.ops = &clk_mux_ops,
+		.parent_names = sc2_wave_parent_names,
+		.num_parents = ARRAY_SIZE(sc2_wave_parent_names),
+		.flags = CLK_GET_RATE_NOCACHE,
+	},
+};
+
+static struct clk_divider sc2_wave_c_div = {
+	.reg = (void *)CLKCTRL_WAVE420L_CLK_CTRL,
+	.shift = 16,
+	.width = 7,
+	.lock = &clk_lock,
+	.hw.init = &(struct clk_init_data){
+		.name = "wave_c_div",
+		.ops = &clk_divider_ops,
+		.parent_names = (const char *[]){ "wave_c_mux" },
+		.num_parents = 1,
+		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT,
+	},
+};
+
+static struct clk_gate sc2_wave_c_gate = {
+	.reg = (void *)CLKCTRL_WAVE420L_CLK_CTRL,
+	.bit_idx = 24,
+	.lock = &clk_lock,
+	.hw.init = &(struct clk_init_data) {
+		.name = "wave_c_gate",
+		.ops = &clk_gate_ops,
+		.parent_names = (const char *[]){ "wave_c_div" },
+		.num_parents = 1,
+		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT,
+	},
+};
 
 /* cts_vpu_clk */
 static const char * const sc2_vpu_parent_names[] = { "fclk_div3",
@@ -3133,7 +3258,16 @@ static struct clk_hw *sc2_clk_hws[] = {
 	[CLKID_PWM_CD]		= &sc2_pwm_cd.hw,
 	[CLKID_PWM_EF]		= &sc2_pwm_ef.hw,
 	[CLKID_PWM_GH]		= &sc2_pwm_gh.hw,
-	[CLKID_PWM_IJ]		= &sc2_pwm_ij.hw
+	[CLKID_PWM_IJ]		= &sc2_pwm_ij.hw,
+	[CLKID_WAVE_A_MUX]	= &sc2_wave_a_mux.hw,
+	[CLKID_WAVE_A_DIV]	= &sc2_wave_a_div.hw,
+	[CLKID_WAVE_A_GATE]	= &sc2_wave_a_gate.hw,
+	[CLKID_WAVE_B_MUX]	= &sc2_wave_b_mux.hw,
+	[CLKID_WAVE_B_DIV]	= &sc2_wave_b_div.hw,
+	[CLKID_WAVE_B_GATE]	= &sc2_wave_b_gate.hw,
+	[CLKID_WAVE_C_MUX]	= &sc2_wave_c_mux.hw,
+	[CLKID_WAVE_C_DIV]	= &sc2_wave_c_div.hw,
+	[CLKID_WAVE_C_GATE]	= &sc2_wave_c_gate.hw
 
 };
 
@@ -3214,7 +3348,10 @@ static struct clk_mux *sc2_clk_muxs[] = {
 	&sc2_pwm_i_mux,
 	&sc2_pwm_j_mux,
 	&sc2_saradc_mux,
-	&sc2_gen_clk_sel
+	&sc2_gen_clk_sel,
+	&sc2_wave_a_mux,
+	&sc2_wave_b_mux,
+	&sc2_wave_c_mux
 
 };
 
@@ -3269,7 +3406,10 @@ static struct clk_divider *sc2_clk_divs[] = {
 	&sc2_pwm_i_div,
 	&sc2_pwm_j_div,
 	&sc2_saradc_div,
-	&sc2_gen_clk_div
+	&sc2_gen_clk_div,
+	&sc2_wave_a_div,
+	&sc2_wave_b_div,
+	&sc2_wave_c_div
 
 };
 
@@ -3391,7 +3531,10 @@ static struct clk_gate *sc2_clk_gates[] = {
 	&sc2_pwm_cd,
 	&sc2_pwm_ef,
 	&sc2_pwm_gh,
-	&sc2_pwm_ij
+	&sc2_pwm_ij,
+	&sc2_wave_a_gate,
+	&sc2_wave_b_gate,
+	&sc2_wave_c_gate
 
 };
 
