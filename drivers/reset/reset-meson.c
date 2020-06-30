@@ -129,11 +129,7 @@ static struct platform_driver meson_reset_driver = {
 	},
 };
 
-static int __init meson_reset_driver_init(void)
-{
-	return platform_driver_register(&meson_reset_driver);
-}
-core_initcall(meson_reset_driver_init);
+module_platform_driver(meson_reset_driver);
 
 MODULE_AUTHOR("Neil Armstrong <narmstrong@baylibre.com>");
 MODULE_DESCRIPTION("Amlogic Meson Reset Controller driver");
