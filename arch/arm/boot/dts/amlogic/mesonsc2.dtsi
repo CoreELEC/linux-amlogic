@@ -2550,15 +2550,15 @@
 
 	eecec_a: ee_ceca {
 		mux {
-			groups = "cec_ao_a_ee";
-			function = "cec_ao_ee";
+			groups = "cec_a_h";
+			function = "cec_a";
 		};
 	};
 
 	eecec_b: ee_cecb {
 		mux {
-			groups = "cec_ao_b_ee";
-			function = "cec_ao_ee";
+			groups = "cec_b_h";
+			function = "cec_b";
 		};
 	};
 
