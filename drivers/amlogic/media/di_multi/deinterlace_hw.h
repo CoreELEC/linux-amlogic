@@ -237,6 +237,7 @@ void dim_pre_gate_control(bool enable, bool mc_enable);
 void dim_pre_gate_control_sc2(bool enable, bool mc_enable);
 void dim_post_gate_control(bool gate);
 void dim_post_gate_control_sc2(bool gate);
+void dim_intr_control_sc2(void);
 void dim_set_power_control(unsigned char enable);
 void dim_hw_disable(bool mc_enable);
 void dimh_enable_di_pre_mif(bool enable, bool mc_enable);

@@ -303,15 +303,19 @@
 	};
 
 	multi-di {
-		compatible = "amlogic, dim-sm1";
+		compatible = "amlogic, dim-sc2";
 		status = "disabled";
 		/* 0:use reserved; 1:use cma; 2:use cma as reserved */
 		flag_cma = <4>;	//<1>;
 		//memory-region = <&di_reserved>;
 		memory-region = <&di_cma_reserved>;
-		interrupts = <0 46 1
-				0 40 1>;
+		interrupts = <0 203 1
+				0 202 1>;
 		interrupt-names = "pre_irq", "post_irq";
+		clocks = <&clkc CLKID_VPU_CLKB_GATE>,
+			<&clkc CLKID_VPU_CLKB_TMP_MUX>;
+		clock-names = "vpu_clkb_gate",
+			"vpu_clkb_tmp_mux";
 		clock-range = <334 667>;
 		/* buffer-size = <3621952>;(yuv422 8bit) */
 		buffer-size = <4074560>;/*yuv422 fullpack*/
@@ -330,11 +334,13 @@
 		flag_cma = <1>;
 		//memory-region = <&di_reserved>;
 		//memory-region = <&di_cma_reserved>;
-		interrupts = <0 46 1
-				0 40 1>;
+		interrupts = <0 203 1
+				0 202 1>;
 		interrupt-names = "pre_irq", "post_irq";
-		clock-names = "vpu_clkb_tmp_composite",
-			"vpu_clkb_composite";
+		clocks = <&clkc CLKID_VPU_CLKB_GATE>,
+			<&clkc CLKID_VPU_CLKB_TMP_MUX>;
+		clock-names = "vpu_clkb_gate",
+			"vpu_clkb_tmp_mux";
 		clock-range = <334 667>;
 		/* buffer-size = <3621952>;(yuv422 8bit) */
 		buffer-size = <4074560>;/*yuv422 fullpack*/

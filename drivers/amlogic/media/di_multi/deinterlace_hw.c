@@ -35,6 +35,7 @@
 
 #include "deinterlace_hw.h"
 #include "register.h"
+#include "di_reg_v3.h"
 #include "register_nr4.h"
 #ifdef DET3D
 #include "detect3d.h"
@@ -475,16 +476,18 @@ void dimh_hw_init(bool pd_enable, bool mc_enable)
 	    is_meson_g12b_cpu()	||
 	    is_meson_tl1_cpu()	||
 	    is_meson_sm1_cpu()	||
-	    is_meson_tm2_cpu())
+	    is_meson_tm2_cpu()) {
 		dim_top_gate_control(true, true);
-	else if (DIM_IS_IC_EF(SC2))
+	} else if (DIM_IS_IC_EF(SC2)) {
 		dim_top_gate_control_sc2(true, true);
-	else if (is_meson_gxl_cpu()	||
+		dim_intr_control_sc2();
+	} else if (is_meson_gxl_cpu()	||
 		 is_meson_gxm_cpu()	||
-		 is_meson_gxlx_cpu())
+		 is_meson_gxlx_cpu()) {
 		DIM_DI_WR(DI_CLKG_CTRL, 0xffff0001);
-	else
+	} else {
 		DIM_DI_WR(DI_CLKG_CTRL, 0x1); /* di no clock gate */
+	}
 
 	if (is_meson_txl_cpu()	||
 	    is_meson_txlx_cpu()	||
@@ -3477,6 +3480,19 @@ void dim_top_gate_control_sc2(bool top_en, bool mc_en)
 		/* disable di arb */
 		//DIM_DI_WR_REG_BITS(VIUB_GCLK_CTRL1, 1, 0, 2);
 	}
+}
+
+void dim_intr_control_sc2(void)
+{
+	unsigned int path_sel;
+
+	/* reseet interrupt */
+	DIM_RDMA_WR(DI_INTR_CTRL, 0xcffe0000);
+	path_sel = 1;
+	DIM_DI_WR_REG_BITS(DI_TOP_PRE_CTRL, (path_sel & 0x3), 0, 2);
+	//post_path_sel
+	DIM_DI_WR_REG_BITS(DI_TOP_POST_CTRL, (path_sel & 0x3), 0, 2);
+	//post_path_sel
 }
 
 void dim_pre_gate_control(bool gate, bool mc_enable)
