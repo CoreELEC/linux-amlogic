@@ -43,12 +43,9 @@ struct am_hdmi_data {
 struct am_hdmi_i2c {
 	struct i2c_adapter adap;
 	struct mutex lock;
-	struct completion cmp;
 	u8 ddc_addr;
 	u8 segment_addr;
 	u8 slave_reg;
-	u8 stat;
-	u8 is_regaddr;
 	u8 is_segment;
 };
 

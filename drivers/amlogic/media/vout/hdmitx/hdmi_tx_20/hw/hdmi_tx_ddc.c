@@ -277,5 +277,10 @@ void hdmitx_read_edid(unsigned char *rx_edid)
 			byte_num++;
 		}
 	}
+	/* Because DRM will use segment registers,
+	 * so clear the registers to default
+	 */
+	hdmitx_wr_reg(HDMITX_DWC_I2CM_SEGADDR, 0x0);
+	hdmitx_wr_reg(HDMITX_DWC_I2CM_SEGPTR, 0x0);
 	mutex_unlock(&ddc_mutex);
 }

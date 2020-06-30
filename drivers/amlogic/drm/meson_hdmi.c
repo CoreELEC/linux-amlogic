@@ -478,64 +478,74 @@ static int am_hdmi_i2c_write(struct am_hdmi_tx *am_hdmi,
 	unsigned char *buf, unsigned int length)
 {
 	struct am_hdmi_i2c *i2c = am_hdmi->i2c;
-	int stat;
 
-	if (!i2c->is_regaddr) {
-		/* Use the first write byte as register address */
-		i2c->slave_reg = buf[0];
-		length--;
-		buf++;
-		i2c->is_regaddr = 1;
-	}
+	i2c->slave_reg = buf[0];
+	length--;
+	buf++;
 
 	while (length--) {
-		reinit_completion(&i2c->cmp);
 
 		hdmitx_wr_reg(HDMITX_DWC_I2CM_DATAO, *buf++);
 		hdmitx_wr_reg(HDMITX_DWC_I2CM_ADDRESS, i2c->slave_reg++);
 		hdmitx_wr_reg(HDMITX_DWC_I2CM_OPERATION, 1 << 4);
-
-		stat = wait_for_completion_timeout(&i2c->cmp, HZ / 100);
-
-		stat = 1;
-		/* Check for error condition on the bus */
-		if (i2c->stat & 1)
-			return -EIO;
+		usleep_range(500, 520);
+		if (hdmitx_rd_reg(HDMITX_DWC_IH_I2CM_STAT0) & (1 << 0))
+			DRM_INFO("ddc w1b error\n");
+		hdmitx_wr_reg(HDMITX_DWC_IH_I2CM_STAT0, 0x7);
 	}
 
 	return 0;
 }
 
 static int am_hdmi_i2c_read(struct am_hdmi_tx *am_hdmi,
-	unsigned char *buf, unsigned int length)
+			    unsigned char *buf, unsigned int length,
+			    bool edid_flag)
 {
 	struct am_hdmi_i2c *i2c = am_hdmi->i2c;
-	int stat;
+	unsigned int timeout;
+	unsigned char i2c_stat;
+	unsigned int read_stride, i2c_oprt, us_tm;
+	unsigned int count, read_reg;
 
-	if (!i2c->is_regaddr) {
-		dev_dbg(am_hdmi->dev, "set read register address to 0\n");
-		i2c->slave_reg = 0x00;
-		i2c->is_regaddr = 1;
+	if (edid_flag && (length & 7) == 0) {
+		read_stride = 8;
+		i2c_oprt = 1 << 2;
+		us_tm = 2000;
+		read_reg = HDMITX_DWC_I2CM_READ_BUFF0;
+	} else {
+		read_stride = 1;
+		i2c_oprt = 1 << 0;
+		us_tm = 250;
+		read_reg = HDMITX_DWC_I2CM_DATAI;
 	}
-
-	while (length--) {
-		reinit_completion(&i2c->cmp);
-
-		hdmitx_wr_reg(HDMITX_DWC_I2CM_ADDRESS, i2c->slave_reg++);
+	i2c->slave_reg = buf[0];
+	hdmitx_wr_reg(HDMITX_DWC_IH_I2CM_STAT0, 1 << 1);
+	while (length) {
+		hdmitx_wr_reg(HDMITX_DWC_I2CM_ADDRESS, i2c->slave_reg);
+		i2c->slave_reg += read_stride;
 		if (i2c->is_segment)
-			hdmitx_wr_reg(HDMITX_DWC_I2CM_OPERATION, 1 << 1);
+			hdmitx_wr_reg(HDMITX_DWC_I2CM_OPERATION, i2c_oprt << 1);
 		else
-			hdmitx_wr_reg(HDMITX_DWC_I2CM_OPERATION, 1 << 0);
+			hdmitx_wr_reg(HDMITX_DWC_I2CM_OPERATION, i2c_oprt << 0);
 
-		stat = wait_for_completion_timeout(&i2c->cmp, HZ / 100);
+		timeout = 0;
+		usleep_range(us_tm, us_tm + 20);
+		i2c_stat = hdmitx_rd_reg(HDMITX_DWC_IH_I2CM_STAT0);
+		while ((!(i2c_stat & (1 << 1))) &&
+		       (timeout < 10)) {
+			usleep_range(us_tm, us_tm + 20);
+			i2c_stat = hdmitx_rd_reg(HDMITX_DWC_IH_I2CM_STAT0);
+			timeout++;
+		}
+		hdmitx_wr_reg(HDMITX_DWC_IH_I2CM_STAT0, 1 << 1);
+		if (timeout == 10) {
+			DRM_INFO("ddc timeout\n");
+			return -1;
+		}
 
-		stat = 1;
-
-		/* Check for error condition on the bus */
-		if (i2c->stat & 0x1)
-			return -EIO;
-
-		*buf++ = hdmitx_rd_reg(HDMITX_DWC_I2CM_DATAI);
+		for (count = 0; count < read_stride; count++)
+			*buf++ = hdmitx_rd_reg(read_reg + count);
+		length -= read_stride;
 	}
 	i2c->is_segment = 0;
 
@@ -550,6 +560,7 @@ static int am_hdmi_i2c_xfer(struct i2c_adapter *adap,
 	u8 addr = msgs[0].addr;
 	int i, ret = 0;
 	unsigned int   data32;
+	bool edid_flag = false;
 
 	dev_dbg(am_hdmi->dev, "xfer: num: %d, addr: %#x\n", num, addr);
 
@@ -575,27 +586,32 @@ static int am_hdmi_i2c_xfer(struct i2c_adapter *adap,
 	/* TODO */
 	hdmitx_ddc_hw_op(DDC_MUX_DDC);
 
-	/* Set slave device address taken from the first I2C message */
-	hdmitx_wr_reg(HDMITX_DWC_I2CM_SLAVE, addr);
-
-	/* Set slave device register address on transfer */
-	i2c->is_regaddr = 0;
-
+	if ((addr == 0x50) || (addr == DDC_SEGMENT_ADDR)) {
+		hdmitx_wr_reg(HDMITX_DWC_I2CM_SLAVE, 0x50);
+		edid_flag = true;
+	} else {
+		i2c->slave_reg = 0;
+		hdmitx_wr_reg(HDMITX_DWC_I2CM_SLAVE, addr);
+	}
 	/* Set segment pointer for I2C extended read mode operation */
 	i2c->is_segment = 0;
 
 	for (i = 0; i < num; i++) {
-		dev_dbg(am_hdmi->dev, "xfer: num: %d/%d, len: %d, flags: %#x\n",
-			i + 1, num, msgs[i].len, msgs[i].flags);
-		if (msgs[i].addr == DDC_SEGMENT_ADDR && msgs[i].len == 1) {
-			i2c->is_segment = 1;
-			hdmitx_wr_reg(HDMITX_DWC_I2CM_SEGADDR,
-				DDC_SEGMENT_ADDR);
-			hdmitx_wr_reg(HDMITX_DWC_I2CM_SEGPTR, *msgs[i].buf);
+		if (msgs[i].addr == DDC_SEGMENT_ADDR) {
+			if (msgs[i].buf[0] != 0) {
+				i2c->is_segment = 1;
+				hdmitx_wr_reg(HDMITX_DWC_I2CM_SEGADDR,
+					      DDC_SEGMENT_ADDR);
+				hdmitx_wr_reg(HDMITX_DWC_I2CM_SEGPTR,
+					      *msgs[i].buf);
+			} else {
+				hdmitx_wr_reg(HDMITX_DWC_I2CM_SEGADDR, 0);
+				hdmitx_wr_reg(HDMITX_DWC_I2CM_SEGPTR, 0);
+			}
 		} else {
 			if (msgs[i].flags & I2C_M_RD)
 				ret = am_hdmi_i2c_read(am_hdmi, msgs[i].buf,
-						       msgs[i].len);
+						       msgs[i].len, edid_flag);
 			else
 				ret = am_hdmi_i2c_write(am_hdmi, msgs[i].buf,
 							msgs[i].len);
@@ -635,7 +651,6 @@ static struct i2c_adapter *am_hdmi_i2c_adapter(struct am_hdmi_tx *am_hdmi)
 	}
 
 	mutex_init(&i2c->lock);
-	init_completion(&i2c->cmp);
 
 	adap = &i2c->adap;
 	adap->class = I2C_CLASS_DDC;

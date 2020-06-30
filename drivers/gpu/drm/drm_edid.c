@@ -1452,11 +1452,19 @@ static int
 drm_do_probe_ddc_edid(void *data, u8 *buf, unsigned int block, size_t len)
 {
 	struct i2c_adapter *adapter = data;
-	unsigned char start = block * EDID_LENGTH;
 	unsigned char segment = block >> 1;
-	unsigned char xfers = segment ? 3 : 2;
+	unsigned char start;
+	unsigned char xfers = 2;
 	int ret, retries = 5;
 
+	/* In one segment(256 bytes),
+	 * odd block memory address start from EDID_LENGTH = 128,
+	 * even block memory address start from 0,
+	 */
+	if ((block & 1) == 1)
+		start = EDID_LENGTH;
+	else
+		start = 0;
 	/*
 	 * The core I2C driver will automatically retry the transfer if the
 	 * adapter reports EAGAIN. However, we find that bit-banging transfers
@@ -1473,11 +1481,6 @@ drm_do_probe_ddc_edid(void *data, u8 *buf, unsigned int block, size_t len)
 				.buf	= &segment,
 			}, {
 				.addr	= DDC_ADDR,
-				.flags	= 0,
-				.len	= 1,
-				.buf	= &start,
-			}, {
-				.addr	= DDC_ADDR,
 				.flags	= I2C_M_RD,
 				.len	= len,
 				.buf	= buf,
@@ -1488,7 +1491,8 @@ drm_do_probe_ddc_edid(void *data, u8 *buf, unsigned int block, size_t len)
 		 * Avoid sending the segment addr to not upset non-compliant
 		 * DDC monitors.
 		 */
-		ret = i2c_transfer(adapter, &msgs[3 - xfers], xfers);
+		msgs[1].buf[0] = start;
+		ret = i2c_transfer(adapter, &msgs[0], xfers);
 
 		if (ret == -ENXIO) {
 			DRM_DEBUG_KMS("drm: skipping non-existent adapter %s\n",
@@ -1496,7 +1500,6 @@ drm_do_probe_ddc_edid(void *data, u8 *buf, unsigned int block, size_t len)
 			break;
 		}
 	} while (ret != xfers && --retries);
-
 	return ret == xfers ? 0 : -1;
 }
 
@@ -1570,9 +1573,8 @@ struct edid *drm_do_get_edid(struct drm_connector *connector,
 		}
 
 		if (i == 4 && print_bad_edid) {
-			dev_warn(connector->dev->dev,
-			 "%s: Ignoring invalid EDID block %d.\n",
-			 connector->name, j);
+			DRM_INFO("%s: Ignoring invalid EDID block %d.\n",
+				 connector->name, j);
 
 			connector->bad_edid_counter++;
 		}
@@ -1591,7 +1593,7 @@ struct edid *drm_do_get_edid(struct drm_connector *connector,
 
 carp:
 	if (print_bad_edid) {
-		dev_warn(connector->dev->dev, "%s: EDID block %d invalid.\n",
+		DRM_INFO("%s: EDID block %d invalid.\n",
 			 connector->name, j);
 	}
 	connector->bad_edid_counter++;
@@ -1611,9 +1613,9 @@ EXPORT_SYMBOL_GPL(drm_do_get_edid);
 bool
 drm_probe_ddc(struct i2c_adapter *adapter)
 {
-	unsigned char out;
+	unsigned char out[EDID_LENGTH];
 
-	return (drm_do_probe_ddc_edid(adapter, &out, 0, 1) == 0);
+	return (drm_do_probe_ddc_edid(adapter, &out[0], 0, EDID_LENGTH) == 0);
 }
 EXPORT_SYMBOL(drm_probe_ddc);
 
