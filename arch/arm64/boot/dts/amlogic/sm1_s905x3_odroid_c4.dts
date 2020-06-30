@@ -71,7 +71,6 @@
 	*/
 	pinctrl-names = "default","gpio_periphs";
 	pinctrl-0 = <&spicc0_pins_x>;
-	pinctrl-1 = <&spicc0_to_gpiox>;
 	num_chipselect = <2>;
 
 	cs-gpios = <&gpio GPIOX_10 GPIO_ACTIVE_LOW>,
@@ -98,22 +97,6 @@
 &pinctrl_periphs {
 	/delete-node/ spdifout;
 	/delete-node/ spdifout_a_mute;
-
-	spicc0_pins_x: spicc0_pins_x {
-		mux {
-			drive-strength = <3>;
-		};
-	};
-
-	spicc0_to_gpiox: spicc0_gpiox {
-		mux {
-			groups = "GPIOX_8",
-				 "GPIOX_9",
-				 //"GPIOX_10",
-				 "GPIOX_11";
-			function = "gpio_periphs";
-		};
-	};
 };
 
 &pinctrl_aobus {
