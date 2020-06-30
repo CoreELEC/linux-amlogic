@@ -380,7 +380,9 @@ static int dmc_monitor_probe(struct platform_device *pdev)
 		else
 			dmc_mon->ops = &g12_dmc_mon_ops;
 	} else {
+	#ifdef CONFIG_AMLOGIC_DMC_MONITOR_GX
 		dmc_mon->ops = &gx_dmc_mon_ops;
+	#endif
 	}
 
 	r = of_property_read_u32(node, "reg_base", &io);
