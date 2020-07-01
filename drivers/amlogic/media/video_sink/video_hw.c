@@ -4925,6 +4925,8 @@ static void vd1_set_alpha(u32 win_en, struct pip_alpha_scpxn_s *alpha_win)
 	/* 0:original, 1:  0.5 alpha 2: 0.25/0.5/0.75 */
 	u32 alph_gen_byps = 0;
 
+	if (!win_en)
+		alph_gen_byps = 1;
 	VSYNC_WR_MPEG_REG(VD1_PIP_ALPH_CTRL,
 			  ((0 & 0x1) << 28) |
 			  ((win_en & 0xffff) << 12) |
@@ -4949,6 +4951,8 @@ static void vd2_set_alpha(u32 win_en, struct pip_alpha_scpxn_s *alpha_win)
 	/* 0:original, 1:  0.5 alpha 2: 0.25/0.5/0.75 */
 	u32 alph_gen_byps = 0;
 
+	if (!win_en)
+		alph_gen_byps = 1;
 	VSYNC_WR_MPEG_REG(VD2_PIP_ALPH_CTRL,
 			  ((0 & 0x1) << 28) |
 			  ((win_en & 0xffff) << 12) |
