@@ -83,7 +83,7 @@
 #define AMVECM_MODULE_NAME        "amvecm"
 #define AMVECM_DEVICE_NAME        "amvecm"
 #define AMVECM_CLASS_NAME         "amvecm"
-#define AMVECM_VER				"Ref.2018/11/20"
+#define AMVECM_VER				"Ref.2020/07/02"
 
 
 struct amvecm_dev_s {
@@ -7279,6 +7279,9 @@ void init_pq_setting(void)
 	else
 		init_pq_control(PQ_BOX);
 
+	if (get_cpu_type() == MESON_CPU_MAJOR_ID_SC2)
+		init_pq_control(PQ_BOX);
+
 	if (is_meson_gxtvbb_cpu() || is_meson_txl_cpu() ||
 		is_meson_txlx_cpu() || is_meson_txhd_cpu() ||
 		is_meson_tl1_cpu() || is_meson_tm2_cpu())
@@ -7290,6 +7293,9 @@ void init_pq_setting(void)
 			sr_offset[0] = SR0_OFFSET_V2;
 		else
 			sr_offset[0] = SR0_OFFSET;
+
+		if (get_cpu_type() == MESON_CPU_MAJOR_ID_SC2)
+			pq_load_en = 0;
 
 		bitdepth = 12;
 		/*confirm with vlsi-Lunhai.Chen, for G12A/G12B,
