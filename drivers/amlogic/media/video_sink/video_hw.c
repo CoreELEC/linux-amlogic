@@ -5172,25 +5172,18 @@ int vpp_crc_check(u32 vpp_crc_en)
 
 int vpp_crc_viu2_check(u32 vpp_crc_en)
 {
-	u32 val = 0;
 	int vpp_crc_result = 0;
-	static u32 val_pre, crc_cnt;
 
-	if (vpp_crc_en) {
-		VSYNC_WR_MPEG_REG(VPP2_CRC_CHK, 1);
-		if (crc_cnt >= 1) {
-			val = VSYNC_RD_MPEG_REG(VPP2_RO_CRCSUM);
-			if (val_pre && (val != val_pre))
-				vpp_crc_result = -1;
-			else
-				vpp_crc_result = val;
-		}
-		val_pre = val;
-		crc_cnt++;
-	} else {
-		crc_cnt  = 0;
-	}
+	if (vpp_crc_en)
+		vpp_crc_result = READ_VCBUS_REG(VPP2_RO_CRCSUM);
+
 	return vpp_crc_result;
+}
+
+void enable_vpp_crc_viu2(u32 vpp_crc_en)
+{
+	if (vpp_crc_en)
+		WRITE_VCBUS_REG_BITS(VPP2_CRC_CHK, 1, 0, 1);
 }
 
 /*********************************************************

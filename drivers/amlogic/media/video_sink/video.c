@@ -985,7 +985,6 @@ static int vpp_crc_result;
 
 /* vjiu2 vpp_crc */
 static u32 vpp_crc_viu2_en;
-static int vpp_crc_viu2_result;
 
 #define CONFIG_AM_VOUT
 
@@ -5351,9 +5350,6 @@ static irqreturn_t vsync_isr(int irq, void *dev_id)
 
 static irqreturn_t vsync_isr_viu2(int irq, void *dev_id)
 {
-	if (amvideo_meson_dev.cpu_type >= MESON_CPU_MAJOR_ID_SC2_)
-		vpp_crc_viu2_result = vpp_crc_viu2_check(vpp_crc_viu2_en);
-
 	return IRQ_HANDLED;
 }
 #endif
@@ -9917,6 +9913,10 @@ static ssize_t vpp_crc_viu2_show(
 	struct class_attribute *attr,
 	char *buf)
 {
+	int vpp_crc_viu2_result = 0;
+
+	if (amvideo_meson_dev.cpu_type >= MESON_CPU_MAJOR_ID_SC2_)
+		vpp_crc_viu2_result = vpp_crc_viu2_check(vpp_crc_viu2_en);
 	return snprintf(buf, 64, "crc_viu2_en: %d crc_vui2_result: %x\n\n",
 		vpp_crc_viu2_en,
 		vpp_crc_viu2_result);
@@ -9932,6 +9932,8 @@ static ssize_t vpp_crc_viu2_store(
 	ret = kstrtoint(buf, 0, &vpp_crc_viu2_en);
 	if (ret < 0)
 		return -EINVAL;
+	if (amvideo_meson_dev.cpu_type >= MESON_CPU_MAJOR_ID_SC2_)
+		enable_vpp_crc_viu2(vpp_crc_viu2_en);
 	return count;
 }
 
