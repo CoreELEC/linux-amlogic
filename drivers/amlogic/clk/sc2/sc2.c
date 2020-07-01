@@ -410,7 +410,7 @@ static struct meson_clk_mpll sc2_mpll3 = {
 
 /*cpu_clk*/
 static u32 mux_table_cpu_p[]	= { 0, 1, 2 };
-/*static u32 mux_table_cpu_px[]   = { 0, 1 };*/
+
 static struct meson_cpu_mux_divider sc2_cpu_fclk_p = {
 	.reg = (void *)CPUCTRL_SYS_CPU_CLK_CTRL,
 	.cpu_fclk_p00 = {
@@ -452,7 +452,7 @@ static struct meson_cpu_mux_divider sc2_cpu_fclk_p = {
 	.lock = &clk_lock,
 	.hw.init = &(struct clk_init_data){
 		.name = "cpu_fixedpll_p",
-		.ops = &meson_fclk_cpu_ops,
+		.ops = &sc2_secure_dsu_cpu_clk_ops,
 		.parent_names = (const char *[]){ "xtal", "fclk_div2",
 			"fclk_div3"},
 		.num_parents = 3,
@@ -467,7 +467,7 @@ static struct clk_mux sc2_cpu_clk = {
 	.lock = &clk_lock,
 	.hw.init = &(struct clk_init_data){
 		.name = "cpu_clk",
-		.ops = &clk_mux_ops,
+		.ops = &sc2_clk_mux_ops,
 		.parent_names = (const char *[]){ "cpu_fixedpll_p",
 				"sys_pll" },
 		.num_parents = 2,
@@ -483,7 +483,7 @@ static struct clk_mux sc2_cpu1_clk = {
 	.lock = &clk_lock,
 	.hw.init = &(struct clk_init_data){
 		.name = "cpu1_clk",
-		.ops = &clk_mux_ro_ops,
+		.ops = &sc2_clk_mux_ro_ops,
 		/* This CPU also have a dedicated clock tree */
 		.parent_names = (const char *[]){ "cpu_clk" },
 		.num_parents = 1,
@@ -498,7 +498,7 @@ static struct clk_mux sc2_cpu2_clk = {
 	.lock = &clk_lock,
 	.hw.init = &(struct clk_init_data){
 		.name = "cpu2_clk",
-		.ops = &clk_mux_ro_ops,
+		.ops = &sc2_clk_mux_ro_ops,
 		/* This CPU also have a dedicated clock tree */
 		.parent_names = (const char *[]){ "cpu_clk" },
 		.num_parents = 1,
@@ -513,7 +513,7 @@ static struct clk_mux sc2_cpu3_clk = {
 	.lock = &clk_lock,
 	.hw.init = &(struct clk_init_data){
 		.name = "cpu3_clk",
-		.ops = &clk_mux_ro_ops,
+		.ops = &sc2_clk_mux_ro_ops,
 		/* This CPU also have a dedicated clock tree */
 		.parent_names = (const char *[]){ "cpu_clk" },
 		.num_parents = 1,
@@ -521,106 +521,68 @@ static struct clk_mux sc2_cpu3_clk = {
 };
 
 /*dsu_clk*/
-static struct clk_mux sc2_dsu_pre_src_clk_mux0 = {
+static const struct fclk_rate_table dsu_rate_table[] = {
+	FCLK_PLL_RATE(50000000, 1, 1, 19),
+	FCLK_PLL_RATE(100000000, 1, 1, 9),
+	FCLK_PLL_RATE(167000000, 2, 1, 3),
+	FCLK_PLL_RATE(200000000, 1, 1, 4),
+	FCLK_PLL_RATE(250000000, 1, 1, 3),
+	FCLK_PLL_RATE(333000000, 2, 1, 1),
+	FCLK_PLL_RATE(500000000, 1, 1, 1),
+	FCLK_PLL_RATE(667000000, 2, 0, 0),
+	FCLK_PLL_RATE(1000000000, 1, 0, 0),
+	FCLK_PLL_RATE(1200000000, 3, 0, 0),
+	FCLK_PLL_RATE(1500000000, 3, 0, 0)
+};
+
+static u32 mux_table_dsu_p[]	= { 0, 1, 2, 3 };
+
+static struct meson_cpu_mux_divider sc2_dsu_fclk_p = {
 	.reg = (void *)CPUCTRL_SYS_CPU_CLK_CTRL5,
-	.mask = 0x3,
-	.shift = 0,
+	.cpu_fclk_p00 = {
+		.mask = 0x3,
+		.shift = 0,
+		.width = 2,
+	},
+	.cpu_fclk_p0 = {
+		.mask = 0x1,
+		.shift = 2,
+		.width = 1,
+	},
+	.cpu_fclk_p10 = {
+		.mask = 0x3,
+		.shift = 16,
+		.width = 2,
+	},
+	.cpu_fclk_p1 = {
+		.mask = 0x1,
+		.shift = 18,
+		.width = 1,
+	},
+	.cpu_fclk_p = {
+		.mask = 0x1,
+		.shift = 10,
+		.width = 1,
+	},
+	.cpu_fclk_p01 = {
+		.shift = 4,
+		.width = 6,
+	},
+	.cpu_fclk_p11 = {
+		.shift = 20,
+		.width = 6,
+	},
+	.table = mux_table_dsu_p,
+	.rate_table = dsu_rate_table,
+	.rate_count = ARRAY_SIZE(dsu_rate_table),
 	.lock = &clk_lock,
 	.hw.init = &(struct clk_init_data){
-		.name = "dsu_pre_src0",
-		.ops = &clk_mux_ops,
+		.name = "dsu_fixedpll_p",
+		.ops = &sc2_secure_dsu_cpu_clk_ops,
 		.parent_names = (const char *[]){ "xtal", "fclk_div2",
-				"fclk_div3", "gp1_pll" },
+			"fclk_div3", "gp1_pll"},
 		.num_parents = 4,
-		.flags = CLK_SET_RATE_NO_REPARENT,
-	},
-};
-
-static struct clk_mux sc2_dsu_pre_src_clk_mux1 = {
-	.reg = (void *)CPUCTRL_SYS_CPU_CLK_CTRL5,
-	.mask = 0x3,
-	.shift = 16,
-	.lock = &clk_lock,
-	.hw.init = &(struct clk_init_data){
-		.name = "dsu_pre_src1",
-		.ops = &clk_mux_ops,
-		.parent_names = (const char *[]){ "xtal", "fclk_div2",
-				"fclk_div3", "gp1_pll" },
-		.num_parents = 4,
-		.flags = CLK_SET_RATE_NO_REPARENT,
-	},
-};
-
-static struct clk_divider sc2_dsu_clk_div0 = {
-	.reg = (void *)CPUCTRL_SYS_CPU_CLK_CTRL5,
-	.shift = 4,
-	.width = 6,
-	.lock = &clk_lock,
-	.hw.init = &(struct clk_init_data){
-		.name = "dsu_clk_div0",
-		.ops = &clk_divider_ops,
-		.parent_names = (const char *[]){ "dsu_pre_src0" },
-		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT,
-	},
-};
-
-static struct clk_divider sc2_dsu_clk_div1 = {
-	.reg = (void *)CPUCTRL_SYS_CPU_CLK_CTRL5,
-	.shift = 20,
-	.width = 6,
-	.lock = &clk_lock,
-	.hw.init = &(struct clk_init_data){
-		.name = "dsu_clk_div1",
-		.ops = &clk_divider_ops,
-		.parent_names = (const char *[]){ "dsu_pre_src1" },
-		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT,
-	},
-};
-
-static struct clk_mux sc2_dsu_pre_clk_mux0 = {
-	.reg = (void *)CPUCTRL_SYS_CPU_CLK_CTRL5,
-	.mask = 0x1,
-	.shift = 2,
-	.lock = &clk_lock,
-	.hw.init = &(struct clk_init_data){
-		.name = "dsu_pre0",
-		.ops = &clk_mux_ops,
-		.parent_names = (const char *[]){ "dsu_pre_src0",
-						"dsu_clk_div0",},
-		.num_parents = 2,
-		.flags = CLK_SET_RATE_PARENT,
-	},
-};
-
-static struct clk_mux sc2_dsu_pre_clk_mux1 = {
-	.reg = (void *)CPUCTRL_SYS_CPU_CLK_CTRL5,
-	.mask = 0x1,
-	.shift = 18,
-	.lock = &clk_lock,
-	.hw.init = &(struct clk_init_data){
-		.name = "dsu_pre1",
-		.ops = &clk_mux_ops,
-		.parent_names = (const char *[]){ "dsu_pre_src1",
-						"dsu_clk_div1",},
-		.num_parents = 2,
-		.flags = CLK_SET_RATE_PARENT,
-	},
-};
-
-static struct clk_mux sc2_dsu_pre_post_clk_mux = {
-	.reg = (void *)CPUCTRL_SYS_CPU_CLK_CTRL5,
-	.mask = 0x1,
-	.shift = 10,
-	.lock = &clk_lock,
-	.hw.init = &(struct clk_init_data){
-		.name = "dsu_pre_post",
-		.ops = &clk_mux_ops,
-		.parent_names = (const char *[]){ "dsu_pre0",
-						"dsu_pre1",},
-		.num_parents = 2,
-		.flags = CLK_SET_RATE_PARENT,
+		.flags = (CLK_GET_RATE_NOCACHE | CLK_IGNORE_UNUSED),
 	},
 };
 
@@ -631,11 +593,11 @@ static struct clk_mux sc2_dsu_pre_clk = {
 	.lock = &clk_lock,
 	.hw.init = &(struct clk_init_data){
 		.name = "dsu_pre_clk",
-		.ops = &clk_mux_ops,
-		.parent_names = (const char *[]){ "dsu_pre_post",
+		.ops = &sc2_clk_mux_ops,
+		.parent_names = (const char *[]){ "dsu_fixedpll_p",
 						"sys_pll",},
 		.num_parents = 2,
-		.flags = CLK_SET_RATE_PARENT,
+		.flags = CLK_GET_RATE_NOCACHE,
 	},
 };
 
@@ -646,7 +608,7 @@ static struct clk_mux sc2_dsu_clk = {
 	.lock = &clk_lock,
 	.hw.init = &(struct clk_init_data){
 		.name = "dsu_clk",
-		.ops = &clk_mux_ops,
+		.ops = &sc2_clk_mux_ops,
 		.parent_names = (const char *[]){ "cpu_clk",
 						"dsu_pre_clk",},
 		.num_parents = 2,
@@ -1042,7 +1004,7 @@ static struct clk_mux sc2_dspaclk_b_sel = {
 	.lock = &clk_lock,
 	.hw.init = &(struct clk_init_data){
 		.name = "dspaclk_b_sel",
-		.ops = &clk_mux_ro_ops,
+		.ops = &clk_mux_ops,
 		.parent_names = dspaclk_parent_names,
 		.num_parents = ARRAY_SIZE(dspaclk_parent_names),
 		.flags = CLK_GET_RATE_NOCACHE,
@@ -1085,7 +1047,7 @@ static struct clk_mux sc2_dspaclk_a_sel = {
 	.lock = &clk_lock,
 	.hw.init = &(struct clk_init_data){
 		.name = "dspaclk_a_sel",
-		.ops = &clk_mux_ro_ops,
+		.ops = &clk_mux_ops,
 		.parent_names = dspaclk_parent_names,
 		.num_parents = ARRAY_SIZE(dspaclk_parent_names),
 		.flags = CLK_GET_RATE_NOCACHE,
@@ -1132,7 +1094,7 @@ static struct clk_mux sc2_dspaclk_sel = {
 		.parent_names = (const char *[]){"dspaclk_a_gate",
 			"dspaclk_b_gate"},
 		.num_parents = 2,
-		.flags = CLK_GET_RATE_NOCACHE,
+		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -2835,21 +2797,10 @@ static struct clk_gate sc2_saradc_gate = {
 	},
 };
 
-#if 0
 static u32 sc2_gen_clk_mux_table[] = { 0, 5, 6, 7, 19, 21, 22,
 				23, 24, 25, 26, 27, 28, };
 static const char * const sc2_gen_clk_parent_names[] = {
 	"xtal", "gp0_pll", "gp1_pll", "hifi_pll", "fclk_div2", "fclk_div3",
-	"fclk_div4", "fclk_div5", "fclk_div7", "mpll0", "mpll1",
-	"mpll2", "mpll3"
-};
-#endif
-
-/* temp*/
-static u32 sc2_gen_clk_mux_table[] = { 0, 5, 7, 19, 21, 22,
-				23, 24, 25, 26, 27, 28, };
-static const char * const sc2_gen_clk_parent_names[] = {
-	"xtal", "gp0_pll", "hifi_pll", "fclk_div2", "fclk_div3",
 	"fclk_div4", "fclk_div5", "fclk_div7", "mpll0", "mpll1",
 	"mpll2", "mpll3"
 };
@@ -3006,13 +2957,7 @@ static struct clk_hw *sc2_clk_hws[] = {
 	[CLKID_CPU1_CLK]	= &sc2_cpu1_clk.hw,
 	[CLKID_CPU2_CLK]	= &sc2_cpu2_clk.hw,
 	[CLKID_CPU3_CLK]	= &sc2_cpu3_clk.hw,
-	[CLKID_DSU_PRE_SRC0]	= &sc2_dsu_pre_src_clk_mux0.hw,
-	[CLKID_DSU_PRE_SRC1]	= &sc2_dsu_pre_src_clk_mux1.hw,
-	[CLKID_DSU_CLK_DIV0]	= &sc2_dsu_clk_div0.hw,
-	[CLKID_DSU_CLK_DIV1]	= &sc2_dsu_clk_div1.hw,
-	[CLKID_DSU_PRE_MUX0]	= &sc2_dsu_pre_clk_mux0.hw,
-	[CLKID_DSU_PRE_MUX1]	= &sc2_dsu_pre_clk_mux1.hw,
-	[CLKID_DSU_PRE_POST_MUX]	= &sc2_dsu_pre_post_clk_mux.hw,
+	[CLKID_DSU_FCLK_P]	= &sc2_dsu_fclk_p.hw,
 	[CLKID_DSU_PRE_CLK]	= &sc2_dsu_pre_clk.hw,
 	[CLKID_DSU_CLK]		= &sc2_dsu_clk.hw,
 
@@ -3538,7 +3483,6 @@ static struct clk_gate *sc2_clk_gates[] = {
 
 };
 
-#if 0
 static int sc2_cpu_clk_notifier_cb(struct notifier_block *nb,
 				   unsigned long event, void *data)
 {
@@ -3575,6 +3519,7 @@ static struct notifier_block sc2_cpu_nb_data = {
 	.notifier_call = sc2_cpu_clk_notifier_cb,
 };
 
+/*
 static int sc2_dsu_mux_clk_notifier_cb(struct notifier_block *nb,
 				       unsigned long event, void *data)
 {
@@ -3606,8 +3551,7 @@ static int sc2_dsu_mux_clk_notifier_cb(struct notifier_block *nb,
 static struct notifier_block sc2_dsu_nb_data = {
 	.notifier_call = sc2_dsu_mux_clk_notifier_cb,
 };
-#endif
-
+*/
 static void __init sc2_clkc_init(struct device_node *np)
 {
 	int ret = 0, clkid, i;
@@ -3641,20 +3585,8 @@ static void __init sc2_clkc_init(struct device_node *np)
 	sc2_cpu1_clk.reg = cpu_clk_base + (unsigned long)sc2_cpu1_clk.reg;
 	sc2_cpu2_clk.reg = cpu_clk_base + (unsigned long)sc2_cpu2_clk.reg;
 	sc2_cpu3_clk.reg = cpu_clk_base + (unsigned long)sc2_cpu3_clk.reg;
-	sc2_dsu_pre_src_clk_mux0.reg = cpu_clk_base +
-		(unsigned long)sc2_dsu_pre_src_clk_mux0.reg;
-	sc2_dsu_pre_src_clk_mux1.reg = cpu_clk_base +
-		(unsigned long)sc2_dsu_pre_src_clk_mux1.reg;
-	sc2_dsu_clk_div0.reg = cpu_clk_base +
-		(unsigned long)sc2_dsu_clk_div0.reg;
-	sc2_dsu_clk_div1.reg = cpu_clk_base +
-		(unsigned long)sc2_dsu_clk_div1.reg;
-	sc2_dsu_pre_clk_mux0.reg = cpu_clk_base +
-		(unsigned long)sc2_dsu_pre_clk_mux0.reg;
-	sc2_dsu_pre_clk_mux1.reg = cpu_clk_base +
-		(unsigned long)sc2_dsu_pre_clk_mux1.reg;
-	sc2_dsu_pre_post_clk_mux.reg = cpu_clk_base +
-		(unsigned long)sc2_dsu_pre_post_clk_mux.reg;
+	sc2_dsu_pre_clk.reg = cpu_clk_base +
+		(unsigned long)sc2_dsu_pre_clk.reg;
 	sc2_dsu_pre_clk.reg = cpu_clk_base +
 		(unsigned long)sc2_dsu_pre_clk.reg;
 	sc2_dsu_clk.reg = cpu_clk_base +
@@ -3724,6 +3656,7 @@ static void __init sc2_clkc_init(struct device_node *np)
 		       __func__);
 		goto iounmap;
 	}
+#endif
 
 	/*
 	 * Register CPU clk notifier
@@ -3752,7 +3685,6 @@ static void __init sc2_clkc_init(struct device_node *np)
 		       __func__);
 		goto iounmap;
 	}
-#endif
 
 	pr_debug("%s: cpu clk register notifier ok!", __func__);
 
