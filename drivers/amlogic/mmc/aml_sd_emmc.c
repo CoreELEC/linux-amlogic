@@ -1307,17 +1307,15 @@ int aml_emmc_clktree_init(struct amlsd_host *host)
 	const char *clk_div_parents[1];
 
 	host->core_clk = devm_clk_get(host->dev, "core");
-	if (host->data->chip_type != MMC_CHIP_SC2) {
-		if (IS_ERR(host->core_clk)) {
-			ret = PTR_ERR(host->core_clk);
-			return ret;
-		}
-		pr_debug("core->rate: %lu\n", clk_get_rate(host->core_clk));
-		pr_debug("core->name: %s\n", __clk_get_name(host->core_clk));
-		ret = clk_prepare_enable(host->core_clk);
-		if (ret)
-			return ret;
+	if (IS_ERR(host->core_clk)) {
+		ret = PTR_ERR(host->core_clk);
+		return ret;
 	}
+	pr_debug("core->rate: %lu\n", clk_get_rate(host->core_clk));
+	pr_debug("core->name: %s\n", __clk_get_name(host->core_clk));
+	ret = clk_prepare_enable(host->core_clk);
+	if (ret)
+		return ret;
 
 	/* get the mux parents */
 	for (i = 0; i < MUX_CLK_NUM_PARENTS; i++) {
@@ -1377,6 +1375,11 @@ int aml_emmc_clktree_init(struct amlsd_host *host)
 		return PTR_ERR(host->cfg_div_clk);
 
 	ret = clk_prepare_enable(host->cfg_div_clk);
+	if (ret)
+		pr_info("enable cfg_div_clk, ret=%d\n", ret);
+	ret = clk_set_rate(host->mux_parent[0], 24000000);
+	if (ret)
+		pr_info("set mux_parent[0] ret:%d\n", ret);
 	pr_debug("[%s] clock: 0x%x\n",
 		__func__, readl(host->base + SD_EMMC_CLOCK_V3));
 	return ret;
@@ -3412,10 +3415,8 @@ static int meson_mmc_remove(struct platform_device *pdev)
 
 	if (host->cfg_div_clk)
 		clk_disable_unprepare(host->cfg_div_clk);
-	if (host->data->chip_type != MMC_CHIP_SC2) {
-		if (host->core_clk)
-			clk_disable_unprepare(host->core_clk);
-	}
+	if (host->core_clk)
+		clk_disable_unprepare(host->core_clk);
 
 	kfree(host->blk_test);
 	kfree(host->adj_win);

@@ -14929,6 +14929,7 @@ F:	driver/amlogic/clk/sc2/*
 F:	driver/amlogic/clk/sc2/sc2_secure_clk_cpu.c
 F:	driver/amlogic/clk/sc2/sc2_secure_clk_mux.c
 F:	driver/amlogic/clk/*
+F:	driver/amlogic/clk/sc2/sc2_clk_sdemmc.c
 
 AMLOGIC MESON TM2 LCD DTS
 M:	Shaochan Liu <shaochan.liu@amlogic.com>

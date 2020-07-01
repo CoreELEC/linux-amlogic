@@ -308,5 +308,8 @@ void meson_tl1_media_init(void);
 void meson_tl1_gpu_init(void);
 void meson_tl1_misc_init(void);
 
+/*sc2*/
+void meson_sc2_sdemmc_init(void __iomem *clk_base);
+
 extern int clk_numbers;
 #endif /* __CLKC_H */

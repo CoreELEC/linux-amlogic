@@ -1494,18 +1494,18 @@
 		pinctrl-0 = <&emmc_clk_cmd_pins>;
 		pinctrl-1 = <&emmc_conf_pull_up &emmc_conf_pull_done>;
 
-		clocks = /*<&clkc CLKID_SD_EMMC_C>,*/
-			   <&clkc CLKID_NAND_CLK_GATE>,
+		clocks = <&clkc CLKID_NAND>,
+			   <&clkc CLKID_NAND_CLK_COMP>,
 			   <&clkc CLKID_FCLK_DIV2>,
 			   <&clkc CLKID_FCLK_DIV2P5>,
 			   <&xtal>;
-		clock-names = "clkin0", "clkin1", "clkin2", "xtal";
+		clock-names = "core", "clkin0", "clkin1", "clkin2", "xtal";
 
 		bus-width = <8>;
 		cap-sd-highspeed;
 		cap-mmc-highspeed;
 		/* mmc-ddr-1_8v; */
-		/* mmc-hs200-1_8v; */
+		mmc-hs200-1_8v;
 
 		max-frequency = <200000000>;
 		non-removable;
@@ -1541,12 +1541,12 @@
 		pinctrl-1 = <&sd_clk_cmd_pins>;
 		pinctrl-2 = <&sd_1bit_pins>;
 
-		clocks = /*<&clkc CLKID_SD_EMMC_B>,*/
-			<&clkc CLKID_SD_EMMC_B_CLK_GATE>,
+		clocks = <&clkc CLKID_SD_EMMC_B>,
+			<&clkc CLKID_SD_EMMC_B_CLK_COMP>,
 			<&clkc CLKID_FCLK_DIV2>,
 			<&clkc CLKID_FCLK_DIV5>,
 			<&xtal>;
-		clock-names = "clkin0", "clkin1", "clkin2", "xtal";
+		clock-names = "core", "clkin0", "clkin1", "clkin2", "xtal";
 
 		bus-width = <4>;
 		cap-sd-highspeed;

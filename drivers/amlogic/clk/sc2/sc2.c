@@ -3091,16 +3091,6 @@ static struct clk_hw *sc2_clk_hws[] = {
 	[CLKID_VDIN_MEAS_CLK_DIV]	= &sc2_vdin_meas_clk_div.hw,
 	[CLKID_VDIN_MEAS_CLK_GATE]	= &sc2_vdin_meas_clk_gate.hw,
 
-	[CLKID_NAND_CLK_MUX]		= &sc2_nand_clk_mux.hw,
-	[CLKID_NAND_CLK_DIV]		= &sc2_nand_clk_div.hw,
-	[CLKID_NAND_CLK_GATE]		= &sc2_nand_clk_gate.hw,
-	[CLKID_SD_EMMC_A_CLK_MUX]	= &sc2_sd_emmc_A_clk_mux.hw,
-	[CLKID_SD_EMMC_A_CLK_DIV]	= &sc2_sd_emmc_A_clk_div.hw,
-	[CLKID_SD_EMMC_A_CLK_GATE]	= &sc2_sd_emmc_A_clk_gate.hw,
-	[CLKID_SD_EMMC_B_CLK_MUX]	= &sc2_sd_emmc_B_clk_mux.hw,
-	[CLKID_SD_EMMC_B_CLK_DIV]	= &sc2_sd_emmc_B_clk_div.hw,
-	[CLKID_SD_EMMC_B_CLK_GATE]	= &sc2_sd_emmc_B_clk_gate.hw,
-
 	[CLKID_CDAC_MUX]	= &sc2_cdac_mux.hw,
 	[CLKID_CDAC_DIV]	= &sc2_cdac_div.hw,
 	[CLKID_CDAC_GATE]	= &sc2_cdac_gate.hw,
@@ -3634,6 +3624,7 @@ static void __init sc2_clkc_init(struct device_node *np)
 		}
 	}
 
+	meson_sc2_sdemmc_init(basic_clk_base);
 	pr_debug("%s: register all clk ok!", __func__);
 
 #if 0
