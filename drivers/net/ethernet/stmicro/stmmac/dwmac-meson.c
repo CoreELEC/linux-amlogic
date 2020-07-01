@@ -58,6 +58,7 @@ struct meson_dwmac_data {
 };
 
 void __iomem *ee_reset_base;
+unsigned int rst_mask;
 struct platform_device *ppdev;
 #endif
 
@@ -251,7 +252,7 @@ static void __iomem *network_interface_setup(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 3);
 	if (res) {
-		addr = devm_ioremap_resource(dev, res);
+		addr = devm_ioremap(dev, res->start, resource_size(res));
 		if (IS_ERR(addr)) {
 			dev_err(&pdev->dev, "Unable to map %d\n", __LINE__);
 			return NULL;
@@ -376,7 +377,7 @@ static void __iomem *g12a_network_interface_setup(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Unable to get resource(%d)\n", __LINE__);
 		ee_reset_base = NULL;
 	} else {
-		addr = devm_ioremap_resource(dev, res);
+		addr = devm_ioremap(dev, res->start, resource_size(res));
 		if (IS_ERR(addr)) {
 			dev_err(&pdev->dev, "Unable to map reset base\n");
 			return NULL;
@@ -406,6 +407,10 @@ static void __iomem *g12a_network_interface_setup(struct platform_device *pdev)
 	else
 		writel(mc_val, REG_ETH_reg0_addr);
 
+	if (of_property_read_u32(np, "rst_mask", &rst_mask))
+		pr_info("no rst_mask setting\n");
+	else
+		pr_info("rst_mask %d\n", rst_mask);
 	/*read phy option*/
 	if (of_property_read_u32(np, "internal_phy", &internal_phy) != 0) {
 		pr_info("Dts miss internal_phy item\n");
@@ -551,10 +556,15 @@ static int meson6_dwmac_resume(struct device *dev)
 	struct pinctrl *pin_ctrl;
 	struct pinctrl_state *turnon_tes = NULL;
 	pr_info("resuem inter = %d\n", is_internal_phy);
-	if ((ee_reset_base) && (support_mac_wol == 0))
-		writel((1 << 11), (void __iomem	*)
-			(unsigned long)ee_reset_base);
-
+	if ((ee_reset_base) && (support_mac_wol == 0)) {
+		if (rst_mask != 0) {
+			writel((1 << rst_mask), (void __iomem	*)
+				(unsigned long)ee_reset_base);
+		} else {
+			writel((1 << 11), (void __iomem	*)
+				(unsigned long)ee_reset_base);
+		}
+	}
 	if ((is_internal_phy) && (support_mac_wol == 0)) {
 		pin_ctrl = devm_pinctrl_get(dev);
 		if (IS_ERR_OR_NULL(pin_ctrl)) {

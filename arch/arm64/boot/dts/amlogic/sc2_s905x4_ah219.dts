@@ -1656,7 +1656,7 @@
 	controller-type = <3>;
 };
 &ethmac {
-	status = "disabled";
+	status = "okay";
 	pinctrl-names = "internal_eth_pins";
 	pinctrl-0 = <&internal_eth_pins>;
 	mc_val = <0x4be04>;

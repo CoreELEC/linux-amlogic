@@ -1570,7 +1570,7 @@
 	controller-type = <3>;
 };
 &ethmac {
-	status = "disabled";
+	status = "okay";
 	pinctrl-names = "internal_eth_pins", "internal_gpio_pins";
 	pinctrl-0 = <&internal_eth_pins>;
 	pinctrl-1 = <&internal_gpio_pins>;
