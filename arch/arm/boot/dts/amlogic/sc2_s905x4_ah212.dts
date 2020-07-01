@@ -1159,7 +1159,7 @@
 		clock-names = "sysclk", "fixed_clk", "gate_spdifin",
 				"gate_spdifout", "clk_spdifin", "clk_spdifout";
 		interrupts =
-				<GIC_SPI 151 IRQ_TYPE_EDGE_RISING>;
+				<GIC_SPI 35 IRQ_TYPE_EDGE_RISING>;
 
 		interrupt-names = "irq_spdifin";
 		pinctrl-names = "spdif_pins";
@@ -1522,8 +1522,8 @@
 	};
 
 	spdifout: spdifout {
-		mux { /* GPIOH_4 */
-			groups = "spdif_out_h";
+		mux { /* GPIOD_10 */
+			groups = "spdif_out_d";
 			function = "spdif_out";
 		};
 	};
