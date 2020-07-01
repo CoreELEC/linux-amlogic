@@ -1848,10 +1848,6 @@
 	status = "okay";
 };
 
-&irblaster {
-	status = "disabled";
-};
-
 &amhdmitx {
 	status = "okay";
 };

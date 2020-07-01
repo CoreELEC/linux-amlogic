@@ -1874,10 +1874,6 @@
 	};
 };
 
-&irblaster {
-	status = "disabled";
-};
-
 &amhdmitx {
 	status = "okay";
 };

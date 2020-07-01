@@ -609,6 +609,14 @@
 		status = "disabled";
 	};
 
+	irblaster: meson-irblaster@0xfe08410c {
+		compatible = "amlogic, meson_irblaster";
+		status = "disabled";
+		reg = <0xfe08410c 0x10>;
+		#irblaster-cells = <2>;
+		interrupts = <GIC_SPI 23 IRQ_TYPE_EDGE_RISING>;
+	};
+
 	soc {
 		compatible = "simple-bus";
 		#address-cells = <1>;
@@ -2731,16 +2739,35 @@
 			function = "jtag_2";
 		};
 	};
-};
 
-&pinctrl_aobus {
-	irblaster_pins:irblaster_pin {
+	irblaster_pins1:irblaster_pin1 {
 		mux {
-			groups = "remote_out_ao";
-			function = "remote_out_ao";
+			groups = "remote_out_h";
+			function = "remote_out";
 		};
 	};
-}; /* end of pinctrl_aobus */
+
+	irblaster_pins2:irblaster_pin2 {
+		mux {
+			groups = "remote_out_z";
+			function = "remote_out";
+		};
+	};
+
+	irblaster_pins3:irblaster_pin3 {
+		mux {
+			groups = "remote_out_d4";
+			function = "remote_out";
+		};
+	};
+
+	irblaster_pins4:irblaster_pin4 {
+		mux {
+			groups = "remote_out_d9";
+			function = "remote_out";
+		};
+	};
+};
 
 &gpu{
 	reg =   <0xFE400000 0x04000>, /*mali APB bus base address*/
