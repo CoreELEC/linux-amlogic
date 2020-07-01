@@ -94,11 +94,12 @@ void vdin_write_mif_or_afbce_init(struct vdin_dev_s *devp)
 	if (sel == VDIN_OUTPUT_TO_MIF) {
 		W_VCBUS_BIT(AFBCE_ENABLE, 0, 8, 1);
 
-		if (is_meson_tm2_cpu()) {
+		if (is_meson_tm2_cpu() ||
+		    (devp->dtdata->hw_ver == VDIN_HW_SC2)) {
 			W_VCBUS_BIT(VDIN_TOP_DOUBLE_CTRL, WR_SEL_VDIN0_NOR,
-				    MIF0_OUT_SEL_BIT, VDIN_REORDER_SEL_WID);
+				MIF0_OUT_SEL_BIT, VDIN_REORDER_SEL_WID);
 			W_VCBUS_BIT(VDIN_TOP_DOUBLE_CTRL, WR_SEL_DIS,
-				    AFBCE_OUT_SEL_BIT, VDIN_REORDER_SEL_WID);
+				AFBCE_OUT_SEL_BIT, VDIN_REORDER_SEL_WID);
 
 			/* axi write protection
 			 * for HDMI cable plug/unplug crash issue
@@ -115,11 +116,12 @@ void vdin_write_mif_or_afbce_init(struct vdin_dev_s *devp)
 			W_VCBUS_BIT(VDIN_MISC_CTRL, 1, VDIN0_OUT_MIF_BIT, 1);
 		}
 	} else if (sel == VDIN_OUTPUT_TO_AFBCE) {
-		if (is_meson_tm2_cpu()) {
+		if (is_meson_tm2_cpu() ||
+		    (devp->dtdata->hw_ver == VDIN_HW_SC2)) {
 			W_VCBUS_BIT(VDIN_TOP_DOUBLE_CTRL, WR_SEL_DIS,
-				    MIF0_OUT_SEL_BIT, VDIN_REORDER_SEL_WID);
+				MIF0_OUT_SEL_BIT, VDIN_REORDER_SEL_WID);
 			W_VCBUS_BIT(VDIN_TOP_DOUBLE_CTRL, WR_SEL_VDIN0_NOR,
-				    AFBCE_OUT_SEL_BIT, VDIN_REORDER_SEL_WID);
+				AFBCE_OUT_SEL_BIT, VDIN_REORDER_SEL_WID);
 
 			/* axi write protection
 			 * for HDMI cable plug/unplug crash issue
@@ -146,7 +148,8 @@ void vdin_write_mif_or_afbce(struct vdin_dev_s *devp,
 	if (sel == VDIN_OUTPUT_TO_MIF) {
 		rdma_write_reg_bits(devp->rdma_handle, AFBCE_ENABLE, 0, 8, 1);
 
-		if (is_meson_tm2_cpu()) {
+		if (is_meson_tm2_cpu() ||
+		    (devp->dtdata->hw_ver == VDIN_HW_SC2)) {
 			rdma_write_reg_bits(devp->rdma_handle,
 				VDIN_TOP_DOUBLE_CTRL, WR_SEL_VDIN0_NOR,
 				MIF0_OUT_SEL_BIT, VDIN_REORDER_SEL_WID);
@@ -173,16 +176,14 @@ void vdin_write_mif_or_afbce(struct vdin_dev_s *devp,
 					    1, VDIN0_OUT_MIF_BIT, 1);
 		}
 	} else if (sel == VDIN_OUTPUT_TO_AFBCE) {
-		if (is_meson_tm2_cpu()) {
+		if (is_meson_tm2_cpu() ||
+		    (devp->dtdata->hw_ver == VDIN_HW_SC2)) {
 			rdma_write_reg_bits(devp->rdma_handle,
-					    VDIN_TOP_DOUBLE_CTRL, WR_SEL_DIS,
-					    MIF0_OUT_SEL_BIT,
-					    VDIN_REORDER_SEL_WID);
+				VDIN_TOP_DOUBLE_CTRL, WR_SEL_DIS,
+				MIF0_OUT_SEL_BIT, VDIN_REORDER_SEL_WID);
 			rdma_write_reg_bits(devp->rdma_handle,
-					    VDIN_TOP_DOUBLE_CTRL,
-					    WR_SEL_VDIN0_NOR,
-					    AFBCE_OUT_SEL_BIT,
-					    VDIN_REORDER_SEL_WID);
+				VDIN_TOP_DOUBLE_CTRL, WR_SEL_VDIN0_NOR,
+				AFBCE_OUT_SEL_BIT, VDIN_REORDER_SEL_WID);
 
 			/* axi write protection
 			 * for HDMI cable plug/unplug crash issue
@@ -191,9 +192,9 @@ void vdin_write_mif_or_afbce(struct vdin_dev_s *devp,
 				       0);
 		} else {
 			rdma_write_reg_bits(devp->rdma_handle, VDIN_MISC_CTRL,
-					    0, VDIN0_OUT_MIF_BIT, 1);
+				0, VDIN0_OUT_MIF_BIT, 1);
 			rdma_write_reg_bits(devp->rdma_handle, VDIN_MISC_CTRL,
-					    1, VDIN0_OUT_AFBCE_BIT, 1);
+				1, VDIN0_OUT_AFBCE_BIT, 1);
 		}
 
 		if (devp->afbce_flag & VDIN_AFBCE_EN_LOOSY)

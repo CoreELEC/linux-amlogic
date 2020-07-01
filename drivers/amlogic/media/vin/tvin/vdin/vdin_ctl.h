@@ -33,6 +33,9 @@
 #define DV_CRC_FORCE_TRUE		(BIT(7))
 #define DV_CRC_FORCE_FALSE		(BIT(8))
 
+#define MEM_ALLOC_DISCRETE	(BIT(8))
+#define MEM_ALLOC_FROM_CODEC	(BIT(0))
+
 enum vdin_output_mif_e {
 	VDIN_OUTPUT_TO_MIF = 0,
 	VDIN_OUTPUT_TO_AFBCE = 1,
@@ -226,8 +229,6 @@ void vdin_prob_get_yuv(unsigned int offset,
 		       unsigned int *rgb_yuv2);
 void vdin_prob_matrix_sel(unsigned int offset,
 			  unsigned int sel, struct vdin_dev_s *devp);
-void vdin_change_matrix(unsigned int offset,
-			unsigned int matrix_csc);
 void vdin_dolby_desc_sc_enable(struct vdin_dev_s *devp,
 			       unsigned int  onoff);
 bool vdin_is_dolby_tunnel_444_input(struct vdin_dev_s *devp);
@@ -247,6 +248,10 @@ bool is_dolby_vision_enable(void);
 bool is_dolby_vision_on(void);
 bool is_dolby_vision_stb_mode(void);
 bool for_dolby_vision_certification(void);
+void vdin_set_bist_md(unsigned int id);
+void vdin_change_matrix0(u32 offset, u32 matrix_csc);
+void vdin_change_matrix1(u32 offset, u32 matrix_csc);
+void vdin_change_matrixhdr(u32 offset, u32 matrix_csc);
 
 #endif
 

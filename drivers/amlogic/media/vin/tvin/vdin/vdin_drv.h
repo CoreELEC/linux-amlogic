@@ -48,7 +48,7 @@
 /* Ref.2019/04/25: tl1 vdin0 afbce dynamically switch support,
  *                 vpp also should support this function
  */
-#define VDIN_VER "ver:2020-0612: stop dec disable afbc"
+#define VDIN_VER "ver:2020-0703: vdin viu bringup for sc2-refboard"
 
 /*the counter of vdin*/
 #define VDIN_MAX_DEVS			2
@@ -57,10 +57,20 @@ enum vdin_hw_ver_e {
 	VDIN_HW_ORG = 0,
 	VDIN_HW_SM1,
 	VDIN_HW_TL1,
+	/*
+	 * tm2 vdin0/vdin1 all support upto 40k
+	 */
 	VDIN_HW_TM2,
 	VDIN_HW_TM2_B,
+	/*
+	 * sc2, sm1 vdin0 upto 4k, vdin1 upto 1080P (write)
+	 * no afbce
+	 */
 	VDIN_HW_SC2,
 };
+
+/*addr for verify chip*/
+#define K_FORCE_HV_SHRINK	0
 
 enum vdin_irq_flg_e {
 	VDIN_IRQ_FLG_NO_END = 1,
@@ -348,8 +358,6 @@ struct vdin_dv_s {
 };
 
 struct vdin_afbce_s {
-	unsigned int  head_size;/*all head size*/
-	unsigned int  table_size;/*all table size*/
 	unsigned int  frame_head_size;/*1 frame head size*/
 	unsigned int  frame_table_size;/*1 frame table size*/
 	unsigned int  frame_body_size;/*1 frame body size*/
@@ -424,6 +432,7 @@ struct vdin_dev_s {
 	bool mem_protected;
 	unsigned int vfmem_size;
 	unsigned int vfmem_size_small;/* double write use */
+	unsigned int frame_size;
 	unsigned int vfmem_max_cnt;
 	unsigned int frame_buff_num;
 
@@ -612,6 +621,7 @@ extern unsigned int vdin_isr_monitor;
 extern unsigned int vdin_get_prop_in_vs_en;
 extern unsigned int vdin_prop_monitor;
 extern unsigned int vdin_get_prop_in_fe_en;
+extern struct vdin_hist_s vdin1_hist;
 
 struct vframe_provider_s *vf_get_provider_by_name(
 		const char *provider_name);

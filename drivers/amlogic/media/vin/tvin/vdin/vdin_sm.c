@@ -474,13 +474,15 @@ u32 tvin_hdmirx_signal_type_check(struct vdin_dev_s *devp)
 			devp->index,
 			devp->prop.vdin_hdr_flag, signal_type);
 
+	if (devp->prop.vdin_hdr_flag &&
+	    devp->parm.info.signal_type != signal_type) {
+		signal_chg |= TVIN_SIG_CHG_SDR2HDR;
+	}
+
 	/* check HDR 10+ end */
 	devp->parm.info.signal_type = signal_type;
 
-	if (vdin_re_config)
-		return signal_chg;
-	else
-		return TVIN_SIG_CHG_NONE;
+	return signal_chg;
 }
 
 void reset_tvin_smr(unsigned int index)

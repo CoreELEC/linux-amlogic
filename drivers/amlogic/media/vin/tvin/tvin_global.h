@@ -511,6 +511,8 @@ struct tvin_sig_property_s {
 	struct tvin_hdr10plus_info_s hdr10p_info;
 	struct tvin_emp_data_s emp_data;
 	unsigned int cnt;
+	/* only use for loopback, 0=positvie, 1=negative */
+	unsigned int polarity_vs;
 };
 
 #define TVAFE_VF_POOL_SIZE			6 /* 8 */

@@ -164,6 +164,10 @@ unsigned int drop_num = 2;
 module_param(drop_num, uint, 0664);
 MODULE_PARM_DESC(drop_num, "drop_num");
 
+unsigned int vdin_bist_en;
+module_param(vdin_bist_en, uint, 0664);
+MODULE_PARM_DESC(vdin_bist_en, "vdin_bist_en");
+
 static unsigned int panel_reverse;
 struct vdin_hist_s vdin1_hist;
 struct vdin_v4l2_param_s vdin_v4l2_param;
@@ -802,6 +806,8 @@ void vdin_start_dec(struct vdin_dev_s *devp)
 	devp->vframe_wr_en = 1;
 	devp->vframe_wr_en_pre = 1;
 
+	if (vdin_bist_en)
+		vdin_set_bist_md(devp->index);
 	if (time_en)
 		pr_info("vdin.%d start time: %ums, run time:%ums.\n",
 				devp->index, jiffies_to_msecs(jiffies),
@@ -941,14 +947,14 @@ int start_tvin_service(int no, struct vdin_parm_s  *para)
 
 	fmt = devp->parm.info.fmt;
 	if (vdin_dbg_en) {
-		pr_info("**[%s]cfmt:%d;dfmt:%d;dest_hactive:%d;",
-				__func__, para->cfmt,
-				para->dfmt, para->dest_hactive);
-		pr_info("dest_vactive:%d;frame_rate:%d;h_active:%d,",
-				para->dest_vactive, para->frame_rate,
-				para->h_active);
-		pr_info("v_active:%d;scan_mode:%d**\n",
-				para->v_active, para->scan_mode);
+		pr_info("**[%s]\ncfmt:%d;dfmt:%d;dest_hactive:%d\n",
+			__func__, para->cfmt,
+			para->dfmt, para->dest_hactive);
+		pr_info("dest_vactive:%d;frame_rate:%d;h_active:%d,\n",
+			para->dest_vactive, para->frame_rate,
+			para->h_active);
+		pr_info("v_active:%d;scan_mode:%d\n",
+			para->v_active, para->scan_mode);
 	}
 
 	if (devp->index == 1) {
@@ -1061,7 +1067,6 @@ int start_tvin_service(int no, struct vdin_parm_s  *para)
 		(viu_hw_irq != 0)) {
 		ret = request_irq(devp->irq, vdin_v4l2_isr, IRQF_SHARED,
 				devp->irq_name, (void *)devp);
-
 		if (vdin_dbg_en)
 			pr_info("%s vdin.%d request_irq\n", __func__,
 				devp->index);
@@ -1073,6 +1078,16 @@ int start_tvin_service(int no, struct vdin_parm_s  *para)
 		}
 		devp->flags |= VDIN_FLAG_ISR_REQ;
 	}
+
+	if (devp->index == 0) {
+		/*enable irq */
+		enable_irq(devp->irq);
+		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2) &&
+		    devp->vpu_crash_irq != 0)
+			enable_irq(devp->vpu_crash_irq);
+		pr_info("vdin[%d] enable irq %d\n", devp->index, devp->irq);
+	}
+
 	mutex_unlock(&devp->fe_lock);
 	return 0;
 }
@@ -2166,7 +2181,6 @@ irqreturn_t vdin_v4l2_isr(int irq, void *dev_id)
 	isr_log(devp->vfp);
 	devp->irq_cnt++;
 	spin_lock_irqsave(&devp->isr_lock, flags);
-
 	/* set CRC check pulse */
 	vdin_set_crc_pulse(devp);
 	devp->vdin_reset_flag = vdin_vsync_reset_mif(devp->index);
@@ -3030,7 +3044,8 @@ static long vdin_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		}
 		memset(&param, 0, sizeof(struct vdin_parm_s));
 		if (is_meson_tl1_cpu() || is_meson_sm1_cpu() ||
-			is_meson_tm2_cpu())
+		    is_meson_tm2_cpu() ||
+		    (devp->dtdata->hw_ver == VDIN_HW_SC2))
 			param.port = TVIN_PORT_VIU1_WB0_VPP;
 		else
 			param.port = TVIN_PORT_VIU1;
@@ -3718,7 +3733,7 @@ static int vdin_drv_probe(struct platform_device *pdev)
 	of_id = of_match_device(vdin_dt_match, &pdev->dev);
 	if (!IS_ERR_OR_NULL(of_id)) {
 		vdevp->dtdata = of_id->data;
-		pr_info("chip:%s hw_ver:%d", vdevp->dtdata->name,
+		pr_info("chip:%s hw_ver:%d\n", vdevp->dtdata->name,
 			vdevp->dtdata->hw_ver);
 	}
 
@@ -3820,22 +3835,20 @@ static int vdin_drv_probe(struct platform_device *pdev)
 		vdevp->full_pack = VDIN_422_FULL_PK_DIS;
 
 	/*set afbce config*/
-	vdevp->afbce_flag = 0;
-	if (vdevp->index == 0) { /* just use afbce at vdin0 */
-		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
-			vdevp->afbce_info = devm_kzalloc(vdevp->dev,
-				sizeof(struct vdin_afbce_s), GFP_KERNEL);
+	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1) && (vdevp->index == 0)) {
+		ret = of_property_read_u32(pdev->dev.of_node,
+					   "afbce_bit_mode",
+					   &vdevp->afbce_flag);
+		if (ret)
+			vdevp->afbce_flag = 0;
+
+		if (vdevp->afbce_flag & 0x1) {
+			vdevp->afbce_info =
+				devm_kzalloc(vdevp->dev,
+					     sizeof(struct vdin_afbce_s),
+					     GFP_KERNEL);
 			if (!vdevp->afbce_info)
 				goto fail_kzalloc_vdev;
-
-			ret = of_property_read_u32(pdev->dev.of_node,
-				"afbce_bit_mode", &vdevp->afbce_flag);
-			if (ret) {
-				vdevp->afbce_flag = 0;
-			} else {
-				pr_info("afbce flag = 0x%x\n",
-					vdevp->afbce_flag);
-			}
 		}
 	}
 

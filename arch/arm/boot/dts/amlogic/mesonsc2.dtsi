@@ -1244,7 +1244,7 @@
 
 	/*if you want to use vdin just modify status to "ok"*/
 	vdin0: vdin0 {
-		compatible = "amlogic, vdin";
+		compatible = "amlogic, vdin-sc2";
 		dev_name = "vdin0";
 		status = "disabled";
 		reserve-iomap = "true";
@@ -1257,21 +1257,22 @@
 		 *if support 1080p-YUV422-8BIT-WR:1920*1080*2*4 ~= 16M
 		 */
 		/*cma_size = <16>;*/
-		interrupts = <0 83 1>;
+		interrupts = <0 210 1>;
 		rdma-irq = <2>;
-		/*clocks = <&clock CLK_FPLL_DIV5>,
-		 *	<&clock CLK_VDIN_MEAS_CLK>;
-		 *clock-names = "fclk_div5", "cts_vdin_meas_clk";
+		/*clocks = <&clkc CLKID_VPU_CLKB_GATE>,
+		 *	<&clkc CLKID_VPU_CLKB_TMP_MUX>;
+		 *clock-names = "vpu_clkb_gate",
+		 *	"vpu_clkb_tmp_mux";
 		 */
 		vdin_id = <0>;
 	};
 	vdin1: vdin1 {
-		compatible = "amlogic, vdin";
+		compatible = "amlogic, vdin-sc2";
 		dev_name = "vdin1";
 		status = "disabled";
 		reserve-iomap = "true";
 		flag_cma = <0>;/*1:share with codec_mm;0:cma alone*/
-		interrupts = <0 85 1>;
+		interrupts = <0 212 1>;
 		rdma-irq = <4>;
 		/*clocks = <&clock CLK_FPLL_DIV5>,
 		 *	<&clock CLK_VDIN_MEAS_CLK>;

@@ -356,8 +356,7 @@ static void vdin_dump_mem(char *path, struct vdin_dev_s *devp)
 		pr_info("create %s error or filp is NULL.\n", path);
 		return;
 	}
-	if ((devp->cma_config_flag & 0x1) &&
-		(devp->cma_mem_alloc == 0)) {
+	if (devp->cma_mem_alloc == 0) {
 		pr_info("%s:no cma alloc mem!!!\n", __func__);
 		return;
 	}
@@ -373,16 +372,16 @@ static void vdin_dump_mem(char *path, struct vdin_dev_s *devp)
 		for (i = 0; i < devp->canvas_max_num; i++) {
 			pos = mem_size * i;
 			if (devp->cma_config_flag == 0x1)
-				buf = codec_mm_phys_to_virt(devp->mem_start +
-					devp->canvas_max_size*i);
+				buf =
+				codec_mm_phys_to_virt(devp->vfmem_start[i]);
 			else if (devp->cma_config_flag == 0x101)
-				vfbuf[i] = codec_mm_phys_to_virt(
-					devp->vfmem_start[i]);
+				vfbuf[i] =
+				codec_mm_phys_to_virt(devp->vfmem_start[i]);
 			else if (devp->cma_config_flag == 0x100)
 				vfbuf[i] = phys_to_virt(devp->vfmem_start[i]);
 			else
-				buf = phys_to_virt(devp->mem_start +
-					devp->canvas_max_size*i);
+				buf = phys_to_virt(devp->vfmem_start[i]);
+
 			/*only write active data*/
 			for (j = 0; j < devp->canvas_h; j++) {
 				if (devp->cma_config_flag & 0x100) {
@@ -406,17 +405,7 @@ static void vdin_dump_mem(char *path, struct vdin_dev_s *devp)
 
 		for (i = 0; i < devp->canvas_max_num; i++) {
 			pos = mem_size * i;
-			if (devp->cma_config_flag == 0x1) {
-				phys = devp->mem_start +
-					devp->canvas_max_size*i;
-			} else if (devp->cma_config_flag == 0x101)
-				phys = devp->vfmem_start[i];
-			else if (devp->cma_config_flag == 0x100)
-				phys = devp->vfmem_start[i];
-			else {
-				phys = devp->mem_start +
-					devp->canvas_max_size*i;
-			}
+			phys = devp->vfmem_start[i];
 
 			for (j = 0; j < count; j++) {
 				highaddr = phys + j * devp->canvas_w;
@@ -968,16 +957,12 @@ static void vdin_dump_state(struct vdin_dev_s *devp)
 				i, devp->afbce_info->fm_head_paddr[i],
 				devp->afbce_info->frame_head_size);
 		}
-		pr_info("all head size: 0x%x\n",
-			devp->afbce_info->head_size);
 
 		for (i = 0; i < devp->vfmem_max_cnt; i++) {
 			pr_info("table(%d) addr:0x%lx, size:0x%x\n",
 				i, devp->afbce_info->fm_table_paddr[i],
 				devp->afbce_info->frame_table_size);
 		}
-		pr_info("all table size: 0x%x\n",
-			devp->afbce_info->table_size);
 
 		for (i = 0; i < devp->vfmem_max_cnt; i++) {
 			pr_info("body(%d) addr:0x%lx, size:0x%x\n",
@@ -1582,7 +1567,7 @@ static void vdin_dump_regs(struct vdin_dev_s *devp)
 		pr_info("0x%04x = 0x%08x\n", (reg + offset), rd(offset, reg));
 	pr_info("vdin%d regs end----\n\n", devp->index);
 
-	if (is_meson_tm2_cpu()) {
+	if (is_meson_tm2_cpu() || (devp->dtdata->hw_ver == VDIN_HW_SC2)) {
 		pr_info("vdin%d HDR2 regs start----\n", devp->index);
 		for (reg = VDIN_HDR2_CTRL;
 		     reg <= VDIN_HDR2_MATRIXO_EN_CTRL; reg++) {
@@ -1902,45 +1887,15 @@ start_chk:
 		} else if (!strcmp(parm[1], "viuin2")) {
 			param.port = TVIN_PORT_VIU2;
 			pr_info(" port is TVIN_PORT_VIU\n");
-		} else if (!strcmp(parm[1], "video2")) {
-			param.port = TVIN_PORT_VIU2_VIDEO;
-			pr_info(" port is TVIN_PORT_VIU_VIDEO\n");
-		} else if (!strcmp(parm[1], "viu2_wb0_vpp")) {
-			param.port = TVIN_PORT_VIU2_WB0_VPP;
-			pr_info(" port is TVIN_PORT_VIU2_WB0_VPP\n");
-		} else if (!strcmp(parm[1], "viu2_wb0_vd1")) {
-			param.port = TVIN_PORT_VIU2_WB0_VD1;
-			pr_info(" port is TVIN_PORT_VIU_WB0_VD1\n");
-		} else if (!strcmp(parm[1], "viu2_wb0_vd2")) {
-			param.port = TVIN_PORT_VIU2_WB0_VD2;
-			pr_info(" port is TVIN_PORT_VIU_WB0_VD2\n");
-		} else if (!strcmp(parm[1], "viu2_wb0_osd1")) {
-			param.port = TVIN_PORT_VIU2_WB0_OSD1;
-			pr_info(" port is TVIN_PORT_VIU_WB0_OSD1\n");
-		} else if (!strcmp(parm[1], "viu2_wb0_osd2")) {
-			param.port = TVIN_PORT_VIU2_WB0_OSD2;
-			pr_info(" port is TVIN_PORT_VIU_WB0_OSD2\n");
-		} else if (!strcmp(parm[1], "viu2_wb0_post_blend")) {
-			param.port = TVIN_PORT_VIU2_WB0_POST_BLEND;
-			pr_info(" port is TVIN_PORT_VIU_WB0_POST_BLEND\n");
-		} else if (!strcmp(parm[1], "viu2_wb1_vpp")) {
-			param.port = TVIN_PORT_VIU2_WB1_VPP;
-			pr_info(" port is TVIN_PORT_VIU2_WB1_VPP\n");
-		} else if (!strcmp(parm[1], "viu2_wb1_vd1")) {
-			param.port = TVIN_PORT_VIU2_WB1_VD1;
-			pr_info(" port is TVIN_PORT_VIU_WB1_VD1\n");
-		} else if (!strcmp(parm[1], "viu2_wb1_vd2")) {
-			param.port = TVIN_PORT_VIU2_WB1_VD2;
-			pr_info(" port is TVIN_PORT_VIU_WB1_VD2\n");
-		} else if (!strcmp(parm[1], "viu2_wb1_osd1")) {
-			param.port = TVIN_PORT_VIU2_WB1_OSD1;
-			pr_info(" port is TVIN_PORT_VIU_WB1_OSD1\n");
-		} else if (!strcmp(parm[1], "viu2_wb0_osd2")) {
-			param.port = TVIN_PORT_VIU2_WB1_OSD2;
-			pr_info(" port is TVIN_PORT_VIU_WB1_OSD2\n");
-		} else if (!strcmp(parm[1], "viu2_wb1_post_blend")) {
-			param.port = TVIN_PORT_VIU2_WB1_POST_BLEND;
-			pr_info(" port is TVIN_PORT_VIU_WB1_POST_BLEND\n");
+		} else if (!strcmp(parm[1], "viu2_encl")) {
+			param.port = TVIN_PORT_VIU2_ENCL;
+			pr_info(" port is TVIN_PORT_VIU2_ENCL\n");
+		} else if (!strcmp(parm[1], "viu2_enci")) {
+			param.port = TVIN_PORT_VIU2_ENCI;
+			pr_info(" port is TVIN_PORT_VIU2_ENCI\n");
+		} else if (!strcmp(parm[1], "viu2_encp")) {
+			param.port = TVIN_PORT_VIU2_ENCP;
+			pr_info(" port is TVIN_PORT_VIU2_ENCP\n");
 		} else if (!strcmp(parm[1], "isp")) {
 			param.port = TVIN_PORT_ISP;
 			pr_info(" port is TVIN_PORT_ISP\n");
@@ -2454,10 +2409,20 @@ start_chk:
 		} else
 			pr_info("skip frame check para err, ori: %d\n",
 				devp->skip_disp_md_check);
-	} else if (!strcmp(parm[0], "vdinmtx")) {
+	} else if (!strcmp(parm[0], "vdinmtx0")) {
 		if (parm[1]) {
 			if (kstrtouint(parm[1], 10, &temp) == 0)
-				vdin_change_matrix(0, temp);
+				vdin_change_matrix0(devp->addr_offset, temp);
+		}
+	} else if (!strcmp(parm[0], "vdinmtx1")) {
+		if (parm[1]) {
+			if (kstrtouint(parm[1], 10, &temp) == 0)
+				vdin_change_matrix1(0, temp);
+		}
+	} else if (!strcmp(parm[0], "vdinmtxhdr")) {
+		if (parm[1]) {
+			if (kstrtouint(parm[1], 10, &temp) == 0)
+				vdin_change_matrixhdr(devp->addr_offset, temp);
 		}
 	} else if (!strcmp(parm[0], "scramble")) {
 		if (parm[1]) {
@@ -2495,6 +2460,14 @@ start_chk:
 			}
 			pr_info("dv_dbg_mask=0x%x\n", dv_dbg_mask);
 		}
+	} else if (!strcmp(parm[0], "gethist")) {
+		pr_info("sum:0x%lx, width:%d, height:%d ave:0x%x\n",
+			vdin1_hist.sum,
+			vdin1_hist.width, vdin1_hist.height,
+			vdin1_hist.ave);
+	} else if (!strcmp(parm[0], "vfcrc")) {
+		pr_info("vfcrc:0x%x\n", rd(devp->addr_offset, VDIN_RO_CRC));
+
 	} else {
 		pr_info("unknown command\n");
 	}
