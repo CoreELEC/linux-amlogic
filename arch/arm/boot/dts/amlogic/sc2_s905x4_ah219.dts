@@ -33,6 +33,8 @@
 		serial0 = &uart_B;
 		serial1 = &uart_A;
 		serial3 = &uart_C;
+		serial4 = &uart_D;
+		serial5 = &uart_E;
 		tsensor0 = &p_tsensor;
 		tsensor1 = &d_tsensor;
 		i2c0 = &i2c0;

@@ -988,8 +988,8 @@ static const char * const uart_c_groups[] = {
 };
 
 static const char * const uart_d_groups[] = {
-	"uart_d_rts", "uart_d_cts", "uart_d_tx_x6", "uart_d_tx_x10",
-	"uart_d_tx_x10", "uart_d_tx_x11",
+	"uart_d_rts", "uart_d_cts", "uart_d_tx_x6", "uart_d_rx_x7",
+	"uart_d_tx_x10", "uart_d_rx_x11",
 };
 
 static const char * const uart_e_groups[] = {
