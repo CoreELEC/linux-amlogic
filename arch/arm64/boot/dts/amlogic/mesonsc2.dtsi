@@ -308,7 +308,6 @@
 
 	aml_reboot{
 		compatible = "aml, reboot";
-		status = "disabled";
 		sys_reset = <0x84000009>;
 		sys_poweroff = <0x84000008>;
 	};
