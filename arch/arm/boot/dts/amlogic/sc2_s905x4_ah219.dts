@@ -1199,7 +1199,7 @@
 			"pdm_sysclk";
 
 		pinctrl-names = "pdm_pins";
-		pinctrl-0 = <&pdmin>;
+		pinctrl-0 = </*&pdmin*/>;
 
 		/* mode 0~4, defalut:1 */
 		filter_mode = <1>;
@@ -1479,12 +1479,12 @@
 	};
 
 	pdmin: pdmin {
-		mux { /* GPIOZ_2, GPIOZ_3, GPIOZ_4, GPIOZ_5, GPIOZ_6 */
-			groups = "pdm_din0_z",
-			"pdm_din1_z",
-			"pdm_din2_z",
-			"pdm_din3_z",
-			"pdm_dclk_z";
+		mux { /* GPIOX_0, GPIOX_1, GPIOX_2, GPIOX_3, GPIOX_4 */
+			groups = "pdm_din0_x",
+			"pdm_din1_x",
+			"pdm_din2_x",
+			"pdm_din3_x",
+			"pdm_dclk_x";
 			function = "pdm";
 		};
 	};
