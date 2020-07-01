@@ -103,7 +103,7 @@ static const struct meson_reset_param meson8b_param = {
 };
 
 static const struct meson_reset_param meson_sc2_param = {
-	.reg_count	= 5,
+	.reg_count	= 6,
 	.level_offset	= 0x40,
 };
 
