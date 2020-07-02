@@ -642,8 +642,6 @@ static int bt_probe(struct platform_device *pdev)
 	hrtimer_init(&pdata->timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 	pdata->timer.function = btwakeup_timer_handler;
 
-	bt_device_on(pdata);
-
 	return 0;
 
 err_rfkill:
