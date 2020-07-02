@@ -55,7 +55,6 @@ static void hdmi_phy_suspend(void);
 static void hdmi_phy_wakeup(struct hdmitx_dev *hdev);
 static void hdmitx_set_phy(struct hdmitx_dev *hdev);
 static void hdmitx_set_hw(struct hdmitx_dev *hdev);
-static void set_hdmi_audio_source(unsigned int src);
 static void hdmitx_csc_config(unsigned char input_color_format,
 	unsigned char output_color_format, unsigned char color_depth);
 static int hdmitx_hdmi_dvi_config(struct hdmitx_dev *hdev,
@@ -400,18 +399,20 @@ static void config_video_mapping(enum hdmi_color_space cs,
  * bit[10:8]: HDMI VIC
  * bit[7:0]: CEA VIC
  */
-static unsigned int hdmitx_get_format(void)
+static unsigned int hdmitx_get_isaformat(void)
 {
 	unsigned int ret = 0;
 	struct hdmitx_dev *hdev = get_hdmitx_device();
 
 	switch (hdev->chip_type) {
+	case MESON_CPU_ID_SC2:
+		ret = hd_read_reg(P_SYSCTRL_DEBUG_REG0);
+		break;
 	case MESON_CPU_ID_TXLX:
 	case MESON_CPU_ID_G12A:
 	case MESON_CPU_ID_G12B:
 	case MESON_CPU_ID_SM1:
 	case MESON_CPU_ID_TM2:
-	case MESON_CPU_ID_SC2:
 		ret = hdmitx_get_format_txlx();
 		break;
 	case MESON_CPU_ID_GXBB:
@@ -426,13 +427,38 @@ static unsigned int hdmitx_get_format(void)
 	return ret;
 }
 
+static void hdmitx_set_isaformat(unsigned int val)
+{
+	struct hdmitx_dev *hdev = get_hdmitx_device();
+
+	switch (hdev->chip_type) {
+	case MESON_CPU_ID_SC2:
+		hd_write_reg(P_SYSCTRL_DEBUG_REG0, val);
+		break;
+	case MESON_CPU_ID_TXLX:
+	case MESON_CPU_ID_G12A:
+	case MESON_CPU_ID_G12B:
+	case MESON_CPU_ID_SM1:
+	case MESON_CPU_ID_TM2:
+		hdmitx_set_format_txlx(val);
+		break;
+	case MESON_CPU_ID_GXBB:
+	case MESON_CPU_ID_GXTVBB:
+	case MESON_CPU_ID_GXL:
+	case MESON_CPU_ID_GXM:
+	default:
+		hd_write_reg(P_ISA_DEBUG_REG0, val);
+		break;
+	}
+}
+
 static int hdmitx_uboot_sc2_already_display(void)
 {
 	int ret = 0;
 
 	if ((hd_read_reg(P_CLKCTRL_HDMI_CLK_CTRL) & (1 << 8)) &&
 	    (hd_read_reg(P_ANACTRL_HDMIPLL_CTRL0) & (1 << 31)) &&
-	    (hdmitx_get_format()))
+	    (hdmitx_get_isaformat()))
 		ret = 1;
 	else
 		ret = 0;
@@ -449,13 +475,13 @@ static int hdmitx_uboot_already_display(int type)
 
 	if ((hd_read_reg(P_HHI_HDMI_CLK_CNTL) & (1 << 8))
 		&& (hd_read_reg(P_HHI_HDMI_PLL_CNTL) & (1 << 31))
-		&& (hdmitx_get_format())) {
+		&& (hdmitx_get_isaformat())) {
 		pr_info(HW "alread display in uboot 0x%x\n",
-			hdmitx_get_format());
+			hdmitx_get_isaformat());
 		ret = 1;
 	} else {
-		pr_info(HW "hdmitx_get_format:0x%x\n",
-			hdmitx_get_format());
+		pr_info(HW "hdmitx_get_isaformat:0x%x\n",
+			hdmitx_get_isaformat());
 		pr_info(HW "P_HHI_HDMI_CLK_CNTL :0x%x\n",
 			hd_read_reg(P_HHI_HDMI_CLK_CNTL));
 		pr_info(HW "P_HHI_HDMI_PLL_CNTL :0x%x\n",
@@ -2368,29 +2394,6 @@ static void hdmitx_setaudioinfoframe(unsigned char *AUD_DB,
 {
 }
 
-
-/* set_hdmi_audio_source(unsigned int src) */
-/* Description: */
-/* Select HDMI audio clock source, and I2S input data source. */
-/* Parameters: */
-/* src -- 0=no audio clock to HDMI; 1=pcmout to HDMI; 2=Aiu I2S out to HDMI. */
-static void set_hdmi_audio_source(unsigned int src)
-{
-	unsigned long data32;
-
-	/* Disable HDMI audio clock input and its I2S input */
-	data32 = 0;
-	data32 |= (0 << 4);
-	data32 |= (0 << 0);
-	hd_write_reg(P_AIU_HDMI_CLK_DATA_CTRL, data32);
-
-	/* Enable HDMI I2S input from the selected source */
-	data32 = 0;
-	data32 |= (src  << 4);
-	data32 |= (src  << 0);
-	hd_write_reg(P_AIU_HDMI_CLK_DATA_CTRL, data32);
-} /* set_hdmi_audio_source */
-
 /* 60958-3 bit 27-24 */
 static unsigned char aud_csb_sampfreq[FS_MAX + 1] = {
 	[FS_REFER_TO_STREAM] = 0x1, /* not indicated */
@@ -2687,9 +2690,6 @@ static int hdmitx_set_audmode(struct hdmitx_dev *hdev,
 		hdev->tx_aud_src = 1;
 
 	pr_info(HW "hdmitx tx_aud_src = %d\n", hdev->tx_aud_src);
-
-	/* set_hdmi_audio_source(tx_aud_src ? 1 : 2); */
-	set_hdmi_audio_source(2);
 
 /* config IP */
 /* Configure audio */
@@ -5240,7 +5240,7 @@ static int hdmitx_cntl_config(struct hdmitx_dev *hdev, unsigned int cmd,
 		hdmitx_wr_reg(HDMITX_DWC_FC_AVIVID, 0);
 		if (hdmitx_rd_reg(HDMITX_DWC_FC_VSDPAYLOAD0) == 0x20)
 			hdmitx_wr_reg(HDMITX_DWC_FC_VSDPAYLOAD1, 0);
-		hd_write_reg(P_ISA_DEBUG_REG0, 0);
+		hdmitx_set_isaformat(0);
 		break;
 	case CONF_CLR_VSDB_PACKET:
 		if (hdmitx_rd_reg(HDMITX_DWC_FC_VSDPAYLOAD0) == 0x20)
@@ -5477,7 +5477,7 @@ static enum hdmi_vic get_vic_from_pkt(void)
 		else if (vic == 4)
 			vic = HDMI_4096x2160p24_256x135;
 		else
-			vic = hd_read_reg(P_ISA_DEBUG_REG0);
+			vic = hdmitx_get_isaformat();
 	}
 
 	rgb_ycc &= 0x3;
@@ -6024,7 +6024,7 @@ static void config_hdmi20_tx(enum hdmi_vic vic,
 	/* For VESA modes, set VIC as 0 */
 	if (para->vic >= HDMITX_VESA_OFFSET) {
 		hdmitx_wr_reg(HDMITX_DWC_FC_AVIVID, 0);
-		hd_write_reg(P_ISA_DEBUG_REG0, para->vic);
+		hdmitx_set_isaformat(para->vic);
 	}
 
 	/* write Audio Infoframe packet configuration */

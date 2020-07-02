@@ -211,9 +211,9 @@ static struct reg_map reg_maps_tm2[] = {
 
 /* For sc2 */
 static struct reg_map reg_maps_sc2[] = {
-	[CBUS_REG_IDX] = { /* CBUS */
-		.phy_addr = 0xfe004000, // TODO
-		.size = 0x100000,
+	[SYSCTRL_REG_IDX] = { /* CBUS */
+		.phy_addr = 0xfe010000,
+		.size = 0x100,
 	},
 	[PERIPHS_REG_IDX] = { /* PERIPHS */
 		.phy_addr = 0xfe004000,
