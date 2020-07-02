@@ -1188,19 +1188,19 @@ static const char * const tdm_groups[] = {
 };
 
 static const char * const tsin_a_groups[] = {
-	"tsin_a_sop_d", "tsin_a_clk_d", "tsin_a_clk_x", "tsin_sop_x",
-	"tsin_din0_d", "tsin_a_din0_x", "tsin_a_valid_d", "tsin_a_valid_x",
+	"tsin_a_sop_d", "tsin_a_clk_d", "tsin_a_clk_x", "tsin_a_sop_x",
+	"tsin_a_din0_d", "tsin_a_din0_x", "tsin_a_valid_d", "tsin_a_valid_x",
 };
 
 static const char * const tsin_b_groups[] = {
-	"tsin_b_sop", "tsin_b_clk", "tsin_b_din0", "tsin_fail",
+	"tsin_b_sop", "tsin_b_clk", "tsin_b_din0", "tsin_b_fail",
 	"tsin_b_din1", "tsin_b_din2", "tsin_b_din3", "tsin_b_din4",
 	"tsin_b_din5", "tsin_b_din6", "tsin_b_din7", "tsin_b_valid",
 };
 
 static const char * const tsin_c_groups[] = {
 	"tsin_c_sop_c", "tsin_c_clk_c", "tsin_c_sop_z", "tsin_c_clk_z",
-	"tsin_c_din0_c", "tsin_din0_z", "tsin_c_valid_c", "tsin_c_valid_z",
+	"tsin_c_din0_c", "tsin_c_din0_z", "tsin_c_valid_c", "tsin_c_valid_z",
 };
 
 static const char * const tsin_d_groups[] = {
