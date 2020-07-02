@@ -1542,6 +1542,11 @@
 		pinctrl-0 = <&sdio_all_pins>;
 		pinctrl-1 = <&sdio_clk_cmd_pins>;
 
+		clocks = <&clkc CLKID_SD_EMMC_A>,
+			<&clkc CLKID_SD_EMMC_A_CLK_COMP>,
+			<&clkc CLKID_FCLK_DIV2>,
+			<&clkc CLKID_FCLK_DIV5>,
+			<&xtal>;
 		clock-names = "core", "clkin0", "clkin1", "clkin2", "xtal";
 
 		bus-width = <4>;
@@ -2272,8 +2277,8 @@
 	/* sdemmc portA */
 	sdio_clk_cmd_pins:sdio_clk_cmd_pins {
 		mux {
-			groups = "sdio_clk",
-				"sdio_cmd";
+			groups = "sdio_clk_x",
+				"sdio_cmd_x";
 			function = "sdio";
 			input-enable;
 			bias-pull-up;
@@ -2283,12 +2288,12 @@
 
 	sdio_all_pins:sdio_all_pins {
 		mux {
-			groups = "sdio_d0",
-				"sdio_d1",
-				"sdio_d2",
-				"sdio_d3",
-				"sdio_clk",
-				"sdio_cmd";
+			groups = "sdio_d0_x",
+				"sdio_d1_x",
+				"sdio_d2_x",
+				"sdio_d3_x",
+				"sdio_clk_x",
+				"sdio_cmd_x";
 			function = "sdio";
 			input-enable;
 			bias-pull-up;
