@@ -993,7 +993,7 @@ static const char * const uart_d_groups[] = {
 };
 
 static const char * const uart_e_groups[] = {
-	"uart_e_tx", "uart_e_rx", "uart_e_ctx", "uart_e_rtx",
+	"uart_e_tx", "uart_e_rx", "uart_e_cts", "uart_e_rts",
 };
 
 static const char * const i2c_a_groups[] = {

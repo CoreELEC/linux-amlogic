@@ -1912,34 +1912,6 @@
 		};
 	};
 
-	d_uart_pins1:d_uart1 {
-		mux {
-			groups = "uart_d_tx_x6",
-				"uart_d_rx_x7";
-			bias-pull-up;
-			output-high;
-			function = "uart_d";
-		};
-	};
-
-	d_uart_pins2:d_uart2 {
-		mux {
-			groups = "uart_d_tx_x10",
-				"uart_d_rx_x11";
-			bias-pull-up;
-			output-high;
-			function = "uart_d";
-		};
-	};
-
-	e_uart_pins:e_uart {
-		mux {
-			groups = "uart_e_tx",
-				"uart_e_rx";
-			function = "uart_e";
-		};
-	};
-
 	ao_uart_pins:ao_uart {
 		mux {
 			groups = "uart_ao_tx_a",
@@ -2661,6 +2633,34 @@
 			bias-pull-up;
 			output-high;
 			function = "uart_c";
+		};
+	};
+
+	d_uart_pins1:d_uart1 {
+		mux {
+			groups = "uart_d_tx_x6",
+				"uart_d_rx_x7";
+			function = "uart_d";
+		};
+	};
+
+	d_uart_pins2:d_uart2 {
+		mux {
+			groups = "uart_d_tx_x10",
+				"uart_d_rx_x11";
+			function = "uart_d";
+		};
+	};
+
+	e_uart_pins:e_uart {
+		mux {
+			groups = "uart_e_tx",
+				"uart_e_rx",
+				"uart_e_cts",
+				"uart_e_rts";
+			bias-pull-up;
+			output-high;
+			function = "uart_e";
 		};
 	};
 
