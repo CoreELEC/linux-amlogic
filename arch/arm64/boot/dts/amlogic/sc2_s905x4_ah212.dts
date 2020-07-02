@@ -1828,7 +1828,7 @@
 };
 
 &meson_cooldev {
-	status = "disabled";
+	status = "okay";
 };
 
 &saradc {
