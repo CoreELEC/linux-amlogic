@@ -101,16 +101,17 @@ int32_t emmc_key_read(uint8_t *buffer,
 	dst = (unsigned char *)buffer;
 	mmc_claim_host(card->host);
 	do {
-		ret = mmc_read_internal(card, blk, EMMC_BLOCK_SIZE, dst);
+		ret = mmc_read_internal(card, blk,
+					min(EMMC_BLOCK_SIZE, cnt), dst);
 		if (ret) {
-			pr_err("%s [%d] mmc_write_internal error\n",
-				__func__, __LINE__);
+			pr_err("%s [%d] mmc_read_internal error\n",
+			       __func__, __LINE__);
 			return ret;
 		}
 		blk += EMMC_BLOCK_SIZE;
 		cnt -= EMMC_BLOCK_SIZE;
 		dst = (unsigned char *)buffer + MAX_EMMC_BLOCK_SIZE;
-	} while (cnt != 0);
+	} while (cnt > 0);
 	pr_info("%s:%d, read %s\n", __func__, __LINE__, (ret) ? "error":"ok");
 
 	mmc_release_host(card->host);
@@ -136,7 +137,8 @@ int32_t emmc_key_write(uint8_t *buffer,
 	src = (unsigned char *)buffer;
 	mmc_claim_host(card->host);
 	do {
-		ret = mmc_write_internal(card, blk, EMMC_BLOCK_SIZE, src);
+		ret =
+		mmc_write_internal(card, blk, min(EMMC_BLOCK_SIZE, cnt), src);
 		if (ret) {
 			pr_err("%s [%d] mmc_write_internal error\n",
 				__func__, __LINE__);
@@ -145,7 +147,7 @@ int32_t emmc_key_write(uint8_t *buffer,
 		blk += EMMC_BLOCK_SIZE;
 		cnt -= EMMC_BLOCK_SIZE;
 		src = (unsigned char *)buffer + MAX_EMMC_BLOCK_SIZE;
-	} while (cnt != 0);
+	} while (cnt > 0);
 	pr_info("%s:%d, write %s\n", __func__, __LINE__, (ret) ? "error":"ok");
 	mmc_release_host(card->host);
 	return ret;
