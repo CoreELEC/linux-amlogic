@@ -1725,7 +1725,7 @@
 };
 
 &saradc {
-	status = "disabled";
+	status = "okay";
 };
 
 &defendkey {

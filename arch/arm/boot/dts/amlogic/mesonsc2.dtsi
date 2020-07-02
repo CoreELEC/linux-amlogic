@@ -512,9 +512,10 @@
 		compatible = "amlogic,meson-g12a-saradc";
 		status = "disabled";
 		#io-channel-cells = <1>;
+		clocks = <&xtal>, <&clkc CLKID_SARADC_GATE>;
 		clock-names = "xtal", "saradc_clk";
-		interrupts = <GIC_SPI 200 IRQ_TYPE_EDGE_RISING>;
-		reg = <0xff809000 0x48>;
+		interrupts = <GIC_SPI 181 IRQ_TYPE_EDGE_RISING>;
+		reg = <0xfe026000 0x48>;
 	};
 
 	power_ctrl: power_ctrl@ff8000e8 {
