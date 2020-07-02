@@ -69,8 +69,8 @@ void hdmitx_set_sys_clk(struct hdmitx_dev *hdev, unsigned char flag)
 	if (flag&2) {
 		hdmitx_set_top_pclk(hdev);
 
-		hd_write_reg(P_HHI_GCLK_OTHER,
-			hd_read_reg(P_HHI_GCLK_OTHER)|(1<<17));
+		if (hdev->chip_type < MESON_CPU_ID_SC2)
+			hd_set_reg_bits(P_HHI_GCLK_OTHER, 1, 17, 1);
 	}
 }
 
