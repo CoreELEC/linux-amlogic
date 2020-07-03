@@ -459,7 +459,7 @@
 	unifykey{
 		compatible = "amlogic, unifykey";
 		status = "okay";
-		unifykey-num = <32>;
+		unifykey-num = <19>;
 		unifykey-index-0 = <&keysn_0>;
 		unifykey-index-1 = <&keysn_1>;
 		unifykey-index-2 = <&keysn_2>;
@@ -479,6 +479,7 @@
 		unifykey-index-16= <&keysn_16>;
 		unifykey-index-17= <&keysn_17>;
 		unifykey-index-18= <&keysn_18>;
+/*
 		unifykey-index-19= <&keysn_19>;
 		unifykey-index-20= <&keysn_20>;
 		unifykey-index-21= <&keysn_21>;
@@ -492,6 +493,7 @@
 		unifykey-index-29= <&keysn_29>;
 		unifykey-index-30= <&keysn_30>;
 		unifykey-index-31= <&keysn_31>;
+*/
 
 		keysn_0: key_0{
 			key-name = "usid";
@@ -591,6 +593,7 @@
 			key-device = "normal";
 			key-permit = "read","write","del";
 		};
+/*
 		keysn_19:key_19{
 			key-name = "KEY_WIDEVINE";
 			key-device = "provision";
@@ -656,6 +659,7 @@
 			key-device = "provision";
 			key-permit = "read","write","del";
 		};
+*/
 	};//End unifykey
 
 	efusekey:efusekey{
