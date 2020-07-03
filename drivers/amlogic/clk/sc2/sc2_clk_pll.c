@@ -279,7 +279,7 @@ static int meson_sc2_pll_set_rate(struct clk_hw *hw, unsigned long rate,
 			udelay(20);
 			writel(SC2_PCIE_PLL_CNTL4_,
 			       cntlbase + (unsigned long)(4 * 4));
-			udelay(10);
+			udelay(100);
 			/*set pcie_apll_afc_start bit*/
 			writel(SC2_PCIE_PLL_CNTL0_2,
 			       cntlbase + (unsigned long)(0 * 4));
