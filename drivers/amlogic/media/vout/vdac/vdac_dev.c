@@ -32,13 +32,14 @@
 #include <linux/delay.h>
 #include <linux/uaccess.h>
 #include <linux/clk.h>
+#include <linux/io.h>
+#include <linux/mutex.h>
 #include <linux/amlogic/cpu_version.h>
 #include <linux/amlogic/media/vout/vout_notify.h>
 #include <linux/amlogic/media/vout/vdac_dev.h>
 #include <linux/amlogic/iomap.h>
-#include <linux/io.h>
-#include <linux/mutex.h>
 #include <linux/amlogic/media/vpu/vpu.h>
+#include <linux/amlogic/media/vout/vclk_serve.h>
 #include "vdac_dev.h"
 
 #define AMVDAC_NAME               "amvdac"
@@ -71,159 +72,14 @@ static unsigned int pri_flag;
 
 static unsigned int vdac_debug_print;
 
-/* ********************************
- * mem map
- * *********************************
- */
-#define VDAC_MAP_ANA	0
-#define VDAC_MAP_CLK	1
-#define VDAC_MAP_MAX	2
-
-static int vdac_reg_table[] = {
-	VDAC_MAP_ANA,
-	VDAC_MAP_CLK,
-	VDAC_MAP_MAX,
-};
-
-struct vdac_reg_map_s {
-	unsigned int base_addr;
-	unsigned int size;
-	void __iomem *p;
-	char flag;
-};
-
-static struct vdac_reg_map_s *vdac_reg_map;
-static int vdac_ioremap_flag;
-
-static int vdac_ioremap(struct platform_device *pdev)
-{
-	int i;
-	int *table;
-	struct resource *res;
-
-	vdac_ioremap_flag = 1;
-
-	vdac_reg_map = kcalloc(VDAC_MAP_MAX,
-			       sizeof(struct vdac_reg_map_s), GFP_KERNEL);
-	if (!vdac_reg_map)
-		return -1;
-
-	table = vdac_reg_table;
-	for (i = 0; i < VDAC_MAP_MAX; i++) {
-		if (table[i] == VDAC_MAP_MAX)
-			break;
-
-		res = platform_get_resource(pdev, IORESOURCE_MEM, i);
-		if (!res) {
-			pr_info("%s: resource get error\n", __func__);
-			kfree(vdac_reg_map);
-			vdac_reg_map = NULL;
-			return -1;
-		}
-		vdac_reg_map[table[i]].base_addr = res->start;
-		vdac_reg_map[table[i]].size = resource_size(res);
-		vdac_reg_map[table[i]].p = devm_ioremap_nocache(&pdev->dev,
-			res->start, vdac_reg_map[table[i]].size);
-		if (!vdac_reg_map[table[i]].p) {
-			vdac_reg_map[table[i]].flag = 0;
-			pr_info("%s: reg map failed: 0x%x\n",
-				__func__,
-			       vdac_reg_map[table[i]].base_addr);
-			kfree(vdac_reg_map);
-			vdac_reg_map = NULL;
-			return -1;
-		}
-		vdac_reg_map[table[i]].flag = 1;
-		pr_info("%s: reg mapped: 0x%x -> %p\n",
-			__func__, vdac_reg_map[table[i]].base_addr,
-			      vdac_reg_map[table[i]].p);
-	}
-
-	return 0;
-}
-
-static int check_vdac_ioremap(int n)
-{
-	if (!vdac_reg_map)
-		return -1;
-	if (n >= VDAC_MAP_MAX)
-		return -1;
-	if (vdac_reg_map[n].flag == 0) {
-		pr_info("reg 0x%x mapped error\n", vdac_reg_map[n].base_addr);
-		return -1;
-	}
-	return 0;
-}
-
-static inline void __iomem *check_vdac_clk_reg(unsigned int _reg)
-{
-	void __iomem *p;
-	int reg_bus;
-	unsigned int reg_offset;
-
-	reg_bus = VDAC_MAP_CLK;
-	if (check_vdac_ioremap(reg_bus))
-		return NULL;
-
-	reg_offset = VDAC_REG_OFFSET(_reg);
-
-	if (reg_offset >= vdac_reg_map[reg_bus].size) {
-		pr_info("invalid clk reg offset: 0x%04x\n", _reg);
-		return NULL;
-	}
-	p = vdac_reg_map[reg_bus].p + reg_offset;
-	return p;
-}
-
-static inline void __iomem *check_vdac_ana_reg(unsigned int _reg)
-{
-	void __iomem *p;
-	int reg_bus;
-	unsigned int reg_offset;
-
-	reg_bus = VDAC_MAP_ANA;
-	if (check_vdac_ioremap(reg_bus))
-		return NULL;
-
-	reg_offset = VDAC_REG_OFFSET(_reg);
-
-	if (reg_offset >= vdac_reg_map[reg_bus].size) {
-		pr_info("invalid ana reg offset: 0x%04x\n", _reg);
-		return NULL;
-	}
-	p = vdac_reg_map[reg_bus].p + reg_offset;
-	return p;
-}
-
 static inline unsigned int vdac_ana_reg_read(unsigned int reg)
 {
-	void __iomem *p;
-	unsigned int ret = 0;
-
-	if (vdac_ioremap_flag) {
-		p = check_vdac_ana_reg(reg);
-		if (p)
-			ret = readl(p);
-		else
-			ret = 0;
-	} else {
-		ret = aml_read_hiubus(reg);
-	}
-
-	return ret;
+	return vclk_ana_reg_read(reg);
 }
 
 static inline void vdac_ana_reg_write(unsigned int reg, unsigned int val)
 {
-	void __iomem *p;
-
-	if (vdac_ioremap_flag) {
-		p = check_vdac_ana_reg(reg);
-		if (p)
-			writel(val, p);
-	} else {
-		aml_write_hiubus(reg, val);
-	}
+	vclk_ana_reg_write(reg, val);
 }
 
 static inline void vdac_ana_reg_setb(unsigned int reg, unsigned int value,
@@ -243,33 +99,12 @@ static inline unsigned int vdac_ana_reg_getb(unsigned int reg,
 
 static inline unsigned int vdac_clk_reg_read(unsigned int reg)
 {
-	void __iomem *p;
-	unsigned int ret = 0;
-
-	if (vdac_ioremap_flag) {
-		p = check_vdac_clk_reg(reg);
-		if (p)
-			ret = readl(p);
-		else
-			ret = 0;
-	} else {
-		ret = aml_read_hiubus(reg);
-	}
-
-	return ret;
+	return vclk_clk_reg_read(reg);
 }
 
 static inline void vdac_clk_reg_write(unsigned int reg, unsigned int val)
 {
-	void __iomem *p;
-
-	if (vdac_ioremap_flag) {
-		p = check_vdac_clk_reg(reg);
-		if (p)
-			writel(val, p);
-	} else {
-		aml_write_hiubus(reg, val);
-	}
+	vclk_clk_reg_write(reg, val);
 }
 
 static inline void vdac_clk_reg_setb(unsigned int reg, unsigned int value,
@@ -943,9 +778,6 @@ static int aml_vdac_probe(struct platform_device *pdev)
 		pr_err("%s: config probe failed\n", __func__);
 		return ret;
 	}
-
-	if (s_vdac_data->iomap_flag)
-		vdac_ioremap(pdev);
 
 	mutex_init(&vdac_mutex);
 

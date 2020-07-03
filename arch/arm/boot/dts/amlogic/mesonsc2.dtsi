@@ -1256,10 +1256,16 @@
 		vdin_id = <1>;
 	};
 
-	vout {
-		compatible = "amlogic, vout_sc2";
+	vclk_serve: vclk_serve {
+		compatible = "amlogic, vclk_serve";
 		status = "okay";
-		reg = <0xfe000000 0x100>; /* clkctrl */
+		reg = <0xfe008000 0x300    /* ana reg */
+			0xfe000000 0x4a0>; /* clk reg */
+	};
+
+	vout {
+		compatible = "amlogic, vout";
+		status = "okay";
 	};
 
 	vout2 {
@@ -1277,8 +1283,6 @@
 	vdac {
 		compatible = "amlogic, vdac-sc2";
 		status = "okay";
-		reg = <0xfe008000 0x300    /* ana reg */
-			0xfe000000 0x100>; /* clk reg */
 	};
 
 	canvas: canvas{

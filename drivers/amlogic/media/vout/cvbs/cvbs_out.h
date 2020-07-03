@@ -68,8 +68,6 @@ struct meson_cvbsout_data {
 	unsigned int reg_vid2_clk_div;
 	unsigned int reg_vid2_clk_ctrl;
 	unsigned int reg_vid_clk_ctrl2;
-
-	unsigned char iomap_flag;
 };
 
 #define CVBS_PERFORMANCE_CNT_MAX    20

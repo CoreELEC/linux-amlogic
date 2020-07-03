@@ -100,7 +100,6 @@ static const unsigned int vout_cable[] = {
 };
 
 static struct vout_cdev_s *vout_cdev;
-static struct vout_data_s *vout_data;
 
 /* **********************************************************
  * null display support
@@ -1061,40 +1060,16 @@ static void aml_vout_get_dt_info(struct platform_device *pdev)
  **	vout driver interface
  **
  ******************************************************************/
-static struct vout_data_s vout_match_data = {
-	.ioremap_flag = 0,
-};
-
-static struct vout_data_s vout_match_data_new = {
-	.ioremap_flag = 1,
-};
-
 static const struct of_device_id aml_vout_dt_match[] = {
 	{
 		.compatible = "amlogic, vout",
-		.data = &vout_match_data,
-	},
-	{
-		.compatible = "amlogic, vout_sc2",
-		.data = &vout_match_data_new,
 	},
 	{ }
 };
 
 static int aml_vout_probe(struct platform_device *pdev)
 {
-	const struct of_device_id *match;
 	int ret = -1;
-
-	match = of_match_device(aml_vout_dt_match, &pdev->dev);
-	if (!match) {
-		VOUTERR("%s: no match table\n", __func__);
-		return -1;
-	}
-	vout_data = (struct vout_data_s *)match->data;
-
-	if (vout_data->ioremap_flag)
-		vout_ioremap(pdev);
 
 #ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
 	early_suspend.level = EARLY_SUSPEND_LEVEL_BLANK_SCREEN;

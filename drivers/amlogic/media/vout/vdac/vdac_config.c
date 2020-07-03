@@ -84,7 +84,6 @@ static struct meson_vdac_ctrl_s vdac_ctrl_enable_sc2[] = {
 static struct meson_vdac_data meson_gx_l_m_vdac_data = {
 	.cpu_id = VDAC_CPU_GX_L_M,
 	.name = "meson-gx_l_m-vdac",
-	.iomap_flag = 0,
 
 	.reg_cntl0 = HHI_VDAC_CNTL0,
 	.reg_cntl1 = HHI_VDAC_CNTL1,
@@ -96,7 +95,6 @@ static struct meson_vdac_data meson_gx_l_m_vdac_data = {
 static struct meson_vdac_data meson_txl_vdac_data = {
 	.cpu_id = VDAC_CPU_TXL,
 	.name = "meson-txl-vdac",
-	.iomap_flag = 0,
 
 	.reg_cntl0 = HHI_VDAC_CNTL0,
 	.reg_cntl1 = HHI_VDAC_CNTL1,
@@ -108,7 +106,6 @@ static struct meson_vdac_data meson_txl_vdac_data = {
 static struct meson_vdac_data meson_txlx_vdac_data = {
 	.cpu_id = VDAC_CPU_TXLX,
 	.name = "meson-txlx-vdac",
-	.iomap_flag = 0,
 
 	.reg_cntl0 = HHI_VDAC_CNTL0,
 	.reg_cntl1 = HHI_VDAC_CNTL1,
@@ -120,7 +117,6 @@ static struct meson_vdac_data meson_txlx_vdac_data = {
 static struct meson_vdac_data meson_gxlx_vdac_data = {
 	.cpu_id = VDAC_CPU_GXLX,
 	.name = "meson-gxlx-vdac",
-	.iomap_flag = 0,
 
 	.reg_cntl0 = HHI_VDAC_CNTL0,
 	.reg_cntl1 = HHI_VDAC_CNTL1,
@@ -132,7 +128,6 @@ static struct meson_vdac_data meson_gxlx_vdac_data = {
 static struct meson_vdac_data meson_g12ab_vdac_data = {
 	.cpu_id = VDAC_CPU_G12AB,
 	.name = "meson-g12ab-vdac",
-	.iomap_flag = 0,
 
 	.reg_cntl0 = HHI_VDAC_CNTL0_G12A,
 	.reg_cntl1 = HHI_VDAC_CNTL1_G12A,
@@ -144,7 +139,6 @@ static struct meson_vdac_data meson_g12ab_vdac_data = {
 static struct meson_vdac_data meson_tl1_vdac_data = {
 	.cpu_id = VDAC_CPU_TL1,
 	.name = "meson-tl1-vdac",
-	.iomap_flag = 0,
 
 	.reg_cntl0 = HHI_VDAC_CNTL0_G12A,
 	.reg_cntl1 = HHI_VDAC_CNTL1_G12A,
@@ -156,7 +150,6 @@ static struct meson_vdac_data meson_tl1_vdac_data = {
 static struct meson_vdac_data meson_sm1_vdac_data = {
 	.cpu_id = VDAC_CPU_SM1,
 	.name = "meson-sm1-vdac",
-	.iomap_flag = 0,
 
 	.reg_cntl0 = HHI_VDAC_CNTL0_G12A,
 	.reg_cntl1 = HHI_VDAC_CNTL1_G12A,
@@ -168,7 +161,6 @@ static struct meson_vdac_data meson_sm1_vdac_data = {
 static struct meson_vdac_data meson_tm2_vdac_data = {
 	.cpu_id = VDAC_CPU_TM2,
 	.name = "meson-tm2-vdac",
-	.iomap_flag = 0,
 
 	.reg_cntl0 = HHI_VDAC_CNTL0_G12A,
 	.reg_cntl1 = HHI_VDAC_CNTL1_G12A,
@@ -180,7 +172,6 @@ static struct meson_vdac_data meson_tm2_vdac_data = {
 static struct meson_vdac_data meson_sc2_vdac_data = {
 	.cpu_id = VDAC_CPU_SC2,
 	.name = "meson-sc2-vdac",
-	.iomap_flag = 1,
 
 	.reg_cntl0 = ANACTRL_VDAC_CTRL0,
 	.reg_cntl1 = ANACTRL_VDAC_CTRL1,

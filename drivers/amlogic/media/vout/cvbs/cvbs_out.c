@@ -1545,8 +1545,6 @@ struct meson_cvbsout_data meson_gxl_cvbsout_data = {
 	.reg_vid2_clk_div = HHI_VIID_CLK_DIV,
 	.reg_vid2_clk_ctrl = HHI_VIID_CLK_CNTL,
 	.reg_vid_clk_ctrl2 = HHI_VID_CLK_CNTL2,
-
-	.iomap_flag = 0,
 };
 
 struct meson_cvbsout_data meson_gxm_cvbsout_data = {
@@ -1562,8 +1560,6 @@ struct meson_cvbsout_data meson_gxm_cvbsout_data = {
 	.reg_vid2_clk_div = HHI_VIID_CLK_DIV,
 	.reg_vid2_clk_ctrl = HHI_VIID_CLK_CNTL,
 	.reg_vid_clk_ctrl2 = HHI_VID_CLK_CNTL2,
-
-	.iomap_flag = 0,
 };
 
 struct meson_cvbsout_data meson_txlx_cvbsout_data = {
@@ -1579,8 +1575,6 @@ struct meson_cvbsout_data meson_txlx_cvbsout_data = {
 	.reg_vid2_clk_div = HHI_VIID_CLK_DIV,
 	.reg_vid2_clk_ctrl = HHI_VIID_CLK_CNTL,
 	.reg_vid_clk_ctrl2 = HHI_VID_CLK_CNTL2,
-
-	.iomap_flag = 0,
 };
 
 struct meson_cvbsout_data meson_g12a_cvbsout_data = {
@@ -1596,8 +1590,6 @@ struct meson_cvbsout_data meson_g12a_cvbsout_data = {
 	.reg_vid2_clk_div = HHI_VIID_CLK_DIV,
 	.reg_vid2_clk_ctrl = HHI_VIID_CLK_CNTL,
 	.reg_vid_clk_ctrl2 = HHI_VID_CLK_CNTL2,
-
-	.iomap_flag = 0,
 };
 
 struct meson_cvbsout_data meson_g12b_cvbsout_data = {
@@ -1613,8 +1605,6 @@ struct meson_cvbsout_data meson_g12b_cvbsout_data = {
 	.reg_vid2_clk_div = HHI_VIID_CLK_DIV,
 	.reg_vid2_clk_ctrl = HHI_VIID_CLK_CNTL,
 	.reg_vid_clk_ctrl2 = HHI_VID_CLK_CNTL2,
-
-	.iomap_flag = 0,
 };
 
 struct meson_cvbsout_data meson_tl1_cvbsout_data = {
@@ -1630,8 +1620,6 @@ struct meson_cvbsout_data meson_tl1_cvbsout_data = {
 	.reg_vid2_clk_div = HHI_VIID_CLK_DIV,
 	.reg_vid2_clk_ctrl = HHI_VIID_CLK_CNTL,
 	.reg_vid_clk_ctrl2 = HHI_VID_CLK_CNTL2,
-
-	.iomap_flag = 0,
 };
 
 struct meson_cvbsout_data meson_sm1_cvbsout_data = {
@@ -1647,8 +1635,6 @@ struct meson_cvbsout_data meson_sm1_cvbsout_data = {
 	.reg_vid2_clk_div = HHI_VIID_CLK_DIV,
 	.reg_vid2_clk_ctrl = HHI_VIID_CLK_CNTL,
 	.reg_vid_clk_ctrl2 = HHI_VID_CLK_CNTL2,
-
-	.iomap_flag = 0,
 };
 
 struct meson_cvbsout_data meson_tm2_cvbsout_data = {
@@ -1664,8 +1650,6 @@ struct meson_cvbsout_data meson_tm2_cvbsout_data = {
 	.reg_vid2_clk_div = HHI_VIID_CLK_DIV,
 	.reg_vid2_clk_ctrl = HHI_VIID_CLK_CNTL,
 	.reg_vid_clk_ctrl2 = HHI_VID_CLK_CNTL2,
-
-	.iomap_flag = 0,
 };
 
 struct meson_cvbsout_data meson_sc2_cvbsout_data = {
@@ -1681,8 +1665,6 @@ struct meson_cvbsout_data meson_sc2_cvbsout_data = {
 	.reg_vid2_clk_div = CLKCTRL_VIID_CLK_DIV,
 	.reg_vid2_clk_ctrl = CLKCTRL_VIID_CLK_CTRL,
 	.reg_vid_clk_ctrl2 = CLKCTRL_VID_CLK_CTRL2,
-
-	.iomap_flag = 1,
 };
 
 static const struct of_device_id meson_cvbsout_dt_match[] = {
@@ -1738,9 +1720,6 @@ static int cvbsout_probe(struct platform_device *pdev)
 	cvbs_drv->cvbs_data = (struct meson_cvbsout_data *)match->data;
 	cvbs_log_info("%s, cpu_id:%d,name:%s\n", __func__,
 		cvbs_drv->cvbs_data->cpu_id, cvbs_drv->cvbs_data->name);
-
-	if (cvbs_drv->cvbs_data->iomap_flag)
-		cvbs_ioremap(pdev);
 
 	cvbsout_clktree_probe(&pdev->dev);
 	cvbsout_get_config(&pdev->dev);
