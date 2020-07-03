@@ -2145,7 +2145,8 @@ static void vpp_set_super_scaler(
 		} else if (is_meson_txhd_cpu() ||
 			is_meson_g12a_cpu() ||
 			is_meson_g12b_cpu() ||
-			is_meson_sm1_cpu()) {
+			is_meson_sm1_cpu() ||
+			is_meson_sc2_cpu()) {
 			if (next_frame_par->supsc0_hori_ratio &&
 			    next_frame_par->supsc0_vert_ratio)
 				next_frame_par->supscl_path = CORE0_BEFORE_PPS;
@@ -3420,7 +3421,8 @@ void vpp_super_scaler_support(void)
 		sr->core0_v_enable_width_max = 1024;
 	} else if (is_meson_g12a_cpu() ||
 		is_meson_g12b_cpu() ||
-		is_meson_sm1_cpu()) {
+		is_meson_sm1_cpu() ||
+		is_meson_sc2_cpu()) {
 		sr->sr_support |= SUPER_CORE0_SUPPORT;
 		sr->sr_support &= ~SUPER_CORE1_SUPPORT;
 		sr->core0_v_disable_width_max = 4096;
