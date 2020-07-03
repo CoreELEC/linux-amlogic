@@ -308,7 +308,7 @@ static int _dmx_ts_feed_set(struct dmx_ts_feed *ts_feed, u16 pid, int ts_type,
 
 	pr_dbg("_dmx_ts_feed_set pid:0x%0x\n", pid);
 
-	if (pid >= SWDMX_MAX_PID)
+	if (pid >= SWDMX_MAX_PID && pid != 0x2000)
 		return -EINVAL;
 
 	if (mutex_lock_interruptible(demux->pmutex))
@@ -464,9 +464,12 @@ static int _dmx_ts_feed_start_filtering(struct dmx_ts_feed *ts_feed)
 //      }
 
 	/*enable hw pid filter */
-	if (feed->ts_out_elem)
-		ts_output_add_pid(feed->ts_out_elem, feed->pid, 0);
-
+	if (feed->ts_out_elem) {
+		if (feed->pid == 0x2000)
+			ts_output_add_pid(feed->ts_out_elem, feed->pid, 0x1fff);
+		else
+			ts_output_add_pid(feed->ts_out_elem, feed->pid, 0);
+	}
 	spin_lock_irq(demux->pslock);
 	ts_feed->is_filtering = 1;
 	feed->state = DMX_STATE_GO;

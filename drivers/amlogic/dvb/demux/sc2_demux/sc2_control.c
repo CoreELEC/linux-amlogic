@@ -570,8 +570,6 @@ void demod_config_in(u8 port, u8 wire_type)
 {
 	unsigned int data = 0;
 
-#define DEMOD_3WIRE         1
-#define DEMOD_4WIRE         0
 #define DEMOD_1_SERIAL      1
 #define DEMOD_1_PARALLEL    0
 
@@ -581,14 +579,16 @@ void demod_config_in(u8 port, u8 wire_type)
 	data &= ~(0x1 << FEC_S2P_3WIRE);
 	data &= ~(0x1 << TS_S_OR_P_SEL1);
 
-	data |= 1 << FEC_S2P_SEL;
+	dprint_i("port:%d, wire_type:%d\n", port, wire_type);
 
 	if (wire_type == DEMOD_3WIRE) {
-		data |= DEMOD_3WIRE << FEC_S2P_3WIRE;
+		data |= 1 << FEC_S2P_SEL;
+		data |= (0x1 << FEC_S2P_3WIRE);
 		if (port == DEMOD_FEC_B)
 			data |= DEMOD_1_SERIAL << TS_S_OR_P_SEL1;
 	} else if (wire_type == DEMOD_4WIRE) {
-		data |= DEMOD_4WIRE << FEC_S2P_3WIRE;
+		data |= 1 << FEC_S2P_SEL;
+		data |= (0 << FEC_S2P_3WIRE);
 		if (port == DEMOD_FEC_B)
 			data |= DEMOD_1_SERIAL << TS_S_OR_P_SEL1;
 	} else {

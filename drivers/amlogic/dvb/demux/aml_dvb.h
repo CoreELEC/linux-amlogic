@@ -21,17 +21,12 @@
 #include "aml_dmx.h"
 #include "aml_dsc.h"
 //#include "hw_demux/hwdemux.h"
-#include "sc2_demux/demod_gt.h"
+#include <linux/amlogic/aml_demod_common.h>
 
 #define DMX_DEV_COUNT     32
 #define DSC_DEV_COUNT     DMX_DEV_COUNT
 #define FE_DEV_COUNT	  4
-
-struct aml_tuner {
-	struct tuner_config cfg;
-	unsigned int i2c_adapter_id;
-	struct i2c_adapter *i2c_adp;
-};
+#define TS_HEADER_LEN    12
 
 enum {
 	AM_TS_DISABLE,
@@ -50,7 +45,7 @@ struct aml_ts_input {
 	int control;
 	int dmx_id;
 	int header_len;
-	int header;
+	int header[TS_HEADER_LEN];
 	int sid_offset;
 };
 

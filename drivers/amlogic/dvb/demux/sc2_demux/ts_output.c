@@ -279,7 +279,6 @@ static int _free_es_entry_slot(struct es_entry *es)
 static void _timer_out_func(unsigned long arg)
 {
 	struct out_elem *pout = (struct out_elem *)arg;
-//dprint("%s line:%d\n", __func__, __LINE__);
 	struct chan_id *pchan;
 
 	if (pout->used && pout->cb) {
@@ -290,7 +289,6 @@ static void _timer_out_func(unsigned long arg)
 
 		if (SC2_bufferid_recv_data(pchan)) {
 			pout->wakeup = 1;
-			pr_dbg("%s line:%d\n", __func__, __LINE__);
 			wake_up_interruptible(&pout->wait_queue);
 		}
 	}
@@ -829,16 +827,10 @@ loop:
 			pout->cb(pout, (char *)&header,
 				 sizeof(struct dmx_non_sec_es_header),
 				 pout->udata);
-			if (pout->type == VIDEO_TYPE) {
-				ret = write_es_data(pout,
-						    pout->pchan, es_len, 0);
-				if (ret != 0)
-					break;
-			} else {
-				ret = write_aucpu_es_data(pout, es_len, 0);
-				if (ret != 0)
-					break;
-			}
+			ret = write_es_data(pout,
+					    pout->pchan, es_len, 0);
+			if (ret != 0)
+				break;
 		}
 		ptmp = plast_header;
 		plast_header = pcur_header;
@@ -1270,7 +1262,7 @@ int ts_output_remove_pid(struct out_elem *pout, int pid)
 				      pout->sid, 1, !drop_dup, pout->format);
 		_free_es_entry_slot(pout->es_pes);
 		pout->es_pes = NULL;
-		if (pout->type == AUDIO_TYPE && pout->aucpu_handle >= 0) {
+		if (pout->aucpu_handle >= 0) {
 			s32 ret;
 
 			if (pout->aucpu_start) {
@@ -1328,7 +1320,8 @@ int ts_output_set_mem(struct out_elem *pout,
 	if (pout && pout->pchan1)
 		SC2_bufferid_set_mem(pout->pchan1, pts_memsize, 0);
 
-	create_aucpu_inst(pout);
+	if (pout->pchan->sec_level)
+		create_aucpu_inst(pout);
 	return 0;
 }
 

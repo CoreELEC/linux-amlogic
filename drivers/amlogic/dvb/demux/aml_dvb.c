@@ -36,6 +36,7 @@
 #include <linux/string.h>
 #include <linux/of.h>
 #include <linux/dvb/dmx.h>
+#include <linux/amlogic/tee.h>
 
 #include "aml_dvb.h"
 #include "aml_key.h"
@@ -47,12 +48,12 @@
 #define dprint_i(fmt, args...)  \
 	dprintk(LOG_ERROR, debug_dvb, fmt, ## args)
 #define dprint(fmt, args...)   \
-	dprintk(LOG_ERROR, debug_dvb, "dvb:" fmt, ## args)
+	dprintk(LOG_ERROR, debug_dvb, fmt, ## args)
 #define pr_dbg(fmt, args...)   \
 	dprintk(LOG_DBG, debug_dvb, "dvb:" fmt, ## args)
 
 MODULE_PARM_DESC(debug_dvb, "\n\t\t Enable demux debug information");
-static int debug_dvb;
+static int debug_dvb = 1;
 module_param(debug_dvb, int, 0644);
 
 #define CARD_NAME "amlogic-dvb"
@@ -247,6 +248,7 @@ static int aml_dvb_probe(struct platform_device *pdev)
 	int i, ret = 0;
 	int tsn_in = 0;
 	int tsn_out = 0;
+	int tsn_in_reg = 0;
 
 	dprint("probe amlogic dvb driver\n");
 
@@ -272,9 +274,13 @@ static int aml_dvb_probe(struct platform_device *pdev)
 	dmx_dev_num = dmx_get_dev_num(pdev);
 
 	dmx_get_tsn_flag(pdev, &tsn_in, &tsn_out);
-	pr_dbg("tsn_in:%d, tsn_out:%d\n", tsn_in, tsn_out);
-//this interface provided by tee.
-//      demux_config_pipeline(tsn_in, tsn_out);
+
+	if (tsn_in == INPUT_DEMOD)
+		tsn_in_reg = 1;
+
+	pr_dbg("tsn_in:%d, tsn_out:%d\n", tsn_in_reg, tsn_out);
+	//set demod/local
+	tee_demux_config_pipeline(tsn_in_reg, tsn_out);
 
 	dmx_init_hw(dmx_dev_num, (struct sid_info *)&dmxdev_sid_info);
 
@@ -321,6 +327,8 @@ static int aml_dvb_probe(struct platform_device *pdev)
 
 	class_register(&aml_dvb_class);
 	dmx_regist_dmx_class();
+
+	dprint("probe dvb done\n");
 
 	return 0;
 
