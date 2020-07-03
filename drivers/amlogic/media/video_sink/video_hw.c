@@ -3081,8 +3081,8 @@ void config_dvel_position(
 	cur_frame_par = layer->cur_frame_par;
 
 	setting->id = 1;
-	setting->p_vd_mif_reg = &layer->vd_mif_reg;
-	setting->afbc_reg_offt = layer->afbc_reg_offt;
+	setting->p_vd_mif_reg = &vd_layer[1].vd_mif_reg;
+	setting->afbc_reg_offt = vd_layer[1].afbc_reg_offt;
 	setting->reverse = glayer_info[0].reverse;
 
 	width_el = (el_vf->type & VIDTYPE_COMPRESS) ?
@@ -3201,7 +3201,7 @@ s32 config_dvel_pps(
 		glayer_info[1].pps_support;
 	setting->frame_par = layer->cur_frame_par;
 	setting->id = 1;
-	setting->misc_reg_offt = layer->misc_reg_offt;
+	setting->misc_reg_offt = vd_layer[1].misc_reg_offt;
 
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12B))
 		setting->last_line_fix = true;
@@ -3225,7 +3225,7 @@ s32 config_dvel_blend(
 
 	setting->frame_par = layer->cur_frame_par;
 	setting->id = 1;
-	setting->misc_reg_offt = layer->misc_reg_offt;
+	setting->misc_reg_offt = vd_layer[1].misc_reg_offt;
 	setting->layer_alpha = layer->layer_alpha;
 
 	setting->postblend_h_start = 0;
