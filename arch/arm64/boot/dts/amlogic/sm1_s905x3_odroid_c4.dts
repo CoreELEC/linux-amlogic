@@ -1,4 +1,4 @@
-#include "sm1_s905x3_2g_1gbit.dts"
+#include "sm1_s905x3_4g_1gbit.dts"
 
 /{
 	model = "Hardkernel ODROID-C4";
@@ -14,7 +14,7 @@
 	/delete-node/ unifykey;
 
 	auge_sound {
-		avout_mute-gpios = <&gpio_ao GPIOAO_2 GPIO_ACTIVE_HIGH>;
+		/delete-property/ avout_mute-gpios;
 	};
 
 	leds {
@@ -28,11 +28,6 @@
 
 	gpio-reset {
 		compatible = "linux,gpio-reset";
-		usb_hub_en {
-			gpios = <&gpio GPIOH_5 GPIO_ACTIVE_HIGH>;
-			asserted-state = <0>;
-			duration-ms = <100>;
-		};
 		usb_hub {
 			gpios = <&gpio GPIOH_4 GPIO_ACTIVE_HIGH>;
 			asserted-state = <0>;
