@@ -1006,8 +1006,17 @@ static void hdmi_tvenc4k2k_set(struct hdmitx_vidpara *param)
 	unsigned long de_v_begin_even = 0, de_v_end_even = 0;
 	unsigned long hs_begin = 0, hs_end = 0;
 	unsigned long vs_adjust = 0;
+	unsigned long vs_adjust_420 = 0;
 	unsigned long vs_bline_evn = 0, vs_eline_evn  = 0;
 	unsigned long vso_begin_evn = 0;
+	struct hdmitx_dev *hdev = get_hdmitx_device();
+
+/* Due to 444->420 line buffer latency, the active line output from
+ * 444->420 conversion will be delayed by 1 line. So for 420 mode,
+ * we need to delay Vsync by 1 line as well, to meet the timing
+ */
+	if (hdev->chip_type > MESON_CPU_ID_TM2 && is_hdmi4k_420(param->VIC))
+		vs_adjust_420 = 1;
 
 	switch (param->VIC) {
 	case HDMI_4k2k_30:
@@ -1148,19 +1157,20 @@ static void hdmi_tvenc4k2k_set(struct hdmitx_vidpara *param)
 		vs_adjust  = 1;
 	} else {
 		hs_begin = de_h_end + front_porch_venc;
-		vs_adjust  = 1;
+		vs_adjust = 1;
 	}
 	hs_end = modulo(hs_begin + hsync_pixels_venc, total_pixels_venc);
-	hd_write_reg(P_ENCP_DVI_HSO_BEGIN,  hs_begin);
+	hd_write_reg(P_ENCP_DVI_HSO_BEGIN, hs_begin);
 	hd_write_reg(P_ENCP_DVI_HSO_END, hs_end);
 
 	/* Program Vsync timing for even field */
-	if (de_v_begin_even >= SOF_LINES + VSYNC_LINES + (1-vs_adjust))
-		vs_bline_evn = de_v_begin_even - SOF_LINES - VSYNC_LINES
-			- (1-vs_adjust);
+	if (de_v_begin_even + vs_adjust_420 >=
+	    SOF_LINES + VSYNC_LINES + (1 - vs_adjust))
+		vs_bline_evn = de_v_begin_even + vs_adjust_420 - SOF_LINES -
+			VSYNC_LINES - (1 - vs_adjust);
 	else
-		vs_bline_evn = TOTAL_LINES + de_v_begin_even - SOF_LINES
-			- VSYNC_LINES - (1-vs_adjust);
+		vs_bline_evn = TOTAL_LINES + de_v_begin_even + vs_adjust_420 -
+			SOF_LINES - VSYNC_LINES - (1 - vs_adjust);
 	vs_eline_evn = modulo(vs_bline_evn + VSYNC_LINES, TOTAL_LINES);
 	hd_write_reg(P_ENCP_DVI_VSO_BLINE_EVN, vs_bline_evn);
 	hd_write_reg(P_ENCP_DVI_VSO_ELINE_EVN, vs_eline_evn);
@@ -1176,6 +1186,11 @@ static void hdmi_tvenc4k2k_set(struct hdmitx_vidpara *param)
 			(0 << 8) |
 			(0 << 12)
 	);
+	if ((is_hdmi4k_420(param->VIC)) &&
+	    hdev->chip_type >= MESON_CPU_ID_TM2B) {
+		hd_set_reg_bits(P_VPU_HDMI_SETTING, 0, 8, 1);
+		hd_set_reg_bits(P_VPU_HDMI_SETTING, 1, 20, 1);
+	}
 	hd_set_reg_bits(P_VPU_HDMI_SETTING, 1, 1, 1);
 }
 
@@ -2166,6 +2181,9 @@ void hdmitx_set_enc_hw(struct hdmitx_dev *hdev)
 		hd_set_reg_bits(P_VPU_HDMI_FMT_CTRL, 2, 0, 2);
 		hd_set_reg_bits(P_VPU_HDMI_SETTING, 0, 4, 4);
 		hd_set_reg_bits(P_VPU_HDMI_SETTING, 1, 8, 1);
+		if ((is_hdmi4k_420(hdev->cur_VIC)) &&
+		    hdev->chip_type >= MESON_CPU_ID_TM2B)
+			hd_set_reg_bits(P_VPU_HDMI_SETTING, 0, 8, 1);
 	}
 
 	if (hdev->para->cs == COLORSPACE_YUV422) {
@@ -2829,23 +2847,20 @@ static int hdmitx_cntl(struct hdmitx_dev *hdev, unsigned int cmd,
 		return 0;
 	} else if (cmd == HDMITX_EARLY_SUSPEND_RESUME_CNTL) {
 		if (argv == HDMITX_EARLY_SUSPEND) {
+			unsigned int pll_cntl = P_HHI_HDMI_PLL_CNTL;
+
 			/* RESET set as 1, delay 50us, Enable set as 0 */
 			/* G12A reset/enable bit position is different */
-			switch (hdev->chip_type) {
-			case MESON_CPU_ID_G12A:
-			case MESON_CPU_ID_G12B:
-			case MESON_CPU_ID_SM1:
-			case MESON_CPU_ID_TM2:
-			case MESON_CPU_ID_SC2:
-				hd_set_reg_bits(P_HHI_HDMI_PLL_CNTL, 1, 29, 1);
+			if (hdev->chip_type >= MESON_CPU_ID_SC2)
+				pll_cntl = P_ANACTRL_HDMIPLL_CTRL0;
+			if (hdev->chip_type >= MESON_CPU_ID_G12A) {
+				hd_set_reg_bits(pll_cntl, 1, 29, 1);
 				udelay(50);
-				hd_set_reg_bits(P_HHI_HDMI_PLL_CNTL, 0, 28, 1);
-				break;
-			default:
-				hd_set_reg_bits(P_HHI_HDMI_PLL_CNTL, 1, 28, 1);
+				hd_set_reg_bits(pll_cntl, 0, 28, 1);
+			} else {
+				hd_set_reg_bits(pll_cntl, 1, 28, 1);
 				udelay(50);
-				hd_set_reg_bits(P_HHI_HDMI_PLL_CNTL, 0, 30, 1);
-				break;
+				hd_set_reg_bits(pll_cntl, 0, 30, 1);
 			}
 			hdmi_phy_suspend();
 		}
@@ -5571,34 +5586,6 @@ static void hdmi_phy_suspend(void)
 static void hdmi_phy_wakeup(struct hdmitx_dev *hdev)
 {
 	hdmitx_set_phy(hdev);
-}
-
-/* CRT_VIDEO SETTING FUNCTIONS
- * input :
- * vIdx: 0:V1; 1:V2; there have 2 parallel set clock generator: V1 and V2
- * inSel : 0:vid_pll_clk; 1:fclk_div4; 2:flck_div3; 3:fclk_div5;
- * 4:vid_pll2_clk; 5:fclk_div7; 6:vid_pll2_clk;
- * DivN : clock divider for enci_clk/encp_clk/encl_clk/vda_clk
- * /hdmi_tx_pixel_clk;
- */
-void set_crt_video_enc(uint32_t vIdx, uint32_t inSel, uint32_t DivN)
-{
-	if (vIdx == 0) {
-		hd_set_reg_bits(P_HHI_VID_CLK_CNTL, 0, 19, 1);
-
-		hd_set_reg_bits(P_HHI_VID_CLK_CNTL, inSel, 16, 3);
-		hd_set_reg_bits(P_HHI_VID_CLK_DIV, (DivN-1), 0, 8);
-
-		hd_set_reg_bits(P_HHI_VID_CLK_CNTL, 1, 19, 1);
-
-	} else { /* V2 */
-		hd_set_reg_bits(P_HHI_VIID_CLK_CNTL, 0, 19, 1);
-
-		hd_set_reg_bits(P_HHI_VIID_CLK_CNTL, inSel,  16, 3);
-		hd_set_reg_bits(P_HHI_VIID_CLK_DIV, (DivN-1), 0, 8);
-
-		hd_set_reg_bits(P_HHI_VIID_CLK_CNTL, 1, 19, 1);
-	}
 }
 
 void hdmitx_set_avi_colorimetry(struct hdmi_format_para *para)
