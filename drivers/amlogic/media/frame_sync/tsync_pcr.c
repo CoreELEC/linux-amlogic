@@ -231,7 +231,6 @@ static bool video_pid_valid;
 static bool video_jumped;
 static bool audio_jumped;
 
-
 module_param(tsync_pcr_max_cache_time, uint, 0664);
 MODULE_PARM_DESC(tsync_pcr_max_cache_time, "\n tsync pcr max cache time\n");
 
@@ -954,7 +953,6 @@ static void tsync_process_discontinue(void)
 	u32 pcr_jeffes_diff_ms = 0;
 
 	u32 cur_checkin_vpts = get_last_checkin_pts(PTS_TYPE_VIDEO);
-	u32 cur_checkin_apts = get_last_checkin_pts(PTS_TYPE_AUDIO);
 
 	if (tsync_get_demux_pcr(&tsync_demux_last_pcr) &&
 	    (tsync_demux_last_pcr == 0 ||
@@ -986,13 +984,6 @@ static void tsync_process_discontinue(void)
 	if (tsync_pcr_inited_mode != INIT_PRIORITY_PCR) {
 		if ((tsync_pcr_tsdemuxpcr_discontinue & VIDEO_DISCONTINUE)
 			== VIDEO_DISCONTINUE) {
-			if (abs(cur_checkin_apts - cur_checkin_vpts)
-				> MAX_GAP)
-				ref_pcr = cur_checkin_vpts -
-					tsync_pcr_ref_latency;
-			else
-				ref_pcr = tsync_pcr_get_min_checkinpts();
-			tsync_set_pcr_mode(0, cur_checkin_vpts);
 			if (tsync_pcr_debug & 0x03) {
 				pr_info("inited_mode=%d, cur_checkin_vpts %x\n",
 					tsync_pcr_inited_mode,
