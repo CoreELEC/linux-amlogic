@@ -19,6 +19,8 @@
 #include <linux/vmalloc.h>
 #include <linux/uaccess.h>
 #include <linux/module.h>
+#include <linux/amlogic/media/codec_mm/codec_mm.h>
+#include <linux/amlogic/tee.h>
 
 #include "mem_desc.h"
 #include "sc2_control.h"
@@ -59,36 +61,58 @@ MODULE_PARM_DESC(rch_sync_num, "\n\t\t Enable loop mem desc information");
 static int rch_sync_num = DEFAULT_RCH_SYNC_NUM;
 module_param(rch_sync_num, int, 0644);
 
-unsigned long _alloc_buff(unsigned int len, int sec_level)
-{
-	unsigned long pages;
+#define BEN_LEVEL_SIZE			(512 * 1024)
 
-	if (sec_level) {
-		dprint("%s not support sec_level:%d", __func__, sec_level);
-		return 0;
-	}
-	pages = __get_free_pages(GFP_KERNEL, get_order(len));
-	if (!pages) {
+int _alloc_buff(unsigned int len, int sec_level,
+		unsigned long *vir_mem, unsigned long *phy_mem,
+		unsigned int *handle)
+{
+	int flags = 0;
+	int buf_page_num = 0;
+	unsigned long buf_start;
+	unsigned long buf_start_virt;
+
+	if (len < BEN_LEVEL_SIZE)
+		flags = CODEC_MM_FLAGS_DMA_CPU;
+	else
+		flags = CODEC_MM_FLAGS_DMA_CPU | CODEC_MM_FLAGS_FOR_VDECODER;
+
+	buf_page_num = PAGE_ALIGN(len) / PAGE_SIZE;
+
+	buf_start =
+	    codec_mm_alloc_for_dma("dmx", buf_page_num, 4 + PAGE_SHIFT, flags);
+	if (!buf_start) {
 		dprint("%s fail\n", __func__);
 		return -1;
 	}
-	return pages;
+	if (sec_level)
+		tee_protect_mem_by_type(TEE_MEM_TYPE_DEMUX, buf_start, len,
+					handle);
+
+	buf_start_virt = (unsigned long)codec_mm_phys_to_virt(buf_start);
+
+	*vir_mem = buf_start_virt;
+	*phy_mem = buf_start;
+	return 0;
 }
 
-void _free_buff(unsigned long buf, unsigned int len, int sec_level)
+void _free_buff(unsigned long buf, unsigned int len, int sec_level,
+		unsigned int handle)
 {
 	if (sec_level)
-		dprint("%s not support sec_level:%d", __func__, sec_level);
-	else
-		free_pages(buf, get_order(len));
+		tee_unprotect_mem(handle);
+
+	codec_mm_free_for_dma("dmx", buf);
 }
 
 static int _bufferid_malloc_desc_mem(struct chan_id *pchan,
 				     unsigned int mem_size, int sec_level)
 {
 	unsigned long mem;
-	unsigned int mem_phy;
-	union mem_desc *p;
+	unsigned long mem_phy;
+	unsigned long memdescs;
+	unsigned long memdescs_phy;
+	int ret = 0;
 
 	if ((mem_size >> 27) > 0) {
 		dprint("%s fail, need support >=128M bytes\n", __func__);
@@ -99,18 +123,20 @@ static int _bufferid_malloc_desc_mem(struct chan_id *pchan,
 		mem_size = 0;
 		mem_phy = 0;
 	} else {
-		mem = _alloc_buff(mem_size, sec_level);
-		if (mem == 0) {
+		ret =
+		    _alloc_buff(mem_size, sec_level, &mem, &mem_phy,
+				&pchan->tee_handle);
+		if (ret != 0) {
 			dprint("%s malloc fail\n", __func__);
 			return -1;
 		}
 		dprint("%s malloc 0x%lx\n", __func__, mem);
-		mem_phy = virt_to_phys((void *)mem);
-		dprint("%s mem phy addr 0x%x\n", __func__, mem_phy);
+		dprint("%s mem phy addr 0x%lx\n", __func__, mem_phy);
 	}
-	p = (union mem_desc *)_alloc_buff(sizeof(union mem_desc), 0);
-	if (p == 0) {
-		_free_buff(mem, mem_size, sec_level);
+	ret =
+	    _alloc_buff(sizeof(union mem_desc), 0, &memdescs, &memdescs_phy, 0);
+	if (ret != 0) {
+		_free_buff(mem, mem_size, sec_level, pchan->tee_handle);
 		dprint("%s malloc 2 fail\n", __func__);
 		return -1;
 	}
@@ -118,8 +144,8 @@ static int _bufferid_malloc_desc_mem(struct chan_id *pchan,
 	pchan->mem_phy = mem_phy;
 	pchan->mem_size = mem_size;
 	pchan->sec_level = sec_level;
-	pchan->memdescs = p;
-	pchan->memdescs_phy = virt_to_phys(p);
+	pchan->memdescs = (union mem_desc *)memdescs;
+	pchan->memdescs_phy = memdescs_phy;
 
 	pchan->memdescs->bits.address = mem_phy;
 	pchan->memdescs->bits.byte_length = mem_size;
@@ -132,9 +158,10 @@ static int _bufferid_malloc_desc_mem(struct chan_id *pchan,
 					     DMA_TO_DEVICE);
 	pr_dbg("flush mem descs to ddr\n");
 	dprint("%s mem_desc phy addr 0x%x, memdsc:0x%lx\n", __func__,
-	       pchan->memdescs_phy, (unsigned long)p);
+	       pchan->memdescs_phy, (unsigned long)pchan->memdescs);
 
 	pchan->r_offset = 0;
+	pchan->last_w_addr = 0;
 	return 0;
 }
 
@@ -142,10 +169,11 @@ static void _bufferid_free_desc_mem(struct chan_id *pchan)
 {
 	if (pchan->mem)
 		_free_buff((unsigned long)pchan->mem,
-			   pchan->mem_size, pchan->sec_level);
+			   pchan->mem_size, pchan->sec_level,
+			   pchan->tee_handle);
 	if (pchan->memdescs)
 		_free_buff((unsigned long)pchan->memdescs,
-			   sizeof(union mem_desc), 0);
+			   sizeof(union mem_desc), 0, 0);
 	if (pchan->memdescs_map)
 		dma_unmap_single(aml_get_device(), pchan->memdescs_map,
 				 pchan->mem_size, DMA_TO_DEVICE);
@@ -358,6 +386,45 @@ int SC2_bufferid_recv_data(struct chan_id *pchan)
 	return 0;
 }
 
+static int is_buffer_overflow(struct chan_id *pchan, unsigned int cur_w)
+{
+	unsigned int last_w = pchan->last_w_addr;
+	unsigned int r = pchan->r_offset;
+	unsigned int mem_size = pchan->mem_size;
+	unsigned int free_space = 0;
+	unsigned int used_space = 0;
+
+	if (last_w >= r)
+		free_space = mem_size - (last_w - r);
+	else
+		free_space = r - last_w;
+
+	if (cur_w >= last_w)
+		used_space = cur_w - last_w;
+	else
+		used_space = mem_size - (last_w - cur_w);
+
+	if (used_space > free_space)
+		return 1;
+	else
+		return 0;
+}
+
+unsigned int SC2_bufferid_get_free_size(struct chan_id *pchan)
+{
+	unsigned int last_w = pchan->last_w_addr;
+	unsigned int r = pchan->r_offset;
+	unsigned int mem_size = pchan->mem_size;
+	unsigned int free_space = 0;
+
+	if (last_w >= r)
+		free_space = mem_size - (last_w - r);
+	else
+		free_space = r - last_w;
+
+	return free_space;
+}
+
 /**
  * chan read
  * \param pchan:struct chan_id handle
@@ -375,11 +442,11 @@ int SC2_bufferid_read(struct chan_id *pchan, char **pread, unsigned int len)
 	int overflow = 0;
 
 	w_offset_org = wdma_get_wr_len(pchan->id, &overflow);
-	if (overflow) {
-		wdma_clean_batch(pchan->id);
-		pr_dbg("it produece batch end\n");
-	}
 	w_offset = w_offset_org % pchan->mem_size;
+	if (is_buffer_overflow(pchan, w_offset))
+		dprint("chan buffer overflow\n");
+
+	pchan->last_w_addr = w_offset;
 	if (w_offset != pchan->r_offset && w_offset != 0) {
 		pr_dbg("%s w:0x%0x, r:0x%0x, wr_len:0x%0x\n", __func__,
 		       (u32)w_offset, (u32)(pchan->r_offset),

@@ -86,7 +86,7 @@ struct out_elem {
 
 	s32 aucpu_handle;
 	u8 aucpu_start;
-	unsigned int aucpu_mem_phy;
+	unsigned long aucpu_mem_phy;
 	unsigned long aucpu_mem;
 	unsigned int aucpu_mem_size;
 	unsigned int aucpu_read_offset;
@@ -496,8 +496,8 @@ static void create_aucpu_inst(struct out_elem *pout)
 {
 	struct aml_aucpu_strm_buf src;
 	struct aml_aucpu_strm_buf dst;
-	unsigned long mem;
 	struct aml_aucpu_inst_config cfg;
+	int ret;
 
 	/*now the audio will pass by aucpu */
 	if (pout->type == AUDIO_TYPE && pout->aucpu_handle < 0) {
@@ -509,11 +509,13 @@ static void create_aucpu_inst(struct out_elem *pout)
 		       __func__, src.phy_start, src.buf_size);
 
 		pout->aucpu_mem_size = pout->pchan->mem_size;
-		mem = _alloc_buff(pout->aucpu_mem_size, 0);
-		pout->aucpu_mem = mem;
-		pout->aucpu_mem_phy = virt_to_phys((void *)mem);
-		pr_dbg("%s dst aucpu mem:0x%lx, phy:0x%0x\n",
-		       __func__, mem, pout->aucpu_mem_phy);
+		ret =
+		    _alloc_buff(pout->aucpu_mem_size, 0, &pout->aucpu_mem,
+				&pout->aucpu_mem_phy, 0);
+		if (ret != 0)
+			return;
+		pr_dbg("%s dst aucpu mem:0x%lx, phy:0x%lx\n",
+		       __func__, pout->aucpu_mem, pout->aucpu_mem_phy);
 
 		dst.phy_start = pout->aucpu_mem_phy;
 		dst.buf_size = pout->aucpu_mem_size;
@@ -1243,7 +1245,7 @@ int ts_output_remove_pid(struct out_elem *pout, int pid)
 				pr_dbg("aucpu_strm_remove fail ret:%d\n", ret);
 			pout->aucpu_handle = -1;
 
-			_free_buff(pout->aucpu_mem, pout->aucpu_mem_size, 0);
+			_free_buff(pout->aucpu_mem, pout->aucpu_mem_size, 0, 0);
 			pout->aucpu_mem = 0;
 		}
 	} else {
@@ -1284,6 +1286,18 @@ int ts_output_set_mem(struct out_elem *pout,
 		SC2_bufferid_set_mem(pout->pchan1, pts_memsize, 0);
 
 	create_aucpu_inst(pout);
+	return 0;
+}
+
+int ts_output_get_mem_info(struct out_elem *pout,
+			   unsigned int *total_size,
+			   unsigned int *buf_phy_start,
+			   unsigned int *free_size, unsigned int *wp_offset)
+{
+	*total_size = pout->pchan->mem_size;
+	*buf_phy_start = pout->pchan->mem_phy;
+	*wp_offset = pout->pchan->last_w_addr;
+	*free_size = SC2_bufferid_get_free_size(pout->pchan);
 	return 0;
 }
 

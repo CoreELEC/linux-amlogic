@@ -327,14 +327,14 @@ static int _dmx_ts_feed_set(struct dmx_ts_feed *ts_feed, u16 pid, int ts_type,
 	feed->pes_type = pes_type;
 	feed->state = DMX_STATE_READY;
 
-//	feed->buffer_size = circular_buffer_size;
-//	if (feed->buffer_size) {
-//		feed->buffer = vmalloc(feed->buffer_size);
-//		if (!feed->buffer) {
-//			mutex_unlock(&demux->mutex);
-//			return -ENOMEM;
-//		}
-//	}
+//      feed->buffer_size = circular_buffer_size;
+//      if (feed->buffer_size) {
+//              feed->buffer = vmalloc(feed->buffer_size);
+//              if (!feed->buffer) {
+//                      mutex_unlock(&demux->mutex);
+//                      return -ENOMEM;
+//              }
+//      }
 
 	if (demux->source != INPUT_DEMOD)
 		sid = demux->tse_enable ? demux->demod_sid : demux->local_sid;
@@ -453,14 +453,14 @@ static int _dmx_ts_feed_start_filtering(struct dmx_ts_feed *ts_feed)
 		mutex_unlock(demux->pmutex);
 		return -EINVAL;
 	}
-//	tsfp.pid = feed->pid;
-//	swdmx_ts_filter_set_params(feed->tsf, &tsfp);
-//	swdmx_ts_filter_add_ts_packet_cb(feed->tsf, _ts_pkt_cb, ts_feed);
+//      tsfp.pid = feed->pid;
+//      swdmx_ts_filter_set_params(feed->tsf, &tsfp);
+//      swdmx_ts_filter_add_ts_packet_cb(feed->tsf, _ts_pkt_cb, ts_feed);
 
-//	if (swdmx_ts_filter_enable(feed->tsf) != SWDMX_OK) {
-//		mutex_unlock(demux->pmutex);
-//		return -EINVAL;
-//	}
+//      if (swdmx_ts_filter_enable(feed->tsf) != SWDMX_OK) {
+//              mutex_unlock(demux->pmutex);
+//              return -EINVAL;
+//      }
 
 	/*enable hw pid filter */
 	if (feed->ts_out_elem)
@@ -1045,8 +1045,8 @@ int dmx_get_stc(struct dmx_demux *dmx, unsigned int num,
 			} else {
 				if (jiffes_diff)
 					*stc =
-					    jiffies_pcr_record[pcr_index].
-					    last_time +
+					    jiffies_pcr_record
+					    [pcr_index].last_time +
 					    pcr_diff / jiffes_diff *
 					    jiffes_diff;
 				else
@@ -1073,8 +1073,8 @@ static int _dmx_set_input(struct dmx_demux *demux, int source)
 //      pr_dbg("%s line:%d local:%d, input:%d\n",
 //                      __func__, __LINE__, pdmx->source, source);
 
-//	if (pdmx->source == source)
-//		return 0;
+//      if (pdmx->source == source)
+//              return 0;
 
 	if (source == INPUT_LOCAL || source == INPUT_LOCAL_SEC) {
 //              pr_dbg("%s local:%d\n", __func__, source);
@@ -1101,14 +1101,53 @@ static int _dmx_set_input(struct dmx_demux *demux, int source)
 	return 0;
 }
 
+int _dmx_get_ts_mem_info(struct dmx_demux *dmx,
+			 struct dmx_ts_feed *feed, struct dmx_mem_info *info)
+{
+	struct aml_dmx *demux = (struct aml_dmx *)dmx->priv;
+
+	struct sw_demux_ts_feed *ts_feed = (struct sw_demux_ts_feed *)feed;
+
+	if (mutex_lock_interruptible(demux->pmutex))
+		return -ERESTARTSYS;
+	if (ts_feed && ts_feed->ts_out_elem)
+		ts_output_get_mem_info(ts_feed->ts_out_elem,
+				       &info->dmx_total_size,
+				       &info->dmx_buf_phy_start,
+				       &info->dmx_free_size, &info->wp_offset);
+	mutex_unlock(demux->pmutex);
+	return 0;
+}
+
+int _dmx_get_sec_mem_info(struct dmx_demux *dmx,
+			  struct dmx_section_feed *feed,
+			  struct dmx_mem_info *info)
+{
+	struct sw_demux_sec_feed *sec_feed;
+	struct aml_dmx *demux = (struct aml_dmx *)dmx->priv;
+
+	sec_feed = (struct sw_demux_sec_feed *)feed;
+
+	if (mutex_lock_interruptible(demux->pmutex))
+		return -ERESTARTSYS;
+
+	if (sec_feed && sec_feed->sec_out_elem)
+		ts_output_get_mem_info(sec_feed->sec_out_elem,
+				       &info->dmx_total_size,
+				       &info->dmx_buf_phy_start,
+				       &info->dmx_free_size, &info->wp_offset);
+	mutex_unlock(demux->pmutex);
+	return 0;
+}
+
 void dmx_init_hw(int dev_num, struct sid_info *info)
 {
-//	int i = 0;
-//	pr_dbg("%s dev_num:%d\n", __func__, dev_num);
-//	for (i = 0; i < dev_num; i++) {
-//			pr_dbg("%d, demod sid:%d, local sid:%d\n",
-//			       i, info[i].demod_sid, info[i].local_sid);
-//		}
+//      int i = 0;
+//      pr_dbg("%s dev_num:%d\n", __func__, dev_num);
+//      for (i = 0; i < dev_num; i++) {
+//                      pr_dbg("%d, demod sid:%d, local sid:%d\n",
+//                             i, info[i].demod_sid, info[i].local_sid);
+//              }
 
 	ts_output_init(dev_num, info);
 	ts_input_init();
@@ -1128,8 +1167,7 @@ int dmx_init(struct aml_dmx *pdmx, struct dvb_adapter *dvb_adapter)
 	pdmx->dmx.priv = pdmx;
 
 	pdmx->ts_feed_num = MAX_TS_FEED_NUM;
-	pdmx->ts_feed = vmalloc(sizeof(*pdmx->ts_feed) *
-				pdmx->ts_feed_num);
+	pdmx->ts_feed = vmalloc(sizeof(*pdmx->ts_feed) * pdmx->ts_feed_num);
 	if (!pdmx->ts_feed)
 		return -ENOMEM;
 
@@ -1172,6 +1210,8 @@ int dmx_init(struct aml_dmx *pdmx, struct dvb_adapter *dvb_adapter)
 	pdmx->dmx.get_pes_pids = _dmx_get_pes_pids;
 	pdmx->dmx.get_stc = dmx_get_stc;
 	pdmx->dmx.set_input = _dmx_set_input;
+	pdmx->dmx.get_sec_mem_info = _dmx_get_sec_mem_info;
+	pdmx->dmx.get_ts_mem_info = _dmx_get_ts_mem_info;
 
 	pdmx->dev.filternum = (MAX_TS_FEED_NUM + MAX_SEC_FEED_NUM);
 	pdmx->dev.demux = &pdmx->dmx;

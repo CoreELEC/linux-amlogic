@@ -165,6 +165,15 @@ enum dmx_audio_format {
 	AUDIO_MAX
 };
 
+struct dmx_mem_info {
+	__u32 dmx_total_size;
+	__u32 dmx_buf_phy_start;
+	__u32 dmx_free_size;
+	__u32 dvb_core_total_size;
+	__u32 dvb_core_free_size;
+	__u32 wp_offset;
+};
+
 #endif
 
 /**
@@ -241,6 +250,7 @@ struct dmx_stc {
 #define DMX_REMOVE_PID           _IOW('o', 52, __u16)
 #ifdef CONFIG_AMLOGIC_DVB_COMPAT
 #define DMX_SET_INPUT           _IO('o', 80)
+#define DMX_GET_MEM_INFO        _IOR('o', 81, struct dmx_mem_info)
 #endif
 
 #endif /* _UAPI_DVBDMX_H_ */

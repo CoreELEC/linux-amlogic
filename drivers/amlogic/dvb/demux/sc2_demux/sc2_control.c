@@ -417,10 +417,7 @@ void wdma_config_enable(u8 chan_id, int enable,
 		wdma_clean(chan_id);
 
 		WRITE_CBUS_REG(TS_DMA_WCH_ADDR(chan_id), desc);
-//		WRITE_CBUS_REG(TS_DMA_WCH_LEN(chan_id), total_size);
-		//for workaround the buf loop back, wch_wr_len return mess len
-		//set the batch len unlimited size, is 0xFFFFFFFF
-		WRITE_CBUS_REG(TS_DMA_WCH_LEN(chan_id), 0xFFFFFFFF);
+		WRITE_CBUS_REG(TS_DMA_WCH_LEN(chan_id), total_size);
 
 		pr_dbg("%s desc:0x%0x\n", __func__, desc);
 		pr_dbg("%s total_size:0x%0x\n", __func__, total_size);

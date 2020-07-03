@@ -42,7 +42,7 @@ struct chan_id {
 	u8 mode;
 	u8 enable;
 	unsigned long mem;
-	unsigned int mem_phy;
+	unsigned long mem_phy;
 	unsigned int mem_size;
 	int sec_level;
 	union mem_desc *memdescs;
@@ -50,6 +50,7 @@ struct chan_id {
 	unsigned int r_offset;
 	unsigned long memdescs_map;
 	unsigned long last_w_addr;
+	unsigned int tee_handle;
 };
 
 enum bufferid_mode {
@@ -139,7 +140,12 @@ int SC2_bufferid_read(struct chan_id *pchan, char **pread, unsigned int len);
 int SC2_bufferid_write(struct chan_id *pchan, const char __user *buf,
 		       unsigned int count, int isphybuf);
 
-unsigned long _alloc_buff(unsigned int len, int sec_level);
-void _free_buff(unsigned long buf, unsigned int len, int sec_level);
+unsigned int SC2_bufferid_get_free_size(struct chan_id *pchan);
+
+int _alloc_buff(unsigned int len, int sec_level,
+		unsigned long *vir_mem, unsigned long *phy_mem,
+		unsigned int *handle);
+void _free_buff(unsigned long buf, unsigned int len, int sec_level,
+		unsigned int handle);
 
 #endif
