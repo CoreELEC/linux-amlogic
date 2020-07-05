@@ -1744,7 +1744,7 @@
 };
 
 &sd_emmc_b {
-	status = "okay";
+	status = "disabled";
 	sd {
 		caps = "MMC_CAP_4_BIT_DATA",
 			 "MMC_CAP_MMC_HIGHSPEED",

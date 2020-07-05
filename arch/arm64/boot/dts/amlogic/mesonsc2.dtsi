@@ -1608,6 +1608,9 @@
 			gpio_dat3 = <&gpio GPIOC_3 GPIO_ACTIVE_HIGH>;
 			jtag_pin = <&gpio GPIOC_0 GPIO_ACTIVE_HIGH>;
 			gpio_cd = <&gpio GPIOC_6 GPIO_ACTIVE_HIGH>;
+			vol_switch =  <&gpio GPIOD_2 GPIO_ACTIVE_HIGH>;
+			vol_switch_18 = <1>; /* 1 = high, 0 = low */
+			vol_switch_delay = <150>; /* Uint: ms*/
 			card_type = <5>;
 			/* 3:sdio device(ie:sdio-wifi),
 			 * 4:SD combo (IO+mem) card
