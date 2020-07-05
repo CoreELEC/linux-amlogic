@@ -3730,7 +3730,7 @@ static struct meson_mmc_data mmc_data_sc2 = {
 	.sdmmc.ddr.core_phase = 2,
 	.sdmmc.hs2.core_phase = 2,
 	.sdmmc.hs4.core_phase = 0,
-	.sdmmc.hs4.tx_delay = 16,
+	.sdmmc.hs4.tx_delay = 24,
 	.sdmmc.sd_hs.core_phase = 2,
 	.sdmmc.sdr104.core_phase = 2,
 };

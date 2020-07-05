@@ -1521,7 +1521,7 @@
 			pinname = "emmc";
 			ocr_avail = <0x200080>; /**VDD voltage 3.3 ~ 3.4 */
 			/*caps defined in dts*/
-			//tx_delay = <0>;
+			tx_delay = <0>;
 			//co_phase = <3>;
 			max_req_size = <0x20000>; /**128KB*/
 			/* silence the compiler */
