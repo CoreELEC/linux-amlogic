@@ -2915,7 +2915,7 @@ static GATE(sc2_pwm_e_gate, CLKCTRL_PWM_CLK_EF_CTRL, 8, "sc2_pwm_e_div",
 
 static MUX(sc2_pwm_f_mux, CLKCTRL_PWM_CLK_EF_CTRL, 0x3, 25,
 	   sc2_pwm_parent_names, CLK_GET_RATE_NOCACHE | CLK_IGNORE_UNUSED);
-static DIV(sc2_pwm_f_div, CLKCTRL_PWM_CLK_EF_CTRL, 16, 8, "sc2_pwm_f_muxi",
+static DIV(sc2_pwm_f_div, CLKCTRL_PWM_CLK_EF_CTRL, 16, 8, "sc2_pwm_f_mux",
 	   CLK_SET_RATE_PARENT);
 static GATE(sc2_pwm_f_gate, CLKCTRL_PWM_CLK_EF_CTRL, 24, "sc2_pwm_f_div",
 	    CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED);
