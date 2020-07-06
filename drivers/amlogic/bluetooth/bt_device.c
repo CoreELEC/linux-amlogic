@@ -293,10 +293,10 @@ static irqreturn_t bt_interrupt(int irq, void *dev_id)
 {
 	struct bt_dev_data *pdata = (struct bt_dev_data *) dev_id;
 
-	if (btirq_flag == 1)
+	if (btirq_flag == 1) {
 		schedule_work(&pdata->btwakeup_work);
-
-	pr_info("freeze: test BT IRQ\n");
+		pr_info("freeze: test BT IRQ\n");
+	}
 
 	return IRQ_HANDLED;
 }
