@@ -73,12 +73,8 @@ static unsigned long sc2_dsu_cpu_clk_recalc_rate(struct clk_hw *hw,
 	/*pr_info("%s,clkname=%s\n", __func__, clk_hw_get_name(hw));*/
 	final_dyn_mask = mux_divider->cpu_fclk_p.mask;
 	final_dyn_shift = mux_divider->cpu_fclk_p.shift;
-	if (!strcmp(clk_hw_get_name(hw), "cpu_fixedpll_p"))
-		arm_smccc_smc(CPUCLK_SECURE_RW, CLK_CPU_REG_RW, 0,
-			      0, 0, 0, 0, 0, &res);
-	else
-		arm_smccc_smc(CPUCLK_SECURE_RW, CLK_DSU_REG_RW, 0,
-			      0, 0, 0, 0, 0, &res);
+	arm_smccc_smc(CPUCLK_SECURE_RW, CLK_CPU_REG_RW, 0,
+		      0, 0, 0, 0, 0, &res);
 
 	val = res.a0;
 	if ((val >> final_dyn_shift) & final_dyn_mask) {
@@ -109,12 +105,8 @@ static u8 sc2_dsu_cpu_clk_get_parent(struct clk_hw *hw)
 
 	final_dyn_mask = mux_divider->cpu_fclk_p.mask;
 	final_dyn_shift = mux_divider->cpu_fclk_p.shift;
-	if (!strcmp(clk_hw_get_name(hw), "cpu_fixedpll_p"))
-		arm_smccc_smc(CPUCLK_SECURE_RW, CLK_CPU_REG_RW, 0,
-			      0, 0, 0, 0, 0, &res);
-	else
-		arm_smccc_smc(CPUCLK_SECURE_RW, CLK_DSU_REG_RW, 0,
-			      0, 0, 0, 0, 0, &res);
+	arm_smccc_smc(CPUCLK_SECURE_RW, CLK_CPU_REG_RW, 0,
+		      0, 0, 0, 0, 0, &res);
 
 	val = res.a0;
 	tmp = res.a0;
@@ -164,12 +156,8 @@ static int sc2_dsu_cpu_clk_set_parent(struct clk_hw *hw, u8 index)
 	else
 		__acquire(mux_divider->lock);
 
-	if (!strcmp(clk_hw_get_name(hw), "cpu_fixedpll_p"))
-		arm_smccc_smc(CPUCLK_SECURE_RW, CPU_CLK_SET_PARENT, index,
-			      0, 0, 0, 0, 0, &res);
-	else
-		arm_smccc_smc(CPUCLK_SECURE_RW, DSU_CLK_SET_PARENT, index,
-			      0, 0, 0, 0, 0, &res);
+	arm_smccc_smc(CPUCLK_SECURE_RW, CPU_CLK_SET_PARENT, index,
+		      0, 0, 0, 0, 0, &res);
 
 	if (mux_divider->lock)
 		spin_unlock_irqrestore(mux_divider->lock, flags);
@@ -200,15 +188,9 @@ static int sc2_dsu_cpu_clk_set_rate(struct clk_hw *hw, unsigned long rate,
 	else
 		__acquire(mux_divider->lock);
 
-	if (!strcmp(clk_hw_get_name(hw), "cpu_fixedpll_p")) {
-		arm_smccc_smc(CPUCLK_SECURE_RW, CPU_CLK_SET_RATE,
-			      rate_set->premux, rate_set->postmux,
-			      rate_set->mux_div, 0, 0, 0, &res);
-	} else {
-		arm_smccc_smc(CPUCLK_SECURE_RW, DSU_CLK_SET_RATE,
-			      rate_set->premux, rate_set->postmux,
-			      rate_set->mux_div, 0, 0, 0, &res);
-	}
+	arm_smccc_smc(CPUCLK_SECURE_RW, CPU_CLK_SET_RATE,
+		      rate_set->premux, rate_set->postmux,
+		      rate_set->mux_div, 0, 0, 0, &res);
 
 	if (mux_divider->lock)
 		spin_unlock_irqrestore(mux_divider->lock, flags);

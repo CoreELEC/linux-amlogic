@@ -105,6 +105,7 @@ static unsigned long meson_sc2_pll_recalc_rate(struct clk_hw *hw,
 
 	p = &pll->n;
 	/*pr_info("%s,%d, reg_off= 0x%x\n", __func__, __LINE__, p->reg_off);*/
+
 	reg = readl(pll->base + p->reg_off);
 	n = PARM_GET(p->width, p->shift, reg);
 
@@ -173,8 +174,7 @@ static long meson_sc2_pll_round_rate(struct clk_hw *hw, unsigned long rate,
 	for (i = 0; i < pll->rate_count; i++) {
 		if (rate <= rate_table[i].rate) {
 			ret_rate = rate_table[i].rate;
-			if (!strcmp(clk_hw_get_name(hw), "sys_pll") ||
-			    !strcmp(clk_hw_get_name(hw), "gp1_pll"))
+			if (!strcmp(clk_hw_get_name(hw), "sys_pll"))
 				do_div(ret_rate, 1000);
 			return ret_rate;
 		}
@@ -182,8 +182,7 @@ static long meson_sc2_pll_round_rate(struct clk_hw *hw, unsigned long rate,
 
 	/* else return the smallest value */
 	ret_rate = rate_table[0].rate;
-	if (!strcmp(clk_hw_get_name(hw), "sys_pll") ||
-	    !strcmp(clk_hw_get_name(hw), "gp1_pll"))
+	if (!strcmp(clk_hw_get_name(hw), "sys_pll"))
 		do_div(ret_rate, 1000);
 	return ret_rate;
 }
@@ -408,25 +407,27 @@ static int meson_sc2_secure_pll_set_rate(struct clk_hw *hw,
 	struct parm *p;
 	int ret = 0;
 	int j = 10;
+	unsigned long flags = 0;
 	struct arm_smccc_res res;
 
 	if (parent_rate == 0 || rate == 0)
 		return -EINVAL;
-	if (!strcmp(clk_hw_get_name(hw), "sys_pll") ||
-	    !strcmp(clk_hw_get_name(hw), "gp1_pll"))
+	if (!strcmp(clk_hw_get_name(hw), "sys_pll"))
 		rate *= 1000;
 
 	p = &pll->n;
+	if (pll->lock)
+		spin_lock_irqsave(pll->lock, flags);
 
 	do {
 		if (!strcmp(clk_hw_get_name(hw), "sys_pll")) {
 			arm_smccc_smc(CLK_SECURE_RW, SYS_PLL_STEP0,
 				      rate, 0, 0, 0, 0, 0, &res);
-			udelay(10);
+			udelay(100);
 		} else if (!strcmp(clk_hw_get_name(hw), "gp1_pll")) {
 			arm_smccc_smc(CLK_SECURE_RW, GP1_PLL_STEP0,
 				      rate, 0, 0, 0, 0, 0, &res);
-			udelay(10);
+			udelay(100);
 		} else {
 			pr_err("%s: %s pll not found!!!\n",
 			       __func__, clk_hw_get_name(hw));
@@ -448,6 +449,8 @@ static int meson_sc2_secure_pll_set_rate(struct clk_hw *hw,
 			      0, 0, 0, 0, 0, 0, &res);
 
 	ret = meson_sc2_pll_wait_lock(pll, p);
+	if (pll->lock)
+		spin_unlock_irqrestore(pll->lock, flags);
 	if (ret) {
 		pr_info("%s: pll did not lock, trying to lock rate %lu again\n",
 			__func__, rate);
@@ -512,7 +515,7 @@ static int meson_sc2_pll_enable(struct clk_hw *hw)
 
 	if (!strcmp(clk_hw_get_name(hw), "sys_pll") ||
 	    !strcmp(clk_hw_get_name(hw), "gp1_pll")) {
-		if (first_set)
+		if (first_set && !strcmp(clk_hw_get_name(hw), "sys_pll"))
 			do_div(rate, 1000);
 		ret = meson_sc2_secure_pll_set_rate(hw, rate,
 						    clk_hw_get_rate(parent));

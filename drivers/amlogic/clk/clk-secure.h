@@ -44,11 +44,14 @@
 #define SET_CPU0_MUX_PARENT 7
 #define SET_CPU123_DSU_MUX_PARENT 8
 #define SET_DSU_PRE_MUX_PARENT 9
+#define DSU_DIVIDER_SET_RATE 10
 
 extern const struct clk_ops clk_secure_gate_ops;
 extern const struct clk_ops meson_sc2_secure_pll_ops;
 extern const struct clk_ops sc2_secure_dsu_cpu_clk_ops;
 extern const struct clk_ops sc2_clk_mux_ops;
 extern const struct clk_ops sc2_clk_mux_ro_ops;
+extern const struct clk_ops sc2_clk_divider_ops;
+extern const struct clk_ops sc2_clk_divider_ro_ops;
 
 #endif /* __CLK_SECURE_H */

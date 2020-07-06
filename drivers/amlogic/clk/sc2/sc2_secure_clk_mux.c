@@ -42,14 +42,17 @@ static u8 sc2_clk_mux_get_parent(struct clk_hw *hw)
 	struct arm_smccc_res res;
 	u64 val;
 
-	if (!strcmp(clk_hw_get_name(hw), "dsu_pre_clk"))
-		arm_smccc_smc(CPUCLK_SECURE_RW, CLK_DSU_REG_RW,
-			      0, 0, 0, 0, 0, 0, &res);
-	else if (!strcmp(clk_hw_get_name(hw), "cpu_clk"))
+	if (!strcmp(clk_hw_get_name(hw), "cpu_clk"))
 		arm_smccc_smc(CPUCLK_SECURE_RW, CLK_CPU_REG_RW,
 			      0, 0, 0, 0, 0, 0, &res);
-	else
+	else if (!strcmp(clk_hw_get_name(hw), "cpu1_clk") ||
+		 !strcmp(clk_hw_get_name(hw), "cpu2_clk") ||
+		 !strcmp(clk_hw_get_name(hw), "cpu3_clk") ||
+		 !strcmp(clk_hw_get_name(hw), "dsu_clk"))
 		arm_smccc_smc(CPUCLK_SECURE_RW, CLK_CPU_DSU_REG_RW,
+			      0, 0, 0, 0, 0, 0, &res);
+	else
+		arm_smccc_smc(CPUCLK_SECURE_RW, CLK_DSU_REG_RW,
 			      0, 0, 0, 0, 0, 0, &res);
 
 	val = res.a0;
@@ -97,14 +100,17 @@ static int sc2_clk_mux_set_parent(struct clk_hw *hw, u8 index)
 	else
 		__acquire(mux->lock);
 
-	if (!strcmp(clk_hw_get_name(hw), "dsu_pre_clk"))
-		arm_smccc_smc(CPUCLK_SECURE_RW, SET_DSU_PRE_MUX_PARENT,
-			      index, mux->mask, mux->shift, 0, 0, 0, &res);
-	else if (!strcmp(clk_hw_get_name(hw), "cpu_clk"))
+	if (!strcmp(clk_hw_get_name(hw), "cpu_clk"))
 		arm_smccc_smc(CPUCLK_SECURE_RW, SET_CPU0_MUX_PARENT,
 			      index, mux->mask, mux->shift, 0, 0, 0, &res);
-	else
+	else if (!strcmp(clk_hw_get_name(hw), "cpu1_clk") ||
+		 !strcmp(clk_hw_get_name(hw), "cpu2_clk") ||
+		 !strcmp(clk_hw_get_name(hw), "cpu3_clk") ||
+		 !strcmp(clk_hw_get_name(hw), "dsu_clk"))
 		arm_smccc_smc(CPUCLK_SECURE_RW, SET_CPU123_DSU_MUX_PARENT,
+			      index, mux->mask, mux->shift, 0, 0, 0, &res);
+	else
+		arm_smccc_smc(CPUCLK_SECURE_RW, SET_DSU_PRE_MUX_PARENT,
 			      index, mux->mask, mux->shift, 0, 0, 0, &res);
 
 	if (mux->lock)
