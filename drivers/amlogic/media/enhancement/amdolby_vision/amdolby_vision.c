@@ -6294,10 +6294,10 @@ int dolby_vision_parse_metadata(
 				}
 			}
 		}
-
-		if (debug_dolby & 1 && req.aux_buf && req.aux_size)
-			pr_dolby_dbg("dvbldec get aux data %p %x\n",
-				req.aux_buf, req.aux_size);
+		if (debug_dolby & 1)
+			pr_dolby_dbg("dvbldec get aux data %p 0x%x, el %d\n",
+				     req.aux_buf, req.aux_size,
+				     req.dv_enhance_exist);
 		/* parse meta in base layer */
 		if (toggle_mode != 2) {
 			meta_flag_bl =
@@ -6307,8 +6307,7 @@ int dolby_vision_parse_metadata(
 				&total_md_size,
 				&src_format,
 				&ret_flags, drop_flag);
-			if (ret_flags && req.dv_enhance_exist
-				&& (frame_count == 0)) {
+			if (ret_flags && req.dv_enhance_exist) {
 				vf_notify_provider_by_name(
 					dv_provider,
 					VFRAME_EVENT_RECEIVER_DOLBY_BYPASS_EL,
