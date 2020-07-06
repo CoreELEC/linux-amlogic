@@ -5285,11 +5285,11 @@ static void fgrain_set_window(u32 layer_id,
 
 	fg_reg = &vd_layer[layer_id].fg_reg;
 	VSYNC_WR_MPEG_REG(fg_reg->fgrain_win_h,
-			  (setting->start_x / 32 * 32 << 0) |
-			  ((setting->end_x / 32 * 32) << 16));
+			  (setting->start_x << 0) |
+			  (setting->end_x << 16));
 	VSYNC_WR_MPEG_REG(fg_reg->fgrain_win_v,
-			  (setting->start_y / 4 * 4 << 0) |
-			  ((setting->end_y / 4 * 4) << 16));
+			  (setting->start_y << 0) |
+			  (setting->end_y << 16));
 }
 
 static int fgrain_init(u8 layer_id, u32 table_size)
@@ -5403,10 +5403,13 @@ void fgrain_config(u8 layer_id,
 		/* afbc copress is always 420 */
 		setting->fmt_mode = 2;
 		setting->used = 1;
+		if (vf->bitdepth & BITDEPTH_Y10)
+			setting->bitdepth = 1;
+		else
+			setting->bitdepth = 0;
 	} else {
 		setting->afbc = 0;
 		setting->last_in_mode = 1;
-		#if 1
 		if (type & VIDTYPE_VIU_NV21) {
 			setting->fmt_mode = 2;
 			setting->used = 1;
@@ -5414,15 +5417,9 @@ void fgrain_config(u8 layer_id,
 			/* only support 420 */
 			setting->used = 0;
 		}
-		#else
-		setting->used = 0;
-		#endif
-	}
-
-	if (vf->bitdepth & BITDEPTH_Y10)
+		/* fg after mif always 10 bits */
 		setting->bitdepth = 1;
-	else
-		setting->bitdepth = 0;
+	}
 
 	if (glayer_info[layer_id].reverse)
 		setting->reverse = 3;
@@ -5433,6 +5430,24 @@ void fgrain_config(u8 layer_id,
 	setting->end_x = mif_setting->end_x_lines;
 	setting->start_y = mif_setting->start_y_lines;
 	setting->end_y = mif_setting->end_y_lines;
+	if (setting->afbc) {
+		setting->start_x = setting->start_x / 32 * 32;
+		setting->end_x = setting->end_x / 32 * 32;
+		setting->start_y = setting->start_y / 4 * 4;
+		setting->end_y = setting->end_y / 4 * 4;
+	} else {
+		int width, height;
+
+		width = ((setting->end_x - setting->start_x + 1)
+			>> 1) << 1;
+		height = ((setting->end_y - setting->start_y + 1)
+			>> 1) << 1;
+		setting->end_x = setting->start_x + width - 1;
+		setting->end_y = setting->start_y + height - 1;
+
+		setting->start_x = (setting->start_x >> 1) << 1;
+		setting->start_y = (setting->start_y >> 1) << 1;
+	}
 }
 
 void fgrain_setting(u8 layer_id,
