@@ -1202,8 +1202,9 @@
 				<GIC_SPI 35 IRQ_TYPE_EDGE_RISING>;
 
 		interrupt-names = "irq_spdifin";
-		pinctrl-names = "spdif_pins";
+		pinctrl-names = "spdif_pins", "spdif_pins_mute";
 		pinctrl-0 = <&spdifout &spdifin>;
+		pinctrl-1 = <&spdifout_a_mute>;
 
 		/*spdif clk tuning enable*/
 		clk_tuning_enable = <1>;
@@ -1565,6 +1566,13 @@
 		mux { /* GPIOD_10 */
 			groups = "spdif_out_d";
 			function = "spdif_out";
+		};
+	};
+
+	spdifout_a_mute: spdifout_a_mute {
+		mux { /* GPIOD_10 */
+			groups = "GPIOD_10";
+			function = "gpio_periphs";
 		};
 	};
 
