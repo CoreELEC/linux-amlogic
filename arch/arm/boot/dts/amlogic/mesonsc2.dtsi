@@ -1761,7 +1761,7 @@
 		device_name = "meson-dthermal";
 		status = "okay";
 		reg = <0xfe022000 0x50>,
-			<0xfe010330 0x4>;
+			<0xfe010370 0x4>;
 		cal_type = <0x1>;
 		cal_a = <324>;
 		cal_b = <424>;
