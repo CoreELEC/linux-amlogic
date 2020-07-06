@@ -1930,7 +1930,8 @@ int vpp_set_super_scaler_regs(
 	if (is_meson_txhd_cpu() ||
 		is_meson_g12a_cpu() ||
 		is_meson_g12b_cpu() ||
-		is_meson_sm1_cpu())
+		is_meson_sm1_cpu() ||
+		is_meson_sc2_cpu())
 		tmp_data = ((reg_srscl0_hsize & 0x1fff) << 16) |
 			(reg_srscl0_vsize & 0x1fff);
 	else if ((is_meson_tl1_cpu() || is_meson_tm2_cpu()) &&
@@ -2396,10 +2397,11 @@ static void vpp_set_super_scaler(
 				next_frame_par->VPP_vsc_endp -
 				next_frame_par->VPP_vsc_startp + 1;
 		}
-	} else if (is_meson_txhd_cpu()
-		|| is_meson_g12a_cpu()
-		|| is_meson_g12b_cpu()
-		|| is_meson_sm1_cpu()) {
+	} else if (is_meson_txhd_cpu() ||
+		is_meson_g12a_cpu() ||
+		is_meson_g12b_cpu() ||
+		is_meson_sm1_cpu() ||
+		is_meson_sc2_cpu()) {
 		if (sr_path == CORE0_BEFORE_PPS)
 			next_frame_par->sr0_position = 1;
 		else if (sr_path == CORE0_AFTER_PPS)
