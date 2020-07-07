@@ -576,6 +576,26 @@ struct register_table {
 #define EE_AUDIO_TDMOUT_C_MUTE7            0x2cb
 #define EE_AUDIO_TDMOUT_C_MASK_VAL         0x16f
 
+#define EE_AUDIO_MCLK_PAD_CTRL0            0x3A0
+#define EE_AUDIO_MCLK_PAD_CTRL1            0x3A1
+#define EE_AUDIO_SCLK_PAD_CTRL0            0x3A2
+#define EE_AUDIO_SCLK_PAD_CTRL1            0x3A3
+#define EE_AUDIO_DAT_PAD_CTRL0             0x390
+#define EE_AUDIO_DAT_PAD_CTRL1             0x391
+#define EE_AUDIO_DAT_PAD_CTRL2             0x392
+#define EE_AUDIO_DAT_PAD_CTRL3             0x393
+#define EE_AUDIO_DAT_PAD_CTRL4             0x394
+#define EE_AUDIO_DAT_PAD_CTRL5             0x395
+#define EE_AUDIO_DAT_PAD_CTRL6             0x396
+#define EE_AUDIO_DAT_PAD_CTRL7             0x397
+#define EE_AUDIO_DAT_PAD_CTRL8             0x398
+#define EE_AUDIO_DAT_PAD_CTRL9             0x399
+#define EE_AUDIO_DAT_PAD_CTRLA             0x39a
+#define EE_AUDIO_DAT_PAD_CTRLB             0x39b
+#define EE_AUDIO_DAT_PAD_CTRLC             0x39c
+#define EE_AUDIO_DAT_PAD_CTRLE             0x39e
+#define EE_AUDIO_DAT_PAD_CTRLF             0x39f
+
 /*
  *	AUDIO POWER DETECT
  */
