@@ -3402,8 +3402,10 @@ static struct clk_hw *sc2_clk_hws[] = {
 	[CLKID_RTC_32K_DIV]	= &sc2_rtc_32k_div.hw,
 	[CLKID_RTC_32K_XATL]	= &sc2_rtc_32k_xtal.hw,
 	[CLKID_RTC_32K_MUX]	= &sc2_rtc_32k_sel.hw,
-	[CLKID_RTC_CLK]		= &sc2_rtc_clk.hw,
+	[CLKID_RTC_CLK]		= &sc2_rtc_clk.hw
 
+/*
+ *cec clk writel register
 	[CLKID_CECA_32K_CLKIN]	= &sc2_ceca_32k_clkin.hw,
 	[CLKID_CECA_32K_DIV]	= &sc2_ceca_32k_div.hw,
 	[CLKID_CECA_32K_MUX_PRE] = &sc2_ceca_32k_sel_pre.hw,
@@ -3415,7 +3417,7 @@ static struct clk_hw *sc2_clk_hws[] = {
 	[CLKID_CECB_32K_MUX_PRE] = &sc2_cecb_32k_sel_pre.hw,
 	[CLKID_CECB_32K_MUX]	= &sc2_cecb_32k_sel.hw,
 	[CLKID_CECB_32K_CLKOUT]	= &sc2_cecb_32k_clkout.hw
-
+*/
 };
 
 /* Convenience tables to populate base addresses in .probe */
