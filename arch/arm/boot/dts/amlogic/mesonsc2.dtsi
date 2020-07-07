@@ -1797,6 +1797,14 @@
 			compatible = "amlogic, meson-cooldev";
 			device_name = "mcooldev";
 			cooling_devices {
+				cpufreq_cool_cluster0 {
+					min_state = <1000000>;
+					dyn_coeff = <125>;
+					gpu_pp = <2>;
+					cluster_id = <0>;
+					node_name = "cpufreq_cool0";
+					device_type = "cpufreq";
+				};
 				cpucore_cool_cluster0 {
 					min_state = <1>;
 					dyn_coeff = <0>;
@@ -1805,8 +1813,33 @@
 					node_name = "cpucore_cool0";
 					device_type = "cpucore";
 				};
+				gpufreq_cool {
+					min_state = <500>;
+					dyn_coeff = <215>;
+					gpu_pp = <2>;
+					cluster_id = <0>;
+					node_name = "gpufreq_cool0";
+					device_type = "gpufreq";
+				};
+				gpucore_cool {
+					min_state = <1>;
+					dyn_coeff = <0>;
+					gpu_pp = <2>;
+					cluster_id = <0>;
+					node_name = "gpucore_cool0";
+					device_type = "gpucore";
+				};
+			};
+			cpufreq_cool0:cpufreq_cool0 {
+				#cooling-cells = <2>; /* min followed by max */
 			};
 			cpucore_cool0:cpucore_cool0 {
+				#cooling-cells = <2>; /* min followed by max */
+			};
+			gpufreq_cool0:gpufreq_cool0 {
+				#cooling-cells = <2>; /* min followed by max */
+			};
+			gpucore_cool0:gpucore_cool0 {
 				#cooling-cells = <2>; /* min followed by max */
 			};
 		};
@@ -1843,9 +1876,24 @@
 			};
 
 			cooling-maps {
+				cpufreq_cooling_map {
+					trip = <&pcontrol>;
+					cooling-device = <&cpufreq_cool0 0 12>;
+					contribution = <1024>;
+				};
 				cpucore_cooling_map {
 					trip = <&pcontrol>;
 					cooling-device = <&cpucore_cool0 0 3>;
+					contribution = <1024>;
+				};
+				gpufreq_cooling_map {
+					trip = <&pcontrol>;
+					cooling-device = <&gpufreq_cool0 0 3>;
+					contribution = <1024>;
+				};
+				gpucore_cooling_map {
+					trip = <&pcontrol>;
+					cooling-device = <&gpucore_cool0 0 2>;
 					contribution = <1024>;
 				};
 			};
