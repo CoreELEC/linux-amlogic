@@ -51,6 +51,12 @@
 #define COEF_NULL            0xff
 #define TOTAL_FILTERS        10
 
+#define COEF_BICUBIC_8TAP             0
+#define COEF_LANCZOS_8TAP_A2          1
+#define COEF_LANCZOS_8TAP_A3          2
+#define COEF_MITCHELL_NETRAVALI_8TAP  3
+#define COEF_BSPLINE_8TAP             4
+
 #define VPP_SPEED_FACTOR 0x110ULL
 #define SUPER_SCALER_V_FACTOR  100
 #define PPS_FRAC_BITS 24
@@ -238,31 +244,127 @@ static int chroma_filter_table[] = {
 	COEF_3D_FILTER		  /* can not change */
 };
 
-const u32 vpp_filter_coefs_hscaler_8tap[] = {
+const u32 vpp_filter_coeff_bicubic_8tap[] = {
 	8,
 	33,
-	0x00000080, 0xff01007f, 0xff02fe7f, 0xfe03fc7f,
-	0xfd04f97f, 0xfd05f77f, 0xfc06f57f, 0xfc07f37f,
-	0xfb07f27f, 0xfb08f07f, 0xfa09ef7f, 0xfa0aee7e,
-	0xf90aec7f, 0xf90beb7c, 0xf80cea7c, 0xf80ce97b,
-	0xf70de879, 0xf70ee778, 0xf60ee677, 0xf60fe576,
-	0xf60fe573, 0xf60fe472, 0xf510e470, 0xf510e36f,
-	0xf510e36b, 0xf511e368, 0xf511e367, 0xf411e364,
-	0xf411e362, 0xf411e360, 0xf411e35c, 0xf411e35a,
-	0xf411e358,
-	0x00000000, 0x02ff01ff, 0x04fe01ff, 0x06fd02ff,
-	0x0afc03fe, 0x0cfb03fe, 0x0ffa04fd, 0x10f905fd,
-	0x14f805fc, 0x15f706fc, 0x18f507fb, 0x1af407fb,
-	0x1df308fa, 0x20f209fa, 0x23f109f9, 0x25f00af9,
-	0x28ef0bf9, 0x2bee0bf8, 0x2eed0cf8, 0x31ec0cf7,
-	0x34eb0df7, 0x37ea0df7, 0x3ae90ef6, 0x3de80ef6,
-	0x40e80ff6, 0x43e70ff6, 0x46e60ff5, 0x49e610f5,
-	0x4ce510f5, 0x4fe410f5, 0x52e411f5, 0x55e311f5,
-	0x58e311f4,
+	0x80, 0xff80, 0xfe80, 0xfd7f,
+	0xfc7f, 0xfc7e, 0xfb7e, 0xfa7d,
+	0xfa7b, 0xf97a, 0xf978, 0xf878,
+	0xf876, 0xf874, 0xf773, 0xf771,
+	0xf76f, 0xf76d, 0xf76b, 0xf768,
+	0xf766, 0xf764, 0xf762, 0xf75f,
+	0xf75d, 0xf75a, 0xf758, 0xf756,
+	0xf753, 0xf750, 0xf84d, 0xf84b,
+	0xf848,
+	0x0, 0x1000000, 0x2000000, 0x4000000,
+	0x5000000, 0x6000000, 0x8ff0000, 0xaff0000,
+	0xcff0000, 0xeff0000, 0x10ff0000, 0x12fe0000,
+	0x14fe0000, 0x16fe0000, 0x18fe0000, 0x1bfd0000,
+	0x1dfd0000, 0x1ffd0000, 0x22fc0000, 0x25fc0000,
+	0x27fc0000, 0x2afb0000, 0x2cfb0000, 0x2ffb0000,
+	0x32fa0000, 0x35fa0000, 0x37fa0000, 0x3af90000,
+	0x3df90000, 0x40f90000, 0x42f90000, 0x45f80000,
+	0x48f80000,
+};
+
+const u32 vpp_filter_coeff_lanczos_8tap_a2[] = {
+	8,
+	33,
+	0x80, 0xff80, 0xfffe80, 0xfd7f,
+	0xfffc7f, 0xfb7e, 0xfffa7e, 0xfff97d,
+	0xf87c, 0xfff87b, 0xfff77a, 0xfff778,
+	0xfff677, 0xf675, 0xfff674, 0xfff572,
+	0xfff570, 0xfff56e, 0xfff56c, 0xfff56a,
+	0xfff568, 0xfff566, 0xfff564, 0xfff561,
+	0xfff55f, 0xfff65c, 0xfff65a, 0xfff657,
+	0xfff654, 0xfff752, 0xfff74f, 0xfff74c,
+	0xfff849,
+	0x0, 0x1000000, 0x3000000, 0x4000000,
+	0x6000000, 0x7000000, 0x9000000, 0xb000000,
+	0xdff0000, 0xfff0000, 0x11ff0000, 0x13ff0000,
+	0x15ff0000, 0x17fe0000, 0x19fe0000, 0x1cfe0000,
+	0x1efe0000, 0x21fd0000, 0x23fd0000, 0x26fdff00,
+	0x28fc0000, 0x2bfcff00, 0x2efcfe00, 0x30fb0000,
+	0x33fbff00, 0x36fbfe00, 0x39fafe00, 0x3bfaff00,
+	0x3ef90000, 0x41f9fe00, 0x44f9fe00, 0x47f8ff00,
+	0x49f8ff00,
+};
+
+const u32 vpp_filter_coeff_lanczos_8tap_a3[] = {
+	8,
+	33,
+	0x80, 0xfe80, 0x1fd80, 0x101fb7f,
+	0x101fa7f, 0xff02f97f, 0x102f77e, 0x102f67d,
+	0x103f57c, 0x3f47b, 0x103f37a, 0x103f279,
+	0x3f178, 0xff04f177, 0xff04f075, 0xff04f074,
+	0x4ef72, 0x4ef70, 0x104ee6e, 0x104ee6c,
+	0x104ee6a, 0x104ed68, 0x4ed66, 0x104ed64,
+	0x4ed62, 0x104ed5f, 0x104ed5d, 0x104ed5b,
+	0x4ee58, 0x3ee56, 0x103ee53, 0x103ee50,
+	0x3ef4e,
+	0x0, 0x2000000, 0x3ff0000, 0x5ff0000,
+	0x7fe0000, 0x9fe0000, 0xbfd0000, 0xdfd0000,
+	0xffc0000, 0x12fc0000, 0x14fb0000, 0x16fa0001,
+	0x19fa0100, 0x1bf90100, 0x1ef90100, 0x20f80100,
+	0x23f70100, 0x25f70100, 0x28f60100, 0x2af50101,
+	0x2df50100, 0x30f40200, 0x33f40200, 0x35f30200,
+	0x38f30200, 0x3bf20200, 0x3ef10200, 0x40f10200,
+	0x43f00300, 0x46f00300, 0x48ef0301, 0x4bef0301,
+	0x4eef0300,
+};
+
+const u32 vpp_filter_coeff_mitchell_netravali_8tap[] = {
+	8,
+	33,
+	0x772, 0x672, 0x572, 0x471,
+	0x470, 0x370, 0x26f, 0x16f,
+	0x16e, 0x6e, 0x6c, 0xff6b,
+	0xff69, 0xfe68, 0xfe67, 0xfd66,
+	0xfd64, 0xfd62, 0xfc61, 0xfc5f,
+	0xfc5e, 0xfc5b, 0xfc59, 0xfc57,
+	0xfb56, 0xfb54, 0xfb52, 0xfb50,
+	0xfb4e, 0xfb4b, 0xfb49, 0xfb47,
+	0xfc44,
+	0x7000000, 0x8000000, 0x9000000, 0xb000000,
+	0xc000000, 0xd000000, 0xf000000, 0x10000000,
+	0x12ff0000, 0x13ff0000, 0x15ff0000, 0x17ff0000,
+	0x19ff0000, 0x1bff0000, 0x1dfe0000, 0x1ffe0000,
+	0x21fe0000, 0x23fe0000, 0x25fe0000, 0x27fe0000,
+	0x29fd0000, 0x2cfd0000, 0x2efd0000, 0x30fd0000,
+	0x32fd0000, 0x35fc0000, 0x37fc0000, 0x39fc0000,
+	0x3bfc0000, 0x3efc0000, 0x40fc0000, 0x42fc0000,
+	0x44fc0000,
+};
+
+const u32 vpp_filter_coeff_bspline_8tap[] = {
+	8,
+	33,
+	0x1556, 0x1456, 0x1356, 0x1256,
+	0x1254, 0x1154, 0x1054, 0xf54,
+	0xe54, 0xe53, 0xd52, 0xc52,
+	0xb52, 0xb51, 0xa50, 0xa4f,
+	0x94f, 0x84e, 0x84d, 0x74c,
+	0x74a, 0x64a, 0x649, 0x647,
+	0x547, 0x546, 0x445, 0x443,
+	0x442, 0x341, 0x340, 0x33f,
+	0x33d,
+	0x15000000, 0x16000000, 0x17000000, 0x18000000,
+	0x1a000000, 0x1b000000, 0x1c000000, 0x1d000000,
+	0x1e000000, 0x1f000000, 0x21000000, 0x22000000,
+	0x23000000, 0x24000000, 0x26000000, 0x27000000,
+	0x28000000, 0x2a000000, 0x2b000000, 0x2c010000,
+	0x2e010000, 0x2f010000, 0x30010000, 0x32010000,
+	0x33010000, 0x34010000, 0x36010000, 0x37020000,
+	0x38020000, 0x3a020000, 0x3b020000, 0x3c020000,
+	0x3d030000,
 };
 
 static const u32 *hscaler_8tap_filter_table[] = {
-	vpp_filter_coefs_hscaler_8tap,
+	vpp_filter_coeff_bicubic_8tap,
+	vpp_filter_coeff_lanczos_8tap_a2,
+	vpp_filter_coeff_lanczos_8tap_a3,
+	vpp_filter_coeff_mitchell_netravali_8tap,
+	vpp_filter_coeff_bspline_8tap
 };
 
 static unsigned int sharpness1_sr2_ctrl_32d7 = 0x00181008;
@@ -319,6 +421,20 @@ static uint horz_coeff_settings[MAX_COEFF_LEVEL] = {
 	/* this setting is most smooth */
 };
 
+static uint hert_coeff_settings_sc2[MAX_COEFF_LEVEL] = {
+	/* in:out */
+	COEF_BICUBIC_8TAP,
+	/* ratio <= 2 */
+	COEF_LANCZOS_8TAP_A2,
+	/* ratio > 2,  ration in (0-0.5)*/
+	COEF_LANCZOS_8TAP_A3,
+	/* ratio in (1~0.5) */
+	COEF_BSPLINE_8TAP,
+	/* reserved */
+	COEF_MITCHELL_NETRAVALI_8TAP,
+	/* reserved */
+};
+
 static uint coeff(uint *settings, uint ratio, uint phase,
 	bool interlace, int combing_lev)
 {
@@ -354,6 +470,28 @@ static uint coeff(uint *settings, uint ratio, uint phase,
 		if (combing_lev == 0)
 			coeff_type = COEF_BICUBIC;
 	}
+	return coeff_type;
+}
+
+static uint coeff_sc2(uint *settings, uint ratio)
+{
+	uint coeff_select = 0;
+	uint coeff_type = 0;
+
+	if (ratio < (8 << 20))
+		/* zoom out > 2 */
+		coeff_select = COEF_LANCZOS_8TAP_A2;
+	else if ((ratio <= (1 << 24)) && (ratio >= (8 << 20)))
+		/* ration in >= 1/2 */
+		coeff_select = COEF_BICUBIC_8TAP;
+	else if (ratio <= (2 << 24))
+		/* zoom in >= 1/2*/
+		coeff_select = COEF_LANCZOS_8TAP_A2;
+	else if (ratio > (2 << 24))
+		/* ration in < 1/2*/
+		coeff_select = COEF_LANCZOS_8TAP_A3;
+
+	coeff_type = settings[coeff_select];
 	return coeff_type;
 }
 
@@ -445,6 +583,9 @@ static unsigned int horz_scaler_filter = 0xff;
 module_param(horz_scaler_filter, uint, 0664);
 MODULE_PARM_DESC(horz_scaler_filter, "horz_scaler_filter");
 
+static unsigned int horz_scaler_filter_8tap = 0xff;
+module_param(horz_scaler_filter_8tap, uint, 0664);
+MODULE_PARM_DESC(horz_scaler_filter_8tap, "horz_scaler_filter_8tap");
 /*need check this value,*/
 static unsigned int bypass_ratio = 205;
 module_param(bypass_ratio, uint, 0664);
@@ -1636,20 +1777,32 @@ RESTART:
 	}
 
 	/* avoid hscaler fitler adjustion affect on picture shift*/
-	filter->vpp_horz_filter =
-		coeff(horz_coeff_settings,
-		filter->vpp_hf_start_phase_step,
-		next_frame_par->VPP_hf_ini_phase_,
-		((vf->type_original & VIDTYPE_TYPEMASK)
-		!= VIDTYPE_PROGRESSIVE),
-		vf->combing_cur_lev);
+	if (hscaler_8tap_enable &&
+	    (cpu_after_eq(MESON_CPU_MAJOR_ID_SC2)))
+		filter->vpp_horz_filter =
+			coeff_sc2(hert_coeff_settings_sc2,
+				  filter->vpp_hf_start_phase_step);
+	else
+		filter->vpp_horz_filter =
+			coeff(horz_coeff_settings,
+			      filter->vpp_hf_start_phase_step,
+			      next_frame_par->VPP_hf_ini_phase_,
+			      ((vf->type_original & VIDTYPE_TYPEMASK)
+			       != VIDTYPE_PROGRESSIVE),
+			      vf->combing_cur_lev);
 	/*for gxl cvbs out index*/
 	if ((vinfo->mode == VMODE_CVBS) && //DEBUG_TMP
-		(filter->vpp_hf_start_phase_step == (1 << 24)))
-		filter->vpp_horz_filter = COEF_BICUBIC_SHARP;
-	if (hscaler_8tap_enable) {
+		(filter->vpp_hf_start_phase_step == (1 << 24))) {
+		if (hscaler_8tap_enable)
+			filter->vpp_horz_filter =
+				COEF_BICUBIC_8TAP;
+		else
+			filter->vpp_horz_filter =
+				COEF_BICUBIC_SHARP;
+	}
+	if (hscaler_8tap_enable &&
+	    cpu_after_eq(MESON_CPU_MAJOR_ID_SC2)) {
 		/* hscaler 8 tap */
-		filter->vpp_horz_filter = 0;
 		filter->vpp_horz_coeff =
 			hscaler_8tap_filter_table
 			[filter->vpp_horz_filter];
@@ -1712,16 +1865,19 @@ RESTART:
 		filter->vpp_vert_chroma_filter_en = false;
 	}
 
-	if (horz_scaler_filter <= COEF_3D_FILTER) {
-		if (hscaler_8tap_enable) {
-			/* hscaler 8 tap */
-			filter->vpp_horz_coeff = hscaler_8tap_filter_table[0];
-			filter->vpp_horz_filter = 0;
-		} else {
-			filter->vpp_horz_coeff =
-				filter_table[horz_scaler_filter];
-			filter->vpp_horz_filter = horz_scaler_filter;
-		}
+	if (hscaler_8tap_enable &&
+	    cpu_after_eq(MESON_CPU_MAJOR_ID_SC2) &&
+	    (horz_scaler_filter_8tap <= COEF_BSPLINE_8TAP)) {
+		/* hscaler 8 tap */
+		filter->vpp_horz_coeff =
+			hscaler_8tap_filter_table
+			[horz_scaler_filter_8tap];
+		filter->vpp_horz_filter =
+			horz_scaler_filter_8tap;
+	} else if (horz_scaler_filter <= COEF_3D_FILTER) {
+		filter->vpp_horz_coeff =
+			filter_table[horz_scaler_filter];
+		filter->vpp_horz_filter = horz_scaler_filter;
 	}
 
 #ifdef TV_3D_FUNCTION_OPEN

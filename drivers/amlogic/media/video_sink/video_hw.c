@@ -2149,6 +2149,10 @@ static void vd1_scaler_setting(
 			VPP_HSC_TOP_INI_PHASE_BIT,
 			VPP_HSC_TOP_INI_PHASE_WID);
 		if (cpu_after_eq(MESON_CPU_MAJOR_ID_SC2)) {
+			int flt_num = 2;
+			int pre_hscaler_table[4] = {
+				0x0, 0x0, 0x0, 0x40};
+
 			VSYNC_WR_MPEG_REG_BITS(
 				VPP_HSC_PHASE_CTRL1 + misc_off,
 				frame_par->VPP_hf_ini_phase_,
@@ -2157,115 +2161,63 @@ static void vd1_scaler_setting(
 			if (hscaler_8tap_enable) {
 				hsc_rpt_p0_num0 = 3;
 				hsc_init_rev_num0 = 8;
-				VSYNC_WR_MPEG_REG_BITS(
-					VPP_HSC_PHASE_CTRL + misc_off,
-					hsc_init_rev_num0,
-					VPP_HSC_INIRCV_NUM_BIT,
-					VPP_HSC_INIRCV_NUM_WID);
-				VSYNC_WR_MPEG_REG_BITS(
-					VPP_HSC_PHASE_CTRL + misc_off,
-					hsc_rpt_p0_num0,
-					VPP_HSC_INIRPT_NUM_BIT_8TAP,
-					VPP_HSC_INIRPT_NUM_WID_8TAP);
-
-				VSYNC_WR_MPEG_REG_BITS(
-					VPP_HSC_PHASE_CTRL1 + misc_off,
-					hsc_init_rev_num0,
-					VPP_HSC_INIRCV_NUM_BIT,
-					VPP_HSC_INIRCV_NUM_WID);
-				VSYNC_WR_MPEG_REG_BITS(
-					VPP_HSC_PHASE_CTRL1 + misc_off,
-					hsc_rpt_p0_num0,
-					VPP_HSC_INIRPT_NUM_BIT_8TAP,
-					VPP_HSC_INIRPT_NUM_WID_8TAP);
 			} else {
 				hsc_init_rev_num0 = 4;
 				hsc_rpt_p0_num0 = 1;
-				VSYNC_WR_MPEG_REG_BITS(
-					VPP_HSC_PHASE_CTRL + misc_off,
-					hsc_init_rev_num0,
-					VPP_HSC_INIRCV_NUM_BIT,
-					VPP_HSC_INIRCV_NUM_WID);
-				VSYNC_WR_MPEG_REG_BITS(
-					VPP_HSC_PHASE_CTRL + misc_off,
-					hsc_rpt_p0_num0,
-					VPP_HSC_INIRPT_NUM_BIT,
-					VPP_HSC_INIRPT_NUM_WID);
-
-				VSYNC_WR_MPEG_REG_BITS(
-					VPP_HSC_PHASE_CTRL1 + misc_off,
-					hsc_init_rev_num0,
-					VPP_HSC_INIRCV_NUM_BIT,
-					VPP_HSC_INIRCV_NUM_WID);
-				VSYNC_WR_MPEG_REG_BITS(
-					VPP_HSC_PHASE_CTRL1 + misc_off,
-					hsc_rpt_p0_num0,
-					VPP_HSC_INIRPT_NUM_BIT,
-					VPP_HSC_INIRPT_NUM_WID);
 			}
+			VSYNC_WR_MPEG_REG_BITS(
+				VPP_HSC_PHASE_CTRL + misc_off,
+				hsc_init_rev_num0,
+				VPP_HSC_INIRCV_NUM_BIT,
+				VPP_HSC_INIRCV_NUM_WID);
+			VSYNC_WR_MPEG_REG_BITS(
+				VPP_HSC_PHASE_CTRL + misc_off,
+				hsc_rpt_p0_num0,
+				VPP_HSC_INIRPT_NUM_BIT_8TAP,
+				VPP_HSC_INIRPT_NUM_WID_8TAP);
+			VSYNC_WR_MPEG_REG_BITS(
+				VPP_HSC_PHASE_CTRL1 + misc_off,
+				hsc_init_rev_num0,
+				VPP_HSC_INIRCV_NUM_BIT,
+				VPP_HSC_INIRCV_NUM_WID);
+			VSYNC_WR_MPEG_REG_BITS(
+				VPP_HSC_PHASE_CTRL1 + misc_off,
+				hsc_rpt_p0_num0,
+				VPP_HSC_INIRPT_NUM_BIT_8TAP,
+				VPP_HSC_INIRPT_NUM_WID_8TAP);
 			if (pre_hscaler_ntap_enable) {
-				int flt_num = 4;
-				int pre_hscaler_table[4] = {
-					0x0, 0x0, 0xf8, 0x48};
-
-				VSYNC_WR_MPEG_REG_BITS(
-					VPP_PREHSC_COEF + misc_off,
-					pre_hscaler_table[0],
-					VPP_PREHSC_COEF0_BIT,
-					VPP_PREHSC_COEF0_WID);
-				VSYNC_WR_MPEG_REG_BITS(
-					VPP_PREHSC_COEF + misc_off,
-					pre_hscaler_table[1],
-					VPP_PREHSC_COEF1_BIT,
-					VPP_PREHSC_COEF1_WID);
-				VSYNC_WR_MPEG_REG_BITS(
-					VPP_PREHSC_COEF + misc_off,
-					pre_hscaler_table[2],
-					VPP_PREHSC_COEF2_BIT,
-					VPP_PREHSC_COEF2_WID);
-				VSYNC_WR_MPEG_REG_BITS(
-					VPP_PREHSC_COEF + misc_off,
-					pre_hscaler_table[3],
-					VPP_PREHSC_COEF3_BIT,
-					VPP_PREHSC_COEF3_WID);
-
-				VSYNC_WR_MPEG_REG_BITS(
-					VPP_PREHSC_CTRL + misc_off,
-					flt_num,
-					VPP_PREHSC_FLT_NUM_BIT,
-					VPP_PREHSC_FLT_NUM_WID);
-			} else {
-				int flt_num = 2;
-				int pre_hscaler_table[4] = {
-					0x0, 0x0, 0x0, 0x40};
-
-				VSYNC_WR_MPEG_REG_BITS(
-					VPP_PREHSC_COEF + misc_off,
-					pre_hscaler_table[0],
-					VPP_PREHSC_COEF0_BIT,
-					VPP_PREHSC_COEF0_WID);
-				VSYNC_WR_MPEG_REG_BITS(
-					VPP_PREHSC_COEF + misc_off,
-					pre_hscaler_table[1],
-					VPP_PREHSC_COEF1_BIT,
-					VPP_PREHSC_COEF1_WID);
-				VSYNC_WR_MPEG_REG_BITS(
-					VPP_PREHSC_COEF + misc_off,
-					pre_hscaler_table[2],
-					VPP_PREHSC_COEF2_BIT,
-					VPP_PREHSC_COEF2_WID);
-				VSYNC_WR_MPEG_REG_BITS(
-					VPP_PREHSC_COEF + misc_off,
-					pre_hscaler_table[3],
-					VPP_PREHSC_COEF3_BIT,
-					VPP_PREHSC_COEF3_WID);
-
-				VSYNC_WR_MPEG_REG_BITS(
-					VPP_PREHSC_CTRL + misc_off,
-					flt_num,
-					VPP_PREHSC_FLT_NUM_BIT,
-					VPP_PREHSC_FLT_NUM_WID);
+				flt_num = 4;
+				pre_hscaler_table[0] = 0;
+				pre_hscaler_table[1] = 0;
+				pre_hscaler_table[2] = 0xf8;
+				pre_hscaler_table[3] = 0x48;
 			}
+
+			VSYNC_WR_MPEG_REG_BITS(
+				VPP_PREHSC_COEF + misc_off,
+				pre_hscaler_table[0],
+				VPP_PREHSC_COEF0_BIT,
+				VPP_PREHSC_COEF0_WID);
+			VSYNC_WR_MPEG_REG_BITS(
+				VPP_PREHSC_COEF + misc_off,
+				pre_hscaler_table[1],
+				VPP_PREHSC_COEF1_BIT,
+				VPP_PREHSC_COEF1_WID);
+			VSYNC_WR_MPEG_REG_BITS(
+				VPP_PREHSC_COEF + misc_off,
+				pre_hscaler_table[2],
+				VPP_PREHSC_COEF2_BIT,
+				VPP_PREHSC_COEF2_WID);
+			VSYNC_WR_MPEG_REG_BITS(
+				VPP_PREHSC_COEF + misc_off,
+				pre_hscaler_table[3],
+				VPP_PREHSC_COEF3_BIT,
+				VPP_PREHSC_COEF3_WID);
+			VSYNC_WR_MPEG_REG_BITS(
+				VPP_PREHSC_CTRL + misc_off,
+				flt_num,
+				VPP_PREHSC_FLT_NUM_BIT,
+			VPP_PREHSC_FLT_NUM_WID);
 		}
 		VSYNC_WR_MPEG_REG(
 			VPP_HSC_REGION12_STARTP + misc_off,
@@ -2499,6 +2451,10 @@ static void vd2_scaler_setting(
 			VPP_HSC_TOP_INI_PHASE_BIT,
 			VPP_HSC_TOP_INI_PHASE_WID);
 		if (cpu_after_eq(MESON_CPU_MAJOR_ID_SC2)) {
+			int flt_num = 2;
+			int pre_hscaler_table[4] = {
+				0x0, 0x0, 0x0, 0x40};
+
 			VSYNC_WR_MPEG_REG_BITS(
 				VD2_HSC_PHASE_CTRL1 + misc_off,
 				frame_par->VPP_hf_ini_phase_,
@@ -2507,115 +2463,64 @@ static void vd2_scaler_setting(
 			if (hscaler_8tap_enable) {
 				hsc_rpt_p0_num0 = 3;
 				hsc_init_rev_num0 = 8;
-				VSYNC_WR_MPEG_REG_BITS(
-					VD2_HSC_PHASE_CTRL + misc_off,
-					hsc_init_rev_num0,
-					VPP_HSC_INIRCV_NUM_BIT,
-					VPP_HSC_INIRCV_NUM_WID);
-				VSYNC_WR_MPEG_REG_BITS(
-					VD2_HSC_PHASE_CTRL + misc_off,
-					hsc_rpt_p0_num0,
-					VPP_HSC_INIRPT_NUM_BIT_8TAP,
-					VPP_HSC_INIRPT_NUM_WID_8TAP);
-
-				VSYNC_WR_MPEG_REG_BITS(
-					VD2_HSC_PHASE_CTRL1 + misc_off,
-					hsc_init_rev_num0,
-					VPP_HSC_INIRCV_NUM_BIT,
-					VPP_HSC_INIRCV_NUM_WID);
-				VSYNC_WR_MPEG_REG_BITS(
-					VD2_HSC_PHASE_CTRL1 + misc_off,
-					hsc_rpt_p0_num0,
-					VPP_HSC_INIRPT_NUM_BIT_8TAP,
-					VPP_HSC_INIRPT_NUM_WID_8TAP);
 			} else {
 				hsc_init_rev_num0 = 4;
 				hsc_rpt_p0_num0 = 1;
-				VSYNC_WR_MPEG_REG_BITS(
-					VD2_HSC_PHASE_CTRL + misc_off,
-					hsc_init_rev_num0,
-					VPP_HSC_INIRCV_NUM_BIT,
-					VPP_HSC_INIRCV_NUM_WID);
-				VSYNC_WR_MPEG_REG_BITS(
-					VD2_HSC_PHASE_CTRL + misc_off,
-					hsc_rpt_p0_num0,
-					VPP_HSC_INIRPT_NUM_BIT,
-					VPP_HSC_INIRPT_NUM_WID);
-
-				VSYNC_WR_MPEG_REG_BITS(
-					VD2_HSC_PHASE_CTRL1 + misc_off,
-					hsc_init_rev_num0,
-					VPP_HSC_INIRCV_NUM_BIT,
-					VPP_HSC_INIRCV_NUM_WID);
-				VSYNC_WR_MPEG_REG_BITS(
-					VD2_HSC_PHASE_CTRL1 + misc_off,
-					hsc_rpt_p0_num0,
-					VPP_HSC_INIRPT_NUM_BIT,
-					VPP_HSC_INIRPT_NUM_WID);
 			}
+			VSYNC_WR_MPEG_REG_BITS(
+				VD2_HSC_PHASE_CTRL + misc_off,
+				hsc_init_rev_num0,
+				VPP_HSC_INIRCV_NUM_BIT,
+				VPP_HSC_INIRCV_NUM_WID);
+			VSYNC_WR_MPEG_REG_BITS(
+				VD2_HSC_PHASE_CTRL + misc_off,
+				hsc_rpt_p0_num0,
+				VPP_HSC_INIRPT_NUM_BIT_8TAP,
+				VPP_HSC_INIRPT_NUM_WID_8TAP);
+			VSYNC_WR_MPEG_REG_BITS(
+				VD2_HSC_PHASE_CTRL1 + misc_off,
+				hsc_init_rev_num0,
+				VPP_HSC_INIRCV_NUM_BIT,
+				VPP_HSC_INIRCV_NUM_WID);
+			VSYNC_WR_MPEG_REG_BITS(
+				VD2_HSC_PHASE_CTRL1 + misc_off,
+				hsc_rpt_p0_num0,
+				VPP_HSC_INIRPT_NUM_BIT_8TAP,
+				VPP_HSC_INIRPT_NUM_WID_8TAP);
 			if (pre_hscaler_ntap_enable) {
-				int flt_num = 4;
-				int pre_hscaler_table[4] = {
-					0x0, 0x0, 0xf8, 0x48};
-
-				VSYNC_WR_MPEG_REG_BITS(
-					VD2_PREHSC_COEF + misc_off,
-					pre_hscaler_table[0],
-					VPP_PREHSC_COEF0_BIT,
-					VPP_PREHSC_COEF0_WID);
-				VSYNC_WR_MPEG_REG_BITS(
-					VD2_PREHSC_COEF + misc_off,
-					pre_hscaler_table[1],
-					VPP_PREHSC_COEF1_BIT,
-					VPP_PREHSC_COEF1_WID);
-				VSYNC_WR_MPEG_REG_BITS(
-					VD2_PREHSC_COEF + misc_off,
-					pre_hscaler_table[2],
-					VPP_PREHSC_COEF2_BIT,
-					VPP_PREHSC_COEF2_WID);
-				VSYNC_WR_MPEG_REG_BITS(
-					VD2_PREHSC_COEF + misc_off,
-					pre_hscaler_table[3],
-					VPP_PREHSC_COEF3_BIT,
-					VPP_PREHSC_COEF3_WID);
-
-				VSYNC_WR_MPEG_REG_BITS(
-					VD2_PREHSC_CTRL + misc_off,
-					flt_num,
-					VPP_PREHSC_FLT_NUM_BIT,
-					VPP_PREHSC_FLT_NUM_WID);
-			} else {
-				int flt_num = 2;
-				int pre_hscaler_table[4] = {
-					0x0, 0x0, 0x0, 0x40};
-
-				VSYNC_WR_MPEG_REG_BITS(
-					VD2_PREHSC_COEF + misc_off,
-					pre_hscaler_table[0],
-					VPP_PREHSC_COEF0_BIT,
-					VPP_PREHSC_COEF0_WID);
-				VSYNC_WR_MPEG_REG_BITS(
-					VD2_PREHSC_COEF + misc_off,
-					pre_hscaler_table[1],
-					VPP_PREHSC_COEF1_BIT,
-					VPP_PREHSC_COEF1_WID);
-				VSYNC_WR_MPEG_REG_BITS(
-					VD2_PREHSC_COEF + misc_off,
-					pre_hscaler_table[2],
-					VPP_PREHSC_COEF2_BIT,
-					VPP_PREHSC_COEF2_WID);
-				VSYNC_WR_MPEG_REG_BITS(
-					VD2_PREHSC_COEF + misc_off,
-					pre_hscaler_table[3],
-					VPP_PREHSC_COEF3_BIT,
-					VPP_PREHSC_COEF3_WID);
-
-				VSYNC_WR_MPEG_REG_BITS(
-					VD2_PREHSC_CTRL + misc_off,
-					flt_num,
-					VPP_PREHSC_FLT_NUM_BIT,
-					VPP_PREHSC_FLT_NUM_WID);
+				flt_num = 4;
+				pre_hscaler_table[0] = 0;
+				pre_hscaler_table[1] = 0;
+				pre_hscaler_table[2] = 0xf8;
+				pre_hscaler_table[3] = 0x48;
 			}
+
+			VSYNC_WR_MPEG_REG_BITS(
+				VD2_PREHSC_COEF + misc_off,
+				pre_hscaler_table[0],
+				VPP_PREHSC_COEF0_BIT,
+				VPP_PREHSC_COEF0_WID);
+			VSYNC_WR_MPEG_REG_BITS(
+				VD2_PREHSC_COEF + misc_off,
+				pre_hscaler_table[1],
+				VPP_PREHSC_COEF1_BIT,
+				VPP_PREHSC_COEF1_WID);
+			VSYNC_WR_MPEG_REG_BITS(
+				VD2_PREHSC_COEF + misc_off,
+				pre_hscaler_table[2],
+				VPP_PREHSC_COEF2_BIT,
+				VPP_PREHSC_COEF2_WID);
+			VSYNC_WR_MPEG_REG_BITS(
+				VD2_PREHSC_COEF + misc_off,
+				pre_hscaler_table[3],
+				VPP_PREHSC_COEF3_BIT,
+				VPP_PREHSC_COEF3_WID);
+
+			VSYNC_WR_MPEG_REG_BITS(
+				VD2_PREHSC_CTRL + misc_off,
+				flt_num,
+				VPP_PREHSC_FLT_NUM_BIT,
+				VPP_PREHSC_FLT_NUM_WID);
 		}
 
 		VSYNC_WR_MPEG_REG(
