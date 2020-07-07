@@ -1228,7 +1228,7 @@
 		/*clocks = <&clkc CLKID_CEC>, <&clkc CLKID_CEC>;*/
 		/*clock-names = "ceca_clk","cecb_clk";*/
 		reg = <0xfe044000 0x2ff
-		       0xfe005800 0xfff
+		       0xfe010000 0xfff
 		       0xfe000000 0xfff>;
 		reg-names = "ao","periphs","clock";/*ao_exit hdmirx hhi*/
 	};
