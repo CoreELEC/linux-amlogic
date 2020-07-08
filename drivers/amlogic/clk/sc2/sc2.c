@@ -548,8 +548,7 @@ static struct clk_mux sc2_dsu_pre_src_clk_mux1 = {
 		.parent_names = (const char *[]){ "xtal", "fclk_div2",
 				"fclk_div3", "gp1_pll" },
 		.num_parents = 4,
-		/*.flags = CLK_SET_RATE_PARENT | CLK_SET_RATE_NO_REPARENT,*/
-		.flags = CLK_SET_RATE_PARENT,
+		.flags = CLK_SET_RATE_PARENT | CLK_SET_RATE_NO_REPARENT,
 	},
 };
 
@@ -1650,7 +1649,8 @@ static struct clk_gate sc2_gpu_a_gate = {
 		.ops = &clk_gate_ops,
 		.parent_names = (const char *[]){ "gpu_a_div" },
 		.num_parents = 1,
-		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT,
+		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT
+			| CLK_IS_CRITICAL,
 	},
 };
 
@@ -1691,7 +1691,8 @@ static struct clk_gate sc2_gpu_b_gate = {
 		.ops = &clk_gate_ops,
 		.parent_names = (const char *[]){ "gpu_b_div" },
 		.num_parents = 1,
-		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT,
+		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT
+			| CLK_IS_CRITICAL,
 	},
 };
 
@@ -1752,7 +1753,8 @@ static struct clk_gate sc2_vdec_a_gate = {
 		.ops = &clk_gate_ops,
 		.parent_names = (const char *[]){ "vdec_a_div" },
 		.num_parents = 1,
-		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT,
+		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT
+			| CLK_IS_CRITICAL,
 	},
 };
 
@@ -1793,7 +1795,8 @@ static struct clk_gate sc2_vdec_b_gate = {
 		.ops = &clk_gate_ops,
 		.parent_names = (const char *[]){ "vdec_b_div" },
 		.num_parents = 1,
-		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT,
+		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT
+			| CLK_IS_CRITICAL,
 	},
 };
 
@@ -1851,7 +1854,8 @@ static struct clk_gate sc2_hcodec_a_gate = {
 		.ops = &clk_gate_ops,
 		.parent_names = (const char *[]){ "hcodec_a_div" },
 		.num_parents = 1,
-		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT,
+		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT
+			| CLK_IS_CRITICAL,
 	},
 };
 
@@ -1892,7 +1896,8 @@ static struct clk_gate sc2_hcodec_b_gate = {
 		.ops = &clk_gate_ops,
 		.parent_names = (const char *[]){ "hcodec_b_div" },
 		.num_parents = 1,
-		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT,
+		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT
+			| CLK_IS_CRITICAL,
 	},
 };
 
@@ -1950,7 +1955,8 @@ static struct clk_gate sc2_hevcb_a_gate = {
 		.ops = &clk_gate_ops,
 		.parent_names = (const char *[]){ "hevcb_a_div" },
 		.num_parents = 1,
-		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT,
+		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT
+			| CLK_IS_CRITICAL,
 	},
 };
 
@@ -1991,7 +1997,8 @@ static struct clk_gate sc2_hevcb_b_gate = {
 		.ops = &clk_gate_ops,
 		.parent_names = (const char *[]){ "hevcb_b_div" },
 		.num_parents = 1,
-		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT,
+		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT
+			| CLK_IS_CRITICAL,
 	},
 };
 
@@ -2049,7 +2056,8 @@ static struct clk_gate sc2_hevcf_a_gate = {
 		.ops = &clk_gate_ops,
 		.parent_names = (const char *[]){ "hevcf_a_div" },
 		.num_parents = 1,
-		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT,
+		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT |
+			CLK_IS_CRITICAL,
 	},
 };
 
@@ -2090,7 +2098,8 @@ static struct clk_gate sc2_hevcf_b_gate = {
 		.ops = &clk_gate_ops,
 		.parent_names = (const char *[]){ "hevcf_b_div" },
 		.num_parents = 1,
-		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT,
+		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT |
+			CLK_IS_CRITICAL,
 	},
 };
 
@@ -2279,7 +2288,8 @@ static struct clk_gate sc2_vpu_a_gate = {
 		.ops = &clk_gate_ops,
 		.parent_names = (const char *[]){ "vpu_a_div" },
 		.num_parents = 1,
-		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT,
+		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT |
+			CLK_IS_CRITICAL,
 	},
 };
 
@@ -2320,7 +2330,8 @@ static struct clk_gate sc2_vpu_b_gate = {
 		.ops = &clk_gate_ops,
 		.parent_names = (const char *[]){ "vpu_b_div" },
 		.num_parents = 1,
-		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT,
+		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT |
+			CLK_IS_CRITICAL,
 	},
 };
 
@@ -2454,7 +2465,8 @@ static struct clk_gate sc2_vpu_clkc_a_gate = {
 		.ops = &clk_gate_ops,
 		.parent_names = (const char *[]){ "vpu_clkc_a_div" },
 		.num_parents = 1,
-		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT,
+		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT |
+			CLK_IS_CRITICAL,
 	},
 };
 
@@ -2495,7 +2507,8 @@ static struct clk_gate sc2_vpu_clkc_b_gate = {
 		.ops = &clk_gate_ops,
 		.parent_names = (const char *[]){ "vpu_clkc_b_div" },
 		.num_parents = 1,
-		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT,
+		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT |
+			CLK_IS_CRITICAL,
 	},
 };
 
@@ -2557,7 +2570,8 @@ static struct clk_gate sc2_vapb_a_gate = {
 		.ops = &clk_gate_ops,
 		.parent_names = (const char *[]){ "vapb_a_div" },
 		.num_parents = 1,
-		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT,
+		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT |
+			CLK_IS_CRITICAL,
 	},
 };
 
@@ -2598,7 +2612,8 @@ static struct clk_gate sc2_vapb_b_gate = {
 		.ops = &clk_gate_ops,
 		.parent_names = (const char *[]){ "vapb_b_div" },
 		.num_parents = 1,
-		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT,
+		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT |
+			CLK_IS_CRITICAL,
 	},
 };
 
@@ -3899,6 +3914,8 @@ static void __init sc2_clkc_init(struct device_node *np)
 			     sc2_fclk_div2.hw.clk);
 	ret = clk_set_parent(sc2_dsu_pre_clk.hw.clk,
 			     sc2_dsu_pre_post_clk_mux.hw.clk);
+	ret = clk_set_parent(sc2_dsu_pre_post_clk_mux.hw.clk,
+			     sc2_dsu_pre_clk_mux0.hw.clk);
 	if (ret < 0) {
 		pr_err("%s: failed to set parent for dsu src\n", __func__);
 		goto iounmap;
