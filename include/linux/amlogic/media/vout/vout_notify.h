@@ -44,7 +44,7 @@ struct vout_op_s {
 	int (*get_state)(void);
 	int (*get_disp_cap)(char *buf);
 	int (*set_vframe_rate_hint)(int);
-	int (*set_vframe_rate_end_hint)(void);
+	int (*get_vframe_rate_hint)(void);
 	int (*set_vframe_rate_policy)(int);
 	int (*get_vframe_rate_policy)(void);
 	void (*set_bist)(unsigned int);
@@ -74,11 +74,12 @@ extern int vout_unregister_server(struct vout_server_s *p);
 int get_current_disp_cap(char *buf);
 extern struct vinfo_s *get_current_vinfo(void);
 extern enum vmode_e get_current_vmode(void);
-extern int set_vframe_rate_hint(int duration);
-extern int set_vframe_rate_end_hint(void);
+int set_vframe_rate_hint(int duration);
+int get_vframe_rate_hint(void);
 extern int set_vframe_rate_policy(int pol);
 extern int get_vframe_rate_policy(void);
 extern void set_vout_bist(unsigned int bist);
+int set_vframe_rate_end_hint(void);
 
 #ifdef CONFIG_AMLOGIC_VOUT2_SERVE
 extern int vout2_register_client(struct notifier_block *p);
@@ -90,15 +91,14 @@ extern int vout2_unregister_server(struct vout_server_s *p);
 int get_current_disp2_cap(char *buf);
 extern struct vinfo_s *get_current_vinfo2(void);
 extern enum vmode_e get_current_vmode2(void);
-extern int set_vframe2_rate_hint(int duration);
-extern int set_vframe2_rate_end_hint(void);
+int set_vframe2_rate_hint(int duration);
+int get_vframe2_rate_hint(void);
 extern int set_vframe2_rate_policy(int pol);
 extern int get_vframe2_rate_policy(void);
 extern void set_vout2_bist(unsigned int bist);
+int set_vframe2_rate_end_hint(void);
 
 #endif
-
-extern int vout_get_vsource_fps(int duration);
 
 /* vdac ctrl,adc/dac ref signal,cvbs out signal
  * module index: atv demod:0x01; dtv demod:0x02; tvafe:0x4; dac:0x8
