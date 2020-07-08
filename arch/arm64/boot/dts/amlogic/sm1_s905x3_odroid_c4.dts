@@ -13,8 +13,15 @@
 	/delete-node/ adc_keypad;
 	/delete-node/ unifykey;
 
+	/delete-node/ t9015;
+
 	auge_sound {
 		/delete-property/ avout_mute-gpios;
+		aml-audio-card,dai-link@1 {
+			codec {
+				sound-dai = <&dummy_codec>;
+			};
+		};
 	};
 
 	leds {
@@ -83,9 +90,12 @@
 
 &audiobus {
 	aml_spdif: spdif {
-		pinctrl-names = "spdif_pins", "spdif_pins_mute";
+		pinctrl-names = "spdif_pins";
 		pinctrl-0 = <&spdifout>;
-		pinctrl-1 = <&spdifout_a_mute>;
+	};
+
+	tdmb: tdm@1 {
+		pinctrl-0 = <&tdmb_mclk_ao &tdmout_b_ao>;
 	};
 };
 
@@ -102,10 +112,21 @@
 		};
 	};
 
-	spdifout_a_mute: spdifout_a_mute {
-		mux {
-			groups = "GPIOAO_10";
-			function = "gpio_aobus";
+	tdmb_mclk_ao: mclk0_ao {
+		mux { /* GPIOAO_9 */
+			groups = "mclk0_ao";
+			function = "mclk0_ao";
+			drive-strength = <2>;
+		};
+	};
+
+	tdmout_b_ao: tdmout_b {
+		mux { /* GPIOAO_8, GPIOAO_7, GPIOAO_4 */
+			groups = "tdmb_sclk_ao",
+				"tdmb_fs_ao",
+				"tdmb_dout0_ao";
+			function = "tdmb_out_ao";
+			drive-strength = <2>;
 		};
 	};
 };
