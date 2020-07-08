@@ -1618,7 +1618,7 @@
 	pinctrl-0 = <&internal_eth_pins>;
 	pinctrl-1 = <&internal_gpio_pins>;
 	mc_val = <0x4be04>;
-
+	led_setting = <0x0>;
 	internal_phy=<1>;
 };
 
