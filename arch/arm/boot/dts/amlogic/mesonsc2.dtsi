@@ -1716,19 +1716,20 @@
 
 	aml_dma {
 		compatible = "amlogic,aml_txlx_dma";
-		reg = <0xff63e000 0x48>;
-		interrupts = <0 180 1>;
+		reg = <0xfe440400 0x48>;
+		interrupts = <0 24 1>;
 
 		aml_aes {
 			compatible = "amlogic,aes_g12a_dma";
 			dev_name = "aml_aes_dma";
-			status = "disabled";
+			status = "okay";
+			iv_swap = /bits/ 8 <0x0>;
 		};
 
 		aml_sha {
 			compatible = "amlogic,sha_dma";
 			dev_name = "aml_sha_dma";
-			status = "disabled";
+			status = "okay";
 		};
 	};
 

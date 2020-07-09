@@ -42,6 +42,7 @@
 #include <crypto/internal/hash.h>
 #include "aml-crypto-dma.h"
 
+#define HMAC	0
 /* SHA flags */
 #define SHA_FLAGS_BUSY			BIT(0)
 #define SHA_FLAGS_DMA_ACTIVE    BIT(1)
@@ -653,8 +654,7 @@ static void aml_sha_state_restore(struct ahash_request *req)
 	struct aml_sha_dev *dd = tctx->dd;
 	dma_addr_t dma_ctx;
 	struct dma_dsc *dsc = ctx->descriptor;
-	uint32_t i = 0;
-	int32_t len = AML_DIGEST_BUFSZ;
+	s32 len = AML_DIGEST_BUFSZ;
 
 	if (!ctx->digcnt[0] && !ctx->digcnt[1] && !tctx->is_hmac)
 		return;
@@ -666,18 +666,13 @@ static void aml_sha_state_restore(struct ahash_request *req)
 		return;
 	}
 
-	while (len > 0) {
-		dsc[i].src_addr = (uint32_t)dma_ctx + i * 16;
-		dsc[i].tgt_addr = i * 16;
-		dsc[i].dsc_cfg.d32 = 0;
-		dsc[i].dsc_cfg.b.length = len > 16 ? 16 : len;
-		dsc[i].dsc_cfg.b.mode = MODE_KEY;
-		dsc[i].dsc_cfg.b.eoc = 0;
-		dsc[i].dsc_cfg.b.owner = 1;
-		i++;
-		len -= 16;
-	}
-	dsc[i - 1].dsc_cfg.b.eoc = 1;
+	dsc[0].src_addr = (u32)dma_ctx;
+	dsc[0].tgt_addr = 0;
+	dsc[0].dsc_cfg.d32 = 0;
+	dsc[0].dsc_cfg.b.length = len;
+	dsc[0].dsc_cfg.b.mode = MODE_KEY;
+	dsc[0].dsc_cfg.b.eoc = 1;
+	dsc[0].dsc_cfg.b.owner = 1;
 
 	ctx->dma_descript_tab = dma_map_single(dd->dev, ctx->descriptor,
 			PAGE_SIZE, DMA_TO_DEVICE);
@@ -946,6 +941,7 @@ static int aml_sha_export(struct ahash_request *req, void *out)
 	return 0;
 }
 
+#if HMAC
 static int aml_shash_digest(struct crypto_shash *tfm, u32 flags,
 				  const u8 *data, unsigned int len, u8 *out)
 {
@@ -1002,6 +998,7 @@ static int aml_sha_setkey(struct crypto_ahash *tfm, const u8 *key,
 
 	return err;
 }
+#endif
 
 static int aml_sha_cra_init_alg(struct crypto_tfm *tfm, const char *alg_base)
 {
@@ -1043,6 +1040,7 @@ static void aml_sha_cra_exit(struct crypto_tfm *tfm)
 		crypto_free_shash(tctx->shash);
 }
 
+#if HMAC
 static int aml_hmac_sha1_cra_init(struct crypto_tfm *tfm)
 {
 	struct aml_sha_ctx *tctx = crypto_tfm_ctx(tfm);
@@ -1070,7 +1068,7 @@ static int aml_hmac_sha256_cra_init(struct crypto_tfm *tfm)
 static void aml_hmac_cra_exit(struct crypto_tfm *tfm)
 {
 }
-
+#endif
 static struct ahash_alg sha_algs[] = {
 	{
 		.init		= aml_sha_init,
@@ -1150,6 +1148,7 @@ static struct ahash_alg sha_algs[] = {
 			}
 		}
 	},
+#if HMAC
 	{
 		.init		= aml_sha_init,
 		.update		= aml_sha_update,
@@ -1234,6 +1233,7 @@ static struct ahash_alg sha_algs[] = {
 			}
 		}
 	}
+#endif
 };
 
 static void aml_sha_done_task(unsigned long data)

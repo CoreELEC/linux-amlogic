@@ -111,3 +111,9 @@ void aml_dma_debug(struct dma_dsc *dsc, u32 nents, const char *msg,
 	dbgp(0, "end %s\n", msg);
 }
 EXPORT_SYMBOL_GPL(aml_dma_debug);
+
+void hexdump(unsigned char *buf, unsigned int len)
+{
+	print_hex_dump(KERN_CONT, "", DUMP_PREFIX_OFFSET,
+		       16, 1, buf, len, false);
+}

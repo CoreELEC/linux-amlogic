@@ -114,7 +114,8 @@ struct aml_aes_dev {
 	void	*descriptor;
 	dma_addr_t	dma_descript_tab;
 
-	uint32_t fast_nents;
+	u32 fast_nents;
+	u8  iv_swap;
 };
 
 struct aml_aes_drv {
@@ -137,21 +138,22 @@ static int set_aes_key_iv(struct aml_aes_dev *dd, u32 *key,
 {
 	struct device *dev = dd->dev;
 	struct dma_dsc *dsc = dd->descriptor;
-	uint32_t *key_iv = kzalloc(DMA_KEY_IV_BUF_SIZE, GFP_ATOMIC);
-	uint32_t *piv = key_iv + 8;
-	int32_t len = keylen;
+	u32 *key_iv = kzalloc(DMA_KEY_IV_BUF_SIZE, GFP_ATOMIC);
+
+	s32 len = keylen;
 	dma_addr_t dma_addr_key = 0;
-	uint32_t i = 0;
 
 	if (!key_iv) {
 		dev_err(dev, "error allocating key_iv buffer\n");
 		return -EINVAL;
 	}
+
 	memcpy(key_iv, key, keylen);
+
 	if (iv) {
+		u32 *piv = key_iv + 8;
 		if (swap) {
 			*(piv + 3) = swap_ulong32(*iv);
-			*(piv + 2) = swap_ulong32(*(iv + 1));
 			*(piv + 1) = swap_ulong32(*(iv + 2));
 			*(piv + 0) = swap_ulong32(*(iv + 3));
 		} else {
@@ -170,24 +172,19 @@ static int set_aes_key_iv(struct aml_aes_dev *dd, u32 *key,
 		return -EINVAL;
 	}
 
-	while (len > 0) {
-		dsc[i].src_addr = (uint32_t)dma_addr_key + i * 16;
-		dsc[i].tgt_addr = i * 16;
-		dsc[i].dsc_cfg.d32 = 0;
-		dsc[i].dsc_cfg.b.length = len > 16 ? 16 : len;
-		dsc[i].dsc_cfg.b.mode = MODE_KEY;
-		dsc[i].dsc_cfg.b.eoc = 0;
-		dsc[i].dsc_cfg.b.owner = 1;
-		i++;
-		len -= 16;
-	}
-	dsc[i - 1].dsc_cfg.b.eoc = 1;
+	dsc[0].src_addr = (u32)dma_addr_key;
+	dsc[0].tgt_addr = 0;
+	dsc[0].dsc_cfg.d32 = 0;
+	dsc[0].dsc_cfg.b.length = len;
+	dsc[0].dsc_cfg.b.mode = MODE_KEY;
+	dsc[0].dsc_cfg.b.eoc = 1;
+	dsc[0].dsc_cfg.b.owner = 1;
 
 	dma_sync_single_for_device(dd->dev, dd->dma_descript_tab,
 			PAGE_SIZE, DMA_TO_DEVICE);
 	aml_write_crypto_reg(dd->thread,
 			(uintptr_t) dd->dma_descript_tab | 2);
-	aml_dma_debug(dsc, i, __func__, dd->thread, dd->status);
+	aml_dma_debug(dsc, 1, __func__, dd->thread, dd->status);
 	while (aml_read_crypto_reg(dd->status) == 0)
 		;
 	aml_write_crypto_reg(dd->status, 0xf);
@@ -459,7 +456,7 @@ static int aml_aes_write_ctrl(struct aml_aes_dev *dd)
 				dd->req->info, 0);
 	else if (dd->flags & AES_FLAGS_CTR)
 		err = set_aes_key_iv(dd, dd->ctx->key, dd->ctx->keylen,
-				dd->req->info, 1);
+				     dd->req->info, dd->iv_swap);
 	else
 		err = set_aes_key_iv(dd, dd->ctx->key, dd->ctx->keylen,
 				NULL, 0);
@@ -536,6 +533,21 @@ static int aml_aes_handle_queue(struct aml_aes_dev *dd,
 	return ret;
 }
 
+/* Increment 128-bit counter */
+static void aml_aes_ctr_update_iv(unsigned char *val, unsigned int value)
+{
+	int i;
+
+	while (value > 0) {
+		for (i = 15; i >= 0; i--) {
+			val[i] = (val[i] + 1) & 0xff;
+			if (val[i])
+				break;
+		}
+		value--;
+	}
+}
+
 static int aml_aes_crypt_dma_stop(struct aml_aes_dev *dd)
 {
 	struct device *dev = dd->dev;
@@ -579,8 +591,19 @@ static int aml_aes_crypt_dma_stop(struct aml_aes_dev *dd)
 			}
 			/* install IV for CBC */
 			if (dd->flags & AES_FLAGS_CBC) {
-				memcpy(dd->req->info, dd->buf_out +
-						dd->dma_size - 16, 16);
+				if (dd->flags & AES_FLAGS_ENCRYPT) {
+					memcpy(dd->req->info, dd->buf_out +
+					       dd->dma_size - 16, 16);
+				} else {
+					memcpy(dd->req->info, dd->buf_in +
+					       dd->dma_size - 16, 16);
+				}
+			} else if (dd->flags & AES_FLAGS_CTR) {
+				u32 dma_nblock =
+					(dd->dma_size + AES_BLOCK_SIZE - 1)
+					/ AES_BLOCK_SIZE;
+				aml_aes_ctr_update_iv(dd->req->info,
+						      dma_nblock);
 			}
 		}
 		dd->flags &= ~AES_FLAGS_DMA;
@@ -1101,6 +1124,10 @@ static int aml_aes_probe(struct platform_device *pdev)
 	const struct of_device_id *match;
 	int err = -EPERM;
 	const struct aml_aes_info *aes_info = NULL;
+	/* Set default iv_swap to 1 for backward compatible.
+	 * It can be modified by sepcifying iv_swap in dts.
+	 */
+	u8 iv_swap = 1;
 
 	aes_dd = devm_kzalloc(dev, sizeof(struct aml_aes_dev), GFP_KERNEL);
 	if (aes_dd == NULL) {
@@ -1114,12 +1141,16 @@ static int aml_aes_probe(struct platform_device *pdev)
 		err = -EINVAL;
 		goto aes_dd_err;
 	}
+
+	of_property_read_u8(pdev->dev.of_node, "iv_swap", &iv_swap);
+
 	aes_info = match->data;
 	aes_dd->dev = dev;
 	aes_dd->dma = dev_get_drvdata(dev->parent);
 	aes_dd->thread = aes_dd->dma->thread;
 	aes_dd->status = aes_dd->dma->status;
 	aes_dd->irq = aes_dd->dma->irq;
+	aes_dd->iv_swap = iv_swap;
 	platform_set_drvdata(pdev, aes_dd);
 
 	INIT_LIST_HEAD(&aes_dd->list);
@@ -1138,20 +1169,26 @@ static int aml_aes_probe(struct platform_device *pdev)
 	}
 
 	err = aml_aes_hw_init(aes_dd);
-	if (err)
+	if (err) {
+		dev_err(dev, "aml_aes_hw_init fails(%d)\n", err);
 		goto err_aes_buff;
+	}
 
 	err = aml_aes_buff_init(aes_dd);
-	if (err)
+	if (err) {
+		dev_err(dev, "aml_aes_buff_init fails(%d)\n", err);
 		goto err_aes_buff;
+	}
 
 	spin_lock(&aml_aes.lock);
 	list_add_tail(&aes_dd->list, &aml_aes.dev_list);
 	spin_unlock(&aml_aes.lock);
 
 	err = aml_aes_register_algs(aes_dd, aes_info);
-	if (err)
+	if (err) {
+		dev_err(dev, "aml_aes_register_algs fails(%d)\n", err);
 		goto err_algs;
+	}
 
 	dev_info(dev, "Aml AES_dma\n");
 
