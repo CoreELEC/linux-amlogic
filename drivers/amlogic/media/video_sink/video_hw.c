@@ -5206,7 +5206,8 @@ static void fgrain_set_config(struct fgrain_setting_s *setting)
 	/* unsigned , RW, default = 0:8bits; 1:10bits, else 12 bits */
 	u32 reg_fmt_mode = 2 << 8;
 	/* unsigned , RW, default =  0:444; 1:422; 2:420; 3:reserved */
-	u32 reg_last_in_mode = 0 << 14;
+	u32 reg_last_in_mode = 0;
+	/* for none-afbc, it need set to 1,  default it is 0 */
 	u32 reg_fgrain_ext_imode = 1;
 	/*  unsigned , RW, default = 0 to indicate the
 	 *input data is *4 in 8bit mode
@@ -5225,7 +5226,7 @@ static void fgrain_set_config(struct fgrain_setting_s *setting)
 	reg_rev_mode = setting->reverse << 4;
 	reg_comp_bits = setting->bitdepth << 6;
 	reg_fmt_mode = setting->fmt_mode << 8;
-	reg_last_in_mode = setting->last_in_mode << 14;
+	reg_last_in_mode = setting->last_in_mode;
 
 	VSYNC_WR_MPEG_REG_BITS(fg_reg->fgrain_ctrl,
 			       reg_fgrain_glb_en |
@@ -5235,6 +5236,8 @@ static void fgrain_set_config(struct fgrain_setting_s *setting)
 			       reg_comp_bits |
 			       reg_fmt_mode,
 			       0, 10);
+	VSYNC_WR_MPEG_REG_BITS(fg_reg->fgrain_ctrl,
+			       reg_last_in_mode, 14, 1);
 	VSYNC_WR_MPEG_REG_BITS(fg_reg->fgrain_ctrl,
 			       reg_fgrain_ext_imode, 16, 1);
 }
