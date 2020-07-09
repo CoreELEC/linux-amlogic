@@ -3912,10 +3912,6 @@ static void __init sc2_clkc_init(struct device_node *np)
 	/* set sc2_dsu_fixed_sel1 to 1G (default 24M) */
 	ret = clk_set_parent(sc2_dsu_pre_src_clk_mux1.hw.clk,
 			     sc2_fclk_div2.hw.clk);
-	ret = clk_set_parent(sc2_dsu_pre_clk.hw.clk,
-			     sc2_dsu_pre_post_clk_mux.hw.clk);
-	ret = clk_set_parent(sc2_dsu_pre_post_clk_mux.hw.clk,
-			     sc2_dsu_pre_clk_mux0.hw.clk);
 	if (ret < 0) {
 		pr_err("%s: failed to set parent for dsu src\n", __func__);
 		goto iounmap;

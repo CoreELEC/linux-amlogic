@@ -56,6 +56,7 @@ static u8 sc2_clk_mux_get_parent(struct clk_hw *hw)
 			      0, 0, 0, 0, 0, 0, &res);
 
 	val = res.a0;
+	val >>= mux->shift;
 	val &= mux->mask;
 
 	if (mux->table) {
