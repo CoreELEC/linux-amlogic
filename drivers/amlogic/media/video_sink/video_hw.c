@@ -1179,7 +1179,7 @@ static void vd2_set_dcu(
 		u = (vf->bitdepth >> (BITDEPTH_U_SHIFT)) & 0x3;
 		v = (vf->bitdepth >> (BITDEPTH_V_SHIFT)) & 0x3;
 		VSYNC_WR_MPEG_REG(
-			VD2_AFBC_DEC_DEF_COLOR,
+			VD2_AFBC_DEC_DEF_COLOR + afbc_off,
 			0x3FF00000 | /*Y,bit20+*/
 			0x80 << (u + 10) |
 			0x80 << v);
