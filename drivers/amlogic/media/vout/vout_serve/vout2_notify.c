@@ -82,18 +82,11 @@ EXPORT_SYMBOL(get_current_vinfo2);
 /*
  *interface export to client who want to get display support list.
  */
-int get_current_disp2_cap(char *buf)
+int get_vout2_disp_cap(char *buf)
 {
-	struct vout_module_s *p_module = NULL;
-	int ret = 0;
-
-	p_module = vout_func_get_vout2_module();
-	if (!IS_ERR_OR_NULL(p_module->curr_vout_server))
-		if (p_module->curr_vout_server->op.get_disp_cap)
-			ret = p_module->curr_vout_server->op.get_disp_cap(buf);
-	return ret;
+	return vout_func_get_disp_cap(2, buf);
 }
-EXPORT_SYMBOL(get_current_disp2_cap);
+EXPORT_SYMBOL(get_vout2_disp_cap);
 
 /*
  *interface export to client who want to get current vmode.
@@ -181,7 +174,15 @@ EXPORT_SYMBOL(set_vframe2_rate_end_hint);
  */
 int set_vframe2_rate_policy(int policy)
 {
-	return vout_func_set_vframe_rate_policy(2, policy);
+	struct vout_module_s *p_module = NULL;
+
+	p_module = vout_func_get_vout2_module();
+	if (!p_module)
+		return -1;
+
+	p_module->fr_policy = policy;
+
+	return 0;
 }
 EXPORT_SYMBOL(set_vframe2_rate_policy);
 
@@ -190,7 +191,13 @@ EXPORT_SYMBOL(set_vframe2_rate_policy);
  */
 int get_vframe2_rate_policy(void)
 {
-	return vout_func_get_vframe_rate_policy(2);
+	struct vout_module_s *p_module = NULL;
+
+	p_module = vout_func_get_vout2_module();
+	if (!p_module)
+		return 0;
+
+	return p_module->fr_policy;
 }
 EXPORT_SYMBOL(get_vframe2_rate_policy);
 

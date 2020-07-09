@@ -634,7 +634,7 @@ static ssize_t vout_cap_show(struct class *class,
 {
 	int ret;
 
-	ret = get_current_disp_cap(buf);
+	ret = get_vout_disp_cap(buf);
 	if (!ret)
 		return sprintf(buf, "null\n");
 
@@ -649,7 +649,7 @@ static struct class_attribute vout_class_attrs[] = {
 	__ATTR(fr_hint,   0644, vout_fr_hint_show, vout_fr_hint_store),
 	__ATTR(bist,      0644, vout_bist_show, vout_bist_store),
 	__ATTR(vinfo,     0444, vout_vinfo_show, NULL),
-	__ATTR(cap,	  0644, vout_cap_show, NULL)
+	__ATTR(cap,       0644, vout_cap_show, NULL)
 };
 
 static int vout_attr_create(void)
@@ -1099,6 +1099,12 @@ static void aml_vout_get_dt_info(struct platform_device *pdev)
 	}
 	VOUTPR("tvout monitor interval:%d(ms), timeout cnt:%d\n",
 		tvout_monitor_interval, tvout_monitor_timeout_cnt);
+
+	ret = of_property_read_u32(pdev->dev.of_node, "fr_policy", &para[0]);
+	if (!ret) {
+		set_vframe_rate_policy(para[0]);
+		VOUTPR("fr_policy:%d\n", para[0]);
+	}
 }
 
 /*****************************************************************
@@ -1117,6 +1123,8 @@ static int aml_vout_probe(struct platform_device *pdev)
 {
 	int ret = -1;
 
+	aml_vout_get_dt_info(pdev);
+
 #ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
 	early_suspend.level = EARLY_SUSPEND_LEVEL_BLANK_SCREEN;
 	early_suspend.suspend = aml_vout_early_suspend;
@@ -1130,7 +1138,6 @@ static int aml_vout_probe(struct platform_device *pdev)
 
 	vout_register_server(&nulldisp_vout_server);
 	aml_vout_extcon_register(pdev);
-	aml_vout_get_dt_info(pdev);
 	set_vout_init_mode();
 	aml_tvout_mode_monitor();
 

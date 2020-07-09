@@ -523,13 +523,12 @@ static int lcd_info_print(char *buf, int offset)
 		"driver version: %s\n"
 		"panel_type: %s, chip: %d, mode: %s, status: %d, viu_sel: %d\n"
 		"key_valid: %d, config_load: %d\n"
-		"vout_fr_policy: %d, fr_mode: %d, fr_duration: %d\n",
+		"fr_mode: %d, fr_duration: %d\n",
 		lcd_drv->version,
 		pconf->lcd_propname, lcd_drv->data->chip_type,
 		lcd_mode_mode_to_str(lcd_drv->lcd_mode),
 		lcd_drv->lcd_status, lcd_drv->viu_sel,
 		lcd_drv->lcd_key_valid, lcd_drv->lcd_config_load,
-		lcd_drv->vout_fr_policy,
 		lcd_drv->fr_mode, lcd_drv->fr_duration);
 
 	n = lcd_debug_info_len(len + offset);
@@ -2559,34 +2558,6 @@ static ssize_t lcd_debug_fr_policy_store(struct class *class,
 	return count;
 }
 
-static ssize_t lcd_debug_vout_fr_policy_show(struct class *class,
-					     struct class_attribute *attr,
-					     char *buf)
-{
-	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
-
-	return sprintf(buf, "vout_fr_policy: %d\n", lcd_drv->vout_fr_policy);
-}
-
-static ssize_t lcd_debug_vout_fr_policy_store(struct class *class,
-					      struct class_attribute *attr,
-					      const char *buf, size_t count)
-{
-	int ret = 0;
-	unsigned int temp = 0;
-	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
-
-	ret = kstrtouint(buf, 10, &temp);
-	if (ret) {
-		pr_info("invalid data\n");
-		return -EINVAL;
-	}
-	lcd_drv->vout_fr_policy = temp;
-	pr_info("set vout_fr_policy: %d\n", temp);
-
-	return count;
-}
-
 static ssize_t lcd_debug_ss_show(struct class *class,
 		struct class_attribute *attr, char *buf)
 {
@@ -3337,8 +3308,6 @@ static struct class_attribute lcd_debug_class_attrs[] = {
 		lcd_debug_frame_rate_show, lcd_debug_frame_rate_store),
 	__ATTR(fr_policy,   0644,
 		lcd_debug_fr_policy_show, lcd_debug_fr_policy_store),
-	__ATTR(vout_fr_policy,   0644,
-	       lcd_debug_vout_fr_policy_show, lcd_debug_vout_fr_policy_store),
 	__ATTR(ss,          0644, lcd_debug_ss_show, lcd_debug_ss_store),
 	__ATTR(clk,         0644, lcd_debug_clk_show, lcd_debug_clk_store),
 	__ATTR(test,        0644, lcd_debug_test_show, lcd_debug_test_store),
