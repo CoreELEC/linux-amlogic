@@ -3805,7 +3805,7 @@ static void di_post_set_flow_v3(unsigned int post_wr_en,
 		 *	disable wr back avoid pps sreay in g12a
 		 *	[7]: set 0;
 		 */
-		op->wr(DI_POST_CTRL, 0x8000000D); /*ary sc2 ??*/
+		op->wr(DI_POST_CTRL, 0x80000001); /*ary sc2 ??*/
 		op->wr(DI_SC2_POST_GL_CTRL, 0xc0000001);
 		break;
 	}

@@ -2582,10 +2582,8 @@ void dip_init_pq_ops(void)
 		PR_ERR("%s:no afds\n", __func__);
 
 	/* hw l1 ops*/
-	if (IS_IC_EF(ic_id, SC2)) {
+	if (IS_IC_EF(ic_id, SC2))
 		get_datal()->hop_l1 = &dim_ops_l1_v3;
-		pr_info("CQQ0 ic_id=%d\n", ic_id);
-	}
 }
 
 /**********************************/

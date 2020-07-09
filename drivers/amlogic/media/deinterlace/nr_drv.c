@@ -475,13 +475,13 @@ static void cue_config(struct CUE_PARM_s *pcue_parm, unsigned short field_type)
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_SC2)) {
 		if (field_type != VIDTYPE_PROGRESSIVE) {
 			DI_Wr_reg_bits(NR2_CUE_PRG_DIF, 0, 20, 1);
-			DI_Wr_reg_bits(NR4_TOP_CTRL, 0, 26, 1);
+			DI_Wr_reg_bits(NR4_TOP_CTRL, 0, 1, 1);
 			/* cur row mode avoid seek error */
 			Wr_reg_bits(NR2_CUE_MODE, 5, 0, 4);
 		} else {
 			DI_Wr_reg_bits(NR2_CUE_PRG_DIF, 1, 20, 1);
 			/* disable cue for progressive issue */
-			DI_Wr_reg_bits(NR4_TOP_CTRL, 0, 26, 1);
+			DI_Wr_reg_bits(NR4_TOP_CTRL, 0, 1, 1);
 		}
 	} else {
 		if (field_type != VIDTYPE_PROGRESSIVE) {
@@ -831,7 +831,7 @@ static void cue_process_irq(void)
 		if (nr_param.frame_count > 1 && cue_glb_mot_check_en) {
 			if (cpu_after_eq(MESON_CPU_MAJOR_ID_SC2))
 				DI_Wr_reg_bits(NR4_TOP_CTRL,
-					       cue_en ? 1 : 0, 26, 1);
+					       cue_en ? 1 : 0, 1, 1);
 			else
 				DI_Wr_reg_bits(DI_NR_CTRL0,
 					       cue_en ? 1 : 0, 26, 1);
@@ -857,7 +857,7 @@ void cue_int(struct vframe_s *vf)
 	/*close cue when cue disable*/
 	if (!cue_en) {
 		if (cpu_after_eq(MESON_CPU_MAJOR_ID_SC2))
-			DI_Wr_reg_bits(NR4_TOP_CTRL, 0, 26, 1);
+			DI_Wr_reg_bits(NR4_TOP_CTRL, 0, 1, 1);
 		else if (cpu_after_eq(MESON_CPU_MAJOR_ID_GXLX))
 			DI_Wr_reg_bits(DI_NR_CTRL0, 0, 26, 1);
 	}
