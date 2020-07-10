@@ -406,7 +406,6 @@ static int meson_sc2_secure_pll_set_rate(struct clk_hw *hw,
 	struct meson_clk_pll *pll = to_meson_clk_pll(hw);
 	struct parm *p;
 	int ret = 0;
-	int j = 10;
 	unsigned long flags = 0;
 	struct arm_smccc_res res;
 
@@ -419,27 +418,19 @@ static int meson_sc2_secure_pll_set_rate(struct clk_hw *hw,
 	if (pll->lock)
 		spin_lock_irqsave(pll->lock, flags);
 
-	do {
-		if (!strcmp(clk_hw_get_name(hw), "sys_pll")) {
-			arm_smccc_smc(CLK_SECURE_RW, SYS_PLL_STEP0,
-				      rate, 0, 0, 0, 0, 0, &res);
-			udelay(100);
-		} else if (!strcmp(clk_hw_get_name(hw), "gp1_pll")) {
-			arm_smccc_smc(CLK_SECURE_RW, GP1_PLL_STEP0,
-				      rate, 0, 0, 0, 0, 0, &res);
-			udelay(100);
-		} else {
-			pr_err("%s: %s pll not found!!!\n",
-			       __func__, clk_hw_get_name(hw));
-			return -EINVAL;
-		}
-		/* waiting for 90us to check is locked or not */
-		udelay(90);
-		/* lock bit is in the cntlbase */
-		if (readl(pll->base + p->reg_off) & MESON_PLL_LOCK)
-			break;
-		j--;
-	} while (j);
+	if (!strcmp(clk_hw_get_name(hw), "sys_pll")) {
+		arm_smccc_smc(CLK_SECURE_RW, SYS_PLL_STEP0,
+			      rate, 0, 0, 0, 0, 0, &res);
+	} else if (!strcmp(clk_hw_get_name(hw), "gp1_pll")) {
+		arm_smccc_smc(CLK_SECURE_RW, GP1_PLL_STEP0,
+			      rate, 0, 0, 0, 0, 0, &res);
+	} else {
+		pr_err("%s: %s pll not found!!!\n",
+		       __func__, clk_hw_get_name(hw));
+		return -EINVAL;
+	}
+	/* waiting for 10us to rewrite */
+	udelay(10);
 
 	if (!strcmp(clk_hw_get_name(hw), "sys_pll"))
 		arm_smccc_smc(CLK_SECURE_RW, SYS_PLL_STEP1,
@@ -448,6 +439,7 @@ static int meson_sc2_secure_pll_set_rate(struct clk_hw *hw,
 		arm_smccc_smc(CLK_SECURE_RW, GP1_PLL_STEP1,
 			      0, 0, 0, 0, 0, 0, &res);
 
+	udelay(20);
 	ret = meson_sc2_pll_wait_lock(pll, p);
 	if (pll->lock)
 		spin_unlock_irqrestore(pll->lock, flags);
