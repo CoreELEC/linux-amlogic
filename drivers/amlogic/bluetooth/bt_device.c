@@ -407,7 +407,8 @@ static int bt_resume(struct platform_device *pdev)
 	pr_info("bt resume\n");
 	enable_irq(pdata->irqno_wakeup);
 	btwake_evt = 0;
-	if (get_resume_method() == RTC_WAKEUP) {
+	if ((get_resume_method() == RTC_WAKEUP) ||
+		(get_resume_method() == AUTO_WAKEUP)) {
 		btwake_evt = 1;
 		btirq_flag = 1;
 	    flag_n = 0;
