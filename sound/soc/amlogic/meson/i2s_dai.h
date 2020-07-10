@@ -18,6 +18,13 @@
 #ifndef __AML_I2S_DAI_H__
 #define __AML_I2S_DAI_H__
 
+#include <linux/mutex.h>
+
+struct aml_chmap {
+	struct mutex chmap_lock;
+	int chmap_layout;
+};
+
 struct aml_i2s {
 	struct clk *clk_mpll;
 	struct clk *clk_mclk;
