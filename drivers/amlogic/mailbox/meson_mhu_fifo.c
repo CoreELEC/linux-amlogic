@@ -14,7 +14,6 @@
  * more details.
  *
  */
-
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/completion.h>
@@ -36,13 +35,13 @@
 #include <linux/fs.h>
 #include <linux/cdev.h>
 #include <linux/list.h>
+#include <linux/amlogic/scpi_common.h>
 
 #include "meson_mhu_fifo.h"
 
-struct device *scpi_device;
-
 #define DRIVER_NAME		"meson_mhu_fifo"
 
+struct device *scpi_device;
 /*dsp lock for mbox rev data report*/
 spinlock_t dsp_lock;
 
@@ -73,6 +72,7 @@ static void mbox_fifo_read(void *to, void __iomem *from, long count)
 
 	while (len > 0) {
 		p[i] = readl(from + (4 * i));
+		pr_debug("fifo: 0x%x\n", p[i]);
 		len--;
 		i++;
 	}
@@ -191,6 +191,7 @@ void mbox_ack_isr_handler(int mhu_id, void *p)
 {
 	struct mhu_ctrl *ctrl = p;
 	void __iomem *mbox_irq_base = ctrl->mbox_irq_base;
+	void __iomem *mbox_rd_base = ctrl->mbox_rd_base;
 	struct mbox_controller *mbox_con = &ctrl->mbox_con;
 	int irqctr = ctrl->mhu_irqctr;
 	struct mhu_chan *chan = NULL;
@@ -212,6 +213,17 @@ void mbox_ack_isr_handler(int mhu_id, void *p)
 	chan = &ctrl->channels[channel];
 	mbox_chan = &mbox_con->chans[channel];
 	data = chan->data;
+
+	if (data) {
+		if (data->rx_buf) {
+			mbox_fifo_read(data->rx_buf,
+				       mbox_rd_base + PAYLOAD_OFFSET(mhu_id),
+				       data->rx_size);
+		}
+	}
+
+	chan->data = NULL;
+	mbox_chan_received_data(mbox_chan, data);
 
 	complete(&mbox_chan->tx_complete);
 	mbox_irq_clean(IRQ_SENDACK_BIT(mhu_id),
@@ -739,6 +751,8 @@ static int mhu_probe(struct platform_device *pdev)
 		return err;
 	}
 
+	/*set mhu type*/
+	mhu_fifo_f = 0xff;
 	pr_info("mbox fifo init done\n");
 	return 0;
 }

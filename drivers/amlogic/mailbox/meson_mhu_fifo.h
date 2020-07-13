@@ -141,4 +141,6 @@ struct mhu_mbox {
 	/*mhu lock for mhu hw reg*/
 	spinlock_t mhu_lock;
 };
+
+extern struct device *scpi_device;
 #endif

@@ -18,6 +18,7 @@
 #ifndef _SCPI_PROTOCOL_H_
 #define _SCPI_PROTOCOL_H_
 #include <linux/types.h>
+#include "scpi_common.h"
 
 enum scpi_client_id {
 	SCPI_CL_NONE,
@@ -103,6 +104,9 @@ struct bl40_msg_buf {
 	char buf[512];
 } __packed;
 
+/*for old api automatch all mhu driver*/
+int _scpi_get_vrtc(u32 *p_vrtc);
+
 unsigned long scpi_clk_get_val(u16 clk_id);
 int scpi_clk_set_val(u16 clk_id, unsigned long rate);
 int scpi_dvfs_get_idx(u8 domain);
@@ -122,4 +126,6 @@ int scpi_get_cpuinfo(enum scpi_get_pfm_type type, u32 *freq, u32 *vol);
 int scpi_init_dsp_cfg0(u32 id, u32 addr, u32 cfg0);
 int scpi_unlock_bl40(void);
 int scpi_send_bl40(unsigned int cmd, struct bl40_msg_buf *bl40_buf);
+int scpi_send_fifo(void *data, int size, int channel,
+		   int cmd, int taskid, void *revdata, int revsize);
 #endif /*_SCPI_PROTOCOL_H_*/

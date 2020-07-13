@@ -491,7 +491,7 @@ int scpi_send_usr_data(u32 client_id, u32 *val, u32 size)
 }
 EXPORT_SYMBOL_GPL(scpi_send_usr_data);
 
-int scpi_get_vrtc(u32 *p_vrtc)
+int _scpi_get_vrtc(u32 *p_vrtc)
 {
 	struct scpi_data_buf sdata;
 	struct mhu_data_buf mdata;
@@ -510,7 +510,7 @@ int scpi_get_vrtc(u32 *p_vrtc)
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(scpi_get_vrtc);
+EXPORT_SYMBOL_GPL(_scpi_get_vrtc);
 
 int scpi_set_vrtc(u32 vrtc_val)
 {

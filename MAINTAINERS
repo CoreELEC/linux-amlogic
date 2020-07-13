@@ -15358,4 +15358,8 @@ M: Huan Biao <huan.biao@amlogic.com>
 F: drivers/amlogic/mailbox/meson_mhu_fifo.c
 F: drivers/amlogic/mailbox/meson_mhu_fifo.h
 
-
+AMLOGIC driver for scpififo
+M: Huan Biao <huan.biao@amlogic.com>
+F: drivers/amlogic/mailbox/scpi_protocol_fifo.c
+F: drivers/amlogic/mailbox/scpi_common.c
+F: include/linux/amlogic/scpi_common.h

@@ -35,6 +35,7 @@
 
 #include "meson_mhu.h"
 #include "../firmware/bl40_module.h"
+#include <linux/amlogic/scpi_common.h>
 
 struct device *the_scpi_device;
 u32 num_scp_chans;
@@ -359,6 +360,9 @@ static int mhu_probe(struct platform_device *pdev)
 			return err;
 		}
 	}
+
+	/*set mhu type*/
+	mhu_f = 0xff;
 probe_done:
 	return 0;
 }
