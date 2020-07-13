@@ -76,17 +76,23 @@
 #define SC2_SYS1_PLL_CNTL4 0x88770290
 #define SC2_SYS1_PLL_CNTL5 0x39272000
 
+#define SC2_GP0_PLL_CNTL0_1 0x080304fa
+#define SC2_GP0_PLL_CNTL0_2 0x380304fa
 #define SC2_GP0_PLL_CNTL1 0x00000000
 #define SC2_GP0_PLL_CNTL2 0x00000000
 #define SC2_GP0_PLL_CNTL3 0x48681c00
 #define SC2_GP0_PLL_CNTL4 0x88770290
 #define SC2_GP0_PLL_CNTL5 0x39272000
+#define SC2_GP0_PLL_CNTL0_3 0x180304fa
 
+#define SC2_HIFI_PLL_CNTL0_1 0x080304de
+#define SC2_HIFI_PLL_CNTL0_2 0x380304de
 #define SC2_HIFI_PLL_CNTL1 0x00000000
 #define SC2_HIFI_PLL_CNTL2 0x00000000
 #define SC2_HIFI_PLL_CNTL3 0x6a285c00
 #define SC2_HIFI_PLL_CNTL4 0x65771290
 #define SC2_HIFI_PLL_CNTL5 0x39272000
+#define SC2_HIFI_PLL_CNTL0_3 0x180304de
 
 #define SC2_PLL_CNTL6 0x56540000
 
@@ -223,9 +229,8 @@ static int meson_sc2_pll_set_rate(struct clk_hw *hw, unsigned long rate,
 	struct parm *p;
 	const struct pll_rate_table *rate_set;
 	unsigned long old_rate;
-	unsigned long tmp;
-	int ret = 0, j = 10;
-	u32 reg;
+	int ret = 0;
+	u32 reg = 0x8000000;
 	unsigned long flags = 0;
 	void *cntlbase;
 
@@ -255,135 +260,114 @@ static int meson_sc2_pll_set_rate(struct clk_hw *hw, unsigned long rate,
 		}
 	}
 
-	cntlbase = pll->base + p->reg_off;
+	if ((!strcmp(clk_hw_get_name(hw), "gp0_pll")) ||
+	    (!strcmp(clk_hw_get_name(hw), "hifi_pll"))) {
+		reg = PARM_SET(p->width, p->shift, reg,
+			       (unsigned long)rate_set->n);
 
-	do {
-		if (!strcmp(clk_hw_get_name(hw), "pcie_pll")) {
-			writel(SC2_PCIE_PLL_CNTL0_0,
-			       cntlbase + (unsigned long)(0 * 4));
-			writel(SC2_PCIE_PLL_CNTL0_1,
-			       cntlbase + (unsigned long)(0 * 4));
-			writel(SC2_PCIE_PLL_CNTL1,
-			       cntlbase + (unsigned long)(1 * 4));
-			writel(SC2_PCIE_PLL_CNTL2,
-			       cntlbase + (unsigned long)(2 * 4));
-			writel(SC2_PCIE_PLL_CNTL3,
-			       cntlbase + (unsigned long)(3 * 4));
-			writel(SC2_PCIE_PLL_CNTL4,
-			       cntlbase + (unsigned long)(4 * 4));
-			writel(SC2_PCIE_PLL_CNTL5,
-			       cntlbase + (unsigned long)(5 * 4));
-			writel(SC2_PCIE_PLL_CNTL5_,
-			       cntlbase + (unsigned long)(5 * 4));
-			udelay(20);
-			writel(SC2_PCIE_PLL_CNTL4_,
-			       cntlbase + (unsigned long)(4 * 4));
-			udelay(100);
-			/*set pcie_apll_afc_start bit*/
-			writel(SC2_PCIE_PLL_CNTL0_2,
-			       cntlbase + (unsigned long)(0 * 4));
-			writel(SC2_PCIE_PLL_CNTL0_3,
-			       cntlbase + (unsigned long)(0 * 4));
-			udelay(20);
-			writel(SC2_PCIE_PLL_CNTL2_,
-			       cntlbase + (unsigned long)(2 * 4));
+		p = &pll->m;
+		reg = PARM_SET(p->width, p->shift, reg,
+			       (unsigned long)rate_set->m);
+
+		p = &pll->od;
+		/*check OD width*/
+		if (rate_set->od >> p->width) {
+			ret = -EINVAL;
+			pr_warn("%s: OD width is wrong at rate %lu !!\n",
+				__func__, rate);
 			goto OUT;
-		} else if (!strcmp(clk_hw_get_name(hw), "gp0_pll")) {
-			writel((readl(cntlbase) | MESON_PLL_RESET)
-			       & (~MESON_PLL_ENABLE), cntlbase);
-			writel(SC2_GP0_PLL_CNTL1,
-			       cntlbase + (unsigned long)(1 * 4));
-			writel(SC2_GP0_PLL_CNTL2,
-			       cntlbase + (unsigned long)(2 * 4));
-			writel(SC2_GP0_PLL_CNTL3,
-			       cntlbase + (unsigned long)(3 * 4));
-			writel(SC2_GP0_PLL_CNTL4,
-			       cntlbase + (unsigned long)(4 * 4));
-			writel(SC2_GP0_PLL_CNTL5,
-			       cntlbase + (unsigned long)(5 * 4));
-			writel(SC2_PLL_CNTL6,
-			       cntlbase + (unsigned long)(6 * 4));
-			udelay(10);
-		} else if (!strcmp(clk_hw_get_name(hw), "hifi_pll")) {
-			writel((readl(cntlbase) | MESON_PLL_RESET)
-				& (~MESON_PLL_ENABLE), cntlbase);
-			writel(SC2_HIFI_PLL_CNTL1,
-			       cntlbase + (unsigned long)(1 * 4));
-			writel(SC2_HIFI_PLL_CNTL2,
-			       cntlbase + (unsigned long)(2 * 4));
-			writel(SC2_HIFI_PLL_CNTL3,
-			       cntlbase + (unsigned long)(3 * 4));
-			writel(SC2_HIFI_PLL_CNTL4,
-			       cntlbase + (unsigned long)(4 * 4));
-			writel(SC2_HIFI_PLL_CNTL5,
-			       cntlbase + (unsigned long)(5 * 4));
-			writel(SC2_PLL_CNTL6,
-			       cntlbase + (unsigned long)(6 * 4));
-			udelay(10);
-		} else {
-			pr_err("%s: %s pll not found!!!\n",
-			       __func__, clk_hw_get_name(hw));
-			return -EINVAL;
 		}
-		/* waiting for 50us to check is locked or not */
-		udelay(50);
-		/* lock bit is in the cntlbase */
-		if (readl(cntlbase + (unsigned long)(0 * 4))
-		    & MESON_PLL_LOCK){
-			break;
-		}
-		j--;
-	} while (j);
+		reg = PARM_SET(p->width, p->shift, reg,
+			       (unsigned long)rate_set->od);
 
-	reg = readl(pll->base + p->reg_off);
+		p = &pll->od2;
+		if (p->width)
+			reg = PARM_SET(p->width, p->shift, reg,
+				       (unsigned long)rate_set->od2);
 
-	tmp = rate_set->n;
-	reg = PARM_SET(p->width, p->shift, reg, tmp);
-	writel(reg, pll->base + p->reg_off);
-
-	p = &pll->m;
-	reg = readl(pll->base + p->reg_off);
-	tmp = rate_set->m;
-	reg = PARM_SET(p->width, p->shift, reg, tmp);
-	writel(reg, pll->base + p->reg_off);
-
-	p = &pll->od;
-	/*check OD width*/
-	if (rate_set->od >> p->width) {
-		ret = -EINVAL;
-		pr_warn("%s: OD width is wrong at rate %lu !!\n",
-			__func__, rate);
-		goto OUT;
-	}
-	reg = readl(pll->base + p->reg_off);
-	tmp = rate_set->od;
-	reg = PARM_SET(p->width, p->shift, reg, tmp);
-	writel(reg, pll->base + p->reg_off);
-
-	p = &pll->od2;
-	if (p->width) {
-		reg = readl(pll->base + p->reg_off);
-		tmp = rate_set->od2;
-		reg = PARM_SET(p->width, p->shift, reg, tmp);
-		writel(reg, pll->base + p->reg_off);
-	}
-
-	p = &pll->frac;
-	if (p->width) {
-		reg = readl(pll->base + p->reg_off);
-		tmp = rate_set->frac;
-		reg = PARM_SET(p->width, p->shift, reg, tmp);
-		writel(reg, pll->base + p->reg_off);
+		p = &pll->frac;
+		if (p->width)
+			reg = PARM_SET(p->width, p->shift, reg,
+				       (unsigned long)rate_set->frac);
 	}
 
 	p = &pll->n;
+	cntlbase = pll->base + p->reg_off;
 
-	/* PLL reset */
-	writel(readl(pll->base + p->reg_off) | MESON_PLL_ENABLE,
-	       pll->base + p->reg_off);
-	udelay(50);
-	writel(readl(pll->base + p->reg_off) & (~MESON_PLL_RESET),
-	       pll->base + p->reg_off);
+	if (!strcmp(clk_hw_get_name(hw), "pcie_pll")) {
+		writel(SC2_PCIE_PLL_CNTL0_0,
+		       cntlbase + (unsigned long)(0 * 4));
+		writel(SC2_PCIE_PLL_CNTL0_1,
+		       cntlbase + (unsigned long)(0 * 4));
+		writel(SC2_PCIE_PLL_CNTL1,
+		       cntlbase + (unsigned long)(1 * 4));
+		writel(SC2_PCIE_PLL_CNTL2,
+		       cntlbase + (unsigned long)(2 * 4));
+		writel(SC2_PCIE_PLL_CNTL3,
+		       cntlbase + (unsigned long)(3 * 4));
+		writel(SC2_PCIE_PLL_CNTL4,
+		       cntlbase + (unsigned long)(4 * 4));
+		writel(SC2_PCIE_PLL_CNTL5,
+		       cntlbase + (unsigned long)(5 * 4));
+		writel(SC2_PCIE_PLL_CNTL5_,
+		       cntlbase + (unsigned long)(5 * 4));
+		udelay(20);
+		writel(SC2_PCIE_PLL_CNTL4_,
+		       cntlbase + (unsigned long)(4 * 4));
+		udelay(100);
+		/*set pcie_apll_afc_start bit*/
+		writel(SC2_PCIE_PLL_CNTL0_2,
+		       cntlbase + (unsigned long)(0 * 4));
+		writel(SC2_PCIE_PLL_CNTL0_3,
+		       cntlbase + (unsigned long)(0 * 4));
+		udelay(20);
+		writel(SC2_PCIE_PLL_CNTL2_,
+		       cntlbase + (unsigned long)(2 * 4));
+		goto OUT;
+	} else if (!strcmp(clk_hw_get_name(hw), "gp0_pll")) {
+		writel(reg, cntlbase);
+		udelay(20);
+		writel(reg | MESON_PLL_ENABLE | MESON_PLL_RESET, cntlbase);
+		writel(SC2_GP0_PLL_CNTL1,
+		       cntlbase + (unsigned long)(1 * 4));
+		writel(SC2_GP0_PLL_CNTL2,
+		       cntlbase + (unsigned long)(2 * 4));
+		writel(SC2_GP0_PLL_CNTL3,
+		       cntlbase + (unsigned long)(3 * 4));
+		writel(SC2_GP0_PLL_CNTL4,
+		       cntlbase + (unsigned long)(4 * 4));
+		writel(SC2_GP0_PLL_CNTL5,
+		       cntlbase + (unsigned long)(5 * 4));
+		writel(SC2_PLL_CNTL6,
+		       cntlbase + (unsigned long)(6 * 4));
+		udelay(10);
+		writel(reg | MESON_PLL_ENABLE, cntlbase);
+
+	} else if (!strcmp(clk_hw_get_name(hw), "hifi_pll")) {
+		writel(reg, cntlbase);
+		udelay(20);
+		writel(reg | MESON_PLL_ENABLE | MESON_PLL_RESET, cntlbase);
+		writel(SC2_HIFI_PLL_CNTL1,
+		       cntlbase + (unsigned long)(1 * 4));
+		writel(SC2_HIFI_PLL_CNTL2,
+		       cntlbase + (unsigned long)(2 * 4));
+		writel(SC2_HIFI_PLL_CNTL3,
+		       cntlbase + (unsigned long)(3 * 4));
+		writel(SC2_HIFI_PLL_CNTL4,
+		       cntlbase + (unsigned long)(4 * 4));
+		writel(SC2_HIFI_PLL_CNTL5,
+		       cntlbase + (unsigned long)(5 * 4));
+		writel(SC2_PLL_CNTL6,
+		       cntlbase + (unsigned long)(6 * 4));
+		udelay(10);
+		writel(reg | MESON_PLL_ENABLE, cntlbase);
+	} else {
+		pr_err("%s: %s pll not found!!!\n",
+		       __func__, clk_hw_get_name(hw));
+		return -EINVAL;
+	}
+
+	p = &pll->n;
 	ret = meson_sc2_pll_wait_lock(pll, p);
 
 OUT:
@@ -391,8 +375,8 @@ OUT:
 		spin_unlock_irqrestore(pll->lock, flags);
 
 	if (ret) {
-		pr_info("%s: pll did not lock, trying to lock rate %lu again\n",
-			__func__, rate);
+		pr_info("%s: %s pll did not lock, trying to lock rate %lu again\n",
+			__func__, clk_hw_get_name(hw), rate);
 		meson_sc2_pll_set_rate(hw, rate, parent_rate);
 	}
 
