@@ -132,6 +132,7 @@ struct vidc_buf_status {
 struct dst_buf_t {
 	int index;
 	struct vframe_s frame;
+	struct componser_info_t componser_info;
 	bool dirty;
 	u32 phy_addr;
 	u32 buf_w;

@@ -366,6 +366,14 @@ struct emp_info {
 	unsigned int size;
 };
 
+#define MAX_COMPOSER_COUNT 9
+#define AXIS_INFO_COUNT    4
+
+struct componser_info_t {
+	int count;
+	int axis[MAX_COMPOSER_COUNT][AXIS_INFO_COUNT];
+};
+
 struct vframe_s {
 	u32 index;
 	u32 index_disp;
@@ -525,6 +533,7 @@ struct vframe_s {
 
 	/* currently only for keystone use */
 	unsigned int crc;
+	struct componser_info_t *componser_info;
 } /*vframe_t */;
 
 #if 0

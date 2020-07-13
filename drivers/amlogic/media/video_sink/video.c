@@ -3675,6 +3675,26 @@ static s32 update_pip_recycle_buffer(void)
 	return 0;
 }
 
+void set_alpha_scpxn(int layer_id, struct componser_info_t *componser_info)
+{
+	struct pip_alpha_scpxn_s alpha_win;
+	int win_num = 0;
+	int win_en = 0;
+	int i;
+
+	if (componser_info)
+		win_num = componser_info->count;
+
+	for (i = 0; i < win_num; i++) {
+		alpha_win.scpxn_bgn_h[i] = componser_info->axis[i][0];
+		alpha_win.scpxn_end_h[i] = componser_info->axis[i][2];
+		alpha_win.scpxn_bgn_v[i] = componser_info->axis[i][1];
+		alpha_win.scpxn_end_v[i] = componser_info->axis[i][3];
+		win_en |= 1 << i;
+	}
+	set_alpha(layer_id, win_en, &alpha_win);
+}
+
 #ifdef FIQ_VSYNC
 void vsync_fisr_in(void)
 #else
@@ -4934,6 +4954,7 @@ SET_FILTER:
 		crop[3] = vd_layer[0].dispbuf->crop[3];
 		_set_video_window(&glayer_info[0], axis);
 		_set_video_crop(&glayer_info[0], crop);
+		set_alpha_scpxn(0, vd_layer[0].dispbuf->componser_info);
 		glayer_info[0].zorder = vd_layer[0].dispbuf->zorder;
 	}
 	/* setting video display property in underflow mode */
@@ -5131,6 +5152,7 @@ SET_FILTER:
 		crop[3] = vd_layer[1].dispbuf->crop[3];
 		_set_video_window(&glayer_info[1], axis);
 		_set_video_crop(&glayer_info[1], crop);
+		set_alpha_scpxn(1, vd_layer[1].dispbuf->componser_info);
 		glayer_info[1].zorder = vd_layer[1].dispbuf->zorder;
 	}
 
