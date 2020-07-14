@@ -67,6 +67,8 @@ struct uvm_device {
 
 	struct ion_client *uvm_client;
 	int pid;
+
+	struct device *pdev;
 };
 
 struct uvm_alloc_data {
