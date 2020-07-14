@@ -131,11 +131,18 @@ static int meson_pwm_v2_calc(struct meson_pwm *meson,
 			duty, pre_div, duty_cnt);
 
 		channel->pre_div = pre_div;
-		if (duty_cnt == 0)
-			duty_cnt++;
-
-		channel->hi = duty_cnt - 1;
-		channel->lo = cnt - duty_cnt - 1;
+		if (duty_cnt == 0) {
+			cnt = (cnt < 2 ? 2 : cnt);
+			channel->hi = 0;
+			channel->lo = cnt - 2;
+		} else if (cnt == duty_cnt) {
+			duty_cnt = (duty_cnt < 2 ? 2 : duty_cnt);
+			channel->hi = duty_cnt - 2;
+			channel->lo = 0;
+		} else {
+			channel->hi = duty_cnt - 1;
+			channel->lo = cnt - duty_cnt - 1;
+		}
 	}
 	/*
 	 * duty_cycle equal 0% and 100%,constant should be enabled,
