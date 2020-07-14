@@ -214,10 +214,9 @@
 
 	aml_pm {
 		compatible = "amlogic, pm";
-		status = "disabled";
 		device_name = "aml_pm";
-		debug_reg = <0xff8000a8>;
-		exit_reg = <0xff80023c>;
+		debug_reg = <0xfe010288>; /*SYSCTRL_STATUS_REG2*/
+		exit_reg = <0xfe01037c>;  /*SYSCTRL_SEC_STATUS_REG31*/
 	};
 
 	secmon {
