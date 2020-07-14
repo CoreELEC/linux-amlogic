@@ -2892,7 +2892,7 @@ static struct clk_divider sc2_spicc1_div = {
 	.hw.init = &(struct clk_init_data){
 		.name = "spicc1_div",
 		.ops = &clk_divider_ops,
-		.parent_names = (const char *[]){ "spicc_mux" },
+		.parent_names = (const char *[]){ "spicc1_mux" },
 		.num_parents = 1,
 		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT,
 	},
