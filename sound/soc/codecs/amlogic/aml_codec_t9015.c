@@ -61,6 +61,7 @@ struct aml_T9015_audio_priv {
 	int ch1_sel;
 
 	struct t9015_acodec_chipinfo *chipinfo;
+	struct reset_control *rst;
 };
 
 static struct t9015_acodec_chipinfo aml_acodec_cinfo = {
@@ -408,25 +409,23 @@ static int aml_T9015_prepare(struct snd_pcm_substream *substream,
 
 static int aml_T9015_audio_reset(struct snd_soc_codec *codec)
 {
-	struct reset_control *rst;
 	struct aml_T9015_audio_priv *T9015_audio =
 		snd_soc_codec_get_drvdata(codec);
 
 	/* imporant: please call standard reset interface for new project */
-	rst = devm_reset_control_get(codec->dev, "acodec");
-	if (IS_ERR(rst)) {
-		if (T9015_audio && T9015_audio->is_auge_arch)
-			auge_acodec_reset();
-		else
-			aml_cbus_update_bits(RESET1_REGISTER,
-					     0x1 << ACODEC_RESET,
-					     0x1 << ACODEC_RESET);
-
-		usleep_range(950, 1000);
-	} else {
+	if (T9015_audio && !IS_ERR(T9015_audio->rst)) {
 		pr_info("call standard reset interface\n");
-		reset_control_reset(rst);
+		reset_control_reset(T9015_audio->rst);
+		return 0;
 	}
+
+	if (T9015_audio && T9015_audio->is_auge_arch)
+		auge_acodec_reset();
+	else
+		aml_cbus_update_bits(RESET1_REGISTER,
+				     0x1 << ACODEC_RESET,
+				     0x1 << ACODEC_RESET);
+	usleep_range(950, 1000);
 
 	return 0;
 }
@@ -466,6 +465,9 @@ static int aml_T9015_audio_probe(struct snd_soc_codec *codec)
 		pr_info("T9015_audio is null!\n");
 		return -ENODEV;
 	}
+
+	T9015_audio->rst = devm_reset_control_get(codec->dev, "acodec");
+
 	/*reset audio codec register*/
 	aml_T9015_audio_reset(codec);
 	aml_T9015_audio_start_up(codec);
