@@ -294,7 +294,7 @@ static const unsigned int uart_d_cts_pins[]		= { GPIOX_8 };
 static const unsigned int uart_d_rts_pins[]		= { GPIOX_9 };
 static const unsigned int uart_d_tx_x10_pins[]		= { GPIOX_10 };
 static const unsigned int uart_d_rx_x11_pins[]		= { GPIOX_11};
-static const unsigned int tdm_d15_x_pins[]		= { GPIOX_19};
+static const unsigned int tdm_d15_pins[]		= { GPIOX_19};
 
 /*bank X func3*/
 static const unsigned int tsin_a_din0_x_pins[]		= { GPIOX_0 };
@@ -752,7 +752,7 @@ static struct meson_pmx_group meson_sc2_periphs_groups[] = {
 	GROUP(uart_d_cts,		2),
 	GROUP(uart_d_tx_x10,		2),
 	GROUP(uart_d_rx_x11,		2),
-	GROUP(tdm_d15_x,		2),
+	GROUP(tdm_d15,			2),
 
 	/* bank X func3 */
 	GROUP(tsin_a_din0_x,		3),
