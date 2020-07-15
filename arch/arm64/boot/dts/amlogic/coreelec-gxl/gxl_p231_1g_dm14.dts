@@ -1,0 +1,61 @@
+#include "gxl_p231_2g.dts"
+
+/{
+	coreelec-dt-id = "gxl_p231_1g_dm14";
+
+	dvb {
+		compatible = "amlogic,dvb";
+		dev_name = "magicsee";
+		ts0 = "parallel";
+		ts0_control = <0x0>;
+		ts0_invert = <0x0>;
+		dtv_demod0_i2c_adap_id = <2>;
+		fec_reset_gpio-gpios = <&gpio GPIOZ_2 GPIO_ACTIVE_HIGH>;
+		power_ctrl_gpio-gpios = <&gpio_ao GPIOAO_6 GPIO_ACTIVE_LOW>;
+		pinctrl-names = "p_ts0", "s_ts0";
+		pinctrl-0 = <&dvb_p_ts0_pins>;
+		pinctrl-1 = <&dvb_s_ts0_pins>;
+		clocks = <&clkc CLKID_DEMUX
+		&clkc CLKID_ASYNC_FIFO
+		&clkc CLKID_AHB_ARB0
+		&clkc CLKID_HIU_IFACE>;
+		clock-names = "demux", "asyncfifo", "ahbarb0", "uparsertop";
+
+		interrupts = <GIC_SPI 23 IRQ_TYPE_EDGE_RISING>,
+			     <GIC_SPI  5 IRQ_TYPE_EDGE_RISING>,
+			     <GIC_SPI 19 IRQ_TYPE_EDGE_RISING>,
+			     <GIC_SPI 25 IRQ_TYPE_EDGE_RISING>;
+		interrupt-names = "demux0", "demux1", "asyncfifo0", "asyncfifo1";
+	};
+
+};
+
+&pinctrl_periphs {
+	dvb_p_ts0_pins: dvb_p_ts0_pins {
+			tsin_a {
+				groups = "tsin_d0_a_dv0",
+				"tsin_d1_7_a_dv1_7",
+				"tsin_clk_a_dv8",
+				"tsin_sop_a_dv9",
+				"tsin_d_valid_a_dv10";
+				function = "tsin_a";
+			};
+		};
+	dvb_s_ts0_pins: dvb_s_ts0_pins {
+		tsin_a {
+			groups ="tsin_d0_a_dv0",
+				"tsin_clk_a_dv8",
+				"tsin_sop_a_dv9",
+				"tsin_d_valid_a_dv10";
+			function = "tsin_a";
+		};
+	};
+
+};
+
+&i2c2 {
+	status = "okay";
+	pinctrl-0 = <&c_i2c_master_pin1>;
+	master_i2c_speed = <100000>;
+};
+

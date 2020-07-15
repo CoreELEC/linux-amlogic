@@ -1,0 +1,10 @@
+#include "gxl_p230_k1_pro.dts"
+
+/{
+	coreelec-dt-id = "gxl_p230_k1_pro_ser";
+
+	dvb {
+		ts0 = "serial";
+	};
+
+};
