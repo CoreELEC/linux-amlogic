@@ -1,0 +1,7 @@
+#include "gxl_p212_2g.dts"
+#include "lepotato.dtsi"
+
+/{
+	coreelec-dt-id = "gxl_p212_2g_lepotato";
+	model = "Le Potato";
+};
