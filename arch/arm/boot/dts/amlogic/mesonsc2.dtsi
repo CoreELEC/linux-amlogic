@@ -1740,11 +1740,12 @@
 
 	rng {
 		compatible = "amlogic,meson-rng";
-		status = "disabled";
+		status = "okay";
 		#address-cells = <1>;
 		#size-cells = <1>;
-		reg = <0xff630218 0x4>;
+		reg = <0xfe440788 0x0c>;
 		quality = /bits/ 16 <1000>;
+		version = <2>;
 	};
 
 	efuse: efuse{

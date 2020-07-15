@@ -64,7 +64,15 @@
 #include <linux/of.h>
 
 #define RNG_DATA 0x00
+#define RNG_CFG  0x00
+#define RNG_OUT0 0x08
 
+#define RNG_VERSION_1   1
+#define RNG_VERSION_2   2
+
+#define TIMEOUT_CNT     100
+
+static int rng_version;
 struct meson_rng_data {
 	void __iomem *base;
 	struct platform_device *pdev;
@@ -73,10 +81,27 @@ struct meson_rng_data {
 
 static int meson_rng_read(struct hwrng *rng, void *buf, size_t max, bool wait)
 {
+	u32 status;
+	u32 cnt = 0;
 	struct meson_rng_data *data =
 			container_of(rng, struct meson_rng_data, rng);
+	void __iomem *rng_cfg = data->base + RNG_CFG;
 
-	*(u32 *)buf = readl_relaxed(data->base + RNG_DATA);
+	if (rng_version == RNG_VERSION_2) {
+		writel_relaxed(readl_relaxed(rng_cfg) | (1 << 31), rng_cfg);
+		do {
+			status = readl_relaxed(rng_cfg) & (1 << 31);
+		} while (status && (cnt++ < TIMEOUT_CNT));
+		cnt = 0;
+		do {
+			status = readl_relaxed(rng_cfg) & (1 << 0);
+		} while (status && (cnt++ < TIMEOUT_CNT));
+		cnt = 0;
+
+		*(u32 *)buf = readl_relaxed(data->base + RNG_OUT0);
+	} else {
+		*(u32 *)buf = readl_relaxed(data->base + RNG_DATA);
+	}
 
 	return sizeof(u32);
 }
@@ -86,6 +111,7 @@ static int meson_rng_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct meson_rng_data *data;
 	struct resource *res;
+	const void *prop;
 #ifdef CONFIG_OF
 	int of_ret = 0;
 #endif
@@ -102,6 +128,13 @@ static int meson_rng_probe(struct platform_device *pdev)
 
 	data->rng.name = pdev->name;
 	data->rng.read = meson_rng_read;
+
+	prop = of_get_property(dev->of_node, "version", NULL);
+	if (prop)
+		rng_version = of_read_ulong(prop, 1);
+	else
+		rng_version = RNG_VERSION_1;
+
 #ifdef CONFIG_OF
 	of_ret =
 		of_property_read_u16(pdev->dev.of_node, "quality",
