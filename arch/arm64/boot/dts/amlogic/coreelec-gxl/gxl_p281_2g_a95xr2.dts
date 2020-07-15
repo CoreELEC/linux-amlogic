@@ -1,0 +1,10 @@
+#include "gxl_p281_2g.dts"
+
+/ {
+	coreelec-dt-id = "gxl_p281_2g_a95xr2";
+
+	ethmac: ethernet@0xc9410000 {
+		/delete-property/ pinctrl-names;
+		/delete-property/ pinctrl-0;
+	};
+};

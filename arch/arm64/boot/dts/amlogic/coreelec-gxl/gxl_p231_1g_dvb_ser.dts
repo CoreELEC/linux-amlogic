@@ -1,0 +1,10 @@
+#include "gxl_p231_1g_dvb.dts"
+
+/{
+	coreelec-dt-id = "gxl_p231_1g_dvb_ser";
+
+	dvb {
+		ts0 = "serial";
+	};
+
+};

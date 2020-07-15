@@ -1,0 +1,10 @@
+#include "gxl_p212_1g.dts"
+
+/{
+	coreelec-dt-id = "gxl_p212_1g_g9sx";
+
+	aml_sound_meson {
+		/delete-property/ pinctrl-names;
+		/delete-property/ pinctrl-0;
+	};
+};

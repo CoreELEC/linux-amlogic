@@ -1,0 +1,7 @@
+#include "gxl_p281_2g_buildroot.dts"
+#include "coreelec_gxl.dtsi"
+
+/{
+	coreelec-dt-id = "gxl_p281_2g";
+};
+

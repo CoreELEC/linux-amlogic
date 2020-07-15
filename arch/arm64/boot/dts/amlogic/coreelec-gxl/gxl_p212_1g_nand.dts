@@ -1,0 +1,9 @@
+#include "gxl_p212_1g.dts"
+
+/{
+	coreelec-dt-id = "gxl_p212_1g_nand";
+
+	mtd-nand {
+		status = "okay";
+	};
+};
