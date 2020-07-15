@@ -335,6 +335,8 @@ static int dwmac_meson_cfg_analog(void __iomem *base_addr,
 	return 0;
 }
 
+unsigned int  tx_amp_bl2;
+unsigned int  enet_type;
 /*for newer then g12a use this dts architecture for dts*/
 void __iomem *phy_analog_config_addr;
 static void __iomem *g12a_network_interface_setup(struct platform_device *pdev)
@@ -348,6 +350,7 @@ static void __iomem *g12a_network_interface_setup(struct platform_device *pdev)
 	void __iomem *addr = NULL;
 	void __iomem *REG_ETH_reg0_addr = NULL;
 	void __iomem *ETH_PHY_config_addr = NULL;
+	void __iomem *tx_amp_src = NULL;
 	u32 internal_phy = 0;
 	int auto_cali_idx = -1;
 	is_internal_phy = 0;
@@ -369,7 +372,6 @@ static void __iomem *g12a_network_interface_setup(struct platform_device *pdev)
 	}
 
 	REG_ETH_reg0_addr = addr;
-	pr_info(" REG0:Addr = %p\n", REG_ETH_reg0_addr);
 
 	/*map ETH_RESET address*/
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "eth_reset");
@@ -383,7 +385,19 @@ static void __iomem *g12a_network_interface_setup(struct platform_device *pdev)
 			return NULL;
 		}
 		ee_reset_base = addr;
-		pr_info(" ee eth reset:Addr = %p\n", ee_reset_base);
+	}
+
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "tx_amp_src");
+	if (!res) {
+		pr_info("tx_amp_src not setup\n");
+	} else {
+		tx_amp_src = devm_ioremap_resource(dev, res);
+		if (IS_ERR(addr)) {
+			dev_err(&pdev->dev,
+				"cat't map tx_amp (%d)\n", __LINE__);
+			return NULL;
+		}
+		tx_amp_bl2 = readl(tx_amp_src);
 	}
 
 	/*map ETH_PLL address*/
@@ -409,8 +423,10 @@ static void __iomem *g12a_network_interface_setup(struct platform_device *pdev)
 
 	if (of_property_read_u32(np, "rst_mask", &rst_mask))
 		pr_info("no rst_mask setting\n");
-	else
-		pr_info("rst_mask %d\n", rst_mask);
+
+	if (of_property_read_u32(np, "enet_type", &enet_type))
+		pr_info("default enet type as 0\n");
+
 	/*read phy option*/
 	if (of_property_read_u32(np, "internal_phy", &internal_phy) != 0) {
 		pr_info("Dts miss internal_phy item\n");
@@ -424,9 +440,6 @@ static void __iomem *g12a_network_interface_setup(struct platform_device *pdev)
 		if (of_property_read_u32(np, "mac_wol",
 					 &support_mac_wol))
 			pr_info("MAC wol not set\n");
-		else
-			pr_info("MAC wol :got wol %d .set it\n",
-				support_mac_wol);
 		/*PLL*/
 		dwmac_meson_cfg_pll(ETH_PHY_config_addr, pdev);
 		dwmac_meson_cfg_analog(ETH_PHY_config_addr, pdev);
@@ -492,7 +505,6 @@ static void __iomem *g12a_network_interface_setup(struct platform_device *pdev)
 		return REG_ETH_reg0_addr;
 	}
 
-	pr_info("should not happen\n");
 	return REG_ETH_reg0_addr;
 }
 

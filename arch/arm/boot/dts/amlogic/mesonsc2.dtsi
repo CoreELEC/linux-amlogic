@@ -363,8 +363,9 @@
 		reg = <0xfdc00000 0x10000
 			0xFE024000 0x8
 			0xFE028000 0xa0
-			0xfe002004 0x4>;
-		reg-names = "eth_base", "eth_cfg", "eth_pll", "eth_reset";
+			0xfe002004 0x4
+			0xFE010330 0x4>;
+		reg-names = "eth_base", "eth_cfg", "eth_pll", "eth_reset", "tx_amp_src";
 		interrupts = <0 74 1>;
 		interrupt-names = "macirq";
 		status = "disabled";
@@ -372,6 +373,7 @@
 		clocks = <&clkc CLKID_ETH>;
 		clock-names = "ethclk81";
 		rst_mask = <16>;
+		enet_type = <3>;
 		pll_val = <0x9c0040a 0x927e0000 0xac5f49e5>;
 		analog_val = <0x20200000 0x0000c000 0x00000023>;
 	};

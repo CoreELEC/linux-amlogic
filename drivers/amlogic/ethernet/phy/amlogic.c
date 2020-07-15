@@ -34,6 +34,7 @@
 #include <linux/amlogic/scpi_protocol.h>
 #include <linux/amlogic/cpu_version.h>
 
+#include "phy_debug.h"
 #define  SMI_ADDR_TSTWRITE    23
 
 MODULE_DESCRIPTION("amlogic internal ethernet phy driver");
@@ -149,8 +150,12 @@ void custom_internal_config(struct phy_device *phydev)
 	/*we will setup env tx_amp first to debug,
 	 *if env tx_amp ==0 we will use the efuse
 	 */
-	efuse_amp = scpi_get_ethernet_calc();
-	pr_info("efuse tx_amp = %d\n", efuse_amp);
+	/*use SYSCTRL_SEC_STATUS_REG12 from bl2 */
+	if (enet_type == 3)
+		efuse_amp = tx_amp_bl2;
+	else
+		efuse_amp = scpi_get_ethernet_calc();
+	pr_info("efuse tx_amp = %x\n", efuse_amp);
 	if (is_meson_g12b_cpu() && is_meson_rev_a()) {
 		efuse_valid = (efuse_amp >> 3);
 		efuse_amp = efuse_amp & 0x7;
