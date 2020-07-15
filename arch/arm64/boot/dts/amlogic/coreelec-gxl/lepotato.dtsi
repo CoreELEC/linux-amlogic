@@ -1,0 +1,34 @@
+/* Stuff common to le potato */
+
+/ {
+	/delete-node/ sysled;
+	leds: gpio_leds {
+		compatible = "gpio-leds";
+		status = "okay";
+
+		system {
+			label = "librecomputer:system-status";
+			gpios = <&gpio GPIODV_24 GPIO_ACTIVE_HIGH>;
+			default-state = "on";
+			panic-indicator;
+		};
+
+		blue {
+			label = "librecomputer:blue";
+			gpios = <&gpio_ao GPIOAO_2 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+		};
+	};
+
+	gpio_keypad {
+		status = "disabled";
+	};
+
+	/delete-node/ mtd_nand;
+
+	jtag {
+		status = "disabled";
+		select = "disable";
+	};
+
+};
