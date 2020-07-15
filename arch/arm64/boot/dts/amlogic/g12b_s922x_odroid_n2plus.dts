@@ -1,9 +1,9 @@
-#include "coreelec_g12b_a.dtsi"
+#include <include/dt-bindings/thermal/thermal.h>
+#include "coreelec_g12b.dtsi"
 
 /{
-	model = "Hardkernel ODROID-N2";
-	/delete-property/ amlogic-dt-id;
-	coreelec-dt-id = "g12b_s922x_odroid_n2";
+	model = "Hardkernel ODROID-N2Plus";
+	coreelec-dt-id = "g12b_s922x_odroid_n2plus";
 
 	/delete-node/ memory@00000000;
 	/delete-node/ gpioleds;
@@ -22,27 +22,23 @@
 
 	cpu_opp_table0: cpu_opp_table0 {
 		opp09 {
-			opp-hz = /bits/ 64 <1896000000>;
-			opp-microvolt = <981000>;
+			opp-hz = /bits/ 64 <1908000000>;
+			opp-microvolt = <1030000>;
 		};
 		opp10 {
-			opp-hz = /bits/ 64 <1992000000>;
-			opp-microvolt = <1001000>;
+			opp-hz = /bits/ 64 <2016000000>;
+			opp-microvolt = <1040000>;
 		};
 	};
 
 	cpu_opp_table1: cpu_opp_table1 {
-		opp08 {
-			opp-hz = /bits/ 64 <1800000000>;
-			opp-microvolt = <981000>;
+		opp13 {
+			opp-hz = /bits/ 64 <2304000000>;
+			opp-microvolt = <1030000>;
 		};
-		opp09 {
-			opp-hz = /bits/ 64 <1908000000>;
-			opp-microvolt = <1022000>;
-		};
-		opp10 {
-			opp-hz = /bits/ 64 <2004000000>;
-			opp-microvolt = <1022000>;
+		opp14 {
+			opp-hz = /bits/ 64 <2400000000>;
+			opp-microvolt = <1040000>;
 		};
 	};
 
@@ -87,6 +83,22 @@
 			offset = <0>;
 			size = <32>;
 		};
+	};
+
+	pwmgpio: pwmgpio {
+		compatible = "pwm-gpio";
+		#pwm-cells = <3>;
+		pwm-gpios = <&gpio_ao GPIOAO_10 GPIO_ACTIVE_HIGH>;
+		status = "okay";
+	};
+
+	pwmfan: pwm-fan {
+		compatible = "pwm-fan";
+		pwms = <&pwmgpio 0 40000 PWM_POLARITY_INVERTED>;
+		cooling-min-state = <0>;
+		cooling-max-state = <3>;
+		#cooling-cells = <2>;
+		cooling-levels = <0 120 170 220>;
 	};
 };
 
@@ -207,4 +219,32 @@
 
 &pwm_ab {
 	status = "okay";
+};
+
+&soc_thermal {
+	trips {
+		fan_0: trip-point@4 {
+			temperature = <65000>;
+			hysteresis = <5000>;
+			type = "active";
+		};
+		fan_1: trip-point@5 {
+			temperature = <75000>;
+			hysteresis = <5000>;
+			type = "active";
+		};
+	};
+	cooling-maps {
+		cpucore_cooling_map0 {
+			trip = <&phot>;
+		};
+		fan_cooling_map0 {
+			trip = <&fan_0>;
+			cooling-device = <&pwmfan THERMAL_NO_LIMIT 2>;
+		};
+		fan_cooling_map1 {
+			trip = <&fan_1>;
+			cooling-device = <&pwmfan 2 THERMAL_NO_LIMIT>;
+		};
+	};
 };
