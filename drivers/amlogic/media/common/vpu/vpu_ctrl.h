@@ -694,24 +694,24 @@ static struct vpu_ctrl_s vpu_clk_gate_g12a[] = {
 /*              VPU_HDMI ISO pre: before reset               */
 /* ******************************************************* */
 static struct vpu_ctrl_s vpu_power_gxb[] = {
-	/* reg,                val, bit, len */
-	{AO_RTI_GEN_PWR_SLEEP0,  1,   8,   1},
-	{VPU_REG_END,            0,   0,   0},
+	/* 0, reg,                    val, bit, len */
+	{0,   AO_RTI_GEN_PWR_SLEEP0,  1,   8,   1},
+	{0,   VPU_REG_END,            0,   0,   0},
 };
 
 /* ******************************************************* */
 /*                 VPU_HDMI ISO                            */
 /* ******************************************************* */
 static struct vpu_ctrl_s vpu_iso_gxb[] = {
-	/* reg,                val, bit, len */
-	{AO_RTI_GEN_PWR_SLEEP0,  1,   9,   1},
-	{VPU_REG_END,            0,   0,   0},
+	/* 0, reg,                    val, bit, len */
+	{0,   AO_RTI_GEN_PWR_SLEEP0,  1,   9,   1},
+	{0,   VPU_REG_END,            0,   0,   0},
 };
 
 static struct vpu_ctrl_s vpu_iso_sm1[] = {
-	/* reg,                val, bit, len */
-	{AO_RTI_GEN_PWR_ISO0,    1,   8,   1},
-	{VPU_REG_END,            0,   0,   0},
+	/* 0, reg,                    val, bit, len */
+	{0,   AO_RTI_GEN_PWR_ISO0,    1,   8,   1},
+	{0,   VPU_REG_END,            0,   0,   0},
 };
 
 /* ******************************************************* */
