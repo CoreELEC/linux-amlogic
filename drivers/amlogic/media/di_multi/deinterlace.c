@@ -4634,24 +4634,26 @@ static void get_mcinfo_from_reg_in_irq(unsigned int channel)
 {
 	unsigned int i = 0, ncolcrefsum = 0, blkcount = 0, *reg = NULL;
 	struct di_pre_stru_s *ppre = get_pre_stru(channel);
+	struct di_buf_s *wr_buf;
 
-	if (IS_ERR_OR_NULL(ppre) || IS_ERR_OR_NULL(ppre->di_wr_buf)) {
-		PR_ERR("%s:null p0:%p-p1:%p\n", __func__, ppre,
-		       ppre ? ppre->di_wr_buf : NULL);
+	wr_buf = ppre->di_wr_buf;
+
+	if (!wr_buf) {
+		PR_ERR("%s:no di_wr_buf\n", __func__);
 		return;
 	}
 
 /*get info for current field process by post*/
-	ppre->di_wr_buf->curr_field_mcinfo.highvertfrqflg =
+	wr_buf->curr_field_mcinfo.highvertfrqflg =
 		(RD(MCDI_RO_HIGH_VERT_FRQ_FLG) & 0x1);
 /* post:MCDI_MC_REL_GAIN_OFFST_0 */
-	ppre->di_wr_buf->curr_field_mcinfo.motionparadoxflg =
+	wr_buf->curr_field_mcinfo.motionparadoxflg =
 		(RD(MCDI_RO_MOTION_PARADOX_FLG) & 0x1);
 /* post:MCDI_MC_REL_GAIN_OFFST_0 */
-	reg = ppre->di_wr_buf->curr_field_mcinfo.regs;
+	reg = wr_buf->curr_field_mcinfo.regs;
 	for (i = 0; i < 26; i++) {
 		ro_mcdi_col_cfd[i] = RD(0x2fb0 + i);
-		ppre->di_wr_buf->curr_field_mcinfo.regs[i] = 0;
+		wr_buf->curr_field_mcinfo.regs[i] = 0;
 		if (!dimp_get(edi_mp_calc_mcinfo_en))
 			*(reg + i) = ro_mcdi_col_cfd[i];
 	}
