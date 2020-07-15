@@ -1824,3 +1824,9 @@
 &pwm_ef {
 	status = "okay";
 };
+
+/* enable irblaster for CTS */
+&irblaster {
+	status = "okay";
+};
+

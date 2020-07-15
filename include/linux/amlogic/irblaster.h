@@ -28,6 +28,7 @@
 #define MAX_PLUSE 256
 #define PS_SIZE 10
 
+extern int irblaster_debug;
 struct irblaster_chip;
 
 static DEFINE_MUTEX(irblaster_lock);

@@ -82,10 +82,13 @@
 #define AO_IR_BLASTER_ADDR3			(0xc)
 #define AO_RTI_GEN_CTNL_REG0			(0x0)
 
-#define CONSUMERIR_TRANSMIT     0x5500
-#define GET_CARRIER         0x5501
-#define SET_CARRIER         0x5502
-#define SET_DUTYCYCLE         0x5503
+#define CONSUMERIR_TRANSMIT			0x5500
+#define GET_CARRIER				0x5501
+#define SET_CARRIER				0x5502
+#define SET_DUTYCYCLE				0x5503
+#define BLASTER_TIMEBASE_COUNT			(BIT(10) - 1)
+#define BLASTER_DEBUG_HIGH			(2)
+#define	BLASTER_DELAY_MS			25
 
 struct meson_irblaster_dev {
 	struct device *dev;
@@ -101,6 +104,12 @@ struct meson_irblaster_dev {
 	void __iomem	*reset_base;
 };
 
+#define IROUTDebug(fmt, x...)	\
+do {				\
+	if (irblaster_debug)	\
+		pr_err("%sDebug: %s: "fmt, "[irblaster]", __func__,  ##x);\
+} while (0)	\
+
 static void meson_irblaster_tasklet(unsigned long data);
 DECLARE_TASKLET_DISABLED(irblaster_tasklet, meson_irblaster_tasklet, 0);
 
@@ -112,7 +121,8 @@ to_meson_irblaster(struct irblaster_chip *chip)
 
 static void blaster_initialize(struct meson_irblaster_dev *dev)
 {
-	unsigned int carrier_cycle = 1000 / (dev->chip.state.freq / 1000);
+	unsigned int carrier_cycle = DIV_ROUND_CLOSEST(1000,
+				  (dev->chip.state.freq / 1000));
 	unsigned int high_ct, low_ct;
 
 	/*
@@ -154,7 +164,8 @@ static int write_to_fifo(struct meson_irblaster_dev *dev,
 			 unsigned int lowtime)
 {
 	unsigned int count_delay;
-	unsigned int cycle = 1000 / (dev->chip.state.freq / 1000);
+	unsigned int cycle = DIV_ROUND_CLOSEST(1000,
+			     (dev->chip.state.freq / 1000));
 	u32 val;
 	int n = 0;
 	int tb[3] = {
@@ -212,16 +223,66 @@ static int write_to_fifo(struct meson_irblaster_dev *dev,
 	return 0;
 }
 
+static int write_to_high_fifo(struct meson_irblaster_dev *dev,
+			      unsigned int hightime)
+{
+	unsigned int count_delay;
+	unsigned int cycle = DIV_ROUND_CLOSEST(1000,
+			     (dev->chip.state.freq / 1000));
+	u32 val;
+
+	/*
+	 * hightime: modulator signal.
+	 * MODULATOR_TB:
+	 *      00:     system clock
+	 *      01:     mpeg_xtal3_tick
+	 *      10:     mpeg_1uS_tick
+	 *      11:     mpeg_10uS_tick
+	 *
+	 * AO_IR_BLASTER_ADDR2
+	 * bit12: output level(or modulation enable/disable:1=enable)
+	 * bit[11:10]: Timebase :
+	 *                      00=1us
+	 *                      01=10us
+	 *                      10=100us
+	 *                      11=Modulator clock
+	 * bit[9:0]: Count of timebase units to delay
+	 */
+
+	count_delay = (((hightime + cycle / 2) / cycle) - 1) & COUNT_DELAY_MASK;
+	val = (BLASTER_WRITE_FIFO | BLASTER_MODULATION_ENABLE |
+	       BLASTER_TIMEBASE_MODULATION_CLOCK | (count_delay << 0));
+	writel_relaxed(val, dev->reg_base + AO_IR_BLASTER_ADDR2);
+
+	return 0;
+}
+
 static void send_all_data(struct meson_irblaster_dev *dev)
 {
-	int i;
+	int i, j;
 	unsigned int *pdata = NULL;
 	unsigned long flags;
+	unsigned int cycle, max_time, high_ct, low_ct;
+
+	cycle = DIV_ROUND_CLOSEST(1000, (dev->chip.state.freq / 1000));
+	high_ct = cycle * dev->chip.state.duty / 100;
+	low_ct = cycle - high_ct;
+	max_time = (high_ct + low_ct) * BLASTER_TIMEBASE_COUNT;
+	IROUTDebug("send data max_time = %d\n", max_time);
 
 	pdata = &dev->buffer[dev->count];
 	spin_lock_irqsave(&dev->irblaster_lock, flags);
 	for (i = 0; (i < 120) && (dev->count < dev->buffer_size);) {
-		write_to_fifo(dev, *pdata, *(pdata + 1));
+		if (*pdata > max_time) {
+			for (j = 0; j < (*pdata / max_time); j++) {
+				write_to_high_fifo(dev, max_time);
+				i++;
+			}
+			write_to_fifo(dev, *pdata % max_time, *(pdata + 1));
+		} else {
+			write_to_fifo(dev, *pdata, *(pdata + 1));
+		}
+
 		pdata += 2;
 		dev->count += 2;
 		i += 2;
@@ -234,38 +295,52 @@ int meson_irblaster_send(struct irblaster_chip *chip,
 			 unsigned int len)
 {
 	int ret, i, sum_time = 0;
-	unsigned int high_ct, low_ct;
-	unsigned int cycle;
+	unsigned int high_ct, low_ct, cycle, long_len = 0;
 	struct meson_irblaster_dev *irblaster_dev = to_meson_irblaster(chip);
 
 	init_completion(&irblaster_dev->blaster_completion);
-	irblaster_dev->buffer = data;
-	irblaster_dev->buffer_size = len;
-	irblaster_dev->count = 0;
-
-	for (i = 0; i < irblaster_dev->buffer_size; i++)
-		sum_time = sum_time + data[i];
 
 	/*
 	 * 1. set mod_high_count = 13
 	 * 2. set mod_low_count = 13
 	 * 3. 60khz-8us, 38k-13us
 	 */
-	cycle = 1000 / (irblaster_dev->chip.state.freq / 1000);
+	cycle = DIV_ROUND_CLOSEST(1000,
+				  (irblaster_dev->chip.state.freq / 1000));
 	high_ct = cycle * irblaster_dev->chip.state.duty / 100;
 	low_ct = cycle - high_ct;
 	writel_relaxed((BLASTER_MODULATION_LOW_COUNT(low_ct - 1) |
 		BLASTER_MODULATION_HIGH_COUNT(high_ct - 1)),
 			irblaster_dev->reg_base + AO_IR_BLASTER_ADDR1);
 
+	for (i = 0; i < len; i++) {
+		sum_time += data[i];
+		if (irblaster_debug) {
+			if (irblaster_debug >= BLASTER_DEBUG_HIGH)
+				IROUTDebug("ir[%d] = %d\n", i, data[i]);
+			if (data[i] > (high_ct + low_ct)
+			   * BLASTER_TIMEBASE_COUNT)
+				long_len += DIV_ROUND_UP(data[i],
+					(high_ct + low_ct) *
+					BLASTER_TIMEBASE_COUNT);
+		}
+	}
+
+	irblaster_dev->buffer = data;
+	irblaster_dev->buffer_size = len;
+	irblaster_dev->count = 0;
+
 	send_all_data(irblaster_dev);
+	IROUTDebug("wait time = %dus len = %d fifosize = %d\n",
+		   sum_time, irblaster_dev->buffer_size, len + long_len);
 	ret = wait_for_completion_interruptible_timeout
 			(&irblaster_dev->blaster_completion,
-			msecs_to_jiffies(sum_time / 1000));
+			msecs_to_jiffies(sum_time / 1000 + BLASTER_DELAY_MS));
 	if (!ret) {
 		pr_err("failed to send all data ret = %d\n", ret);
 		return -ETIMEDOUT;
 	}
+	IROUTDebug("send finish!\n");
 
 	return 0;
 }
@@ -286,6 +361,9 @@ static irqreturn_t meson_blaster_interrupt(int irq, void *dev_id)
 {
 	struct meson_irblaster_dev *dev = dev_id;
 
+	if (irblaster_debug >= BLASTER_DEBUG_HIGH)
+		IROUTDebug("enter irq count = %d size = %d\n",
+			   dev->count, dev->buffer_size);
 	/*clear pending bit*/
 	writel_relaxed(readl_relaxed(dev->reg_base + AO_IR_BLASTER_ADDR3) &
 			(~BLASTER_FIFO_THD_PENDING),
