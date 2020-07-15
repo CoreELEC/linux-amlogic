@@ -85,7 +85,9 @@ extern char *to_ports(int id);
 extern char *to_sub_ports(int mid, int sid, char *id_str);
 void show_violation_mem(unsigned long addr);
 
+#ifdef CONFIG_AMLOGIC_DMC_MONITOR_GX
 extern struct dmc_mon_ops gx_dmc_mon_ops;
+#endif
 extern struct dmc_mon_ops g12_dmc_mon_ops;
 extern struct dmc_mon_ops tm2_dmc_mon_ops;
 

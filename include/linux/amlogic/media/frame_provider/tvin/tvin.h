@@ -546,6 +546,7 @@ struct rx_audio_stat_s {
 	int aud_alloc;
 };
 
+#ifdef CONFIG_AMLOGIC_MEDIA_TVIN_AFE
 extern void adc_pll_down(void);
 /*ADC_EN_ATV_DEMOD	0x1*/
 /*ADC_EN_TVAFE		0x2*/
@@ -553,6 +554,20 @@ extern void adc_pll_down(void);
 /*ADC_EN_DTV_DEMODPLL	0x8*/
 extern int adc_set_pll_cntl(bool on, unsigned int module_sel, void *pDtvPara);
 extern void tvafe_set_ddemod_default(void);/* add for dtv demod*/
+#else
+static inline void adc_pll_down(void)
+{
+}
+
+static inline int adc_set_pll_cntl(bool on, unsigned int sel, void *pdtvpara)
+{
+	return 0;
+}
+
+static inline void tvafe_set_ddemod_default(void)
+{
+}
+#endif
 extern void rx_get_audio_status(struct rx_audio_stat_s *aud_sts);
 
 extern void rx_set_atmos_flag(bool en);
