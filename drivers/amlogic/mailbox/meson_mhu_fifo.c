@@ -140,10 +140,7 @@ static void mbox_chan_report(u32 status, void *msg, int idx)
 
 void mbox_irq_clean(unsigned int mask, void __iomem *addr)
 {
-	unsigned int val = 0;
-
-	val = readl(addr) & (~mask);
-	writel(val, addr);
+	writel(mask, addr);
 }
 
 static void mbox_isr_handler(int mhu_id, void *p)
@@ -379,10 +376,11 @@ static ssize_t mbox_message_write(struct file *filp,
 		       | SIZE_SHIFT(data_buf.tx_size)
 		       | SYNC_SHIFT(ASYNC_CMD);
 	data_buf.rx_buf = NULL;
-	data_buf.rx_size = 0x11;
+	data_buf.rx_size = 0;
 	cl.dev = dev;
 	cl.tx_block = true;
 	cl.tx_tout = MBOX_TIME_OUT;
+	cl.rx_callback = NULL;
 	mutex_lock(&mbox_dev->mutex);
 	chan = mbox_request_channel(&cl, send_channel);
 	if (IS_ERR(chan)) {

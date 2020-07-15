@@ -80,7 +80,6 @@ static int send_scpi_cmd(struct scpi_data_buf *scpi_buf, int client_id)
 
 	cl.dev = scpi_device;
 	cl.rx_callback = scpi_rx_callback;
-	pr_info("scpi_dev %p %d\n", scpi_device, client_id);
 	chan = mbox_request_channel(&cl, client_id);
 	if (IS_ERR(chan))
 		return PTR_ERR(chan);
@@ -163,7 +162,6 @@ static int scpi_get_chan(int channel)
 		return -ENXIO;
 	}
 
-	pr_info("%s,%d, num:%d\n", __func__, __LINE__, nums);
 	switch (channel) {
 	case SCPI_DSPA:
 		return scpi_get_c_by_name(dev, nums, "ap_to_dspa");
@@ -208,10 +206,7 @@ int scpi_send_fifo(void *data, int size, int channel,
 	if (scpi_execute_cmd(&sdata))
 		return -EPERM;
 
-	pr_info("%s,%d\n", __func__, __LINE__);
-
 	if (upackdata.status == 1) {
-		pr_info("%s,%d\n", __func__, __LINE__);
 		memcpy(revdata, &upackdata.data, revsize);
 	}
 
