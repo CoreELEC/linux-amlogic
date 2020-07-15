@@ -18,6 +18,9 @@
 #ifndef _RESOURCE_MANAGE_H_
 #define _RESOURCE_MANAGE_H_
 
+#include <linux/ioctl.h>
+#include <linux/types.h>
+
 #define RESMAN_IOC_MAGIC  'R'
 
 #define RESMAN_IOC_QUERY_RES		_IOR(RESMAN_IOC_MAGIC, 0x01, int)
@@ -25,31 +28,64 @@
 #define RESMAN_IOC_RELEASE_RES		_IOR(RESMAN_IOC_MAGIC, 0x03, int)
 #define RESMAN_IOC_SETAPPINFO		_IOW(RESMAN_IOC_MAGIC, 0x04, int)
 #define RESMAN_IOC_SUPPORT_RES		_IOR(RESMAN_IOC_MAGIC, 0x05, int)
-
-#define BASE_AVAILAB_RES		(0x0)
-#define VFM_DEFAULT			(BASE_AVAILAB_RES + 0)
-#define AMVIDEO			(BASE_AVAILAB_RES + 1)
-#define PIPVIDEO			(BASE_AVAILAB_RES + 2)
-#define SEC_TVP			(BASE_AVAILAB_RES + 3)
-#define TSPARSER			(BASE_AVAILAB_RES + 4)
-#define MAX_AVAILAB_RES		(TSPARSER + 1)
+#define RESMAN_IOC_RELEASE_ALL		_IOR(RESMAN_IOC_MAGIC, 0x06, int)
+#define RESMAN_SUPPORT_PREEMPT		1
 
 struct resman_para {
-	int para_in;
-	char para_str[32];
+	__u32 k;
+	union {
+		struct {
+			__u32 preempt;
+			__u32 timeout;
+			char arg[32];
+		} acquire;
+		struct {
+			char name[32];
+			__u32 type;
+			__s32 value;
+			__s32 avail;
+		} query;
+		struct {
+			char name[32];
+		} support;
+	} v;
 };
 
 struct app_info {
 	char app_name[32];
-	int app_type;
+	__u32 app_type;
 };
 
-enum APP_TYPE {
-	TYPE_NONE	= -1,
-	TYPE_OMX	= 0,
-	TYPE_DVB,
-	TYPE_HDMI_IN,
-	TYPE_SEC_TVP,
-	TYPE_OTHER	= 10,
+enum RESMAN_ID {
+	RESMAN_ID_VFM_DEFAULT,
+	RESMAN_ID_AMVIDEO,
+	RESMAN_ID_PIPVIDEO,
+	RESMAN_ID_SEC_TVP,
+	RESMAN_ID_TSPARSER,
+	RESMAN_ID_CODEC_MM,
+	RESMAN_ID_MAX,
 };
+
+enum RESMAN_TYPE {
+	RESMAN_TYPE_COUNTER = 1,
+	RESMAN_TYPE_TOGGLE,
+	RESMAN_TYPE_TVP,
+	RESMAN_TYPE_CODEC_MM
+};
+
+enum RESMAN_APP {
+	RESMAN_APP_NONE	= -1,
+	RESMAN_APP_OMX	= 0,
+	RESMAN_APP_DVB,
+	RESMAN_APP_HDMI_IN,
+	RESMAN_APP_SEC_TVP,
+	RESMAN_APP_OTHER	= 10,
+};
+
+enum RESMAN_EVENT {
+	RESMAN_EVENT_REGISTER		= 0x1000,
+	RESMAN_EVENT_UNREGISTER,
+	RESMAN_EVENT_PREEMPT
+};
+
 #endif/*_RESOURCE_MANAGE_H_*/
