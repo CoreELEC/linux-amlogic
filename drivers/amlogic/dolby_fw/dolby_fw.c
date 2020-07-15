@@ -91,9 +91,12 @@ static int dolby_fw_release(struct inode *inode, struct file *file)
 
 static int dolby_fw_signature(struct dolby_fw_args *info)
 {
-	int ret;
+	int ret = -1;
 
 	sharemem_mutex_lock();
+
+	if (info->src_len > mem_size)
+		goto sig_err;
 	ret = copy_from_user(sharemem_in_base,
 			(void *)(uintptr_t)info->src_addr,
 			info->src_len);
@@ -145,6 +148,8 @@ static int dolby_fw_decrypt(struct dolby_fw_args *info)
 		else
 			process_size = data_size - size;
 
+		if (process_size > mem_size)
+			goto err2;
 		ret = copy_from_user(mem_in_virt,
 				(void *)(uintptr_t)(info->src_addr+size),
 				process_size);
@@ -169,6 +174,8 @@ static int dolby_fw_decrypt(struct dolby_fw_args *info)
 
 		dma_sync_single_for_cpu(device, dma_out_handle,
 				process_size, DMA_FROM_DEVICE);
+		if (process_size > info->dest_len)
+			goto err2;
 		ret = copy_to_user(
 				(void *)(uintptr_t)(info->dest_addr+size),
 				mem_out_virt, process_size);
@@ -246,6 +253,8 @@ static int dolby_fw_verify(struct dolby_fw_args *info)
 	process_size = data_size - size;
 	sharemem_mutex_lock();
 	if (process_size) {
+		if (process_size > mem_size)
+			goto err2;
 		ret = copy_from_user(mem_in_virt,
 				(void *)(uintptr_t)(info->src_addr+size),
 				process_size);
@@ -267,6 +276,8 @@ static int dolby_fw_verify(struct dolby_fw_args *info)
 	memcpy(pre_shared, (void *)sharemem_out_base, 0x20);
 
 	/*critical data*/
+	if (info->arg2 > mem_size)
+		goto err2;
 	ret = copy_from_user(sharemem_in_base,
 						(void *)(uintptr_t)(info->arg1),
 						info->arg2);
