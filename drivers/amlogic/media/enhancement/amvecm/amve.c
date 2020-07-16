@@ -1265,7 +1265,7 @@ void vpp_vd_adj1_contrast(signed int cont_val, struct vframe_s *vf)
 		vd1_contrast = (READ_VPP_REG(VPP_VADJ1_Y) & 0x1ff00) |
 						(cont_val << 0);
 	}
-	VSYNC_WR_MPEG_REG(VPP_VADJ1_Y, vd1_contrast);
+	VSYNC_WR_MPEG_REG_BITS(VPP_VADJ1_Y, cont_val, 0, 8);
 }
 
 void vpp_vd_adj1_brightness(signed int bri_val, struct vframe_s *vf)
@@ -1295,7 +1295,7 @@ void vpp_vd_adj1_brightness(signed int bri_val, struct vframe_s *vf)
 		vd1_brightness = (READ_VPP_REG(VPP_VADJ1_Y) & 0xff) |
 			(bri_val << 8);
 
-		VSYNC_WR_MPEG_REG(VPP_VADJ1_Y, vd1_brightness);
+		VSYNC_WR_MPEG_REG_BITS(VPP_VADJ1_Y, bri_val, 8, 10);
 	} else {
 		if ((vf->source_type == VFRAME_SOURCE_TYPE_TUNER) ||
 			(vf->source_type == VFRAME_SOURCE_TYPE_CVBS) ||
