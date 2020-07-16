@@ -10886,7 +10886,6 @@ static int __init video_init(void)
 			LAYER0_AVAIL;
 	else if (is_meson_tm2_cpu())
 		layer_cap =
-			LAYER1_AFBC |
 			LAYER1_SCALER |
 			LAYER1_AVAIL |
 			LAYER0_AFBC |
@@ -10903,6 +10902,7 @@ static int __init video_init(void)
 			LAYER0_SCALER |
 			LAYER0_AVAIL;
 	else
+		/* g12a, g12b, sm1 */
 		layer_cap =
 			LAYER1_AFBC |
 			LAYER1_SCALER |
