@@ -20,14 +20,16 @@
 
 #define MAX_VD_LAYERS 2
 
-#define LAYER1_BUSY (1 << 11)
-#define LAYER1_AFBC (1 << 10)
-#define LAYER1_SCALER (1 << 9)
-#define LAYER1_AVAIL (1 << 8)
-#define LAYER0_BUSY (1 << 3)
-#define LAYER0_AFBC (1 << 2)
-#define LAYER0_SCALER (1 << 1)
-#define LAYER0_AVAIL (1 << 0)
+#define LAYER1_ALPHA  BIT(12)
+#define LAYER1_BUSY   BIT(11)
+#define LAYER1_AFBC   BIT(10)
+#define LAYER1_SCALER BIT(9)
+#define LAYER1_AVAIL  BIT(8)
+#define LAYER0_ALPHA  BIT(4)
+#define LAYER0_BUSY   BIT(3)
+#define LAYER0_AFBC   BIT(2)
+#define LAYER0_SCALER BIT(1)
+#define LAYER0_AVAIL  BIT(0)
 
 #define LAYER_BITS_SHFIT 8
 
