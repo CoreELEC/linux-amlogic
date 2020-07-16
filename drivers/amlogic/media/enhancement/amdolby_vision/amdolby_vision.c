@@ -388,6 +388,9 @@ MODULE_PARM_DESC(dv_cert_graphic_width, "\n dv_cert_graphic_width\n");
 module_param(dv_cert_graphic_height, uint, 0664);
 MODULE_PARM_DESC(dv_cert_graphic_height, "\n dv_cert_graphic_height\n");
 
+static unsigned int enable_tunnel;
+static u32 vpp_data_422T0444_backup;
+
 /* 0: video priority 1: graphic priority */
 static unsigned int dolby_vision_graphics_priority;
 module_param(dolby_vision_graphics_priority, uint, 0664);
@@ -8551,6 +8554,28 @@ static ssize_t amdolby_vision_debug_store(struct class *cla,
 			return -EINVAL;
 		enable_fel = val;
 		pr_info("enable_fel %d\n", enable_fel);
+	} else if (!strcmp(parm[0], "enable_tunnel")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			return -EINVAL;
+		enable_tunnel = val;
+		pr_info("enable_tunnel %d\n", enable_tunnel);
+		if (is_meson_sc2()) {
+			/*for vdin1 loop back, 444,12bit->422,12bit->444,8bit*/
+			if (enable_tunnel) {
+				if (vpp_data_422T0444_backup == 0) {
+					vpp_data_422T0444_backup =
+					VSYNC_RD_DV_REG(VPU_422T0444_CTRL1);
+					pr_dolby_dbg("vpp_data_422T0444_backup %x\n",
+						     vpp_data_422T0444_backup);
+				}
+				/*go_field_en and go_line_en bit 24 25 =1*/
+				VSYNC_WR_DV_REG(VPU_422T0444_CTRL1, 0x07c0ba14);
+			} else {
+				if (vpp_data_422T0444_backup != 0)
+				VSYNC_WR_DV_REG(VPU_422T0444_CTRL1,
+						vpp_data_422T0444_backup);
+			}
+		}
 	} else {
 		pr_info("unsupport cmd\n");
 	}
