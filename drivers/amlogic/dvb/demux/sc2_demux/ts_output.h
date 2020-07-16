@@ -170,6 +170,7 @@ int ts_output_reset(struct out_elem *pout);
  */
 int ts_output_set_cb(struct out_elem *pout, ts_output_cb cb, void *udata);
 
+int ts_output_sid_debug(void);
 void ts_output_dump_info(void);
 
 #endif

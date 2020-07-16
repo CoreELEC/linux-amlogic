@@ -298,22 +298,22 @@ static int _dsc_chan_set_key(struct dsc_channel *ch,
 			     enum ca_sc2_key_type parity, int key_index)
 {
 	struct dsc_pid_table *ptmp = NULL;
+#define IVE_MAX				64
 
-//      pr_dbg("%s parity:%d, key_index:%d\n",
-//                      __func__, parity, key_index);
+	pr_dbg("%s parity:%d, key_index:%d\n", __func__, parity, key_index);
 
 	if (parity == CA_KEY_00_TYPE || parity == CA_KEY_00_IV_TYPE) {
 		if (ch->index00 == -1) {
 			ch->index00 = _malloc_dsc_table_index(ch->dsc_type);
 			if (ch->index00 == -1) {
-//                              dprint("%s _malloc_dsc_table_index fail\n",
-//                                              __func__);
+				dprint("%s _malloc_dsc_table_index fail\n",
+				       __func__);
 				return -1;
 			}
 		}
 		ptmp = _get_dsc_pid_table(ch->index00, ch->dsc_type);
 		if (!ptmp) {
-//                      dprint("%s _get_dsc_pid_table fail\n", __func__);
+			dprint("%s _get_dsc_pid_table fail\n", __func__);
 			return -1;
 		}
 		ptmp->scb00 = 1;
@@ -327,7 +327,7 @@ static int _dsc_chan_set_key(struct dsc_channel *ch,
 	} else {
 		ptmp = _get_dsc_pid_table(ch->index, ch->dsc_type);
 		if (!ptmp) {
-//                      dprint("%s _get_dsc_pid_table fail\n", __func__);
+			dprint("%s _get_dsc_pid_table fail\n", __func__);
 			return -1;
 		}
 		ptmp->scb00 = 0;
@@ -350,17 +350,17 @@ static int _dsc_chan_set_key(struct dsc_channel *ch,
 	ptmp->sid = ch->sid;
 	ptmp->pid = ch->pid;
 	if (parity == CA_KEY_EVEN_TYPE)
-		ptmp->kte_even_00 = key_index;
+		ptmp->kte_even_00 = key_index - IVE_MAX;
 	else if (parity == CA_KEY_EVEN_IV_TYPE)
 		ptmp->even_00_iv = key_index;
 	else if (parity == CA_KEY_ODD_TYPE)
-		ptmp->kte_odd = key_index;
+		ptmp->kte_odd = key_index - IVE_MAX;
 	else if (parity == CA_KEY_ODD_IV_TYPE)
 		ptmp->odd_iv = key_index;
 	else if (parity == CA_KEY_00_IV_TYPE)
 		ptmp->even_00_iv = key_index;
 	else
-		ptmp->kte_even_00 = key_index;
+		ptmp->kte_even_00 = key_index - IVE_MAX;
 
 	dsc_config_pid_table(ptmp, ch->dsc_type);
 	return 0;
@@ -394,8 +394,8 @@ static int handle_desc_ext(struct aml_dsc *dsc, struct ca_sc2_descr_ex *d)
 				break;
 			}
 			ret = _dsc_chan_alloc(dsc,
-					      d->params.alloc_params.
-					      pid & 0x1FFF,
+					      d->params.
+					      alloc_params.pid & 0x1FFF,
 					      d->params.alloc_params.algo + 1,
 					      d->params.alloc_params.dsc_type,
 					      &d->params.alloc_params.ca_index);
@@ -409,8 +409,8 @@ static int handle_desc_ext(struct aml_dsc *dsc, struct ca_sc2_descr_ex *d)
 			pr_dbg("%s CA_FREE:%d\n", __func__,
 			       d->params.alloc_params.ca_index);
 			ch = _get_chan_from_list(dsc,
-						 d->params.alloc_params.
-						 ca_index);
+						 d->params.
+						 alloc_params.ca_index);
 			if (ch)
 				_dsc_chan_free(ch);
 			ret = 0;
@@ -429,10 +429,10 @@ static int handle_desc_ext(struct aml_dsc *dsc, struct ca_sc2_descr_ex *d)
 				       d->params.key_params.parity,
 				       d->params.key_params.key_index);
 				ret = _dsc_chan_set_key(ch,
-							d->params.key_params.
-							parity,
-							d->params.key_params.
-							key_index);
+							d->params.
+							key_params.parity,
+							d->params.
+							key_params.key_index);
 			}
 		}
 		break;

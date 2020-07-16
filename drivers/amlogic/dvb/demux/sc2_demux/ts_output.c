@@ -937,6 +937,49 @@ int ts_output_init(int dmxdev_num, struct sid_info *info)
 	return 0;
 }
 
+int ts_output_sid_debug(void)
+{
+	int i = 0;
+	int dmxdev_num;
+	struct sid_entry *psid = NULL;
+
+	memset(&sid_table, 0, sizeof(sid_table));
+	dmxdev_num = 32;
+	/*for every dmx dev, it will use 2 sids,
+	 * one is demod, another is local
+	 */
+	ts_output_max_pid_num_per_sid =
+	    MAX_TS_PID_NUM / (2 * dmxdev_num * 4) * 4;
+
+	for (i = 0; i < dmxdev_num; i++) {
+		psid = &sid_table[i];
+		psid->used = 1;
+		psid->pid_entry_begin = ts_output_max_pid_num_per_sid * 2 * i;
+		psid->pid_entry_num = ts_output_max_pid_num_per_sid;
+		pr_dbg("%s sid:%d,pid start:%d, len:%d\n",
+		       __func__, i,
+		       psid->pid_entry_begin, psid->pid_entry_num);
+		tsout_config_sid_table(i,
+				       psid->pid_entry_begin / 4,
+				       psid->pid_entry_num / 4);
+
+		psid = &sid_table[i + 32];
+		psid->used = 1;
+		psid->pid_entry_begin =
+		    ts_output_max_pid_num_per_sid * (2 * i + 1);
+		psid->pid_entry_num = ts_output_max_pid_num_per_sid;
+
+		pr_dbg("%s sid:%d, pid start:%d, len:%d\n", __func__,
+		       i + 32,
+		       psid->pid_entry_begin, psid->pid_entry_num);
+		tsout_config_sid_table(i + 32,
+				       psid->pid_entry_begin / 4,
+				       psid->pid_entry_num / 4);
+	}
+
+	return 0;
+}
+
 int ts_output_destroy(void)
 {
 	if (out_elem_table)
@@ -1296,7 +1339,7 @@ int ts_output_get_mem_info(struct out_elem *pout,
 {
 	*total_size = pout->pchan->mem_size;
 	*buf_phy_start = pout->pchan->mem_phy;
-	*wp_offset = pout->pchan->last_w_addr;
+	*wp_offset = SC2_bufferid_get_wp_offset(pout->pchan);
 	*free_size = SC2_bufferid_get_free_size(pout->pchan);
 	return 0;
 }

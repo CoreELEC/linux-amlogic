@@ -382,12 +382,13 @@ static int _dmx_ts_feed_set(struct dmx_ts_feed *ts_feed, u16 pid, int ts_type,
 			pr_dbg("%s DMX_OUTPUT_RAW_MODE\n", __func__);
 		}
 	} else {
-		if (ts_type & TS_DEMUX) {
-			format = PES_FORMAT;
-			pr_dbg("%s PES_FORMAT\n", __func__);
-		} else {
+		if (filter->params.pes.output == DMX_OUT_TS_TAP ||
+		    filter->params.pes.output == DMX_OUT_TSDEMUX_TAP) {
 			format = TS_FORMAT;
 			pr_dbg("%s TS_FORMAT\n", __func__);
+		} else {
+			format = PES_FORMAT;
+			pr_dbg("%s PES_FORMAT\n", __func__);
 		}
 	}
 
@@ -1259,41 +1260,6 @@ int dmx_destroy(struct aml_dmx *pdmx)
 	return 0;
 }
 
-int dmx_get_buf_warning_status(struct aml_dmx *pdmx, int *status)
-{
-	int i = 0;
-	ssize_t free_mem = 0;
-	ssize_t total_mem = 0;
-
-	struct dmxdev *pdev = &pdmx->dev;
-
-	if (pdmx->init == 0)
-		return -1;
-
-	for (i = 0; i < pdev->filternum; i++) {
-		if ((pdev->filter[i].state < DMXDEV_STATE_SET) ||
-		    (pdev->filter[i].type != DMXDEV_TYPE_PES))
-			continue;
-
-		free_mem = dvb_ringbuffer_free(&pdev->filter[i].buffer);
-		total_mem = pdev->filter[i].buffer.size;
-
-		if ((total_mem - free_mem) * 100
-		    / total_mem >= pdmx->buf_warning_level) {
-			*status = 1;
-			return 0;
-		}
-	}
-	*status = 0;
-	return 0;
-}
-
-int dmx_set_buf_warning_level(struct aml_dmx *pdmx, int level)
-{
-	pdmx->buf_warning_level = level;
-	return 0;
-}
-
 static int reg_addr;
 
 static ssize_t register_addr_show(struct class *class,
@@ -1343,6 +1309,45 @@ static ssize_t register_value_store(struct class *class,
 	return size;
 }
 
+static int out_ts_elem_cb_test(struct out_elem *pout, char *buf,
+			       int count, void *udata)
+{
+	dprint("get data...\n");
+	return count;
+}
+
+void test_sid(void)
+{
+	int i = 0;
+	struct out_elem *ts_out_elem;
+
+	for (i = 0; i < 64; i++) {
+		dprint("##########sid:%d\n", i);
+		ts_out_elem = ts_output_open(i, TS_FORMAT, OTHER_TYPE, 0, 0);
+		if (ts_out_elem) {
+			ts_output_set_cb(ts_out_elem,
+					 out_ts_elem_cb_test, NULL);
+			ts_output_set_mem(ts_out_elem, pes_buf_size, 0, 0);
+			ts_output_add_pid(ts_out_elem, 0, 0);
+		} else {
+			dprint("%s error\n", __func__);
+		}
+		msleep(2000);
+		sc2_dump_register();
+
+		ts_output_remove_pid(ts_out_elem, 0);
+		ts_output_close(ts_out_elem);
+	}
+}
+
+static ssize_t debug_sid_show(struct class *class,
+			      struct class_attribute *attr, char *buf)
+{
+	ts_output_sid_debug();
+	test_sid();
+	return 0;
+}
+
 static ssize_t dump_register_show(struct class *class,
 				  struct class_attribute *attr, char *buf)
 {
@@ -1380,6 +1385,8 @@ static struct class_attribute aml_dmx_class_attrs[] = {
 	       dump_register_store),
 	__ATTR(dump_filter, 0644, dump_filter_show,
 	       dump_filter_store),
+	__ATTR(debug_sid, 0644, debug_sid_show,
+	       NULL),
 	__ATTR_NULL
 };
 

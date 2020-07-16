@@ -66,57 +66,6 @@ static int dmx_dev_num;
 static struct sid_info dmxdev_sid_info[MAX_DMX_DEV_NUM];
 #define DEFAULT_DMX_DEV_NUM  3
 
-ssize_t demux_buf_status_store(struct class *class,
-			       struct class_attribute *attr, const char *buf,
-			       size_t size)
-{
-	unsigned long warning_level = 0;
-	struct aml_dvb *dvb = aml_get_dvb_device();
-	int dmx_id = 0;
-
-	if (dmx_id == -1)
-		return 0;
-	if (!dvb->dmx[dmx_id].init)
-		return 0;
-
-	if (kstrtoul(buf, 10, &warning_level) == 0)
-		if (warning_level > 0 && warning_level <= 100)
-			dmx_set_buf_warning_level(&dvb->dmx[dmx_id],
-						  (int)warning_level);
-	return size;
-}
-
-ssize_t demux_buf_status_show(struct class *class,
-			      struct class_attribute *attr, char *buf)
-{
-	struct aml_dvb *dvb = aml_get_dvb_device();
-	ssize_t ret = 0;
-	char *src;
-	int status = -1;
-	int dmx_id = 0;
-
-	if (dmx_id == -1)
-		return 0;
-	if (!dvb->dmx[dmx_id].init)
-		return 0;
-
-	if (dmx_get_buf_warning_status(&dvb->dmx[dmx_id], &status) != 0)
-		return 0;
-	switch (status) {
-	case 0:
-		src = "0";
-		break;
-	case 1:
-		src = "1";
-		break;
-	default:
-		src = "disable";
-		break;
-	}
-	ret = sprintf(buf, "%s\n", src);
-	return ret;
-}
-
 ssize_t get_pcr_show(struct class *class,
 		     struct class_attribute *attr, char *buf)
 {
@@ -154,8 +103,6 @@ int demux_get_stc(int demux_device_index, int index,
 EXPORT_SYMBOL(demux_get_stc);
 
 static struct class_attribute aml_dvb_class_attrs[] = {
-	__ATTR(demux_buf_status, 0664, demux_buf_status_show,
-	       demux_buf_status_store),
 	__ATTR(tuner_setting, 0664, tuner_setting_show,
 	       tuner_setting_store),
 	__ATTR(ts_setting, 0664, ts_setting_show, ts_setting_store),

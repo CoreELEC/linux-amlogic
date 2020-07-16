@@ -141,6 +141,7 @@ int SC2_bufferid_write(struct chan_id *pchan, const char __user *buf,
 		       unsigned int count, int isphybuf);
 
 unsigned int SC2_bufferid_get_free_size(struct chan_id *pchan);
+unsigned int SC2_bufferid_get_wp_offset(struct chan_id *pchan);
 
 int _alloc_buff(unsigned int len, int sec_level,
 		unsigned long *vir_mem, unsigned long *phy_mem,

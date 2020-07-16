@@ -103,8 +103,6 @@ struct aml_dmx {
 void dmx_init_hw(int dev_num, struct sid_info *info);
 int dmx_init(struct aml_dmx *pdmx, struct dvb_adapter *dvb_adapter);
 int dmx_destroy(struct aml_dmx *pdmx);
-int dmx_get_buf_warning_status(struct aml_dmx *pdmx, int *status);
-int dmx_set_buf_warning_level(struct aml_dmx *pdmx, int level);
 int dmx_regist_dmx_class(void);
 int dmx_unregist_dmx_class(void);
 int dmx_get_stc(struct dmx_demux *dmx, unsigned int num,

@@ -412,17 +412,24 @@ static int is_buffer_overflow(struct chan_id *pchan, unsigned int cur_w)
 
 unsigned int SC2_bufferid_get_free_size(struct chan_id *pchan)
 {
-	unsigned int last_w = pchan->last_w_addr;
+	unsigned int now_w = 0;
 	unsigned int r = pchan->r_offset;
 	unsigned int mem_size = pchan->mem_size;
 	unsigned int free_space = 0;
 
-	if (last_w >= r)
-		free_space = mem_size - (last_w - r);
+	now_w = wdma_get_wr_len(pchan->id, NULL) % pchan->mem_size;
+
+	if (now_w >= r)
+		free_space = mem_size - (now_w - r);
 	else
-		free_space = r - last_w;
+		free_space = r - now_w;
 
 	return free_space;
+}
+
+unsigned int SC2_bufferid_get_wp_offset(struct chan_id *pchan)
+{
+	return (wdma_get_wr_len(pchan->id, NULL) % pchan->mem_size);
 }
 
 /**

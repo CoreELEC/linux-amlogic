@@ -43,6 +43,7 @@ struct key_descr {
 struct key_config {
 	int key_userid;
 	int key_algo;
+	int is_iv;
 	unsigned int key_index;
 };
 
