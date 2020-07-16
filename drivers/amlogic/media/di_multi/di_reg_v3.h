@@ -2255,5 +2255,14 @@
 //unsigned , RW,default = 10
 //only pip mode use those bits,ususaly don't need configure
 
+#define DI_CRC_CHK0		((0x17c3)) /* << 2) + 0xd0100000) */
+#define DI_RO_CRC_NRWR		((0x17c0)) /* << 2) + 0xd0100000) */
+#define DI_RO_CRC_DEINT		((0x17c1)) /* << 2) + 0xd0100000) */
+#define DI_RO_CRC_MTNWR		((0x17c2)) /* << 2) + 0xd0100000) */
+
+#define DI_PD_RO_SUM_P		((0x17f9))
+#define DI_PD_RO_SUM_N		((0x17fa))
+#define DI_PD_RO_CNT_P		((0x17fb))
+#define DI_PD_RO_CNT_N		((0x17fc))
 #endif	/*__DI_REG_V3_H__*/
 

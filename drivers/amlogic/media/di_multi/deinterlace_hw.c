@@ -161,7 +161,7 @@ static void mc_di_param_init(void)
 		DIM_DI_WR_REG_BITS(MCDI_REF_MV_NUM, 2, 0, 2);
 }
 
-static void mc_blend_sc2_init(void)
+static void mc_blend_sc2_init(void)//sc2 from vlsi feijun for reg overlap
 {
 	DIM_DI_WR_REG_BITS(MCDI_HOR_SADOFST, 0x18, 0, 8);
 	DIM_DI_WR_REG_BITS(MCDI_HOR_SADOFST, 0x8, 8, 8);
@@ -169,7 +169,7 @@ static void mc_blend_sc2_init(void)
 
 	DIM_DI_WR_REG_BITS(MCDI_LMV_GAINTHD, 0x60, 24, 8);
 	DIM_DI_WR_REG_BITS(MCDI_LMV_GAINTHD, 0x0, 20, 2);
-	DIM_DI_WR_REG_BITS(MCDI_LMV_GAINTHD, 0x0, 16, 3);
+	DIM_DI_WR_REG_BITS(MCDI_LMV_GAINTHD, 0x4, 16, 3);
 	DIM_DI_WR_REG_BITS(MCDI_LMV_GAINTHD, 0x3, 14, 2);
 	DIM_DI_WR_REG_BITS(MCDI_LMV_GAINTHD, 0x14, 8, 6);
 	DIM_DI_WR_REG_BITS(MCDI_LMV_GAINTHD, 0x9, 0, 8);

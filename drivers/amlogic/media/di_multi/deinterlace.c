@@ -3425,7 +3425,8 @@ void dim_pre_de_done_buf_config(unsigned int channel, bool flg_timeout)
 			if (cpu_after_eq(MESON_CPU_MAJOR_ID_GXLX))
 				get_ops_nr()->adaptive_cue_adjust(frame_motnum,
 								  field_motnum);
-			dim_pulldown_info_clear_g12a();
+			if (!(di_dbg & DBG_M_RESET_PRE))
+				dim_pulldown_info_clear_g12a();
 		}
 
 		if (ppre->cur_prog_flag) {

@@ -1127,6 +1127,8 @@ struct di_data_l_s {
 #define DBG_M_WQ		DI_BIT14	/*work que*/
 #define DBG_M_PL		DI_BIT15
 
+#define DBG_M_RESET_PRE		DI_BIT16
+
 extern unsigned int di_dbg;
 
 #define dbg_m(mark, fmt, args ...)		\

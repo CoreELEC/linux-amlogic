@@ -2922,14 +2922,16 @@ void set_di_mif_v3(struct DI_MIF_S *mif, enum DI_MIF0_ID mif_index,
 	u32 bytes_per_pixel = 0;
 	//0 = 1 byte per pixel,1 = 2 bytes per pixel,2 = 3 bytes per pixel
 	u32 demux_mode			= 0;
+	u32 reset_bit			= 1;
 	u32 chro_rpt_lastl_ctrl	= 0;
 	u32 luma0_rpt_loop_start	= 0;
 	u32 luma0_rpt_loop_end		= 0;
 	u32 luma0_rpt_loop_pat		= 0;
+	u32 vfmt_rpt_first = 0;
 	u32 chroma0_rpt_loop_start	= 0;
 	u32 chroma0_rpt_loop_end	= 0;
 	u32 chroma0_rpt_loop_pat	= 0;
-	int      hfmt_en      = 0;
+	int      hfmt_en      = 1;
 	int      hz_yc_ratio  = 0;
 	int      hz_ini_phase = 0;
 	int      vfmt_en      = 0;
@@ -2944,6 +2946,7 @@ void set_di_mif_v3(struct DI_MIF_S *mif, enum DI_MIF0_ID mif_index,
 	unsigned int off;
 	const unsigned int *reg;
 	const struct reg_acc *op;
+	int nrpt_phase0_en = 1;
 
 	if (!opin)
 		op = &di_pre_regset;
@@ -2995,7 +2998,7 @@ void set_di_mif_v3(struct DI_MIF_S *mif, enum DI_MIF0_ID mif_index,
 		chroma0_rpt_loop_end = 0;
 		luma0_rpt_loop_pat = 0x80;
 		chroma0_rpt_loop_pat = 0x00;
-		op->wr(off + reg[MIF_LUMA_FIFO_SIZE], 0xc0);
+		op->wr(off + reg[MIF_LUMA_FIFO_SIZE], 0xC0);
 	} else {
 		chro_rpt_lastl_ctrl = 0;
 		luma0_rpt_loop_start = 0;
@@ -3004,7 +3007,7 @@ void set_di_mif_v3(struct DI_MIF_S *mif, enum DI_MIF0_ID mif_index,
 		chroma0_rpt_loop_end = 0;
 		luma0_rpt_loop_pat = 0x00;
 		chroma0_rpt_loop_pat = 0x00;
-		op->wr(off + reg[MIF_LUMA_FIFO_SIZE], 0xc0);
+		op->wr(off + reg[MIF_LUMA_FIFO_SIZE], 0xC0);
 	}
 
 	bytes_per_pixel = (mif->set_separate_en) ?
@@ -3026,6 +3029,7 @@ void set_di_mif_v3(struct DI_MIF_S *mif, enum DI_MIF0_ID mif_index,
 	       1 << 0);   //64 bit swap
 	if (!is_mask(SC2_REG_MSK_GEN_PRE)) {
 		op->wr(off + reg[MIF_GEN_REG],
+			(reset_bit << 29)          | // reset on go field
 			(urgent << 28)             | // chroma urgent bit
 			(urgent << 27)             | // luma urgent bit.
 			(1 << 25)                  | // no dummy data.
@@ -3127,14 +3131,33 @@ void set_di_mif_v3(struct DI_MIF_S *mif, enum DI_MIF0_ID mif_index,
 		hz_rpt       = 0;
 	}
 	vt_phase_step = (16 >> vt_yc_ratio);
+
+	if (mif->set_separate_en != 0 && mif->src_field_mode == 1 && off == 0) {
+		vfmt_rpt_first = 1;
+		if (mif->output_field_num == 0)
+			vt_ini_phase = 0xe;
+		else
+			vt_ini_phase = 0xa;
+
+		if (mif->src_prog) {
+			if (mif->output_field_num == 0) {
+				vt_ini_phase = 0xc;
+			} else {
+				vt_ini_phase = 0x4;
+				vfmt_rpt_first = 0;
+			}
+		}
+		nrpt_phase0_en = 0;
+	}
+
 	op->wr(off + reg[MIF_FMT_CTRL],
 		(hz_rpt << 28)       |     //hz rpt pixel
 		(hz_ini_phase << 24) |     //hz ini phase
 		(0 << 23)         |        //repeat p0 enable
 		(hz_yc_ratio << 21)  |     //hz yc ratio
 		(hfmt_en << 20)   |        //hz enable
-		(1 << 17)         |        //nrpt_phase0 enable
-		(0 << 16)         |        //repeat l0 enable
+		(nrpt_phase0_en << 17)         |        //nrpt_phase0 enable
+		(vfmt_rpt_first << 16)         |        //repeat l0 enable
 		(0 << 12)         |        //skip line num
 		(vt_ini_phase << 8)  |     //vt ini phase
 		(vt_phase_step << 1) |     //vt phase step (3.4)

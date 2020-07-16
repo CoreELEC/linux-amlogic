@@ -52,6 +52,7 @@
 /* bit 16				nrwr_urgent */
 /* bit 15:8				nrwr_canvas_index_chroma */
 /* bit 7:0				nrwr_canvas_index_luma */
+#define DI_MTNWR_X                       ((0x17c3)) /* << 2) + 0xd0100000) */
 
 /* pst wr */
 #define DI_DIWR_X                        ((0x17c6)) /* << 2) + 0xd0100000) */

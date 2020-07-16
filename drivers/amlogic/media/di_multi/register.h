@@ -1583,8 +1583,9 @@ unsigned int DIM_VSC_WR_MPG_BT(unsigned int addr,
 /* bit 16				nrwr_urgent */
 /* bit 15:8				nrwr_canvas_index_chroma */
 /* bit 7:0				nrwr_canvas_index_luma */
-#endif
 #define DI_MTNWR_X                       ((0x17c3)) /* << 2) + 0xd0100000) */
+#endif
+
 #define DI_MTNWR_Y                       ((0x17c4)) /* << 2) + 0xd0100000) */
 #define DI_MTNWR_CTRL                    ((0x17c5)) /* << 2) + 0xd0100000) */
 #ifdef MARK_SC2	/* move to di_reg_v2.h */
