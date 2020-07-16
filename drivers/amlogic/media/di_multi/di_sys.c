@@ -276,6 +276,7 @@ static unsigned int di_cma_alloc(struct di_dev_s *devp, unsigned int channel)
 	struct di_mm_s *mm = dim_mm_get(channel);
 	bool aret;
 	struct dim_mm_s omm;
+	struct afbce_map_s afbce_map;
 
 	start_time = jiffies_to_msecs(jiffies);
 	queue_for_each_entry(buf_p, channel, QUEUE_LOCAL_FREE, list) {
@@ -295,7 +296,37 @@ static unsigned int di_cma_alloc(struct di_dev_s *devp, unsigned int channel)
 			return 0;
 		}
 		buf_p->pages = omm.ppage;
-		buf_p->nr_adr = omm.addr;
+		//buf_p->nr_adr = omm.addr;
+		buf_p->afbc_adr = omm.addr;
+		buf_p->afbct_adr = buf_p->afbc_adr + mm->cfg.ll_afbci_size;
+		buf_p->nr_adr	= buf_p->afbct_adr + mm->cfg.ll_afbct_size;
+		if (dim_afds() && mm->cfg.ll_afbct_size) {
+			afbce_map.bodyadd	= buf_p->nr_adr;
+			afbce_map.tabadd	= buf_p->afbct_adr;
+			afbce_map.size_buf	= mm->cfg.nr_size;
+			afbce_map.size_tab	= mm->cfg.ll_afbct_size;
+
+			dim_afds()->int_tab(devp->dev, &afbce_map);
+		}
+		#ifdef MARK_SC2
+		dbg_init("%s:%px,btype[%d]:index[%d]:\n", __func__,
+			 buf_p,
+			 buf_p->type,
+			 buf_p->index);
+		dbg_init("\t:%s: adr:0x%lx,size:%d\n", "afbc",
+			 buf_p->afbc_adr,
+			 mm->cfg.ll_afbci_size);
+		dbg_init("\t:%s: adr:0x%lx,size:%d\n", "afbc_tab",
+			 buf_p->afbct_adr,
+			 mm->cfg.ll_afbct_size);
+		dbg_init("\t:%s: adr:0x%lx,size:%d\n", "dw",
+			 buf_p->dw_adr,
+			 mm->cfg.dw_size);
+		dbg_init("\t:%s: adr:0x%lx,size:%d\n", "nr",
+			 buf_p->nr_adr,
+			 mm->cfg.nr_size);
+		#endif
+
 		if (omm.flg & DI_BIT0)
 			buf_p->flg_tvp |= DI_BIT0;
 		else
@@ -350,6 +381,7 @@ static unsigned int dpst_cma_alloc(struct di_dev_s *devp, unsigned int channel)
 	struct dim_mm_s omm;
 	u64	time1, time2;
 	ulong flags = 0;
+	struct afbce_map_s afbce_map;
 
 	time1 = cur_to_usecs();
 	if (dimp_get(edi_mp_post_wr_en) && dimp_get(edi_mp_post_wr_support)) {
@@ -375,7 +407,39 @@ static unsigned int dpst_cma_alloc(struct di_dev_s *devp, unsigned int channel)
 				return 0;
 			}
 			buf_p->pages = omm.ppage;
-			buf_p->nr_adr = omm.addr;
+			//buf_p->nr_adr = omm.addr;
+			buf_p->afbc_adr	= omm.addr;
+			buf_p->afbct_adr = buf_p->afbc_adr +
+				mm->cfg.p_afbci_size;
+			buf_p->dw_adr	= buf_p->afbct_adr +
+				mm->cfg.p_afbct_size;
+			buf_p->nr_adr	= buf_p->dw_adr	+ mm->cfg.dw_size;
+			if (dim_afds() && mm->cfg.p_afbct_size) {
+				afbce_map.bodyadd	= buf_p->nr_adr;
+				afbce_map.tabadd	= buf_p->afbct_adr;
+				afbce_map.size_buf	= mm->cfg.p_nr_size;
+				afbce_map.size_tab	= mm->cfg.p_afbct_size;
+
+				dim_afds()->int_tab(devp->dev, &afbce_map);
+			}
+		#ifdef MARK_SC2
+			dbg_init("%s:%px,btype[%d]:index[%d]:\n", __func__,
+				 buf_p,
+				 buf_p->type,
+				 buf_p->index);
+			dbg_init("\t:%s: adr:0x%lx,size:%d\n", "afbc",
+				 buf_p->afbc_adr,
+				 mm->cfg.p_afbci_size);
+			dbg_init("\t:%s: adr:0x%lx,size:%d\n", "afbc_tab",
+				 buf_p->afbct_adr,
+				 mm->cfg.p_afbct_size);
+			dbg_init("\t:%s: adr:0x%lx,size:%d\n", "dw",
+				 buf_p->dw_adr,
+				 mm->cfg.dw_size);
+			dbg_init("\t:%s: adr:0x%lx,size:%d\n", "nr",
+				 buf_p->nr_adr,
+				 mm->cfg.nr_size);
+		#endif
 			/* tvp flg */
 			if (omm.flg & DI_BIT0)
 				buf_p->flg_tvp |= DI_BIT0;
@@ -532,6 +596,7 @@ static unsigned int dpst_cma_alloc_onebuf(struct di_dev_s *devp,
 	bool aret;
 	struct dim_mm_s omm;
 	u64	time1, time2;
+	struct afbce_map_s afbce_map;
 
 #ifdef CONFIG_CMA
 
@@ -553,7 +618,19 @@ static unsigned int dpst_cma_alloc_onebuf(struct di_dev_s *devp,
 		return 0;
 	}
 	buf_p->pages = omm.ppage;
-	buf_p->nr_adr = omm.addr;
+	//buf_p->nr_adr = omm.addr;
+	buf_p->afbc_adr	= omm.addr;
+	buf_p->afbct_adr = buf_p->afbc_adr + mm->cfg.p_afbci_size;
+	buf_p->dw_adr	= buf_p->afbct_adr + mm->cfg.p_afbct_size;
+	buf_p->nr_adr	= buf_p->dw_adr	+ mm->cfg.dw_size;
+	if (dim_afds() && mm->cfg.p_afbct_size) {
+		afbce_map.bodyadd	= buf_p->nr_adr;
+		afbce_map.tabadd	= buf_p->afbct_adr;
+		afbce_map.size_buf	= mm->cfg.p_nr_size;
+		afbce_map.size_tab	= mm->cfg.p_afbct_size;
+
+		dim_afds()->int_tab(devp->dev, &afbce_map);
+	}
 	mm->sts.cnt_alloc++;
 	/* tvp flg */
 	if (omm.flg & DI_BIT0)
@@ -1182,13 +1259,11 @@ static int dim_probe(struct platform_device *pdev)
 
 	dip_init_pq_ops();
 
-#ifdef DI_USE_FIXED_CANVAS_IDX
 	if (dim_get_canvas()) {
 		pr_dbg("DI get canvas error.\n");
 		ret = -EEXIST;
 		return ret;
 	}
-#endif
 
 	for (i = 0; i < DI_CHANNEL_NUB; i++) {
 		set_init_flag(i, false);

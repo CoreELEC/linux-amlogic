@@ -580,6 +580,18 @@ static int seq_file_vframe(struct seq_file *seq, void *v, struct vframe_s *pvfm)
 		/* used for indicate current video is motion or static */
 	seq_printf(seq, "%-15s:%d\n", "combing_cur_lev",
 		   pvfm->combing_cur_lev);
+	seq_printf(seq, "%-15s:\n", "canvas0_cfg[0]");
+	seq_printf(seq, "\t%-15s:0x%x\n", "phy_addr",
+		   pvfm->canvas0_config[0].phy_addr);
+	seq_printf(seq, "\t%-15s:%d\n", "width",
+		   pvfm->canvas0_config[0].width);
+	seq_printf(seq, "\t%-15s:%d\n", "height",
+		   pvfm->canvas0_config[0].height);
+	seq_printf(seq, "\t%-15s:%d\n", "block_mode",
+		   pvfm->canvas0_config[0].block_mode);
+	seq_printf(seq, "\t%-15s:0x%x\n", "endian",
+		   pvfm->canvas0_config[0].endian);
+
 	return 0;
 }
 

@@ -144,8 +144,8 @@ bool is_bypass_i_p(void)
 	struct di_vinfo_s *vl = &pre->vinf_lst;
 
 	if (vl->ch != vc->ch			&&
-	    vf_type_is_interlace(vl->vtype)	&&
-	    vf_type_is_prog(vc->vtype)) {
+	    VFMT_IS_I(vl->vtype)	&&
+	    VFMT_IS_P(vc->vtype)) {
 		ret = true;
 	}
 	#else
@@ -161,8 +161,8 @@ bool is_bypass_i_p(void)
 	ch_l = (ch_c ? 0 : 1);
 	ppre_c = get_pre_stru(ch_c);
 	ppre_l = get_pre_stru(ch_l);
-	if (vf_type_is_interlace(ppre_l->cur_inp_type)	&&
-	    vf_type_is_prog(ppre_c->cur_inp_type)) {
+	if (VFMT_IS_I(ppre_l->cur_inp_type)	&&
+	    VFMT_IS_P(ppre_c->cur_inp_type)) {
 		ret = true;
 		dim_print("ch[%d]:bypass p\n", ch_c);
 	}
@@ -454,14 +454,7 @@ enum EDI_WAIT_INT di_pre_wait_int(void *data)
 		 * interrupts are raised if both
 		 * DI_INTR_CTRL[16] and DI_INTR_CTRL[17] are 0
 		 */
-#ifdef MARK_HIS
-		data32 = RD(DI_INTR_CTRL);
-		if (((data32 & 0x1) &&
-		     (ppre->enable_mtnwr == 0 || (data32 & 0x2))) ||
-		      ppre->pre_de_clear_flag == 2) {
-			DIM_RDMA_WR(DI_INTR_CTRL, data32);
-		}
-#endif
+
 		/*di_pre_wait_irq_set(false);*/
 		/*finish to count timer*/
 		di_tout_contr(EDI_TOUT_CONTR_FINISH, &pre->tout);
@@ -477,12 +470,7 @@ enum EDI_WAIT_INT di_pre_wait_int(void *data)
 		spin_unlock_irqrestore(&plist_lock, flags);
 
 		ppre = get_pre_stru(pre->curr_ch);
-#ifdef MARK_HIS
-		if (ppre->field_count_for_cont == 1) {
-			usleep_range(2000, 2001);
-			pr_info("delay 1ms\n");
-		}
-#endif
+
 
 		ret = EDI_WAIT_INT_HAVE_INT;
 
@@ -673,10 +661,6 @@ unsigned int dpre_mp_check2(void *data)
 		/*pre->flg_wait_int = false;*/
 		ret = K_DO_R_FINISH;
 	} else {
-		#ifdef MARK_HIS
-		PR_ERR("%s:not second?ch[%d]\n", __func__, pre->curr_ch);
-		ret = K_DO_R_JUMP(K_DO_TABLE_ID_STOP);
-		#endif
 	}
 
 	return ret;

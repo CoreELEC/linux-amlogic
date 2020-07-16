@@ -215,14 +215,28 @@ enum EAFBC_ENC {
 };
 
 enum EAFBC_CFG {
-	EAFBC_CFG_EN,
-	EAFBC_CFG_PMODE,
+	EAFBC_CFG_DISABLE,
+	EAFBC_CFG_PMODE,	/* < AFBCD_V4 */
 	EAFBC_CFG_EMODE,
 	EAFBC_CFG_ETEST,
 	EAFBC_CFG_4K,
 	EAFBC_CFG_PRE_LINK,
 	EAFBC_CFG_PAUSE,
 	EAFBC_CFG_LEVE3,
+	EAFBC_CFG_FORCE_MEM,
+	EAFBC_CFG_FORCE_CHAN2,
+	EAFBC_CFG_FORCE_NR,
+	EAFBC_CFG_FORCE_IF1,
+	EAFBC_CFG_MEM,		/* = AFBCD_V4 */
+	EAFBC_CFG_6DEC_2ENC,
+	EAFBC_CFG_6DEC_2ENC2, /* for none afbc in use afbc*/
+	EAFBC_CFG_6DEC_1ENC3, /* base 2, out is nv21 */
+
+};
+
+enum EAFBC_STS {
+	EAFBC_MEM_NEED,
+
 };
 
 struct afbce_map_s {
@@ -232,72 +246,114 @@ struct afbce_map_s {
 	unsigned int size_tab;
 };
 
-struct afbcd_ctr_s {
+union afbc_blk_s {
+	unsigned char d8;
 	struct {
-		unsigned int ver	: 8,
+		unsigned char	inp		: 1,
+			mem		: 1,
+			chan2		: 1,
+			if0		: 1,
+			if1		: 1,
+			if2		: 1,
+			enc_nr		: 1,
+			enc_wr		: 1;
+	} b;
+};
 
-			sp_inp		: 1,
-			sp_mem		: 1,
-			/*0:inp only, 1: inp + mem*/
-			sp_chan2	: 1,
-			sp_if0		: 1,
-			sp_if1		: 1,
-			sp_if2		: 1,
-			rev1		: 2,
+struct afbc_fb_s {
+	unsigned char ver;
 
-			/* mode
-			 *	0: 1 afbcd
-			 *	1: p: 2afbcd + 1 afbce
-			 *	2: i: 6afbcd + 2 afbce
-			 *	3:
-			 */
-			mode		: 2,
-			rev2		: 2,
-			rev3		: 4,
+	union afbc_blk_s	sp;
 
-			pre_dec		: 4,
-			mem_dec		: 4,
+		/* mode
+		 *	0: 1 afbcd
+		 *	1: p: 2afbcd + 1 afbce
+		 *	2: i: 6afbcd + 2 afbce
+		 *	3:
+		 */
+	unsigned int	mode		: 4,
+		mem_alloc	: 1,
+		rev2		: 1,
+		rev3		: 2,
 
-			ch2_dec		: 4,
-			if0_dec		: 4,
+		pre_dec		: 4,
+		mem_dec		: 4,
 
-			if1_dec		: 4,
-			if2_dec		: 4,
+		ch2_dec		: 4,
+		if0_dec		: 4,
 
-			rev4		: 8;
-	} fb;
+		if1_dec		: 4,
+		if2_dec		: 4;
 
+		//rev4		: 8;
+};
+
+struct afbcd_ctr_s {
+	struct afbc_fb_s fb;
 	union {
 		unsigned int d32;
 		struct {
 		unsigned int int_flg	: 1, /*addr ini*/
 			en		: 1,
 			enc_err		: 1,
-			rev1		: 5,
+			en_pst		: 1,
+
+			en_pst_if1	: 1,
+			en_pst_if2	: 1,
+			rev1		: 2,
 
 			chg_level	: 2,
 			chg_mem		: 2, /*add*/
-			rev2		: 4,
+			pst_chg_level	: 2,
+			pst_chg_if1	: 2,
 
-			rev3		: 8,
+			pst_chg_if2	: 2,
+			chg_chan2	: 2,
+			rev3		: 4,
+
 			rev4		: 8;
 		} b;
 	};
+
+	union afbc_blk_s	en_cfg;
+	union afbc_blk_s	en_sgn;
+	union afbc_blk_s	en_set;
+	union afbc_blk_s	en_sgn_pst;
+	union afbc_blk_s	en_set_pst;
+
 	unsigned int size_tab;
 	unsigned int size_info;
 	unsigned int l_vtype;
 	unsigned int l_vt_mem;
+	unsigned int l_vt_chan2;
 	unsigned int l_h;
 	unsigned int l_w;
 	unsigned int l_bitdepth;
 	unsigned int addr_h;
 	unsigned int addr_b;
-	unsigned int mem_addr_h;
-	unsigned int mem_addr_b;
+//	unsigned int mem_addr_h;
+//	unsigned int mem_addr_b;
+	unsigned int pst_in_vtp;
+	unsigned int pst_o_vtp;
+	unsigned int pst_in_h;
+	unsigned int pst_in_w;
+	unsigned int pst_in_bitdepth;
+	unsigned int pst_o_h;
+	unsigned int pst_o_w;
 };
 
 struct afd_s {
 	struct afbcd_ctr_s ctr;
+	union hw_sc2_ctr_pre_s *top_cfg_pre;
+	union hw_sc2_ctr_pst_s *top_cfg_pst;
+};
+
+enum AFBC_SGN {
+	AFBC_SGN_BYPSS,
+	AFBC_SGN_P_H265,
+	AFBC_SGN_P,
+	AFBC_SGN_I,
+	AFBC_SGN_I_H265,
 };
 
 struct afd_ops_s {
@@ -305,9 +361,17 @@ struct afd_ops_s {
 	bool (*is_supported)(void);
 	u32 (*en_pre_set)(struct vframe_s *inp_vf,
 			  struct vframe_s *mem_vf,
+			  struct vframe_s *chan2_vf,
 			  struct vframe_s *nr_vf);
+	u32 (*en_pst_set)(struct vframe_s *if0_vf,
+			  struct vframe_s *if1_vf,
+			  struct vframe_s *if2_vf,
+			  struct vframe_s *wr_vf);
 	void (*inp_sw)(bool on);
 	bool (*is_used)(void);
+	bool (*is_used_inp)(void);
+	bool (*is_used_mem)(void);
+	bool (*is_used_chan2)(void);
 	bool (*is_free)(void);/*?*/
 	bool (*is_cfg)(enum EAFBC_CFG cfg_cmd);
 	unsigned int (*count_info_size)(unsigned int w, unsigned int h);
@@ -316,11 +380,21 @@ struct afd_ops_s {
 			struct afbce_map_s *pcfg);
 	void (*dump_reg)(void);
 	void (*reg_sw)(bool on);
-	void (*reg_val)(void);
+	void (*reg_val)(void *pch);
 	u32 (*rqst_share)(bool onoff);
 	const unsigned int *(*get_d_addrp)(enum EAFBC_DEC eidx);
 	const unsigned int *(*get_e_addrp)(enum EAFBC_ENC eidx);
 	u32 (*dbg_rqst_share)(bool onoff);
+	void (*dbg_afbc_blk)(struct seq_file *s,
+			     union afbc_blk_s *blk, char *name);
+
+	void (*pre_check)(struct vframe_s *vf, void *pch);/* struct di_ch_s */
+	//void (*pre_check2)(struct di_buf_s *di_buf);
+	void (*pst_check)(struct vframe_s *vf, void *pch);
+	bool (*is_sts)(enum EAFBC_STS status);
+	void (*sgn_mode_set)(unsigned int sgn_mode);
+	unsigned char (*cnt_sgn_mode)(unsigned int sgn);
+	void (*cfg_mode_set)(unsigned int mode, union afbc_blk_s *en_cfg);
 };
 
 enum EDI_MIFSM {
@@ -330,16 +404,21 @@ enum EDI_MIFSM {
 
 int dbg_afbc_cfg_show(struct seq_file *s, void *v);/*debug*/
 void dbg_afbcd_bits_show(struct seq_file *s, enum EAFBC_DEC eidx);
+void dbg_mif_wr_bits_show(struct seq_file *s, enum EDI_MIFSM mifsel);
 void dbg_afd_reg(struct seq_file *s, enum EAFBC_DEC eidx);
 void dbg_afbce_bits_show(struct seq_file *s, enum EAFBC_ENC eidx);
 void dbg_afe_reg(struct seq_file *s, enum EAFBC_ENC eidx);
+void dbg_afe_reg_v3(struct seq_file *s, enum EAFBC_ENC eidx);
+
 bool dbg_di_prelink(void);
 void dbg_di_prelink_reg_check(void);
 
+bool dbg_di_prelink_v3(void);
 /**/
 int dbg_afbc_cfg_v3_show(struct seq_file *s, void *v);/*debug*/
 void dbg_afd_reg_v3(struct seq_file *s, enum EAFBC_DEC eidx);
 
+bool di_attach_ops_afd(const struct afd_ops_s **ops);
 bool di_attach_ops_afd_v3(const struct afd_ops_s **ops);
 
 /************************************************

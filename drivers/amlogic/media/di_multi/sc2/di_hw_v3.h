@@ -71,86 +71,8 @@ enum EAFBCE_INDEX_V3 {
 
 #define DIM_ERR		(0xffffffff)
 
-struct AFBCD_S {
-	u32  index      ;//3bit: 0-5 for di_m0/m5, 6:vd1 7:vd2
-	u32  hsize      ;//input size
-	u32  vsize;
-	u32  head_baddr;
-	u32  body_baddr;
-	u32  compbits   ;//2 bits   0-8bits 1-9bits 2-10bits
-	u32  fmt_mode   ;//2 bits   default = 2, 0:yuv444 1:yuv422 2:yuv420
-	u32  ddr_sz_mode;//1 bits   1:mmu mode
-	u32  fmt444_comb;//1 bits
-	u32  dos_uncomp ;//1 bits   0:afbce   1:dos
-	u32  rot_en;
-	u32  rot_hbgn;
-	u32  rot_vbgn;
-	u32  h_skip_en;
-	u32  v_skip_en;
 
-	u32  rev_mode;
-	u32  lossy_en;
-	u32  def_color_y;
-	u32  def_color_u;
-	u32  def_color_v;
-	u32  win_bgn_h;
-	u32  win_end_h;
-	u32  win_bgn_v;
-	u32  win_end_v;
-	u32  rot_vshrk;
-	u32  rot_hshrk;
-	u32  rot_drop_mode;
-	u32  rot_ofmt_mode;
-	u32  rot_ocompbit;
-	u32  pip_src_mode;
-	//ary add:
-	u32 hold_line_num;		/* def 2*/
-	u32 blk_mem_mode;		/* def 0*/
-	unsigned int out_horz_bgn;	/* def 0*/
-	unsigned int out_vert_bgn;	/* def 0*/
-	unsigned int hz_ini_phase;	/* def 0*/
-	unsigned int vt_ini_phase;	/* def 0*/
-	unsigned int hz_rpt_fst0_en;	/* def 0*/
-	unsigned int vt_rpt_fst0_en;	/* def 0*/
-	//unsigned int rev_mode;		/* def 0*/
-	unsigned int def_color;		/* def no use */
-	unsigned int reg_lossy_en;	/* def 0*/
-	//unsigned int pip_src_mode;	/* def 0*/
-	//unsigned int rot_drop_mode;	/* def 0*/
-	//unsigned int rot_vshrk;		/* def 0*/
-	//unsigned int rot_hshrk;		/* def 0*/
-
-};
-
-struct AFBCE_S {
-	u32 head_baddr     ;//head_addr of afbce
-	u32 mmu_info_baddr ;//mmu_linear_addr
-	u32 reg_init_ctrl  ;//pip init frame flag
-	u32 reg_pip_mode   ;//pip open bit
-	u32 reg_ram_comb   ;//ram split bit open in di mult write case case
-	u32 reg_format_mode;//0:444 1:422 2:420
-	u32 reg_compbits_y ;//bits num after compression
-	u32 reg_compbits_c ;//bits num after compression
-	u32 hsize_in       ;//input data hsize
-	u32 vsize_in       ;//input data hsize
-	u32 hsize_bgnd     ;//hsize of background
-	u32 vsize_bgnd     ;//hsize of background
-	u32 enc_win_bgn_h  ;//scope in background buffer
-	u32 enc_win_end_h  ;//scope in background buffer
-	u32 enc_win_bgn_v  ;//scope in background buffer
-	u32 enc_win_end_v  ;//scope in background buffer
-	u32 loosy_mode;
-	//0:close 1:luma loosy 2:chrma loosy 3: luma & chrma loosy
-	u32 rev_mode       ;//0:normal mode
-	u32 def_color_0    ;//def_color
-	u32 def_color_1    ;//def_color
-	u32 def_color_2    ;//def_color
-	u32 def_color_3    ;//def_color
-	u32 force_444_comb ;//def_color
-	u32 rot_en;
-	u32 din_swt;
-};
-
+#ifdef MARK_SC2
 struct SHRK_S {
 	u32 hsize_in;
 	u32 vsize_in;
@@ -160,6 +82,7 @@ struct SHRK_S {
 	u32 frm_rst;
 
 };
+#endif
 
 #ifdef MARK_SC2	//ary use DI_MIF_S
 struct DI_MIF0_S {
@@ -173,43 +96,49 @@ struct DI_MIF0_S {
 	u16  chroma_y_end0;
 	u16  set_separate_en : 2;
 	// 00 : one canvas 01 : 3 canvas(old 4:2:0).10: 2 canvas. (NV21).
-	uint16_t  src_field_mode  : 1;   // 1 frame . 0 field.
-	uint16_t  video_mode      : 2;   //00: 4:2:0; 01: 4:2:2; 10: 4:4:4
-	uint16_t  output_field_num: 1;   // 0 top field  1 bottom field.
-	uint16_t  bits_mode       : 2;
+	u16  src_field_mode  : 1;   // 1 frame . 0 field.
+	u16  video_mode      : 2;   //00: 4:2:0; 01: 4:2:2; 10: 4:4:4
+	u16  output_field_num: 1;   // 0 top field  1 bottom field.
+	u16  bits_mode       : 2;
 	// 0:8 bits  1:10 bits 422(old mode,12bit)
 	// 2: 10bit 444  3:10bit 422(full pack) or 444
 
-	uint16_t  burst_size_y    : 2;
-	uint16_t  burst_size_cb   : 2;
-	uint16_t  burst_size_cr   : 2;
-	uint16_t  canvas0_addr0 : 8;
-	uint16_t  canvas0_addr1 : 8;
-	uint16_t  canvas0_addr2 : 8;
-	uint16_t  rev_x : 1;
-	uint16_t  rev_y : 1;
+	u16  burst_size_y    : 2;
+	u16  burst_size_cb   : 2;
+	u16  burst_size_cr   : 2;
+	u16  canvas0_addr0 : 8;
+	u16  canvas0_addr1 : 8;
+	u16  canvas0_addr2 : 8;
+	u16  rev_x : 1;
+	u16  rev_y : 1;
 	//ary add----
 	unsigned int urgent;
 	unsigned int hold_line;
 };
 #endif
 
-struct DI_MIF1_S { //dbg only
-	   u16  start_x;
-	   u16  end_x;
-	   u16  start_y;
-	   u16  end_y;
-	   u16  canvas_num;
-	   u16  rev_x;
-	   u16  rev_y;
+struct DI_MIF1_S {
+	u16  start_x;
+	u16  end_x;
+	u16  start_y;
+	u16  end_y;
+	u16  canvas_num;
+	u16  rev_x;
+	u16  rev_y;
 #ifdef MARK_SC2
-	// bit_mode 0:8 bits 1:10 bits 422(old mode,12bit)
-	// 2:10bit 444 3:10bit 422(full pack) or 444
+	//bit_mode 0:8 bits 1:10 bits 422(old mode,12bit)
+	//2:10bit 444
+	//3:10bit 422(full pack) or 444
 	unsigned int    bit_mode	   :4;
-	//set_separate_en00 : one canvas01 : 3
-	//canvas(old 4:2:0).10: 2 canvas. (NV21).
-	unsigned int    set_separate_en :4; /*ary add below is only for wr buf*/
-	// video_mode :00: 4:2:0;01: 4:2:2;10: 4:4:4
+	//set_separate_en
+	//00 : one canvas
+	//01 : 3 canvas(old 4:2:0).
+	//10: 2 canvas. (NV21).
+	unsigned int    set_separate_en :4; //ary add below is only for wr buf
+	//video_mode :
+	//00: 4:2:0;
+	//01: 4:2:2;
+	//10: 4:4:4
 	//2020-06-02 from 1bit to 2bit
 	unsigned int    video_mode	   :4;
 	unsigned int    ddr_en	   :1;
@@ -241,20 +170,26 @@ struct DI_PRE_S {
 	struct AFBCD_S *chan2_afbc;
 	struct AFBCE_S *nrwr_afbc;
 
-	int afbc_en;//
-	int nr_en;
-	int mcdi_en;
-	int mtn_en;
-	int dnr_en;
-	int cue_en;
-	int cont_ini_en;
-	int mcinfo_rd_en;
-	int pd32_check_en;
-	int pd22_check_en;
-	int hist_check_en;
-	int pre_field_num;
-	int pre_viu_link;// pre link to VPP
-	int hold_line;
+	unsigned int	      afbc_en	     : 1;//
+	unsigned int	      nr_en	     : 1;
+	unsigned int	      mcdi_en	     : 1;
+	unsigned int	      mtn_en	     : 1;
+
+	unsigned int	      dnr_en	     : 1;
+	unsigned int	      cue_en	     : 1;
+	unsigned int	      cont_ini_en    : 1;
+	unsigned int	      mcinfo_rd_en   : 1;
+
+	unsigned int	      pd32_check_en  : 1;
+	unsigned int	      pd22_check_en  : 1;
+	unsigned int	      hist_check_en  : 1;
+	unsigned int	      pre_field_num  : 1;
+
+	unsigned int	      pre_viu_link   : 1;// pre link to VPP
+	unsigned int	resv1		: 3;
+	unsigned int	      hold_line      : 8;
+	unsigned int	resv2		: 8;
+
 };
 
 struct DI_PST_S {
@@ -362,6 +297,7 @@ struct hw_ops_s {
 				  const struct reg_acc *op);
 	void (*shrk_set)(struct SHRK_S *srkcfg,
 			 const struct reg_acc *op);
+	void (*shrk_disable)(void);
 	void (*wrmif_set)(int index, int enable,
 			  struct DI_MIF_S *wr_mif, const struct reg_acc *op);
 	void (*mult_wr)(struct DI_MULTI_WR_S *mwcfg, const struct reg_acc *op);
@@ -380,11 +316,16 @@ enum SC2_REG_MSK {
 	SC2_REG_MSK_GEN_PRE,
 	SC2_REG_MSK_GEN_PST,
 	SC2_REG_MSK_nr,
+	SC2_DW_EN,
+	SC2_DW_SHOW,
+	SC2_DW_SHRK_EN,
+	SC2_ROT_WR,
+	SC2_ROT_PST,
 };
 
 bool is_mask(unsigned int cmd);
-void dim_sc2_contr_pre(struct hw_sc2_ctr_pre_s *cfg);
-void dim_sc2_contr_pst(struct hw_sc2_ctr_pst_s *cfg);
+void dim_sc2_contr_pre(union hw_sc2_ctr_pre_s *cfg);
+void dim_sc2_contr_pst(union hw_sc2_ctr_pst_s *cfg);
 void hpre_gl_read(void);
 
 #endif /* __DI_HW_V3_H__ */

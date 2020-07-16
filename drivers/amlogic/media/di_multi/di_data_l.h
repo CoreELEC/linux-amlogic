@@ -100,12 +100,6 @@ enum EDPST_OUT_MODE {
 	EDPST_OUT_MODE_NV12,
 };
 
-struct di_win_s {
-	unsigned int x_size;
-	unsigned int y_size;
-	unsigned int x_st;
-	unsigned int y_st;
-};
 
 /* ************************************** */
 /* *************** cfg top ************** */
@@ -406,7 +400,7 @@ struct di_hpre_s {
 	bool dbg_f_en;
 	unsigned int dbg_f_lstate;
 	unsigned int dbg_f_cnt;
-	struct hw_sc2_ctr_pre_s pre_top_cfg;
+	union hw_sc2_ctr_pre_s pre_top_cfg;
 
 };
 
@@ -438,7 +432,19 @@ struct di_hpst_s {
 	unsigned int dbg_f_lstate;
 	unsigned int dbg_f_cnt;
 	struct vframe_s		vf_post;
-	struct hw_sc2_ctr_pst_s pst_top_cfg;
+	union hw_sc2_ctr_pst_s pst_top_cfg;
+	unsigned int last_pst_size;
+	/****************/
+	unsigned int cfg_cp	: 1;
+	unsigned int cfg_rot	: 1;
+	unsigned int cfg_afbce	: 1; /*wr use afbce*/
+	unsigned int cfg_rev0	: 1;
+	unsigned int cfg_from	: 4;	/* enum DI_SRC_ID */
+
+	unsigned int cfg_rev1	: 8;
+	unsigned int cfg_rev2	: 8;
+	unsigned int cfg_rev3	: 8;
+	/****************/
 };
 
 /**************************************/
@@ -849,6 +855,13 @@ struct di_mm_cfg_s {
 	int mcinfo_size;
 	int mv_size;
 	int mtn_size;
+	unsigned int ll_afbci_size;	/* afbc info size */
+	unsigned int ll_afbct_size;
+	unsigned int p_afbci_size;	/* afbc info size */
+	unsigned int p_afbct_size;
+	unsigned int p_nr_size;
+	unsigned int dw_size;
+
 	unsigned char buf_alloc_mode;
 };
 
@@ -1074,6 +1087,24 @@ struct di_dbg_data {
 	struct di_dbg_reg_log reg_log;
 };
 
+#define DI_CVS_EN_PRE	DI_BIT0
+#define DI_CVS_EN_PST	DI_BIT1
+#define DI_CVS_EN_PRE2	DI_BIT2
+#define DI_CVS_EN_PST2	DI_BIT3
+#define DI_CVS_EN_INP	DI_BIT4
+#define DI_CVS_EN_DS	DI_BIT5
+
+struct di_cvs_s {
+	unsigned int post_idx[2][6];
+	unsigned int pre_idx[2][10];
+	unsigned int inp_idx[3];
+	unsigned int nr_ds_idx;
+	unsigned int pre_num;
+	unsigned int post_num;
+	unsigned int en;/*bit0:pre,bit1,post; bit2,pre_2*/
+	unsigned int err_cnt;
+};
+
 struct di_data_l_s {
 	/*bool cfg_en[K_DI_CFG_NUB];*/	/*cfg_top*/
 	union di_cfg_tdata_u cfg_en[K_DI_CFG_NUB];
@@ -1089,7 +1120,10 @@ struct di_data_l_s {
 	struct di_hpst_s hw_pst;
 	const struct dim_hw_opsv_s *hop_l1; /* from sc2 */
 	struct afd_s di_afd;
+	const struct hw_ops_s *hop_l2;
+
 	const struct afd_ops_s *afds;
+	struct di_cvs_s cvs;
 	struct dentry *dbg_root_top;	/* dbg_fs*/
 	/*pq_ops*/
 	const struct pulldown_op_s *ops_pd;	/* pulldown */
@@ -1193,6 +1227,11 @@ static inline struct di_hpst_s  *get_hw_pst(void)
 static inline const struct dim_hw_opsv_s  *opl1(void)
 {
 	return get_datal()->hop_l1;
+}
+
+static inline const struct hw_ops_s  *opl2(void)
+{
+	return get_datal()->hop_l2;
 }
 
 /****************************************

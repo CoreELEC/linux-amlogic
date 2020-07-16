@@ -145,6 +145,8 @@ void dim_nr_ds_init(unsigned int width, unsigned int height)
 		return;
 	}
 	PR_INF("%s alloc nrds canvas %u.\n", __func__, nrds_dev.canvas_idx);
+	get_datal()->cvs.nr_ds_idx = nrds_dev.canvas_idx;
+	get_datal()->cvs.en |= DI_CVS_EN_DS;
 }
 
 /*

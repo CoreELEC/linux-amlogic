@@ -29,37 +29,6 @@
 #define MIN_BLEND_WIDTH	27
 
 #define	SKIP_CTRE_NUM	16
-#ifdef MARK_SC2
-/*move from deinterlace.c*/
-enum EAFBC_REG {
-	EAFBC_ENABLE,
-	EAFBC_MODE,
-	EAFBC_SIZE_IN,
-	EAFBC_DEC_DEF_COLOR,
-	EAFBC_CONV_CTRL,
-	EAFBC_LBUF_DEPTH,
-	EAFBC_HEAD_BADDR,
-	EAFBC_BODY_BADDR,
-	EAFBC_SIZE_OUT,
-	EAFBC_OUT_YSCOPE,
-	EAFBC_STAT,
-	EAFBC_VD_CFMT_CTRL,
-	EAFBC_VD_CFMT_W,
-	EAFBC_MIF_HOR_SCOPE,
-	EAFBC_MIF_VER_SCOPE,
-	EAFBC_PIXEL_HOR_SCOPE,
-	EAFBC_PIXEL_VER_SCOPE,
-	EAFBC_VD_CFMT_H,
-};
-
-enum EAFBC_DEC {
-	EAFBC_DEC0,
-	EAFBC_DEC1,
-};
-
-#define AFBC_REG_INDEX_NUB	(18)
-#define AFBC_DEC_NUB		(2)
-#endif
 
 /* from sc2 */
 enum DI_MIF0_ID {
@@ -120,6 +89,124 @@ enum EDI_MIF_REG_INDEX {
 	MIF_FMT_CTRL,
 	MIF_FMT_W,
 	MIF_LUMA_FIFO_SIZE,
+};
+
+enum EDPST_MODE {
+	EDPST_MODE_NV21_8BIT, /*NV21 NV12*/
+	EDPST_MODE_422_10BIT_PACK,
+	EDPST_MODE_422_10BIT,
+	EDPST_MODE_422_8BIT,
+};
+
+struct AFBCD_S {
+	u32  index      ;//3bit: 0-5 for di_m0/m5, 6:vd1 7:vd2
+	u32  hsize      ;//input size
+	u32  vsize;
+	u32  head_baddr;
+	u32  body_baddr;
+	u32  compbits   ;//2 bits   0-8bits 1-9bits 2-10bits
+	u32  fmt_mode   ;//2 bits   default = 2, 0:yuv444 1:yuv422 2:yuv420
+	u32  ddr_sz_mode;//1 bits   1:mmu mode
+	u32  fmt444_comb;//1 bits
+	u32  dos_uncomp ;//1 bits   0:afbce   1:dos
+	u32  rot_en;
+	u32  rot_hbgn;
+	u32  rot_vbgn;
+	u32  h_skip_en;
+	u32  v_skip_en;
+
+	u32  rev_mode;
+	u32  lossy_en;
+	u32  def_color_y;
+	u32  def_color_u;
+	u32  def_color_v;
+	u32  win_bgn_h;
+	u32  win_end_h;
+	u32  win_bgn_v;
+	u32  win_end_v;
+	u32  rot_vshrk;
+	u32  rot_hshrk;
+	u32  rot_drop_mode;
+	u32  rot_ofmt_mode;
+	u32  rot_ocompbit;
+	u32  pip_src_mode;
+	//ary add:
+	u32 hold_line_num;		/* def 2*/
+	u32 blk_mem_mode;		/* def 0*/
+	unsigned int out_horz_bgn;	/* def 0*/
+	unsigned int out_vert_bgn;	/* def 0*/
+	unsigned int hz_ini_phase;	/* def 0*/
+	unsigned int vt_ini_phase;	/* def 0*/
+	unsigned int hz_rpt_fst0_en;	/* def 0*/
+	unsigned int vt_rpt_fst0_en;	/* def 0*/
+	//unsigned int rev_mode;		/* def 0*/
+	unsigned int def_color;		/* def no use */
+	unsigned int reg_lossy_en;	/* def 0*/
+	//unsigned int pip_src_mode;	/* def 0*/
+	//unsigned int rot_drop_mode;	/* def 0*/
+	//unsigned int rot_vshrk;		/* def 0*/
+	//unsigned int rot_hshrk;		/* def 0*/
+
+};
+
+struct AFBCE_S {
+	u32 head_baddr     ;//head_addr of afbce
+	u32 mmu_info_baddr ;//mmu_linear_addr
+	u32 reg_init_ctrl  ;//pip init frame flag
+	u32 reg_pip_mode   ;//pip open bit
+	u32 reg_ram_comb   ;//ram split bit open in di mult write case case
+	u32 reg_format_mode;//0:444 1:422 2:420
+	u32 reg_compbits_y ;//bits num after compression
+	u32 reg_compbits_c ;//bits num after compression
+	u32 hsize_in       ;//input data hsize
+	u32 vsize_in       ;//input data hsize
+	u32 hsize_bgnd     ;//hsize of background
+	u32 vsize_bgnd     ;//hsize of background
+	u32 enc_win_bgn_h  ;//scope in background buffer
+	u32 enc_win_end_h  ;//scope in background buffer
+	u32 enc_win_bgn_v  ;//scope in background buffer
+	u32 enc_win_end_v  ;//scope in background buffer
+	u32 loosy_mode;
+	//0:close 1:luma loosy 2:chrma loosy 3: luma & chrma loosy
+	u32 rev_mode       ;//0:normal mode
+	u32 def_color_0    ;//def_color
+	u32 def_color_1    ;//def_color
+	u32 def_color_2    ;//def_color
+	u32 def_color_3    ;//def_color
+	u32 force_444_comb ;//def_color
+	u32 rot_en;
+	u32 din_swt;
+};
+
+struct dim_fmt_s {
+	unsigned int vtype; /* ref to vfm type*/
+	unsigned int w;
+	unsigned int h;
+	unsigned int bitdepth; /*copy*/
+
+	unsigned int bit_mode	: 4;	/*count*/
+	unsigned int endian	: 1;
+	unsigned int block_mode	: 1;
+	/* flg for mif */
+	unsigned int p_as_i	: 1; /* working mode */
+	unsigned int p_top	: 1;
+
+	unsigned int rev1	: 24;
+
+	enum EDPST_MODE mode;	/* count */
+
+	unsigned int src_type;	/*copy*/
+	unsigned int trans_fmt; /*copy*/
+	unsigned int sig_fmt;	/*copy*//*use for mtn*/
+	unsigned int omx_index; /*copy omx_index or other */
+	u64	time_get;	/* debug only */
+};
+
+struct dim_cvsi_s {
+	unsigned int size;
+	unsigned int plane_nub;
+	unsigned char cvs_id[3];
+	struct canvas_config_s	cvs_cfg[3];
 };
 
 const char *dim_get_mif_reg_name(enum EDI_MIF_REG_INDEX idx);
@@ -288,6 +375,8 @@ enum ENR_MIF_INDEX {
 	ENR_MIF_INDEX_ENDIAN,
 	ENR_MIF_INDEX_URGENT,
 	ENR_MIF_INDEX_CBCR_SW,
+	ENR_MIF_INDEX_VCON,
+	ENR_MIF_INDEX_HCON,
 	ENR_MIF_INDEX_RGB_MODE,
 	/*below is only for sc2*/
 	ENR_MIF_INDEX_DBG_CMD_CNT,
@@ -308,6 +397,7 @@ struct cfg_mifset_s {
 	//unsigned int bit_mode;
 };
 
+#ifdef MARK_SC2
 struct hw_sc2_ctr_pre_s {
 	unsigned int afbc_en		: 1;	//nrwr_path_sel
 	unsigned int mif_en		: 1; /*nr mif*/
@@ -323,8 +413,29 @@ struct hw_sc2_ctr_pre_s {
 
 	unsigned int reserve2		: 20;
 };
+#endif
+union hw_sc2_ctr_pre_s {
+	unsigned int d32;
+	struct {
+	unsigned int afbc_en		: 1;	//nrwr_path_sel
+	unsigned int mif_en		: 1; /*nr mif*/
+	unsigned int nr_ch0_en		: 1;
+	unsigned int is_4k		: 1;
+	/*0:internal  1:pre-post link  2:viu  3:vcp(vdin)*/
+	unsigned int pre_frm_sel	: 4;
 
-struct hw_sc2_ctr_pst_s {
+	unsigned int afbc_nr_en		: 1;
+	unsigned int afbc_inp		: 1;
+	unsigned int afbc_mem		: 1;
+	unsigned int afbc_chan2		: 1;
+
+	unsigned int reserve2		: 20;
+	} b;
+};
+
+union hw_sc2_ctr_pst_s {
+	unsigned int d32;
+	struct {
 	unsigned int afbc_en		: 1;	//nrwr_path_sel
 	unsigned int mif_en		: 1;
 	unsigned int is_4k		: 1;
@@ -338,6 +449,7 @@ struct hw_sc2_ctr_pst_s {
 	unsigned int afbc_wr		: 1;
 
 	unsigned int reserve2		: 2;
+	} b;
 };
 
 /**********************************************/
@@ -408,6 +520,27 @@ void dimh_post_switch_buffer(struct DI_MIF_S *di_buf0_mif,
 			     int invert_mv, bool pd_en, bool mc_enable,
 			     int vskip_cnt
 );
+
+struct pst_cfg_afbc_s {
+	struct di_buf_s *buf_mif[3];
+	struct di_buf_s *buf_o;
+	struct DI_SIM_MIF_s    *di_diwr_mif;
+	struct DI_SIM_MIF_s    *di_mtnprd_mif;
+	int ei_en;
+	int blend_en;
+	int blend_mtn_en;
+	int blend_mode;
+	int di_vpp_en;
+	int di_ddr_en;
+	int post_field_num;
+	int hold_line;
+	int urgent;
+	int invert_mv;
+	int vskip_cnt;
+};
+
+void dimh_enable_di_post_afbc(struct pst_cfg_afbc_s *cfg);
+
 void dim_post_read_reverse_irq(bool reverse,
 			       unsigned char mc_pre_flag, bool mc_enable);
 void dim_top_gate_control(bool top_en, bool mc_en);
@@ -436,13 +569,6 @@ void dimh_interrupt_ctrl(unsigned char ma_en,
 			 unsigned char det3d_en, unsigned char nrds_en,
 			 unsigned char post_wr, unsigned char mc_en);
 void dimh_txl_patch_prog(int prog_flg, unsigned int cnt, bool mc_en);
-#ifdef MARK_SC2
-bool dimh_afbc_is_supported(void);
-
-void dimh_afbc_reg_sw(bool on);
-
-void dump_vd2_afbc(void);
-#endif
 int dim_print(const char *fmt, ...);
 
 #define DI_MC_SW_OTHER	(0x1 << 0)
@@ -590,4 +716,74 @@ void set_di_mif_v3(struct DI_MIF_S *mif,
 		   const struct reg_acc *op);//debug only
 
 const char *dim_get_mif_id_name(enum EDI_MIF_REG_INDEX idx);
+/*********************************************************/
+struct SHRK_S {
+	unsigned int hsize_in;
+	unsigned int vsize_in;
+	unsigned int h_shrk_mode : 4;
+	unsigned int v_shrk_mode : 4;
+	unsigned int shrk_en : 1;
+	unsigned int frm_rst : 1;
+	unsigned int rev : 22;
+};
+
+struct mm_size_in_s {
+	unsigned int w;
+	unsigned int h;
+
+	/* flg for mif */
+	unsigned int p_as_i	: 1; /* working mode */
+	unsigned int is_i	: 1;
+	unsigned int en_afbce	: 1;
+	unsigned int mode	: 4;	/* EDPST_MODE */
+
+	/* 1: nv21; 2: pother; 3: i */
+	unsigned int o_mode	: 4; /*cnt by */
+	unsigned int rev1	: 20;
+
+//	};
+
+};
+
+struct mm_size_p_nv21 {
+	unsigned int size_buf;
+	unsigned int size_total;
+	unsigned int size_page;/*2020 for blk*/
+
+	unsigned int cvs_w;
+	unsigned int cvs_h;
+	unsigned int off_y;
+	unsigned int size_buf_uv; /* nv21 / nv12*/
+};
+
+struct mm_size_p {
+	unsigned int size_buf;
+	//unsigned int size_buf_uv; /* nv21 / nv12*/
+	unsigned int size_total;
+	unsigned int size_page;/*2020 for blk*/
+
+	unsigned int cvs_w;
+	unsigned int cvs_h;
+};
+
+struct mm_size_out_s {
+	struct mm_size_in_s info_in;
+	union {
+		struct mm_size_p_nv21	nv21;
+		struct mm_size_p	p;
+	};
+};
+
+struct dw_s {
+	struct mm_size_out_s size_info;
+	struct SHRK_S shrk_cfg;
+
+};
+
+struct dw_s *dim_getdw(void);
+void dw_int(void);
+void dw_fill_outvf(struct vframe_s *vfm,
+		   struct di_buf_s *di_buf);
+unsigned int dw_get_h(void);
+
 #endif

@@ -155,6 +155,13 @@ enum canvas_idx_e {
 	MV_CANVAS,
 };
 
+struct di_win_s {
+	unsigned int x_size;
+	unsigned int y_size;
+	unsigned int x_st;
+	unsigned int y_st;
+};
+
 #define pulldown_mode_t enum pulldown_mode_e
 struct di_buf_s {
 	struct vframe_s *vframe;
@@ -189,6 +196,7 @@ struct di_buf_s {
 	int mcvec_canvas_idx;
 	unsigned long afbc_adr;
 	unsigned long afbct_adr;
+	unsigned long dw_adr;
 	struct mcinfo_pre_s {
 		unsigned int highvertfrqflg;
 		unsigned int motionparadoxflg;
@@ -231,6 +239,12 @@ struct di_buf_s {
 	unsigned int channel;
 	unsigned int width_bk; /*move from ppre*/
 	unsigned int flg_tvp;
+	unsigned int afbc_info; /*bit 0: src is i; bit 1: src is real i */
+	unsigned char afbc_sgn_cfg;
+	struct di_win_s win; /*post write*/
+
+	unsigned char buf_is_i:1; /* 1: i; 0: p */
+	unsigned char rev:7;
 };
 
 #define RDMA_DET3D_IRQ			0x20
@@ -459,7 +473,12 @@ struct di_pre_stru_s {
 	struct combing_status_s *mtn_status;
 	bool combing_fix_en;
 	unsigned int comb_mode;
+	union hw_sc2_ctr_pre_s	pre_top_cfg;
+	union afbc_blk_s	en_cfg;
+	union afbc_blk_s	en_set;
 };
+
+struct dim_fmt_s;
 
 struct di_post_stru_s {
 	struct DI_MIF_S	di_buf0_mif;
@@ -492,8 +511,14 @@ struct di_post_stru_s {
 	unsigned int  post_wr_cnt;
 	unsigned long irq_time;
 
+	struct pst_cfg_afbc_s afbc_cfg;/* ary add for afbc dec*/
 	/*frame cnt*/
 	unsigned int frame_cnt;	/*cnt for post process*/
+//	unsigned int last_pst_size;
+	union hw_sc2_ctr_pst_s	pst_top_cfg;
+	union afbc_blk_s	en_cfg;
+	union afbc_blk_s	en_set;
+	struct di_win_s win_dis;
 };
 
 #define MAX_QUEUE_POOL_SIZE   256
@@ -646,6 +671,8 @@ void dim_dbg_release_keep_all(unsigned int ch);
 void dim_post_keep_back_recycle(unsigned int ch);
 void dim_post_re_alloc(unsigned int ch);
 void dim_post_release(unsigned int ch);
+unsigned int dim_cfg_nv21(void);
+void dim_get_default(unsigned int *h, unsigned int *w);
 
 /*---------------------*/
 const struct afd_ops_s *dim_afds(void);

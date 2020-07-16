@@ -2443,7 +2443,7 @@ unsigned int dim_polic_is_bypass(struct di_ch_s *pch, struct vframe_s *vf)
 
 	/* cfg */
 	if (pp->cfg_d32) {
-		if (!IS_I_SRC(vf->type)) {
+		if (!VFMT_IS_I(vf->type)) {
 			if (dim_cfg & DI_BIT0) {
 				reason = 0x60;
 			} else if (pp->cfg_b.bypass_all_p) {
@@ -2473,7 +2473,7 @@ unsigned int dim_polic_is_bypass(struct di_ch_s *pch, struct vframe_s *vf)
 	/*count current*/
 	pcu = (vf->height >> DIM_POLICY_SHIFT_H) *
 		(vf->width >> DIM_POLICY_SHIFT_W);
-	if (IS_I_SRC(vf->type))
+	if (VFMT_IS_I(vf->type))
 		pcu >>= 1;
 
 	/*check bypass*/
@@ -2486,7 +2486,7 @@ unsigned int dim_polic_is_bypass(struct di_ch_s *pch, struct vframe_s *vf)
 	}
 
 	if (pp->cfg_b.i_first	&&
-	    IS_I_SRC(vf->type)	&&
+	    VFMT_IS_I(vf->type)	&&
 	    reason) {
 		pp->order_i |= (1 << ch);
 		dbg_pl("ch[%d],bapass order[1]\n", ch);
@@ -2518,6 +2518,8 @@ void dip_init_value_reg(unsigned int ch)
 
 	/* bypass state */
 	dim_bypass_st_clear(pch);
+	/* dw */
+	dw_int();
 }
 
 static bool dip_init_value(void)
@@ -2576,14 +2578,28 @@ void dip_init_pq_ops(void)
 	get_ops_nr()->nr_drv_init(di_devp->dev);
 
 	di_attach_ops_afd_v3(&get_datal()->afds);
-	if (dim_afds())
-		dim_afds()->prob(ic_id, &get_datal()->di_afd);
-	else
+	if (dim_afds()) {
+		get_datal()->di_afd.top_cfg_pre =
+			&get_datal()->hw_pre.pre_top_cfg;
+		get_datal()->di_afd.top_cfg_pst =
+			&get_datal()->hw_pst.pst_top_cfg;
+		dim_afds()->prob(ic_id,
+				 &get_datal()->di_afd);
+	} else {
 		PR_ERR("%s:no afds\n", __func__);
+	}
 
 	/* hw l1 ops*/
-	if (IS_IC_EF(ic_id, SC2))
+	if (IS_IC_EF(ic_id, SC2)) {
 		get_datal()->hop_l1 = &dim_ops_l1_v3;
+		di_attach_ops_v3(&get_datal()->hop_l2);
+	#ifdef MARK_SC2
+		if (get_datal()->hop_l2)
+			PR_INF("%s\n", opl2()->info.name);
+		else
+			PR_INF("%s\n", "op12 failed");
+	#endif
+	}
 }
 
 /**********************************/

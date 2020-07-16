@@ -111,12 +111,32 @@ bool is_mask(unsigned int cmd)
 		if (sc2_reg_mask & DI_BIT2)
 			ret = true;
 		break;
+	/*bit 15->bit 8*/
+	case SC2_DW_EN:
+		if (sc2_reg_mask & DI_BIT15)
+			ret = true;
+		break;
+	case SC2_DW_SHOW:
+		if ((sc2_reg_mask & DI_BIT15) &&
+		    (sc2_reg_mask & DI_BIT14))
+			ret = true;
+		break;
+	case SC2_DW_SHRK_EN:
+		if (sc2_reg_mask & DI_BIT13)
+			ret = true;
+		break;
 	default:
 		break;
 	}
 	return ret;
 }
 
+unsigned int dw_get_h(void)
+{	//bit 15: enable dw
+	//bit 14: show
+	//bit 13: shrk en
+	return ((sc2_reg_mask >> 8) & 0x3);
+}
 /*************************************************/
 
 #define DI_SCALAR_DISABLE	(1)
@@ -517,49 +537,6 @@ static unsigned int set_afbcd_mult_simple(int index,
 
 static const unsigned int reg_afbc_e_v3[AFBC_ENC_V3_NUB][DIM_AFBCE_V3_NUB] = {
 	{
-		#ifdef MARK_SC2
-		AFBCE_ENABLE,
-		AFBCE_MODE,
-		AFBCE_SIZE_IN,
-		AFBCE_BLK_SIZE_IN,
-		AFBCE_HEAD_BADDR,
-		AFBCE_MIF_SIZE,
-		AFBCE_PIXEL_IN_HOR_SCOPE,
-		AFBCE_PIXEL_IN_VER_SCOPE,
-		AFBCE_CONV_CTRL,
-		AFBCE_MIF_HOR_SCOPE,
-		AFBCE_MIF_VER_SCOPE,
-		AFBCE_STAT1,
-		AFBCE_STAT2,
-		AFBCE_FORMAT,
-		AFBCE_MODE_EN,
-		AFBCE_DWSCALAR,
-		AFBCE_DEFCOLOR_1,
-		AFBCE_DEFCOLOR_2,
-		AFBCE_QUANT_ENABLE,
-		AFBCE_IQUANT_LUT_1,
-		AFBCE_IQUANT_LUT_2,
-		AFBCE_IQUANT_LUT_3,
-		AFBCE_IQUANT_LUT_4,
-		AFBCE_RQUANT_LUT_1,
-		AFBCE_RQUANT_LUT_2,
-		AFBCE_RQUANT_LUT_3,
-		AFBCE_RQUANT_LUT_4,
-		AFBCE_YUV_FORMAT_CONV_MODE,
-		AFBCE_DUMMY_DATA,
-		AFBCE_CLR_FLAG,
-		AFBCE_STA_FLAGT,
-		AFBCE_MMU_NUM,
-		AFBCE_MMU_RMIF_CTRL1,
-		AFBCE_MMU_RMIF_CTRL2,
-		AFBCE_MMU_RMIF_CTRL3,
-		AFBCE_MMU_RMIF_CTRL4,
-		AFBCE_MMU_RMIF_SCOPE_X,
-		AFBCE_MMU_RMIF_SCOPE_Y,
-		AFBCE_MMU_RMIF_RO_STAT,
-		AFBCE_PIP_CTRL,
-		AFBCE_ROT_CTRL,
-		#else
 		DI_AFBCE_ENABLE,
 		DI_AFBCE_MODE,
 		DI_AFBCE_SIZE_IN,
@@ -601,7 +578,6 @@ static const unsigned int reg_afbc_e_v3[AFBC_ENC_V3_NUB][DIM_AFBCE_V3_NUB] = {
 		DI_AFBCE_MMU_RMIF_RO_STAT,
 		DI_AFBCE_PIP_CTRL,
 		DI_AFBCE_ROT_CTRL,
-		#endif
 	},
 	{
 		DI_AFBCE_ENABLE,
@@ -896,14 +872,21 @@ static void set_shrk(struct SHRK_S *srkcfg, const struct reg_acc *opin)
 		((srkcfg->shrk_en & 0x1)     << 0)
 		);
 
-	stimulus_display("==hshrk_mode== %0x\n", srkcfg->h_shrk_mode);
-	stimulus_display("==vshrk_mode== %0x\n", srkcfg->v_shrk_mode);
+/*	stimulus_display("==hshrk_mode== %0x\n", srkcfg->h_shrk_mode);*/
+/*	stimulus_display("==vshrk_mode== %0x\n", srkcfg->v_shrk_mode);*/
 
 	op->wr((DI_DIWR_SHRK_SIZE),
 		((srkcfg->hsize_in & 0x1fff) << 13) |  // reg_frm_hsize
 		((srkcfg->vsize_in & 0x1fff) << 0)    // reg_frm_vsize
 		);
 	op->bwr(DI_DIWR_SHRK_CTRL, srkcfg->frm_rst, 1, 1);
+}
+
+static void set_shrk_disable(void)
+{
+	const struct reg_acc *op = &di_pre_regset;
+
+	op->bwr(DI_DIWR_SHRK_CTRL, 0, 0, 1);
 }
 
 static void set_mcdi_mif(struct DI_MIF1_S *di_inf_default,
@@ -1446,6 +1429,29 @@ static const unsigned int reg_wrmif_v3
 	},
 };
 
+/* keep order with ENR_MIF_INDEX*/
+static const struct regs_t reg_bits_wr[] = {
+	{WRMIF_X,  16,  16, ENR_MIF_INDEX_X_ST, "x_start"},
+	{WRMIF_X,  0,  16, ENR_MIF_INDEX_X_END, "x_end"},
+	{WRMIF_Y,  16,  16, ENR_MIF_INDEX_Y_ST, "y_start"},
+	{WRMIF_Y,  0,  16, ENR_MIF_INDEX_Y_END, "y_end"},
+	{WRMIF_CANVAS, 0,  32, ENR_MIF_INDEX_CVS, "canvas"},
+	{WRMIF_CTRL, 0,  1, ENR_MIF_INDEX_EN, "mif_en"},
+	{WRMIF_CTRL, 1,  1, ENR_MIF_INDEX_BIT_MODE, "10bit mode"},
+	{WRMIF_CTRL, 2,  1, ENR_MIF_INDEX_ENDIAN, "endian"},
+	{WRMIF_CTRL, 16,  1, ENR_MIF_INDEX_URGENT, "urgent"},
+	{WRMIF_CTRL, 17,  1, ENR_MIF_INDEX_CBCR_SW, "cbcr_sw"},
+	{WRMIF_CTRL, 18,  2, ENR_MIF_INDEX_VCON, "vcon"},
+	{WRMIF_CTRL, 20,  2, ENR_MIF_INDEX_HCON, "hcon"},
+	{WRMIF_CTRL, 22,  3, ENR_MIF_INDEX_RGB_MODE, "rgb_mode"},
+	/*below for sc2*/
+	{WRMIF_DBG_AXI_CMD_CNT, 22,  3,
+	 ENR_MIF_INDEX_DBG_CMD_CNT, "dbg_cmd_cnt"},
+	{WRMIF_DBG_AXI_DAT_CNT, 22,  3,
+	 ENR_MIF_INDEX_DBG_DAT_CNT, "dbg_dat_cnt"},
+	{TABLE_FLG_END, TABLE_FLG_END, 0xff, 0xff, "end"}
+};
+
 static const struct reg_t rtab_sc2_contr_bits_tab[] = {
 	/*--------------------------*/
 	{DI_TOP_PRE_CTRL, 0, 2, 0, "DI_TOP_PRE_CTRL",
@@ -1678,9 +1684,9 @@ static void set_wrmif_simple_v3(struct DI_SIM_MIF_s *mif,
 				rgb_mode = 1;
 		} else {
 			if (mif->video_mode == 1)
-				rgb_mode = 2;
+				rgb_mode = 3;//2;
 			else
-				rgb_mode = 3;
+				rgb_mode = 2;
 		}
 	}
 	reg = &reg_wrmif_v3[mifsel][0];
@@ -1704,6 +1710,30 @@ static void set_wrmif_simple_v3(struct DI_SIM_MIF_s *mif,
 		 //wr_mif->luma_y_end0);
 
 	op->wr(reg[WRMIF_CANVAS], mif->canvas_num);
+	if (mif->set_separate_en == 2) {
+		op->wr(reg[WRMIF_CTRL],
+			(mif->en << 0) |   // write mif en.
+			(bits_mode << 1) |   // bit10 mode
+			(mif->l_endian << 2) |   // little endian
+			(1 << 3) |   // data ext enable
+			(3 << 4) |   // word limit ?
+			(mif->urgent << 16) |
+			// urgent // ary default is 0 ?
+			(mif->cbcr_swap << 17) |
+			//swap cbcrworking in rgb mode =2: swap cbcr
+			//(0      << 18) |   // vconv working in rgb mode =2:
+			//(0      << 20) |   // hconv. output even pixel
+			/* vcon working in rgb mode =2: 3 : output all.*/
+		       (((mif->video_mode == 0) ? 0 : 3) << 18) |
+		       /* hconv. output even pixel */
+		       (((mif->video_mode == 2) ? 3 : 0) << 20) |
+			(rgb_mode << 22) |
+			// rgb mode =0, 422 YCBCR to one canvas.
+			(0 << 24) |   // no gate clock
+			(0 << 25) |   // canvas_sync enable
+			(2 << 26) |   // burst lim
+			(1 << 30));   // 64-bits swap enable
+	} else {
 	op->wr(reg[WRMIF_CTRL],
 	       (mif->en << 0) |   // write mif en.
 	       (bits_mode << 1) |   // bit10 mode
@@ -1721,6 +1751,7 @@ static void set_wrmif_simple_v3(struct DI_SIM_MIF_s *mif,
 	       (0      << 25) |   // canvas_sync enable
 	       (2      << 26) |   // burst lim
 	       (1      << 30));   // 64-bits swap enable
+	}
 }
 
 /* ref to config_di_wr_mif */
@@ -1938,18 +1969,18 @@ static void set_di_pre(struct DI_PRE_S *pcfg, const struct reg_acc *opin)
 				(p2_vsize == pre_vsize_o);
 
 		set_afbcd_mult_simple(
-			0,//di_inp_afbc->index,
+			EAFBC_DEC2_DI,//di_inp_afbc->index,
 			pcfg->inp_afbc,
 			op);//AFBCD_t *afbcd
 		if (p2_mif_en) {
 			set_afbcd_mult_simple(
-				2,//di_mem_afbc->index,
+				EAFBC_DEC3_MEM,//di_mem_afbc->index,
 				pcfg->mem_afbc,
 				op); //AFBCD_t *afbcd
 		}
 		if (p1_mif_en) {
 			set_afbcd_mult_simple(
-				1,//di_chan2_afbc->index,
+				EAFBC_DEC_CHAN2,//di_chan2_afbc->index,
 				pcfg->chan2_afbc,
 				op);//AFBCD_t *afbcd
 		}
@@ -2235,17 +2266,17 @@ static void set_di_post(struct DI_PST_S *ptcfg, const struct reg_acc *opin)
 	if (ptcfg->post_en) {
 		if (ptcfg->afbc_en) {
 			set_afbcd_mult_simple(
-				4,//di_buf0_afbc->index,
+				EAFBC_DEC_IF0,//di_buf0_afbc->index,
 				ptcfg->buf0_afbc, op);//AFBCD *afbcd
 
 			if (weave_en || ptcfg->blend_en) {
 				set_afbcd_mult_simple(
-					3,//di_buf1_afbc->index,
+					EAFBC_DEC_IF1,//di_buf1_afbc->index,
 					ptcfg->buf1_afbc, op);//AFBCD *afbcd
 			}
 			if (ptcfg->blend_en) {
 				set_afbcd_mult_simple(
-				5,//di_buf2_afbc->index,
+				EAFBC_DEC_IF2,//di_buf2_afbc->index,
 				ptcfg->buf2_afbc, op);//AFBCD *afbcd
 			}
 
@@ -2694,10 +2725,10 @@ static void enable_prepost_link_afbce(struct DI_PREPST_AFBC_S *pafcfg,
 		 //di_nrwr_afbc->enc_win_bgn_v,di_nrwr_afbc->enc_win_end_v);
 
 	//config read mif
-	set_afbcd_mult_simple(0, pafcfg->inp_afbc, op);
-	set_afbcd_mult_simple(2, pafcfg->mem_afbc, op);
-	set_afbcd_mult_simple(1, pafcfg->chan2_afbc, op);
-	set_afbcd_mult_simple(3, pafcfg->if1_afbc, op);
+	set_afbcd_mult_simple(EAFBC_DEC2_DI, pafcfg->inp_afbc, op);
+	set_afbcd_mult_simple(EAFBC_DEC3_MEM, pafcfg->mem_afbc, op);
+	set_afbcd_mult_simple(EAFBC_DEC_CHAN2, pafcfg->chan2_afbc, op);
+	set_afbcd_mult_simple(EAFBC_DEC_IF1, pafcfg->if1_afbc, op);
 
 	// set nr wr mif interface.
 	set_afbce_cfg_v1(
@@ -2947,6 +2978,7 @@ void set_di_mif_v3(struct DI_MIF_S *mif, enum DI_MIF0_ID mif_index,
 	const unsigned int *reg;
 	const struct reg_acc *op;
 	int nrpt_phase0_en = 1;
+	unsigned int burst_len = 2;
 
 	if (!opin)
 		op = &di_pre_regset;
@@ -3022,10 +3054,18 @@ void set_di_mif_v3(struct DI_MIF_S *mif, enum DI_MIF0_ID mif_index,
 	// ----------------------
 	// General register
 	// ----------------------
+	if (mif_index == DI_MIF0_ID_INP) {
+		if (mif->canvas_w % 32)
+			burst_len = 0;
+		else if (mif->canvas_w % 64)
+			burst_len = 1;
+	}
+	dim_print("burst_len=%d\n", burst_len);
+
 	op->wr(off + reg[MIF_GEN_REG3],
 	       mif->bit_mode << 8 |    // bits_mode
 	       3 << 4 |    // block length
-	       2 << 1 |    // use bst4
+	       burst_len	<< 1 |	//2 << 1 |    // use bst4
 	       1 << 0);   //64 bit swap
 	if (!is_mask(SC2_REG_MSK_GEN_PRE)) {
 		op->wr(off + reg[MIF_GEN_REG],
@@ -3048,6 +3088,8 @@ void set_di_mif_v3(struct DI_MIF_S *mif, enum DI_MIF0_ID mif_index,
 	if (mif->set_separate_en == 2) {
 		// Enable NV12 Display
 		op->wr(off + reg[MIF_GEN_REG2], 1);
+	} else {
+		op->wr(off + reg[MIF_GEN_REG2], 0);
 	}
 
 	// reverse X and Y
@@ -3272,22 +3314,19 @@ static void di_pre_data_mif_ctrl_v3(bool enable)
 		return;
 	}
 	if (enable) {
-		/* enable input mif*/
-		op->bwr(DI_SC2_CHAN2_GEN_REG, 1, 0, 1);
-
-		op->bwr(DI_SC2_MEM_GEN_REG, 1, 0, 1);
 
 		if (dim_afds() && dim_afds()->is_used()) {
-			op->bwr(DI_SC2_INP_GEN_REG, 0, 0, 1);
-			//afbc_input_sw(true);
-			if (dim_afds())
-				dim_afds()->inp_sw(true);
-		} else {
-			op->bwr(DI_SC2_INP_GEN_REG, 1, 0, 1);
-			//afbc_input_sw(false);
-			if (dim_afds())
-				dim_afds()->inp_sw(false);
+			dim_afds()->inp_sw(true);
 		}
+		if (dim_afds() && !dim_afds()->is_used_chan2())
+			op->bwr(DI_SC2_CHAN2_GEN_REG, 1, 0, 1);
+
+		if (dim_afds() && !dim_afds()->is_used_mem())
+			op->bwr(DI_SC2_MEM_GEN_REG, 1, 0, 1);
+
+		if (dim_afds() && !dim_afds()->is_used_inp())
+			op->bwr(DI_SC2_INP_GEN_REG, 1, 0, 1);
+
 		/* nrwr no clk gate en=0 */
 		/*DIM_RDMA_WR_BITS(DI_NRWR_CTRL, 0, 24, 1);*/
 	} else {
@@ -3891,7 +3930,7 @@ static void hpost_gl_thd_v3(unsigned int hold_line)
 	op->bwr(DI_SC2_POST_GL_THD, hold_line, 16, 5);
 }
 
-void dim_sc2_contr_pre(struct hw_sc2_ctr_pre_s *cfg)
+void dim_sc2_contr_pre(union hw_sc2_ctr_pre_s *cfg)
 {
 	const struct reg_acc *op = &di_pre_regset;
 	unsigned int val;
@@ -3908,14 +3947,14 @@ void dim_sc2_contr_pre(struct hw_sc2_ctr_pre_s *cfg)
 		(7	<< 7)	| /* bit[9:7] */
 		(3	<< 30));
 
-	val |= ((cfg->mif_en		<< 0)	|
-		(cfg->afbc_nr_en	<< 1)	|
-		(cfg->afbc_inp		<< 4)	|
-		(cfg->afbc_chan2	<< 5)	|
-		(cfg->afbc_mem		<< 6)	|
-		((cfg->is_4k ? 7 : 0)	<< 7)	|
-		(cfg->nr_ch0_en		<< 10)	|
-		(cfg->pre_frm_sel	<< 30));
+	val |= ((cfg->b.mif_en		<< 0)	|
+		(cfg->b.afbc_nr_en	<< 1)	|
+		(cfg->b.afbc_inp		<< 4)	|
+		(cfg->b.afbc_chan2	<< 5)	|
+		(cfg->b.afbc_mem		<< 6)	|
+		((cfg->b.is_4k ? 7 : 0)	<< 7)	|
+		(cfg->b.nr_ch0_en		<< 10)	|
+		(cfg->b.pre_frm_sel	<< 30));
 
 	dim_print("%s:%s:0x%x:0x%x\n", __func__,
 		  "DI_TOP_PRE_CTRL",
@@ -3924,7 +3963,7 @@ void dim_sc2_contr_pre(struct hw_sc2_ctr_pre_s *cfg)
 	op->wr(DI_TOP_PRE_CTRL, val);
 }
 
-void dim_sc2_contr_pst(struct hw_sc2_ctr_pst_s *cfg)
+void dim_sc2_contr_pst(union hw_sc2_ctr_pst_s *cfg)
 {
 	const struct reg_acc *op = &di_pre_regset;
 	unsigned int val;
@@ -3942,15 +3981,164 @@ void dim_sc2_contr_pst(struct hw_sc2_ctr_pst_s *cfg)
 		(7	<< 7)	| /* bit[9:7] */
 		(3	<< 30));
 
-	val |= ((cfg->mif_en		<< 0)	|
-		(cfg->afbc_wr		<< 1)	|
-		(cfg->afbc_if1		<< 4)	|
-		(cfg->afbc_if0		<< 5)	|
-		(cfg->afbc_if2		<< 6)	|
-		((cfg->is_4k ? 7 : 0)	<< 7)	|
-		(cfg->post_frm_sel	<< 30));
+	val |= ((cfg->b.mif_en		<< 0)	|
+		(cfg->b.afbc_wr		<< 1)	|
+		(cfg->b.afbc_if1		<< 4)	|
+		(cfg->b.afbc_if0		<< 5)	|
+		(cfg->b.afbc_if2		<< 6)	|
+		((cfg->b.is_4k ? 7 : 0)	<< 7)	|
+		(cfg->b.post_frm_sel	<< 30));
 
 	op->wr(DI_TOP_POST_CTRL, val);
+	dim_print("%s:0x%x:0x%x\n",
+		  "DI_TOP_POST_CTRL",
+		  DI_TOP_POST_CTRL,
+		  val);
+}
+
+int cnt_mm_info_simple_p(struct mm_size_out_s *info)
+{
+	struct mm_size_in_s	*in;
+	struct mm_size_p_nv21	*pnv21;
+	struct mm_size_p	*po;
+
+	unsigned int tmpa, tmpb;
+	unsigned int height;
+	unsigned int width;
+	unsigned int canvas_height;
+
+	unsigned int nr_width;
+	unsigned int canvas_align_width = 32;
+
+	in = &info->info_in;
+
+	height	= in->h;
+	canvas_height = roundup(height, 32);
+	width	= in->w;
+	nr_width = width;
+
+	/**********************************************/
+	/* count buf info */
+	/**********************************************/
+	if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12A))
+		canvas_align_width = 64;
+
+	if (in->mode == EDPST_MODE_422_10BIT_PACK)
+		nr_width = (width * 5) / 4;
+	else if (in->mode == EDPST_MODE_422_10BIT)
+		nr_width = (width * 3) / 2;
+	else
+		nr_width = width;
+
+	if (in->is_i || in->p_as_i) {
+		//PR_ERR("%s:have i flg\n", __func__);
+		return -1;
+	}
+	/* p */
+	nr_width = roundup(nr_width, canvas_align_width);
+
+	if (in->mode == EDPST_MODE_NV21_8BIT) {
+		in->o_mode = 1;
+		pnv21 = &info->nv21;
+		tmpa = (nr_width * canvas_height) >> 1;/*uv*/
+		tmpb = roundup(tmpa, PAGE_SIZE);
+		tmpa = roundup(nr_width * canvas_height, PAGE_SIZE);
+
+		pnv21->size_buf_uv	= tmpb;
+		pnv21->size_buf		= tmpa;
+		pnv21->off_y		= tmpa;
+		pnv21->size_total = tmpa + tmpb;
+		pnv21->size_page = pnv21->size_total >> PAGE_SHIFT;
+		pnv21->cvs_w	= nr_width;
+		pnv21->cvs_h	= canvas_height;
+	} else {
+		/* 422 */
+		in->o_mode = 2;
+		po = &info->p;
+		tmpa = roundup(nr_width * canvas_height * 2, PAGE_SIZE);
+		po->size_buf = tmpa;
+
+		po->size_total = po->size_buf;
+		po->size_page = po->size_total >> PAGE_SHIFT;
+		po->cvs_w	= nr_width << 1;
+		po->cvs_h	= canvas_height;
+	}
+
+	return 0;
+}
+
+/*****************************************************
+ * double write test
+ *****************************************************/
+
+static struct dw_s dw_d;
+static struct dw_s *pdw;
+
+static const struct mm_size_in_s cdw_info = {
+	.w	= 960,
+	.h	= 540,
+	.p_as_i	= 0,
+	.is_i	= 0,
+	.en_afbce	= 0,
+	.mode	= EDPST_MODE_422_10BIT_PACK,
+};
+
+static const struct SHRK_S cdw_sk = {
+	.hsize_in	= 960,
+	.vsize_in	= 540,
+	.h_shrk_mode	= 0,
+	.v_shrk_mode	= 0,
+	.shrk_en	= 1,
+	.frm_rst	= 0,
+};
+
+void dw_int(void)
+{
+	pdw = &dw_d;
+
+	memcpy(&pdw->size_info.info_in, &cdw_info,
+	       sizeof(pdw->size_info.info_in));
+	cnt_mm_info_simple_p(&pdw->size_info);
+
+	memcpy(&pdw->shrk_cfg, &cdw_sk, sizeof(pdw->shrk_cfg));
+
+	pdw->shrk_cfg.h_shrk_mode = dw_get_h();
+	pdw->shrk_cfg.v_shrk_mode = dw_get_h();
+}
+
+struct dw_s *dim_getdw(void)
+{
+	return &dw_d;
+}
+
+void dw_fill_outvf(struct vframe_s *vfm,
+		   struct di_buf_s *di_buf)
+{
+	struct canvas_config_s *cvsp;
+//	unsigned int cvsh, cvsv, csize;
+
+	memcpy(vfm, di_buf->vframe, sizeof(*vfm));
+
+	/* canvas */
+	vfm->canvas0Addr = (u32)-1;
+
+	vfm->plane_num = 1;
+	cvsp = &vfm->canvas0_config[0];
+	cvsp->phy_addr = di_buf->dw_adr;
+	cvsp->block_mode = 0;
+	cvsp->endian = 0;
+	cvsp->width = pdw->size_info.p.cvs_w;
+	cvsp->height = pdw->size_info.p.cvs_h;
+
+	pdw->shrk_cfg.hsize_in = vfm->width;
+	pdw->shrk_cfg.vsize_in = vfm->height;
+
+	vfm->height = vfm->height >> (pdw->shrk_cfg.v_shrk_mode + 1);
+	vfm->width = vfm->width >> (pdw->shrk_cfg.h_shrk_mode + 1);
+#ifdef NV21_DBG
+	if (cfg_vf)
+		vfm->type = cfg_vf;
+#endif
 }
 
 const struct dim_hw_opsv_s dim_ops_l1_v3 = {
@@ -4010,6 +4198,7 @@ static const struct hw_ops_s dim_hw_v3_ops = {
 	.afbcd_set	= set_afbcd_mult_simple,
 	.afbce_set	= set_afbce_cfg_v1,
 	.shrk_set	= set_shrk,
+	.shrk_disable	= set_shrk_disable,
 	.wrmif_set	= set_wrmif_simple,
 	.mult_wr	= set_di_mult_write,
 	.pre_set	= set_di_pre,
