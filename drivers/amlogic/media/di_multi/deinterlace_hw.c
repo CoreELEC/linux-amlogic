@@ -4516,9 +4516,9 @@ void dimh_pulldown_vof_win_config(struct pulldown_detected_s *wins)
 {
 	if (DIM_IS_IC_EF(SC2)) {
 		DIM_VSC_WR_MPG_BT(MCDI_REF_MV_NUM,
-				  wins->regs[0].win_vs, 16, 13);
+				  wins->regs[0].win_vs, 17, 12);
 		DIM_VSC_WR_MPG_BT(MCDI_REF_MV_NUM,
-				  (wins->regs[0].win_ve) >> 2, 2, 11);
+				  (wins->regs[0].win_ve) >> 2, 3, 10);
 	} else {
 		DIM_VSC_WR_MPG_BT(DI_BLEND_REG0_Y,
 				  wins->regs[0].win_vs, 17, 12);
