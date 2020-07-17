@@ -115,32 +115,40 @@ static inline void get_wrpage_offset(u8 type, u32 *page, u32 *page_offset)
 	ulong flags;
 	u32 page1, page2, offset;
 
-	if (type == PTS_TYPE_VIDEO) {
-		do {
-			local_irq_save(flags);
+	if (!tsync_get_new_arch()) {
+		if (type == PTS_TYPE_VIDEO) {
+			do {
+				local_irq_save(flags);
 
-			page1 = READ_PARSER_REG(PARSER_AV_WRAP_COUNT) & 0xffff;
-			offset = READ_PARSER_REG(PARSER_VIDEO_WP);
-			page2 = READ_PARSER_REG(PARSER_AV_WRAP_COUNT) & 0xffff;
+				page1 = READ_PARSER_REG(PARSER_AV_WRAP_COUNT) &
+							0xffff;
+				offset = READ_PARSER_REG(PARSER_VIDEO_WP);
+				page2 = READ_PARSER_REG(PARSER_AV_WRAP_COUNT) &
+							0xffff;
 
-			local_irq_restore(flags);
-		} while (page1 != page2);
+				local_irq_restore(flags);
+			} while (page1 != page2);
 
-		*page = page1;
-		*page_offset = offset - pts_table[PTS_TYPE_VIDEO].buf_start;
-	} else if (type == PTS_TYPE_AUDIO) {
-		do {
-			local_irq_save(flags);
+			*page = page1;
+			*page_offset = offset -
+				       pts_table[PTS_TYPE_VIDEO].buf_start;
+		} else if (type == PTS_TYPE_AUDIO) {
+			do {
+				local_irq_save(flags);
 
-			page1 = READ_PARSER_REG(PARSER_AV_WRAP_COUNT) >> 16;
-			offset = READ_PARSER_REG(PARSER_AUDIO_WP);
-			page2 = READ_PARSER_REG(PARSER_AV_WRAP_COUNT) >> 16;
+				page1 = READ_PARSER_REG(PARSER_AV_WRAP_COUNT)
+							>> 16;
+				offset = READ_PARSER_REG(PARSER_AUDIO_WP);
+				page2 = READ_PARSER_REG(PARSER_AV_WRAP_COUNT)
+							>> 16;
 
-			local_irq_restore(flags);
-		} while (page1 != page2);
+				local_irq_restore(flags);
+			} while (page1 != page2);
 
-		*page = page1;
-		*page_offset = offset - pts_table[PTS_TYPE_AUDIO].buf_start;
+			*page = page1;
+			*page_offset = offset -
+				       pts_table[PTS_TYPE_AUDIO].buf_start;
+		}
 	}
 }
 
@@ -149,36 +157,42 @@ static inline void get_rdpage_offset(u8 type, u32 *page, u32 *page_offset)
 	ulong flags;
 	u32 page1, page2, offset;
 
-	if (type == PTS_TYPE_VIDEO) {
-		do {
-			local_irq_save(flags);
+	if (!tsync_get_new_arch()) {
+		if (type == PTS_TYPE_VIDEO) {
+			do {
+				local_irq_save(flags);
 
-			page1 = READ_VREG(VLD_MEM_VIFIFO_WRAP_COUNT) & 0xffff;
-			offset = READ_VREG(VLD_MEM_VIFIFO_RP);
-			page2 = READ_VREG(VLD_MEM_VIFIFO_WRAP_COUNT) & 0xffff;
+				page1 = READ_VREG(VLD_MEM_VIFIFO_WRAP_COUNT) &
+						  0xffff;
+				offset = READ_VREG(VLD_MEM_VIFIFO_RP);
+				page2 = READ_VREG(VLD_MEM_VIFIFO_WRAP_COUNT) &
+						  0xffff;
 
-			local_irq_restore(flags);
-		} while (page1 != page2);
+				local_irq_restore(flags);
+			} while (page1 != page2);
 
-		*page = page1;
-		*page_offset = offset - pts_table[PTS_TYPE_VIDEO].buf_start;
-	} else if (type == PTS_TYPE_AUDIO) {
-		do {
-			local_irq_save(flags);
+			*page = page1;
+			*page_offset = offset -
+				       pts_table[PTS_TYPE_VIDEO].buf_start;
+		} else if (type == PTS_TYPE_AUDIO) {
+			do {
+				local_irq_save(flags);
 
-			page1 =
+				page1 =
 				READ_AIU_REG(AIU_MEM_AIFIFO_BUF_WRAP_COUNT) &
-				0xffff;
-			offset = READ_AIU_REG(AIU_MEM_AIFIFO_MAN_RP);
-			page2 =
+					     0xffff;
+				offset = READ_AIU_REG(AIU_MEM_AIFIFO_MAN_RP);
+				page2 =
 				READ_AIU_REG(AIU_MEM_AIFIFO_BUF_WRAP_COUNT) &
-				0xffff;
+					     0xffff;
 
-			local_irq_restore(flags);
-		} while (page1 != page2);
+				local_irq_restore(flags);
+			} while (page1 != page2);
 
-		*page = page1;
-		*page_offset = offset - pts_table[PTS_TYPE_AUDIO].buf_start;
+			*page = page1;
+			*page_offset = offset -
+				       pts_table[PTS_TYPE_AUDIO].buf_start;
+		}
 	}
 }
 
@@ -607,6 +621,9 @@ int pts_checkin_wrptr(u8 type, u32 ptr, u32 val)
 	if (type >= PTS_TYPE_MAX)
 		return -EINVAL;
 
+	if (tsync_get_new_arch())
+		return -EINVAL;
+
 	offset = ptr - pts_table[type].buf_start;
 	get_wrpage_offset(type, &page, &cur_offset);
 
@@ -627,6 +644,9 @@ int pts_checkin_wrptr_pts33(u8 type, u32 ptr, u64 pts_val)
 	if (type >= PTS_TYPE_MAX)
 		return -EINVAL;
 
+	if (tsync_get_new_arch())
+		return -EINVAL;
+
 	offset = ptr - pts_table[type].buf_start;
 	get_wrpage_offset(type, &page, &cur_offset);
 
@@ -643,7 +663,11 @@ EXPORT_SYMBOL(pts_checkin_wrptr_pts33);
 
 int pts_checkin(u8 type, u32 val)
 {
-	u32 page, offset;
+	u32 page = 0;
+	u32 offset = 0;
+
+	if (tsync_get_new_arch())
+		return -EINVAL;
 
 	get_wrpage_offset(type, &page, &offset);
 
@@ -674,8 +698,12 @@ int get_last_checkin_pts(u8 type)
 		ptable = &pts_table[PTS_TYPE_VIDEO];
 		last_checkin_pts = ptable->last_checkin_pts;
 	} else if (type == PTS_TYPE_AUDIO) {
-		ptable = &pts_table[PTS_TYPE_AUDIO];
-		last_checkin_pts = ptable->last_checkin_pts;
+		if (!tsync_get_new_arch()) {
+			ptable = &pts_table[PTS_TYPE_AUDIO];
+			last_checkin_pts = ptable->last_checkin_pts;
+		} else {
+			last_checkin_pts = tsync_get_checkin_apts();
+		}
 	} else {
 		spin_unlock_irqrestore(&lock, flags);
 		return -EINVAL;
@@ -715,7 +743,11 @@ EXPORT_SYMBOL(get_last_checkout_pts);
 
 int pts_lookup(u8 type, u32 *val, u32 *frame_size, u32 pts_margin)
 {
-	u32 page, offset;
+	u32 page = 0;
+	u32 offset = 0;
+
+	if (tsync_get_new_arch())
+		return -EINVAL;
 
 	get_rdpage_offset(type, &page, &offset);
 
@@ -1482,14 +1514,21 @@ int pts_start(u8 type)
 		/* #if MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON8 */
 		if (has_hevc_vdec() && (type == PTS_TYPE_HEVC)) {
 #ifdef CONFIG_AMLOGIC_MEDIA_MULTI_DEC
-			ptable->buf_start = READ_PARSER_REG(
+			if (!tsync_get_new_arch()) {
+				ptable->buf_start = READ_PARSER_REG(
 					PARSER_VIDEO_START_PTR);
-			ptable->buf_size = READ_PARSER_REG(PARSER_VIDEO_END_PTR)
-							- ptable->buf_start + 8;
+				ptable->buf_size =
+					READ_PARSER_REG(PARSER_VIDEO_END_PTR)
+					- ptable->buf_start + 8;
+			}
 #else
-			ptable->buf_start = READ_VREG(HEVC_STREAM_START_ADDR);
-			ptable->buf_size = READ_VREG(HEVC_STREAM_END_ADDR)
-							- ptable->buf_start;
+			if (!tsync_get_new_arch()) {
+				ptable->buf_start =
+					READ_VREG(HEVC_STREAM_START_ADDR);
+				ptable->buf_size =
+					READ_VREG(HEVC_STREAM_END_ADDR)
+					- ptable->buf_start;
+			}
 #endif
 			timestamp_vpts_set(0);
 			timestamp_vpts_set_u64(0);
@@ -1505,17 +1544,21 @@ int pts_start(u8 type)
 			/* #endif */
 			if (type == PTS_TYPE_VIDEO) {
 #ifdef CONFIG_AMLOGIC_MEDIA_MULTI_DEC
-				ptable->buf_start = READ_PARSER_REG(
+				if (!tsync_get_new_arch()) {
+					ptable->buf_start = READ_PARSER_REG(
 						PARSER_VIDEO_START_PTR);
-				ptable->buf_size = READ_PARSER_REG(
+					ptable->buf_size = READ_PARSER_REG(
 						PARSER_VIDEO_END_PTR)
-					- ptable->buf_start + 8;
+						- ptable->buf_start + 8;
+				}
 #else
-				ptable->buf_start = READ_VREG(
+				if (!tsync_get_new_arch()) {
+					ptable->buf_start = READ_VREG(
 						VLD_MEM_VIFIFO_START_PTR);
-				ptable->buf_size = READ_VREG(
+					ptable->buf_size = READ_VREG(
 						VLD_MEM_VIFIFO_END_PTR)
-					- ptable->buf_start + 8;
+						- ptable->buf_start + 8;
+				}
 #endif
 				/* since the HW buffer wrap counter only have
 				 * 16 bits, a too small buf_size will make pts i
@@ -1536,11 +1579,13 @@ int pts_start(u8 type)
 				ptable->first_lookup_ok = 0;
 				ptable->first_lookup_is_fail = 0;
 			} else if (type == PTS_TYPE_AUDIO) {
-				ptable->buf_start =
+				if (!tsync_get_new_arch()) {
+					ptable->buf_start =
 					READ_AIU_REG(AIU_MEM_AIFIFO_START_PTR);
-				ptable->buf_size = READ_AIU_REG(
-						AIU_MEM_AIFIFO_END_PTR)
+					ptable->buf_size =
+					READ_AIU_REG(AIU_MEM_AIFIFO_END_PTR)
 					- ptable->buf_start + 8;
+				}
 
 				/* BUG_ON(ptable->buf_size <= 0x10000); */
 				timestamp_apts_set(0);

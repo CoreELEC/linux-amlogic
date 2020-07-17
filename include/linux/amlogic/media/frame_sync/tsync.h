@@ -29,6 +29,11 @@
 #define TSYNC_IOC_SET_VIDEO_PEEK _IOW(TSYNC_IOC_MAGIC, 0x01, int)
 
 #define TSYNC_IOC_GET_FIRST_FRAME_TOGGLED _IOR(TSYNC_IOC_MAGIC, 0x20, int)
+#define TSYNC_IOC_SET_FIRST_CHECKIN_APTS _IOW(TSYNC_IOC_MAGIC, 0x02, u32)
+#define TSYNC_IOC_SET_LAST_CHECKIN_APTS _IOW(TSYNC_IOC_MAGIC, 0x03, u32)
+#define TSYNC_IOC_SET_HAS_VIDEO _IOW(TSYNC_IOC_MAGIC, 0x04, u32)
+#define TSYNC_IOC_SET_HAS_AUDIO _IOW(TSYNC_IOC_MAGIC, 0x05, u32)
+#define TSYNC_IOC_SET_DEMUX_ID _IOW(TSYNC_IOC_MAGIC, 0x06, u32)
 
 enum avevent_e {
 	VIDEO_START,
@@ -220,6 +225,10 @@ u8 tsync_get_stbuf_space(struct stream_buf_s *pbuf, u32 *buf_space);
 void tsync_get_stbuf_size_for_newarch(struct stream_buf_s *pbuf, u32 *buf_size);
 
 u8 tsync_get_stbuf_size(struct stream_buf_s *pbuf, u32 *buf_size);
+
+bool tsync_get_new_arch(void);
+
+u32 tsync_get_checkin_apts(void);
 
 static inline u32 tsync_vpts_discontinuity_margin(void)
 {

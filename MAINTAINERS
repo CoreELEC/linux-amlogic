@@ -15348,10 +15348,6 @@ AMLOGIC VIDEO DRIVER
 M:  Pengcheng Chen <pengcheng.chen@amlogic.com>
 F:  drivers/amlogic/media/video_sink/video_trace.h
 
-AMLOGIC avsync modify for new architecture
-M:  Chen Chen <chen.chen1@amlogic.com>
-F:  drivers/amlogic/media/frame_sync/ptsserv_newarch.c
-
 AMLOGIC driver for smartcard
 M: chuangcheng peng <chuangcheng.peng@amlogic.com>
 F: drivers/amlogic/smartcard/dvb_reg.c

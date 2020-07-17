@@ -160,7 +160,8 @@ static bool dobly_avsync_test;
 static int slowsync_enable;
 static int apts_lookup_offset;
 
-bool new_arch;
+static bool new_arch;
+static u32 checkin_apts_from_audiohal;
 u8 demux_pcrscr_valid;
 u8 audio_pid_valid;
 u8 video_pid_valid;
@@ -823,7 +824,7 @@ EXPORT_SYMBOL(tsync_get_video_pid_valid);
 
 void tsync_get_demux_pcr_for_newarch(void)
 {
-	demux_pcrscr = 1;
+	demux_pcrscr = 0;
 }
 EXPORT_SYMBOL(tsync_get_demux_pcr_for_newarch);
 
@@ -1777,6 +1778,18 @@ int tsync_get_apts_error_num(void)
 }
 EXPORT_SYMBOL(tsync_get_apts_error_num);
 
+bool tsync_get_new_arch(void)
+{
+	return new_arch;
+}
+EXPORT_SYMBOL(tsync_get_new_arch);
+
+u32 tsync_get_checkin_apts(void)
+{
+	return checkin_apts_from_audiohal;
+}
+EXPORT_SYMBOL(tsync_get_checkin_apts);
+
 static ssize_t store_pcr_recover(struct class *class,
 		struct class_attribute *attr,
 		const char *buf, size_t size)
@@ -2678,6 +2691,7 @@ static int tsync_release(struct inode *inode, struct file *file)
 static long tsync_ioctl(struct file *file, unsigned int cmd, ulong arg)
 {
 	long ret = 0;
+	unsigned int tmppts = 0;
 	void __user *argp = (void __user *)arg;
 
 	switch (cmd) {
@@ -2699,6 +2713,16 @@ static long tsync_ioctl(struct file *file, unsigned int cmd, ulong arg)
 		put_user(get_first_frame_toggled(), (u32 __user *)argp);
 		break;
 
+	case TSYNC_IOC_SET_FIRST_CHECKIN_APTS:
+		if (get_user(tmppts, (unsigned int *)arg) >= 0) {
+			timestamp_firstapts_set(tmppts);
+			timestamp_checkin_firstapts_set(tmppts);
+		}
+		break;
+
+	case TSYNC_IOC_SET_LAST_CHECKIN_APTS:
+		get_user(checkin_apts_from_audiohal, (unsigned int *)arg);
+		break;
 	default:
 		pr_info("invalid cmd:%d\n", cmd);
 		break;
@@ -2716,6 +2740,8 @@ static long tsync_compat_ioctl(struct file *file, unsigned int cmd, ulong arg)
 	case TSYNC_IOC_SET_TUNNEL_MODE:
 	case TSYNC_IOC_SET_VIDEO_PEEK:
 	case TSYNC_IOC_GET_FIRST_FRAME_TOGGLED:
+	case TSYNC_IOC_SET_FIRST_CHECKIN_APTS:
+	case TSYNC_IOC_SET_LAST_CHECKIN_APTS:
 		return tsync_ioctl(file, cmd, arg);
 	default:
 		return -EINVAL;
@@ -2786,11 +2812,12 @@ static int __init tsync_module_init(void)
 	add_timer(&tsync_state_switch_timer);
 	REG_PATH_CONFIGS("media.tsync", tsync_configs);
 
-#ifdef DISABLE_DEMUX_PARSER
-	new_arch = true;
-#else
-	new_arch = false;
-#endif
+	if (get_cpu_type() == MESON_CPU_MAJOR_ID_SC2)
+		new_arch = true;
+	else
+		new_arch = false;
+
+	pr_info("new arch is :%d.", new_arch);
 
 	return 0;
 
