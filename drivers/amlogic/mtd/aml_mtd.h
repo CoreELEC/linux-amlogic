@@ -52,9 +52,8 @@
 #include <linux/mtd/nand.h>
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/nand_ecc.h>
-/*#include <nand.h>*/
 #include "aml_hwctrl.h"
-/*#include "partition_table.h"*/
+#include "nand_layout.h"
 
 #define CONFIG_MTD_PARTITIONS 1
 #define NAND_MAX_DEVICE	4
@@ -91,55 +90,53 @@ struct _nand_cmd {
 	unsigned char val;
 };
 
-/*
- ** must same with asm/arch/nand.h
- *
- *ext bits:
- *	bit 26: pagelist enable flag,
- *	bit 24: a2 cmd enable flag,
- *	bit 23: no_rb,
- *	bit 22: large.  large for what?
- *	bit 19: randomizer mode.
- *	bit 14-16: ecc mode
- *	bit 13: short mode
- *	bit 6-12:short page size
- *	bit 0-5: ecc pages.
- */
+union sc2_cmdinfo {
+	u32 d32;
+	struct {
+		unsigned cmd:22;        //20-21b' code0/1 17b' WE_n(r/w->1/0b)
+		unsigned page_list:1;
+		unsigned new_type:8;
+		unsigned reserved:1;
+	} b;
+};
+
+struct nand_setup_sc2 {
+	union sc2_cmdinfo cfg;
+	u16 id;
+	u16 max; // id:0x100 user, max:0 disable.
+};
+
+union cmdinfo {
+	u32 d32;
+	struct {
+		unsigned cmd:22;
+		unsigned large_page:1; // 22
+		unsigned no_rb:1;      // 23 from efuse
+		unsigned a2:1;         // 24
+		unsigned reserved25:1; // 25
+		unsigned page_list:1;  // 26
+		unsigned sync_mode:2;  // 27 from efuse
+		unsigned size:2;       // 29 from efuse
+		unsigned active:1;     // 31
+	} b;
+};
+
 struct nand_setup {
-	union {
-		uint32_t d32;
-		struct {
-			unsigned cmd:22;
-			unsigned large_page:1;
-			unsigned no_rb:1;
-			unsigned a2:1;
-			unsigned reserved25:1;
-			unsigned page_list:1;
-			unsigned sync_mode:2;
-			unsigned size:2;
-			unsigned active:1;
-		} b;
-	} cfg;
-	uint16_t id;
-	uint16_t max;
+	union cmdinfo cfg;
+	u16 id;
+	u16 max; // id:0x100 user, max:0 disable.
 };
 
 struct _ext_info {
-	uint32_t read_info;
-	uint32_t new_type;
-	uint32_t page_per_blk;
-	uint32_t xlc;
-	uint32_t ce_mask;
-	/* copact mode: boot means whole uboot
-	 * it's easy to understood that copies of
-	 * bl2 and fip are the same.
-	 * discrete mode, boot means the fip only
-	 */
-	uint32_t boot_num;
-	uint32_t each_boot_pages;
-	/* for comptible reason */
-	uint32_t bbt_occupy_pages;
-	uint32_t bbt_start_block;
+	u32 read_info;
+	u32 new_type;
+	u32 page_per_blk;
+	u32 xlc;
+	u32 ce_mask;
+	u32 boot_num;
+	u32 each_boot_pages;
+	u32 bbt_occupy_pages;
+	u32 bbt_start_block;
 };
 #define NAND_FIPMODE_COMPACT    (0)
 #define NAND_FIPMODE_DISCRETE   (1)
@@ -150,28 +147,32 @@ struct _ext_info {
  */
 
 struct _fip_info {
-	/* version */
 	uint16_t version;
-	/* compact or discrete */
 	uint16_t mode;
-	/* fip start, pages */
-	uint32_t fip_start;
+	u32 fip_start;
 };
 
-/*max size is 384 bytes*/
+struct _nand_page0_sc2 {
+	struct nand_setup_sc2 nand_setup;
+	unsigned char page_list[32];
+	struct _nand_cmd retry_usr[32];
+	struct _ext_info ext_info;
+	struct _fip_info fip_info;
+	u32 ddrp_start_page;
+};
+
 struct _nand_page0 {
 	struct nand_setup nand_setup;
 	unsigned char page_list[16];
 	struct _nand_cmd retry_usr[32];
 	struct _ext_info ext_info;
-	/* added for slc */
 	struct _fip_info fip_info;
 	uint32_t ddrp_start_page;
 };
 
 union nand_core_clk {
 	/*raw register data */
-	uint32_t d32;
+	u32 d32;
 	/*register bits */
 	struct {
 		unsigned clk_div:7;

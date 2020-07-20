@@ -1621,8 +1621,8 @@
 		pinctrl-1 = <&all_nand_pins>;
 		pinctrl-2 = <&nand_cs_pins>;
 		clocks = <&clkc CLKID_SD_EMMC_C>,
-				<&clkc CLKID_SD_EMMC_C_P0_COMP>;
-		clock-names = "core", "clkin";
+			<&clkc CLKID_FCLK_DIV2>;
+		clock-names = "gate", "fdiv2pll";
 
 		device_id = <0>;
 		/*fip/tpl configurations, must be same

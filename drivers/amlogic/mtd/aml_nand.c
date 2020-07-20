@@ -304,14 +304,15 @@ static int aml_nand_add_partition(struct aml_nand_chip *aml_chip)
 #ifdef CONFIG_MTD_PARTITIONS
 	struct mtd_partition *temp_parts = NULL;
 	struct mtd_partition *parts;
+	int cpu_type = get_cpu_type();
+	int internal_part_count = 0;
 	int nr, i, ret = 0;
 	loff_t adjust_offset = 0;
 	uint64_t part_size;
 	int reserved_part_blk_num = RESERVED_BLOCK_NUM;
-	uint8_t bl_mode, base_part = 0;
-	uint32_t fip_copies, fip_size, fip_part_size = 0;
+	u8 bl_mode;
+	u32 fip_part_size = 0;
 	int plane_num_shift = 0;
-
 #ifndef CONFIG_NOT_SKIP_BAD_BLOCK
 	uint64_t start_blk = 0, part_blk = 0;
 	loff_t offset;
@@ -340,79 +341,91 @@ static int aml_nand_add_partition(struct aml_nand_chip *aml_chip)
 		parts->offset = 0;
 		parts->size = (mtd->writesize * 1024);
 		nr = 1;
-		nand_boot_flag = 1;
-	} else {
-		if ((!parts) || (!nr)) {
-			pr_info("can't get part table!!!\n");
-			return -ENOMEM;
+		goto _REGISTER_MTD_;
+	}
+	if ((!parts) || (!nr)) {
+		pr_info("can't get part table!!!\n");
+		return -ENOMEM;
+	}
+	adjust_offset = 1024 * ((loff_t)mtd->writesize) +
+		reserved_part_blk_num * mtd->erasesize;
+	bl_mode = aml_chip->bl_mode;
+	if (bl_mode == NAND_FIPMODE_DISCRETE) {
+		if (cpu_type == MESON_CPU_MAJOR_ID_SC2) {
+			aml_nand_param_check_and_layout_init();
+			fip_part_size =
+			g_ssp.boot_entry[BOOT_AREA_DEVFIP].size *
+				aml_chip->fip_copies;
+			adjust_offset =
+			g_ssp.boot_entry[BOOT_AREA_DEVFIP].offset +
+				fip_part_size;
+			internal_part_count = 4;
+		} else {
+			fip_part_size =
+				aml_chip->fip_size * aml_chip->fip_copies;
+			adjust_offset += fip_part_size;
+			internal_part_count = 1;
 		}
-		if (nand_boot_flag)
-			adjust_offset = (1024 * ((loff_t)mtd->writesize) >>
-			plane_num_shift);
-		bl_mode = aml_chip->bl_mode;
-		if (bl_mode == NAND_FIPMODE_DISCRETE) {
-			/* descrete bootloader mode */
-			/* calculate fip partition by dts config*/
-			fip_copies = aml_chip->fip_copies;
-			fip_size = aml_chip->fip_size;
-			fip_part_size = fip_copies * fip_size;
-			temp_parts = parts;
-			/* TODO: do name check! */
-			temp_parts->offset = adjust_offset
-				+ reserved_part_blk_num * mtd->erasesize;
-			temp_parts->size = fip_part_size;
-			pr_info("%s: off %lld, size %lld\n", temp_parts->name,
-			temp_parts->offset, temp_parts->size);
-			base_part  = 1;
-		}
-		adjust_offset += reserved_part_blk_num * mtd->erasesize
-			+fip_part_size;
-		/*normal mtd device divide part from here(adjust_offset)*/
-		for (i = base_part; i < nr; i++) {
+
+		for (i = 0; i < internal_part_count; i++) {
 			temp_parts = parts + i;
-			if (mtd->size < adjust_offset) {
-				pr_info("%s %d error: over the nand size!!!\n",
-						__func__, __LINE__);
-				return -ENOMEM;
+			if (cpu_type == MESON_CPU_MAJOR_ID_SC2) {
+				temp_parts->offset =
+					g_ssp.boot_entry[i + 1].offset;
+				temp_parts->size =
+					g_ssp.boot_entry[i + 1].size *
+						g_ssp.boot_bakups;
+			} else {
+				temp_parts->offset = adjust_offset;
+				temp_parts->size = fip_part_size;
 			}
-			temp_parts->offset = adjust_offset;
-			part_size = temp_parts->size;
-			if (i == nr - 1)
-				part_size = mtd->size - adjust_offset;
-	#ifndef CONFIG_NOT_SKIP_BAD_BLOCK
-			offset = 0;
-			start_blk = 0;
-			part_blk = part_size >> phys_erase_shift;
-			do {
-				offset = adjust_offset + start_blk *
-					mtd->erasesize;
-				error = mtd->_block_isbad(mtd, offset);
-				if (error) {
-					pr_info("%s:%d factory bad addr=%llx\n",
-						__func__, __LINE__,
-					(uint64_t)(offset >>
-						phys_erase_shift));
-					if (i != nr - 1) {
-						adjust_offset += mtd->erasesize;
-						continue;
-					}
-				}
-				start_blk++;
-			} while (start_blk < part_blk);
-	#endif
-			if (temp_parts->name == NULL) {
-				temp_parts->name =
-					kzalloc(MAX_MTD_PART_NAME_LEN,
-						GFP_KERNEL);
-				if (!temp_parts->name)
-					return -ENOMEM;
-				sprintf((char *)temp_parts->name,
-					"mtd%d", nr);
-			}
-			adjust_offset += part_size;
-			temp_parts->size = adjust_offset - temp_parts->offset;
 		}
 	}
+
+	for (i = internal_part_count; i < nr; i++) {
+		temp_parts = parts + i;
+		if (mtd->size < adjust_offset) {
+			pr_info("%s %d error: over the nand size!!!\n",
+				__func__, __LINE__);
+			return -ENOMEM;
+		}
+		temp_parts->offset = adjust_offset;
+		part_size = temp_parts->size;
+		if (i == nr - 1)
+			part_size = mtd->size - adjust_offset;
+#ifndef CONFIG_NOT_SKIP_BAD_BLOCK
+		offset = 0;
+		start_blk = 0;
+		part_blk = part_size >> phys_erase_shift;
+		do {
+			offset = adjust_offset + start_blk *
+				mtd->erasesize;
+			error = mtd->_block_isbad(mtd, offset);
+			if (error) {
+				pr_info("%s:%d factory bad addr=%llx\n",
+					__func__, __LINE__,
+					(uint64_t)(offset >>
+					phys_erase_shift));
+				if (i != nr - 1) {
+					adjust_offset += mtd->erasesize;
+					continue;
+				}
+			}
+			start_blk++;
+		} while (start_blk < part_blk);
+#endif
+		if (!temp_parts->name) {
+			temp_parts->name =
+				kzalloc(MAX_MTD_PART_NAME_LEN, GFP_KERNEL);
+			if (!temp_parts->name)
+				return -ENOMEM;
+			sprintf((char *)temp_parts->name, "mtd%d", nr);
+		}
+		adjust_offset += part_size;
+		temp_parts->size = adjust_offset - temp_parts->offset;
+	}
+
+_REGISTER_MTD_:
 	ret = add_mtd_partitions(mtd, parts, nr);
 	if (nr == 1)
 		kfree(parts);
@@ -422,94 +435,19 @@ static int aml_nand_add_partition(struct aml_nand_chip *aml_chip)
 #endif
 }
 
-#ifndef AML_NAND_UBOOT
-int nand_idleflag;
-/* DEFINE_MUTEX(nand_controller_mutex); */
 #define	NAND_CTRL_NONE_RB	(1<<1)
 void nand_get_chip(void *chip)
 {
-	struct aml_nand_chip *aml_chip = (struct aml_nand_chip *)chip;
-	struct hw_controller *controller = aml_chip->controller;
-	int retry = 0, ret = 0;
 
-	while (1) {
-		/* lock controller*/
-		/* mutex_lock(&nand_controller_mutex); */
-		nand_idleflag = 1;
-		if ((aml_chip->options & NAND_CTRL_NONE_RB) == 0) {
-			ret = pinctrl_select_state(controller->nand_pinctrl,
-				controller->nand_rbstate);
-		} else {
-			ret = pinctrl_select_state(controller->nand_pinctrl,
-				controller->nand_norbstate);
-		}
-		if (ret < 0)
-			pr_info("%s:%d %s can't get pinctrl\n",
-				__func__,
-				__LINE__,
-				dev_name(aml_chip->device));
-		else
-			break;
-
-		if (retry++ > 10) {
-			pr_info("get pin fail over 10 times retry=%d\n",
-				retry);
-			break;
-		}
-	}
 }
 
 void nand_release_chip(void *chip)
 {
 	struct aml_nand_chip *aml_chip = (struct aml_nand_chip *)chip;
 	struct hw_controller *controller = aml_chip->controller;
-	int ret = 0;
 
-	if (nand_idleflag) {
-		/* enter standby state. */
-		/* controller->enter_standby(controller); */
-		/* just enter standby status. */
-		NFC_SEND_CMD_STANDBY(controller, 5);/* delay for 5 cycle. */
-		ret = pinctrl_select_state(controller->nand_pinctrl,
-			controller->nand_idlestate);
-		if (ret < 0)
-			pr_info("select idle state error\n");
-		nand_idleflag = 0;
-		/* release controller*/
-		/* mutex_unlock(&nand_controller_mutex); */
-	}
+	NFC_SEND_CMD_STANDBY(controller, 5);/* delay for 5 cycle. */
 }
-#else
-static inline void nand_get_chip(void)
-{
-	/* pull up enable */
-	cpu_id_t cpu_id = get_cpu_id();
-
-	AMLNF_SET_REG_MASK(P_PAD_PULL_UP_EN_REG2, 0x87ff);
-	/* pull direction, dqs pull down */
-	AMLNF_SET_REG_MASK(P_PAD_PULL_UP_REG2, 0x8700);
-	/* switch pinmux */
-	if (cpu_id.family_id == MESON_CPU_MAJOR_ID_GXL) {
-		AMLNF_CLEAR_REG_MASK(P_PERIPHS_PIN_MUX_7,
-			((0x7 << 28) | (0x1FF << 15) | (0xF << 10)));
-		AMLNF_SET_REG_MASK(P_PERIPHS_PIN_MUX_7, ((0x1<<31) | 0xff));
-	} else if (cpu_id.family_id == MESON_CPU_MAJOR_ID_GXBB) {
-		AMLNF_SET_REG_MASK(P_PERIPHS_PIN_MUX_4,
-			((0x1<<30) | (0x3ff<<20)));
-		AMLNF_CLEAR_REG_MASK(P_PERIPHS_PIN_MUX_0, (0x1 << 19));
-		AMLNF_CLEAR_REG_MASK(P_PERIPHS_PIN_MUX_4, (0x3 << 18));
-		AMLNF_CLEAR_REG_MASK(P_PERIPHS_PIN_MUX_5, (0xF));
-	} else
-		pr_info("%s %d: not support cpu type!!!\n",
-			__func__, __LINE__);
-
-}
-
-static inline void nand_release_chip(void)
-{
-	NFC_SEND_CMD_STANDBY(controller, 5);
-}
-#endif
 
 static void aml_nand_select_chip(struct mtd_info *mtd, int chipnr)
 {
@@ -578,7 +516,7 @@ int aml_platform_wait_devready(struct aml_nand_chip *aml_chip, int chipnr)
 			if (status & NAND_STATUS_READY)
 				break;
 			udelay(20);
-		} while (time_out_cnt++ <= 0x2000); /*10ms max*/
+		} while (time_out_cnt++ <= 0x2000);
 
 		if (time_out_cnt > 0x2000)
 			return 0;
@@ -1966,13 +1904,6 @@ int aml_nand_init(struct aml_nand_chip *aml_chip)
 	struct aml_nand_read_retry *nand_read_retry;
 	struct aml_nand_slc_program *slc_program_info;
 
-/*#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 9, 13)*/
-#if 0
-	struct nand_oobfree *oobfree = NULL;
-	u32 elsize;
-	int oobmul, tmp_value;
-#endif
-
 	nand_read_retry = &new_nand_info->read_rety_info;
 	slc_program_info = &new_nand_info->slc_program_info;
 
@@ -1982,15 +1913,8 @@ int aml_nand_init(struct aml_nand_chip *aml_chip)
 	chip->options |= NAND_SKIP_BBTSCAN;
 	chip->options |= NAND_NO_SUBPAGE_WRITE;
 
-	/*
-	 *if (chip->ecc.mode != NAND_ECC_SOFT) {
-	 *	if (aml_chip->user_byte_mode == 2)
-	 *		chip->ecc.layout = &aml_nand_oob_64;
-	 *}
-	 */
 	chip->select_chip = aml_nand_select_chip;
 	chip->cmd_ctrl = aml_nand_cmd_ctrl;
-	/* chip->cmdfunc = aml_nand_command; */
 	chip->read_byte = aml_platform_read_byte;
 
 	controller->chip_num = plat->platform_nand_data.chip.nr_chips;
@@ -2012,7 +1936,6 @@ int aml_nand_init(struct aml_nand_chip *aml_chip)
 	aml_chip->bch_info = NAND_ECC_BCH60_1K;
 	if (get_cpu_type() == MESON_CPU_MAJOR_ID_AXG)
 		aml_chip->bch_info = NAND_ECC_BCH8_1K;
-
 	mtd_set_ooblayout(mtd, &aml_ooblayout_ops);
 	mtd_ooblayout_free(mtd, 0, &oobregion);
 	chip->options = 0;
