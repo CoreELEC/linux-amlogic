@@ -2,8 +2,8 @@
 
 /{
 	model = "Hardkernel ODROID-N2";
-	/delete-property/ amlogic-dt-id;
 	coreelec-dt-id = "g12b_s922x_odroid_n2";
+	amlogic-dt-id = "g12b_w400_a";
 
 	/delete-node/ memory@00000000;
 	/delete-node/ gpioleds;
