@@ -230,8 +230,6 @@ static int aml_vrtc_probe(struct platform_device *pdev)
 		timere_high_vaddr = ioremap(paddr + 4, 0x4);
 	}
 
-	ret = of_property_read_u32(pdev->dev.of_node,
-			"timer_e_addr", &paddr);
 	ret = of_property_read_string(pdev->dev.of_node, "init_date", &str);
 	if (!ret) {
 		pr_debug("init_date: %s\n", str);
