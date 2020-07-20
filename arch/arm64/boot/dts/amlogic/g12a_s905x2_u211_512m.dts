@@ -303,7 +303,7 @@
 		status = "okay";
 	};
 	dvb{
-	    compatible = "amlogic, dvb";
+		compatible = "amlogic, dvb";
 		dev_name = "dvb";
 		status = "ok";
 		/*"parallel","serial","disable"*/

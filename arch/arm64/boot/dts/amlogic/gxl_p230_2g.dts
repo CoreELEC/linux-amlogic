@@ -1232,9 +1232,11 @@
 			key-permit = "read","write","del";
 		};
 	};//End unifykey
-	dvb {
+
+	dvb_atbm8881 {
 		compatible = "amlogic, dvb";
 		dev_name = "dvb";
+		status = "okay";
 
 		fe0_mode = "external";
 		fe0_demod = "Atbm8881";

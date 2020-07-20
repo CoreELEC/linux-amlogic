@@ -310,14 +310,12 @@
 		nrds-enable = <1>;
 		pps-enable = <1>;
 	};
-	ionvideo {
-		compatible = "amlogic, ionvideo";
-		dev_name = "ionvideo";
-		status = "okay";
-	};
-	dvb {
+
+	dvb_avl6762 {
 		compatible = "amlogic, dvb";
 		dev_name = "dvb";
+		status = "okay";
+
 		fe0_mode = "external";
 		fe0_demod = "Avl6762";
 		fe0_i2c_adap_id = <&i2c3>;
@@ -351,6 +349,12 @@
 		&clkc CLKID_AHB_ARB0
 		&clkc CLKID_DOS_PARSER>;
 		clock-names = "demux", "ahbarb0", "parser_top";
+	};
+
+	ionvideo {
+		compatible = "amlogic, ionvideo";
+		dev_name = "ionvideo";
+		status = "okay";
 	};
 
 	partitions: partitions{
