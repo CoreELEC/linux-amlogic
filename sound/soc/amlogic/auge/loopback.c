@@ -779,7 +779,7 @@ static int loopback_dai_trigger(
 					  true,
 					  p_loopback->chipinfo->chnum_en);
 			else
-				lb_enable(p_loopback->id, true, false);
+				lb_enable(p_loopback->id, true, true);
 			/* tdminLB */
 			tdminlb_enable(p_loopback->datalb_src, true);
 			/* pdm */
@@ -805,10 +805,10 @@ static int loopback_dai_trigger(
 			/* loopback */
 			if (p_loopback->chipinfo)
 				lb_enable(p_loopback->id,
-					  true,
+					  false,
 					  p_loopback->chipinfo->chnum_en);
 			else
-				lb_enable(p_loopback->id, true, false);
+				lb_enable(p_loopback->id, false, true);
 			/* tdminLB */
 			tdminlb_fifo_enable(false);
 			tdminlb_enable(p_loopback->datalb_src, false);
@@ -1525,6 +1525,8 @@ static int loopback_platform_suspend(
 			lb_set_chnum_en(p_loopback->id,
 					true,
 					p_loopback->chipinfo->chnum_en);
+		else
+			lb_set_chnum_en(p_loopback->id, true, true);
 		vad_lb_force_two_channel(true);
 
 		pr_info("%s, Entry in freeze, p_loopback:%p\n",
@@ -1548,8 +1550,10 @@ static int loopback_platform_resume(
 			__func__, p_loopback);
 		if (p_loopback->chipinfo)
 			lb_set_chnum_en(p_loopback->id,
-					true,
+					false,
 					p_loopback->chipinfo->chnum_en);
+		else
+			lb_set_chnum_en(p_loopback->id, false, true);
 		vad_lb_force_two_channel(false);
 	}
 
