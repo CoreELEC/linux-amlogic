@@ -32,7 +32,7 @@ static struct remote_reg_map regs_default_nec[] = {
 	{ REG_LDR_IDLE,     300 << 16 | 200 << 0},
 	{ REG_LDR_REPEAT,   150 << 16 | 80 << 0},
 	{ REG_BIT_0,        72 << 16 | 40 << 0},
-	{ REG_REG0,         7 << 28 | (0xFA0 << 12) | 0x13},
+	{ REG_REG0,         7 << 28 | (0xDAC << 12) | 0x13},
 	{ REG_STATUS,       (134 << 20) | (90 << 10)},
 	{ REG_REG1,         0x9f00},
 	{ REG_REG2,         0x00},
@@ -520,6 +520,7 @@ static u32 ir_rca_get_custom_code(struct remote_chip *chip)
 static struct aml_remote_reg_proto reg_legacy_nec = {
 	.protocol = REMOTE_TYPE_LEGACY_NEC,
 	.name     = "LEGACY_NEC",
+	.protocol_delay = 50,
 	.reg_map      = regs_legacy_nec,
 	.reg_map_size = ARRAY_SIZE(regs_legacy_nec),
 	.get_scancode      = ir_legacy_nec_get_scancode,
@@ -530,6 +531,7 @@ static struct aml_remote_reg_proto reg_legacy_nec = {
 static struct aml_remote_reg_proto reg_nec = {
 	.protocol = REMOTE_TYPE_NEC,
 	.name     = "NEC",
+	.protocol_delay = 50,
 	.reg_map      = regs_default_nec,
 	.reg_map_size = ARRAY_SIZE(regs_default_nec),
 	.get_scancode      = ir_nec_get_scancode,
@@ -690,6 +692,7 @@ static int ir_contr_init(struct remote_chip *chip, int type, unsigned char id)
 	chip->ir_contr[id].proto_name        = (*reg_proto)->name;
 	chip->ir_contr[id].get_custom_code   = (*reg_proto)->get_custom_code;
 	chip->ir_contr[id].set_custom_code   = (*reg_proto)->set_custom_code;
+	chip->ir_contr[id].protocol_delay     = (*reg_proto)->protocol_delay;
 
 	if (chip->r_dev->ir_learning_on && chip->r_dev->use_fifo)
 		remote_reg_write(chip, id, REG_FIFO, FIFO_REG_VAL);

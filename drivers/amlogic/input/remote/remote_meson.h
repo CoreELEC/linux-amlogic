@@ -92,6 +92,7 @@ struct key_number {
  *TODO: compatible with the "struct aml_remote_reg_proto"
  */
 struct remote_contr_desc {
+	u8 protocol_delay;
 	void __iomem *remote_regs;
 	char *proto_name;
 	int (*get_scancode)(struct remote_chip *chip);
@@ -159,6 +160,7 @@ struct aml_remote_reg_proto {
 	struct aml_remote_reg *reg;
 	struct remote_reg_map *reg_map;
 	int reg_map_size;
+	u8 protocol_delay;
 	int (*get_scancode)(struct remote_chip *chip);
 	int (*get_decode_status)(struct remote_chip *chip);
 	u32 (*get_custom_code)(struct remote_chip *chip);
