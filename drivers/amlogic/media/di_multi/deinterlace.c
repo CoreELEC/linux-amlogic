@@ -7226,7 +7226,7 @@ void di_unreg_setting(void)
 	unsigned int mirror_disable = 0;
 
 	if (!get_hw_reg_flg()) {
-		PR_ERR("%s:have setting?do nothing\n", __func__);
+		PR_ERR("%s:have unsetting?do nothing\n", __func__);
 		return;
 	}
 
@@ -7772,7 +7772,7 @@ void di_reg_variable(unsigned int channel, struct vframe_s *vframe)
 	if (pre_run_flag == DI_RUN_FLAG_STEP)
 		pre_run_flag = DI_RUN_FLAG_STEP_DONE;
 #endif
-	dbg_reg("%s:\n", __func__);
+	dbg_reg("%s:=%x\n", __func__, channel);
 
 	dim_print("%s:0x%p\n", __func__, vframe);
 	pch = get_chdata(channel);
