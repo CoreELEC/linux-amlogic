@@ -340,6 +340,12 @@
 		sys_poweroff = <0x84000008>;
 	};
 
+    dolby_fw: dolby_fw {
+		compatible = "amlogic, dolby_fw";
+		mem_size = <0x100000>;
+		status = "okay";
+	};
+
 	vpu: vpu {
 		compatible = "amlogic, vpu-sc2";
 		status = "okay";
