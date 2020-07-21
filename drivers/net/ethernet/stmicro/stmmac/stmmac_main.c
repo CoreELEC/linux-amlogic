@@ -1603,14 +1603,12 @@ static void eth_hw_addr_chipid(u8 *addr)
 	unsigned char chipid[16];
 
 	cpuinfo_get_chipid(chipid, 16);
-	addr[0] = chipid[15];
-	addr[1] = chipid[14];
-	addr[2] = chipid[13];
-	addr[3] = chipid[12];
-	addr[4] = chipid[11];
-	addr[5] = chipid[10];
-	addr[0] &= 0xfe;	/* clear multicast bit */
-	addr[0] |= 0x02;	/* set local assignment bit (IEEE802) */
+	addr[0] = 0x02;
+	addr[1] = chipid[8];
+	addr[2] = chipid[7];
+	addr[3] = chipid[6];
+	addr[4] = chipid[5];
+	addr[5] = chipid[4];
 #endif
 }
 
@@ -1626,8 +1624,10 @@ static void stmmac_check_ether_addr(struct stmmac_priv *priv)
 	if (!is_valid_ether_addr(priv->dev->dev_addr)) {
 		priv->hw->mac->get_umac_addr(priv->hw,
 					     priv->dev->dev_addr, 0);
-		if (!is_valid_ether_addr(priv->dev->dev_addr))
+		if (is_local_ether_addr(priv->dev->dev_addr))
 			eth_hw_addr_chipid(priv->dev->dev_addr);
+		if (!is_valid_ether_addr(priv->dev->dev_addr))
+			eth_hw_addr_random(priv->dev);
 		pr_info("%s: device MAC address %pM\n", priv->dev->name,
 			priv->dev->dev_addr);
 	}
