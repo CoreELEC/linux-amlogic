@@ -35,9 +35,7 @@
 
 #include "meson_mhu.h"
 #include "../firmware/bl40_module.h"
-#include <linux/amlogic/scpi_common.h>
 
-struct device *the_scpi_device;
 u32 num_scp_chans;
 u32 send_listen_chans;
 u32 isr_send;
@@ -329,8 +327,6 @@ static int mhu_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
-	the_scpi_device = dev;
-
 	if (!send_listen_chans)
 		goto probe_done;
 
@@ -361,8 +357,9 @@ static int mhu_probe(struct platform_device *pdev)
 		}
 	}
 
+	mhu_device = dev;
 	/*set mhu type*/
-	mhu_f = 0xff;
+	mhu_f |= MASK_MHU;
 probe_done:
 	return 0;
 }

@@ -15365,3 +15365,10 @@ M: Huan Biao <huan.biao@amlogic.com>
 F: drivers/amlogic/mailbox/scpi_protocol_fifo.c
 F: drivers/amlogic/mailbox/scpi_common.c
 F: include/linux/amlogic/scpi_common.h
+
+AMLOGIC driver for scpi automatch mhu
+M: Huan Biao <huan.biao@amlogic.com>
+F: drivers/amlogic/mailbox/scpi_protocol_fifo.c
+F: drivers/amlogic/mailbox/scpi_common.c
+F: include/linux/amlogic/scpi_common.h
+F: include/linux/amlogic/meson_mhu_common.h
