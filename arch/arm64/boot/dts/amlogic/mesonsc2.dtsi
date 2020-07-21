@@ -634,6 +634,22 @@
 		status = "disabled";
 	};
 
+	spifc: spifc@fe056000 {
+		compatible = "amlogic,aml-spi-nor";
+		status = "disabled";
+		reg = <0x0 0xfe056000 0x0 0x80>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&spifc_pins>;
+		clock-names = "core";
+		clocks = <&clkc CLKID_SPIFC>;
+		spi-nor@0 {
+			compatible = "jedec,spi-nor";
+			spifc-frequency = <40000000>;
+			read-capability = <4>;
+			spifc-io-width = <4>;
+		};
+	};
+
 	irblaster: meson-irblaster@0xfe08410c {
 		compatible = "amlogic, meson_irblaster";
 		status = "disabled";
@@ -2696,6 +2712,19 @@
 				 "spi_b_sclk_h";
 			function = "spi_b";
 			drive-strength = <1>;
+		};
+	};
+
+	spifc_pins: spifc_pins {
+		mux {
+			groups = "nor_d",
+				 "nor_q",
+				 "nor_c",
+				 //"nor_cs",
+				 "nor_hold",
+				 "nor_wp";
+			function = "nor";
+			drive-strength = <3>;
 		};
 	};
 

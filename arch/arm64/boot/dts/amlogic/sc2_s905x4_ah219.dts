@@ -42,8 +42,9 @@
 		i2c2 = &i2c2;
 		i2c3 = &i2c3;
 		i2c4 = &i2c4;
-		spi0 = &spicc0;
-		spi1 = &spicc1;
+		spi0 = &spifc;
+		spi1 = &spicc0;
+		spi2 = &spicc1;
 	};
 
 	memory@00000000 {
@@ -1893,6 +1894,13 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&spicc1_pins_h>;
 	cs-gpios = <&gpio GPIOH_6 0>;
+};
+
+&spifc {
+	status = "disabled";
+	spi-nor@0 {
+		cs_gpios = <&gpio GPIOB_14 GPIO_ACTIVE_HIGH>;
+	};
 };
 
 &pwm_ef {
