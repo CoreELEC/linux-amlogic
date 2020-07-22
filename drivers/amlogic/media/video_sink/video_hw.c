@@ -3126,6 +3126,7 @@ void config_3d_vd2_position(
 
 	memcpy(setting, &layer->mif_setting, sizeof(struct mif_pos_s));
 	setting->id = 1;
+	setting->p_vd_mif_reg = &vd_layer[1].vd_mif_reg;
 
 	/* need not change the horz position */
 	/* not framepacking mode, need process vert position more */
