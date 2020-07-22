@@ -464,16 +464,21 @@
 	};
 
 	dvb_mxl258c {
-		compatible = "amlogic, dvb";
+		compatible = "amlogic sc2, dvb";
 		dev_name = "dvb";
 		status = "okay";
 
 		reg = <0xfe000000 0x480000>;
 
 		dmxdev_num = <4>;
+		dmx0_sid = <0x20>;
+		dmx1_sid = <0x20>;
+		dmx2_sid = <0x20>;
+		dmx3_sid = <0x20>;
+
 		tsn_from = "demod";
 		/*set pass tse or not, default is 1*/
-		tse_enable = <1>;
+		tse_enable = <0>;
 
 		/*single demod setting */
 		/*ts will bind with dmx device*/
