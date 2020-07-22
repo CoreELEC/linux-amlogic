@@ -46,6 +46,17 @@
 		};
 	};
 
+	cpus:cpus {
+		cpu-map {
+			cluster0:cluster0 {
+				stock_freq = <1896000000>;
+			};
+			cluster1:cluster1 {
+				stock_freq = <1800000000>;
+			};
+		};
+	};
+
 	leds {
 		compatible = "gpio-leds";
 		blueled {
