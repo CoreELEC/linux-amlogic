@@ -745,6 +745,27 @@ static struct cpufreq_driver meson_cpufreq_driver = {
 	.resume			= meson_cpufreq_resume,
 };
 
+static u32 meson_cpufreq_get_stock(unsigned int cpu)
+{
+	char clname[24];
+	struct device_node *cln;
+	u32 stock_freq = 0;
+	u32 value;
+
+	snprintf(clname, sizeof(clname), "/cpus/cpu-map/cluster%d", cpu);
+	cln = of_find_node_by_path(clname);
+
+	if (!of_property_read_u32(cln, "stock_freq", &value)) {
+		if (value) {
+			stock_freq = value / 1000;
+			pr_info("cluster%d stock freq set to: %lu\n",
+				cpu, stock_freq);
+		}
+	}
+
+	return stock_freq;
+}
+
 static int meson_cpufreq_probe(struct platform_device *pdev)
 {
 	struct device *cpu_dev;
@@ -753,8 +774,11 @@ static int meson_cpufreq_probe(struct platform_device *pdev)
 	unsigned int cpu = 0;
 	int ret, i;
 
-	for (i = 0; i < MAX_CLUSTERS; i++)
+	for (i = 0; i < MAX_CLUSTERS; i++) {
 		mutex_init(&cluster_lock[i]);
+		if (!max_freq[i])
+			max_freq[i] = meson_cpufreq_get_stock(i);
+	}
 
 	cpu_dev = get_cpu_device(cpu);
 	if (!cpu_dev) {
