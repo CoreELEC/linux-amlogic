@@ -5,6 +5,18 @@
 
 	chosen { };
 
+	/delete-node/ sysled;
+
+	gpioleds {
+		compatible = "gpio-leds";
+		status = "okay";
+
+		sys_led {
+			gpios = <&gpio GPIODV_24 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "none";
+		};
+	};
+
 	reserved-memory {
 		ramoops@0x07400000 {
 			compatible = "ramoops";
