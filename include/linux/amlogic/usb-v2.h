@@ -26,6 +26,7 @@
 #include <linux/clk.h>
 
 #define PHY_REGISTER_SIZE	0x20
+#define USB_PHY_MAX_NUMBER  0x8
 /* Register definitions */
 
 int aml_new_usb_v2_register_notifier(struct notifier_block *nb);
@@ -217,12 +218,15 @@ struct amlogic_usb_v2 {
 	u32 u30_hhi_mem_pd_mask;
 	u32 u30_ctrl_iso_shift;
 	u32 u30_hhi_mem_pd_shift;
+	u32 phy_reset_level_bit[USB_PHY_MAX_NUMBER];
+	u32 usb_reset_bit;
 	u32 usb30_ctrl_rst_bit;
 	u32 u31_ctrl_sleep_shift;
 	u32 u31_hhi_mem_pd_mask;
 	u32 u31_ctrl_iso_shift;
 	u32 u31_hhi_mem_pd_shift;
 	u32 usb31_ctrl_rst_bit;
+	u32 reset_level;
 	struct clk		*clk;
 	struct clk		*gate0_clk;
 	struct clk		*gate1_clk;

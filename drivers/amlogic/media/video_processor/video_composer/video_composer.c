@@ -73,7 +73,7 @@ static u32 print_flag;
 MODULE_PARM_DESC(print_flag, "\n print_flag\n");
 module_param(print_flag, uint, 0664);
 
-static u32 full_axis;
+static u32 full_axis = 1;
 MODULE_PARM_DESC(full_axis, "\n print_flag\n");
 module_param(full_axis, uint, 0664);
 
@@ -116,6 +116,10 @@ module_param(debug_axis_pip, uint, 0664);
 static u32  debug_crop_pip;
 MODULE_PARM_DESC(debug_crop_pip, "\n close_black\n");
 module_param(debug_crop_pip, uint, 0664);
+
+static u32  composer_use_444;
+MODULE_PARM_DESC(composer_use_444, "\n composer_use_444\n");
+module_param(composer_use_444, uint, 0664);
 
 static struct class *video_composer_dev_class;
 
@@ -272,7 +276,10 @@ static int video_composer_init_buffer(struct composer_dev *dev)
 		buf_width = max_width;
 	if (buf_height > max_height)
 		buf_height = max_height;
-	buf_size = buf_width * buf_height * 3;
+	if (composer_use_444)
+		buf_size = buf_width * buf_height * 3;
+	else
+		buf_size = buf_width * buf_height * 3 / 2;
 	buf_size = PAGE_ALIGN(buf_size);
 	dev->composer_buf_w = buf_width;
 	dev->composer_buf_h = buf_height;
@@ -601,24 +608,27 @@ static struct output_axis output_axis_adjust(
 
 	picture_width = vframe_info->crop_w;
 	picture_height = vframe_info->crop_h;
-	disp_w = ge2d_comp_para->position_width;
-	disp_h = ge2d_comp_para->position_height;
+	disp_w = vframe_info->dst_w;
+	disp_h = vframe_info->dst_h;
 
 	if (ge2d_comp_para->angle & 1) {
 		tmp = picture_height;
 		picture_height = picture_width;
 		picture_width = tmp;
 	}
-
-	render_w = disp_w;
-	render_h = disp_w * picture_height / picture_width;
-	if (render_h > disp_h) {
+	if (!full_axis) {
+		render_w = disp_w;
+		render_h = disp_w * picture_height / picture_width;
+		if (render_h > disp_h) {
+			render_h = disp_h;
+			render_w = disp_h * picture_width / picture_height;
+		}
+	} else {
+		render_w = disp_w;
 		render_h = disp_h;
-		render_w = disp_h * picture_width / picture_height;
 	}
-
-	axis.left = ge2d_comp_para->position_left + (disp_w - render_w) / 2;
-	axis.top = ge2d_comp_para->position_top + (disp_h - render_h) / 2;
+	axis.left = vframe_info->dst_x + (disp_w - render_w) / 2;
+	axis.top = vframe_info->dst_y + (disp_h - render_h) / 2;
 	axis.width = render_w;
 	axis.height = render_h;
 	vc_print(dev->index, PRINT_AXIS,
@@ -660,6 +670,7 @@ static void vframe_composer(struct composer_dev *dev)
 	struct output_axis dst_axis;
 	int min_left = 0, min_top = 0;
 	int max_right = 0, max_bottom = 0;
+	struct componser_info_t *componser_info;
 
 	do_gettimeofday(&begin_time);
 
@@ -675,7 +686,12 @@ static void vframe_composer(struct composer_dev *dev)
 		vc_print(dev->index, PRINT_PATTERN, "dst vf is NULL\n");
 		return;
 	}
+
 	memset(dst_vf, 0, sizeof(struct vframe_s));
+	dst_buf = to_dst_buf(dst_vf);
+	componser_info = &dst_buf->componser_info;
+	memset(componser_info, 0, sizeof(struct componser_info_t));
+
 	while (1) {
 		if (!kfifo_get(&dev->receive_q, &received_frames)) {
 			vc_print(dev->index, PRINT_ERROR,
@@ -694,13 +710,17 @@ static void vframe_composer(struct composer_dev *dev)
 	count = frames_info->frame_count;
 	check_window_change(dev, &received_frames->frames_info);
 
-	dst_buf = to_dst_buf(dst_vf);
-	dev->ge2d_para.format = GE2D_FORMAT_S24_YUV444;
+	if (composer_use_444) {
+		dev->ge2d_para.format = GE2D_FORMAT_S24_YUV444;
+		dev->ge2d_para.plane_num = 1;
+	} else {
+		dev->ge2d_para.format = GE2D_FORMAT_M24_NV21;
+		dev->ge2d_para.plane_num = 2;
+	}
 	dev->ge2d_para.phy_addr[0] = dst_buf->phy_addr;
 	dev->ge2d_para.buffer_w = dst_buf->buf_w;
 	dev->ge2d_para.buffer_h = dst_buf->buf_h;
 	dev->ge2d_para.canvas0Addr = -1;
-	dev->ge2d_para.plane_num = 1;
 
 	if (dst_buf->dirty && !close_black) {
 		ret = fill_vframe_black(&dev->ge2d_para);
@@ -813,29 +833,27 @@ static void vframe_composer(struct composer_dev *dev)
 		else if (cur_transform != 0)
 			vc_print(dev->index, PRINT_ERROR,
 				 "not support transform=%d\n", cur_transform);
-		if (!full_axis) {
-			dst_axis =
-				output_axis_adjust(dev, vframe_info[vf_dev[i]],
-						   &dev->ge2d_para);
-			dev->ge2d_para.position_left =
-				dst_axis.left * dst_buf->buf_w / dev->vinfo_w;
-			dev->ge2d_para.position_top =
-				dst_axis.top * dst_buf->buf_h / dev->vinfo_h;
-			dev->ge2d_para.position_width =
-				dst_axis.width * dst_buf->buf_w / dev->vinfo_w;
-			dev->ge2d_para.position_height = dst_axis.height
-				* dst_buf->buf_h / dev->vinfo_h;
 
-			if (min_left > dst_axis.left)
-				min_left = dst_axis.left;
-			if (min_top > dst_axis.top)
-				min_top = dst_axis.top;
-			if (max_right < (dst_axis.left + dst_axis.width))
-				max_right = dst_axis.left + dst_axis.width;
-			if (max_bottom < (dst_axis.top + dst_axis.height))
-				max_bottom = dst_axis.top + dst_axis.height;
-		}
-		dev->ge2d_para.plane_num = 1;
+		dst_axis =
+			output_axis_adjust(dev, vframe_info[vf_dev[i]],
+					   &dev->ge2d_para);
+		dev->ge2d_para.position_left =
+			dst_axis.left * dst_buf->buf_w / dev->vinfo_w;
+		dev->ge2d_para.position_top =
+			dst_axis.top * dst_buf->buf_h / dev->vinfo_h;
+		dev->ge2d_para.position_width =
+			dst_axis.width * dst_buf->buf_w / dev->vinfo_w;
+		dev->ge2d_para.position_height = dst_axis.height
+			* dst_buf->buf_h / dev->vinfo_h;
+
+		if (min_left > dst_axis.left)
+			min_left = dst_axis.left;
+		if (min_top > dst_axis.top)
+			min_top = dst_axis.top;
+		if (max_right < (dst_axis.left + dst_axis.width))
+			max_right = dst_axis.left + dst_axis.width;
+		if (max_bottom < (dst_axis.top + dst_axis.height))
+			max_bottom = dst_axis.top + dst_axis.height;
 
 		ret = ge2d_data_composer(&src_data, &dev->ge2d_para);
 		if (ret < 0)
@@ -859,10 +877,18 @@ static void vframe_composer(struct composer_dev *dev)
 	dst_vf->bitdepth =
 		BITDEPTH_Y8 | BITDEPTH_U8 | BITDEPTH_V8;
 
-	dst_vf->type =
-		VIDTYPE_VIU_444
-		| VIDTYPE_VIU_SINGLE_PLANE
-		| VIDTYPE_VIU_FIELD;
+	if (!composer_use_444) {
+		dst_vf->flag |= VFRAME_FLAG_VIDEO_LINEAR;
+		dst_vf->type = VIDTYPE_PROGRESSIVE
+			| VIDTYPE_VIU_FIELD
+			| VIDTYPE_VIU_NV21;
+	} else {
+		dst_vf->type =
+			VIDTYPE_VIU_444
+			| VIDTYPE_VIU_SINGLE_PLANE
+			| VIDTYPE_VIU_FIELD;
+	}
+
 	if (debug_axis_pip) {
 		dst_vf->axis[0] = 0;
 		dst_vf->axis[1] = 0;
@@ -871,8 +897,26 @@ static void vframe_composer(struct composer_dev *dev)
 	} else {
 		dst_vf->axis[0] = min_left;
 		dst_vf->axis[1] = min_top;
-		dst_vf->axis[2] = max_right;
-		dst_vf->axis[3] = max_bottom;
+		dst_vf->axis[2] = max_right - 1;
+		dst_vf->axis[3] = max_bottom - 1;
+	}
+	componser_info->count = count;
+	for (i = 0; i < count; i++) {
+		componser_info->axis[i][0] = vframe_info[vf_dev[i]]->dst_x
+			- dst_vf->axis[0];
+		componser_info->axis[i][1] = vframe_info[vf_dev[i]]->dst_y
+			- dst_vf->axis[1];
+		componser_info->axis[i][2] = vframe_info[vf_dev[i]]->dst_w
+			+ componser_info->axis[i][0] - 1;
+		componser_info->axis[i][3] = vframe_info[vf_dev[i]]->dst_h
+			+ componser_info->axis[i][1] - 1;
+		vc_print(dev->index, PRINT_AXIS,
+			 "alpha index=%d %d %d %d %d\n",
+			 i,
+			 componser_info->axis[i][0],
+			 componser_info->axis[i][1],
+			 componser_info->axis[i][2],
+			 componser_info->axis[i][3]);
 	}
 	if (debug_crop_pip) {
 		dst_vf->crop[0] = 0;
@@ -892,16 +936,32 @@ static void vframe_composer(struct composer_dev *dev)
 		 min_top, min_left, max_bottom, max_right);
 
 	dst_vf->zorder = frames_info->disp_zorder;
-	dst_vf->canvas0_config[0].phy_addr = dst_buf->phy_addr;
 	dst_vf->canvas0Addr = -1;
 	dst_vf->canvas1Addr = -1;
-	dst_vf->plane_num = 1;
 	dst_vf->width = dst_buf->buf_w;
 	dst_vf->height = dst_buf->buf_h;
-	dst_vf->canvas0_config[0].width = dst_vf->width * 3;
-	dst_vf->canvas0_config[0].height = dst_vf->height;
-	dst_vf->canvas0_config[0].block_mode = 0;
+	if (composer_use_444) {
+		dst_vf->canvas0_config[0].phy_addr = dst_buf->phy_addr;
+		dst_vf->canvas0_config[0].width = dst_vf->width * 3;
+		dst_vf->canvas0_config[0].height = dst_vf->height;
+		dst_vf->canvas0_config[0].block_mode = 0;
+		dst_vf->plane_num = 1;
+	} else {
+		dst_vf->canvas0_config[0].phy_addr = dst_buf->phy_addr;
+		dst_vf->canvas0_config[0].width = dst_vf->width;
+		dst_vf->canvas0_config[0].height = dst_vf->height;
+		dst_vf->canvas0_config[0].block_mode = 0;
+
+		dst_vf->canvas0_config[1].phy_addr = dst_buf->phy_addr
+			+ dst_vf->width * dst_vf->height;
+		dst_vf->canvas0_config[1].width = dst_vf->width;
+		dst_vf->canvas0_config[1].height = dst_vf->height;
+		dst_vf->canvas0_config[1].block_mode = 0;
+		dst_vf->plane_num = 2;
+	}
+
 	dst_vf->repeat_count[dev->index] = 0;
+	dst_vf->componser_info = componser_info;
 
 	if (dev->last_dst_vf)
 		dev->last_dst_vf->repeat_count[dev->index] += drop_count;
@@ -971,7 +1031,7 @@ static void video_wait_decode_fence(struct composer_dev *dev,
 		s32 ret = fence_wait_timeout(vf->fence, false, 2000);
 
 		vc_print(dev->index, PRINT_FENCE,
-			 "%s, fence %lx, state: %d, wait cost time: %d ns\n",
+			 "%s, fence %lx, state: %d, wait cost time: %lld ns\n",
 			 __func__, (ulong)vf->fence, ret,
 			 local_clock() - timestamp);
 		vf->fence = NULL;
@@ -1278,7 +1338,7 @@ static int video_composer_open(struct inode *inode, struct file *file)
 	dev->ge2d_para.canvas_scr[0] = -1;
 	dev->ge2d_para.canvas_scr[1] = -1;
 	dev->ge2d_para.canvas_scr[2] = -1;
-	dev->ge2d_para.plane_num = 1;
+	dev->ge2d_para.plane_num = 2;
 
 	dev->buffer_status = UNINITIAL;
 

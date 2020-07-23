@@ -61,18 +61,6 @@
 #include <linux/amlogic/pwm_meson.h>
 #include <linux/of_device.h>
 
-struct meson_pwm_channel {
-	unsigned int hi;
-	unsigned int lo;
-	u8 pre_div;
-
-	struct pwm_state state;
-
-	struct clk *clk_parent;
-	struct clk_mux mux;
-	struct clk *clk;
-};
-
 struct meson_pwm *to_meson_pwm(struct pwm_chip *chip)
 {
 	return container_of(chip, struct meson_pwm, chip);
@@ -195,7 +183,7 @@ static int meson_pwm_calc(struct meson_pwm *meson,
 	for (pre_div = 0; pre_div < MISC_CLK_DIV_MASK; pre_div++) {
 		cnt = DIV_ROUND_CLOSEST_ULL((u64)period * 1000,
 				fin_ps * (pre_div + 1));
-		dev_dbg(meson->chip.dev, "fin_ns=%llu pre_div=%u cnt=%u\n",
+		dev_dbg(meson->chip.dev, "fin_ps=%llu pre_div=%u cnt=%u\n",
 			fin_ps, pre_div, cnt);
 		if (cnt <= 0xffff)
 			break;

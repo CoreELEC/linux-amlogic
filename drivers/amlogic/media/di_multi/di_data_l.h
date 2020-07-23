@@ -26,12 +26,13 @@
 #include <linux/kfifo.h>	/*ary add*/
 
 #include "../deinterlace/di_pqa.h"
+//#include "di_pqa.h"
 
 #define DI_CHANNEL_NUB	(2)
 #define DI_CHANNEL_MAX  (4)
 
 #define TABLE_FLG_END	(0xfffffffe)
-#define TABLE_LEN_MAX	(1000)
+#define TABLE_LEN_MAX (1000)
 #define F_IN(x, a, b)	(((x) > (a)) && ((x) < (b)))
 #define COM_M(m, a, b)	(((a) & (m)) == ((b) & (m)))
 #define COM_MV(a, m, v)	(((a) & (m)) == (v))
@@ -99,12 +100,6 @@ enum EDPST_OUT_MODE {
 	EDPST_OUT_MODE_NV12,
 };
 
-struct di_win_s {
-	unsigned int x_size;
-	unsigned int y_size;
-	unsigned int x_st;
-	unsigned int y_st;
-};
 
 /* ************************************** */
 /* *************** cfg top ************** */
@@ -232,6 +227,7 @@ struct reg_t {
 	char *info;
 };
 
+#ifdef MARK_SC2
 struct reg_acc {
 	void (*wr)(unsigned int adr, unsigned int val);
 	unsigned int (*rd)(unsigned int adr);
@@ -240,7 +236,7 @@ struct reg_acc {
 	unsigned int (*brd)(unsigned int adr, unsigned int start,
 			    unsigned int len);
 };
-
+#endif
 /**************************************/
 /* time out */
 /**************************************/
@@ -404,6 +400,8 @@ struct di_hpre_s {
 	bool dbg_f_en;
 	unsigned int dbg_f_lstate;
 	unsigned int dbg_f_cnt;
+	union hw_sc2_ctr_pre_s pre_top_cfg;
+
 };
 
 /**************************************/
@@ -434,7 +432,19 @@ struct di_hpst_s {
 	unsigned int dbg_f_lstate;
 	unsigned int dbg_f_cnt;
 	struct vframe_s		vf_post;
+	union hw_sc2_ctr_pst_s pst_top_cfg;
+	unsigned int last_pst_size;
+	/****************/
+	unsigned int cfg_cp	: 1;
+	unsigned int cfg_rot	: 1;
+	unsigned int cfg_afbce	: 1; /*wr use afbce*/
+	unsigned int cfg_rev0	: 1;
+	unsigned int cfg_from	: 4;	/* enum DI_SRC_ID */
 
+	unsigned int cfg_rev1	: 8;
+	unsigned int cfg_rev2	: 8;
+	unsigned int cfg_rev3	: 8;
+	/****************/
 };
 
 /**************************************/
@@ -845,6 +855,13 @@ struct di_mm_cfg_s {
 	int mcinfo_size;
 	int mv_size;
 	int mtn_size;
+	unsigned int ll_afbci_size;	/* afbc info size */
+	unsigned int ll_afbct_size;
+	unsigned int p_afbci_size;	/* afbc info size */
+	unsigned int p_afbct_size;
+	unsigned int p_nr_size;
+	unsigned int dw_size;
+
 	unsigned char buf_alloc_mode;
 };
 
@@ -943,6 +960,7 @@ struct dim_policy_s {
 
 struct di_meson_data {
 	const char *name;
+	unsigned int ic_id;
 	/*struct ic_ver icver;*/
 	/*struct ddemod_reg_off regoff;*/
 };
@@ -1069,6 +1087,24 @@ struct di_dbg_data {
 	struct di_dbg_reg_log reg_log;
 };
 
+#define DI_CVS_EN_PRE	DI_BIT0
+#define DI_CVS_EN_PST	DI_BIT1
+#define DI_CVS_EN_PRE2	DI_BIT2
+#define DI_CVS_EN_PST2	DI_BIT3
+#define DI_CVS_EN_INP	DI_BIT4
+#define DI_CVS_EN_DS	DI_BIT5
+
+struct di_cvs_s {
+	unsigned int post_idx[2][6];
+	unsigned int pre_idx[2][10];
+	unsigned int inp_idx[3];
+	unsigned int nr_ds_idx;
+	unsigned int pre_num;
+	unsigned int post_num;
+	unsigned int en;/*bit0:pre,bit1,post; bit2,pre_2*/
+	unsigned int err_cnt;
+};
+
 struct di_data_l_s {
 	/*bool cfg_en[K_DI_CFG_NUB];*/	/*cfg_top*/
 	union di_cfg_tdata_u cfg_en[K_DI_CFG_NUB];
@@ -1082,12 +1118,19 @@ struct di_data_l_s {
 	struct di_mng_s mng;
 	struct di_hpre_s hw_pre;
 	struct di_hpst_s hw_pst;
+	const struct dim_hw_opsv_s *hop_l1; /* from sc2 */
+	struct afd_s di_afd;
+	const struct hw_ops_s *hop_l2;
+
+	const struct afd_ops_s *afds;
+	struct di_cvs_s cvs;
 	struct dentry *dbg_root_top;	/* dbg_fs*/
 	/*pq_ops*/
 	const struct pulldown_op_s *ops_pd;	/* pulldown */
 	const struct detect3d_op_s *ops_3d;	/* detect_3d */
 	const struct nr_op_s *ops_nr;	/* nr */
 	const struct mtn_op_s *ops_mtn;	/* deinterlace_mtn */
+	const struct ext_ops_s	*ops_ext;
 	/*di ops for other module */
 	/*struct di_ext_ops *di_api; */
 	const struct di_meson_data *mdata;
@@ -1117,6 +1160,8 @@ struct di_data_l_s {
 #define DBG_M_MEM		DI_BIT11	/*mem alloc release*/
 #define DBG_M_WQ		DI_BIT14	/*work que*/
 #define DBG_M_PL		DI_BIT15
+
+#define DBG_M_RESET_PRE		DI_BIT16
 
 extern unsigned int di_dbg;
 
@@ -1177,6 +1222,16 @@ static inline struct di_hpre_s  *get_hw_pre(void)
 static inline struct di_hpst_s  *get_hw_pst(void)
 {
 	return &get_datal()->hw_pst;
+}
+
+static inline const struct dim_hw_opsv_s  *opl1(void)
+{
+	return get_datal()->hop_l1;
+}
+
+static inline const struct hw_ops_s  *opl2(void)
+{
+	return get_datal()->hop_l2;
 }
 
 /****************************************
@@ -1467,6 +1522,11 @@ static inline const struct mtn_op_s *get_ops_mtn(void)
 	return get_datal()->ops_mtn;
 }
 
+static inline const struct ext_ops_s *ops_ext(void)
+{
+	return get_datal()->ops_ext;
+}
+
 #ifdef MARK_HIS
 static inline struct di_ext_ops *get_ops_api(void)
 {
@@ -1536,4 +1596,36 @@ static inline unsigned int di_get_mem_size(unsigned int ch)
 void di_tout_int(struct di_time_out_s *tout, unsigned int thd);
 bool di_tout_contr(enum EDI_TOUT_CONTR cmd, struct di_time_out_s *tout);
 
+#ifdef MARK_SC2
+/*cpu_after_eq*/
+static inline bool is_ic_after_eq(unsigned int ic_id)
+{
+	if (get_datal()->mdata->ic_id >= ic_id)
+		return true;
+	return false;
+}
+
+static inline bool is_ic_before(unsigned int ic_id)
+{
+	if (get_datal()->mdata->ic_id < ic_id)
+		return true;
+	return false;
+}
+#endif
+static inline bool is_ic_between(unsigned int ic_min, unsigned int ic_max)
+{
+	unsigned int id = get_datal()->mdata->ic_id;
+
+	if ((id >= ic_min) && (id <= ic_max))
+		return true;
+	return false;
+}
+
+#define DIM_IS_IC(cc)		is_ic_named((get_datal()->mdata->ic_id), \
+					DI_IC_ID_##cc)
+#define DIM_IS_IC_EF(cc)	is_ic_after_eq((get_datal()->mdata->ic_id), \
+					DI_IC_ID_##cc)
+#define DIM_IS_IC_BF(cc)	is_ic_before((get_datal()->mdata->ic_id), \
+					DI_IC_ID_##cc)
+#define DIM_IS_IC_BT(cc1, cc2)	is_ic_between(DI_IC_ID_##cc1, DI_IC_ID_##cc2)
 #endif	/*__DI_DATA_L_H__*/

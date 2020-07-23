@@ -107,13 +107,101 @@ struct ca_descr_ex {
 	unsigned char cw[16];
 };
 
-#endif /*CONFIG_AMLOGIC_DVB_COMPAT*/
+/* add for support sc2 ca*/
+enum ca_sc2_cmd_type {
+	CA_ALLOC,
+	CA_FREE,
+	CA_KEY
+};
 
+enum ca_sc2_algo_type {
+	CA_ALGO_AES_ECB_CLR_END,
+	CA_ALGO_AES_ECB_CLR_FRONT,
+	CA_ALGO_AES_CBC_CLR_END,
+	CA_ALGO_AES_CBC_IDSA,
+	CA_ALGO_CSA2,
+	CA_ALGO_DES_SCTE41,
+	CA_ALGO_DES_SCTE52,
+	CA_ALGO_TDES_ECB_CLR_END,
+	CA_ALGO_CPCM_LSA_MDI_CBC,
+	CA_ALGO_CPCM_LSA_MDD_CBC,
+	CA_ALGO_CSA3,
+	CA_ALGO_ASA,
+	CA_ALGO_ASA_LIGHT
+};
+
+enum ca_sc2_dsc_type {
+	CA_DSC_COMMON_TYPE,
+	CA_DSC_TSD_TYPE,	/*just support AES descramble.*/
+	CA_DSC_TSE_TYPE		/*just support AES enscramble.*/
+};
+
+/**
+ * struct ca_alloc_t - malloc ca slot index by params
+ *
+ * @pid:	slot use pid.
+ * @algo:	use the algorithm
+ * @dsc_type:	CA_DSC_COMMON_TYPE:support all ca_algo_type
+ *		CA_DSC_TSD_TYPE & CA_DSC_TSE_TYPE just support AES
+ * @ca_index:	return slot index.
+ */
+struct ca_sc2_alloc_t {
+	unsigned int pid;
+	enum ca_sc2_algo_type algo;
+	enum ca_sc2_dsc_type dsc_type;
+	unsigned int ca_index;
+};
+
+/**
+ * struct ca_sc2_free_t - free slot index
+ *
+ * @ca_index:	need free slot index.
+ */
+struct ca_sc2_free_t {
+	unsigned int ca_index;
+};
+
+enum ca_sc2_key_type {
+	CA_KEY_EVEN_TYPE,
+	CA_KEY_EVEN_IV_TYPE,
+	CA_KEY_ODD_TYPE,
+	CA_KEY_ODD_IV_TYPE,
+	CA_KEY_00_TYPE,
+	CA_KEY_00_IV_TYPE
+};
+
+/**
+ * struct ca_sc2_key_t - set key slot index
+ *
+ * @ca_index:	use slot index.
+ * @parity:	key type (odd/even/key00)
+ * @key_index: key store index.
+ */
+struct ca_sc2_key_t {
+	unsigned int ca_index;
+	enum ca_sc2_key_type parity;
+	int key_index;
+};
+
+/**
+ * struct ca_sc2_descr_ex - ca externd descriptor
+ *
+ * @params:	command resource params
+ */
+struct ca_sc2_descr_ex {
+	enum ca_sc2_cmd_type cmd;
+	union {
+		struct ca_sc2_alloc_t alloc_params;
+		struct ca_sc2_free_t free_params;
+		struct ca_sc2_key_t key_params;
+	} params;
+};
+
+#endif /*CONFIG_AMLOGIC_DVB_COMPAT*/
 typedef struct ca_pid {
 	unsigned int pid;
 	int index;		/* -1 == disable*/
 } ca_pid_t;
-
 #define CA_RESET          _IO('o', 128)
 #define CA_GET_CAP        _IOR('o', 129, ca_caps_t)
 #define CA_GET_SLOT_INFO  _IOR('o', 130, ca_slot_info_t)
@@ -125,6 +213,7 @@ typedef struct ca_pid {
 
 #ifdef CONFIG_AMLOGIC_DVB_COMPAT
 #define CA_SET_DESCR_EX   _IOW('o', 200, struct ca_descr_ex)
+#define CA_SC2_SET_DESCR_EX   _IOWR('o', 201, struct ca_sc2_descr_ex)
 #endif
 
 #endif

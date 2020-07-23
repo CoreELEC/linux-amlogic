@@ -50,7 +50,7 @@ Output for the demux
 
        -  Output multiplexed into a new TS (to be retrieved by reading from
 	  the logical DVR device). Routes output to the logical DVR device
-	  ``/dev/dvb/adapter?/dvr?``, which delivers a TS multiplexed from
+	  ``/dev/dvb?.dvr?``, which delivers a TS multiplexed from
 	  all filters for which ``DMX_OUT_TS_TAP`` was specified.
 
     -  .. row 5
@@ -165,6 +165,20 @@ struct dmx_pes_filter_params
 	dmx_output_t   output;
 	dmx_pes_type_t pes_type;
 	__u32          flags;
+#ifdef CONFIG_AMLOGIC_DVB_COMPAT
+/*bit 8~15 for mem sec_level*/
+#define DMX_MEM_SEC_LEVEL1   (1 << 10)
+#define DMX_MEM_SEC_LEVEL2   (1 << 11)
+#define DMX_MEM_SEC_LEVEL3   (1 << 12)
+
+/*bit 16~23 for output */
+#define DMX_ES_OUTPUT        (1 << 16)
+/*set raw mode, it will send the struct dmx_sec_es_data, not es data*/
+#define DMX_OUTPUT_RAW_MODE	 (1 << 17)
+
+/*24~31 one byte for audio type, dmx_audio_format_t*/
+#define DMX_AUDIO_FORMAT_BIT 24
+#endif
     };
 
 
@@ -230,3 +244,44 @@ enum dmx_source
 	DMX_SOURCE_DVR2,
 	DMX_SOURCE_DVR3
     } dmx_source_t;
+
+enum dmx_input_source
+=====================
+.. c:type:: dmx_input_source
+
+.. code-block:: c
+
+typedef enum dmx_input_source {
+       INPUT_DEMOD,
+       INPUT_LOCAL,
+       INPUT_LOCAL_SEC
+} dmx_input_source_t;
+
+struct dmx_non_sec_es_header
+============================
+.. c:type:: dmx_non_sec_es_header
+
+.. code-block:: c
+
+struct dmx_non_sec_es_header {
+       __u8 pts_dts_flag;
+       __u64 pts;
+       __u64 dts;
+       __u32 len;
+};
+
+struct dmx_sec_es_data
+======================
+.. c:type:: dmx_sec_es_data
+
+.. code-block:: c
+
+struct dmx_sec_es_data {
+       __u8 pts_dts_flag;
+       __u64 pts;
+       __u64 dts;
+       __u32 buf_start;
+       __u32 buf_end;
+       __u32 data_start;
+       __u32 data_end;
+};

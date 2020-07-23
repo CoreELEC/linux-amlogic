@@ -123,19 +123,15 @@ application through this device.
 All devices can be found in the ``/dev`` tree under ``/dev/dvb``. The
 individual devices are called:
 
--  ``/dev/dvb/adapterN/audioM``,
+-  ``/dev/dvbN.frontendM``,
 
--  ``/dev/dvb/adapterN/videoM``,
+-  ``/dev/dvbN.netM``,
 
--  ``/dev/dvb/adapterN/frontendM``,
+-  ``/dev/dvbN.demuxM``,
 
--  ``/dev/dvb/adapterN/netM``,
+-  ``/dev/dvbN.dvrM``,
 
--  ``/dev/dvb/adapterN/demuxM``,
-
--  ``/dev/dvb/adapterN/dvrM``,
-
--  ``/dev/dvb/adapterN/caM``,
+-  ``/dev/dvbN.caM``,
 
 where N enumerates the DVB PCI cards in a system starting from 0, and M
 enumerates the devices of each type within each adapter, starting

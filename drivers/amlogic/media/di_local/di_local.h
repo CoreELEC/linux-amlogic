@@ -19,10 +19,14 @@
 #ifndef __DI_LOCAL_H__
 #define __DI_LOCAL_H__
 
+int get_current_vscale_skip_count(struct vframe_s *vf);
+
 struct di_ext_ops {
 	unsigned int (*di_post_reg_rd)(unsigned int addr);
 	int (*di_post_wr_reg_bits)(u32 adr, u32 val, u32 start, u32 len);
 	void (*post_update_mc)(void);
+	void (*post_keep_cmd_release2)(struct vframe_s *vframe);
+	void (*polic_cfg)(unsigned int cmd, bool on);
 };
 
 #endif	/*__DI_LOCAL_H__*/

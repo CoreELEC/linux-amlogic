@@ -70,6 +70,7 @@ int hdmitx_hpd_hw_op_g12a(enum hpd_op cmd);
 int read_hpd_gpio_txlx(void);
 int hdmitx_ddc_hw_op_txlx(enum ddc_op cmd);
 extern unsigned int hdmitx_get_format_txlx(void);
+void hdmitx_set_format_txlx(unsigned int val);
 extern void hdmitx_sys_reset_txlx(void);
 
 void hdmitx_phy_bandgap_en_tm2(void);

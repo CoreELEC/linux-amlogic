@@ -150,6 +150,7 @@ void dim_bypass_set(struct di_ch_s *pch, bool which, unsigned int reason);
 void dim_polic_prob(void);
 void dim_polic_unreg(struct di_ch_s *pch);
 unsigned int dim_polic_is_bypass(struct di_ch_s *pch, struct vframe_s *vf);
+void dim_polic_cfg_local(unsigned int cmd, bool on);
 
 void dip_init_value_reg(unsigned int ch);
 
@@ -162,5 +163,7 @@ void dim_sumx_set(unsigned int ch);
 
 void dim_mp_update_reg(void);
 void dim_mp_update_post(void);
+
+void dip_init_pq_ops(void);
 
 #endif	/*__DI_PRC_H__*/

@@ -39,6 +39,7 @@
 #include <linux/slab.h>
 #include <linux/of.h>
 #include <linux/of_fdt.h>
+#include <linux/reset.h>
 
 #include <linux/amlogic/media/utils/vdec_reg.h>
 #include <linux/amlogic/media/rdma/rdma_mgr.h>
@@ -61,6 +62,7 @@
 int rdma_mgr_irq_request;
 int rdma_reset_tigger_flag;
 
+struct reset_control *rdma_rst;
 static int debug_flag;
 /* burst size 0=16; 1=24; 2=32; 3=48.*/
 static int ctrl_ahb_rd_burst_size = 3;
@@ -245,14 +247,6 @@ static struct rdma_regadr_s rdma_regadr_tl1[RDMA_NUM] = {
 	}
 };
 
-static void __iomem *rdma_reg_map;
-
-static void rdma_cbus_write(unsigned int reg, unsigned int val)
-{
-	if (rdma_reg_map)
-		writel(val, rdma_reg_map + reg);
-}
-
 int rdma_register(struct rdma_op_s *rdma_op, void *op_arg, int table_size)
 {
 	int i;
@@ -355,8 +349,8 @@ static void rdma_reset(unsigned char external_reset)
 			__func__, external_reset);
 
 	if (external_reset) {
-		if (rdma_meson_dev.cpu_type == CPU_SC2)
-			rdma_cbus_write(RESETCTRL_RESET0, (1 << 28));
+		if (rdma_meson_dev.cpu_type >= CPU_SC2)
+			reset_control_reset(rdma_rst);
 		else
 		WRITE_MPEG_REG(
 			RESET4_REGISTER,
@@ -1113,32 +1107,6 @@ static ssize_t rdma_mgr_trace_reg_stroe(struct class *cla,
 	return count;
 }
 
-static int rdma_cbus_map(struct platform_device *pdev)
-{
-	int ret;
-	struct resource res;
-
-	ret = of_address_to_resource(pdev->dev.of_node, 0, &res);
-	if (ret == 0) {
-		if (res.start != 0) {
-			rdma_reg_map =
-				ioremap(res.start, resource_size(&res));
-			if (rdma_reg_map) {
-				pr_debug("map io source 0x%p,size=%d to 0x%p\n",
-					 (void *)res.start,
-					 (int)resource_size(&res),
-					 rdma_reg_map);
-			}
-		} else {
-			rdma_reg_map = 0;
-			pr_err("ignore io source start %p,size=%d\n",
-			       (void *)res.start, (int)resource_size(&res));
-			return -1;
-		}
-	}
-	return 0;
-}
-
 static struct class_attribute rdma_attrs[] = {
 	__ATTR(trace_enable, 0664,
 		rdma_mgr_trace_enable_show, rdma_mgr_trace_enable_stroe),
@@ -1216,12 +1184,15 @@ static int rdma_probe(struct platform_device *pdev)
 		info->rdma_ins[i].prev_trigger_type = 0;
 		info->rdma_ins[i].rdma_write_count = 0;
 	}
-	if (rdma_meson_dev.cpu_type == CPU_SC2) {
-		ret = rdma_cbus_map(pdev);
-		if (!ret)
-			rdma_cbus_write(RESETCTRL_RESET0, (1 << 28));
+	if (rdma_meson_dev.cpu_type >= CPU_SC2) {
+		rdma_rst = devm_reset_control_get(&pdev->dev, "rdma");
+		if (IS_ERR(rdma_rst)) {
+			pr_err("failed to get reset: %ld\n", PTR_ERR(rdma_rst));
+			return PTR_ERR(rdma_rst);
+		}
+		reset_control_reset(rdma_rst);
 	} else {
-		rdma_cbus_write(RESET4_REGISTER, (1 << 5));
+		WRITE_MPEG_REG(RESET4_REGISTER, (1 << 5));
 	}
 
 #ifdef SKIP_OSD_CHANNEL

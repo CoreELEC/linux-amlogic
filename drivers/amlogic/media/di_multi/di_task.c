@@ -166,11 +166,10 @@ void task_polling_cmd_keep(unsigned int ch, unsigned int top_sts)
 	for (i = 0; i < MAX_KFIFO_L_CMD_NUB; i++) {
 		if (!task_get_cmd2(ch, &cmdbyte.cmd32))
 			break;
-		if (cmdbyte.b.id == ECMD_RL_KEEP) {
+		if (cmdbyte.b.id == ECMD_RL_KEEP)
 			dim_post_keep_cmd_proc(cmdbyte.b.ch, cmdbyte.b.p2);
-		} else {
+		else
 			PR_ERR("%s\n", __func__);
-		}
 	}
 	spin_lock_irqsave(&plist_lock, flags);
 	dim_post_re_alloc(ch);

@@ -108,3 +108,17 @@ ca-pid
 	unsigned int pid;
 	int index;      /* -1 == disable*/
     } ca_pid_t;
+
+ca_descr_ex
+===========
+
+.. code-block:: c
+
+struct ca_descr_ex {
+	enum ca_cmd_type cmd;
+	union {
+		struct ca_alloc_t alloc_params;
+		struct ca_free_t free_params;
+		struct ca_key_t key_params;
+	} params;
+};

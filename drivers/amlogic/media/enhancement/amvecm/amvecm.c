@@ -83,7 +83,7 @@
 #define AMVECM_MODULE_NAME        "amvecm"
 #define AMVECM_DEVICE_NAME        "amvecm"
 #define AMVECM_CLASS_NAME         "amvecm"
-#define AMVECM_VER				"Ref.2018/11/20"
+#define AMVECM_VER				"Ref.2020/07/02"
 
 
 struct amvecm_dev_s {
@@ -4072,66 +4072,69 @@ static ssize_t amvecm_pc_mode_store(struct class *cla,
 
 void pc_mode_process(void)
 {
-	unsigned int reg_val;
+	unsigned int reg_val, drtlpf_config;
 
 	if ((pc_mode == 1) && (pc_mode != pc_mode_last)) {
 		/* open dnlp clock gate */
-		dnlp_en = 1;
-		lc_en = 1;
-		ve_enable_dnlp();
-		/* open cm clock gate */
-		if (!(is_meson_g12a_cpu() || is_meson_g12b_cpu() ||
-		      is_meson_sm1_cpu()))
-			cm_en = 1;
-			/* sharpness on */
+		lc_en = pq_cfg.lc_en;
+		dnlp_en = pq_cfg.dnlp_en;
+		if (dnlp_en)
+			ve_enable_dnlp();
+		else
+			ve_disable_dnlp();
+		cm_en = pq_cfg.cm_en;
+
+		/* sharpness on */
 		VSYNC_WR_MPEG_REG_BITS(
 			SRSHARP0_PK_NR_ENABLE + sr_offset[0],
-			1, 1, 1);
+			pq_cfg.sharpness0_en, 1, 1);
 		VSYNC_WR_MPEG_REG_BITS(
 			SRSHARP1_PK_NR_ENABLE + sr_offset[1],
-			1, 1, 1);
+			pq_cfg.sharpness1_en, 1, 1);
 		reg_val = VSYNC_RD_MPEG_REG(SRSHARP0_HCTI_FLT_CLP_DC
 			+ sr_offset[0]);
 		VSYNC_WR_MPEG_REG(SRSHARP0_HCTI_FLT_CLP_DC + sr_offset[0],
-				reg_val | 0x10000000);
+				reg_val | (pq_cfg.sharpness0_en << 28));
 		VSYNC_WR_MPEG_REG(SRSHARP1_HCTI_FLT_CLP_DC + sr_offset[1],
-				reg_val | 0x10000000);
+				reg_val | (pq_cfg.sharpness1_en << 28));
 
 		reg_val = VSYNC_RD_MPEG_REG(SRSHARP0_HLTI_FLT_CLP_DC
 			+ sr_offset[0]);
 		VSYNC_WR_MPEG_REG(SRSHARP0_HLTI_FLT_CLP_DC + sr_offset[0],
-				reg_val | 0x10000000);
+				reg_val | (pq_cfg.sharpness0_en << 28));
 		VSYNC_WR_MPEG_REG(SRSHARP1_HLTI_FLT_CLP_DC + sr_offset[1],
-				reg_val | 0x10000000);
+				reg_val | (pq_cfg.sharpness1_en << 28));
 
 		reg_val = VSYNC_RD_MPEG_REG(SRSHARP0_VLTI_FLT_CON_CLP
 			+ sr_offset[0]);
 		VSYNC_WR_MPEG_REG(SRSHARP0_VLTI_FLT_CON_CLP + sr_offset[0],
-				reg_val | 0x4000);
+				reg_val | (pq_cfg.sharpness0_en << 14));
 		VSYNC_WR_MPEG_REG(SRSHARP1_VLTI_FLT_CON_CLP + sr_offset[1],
-				reg_val | 0x4000);
+				reg_val | (pq_cfg.sharpness1_en << 14));
 
 		reg_val = VSYNC_RD_MPEG_REG(SRSHARP0_VCTI_FLT_CON_CLP
 			+ sr_offset[0]);
 		VSYNC_WR_MPEG_REG(SRSHARP0_VCTI_FLT_CON_CLP + sr_offset[0],
-				reg_val | 0x4000);
+				reg_val | (pq_cfg.sharpness0_en << 14));
 		VSYNC_WR_MPEG_REG(SRSHARP1_VCTI_FLT_CON_CLP + sr_offset[1],
-				reg_val | 0x4000);
+				reg_val | (pq_cfg.sharpness1_en << 14));
 
 		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXL)) {
 			VSYNC_WR_MPEG_REG_BITS(SRSHARP0_DEJ_CTRL + sr_offset[0],
-				1, 0, 1);
+				pq_cfg.sharpness0_en, 0, 1);
+			drtlpf_config = pq_cfg.sharpness0_en ? 0x7 : 0x0;
 			VSYNC_WR_MPEG_REG_BITS(SRSHARP0_SR3_DRTLPF_EN
-				+ sr_offset[0], 7, 0, 3);
+				+ sr_offset[0], drtlpf_config, 0, 3);
 			VSYNC_WR_MPEG_REG_BITS(SRSHARP0_SR3_DERING_CTRL
-				+ sr_offset[0], 1, 28, 3);
+				+ sr_offset[0], pq_cfg.sharpness0_en, 28, 3);
 
 			VSYNC_WR_MPEG_REG_BITS(SRSHARP1_DEJ_CTRL + sr_offset[1],
-				1, 0, 1);
+				pq_cfg.sharpness1_en, 0, 1);
+			drtlpf_config = pq_cfg.sharpness1_en ? 0x7 : 0x0;
 			VSYNC_WR_MPEG_REG_BITS(SRSHARP1_SR3_DRTLPF_EN
-				+ sr_offset[1], 7, 0, 3);
+				+ sr_offset[1], drtlpf_config, 0, 3);
 			VSYNC_WR_MPEG_REG_BITS(SRSHARP1_SR3_DERING_CTRL
-				+ sr_offset[1], 1, 28, 3);
+				+ sr_offset[1], pq_cfg.sharpness1_en, 28, 3);
 		}
 
 		pc_mode_last = pc_mode;
@@ -7279,13 +7282,21 @@ void init_pq_setting(void)
 	else
 		init_pq_control(PQ_BOX);
 
+	if (get_cpu_type() == MESON_CPU_MAJOR_ID_SC2)
+		init_pq_control(PQ_BOX);
+
 	if (is_meson_gxtvbb_cpu() || is_meson_txl_cpu() ||
 		is_meson_txlx_cpu() || is_meson_txhd_cpu() ||
 		is_meson_tl1_cpu() || is_meson_tm2_cpu())
 		goto tvchip_pq_setting;
 	else if (is_meson_g12a_cpu() || is_meson_g12b_cpu() ||
-		is_meson_sm1_cpu()) {
-		sr_offset[0] = SR0_OFFSET;
+		is_meson_sm1_cpu() ||
+		(get_cpu_type() == MESON_CPU_MAJOR_ID_SC2)) {
+		if (get_cpu_type() >= MESON_CPU_MAJOR_ID_SC2)
+			sr_offset[0] = SR0_OFFSET_V2;
+		else
+			sr_offset[0] = SR0_OFFSET;
+
 		bitdepth = 12;
 		/*confirm with vlsi-Lunhai.Chen, for G12A/G12B,
 		 *VPP_GCLK_CTRL1 must enable

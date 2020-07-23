@@ -25,7 +25,7 @@ The DVB frontend controls several sub-devices including:
 
 -  Satellite Equipment Control (SEC) hardware (only for Satellite).
 
-The frontend can be accessed through ``/dev/dvb/adapter?/frontend?``.
+The frontend can be accessed through ``/dev/dvb?.frontend?``.
 Data types and ioctl definitions can be accessed by including
 ``linux/dvb/frontend.h`` in your application.
 

@@ -4348,7 +4348,7 @@ static int osd_probe(struct platform_device *pdev)
 			osd_log_err("cannot get vpu_clkc\n");
 			osd_meson_dev.vpu_clkc = NULL;
 			ret = -ENOENT;
-			//goto failed1;
+			goto failed1;
 		}
 	}
 	osd_meson_dev.viu1_osd_count = osd_meson_dev.osd_count;

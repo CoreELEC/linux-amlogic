@@ -50,7 +50,16 @@ struct hw_vd_reg_s {
 	u32 viu_vd_fmt_w;/* VIU_VD1_FMT_W */
 };
 
+struct hw_fg_reg_s {
+	u32 fgrain_ctrl;
+	u32 fgrain_win_h;
+	u32 fgrain_win_v;
+};
+
 extern struct hw_vd_reg_s vd_mif_reg_legacy_array[MAX_VD_LAYER];
 extern struct hw_vd_reg_s vd_mif_reg_g12_array[MAX_VD_LAYER];
 extern struct hw_vd_reg_s vd_mif_reg_sc2_array[MAX_VD_LAYER];
+extern struct hw_vd_reg_s fg_reg_g12_array[MAX_VD_LAYER];
+extern struct hw_vd_reg_s fg_reg_sc2_array[MAX_VD_LAYER];
+
 #endif

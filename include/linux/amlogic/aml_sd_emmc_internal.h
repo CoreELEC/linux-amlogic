@@ -43,7 +43,7 @@ extern u32 aml_sd_emmc_tuning_transfer(struct mmc_host *mmc,
 
 void aml_mmc_clk_switch_off(struct amlsd_platform *pdata);
 
-void aml_mmc_clk_switch(struct amlsd_host *host,
-	int clk_div, int clk_src_sel);
+void aml_mmc_clk_switch(struct amlsd_platform *pdata,
+			int clk_div, int clk_src_sel);
 
 #endif

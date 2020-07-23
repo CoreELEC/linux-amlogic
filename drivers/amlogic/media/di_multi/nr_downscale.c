@@ -138,13 +138,15 @@ void dim_nr_ds_init(unsigned int width, unsigned int height)
 	if (nrds_dev.canvas_idx != 0)
 		return;
 
-	if (ext_ops.canvas_pool_alloc_canvas_table("nr_ds",
-						   &nrds_dev.canvas_idx,
-						   1, CANVAS_MAP_TYPE_1)) {
+	if (ops_ext()->cvs_alloc_table("nr_ds",
+				       &nrds_dev.canvas_idx,
+				       1, CANVAS_MAP_TYPE_1)) {
 		PR_ERR("%s alloc nrds canvas error.\n", __func__);
 		return;
 	}
 	PR_INF("%s alloc nrds canvas %u.\n", __func__, nrds_dev.canvas_idx);
+	get_datal()->cvs.nr_ds_idx = nrds_dev.canvas_idx;
+	get_datal()->cvs.en |= DI_CVS_EN_DS;
 }
 
 /*

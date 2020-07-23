@@ -106,20 +106,107 @@ struct dmx_sct_filter_params
 #define DMX_ONESHOT         2
 #define DMX_IMMEDIATE_START 4
 #define DMX_KERNEL_CLIENT   0x8000
-
 #ifdef CONFIG_AMLOGIC_DVB_COMPAT
 #define DMX_USE_SWFILTER    0x100
 #endif
 };
 
+#ifdef CONFIG_AMLOGIC_DVB_COMPAT
 
-struct dmx_pes_filter_params
-{
-	__u16          pid;
-	dmx_input_t    input;
-	dmx_output_t   output;
+enum dmx_input_source {
+	INPUT_DEMOD,
+	INPUT_LOCAL,
+	INPUT_LOCAL_SEC
+};
+
+/**
+ * struct dmx_non_sec_es_header - non-sec Elementary Stream (ES) Header
+ *
+ * @pts_dts_flag:[1:0], 01:pts valid, 10:dts valid
+ * @pts:	pts value
+ * @dts:	dts value
+ * @len:	data len
+ */
+struct dmx_non_sec_es_header {
+	__u8 pts_dts_flag;
+	__u64 pts;
+	__u64 dts;
+	__u32 len;
+};
+
+/**
+ * struct dmx_sec_es_data - sec Elementary Stream (ES)
+ *
+ * @pts_dts_flag:[1:0], 01:pts valid, 10:dts valid
+ * @pts:	pts value
+ * @dts:	dts value
+ * @buf_start:	buf start addr
+ * @buf_end:	buf end addr
+ * @data_start: data start addr
+ * @data_end: data end addr
+ */
+struct dmx_sec_es_data {
+	__u8 pts_dts_flag;
+	__u64 pts;
+	__u64 dts;
+	__u32 buf_start;
+	__u32 buf_end;
+	__u32 data_start;
+	__u32 data_end;
+};
+
+enum dmx_audio_format {
+	AUDIO_UNKNOWN = 0,	/* unknown media */
+	AUDIO_MPX = 1,		/* mpeg audio MP2/MP3 */
+	AUDIO_AC3 = 2,		/* Dolby AC3/EAC3 */
+	AUDIO_AAC_ADTS = 3,	/* AAC-ADTS */
+	AUDIO_AAC_LOAS = 4,	/* AAC-LOAS */
+	AUDIO_DTS = 5,		/* DTS */
+	AUDIO_MAX
+};
+
+struct dmx_mem_info {
+	__u32 dmx_total_size;
+	__u32 dmx_buf_phy_start;
+	__u32 dmx_free_size;
+	__u32 dvb_core_total_size;
+	__u32 dvb_core_free_size;
+	__u32 wp_offset;
+};
+
+#endif
+
+/**
+ * struct dmx_pes_filter_params - Specifies Packetized Elementary Stream (PES)
+ *	filter parameters.
+ *
+ * @pid:	PID to be filtered.
+ * @input:	Demux input, as specified by &enum dmx_input.
+ * @output:	Demux output, as specified by &enum dmx_output.
+ * @pes_type:	Type of the pes filter, as specified by &enum dmx_pes_type.
+ * @flags:	Demux PES flags.
+ */
+struct dmx_pes_filter_params {
+	__u16           pid;
+	dmx_input_t  input;
+	dmx_output_t output;
 	dmx_pes_type_t pes_type;
-	__u32          flags;
+	__u32           flags;
+#ifdef CONFIG_AMLOGIC_DVB_COMPAT
+/*bit 8~15 for mem sec_level*/
+#define DMX_MEM_SEC_LEVEL1   (1 << 10)
+#define DMX_MEM_SEC_LEVEL2   (1 << 11)
+#define DMX_MEM_SEC_LEVEL3   (1 << 12)
+
+/*bit 16~23 for output */
+#define DMX_ES_OUTPUT        (1 << 16)
+/*set raw mode, it will send the struct dmx_sec_es_data, not es data*/
+#define DMX_OUTPUT_RAW_MODE	 (1 << 17)
+
+/*24~31 one byte for audio type, dmx_audio_format_t*/
+#define DMX_AUDIO_FORMAT_BIT 24
+
+#endif
 };
 
 typedef struct dmx_caps {
@@ -161,5 +248,9 @@ struct dmx_stc {
 #define DMX_GET_STC              _IOWR('o', 50, struct dmx_stc)
 #define DMX_ADD_PID              _IOW('o', 51, __u16)
 #define DMX_REMOVE_PID           _IOW('o', 52, __u16)
+#ifdef CONFIG_AMLOGIC_DVB_COMPAT
+#define DMX_SET_INPUT           _IO('o', 80)
+#define DMX_GET_MEM_INFO        _IOR('o', 81, struct dmx_mem_info)
+#endif
 
 #endif /* _UAPI_DVBDMX_H_ */

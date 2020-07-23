@@ -139,13 +139,14 @@ static int set_tdes_key_iv(struct aml_tdes_dev *dd,
 	uint32_t *piv = key_iv + 8;
 	uint32_t len = keylen;
 	dma_addr_t dma_addr_key;
-	uint32_t i = 0;
 
 	if (!key_iv) {
 		dev_err(dev, "error allocating key_iv buffer\n");
 		return -EINVAL;
 	}
+
 	memcpy(key_iv, key, keylen);
+
 	if (iv) {
 		memcpy(piv, iv, 8);
 	}
@@ -161,24 +162,19 @@ static int set_tdes_key_iv(struct aml_tdes_dev *dd,
 		return -EINVAL;
 	}
 
-	while (len > 0) {
-		dsc[i].src_addr = (uint32_t)dma_addr_key + i * 16;
-		dsc[i].tgt_addr = i * 16;
-		dsc[i].dsc_cfg.d32 = 0;
-		dsc[i].dsc_cfg.b.length = len > 16 ? 16 : len;
-		dsc[i].dsc_cfg.b.mode = MODE_KEY;
-		dsc[i].dsc_cfg.b.eoc = 0;
-		dsc[i].dsc_cfg.b.owner = 1;
-		i++;
-		len -= 16;
-	}
-	dsc[i - 1].dsc_cfg.b.eoc = 1;
+	dsc[0].src_addr = (u32)dma_addr_key;
+	dsc[0].tgt_addr = 0;
+	dsc[0].dsc_cfg.d32 = 0;
+	dsc[0].dsc_cfg.b.length = len;
+	dsc[0].dsc_cfg.b.mode = MODE_KEY;
+	dsc[0].dsc_cfg.b.owner = 1;
+	dsc[0].dsc_cfg.b.eoc = 1;
 
 	dma_sync_single_for_device(dd->dev, dd->dma_descript_tab,
 			PAGE_SIZE, DMA_TO_DEVICE);
 	aml_write_crypto_reg(dd->thread,
 			(uintptr_t) dd->dma_descript_tab | 2);
-	aml_dma_debug(dsc, i, __func__, dd->thread, dd->status);
+	aml_dma_debug(dsc, 1, __func__, dd->thread, dd->status);
 	while (aml_read_crypto_reg(dd->status) == 0)
 		;
 	aml_write_crypto_reg(dd->status, 0xf);
@@ -541,6 +537,16 @@ static int aml_tdes_crypt_dma_stop(struct aml_tdes_dev *dd)
 				err = -EINVAL;
 				dev_err(dev, "not all data converted: %zu\n",
 						count);
+			}
+			/* install IV for CBC */
+			if (dd->flags & TDES_FLAGS_CBC) {
+				if (dd->flags & TDES_FLAGS_ENCRYPT) {
+					memcpy(dd->req->info, dd->buf_out +
+					       dd->dma_size - 8, 8);
+				} else {
+					memcpy(dd->req->info, dd->buf_in +
+					       dd->dma_size - 8, 8);
+				}
 			}
 		}
 		dd->flags &= ~TDES_FLAGS_DMA;

@@ -985,7 +985,6 @@ static int vpp_crc_result;
 
 /* vjiu2 vpp_crc */
 static u32 vpp_crc_viu2_en;
-static int vpp_crc_viu2_result;
 
 #define CONFIG_AM_VOUT
 
@@ -3154,6 +3153,7 @@ static void pip_swap_frame(struct vframe_s *vf)
 		else if (layer->keep_frame_id == 0)
 			video_keeper_new_frame_notify();
 	}
+	fgrain_update_table(layer->layer_id, vf);
 	if (stop_update)
 		layer->new_vpp_setting = false;
 }
@@ -3216,6 +3216,11 @@ static s32 pip_render_frame(struct video_layer_s *layer)
 			layer, &layer->mif_setting);
 		vd_mif_setting(
 			layer->layer_id, &layer->mif_setting);
+		fgrain_config(layer->layer_id,
+			      layer->cur_frame_par,
+			      &layer->mif_setting,
+			      &layer->fgrain_setting,
+			      layer->dispbuf);
 	}
 
 	config_vd_pps(
@@ -3227,6 +3232,9 @@ static s32 pip_render_frame(struct video_layer_s *layer)
 		layer, &layer->bld_setting);
 	vd_blend_setting(
 		layer->layer_id, &layer->bld_setting);
+	fgrain_setting(layer->layer_id,
+		       &layer->fgrain_setting,
+		       layer->dispbuf);
 	layer->new_vpp_setting = false;
 	return 1;
 }
@@ -3368,7 +3376,7 @@ static void primary_swap_frame(
 		else if (layer->keep_frame_id == 0)
 			video_keeper_new_frame_notify();
 	}
-
+	fgrain_update_table(layer->layer_id, vf);
 	if (stop_update)
 		layer->new_vpp_setting = false;
 	ATRACE_COUNTER(__func__,  0);
@@ -3501,6 +3509,11 @@ static s32 primary_render_frame(struct video_layer_s *layer)
 		if (update_vd2)
 			vd_mif_setting(
 				1, &local_vd2_mif);
+		fgrain_config(layer->layer_id,
+			      layer->cur_frame_par,
+			      &layer->mif_setting,
+			      &layer->fgrain_setting,
+			      layer->dispbuf);
 	}
 
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
@@ -3556,6 +3569,8 @@ static s32 primary_render_frame(struct video_layer_s *layer)
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 	dolby_vision_proc(layer, frame_par);
 #endif
+	fgrain_setting(0, &layer->fgrain_setting,
+		       layer->dispbuf);
 	layer->new_vpp_setting = false;
 	return 1;
 }
@@ -3658,6 +3673,26 @@ static s32 update_pip_recycle_buffer(void)
 			recycle_cnt[1], recycle_buf[1][0], recycle_buf[1][1]);
 	}
 	return 0;
+}
+
+void set_alpha_scpxn(int layer_id, struct componser_info_t *componser_info)
+{
+	struct pip_alpha_scpxn_s alpha_win;
+	int win_num = 0;
+	int win_en = 0;
+	int i;
+
+	if (componser_info)
+		win_num = componser_info->count;
+
+	for (i = 0; i < win_num; i++) {
+		alpha_win.scpxn_bgn_h[i] = componser_info->axis[i][0];
+		alpha_win.scpxn_end_h[i] = componser_info->axis[i][2];
+		alpha_win.scpxn_bgn_v[i] = componser_info->axis[i][1];
+		alpha_win.scpxn_end_v[i] = componser_info->axis[i][3];
+		win_en |= 1 << i;
+	}
+	set_alpha(layer_id, win_en, &alpha_win);
 }
 
 #ifdef FIQ_VSYNC
@@ -4919,6 +4954,7 @@ SET_FILTER:
 		crop[3] = vd_layer[0].dispbuf->crop[3];
 		_set_video_window(&glayer_info[0], axis);
 		_set_video_crop(&glayer_info[0], crop);
+		set_alpha_scpxn(0, vd_layer[0].dispbuf->componser_info);
 		glayer_info[0].zorder = vd_layer[0].dispbuf->zorder;
 	}
 	/* setting video display property in underflow mode */
@@ -5116,6 +5152,7 @@ SET_FILTER:
 		crop[3] = vd_layer[1].dispbuf->crop[3];
 		_set_video_window(&glayer_info[1], axis);
 		_set_video_crop(&glayer_info[1], crop);
+		set_alpha_scpxn(1, vd_layer[1].dispbuf->componser_info);
 		glayer_info[1].zorder = vd_layer[1].dispbuf->zorder;
 	}
 
@@ -5335,9 +5372,6 @@ static irqreturn_t vsync_isr(int irq, void *dev_id)
 
 static irqreturn_t vsync_isr_viu2(int irq, void *dev_id)
 {
-	if (amvideo_meson_dev.cpu_type >= MESON_CPU_MAJOR_ID_SC2_)
-		vpp_crc_viu2_result = vpp_crc_viu2_check(vpp_crc_viu2_en);
-
 	return IRQ_HANDLED;
 }
 #endif
@@ -9901,6 +9935,10 @@ static ssize_t vpp_crc_viu2_show(
 	struct class_attribute *attr,
 	char *buf)
 {
+	int vpp_crc_viu2_result = 0;
+
+	if (amvideo_meson_dev.cpu_type >= MESON_CPU_MAJOR_ID_SC2_)
+		vpp_crc_viu2_result = vpp_crc_viu2_check(vpp_crc_viu2_en);
 	return snprintf(buf, 64, "crc_viu2_en: %d crc_vui2_result: %x\n\n",
 		vpp_crc_viu2_en,
 		vpp_crc_viu2_result);
@@ -9916,7 +9954,121 @@ static ssize_t vpp_crc_viu2_store(
 	ret = kstrtoint(buf, 0, &vpp_crc_viu2_en);
 	if (ret < 0)
 		return -EINVAL;
+	if (amvideo_meson_dev.cpu_type >= MESON_CPU_MAJOR_ID_SC2_)
+		enable_vpp_crc_viu2(vpp_crc_viu2_en);
 	return count;
+}
+
+static ssize_t pip_alpha_store(
+	struct class *cla,
+	struct class_attribute *attr,
+	const char *buf, size_t count)
+{
+	int i = 0;
+	int param_num;
+	int parsed[66];
+	int layer_id, win_num, win_en = 0;
+	struct pip_alpha_scpxn_s alpha_win;
+
+	if (likely(parse_para(buf, 2, parsed) >= 2)) {
+		layer_id = parsed[0];
+		win_num = parsed[1];
+		param_num = win_num * 4 + 2;
+		if (likely(parse_para(buf, param_num, parsed) == param_num)) {
+			for (i = 0; i < win_num; i++) {
+				alpha_win.scpxn_bgn_h[i] = parsed[2 + i * 4];
+				alpha_win.scpxn_end_h[i] = parsed[3 + i * 4];
+				alpha_win.scpxn_bgn_v[i] = parsed[4 + i * 4];
+				alpha_win.scpxn_end_v[i] = parsed[5 + i * 4];
+				win_en |= 1 << i;
+			}
+			pr_info("layer_id=%d, win_num=%d, win_en=%d\n",
+				layer_id, win_num, win_en);
+			set_alpha(layer_id, win_en, &alpha_win);
+		}
+	}
+
+	return strnlen(buf, count);
+}
+
+static ssize_t hscaler_8tap_enable_show(
+	struct class *cla,
+	struct class_attribute *attr,
+	char *buf)
+{
+	return snprintf(buf, 64, "hscaler_8tap_en: %d\n\n",
+		hscaler_8tap_enable);
+}
+
+static ssize_t hscaler_8tap_enable_store(
+		struct class *cla,
+		struct class_attribute *attr,
+		const char *buf, size_t count)
+{
+	int ret;
+	int hscaler_8tap_en;
+
+	ret = kstrtoint(buf, 0, &hscaler_8tap_en);
+	if (ret < 0)
+		return -EINVAL;
+
+	if (amvideo_meson_dev.hscaler_8tap_en &&
+	    (hscaler_8tap_en != hscaler_8tap_enable)) {
+		hscaler_8tap_enable = hscaler_8tap_en;
+	}
+	return count;
+}
+
+static ssize_t pre_hscaler_ntap_enable_show(
+	struct class *cla,
+	struct class_attribute *attr,
+	char *buf)
+{
+	return snprintf(buf, 64, "pre_hscaler_ntap_en: %d\n\n",
+		pre_hscaler_ntap_enable);
+}
+
+static ssize_t pre_hscaler_ntap_enable_store(
+	struct class *cla,
+	struct class_attribute *attr,
+	const char *buf, size_t count)
+{
+	int ret;
+	int pre_hscaler_ntap_en;
+
+	ret = kstrtoint(buf, 0, &pre_hscaler_ntap_en);
+	if (ret < 0)
+		return -EINVAL;
+
+	if (amvideo_meson_dev.pre_hscaler_ntap_en &&
+	    (pre_hscaler_ntap_en != pre_hscaler_ntap_enable)) {
+		pre_hscaler_ntap_enable = pre_hscaler_ntap_en;
+	}
+	return count;
+}
+
+static ssize_t film_grain_show(
+	struct class *cla,
+	struct class_attribute *attr,
+	char *buf)
+{
+	return snprintf(buf, 40, "fgrain_support vd1: %d vd2: %d\n",
+		glayer_info[0].fgrain_support,
+		glayer_info[1].fgrain_support);
+}
+
+static ssize_t film_grain_store(
+	struct class *cla,
+	struct class_attribute *attr,
+	const char *buf, size_t count)
+{
+	int parsed[2];
+
+	if (likely(parse_para(buf, 2, parsed) == 2)) {
+		glayer_info[0].fgrain_support = parsed[0];
+		glayer_info[1].fgrain_support = parsed[1];
+	}
+	return strnlen(buf, count);
 }
 
 static struct class_attribute amvideo_class_attrs[] = {
@@ -10149,6 +10301,22 @@ static struct class_attribute amvideo_class_attrs[] = {
 	       0664,
 	       vpp_crc_viu2_show,
 	       vpp_crc_viu2_store),
+	__ATTR(pip_alpha,
+	       0220,
+	       NULL,
+	       pip_alpha_store),
+	__ATTR(hscaler_8tap_en,
+	       0664,
+	       hscaler_8tap_enable_show,
+	       hscaler_8tap_enable_store),
+	__ATTR(pre_hscaler_ntap_en,
+	       0664,
+	       pre_hscaler_ntap_enable_show,
+	       pre_hscaler_ntap_enable_store),
+	__ATTR(film_grain,
+	       0664,
+	       film_grain_show,
+	       film_grain_store),
 	__ATTR_NULL
 };
 
@@ -10466,14 +10634,20 @@ static struct early_suspend video_early_suspend_handler = {
 
 static struct amvideo_device_data_s amvideo = {
 	.cpu_type = MESON_CPU_MAJOR_ID_COMPATIBALE,
+	.hscaler_8tap_en = 0,
+	.pre_hscaler_ntap_en = 0,
 };
 
 static struct amvideo_device_data_s amvideo_tm2_revb = {
 	.cpu_type = MESON_CPU_MAJOR_ID_TM2_REVB,
+	.hscaler_8tap_en = 0,
+	.pre_hscaler_ntap_en = 0,
 };
 
 static struct amvideo_device_data_s amvideo_sc2 = {
 	.cpu_type = MESON_CPU_MAJOR_ID_SC2_,
+	.hscaler_8tap_en = 1,
+	.pre_hscaler_ntap_en = 1,
 };
 
 static const struct of_device_id amlogic_amvideom_dt_match[] = {
@@ -10505,6 +10679,22 @@ bool is_meson_sc2_cpu(void)
 {
 	if (amvideo_meson_dev.cpu_type ==
 		MESON_CPU_MAJOR_ID_SC2_)
+		return true;
+	else
+		return false;
+}
+
+bool is_hscaler_8tap_en(void)
+{
+	if (amvideo_meson_dev.hscaler_8tap_en)
+		return true;
+	else
+		return false;
+}
+
+bool is_pre_hscaler_ntap_en(void)
+{
+	if (amvideo_meson_dev.pre_hscaler_ntap_en)
 		return true;
 	else
 		return false;
@@ -10723,7 +10913,18 @@ static int __init video_init(void)
 			LAYER0_AFBC |
 			LAYER0_SCALER |
 			LAYER0_AVAIL;
+	else if (is_meson_sc2_cpu())
+		layer_cap =
+			LAYER1_ALPHA |
+			LAYER1_AFBC |
+			LAYER1_SCALER |
+			LAYER1_AVAIL |
+			LAYER0_ALPHA |
+			LAYER0_AFBC |
+			LAYER0_SCALER |
+			LAYER0_AVAIL;
 	else
+		/* g12a, g12b, sm1 */
 		layer_cap =
 			LAYER1_AFBC |
 			LAYER1_SCALER |

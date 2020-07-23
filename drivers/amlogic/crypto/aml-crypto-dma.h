@@ -129,6 +129,7 @@ void aml_write_crypto_reg(u32 addr, u32 data);
 u32 aml_read_crypto_reg(u32 addr);
 void aml_dma_debug(struct dma_dsc *dsc, u32 nents, const char *msg,
 		u32 thread, u32 status);
+void hexdump(unsigned char *buf, unsigned int len);
 
 u32 get_dma_t0_offset(void);
 u32 get_dma_sts0_offset(void);

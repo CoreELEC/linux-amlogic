@@ -28,79 +28,92 @@ enum spdif_id {
 	SPDIF_ID_CNT
 };
 
-extern unsigned int aml_spdif_ctrl_read(struct aml_audio_controller *actrl,
-	int stream, int index);
-extern void aml_spdif_ctrl_write(struct aml_audio_controller *actrl,
-	int stream, int index, int val);
-extern void aml_spdifin_chnum_en(struct aml_audio_controller *actrl,
-	int index, bool is_enable);
-extern void aml_spdif_enable(
+unsigned int aml_spdif_ctrl_read(struct aml_audio_controller *actrl,
+				 int stream,
+				 int index);
+void aml_spdif_ctrl_write(struct aml_audio_controller *actrl,
+			  int stream,
+			  int index,
+			  int val);
+void aml_spdifin_chnum_en(struct aml_audio_controller *actrl,
+			  int index,
+			  bool is_enable);
+void aml_spdif_enable(
 	struct aml_audio_controller *actrl,
 	int stream,
 	int index,
 	bool is_enable);
 
-extern void aml_spdif_mute(
+void aml_spdif_mute(
 	struct aml_audio_controller *actrl,
 	int stream,
 	int index,
 	bool is_mute);
 
-extern void aml_spdifout_mute_without_actrl(
+void aml_spdifout_mute_without_actrl(
 	int index,
 	bool is_mute);
 
-extern void aml_spdif_arb_config(struct aml_audio_controller *actrl);
+void aml_spdif_arb_config(struct aml_audio_controller *actrl);
 
-extern int aml_spdifin_status_check(
+int aml_spdifin_status_check(
 	struct aml_audio_controller *actrl);
-extern void aml_spdifin_clr_irq(struct aml_audio_controller *actrl,
-	bool is_all_bits, int clr_bits_val);
+void aml_spdifin_clr_irq(struct aml_audio_controller *actrl,
+			 bool is_all_bits,
+			 int clr_bits_val);
 
-extern void aml_spdif_fifo_reset(
+void aml_spdif_fifo_reset(
 	struct aml_audio_controller *actrl,
 	int stream, int index);
 
-extern int spdifout_get_frddr_type(int bitwidth);
+int spdifout_get_frddr_type(int bitwidth);
 
-extern void aml_spdif_fifo_ctrl(
+void aml_spdif_fifo_ctrl(
 	struct aml_audio_controller *actrl,
 	int bitwidth,
 	int stream,
 	int index,
 	unsigned int fifo_id);
 
-extern int spdifin_get_mode(void);
+int spdifin_get_mode(void);
 
-extern int spdif_get_channel_status(int reg);
+int spdif_get_channel_status(int reg);
 
-extern void spdifin_set_channel_status(int ch, int bits);
+void spdifin_set_channel_status(int ch, int bits);
 
-extern void aml_spdifout_select_aed(bool enable, int spdifout_id);
+void aml_spdifout_select_aed(bool enable, int spdifout_id);
 
-extern void aml_spdifout_get_aed_info(int spdifout_id,
-	int *bitwidth, int *frddrtype);
+void aml_spdifout_get_aed_info(int spdifout_id,
+			       int *bitwidth,
+			       int *frddrtype);
 
-void enable_spdifout_to_hdmitx(void);
-int get_spdif_to_hdmitx_id(void);
-void set_spdif_to_hdmitx_id(int spdif_id);
+void enable_spdifout_to_hdmitx(int spdif_tohdmitxen_separated);
 
-extern void spdifout_samesource_set(int spdif_index, int fifo_id,
-	int bitwidth, int channels, bool is_enable, int lane_i2s);
-extern void spdifout_enable(int spdif_id, bool is_enable, bool reenable);
+void spdifout_samesource_set(int spdif_index,
+			     int fifo_id,
+			     int bitwidth,
+			     int channels,
+			     bool is_enable,
+			     int lane_i2s);
+void spdifout_enable(int spdif_id, bool is_enable, bool reenable);
 
-extern int spdifin_get_sample_rate(void);
+int spdifin_get_sample_rate(void);
 
-extern int spdifin_get_ch_status0to31(void);
+int spdifin_get_ch_status0to31(void);
 
-extern int spdifin_get_audio_type(void);
+int spdifin_get_audio_type(void);
 
-extern void spdif_set_channel_status_info(
+void spdif_set_channel_status_info(
 	struct iec958_chsts *chsts, int spdif_id);
 
-extern void spdifout_play_with_zerodata(unsigned int spdif_id, bool reenable);
-extern void spdifout_play_with_zerodata_free(unsigned int spdif_id);
-extern void spdifin_set_src(int src);
+void spdifout_play_with_zerodata(unsigned int spdif_id,
+				 bool reenable,
+				 int separated);
+void spdifout_play_with_zerodata_free(unsigned int spdif_id);
+void spdifin_set_src(int src);
 void aml_spdif_out_reset(unsigned int spdif_id, int offset);
+void aml_spdifin_sample_mode_filter_en(void);
+int get_spdif_to_hdmitx_id(void);
+void set_spdif_to_hdmitx_id(int spdif_id);
 
 #endif

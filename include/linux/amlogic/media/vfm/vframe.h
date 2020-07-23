@@ -32,6 +32,7 @@
 #define VIDTYPE_INTERLACE_FIRST         0x8
 #define VIDTYPE_MVC                     0x10
 #define VIDTYPE_NO_VIDEO_ENABLE         0x20
+#define VIDTYPE_SEC_MD			0x40
 #define VIDTYPE_VIU_NV12                0x80
 #define VIDTYPE_VIU_422                 0x800
 #define VIDTYPE_VIU_FIELD               0x1000
@@ -355,6 +356,24 @@ struct codec_mm_box_s {
 	int     bmmu_idx;
 };
 
+struct vsif_info {
+	void *addr;
+	unsigned int size;
+};
+
+struct emp_info {
+	void *addr;
+	unsigned int size;
+};
+
+#define MAX_COMPOSER_COUNT 9
+#define AXIS_INFO_COUNT    4
+
+struct componser_info_t {
+	int count;
+	int axis[MAX_COMPOSER_COUNT][AXIS_INFO_COUNT];
+};
+
 struct vframe_s {
 	u32 index;
 	u32 index_disp;
@@ -390,29 +409,26 @@ struct vframe_s {
 	u32 compHeight;
 	u32 ratio_control;
 	u32 bitdepth;
+	/*
+	 * bit 30: is_dv
+	 * bit 29: present_flag
+	 * bit 28-26: video_format
+	 *	"component", "PAL", "NTSC", "SECAM", "MAC", "unspecified"
+	 * bit 25: range "limited", "full_range"
+	 * bit 24: color_description_present_flag
+	 * bit 23-16: color_primaries
+	 *	"unknown", "bt709", "undef", "bt601", "bt470m", "bt470bg",
+	 *	"smpte170m", "smpte240m", "film", "bt2020"
+	 * bit 15-8: transfer_characteristic
+	 *	"unknown", "bt709", "undef", "bt601", "bt470m", "bt470bg",
+	 *	"smpte170m", "smpte240m", "linear", "log100", "log316",
+	 *	"iec61966-2-4", "bt1361e", "iec61966-2-1", "bt2020-10",
+	 *	"bt2020-12", "smpte-st-2084", "smpte-st-428"
+	 * bit 7-0: matrix_coefficient
+	 *	"GBR", "bt709", "undef", "bt601", "fcc", "bt470bg",
+	 *	"smpte170m", "smpte240m", "YCgCo", "bt2020nc", "bt2020c"
+	 */
 	u32 signal_type;
-/*
- *	   bit 29: present_flag
- *	   bit 28-26: video_format
- *	   "component", "PAL", "NTSC", "SECAM",
- *	   "MAC", "unspecified"
- *	   bit 25: range "limited", "full_range"
- *	   bit 24: color_description_present_flag
- *	   bit 23-16: color_primaries
- *	   "unknown", "bt709", "undef", "bt601",
- *	   "bt470m", "bt470bg", "smpte170m", "smpte240m",
- *	   "film", "bt2020"
- *	   bit 15-8: transfer_characteristic
- *	   "unknown", "bt709", "undef", "bt601",
- *	   "bt470m", "bt470bg", "smpte170m", "smpte240m",
- *	   "linear", "log100", "log316", "iec61966-2-4",
- *	   "bt1361e", "iec61966-2-1", "bt2020-10", "bt2020-12",
- *	   "smpte-st-2084", "smpte-st-428"
- *	   bit 7-0: matrix_coefficient
- *	   "GBR", "bt709", "undef", "bt601",
- *	   "fcc", "bt470bg", "smpte170m", "smpte240m",
- *	   "YCgCo", "bt2020nc", "bt2020c"
- */
 	u32 orientation;
 	u32 video_angle;
 	enum vframe_source_type_e source_type;
@@ -486,6 +502,8 @@ struct vframe_s {
 	bool rendered;
 
 	struct codec_mm_box_s mm_box;
+	struct vsif_info vsif;
+	struct emp_info emp;
 
 	/* signal format and sei data */
 	struct vframe_src_fmt_s src_fmt;
@@ -505,6 +523,17 @@ struct vframe_s {
 	/*for double write VP9/AV1 vf*/
 	void *mem_dw_handle;
 	struct fence *fence;
+		/*current is dv input*/
+	bool dv_input;
+	/* dv mode crc check:
+	 * true: crc check ok
+	 * false: crc check fail
+	 */
+	bool dv_crc_sts;
+
+	/* currently only for keystone use */
+	unsigned int crc;
+	struct componser_info_t *componser_info;
 } /*vframe_t */;
 
 #if 0

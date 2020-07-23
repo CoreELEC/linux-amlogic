@@ -211,9 +211,9 @@ static struct reg_map reg_maps_tm2[] = {
 
 /* For sc2 */
 static struct reg_map reg_maps_sc2[] = {
-	[CBUS_REG_IDX] = { /* CBUS */
-		.phy_addr = 0xfe004000, // TODO
-		.size = 0x100000,
+	[SYSCTRL_REG_IDX] = { /* CBUS */
+		.phy_addr = 0xfe010000,
+		.size = 0x100,
 	},
 	[PERIPHS_REG_IDX] = { /* PERIPHS */
 		.phy_addr = 0xfe004000,
@@ -223,12 +223,8 @@ static struct reg_map reg_maps_sc2[] = {
 		.phy_addr = 0xff000000,
 		.size = 0x40000,
 	},
-	[AOBUS_REG_IDX] = { /* RTI */
-		.phy_addr = 0xfe004000, // TODO
-		.size = 0x100000,
-	},
-	[HHI_REG_IDX] = { /* HIU */
-		.phy_addr = 0xfe000000, // TODO
+	[CLKCTRL_REG_IDX] = { /* HIU */
+		.phy_addr = 0xfe000000,
 		.size = 0x2000,
 	},
 	[RESETCTRL_REG_IDX] = { /* RESET */
@@ -314,6 +310,15 @@ unsigned int get_hdcp22_base(void)
 	(map[(addr) >> BASE_REG_OFFSET].p + \
 	((addr) & (((1 << BASE_REG_OFFSET) - 1))))
 
+#define CHECKADDR(addr) \
+	do { \
+		if (map[(addr) >> BASE_REG_OFFSET].phy_addr == 0) { \
+			pr_info("addr = 0x%08x", addr); \
+			dump_stack(); \
+			break; \
+		} \
+	} while (0)
+
 unsigned int hd_read_reg(unsigned int addr)
 {
 	unsigned int val = 0;
@@ -322,6 +327,8 @@ unsigned int hd_read_reg(unsigned int addr)
 
 	struct hdmitx_dev *hdev = get_hdmitx_device();
 	pr_debug(REG "Rd[0x%x] 0x%x\n", paddr, val);
+
+	CHECKADDR(addr);
 
 	switch (hdev->chip_type) {
 	case MESON_CPU_ID_TXLX:
@@ -374,6 +381,8 @@ void hd_write_reg(unsigned int addr, unsigned int val)
 
 	struct hdmitx_dev *hdev = get_hdmitx_device();
 	pr_debug(REG "Wr[0x%x] 0x%x\n", paddr, val);
+
+	CHECKADDR(addr);
 
 	switch (hdev->chip_type) {
 	case MESON_CPU_ID_TXLX:

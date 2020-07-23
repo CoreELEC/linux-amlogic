@@ -112,6 +112,7 @@ static int ext_canvas_id[HW_OSD_COUNT];
 static int osd_extra_idx[HW_OSD_COUNT][2];
 static bool suspend_flag;
 static u32 rdma_dt_cnt;
+static bool update_to_dv;
 static void osd_clone_pan(u32 index, u32 yoffset, int debug_flag);
 static void osd_set_dummy_data(u32 index, u32 alpha);
 static void osd_wait_vsync_hw_viu1(void);
@@ -8688,6 +8689,10 @@ static void set_blend_reg(struct layer_blend_reg_s *blend_reg)
 			(dv_core2_hsize << 16) | (dv_core2_vsize + 0));
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 		update_graphic_width_height(dv_core2_hsize, dv_core2_vsize);
+		if (!update_to_dv) {
+			update_graphic_status();
+			update_to_dv = true;
+		}
 #endif
 	}
 

@@ -46,6 +46,8 @@ enum vpu_chip_e {
 #define VPU_HDMI_ISO_CNT_MAX   5
 #define VPU_RESET_CNT_MAX      10
 
+#define VPU_PWR_ID_INVALID     0xffff
+
 struct fclk_div_s {
 	unsigned int fclk_id;
 	unsigned int fclk_mux;
@@ -83,10 +85,13 @@ struct vpu_data_s {
 	unsigned int vapb_clk_reg;
 
 	unsigned char gp_pll_valid;
-	unsigned char mem_pd_reg1_valid;
-	unsigned char mem_pd_reg2_valid;
-	unsigned char mem_pd_reg3_valid;
-	unsigned char mem_pd_reg4_valid;
+	unsigned int mem_pd_reg0;
+	unsigned int mem_pd_reg1;
+	unsigned int mem_pd_reg2;
+	unsigned int mem_pd_reg3;
+	unsigned int mem_pd_reg4;
+
+	unsigned int pwrctrl_id;
 
 	unsigned int mem_pd_table_cnt;
 	unsigned int clk_gate_table_cnt;
@@ -101,6 +106,8 @@ struct vpu_data_s {
 
 	void (*power_on)(void);
 	void (*power_off)(void);
+	int (*mempd_switch)(unsigned int vmod, int flag);
+	int (*mempd_get)(unsigned int vmod);
 };
 
 struct vpu_conf_s {

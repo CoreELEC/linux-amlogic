@@ -591,6 +591,18 @@ struct dmx_demux {
 	 */
 	int (*get_stc)(struct dmx_demux *demux, unsigned int num,
 		       u64 *stc, unsigned int *base);
+
+#ifdef CONFIG_AMLOGIC_DVB_COMPAT
+	int (*set_input)(struct dmx_demux *demux, int source);
+	int (*get_ts_mem_info)(
+			struct dmx_demux *demux,
+			struct dmx_ts_feed *feed,
+			struct dmx_mem_info *info);
+	int (*get_sec_mem_info)(
+			struct dmx_demux *demux,
+			struct dmx_section_feed *feed,
+			struct dmx_mem_info *info);
+#endif
 };
 
 #endif /* #ifndef __DEMUX_H */

@@ -51,6 +51,7 @@ static int meson_uvm_alloc_buffer(struct dma_buf *dmabuf)
 	struct ion_handle *handle;
 	phys_addr_t pat;
 	size_t len;
+	struct sg_table *sgt;
 	struct vframe_s *vf;
 	enum ion_heap_type heap_type;
 	struct file_private_data *file_private_data;
@@ -83,6 +84,9 @@ static int meson_uvm_alloc_buffer(struct dma_buf *dmabuf)
 			(ion_phys_addr_t *)&pat, &len);
 	buffer->handle = handle;
 	buffer->paddr = pat;
+	sgt = handle->buffer->sg_table;
+	dma_sync_sg_for_device(uvm_dev->pdev,
+			       sgt->sgl, sgt->nents, DMA_BIDIRECTIONAL);
 
 	return 0;
 }
@@ -251,7 +255,8 @@ static struct sg_table *meson_uvm_map_dma_buf(
 		pr_err("meson_uvm: dma_map_sg call failed.\n");
 		sgt = ERR_PTR(-ENOMEM);
 	}
-	dma_sync_sg_for_device(NULL, sgt->sgl, sgt->nents, DMA_BIDIRECTIONAL);
+	dma_sync_sg_for_device(uvm_dev->pdev,
+			       sgt->sgl, sgt->nents, DMA_BIDIRECTIONAL);
 	return sgt;
 }
 
@@ -568,6 +573,7 @@ static int meson_uvm_probe(struct platform_device *pdev)
 	uvm_dev->dev.minor = MISC_DYNAMIC_MINOR;
 	uvm_dev->dev.name = "uvm";
 	uvm_dev->dev.fops = &uvm_fops;
+	uvm_dev->pdev = &pdev->dev;
 	mutex_init(&uvm_dev->buffer_lock);
 
 	uvm_dev->uvm_client = meson_ion_client_create(-1, "meson-uvm");

@@ -229,6 +229,7 @@ struct amlpmu_context {
 	/* struct arm_pmu */
 	struct arm_pmu *pmu;
 
+	int private_interrupts;
 	int clusterb_enabled;
 
 	unsigned int __iomem *regs[MAX_CLUSTER_NR];

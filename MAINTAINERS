@@ -13618,7 +13618,9 @@ F: drivers/amlogic/cpu_hotplug/*
 
 AMLOGIC PWM DRIVER
 M:	Jian Hu <jian.hu@amlogic.com>
-F:	drivers/amlogic/pwm/*
+F:	drivers/amlogic/pwm/pwm_meson.c
+F:	drivers/amlogic/pwm/pwm_meson_v2.c
+F:	drivers/amlogic/pwm/pwm_meson_sysfs.c
 F:	include/linux/amlogic/pwm_meson.h
 F:	Documentation/devicetree/bindings/amlogic/pwm-meson.txt
 F:	arch/arm64/boot/dts/amlogic/gxl_p212_2g.dts
@@ -14398,6 +14400,7 @@ F:	drivers/amlogic/media/vout/vout_serve/vout_reg.h
 F:	drivers/amlogic/media/vout/vout_serve/dummy_lcd.c
 F:	drivers/amlogic/media/vout/vout_serve/dummy_venc.c
 F:	drivers/amlogic/media/vout/vout_serve/vout_reg.c
+F:	drivers/amlogic/media/vout/vclk_serve/vclk_serve.c
 
 AMLOGIC GPIO IRQ
 M: Xingyu Chen <xingyu.chen@amlogic.com>
@@ -14922,8 +14925,14 @@ F:	include/dt-bindings/gpio/meson-tm2-gpio.h
 
 AMLOGIC MESON TM2 CLOCK DRIVER
 M:	Jian Hu <jian.hu@amlogic.com>
+F:	driver/amlogic/clk/*
 F:	driver/amlogic/clk/tm2/*
 F:	driver/amlogic/clk/sc2/*
+F:	driver/amlogic/clk/sc2/sc2_secure_clk_cpu.c
+F:	driver/amlogic/clk/sc2/sc2_secure_clk_mux.c
+F:	driver/amlogic/clk/sc2/sc2_secure_clk_divider.c
+F:	driver/amlogic/clk/*
+F:	driver/amlogic/clk/sc2/sc2_clk_sdemmc.c
 
 AMLOGIC MESON TM2 LCD DTS
 M:	Shaochan Liu <shaochan.liu@amlogic.com>
@@ -14983,7 +14992,20 @@ F:	scripts/amlogic/weekly_change.py
 
 ANLOGIC HIFI4DSP
 M: Shuyu Li <Shuyu.Li@amlogic.com>
-F: drivers/amlogic/hifi4dsp/*
+F: drivers/amlogic/hifi4dsp/Makefile
+F: drivers/amlogic/hifi4dsp/dsp_top.h
+F: drivers/amlogic/hifi4dsp/dsp_top.c
+F: drivers/amlogic/hifi4dsp/hifi4dsp_api.h
+F: drivers/amlogic/hifi4dsp/hifi4dsp_dsp.h
+F: drivers/amlogic/hifi4dsp/hifi4dsp_dsp.c
+F: drivers/amlogic/hifi4dsp/hifi4dsp_firmware.h
+F: drivers/amlogic/hifi4dsp/hifi4dsp_firmware.c
+F: drivers/amlogic/hifi4dsp/hifi4dsp_module.c
+F: drivers/amlogic/hifi4dsp/hifi4dsp_priv.h
+X: drivers/amlogic/hifi4dsp/tm2_dsp_top.c
+X: drivers/amlogic/hifi4dsp/tm2_dsp_top.h
+X: drivers/amlogic/hifi4dsp/hifi4dsp_ipc.c
+X: drivers/amlogic/hifi4dsp/hifi4dsp_ipc.h
 
 AMLOGIC SM1 AC200/AC213/AC214 BUILDROOT DTS
 M:  Guofeang Tang <guofeng.tang@amlogic.com>
@@ -15195,6 +15217,8 @@ F:	include/linux/amlogic/media/di/di.h
 AMLOGIC ADD DI_MULTI DRIVER
 M:	Jihong Sui <jihong.sui@amlogic.com>
 F:	drivers/amlogic/media/di_multi/*
+F:	drivers/amlogic/media/di_multi/di_reg_v3.h
+F:	drivers/amlogic/media/di_multi/sc2/*
 
 AMLOGIC DRM
 M:	Ao Xu <ao.xu@amlogic.com>
@@ -15320,3 +15344,22 @@ AMLOGIC avsync modify for new architecture
 M:  Chen Chen <chen.chen1@amlogic.com>
 F:  drivers/amlogic/media/frame_sync/ptsserv_newarch.c
 
+AMLOGIC driver for smartcard
+M: chuangcheng peng <chuangcheng.peng@amlogic.com>
+F: drivers/amlogic/smartcard/dvb_reg.c
+F: drivers/amlogic/smartcard/dvb_reg.h
+
+AMLOGIC driver for dmx/dsc
+M: chuangcheng peng <chuangcheng.peng@amlogic.com>
+F: drivers/amlogic/dvb/demux/*
+
+AMLOGIC driver for mailbox
+M: Huan Biao <huan.biao@amlogic.com>
+F: drivers/amlogic/mailbox/meson_mhu_fifo.c
+F: drivers/amlogic/mailbox/meson_mhu_fifo.h
+
+AMLOGIC driver for scpififo
+M: Huan Biao <huan.biao@amlogic.com>
+F: drivers/amlogic/mailbox/scpi_protocol_fifo.c
+F: drivers/amlogic/mailbox/scpi_common.c
+F: include/linux/amlogic/scpi_common.h

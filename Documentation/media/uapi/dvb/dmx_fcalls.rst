@@ -25,3 +25,4 @@ Demux Function Calls
     dmx-set-source
     dmx-add-pid
     dmx-remove-pid
+    dmx-set-input

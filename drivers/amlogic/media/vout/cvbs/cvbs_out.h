@@ -25,7 +25,8 @@
 #include <linux/amlogic/media/vout/vout_notify.h>
 #include "cvbs_mode.h"
 
-#define CVBSOUT_VER "Ref.2018/11/07"
+/* 20200619: add sc2 support */
+#define CVBSOUT_VER "Ref.2020/06/19"
 
 #define CVBS_CLASS_NAME	"cvbs"
 #define CVBS_NAME	"cvbs"
@@ -51,13 +52,22 @@ enum cvbs_cpu_type {
 	CVBS_CPU_TYPE_TL1    = 5,
 	CVBS_CPU_TYPE_SM1    = 6,
 	CVBS_CPU_TYPE_TM2    = 7,
+	CVBS_CPU_TYPE_SC2    = 8,
 };
 
 struct meson_cvbsout_data {
-	unsigned int vdac_vref_adj;
-	unsigned int vdac_gsw;
 	enum cvbs_cpu_type cpu_id;
 	const char *name;
+
+	unsigned int vdac_vref_adj;
+	unsigned int vdac_gsw;
+
+	unsigned int reg_vid_pll_clk_div;
+	unsigned int reg_vid_clk_div;
+	unsigned int reg_vid_clk_ctrl;
+	unsigned int reg_vid2_clk_div;
+	unsigned int reg_vid2_clk_ctrl;
+	unsigned int reg_vid_clk_ctrl2;
 };
 
 #define CVBS_PERFORMANCE_CNT_MAX    20
@@ -104,5 +114,8 @@ struct cvbsregs_set_t {
 };
 
 extern void amvecm_clip_range_limit(bool limit_en);
+
+int cvbs_cpu_type(void);
+struct meson_cvbsout_data *get_cvbs_data(void);
 
 #endif

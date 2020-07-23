@@ -35,13 +35,20 @@
 #include "di_pre.h"
 #include "di_post.h"
 #include "di_api.h"
+#include "sc2/di_hw_v3.h"
+
 #include <linux/amlogic/media/di/di.h>
+//#include "../deinterlace/di_pqa.h"
 
 /************************************************
  * dim_cfg
  *	[0] bypass_all_p
  ***********************************************/
+#ifdef TEST_DISABLE_BYPASS_P
+static unsigned int dim_cfg;
+#else
 static unsigned int dim_cfg = 1;
+#endif
 module_param_named(dim_cfg, dim_cfg, uint, 0664);
 
 /**************************************
@@ -1825,7 +1832,7 @@ void dip_chst_process_reg(unsigned int ch)
 		/*debug only dbg_reg("ch[%d]UNREG_STEP2 end\n",ch);*/
 		break;
 	}
-	}
+}
 }
 
 void dip_chst_process_ch(void)
@@ -2367,7 +2374,7 @@ void dim_bypass_set(struct di_ch_s *pch, bool which, unsigned int reason)
 #define DIM_POLICY_SHIFT_H	(7)
 #define DIM_POLICY_SHIFT_W	(6)
 
-void dim_polic_cfg(unsigned int cmd, bool on)
+void dim_polic_cfg_local(unsigned int cmd, bool on)
 {
 	struct dim_policy_s *pp;
 
@@ -2390,7 +2397,8 @@ void dim_polic_cfg(unsigned int cmd, bool on)
 		break;
 	}
 }
-EXPORT_SYMBOL(dim_polic_cfg);
+
+//EXPORT_SYMBOL(dim_polic_cfg);
 
 void dim_polic_prob(void)
 {
@@ -2401,7 +2409,11 @@ void dim_polic_prob(void)
 		if (de_devp->clkb_max_rate >= 340000000)
 			pp->std = DIM_POLICY_STD;
 		else
+#ifdef TEST_DISABLE_BYPASS_P
+			pp->std = DIM_POLICY_STD;
+#else
 			pp->std = DIM_POLICY_STD_OLD;
+#endif
 	} else {
 		pp->std = DIM_POLICY_STD_OLD;
 	}
@@ -2431,7 +2443,7 @@ unsigned int dim_polic_is_bypass(struct di_ch_s *pch, struct vframe_s *vf)
 
 	/* cfg */
 	if (pp->cfg_d32) {
-		if (!IS_I_SRC(vf->type)) {
+		if (!VFMT_IS_I(vf->type)) {
 			if (dim_cfg & DI_BIT0) {
 				reason = 0x60;
 			} else if (pp->cfg_b.bypass_all_p) {
@@ -2461,7 +2473,7 @@ unsigned int dim_polic_is_bypass(struct di_ch_s *pch, struct vframe_s *vf)
 	/*count current*/
 	pcu = (vf->height >> DIM_POLICY_SHIFT_H) *
 		(vf->width >> DIM_POLICY_SHIFT_W);
-	if (IS_I_SRC(vf->type))
+	if (VFMT_IS_I(vf->type))
 		pcu >>= 1;
 
 	/*check bypass*/
@@ -2474,7 +2486,7 @@ unsigned int dim_polic_is_bypass(struct di_ch_s *pch, struct vframe_s *vf)
 	}
 
 	if (pp->cfg_b.i_first	&&
-	    IS_I_SRC(vf->type)	&&
+	    VFMT_IS_I(vf->type)	&&
 	    reason) {
 		pp->order_i |= (1 << ch);
 		dbg_pl("ch[%d],bapass order[1]\n", ch);
@@ -2506,6 +2518,8 @@ void dip_init_value_reg(unsigned int ch)
 
 	/* bypass state */
 	dim_bypass_st_clear(pch);
+	/* dw */
+	dw_int();
 }
 
 static bool dip_init_value(void)
@@ -2546,12 +2560,46 @@ static bool dip_init_value(void)
  *****************************************/
 void dip_init_pq_ops(void)
 {
+	unsigned  int ic_id;
+	struct di_dev_s *di_devp = get_dim_de_devp();
+
+	ic_id = get_datal()->mdata->ic_id;
 	di_attach_ops_pulldown(&get_datal()->ops_pd);
 	di_attach_ops_3d(&get_datal()->ops_3d);
 	di_attach_ops_nr(&get_datal()->ops_nr);
 	di_attach_ops_mtn(&get_datal()->ops_mtn);
+	dil_attch_ext_api(&get_datal()->ops_ext);
 
 	dim_attach_to_local();
+
+	/*pd_device_files_add*/
+	get_ops_pd()->prob(di_devp->dev);
+
+	get_ops_nr()->nr_drv_init(di_devp->dev);
+
+	di_attach_ops_afd_v3(&get_datal()->afds);
+	if (dim_afds()) {
+		get_datal()->di_afd.top_cfg_pre =
+			&get_datal()->hw_pre.pre_top_cfg;
+		get_datal()->di_afd.top_cfg_pst =
+			&get_datal()->hw_pst.pst_top_cfg;
+		dim_afds()->prob(ic_id,
+				 &get_datal()->di_afd);
+	} else {
+		PR_ERR("%s:no afds\n", __func__);
+	}
+
+	/* hw l1 ops*/
+	if (IS_IC_EF(ic_id, SC2)) {
+		get_datal()->hop_l1 = &dim_ops_l1_v3;
+		di_attach_ops_v3(&get_datal()->hop_l2);
+	#ifdef MARK_SC2
+		if (get_datal()->hop_l2)
+			PR_INF("%s\n", opl2()->info.name);
+		else
+			PR_INF("%s\n", "op12 failed");
+	#endif
+	}
 }
 
 /**********************************/
@@ -2585,7 +2633,7 @@ bool dip_prob(void)
 	dpre_init();
 	dpost_init();
 
-	dip_init_pq_ops();
+	//dip_init_pq_ops();
 	/*dim_polic_prob();*/
 
 	return ret;

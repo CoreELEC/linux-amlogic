@@ -23,97 +23,9 @@
 #include <linux/err.h>
 #include <linux/delay.h>
 #include <linux/amlogic/iomap.h>
+#include <linux/amlogic/media/vout/vclk_serve.h>
 #include "vout_func.h"
 #include "vout_reg.h"
-
-/* ********************************
- * mem map
- * *********************************
- */
-struct vout_reg_map_s {
-	unsigned int base_addr;
-	unsigned int size;
-	void __iomem *p;
-	char flag;
-};
-
-static struct vout_reg_map_s *vout_reg_map;
-static int vout_ioremap_flag;
-
-int vout_ioremap(struct platform_device *pdev)
-{
-	struct resource *res;
-
-	vout_ioremap_flag = 1;
-
-	vout_reg_map = kzalloc(sizeof(*vout_reg_map), GFP_KERNEL);
-	if (!vout_reg_map) {
-		VOUTERR("%s: vout_reg_map buf malloc error\n", __func__);
-		return -1;
-	}
-
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		VOUTERR("%s: resource get error\n", __func__);
-		kfree(vout_reg_map);
-		vout_reg_map = NULL;
-		return -1;
-	}
-	vout_reg_map->base_addr = res->start;
-	vout_reg_map->size = resource_size(res);
-	vout_reg_map->p = devm_ioremap_nocache(&pdev->dev, res->start,
-					       vout_reg_map->size);
-	if (!vout_reg_map->p) {
-		vout_reg_map->flag = 0;
-		VOUTERR("%s: reg map failed: 0x%x\n",
-			__func__,
-			vout_reg_map->base_addr);
-		kfree(vout_reg_map);
-		vout_reg_map = NULL;
-		return -1;
-	}
-	vout_reg_map->flag = 1;
-
-	VOUTPR("%s: reg mapped: 0x%x -> %p\n",
-	       __func__,
-	       vout_reg_map->base_addr,
-	       vout_reg_map->p);
-
-#ifndef CONFIG_AMLOGIC_VPU
-	VOUTERR("%s: detect no CONFIG_AMLOGIC_VPU, vcbus can't access\n",
-		__func__);
-#endif
-
-	return 0;
-}
-
-static int check_vout_ioremap(void)
-{
-	if (!vout_reg_map)
-		return -1;
-	if (vout_reg_map->flag == 0) {
-		VOUTERR("reg 0x%x mapped error\n", vout_reg_map->base_addr);
-		return -1;
-	}
-	return 0;
-}
-
-static inline void __iomem *check_vout_hiu_reg(unsigned int _reg)
-{
-	void __iomem *p;
-	unsigned int reg_offset;
-
-	if (check_vout_ioremap())
-		return NULL;
-
-	reg_offset = VOUT_REG_OFFSET(_reg);
-	if (reg_offset >= vout_reg_map->size) {
-		VOUTERR("invalid vcbus reg offset: 0x%04x\n", _reg);
-		return NULL;
-	}
-	p = vout_reg_map->p + reg_offset;
-	return p;
-}
 
 /* ********************************
  * register access api
@@ -121,33 +33,12 @@ static inline void __iomem *check_vout_hiu_reg(unsigned int _reg)
  */
 unsigned int vout_hiu_read(unsigned int _reg)
 {
-	void __iomem *p;
-	unsigned int ret = 0;
-
-	if (vout_ioremap_flag) {
-		p = check_vout_hiu_reg(_reg);
-		if (p)
-			ret = readl(p);
-		else
-			ret = 0;
-	} else {
-		ret = aml_read_hiubus(_reg);
-	}
-
-	return ret;
+	return vclk_clk_reg_read(_reg);
 };
 
 void vout_hiu_write(unsigned int _reg, unsigned int _value)
 {
-	void __iomem *p;
-
-	if (vout_ioremap_flag) {
-		p = check_vout_hiu_reg(_reg);
-		if (p)
-			writel(_value, p);
-	} else {
-		aml_write_hiubus(_reg, _value);
-	}
+	vclk_clk_reg_write(_reg, _value);
 };
 
 void vout_hiu_setb(unsigned int _reg, unsigned int _value,
@@ -168,28 +59,22 @@ unsigned int vout_vcbus_read(unsigned int _reg)
 {
 	unsigned int ret = 0;
 
-	if (vout_ioremap_flag) {
 #ifdef CONFIG_AMLOGIC_VPU
-		ret = vpu_vcbus_read(_reg);
+	ret = vpu_vcbus_read(_reg);
 #else
-		ret = 0;
+	ret = aml_read_vcbus(_reg);
 #endif
-	} else {
-		ret = aml_read_vcbus(_reg);
-	}
 
 	return ret;
 };
 
 void vout_vcbus_write(unsigned int _reg, unsigned int _value)
 {
-	if (vout_ioremap_flag) {
 #ifdef CONFIG_AMLOGIC_VPU
-		vpu_vcbus_write(_reg, _value);
+	vpu_vcbus_write(_reg, _value);
+#else
+	aml_write_vcbus(_reg, _value);
 #endif
-	} else {
-		aml_write_vcbus(_reg, _value);
-	}
 };
 
 void vout_vcbus_setb(unsigned int _reg, unsigned int _value,

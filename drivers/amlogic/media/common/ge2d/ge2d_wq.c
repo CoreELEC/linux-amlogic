@@ -53,6 +53,9 @@
 #define OSD4_CANVAS_INDEX 0x42
 #define ALLOC_CANVAS_INDEX 0x44
 
+#define GE2D_NO_POWER_OFF_OP 0x8
+#define GE2D_NO_POWER_ON_OP  0x4
+
 static struct ge2d_manager_s ge2d_manager;
 static int ge2d_irq = -ENXIO;
 static struct clk *ge2d_clk;
@@ -180,11 +183,6 @@ static void ge2d_pwr_config(bool enable)
 	}
 
 	ge2d_clk_config(enable);
-
-	if (enable) {
-		ge2d_soft_rst();
-		ge2d_pre_init();
-	}
 }
 
 static int get_queue_member_count(struct list_head *head)
@@ -306,6 +304,27 @@ static void ge2d_set_canvas(struct ge2d_config_s *cfg)
 
 	index = ALLOC_CANVAS_INDEX;
 	for (i = 0; i < MAX_PLANE; i++) {
+		/* fix RTL issue in SC2,
+		 * if first plane canvas index >= 0x80,
+		 * use ge2d reserved canvas to replace.
+		 */
+		if (i == 0 && (cfg->src1_data.canaddr & 0xff) >= 0x80 &&
+		    ge2d_meson_dev.chip_type == MESON_CPU_MAJOR_ID_SC2 &&
+		    (!cfg->src_canvas_cfg[i].canvas_used)) {
+			struct canvas_s canvas;
+
+			canvas_read(cfg->src1_data.canaddr & 0xff, &canvas);
+			cfg->src1_data.canaddr &= ~0xff;
+			cfg->src1_data.canaddr |= index;
+
+			canvas_config(index++,
+				      canvas.addr,
+				      canvas.width,
+				      canvas.height,
+				      canvas.wrap,
+				      canvas.blkmode);
+		}
+
 		if (cfg->src_canvas_cfg[i].canvas_used) {
 			index_src |= index << (8 * i);
 #ifdef CONFIG_AMLOGIC_MEDIA_CANVAS
@@ -447,6 +466,16 @@ static void ge2d_update_matrix(struct ge2d_queue_item_s *pitem)
 		dp_gen_cfg->use_matrix_default_src2 = 0;
 		dp_gen_cfg->conv_matrix_en_src2 = 0;
 
+		/* if customized matrix is used
+		 * skip internal matrix params, use externel directly
+		 */
+		if ((format_src & GE2D_MATRIX_CUSTOM) ||
+		    (format_dst & GE2D_MATRIX_CUSTOM)) {
+			dp_gen_cfg->use_matrix_default = MATRIX_CUSTOM;
+			dp_gen_cfg->conv_matrix_en = 1;
+			return;
+		}
+
 		if ((format_src & GE2D_FORMAT_YUV) &&
 		    ((format_dst & GE2D_FORMAT_YUV) == 0)) {
 			/* src1: yuv2rgb */
@@ -513,7 +542,19 @@ static int ge2d_process_work_queue(struct ge2d_context_s *wq)
 	}
 
 	do {
+		if (!(ge2d_dump_reg_enable & GE2D_NO_POWER_ON_OP))
+			ge2d_pwr_config(true);
+
+		ge2d_soft_rst();
+		ge2d_pre_init();
+
 		cfg = &pitem->config;
+		ge2d_log_dbg("secure mode:%d\n", cfg->mem_sec);
+		if (ge2d_meson_dev.chip_type >= MESON_CPU_MAJOR_ID_SC2) {
+			ge2d_reg_set_bits(GE2D_CMD_CTRL,
+					  cfg->mem_sec ? 1 : 0, 28, 1);
+			/* invoke dmc interface heare, if it is required */
+		}
 		ge2d_set_canvas(cfg);
 		mask = 0x1;
 		while (cfg->update_flag && mask <= UPDATE_SCALE_COEF) {
@@ -529,11 +570,12 @@ static int ge2d_process_work_queue(struct ge2d_context_s *wq)
 				ge2d_set_src2_dst_data(&cfg->src2_dst_data);
 				break;
 			case UPDATE_DST_GEN:
-				ge2d_set_src2_dst_gen(&cfg->src2_dst_gen);
+				ge2d_set_src2_dst_gen(&cfg->src2_dst_gen,
+						      &pitem->cmd);
 				break;
 			case UPDATE_DP_GEN:
 				ge2d_update_matrix(pitem);
-				ge2d_set_dp_gen(&cfg->dp_gen);
+				ge2d_set_dp_gen(cfg);
 				break;
 			case UPDATE_SCALE_COEF:
 				ge2d_set_src1_scale_coef(cfg->v_scale_coef_type,
@@ -549,6 +591,7 @@ static int ge2d_process_work_queue(struct ge2d_context_s *wq)
 		ge2d_set_cmd(&pitem->cmd);/* set START_FLAG in this func. */
 		/* remove item */
 		block_mode = pitem->cmd.wait_done_flag;
+		ge2d_log_dbg("block_mode:%d\n", block_mode);
 		/* spin_lock(&wq->lock); */
 		/* pos=pos->next; */
 		/* list_move_tail(&pitem->list,&wq->free_queue); */
@@ -597,7 +640,11 @@ static int ge2d_process_work_queue(struct ge2d_context_s *wq)
 			}
 		}
 		pitem = (struct ge2d_queue_item_s *)pos;
+
+		if (!(ge2d_dump_reg_enable & GE2D_NO_POWER_OFF_OP))
+			ge2d_pwr_config(false);
 	} while (pos != head);
+
 	ge2d_manager.last_wq = wq;
 exit:
 	mutex_lock(&ge2d_manager.event.destroy_lock);
@@ -786,12 +833,10 @@ static int ge2d_monitor_thread(void *data)
 	while (ge2d_manager.process_queue_state != GE2D_PROCESS_QUEUE_STOP) {
 		ret =
 		wait_for_completion_interruptible(&manager->event.cmd_in_com);
-		ge2d_pwr_config(true);
+
 		while ((manager->current_wq =
 				get_next_work_queue(manager)) != NULL)
 			ge2d_process_work_queue(manager->current_wq);
-		if (!ge2d_dump_reg_enable)
-			ge2d_pwr_config(false);
 	}
 	ge2d_log_info("exit ge2d_monitor_thread\n");
 	return 0;
@@ -1774,6 +1819,7 @@ int ge2d_context_config_ex(struct ge2d_context_s *context,
 	/* context->config.src1_data.ddr_burst_size_cb = 3; */
 	/* context->config.src1_data.ddr_burst_size_cr = 3; */
 	/* context->config.src2_dst_data.ddr_burst_size= 3; */
+	context->config.mem_sec = ge2d_config->mem_sec;
 
 	return  0;
 }
@@ -2620,6 +2666,8 @@ int ge2d_context_config_ex_mem(struct ge2d_context_s *context,
 	/* context->config.src1_data.ddr_burst_size_cb = 3; */
 	/* context->config.src1_data.ddr_burst_size_cr = 3; */
 	/* context->config.src2_dst_data.ddr_burst_size= 3; */
+	memcpy(&context->config.matrix_custom, &ge2d_config_mem->matrix_custom,
+	       sizeof(struct ge2d_matrix_s));
 
 	return  0;
 }

@@ -1,42 +1,30 @@
+/* SPDX-License-Identifier: (GPL-2.0+ OR MIT) */
 /*
- * drivers/amlogic/cec/ao_cec_reg.h
- *
- * Copyright (C) 2017 Amlogic, Inc. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
+ * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
  */
 
 #ifndef __AO_CEC_REG_H__
 #define __AO_CEC_REG_H__
 
 /* aocec interface register */
-#define AO_GPIO_I			((0x0A << 2))
+/*#define AO_GPIO_I			((0x0A << 2))*/
 
-#define AO_CEC_GEN_CNTL			((0x40 << 2))
-#define AO_CEC_RW_REG			((0x41 << 2))
-#define AO_CEC_INTR_MASKN		((0x42 << 2))
-#define AO_CEC_INTR_CLR			((0x43 << 2))
-#define AO_CEC_INTR_STAT		((0x44 << 2))
+/*#define AO_CEC_GEN_CNTL			((0x40 << 2))*/
+/*#define AO_CEC_RW_REG			((0x41 << 2))*/
+/*#define AO_CEC_INTR_MASKN		((0x42 << 2))*/
+/*#define AO_CEC_INTR_CLR			((0x43 << 2))*/
+/*#define AO_CEC_INTR_STAT		((0x44 << 2))*/
 
-#define AO_RTI_PWR_CNTL_REG0		((0x04 << 2))
-#define AO_CRT_CLK_CNTL1		((0x1a << 2))
-#define AO_RTC_ALT_CLK_CNTL0		((0x25 << 2))
-#define AO_RTC_ALT_CLK_CNTL1		((0x26 << 2))
+/*#define AO_RTI_PWR_CNTL_REG0		((0x04 << 2))*/
+/*#define AO_CRT_CLK_CNTL1		((0x1a << 2))*/
+/*#define AO_RTC_ALT_CLK_CNTL0		((0x25 << 2))*/
+/*#define AO_RTC_ALT_CLK_CNTL1		((0x26 << 2))*/
 
-#define AO_RTI_STATUS_REG1		((0x01 << 2))
-#define AO_DEBUG_REG0			((0x28 << 2))
-#define AO_DEBUG_REG1			((0x29 << 2))
-#define AO_DEBUG_REG2			((0x2a << 2))
-#define AO_DEBUG_REG3			((0x2b << 2))
+/*#define AO_RTI_STATUS_REG1		((0x01 << 2))*/
+/*#define AO_DEBUG_REG0			((0x28 << 2))*/
+/*#define AO_DEBUG_REG1			((0x29 << 2))*/
+/*#define AO_DEBUG_REG2			((0x2a << 2))*/
+/*#define AO_DEBUG_REG3			((0x2b << 2))*/
 
 /* ao cec internal register */
 #define CEC_TX_MSG_0_HEADER		0x00

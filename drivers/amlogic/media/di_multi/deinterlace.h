@@ -23,16 +23,19 @@
 #include <linux/amlogic/media/vfm/vframe.h>
 #include <linux/amlogic/media/vfm/vframe_provider.h>
 
-#include "../di_local/di_local.h"
+//#include "../di_local/di_local.h"
+#include "di_local.h"
 #include <linux/clk.h>
 #include <linux/atomic.h>
 #include "deinterlace_hw.h"
 #include "../deinterlace/di_pqa.h"
+//#include "di_pqa.h"
+
 
 /************************************************
  * config define
  ***********************************************/
-/*#define DIM_OUT_NV21	(1)*/
+#define DIM_OUT_NV21	(1)
 
 /*trigger_pre_di_process param*/
 #define TRIGGER_PRE_BY_PUT			'p'
@@ -90,6 +93,51 @@
 #define IS_I_SRC(vftype) ((vftype) & VIDTYPE_INTERLACE_BOTTOM)
 
 #define IS_COMP_MODE(vftype) ((vftype) & VIDTYPE_COMPRESS)
+#define IS_PROG(vftype) ((vftype & VIDTYPE_TYPEMASK) == VIDTYPE_PROGRESSIVE)
+
+#define IS_420P_SRC(vftype) (((vftype) & VIDTYPE_INTERLACE_BOTTOM) == 0	&& \
+			     ((vftype) & VIDTYPE_VIU_422) == 0		&& \
+			     ((vftype) & VIDTYPE_VIU_444) == 0)
+
+#define IS_VDIN_SRC(src) (				\
+	((src) == VFRAME_SOURCE_TYPE_TUNER)	||	\
+	((src) == VFRAME_SOURCE_TYPE_CVBS)	||	\
+	((src) == VFRAME_SOURCE_TYPE_COMP)	||	\
+	((src) == VFRAME_SOURCE_TYPE_HDMI))
+
+#define VFMT_IS_I(vftype) ((vftype) & VIDTYPE_INTERLACE_BOTTOM)
+#define VFMT_IS_P(vftype) (((vftype) & VIDTYPE_INTERLACE_BOTTOM) == 0)
+
+#define VFMT_IS_I_FIELD(vftype) ((vftype) & VIDTYPE_INTERLACE_BOTTOM	&& \
+			      (vftype) & VIDTYPE_VIU_FIELD)
+
+#define VFMT_SET_TOP(vftype)	(((vftype) & (~VIDTYPE_TYPEMASK)) | \
+				 VIDTYPE_INTERLACE_TOP)
+
+#define VFMT_SET_BOTTOM(vftype)	(((vftype) & (~VIDTYPE_TYPEMASK)) | \
+				 VIDTYPE_INTERLACE_BOTTOM)
+
+#define VFMT_IS_TOP(vfm)	(((vfm) & VIDTYPE_TYPEMASK) ==	\
+				VIDTYPE_INTERLACE_TOP)
+
+#define IS_NV21_12(vftype) ((vftype) & (VIDTYPE_VIU_NV12 | VIDTYPE_VIU_NV21))
+
+#define VFMT_MASK_ALL		(VIDTYPE_TYPEMASK	|	\
+				 VIDTYPE_VIU_NV12	|	\
+				 VIDTYPE_VIU_422	|	\
+				 VIDTYPE_VIU_444	|	\
+				 VIDTYPE_VIU_NV21	|	\
+				 VIDTYPE_MVC		|	\
+				 VIDTYPE_VIU_SINGLE_PLANE |	\
+				 VIDTYPE_PIC		|	\
+				 VIDTYPE_RGB_444	|	\
+				 VIDTYPE_COMPRESS)
+
+#define VFMT_COLOR_MSK		(VIDTYPE_VIU_NV12	|	\
+				 VIDTYPE_VIU_444	|	\
+				 VIDTYPE_VIU_NV21	|	\
+				 VIDTYPE_VIU_422	|	\
+				 VIDTYPE_RGB_444)
 
 enum process_fun_index_e {
 	PROCESS_FUN_NULL = 0,
@@ -105,6 +153,13 @@ enum canvas_idx_e {
 	NR_CANVAS,
 	MTN_CANVAS,
 	MV_CANVAS,
+};
+
+struct di_win_s {
+	unsigned int x_size;
+	unsigned int y_size;
+	unsigned int x_st;
+	unsigned int y_st;
 };
 
 #define pulldown_mode_t enum pulldown_mode_e
@@ -139,6 +194,9 @@ struct di_buf_s {
 	int mcinfo_canvas_idx;
 	unsigned long mcvec_adr;
 	int mcvec_canvas_idx;
+	unsigned long afbc_adr;
+	unsigned long afbct_adr;
+	unsigned long dw_adr;
 	struct mcinfo_pre_s {
 		unsigned int highvertfrqflg;
 		unsigned int motionparadoxflg;
@@ -181,6 +239,12 @@ struct di_buf_s {
 	unsigned int channel;
 	unsigned int width_bk; /*move from ppre*/
 	unsigned int flg_tvp;
+	unsigned int afbc_info; /*bit 0: src is i; bit 1: src is real i */
+	unsigned char afbc_sgn_cfg;
+	struct di_win_s win; /*post write*/
+
+	unsigned char buf_is_i:1; /* 1: i; 0: p */
+	unsigned char rev:7;
 };
 
 #define RDMA_DET3D_IRQ			0x20
@@ -304,9 +368,9 @@ struct di_dev_s {
 
 struct di_pre_stru_s {
 /* pre input */
-	struct DI_MIF_s	di_inp_mif;
-	struct DI_MIF_s	di_mem_mif;
-	struct DI_MIF_s	di_chan2_mif;
+	struct DI_MIF_S	di_inp_mif;
+	struct DI_MIF_S	di_mem_mif;
+	struct DI_MIF_S	di_chan2_mif;
 	struct di_buf_s *di_inp_buf;
 	struct di_buf_s *di_post_inp_buf;
 	struct di_buf_s *di_inp_buf_next;
@@ -409,12 +473,17 @@ struct di_pre_stru_s {
 	struct combing_status_s *mtn_status;
 	bool combing_fix_en;
 	unsigned int comb_mode;
+	union hw_sc2_ctr_pre_s	pre_top_cfg;
+	union afbc_blk_s	en_cfg;
+	union afbc_blk_s	en_set;
 };
 
+struct dim_fmt_s;
+
 struct di_post_stru_s {
-	struct DI_MIF_s	di_buf0_mif;
-	struct DI_MIF_s	di_buf1_mif;
-	struct DI_MIF_s	di_buf2_mif;
+	struct DI_MIF_S	di_buf0_mif;
+	struct DI_MIF_S	di_buf1_mif;
+	struct DI_MIF_S	di_buf2_mif;
 	struct DI_SIM_MIF_s di_diwr_mif;
 	struct DI_SIM_MIF_s	di_mtnprd_mif;
 	struct DI_MC_MIF_s	di_mcvecrd_mif;
@@ -442,8 +511,14 @@ struct di_post_stru_s {
 	unsigned int  post_wr_cnt;
 	unsigned long irq_time;
 
+	struct pst_cfg_afbc_s afbc_cfg;/* ary add for afbc dec*/
 	/*frame cnt*/
 	unsigned int frame_cnt;	/*cnt for post process*/
+//	unsigned int last_pst_size;
+	union hw_sc2_ctr_pst_s	pst_top_cfg;
+	union afbc_blk_s	en_cfg;
+	union afbc_blk_s	en_set;
+	struct di_win_s win_dis;
 };
 
 #define MAX_QUEUE_POOL_SIZE   256
@@ -540,7 +615,7 @@ void dim_post_de_done_buf_config(unsigned int channel);
 void dim_recycle_post_back(unsigned int channel);
 void recycle_post_ready_local(struct di_buf_s *di_buf,
 			      unsigned int channel);
-
+void dim_post_keep_cmd_release2_local(struct vframe_s *vframe);
 /*--------------------------*/
 unsigned char dim_vcry_get_flg(void);
 void dim_vcry_flg_inc(void);
@@ -596,9 +671,11 @@ void dim_dbg_release_keep_all(unsigned int ch);
 void dim_post_keep_back_recycle(unsigned int ch);
 void dim_post_re_alloc(unsigned int ch);
 void dim_post_release(unsigned int ch);
+unsigned int dim_cfg_nv21(void);
+void dim_get_default(unsigned int *h, unsigned int *w);
 
 /*---------------------*/
-
+const struct afd_ops_s *dim_afds(void);
 ssize_t
 store_config(struct device *dev,
 	     struct device_attribute *attr,
@@ -629,6 +706,8 @@ store_kpi_frame_num(struct device *dev, struct device_attribute *attr,
 ssize_t dim_read_log(char *buf);
 
 /*---------------------*/
+void test_display(void);
+/*---------------------*/
 
 struct di_buf_s *dim_get_buf(unsigned int channel,
 			     int queue_idx, int *start_pos);
@@ -647,5 +726,13 @@ struct di_buf_s *dim_get_buf(unsigned int channel,
 
 /*this is debug for buf*/
 /*#define DI_DEBUG_POST_BUF_FLOW	(1)*/
+#define OPS_LV1		(1)
+#define TEST_DISABLE_BYPASS_P	(1)
 
+void sc2_dbg_set(unsigned int val);
+bool sc2_dbg_is_en_pre_irq(void);
+bool sc2_dbg_is_en_pst_irq(void);
+void sc2_dbg_pre_info(unsigned int val);
+void sc2_dbg_pst_info(unsigned int val);
+void hpre_timout_read(void);
 #endif

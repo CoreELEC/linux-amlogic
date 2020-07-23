@@ -103,7 +103,7 @@ static const struct meson_reset_param meson8b_param = {
 };
 
 static const struct meson_reset_param meson_sc2_param = {
-	.reg_count	= 5,
+	.reg_count	= 6,
 	.level_offset	= 0x40,
 };
 
@@ -152,4 +152,8 @@ static struct platform_driver meson_reset_driver = {
 	},
 };
 
-builtin_platform_driver(meson_reset_driver);
+static int __init meson_reset_driver_init(void)
+{
+	return platform_driver_register(&meson_reset_driver);
+}
+core_initcall(meson_reset_driver_init);

@@ -1052,6 +1052,58 @@ static int dvb_demux_do_ioctl(struct file *file,
 					     &((struct dmx_stc *)parg)->base);
 		break;
 
+#ifdef CONFIG_AMLOGIC_DVB_COMPAT
+	case DMX_SET_INPUT:
+		if (!dmxdev->demux->set_input) {
+			ret = -EINVAL;
+			break;
+		}
+		ret = dmxdev->demux->set_input(dmxdev->demux, arg);
+		break;
+	case DMX_GET_MEM_INFO:
+		if (mutex_lock_interruptible(&dmxdevfilter->mutex)) {
+			mutex_unlock(&dmxdev->mutex);
+			return -ERESTARTSYS;
+		}
+		{
+			struct dmx_mem_info *info = parg;
+
+			info->dvb_core_total_size = dmxdevfilter->buffer.size;
+			info->dvb_core_free_size =
+			    dvb_ringbuffer_free(&dmxdevfilter->buffer);
+
+			if (dmxdevfilter->type == DMXDEV_TYPE_SEC) {
+				if (dmxdev->demux->get_sec_mem_info) {
+					struct dmx_section_feed *sec_feed =
+					    dmxdevfilter->feed.sec;
+
+					ret =
+					    dmxdev->demux->
+					    get_sec_mem_info(dmxdev->demux,
+							     sec_feed, info);
+				}
+			} else if (dmxdevfilter->type == DMXDEV_TYPE_PES) {
+				if (dmxdev->demux->get_ts_mem_info) {
+					struct dmxdev_feed *feed;
+
+					list_for_each_entry(feed,
+							    &dmxdevfilter->feed.
+							    ts, next) {
+						ret =
+						    dmxdev->demux->
+						    get_ts_mem_info(dmxdev->
+								    demux,
+								    feed->ts,
+								    info);
+						break;
+					}
+				}
+			}
+		}
+		mutex_unlock(&dmxdevfilter->mutex);
+		break;
+#endif
+
 	case DMX_ADD_PID:
 		if (mutex_lock_interruptible(&dmxdevfilter->mutex)) {
 			ret = -ERESTARTSYS;
@@ -1179,6 +1231,15 @@ static int dvb_dvr_do_ioctl(struct file *file,
 	case DMX_SET_BUFFER_SIZE:
 		ret = dvb_dvr_set_buffer_size(dmxdev, arg);
 		break;
+#ifdef CONFIG_AMLOGIC_DVB_COMPAT
+	case DMX_SET_INPUT:
+		if (!dmxdev->demux->set_input) {
+			ret = -EINVAL;
+			break;
+		}
+		ret = dmxdev->demux->set_input(dmxdev->demux, arg);
+		break;
+#endif
 
 	default:
 		ret = -EINVAL;

@@ -1051,13 +1051,18 @@ static irqreturn_t armv7pmu_handle_irq(int irq_num, void *dev)
 	pmnc = armv7_pmnc_getreset_flags();
 
 #ifdef CONFIG_AMLOGIC_MODIFY
-	/* amlpmu have routed the interrupt successfully, return IRQ_HANDLED */
-	amlpmu_handle_irq(cpu_pmu,
-			irq_num,
-			armv7_pmnc_has_overflowed(pmnc));
+	if (amlpmu_ctx.private_interrupts) {
+		if (!armv7_pmnc_has_overflowed(pmnc))
+			return IRQ_NONE;
+	} else {
+		amlpmu_handle_irq(cpu_pmu,
+				  irq_num,
+				  armv7_pmnc_has_overflowed(pmnc));
 
-	if (!armv7_pmnc_has_overflowed(pmnc))
-		return IRQ_HANDLED;
+		/* amlpmu may routed the interrupt, so return IRQ_HANDLED */
+		if (!armv7_pmnc_has_overflowed(pmnc))
+			return IRQ_HANDLED;
+	}
 #else
 	/*
 	 * Did an overflow occur?

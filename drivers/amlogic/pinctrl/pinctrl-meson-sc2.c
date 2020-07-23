@@ -294,7 +294,7 @@ static const unsigned int uart_d_cts_pins[]		= { GPIOX_8 };
 static const unsigned int uart_d_rts_pins[]		= { GPIOX_9 };
 static const unsigned int uart_d_tx_x10_pins[]		= { GPIOX_10 };
 static const unsigned int uart_d_rx_x11_pins[]		= { GPIOX_11};
-static const unsigned int tdm_d15_x_pins[]		= { GPIOX_19};
+static const unsigned int tdm_d15_pins[]		= { GPIOX_19};
 
 /*bank X func3*/
 static const unsigned int tsin_a_din0_x_pins[]		= { GPIOX_0 };
@@ -752,7 +752,7 @@ static struct meson_pmx_group meson_sc2_periphs_groups[] = {
 	GROUP(uart_d_cts,		2),
 	GROUP(uart_d_tx_x10,		2),
 	GROUP(uart_d_rx_x11,		2),
-	GROUP(tdm_d15_x,		2),
+	GROUP(tdm_d15,			2),
 
 	/* bank X func3 */
 	GROUP(tsin_a_din0_x,		3),
@@ -988,12 +988,12 @@ static const char * const uart_c_groups[] = {
 };
 
 static const char * const uart_d_groups[] = {
-	"uart_d_rts", "uart_d_cts", "uart_d_tx_x6", "uart_d_tx_x10",
-	"uart_d_tx_x10", "uart_d_tx_x11",
+	"uart_d_rts", "uart_d_cts", "uart_d_tx_x6", "uart_d_rx_x7",
+	"uart_d_tx_x10", "uart_d_rx_x11",
 };
 
 static const char * const uart_e_groups[] = {
-	"uart_e_tx", "uart_e_rx", "uart_e_ctx", "uart_e_rtx",
+	"uart_e_tx", "uart_e_rx", "uart_e_cts", "uart_e_rts",
 };
 
 static const char * const i2c_a_groups[] = {
@@ -1188,19 +1188,19 @@ static const char * const tdm_groups[] = {
 };
 
 static const char * const tsin_a_groups[] = {
-	"tsin_a_sop_d", "tsin_a_clk_d", "tsin_a_clk_x", "tsin_sop_x",
-	"tsin_din0_d", "tsin_a_din0_x", "tsin_a_valid_d", "tsin_a_valid_x",
+	"tsin_a_sop_d", "tsin_a_clk_d", "tsin_a_clk_x", "tsin_a_sop_x",
+	"tsin_a_din0_d", "tsin_a_din0_x", "tsin_a_valid_d", "tsin_a_valid_x",
 };
 
 static const char * const tsin_b_groups[] = {
-	"tsin_b_sop", "tsin_b_clk", "tsin_b_din0", "tsin_fail",
+	"tsin_b_sop", "tsin_b_clk", "tsin_b_din0", "tsin_b_fail",
 	"tsin_b_din1", "tsin_b_din2", "tsin_b_din3", "tsin_b_din4",
 	"tsin_b_din5", "tsin_b_din6", "tsin_b_din7", "tsin_b_valid",
 };
 
 static const char * const tsin_c_groups[] = {
 	"tsin_c_sop_c", "tsin_c_clk_c", "tsin_c_sop_z", "tsin_c_clk_z",
-	"tsin_c_din0_c", "tsin_din0_z", "tsin_c_valid_c", "tsin_c_valid_z",
+	"tsin_c_din0_c", "tsin_c_din0_z", "tsin_c_valid_c", "tsin_c_valid_z",
 };
 
 static const char * const tsin_d_groups[] = {
@@ -1313,7 +1313,7 @@ static struct meson_bank meson_sc2_periphs_banks[] = {
 	BANK("B", GPIOB_0,    GPIOB_15,  2,
 	     0x63,  0,  0x64,  0,  0x62, 0,  0x61, 0,  0x60, 0),
 	BANK("A", GPIOA_14,    GPIOA_15, 0,
-	     0x73,  0,  0x74,  0,  0x72, 0,  0x71, 0,  0x70, 0),
+	     0x73,  14,  0x74,  14,  0x72, 14,  0x71, 14,  0x70, 14),
 	BANK("TEST_N", GPIO_TEST_N,    GPIO_TEST_N,   86,
 	     0x83,  0,  0x84,  0,  0x82, 0,  0x81,  0, 0x80, 0),
 };
@@ -1327,7 +1327,7 @@ static struct meson_pmx_bank meson_sc2_periphs_pmx_banks[] = {
 	BANK_PMX("E",      GPIOE_0,     GPIOE_2,     0x12, 0),
 	BANK_PMX("C",      GPIOC_0,     GPIOC_7,     0x9, 0),
 	BANK_PMX("B",      GPIOB_0,     GPIOB_15,    0x0, 0),
-	BANK_PMX("A",      GPIOA_14,    GPIOA_15,    0xe, 0),
+	BANK_PMX("A",      GPIOA_14,    GPIOA_15,    0xe, 24),
 	BANK_PMX("TEST_N", GPIO_TEST_N, GPIO_TEST_N, 0xf, 0),
 };
 
@@ -1340,7 +1340,7 @@ static struct meson_drive_bank meson_sc2_periphs_drive_banks[] = {
 	BANK_DRIVE("E",     GPIOE_0,     GPIOE_2,     0x47, 0),
 	BANK_DRIVE("C",     GPIOC_0,     GPIOC_7,     0x57, 0),
 	BANK_DRIVE("B",     GPIOB_0,     GPIOB_15,    0x67, 0),
-	BANK_DRIVE("A",     GPIOA_14,    GPIOA_15,    0x77, 0),
+	BANK_DRIVE("A",     GPIOA_14,    GPIOA_15,    0x77, 28),
 	BANK_DRIVE("TESTN", GPIO_TEST_N, GPIO_TEST_N, 0x87, 0),
 };
 

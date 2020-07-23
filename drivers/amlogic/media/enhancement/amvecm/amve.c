@@ -188,10 +188,14 @@ void ve_dnlp_load_reg(void)
 {
 	int i;
 	int offset = 0;
+	int dnlp_reg = 0;
+	struct vinfo_s *vinfo = get_current_vinfo();
 
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2)) {
 		if (is_meson_rev_a() && is_meson_tm2_cpu())
 			offset = 0;
+		else if (get_cpu_type() == MESON_CPU_MAJOR_ID_SC2)
+			offset = 0x1200;
 		else
 			offset = 0x1300;
 	}
@@ -201,9 +205,14 @@ void ve_dnlp_load_reg(void)
 				WRITE_VPP_REG(SRSHARP1_DNLP_00 + i,
 					ve_dnlp_reg[i]);
 		} else if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
+			if (vinfo->viu_color_fmt != COLOR_FMT_RGB444)
+				dnlp_reg = SHARP0_DNLP_00 + offset;
+			else
+				dnlp_reg = SHARP1_DNLP_00 + offset;
+
 			for (i = 0; i < 32; i++)
 				WRITE_VPP_REG(
-					SHARP1_DNLP_00 + offset + i,
+					dnlp_reg + i,
 					ve_dnlp_reg_v2[i]);
 		} else {
 			for (i = 0; i < 16; i++)
@@ -222,10 +231,14 @@ static void ve_dnlp_load_def_reg(void)
 {
 	int i;
 	int offset = 0;
+	int dnlp_reg = 0;
+	struct vinfo_s *vinfo = get_current_vinfo();
 
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2)) {
 		if (is_meson_rev_a() && is_meson_tm2_cpu())
 			offset = 0;
+		else if (get_cpu_type() == MESON_CPU_MAJOR_ID_SC2)
+			offset = 0x1200;
 		else
 			offset = 0x1300;
 	}
@@ -235,9 +248,14 @@ static void ve_dnlp_load_def_reg(void)
 				WRITE_VPP_REG(SRSHARP1_DNLP_00 + i,
 					ve_dnlp_reg[i]);
 		} else if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
+			if (vinfo->viu_color_fmt != COLOR_FMT_RGB444)
+				dnlp_reg = SHARP0_DNLP_00 + offset;
+			else
+				dnlp_reg = SHARP1_DNLP_00 + offset;
+
 			for (i = 0; i < 32; i++)
 				WRITE_VPP_REG(
-					SHARP1_DNLP_00 + offset + i,
+					dnlp_reg + i,
 					ve_dnlp_reg_v2[i]);
 		} else {
 			for (i = 0; i < 16; i++)
@@ -689,37 +707,54 @@ void vpp_set_rgb_ogo(struct tcon_rgb_ogo_s *p)
 
 void ve_enable_dnlp(void)
 {
+	struct vinfo_s *vinfo = get_current_vinfo();
+
 	ve_en = 1;
-/* #ifdef NEW_DNLP_IN_SHARPNESS */
-/* if(dnlp_sel == NEW_DNLP_IN_SHARPNESS){ */
 	if (dnlp_sel == NEW_DNLP_IN_SHARPNESS) {
-		if (is_meson_gxlx_cpu() || is_meson_txlx_cpu())
+		if (is_meson_gxlx_cpu() || is_meson_txlx_cpu()) {
 			WRITE_VPP_REG_BITS(SRSHARP1_DNLP_EN, 1, 0, 1);
-		else if (is_meson_tl1_cpu() || is_meson_tm2_cpu())
-			WRITE_VPP_REG_BITS(
-				SRSHARP1_DNLP_EN + sr_offset[1], 1, 0, 1);
-		else
+		} else if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
+			if (vinfo->viu_color_fmt != COLOR_FMT_RGB444)
+				WRITE_VPP_REG_BITS(
+					SRSHARP0_DNLP_EN + sr_offset[0],
+					1, 0, 1);
+			else
+				WRITE_VPP_REG_BITS(
+					SRSHARP1_DNLP_EN + sr_offset[1],
+					1, 0, 1);
+		} else {
 			WRITE_VPP_REG_BITS(SRSHARP0_DNLP_EN, 1, 0, 1);
-	} else
-		/* #endif */
+		}
+	} else {
 		WRITE_VPP_REG_BITS(VPP_VE_ENABLE_CTRL,
 				1, DNLP_EN_BIT, DNLP_EN_WID);
+	}
 }
 
 void ve_disable_dnlp(void)
 {
+	struct vinfo_s *vinfo = get_current_vinfo();
+
 	ve_en = 0;
-	if (dnlp_sel == NEW_DNLP_IN_SHARPNESS)
-		if (is_meson_gxlx_cpu() || is_meson_txlx_cpu())
+	if (dnlp_sel == NEW_DNLP_IN_SHARPNESS) {
+		if (is_meson_gxlx_cpu() || is_meson_txlx_cpu()) {
 			WRITE_VPP_REG_BITS(SRSHARP1_DNLP_EN, 0, 0, 1);
-		else if (is_meson_tl1_cpu() || is_meson_tm2_cpu())
-			WRITE_VPP_REG_BITS(
-				SRSHARP1_DNLP_EN + sr_offset[1], 0, 0, 1);
-		else
+		} else if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
+			if (vinfo->viu_color_fmt != COLOR_FMT_RGB444)
+				WRITE_VPP_REG_BITS(
+					SRSHARP0_DNLP_EN + sr_offset[0],
+					0, 0, 1);
+			else
+				WRITE_VPP_REG_BITS(
+					SRSHARP1_DNLP_EN + sr_offset[1],
+					0, 0, 1);
+		} else {
 			WRITE_VPP_REG_BITS(SRSHARP0_DNLP_EN, 0, 0, 1);
-	else
+		}
+	} else {
 		WRITE_VPP_REG_BITS(VPP_VE_ENABLE_CTRL,
 				0, DNLP_EN_BIT, DNLP_EN_WID);
+	}
 }
 
 void ve_set_dnlp_2(void)
@@ -1219,7 +1254,7 @@ void vpp_vd_adj1_contrast(signed int cont_val, struct vframe_s *vf)
 	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A) {
 		vd1_contrast = (READ_VPP_REG(VPP_VADJ1_Y_2) & 0x7ff00) |
 						(cont_val << 0);
-		VSYNC_WR_MPEG_REG(VPP_VADJ1_Y_2, vd1_contrast);
+		VSYNC_WR_MPEG_REG_BITS(VPP_VADJ1_Y_2, cont_val, 0, 8);
 
 		vpp_contrast_adj_by_uv(contrast_u, contrast_v);
 		return;
@@ -1254,7 +1289,7 @@ void vpp_vd_adj1_brightness(signed int bri_val, struct vframe_s *vf)
 		vd1_brightness = (READ_VPP_REG(VPP_VADJ1_Y_2) & 0xff) |
 			(bri_val << 8);
 
-		VSYNC_WR_MPEG_REG(VPP_VADJ1_Y_2, vd1_brightness);
+		VSYNC_WR_MPEG_REG_BITS(VPP_VADJ1_Y_2, bri_val, 8, 11);
 	} else if (get_cpu_type() > MESON_CPU_MAJOR_ID_GXTVBB) {
 		bri_val = bri_val >> 1;
 		vd1_brightness = (READ_VPP_REG(VPP_VADJ1_Y) & 0xff) |

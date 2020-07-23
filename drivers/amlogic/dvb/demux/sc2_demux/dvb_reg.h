@@ -1,5 +1,5 @@
 /*
- * drivers/amlogic/hifi4dsp/tm2_dsp_top.h
+ * drivers/amlogic/dvb/demux/sc2_demux/dvb_reg.h
  *
  * Copyright (C) 2017 Amlogic, Inc. All rights reserved.
  *
@@ -15,22 +15,18 @@
  *
  */
 
-#ifndef _TM2_DSP_TOP_H
-#define _TM2_DSP_TOP_H
+#ifndef _DVB_REG_H_
+#define _DVB_REG_H_
 
-#include <linux/kernel.h>
-#include <linux/types.h>
-#include <linux/interrupt.h>
-#include <linux/firmware.h>
-#include <linux/irqreturn.h>
+#include <linux/amlogic/iomap.h>
+#include <linux/amlogic/cpu_version.h>
+#include <linux/platform_device.h>
 
-#include "hifi4dsp_priv.h"
-#include "hifi4dsp_firmware.h"
-#include "hifi4dsp_dsp.h"
+void aml_write_self(unsigned int reg, unsigned int val);
+int aml_read_self(unsigned int reg);
+int init_demux_addr(struct platform_device *pdev);
 
-extern void tm2_dsp_bootup(int dsp_id, uint32_t reset_addr, int freq_sel);
-extern void tm2_dsp_regs_iomem_init(void);
-extern void	tm2_dsp_hw_init(int dsp_id, int freq_sel);
-extern void tm2_dsp_top_regs_dump(int dsp_id);
+#define WRITE_CBUS_REG(_r, _v)   aml_write_self((_r), _v)
+#define READ_CBUS_REG(_r)        aml_read_self((_r))
 
-#endif /*_TM2_DSP_TOP_H*/
+#endif

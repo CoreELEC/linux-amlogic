@@ -24,9 +24,9 @@
 #include "hdmi_tx_module.h"
 
 #define CEC0_LOG_ADDR 4 /* MBX logical address */
-#define TV_CEC_INTERVAL     (HZ*3)
+#define TV_CEC_INTERVAL     (HZ * 3)
 
-#define CEC_VERSION     "v1.3"
+#define CEC_VERSION     "v1.4"
 #define _RX_DATA_BUF_SIZE_ 16
 
 #define AO_CEC  /* for switch between aocec and hdmi cec2.0 */
@@ -55,22 +55,22 @@ enum _cec_log_dev_addr_e {
 
 #define CEC_BROADCAST_ADDR CEC_UNREGISTERED_ADDR
 
-#define CEC_TV                   (1 << CEC_TV_ADDR)
-#define CEC_RECORDING_DEVICE_1   (1 << CEC_RECORDING_DEVICE_1_ADDR)
-#define CEC_RECORDING_DEVICE_2   (1 << CEC_RECORDING_DEVICE_2_ADDR)
-#define CEC_TUNER_1              (1 << CEC_TUNER_1_ADDR)
-#define CEC_PLAYBACK_DEVICE_1    (1 << CEC_PLAYBACK_DEVICE_1_ADDR)
-#define CEC_AUDIO_SYSTEM         (1 << CEC_AUDIO_SYSTEM_ADDR)
-#define CEC_TUNER_2              (1 << CEC_TUNER_2_ADDR)
-#define CEC_TUNER_3              (1 << CEC_TUNER_3_ADDR)
-#define CEC_PLAYBACK_DEVICE_2    (1 << CEC_PLAYBACK_DEVICE_2_ADDR)
-#define CEC_RECORDING_DEVICE_3   (1 << CEC_RECORDING_DEVICE_3_ADDR)
-#define CEC_TUNER_4              (1 << CEC_TUNER_4_ADDR)
-#define CEC_PLAYBACK_DEVICE_3    (1 << CEC_PLAYBACK_DEVICE_3_ADDR)
-#define CEC_RESERVED_1           (1 << CEC_RESERVED_1_ADDR)
-#define CEC_RESERVED_2           (1 << CEC_RESERVED_2_ADDR)
-#define CEC_FREE_USE             (1 << CEC_FREE_USE_ADDR)
-#define CEC_UNREGISTERED         (1 << CEC_UNREGISTERED_ADDR)
+#define CEC_TV                   (BIT(0))
+#define CEC_RECORDING_DEVICE_1   (BIT(1))
+#define CEC_RECORDING_DEVICE_2   (BIT(2))
+#define CEC_TUNER_1              (BIT(3))
+#define CEC_PLAYBACK_DEVICE_1    (BIT(4))
+#define CEC_AUDIO_SYSTEM         (BIT(5))
+#define CEC_TUNER_2              (BIT(6))
+#define CEC_TUNER_3              (BIT(7))
+#define CEC_PLAYBACK_DEVICE_2    (BIT(8))
+#define CEC_RECORDING_DEVICE_3   (BIT(9))
+#define CEC_TUNER_4              (BIT(10))
+#define CEC_PLAYBACK_DEVICE_3    (BIT(11))
+#define CEC_RESERVED_1           (BIT(12))
+#define CEC_RESERVED_2           (BIT(13))
+#define CEC_FREE_USE             (BIT(14))
+#define CEC_UNREGISTERED         (BIT(15))
 
 #define CEC_DISPLAY_DEVICE       (CEC_TV | CEC_FREE_USE)
 #define CEC_RECORDING_DEVICE     (CEC_RECORDING_DEVICE_1 \
@@ -122,7 +122,7 @@ struct hdmi_port_info {
 	int port_id;
 	int cec_supported;
 	int arc_supported;
-	uint16_t physical_address;
+	u16 physical_address;
 };
 
 enum cec_dev_type_addr {
@@ -286,26 +286,17 @@ enum cec_version_e {
 	CEC_VERSION_20,
 };
 
-
-#define INFO_MASK_CEC_VERSION                (1<<0)
-#define INFO_MASK_VENDOR_ID                  (1<<1)
-#define INFO_MASK_DEVICE_TYPE                (1<<2)
-#define INFO_MASK_POWER_STATUS               (1<<3)
-#define INFO_MASK_PHYSICAL_ADDRESS           (1<<4)
-#define INFO_MASK_LOGIC_ADDRESS              (1<<5)
-#define INFO_MASK_OSD_NAME                   (1<<6)
-#define INFO_MASK_MENU_STATE                 (1<<7)
-#define INFO_MASK_MENU_LANGUAGE              (1<<8)
-#define INFO_MASK_DECK_INfO                  (1<<9)
-#define INFO_MASK_PLAY_MODE                  (1<<10)
-
-/*CEC UI MASK*/
-/*
-#define CEC_FUNC_MSAK                        0
-#define ONE_TOUCH_PLAY_MASK                  1
-#define ONE_TOUCH_STANDBY_MASK               2
-#define AUTO_POWER_ON_MASK                   3
-*/
+#define INFO_MASK_CEC_VERSION                (BIT(0))
+#define INFO_MASK_VENDOR_ID                  (BIT(1))
+#define INFO_MASK_DEVICE_TYPE                (BIT(2))
+#define INFO_MASK_POWER_STATUS               (BIT(3))
+#define INFO_MASK_PHYSICAL_ADDRESS           (BIT(4))
+#define INFO_MASK_LOGIC_ADDRESS              (BIT(5))
+#define INFO_MASK_OSD_NAME                   (BIT(6))
+#define INFO_MASK_MENU_STATE                 (BIT(7))
+#define INFO_MASK_MENU_LANGUAGE              (BIT(8))
+#define INFO_MASK_DECK_INfO                  (BIT(9))
+#define INFO_MASK_PLAY_MODE                  (BIT(10))
 
 /*
  * only for 1 tx device
@@ -333,6 +324,6 @@ enum cec_device_menu_state_e {
 
 int cec_ll_tx(const unsigned char *msg, unsigned char len);
 int cec_ll_rx(unsigned char *msg, unsigned char *len);
-extern void cec_enable_arc_pin(bool enable);
+void cec_enable_arc_pin(bool enable);
 #endif
 

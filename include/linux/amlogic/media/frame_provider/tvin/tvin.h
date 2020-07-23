@@ -73,19 +73,9 @@ enum tvin_port_e {
 	TVIN_PORT_VIU1_WB1_VPP,
 	TVIN_PORT_VIU1_WB1_POST_BLEND,
 	TVIN_PORT_VIU2 = 0x0000C000,
-	TVIN_PORT_VIU2_VIDEO,
-	TVIN_PORT_VIU2_WB0_VD1,
-	TVIN_PORT_VIU2_WB0_VD2,
-	TVIN_PORT_VIU2_WB0_OSD1,
-	TVIN_PORT_VIU2_WB0_OSD2,
-	TVIN_PORT_VIU2_WB0_VPP,
-	TVIN_PORT_VIU2_WB0_POST_BLEND,
-	TVIN_PORT_VIU2_WB1_VD1,
-	TVIN_PORT_VIU2_WB1_VD2,
-	TVIN_PORT_VIU2_WB1_OSD1,
-	TVIN_PORT_VIU2_WB1_OSD2,
-	TVIN_PORT_VIU2_WB1_VPP,
-	TVIN_PORT_VIU2_WB1_POST_BLEND,
+	TVIN_PORT_VIU2_ENCL,
+	TVIN_PORT_VIU2_ENCI,
+	TVIN_PORT_VIU2_ENCP,
 	TVIN_PORT_MIPI = 0x00010000,
 	TVIN_PORT_ISP = 0x00020000,
 	TVIN_PORT_MAX = 0x80000000,
@@ -323,26 +313,23 @@ struct tvin_info_s {
 	unsigned int fps;
 	unsigned int is_dvi;
 	/*
+	 * bit 30: is_dv
 	 * bit 29: present_flag
 	 * bit 28-26: video_format
-	 * "component", "PAL", "NTSC", "SECAM",
-	 * "MAC", "unspecified"
+	 *	"component", "PAL", "NTSC", "SECAM", "MAC", "unspecified"
 	 * bit 25: range "limited", "full_range"
 	 * bit 24: color_description_present_flag
 	 * bit 23-16: color_primaries
-	 * unknown", "bt709", "undef", "bt601",
-	 * "bt470m", "bt470bg", "smpte170m", "smpte240m",
-	 * "film", "bt2020"
+	 *	"unknown", "bt709", "undef", "bt601", "bt470m", "bt470bg",
+	 *	"smpte170m", "smpte240m", "film", "bt2020"
 	 * bit 15-8: transfer_characteristic
-	 * "unknown", "bt709", "undef", "bt601",
-	 * "bt470m", "bt470bg", "smpte170m", "smpte240m",
-	 * "linear", "log100", "log316", "iec61966-2-4",
-	 * "bt1361e", "iec61966-2-1", "bt2020-10", "bt2020-12",
-	 * "smpte-st-2084", "smpte-st-428"
+	 *	"unknown", "bt709", "undef", "bt601", "bt470m", "bt470bg",
+	 *	"smpte170m", "smpte240m", "linear", "log100", "log316",
+	 *	"iec61966-2-4", "bt1361e", "iec61966-2-1", "bt2020-10",
+	 *	"bt2020-12", "smpte-st-2084", "smpte-st-428"
 	 * bit 7-0: matrix_coefficient
-	 * "GBR", "bt709", "undef", "bt601",
-	 * "fcc", "bt470bg", "smpte170m", "smpte240m",
-	 * "YCgCo", "bt2020nc", "bt2020c"
+	 *	"GBR", "bt709", "undef", "bt601", "fcc", "bt470bg",
+	 *	"smpte170m", "smpte240m", "YCgCo", "bt2020nc", "bt2020c"
 	 */
 	unsigned int signal_type;
 };
@@ -421,10 +408,10 @@ enum tvafe_cvbs_video_e {
 enum tvafe_adc_pin_e {
 	TVAFE_ADC_PIN_NULL = 0,
 	/*(MESON_CPU_TYPE > MESON_CPU_TYPE_MESONG9TV) */
-	TVAFE_CVBS_IN0 = 1,
-	TVAFE_CVBS_IN1 = 2,
-	TVAFE_CVBS_IN2 = 3,
-	TVAFE_CVBS_IN3 = 4,	/*as atvdemod to tvafe */
+	TVAFE_CVBS_IN0 = 1,  /* avin ch0 */
+	TVAFE_CVBS_IN1 = 2,  /* avin ch1 */
+	TVAFE_CVBS_IN2 = 3,  /* avin ch2 */
+	TVAFE_CVBS_IN3 = 4,  /*as atvdemod to tvafe */
 	TVAFE_ADC_PIN_MAX,
 };
 
@@ -442,6 +429,10 @@ enum tvafe_src_sig_e {
 struct tvafe_pin_mux_s {
 	enum tvafe_adc_pin_e pin[TVAFE_SRC_SIG_MAX_NUM];
 };
+
+bool IS_TVAFE_SRC(enum tvin_port_e port);
+bool IS_TVAFE_ATV_SRC(enum tvin_port_e port);
+bool IS_TVAFE_AVIN_SRC(enum tvin_port_e port);
 
 /* ************************************************************************* */
 
@@ -461,6 +452,7 @@ struct tvafe_pin_mux_s {
 #define TVIN_IOC_G_SIG_INFO         _IOR(_TM_T, 0x07, struct tvin_info_s)
 #define TVIN_IOC_G_BUF_INFO         _IOR(_TM_T, 0x08, struct tvin_buf_info_s)
 #define TVIN_IOC_START_GET_BUF      _IO(_TM_T, 0x09)
+#define TVIN_IOC_G_EVENT_INFO	_IOW(_TM_T, 0x0a, struct vdin_event_info)
 #define TVIN_IOC_GET_BUF            _IOR(_TM_T, 0x10, struct tvin_video_buf_s)
 #define TVIN_IOC_PAUSE_DEC          _IO(_TM_T, 0x41)
 #define TVIN_IOC_RESUME_DEC         _IO(_TM_T, 0x42)
@@ -482,6 +474,10 @@ struct tvafe_pin_mux_s {
 	struct tvin_frontend_info_s)
 #define TVIN_IOC_S_CANVAS_ADDR  _IOW(_TM_T, 0x4f,\
 	struct vdin_set_canvas_s)
+#define TVIN_IOC_S_PC_MODE		_IOW(_TM_T, 0x50, unsigned int)
+#define TVIN_IOC_S_FRAME_WR_EN		_IOW(_TM_T, 0x51, unsigned int)
+#define TVIN_IOC_G_INPUT_TIMING		_IOW(_TM_T, 0x52, struct tvin_format_s)
+
 #define TVIN_IOC_S_CANVAS_RECOVERY  _IO(_TM_T, 0x0a)
 /* TVAFE */
 #define TVIN_IOC_S_AFE_VGA_PARM     _IOW(_TM_T, 0x16, struct tvafe_vga_parm_s)
@@ -500,6 +496,7 @@ struct tvafe_pin_mux_s {
 #define TVIN_IOC_S_VDIN_V4L2STOP   _IO(_TM_T, 0x26)
 #define TVIN_IOC_S_AFE_SONWCFG     _IOW(_TM_T, 0x27, unsigned int)
 #define TVIN_IOC_S_DV_DESCRAMBLE	_IOW(_TM_T, 0x28, unsigned int)
+#define TVIN_IOC_S_AFE_ATV_SEARCH  _IOW(_TM_T, 0x29, unsigned int)
 
 /*
  *function defined applied for other driver

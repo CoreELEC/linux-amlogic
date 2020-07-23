@@ -138,7 +138,8 @@ static ssize_t frontend_name_show(struct class *cls,
 	size_t len = 0;
 	struct tvin_frontend_s *f = NULL;
 	list_for_each_entry(f, &head, list) {
-		len += sprintf(buf+len, "%s\n", f->name);
+		len += sprintf(buf + len, "%s idx:%d port:%d\n", f->name,
+			f->index, f->port);
 	}
 	return len;
 }

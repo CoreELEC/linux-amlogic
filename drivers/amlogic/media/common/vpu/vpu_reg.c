@@ -31,11 +31,13 @@
  * *********************************
  */
 #define VPU_MAP_HIU       0
-#define VPU_MAP_VCBUS     1
-#define VPU_MAP_MAX       2
+#define VPU_MAP_PWRCTRL   1
+#define VPU_MAP_VCBUS     2
+#define VPU_MAP_MAX       3
 
 static int vpu_reg_table[] = {
 	VPU_MAP_HIU,
+	VPU_MAP_PWRCTRL,
 	VPU_MAP_VCBUS,
 	VPU_MAP_MAX,
 };
@@ -134,6 +136,26 @@ static inline void __iomem *check_vpu_hiu_reg(unsigned int _reg)
 	return p;
 }
 
+static inline void __iomem *check_vpu_pwrctrl_reg(unsigned int _reg)
+{
+	void __iomem *p;
+	int reg_bus;
+	unsigned int reg_offset;
+
+	reg_bus = VPU_MAP_PWRCTRL;
+	if (check_vpu_ioremap(reg_bus))
+		return NULL;
+
+	reg_offset = VPU_REG_OFFSET(_reg);
+
+	if (reg_offset >= vpu_reg_map[reg_bus].size) {
+		VPUERR("invalid pwrctrl reg offset: 0x%04x\n", _reg);
+		return NULL;
+	}
+	p = vpu_reg_map[reg_bus].p + reg_offset;
+	return p;
+}
+
 static inline void __iomem *check_vpu_vcbus_reg(unsigned int _reg)
 {
 	void __iomem *p;
@@ -158,7 +180,6 @@ static inline void __iomem *check_vpu_vcbus_reg(unsigned int _reg)
  * register access api
  * *********************************
  */
-
 unsigned int vpu_hiu_read(unsigned int _reg)
 {
 	void __iomem *p;
@@ -212,6 +233,26 @@ void vpu_hiu_set_mask(unsigned int _reg, unsigned int _mask)
 void vpu_hiu_clr_mask(unsigned int _reg, unsigned int _mask)
 {
 	vpu_hiu_write(_reg, (vpu_hiu_read(_reg) & (~(_mask))));
+}
+
+unsigned int vpu_pwrctrl_read(unsigned int _reg)
+{
+	void __iomem *p;
+	unsigned int ret = 0;
+
+	p = check_vpu_pwrctrl_reg(_reg);
+	if (p)
+		ret = readl(p);
+	else
+		ret = 0;
+
+	return ret;
+};
+
+unsigned int vpu_pwrctrl_getb(unsigned int _reg,
+			      unsigned int _start, unsigned int _len)
+{
+	return (vpu_pwrctrl_read(_reg) >> (_start)) & ((1L << (_len)) - 1);
 }
 
 unsigned int vpu_vcbus_read(unsigned int _reg)

@@ -10,3 +10,15 @@ menuconfig AMLOGIC_PWM
 	default n
 	help
 	  say y to enable Amlogic PWM driver.
+
+
+if AMLOGIC_PWM
+config  AMLOGIC_PWM_V2
+        bool "Meson Soc pwm v2 driver"
+        help
+          The platform driver for Amlogic Meson PWM controller.
+          This PWM controller transfers the clk div, clk gate,
+          and clk mux to the clktree.
+        default n
+
+endif

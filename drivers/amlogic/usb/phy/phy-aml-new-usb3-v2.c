@@ -728,8 +728,6 @@ static int amlogic_new_usb3_v2_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, phy);
 
-	pm_runtime_enable(phy->dev);
-
 	g_phy_v2 = phy;
 
 	return 0;
@@ -739,31 +737,6 @@ static int amlogic_new_usb3_remove(struct platform_device *pdev)
 {
 	return 0;
 }
-
-#ifdef CONFIG_PM_RUNTIME
-
-static int amlogic_new_usb3_runtime_suspend(struct device *dev)
-{
-	return 0;
-}
-
-static int amlogic_new_usb3_runtime_resume(struct device *dev)
-{
-	u32 ret = 0;
-
-	return ret;
-}
-
-static const struct dev_pm_ops amlogic_new_usb3_pm_ops = {
-	SET_RUNTIME_PM_OPS(amlogic_new_usb3_runtime_suspend,
-		amlogic_new_usb3_runtime_resume,
-		NULL)
-};
-
-#define DEV_PM_OPS     (&amlogic_new_usb3_pm_ops)
-#else
-#define DEV_PM_OPS     NULL
-#endif
 
 #ifdef CONFIG_OF
 static const struct of_device_id amlogic_new_usb3_v2_id_table[] = {
@@ -779,7 +752,6 @@ static struct platform_driver amlogic_new_usb3_v2_driver = {
 	.driver		= {
 		.name	= "amlogic-new-usb3-v2",
 		.owner	= THIS_MODULE,
-		.pm	= DEV_PM_OPS,
 		.of_match_table = of_match_ptr(amlogic_new_usb3_v2_id_table),
 	},
 };

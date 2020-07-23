@@ -21,6 +21,8 @@
 #include "vdin_ctl.h"
 
 #define AFBCE_ENABLE  0x41a0
+#define AFBCE_EN_BIT	8
+#define AFBCE_EN_WID	1
 //Bit   31:13,    reserved
 //Bit   12 ,      reg_clk_en       default = 1,
 //Bit   11:9,     reserved
@@ -310,10 +312,6 @@ extern void vdin_afbce_set_next_frame(struct vdin_dev_s *devp,
 	unsigned int rdma_enable, struct vf_entry *vfe);
 extern void vdin_afbce_clear_writedown_flag(struct vdin_dev_s *devp);
 extern int vdin_afbce_read_writedown_flag(void);
-extern void vdin_afbce_hw_disable(void);
-extern void vdin_afbce_hw_enable(void);
-extern void vdin_afbce_hw_disable_rdma(struct vdin_dev_s *devp);
-extern void vdin_afbce_hw_enable_rdma(struct vdin_dev_s *devp);
 extern void vdin_afbce_soft_reset(void);
 extern void vdin_afbce_mode_init(struct vdin_dev_s *devp);
 extern void vdin_afbce_mode_update(struct vdin_dev_s *devp);

@@ -177,3 +177,28 @@ struct hw_vd_reg_s vd_mif_reg_sc2_array[MAX_VD_LAYER] = {
 	}
 };
 
+struct hw_vd_reg_s fg_reg_g12_array[MAX_VD_LAYER] = {
+	{
+		G12_FGRAIN_CTRL,
+		G12_FGRAIN_WIN_H,
+		G12_FGRAIN_WIN_V,
+	},
+	{
+		G12_VD2_FGRAIN_CTRL,
+		G12_VD2_FGRAIN_WIN_H,
+		G12_VD2_FGRAIN_WIN_V,
+	},
+};
+
+struct hw_vd_reg_s fg_reg_sc2_array[MAX_VD_LAYER] = {
+	{
+		SC2_FGRAIN_CTRL,
+		SC2_FGRAIN_WIN_H,
+		SC2_FGRAIN_WIN_V,
+	},
+	{
+		SC2_VD2_FGRAIN_CTRL,
+		SC2_VD2_FGRAIN_WIN_H,
+		SC2_VD2_FGRAIN_WIN_V,
+	},
+};

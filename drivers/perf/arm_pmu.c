@@ -1325,6 +1325,12 @@ static int amlpmu_init(struct platform_device *pdev, struct arm_pmu *pmu)
 
 	memset(ctx, 0, sizeof(*ctx));
 
+	/* each cpu has it's own pmu interrtup */
+	if (of_property_read_bool(pdev->dev.of_node, "private-interrupts")) {
+		ctx->private_interrupts = 1;
+		return 0;
+	}
+
 	ctx->cpuinfo = __alloc_percpu_gfp(
 		sizeof(struct amlpmu_cpuinfo),
 		SMP_CACHE_BYTES,

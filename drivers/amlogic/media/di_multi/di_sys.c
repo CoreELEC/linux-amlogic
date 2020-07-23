@@ -276,6 +276,7 @@ static unsigned int di_cma_alloc(struct di_dev_s *devp, unsigned int channel)
 	struct di_mm_s *mm = dim_mm_get(channel);
 	bool aret;
 	struct dim_mm_s omm;
+	struct afbce_map_s afbce_map;
 
 	start_time = jiffies_to_msecs(jiffies);
 	queue_for_each_entry(buf_p, channel, QUEUE_LOCAL_FREE, list) {
@@ -295,7 +296,37 @@ static unsigned int di_cma_alloc(struct di_dev_s *devp, unsigned int channel)
 			return 0;
 		}
 		buf_p->pages = omm.ppage;
-		buf_p->nr_adr = omm.addr;
+		//buf_p->nr_adr = omm.addr;
+		buf_p->afbc_adr = omm.addr;
+		buf_p->afbct_adr = buf_p->afbc_adr + mm->cfg.ll_afbci_size;
+		buf_p->nr_adr	= buf_p->afbct_adr + mm->cfg.ll_afbct_size;
+		if (dim_afds() && mm->cfg.ll_afbct_size) {
+			afbce_map.bodyadd	= buf_p->nr_adr;
+			afbce_map.tabadd	= buf_p->afbct_adr;
+			afbce_map.size_buf	= mm->cfg.nr_size;
+			afbce_map.size_tab	= mm->cfg.ll_afbct_size;
+
+			dim_afds()->int_tab(devp->dev, &afbce_map);
+		}
+		#ifdef MARK_SC2
+		dbg_init("%s:%px,btype[%d]:index[%d]:\n", __func__,
+			 buf_p,
+			 buf_p->type,
+			 buf_p->index);
+		dbg_init("\t:%s: adr:0x%lx,size:%d\n", "afbc",
+			 buf_p->afbc_adr,
+			 mm->cfg.ll_afbci_size);
+		dbg_init("\t:%s: adr:0x%lx,size:%d\n", "afbc_tab",
+			 buf_p->afbct_adr,
+			 mm->cfg.ll_afbct_size);
+		dbg_init("\t:%s: adr:0x%lx,size:%d\n", "dw",
+			 buf_p->dw_adr,
+			 mm->cfg.dw_size);
+		dbg_init("\t:%s: adr:0x%lx,size:%d\n", "nr",
+			 buf_p->nr_adr,
+			 mm->cfg.nr_size);
+		#endif
+
 		if (omm.flg & DI_BIT0)
 			buf_p->flg_tvp |= DI_BIT0;
 		else
@@ -350,6 +381,7 @@ static unsigned int dpst_cma_alloc(struct di_dev_s *devp, unsigned int channel)
 	struct dim_mm_s omm;
 	u64	time1, time2;
 	ulong flags = 0;
+	struct afbce_map_s afbce_map;
 
 	time1 = cur_to_usecs();
 	if (dimp_get(edi_mp_post_wr_en) && dimp_get(edi_mp_post_wr_support)) {
@@ -375,7 +407,39 @@ static unsigned int dpst_cma_alloc(struct di_dev_s *devp, unsigned int channel)
 				return 0;
 			}
 			buf_p->pages = omm.ppage;
-			buf_p->nr_adr = omm.addr;
+			//buf_p->nr_adr = omm.addr;
+			buf_p->afbc_adr	= omm.addr;
+			buf_p->afbct_adr = buf_p->afbc_adr +
+				mm->cfg.p_afbci_size;
+			buf_p->dw_adr	= buf_p->afbct_adr +
+				mm->cfg.p_afbct_size;
+			buf_p->nr_adr	= buf_p->dw_adr	+ mm->cfg.dw_size;
+			if (dim_afds() && mm->cfg.p_afbct_size) {
+				afbce_map.bodyadd	= buf_p->nr_adr;
+				afbce_map.tabadd	= buf_p->afbct_adr;
+				afbce_map.size_buf	= mm->cfg.p_nr_size;
+				afbce_map.size_tab	= mm->cfg.p_afbct_size;
+
+				dim_afds()->int_tab(devp->dev, &afbce_map);
+			}
+		#ifdef MARK_SC2
+			dbg_init("%s:%px,btype[%d]:index[%d]:\n", __func__,
+				 buf_p,
+				 buf_p->type,
+				 buf_p->index);
+			dbg_init("\t:%s: adr:0x%lx,size:%d\n", "afbc",
+				 buf_p->afbc_adr,
+				 mm->cfg.p_afbci_size);
+			dbg_init("\t:%s: adr:0x%lx,size:%d\n", "afbc_tab",
+				 buf_p->afbct_adr,
+				 mm->cfg.p_afbct_size);
+			dbg_init("\t:%s: adr:0x%lx,size:%d\n", "dw",
+				 buf_p->dw_adr,
+				 mm->cfg.dw_size);
+			dbg_init("\t:%s: adr:0x%lx,size:%d\n", "nr",
+				 buf_p->nr_adr,
+				 mm->cfg.nr_size);
+		#endif
 			/* tvp flg */
 			if (omm.flg & DI_BIT0)
 				buf_p->flg_tvp |= DI_BIT0;
@@ -532,6 +596,7 @@ static unsigned int dpst_cma_alloc_onebuf(struct di_dev_s *devp,
 	bool aret;
 	struct dim_mm_s omm;
 	u64	time1, time2;
+	struct afbce_map_s afbce_map;
 
 #ifdef CONFIG_CMA
 
@@ -553,7 +618,19 @@ static unsigned int dpst_cma_alloc_onebuf(struct di_dev_s *devp,
 		return 0;
 	}
 	buf_p->pages = omm.ppage;
-	buf_p->nr_adr = omm.addr;
+	//buf_p->nr_adr = omm.addr;
+	buf_p->afbc_adr	= omm.addr;
+	buf_p->afbct_adr = buf_p->afbc_adr + mm->cfg.p_afbci_size;
+	buf_p->dw_adr	= buf_p->afbct_adr + mm->cfg.p_afbct_size;
+	buf_p->nr_adr	= buf_p->dw_adr	+ mm->cfg.dw_size;
+	if (dim_afds() && mm->cfg.p_afbct_size) {
+		afbce_map.bodyadd	= buf_p->nr_adr;
+		afbce_map.tabadd	= buf_p->afbct_adr;
+		afbce_map.size_buf	= mm->cfg.p_nr_size;
+		afbce_map.size_tab	= mm->cfg.p_afbct_size;
+
+		dim_afds()->int_tab(devp->dev, &afbce_map);
+	}
 	mm->sts.cnt_alloc++;
 	/* tvp flg */
 	if (omm.flg & DI_BIT0)
@@ -989,10 +1066,27 @@ static const struct file_operations di_fops = {
 
 static const struct di_meson_data  data_g12a = {
 	.name = "dim_g12a",
+	.ic_id	= DI_IC_ID_G12A,
+};
+
+static const struct di_meson_data  data_g12b = {
+	.name = "dim_g12b",
+	.ic_id	= DI_IC_ID_G12B,
 };
 
 static const struct di_meson_data  data_sm1 = {
 	.name = "dim_sm1",
+	.ic_id	= DI_IC_ID_SM1,
+};
+
+static const struct di_meson_data  data_tm2_vb = {
+	.name = "dim_tm2_vb",
+	.ic_id	= DI_IC_ID_TM2B,
+};
+
+static const struct di_meson_data  data_sc2 = {
+	.name = "dim_sc2",
+	.ic_id	= DI_IC_ID_SC2,
 };
 
 /* #ifdef CONFIG_USE_OF */
@@ -1001,9 +1095,13 @@ static const struct of_device_id amlogic_deinterlace_dt_match[] = {
 	{	.compatible = "amlogic, dim-g12a",
 		.data = &data_g12a,
 	}, {	.compatible = "amlogic, dim-g12b",
-		.data = &data_sm1,
+		.data = &data_g12b,
 	}, {	.compatible = "amlogic, dim-sm1",
 		.data = &data_sm1,
+	}, {	.compatible = "amlogic, dim-tm2vb",
+		.data = &data_tm2_vb,
+	}, {	.compatible = "amlogic, dim-sc2",
+		.data = &data_sc2,
 	}, {}
 };
 #endif
@@ -1050,7 +1148,7 @@ static int dim_probe(struct platform_device *pdev)
 	/*memset(di_pdev->data_l, 0, sizeof(struct di_data_l_s));*/
 	/*pr_info("\tdata size: %ld\n", sizeof(struct di_data_l_s));*/
 	/************************/
-	if (!dip_prob())
+	if (!dip_prob()) /* load function interface */
 		goto fail_cdev_add;
 
 	di_devp->flags |= DI_SUSPEND_FLAG;
@@ -1082,7 +1180,8 @@ static int dim_probe(struct platform_device *pdev)
 	}
 	pdata = (struct di_data_l_s *)di_pdev->data_l;
 	pdata->mdata = match->data;
-	PR_INF("match name: %s\n", pdata->mdata->name);
+	PR_INF("match name: %s:id[%d]\n", pdata->mdata->name,
+		pdata->mdata->ic_id);
 #endif
 
 	ret = of_reserved_mem_device_init(&pdev->dev);
@@ -1125,7 +1224,7 @@ static int dim_probe(struct platform_device *pdev)
 		dim_get_vpu_clkb(&pdev->dev, di_devp);
 		#ifdef CLK_TREE_SUPPORT
 		clk_prepare_enable(di_devp->vpu_clkb);
-		PR_INF("enable vpu clkb.\n");
+		PR_INF("vpu clkb =%ld.\n", clk_get_rate(di_devp->vpu_clkb));
 		#else
 		aml_write_hiubus(HHI_VPU_CLKB_CNTL, 0x1000100);
 		#endif
@@ -1149,14 +1248,6 @@ static int dim_probe(struct platform_device *pdev)
 	else	/*nr10bit_support = di_devp->nr10bit_support;*/
 		dimp_set(edi_mp_nr10bit_support, di_devp->nr10bit_support);
 
-#ifdef DI_USE_FIXED_CANVAS_IDX
-	if (dim_get_canvas()) {
-		pr_dbg("DI get canvas error.\n");
-		ret = -EEXIST;
-		return ret;
-	}
-#endif
-
 	device_create_file(di_devp->dev, &dev_attr_config);
 	device_create_file(di_devp->dev, &dev_attr_debug);
 	device_create_file(di_devp->dev, &dev_attr_dump_pic);
@@ -1166,10 +1257,13 @@ static int dim_probe(struct platform_device *pdev)
 	device_create_file(di_devp->dev, &dev_attr_tvp_region);
 	device_create_file(di_devp->dev, &dev_attr_kpi_frame_num);
 
-	/*pd_device_files_add*/
-	get_ops_pd()->prob(di_devp->dev);
+	dip_init_pq_ops();
 
-	get_ops_nr()->nr_drv_init(di_devp->dev);
+	if (dim_get_canvas()) {
+		pr_dbg("DI get canvas error.\n");
+		ret = -EEXIST;
+		return ret;
+	}
 
 	for (i = 0; i < DI_CHANNEL_NUB; i++) {
 		set_init_flag(i, false);
@@ -1196,8 +1290,10 @@ static int dim_probe(struct platform_device *pdev)
 	dim_polic_prob();
 
 	task_start();
-
-	post_mif_sw(false);
+	if (DIM_IS_IC_EF(SC2))
+		opl1()->pst_mif_sw(false, DI_MIF0_SEL_PST_ALL);
+	else
+		post_mif_sw(false);
 
 	dim_debugfs_init();	/*2018-07-18 add debugfs*/
 

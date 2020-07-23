@@ -141,10 +141,12 @@ static void resman_recov_resource(struct resman_session *session_ptr)
 		resman_release_res(session_ptr, i);
 }
 
+/*arg high 16bits used for flags low 16bits used for res type enum */
 static long resman_ioctl_acquire(struct file *filp, unsigned long arg)
 {
 	long r = 0;
-	int selec_res = (int)arg;
+	int selec_res = (int)arg & 0xFF;
+	int res_flags = (int)(arg >> 16) & 0xFF;
 	struct resman_session *session_ptr;
 	struct session_ptr *ptr;
 
@@ -167,8 +169,13 @@ static long resman_ioctl_acquire(struct file *filp, unsigned long arg)
 			&resman_src[selec_res].ptr_listhead.node);
 		resman_src[selec_res].res_count++;
 		session_ptr->used_resource[selec_res] = true;
-		if (selec_res == SEC_TVP)
-			codec_mm_enable_tvp();
+		if (selec_res == SEC_TVP) {
+			if (res_flags == 0)
+				res_flags = 2;
+			r = codec_mm_enable_tvp(0, res_flags);
+			if (r)
+				return -ENOMEM;
+		}
 
 		pr_info("resman acquire res [%s], proc:%s, (tgid:%d), (pid:%d)\n",
 			resman_src[selec_res].res_name,

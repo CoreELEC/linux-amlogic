@@ -36,7 +36,8 @@ Part II - Digital TV API
     frontend_h
     net_h
     video_h
-
+    dts
+    class_node
 
 **********************
 Revision and Copyright

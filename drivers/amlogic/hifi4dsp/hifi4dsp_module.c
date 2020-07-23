@@ -14,7 +14,8 @@
  * more details.
  *
  */
-#define DEBUG
+
+//#define DEBUG
 
 #define pr_fmt(fmt) "hifi4dsp: " fmt
 
@@ -48,113 +49,36 @@
 #include <asm/cacheflush.h>
 
 #include <linux/amlogic/major.h>
-#include <linux/amlogic/media/utils/amstream.h>
-#include <linux/amlogic/media/sound/aiu_regs.h>
-#include <linux/amlogic/media/frame_sync/ptsserv.h>
-#include <linux/amlogic/media/frame_sync/timestamp.h>
-#include <linux/amlogic/media/frame_sync/tsync.h>
 
 #include "hifi4dsp_api.h"
 #include "hifi4dsp_priv.h"
 #include "hifi4dsp_firmware.h"
 #include "hifi4dsp_dsp.h"
-#include "hifi4dsp_ipc.h"
 
-#include "tm2_dsp_top.h"
+#include "dsp_top.h"
 
-#define		HIFI4DSP_NUM		2
+struct reg_iomem_t g_regbases;
+unsigned int boot_sram_addr;
+unsigned int boot_sram_size;
+static unsigned int bootlocation;
+unsigned int dspcount;
+
+static struct reserved_mem hifi4_rmem = {.base = 0, .size = 0};
+
 #define		HIFI4DSP_MAX_CNT	2
-#define		DSP_PHY_ADDR_0		0x30000000
-#define		DSP_PHY_ADDR_1		0x30800000
 
 struct hifi4dsp_priv *hifi4dsp_p[HIFI4DSP_MAX_CNT];
-unsigned int hifi4dsp_debug_flag = 1;
 
-#define DEF_RESERVE_MEM_SIZE	0x800000
-
-#define HIFI4DSP_TM2_ALL_SMEM_SIZE		(0x00300000) /* 3 MBytes */
-#define HIFI4DSP_TM2_BASE_PADDR			DSP_PHY_ADDR_0
-#define HIFI4DSP_TM2_IRAM_OFFSET		(0x00000000)
-#define HIFI4DSP_TM2_DRAM_OFFSET		(0x00100000 + \
-				HIFI4DSP_TM2_IRAM_OFFSET)
-#define HIFI4DSP_TM2_SMEM_OFFSET		(0x00040000 + \
-				HIFI4DSP_TM2_DRAM_OFFSET)
-#define HIFI4DSP_TM2_MAILBOX_OFFSET		(0x00004000 + \
-				HIFI4DSP_TM2_SMEM_OFFSET)
-#define HIFI4DSP_TM2_TIMESTAMP_OFFSET	(0x00000800 +\
-				HIFI4DSP_TM2_MAILBOX_OFFSET)
-#define HIFI4DSP_TM2_IPC_MAX_SIZE		256
-
-#define IPC_MSG_HEADER		0x10
-
-#define MASK_BF(x, mask, shift)			(((x&mask)<<shift))
-	/* msg header bf */
-#define IPC_MSG_HEADER_ID_SHIFT			0
-#define IPC_MSG_HEADER_ID_MASK			(0xFF)
-#define IPC_MSG_HEADER_ID(x)			MASK_BF(x, 0xFF, 0)
-
-#define IPC_MSG_HEADER_SENDERID_SHIFT		8
-#define IPC_MSG_HEADER_SENDERID_MASK		(0xFF)
-#define IPC_MSG_HEADER_SENDERID(x)		MASK_BF(x, 0xFF, 8)
-
-#define IPC_MSG_HEADER_NOTIFY_SHIFT		16
-#define IPC_MSG_HEADER_NOTIFY_MASK		(0x1)
-#define IPC_MSG_HEADER_NOTIFY(x)		MASK_BF(x, 0x1, 16)
-
-#define IPC_MSG_HEADER_WITH_DATA_SHIFT		17
-#define IPC_MSG_HEADER_WITH_DATA_MASK		(0x1)
-#define IPC_MSG_HEADER_WITH_DATA(x)		MASK_BF(x, 0x1, 17)
-
-#define IPC_MSG_HEADER_DATA_BYTES_SHIFT		18
-#define IPC_MSG_HEADER_DATA_BYTES_MASK		(0xFFFC)
-#define IPC_MSG_HEADER_DATA_BYTES(x)		MASK_BF(x, 0xFFFC, 18)
-
-/* MSG_ID/CMD_ID,  header's HEADER_ID */
-#define IPC_MSG_AP_2_DSP_0	0x01
-#define IPC_MSG_AP_2_DSP_1	0x02
-
-#define IPC_MSG_DSP_2_AP_0	0x20
-#define IPC_MSG_DSP_2_AP_1	0x21
-
-/* share info, if not have registers, can store info in iram or dram */
-#define IPC_STS_DSP		0x00 /* IPC DSP -> AP */
-#define IPC_STS_AP		0x08 /* IPC AP  -> DSP */
-/*IPC_STS_DSP bf*/
-#define IPC_STS_DSP_DONE	(0x1 << 30)
-#define IPC_STS_DSP_BUSY	(0x1 << 31)
-#define IPC_STS_DSP_DONE_MASK	(0x1 << 30)
-#define IPC_STS_DSP_BUSY_MASK	(0x1 << 31)
-
-/*IPC_STS_AP bf*/
-#define IPC_STS_AP_DONE		(0x1 << 30)
-#define IPC_STS_AP_BUSY		(0x1 << 31)
-#define IPC_STS_AP_DONE_MASK	(0x1 << 30)
-#define IPC_STS_AP_BUSY_MASK	(0x1 << 31)
-
-#define INT_VEC_DSPB_MBOX7	(249) // sec tx
-#define INT_VEC_DSPB_MBOX5	(248) // tx
-#define INT_VEC_DSPB_MBOX6	(247) // sec rx
-#define INT_VEC_DSPB_MBOX4	(246) // rx
-
-#define INT_VEC_DSPA_MBOX7	(245) // sec tx
-#define INT_VEC_DSPA_MBOX5	(244) // tx
-#define INT_VEC_DSPA_MBOX6	(243) // sec rx
-#define INT_VEC_DSPA_MBOX4	(242) // rx
-
-static int hifi4dsp_tm2_dsp_load_fw(struct hifi4dsp_dsp *dsp);
-static int hifi4dsp_tm2_dsp_reset(struct hifi4dsp_dsp *dsp);
-static int hifi4dsp_tm2_dsp_start(struct hifi4dsp_dsp *dsp);
-static int hifi4dsp_tm2_dsp_stop(struct hifi4dsp_dsp *dsp);
-static int hifi4dsp_tm2_dsp_sleep(struct hifi4dsp_dsp *dsp);
-static int hifi4dsp_tm2_dsp_wake(struct hifi4dsp_dsp *dsp);
+static int hifi4dsp_driver_load_fw(struct hifi4dsp_dsp *dsp);
+static int hifi4dsp_driver_load_2fw(struct hifi4dsp_dsp *dsp);
+static int hifi4dsp_driver_reset(struct hifi4dsp_dsp *dsp);
+static int hifi4dsp_driver_dsp_start(struct hifi4dsp_dsp *dsp);
+static int hifi4dsp_driver_dsp_stop(struct hifi4dsp_dsp *dsp);
+static int hifi4dsp_driver_dsp_sleep(struct hifi4dsp_dsp *dsp);
+static int hifi4dsp_driver_dsp_wake(struct hifi4dsp_dsp *dsp);
 
 static int hifi4dsp_miscdev_open(struct inode *inode, struct file *fp)
 {
-	/*
-	 *struct hifi4dsp_priv *priv;
-	 *dev = conainer_of(inode->i_cdev,struct globalmem_dev,cdev);
-	 *flip->private_data = dev;
-	 */
 	int minor = iminor(inode);
 	int major = imajor(inode);
 	struct hifi4dsp_priv *priv;
@@ -162,27 +86,35 @@ static int hifi4dsp_miscdev_open(struct inode *inode, struct file *fp)
 	struct hifi4dsp_miscdev_t *pmscdev_t;
 
 	c = fp->private_data;
-	priv = hifi4dsp_p[0];
+	pr_debug("%s,%s,major=%d,minor=%d\n", __func__,
+		 c->name,
+		 major,
+		 minor);
+
+	if (strcmp(c->name, "hifi4dsp0") == 0)
+		priv = hifi4dsp_p[0];
+	else if (strcmp(c->name, "hifi4dsp1") == 0)
+		priv = hifi4dsp_p[1];
+	else
+		priv = NULL;
+
 	pmscdev_t = container_of(c, struct hifi4dsp_miscdev_t, dsp_miscdev);
-	if (pmscdev_t == NULL) {
+	if (!pmscdev_t) {
 		pr_err("hifi4dsp_miscdev_t == NULL\n");
-		return -1;
+		return -ENOMEM;
 	}
-	if (pmscdev_t->priv == NULL) {
-		pr_err("hifi4dsp_miscdev_t -> priv==NULL\n");
-		return -1;
-	}
-	priv = pmscdev_t->priv;
-	if (priv == NULL) {
+	pmscdev_t->priv = priv;
+	if (!pmscdev_t->priv) {
 		pr_err("hifi4dsp_miscdev_t pointer *pmscdev_t==NULL\n");
-		return -1;
+		return -ENOMEM;
 	}
+
 	fp->private_data = priv;
 
 	pr_debug("%s,%s,major=%d,minor=%d\n", __func__,
-			priv->dev->kobj.name,
-			major,
-			minor);
+		 priv->dev->kobj.name,
+		 major,
+		 minor);
 	return 0;
 }
 
@@ -191,42 +123,47 @@ static int hifi4dsp_miscdev_release(struct inode *inode, struct file *fp)
 	return 0;
 }
 
-static long hifi4dsp_miscdev_ioctl(struct file *fp, unsigned int cmd,
-	  unsigned long arg)
+static long hifi4dsp_miscdev_unlocked_ioctl(struct file *fp, unsigned int cmd,
+					    unsigned long arg)
 {
 	int ret = 0;
 	struct hifi4dsp_priv *priv;
 	struct hifi4dsp_dsp *dsp;
 	struct hifi4dsp_info_t *info;
+	struct hifi4_shm_info_t shminfo;
 	void __user *argp = (void __user *)arg;
+	unsigned int hifimemend;
 
 	pr_debug("%s\n", __func__);
-	if (fp->private_data == NULL) {
-		pr_err("%s error: fp->private_data is null", __func__);
-		return -1;
+	if (!fp->private_data) {
+		pr_err("%s error:fp->private_data is null", __func__);
+		return -ENOMEM;
 	}
+
 	priv = (struct hifi4dsp_priv *)fp->private_data;
-	if (priv == NULL) {
+	if (!priv) {
 		pr_err("%s error: hifi4dsp_priv is null", __func__);
-		return -1;
+		return -ENOMEM;
 	}
 	dsp = priv->dsp;
-	if (dsp  == NULL) {
+	if (!dsp) {
 		pr_err("%s hifi4dsp_dsp is null:\n", __func__);
-		return -1;
+		return -ENOMEM;
 	}
-	if (priv->dsp->dsp_fw == NULL) {
+	if (!priv->dsp->dsp_fw) {
 		pr_err("%s hifi4dsp_firmware is null:\n", __func__);
-		return -1;
+		return -ENOMEM;
 	}
-	if (priv->dsp->fw == NULL) {
+	if (!priv->dsp->fw) {
 		pr_err("%s firmware is null:\n", __func__);
-		return -1;
+		return -ENOMEM;
 	}
 	pr_debug("%s %s\n", __func__, priv->dev->kobj.name);
-	info = kmalloc(sizeof(struct hifi4dsp_info_t), GFP_KERNEL);
+	info = kmalloc(sizeof(*info), GFP_KERNEL);
 	if (!info)
-		return -1;
+		return -ENOMEM;
+
+	hifimemend = hifi4_rmem.base + hifi4_rmem.size;
 
 	switch (cmd) {
 	case HIFI4DSP_TEST:
@@ -235,56 +172,96 @@ static long hifi4dsp_miscdev_ioctl(struct file *fp, unsigned int cmd,
 	case HIFI4DSP_LOAD:
 		pr_debug("%s HIFI4DSP_LOAD\n", __func__);
 		ret = copy_from_user(info, argp,
-				sizeof(struct hifi4dsp_info_t));
+				     sizeof(struct hifi4dsp_info_t));
+		pr_debug("\ninfo->fw_name : %s\n", info->fw_name);
 		priv->dsp->info = info;
-		hifi4dsp_tm2_dsp_load_fw(priv->dsp);
+		hifi4dsp_driver_load_fw(priv->dsp);
+	break;
+	case HIFI4DSP_2LOAD:
+		pr_debug("%s HIFI4DSP_2LOAD\n", __func__);
+		ret = copy_from_user(info, argp,
+				     sizeof(struct hifi4dsp_info_t));
+		priv->dsp->info = info;
+		hifi4dsp_driver_load_2fw(priv->dsp);
 	break;
 	case HIFI4DSP_RESET:
 		pr_debug("%s HIFI4DSP_RESET\n", __func__);
 		ret = copy_from_user(info, argp,
-				sizeof(struct hifi4dsp_info_t));
+				     sizeof(struct hifi4dsp_info_t));
 		priv->dsp->info = info;
-		hifi4dsp_tm2_dsp_reset(priv->dsp);
+		hifi4dsp_driver_reset(priv->dsp);
 	break;
 	case HIFI4DSP_START:
 		pr_debug("%s HIFI4DSP_START\n", __func__);
 		ret = copy_from_user(info, argp,
-				sizeof(struct hifi4dsp_info_t));
+				     sizeof(struct hifi4dsp_info_t));
 		priv->dsp->info = info;
-		hifi4dsp_tm2_dsp_start(priv->dsp);
+		hifi4dsp_driver_dsp_start(priv->dsp);
 	break;
 	case HIFI4DSP_STOP:
 		pr_debug("%s HIFI4DSP_STOP\n", __func__);
 		ret = copy_from_user(info, argp,
-				sizeof(struct hifi4dsp_info_t));
+				     sizeof(struct hifi4dsp_info_t));
 		priv->dsp->info = info;
-		hifi4dsp_tm2_dsp_stop(priv->dsp);
+		hifi4dsp_driver_dsp_stop(priv->dsp);
 	break;
 	case HIFI4DSP_SLEEP:
 		pr_debug("%s HIFI4DSP_SLEEP\n", __func__);
 		ret = copy_from_user(info, argp,
-				sizeof(struct hifi4dsp_info_t));
+				     sizeof(struct hifi4dsp_info_t));
 		priv->dsp->info = info;
-		hifi4dsp_tm2_dsp_sleep(priv->dsp);
+		hifi4dsp_driver_dsp_sleep(priv->dsp);
 	break;
 	case HIFI4DSP_WAKE:
 		pr_debug("%s HIFI4DSP_WAKE\n", __func__);
 		ret = copy_from_user(info, argp,
-				sizeof(struct hifi4dsp_info_t));
+				     sizeof(struct hifi4dsp_info_t));
 		priv->dsp->info = info;
-		hifi4dsp_tm2_dsp_wake(priv->dsp);
+		hifi4dsp_driver_dsp_wake(priv->dsp);
 	break;
 	case HIFI4DSP_GET_INFO:
 		pr_debug("%s HIFI4DSP_GET_INFO\n", __func__);
 		ret = copy_from_user(info, argp,
-				sizeof(struct hifi4dsp_info_t));
+				     sizeof(struct hifi4dsp_info_t));
 		pr_debug("%s HIFI4DSP_GET_INFO %s\n", __func__,
-					info->fw_name);
+			 info->fw_name);
 		strcpy(info->fw_name, "1234abcdef");
+		info->phy_addr = priv->pdata->fw_paddr;
+		info->size = priv->pdata->fw_max_size;
 		ret = copy_to_user(argp, info,
-				sizeof(struct hifi4dsp_info_t));
+				   sizeof(struct hifi4dsp_info_t));
 		pr_debug("%s HIFI4DSP_GET_INFO %s\n", __func__,
-					info->fw_name);
+			 info->fw_name);
+	break;
+	case HIFI4DSP_SHM_CLEAN:
+		ret = copy_from_user(&shminfo, argp, sizeof(shminfo));
+		pr_debug("%s clean cache, addr:%lu, size:%zu\n",
+			 __func__, shminfo.addr, shminfo.size);
+		if ((shminfo.addr < hifi4_rmem.base) ||
+		    (shminfo.addr + shminfo.size > hifimemend)) {
+			kfree(info);
+			return -EINVAL;
+		}
+		dma_sync_single_for_device
+					(priv->dev,
+					 shminfo.addr,
+					 shminfo.size,
+					 DMA_TO_DEVICE);
+	break;
+	case HIFI4DSP_SHM_INV:
+		ret = copy_from_user(&shminfo, argp, sizeof(shminfo));
+		pr_debug("%s invalidate cache, addr:%lu, size:%zu\n",
+			 __func__, shminfo.addr, shminfo.size);
+		if ((shminfo.addr < hifi4_rmem.base) ||
+		    (shminfo.addr + shminfo.size > hifimemend)) {
+			kfree(info);
+			return -EINVAL;
+		}
+		dma_sync_single_for_device
+					(priv->dev,
+					 shminfo.addr,
+					 shminfo.size,
+					 DMA_FROM_DEVICE);
 	break;
 	default:
 		pr_err("%s ioctl CMD error\n", __func__);
@@ -296,7 +273,65 @@ static long hifi4dsp_miscdev_ioctl(struct file *fp, unsigned int cmd,
 	return ret;
 }
 
-static int hifi4dsp_tm2_dsp_load_fw(struct hifi4dsp_dsp *dsp)
+#ifdef CONFIG_COMPAT
+static long hifi4dsp_miscdev_compat_ioctl(struct file *filp,
+					  unsigned int cmd, unsigned long args)
+{
+	long ret;
+
+	args = (unsigned long)compat_ptr(args);
+	ret = hifi4dsp_miscdev_unlocked_ioctl(filp, cmd, args);
+
+	return ret;
+}
+#endif
+
+static int hifi4dsp_miscdev_mmap(struct file *fp, struct vm_area_struct *vma)
+{
+	int ret = 0;
+	unsigned long phys_page_addr = 0;
+	unsigned long size = 0;
+	struct hifi4dsp_priv *priv = NULL;
+
+	if (NULL == (void *)vma) {
+		pr_err("input error: vma is NULL\n");
+		return -1;
+	}
+
+	pr_debug("%s\n", __func__);
+	if (!fp->private_data) {
+		pr_err("%s error:fp->private_data is null", __func__);
+		return -1;
+	}
+
+	priv = (struct hifi4dsp_priv *)fp->private_data;
+
+	phys_page_addr = (u64)priv->pdata->fw_paddr >> PAGE_SHIFT;
+	size = ((unsigned long)vma->vm_end - (unsigned long)vma->vm_start);
+	pr_debug("vma=0x%pK.\n", vma);
+	pr_debug("size=%ld, vma->vm_start=%ld, end=%ld.\n",
+		 ((unsigned long)vma->vm_end - (unsigned long)vma->vm_start),
+		 (unsigned long)vma->vm_start, (unsigned long)vma->vm_end);
+	pr_debug("phys_page_addr=%ld.\n", (unsigned long)phys_page_addr);
+
+	vma->vm_page_prot = PAGE_SHARED;
+	vma->vm_page_prot = pgprot_writecombine(vma->vm_page_prot);
+
+	if (size > priv->pdata->fw_max_size)
+		size = priv->pdata->fw_max_size;
+
+	ret = remap_pfn_range(vma,
+			      vma->vm_start,
+			      phys_page_addr, size, vma->vm_page_prot);
+	if (ret != 0) {
+		pr_err("remap_pfn_range ret=%d\n", ret);
+		return -1;
+	}
+
+	return ret;
+}
+
+static int hifi4dsp_driver_load_fw(struct hifi4dsp_dsp *dsp)
 {
 	int err = 0;
 	struct hifi4dsp_firmware *new_dsp_fw;
@@ -304,9 +339,13 @@ static int hifi4dsp_tm2_dsp_load_fw(struct hifi4dsp_dsp *dsp)
 
 	if (strlen(info->fw_name) == 0)
 		return -1;
-	pr_debug("info->fw_name:%s\n", info->fw_name);
+
+	pr_debug("hifi4dsp_info_t, name=%s, paddr=0x%llx\n",
+		 info->fw_name,
+		 (unsigned long long)info->phy_addr);
+
 	new_dsp_fw = hifi4dsp_fw_register(dsp, info->fw_name);
-	if (new_dsp_fw == NULL) {
+	if (!new_dsp_fw) {
 		pr_err("register firmware:%s error\n", info->fw_name);
 		return -1;
 	}
@@ -322,93 +361,83 @@ static int hifi4dsp_tm2_dsp_load_fw(struct hifi4dsp_dsp *dsp)
 		new_dsp_fw->paddr = dsp->pdata->fw_paddr;
 		new_dsp_fw->buf = dsp->pdata->fw_buf;
 	}
-	pr_debug("new hifi4dsp_firmware, name=%s, paddr=0x%llx, buf=0x%p\n",
-		new_dsp_fw->name,
-		(unsigned long long)new_dsp_fw->paddr,
-		new_dsp_fw->buf);
+	pr_debug("new hifi4dsp_firmware, name=%s, paddr=0x%llx\n",
+		 new_dsp_fw->name,
+		 (unsigned long long)new_dsp_fw->paddr);
+
 	hifi4dsp_fw_load(new_dsp_fw);
+
 	return err;
 }
 
-static int hifi4dsp_tm2_dsp_init(struct hifi4dsp_priv *priv,
-	struct device *dev, struct hifi4dsp_pdata *pdata,
-	struct hifi4dsp_dsp_device *dsp_dev)
+static int hifi4dsp_driver_load_2fw(struct hifi4dsp_dsp *dsp)
 {
 	int err = 0;
-	struct hifi4dsp_dsp *new_dsp;
-	struct hifi4dsp_firmware *new_dsp_fw;
-	struct firmware *fw;
+	struct hifi4dsp_firmware *new_dsp_sram_fw;
+	struct hifi4dsp_firmware *new_dsp_ddr_fw;
+	struct hifi4dsp_info_t *info = dsp->info;
 
-	pr_debug("%s\n", __func__);
-	/* init dsp */
-	new_dsp = hifi4dsp_dsp_new(priv, pdata, dsp_dev);
-	if (new_dsp == NULL) {
-		pr_err("%s get new hifi4dsp_dsp error\n", __func__);
-		err = -ENODEV;
-		goto dsp_new_err;
+	if (strlen(info->fw1_name) == 0)
+		return -1;
+	/*load dspboot_sdram.bin to ddr*/
+	pr_debug("info->fw1_name : %s\n", info->fw1_name);
+	new_dsp_ddr_fw = hifi4dsp_fw_register(dsp, info->fw1_name);
+	if (!new_dsp_ddr_fw) {
+		pr_err("register firmware:%s error\n", info->fw1_name);
+		return -1;
 	}
+	dsp->dsp_fw = new_dsp_ddr_fw;  /*set newest fw as def fw of dsp*/
+	strcpy(new_dsp_ddr_fw->name, info->fw1_name);
+	new_dsp_ddr_fw->paddr = dsp->pdata->fw_paddr;
+	new_dsp_ddr_fw->buf = dsp->pdata->fw_buf;
+	pr_debug("new_dsp_ddr_fw, name=%s, paddr=0x%llx, virtual addr:0x%lx\n",
+		 new_dsp_ddr_fw->name,
+		 (unsigned long long)new_dsp_ddr_fw->paddr,
+		 (unsigned long)new_dsp_ddr_fw->buf);
+	hifi4dsp_fw_load(new_dsp_ddr_fw);
 
-	/*malloc firmware*/
-	fw = kzalloc(sizeof(struct firmware), GFP_KERNEL);
-	if (new_dsp == NULL) {
-		pr_err("kzalloc new firmware error\n");
-		return -ENOMEM;
+	/*load dspboot_sram.bin to sram*/
+	if (strlen(info->fw2_name) == 0)
+		return -1;
+	pr_debug("info->fw2_name : %s\n", info->fw2_name);
+	new_dsp_sram_fw = hifi4dsp_fw_register(dsp, info->fw2_name);
+	if (!new_dsp_sram_fw) {
+		pr_err("register firmware:%s error\n", info->fw2_name);
+		return -1;
 	}
-	new_dsp->fw = fw;
-	/*init id, irq, clk*/
-	new_dsp->id = pdata->id;
-	new_dsp->irq = pdata->irq;
-	new_dsp->freq = pdata->clk_freq;
+	dsp->dsp_fw = new_dsp_sram_fw;
+	strcpy(new_dsp_sram_fw->name, info->fw2_name);
+	new_dsp_sram_fw->paddr = boot_sram_addr;
+	new_dsp_sram_fw->buf = g_regbases.sram_base;
+	hifi4dsp_fw_sram_load(new_dsp_sram_fw);
 
-	/*init addr*/
-	new_dsp->addr.fw_paddr = pdata->fw_paddr;
-	new_dsp->addr.fw = pdata->fw_buf;
-	new_dsp->addr.reg = pdata->reg;
-	new_dsp->addr.reg_size = pdata->reg_size;
-	/*init mailbox*/
-
-	/* reset */
-	hifi4dsp_dsp_reset(new_dsp);
-	/* malloc hifi4dsp_firmware & init */
-	new_dsp_fw = hifi4dsp_fw_new(new_dsp, new_dsp->fw, priv);
-	new_dsp->dsp_fw = new_dsp_fw;
-
-	/* add to priv*/
-	priv->dsp_fw = new_dsp_fw;
-	priv->dsp = new_dsp;
-
-	hifi4dsp_dsp_boot(priv->dsp);
-
-	pr_info("%s done\n", __func__);
-dsp_new_err:
 	return err;
 }
 
-static int hifi4dsp_tm2_dsp_reset(struct hifi4dsp_dsp *dsp)
+static int hifi4dsp_driver_reset(struct hifi4dsp_dsp *dsp)
 {
 	struct	hifi4dsp_info_t *info;
 
 	pr_debug("%s\n", __func__);
-	if (dsp->info != NULL)
+	if (!dsp->info)
 		info = (struct	hifi4dsp_info_t *)dsp->info;
 
 	dsp->info = NULL;
 	return 0;
 }
 
-static int hifi4dsp_tm2_dsp_boot(struct hifi4dsp_dsp *dsp)
+static int hifi4dsp_driver_dsp_boot(struct hifi4dsp_dsp *dsp)
 {
 	struct  hifi4dsp_info_t *info;
 
 	info = (struct  hifi4dsp_info_t *)dsp->info;
 	pr_debug("%s\n", __func__);
 
-
 	dsp->info = NULL;
 	return 0;
 }
 
-static int hifi4dsp_tm2_dsp_start(struct hifi4dsp_dsp *dsp)
+static int hifi4dsp_driver_dsp_start(struct hifi4dsp_dsp *dsp)
 {
 	struct  hifi4dsp_info_t *info;
 
@@ -417,193 +446,76 @@ static int hifi4dsp_tm2_dsp_start(struct hifi4dsp_dsp *dsp)
 	pr_debug("dsp_id: %d\n", dsp->id);
 	pr_debug("dsp_freqence: %d Hz\n", dsp->freq);
 	pr_debug("dsp_start_addr: 0x%llx\n",
-		(unsigned long long)dsp->dsp_fw->paddr);
+		 (unsigned long long)dsp->dsp_fw->paddr);
 
-	if (dsp->dsp_clk == NULL)
+	if (!dsp->dsp_clk) {
 		pr_err("dsp_clk=NULL\n");
-	if (dsp->dsp_gate == NULL)
-		pr_err("dsp_gate=NULL\n");
+		return -EINVAL;
+	}
 
-	//clk_set_rate(dsp->dsp_clk, dsp->freq);
-	//clk_prepare_enable(dsp->dsp_clk);
-	//clk_prepare_enable(dsp->dsp_gate);
+	clk_set_rate(dsp->dsp_clk, dsp->freq);
+	clk_prepare_enable(dsp->dsp_clk);
 
-	tm2_dsp_bootup(dsp->id, dsp->dsp_fw->paddr, dsp->freq);
+	if (bootlocation == 1)
+		soc_dsp_bootup(dsp->id, dsp->dsp_fw->paddr, dsp->freq);
+	else if (bootlocation == 2)
+		soc_dsp_bootup(dsp->id, boot_sram_addr, dsp->freq);
+
 	dsp->info = NULL;
 
 	return 0;
 }
 
-static int hifi4dsp_tm2_dsp_stop(struct hifi4dsp_dsp *dsp)
+static int hifi4dsp_driver_dsp_clk_off(struct hifi4dsp_dsp *dsp)
+{
+	if (!dsp->dsp_clk) {
+		pr_err("dsp_clk=NULL\n");
+		return  -EINVAL;
+	}
+
+	clk_disable_unprepare(dsp->dsp_clk);
+	return 0;
+}
+
+static int hifi4dsp_driver_dsp_stop(struct hifi4dsp_dsp *dsp)
 {
 	struct  hifi4dsp_info_t *info;
 
 	info = (struct  hifi4dsp_info_t *)dsp->info;
 	pr_debug("%s\n", __func__);
 
+	soc_dsp_poweroff(info->id);
+	hifi4dsp_driver_dsp_clk_off(dsp);
 
 	dsp->info = NULL;
 	return 0;
 }
 
-static int hifi4dsp_tm2_dsp_sleep(struct hifi4dsp_dsp *dsp)
+static int hifi4dsp_driver_dsp_sleep(struct hifi4dsp_dsp *dsp)
 {
 	struct  hifi4dsp_info_t *info;
 
 	info = (struct  hifi4dsp_info_t *)dsp->info;
 	pr_debug("%s\n", __func__);
 
-
 	dsp->info = NULL;
 	return 0;
 }
 
-static int hifi4dsp_tm2_dsp_wake(struct hifi4dsp_dsp *dsp)
+static int hifi4dsp_driver_dsp_wake(struct hifi4dsp_dsp *dsp)
 {
 	struct  hifi4dsp_info_t *info;
 
 	info = (struct  hifi4dsp_info_t *)dsp->info;
 	pr_debug("%s\n", __func__);
 
-
 	dsp->info = NULL;
 	return 0;
-}
-
-static void hifi4dsp_tm2_dsp_free(struct hifi4dsp_dsp *dsp)
-{
-	pr_debug("%s\n", __func__);
-
-	hifi4dsp_fw_free_all(dsp);
-	//kfree(NULL) is safe and check is probably not required
-
-	kfree(dsp->dsp_fw);
-	dsp->dsp_fw = NULL;
-
-	kfree(dsp->fw);
-	dsp->fw = NULL;
-
-	kfree(dsp->ops);
-	dsp->ops = NULL;
-
-	kfree(dsp->pdata);
-	dsp->pdata = NULL;
-
-	kfree(dsp);
-}
-
-static irqreturn_t hifi4dsp_tm2_dsp_irq(int irq, void *p)
-{
-	irqreturn_t ret = IRQ_NONE;
-	u32 isrx;
-	struct hifi4dsp_dsp *dsp = (struct hifi4dsp_dsp *) p;
-
-	spin_lock(&dsp->spinlock);
-	isrx = hifi4dsp_dsp_smem_read64_unlocked(dsp, IPC_STS_AP);
-	//need improvement, process for rx_request  rx_done from dsp
-	spin_unlock(&dsp->spinlock);
-	ret = IRQ_WAKE_THREAD;
-	return ret;
-}
-
-static inline u32 hifi4dsp_tm2_ipc_header_msg_id(u64 header)
-{
-	header &= IPC_MSG_HEADER_DATA_BYTES(IPC_MSG_HEADER_ID_MASK);
-	return header >> IPC_MSG_HEADER_ID_SHIFT;
-}
-
-static inline u32 hifi4dsp_tm2_ipc_header_msg_data_bytes(u64 header)
-{
-	header &= IPC_MSG_HEADER_DATA_BYTES(IPC_MSG_HEADER_DATA_BYTES_MASK);
-	return header >> IPC_MSG_HEADER_DATA_BYTES_SHIFT;
-}
-
-static int hifi4dsp_tm2_process_notification(struct hifi4dsp_priv *priv,
-					unsigned long *flags)
-{
-	struct hifi4dsp_dsp *dsp = priv->dsp;
-	u32 header;
-	u32 msg_id;
-	int handled = 1;
-
-	/*todo, read msg header, get MSG_ID*/
-	header = hifi4dsp_dsp_smem_read_unlocked(dsp, 0);
-	msg_id = hifi4dsp_tm2_ipc_header_msg_id(header);
-
-	switch (msg_id) {
-	case IPC_MSG_DSP_2_AP_0:
-		break;
-	case IPC_MSG_DSP_2_AP_1:
-		break;
-	}
-
-	return handled;
-}
-
-static int hifi4dsp_tm2_process_reply(struct hifi4dsp_priv *priv, u64 header)
-{
-	struct hifi4dsp_ipc_message *msg;
-
-	msg = hifi4dsp_ipc_reply_find_msg(&priv->ipc, header);
-	if (msg == NULL)
-		return 1;
-
-	if (header & IPC_MSG_HEADER_WITH_DATA(header)) {
-		msg->rx_size = hifi4dsp_tm2_ipc_header_msg_data_bytes(header);
-		hifi4dsp_dsp_mailbox_inbox_read(priv->dsp,
-				msg->rx_data, msg->rx_size);
-	}
-
-	list_del(&msg->list);
-	/* wake up */
-	hifi4dsp_ipc_tx_msg_reply_complete(&priv->ipc, msg);
-
-	return 1;
-}
-
-static irqreturn_t hifi4dsp_tm2_dsp_irq_thread(int irq, void *context)
-{
-	struct hifi4dsp_dsp  *dsp = (struct hifi4dsp_dsp *) context;
-	struct hifi4dsp_priv *priv = dsp->priv;
-	struct hifi4dsp_ipc  *ipc = &priv->ipc;
-	u64 header;
-	u32 ap_sts;
-	unsigned long flags;
-
-	spin_lock_irqsave(&dsp->spinlock, flags);
-
-	ap_sts = hifi4dsp_dsp_smem_read_unlocked(dsp, IPC_STS_AP);
-	header = hifi4dsp_dsp_smem_read64_unlocked(dsp, IPC_MSG_HEADER);
-	if (header & (IPC_STS_AP_BUSY&ap_sts)) {
-		if (header&IPC_MSG_HEADER_NOTIFY_MASK) {
-			/* msg */
-			hifi4dsp_tm2_process_notification(priv, &flags);
-		} else {
-			/* reply msg */
-			hifi4dsp_tm2_process_reply(priv, header);
-		}
-		/*
-		 * clear DSP BUSY bit and set DONE bit. Tell DSP we have
-		 * processed the message and can accept new. Clear data part
-		 * of the header
-		 */
-		hifi4dsp_dsp_smem_update_bits64_unlocked(dsp, IPC_STS_AP,
-			IPC_STS_AP_BUSY|IPC_STS_AP_DONE, IPC_STS_AP_DONE);
-		/* unmask msg request interrupts */
-		//hifi4dsp_dsp_smem_update_bits_unlocked(dsp, 0);
-	}
-
-	spin_unlock_irqrestore(&dsp->spinlock, flags);
-
-	/* continue to send any remaining messages... */
-	kthread_queue_work(&ipc->kworker, &ipc->kwork);
-
-	return IRQ_HANDLED;
 }
 
 /*transfer param from pdata to dsp*/
-static int hifi4dsp_tm2_resource_map(struct hifi4dsp_dsp *dsp,
-				struct hifi4dsp_pdata *pdata)
+static int hifi4dsp_driver_resource_map(struct hifi4dsp_dsp *dsp,
+					struct hifi4dsp_pdata *pdata)
 {
 	int ret = 0;
 
@@ -614,7 +526,7 @@ static int hifi4dsp_tm2_resource_map(struct hifi4dsp_dsp *dsp,
 	return ret;
 }
 
-static int hifi4dsp_tm2_init(struct hifi4dsp_dsp *dsp,
+static int hifi4dsp_driver_init(struct hifi4dsp_dsp *dsp,
 				struct hifi4dsp_pdata *pdata)
 {
 	struct device *dev;
@@ -622,7 +534,7 @@ static int hifi4dsp_tm2_init(struct hifi4dsp_dsp *dsp,
 
 	dev = dsp->dev;
 	pr_debug("%s\n", __func__);
-	ret = hifi4dsp_tm2_resource_map(dsp, pdata);
+	ret = hifi4dsp_driver_resource_map(dsp, pdata);
 	if (ret < 0) {
 		dev_err(dev, "failed to map resources\n");
 		return ret;
@@ -637,155 +549,30 @@ static int hifi4dsp_tm2_init(struct hifi4dsp_dsp *dsp,
 	return 0;
 }
 
-static void hifi4dsp_tm2_free(struct hifi4dsp_priv *priv)
-{
-	pr_debug("%s\n", __func__);
-	if (priv->dsp) {
-		hifi4dsp_tm2_dsp_free(priv->dsp);
-		priv->dsp = NULL;
-	}
-	if (priv->dsp_fw) {
-		priv->dsp_fw = NULL;
-		return;
-	}
-}
-
-static int hifi4dsp_tm2_load_and_parse_fw(struct hifi4dsp_firmware *dsp_fw,
-				void *pinfo)
+static int hifi4dsp_load_and_parse_fw(struct hifi4dsp_firmware *dsp_fw,
+				      void *pinfo)
 {
 	struct  hifi4dsp_info_t *info;
 
 	info = (struct hifi4dsp_info_t *)pinfo;
 	pr_debug("%s\n", __func__);
-	hifi4dsp_tm2_dsp_load_fw(dsp_fw->dsp);
+	hifi4dsp_driver_load_fw(dsp_fw->dsp);
 	return 0;
 }
 
 struct hifi4dsp_ops;
-struct hifi4dsp_ops hifi4dsp_tm2_dsp_ops = {
-	.boot = hifi4dsp_tm2_dsp_boot,
-	.reset = hifi4dsp_tm2_dsp_reset,
-	.sleep = hifi4dsp_tm2_dsp_sleep,
-	.wake = hifi4dsp_tm2_dsp_wake,
+struct hifi4dsp_ops hifi4dsp_driver_dsp_ops = {
+	.boot = hifi4dsp_driver_dsp_boot,
+	.reset = hifi4dsp_driver_reset,
+	.sleep = hifi4dsp_driver_dsp_sleep,
+	.wake = hifi4dsp_driver_dsp_wake,
 
-	.write = hifi4dsp_smem_write,
-	.read = hifi4dsp_smem_read,
-	.write64 = hifi4dsp_smem_write64,
-	.read64 = hifi4dsp_smem_read64,
-	.ram_read = hifi4dsp_memcpy_fromio_32,
-	.ram_write = hifi4dsp_memcpy_toio_32,
-
-	.irq_handler = hifi4dsp_tm2_dsp_irq,
-	.init = hifi4dsp_tm2_init,
-	.free = hifi4dsp_tm2_dsp_free,
-	.parse_fw = hifi4dsp_tm2_load_and_parse_fw,
-};
-
-static struct hifi4dsp_pdata dsp_pdatas[] = {/*ARRAY_SIZE(dsp_pdatas)*/
-	{
-		.id = 0,
-		.name = "hifi4dsp0",
-		.reg_paddr = 0xFF680000,
-		.reg_size = 0x00100000,
-		.clk_freq = 400*1000*1000,
-		.smem_paddr = DSP_PHY_ADDR_0,
-		.smem_size = HIFI4DSP_TM2_ALL_SMEM_SIZE,
-		.irq = 242,
-		.fw_paddr = DSP_PHY_ADDR_0,
-	},
-	{
-		.id = 1,
-		.name = "hifi4dsp1",
-		.reg_paddr = 0xFF690000,
-		.reg_size = 0x00100000,
-		.clk_freq = 400*1000*1000,
-		.irq = 246,
-		.fw_paddr = DSP_PHY_ADDR_1,
-	},
+	.init = hifi4dsp_driver_init,
+	.parse_fw = hifi4dsp_load_and_parse_fw,
 };
 
 static struct hifi4dsp_dsp_device hifi4dsp_dev = {
-		.thread = hifi4dsp_tm2_dsp_irq_thread,
-		.ops = &hifi4dsp_tm2_dsp_ops,
-};
-
-static void hifi4dsp_tm2_ipc_dbg(struct hifi4dsp_ipc *ipc,
-					const char *dbg_info)
-{
-	struct hifi4dsp_dsp *dsp = ipc->dsp;
-
-	if (dsp == NULL) {
-		pr_err("%s ipc->dsp is null\n", __func__);
-		return;
-	}
-	/*dump mailbox register info*/
-	pr_debug("%s %s\n", __func__, dbg_info);
-}
-
-/*
- *	call mailbox function to send the msg or
- *   directlly to write the msg to share register/memory
- *   then send notification msg though mailbox to DSP
- */
-static void hifi4dsp_tm2_ipc_tx_msg(struct hifi4dsp_ipc *ipc,
-				struct hifi4dsp_ipc_message *msg)
-{
-	if (msg->header)
-		hifi4dsp_dsp_mailbox_outbox_write(ipc->dsp,
-			msg->tx_data,
-			msg->tx_size);
-	/*hifi4dsp_dsp_smem_write_unlocked(ipc->dsp,
-	 *			MBOX_TX_SET,
-	 *			(u32)(msg->header);
-	 */
-}
-
-/*
- * msg content = lower 32-bit of the header + data
- *
- */
-static void hifi4dsp_tm2_ipc_data_copy(struct hifi4dsp_ipc_message *msg,
-				char *tx_data, size_t tx_bytes)
-{
-	*(u32 *)msg->tx_data = (u32)(msg->header & (u32)-1);
-	memcpy(msg->tx_data + sizeof(u32), tx_data, tx_bytes);
-	msg->tx_size += sizeof(u32);
-}
-
-/*
- * read from mailbox register or
- *			share register between dsp and AP or
- *			share memory eara
- * to judge if dsp is busy
- */
-static u64 hifi4dsp_tm2_ipc_reply_msg_match(u64 header, u64 *mask)
-{
-	/* match reply to message sent based on msg and stream IDs */
-	*mask = IPC_MSG_HEADER_ID_MASK;
-	header &= *mask;
-	return header;
-}
-
-/*
- * read from mailbox register or
- *           share register between dsp and AP or
- *           share memory eara
- * to judge if dsp is busy
- */
-static bool hifi4dsp_tm2_is_dsp_busy(struct hifi4dsp_dsp *dsp)
-{
-	u32 is_busy = 0;
-
-	pr_debug("%s %s busy\n", __func__, is_busy?"":"not");
-	return 0;
-}
-
-struct hifi4dsp_ipc_plat_ops hifi4dsp_tm2_ipc_ops = {
-	.tx_msg = hifi4dsp_tm2_ipc_tx_msg,
-	.tx_data_copy = hifi4dsp_tm2_ipc_data_copy,
-	.reply_msg_match = hifi4dsp_tm2_ipc_reply_msg_match,
-	.is_dsp_busy = hifi4dsp_tm2_is_dsp_busy,
-	.debug_info = hifi4dsp_tm2_ipc_dbg,
+		.ops = &hifi4dsp_driver_dsp_ops,
 };
 
 struct hifi4dsp_priv *hifi4dsp_privdata()
@@ -797,23 +584,31 @@ static int hifi4dsp_platform_remove(struct platform_device *pdev)
 {
 	struct hifi4dsp_priv *priv;
 	int id = 0, dsp_cnt = 0;
+	int ret = 0;
 
-	dsp_cnt = ARRAY_SIZE(dsp_pdatas);
+	ret = of_property_read_u32(pdev->dev.of_node, "dsp-cnt", &dsp_cnt);
+	if (ret < 0) {
+		dev_err(&pdev->dev, "Can't retrieve dsp-cnt\n");
+		ret = -EINVAL;
+		goto dsp_cnt_error;
+	}
+
 	priv = hifi4dsp_privdata();
 	for (id = 0; id < dsp_cnt; id++) {
 		if (!priv)
 			continue;
-		hifi4dsp_tm2_free(priv);
 		if (priv->dev)
 			device_destroy(priv->class, priv->dev->devt);
 		priv += 1;
 	}
-	kfree(priv);
+
 	priv = NULL;
 	for (id = 0; id < dsp_cnt; id++)
 		hifi4dsp_p[id] = NULL;
 
 	return 0;
+dsp_cnt_error:
+	return ret;
 }
 
 static const struct file_operations hifi4dsp_miscdev_fops = {
@@ -822,8 +617,11 @@ static const struct file_operations hifi4dsp_miscdev_fops = {
 	.read = NULL,
 	.write = NULL,
 	.release = hifi4dsp_miscdev_release,
-	.unlocked_ioctl = hifi4dsp_miscdev_ioctl,
-	.compat_ioctl = hifi4dsp_miscdev_ioctl,
+	.unlocked_ioctl = hifi4dsp_miscdev_unlocked_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl = hifi4dsp_miscdev_compat_ioctl,
+#endif
+	.mmap = hifi4dsp_miscdev_mmap,
 };
 
 static struct miscdevice hifi4dsp_miscdev[] = {
@@ -839,18 +637,7 @@ static struct miscdevice hifi4dsp_miscdev[] = {
 	}
 };
 
-static int hifi4dsp_priv_data_init(struct hifi4dsp_priv *priv,
-		struct hifi4dsp_pdata *pdata)
-{
-	//priv->fw_id = 0;
-	priv->dsp_is_started = false;
-	priv->dsp_dev = &hifi4dsp_dev;
-	priv->pdata = pdata;
-	HIFI4DSP_PRNT("%s done\n", __func__);
-	return 0;
-}
-
-static void *hifi4dsp_mm_vmap(phys_addr_t phys, unsigned long size)
+static void *mm_vmap(phys_addr_t phys, unsigned long size)
 {
 	u32 offset, npages;
 	struct page **pages = NULL;
@@ -868,7 +655,6 @@ static void *hifi4dsp_mm_vmap(phys_addr_t phys, unsigned long size)
 		pages[i] = phys_to_page(phys);
 		phys += PAGE_SIZE;
 	}
-	/* pgprot = pgprot_writecombine(PAGE_KERNEL); */
 
 	vaddr = vmap(pages, npages, VM_MAP, pgprot);
 	if (!vaddr) {
@@ -885,8 +671,7 @@ static void *hifi4dsp_mm_vmap(phys_addr_t phys, unsigned long size)
 }
 
 /*of read clk_gate, clk*/
-static inline int of_read_dsp_irq(
-				struct platform_device *pdev, int dsp_id)
+static inline int of_read_dsp_irq(struct platform_device *pdev, int dsp_id)
 {
 	int irq = -1;
 
@@ -896,14 +681,14 @@ static inline int of_read_dsp_irq(
 		irq = of_irq_get_byname(pdev->dev.of_node, "irq_frm_dspb");
 
 	pr_debug("%s %s irq=%d\n", __func__,
-			(irq < 0)?"error":"successful", irq);
+		 (irq < 0) ? "error" : "successful", irq);
 
 	return irq;
 }
 
 /*of read clk_gate, clk*/
-static inline struct clk *of_read_dsp_clk(
-				struct platform_device *pdev, int dsp_id)
+static inline struct clk *of_read_dsp_clk(struct platform_device *pdev,
+					  int dsp_id)
 {
 	struct clk *p_clk = NULL;
 	char clk_name[20];
@@ -921,198 +706,361 @@ static inline struct clk *of_read_dsp_clk(
 	return p_clk;
 }
 
-/*of read clk_gate, clk*/
-static inline struct clk *of_read_dsp_clk_gate(
-				struct platform_device *pdev, int dsp_id)
+void get_dsp_baseaddr(struct platform_device *pdev)
 {
-	struct clk *p_clk_gate = NULL;
-	char clk_name[20];
+	struct resource *res;
 
-	if (dsp_id == 0) {
-		strcpy(clk_name, "dspa_gate");
-		p_clk_gate = devm_clk_get(&pdev->dev, clk_name);
-	} else if (dsp_id == 1) {
-		strcpy(clk_name, "dspb_gate");
-		p_clk_gate = devm_clk_get(&pdev->dev, clk_name);
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (!res) {
+		dev_err(&pdev->dev, "failed to get dspa base address\n");
+		goto error;
 	}
-	if (!p_clk_gate)
-		pr_err("%s %s error\n", __func__, clk_name);
+	g_regbases.dspa_addr = devm_ioremap_resource(&pdev->dev, res);
+	g_regbases.rega_size = resource_size(res);
 
-	return p_clk_gate;
+	if (dspcount == 2) {
+		res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
+		if (!res) {
+			dev_err(&pdev->dev, "failed to get dspb base address\n");
+			goto error;
+		}
+		g_regbases.dspb_addr = devm_ioremap_resource(&pdev->dev, res);
+		g_regbases.regb_size = resource_size(res);
+	}
+
+error:
+	return;
+}
+
+int of_read_dsp_cnt(struct platform_device *pdev)
+{
+	int ret;
+	int dsp_cnt;
+
+	ret = of_property_read_u32(pdev->dev.of_node, "dsp-cnt", &dsp_cnt);
+	if (ret < 0) {
+		dev_err(&pdev->dev, "Can't retrieve dsp-cnt\n");
+		return -EINVAL;
+	}
+	pr_debug("%s of read dsp-cnt=%d\n", __func__, dsp_cnt);
+
+	return dsp_cnt;
 }
 
 static int hifi4dsp_platform_probe(struct platform_device *pdev)
 {
 	int ret = 0;
 	int i = 0, id = 0;
-	unsigned int dsp_cnt = 0;
-	struct hifi4dsp_priv *priv;
-	struct hifi4dsp_pdata *pdata;
-	struct hifi4dsp_miscdev_t *p_dsp_miscdev;
-	struct miscdevice *pmscdev;
-	struct page *page;
-	struct resource res_mem;
-	int mem_bytes;
-	void	*fw_addr = NULL;
-	void __iomem *dsp_regbase;
-	int irq;
-	struct device_node *np;
+	int dsp_cnt = 0;
+	unsigned int dspoffset[2];
+	unsigned int dsp_clkfreq[2];
+	struct hifi4dsp_priv *priv = NULL;
+	struct hifi4dsp_dsp *dsp = NULL;
+	struct hifi4dsp_pdata *pdata = NULL;
+	struct hifi4dsp_miscdev_t *p_dsp_miscdev = NULL;
+	struct miscdevice *pmscdev = NULL;
+
+	phys_addr_t hifi4base;
+	int hifi4size;
+	void *fw_addr = NULL;
+
+	struct hifi4dsp_firmware *dsp_firmware = NULL;
+	struct firmware *fw = NULL;
+
+	struct device_node *np = NULL;
 	struct clk *dsp_clk = NULL;
-	struct clk *dsp_gate = NULL;
+
+	struct hifi4dsp_info_t *hifi_info = NULL;
+	struct page *cma_pages = NULL;
+	unsigned int reservememsize;
 
 	np = pdev->dev.of_node;
-	dsp_cnt = ARRAY_SIZE(dsp_pdatas);
-	pr_debug("%s pdatas: dsp_cnt=%d\n", __func__, dsp_cnt);
-	ret = of_property_read_u32(np, "dsp-cnt", &dsp_cnt);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "Can't retrieve dsp-cnt\n");
-		ret = -EINVAL;
-		goto dsp_cnt_error;
+
+	/*dsp boot offset */
+	dsp_cnt = of_read_dsp_cnt(pdev);
+
+	if (dsp_cnt > 0) {
+		dspcount = dsp_cnt;
+		ret = of_property_read_u32(np, "dspaoffset", &dspoffset[0]);
+		if (ret < 0) {
+			dev_err(&pdev->dev, "Can't retrieve dspaoffset\n");
+			goto err1;
+		}
+		pr_debug("of read dspaoffset=0x%08x\n", dspoffset[0]);
+
+		ret = of_property_read_u32(np, "dspa_clkfreq", &dsp_clkfreq[0]);
+		if (ret < 0) {
+			dev_err(&pdev->dev, "Can't retrieve dspaclkval\n");
+			goto err1;
+		}
+		pr_debug("of read dspaclkval=0x%08x\n", dsp_clkfreq[0]);
+
+		if (dsp_cnt == 2) {
+			ret = of_property_read_u32(np, "dspboffset",
+						   &dspoffset[1]);
+			if (ret < 0) {
+				dev_err(&pdev->dev, "Can't retrieve dspboffset\n");
+				goto err1;
+			}
+			pr_debug("of read dspboffset=0x%08x\n", dspoffset[1]);
+
+			ret = of_property_read_u32(np, "dspb_clkfreq",
+						   &dsp_clkfreq[1]);
+			if (ret < 0) {
+				dev_err(&pdev->dev, "Can't retrieve dspbclkval\n");
+				goto err1;
+			}
+			pr_debug("of read dspbclkval=0x%08x\n", dsp_clkfreq[1]);
+		}
+	} else {
+		goto err1;
 	}
-	pr_debug("%s of read dsp-cnt=%d\n", __func__, dsp_cnt);
+
+	/*boot from DDR or SRAM or ...*/
+	ret = of_property_read_u32(np, "bootlocation", &bootlocation);
+	if (ret < 0) {
+		dev_err(&pdev->dev, "Can't retrieve bootlocation\n");
+		goto err1;
+	}
+	pr_debug("%s of read dsp bootlocation=%x\n", __func__, bootlocation);
+	if (bootlocation == 1) {
+		pr_info("Dsp boot from DDR !\n");
+	} else if (bootlocation == 2) {
+		ret = of_property_read_u32(np, "boot_sram_addr",
+					   &boot_sram_addr);
+		if (ret < 0) {
+			dev_err(&pdev->dev, "Can't retrieve boot_sram_addr\n");
+			goto err1;
+		}
+		ret = of_property_read_u32(np, "boot_sram_size",
+					   &boot_sram_size);
+		if (ret < 0) {
+			dev_err(&pdev->dev, "Can't retrieve boot_sram_size\n");
+			goto err1;
+		}
+		pr_info("Dsp boot from SRAM !boot addr : 0x%08x, allocate size: 0x%08x\n",
+			boot_sram_addr, boot_sram_size);
+		g_regbases.sram_base = ioremap_nocache(boot_sram_addr,
+						       boot_sram_size);
+	} else {
+		pr_err("get wrong bootlocation....\n");
+	}
+
+	/*init hifi4dsp_dsp*/
+	dsp = devm_kcalloc(&pdev->dev, dsp_cnt, sizeof(*dsp), GFP_KERNEL);
+	if (!dsp)
+		goto err2;
+
+	/*init hifi4dsp_info_t*/
+	hifi_info = devm_kzalloc(&pdev->dev, sizeof(*hifi_info), GFP_KERNEL);
+	if (!hifi_info)
+		goto hifi_info_malloc_error;
 
 	/*init miscdev_t, miscdevice*/
-	p_dsp_miscdev = NULL;
-	p_dsp_miscdev = kcalloc(dsp_cnt, sizeof(struct hifi4dsp_miscdev_t),
-			GFP_KERNEL);
-	if (p_dsp_miscdev == NULL) {
+	p_dsp_miscdev = devm_kcalloc(&pdev->dev, dsp_cnt,
+				     sizeof(struct hifi4dsp_miscdev_t),
+				     GFP_KERNEL);
+	if (!p_dsp_miscdev) {
 		HIFI4DSP_PRNT("kzalloc for p_dsp_miscdev error\n");
-		ret = -ENOMEM;
 		goto miscdev_malloc_error;
 	}
+	if (!&p_dsp_miscdev->dsp_miscdev)
+		pr_info("register dsp _p_dsp_miscdev->dsp_miscdev alloc error\n");
+	else
+		pr_info("register dsp _p_dsp_miscdev->dsp_miscdev alloc success");
 
 	/*init hifi4dsp_priv*/
-	priv = NULL;
-	priv = kcalloc(dsp_cnt, sizeof(struct hifi4dsp_priv),
-			GFP_KERNEL);
-	if (priv == NULL) {
+	priv = devm_kcalloc(&pdev->dev, dsp_cnt, sizeof(struct hifi4dsp_priv),
+			    GFP_KERNEL);
+
+	if (!priv) {
 		HIFI4DSP_PRNT("kzalloc for hifi4dsp_priv error\n");
-		ret = -ENOMEM;
 		goto priv_malloc_error;
 	}
-	/*of read reserved memory*/
+
+	/*init hifi4dsp_pdata*/
+	pdata = devm_kcalloc(&pdev->dev, dsp_cnt,
+			     sizeof(struct hifi4dsp_pdata), GFP_KERNEL);
+	if (!pdata) {
+		HIFI4DSP_PRNT("kzalloc for hifi4dsp_pdata error\n");
+		goto pdata_malloc_error;
+	}
+
+	/*init dsp firmware*/
+	dsp_firmware = devm_kzalloc(&pdev->dev,
+				    sizeof(*dsp_firmware), GFP_KERNEL);
+	if (!dsp_firmware) {
+		HIFI4DSP_PRNT("kzalloc for firmware error\n");
+		goto dsp_firmware_malloc_error;
+	}
+
+	/*init real dsp firmware*/
+	fw = devm_kzalloc(&pdev->dev, sizeof(*fw), GFP_KERNEL);
+	if (!fw)
+		goto real_fw_malloc_error;
+
+	/*get regbase*/
+	get_dsp_baseaddr(pdev);
+
+	/*get reserve memory*/
 	ret = of_reserved_mem_device_init(&pdev->dev);
 	if (ret) {
 		pr_err("reserved memory init fail:%d\n", ret);
 		ret = -ENOMEM;
-		goto reserved_mem_alloc_error;
+		goto err3;
 	}
+	ret = of_property_read_u32(np, "reservesize", &reservememsize);
+	if (ret < 0) {
+		dev_err(&pdev->dev, "Can't retrieve reservesize\n");
+		goto err1;
+	}
+	pr_debug("of read reservememsize=0x%08x\n", reservememsize);
+	hifi4_rmem.size = reservememsize;
+	cma_pages =
+	dma_alloc_from_contiguous(&pdev->dev,
+				  PAGE_ALIGN(reservememsize) >> PAGE_SHIFT, 0);
+	pr_info("cma alloc hifi4 mem region success!\n");
 
 	for (i = 0; i < dsp_cnt; i++) {
 		id = i;
 		p_dsp_miscdev += i;
 		priv += i;
-		pr_info("register dsp-%d start\n", id);
+		pdata += i;
+		dsp += i;
+		pr_info("\nregister dsp-%d start\n", id);
 
-		memcpy(&(p_dsp_miscdev->dsp_miscdev),
-			&hifi4dsp_miscdev[id], sizeof(struct miscdevice));
+		/*get boot address*/
+		if (cma_pages) {
+			hifi4_rmem.base = page_to_phys(cma_pages);
+
+			pr_debug("reserved_mem :base:0x%llx, size:0x%lx\n",
+				 (unsigned long long)hifi4_rmem.base,
+				 (unsigned long)hifi4_rmem.size);
+
+			hifi4base = hifi4_rmem.base + (id == 0 ?
+						       dspoffset[0] :
+						       dspoffset[1]);
+			if (dsp_cnt == 2) {
+				hifi4size =
+				(id == 0 ?
+				(dspoffset[1] - dspoffset[0]) :
+				(hifi4_rmem.size - dspoffset[1]));
+			} else {
+				hifi4size = hifi4_rmem.size;
+			}
+
+			if (!PageHighMem(cma_pages)) {
+				fw_addr = phys_to_virt(hifi4base);
+				pr_info("kernel addr map1 phys:0x%lx->virt:0x%lx\n",
+					(unsigned long)hifi4base,
+					(unsigned long)fw_addr);
+			} else {
+				fw_addr = mm_vmap(hifi4base, hifi4size);
+				pr_info("kernel addr map2 phys:0x%lx->virt:0x%lx\n",
+					(unsigned long)hifi4base,
+					(unsigned long)fw_addr);
+			}
+		} else {
+			goto err3;
+		}
+
+		pr_debug("hifi4dsp%d, firmware :base:0x%llx, size:0x%x, virt:%lx\n",
+			 id,
+			 (unsigned long long)hifi4base,
+			 hifi4size,
+			 (unsigned long)fw_addr);
+
+		/*init miscdevice pmscdev and register*/
+		memcpy(&p_dsp_miscdev->dsp_miscdev, &hifi4dsp_miscdev[id],
+		       sizeof(struct miscdevice));
 		pmscdev = &p_dsp_miscdev->dsp_miscdev;
 
-		p_dsp_miscdev->priv = priv;
-
-		/*of read reg base, ioremap it*/
-		//res_mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-		if (of_address_to_resource(np, id, &res_mem)) {
-			ret = -EINVAL;
-			pr_err("%s didn't get iomem from dts\n", __func__);
-			goto error2;
-		}
-		dsp_regbase = ioremap_nocache(res_mem.start,
-					resource_size(&res_mem));
-		pr_debug("dsp_regbase ioremap, reg:%x->%p, size:%x, %s\n",
-			(u32)res_mem.start,
-			dsp_regbase,
-			(u32)resource_size(&res_mem),
-			(dsp_regbase != NULL)?"successful":"error");
-
-		/*of read irq num*/
-		irq = of_read_dsp_irq(pdev, id);
-		if (irq < 0) {
-			ret = -EINVAL;
-			goto error2;
-		}
-
-		/*cma alloc mem for firmware*/
-		if (of_property_read_u32(np, "reserved_mem_size", &mem_bytes)) {
-			mem_bytes = DEF_RESERVE_MEM_SIZE;
-			pr_debug("of read reserved_mem_size error, def value:0x%x\n",
-					mem_bytes);
-		} else
-			pr_info("reserved_mem_size:0x%x\n", mem_bytes);
-
-		page = dma_alloc_from_contiguous(&pdev->dev,
-					 mem_bytes >> PAGE_SHIFT, 0);
-		if (!page) {
-			pr_err("alloc page failed, ret:%p\n", page);
-			return -ENOMEM;
-		}
-		if (!PageHighMem(page)) {
-			//fw_addr = page_address(page);
-			fw_addr = phys_to_virt(page_to_phys(page));
-		} else {
-			fw_addr = hifi4dsp_mm_vmap(page_to_phys(page),
-					mem_bytes);
-			pr_info("kernel addr map phys:0x%llx->virt:0x%p\n",
-				(unsigned long long)page_to_phys(page),
-				fw_addr);
-		}
-		pr_debug("get page:%p, 0x%lx, phys:0x%llx, virt:0x%p\n",
-			page,
-			page_to_pfn(page),
-			(unsigned long long)page_to_phys(page),
-			page_address(page));
-
-		/*of read clk_gate, clk*/
-		dsp_gate = of_read_dsp_clk_gate(pdev, id);
-		dsp_clk = of_read_dsp_clk(pdev, id);
-		priv->p_clk = dsp_clk;
-		priv->p_clk_gate = dsp_gate;
-
-		/*register dsp device*/
-		//pmscdev = &hifi4dsp_miscdev;
+		//pmscdev = &hifi4dsp_miscdev[id];
 		ret = misc_register(pmscdev);
 		if (ret) {
 			pr_err("register vad_miscdev error\n");
-			goto error2;
+			goto err3;
 		}
+
+		/*add miscdevice to  priv*/
 		priv->dev = pmscdev->this_device;
 
-		pdata = &dsp_pdatas[i];
-		pdata->fw_paddr = page_to_phys(page);
+		/*init hifi4dsp_firmware and add to hifi4dsp_dsp */
+		dsp_firmware->paddr = hifi4base;
+		dsp_firmware->size = hifi4size;
+		dsp_firmware->id = id;
+		strcpy(dsp_firmware->name, "amlogic_firmware");
+
+		/*init hifi4dsp_miscdev_t ->priv*/
+		p_dsp_miscdev->priv = priv;
+		if (!(p_dsp_miscdev->priv))
+			pr_info("register dsp _p_dsp_miscdev->priv alloc error");
+		else
+			pr_info("register dsp _p_dsp_miscdev->priv alloc success");
+
+		/*of read clk and add to priv*/
+		dsp_clk = of_read_dsp_clk(pdev, id);
+		priv->p_clk = dsp_clk;
+
+		/*init hifidsp_pdata save in *hifi4dsp_data and add to priv*/
+		pdata->clk_freq = dsp_clkfreq[i];
+		pdata->name = (id == 0 ? "hifi4dsp0" : "hifi4dsp1");
+		pdata->fw_paddr = hifi4base;
 		pdata->fw_buf = fw_addr;
-		pdata->fw_max_size = mem_bytes;
-		pdata->reg_size = (u32)resource_size(&res_mem);
-		pdata->reg = dsp_regbase;
-		id = pdata->id;
-		pdata->irq = irq;
-		hifi4dsp_priv_data_init(priv, pdata);
-		hifi4dsp_tm2_dsp_init(priv, priv->dev,
-				priv->pdata, priv->dsp_dev);
-		priv->dsp->dsp_clk = priv->p_clk;
-		priv->dsp->dsp_gate = priv->p_clk_gate;
+		pdata->fw_max_size = hifi4size;
+		pdata->reg_size = (id == 0 ?
+				   g_regbases.rega_size : g_regbases.regb_size);
+		pdata->reg = (id == 0 ?
+			      g_regbases.dspa_addr : g_regbases.dspb_addr);
+		pdata->id = id;
+		priv->pdata = pdata;
+
+		/*add hifi4dsp_dsp_device to priv*/
+		priv->dsp_dev = &hifi4dsp_dev;
+
+		/*initial hifi4dsp_dsp and add to priv*/
+		mutex_init(&dsp->mutex);
+		spin_lock_init(&dsp->spinlock);
+		spin_lock_init(&dsp->fw_spinlock);
+		INIT_LIST_HEAD(&dsp->fw_list);
+		dsp->dsp_clk = dsp_clk;
+		dsp->fw = fw;
+		dsp->dsp_fw = dsp_firmware;
+		dsp->id = id;
+		dsp->freq = pdata->clk_freq;
+		dsp->regionsize = hifi4size;
+		dsp->irq = pdata->irq;
+		dsp->major_id = MAJOR(priv->dev->devt);
+		dsp->dev = priv->dev;
+		dsp->pdata = pdata;
+		dsp->info = hifi_info;
+		dsp->dsp_dev = priv->dsp_dev;
+		dsp->ops = priv->dsp_dev->ops;
+		priv->dsp = dsp;
 
 		hifi4dsp_p[i] = priv;
-		//priv += 1;
-		priv->dev = pmscdev->this_device;
+		//p_dsp_miscdev->priv = priv;
+
 		dev_set_drvdata(priv->dev, priv);
 
 		pr_info("register dsp-%d done\n", id);
 	}
 	ret = 0;
-	//tm2_dsp_hw_init(priv->dsp->id, priv->dsp->freq);
-	tm2_dsp_regs_iomem_init();
-
 	pr_info("%s done\n", __func__);
 
 	goto done;
 
-error2:
-reserved_mem_alloc_error:
-	kfree(priv);
+err3:
+real_fw_malloc_error:
+dsp_firmware_malloc_error:
+pdata_malloc_error:
 priv_malloc_error:
-	kfree(p_dsp_miscdev);
 miscdev_malloc_error:
-dsp_cnt_error:
+hifi_info_malloc_error:
+err2:
+	return -ENOMEM;
+err1:
+	return -EINVAL;
 done:
 	return ret;
 }
@@ -1136,6 +1084,5 @@ static struct platform_driver hifi4dsp_platform_driver = {
 };
 module_platform_driver(hifi4dsp_platform_driver);
 
-MODULE_AUTHOR("Shuyu Li");
 MODULE_DESCRIPTION("HiFi DSP Module Driver");
 MODULE_LICENSE("GPL v2");

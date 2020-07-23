@@ -41,8 +41,10 @@
 #include <linux/string.h>
 #include <linux/amlogic/cpu_version.h>
 #include <dt-bindings/clock/amlogic,sc2-clkc.h>
+#include <linux/arm-smccc.h>
 
 #include "../clkc.h"
+#include "../clk-secure.h"
 
 #define MESON_PLL_RESET				BIT(29)
 #define MESON_PLL_ENABLE			BIT(28)
@@ -74,17 +76,23 @@
 #define SC2_SYS1_PLL_CNTL4 0x88770290
 #define SC2_SYS1_PLL_CNTL5 0x39272000
 
+#define SC2_GP0_PLL_CNTL0_1 0x080304fa
+#define SC2_GP0_PLL_CNTL0_2 0x380304fa
 #define SC2_GP0_PLL_CNTL1 0x00000000
 #define SC2_GP0_PLL_CNTL2 0x00000000
 #define SC2_GP0_PLL_CNTL3 0x48681c00
 #define SC2_GP0_PLL_CNTL4 0x88770290
 #define SC2_GP0_PLL_CNTL5 0x39272000
+#define SC2_GP0_PLL_CNTL0_3 0x180304fa
 
+#define SC2_HIFI_PLL_CNTL0_1 0x080304de
+#define SC2_HIFI_PLL_CNTL0_2 0x380304de
 #define SC2_HIFI_PLL_CNTL1 0x00000000
 #define SC2_HIFI_PLL_CNTL2 0x00000000
 #define SC2_HIFI_PLL_CNTL3 0x6a285c00
 #define SC2_HIFI_PLL_CNTL4 0x65771290
 #define SC2_HIFI_PLL_CNTL5 0x39272000
+#define SC2_HIFI_PLL_CNTL0_3 0x180304de
 
 #define SC2_PLL_CNTL6 0x56540000
 
@@ -103,6 +111,7 @@ static unsigned long meson_sc2_pll_recalc_rate(struct clk_hw *hw,
 
 	p = &pll->n;
 	/*pr_info("%s,%d, reg_off= 0x%x\n", __func__, __LINE__, p->reg_off);*/
+
 	reg = readl(pll->base + p->reg_off);
 	n = PARM_GET(p->width, p->shift, reg);
 
@@ -171,8 +180,7 @@ static long meson_sc2_pll_round_rate(struct clk_hw *hw, unsigned long rate,
 	for (i = 0; i < pll->rate_count; i++) {
 		if (rate <= rate_table[i].rate) {
 			ret_rate = rate_table[i].rate;
-			if (!strcmp(clk_hw_get_name(hw), "sys_pll") ||
-			    !strcmp(clk_hw_get_name(hw), "sys1_pll"))
+			if (!strcmp(clk_hw_get_name(hw), "sys_pll"))
 				do_div(ret_rate, 1000);
 			return ret_rate;
 		}
@@ -201,8 +209,7 @@ static const struct pll_rate_table *meson_sc2_get_pll_settings
 static int meson_sc2_pll_wait_lock(struct meson_clk_pll *pll,
 				   struct parm *p_n)
 {
-	int delay = 2400;
-	//int delay = 24000000;
+	int delay = 24000000;
 	u32 reg;
 
 	while (delay > 0) {
@@ -222,18 +229,14 @@ static int meson_sc2_pll_set_rate(struct clk_hw *hw, unsigned long rate,
 	struct parm *p;
 	const struct pll_rate_table *rate_set;
 	unsigned long old_rate;
-	unsigned long tmp;
-	int ret = 0, j = 10;
-	u32 reg;
+	int ret = 0;
+	u32 reg = 0x8000000;
 	unsigned long flags = 0;
 	void *cntlbase;
 
-	pr_info("%s:  %d, %s\n", __func__, __LINE__, clk_hw_get_name(hw));
+	/*pr_info("%s:  %d, %s\n", __func__, __LINE__, clk_hw_get_name(hw));*/
 	if (parent_rate == 0 || rate == 0)
 		return -EINVAL;
-	if (!strcmp(clk_hw_get_name(hw), "sys_pll") ||
-	    !strcmp(clk_hw_get_name(hw), "sys1_pll"))
-		rate *= 1000;
 
 	old_rate = rate;
 
@@ -257,179 +260,177 @@ static int meson_sc2_pll_set_rate(struct clk_hw *hw, unsigned long rate,
 		}
 	}
 
-	cntlbase = pll->base + p->reg_off;
+	if ((!strcmp(clk_hw_get_name(hw), "gp0_pll")) ||
+	    (!strcmp(clk_hw_get_name(hw), "hifi_pll"))) {
+		reg = PARM_SET(p->width, p->shift, reg,
+			       (unsigned long)rate_set->n);
 
-	do {
-		if (!strcmp(clk_hw_get_name(hw), "pcie_pll")) {
-			writel(SC2_PCIE_PLL_CNTL0_0,
-			       cntlbase + (unsigned long)(0 * 4));
-			writel(SC2_PCIE_PLL_CNTL0_1,
-			       cntlbase + (unsigned long)(0 * 4));
-			writel(SC2_PCIE_PLL_CNTL1,
-			       cntlbase + (unsigned long)(1 * 4));
-			writel(SC2_PCIE_PLL_CNTL2,
-			       cntlbase + (unsigned long)(2 * 4));
-			writel(SC2_PCIE_PLL_CNTL3,
-			       cntlbase + (unsigned long)(3 * 4));
-			writel(SC2_PCIE_PLL_CNTL4,
-			       cntlbase + (unsigned long)(4 * 4));
-			writel(SC2_PCIE_PLL_CNTL5,
-			       cntlbase + (unsigned long)(5 * 4));
-			writel(SC2_PCIE_PLL_CNTL5_,
-			       cntlbase + (unsigned long)(5 * 4));
-			udelay(20);
-			writel(SC2_PCIE_PLL_CNTL4_,
-			       cntlbase + (unsigned long)(4 * 4));
-			udelay(10);
-			/*set pcie_apll_afc_start bit*/
-			writel(SC2_PCIE_PLL_CNTL0_2,
-			       cntlbase + (unsigned long)(0 * 4));
-			writel(SC2_PCIE_PLL_CNTL0_3,
-			       cntlbase + (unsigned long)(0 * 4));
-			udelay(20);
-			writel(SC2_PCIE_PLL_CNTL2_,
-			       cntlbase + (unsigned long)(2 * 4));
+		p = &pll->m;
+		reg = PARM_SET(p->width, p->shift, reg,
+			       (unsigned long)rate_set->m);
+
+		p = &pll->od;
+		/*check OD width*/
+		if (rate_set->od >> p->width) {
+			ret = -EINVAL;
+			pr_warn("%s: OD width is wrong at rate %lu !!\n",
+				__func__, rate);
 			goto OUT;
-		} else if (!strcmp(clk_hw_get_name(hw), "sys_pll")) {
-			writel((readl(cntlbase) | MESON_PLL_RESET)
-			       & (~MESON_PLL_ENABLE), cntlbase);
-			writel(SC2_SYS_PLL_CNTL1,
-			       cntlbase + (unsigned long)(1 * 4));
-			writel(SC2_SYS_PLL_CNTL2,
-			       cntlbase + (unsigned long)(2 * 4));
-			writel(SC2_SYS_PLL_CNTL3,
-			       cntlbase + (unsigned long)(3 * 4));
-			writel(SC2_SYS_PLL_CNTL4,
-			       cntlbase + (unsigned long)(4 * 4));
-			writel(SC2_SYS_PLL_CNTL5,
-			       cntlbase + (unsigned long)(5 * 4));
-			writel(SC2_PLL_CNTL6,
-			       cntlbase + (unsigned long)(6 * 4));
-			udelay(10);
-		} else if (!strcmp(clk_hw_get_name(hw), "sys1_pll")) {
-			writel((readl(cntlbase) | MESON_PLL_RESET)
-				& (~MESON_PLL_ENABLE), cntlbase);
-			writel(SC2_SYS1_PLL_CNTL1,
-			       cntlbase + (unsigned long)(1 * 4));
-			writel(SC2_SYS1_PLL_CNTL2,
-			       cntlbase + (unsigned long)(2 * 4));
-			writel(SC2_SYS1_PLL_CNTL3,
-			       cntlbase + (unsigned long)(3 * 4));
-			writel(SC2_SYS1_PLL_CNTL4,
-			       cntlbase + (unsigned long)(4 * 4));
-			writel(SC2_SYS1_PLL_CNTL5,
-			       cntlbase + (unsigned long)(5 * 4));
-			writel(SC2_PLL_CNTL6,
-			       cntlbase + (unsigned long)(6 * 4));
-			udelay(10);
-		} else if (!strcmp(clk_hw_get_name(hw), "gp0_pll") ||
-			   !strcmp(clk_hw_get_name(hw), "gp1_pll")) {
-			writel((readl(cntlbase) | MESON_PLL_RESET)
-			       & (~MESON_PLL_ENABLE), cntlbase);
-			writel(SC2_GP0_PLL_CNTL1,
-			       cntlbase + (unsigned long)(1 * 4));
-			writel(SC2_GP0_PLL_CNTL2,
-			       cntlbase + (unsigned long)(2 * 4));
-			writel(SC2_GP0_PLL_CNTL3,
-			       cntlbase + (unsigned long)(3 * 4));
-			writel(SC2_GP0_PLL_CNTL4,
-			       cntlbase + (unsigned long)(4 * 4));
-			writel(SC2_GP0_PLL_CNTL5,
-			       cntlbase + (unsigned long)(5 * 4));
-			writel(SC2_PLL_CNTL6,
-			       cntlbase + (unsigned long)(6 * 4));
-			udelay(10);
-		} else if (!strcmp(clk_hw_get_name(hw), "hifi_pll")) {
-			writel((readl(cntlbase) | MESON_PLL_RESET)
-				& (~MESON_PLL_ENABLE), cntlbase);
-			writel(SC2_HIFI_PLL_CNTL1,
-			       cntlbase + (unsigned long)(1 * 4));
-			writel(SC2_HIFI_PLL_CNTL2,
-			       cntlbase + (unsigned long)(2 * 4));
-			writel(SC2_HIFI_PLL_CNTL3,
-			       cntlbase + (unsigned long)(3 * 4));
-			writel(SC2_HIFI_PLL_CNTL4,
-			       cntlbase + (unsigned long)(4 * 4));
-			writel(SC2_HIFI_PLL_CNTL5,
-			       cntlbase + (unsigned long)(5 * 4));
-			writel(SC2_PLL_CNTL6,
-			       cntlbase + (unsigned long)(6 * 4));
-			udelay(10);
-		} else {
-			pr_err("%s: %s pll not found!!!\n",
-			       __func__, clk_hw_get_name(hw));
-			return -EINVAL;
 		}
-		/* waiting for 50us to check is locked or not */
-		udelay(50);
-		/* lock bit is in the cntlbase */
-		if (readl(cntlbase + (unsigned long)(0 * 4))
-		    & MESON_PLL_LOCK){
-			break;
-		}
-		j--;
-	} while (j);
+		reg = PARM_SET(p->width, p->shift, reg,
+			       (unsigned long)rate_set->od);
 
-	reg = readl(pll->base + p->reg_off);
+		p = &pll->od2;
+		if (p->width)
+			reg = PARM_SET(p->width, p->shift, reg,
+				       (unsigned long)rate_set->od2);
 
-	tmp = rate_set->n;
-	reg = PARM_SET(p->width, p->shift, reg, tmp);
-	writel(reg, pll->base + p->reg_off);
-
-	p = &pll->m;
-	reg = readl(pll->base + p->reg_off);
-	tmp = rate_set->m;
-	reg = PARM_SET(p->width, p->shift, reg, tmp);
-	writel(reg, pll->base + p->reg_off);
-
-	p = &pll->od;
-	/*check OD width*/
-	if (rate_set->od >> p->width) {
-		ret = -EINVAL;
-		pr_warn("%s: OD width is wrong at rate %lu !!\n",
-			__func__, rate);
-		goto OUT;
-	}
-	reg = readl(pll->base + p->reg_off);
-	tmp = rate_set->od;
-	reg = PARM_SET(p->width, p->shift, reg, tmp);
-	writel(reg, pll->base + p->reg_off);
-
-	p = &pll->od2;
-	if (p->width) {
-		reg = readl(pll->base + p->reg_off);
-		tmp = rate_set->od2;
-		reg = PARM_SET(p->width, p->shift, reg, tmp);
-		writel(reg, pll->base + p->reg_off);
-	}
-
-	p = &pll->frac;
-	if (p->width) {
-		reg = readl(pll->base + p->reg_off);
-		tmp = rate_set->frac;
-		reg = PARM_SET(p->width, p->shift, reg, tmp);
-		writel(reg, pll->base + p->reg_off);
+		p = &pll->frac;
+		if (p->width)
+			reg = PARM_SET(p->width, p->shift, reg,
+				       (unsigned long)rate_set->frac);
 	}
 
 	p = &pll->n;
+	cntlbase = pll->base + p->reg_off;
 
-	/* PLL reset */
-	writel(readl(pll->base + p->reg_off) | MESON_PLL_ENABLE,
-	       pll->base + p->reg_off);
-	udelay(50);
-	writel(readl(pll->base + p->reg_off) & (~MESON_PLL_RESET),
-	       pll->base + p->reg_off);
+	if (!strcmp(clk_hw_get_name(hw), "pcie_pll")) {
+		writel(SC2_PCIE_PLL_CNTL0_0,
+		       cntlbase + (unsigned long)(0 * 4));
+		writel(SC2_PCIE_PLL_CNTL0_1,
+		       cntlbase + (unsigned long)(0 * 4));
+		writel(SC2_PCIE_PLL_CNTL1,
+		       cntlbase + (unsigned long)(1 * 4));
+		writel(SC2_PCIE_PLL_CNTL2,
+		       cntlbase + (unsigned long)(2 * 4));
+		writel(SC2_PCIE_PLL_CNTL3,
+		       cntlbase + (unsigned long)(3 * 4));
+		writel(SC2_PCIE_PLL_CNTL4,
+		       cntlbase + (unsigned long)(4 * 4));
+		writel(SC2_PCIE_PLL_CNTL5,
+		       cntlbase + (unsigned long)(5 * 4));
+		writel(SC2_PCIE_PLL_CNTL5_,
+		       cntlbase + (unsigned long)(5 * 4));
+		udelay(20);
+		writel(SC2_PCIE_PLL_CNTL4_,
+		       cntlbase + (unsigned long)(4 * 4));
+		udelay(100);
+		/*set pcie_apll_afc_start bit*/
+		writel(SC2_PCIE_PLL_CNTL0_2,
+		       cntlbase + (unsigned long)(0 * 4));
+		writel(SC2_PCIE_PLL_CNTL0_3,
+		       cntlbase + (unsigned long)(0 * 4));
+		udelay(20);
+		writel(SC2_PCIE_PLL_CNTL2_,
+		       cntlbase + (unsigned long)(2 * 4));
+		goto OUT;
+	} else if (!strcmp(clk_hw_get_name(hw), "gp0_pll")) {
+		writel(reg, cntlbase);
+		udelay(20);
+		writel(reg | MESON_PLL_ENABLE | MESON_PLL_RESET, cntlbase);
+		writel(SC2_GP0_PLL_CNTL1,
+		       cntlbase + (unsigned long)(1 * 4));
+		writel(SC2_GP0_PLL_CNTL2,
+		       cntlbase + (unsigned long)(2 * 4));
+		writel(SC2_GP0_PLL_CNTL3,
+		       cntlbase + (unsigned long)(3 * 4));
+		writel(SC2_GP0_PLL_CNTL4,
+		       cntlbase + (unsigned long)(4 * 4));
+		writel(SC2_GP0_PLL_CNTL5,
+		       cntlbase + (unsigned long)(5 * 4));
+		writel(SC2_PLL_CNTL6,
+		       cntlbase + (unsigned long)(6 * 4));
+		udelay(10);
+		writel(reg | MESON_PLL_ENABLE, cntlbase);
+
+	} else if (!strcmp(clk_hw_get_name(hw), "hifi_pll")) {
+		writel(reg, cntlbase);
+		udelay(20);
+		writel(reg | MESON_PLL_ENABLE | MESON_PLL_RESET, cntlbase);
+		writel(SC2_HIFI_PLL_CNTL1,
+		       cntlbase + (unsigned long)(1 * 4));
+		writel(SC2_HIFI_PLL_CNTL2,
+		       cntlbase + (unsigned long)(2 * 4));
+		writel(SC2_HIFI_PLL_CNTL3,
+		       cntlbase + (unsigned long)(3 * 4));
+		writel(SC2_HIFI_PLL_CNTL4,
+		       cntlbase + (unsigned long)(4 * 4));
+		writel(SC2_HIFI_PLL_CNTL5,
+		       cntlbase + (unsigned long)(5 * 4));
+		writel(SC2_PLL_CNTL6,
+		       cntlbase + (unsigned long)(6 * 4));
+		udelay(10);
+		writel(reg | MESON_PLL_ENABLE, cntlbase);
+	} else {
+		pr_err("%s: %s pll not found!!!\n",
+		       __func__, clk_hw_get_name(hw));
+		return -EINVAL;
+	}
+
+	p = &pll->n;
 	ret = meson_sc2_pll_wait_lock(pll, p);
-	/*pr_info("%s:  %d\n", __func__, __LINE__);*/
 
 OUT:
 	if (pll->lock)
 		spin_unlock_irqrestore(pll->lock, flags);
 
 	if (ret) {
+		pr_info("%s: %s pll did not lock, trying to lock rate %lu again\n",
+			__func__, clk_hw_get_name(hw), rate);
+		meson_sc2_pll_set_rate(hw, rate, parent_rate);
+	}
+
+	return ret;
+}
+
+static int meson_sc2_secure_pll_set_rate(struct clk_hw *hw,
+					 unsigned long rate,
+					 unsigned long parent_rate)
+{
+	struct meson_clk_pll *pll = to_meson_clk_pll(hw);
+	struct parm *p;
+	int ret = 0;
+	unsigned long flags = 0;
+	struct arm_smccc_res res;
+
+	if (parent_rate == 0 || rate == 0)
+		return -EINVAL;
+	if (!strcmp(clk_hw_get_name(hw), "sys_pll"))
+		rate *= 1000;
+
+	p = &pll->n;
+	if (pll->lock)
+		spin_lock_irqsave(pll->lock, flags);
+
+	if (!strcmp(clk_hw_get_name(hw), "sys_pll")) {
+		arm_smccc_smc(CLK_SECURE_RW, SYS_PLL_STEP0,
+			      rate, 0, 0, 0, 0, 0, &res);
+	} else if (!strcmp(clk_hw_get_name(hw), "gp1_pll")) {
+		arm_smccc_smc(CLK_SECURE_RW, GP1_PLL_STEP0,
+			      rate, 0, 0, 0, 0, 0, &res);
+	} else {
+		pr_err("%s: %s pll not found!!!\n",
+		       __func__, clk_hw_get_name(hw));
+		return -EINVAL;
+	}
+	/* waiting for 10us to rewrite */
+	udelay(10);
+
+	if (!strcmp(clk_hw_get_name(hw), "sys_pll"))
+		arm_smccc_smc(CLK_SECURE_RW, SYS_PLL_STEP1,
+			      0, 0, 0, 0, 0, 0, &res);
+	else
+		arm_smccc_smc(CLK_SECURE_RW, GP1_PLL_STEP1,
+			      0, 0, 0, 0, 0, 0, &res);
+
+	udelay(20);
+	ret = meson_sc2_pll_wait_lock(pll, p);
+	if (pll->lock)
+		spin_unlock_irqrestore(pll->lock, flags);
+	if (ret) {
 		pr_info("%s: pll did not lock, trying to lock rate %lu again\n",
 			__func__, rate);
-		meson_sc2_pll_set_rate(hw, rate, parent_rate);
+		meson_sc2_secure_pll_set_rate(hw, rate, parent_rate);
 	}
 
 	return ret;
@@ -443,7 +444,7 @@ static int meson_sc2_pll_enable(struct clk_hw *hw)
 	unsigned long flags = 0;
 	unsigned long first_set = 1;
 	struct clk_hw *parent;
-	unsigned long rate;
+	u64 rate;
 
 	p = &pll->n;
 
@@ -488,7 +489,15 @@ static int meson_sc2_pll_enable(struct clk_hw *hw)
 	if (pll->lock)
 		spin_unlock_irqrestore(pll->lock, flags);
 
-	ret = meson_sc2_pll_set_rate(hw, rate, clk_hw_get_rate(parent));
+	if (!strcmp(clk_hw_get_name(hw), "sys_pll") ||
+	    !strcmp(clk_hw_get_name(hw), "gp1_pll")) {
+		if (first_set && !strcmp(clk_hw_get_name(hw), "sys_pll"))
+			do_div(rate, 1000);
+		ret = meson_sc2_secure_pll_set_rate(hw, rate,
+						    clk_hw_get_rate(parent));
+	} else {
+		ret = meson_sc2_pll_set_rate(hw, rate, clk_hw_get_rate(parent));
+	}
 
 	return ret;
 }
@@ -516,6 +525,25 @@ static void meson_sc2_pll_disable(struct clk_hw *hw)
 		spin_unlock_irqrestore(pll->lock, flags);
 }
 
+static void meson_sc2_secure_pll_disable(struct clk_hw *hw)
+{
+	struct meson_clk_pll *pll = to_meson_clk_pll(hw);
+	unsigned long flags = 0;
+	struct arm_smccc_res res;
+
+	if (pll->lock)
+		spin_lock_irqsave(pll->lock, flags);
+
+	if (!strcmp(clk_hw_get_name(hw), "sys_pll"))
+		arm_smccc_smc(CLK_SECURE_RW, SYS_PLL_DISABLE,
+			      0, 0, 0, 0, 0, 0, &res);
+	else
+		arm_smccc_smc(CLK_SECURE_RW, GP1_PLL_DISABLE,
+			      0, 0, 0, 0, 0, 0, &res);
+	if (pll->lock)
+		spin_unlock_irqrestore(pll->lock, flags);
+}
+
 const struct clk_ops meson_sc2_pll_ops = {
 	.recalc_rate	= meson_sc2_pll_recalc_rate,
 	.round_rate	= meson_sc2_pll_round_rate,
@@ -534,3 +562,10 @@ const struct clk_ops meson_sc2_pll_ro_ops = {
 	.recalc_rate	= meson_sc2_pll_recalc_rate,
 };
 
+const struct clk_ops meson_sc2_secure_pll_ops = {
+	.recalc_rate	= meson_sc2_pll_recalc_rate,
+	.round_rate	= meson_sc2_pll_round_rate,
+	.set_rate	= meson_sc2_secure_pll_set_rate,
+	.enable		= meson_sc2_pll_enable,
+	.disable	= meson_sc2_secure_pll_disable,
+};

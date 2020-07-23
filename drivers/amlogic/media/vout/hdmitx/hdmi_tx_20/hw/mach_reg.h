@@ -44,7 +44,9 @@ void init_reg_map(unsigned int type);
 #define ANACTRL_REG_IDX		9
 #define PWRCTRL_REG_IDX		10
 #define RESETCTRL_REG_IDX	11
-#define REG_IDX_END		12
+#define SYSCTRL_REG_IDX		12
+#define CLKCTRL_REG_IDX		13
+#define REG_IDX_END		14
 
 #define REG_ADDR_END 0xffffffff
 
@@ -74,6 +76,10 @@ void init_reg_map(unsigned int type);
 	((PWRCTRL_REG_IDX << BASE_REG_OFFSET) + ((reg) << 2))
 #define RESETCTRL_REG_ADDR(reg) \
 	((RESETCTRL_REG_IDX << BASE_REG_OFFSET) + ((reg) << 2))
+#define SYSCTRL_REG_ADDR(reg) \
+	((SYSCTRL_REG_IDX << BASE_REG_OFFSET) + ((reg) << 2))
+#define CLKCTRL_REG_ADDR(reg) \
+	((CLKCTRL_REG_IDX << BASE_REG_OFFSET) + ((reg) << 2))
 
 #define WAIT_FOR_PLL_LOCKED(reg)				\
 	do {							\

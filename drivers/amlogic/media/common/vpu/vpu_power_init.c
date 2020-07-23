@@ -239,7 +239,8 @@ void vpu_power_off(void)
 void vpu_power_on_new(void)
 {
 #ifdef CONFIG_AMLOGIC_POWER
-	pwr_ctrl_psci_smc(5, 1);
+	if (vpu_conf.data->pwrctrl_id < VPU_PWR_ID_INVALID)
+		pwr_ctrl_psci_smc(vpu_conf.data->pwrctrl_id, 1);
 	VPUPR("%s\n", __func__);
 #else
 	VPUERR("%s: no CONFIG_AMLOGIC_POWER\n", __func__);
@@ -252,7 +253,8 @@ void vpu_power_on_new(void)
 void vpu_power_off_new(void)
 {
 #ifdef CONFIG_AMLOGIC_POWER
-	pwr_ctrl_psci_smc(5, 0);
+	if (vpu_conf.data->pwrctrl_id < VPU_PWR_ID_INVALID)
+		pwr_ctrl_psci_smc(vpu_conf.data->pwrctrl_id, 0);
 	VPUPR("%s\n", __func__);
 #else
 	VPUERR("%s: no CONFIG_AMLOGIC_POWER\n", __func__);
@@ -261,4 +263,3 @@ void vpu_power_off_new(void)
 	if (vpu_debug_print_flag)
 		VPUPR("%s finish\n", __func__);
 }
-

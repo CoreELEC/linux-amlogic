@@ -343,7 +343,7 @@ static unsigned int di_printk_flag;
  * width/height does not change)
  */
 static vframe_t *vframe_in[MAX_IN_BUF_NUM];
-static vframe_t vframe_in_dup[MAX_IN_BUF_NUM];
+//static vframe_t vframe_in_dup[MAX_IN_BUF_NUM];
 //static vframe_t vframe_local[MAX_LOCAL_BUF_NUM * 2];
 static vframe_t vframe_post[MAX_POST_BUF_NUM];
 static struct di_buf_s *cur_post_ready_di_buf;
@@ -2929,7 +2929,7 @@ static int di_init_buf(int width, int height, unsigned char prog_flag)
 			di_buf->type = VFRAME_TYPE_IN;
 			di_buf->pre_ref_count = 0;
 			di_buf->post_ref_count = 0;
-			di_buf->vframe = &(vframe_in_dup[i]);
+			di_buf->vframe = &de_devp->vfm_in_dup[i];
 			di_buf->vframe->private_data = di_buf;
 			di_buf->index = i;
 			di_buf->queue_index = -1;
@@ -3259,7 +3259,7 @@ static unsigned char check_di_buf(struct di_buf_s *di_buf, int reason)
 	}
 
 	if (di_buf->type == VFRAME_TYPE_IN) {
-		if (di_buf->vframe != &vframe_in_dup[di_buf->index])
+		if (di_buf->vframe != &de_devp->vfm_in_dup[di_buf->index])
 			error = 1;
 	} else if (di_buf->type == VFRAME_TYPE_LOCAL) {
 		//if (di_buf->vframe != &vframe_local[di_buf->index])
