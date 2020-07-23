@@ -339,22 +339,23 @@
 		pps-enable = <1>;
 	};
 
-	dvb_cxd2856 {
+	ionvideo {
+		compatible = "amlogic, ionvideo";
+		dev_name = "ionvideo";
+		status = "okay";
+	};
+	dvb {
 		compatible = "amlogic, dvb";
 		dev_name = "dvb";
-		status = "okay";
-
 		fe0_mode = "external";
-		fe0_demod = "cxd2856";
+		fe0_demod = "Avl6762";
 		fe0_i2c_adap_id = <&i2c3>;
-		fe0_demod_i2c_addr = <0xD8>;
+		fe0_demod_i2c_addr = <0x14>;
+		fe0_ts = <0>;
 		fe0_reset_value = <0>;
-		fe0_reset_gpio = <&gpio_ao GPIOAO_10 GPIO_ACTIVE_HIGH>;
+		fe0_reset_gpio = <&gpio GPIOZ_10 GPIO_ACTIVE_HIGH>;
 		fe0_ant_poweron_value = <0>;
 		fe0_ant_power_gpio = <&gpio GPIOH_5 GPIO_ACTIVE_HIGH>;
-		fe0_dtv_demod = <0>;
-		fe0_ts  = <0>;
-		fe0_dev = <0>;
 
 		ts0 = "serial";
 		ts0_control = <0x800>;
@@ -379,12 +380,6 @@
 		&clkc CLKID_AHB_ARB0
 		&clkc CLKID_DOS_PARSER>;
 		clock-names = "demux", "ahbarb0", "parser_top";
-	};
-
-	ionvideo {
-		compatible = "amlogic, ionvideo";
-		dev_name = "ionvideo";
-		status = "okay";
 	};
 
 	partitions: partitions{
