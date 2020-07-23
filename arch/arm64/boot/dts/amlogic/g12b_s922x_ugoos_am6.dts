@@ -3,6 +3,7 @@
 /{
 	model = "UGOOS AM6";
 	coreelec-dt-id = "g12b_s922x_ugoos_am6";
+	amlogic-dt-id = "g12b_w400_b";
 
 	/delete-node/ memory@00000000;
 

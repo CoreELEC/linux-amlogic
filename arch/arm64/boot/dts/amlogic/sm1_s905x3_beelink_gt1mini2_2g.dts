@@ -1,0 +1,7 @@
+#include "sm1_s905x3_2g_1gbit.dts"
+
+/{
+	model = "Beelink";
+	coreelec-dt-id = "sm1_s905x3_beelink_gt1mini2_2g";
+	amlogic-dt-id = "sm1_ac213_2g";
+};

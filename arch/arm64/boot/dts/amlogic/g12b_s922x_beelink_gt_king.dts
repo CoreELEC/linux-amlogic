@@ -3,6 +3,7 @@
 /{
 	model = "Beelink";
 	coreelec-dt-id = "g12b_s922x_beelink_gt_king";
+	amlogic-dt-id = "g12b_w400_b";
 
 	memory@00000000 {
 		linux,usable-memory = <0x0 0x100000 0x0 0xf0800000>;
