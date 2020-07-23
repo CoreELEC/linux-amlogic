@@ -2662,9 +2662,9 @@ static void afbc_int_tab(struct device *dev,
 	memset((p + cnt), 0, last);
 
 	/*debug*/
-	di_pr_info("%s:tab:[0x%lx]: body[0x%lx];cnt[%d];last[%d]\n",
-		   __func__,
-		   pcfg->tabadd, pcfg->bodyadd, cnt, last);
+	dim_print("%s:tab:[0x%lx]: body[0x%lx];cnt[%d];last[%d]\n",
+		  __func__,
+		  pcfg->tabadd, pcfg->bodyadd, cnt, last);
 
 	dma_sync_single_for_device(dev,
 				   pcfg->tabadd,
@@ -2688,7 +2688,7 @@ static void afbc_input_sw(bool on)
 		reg = afbc_get_addrp(pafd_ctr->fb.pre_dec);
 		reg_AFBC_ENABLE = reg[EAFBC_ENABLE];
 
-		di_print("%s:reg[0x%x]sw[%d]\n", __func__, reg_AFBC_ENABLE, on);
+		dim_print("%s:reg=0x%x:sw=%d\n", __func__, reg_AFBC_ENABLE, on);
 		if (on)
 			reg_wrb(reg_AFBC_ENABLE, 1, 8, 1);
 		else

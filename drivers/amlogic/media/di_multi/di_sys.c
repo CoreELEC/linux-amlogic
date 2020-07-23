@@ -484,7 +484,7 @@ static void di_cma_release(struct di_dev_s *devp, unsigned int channel)
 			ret = dim_mm_release(cfgg(MEM_FLAG),
 					     buf_p->pages,
 					     mm->cfg.size_local >> PAGE_SHIFT,
-					     buf_p->nr_adr);
+					     buf_p->afbc_adr);
 			if (ret) {
 				buf_p->pages = NULL;
 				mm->sts.num_local--;
@@ -541,7 +541,7 @@ static void dpst_cma_release(struct di_dev_s *devp, unsigned int ch)
 			ret = dim_mm_release(cfgg(MEM_FLAG),
 					     buf_p->pages,
 					     mm->cfg.size_post >> PAGE_SHIFT,
-					     buf_p->nr_adr);
+					     buf_p->afbc_adr);
 			if (ret) {
 				buf_p->pages = NULL;
 				mm->sts.num_post--;
@@ -632,6 +632,7 @@ static unsigned int dpst_cma_alloc_onebuf(struct di_dev_s *devp,
 		dim_afds()->int_tab(devp->dev, &afbce_map);
 	}
 	mm->sts.cnt_alloc++;
+	mm->sts.num_post++;
 	/* tvp flg */
 	if (omm.flg & DI_BIT0)
 		buf_p->flg_tvp |= DI_BIT0;
@@ -672,11 +673,12 @@ static int dpst_cma_release_onebuf(struct di_dev_s *devp,
 	ret = dim_mm_release(cfgg(MEM_FLAG),
 			     buf_p->pages,
 			     mm->cfg.size_post >> PAGE_SHIFT,
-			     buf_p->nr_adr);
+			     buf_p->afbc_adr);
 	time2 = cur_to_usecs();
 	if (ret) {
 		buf_p->pages = NULL;
 		mm->sts.cnt_alloc--;
+		mm->sts.num_post--;
 		dbg_wq("%s:ch[%d] buf[%d] use %u us.\n",
 		       "k:or",
 		       ch,
