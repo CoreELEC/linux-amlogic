@@ -168,7 +168,7 @@
 };
 
 &i2c2 {
-	status = "disabled";
+	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c2_master_pins1>;
 	clock-frequency = <100000>;
