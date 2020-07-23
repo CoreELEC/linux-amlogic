@@ -10071,6 +10071,22 @@ static ssize_t film_grain_store(
 	return strnlen(buf, count);
 }
 
+static ssize_t probe_en_store(
+	struct class *cla,
+	struct class_attribute *attr,
+	const char *buf, size_t count)
+{
+	int ret;
+	int probe_en;
+
+	ret = kstrtoint(buf, 0, &probe_en);
+	if (ret < 0)
+		return -EINVAL;
+
+	vpp_probe_en_set(probe_en);
+	return count;
+}
+
 static struct class_attribute amvideo_class_attrs[] = {
 	__ATTR(axis,
 	       0664,
@@ -10317,6 +10333,11 @@ static struct class_attribute amvideo_class_attrs[] = {
 	       0664,
 	       film_grain_show,
 	       film_grain_store),
+	__ATTR(probe_en,
+	       0644,
+	       NULL,
+	       probe_en_store),
+
 	__ATTR_NULL
 };
 
