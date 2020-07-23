@@ -327,9 +327,12 @@
 		dev_name = "ionvideo";
 		status = "okay";
 	};
-	dvb {
+
+	dvb_avl6762 {
 		compatible = "amlogic, dvb";
 		dev_name = "dvb";
+		status = "okay";
+
 		fe0_mode = "external";
 		fe0_demod = "Avl6762";
 		fe0_i2c_adap_id = <&i2c3>;

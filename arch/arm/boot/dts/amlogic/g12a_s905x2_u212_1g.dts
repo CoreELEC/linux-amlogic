@@ -358,18 +358,8 @@
 	dvb {
 		compatible = "amlogic, dvb";
 		dev_name = "dvb";
+		status = "okay";
 
-	//	fe0_mode = "external";
-	//	fe0_demod = "Atbm8881";
-	//	fe0_i2c_adap_id = <&i2c2>;
-	//	fe0_demod_i2c_addr = <0xc0>;
-	//	fe0_ts = <1>;
-	//	fe0_reset_value = <0>;
-	//	fe0_reset_gpio = <&gpio GPIOZ_1 GPIO_ACTIVE_HIGH>;
-
-	//	ts1 = "parallel";
-	//	ts1_control = <0>;
-	//	ts1_invert = <0>;
 		interrupts = <0 23 1
 		0 5 1
 		0 21 1
@@ -384,8 +374,7 @@
 		"dvr1_irq",
 		"dvrfill0_fill",
 		"dvrfill1_flush";
-	//	pinctrl-names = "p_ts1";
-	//	pinctrl-0 = <&dvb_p_ts1_pins>;
+
 		clocks = <&clkc CLKID_DEMUX
 		&clkc CLKID_AHB_ARB0
 		&clkc CLKID_DOS_PARSER>;

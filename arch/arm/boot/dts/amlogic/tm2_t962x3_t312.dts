@@ -442,10 +442,11 @@
 	};
 	/* Audio Related end */
 
-	dvb {
+	dvb_si2168 {
 		compatible = "amlogic, dvb";
 		dev_name = "dvb";
 		status = "okay";
+
 		fe0_mode = "external";
 		fe0_demod = "Si2168";
 		fe0_i2c_adap_id = <&i2c0>;
@@ -468,15 +469,17 @@
 					0 18 1
 					0 24 1>;
 		interrupt-names = "demux0_irq",
-						"demux1_irq",
-						"demux2_irq",
-						"dvr0_irq",
-						"dvr1_irq",
-						"dvr2_irq",
-						"dvrfill0_fill",
-						"dvrfill1_flush";
+				"demux1_irq",
+				"demux2_irq",
+				"dvr0_irq",
+				"dvr1_irq",
+				"dvr2_irq",
+				"dvrfill0_fill",
+				"dvrfill1_flush";
+
 		pinctrl-names = "s_ts0";
 		pinctrl-0 = <&dvb_s_ts0_pins>;
+
 		clocks = <&clkc CLKID_DEMUX
 			&clkc CLKID_ASYNC_FIFO
 			&clkc CLKID_AHB_ARB0
