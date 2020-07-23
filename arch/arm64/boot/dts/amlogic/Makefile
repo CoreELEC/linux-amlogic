@@ -25,6 +25,7 @@ dtb-$(CONFIG_ARM64) += sm1_s905x3_4g_1gbit.dtb
 dtb-$(CONFIG_ARM64) += sm1_s905x3_4g_1gbit_slowsdio.dtb
 dtb-$(CONFIG_ARM64) += sm1_s905x3_odroid_c4.dtb
 dtb-$(CONFIG_ARM64) += sm1_s905x3_odroid_c4_dvb.dtb
+dtb-$(CONFIG_ARM64) += sm1_s905x3_odroid_hc4.dtb
 dtb-$(CONFIG_ARM64) += coreelec-gxl/gxl_p212_1g.dtb
 dtb-$(CONFIG_ARM64) += coreelec-gxl/gxl_p212_1g_lepotato.dtb
 dtb-$(CONFIG_ARM64) += coreelec-gxl/gxl_p212_1g_g9sx.dtb
