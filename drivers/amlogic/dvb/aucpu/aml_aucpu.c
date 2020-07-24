@@ -547,7 +547,6 @@ static bool do_debug_work_in(struct aucpu_ctx_t *pctx)
 		return 0;
 	if (now_wrptr < pctx->dbg_buf.phys_addr ||
 	    now_wrptr >= (pctx->dbg_buf.phys_addr + pctx->dbg_buf.size)) {
-		aucpu_pr(LOG_ERROR, "invalid dbg now_wrptr 0x%x\n", now_wrptr);
 		now_wrptr = pctx->debug_buf_wrptr;
 		return 0;
 	}
