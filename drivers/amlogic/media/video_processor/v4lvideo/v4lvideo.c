@@ -948,6 +948,10 @@ static s32 v4lvideo_import_sei_data(
 	if (!vf || !dup_vf || !provider || !alloc_sei)
 		return ret;
 
+	if ((!(vf->flag & VFRAME_FLAG_DOUBLE_FRAM)) &&
+	    (vf->type & VIDTYPE_DI_PW))
+		return ret;
+
 	if (!strcmp(provider, "dvbldec") && dup_vf->omx_index < 2)
 		max_count = 10;
 
