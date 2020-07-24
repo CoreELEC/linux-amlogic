@@ -1,0 +1,16 @@
+#include "gxl_p241_1g.dts"
+
+/{
+	coreelec-dt-id = "gxl_p241_v2_1g";
+	amlogic-dt-id = "gxl_p241_v2_1g";
+
+	wifi{
+		power_on_pin = <&gpio       GPIOX_6       GPIO_ACTIVE_HIGH>;
+	};
+
+	dmic:snd_dmic {
+		status = "okay";
+	};
+
+};
+
