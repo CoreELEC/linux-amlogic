@@ -269,6 +269,10 @@ struct detailed_timing {
 
 #define DRM_ELD_CEA_SAD(mnl, sad)	(20 + (mnl) + 3 * (sad))
 
+#define DV_IEEE_OUI	0x00D046
+#define HDR10_PLUS_IEEE_OUI	0x90848B
+#define HF_IEEEOUI		0xC45DD8
+
 struct edid {
 	u8 header[8];
 	/* Vendor & product info */
@@ -457,6 +461,24 @@ void drm_edid_get_monitor_name(struct edid *edid, char *name,
 struct drm_display_mode *drm_mode_find_dmt(struct drm_device *dev,
 					   int hsize, int vsize, int fresh,
 					   bool rb);
+
 int add_default_modes(struct drm_connector *connector);
+
+int drm_parse_ceadrm_static(struct drm_connector *connector,
+			    struct edid *edid,
+			    u8 **ceadrm_loc,
+			    u8 *ceadrm_len);
+int drm_parse_ceadrm_dynamic(struct drm_connector *connector,
+			     struct edid *edid,
+			     u8 **ceadrm_loc,
+			     u8 *ceadrm_len);
+int drm_parse_vend_spec_dv(struct drm_connector *connector,
+			   struct edid *edid,
+			   u8 **vend_spec_loc,
+			   u8 *vend_spec_len);
+int drm_parse_vend_spec_hdr10p(struct drm_connector *connector,
+			       struct edid *edid,
+			       u8 **vend_spec_loc,
+			       u8 *vend_spec_len);
 
 #endif /* __DRM_EDID_H__ */

@@ -432,6 +432,8 @@ void drm_mode_convert_to_umode(struct drm_mode_modeinfo *out,
 int drm_mode_convert_umode(struct drm_display_mode *out,
 			   const struct drm_mode_modeinfo *in);
 void drm_mode_probed_add(struct drm_connector *connector, struct drm_display_mode *mode);
+void drm_420_mode_probed_add(struct drm_connector *connector,
+			     struct drm_display_mode *mode);
 void drm_mode_debug_printmodeline(const struct drm_display_mode *mode);
 
 struct drm_display_mode *drm_cvt_mode(struct drm_device *dev,
@@ -481,6 +483,7 @@ void drm_mode_prune_invalid(struct drm_device *dev,
 			    struct list_head *mode_list, bool verbose);
 void drm_mode_sort(struct list_head *mode_list);
 void drm_mode_connector_list_update(struct drm_connector *connector);
+void drm_mode_420_connector_list_update(struct drm_connector *connector);
 
 /* parsing cmdline modes */
 bool

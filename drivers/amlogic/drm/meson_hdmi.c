@@ -54,13 +54,9 @@ static struct am_vout_mode am_vout_modes[] = {
 	{ "1080p25hz", VMODE_HDMI, 1920, 1080, 25, 0},
 	{ "1080p24hz", VMODE_HDMI, 1920, 1080, 24, 0},
 	{ "2160p30hz", VMODE_HDMI, 3840, 2160, 30, 0},
-	{ "2160p60hz", VMODE_HDMI, 3840, 2160, 60, 0},
-	{ "2160p50hz", VMODE_HDMI, 3840, 2160, 50, 0},
 	{ "2160p25hz", VMODE_HDMI, 3840, 2160, 25, 0},
 	{ "2160p24hz", VMODE_HDMI, 3840, 2160, 24, 0},
 	{ "smpte30hz", VMODE_HDMI, 4096, 2160, 30, 0},
-	{ "smpte60hz", VMODE_HDMI, 4096, 2160, 60, 0},
-	{ "smpte50hz", VMODE_HDMI, 4096, 2160, 50, 0},
 	{ "smpte25hz", VMODE_HDMI, 4096, 2160, 25, 0},
 	{ "smpte24hz", VMODE_HDMI, 4096, 2160, 24, 0},
 	{ "1080i60hz", VMODE_HDMI, 1920, 1080, 60, DRM_MODE_FLAG_INTERLACE},
@@ -76,19 +72,95 @@ static struct am_vout_mode am_vout_modes[] = {
 	{ "1680x1050p60hz", VMODE_HDMI, 1680, 1050, 60, 0},
 };
 
-char *am_meson_hdmi_get_voutmode(struct drm_display_mode *mode)
+static struct am_vout_mode am_vout_modes_hdmi20[] = {
+	{ "2160p60hz", VMODE_HDMI, 3840, 2160, 60, 0},
+	{ "2160p50hz", VMODE_HDMI, 3840, 2160, 50, 0},
+	{ "smpte60hz", VMODE_HDMI, 4096, 2160, 60, 0},
+	{ "smpte50hz", VMODE_HDMI, 4096, 2160, 50, 0}
+};
+
+char *am_meson_hdmitx_get_mode(struct drm_display_mode *mode)
 {
 	int i;
+	char *pname;
+	struct hdmi20_vendor_para *phdmi20_para;
+	struct am_hdmi_tx *am_hdmi = &am_hdmi_info;
 
+	pname = NULL;
+	phdmi20_para = &am_hdmi->connector.hdmi20_para;
 	for (i = 0; i < ARRAY_SIZE(am_vout_modes); i++) {
 		if (am_vout_modes[i].width == mode->hdisplay &&
 		    am_vout_modes[i].height == mode->vdisplay &&
 		    am_vout_modes[i].vrefresh == mode->vrefresh &&
 		    am_vout_modes[i].flags ==
 		    (mode->flags & DRM_MODE_FLAG_INTERLACE))
-			return am_vout_modes[i].name;
+			pname = am_vout_modes[i].name;
 	}
-	return NULL;
+	if (!pname) {
+		for (i = 0; i < ARRAY_SIZE(am_vout_modes_hdmi20); i++) {
+			if (am_vout_modes_hdmi20[i].width == mode->hdisplay &&
+			    am_vout_modes_hdmi20[i].height == mode->vdisplay &&
+			    am_vout_modes_hdmi20[i].vrefresh ==
+				mode->vrefresh &&
+			    am_vout_modes_hdmi20[i].flags ==
+				(mode->flags & DRM_MODE_FLAG_INTERLACE))
+				pname = am_vout_modes_hdmi20[i].name;
+		}
+	}
+	return pname;
+}
+
+char *am_meson_hdmi_get_voutmode(struct drm_display_mode *mode)
+{
+	int i;
+	char *pname;
+	struct hdmi20_vendor_para *phdmi20_para;
+	struct am_hdmi_tx *am_hdmi = &am_hdmi_info;
+
+	pname = NULL;
+	phdmi20_para = &am_hdmi->connector.hdmi20_para;
+	for (i = 0; i < ARRAY_SIZE(am_vout_modes); i++) {
+		if (am_vout_modes[i].width == mode->hdisplay &&
+		    am_vout_modes[i].height == mode->vdisplay &&
+		    am_vout_modes[i].vrefresh == mode->vrefresh &&
+		    am_vout_modes[i].flags ==
+		    (mode->flags & DRM_MODE_FLAG_INTERLACE))
+			pname = am_vout_modes[i].name;
+	}
+	if (!pname) {
+		for (i = 0; i < ARRAY_SIZE(am_vout_modes_hdmi20); i++) {
+			if (am_vout_modes_hdmi20[i].width == mode->hdisplay &&
+			    am_vout_modes_hdmi20[i].height ==
+			    mode->vdisplay &&
+			    am_vout_modes_hdmi20[i].vrefresh ==
+			    mode->vrefresh &&
+			    am_vout_modes_hdmi20[i].flags ==
+			    (mode->flags & DRM_MODE_FLAG_INTERLACE))
+				pname = am_vout_modes_hdmi20[i].name;
+		}
+		if (pname &&
+		    am_hdmi->color_space ==
+		    (enum hdmi_colorspace)COLORSPACE_YUV420) {
+		switch (am_hdmi->color_depth) {
+		case COLORDEPTH_30B:
+			if (!phdmi20_para->dc_30bit_420)
+				pname = NULL;
+			break;
+		case COLORDEPTH_36B:
+			if (!phdmi20_para->dc_36bit_420)
+				pname = NULL;
+			break;
+		case COLORDEPTH_48B:
+			if (!phdmi20_para->dc_48bit_420)
+				pname = NULL;
+			break;
+		case COLORDEPTH_24B:
+		case COLORDEPTH_RESERVED:
+			break;
+			}
+		}
+	}
+	return pname;
 }
 
 static const struct drm_prop_enum_list am_color_space_enum_names[] = {
@@ -132,6 +204,443 @@ static void ddc_glitch_filter_reset(void)
 	usleep_range(1000, 2000);
 }
 
+static int parsing_drm_static(struct am_hdmi_ceadrm_static_cap *ceadrm_scap,
+			      unsigned char *ceadrm_loc,
+			      unsigned char ceadrm_len)
+{
+	unsigned int pos = 0;
+	int ret;
+
+	ceadrm_scap->hdr_sup_eotf_sdr =
+		!!(ceadrm_loc[pos] & (0x1 << 0));
+	ceadrm_scap->hdr_sup_eotf_hdr =
+		!!(ceadrm_loc[pos] & (0x1 << 1));
+	ceadrm_scap->hdr_sup_eotf_smpte_st_2084 =
+		!!(ceadrm_loc[pos] & (0x1 << 2));
+	ceadrm_scap->hdr_sup_eotf_hlg =
+		!!(ceadrm_loc[pos] & (0x1 << 3));
+	pos++;
+	ceadrm_scap->hdr_sup_smd_type1 =
+		!!(ceadrm_loc[pos] & (0x1 << 0));
+	pos++;
+	switch (ceadrm_len) {
+	case 2:
+		ret = 0;
+		break;
+	case 3:
+		ceadrm_scap->hdr_lum_max = ceadrm_loc[pos];
+		ret = 0;
+		break;
+	case 4:
+		ceadrm_scap->hdr_lum_max = ceadrm_loc[pos];
+		ceadrm_scap->hdr_lum_avg = ceadrm_loc[pos + 1];
+		ret = 0;
+		break;
+	case 5:
+		ceadrm_scap->hdr_lum_max = ceadrm_loc[pos];
+		ceadrm_scap->hdr_lum_avg = ceadrm_loc[pos + 1];
+		ceadrm_scap->hdr_lum_min = ceadrm_loc[pos + 2];
+		ret = 0;
+		break;
+	default:
+		ret = -1;
+		break;
+	}
+	return ret;
+}
+
+static int parsing_drm_dynamic(struct am_hdmi_ceadrm_dynamic_cap *ceadrm_dcap,
+			       unsigned char *ceadrm_loc,
+			       unsigned char ceadrm_len)
+{
+	unsigned int pos = 0;
+	unsigned int type;
+	unsigned int type_length;
+	unsigned int i;
+	unsigned int num;
+
+	while (ceadrm_len) {
+		type_length = ceadrm_loc[pos];
+		pos++;
+		type = (ceadrm_loc[pos + 1] << 8) | ceadrm_loc[pos];
+		pos += 2;
+		switch (type) {
+		case TS_103_433_SPEC_TYPE:
+			num = 1;
+			break;
+		case ITU_T_H265_SPEC_TYPE:
+			num = 2;
+			break;
+		case TYPE_4_HDR_METADATA_TYPE:
+			num = 3;
+			break;
+		case TYPE_1_HDR_METADATA_TYPE:
+		default:
+			num = 0;
+			break;
+		}
+		ceadrm_dcap[num].hd_len = type_length;
+		ceadrm_dcap[num].type = type;
+		ceadrm_dcap[num].support_flags = ceadrm_loc[pos];
+		pos++;
+		for (i = 0; i < type_length - 3; i++) {
+			ceadrm_dcap[num].optional_fields[i]
+				= ceadrm_loc[pos];
+			pos++;
+		}
+		ceadrm_len = ceadrm_len - (type_length + 1);
+	}
+
+	return 0;
+}
+
+static int parsing_vend_spec_hdr10p(struct am_hdmi_hdr10p_info *hdr10plus_cap,
+				    unsigned char *hdr10p_loc,
+				    unsigned char hdr10p_len)
+{
+	memset(hdr10plus_cap, 0, sizeof(struct am_hdmi_hdr10p_info));
+	hdr10plus_cap->length = hdr10p_len + 4;
+	hdr10plus_cap->ieeeoui = 0x90848B;
+	hdr10plus_cap->application_version = hdr10p_loc[0] & 0x3;
+	return 0;
+}
+
+static int parsing_vend_spec_dv(struct am_hdmi_dv_info *dolby_vision_cap,
+				unsigned char *dv_info_loc,
+				unsigned char dv_info_len)
+{
+	unsigned char *dv_start;
+	unsigned char pos = 0;
+	unsigned int ieeeoui = DV_IEEE_OUI;
+
+	/* it is a Dovi block*/
+	memset(dolby_vision_cap, 0, sizeof(struct am_hdmi_dv_info));
+	dolby_vision_cap->block_flag = AM_CORRECT;
+	dolby_vision_cap->length = dv_info_len + 4;
+	dv_start = dv_info_loc - 5; /* 5 = 3(oui) + 2*/
+	memcpy(dolby_vision_cap->rawdata, dv_start, dv_info_len + 5);
+	dolby_vision_cap->ieeeoui = ieeeoui;
+	dolby_vision_cap->ver = (dv_info_loc[pos] >> 5) & 0x7;
+	if ((dolby_vision_cap->ver) > 2) {
+		dolby_vision_cap->block_flag = AM_ERROR_VER;
+		return -1;
+	}
+	/* Refer to DV 2.9 Page 27 */
+	if (dolby_vision_cap->ver == 0) {
+		if (dolby_vision_cap->length == 0x19) {
+			dolby_vision_cap->sup_yuv422_12bit =
+				dv_info_loc[pos] & 0x1;
+			dolby_vision_cap->sup_2160p60hz =
+				(dv_info_loc[pos] >> 1) & 0x1;
+			dolby_vision_cap->sup_global_dimming =
+				(dv_info_loc[pos] >> 2) & 0x1;
+			pos++;
+			dolby_vision_cap->redx =
+				(dv_info_loc[pos + 1] << 4) |
+				(dv_info_loc[pos] >> 4);
+			dolby_vision_cap->redy =
+				(dv_info_loc[pos + 2] << 4) |
+				(dv_info_loc[pos] & 0xf);
+			pos += 3;
+			dolby_vision_cap->greenx =
+				(dv_info_loc[pos + 1] << 4) |
+				(dv_info_loc[pos] >> 4);
+			dolby_vision_cap->greeny =
+				(dv_info_loc[pos + 2] << 4) |
+				(dv_info_loc[pos] & 0xf);
+			pos += 3;
+			dolby_vision_cap->bluex =
+				(dv_info_loc[pos + 1] << 4) |
+				(dv_info_loc[pos] >> 4);
+			dolby_vision_cap->bluey =
+				(dv_info_loc[pos + 2] << 4) |
+				(dv_info_loc[pos] & 0xf);
+			pos += 3;
+			dolby_vision_cap->whitex =
+				(dv_info_loc[pos + 1] << 4) |
+				(dv_info_loc[pos] >> 4);
+			dolby_vision_cap->whitey =
+				(dv_info_loc[pos + 2] << 4) |
+				(dv_info_loc[pos] & 0xf);
+			pos += 3;
+			dolby_vision_cap->tmin_pq =
+				(dv_info_loc[pos + 1] << 4) |
+				(dv_info_loc[pos] >> 4);
+			dolby_vision_cap->tmax_pq =
+				(dv_info_loc[pos + 2] << 4) |
+				(dv_info_loc[pos] & 0xf);
+			pos += 3;
+			dolby_vision_cap->dm_major_ver =
+				dv_info_loc[pos] >> 4;
+			dolby_vision_cap->dm_minor_ver =
+				dv_info_loc[pos] & 0xf;
+			pos++;
+			DRM_INFO("v0 VSVDB: len=%d, sup_2160p60hz=%d\n",
+				 dolby_vision_cap->length,
+				 dolby_vision_cap->sup_2160p60hz);
+		} else {
+			dolby_vision_cap->block_flag = AM_ERROR_LENGTH;
+		}
+	}
+
+	if (dolby_vision_cap->ver == 1) {
+		if (dolby_vision_cap->length == 0x0B) {
+			/* Refer to DV 2.9 Page 33 */
+			dolby_vision_cap->dm_version =
+				(dv_info_loc[pos] >> 2) & 0x7;
+			dolby_vision_cap->sup_yuv422_12bit =
+				dv_info_loc[pos] & 0x1;
+			dolby_vision_cap->sup_2160p60hz =
+				(dv_info_loc[pos] >> 1) & 0x1;
+			pos++;
+			dolby_vision_cap->sup_global_dimming =
+				dv_info_loc[pos] & 0x1;
+			dolby_vision_cap->tmax_lum =
+				dv_info_loc[pos] >> 1;
+			pos++;
+			dolby_vision_cap->colorimetry =
+				dv_info_loc[pos] & 0x1;
+			dolby_vision_cap->tmin_lum =
+				dv_info_loc[pos] >> 1;
+			pos++;
+			dolby_vision_cap->low_latency =
+				dv_info_loc[pos] & 0x3;
+			dolby_vision_cap->bluex =
+				0x20 | ((dv_info_loc[pos] >> 5) & 0x7);
+			dolby_vision_cap->bluey =
+				0x08 | ((dv_info_loc[pos] >> 2) & 0x7);
+			pos++;
+			dolby_vision_cap->greenx =
+				0x00 | (dv_info_loc[pos] >> 1);
+			dolby_vision_cap->redy =
+				0x40 | ((dv_info_loc[pos] & 0x1) |
+				((dv_info_loc[pos + 1] & 0x1) << 1) |
+				((dv_info_loc[pos + 2] & 0x3) << 2));
+			pos++;
+			dolby_vision_cap->greeny = 0x80 |
+				(dv_info_loc[pos] >> 1);
+			pos++;
+			dolby_vision_cap->redx =
+				0xA0 | (dv_info_loc[pos] >> 3);
+			pos++;
+			DRM_INFO("v1 VSVDB: len=%d, sup_2160p60hz=%d,ll=%d\n",
+				 dolby_vision_cap->length,
+				 dolby_vision_cap->sup_2160p60hz,
+				 dolby_vision_cap->low_latency);
+		} else if (dolby_vision_cap->length == 0x0E) {
+			dolby_vision_cap->dm_version =
+				(dv_info_loc[pos] >> 2) & 0x7;
+			dolby_vision_cap->sup_yuv422_12bit =
+				dv_info_loc[pos] & 0x1;
+			dolby_vision_cap->sup_2160p60hz =
+				(dv_info_loc[pos] >> 1) & 0x1;
+			pos++;
+			dolby_vision_cap->sup_global_dimming =
+				dv_info_loc[pos] & 0x1;
+			dolby_vision_cap->tmax_lum =
+				dv_info_loc[pos] >> 1;
+			pos++;
+			dolby_vision_cap->colorimetry =
+				dv_info_loc[pos] & 0x1;
+			dolby_vision_cap->tmin_lum =
+				dv_info_loc[pos] >> 1;
+			pos += 2; /* byte8 is reserved as 0 */
+			dolby_vision_cap->redx = dv_info_loc[pos++];
+			dolby_vision_cap->redy = dv_info_loc[pos++];
+			dolby_vision_cap->greenx = dv_info_loc[pos++];
+			dolby_vision_cap->greeny = dv_info_loc[pos++];
+			dolby_vision_cap->bluex = dv_info_loc[pos++];
+			dolby_vision_cap->bluey = dv_info_loc[pos++];
+			DRM_INFO("v1 VSVDB: len=%d, sup_2160p60hz=%d\n",
+				 dolby_vision_cap->length,
+				 dolby_vision_cap->sup_2160p60hz);
+		} else {
+			dolby_vision_cap->block_flag = AM_ERROR_LENGTH;
+		}
+	}
+	if (dolby_vision_cap->ver == 2) {
+		/* v2 VSVDB length could be greater than 0xB
+		 * and should not be treated as unrecognized
+		 * block. Instead, we should parse it as a regular
+		 * v2 VSVDB using just the remaining 11 bytes here
+		 */
+		if (dolby_vision_cap->length >= 0x0B) {
+			dolby_vision_cap->sup_2160p60hz = 0x1;/*default*/
+			dolby_vision_cap->dm_version =
+				(dv_info_loc[pos] >> 2) & 0x7;
+			dolby_vision_cap->sup_yuv422_12bit =
+				dv_info_loc[pos] & 0x1;
+			dolby_vision_cap->sup_backlight_control =
+				(dv_info_loc[pos] >> 1) & 0x1;
+			pos++;
+			dolby_vision_cap->sup_global_dimming =
+				(dv_info_loc[pos] >> 2) & 0x1;
+			dolby_vision_cap->backlt_min_luma =
+				dv_info_loc[pos] & 0x3;
+			dolby_vision_cap->tmin_pq =
+				dv_info_loc[pos] >> 3;
+			pos++;
+			dolby_vision_cap->inter_face =
+				dv_info_loc[pos] & 0x3;
+			dolby_vision_cap->tmax_pq =
+				dv_info_loc[pos] >> 3;
+			pos++;
+			dolby_vision_cap->sup_10b_12b_444 =
+				((dv_info_loc[pos] & 0x1) << 1) |
+				(dv_info_loc[pos + 1] & 0x1);
+			dolby_vision_cap->greenx = 0x00 |
+				(dv_info_loc[pos] >> 1);
+			pos++;
+			dolby_vision_cap->greeny =
+				0x80 | (dv_info_loc[pos] >> 1);
+			pos++;
+			dolby_vision_cap->redx =
+				0xA0 | (dv_info_loc[pos] >> 3);
+			dolby_vision_cap->bluex =
+				0x20 | (dv_info_loc[pos] & 0x7);
+			pos++;
+			dolby_vision_cap->redy =
+				0x40  | (dv_info_loc[pos] >> 3);
+			dolby_vision_cap->bluey =
+				0x08  | (dv_info_loc[pos] & 0x7);
+			pos++;
+			DRM_INFO("v2VSVDB: len=%d, sup_2160p60hz=%d, int=%d\n",
+				 dolby_vision_cap->length,
+				 dolby_vision_cap->sup_2160p60hz,
+				 dolby_vision_cap->inter_face);
+		} else {
+			dolby_vision_cap->block_flag = AM_ERROR_LENGTH;
+		}
+	}
+
+	if (pos > (dolby_vision_cap->length + 1))
+		DRM_INFO("hdmitx: edid: maybe invalid dv%d data\n",
+			 dolby_vision_cap->ver);
+
+	return 0;
+}
+
+static bool drm_detect_cea_hdr_dv(struct drm_connector *connector,
+				  struct edid *edid,
+		struct am_hdmi_downstream_hdr_dv_cap *downstream_hdr_dv_cap)
+{
+	unsigned char *ceadrm_loc, *vend_spec_loc;
+	unsigned char ceadrm_len, vend_spec_len;
+	int ret;
+
+	/*parse DRM Static Block*/
+	ret = drm_parse_ceadrm_static(connector, edid,
+				      &ceadrm_loc, &ceadrm_len);
+	if (ret == 0)
+		parsing_drm_static(&downstream_hdr_dv_cap->ceadrm_scap,
+				   ceadrm_loc, ceadrm_len);
+	/*parse DRM Dynamic Block*/
+	ret = drm_parse_ceadrm_dynamic(connector, edid,
+				       &ceadrm_loc, &ceadrm_len);
+	if (ret == 0)
+		parsing_drm_dynamic(downstream_hdr_dv_cap->ceadrm_dcap,
+				    ceadrm_loc, ceadrm_len);
+	/*parse vendor spec dolby vision*/
+	ret = drm_parse_vend_spec_dv(connector, edid,
+				     &vend_spec_loc, &vend_spec_len);
+	if (ret == 0)
+		parsing_vend_spec_dv(&downstream_hdr_dv_cap->dolby_vision_cap,
+				     vend_spec_loc, vend_spec_len);
+	else
+		downstream_hdr_dv_cap->dolby_vision_cap.block_flag =
+			AM_ERROR_OUI;
+	/*parse vendor spec hdr10plus*/
+	ret = drm_parse_vend_spec_hdr10p(connector, edid,
+					 &vend_spec_loc, &vend_spec_len);
+	if (ret == 0)
+		parsing_vend_spec_hdr10p(&downstream_hdr_dv_cap->hdr10plus_cap,
+					 vend_spec_loc, vend_spec_len);
+
+	return true;
+}
+
+void drm_print_cea_hdr_dv(struct am_hdmi_downstream_hdr_dv_cap
+			  *downstream_hdr_dv_cap)
+{
+	struct am_hdmi_ceadrm_static_cap *pceadrm_scap;
+	struct am_hdmi_ceadrm_dynamic_cap *pceadrm_dcap;
+	struct am_hdmi_dv_info *pdolby_vision_cap;
+	struct am_hdmi_hdr10p_info *phdr10plus_cap;
+	int hdr10plugsupported = 0;
+	unsigned int count;
+
+	pceadrm_scap = &downstream_hdr_dv_cap->ceadrm_scap;
+	pceadrm_dcap = &downstream_hdr_dv_cap->ceadrm_dcap[0];
+	pdolby_vision_cap = &downstream_hdr_dv_cap->dolby_vision_cap;
+	phdr10plus_cap = &downstream_hdr_dv_cap->hdr10plus_cap;
+
+	if ((phdr10plus_cap->ieeeoui == HDR10_PLUS_IEEE_OUI) &&
+	    (phdr10plus_cap->application_version != 0xFF))
+		hdr10plugsupported = 1;
+
+	for (count = 0; count < 4; count++) {
+		pceadrm_dcap =
+			&downstream_hdr_dv_cap->ceadrm_dcap[count];
+		if (pceadrm_dcap->type == 0)
+			continue;
+		DRM_INFO("\nmetadata_version: %x\n",
+			 pceadrm_dcap->type);
+	}
+
+	if (pdolby_vision_cap->ieeeoui != DV_IEEE_OUI)
+		return;
+	if (pdolby_vision_cap->block_flag != AM_CORRECT) {
+		DRM_INFO("DolbyVision block is error\n");
+		return;
+	}
+
+	if (pdolby_vision_cap->ver == 0)
+		DRM_INFO("VSVDB Version: V%d\n",
+			 pdolby_vision_cap->ver);
+
+	if (pdolby_vision_cap->ver == 1) {
+		DRM_INFO("VSVDB Version: V%d(%d-byte)\n",
+			 pdolby_vision_cap->ver,
+			 pdolby_vision_cap->length + 1);
+		if (pdolby_vision_cap->length == 0xB &&
+		    pdolby_vision_cap->low_latency == 0x01)
+			DRM_INFO("  LL_YCbCr_422_12BIT\n");
+	}
+	if (pdolby_vision_cap->ver == 2) {
+		DRM_INFO("VSVDB Version: V%d\n", pdolby_vision_cap->ver);
+		DRM_INFO("  LL_YCbCr_422_12BIT\n");
+	}
+}
+
+int am_hdmi_update_downstream_cap_property(struct drm_connector *connector,
+					   struct edid *edid)
+{
+	struct drm_device *dev = connector->dev;
+	struct am_hdmi_tx *am_hdmi = to_am_hdmi(connector);
+	struct am_hdmi_downstream_hdr_dv_cap *downstream_hdr_dv_cap;
+	struct drm_property_blob *tmp;
+	struct drm_property *prp_tmp;
+	size_t size = 0;
+	int ret;
+
+	size = sizeof(struct am_hdmi_downstream_hdr_dv_cap);
+	downstream_hdr_dv_cap = kmalloc(size, GFP_KERNEL);
+	memset(downstream_hdr_dv_cap, 0, size);
+	drm_detect_cea_hdr_dv(connector, edid, downstream_hdr_dv_cap);
+	drm_print_cea_hdr_dv(downstream_hdr_dv_cap);
+	prp_tmp = am_hdmi->downstream_hdr_dv_cap_property;
+	ret =
+	drm_property_replace_global_blob(dev,
+					 &tmp,
+					 size,
+					 downstream_hdr_dv_cap,
+					 &connector->base,
+					 prp_tmp);
+	kfree(downstream_hdr_dv_cap);
+	am_hdmi->downstream_hdr_dv_cap_blob_ptr = tmp;
+	return ret;
+}
+
 struct edid *meson_read_edid(struct drm_connector *connector)
 {
 	struct am_hdmi_tx *am_hdmi = to_am_hdmi(connector);
@@ -169,6 +678,7 @@ int am_hdmi_tx_get_modes(struct drm_connector *connector)
 	if (edid) {
 		drm_mode_connector_update_edid_property(connector, edid);
 		count = drm_add_edid_modes(connector, edid);
+		am_hdmi_update_downstream_cap_property(connector, edid);
 		kfree(edid);
 	} else {
 		add_default_modes(connector);
@@ -179,7 +689,7 @@ int am_hdmi_tx_get_modes(struct drm_connector *connector)
 enum drm_mode_status am_hdmi_tx_check_mode(struct drm_connector *connector,
 					   struct drm_display_mode *mode)
 {
-	if (am_meson_hdmi_get_voutmode(mode))
+	if (am_meson_hdmitx_get_mode(mode))
 		return MODE_OK;
 	else
 		return MODE_NOMODE;
@@ -751,6 +1261,18 @@ static void am_meson_hdmi_connector_init_property(struct drm_device *drm_dev,
 		DRM_ERROR("Failed to add Color Space property\n");
 	}
 
+	prop = drm_property_create(drm_dev, DRM_MODE_PROP_BLOB |
+				   DRM_MODE_PROP_IMMUTABLE,
+				   "HDR DV Cap", 0);
+	if (prop) {
+		am_hdmi->downstream_hdr_dv_cap_property = prop;
+		drm_object_attach_property(&am_hdmi->connector.base,
+					   prop,
+					   0);
+	} else {
+		DRM_ERROR("Failed to add HDR DV Cap property\n");
+	}
+	am_hdmi->downstream_hdr_dv_cap_blob_ptr = NULL;
 }
 
 static int am_meson_hdmi_bind(struct device *dev,

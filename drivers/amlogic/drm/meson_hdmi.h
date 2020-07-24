@@ -49,16 +49,95 @@ struct am_hdmi_i2c {
 	u8 is_segment;
 };
 
+struct am_hdmi_ceadrm_static_cap {
+	unsigned int hdr_sup_eotf_sdr;
+	unsigned int hdr_sup_eotf_hdr;
+	unsigned int hdr_sup_eotf_smpte_st_2084;
+	unsigned int hdr_sup_eotf_hlg;
+	unsigned int hdr_sup_smd_type1;
+	unsigned char hdr_lum_max;
+	unsigned char hdr_lum_avg;
+	unsigned char hdr_lum_min;
+};
+
+struct am_hdmi_ceadrm_dynamic_cap {
+	unsigned int type;
+	unsigned int hd_len;
+	unsigned char support_flags;
+	unsigned char optional_fields[20];
+};
+
+/* Dolby Version support information from EDID*/
+/* Refer to DV Spec version2.9 page26 to page39*/
+enum am_block_type {
+	AM_ERROR_NULL = 0,
+	AM_ERROR_LENGTH,
+	AM_ERROR_OUI,
+	AM_ERROR_VER,
+	AM_CORRECT,
+};
+
+struct am_hdmi_dv_info {
+	unsigned char rawdata[27];
+	enum am_block_type block_flag;
+	unsigned int ieeeoui;
+	unsigned char ver; /* 0 or 1 or 2*/
+	unsigned char length;/*ver1: 15 or 12*/
+
+	unsigned char sup_yuv422_12bit;
+	/* if as 0, then support RGB tunnel mode */
+	unsigned char sup_2160p60hz;
+	/* if as 0, then support 2160p30hz */
+	unsigned char sup_global_dimming;
+	unsigned char dv_emp_cap;
+	unsigned short redx;
+	unsigned short redy;
+	unsigned short greenx;
+	unsigned short greeny;
+	unsigned short bluex;
+	unsigned short bluey;
+	unsigned short whitex;
+	unsigned short whitey;
+	unsigned short tmin_pq;
+	unsigned short tmax_pq;
+	unsigned char dm_major_ver;
+	unsigned char dm_minor_ver;
+	unsigned char dm_version;
+	unsigned char tmax_lum;
+	unsigned char colorimetry;/* ver1*/
+	unsigned char tmin_lum;
+	unsigned char low_latency;/* ver1_12 and 2*/
+	unsigned char sup_backlight_control;/*only ver2*/
+	unsigned char backlt_min_luma;/*only ver2*/
+	unsigned char inter_face;/*only ver2*/
+	unsigned char sup_10b_12b_444;/*only ver2*/
+};
+
+struct am_hdmi_hdr10p_info {
+	unsigned int ieeeoui;
+	unsigned char length;
+	unsigned char application_version;
+};
+
+struct am_hdmi_downstream_hdr_dv_cap {
+	struct am_hdmi_ceadrm_static_cap ceadrm_scap;
+	struct am_hdmi_ceadrm_dynamic_cap ceadrm_dcap[4];
+	struct am_hdmi_dv_info dolby_vision_cap;
+	struct am_hdmi_hdr10p_info hdr10plus_cap;
+};
+
 struct am_hdmi_tx {
 	struct device *dev;
 	struct drm_encoder	encoder;
 	struct drm_connector	connector;
 	struct meson_drm *priv;
+	struct drm_property_blob *downstream_hdr_dv_cap_blob_ptr;
 	int irq;
 	unsigned int input_color_format;
 	unsigned int output_color_format;
 	enum hdmi_color_depth color_depth;
 	enum hdmi_colorspace color_space;
+	struct drm_property *downstream_hdr_dv_cap_property;
 	struct drm_property *color_depth_property;
 	struct drm_property *color_space_property;
 	struct drm_display_mode previous_mode;
@@ -1116,8 +1195,14 @@ struct am_hdmi_tx {
 #define HDMITX_DWC_I2CM_SCDC_UPDATE0            (DWC_OFFSET_MASK + 0x7E30)
 #define HDMITX_DWC_I2CM_SCDC_UPDATE1            (DWC_OFFSET_MASK + 0x7E31)
 
+#define TYPE_1_HDR_METADATA_TYPE	0x0001
+#define TS_103_433_SPEC_TYPE		0x0002
+#define ITU_T_H265_SPEC_TYPE		0x0003
+#define TYPE_4_HDR_METADATA_TYPE	0x0004
+
 extern struct am_hdmi_tx am_hdmi_info;
 
 int hdcp_comm_init(struct am_hdmi_tx *am_hdmi);
 void hdcp_comm_exit(struct am_hdmi_tx *am_hdmi);
+
 #endif
