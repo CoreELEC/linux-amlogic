@@ -51,6 +51,9 @@ dtb-$(CONFIG_ARM64) += coreelec-gxl/gxl_p281_1g.dtb
 dtb-$(CONFIG_ARM64) += coreelec-gxl/gxl_p281_1g_a95xr2.dtb
 dtb-$(CONFIG_ARM64) += coreelec-gxl/gxl_p281_2g.dtb
 dtb-$(CONFIG_ARM64) += coreelec-gxl/gxl_p281_2g_a95xr2.dtb
+dtb-$(CONFIG_ARM64) += coreelec-gxl/gxl_p241_1g.dtb
+dtb-$(CONFIG_ARM64) += coreelec-gxl/gxl_p241_v2_1g.dtb
+dtb-$(CONFIG_ARM64) += coreelec-gxl/gxl_p241_1g_lafrite.dtb
 
 always		:= $(dtb-y)
 subdir-y	:= $(dts-dirs)

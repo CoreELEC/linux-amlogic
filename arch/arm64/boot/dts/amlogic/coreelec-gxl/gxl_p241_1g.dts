@@ -1,0 +1,193 @@
+#include "gxl_p212_1g.dts"
+
+/{
+	coreelec-dt-id = "gxl_p241_1g";
+	amlogic-dt-id = "gxl_p241_1g";
+
+	aliases {
+		serial0 = &uart_AO;
+		serial1 = &uart_C;
+		serial2 = &uart_B;
+		serial3 = &uart_A;
+		serial4 = &uart_AO_B;
+	};
+
+	uart_AO: serial@c81004c0 {
+		compatible = "amlogic, meson-uart";
+		reg = <0x0 0xc81004c0 0x0 0x18>;
+		interrupts = <0 193 1>;
+		status = "okay";
+		clocks = <&xtal>;
+		clock-names = "clk_uart";
+		xtal_tick_en = <1>;
+		fifosize = < 64 >;
+		pinctrl-names = "default";
+		pinctrl-0 = <&ao_uart_pins>;
+		support-sysrq = <0>;	/* 0 not support , 1 support */
+	};
+
+	uart_A: serial@c11084c0 {
+		compatible = "amlogic, meson-uart";
+		reg = <0x0 0xc11084c0 0x0 0x18>;
+		interrupts = <0 26 1>;
+		status = "disabled";
+		clocks = <&clkc CLKID_UART0>;
+		clock-names = "clk_uart";
+		fifosize = < 128 >;
+		pinctrl-names = "default";
+		// pinctrl-0 = <&a_uart_pins>;
+	};
+
+	uart_B: serial@c11084dc {
+		compatible = "amlogic, meson-uart";
+		reg = <0x0 0xc11084dc 0x0 0x18>;
+		interrupts = <0 75 1>;
+		status = "disabled";
+		clocks = <&clkc CLKID_UART1>;
+		clock-names = "clk_uart";
+		fifosize = < 64 >;
+		pinctrl-names = "default";
+		pinctrl-0 = <&b_uart_pins>;
+	};
+
+	uart_C: serial@c1108700 {
+		compatible = "amlogic, meson-uart";
+		reg = <0x0 0xc1108700 0x0 0x18>;
+		interrupts = <0 93 1>;
+		status = "okay";
+		clocks = <&clkc CLKID_UART2>;
+		clock-names = "clk_uart";
+		fifosize = < 64 >;
+		pinctrl-names = "default";
+		pinctrl-0 = <&c_uart_pins>;
+	};
+
+	uart_AO_B: serial@c81004e0 {
+		compatible = "amlogic, meson-uart";
+		reg = <0x0 0xc81004e0 0x0 0x18>;
+		interrupts = <0 197 1>;
+		status = "disabled";
+		clocks = <&xtal>;
+		clock-names = "clk_uart";
+		fifosize = < 64 >;
+		pinctrl-names = "default";
+		pinctrl-0 = <&ao_b_uart_pins>;
+	};
+
+	vpu {
+		clk_level = <2>;
+		/* 0: 100.0M    1: 166.7M    2: 200.0M    3: 250.0M */
+		/* 4: 333.3M    5: 400.0M    6: 500.0M    7: 666.7M */
+	};
+
+	bt-dev{
+		gpio_reset = <&gpio       GPIOX_12       GPIO_ACTIVE_HIGH>;
+	};
+
+	wifi{
+		interrupts = <	0 68 4>;
+		power_on_pin = <&gpio       GPIODV_25       GPIO_ACTIVE_HIGH>;
+	};
+
+	sd_emmc_c: emmc@d0074000 {
+		emmc {
+			/delete-property/ caps2;
+			f_min = <300000>;
+			f_max = <50000000>;
+		};
+	};
+
+	sd_emmc_b:sd@d0072000 {
+		pinctrl-names = "sd_all_pins",
+			"sd_clk_cmd_pins",
+			"sd_clk_cmd_uart_pins",
+			"sd_to_ao_uart_pins",
+			"ao_to_sd_uart_pins";
+		pinctrl-0 = <&sd_all_pins>;
+		pinctrl-1 = <&sd_clk_cmd_pins>;
+		pinctrl-2 = <&sd_clk_cmd_pins &ao_to_sd_uart_pins>;
+		pinctrl-3 = <&sd_to_ao_uart_pins>;
+		pinctrl-4 = <&ao_to_sd_uart_pins>;
+		/delete-property/ pinctrl-5;
+		/delete-property/ pinctrl-6;
+		/delete-property/ pinctrl-7;
+		/delete-property/ pinctrl-8;
+	};
+
+	aml_sensor0: aml-sensor@0 {
+		cooling_devices {
+			cpufreq_cool_cluster0 {
+				min_state = <1000000>;
+			};
+			gpufreq_cool {
+				min_state = <400>;
+			};
+		};
+	};
+
+	thermal-zones {
+		soc_thermal {
+			trips {
+				switch_on: trip-point@0 {
+					temperature = <70000>;
+				};
+				control: trip-point@1 {
+					temperature = <80000>;
+				};
+				hot: trip-point@2 {
+					temperature = <85000>;
+				};
+			};
+		};
+	};
+
+	gpioleds {
+		sys_led {
+			gpios = <&gpio GPIODV_27 GPIO_ACTIVE_HIGH>;
+		};
+	};
+
+	dmic:snd_dmic {
+		status = "disabled";
+	};
+
+	/delete-node/ PCM;
+	pcm_dai: PCM {
+		#sound-dai-cells = <0>;
+		compatible = "amlogic, aml-pcm-dai";
+		pinctrl-names = "audio_pcm";
+		// pinctrl-0 = <&audio_pcm_pins>;
+		clocks =
+			<&clkc CLKID_MPLL0>,
+			<&clkc CLKID_PCM_MCLK_COMP>,
+			<&clkc CLKID_PCM_SCLK_GATE>;
+		clock-names =
+			"mpll0",
+			"pcm_mclk",
+			"pcm_sclk";
+		pcm_mode = <1>; /* 0=slave mode, 1=master mode */
+	};
+
+};
+
+&gpu{
+	/*max gpu is 650M*/
+	tbl = <&clk125_cfg &clk285_cfg &clk400_cfg
+		   &clk500_cfg &clk666_cfg &clk666_cfg>;
+};
+
+&spicc{
+	status = "disabled";
+	pinctrl-names = "spicc_pulldown","spicc_pullup";
+	pinctrl-0 = <&spicc_pulldown_x8x9x11>;
+	pinctrl-1 = <&spicc_pullup_x8x9x11>;
+	num_chipselect = <1>;
+	cs-gpios = <&gpio GPIOX_10 GPIO_ACTIVE_HIGH>;
+	dma_en = <0>;
+	dma_tx_threshold = <3>;
+	dma_rx_threshold = <3>;
+	dma_num_per_read_burst = <3>;
+	dma_num_per_write_burst = <3>;
+	delay_control = <0x15>;
+	ssctl = <0>;
+};
