@@ -1086,8 +1086,11 @@ MODULE_PARM_DESC(debug_dolby_frame, "\n debug_dolby_frame\n");
 	((debug_dolby_frame + 1) == frame_count)) && \
 	(debug_dolby & 0x80))
 
+#define DV_CORE1_RECONFIG_CNT 2
+
 static bool dolby_vision_on;
 static bool dolby_vision_core1_on;
+static u32 dolby_vision_core1_on_cnt;
 static bool dolby_vision_wait_on;
 
 module_param(dolby_vision_wait_on, bool, 0664);
@@ -2029,6 +2032,12 @@ static int dolby_core1_set(
 	if (dolby_vision_flags & FLAG_CERTIFICAION)
 		reset = true;
 
+	if (dolby_vision_core1_on &&
+	    (dolby_vision_core1_on_cnt < DV_CORE1_RECONFIG_CNT)) {
+		reset = true;
+		dolby_vision_core1_on_cnt++;
+	}
+
 	if (stb_core_setting_update_flag & FLAG_CHANGE_TC)
 		set_lut = true;
 
@@ -2963,6 +2972,7 @@ static void apply_stb_core_settings(
 		pr_dolby_dbg(
 			"apply_stb_core_settings update setting again %x->%x\n",
 			stb_core_setting_update_flag, update_flag_more);
+
 	stb_core_setting_update_flag |= update_flag_more;
 
 	if (is_dolby_vision_stb_mode()
@@ -3780,6 +3790,7 @@ void enable_dolby_vision(int enable)
 					dolby_vision_core1_on ?
 					", core1 on" : "");
 			}
+			dolby_vision_core1_on_cnt = 0;
 		} else {
 			if (!dolby_vision_core1_on
 				&& (dolby_vision_mask & 1)
@@ -3817,6 +3828,7 @@ void enable_dolby_vision(int enable)
 						0,
 						16, 1); /* core1 */
 				dolby_vision_core1_on = true;
+				dolby_vision_core1_on_cnt = 0;
 				pr_dolby_dbg("Dolby Vision core1 turn on\n");
 			} else if (dolby_vision_core1_on
 				&& (!(dolby_vision_mask & 1)
@@ -3839,6 +3851,7 @@ void enable_dolby_vision(int enable)
 						1,
 						16, 1); /* core1 */
 				dolby_vision_core1_on = false;
+				dolby_vision_core1_on_cnt = 0;
 				frame_count = 0;
 				pr_dolby_dbg("Dolby Vision core1 turn off\n");
 			}
@@ -4034,6 +4047,7 @@ void enable_dolby_vision(int enable)
 		force_reset_core2 = true;
 		dolby_vision_on_in_uboot = false;
 		dolby_vision_core1_on = false;
+		dolby_vision_core1_on_cnt = 0;
 		dolby_vision_wait_on = false;
 		dolby_vision_wait_init = false;
 		dolby_vision_wait_count = 0;
@@ -7783,6 +7797,16 @@ int dolby_vision_process(
 			"core1 size changed--old: %d x %d, new: %d x %d\n",
 			core1_disp_hsize, core1_disp_vsize,
 			h_size, v_size);
+
+	if (dolby_vision_core1_on &&
+	    (dolby_vision_core1_on_cnt < DV_CORE1_RECONFIG_CNT) &&
+	    !(dolby_vision_flags & FLAG_TOGGLE_FRAME)) {
+		dolby_vision_set_toggle_flag(1);
+		pr_dolby_dbg(
+			"Need update core1 setting first %d times, force toggle frame\n",
+			dolby_vision_core1_on_cnt);
+	}
+
 	if (dolby_vision_flags & FLAG_TOGGLE_FRAME) {
 		if (!(dolby_vision_flags & FLAG_CERTIFICAION))
 			reset_flag =
