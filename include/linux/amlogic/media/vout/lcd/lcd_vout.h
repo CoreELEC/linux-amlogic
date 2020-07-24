@@ -503,6 +503,8 @@ struct aml_lcd_drv_s {
 	struct class *lcd_debug_class;
 	struct lcd_boot_ctrl_s *boot_ctrl;
 
+	/* vout_fr_policy: 0=disable, 1=nearby, 2=force */
+	unsigned int vout_fr_policy;
 	int fr_auto_policy;
 	int fr_mode;
 	struct lcd_duration_s std_duration;

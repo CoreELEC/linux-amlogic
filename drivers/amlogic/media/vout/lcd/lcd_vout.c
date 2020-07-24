@@ -1302,6 +1302,17 @@ static int lcd_config_probe(struct platform_device *pdev)
 		lcd_driver->fr_auto_policy = (unsigned char)val;
 	}
 
+	ret = of_property_read_u32(lcd_driver->dev->of_node,
+				   "vout_fr_policy", &val);
+	if (ret) {
+		if (lcd_debug_print_flag)
+			LCDPR("failed to get vout_fr_policy\n");
+		lcd_driver->vout_fr_policy = 0;
+	} else {
+		lcd_driver->vout_fr_policy = val;
+		LCDPR("find vout_fr_policy: %d\n", val);
+	}
+
 	switch (lcd_boot_ctrl_config.debug_para_source) {
 	case 1:
 		LCDPR("debug_para_source: 1,dts\n");

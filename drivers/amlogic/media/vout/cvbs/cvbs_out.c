@@ -696,6 +696,17 @@ static int cvbs_vout_get_disp_cap(char *buf)
 	return ret;
 }
 
+static int cvbs_vout_set_vframe_rate_policy(int policy)
+{
+	cvbs_log_info("don't support vout_fr_policy\n");
+	return 0;
+}
+
+static int cvbs_vout_get_vframe_rate_policy(void)
+{
+	return 0;
+}
+
 #ifdef CONFIG_PM
 static int cvbs_suspend(void)
 {
@@ -729,8 +740,8 @@ static struct vout_server_s cvbs_vout_server = {
 		.get_disp_cap = cvbs_vout_get_disp_cap,
 		.set_vframe_rate_hint = NULL,
 		.set_vframe_rate_end_hint = NULL,
-		.set_vframe_rate_policy = NULL,
-		.get_vframe_rate_policy = NULL,
+		.set_vframe_rate_policy = cvbs_vout_set_vframe_rate_policy,
+		.get_vframe_rate_policy = cvbs_vout_get_vframe_rate_policy,
 		.set_bist = cvbs_bist_test,
 #ifdef CONFIG_PM
 		.vout_suspend = cvbs_suspend,
@@ -751,10 +762,11 @@ static struct vout_server_s cvbs_vout2_server = {
 		.set_state = cvbs_vout_set_state,
 		.clr_state = cvbs_vout_clr_state,
 		.get_state = cvbs_vout_get_state,
+		.get_disp_cap = cvbs_vout_get_disp_cap,
 		.set_vframe_rate_hint = NULL,
 		.set_vframe_rate_end_hint = NULL,
-		.set_vframe_rate_policy = NULL,
-		.get_vframe_rate_policy = NULL,
+		.set_vframe_rate_policy = cvbs_vout_set_vframe_rate_policy,
+		.get_vframe_rate_policy = cvbs_vout_get_vframe_rate_policy,
 		.set_bist = cvbs_bist_test,
 #ifdef CONFIG_PM
 		.vout_suspend = cvbs_suspend,

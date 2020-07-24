@@ -25,6 +25,7 @@
 #include <linux/clk-provider.h>
 #include <linux/device.h>
 #include <linux/pinctrl/consumer.h>
+#include <linux/amlogic/media/vout/vout_notify.h>
 
 /* HDMITX driver version */
 #define HDMITX_VER "20200122"
@@ -338,6 +339,7 @@ struct hdmitx_dev {
 	struct device *pdev; /* for pinctrl*/
 	struct pinctrl_state *pinctrl_i2c;
 	struct pinctrl_state *pinctrl_default;
+	struct vinfo_s *vinfo;
 	struct delayed_work work_hpd_plugin;
 	struct delayed_work work_hpd_plugout;
 	struct delayed_work work_rxsense;
@@ -378,6 +380,8 @@ struct hdmitx_dev {
 		void (*setupirq)(struct hdmitx_dev *hdmitx_device);
 		void (*debugfun)(struct hdmitx_dev *hdmitx_device,
 				 const char *buf);
+		void (*debug_bist)(struct hdmitx_dev *hdmitx_device,
+				   unsigned int num);
 		void (*uninit)(struct hdmitx_dev *hdmitx_device);
 		int (*cntlpower)(struct hdmitx_dev *hdmitx_device,
 				 unsigned int cmd, unsigned int arg);
@@ -456,6 +460,8 @@ struct hdmitx_dev {
 	bool hdcp22_type;
 	unsigned int repeater_tx;
 	struct hdcprp_topo *topo_info;
+	/* vout_fr_policy: 0=disable, 1=nearby, 2=force */
+	unsigned int vout_fr_policy;
 	/* 0.1% clock shift, 1080p60hz->59.94hz */
 	unsigned int frac_rate_policy;
 	unsigned int rxsense_policy;
