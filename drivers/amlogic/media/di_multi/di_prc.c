@@ -1767,6 +1767,7 @@ void dip_chst_process_reg(unsigned int ch)
 				dpre_init();
 				dpost_init();
 				di_reg_setting(ch, vframe);
+				set_reg_flag(ch, true);
 			}
 			/*this will cause first local buf not alloc*/
 			/*dim_bypass_first_frame(ch);*/
@@ -1850,6 +1851,9 @@ void dip_chst_process_ch(void)
 		task_polling_cmd_keep(ch, chst);
 		switch (chst) {
 		case EDI_TOP_STATE_REG_STEP2:
+			vframe = pw_vf_peek(ch);
+			if (!vframe)
+				break;
 			if (pbm->cma_flg_run)
 				break;
 
@@ -1861,6 +1865,11 @@ void dip_chst_process_ch(void)
 					else
 						PR_INF("ch[%d],g[%d]\n",
 						       ch, get_sum_g(ch));
+				}
+				if (!get_reg_flag_all()) {
+					dpre_init();
+					dpost_init();
+					di_reg_setting(ch, vframe);
 				}
 				dip_chst_set(ch, EDI_TOP_STATE_READY);
 				set_reg_flag(ch, true);
