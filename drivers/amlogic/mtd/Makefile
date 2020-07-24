@@ -11,4 +11,5 @@ obj-$(CONFIG_AMLOGIC_NAND) +=   aml_nand.o \
 				nand_flash.o \
 				mtd_driver.o \
 				new_nand.o \
-				boot.o
+				boot.o \
+				nand_layout.o

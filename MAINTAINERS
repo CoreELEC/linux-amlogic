@@ -13709,6 +13709,8 @@ F: include/linux/mmc/host.h
 AMLOGIC MTD DRIVER
 M:	Liang Yang <liang.yang@amlogic.com>
 F:	drivers/amlogic/mtd/
+F:	drivers/amlogic/mtd/nand_layout.c
+F:	drivers/amlogic/mtd/nand_layout.h
 M:	Yonghui Yu <yonghui.yu@amlogic.com>
 F:	drivers/amlogic/mtd/boot.c
 

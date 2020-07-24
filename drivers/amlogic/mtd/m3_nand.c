@@ -209,26 +209,9 @@ unsigned char pagelist_1ynm_hynix256_mtd[128] = {
 	0xEf, 0xf1, 0xF3, 0xF5, 0xF7, 0xF9, 0xFb, 0xFd,
 };
 
-#ifdef AML_NAND_UBOOT
-void pinmux_select_chip_mtd(unsigned int ce_enable, unsigned int rb_enable)
-{
-	if (!((ce_enable >> 10) & 1))
-		AMLNF_SET_REG_MASK(P_PERIPHS_PIN_MUX_4, (1 << 26));
-	if (!((ce_enable >> 10) & 2))
-		AMLNF_SET_REG_MASK(P_PERIPHS_PIN_MUX_4, (1 << 27));
-	if (!((ce_enable >> 10) & 4))
-		AMLNF_SET_REG_MASK(P_PERIPHS_PIN_MUX_4, (1 << 28));
-	if (!((ce_enable >> 10) & 8))
-		AMLNF_SET_REG_MASK(P_PERIPHS_PIN_MUX_4, (1 << 29));
-}
-#endif
-
 static int controller_select_chip(struct hw_controller *controller,
 	u8 chipnr)
 {
-#ifdef AML_NAND_UBOOT
-	int i;
-#endif
 	int ret = 0;
 
 	switch (chipnr) {
@@ -238,12 +221,6 @@ static int controller_select_chip(struct hw_controller *controller,
 	case 3:
 		controller->chip_selected = controller->ce_enable[chipnr];
 		controller->rb_received = controller->rb_enable[chipnr];
-#ifdef AML_NAND_UBOOT
-		for (i = 0; i < controller->chip_num; i++)
-			pinmux_select_chip_mtd(controller->ce_enable[i],
-				controller->rb_enable[i]);
-#endif
-
 		NFC_SEND_CMD_IDLE(controller, 0);
 		break;
 	default:
@@ -262,103 +239,98 @@ static void m3_nand_select_chip(struct aml_nand_chip *aml_chip, int chipnr)
 	controller_select_chip(controller, chipnr);
 }
 
+#define   CLK_DIV_SHIFT 0
+#define   CLK_DIV_WIDTH 6
 static int aml_nfc_clk_init(struct hw_controller *controller)
 {
+	struct device *dev = controller->device;
+	struct clk_init_data init = {0};
+	const char *fix_div2_pll_name[1];
 	int ret = 0;
 
-	controller->clk[0] =
-		devm_clk_get(controller->device, "core");
-	if (IS_ERR(controller->clk[0])) {
-		dev_err(controller->device,
-			"failed to get core\n");
-		return PTR_ERR(controller->clk[0]);
+	controller->clk_gate = devm_clk_get(dev, "gate");
+	if (IS_ERR(controller->clk_gate)) {
+		dev_err(dev, "failed to get gate\n");
+		return PTR_ERR(controller->clk_gate);
 	}
-
-	ret = clk_prepare_enable(controller->clk[0]);
+	ret = clk_prepare_enable(controller->clk_gate);
 	if (ret) {
-		dev_err(controller->device, "failed to set nand gate\n");
+		dev_err(dev, "failed to enable gate\n");
 		return ret;
 	}
+	controller->fix_div2_pll = devm_clk_get(dev, "fdiv2pll");
+	if (IS_ERR(controller->fix_div2_pll)) {
+		dev_err(dev, "failed to get fix pll\n");
+		return PTR_ERR(controller->fix_div2_pll);
+	}
+	ret = clk_prepare_enable(controller->fix_div2_pll);
+	if (ret) {
+		dev_err(dev, "failed to enable fix pll\n");
+		return ret;
+	}
+
+	init.name = devm_kstrdup(dev, "nfc#div", GFP_KERNEL);
+	init.ops = &clk_divider_ops;
+	fix_div2_pll_name[0] = __clk_get_name(controller->fix_div2_pll);
+	init.parent_names = fix_div2_pll_name;
+	init.num_parents = 1;
+	controller->nand_divider.reg = controller->nand_clk_reg;
+	controller->nand_divider.shift = CLK_DIV_SHIFT;
+	controller->nand_divider.width = CLK_DIV_WIDTH;
+	controller->nand_divider.hw.init = &init;
+	controller->nand_divider.flags = CLK_DIVIDER_ONE_BASED |
+		CLK_DIVIDER_ROUND_CLOSEST | CLK_DIVIDER_ALLOW_ZERO;
+	controller->nand_div_clk =
+		devm_clk_register(dev, &controller->nand_divider.hw);
+	if (IS_ERR(controller->nand_div_clk))
+		return PTR_ERR(controller->nand_div_clk);
+	ret = clk_prepare_enable(controller->nand_div_clk);
+	if (ret)
+		dev_err(dev, "pre enable NFC divider fail\n");
+
 	return 0;
 }
 
 void get_sys_clk_rate_mtd(struct hw_controller *controller, int *rate)
 {
-	int clk_freq = *rate;
-	unsigned int always_on = 0x1 << 24;
-	unsigned int clk;
-#ifdef AML_NAND_UBOOT
-	cpu_id_t cpu_id = get_cpu_id();
+	int clk_freq = *rate * 1000000;
+	unsigned int always_on = 0x1 << 24, tmp_cfg;
+	unsigned long clk;
+	int bus_cycle, bus_timing;
 
-	if (cpu_id.family_id == MESON_CPU_MAJOR_ID_AXG)
-#else
-	if ((get_cpu_type() == MESON_CPU_MAJOR_ID_AXG)
-		|| (get_cpu_type() == MESON_CPU_MAJOR_ID_G12A)
-		|| (get_cpu_type() == MESON_CPU_MAJOR_ID_G12B)
-		|| (get_cpu_type() == MESON_CPU_MAJOR_ID_TL1))
+	if ((get_cpu_type() == MESON_CPU_MAJOR_ID_AXG) ||
+	    (get_cpu_type() == MESON_CPU_MAJOR_ID_G12A) ||
+	    (get_cpu_type() == MESON_CPU_MAJOR_ID_G12B) ||
+	    (get_cpu_type() == MESON_CPU_MAJOR_ID_TL1) ||
+	    (get_cpu_type() == MESON_CPU_MAJOR_ID_SC2))
 		always_on = 0x1 << 28;
-#endif
-	if ((get_cpu_type() == MESON_CPU_MAJOR_ID_GXBB)
-		|| (get_cpu_type() == MESON_CPU_MAJOR_ID_GXL)
-		|| (get_cpu_type() == MESON_CPU_MAJOR_ID_AXG)
-		|| (get_cpu_type() == MESON_CPU_MAJOR_ID_G12A)
-		|| (get_cpu_type() == MESON_CPU_MAJOR_ID_G12B)
-		|| (get_cpu_type() == MESON_CPU_MAJOR_ID_TL1)) {
-		switch (clk_freq) {
-		case 24:
-			clk = 0x80000201;
-		break;
-		case 112:
-			clk = 0x80000249;
-		break;
-		case 200:
-			clk = 0x80000245;
-		break;
-		case 250:
-			clk = 0x80000244;
-		break;
-		default:
-			clk = 0x80000245;
-		break;
-		}
-		clk |= always_on;
-		amlnf_write_reg32(controller->nand_clk_reg, clk);
-		return;
-	} else
-		pr_info("%s %d: not support cpu type!!!\n",
-			__func__, __LINE__);
+
+	clk = clk_set_rate(controller->nand_div_clk, clk_freq);
+	tmp_cfg = amlnf_read_reg32(controller->nand_clk_reg);
+	tmp_cfg |=  (1 << 31) | always_on;
+	amlnf_write_reg32(controller->nand_clk_reg, tmp_cfg);
+	bus_cycle  = 6;
+	bus_timing = bus_cycle + 1;
+	NFC_SET_CFG(controller, 0);
+	NFC_SET_TIMING_ASYC(controller, bus_timing, (bus_cycle - 1));
+	NFC_SEND_CMD(controller, 1 << 31);
+	pr_info("gclock=%x P_NAND_CFG=%x\n",
+		amlnf_read_reg32(controller->nand_clk_reg),
+		amlnf_read_reg32(controller->reg_base + P_NAND_CFG));
 }
 
 static void m3_nand_hw_init(struct aml_nand_chip *aml_chip)
 {
-	int sys_clk_rate, bus_cycle, bus_timing;
+	int sys_clk_rate;
 
-	aml_nfc_clk_init(controller);
-
-	/*
-	if (get_cpu_type() == MESON_CPU_MAJOR_ID_G12A) {
-		sys_clk_rate = 24;
-		bus_cycle  = 4;
-		bus_timing = 3;
-	} else {
-		sys_clk_rate = 200;
-		bus_cycle  = 6;
-		bus_timing = bus_cycle + 1;
-	}
-	*/
 	sys_clk_rate = 200;
-	bus_cycle  = 6;
-	bus_timing = bus_cycle + 1;
 	get_sys_clk_rate_mtd(controller, &sys_clk_rate);
 
-	NFC_SET_CFG(controller, 0);
-	NFC_SET_TIMING_ASYC(controller, bus_timing, (bus_cycle - 1));
-	NFC_SEND_CMD(controller, 1<<31);
 }
 
 static void m3_nand_adjust_timing(struct aml_nand_chip *aml_chip)
 {
-	int sys_clk_rate, bus_cycle, bus_timing;
+	int sys_clk_rate;
 
 	if (!aml_chip->T_REA)
 		aml_chip->T_REA = 20;
@@ -372,26 +344,7 @@ static void m3_nand_adjust_timing(struct aml_nand_chip *aml_chip)
 	else
 		sys_clk_rate = 250;
 
-	/*
-	if (get_cpu_type() == MESON_CPU_MAJOR_ID_G12A) {
-		sys_clk_rate = 24;
-		bus_cycle  = 4;
-		bus_timing = 3;
-	} else {
-		bus_cycle  = 6;
-		bus_timing = bus_cycle + 1;
-	}
-	*/
-
-	bus_cycle  = 6;
-	bus_timing = bus_cycle + 1;
-
 	get_sys_clk_rate_mtd(controller, &sys_clk_rate);
-
-	NFC_SET_CFG(controller, 0);
-	NFC_SET_TIMING_ASYC(controller, bus_timing, (bus_cycle - 1));
-
-	NFC_SEND_CMD(controller, 1<<31);
 }
 
 static int m3_nand_options_confirm(struct aml_nand_chip *aml_chip)
@@ -885,12 +838,8 @@ static void m3_nand_resume(struct mtd_info *mtd)
 }
 #endif
 
-#ifndef AML_NAND_UBOOT
 static int m3_nand_probe(struct aml_nand_platform *plat,
-	unsigned int dev_num, struct device *dev)
-#else
-static int m3_nand_probe(struct aml_nand_platform *plat, unsigned int dev_num)
-#endif
+			 unsigned int dev_num, struct device *dev)
 {
 	struct aml_nand_chip *aml_chip = NULL;
 	struct nand_chip *chip = NULL;
@@ -898,15 +847,6 @@ static int m3_nand_probe(struct aml_nand_platform *plat, unsigned int dev_num)
 	int err = 0;
 	unsigned int nand_type = 0;
 	struct aml_nand_device *aml_nand_device = NULL;
-/*#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 9, 13)*/
-#if 0
-	int tmp_val, i;
-#endif
-
-	if (!plat) {
-		pr_info("no platform specific information\n");
-		goto exit_error;
-	}
 
 	aml_chip = kzalloc(sizeof(*aml_chip), GFP_KERNEL);
 	if (aml_chip == NULL) {
@@ -914,9 +854,7 @@ static int m3_nand_probe(struct aml_nand_platform *plat, unsigned int dev_num)
 		goto exit_error;
 	}
 
-	/* initialize mtd info data struct */
 	aml_chip->controller = controller;
-	/* to it's own plat data */
 	aml_chip->platform = plat;
 	aml_chip->bch_desc = m3_bch_list;
 	aml_chip->max_bch_mode = ARRAY_SIZE(m3_bch_list);
@@ -927,9 +865,6 @@ static int m3_nand_probe(struct aml_nand_platform *plat, unsigned int dev_num)
 	chip->priv = aml_chip;
 	mtd->priv = chip;
 	mtd->name = plat->name;
-#ifndef AML_NAND_UBOOT
-	/*fixit ,hardware support all address*/
-	/* dev->coherent_dma_mask = DMA_BIT_MASK(32); */
 	aml_nand_device = plat->aml_nand_device;
 	pr_info("%s() aml_nand_device %p\n", __func__, aml_nand_device);
 	if (aml_nand_device) {
@@ -937,15 +872,10 @@ static int m3_nand_probe(struct aml_nand_platform *plat, unsigned int dev_num)
 		aml_chip->fip_copies = aml_nand_device->fip_copies;
 		aml_chip->fip_size = aml_nand_device->fip_size;
 	}
-
-
 	aml_chip->device = dev;
 	mtd->dev.parent = dev->parent;
 	mtd->owner = THIS_MODULE;
 	chip->controller =  &upper_controller;
-#endif
-
-	/*register amlogic hw controller functions*/
 	aml_chip->aml_nand_hw_init = m3_nand_hw_init;
 	aml_chip->aml_nand_adjust_timing = m3_nand_adjust_timing;
 	aml_chip->aml_nand_select_chip = m3_nand_select_chip;
@@ -984,36 +914,16 @@ static int m3_nand_probe(struct aml_nand_platform *plat, unsigned int dev_num)
 		chip->ecc.read_page = m3_nand_boot_read_page_hwecc;
 		chip->ecc.write_page = m3_nand_boot_write_page_hwecc;
 		chip->write_page = m3_nand_boot_write_page;
-/*#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 9, 13)*/
-#if 0
-		if (chip->ecc.layout)
-			chip->ecc.layout->oobfree[0].length =
-			((mtd->writesize / 512) * aml_chip->user_byte_mode);
-		chip->ecc.layout->oobavail = 0;
-		tmp_val =  ARRAY_SIZE(chip->ecc.layout->oobfree);
-	for (i = 0; chip->ecc.layout->oobfree[i].length && i < tmp_val; i++)
-		chip->ecc.layout->oobavail +=
-			chip->ecc.layout->oobfree[i].length;
-		mtd->oobavail = chip->ecc.layout->oobavail;
-		mtd->ecclayout = chip->ecc.layout;
-
-#endif
 	} else {
-	#ifndef CONFIG_MTD_ENV_IN_NAND
+#ifndef CONFIG_MTD_ENV_IN_NAND
 		aml_ubootenv_init(aml_chip);
-	#endif
+#endif
 		aml_key_init(aml_chip);
 		amlnf_dtb_init(aml_chip);
 	}
 
-#ifndef AML_NAND_UBOOT
 	mtd->_suspend = m3_nand_suspend;
 	mtd->_resume = m3_nand_resume;
-#endif
-#ifdef AML_NAND_UBOOT
-	/*need to set device_boot_flag here*/
-	device_boot_flag = NAND_BOOT_FLAG;
-#endif
 	nand_info[dev_num] = mtd;
 	return 0;
 
@@ -1025,49 +935,6 @@ exit_error:
 	return err;
 }
 
-#ifdef AML_NAND_UBOOT
-void nand_init(void)
-{
-	struct aml_nand_platform *plat = NULL;
-	int i, ret;
-
-	controller = kzalloc(sizeof(struct hw_controller), GFP_KERNEL);
-	if (controller == NULL)
-		return;
-
-	controller->chip_num = 1; /* assume chip num is 1 */
-	for (i = 0; i < MAX_CHIP_NUM; i++) {
-		controller->ce_enable[i] =
-			(((CE_PAD_DEFAULT >> i*4) & 0xf) << 10);
-		controller->rb_enable[i] =
-			(((RB_PAD_DEFAULT >> i*4) & 0xf) << 10);
-	}
-
-	/* set nf controller register base and nand clk base */
-	controller->reg_base = (void *)(uint32_t *)NAND_BASE_APB;
-	controller->nand_clk_reg = (void *)(uint32_t *)NAND_CLK_CNTL;
-
-	/*
-	 *pr_info("nand register base %p, nand clock register %p\n",
-	 *	controller->reg_base,
-	 *	controller->nand_clk_reg);
-	 **/
-
-	for (i = 0; i < aml_nand_mid_device.dev_num; i++) {
-		plat = &aml_nand_mid_device.aml_nand_platform[i];
-		if (!plat) {
-			pr_info("error for not platform data\n");
-			continue;
-		}
-		ret = m3_nand_probe(plat, i);
-		if (ret) {
-			pr_info("nand init faile: %d\n", ret);
-			continue;
-		}
-	}
-	nand_curr_device = 1; /* fixit */
-}
-#else
 int nand_init(struct platform_device *pdev)
 {
 	struct aml_nand_platform *plat = NULL;
@@ -1129,7 +996,7 @@ int nand_init(struct platform_device *pdev)
 		dev_err(&pdev->dev, "ioremap External Nand Clock IO fail\n");
 		return -ENOMEM;
 	}
-	pr_info("nand register base %p, nand clock register %p\n",
+	pr_info("nand register base %px, nand clock register %px\n",
 		controller->reg_base,
 		controller->nand_clk_reg);
 
@@ -1140,18 +1007,10 @@ int nand_init(struct platform_device *pdev)
 	}
 	controller->irq = res_irq->start;
 
-	/*pinmux select*/
 	controller->nand_pinctrl = devm_pinctrl_get(controller->device);
 	if (IS_ERR(controller->nand_pinctrl)) {
 		pr_info("get pinctrl error");
 		return PTR_ERR(controller->nand_pinctrl);
-	}
-	controller->nand_rbstate =
-		pinctrl_lookup_state(controller->nand_pinctrl,
-			"nand_rb_mod");
-	if (IS_ERR(controller->nand_rbstate)) {
-		devm_pinctrl_put(controller->nand_pinctrl);
-		return PTR_ERR(controller->nand_rbstate);
 	}
 	controller->nand_norbstate =
 		pinctrl_lookup_state(controller->nand_pinctrl,
@@ -1175,20 +1034,18 @@ int nand_init(struct platform_device *pdev)
 		return PTR_ERR(controller->nand_idlestate);
 	}
 
+	if (aml_nfc_clk_init(controller))
+		return -EBUSY;
+
 	for (i = 0; i < aml_nand_mid_device.dev_num; i++) {
 		plat = &aml_nand_mid_device.aml_nand_platform[i];
 		if (!plat) {
 			pr_info("error for not platform data\n");
 			continue;
 		}
-#ifndef AML_NAND_UBOOT
-		/* to get the glb fip infos */
 		plat->aml_nand_device = &aml_nand_mid_device;
 		pr_info("plat->aml_nand_device %p\n", plat->aml_nand_device);
 		ret = m3_nand_probe(plat, i, &pdev->dev);
-#else
-		ret = m3_nand_probe(plat, i);
-#endif
 		if (ret) {
 			pr_info("nand init failed:%d\n", ret);
 			continue;
@@ -1201,6 +1058,4 @@ int nand_init(struct platform_device *pdev)
 	nand_curr_device = 1; /* fixit */
 	return ret;
 }
-#endif
-
 

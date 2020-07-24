@@ -18,9 +18,9 @@
 #ifndef __AML_HWCTRL_H__
 #define __AML_HWCTRL_H__
 
-/* #include <asm/arch/secure_apb.h> */
+#include <linux/clk.h>
+#include <linux/clk-provider.h>
 
-/* #define	AML_NAND_UBOOT */
 #define NAND_TWB_TIME_CYCLE	10
 
 /*
@@ -48,7 +48,10 @@ struct hw_controller {
 	u8 chip_num;
 	u32 ce_enable[MAX_CHIP_NUM];
 	u32 rb_enable[MAX_CHIP_NUM];
-	struct clk *clk[4];
+	struct clk *clk_gate;
+	struct clk *fix_div2_pll;
+	struct clk_divider nand_divider;
+	struct clk *nand_div_clk;
 
 	void __iomem *reg_base;
 	void __iomem *nand_clk_reg;

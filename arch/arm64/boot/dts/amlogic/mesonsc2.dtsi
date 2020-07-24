@@ -1686,28 +1686,21 @@
 		compatible = "amlogic, aml_mtd_nand";
 		dev_name = "mtdnand";
 		status = "disabled";
-		reg = <0x0 0xFFE07800 0x0 0x200>;
+		reg = <0x0 0xfe08c800 0x0 0x200>;
 		interrupts = <0 34 1>;
 
 		pinctrl-names = "nand_rb_mod","nand_norb_mod", "nand_cs_only";
 		pinctrl-0 = <&all_nand_pins>;
 		pinctrl-1 = <&all_nand_pins>;
 		pinctrl-2 = <&nand_cs_pins>;
-		clock-names = "core", "clkin";
-
+		clocks = <&clkc CLKID_NAND>,
+			<&clkc CLKID_FCLK_DIV2>;
+		clock-names = "gate", "fdiv2pll";
 		device_id = <0>;
-		/*fip/tpl configurations, must be same
-		 * with uboot if bl_mode was set as 1
-		 * bl_mode: 0 compact mode; 1 descrete mode
-		 * if bl_mode was set as 1, fip configuration will work
-		 */
 		bl_mode = <1>;
-		/*copy count of fip*/
 		fip_copies = <4>;
-		/*size of each fip copy */
 		fip_size = <0x200000>;
-		nand_clk_ctrl = <0xFFE07000>;
-		/*partions defined in dts */
+		nand_clk_ctrl = <0xfe08c000>;
 	};
 
 	vddcpu0: pwm_j-regulator {

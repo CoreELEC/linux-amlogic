@@ -77,18 +77,11 @@
 		pinctrl-1 = <&all_nand_pins>;
 		pinctrl-2 = <&nand_cs_pins>;
 		device_id = <0>;
-		clocks = <&clkc CLKID_SD_EMMC_C_P0_COMP>;
-		clock-names = "core";
-
-		/*fip/tpl configurations, must be same
-		 * with uboot if bl_mode was set as 1
-		 * bl_mode: 0 compact mode; 1 descrete mode
-		 * if bl_mode was set as 1, fip configeration will work
-		 */
+		clocks = <&clkc CLKID_SD_EMMC_C>,
+			<&clkc CLKID_FCLK_DIV2>;
+		clock-names = "gate", "fdiv2pll";
 		bl_mode = <1>;
-		/*copy count of fip*/
 		fip_copies = <4>;
-		/*size of each fip copy */
 		fip_size = <0x200000>;
 		nand_clk_ctrl = <0xFFE07000>;
 		plat-names = "bootloader","nandnormal";
@@ -120,15 +113,6 @@
 			rb_detect = <1>;
 		};
 		nand_partitions:nand_partition{
-			/*
-			 * if bl_mode is 1, tpl size was generate by
-			 * fip_copies * fip_size which
-			 * will not skip bad when calculating
-			 * the partition size;
-			 *
-			 * if bl_mode is 0,
-			 * tpl partition must be comment out.
-			 */
 			tpl{
 				offset=<0x0 0x0>;
 				size=<0x0 0x0>;
