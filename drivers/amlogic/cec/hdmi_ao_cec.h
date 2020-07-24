@@ -19,7 +19,7 @@
 #ifndef __AO_CEC_H__
 #define __AO_CEC_H__
 
-#define CEC_DRIVER_VERSION	"2020/06/10: sc2 bring up\n"
+#define CEC_DRIVER_VERSION	"2020/07/22: add wakeup reason api for sc2\n"
 #define CEC_DEV_NAME		"cec"
 
 #define CEC_FRAME_DELAY		msecs_to_jiffies(30)

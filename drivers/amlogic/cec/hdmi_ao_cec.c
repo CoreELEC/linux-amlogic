@@ -558,11 +558,14 @@ const uint8_t dev_vendor_id[1][3] = {
 	{0, 0, 0},
 };
 
+/*for bringup no this api*/
 int __attribute__((weak))cec_set_dev_info(uint8_t dev_idx)
 {
-	/* empty function
-	 * call hdmirx api
-	 */
+	return 0;
+}
+
+int __attribute__((weak))hdmirx_get_connect_info(void)
+{
 	return 0;
 }
 
@@ -3232,11 +3235,6 @@ void cec_status(void)
 	CEC_ERR("addr_enable:0x%x\n", cec_dev->cec_info.addr_enable);
 }
 
-int __attribute__((weak))hdmirx_get_connect_info(void)
-{
-	return 0;
-}
-
 void cec_ap_clear_logical_addr(void)
 {
 	if (cec_dev->cec_num > ENABLE_ONE_CEC)
@@ -3823,6 +3821,33 @@ static void cec_set_clk(struct platform_device *pdev)
 	}
 }
 
+static void cec_get_wakeup_reason(void)
+{
+	cec_dev->wakeup_reason = get_resume_method();
+	/*scpi_get_wakeup_reason(&cec_dev->wakeup_reason);*/
+	CEC_ERR("wakeup_reason:0x%x\n", cec_dev->wakeup_reason);
+}
+
+static void cec_clear_wakeup_reason(void)
+{
+	scpi_clr_wakeup_reason();
+}
+
+static void cec_get_wakeup_data(void)
+{
+	/*temp for mailbox not ready*/
+	/*data = readl(cec_dev->periphs_reg + (0xa6 << 2));*/
+	/*cec_dev->wakup_data.wk_logic_addr = data & 0xff;*/
+	/*cec_dev->wakup_data.wk_phy_addr = (data >> 8) & 0xffff;*/
+	/*cec_dev->wakup_data.wk_port_id = (data >> 24) & 0xff;*/
+
+	scpi_get_cec_val(SCPI_CMD_GET_CEC1,
+			 (unsigned int *)&cec_dev->wakup_data);
+
+	CEC_ERR("wakeup_data: %#x\n",
+		*((unsigned int *)&cec_dev->wakup_data));
+}
+
 static int aml_cec_probe(struct platform_device *pdev)
 {
 	struct device *cdev;
@@ -4210,13 +4235,8 @@ static int aml_cec_probe(struct platform_device *pdev)
 	queue_delayed_work(cec_dev->cec_thread, &cec_dev->cec_work, 0);
 	tasklet_init(&ceca_tasklet, ceca_tasklet_pro,
 		(unsigned long)cec_dev);
-	scpi_get_wakeup_reason(&cec_dev->wakeup_reason);
-	scpi_get_cec_val(SCPI_CMD_GET_CEC1,
-				(unsigned int *)&cec_dev->wakup_data);
-	scpi_get_cec_val(SCPI_CMD_GET_CEC2, &r);
-	CEC_ERR("cev val1: %#x;val2: %#x reason:0x%x\n",
-		*((unsigned int *)&cec_dev->wakup_data), r,
-		cec_dev->wakeup_reason);
+	cec_get_wakeup_reason();
+	cec_get_wakeup_data();
 	cec_irq_enable(true);
 	CEC_ERR("%s success\n", __func__);
 	cec_dev->probe_finish = true;
@@ -4304,11 +4324,10 @@ static void aml_cec_pm_complete(struct device *dev)
 
 	cec_dev->wakeup_st = 0;
 	cec_dev->msg_idx = 0;
-
-	if (get_resume_method() == CEC_WAKEUP) {
+	cec_get_wakeup_reason();
+	if (cec_dev->wakeup_reason == CEC_WAKEUP) {
 		cec_key_report(0);
-
-		scpi_clr_wakeup_reason();
+		cec_clear_wakeup_reason();
 	}
 
 	CEC_ERR("%s\n", __func__);
@@ -4355,7 +4374,6 @@ static int aml_cec_suspend_noirq(struct device *dev)
 static int aml_cec_resume_noirq(struct device *dev)
 {
 	int ret = 0;
-	unsigned int temp;
 
 	CEC_ERR("cec resume noirq!\n");
 
@@ -4366,17 +4384,8 @@ static int aml_cec_resume_noirq(struct device *dev)
 	cec_dev->msg_num = 0;
 	if (!is_pm_freeze_mode()) {
 		cec_clear_all_logical_addr(ee_cec);
-		scpi_get_wakeup_reason(&cec_dev->wakeup_reason);
-		CEC_ERR("wakeup_reason:0x%x\n", cec_dev->wakeup_reason);
-
-		scpi_get_cec_val(SCPI_CMD_GET_CEC1,
-				 (unsigned int *)&cec_dev->wakup_data);
-		CEC_ERR("cev val1:0x%x,0x%x,0x%x\n",
-			cec_dev->wakup_data.wk_logic_addr,
-			cec_dev->wakup_data.wk_phy_addr,
-			cec_dev->wakup_data.wk_port_id);
-		scpi_get_cec_val(SCPI_CMD_GET_CEC2, &temp);
-		CEC_ERR("cev val2: 0x%#x\n", temp);
+		cec_get_wakeup_reason();
+		cec_get_wakeup_data();
 		/* disable all logical address */
 		/*cec_dev->cec_info.addr_enable = 0;*/
 	} else {
