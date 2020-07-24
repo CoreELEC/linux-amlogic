@@ -1,0 +1,20 @@
+#include "gxl_p241_1g.dts"
+
+/{
+	coreelec-dt-id = "gxl_p241_1g_lafrite";
+	model = "La Frite";
+
+	/delete-node/ gpioleds;
+
+	gpio_keypad {
+		status = "disabled";
+	};
+
+	/delete-node/ mtd_nand;
+
+	jtag {
+		status = "disabled";
+		select = "disable";
+	};
+};
+
