@@ -2823,8 +2823,8 @@ static void print_vpp_lut(
 			GFP_ATOMIC);
 	if (!r_map)
 		return;
-	g_map = &r_map[sizeof(unsigned short) * VIDEO_OETF_LUT_SIZE * 1];
-	b_map = &r_map[sizeof(unsigned short) * VIDEO_OETF_LUT_SIZE * 2];
+	g_map = &r_map[VIDEO_OETF_LUT_SIZE];
+	b_map = &r_map[VIDEO_OETF_LUT_SIZE * 2];
 
 	if (lut_sel == VPP_LUT_OSD_EOTF) {
 		addr_port = VIU_OSD1_EOTF_LUT_ADDR_PORT;
@@ -7401,7 +7401,7 @@ static void video_process(
 				WRITE_VPP_REG_BITS(VPP_VADJ2_MISC, 1, 1, 1);
 				mtx_setting(
 				POST2_MTX,
-				csc_type, MTX_ON);
+				(enum mtx_csc_e)csc_type, MTX_ON);
 			}
 		}
 	}
@@ -8350,10 +8350,8 @@ reg_dump:
 			VIDEO_OETF_LUT_SIZE * 3, GFP_ATOMIC);
 		if (!r_map)
 			return 0;
-		g_map = &r_map[sizeof(unsigned short) *
-			VIDEO_OETF_LUT_SIZE * 1];
-		b_map = &r_map[sizeof(unsigned short) *
-			VIDEO_OETF_LUT_SIZE * 2];
+		g_map = &r_map[VIDEO_OETF_LUT_SIZE];
+		b_map = &r_map[VIDEO_OETF_LUT_SIZE * 2];
 
 		pr_err("----dump regs VPP_LUT_OSD_OETF----\n");
 
