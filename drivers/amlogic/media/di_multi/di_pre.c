@@ -478,11 +478,13 @@ enum EDI_WAIT_INT di_pre_wait_int(void *data)
 		/*check if timeout:*/
 		if (di_tout_contr(EDI_TOUT_CONTR_CHECK, &pre->tout)) {
 			/*di_pre_wait_irq_set(false);*/
-			if (!atomic_dec_and_test(&get_hw_pre()->flg_wait_int))
+			if (!atomic_dec_and_test(&get_hw_pre()->flg_wait_int)) {
 				PR_WARN("%s:timeout\n", __func__);
-
-			/*return K_DO_R_FINISH;*/
-			ret = EDI_WAIT_INT_TIME_OUT;
+				di_tout_contr(EDI_TOUT_CONTR_EN, &pre->tout);
+			} else {
+				/*return K_DO_R_FINISH;*/
+				ret = EDI_WAIT_INT_TIME_OUT;
+			}
 		}
 	}
 	/*debug:*/
