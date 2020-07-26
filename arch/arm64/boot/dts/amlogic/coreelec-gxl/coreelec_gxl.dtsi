@@ -13,7 +13,7 @@
 
 		sys_led {
 			gpios = <&gpio GPIODV_24 GPIO_ACTIVE_HIGH>;
-			linux,default-trigger = "none";
+			linux,default-trigger = "default-on";
 		};
 	};
 

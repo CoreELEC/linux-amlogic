@@ -5,7 +5,6 @@
 		sys_led {
 			label = "librecomputer:system-status";
 			panic-indicator;
-			linux,default-trigger = "default-on";
 		};
 
 		blue_led {
