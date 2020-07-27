@@ -323,10 +323,9 @@
 
 	rtc{
 		compatible = "amlogic, aml_vrtc";
-		status = "disabled";
-		alarm_reg_addr = <0xff8000a8>;
-		timer_e_addr = <0xffd0f188>;
-		init_date = "2015/01/01";
+		alarm_reg_addr = <0xfe010288>;
+		timer_e_addr = <0xfe0100ec>;
+		init_date = "2020/01/01";
 	};
 
 	cpu_info {
