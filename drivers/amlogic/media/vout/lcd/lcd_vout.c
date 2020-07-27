@@ -259,6 +259,7 @@ static struct lcd_config_s lcd_config_dft = {
 static struct vinfo_s lcd_vinfo = {
 	.name = "panel",
 	.mode = VMODE_LCD,
+	.frac = 0,
 	.viu_color_fmt = COLOR_FMT_RGB444,
 	.viu_mux = VIU_MUX_ENCL,
 	.vout_device = NULL,

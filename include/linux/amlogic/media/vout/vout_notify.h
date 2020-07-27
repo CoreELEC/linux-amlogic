@@ -36,7 +36,7 @@ struct vframe_match_s {
 struct vout_op_s {
 	struct vinfo_s *(*get_vinfo)(void);
 	int (*set_vmode)(enum vmode_e);
-	enum vmode_e (*validate_vmode)(char *);
+	enum vmode_e (*validate_vmode)(char *name, unsigned int frac);
 	int (*vmode_is_supported)(enum vmode_e);
 	int (*disable)(enum vmode_e);
 	int (*set_state)(int);
@@ -130,7 +130,7 @@ extern int set_vout_mode(char *name);
 extern void set_vout_init(enum vmode_e mode);
 extern void update_vout_viu(void);
 extern int set_vout_vmode(enum vmode_e mode);
-extern enum vmode_e validate_vmode(char *name);
+enum vmode_e validate_vmode(char *name, unsigned int frac);
 extern int set_current_vmode(enum vmode_e mode);
 
 #endif /* _VOUT_NOTIFY_H_ */

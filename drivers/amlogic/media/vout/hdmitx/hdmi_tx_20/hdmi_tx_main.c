@@ -430,25 +430,27 @@ static void recalc_vinfo_sync_duration(struct vinfo_s *info, unsigned int frac)
 {
 	struct frac_rate_table *fr = &fr_tab[0];
 
-	pr_info(SYS "recalc before %s %d %d\n", info->name,
-		info->sync_duration_num, info->sync_duration_den);
+	pr_info(SYS "recalc before %s %d %d, frac %d\n", info->name,
+		info->sync_duration_num, info->sync_duration_den, info->frac);
 
 	while (fr->hz) {
 		if (strstr(info->name, fr->hz)) {
 			if (frac) {
 				info->sync_duration_num = fr->sync_num_dec;
 				info->sync_duration_den = fr->sync_den_dec;
+				info->frac = 1;
 			} else {
 				info->sync_duration_num = fr->sync_num_int;
 				info->sync_duration_den = fr->sync_den_int;
+				info->frac = 0;
 			}
 			break;
 		}
 		fr++;
 	}
 
-	pr_info(SYS "recalc after %s %d %d\n", info->name,
-		info->sync_duration_num, info->sync_duration_den);
+	pr_info(SYS "recalc after %s %d %d, frac %d\n", info->name,
+		info->sync_duration_num, info->sync_duration_den, info->frac);
 }
 
 static void hdmi_physcial_size_update(struct hdmitx_dev *hdev)
@@ -3630,16 +3632,7 @@ static ssize_t show_sspll(struct device *dev,
 static ssize_t store_frac_rate(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t count)
 {
-	int val = 0;
-
-	if (isdigit(buf[0])) {
-		val = buf[0] - '0';
-		pr_info(SYS "set frac_rate_policy as %d\n", val);
-		if ((val == 0) || (val == 1))
-			hdmitx_device.frac_rate_policy = val;
-		else
-			pr_info(SYS "only accept as 0 or 1\n");
-	}
+	pr_info(SYS "don't support now\n");
 
 	return count;
 }
@@ -4928,11 +4921,16 @@ static int hdmitx_set_current_vmode(enum vmode_e mode)
 	return 0;
 }
 
-static enum vmode_e hdmitx_validate_vmode(char *mode)
+static enum vmode_e hdmitx_validate_vmode(char *mode, unsigned int frac)
 {
 	struct vinfo_s *info = hdmi_get_valid_vinfo(mode);
 
 	if (info) {
+		if (frac)
+			hdmitx_device.frac_rate_policy = 1;
+		else
+			hdmitx_device.frac_rate_policy = 0;
+
 		hdmitx_device.vinfo = info;
 		hdmitx_device.vinfo->info_3d = NON_3D;
 		if (hdmitx_device.flag_3dfp)
@@ -4967,7 +4965,7 @@ static int hdmitx_module_disable(enum vmode_e cur_vmod)
 	hdev->hwop.cntlmisc(hdev, MISC_TMDS_PHY_OP, TMDS_PHY_DISABLE);
 	hdmitx_disable_clk(hdev);
 	hdev->para = hdmi_get_fmt_name("invalid", hdev->fmt_attr);
-	hdmitx_validate_vmode("null");
+	hdmitx_validate_vmode("null", 0);
 	if (hdev->cedst_policy)
 		cancel_delayed_work(&hdev->work_cedst);
 	if (hdev->rxsense_policy)

@@ -615,7 +615,7 @@ void am_meson_crtc_enable(struct drm_crtc *crtc)
 	DRM_INFO("%s: %s\n", __func__, adjusted_mode->name);
 
 	name = am_meson_crtc_get_voutmode(adjusted_mode);
-	mode = validate_vmode(name);
+	mode = validate_vmode(name, 0);
 	if (mode == VMODE_MAX) {
 		DRM_ERROR("no matched vout mode\n");
 		return;

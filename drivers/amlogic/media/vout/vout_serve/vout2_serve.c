@@ -87,6 +87,7 @@ static struct vinfo_s nulldisp_vinfo[] = {
 	{
 		.name              = "null",
 		.mode              = VMODE_NULL,
+		.frac              = 0,
 		.width             = 1920,
 		.height            = 1080,
 		.field_height      = 1080,
@@ -105,6 +106,7 @@ static struct vinfo_s nulldisp_vinfo[] = {
 	{
 		.name              = "invalid",
 		.mode              = VMODE_INVALID,
+		.frac              = 0,
 		.width             = 1920,
 		.height            = 1080,
 		.field_height      = 1080,
@@ -135,10 +137,13 @@ static int nulldisp_set_current_vmode(enum vmode_e mode)
 	return 0;
 }
 
-static enum vmode_e nulldisp_validate_vmode(char *name)
+static enum vmode_e nulldisp_validate_vmode(char *name, unsigned int frac)
 {
 	enum vmode_e vmode = VMODE_MAX;
 	int i;
+
+	if (frac)
+		return VMODE_MAX;
 
 	for (i = 0; i < ARRAY_SIZE(nulldisp_vinfo); i++) {
 		if (strcmp(nulldisp_vinfo[i].name, name) == 0) {
@@ -217,23 +222,26 @@ static inline void vout2_setmode_wakeup_queue(void)
 static int set_vout2_mode(char *name)
 {
 	enum vmode_e mode;
+	unsigned int frac;
 	int ret = 0;
 
 	vout_trim_string(name);
 	VOUTPR("vout2: vmode set to %s\n", name);
 
-	if (strcmp(name, local_name) == 0) {
+	if (strcmp(name, vout2_mode) == 0) {
 		VOUTPR("vout2: don't set the same mode as current\n");
 		return -1;
 	}
 
-	mode = validate_vmode2(name);
+	memset(local_name, 0, sizeof(local_name));
+	snprintf(local_name, VMODE_NAME_LEN_MAX, "%s", name);
+	frac = vout_parse_vout_name(local_name);
+
+	mode = validate_vmode2(local_name, frac);
 	if (mode == VMODE_MAX) {
 		VOUTERR("vout2: no matched vout2 mode\n");
 		return -1;
 	}
-	memset(local_name, 0, sizeof(local_name));
-	snprintf(local_name, VMODE_NAME_LEN_MAX, "%s", name);
 
 	extcon_set_state_sync(vout2_excton_setmode, EXTCON_TYPE_DISP, 1);
 
@@ -242,8 +250,9 @@ static int set_vout2_mode(char *name)
 	if (ret) {
 		VOUTERR("vout2: new mode %s set error\n", name);
 	} else {
+		memset(vout2_mode, 0, sizeof(vout2_mode));
 		snprintf(vout2_mode, VMODE_NAME_LEN_MAX, "%s", name);
-		VOUTPR("vout2: new mode %s set ok\n", vout2_mode);
+		VOUTPR("vout2: new mode %s set ok\n", name);
 	}
 	vout2_notifier_call_chain(VOUT_EVENT_MODE_CHANGE, &mode);
 
@@ -256,19 +265,25 @@ static int set_vout2_mode(char *name)
 static int set_vout2_init_mode(void)
 {
 	enum vmode_e vmode;
-	char init_mode_str[VMODE_NAME_LEN_MAX];
+	unsigned int frac;
 	int ret = 0;
 
-	snprintf(init_mode_str, VMODE_NAME_LEN_MAX, "%s", vout2_mode_uboot);
-	vout2_init_vmode = validate_vmode2(vout2_mode_uboot);
+	memset(local_name, 0, sizeof(local_name));
+	snprintf(local_name, VMODE_NAME_LEN_MAX, "%s", vout2_mode_uboot);
+	frac = vout_parse_vout_name(local_name);
+
+	vout2_init_vmode = validate_vmode2(local_name, frac);
 	if (vout2_init_vmode >= VMODE_MAX) {
 		VOUTERR(
 		"vout2: no matched vout2_init mode %s, force to invalid\n",
 			vout2_mode_uboot);
 		nulldisp_index = 1;
 		vout2_init_vmode = nulldisp_vinfo[nulldisp_index].mode;
-		snprintf(init_mode_str, VMODE_NAME_LEN_MAX, "%s",
-			nulldisp_vinfo[nulldisp_index].name);
+		snprintf(local_name, VMODE_NAME_LEN_MAX, "%s",
+			 nulldisp_vinfo[nulldisp_index].name);
+	} else { /* recover vout_mode_uboot */
+		snprintf(local_name, VMODE_NAME_LEN_MAX, "%s",
+			 vout2_mode_uboot);
 	}
 	if (uboot_display)
 		vmode = vout2_init_vmode | VMODE_INIT_BIT_MASK;
@@ -287,14 +302,13 @@ static int set_vout2_init_mode(void)
 		}
 	}
 
-	memset(local_name, 0, sizeof(local_name));
-	snprintf(local_name, VMODE_NAME_LEN_MAX, "%s", init_mode_str);
 	ret = set_current_vmode2(vmode);
 	if (ret) {
-		VOUTERR("vout2: init mode %s set error\n", init_mode_str);
+		VOUTERR("vout2: init mode %s set error\n", local_name);
 	} else {
-		snprintf(vout2_mode, VMODE_NAME_LEN_MAX, init_mode_str);
-		VOUTPR("vout2: init mode %s set ok\n", vout2_mode);
+		memset(vout2_mode, 0, sizeof(vout2_mode));
+		snprintf(vout2_mode, VMODE_NAME_LEN_MAX, local_name);
+		VOUTPR("vout2: init mode %s set ok\n", local_name);
 	}
 
 	return ret;
@@ -483,6 +497,7 @@ static ssize_t vout2_vinfo_show(struct class *class,
 	len = sprintf(buf, "current vinfo2:\n"
 		"    name:                  %s\n"
 		"    mode:                  %d\n"
+		"    frac:                  %d\n"
 		"    width:                 %d\n"
 		"    height:                %d\n"
 		"    field_height:          %d\n"
@@ -497,7 +512,7 @@ static ssize_t vout2_vinfo_show(struct class *class,
 		"    video_clk:             %d\n"
 		"    viu_color_fmt:         %d\n"
 		"    viu_mux:               %d\n\n",
-		info->name, info->mode,
+		info->name, info->mode, info->frac,
 		info->width, info->height, info->field_height,
 		info->aspect_ratio_num, info->aspect_ratio_den,
 		info->sync_duration_num, info->sync_duration_den,
@@ -1109,6 +1124,15 @@ static void vout2_init_mode_parse(char *str)
 		VOUTPR("vout2: %s: %d\n", str, uboot_display);
 		return;
 	}
+	if (strncmp(str, "frac", 4) == 0) { /* frac */
+		if ((strlen(vout2_mode_uboot) + strlen(str))
+		    < VMODE_NAME_LEN_MAX)
+			strcat(vout2_mode_uboot, str);
+		else
+			VOUTERR("%s: str len out of support\n", __func__);
+		VOUTPR("%s\n", str);
+		return;
+	}
 
 	/*
 	 * just save the vmode_name,
@@ -1116,7 +1140,7 @@ static void vout2_init_mode_parse(char *str)
 	 */
 	snprintf(vout2_mode_uboot, VMODE_NAME_LEN_MAX, "%s", str);
 	vout_trim_string(vout2_mode_uboot);
-	VOUTPR("vout2: %s\n", str);
+	VOUTPR("vout2: %s\n", vout2_mode_uboot);
 }
 
 static int __init get_vout2_init_mode(char *str)

@@ -67,9 +67,12 @@ static int lcd_vmode_is_supported(enum vmode_e mode)
 	return false;
 }
 
-static enum vmode_e lcd_validate_vmode(char *mode)
+static enum vmode_e lcd_validate_vmode(char *mode, unsigned int frac)
 {
 	if (mode == NULL)
+		return VMODE_MAX;
+
+	if (frac)
 		return VMODE_MAX;
 
 	if ((strcmp(mode, PANEL_NAME)) == 0)
