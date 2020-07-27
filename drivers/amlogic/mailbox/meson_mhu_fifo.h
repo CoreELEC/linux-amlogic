@@ -19,10 +19,10 @@
 
 #include <linux/cdev.h>
 #include <linux/mailbox_controller.h>
+#include <linux/amlogic/meson_mhu_common.h>
 
-#define CONTROLLER_NAME		"mhu_ctrl"
-#define CHANNEL_MAX		6
-#define MBOX_MAX		CHANNEL_MAX
+#define CHANNEL_FIFO_MAX	6
+#define MBOX_MAX		CHANNEL_FIFO_MAX
 #define MHUIRQ_MAXNUM		32
 #define MHU_BUFFER_SIZE		(0x20 * 4) /*128 char*/
 
@@ -44,7 +44,7 @@
 #define MBOX_DATA_SIZE \
 	(MHU_BUFFER_SIZE - MBOX_HEAD_SIZE - MBOX_RESEV_SIZE)
 
-#define MBOX_TIME_OUT		2000 /*wait other core ack time: ms*/
+#define MBOX_TIME_OUT		10000 /*wait other core ack time: ms*/
 
 /*user space mailbox cmd len define type int*/
 #define MBOX_USER_CMD_LEN	4
@@ -87,21 +87,12 @@ struct mbox_message {
 };
 
 struct mbox_data {
+	u32 status;
 	u64 task;
 	u64 complete;
 	u64 ullclt;
-	u32 status;
 	char data[MBOX_DATA_SIZE];
 } __packed;
-
-struct mhu_data_buf {
-	u32 cmd;
-	int tx_size;
-	void *tx_buf;
-	int rx_size;
-	void *rx_buf;
-	void *cl_data;
-};
 
 struct mhu_chan {
 	int index;
@@ -122,7 +113,7 @@ struct mhu_ctrl {
 	void __iomem *mbox_payload_base;
 	struct mbox_controller mbox_con;
 	struct mhu_chan *channels;
-	int mhu_id[CHANNEL_MAX];
+	int mhu_id[MBOX_MAX];
 	int mhu_irq;
 	int mhu_irqctr;
 };
@@ -142,5 +133,5 @@ struct mhu_mbox {
 	spinlock_t mhu_lock;
 };
 
-extern struct device *scpi_device;
+extern struct device *mhu_fifo_device;
 #endif

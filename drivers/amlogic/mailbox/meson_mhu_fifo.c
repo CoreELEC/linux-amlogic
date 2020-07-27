@@ -35,25 +35,23 @@
 #include <linux/fs.h>
 #include <linux/cdev.h>
 #include <linux/list.h>
-#include <linux/amlogic/scpi_common.h>
 
 #include "meson_mhu_fifo.h"
 
 #define DRIVER_NAME		"meson_mhu_fifo"
 
-struct device *scpi_device;
-/*dsp lock for mbox rev data report*/
-spinlock_t dsp_lock;
+/*spinlock lock for mbox list data report*/
+spinlock_t mhu_list_lock;
 
 static struct list_head mbox_devs = LIST_HEAD_INIT(mbox_devs);
 static struct class *mbox_class;
 
-static struct list_head mbox_list[CHANNEL_MAX];
+static struct list_head mbox_list[CHANNEL_FIFO_MAX];
 
 static void mbox_fifo_write(void __iomem *to, void *from, long count)
 {
 	int i = 0;
-	long len = count / 4 + count % 4;
+	long len = count / 4 + (count % 4 ? 1 : 0);
 	u32 *p = (u32 *)from;
 
 	while (len > 0) {
@@ -67,12 +65,11 @@ static void mbox_fifo_write(void __iomem *to, void *from, long count)
 static void mbox_fifo_read(void *to, void __iomem *from, long count)
 {
 	int i = 0;
-	long len = count / 4 + count % 4;
+	long len = count / 4 + (count % 4 ? 1 : 0);
 	u32 *p = to;
 
 	while (len > 0) {
 		p[i] = readl(from + (4 * i));
-		pr_debug("fifo: 0x%x\n", p[i]);
 		len--;
 		i++;
 	}
@@ -108,9 +105,9 @@ static void mbox_chan_report(u32 status, void *msg, int idx)
 	struct mbox_data *mbox_data =
 		(struct mbox_data *)(data_buf->rx_buf);
 
-	spin_lock_irqsave(&dsp_lock, flags);
+	spin_lock_irqsave(&mhu_list_lock, flags);
 	if (list_empty(&mbox_list[idx])) {
-		spin_unlock_irqrestore(&dsp_lock, flags);
+		spin_unlock_irqrestore(&mhu_list_lock, flags);
 		return;
 	}
 
@@ -121,14 +118,14 @@ static void mbox_chan_report(u32 status, void *msg, int idx)
 			memcpy(message->data, mbox_data->data,
 			       SIZE_LEN(status));
 			complete(&message->complete);
-			spin_unlock_irqrestore(&dsp_lock, flags);
+			spin_unlock_irqrestore(&mhu_list_lock, flags);
 			return;
 		} else if (!listen_msg && (status & CMD_MASK) == message->cmd) {
 			listen_msg = message;
 		}
 	}
 
-	spin_unlock_irqrestore(&dsp_lock, flags);
+	spin_unlock_irqrestore(&mhu_list_lock, flags);
 	if (listen_msg) {
 		memcpy(listen_msg->data,
 		       mbox_data->data,
@@ -156,12 +153,12 @@ static void mbox_isr_handler(int mhu_id, void *p)
 	int channel = 0;
 	u32 status;
 
-	for (channel = 0; channel < CHANNEL_MAX; channel++) {
+	for (channel = 0; channel < CHANNEL_FIFO_MAX; channel++) {
 		if (ctrl->mhu_id[channel] == mhu_id)
 			break;
 	}
 
-	if (channel >= CHANNEL_MAX) {
+	if (channel >= CHANNEL_FIFO_MAX) {
 		pr_err("%s, warning: no match mhu id: %d\n",
 		       __func__, mhu_id);
 		return;
@@ -196,12 +193,12 @@ void mbox_ack_isr_handler(int mhu_id, void *p)
 	struct mhu_data_buf *data = NULL;
 	int channel;
 
-	for (channel = 0; channel < CHANNEL_MAX; channel++) {
+	for (channel = 0; channel < CHANNEL_FIFO_MAX; channel++) {
 		if (ctrl->mhu_id[channel] == mhu_id)
 			break;
 	}
 
-	if (channel >= CHANNEL_MAX) {
+	if (channel >= CHANNEL_FIFO_MAX) {
 		pr_err("%s, warning: no match mhu id: %d\n",
 		       __func__, mhu_id);
 		return;
@@ -503,8 +500,8 @@ static int mhu_cdev_init(struct device *dev, struct mhu_ctrl *mhu_ctrl)
 
 	of_property_read_u32(dev->of_node,
 			     "mbox-nums", &mbox_nums);
-	if (mbox_nums == 0 || mbox_nums > CHANNEL_MAX)
-		mbox_nums = CHANNEL_MAX;
+	if (mbox_nums == 0 || mbox_nums > CHANNEL_FIFO_MAX)
+		mbox_nums = CHANNEL_FIFO_MAX;
 
 	mbdevs = mbox_nums / 2;
 
@@ -728,8 +725,6 @@ static int mhu_probe(struct platform_device *pdev)
 		mhu_chan->data->rx_size = MHU_BUFFER_SIZE;
 	}
 
-	scpi_device = dev;
-
 	if (mbox_controller_register(&mhu_ctrl->mbox_con)) {
 		dev_err(dev, "failed to register mailbox controller\n");
 		return -ENOMEM;
@@ -749,9 +744,11 @@ static int mhu_probe(struct platform_device *pdev)
 		return err;
 	}
 
+	mhu_fifo_device = dev;
 	/*set mhu type*/
-	mhu_fifo_f = 0xff;
-	pr_info("mbox fifo init done\n");
+	mhu_f |= MASK_MHU_FIFO;
+	pr_info("mbox fifo init done node:%pK, mhuf:0x%x\n",
+		mhu_fifo_device, mhu_f);
 	return 0;
 }
 
