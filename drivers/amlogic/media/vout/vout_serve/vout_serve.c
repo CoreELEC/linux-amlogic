@@ -100,6 +100,7 @@ static const unsigned int vout_cable[] = {
 };
 
 static struct vout_cdev_s *vout_cdev;
+static struct device *vout_dev;
 
 /* **********************************************************
  * null display support
@@ -243,6 +244,30 @@ char *get_vout_mode_uboot(void)
 }
 EXPORT_SYMBOL(get_vout_mode_uboot);
 
+#define MAX_UEVENT_LEN 64
+
+static int vout_set_uevent(unsigned int vout_event, int val)
+{
+	char env[MAX_UEVENT_LEN];
+	char *envp[2];
+	int ret;
+
+	if (vout_event != VOUT_EVENT_MODE_CHANGE)
+		return 0;
+
+	if (!vout_dev)
+		return -1;
+
+	memset(env, 0, sizeof(env));
+	envp[0] = env;
+	envp[1] = NULL;
+	snprintf(env, MAX_UEVENT_LEN, "vout_setmode=%d", val);
+
+	ret = kobject_uevent_env(&vout_dev->kobj, KOBJ_CHANGE, envp);
+
+	return ret;
+}
+
 static inline void vout_setmode_wakeup_queue(void)
 {
 	if (tvout_monitor_flag)
@@ -277,6 +302,7 @@ int set_vout_mode(char *name)
 	}
 
 	extcon_set_state_sync(vout_excton_setmode, EXTCON_TYPE_DISP, 1);
+	vout_set_uevent(VOUT_EVENT_MODE_CHANGE, 1);
 
 	vout_notifier_call_chain(VOUT_EVENT_MODE_CHANGE_PRE, &mode);
 	ret = set_current_vmode(mode);
@@ -290,6 +316,7 @@ int set_vout_mode(char *name)
 	vout_notifier_call_chain(VOUT_EVENT_MODE_CHANGE, &mode);
 
 	extcon_set_state_sync(vout_excton_setmode, EXTCON_TYPE_DISP, 0);
+	vout_set_uevent(VOUT_EVENT_MODE_CHANGE, 0);
 	vout_setmode_wakeup_queue();
 
 	return ret;
@@ -1122,6 +1149,8 @@ static const struct of_device_id aml_vout_dt_match[] = {
 static int aml_vout_probe(struct platform_device *pdev)
 {
 	int ret = -1;
+
+	vout_dev = &pdev->dev;
 
 	aml_vout_get_dt_info(pdev);
 
