@@ -629,6 +629,7 @@ int am_hdmi_update_downstream_cap_property(struct drm_connector *connector,
 	drm_detect_cea_hdr_dv(connector, edid, downstream_hdr_dv_cap);
 	drm_print_cea_hdr_dv(downstream_hdr_dv_cap);
 	prp_tmp = am_hdmi->downstream_hdr_dv_cap_property;
+	tmp = am_hdmi->downstream_hdr_dv_cap_blob_ptr;
 	ret =
 	drm_property_replace_global_blob(dev,
 					 &tmp,
