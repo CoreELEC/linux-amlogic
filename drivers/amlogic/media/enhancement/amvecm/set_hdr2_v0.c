@@ -3047,10 +3047,10 @@ enum hdr_process_sel hdr10p_func(
 			if (i < HDR2_EOTF_LUT_SIZE) {
 				if (eo_gmt_bit_mode)
 					hdr_lut_param.eotf_lut[i] =
-					eo_y_lut_pq[i];
+					eo_y_lut_pq_def[i];
 				else
 					hdr_lut_param.eotf_lut[i] =
-					eo_y_lut_hdr[i];
+					eo_y_lut_hdr_def[i];
 			}
 			if (i < HDR2_CGAIN_LUT_SIZE)
 				hdr_lut_param.cgain_lut[i] = cgain_lut1[i] - 1;
