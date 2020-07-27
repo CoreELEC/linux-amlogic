@@ -3491,7 +3491,14 @@ static ssize_t store_frac_rate(struct device *dev,
 			       struct device_attribute *attr,
 			       const char *buf, size_t count)
 {
-	pr_info(SYS "don't support now\n");
+	int val = 0;
+
+	if (isdigit(buf[0])) {
+		val = buf[0] - '0';
+		pr_info(SYS "set frac_rate_policy as %d\n", val);
+		if ((val == 0) || (val == 1))
+			hdmitx_device.frac_rate_policy = val;
+	}
 
 	return count;
 }
@@ -4768,10 +4775,12 @@ static enum vmode_e hdmitx_validate_vmode(char *mode, unsigned int frac)
 	struct vinfo_s *info = hdmi_get_valid_vinfo(mode);
 
 	if (info) {
-		if (frac)
-			hdmitx_device.frac_rate_policy = 1;
-		else
-			hdmitx_device.frac_rate_policy = 0;
+		/* //remove frac support for vout api
+		 *if (frac)
+		 *	hdmitx_device.frac_rate_policy = 1;
+		 *else
+		 *	hdmitx_device.frac_rate_policy = 0;
+		 */
 
 		hdmitx_device.vinfo = info;
 		hdmitx_device.vinfo->info_3d = NON_3D;
@@ -4877,7 +4886,7 @@ static struct vout_server_s hdmitx_vout_server = {
 		.get_state = hdmitx_vout_get_state,
 		.get_disp_cap = hdmitx_vout_get_disp_cap,
 		.set_vframe_rate_hint = NULL,
-		.set_vframe_rate_end_hint = NULL,
+		.get_vframe_rate_hint = NULL,
 		.set_vframe_rate_policy = hdmitx_set_vframe_rate_policy,
 		.get_vframe_rate_policy = hdmitx_get_vframe_rate_policy,
 		.set_bist = hdmitx_set_bist,
@@ -4902,7 +4911,7 @@ static struct vout_server_s hdmitx_vout2_server = {
 		.get_state = hdmitx_vout_get_state,
 		.get_disp_cap = hdmitx_vout_get_disp_cap,
 		.set_vframe_rate_hint = NULL,
-		.set_vframe_rate_end_hint = NULL,
+		.get_vframe_rate_hint = NULL,
 		.set_vframe_rate_policy = hdmitx_set_vframe_rate_policy,
 		.get_vframe_rate_policy = hdmitx_get_vframe_rate_policy,
 		.set_bist = hdmitx_set_bist,

@@ -508,6 +508,7 @@ struct aml_lcd_drv_s {
 	unsigned int vout_fr_policy;
 	int fr_auto_policy;
 	int fr_mode;
+	int fr_duration;
 	struct lcd_duration_s std_duration;
 
 	int tcon_status;

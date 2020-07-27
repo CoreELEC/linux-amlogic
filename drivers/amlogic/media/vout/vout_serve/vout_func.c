@@ -363,9 +363,9 @@ EXPORT_SYMBOL(vout_func_set_vframe_rate_hint);
 /*
  *interface export to client who want to notify about source frame rate end.
  */
-int vout_func_set_vframe_rate_end_hint(int index)
+int vout_func_get_vframe_rate_hint(int index)
 {
-	int ret = -1;
+	int ret = 0;
 	struct vout_server_s *p_server = NULL;
 
 	mutex_lock(&vout_mutex);
@@ -378,14 +378,14 @@ int vout_func_set_vframe_rate_end_hint(int index)
 #endif
 
 	if (!IS_ERR_OR_NULL(p_server)) {
-		if (p_server->op.set_vframe_rate_end_hint)
-			ret = p_server->op.set_vframe_rate_end_hint();
+		if (p_server->op.get_vframe_rate_hint)
+			ret = p_server->op.get_vframe_rate_hint();
 	}
 
 	mutex_unlock(&vout_mutex);
 	return ret;
 }
-EXPORT_SYMBOL(vout_func_set_vframe_rate_end_hint);
+EXPORT_SYMBOL(vout_func_get_vframe_rate_hint);
 
 /*
  *interface export to client who want to notify about source fr_policy.
@@ -647,36 +647,6 @@ int vout_func_vout_unregister_server(int index,
 	return 0;
 }
 EXPORT_SYMBOL(vout_func_vout_unregister_server);
-
-/* fps = 9600/duration/100 hz */
-static int vsource_fps_table[][2] = {
-	/* duration    fps */
-	{1600,         6000,},
-	{1601,         5994,},
-	{1602,         5994,},
-	{1920,         5000,},
-	{3200,         3000,},
-	{3203,         2997,},
-	{3840,         2500,},
-	{4000,         2400,},
-	{4004,         2397,},
-};
-
-int vout_get_vsource_fps(int duration)
-{
-	int i;
-	int fps = 6000;
-
-	for (i = 0; i < 9; i++) {
-		if (duration == vsource_fps_table[i][0]) {
-			fps = vsource_fps_table[i][1];
-			break;
-		}
-	}
-
-	return fps;
-}
-EXPORT_SYMBOL(vout_get_vsource_fps);
 
 int vout_get_hpd_state(void)
 {

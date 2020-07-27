@@ -181,12 +181,16 @@ int set_vframe_rate_hint(int duration)
 }
 EXPORT_SYMBOL(set_vframe_rate_hint);
 
-/*
- *interface export to client who want to notify about source frame rate end.
- */
+int get_vframe_rate_hint(void)
+{
+	return vout_func_get_vframe_rate_hint(1);
+}
+EXPORT_SYMBOL(get_vframe_rate_hint);
+
+/* dummy for temp */
 int set_vframe_rate_end_hint(void)
 {
-	return vout_func_set_vframe_rate_end_hint(1);
+	return vout_func_set_vframe_rate_hint(1, 0);
 }
 EXPORT_SYMBOL(set_vframe_rate_end_hint);
 

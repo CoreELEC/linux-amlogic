@@ -475,6 +475,37 @@ static ssize_t vout_fr_policy_store(struct class *class,
 	return count;
 }
 
+static ssize_t vout_fr_hint_show(struct class *class,
+				 struct class_attribute *attr, char *buf)
+{
+	int fr_hint;
+	int ret = 0;
+
+	fr_hint = get_vframe_rate_hint();
+	ret = sprintf(buf, "%d\n", fr_hint);
+
+	return ret;
+}
+
+static ssize_t vout_fr_hint_store(struct class *class,
+				  struct class_attribute *attr,
+				  const char *buf, size_t count)
+{
+	int fr_hint;
+	int ret = 0;
+
+	mutex_lock(&vout_serve_mutex);
+	ret = kstrtoint(buf, 10, &fr_hint);
+	if (ret) {
+		mutex_unlock(&vout_serve_mutex);
+		return -EINVAL;
+	}
+	set_vframe_rate_hint(fr_hint);
+	mutex_unlock(&vout_serve_mutex);
+
+	return count;
+}
+
 static ssize_t vout_bist_show(struct class *class,
 		struct class_attribute *attr, char *buf)
 {
@@ -615,6 +646,7 @@ static struct class_attribute vout_class_attrs[] = {
 	__ATTR(axis,      0644, vout_axis_show, vout_axis_store),
 	__ATTR(fr_policy, 0644,
 		vout_fr_policy_show, vout_fr_policy_store),
+	__ATTR(fr_hint,   0644, vout_fr_hint_show, vout_fr_hint_store),
 	__ATTR(bist,      0644, vout_bist_show, vout_bist_store),
 	__ATTR(vinfo,     0444, vout_vinfo_show, NULL),
 	__ATTR(cap,	  0644, vout_cap_show, NULL)
