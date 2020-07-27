@@ -315,28 +315,6 @@ static int lcd_get_vframe_rate_hint(void)
 #endif
 }
 
-static int lcd_set_vframe_rate_policy(int policy)
-{
-#ifdef CONFIG_AMLOGIC_VOUT_SERVE
-	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
-
-	lcd_drv->vout_fr_policy = policy;
-	LCDPR("%s: %d\n", __func__, lcd_drv->vout_fr_policy);
-#endif
-	return 0;
-}
-
-static int lcd_get_vframe_rate_policy(void)
-{
-#ifdef CONFIG_AMLOGIC_VOUT_SERVE
-	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
-
-	return lcd_drv->vout_fr_policy;
-#else
-	return 0;
-#endif
-}
-
 #ifdef CONFIG_PM
 static int lcd_suspend(void)
 {
@@ -395,8 +373,6 @@ static struct vout_server_s lcd_vout_server = {
 		.get_disp_cap = lcd_vout_get_disp_cap,
 		.set_vframe_rate_hint = lcd_set_vframe_rate_hint,
 		.get_vframe_rate_hint = lcd_get_vframe_rate_hint,
-		.set_vframe_rate_policy = lcd_set_vframe_rate_policy,
-		.get_vframe_rate_policy = lcd_get_vframe_rate_policy,
 		.set_bist = lcd_debug_test,
 #ifdef CONFIG_PM
 		.vout_suspend = lcd_suspend,
@@ -420,8 +396,6 @@ static struct vout_server_s lcd_vout2_server = {
 		.get_disp_cap = lcd_vout_get_disp_cap,
 		.set_vframe_rate_hint = lcd_set_vframe_rate_hint,
 		.get_vframe_rate_hint = lcd_get_vframe_rate_hint,
-		.set_vframe_rate_policy = lcd_set_vframe_rate_policy,
-		.get_vframe_rate_policy = lcd_get_vframe_rate_policy,
 		.set_bist = lcd_debug_test,
 #ifdef CONFIG_PM
 		.vout_suspend = lcd_suspend,

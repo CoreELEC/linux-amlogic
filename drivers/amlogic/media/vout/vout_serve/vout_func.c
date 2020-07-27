@@ -37,6 +37,12 @@ static struct vout_module_s vout_module = {
 	},
 	.curr_vout_server = NULL,
 	.init_flag = 0,
+	/* vout_fr_policy:
+	 *    0: disable
+	 *    1: nearby (only for 60->59.94 and 30->29.97)
+	 *    2: force (60/50/30/24/59.94/23.97)
+	 */
+	.fr_policy = 0,
 };
 
 #ifdef CONFIG_AMLOGIC_VOUT2_SERVE
@@ -47,6 +53,12 @@ static struct vout_module_s vout2_module = {
 	},
 	.curr_vout_server = NULL,
 	.init_flag = 0,
+	/* vout_fr_policy:
+	 *    0: disable
+	 *    1: nearby (only for 60->59.94 and 30->29.97)
+	 *    2: force (60/50/30/24/59.94/23.97)
+	 */
+	.fr_policy = 0,
 };
 #endif
 
@@ -336,6 +348,44 @@ enum vmode_e vout_func_validate_vmode(int index, char *name, unsigned int frac)
 }
 EXPORT_SYMBOL(vout_func_validate_vmode);
 
+int vout_func_get_disp_cap(int index, char *buf)
+{
+	struct vout_server_s *p_server;
+	struct vout_module_s *p_module = NULL;
+	int state, len;
+
+	mutex_lock(&vout_mutex);
+
+	if (index == 1)
+		p_module = &vout_module;
+#ifdef CONFIG_AMLOGIC_VOUT2_SERVE
+	else if (index == 2)
+		p_module = &vout2_module;
+#endif
+
+	if (!p_module) {
+		len = sprintf(buf, "vout%d: %s: vout_module is NULL\n",
+			      index, __func__);
+		mutex_unlock(&vout_mutex);
+		return len;
+	}
+
+	len = 0;
+	list_for_each_entry(p_server, &p_module->vout_server_list, list) {
+		if (p_server->op.get_state) {
+			state = p_server->op.get_state();
+			if (vout_func_check_state(index, state, p_server))
+				continue;
+		}
+		if (!p_server->op.get_disp_cap)
+			continue;
+		len += p_server->op.get_disp_cap(buf + len);
+	}
+
+	mutex_unlock(&vout_mutex);
+	return len;
+}
+
 int vout_func_set_vframe_rate_hint(int index, int duration)
 {
 	int ret = -1;
@@ -386,60 +436,6 @@ int vout_func_get_vframe_rate_hint(int index)
 	return ret;
 }
 EXPORT_SYMBOL(vout_func_get_vframe_rate_hint);
-
-/*
- *interface export to client who want to notify about source fr_policy.
- */
-int vout_func_set_vframe_rate_policy(int index, int policy)
-{
-	int ret = -1;
-	struct vout_server_s *p_server = NULL;
-
-	mutex_lock(&vout_mutex);
-
-	if (index == 1)
-		p_server = vout_module.curr_vout_server;
-#ifdef CONFIG_AMLOGIC_VOUT2_SERVE
-	else if (index == 2)
-		p_server = vout2_module.curr_vout_server;
-#endif
-
-	if (!IS_ERR_OR_NULL(p_server)) {
-		if (p_server->op.set_vframe_rate_policy)
-			ret = p_server->op.set_vframe_rate_policy(policy);
-	}
-
-	mutex_unlock(&vout_mutex);
-	return ret;
-}
-EXPORT_SYMBOL(vout_func_set_vframe_rate_policy);
-
-/*
- *interface export to client who want to notify about source fr_policy.
- */
-int vout_func_get_vframe_rate_policy(int index)
-{
-	int ret = -1;
-	struct vout_server_s *p_server = NULL;
-
-	mutex_lock(&vout_mutex);
-
-	if (index == 1)
-		p_server = vout_module.curr_vout_server;
-#ifdef CONFIG_AMLOGIC_VOUT2_SERVE
-	else if (index == 2)
-		p_server = vout2_module.curr_vout_server;
-#endif
-
-	if (!IS_ERR_OR_NULL(p_server)) {
-		if (p_server->op.get_vframe_rate_policy)
-			ret = p_server->op.get_vframe_rate_policy();
-	}
-
-	mutex_unlock(&vout_mutex);
-	return ret;
-}
-EXPORT_SYMBOL(vout_func_get_vframe_rate_policy);
 
 /*
  * interface export to client who want to set test bist.

@@ -603,6 +603,18 @@ static ssize_t vout2_vinfo_show(struct class *class,
 	return len;
 }
 
+static ssize_t vout2_cap_show(struct class *class,
+			      struct class_attribute *attr, char *buf)
+{
+	int ret;
+
+	ret = get_vout2_disp_cap(buf);
+	if (!ret)
+		return sprintf(buf, "null\n");
+
+	return ret;
+}
+
 static struct class_attribute vout2_class_attrs[] = {
 	__ATTR(mode,      0644, vout2_mode_show, vout2_mode_store),
 	__ATTR(axis,      0644, vout2_axis_show, vout2_axis_store),
@@ -611,6 +623,7 @@ static struct class_attribute vout2_class_attrs[] = {
 	__ATTR(fr_hint,   0644, vout2_fr_hint_show, vout2_fr_hint_store),
 	__ATTR(bist,      0644, vout2_bist_show, vout2_bist_store),
 	__ATTR(vinfo,     0444, vout2_vinfo_show, NULL),
+	__ATTR(cap,       0644, vout2_cap_show, NULL)
 };
 
 static int vout2_attr_create(void)
@@ -1029,9 +1042,23 @@ static void vout2_clktree_init(struct device *dev)
 	VOUTPR("vout2: clktree_init\n");
 }
 
+static void aml_vout2_get_dt_info(struct platform_device *pdev)
+{
+	int ret;
+	unsigned int para[2];
+
+	ret = of_property_read_u32(pdev->dev.of_node, "fr_policy", &para[0]);
+	if (!ret) {
+		set_vframe2_rate_policy(para[0]);
+		VOUTPR("vout2: fr_policy:%d\n", para[0]);
+	}
+}
+
 static int aml_vout2_probe(struct platform_device *pdev)
 {
 	int ret = -1;
+
+	aml_vout2_get_dt_info(pdev);
 
 #ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
 	early_suspend.level = EARLY_SUSPEND_LEVEL_BLANK_SCREEN;

@@ -460,8 +460,6 @@ struct hdmitx_dev {
 	bool hdcp22_type;
 	unsigned int repeater_tx;
 	struct hdcprp_topo *topo_info;
-	/* vout_fr_policy: 0=disable, 1=nearby, 2=force */
-	unsigned int vout_fr_policy;
 	/* 0.1% clock shift, 1080p60hz->59.94hz */
 	unsigned int frac_rate_policy;
 	unsigned int rxsense_policy;
