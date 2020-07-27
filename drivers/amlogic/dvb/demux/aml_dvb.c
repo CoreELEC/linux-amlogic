@@ -341,7 +341,7 @@ INIT_ERR:
 #ifdef CONFIG_OF
 static const struct of_device_id aml_dvb_dt_match[] = {
 	{
-	 .compatible = "amlogic, dvb",
+	 .compatible = "amlogic sc2, dvb",
 	 },
 	{}
 };
