@@ -38,6 +38,7 @@
 #include <linux/slab.h>
 #include <linux/poll.h>
 #include <linux/clk.h>
+#include <linux/arm-smccc.h>
 #include <linux/debugfs.h>
 #include <linux/amlogic/media/canvas/canvas.h>
 #include <linux/amlogic/media/canvas/canvas_mgr.h>
@@ -5454,6 +5455,29 @@ static void init_layer_canvas(
 			(layer->canvas_tbl[i][5] << 16) |
 			(layer->canvas_tbl[i][4] << 8) |
 			layer->canvas_tbl[i][3];
+	}
+}
+
+static noinline int __invoke_psci_fn_smc(u64 function_id, u64 arg0, u64 arg1,
+					 u64 arg2)
+{
+	struct arm_smccc_res res;
+
+	arm_smccc_smc((unsigned long)function_id,
+		      (unsigned long)arg0,
+		      (unsigned long)arg1,
+		      (unsigned long)arg2,
+		      0, 0, 0, 0, &res);
+	return res.a0;
+}
+
+void vpp_probe_en_set(u32 enable)
+{
+	if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12A)) {
+		if (enable)
+			__invoke_psci_fn_smc(0x82000080, 1, 0, 0);
+		else
+			__invoke_psci_fn_smc(0x82000080, 0, 0, 0);
 	}
 }
 
