@@ -105,6 +105,7 @@ static const char *dv_output_str[6] = {
 	"BYPASS"
 };
 
+static int process_id[2];
 void hdr_proc(
 	struct vframe_s *vf,
 	enum hdr_module_sel module_sel,
@@ -142,7 +143,23 @@ void hdr_proc(
 	pr_csc(8, "am_vecm: hdr module=%s, process=%s\n",
 	       module_str[module_sel],
 	       process_str[index]);
+
+	if (module_sel == 1)
+		process_id[0] = index;
+	else if (module_sel == 2)
+		process_id[1] = index;
 }
+
+void get_hdr_process_name(int id, char *name)
+{
+	int index;
+
+	if (id > 1)
+		return;
+	index = process_id[id];
+	memcpy(name, process_str[index], strlen(process_str[index]) + 1);
+}
+EXPORT_SYMBOL(get_hdr_process_name);
 
 int hdr_policy_process(
 	struct vinfo_s *vinfo,

@@ -9145,6 +9145,84 @@ static ssize_t src_fmt_show(
 	return ret;
 }
 
+static ssize_t process_fmt_show(
+	struct class *cla, struct class_attribute *attr, char *buf)
+{
+	int ret = 0;
+	struct vframe_s *dispbuf = NULL;
+	enum vframe_signal_fmt_e fmt;
+	char process_name[MAX_VD_LAYER][32];
+	bool dolby_on = false;
+	bool hdr_bypass = false;
+	int l;
+
+	static const char * const fmt_str[] = {
+		"SDR", "HDR10", "HDR10+", "HDR Prime", "HLG",
+		"Dolby Vison", "Dolby Vison Low latency", "MVC"
+	};
+
+	dolby_on = is_dolby_vision_on();
+	dispbuf = get_dispbuf(0);
+	if (dispbuf) {
+		fmt = get_vframe_src_fmt(dispbuf);
+		if (fmt != VFRAME_SIGNAL_FMT_INVALID)
+			ret += sprintf(buf + ret, "vd1: src_fmt = %s; ",
+				fmt_str[fmt]);
+		else
+			ret += sprintf(buf + ret, "vd1: src_fmt = null; ");
+
+		get_hdr_process_name(0, process_name[0]);
+
+		l = strlen("HDR_BYPASS");
+		if (!strncmp(process_name[0], "HDR_BYPASS", l) ||
+		    !strncmp(process_name[0], "HLG_BYPASS", l))
+			hdr_bypass = true;
+
+		if (dolby_on) {
+			ret += sprintf(buf + ret, "out_fmt = IPT\n");
+		} else if (hdr_bypass) {
+			if (fmt != VFRAME_SIGNAL_FMT_INVALID)
+				ret += sprintf(buf + ret, "out_fmt = %s\n",
+					fmt_str[fmt]);
+			else
+				ret += sprintf(buf + ret, "out_fmt = src!\n");
+		} else {
+			ret += sprintf(buf + ret, "process = %s\n",
+				process_name[0]);
+		}
+	}
+	dispbuf = get_dispbuf(1);
+	if (dispbuf) {
+		fmt = get_vframe_src_fmt(dispbuf);
+		if (fmt != VFRAME_SIGNAL_FMT_INVALID)
+			ret += sprintf(buf + ret, "vd2: src_fmt = %s; ",
+				fmt_str[fmt]);
+		else
+			ret += sprintf(buf + ret, "vd2: src_fmt = null; ");
+
+		get_hdr_process_name(1, process_name[1]);
+
+		l = strlen("HDR_BYPASS");
+		if (!strncmp(process_name[1], "HDR_BYPASS", l) ||
+		    !strncmp(process_name[1], "HLG_BYPASS", l))
+			hdr_bypass = true;
+
+		if (dolby_on) {
+			ret += sprintf(buf + ret, "out_fmt = IPT\n");
+		} else if (hdr_bypass) {
+			if (fmt != VFRAME_SIGNAL_FMT_INVALID)
+				ret += sprintf(buf + ret, "out_fmt = %s\n",
+					fmt_str[fmt]);
+			else
+				ret += sprintf(buf + ret, "out_fmt = src!\n");
+		} else {
+			ret += sprintf(buf + ret, "process = %s\n",
+				process_name[1]);
+		}
+	}
+	return ret;
+}
+
 static ssize_t video_inuse_show(struct class *class,
 			struct class_attribute *attr, char *buf)
 {
@@ -10282,6 +10360,7 @@ static struct class_attribute amvideo_class_attrs[] = {
 	__ATTR_RO(video_layer1_state),
 	__ATTR_RO(pic_mode_info),
 	__ATTR_RO(src_fmt),
+	__ATTR_RO(process_fmt),
 	__ATTR(axis_pip,
 	       0664,
 	       videopip_axis_show,

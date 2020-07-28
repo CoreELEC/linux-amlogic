@@ -549,6 +549,7 @@ extern void pc_mode_process(void);
 extern void pq_user_latch_process(void);
 extern void vlock_process(struct vframe_s *vf,
 		struct vpp_frame_par_s *cur_video_sts);
+void get_hdr_process_name(int id, char *name);
 
 /* master_display_info for display device */
 struct hdr_metadata_info_s {
