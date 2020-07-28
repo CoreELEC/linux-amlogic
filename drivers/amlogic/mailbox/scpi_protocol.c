@@ -257,6 +257,8 @@ static int send_scpi_cmd(struct scpi_data_buf *scpi_buf,
 	char *txbuf = NULL;
 	char *rxbuf = NULL;
 	char *rx_buf = NULL;
+	unsigned long wait;
+	int ret;
 
 	switch (c_chan) {
 	case C_DSPA_FIFO:
@@ -331,7 +333,15 @@ static int send_scpi_cmd(struct scpi_data_buf *scpi_buf,
 		status = SCPI_ERR_TIMEOUT;
 		goto free_channel;
 	}
-	wait_for_completion(&scpi_buf->complete);
+
+	wait = msecs_to_jiffies(MBOX_TIME_OUT);
+	ret = wait_for_completion_timeout(&scpi_buf->complete, wait);
+	if (ret == 0) {
+		pr_err("Warning: scpi wait ack time out %d\n",
+		       ret);
+		status = SCPI_ERR_TIMEOUT;
+		goto free_channel;
+	}
 
 	switch (c_chan) {
 	case C_DSPA_FIFO:

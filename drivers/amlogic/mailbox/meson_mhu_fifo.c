@@ -731,7 +731,7 @@ static int mhu_probe(struct platform_device *pdev)
 	}
 
 	err = request_threaded_irq(mhu_ctrl->mhu_irq, mbox_handler,
-				   NULL, IRQF_ONESHOT,
+				   NULL, IRQF_ONESHOT | IRQF_NO_SUSPEND,
 				   DRIVER_NAME, mhu_ctrl);
 	if (err) {
 		dev_err(dev, "request irq error\n");

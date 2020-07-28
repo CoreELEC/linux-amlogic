@@ -44,8 +44,6 @@
 #define MBOX_DATA_SIZE \
 	(MHU_BUFFER_SIZE - MBOX_HEAD_SIZE - MBOX_RESEV_SIZE)
 
-#define MBOX_TIME_OUT		10000 /*wait other core ack time: ms*/
-
 /*user space mailbox cmd len define type int*/
 #define MBOX_USER_CMD_LEN	4
 

@@ -31,6 +31,9 @@ extern struct device *mhu_fifo_device;
 
 #define CONTROLLER_NAME		"mhu_ctlr"
 
+/**wait other core ack time: ms**/
+#define MBOX_TIME_OUT		10000
+
 #define MASK_MHU		(BIT(0))
 #define MASK_MHU_FIFO		(BIT(1))
 #define MASK_MHU_PL		(BIT(2))
