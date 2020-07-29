@@ -235,7 +235,6 @@ static int __init ir_xmp_decode_init(void)
 	}
 	remote_raw_handler_register(&xmp_handler);
 
-	pr_info("%s: IR XMP protocol handler initialized\n", DRIVER_NAME);
 	return 0;
 }
 
