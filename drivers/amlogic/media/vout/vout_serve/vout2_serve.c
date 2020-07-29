@@ -672,7 +672,7 @@ static int vout2_attr_create(void)
 		}
 	}
 
-	VOUTPR("vout2: create vout2 attribute OK\n");
+	/*VOUTPR("vout2: create vout2 attribute OK\n");*/
 
 	return ret;
 }
@@ -700,7 +700,7 @@ static int vout2_io_open(struct inode *inode, struct file *file)
 {
 	struct vout_cdev_s *vcdev;
 
-	VOUTPR("%s\n", __func__);
+	/*VOUTPR("%s\n", __func__);*/
 	vcdev = container_of(inode->i_cdev, struct vout_cdev_s, cdev);
 	file->private_data = vcdev;
 	return 0;
@@ -708,7 +708,7 @@ static int vout2_io_open(struct inode *inode, struct file *file)
 
 static int vout2_io_release(struct inode *inode, struct file *file)
 {
-	VOUTPR("%s\n", __func__);
+	/*VOUTPR("%s\n", __func__);*/
 	file->private_data = NULL;
 	return 0;
 }
@@ -827,7 +827,7 @@ static int vout2_fops_create(void)
 
 	init_waitqueue_head(&vout2_cdev->setmode_queue);
 
-	VOUTPR("vout2: %s OK\n", __func__);
+	/*VOUTPR("vout2: %s OK\n", __func__);*/
 	return 0;
 
 vout2_fops_err3:

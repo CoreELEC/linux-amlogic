@@ -546,22 +546,21 @@ EXPORT_SYMBOL(vout_func_vout_shutdown);
  *we can ensure TVMOD SET MODULE independent with these two function.
  */
 
-int vout_func_vout_register_server(int index,
-		struct vout_server_s *mem_server)
+int vout_func_vout_register_server(int index, struct vout_server_s *mem_server)
 {
 	struct list_head *p_iter;
 	struct vout_server_s *p_server;
 	struct vout_module_s *p_module = NULL;
 
-	if (mem_server == NULL) {
+	if (!mem_server) {
 		VOUTERR("vout%d: server is NULL\n", index);
 		return -1;
 	}
-	if (mem_server->name == NULL) {
+	if (!mem_server->name) {
 		VOUTERR("vout%d: server name is NULL\n", index);
 		return -1;
 	}
-	VOUTPR("vout%d: register server: %s\n", index, mem_server->name);
+	/* VOUTPR("vout%d: register server: %s\n", index, mem_server->name);*/
 
 	mutex_lock(&vout_mutex);
 
@@ -596,16 +595,20 @@ int vout_func_vout_register_server(int index,
 EXPORT_SYMBOL(vout_func_vout_register_server);
 
 int vout_func_vout_unregister_server(int index,
-		struct vout_server_s *mem_server)
+				     struct vout_server_s *mem_server)
 {
 	struct vout_server_s  *p_server;
 	struct vout_module_s *p_module = NULL;
 
-	if (mem_server == NULL) {
+	if (!mem_server) {
 		VOUTERR("vout%d: server is NULL\n", index);
 		return -1;
 	}
-	VOUTPR("vout%d: unregister server: %s\n", index, mem_server->name);
+	if (!mem_server->name) {
+		VOUTERR("vout%d: server name is NULL\n", index);
+		return -1;
+	}
+	/*VOUTPR("vout%d: unregister server: %s\n", index, mem_server->name);*/
 
 	mutex_lock(&vout_mutex);
 
