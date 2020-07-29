@@ -130,7 +130,10 @@ static int aml_sd_emmc_cali_transfer(struct mmc_host *mmc,
 	struct scatterlist sg;
 
 	cmd.opcode = opcode;
-	cmd.arg = CALI_PATTERN_OFFSET;
+	if (opcode == 18)
+		cmd.arg = CALI_PATTERN_OFFSET;
+	else
+		cmd.arg = 0;
 	cmd.flags = MMC_RSP_R1 | MMC_CMD_ADTC;
 
 	stop.opcode = MMC_STOP_TRANSMISSION;
@@ -3208,6 +3211,8 @@ static int meson_mmc_probe(struct platform_device *pdev)
 		memset(pdata, 0, sizeof(struct amlsd_platform));
 		if (amlsd_get_platform_data(pdev, pdata, mmc, i)) {
 			mmc_free_host(mmc);
+			if (host->data->tdma_f)
+				host->data->tdma_f = 0;
 			break;
 		}
 		dev_set_name(&mmc->class_dev, "%s", pdata->pinname);

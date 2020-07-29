@@ -29,6 +29,9 @@
 #include "sd_ops.h"
 #include "sdio_ops.h"
 #include "sdio_cis.h"
+#ifdef CONFIG_AMLOGIC_MMC
+#include <linux/amlogic/sd.h>
+#endif
 
 #ifdef CONFIG_MMC_EMBEDDED_SDIO
 #include <linux/mmc/sdio_ids.h>
@@ -39,6 +42,12 @@ struct wifi_clk_table aWifi_clk[WIFI_CLOCK_TABLE_MAX] = {
 	{"8822BS", 0, 0xb822, 167000000},
 	{"8822CS", 0, 0xc822, 167000000}
 };
+
+#define CCCR_SDIO_DRIVER_STRENGTH_ENABLE_ADDR   0xf2
+#define CCCR_SDIO_DRIVER_STRENGTH_ENABLE_MASK   0x0e
+#define CCCR_SDIO_DRIVER_STRENGTH_ENABLE_A      0x02
+#define CCCR_SDIO_DRIVER_STRENGTH_ENABLE_C      0x04
+#define CCCR_SDIO_DRIVER_STRENGTH_ENABLE_D      0x08
 #endif
 
 static int sdio_read_fbr(struct sdio_func *func)
@@ -416,6 +425,11 @@ static void sdio_select_driver_type(struct mmc_card *card)
 	int card_drv_type, drive_strength, drv_type;
 	unsigned char card_strength;
 	int err;
+#ifdef CONFIG_AMLOGIC_MMC
+	unsigned char val;
+	struct amlsd_platform *pdata = mmc_priv(card->host);
+	struct amlsd_host *host = pdata->host;
+#endif
 
 	card->drive_strength = 0;
 
@@ -425,6 +439,12 @@ static void sdio_select_driver_type(struct mmc_card *card)
 						   card->sw_caps.uhs_max_dtr,
 						   card_drv_type, &drv_type);
 
+#ifdef CONFIG_AMLOGIC_MMC
+	/* qca6174 drv strength need to set D */
+	if ((card->cis.vendor == 0x0271) &&
+	    (host->data->chip_type == MMC_CHIP_G12A))
+		drive_strength = MMC_SET_DRIVER_TYPE_D;
+#endif
 	if (drive_strength) {
 		/* if error just use default for drive strength B */
 		err = mmc_io_rw_direct(card, 0, 0, SDIO_CCCR_DRIVE_STRENGTH, 0,
@@ -445,6 +465,29 @@ static void sdio_select_driver_type(struct mmc_card *card)
 
 	if (drv_type)
 		mmc_set_driver_type(card->host, drv_type);
+
+#ifdef CONFIG_AMLOGIC_MMC
+	/* qca6174 drv strength need to enable */
+	if ((card->cis.vendor == 0x0271) &&
+	    (host->data->chip_type == MMC_CHIP_G12A)) {
+		err = mmc_io_rw_direct(card, 0, 0,
+				       CCCR_SDIO_DRIVER_STRENGTH_ENABLE_ADDR,
+				       0, &val);
+		if (err)
+			return;
+
+		val &= ~(CCCR_SDIO_DRIVER_STRENGTH_ENABLE_MASK);
+		val |= CCCR_SDIO_DRIVER_STRENGTH_ENABLE_A;
+		val |= CCCR_SDIO_DRIVER_STRENGTH_ENABLE_C;
+		val |= CCCR_SDIO_DRIVER_STRENGTH_ENABLE_D;
+
+		err = mmc_io_rw_direct(card, 1, 0,
+				       CCCR_SDIO_DRIVER_STRENGTH_ENABLE_ADDR,
+				       val, NULL);
+		if (err)
+			return;
+	}
+#endif
 }
 
 
