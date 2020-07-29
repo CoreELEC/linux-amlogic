@@ -665,15 +665,15 @@ static int ir_contr_init(struct remote_chip *chip, int type, unsigned char id)
 	 * [0] = 0x01,set to 1 to reset the IR decoder
 	 */
 	remote_reg_write(chip, id, REG_REG1, 0x01);
-	dev_info(chip->dev, "default protocol = 0x%x and id = %d\n",
-				(*reg_proto)->protocol, id);
+	remote_dbg(chip->dev, "default protocol = 0x%x and id = %d\n",
+		   (*reg_proto)->protocol, id);
 	reg_map = (*reg_proto)->reg_map;
 	size    = (*reg_proto)->reg_map_size;
 
 	for (  ; size > 0;  ) {
 		remote_reg_write(chip, id, reg_map->reg, reg_map->val);
-		dev_info(chip->dev, "reg=0x%x, val=0x%x\n",
-				reg_map->reg, reg_map->val);
+		remote_dbg(chip->dev, "reg=0x%x, val=0x%x\n",
+			   reg_map->reg, reg_map->val);
 		reg_map++;
 		size--;
 	}

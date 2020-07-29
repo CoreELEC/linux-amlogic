@@ -499,7 +499,7 @@ static int get_custom_tables(struct device_node *node,
 
 	phandle = of_get_property(node, "map", NULL);
 	if (!phandle) {
-		dev_err(chip->dev, "%s:don't find match custom\n", __func__);
+		dev_err(chip->dev, "%s:can't find match custom\n", __func__);
 		return -1;
 	}
 
@@ -518,7 +518,7 @@ static int get_custom_tables(struct device_node *node,
 	if (chip->custom_num > CUSTOM_NUM_MAX)
 		chip->custom_num = CUSTOM_NUM_MAX;
 
-	dev_info(chip->dev, "custom_number = %d\n", chip->custom_num);
+	dev_dbg(chip->dev, "custom_number = %d\n", chip->custom_num);
 
 	for (index = 0; index < chip->custom_num; index++) {
 		propname = kasprintf(GFP_KERNEL, "map%d", index);
@@ -531,8 +531,8 @@ static int get_custom_tables(struct device_node *node,
 		propname = NULL;
 
 		if (!phandle) {
-			dev_err(chip->dev, "%s:don't find match map%d\n",
-					__func__, index);
+			dev_err(chip->dev, "%s:can't find match map%d\n",
+				__func__, index);
 			return -1;
 		}
 		map = of_find_node_by_phandle(be32_to_cpup(phandle));
@@ -554,8 +554,8 @@ static int get_custom_tables(struct device_node *node,
 			return -ENOMEM;
 
 		ptable->tab.map_size = value;
-		dev_info(chip->dev, "ptable->map_size = %d\n",
-							ptable->tab.map_size);
+		dev_dbg(chip->dev, "ptable->map_size = %d\n",
+			ptable->tab.map_size);
 
 		ret = of_property_read_string(map, "mapname", &uname);
 		if (ret) {
@@ -564,8 +564,8 @@ static int get_custom_tables(struct device_node *node,
 		}
 		snprintf(ptable->tab.custom_name, CUSTOM_NAME_LEN, "%s", uname);
 
-		dev_info(chip->dev, "ptable->custom_name = %s\n",
-						ptable->tab.custom_name);
+		dev_dbg(chip->dev, "ptable->custom_name = %s\n",
+			ptable->tab.custom_name);
 
 		ret = of_property_read_u32(map, "customcode", &value);
 		if (ret) {
@@ -573,8 +573,8 @@ static int get_custom_tables(struct device_node *node,
 			goto err;
 		}
 		ptable->tab.custom_code = value;
-		dev_info(chip->dev, "ptable->custom_code = 0x%x\n",
-						ptable->tab.custom_code);
+		dev_dbg(chip->dev, "ptable->custom_code = 0x%x\n",
+			ptable->tab.custom_code);
 
 		ret = of_property_read_u32(map, "release_delay", &value);
 		if (ret) {
@@ -582,8 +582,8 @@ static int get_custom_tables(struct device_node *node,
 			goto err;
 		}
 		ptable->tab.release_delay = value;
-		dev_info(chip->dev, "ptable->release_delay = %d\n",
-						ptable->tab.release_delay);
+		dev_dbg(chip->dev, "ptable->release_delay = %d\n",
+			ptable->tab.release_delay);
 
 		ret = of_property_read_u32_array(map,
 				"keymap", (u32 *)&ptable->tab.codemap[0],
@@ -625,30 +625,30 @@ static int ir_get_devtree_pdata(struct platform_device *pdev)
 	ret = of_property_read_u32(pdev->dev.of_node,
 			"protocol", &chip->protocol);
 	if (ret) {
-		dev_err(chip->dev, "don't find the node <protocol>\n");
+		dev_err(chip->dev, "can not find the node <protocol>\n");
 		chip->protocol = 1;
 	}
-	dev_info(chip->dev, "protocol = 0x%x\n", chip->protocol);
+	dev_dbg(chip->dev, "protocol = 0x%x\n", chip->protocol);
 
 	ret = of_property_read_u32(pdev->dev.of_node,
 			"led_blink", &chip->r_dev->led_blink);
 	if (ret) {
-		dev_err(chip->dev, "don't find the node <led_blink>\n");
+		dev_dbg(chip->dev, "can not find the node <led_blink>\n");
 		chip->r_dev->led_blink = 0;
 	}
-	dev_info(chip->dev, "led_blink = %d\n", chip->r_dev->led_blink);
+	dev_dbg(chip->dev, "led_blink = %d\n", chip->r_dev->led_blink);
 
 	ret = of_property_read_u32(pdev->dev.of_node,
 			"led_blink_frq", &value);
 	if (ret) {
-		dev_err(chip->dev, "don't find the node <led_blink_frq>\n");
+		dev_dbg(chip->dev, "can not find the node <led_blink_frq>\n");
 		chip->r_dev->delay_on = DEFAULT_LED_BLINK_FRQ;
 		chip->r_dev->delay_off = DEFAULT_LED_BLINK_FRQ;
 	} else {
 		chip->r_dev->delay_off = value;
 		chip->r_dev->delay_on = value;
 	}
-	dev_info(chip->dev, "led_blink_frq  = %ld\n", chip->r_dev->delay_on);
+	dev_dbg(chip->dev, "led_blink_frq  = %ld\n", chip->r_dev->delay_on);
 
 	ret = of_property_read_bool(pdev->dev.of_node, "demod_enable");
 	if (ret)
@@ -688,12 +688,12 @@ static int ir_get_devtree_pdata(struct platform_device *pdev)
 
 	chip->irqno = res_irq->start;
 
-	dev_info(chip->dev, "platform_data irq =%d\n", chip->irqno);
+	dev_dbg(chip->dev, "platform_data irq =%d\n", chip->irqno);
 
 	ret = of_property_read_u32(pdev->dev.of_node,
 				"max_frame_time", &value);
 	if (ret) {
-		dev_err(chip->dev, "don't find the node <max_frame_time>\n");
+		dev_err(chip->dev, "can't find the node <max_frame_time>\n");
 		value = 200; /*default value*/
 	}
 
@@ -997,13 +997,11 @@ static struct platform_driver remote_driver = {
 
 static int __init remote_init(void)
 {
-	pr_info("%s: Driver init\n", DRIVER_NAME);
 	return platform_driver_register(&remote_driver);
 }
 
 static void __exit remote_exit(void)
 {
-	pr_info("%s: Driver exit\n", DRIVER_NAME);
 	platform_driver_unregister(&remote_driver);
 }
 
