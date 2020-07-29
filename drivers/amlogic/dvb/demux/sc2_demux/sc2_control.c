@@ -594,6 +594,8 @@ void demod_config_in(u8 port, u8 wire_type)
 	} else {
 		if (port == DEMOD_FEC_B)
 			data |= DEMOD_1_PARALLEL << TS_S_OR_P_SEL1;
+		else
+			return;
 	}
 	WRITE_CBUS_REG(DEMOD_PATH_CTRL(port), data);
 	pr_dbg("%s data:0x%0x\n", __func__, data);

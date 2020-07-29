@@ -89,6 +89,29 @@ ssize_t get_pcr_show(struct class *class,
 	return total;
 }
 
+ssize_t dmx_setting_show(struct class *class, struct class_attribute *attr,
+			 char *buf)
+{
+	int r, total = 0;
+	int i;
+	struct aml_dvb *dvb = aml_get_dvb_device();
+
+	for (i = 0; i < dmx_dev_num; i++) {
+		r = sprintf(buf, "dmx%d source %s ", i,
+			    dvb->dmx[i].source == INPUT_DEMOD ? "input_demod" :
+			    (dvb->dmx[i].source == INPUT_LOCAL ?
+			     "input_local" : "input_local_sec"));
+		buf += r;
+		total += r;
+		r = sprintf(buf, "demod_sid:0x%0x local_sid:0x%0x\n",
+			    dvb->dmx[i].demod_sid, dvb->dmx[i].local_sid);
+		buf += r;
+		total += r;
+	}
+
+	return total;
+}
+
 int demux_get_stc(int demux_device_index, int index,
 		  u64 *stc, unsigned int *base)
 {
@@ -101,6 +124,7 @@ int demux_get_stc(int demux_device_index, int index,
 
 	return 0;
 }
+
 EXPORT_SYMBOL(demux_get_stc);
 
 static struct class_attribute aml_dvb_class_attrs[] = {
@@ -108,6 +132,7 @@ static struct class_attribute aml_dvb_class_attrs[] = {
 	       tuner_setting_store),
 	__ATTR(ts_setting, 0664, ts_setting_show, ts_setting_store),
 	__ATTR(get_pcr, 0664, get_pcr_show, NULL),
+	__ATTR(dmx_setting, 0664, dmx_setting_show, NULL),
 	__ATTR_NULL
 };
 
@@ -146,7 +171,7 @@ int dmx_get_dev_num(struct platform_device *pdev)
 		else
 			continue;
 		dmxdev_sid_info[i].demod_sid = sid & 0x3F;
-		dmxdev_sid_info[i].local_sid = sid & 0x1F;
+		dmxdev_sid_info[i].local_sid = i;
 	}
 	return dmxdev;
 }
@@ -192,12 +217,14 @@ struct aml_dvb *aml_get_dvb_device(void)
 {
 	return &aml_dvb_device;
 }
+
 EXPORT_SYMBOL(aml_get_dvb_device);
 
 struct dvb_adapter *aml_get_dvb_adapter(void)
 {
 	return &aml_dvb_device.dvb_adapter;
 }
+
 EXPORT_SYMBOL(aml_get_dvb_adapter);
 
 struct device *aml_get_device(void)
@@ -312,7 +339,7 @@ static int aml_dvb_probe(struct platform_device *pdev)
 			goto INIT_ERR;
 
 		advb->dsc[i].mutex = advb->mutex;
-//		advb->dsc[i].slock = advb->slock;
+//              advb->dsc[i].slock = advb->slock;
 		advb->dsc[i].id = i;
 		advb->dsc[i].source = tsn_in;
 		advb->dsc[i].demod_sid = dmxdev_sid_info[i].demod_sid;
@@ -358,7 +385,7 @@ struct platform_driver aml_dvb_driver = {
 #ifdef CONFIG_OF
 		   .of_match_table = aml_dvb_dt_match,
 #endif
-			}
+	}
 };
 
 static int __init aml_dvb_init(void)

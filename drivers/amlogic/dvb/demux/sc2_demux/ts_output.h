@@ -122,10 +122,11 @@ int ts_output_close(struct out_elem *pout);
  * \param pout
  * \param pid:
  * \param pid_mask:0,matched all bits; 0x1FFF matched any PID
+ * \param dmx_id: dmx_id
  * \retval 0:success.
  * \retval -1:fail.
  */
-int ts_output_add_pid(struct out_elem *pout, int pid, int pid_mask);
+int ts_output_add_pid(struct out_elem *pout, int pid, int pid_mask, int dmx_id);
 
 /**
  * remove pid in stream
@@ -171,6 +172,6 @@ int ts_output_reset(struct out_elem *pout);
 int ts_output_set_cb(struct out_elem *pout, ts_output_cb cb, void *udata);
 
 int ts_output_sid_debug(void);
-void ts_output_dump_info(void);
+int ts_output_dump_info(char *buf);
 
 #endif

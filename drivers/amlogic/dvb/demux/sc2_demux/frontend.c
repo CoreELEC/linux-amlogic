@@ -504,12 +504,12 @@ int frontend_probe(struct platform_device *pdev)
 				}
 			}
 
-			len = advb->ts[config.ts].header_len;
+			len = advb->ts[i].header_len;
 			if (len) {
 				config.ts_header_bytes = len;
 				for (j = 0; j < len; ++j)
 					config.ts_header_data[j] =
-					    advb->ts[config.ts].
+					    advb->ts[i].
 					    header[j] & 0xFF;
 			}
 

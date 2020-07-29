@@ -93,6 +93,7 @@ int _alloc_buff(unsigned int len, int sec_level,
 
 	*vir_mem = buf_start_virt;
 	*phy_mem = buf_start;
+
 	return 0;
 }
 
@@ -130,13 +131,13 @@ static int _bufferid_malloc_desc_mem(struct chan_id *pchan,
 			dprint("%s malloc fail\n", __func__);
 			return -1;
 		}
-		dprint("%s malloc 0x%lx\n", __func__, mem);
-		dprint("%s mem phy addr 0x%lx\n", __func__, mem_phy);
+		pr_dbg("%s malloc 0x%lx\n", __func__, mem);
+		pr_dbg("%s mem phy addr 0x%lx\n", __func__, mem_phy);
 	}
 	ret =
 	    _alloc_buff(sizeof(union mem_desc), 0, &memdescs, &memdescs_phy, 0);
 	if (ret != 0) {
-		_free_buff(mem, mem_size, sec_level, pchan->tee_handle);
+		_free_buff(mem_phy, mem_size, sec_level, pchan->tee_handle);
 		dprint("%s malloc 2 fail\n", __func__);
 		return -1;
 	}
@@ -157,7 +158,7 @@ static int _bufferid_malloc_desc_mem(struct chan_id *pchan,
 					     sizeof(union mem_desc),
 					     DMA_TO_DEVICE);
 	pr_dbg("flush mem descs to ddr\n");
-	dprint("%s mem_desc phy addr 0x%x, memdsc:0x%lx\n", __func__,
+	pr_dbg("%s mem_desc phy addr 0x%x, memdsc:0x%lx\n", __func__,
 	       pchan->memdescs_phy, (unsigned long)pchan->memdescs);
 
 	pchan->r_offset = 0;
@@ -168,11 +169,11 @@ static int _bufferid_malloc_desc_mem(struct chan_id *pchan,
 static void _bufferid_free_desc_mem(struct chan_id *pchan)
 {
 	if (pchan->mem)
-		_free_buff((unsigned long)pchan->mem,
+		_free_buff((unsigned long)pchan->mem_phy,
 			   pchan->mem_size, pchan->sec_level,
 			   pchan->tee_handle);
 	if (pchan->memdescs)
-		_free_buff((unsigned long)pchan->memdescs,
+		_free_buff((unsigned long)pchan->memdescs_phy,
 			   sizeof(union mem_desc), 0, 0);
 	if (pchan->memdescs_map)
 		dma_unmap_single(aml_get_device(), pchan->memdescs_map,
