@@ -2262,21 +2262,8 @@ int ge2d_context_config_ex_mem(struct ge2d_context_s *context,
 			ge2d_log_dbg("ge2d error: src alloc, out of range\n");
 			return -1;
 		}
+
 		if (ge2d_meson_dev.canvas_status) {
-			if (ge2d_config_mem->src1_mem_alloc_type ==
-				AML_GE2D_MEM_ION) {
-				if (build_ge2d_addr_config_ion
-						(&ge2d_config->src_planes[0],
-						 ge2d_config->src_para.format,
-						 src_addr,
-						 src_stride) < 0)
-					return -1;
-				ge2d_log_dbg("ge2d ion alloc phy_addr:0x%x,stride=0x%x,format:0x%x\n",
-					src_addr[0],
-					src_stride[0],
-					ge2d_config->src_para.format);
-			} else if (ge2d_config_mem->src1_mem_alloc_type ==
-				AML_GE2D_MEM_DMABUF) {
 				if (build_ge2d_addr_config_dma
 						(context,
 						 &ge2d_config->src_planes[0],
@@ -2290,32 +2277,17 @@ int ge2d_context_config_ex_mem(struct ge2d_context_s *context,
 					src_addr[0],
 					src_stride[0],
 					ge2d_config->src_para.format);
-			}
 		} else {
-			if (ge2d_config_mem->src1_mem_alloc_type ==
-				AML_GE2D_MEM_ION) {
-				if (build_ge2d_config_ex_ion(
-					context,
-					&ge2d_config->src_planes[0],
-					ge2d_config->src_para.format,
-					AML_GE2D_SRC) < 0)
-					return -1;
-				ge2d_config->src_para.canvas_index = 0;
-				ge2d_log_dbg("ge2d ion alloc,format:0x%x\n",
-					ge2d_config->src_para.format);
-			} else if (ge2d_config_mem->src1_mem_alloc_type ==
-				AML_GE2D_MEM_DMABUF) {
-				if (build_ge2d_config_ex_dma(
-					context,
-					&ge2d_config->src_planes[0],
-					ge2d_config->src_para.format,
-					DMA_TO_DEVICE,
-					AML_GE2D_SRC) < 0)
-					return -1;
-				ge2d_config->src_para.canvas_index = 0;
-				ge2d_log_dbg("ge2d dma alloc,format:0x%x\n",
-					ge2d_config->src_para.format);
-			}
+			if (build_ge2d_config_ex_dma(
+				context,
+				&ge2d_config->src_planes[0],
+				ge2d_config->src_para.format,
+				DMA_TO_DEVICE,
+				AML_GE2D_SRC) < 0)
+				return -1;
+			ge2d_config->src_para.canvas_index = 0;
+			ge2d_log_dbg("ge2d dma alloc,format:0x%x\n",
+				     ge2d_config->src_para.format);
 		}
 		break;
 	default:
@@ -2370,20 +2342,6 @@ int ge2d_context_config_ex_mem(struct ge2d_context_s *context,
 		 * else
 		 */
 		if (ge2d_meson_dev.canvas_status) {
-			if (ge2d_config_mem->src2_mem_alloc_type ==
-				AML_GE2D_MEM_ION) {
-				if (build_ge2d_addr_config_ion
-						(&ge2d_config->src2_planes[0],
-						 ge2d_config->src2_para.format,
-						 src2_addr,
-						 src2_stride) < 0)
-					return -1;
-				ge2d_log_dbg("ge2d ion alloc phy_addr:0x%x,stride=0x%x,format:0x%x\n",
-					src2_addr[0],
-					src2_stride[0],
-					ge2d_config->src2_para.format);
-			} else if (ge2d_config_mem->src2_mem_alloc_type ==
-				AML_GE2D_MEM_DMABUF) {
 				if (build_ge2d_addr_config_dma
 						(context,
 						 &ge2d_config->src2_planes[0],
@@ -2397,32 +2355,17 @@ int ge2d_context_config_ex_mem(struct ge2d_context_s *context,
 					src2_addr[0],
 					src2_stride[0],
 					ge2d_config->src2_para.format);
-			}
 		} else {
-			if (ge2d_config_mem->src2_mem_alloc_type ==
-				AML_GE2D_MEM_ION) {
-				if (build_ge2d_config_ex_ion(
-					context,
-					&ge2d_config->src2_planes[0],
-					ge2d_config->src2_para.format,
-					AML_GE2D_SRC2) < 0)
-					return -1;
-				ge2d_config->src2_para.canvas_index = 0;
-				ge2d_log_dbg("ge2d src2 ion alloc,format:0x%x\n",
-					ge2d_config->src2_para.format);
-			} else if (ge2d_config_mem->src2_mem_alloc_type ==
-				AML_GE2D_MEM_DMABUF) {
-				if (build_ge2d_config_ex_dma(
-					context,
-					&ge2d_config->src2_planes[0],
-					ge2d_config->src2_para.format,
-					DMA_TO_DEVICE,
-					AML_GE2D_SRC2) < 0)
-					return -1;
-				ge2d_config->src2_para.canvas_index = 0;
-				ge2d_log_dbg("ge2d src2 dma alloc,format:0x%x\n",
-					ge2d_config->src2_para.format);
-			}
+			if (build_ge2d_config_ex_dma(
+				context,
+				&ge2d_config->src2_planes[0],
+				ge2d_config->src2_para.format,
+				DMA_TO_DEVICE,
+				AML_GE2D_SRC2) < 0)
+				return -1;
+			ge2d_config->src2_para.canvas_index = 0;
+			ge2d_log_dbg("ge2d src2 dma alloc,format:0x%x\n",
+				     ge2d_config->src2_para.format);
 		}
 		break;
 	default:
@@ -2480,20 +2423,6 @@ int ge2d_context_config_ex_mem(struct ge2d_context_s *context,
 		 * else
 		 */
 		if (ge2d_meson_dev.canvas_status) {
-			if (ge2d_config_mem->dst_mem_alloc_type ==
-				AML_GE2D_MEM_ION) {
-				if (build_ge2d_addr_config_ion
-						(&ge2d_config->dst_planes[0],
-						 ge2d_config->dst_para.format,
-						 dst_addr,
-						 dst_stride) < 0)
-					return -1;
-				ge2d_log_dbg("ge2d ion alloc phy_addr:0x%x,stride=0x%x,format:0x%x\n",
-					dst_addr[0],
-					dst_stride[0],
-					ge2d_config->dst_para.format);
-			} else if (ge2d_config_mem->dst_mem_alloc_type ==
-				AML_GE2D_MEM_DMABUF) {
 				if (build_ge2d_addr_config_dma
 						(context,
 						 &ge2d_config->dst_planes[0],
@@ -2507,32 +2436,17 @@ int ge2d_context_config_ex_mem(struct ge2d_context_s *context,
 					dst_addr[0],
 					dst_stride[0],
 					ge2d_config->dst_para.format);
-			}
 		} else {
-			if (ge2d_config_mem->dst_mem_alloc_type ==
-				AML_GE2D_MEM_ION) {
-				if (build_ge2d_config_ex_ion(
-					context,
-					&ge2d_config->dst_planes[0],
-					ge2d_config->dst_para.format,
-					AML_GE2D_DST) < 0)
-					return -1;
-				ge2d_config->dst_para.canvas_index = 0;
-				ge2d_log_dbg("ge2d: dst ion alloc,format:0x%x\n",
-					ge2d_config->dst_para.format);
-			} else if (ge2d_config_mem->dst_mem_alloc_type ==
-				AML_GE2D_MEM_DMABUF) {
-				if (build_ge2d_config_ex_dma(
-					context,
-					&ge2d_config->dst_planes[0],
-					ge2d_config->dst_para.format,
-					DMA_FROM_DEVICE,
-					AML_GE2D_DST) < 0)
-					return -1;
-				ge2d_config->dst_para.canvas_index = 0;
-				ge2d_log_dbg("ge2d: dst dma alloc,format:0x%x\n",
-					ge2d_config->dst_para.format);
-			}
+			if (build_ge2d_config_ex_dma(
+				context,
+				&ge2d_config->dst_planes[0],
+				ge2d_config->dst_para.format,
+				DMA_FROM_DEVICE,
+				AML_GE2D_DST) < 0)
+				return -1;
+			ge2d_config->dst_para.canvas_index = 0;
+			ge2d_log_dbg("ge2d: dst dma alloc,format:0x%x\n",
+				     ge2d_config->dst_para.format);
 		}
 		break;
 	default:
