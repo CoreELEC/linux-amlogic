@@ -2558,7 +2558,7 @@ static ssize_t port_seq_store(struct class *cla,
 	if (kstrtouint(buf, 16, &seq) != 0)
 		return -EINVAL;
 
-	CEC_ERR("port_seq:%x\n", seq);
+	/*CEC_ERR("port_seq:%x\n", seq);*/
 	cec_dev->port_seq = seq;
 	return count;
 }
@@ -3912,7 +3912,7 @@ static int aml_cec_probe(struct platform_device *pdev)
 	of_id = of_match_device(aml_cec_dt_match, &pdev->dev);
 	if (of_id != NULL) {
 		cec_dev->plat_data = (struct cec_platform_data_s *)of_id->data;
-		CEC_ERR("compatible:%s\n", of_id->compatible);
+		/*CEC_ERR("compatible:%s\n", of_id->compatible);*/
 	} else
 		CEC_ERR("unable to get matched device\n");
 
@@ -3951,8 +3951,6 @@ static int aml_cec_probe(struct platform_device *pdev)
 	if (r) {
 		CEC_ERR("not find 'port_num'\n");
 		cec_dev->cec_num = ENABLE_ONE_CEC;
-	} else {
-		CEC_ERR("use two cec ip\n");
 	}
 
 	/* if using EE CEC */
@@ -4011,8 +4009,6 @@ static int aml_cec_probe(struct platform_device *pdev)
 			goto tag_cec_reg_map_err;
 		}
 		cec_dev->exit_reg = (void *)base;
-	} else {
-		CEC_ERR("no ao_exit regs\n");
 	}
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "ao");
@@ -4036,8 +4032,6 @@ static int aml_cec_probe(struct platform_device *pdev)
 			goto tag_cec_reg_map_err;
 		}
 		cec_dev->hdmi_rxreg = (void *)base;
-	} else {
-		CEC_ERR("no hdmirx regs\n");
 	}
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "hhi");
@@ -4048,8 +4042,6 @@ static int aml_cec_probe(struct platform_device *pdev)
 			goto tag_cec_reg_map_err;
 		}
 		cec_dev->hhi_reg = (void *)base;
-	} else {
-		CEC_ERR("no hhi regs\n");
 	}
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "periphs");
@@ -4060,8 +4052,6 @@ static int aml_cec_probe(struct platform_device *pdev)
 			goto tag_cec_reg_map_err;
 		}
 		cec_dev->periphs_reg = (void *)base;
-	} else {
-		CEC_ERR("no periphs regs\n");
 	}
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "clock");
@@ -4146,8 +4136,8 @@ static int aml_cec_probe(struct platform_device *pdev)
 		cec_dev->irq_ceca = cec_dev->irq_cecb;
 	}
 
-	pr_info("irq cnt:%d, a:%d, b%d\n", of_irq_count(node),
-		cec_dev->irq_ceca, cec_dev->irq_cecb);
+	/*pr_info("irq cnt:%d, a:%d, b%d\n", of_irq_count(node),*/
+	/*	cec_dev->irq_ceca, cec_dev->irq_cecb);*/
 	if (of_get_property(node, "interrupt-names", NULL)) {
 		if (of_property_count_strings(node,
 			"interrupt-names") > 1) {
@@ -4220,7 +4210,7 @@ static int aml_cec_probe(struct platform_device *pdev)
 	}
 	/*freeze wakeup init*/
 	device_init_wakeup(&pdev->dev, 1);
-	CEC_INFO("dev init wakeup\n");
+	/*CEC_INFO("dev init wakeup\n");*/
 	if (cec_dev->cec_num > ENABLE_ONE_CEC) {
 		dev_pm_set_wake_irq(&pdev->dev, cec_dev->irq_ceca);
 		dev_pm_set_wake_irq(&pdev->dev, cec_dev->irq_cecb);
@@ -4238,7 +4228,6 @@ static int aml_cec_probe(struct platform_device *pdev)
 	cec_get_wakeup_reason();
 	cec_get_wakeup_data();
 	cec_irq_enable(true);
-	CEC_ERR("%s success\n", __func__);
 	cec_dev->probe_finish = true;
 	return 0;
 
@@ -4266,6 +4255,7 @@ tag_cec_chr_reg_err:
 tag_cec_class_reg:
 	devm_kfree(&pdev->dev, cec_dev);
 tag_cec_devm_err:
+	CEC_ERR("%s fail\n", __func__);
 	return ret;
 }
 
