@@ -5280,7 +5280,12 @@ static int hdmitx_cntl_ddc(struct hdmitx_dev *hdev, unsigned int cmd,
 			else
 				hd_write_reg(P_HHI_HDCP22_CLK_CNTL, 0x01000100);
 			hdmitx_ddc_hw_op(DDC_MUX_DDC);
-			hdmitx_set_reg_bits(HDMITX_DWC_MC_CLKDIS, 1, 6, 1);
+			if (hdev->chip_type >= MESON_CPU_ID_SC2)
+				hdmitx_set_reg_bits(HDMITX_DWC_MC_CLKDIS_SC2,
+						    1, 6, 1);
+			else
+				hdmitx_set_reg_bits(HDMITX_DWC_MC_CLKDIS,
+						    1, 6, 1);
 			udelay(5);
 			hdmitx_set_reg_bits(HDMITX_DWC_HDCP22REG_CTRL, 3, 1, 2);
 			hdmitx_set_reg_bits(HDMITX_TOP_SW_RESET, 1, 5, 1);
@@ -5640,7 +5645,11 @@ static int hdmitx_cntl_misc(struct hdmitx_dev *hdev, unsigned int cmd,
 			st = !!argv;
 			pr_info("set hdcp clkdis: %d\n", !!argv);
 		}
-		hdmitx_set_reg_bits(HDMITX_DWC_MC_CLKDIS, !!argv, 6, 1);
+		if (hdev->chip_type >= MESON_CPU_ID_SC2)
+			hdmitx_set_reg_bits(HDMITX_DWC_MC_CLKDIS_SC2,
+					    !!argv, 6, 1);
+		else
+			hdmitx_set_reg_bits(HDMITX_DWC_MC_CLKDIS, !!argv, 6, 1);
 		break;
 	case MISC_I2C_RESET:
 		hdmitx_set_reg_bits(HDMITX_TOP_SW_RESET, 1, 9, 1);
