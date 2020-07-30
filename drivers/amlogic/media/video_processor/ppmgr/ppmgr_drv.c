@@ -1996,7 +1996,6 @@ static int ppmgr_driver_probe(struct platform_device *pdev)
 {
 	s32 r;
 
-	PPMGRDRV_INFO("ppmgr_driver_probe called\n");
 	r = of_reserved_mem_device_init(&pdev->dev);
 	ppmgr_device.pdev = pdev;
 	init_ppmgr_device();
@@ -2079,7 +2078,6 @@ ppmgr_init_module(void)
 {
 	int err;
 
-	PPMGRDRV_WARN("ppmgr module init func called\n");
 	amlog_level(LOG_LEVEL_HIGH, "ppmgr_init\n");
 	err = platform_driver_register(&ppmgr_drv);
 	if (err)
