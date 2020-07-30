@@ -842,6 +842,7 @@ int hdmitx_hdcp_opr(unsigned int val);
 /* [  1] tmdsclk_disable */
 /* [  0] pixelclk_disable */
 #define HDMITX_DWC_MC_CLKDIS                    (DWC_OFFSET_MASK + 0x4001)
+#define HDMITX_DWC_MC_CLKDIS_SC2                (DWC_SEC_OFFSET_MASK + 0x4001)
 /*
  * [  7] gpaswrst_req: 0=generate reset pulse; 1=no reset.
  * [  6] cecswrst_req: 0=generate reset pulse; 1=no reset.
