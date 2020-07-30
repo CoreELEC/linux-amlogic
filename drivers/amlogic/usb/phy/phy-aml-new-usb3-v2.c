@@ -41,6 +41,8 @@
 struct usb_aml_regs_v2 usb_new_aml_regs_v2;
 struct amlogic_usb_v2	*g_phy_v2;
 
+static void power_switch_to_pcie(struct amlogic_usb_v2 *phy);
+
 static void set_mode(unsigned long reg_addr, int mode);
 BLOCKING_NOTIFIER_HEAD(aml_new_usb_v2_notifier_list);
 
@@ -100,8 +102,10 @@ static void amlogic_new_usb3phy_shutdown(struct usb_phy *x)
 {
 	struct amlogic_usb_v2 *phy = phy_to_amlusb(x);
 
-	if (phy->phy.flags == AML_USB3_PHY_ENABLE)
+	if (phy->phy.flags == AML_USB3_PHY_ENABLE) {
 		clk_disable_unprepare(phy->clk);
+		writel(0x1d, phy->phy3_cfg);
+	}
 
 	phy->suspend_flag = 1;
 }
@@ -269,10 +273,13 @@ static int amlogic_new_usb3_init(struct usb_phy *x)
 	u32 data = 0;
 
 	if (phy->suspend_flag) {
-		if (phy->phy.flags == AML_USB3_PHY_ENABLE)
+		if (phy->phy.flags == AML_USB3_PHY_ENABLE) {
+			if (phy->pwr_ctl)
+				power_switch_to_pcie(phy);
+			writel(0x7c, phy->phy3_cfg);
 			clk_prepare_enable(phy->clk);
+		}
 		phy->suspend_flag = 0;
-		return 0;
 	}
 
 	for (i = 0; i < 6; i++) {
