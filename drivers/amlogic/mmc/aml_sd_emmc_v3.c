@@ -320,8 +320,8 @@ static int meson_mmc_clk_set_rate_v3(struct mmc_host *mmc,
 		mmc->actual_clock, clk_ios);
 	ret = clk_set_rate(host->cfg_div_clk, clk_ios);
 	if (clk_ios && clk_ios != clk_get_rate(host->cfg_div_clk)) {
-		dev_warn(host->dev, "divider requested rate %lu != actual rate %lu: ret=%d\n",
-			 clk_ios, clk_get_rate(host->cfg_div_clk), ret);
+		dev_dbg(host->dev, "divider requested rate %lu != actual rate %lu: ret=%d\n",
+			clk_ios, clk_get_rate(host->cfg_div_clk), ret);
 		mmc->actual_clock = clk_get_rate(host->cfg_div_clk);
 	} else
 		mmc->actual_clock = clk_ios;
@@ -342,11 +342,11 @@ static int meson_mmc_clk_set_rate_v3(struct mmc_host *mmc,
 		pdata->stop_clk = 0;
 	}
 #endif
-	pr_info("actual_clock :%u, HHI_nand: 0x%x\n",
-			mmc->actual_clock,
-			readl(host->clksrc_base));
+	pr_debug("actual_clock :%u, HHI_nand: 0x%x\n",
+		 mmc->actual_clock,
+		 readl(host->clksrc_base));
 
-	pr_info("[%s] after clock: 0x%x\n",
+	pr_debug("[%s] after clock: 0x%x\n",
 		 __func__, readl(host->base + SD_EMMC_CLOCK_V3));
 
 	return ret;
@@ -1204,8 +1204,6 @@ static u32 scan_emmc_cmd_win(struct mmc_host *mmc, int send_status)
 
 	writel(delay2_bak, host->base + SD_EMMC_DELAY2_V3);
 	cmd_delay = emmc_search_cmd_delay(str, repeat_times);
-	if (!send_status)
-		emmc_show_cmd_window(str, repeat_times);
 
 	return cmd_delay;
 }
@@ -1821,7 +1819,7 @@ static int _aml_sd_emmc_execute_tuning(struct mmc_host *mmc, u32 opcode,
 
 	old_dly = readl(host->base + SD_EMMC_DELAY1_V3);
 	d1_dly = (old_dly >> 0x6) & 0x3F;
-	pr_info("Data 1 aligned delay is %d\n", d1_dly);
+	pr_debug("Data 1 aligned delay is %d\n", d1_dly);
 	writel(0, host->base + SD_EMMC_ADJUST_V3);
 
 tunning:
@@ -1983,9 +1981,9 @@ tunning:
 			mmc_hostname(host->mmc),
 			readl(host->base + SD_EMMC_CLOCK_V3),
 			readl(host->base + SD_EMMC_ADJUST_V3));
-	pr_info("delay1:0x%x, delay2:0x%x\n",
-			readl(host->base + SD_EMMC_DELAY1_V3),
-			readl(host->base + SD_EMMC_DELAY2_V3));
+	pr_debug("delay1:0x%x, delay2:0x%x\n",
+		 readl(host->base + SD_EMMC_DELAY1_V3),
+		 readl(host->base + SD_EMMC_DELAY2_V3));
 	host->is_tunning = 0;
 	if ((host->mem->start == host->data->port_b_base)
 			&& host->data->tdma_f)

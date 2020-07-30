@@ -122,7 +122,7 @@ static int _verify_dtb_checksum(struct aml_dtb_rsv *dtb)
 	unsigned int checksum;
 
 	checksum = _calc_dtb_checksum(dtb);
-	pr_info("calc %x, store %x\n", checksum, dtb->checksum);
+	pr_debug("calc %x, store %x\n", checksum, dtb->checksum);
 
 	return !(checksum == dtb->checksum);
 }
@@ -1152,10 +1152,10 @@ static int add_emmc_partition(struct gendisk *disk,
 			ret = add_emmc_each_part(disk, 1+i, offset,
 					size, 0, pp->name);
 
-			pr_info("[%sp%02d] %20s  offset 0x%012llx, size 0x%012llx %s\n",
-					disk->disk_name, 1+i,
-					pp->name, offset<<9,
-					size<<9, IS_ERR(ret) ? "add fail":"");
+			pr_debug("[%sp%02d] %20s  offset 0x%012llx, size 0x%012llx %s\n",
+				 disk->disk_name, 1 + i,
+				 pp->name, offset << 9,
+				 size << 9, IS_ERR(ret) ? "add fail" : "");
 		} else {
 			pr_info("[%s] %s: partition exceeds device capacity:\n",
 					__func__, disk->disk_name);

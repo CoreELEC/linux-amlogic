@@ -3227,8 +3227,8 @@ static int meson_mmc_probe(struct platform_device *pdev)
 
 		/* data desc buffer */
 #ifdef CFG_SDEMMC_PIO
-		pr_err(">>>>>>>>hostbase %p, dmode %s\n",
-				host->base, pdata->dmode);
+		pr_debug(">>>>>>>>hostbase %p, dmode %s\n",
+			 host->base, pdata->dmode);
 		if (!strcmp(pdata->dmode, "pio")) {
 			host->desc_buf = host->base + SD_EMMC_DESC_OFF;
 			host->desc_dma_addr
