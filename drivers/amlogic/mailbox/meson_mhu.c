@@ -253,6 +253,7 @@ static int mhu_probe(struct platform_device *pdev)
 		CHANNEL_HIGH_PRIORITY
 	};
 
+	pr_debug("mhu to scp init\n");
 	ctlr = devm_kzalloc(dev, sizeof(*ctlr), GFP_KERNEL);
 	if (!ctlr)
 		return -ENOMEM;
@@ -357,10 +358,11 @@ static int mhu_probe(struct platform_device *pdev)
 		}
 	}
 
+probe_done:
 	mhu_device = dev;
 	/*set mhu type*/
 	mhu_f |= MASK_MHU;
-probe_done:
+	pr_debug("mhu %pK to scp done 0x%x\n", mhu_device, mhu_f);
 	return 0;
 }
 
