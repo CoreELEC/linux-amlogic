@@ -1877,6 +1877,10 @@ static int video_composer_uninit(struct composer_dev *dev)
 		if (dev->index == 0)
 			set_video_path_select("auto", 0);
 		set_blackout_policy(1);
+	} else {
+		if (dev->index == 0)
+			set_video_path_select("default", 0);
+		set_blackout_policy(1);
 	}
 
 	disable_video_layer(dev, 1);
