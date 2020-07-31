@@ -1658,9 +1658,10 @@ static int __init v4lvideo_create_instance(int inst)
 			 dev->vf_receiver_name,
 			 &video_vf_receiver, dev);
 	vf_reg_receiver(&dev->video_vf_receiver);
-	v4l2_info(&dev->v4l2_dev,
-		  "V4L2 device registered as %s\n",
-		  video_device_node_name(vfd));
+	if (inst == 0 || inst == n_devs - 1)
+		v4l2_info(&dev->v4l2_dev,
+			  "V4L2 device registered as %s\n",
+			  video_device_node_name(vfd));
 
 	/* add to device list */
 	flags = v4lvideo_devlist_lock();

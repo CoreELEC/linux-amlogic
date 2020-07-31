@@ -6218,7 +6218,6 @@ static int amlvideo2_create_node(struct platform_device *pdev, int node_id)
 	struct amlvideo2_device *vid_dev = container_of(v4l2_dev,
 		struct amlvideo2_device,
 		v4l2_dev);
-	pr_info("amlvideo2_create_node");
 	vid_dev->node_num = pdev->num_resources;
 	if (vid_dev->node_num > MAX_SUB_DEV_NODE)
 		vid_dev->node_num = MAX_SUB_DEV_NODE;
@@ -6347,8 +6346,10 @@ static int amlvideo2_create_node(struct platform_device *pdev, int node_id)
 	vid_node->aml2_canvas[1] = -1;
 	vid_node->aml2_canvas[2] = -1;
 	vid_dev->node[node_id] = vid_node;
-	v4l2_info(&vid_dev->v4l2_dev, "V4L2 device registered as %s\n",
-		video_device_node_name(vfd));
+	if (vid_dev->node_num == node_id + 1)
+		v4l2_info(&vid_dev->v4l2_dev,
+			  "V4L2 device registered as %s\n",
+			  video_device_node_name(vfd));
 	gAmlvideo2_Node[node_id] = vid_node;
 
 	if (ret)
@@ -6370,8 +6371,6 @@ static int amlvideo2_driver_probe(struct platform_device *pdev)
 	memset(dev, 0, sizeof(struct amlvideo2_device));
 	snprintf(dev->v4l2_dev.name, sizeof(dev->v4l2_dev.name), "%s",
 			AVMLVIDEO2_MODULE_NAME);
-
-	pr_err("amlvideo2 probe called\n");
 
 	pdev->num_resources = MAX_SUB_DEV_NODE;
 	platform_set_drvdata(pdev, &(dev->v4l2_dev));

@@ -1095,8 +1095,9 @@ static int __init ionvideo_create_instance(int inst)
 			dev->vf_receiver_name,
 			&video_vf_receiver, dev);
 	vf_reg_receiver(&dev->video_vf_receiver);
-	v4l2_info(&dev->v4l2_dev, "V4L2 device registered as %s\n",
-		video_device_node_name(vfd));
+	if (inst == n_devs - 1 || inst == 0)
+		v4l2_info(&dev->v4l2_dev, "V4L2 device registered as %s\n",
+			  video_device_node_name(vfd));
 
 	/* add to device list */
 	flags = ionvideo_devlist_lock();
@@ -1389,10 +1390,6 @@ static int ionvideo_driver_probe(struct platform_device *pdev)
 		IONVID_ERR("ionvideo: error %d while loading driver\n", ret);
 		return ret;
 	}
-
-	IONVID_INFO("Video Technology Magazine Ion Video\n");
-	IONVID_INFO("Capture Board ver %s successfully loaded\n",
-	IONVIDEO_VERSION);
 
 	/* n_devs will reflect the actual number of allocated devices */
 	n_devs = i;
