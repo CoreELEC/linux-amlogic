@@ -1367,7 +1367,7 @@
 		#size-cells=<1>;
 		ranges;
 		io_cbus_base{
-			reg = <0x0 0x0>;
+			reg = <0xfe002000 0x2000>;
 		};
 		io_dos_base{
 			reg = <0xfe320000 0x10000>;
