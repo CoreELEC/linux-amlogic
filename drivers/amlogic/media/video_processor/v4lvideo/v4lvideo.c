@@ -970,9 +970,12 @@ static s32 v4lvideo_import_sei_data(
 			p = vmalloc(req.aux_size);
 			if (p) {
 				memcpy(p, req.aux_buf, req.aux_size);
-				ret = update_vframe_src_fmt(
-					dup_vf, (void *)p, (u32)req.aux_size,
-					req.dv_enhance_exist ? true : false);
+
+				ret = update_vframe_src_fmt(dup_vf, (void *)p,
+							    (u32)req.aux_size,
+							    req.dv_enhance_exist
+							    ? true : false,
+							    provider, NULL);
 				if (!ret) {
 				/* FIXME: work around for sei/el out of sync */
 					if ((dup_vf->src_fmt.fmt ==
@@ -985,8 +988,9 @@ static s32 v4lvideo_import_sei_data(
 					vfree(p);
 				}
 			} else {
-				ret = update_vframe_src_fmt(
-					dup_vf, NULL, 0, false);
+				ret = update_vframe_src_fmt(dup_vf, NULL,
+							    0, false,
+							    provider, NULL);
 			}
 			fmt_update = true;
 			break;
@@ -996,7 +1000,8 @@ static s32 v4lvideo_import_sei_data(
 		}
 	}
 	if (!fmt_update) {
-		ret = update_vframe_src_fmt(dup_vf, NULL, 0, false);
+		ret = update_vframe_src_fmt(dup_vf, NULL, 0,
+					    false, provider, NULL);
 		if ((alloc_sei & 2) && max_count > 1)
 			pr_info("try %d, no aux data\n", try_count);
 	}

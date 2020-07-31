@@ -5309,6 +5309,10 @@ static int parse_sei_and_meta(
 		if (debug_dolby & 4)
 			pr_dolby_dbg("metadata type=%08x, size=%d:\n",
 				     type, size);
+		if (size == 0 || size > req->aux_size) {
+			pr_dolby_dbg("invalid aux size %d\n", size);
+			return 1;
+		}
 		if ((type == 0x01000000) || /* hevc t35 sei */
 		((type & 0xff000000) == 0x14000000)) { /* av1 t35 obu */
 			*total_comp_size = 0;

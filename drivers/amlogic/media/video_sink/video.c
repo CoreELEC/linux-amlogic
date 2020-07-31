@@ -185,6 +185,7 @@ static bool dovi_drop_flag;
 static int dovi_drop_frame_num;
 
 #define RECEIVER_NAME "amvideo"
+static char dv_provider[32] = "dvbldec";
 
 static s32 amvideo_poll_major;
 /*static s8 dolby_first_delay;*/ /* for bug 145902 */
@@ -6065,7 +6066,8 @@ static int check_media_sei(char *sei, u32 sei_size, u32 sei_type)
 
 s32 update_vframe_src_fmt(
 	struct vframe_s *vf, void *sei,
-	u32 size, bool dual_layer)
+	u32 size, bool dual_layer,
+	char *prov_name, char *recv_name)
 {
 	if (!vf)
 		return -1;
@@ -6082,6 +6084,12 @@ s32 update_vframe_src_fmt(
 		if (dual_layer || check_media_sei(sei, size, DV_SEI)) {
 			vf->src_fmt.fmt = VFRAME_SIGNAL_FMT_DOVI;
 			vf->src_fmt.dual_layer = dual_layer;
+			if (prov_name && strcmp(prov_name, dv_provider)) {
+				if (debug_flag & DEBUG_FLAG_OMX_DV_DROP_FRAME)
+					pr_info("ignore dv sei from %s\n",
+						prov_name);
+				clear_vframe_src_fmt(vf);
+			}
 		}
 	}
 
