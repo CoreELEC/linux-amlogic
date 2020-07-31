@@ -4986,6 +4986,9 @@ bool is_dovi_dual_layer_frame(struct vframe_s *vf)
 	if (!vf)
 		return false;
 
+	if (is_meson_sc2() && !enable_fel)
+		return false;
+
 	fmt = get_vframe_src_fmt(vf);
 	/* valid src_fmt = DOVI or invalid src_fmt will check dual layer */
 	/* otherwise, it certainly is a non-dv vframe */
@@ -6425,17 +6428,27 @@ int dolby_vision_parse_metadata(
 			/* use aux date first, if invaild, use sei_ptr */
 			if ((!req.aux_buf || !req.aux_size) &&
 			    (fmt == VFRAME_SIGNAL_FMT_DOVI)) {
+				if (debug_dolby & 1)
+					pr_dolby_dbg("invalid aux buf %p %x, el %d\n",
+						     req.aux_buf,
+						     req.aux_size,
+						     req.dv_enhance_exist);
+
 				sei = (char *)get_sei_from_src_fmt(
 					vf, &sei_size);
 				if (sei && sei_size) {
 					req.aux_buf = sei;
 					req.aux_size = sei_size;
+					req.dv_enhance_exist =
+						vf->src_fmt.dual_layer;
 				}
 			}
 		}
 		if (debug_dolby & 1)
-			pr_dolby_dbg("dvbldec get aux data %p 0x%x, el %d\n",
-				     req.aux_buf, req.aux_size,
+			pr_dolby_dbg("dvbldec get vf %p, fmt %d, aux data %p %x, el %d\n",
+				     vf, fmt,
+				     req.aux_buf,
+				     req.aux_size,
 				     req.dv_enhance_exist);
 		/* parse meta in base layer */
 		if (toggle_mode != 2) {
@@ -6529,7 +6542,8 @@ int dolby_vision_parse_metadata(
 			&& !req.dv_enhance_exist)
 			memset(&req, 0, sizeof(req));
 		if (req.dv_enhance_exist &&
-			(toggle_mode == 1)) {
+		    (toggle_mode == 1) &&
+		    (!(is_meson_sc2() && !enable_fel))) {
 			el_vf = dvel_vf_get();
 			if (el_vf &&
 			((el_vf->pts_us64 == vf->pts_us64)
