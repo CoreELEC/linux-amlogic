@@ -139,6 +139,7 @@ unsigned int atv_source_flg;
 #define VDJ_FLAG_SAT_HUE_POST		BIT(3)
 #define VDJ_FLAG_CONTRAST		BIT(4)
 #define VDJ_FLAG_CONTRAST2		BIT(5)
+#define VDJ_FLAG_VADJ_EN        BIT(6)
 
 static int vdj_mode_flg;
 struct am_vdj_mode_s vdj_mode_s;
@@ -336,6 +337,60 @@ static int __init amvecm_load_pq_val(char *str)
 	return 0;
 }
 __setup("pq=", amvecm_load_pq_val);
+
+void amvecm_vadj_latch_process(void)
+{
+	/*vadj switch control according to vadj1_en/vadj2_en*/
+	unsigned int cur_vadj1_en, cur_vadj2_en;
+	unsigned int vadj1_en = vdj_mode_s.vadj1_en;
+	unsigned int vadj2_en = vdj_mode_s.vadj2_en;
+
+	if (vecm_latch_flag & FLAG_VADJ_EN) {
+		vecm_latch_flag &= ~FLAG_VADJ_EN;
+		if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A) {
+			cur_vadj1_en = READ_VPP_REG_BITS(VPP_VADJ1_MISC, 0, 1);
+			cur_vadj2_en = READ_VPP_REG_BITS(VPP_VADJ2_MISC, 0, 1);
+			if (cur_vadj1_en != vadj1_en) {
+				VSYNC_WR_MPEG_REG_BITS(
+					VPP_VADJ1_MISC, vadj1_en, 0, 1);
+				pr_info("[amvecm.]vadj1 switch[%d->%d]success.\n",
+					cur_vadj1_en, vadj1_en);
+			} else {
+				pr_info("[amvecm.] vadj1_en status unchanged.\n");
+			}
+
+			if (cur_vadj2_en != vadj2_en) {
+				VSYNC_WR_MPEG_REG_BITS(
+					VPP_VADJ2_MISC, vadj2_en, 0, 1);
+				pr_info("[amvecm.] vadj2 switch [%d->%d] success.\n",
+					cur_vadj2_en, vadj2_en);
+			} else {
+				pr_info("[amvecm.] vadj2_en status unchanged.\n");
+			}
+		} else {
+			cur_vadj1_en = READ_VPP_REG_BITS(VPP_VADJ_CTRL, 0, 1);
+			cur_vadj2_en = READ_VPP_REG_BITS(VPP_VADJ_CTRL, 2, 1);
+
+			if (cur_vadj1_en != vadj1_en) {
+				VSYNC_WR_MPEG_REG_BITS(
+					VPP_VADJ_CTRL, vadj1_en, 0, 1);
+				pr_info("[amvecm] vadj1 switch [%d->%d] success.\n",
+					cur_vadj1_en, vadj1_en);
+			} else {
+				pr_info("[amvecm] vadj1_en status unchanged.\n");
+			}
+
+			if (cur_vadj2_en != vadj2_en) {
+				VSYNC_WR_MPEG_REG_BITS(
+					VPP_VADJ_CTRL, vadj2_en, 2, 1);
+				pr_info("[amvecm] vadj2 switch [%d->%d] success.\n",
+					cur_vadj2_en, vadj2_en);
+			} else {
+				pr_info("[amvecm] vadj2_en status unchanged.\n");
+			}
+		}
+	}
+}
 
 static int amvecm_set_contrast2(int val)
 {
@@ -1059,6 +1114,9 @@ void amvecm_video_latch(void)
 	pq_user_latch_process();
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1))
 		ve_lc_latch_process();
+
+	/* ioc vadj1/2 switch */
+	amvecm_vadj_latch_process();
 }
 
 static void amvecm_overscan_process(
@@ -1741,6 +1799,13 @@ static long amvecm_ioctl(struct file *file,
 			break;
 		}
 		vdj_mode_flg = vdj_mode_s.flag;
+		/*vadj switch control according to vadj1_en/vadj2_en*/
+		if (vdj_mode_flg & VDJ_FLAG_VADJ_EN) {
+			pr_info("IOC--vadj1_en=%d,vadj2_en=%d.\n",
+				vdj_mode_s.vadj1_en, vdj_mode_s.vadj2_en);
+			vecm_latch_flag |= FLAG_VADJ_EN;
+		}
+
 		if (vdj_mode_flg & VDJ_FLAG_BRIGHTNESS) { /*brightness*/
 			vd1_brightness = vdj_mode_s.brightness;
 			vecm_latch_flag |= FLAG_VADJ1_BRI;

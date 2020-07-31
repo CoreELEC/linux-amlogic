@@ -50,7 +50,7 @@
 #define FLAG_GAMMA_TABLE_G      (1 << 12)
 #define FLAG_GAMMA_TABLE_B      (1 << 11)
 #define FLAG_RGB_OGO            (1 << 10)
-#define FLAG_RSV9               (1 <<  9)
+#define FLAG_VADJ_EN            BIT(9)
 #define FLAG_MATRIX_UPDATE      (1 <<  8)
 #define FLAG_BRI_CON            (1 <<  7)
 #define FLAG_LVDS_FREQ_SW       (1 <<  6)
@@ -276,6 +276,8 @@ struct am_vdj_mode_s {
 	int saturation_hue_post;
 	int contrast;
 	int contrast2;
+	int vadj1_en;  /*vadj1 enable: 1 enable  0 disable*/
+	int vadj2_en;
 };
 
 enum color_primary_e {
