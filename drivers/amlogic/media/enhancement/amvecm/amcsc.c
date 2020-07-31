@@ -6634,19 +6634,17 @@ static void hdr_support_process(struct vinfo_s *vinfo, enum vd_path_e vd_path)
 		hlg_process_mode[vd_path] = PROC_MATCH;
 		hdr10_plus_process_mode[vd_path] = PROC_MATCH;
 	} else {
-		if (sink_hdr_support(vinfo) & HDR_SUPPORT)
-			hdr_process_mode[vd_path] = PROC_BYPASS;
-		else
-			hdr_process_mode[vd_path] = PROC_MATCH;
-		if ((sink_hdr_support(vinfo) & HLG_SUPPORT) ||
-		(force_pure_hlg[vd_path]))
+		hdr_process_mode[vd_path] = PROC_BYPASS;
+		if (sink_hdr_support(vinfo) & HDR_SUPPORT) {
+			if ((force_pure_hlg[vd_path]) ||
+			    (sink_hdr_support(vinfo) & HLG_SUPPORT))
+				hlg_process_mode[vd_path] = PROC_BYPASS;
+			else  /* hlg->hdr10*/
+				hlg_process_mode[vd_path] = PROC_MATCH;
+		} else {
 			hlg_process_mode[vd_path] = PROC_BYPASS;
-		else
-			hlg_process_mode[vd_path] = PROC_MATCH;
-		if (tx_hdr10_plus_support)
-			hdr10_plus_process_mode[vd_path] = PROC_BYPASS;
-		else
-			hdr10_plus_process_mode[vd_path] = PROC_MATCH;
+		}
+		hdr10_plus_process_mode[vd_path] = PROC_BYPASS;
 	}
 
 	if (sdr_mode == 2) { /* auto */
