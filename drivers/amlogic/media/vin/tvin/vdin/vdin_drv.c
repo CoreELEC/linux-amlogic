@@ -3611,7 +3611,9 @@ static const struct of_device_id vdin_dt_match[] = {
 	{
 		.compatible = "amlogic, vdin-sc2",
 		.data = &vdin_dt_sc2,
-	}
+	},
+	/* DO NOT remove to avoid scan error of KASAN */
+	{}
 };
 
 static const unsigned int vdin_event_sts[] = {
