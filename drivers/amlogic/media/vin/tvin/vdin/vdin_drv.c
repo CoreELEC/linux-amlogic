@@ -3702,8 +3702,6 @@ static int vdin_drv_probe(struct platform_device *pdev)
 	vdin_rdma_op[vdevp->index].arg = vdevp;
 	vdevp->rdma_handle = rdma_register(&vdin_rdma_op[vdevp->index],
 				NULL, RDMA_TABLE_SIZE);
-	pr_info("%s:vdin.%d rdma hanld %d.\n", __func__, vdevp->index,
-			vdevp->rdma_handle);
 #endif
 	/* create cdev and reigser with sysfs */
 	ret = vdin_add_cdev(&vdevp->cdev, &vdin_fops, vdevp->index);
@@ -3724,9 +3722,7 @@ static int vdin_drv_probe(struct platform_device *pdev)
 		goto fail_create_dev_file;
 	}
 	ret = of_reserved_mem_device_init(&pdev->dev);
-	if (ret == 0)
-		pr_info("\n vdin memory resource done.\n");
-	else
+	if (ret)
 		pr_info("\n vdin memory resource undefined!!\n");
 
 	/*got the dt match data*/
@@ -3759,8 +3755,6 @@ static int vdin_drv_probe(struct platform_device *pdev)
 		vdevp->this_pdev = pdev;
 		vdevp->cma_mem_alloc = 0;
 		vdevp->cma_config_en = 1;
-		pr_info("vdin%d cma_mem_size = %d MB\n", vdevp->index,
-				(u32)vdevp->cma_mem_size/SZ_1M);
 	}
 #endif
 	use_reserved_mem = 0;
@@ -3768,8 +3762,6 @@ static int vdin_drv_probe(struct platform_device *pdev)
 	if (vdevp->cma_config_en != 1) {
 		vdevp->mem_start = mem_start;
 		vdevp->mem_size = mem_end - mem_start + 1;
-		pr_info("vdin%d mem_start = 0x%lx, mem_size = 0x%x\n",
-			vdevp->index, vdevp->mem_start, vdevp->mem_size);
 	}
 
 	/* get irq from resource */
@@ -3804,9 +3796,6 @@ static int vdin_drv_probe(struct platform_device *pdev)
 		pr_err("don't find  match rdma irq, disable rdma\n");
 		vdevp->rdma_irq = 0;
 	}
-	pr_info("vdin%d irq: %d rdma irq: %d vpu crash irq: %d\n",
-		vdevp->index, vdevp->irq, vdevp->rdma_irq,
-		vdevp->vpu_crash_irq);
 
 	/*set color_depth_mode*/
 	ret = of_property_read_u32(pdev->dev.of_node,
@@ -3855,12 +3844,8 @@ static int vdin_drv_probe(struct platform_device *pdev)
 	ret = of_property_read_u32(pdev->dev.of_node,
 		"set_canvas_manual", &vdevp->set_canvas_manual);
 
-	if (ret) {
+	if (ret)
 		vdevp->set_canvas_manual = 0;
-		pr_info("set_canvas_manual = 0\n");
-	} else {
-		pr_info("set_canvas_manual = %d\n", vdevp->set_canvas_manual);
-	}
 
 	vdevp->urgent_en = of_property_read_bool(pdev->dev.of_node,
 		"urgent_en");
@@ -3876,8 +3861,6 @@ static int vdin_drv_probe(struct platform_device *pdev)
 				   &vdevp->frame_buff_num);
 	if (ret)
 		vdevp->frame_buff_num = 0;
-	else
-		pr_info("frame_buff_num = %d\n", vdevp->frame_buff_num);
 
 	/* init vdin parameters */
 	vdevp->flags = VDIN_FLAG_NULL;
@@ -4197,7 +4180,6 @@ static int __init vdin_drv_init(void)
 		pr_err("%s: failed to allocate major number\n", __func__);
 		goto fail_alloc_cdev_region;
 	}
-	pr_info("%s: major %d\n", __func__, MAJOR(vdin_devno));
 
 	vdin_clsp = class_create(THIS_MODULE, VDIN_CLS_NAME);
 	if (IS_ERR_OR_NULL(vdin_clsp)) {

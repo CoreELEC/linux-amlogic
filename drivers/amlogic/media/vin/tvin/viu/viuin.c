@@ -511,7 +511,6 @@ static int viuin_probe(struct platform_device *pdev)
 					__func__);
 	}
 	platform_set_drvdata(pdev, viuin_devp);
-	pr_info("[viuin..]%s probe ok.\n", __func__);
 	return 0;
 }
 
@@ -538,7 +537,6 @@ static struct platform_device *viuin_device;
 
 static int __init viuin_init_module(void)
 {
-	pr_info("[viuin..]%s viuin module init\n", __func__);
 	viuin_device = platform_device_alloc(DEVICE_NAME, 0);
 	if (!viuin_device) {
 		pr_err("[viuin..]%s failed to alloc viuin_device.\n",
@@ -559,6 +557,7 @@ static int __init viuin_init_module(void)
 		return -ENODEV;
 	}
 
+	pr_info("[viuin..]%s done\n", __func__);
 	return 0;
 }
 

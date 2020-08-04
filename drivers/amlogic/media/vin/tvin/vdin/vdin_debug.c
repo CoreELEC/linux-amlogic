@@ -1021,6 +1021,7 @@ static void vdin_dump_state(struct vdin_dev_s *devp)
 		devp->vfp->dv_vsif.auxiliary_runmode,
 		devp->vfp->dv_vsif.auxiliary_runversion,
 		devp->vfp->dv_vsif.auxiliary_debug0);
+	pr_info("rdma handle : %d\n", devp->rdma_handle);
 	pr_info("Vdin driver version :  %s\n", VDIN_VER);
 	vdin_dump_vs_info(devp);
 }
@@ -3022,10 +3023,8 @@ void vdin_debugfs_init(struct vdin_dev_s *vdevp)
 
 	nub = vdevp->index;
 
-	if (nub > 0) {
-		pr_info("%s only support debug vdin0 %d\n", __func__, nub);
+	if (nub > 0)
 		return;
-	}
 
 	if (vdevp->dbg_root)
 		return;
@@ -3052,10 +3051,8 @@ void vdin_debugfs_exit(struct vdin_dev_s *vdevp)
 	unsigned int nub;
 
 	nub = vdevp->index;
-	if (nub > 0) {
-		pr_info("%s only support debug vdin0 %d\n", __func__, nub);
+	if (nub > 0)
 		return;
-	}
 
 	debugfs_remove(vdevp->dbg_root);
 }
