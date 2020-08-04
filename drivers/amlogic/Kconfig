@@ -148,8 +148,6 @@ source "drivers/amlogic/pixel_probe/Kconfig"
 
 source "drivers/amlogic/firmware/Kconfig"
 
-source "drivers/amlogic/uvm/Kconfig"
-
 source "drivers/amlogic/reset/Kconfig"
 
 source "drivers/amlogic/dvb/Kconfig"

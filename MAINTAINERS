@@ -15380,3 +15380,9 @@ AMLOGIC driver for unifyky normal key
 M: Fushan Zeng <fushan.zeng@amlogic.com>
 F: drivers/amlogic/unifykey/normal_key.c
 F: drivers/amlogic/unifykey/normal_key.h
+
+AMLOGIC driver for uvm
+M: Ao Xu <ao.xu@amlogic.com>
+F: drivers/amlogic/uvm
+F: drivers/amlogic/media/common/uvm
+F: include/linux/amlogic/meson_uvm_core.h
