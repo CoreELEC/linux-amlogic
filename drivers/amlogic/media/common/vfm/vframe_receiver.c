@@ -39,11 +39,13 @@ int receiver_list(char *buf)
 	int i = 0;
 
 	len += sprintf(buf + len, "\nreceiver list:\n");
+	mutex_lock(&mutex);
 	for (i = 0; i < MAX_RECEIVER_NUM; i++) {
 		r = receiver_table[i];
 		if (r)
 			len += sprintf(buf + len, "   %s\n", r->name);
 	}
+	mutex_unlock(&mutex);
 
 	return len;
 }
