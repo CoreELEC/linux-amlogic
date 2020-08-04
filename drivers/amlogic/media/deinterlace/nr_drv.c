@@ -881,7 +881,12 @@ void adaptive_cue_adjust(unsigned int frame_diff, unsigned int field_diff)
 		return;
 
 	//if (is_meson_tl1_cpu() || is_meson_tm2_cpu()) {
-	if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12B)) {
+	if (cpu_after_eq(MESON_CPU_MAJOR_ID_SC2)) {
+		/*value from VLSI(yanling.liu)*/
+		/*after SC2 need new setting 2020-08-04: */
+		mask1 = 0x50362;
+		mask2 = 0x00054357;
+	} else if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12B)) {
 		/*value from VLSI(yanling.liu) 2018-12-07: */
 		/*after G12B need new setting 2019-06-24: */
 		mask1 = 0x50332;
