@@ -1306,6 +1306,7 @@ void tsync_pcr_avevent_locked(enum avevent_e event, u32 param)
 
 	case VIDEO_TSTAMP_DISCONTINUITY:{
 		unsigned int systime;
+		unsigned int demux_pcr;
 		if (tsync_pcr_debug & 0x03)
 			pr_info("VIDEO_TSTAMP_DISCONTINUITY param:0x%x\n",
 				param);
@@ -1335,11 +1336,13 @@ void tsync_pcr_avevent_locked(enum avevent_e event, u32 param)
 					timestamp_pcrscr_set(param);
 			} else {
 				systime = timestamp_pcrscr_get();
+				tsync_get_demux_pcr(&demux_pcr);
 				if (tsync_pcr_debug & 0x03) {
-					pr_info("unused sys=0x%x, param=0x%x\n",
-						systime, param);
+					pr_info("sys=%x, param=%x, pcr=%x\n",
+						systime, param, demux_pcr);
 				}
-				if (systime > param && tsync_demux_pcr_valid)
+				if ((demux_pcr + 90000 > param) &&
+				    systime > param && tsync_demux_pcr_valid)
 					tsync_set_pcr_mode(1, param);
 				else
 					timestamp_pcrscr_set(param);
