@@ -10048,10 +10048,8 @@ static ssize_t pre_hscaler_ntap_enable_store(
 	if (ret < 0)
 		return -EINVAL;
 
-	if (amvideo_meson_dev.pre_hscaler_ntap_en &&
-	    (pre_hscaler_ntap_en != pre_hscaler_ntap_enable)) {
+	if (pre_hscaler_ntap_en != pre_hscaler_ntap_enable)
 		pre_hscaler_ntap_enable = pre_hscaler_ntap_en;
-	}
 	return count;
 }
 
@@ -10676,7 +10674,7 @@ static struct amvideo_device_data_s amvideo_tm2_revb = {
 static struct amvideo_device_data_s amvideo_sc2 = {
 	.cpu_type = MESON_CPU_MAJOR_ID_SC2_,
 	.hscaler_8tap_en = 1,
-	.pre_hscaler_ntap_en = 1,
+	.pre_hscaler_ntap_en = 0,
 };
 
 static const struct of_device_id amlogic_amvideom_dt_match[] = {

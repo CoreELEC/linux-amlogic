@@ -180,6 +180,7 @@ enum {
 #define VPP_PHASECTL_INIRCVNUMT_BIT 0
 
 #define VPP_PPS_LAST_LINE_FIX_BIT     24
+#define VPP_SC_PREHORZ_EN_BIT_OLD       23
 #define VPP_LINE_BUFFER_EN_BIT          21
 #define VPP_SC_PREHORZ_EN_BIT           20
 #define VPP_SC_PREVERT_EN_BIT           19

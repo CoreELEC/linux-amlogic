@@ -2044,9 +2044,23 @@ static void vd1_scaler_setting(
 
 		sc_misc_val = VPP_SC_TOP_EN | VPP_SC_V1OUT_EN;
 		if (setting->sc_h_enable) {
-			sc_misc_val |= (((vpp_filter->vpp_pre_hsc_en & 1)
-				<< VPP_SC_PREHORZ_EN_BIT)
-				| VPP_SC_HORZ_EN);
+			if (cpu_after_eq(MESON_CPU_MAJOR_ID_SC2)) {
+				if (pre_hscaler_ntap_enable) {
+					sc_misc_val |=
+					(((vpp_filter->vpp_pre_hsc_en & 1)
+					<< VPP_SC_PREHORZ_EN_BIT)
+					| VPP_SC_HORZ_EN);
+				} else {
+					sc_misc_val |=
+					(((vpp_filter->vpp_pre_hsc_en & 1)
+					<< VPP_SC_PREHORZ_EN_BIT_OLD)
+					| VPP_SC_HORZ_EN);
+				}
+			} else
+				sc_misc_val |=
+					(((vpp_filter->vpp_pre_hsc_en & 1)
+					<< VPP_SC_PREHORZ_EN_BIT)
+					| VPP_SC_HORZ_EN);
 			if (hscaler_8tap_enable) {
 				sc_misc_val |=
 				((vpp_filter->vpp_horz_coeff[0] & 0xf)
@@ -2150,9 +2164,9 @@ static void vd1_scaler_setting(
 			VPP_HSC_TOP_INI_PHASE_BIT,
 			VPP_HSC_TOP_INI_PHASE_WID);
 		if (cpu_after_eq(MESON_CPU_MAJOR_ID_SC2)) {
-			int flt_num = 2;
+			int flt_num = 4;
 			int pre_hscaler_table[4] = {
-				0x0, 0x0, 0x0, 0x40};
+				0x0, 0x0, 0xf8, 0x48};
 
 			VSYNC_WR_MPEG_REG_BITS(
 				VPP_HSC_PHASE_CTRL1 + misc_off,
@@ -2186,13 +2200,6 @@ static void vd1_scaler_setting(
 				hsc_rpt_p0_num0,
 				VPP_HSC_INIRPT_NUM_BIT_8TAP,
 				VPP_HSC_INIRPT_NUM_WID_8TAP);
-			if (pre_hscaler_ntap_enable) {
-				flt_num = 4;
-				pre_hscaler_table[0] = 0;
-				pre_hscaler_table[1] = 0;
-				pre_hscaler_table[2] = 0xf8;
-				pre_hscaler_table[3] = 0x48;
-			}
 
 			VSYNC_WR_MPEG_REG_BITS(
 				VPP_PREHSC_COEF + misc_off,
@@ -2365,9 +2372,23 @@ static void vd2_scaler_setting(
 
 		sc_misc_val = VPP_SC_TOP_EN | VPP_SC_V1OUT_EN;
 		if (setting->sc_h_enable) {
-			sc_misc_val |= (((vpp_filter->vpp_pre_hsc_en & 1)
-				<< VPP_SC_PREHORZ_EN_BIT)
-				| VPP_SC_HORZ_EN);
+			if (cpu_after_eq(MESON_CPU_MAJOR_ID_SC2)) {
+				if (pre_hscaler_ntap_enable) {
+					sc_misc_val |=
+					(((vpp_filter->vpp_pre_hsc_en & 1)
+					<< VPP_SC_PREHORZ_EN_BIT)
+					| VPP_SC_HORZ_EN);
+				} else {
+					sc_misc_val |=
+					(((vpp_filter->vpp_pre_hsc_en & 1)
+					<< VPP_SC_PREHORZ_EN_BIT_OLD)
+					| VPP_SC_HORZ_EN);
+				}
+			} else
+				sc_misc_val |=
+					(((vpp_filter->vpp_pre_hsc_en & 1)
+					<< VPP_SC_PREHORZ_EN_BIT)
+					| VPP_SC_HORZ_EN);
 			if (hscaler_8tap_enable)
 				sc_misc_val |=
 					((vpp_filter->vpp_horz_coeff[0] & 0xf)
@@ -2452,9 +2473,9 @@ static void vd2_scaler_setting(
 			VPP_HSC_TOP_INI_PHASE_BIT,
 			VPP_HSC_TOP_INI_PHASE_WID);
 		if (cpu_after_eq(MESON_CPU_MAJOR_ID_SC2)) {
-			int flt_num = 2;
+			int flt_num = 4;
 			int pre_hscaler_table[4] = {
-				0x0, 0x0, 0x0, 0x40};
+				0x0, 0x0, 0xf8, 0x48};
 
 			VSYNC_WR_MPEG_REG_BITS(
 				VD2_HSC_PHASE_CTRL1 + misc_off,
@@ -2488,13 +2509,6 @@ static void vd2_scaler_setting(
 				hsc_rpt_p0_num0,
 				VPP_HSC_INIRPT_NUM_BIT_8TAP,
 				VPP_HSC_INIRPT_NUM_WID_8TAP);
-			if (pre_hscaler_ntap_enable) {
-				flt_num = 4;
-				pre_hscaler_table[0] = 0;
-				pre_hscaler_table[1] = 0;
-				pre_hscaler_table[2] = 0xf8;
-				pre_hscaler_table[3] = 0x48;
-			}
 
 			VSYNC_WR_MPEG_REG_BITS(
 				VD2_PREHSC_COEF + misc_off,
