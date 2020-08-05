@@ -10,3 +10,4 @@ obj-$(CONFIG_AMLOGIC_VPU)	+=	vpu/
 obj-$(CONFIG_AMLOGIC_VIDEOBUF_RESOURCE)	+= v4l_util/
 obj-$(CONFIG_AMLOGIC_MEDIA_LUT_DMA)	+= lut_dma/
 obj-$(CONFIG_AMLOGIC_MEDIA_RESMANAGE)	+=	resource_mgr/
+obj-$(CONFIG_AMLOGIC_MEDIA_SECURITY) += vpu_security/
