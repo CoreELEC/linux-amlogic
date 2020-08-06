@@ -180,7 +180,7 @@ enum ca_sc2_key_type {
 struct ca_sc2_key_t {
 	unsigned int ca_index;
 	enum ca_sc2_key_type parity;
-	int key_index;
+	unsigned int key_index;
 };
 
 /**
