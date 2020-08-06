@@ -1460,6 +1460,35 @@ static int malloc_osd_memory(struct fb_info *info)
 	return 0;
 }
 
+static void free_osd_memory(struct fb_info *info)
+{
+	u32 i = 0, index = 0;
+	struct osd_fb_dev_s *fbdev;
+
+	if (info->screen_base) {
+		fbdev = (struct osd_fb_dev_s *)info->par;
+		index = fbdev->fb_index;
+		for (i = 0; i < OSD_MAX_BUF_NUM; i++) {
+			if (fb_ion_client &&
+			    fb_ion_handle[index][i]) {
+			ion_unmap_kernel(fb_ion_client,
+					 fb_ion_handle[index][i]);
+			ion_free(fb_ion_client,
+				 fb_ion_handle[index][i]);
+			osd_log_info(
+				"free ion_client %px, handle=%p\n",
+				fb_ion_client,
+				fb_ion_handle[index][i]);
+			fb_ion_handle[index][i] = NULL;
+			}
+		}
+		fbdev->fb_len = 0;
+		fbdev->fb_mem_paddr = 0;
+		fbdev->fb_mem_vaddr = NULL;
+		info->screen_base = NULL;
+	}
+}
+
 static int osd_open(struct fb_info *info, int arg)
 {
 	u32 fb_index;
@@ -1842,8 +1871,8 @@ static int osd_release(struct fb_info *info, int arg)
 			fbdev->fb_index);
 		goto done;
 	} else if (fbdev->open_count == 1) {
-	osd_log_info("osd_release now.index=%d,open_count=%d\n",
-		fbdev->fb_index, fbdev->open_count);
+		osd_log_info("osd_release now.index=%d,open_count=%d\n",
+			     fbdev->fb_index, fbdev->open_count);
 	}
 	fbdev->open_count--;
 done:
@@ -3567,7 +3596,31 @@ static ssize_t store_osd_display_fb(struct device *device,
 	if (ret < 0)
 		return -EINVAL;
 	osd_set_display_fb(fb_info->node, res);
+	return count;
+}
 
+static ssize_t show_free_fb_mem(struct device *device,
+				struct device_attribute *attr,
+				char *buf)
+{
+	struct fb_info *fb_info = dev_get_drvdata(device);
+
+	return snprintf(buf, PAGE_SIZE, "%d\n",
+		osd_hw.fb_mem_free[fb_info->node]);
+}
+
+static ssize_t store_free_fb_mem(struct device *device,
+				 struct device_attribute *attr,
+				 const char *buf, size_t count)
+{
+	struct fb_info *fb_info = dev_get_drvdata(device);
+	int ret;
+
+	ret = kstrtoint(buf, 0, &osd_hw.fb_mem_free[fb_info->node]);
+	if (ret < 0)
+		return -EINVAL;
+	if (osd_hw.fb_mem_free[fb_info->node])
+		free_osd_memory(fb_info);
 	return count;
 }
 
@@ -3803,7 +3856,8 @@ static struct device_attribute osd_attrs[] = {
 	       show_osd_reg_check, store_osd_reg_check),
 	__ATTR(osd_display_fb, 0644,
 	       show_osd_display_fb, store_osd_display_fb),
-
+	__ATTR(free_fb_mem, 0644,
+	       show_free_fb_mem, store_free_fb_mem),
 };
 
 static struct device_attribute osd_attrs_viu2[] = {

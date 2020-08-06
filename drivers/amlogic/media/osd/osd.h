@@ -809,6 +809,7 @@ struct hw_para_s {
 	u32 secure_src;
 	u32 rdma_delayed_cnt;
 	u32 osd_reg_check;
+	u32 fb_mem_free[HW_OSD_COUNT];
 	struct hw_debug_s osd_debug;
 	int out_fence_fd[VIU_COUNT];
 	int in_fd[HW_OSD_COUNT];
