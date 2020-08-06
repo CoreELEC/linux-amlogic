@@ -73,7 +73,7 @@ static int meson_uvm_fill_pattern(struct mua_buffer *buffer,
 	val_data.height = buffer->height;
 	val_data.phy_addr[0] = buffer->paddr;
 
-	//v4lvideo_data_copy(&val_data, dmabuf);
+	v4lvideo_data_copy(&val_data, dmabuf);
 
 	vunmap(vaddr);
 	return 0;

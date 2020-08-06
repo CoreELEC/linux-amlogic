@@ -21,6 +21,8 @@
 #define V4LVIDEO_FLAG_DI_NR      1
 #define V4LVIDEO_FLAG_DI_DEC     2
 
+#include <linux/dma-buf.h>
+
 int v4lvideo_assign_map(char **receiver_name, int *inst);
 
 int v4lvideo_alloc_map(int *inst);
@@ -61,9 +63,11 @@ struct v4l_data_t {
 	uint32_t height;
 };
 
-void v4lvideo_data_copy(struct v4l_data_t *v4l_data);
+void v4lvideo_data_copy(struct v4l_data_t *v4l_data, struct dma_buf *dmabuf);
 struct file_private_data *v4lvideo_get_vf(int fd);
 void dim_post_keep_cmd_release2(struct vframe_s *vframe);
+int is_v4lvideo_buf_file(struct file *file);
+
 
 #endif /* V4LVIDEO_EXT_H */
 
