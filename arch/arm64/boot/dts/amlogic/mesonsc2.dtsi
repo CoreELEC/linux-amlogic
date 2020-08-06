@@ -462,7 +462,7 @@
 		phy20-reset-level-bit = <8>;
 		phy21-reset-level-bit = <9>;
 		usb-reset-bit = <4>;
-		reset-level = <40>;
+		reset-level = <0x40>;
 	};
 
 	usb3_phy_v2: usb3phy@fe03a080 {
