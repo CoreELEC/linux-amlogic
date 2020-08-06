@@ -49,79 +49,28 @@ static u32 video_composer_instance_num;
 static unsigned int force_composer;
 static unsigned int vc_active[2];
 static unsigned int countinue_vsync_count[2];
-
-MODULE_PARM_DESC(force_composer, "\n vidc_bypass\n");
-module_param(force_composer, uint, 0664);
-
 static unsigned int force_composer_pip;
-MODULE_PARM_DESC(force_composer_pip, "\n vidc_pip_bypass\n");
-module_param(force_composer_pip, uint, 0664);
-
 static unsigned int transform;
-MODULE_PARM_DESC(transform, "\n transform\n");
-module_param(transform, uint, 0664);
-
 static unsigned int vidc_debug;
-MODULE_PARM_DESC(vidc_debug, "\n vidc_debug\n");
-module_param(vidc_debug, uint, 0664);
-
 static unsigned int vidc_pattern_debug;
-MODULE_PARM_DESC(vidc_pattern_debug, "\n vidc_pattern_debug\n");
-module_param(vidc_pattern_debug, uint, 0664);
-
 static u32 print_flag;
-MODULE_PARM_DESC(print_flag, "\n print_flag\n");
-module_param(print_flag, uint, 0664);
 
 static u32 full_axis = 1;
-MODULE_PARM_DESC(full_axis, "\n print_flag\n");
-module_param(full_axis, uint, 0664);
-
 static u32 print_close;
-MODULE_PARM_DESC(print_close, "\n print_close\n");
-module_param(print_close, uint, 0664);
-
 static u32 receive_wait = 15;
-MODULE_PARM_DESC(receive_wait, "\n receive_wait\n");
-module_param(receive_wait, uint, 0664);
-
 static u32  margin_time = 2000;
-MODULE_PARM_DESC(margin_time, "\n margin_time\n");
-module_param(margin_time, uint, 0664);
-
 static u32 max_width = 2560;
-MODULE_PARM_DESC(max_width, "\n max_width\n");
-module_param(max_width, uint, 0664);
-
 static u32  max_height = 1440;
-MODULE_PARM_DESC(max_height, "\n max_height\n");
-module_param(max_height, uint, 0664);
-
 static u32 rotate_width = 1280;
-MODULE_PARM_DESC(rotate_width, "\n rotate_width\n");
-module_param(rotate_width, uint, 0664);
-
 static u32  rotate_height = 720;
-MODULE_PARM_DESC(rotate_height, "\n rotate_height\n");
-module_param(rotate_height, uint, 0664);
-
 static u32  close_black;
-MODULE_PARM_DESC(close_black, "\n close_black\n");
-module_param(close_black, uint, 0664);
-
 static u32  debug_axis_pip;
-MODULE_PARM_DESC(debug_axis_pip, "\n close_black\n");
-module_param(debug_axis_pip, uint, 0664);
-
 static u32  debug_crop_pip;
-MODULE_PARM_DESC(debug_crop_pip, "\n close_black\n");
-module_param(debug_crop_pip, uint, 0664);
-
 static u32  composer_use_444;
-MODULE_PARM_DESC(composer_use_444, "\n composer_use_444\n");
-module_param(composer_use_444, uint, 0664);
-
-static struct class *video_composer_dev_class;
+static u32  drop_cnt;
+static u32  drop_cnt_pip;
+static u32  receive_count;
+static u32  receive_count_pip;
 
 #define PRINT_ERROR		0X0
 #define PRINT_QUEUE_STATUS	0X0001
@@ -1580,6 +1529,14 @@ static void set_frames_info(struct composer_dev *dev,
 			file_private_data =
 			(struct file_private_data *)(file_vf->private_data);
 			vf = &file_private_data->vf;
+			if (vf && dev->index == 0) {
+				drop_cnt = vf->omx_index - dev->received_count;
+				receive_count = dev->received_count;
+			} else if (vf && dev->index == 1) {
+				drop_cnt_pip = vf->omx_index
+					- dev->received_count;
+				receive_count_pip = dev->received_count;
+			}
 			vc_print(dev->index, PRINT_FENCE | PRINT_PATTERN,
 				 "received_cnt=%lld,i=%d,z=%d,omx_index=%d, fence_fd=%d, fc_no=%d, index_disp=%d,pts=%lld\n",
 				 dev->received_count + 1,
@@ -2011,6 +1968,495 @@ static const struct file_operations video_composer_fops = {
 	.poll = NULL,
 };
 
+static ssize_t force_composer_show(struct class *class,
+				   struct class_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%d\n", force_composer);
+}
+
+static ssize_t force_composer_store(struct class *class,
+				    struct class_attribute *attr,
+				    const char *buf, size_t count)
+{
+	ssize_t r;
+	int val;
+
+	r = kstrtoint(buf, 0, &val);
+	if (r < 0)
+		return -EINVAL;
+
+	force_composer = val;
+	pr_info("set force_composer:%d\n", force_composer);
+	return count;
+}
+
+static ssize_t force_composer_pip_show(struct class *class,
+				       struct class_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%d\n", force_composer);
+}
+
+static ssize_t force_composer_pip_store(struct class *class,
+					struct class_attribute *attr,
+					const char *buf, size_t count)
+{
+	ssize_t r;
+	int val;
+
+	r = kstrtoint(buf, 0, &val);
+	if (r < 0)
+		return -EINVAL;
+
+	force_composer_pip = val;
+	pr_info("set force_composer_pip:%d\n", force_composer_pip);
+	return count;
+}
+
+static ssize_t transform_show(struct class *class,
+			      struct class_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%d\n", transform);
+}
+
+static ssize_t transform_store(struct class *class,
+			       struct class_attribute *attr,
+			       const char *buf, size_t count)
+{
+	ssize_t r;
+	int val;
+
+	r = kstrtoint(buf, 0, &val);
+	if (r < 0)
+		return -EINVAL;
+
+	transform = val;
+	pr_info("set transform:%d\n", transform);
+	return count;
+}
+
+static ssize_t vidc_debug_show(struct class *class,
+			       struct class_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%d\n", vidc_debug);
+}
+
+static ssize_t vidc_debug_store(struct class *class,
+				struct class_attribute *attr,
+				const char *buf, size_t count)
+{
+	ssize_t r;
+	int val;
+
+	r = kstrtoint(buf, 0, &val);
+	if (r < 0)
+		return -EINVAL;
+
+	vidc_debug = val;
+	pr_info("set vidc_debug:%d\n", vidc_debug);
+	return count;
+}
+
+static ssize_t vidc_pattern_debug_show(struct class *class,
+				       struct class_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%d\n", vidc_pattern_debug);
+}
+
+static ssize_t vidc_pattern_debug_store(struct class *class,
+					struct class_attribute *attr,
+					const char *buf, size_t count)
+{
+	ssize_t r;
+	int val;
+
+	r = kstrtoint(buf, 0, &val);
+	if (r < 0)
+		return -EINVAL;
+
+	vidc_pattern_debug = val;
+	pr_info("set vidc_pattern_debug:%d\n", vidc_pattern_debug);
+	return count;
+}
+
+static ssize_t print_flag_show(struct class *class,
+			       struct class_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%d\n", print_flag);
+}
+
+static ssize_t print_flag_store(struct class *class,
+				struct class_attribute *attr,
+				const char *buf, size_t count)
+{
+	ssize_t r;
+	int val;
+
+	r = kstrtoint(buf, 0, &val);
+	if (r < 0)
+		return -EINVAL;
+
+	print_flag = val;
+	pr_info("set print_flag:%d\n", print_flag);
+	return count;
+}
+
+static ssize_t full_axis_show(struct class *class,
+			      struct class_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%d\n", full_axis);
+}
+
+static ssize_t full_axis_store(struct class *class,
+			       struct class_attribute *attr,
+			       const char *buf, size_t count)
+{
+	ssize_t r;
+	int val;
+
+	r = kstrtoint(buf, 0, &val);
+	if (r < 0)
+		return -EINVAL;
+
+	full_axis = val;
+	pr_info("set full_axis:%d\n", full_axis);
+	return count;
+}
+
+static ssize_t print_close_show(struct class *class,
+				struct class_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%d\n", print_close);
+}
+
+static ssize_t print_close_store(struct class *class,
+				 struct class_attribute *attr,
+				 const char *buf, size_t count)
+{
+	ssize_t r;
+	int val;
+
+	r = kstrtoint(buf, 0, &val);
+	if (r < 0)
+		return -EINVAL;
+
+	print_close = val;
+	pr_info("set print_close:%d\n", print_close);
+	return count;
+}
+
+static ssize_t receive_wait_show(struct class *class,
+				 struct class_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%d\n", receive_wait);
+}
+
+static ssize_t receive_wait_store(struct class *class,
+				  struct class_attribute *attr,
+				  const char *buf, size_t count)
+{
+	ssize_t r;
+	int val;
+
+	r = kstrtoint(buf, 0, &val);
+	if (r < 0)
+		return -EINVAL;
+
+	receive_wait = val;
+	pr_info("set receive_wait:%d\n", receive_wait);
+	return count;
+}
+
+static ssize_t margin_time_show(struct class *class,
+				struct class_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%d\n", margin_time);
+}
+
+static ssize_t margin_time_store(struct class *class,
+				 struct class_attribute *attr,
+				 const char *buf, size_t count)
+{
+	ssize_t r;
+	int val;
+
+	r = kstrtoint(buf, 0, &val);
+	if (r < 0)
+		return -EINVAL;
+
+	margin_time = val;
+	pr_info("set margin_time:%d\n", margin_time);
+	return count;
+}
+
+static ssize_t max_width_show(struct class *class,
+			      struct class_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%d\n", max_width);
+}
+
+static ssize_t max_width_store(struct class *class,
+			       struct class_attribute *attr,
+			       const char *buf, size_t count)
+{
+	ssize_t r;
+	int val;
+
+	r = kstrtoint(buf, 0, &val);
+	if (r < 0)
+		return -EINVAL;
+
+	max_width = val;
+	pr_info("set max_width:%d\n", max_width);
+	return count;
+}
+
+static ssize_t max_height_show(struct class *class,
+			       struct class_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%d\n", max_height);
+}
+
+static ssize_t max_height_store(struct class *class,
+				struct class_attribute *attr,
+				const char *buf, size_t count)
+{
+	ssize_t r;
+	int val;
+
+	r = kstrtoint(buf, 0, &val);
+	if (r < 0)
+		return -EINVAL;
+
+	max_height = val;
+	pr_info("set max_height:%d\n", max_height);
+	return count;
+}
+
+static ssize_t rotate_width_show(struct class *class,
+				 struct class_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%d\n", rotate_width);
+}
+
+static ssize_t rotate_width_store(struct class *class,
+				  struct class_attribute *attr,
+				  const char *buf, size_t count)
+{
+	ssize_t r;
+	int val;
+
+	r = kstrtoint(buf, 0, &val);
+	if (r < 0)
+		return -EINVAL;
+
+	rotate_width = val;
+	pr_info("set rotate_width:%d\n", rotate_width);
+	return count;
+}
+
+static ssize_t rotate_height_show(struct class *class,
+				  struct class_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%d\n", rotate_height);
+}
+
+static ssize_t rotate_height_store(struct class *class,
+				   struct class_attribute *attr,
+				   const char *buf, size_t count)
+{
+	ssize_t r;
+	int val;
+
+	r = kstrtoint(buf, 0, &val);
+	if (r < 0)
+		return -EINVAL;
+
+	rotate_height = val;
+	pr_info("set rotate_height:%d\n", rotate_height);
+	return count;
+}
+
+static ssize_t close_black_show(struct class *class,
+				struct class_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%d\n", close_black);
+}
+
+static ssize_t close_black_store(struct class *class,
+				 struct class_attribute *attr,
+				 const char *buf, size_t count)
+{
+	ssize_t r;
+	int val;
+
+	r = kstrtoint(buf, 0, &val);
+	if (r < 0)
+		return -EINVAL;
+
+	close_black = val;
+	pr_info("set close_black:%d\n", close_black);
+	return count;
+}
+
+static ssize_t debug_axis_pip_show(struct class *class,
+				   struct class_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%d\n", debug_axis_pip);
+}
+
+static ssize_t debug_axis_pip_store(struct class *class,
+				    struct class_attribute *attr,
+				    const char *buf, size_t count)
+{
+	ssize_t r;
+	int val;
+
+	r = kstrtoint(buf, 0, &val);
+	if (r < 0)
+		return -EINVAL;
+
+	debug_axis_pip = val;
+	pr_info("set debug_axis_pip:%d\n", debug_axis_pip);
+	return count;
+}
+
+static ssize_t debug_crop_pip_show(struct class *class,
+				   struct class_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%d\n", debug_crop_pip);
+}
+
+static ssize_t debug_crop_pip_store(struct class *class,
+				    struct class_attribute *attr,
+				    const char *buf, size_t count)
+{
+	ssize_t r;
+	int val;
+
+	r = kstrtoint(buf, 0, &val);
+	if (r < 0)
+		return -EINVAL;
+
+	debug_crop_pip = val;
+	pr_info("set debug_crop_pip:%d\n", debug_crop_pip);
+	return count;
+}
+
+static ssize_t composer_use_444_show(struct class *class,
+				     struct class_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%d\n", composer_use_444);
+}
+
+static ssize_t composer_use_444_store(struct class *class,
+				      struct class_attribute *attr,
+				      const char *buf, size_t count)
+{
+	ssize_t r;
+	int val;
+
+	r = kstrtoint(buf, 0, &val);
+	if (r < 0)
+		return -EINVAL;
+
+	composer_use_444 = val;
+	pr_info("set composer_use_444:%d\n", composer_use_444);
+	return count;
+}
+
+static ssize_t drop_cnt_show(struct class *class,
+			     struct class_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%d\n", drop_cnt);
+}
+
+static ssize_t drop_cnt_pip_show(struct class *class,
+				 struct class_attribute *attr,
+				 char *buf)
+{
+	return sprintf(buf, "%d\n", drop_cnt_pip);
+}
+
+static ssize_t receive_count_show(struct class *class,
+				  struct class_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%d\n", receive_count);
+}
+
+static ssize_t receive_count_pip_show(struct class *class,
+				      struct class_attribute *attr,
+				      char *buf)
+{
+	return sprintf(buf, "%d\n", receive_count_pip);
+}
+
+static struct class_attribute video_composer_class_attrs[] = {
+	__ATTR(force_composer, 0664,
+	       force_composer_show,
+	       force_composer_store),
+	__ATTR(force_composer_pip, 0664,
+	       force_composer_pip_show,
+	       force_composer_pip_store),
+	__ATTR(transform, 0664,
+	       transform_show,
+	       transform_store),
+	__ATTR(vidc_debug, 0664,
+	       vidc_debug_show,
+	       vidc_debug_store),
+	__ATTR(vidc_pattern_debug, 0664,
+	       vidc_pattern_debug_show,
+	       vidc_pattern_debug_store),
+	__ATTR(print_flag, 0664,
+	       print_flag_show,
+	       print_flag_store),
+	__ATTR(full_axis, 0664,
+	       full_axis_show,
+	       full_axis_store),
+	__ATTR(print_close, 0664,
+	       print_close_show,
+	       print_close_store),
+	__ATTR(receive_wait, 0664,
+	       receive_wait_show,
+	       receive_wait_store),
+	__ATTR(margin_time, 0664,
+	       margin_time_show,
+	       margin_time_store),
+	__ATTR(max_width, 0664,
+	       max_width_show,
+	       max_width_store),
+	__ATTR(max_height, 0664,
+	       max_height_show,
+	       max_height_store),
+	__ATTR(rotate_width, 0664,
+	       rotate_width_show,
+	       rotate_width_store),
+	__ATTR(rotate_height, 0664,
+	       rotate_height_show,
+	       rotate_height_store),
+	__ATTR(close_black, 0664,
+	       close_black_show,
+	       close_black_store),
+	__ATTR(debug_axis_pip, 0664,
+	       debug_axis_pip_show,
+	       debug_axis_pip_store),
+	__ATTR(debug_crop_pip, 0664,
+	       debug_crop_pip_show,
+	       debug_crop_pip_store),
+	__ATTR(composer_use_444, 0664,
+	       composer_use_444_show,
+	       composer_use_444_store),
+	__ATTR_RO(drop_cnt),
+	__ATTR_RO(drop_cnt_pip),
+	__ATTR_RO(receive_count),
+	__ATTR_RO(receive_count_pip),
+	__ATTR_NULL
+};
+
+static struct class video_composer_class = {
+	.name = "video_composer",
+	.class_attrs = video_composer_class_attrs,
+};
+
 static int video_composer_probe(struct platform_device *pdev)
 {
 	int ret = 0;
@@ -2025,6 +2471,10 @@ static int video_composer_probe(struct platform_device *pdev)
 	if (layer_cap & LAYER1_SCALER)
 		video_composer_instance_num++;
 
+	ret = class_register(&video_composer_class);
+	if (ret < 0)
+		return ret;
+
 	ret = register_chrdev(VIDEO_COMPOSER_MAJOR,
 			      "video_composer", &video_composer_fops);
 	if (ret < 0) {
@@ -2032,14 +2482,11 @@ static int video_composer_probe(struct platform_device *pdev)
 		goto error1;
 	}
 
-	video_composer_dev_class =
-		class_create(THIS_MODULE, VIDEO_COMPOSER_DEVICE_NAME);
-
 	for (st = &ports[0], i = 0;
 	     i < video_composer_instance_num; i++, st++) {
 		pr_err("video_composer_probe_3.1:ports[i].name=%s, i=%d\n",
 		       ports[i].name, i);
-		st->class_dev = device_create(video_composer_dev_class, NULL,
+		st->class_dev = device_create(&video_composer_class, NULL,
 				MKDEV(VIDEO_COMPOSER_MAJOR, i), NULL,
 				ports[i].name);
 	}
@@ -2049,6 +2496,7 @@ static int video_composer_probe(struct platform_device *pdev)
 error1:
 	pr_err("video_composer_probe error\n");
 	unregister_chrdev(VIDEO_COMPOSER_MAJOR, "video_composer");
+	class_unregister(&video_composer_class);
 	return ret;
 }
 
@@ -2067,12 +2515,11 @@ static int video_composer_remove(struct platform_device *pdev)
 
 	for (st = &ports[0], i = 0;
 	     i < video_composer_instance_num; i++, st++)
-		device_destroy(video_composer_dev_class,
+		device_destroy(&video_composer_class,
 			       MKDEV(VIDEO_COMPOSER_MAJOR, i));
 
-	class_destroy(video_composer_dev_class);
-
 	unregister_chrdev(VIDEO_COMPOSER_MAJOR, VIDEO_COMPOSER_DEVICE_NAME);
+	class_unregister(&video_composer_class);
 
 	return 0;
 };
