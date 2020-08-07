@@ -576,13 +576,13 @@ static int amlogic_pcie_link_up(struct pcie_port *pp)
 	int   i = 0;
 	struct amlogic_pcie *amlogic_pcie = to_amlogic_pcie(pp);
 
-	for (i = 0; i < 1000; i++) {
+	for (i = 0; i < 10000; i++) {
 		val = readl(pp->dbi_base + PCIE_PHY_DEBUG_R1);
 		linkup = ((val & PCIE_PHY_DEBUG_R1_LINK_UP) &&
 			(!(val & PCIE_PHY_DEBUG_R1_LINK_IN_TRAINING)));
 		if (linkup)
 			return linkup;
-		usleep_range(100, 110);
+		udelay(9);
 	}
 
 	while (smlh_up == 0 || rdlh_up == 0
