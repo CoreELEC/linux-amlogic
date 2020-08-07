@@ -55,13 +55,13 @@
 #define DI_RUN_FLAG_STEP_DONE			3
 
 #define USED_LOCAL_BUF_MAX			3
-#define BYPASS_GET_MAX_BUF_NUM			4
+#define BYPASS_GET_MAX_BUF_NUM			9//4
 
 /* buffer management related */
 #define MAX_IN_BUF_NUM				(10)	/*change 4 to 8*/
 #define MAX_LOCAL_BUF_NUM			(7)
-#define MAX_POST_BUF_NUM			(11)	/*(5)*/ /* 16 */
-
+#define MAX_POST_BUF_NUM			(20)//(11)	/*(5)*/ /* 16 */
+#define POST_BUF_NUM				(11)
 #define VFRAME_TYPE_IN				1
 #define VFRAME_TYPE_LOCAL			2
 #define VFRAME_TYPE_POST			3
@@ -155,6 +155,13 @@ enum canvas_idx_e {
 	MV_CANVAS,
 };
 
+enum EDI_SGN {
+	EDI_SGN_SD,
+	EDI_SGN_HD,
+	EDI_SGN_4K,
+	EDI_SGN_OTHER,
+};
+
 struct di_win_s {
 	unsigned int x_size;
 	unsigned int y_size;
@@ -176,12 +183,17 @@ struct di_buf_s {
 	int throw_flag;
 	int invert_top_bot_flag;
 	int seq;
+	unsigned int field_count;
+	unsigned int seq_post; /*ary add 2020-07-21*/
 	int pre_ref_count; /* none zero, is used by mem_mif,
 			    * chan2_mif, or wr_buf
 			    */
 	int post_ref_count; /* none zero, is used by post process */
 	int queue_index;
 	/*below for type of VFRAME_TYPE_LOCAL */
+	struct dim_mm_blk_s *blk_buf; /* tmp */
+	unsigned int nr_size;
+	unsigned int tab_size;
 	unsigned long nr_adr;
 	int nr_canvas_idx;
 	unsigned long mtn_adr;
@@ -194,9 +206,11 @@ struct di_buf_s {
 	int mcinfo_canvas_idx;
 	unsigned long mcvec_adr;
 	int mcvec_canvas_idx;
+	unsigned int afbc_crc;
 	unsigned long afbc_adr;
 	unsigned long afbct_adr;
 	unsigned long dw_adr;
+	unsigned long insert_adr;
 	struct mcinfo_pre_s {
 		unsigned int highvertfrqflg;
 		unsigned int motionparadoxflg;
@@ -238,13 +252,26 @@ struct di_buf_s {
 	/*ary add */
 	unsigned int channel;
 	unsigned int width_bk; /*move from ppre*/
-	unsigned int flg_tvp;
+//	unsigned int flg_tvp;
 	unsigned int afbc_info; /*bit 0: src is i; bit 1: src is real i */
 	unsigned char afbc_sgn_cfg;
 	struct di_win_s win; /*post write*/
+	struct di_buf_s *di_buf_post; /*07-27 */
+	unsigned long jiff; // for wait
+	enum EDI_SGN	sgn_lv;
 
-	unsigned char buf_is_i:1; /* 1: i; 0: p */
-	unsigned char rev:7;
+	unsigned int buf_is_i	: 1; /* 1: i; 0: p */
+	unsigned int flg_nr	: 1;
+	unsigned int flg_null	: 1;
+	unsigned int flg_nv21	: 1;
+	unsigned int is_4k	: 1;
+	unsigned int is_eos	: 1;
+	unsigned int is_lastp	: 1;
+	unsigned int flg_afbce_set	: 1;
+
+	unsigned int trig_post_update	: 1;
+	unsigned int rev1	: 7;
+	unsigned int rev2	: 16;
 };
 
 #define RDMA_DET3D_IRQ			0x20
@@ -265,18 +292,6 @@ struct di_buf_s {
 #define DI_LOG_QUEUE			0x40
 #define DI_LOG_VFRAME			0x80
 
-#ifdef MARK_HIS
-#define QUEUE_LOCAL_FREE		0
-#define QUEUE_IN_FREE			1
-#define QUEUE_PRE_READY			2
-#define QUEUE_POST_FREE			3
-#define QUEUE_POST_READY		4
-#define QUEUE_RECYCLE			5
-#define QUEUE_DISPLAY			6
-#define QUEUE_TMP			7
-#define QUEUE_POST_DOING		8
-#define QUEUE_NUM			9
-#else
 #define QUEUE_LOCAL_FREE		0
 #define QUEUE_RECYCLE			1	/* 5 */
 #define QUEUE_DISPLAY			2	/* 6 */
@@ -293,12 +308,13 @@ struct di_buf_s {
 #define QUEUE_POST_DOING2		(10)
 #define QUEUE_POST_KEEP			(11)/*below use pw_queue_in*/
 #define QUEUE_POST_KEEP_BACK		(12)
+#define QUEUE_PST_NO_BUF		(17)//(15)
 
 #define QUEUE_NUM			5	/* 9 */
 #define QUEUE_NEW_THD_MIN		(QUEUE_IN_FREE - 1)
-#define QUEUE_NEW_THD_MAX		(QUEUE_POST_KEEP_BACK + 1)
+#define QUEUE_NEW_THD_MAX		(QUEUE_PST_NO_BUF + 1)
+//(QUEUE_POST_KEEP_BACK + 1)
 
-#endif
 
 #define queue_t struct queue_s
 
@@ -427,6 +443,8 @@ struct di_pre_stru_s {
 	bool input_size_change_flag;
 /* true: bypass di all logic, false: not bypass */
 	bool bypass_flag;
+	unsigned int is_bypass_all	: 1;
+	unsigned int rev1		: 31;
 	unsigned char prog_proc_type;
 /* set by prog_proc_config when source is vdin,0:use 2 i
  * serial buffer,1:use 1 p buffer,3:use 2 i paralleling buffer
@@ -465,7 +483,7 @@ struct di_pre_stru_s {
 	bool force_interlace;
 	bool bypass_pre;
 	bool invert_flag;
-	bool vdin_source;
+//	bool vdin_source; /* ary 2020-06-12: no*/
 	int cma_release_req;
 	/* for performance debug */
 	unsigned long irq_time[2];
@@ -473,6 +491,7 @@ struct di_pre_stru_s {
 	struct combing_status_s *mtn_status;
 	bool combing_fix_en;
 	unsigned int comb_mode;
+	enum EDI_SGN sgn_lv;
 	union hw_sc2_ctr_pre_s	pre_top_cfg;
 	union afbc_blk_s	en_cfg;
 	union afbc_blk_s	en_set;
@@ -577,6 +596,8 @@ void dbg_vfm(struct vframe_s *vf, unsigned int cnt);
 /*---------------------*/
 long dim_pq_load_io(unsigned long arg);
 int dim_get_canvas(void);
+void dim_release_canvas(void);
+
 unsigned int dim_cma_alloc_total(struct di_dev_s *de_devp);
 irqreturn_t dim_irq(int irq, void *dev_instance);
 irqreturn_t dim_post_irq(int irq, void *dev_instance);
@@ -601,7 +622,6 @@ void di_unreg_variable(unsigned int channel);
 void di_unreg_setting(void);
 
 void dim_uninit_buf(unsigned int disable_mirror, unsigned int channel);
-void dim_unreg_process(unsigned int channel);
 
 int dim_process_post_vframe(unsigned int channel);
 unsigned char dim_check_di_buf(struct di_buf_s *di_buf, int reason,
@@ -638,14 +658,11 @@ bool dim_get_mcmem_alloc(void);
 int dim_get_reg_unreg_cnt(void);
 void dim_reg_timeout_inc(void);
 
-void dim_reg_process(unsigned int channel);
 bool is_bypass2(struct vframe_s *vf_in, unsigned int ch);
 void dim_post_keep_cmd_proc(unsigned int ch, unsigned int index);
 bool dim_need_bypass(unsigned int ch, struct vframe_s *vf);
 
 /*--------------------------*/
-int di_ori_event_unreg(unsigned int channel);
-int di_ori_event_reg(void *data, unsigned int channel);
 int di_ori_event_qurey_vdin2nr(unsigned int channel);
 int di_ori_event_reset(unsigned int channel);
 int di_ori_event_light_unreg(unsigned int channel);
@@ -670,9 +687,14 @@ unsigned char pre_p_asi_de_buf_config(unsigned int ch);
 void dim_dbg_release_keep_all(unsigned int ch);
 void dim_post_keep_back_recycle(unsigned int ch);
 void dim_post_re_alloc(unsigned int ch);
-void dim_post_release(unsigned int ch);
+//void dim_post_release(unsigned int ch);
 unsigned int dim_cfg_nv21(void);
+bool dim_cfg_pre_nv21(unsigned int cmd);
+
 void dim_get_default(unsigned int *h, unsigned int *w);
+void dbg_h_w(unsigned int ch, unsigned int nub);
+void di_set_default(unsigned int ch);
+//bool dim_dbg_is_cnt(void);
 
 /*---------------------*/
 const struct afd_ops_s *dim_afds(void);
@@ -735,4 +757,5 @@ bool sc2_dbg_is_en_pst_irq(void);
 void sc2_dbg_pre_info(unsigned int val);
 void sc2_dbg_pst_info(unsigned int val);
 void hpre_timout_read(void);
+#define TEST_4K_NR	(1)
 #endif

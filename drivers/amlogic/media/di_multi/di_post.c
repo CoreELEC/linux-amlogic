@@ -155,10 +155,6 @@ bool dpst_step_set(void)
 	}
 
 	vf_p = di_buf->vframe;
-	if (ppost->run_early_proc_fun_flag) {
-		if (vf_p->early_process_fun)
-			vf_p->early_process_fun = dim_do_post_wr_fun;
-	}
 
 	dim_print("%s:pr_index=%d\n", __func__, di_buf->process_fun_index);
 	if (di_buf->process_fun_index) {	/*not bypass?*/
@@ -218,7 +214,7 @@ bool dpst_step_wait_int(void)
 		if (di_tout_contr(EDI_TOUT_CONTR_CHECK, &pst->tout)) {
 			ppost = get_post_stru(ch);
 			PR_WARN("ch[%d]:post timeout[%d]\n", ch,
-				ppost->cur_post_buf->seq);
+				ppost->cur_post_buf->seq_post);
 			dim_ddbg_mod_save(EDI_DBG_MOD_POST_TIMEOUT, ch, 0);
 			/*state*/
 			pst->state = EDI_PST_ST_TIMEOUT;

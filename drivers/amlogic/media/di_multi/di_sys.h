@@ -37,8 +37,8 @@ bool dim_mm_release_api(int cma_mode,
 			struct page *pages,
 			int count,
 			unsigned long addr);
-bool dim_cma_top_alloc(unsigned int ch);
-bool dim_cma_top_release(unsigned int ch);
+//bool dim_cma_top_alloc(unsigned int ch);
+//bool dim_cma_top_release(unsigned int ch);
 
 int dpst_cma_re_alloc_re_alloc(unsigned int ch);
 int dpst_cma_re_alloc_unreg(unsigned int ch);
@@ -49,5 +49,25 @@ bool dim_rev_mem_check(void);
 void dil_set_diffver_flag(unsigned int para);
 
 unsigned int dil_get_diffver_flag(void);
+void blk_polling(unsigned int ch, struct mtsk_cmd_s *cmd);
+
+/* blk and mem 2020-06*/
+void bufq_blk_int(struct di_ch_s *pch);
+void bufq_blk_exit(struct di_ch_s *pch);
+
+void bufq_mem_int(struct di_ch_s *pch);
+void bufq_mem_exit(struct di_ch_s *pch);
+
+bool mem_cfg(struct di_ch_s *pch);
+void mem_release(struct di_ch_s *pch);
+bool mem_2_blk(struct di_ch_s *pch);
+void mem_release_all_inused(struct di_ch_s *pch);
+void mem_release_one_inused(struct di_ch_s *pch, struct dim_mm_blk_s *blk_buf);
+void mem_release_keep_back(struct di_ch_s *pch);
+bool mem_cfg_realloc(struct di_ch_s *pch); /*temp for re-alloc mem*/
+unsigned int  mem_release_free(struct di_ch_s *pch);
+void mem_cfg_realloc_wait(struct di_ch_s *pch);
+
+void bufq_mem_clear(struct di_ch_s *pch);
 /*-------------------------*/
 #endif	/*__DI_SYS_H__*/

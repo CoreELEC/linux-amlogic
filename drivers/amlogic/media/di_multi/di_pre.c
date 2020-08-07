@@ -586,7 +586,7 @@ const struct do_table_ops_s pr_mode_total[] = {
 	.con = NULL,
 	.do_op = dpre_mtotal_check,
 	.do_stop_op = NULL,
-	.name = "start-check",
+	.name = "start-check_t",
 	},
 	[EDI_PRE_MT_SET] = {
 	.id = EDI_PRE_MT_SET,
@@ -747,7 +747,7 @@ const struct do_table_ops_s pre_mode_proc[] = {
 	.con = NULL,
 	.do_op = dpre_mp_check,
 	.do_stop_op = NULL,
-	.name = "start-check",
+	.name = "start-check_p",
 	},
 	[EDI_PRE_MP_SET] = {
 	.id = EDI_PRE_MP_SET,
@@ -780,7 +780,7 @@ const struct do_table_ops_s pre_mode_proc[] = {
 	.con = NULL,			/*condition*/
 	.do_op = dpre_mp_check2,
 	.do_stop_op = NULL,
-	.name = "start-check",
+	.name = "start-check_p2",
 	},
 	[EDI_PRE_MP_SET2] = {
 	.id = EDI_PRE_MP_SET2,
@@ -903,14 +903,23 @@ bool dpre_step4_check(void)
 	}
 	pre->idle_cnt = 0;
 	if (mode == EDI_WORK_MODE_P_AS_I) {
+		#ifdef MARK_SC2
 		do_table_init(&pre->sdt_mode,
 			      &pre_mode_proc[0],
 			      ARRAY_SIZE(pre_mode_proc));
+		pre->sdt_mode.name = "mproc";
+		#else
+		do_table_init(&pre->sdt_mode,
+			      &pr_mode_total[0],
+			      ARRAY_SIZE(pr_mode_total));
+		pre->sdt_mode.name = "mtotal";
+		#endif
 
 	} else {
 		do_table_init(&pre->sdt_mode,
 			      &pr_mode_total[0],
 			      ARRAY_SIZE(pr_mode_total));
+		pre->sdt_mode.name = "mtotal";
 	}
 	do_talbe_cmd(&pre->sdt_mode, EDO_TABLE_CMD_START);
 

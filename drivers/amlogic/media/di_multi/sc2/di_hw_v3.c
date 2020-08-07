@@ -111,6 +111,26 @@ bool is_mask(unsigned int cmd)
 		if (sc2_reg_mask & DI_BIT2)
 			ret = true;
 		break;
+	case SC2_ROT_WR:
+		if (sc2_reg_mask & DI_BIT3)
+			ret = true;
+		break;
+	case SC2_ROT_PST:
+		if (sc2_reg_mask & DI_BIT4)
+			ret = true;
+		break;
+	case SC2_MEM_CPY:
+		if (sc2_reg_mask & DI_BIT5)
+			ret = true;
+		break;
+	case SC2_BYPASS_RESET:
+		if (sc2_reg_mask & DI_BIT6)
+			ret = true;
+		break;
+	case SC2_DISABLE_CHAN2:
+		if (sc2_reg_mask & DI_BIT7)
+			ret = true;
+		break;
 	/*bit 15->bit 8*/
 	case SC2_DW_EN:
 		if (sc2_reg_mask & DI_BIT15)
@@ -123,6 +143,43 @@ bool is_mask(unsigned int cmd)
 		break;
 	case SC2_DW_SHRK_EN:
 		if (sc2_reg_mask & DI_BIT13)
+			ret = true;
+		break;
+
+	case SC2_POST_TRIG: /*bit 23:bit 16*/
+		if (sc2_reg_mask & DI_BIT16)
+			ret = true;
+		break;
+	case SC2_POST_TRIG_MSK1:
+		if (sc2_reg_mask & DI_BIT17)
+			ret = true;
+		break;
+	case SC2_POST_TRIG_MSK2:
+		if (sc2_reg_mask & DI_BIT18)
+			ret = true;
+		break;
+	case SC2_POST_TRIG_MSK3:
+		if (sc2_reg_mask & DI_BIT19)
+			ret = true;
+		break;
+	case SC2_POST_TRIG_MSK4:
+		if (sc2_reg_mask & DI_BIT20)
+			ret = true;
+		break;
+	case SC2_POST_TRIG_MSK5:
+		if (sc2_reg_mask & DI_BIT21)
+			ret = true;
+		break;
+	case SC2_POST_TRIG_MSK6:
+		if (sc2_reg_mask & DI_BIT22)
+			ret = true;
+		break;
+	case SC2_POST_TRIG_MSK7:
+		if (sc2_reg_mask & DI_BIT23)
+			ret = true;
+		break;
+	case SC2_LOG_POST_REG_OUT:
+		if (sc2_reg_mask & DI_BIT24)
 			ret = true;
 		break;
 	default:
@@ -140,6 +197,42 @@ unsigned int dw_get_h(void)
 /*************************************************/
 
 #define DI_SCALAR_DISABLE	(1)
+
+unsigned int get_afbcd_offset(enum EAFBC_DEC dec)
+{
+	int i, offset;
+
+	i = 0;
+	switch (dec) {
+	case EAFBC_DEC0:
+		i = -24;
+		break;
+	case EAFBC_DEC1:
+		i = -23;
+		break;
+	case EAFBC_DEC2_DI:
+		i = 0;
+		break;
+	case EAFBC_DEC3_MEM:
+		i = 2;
+		break;
+	case EAFBC_DEC_CHAN2:
+		i = 1;
+		break;
+	case EAFBC_DEC_IF0:
+		i = 4;
+		break;
+	case EAFBC_DEC_IF1:
+		i = 3;
+		break;
+	case EAFBC_DEC_IF2:
+		i = 5;
+		break;
+	}
+	offset = i * 0x80;
+
+	return offset;
+}
 //--------------------display.c----------------------------
 static unsigned int set_afbcd_mult_simple(int index,
 					  struct AFBCD_S *inp_afbcd,
@@ -255,12 +348,14 @@ static unsigned int set_afbcd_mult_simple(int index,
 		op = opin;
 
 	def_color_v	= def_color_u; //10 bits //ary
-
+#ifdef MARK_SC2
 	regs_ofst = (module_sel == 6) ? -24 : //vd1      0x48 0x0-0x7f
 			(module_sel == 7) ? -23 : //vd2    0x48 0x80-0xff
 			module_sel;           //di_m0-m5 0x54-0x56
 	regs_ofst = 128 * 4 * regs_ofst;
-
+#endif
+	regs_ofst = get_afbcd_offset(index);
+	dim_print("%s:0x%x\n", __func__, (regs_ofst + AFBCDM_ENABLE));
 	rev_mode_h = rev_mode & 0x1;
 	rev_mode_v = rev_mode & 0x2;
 
@@ -1463,15 +1558,36 @@ static const struct reg_t rtab_sc2_contr_bits_tab[] = {
 	{DI_TOP_PRE_CTRL, 2, 2, 0, "",
 			"afbce_path_se",
 			""},
-	{DI_TOP_PRE_CTRL, 4, 3, 0, "",
-			"afbc_vd_sel",
-			"0:normal; 7:afb_en"},
+	{DI_TOP_PRE_CTRL, 4, 1, 0, "",
+			"afbc_vd_sel:inp",
+			"0:mif; 1:afbc dec"},
+	{DI_TOP_PRE_CTRL, 5, 1, 0, "",
+			"afbc_vd_sel:chan2",
+			"0:mif; 1:afbc dec"},
+	{DI_TOP_PRE_CTRL, 6, 1, 0, "",
+			"afbc_vd_sel:mem",
+			"0:mif; 1:afbc dec"},
+	{DI_TOP_PRE_CTRL, 7, 1, 0, "",
+			"di inp afbc dec 4K size",
+			""},
+	{DI_TOP_PRE_CTRL, 8, 1, 0, "",
+			"di chan2 afbc dec 4K size",
+			""},
+	{DI_TOP_PRE_CTRL, 9, 1, 0, "",
+			"di mem afbc dec 4K size",
+			""},
 	{DI_TOP_PRE_CTRL, 10, 1, 0, "",
 			"nr_ch0_en",
 			"1:normal?"},
-	{DI_TOP_PRE_CTRL, 12, 8, 0, "",
-			"pre_bypass_ctrl",
-			"0"},
+	{DI_TOP_PRE_CTRL, 12, 3, 0, "",
+			"pre_bypass_sel",
+			"1:inp; 2:chan2; 3mem; other:"},
+	{DI_TOP_PRE_CTRL, 16, 3, 0, "",
+			"pre_bypass_mode",
+			"0:din0;1:din1;2:din2"},
+	{DI_TOP_PRE_CTRL, 19, 1, 0, "",
+			"pre_bypass_en",
+			""},
 	{DI_TOP_PRE_CTRL, 20, 2, 0, "",
 			"fix_disable_pre",
 			"0"},
@@ -1574,6 +1690,28 @@ static const struct reg_t rtab_sc2_contr_bits_tab[] = {
 	{DI_POST_CTRL, 6, 1, 0, "",
 			"post mb en",
 			"0"},
+	/***********************************************/
+	{DI_TOP_CTRL, 0, 1, 0, "DI_TOP_CTRL",
+			"Vpp path sel",
+			"0:post to vpp; 1: pre to vpp"},
+	{DI_TOP_CTRL, 4, 3, 0, "",
+			"inp",
+			""},
+	{DI_TOP_CTRL, 7, 3, 0, "",
+			"chan2",
+			""},
+	{DI_TOP_CTRL, 10, 3, 0, "",
+			"mem",
+			""},
+	{DI_TOP_CTRL, 13, 3, 0, "",
+			"if1",
+			""},
+	{DI_TOP_CTRL, 16, 3, 0, "",
+			"if0",
+			""},
+	{DI_TOP_CTRL, 19, 3, 0, "",
+			"if2",
+			""},
 	{TABLE_FLG_END, 0, 0, 0, "end", "end", ""},
 
 };
@@ -1768,7 +1906,9 @@ void wr_mif_cfg_v3(struct DI_SIM_MIF_s *wr_mif,
 	if (index == EDI_MIFSM_NR) {
 		di_buf = (struct di_buf_s *)di_vf;
 		vf = di_buf->vframe;
-		wr_mif->canvas_num = di_buf->nr_canvas_idx;
+		if (!di_buf->flg_nv21)
+			wr_mif->canvas_num = di_buf->nr_canvas_idx;
+
 	} else {
 		vf = (struct vframe_s *)di_vf;
 	}
@@ -2464,8 +2604,9 @@ static void enable_prepost_link(struct DI_PREPST_S *ppcfg,
 	if (ppcfg->link_vpp == 0)
 		op->wr(DI_SC2_PRE_GL_CTRL, 0xc0200001);
 
+	/**********************************/
 	/****   DI PRE MIF CONFIG  ********/
-
+	/**********************************/
 	pre_hsize = ppcfg->nrwr_mif->luma_x_end0 -
 		ppcfg->nrwr_mif->luma_x_start0 + 1;
 	pre_vsize = ppcfg->nrwr_mif->luma_y_end0 -
@@ -2550,8 +2691,9 @@ static void enable_prepost_link(struct DI_PREPST_S *ppcfg,
 	op->bwr(DI_MTN_CTRL1, ppcfg->cont_ini_en, 30, 1);
 	op->bwr(MCDI_CTRL_MODE, ppcfg->mcinfo_rd_en, 28, 1);
 
+	/**********************************/
 	/****   DI POST MIF CONFIG ********/
-
+	/**********************************/
 	//motion read mif
 	op->wr(MTNRD_SCOPE_X,
 	       (ppcfg->mtnrd_mif->start_x) | (ppcfg->mtnrd_mif->end_x << 16));
@@ -2590,7 +2732,9 @@ static void enable_prepost_link(struct DI_PREPST_S *ppcfg,
 	       (2 << 26) |   // burst lim
 	       (0 << 30));   // 64-bits swap enable
 
+	/**********************************/
 	/****** control REG config  *******/
+	/**********************************/
 	op->bwr(LBUF_TOP_CTRL, 0, 20, 6);
 	op->bwr(LBUF_TOP_CTRL, 0, 17, 1);// fmt444 disable
 
@@ -2780,7 +2924,9 @@ static void enable_prepost_link_afbce(struct DI_PREPST_AFBC_S *pafcfg,
 	op->bwr(DI_MTN_CTRL1, pafcfg->cont_ini_en, 30, 1);
 	op->bwr(MCDI_CTRL_MODE, pafcfg->mcinfo_rd_en, 28, 1);
 
+	/**********************************/
 	/****   DI POST MIF CONFIG ********/
+	/**********************************/
 	//motion read mif
 	op->wr(MTNRD_SCOPE_X, (pafcfg->mtnrd_mif->start_x) |
 	       (pafcfg->mtnrd_mif->end_x << 16));   // start_x 0 end_x 719.
@@ -2831,7 +2977,9 @@ static void enable_prepost_link_afbce(struct DI_PREPST_AFBC_S *pafcfg,
 	       (2 << 26) |   // burst lim
 	       (0 << 30));   // 64-bits swap enable
 
+	/**********************************/
 	/****** control REG config  *******/
+	/**********************************/
 	op->bwr(LBUF_TOP_CTRL, 0, 20, 6);
 	op->bwr(LBUF_TOP_CTRL, 0, 17, 1);// fmt444 disable
 
@@ -3952,7 +4100,10 @@ void dim_sc2_contr_pre(union hw_sc2_ctr_pre_s *cfg)
 		(cfg->b.afbc_inp		<< 4)	|
 		(cfg->b.afbc_chan2	<< 5)	|
 		(cfg->b.afbc_mem		<< 6)	|
-		((cfg->b.is_4k ? 7 : 0)	<< 7)	|
+		//((cfg->b.is_4k ? 7 : 0)	<< 7)	|
+		(cfg->b.is_inp_4k		<< 7)	|
+		(cfg->b.is_chan2_4k		<< 8)	|
+		(cfg->b.is_mem_4k		<< 9)	|
 		(cfg->b.nr_ch0_en		<< 10)	|
 		(cfg->b.pre_frm_sel	<< 30));
 
@@ -3961,6 +4112,39 @@ void dim_sc2_contr_pre(union hw_sc2_ctr_pre_s *cfg)
 		  DI_TOP_PRE_CTRL,
 		  val);
 	op->wr(DI_TOP_PRE_CTRL, val);
+}
+
+/*
+ * 0 off:
+ * 1: pre afbce 4k
+ * 2: post afbce 4k
+ */
+void dim_sc2_4k_set(unsigned int mode_4k)
+{
+	const struct reg_acc *op = &di_pre_regset;
+
+	//dim_print("%s:mode[%d]\n", __func__);
+	if (!mode_4k)
+		op->wr(DI_TOP_CTRL1, 0x00000008); /*default*/
+	else if (mode_4k == 1)
+		op->wr(DI_TOP_CTRL1, 0x00000004); /*default*/
+	else if (mode_4k == 2)
+		op->wr(DI_TOP_CTRL1, 0x0000000c); /*default*/
+}
+
+void dim_sc2_afbce_rst(unsigned int ec_nub)
+{
+	const struct reg_acc *op = &di_pre_regset;
+
+	//PR_INF("%s:[%d]\n", __func__, ec_nub);
+	if (ec_nub == 0)  {
+		//bit 25:
+		op->bwr(DI_TOP_CTRL1, 1, 25, 1); /*default*/
+		op->bwr(DI_TOP_CTRL1, 0, 25, 1); /*default*/
+	} else {
+		op->bwr(DI_TOP_CTRL1, 1, 23, 1); /*default*/
+		op->bwr(DI_TOP_CTRL1, 0, 23, 1); /*default*/
+	}
 }
 
 void dim_sc2_contr_pst(union hw_sc2_ctr_pst_s *cfg)

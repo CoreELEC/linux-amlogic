@@ -250,7 +250,7 @@ bool dim_wr_cue_int(void)
 	di_wr_tab(&di_pre_regset,
 		  ptab,
 		  tabsize);
-	PR_INF("%s:finish\n", __func__);
+	//PR_INF("%s:finish\n", __func__);
 
 	return true;
 }

@@ -15221,6 +15221,7 @@ M:	Jihong Sui <jihong.sui@amlogic.com>
 F:	drivers/amlogic/media/di_multi/*
 F:	drivers/amlogic/media/di_multi/di_reg_v3.h
 F:	drivers/amlogic/media/di_multi/sc2/*
+F:	drivers/amlogic/media/di_multi/di_que_buf.c
 
 AMLOGIC DRM
 M:	Ao Xu <ao.xu@amlogic.com>

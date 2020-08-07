@@ -321,11 +321,28 @@ enum SC2_REG_MSK {
 	SC2_DW_SHRK_EN,
 	SC2_ROT_WR,
 	SC2_ROT_PST,
+	SC2_MEM_CPY,
+	SC2_BYPASS_RESET,
+	SC2_DISABLE_CHAN2,
+	SC2_POST_TRIG,
+	SC2_POST_TRIG_MSK1,
+	SC2_POST_TRIG_MSK2,
+	SC2_POST_TRIG_MSK3,
+	SC2_POST_TRIG_MSK4,
+	SC2_POST_TRIG_MSK5,
+	SC2_POST_TRIG_MSK6,
+	SC2_POST_TRIG_MSK7,
+	SC2_LOG_POST_REG_OUT,
 };
 
 bool is_mask(unsigned int cmd);
 void dim_sc2_contr_pre(union hw_sc2_ctr_pre_s *cfg);
 void dim_sc2_contr_pst(union hw_sc2_ctr_pst_s *cfg);
+void dim_sc2_4k_set(unsigned int mode_4k);
+void dim_sc2_afbce_rst(unsigned int ec_nub);
+void afbce_sw(enum EAFBC_ENC enc, bool on);//tmp
+
 void hpre_gl_read(void);
+void cvsi_cfg(struct dim_cvsi_s	*pcvsi);
 
 #endif /* __DI_HW_V3_H__ */

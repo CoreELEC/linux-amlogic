@@ -71,10 +71,35 @@ const struct di_cfg_ctr_s di_cfg_top_ctr[K_DI_CFG_NUB] = {
 				K_DI_CFG_T_FLG_DTS},
 	[EDI_CFG_REF_2]  = {"ref_2",
 		EDI_CFG_REF_2, 0, K_DI_CFG_T_FLG_NOTHING},
+	[EDI_CFG_PMODE]  = {"pmode:0:as p;1:as i;2:use 2 i buf",
+			EDI_CFG_PMODE,
+			1,
+			K_DI_CFG_T_FLG_NOTHING},
 	[EDI_CFG_KEEP_CLEAR_AUTO]  = {"keep_buf clear auto",
 			EDI_CFG_KEEP_CLEAR_AUTO,
 			0,
 			K_DI_CFG_T_FLG_NOTHING},
+	[EDI_CFG_MEM_RELEASE_BLOCK_MODE]  = {"release mem use block mode",
+			EDI_CFG_MEM_RELEASE_BLOCK_MODE,
+			1,
+			K_DI_CFG_T_FLG_NOTHING},
+	[EDI_CFG_FIX_BUF]  = {"fix buf",
+			EDI_CFG_FIX_BUF,
+			0,
+			K_DI_CFG_T_FLG_NOTHING},
+	[EDI_CFG_PAUSE_SRC_CHG]  = {"pause when source chang",
+			EDI_CFG_PAUSE_SRC_CHG,
+			0,
+			K_DI_CFG_T_FLG_NOTHING},
+	[EDI_CFG_4K]  = {"en_4k",
+			EDI_CFG_4K,
+			0,
+			K_DI_CFG_T_FLG_DTS},
+	[EDI_CFG_POUT_FMT]  = {"po_fmt",
+		/* 0:default; 1: nv21; 2: nv12; 3:afbce */
+			EDI_CFG_POUT_FMT,
+			3,
+			K_DI_CFG_T_FLG_DTS},
 	[EDI_CFG_END]  = {"cfg top end ", EDI_CFG_END, 0,
 			K_DI_CFG_T_FLG_NONE},
 
@@ -169,7 +194,12 @@ void di_cfg_top_dts(void)
 		pd->b.val_dts = uval;
 		pd->b.val_c = pd->b.val_dts;
 	}
-	PR_INF("%s end\n", __func__);
+	//PR_INF("%s end\n", __func__);
+
+	if (cfgg(4K) && DIM_IS_IC_BF(TM2)) {
+		cfgs(4K, 0);
+		PR_INF("not support 4k\n");
+	}
 }
 
 static void di_cfgt_show_item_one(struct seq_file *s, unsigned int index)
@@ -288,7 +318,7 @@ const struct di_cfgx_ctr_s di_cfgx_ctr[K_DI_CFGX_NUB] = {
 
 	/* debug cfg x */
 	[EDI_DBG_CFGX_BEGIN]  = {"cfg dbg begin ", EDI_DBG_CFGX_BEGIN, 0},
-	[EDI_DBG_CFGX_IDX_VFM_IN] = {"vfm_in", EDI_DBG_CFGX_IDX_VFM_IN, 0},
+	[EDI_DBG_CFGX_IDX_VFM_IN] = {"vfm_in", EDI_DBG_CFGX_IDX_VFM_IN, 1},
 	[EDI_DBG_CFGX_IDX_VFM_OT] = {"vfm_out", EDI_DBG_CFGX_IDX_VFM_OT, 1},
 	[EDI_DBG_CFGX_END]    = {"cfg dbg end", EDI_DBG_CFGX_END, 0},
 };
@@ -416,7 +446,7 @@ const struct di_mp_uit_s di_mp_ui_top[] = {
  */
 			edi_mp_prog_proc_config, ((1 << 5) | (1 << 1) | 1)},
 	[edi_mp_start_frame_drop_count]  = {"start_frame_drop_count:int:2",
-			edi_mp_start_frame_drop_count, 2},
+			edi_mp_start_frame_drop_count, 0},
 	[edi_mp_same_field_top_count]  = {"same_field_top_count:long?",
 			edi_mp_same_field_top_count, 0},
 	[edi_mp_same_field_bot_count]  = {"same_field_bot_count:long?",
@@ -1071,6 +1101,7 @@ void dip_cma_close(void)
 		return;
 
 	for (ch = 0; ch < DI_CHANNEL_NUB; ch++) {
+#ifdef MARK_SC2
 		if (!dip_cma_st_is_idle(ch)) {
 			dim_cma_top_release(ch);
 			pr_info("%s:force release ch[%d]", __func__, ch);
@@ -1079,10 +1110,12 @@ void dip_cma_close(void)
 			/*pbm->cma_reg_cmd[ch] = 0;*/
 			pbm->cma_wqsts[ch] = 0;
 		}
+#endif
 	}
 	pbm->cma_flg_run = 0;
 }
 
+#ifdef MARK_SC2
 static void dip_wq_cma_handler(struct work_struct *work)
 {
 	struct di_mng_s *pbm = get_bufmng();
@@ -1211,7 +1244,8 @@ static void dip_wq_ext(void)
 	destroy_workqueue(pbm->wq.wq_cma);
 	pr_info("%s:finish\n", __func__);
 }
-
+#endif
+#ifdef MARK_SC2
 static void dip_wq_check(unsigned int ch)
 {
 	struct di_mng_s *pbm = get_bufmng();
@@ -1301,6 +1335,7 @@ bool dip_cma_st_is_ready(unsigned int ch)
 
 	return ret;
 }
+#endif
 
 bool dip_cma_st_is_idle(unsigned int ch)
 {
@@ -1387,29 +1422,236 @@ void dip_chst_init(void)
 		dip_chst_set(ch, EDI_TOP_STATE_IDLE);
 }
 
-bool dip_event_reg_chst(unsigned int ch)
+static void dip_process_reg_after(struct di_ch_s *pch);
+//ol dim_process_reg(struct di_ch_s *pch);
+//ol dim_process_unreg(struct di_ch_s *pch);
+
+void dip_chst_process_ch(void)
+{
+	unsigned int ch;
+	unsigned int chst;
+	struct vframe_s *vframe;
+	struct di_pre_stru_s *ppre;// = get_pre_stru(ch);
+//	struct di_mng_s *pbm = get_bufmng();
+	ulong flags = 0;
+	struct di_ch_s *pch;
+	struct di_mng_s *pbm = get_bufmng();
+
+	for (ch = 0; ch < DI_CHANNEL_NUB; ch++) {
+		pch = get_chdata(ch);
+		if (atomic_read(&pbm->trig_reg[ch]))
+			dim_process_reg(pch);
+		if (atomic_read(&pbm->trig_unreg[ch]))
+			dim_process_unreg(pch);
+
+		dip_process_reg_after(pch);
+
+		chst = dip_chst_get(ch);
+		ppre = get_pre_stru(ch);
+		task_polling_cmd_keep(ch, chst);
+
+		switch (chst) {
+		case EDI_TOP_STATE_REG_STEP2:
+
+			break;
+		case EDI_TOP_STATE_UNREG_STEP1:
+
+			break;
+		case EDI_TOP_STATE_UNREG_STEP2:
+
+			break;
+		case EDI_TOP_STATE_READY:
+			spin_lock_irqsave(&plist_lock, flags);
+			dim_post_keep_back_recycle(ch);
+			spin_unlock_irqrestore(&plist_lock, flags);
+			dim_sumx_set(ch);
+#ifdef SC2_NEW_FLOW
+			ins_in_vf(pch);
+#endif
+			break;
+		case EDI_TOP_STATE_BYPASS:
+			vframe = pw_vf_peek(ch);
+			if (!vframe)
+				break;
+			if (dim_need_bypass(ch, vframe))
+				break;
+
+			di_reg_variable(ch, vframe);
+			if (!ppre->bypass_flag) {
+				set_bypass2_complete(ch, false);
+				/*this will cause first local buf not alloc*/
+				/*dim_bypass_first_frame(ch);*/
+				dip_chst_set(ch, EDI_TOP_STATE_REG_STEP2);
+			}
+			break;
+
+		default:
+			break;
+		}
+	}
+}
+
+#ifdef MARK_SC2
+bool dip_chst_change_2unreg(void)
+{
+	unsigned int ch;
+	unsigned int chst;
+	bool ret = false;
+
+	for (ch = 0; ch < DI_CHANNEL_NUB; ch++) {
+		chst = dip_chst_get(ch);
+		//dbg_poll("[%d]%d\n", ch, chst);
+		if (chst == EDI_TOP_STATE_UNREG_STEP1) {
+			//dbg_reg("%s:ch[%d]to UNREG_STEP2\n", __func__, ch);
+			set_reg_flag(ch, false);
+			dip_chst_set(ch, EDI_TOP_STATE_UNREG_STEP2);
+			ret = true;
+		}
+	}
+	return ret;
+}
+#endif
+/************************************************
+ * new reg and unreg
+ ***********************************************/
+/************************************************
+ * dim_api_reg
+ *	block
+ ***********************************************/
+
+int dim_api_reg(enum DIME_REG_MODE rmode, struct di_ch_s *pch)
+{
+	unsigned int ch;
+	struct di_mng_s *pbm = get_bufmng();
+	int ret = -1;
+	unsigned int cnt;
+	struct di_dev_s *de_devp = get_dim_de_devp();
+
+	if (!pch) {
+		PR_ERR("%s:no pch\n", __func__);
+		return -1;
+	}
+	ch = pch->ch_id;
+
+	dip_even_reg_init_val(ch);
+	if (de_devp->flags & DI_SUSPEND_FLAG) {
+		//PR_ERR("reg event device hasn't resumed\n");
+		return -2;
+	}
+	if (get_reg_flag(ch)) {
+		//PR_ERR("no muti instance.\n");
+		return -3;
+	}
+	task_delay(50);
+
+	di_bypass_state_set(ch, false);
+
+	atomic_set(&pbm->trig_reg[ch], 1);
+
+	dbg_timer(ch, EDBG_TIMER_REG_B);
+	task_send_ready();
+
+	cnt = 0; /* 500us x 10 = 5ms */
+	while (atomic_read(&pbm->trig_reg[ch]) && cnt < 10) {
+		usleep_range(500, 501);
+		cnt++;
+	}
+
+	task_send_ready();
+
+	cnt = 0; /* 3ms x 2000 = 6s */
+	while (atomic_read(&pbm->trig_reg[ch]) && cnt < 2000) {
+		usleep_range(3000, 3001);
+		cnt++;
+	}
+
+	if (!atomic_read(&pbm->trig_reg[ch]))
+		ret = 1;
+	else
+		PR_ERR("%s:ch[%d]:failed\n", __func__, ch);
+
+	dbg_timer(ch, EDBG_TIMER_REG_E);
+	dbg_ev("ch[%d]:reg end\n", ch);
+	return ret;
+}
+
+void dim_trig_unreg(unsigned int ch)
+{
+	struct di_mng_s *pbm = get_bufmng();
+
+	atomic_set(&pbm->trig_unreg[ch], 1);
+}
+
+bool dim_api_unreg(enum DIME_REG_MODE rmode, struct di_ch_s *pch)
+{
+	unsigned int ch;
+	struct di_mng_s *pbm = get_bufmng();
+	bool ret = false;
+	unsigned int cnt;
+
+	if (!pch) {
+		//PR_ERR("%s:no pch\n", __func__);
+		return false;
+	}
+	ch = pch->ch_id;
+
+	/*dbg_ev("%s:unreg\n", __func__);*/
+	dip_even_unreg_val(ch);	/*new*/
+	di_bypass_state_set(ch, true);
+
+	dbg_timer(ch, EDBG_TIMER_UNREG_B);
+	task_delay(100);
+
+	task_send_ready();
+
+	cnt = 0; /* 500us x 10 = 5ms */
+	while (atomic_read(&pbm->trig_unreg[ch]) && cnt < 10) {
+		usleep_range(500, 501);
+		cnt++;
+	}
+
+	task_send_ready();
+
+	cnt = 0; /* 3ms x 2000 = 6s */
+	while (atomic_read(&pbm->trig_unreg[ch]) && cnt < 2000) {
+		usleep_range(3000, 3001);
+		cnt++;
+	}
+
+	if (!atomic_read(&pbm->trig_unreg[ch]))
+		ret = true;
+	else
+		PR_ERR("%s:ch[%d]:failed\n", __func__, ch);
+
+	dbg_timer(ch, EDBG_TIMER_UNREG_E);
+	//dbg_ev("ch[%d]unreg end\n", ch);
+
+	return ret;
+}
+
+/* from dip_event_reg_chst */
+bool dim_process_reg(struct di_ch_s *pch)
 {
 	enum EDI_TOP_STATE chst;
-	struct di_pre_stru_s *ppre = get_pre_stru(ch);
-	bool err_flg = false;
-	bool ret = true;
+	unsigned int ch = pch->ch_id;
+//	struct di_pre_stru_s *ppre = get_pre_stru(ch);
+	bool ret = false;
+	struct di_mng_s *pbm = get_bufmng();
 
 	dbg_dbg("%s:ch[%d]\n", __func__, ch);
 
 	chst = dip_chst_get(ch);
-#ifdef MARK_HIS	/*move*/
-	if (chst > EDI_TOP_STATE_NOPROB)
-		set_flag_trig_unreg(ch, false);
-#endif
+	//trace_printk("%s,%d\n", __func__, chst);
+
 	switch (chst) {
 	case EDI_TOP_STATE_IDLE:
-
 		queue_init2(ch);
 		di_que_init(ch);
-		di_vframe_reg(ch);
+		//move to event di_vframe_reg(ch);
 
 		dip_chst_set(ch, EDI_TOP_STATE_REG_STEP1);
 		task_send_cmd(LCMD1(ECMD_REG, ch));
+		ret = true;
 		dbg_dbg("reg ok\n");
 		break;
 	case EDI_TOP_STATE_REG_STEP1:
@@ -1418,34 +1660,12 @@ bool dip_event_reg_chst(unsigned int ch)
 	case EDI_TOP_STATE_READY:
 	case EDI_TOP_STATE_BYPASS:
 		PR_WARN("have reg\n");
-		ret = false;
+		ret = true;
 		break;
 	case EDI_TOP_STATE_UNREG_STEP1:
 	case EDI_TOP_STATE_UNREG_STEP2:
-		/*wait*/
-		ppre->reg_req_flag_cnt = 0;
-		while (dip_chst_get(ch) != EDI_TOP_STATE_IDLE) {
-			usleep_range(10000, 10001);
-			if (ppre->reg_req_flag_cnt++ >
-				dim_get_reg_unreg_cnt()) {
-				dim_reg_timeout_inc();
-				PR_ERR("%s,ch[%d] reg timeout!!!\n",
-				       __func__, ch);
-				err_flg = true;
-				ret = false;
-				break;
-			}
-		}
-		if (!err_flg) {
-		/*same as IDLE*/
-			queue_init2(ch);
-			di_que_init(ch);
-			di_vframe_reg(ch);
-
-			dip_chst_set(ch, EDI_TOP_STATE_REG_STEP1);
-			task_send_cmd(LCMD1(ECMD_REG, ch));
-			dbg_dbg("reg retry ok\n");
-		}
+		PR_ERR("%s:in UNREG_STEP1/2\n", __func__);
+		ret = false;
 		break;
 	case EDI_TOP_STATE_NOPROB:
 	default:
@@ -1455,70 +1675,47 @@ bool dip_event_reg_chst(unsigned int ch)
 		break;
 	}
 
+	atomic_set(&pbm->trig_reg[ch], 0);
+	//trace_printk("%s end\n", __func__);
 	return ret;
 }
 
-bool dip_event_unreg_chst(unsigned int ch)
+/*from: dip_event_unreg_chst*/
+bool dim_process_unreg(struct di_ch_s *pch)
 {
 	enum EDI_TOP_STATE chst, chst2;
+	unsigned int ch = pch->ch_id;
 	struct di_pre_stru_s *ppre = get_pre_stru(ch);
 	bool ret = false;
-	bool err_flg = false;
-	unsigned int cnt;
 	struct di_mng_s *pbm = get_bufmng();
 
 	chst = dip_chst_get(ch);
 	dbg_reg("%s:ch[%d]:%s\n", __func__, ch, dip_chst_get_name(chst));
-	#ifdef MARK_HIS
-	if (chst > EDI_TOP_STATE_IDLE)
-		set_reg_flag(ch, false);/*set_flag_trig_unreg(ch, true);*/
-	#endif
+
 	if (chst > EDI_TOP_STATE_NOPROB)
 		set_flag_trig_unreg(ch, true);
+
+	//trace_printk("%s:%d\n", __func__, chst);
 	switch (chst) {
 	case EDI_TOP_STATE_READY:
-		di_vframe_unreg(ch);
+		//move di_vframe_unreg(ch);
 		/*trig unreg*/
 		dip_chst_set(ch, EDI_TOP_STATE_UNREG_STEP1);
-		task_send_cmd(LCMD1(ECMD_UNREG, ch));
+		//task_send_cmd(LCMD1(ECMD_UNREG, ch));
 		/*debug only di_dbg = di_dbg|DBG_M_TSK;*/
 
 		/*wait*/
 		ppre->unreg_req_flag_cnt = 0;
 		chst2 = dip_chst_get(ch);
 
-		while (chst2 != EDI_TOP_STATE_IDLE) {
-			task_send_ready();
-			usleep_range(10000, 10001);
-			/*msleep(5);*/
-			if (ppre->unreg_req_flag_cnt++
-				> dim_get_reg_unreg_cnt()) {
-				dim_reg_timeout_inc();
-				PR_ERR("%s:ch[%d] unreg timeout!!!\n",
-				       __func__, ch);
-				/*dim_unreg_process();*/
-				err_flg = true;
-				break;
-			}
-			#ifdef MARK_HIS	/*debug only*/
-			dbg_reg("\tch[%d]:s[%s],ecnt[%d]\n",
-				ch,
-				dip_chst_get_name(chst2),
-				ppre->unreg_req_flag_cnt);
-			#endif
-			chst2 = dip_chst_get(ch);
-		}
-
 		/*debug only di_dbg = di_dbg & (~DBG_M_TSK);*/
 		dbg_reg("%s:ch[%d] ready end\n", __func__, ch);
-		#ifdef MARK_HIS
-		if (!err_flg)
-			set_reg_flag(ch, false);
-		#endif
+		task_delay(100);
+
 		break;
 	case EDI_TOP_STATE_BYPASS:
 		/*from bypass complet to unreg*/
-		di_vframe_unreg(ch);
+		//move di_vframe_unreg(ch);
 		di_unreg_variable(ch);
 
 		set_reg_flag(ch, false);
@@ -1533,159 +1730,79 @@ bool dip_event_unreg_chst(unsigned int ch)
 		break;
 	case EDI_TOP_STATE_IDLE:
 		PR_WARN("have unreg\n");
-		break;
-	case EDI_TOP_STATE_REG_STEP1:
-		dbg_dbg("%s:in reg step1\n", __func__);
-		di_vframe_unreg(ch);
-		set_reg_flag(ch, false);
-		dip_chst_set(ch, EDI_TOP_STATE_IDLE);
-
 		ret = true;
-		break;
-	case EDI_TOP_STATE_REG_STEP1_P1:
-		/*wait:*/
-		cnt = 0;
-		chst2 = dip_chst_get(ch);
-		while ((chst2 == EDI_TOP_STATE_REG_STEP1_P1) && (cnt < 20)) {
-			task_send_ready();
-			usleep_range(10000, 10001);
-			cnt++;
-			chst2 = dip_chst_get(ch);
-		}
-
-		if (cnt >= 5)
-			PR_ERR("%s:ch[%d] in p1 timeout\n", __func__, ch);
-		if (chst2 == EDI_TOP_STATE_BYPASS) {
-			di_vframe_unreg(ch);
-			di_unreg_variable(ch);
-
-			set_reg_flag(ch, false);
-			if (!get_reg_flag_all()) {
-				di_unreg_setting();
-				dpre_init();
-				dpost_init();
-			}
-			dip_chst_set(ch, EDI_TOP_STATE_IDLE);
-			ret = true;
-			break;
-		}
-		set_reg_flag(ch, false);
-
-		di_vframe_unreg(ch);
-		/*trig unreg*/
-		dip_chst_set(ch, EDI_TOP_STATE_UNREG_STEP1);
-		task_send_cmd(LCMD1(ECMD_UNREG, ch));
-		/*debug only di_dbg = di_dbg|DBG_M_TSK;*/
-
-		/*wait*/
-		ppre->unreg_req_flag_cnt = 0;
-		chst2 = dip_chst_get(ch);
-
-		while (chst2 != EDI_TOP_STATE_IDLE) {
-			task_send_ready();
-			usleep_range(10000, 10001);
-			/*msleep(5);*/
-			if (ppre->unreg_req_flag_cnt++
-				> dim_get_reg_unreg_cnt()) {
-				dim_reg_timeout_inc();
-				PR_ERR("%s:ch[%d] unreg timeout!!!\n",
-				       __func__,
-				       ch);
-				/*di_unreg_process();*/
-				err_flg = true;
-				break;
-			}
-
-			chst2 = dip_chst_get(ch);
-		}
-		/*debug only di_dbg = di_dbg & (~DBG_M_TSK);*/
-		dbg_reg("%s:ch[%d] ready end\n", __func__, ch);
-		ret = true;
-
 		break;
 	case EDI_TOP_STATE_REG_STEP2:
-		#ifdef MARK_HIS
-		di_vframe_unreg(ch);
 		di_unreg_variable(ch);
-		set_reg_flag(ch, false);
 		if (!get_reg_flag_all()) {
 			di_unreg_setting();
 			dpre_init();
 			dpost_init();
 		}
-		dbg_reg("%s:unreg reg step2\n", __func__);
-		#else
-		ppre->unreg_req_flag_cnt = 0;
-		while (pbm->cma_flg_run & DI_BIT0) {
-			usleep_range(10000, 10001);
-			if (ppre->unreg_req_flag_cnt++ >
-				dim_get_reg_unreg_cnt()) {
-				dim_reg_timeout_inc();
-				PR_ERR("%s:unreg_reg2_flag timeout!!!\n",
-				       __func__);
-				di_vframe_unreg(ch);
-				err_flg = true;
-				break;
-			}
-		}
-		di_vframe_unreg(ch);
-		di_unreg_variable(ch);
+		/*note: no break;*/
+	case EDI_TOP_STATE_REG_STEP1:
+	case EDI_TOP_STATE_REG_STEP1_P1:
+		dbg_dbg("%s:in reg step1\n", __func__);
+		//move di_vframe_unreg(ch);
 		set_reg_flag(ch, false);
-		if (!get_reg_flag_all()) {
-			di_unreg_setting();
-			dpre_init();
-			dpost_init();
-		}
 		dip_chst_set(ch, EDI_TOP_STATE_IDLE);
-		dbg_reg("%s:unreg reg step2\n", __func__);
-		#endif
+
 		ret = true;
 		break;
 	case EDI_TOP_STATE_UNREG_STEP1:
-	case EDI_TOP_STATE_UNREG_STEP2:
-		task_send_cmd(LCMD1(ECMD_UNREG, ch));
-		/*wait*/
-		ppre->unreg_req_flag_cnt = 0;
-		while (dip_chst_get(ch) != EDI_TOP_STATE_IDLE) {
-			usleep_range(10000, 10001);
-			if (ppre->unreg_req_flag_cnt++ >
-				dim_get_reg_unreg_cnt()) {
-				dim_reg_timeout_inc();
-				PR_ERR("%s:unreg_reg_flag timeout!!!\n",
-				       __func__);
-				di_vframe_unreg(ch);
-				err_flg = true;
-				break;
-			}
+		if (dpre_can_exit(ch) && dpst_can_exit(ch)) {
+			dip_chst_set(ch, EDI_TOP_STATE_UNREG_STEP2);
+			set_reg_flag(ch, false);
+			//reflesh = true;
 		}
+		break;
+	case EDI_TOP_STATE_UNREG_STEP2:
+		di_unreg_variable(ch);
+		if (!get_reg_flag_all()) {
+			di_unreg_setting();
+			dpre_init();
+			dpost_init();
+		}
+
+		dip_chst_set(ch, EDI_TOP_STATE_IDLE);
+		ret = true;
 		break;
 	case EDI_TOP_STATE_NOPROB:
 	default:
 		PR_ERR("err: not prob[%d]\n", chst);
+		ret = true;
 		break;
 	}
-	if (err_flg)
-		ret = false;
+
+	if (ret) {
+		task_delay(1);
+		//trace_printk("%s end\n", __func__);
+		dbg_pl("unreg:%s\n", dip_chst_get_name(chst));
+		atomic_set(&pbm->trig_unreg[ch], 0);
+	} else {
+		//trace_printk("%s step end\n", __func__);
+	}
 
 	return ret;
 }
 
-/*process for reg and unreg cmd*/
-void dip_chst_process_reg(unsigned int ch)
+/* from dip_chst_process_reg */
+static void dip_process_reg_after(struct di_ch_s *pch)
 {
 	enum EDI_TOP_STATE chst;
 	struct vframe_s *vframe;
+	unsigned int ch = pch->ch_id;
 	struct di_pre_stru_s *ppre = get_pre_stru(ch);
 	bool reflesh = true;
 	struct di_mng_s *pbm = get_bufmng();
-	ulong flags = 0;
+//	ulong flags = 0;
 
 	while (reflesh) {
 		reflesh = false;
 
 	chst = dip_chst_get(ch);
 
-	dbg_reg("%s:ch[%d]%s\n", __func__, ch, dip_chst_get_name(chst));
+	//dbg_reg("%s:ch[%d]%s\n", __func__, ch, dip_chst_get_name(chst));
 
 	switch (chst) {
 	case EDI_TOP_STATE_NOPROB:
@@ -1695,55 +1812,27 @@ void dip_chst_process_reg(unsigned int ch)
 		vframe = pw_vf_peek(ch);
 
 		if (vframe) {
+			dbg_timer(ch, EDBG_TIMER_FIRST_GET);
 			dim_tr_ops.pre_get(vframe->index_disp);
-			set_flag_trig_unreg(ch, false);
-			#ifdef MARK_HIS
-			di_reg_variable(ch);
 
-			/*?how  about bypass ?*/
-			if (ppre->bypass_flag) {
-				/* complete bypass */
-				set_bypass2_complete(ch, true);
-				if (!get_reg_flag_all()) {
-					/*first channel reg*/
-					dpre_init();
-					dpost_init();
-					di_reg_setting(ch, vframe);
-				}
-				dip_chst_set(ch, EDI_TOP_STATE_BYPASS);
-				set_reg_flag(ch, true);
-			} else {
-				set_bypass2_complete(ch, false);
-				if (!get_reg_flag_all()) {
-					/*first channel reg*/
-					dpre_init();
-					dpost_init();
-					di_reg_setting(ch, vframe);
-				}
-				dip_chst_set(ch, EDI_TOP_STATE_REG_STEP2);
-			}
-			#else
+			set_flag_trig_unreg(ch, false);
+
 			dip_chst_set(ch, EDI_TOP_STATE_REG_STEP1_P1);
-			#endif
 
 			reflesh = true;
+			//trace_printk("step1:peek\n");
 		}
 		break;
 	case EDI_TOP_STATE_REG_STEP1_P1:
-		dbg_reg("%s:p1 a\n", __func__);
 		vframe = pw_vf_peek(ch);
-		dbg_reg("%s:p1 b\n", __func__);
 		if (!vframe) {
 			PR_ERR("%s:p1 vfm nop\n", __func__);
 			dip_chst_set(ch, EDI_TOP_STATE_REG_STEP1);
 			reflesh = true;
 			break;
 		}
-
-		if (pbm->cma_flg_run & DI_BIT0) {
-			dbg_reg("%s:p1 c\n", __func__);
+		if (pbm->cma_flg_run & DI_BIT0)
 			break;
-		}
 
 		di_reg_variable(ch, vframe);
 		/*di_reg_process_irq(ch);*/ /*check if bypass*/
@@ -1767,7 +1856,6 @@ void dip_chst_process_reg(unsigned int ch)
 				dpre_init();
 				dpost_init();
 				di_reg_setting(ch, vframe);
-				set_reg_flag(ch, true);
 			}
 			/*this will cause first local buf not alloc*/
 			/*dim_bypass_first_frame(ch);*/
@@ -1778,10 +1866,14 @@ void dip_chst_process_reg(unsigned int ch)
 		reflesh = true;
 		break;
 	case EDI_TOP_STATE_REG_STEP2:/**/
-		if (pbm->cma_flg_run)
-			break;
-		if (dip_cma_get_st(ch) == EDI_CMA_ST_READY) {
-			dbg_wq("cma:ready 2\n");
+
+		pch = get_chdata(ch);
+#ifdef	SC2_NEW_FLOW
+		if (memn_get(pch)) {
+#else
+		if (mem_cfg(pch)) {
+#endif
+			mem_cfg_realloc_wait(pch);
 			if (di_cfg_top_get(EDI_CFG_FIRST_BYPASS)) {
 				if (get_sum_g(ch) == 0)
 					dim_bypass_first_frame(ch);
@@ -1791,172 +1883,19 @@ void dip_chst_process_reg(unsigned int ch)
 			}
 			dip_chst_set(ch, EDI_TOP_STATE_READY);
 			set_reg_flag(ch, true);
-			/*move to step1 dim_bypass_first_frame(ch);*/
-		} else {
-			spin_lock_irqsave(&plist_lock, flags);
-			dip_wq_check(ch);
-			spin_unlock_irqrestore(&plist_lock, flags);
 		}
+
 		break;
 	case EDI_TOP_STATE_READY:
 
 		break;
 	case EDI_TOP_STATE_BYPASS:
+	case EDI_TOP_STATE_UNREG_STEP1:
+	case EDI_TOP_STATE_UNREG_STEP2:
 		/*do nothing;*/
 		break;
-	case EDI_TOP_STATE_UNREG_STEP1:
-#ifdef MARK_HIS
-		if (!get_reg_flag(ch)) {	/*need wait pre/post done*/
-			dip_chst_set(ch, EDI_TOP_STATE_UNREG_STEP2);
-			reflesh = true;
-		}
-#else
-		/*debug only dbg_reg("%s:UNREG_STEP1\n", __func__);*/
-
-		if (dpre_can_exit(ch) && dpst_can_exit(ch)) {
-			dip_chst_set(ch, EDI_TOP_STATE_UNREG_STEP2);
-			set_reg_flag(ch, false);
-			reflesh = true;
-		}
-#endif
-		break;
-	case EDI_TOP_STATE_UNREG_STEP2:
-		/*debug only dbg_reg("%s:ch[%d]:UNREG_STEP2\n",__func__, ch);*/
-		di_unreg_variable(ch);
-		if (!get_reg_flag_all()) {
-			di_unreg_setting();
-			dpre_init();
-			dpost_init();
-		}
-
-		dip_chst_set(ch, EDI_TOP_STATE_IDLE);
-		/*debug only dbg_reg("ch[%d]UNREG_STEP2 end\n",ch);*/
-		break;
 	}
-}
-}
-
-void dip_chst_process_ch(void)
-{
-	unsigned int ch;
-	unsigned int chst;
-	struct vframe_s *vframe;
-	struct di_pre_stru_s *ppre;// = get_pre_stru(ch);
-	struct di_mng_s *pbm = get_bufmng();
-	ulong flags = 0;
-
-	for (ch = 0; ch < DI_CHANNEL_NUB; ch++) {
-		chst = dip_chst_get(ch);
-		ppre = get_pre_stru(ch);
-		task_polling_cmd_keep(ch, chst);
-		switch (chst) {
-		case EDI_TOP_STATE_REG_STEP2:
-			vframe = pw_vf_peek(ch);
-			if (!vframe)
-				break;
-			if (pbm->cma_flg_run)
-				break;
-
-			if (dip_cma_get_st(ch) == EDI_CMA_ST_READY) {
-				dbg_wq("cma:ready\n");
-				if (di_cfg_top_get(EDI_CFG_FIRST_BYPASS)) {
-					if (get_sum_g(ch) == 0)
-						dim_bypass_first_frame(ch);
-					else
-						PR_INF("ch[%d],g[%d]\n",
-						       ch, get_sum_g(ch));
-				}
-				if (!get_reg_flag_all()) {
-					dpre_init();
-					dpost_init();
-					di_reg_setting(ch, vframe);
-				}
-				dip_chst_set(ch, EDI_TOP_STATE_READY);
-				set_reg_flag(ch, true);
-			} else {
-				spin_lock_irqsave(&plist_lock, flags);
-				dip_wq_check(ch);
-				spin_unlock_irqrestore(&plist_lock, flags);
-			}
-			break;
-		case EDI_TOP_STATE_UNREG_STEP1:
-			if (dpre_can_exit(ch) && dpst_can_exit(ch)) {
-				dip_chst_set(ch, EDI_TOP_STATE_UNREG_STEP2);
-				set_reg_flag(ch, false);
-			}
-
-			break;
-		case EDI_TOP_STATE_UNREG_STEP2:
-			dbg_reg("%s:ch[%d]:at UNREG_STEP2\n", __func__, ch);
-			di_unreg_variable(ch);
-			if (!get_reg_flag_all()) {
-				di_unreg_setting();
-				dpre_init();
-				dpost_init();
-			}
-
-			dip_chst_set(ch, EDI_TOP_STATE_IDLE);
-			dbg_reg("ch[%d]STEP2 end\n", ch);
-			break;
-		case EDI_TOP_STATE_READY:
-			spin_lock_irqsave(&plist_lock, flags);
-			dim_post_keep_back_recycle(ch);
-			spin_unlock_irqrestore(&plist_lock, flags);
-			dim_sumx_set(ch);
-			break;
-		case EDI_TOP_STATE_BYPASS:
-			vframe = pw_vf_peek(ch);
-			if (!vframe)
-				break;
-			if (dim_need_bypass(ch, vframe))
-				break;
-
-			di_reg_variable(ch, vframe);
-			if (!ppre->bypass_flag) {
-				set_bypass2_complete(ch, false);
-				/*this will cause first local buf not alloc*/
-				/*dim_bypass_first_frame(ch);*/
-				dip_chst_set(ch, EDI_TOP_STATE_REG_STEP2);
-			}
-			break;
-		#ifdef HIS_CODE
-		case EDI_TOP_STATE_IDLE:
-			if (pbm->cma_flg_run)
-				break;
-			cma_st = dip_cma_get_st(ch);
-			switch (cma_st) {
-			case EDI_CMA_ST_IDL:
-			case EDI_CMA_ST_PART:
-				task_polling_cmd_keep(ch);
-				break;
-			default:
-				break;
-			}
-			break;
-		#endif
-		default:
-			break;
-		}
 	}
-}
-
-bool dip_chst_change_2unreg(void)
-{
-	unsigned int ch;
-	unsigned int chst;
-	bool ret = false;
-
-	for (ch = 0; ch < DI_CHANNEL_NUB; ch++) {
-		chst = dip_chst_get(ch);
-		dbg_poll("[%d]%d\n", ch, chst);
-		if (chst == EDI_TOP_STATE_UNREG_STEP1) {
-			dbg_reg("%s:ch[%d]to UNREG_STEP2\n", __func__, ch);
-			set_reg_flag(ch, false);
-			dip_chst_set(ch, EDI_TOP_STATE_UNREG_STEP2);
-			ret = true;
-		}
-	}
-	return ret;
 }
 
 void dip_hw_process(void)
@@ -2009,8 +1948,41 @@ static const struct di_mm_cfg_s c_mm_cfg_normal = {
 	.di_h	=	1088,
 	.di_w	=	1920,
 	.num_local	=	MAX_LOCAL_BUF_NUM,
-	.num_post	=	MAX_POST_BUF_NUM,
+	.num_post	=	POST_BUF_NUM,
+	.num_step1_post = 1,
 };
+
+static const struct di_mm_cfg_s c_mm_cfg_4k = {
+	.di_h	=	2160,
+	.di_w	=	3840,
+	.num_local	=	0,
+	.num_post	=	POST_BUF_NUM,
+	.num_step1_post = 1,
+};
+
+static const struct di_mm_cfg_s c_mm_cfg_fix_4k = {
+	.di_h	=	2160,
+	.di_w	=	3840,
+	.num_local	=	MAX_LOCAL_BUF_NUM,
+	.num_post	=	POST_BUF_NUM,
+	.num_step1_post = 1,
+};
+
+static const struct di_mm_cfg_s c_mm_cfg_bypass = {
+	.di_h	=	2160,
+	.di_w	=	3840,
+	.num_local	=	0,
+	.num_post	=	0,
+	.num_step1_post = 0,
+};
+
+const struct di_mm_cfg_s *di_get_mm_tab(unsigned int is_4k)
+{
+	if (is_4k)
+		return &c_mm_cfg_4k;
+	else
+		return &c_mm_cfg_normal;
+}
 
 /**********************************/
 /* TIME OUT CHEKC api*/
@@ -2098,6 +2070,59 @@ const unsigned int di_ch2mask_table[DI_CHANNEL_MAX] = {
 	DI_BIT2,
 	DI_BIT3,
 };
+
+/****************************************
+ *bit control
+ ****************************************/
+static const unsigned int bit_tab[32] = {
+	DI_BIT0,
+	DI_BIT1,
+	DI_BIT2,
+	DI_BIT3,
+	DI_BIT4,
+	DI_BIT5,
+	DI_BIT6,
+	DI_BIT7,
+	DI_BIT8,
+	DI_BIT9,
+	DI_BIT10,
+	DI_BIT11,
+	DI_BIT12,
+	DI_BIT13,
+	DI_BIT14,
+	DI_BIT15,
+	DI_BIT16,
+	DI_BIT17,
+	DI_BIT18,
+	DI_BIT19,
+	DI_BIT20,
+	DI_BIT21,
+	DI_BIT22,
+	DI_BIT23,
+	DI_BIT24,
+	DI_BIT25,
+	DI_BIT26,
+	DI_BIT27,
+	DI_BIT28,
+	DI_BIT29,
+	DI_BIT30,
+	DI_BIT31,
+};
+
+void bset(unsigned int *p, unsigned int bitn)
+{
+	*p = *p | bit_tab[bitn];
+}
+
+void bclr(unsigned int *p, unsigned int bitn)
+{
+	*p = *p & (~bit_tab[bitn]);
+}
+
+bool bget(unsigned int *p, unsigned int bitn)
+{
+	return (*p & bit_tab[bitn]) ? true : false;
+}
 
 /****************************************/
 /* do_table				*/
@@ -2379,7 +2404,7 @@ void dim_bypass_set(struct di_ch_s *pch, bool which, unsigned int reason)
 }
 
 #define DIM_POLICY_STD_OLD	(125)
-#define DIM_POLICY_STD	(250)
+#define DIM_POLICY_STD	(2000)//(600)//(250)
 #define DIM_POLICY_SHIFT_H	(7)
 #define DIM_POLICY_SHIFT_W	(6)
 
@@ -2399,14 +2424,17 @@ void dim_polic_cfg_local(unsigned int cmd, bool on)
 		pp->cfg_b.i_first = on;
 		break;
 	case K_DIM_BYPASS_ALL_P:
+#ifdef TEST_DISABLE_BYPASS_P
+		PR_INF("%s:get bypass p cmd, do nothing\n", __func__);
+#else
 		pp->cfg_b.bypass_all_p = on;
+#endif
 		break;
 	default:
 		PR_WARN("%s:cmd is overflow[%d]\n", __func__, cmd);
 		break;
 	}
 }
-
 //EXPORT_SYMBOL(dim_polic_cfg);
 
 void dim_polic_prob(void)
@@ -2505,12 +2533,53 @@ unsigned int dim_polic_is_bypass(struct di_ch_s *pch, struct vframe_s *vf)
 	return reason;
 }
 
+unsigned int dim_get_trick_mode(void)
+{
+	unsigned int trick_mode;
+
+	if (dimp_get(edi_mp_bypass_trick_mode)) {
+		int trick_mode_fffb = 0;
+		int trick_mode_i = 0;
+
+		if (dimp_get(edi_mp_bypass_trick_mode) & 0x1)
+			query_video_status(0, &trick_mode_fffb);
+		if (dimp_get(edi_mp_bypass_trick_mode) & 0x2)
+			query_video_status(1, &trick_mode_i);
+		trick_mode =
+			trick_mode_fffb | (trick_mode_i << 1);
+
+		return trick_mode;
+	}
+	return 0;
+}
+
+static enum EDPST_MODE dim_cnt_mode(struct di_ch_s *pch)
+{
+	enum EDPST_MODE mode;
+
+	if (dim_cfg_nv21()) {
+		mode = EDPST_MODE_NV21_8BIT;
+	} else {
+		if (dimp_get(edi_mp_nr10bit_support)) {
+			if (dimp_get(edi_mp_full_422_pack))
+				mode = EDPST_MODE_422_10BIT_PACK;
+			else
+				mode = EDPST_MODE_422_10BIT;
+		} else {
+			mode = EDPST_MODE_422_8BIT;
+		}
+	}
+	return mode;
+}
+
 /****************************/
-void dip_init_value_reg(unsigned int ch)
+void dip_init_value_reg(unsigned int ch, struct vframe_s *vframe)
 {
 	struct di_post_stru_s *ppost;
 	struct di_pre_stru_s *ppre = get_pre_stru(ch);
 	struct di_ch_s *pch = get_chdata(ch);
+	struct di_mm_s *mm;
+	enum EDI_SGN sgn;
 
 	dbg_reg("%s:\n", __func__);
 
@@ -2529,6 +2598,81 @@ void dip_init_value_reg(unsigned int ch)
 	dim_bypass_st_clear(pch);
 	/* dw */
 	dw_int();
+
+	if (cfgg(PMODE) == 2) {
+		//prog_proc_config = 3;
+		dimp_set(edi_mp_prog_proc_config, 3);
+		//use_2_interlace_buff = 2;
+		dimp_set(edi_mp_use_2_interlace_buff, 2);
+
+	} else {
+		//prog_proc_config = 0x23;
+		//use_2_interlace_buff = 1;
+		dimp_set(edi_mp_prog_proc_config, 0x23);
+		dimp_set(edi_mp_use_2_interlace_buff, 1);
+	}
+	if (dim_afds())
+		di_set_default(ch);
+
+	mm = dim_mm_get(ch);
+
+	sgn = di_vframe_2_sgn(vframe);
+	ppre->sgn_lv = sgn;
+
+	if (mm->cfg.fix_buf) {
+		if (dim_afds()	&&
+		    cfgg(4K)) {
+			memcpy(&mm->cfg, &c_mm_cfg_fix_4k,
+			       sizeof(struct di_mm_cfg_s));
+		} else {
+			memcpy(&mm->cfg, &c_mm_cfg_normal,
+			       sizeof(struct di_mm_cfg_s));
+		}
+
+	} else if (sgn <= EDI_SGN_HD) {
+		memcpy(&mm->cfg, &c_mm_cfg_normal, sizeof(struct di_mm_cfg_s));
+	} else if ((sgn <= EDI_SGN_4K)	&&
+		 dim_afds()		&&
+		 cfgg(4K)) {
+		memcpy(&mm->cfg, &c_mm_cfg_4k, sizeof(struct di_mm_cfg_s));
+	} else {
+		memcpy(&mm->cfg, &c_mm_cfg_bypass, sizeof(struct di_mm_cfg_s));
+	}
+
+	if (cfgg(FIX_BUF))
+		mm->cfg.fix_buf = 1;
+	else
+		mm->cfg.fix_buf = 0;
+	PR_INF("%s:fix_buf:%d\n", __func__, mm->cfg.fix_buf);
+
+	pch->mode = dim_cnt_mode(pch);
+}
+
+enum EDI_SGN di_vframe_2_sgn(struct vframe_s *vframe)
+{
+	unsigned int h, v;
+	enum EDI_SGN sgn;
+
+	if (IS_COMP_MODE(vframe->type)) {
+		h = vframe->compWidth;
+		v = vframe->compHeight;
+	} else {
+		h = vframe->width;
+		v = vframe->height;
+	}
+
+	if (h <= 1280 && v <= 720) {
+		sgn = EDI_SGN_SD;
+	} else if (h <= 1920 && v <= 1088) {
+		sgn = EDI_SGN_HD;
+	} else if (h <= 3840 && v <= 2660 &&
+		   IS_PROG(vframe->type)) {
+		sgn = EDI_SGN_4K;
+	} else {
+		sgn = EDI_SGN_OTHER;
+	}
+
+	return sgn;
 }
 
 static bool dip_init_value(void)
@@ -2625,8 +2769,15 @@ void dip_clean_value(void)
 bool dip_prob(void)
 {
 	bool ret = true;
+	int i;
+	struct di_ch_s *pch;
 
 	ret = dip_init_value();
+	for (i = 0; i < DI_CHANNEL_NUB; i++) {
+		pch = get_chdata(i);
+		bufq_blk_int(pch);
+		bufq_mem_int(pch);
+	}
 
 	di_cfgx_init_val();
 	di_cfg_top_init_val();
@@ -2635,7 +2786,7 @@ bool dip_prob(void)
 
 	dev_vframe_init();
 	didbg_fs_init();
-	dip_wq_prob();
+//	dip_wq_prob();
 	dip_cma_init_val();
 	dip_chst_init();
 
@@ -2650,7 +2801,16 @@ bool dip_prob(void)
 
 void dip_exit(void)
 {
-	dip_wq_ext();
+	int i;
+	struct di_ch_s *pch;
+
+	for (i = 0; i < DI_CHANNEL_NUB; i++) {
+		pch = get_chdata(i);
+		bufq_blk_exit(pch);
+		bufq_mem_exit(pch);
+	}
+	dim_release_canvas();
+//	dip_wq_ext();
 	dev_vframe_exit();
 	dip_clean_value();
 	didbg_fs_exit();

@@ -22,7 +22,6 @@
 #include <linux/debugfs.h>
 
 #include "di_data.h"
-#include "di_dbg.h"
 
 #include "di_reg_tab.h"
 #include "deinterlace.h"
@@ -34,6 +33,7 @@
 #include "di_prc.h"
 #include "di_pre.h"
 #include "di_post.h"
+#include "di_dbg.h"
 
 /********************************
  *trace:
@@ -236,6 +236,41 @@ const struct dim_tr_ops_s dim_tr_ops = {
 	.post_peek = trace_post_peek,
 };
 
+void dbg_timer(unsigned int ch, enum EDBG_TIMER item)
+{
+	u64 ustime, udiff;
+	struct di_ch_s *pch;
+
+	pch = get_chdata(ch);
+	ustime = cur_to_usecs();
+
+	switch (item) {
+	case EDBG_TIMER_REG_B:
+		pch->dbg_data.us_reg_begin = ustime;
+		break;
+	case EDBG_TIMER_REG_E:
+		pch->dbg_data.us_reg_end = ustime;
+		udiff = pch->dbg_data.us_reg_end -
+			pch->dbg_data.us_reg_begin;
+		//dbg_ev("reg:use[%llu]us\n", udiff);
+		break;
+	case EDBG_TIMER_UNREG_B:
+		pch->dbg_data.us_unreg_begin = ustime;
+		break;
+	case EDBG_TIMER_UNREG_E:
+		pch->dbg_data.us_unreg_end = ustime;
+		udiff = pch->dbg_data.us_unreg_end -
+			pch->dbg_data.us_unreg_begin;
+		//dbg_ev("unreg:use[%llu]us\n", udiff);
+		break;
+	case EDBG_TIMER_FIRST_GET:
+		pch->dbg_data.us_first_get = ustime;
+		break;
+	case EDBG_TIMER_FIRST_READY:
+		pch->dbg_data.us_first_ready = ustime;
+		break;
+	}
+}
 static unsigned int seq_get_channel(struct seq_file *s)
 {
 	int *pch;
@@ -482,6 +517,9 @@ static ssize_t ddbg_log_reg_store(struct file *file, const char __user *userbuf,
 /**********************/
 static int seq_file_vframe(struct seq_file *seq, void *v, struct vframe_s *pvfm)
 {
+	int i;
+	struct canvas_config_s *pcvs;
+
 	if (!pvfm) {
 		seq_puts(seq, "war: dump vframe NULL\n");
 		return 0;
@@ -506,6 +544,8 @@ static int seq_file_vframe(struct seq_file *seq, void *v, struct vframe_s *pvfm)
 	seq_printf(seq, "%-15s:%lld\n", "disp_pts_us64", pvfm->disp_pts_us64);
 	seq_printf(seq, "%-15s:%lld\n", "timestamp", pvfm->timestamp);
 	seq_printf(seq, "%-15s:%d\n", "flag", pvfm->flag);
+	seq_printf(seq, "\t%-15s:%d\n", "flag:VFRAME_FLAG_DOUBLE_FRAM",
+		   pvfm->flag & VFRAME_FLAG_DOUBLE_FRAM);
 	seq_printf(seq, "%-15s:0x%x\n", "canvas0Addr", pvfm->canvas0Addr);
 	seq_printf(seq, "%-15s:0x%x\n", "canvas1Addr", pvfm->canvas1Addr);
 	seq_printf(seq, "%-15s:0x%x\n", "compHeadAddr", pvfm->compHeadAddr);
@@ -580,17 +620,25 @@ static int seq_file_vframe(struct seq_file *seq, void *v, struct vframe_s *pvfm)
 		/* used for indicate current video is motion or static */
 	seq_printf(seq, "%-15s:%d\n", "combing_cur_lev",
 		   pvfm->combing_cur_lev);
-	seq_printf(seq, "%-15s:\n", "canvas0_cfg[0]");
-	seq_printf(seq, "\t%-15s:0x%x\n", "phy_addr",
-		   pvfm->canvas0_config[0].phy_addr);
-	seq_printf(seq, "\t%-15s:%d\n", "width",
-		   pvfm->canvas0_config[0].width);
-	seq_printf(seq, "\t%-15s:%d\n", "height",
-		   pvfm->canvas0_config[0].height);
-	seq_printf(seq, "\t%-15s:%d\n", "block_mode",
-		   pvfm->canvas0_config[0].block_mode);
-	seq_printf(seq, "\t%-15s:0x%x\n", "endian",
-		   pvfm->canvas0_config[0].endian);
+	for (i = 0; i < pvfm->plane_num; i++) {
+		pcvs = &pvfm->canvas0_config[i];
+		seq_printf(seq, "%-15s:%d\n", "canvas0_cfg", i);
+		seq_printf(seq, "\t%-15s:0x%x\n", "phy_addr",
+			   pcvs->phy_addr);
+		seq_printf(seq, "\t%-15s:%d\n", "width",
+			   pcvs->width);
+		seq_printf(seq, "\t%-15s:%d\n", "height",
+			   pcvs->height);
+		seq_printf(seq, "\t%-15s:%d\n", "block_mode",
+			   pcvs->block_mode);
+		seq_printf(seq, "\t%-15s:0x%x\n", "endian",
+			   pcvs->endian);
+	}
+
+	if (pvfm->vf_ext)
+		seq_printf(seq, "%-15s\n", "vf_ext");
+	else
+		seq_printf(seq, "%-15s\n", "vf_ext:none");
 
 	return 0;
 }
@@ -630,12 +678,12 @@ static int seq_file_vframe_in_show(struct seq_file *seq, void *v)
 /***********************/
 /* debug output vframe */
 /***********************/
-void didbg_vframe_out_save(struct vframe_s *pvfm)
+void didbg_vframe_out_save(unsigned int ch, struct vframe_s *pvfm)
 {
-	unsigned int ch;
+	//unsigned int ch;
 	struct vframe_s **pvfm_t;
 
-	ch = DI_SUB_ID_S0;
+	//ch = DI_SUB_ID_S0;
 	if (!di_cfgx_get(ch, EDI_DBG_CFGX_IDX_VFM_OT))
 		return;
 

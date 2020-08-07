@@ -25,9 +25,10 @@
 
 void dev_vframe_init(void);
 void dev_vframe_exit(void);
-void di_vframe_reg(unsigned int ch);
-void di_vframe_unreg(unsigned int ch);
+void dev_vframe_reg(struct dev_vfram_t *pvfm);
+void dev_vframe_unreg(struct dev_vfram_t *pvfm);
 
+#ifdef MARK_SC2
 bool vf_type_is_prog(unsigned int type);
 bool vf_type_is_interlace(unsigned int type);
 bool vf_type_is_top(unsigned int type);
@@ -48,7 +49,7 @@ bool vf_type_is_compress(unsigned int type);
 bool vf_type_is_pic(unsigned int type);
 bool vf_type_is_scatter(unsigned int type);
 bool vf_type_is_vd2(unsigned int type);
-
+#endif
 extern const char * const di_rev_name[4];
 
 struct vframe_s *pw_vf_get(unsigned int ch);
