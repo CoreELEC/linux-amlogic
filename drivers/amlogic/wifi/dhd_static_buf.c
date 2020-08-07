@@ -29,6 +29,17 @@
 
 #define	DHD_STATIC_VERSION_STR		"100.10.545.3"
 
+#define WIFI_DBG 0
+#if WIFI_DBG
+#define WIFI_INFO(fmt, args...)	\
+	pr_info("[%s] " fmt, __func__, ##args)
+#else
+#define WIFI_INFO(fmt, args...)
+#endif
+
+#define WIFI_ERR(fmt, args...)	\
+	pr_info("[%s] " fmt, __func__, ##args)
+
 #define BCMDHD_SDIO
 #define BCMDHD_PCIE
 
@@ -138,7 +149,7 @@ static struct sk_buff *wlan_static_skb[WLAN_SKB_BUF_NUM];
 
 void *bcmdhd_mem_prealloc(int section, unsigned long size)
 {
-	pr_info("sectoin %d, size %ld\n", section, size);
+	WIFI_INFO("sectoin %d, size %ld\n", section, size);
 	if (section == DHD_PREALLOC_PROT)
 		return wlan_static_prot;
 
@@ -290,7 +301,7 @@ int bcmdhd_init_wlan_mem(void)
 {
 	int i;
 	int j;
-	pr_info("%s(): %s\n", __func__, DHD_STATIC_VERSION_STR);
+	WIFI_INFO("%s(): %s\n", __func__, DHD_STATIC_VERSION_STR);
 
 	for (i = 0; i < DHD_SKB_1PAGE_BUF_NUM; i++) {
 		wlan_static_skb[i] = dev_alloc_skb(DHD_SKB_1PAGE_BUFSIZE);
@@ -382,7 +393,7 @@ int bcmdhd_init_wlan_mem(void)
 	if (!wlan_static_nan_event_ring_buf)
 		goto err_mem_alloc;
 
-	pr_info("bcmdhd_init_wlan_mem prealloc ok\n");
+	WIFI_INFO("bcmdhd_init_wlan_mem prealloc ok\n");
 	return 0;
 
 err_mem_alloc:

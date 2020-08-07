@@ -53,6 +53,17 @@ static struct early_suspend bt_early_suspend;
 
 #define BT_RFKILL "bt_rfkill"
 
+#define BT_DBG 0
+#if BT_DBG
+#define BT_INFO(fmt, args...)	\
+	pr_info("[%s] " fmt, __func__, ##args)
+#else
+#define BT_INFO(fmt, args...)
+#endif
+
+#define BT_ERR(fmt, args...)	\
+	pr_info("[%s] " fmt, __func__, ##args)
+
 char bt_addr[18] = "";
 static struct class *bt_addr_class;
 static int btwake_evt;
@@ -97,7 +108,7 @@ static ssize_t bt_addr_store(struct class *cls,
 	if (bt_addr[strlen(bt_addr)-1] == '\n')
 		bt_addr[strlen(bt_addr)-1] = '\0';
 
-	pr_info("bt_addr=%s\n", bt_addr);
+	BT_INFO("bt_addr=%s\n", bt_addr);
 	return count;
 }
 static CLASS_ATTR(value, 0644, bt_addr_show, bt_addr_store);
@@ -295,7 +306,7 @@ static irqreturn_t bt_interrupt(int irq, void *dev_id)
 
 	if (btirq_flag == 1) {
 		schedule_work(&pdata->btwakeup_work);
-		pr_info("freeze: test BT IRQ\n");
+		BT_INFO("freeze: test BT IRQ\n");
 	}
 
 	return IRQ_HANDLED;
@@ -316,9 +327,9 @@ static enum hrtimer_restart btwakeup_timer_handler(struct hrtimer *timer)
 			flag_n++;
 		cnt++;
 	}
-	//pr_info("%s power: %d,netflix:%d\n", __func__, flag_p, flag_n);
+	BT_INFO("%s power: %d,netflix:%d\n", __func__, flag_p, flag_n);
 	if (flag_p >= 7) {
-		pr_info("%s power: %d\n", __func__, flag_p);
+		BT_INFO("%s power: %d\n", __func__, flag_p);
 		btwake_evt = 2;
 		cnt = 0;
 		flag_p = 0;
@@ -330,7 +341,7 @@ static enum hrtimer_restart btwakeup_timer_handler(struct hrtimer *timer)
 			EV_KEY, KEY_POWER, 0);
 		input_sync(pdata->input_dev);
 	} else if (flag_n >= 7) {
-		pr_info("%s netflix: %d\n", __func__, flag_n);
+		BT_INFO("%s netflix: %d\n", __func__, flag_n);
 		btwake_evt = 2;
 		cnt = 0;
 		flag_n = 0;
@@ -353,7 +364,7 @@ static void get_btwakeup_irq_work(struct work_struct *work)
 
 	if (btwake_evt == 2)
 		return;
-	pr_info("%s", __func__);
+	BT_INFO("%s", __func__);
 	hrtimer_start(&pdata->timer,
 			ktime_set(0, 100*1000000), HRTIMER_MODE_REL);
 }
@@ -362,14 +373,14 @@ static int bt_set_block(void *data, bool blocked)
 {
 	struct bt_dev_data *pdata = data;
 
-	pr_info("BT_RADIO going: %s\n", blocked ? "off" : "on");
+	BT_INFO("BT_RADIO going: %s\n", blocked ? "off" : "on");
 
 	if (!blocked) {
-		pr_info("AML_BT: going ON,btpower_evt=%d\n", btpower_evt);
+		BT_INFO("AML_BT: going ON,btpower_evt=%d\n", btpower_evt);
 		bt_device_on(pdata);
 	} else {
-		pr_info("AML_BT: going OFF,btpower_evt=%d\n", btpower_evt);
-	bt_device_off(pdata);
+		BT_INFO("AML_BT: going OFF,btpower_evt=%d\n", btpower_evt);
+		bt_device_off(pdata);
 	}
 	return 0;
 }
@@ -394,7 +405,7 @@ static int bt_suspend(struct platform_device *pdev,
 	struct bt_dev_data *pdata = platform_get_drvdata(pdev);
 
 	btwake_evt = 0;
-	pr_info("bt suspend\n");
+	BT_INFO("bt suspend\n");
 	disable_irq(pdata->irqno_wakeup);
 
 	return 0;
@@ -404,7 +415,7 @@ static int bt_resume(struct platform_device *pdev)
 {
 	struct bt_dev_data *pdata = platform_get_drvdata(pdev);
 
-	pr_info("bt resume\n");
+	BT_INFO("bt resume\n");
 	enable_irq(pdata->irqno_wakeup);
 	btwake_evt = 0;
 	if ((get_resume_method() == RTC_WAKEUP) ||
@@ -433,7 +444,7 @@ static int bt_probe(struct platform_device *pdev)
 		const char *str;
 		struct gpio_desc *desc;
 
-		pr_info("enter bt_probe of_node\n");
+		BT_INFO("enter bt_probe of_node\n");
 		pdata = kzalloc(sizeof(struct bt_dev_data), GFP_KERNEL);
 		ret = of_property_read_string(pdev->dev.of_node,
 			"gpio_reset", &str);
@@ -481,10 +492,10 @@ static int bt_probe(struct platform_device *pdev)
 		prop = of_get_property(pdev->dev.of_node,
 		"power_low_level", NULL);
 		if (prop) {
-			pr_info("power on valid level is low");
+			BT_INFO("power on valid level is low");
 			pdata->power_low_level = 1;
 		} else {
-			pr_info("power on valid level is high");
+			BT_INFO("power on valid level is high");
 			pdata->power_low_level = 0;
 			pdata->power_on_pin_OD = 0;
 		}
@@ -492,18 +503,18 @@ static int bt_probe(struct platform_device *pdev)
 		"power_on_pin_OD", &pdata->power_on_pin_OD);
 		if (ret)
 			pdata->power_on_pin_OD = 0;
-		pr_info("bt: power_on_pin_OD = %d;\n", pdata->power_on_pin_OD);
+		BT_INFO("bt: power_on_pin_OD = %d;\n", pdata->power_on_pin_OD);
 		ret = of_property_read_u32(pdev->dev.of_node,
 				"power_off_flag", &pdata->power_off_flag);
 		if (ret)
 			pdata->power_off_flag = 1;/*bt poweroff*/
-		pr_info("bt: power_off_flag = %d;\n", pdata->power_off_flag);
+		BT_INFO("bt: power_off_flag = %d;\n", pdata->power_off_flag);
 
 		ret = of_property_read_u32(pdev->dev.of_node,
 			"power_down_disable", &pdata->power_down_disable);
 		if (ret)
 			pdata->power_down_disable = 0;
-		pr_info("dis power down = %d;\n", pdata->power_down_disable);
+		BT_INFO("dis power down = %d;\n", pdata->power_down_disable);
 	} else if (pdev) {
 		pdata = (struct bt_dev_data *)(pdev->dev.platform_data);
 	} else {
@@ -532,7 +543,7 @@ static int bt_probe(struct platform_device *pdev)
 		&bt_rfkill_ops, pdata);
 
 	if (!bt_rfk) {
-		pr_info("rfk alloc fail\n");
+		BT_ERR("rfk alloc fail\n");
 		ret = -ENOMEM;
 		goto err_rfk_alloc;
 	}
@@ -679,7 +690,7 @@ static struct platform_driver bt_driver = {
 
 static int __init bt_init(void)
 {
-	pr_info("amlogic rfkill init\n");
+	BT_INFO("amlogic rfkill init\n");
 
 	return platform_driver_register(&bt_driver);
 }
@@ -705,7 +716,7 @@ static int __init mac_addr_set(char *line)
 {
 
 	if (line) {
-		pr_info("try to read bt mac from emmc key!\n");
+		BT_INFO("try to read bt mac from emmc key!\n");
 		strncpy(bt_addr, line, sizeof(bt_addr)-1);
 		bt_addr[sizeof(bt_addr)-1] = '\0';
 	}
