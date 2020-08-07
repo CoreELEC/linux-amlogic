@@ -116,6 +116,7 @@ static bool update_to_dv;
 static void osd_clone_pan(u32 index, u32 yoffset, int debug_flag);
 static void osd_set_dummy_data(u32 index, u32 alpha);
 static void osd_wait_vsync_hw_viu1(void);
+static void osd_setting_default_hwc(void);
 
 struct hw_osd_reg_s hw_osd_reg_array[HW_OSD_COUNT];
 
@@ -3206,6 +3207,30 @@ static void osd_set_free_scale_enable_mode1(u32 index, u32 enable)
 		osd_hw.reg[OSD_ENABLE].update_func(index);
 		spin_unlock_irqrestore(&osd_lock, lock_flags);
 	}
+	if ((get_osd_hwc_type(index) != OSD_G12A_NEW_HWC) &&
+	    (osd_hw.osd_meson_dev.osd_ver == OSD_HIGH_ONE)) {
+		u32 output_index = VIU1;
+		u32 background_w = 0, background_h = 0;
+
+		background_w =
+			osd_hw.free_src_data[index].x_end -
+			osd_hw.free_src_data[index].x_start + 1;
+		background_h =
+			osd_hw.free_src_data[index].y_end -
+			osd_hw.free_src_data[index].y_start + 1;
+		if ((background_w !=
+			osd_hw.disp_info[output_index].background_w) ||
+			(background_h !=
+			osd_hw.disp_info[output_index].background_h)) {
+			output_index = get_output_device_id(index);
+			osd_hw.disp_info[output_index].background_w =
+				background_w;
+			osd_hw.disp_info[output_index].background_h =
+				background_h;
+			osd_setting_default_hwc();
+		}
+	}
+
 	osd_wait_vsync_hw(index);
 }
 
@@ -6616,15 +6641,13 @@ static int osd_setting_blending_scope(u32 index)
 
 	if (index == OSD1) {
 		bld_osd_h_start =
-			osd_hw.src_data[index].x;
+			osd_hw.free_src_data[index].x_start;
 		bld_osd_h_end =
-			osd_hw.src_data[index].x +
-			osd_hw.src_data[index].w - 1;
+			osd_hw.free_src_data[index].x_end;
 		bld_osd_v_start =
-			osd_hw.src_data[index].y;
+			osd_hw.free_src_data[index].y_start;
 		bld_osd_v_end =
-			osd_hw.src_data[index].y +
-			osd_hw.src_data[index].h - 1;
+			osd_hw.free_src_data[index].y_end;
 	} else {
 		bld_osd_h_start =
 			osd_hw.dst_data[index].x;
