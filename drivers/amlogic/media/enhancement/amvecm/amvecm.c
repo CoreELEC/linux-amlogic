@@ -1189,6 +1189,8 @@ int amvecm_on_vs(
 		}
 		/*refresh vframe*/
 		if (toggle_vf == NULL && vf != NULL) {
+			lc_process(vf, sps_h_en, sps_v_en,
+				   sps_w_in, sps_h_in);
 			refresh_on_vs(vf);
 		}
 	} else {
