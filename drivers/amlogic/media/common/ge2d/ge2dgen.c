@@ -456,13 +456,3 @@ void ge2dgen_const_color(struct ge2d_context_s *wq,
 		wq->config.update_flag |= UPDATE_DP_GEN;
 	}
 }
-
-void ge2dgen_disable_matrix(struct ge2d_context_s *wq)
-{
-	struct ge2d_dp_gen_s *dp_gen_cfg = ge2d_wq_get_dp_gen(wq);
-
-	dp_gen_cfg->conv_matrix_en = 0;
-	if (ge2d_meson_dev.adv_matrix)
-		dp_gen_cfg->conv_matrix_en_dst = 0;
-	wq->config.update_flag |= UPDATE_DP_GEN;
-}

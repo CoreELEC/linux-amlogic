@@ -413,7 +413,7 @@ static void ge2d_update_matrix(struct ge2d_queue_item_s *pitem)
 	format_src2 = config->src2_dst_data.src2_format_all;
 	format_dst = config->src2_dst_data.dst_format_all;
 
-	if (ge2d_meson_dev.adv_matrix && cmd->is_blend) {
+	if (ge2d_meson_dev.adv_matrix && cmd->cmd_op == IS_BLEND) {
 		/* in blend case
 		 * src & src2 should be transform to RGB first for ALU
 		 * if output is YUV, dst matrix will be used
@@ -476,6 +476,13 @@ static void ge2d_update_matrix(struct ge2d_queue_item_s *pitem)
 			return;
 		}
 
+		/* in fillrect case, disable src matrix
+		 */
+		if (cmd->cmd_op == IS_FILLRECT) {
+			dp_gen_cfg->use_matrix_default = 0;
+			dp_gen_cfg->conv_matrix_en = 0;
+			return;
+		}
 		if ((format_src & GE2D_FORMAT_YUV) &&
 		    ((format_dst & GE2D_FORMAT_YUV) == 0)) {
 			/* src1: yuv2rgb */

@@ -371,6 +371,11 @@ enum ge2d_memtype_s {
 #define	UPDATE_SCALE_COEF   0x20
 #define	UPDATE_ALL          0x3f
 
+#define IS_FILLRECT         0x1
+#define IS_BLEND            0x2
+#define IS_STRETCHBLIT      0x4
+#define IS_BLIT             0x8
+
 struct rectangle_s {
 	int x;   /* X coordinate of its top-left point */
 	int y;   /* Y coordinate of its top-left point */
@@ -633,7 +638,7 @@ struct ge2d_cmd_s {
 	unsigned char    release_flag;
 	unsigned char    wait_done_flag;
 	unsigned char    hang_flag;
-	unsigned char    is_blend;
+	unsigned char    cmd_op;
 };
 
 struct ge2d_canvas_cfg_s {
