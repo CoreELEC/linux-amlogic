@@ -4261,14 +4261,18 @@ void dimh_pulldown_vof_win_config(struct pulldown_detected_s *wins)
 	DIM_VSC_WR_MPG_BT(DI_BLEND_REG3_Y, wins->regs[3].win_vs, 17, 12);
 	DIM_VSC_WR_MPG_BT(DI_BLEND_REG3_Y, wins->regs[3].win_ve, 1, 12);
 
-	if (DIM_IS_IC_EF(SC2))
+	if (DIM_IS_IC_EF(SC2)) {
 		DIM_VSC_WR_MPG_BT(MCDI_LMV_GAINTHD,
 				  (wins->regs[0].win_ve > wins->regs[0].win_vs)
 				  ? 1 : 0, 19, 1);
-	else
+		DIM_VSC_WR_MPG_BT(MCDI_LMV_GAINTHD,
+				  (wins->regs[0].win_ve > wins->regs[0].win_vs)
+				  ? 0 : 1, 18, 1);
+	} else {
 		DIM_VSC_WR_MPG_BT(DI_BLEND_CTRL,
 				  (wins->regs[0].win_ve > wins->regs[0].win_vs)
 				  ? 1 : 0, 16, 1);
+	}
 
 	DIM_VSC_WR_MPG_BT(DI_BLEND_CTRL, wins->regs[0].blend_mode, 8, 2);
 	DIM_VSC_WR_MPG_BT(DI_BLEND_CTRL,
