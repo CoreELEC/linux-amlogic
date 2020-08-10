@@ -209,15 +209,15 @@ static const struct pll_rate_table *meson_sc2_get_pll_settings
 static int meson_sc2_pll_wait_lock(struct meson_clk_pll *pll,
 				   struct parm *p_n)
 {
-	int delay = 24000000;
+	int delay = 1000;
 	u32 reg;
 
-	while (delay > 0) {
+	while (--delay > 0) {
 		reg = readl(pll->base + p_n->reg_off);
+		udelay(1);
 
 		if (reg & MESON_PLL_LOCK)
 			return 0;
-		delay--;
 	}
 	return -ETIMEDOUT;
 }
@@ -427,12 +427,12 @@ static int meson_sc2_secure_pll_set_rate(struct clk_hw *hw,
 	ret = meson_sc2_pll_wait_lock(pll, p);
 	if (pll->lock)
 		spin_unlock_irqrestore(pll->lock, flags);
+
 	if (ret) {
-		pr_info("%s: pll did not lock, trying to lock rate %lu again\n",
-			__func__, rate);
+		pr_info("%s: %s did not lock, trying to lock rate %lu again\n",
+			__func__, clk_hw_get_name(hw), rate);
 		meson_sc2_secure_pll_set_rate(hw, rate, parent_rate);
 	}
-
 	return ret;
 }
 
