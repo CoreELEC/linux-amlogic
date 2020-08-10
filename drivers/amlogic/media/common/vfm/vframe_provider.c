@@ -95,11 +95,13 @@ int provider_list(char *buf)
 	int i;
 
 	len += sprintf(buf + len, "\nprovider list:\n");
+	TABLE_LOCK();
 	for (i = 0; i < MAX_PROVIDER_NUM; i++) {
 		p = provider_table[i];
 		if (p)
 			len += sprintf(buf + len, "   %s\n", p->name);
 	}
+	TABLE_UNLOCK();
 	return len;
 }
 
