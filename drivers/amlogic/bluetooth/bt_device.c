@@ -121,6 +121,7 @@ struct bt_dev_runtime_data {
 
 static void bt_device_off(struct bt_dev_data *pdata)
 {
+#if 0
 	if (pdata->power_down_disable == 0) {
 		if ((btpower_evt == 1) && (pdata->gpio_reset > 0)) {
 			if ((pdata->power_on_pin_OD)
@@ -163,6 +164,7 @@ static void bt_device_off(struct bt_dev_data *pdata)
 		}
 		msleep(20);
 	}
+#endif
 }
 
 
