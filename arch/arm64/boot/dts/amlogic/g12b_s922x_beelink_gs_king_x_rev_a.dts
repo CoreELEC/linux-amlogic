@@ -1,0 +1,53 @@
+#include <include/dt-bindings/thermal/thermal.h>
+#include "g12b_s922x_beelink_gt_king_rev_a.dts"
+
+/{
+	coreelec-dt-id = "g12b_s922x_beelink_gs_king_x_rev_a";
+
+	gpioleds {
+		/delete-node/ sys_led;
+	};
+
+	pwmgpio:pwmgpio {
+		compatible = "pwm-gpio";
+		#pwm-cells = <3>;
+		pwm-gpios = <&gpio GPIOH_5 GPIO_ACTIVE_HIGH>;
+		status = "okay";
+	};
+
+	pwmfan:pwm-fan {
+		compatible = "pwm-fan";
+		pwms = <&pwmgpio 0 40000 PWM_POLARITY_INVERTED>;
+		cooling-min-state = <0>;
+		cooling-max-state = <2>;
+		#cooling-cells = <2>;
+		cooling-levels = <0 35 255>;
+	};
+
+	thermal-zones {
+		soc_thermal {
+			trips {
+				fan_0: trip-point@4 {
+					temperature = <60000>;
+					hysteresis = <5000>;
+					type = "active";
+				};
+				fan_1: trip-point@5 {
+					temperature = <75000>;
+					hysteresis = <5000>;
+					type = "active";
+				};
+			};
+			cooling-maps {
+				fan_cooling_map0 {
+					trip = <&fan_0>;
+					cooling-device = <&pwmfan THERMAL_NO_LIMIT 1>;
+				};
+				fan_cooling_map1 {
+					trip = <&fan_1>;
+					cooling-device = <&pwmfan 1 THERMAL_NO_LIMIT>;
+				};
+			};
+		};
+	};
+};
