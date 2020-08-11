@@ -324,7 +324,7 @@ static void __exit mtd_nand_exit(void)
 	platform_driver_unregister(&mtd_nand_driver);
 }
 
-module_init(mtd_nand_init);
+rootfs_initcall(mtd_nand_init);
 module_exit(mtd_nand_exit);
 
 MODULE_LICENSE("GPL");

@@ -3825,7 +3825,7 @@ static void __exit meson_mmc_cleanup(void)
 	platform_driver_unregister(&meson_mmc_driver);
 }
 
-module_init(meson_mmc_init);
+rootfs_initcall(meson_mmc_init);
 module_exit(meson_mmc_cleanup);
 
 MODULE_DESCRIPTION("Amlogic S912/GXM SD/eMMC driver");
