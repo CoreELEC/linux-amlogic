@@ -183,6 +183,8 @@ struct resman_resource {
 			__u32 uhd;
 			__u32 fhd;
 			__u32 secure;
+			atomic_t counter_secure;
+			atomic_t counter_nonsecure;
 		} codec_mm;
 	} d;
 };
@@ -228,7 +230,7 @@ static inline bool resman_parser_kv(char *str, const char *k, __u32 *v)
 	if (k && v && sk && sv && !strcmp(sk, k) && !kstrtou32(sv, 0, v))
 		ret = true;
 	if (!ret)
-		dprintk(0, "parse %s failed %s\n", k, str);
+		dprintk(2, "parse %s failed %s\n", k, str);
 	return ret;
 }
 
@@ -277,19 +279,17 @@ static struct resman_node *resman_find_node_by_resource_id(
 static int resman_count_codec_mm_session(bool secure)
 {
 	struct resman_resource *resource;
-	struct list_head *pos, *tmp;
-	struct resman_node *node;
 	int count = 0;
 
 	resource = resman_find_resource_by_id(RESMAN_ID_CODEC_MM);
 	if (!resource)
 		return 0;
 
-	list_for_each_safe(pos, tmp, &resource->sessions) {
-		node = list_entry(pos, struct resman_node, slist);
-		if (node->s.codec_mm.secure == secure)
-			count++;
-	}
+	if (secure)
+		count = atomic_read(&resource->d.codec_mm.counter_secure);
+	else
+		count = atomic_read(&resource->d.codec_mm.counter_nonsecure);
+
 	return count;
 }
 
@@ -443,7 +443,7 @@ static bool resman_preempt_session(struct resman_session *curr,
 			goto beach;
 		need_unlock = false;
 	}
-	dprintk(1, "%d preempt %d %s\n",
+	dprintk(1, "%d preempting %d %s\n",
 		curr->id,
 		sess->id,
 		sess->app_name);
@@ -772,7 +772,7 @@ static bool resman_codec_mm_preempt(struct resman_session *curr,
 	struct list_head *pos, *tmp;
 	__u32 new_score;
 
-	secure_count = resman_count_codec_mm_session(true);
+	secure_count = atomic_read(&resource->d.codec_mm.counter_secure);
 
 	/*Reclaim secure instance if exceed limitation*/
 	list_for_each_safe(pos, tmp, &resource->sessions) {
@@ -820,6 +820,22 @@ static bool resman_codec_mm_preempt(struct resman_session *curr,
 	return ret;
 }
 
+static bool resman_codec_mm_enough(struct resman_resource *resource,
+				   __u32 score,
+				   bool secure)
+{
+	bool enough = true;
+
+	if (!secure && codec_mm_get_free_size() < score)
+		enough = false;
+	else if (secure && atomic_read(&resource->d.codec_mm.counter_secure)
+		>= resource->d.codec_mm.secure)
+		enough = false;
+	else if (resource->value + score > resource->d.codec_mm.total)
+		enough = false;
+
+	return enough;
+}
 /**
  * resman_codec_mm_acquire() - resman_codec_mm_acquire
  *
@@ -845,21 +861,21 @@ static bool resman_codec_mm_acquire(struct resman_session *sess,
 	char *opt;
 
 	while ((opt = strsep(&arg, ","))) {
-		if (!strcmp(opt, "uhd")) {
-			score = resource->d.codec_mm.uhd;
-		} else if (!strcmp(opt, "single")) {
+		if (!strncmp(opt, "size", 4))
+			resman_parser_kv(opt, "size", &score);
+		else if (!strcmp(opt, "single"))
 			score = resource->d.codec_mm.total;
-		} else if (!strcmp(opt, "secure")) {
-			/*treate any secure playback as uhd*/
+		else if (!strcmp(opt, "uhd"))
 			score = resource->d.codec_mm.uhd;
+		else if (!strcmp(opt, "secure"))
 			secure = true;
-		}
 	}
 	dprintk(1, "%d score %d secure %s\n",
 		sess->id,
 		score,
 		secure ? "yes" : "no");
-	if (resource->value + score > resource->d.codec_mm.total) {
+
+	if (!resman_codec_mm_enough(resource, score, secure)) {
 		if (preempt) {
 			if (!timeout)
 				timeout = preempt_timeout_ms;
@@ -873,8 +889,9 @@ static bool resman_codec_mm_acquire(struct resman_session *sess,
 			dprintk(1, "%d acquire wait\n", sess->id);
 			remain = wait_event_interruptible_timeout(
 					resource->wq_release,
-					(resource->value + score <=
-						resource->d.codec_mm.total),
+					resman_codec_mm_enough(resource,
+							       score,
+							       secure),
 					msecs_to_jiffies(timeout));
 			dprintk(1, "%d acquire wait return %ld\n",
 				sess->id,
@@ -885,10 +902,14 @@ static bool resman_codec_mm_acquire(struct resman_session *sess,
 		}
 	}
 
-	if (resource->value + score <= resource->d.codec_mm.total) {
+	if (resman_codec_mm_enough(resource, score, secure)) {
 		node->s.codec_mm.score = score;
 		node->s.codec_mm.secure = secure;
 		resource->value += score;
+		if (secure)
+			atomic_inc(&resource->d.codec_mm.counter_secure);
+		else
+			atomic_inc(&resource->d.codec_mm.counter_nonsecure);
 		ret = true;
 	}
 	return ret;
@@ -905,8 +926,33 @@ static void resman_codec_mm_release(struct resman_session *sess,
 				    struct resman_resource *resource,
 				    struct resman_node *node)
 {
+	if (node->s.codec_mm.secure)
+		atomic_dec(&resource->d.codec_mm.counter_secure);
+	else
+		atomic_dec(&resource->d.codec_mm.counter_nonsecure);
 	if (resource->value >= node->s.codec_mm.score)
 		resource->value -= node->s.codec_mm.score;
+}
+
+/**
+ * void resman_codec_mm_probe() - probe codec mm parameters
+ *
+ * @resource: resorce context
+ */
+static void resman_codec_mm_probe(struct resman_resource *resource)
+{
+	int total_bytes;
+	int tvp_fhd, tvp_uhd;
+
+	codec_mm_get_default_tvp_size(&tvp_fhd, &tvp_uhd);
+	total_bytes = codec_mm_get_total_size();
+	if (total_bytes >= tvp_fhd + tvp_uhd)
+		resource->d.codec_mm.secure = 2;
+	else
+		resource->d.codec_mm.secure = 1;
+	resource->d.codec_mm.total = total_bytes >> 20;
+	resource->d.codec_mm.uhd = tvp_uhd >> 20;
+	resource->d.codec_mm.fhd = tvp_fhd >> 20;
 }
 
 static bool resman_create_resource(const char *name,
@@ -972,21 +1018,27 @@ static bool resman_create_resource(const char *name,
 				      &resource->d.codec_mm.total)) {
 			goto error;
 		}
-		opt = strsep(&arg, ",");
-		if (!resman_parser_kv(opt, "uhd",
-				      &resource->d.codec_mm.uhd)) {
-			goto error;
+		if (resource->d.codec_mm.total) {
+			opt = strsep(&arg, ",");
+			if (!resman_parser_kv(opt, "uhd",
+					      &resource->d.codec_mm.uhd)) {
+				goto error;
+			}
+			opt = strsep(&arg, ",");
+			if (!resman_parser_kv(opt, "fhd",
+					      &resource->d.codec_mm.fhd)) {
+				goto error;
+			}
+			opt = strsep(&arg, ",");
+			if (!resman_parser_kv(opt, "secure",
+					      &resource->d.codec_mm.secure)) {
+				goto error;
+			}
+		} else {
+			resman_codec_mm_probe(resource);
 		}
-		opt = strsep(&arg, ",");
-		if (!resman_parser_kv(opt, "fhd",
-				      &resource->d.codec_mm.fhd)) {
-			goto error;
-		}
-		opt = strsep(&arg, ",");
-		if (!resman_parser_kv(opt, "secure",
-				      &resource->d.codec_mm.secure)) {
-			goto error;
-		}
+		atomic_set(&resource->d.codec_mm.counter_secure, 0);
+		atomic_set(&resource->d.codec_mm.counter_nonsecure, 0);
 		break;
 	}
 	resource->type = type;
@@ -1108,7 +1160,7 @@ static void all_resource_init(void)
 		"videopip,type:1,avail:1;"
 		"tvp,type:3;"
 		"tsparser,type:1,avail:1;"
-		"codec_mm,type:4,total:6,uhd:4,fhd:2,secure:1;";
+		"codec_mm,type:4,total:0;";
 
 	INIT_LIST_HEAD(&sessions_head);
 	INIT_LIST_HEAD(&resources_head);

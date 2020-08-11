@@ -1948,6 +1948,15 @@ int codec_mm_mgt_init(struct device *dev)
 }
 EXPORT_SYMBOL(codec_mm_mgt_init);
 
+void codec_mm_get_default_tvp_size(int *tvp_fhd, int *tvp_uhd)
+{
+	if (tvp_fhd)
+		*tvp_fhd = default_tvp_size;
+	if (tvp_uhd)
+		*tvp_uhd = default_tvp_4k_size;
+}
+EXPORT_SYMBOL(codec_mm_get_default_tvp_size);
+
 static int __init amstream_test_init(void)
 {
 #if 0
