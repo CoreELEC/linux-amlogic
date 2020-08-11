@@ -514,7 +514,7 @@ void ge2d_set_src2_dst_gen(struct ge2d_src2_dst_gen_s *cfg,
 {
 	unsigned int widtho, heighto;
 	unsigned int is_rotate = cmd->dst_xy_swap ? 1 : 0;
-	unsigned int is_blend = cmd->is_blend ? 1 : 0;
+	unsigned int is_blend = cmd->cmd_op == IS_BLEND ? 1 : 0;
 
 	widtho  = is_rotate ? (cfg->dst_clipy_end - cfg->dst_clipy_start + 1) :
 		  (cfg->dst_clipx_end - cfg->dst_clipx_start + 1);
@@ -1053,8 +1053,7 @@ void ge2d_set_cmd(struct ge2d_cmd_s *cfg)
 		/* in blend case, for chip after C2
 		 * src2 repeat function needs hsc_div_length 8 alignment
 		 */
-		if (cfg->is_blend &&
-		    ge2d_meson_dev.src2_repeat)
+		if (cfg->cmd_op == IS_BLEND && ge2d_meson_dev.src2_repeat)
 			hsc_div_length = (hsc_div_length + 7) & ~7;
 		cfg->hsc_div_length = hsc_div_length;
 		multo = cfg->hsc_phase_step * cfg->hsc_div_length;
@@ -1166,7 +1165,7 @@ void ge2d_set_cmd(struct ge2d_cmd_s *cfg)
 		       );
 
 	/* src2 scaler setting, just support 2^n repeat (n = 0, 1, 2 or 3) */
-	if (cfg->is_blend && ge2d_meson_dev.src2_repeat) {
+	if (cfg->cmd_op == IS_BLEND && ge2d_meson_dev.src2_repeat) {
 		widthi  = cfg->src2_x_end - cfg->src2_x_start + 1;
 		heighti = cfg->src2_y_end - cfg->src2_y_start + 1;
 
@@ -1233,7 +1232,7 @@ void ge2d_set_cmd(struct ge2d_cmd_s *cfg)
 	}
 
 	/* in blend case, if src2_repeat is support, use output W H to set */
-	if (cfg->is_blend && ge2d_meson_dev.src2_repeat) {
+	if (cfg->cmd_op == IS_BLEND && ge2d_meson_dev.src2_repeat) {
 		ge2d_reg_write(GE2D_SRC2_X_START_END,
 			       (cfg->src2_x_start << 16) |
 			       ((widtho - 1) << 0)
