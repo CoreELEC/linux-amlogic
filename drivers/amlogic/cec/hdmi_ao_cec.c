@@ -638,9 +638,11 @@ static int cecb_pick_msg(unsigned char *msg, unsigned char *out_len)
  */
 void cec_new_msg_push(void)
 {
-	complete(&cec_dev->rx_ok);
-	new_msg = 1;
-	wake_up(&cec_msg_wait_queue);
+	if (cec_config(0, 0) & CEC_FUNC_CFG_CEC_ON) {
+		complete(&cec_dev->rx_ok);
+		new_msg = 1;
+		wake_up(&cec_msg_wait_queue);
+	}
 }
 
 void cecb_irq_handle(void)
@@ -3049,6 +3051,15 @@ static ssize_t hdmitx_cec_read(struct file *f, char __user *buf,
 
 	if (rx_len == 0) {
 		/*CEC_ERR("read msg rx_len=0\n");*/
+		return 0;
+	}
+
+	/* CEC off, cec IP will receive boradcast msg
+	 * needn't transfer these msgs to cec framework
+	 * discard the msg
+	 */
+	if (!(cec_config(0, 0) & CEC_FUNC_CFG_CEC_ON)) {
+		new_msg = 0;
 		return 0;
 	}
 
