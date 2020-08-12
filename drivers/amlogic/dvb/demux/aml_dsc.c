@@ -48,6 +48,7 @@
 
 //#include "sc2_demux/dvb_reg.h"
 #include "aml_dsc.h"
+#include "aml_key.h"
 #include "sc2_demux/sc2_control.h"
 
 #define DSC_CHANNEL_NUM 8
@@ -295,12 +296,37 @@ static void _dsc_chan_free(struct dsc_channel *ch)
 }
 
 static int _dsc_chan_set_key(struct dsc_channel *ch,
-			     enum ca_sc2_key_type parity, int key_index)
+			     enum ca_sc2_key_type parity, u32 key_index)
 {
 	struct dsc_pid_table *ptmp = NULL;
-#define IVE_MAX				64
+	int handle_has_iv = 0;
+	int type_has_iv = 0;
+	u32 kte;
+#define KTE_MAX_NUM				256
+#define IV_FLAG_OFFSET    31
+#define HANDLE_TO_KTE(h) ((h) & (KTE_MAX_NUM - 1))
 
-	pr_dbg("%s parity:%d, key_index:%d\n", __func__, parity, key_index);
+	/*
+	 * handle definition
+	| Name      | Bits   | Notes                    |
+	| --------- | ------ | ------------------------ |
+	| IV flag   | 31     | 0: not IV 1: is IV       |
+	| RFU       | [20:8] | Reserved for future      |
+	| key table | [7:0]  | the real key table entry |
+	*/
+	pr_dbg("%s parity:%d, handle:%#x\n", __func__, parity, key_index);
+	kte = HANDLE_TO_KTE(key_index);
+	handle_has_iv = key_index >> IV_FLAG_OFFSET;
+	if (parity == CA_KEY_ODD_IV_TYPE ||
+	    parity == CA_KEY_EVEN_IV_TYPE ||
+	    parity == CA_KEY_00_IV_TYPE)
+		type_has_iv = 1;
+
+	if (handle_has_iv != type_has_iv) {
+		pr_dbg("%s parity:%d, handle:%#x, failed: not match\n",
+		       __func__, parity, key_index);
+		return -1;
+	}
 
 	if (parity == CA_KEY_00_TYPE || parity == CA_KEY_00_IV_TYPE) {
 		if (ch->index00 == -1) {
@@ -349,18 +375,19 @@ static int _dsc_chan_set_key(struct dsc_channel *ch,
 	ptmp->algo = ch->algo;
 	ptmp->sid = ch->sid;
 	ptmp->pid = ch->pid;
+
 	if (parity == CA_KEY_EVEN_TYPE)
-		ptmp->kte_even_00 = key_index - IVE_MAX;
+		ptmp->kte_even_00 = kte;
 	else if (parity == CA_KEY_EVEN_IV_TYPE)
-		ptmp->even_00_iv = key_index;
+		ptmp->even_00_iv = kte;
 	else if (parity == CA_KEY_ODD_TYPE)
-		ptmp->kte_odd = key_index - IVE_MAX;
+		ptmp->kte_odd = kte;
 	else if (parity == CA_KEY_ODD_IV_TYPE)
-		ptmp->odd_iv = key_index;
+		ptmp->odd_iv = kte;
 	else if (parity == CA_KEY_00_IV_TYPE)
-		ptmp->even_00_iv = key_index;
+		ptmp->even_00_iv = kte;
 	else
-		ptmp->kte_even_00 = key_index - IVE_MAX;
+		ptmp->kte_even_00 = kte;
 
 	dsc_config_pid_table(ptmp, ch->dsc_type);
 	return 0;

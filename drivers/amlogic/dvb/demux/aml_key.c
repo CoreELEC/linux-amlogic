@@ -42,14 +42,18 @@
 #include "key_reg.h"
 #include "dmx_log.h"
 
-#define IVE_MAX				64
-#define KTE_BEGIN			(64)
-#define KTE_MAX				(128)
+#define IVE_BEGIN			(0)
+#define IVE_MAX				(32)
+#define KTE_BEGIN			(IVE_MAX)
+#define KTE_MAX				(64)
 #define KTE_IV_MAX			(IVE_MAX + KTE_MAX)
 #define KTE_INVALID			0
 #define KTE_VALID			1
 #define REE_SUCCESS			0
 #define KTE_KTE_MASK		0x7F
+
+#define KTE_IV_FLAG_OFFSET (31)
+#define KTE_INVALID_INDEX  (0xFF)
 
 #define KTE_PENDING          (1)
 #define KTE_MODE_HOST        (3)
@@ -71,8 +75,10 @@
 #define MKL_USAGE_CSA2       (10)
 #define MKL_USAGE_HMAC       (13)
 
+#define HANDLE_TO_KTE(h) ((h) & (KTE_MAX - 1))
 struct key_table_s {
 	u32 flag;		//0:invalid, 1:valid
+	u32 kte;
 	int key_userid;
 	int key_algo;
 	int is_iv;
@@ -96,31 +102,95 @@ module_param(debug_key, int, 0644);
 static struct class *dmx_key_class;
 static int major_key;
 
+static int find_kt_index(u32 handle)
+{
+	u32 is_iv = 0;
+	u32 kte;
+	int i;
+
+	is_iv = handle >> KTE_IV_FLAG_OFFSET;
+	kte = HANDLE_TO_KTE(handle);
+
+	for (i = 0; i < KTE_IV_MAX; i++) {
+		if (key_table[i].kte == kte &&
+		    key_table[i].is_iv == is_iv &&
+		    key_table[i].flag == KTE_VALID) {
+			return i;
+		}
+	}
+
+	return -1;
+}
+
+static int kt_clean(int index)
+{
+	int res = REE_SUCCESS;
+	u32 kte;
+
+	if (index < 0 || index >= KTE_IV_MAX) {
+		pr_dbg("%s, %d index invalid:%d\n", __func__, __LINE__, index);
+		return -1;
+	}
+	if (key_table[index].flag != KTE_VALID) {
+		pr_dbg("%s, %d kte flag invalid\n",	__func__, __LINE__);
+		return -1;
+	}
+
+	kte = key_table[index].kte;
+	if (READ_CBUS_REG(KT_REE_RDY) == 0) {
+//              dprint("%s, %d not ready\n", __func__, __LINE__);
+		return -1;
+	}
+	WRITE_CBUS_REG(KT_REE_CFG, (KTE_PENDING << KTE_PENDING_OFFSET)
+		       | (KTE_CLEAN_KTE << KTE_CLEAN_OFFSET)
+		       | (KTE_MODE_HOST << KTE_MODE_OFFSET)
+		       | (kte << KTE_KTE_OFFSET));
+	do {
+		res = READ_CBUS_REG(KT_REE_CFG);
+	} while (res & (KTE_PENDING << KTE_PENDING_OFFSET));
+	pr_dbg("KT_REE_CFG=0x%08x\n", res);
+
+	WRITE_CBUS_REG(KT_REE_RDY, 1);
+	if (((res >> KTE_STATUS_OFFSET) & KTE_STATUS_MASK) == MKL_STS_OK) {
+		key_table[index].flag = KTE_INVALID;
+		res = REE_SUCCESS;
+	} else {
+//              dprint("%s, clean key index fail\n", __func__);
+		res = -1;
+	}
+	return res;
+}
+
 static int kt_init(void)
 {
-	u32 i;
+	int i;
 
-	for (i = 0; i < KTE_IV_MAX; i++)
+	for (i = 0; i < KTE_IV_MAX; i++) {
 		key_table[i].flag = KTE_INVALID;
+		key_table[i].kte = (i >= IVE_MAX ? (i - IVE_MAX) : i);
+		key_table[i].is_iv = (i < IVE_MAX ? 1 : 0);
+	}
 
 	return REE_SUCCESS;
 }
 
-static int kt_alloc(u32 *kte, struct key_config *config)
+static int kt_alloc(u32 *handle, struct key_config *config)
 {
 	int res = REE_SUCCESS;
-	u32 i;
+	int i;
 	int begin;
 	int end;
+	int is_iv = 0;
 
-	if (!kte)
+	if (!handle)
 		return -1;
 
-	pr_dbg("%s user_id:%d, key_alog:%d, iv:%d\n", __func__,
+	pr_dbg("%s user_id:%d, key_algo:%d, iv:%d\n", __func__,
 	       config->key_userid, config->key_algo, config->is_iv);
 	if (config->is_iv) {
-		begin = 0;
+		begin = IVE_BEGIN;
 		end = IVE_MAX;
+		is_iv = 1;
 	} else {
 		begin = KTE_BEGIN;
 		end = KTE_IV_MAX;
@@ -174,11 +244,9 @@ static int kt_alloc(u32 *kte, struct key_config *config)
 			}			else {
 				key_table[i].key_algo = 0xf;
 			}
-			key_table[i].is_iv = config->is_iv;
-
 			key_table[i].flag = KTE_VALID;
-			*kte = i;
-//                      pr_dbg("%s get key_index:%d\n", __func__, i);
+			*handle = key_table[i].kte |
+				(is_iv << KTE_IV_FLAG_OFFSET);
 			break;
 		}
 	}
@@ -192,7 +260,7 @@ static int kt_alloc(u32 *kte, struct key_config *config)
 	return res;
 }
 
-static int kt_set(u32 kte, unsigned char key[32], unsigned int key_len)
+static int kt_set(u32 handle, unsigned char key[32], unsigned int key_len)
 {
 	int res = REE_SUCCESS;
 	u32 KT_KEY0, KT_KEY1, KT_KEY2, KT_KEY3;
@@ -200,7 +268,16 @@ static int kt_set(u32 kte, unsigned char key[32], unsigned int key_len)
 	int user_id = 0;
 	int algo = 0;
 	int en_decrypt = 0;
-	u32 kte_tmp = kte;
+	int index;
+	u32 kte;
+
+	kte = HANDLE_TO_KTE(handle);
+	index = find_kt_index(handle);
+
+	if (index == -1) {
+		dprint("%s, handle:%#x index invalid\n", __func__, handle);
+		return -1;
+	}
 
 //	int i = 0;
 //	dprint_i("kte:%d, len:%d key:\n", kte, key_len);
@@ -208,16 +285,10 @@ static int kt_set(u32 kte, unsigned char key[32], unsigned int key_len)
 //		dprint_i("0x%0x ", key[i]);
 //	dprint_i("\n");
 
-	if (kte >= KTE_IV_MAX) {
-		dprint("%s,kte:%d invalid\n", __func__, kte);
-		return -1;
-	}
-	if (key_table[kte].flag != KTE_VALID) {
+	if (key_table[index].flag != KTE_VALID) {
 		dprint("%s, %d kte flag invalid\n", __func__, __LINE__);
 		return -1;
 	}
-	if (key_table[kte].is_iv == 0)
-		kte_tmp = kte - IVE_MAX;
 
 	/*KEY_FROM_REE_HOST: */
 	KT_KEY0 = KT_REE_KEY0;
@@ -234,13 +305,13 @@ static int kt_set(u32 kte, unsigned char key[32], unsigned int key_len)
 	if (key_len >= 16)
 		memcpy((void *)&key3, &key[12], 4);
 
-	user_id = key_table[kte].key_userid;
+	user_id = key_table[index].key_userid;
 	if (user_id == MKL_USER_LOC_DEC || user_id == MKL_USER_NETWORK)
 		en_decrypt = 2;
 	else
 		en_decrypt = 1;
 
-	algo = key_table[kte].key_algo;
+	algo = key_table[index].key_algo;
 	//TODO: timeout instead of return error
 	if (READ_CBUS_REG(KT_REE_RDY) == 0) {
 		dprint("%s, %d not ready\n", __func__, __LINE__);
@@ -256,7 +327,7 @@ static int kt_set(u32 kte, unsigned char key[32], unsigned int key_len)
 		       | (en_decrypt << KTE_FLAG_OFFSET)
 		       | (algo << KTE_KEYALGO_OFFSET)
 		       | (user_id << KTE_USERID_OFFSET)
-		       | (kte_tmp << KTE_KTE_OFFSET)
+		       | (kte << KTE_KTE_OFFSET)
 		       | (0 << KTE_TEE_PRIV_OFFSET)
 		       | (0 << KTE_LEVEL_OFFSET));
 	do {
@@ -274,42 +345,18 @@ static int kt_set(u32 kte, unsigned char key[32], unsigned int key_len)
 	return res;
 }
 
-int kt_free(int kte)
+int kt_free(u32 handle)
 {
-	int res = REE_SUCCESS;
+	int index;
 
+	index = find_kt_index(handle);
 //      pr_dbg("%s kte:%d enter\n", __func__, kte);
-	if (kte >= KTE_IV_MAX) {
-		dprint("%s,kte:%d invalid\n", __func__, kte);
+	if (index == -1) {
+		dprint("%s, handle:%#x index invalid\n", __func__, handle);
 		return -1;
 	}
 
-	if (key_table[kte].flag != KTE_VALID) {
-		dprint("%s, %d kte flag invalid\n",	__func__, __LINE__);
-		return -1;
-	}
-	if (READ_CBUS_REG(KT_REE_RDY) == 0) {
-//              dprint("%s, %d not ready\n", __func__, __LINE__);
-		return -1;
-	}
-	WRITE_CBUS_REG(KT_REE_CFG, (KTE_PENDING << KTE_PENDING_OFFSET)
-		       | (KTE_CLEAN_KTE << KTE_CLEAN_OFFSET)
-		       | (KTE_MODE_HOST << KTE_MODE_OFFSET)
-		       | (kte << KTE_KTE_OFFSET));
-	do {
-		res = READ_CBUS_REG(KT_REE_CFG);
-	} while (res & (KTE_PENDING << KTE_PENDING_OFFSET));
-	pr_dbg("KT_REE_CFG=0x%08x\n", res);
-
-	WRITE_CBUS_REG(KT_REE_RDY, 1);
-	if (((res >> KTE_STATUS_OFFSET) & KTE_STATUS_MASK) == MKL_STS_OK) {
-		key_table[kte].flag = KTE_INVALID;
-		res = REE_SUCCESS;
-	} else {
-//              dprint("%s, clean key index fail\n", __func__);
-		res = -1;
-	}
-	return res;
+	return kt_clean(index);
 }
 
 static int usercopy(struct file *file,
@@ -378,7 +425,7 @@ int dmx_key_open(struct inode *inode, struct file *file)
 
 	file->private_data = vmalloc(KTE_IV_MAX);
 	if (file->private_data)
-		memset(file->private_data, 0xff, KTE_IV_MAX);
+		memset(file->private_data, KTE_INVALID_INDEX, KTE_IV_MAX);
 	pr_dbg("%s line:%d\n", __func__, __LINE__);
 	mutex_unlock(&mutex);
 
@@ -394,11 +441,14 @@ int dmx_key_close(struct inode *inode, struct file *file)
 	if (file->private_data) {
 		for (i = 0; i < KTE_IV_MAX; i++) {
 			index = *(char *)(file->private_data + i);
-			if (index != 0xff) {
-				kt_free(index);
-				*(char *)(file->private_data + i) = 0xff;
+			if (index != KTE_INVALID_INDEX) {
+				kt_clean(index);
+				*(char *)(file->private_data + i) =
+					KTE_INVALID_INDEX;
 			}
 		}
+		vfree(file->private_data);
+		file->private_data = NULL;
 	}
 	mutex_unlock(&mutex);
 	pr_dbg("%s line:%d\n", __func__, __LINE__);
@@ -408,30 +458,35 @@ int dmx_key_close(struct inode *inode, struct file *file)
 int dmx_key_do_ioctl(struct file *file, unsigned int cmd, void *parg)
 {
 	int ret = -EINVAL;
+	char *p = file->private_data;
 
 	mutex_lock(&mutex);
 	switch (cmd) {
 	case KEY_MALLOC_SLOT:{
 			u32 kte = 0;
+			int idx;
 			struct key_config *d = parg;
 
 			if (kt_alloc(&kte, d) == 0) {
 				d->key_index = kte;
 				ret = 0;
-				if (file->private_data)
-					*(char *)(file->private_data + kte) =
-					    kte;
+				idx = find_kt_index(kte);
+				if (p && idx != -1)
+					*(char *)(p + idx) =
+						idx;
 			}
 			break;
 		}
 	case KEY_FREE_SLOT:{
 			u32 kte = (unsigned long)parg;
+			int idx;
 
 			if (kt_free(kte) == 0) {
 				ret = 0;
-				if (file->private_data)
-					*(char *)(file->private_data + kte) =
-					    0xff;
+				idx = find_kt_index(kte);
+				if (p && idx != -1)
+					*(char *)(p + idx) =
+						KTE_INVALID_INDEX;
 			}
 			break;
 		}
