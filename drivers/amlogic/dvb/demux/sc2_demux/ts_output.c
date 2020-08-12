@@ -49,10 +49,12 @@ static int ts_output_max_pid_num_per_sid = 16;
 
 struct pid_entry {
 	u8 used;
-	u16 id;
+	u8 id;
 	u16 pid;
 	u16 pid_mask;
-	u16 pid_user;
+	u8 pid_user;
+	u8 dmx_id;
+	struct out_elem *pout;
 	struct pid_entry *next;
 };
 
@@ -111,8 +113,10 @@ struct es_entry {
 	u8 used;
 	u8 buff_id;
 	u8 id;
+	u8 dmx_id;
 	int status;		//-1:off;
 	int pid;
+	struct out_elem *pout;
 };
 
 struct pcr_entry {
@@ -213,6 +217,7 @@ static struct pid_entry *_malloc_pid_entry_slot(int sid, int pid)
 			if (jump) {
 				pr_dbg("sid:%d at pos:%d, find pid:%d\n",
 				       sid, j, pid);
+				jump = 0;
 				continue;
 			}
 			return pid_slot;
@@ -364,23 +369,17 @@ static int _task_out_func(void *data)
 		if (timeout <= 0)
 			continue;
 
-loop:
 		if (pout->running != TASK_RUNNING)
 			break;
 
-		pr_dbg("%s line:%d\n", __func__, __LINE__);
 		if (pout->format == TS_FORMAT) {
-			if (ts_process(pout) != 0)
-				goto loop;
+			ts_process(pout);
 		} else {
 			len = MAX_READ_BUF_LEN;
 			ret = SC2_bufferid_read(pout->pchan, &pread, len);
 			if (ret != 0)
 				pout->cb(pout, pread, ret, pout->udata);
 		}
-
-		if (SC2_bufferid_recv_data(pout->pchan))
-			goto loop;
 	}
 	pout->running = TASK_IDLE;
 	return 0;
@@ -827,8 +826,7 @@ loop:
 			pout->cb(pout, (char *)&header,
 				 sizeof(struct dmx_non_sec_es_header),
 				 pout->udata);
-			ret = write_es_data(pout,
-					    pout->pchan, es_len, 0);
+			ret = write_es_data(pout, pout->pchan, es_len, 0);
 			if (ret != 0)
 				break;
 		}
@@ -851,53 +849,47 @@ loop:
  */
 int ts_output_init(int dmxdev_num, struct sid_info *info)
 {
-	int i = 0;
-	struct sid_info *ptmp = NULL;
+	int i = 0, j = 0;
 	struct sid_entry *psid = NULL;
 	int times = 0;
+	u8 record_sid[32];
+	u8 record_sid_num = 0;
+	u8 same_flag = 0;
 
 	do {
 	} while (!tsout_get_ready() && times++ < 20);
 
 	memset(&sid_table, 0, sizeof(sid_table));
-	/*for every dmx dev, it will use 2 sids,
-	 * one is demod, another is local
-	 */
-	ts_output_max_pid_num_per_sid =
-	    MAX_TS_PID_NUM / (2 * dmxdev_num * 4) * 4;
+	memset(&record_sid, 0, sizeof(record_sid));
 
 	for (i = 0; i < dmxdev_num; i++) {
-		ptmp = info;
-		psid = &sid_table[ptmp->demod_sid];
-		psid->used = 1;
-		psid->pid_entry_begin = ts_output_max_pid_num_per_sid * 2 * i;
-		psid->pid_entry_num = ts_output_max_pid_num_per_sid;
-		pr_dbg("%s sid:%d,pid start:%d, len:%d\n",
-		       __func__, ptmp->demod_sid,
-		       psid->pid_entry_begin, psid->pid_entry_num);
-		tsout_config_sid_table(ptmp->demod_sid,
-				       psid->pid_entry_begin / 4,
-				       psid->pid_entry_num / 4);
+		for (j = 0; j < record_sid_num; j++) {
+			if (info[i].demod_sid == record_sid[j])
+				same_flag = 1;
+		}
 
-		psid = &sid_table[ptmp->local_sid];
-		psid->used = 1;
-		psid->pid_entry_begin =
-		    ts_output_max_pid_num_per_sid * (2 * i + 1);
-		psid->pid_entry_num = ts_output_max_pid_num_per_sid;
-
-		pr_dbg("%s sid:%d, pid start:%d, len:%d\n", __func__,
-		       ptmp->local_sid,
-		       psid->pid_entry_begin, psid->pid_entry_num);
-		tsout_config_sid_table(ptmp->local_sid,
-				       psid->pid_entry_begin / 4,
-				       psid->pid_entry_num / 4);
-		info++;
+		if (!same_flag) {
+			record_sid[record_sid_num] = info[i].demod_sid;
+			record_sid_num++;
+		}
+		same_flag = 0;
+		record_sid[record_sid_num] = info[i].local_sid;
+		record_sid_num++;
 	}
+	ts_output_max_pid_num_per_sid =
+	    MAX_TS_PID_NUM / (record_sid_num * 4) * 4;
 
-	for (i = 0; i < MAX_SID_NUM; i++) {
-		pr_dbg("sid:%d start:%d, len:%d\n", i,
-		       sid_table[i].pid_entry_begin,
-		       sid_table[i].pid_entry_num);
+	for (i = 0; i < record_sid_num; i++) {
+		psid = &sid_table[record_sid[i]];
+		psid->used = 1;
+		psid->pid_entry_begin = ts_output_max_pid_num_per_sid * i;
+		psid->pid_entry_num = ts_output_max_pid_num_per_sid;
+//              dprint("%s sid:%d,pid start:%d, len:%d\n",
+//                     __func__, record_sid[i],
+//                     psid->pid_entry_begin, psid->pid_entry_num);
+		tsout_config_sid_table(record_sid[i],
+				       psid->pid_entry_begin / 4,
+				       psid->pid_entry_num / 4);
 	}
 
 	memset(&pid_table, 0, sizeof(pid_table));
@@ -949,8 +941,7 @@ int ts_output_sid_debug(void)
 		psid->pid_entry_begin = ts_output_max_pid_num_per_sid * 2 * i;
 		psid->pid_entry_num = ts_output_max_pid_num_per_sid;
 		pr_dbg("%s sid:%d,pid start:%d, len:%d\n",
-		       __func__, i,
-		       psid->pid_entry_begin, psid->pid_entry_num);
+		       __func__, i, psid->pid_entry_begin, psid->pid_entry_num);
 		tsout_config_sid_table(i,
 				       psid->pid_entry_begin / 4,
 				       psid->pid_entry_num / 4);
@@ -962,8 +953,7 @@ int ts_output_sid_debug(void)
 		psid->pid_entry_num = ts_output_max_pid_num_per_sid;
 
 		pr_dbg("%s sid:%d, pid start:%d, len:%d\n", __func__,
-		       i + 32,
-		       psid->pid_entry_begin, psid->pid_entry_num);
+		       i + 32, psid->pid_entry_begin, psid->pid_entry_num);
 		tsout_config_sid_table(i + 32,
 				       psid->pid_entry_begin / 4,
 				       psid->pid_entry_num / 4);
@@ -1063,7 +1053,8 @@ struct out_elem *ts_output_open(int sid, u8 format,
 	int ret = 0;
 	struct out_elem *pout;
 
-	pr_dbg("%s sid:%d, format:%d, type:%d\n", __func__, sid, format, type);
+	pr_dbg("%s sid:%d, format:%d, type:%d", __func__, sid, format, type);
+	pr_dbg("audio_type:%d, output_mode:%d\n", aud_type, output_mode);
 
 	if (sid >= MAX_SID_NUM) {
 		dprint("%s sid:%d fail\n", __func__, sid);
@@ -1185,10 +1176,11 @@ int ts_output_close(struct out_elem *pout)
  * \param pout
  * \param pid:
  * \param pid_mask:0,matched all bits; 0x1FFF matched any PID
+ * \param dmx_id: dmx_id
  * \retval 0:success.
  * \retval -1:fail.
  */
-int ts_output_add_pid(struct out_elem *pout, int pid, int pid_mask)
+int ts_output_add_pid(struct out_elem *pout, int pid, int pid_mask, int dmx_id)
 {
 	struct pid_entry *pid_slot = NULL;
 	struct es_entry *es_pes = NULL;
@@ -1204,17 +1196,18 @@ int ts_output_add_pid(struct out_elem *pout, int pid, int pid_mask)
 		es_pes->buff_id = pout->pchan->id;
 		es_pes->pid = pid;
 		es_pes->status = pout->format;
+		es_pes->dmx_id = dmx_id;
+		es_pes->pout = pout;
 		pout->es_pes = es_pes;
 		tsout_config_es_table(es_pes->buff_id, es_pes->pid,
 				      pout->sid, 1, !drop_dup, pout->format);
 	} else {
-		pr_dbg("%s line:%d\n", __func__, __LINE__);
 		pid_slot = _find_pid_entry_slot(pout->pid_list, pid);
 		if (pid_slot) {
 			pid_slot->pid_user++;
+			pr_dbg("%s found same pid:0x%0x\n", __func__, pid);
 			return 0;
 		}
-		pr_dbg("%s line:%d\n", __func__, __LINE__);
 		pid_slot = _malloc_pid_entry_slot(pout->sid, pid);
 		if (!pid_slot) {
 			pr_dbg("malloc pid entry fail\n");
@@ -1227,12 +1220,14 @@ int ts_output_add_pid(struct out_elem *pout, int pid, int pid_mask)
 
 		pout->pid_list = pid_slot;
 		pid_slot->pid_user++;
-
+		pid_slot->dmx_id = dmx_id;
+		pid_slot->pout = pout;
 		pr_dbg("sid:%d, pid:0x%0x, mask:0x%0x\n",
 		       pout->sid, pid_slot->pid, pid_slot->pid_mask);
 		tsout_config_ts_table(pid_slot->pid, pid_slot->pid_mask,
 				      pid_slot->id, pout->pchan->id);
 	}
+
 	if (pout->pchan)
 		SC2_bufferid_set_enable(pout->pchan, 1);
 	if (pout->pchan1)
@@ -1251,7 +1246,7 @@ int ts_output_remove_pid(struct out_elem *pout, int pid)
 {
 	struct pid_entry **cur_pid, *n_pid;
 
-	pr_dbg("%s pout:0x%lx\n", __func__, (unsigned long)pout);
+	pr_dbg("%s pout:0x%lx pid:0x%0x\n", __func__, (unsigned long)pout, pid);
 	if (pout->format == ES_FORMAT || pout->format == PES_FORMAT) {
 		if (pout->es_pes->pid != pid) {
 			dprint("%s err,org pid:0x%0x, pid:0x%0x\n",
@@ -1280,7 +1275,8 @@ int ts_output_remove_pid(struct out_elem *pout, int pid)
 				pr_dbg("aucpu_strm_remove fail ret:%d\n", ret);
 			pout->aucpu_handle = -1;
 
-			_free_buff(pout->aucpu_mem, pout->aucpu_mem_size, 0, 0);
+			_free_buff(pout->aucpu_mem_phy,
+				   pout->aucpu_mem_size, 0, 0);
 			pout->aucpu_mem = 0;
 		}
 	} else {
@@ -1363,41 +1359,120 @@ int ts_output_set_cb(struct out_elem *pout, ts_output_cb cb, void *udata)
 	return 0;
 }
 
-void ts_output_dump_info(void)
+int ts_output_dump_info(char *buf)
 {
 	int i = 0;
 	int count = 0;
+	int r, total = 0;
 
-	dprintk_info("********TS********\n");
+	r = sprintf(buf, "********TS********\n");
+	buf += r;
+	total += r;
+
 	for (i = 0; i < MAX_TS_PID_NUM; i++) {
-		struct pid_entry *pid_slot = &pid_table[i];
+		struct pid_entry *tmp = &pid_table[i];
+		unsigned int total_size = 0;
+		unsigned int buf_phy_start = 0;
+		unsigned int free_size = 0;
+		unsigned int wp_offset = 0;
 
-		if (pid_slot->used) {
-			dprintk_info("%d pid:0x%0x pid_mask:0x%0x\n", count,
-				     pid_slot->pid, pid_slot->pid_mask);
+		if (tmp->used) {
+			r = sprintf(buf, "%d dmxid:%d sid:%d pid:0x%0x ",
+				    count, tmp->dmx_id, tmp->pout->sid,
+				    tmp->pid);
+			buf += r;
+			total += r;
+			r = sprintf(buf, "mask:0x%0x tab_id:%d\n",
+				    tmp->pid_mask, i);
+			buf += r;
+			total += r;
+
+			ts_output_get_mem_info(tmp->pout,
+					       &total_size,
+					       &buf_phy_start,
+					       &free_size, &wp_offset);
+
+			r = sprintf(buf,
+				    "mem: total:%d, buf_base:0x%0x, wp:0x%0x\n",
+				    total_size, buf_phy_start, wp_offset);
+			buf += r;
+			total += r;
+
 			count++;
 		}
 	}
 
-	dprintk_info("********PES********\n");
+	r = sprintf(buf, "********PES********\n");
+	buf += r;
+	total += r;
+
 	count = 0;
 	for (i = 0; i < MAX_ES_NUM; i++) {
 		struct es_entry *es_slot = &es_table[i];
+		unsigned int total_size = 0;
+		unsigned int buf_phy_start = 0;
+		unsigned int free_size = 0;
+		unsigned int wp_offset = 0;
 
 		if (es_slot->used && es_slot->status == PES_FORMAT) {
-			dprintk_info("%d pid:0x%0x\n", count, es_slot->pid);
+			r = sprintf(buf, "%d dmx_id:%d sid:%d type:%d,", count,
+				    es_slot->dmx_id, es_slot->pout->sid,
+				    es_slot->pout->type);
+			buf += r;
+			total += r;
+
+			r = sprintf(buf, "pid:0x%0x\n", es_slot->pid);
+			buf += r;
+			total += r;
+
+			ts_output_get_mem_info(es_slot->pout,
+					       &total_size,
+					       &buf_phy_start,
+					       &free_size, &wp_offset);
+
+			r = sprintf(buf,
+				    "mem: total:%d, buf_base:0x%0x, wp:0x%0x\n",
+				    total_size, buf_phy_start, wp_offset);
+			buf += r;
+			total += r;
 			count++;
 		}
 	}
 
-	dprintk_info("********ES********\n");
+	r = sprintf(buf, "********ES********\n");
+	buf += r;
+	total += r;
 	count = 0;
 	for (i = 0; i < MAX_ES_NUM; i++) {
 		struct es_entry *es_slot = &es_table[i];
+		unsigned int total_size = 0;
+		unsigned int buf_phy_start = 0;
+		unsigned int free_size = 0;
+		unsigned int wp_offset = 0;
 
 		if (es_slot->used && es_slot->status == ES_FORMAT) {
-			dprintk_info("%d pid:0x%0x\n", count, es_slot->pid);
+			r = sprintf(buf, "%d dmx_id:%d sid:%d type:%d", count,
+				    es_slot->dmx_id, es_slot->pout->sid,
+				    es_slot->pout->type);
+			buf += r;
+			total += r;
+
+			r = sprintf(buf, " pid:0x%0x\n", es_slot->pid);
+			buf += r;
+			total += r;
+
+			ts_output_get_mem_info(es_slot->pout,
+					       &total_size,
+					       &buf_phy_start,
+					       &free_size, &wp_offset);
+
+			r = sprintf(buf,
+				    "mem: total:%d, buf_base:0x%0x, wp:0x%0x\n",
+				    total_size, buf_phy_start, wp_offset);
+			buf += r;
+			total += r;
 			count++;
 		}
 	}
+	return total;
 }

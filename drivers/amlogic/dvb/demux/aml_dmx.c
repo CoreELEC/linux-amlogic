@@ -209,7 +209,6 @@ static struct sw_demux_sec_filter *_dmx_dmx_sec_filter_alloc(
 	return &sec_feed->filter[i];
 }
 
-#if 1
 static void prdump(const char *m, const void *data, u32 len)
 {
 	if (m)
@@ -249,7 +248,6 @@ static void prdump(const char *m, const void *data, u32 len)
 		}
 	}
 }
-#endif
 
 static void _sec_cb(u8 *sec, int len, void *data)
 {
@@ -257,8 +255,6 @@ static void _sec_cb(u8 *sec, int len, void *data)
 	    (struct dmx_section_filter *)data;
 	struct sw_demux_sec_feed *sec_feed =
 	    (struct sw_demux_sec_feed *)source_filter->parent;
-
-	prdump("sec", sec, 4);
 
 	if (sec_feed->state != DMX_STATE_GO)
 		return;
@@ -277,16 +273,15 @@ static int _ts_out_sec_cb(struct out_elem *pout, char *buf,
 
 	if (debug_dmx == 1) {
 		pr_dbg("%s len:%d\n", __func__, count);
-		if (count >= 188)
-			prdump("org", buf, 188);
-		else
-			prdump("org", buf, 4);
+		prdump("org", buf, 4);
 	}
-
 	if (sec_feed->state != DMX_STATE_GO)
 		return 0;
 
+	if (mutex_lock_interruptible(demux->pmutex))
+		return 0;
 	ret = swdmx_ts_parser_run(demux->tsp, buf, count);
+	mutex_unlock(demux->pmutex);
 	return ret;
 }
 
@@ -466,9 +461,11 @@ static int _dmx_ts_feed_start_filtering(struct dmx_ts_feed *ts_feed)
 	/*enable hw pid filter */
 	if (feed->ts_out_elem) {
 		if (feed->pid == 0x2000)
-			ts_output_add_pid(feed->ts_out_elem, feed->pid, 0x1fff);
+			ts_output_add_pid(feed->ts_out_elem, feed->pid, 0x1fff,
+					  demux->id);
 		else
-			ts_output_add_pid(feed->ts_out_elem, feed->pid, 0);
+			ts_output_add_pid(feed->ts_out_elem, feed->pid, 0,
+					  demux->id);
 	}
 	spin_lock_irq(demux->pslock);
 	ts_feed->is_filtering = 1;
@@ -638,11 +635,13 @@ static int _dmx_section_feed_start_filtering(struct dmx_section_feed *feed)
 	}
 	if (start_flag != 1) {
 		dprint("%s fail\n", __func__);
+		mutex_unlock(demux->pmutex);
 		return -1;
 	}
 	/*enable hw pid filter */
 	if (sec_feed->sec_out_elem)
-		ts_output_add_pid(sec_feed->sec_out_elem, sec_feed->pid, 0);
+		ts_output_add_pid(sec_feed->sec_out_elem, sec_feed->pid, 0,
+				  demux->id);
 
 	sec_feed->state = DMX_STATE_GO;
 
@@ -762,6 +761,9 @@ static int _dmx_allocate_ts_feed(struct dmx_demux *dmx,
 
 	feed->type = DMX_TYPE_TS;
 	feed->ts_cb = callback;
+	feed->ts_out_elem = NULL;
+	feed->pes_type = -1;
+	feed->pid = -1;
 
 	(*ts_feed) = &feed->ts_feed;
 	(*ts_feed)->parent = dmx;
@@ -788,13 +790,13 @@ static int _dmx_release_ts_feed(struct dmx_demux *dmx,
 	if (!ts_feed)
 		return 0;
 
-	if (mutex_lock_interruptible(demux->pmutex))
-		return -ERESTARTSYS;
-
 	feed = (struct sw_demux_ts_feed *)ts_feed;
 
 	if (feed->ts_out_elem)
 		ts_output_close(feed->ts_out_elem);
+
+	if (mutex_lock_interruptible(demux->pmutex))
+		return -ERESTARTSYS;
 
 	switch (feed->pes_type) {
 	case DMX_PES_PCR0:
@@ -904,12 +906,12 @@ static int _dmx_release_section_feed(struct dmx_demux *dmx,
 	struct aml_dmx *demux = (struct aml_dmx *)dmx->priv;
 	struct sw_demux_sec_feed *sec_feed;
 
-	if (mutex_lock_interruptible(demux->pmutex))
-		return -ERESTARTSYS;
-
 	sec_feed = (struct sw_demux_sec_feed *)feed;
 	if (sec_feed->sec_out_elem)
 		ts_output_close(sec_feed->sec_out_elem);
+
+	if (mutex_lock_interruptible(demux->pmutex))
+		return -ERESTARTSYS;
 
 	sec_feed->state = DMX_STATE_FREE;
 	sec_feed->sec_out_elem = NULL;
@@ -1074,9 +1076,7 @@ static int _dmx_set_input(struct dmx_demux *demux, int source)
 {
 	struct aml_dmx *pdmx = (struct aml_dmx *)demux;
 
-//      pr_dbg("%s line:%d local:%d, input:%d\n",
-//                      __func__, __LINE__, pdmx->source, source);
-
+	pr_dbg("%s local:%d, input:%d\n", __func__, pdmx->source, source);
 //      if (pdmx->source == source)
 //              return 0;
 
@@ -1331,7 +1331,7 @@ void test_sid(void)
 			ts_output_set_cb(ts_out_elem,
 					 out_ts_elem_cb_test, NULL);
 			ts_output_set_mem(ts_out_elem, pes_buf_size, 0, 0);
-			ts_output_add_pid(ts_out_elem, 0, 0);
+			ts_output_add_pid(ts_out_elem, 0, 0, 0);
 		} else {
 			dprint("%s error\n", __func__);
 		}
@@ -1368,8 +1368,7 @@ static ssize_t dump_register_store(struct class *class,
 static ssize_t dump_filter_show(struct class *class,
 				struct class_attribute *attr, char *buf)
 {
-	ts_output_dump_info();
-	return 0;
+	return ts_output_dump_info(buf);
 }
 
 static ssize_t dump_filter_store(struct class *class,
