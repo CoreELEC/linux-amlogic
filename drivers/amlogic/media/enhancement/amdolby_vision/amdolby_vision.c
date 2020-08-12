@@ -1158,6 +1158,8 @@ static bool mel_mode;
 static bool osd_update;
 static bool enable_fel;
 
+static bool module_installed;
+
 #define MAX_PARAM   8
 static bool is_meson_gxm(void)
 {
@@ -6311,7 +6313,7 @@ int dolby_vision_parse_metadata(
 	memset(&req, 0, (sizeof(struct provider_aux_req_s)));
 	memset(&el_req, 0, (sizeof(struct provider_aux_req_s)));
 
-	if (!dolby_vision_enable)
+	if (!dolby_vision_enable || !module_installed)
 		return -1;
 
 	if (vf) {
@@ -8267,6 +8269,7 @@ int register_dv_functions(const struct dolby_vision_func_s *func)
 		}
 		adjust_vpotch();
 	}
+	module_installed = true;
 	return ret;
 }
 EXPORT_SYMBOL(register_dv_functions);
@@ -8276,6 +8279,7 @@ int unregister_dv_functions(void)
 	int ret = -1;
 	int i;
 
+	module_installed = false;
 	for (i = 0; i < 2; i++) {
 		if (md_buf[i] != NULL) {
 			vfree(md_buf[i]);
