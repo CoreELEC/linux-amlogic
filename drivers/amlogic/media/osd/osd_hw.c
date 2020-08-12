@@ -3233,17 +3233,13 @@ static void osd_set_free_scale_enable_mode1(u32 index, u32 enable)
 		background_h =
 			osd_hw.free_src_data[index].y_end -
 			osd_hw.free_src_data[index].y_start + 1;
-		if ((background_w !=
-			osd_hw.disp_info[output_index].background_w) ||
-			(background_h !=
-			osd_hw.disp_info[output_index].background_h)) {
-			output_index = get_output_device_id(index);
-			osd_hw.disp_info[output_index].background_w =
-				background_w;
-			osd_hw.disp_info[output_index].background_h =
-				background_h;
-			osd_setting_default_hwc();
-		}
+
+		output_index = get_output_device_id(index);
+		osd_hw.disp_info[output_index].background_w =
+			background_w;
+		osd_hw.disp_info[output_index].background_h =
+			background_h;
+		osd_setting_default_hwc();
 	}
 
 	osd_wait_vsync_hw(index);
