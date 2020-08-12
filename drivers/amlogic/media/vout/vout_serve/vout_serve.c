@@ -579,13 +579,26 @@ static ssize_t vout_vinfo_show(struct class *class,
 	return len;
 }
 
+static ssize_t vout_vinfo_name_show(struct class *class,
+		struct class_attribute *attr, char *buf)
+{
+	const struct vinfo_s *info = NULL;
+	int ret = 0;
+
+	info = get_current_vinfo();
+	if (info == NULL)
+		return sprintf(buf, "null");
+	ret = sprintf(buf, "%s\n", info->name);
+}
+
 static struct class_attribute vout_class_attrs[] = {
-	__ATTR(mode,      0644, vout_mode_show, vout_mode_store),
-	__ATTR(axis,      0644, vout_axis_show, vout_axis_store),
-	__ATTR(fr_policy, 0644,
+	__ATTR(mode,       0644, vout_mode_show, vout_mode_store),
+	__ATTR(axis,       0644, vout_axis_show, vout_axis_store),
+	__ATTR(fr_policy,  0644,
 		vout_fr_policy_show, vout_fr_policy_store),
-	__ATTR(bist,      0644, vout_bist_show, vout_bist_store),
-	__ATTR(vinfo,     0444, vout_vinfo_show, NULL),
+	__ATTR(bist,       0644, vout_bist_show, vout_bist_store),
+	__ATTR(vinfo,      0444, vout_vinfo_show, NULL),
+	__ATTR(vinfo_name, 0444, vout_vinfo_name_show, NULL),
 };
 
 static int vout_attr_create(void)
