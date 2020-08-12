@@ -1118,7 +1118,7 @@ static int cma_shrinker_probe(struct platform_device *pdev)
 		goto err;
 
 	for (i = 0; i < PARA_COUNT; i++) {
-		pr_info("cma shrinker, adj:%3d, free:%d\n",
+		pr_debug("cma shrinker, adj:%3d, free:%d\n",
 			cs->adj[i], cs->free[i]);
 	}
 	return 0;
