@@ -1661,18 +1661,6 @@
 	status = "disabled";
 };
 
-&pinctrl_aobus {
-	dvb_s_ts0_pins: dvb_s_ts0_pins {
-		tsin_a {
-			groups = "tsin_a_sop_ao",
-				"tsin_a_valid_ao",
-				"tsin_a_clk_ao",
-				"tsin_a_din0_ao";
-			function = "tsin_a_ao";
-		};
-	};
-};
-
 &amhdmitx {
 	status = "okay";
 };

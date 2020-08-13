@@ -1639,15 +1639,6 @@
 
 }; /* end of pinctrl_periphs */
 
-//&pinctrl_aobus {
-//	spdifout: spdifout {
-//		mux { /* gpiao_10 */
-//			groups = "spdif_out_ao";
-//			function = "spdif_out_ao";
-//		};
-//	};
-//};  /* end of pinctrl_aobus */
-
 &audio_data {
 	status = "okay";
 };
@@ -1849,10 +1840,6 @@
 };
 
 &defendkey {
-	status = "disabled";
-};
-
-&pinctrl_aobus {
 	status = "disabled";
 };
 
