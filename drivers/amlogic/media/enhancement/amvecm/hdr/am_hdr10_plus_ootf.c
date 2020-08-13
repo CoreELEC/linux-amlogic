@@ -36,7 +36,7 @@ unsigned int hdr10_plus_printk;
 module_param(hdr10_plus_printk, uint, 0664);
 MODULE_PARM_DESC(hdr10_plus_printk, "hdr10_plus_printk");
 
-unsigned int force_ref_peak = 1;
+unsigned int force_ref_peak;
 module_param(force_ref_peak, uint, 0664);
 MODULE_PARM_DESC(force_ref_peak, "force_ref_peak");
 
@@ -710,9 +710,12 @@ int genEBZCurve(
 	u64 step_alpha;
 	u64 beziercurve[2];
 	int i;
-	int nump = N - 1;
+	int nump;
 
-
+	if ((order > 1) && (order <= N))
+		nump = order - 1;
+	else
+		nump = N - 1;
 	/*u12->U16*/
 	kx = nkx << (U32 - PROCESSING_MAX);
 	ky = nky << (U32 - PROCESSING_MAX);
@@ -725,7 +728,7 @@ int genEBZCurve(
 		/*anchorY default range:PROCESSING_MAX */
 		myAnchorY[i + 1] = anchory[i] << (U32 - PROCESSING_MAX);
 	myAnchorY[0] = 0;
-	myAnchorY[N] = _U32_MAX; /* u12 */
+	myAnchorY[nump + 1] = _U32_MAX; /* u12 */
 #else
 	for (i = 0; i < nump; i++)/* u12-> ebz_y, u32*/
 		/*anchorY default range:PROCESSING_MAX */
