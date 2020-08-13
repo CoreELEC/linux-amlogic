@@ -1831,7 +1831,11 @@ static void __exit cleanup_mtd(void)
 	idr_destroy(&mtd_idr);
 }
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+rootfs_initcall(init_mtd);
+#else
 module_init(init_mtd);
+#endif
 module_exit(cleanup_mtd);
 
 MODULE_LICENSE("GPL");
