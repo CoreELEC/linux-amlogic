@@ -1237,6 +1237,7 @@ static void afbc_prob(unsigned int cid, struct afd_s *p)
 	else
 		pafd_ctr->fb.mem_alloc = 0;
 
+	afbc_cfg = BITS_EAFBC_CFG_DISABLE;
 	di_pr_info("%s:ver[%d],%s\n", __func__, pafd_ctr->fb.ver,
 		   afbc_get_version());
 }
