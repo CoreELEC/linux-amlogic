@@ -259,7 +259,8 @@ static int ionvideo_fillbuff(struct ionvideo_dev *dev,
 	vf = vf_get(dev->vf_receiver_name);
 	if (!vf)
 		return -EAGAIN;
-	if (vf->flag & VFRAME_FLAG_SWITCHING_FENSE) {
+	if ((vf->flag & VFRAME_FLAG_SWITCHING_FENSE) ||
+	    (vf->type & VIDTYPE_V4L_EOS)) {
 		vf_put(vf, dev->vf_receiver_name);
 		return -EAGAIN;
 	}

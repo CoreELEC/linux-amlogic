@@ -1305,6 +1305,10 @@ static void process_vf_rotate(struct vframe_s *vf,
 		vfq_push(&q_ready, new_vf);
 		return;
 	}
+	if (vf->type & VIDTYPE_V4L_EOS) {
+		new_vf->type |= VIDTYPE_V4L_EOS;
+		goto rotate_done;
+	}
 #ifdef INTERLACE_DROP_MODE
 	if (interlace_mode == VIDTYPE_INTERLACE_BOTTOM) {
 		ppmgr_vf_put_dec(vf);
@@ -1830,6 +1834,7 @@ static void process_vf_rotate(struct vframe_s *vf,
 			set_fs(old_fs);
 		}
 	}
+rotate_done:
 	ppmgr_vf_put_dec(vf);
 	new_vf->source_type = VFRAME_SOURCE_TYPE_PPMGR;
 	if (dumpfirstframe != 2)
@@ -1890,6 +1895,8 @@ static void process_vf_change(struct vframe_s *vf,
 #endif
 	if (ret < 0)
 		return;
+	if (vf->type & VIDTYPE_V4L_EOS)
+		goto change_done;
 	temp_vf.duration = vf->duration;
 	temp_vf.duration_pulldown = vf->duration_pulldown;
 	temp_vf.pts = vf->pts;
@@ -2071,6 +2078,7 @@ static void process_vf_change(struct vframe_s *vf,
 	stretchblt_noalpha(context, 0, 0, temp_vf.width, temp_vf.height, 0, 0,
 			vf->width, vf->height);
 	/*vf->duration = 0 ;*/
+change_done:
 	if (pp_vf->dec_frame) {
 		ppmgr_vf_put_dec(pp_vf->dec_frame);
 		pp_vf->dec_frame = 0;
@@ -2110,7 +2118,8 @@ static int process_vf_adjust(struct vframe_s *vf,
 
 	if (ppmgr_device.receiver != 0)
 		mode = 0;
-
+	if (vf->type & VIDTYPE_V4L_EOS)
+		return 0;
 
 	if (!mode) {
 		/*printk("--ppmgr adjust: scaler mode is disabled.\n");*/
@@ -2650,6 +2659,8 @@ static int ppmgr_task(void *data)
 				>= (3840 * 2160)) {          //4k do not detect
 				goto SKIP_DETECT;
 			}
+			if (vf->type & VIDTYPE_V4L_EOS)
+				goto SKIP_DETECT;
 			if (first_frame) {
 				last_type = vf->type & VIDTYPE_TYPEMASK;
 				last_width = vf->width;

@@ -1382,6 +1382,12 @@ static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *p)
 		mutex_unlock(&dev->mutex_input);
 		return -EAGAIN;
 	}
+	if (vf->type & VIDTYPE_V4L_EOS) {
+		vf_put(vf, dev->vf_receiver_name);
+		mutex_unlock(&dev->mutex_input);
+		put_count++;
+		return -EAGAIN;
+	}
 	if (!dev->provider_name) {
 		provider_name = vf_get_provider_name(
 			dev->vf_receiver_name);

@@ -3962,6 +3962,10 @@ static int amlvideo2_thread_tick(struct amlvideo2_fh *fh)
 		/* drop the frame to get the last one */
 		if (!vfq_full(&node->q_ready)) {
 			vf = vf_get(node->recv.name);
+			if (vf->type & VIDTYPE_V4L_EOS) {
+				vf_inqueue(vf, node);
+				goto unlock;
+			}
 			if ((vf != NULL) && ((vf->type & VIDTYPE_TYPEMASK)
 				== VIDTYPE_INTERLACE_TOP) &&
 				(node->field_flag)) {
@@ -3986,6 +3990,10 @@ static int amlvideo2_thread_tick(struct amlvideo2_fh *fh)
 					break;
 			}
 			if (vf != NULL) {
+				if (vf->type & VIDTYPE_V4L_EOS) {
+					vf_inqueue(vf, node);
+					goto unlock;
+				}
 				if (((vf->type & VIDTYPE_TYPEMASK)
 					== VIDTYPE_INTERLACE_BOTTOM) &&
 					(vf->canvas0Addr == vf->canvas1Addr)) {

@@ -1066,6 +1066,10 @@ static inline struct vframe_s *pip_vf_get(void)
 
 	if (vf) {
 		get_count_pip++;
+		if (vf->type & VIDTYPE_V4L_EOS) {
+			vf_put(vf, RECEIVERPIP_NAME);
+			return NULL;
+		}
 		/* video_notify_flag |= VIDEO_NOTIFY_PROVIDER_GET; */
 		atomic_set(&vf->use_cnt_pip, 1);
 	}
@@ -1139,6 +1143,10 @@ static inline struct vframe_s *video_vf_get(void)
 	vf = vf_get(RECEIVER_NAME);
 	if (vf) {
 		get_count++;
+		if (vf->type & VIDTYPE_V4L_EOS) {
+			vf_put(vf, RECEIVER_NAME);
+			return NULL;
+		}
 		if (vf->disp_pts && vf->disp_pts_us64) {
 			vf->pts = vf->disp_pts;
 			vf->pts_us64 = vf->disp_pts_us64;

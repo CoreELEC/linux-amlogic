@@ -743,7 +743,10 @@ static void vframe_composer(struct composer_dev *dev)
 			file_private_data =
 			(struct file_private_data *)(file_vf->private_data);
 			scr_vf = &file_private_data->vf;
-
+			if (scr_vf->type & VIDTYPE_V4L_EOS) {
+				vc_print(dev->index, PRINT_ERROR, "eos vf\n");
+				continue;
+			}
 			src_data.canvas0Addr = scr_vf->canvas0Addr;
 			src_data.canvas1Addr = scr_vf->canvas1Addr;
 			src_data.canvas0_config[0] = scr_vf->canvas0_config[0];
