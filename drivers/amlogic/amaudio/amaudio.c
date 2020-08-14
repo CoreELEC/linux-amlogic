@@ -75,6 +75,12 @@ static unsigned int mute_left_right;
 static unsigned int mute_unmute;
 static struct class *amaudio_classp;
 static struct device *amaudio_dev;
+static u32 decoding_errors, decoded_frames;
+static u32 samplerate, ch_num, ch_configuration;
+static const char audio_standards[32] = {"AAC,DDP,DD,MPEG"};
+static const char * const audio_format[] = {"PCM", "CUSTOM_1", "CUSTOM_2",
+	"CUSTOM_3", "DD", "AUTO"};
+static int hdmi_format;
 
 static const struct file_operations amaudio_ctl_fops = {
 	.owner = THIS_MODULE,
@@ -490,6 +496,54 @@ static ssize_t dolby_enable_show(struct class *class,
 
 	return sprintf(buf, "0x%x\n", val);
 }
+
+static ssize_t codec_report_info_store(struct class *class,
+				       struct class_attribute *attr,
+				       const char *buf, size_t count)
+{
+	if (strncmp(buf, "decoded_frames", 14) == 0) {
+		if (kstrtoint(buf + 15, 10, (uint32_t *)&decoded_frames)) {
+			pr_info("codec_decoder_frames_store failed\n");
+			return -EINVAL;
+		}
+	} else if (strncmp(buf, "decoded_err", 11) == 0) {
+		if (kstrtoint(buf + 12, 10, (uint32_t *)&decoding_errors)) {
+			pr_info("codec_decoder_errors_store failed\n");
+			return -EINVAL;
+		}
+	} else if (strncmp(buf, "hdmi_format", 11) == 0) {
+		if (kstrtoint(buf + 12, 10, &hdmi_format))
+			return -EINVAL;
+	} else if (strncmp(buf, "samplerate", 10) == 0) {
+		if (kstrtoint(buf + 11, 10, (uint32_t *)&samplerate))
+			return -EINVAL;
+	} else if (strncmp(buf, "ch_num", 6) == 0) {
+		if (kstrtoint(buf + 7, 10, (uint32_t *)&ch_num))
+			return -EINVAL;
+	} else if (strncmp(buf, "ch_configuration", 16) == 0) {
+		if (kstrtoint(buf + 17, 10, (uint32_t *)&ch_configuration))
+			return -EINVAL;
+	}
+	return count;
+}
+
+static ssize_t codec_report_info_show(struct class *cla,
+				      struct class_attribute *attr, char *buf)
+{
+	int pos = 0;
+
+	pos += sprintf(buf + pos, "decoded_frames:%d ", decoded_frames);
+	pos += sprintf(buf + pos, "decoded_err:%d ", decoding_errors);
+	pos += sprintf(buf + pos, "audio_standards:%s ", audio_standards);
+	pos += sprintf(buf + pos, "audio_format:%s ",
+		audio_format[hdmi_format]);
+	pos += sprintf(buf + pos, "samplerate:%d ", samplerate);
+	pos += sprintf(buf + pos, "ch_num:%d ", ch_num);
+	pos += sprintf(buf + pos, "ch_configuration:%d ", ch_configuration);
+
+	return pos;
+}
+
 static struct class_attribute amaudio_attrs[] = {
 	__ATTR(audio_channels_mask, 0664,
 	       show_audio_channels_mask, store_audio_channels_mask),
@@ -501,6 +555,8 @@ static struct class_attribute amaudio_attrs[] = {
 	       show_debug, store_debug),
 	__ATTR(mute_left_right, 0644,
 	       show_mute_left_right, store_mute_left_right),
+	__ATTR(codec_report_info, 0664,
+	       codec_report_info_show, codec_report_info_store),
 	__ATTR(mute_unmute, 0644,
 	       show_mute_unmute, store_mute_unmute),
 	__ATTR_RO(output_enable),
