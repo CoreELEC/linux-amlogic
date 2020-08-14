@@ -28,6 +28,7 @@
 #include <linux/reset.h>
 #include <linux/clk.h>
 #include <linux/amlogic/media/vout/lcd/lcd_vout.h>
+#include <linux/amlogic/media/vout/lcd/lcd_extern.h>
 #include <linux/amlogic/media/vout/lcd/lcd_notify.h>
 #include <linux/amlogic/media/vout/lcd/lcd_unifykey.h>
 #include <linux/amlogic/media/vout/vinfo.h>
@@ -455,7 +456,7 @@ int lcd_power_load_from_dts(struct lcd_config_s *pconf,
 					lcd_cpu_gpio_probe(index);
 				break;
 			case LCD_POWER_TYPE_EXTERN:
-				pconf->extern_index = index;
+				lcd_extern_index_lut_add(index);
 				break;
 			case LCD_POWER_TYPE_CLK_SS:
 				temp = pconf->lcd_power->power_on_step[i].value;

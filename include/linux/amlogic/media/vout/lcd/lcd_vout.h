@@ -481,6 +481,7 @@ struct lcd_duration_s {
 #define LCD_TEST_UPDATE       (1 << 4)
 
 #define LCD_VIU_SEL_NONE      0
+#define EXTERN_MUL_MAX	      10
 struct aml_lcd_drv_s {
 	char version[20];
 	struct lcd_data_s *data;
@@ -497,6 +498,7 @@ struct aml_lcd_drv_s {
 	unsigned char lcd_mute_flag;
 	unsigned char viu_sel;
 	unsigned char vsync_none_timer_flag;
+	unsigned int extern_mul_index[EXTERN_MUL_MAX];
 
 	struct device *dev;
 	struct lcd_config_s *lcd_config;
@@ -534,7 +536,6 @@ struct aml_lcd_drv_s {
 };
 
 extern struct aml_lcd_drv_s *aml_lcd_get_driver(void);
-
 
 /* **********************************
  * IOCTL define

@@ -31,11 +31,24 @@
 #include "lcd_extern.h"
 
 static struct device *lcd_extern_dev;
-static struct aml_lcd_extern_driver_s *lcd_ext_driver;
+static struct aml_lcd_extern_driver_s *lcd_ext_driver[EXTERN_MUL_MAX];
 
+static int lcd_extern_drv_cnt;
+static int lcd_extern_index_lut[EXTERN_MUL_MAX];
 static unsigned char lcd_ext_config_load;
 static unsigned char *table_init_on_dft;
 static unsigned char *table_init_off_dft;
+
+struct lcd_ext_common_s lcd_ext_common = {
+	.key_valid = 0,
+	.i2c_bus = LCD_EXT_I2C_BUS_INVALID,
+	.i2c_sck_gpio = LCD_EXT_GPIO_INVALID,
+	.i2c_sda_gpio = LCD_EXT_GPIO_INVALID,
+
+	.pinmux_valid = 0,
+	.pinmux_gpio_off = 2,
+	.pinmux_flag = 0xff,
+};
 
 struct lcd_ext_gpio_s {
 	char name[15];
@@ -58,16 +71,12 @@ static struct lcd_extern_config_s lcd_extern_config = {
 	.name = "invalid",
 	.type = LCD_EXTERN_MAX,
 	.status = 0,
-	.pinmux_valid = 0,
-	.pinmux_gpio_off = 2,
-	.key_valid = 0,
 	.addr_sel = 0,
 
 	.i2c_addr = LCD_EXT_I2C_ADDR_INVALID,
 	.i2c_addr2 = LCD_EXT_I2C_ADDR_INVALID,
-	.i2c_bus = LCD_EXT_I2C_BUS_INVALID,
-	.i2c_sck_gpio = LCD_EXT_GPIO_INVALID,
-	.i2c_sda_gpio = LCD_EXT_GPIO_INVALID,
+	.i2c_addr3 = LCD_EXT_I2C_ADDR_INVALID,
+	.i2c_addr4 = LCD_EXT_I2C_ADDR_INVALID,
 
 	.spi_gpio_cs = LCD_EXT_GPIO_INVALID,
 	.spi_gpio_clk = LCD_EXT_GPIO_INVALID,
@@ -82,24 +91,45 @@ static struct lcd_extern_config_s lcd_extern_config = {
 	.table_init_off_cnt = 0,
 	.table_init_on = NULL,
 	.table_init_off = NULL,
+	.common_config = &lcd_ext_common,
 };
 
 struct aml_lcd_extern_driver_s *aml_lcd_extern_get_driver(int index)
 {
-	if (lcd_ext_driver == NULL) {
-		EXTERR("invalid driver\n");
-		return NULL;
-	}
+	int i = 0;
 
 	if (index >= LCD_EXTERN_INDEX_INVALID) {
 		EXTERR("invalid driver index: %d\n", index);
 		return NULL;
 	}
-	if (lcd_ext_driver->config->index == index)
-		return lcd_ext_driver;
+
+	for (i = 0; i < lcd_extern_drv_cnt; i++) {
+		if (lcd_ext_driver[i] &&
+		    (lcd_ext_driver[i]->config->index == index))
+			return lcd_ext_driver[i];
+	}
 
 	EXTERR("invalid driver index: %d\n", index);
 	return NULL;
+}
+
+void lcd_extern_index_lut_add(int index)
+{
+	int i;
+
+	if (lcd_extern_drv_cnt >= EXTERN_MUL_MAX) {
+		EXTERR("extern drv cnt(%d) is out of support(%d)\n",
+		       lcd_extern_drv_cnt, EXTERN_MUL_MAX);
+		return;
+	}
+
+	for (i = 0; i < lcd_extern_drv_cnt; i++) {
+		if (lcd_extern_index_lut[i] == index)
+			return;
+	}
+
+	lcd_extern_index_lut[lcd_extern_drv_cnt] = index;
+	lcd_extern_drv_cnt++;
 }
 
 #ifdef CONFIG_OF
@@ -306,10 +336,7 @@ void lcd_extern_pinmux_set(int status)
 {
 	int index = 0xff;
 
-	if (lcd_ext_driver == NULL)
-		return;
-
-	if (lcd_ext_driver->config->pinmux_valid == 0) {
+	if (lcd_ext_common.pinmux_valid == 0) {
 		if (lcd_debug_print_flag)
 			EXTPR("%s: pinmux invalid, bypass\n", __func__);
 		return;
@@ -320,31 +347,25 @@ void lcd_extern_pinmux_set(int status)
 
 	index = (status) ? 0 : 1;
 
-	if (lcd_ext_driver->pinmux_flag == index) {
-		EXTPR("%s(%d) pinmux %s is already selected\n",
-			lcd_ext_driver->config->name,
-			lcd_ext_driver->config->index,
-			lcd_extern_pinmux_str[index]);
+	if (lcd_ext_common.pinmux_flag == index) {
+		EXTPR("pinmux %s is already selected\n",
+		      lcd_extern_pinmux_str[index]);
 		return;
 	}
 
 	/* request pinmux */
-	lcd_ext_driver->pin = devm_pinctrl_get_select(lcd_extern_dev,
-		lcd_extern_pinmux_str[index]);
-	if (IS_ERR(lcd_ext_driver->pin)) {
-		EXTERR("set %s(%d) pinmux %s error\n",
-			lcd_ext_driver->config->name,
-			lcd_ext_driver->config->index,
-			lcd_extern_pinmux_str[index]);
+	lcd_ext_common.pin = devm_pinctrl_get_select(lcd_extern_dev,
+				      lcd_extern_pinmux_str[index]);
+	if (IS_ERR(lcd_ext_common.pin)) {
+		EXTERR("set pinmux %s error\n",
+		       lcd_extern_pinmux_str[index]);
 	} else {
 		if (lcd_debug_print_flag) {
-			EXTPR("set %s(%d) pinmux %s ok\n",
-				lcd_ext_driver->config->name,
-				lcd_ext_driver->config->index,
-				lcd_extern_pinmux_str[index]);
+			EXTPR("set pinmux %s ok\n",
+			      lcd_extern_pinmux_str[index]);
 		}
 	}
-	lcd_ext_driver->pinmux_flag = index;
+	lcd_ext_common.pinmux_flag = index;
 }
 
 #ifdef CONFIG_OF
@@ -627,9 +648,9 @@ static int lcd_extern_init_table_fixed_size_load_dts(
 }
 
 static int lcd_extern_get_config_dts(struct device_node *of_node,
-		struct lcd_extern_config_s *extconf)
+				     struct lcd_extern_config_s *extconf,
+				     unsigned int ext_index)
 {
-	unsigned int ext_index = LCD_EXTERN_INDEX_INVALID;
 	char ext_propname[20];
 	struct device_node *child;
 	const char *str;
@@ -641,11 +662,6 @@ static int lcd_extern_get_config_dts(struct device_node *of_node,
 	extconf->status = 0;
 	extconf->table_init_loaded = 0;
 
-	aml_lcd_notifier_call_chain(LCD_EVENT_EXTERN_SEL, &ext_index);
-	if (ext_index == LCD_EXTERN_INDEX_INVALID) {
-		EXTPR("%s: invalid index\n", __func__);
-		return -1;
-	}
 	sprintf(ext_propname, "extern_%d", ext_index);
 	if (lcd_debug_print_flag)
 		EXTPR("%s: %s\n", __func__, ext_propname);
@@ -700,11 +716,13 @@ static int lcd_extern_get_config_dts(struct device_node *of_node,
 
 	switch (extconf->type) {
 	case LCD_EXTERN_I2C:
-		if (extconf->i2c_bus == LCD_EXT_I2C_BUS_INVALID)
+		if (extconf->common_config->i2c_bus ==
+		    LCD_EXT_I2C_BUS_INVALID)
 			EXTERR("%s: get i2c_bus failed\n", extconf->name);
 		if (lcd_debug_print_flag) {
 			EXTPR("%s: i2c_bus = %d\n",
-				extconf->name, extconf->i2c_bus);
+			      extconf->name,
+			      extconf->common_config->i2c_bus);
 		}
 		ret = of_property_read_u32(child, "i2c_address", &val);
 		if (ret) {
@@ -1199,7 +1217,8 @@ static int lcd_extern_get_config_unifykey(struct lcd_extern_config_s *extconf)
 		extconf->i2c_addr = *(p + LCD_UKEY_EXT_TYPE_VAL_0);
 		extconf->i2c_addr2 = *(p + LCD_UKEY_EXT_TYPE_VAL_1);
 		/*extconf->i2c_bus = *(p + LCD_UKEY_EXT_TYPE_VAL_2);*/
-		if (extconf->i2c_bus == LCD_EXT_I2C_BUS_MAX)
+		if (extconf->common_config->i2c_bus ==
+		    LCD_EXT_I2C_BUS_MAX)
 			EXTERR("%s: get i2c_bus failed\n", extconf->name);
 
 		extconf->cmd_size = *(p + LCD_UKEY_EXT_TYPE_VAL_3);
@@ -1341,11 +1360,10 @@ static int lcd_extern_table_init_save(struct lcd_extern_config_s *extconf)
 	return 0;
 }
 
-static int lcd_extern_get_config(void)
+static int lcd_extern_common_get_config(void)
 {
 	unsigned int extern_para[5];
 	const char *str;
-	unsigned int load_id = 0;
 	int ret;
 
 	if (lcd_extern_dev->of_node == NULL) {
@@ -1353,39 +1371,35 @@ static int lcd_extern_get_config(void)
 		return -1;
 	}
 
-	ret = lcd_extern_table_init_dft_malloc();
-	if (ret)
-		return -1;
-
 	ret = of_property_read_string(lcd_extern_dev->of_node, "i2c_bus", &str);
 	if (ret)
-		lcd_extern_config.i2c_bus = LCD_EXT_I2C_BUS_MAX;
+		lcd_ext_common.i2c_bus = LCD_EXT_I2C_BUS_MAX;
 	else
-		lcd_extern_config.i2c_bus = lcd_extern_get_i2c_bus_str(str);
+		lcd_ext_common.i2c_bus = lcd_extern_get_i2c_bus_str(str);
 
 	ret = of_property_read_u32_array(lcd_extern_dev->of_node,
 			"i2c_gpio", &extern_para[0], 2);
 	if (ret) {
-		lcd_extern_config.i2c_sck_gpio = LCD_EXT_GPIO_INVALID;
-		lcd_extern_config.i2c_sda_gpio = LCD_EXT_GPIO_INVALID;
+		lcd_ext_common.i2c_sck_gpio = LCD_EXT_GPIO_INVALID;
+		lcd_ext_common.i2c_sda_gpio = LCD_EXT_GPIO_INVALID;
 	} else {
-		lcd_extern_config.i2c_sck_gpio = (unsigned char)extern_para[0];
-		lcd_extern_config.i2c_sda_gpio = (unsigned char)extern_para[1];
+		lcd_ext_common.i2c_sck_gpio = (unsigned char)extern_para[0];
+		lcd_ext_common.i2c_sda_gpio = (unsigned char)extern_para[1];
 	}
 
 	ret = of_property_read_string(lcd_extern_dev->of_node,
 			"pinctrl-names", &str);
 	if (ret)
-		lcd_extern_config.pinmux_valid = 0;
+		lcd_ext_common.pinmux_valid = 0;
 	else
-		lcd_extern_config.pinmux_valid = 1;
+		lcd_ext_common.pinmux_valid = 1;
 
 	ret = of_property_read_u32(lcd_extern_dev->of_node,
 			"pinctrl_gpio_off", &extern_para[0]);
 	if (ret) {
-		lcd_extern_config.pinmux_gpio_off = 2;
+		lcd_ext_common.pinmux_gpio_off = 2;
 	} else {
-		lcd_extern_config.pinmux_gpio_off =
+		lcd_ext_common.pinmux_gpio_off =
 			(unsigned char)extern_para[0];
 	}
 
@@ -1394,13 +1408,39 @@ static int lcd_extern_get_config(void)
 	if (ret) {
 		if (lcd_debug_print_flag)
 			EXTPR("failed to get key_valid\n");
-		lcd_extern_config.key_valid = 0;
+		lcd_ext_common.key_valid = 0;
 	} else {
-		lcd_extern_config.key_valid = (unsigned char)extern_para[0];
+		lcd_ext_common.key_valid = (unsigned char)extern_para[0];
 	}
-	EXTPR("key_valid: %d\n", lcd_extern_config.key_valid);
+	EXTPR("key_valid: %d\n", lcd_ext_common.key_valid);
 
-	if (lcd_extern_config.key_valid) {
+	return 0;
+}
+
+static struct lcd_extern_config_s *lcd_extern_get_config_load(unsigned int
+							      index)
+{
+	struct lcd_extern_config_s *extern_config;
+	unsigned int load_id = 0;
+	int ret = 0;
+
+	extern_config =
+		kzalloc(sizeof(struct lcd_extern_config_s), GFP_KERNEL);
+	if (!extern_config) {
+		EXTERR("failed to alloc extern config[%d]\n", index);
+		return NULL;
+	}
+
+	memcpy(extern_config, &lcd_extern_config,
+	       sizeof(struct lcd_extern_config_s));
+
+	ret = lcd_extern_table_init_dft_malloc();
+	if (ret) {
+		kfree(extern_config);
+		return NULL;
+	}
+
+	if (lcd_ext_common.key_valid) {
 		ret = lcd_unifykey_check("lcd_extern");
 		if (ret < 0)
 			load_id = 0;
@@ -1411,32 +1451,33 @@ static int lcd_extern_get_config(void)
 	if (load_id) {
 		EXTPR("%s from unifykey\n", __func__);
 		lcd_ext_config_load = 1;
-		ret = lcd_extern_get_config_unifykey(&lcd_extern_config);
+		ret = lcd_extern_get_config_unifykey(extern_config);
 	} else {
 #ifdef CONFIG_OF
 		EXTPR("%s from dts\n", __func__);
 		lcd_ext_config_load = 0;
 		ret = lcd_extern_get_config_dts(lcd_extern_dev->of_node,
-			&lcd_extern_config);
+						extern_config, index);
 #endif
 	}
 	if (ret)
 		goto lcd_extern_get_config_err;
 
-	if (lcd_extern_config.table_init_loaded > 0) {
-		ret = lcd_extern_table_init_save(&lcd_extern_config);
+	if (extern_config->table_init_loaded > 0) {
+		ret = lcd_extern_table_init_save(extern_config);
 		if (ret)
 			goto lcd_extern_get_config_err;
 	}
 
 	kfree(table_init_on_dft);
 	kfree(table_init_off_dft);
-	return 0;
+	return extern_config;
 
 lcd_extern_get_config_err:
 	kfree(table_init_on_dft);
 	kfree(table_init_off_dft);
-	return -1;
+	kfree(extern_config);
+	return NULL;
 }
 
 static int lcd_extern_add_i2c(struct aml_lcd_extern_driver_s *ext_drv)
@@ -1557,7 +1598,8 @@ static int lcd_extern_add_invalid(struct aml_lcd_extern_driver_s *ext_drv)
 	return -1;
 }
 
-static int lcd_extern_add_driver(struct lcd_extern_config_s *extconf)
+static int lcd_extern_add_driver(struct lcd_extern_config_s *extconf,
+				 unsigned int index)
 {
 	struct aml_lcd_extern_driver_s *ext_drv;
 	int ret = 0;
@@ -1568,17 +1610,15 @@ static int lcd_extern_add_driver(struct lcd_extern_config_s *extconf)
 		return -1;
 	}
 
-	lcd_ext_driver =
+	lcd_ext_driver[index] =
 		kzalloc(sizeof(struct aml_lcd_extern_driver_s), GFP_KERNEL);
-	if (lcd_ext_driver == NULL) {
+	if (!lcd_ext_driver[index]) {
 		EXTERR("failed to alloc driver %s[%d], not enough memory\n",
 			extconf->name, extconf->index);
 		return -1;
 	}
-	ext_drv = lcd_ext_driver;
-
+	ext_drv = lcd_ext_driver[index];
 	ext_drv->config = extconf;
-	ext_drv->pinmux_flag = 0xff;
 	ext_drv->reg_read  = NULL;
 	ext_drv->reg_write = NULL;
 	ext_drv->power_on  = NULL;
@@ -1601,17 +1641,17 @@ static int lcd_extern_add_driver(struct lcd_extern_config_s *extconf)
 	}
 	if (ret) {
 		EXTERR("add driver failed\n");
-		kfree(lcd_ext_driver->config->table_init_on);
-		kfree(lcd_ext_driver->config->table_init_off);
-		lcd_ext_driver->config->table_init_on = NULL;
-		lcd_ext_driver->config->table_init_off = NULL;
-		kfree(lcd_ext_driver);
-		lcd_ext_driver = NULL;
+		kfree(lcd_ext_driver[index]->config->table_init_on);
+		kfree(lcd_ext_driver[index]->config->table_init_off);
+		kfree(lcd_ext_driver[index]->config);
+		kfree(lcd_ext_driver[index]);
+		lcd_ext_driver[index] = NULL;
 		return -1;
 	}
 
 	EXTPR("add driver %s(%d)\n",
-		ext_drv->config->name, ext_drv->config->index);
+	      ext_drv->config->name, ext_drv->config->index);
+
 	return 0;
 }
 
@@ -1808,87 +1848,105 @@ static ssize_t lcd_extern_info_show(struct class *class,
 		struct class_attribute *attr, char *buf)
 {
 	struct lcd_extern_config_s *econf;
+	int i = 0;
 
-	if (lcd_ext_driver == NULL)
-		return sprintf(buf, "lcd extern  driver is NULL\n");
-
-	econf = lcd_ext_driver->config;
-	pr_info("lcd extern driver %s(%d) info:\n", econf->name, econf->index);
-	pr_info("status:             %d\n", econf->status);
-	switch (econf->type) {
-	case LCD_EXTERN_I2C:
-		pr_info("type:               i2c(%d)\n", econf->type);
-		pr_info("i2c_addr:           0x%02x\n"
-			"i2c_addr2:          0x%02x\n"
-			"i2c_bus:            %d\n"
-			"table_loaded:       %d\n"
-			"cmd_size:           %d\n"
-			"table_init_on_cnt:  %d\n"
-			"table_init_off_cnt: %d\n",
-			econf->i2c_addr, econf->i2c_addr2, econf->i2c_bus,
-			econf->table_init_loaded, econf->cmd_size,
-			econf->table_init_on_cnt,
-			econf->table_init_off_cnt);
-		if (econf->cmd_size == 0)
+	for (i = 0; i < lcd_extern_drv_cnt; i++) {
+		if (!lcd_ext_driver[i])
+			return -EINVAL;
+		econf = lcd_ext_driver[i]->config;
+		pr_info("lcd extern driver %s(%d) info:\n",
+			econf->name, econf->index);
+		pr_info("status:             %d\n", econf->status);
+		switch (econf->type) {
+		case LCD_EXTERN_I2C:
+			pr_info("type:               i2c(%d)\n", econf->type);
+			pr_info("i2c_addr:           0x%02x\n"
+				"i2c_addr2:          0x%02x\n"
+				"i2c_addr3:          0x%02x\n"
+				"i2c_addr4:          0x%02x\n"
+				"i2c_bus:            %d\n"
+				"table_loaded:       %d\n"
+				"cmd_size:           %d\n"
+				"table_init_on_cnt:  %d\n"
+				"table_init_off_cnt: %d\n",
+				econf->i2c_addr, econf->i2c_addr2,
+				econf->i2c_addr3, econf->i2c_addr4,
+				econf->common_config->i2c_bus,
+				econf->table_init_loaded, econf->cmd_size,
+				econf->table_init_on_cnt,
+				econf->table_init_off_cnt);
+			if (econf->cmd_size == 0)
+				break;
+			if (econf->cmd_size == LCD_EXT_CMD_SIZE_DYNAMIC) {
+				lcd_extern_init_table_dynamic_size_print
+					(econf, 1);
+				lcd_extern_init_table_dynamic_size_print
+					(econf, 0);
+			} else {
+				lcd_extern_init_table_fixed_size_print
+					(econf, 1);
+				lcd_extern_init_table_fixed_size_print
+					(econf, 0);
+			}
 			break;
-		if (econf->cmd_size == LCD_EXT_CMD_SIZE_DYNAMIC) {
+		case LCD_EXTERN_SPI:
+			pr_info("type:               spi(%d)\n", econf->type);
+			pr_info("spi_gpio_cs:        %d\n"
+				"spi_gpio_clk:       %d\n"
+				"spi_gpio_data:      %d\n"
+				"spi_clk_freq:       %dKHz\n"
+				"spi_delay_us:       %d\n"
+				"spi_clk_pol:        %d\n"
+				"table_loaded:       %d\n"
+				"cmd_size:           %d\n"
+				"table_init_on_cnt:  %d\n"
+				"table_init_off_cnt: %d\n",
+				econf->spi_gpio_cs, econf->spi_gpio_clk,
+				econf->spi_gpio_data, econf->spi_clk_freq,
+				econf->spi_delay_us, econf->spi_clk_pol,
+				econf->table_init_loaded, econf->cmd_size,
+				econf->table_init_on_cnt,
+				econf->table_init_off_cnt);
+			if (econf->cmd_size == 0)
+				break;
+			if (econf->cmd_size == LCD_EXT_CMD_SIZE_DYNAMIC) {
+				lcd_extern_init_table_dynamic_size_print
+					(econf, 1);
+				lcd_extern_init_table_dynamic_size_print
+					(econf, 0);
+				} else {
+					lcd_extern_init_table_fixed_size_print
+						(econf, 1);
+					lcd_extern_init_table_fixed_size_print
+						(econf, 0);
+				}
+				break;
+		case LCD_EXTERN_MIPI:
+			pr_info("type:            mipi(%d)\n", econf->type);
+			pr_info("table_loaded:       %d\n"
+				"cmd_size:        %d\n"
+				"table_init_on_cnt:  %d\n"
+				"table_init_off_cnt: %d\n",
+				econf->table_init_loaded,
+				econf->cmd_size,
+				econf->table_init_on_cnt,
+				econf->table_init_off_cnt);
+			if (econf->cmd_size != LCD_EXT_CMD_SIZE_DYNAMIC)
+				break;
 			lcd_extern_init_table_dynamic_size_print(econf, 1);
 			lcd_extern_init_table_dynamic_size_print(econf, 0);
-		} else {
-			lcd_extern_init_table_fixed_size_print(econf, 1);
-			lcd_extern_init_table_fixed_size_print(econf, 0);
-		}
-		break;
-	case LCD_EXTERN_SPI:
-		pr_info("type:               spi(%d)\n", econf->type);
-		pr_info("spi_gpio_cs:        %d\n"
-			"spi_gpio_clk:       %d\n"
-			"spi_gpio_data:      %d\n"
-			"spi_clk_freq:       %dKHz\n"
-			"spi_delay_us:       %d\n"
-			"spi_clk_pol:        %d\n"
-			"table_loaded:       %d\n"
-			"cmd_size:           %d\n"
-			"table_init_on_cnt:  %d\n"
-			"table_init_off_cnt: %d\n",
-			econf->spi_gpio_cs, econf->spi_gpio_clk,
-			econf->spi_gpio_data, econf->spi_clk_freq,
-			econf->spi_delay_us, econf->spi_clk_pol,
-			econf->table_init_loaded, econf->cmd_size,
-			econf->table_init_on_cnt,
-			econf->table_init_off_cnt);
-		if (econf->cmd_size == 0)
 			break;
-		if (econf->cmd_size == LCD_EXT_CMD_SIZE_DYNAMIC) {
-			lcd_extern_init_table_dynamic_size_print(econf, 1);
-			lcd_extern_init_table_dynamic_size_print(econf, 0);
-		} else {
-			lcd_extern_init_table_fixed_size_print(econf, 1);
-			lcd_extern_init_table_fixed_size_print(econf, 0);
-		}
-		break;
-	case LCD_EXTERN_MIPI:
-		pr_info("type:            mipi(%d)\n", econf->type);
-		pr_info("table_loaded:       %d\n"
-			"cmd_size:        %d\n"
-			"table_init_on_cnt:  %d\n"
-			"table_init_off_cnt: %d\n",
-			econf->table_init_loaded,
-			econf->cmd_size,
-			econf->table_init_on_cnt,
-			econf->table_init_off_cnt);
-		if (econf->cmd_size != LCD_EXT_CMD_SIZE_DYNAMIC)
+		default:
+			pr_info("not support extern_type\n");
 			break;
-		lcd_extern_init_table_dynamic_size_print(econf, 1);
-		lcd_extern_init_table_dynamic_size_print(econf, 0);
-		break;
-	default:
-		pr_info("not support extern_type\n");
-		break;
-	}
-	if (econf->pinmux_valid) {
-		pr_info("pinmux_flag:     %d\n", lcd_ext_driver->pinmux_flag);
-		pr_info("pinmux_pointer:  0x%p\n", lcd_ext_driver->pin);
+		}
+
+		if (econf->common_config->pinmux_valid) {
+			pr_info("pinmux_flag:     %d\n",
+				econf->common_config->pinmux_flag);
+			pr_info("pinmux_pointer:  0x%p\n",
+				econf->common_config->pin);
+		}
 	}
 
 	return sprintf(buf, "\n");
@@ -1897,7 +1955,7 @@ static ssize_t lcd_extern_info_show(struct class *class,
 static ssize_t lcd_extern_key_valid_show(struct class *class,
 		struct class_attribute *attr, char *buf)
 {
-	return sprintf(buf, "%d\n", lcd_extern_config.key_valid);
+	return sprintf(buf, "%d\n", lcd_ext_common.key_valid);
 }
 
 static ssize_t lcd_extern_config_load_show(struct class *class,
@@ -1924,26 +1982,27 @@ static ssize_t lcd_extern_debug_show(struct class *class,
 static ssize_t lcd_extern_debug_store(struct class *class,
 		struct class_attribute *attr, const char *buf, size_t count)
 {
-	unsigned int ret, i;
+	unsigned int ret, j;
 	unsigned int val[3];
 	unsigned char reg, value;
 	unsigned char reg_buf[2];
-
-	if (lcd_ext_driver == NULL) {
-		pr_info("lcd_extern_driver is null\n");
-		return count;
-	}
+	unsigned int index = LCD_EXTERN_INDEX_INVALID;
+	struct aml_lcd_extern_driver_s *ext_drv;
 
 	switch (buf[0]) {
 	case 't':
-		ret = sscanf(buf, "test %d", &val[0]);
-		if (ret == 1) {
+		ret = sscanf(buf, "test %d %d", &index, &val[0]);
+		if (ret == 2) {
+			ext_drv = aml_lcd_extern_get_driver(index);
+			if (!ext_drv)
+				return -EINVAL;
+
 			if (val[0]) {
-				if (lcd_ext_driver->power_on)
-					lcd_ext_driver->power_on();
+				if (ext_drv->power_on)
+					ext_drv->power_on();
 			} else {
-				if (lcd_ext_driver->power_off)
-					lcd_ext_driver->power_off();
+				if (ext_drv->power_off)
+					ext_drv->power_off();
 			}
 		} else {
 			pr_info("invalid data\n");
@@ -1951,13 +2010,18 @@ static ssize_t lcd_extern_debug_store(struct class *class,
 		}
 		break;
 	case 'r':
-		ret = sscanf(buf, "r %d %x", &val[0], &val[1]);
-		if (ret == 2) {
-			lcd_ext_driver->config->addr_sel =
+		ret = sscanf(buf, "r %d %d %x", &index, &val[0],
+			     &val[1]);
+		if (ret == 3) {
+			ext_drv = lcd_ext_driver[index];
+			if (!ext_drv)
+				return -EINVAL;
+
+			ext_drv->config->addr_sel =
 				(unsigned char)val[0];
 			reg = (unsigned char)val[1];
-			if (lcd_ext_driver->reg_read) {
-				lcd_ext_driver->reg_read(reg, &value);
+			if (ext_drv->reg_read) {
+				ext_drv->reg_read(reg, &value);
 				pr_info("reg read: 0x%02x = 0x%02x\n",
 					reg, value);
 			}
@@ -1967,15 +2031,21 @@ static ssize_t lcd_extern_debug_store(struct class *class,
 		}
 		break;
 	case 'd':
-		ret = sscanf(buf, "d %d %x %d", &val[0], &val[1], &val[2]);
-		if (ret == 3) {
-			lcd_ext_driver->config->addr_sel =
+		ret = sscanf(buf, "d %d %d %x %d", &index, &val[0],
+			     &val[1], &val[2]);
+		if (ret == 4) {
+			ext_drv = lcd_ext_driver[index];
+			if (!ext_drv)
+				return -EINVAL;
+
+			ext_drv->config->addr_sel =
 				(unsigned char)val[0];
 			reg = (unsigned char)val[1];
-			if (lcd_ext_driver->reg_read) {
+			if (ext_drv->reg_read) {
 				pr_info("reg dump:\n");
-				for (i = 0; i < val[2]; i++) {
-					lcd_ext_driver->reg_read(reg+i, &value);
+				for (j = 0; j < val[2]; j++) {
+					ext_drv->reg_read
+						(reg + j, &value);
 					pr_info("  0x%02x = 0x%02x\n",
 						reg, value);
 				}
@@ -1986,21 +2056,27 @@ static ssize_t lcd_extern_debug_store(struct class *class,
 		}
 		break;
 	case 'w':
-		ret = sscanf(buf, "w %d %x %x", &val[0], &val[1], &val[2]);
-		if (ret == 2) {
-			lcd_ext_driver->config->addr_sel =
+		ret = sscanf(buf, "w %d %d %x %x", &index, &val[0],
+			     &val[1], &val[2]);
+		if (ret == 4) {
+			ext_drv = lcd_ext_driver[index];
+			if (!ext_drv)
+				return -EINVAL;
+
+			ext_drv->config->addr_sel =
 				(unsigned char)val[0];
 			reg = (unsigned char)val[1];
 			value = (unsigned char)val[2];
-			if (lcd_ext_driver->reg_write) {
+			if (ext_drv->reg_write) {
 				reg_buf[0] = (unsigned char)val[1];
 				reg_buf[1] = (unsigned char)val[2];
-				lcd_ext_driver->reg_write(reg_buf, 2);
-				if (lcd_ext_driver->reg_read) {
-					lcd_ext_driver->reg_read(reg, &value);
-					pr_info(
-				"reg write 0x%02x = 0x%02x, readback: 0x%02x\n",
-					reg, val[2], value);
+				ext_drv->reg_write(reg_buf, 2);
+				if (ext_drv->reg_read) {
+					ext_drv->reg_read
+						(reg, &value);
+					pr_info
+			("reg write 0x%02x = 0x%02x, readback: 0x%02x\n",
+			 reg, val[2], value);
 				} else {
 					pr_info("reg write 0x%02x = 0x%02x\n",
 						reg, value);
@@ -2068,14 +2144,22 @@ static int remove_lcd_extern_class(void)
 
 static int aml_lcd_extern_probe(struct platform_device *pdev)
 {
-	int ret;
+	struct lcd_extern_config_s *extern_config;
+	int ret, i = 0;
 
 	lcd_extern_dev = &pdev->dev;
 
-	ret = lcd_extern_get_config();
-	if (ret == 0)
-		lcd_extern_add_driver(&lcd_extern_config);
-
+	ret = lcd_extern_common_get_config();
+	if (ret == 0) {
+		for (i = 0; i < lcd_extern_drv_cnt; i++) {
+			extern_config = lcd_extern_get_config_load
+				(lcd_extern_index_lut[i]);
+			if (!extern_config)
+				continue;
+			lcd_extern_add_driver(extern_config,
+					      lcd_extern_index_lut[i]);
+		}
+	}
 
 	creat_lcd_extern_class();
 
@@ -2085,13 +2169,18 @@ static int aml_lcd_extern_probe(struct platform_device *pdev)
 
 static int aml_lcd_extern_remove(struct platform_device *pdev)
 {
+	int i = 0;
+
 	remove_lcd_extern_class();
-	kfree(lcd_ext_driver->config->table_init_on);
-	kfree(lcd_ext_driver->config->table_init_off);
-	lcd_ext_driver->config->table_init_on = NULL;
-	lcd_ext_driver->config->table_init_off = NULL;
-	kfree(lcd_ext_driver);
-	lcd_ext_driver = NULL;
+	for (i = 0; i < lcd_extern_drv_cnt; i++) {
+		if (lcd_ext_driver[i]) {
+			kfree(lcd_ext_driver[i]->config->table_init_on);
+			kfree(lcd_ext_driver[i]->config->table_init_off);
+			kfree(lcd_ext_driver[i]->config);
+			kfree(lcd_ext_driver[i]);
+			lcd_ext_driver[i] = NULL;
+		}
+	}
 	return 0;
 }
 
