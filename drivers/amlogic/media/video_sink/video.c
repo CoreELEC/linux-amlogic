@@ -360,6 +360,7 @@ static int last_mode_3d;
 #endif
 
 bool reverse;
+u32  mirror;
 bool get_video_reverse(void)
 {
 	return reverse;
@@ -10543,6 +10544,31 @@ static ssize_t probe_en_store(
 	return count;
 }
 
+static ssize_t mirror_axis_show(struct class *cla,
+				struct class_attribute *attr,
+				char *buf)
+{
+	return snprintf(buf, 40, "%d (1: H_MIRROR 2: V_MIRROR)\n", mirror);
+}
+
+static ssize_t mirror_axis_store(struct class *cla,
+				 struct class_attribute *attr,
+				 const char *buf, size_t count)
+{
+	int res = 0;
+	int ret = 0;
+
+	ret = kstrtoint(buf, 0, &res);
+	if (ret) {
+		pr_err("kstrtoint err\n");
+		return -EINVAL;
+	}
+	pr_info("mirror: %d->%d (1: H_MIRROR 2: V_MIRROR)\n", mirror, res);
+	mirror = res;
+
+	return count;
+}
+
 static struct class_attribute amvideo_class_attrs[] = {
 	__ATTR(axis,
 	       0664,
@@ -10802,7 +10828,10 @@ static struct class_attribute amvideo_class_attrs[] = {
 	       0644,
 	       NULL,
 	       probe_en_store),
-
+	__ATTR(mirror,
+	       0664,
+	       mirror_axis_show,
+	       mirror_axis_store),
 	__ATTR_NULL
 };
 

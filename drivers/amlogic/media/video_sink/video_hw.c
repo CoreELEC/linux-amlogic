@@ -690,6 +690,10 @@ static void vd1_set_dcu(
 		/* FIXME: don't use glayer_info[0].reverse */
 		if (glayer_info[0].reverse)
 			r |= (1 << 26) | (1 << 27);
+		else if (glayer_info[0].mirror == H_MIRROR)
+			r |= (1 << 26) | (0 << 27);
+		else if (glayer_info[0].mirror == V_MIRROR)
+			r |= (0 << 26) | (1 << 27);
 
 		if (vf->bitdepth & BITDEPTH_SAVING_MODE)
 			r |= (1 << 28); /* mem_saving_mode */
@@ -934,6 +938,18 @@ static void vd1_set_dcu(
 		if (is_mvc)
 			VSYNC_WR_MPEG_REG_BITS(
 				vd2_mif_reg->vd_if0_gen_reg2, 0xf, 2, 4);
+	} else if (glayer_info[0].mirror == H_MIRROR) {
+		VSYNC_WR_MPEG_REG_BITS(
+			vd_mif_reg->vd_if0_gen_reg2, 0x5, 2, 4);
+		if (is_mvc)
+			VSYNC_WR_MPEG_REG_BITS(
+				vd2_mif_reg->vd_if0_gen_reg2, 0x5, 2, 4);
+	} else if (glayer_info[0].mirror == V_MIRROR) {
+		VSYNC_WR_MPEG_REG_BITS(
+			vd_mif_reg->vd_if0_gen_reg2, 0xa, 2, 4);
+		if (is_mvc)
+			VSYNC_WR_MPEG_REG_BITS(
+				vd2_mif_reg->vd_if0_gen_reg2, 0xa, 2, 4);
 	} else {
 		VSYNC_WR_MPEG_REG_BITS(
 			vd_mif_reg->vd_if0_gen_reg2, 0, 2, 4);
@@ -1160,6 +1176,11 @@ static void vd2_set_dcu(
 		/* FIXME: don't use glayer_info[1].reverse */
 		if (glayer_info[1].reverse)
 			r |= (1 << 26) | (1 << 27);
+		else if (glayer_info[1].mirror == H_MIRROR)
+			r |= (1 << 26) | (0 << 27);
+		else if (glayer_info[1].mirror == V_MIRROR)
+			r |= (0 << 26) | (1 << 27);
+
 
 		if (vf->bitdepth & BITDEPTH_SAVING_MODE)
 			r |= (1 << 28); /* mem_saving_mode */
@@ -1353,6 +1374,14 @@ static void vd2_set_dcu(
 		VSYNC_WR_MPEG_REG_BITS(
 			vd2_mif_reg->vd_if0_gen_reg2,
 			0xf, 2, 4);
+	else if (glayer_info[1].mirror == H_MIRROR)
+		VSYNC_WR_MPEG_REG_BITS(
+			vd2_mif_reg->vd_if0_gen_reg2,
+			0x5, 2, 4);
+	else if (glayer_info[1].mirror == V_MIRROR)
+		VSYNC_WR_MPEG_REG_BITS(
+			vd2_mif_reg->vd_if0_gen_reg2,
+			0xa, 2, 4);
 	else
 		VSYNC_WR_MPEG_REG_BITS(
 			vd2_mif_reg->vd_if0_gen_reg2,
@@ -4815,6 +4844,7 @@ s32 layer_swap_frame(
 				&layer->frame_parms[0];
 		/* FIXME: remove the global variables */
 		glayer_info[layer->layer_id].reverse = reverse;
+		glayer_info[layer->layer_id].mirror = mirror;
 		glayer_info[layer->layer_id].proc_3d_type =
 			process_3d_type;
 

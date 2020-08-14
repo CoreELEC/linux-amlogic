@@ -50,6 +50,9 @@ extern struct sr_info_s sr_info;
 #define SPEED_CHECK_HSKIP	1
 #define SPEED_CHECK_VSKIP	2
 
+#define H_MIRROR   1
+#define V_MIRROR   2
+
 enum vppfilter_state_e {
 	vppfilter_fail = -1,
 	vppfilter_success = 0,
@@ -205,6 +208,7 @@ struct disp_info_s {
 	bool lut_dma_support;
 	bool dv_support;
 	bool alpha_support;
+	u32 mirror;
 };
 
 enum select_scaler_path_e {
