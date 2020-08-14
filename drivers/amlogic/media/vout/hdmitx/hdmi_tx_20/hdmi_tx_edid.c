@@ -1068,6 +1068,21 @@ static void Edid_ParsingVendSpec(struct hdmitx_dev *hdev,
 	_Edid_ParsingVendSpec(dv2, hdr10_plus, buf);
 }
 
+static bool Y420VicRight(unsigned int vic)
+{
+	bool rtn_val;
+
+	rtn_val = false;
+	if (vic == HDMI_3840x2160p60_64x27 ||
+	    vic == HDMI_3840x2160p50_64x27 ||
+	    vic == HDMI_4096x2160p60_256x135 ||
+	    vic == HDMI_4096x2160p50_256x135 ||
+	    vic == HDMI_3840x2160p60_16x9 ||
+	    vic == HDMI_3840x2160p50_16x9)
+		rtn_val = true;
+	return rtn_val;
+}
+
 /* ----------------------------------------------------------- */
 static int Edid_ParsingY420VDBBlock(struct rx_cap *prxcap,
 				    unsigned char *buf)
@@ -1088,7 +1103,8 @@ static int Edid_ParsingY420VDBBlock(struct rx_cap *prxcap,
 	while (pos < data_end) {
 		if (prxcap->VIC_count < VIC_MAX_NUM) {
 			for (i = 0; i < prxcap->VIC_count; i++) {
-				if (prxcap->VIC[i] == buf[pos]) {
+				if (prxcap->VIC[i] == buf[pos] &&
+				    Y420VicRight(buf[pos])) {
 					prxcap->VIC[i] =
 					HDMITX_VIC420_OFFSET + buf[pos];
 					found = 1;
@@ -1333,7 +1349,8 @@ static int Edid_Y420CMDB_PostProcess(struct hdmitx_dev *hdmitx_device)
 		p = &(info->y420cmdb_bitmap[i]);
 		for (j = 0; j < 8; j++) {
 			valid = ((*p >> j) & 0x1);
-			if (valid != 0) {
+			if (valid != 0 &&
+			    Y420VicRight(rxcap->VIC[i * 8 + j])) {
 				rxcap->VIC[rxcap->VIC_count] =
 				HDMITX_VIC420_OFFSET + rxcap->VIC[i*8+j];
 				rxcap->VIC_count++;
