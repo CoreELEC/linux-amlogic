@@ -251,7 +251,8 @@ static int meson_tl1_pll_set_rate(struct clk_hw *hw, unsigned long rate,
 	if (pll->lock)
 		spin_lock_irqsave(pll->lock, flags);
 
-	if (readl(pll->base + p->reg_off) & MESON_PLL_ENABLE) {
+	if (readl(pll->base + p->reg_off) & MESON_PLL_ENABLE &&
+	    strcmp(clk_hw_get_name(hw), "hifi_pll")) {
 		old_rate = meson_tl1_pll_recalc_rate(hw, parent_rate);
 		old_rate = meson_tl1_pll_round_rate(hw, old_rate, NULL);
 

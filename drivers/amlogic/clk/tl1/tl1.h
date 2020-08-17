@@ -239,6 +239,9 @@ static const struct fclk_rate_table fclk_pll_rate_table[] = {
 };
 
 static const struct pll_rate_table tl1_hifi_pll_rate_table[] = {
-	PLL_RATE(666000000ULL,	222, 1, 3), /*DCO=5328M*/
+	/*PLL_RATE(666000000ULL,	222, 1, 3),*/
+	PLL_FRAC_RATE(666000000ULL,	222, 1, 3, 0, 0),
+	/*PLL_RATE(2112000000ULL, 176, 1, 1), * DCO = 4224M, PLL = 2112M ok */
+	PLL_FRAC_RATE(2116800000LL, 176, 1, 1, 0, 0x0000CFB0),
 };
 #endif /* __TL1_H */
