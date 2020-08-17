@@ -492,9 +492,14 @@ store_config(struct device *dev, struct device_attribute *attr, const char *buf,
 static int run_flag = DI_RUN_FLAG_RUN;
 static int pre_run_flag = DI_RUN_FLAG_RUN;
 static int dump_state_flag;
-
+static int mirror_flag = DI_RUN_MIRROR_DIS;
 /*2018-08-17 add debugfs*/
 /*add debugfs: get dump_state parameter*/
+int get_mirror_status(void)
+{
+	return mirror_flag;
+}
+
 struct di_pre_stru_s *get_di_pre_stru(void)
 {
 	return &di_pre_stru;
@@ -703,6 +708,12 @@ store_dbg(struct device *dev,
 		pre_run_flag = DI_RUN_FLAG_PAUSE;
 	} else if (strncmp(buf, "pstep", 5) == 0) {
 		pre_run_flag = DI_RUN_FLAG_STEP;
+	} else if (strncmp(buf, "mirrorh", 7) == 0) {
+		mirror_flag = DI_RUN_MIRROR_H;
+	} else if (strncmp(buf, "mirrorv", 7) == 0) {
+		mirror_flag = DI_RUN_MIRROR_V;
+	} else if (strncmp(buf, "dismirror", 9) == 0) {
+		mirror_flag = DI_RUN_MIRROR_DIS;
 	} else if (strncmp(buf, "dumpreg", 7) == 0) {
 		if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12A)) {
 			dump_di_reg_g12();
