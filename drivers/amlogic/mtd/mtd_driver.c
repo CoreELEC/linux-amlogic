@@ -256,7 +256,6 @@ static int mtd_nand_probe(struct platform_device *pdev)
 
 	aml_nand_dev->nb.notifier_call = mtd_nand_reboot_notifier;
 	register_reboot_notifier(&aml_nand_dev->nb);
-	atomic_notifier_chain_register(&panic_notifier_list, &aml_nand_dev->nb);
 
 	prase_get_dtb_nand_parameter(aml_nand_dev, pdev);
 
