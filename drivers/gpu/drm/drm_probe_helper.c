@@ -332,10 +332,8 @@ int drm_helper_probe_single_connector_modes(struct drm_connector *connector,
 			mode->status = connector_funcs->mode_valid(connector,
 								   mode);
 	}
-	list_for_each_entry(mode, &connector->probed_420_modes, head) {
+	list_for_each_entry(mode, &connector->probed_420_modes, head)
 		mode->status = MODE_OK;
-		strcat(mode->name, "420");
-	}
 	drm_mode_420_connector_list_update(connector);
 prune:
 	drm_mode_prune_invalid(dev, &connector->modes, verbose_prune);

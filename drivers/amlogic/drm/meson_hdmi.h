@@ -136,7 +136,7 @@ struct am_hdmi_tx {
 	unsigned int input_color_format;
 	unsigned int output_color_format;
 	enum hdmi_color_depth color_depth;
-	enum hdmi_colorspace color_space;
+	enum hdmi_color_space color_space;
 	struct drm_property *downstream_hdr_dv_cap_property;
 	struct drm_property *color_depth_property;
 	struct drm_property *color_space_property;
