@@ -36,6 +36,7 @@
 #include <linux/amlogic/media/vfm/amlogic_fbc_hook_v1.h>
 #include <linux/amlogic/media/di/di.h>
 #include "../../common/vfm/vfm.h"
+#include <linux/amlogic/media/amdolbyvision/dolby_vision.h>
 
 #define V4LVIDEO_MODULE_NAME "v4lvideo"
 
@@ -965,12 +966,10 @@ static s32 v4lvideo_import_sei_data(
 			provider,
 			VFRAME_EVENT_RECEIVER_GET_AUX_DATA,
 			(void *)&req);
-
 		if (req.aux_buf && req.aux_size) {
 			p = vmalloc(req.aux_size);
 			if (p) {
 				memcpy(p, req.aux_buf, req.aux_size);
-
 				ret = update_vframe_src_fmt(dup_vf, (void *)p,
 							    (u32)req.aux_size,
 							    req.dv_enhance_exist
@@ -1449,6 +1448,9 @@ static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *p)
 		canvas_to_addr(&file_private_data->vf);
 	}
 
+	file_private_data->vf.src_fmt.md_buf = file_private_data->md.p_md;
+	file_private_data->vf.src_fmt.comp_buf = file_private_data->md.p_comp;
+
 	v4lvideo_import_sei_data(
 		vf, &file_private_data->vf,
 		dev->provider_name);
@@ -1695,6 +1697,15 @@ static int v4lvideo_file_release(struct inode *inode, struct file *file)
 		if (file_private_data->is_keep)
 			vf_free(file_private_data);
 		v4lvideo_release_sei_data(&file_private_data->vf);
+
+		if (file_private_data->md.p_md) {
+			vfree(file_private_data->md.p_md);
+			file_private_data->md.p_md = NULL;
+		}
+		if (file_private_data->md.p_comp) {
+			vfree(file_private_data->md.p_comp);
+			file_private_data->md.p_comp = NULL;
+		}
 		memset(file_private_data, 0, sizeof(struct file_private_data));
 		kfree((u8 *)file_private_data);
 		file->private_data = NULL;
@@ -1737,6 +1748,25 @@ int v4lvideo_alloc_fd(int *fd)
 		pr_err("v4lvideo_alloc_fd: anon_inode_getfile fail\n");
 		return -ENODEV;
 	}
+
+	private_data->md.p_md  = vmalloc(MD_BUF_SIZE);
+	if (!private_data->md.p_md) {
+		kfree((u8 *)private_data);
+		put_unused_fd(file_fd);
+		return -ENOMEM;
+	}
+
+	private_data->md.p_comp = vmalloc(COMP_BUF_SIZE);
+	if (!private_data->md.p_comp) {
+		if (private_data->md.p_md) {
+			vfree(private_data->md.p_md);
+			private_data->md.p_md = NULL;
+		}
+		kfree((u8 *)private_data);
+		put_unused_fd(file_fd);
+		return -ENOMEM;
+	}
+
 	fd_install(file_fd, file);
 	*fd = file_fd;
 	return 0;

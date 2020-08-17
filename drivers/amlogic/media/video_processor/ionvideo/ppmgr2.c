@@ -117,51 +117,51 @@ static int get_input_format(struct vframe_s *vf)
 static inline void ge2d_src_config(struct vframe_s *vf,
 					struct config_para_ex_s *ge2d_config)
 {
-	struct vframe_s src_vf = *vf;
+	//struct vframe_s src_vf = *vf;
 	struct canvas_s src_cs0, src_cs1, src_cs2;
 
 	if (vf->canvas0Addr == (u32)-1) {
 		canvas_config_config(PPMGR2_CANVAS_INDEX_SRC,
-			&src_vf.canvas0_config[0]);
+			&vf->canvas0_config[0]);
 
-		if (src_vf.plane_num > 1)
+		if (vf->plane_num > 1)
 			canvas_config_config(PPMGR2_CANVAS_INDEX_SRC + 1,
-				&src_vf.canvas0_config[1]);
+				&vf->canvas0_config[1]);
 
-		if (src_vf.plane_num > 2)
+		if (vf->plane_num > 2)
 			canvas_config_config(PPMGR2_CANVAS_INDEX_SRC + 2,
-					&src_vf.canvas0_config[2]);
+					&vf->canvas0_config[2]);
 
-		src_vf.canvas0Addr =
+		vf->canvas0Addr =
 			(PPMGR2_CANVAS_INDEX_SRC)
 			| ((PPMGR2_CANVAS_INDEX_SRC + 1) << 8)
 			| ((PPMGR2_CANVAS_INDEX_SRC + 2) << 16);
 
 		ge2d_config->src_planes[0].addr =
-				src_vf.canvas0_config[0].phy_addr;
+				vf->canvas0_config[0].phy_addr;
 		ge2d_config->src_planes[0].w =
-				src_vf.canvas0_config[0].width;
+				vf->canvas0_config[0].width;
 		ge2d_config->src_planes[0].h =
-				src_vf.canvas0_config[0].height;
+				vf->canvas0_config[0].height;
 		ge2d_config->src_planes[1].addr =
-				src_vf.canvas0_config[1].phy_addr;
+				vf->canvas0_config[1].phy_addr;
 		ge2d_config->src_planes[1].w =
-				src_vf.canvas0_config[1].width;
+				vf->canvas0_config[1].width;
 		ge2d_config->src_planes[1].h =
-				src_vf.canvas0_config[1].height << 1;
+				vf->canvas0_config[1].height << 1;
 
-		if (src_vf.plane_num == 3) {
+		if (vf->plane_num == 3) {
 			ge2d_config->src_planes[2].addr =
-					src_vf.canvas0_config[2].phy_addr;
+					vf->canvas0_config[2].phy_addr;
 			ge2d_config->src_planes[2].w =
-					src_vf.canvas0_config[2].width;
+					vf->canvas0_config[2].width;
 			ge2d_config->src_planes[2].h =
-					src_vf.canvas0_config[2].height << 1;
+					vf->canvas0_config[2].height << 1;
 		}
 	} else {
-		canvas_read(src_vf.canvas0Addr & 0xff, &src_cs0);
-		canvas_read(src_vf.canvas0Addr >> 8 & 0xff, &src_cs1);
-		canvas_read(src_vf.canvas0Addr >> 16 & 0xff, &src_cs2);
+		canvas_read(vf->canvas0Addr & 0xff, &src_cs0);
+		canvas_read(vf->canvas0Addr >> 8 & 0xff, &src_cs1);
+		canvas_read(vf->canvas0Addr >> 16 & 0xff, &src_cs2);
 		ge2d_config->src_planes[0].addr = src_cs0.addr;
 		ge2d_config->src_planes[0].w = src_cs0.width;
 		ge2d_config->src_planes[0].h = src_cs0.height;
@@ -180,9 +180,9 @@ static inline void ge2d_src_config(struct vframe_s *vf,
 	ge2d_config->src_key.key_enable = 0;
 	ge2d_config->src_key.key_mask = 0;
 	ge2d_config->src_key.key_mode = 0;
-	ge2d_config->src_para.canvas_index = src_vf.canvas0Addr;
+	ge2d_config->src_para.canvas_index = vf->canvas0Addr;
 	ge2d_config->src_para.mem_type = CANVAS_TYPE_INVALID;
-	ge2d_config->src_para.format = get_input_format(&src_vf);
+	ge2d_config->src_para.format = get_input_format(vf);
 	ge2d_config->src_para.fill_color_en = 0;
 	ge2d_config->src_para.fill_mode = 0;
 	ge2d_config->src_para.x_rev = 0;
@@ -190,12 +190,12 @@ static inline void ge2d_src_config(struct vframe_s *vf,
 	ge2d_config->src_para.color = 0xffffffff;
 	ge2d_config->src_para.top = 0;
 	ge2d_config->src_para.left = 0;
-	ge2d_config->src_para.width = src_vf.width;
+	ge2d_config->src_para.width = vf->width;
 
 	if (vf->type & VIDTYPE_INTERLACE)
-		ge2d_config->src_para.height = src_vf.height >> 1;
+		ge2d_config->src_para.height = vf->height >> 1;
 	else
-		ge2d_config->src_para.height = src_vf.height;
+		ge2d_config->src_para.height = vf->height;
 
 	ge2d_config->src2_para.mem_type = CANVAS_TYPE_INVALID;
 /* ppmgr2_printk(2, "vf_width is %d , vf_height is %d type:%p\n",

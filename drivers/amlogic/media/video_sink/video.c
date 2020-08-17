@@ -190,6 +190,8 @@ static char dv_provider[32] = "dvbldec";
 static s32 amvideo_poll_major;
 /*static s8 dolby_first_delay;*/ /* for bug 145902 */
 
+#define PARSE_MD_IN_ADVANCE 1
+
 static int video_receiver_event_fun(int type, void *data, void *);
 
 static const struct vframe_receiver_op_s video_vf_receiver = {
@@ -6064,11 +6066,34 @@ static int check_media_sei(char *sei, u32 sei_size, u32 sei_type)
 	return ret;
 }
 
+static s32 clear_vframe_dovi_md_info(struct vframe_s *vf)
+{
+	if (!vf)
+		return -1;
+
+	/* invaild src fmt case */
+	if (vf->src_fmt.sei_magic_code != SEI_MAGIC_CODE)
+		return -1;
+
+	vf->src_fmt.md_size = 0;
+	vf->src_fmt.comp_size = 0;
+	vf->src_fmt.md_buf = NULL;
+	vf->src_fmt.comp_buf = NULL;
+	vf->src_fmt.parse_ret_flags = 0;
+
+	return 0;
+}
+
 s32 update_vframe_src_fmt(
 	struct vframe_s *vf, void *sei,
 	u32 size, bool dual_layer,
 	char *prov_name, char *recv_name)
 {
+#if PARSE_MD_IN_ADVANCE
+	int src_fmt = -1;
+	int ret = 0;
+#endif
+
 	if (!vf)
 		return -1;
 
@@ -6090,6 +6115,29 @@ s32 update_vframe_src_fmt(
 						prov_name);
 				clear_vframe_src_fmt(vf);
 			}
+#if PARSE_MD_IN_ADVANCE
+			if (vf->src_fmt.md_buf && vf->src_fmt.comp_buf) {
+				if (debug_flag & DEBUG_FLAG_OMX_DV_DROP_FRAME)
+					pr_info("parse vf %p, sei %p, size %d\n",
+						vf, sei, size);
+				ret = parse_sei_and_meta_ext
+					(vf, sei, size,
+					 &vf->src_fmt.comp_size,
+					 &vf->src_fmt.md_size,
+					 &vf->src_fmt.parse_ret_flags,
+					 &src_fmt,
+					 vf->src_fmt.md_buf,
+					 vf->src_fmt.comp_buf);
+
+				if (ret) {
+					/* mark size -1 as parser failed */
+					vf->src_fmt.md_size = -1;
+					vf->src_fmt.comp_size = -1;
+				}
+			}
+#else
+			clear_vframe_dovi_md_info(vf);
+#endif
 		}
 	}
 
@@ -6116,6 +6164,10 @@ s32 update_vframe_src_fmt(
 			vf->src_fmt.fmt = VFRAME_SIGNAL_FMT_SDR;
 		}
 	}
+
+	if (vf->src_fmt.fmt != VFRAME_SIGNAL_FMT_DOVI)
+		clear_vframe_dovi_md_info(vf);
+
 	return 0;
 }
 EXPORT_SYMBOL(update_vframe_src_fmt);
@@ -6148,6 +6200,36 @@ enum vframe_signal_fmt_e get_vframe_src_fmt(
 }
 EXPORT_SYMBOL(get_vframe_src_fmt);
 
+/*return 0: no parse*/
+/*return 1: dovi source and parse successed*/
+/*return 2: dovi source and parse failed*/
+int get_md_from_src_fmt(struct vframe_s *vf)
+{
+	int ret = 0;
+
+	if (!vf)
+		return 0;
+
+	/* invaild src fmt case */
+	if (vf->src_fmt.sei_magic_code != SEI_MAGIC_CODE ||
+	    vf->src_fmt.fmt != VFRAME_SIGNAL_FMT_DOVI ||
+	    !vf->src_fmt.md_buf ||
+	    !vf->src_fmt.comp_buf) {
+		ret = 0;
+	} else {
+		if (vf->src_fmt.md_size > 0)
+			ret = 1;
+		else if (vf->src_fmt.md_size == -1 &&
+			 vf->src_fmt.comp_size == -1)
+			ret = 2;
+	}
+	if (debug_flag & DEBUG_FLAG_OMX_DV_DROP_FRAME)
+		pr_info("get_md_from_src_fmt ret %d\n", ret);
+
+	return ret;
+}
+EXPORT_SYMBOL(get_md_from_src_fmt);
+
 s32 clear_vframe_src_fmt(struct vframe_s *vf)
 {
 	if (!vf)
@@ -6162,6 +6244,12 @@ s32 clear_vframe_src_fmt(struct vframe_s *vf)
 	vf->src_fmt.sei_ptr = NULL;
 	vf->src_fmt.sei_size = 0;
 	vf->src_fmt.dual_layer = false;
+	vf->src_fmt.md_size = 0;
+	vf->src_fmt.comp_size = 0;
+	vf->src_fmt.md_buf = NULL;
+	vf->src_fmt.comp_buf = NULL;
+	vf->src_fmt.parse_ret_flags = 0;
+
 	return 0;
 }
 EXPORT_SYMBOL(clear_vframe_src_fmt);
