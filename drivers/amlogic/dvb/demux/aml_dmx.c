@@ -47,6 +47,7 @@
 #include "sc2_demux/dvb_reg.h"
 #include "aml_dsc.h"
 #include "dmx_log.h"
+#include "aml_dvb.h"
 
 #define dprint_i(fmt, args...)  \
 	dprintk(LOG_ERROR, debug_dmx, fmt, ## args)
@@ -332,9 +333,9 @@ static int _dmx_ts_feed_set(struct dmx_ts_feed *ts_feed, u16 pid, int ts_type,
 //      }
 
 	if (demux->source != INPUT_DEMOD)
-		sid = demux->tse_enable ? demux->demod_sid : demux->local_sid;
+		sid = demux->local_sid;
 	else
-		sid = demux->tse_enable ? demux->local_sid : demux->demod_sid;
+		sid = demux->demod_sid;
 
 	if (pes_type == DMX_PES_PCR0 ||
 	    pes_type == DMX_PES_PCR1 ||
@@ -394,12 +395,29 @@ static int _dmx_ts_feed_set(struct dmx_ts_feed *ts_feed, u16 pid, int ts_type,
 	else if (filter->params.pes.flags & DMX_MEM_SEC_LEVEL3)
 		sec_level = DMX_MEM_SEC_LEVEL3;
 
+	if (format == TS_FORMAT) {
+		feed->ts_out_elem = ts_output_find_same_pid(sid, pid);
+		if (feed->ts_out_elem) {
+			ts_output_add_cb(feed->ts_out_elem,
+					 out_ts_elem_cb, feed);
+			pr_dbg("find same pid elem:0x%lx\n",
+			       (unsigned long)(feed->ts_out_elem));
+			mutex_unlock(demux->pmutex);
+			return 0;
+		}
+	}
 	feed->ts_out_elem = ts_output_open(sid,
 					   format, type, aud_type, output_mode);
 	if (feed->ts_out_elem) {
-		ts_output_set_cb(feed->ts_out_elem, out_ts_elem_cb, feed);
+		ts_output_add_cb(feed->ts_out_elem, out_ts_elem_cb, feed);
 		ts_output_set_mem(feed->ts_out_elem, mem_size,
 				  sec_level, TS_OUTPUT_CHAN_PTS_BUF_SIZE);
+		if (feed->pid == 0x2000)
+			ts_output_add_pid(feed->ts_out_elem, feed->pid, 0x1fff,
+					  demux->id);
+		else
+			ts_output_add_pid(feed->ts_out_elem, feed->pid, 0,
+					  demux->id);
 	} else {
 		dprint("%s error\n", __func__);
 	}
@@ -458,15 +476,6 @@ static int _dmx_ts_feed_start_filtering(struct dmx_ts_feed *ts_feed)
 //              return -EINVAL;
 //      }
 
-	/*enable hw pid filter */
-	if (feed->ts_out_elem) {
-		if (feed->pid == 0x2000)
-			ts_output_add_pid(feed->ts_out_elem, feed->pid, 0x1fff,
-					  demux->id);
-		else
-			ts_output_add_pid(feed->ts_out_elem, feed->pid, 0,
-					  demux->id);
-	}
 	spin_lock_irq(demux->pslock);
 	ts_feed->is_filtering = 1;
 	feed->state = DMX_STATE_GO;
@@ -488,10 +497,6 @@ static int _dmx_ts_feed_stop_filtering(struct dmx_ts_feed *ts_feed)
 		mutex_unlock(demux->pmutex);
 		return -EINVAL;
 	}
-
-	/*disable hw pid filter */
-	if (feed->ts_out_elem)
-		ts_output_remove_pid(feed->ts_out_elem, feed->pid);
 
 	spin_lock_irq(demux->pslock);
 	ts_feed->is_filtering = 0;
@@ -542,6 +547,8 @@ static int _dmx_section_feed_set(struct dmx_section_feed *feed,
 {
 	struct sw_demux_sec_feed *sec_feed = (struct sw_demux_sec_feed *)feed;
 	struct aml_dmx *demux = (struct aml_dmx *)feed->parent->priv;
+	int sid = 0;
+	int mem_size = 0;
 
 	pr_dbg("_dmx_section_feed_set\n");
 
@@ -555,6 +562,37 @@ static int _dmx_section_feed_set(struct dmx_section_feed *feed,
 	sec_feed->check_crc = check_crc;
 	sec_feed->type = DMX_TYPE_SEC;
 	sec_feed->state = DMX_STATE_READY;
+
+	if (demux->source != INPUT_DEMOD)
+		sid = demux->local_sid;
+	else
+		sid = demux->demod_sid;
+
+	if (sec_feed->sec_out_elem)
+		pr_dbg("pid elem:0x%lx exist\n",
+		       (unsigned long)(sec_feed->sec_out_elem));
+
+	sec_feed->sec_out_elem = ts_output_find_same_pid(sid, pid);
+	if (sec_feed->sec_out_elem) {
+		ts_output_add_cb(sec_feed->sec_out_elem,
+				 _ts_out_sec_cb, sec_feed);
+		pr_dbg("find same pid elem:0x%lx\n",
+		       (unsigned long)(sec_feed->sec_out_elem));
+		mutex_unlock(demux->pmutex);
+		return 0;
+	}
+	sec_feed->sec_out_elem =
+	    ts_output_open(sid, TS_FORMAT, OTHER_TYPE, 0, 0);
+	if (sec_feed->sec_out_elem) {
+		ts_output_add_cb(sec_feed->sec_out_elem,
+				 _ts_out_sec_cb, sec_feed);
+		mem_size = sec_buf_size;
+		ts_output_set_mem(sec_feed->sec_out_elem, mem_size, 0, 0);
+		ts_output_add_pid(sec_feed->sec_out_elem, sec_feed->pid, 0,
+				  demux->id);
+	}
+
+	pr_dbg("sec_out_elem:0x%lx\n", (unsigned long)(sec_feed->sec_out_elem));
 
 	mutex_unlock(demux->pmutex);
 
@@ -638,10 +676,6 @@ static int _dmx_section_feed_start_filtering(struct dmx_section_feed *feed)
 		mutex_unlock(demux->pmutex);
 		return -1;
 	}
-	/*enable hw pid filter */
-	if (sec_feed->sec_out_elem)
-		ts_output_add_pid(sec_feed->sec_out_elem, sec_feed->pid, 0,
-				  demux->id);
 
 	sec_feed->state = DMX_STATE_GO;
 
@@ -684,9 +718,6 @@ static int _dmx_section_feed_stop_filtering(struct dmx_section_feed *feed)
 		mutex_unlock(demux->pmutex);
 		return 0;
 	}
-	/*disable hw pid filter */
-	if (sec_feed->sec_out_elem)
-		ts_output_remove_pid(sec_feed->sec_out_elem, sec_feed->pid);
 
 	spin_lock_irq(demux->pslock);
 	feed->is_filtering = 0;
@@ -792,9 +823,10 @@ static int _dmx_release_ts_feed(struct dmx_demux *dmx,
 
 	feed = (struct sw_demux_ts_feed *)ts_feed;
 
-	if (feed->ts_out_elem)
+	if (feed->ts_out_elem) {
+		ts_output_remove_cb(feed->ts_out_elem, out_ts_elem_cb, feed);
 		ts_output_close(feed->ts_out_elem);
-
+	}
 	if (mutex_lock_interruptible(demux->pmutex))
 		return -ERESTARTSYS;
 
@@ -804,11 +836,9 @@ static int _dmx_release_ts_feed(struct dmx_demux *dmx,
 	case DMX_PES_PCR2:
 	case DMX_PES_PCR3:
 		if (demux->source != INPUT_DEMOD)
-			sid = demux->tse_enable ?
-			    demux->demod_sid : demux->local_sid;
+			sid = demux->local_sid;
 		else
-			sid = demux->tse_enable ?
-			    demux->local_sid : demux->demod_sid;
+			sid = demux->demod_sid;
 
 		if (feed->pes_type == DMX_PES_PCR0)
 			pcr_num = 0;
@@ -845,8 +875,6 @@ static int _dmx_allocate_section_feed(struct dmx_demux *dmx,
 	struct aml_dmx *demux = (struct aml_dmx *)dmx->priv;
 	struct sw_demux_sec_feed *sec_feed;
 	int i;
-	int sid = 0;
-	int mem_size = 0;
 
 	if (mutex_lock_interruptible(demux->pmutex))
 		return -ERESTARTSYS;
@@ -881,21 +909,10 @@ static int _dmx_allocate_section_feed(struct dmx_demux *dmx,
 	(*feed)->stop_filtering = _dmx_section_feed_stop_filtering;
 	(*feed)->release_filter = _dmx_section_feed_release_filter;
 
-	if (demux->source != INPUT_DEMOD)
-		sid = demux->tse_enable ? demux->demod_sid : demux->local_sid;
-	else
-		sid = demux->tse_enable ? demux->local_sid : demux->demod_sid;
+	sec_feed->sec_out_elem = NULL;
 
-	sec_feed->sec_out_elem = ts_output_open(sid,
-						TS_FORMAT, OTHER_TYPE, 0, 0);
-	if (sec_feed->sec_out_elem) {
-		ts_output_set_cb(sec_feed->sec_out_elem,
-				 _ts_out_sec_cb, sec_feed);
-		mem_size = sec_buf_size;
-		ts_output_set_mem(sec_feed->sec_out_elem, mem_size, 0, 0);
-	}
+	pr_dbg("%s\n", __func__);
 
-	pr_dbg("sec_out_elem:0x%lx\n", (unsigned long)(sec_feed->sec_out_elem));
 	mutex_unlock(demux->pmutex);
 	return 0;
 }
@@ -907,8 +924,11 @@ static int _dmx_release_section_feed(struct dmx_demux *dmx,
 	struct sw_demux_sec_feed *sec_feed;
 
 	sec_feed = (struct sw_demux_sec_feed *)feed;
-	if (sec_feed->sec_out_elem)
+	if (sec_feed->sec_out_elem) {
+		ts_output_remove_cb(sec_feed->sec_out_elem, _ts_out_sec_cb,
+				    sec_feed);
 		ts_output_close(sec_feed->sec_out_elem);
+	}
 
 	if (mutex_lock_interruptible(demux->pmutex))
 		return -ERESTARTSYS;
@@ -990,6 +1010,33 @@ static int _dmx_get_pes_pids(struct dmx_demux *dmx, u16 *pids)
 	struct aml_dmx *demux = (struct aml_dmx *)dmx;
 
 	memcpy(pids, demux->pids, 5 * sizeof(u16));
+	return 0;
+}
+
+int dmx_get_pcr(struct dmx_demux *dmx, unsigned int num, u64 *pcr)
+{
+	int ret = 0;
+	int pcr_index = 0;
+	struct aml_dmx *demux = (struct aml_dmx *)dmx;
+
+//	mutex_lock(demux->pmutex);
+	if (num >= EACH_DMX_MAX_PCR_NUM) {
+//		mutex_unlock(demux->pmutex);
+		dprint("dmx id:%d, num:%d inavlid\n", demux->id, num);
+		return 0;
+	}
+	pcr_index = demux->pcr_index[num];
+	if (pcr_index < 0 || pcr_index > MAX_PCR_NUM) {
+//		mutex_unlock(demux->pmutex);
+		dprint("invalid pcr index:%d\n", pcr_index);
+		return -1;
+	}
+	ret = ts_output_get_pcr(pcr_index, pcr);
+	if (ret != 0) {
+//		mutex_unlock(demux->pmutex);
+		return -1;
+	}
+//	mutex_unlock(demux->pmutex);
 	return 0;
 }
 
@@ -1144,16 +1191,51 @@ int _dmx_get_sec_mem_info(struct dmx_demux *dmx,
 	return 0;
 }
 
-void dmx_init_hw(int dev_num, struct sid_info *info)
+static int _dmx_set_hw_source(struct dmx_demux *dmx, int hw_source)
 {
-//      int i = 0;
-//      pr_dbg("%s dev_num:%d\n", __func__, dev_num);
-//      for (i = 0; i < dev_num; i++) {
-//                      pr_dbg("%d, demod sid:%d, local sid:%d\n",
-//                             i, info[i].demod_sid, info[i].local_sid);
-//              }
+	struct aml_dmx *demux = (struct aml_dmx *)dmx->priv;
+	struct aml_dvb *advb = aml_get_dvb_device();
 
-	ts_output_init(dev_num, info);
+	pr_dbg("%s dmx%d source:%d\n", __func__, demux->id, hw_source);
+
+	if (mutex_lock_interruptible(demux->pmutex))
+		return -ERESTARTSYS;
+
+	if (hw_source >= DMA_0 && hw_source <= DMA_7) {
+		demux->local_sid = hw_source - DMA_0;
+		dsc_set_sid(demux->id, INPUT_LOCAL, demux->local_sid);
+	} else if (hw_source >= FRONTEND_TS0 && hw_source <= FRONTEND_TS7) {
+		demux->ts_index = hw_source - FRONTEND_TS0;
+		if (advb->ts[demux->ts_index].ts_sid != -1) {
+			demux->demod_sid = advb->ts[demux->ts_index].ts_sid;
+			dsc_set_sid(demux->id, INPUT_DEMOD, demux->demod_sid);
+		}
+	}
+	mutex_unlock(demux->pmutex);
+	return 0;
+}
+
+static int _dmx_get_hw_source(struct dmx_demux *dmx, int *hw_source)
+{
+	struct aml_dmx *demux = (struct aml_dmx *)dmx->priv;
+
+	pr_dbg("%s dmx%d\n", __func__, demux->id);
+
+	if (mutex_lock_interruptible(demux->pmutex))
+		return -ERESTARTSYS;
+
+	if (demux->source == INPUT_DEMOD)
+		*hw_source = demux->ts_index + FRONTEND_TS0;
+	else
+		*hw_source = demux->local_sid + DMA_0;
+
+	mutex_unlock(demux->pmutex);
+	return 0;
+}
+
+void dmx_init_hw(int sid_num, int *sid_info)
+{
+	ts_output_init(sid_num, sid_info);
 	ts_input_init();
 	SC2_bufferid_init();
 	memset(pcr_flag, 0, sizeof(pcr_flag));
@@ -1216,6 +1298,8 @@ int dmx_init(struct aml_dmx *pdmx, struct dvb_adapter *dvb_adapter)
 	pdmx->dmx.set_input = _dmx_set_input;
 	pdmx->dmx.get_sec_mem_info = _dmx_get_sec_mem_info;
 	pdmx->dmx.get_ts_mem_info = _dmx_get_ts_mem_info;
+	pdmx->dmx.set_hw_source = _dmx_set_hw_source;
+	pdmx->dmx.get_hw_source = _dmx_get_hw_source;
 
 	pdmx->dev.filternum = (MAX_TS_FEED_NUM + MAX_SEC_FEED_NUM);
 	pdmx->dev.demux = &pdmx->dmx;
@@ -1328,7 +1412,7 @@ void test_sid(void)
 		dprint("##########sid:%d\n", i);
 		ts_out_elem = ts_output_open(i, TS_FORMAT, OTHER_TYPE, 0, 0);
 		if (ts_out_elem) {
-			ts_output_set_cb(ts_out_elem,
+			ts_output_add_cb(ts_out_elem,
 					 out_ts_elem_cb_test, NULL);
 			ts_output_set_mem(ts_out_elem, pes_buf_size, 0, 0);
 			ts_output_add_pid(ts_out_elem, 0, 0, 0);
@@ -1338,7 +1422,6 @@ void test_sid(void)
 		msleep(2000);
 		sc2_dump_register();
 
-		ts_output_remove_pid(ts_out_elem, 0);
 		ts_output_close(ts_out_elem);
 	}
 }
@@ -1368,7 +1451,15 @@ static ssize_t dump_register_store(struct class *class,
 static ssize_t dump_filter_show(struct class *class,
 				struct class_attribute *attr, char *buf)
 {
-	return ts_output_dump_info(buf);
+	ssize_t size;
+	struct aml_dvb *advb = aml_get_dvb_device();
+
+	if (mutex_lock_interruptible(&advb->mutex))
+		return -ERESTARTSYS;
+
+	size = ts_output_dump_info(buf);
+	mutex_unlock(&advb->mutex);
+	return size;
 }
 
 static ssize_t dump_filter_store(struct class *class,

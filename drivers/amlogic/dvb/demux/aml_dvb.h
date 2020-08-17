@@ -25,7 +25,9 @@
 
 #define DMX_DEV_COUNT     32
 #define DSC_DEV_COUNT     DMX_DEV_COUNT
-#define FE_DEV_COUNT	  4
+/*TSIN just 4, but maxlinear maybe send 8 TS at one TSIN.*/
+/*will save all dts config*/
+#define FE_DEV_COUNT	  8
 #define TS_HEADER_LEN    12
 
 enum {
@@ -43,7 +45,7 @@ struct aml_ts_input {
 	int mode;
 	struct pinctrl *pinctrl;
 	int control;
-	int dmx_id;
+	int ts_sid;
 	int header_len;
 	int header[TS_HEADER_LEN];
 	int sid_offset;
@@ -61,7 +63,6 @@ struct aml_dvb {
 	struct aml_dmx dmx[DMX_DEV_COUNT];
 	struct aml_dsc dsc[DSC_DEV_COUNT];
 	struct aml_ts_input ts[FE_DEV_COUNT];
-	struct aml_s2p s2p[FE_DEV_COUNT];
 	/*protect many user operate*/
 	struct mutex mutex;
 	/*protect register operate*/

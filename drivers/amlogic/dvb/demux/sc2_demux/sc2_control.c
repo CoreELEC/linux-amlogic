@@ -92,7 +92,7 @@ void tsout_config_ts_table(int pid, u32 pid_mask, u32 pid_entry, u32 buffer_id)
 		cfg.b.ap_pending = 1;
 	} else {
 		data.b.pid_mask = pid_mask;
-		data.b.pid = pid;
+		data.b.pid = pid & 0x1fff;
 
 		cfg.b.pid_entry = pid_entry;
 		cfg.b.remap_flag = 0;
@@ -130,8 +130,10 @@ void tsout_config_es_table(u32 es_entry, int pid,
 		data.b.dup_ok = dup_ok;
 		if (fmt == ES_FORMAT)
 			data.b.on_off = EST_SAVE_ES;
-		else
+		else if (fmt == PES_FORMAT)
 			data.b.on_off = EST_SAVE_PES;
+		else
+			data.b.on_off = EST_SAVE_TS;
 	}
 	pr_dbg("%s data.data:0x%0x\n", __func__, data.data);
 

@@ -43,19 +43,14 @@ enum content_type {
 	OTHER_TYPE
 };
 
-struct sid_info {
-	int demod_sid;
-	int local_sid;
-};
-
 /**
  * ts_output_init
- * \param dmxdev_num
- * \param info
+ * \param sid_num
+ * \param sid_info
  * \retval 0:success.
  * \retval -1:fail.
  */
-int ts_output_init(int dmxdev_num, struct sid_info *info);
+int ts_output_init(int sid_num, int *sid_info);
 
 /**
  * ts_output_destroy
@@ -94,6 +89,8 @@ int ts_output_set_pcr(int sid, int pcrpid, int pcr_num);
  * \retval -1:fail.
  */
 int ts_output_get_pcr(int pcr_num, uint64_t *pcr);
+
+struct out_elem *ts_output_find_same_pid(int sid, int pid);
 
 /**
  * open one output pipeline
@@ -135,7 +132,7 @@ int ts_output_add_pid(struct out_elem *pout, int pid, int pid_mask, int dmx_id);
  * \retval 0:success.
  * \retval -1:fail.
  */
-int ts_output_remove_pid(struct out_elem *pout, int pid);
+int ts_output_remove_pid(struct out_elem *pout);
 
 /**
  * set out elem mem
@@ -169,7 +166,17 @@ int ts_output_reset(struct out_elem *pout);
  * \retval 0:success.
  * \retval -1:fail.
  */
-int ts_output_set_cb(struct out_elem *pout, ts_output_cb cb, void *udata);
+int ts_output_add_cb(struct out_elem *pout, ts_output_cb cb, void *udata);
+
+/**
+ * remove callback for getting data
+ * \param pout
+ * \param cb
+ * \param udata:private data
+ * \retval 0:success.
+ * \retval -1:fail.
+ */
+int ts_output_remove_cb(struct out_elem *pout, ts_output_cb cb, void *udata);
 
 int ts_output_sid_debug(void);
 int ts_output_dump_info(char *buf);

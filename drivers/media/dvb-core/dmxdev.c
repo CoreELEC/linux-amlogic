@@ -1102,6 +1102,20 @@ static int dvb_demux_do_ioctl(struct file *file,
 		}
 		mutex_unlock(&dmxdevfilter->mutex);
 		break;
+	case DMX_SET_HW_SOURCE:
+		if (!dmxdev->demux->set_hw_source) {
+			ret = -EINVAL;
+			break;
+		}
+		ret = dmxdev->demux->set_hw_source(dmxdev->demux, arg);
+		break;
+	case DMX_GET_HW_SOURCE:
+		if (!dmxdev->demux->get_hw_source) {
+			ret = -EINVAL;
+			break;
+		}
+		ret = dmxdev->demux->get_hw_source(dmxdev->demux, parg);
+		break;
 #endif
 
 	case DMX_ADD_PID:
