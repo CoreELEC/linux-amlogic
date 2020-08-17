@@ -19,7 +19,7 @@
 #ifndef __AO_CEC_H__
 #define __AO_CEC_H__
 
-#define CEC_DRIVER_VERSION     "2020/07/29:clean cec bringup log\n"
+#define CEC_DRIVER_VERSION     "2020/08/12:disable cec do not trans msg to framework\n"
 
 #define CEC_DEV_NAME		"cec"
 
@@ -610,5 +610,5 @@ void cec_ap_rm_logical_addr(u32 addr);
 unsigned int cec_config2_phyaddr(unsigned int value, bool wr_flag);
 unsigned int cec_config2_logaddr(unsigned int value, bool wr_flag);
 unsigned int cec_config2_devtype(unsigned int value, bool wr_flag);
-
+unsigned int cec_config(unsigned int value, bool wr_flag);
 #endif	/* __AO_CEC_H__ */
