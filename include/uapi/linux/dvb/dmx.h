@@ -237,6 +237,27 @@ struct dmx_stc {
 	__u64 stc;		/* output: stc in 'base'*90 kHz units */
 };
 
+#ifdef CONFIG_AMLOGIC_DVB_COMPAT
+enum {
+	DMA_0 = 0,
+	DMA_1,
+	DMA_2,
+	DMA_3,
+	DMA_4,
+	DMA_5,
+	DMA_6,
+	DMA_7,
+	FRONTEND_TS0 = 32,
+	FRONTEND_TS1,
+	FRONTEND_TS2,
+	FRONTEND_TS3,
+	FRONTEND_TS4,
+	FRONTEND_TS5,
+	FRONTEND_TS6,
+	FRONTEND_TS7,
+};
+#endif
+
 #define DMX_START                _IO('o', 41)
 #define DMX_STOP                 _IO('o', 42)
 #define DMX_SET_FILTER           _IOW('o', 43, struct dmx_sct_filter_params)
@@ -251,6 +272,8 @@ struct dmx_stc {
 #ifdef CONFIG_AMLOGIC_DVB_COMPAT
 #define DMX_SET_INPUT           _IO('o', 80)
 #define DMX_GET_MEM_INFO        _IOR('o', 81, struct dmx_mem_info)
+#define DMX_SET_HW_SOURCE       _IO('o', 82)
+#define DMX_GET_HW_SOURCE       _IOR('o', 83, int)
 #endif
 
 #endif /* _UAPI_DVBDMX_H_ */

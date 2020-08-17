@@ -66,11 +66,11 @@ struct aml_dmx {
 	void *priv;
 	int id;
 
+	u8 ts_index;
 	int demod_sid;
 	int local_sid;
 	struct in_elem *sc2_input;
 
-	int tse_enable;
 	enum dmx_input_source source;
 	struct swdmx_demux *swdmx;
 	struct swdmx_ts_parser *tsp;
@@ -100,12 +100,13 @@ struct aml_dmx {
 	int init;
 };
 
-void dmx_init_hw(int dev_num, struct sid_info *info);
+void dmx_init_hw(int sid_num, int *sid_info);
 int dmx_init(struct aml_dmx *pdmx, struct dvb_adapter *dvb_adapter);
 int dmx_destroy(struct aml_dmx *pdmx);
 int dmx_regist_dmx_class(void);
 int dmx_unregist_dmx_class(void);
 int dmx_get_stc(struct dmx_demux *dmx, unsigned int num,
 		u64 *stc, unsigned int *base);
+int dmx_get_pcr(struct dmx_demux *dmx, unsigned int num,	u64 *pcr);
 
 #endif

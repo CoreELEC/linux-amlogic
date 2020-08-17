@@ -49,24 +49,29 @@ static int ts_output_max_pid_num_per_sid = 16;
 
 struct pid_entry {
 	u8 used;
-	u8 id;
+	u16 id;
 	u16 pid;
 	u16 pid_mask;
-	u8 pid_user;
 	u8 dmx_id;
 	struct out_elem *pout;
-	struct pid_entry *next;
+};
+
+struct cb_entry {
+	ts_output_cb cb;
+	void *udata;
+	struct cb_entry *next;
 };
 
 struct out_elem {
 	u8 used;
 	u8 sid;
 	u8 enable;
+	u8 ref;
 	enum output_format format;
 	enum content_type type;
 	int aud_type;
 
-	struct pid_entry *pid_list;
+	struct pid_entry *pid_info;
 	struct es_entry *es_pes;
 	struct chan_id *pchan;
 	struct chan_id *pchan1;
@@ -75,8 +80,7 @@ struct out_elem {
 	char *cache;
 	u16 cache_len;
 	u16 remain_len;
-	ts_output_cb cb;
-	void *udata;
+	struct cb_entry *cb_list;
 	u16 flush_time_ms;
 //      spinlock_t  slock;
 	unsigned int wakeup;
@@ -125,7 +129,7 @@ struct pcr_entry {
 	int pcr_pid;
 };
 
-static struct pid_entry pid_table[MAX_TS_PID_NUM];
+static struct pid_entry *pid_table;
 static struct sid_entry sid_table[MAX_SID_NUM];
 static struct remap_entry remap_table[MAX_REMAP_NUM];
 static struct es_entry es_table[MAX_ES_NUM];
@@ -164,19 +168,6 @@ struct out_elem *_find_free_elem(void)
 	return NULL;
 }
 
-static struct pid_entry *_find_pid_entry_slot(struct pid_entry *pid_list,
-					      int pid)
-{
-	struct pid_entry *p = pid_list;
-
-	while (p) {
-		if (p->pid == pid)
-			return p;
-		p = p->next;
-	}
-	return NULL;
-}
-
 static struct pid_entry *_malloc_pid_entry_slot(int sid, int pid)
 {
 	int i = 0;
@@ -194,6 +185,7 @@ static struct pid_entry *_malloc_pid_entry_slot(int sid, int pid)
 
 	start = sid_table[sid].pid_entry_begin;
 	end = sid_table[sid].pid_entry_begin + sid_table[sid].pid_entry_num;
+
 	for (i = start; i < end; i++) {
 		if (i >= MAX_TS_PID_NUM) {
 			pr_dbg("err sid:%d,pid start:%d, num:%d\n", sid,
@@ -220,6 +212,8 @@ static struct pid_entry *_malloc_pid_entry_slot(int sid, int pid)
 				jump = 0;
 				continue;
 			}
+			pr_dbg("sid:%d start:%d, end:%d, pid_entry:%d\n", sid,
+			       start, end, pid_slot->id);
 			return pid_slot;
 		}
 	}
@@ -232,26 +226,11 @@ static struct pid_entry *_malloc_pid_entry_slot(int sid, int pid)
 static int _free_pid_entry_slot(struct pid_entry *pid_slot)
 {
 	if (pid_slot) {
-		pid_slot->pid = 0;
-		pid_slot->next = NULL;
+		pid_slot->pid = -1;
 		pid_slot->pid_mask = 0;
-		pid_slot->pid_user = 0;
 		pid_slot->used = 0;
 	}
 	return 0;
-}
-
-static void _free_pid_list(struct pid_entry *pid_list)
-{
-	struct pid_entry *p = pid_list;
-
-	while (p) {
-		pid_list = pid_list->next;
-
-		_free_pid_entry_slot(p);
-
-		p = pid_list;
-	}
 }
 
 static struct es_entry *_malloc_es_entry_slot(void)
@@ -286,7 +265,7 @@ static void _timer_out_func(unsigned long arg)
 	struct out_elem *pout = (struct out_elem *)arg;
 	struct chan_id *pchan;
 
-	if (pout->used && pout->cb) {
+	if (pout->used && pout->cb_list) {
 		if (pout->pchan1)
 			pchan = pout->pchan1;
 		else
@@ -309,6 +288,23 @@ static int _check_wakeup(struct out_elem *pout)
 	return 0;
 }
 
+static int out_output_cb_list(struct out_elem *pout, char *buf, int size)
+{
+	int w_size = 0;
+	int last_w_size = -1;
+	struct cb_entry *ptmp = pout->cb_list;
+
+	while (ptmp && ptmp->cb) {
+		w_size = ptmp->cb(pout, buf, size, ptmp->udata);
+		if (last_w_size != -1 && w_size != last_w_size)
+			dprint("need add cache for filter\n");
+
+		last_w_size = w_size;
+		ptmp = ptmp->next;
+	}
+	return w_size;
+}
+
 static int ts_process(struct out_elem *pout)
 {
 	int ret = 0;
@@ -319,7 +315,7 @@ static int ts_process(struct out_elem *pout)
 		len = MAX_READ_BUF_LEN;
 		ret = SC2_bufferid_read(pout->pchan, &pread, len);
 		if (ret != 0) {
-			w_size = pout->cb(pout, pread, ret, pout->udata);
+			w_size = out_output_cb_list(pout, pread, ret);
 			pr_dbg("%s send:%d, w:%d wwwwww\n", __func__, ret,
 			       w_size);
 			pout->remain_len = ret - w_size;
@@ -336,8 +332,7 @@ static int ts_process(struct out_elem *pout)
 			if (ret == len) {
 				ret = pout->remain_len;
 				w_size =
-				    pout->cb(pout, pout->cache, ret,
-					     pout->udata);
+				    out_output_cb_list(pout, pout->cache, ret);
 				pr_dbg("%s send:%d, w:%d\n", __func__, ret,
 				       w_size);
 				pout->remain_len = ret - w_size;
@@ -378,7 +373,7 @@ static int _task_out_func(void *data)
 			len = MAX_READ_BUF_LEN;
 			ret = SC2_bufferid_read(pout->pchan, &pread, len);
 			if (ret != 0)
-				pout->cb(pout, pread, ret, pout->udata);
+				out_output_cb_list(pout, pread, ret);
 		}
 	}
 	pout->running = TASK_IDLE;
@@ -480,7 +475,7 @@ static int write_es_data(struct out_elem *pout, struct chan_id *pchan,
 		if (ret != 0) {
 			len -= ret;
 			if (!isdirty)
-				pout->cb(pout, ptmp, ret, pout->udata);
+				out_output_cb_list(pout, ptmp, ret);
 		}
 		if (pout->running == TASK_DEAD)
 			return -1;
@@ -623,7 +618,7 @@ static int write_aucpu_es_data(struct out_elem *pout,
 		if (ret != 0) {
 			len -= ret;
 			if (!isdirty)
-				pout->cb(pout, ptmp, ret, pout->udata);
+				out_output_cb_list(pout, ptmp, ret);
 		} else {
 			msleep(20);
 		}
@@ -688,8 +683,8 @@ static int write_aucpu_sec_es_data(struct out_elem *pout, struct chan_id *pchan,
 	}
 	sec_es_data.data_start = data_start;
 	sec_es_data.data_end = data_end;
-	pout->cb(pout, (char *)&sec_es_data,
-		 sizeof(struct dmx_sec_es_data), pout->udata);
+	out_output_cb_list(pout, (char *)&sec_es_data,
+			   sizeof(struct dmx_sec_es_data));
 	return 0;
 }
 
@@ -723,8 +718,8 @@ static int write_sec_video_es_data(struct out_elem *pout, struct chan_id *pchan,
 	}
 	sec_es_data.data_start = data_start;
 	sec_es_data.data_end = data_end;
-	pout->cb(pout, (char *)&sec_es_data,
-		 sizeof(struct dmx_sec_es_data), pout->udata);
+	out_output_cb_list(pout, (char *)&sec_es_data,
+			   sizeof(struct dmx_sec_es_data));
 	return 0;
 }
 
@@ -741,6 +736,7 @@ static int _task_out_func_for_es(void *data)
 	char *ptmp;
 	char *pcur_header;
 	char *plast_header;
+	int h_len = sizeof(struct dmx_non_sec_es_header);
 
 	pcur_header = (char *)cur_header;
 	plast_header = (char *)last_header;
@@ -807,10 +803,9 @@ loop:
 					       (unsigned long)header.dts,
 					       header.len);
 
-					pout->cb(pout, (char *)&header,
-						 sizeof(struct
-							dmx_non_sec_es_header),
-						 pout->udata);
+					out_output_cb_list(pout,
+							   (char *)&header,
+							   h_len);
 					ret =
 					    write_aucpu_es_data(pout, es_len,
 								0);
@@ -823,9 +818,9 @@ loop:
 			pr_dbg("pdts_flag:%d, pts:0x%lx, dts:0x%lx, len:%d\n",
 			       header.pts_dts_flag, (unsigned long)header.pts,
 			       (unsigned long)header.dts, header.len);
-			pout->cb(pout, (char *)&header,
-				 sizeof(struct dmx_non_sec_es_header),
-				 pout->udata);
+			out_output_cb_list(pout, (char *)&header,
+					   sizeof(struct
+						  dmx_non_sec_es_header));
 			ret = write_es_data(pout, pout->pchan, es_len, 0);
 			if (ret != 0)
 				break;
@@ -842,57 +837,44 @@ loop:
 
 /**
  * ts_output_init
- * \param dmxdev_num
- * \param info
+ * \param sid_num
+ * \param sid_info
  * \retval 0:success.
  * \retval -1:fail.
  */
-int ts_output_init(int dmxdev_num, struct sid_info *info)
+int ts_output_init(int sid_num, int *sid_info)
 {
-	int i = 0, j = 0;
+	int i = 0;
 	struct sid_entry *psid = NULL;
 	int times = 0;
-	u8 record_sid[32];
-	u8 record_sid_num = 0;
-	u8 same_flag = 0;
 
 	do {
 	} while (!tsout_get_ready() && times++ < 20);
 
 	memset(&sid_table, 0, sizeof(sid_table));
-	memset(&record_sid, 0, sizeof(record_sid));
 
-	for (i = 0; i < dmxdev_num; i++) {
-		for (j = 0; j < record_sid_num; j++) {
-			if (info[i].demod_sid == record_sid[j])
-				same_flag = 1;
-		}
+	ts_output_max_pid_num_per_sid = MAX_TS_PID_NUM / (sid_num * 4) * 4;
 
-		if (!same_flag) {
-			record_sid[record_sid_num] = info[i].demod_sid;
-			record_sid_num++;
-		}
-		same_flag = 0;
-		record_sid[record_sid_num] = info[i].local_sid;
-		record_sid_num++;
-	}
-	ts_output_max_pid_num_per_sid =
-	    MAX_TS_PID_NUM / (record_sid_num * 4) * 4;
-
-	for (i = 0; i < record_sid_num; i++) {
-		psid = &sid_table[record_sid[i]];
+	for (i = 0; i < sid_num; i++) {
+		psid = &sid_table[sid_info[i]];
 		psid->used = 1;
 		psid->pid_entry_begin = ts_output_max_pid_num_per_sid * i;
 		psid->pid_entry_num = ts_output_max_pid_num_per_sid;
-//              dprint("%s sid:%d,pid start:%d, len:%d\n",
-//                     __func__, record_sid[i],
-//                     psid->pid_entry_begin, psid->pid_entry_num);
-		tsout_config_sid_table(record_sid[i],
+		dprint("%s sid:%d,pid start:%d, len:%d\n",
+		       __func__, sid_info[i],
+		       psid->pid_entry_begin, psid->pid_entry_num);
+		tsout_config_sid_table(sid_info[i],
 				       psid->pid_entry_begin / 4,
 				       psid->pid_entry_num / 4);
 	}
 
-	memset(&pid_table, 0, sizeof(pid_table));
+	pid_table = vmalloc(sizeof(*pid_table) * MAX_TS_PID_NUM);
+	if (!pid_table) {
+		dprint("%s malloc fail\n", __func__);
+		return -1;
+	}
+
+	memset(pid_table, 0, sizeof(struct pid_entry) * MAX_TS_PID_NUM);
 	for (i = 0; i < MAX_TS_PID_NUM; i++) {
 		struct pid_entry *pid_slot = &pid_table[i];
 
@@ -912,6 +894,7 @@ int ts_output_init(int dmxdev_num, struct sid_info *info)
 				 * MAX_OUT_ELEM_NUM);
 	if (!out_elem_table) {
 		dprint("%s malloc fail\n", __func__);
+		vfree(pid_table);
 		return -1;
 	}
 	memset(out_elem_table, 0, sizeof(struct out_elem) * MAX_OUT_ELEM_NUM);
@@ -968,6 +951,11 @@ int ts_output_destroy(void)
 		vfree(out_elem_table);
 
 	out_elem_table = NULL;
+
+	if (pid_table)
+		vfree(pid_table);
+
+	pid_table = NULL;
 	return 0;
 }
 
@@ -1035,6 +1023,22 @@ int ts_output_get_pcr(int pcr_num, uint64_t *pcr)
 	return 0;
 }
 
+struct out_elem *ts_output_find_same_pid(int sid, int pid)
+{
+	int i = 0;
+
+	for (i = 0; i < MAX_OUT_ELEM_NUM; i++) {
+		struct out_elem *pout = &out_elem_table[i];
+
+		if (pout->used &&
+		    pout->sid == sid &&
+		    pout->format == TS_FORMAT && pout->pid_info->pid == pid) {
+			return pout;
+		}
+	}
+	return NULL;
+}
+
 /**
  * open one output pipeline
  * \param sid:stream id.
@@ -1067,10 +1071,11 @@ struct out_elem *ts_output_open(int sid, u8 format,
 	}
 	pout->format = format;
 	pout->sid = sid;
-	pout->pid_list = NULL;
+	pout->pid_info = NULL;
 	pout->output_mode = output_mode;
 	pout->type = type;
 	pout->aud_type = aud_type;
+	pout->ref = 0;
 
 	memset(&attr, 0, sizeof(struct bufferid_attr));
 	attr.mode = OUTPUT_MODE;
@@ -1142,6 +1147,12 @@ struct out_elem *ts_output_open(int sid, u8 format,
  */
 int ts_output_close(struct out_elem *pout)
 {
+	if (pout->ref) {
+		pr_dbg("%s ref:%d\n", __func__, pout->ref);
+		return -1;
+	}
+	ts_output_remove_pid(pout);
+
 	del_timer_sync(&pout->out_timer);
 
 	pout->running = TASK_DEAD;
@@ -1164,8 +1175,6 @@ int ts_output_close(struct out_elem *pout)
 		SC2_bufferid_dealloc(pout->pchan1);
 		pout->pchan1 = NULL;
 	}
-	if (pout->pid_list)
-		_free_pid_list(pout->pid_list);
 
 	pout->used = 0;
 	return 0;
@@ -1202,26 +1211,18 @@ int ts_output_add_pid(struct out_elem *pout, int pid, int pid_mask, int dmx_id)
 		tsout_config_es_table(es_pes->buff_id, es_pes->pid,
 				      pout->sid, 1, !drop_dup, pout->format);
 	} else {
-		pid_slot = _find_pid_entry_slot(pout->pid_list, pid);
-		if (pid_slot) {
-			pid_slot->pid_user++;
-			pr_dbg("%s found same pid:0x%0x\n", __func__, pid);
-			return 0;
-		}
 		pid_slot = _malloc_pid_entry_slot(pout->sid, pid);
 		if (!pid_slot) {
 			pr_dbg("malloc pid entry fail\n");
 			return -1;
 		}
-		pid_slot->next = pout->pid_list;
 		pid_slot->pid = pid;
 		pid_slot->pid_mask = pid_mask;
 		pid_slot->used = 1;
-
-		pout->pid_list = pid_slot;
-		pid_slot->pid_user++;
 		pid_slot->dmx_id = dmx_id;
 		pid_slot->pout = pout;
+
+		pout->pid_info = pid_slot;
 		pr_dbg("sid:%d, pid:0x%0x, mask:0x%0x\n",
 		       pout->sid, pid_slot->pid, pid_slot->pid_mask);
 		tsout_config_ts_table(pid_slot->pid, pid_slot->pid_mask,
@@ -1242,17 +1243,12 @@ int ts_output_add_pid(struct out_elem *pout, int pid, int pid_mask, int dmx_id)
  * \retval 0:success.
  * \retval -1:fail.
  */
-int ts_output_remove_pid(struct out_elem *pout, int pid)
+int ts_output_remove_pid(struct out_elem *pout)
 {
-	struct pid_entry **cur_pid, *n_pid;
+	struct pid_entry *cur_pid;
 
-	pr_dbg("%s pout:0x%lx pid:0x%0x\n", __func__, (unsigned long)pout, pid);
+	pr_dbg("%s pout:0x%lx\n", __func__, (unsigned long)pout);
 	if (pout->format == ES_FORMAT || pout->format == PES_FORMAT) {
-		if (pout->es_pes->pid != pid) {
-			dprint("%s err,org pid:0x%0x, pid:0x%0x\n",
-			       __func__, pout->es_pes->pid, pid);
-			return -1;
-		}
 		tsout_config_es_table(pout->es_pes->buff_id, -1,
 				      pout->sid, 1, !drop_dup, pout->format);
 		_free_es_entry_slot(pout->es_pes);
@@ -1280,27 +1276,13 @@ int ts_output_remove_pid(struct out_elem *pout, int pid)
 			pout->aucpu_mem = 0;
 		}
 	} else {
-		cur_pid = &pout->pid_list;
-		pr_dbg("%s line:%d\n", __func__, __LINE__);
-		n_pid = *cur_pid;
-		while (n_pid) {
-			if (n_pid->pid == pid) {
-				if (n_pid->pid_user == 1) {
-					pr_dbg("%s line:%d\n",
-					       __func__, __LINE__);
-					*cur_pid = n_pid->next;
-					break;
-				}
-				n_pid->pid_user--;
-				return 0;
-			}
-			pr_dbg("%s line:%d\n", __func__, __LINE__);
-			cur_pid = &n_pid->next;
-			n_pid = *cur_pid;
+		cur_pid = pout->pid_info;
+		if (cur_pid) {
+			tsout_config_ts_table(-1, cur_pid->pid_mask,
+					      cur_pid->id, pout->pchan->id);
+			_free_pid_entry_slot(cur_pid);
+			pout->pid_info = NULL;
 		}
-		tsout_config_ts_table(-1, n_pid->pid_mask,
-				      n_pid->id, pout->pchan->id);
-		_free_pid_entry_slot(n_pid);
 	}
 	pr_dbg("%s line:%d\n", __func__, __LINE__);
 
@@ -1352,10 +1334,55 @@ int ts_output_reset(struct out_elem *pout)
  * \retval 0:success.
  * \retval -1:fail.
  */
-int ts_output_set_cb(struct out_elem *pout, ts_output_cb cb, void *udata)
+int ts_output_add_cb(struct out_elem *pout, ts_output_cb cb, void *udata)
 {
-	pout->cb = cb;
-	pout->udata = udata;
+	struct cb_entry *tmp_cb = NULL;
+
+	tmp_cb = vmalloc(sizeof(*tmp_cb));
+	if (!tmp_cb) {
+		dprint("%s malloc fail\n", __func__);
+		return -1;
+	}
+	tmp_cb->cb = cb;
+	tmp_cb->udata = udata;
+	tmp_cb->next = NULL;
+
+	if (pout->cb_list)
+		tmp_cb->next = pout->cb_list;
+
+	pout->cb_list = tmp_cb;
+	pout->ref++;
+	return 0;
+}
+
+/**
+ * remove callback for getting data
+ * \param pout
+ * \param cb
+ * \param udata:private data
+ * \retval 0:success.
+ * \retval -1:fail.
+ */
+int ts_output_remove_cb(struct out_elem *pout, ts_output_cb cb, void *udata)
+{
+	struct cb_entry *tmp_cb = NULL;
+	struct cb_entry *pre_cb = NULL;
+
+	tmp_cb = pout->cb_list;
+	while (tmp_cb) {
+		if (tmp_cb->cb == cb && tmp_cb->udata == udata) {
+			if (tmp_cb == pout->cb_list)
+				pout->cb_list = tmp_cb->next;
+			else
+				pre_cb->next = tmp_cb->next;
+
+			vfree(tmp_cb);
+			pout->ref--;
+			return 0;
+		}
+		pre_cb = tmp_cb;
+		tmp_cb = tmp_cb->next;
+	}
 	return 0;
 }
 
@@ -1377,12 +1404,12 @@ int ts_output_dump_info(char *buf)
 		unsigned int wp_offset = 0;
 
 		if (tmp->used) {
-			r = sprintf(buf, "%d dmxid:%d sid:%d pid:0x%0x ",
+			r = sprintf(buf, "%d dmxid:%d sid:%d pid:0x%0x ref:%d ",
 				    count, tmp->dmx_id, tmp->pout->sid,
-				    tmp->pid);
+				    tmp->pid, tmp->pout->ref);
 			buf += r;
 			total += r;
-			r = sprintf(buf, "mask:0x%0x tab_id:%d\n",
+			r = sprintf(buf, "mask:0x%0x tab_id:%d ",
 				    tmp->pid_mask, i);
 			buf += r;
 			total += r;
@@ -1421,7 +1448,7 @@ int ts_output_dump_info(char *buf)
 			buf += r;
 			total += r;
 
-			r = sprintf(buf, "pid:0x%0x\n", es_slot->pid);
+			r = sprintf(buf, "pid:0x%0x ", es_slot->pid);
 			buf += r;
 			total += r;
 
@@ -1443,6 +1470,7 @@ int ts_output_dump_info(char *buf)
 	buf += r;
 	total += r;
 	count = 0;
+
 	for (i = 0; i < MAX_ES_NUM; i++) {
 		struct es_entry *es_slot = &es_table[i];
 		unsigned int total_size = 0;
@@ -1457,7 +1485,7 @@ int ts_output_dump_info(char *buf)
 			buf += r;
 			total += r;
 
-			r = sprintf(buf, " pid:0x%0x\n", es_slot->pid);
+			r = sprintf(buf, " pid:0x%0x ", es_slot->pid);
 			buf += r;
 			total += r;
 

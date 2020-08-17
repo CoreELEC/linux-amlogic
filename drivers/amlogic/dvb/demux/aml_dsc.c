@@ -666,3 +666,14 @@ int dsc_set_source(int id, int source)
 	advb->dsc[id].source = source;
 	return 0;
 }
+
+int dsc_set_sid(int id, int source, int sid)
+{
+	struct aml_dvb *advb = aml_get_dvb_device();
+
+	if (source == INPUT_DEMOD)
+		advb->dsc[id].demod_sid = sid;
+	else
+		advb->dsc[id].local_sid = sid;
+	return 0;
+}

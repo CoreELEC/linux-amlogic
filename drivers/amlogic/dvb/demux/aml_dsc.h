@@ -44,5 +44,5 @@ struct aml_dsc {
 int dsc_init(struct aml_dsc *dsc, struct dvb_adapter *dvb_adapter);
 void dsc_release(struct aml_dsc *dsc);
 int dsc_set_source(int id, int source);
-
+int dsc_set_sid(int id, int source, int sid);
 #endif

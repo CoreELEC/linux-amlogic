@@ -452,7 +452,7 @@ int SC2_bufferid_read(struct chan_id *pchan, char **pread, unsigned int len)
 	w_offset_org = wdma_get_wr_len(pchan->id, &overflow);
 	w_offset = w_offset_org % pchan->mem_size;
 	if (is_buffer_overflow(pchan, w_offset))
-		dprint("chan buffer overflow\n");
+		dprint("chan buffer loop back\n");
 
 	pchan->last_w_addr = w_offset;
 	if (w_offset != pchan->r_offset && w_offset != 0) {

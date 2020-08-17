@@ -72,15 +72,17 @@ static enum tuner_type s_tuner_type[FE_DEV_COUNT] = {
 ssize_t tuner_setting_show(struct class *class,
 			   struct class_attribute *attr, char *buf)
 {
+	int r;
+
 	struct aml_dvb *dvb = aml_get_dvb_device();
 
 	if (dvb->tuner_cur >= 0)
-		dprint("dvb current attatch tuner %d, id: %d\n",
-		       dvb->tuner_cur, dvb->tuners[dvb->tuner_cur].cfg.id);
+		r = sprintf(buf, "dvb current attatch tuner %d, id: %d\n",
+			    dvb->tuner_cur, dvb->tuners[dvb->tuner_cur].cfg.id);
 	else
-		dprint("dvb has no attatch tuner.\n");
+		r = sprintf(buf, "dvb has no attatch tuner.\n");
 
-	return 0;
+	return r;
 }
 
 ssize_t tuner_setting_store(struct class *class,
@@ -175,8 +177,8 @@ ssize_t ts_setting_show(struct class *class,
 			      "serial-4wire" : "parallel")), ctrl);
 		buf += r;
 		total += r;
-		r = sprintf(buf, "dmx_id:%d header_len:%d ",
-			    ts->dmx_id, ts->header_len);
+		r = sprintf(buf, "ts_sid:0x%0x header_len:%d ",
+			    ts->ts_sid, ts->header_len);
 		buf += r;
 		total += r;
 
@@ -251,9 +253,14 @@ static void set_dvb_ts(struct platform_device *pdev,
 {
 	char buf[32];
 
+	if (i >= 4) {
+		dprint("set tsin %d invalid\n", i);
+		return;
+	}
 	if (!strcmp(str, "serial-3wire")) {
 		dprint("ts%d:%s\n", i, str);
 
+		memset(buf, 0, 32);
 		snprintf(buf, sizeof(buf), "s_ts%d", i);
 		advb->ts[i].mode = AM_TS_SERIAL_3WIRE;
 		advb->ts[i].pinctrl = devm_pinctrl_get_select(&pdev->dev, buf);
@@ -262,6 +269,7 @@ static void set_dvb_ts(struct platform_device *pdev,
 	} else if (!strcmp(str, "serial-4wire")) {
 		dprint("ts%d:%s\n", i, str);
 
+		memset(buf, 0, 32);
 		snprintf(buf, sizeof(buf), "s_ts%d", i);
 		advb->ts[i].mode = AM_TS_SERIAL_4WIRE;
 		advb->ts[i].pinctrl = devm_pinctrl_get_select(&pdev->dev, buf);
@@ -269,8 +277,10 @@ static void set_dvb_ts(struct platform_device *pdev,
 	} else if (!strcmp(str, "parallel")) {
 		dprint("ts%d:%s\n", i, str);
 
-		if (i != 1)
+		if (i != 1) {
 			dprint("error %s:parallel should be ts1\n", buf);
+			return;
+		}
 		memset(buf, 0, 32);
 		snprintf(buf, sizeof(buf), "p_ts%d", i);
 		advb->ts[i].mode = AM_TS_PARALLEL;
@@ -282,7 +292,7 @@ static void set_dvb_ts(struct platform_device *pdev,
 	}
 }
 
-static void ts_process(struct platform_device *pdev)
+static void tsin_process(struct platform_device *pdev)
 {
 	int ret = 0;
 	int i = 0, j = 0;
@@ -294,17 +304,17 @@ static void ts_process(struct platform_device *pdev)
 
 	for (i = 0; i < FE_DEV_COUNT; i++) {
 		advb->ts[i].mode = AM_TS_DISABLE;
-		advb->ts[i].dmx_id = -1;
+		advb->ts[i].ts_sid = -1;
 		advb->ts[i].pinctrl = NULL;
 		advb->ts[i].header_len = 0;
 
 		memset(advb->ts[i].header, 0, TS_HEADER_LEN);
 
 		memset(buf, 0, 32);
-		snprintf(buf, sizeof(buf), "ts%d_dmx", i);
+		snprintf(buf, sizeof(buf), "ts%d_sid", i);
 		ret = of_property_read_u32(pdev->dev.of_node, buf, &value);
 		if (!ret)
-			advb->ts[i].dmx_id = value;
+			advb->ts[i].ts_sid = value;
 
 		memset(buf, 0, 32);
 		snprintf(buf, sizeof(buf), "ts%d_header_len", i);
@@ -317,8 +327,8 @@ static void ts_process(struct platform_device *pdev)
 			snprintf(buf, sizeof(buf), "ts%d_header", i);
 			ret = of_property_read_u32_array(pdev->dev.of_node,
 							 buf, data,
-							 advb->ts[i].
-							 header_len);
+							 advb->
+							 ts[i].header_len);
 			if (!ret) {
 				for (j = 0; j < advb->ts[i].header_len; ++j)
 					advb->ts[i].header[j] = data[j];
@@ -328,8 +338,10 @@ static void ts_process(struct platform_device *pdev)
 		memset(buf, 0, 32);
 		snprintf(buf, sizeof(buf), "ts%d_sid_offset", i);
 		ret = of_property_read_u32(pdev->dev.of_node, buf, &value);
-		if (!ret)
+		if (!ret) {
 			advb->ts[i].sid_offset = value;
+			advb->ts[i].ts_sid = advb->ts[i].header[value];
+		}
 
 		memset(buf, 0, 32);
 		snprintf(buf, sizeof(buf), "ts%d", i);
@@ -364,7 +376,7 @@ int frontend_probe(struct platform_device *pdev)
 
 #ifdef CONFIG_OF
 	if (pdev->dev.of_node)
-		ts_process(pdev);
+		tsin_process(pdev);
 #endif
 
 	for (i = 0; i < FE_DEV_COUNT; i++) {
@@ -428,9 +440,8 @@ int frontend_probe(struct platform_device *pdev)
 
 			for (j = 0; j < advb->tuner_num; ++j) {
 				ret = aml_get_dts_tuner_config(node_tuner,
-							       &advb->
-							       tuners[j].cfg,
-							       j);
+							       &advb->tuners[j].
+							       cfg, j);
 				if (ret) {
 					pr_err("can't find tuner.\n");
 					goto error_fe;
@@ -509,8 +520,7 @@ int frontend_probe(struct platform_device *pdev)
 				config.ts_header_bytes = len;
 				for (j = 0; j < len; ++j)
 					config.ts_header_data[j] =
-					    advb->ts[i].
-					    header[j] & 0xFF;
+					    advb->ts[i].header[j] & 0xFF;
 			}
 
 			/* TODO: config.ts_mux_mode, default 0(NO_MUX_4) */
@@ -579,8 +589,8 @@ void frontend_config_ts_sid(void)
 
 	for (i = 0; i < FE_DEV_COUNT; i++) {
 		if (advb->ts[i].header_len == 0) {
-			if (advb->ts[i].dmx_id != -1) {
-				sid = advb->dmx[advb->ts[i].dmx_id].demod_sid;
+			if (advb->ts[i].ts_sid != -1) {
+				sid = advb->ts[i].ts_sid;
 				demod_config_single(i, sid);
 			}
 		} else

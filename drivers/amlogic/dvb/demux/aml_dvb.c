@@ -64,7 +64,7 @@ static struct aml_dvb aml_dvb_device;
 static int dmx_dev_num;
 
 #define MAX_DMX_DEV_NUM      32
-static struct sid_info dmxdev_sid_info[MAX_DMX_DEV_NUM];
+static int sid_info[MAX_DMX_DEV_NUM];
 #define DEFAULT_DMX_DEV_NUM  3
 
 ssize_t get_pcr_show(struct class *class,
@@ -127,6 +127,17 @@ int demux_get_stc(int demux_device_index, int index,
 
 EXPORT_SYMBOL(demux_get_stc);
 
+int demux_get_pcr(int demux_device_index, int index, u64 *pcr)
+{
+	struct aml_dvb *dvb = aml_get_dvb_device();
+
+	if (demux_device_index >= DMX_DEV_COUNT)
+		return -1;
+
+	return dmx_get_pcr(&dvb->dmx[demux_device_index].dmx, index, pcr);
+}
+EXPORT_SYMBOL(demux_get_pcr);
+
 static struct class_attribute aml_dvb_class_attrs[] = {
 	__ATTR(tuner_setting, 0664, tuner_setting_show,
 	       tuner_setting_store),
@@ -146,8 +157,6 @@ int dmx_get_dev_num(struct platform_device *pdev)
 	char buf[32];
 	u32 dmxdev = 0;
 	int ret = 0;
-	int i = 0;
-	int sid = 0;
 
 	memset(buf, 0, 32);
 	snprintf(buf, sizeof(buf), "dmxdev_num");
@@ -157,22 +166,6 @@ int dmx_get_dev_num(struct platform_device *pdev)
 	else
 		dmxdev = DEFAULT_DMX_DEV_NUM;
 
-	for (i = 0; i < dmxdev; i++) {
-		dmxdev_sid_info[i].demod_sid = i + 0x20;
-		dmxdev_sid_info[i].local_sid = i;
-	}
-
-	for (i = 0; i < dmxdev; i++) {
-		memset(buf, 0, 32);
-		snprintf(buf, sizeof(buf), "dmx%d_sid", i);
-		ret = of_property_read_u32(pdev->dev.of_node, buf, &sid);
-		if (!ret)
-			dprint("%s: 0x%x\n", buf, sid);
-		else
-			continue;
-		dmxdev_sid_info[i].demod_sid = sid & 0x3F;
-		dmxdev_sid_info[i].local_sid = i;
-	}
 	return dmxdev;
 }
 
@@ -183,15 +176,7 @@ int dmx_get_tsn_flag(struct platform_device *pdev, int *tsn_in, int *tsn_out)
 	int ret = 0;
 	const char *str;
 
-	memset(buf, 0, 32);
-	snprintf(buf, sizeof(buf), "tse_enable");
-	ret = of_property_read_u32(pdev->dev.of_node, buf, &source);
-	if (!ret)
-		dprint("%s:0x%x\n", buf, source);
-	else
-		source = 0;
-
-	*tsn_out = source;
+	*tsn_out = 0;
 
 	source = 0;
 	memset(buf, 0, 32);
@@ -269,6 +254,25 @@ static int aml_dvb_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static int get_all_sid_info(int dmx_dev_num, struct aml_dvb *advb)
+{
+	int i = 0;
+	int j = 0;
+	int count = 0;
+
+	for (i = 0; i < dmx_dev_num; i++)
+		sid_info[i] = i;
+
+	count = i;
+
+	for (j = 0; j < FE_DEV_COUNT; j++) {
+		if (advb->ts[j].ts_sid != -1) {
+			sid_info[count] = advb->ts[j].ts_sid;
+			count++;
+		}
+	}
+	return count;
+}
 static int aml_dvb_probe(struct platform_device *pdev)
 {
 	struct aml_dvb *advb;
@@ -276,6 +280,7 @@ static int aml_dvb_probe(struct platform_device *pdev)
 	int tsn_in = 0;
 	int tsn_out = 0;
 	int tsn_in_reg = 0;
+	int sid_num = 0;
 
 	dprint("probe amlogic dvb driver\n");
 
@@ -309,7 +314,8 @@ static int aml_dvb_probe(struct platform_device *pdev)
 	//set demod/local
 	tee_demux_config_pipeline(tsn_in_reg, tsn_out);
 
-	dmx_init_hw(dmx_dev_num, (struct sid_info *)&dmxdev_sid_info);
+	sid_num  = get_all_sid_info(dmx_dev_num, advb);
+	dmx_init_hw(sid_num, (int *)&sid_info);
 
 	//create dmx dev
 	for (i = 0; i < dmx_dev_num; i++) {
@@ -331,9 +337,12 @@ static int aml_dvb_probe(struct platform_device *pdev)
 		advb->dmx[i].swdmx = advb->swdmx[i];
 		advb->dmx[i].tsp = advb->tsp[i];
 		advb->dmx[i].source = tsn_in;
-		advb->dmx[i].tse_enable = tsn_out;
-		advb->dmx[i].demod_sid = dmxdev_sid_info[i].demod_sid;
-		advb->dmx[i].local_sid = dmxdev_sid_info[i].local_sid;
+		advb->dmx[i].ts_index = 0;
+		if (advb->ts[0].ts_sid != -1)
+			advb->dmx[i].demod_sid = advb->ts[0].ts_sid;
+		else
+			advb->dmx[i].demod_sid = 0;
+		advb->dmx[i].local_sid = i;
 		ret = dmx_init(&advb->dmx[i], &advb->dvb_adapter);
 		if (ret)
 			goto INIT_ERR;
@@ -342,8 +351,12 @@ static int aml_dvb_probe(struct platform_device *pdev)
 //              advb->dsc[i].slock = advb->slock;
 		advb->dsc[i].id = i;
 		advb->dsc[i].source = tsn_in;
-		advb->dsc[i].demod_sid = dmxdev_sid_info[i].demod_sid;
-		advb->dsc[i].local_sid = dmxdev_sid_info[i].local_sid;
+		if (advb->ts[0].ts_sid != -1)
+			advb->dsc[i].demod_sid = 0;
+		else
+			advb->dsc[i].demod_sid = advb->ts[0].ts_sid;
+
+		advb->dsc[i].local_sid = i;
 
 		ret = dsc_init(&advb->dsc[i], &advb->dvb_adapter);
 		if (ret)
