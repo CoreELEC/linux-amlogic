@@ -1092,6 +1092,8 @@ void hdmi_packet_process(
 
 	/* drm */
 	prepare_hdr_info(&send_info, p, vd_path, source_type);
+	memcpy(&dbg_hdr_send, &send_info,
+	       sizeof(struct master_display_info_s));
 
 	/* hdr10+ */
 	if ((output_format == BT2020_PQ_DYNAMIC)

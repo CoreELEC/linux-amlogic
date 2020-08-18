@@ -172,6 +172,8 @@ extern uint cur_sdr_process_mode[VD_PATH_MAX];
 /* 0: tx don't support hdr10+, 1: tx support hdr10+*/
 extern uint tx_hdr10_plus_support;
 
+extern struct master_display_info_s dbg_hdr_send;
+
 extern int amvecm_matrix_process(
 	struct vframe_s *vf, struct vframe_s *vf_rpt, int flags,
 	enum vd_path_e vd_path);

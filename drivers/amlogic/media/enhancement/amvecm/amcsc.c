@@ -325,7 +325,7 @@ struct hdr_osd_reg_s hdr_osd_reg = {
 #define HDR_VERSION   "----gxl_20180830---hdrv2_20200106-----\n"
 
 static struct vframe_s *dbg_vf;
-static struct master_display_info_s dbg_hdr_send;
+struct master_display_info_s dbg_hdr_send;
 static struct hdr_info receiver_hdr_info;
 
 /* extra hdr process code, udpated per signal change */
@@ -3775,12 +3775,10 @@ int hdr10_primaries_changed(
 			for (j = 0; j < 2; j++) {
 				if (p_hdr10_param->
 				primaries[i][j]
-				!= p_mdc->
-				primaries[i][j]) {
+				!= bt2020_primaries[i][j]) {
 					p_hdr10_param->
 					primaries[i][j]
-						= p_mdc->
-						primaries[i][j];
+						= bt2020_primaries[i][j];
 					flag |= 2;
 				}
 			}
@@ -7540,6 +7538,7 @@ static int vpp_matrix_update(
 	int hdmi_scs_type_changed = 0;
 	bool hdr10p_meta_updated = false;
 	enum hdr_type_e source_format[VD_PATH_MAX];
+	static int signal_change_latch;
 
 	if (!vinfo || vinfo->mode == VMODE_NULL ||
 	    vinfo->mode == VMODE_INVALID)
@@ -7556,6 +7555,14 @@ static int vpp_matrix_update(
 	if (vf && vinfo)
 		signal_change_flag =
 			signal_type_changed(vf, vinfo, vd_path);
+
+	if ((flags & CSC_FLAG_CHECK_OUTPUT) &&
+	    (signal_change_flag & SIG_PRI_INFO)) {
+		signal_change_latch |= SIG_PRI_INFO;
+	} else if (flags & CSC_FLAG_TOGGLE_FRAME) {
+		signal_change_flag |= signal_change_latch;
+		signal_change_latch = 0;
+	}
 
 	if (flags & CSC_FLAG_FORCE_SIGNAL)
 		signal_change_flag |= SIG_FORCE_CHG;
@@ -7727,7 +7734,7 @@ int amvecm_matrix_process(
 	struct vframe_s *vf, struct vframe_s *vf_rpt, int flags,
 	enum vd_path_e vd_path)
 {
-	struct vframe_s fake_vframe;
+	static struct vframe_s fake_vframe;
 	struct vinfo_s *vinfo = get_current_vinfo();
 	int toggle_frame = 0;
 	int i;
