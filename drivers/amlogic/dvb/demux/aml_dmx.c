@@ -398,18 +398,17 @@ static int _dmx_ts_feed_set(struct dmx_ts_feed *ts_feed, u16 pid, int ts_type,
 	if (format == TS_FORMAT) {
 		feed->ts_out_elem = ts_output_find_same_pid(sid, pid);
 		if (feed->ts_out_elem) {
-			ts_output_add_cb(feed->ts_out_elem,
-					 out_ts_elem_cb, feed);
 			pr_dbg("find same pid elem:0x%lx\n",
 			       (unsigned long)(feed->ts_out_elem));
 			mutex_unlock(demux->pmutex);
+			ts_output_add_cb(feed->ts_out_elem,
+					 out_ts_elem_cb, feed);
 			return 0;
 		}
 	}
 	feed->ts_out_elem = ts_output_open(sid,
 					   format, type, aud_type, output_mode);
 	if (feed->ts_out_elem) {
-		ts_output_add_cb(feed->ts_out_elem, out_ts_elem_cb, feed);
 		ts_output_set_mem(feed->ts_out_elem, mem_size,
 				  sec_level, TS_OUTPUT_CHAN_PTS_BUF_SIZE);
 		if (feed->pid == 0x2000)
@@ -422,6 +421,9 @@ static int _dmx_ts_feed_set(struct dmx_ts_feed *ts_feed, u16 pid, int ts_type,
 		dprint("%s error\n", __func__);
 	}
 	mutex_unlock(demux->pmutex);
+	if (feed->ts_out_elem)
+		ts_output_add_cb(feed->ts_out_elem, out_ts_elem_cb, feed);
+
 	return 0;
 
 HANLDE_PCR:
@@ -574,18 +576,16 @@ static int _dmx_section_feed_set(struct dmx_section_feed *feed,
 
 	sec_feed->sec_out_elem = ts_output_find_same_pid(sid, pid);
 	if (sec_feed->sec_out_elem) {
-		ts_output_add_cb(sec_feed->sec_out_elem,
-				 _ts_out_sec_cb, sec_feed);
 		pr_dbg("find same pid elem:0x%lx\n",
 		       (unsigned long)(sec_feed->sec_out_elem));
 		mutex_unlock(demux->pmutex);
+		ts_output_add_cb(sec_feed->sec_out_elem,
+				 _ts_out_sec_cb, sec_feed);
 		return 0;
 	}
 	sec_feed->sec_out_elem =
 	    ts_output_open(sid, TS_FORMAT, OTHER_TYPE, 0, 0);
 	if (sec_feed->sec_out_elem) {
-		ts_output_add_cb(sec_feed->sec_out_elem,
-				 _ts_out_sec_cb, sec_feed);
 		mem_size = sec_buf_size;
 		ts_output_set_mem(sec_feed->sec_out_elem, mem_size, 0, 0);
 		ts_output_add_pid(sec_feed->sec_out_elem, sec_feed->pid, 0,
@@ -593,9 +593,10 @@ static int _dmx_section_feed_set(struct dmx_section_feed *feed,
 	}
 
 	pr_dbg("sec_out_elem:0x%lx\n", (unsigned long)(sec_feed->sec_out_elem));
-
 	mutex_unlock(demux->pmutex);
-
+	if (sec_feed->sec_out_elem)
+		ts_output_add_cb(sec_feed->sec_out_elem,
+				 _ts_out_sec_cb, sec_feed);
 	return 0;
 }
 

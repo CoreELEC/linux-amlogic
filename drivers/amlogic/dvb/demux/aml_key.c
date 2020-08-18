@@ -37,7 +37,8 @@
 #include <linux/of.h>
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
-#include "aml_key.h"
+#include <linux/amlogic/aml_key.h>
+#include "am_key.h"
 #include "sc2_demux/dvb_reg.h"
 #include "key_reg.h"
 #include "dmx_log.h"

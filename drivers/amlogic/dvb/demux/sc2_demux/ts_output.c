@@ -96,6 +96,8 @@ struct out_elem {
 	unsigned long aucpu_mem;
 	unsigned int aucpu_mem_size;
 	unsigned int aucpu_read_offset;
+	/*protect cb_list*/
+	struct mutex mutex;
 };
 
 struct sid_entry {
@@ -292,16 +294,20 @@ static int out_output_cb_list(struct out_elem *pout, char *buf, int size)
 {
 	int w_size = 0;
 	int last_w_size = -1;
-	struct cb_entry *ptmp = pout->cb_list;
+	struct cb_entry *ptmp = NULL;
 
+	mutex_lock(&pout->mutex);
+	ptmp = pout->cb_list;
 	while (ptmp && ptmp->cb) {
 		w_size = ptmp->cb(pout, buf, size, ptmp->udata);
-		if (last_w_size != -1 && w_size != last_w_size)
-			dprint("need add cache for filter\n");
-
+		if (last_w_size != -1 && w_size != last_w_size) {
+			dprint("add cache for filter:");
+			dprint("w:%d,last_w:%d\n", w_size, last_w_size);
+		}
 		last_w_size = w_size;
 		ptmp = ptmp->next;
 	}
+	mutex_unlock(&pout->mutex);
 	return w_size;
 }
 
@@ -316,12 +322,19 @@ static int ts_process(struct out_elem *pout)
 		ret = SC2_bufferid_read(pout->pchan, &pread, len);
 		if (ret != 0) {
 			w_size = out_output_cb_list(pout, pread, ret);
-			pr_dbg("%s send:%d, w:%d wwwwww\n", __func__, ret,
-			       w_size);
+//                      pr_dbg("%s send:%d, w:%d wwwwww\n", __func__, ret,
+//                             w_size);
 			pout->remain_len = ret - w_size;
-			if (pout->remain_len)
-				memcpy(pout->cache, pread + w_size,
-				       pout->remain_len);
+			if (pout->remain_len) {
+				if (pout->remain_len >= READ_CACHE_SIZE) {
+					dprint("remain_len:%d lost data\n",
+					       pout->remain_len);
+					pout->remain_len = 0;
+				} else {
+					memcpy(pout->cache, pread + w_size,
+					       pout->remain_len);
+				}
+			}
 		}
 	} else {
 		len = READ_CACHE_SIZE - pout->remain_len;
@@ -1076,6 +1089,7 @@ struct out_elem *ts_output_open(int sid, u8 format,
 	pout->type = type;
 	pout->aud_type = aud_type;
 	pout->ref = 0;
+	mutex_init(&pout->mutex);
 
 	memset(&attr, 0, sizeof(struct bufferid_attr));
 	attr.mode = OUTPUT_MODE;
@@ -1347,11 +1361,13 @@ int ts_output_add_cb(struct out_elem *pout, ts_output_cb cb, void *udata)
 	tmp_cb->udata = udata;
 	tmp_cb->next = NULL;
 
+	mutex_lock(&pout->mutex);
 	if (pout->cb_list)
 		tmp_cb->next = pout->cb_list;
 
 	pout->cb_list = tmp_cb;
 	pout->ref++;
+	mutex_unlock(&pout->mutex);
 	return 0;
 }
 
@@ -1368,6 +1384,7 @@ int ts_output_remove_cb(struct out_elem *pout, ts_output_cb cb, void *udata)
 	struct cb_entry *tmp_cb = NULL;
 	struct cb_entry *pre_cb = NULL;
 
+	mutex_lock(&pout->mutex);
 	tmp_cb = pout->cb_list;
 	while (tmp_cb) {
 		if (tmp_cb->cb == cb && tmp_cb->udata == udata) {
@@ -1378,11 +1395,13 @@ int ts_output_remove_cb(struct out_elem *pout, ts_output_cb cb, void *udata)
 
 			vfree(tmp_cb);
 			pout->ref--;
+			mutex_unlock(&pout->mutex);
 			return 0;
 		}
 		pre_cb = tmp_cb;
 		tmp_cb = tmp_cb->next;
 	}
+	mutex_unlock(&pout->mutex);
 	return 0;
 }
 

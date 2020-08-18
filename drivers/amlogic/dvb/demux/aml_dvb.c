@@ -37,9 +37,10 @@
 #include <linux/of.h>
 #include <linux/dvb/dmx.h>
 #include <linux/amlogic/tee.h>
+#include <linux/amlogic/aml_key.h>
 
 #include "aml_dvb.h"
-#include "aml_key.h"
+#include "am_key.h"
 #include "dmx_log.h"
 #include "sc2_demux/ts_output.h"
 #include "sc2_demux/frontend.h"
@@ -112,6 +113,16 @@ ssize_t dmx_setting_show(struct class *class, struct class_attribute *attr,
 	return total;
 }
 
+ssize_t dsc_setting_show(struct class *class, struct class_attribute *attr,
+			 char *buf)
+{
+	int total = 0;
+
+	total = dsc_dump_info(buf);
+
+	return total;
+}
+
 int demux_get_stc(int demux_device_index, int index,
 		  u64 *stc, unsigned int *base)
 {
@@ -144,6 +155,7 @@ static struct class_attribute aml_dvb_class_attrs[] = {
 	__ATTR(ts_setting, 0664, ts_setting_show, ts_setting_store),
 	__ATTR(get_pcr, 0664, get_pcr_show, NULL),
 	__ATTR(dmx_setting, 0664, dmx_setting_show, NULL),
+	__ATTR(dsc_setting, 0664, dsc_setting_show, NULL),
 	__ATTR_NULL
 };
 
@@ -351,11 +363,7 @@ static int aml_dvb_probe(struct platform_device *pdev)
 //              advb->dsc[i].slock = advb->slock;
 		advb->dsc[i].id = i;
 		advb->dsc[i].source = tsn_in;
-		if (advb->ts[0].ts_sid != -1)
-			advb->dsc[i].demod_sid = 0;
-		else
-			advb->dsc[i].demod_sid = advb->ts[0].ts_sid;
-
+		advb->dsc[i].demod_sid = advb->dmx[i].demod_sid;
 		advb->dsc[i].local_sid = i;
 
 		ret = dsc_init(&advb->dsc[i], &advb->dvb_adapter);

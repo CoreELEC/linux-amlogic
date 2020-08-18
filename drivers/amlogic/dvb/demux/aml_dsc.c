@@ -43,12 +43,13 @@
 #include <linux/dvb/ca.h>
 #include <linux/dvb/dmx.h>
 #include <linux/version.h>
+#include <linux/amlogic/aml_key.h>
 #include "aml_dvb.h"
 #include "dmx_log.h"
 
 //#include "sc2_demux/dvb_reg.h"
 #include "aml_dsc.h"
-#include "aml_key.h"
+#include "am_key.h"
 #include "sc2_demux/sc2_control.h"
 
 #define DSC_CHANNEL_NUM 8
@@ -308,18 +309,17 @@ static int _dsc_chan_set_key(struct dsc_channel *ch,
 
 	/*
 	 * handle definition
-	| Name      | Bits   | Notes                    |
-	| --------- | ------ | ------------------------ |
-	| IV flag   | 31     | 0: not IV 1: is IV       |
-	| RFU       | [20:8] | Reserved for future      |
-	| key table | [7:0]  | the real key table entry |
-	*/
+	 | Name      | Bits   | Notes                    |
+	 | --------- | ------ | ------------------------ |
+	 | IV flag   | 31     | 0: not IV 1: is IV       |
+	 | RFU       | [20:8] | Reserved for future      |
+	 | key table | [7:0]  | the real key table entry |
+	 */
 	pr_dbg("%s parity:%d, handle:%#x\n", __func__, parity, key_index);
 	kte = HANDLE_TO_KTE(key_index);
 	handle_has_iv = key_index >> IV_FLAG_OFFSET;
 	if (parity == CA_KEY_ODD_IV_TYPE ||
-	    parity == CA_KEY_EVEN_IV_TYPE ||
-	    parity == CA_KEY_00_IV_TYPE)
+	    parity == CA_KEY_EVEN_IV_TYPE || parity == CA_KEY_00_IV_TYPE)
 		type_has_iv = 1;
 
 	if (handle_has_iv != type_has_iv) {
@@ -421,8 +421,8 @@ static int handle_desc_ext(struct aml_dsc *dsc, struct ca_sc2_descr_ex *d)
 				break;
 			}
 			ret = _dsc_chan_alloc(dsc,
-					      d->params.
-					      alloc_params.pid & 0x1FFF,
+					      d->params.alloc_params.
+					      pid & 0x1FFF,
 					      d->params.alloc_params.algo + 1,
 					      d->params.alloc_params.dsc_type,
 					      &d->params.alloc_params.ca_index);
@@ -436,8 +436,8 @@ static int handle_desc_ext(struct aml_dsc *dsc, struct ca_sc2_descr_ex *d)
 			pr_dbg("%s CA_FREE:%d\n", __func__,
 			       d->params.alloc_params.ca_index);
 			ch = _get_chan_from_list(dsc,
-						 d->params.
-						 alloc_params.ca_index);
+						 d->params.alloc_params.
+						 ca_index);
 			if (ch)
 				_dsc_chan_free(ch);
 			ret = 0;
@@ -456,10 +456,10 @@ static int handle_desc_ext(struct aml_dsc *dsc, struct ca_sc2_descr_ex *d)
 				       d->params.key_params.parity,
 				       d->params.key_params.key_index);
 				ret = _dsc_chan_set_key(ch,
-							d->params.
-							key_params.parity,
-							d->params.
-							key_params.key_index);
+							d->params.key_params.
+							parity,
+							d->params.key_params.
+							key_index);
 			}
 		}
 		break;
@@ -676,4 +676,121 @@ int dsc_set_sid(int id, int source, int sid)
 	else
 		advb->dsc[id].local_sid = sid;
 	return 0;
+}
+
+static char *get_algo_str(int algo)
+{
+	char *str;
+
+	switch (algo) {
+	case CA_ALGO_AES_ECB_CLR_END:
+	case CA_ALGO_AES_ECB_CLR_FRONT:
+		str = "aes_ecb";
+		break;
+	case CA_ALGO_AES_CBC_CLR_END:
+	case CA_ALGO_AES_CBC_IDSA:
+		str = "aes_cbc";
+		break;
+	case CA_ALGO_CSA2:
+		str = "csa2";
+		break;
+	case CA_ALGO_DES_SCTE41:
+	case CA_ALGO_DES_SCTE52:
+		str = "des";
+		break;
+	case CA_ALGO_TDES_ECB_CLR_END:
+		str = "tdes";
+		break;
+	case CA_ALGO_CPCM_LSA_MDI_CBC:
+	case CA_ALGO_CPCM_LSA_MDD_CBC:
+		str = "cpcm";
+		break;
+	case CA_ALGO_CSA3:
+		str = "csa3";
+		break;
+	case CA_ALGO_ASA:
+	case CA_ALGO_ASA_LIGHT:
+		str = "asa";
+		break;
+	default:
+		str = "none";
+		break;
+	}
+	return str;
+}
+
+int dsc_dump_info(char *buf)
+{
+	int r, total = 0;
+	int i = 0;
+	struct aml_dvb *dvb = aml_get_dvb_device();
+	struct aml_dsc *dsc;
+	struct dsc_channel *chans;
+	struct dsc_pid_table *ptmp;
+
+	for (i = 0; i < DSC_DEV_COUNT; i++) {
+		dsc = &dvb->dsc[i];
+		if (!dsc->dev)
+			continue;
+
+		if (mutex_lock_interruptible(&dsc->mutex))
+			return -ERESTARTSYS;
+
+		r = sprintf(buf, "dsc%d source:%s ", i,
+			    dsc->source == INPUT_DEMOD ? "input_demod" :
+			    (dsc->source == INPUT_LOCAL ?
+			     "input_local" : "input_local_sec"));
+		buf += r;
+		total += r;
+		r = sprintf(buf, "demod_sid:0x%0x local_sid:0x%0x\n",
+			    dsc->demod_sid, dsc->local_sid);
+		buf += r;
+		total += r;
+
+		chans = dsc->dsc_channels;
+		while (chans) {
+			r = sprintf(buf, " chan_id:%d module:ts%s ",
+				    chans->id, (chans->dsc_type == 0 ? "n" :
+						(chans->dsc_type ==
+						 1 ? "d" : "e")));
+			buf += r;
+			total += r;
+
+			r = sprintf(buf, "pid:0x%0x algo:%s ",
+				    chans->pid, get_algo_str(chans->algo - 1));
+			buf += r;
+			total += r;
+
+			r = sprintf(buf, "slot:%d, 00_slot:%d\n",
+				    chans->index, chans->index00);
+			buf += r;
+			total += r;
+			if (chans->index != -1) {
+				ptmp =
+				    _get_dsc_pid_table(chans->index,
+						       chans->dsc_type);
+
+				r = sprintf(buf,
+					    "  slot:%d, even:%d, even iv:%d, odd:%d odd iv:%d\n",
+					    chans->index, ptmp->kte_even_00,
+					    ptmp->even_00_iv, ptmp->kte_odd,
+					    ptmp->odd_iv);
+				buf += r;
+				total += r;
+			}
+			if (chans->index00 != -1) {
+				ptmp =
+				    _get_dsc_pid_table(chans->index00,
+						       chans->dsc_type);
+				r = sprintf(buf, "  slot:%d, 00:%d, 00 iv:%d\n",
+					    chans->index, ptmp->kte_even_00,
+					    ptmp->even_00_iv);
+				buf += r;
+				total += r;
+			}
+			chans = chans->next;
+		}
+		mutex_unlock(&dvb->dsc[i].mutex);
+	}
+	return total;
 }

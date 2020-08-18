@@ -204,8 +204,8 @@ void dsc_config_pid_table(struct dsc_pid_table *pid_entry, int dsc_type)
 	unsigned int lo_value = 0;
 	unsigned int hi_value = 0;
 
-	pr_dbg("%s dsc_type:%d, pid_entry:%d\n",
-	       __func__, dsc_type, pid_entry->id);
+	pr_dbg("%s dsc_type:%d, pid_entry:%d, sid:%d\n",
+	       __func__, dsc_type, pid_entry->id, pid_entry->sid);
 	dsc_get_ready(dsc_type);
 	if (dsc_type == CA_DSC_COMMON_TYPE) {
 		lo_addr = TSN_BASE_ADDR + pid_entry->id * 8;
