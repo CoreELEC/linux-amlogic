@@ -866,7 +866,6 @@ static int m3_nand_probe(struct aml_nand_platform *plat,
 	mtd->priv = chip;
 	mtd->name = plat->name;
 	aml_nand_device = plat->aml_nand_device;
-	pr_info("%s() aml_nand_device %p\n", __func__, aml_nand_device);
 	if (aml_nand_device) {
 		aml_chip->bl_mode = aml_nand_device->bl_mode;
 		aml_chip->fip_copies = aml_nand_device->fip_copies;
@@ -977,8 +976,6 @@ int nand_init(struct platform_device *pdev)
 		dev_err(&pdev->dev, "ioremap Nand Flash IO fail\n");
 		return -ENOMEM;
 	}
-	pr_info("nand_clk_ctrl 0x%x\n",
-		aml_nand_mid_device.nand_clk_ctrl);
 
 	controller->nand_clk_reg = devm_ioremap_nocache(&pdev->dev,
 					aml_nand_mid_device.nand_clk_ctrl,
@@ -996,9 +993,6 @@ int nand_init(struct platform_device *pdev)
 		dev_err(&pdev->dev, "ioremap External Nand Clock IO fail\n");
 		return -ENOMEM;
 	}
-	pr_info("nand register base %px, nand clock register %px\n",
-		controller->reg_base,
-		controller->nand_clk_reg);
 
 	res_irq = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	if (!res_irq) {
@@ -1044,7 +1038,6 @@ int nand_init(struct platform_device *pdev)
 			continue;
 		}
 		plat->aml_nand_device = &aml_nand_mid_device;
-		pr_info("plat->aml_nand_device %p\n", plat->aml_nand_device);
 		ret = m3_nand_probe(plat, i, &pdev->dev);
 		if (ret) {
 			pr_info("nand init failed:%d\n", ret);
