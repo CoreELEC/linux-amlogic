@@ -15374,3 +15374,8 @@ F: drivers/amlogic/mailbox/scpi_protocol_fifo.c
 F: drivers/amlogic/mailbox/scpi_common.c
 F: include/linux/amlogic/scpi_common.h
 F: include/linux/amlogic/meson_mhu_common.h
+
+AMLOGIC driver for unifyky normal key
+M: Fushan Zeng <fushan.zeng@amlogic.com>
+F: drivers/amlogic/unifykey/normal_key.c
+F: drivers/amlogic/unifykey/normal_key.h

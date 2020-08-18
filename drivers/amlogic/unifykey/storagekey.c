@@ -40,6 +40,7 @@
 #include <linux/of.h>
 #include "unifykey.h"
 #include "amlkey_if.h"
+#include "normal_key.h"
 
 /* key buffer status */
 /* bit0, dirty flag*/
@@ -112,7 +113,7 @@ EXPORT_SYMBOL(storage_ops_write);
  *1.init
  * return ok 0, fail 1
  */
-int32_t amlkey_init_gen(uint8_t *seed, uint32_t len, int encrypt_type)
+static int32_t _amlkey_init_gen(uint8_t *seed, uint32_t len, int encrypt_type)
 {
 	int32_t ret = 0;
 	uint32_t actual_size = 0;
@@ -260,7 +261,7 @@ _out:
  *2. query if the key already programmed
  * return: exsit 1, non 0
  */
-int32_t amlkey_isexsit(const uint8_t *name)
+static u32 _amlkey_isexsit(const uint8_t *name)
 {
 	int32_t ret = 0;
 	uint32_t retval;
@@ -283,7 +284,7 @@ int32_t amlkey_isexsit(const uint8_t *name)
  * 3. query if the prgrammed key is secure
  * return secure 1, non 0;
  */
-int32_t amlkey_get_attr(const uint8_t *name)
+static u32 _amlkey_get_attr(const uint8_t *name)
 {
 	int32_t ret = 0;
 	uint32_t retval;
@@ -324,7 +325,7 @@ int32_t amlkey_isencrypt(const uint8_t *name)
  * 4. actual bytes of key value
  *  return actual size.
  */
-ssize_t amlkey_size(const uint8_t *name)
+static unsigned int _amlkey_size(const uint8_t *name)
 {
 	ssize_t size = 0;
 	int32_t ret = 0;
@@ -340,7 +341,7 @@ ssize_t amlkey_size(const uint8_t *name)
 		pr_err("%s() %d: ret %d\n", __func__, __LINE__, ret);
 		retval = 0;
 	}
-	size = (ssize_t)retval;
+	size = retval;
 	return size;
 }
 
@@ -348,10 +349,12 @@ ssize_t amlkey_size(const uint8_t *name)
  *5. read non-secure key in bytes, return bytes readback actully.
  * return actual size read back.
  */
-ssize_t amlkey_read(const uint8_t *name, uint8_t *buffer, uint32_t len)
+static unsigned int _amlkey_read(const uint8_t *name,
+				 uint8_t *buffer,
+				 uint32_t len)
 {
 	int32_t ret = 0;
-	ssize_t retval = 0;
+	unsigned int retval = 0;
 	uint32_t actul_len;
 
 	if (name == NULL) {
@@ -375,10 +378,10 @@ _out:
  *       bit8, encrypt/non-encrypt
  * return actual size write down.
  */
-ssize_t amlkey_write(const uint8_t *name,
-	uint8_t *buffer,
-	uint32_t len,
-	uint32_t attr)
+static ssize_t _amlkey_write(const uint8_t *name,
+			     uint8_t *buffer,
+			     uint32_t len,
+			     uint32_t attr)
 {
 	int32_t ret = 0;
 	ssize_t retval = 0;
@@ -426,7 +429,7 @@ _out:
  * 7. get the hash value of programmed secure key | 32bytes length, sha256
  * return success 0, fail -1
  */
-int32_t amlkey_hash_4_secure(const uint8_t *name, uint8_t *hash)
+static int32_t _amlkey_hash_4_secure(const uint8_t *name, uint8_t *hash)
 {
 	int32_t ret = 0;
 
@@ -439,7 +442,7 @@ int32_t amlkey_hash_4_secure(const uint8_t *name, uint8_t *hash)
  * 7. del key by name
  * return success 0, fail -1
  */
-int32_t amlkey_del(const uint8_t *name)
+int32_t _amlkey_del(const uint8_t *name)
 {
 	int32_t ret = 0;
 	uint32_t actual_length;
@@ -464,3 +467,234 @@ int32_t amlkey_del(const uint8_t *name)
 }
 
 
+#define DEF_NORMAL_BLOCK_SIZE	(256 * 1024)
+static DEFINE_MUTEX(normalkey_lock);
+static u32 normal_blksz = DEF_NORMAL_BLOCK_SIZE;
+static u32 normal_flashsize = DEF_NORMAL_BLOCK_SIZE;
+static u8 *normal_block;
+
+static s32 _amlkey_init_normal(u8 *seed, u32 len, int encrypt_type)
+{
+	int ret;
+
+	if (!normal_block)
+		return -1;
+
+#ifndef OTHER_METHOD_CALL
+	ret = store_operation_init();
+	if (ret < 0) {
+		pr_err(" %s store_operation_init fail!\n", __func__);
+		return ret;
+	}
+#endif
+
+	if (!store_key_read) {
+		pr_err("no storage found\n");
+		return -1;
+	}
+
+	if (normalkey_init())
+		return -1;
+
+	mutex_lock(&normalkey_lock);
+	ret = store_key_read(normal_block,
+			     normal_blksz,
+			     &normal_flashsize);
+	if (ret) {
+		pr_err("read storage fail\n");
+		goto finish;
+	}
+
+	ret = normalkey_readfromblock(normal_block, normal_flashsize);
+	if (ret) {
+		pr_err("init block key fail\n");
+		goto finish;
+	}
+
+	ret = 0;
+finish:
+	if (ret)
+		normalkey_deinit();
+	mutex_unlock(&normalkey_lock);
+
+	return ret;
+}
+
+static u32 _amlkey_exist_normal(const u8 *name)
+{
+	struct storage_object *obj;
+
+	mutex_lock(&normalkey_lock);
+	obj = normalkey_get(name);
+	mutex_unlock(&normalkey_lock);
+
+	return !!obj;
+}
+
+static u32 _amlkey_get_attr_normal(const u8 *name)
+{
+	u32 attr = 0;
+	struct storage_object *obj;
+
+	mutex_lock(&normalkey_lock);
+	obj = normalkey_get(name);
+	if (obj)
+		attr = obj->attribute;
+	mutex_unlock(&normalkey_lock);
+
+	return attr;
+}
+
+static unsigned int _amlkey_size_normal(const u8 *name)
+{
+	unsigned int size = 0;
+	struct storage_object *obj;
+
+	mutex_lock(&normalkey_lock);
+	obj = normalkey_get(name);
+	if (obj)
+		size = obj->datasize;
+	mutex_unlock(&normalkey_lock);
+
+	return size;
+}
+
+static unsigned int _amlkey_read_normal(const u8 *name, u8 *buffer, u32 len)
+{
+	unsigned int size = 0;
+	struct storage_object *obj;
+
+	mutex_lock(&normalkey_lock);
+	obj = normalkey_get(name);
+	if (obj && len >= obj->datasize) {
+		size = obj->datasize;
+		memcpy(buffer, obj->dataptr, size);
+	}
+	mutex_unlock(&normalkey_lock);
+
+	return size;
+}
+
+static ssize_t _amlkey_write_normal(const u8 *name, u8 *buffer,
+				    u32 len, u32 attr)
+{
+	int ret;
+	u32 wrtsz = 0;
+
+	if (attr & OBJ_ATTR_SECURE) {
+		pr_err("can't write secure key\n");
+		return 0;
+	}
+
+	if (!store_key_write) {
+		pr_err("no storage found\n");
+		return 0;
+	}
+
+	mutex_lock(&normalkey_lock);
+	ret = normalkey_add(name, buffer, len, attr);
+	if (ret) {
+		pr_err("write key fail\n");
+		ret = 0;
+		goto unlock;
+	}
+
+	ret = normalkey_writetoblock(normal_block, normal_flashsize);
+	if (ret) {
+		pr_err("write block fail\n");
+		ret = 0;
+		goto unlock;
+	}
+
+	ret = store_key_write(normal_block,
+			      normal_flashsize,
+			      &wrtsz);
+	if (ret) {
+		pr_err("write storage fail\n");
+		ret = 0;
+		goto unlock;
+	}
+	ret = len;
+unlock:
+	mutex_unlock(&normalkey_lock);
+	return ret;
+}
+
+static s32 _amlkey_hash_normal(const u8 *name, u8 *hash)
+{
+	int ret = -1;
+	struct storage_object *obj;
+
+	mutex_lock(&normalkey_lock);
+	obj = normalkey_get(name);
+	if (obj) {
+		ret = 0;
+		memcpy(hash, obj->hashptr, 32);
+	}
+	mutex_unlock(&normalkey_lock);
+
+	return ret;
+}
+
+int normal_key_init(struct platform_device *pdev)
+{
+	u32 blksz;
+	int ret;
+
+	ret = device_property_read_u32(&pdev->dev, "blocksize", &blksz);
+	if (!ret && blksz && PAGE_ALIGNED(blksz)) {
+		normal_blksz = blksz;
+		pr_info("block size from config: %x\n", blksz);
+	}
+
+	normal_block = kmalloc(normal_blksz, GFP_KERNEL);
+	if (!normal_block)
+		return -1;
+
+	return 0;
+}
+
+enum amlkey_if_type {
+	IFTYPE_SECURE_STORAGE,
+	IFTYPE_NORMAL_STORAGE,
+	IFTYPE_MAX
+};
+
+struct amlkey_if amlkey_ifs[] = {
+	[IFTYPE_SECURE_STORAGE] = {
+		.init = _amlkey_init_gen,
+		.exsit = _amlkey_isexsit,
+		.get_attr = _amlkey_get_attr,
+		.size = _amlkey_size,
+		.read = _amlkey_read,
+		.write = _amlkey_write,
+		.hash = _amlkey_hash_4_secure,
+	},
+	[IFTYPE_NORMAL_STORAGE] = {
+		.init = _amlkey_init_normal,
+		.exsit = _amlkey_exist_normal,
+		.get_attr = _amlkey_get_attr_normal,
+		.size = _amlkey_size_normal,
+		.read = _amlkey_read_normal,
+		.write = _amlkey_write_normal,
+		.hash = _amlkey_hash_normal,
+	}
+};
+
+struct amlkey_if *amlkey_if = &amlkey_ifs[IFTYPE_SECURE_STORAGE];
+
+int amlkey_if_init(struct platform_device *pdev, int secure)
+{
+	int ret = 0;
+
+	if (secure) {
+		amlkey_if = &amlkey_ifs[IFTYPE_SECURE_STORAGE];
+		return ret;
+	}
+
+	pr_info("normal key used!\n");
+	ret = normal_key_init(pdev);
+	amlkey_if = &amlkey_ifs[IFTYPE_NORMAL_STORAGE];
+
+	return ret;
+}

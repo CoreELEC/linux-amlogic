@@ -18,17 +18,42 @@
 #ifndef __AMLKEY_IF_H__
 #define __AMLKEY_IF_H__
 
+struct amlkey_if {
+	s32 (*init)(u8 *seed, u32 len, int encrypt_type);
+	u32 (*exsit)(const u8 *name);
+	unsigned int (*size)(const u8 *name);
+	u32 (*get_attr)(const u8 *name);
+	unsigned int (*read)(const u8 *name, u8 *buffer, u32 len);
+	ssize_t (*write)(const u8 *name, u8 *buffer, u32 len, u32 attr);
+	s32 (*hash)(const u8 *name, u8 *hash);
+};
+
+extern struct amlkey_if *amlkey_if;
+
+static inline u32 amlkey_get_attr(const u8 *name)
+{
+	return amlkey_if->get_attr(name);
+}
+
+int amlkey_if_init(struct platform_device *pdev, int secure);
+
 /*
  * init
  */
-int32_t amlkey_init_gen(uint8_t *seed, uint32_t len, int encrypt_type);
 int32_t amlkey_init_m8b(uint8_t *seed, uint32_t len, int encrypt_type);
+static inline s32 amlkey_init_gen(u8 *seed, u32 len, int encrypt_type)
+{
+	return amlkey_if->init(seed, len, encrypt_type);
+}
 
 /*
  * query if the key already programmed
  * exsit 1, non 0
  */
-int32_t amlkey_isexsit(const uint8_t *name);
+static inline u32 amlkey_isexsit(const u8 *name)
+{
+	return amlkey_if->exsit(name);
+}
 /*
  * query if the prgrammed key is secure
  * secure 1, non 0
@@ -42,26 +67,36 @@ int32_t amlkey_isencrypt(const uint8_t *name);
 /*
  * actual bytes of key value
  */
-ssize_t amlkey_size(const uint8_t *name);
+static inline unsigned int amlkey_size(const u8 *name)
+{
+	return amlkey_if->size(name);
+}
 /*
  * read non-secure key in bytes, return byets readback actully.
  */
-ssize_t amlkey_read(const uint8_t *name, uint8_t *buffer, uint32_t len);
+static inline unsigned int amlkey_read(const u8 *name, u8 *buffer, u32 len)
+{
+	return amlkey_if->read(name, buffer, len);
+}
 
 /*
  * write key with attr in bytes , return bytes readback actully
  *	attr: bit0, secure/non-secure
  *		  bit8, encrypt/non-encrypt
  */
-ssize_t amlkey_write(const uint8_t *name,
-		uint8_t *buffer,
-		uint32_t len,
-		uint32_t attr);
+static inline ssize_t amlkey_write(const u8 *name, u8 *buffer, u32 len,
+				   u32 attr)
+{
+	return amlkey_if->write(name, buffer, len, attr);
+}
 
 /*
  * get the hash value of programmed secure key | 32bytes length, sha256
  */
-int32_t amlkey_hash_4_secure(const uint8_t *name, uint8_t *hash);
+static inline s32 amlkey_hash_4_secure(const u8 *name, u8 *hash)
+{
+	return amlkey_if->hash(name, hash);
+}
 
 extern int32_t nand_key_read(uint8_t *buf,
 			uint32_t len, uint32_t *actual_length);
