@@ -46,6 +46,7 @@
  *enable: 1
  */
 static bool remote_debug_enable;
+static bool remote_enable = 1;
 
 void remote_repeat(struct remote_dev *dev)
 {
@@ -60,6 +61,16 @@ void remote_debug_set_enable(bool enable)
 bool remote_debug_get_enable(void)
 {
 	return remote_debug_enable;
+}
+
+void remote_set_enable(bool enable)
+{
+	remote_enable = enable;
+}
+
+bool remote_get_enable(void)
+{
+	return remote_enable;
 }
 
 static void ir_do_keyup(struct remote_dev *dev)
