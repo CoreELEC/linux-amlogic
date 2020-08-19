@@ -142,25 +142,12 @@
 			//no-map;
 		};
 
-		/*  vdin0 CMA pool */
-		vdin0_cma_reserved:linux,vdin0_cma {
-			compatible = "shared-dma-pool";
-			reusable;
-			/* up to 1920x1080 yuv422 8bit and 5 buffers
-			 * 1920x1080x2x5 = 20 M
-			 */
-			size = <0>;
-			alignment = <0x400000>;
-		};
-
 		/*  vdin1 CMA pool */
 		vdin1_cma_reserved:linux,vdin1_cma {
 			compatible = "shared-dma-pool";
 			reusable;
-			/* up to 1920x1080 yuv422 8bit and 5 buffers
-			 * 1920x1080x2x5 = 20 M
-			 */
-			size = <0x01400000>;
+			/* 1920x1080x2x4  =16 M */
+			size = <0x01000000>;
 			alignment = <0x400000>;
 		};
 
@@ -173,9 +160,9 @@
 		dsp_fw_reserved:linux,dsp_fw {
 			compatible = "shared-dma-pool";
 			reusable;
-			size = <0x01000000>;
+			size = <0x00800000>;
 			alignment = <0x400000>;
-			alloc-ranges = <0x3400000 0x1000000>;
+			alloc-ranges = <0x3400000 0x00800000>;
 		};
 	};
 
@@ -258,7 +245,6 @@
 		interrupt_pin = <&gpio       GPIOX_7       GPIO_ACTIVE_HIGH>;
 		irq_trigger_type = "GPIO_IRQ_LOW";
 		power_on_pin = <&gpio       GPIOX_6       GPIO_ACTIVE_HIGH>;
-		dhd_static_buf;	//if use bcm wifi, config dhd_static_buf
 		pinctrl-names = "default";
 		pinctrl-0 = <&pwm_e_pins>;
 		pwm_config = <&wifi_pwm_conf>;
@@ -1679,24 +1665,6 @@
 	status = "okay";
 };
 
-/*if you want to use vdin just modify status to "ok"*/
-&vdin0 {
-	/*compatible = "amlogic, vdin-sc2";*/
-	/*memory-region = <&vdin0_cma_reserved>;*/
-	status = "okay";
-	/* up to 1920x1080 yuv422 8bit and 5 buffers
-	 * 1920x1080x2x5 = 20 M
-	 */
-	cma_size = <20>;
-	/*vdin write mem color depth support:
-	 *bit0:support 8bit
-	 *bit1:support 9bit
-	 *bit2:support 10bit
-	 *bit3:support 12bit
-	 *bit4:support yuv422 10bit full pack mode (from txl new add)
-	 */
-	tv_bit_mode = <0x1>;
-};
 
 &vdin1 {
 	/*compatible = "amlogic, vdin-sc2";*/
