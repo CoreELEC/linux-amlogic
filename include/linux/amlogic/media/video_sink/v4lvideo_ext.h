@@ -31,6 +31,11 @@ void v4lvideo_dec_count_decrease(void);
 
 void v4lvideo_release_map(int inst);
 
+struct metadata {
+	char *p_md;
+	char *p_comp;
+};
+
 struct file_private_data {
 	struct vframe_s vf;
 	struct vframe_s *vf_p;
@@ -44,6 +49,7 @@ struct file_private_data {
 	struct vframe_s vf_ext;
 	struct vframe_s *vf_ext_p;
 	u32 flag;
+	struct metadata md;
 };
 
 struct v4l_data_t {
