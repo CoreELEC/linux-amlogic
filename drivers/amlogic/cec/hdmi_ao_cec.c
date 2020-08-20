@@ -2337,7 +2337,7 @@ static void cec_rx_process(void)
 	new_msg = 0;
 }
 
-static bool cec_service_suspended(void)
+bool cec_service_suspended(void)
 {
 	/* service is not enabled */
 	/*if (!(cec_dev->hal_flag & (1 << HDMI_OPTION_SERVICE_FLAG)))*/
@@ -2413,9 +2413,11 @@ static void cec_task(struct work_struct *work)
 	unsigned int cec_cfg;
 
 	cec_cfg = cec_config(0, 0);
-	if (cec_cfg & CEC_FUNC_CFG_CEC_ON) {
+	if ((cec_cfg & CEC_FUNC_CFG_CEC_ON) &&
+	    cec_dev->cec_suspend == CEC_PW_STANDBY) {
 		/*cec module on*/
-		if ((cec_dev && cec_service_suspended()) || is_pm_freeze_mode())
+		if (/*(cec_dev && cec_service_suspended()) || */
+		    is_pm_freeze_mode())
 			cec_rx_process();
 
 		/*for check rx buffer for old chip version, cec rx irq process*/
