@@ -375,11 +375,6 @@ struct video_pm_state_s {
 #define PTS_THROTTLE
 /* #define PTS_TRACE_DEBUG */
 /* #define PTS_TRACE_START */
-#define AVSYNC_COUNT
-#ifdef AVSYNC_COUNT
-static bool av_discontinue;
-static u32 avsync_count;
-#endif
 
 #ifdef PTS_TRACE_DEBUG
 static int pts_trace_his[16];
@@ -2097,16 +2092,6 @@ static inline bool vpts_expire(struct vframe_s *cur_vf,
 	systime = timestamp_pcrscr_get();
 	pts = next_vf->pts;
 
-#ifdef AVSYNC_COUNT
-	if (abs(timestamp_apts_get() - timestamp_vpts_get()) > 90 * 500)
-		av_discontinue = true;
-	if (abs(timestamp_apts_get() - timestamp_vpts_get()) <= 90 * 500 &&
-	    av_discontinue) {
-		avsync_count++;
-		av_discontinue = false;
-		timestamp_avsync_counter_set(avsync_count);
-	}
-#endif
 	if (((pts == 0) && ((cur_dispbuf != &vf_local)
 		|| (hold_property_changed == 1)))
 	    || (freerun_mode == FREERUN_DUR)) {
@@ -5767,8 +5752,6 @@ static int video_receiver_event_fun(int type, void *data, void *private_data)
 		drop_frame_count = 0;
 		receive_frame_count = 0;
 		display_frame_count = 0;
-		avsync_count = 0;
-		timestamp_avsync_counter_set(avsync_count);
 		//init_hdr_info();
 		mutex_lock(&omx_mutex);
 		omx_continuous_drop_count = 0;
@@ -5787,8 +5770,6 @@ static int video_receiver_event_fun(int type, void *data, void *private_data)
 		drop_frame_count = 0;
 		receive_frame_count = 0;
 		display_frame_count = 0;
-		avsync_count = 0;
-		timestamp_avsync_counter_set(avsync_count);
 		mutex_lock(&omx_mutex);
 		omx_run = false;
 		omx_pts_set_from_hwc_count = 0;
