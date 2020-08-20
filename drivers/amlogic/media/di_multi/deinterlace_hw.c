@@ -996,9 +996,16 @@ void dimh_enable_mc_di_pre_g12(struct DI_MC_MIF_s *mcinford_mif,
 	DIM_RDMA_WR_BITS(MCDI_MOTINEN, (mcdi_en ? 3 : 0), 0, 2);
 	if (is_meson_g12a_cpu()	||
 	    is_meson_g12b_cpu()	||
-	    is_meson_sm1_cpu())
+	    is_meson_sm1_cpu()) {
 		DIM_RDMA_WR(MCDI_CTRL_MODE, (mcdi_en ? 0x1bfef7ff : 0));
-	else
+	} else if (DIM_IS_IC_EF(SC2)) {//from vlsi yanling
+		if (mcdi_en) {
+			DIM_RDMA_WR_BITS(MCDI_CTRL_MODE, 0xf7ff, 0, 16);
+			DIM_RDMA_WR_BITS(MCDI_CTRL_MODE, 0xdff, 17, 15);
+		} else {
+			DIM_RDMA_WR(MCDI_CTRL_MODE, 0);
+		}
+	} else
 		DIM_RDMA_WR(MCDI_CTRL_MODE, (mcdi_en ? 0x1bfff7ff : 0));
 
 	DIM_RDMA_WR_BITS(DI_PRE_CTRL, (mcdi_en ? 3 : 0), 16, 2);
@@ -4380,15 +4387,24 @@ void dimh_txl_patch_prog(int prog_flg, unsigned int cnt, bool mc_en)
 				/* enable contp2rd and contprd */
 				DIM_RDMA_WR(MCDI_MOTINEN, 1 << 1 | 1);
 			}
-			if (cnt == 5)
-				DIM_RDMA_WR(MCDI_CTRL_MODE, 0x1bfff7ff);
+			if (cnt == 5) {
+				if (DIM_IS_IC_EF(SC2)) {
+					DIM_RDMA_WR_BITS(MCDI_CTRL_MODE,
+							 0xf7ff, 0, 16);
+					DIM_RDMA_WR_BITS(MCDI_CTRL_MODE,
+							 0xdff, 17, 15);
+				} else {
+					DIM_RDMA_WR(MCDI_CTRL_MODE, 0x1bfff7ff);
+				}
+			}
 		}
 	} else {
 		if (mc_en) {
 			/* txtdet_en mode */
 			DIM_RDMA_WR_BITS(MCDI_CTRL_MODE, 0, 1, 1);
 			DIM_RDMA_WR_BITS(MCDI_CTRL_MODE, 1, 9, 1);
-			DIM_RDMA_WR_BITS(MCDI_CTRL_MODE, 1, 16, 1);
+			if (DIM_IS_IC_BF(SC2))//from vlsi yanling
+				DIM_RDMA_WR_BITS(MCDI_CTRL_MODE, 1, 16, 1);
 			DIM_RDMA_WR_BITS(MCDI_CTRL_MODE, 0, 28, 1);
 			DIM_RDMA_WR(MCDI_MOTINEN, 0);
 			DIM_RDMA_WR(DI_MTN_CTRL1,
