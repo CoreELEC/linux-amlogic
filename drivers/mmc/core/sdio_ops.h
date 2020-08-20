@@ -36,6 +36,7 @@ struct wifi_clk_table {
 enum wifi_clk_table_e {
 	WIFI_CLOCK_TABLE_8822BS = 0,
 	WIFI_CLOCK_TABLE_8822CS = 1,
+	WIFI_CLOCK_TABLE_QCA6174 = 2,
 	WIFI_CLOCK_TABLE_MAX,
 };
 

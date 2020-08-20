@@ -40,7 +40,8 @@
 #ifdef CONFIG_AMLOGIC_MMC
 struct wifi_clk_table aWifi_clk[WIFI_CLOCK_TABLE_MAX] = {
 	{"8822BS", 0, 0xb822, 167000000},
-	{"8822CS", 0, 0xc822, 167000000}
+	{"8822CS", 0, 0xc822, 167000000},
+	{"qca6174", 0, 0x50a, 167000000}
 };
 
 #define CCCR_SDIO_DRIVER_STRENGTH_ENABLE_ADDR   0xf2
@@ -498,6 +499,8 @@ static int sdio_set_bus_speed_mode(struct mmc_card *card)
 	unsigned char speed;
 #ifdef CONFIG_AMLOGIC_MMC
 	int i;
+	struct amlsd_platform *pdata = mmc_priv(card->host);
+	struct amlsd_host *host = pdata->host;
 #endif
 
 	/*
@@ -521,6 +524,11 @@ static int sdio_set_bus_speed_mode(struct mmc_card *card)
 					break;
 				}
 			}
+			if ((card->cis.vendor == 0x0271) &&
+			    ((host->data->chip_type != MMC_CHIP_G12A) &&
+			     (host->data->chip_type != MMC_CHIP_SM1) &&
+			     (host->data->chip_type != MMC_CHIP_SC2)))
+				card->sw_caps.uhs_max_dtr = UHS_SDR104_MAX_DTR;
 
 			if (i >= ARRAY_SIZE(aWifi_clk))
 				card->sw_caps.uhs_max_dtr = UHS_SDR104_MAX_DTR;
