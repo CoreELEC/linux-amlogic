@@ -433,6 +433,9 @@ static u32 vpts_remainder;
 static u32 video_notify_flag;
 static int enable_video_discontinue_report = 1;
 static struct amvideo_device_data_s amvideo_meson_dev;
+static bool video_suspend;
+static u32 video_suspend_cycle;
+static int log_out;
 
 #ifdef CONFIG_AMLOGIC_POST_PROCESS_MANAGER_PPSCALER
 static u32 video_scaler_mode;
@@ -3786,6 +3789,12 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 	int axis[4];
 	int crop[4];
 
+	if (video_suspend && (video_suspend_cycle >= 1)) {
+		if (log_out)
+			pr_info("video suspend, vsync exit\n");
+		log_out = 0;
+		return IRQ_HANDLED;
+	}
 	if (debug_flag & DEBUG_FLAG_VSYNC_DONONE)
 		return IRQ_HANDLED;
 
@@ -4323,7 +4332,7 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 	/* determine the out frame is L or R or blank */
 	judge_3d_fa_out_mode();
 
-	while (vf) {
+	while (vf && !video_suspend) {
 		if (debug_flag & DEBUG_FLAG_OMX_DEBUG_DROP_FRAME) {
 			pr_info("next pts= %d,index %d,pcr = %d,vpts = %d\n",
 				vf->pts, vf->omx_index,
@@ -4644,7 +4653,8 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 		}
 		toggle_cnt++;
 	}
-
+	if (video_suspend)
+		goto exit;
 #ifdef INTERLACE_FIELD_MATCH_PROCESS
 	if (interlace_field_type_need_match(vout_type, vf)) {
 		if (field_matching_count++ == FIELD_MATCH_THRESHOLD) {
@@ -4674,7 +4684,7 @@ SET_FILTER:
 		dolby_vision_check_hlg(vf);
 	}
 #endif
-	while (vf) {
+	while (vf && !video_suspend) {
 		if (!vf->frame_dirty) {
 #if defined(CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM)
 			int iret1 = 0, iret2 = 0;
@@ -4740,7 +4750,8 @@ SET_FILTER:
 			pr_info("videopip drop frame: drop count %d\n",
 				videopip_drop_vf_cnt);
 	}
-
+	if (video_suspend)
+		goto exit;
 	/* video_render.0 toggle frame */
 	if (gvideo_recv[0]) {
 		path2_new_frame =
@@ -5402,7 +5413,8 @@ exit:
 	enc_line = get_cur_enc_line();
 	if (enc_line > vsync_exit_line_max)
 		vsync_exit_line_max = enc_line;
-
+	if (video_suspend)
+		video_suspend_cycle++;
 #ifdef FIQ_VSYNC
 	if (video_notify_flag)
 		fiq_bridge_pulse_trigger(&vsync_fiq_bridge);
@@ -10895,11 +10907,15 @@ static void video_early_suspend(struct early_suspend *h)
 {
 	safe_switch_videolayer(0, false, false);
 	safe_switch_videolayer(1, false, false);
+	video_suspend = true;
 	pr_info("video_early_suspend ok\n");
 }
 
 static void video_late_resume(struct early_suspend *h)
 {
+	video_suspend_cycle = 0;
+	video_suspend = false;
+	log_out = 1;
 	pr_info("video_late_resume ok\n");
 };
 
@@ -11005,6 +11021,9 @@ static int amvideom_probe(struct platform_device *pdev)
 
 	video_early_init();
 	video_hw_init();
+	video_suspend = false;
+	video_suspend_cycle = 0;
+	log_out = 1;
 
 	safe_switch_videolayer(0, false, false);
 	safe_switch_videolayer(1, false, false);

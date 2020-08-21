@@ -113,6 +113,7 @@ static int osd_afbc_dec_enable;
 static int ext_canvas_id[HW_OSD_COUNT];
 static int osd_extra_idx[HW_OSD_COUNT][2];
 static bool suspend_flag;
+static int osd_log_out;
 static u32 rdma_dt_cnt;
 static bool update_to_dv;
 static void osd_clone_pan(u32 index, u32 yoffset, int debug_flag);
@@ -2479,6 +2480,8 @@ static void check_reg_changed(void)
 #ifdef FIQ_VSYNC
 static irqreturn_t vsync_isr(int irq, void *dev_id)
 {
+	if (suspend_flag)
+		return IRQ_HANDLED;
 	wait_vsync_wakeup();
 	return IRQ_HANDLED;
 }
@@ -2488,6 +2491,12 @@ static void osd_fiq_isr(void)
 static irqreturn_t vsync_isr(int irq, void *dev_id)
 #endif
 {
+	if (suspend_flag) {
+		if (osd_log_out)
+			pr_info("osd suspend, vsync exit\n");
+		osd_log_out = 0;
+		return IRQ_HANDLED;
+	}
 	if (!osd_hw.hw_rdma_en) {
 		osd_update_vsync_timestamp();
 		osd_update_scan_mode();
@@ -2519,6 +2528,8 @@ static void osd_viu2_fiq_isr(void)
 static irqreturn_t vsync_viu2_isr(int irq, void *dev_id)
 #endif
 {
+	if (suspend_flag)
+		return IRQ_HANDLED;
 	/* osd_update_scan_mode_viu2(); */
 	osd_update_vsync_timestamp_viu2();
 	osd_update_vsync_hit_viu2();
@@ -10270,6 +10281,7 @@ void osd_init_hw(u32 logo_loaded, u32 osd_probe,
 	secure_register(OSD_MODULE, 0,
 			VSYNCOSD_WR_MPEG_REG, osd_secure_cb);
 #endif
+	osd_log_out = 1;
 }
 
 void set_viu2_format(u32 format)
@@ -10779,6 +10791,7 @@ void osd_resume_hw(void)
 			osd_hw.osd_afbcd[i].afbc_start = 0;
 		spin_unlock_irqrestore(&osd_lock, lock_flags);
 	}
+	osd_log_out = 1;
 	osd_log_info("osd_resumed\n");
 }
 
