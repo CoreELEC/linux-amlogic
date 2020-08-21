@@ -6408,8 +6408,13 @@ static void config_hdmi20_tx(enum hdmi_vic vic,
 	data32  = 0;
 	data32 |= (0 << 5);
 	data32 |= (1 << 4);
-	data32 |= (1 << 3);
-	data32 |= (1 << 1);
+	/* Set hsync/vsync polarity to solve the
+	 * problem of timing continuing change
+	 */
+	if (t->hsync_polarity)
+		data32 |= (1 << 1);
+	if (t->vsync_polarity)
+		data32 |= (1 << 3);
 	hdmitx_wr_reg(HDMITX_DWC_A_VIDPOLCFG,   data32);
 
 	hdmitx_wr_reg(HDMITX_DWC_A_OESSWCFG,    0x40);
