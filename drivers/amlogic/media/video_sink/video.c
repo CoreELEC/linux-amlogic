@@ -4310,7 +4310,7 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 #endif
 
 			ATRACE_COUNTER(MODULE_NAME,  __LINE__);
-			if (debug_flag & DEBUG_FLAG_PTS_TRACE)
+			if (debug_flag & DEBUG_FLAG_PTS_TRACE) {
 				pr_info("vpts = 0x%x, c.dur=0x%x, n.pts=0x%x, scr = 0x%x, pcr-pts-diff=%d, ptstrace=%d\n",
 					timestamp_vpts_get(),
 					(cur_dispbuf) ?
@@ -4319,6 +4319,9 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 					timestamp_pcrscr_get() - vf->pts +
 					vsync_pts_align,
 					pts_trace);
+				if (pts_trace > 4)
+					pr_info("smooth trace:%d\n", pts_trace);
+			}
 			amlog_mask_if(toggle_cnt > 0, LOG_MASK_FRAMESKIP,
 				      "skipped\n");
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION

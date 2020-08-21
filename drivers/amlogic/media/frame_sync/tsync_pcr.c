@@ -612,6 +612,11 @@ void tsync_pcr_pcrscr_set(void)
 		if ((abs(cur_pcr - cur_checkin_vpts) >
 			PLAY_PCR_INVALID_THRESHOLD) &&
 			cur_checkin_vpts != 0xffffffff) {
+			if (first_vpts != 0) {
+				pr_info("use first_vpts:0x%x init\n",
+					first_vpts);
+				ref_pcr = first_vpts - tsync_pcr_ref_latency;
+			} else
 			ref_pcr = cur_checkin_vpts -
 				tsync_pcr_ref_latency;
 			tsync_set_pcr_mode(0, ref_pcr);
@@ -620,10 +625,15 @@ void tsync_pcr_pcrscr_set(void)
 			(cur_pcr - min_checkinpts) > 500 * 90) ||
 			tsync_disable_demux_pcr == 1) {
 			if (abs(cur_checkin_apts - cur_checkin_vpts)
-				> MAX_GAP)
-				ref_pcr = cur_checkin_vpts -
-					tsync_pcr_ref_latency;
-			else
+				> MAX_GAP) {
+				if (first_vpts != 0) {
+					pr_info("use first_vpts calc pcr\n");
+					ref_pcr = first_vpts -
+						tsync_pcr_ref_latency;
+				} else
+					ref_pcr = cur_checkin_vpts -
+						tsync_pcr_ref_latency;
+			} else
 				ref_pcr = min_checkinpts;
 			tsync_set_pcr_mode(0, ref_pcr);
 			tsync_pcr_inited_mode = INIT_PRIORITY_VIDEO;
@@ -631,7 +641,7 @@ void tsync_pcr_pcrscr_set(void)
 			tsync_set_pcr_mode(1, ref_pcr);
 			tsync_pcr_inited_mode = INIT_PRIORITY_PCR;
 		}
-		pr_info("tsync_set:pcrsrc %x,vpts %x,mode:%d\n",
+		pr_info("1-tsync_set:pcrsrc %x,vpts %x,mode:%d\n",
 			timestamp_pcrscr_get(), timestamp_firstvpts_get(),
 			tsync_use_demux_pcr);
 		tsync_get_demux_pcr(&init_check_first_demuxpcr);
@@ -1257,6 +1267,8 @@ EXPORT_SYMBOL(tsync_pcr_pcrscr_set);
 void tsync_pcr_avevent_locked(enum avevent_e event, u32 param)
 {
 	ulong flags;
+	u32 cur_checkin_vpts;
+	u32 ref_pcr;
 	spin_lock_irqsave(&tsync_pcr_lock, flags);
 
 	switch (event) {
@@ -1307,11 +1319,18 @@ void tsync_pcr_avevent_locked(enum avevent_e event, u32 param)
 	case VIDEO_TSTAMP_DISCONTINUITY:{
 		unsigned int systime;
 		unsigned int demux_pcr;
+
+		cur_checkin_vpts = get_last_checkin_pts(PTS_TYPE_VIDEO);
 		if (tsync_pcr_debug & 0x03)
-			pr_info("VIDEO_TSTAMP_DISCONTINUITY param:0x%x\n",
-				param);
+			pr_info("VIDEO_TSTAMP_DISCONTINUITY param:0x%x,in:%x\n",
+				param, cur_checkin_vpts);
 		if (tsync_pcr_inited_mode != INIT_PRIORITY_PCR) {
-			timestamp_pcrscr_set(param);
+			if (cur_checkin_vpts > param &&
+			    (cur_checkin_vpts - param < 90000)) {
+				ref_pcr = param - tsync_pcr_ref_latency;
+				timestamp_pcrscr_set(ref_pcr);
+			} else
+				timestamp_pcrscr_set(param);
 			if (tsync_pcr_debug & 0x03) {
 				pr_info("vdiscontinue param %x,pcrsrc %x\n",
 					param, timestamp_pcrscr_get());
