@@ -903,6 +903,38 @@ int scpi_get_cec_val(enum scpi_std_cmd index, u32 *p_cec)
 }
 EXPORT_SYMBOL_GPL(scpi_get_cec_val);
 
+/****Send fail when data size > 0x20.      ***
+ * Because of USER_LOW_TASK_SHARE_MEM_BASE ***
+ * size limitation.
+ * You can call scpi_send_usr_data()
+ * multi-times when your data is bigger
+ * than 0x20
+ */
+int scpi_send_cec_data(u32 cmd_id, u32 *val, u32 size)
+{
+	struct scpi_data_buf sdata;
+	struct mhu_data_buf mdata;
+	struct __packed {
+		u32 status;
+		u32 val;
+	} buf;
+	int ret;
+
+	/*Check size here because of USER_LOW_TASK_SHARE_MEM_BASE
+	 * size limitation, and first Word is used as command,
+	 * second word is used as tx_size.
+	 */
+	if (size > 0x1fd)
+		return -EPERM;
+
+	SCPI_SETUP_DBUF_SIZE(sdata, mdata, SCPI_CL_NONE, cmd_id,
+			     val, size, &buf, sizeof(buf));
+	ret = scpi_execute_cmd(&sdata);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(scpi_send_cec_data);
+
 u8 scpi_get_ethernet_calc(void)
 {
 	struct scpi_data_buf sdata;

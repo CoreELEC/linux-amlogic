@@ -135,6 +135,13 @@ struct st_rx_msg {
 	unsigned char msg[16];
 };
 
+struct st_cec_mailbox_data {
+	unsigned int cec_config;
+	unsigned int phy_addr;
+	unsigned int vendor_id;
+	unsigned char osd_name[16];
+} __packed;
+
 /* global struct for tx and rx */
 struct ao_cec_dev {
 	bool probe_finish;
@@ -607,6 +614,7 @@ void cec_clear_all_logical_addr(unsigned int cec_sel);
 void cec_ap_add_logical_addr(u32 l_addr);
 void cec_ap_set_dev_type(u32 type);
 void cec_ap_rm_logical_addr(u32 addr);
+void cec_new_msg_push(void);
 unsigned int cec_config2_phyaddr(unsigned int value, bool wr_flag);
 unsigned int cec_config2_logaddr(unsigned int value, bool wr_flag);
 unsigned int cec_config2_devtype(unsigned int value, bool wr_flag);

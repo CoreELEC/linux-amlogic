@@ -77,6 +77,7 @@ static bool ceca_err_flag;
 static bool ee_cec;
 static bool pin_status;
 static unsigned int cec_msg_dbg_en;
+static struct st_cec_mailbox_data cec_mailbox;
 
 #define CEC_ERR(format, args...)				\
 	{if (cec_dev->dbg_dev)					\
@@ -470,7 +471,6 @@ void cecb_hw_reset(void)
 		cec_set_reg_bits(AO_CECB_GEN_CNTL, 0, 0, 1);
 	}
 	udelay(500);
-	CEC_INFO_L(L_4, "%s\n", __func__);
 }
 
 static void cecrx_check_irq_enable(void)
@@ -631,18 +631,6 @@ static int cecb_pick_msg(unsigned char *msg, unsigned char *out_len)
 	}
 	pin_status = 1;
 	return 0;
-}
-
-/*
- * cec new message wait queue - wake up poll process
- */
-void cec_new_msg_push(void)
-{
-	if (cec_config(0, 0) & CEC_FUNC_CFG_CEC_ON) {
-		complete(&cec_dev->rx_ok);
-		new_msg = 1;
-		wake_up(&cec_msg_wait_queue);
-	}
 }
 
 void cecb_irq_handle(void)
@@ -1821,6 +1809,7 @@ static void ao_ceca_init(void)
 
 	/* Enable all AO_CEC interrupt sources */
 	/*cec_irq_enable(true);*/
+
 	cec_arbit_bit_time_set(3, 0x118, 0);
 	cec_arbit_bit_time_set(5, 0x000, 0);
 	cec_arbit_bit_time_set(7, 0x2aa, 0);
@@ -1903,7 +1892,7 @@ unsigned int cec_intr_stat(void)
 unsigned int cec_config(unsigned int value, bool wr_flag)
 {
 	if (wr_flag) {
-		cec_set_reg_bits(AO_DEBUG_REG0, value, 0, 8);
+		write_ao(AO_DEBUG_REG0, value);
 		cec_dev->cfg = value;
 	}
 
@@ -1923,7 +1912,7 @@ unsigned int cec_config2_phyaddr(unsigned int value, bool wr_flag)
 	if (wr_flag)
 		cec_set_reg_bits(AO_DEBUG_REG1, value, 0, 16);
 
-	return read_ao(AO_DEBUG_REG1);
+	return read_ao(AO_DEBUG_REG1) & 0xffff;
 }
 
 /*
@@ -1939,7 +1928,7 @@ unsigned int cec_config2_logaddr(unsigned int value, bool wr_flag)
 	if (wr_flag)
 		cec_set_reg_bits(AO_DEBUG_REG1, value, 16, 4);
 
-	return read_ao(AO_DEBUG_REG1);
+	return (read_ao(AO_DEBUG_REG1) >> 16) & 0xf;
 }
 
 /*
@@ -1955,7 +1944,7 @@ unsigned int cec_config2_devtype(unsigned int value, bool wr_flag)
 	if (wr_flag)
 		cec_set_reg_bits(AO_DEBUG_REG1, value, 20, 4);
 
-	return read_ao(AO_DEBUG_REG1);
+	return (read_ao(AO_DEBUG_REG1) >> 20) & 0xf;
 }
 
 /*
@@ -2353,6 +2342,11 @@ static void cec_save_pre_setting(void)
 {
 	unsigned int config_data;
 
+	/* AO_DEBUG_REG1
+	 * 0-15 : phy addr
+	 * 16-20: logical address
+	 * 21-23: device type
+	 */
 	config_data = cec_dev->cec_info.log_addr;
 	cec_config2_logaddr(config_data, 1);
 	config_data = cec_dev->dev_type;
@@ -2369,16 +2363,19 @@ static void cec_restore_pre_setting(void)
 	unsigned int logaddr;
 	unsigned int devtype;
 	unsigned int cec_cfg;
-	unsigned int data32;
-	char *token;
+	/*unsigned int data32;*/
+	/*char *token;*/
 
-	cec_msg_dbg_en = 1;
 	cec_cfg = cec_config(0, 0);
 	/*get device type*/
-	/*read config2 all 32 bit data*/
-	data32 = cec_config2_logaddr(0, 0);
-	logaddr = (data32 >> 16) & 0xf;
-	devtype = (data32 >> 20) & 0xf;
+	/* AO_DEBUG_REG1+
+	 * 0-15 : phy addr+
+	 * 16-20: logical address+
+	 * 21-23: device type+
+	 */
+	/*data32 = cec_config2_logaddr(0, 0);*/
+	 logaddr = cec_config2_logaddr(0, 0);/*(data32 >> 16) & 0xf;*/
+	 devtype = cec_config2_devtype(0, 0);/*(data32 >> 20) & 0xf;*/
 
 	/*get logical address*/
 	if (cec_dev->cec_num > ENABLE_ONE_CEC)
@@ -2390,7 +2387,7 @@ static void cec_restore_pre_setting(void)
 	cec_dev->dev_type = devtype;
 	cec_dev->cec_info.log_addr = logaddr;
 	cec_dev->cec_info.vendor_id = cec_dev->v_data.vendor_id;
-	cec_dev->phy_addr = data32 & 0xffff;
+	cec_dev->phy_addr = cec_config2_phyaddr(0, 0);/*data32 & 0xffff;*/
 
 	CEC_ERR("%s: logaddr:0x%x, devtype:%d\n", __func__,
 		cec_dev->cec_info.log_addr,
@@ -2399,12 +2396,12 @@ static void cec_restore_pre_setting(void)
 	/*suspend freeze mode, driver handle cec msg*/
 	cec_dev->hal_flag &= ~(1 << HDMI_OPTION_SERVICE_FLAG);
 
-	token = kmalloc(2048, GFP_KERNEL);
-	if (token) {
-		dump_cecrx_reg(token);
-		CEC_ERR("%s\n", token);
-		kfree(token);
-	}
+	/*token = kmalloc(2048, GFP_KERNEL);*/
+	/*if (token) {*/
+	/*	dump_cecrx_reg(token);*/
+	/*	CEC_ERR("%s\n", token);*/
+	/*	kfree(token);*/
+	/*}*/
 }
 
 static void cec_task(struct work_struct *work)
@@ -2659,6 +2656,9 @@ static ssize_t dbg_en_store(struct class *cla, struct class_attribute *attr,
 		return -EINVAL;
 
 	cec_msg_dbg_en = en;
+	en = cec_config(0, 0);
+	en |= 0x80000000;
+	cec_config(en, 1);
 	return count;
 }
 
@@ -2756,7 +2756,7 @@ static ssize_t fun_cfg_store(struct class *cla, struct class_attribute *attr,
 	int cnt, val;
 
 	cnt = kstrtouint(bu, 16, &val);
-	if (cnt < 0 || val > 0xff)
+	if (cnt < 0)
 		return -EINVAL;
 	cec_config(val, 1);
 	if (val == 0)
@@ -2771,7 +2771,7 @@ static ssize_t fun_cfg_show(struct class *cla,
 {
 	unsigned int reg = cec_config(0, 0);
 
-	return sprintf(buf, "0x%x\n", reg & 0xff);
+	return sprintf(buf, "0x%x\n", reg);
 }
 
 static ssize_t cec_version_show(struct class *cla,
@@ -2829,7 +2829,10 @@ static ssize_t dbg_store(struct class *cla, struct class_attribute *attr,
 			return count;
 
 		cec_msg_dbg_en = val;
-		/*CEC_ERR("msg_dbg_en:%d\n", val);*/
+		CEC_ERR("msg_dbg_en:%d\n", val);
+		val = cec_config(0, 0);
+		val |= 0x80000000;
+		cec_config(val, 1);
 	} else if (token && strncmp(token, "rceca", 5) == 0) {
 		token = strsep(&cur, delim);
 		/*string to int*/
@@ -3091,6 +3094,13 @@ static ssize_t hdmitx_cec_write(struct file *f, const char __user *buf,
 	if (copy_from_user(tempbuf, buf, size))
 		return -EINVAL;
 
+	/*osd name configed in android prop file*/
+	if ((size > 0 && size < 16) && (tempbuf[1] == CEC_OC_SET_OSD_NAME)) {
+		memset(cec_dev->cec_info.osd_name, 0, 16);
+		memcpy(cec_dev->cec_info.osd_name, &tempbuf[2], (size - 2));
+		cec_dev->cec_info.osd_name[15] = (size - 2);
+	}
+
 	cec_cfg = cec_config(0, 0);
 	if (cec_cfg & CEC_FUNC_CFG_CEC_ON) {
 		/*cec module on*/
@@ -3293,18 +3303,24 @@ unsigned int cec_get_cur_phy_addr(void)
 {
 		struct hdmitx_dev *tx_dev;
 		unsigned int a, b, c, d;
-		unsigned int tmp;
+		unsigned int tmp = 0, i;
 
 		tx_dev = cec_dev->tx_dev;
 		if (!tx_dev || cec_dev->dev_type == CEC_TV_ADDR) {
 			tmp = 0;
 		} else/* if (tx_dev->hdmi_info.vsdb_phy_addr.valid == 1) */{
-			/*hpd attach and wait read edid*/
-			a = tx_dev->hdmi_info.vsdb_phy_addr.a;
-			b = tx_dev->hdmi_info.vsdb_phy_addr.b;
-			c = tx_dev->hdmi_info.vsdb_phy_addr.c;
-			d = tx_dev->hdmi_info.vsdb_phy_addr.d;
-			tmp = ((a << 12) | (b << 8) | (c << 4) | (d));
+			for (i = 0; i < 5; i++) {
+				/*hpd attach and wait read edid*/
+				a = tx_dev->hdmi_info.vsdb_phy_addr.a;
+				b = tx_dev->hdmi_info.vsdb_phy_addr.b;
+				c = tx_dev->hdmi_info.vsdb_phy_addr.c;
+				d = tx_dev->hdmi_info.vsdb_phy_addr.d;
+				tmp = ((a << 12) | (b << 8) | (c << 4) | (d));
+
+				if (tx_dev->hdmi_info.vsdb_phy_addr.valid == 1)
+					break;
+				msleep(20);
+			}
 		}
 
 		return tmp;
@@ -3332,9 +3348,9 @@ static long hdmitx_cec_ioctl(struct file *f,
 
 		if (!phy_addr_test) {
 			cec_config2_phyaddr(cec_dev->phy_addr, 1);
-			/*CEC_INFO("type %d, save phy_addr:0x%x\n",*/
-			/*	 (unsigned int)cec_dev->dev_type,*/
-			/*	 cec_dev->phy_addr);*/
+			CEC_INFO("type %d, save phy_addr:0x%x\n",
+				 (unsigned int)cec_dev->dev_type,
+				 cec_dev->phy_addr);
 		} else
 			tmp = cec_dev->phy_addr;
 
@@ -3476,6 +3492,7 @@ static long hdmitx_cec_ioctl(struct file *f,
 
 	case CEC_IOC_SET_DEV_TYPE:
 		cec_ap_set_dev_type(arg);
+		cec_config2_devtype(cec_dev->dev_type, 1);
 		break;
 
 	case CEC_IOC_SET_ARC_ENABLE:
@@ -3552,6 +3569,52 @@ static unsigned int cec_poll(struct file *filp, poll_table *wait)
 	return mask;
 }
 
+/*
+ * cec new message wait queue - wake up poll process
+ */
+void cec_new_msg_push(void)
+{
+	if (cec_config(0, 0) & CEC_FUNC_CFG_CEC_ON) {
+		complete(&cec_dev->rx_ok);
+		new_msg = 1;
+		wake_up(&cec_msg_wait_queue);
+	}
+}
+
+/*
+ * save param to mailbox, to uboot
+ */
+void cec_save_mail_box(void)
+{
+	unsigned int tmp;
+
+	CEC_INFO("%s\n", __func__);
+	tmp = cec_get_cur_phy_addr();
+	if (cec_dev->dev_type != CEC_TV_ADDR) {
+		if (tmp == 0)
+			cec_dev->phy_addr = 0x1234;
+		else
+			cec_dev->phy_addr = tmp;
+	} else {
+		cec_dev->phy_addr = 0;
+	}
+
+	cec_mailbox.cec_config = cec_config(0, 0);
+	cec_mailbox.phy_addr = cec_config2_phyaddr(0, 0);
+	cec_mailbox.phy_addr |= cec_config2_logaddr(0, 0) << 16;
+	cec_mailbox.phy_addr |= cec_config2_devtype(0, 0) << 20;
+	CEC_INFO("phy_addr:0x%x", cec_mailbox.phy_addr);
+
+	cec_mailbox.vendor_id = cec_dev->cec_info.vendor_id;
+	memcpy(cec_mailbox.osd_name, cec_dev->cec_info.osd_name, 16);
+	if (cec_dev->plat_data->chip_id >= CEC_CHIP_SC2)
+		scpi_send_cec_data(SCPI_CMD_SET_CEC_DATA, (void *)&cec_mailbox,
+				   sizeof(struct st_cec_mailbox_data));
+	else
+		scpi_send_usr_data(SCPI_CL_SET_CEC_DATA, (void *)&cec_mailbox,
+				   sizeof(struct st_cec_mailbox_data));
+}
+
 /* for improve rw permission */
 static char *aml_cec_class_devnode(struct device *dev, umode_t *mode)
 {
@@ -3611,8 +3674,10 @@ static void aocec_early_suspend(struct early_suspend *h)
 {
 	/*unsigned int tempaddr;*/
 	cec_dev->cec_suspend = CEC_PW_STANDBY;
+	cec_save_mail_box();
 	/* reset wakeup reason for considering light sleep situation*/
 	cec_dev->wakeup_reason = 0;
+	CEC_INFO("%s\n", __func__);
 }
 
 static void aocec_late_resume(struct early_suspend *h)
@@ -4369,6 +4434,7 @@ static int aml_cec_suspend_noirq(struct device *dev)
 		if (!IS_ERR(cec_dev->dbg_dev->pins->sleep_state))
 			ret = pinctrl_pm_select_sleep_state(cec_dev->dbg_dev);
 	}
+	cec_save_mail_box();
 	cec_dev->cec_info.power_status = CEC_PW_STANDBY;
 	cec_dev->cec_suspend = CEC_PW_STANDBY;
 	return 0;
@@ -4414,6 +4480,14 @@ static const struct dev_pm_ops aml_cec_pm = {
 };
 #endif
 
+static void aml_cec_shutdown(struct platform_device *pdev)
+{
+	/*CEC_ERR("%s\n", __func__);*/
+	cec_save_mail_box();
+	cec_dev->cec_info.power_status = CEC_PW_STANDBY;
+	cec_dev->cec_suspend = CEC_PW_STANDBY;
+}
+
 static struct platform_driver aml_cec_driver = {
 	.driver = {
 		.name  = "cectx",
@@ -4425,6 +4499,7 @@ static struct platform_driver aml_cec_driver = {
 		.of_match_table = aml_cec_dt_match,
 	#endif
 	},
+	.shutdown = aml_cec_shutdown,
 	.probe  = aml_cec_probe,
 	.remove = aml_cec_remove,
 };
