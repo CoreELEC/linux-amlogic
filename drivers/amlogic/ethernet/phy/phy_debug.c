@@ -446,7 +446,7 @@ static int am_net_write_macreg(int argc, char **argv)
 		return -1;
 	}
 
-	r = kstrtoint(argv[2], 0, &val);
+	r = kstrtouint(argv[2], 0, &val);
 	if (r) {
 		pr_err("kstrtoint failed\n");
 		return -1;
