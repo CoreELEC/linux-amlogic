@@ -2409,6 +2409,25 @@ static ssize_t store_latency(struct class *class,
 	return size;
 }
 
+static ssize_t show_avsync_counts(struct class *class,
+				  struct class_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%u\n", timestamp_avsync_counter_get());
+}
+
+static ssize_t store_avsync_counts(struct class *class,
+				   struct class_attribute *attr,
+				   const char *buf, size_t size)
+{
+	unsigned int counts = 0;
+	ssize_t r;
+
+	r = kstrtouint(buf, 0, &counts);
+	if (r != 0)
+		return -EINVAL;
+	timestamp_avsync_counter_set(counts);
+	return size;
+}
 static ssize_t show_apts_lookup(struct class *class,
 	struct class_attribute *attrr, char *buf)
 {
@@ -2502,6 +2521,7 @@ static struct class_attribute tsync_class_attrs[] = {
 	NULL),
 	__ATTR(pts_latency, 0664, show_latency, store_latency),
 	__ATTR(videostarted, 0664, show_videostarted, NULL),
+	__ATTR(avsync_count, 0664, show_avsync_counts, store_avsync_counts),
 	__ATTR_NULL
 };
 
