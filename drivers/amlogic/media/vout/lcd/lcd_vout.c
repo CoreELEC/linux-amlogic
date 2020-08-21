@@ -281,7 +281,6 @@ static void lcd_power_ctrl(int status)
 #endif
 	unsigned int i, index, wait;
 	int value = -1;
-
 	LCDPR("%s: %d\n", __func__, status);
 	i = 0;
 	while (i < LCD_PWR_STEP_MAX) {
@@ -784,30 +783,6 @@ static struct notifier_block lcd_bl_select_nb = {
 	.notifier_call = lcd_bl_select_notifier,
 };
 
-static int lcd_extern_select_notifier(struct notifier_block *nb,
-		unsigned long event, void *data)
-{
-	unsigned int *index;
-	struct lcd_config_s *pconf = lcd_driver->lcd_config;
-
-	if ((event & LCD_EVENT_EXTERN_SEL) == 0)
-		return NOTIFY_DONE;
-	/* LCDPR("%s: 0x%lx\n", __func__, event); */
-
-	index = (unsigned int *)data;
-	*index = pconf->extern_index;
-	if (pconf->lcd_basic.lcd_type == LCD_MIPI) {
-		if (*index == LCD_EXTERN_INDEX_INVALID)
-			*index = pconf->lcd_control.mipi_config->extern_init;
-	}
-
-	return NOTIFY_OK;
-}
-
-static struct notifier_block lcd_extern_select_nb = {
-	.notifier_call = lcd_extern_select_notifier,
-};
-
 static int lcd_vlock_param_notifier(struct notifier_block *nb,
 		unsigned long event, void *data)
 {
@@ -854,9 +829,6 @@ static int lcd_notifier_register(void)
 	ret = aml_lcd_notifier_register(&lcd_bl_select_nb);
 	if (ret)
 		LCDERR("register aml_bl_select_notifier failed\n");
-	ret = aml_lcd_notifier_register(&lcd_extern_select_nb);
-	if (ret)
-		LCDERR("register lcd_extern_select_nb failed\n");
 	ret = aml_lcd_notifier_register(&lcd_vlock_param_nb);
 	if (ret)
 		LCDERR("register lcd_vlock_param_nb failed\n");
@@ -874,7 +846,6 @@ static void lcd_notifier_unregister(void)
 	aml_lcd_notifier_unregister(&lcd_power_encl_on_nb);
 
 	aml_lcd_notifier_unregister(&lcd_bl_select_nb);
-	aml_lcd_notifier_unregister(&lcd_extern_select_nb);
 	aml_lcd_notifier_unregister(&lcd_vlock_param_nb);
 }
 /* **************************************** */
