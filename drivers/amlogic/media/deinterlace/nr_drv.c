@@ -836,6 +836,10 @@ static void cue_process_irq(void)
 			else
 				DI_Wr_reg_bits(DI_NR_CTRL0,
 					       cue_en ? 1 : 0, 26, 1);
+			/*confirm with vlsi,fix jira SWPL-31571*/
+			if (cpu_after_eq(MESON_CPU_MAJOR_ID_SC2))
+				DI_Wr_reg_bits(MCDI_CTRL_MODE,
+					       (!cue_en) ? 1 : 0, 16, 1);
 		}
 	}
 	if (nr_param.frame_count == 5)
