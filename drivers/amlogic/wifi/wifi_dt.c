@@ -566,8 +566,8 @@ int pwm_double_channel_conf(struct wifi_plat_info *plat)
 	pwm_config(pwm1, pwm1_duty, pstate1.period);
 	pwm_config(pwm2, pwm2_duty, pstate2.period);
 
-	pwm_set_times(meson1, MESON_PWM_0, pwm1_times);
-	pwm_set_times(meson2, MESON_PWM_2, pwm2_times);
+	pwm_set_times(meson1, pwm1->hwpwm, pwm1_times);
+	pwm_set_times(meson2, pwm2->hwpwm, pwm2_times);
 
 	pwm_enable(pwm1);
 	pwm_enable(pwm2);
