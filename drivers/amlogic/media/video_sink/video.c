@@ -1702,6 +1702,8 @@ static void vsync_toggle_frame(struct vframe_s *vf, int line)
 
 	if (hold_video) {
 		if (cur_dispbuf != vf) {
+			u32 old_w, old_h;
+
 			new_frame_count++;
 			if (vf->pts != 0) {
 				amlog_mask(
@@ -1735,12 +1737,20 @@ static void vsync_toggle_frame(struct vframe_s *vf, int line)
 					timestamp_vpts_inc_u64(-1);
 				}
 			}
+
+			old_w = cur_width;
+			old_h = cur_height;
 			if (vf->type & VIDTYPE_COMPRESS) {
 				cur_width = vf->compWidth;
 				cur_height = vf->compHeight;
 			} else {
 				cur_width = vf->width;
 				cur_height = vf->height;
+			}
+			if ((old_w != cur_width) ||
+			    (old_h != cur_height)) {
+				atomic_inc(&video_sizechange);
+				wake_up_interruptible(&amvideo_sizechange_wait);
 			}
 			video_vf_put(vf);
 			ATRACE_COUNTER(__func__,  __LINE__);
@@ -4419,7 +4429,10 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 			}
 
 			vsync_toggle_frame(vf, __LINE__);
-			path0_new_frame = vf;
+			if (hold_video)
+				path0_new_frame = NULL;
+			else
+				path0_new_frame = vf;
 
 			/* The v4l2 capture needs a empty vframe to flush */
 			if (has_receive_dummy_vframe())
@@ -4430,6 +4443,8 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 			    (vd1_path_id == VFM_PATH_DEF) ||
 			    (vd1_path_id == VFM_PATH_AUTO))
 				dv_new_vf = dvel_toggle_frame(vf, true);
+			if (hold_video)
+				dv_new_vf = NULL;
 #endif
 			if (trickmode_fffb == 1) {
 				trickmode_vpts = vf->pts;
@@ -4556,13 +4571,18 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 						break;
 					}
 					vsync_toggle_frame(vf, __LINE__);
-					path0_new_frame = vf;
+					if (hold_video)
+						path0_new_frame = NULL;
+					else
+						path0_new_frame = vf;
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 					if ((vd1_path_id == VFM_PATH_AMVIDEO) ||
 					    (vd1_path_id == VFM_PATH_DEF) ||
 					    (vd1_path_id == VFM_PATH_AUTO))
 						dv_new_vf =
 						dvel_toggle_frame(vf, true);
+					if (hold_video)
+						dv_new_vf = NULL;
 #endif
 					frame_repeat_count = 0;
 
@@ -8389,6 +8409,9 @@ static ssize_t video_hold_store(struct class *cla,
 	r = kstrtoint(buf, 0, &value);
 	if (r < 0)
 		return -EINVAL;
+
+	while (atomic_read(&video_inirq_flag) > 0)
+		schedule();
 
 	if (value == 0 && hold_video == 1)
 		hold_property_changed = 1;
