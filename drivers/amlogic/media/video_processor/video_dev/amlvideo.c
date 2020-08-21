@@ -632,6 +632,10 @@ dqbuf_done:
 	ATRACE_COUNTER(dev->v4l2_dev.name, vfq_level(&dev->q_ready));
 	p->index = 0;
 	p->sequence = dev->frame_num++;
+
+	if (dev->vf->type & VIDTYPE_DI_PW || dev->vf->type & VIDTYPE_INTERLACE)
+		p->field = V4L2_FIELD_INTERLACED;
+
 	mutex_unlock(&dev->vf_mutex);
 
 	vf_notify_receiver(dev->vf_provider_name,

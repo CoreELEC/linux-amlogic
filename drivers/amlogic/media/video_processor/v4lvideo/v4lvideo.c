@@ -1820,6 +1820,10 @@ static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *p)
 		p->timecode.flags = vf->height;
 	}
 	p->sequence = dev->frame_num++;
+
+	if (vf->type & VIDTYPE_DI_PW || vf->type & VIDTYPE_INTERLACE)
+		p->field = V4L2_FIELD_INTERLACED;
+
 	//pr_err("dqbuf: frame_num=%d\n", p->sequence);
 	dq_count[inst_id]++;
 	return 0;

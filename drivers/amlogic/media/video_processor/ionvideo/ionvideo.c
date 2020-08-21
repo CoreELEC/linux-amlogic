@@ -339,6 +339,10 @@ static int ionvideo_fillbuff(struct ionvideo_dev *dev,
 		dev->am_parm.signal_type = vf->signal_type;
 		dev->am_parm.master_display_colour
 				= vf->prop.master_display_colour;
+
+		if (vf->type & VIDTYPE_DI_PW || vf->type & VIDTYPE_INTERLACE)
+			buf->field = V4L2_FIELD_INTERLACED;
+
 		vf_put(vf, dev->vf_receiver_name);
 		buf->timestamp.tv_sec = dev->pts >> 32;
 		buf->timestamp.tv_usec = dev->pts & 0xFFFFFFFF;
