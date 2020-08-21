@@ -43,10 +43,18 @@ extern ssize_t emmc_scan_cmd_win(struct device *dev,
 ssize_t emmc_scan_tx_win(struct device *dev,
 			 struct device_attribute *attr, char *buf);
 
+extern ssize_t mmc_scan_rx_win(struct device *dev,
+			       struct device_attribute *attr, char *buf);
+
+extern ssize_t mmc_s_scan_rx_win(struct device *dev,
+				 struct device_attribute *attr,
+				 const char *buf, size_t len);
+
 void aml_emmc_erase_timeout(struct work_struct *work);
 
 DEVICE_ATTR(emmc_eyetest, 0444, emmc_eyetest_show, NULL);
 DEVICE_ATTR(emmc_clktest, 0444, emmc_clktest_show, NULL);
 DEVICE_ATTR(emmc_cmd_window, 0444, emmc_scan_cmd_win, NULL);
 DEVICE_ATTR(emmc_tx_window, 0444, emmc_scan_tx_win, NULL);
+DEVICE_ATTR(mmc_rx_window, 0600, mmc_scan_rx_win, mmc_s_scan_rx_win);
 #endif

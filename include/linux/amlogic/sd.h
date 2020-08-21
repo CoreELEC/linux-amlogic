@@ -32,10 +32,15 @@
 #define AML_FIXED_ADJ_MIN	5
 #define AML_FIXED_ADJ_MAX	6
 #define AML_FIXED_ADJ_STEP	4
-#define AML_MOVE_DELAY1(x)	\
-	((x << 0)|(x << 6)|(x << 12)|(x << 18)|(x << 24))
-#define AML_MOVE_DELAY2(x)	\
-	((x << 0)|(x << 6)|(x << 12)|(x << 24))
+#define AML_MV_DLY1_NOMMC(x)	\
+	(((x) << 0) | ((x) << 6) | ((x) << 12) | ((x) << 18))
+#define AML_MV_DLY1(x)	\
+	(((x) << 0) | ((x) << 6) | ((x) << 12) | ((x) << 18) | ((x) << 24))
+#define AML_MV_DLY2(x)	\
+	(((x) << 0) | ((x) << 6) | ((x) << 12) | ((x) << 24))
+#define AML_MV_DLY2_NOMMC_CMD(x) ((x) << 24)
+#define AML_MV_DLY2_NOCMD(x)	\
+	(((x) << 0) | ((x) << 6) | ((x) << 12))
 #define NO_FIXED_ADJ_MID	(1 << 31)
 
 #define	 AML_ERROR_RETRY_COUNTER		 10
@@ -206,6 +211,7 @@ enum mmc_chip_e {
 	MMC_CHIP_G12B = 0x29b,
 	MMC_CHIP_SM1 = 0X2C,
 	MMC_CHIP_TM2 = 0X2D,
+	MMC_CHIP_TM2_B = 0X2DB,
 	MMC_CHIP_SC2 = 0X2E,
 };
 
@@ -347,6 +353,7 @@ struct amlsd_platform {
 	unsigned int calc_f;
 	unsigned int no_sduart;
 
+	unsigned int scan_val;
 	unsigned int auto_clk_close;
 	unsigned int vol_switch;
 	unsigned int vol_switch_18;
@@ -1546,6 +1553,9 @@ struct intf3 {
 	u32 ds_sht_m:6;     /*[17:12]*/
 	u32 ds_sht_exp:4;   /*[21:18]*/
 	u32 sd_intf3:1;     /*[22]*/
+	u32 nand_edo:3;     /*[25:23]*/
+	u32 eyetest_sel:1;  /*[26]*/
+	u32 resp_sel:1;     /*[27]*/
 };
 
 struct sd_emmc_start {
