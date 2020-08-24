@@ -72,6 +72,26 @@ static struct am_vout_mode am_vout_modes[] = {
 	{ "1680x1050p60hz", VMODE_HDMI, 1680, 1050, 60, 0},
 };
 
+static int am_hdmi_create_mode_default_attr(struct drm_display_mode *mode)
+{
+	u8 tmp;
+
+	memset(mode->default_attr, 0, 16);
+	if (mode->mode_color_444)
+		strcpy(mode->default_attr, "444");
+	else if (mode->mode_color_422)
+		strcpy(mode->default_attr, "422");
+	else if (mode->mode_color_420)
+		strcpy(mode->default_attr, "420");
+	else
+		strcpy(mode->default_attr, "rgb");
+	tmp = strlen(mode->default_attr);
+	mode->default_attr[tmp] = ',';
+	strcat(mode->default_attr, "8bit");
+
+	return 0;
+}
+
 static struct am_vout_mode am_vout_modes_hdmi20[] = {
 	{ "2160p60hz", VMODE_HDMI, 3840, 2160, 60, 0},
 	{ "2160p50hz", VMODE_HDMI, 3840, 2160, 50, 0},
@@ -139,8 +159,7 @@ char *am_meson_hdmi_get_voutmode(struct drm_display_mode *mode)
 				pname = am_vout_modes_hdmi20[i].name;
 		}
 		if (pname &&
-		    am_hdmi->color_space ==
-		    (enum hdmi_colorspace)COLORSPACE_YUV420) {
+		    am_hdmi->color_space == COLORSPACE_YUV420) {
 		switch (am_hdmi->color_depth) {
 		case COLORDEPTH_30B:
 			if (!phdmi20_para->dc_30bit_420)
@@ -826,6 +845,8 @@ static int am_hdmi_connector_atomic_set_property
 	rtn_val = am_hdmi_check_attr(am_hdmi, property, val);
 	if (rtn_val != 0) {
 		DRM_INFO("[%s]: Check attr Fail!\n", __func__);
+		am_hdmi->color_depth = COLORDEPTH_RESERVED;
+		am_hdmi->color_space = COLORSPACE_RESERVED;
 		return rtn_val;
 	}
 	if (property == connector->content_protection_property) {
@@ -920,28 +941,40 @@ void am_hdmi_encoder_mode_set(struct drm_encoder *encoder,
 				   struct drm_display_mode *mode,
 				   struct drm_display_mode *adjusted_mode)
 {
-	const char attr1[16] = "rgb,8bit";
-	const char attr2[16] = "420,8bit";
-	char attr_tmp[16];
 	int vic;
 	struct am_hdmi_tx *am_hdmi = &am_hdmi_info;
+	struct drm_connector *connector;
+	struct drm_display_mode *mmode;
 
-	DRM_INFO("mode : %s, adjusted_mode : %s\n",
-		mode->name,  adjusted_mode->name);
+	connector = &am_hdmi->connector;
 	am_hdmi->hdmi_info.vic = drm_match_cea_mode(adjusted_mode);
-	vic = am_hdmi->hdmi_info.vic;
 	DRM_INFO("the hdmi mode vic : %d\n", am_hdmi->hdmi_info.vic);
+	list_for_each_entry(mmode, &connector->modes, head) {
+		vic = drm_match_cea_mode(mmode);
+		if (vic == am_hdmi->hdmi_info.vic) {
+			DRM_INFO("mode_color:%d,%d,%d,%d\n",
+				 mmode->mode_color_444,
+				 mmode->mode_color_422, mmode->mode_color_420,
+				 mmode->mode_color_rgb);
+			adjusted_mode->mode_color_444 = mmode->mode_color_444;
+			adjusted_mode->mode_color_422 = mmode->mode_color_422;
+			adjusted_mode->mode_color_420 = mmode->mode_color_420;
+			adjusted_mode->mode_color_rgb = mmode->mode_color_rgb;
+			break;
+		}
+	}
 	/* Store the display mode for plugin/DPMS poweron events */
 	memcpy(&am_hdmi->previous_mode, adjusted_mode,
 	       sizeof(am_hdmi->previous_mode));
-	get_attr(attr_tmp);
-	if (strlen(attr_tmp) == 0) {
-		if (vic == 96 || vic == 97 || vic == 101 || vic == 102 ||
-		    vic == 106 || vic == 107)
-			setup_attr(attr2);
-		else
-			setup_attr(attr1);
+	DRM_INFO("mode_color:%d,%d,%d\n", adjusted_mode->mode_color_444,
+		 adjusted_mode->mode_color_422, adjusted_mode->mode_color_420);
+	if (am_hdmi->color_depth == COLORDEPTH_RESERVED ||
+	    am_hdmi->color_space == COLORSPACE_RESERVED) {
+		am_hdmi_create_mode_default_attr(adjusted_mode);
+		setup_attr(adjusted_mode->default_attr);
 	}
+	am_hdmi->color_depth = COLORDEPTH_RESERVED;
+	am_hdmi->color_space = COLORSPACE_RESERVED;
 }
 
 void am_hdmi_encoder_enable(struct drm_encoder *encoder)
@@ -1238,7 +1271,7 @@ static void am_meson_hdmi_connector_init_property(struct drm_device *drm_dev,
 {
 	struct drm_property *prop;
 	/* Connector */
-	am_hdmi->color_depth = MESON_DEFAULT_COLOR_DEPTH;
+	am_hdmi->color_depth = COLORDEPTH_RESERVED;
 	prop = drm_property_create_enum(drm_dev, 0, "Color Depth",
 			am_color_depth_enum_names,
 			ARRAY_SIZE(am_color_depth_enum_names));
@@ -1250,7 +1283,7 @@ static void am_meson_hdmi_connector_init_property(struct drm_device *drm_dev,
 		DRM_ERROR("Failed to add Color Depth property\n");
 	}
 
-	am_hdmi->color_space = MESON_DEFAULT_COLOR_SPACE;
+	am_hdmi->color_space = COLORSPACE_RESERVED;
 	prop = drm_property_create_enum(drm_dev, 0, "Color Space",
 			am_color_space_enum_names,
 			ARRAY_SIZE(am_color_space_enum_names));
@@ -1294,7 +1327,6 @@ static int am_meson_hdmi_bind(struct device *dev,
 		return -ENOMEM;
 	memcpy(&am_hdmi_info, am_hdmi, sizeof(*am_hdmi));
 	am_hdmi = &am_hdmi_info;
-
 	DRM_INFO("drm hdmitx init and version:%s\n", DRM_HDMITX_VER);
 	am_hdmi->priv = priv;
 	encoder = &am_hdmi->encoder;

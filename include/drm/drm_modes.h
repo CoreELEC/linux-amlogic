@@ -264,6 +264,12 @@ struct drm_display_mode {
 	 */
 	unsigned int type;
 
+	unsigned char mode_color_rgb;
+	unsigned char mode_color_444;
+	unsigned char mode_color_422;
+	unsigned char mode_color_420;
+	char default_attr[16];
+
 	/**
 	 * @clock:
 	 *

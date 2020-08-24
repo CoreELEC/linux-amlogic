@@ -3081,12 +3081,17 @@ drm_display_mode_from_vic_index(struct drm_connector *connector,
 		return NULL;
 
 	newmode->vrefresh = 0;
+	newmode->mode_color_444 = 0;
+	newmode->mode_color_422 = 0;
+	newmode->mode_color_420 = 0;
+	newmode->mode_color_rgb = 0;
 
 	return newmode;
 }
 
 static int
-do_cea_modes(struct drm_connector *connector, const u8 *db, u8 len)
+do_cea_modes(struct drm_connector *connector, const u8 *db, u8 len,
+	     u8 mode_color_space)
 {
 	int i, modes = 0;
 
@@ -3095,6 +3100,11 @@ do_cea_modes(struct drm_connector *connector, const u8 *db, u8 len)
 
 		mode = drm_display_mode_from_vic_index(connector, db, len, i);
 		if (mode) {
+			mode->mode_color_rgb = 1;
+			if (mode_color_space & 0x20)
+				mode->mode_color_444 = 1;
+			if (mode_color_space & 0x10)
+				mode->mode_color_422 = 1;
 			drm_mode_probed_add(connector, mode);
 			modes++;
 		}
@@ -3103,18 +3113,35 @@ do_cea_modes(struct drm_connector *connector, const u8 *db, u8 len)
 	return modes;
 }
 
+static bool Y420VicRight(unsigned int vic)
+{
+	bool rtn_val;
+
+	rtn_val = false;
+	if (vic == 96 || vic == 97 ||
+	    vic == 101 || vic == 102 ||
+	    vic == 106 || vic == 107)
+		rtn_val = true;
+	return rtn_val;
+}
+
 static int
 do_cea_420vdb_modes(struct drm_connector *connector, const u8 *db, u8 len)
 {
 	int i, modes = 0;
+	u8 vic;
 
 	for (i = 0; i < len; i++) {
 		struct drm_display_mode *mode;
-
-		mode = drm_display_mode_from_vic_index(connector, db, len, i);
-		if (mode) {
-			drm_420_mode_probed_add(connector, mode);
-			modes++;
+		vic = (db[i] & 127);
+		if (Y420VicRight(vic)) {
+			mode =
+			drm_display_mode_from_vic_index(connector, db, len, i);
+			if (mode) {
+				mode->mode_color_420 = 1;
+				drm_420_mode_probed_add(connector, mode);
+				modes++;
+			}
 		}
 	}
 
@@ -3137,12 +3164,11 @@ do_cea_420cmdb_modes(struct drm_connector *connector, const u8 *db,
 		bit = i & 7;
 		if ((cmdb_mask[byte] & (1 << bit)) != 0) {
 			vic = (db[i] & 127);
-			if (vic == 96 || vic == 97 ||
-			    vic == 101 || vic == 102 ||
-			    vic == 106 || vic == 107) {
+			if (Y420VicRight(vic)) {
 				mode = drm_display_mode_from_vic_index(
 							connector, db, len, i);
 				if (mode) {
+					mode->mode_color_420 = 1;
 					drm_420_mode_probed_add(connector,
 								mode);
 					modes++;
@@ -3288,7 +3314,7 @@ static int add_3d_struct_modes(struct drm_connector *connector, u16 structure,
  */
 static int
 do_hdmi_vsdb_modes(struct drm_connector *connector, const u8 *db, u8 len,
-		   const u8 *video_db, u8 video_len)
+		   const u8 *video_db, u8 video_len, u8 mode_color_space)
 {
 	int modes = 0, offset = 0, i, multi_present = 0, multi_len;
 	u8 vic_len, hdmi_3d_len = 0;
@@ -3407,6 +3433,11 @@ do_hdmi_vsdb_modes(struct drm_connector *connector, const u8 *db, u8 len,
 
 			if (newmode) {
 				newmode->flags |= newflag;
+				newmode->mode_color_rgb = 1;
+				if (mode_color_space & 0x20)
+					newmode->mode_color_444 = 1;
+				if (mode_color_space & 0x10)
+					newmode->mode_color_422 = 1;
 				drm_mode_probed_add(connector, newmode);
 				modes++;
 			}
@@ -3518,10 +3549,13 @@ add_cea_modes(struct drm_connector *connector, struct edid *edid)
 	u8 ext_tag, cmdb_mask[32], cmdb_flag = 0;
 	u8 dbl, hdmi_len, svd_len = 0, video_len = 0;
 	int modes = 0;
+	u8 mode_color_space = 0;
 
 	memset(cmdb_mask, 0, sizeof(cmdb_mask));
 	if (cea && cea_revision(cea) >= 3) {
 		int i, start, end;
+
+		mode_color_space = cea[3] & 0x30;
 
 		if (cea_db_offsets(cea, &start, &end))
 			return 0;
@@ -3533,7 +3567,8 @@ add_cea_modes(struct drm_connector *connector, struct edid *edid)
 			if (cea_db_tag(db) == VIDEO_BLOCK) {
 				video = db + 1;
 				video_len = dbl;
-				modes += do_cea_modes(connector, video, dbl);
+				modes += do_cea_modes(connector, video, dbl,
+						      mode_color_space);
 			} else if (cea_db_is_hdmi_vsdb(db)) {
 				hdmi = db;
 				hdmi_len = dbl;
@@ -3571,7 +3606,7 @@ add_cea_modes(struct drm_connector *connector, struct edid *edid)
 	 */
 	if (hdmi)
 		modes += do_hdmi_vsdb_modes(connector, hdmi, hdmi_len, video,
-					    video_len);
+					    video_len, mode_color_space);
 
 	return modes;
 }
@@ -3581,7 +3616,7 @@ int add_default_modes(struct drm_connector *connector)
 	const u8 db[4] = {2, 4, 5, 16};
 	int modes = 0;
 
-	modes += do_cea_modes(connector, db, 4);
+	modes += do_cea_modes(connector, db, 4, 0);
 
 	return modes;
 }
