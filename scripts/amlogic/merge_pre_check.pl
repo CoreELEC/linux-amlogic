@@ -23,8 +23,6 @@ sub get_kernel_version
 	#print "$k_v\n";
 }
 
-
-
 #Check mesonxx_defconfig
 sub check_defconfig
 {
@@ -206,6 +204,23 @@ sub check_msg_49_2
 	}
 }
 
+sub check_nonascii_character
+{
+	my $add_msg = `git format-patch -1 --stdout`;
+	my @add_str = split /[\n]/, $add_msg;
+	my $i = 0;
+	my $len = @add_str;
+
+	for ($i = 0; $i < $len; $i = $i + 1)
+	{
+		if ($add_str[$i] =~ m/[^\x00-\x7f]/)
+		{
+			$err_cnt += 1;
+			$err_msg  .= "	$add_str[$i]\n";
+		}
+	}
+}
+
 sub check_msg_314
 {
 	my $line = pop(@_);
@@ -337,6 +352,8 @@ check_defconfig();
 #Check commit message
 
 check_commit_msg();
+
+check_nonascii_character();
 
 out_review();
 #out
