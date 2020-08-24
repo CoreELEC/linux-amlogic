@@ -236,26 +236,26 @@ static void dump_mif_state(struct DI_MIF_S *mif)
 
 /*2018-08-17 add debugfs*/
 /*same as dump_mif_state*/
-static void dump_mif_state_seq(struct DI_MIF_S *mif,
-			       struct seq_file *seq)
+void dump_mif_state_seq(struct DI_MIF_S *mif,
+			struct seq_file *seq)
 {
-	seq_printf(seq, "luma <%u, %u> <%u %u>.\n",
+	seq_printf(seq, "\tluma <%u, %u> <%u %u>.\n",
 		   mif->luma_x_start0, mif->luma_x_end0,
 		   mif->luma_y_start0, mif->luma_y_end0);
-	seq_printf(seq, "chroma <%u, %u> <%u %u>.\n",
+	seq_printf(seq, "\tchroma <%u, %u> <%u %u>.\n",
 		   mif->chroma_x_start0, mif->chroma_x_end0,
 		   mif->chroma_y_start0, mif->chroma_y_end0);
-	seq_printf(seq, "canvas id <%u %u %u>.\n",
+	seq_printf(seq, "\tcanvas id <%u %u %u>.\n",
 		   mif->canvas0_addr0,
 		   mif->canvas0_addr1,
 		   mif->canvas0_addr2);
-	seq_printf(seq, "bit_mode [%u] set_separate_en[%u]\n",
+	seq_printf(seq, "\tbit_mode [%u] set_separate_en[%u]\n",
 		   mif->bit_mode,
 		   mif->set_separate_en);
-	seq_printf(seq, "video_mode [%u] src_prog[%u]\n",
+	seq_printf(seq, "\tvideo_mode [%u] src_prog[%u]\n",
 		   mif->video_mode,
 		   mif->src_prog);
-	seq_printf(seq, "src_field_mode [%u] output_field_num[%u]\n",
+	seq_printf(seq, "\tsrc_field_mode [%u] output_field_num[%u]\n",
 		   mif->src_field_mode,
 		   mif->output_field_num);
 }
@@ -271,14 +271,23 @@ static void dump_simple_mif_state(struct DI_SIM_MIF_s *simp_mif)
 
 /*2018-08-17 add debugfs*/
 /*same as dump_simple_mif_state*/
-static void dump_simple_mif_state_seq(struct DI_SIM_MIF_s *simp_mif,
-				      struct seq_file *seq)
+void dump_simple_mif_state_seq(struct DI_SIM_MIF_s *simp_mif,
+			       struct seq_file *seq)
 {
-	seq_printf(seq, "<%u %u> <%u %u>.\n",
+	seq_printf(seq, "\t<%u %u> <%u %u>.\n",
 		   simp_mif->start_x, simp_mif->end_x,
 		   simp_mif->start_y, simp_mif->end_y);
-	seq_printf(seq, "canvas num <%u>.\n",
+	seq_printf(seq, "\tcanvas num <%u>.\n",
 		   simp_mif->canvas_num);
+	seq_printf(seq, "\tbit_mode [%u] set_separate_en[%u]\n",
+		   simp_mif->bit_mode,
+		   simp_mif->set_separate_en);
+	seq_printf(seq, "\tvideo_mode [%u]\n",
+		   simp_mif->video_mode);
+	seq_printf(seq, "\tddr_en [%u],src_i [%u]\n",
+		   simp_mif->ddr_en, simp_mif->src_i);
+	seq_printf(seq, "\ten [%u], cbcr_swap[%u]\n",
+		   simp_mif->en, simp_mif->cbcr_swap);
 }
 
 static void dump_mc_mif_state(struct DI_MC_MIF_s *mc_mif)
@@ -486,16 +495,7 @@ void dim_dump_mif_size_state(struct di_pre_stru_s *pre_stru_p,
 	}
 
 	pr_info("=====inp mif:\n");
-#ifdef MARK_HIS
-	WR(DI_DBG_CTRL, 0x1b);
-	WR(DI_DBG_CTRL1, 0x640064);
-	wr_reg_bits(DI_PRE_GL_CTRL, 0, 31, 1);
-	wr_reg_bits(DI_PRE_CTRL, 0, 11, 1);
-	wr_reg_bits(DI_PRE_CTRL, 1, 31, 1);
-	wr_reg_bits(DI_PRE_GL_CTRL, 1, 31, 1);
-	pr_info("DI_DBG_SRDY_INF=0x%x\n", RD(DI_DBG_SRDY_INF));
-	pr_info("DI_DBG_RRDY_INF=0x%x\n", RD(DI_DBG_RRDY_INF));
-#endif
+
 	if (DIM_IS_IC_EF(SC2)) {
 		opl1()->dbg_reg_pre_mif_print();
 	} else {
@@ -803,6 +803,11 @@ static void print_di_buf_seq(struct di_buf_s *di_buf, int format,
 				   di_buf->di_wr_linked_buf,
 				   di_buf->di_wr_linked_buf->type);
 		}
+		if (di_buf->blk_buf) {
+			seq_printf(seq, "blk[%d], add[0x%lx]\n",
+				   di_buf->blk_buf->header.index,
+				   di_buf->blk_buf->mem_start);
+		}
 	}
 }
 
@@ -816,17 +821,20 @@ void dim_dump_pre_mif_state(void)
 	pr_info("DI_INP_GEN_REG2=0x%x.\n", RD(DI_INP_GEN_REG2));
 	pr_info("DI_INP_GEN_REG3=0x%x.\n", RD(DI_INP_GEN_REG3));
 	for (i = 0; i < 10; i++)
-		pr_info("0x%x=0x%x.\n", 0x17ce + i, RD(0x17ce + i));
+		pr_info("0x%x=0x%x.\n",
+			DI_INP_GEN_REG + i, RD(DI_INP_GEN_REG + i));
 	pr_info("DI_MEM_GEN_REG2=0x%x.\n", RD(DI_MEM_GEN_REG2));
 	pr_info("DI_MEM_GEN_REG3=0x%x.\n", RD(DI_MEM_GEN_REG3));
 	pr_info("DI_MEM_LUMA_FIFO_SIZE=0x%x.\n", RD(DI_MEM_LUMA_FIFO_SIZE));
 	for (i = 0; i < 10; i++)
-		pr_info("0x%x=0x%x.\n", 0x17db + i, RD(0x17db + i));
+		pr_info("0x%x=0x%x.\n",
+			DI_MEM_GEN_REG + i, RD(DI_MEM_GEN_REG + i));
 	pr_info("DI_CHAN2_GEN_REG2=0x%x.\n", RD(DI_CHAN2_GEN_REG2));
 	pr_info("DI_CHAN2_GEN_REG3=0x%x.\n", RD(DI_CHAN2_GEN_REG3));
 	pr_info("DI_CHAN2_LUMA_FIFO_SIZE=0x%x.\n", RD(DI_CHAN2_LUMA_FIFO_SIZE));
 	for (i = 0; i < 10; i++)
-		pr_info("0x%x=0x%x.\n", 0x17f5 + i, RD(0x17f5 + i));
+		pr_info("0x%x=0x%x.\n",
+			DI_CHAN2_GEN_REG + i, RD(DI_CHAN2_GEN_REG + i));
 }
 
 void dim_dump_post_mif_reg(void)
@@ -965,6 +973,9 @@ int dim_state_show(struct seq_file *seq, void *v, unsigned int channel)
 		   mm->sts.flg_tvp,
 		   mm->sts.flg_realloc,
 		   mm->sts.cnt_alloc);
+	seq_printf(seq, "mm:sts:num_local[%d],num_post[%d]\n",
+		   mm->sts.num_local,
+		   mm->sts.num_post);
 	keep_buf = di_post_stru_p->keep_buf;
 	seq_printf(seq, "used_post_buf_index %d(0x%p),",
 		   IS_ERR_OR_NULL(keep_buf) ?
@@ -1038,6 +1049,11 @@ int dim_state_show(struct seq_file *seq, void *v, unsigned int channel)
 
 		seq_printf(seq, "index %2d, 0x%p, type %d, vframetype 0x%x\n",
 			   p->index, p, p->type, p->vframe->type);
+		if (p->blk_buf) {
+			seq_printf(seq, "blk[%d], add[0x%lx]\n",
+				   p->blk_buf->header.index,
+				   p->blk_buf->mem_start);
+		}
 	}
 	seq_printf(seq, "%s\n", splt);
 
@@ -1187,6 +1203,13 @@ int dim_state_show(struct seq_file *seq, void *v, unsigned int channel)
 		   get_sum_g(channel));
 	seq_printf(seq, "%-15s=%d\n", "pre_put_sum",
 		   get_sum_p(channel));
+	seq_printf(seq, "%-15s=%d\n", "pst_get_sum",
+		   get_sum_pst_g(channel));
+	seq_printf(seq, "%-15s=%d\n", "pst_put_sum",
+		   get_sum_pst_p(channel));
+
+	seq_printf(seq, "%-15s=%d\n", "sum_alloc_release",
+		   get_mtask()->fcmd[channel].sum_alloc);
 	dump_state_flag = 0;
 	return 0;
 }

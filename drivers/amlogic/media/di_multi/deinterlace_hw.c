@@ -3013,7 +3013,9 @@ void dimh_enable_di_post_afbc(struct pst_cfg_afbc_s *cfg)
 
 void dimh_pst_trig_resize(void)
 {
-	DIM_VSYNC_WR_MPEG_REG(DI_POST_SIZE, (32 - 1) | ((128 - 1) << 16));
+	struct di_hpst_s  *pst = get_hw_pst();
+//	DIM_VSYNC_WR_MPEG_REG(DI_POST_SIZE, (32 - 1) | ((128 - 1) << 16));
+	pst->last_pst_size = 0;
 }
 
 void dimh_disable_post_deinterlace_2(void)
@@ -4148,6 +4150,20 @@ static void ma_pre_mif_ctrl(bool enable)
 static void di_pre_data_mif_ctrl(bool enable)
 {
 	if (enable) {
+		/*****************************************/
+		if (dim_afds() && dim_afds()->is_used())
+			dim_afds()->inp_sw(true);
+		if (dim_afds() && !dim_afds()->is_used_chan2())
+			wr_reg_bits(DI_CHAN2_GEN_REG, 1, 0, 1);
+
+		if (dim_afds() && !dim_afds()->is_used_mem())
+			wr_reg_bits(DI_MEM_GEN_REG, 1, 0, 1);
+
+		if (dim_afds() && !dim_afds()->is_used_inp())
+			wr_reg_bits(DI_INP_GEN_REG, 1, 0, 1);
+
+		/*****************************************/
+		#ifdef MARK_SC2
 		/* enable input mif*/
 		DIM_DI_WR(DI_CHAN2_GEN_REG, RD(DI_CHAN2_GEN_REG) | 0x1);
 		DIM_DI_WR(DI_MEM_GEN_REG, RD(DI_MEM_GEN_REG) | 0x1);
@@ -4163,6 +4179,7 @@ static void di_pre_data_mif_ctrl(bool enable)
 			if (dim_afds())
 				dim_afds()->inp_sw(false);
 		}
+		#endif
 		/* nrwr no clk gate en=0 */
 		/*DIM_RDMA_WR_BITS(DI_NRWR_CTRL, 0, 24, 1);*/
 	} else {

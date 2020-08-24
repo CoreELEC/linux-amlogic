@@ -29,7 +29,7 @@ void didbg_fs_exit(void);
 void di_cfgx_init_val(void);
 
 void didbg_vframe_in_copy(unsigned int ch, struct vframe_s *pvfm);
-void didbg_vframe_out_save(struct vframe_s *pvfm);
+void didbg_vframe_out_save(unsigned int ch, struct vframe_s *pvfm);
 
 /********************************
  *debug register:
@@ -66,5 +66,6 @@ struct dim_tr_ops_s {
 };
 
 extern const struct dim_tr_ops_s dim_tr_ops;
+void dbg_timer(unsigned int ch, enum EDBG_TIMER item);
 
 #endif	/*__DI_DBG_H__*/

@@ -67,6 +67,22 @@ enum DI_MIFS_ID {
 	 DI_MIFS_ID_MTNRD,
 };
 
+enum DI_SRC_ID { /* for copy or rotation */
+	DI_SRC_ID_MIF_INP		= 0,
+	DI_SRC_ID_MIF_CHAN2		= 1,
+	DI_SRC_ID_MIF_MEM		= 2,
+	DI_SRC_ID_MIF_IF1		= 3,
+	DI_SRC_ID_MIF_IF0		= 4,
+	DI_SRC_ID_MIF_IF2		= 5,
+
+	DI_SRC_ID_AFBCD_INP		= 8,
+	DI_SRC_ID_AFBCD_CHAN2		= 9,
+	DI_SRC_ID_AFBCD_MEM		= 0xa,
+	DI_SRC_ID_AFBCD_IF1		= 0xb,
+	DI_SRC_ID_AFBCD_IF0		= 0xc,
+	DI_SRC_ID_AFBCD_IF2		= 0xd,
+};
+
 #define MIF_NUB		6
 #define MIF_REG_NUB	15
 /* keep order with mif_contr_reg*/
@@ -269,6 +285,8 @@ struct DI_MIF_S {
 	unsigned int		output_field_num:1;
 	unsigned int reseved		:8;
 
+	/**/
+	enum DI_MIF0_ID	mif_index; /* */
 };
 
 struct DI_SIM_MIF_s {
@@ -305,6 +323,8 @@ struct DI_SIM_MIF_s {
 	unsigned int	en		:1; /* add for sc2*/
 	unsigned int	src_i		:1; /* ary add for sc2 */
 	unsigned int	reserved	: 15;
+
+	enum DI_MIFS_ID	mif_index; /* */
 };
 
 struct DI_MC_MIF_s {
@@ -429,7 +449,13 @@ union hw_sc2_ctr_pre_s {
 	unsigned int afbc_mem		: 1;
 	unsigned int afbc_chan2		: 1;
 
-	unsigned int reserve2		: 20;
+	unsigned int is_inp_4k		: 1;
+	unsigned int is_chan2_4k	: 1;
+	unsigned int is_mem_4k		: 1;
+	unsigned int reserve1		: 1;
+
+	unsigned int mode_4k		: 2;
+	unsigned int reserve2		: 14;
 	} b;
 };
 

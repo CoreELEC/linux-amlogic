@@ -36,27 +36,29 @@ enum ECMA_CMD {
 	ECMA_CMD_ONE_RELEAS,
 };
 
-void dip_wq_cma_run(unsigned char ch, unsigned int reg_cmd);
-bool dip_cma_st_is_ready(unsigned int ch);
-bool dip_cma_st_is_idle(unsigned int ch);
+//void dip_wq_cma_run(unsigned char ch, unsigned int reg_cmd);
+//bool dip_cma_st_is_ready(unsigned int ch);
+//bool dip_cma_st_is_idle(unsigned int ch);
 bool dip_cma_st_is_idl_all(void);
 enum EDI_CMA_ST dip_cma_get_st(unsigned int ch);
 void dip_cma_st_set_ready_all(void);
 void dip_cma_close(void);
 const char *di_cma_dbg_get_st_name(unsigned int ch);
-void dip_wq_check_unreg(unsigned int ch);
+//void dip_wq_check_unreg(unsigned int ch);
 
 /*************************/
 /* STATE*/
 /*************************/
-bool dip_event_reg_chst(unsigned int ch);
-bool dip_event_unreg_chst(unsigned int ch);
-void dip_chst_process_reg(unsigned int ch);
+//bool dip_event_reg_chst(unsigned int ch);
+//bool dip_event_unreg_chst(unsigned int ch);
+//void dip_chst_process_reg(unsigned int ch);
+bool dim_process_reg(struct di_ch_s *pch);
+bool dim_process_unreg(struct di_ch_s *pch);
 
 void dip_hw_process(void);
 
 void dip_chst_process_ch(void);
-bool dip_chst_change_2unreg(void);
+//bool dip_chst_change_2unreg(void);
 
 enum EDI_TOP_STATE dip_chst_get(unsigned int ch);
 const char *dip_chst_get_name_curr(unsigned int ch);
@@ -126,6 +128,13 @@ unsigned int di_mp_uix_get(unsigned int ch, enum EDI_MP_UIX_T idx);
 void di_mp_uix_set(unsigned int ch, enum EDI_MP_UIX_T idx,
 		   unsigned int val);
 
+/****************************************
+ *bit control
+ ****************************************/
+void bset(unsigned int *p, unsigned int bitn);
+void bclr(unsigned int *p, unsigned int bitn);
+bool bget(unsigned int *p, unsigned int bitn);
+
 /****************************************/
 /* do_table				*/
 /****************************************/
@@ -152,7 +161,18 @@ void dim_polic_unreg(struct di_ch_s *pch);
 unsigned int dim_polic_is_bypass(struct di_ch_s *pch, struct vframe_s *vf);
 void dim_polic_cfg_local(unsigned int cmd, bool on);
 
-void dip_init_value_reg(unsigned int ch);
+unsigned int dim_get_trick_mode(void);
+
+/************************************************
+ * reg / unreg 2020-06-12
+ ************************************************/
+int dim_api_reg(enum DIME_REG_MODE rmode, struct di_ch_s *pch);
+bool dim_api_unreg(enum DIME_REG_MODE rmode, struct di_ch_s *pch);
+void dim_trig_unreg(unsigned int ch);
+
+void dip_init_value_reg(unsigned int ch, struct vframe_s *vframe);
+enum EDI_SGN di_vframe_2_sgn(struct vframe_s *vframe);
+const struct di_mm_cfg_s *di_get_mm_tab(unsigned int is_4k);
 
 bool di_is_pause(unsigned int ch);
 void di_pause_step_done(unsigned int ch);
@@ -165,5 +185,6 @@ void dim_mp_update_reg(void);
 void dim_mp_update_post(void);
 
 void dip_init_pq_ops(void);
+bool dbg_checkcrc(struct di_buf_s *di_buf);
 
 #endif	/*__DI_PRC_H__*/

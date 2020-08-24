@@ -27,7 +27,7 @@
 #include "di_data_l.h"
 #include "di_que.h"
 #include "di_vframe.h"
-
+#include "di_sys.h"
 #include "di_prc.h"
 
 const char * const di_name_new_que[QUE_NUB] = {
@@ -258,6 +258,7 @@ int di_que_is_empty(unsigned int ch, enum QUE_TYPE qtype)
 void di_que_init(unsigned int ch)
 {
 	int i;
+	struct di_ch_s *pch = get_chdata(ch);
 
 	for (i = 0; i < QUE_NUB; i++) {
 		if (i == QUE_POST_KEEP		||
@@ -266,6 +267,8 @@ void di_que_init(unsigned int ch)
 			continue;
 		pw_queue_clear(ch, i);
 	}
+
+	bufq_mem_clear(pch);
 }
 
 bool di_que_alloc(unsigned int ch)
@@ -357,13 +360,13 @@ struct di_buf_s *di_que_out_to_di_buf(unsigned int ch, enum QUE_TYPE qtype)
 	struct di_buf_s *pdi_buf = NULL;
 
 	if (!pw_queue_peek(ch, qtype, &q_index)) {
-		PR_ERR("%s:no buf\n", __func__);
+		PR_ERR("%s:ch[%d]no buf\n", __func__, ch);
 		return pdi_buf;
 	}
 
 	pdi_buf = pw_qindex_2_buf(ch, q_index);
 	if (!pdi_buf) {
-		PR_ERR("%s:buf is null[%d]\n", __func__, q_index);
+		PR_ERR("%s:ch[%d]buf is null[0x%x]\n", __func__, ch, q_index);
 		return NULL;
 	}
 
@@ -950,7 +953,7 @@ void queue_in(unsigned int channel, struct di_buf_s *di_buf, int queue_idx)
 			}
 		}
 		if (i == MAX_QUEUE_POOL_SIZE) {
-			pr_dbg("%s: Error\n", __func__);
+			//PR_ERR("%s: Error\n", __func__);
 			if (dim_vcry_get_flg() == 0) {
 				dim_vcry_set_log_reason(9);
 				dim_vcry_set_log_q_idx(queue_idx);
@@ -965,7 +968,7 @@ void queue_in(unsigned int channel, struct di_buf_s *di_buf, int queue_idx)
 			di_buf->queue_index = queue_idx;
 			q->num++;
 		} else {
-			pr_dbg("%s: Error\n", __func__);
+			PR_ERR("%s: Error\n", __func__);
 			if (dim_vcry_get_flg() == 0) {
 				dim_vcry_set_log_reason(9);
 				dim_vcry_set_log_q_idx(queue_idx);

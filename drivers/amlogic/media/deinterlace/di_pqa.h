@@ -216,8 +216,8 @@ enum EAFBC_ENC {
 
 enum EAFBC_CFG {
 	EAFBC_CFG_DISABLE,
-	EAFBC_CFG_PMODE,	/* < AFBCD_V4 */
-	EAFBC_CFG_EMODE,
+	EAFBC_CFG_INP_AFBC,	/* < AFBCD_V4 */
+	EAFBC_CFG_ETEST2,
 	EAFBC_CFG_ETEST,
 	EAFBC_CFG_4K,
 	EAFBC_CFG_PRE_LINK,
@@ -334,12 +334,12 @@ struct afbcd_ctr_s {
 //	unsigned int mem_addr_h;
 //	unsigned int mem_addr_b;
 	unsigned int pst_in_vtp;
-	unsigned int pst_o_vtp;
+	//unsigned int pst_o_vtp;
 	unsigned int pst_in_h;
 	unsigned int pst_in_w;
 	unsigned int pst_in_bitdepth;
-	unsigned int pst_o_h;
-	unsigned int pst_o_w;
+	//unsigned int pst_o_h;
+	//unsigned int pst_o_w;
 };
 
 struct afd_s {
@@ -352,6 +352,7 @@ enum AFBC_SGN {
 	AFBC_SGN_BYPSS,
 	AFBC_SGN_P_H265,
 	AFBC_SGN_P,
+	AFBC_SGN_P_H265_AS_P,
 	AFBC_SGN_I,
 	AFBC_SGN_I_H265,
 };
@@ -376,11 +377,16 @@ struct afd_ops_s {
 	bool (*is_cfg)(enum EAFBC_CFG cfg_cmd);
 	unsigned int (*count_info_size)(unsigned int w, unsigned int h);
 	unsigned int (*count_tab_size)(unsigned int buf_size);
-	void (*int_tab)(struct device *dev,
-			struct afbce_map_s *pcfg);
+	unsigned int (*int_tab)(struct device *dev,
+				struct afbce_map_s *pcfg);
+	unsigned int (*tab_cnt_crc)(struct device *dev,
+				    struct afbce_map_s *pcfg,
+				    unsigned int check_mode,
+				    unsigned int crc_old);
 	void (*dump_reg)(void);
 	void (*reg_sw)(bool on);
 	void (*reg_val)(void *pch);
+	void (*rest_val)(void);
 	u32 (*rqst_share)(bool onoff);
 	const unsigned int *(*get_d_addrp)(enum EAFBC_DEC eidx);
 	const unsigned int *(*get_e_addrp)(enum EAFBC_ENC eidx);
