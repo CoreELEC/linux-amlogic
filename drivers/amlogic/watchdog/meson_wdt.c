@@ -50,7 +50,7 @@ struct aml_wdt_dev {
 	struct device *dev;
 	struct mutex lock;
 	unsigned int reset_watchdog_method;
-	struct delayed_work boot_queue;
+	struct hrtimer timer;
 	void __iomem *reg_base;
 	struct notifier_block pm_notifier;
 	struct notifier_block reboot_notifier;
@@ -105,10 +105,6 @@ static int aml_wdt_start(struct watchdog_device *wdog)
 		set_watchdog_cnt(wdev, wdog->timeout * wdev->one_second);
 	enable_watchdog(wdev);
 	mutex_unlock(&wdev->lock);
-#if 0
-	if (wdev->boot_queue)
-		cancel_delayed_work(&wdev->boot_queue);
-#endif
 	wdev->is_running = true;
 	dev_info(wdev->dev, "start watchdog\n");
 
@@ -167,13 +163,15 @@ unsigned int aml_wdt_get_timeleft(struct watchdog_device *wdog)
 	return (tick - timeleft)/wdev->one_second;
 }
 
-static void boot_moniter_work(struct work_struct *work)
+static enum hrtimer_restart boot_hrtimer_monitor(struct hrtimer *timer)
 {
-	struct aml_wdt_dev *wdev = container_of(work, struct aml_wdt_dev,
-							boot_queue.work);
+	struct aml_wdt_dev *wdev = container_of(timer, struct aml_wdt_dev,
+							timer);
+	dev_dbg(wdev->dev, "reset watchdog in hrtimer monitor\n");
 	reset_watchdog(wdev);
-	mod_delayed_work(system_freezable_wq, &wdev->boot_queue,
-	round_jiffies(msecs_to_jiffies(wdev->reset_watchdog_time*1000)));
+	hrtimer_forward_now(timer, ktime_set(wdev->reset_watchdog_time, 0));
+
+	return HRTIMER_RESTART;
 }
 
 static const struct watchdog_info aml_wdt_info = {
@@ -291,7 +289,7 @@ static int aml_wtd_reboot_notify(struct notifier_block *nb,
 			event);
 	}
 	if (wdev->reset_watchdog_method == 1)
-		cancel_delayed_work(&wdev->boot_queue);
+		hrtimer_cancel(&wdev->timer);
 	return NOTIFY_OK;
 }
 
@@ -306,7 +304,7 @@ static struct notifier_block aml_wdt_reboot_notifier = {
 
 #ifdef CONFIG_AMLOGIC_DEBUG_LOCKUP
 /* HARDLOCKUP safe window: watchdog_thresh * 2 * /5 *3 *2 = 24 second*/
-#define HARDLOCKUP_WIN	 30
+#define HARDLOCKUP_WIN	 60
 struct aml_wdt_dev *g_awdt;
 void aml_wdt_disable_dbg(void)
 {
@@ -350,12 +348,13 @@ static int aml_wdt_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, aml_wdt);
 	wdev->is_running = false;
 	if (wdev->reset_watchdog_method == 1) {
-
-		INIT_DELAYED_WORK(&wdev->boot_queue, boot_moniter_work);
-		mod_delayed_work(system_freezable_wq, &wdev->boot_queue,
-	 round_jiffies(msecs_to_jiffies(wdev->reset_watchdog_time*1000)));
+		hrtimer_init(&wdev->timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+		wdev->timer.function = boot_hrtimer_monitor;
+		hrtimer_start(&wdev->timer,
+			      ktime_set(wdev->reset_watchdog_time, 0),
+			      HRTIMER_MODE_REL);
 		aml_wdt_start(aml_wdt);
-		dev_info(wdev->dev, "creat work queue for watch dog\n");
+		dev_info(wdev->dev, "create hrtimer for watch dog\n");
 	}
 	ret = watchdog_register_device(aml_wdt);
 	if (ret)
@@ -378,7 +377,7 @@ static void aml_wdt_shutdown(struct platform_device *pdev)
 	struct aml_wdt_dev *wdev = watchdog_get_drvdata(wdog);
 
 	if (wdev->reset_watchdog_method == 1)
-		cancel_delayed_work(&wdev->boot_queue);
+		hrtimer_cancel(&wdev->timer);
 	disable_watchdog(wdev);
 }
 
