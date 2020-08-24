@@ -5967,6 +5967,12 @@ static void config_hdmi20_tx(enum hdmi_vic vic,
 		(output_color_format != COLORSPACE_YUV422)) ? 2 : 0) << 4);
 	hdmitx_wr_reg(HDMITX_DWC_CSC_CFG, data32);
 	hdmitx_csc_config(input_color_format, output_color_format, color_depth);
+	/* The time of the LG49UF6600 TV processing AVI infoframe is particular.
+	 * If don't sleep for 200ms, the color of video will turn
+	 * magenta or green with low probability.
+	 */
+	if (LGAVIErrorTV(&hdev->rxcap))
+		msleep(200);
 
 	/* Configure video packetizer */
 
