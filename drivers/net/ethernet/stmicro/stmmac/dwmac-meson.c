@@ -339,16 +339,20 @@ unsigned int  tx_amp_bl2;
 unsigned int  enet_type;
 /*for newer then g12a use this dts architecture for dts*/
 void __iomem *phy_analog_config_addr;
+/*sc2 need re-setup top*/
+u32 mc_val;
+u32 cali_val;
+void __iomem *REG_ETH_reg0_addr;
 static void __iomem *g12a_network_interface_setup(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
 	struct device *dev = &pdev->dev;
 	struct pinctrl *pin_ctl;
 	struct resource *res = NULL;
-	u32 mc_val;
-	u32 cali_val;
+//	u32 mc_val;
+//	u32 cali_val;
 	void __iomem *addr = NULL;
-	void __iomem *REG_ETH_reg0_addr = NULL;
+//	void __iomem *REG_ETH_reg0_addr = NULL;
 	void __iomem *ETH_PHY_config_addr = NULL;
 	void __iomem *tx_amp_src = NULL;
 	u32 internal_phy = 0;
@@ -577,6 +581,13 @@ static int meson6_dwmac_resume(struct device *dev)
 				(unsigned long)ee_reset_base);
 		}
 	}
+	/*sc2 will reset top*/
+	if (enet_type == 3) {
+		writel(mc_val, REG_ETH_reg0_addr);
+		writel(cali_val, REG_ETH_reg0_addr +
+				REG_ETH_REG1_OFFSET);
+	}
+
 	if ((is_internal_phy) && (support_mac_wol == 0)) {
 		pin_ctrl = devm_pinctrl_get(dev);
 		if (IS_ERR_OR_NULL(pin_ctrl)) {
