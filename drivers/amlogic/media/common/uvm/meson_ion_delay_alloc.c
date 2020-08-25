@@ -195,7 +195,7 @@ static int meson_uvm_fill_pattern(struct dma_buf *dmabuf)
 		vf = &file_private_data->vf;
 
 	if (!buffer->index || buffer->index != vf->omx_index) {
-		v4lvideo_data_copy(&val_data, NULL);
+		v4lvideo_data_copy(&val_data);
 		buffer->index = vf->omx_index;
 	}
 

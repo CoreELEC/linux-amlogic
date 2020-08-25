@@ -37,7 +37,6 @@
 #include <linux/amlogic/media/di/di.h>
 #include "../../common/vfm/vfm.h"
 #include <linux/amlogic/media/amdolbyvision/dolby_vision.h>
-#include <linux/amlogic/meson_uvm_core.h>
 
 #define V4LVIDEO_MODULE_NAME "v4lvideo"
 
@@ -117,8 +116,6 @@ struct keeper_mgr {
 };
 
 static struct keeper_mgr keeper_mgr_private;
-
-static const struct file_operations v4lvideo_file_fops;
 
 void v4lvideo_dec_count_increase(void)
 {
@@ -723,7 +720,7 @@ free:
 		vfree(planes[i]);
 }
 
-void v4lvideo_data_copy(struct v4l_data_t *v4l_data, struct dma_buf *dmabuf)
+void v4lvideo_data_copy(struct v4l_data_t *v4l_data)
 {
 	struct file *fp;
 	mm_segment_t fs;
@@ -731,7 +728,6 @@ void v4lvideo_data_copy(struct v4l_data_t *v4l_data, struct dma_buf *dmabuf)
 	char name_buf[32];
 	uint32_t write_size;
 
-	struct uvm_hook_mod *uhmod;
 	struct config_para_ex_s ge2d_config;
 	struct canvas_config_s dst_canvas_config[3];
 	struct vframe_s *vf = NULL;
@@ -740,32 +736,16 @@ void v4lvideo_data_copy(struct v4l_data_t *v4l_data, struct dma_buf *dmabuf)
 	bool is_10bit = false;
 	struct file_private_data *file_private_data;
 
-	if (!dmabuf) {
-		file_private_data = v4l_data->file_private_data;
-	} else {
-		uhmod = uvm_get_hook_mod(dmabuf, VF_PROCESS_V4LVIDEO);
-		if (!(uhmod && uhmod->arg)) {
-			pr_err("uvm_get_hook_mod fail.\n");
-			return;
-		}
-		file_private_data = uhmod->arg;
-		uvm_put_hook_mod(dmabuf, VF_PROCESS_V4LVIDEO);
-	}
-
-	if (!file_private_data) {
-		pr_err("v4lvideo_data_copy file_private_data is NULL\n");
-		return;
-	}
-
+	file_private_data = v4l_data->file_private_data;
 	if (file_private_data->flag & V4LVIDEO_FLAG_DI_NR)
 		vf = &file_private_data->vf_ext;
 	else
 		vf = &file_private_data->vf;
-	if (cts_use_di)
-		vf = &file_private_data->vf;
 
+	if (cts_use_di) {
+		vf = &file_private_data->vf;
+	}
 	if ((vf->type & VIDTYPE_COMPRESS)) {
-		v4l_data->file_private_data = file_private_data;
 		do_vframe_afbc_soft_decode(v4l_data);
 		return;
 	}
@@ -921,6 +901,21 @@ void v4lvideo_data_copy(struct v4l_data_t *v4l_data, struct dma_buf *dmabuf)
 	}
 }
 
+struct file_private_data *v4lvideo_get_vf(int fd)
+{
+	struct file *file_vf = NULL;
+	struct file_private_data *file_private_data;
+
+	file_vf = fget(fd);
+	if (!file_vf) {
+		pr_err("v4lvideo_get_vf file_vf is NULL\n");
+		return NULL;
+	}
+	file_private_data = (struct file_private_data *)file_vf->private_data;
+	fput(file_vf);
+	return file_private_data;
+}
+
 static s32 v4lvideo_release_sei_data(struct vframe_s *vf)
 {
 	void *p;
@@ -937,97 +932,6 @@ static s32 v4lvideo_release_sei_data(struct vframe_s *vf)
 	}
 	ret = clear_vframe_src_fmt(vf);
 	return ret;
-}
-
-static void v4lvideo_private_data_release(struct file_private_data *data)
-{
-	if (!data) {
-		pr_err("v4lvideo_private_data_release NULL\n");
-		return;
-	}
-
-	if (data->is_keep)
-		vf_free(data);
-	v4lvideo_release_sei_data(&data->vf);
-	memset(data, 0, sizeof(struct file_private_data));
-}
-
-void free_fd_private(void *arg)
-{
-	if (arg) {
-		v4lvideo_private_data_release(arg);
-		kfree((u8 *)arg);
-	} else {
-		pr_err("free: arg is NULL\n");
-	}
-}
-
-struct file_private_data *v4lvideo_get_file_private_data(struct file *file_vf,
-							 bool alloc_if_null)
-{
-	struct file_private_data *file_private_data;
-	bool is_v4lvideo_fd = false;
-	struct uvm_hook_mod *uhmod;
-	struct uvm_hook_mod_info info;
-	int ret;
-
-	if (!file_vf) {
-		pr_err("v4lvideo: get_file_private_data fail\n");
-		return NULL;
-	}
-
-	if (is_v4lvideo_buf_file(file_vf))
-		is_v4lvideo_fd = true;
-
-	if (is_v4lvideo_fd) {
-		file_private_data =
-			(struct file_private_data *)(file_vf->private_data);
-		return file_private_data;
-	}
-
-	uhmod = uvm_get_hook_mod((struct dma_buf *)(file_vf->private_data),
-				 VF_PROCESS_V4LVIDEO);
-	if (uhmod && uhmod->arg) {
-		file_private_data = uhmod->arg;
-		uvm_put_hook_mod((struct dma_buf *)(file_vf->private_data),
-				 VF_PROCESS_V4LVIDEO);
-		return file_private_data;
-	} else if (!alloc_if_null) {
-		return NULL;
-	}
-
-	file_private_data = kzalloc(sizeof(*file_private_data), GFP_KERNEL);
-	if (!file_private_data)
-		return NULL;
-	info.type = VF_PROCESS_V4LVIDEO;
-	info.arg = file_private_data;
-	info.free = free_fd_private;
-	info.acquire_fence = NULL;
-	ret =  uvm_attach_hook_mod((struct dma_buf *)(file_vf->private_data),
-				   &info);
-
-	return file_private_data;
-}
-
-struct file_private_data *v4lvideo_get_vf(int fd)
-{
-	struct file *file_vf = NULL;
-	struct file_private_data *file_private_data;
-
-	file_vf = fget(fd);
-	if (!file_vf) {
-		pr_err("v4lvideo_get_vf file_vf is NULL\n");
-		return NULL;
-	}
-
-	file_private_data = v4lvideo_get_file_private_data(file_vf, false);
-	fput(file_vf);
-	if (!file_private_data) {
-		pr_err("%s v4lvideo_get_vf private is NULL\n", __func__);
-		return NULL;
-	}
-
-	return file_private_data;
 }
 
 static s32 v4lvideo_import_sei_data(
@@ -1336,14 +1240,11 @@ static int vidioc_qbuf(struct file *file, void *priv, struct v4l2_buffer *p)
 		pr_err("v4lvideo: qbuf fget fail\n");
 		return 0;
 	}
-
-	file_private_data = v4lvideo_get_file_private_data(file_vf, true);
+	file_private_data = (struct file_private_data *)(file_vf->private_data);
 	if (!file_private_data) {
 		pr_err("v4lvideo: qbuf file_private_data NULL\n");
-		fput(file_vf);
 		return 0;
 	}
-
 	vf_p = file_private_data->vf_p;
 	vf_ext_p = file_private_data->vf_ext_p;
 	flag = file_private_data->flag;
@@ -1515,11 +1416,9 @@ static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *p)
 		pr_err("v4lvideo: dqbuf fget fail\n");
 		return -EAGAIN;
 	}
-
-	file_private_data = v4lvideo_get_file_private_data(file_vf, false);
+	file_private_data = (struct file_private_data *)(file_vf->private_data);
 	if (!file_private_data) {
 		mutex_unlock(&dev->mutex_input);
-		fput(file_vf);
 		pr_err("v4lvideo: file_private_data NULL\n");
 		return -EAGAIN;
 	}
@@ -1793,6 +1692,8 @@ free_dev:
 	return ret;
 }
 
+static const struct file_operations v4lvideo_file_fops;
+
 static int v4lvideo_file_release(struct inode *inode, struct file *file)
 {
 	struct file_private_data *file_private_data = file->private_data;
@@ -1812,7 +1713,6 @@ static int v4lvideo_file_release(struct inode *inode, struct file *file)
 			file_private_data->md.p_comp = NULL;
 		}
 		memset(file_private_data, 0, sizeof(struct file_private_data));
-		v4lvideo_private_data_release(file_private_data);
 		kfree((u8 *)file_private_data);
 		file->private_data = NULL;
 	}
@@ -1825,11 +1725,6 @@ static const struct file_operations v4lvideo_file_fops = {
 	//.unlocked_ioctl = v4lvideo_file_ioctl,
 	//.compat_ioctl = v4lvideo_file_ioctl,
 };
-
-int is_v4lvideo_buf_file(struct file *file)
-{
-	return file->f_op == &v4lvideo_file_fops;
-}
 
 int v4lvideo_alloc_fd(int *fd)
 {
