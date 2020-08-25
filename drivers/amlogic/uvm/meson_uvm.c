@@ -1,5 +1,5 @@
 /*
- * drivers/amlogic/media/common/uvm/meson_ion_delay_alloc.c
+ * drivers/amlogic/uvm/meson_uvm.c
  *
  * Copyright (C) 2017 Amlogic, Inc. All rights reserved.
  *
@@ -37,8 +37,7 @@
 #include <linux/amlogic/media/vfm/vframe.h>
 #include <linux/amlogic/media/video_sink/v4lvideo_ext.h>
 
-#include "meson_ion_delay_alloc.h"
-#include "meson_uvm_conf.h"
+#include "meson_uvm.h"
 
 static struct uvm_device *uvm_dev;
 static struct dma_buf_ops uvm_dma_buf_ops;
@@ -613,18 +612,12 @@ static struct platform_driver meson_uvm_driver = {
 
 static int __init meson_uvm_init(void)
 {
-	if (!use_uvm) {
-		pr_info("meson_ion_delay_alloc call init\n");
-		return platform_driver_register(&meson_uvm_driver);
-	}
-
-	return 0;
+	return platform_driver_register(&meson_uvm_driver);
 }
 
 static void __exit meson_uvm_exit(void)
 {
-	if (!use_uvm)
-		platform_driver_unregister(&meson_uvm_driver);
+	platform_driver_unregister(&meson_uvm_driver);
 }
 
 module_init(meson_uvm_init);
