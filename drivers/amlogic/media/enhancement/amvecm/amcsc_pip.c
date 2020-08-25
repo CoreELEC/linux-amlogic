@@ -1249,8 +1249,6 @@ void video_post_process(
 			hdr_proc(vf, OSD1_HDR, SDR_HDR, vinfo, NULL);
 		} else if (hdr10_plus_process_mode[vd_path] ==
 		PROC_HDRP_TO_HDR) {
-			gamut_convert_process(
-				vinfo, source_type, vd_path, &m, 8);
 			if (vd_path == VD1_PATH)
 				hdr_proc(vf, VD1_HDR, HDR_BYPASS, vinfo, &m);
 			else
@@ -1258,6 +1256,8 @@ void video_post_process(
 			hdr_proc(vf, OSD1_HDR, SDR_HDR, vinfo, NULL);
 		} else if (hdr10_plus_process_mode[vd_path] ==
 		PROC_HDRP_TO_SDR) {
+			gamut_convert_process(
+				vinfo, source_type, vd_path, &m, 8);
 			if (vd_path == VD1_PATH)
 				hdr_proc(vf, VD1_HDR, HDR10P_SDR, vinfo, NULL);
 			else

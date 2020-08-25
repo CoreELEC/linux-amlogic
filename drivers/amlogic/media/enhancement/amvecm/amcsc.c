@@ -6826,8 +6826,21 @@ static struct hdr10pgen_param_s hdr10pgen_param;
 void hdr10_plus_process_update(
 	int force_source_lumin, enum vd_path_e vd_path)
 {
+	int panel_lumin;
+	struct vinfo_s *vinfo = get_current_vinfo();
+
+	if (vinfo) {
+		if ((vinfo->hdr_info.lumi_max > 0) &&
+		    (vinfo->hdr_info.lumi_max <= 1000))
+			panel_lumin = vinfo->hdr_info.lumi_max;
+		else
+			panel_lumin = customer_panel_lumin;
+	} else {
+		panel_lumin = customer_panel_lumin;
+	}
+
 	hdr10_plus_ootf_gen(
-		customer_panel_lumin,
+		panel_lumin,
 		force_source_lumin,
 		&hdr10pgen_param);
 	if (vd_path == VD1_PATH)
