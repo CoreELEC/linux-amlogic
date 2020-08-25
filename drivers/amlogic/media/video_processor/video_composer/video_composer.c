@@ -1335,11 +1335,17 @@ static int video_composer_release(struct inode *inode, struct file *file)
 	struct composer_dev *dev = file->private_data;
 	struct video_composer_port_s *port = dev->port;
 	int i = 0;
+	int ret = 0;
 
-	pr_info("video_composer_release\n");
+	pr_info("video_composer_release enable=%d\n", dev->enable_composer);
 
 	if (iminor(inode) >= video_composer_instance_num)
 		return -ENODEV;
+
+	if (dev->enable_composer) {
+		ret = video_composer_set_enable(dev, 0);
+		return ret;
+	}
 
 	if (dev->kthread) {
 		kthread_stop(dev->kthread);

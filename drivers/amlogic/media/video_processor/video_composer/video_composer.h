@@ -214,4 +214,6 @@ struct composer_dev {
 #define VIDEO_COMPOSER_IOCTL_SET_DISABLE	\
 	_IOW(VIDEO_COMPOSER_IOC_MAGIC, 0x02, int)
 
+int video_composer_set_enable(struct composer_dev *dev, u32 val);
+
 #endif /* VIDEO_COMPOSER_H */
