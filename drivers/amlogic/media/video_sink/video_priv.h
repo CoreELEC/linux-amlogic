@@ -282,6 +282,9 @@ struct video_layer_s {
 	u8 enable_3d_mode;
 
 	u32 global_debug;
+
+	bool need_switch_vf;
+	bool do_switch;
 };
 
 enum cpu_type_e {

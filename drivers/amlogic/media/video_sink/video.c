@@ -3261,7 +3261,7 @@ static s32 pip_render_frame(struct video_layer_s *layer)
 }
 
 static void primary_swap_frame(
-	struct vframe_s *vf, int line)
+	struct vframe_s *vf1, int line)
 {
 	bool vf_with_el = false;
 	bool force_toggle = false;
@@ -3270,14 +3270,34 @@ static void primary_swap_frame(
 	struct disp_info_s *layer_info = NULL;
 	int axis[4];
 	int crop[4];
+	struct vframe_s *vf;
 
 	ATRACE_COUNTER(__func__,  line);
 
-	if (!vf)
+	if (!vf1)
 		return;
+
+	vf = vf1;
 
 	layer = &vd_layer[0];
 	layer_info = &glayer_info[0];
+
+	layer->do_switch = false;
+
+	if (layer->need_switch_vf) {
+		if ((vf1->flag & VFRAME_FLAG_DOUBLE_FRAM) &&
+		    is_di_post_mode(vf1)) {
+			if (di_api_get_instance_id() == vf1->di_instance_id) {
+				layer->need_switch_vf = false;
+				pr_info("set need_switch_vf false\n");
+			} else {
+				vf = vf1->vf_ext;
+				layer->do_switch = true;
+				di_api_post_disable();
+			}
+		} else
+			layer->need_switch_vf = false;
+	}
 
 	if ((vf->flag & VFRAME_FLAG_VIDEO_COMPOSER) &&
 	    !(debug_flag & DEBUG_FLAG_AXIS_NO_UPDATE)) {
@@ -3391,7 +3411,7 @@ static void primary_swap_frame(
 		last_mvc_status = false;
 
 	/* FIXME: free correct keep frame */
-	if (!is_local_vf(layer->dispbuf)) {
+	if (!is_local_vf(layer->dispbuf) && !layer->do_switch) {
 		if (layer->keep_frame_id == 1)
 			video_pip_keeper_new_frame_notify();
 		else if (layer->keep_frame_id == 0)
@@ -5299,6 +5319,8 @@ SET_FILTER:
 		 is_di_post_mode(vd_layer[0].dispbuf))
 		di_post_vf = vd_layer[0].dispbuf;
 
+	if (vd_layer[0].do_switch)
+		di_post_vf = NULL;
 	if (di_post_vf) {
 		/* for new deinterlace driver */
 #ifdef CONFIG_AMLOGIC_MEDIA_VSYNC_RDMA
@@ -6037,16 +6059,15 @@ void di_unreg_notify(void)
 {
 	u32 sleep_time = 40;
 
-	if (!gvideo_recv[0])
-		return;
-
-	if (!gvideo_recv[0]->active)
-		return;
-
 	while (atomic_read(&video_inirq_flag) > 0)
 		schedule();
 
-	switch_vf(gvideo_recv[0], true);
+	if (gvideo_recv[0] && gvideo_recv[0]->active)
+		switch_vf(gvideo_recv[0], true);
+
+	vd_layer[0].need_switch_vf = true;
+	vd_layer[0].property_changed = true;
+
 	if (vinfo) {
 		sleep_time = vinfo->sync_duration_den * 1000;
 		if (vinfo->sync_duration_num) {
