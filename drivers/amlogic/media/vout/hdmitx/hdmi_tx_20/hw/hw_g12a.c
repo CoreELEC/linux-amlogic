@@ -111,8 +111,21 @@ static bool set_hpll_hclk_v1(unsigned int m, unsigned int frac_val)
 			hd_write_reg(P_HHI_HDMI_PLL_CNTL4, 0x44331290);
 		}
 	} else {
-		hd_write_reg(P_HHI_HDMI_PLL_CNTL3, 0x6a68dc00);
-		hd_write_reg(P_HHI_HDMI_PLL_CNTL4, 0x65771290);
+		if ((hdev->chip_type == MESON_CPU_ID_SM1) &&
+		    hdmitx_find_vendor(hdev) &&
+		    ((hdev->para->vic == HDMI_3840x2160p50_16x9) ||
+		    (hdev->para->vic == HDMI_3840x2160p60_16x9) ||
+		    (hdev->para->vic == HDMI_3840x2160p50_64x27) ||
+		    (hdev->para->vic == HDMI_3840x2160p60_64x27) ||
+		    (hdev->para->vic == HDMI_4096x2160p50_256x135) ||
+		    (hdev->para->vic == HDMI_4096x2160p60_256x135)) &&
+		    (hdev->para->cs != COLORSPACE_YUV420)) {
+			hd_write_reg(P_HHI_HDMI_PLL_CNTL3, 0x6a685c00);
+			hd_write_reg(P_HHI_HDMI_PLL_CNTL4, 0x11551293);
+		} else {
+			hd_write_reg(P_HHI_HDMI_PLL_CNTL3, 0x6a68dc00);
+			hd_write_reg(P_HHI_HDMI_PLL_CNTL4, 0x65771290);
+		}
 	}
 	hd_write_reg(P_HHI_HDMI_PLL_CNTL5, 0x39272000);
 	hd_write_reg(P_HHI_HDMI_PLL_CNTL6, 0x56540000);
