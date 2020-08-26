@@ -144,7 +144,7 @@ static spinlock_t speedchange_cpumask_lock;
 
 /* Target load. Lower values result in higher CPU speeds. */
 /* #define DEFAULT_TARGET_LOAD 50,900000,70 */
-static unsigned int default_target_loads[] = {50, 900000, 70};
+static unsigned int default_target_loads[] = {50, 900000, 70, 1600000, 90};
 #define HIGH_SPEED	1000000
 
 #define DEFAULT_SAMPLING_RATE (20 * USEC_PER_MSEC)
