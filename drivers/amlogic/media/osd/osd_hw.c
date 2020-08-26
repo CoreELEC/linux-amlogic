@@ -61,7 +61,9 @@
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 #include <linux/amlogic/media/amdolbyvision/dolby_vision.h>
 #endif
-
+#ifdef CONFIG_AMLOGIC_MEDIA_SECURITY
+#include <linux/amlogic/media/vpu_secure/vpu_secure.h>
+#endif
 /* Local Headers */
 #include "osd_canvas.h"
 #include "osd_prot.h"
@@ -1414,6 +1416,7 @@ static int sync_render_layers_fence(u32 index, u32 yres,
 	fence_map->layer_map[index].dim_layer = request->dim_layer;
 	fence_map->layer_map[index].dim_color = request->dim_color;
 	fence_map->layer_map[index].afbc_len = len;
+	fence_map->layer_map[index].secure_enable = request->secure_enable;
 	/* just return out_fd,but not signal */
 	/* no longer put list, will put them via do_hwc */
 	fence_map->layer_map[index].in_fence = osd_get_fenceobj(in_fence_fd);
@@ -5026,6 +5029,7 @@ static void osd_pan_display_update_info(struct layer_fence_map_s *layer_map)
 		layer_map->plane_alpha = 0x100;
 	osd_hw.gbl_alpha[index] = layer_map->plane_alpha;
 	osd_hw.dim_layer[index] = layer_map->dim_layer;
+	osd_hw.secure_enable[index] = layer_map->secure_enable;
 
 	/* Todo: */
 	if (layer_map->dim_layer) {
@@ -8857,7 +8861,9 @@ static int osd_setting_order(u32 output_index)
 	int active_begin_line;
 	int vinfo_height;
 	u32 val, wait_cnt = 0;
-
+#ifdef CONFIG_AMLOGIC_MEDIA_SECURITY
+	u32 secure_src = 0;
+#endif
 	blending = &osd_blending;
 	blend_reg = &(blending->blend_reg);
 
@@ -9002,8 +9008,27 @@ static int osd_setting_order(u32 output_index)
 			else
 				VSYNCOSD_WR_MPEG_REG_BITS(
 				osd_reg->osd_mali_unpack_ctrl, 0x0, 28, 1);
+#ifdef CONFIG_AMLOGIC_MEDIA_SECURITY
+			if (osd_hw.secure_enable[i]) {
+				switch (i) {
+				case 0:
+					secure_src |= OSD1_INPUT_SECURE;
+					break;
+				case 1:
+					secure_src |= OSD2_INPUT_SECURE;
+					break;
+				case 2:
+					secure_src |= OSD3_INPUT_SECURE;
+					break;
+				}
+			}
+			if (secure_src && osd_hw.osd_afbcd[i].enable)
+				secure_src |= MALI_AFBCD_SECURE;
+			osd_hw.secure_src = secure_src;
+#endif
 		}
 		osd_hw.reg[OSD_ENABLE].update_func(i);
+
 	}
 
 	//for (i = 0; i < osd_count; i++)
@@ -9014,6 +9039,9 @@ static int osd_setting_order(u32 output_index)
 
 	set_blend_reg(blend_reg);
 	save_blend_reg(blend_reg);
+#ifdef CONFIG_AMLOGIC_MEDIA_SECURITY
+	secure_config(OSD_MODULE, secure_src);
+#endif
 	/* append RDMA_DETECT_REG at last and detect if rdma missed some regs */
 	rdma_dt_cnt++;
 	VSYNCOSD_WR_MPEG_REG(RDMA_DETECT_REG, rdma_dt_cnt);
@@ -9851,6 +9879,16 @@ static void affinity_set_init(void)
 }
 #endif
 
+#ifdef CONFIG_AMLOGIC_MEDIA_SECURITY
+void osd_secure_cb(u32 arg)
+{
+	osd_log_dbg(MODULE_SECURE, "%s: arg=%x, secure_src=%x, reg:%x\n",
+		    __func__,
+		    arg, osd_hw.secure_src,
+		    osd_reg_read(VIU_DATA_SEC));
+}
+#endif
+
 void osd_init_hw(u32 logo_loaded, u32 osd_probe,
 	struct osd_device_data_s *osd_meson)
 {
@@ -10227,6 +10265,10 @@ void osd_init_hw(u32 logo_loaded, u32 osd_probe,
 		osd_rdma_enable(2);
 #ifdef CONFIG_AMLOGIC_MEDIA_FB_OSD_SYNC_FENCE
 	affinity_set_init();
+#endif
+#ifdef CONFIG_AMLOGIC_MEDIA_SECURITY
+	secure_register(OSD_MODULE, 0,
+			VSYNCOSD_WR_MPEG_REG, osd_secure_cb);
 #endif
 }
 
