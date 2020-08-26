@@ -4838,7 +4838,9 @@ static int dolby_vision_policy_process(
 			return mode_change;
 		}
 		if ((cur_csc_type[VD1_PATH] != 0xffff) &&
-		    (get_hdr_module_status(VD1_PATH) == HDR_MODULE_ON)) {
+		    (get_hdr_module_status(VD1_PATH) == HDR_MODULE_ON) &&
+		    (!((src_format == FORMAT_DOVI) ||
+		    (src_format == FORMAT_DOVI_LL)))) {
 			/* bypass dolby incase VPP is not in sdr mode */
 			if (dolby_vision_mode !=
 				DOLBY_VISION_OUTPUT_MODE_BYPASS) {
