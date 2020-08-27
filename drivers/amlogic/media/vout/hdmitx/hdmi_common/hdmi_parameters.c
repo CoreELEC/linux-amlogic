@@ -1432,36 +1432,6 @@ static struct hdmi_format_para fmt_para_non_hdmi_fmt = {
 	},
 };
 
-/* null mode is used for HDMI, such as current mode is 1080p24hz
- * but want to switch to 1080p 23.976hz
- * so 'echo null > /sys/class/display/mode' firstly, then set
- * 'echo 1 > /sys/class/amhdmitx/amhdmitx0/frac_rate_policy'
- * and 'echo 1080p24hz > /sys/class/display/mode'
- */
-static struct hdmi_format_para fmt_para_null_hdmi_fmt = {
-	.vic = HDMI_Unknown,
-	.name = "null",
-	.sname = "null",
-	.hdmitx_vinfo = {
-		.name              = "null",
-		.mode              = VMODE_HDMI,
-		.frac              = 0,
-		.width             = 1920,
-		.height            = 1080,
-		.field_height      = 1080,
-		.aspect_ratio_num  = 16,
-		.aspect_ratio_den  = 9,
-		.sync_duration_num = 60,
-		.sync_duration_den = 1,
-		.video_clk         = 148500000,
-		.htotal            = 2200,
-		.vtotal            = 1125,
-		.fr_adj_type       = VOUT_FR_ADJ_HDMI,
-		.viu_color_fmt     = COLOR_FMT_YUV444,
-		.viu_mux           = VIU_MUX_ENCP,
-	},
-};
-
 static struct hdmi_format_para fmt_para_2560x1080p50_64x27 = {
 	.vic = HDMI_2560x1080p50_64x27,
 	.name = "2560x1080p50hz",
@@ -2840,7 +2810,6 @@ static struct hdmi_format_para *all_fmt_paras[] = {
 	&fmt_para_vesa_2560x1600p60_8x5,
 	&fmt_para_vesa_3440x1440p60_43x18,
 	&fmt_para_vesa_2400x1200p90_2x1,
-	&fmt_para_null_hdmi_fmt,
 	&fmt_para_non_hdmi_fmt,
 	NULL,
 };

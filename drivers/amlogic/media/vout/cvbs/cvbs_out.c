@@ -659,12 +659,19 @@ static enum vmode_e cvbs_validate_vmode(char *mode, unsigned int frac)
 		return VMODE_CVBS;
 	return VMODE_MAX;
 }
+
+static int cvbs_check_same_vmodeattr(char *mode)
+{
+	return 1;
+}
+
 static int cvbs_vmode_is_supported(enum vmode_e mode)
 {
 	if ((mode & VMODE_MODE_BIT_MASK) == VMODE_CVBS)
 		return true;
 	return false;
 }
+
 static int cvbs_module_disable(enum vmode_e cur_vmod)
 {
 	cvbs_drv->flag &= ~CVBS_FLAG_EN_ENCI;
@@ -731,6 +738,7 @@ static struct vout_server_s cvbs_vout_server = {
 		.get_vinfo = cvbs_get_current_info,
 		.set_vmode = cvbs_set_current_vmode,
 		.validate_vmode = cvbs_validate_vmode,
+		.check_same_vmodeattr = cvbs_check_same_vmodeattr,
 		.vmode_is_supported = cvbs_vmode_is_supported,
 		.disable = cvbs_module_disable,
 		.set_state = cvbs_vout_set_state,

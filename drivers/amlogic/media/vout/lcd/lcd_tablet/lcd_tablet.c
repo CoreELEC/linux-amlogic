@@ -56,6 +56,11 @@ static struct vinfo_s *lcd_get_current_info(void)
 	return lcd_drv->lcd_info;
 }
 
+static int lcd_check_same_vmodeattr(char *mode)
+{
+	return 0;
+}
+
 static int lcd_vmode_is_supported(enum vmode_e mode)
 {
 	mode &= VMODE_MODE_BIT_MASK;
@@ -365,6 +370,7 @@ static struct vout_server_s lcd_vout_server = {
 		.get_vinfo = lcd_get_current_info,
 		.set_vmode = lcd_set_current_vmode,
 		.validate_vmode = lcd_validate_vmode,
+		.check_same_vmodeattr = lcd_check_same_vmodeattr,
 		.vmode_is_supported = lcd_vmode_is_supported,
 		.disable = lcd_vout_disable,
 		.set_state = lcd_vout_set_state,
@@ -388,6 +394,7 @@ static struct vout_server_s lcd_vout2_server = {
 		.get_vinfo = lcd_get_current_info,
 		.set_vmode = lcd_set_current_vmode,
 		.validate_vmode = lcd_validate_vmode,
+		.check_same_vmodeattr = lcd_check_same_vmodeattr,
 		.vmode_is_supported = lcd_vmode_is_supported,
 		.disable = lcd_vout_disable,
 		.set_state = lcd_vout_set_state,

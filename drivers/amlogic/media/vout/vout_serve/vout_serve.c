@@ -286,7 +286,8 @@ int set_vout_mode(char *name)
 	vout_trim_string(name);
 	VOUTPR("vmode set to %s\n", name);
 
-	if (strcmp(name, vout_mode) == 0) {
+	if ((strcmp(name, vout_mode) == 0) &&
+	    (vout_check_same_vmodeattr(name))) {
 		VOUTPR("don't set the same mode as current, exit\n");
 		return -1;
 	}

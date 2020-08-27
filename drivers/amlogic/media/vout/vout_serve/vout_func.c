@@ -305,6 +305,29 @@ int vout_func_set_current_vmode(int index, enum vmode_e mode)
 }
 EXPORT_SYMBOL(vout_func_set_current_vmode);
 
+int vout_func_check_same_vmodeattr(int index, char *name)
+{
+	struct vout_server_s *p_server = NULL;
+	int ret = 1;
+
+	mutex_lock(&vout_mutex);
+
+	if (index == 1)
+		p_server = vout_module.curr_vout_server;
+#ifdef CONFIG_AMLOGIC_VOUT2_SERVE
+	else if (index == 2)
+		p_server = vout2_module.curr_vout_server;
+#endif
+
+	if (!IS_ERR_OR_NULL(p_server)) {
+		if (p_server->op.check_same_vmodeattr)
+			ret = p_server->op.check_same_vmodeattr(name);
+	}
+
+	mutex_unlock(&vout_mutex);
+	return ret;
+}
+
 /*
  *interface export to client who want to set current vmode.
  */

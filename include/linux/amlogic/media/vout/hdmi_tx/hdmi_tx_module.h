@@ -431,6 +431,7 @@ struct hdmitx_dev {
 	unsigned short physical_addr;
 	unsigned int cur_VIC;
 	char fmt_attr[16];
+	char backup_fmt_attr[16];
 	atomic_t kref_video_mute;
 	atomic_t kref_audio_mute;
 	/**/
@@ -462,6 +463,7 @@ struct hdmitx_dev {
 	struct hdcprp_topo *topo_info;
 	/* 0.1% clock shift, 1080p60hz->59.94hz */
 	unsigned int frac_rate_policy;
+	unsigned int backup_frac_rate_policy;
 	unsigned int rxsense_policy;
 	unsigned int cedst_policy;
 	struct ced_cnt ced_cnt;

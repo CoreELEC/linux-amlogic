@@ -566,9 +566,6 @@ static int set_disp_mode_auto(void)
 	struct hdmi_format_para *para = NULL;
 	unsigned char mode[32];
 	enum hdmi_vic vic = HDMI_Unknown;
-	/* vic_ready got from IP */
-	enum hdmi_vic vic_ready = hdev->hwop.getstate(
-		hdev, STAT_VIDEO_VIC, 0);
 
 	memset(mode, 0, sizeof(mode));
 	hdev->ready = 0;
@@ -646,30 +643,6 @@ static int set_disp_mode_auto(void)
 		vic = HDMI_4k2k_smpte_24;
 	else {
 	/* nothing */
-	}
-	if ((vic_ready != HDMI_Unknown) && (vic_ready == vic)) {
-		pr_info(SYS "[%s] ALREADY init VIC = %d\n",
-			__func__, vic);
-		if (hdev->rxcap.ieeeoui == 0) {
-			/* DVI case judgement. In uboot, directly output HDMI
-			 * mode
-			 */
-			hdev->hwop.cntlconfig(hdev, CONF_HDMI_DVI_MODE,
-				DVI_MODE);
-			pr_info(SYS "change to DVI mode\n");
-		} else if ((hdev->rxcap.ieeeoui == 0xc03) &&
-		(hdev->hwop.cntlconfig(hdev, CONF_GET_HDMI_DVI_MODE, 0)
-			== DVI_MODE)) {
-			hdev->hwop.cntlconfig(hdev, CONF_HDMI_DVI_MODE,
-				HDMI_MODE);
-			pr_info(SYS "change to HDMI mode\n");
-		}
-		hdev->cur_VIC = vic;
-		hdev->output_blank_flag = 1;
-		hdev->ready = 1;
-		edidinfo_attach_to_vinfo(hdev);
-
-		return 1;
 	}
 
 	hdmitx_pre_display_init();
@@ -4986,6 +4959,19 @@ static void hdmitx_set_bist(unsigned int num)
 		hdmitx_device.hwop.debug_bist(&hdmitx_device, num);
 }
 
+/* if cs/cd/frac_rate is changed, then return 0 */
+static int hdmitx_check_same_vmodeattr(char *name)
+{
+	struct hdmitx_dev *hdev = &hdmitx_device;
+
+	if ((memcmp(hdev->backup_fmt_attr, hdev->fmt_attr, 16) == 0) &&
+	    (hdev->backup_frac_rate_policy == hdev->frac_rate_policy))
+		return 1;
+	memcpy(hdev->backup_fmt_attr, hdev->fmt_attr, 16);
+	hdev->backup_frac_rate_policy = hdev->frac_rate_policy;
+	return 0;
+}
+
 static struct vout_server_s hdmitx_vout_server = {
 	.name = "hdmitx_vout_server",
 	.op = {
@@ -4993,6 +4979,7 @@ static struct vout_server_s hdmitx_vout_server = {
 		.set_vmode = hdmitx_set_current_vmode,
 		.validate_vmode = hdmitx_validate_vmode,
 		.vmode_is_supported = hdmitx_vmode_is_supported,
+		.check_same_vmodeattr = hdmitx_check_same_vmodeattr,
 		.disable = hdmitx_module_disable,
 		.set_state = hdmitx_vout_set_state,
 		.clr_state = hdmitx_vout_clr_state,
@@ -6434,6 +6421,8 @@ static void check_hdmiuboot_attr(char *token)
 			break;
 		}
 	}
+	memcpy(hdmitx_device.backup_fmt_attr, hdmitx_device.fmt_attr,
+	       sizeof(hdmitx_device.fmt_attr));
 }
 
 static  int __init hdmitx_boot_para_setup(char *s)
@@ -6446,6 +6435,8 @@ static  int __init hdmitx_boot_para_setup(char *s)
 	int size = strlen(s);
 
 	memset(hdmitx_device.fmt_attr, 0, sizeof(hdmitx_device.fmt_attr));
+	memset(hdmitx_device.backup_fmt_attr, 0,
+	       sizeof(hdmitx_device.backup_fmt_attr));
 
 	do {
 		token = next_token_ex(separator, s, size, offset,
@@ -6471,6 +6462,7 @@ static int __init hdmitx_boot_frac_rate(char *str)
 	else
 		hdmitx_device.frac_rate_policy = 1;
 
+	hdmitx_device.backup_frac_rate_policy = hdmitx_device.frac_rate_policy;
 	return 0;
 }
 
