@@ -10623,6 +10623,20 @@ void  osd_suspend_hw(void)
 			if (osd_hw.enable[i]) {
 				osd_hw.enable_save[i] = ENABLE;
 				osd_hw.enable[i] = DISABLE;
+
+				/* if display2 mode is set to null or invalid */
+				if (osd_hw.osd_meson_dev.has_viu2 &&
+				    i == osd_hw.osd_meson_dev.viu2_index) {
+					struct vinfo_s *vinfo = NULL;
+
+					vinfo = get_current_vinfo2();
+					if (vinfo &&
+					    (!strncmp(vinfo->name, "null", 4) ||
+					     !strncmp(vinfo->name, "invalid", 7)
+					    )
+					   )
+						continue;
+				}
 				osd_hw.reg[OSD_ENABLE]
 					.update_func(i);
 			} else
@@ -10691,6 +10705,19 @@ void osd_resume_hw(void)
 		for (i = 0; i < osd_hw.osd_meson_dev.osd_count; i++) {
 			if (osd_hw.enable_save[i]) {
 				osd_hw.enable[i] = ENABLE;
+				/* if display2 mode is set to null or invalid */
+				if (osd_hw.osd_meson_dev.has_viu2 &&
+				    i == osd_hw.osd_meson_dev.viu2_index) {
+					struct vinfo_s *vinfo = NULL;
+
+					vinfo = get_current_vinfo2();
+					if (vinfo &&
+					    (!strncmp(vinfo->name, "null", 4) ||
+					     !strncmp(vinfo->name, "invalid", 7)
+					    )
+					   )
+						continue;
+				}
 				osd_hw.reg[OSD_ENABLE]
 					.update_func(i);
 			}
