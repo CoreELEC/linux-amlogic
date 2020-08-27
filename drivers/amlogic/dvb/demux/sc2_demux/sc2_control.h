@@ -124,6 +124,7 @@ void wdma_config_enable(u8 chan_id, int enable,
 			unsigned int desc, unsigned int total_size);
 void wdam_config_ready(u8 chan_id);
 unsigned int wdma_get_wptr(u8 chan_id);
+unsigned int wdma_get_wcmdcnt(u8 chan_id);
 unsigned int wdma_get_active(u8 chan_id);
 unsigned int wdma_get_done(u8 chan_id);
 unsigned int wdma_get_err(u8 chan_id);
