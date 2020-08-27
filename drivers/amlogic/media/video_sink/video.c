@@ -6157,10 +6157,17 @@ s32 update_vframe_src_fmt(
 					(vf, sei, size,
 					 &vf->src_fmt.comp_size,
 					 &vf->src_fmt.md_size,
-					 &vf->src_fmt.parse_ret_flags,
 					 &src_fmt,
+					 &vf->src_fmt.parse_ret_flags,
 					 vf->src_fmt.md_buf,
 					 vf->src_fmt.comp_buf);
+				if (debug_flag & DEBUG_FLAG_OMX_DV_DROP_FRAME)
+					pr_info("parse ret %d, %d, %d %d, %d\n",
+						ret,
+						src_fmt,
+						vf->src_fmt.md_size,
+						vf->src_fmt.comp_size,
+						vf->src_fmt.parse_ret_flags);
 
 				if (ret) {
 					/* mark size -1 as parser failed */
