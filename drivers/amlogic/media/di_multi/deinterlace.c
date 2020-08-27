@@ -81,7 +81,7 @@
 #include "di_api.h"
 #include "di_sys.h"
 #include "di_reg_v3.h"
-
+#include "dolby_sys.h"
 /*2018-07-18 add debugfs*/
 #include <linux/seq_file.h>
 #include <linux/debugfs.h>
@@ -568,6 +568,15 @@ store_dbg(struct device *dev,
 			di_vf_l_put(di_vf_l_get(channel), channel);
 	} else if (strncmp(buf, "mem_map", 7) == 0) {
 		dim_dump_buf_addr(pbuf_local, MAX_LOCAL_BUF_NUM * 2);
+	} else if (strncmp(buf, "setdv", 5) == 0) {
+		pr_info("setdv\n");
+		di_dolby_do_setting();
+	} else if (strncmp(buf, "endv", 4) == 0) {
+		pr_info("endv\n");
+		di_dolby_enable(1);
+	} else if (strncmp(buf, "initdv", 6) == 0) {
+		pr_info("initdv\n");
+		di_dolby_sw_init();
 	} else {
 		pr_info("DI no support cmd %s!!!\n", buf);
 	}

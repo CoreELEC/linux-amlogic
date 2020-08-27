@@ -15222,7 +15222,8 @@ F:	drivers/amlogic/media/di_multi/*
 F:	drivers/amlogic/media/di_multi/di_reg_v3.h
 F:	drivers/amlogic/media/di_multi/sc2/*
 F:	drivers/amlogic/media/di_multi/di_que_buf.c
-
+F:	drivers/amlogic/media/di_multi/dolby_sys.c
+F:	drivers/amlogic/media/di_multi/dolby_sys.h
 AMLOGIC DRM
 M:	Ao Xu <ao.xu@amlogic.com>
 F:	drivers/amlogic/drm/meson_debugfs.c

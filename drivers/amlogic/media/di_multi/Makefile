@@ -28,6 +28,7 @@ dim-objs += di_sys.o
 dim-objs += di_task.o
 dim-objs += di_api.o
 dim-objs += di_que_buf.o
+dim-objs += dolby_sys.o
 #dim-objs += di_hw_v2.o
 dim-objs += sc2/di_hw_v3.o
 dim-objs += sc2/di_afbc_v3.o
