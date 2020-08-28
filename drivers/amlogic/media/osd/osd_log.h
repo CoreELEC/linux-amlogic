@@ -26,12 +26,13 @@
 #define OSD_LOG_LEVEL_DEBUG2 2
 #define OSD_LOG_LEVEL_DEBUG3 3
 
-#define MODULE_BASE   (1 << 0)
-#define MODULE_RENDER (1 << 1)
-#define MODULE_FENCE  (1 << 2)
-#define MODULE_BLEND  (1 << 3)
-#define MODULE_CURSOR (1 << 4)
-#define MODULE_VIU2   (1 << 5)
+#define MODULE_BASE   BIT(0)
+#define MODULE_RENDER BIT(1)
+#define MODULE_FENCE  BIT(2)
+#define MODULE_BLEND  BIT(3)
+#define MODULE_CURSOR BIT(4)
+#define MODULE_VIU2   BIT(5)
+#define MODULE_SECURE BIT(6)
 
 extern unsigned int osd_log_level;
 extern unsigned int osd_log_module;

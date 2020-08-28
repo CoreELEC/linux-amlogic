@@ -480,6 +480,7 @@ struct layer_fence_map_s {
 	u32 plane_alpha;
 	u32 dim_layer;
 	u32 dim_color;
+	u32 secure_enable;
 	size_t afbc_len;
 	struct file *buf_file;
 	struct fence *in_fence;
@@ -795,6 +796,8 @@ struct hw_para_s {
 	u32 rdma_trace_num;
 	u32 rdma_trace_reg[MAX_TRACE_NUM];
 	u32 osd_v_skip[HW_OSD_COUNT];
+	u32 secure_enable[HW_OSD_COUNT];
+	u32 secure_src;
 	u32 rdma_delayed_cnt;
 	u32 osd_reg_check;
 	struct hw_debug_s osd_debug;
