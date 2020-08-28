@@ -517,6 +517,7 @@ struct hdmitx_dev {
 	unsigned int bist_lock:1;
 	unsigned int drm_feature;/*Direct Rander Management*/
 	unsigned int vend_id_hit:1;
+	bool systemcontrol_on;
 };
 
 #define CMD_DDC_OFFSET          (0x10 << 24)
@@ -817,6 +818,7 @@ int hdmitx_set_uevent(enum hdmitx_event type, int val);
 #ifdef CONFIG_AMLOGIC_HDMITX
 extern struct hdmitx_dev *get_hdmitx_device(void);
 extern int get_hpd_state(void);
+bool is_tv_changed(void);
 extern int hdmitx_event_notifier_regist(struct notifier_block *nb);
 extern int hdmitx_event_notifier_unregist(struct notifier_block *nb);
 extern void hdmitx_event_notify(unsigned long state, void *arg);
@@ -952,4 +954,5 @@ bool hdmitx_dv_en(void);
 bool hdmitx_hdr10p_en(void);
 bool LGAVIErrorTV(struct rx_cap *prxcap);
 bool hdmitx_find_vendor(struct hdmitx_dev *hdev);
+int hdmitx_uboot_already_display(int type);
 #endif

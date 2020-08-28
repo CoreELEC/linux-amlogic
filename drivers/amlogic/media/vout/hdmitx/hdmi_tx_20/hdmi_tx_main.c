@@ -83,7 +83,8 @@ static void hdmitx_fmt_attr(struct hdmitx_dev *hdev);
 static void clear_rx_vinfo(struct hdmitx_dev *hdev);
 static void edidinfo_attach_to_vinfo(struct hdmitx_dev *hdev);
 static void edidinfo_detach_to_vinfo(struct hdmitx_dev *hdev);
-
+static bool is_cur_tmds_div40(struct hdmitx_dev *hdev);
+static void hdmitx_resend_div40(struct hdmitx_dev *hdev);
 
 static DEFINE_MUTEX(setclk_mutex);
 static DEFINE_MUTEX(getedid_mutex);
@@ -152,6 +153,18 @@ static struct hdmitx_uevent hdmi_events[] = {
 		.type = HDMITX_NONE_EVENT,
 	},
 };
+
+/* indicate plugout before systemcontrol boot  */
+static bool plugout_mute_flg;
+static char hdmichecksum[11] = {
+	'i', 'n', 'v', 'a', 'l', 'i', 'd', 'c', 'r', 'c', '\0'
+};
+
+static char invalidchecksum[11] = {
+	'i', 'n', 'v', 'a', 'l', 'i', 'd', 'c', 'r', 'c', '\0'
+};
+
+static char emptychecksum[11] = {0};
 
 int hdmitx_set_uevent(enum hdmitx_event type, int val)
 {
@@ -1668,11 +1681,14 @@ void hdmitx_set_vsif_pkt(enum eotf_type type,
 	else
 		hsty_vsif_config_num = 8;
 
-	if ((hdev->ready == 0) || (hdev->rxcap.dv_info.ieeeoui
-		!= DV_IEEE_OUI)) {
+	if (hdev->ready == 0) {
 		ltype = EOTF_T_NULL;
 		ltmode = -1;
 		return;
+	}
+	if (hdev->rxcap.dv_info.ieeeoui != DV_IEEE_OUI) {
+		if ((type == 0) && !data && signal_sdr)
+			pr_info("TV not support DV, clr dv_vsif\n");
 	}
 	if ((hdev->chip_type) < MESON_CPU_ID_GXL) {
 		pr_info("hdmitx: not support DolbyVision\n");
@@ -4250,6 +4266,26 @@ static ssize_t show_support_3d(struct device *dev,
 	return pos;
 }
 
+static ssize_t show_sysctrl_enable(struct device *dev,
+	struct device_attribute *attr, char *buf)
+{
+	int pos = 0;
+
+	pos += snprintf(buf + pos, PAGE_SIZE, "%d\r\n",
+		hdmitx_device.systemcontrol_on);
+	return pos;
+}
+
+static ssize_t store_sysctrl_enable(struct device *dev,
+	struct device_attribute *attr, const char *buf, size_t count)
+{
+	if (strncmp(buf, "0", 1) == 0)
+		hdmitx_device.systemcontrol_on = false;
+	if (strncmp(buf, "1", 1) == 0)
+		hdmitx_device.systemcontrol_on = true;
+	return count;
+}
+
 #undef pr_fmt
 #define pr_fmt(fmt) "" fmt
 void print_drm_config_data(void)
@@ -4931,6 +4967,8 @@ static DEVICE_ATTR(support_3d, 0444, show_support_3d, NULL);
 static DEVICE_ATTR(hdmi_config_info, 0444, show_hdmi_config, NULL);
 static DEVICE_ATTR(hdmi_rx_info, 0444, show_hdmirx_info, NULL);
 static DEVICE_ATTR(hdmi_hsty_config_info, 0444, show_hdmi_hsty_config, NULL);
+static DEVICE_ATTR(sysctrl_enable, 0664,
+	show_sysctrl_enable, store_sysctrl_enable);
 
 static struct vinfo_s *hdmitx_get_current_vinfo(void)
 {
@@ -5363,6 +5401,20 @@ static void hdmitx_cedst_process(struct work_struct *work)
 	queue_delayed_work(hdev->cedst_wq, &hdev->work_cedst, HZ);
 }
 
+bool is_tv_changed(void)
+{
+	bool ret = false;
+
+	if (memcmp(hdmichecksum, hdmitx_device.rxcap.chksum, 10) &&
+		memcmp(emptychecksum, hdmitx_device.rxcap.chksum, 10) &&
+		memcmp(invalidchecksum, hdmichecksum, 10)) {
+		ret = true;
+		pr_info("hdmi crc is diff between uboot and kernel\n");
+	}
+
+	return ret;
+}
+
 static void hdmitx_hpd_plugin_handler(struct work_struct *work)
 {
 	char bksv_buf[5];
@@ -5412,9 +5464,32 @@ static void hdmitx_hpd_plugin_handler(struct work_struct *work)
 	info = hdmitx_get_current_vinfo();
 	if (info && (info->mode == VMODE_HDMI))
 		hdmitx_set_audio(hdev, &(hdev->cur_audio_param));
+
+	if (plugout_mute_flg) {
+		/* 1.TV not changed: just clear avmute and continue output
+		 * 2.if TV changed:
+		 * keep avmute (will be cleared by systemcontrol);
+		 * clear pkt, packets need to be cleared, otherwise,
+		 * if plugout from DV/HDR TV, and plugin to non-DV/HDR
+		 * TV, packets may not be cleared. pkt sending will
+		 * be callbacked later after vinfo attached.
+		 */
+		if (is_cur_tmds_div40(hdev))
+			hdmitx_resend_div40(hdev);
+		if (!is_tv_changed()) {
+			hdev->hwop.cntlmisc(hdev, MISC_AVMUTE_OP,
+					    CLR_AVMUTE);
+		} else {
+			/* keep avmute & clear pkt */
+			hdmitx_set_vsif_pkt(0, 0, NULL, true);
+			hdmitx_set_hdr10plus_pkt(0, NULL);
+			hdmitx_set_drm_pkt(NULL);
+		}
+		edidinfo_attach_to_vinfo(hdev);
+		plugout_mute_flg = false;
+	}
 	hdev->hpd_state = 1;
 	hdmitx_notify_hpd(hdev->hpd_state);
-
 	extcon_set_state_sync(hdmitx_extcon_hdmi, EXTCON_DISP_HDMI, 1);
 	hdmitx_set_uevent(HDMITX_HPD_EVENT, 1);
 	extcon_set_state_sync(hdmitx_extcon_audio, EXTCON_DISP_HDMI, 1);
@@ -5442,6 +5517,7 @@ static void hdmitx_hpd_plugout_handler(struct work_struct *work)
 
 	if (!(hdev->hdmitx_event & (HDMI_TX_HPD_PLUGOUT)))
 		return;
+
 	hdev->hdcp_mode = 0;
 	hdev->hdcp_bcaps_repeater = 0;
 	hdev->hwop.cntlddc(hdev, DDC_HDCP_MUX_INIT, 1);
@@ -5451,9 +5527,26 @@ static void hdmitx_hpd_plugout_handler(struct work_struct *work)
 		cancel_delayed_work(&hdev->work_cedst);
 	edidinfo_detach_to_vinfo(hdev);
 	pr_info(SYS "plugout\n");
-	if (!!(hdev->hwop.cntlmisc(hdev, MISC_HPD_GPI_ST, 0))) {
-		pr_info(SYS "hpd gpio high\n");
+	/* when plugout before systemcontrol boot, setavmute
+	 * but keep output not changed, and wait for plugin
+	 * NOTE: TV maybe changed(such as DV <-> non-DV)
+	 */
+	if (!hdev->systemcontrol_on &&
+		hdmitx_uboot_already_display(hdev->chip_type)) {
+		plugout_mute_flg = true;
+		edidinfo_detach_to_vinfo(hdev);
+		clear_rx_vinfo(hdev);
 		hdev->hdmitx_event &= ~HDMI_TX_HPD_PLUGOUT;
+		rx_edid_physical_addr(0, 0, 0, 0);
+		hdmitx_edid_clear(hdev);
+		hdmi_physcial_size_update(hdev);
+		hdmitx_edid_ram_buffer_clear(hdev);
+		hdev->hpd_state = 0;
+		hdmitx_notify_hpd(hdev->hpd_state);
+		hdev->hwop.cntlmisc(hdev, MISC_AVMUTE_OP, SET_AVMUTE);
+		extcon_set_state_sync(hdmitx_extcon_hdmi, EXTCON_DISP_HDMI, 0);
+		hdmitx_set_uevent(HDMITX_HPD_EVENT, 0);
+		extcon_set_state_sync(hdmitx_extcon_audio, EXTCON_DISP_HDMI, 0);
 		mutex_unlock(&setclk_mutex);
 		return;
 	}
@@ -5605,9 +5698,6 @@ static int hdmi_task_handle(void *data)
 	INIT_DELAYED_WORK(&hdmitx_device->work_cedst, hdmitx_cedst_process);
 
 	hdmitx_device->tx_aud_cfg = 1; /* default audio configure is on */
-	/* When bootup mbox and TV simutanously, TV may not handle SCDC/DIV40 */
-	if (hdmitx_device->hpd_state && is_cur_tmds_div40(hdmitx_device))
-		hdmitx_resend_div40(hdmitx_device);
 
 	/*Direct Rander Management use another irq*/
 	if (hdmitx_device->drm_feature == 0)
@@ -5616,9 +5706,20 @@ static int hdmi_task_handle(void *data)
 	/* Trigger HDMITX IRQ*/
 	hdmitx_device->hwop.cntlmisc(hdmitx_device, MISC_HPD_MUX_OP, PIN_MUX);
 	if (hdmitx_device->hwop.cntlmisc(hdmitx_device, MISC_HPD_GPI_ST, 0)) {
+		/* When bootup mbox and TV simutanously,
+		 * TV may not handle SCDC/DIV40
+		 */
+		if (is_cur_tmds_div40(hdmitx_device))
+			hdmitx_resend_div40(hdmitx_device);
+		hdmitx_device->hwop.cntlmisc(hdmitx_device,
+			MISC_TRIGGER_HPD, 1);
+		hdmitx_device->already_used = 1;
+	} else {
+		/* may plugout during uboot finish--kernel start,
+		 * treat it as normal hotplug out, for > 3.4G case
+		 */
 		hdmitx_device->hwop.cntlmisc(hdmitx_device,
 			MISC_TRIGGER_HPD, 0);
-		hdmitx_device->already_used = 1;
 	}
 
 	hdmitx_device->hdmi_init = 1;
@@ -5952,6 +6053,7 @@ static int amhdmitx_device_init(struct hdmitx_dev *hdmi_dev)
 	hdmitx_device.force_audio_flag = 0;
 	hdmitx_device.hdcp_mode = 0;
 	hdmitx_device.ready = 0;
+	hdmitx_device.systemcontrol_on = 0;
 	hdmitx_device.rxsense_policy = 0; /* no RxSense by default */
 	/* enable or disable HDMITX SSPLL, enable by default */
 	hdmitx_device.sspll = 1;
@@ -6243,6 +6345,7 @@ static int amhdmitx_probe(struct platform_device *pdev)
 	ret = device_create_file(dev, &dev_attr_hdmi_rx_info);
 	ret = device_create_file(dev, &dev_attr_hdmi_hsty_config_info);
 	ret = device_create_file(dev, &dev_attr_drm_mode_setting);
+	ret = device_create_file(dev, &dev_attr_sysctrl_enable);
 
 #ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
 	register_early_suspend(&hdmitx_early_suspend_handler);
@@ -6360,6 +6463,7 @@ static int amhdmitx_remove(struct platform_device *pdev)
 	device_remove_file(dev, &dev_attr_hdmi_rx_info);
 	device_remove_file(dev, &dev_attr_hdmi_hsty_config_info);
 	device_remove_file(dev, &dev_attr_drm_mode_setting);
+	device_remove_file(dev, &dev_attr_sysctrl_enable);
 
 	cdev_del(&hdmitx_device.cdev);
 
@@ -6593,6 +6697,16 @@ static int __init hdmitx_boot_hdr_priority(char *str)
 }
 
 __setup("hdr_priority=", hdmitx_boot_hdr_priority);
+
+static int __init get_hdmi_checksum(char *str)
+{
+	snprintf(hdmichecksum, sizeof(hdmichecksum), "%s", str);
+
+	pr_info("get hdmi checksum: %s\n", hdmichecksum);
+	return 0;
+}
+
+__setup("hdmichecksum=", get_hdmi_checksum);
 
 MODULE_PARM_DESC(log_level, "\n log_level\n");
 module_param(log_level, int, 0644);
