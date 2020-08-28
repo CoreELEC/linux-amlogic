@@ -107,14 +107,7 @@ struct bl40_msg_buf {
 	char buf[512];
 } __packed;
 
-enum scpi_chan {
-	SCPI_DSPA = 0, /* to dspa */
-	SCPI_DSPB = 1, /* to dspb */
-	SCPI_AOCPU = 2, /* to aocpu */
-	SCPI_OTHER = 3, /* to other core */
-	SCPI_MAXNUM,
-};
-
+/*donot add more scpi api*/
 unsigned long scpi_clk_get_val(u16 clk_id);
 int scpi_clk_set_val(u16 clk_id, unsigned long rate);
 int scpi_dvfs_get_idx(u8 domain);
@@ -136,6 +129,14 @@ int scpi_init_dsp_cfg0(u32 id, u32 addr, u32 cfg0);
 int scpi_unlock_bl40(void);
 int scpi_send_bl40(unsigned int cmd, struct bl40_msg_buf *bl40_buf);
 
+enum scpi_chan {
+	SCPI_DSPA = 0, /* to dspa */
+	SCPI_DSPB = 1, /* to dspb */
+	SCPI_AOCPU = 2, /* to aocpu */
+	SCPI_SECPU = 3, /* to secpu */
+	SCPI_OTHER = 4, /* to other core */
+	SCPI_MAXNUM,
+};
 /* use this api send data to aocpu/secpu/dsp/cm3/cm4
  * donnot need add other api for your self
  * channel: SPCI_DSPA/SCPI_AOCPU and other

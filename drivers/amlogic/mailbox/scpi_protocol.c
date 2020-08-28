@@ -25,6 +25,7 @@
 
 #include "meson_mhu.h"
 #include "meson_mhu_fifo.h"
+#include "meson_mhu_pl.h"
 
 #define SYNC_CMD_TAG			BIT(26)
 #define ASYNC_CMD_TAG			BIT(25)
@@ -39,6 +40,7 @@
 
 struct device *mhu_device;
 struct device *mhu_fifo_device;
+struct device *mhu_pl_device;
 u32 mhu_f;
 
 #define CMD_ID_SHIFT		0
@@ -152,6 +154,7 @@ enum c_chan_t {
 	C_DSPB_PL = 5, /* to dspb core */
 	C_AOCPU_PL = 6, /* to aocpu core */
 	C_SECPU_PL = 7, /* to secpu core */
+	C_AOCPU_OLD = 8, /* to aocpu core */
 	C_MAXNUM,
 };
 
@@ -215,6 +218,8 @@ static int scpi_get_chan(int channel, struct device *np)
 		return scpi_get_c_by_name(dev, nums, "ap_to_dspb");
 	case SCPI_AOCPU:
 		return scpi_get_c_by_name(dev, nums, "ap_to_ao");
+	case SCPI_SECPU:
+		return scpi_get_c_by_name(dev, nums, "ap_to_se");
 	default:
 		return -ENXIO;
 	}
@@ -259,12 +264,12 @@ static int send_scpi_cmd(struct scpi_data_buf *scpi_buf,
 	char *rx_buf = NULL;
 	unsigned long wait;
 	int ret;
+	int plhead_len = 0;
 
 	switch (c_chan) {
 	case C_DSPA_FIFO:
 	case C_DSPB_FIFO:
 	case C_AOCPU_FIFO:
-	case C_SECPU_FIFO:
 		if (!mhu_fifo_device)
 			return -ENOENT;
 
@@ -300,7 +305,52 @@ static int send_scpi_cmd(struct scpi_data_buf *scpi_buf,
 			data->rx_size = rxbuf_size;
 		}
 	break;
-	case C_AOCPU_PL:
+	case C_DSPA_PL:
+	case C_DSPB_PL:
+	case C_SECPU_PL:
+		if (!mhu_pl_device)
+			return -ENOENT;
+
+		cl.dev = mhu_pl_device;
+		chan_idx = scpi_get_chan(scpi_buf->channel, mhu_pl_device);
+		if (chan_idx < 0) {
+			pr_err("scpi get chan 0x%x fail\n", scpi_buf->channel);
+			return -ENOENT;
+		}
+
+		if (c_chan == C_SECPU_PL)
+			plhead_len = MBOX_PL_HEAD_SIZE;
+		else
+			plhead_len = MBOX_RESERVE_LEN;
+
+		if (data->tx_size != 0) {
+			int txbuf_size = data->tx_size + plhead_len;
+			int rxbuf_size = data->rx_size + plhead_len;
+
+			txbuf = kmalloc(txbuf_size, GFP_KERNEL);
+			if (!txbuf) {
+				status = -SCPI_ERR_NOMEM;
+				goto free_end;
+			}
+			memset(txbuf, 0, txbuf_size);
+
+			rxbuf = kmalloc(rxbuf_size, GFP_KERNEL);
+			if (!rxbuf) {
+				status = -SCPI_ERR_NOMEM;
+				goto free_buf;
+			}
+			memset(rxbuf, 0, rxbuf_size);
+			memcpy(txbuf + plhead_len,
+			       data->tx_buf, data->tx_size);
+
+			data->tx_buf = txbuf;
+			data->tx_size = txbuf_size;
+			rx_buf = data->rx_buf;
+			data->rx_buf = rxbuf;
+			data->rx_size = rxbuf_size;
+		}
+	break;
+	case C_AOCPU_OLD:
 		if (!mhu_device)
 			return -ENOENT;
 
@@ -308,8 +358,8 @@ static int send_scpi_cmd(struct scpi_data_buf *scpi_buf,
 		if (send_listen_chans) {
 			chan_idx = 31 - __builtin_clz(send_listen_chans);
 			if (!high_priority)
-				chan_idx = 31 - __builtin_clz(
-					send_listen_chans ^ BIT(chan_idx));
+				chan_idx = 31 -
+			__builtin_clz(send_listen_chans ^ BIT(chan_idx));
 		} else {
 			chan_idx = high_priority;
 		}
@@ -348,8 +398,6 @@ static int send_scpi_cmd(struct scpi_data_buf *scpi_buf,
 	case C_DSPB_FIFO:
 		status = *(u32 *)(data->rx_buf);
 		if (status == ACK_OK) {
-			*(u32 *)(rx_buf) = SCPI_SUCCESS;
-			/*need to check*/
 			memcpy(rx_buf, (data->rx_buf) + MBOX_HEAD_SIZE,
 			       (data->rx_size - MBOX_HEAD_SIZE));
 
@@ -361,7 +409,6 @@ static int send_scpi_cmd(struct scpi_data_buf *scpi_buf,
 		status = SCPI_SUCCESS;
 	break;
 	case C_AOCPU_FIFO:
-	case C_SECPU_FIFO:
 		status = *(u32 *)(data->rx_buf);
 		if (status == ACK_OK) {
 			*(u32 *)(rx_buf) = SCPI_SUCCESS;
@@ -375,12 +422,32 @@ static int send_scpi_cmd(struct scpi_data_buf *scpi_buf,
 		data->rx_buf = rx_buf;
 		status = *(u32 *)(data->rx_buf);
 	break;
-	case C_AOCPU_PL:
-		status = *(u32 *)(data->rx_buf); /* read first word */
+	case C_DSPA_PL:
+	case C_DSPB_PL:
+	case C_SECPU_PL:
+		status = *(u32 *)(data->rx_buf);
+		if (c_chan == C_SECPU_PL) {
+			plhead_len = MBOX_PL_HEAD_SIZE;
+			status = *(u32 *)(data->rx_buf);
+		} else {
+			plhead_len = MBOX_RESERVE_LEN;
+			status = ACK_OK;
+		}
+
+		if (status == ACK_OK) {
+			/*need to check*/
+			memcpy(rx_buf, (data->rx_buf) + plhead_len,
+			       (data->rx_size - plhead_len));
+
+			data->rx_buf = rx_buf;
+		}
+
+		data->rx_buf = rx_buf;
+
+		status = SCPI_SUCCESS;
 	break;
-	default:
-		pr_err("[scpi]: match mhu driver fail\n");
-		status = -SCPI_ERR_NOMEM;
+	case C_AOCPU_OLD:
+		status = *(u32 *)(data->rx_buf); /* read first word */
 	break;
 	}
 
@@ -406,6 +473,8 @@ do {						\
 	pdata->rx_size = sizeof(_rx_buf);	\
 	scpi_buf.client_id = _client_id;	\
 	scpi_buf.data = pdata;			\
+	scpi_buf.async = SYNC_CMD_TAG;		\
+	scpi_buf.channel = SCPI_MAXNUM;		\
 } while (0)
 
 #define SCPI_SETUP_DBUF_SIZE(scpi_buf, mhu_buf, _client_id,\
@@ -419,6 +488,8 @@ do {						\
 	pdata->rx_size = _rx_size;	\
 	scpi_buf.client_id = _client_id;	\
 	scpi_buf.data = pdata;			\
+	scpi_buf.async = SYNC_CMD_TAG;		\
+	scpi_buf.channel = SCPI_MAXNUM;		\
 } while (0)
 
 #define SCPI_SETUP_DBUF_AUTO(scpi_buf, mhu_buf, _client_id,\
@@ -447,9 +518,6 @@ static int scpi_execute_cmd(struct scpi_data_buf *scpi_buf)
 	int c_chan = C_MAXNUM;
 	int txsize = 0;
 
-	if (!scpi_buf || !scpi_buf->data)
-		return -EINVAL;
-
 	data = scpi_buf->data;
 
 	if (client_id != SCPI_MAX)
@@ -457,57 +525,65 @@ static int scpi_execute_cmd(struct scpi_data_buf *scpi_buf)
 
 	switch (channel) {
 	case SCPI_DSPA:
-		if (client_id != SCPI_MAX)
-			return -EINVAL;
-
-		if (mhu_f & MASK_MHU_FIFO) {
-			c_chan = C_DSPA_FIFO;
-			txsize = data->tx_size + MBOX_HEAD_SIZE;
-			data->cmd = (data->cmd & 0xffff)
-				    | (txsize & MBSIZE_MASK) << MBSIZE_SHIFT
-				    | (scpi_buf->async); //Sync Flag
-		} else {
-			return -EINVAL;
-		}
-	break;
 	case SCPI_DSPB:
-		if (client_id != SCPI_MAX)
-			return -EINVAL;
-
 		if (mhu_f & MASK_MHU_FIFO) {
-			c_chan = C_DSPB_FIFO;
+			if (channel == SCPI_DSPA)
+				c_chan = C_DSPA_FIFO;
+			else
+				c_chan = C_DSPB_FIFO;
 			txsize = data->tx_size + MBOX_HEAD_SIZE;
-			data->cmd = (data->cmd & MBCMD_MASK)
-				    | (txsize & MBSIZE_MASK) << MBSIZE_SHIFT
-				    | (scpi_buf->async); //Sync Flag
+
+			if (data->tx_size > MBOX_DATA_SIZE)
+				return -EINVAL;
 		} else {
-			return -EINVAL;
+			if (mhu_f & MASK_MHU_PL) {
+				if (channel == SCPI_DSPA)
+					c_chan = C_DSPA_PL;
+				else
+					c_chan = C_DSPB_PL;
+
+				if (data->tx_size > MBOX_PL_SCPITODSP_SIZE)
+					return -EINVAL;
+
+				txsize = data->tx_size + MBOX_RESERVE_LEN;
+			} else {
+				return -EINVAL;
+			}
 		}
+
+		data->cmd = (data->cmd & 0xffff)
+			    | (txsize & MBSIZE_MASK) << MBSIZE_SHIFT
+			    | (scpi_buf->async); //Sync Flag
 	break;
 	case SCPI_AOCPU:
 		if (mhu_f & MASK_MHU) {
-			c_chan = C_AOCPU_PL;
+			c_chan = C_AOCPU_OLD;
 			scpi_buf->channel = SCPI_AOCPU;
 
-			if ((scpi_buf->async != ASYNC_CMD_TAG) &&
-			    (scpi_buf->async != SYNC_CMD_TAG))
+			if (scpi_buf->async != ASYNC_CMD_TAG &&
+			    scpi_buf->async != SYNC_CMD_TAG)
 				scpi_buf->async = SCPI_DEF_SYNC;
 
 			high_priority = high_priority_chan_supported(data->cmd);
-			if (!high_priority || (num_scp_chans == CHANNEL_MAX))
+			if (!high_priority || num_scp_chans == CHANNEL_MAX)
 				data->cmd = PACK_SCPI_CMD(data->cmd,
 							  scpi_buf->client_id,
 							  data->tx_size);
 			else if (high_priority &&
 				 (num_scp_chans != CHANNEL_MAX))
 				data->cmd = data->tx_size;
+			else
+				return -EINVAL;
 		} else {
 			if (mhu_f & MASK_MHU_FIFO) {
+				if (data->tx_size > MBOX_DATA_SIZE)
+					return -EINVAL;
+
 				c_chan = C_AOCPU_FIFO;
 				scpi_buf->channel = SCPI_AOCPU;
 				txsize = data->tx_size + MBOX_HEAD_SIZE;
-				if ((scpi_buf->async != ASYNC_CMD_TAG) &&
-				    (scpi_buf->async != SYNC_CMD_TAG))
+				if (scpi_buf->async != ASYNC_CMD_TAG &&
+				    scpi_buf->async != SYNC_CMD_TAG)
 					scpi_buf->async = SCPI_DEF_SYNC;
 
 				data->cmd =
@@ -518,7 +594,20 @@ static int scpi_execute_cmd(struct scpi_data_buf *scpi_buf)
 				return -EINVAL;
 			}
 		}
-		break;
+	break;
+	case SCPI_SECPU:
+		if (mhu_f & MASK_MHU_PL) {
+			if (data->tx_size > MBOX_PL_SCPITOSE_SIZE)
+				return -EINVAL;
+			c_chan = C_SECPU_PL;
+			txsize = data->tx_size + MBOX_PL_HEAD_SIZE;
+			data->cmd = (data->cmd & MBCMD_MASK)
+				    | (txsize & MBSIZE_MASK) << MBSIZE_SHIFT
+				    | (scpi_buf->async); //Sync Flag
+		} else {
+			return -EINVAL;
+		}
+	break;
 	default:
 		break;
 	}
@@ -596,7 +685,7 @@ struct scpi_dvfs_info *scpi_dvfs_get_opps(u8 domain)
 		return ERR_PTR(-ENOMEM);
 
 	count = DVFS_OPP_COUNT(buf.header);
-	opps_sz = count * sizeof(*(opps->opp));
+	opps_sz = count * sizeof(*opps->opp);
 
 	opps->count = count;
 	opps->latency = DVFS_LATENCY(buf.header);
@@ -686,6 +775,7 @@ int scpi_get_sensor(char *name)
 		pdata->rx_size = sizeof(cap_buf);
 		sdata.client_id = SCPI_CL_THERMAL;
 		sdata.data = pdata;
+		sdata.channel = SCPI_MAXNUM;
 	} while (0);
 	ret = scpi_execute_cmd(&sdata);
 	if (ret)
@@ -882,6 +972,21 @@ int scpi_init_dsp_cfg0(u32 id, u32 addr, u32 cfg0)
 }
 EXPORT_SYMBOL_GPL(scpi_init_dsp_cfg0);
 
+int scpi_set_cec_val(enum scpi_std_cmd index, u32 cec_data)
+{
+	struct scpi_data_buf sdata;
+	struct mhu_data_buf mdata;
+	int status;
+
+	SCPI_SETUP_DBUF(sdata, mdata, SCPI_CL_NONE,
+			index, cec_data, status);
+	if (scpi_execute_cmd(&sdata))
+		return -EPERM;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(scpi_set_cec_val);
+
 int scpi_get_cec_val(enum scpi_std_cmd index, u32 *p_cec)
 {
 	struct scpi_data_buf sdata;
@@ -1055,6 +1160,7 @@ int scpi_send_data(void *data, int size, int channel,
 	switch (channel) {
 	case SCPI_DSPA:
 	case SCPI_DSPB:
+	case SCPI_SECPU:
 		s_buf = data;
 		r_buf = revdata;
 		SCPI_SETUP_DBUF_AUTO(sdata, mdata, client_id, cmd, s_buf,
@@ -1064,8 +1170,8 @@ int scpi_send_data(void *data, int size, int channel,
 	case SCPI_AOCPU:
 	{
 		if (mhu_f & MASK_MHU_FIFO) {
-			if ((size > MBOX_DATA_SIZE) ||
-			    (revsize > MBOX_DATA_SIZE)) {
+			if (size > MBOX_DATA_SIZE ||
+			    revsize > MBOX_DATA_SIZE) {
 				pr_err("[scpi]: size: %d %d over max: %d\n",
 				       size, revsize, MBOX_DATA_SIZE);
 				return -EINVAL;
@@ -1073,7 +1179,7 @@ int scpi_send_data(void *data, int size, int channel,
 			repack_buf =
 				kmalloc(revsize + sizeof(status), GFP_KERNEL);
 			if (!repack_buf)
-				ret = -ENOMEM;
+				return -ENOMEM;
 
 			memset(repack_buf, 0, (revsize + sizeof(status)));
 
@@ -1095,7 +1201,7 @@ int scpi_send_data(void *data, int size, int channel,
 				repack_buf =
 				kmalloc(revsize + sizeof(status), GFP_KERNEL);
 				if (!repack_buf)
-					ret = -ENOMEM;
+					return -ENOMEM;
 
 				memset(repack_buf, 0,
 				       (revsize + sizeof(status)));
@@ -1125,6 +1231,8 @@ int scpi_send_data(void *data, int size, int channel,
 	}
 	break;
 	default:
+		pr_err("%s: cannot match channel 0x%x cmd 0x%x\n",
+		       __func__, channel, cmd);
 		return -ENXIO;
 	}
 

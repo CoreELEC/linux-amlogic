@@ -261,7 +261,7 @@
 		      <0xfe007140 0x40>,   /* mhu sts reg */
 		      <0xfe007020 0x40>;   /* mhu irqctrl reg */
 		interrupts = <0 248 1>;   /* irq top */
-		mbox-irqctrl = <0>;
+		mbox-irqctlr = <0>;
 		mbox-nums = <4>;
 		mbox-names = "dsp_dev",
 			     "ap_to_dspa",

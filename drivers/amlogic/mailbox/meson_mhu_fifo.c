@@ -1,5 +1,5 @@
 /*
- * drivers/amlogic/mailbox/meson_mhu.c
+ * drivers/amlogic/mailbox/meson_mhu_fifo.c
  *
  * Copyright (C) 2017 Amlogic, Inc. All rights reserved.
  *
@@ -14,6 +14,7 @@
  * more details.
  *
  */
+
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/completion.h>
@@ -40,8 +41,32 @@
 
 #define DRIVER_NAME		"meson_mhu_fifo"
 
+struct mbox_data {
+	u32 status;
+	u64 task;
+	u64 complete;
+	u64 ullclt;
+	char data[MBOX_DATA_SIZE];
+} __packed;
+
+struct mhu_ctlr {
+	struct device *dev;
+	void __iomem *mbox_wr_base;
+	void __iomem *mbox_rd_base;
+	void __iomem *mbox_set_base;
+	void __iomem *mbox_clr_base;
+	void __iomem *mbox_sts_base;
+	void __iomem *mbox_irq_base;
+	void __iomem *mbox_payload_base;
+	struct mbox_controller mbox_con;
+	struct mhu_chan *channels;
+	int mhu_id[MBOX_MAX];
+	int mhu_irq;
+	int mhu_irqctr;
+};
+
 /*spinlock lock for mbox list data report*/
-spinlock_t mhu_list_lock;
+static spinlock_t mhu_list_lock;
 
 static struct list_head mbox_devs = LIST_HEAD_INIT(mbox_devs);
 static struct class *mbox_class;
@@ -51,7 +76,9 @@ static struct list_head mbox_list[CHANNEL_FIFO_MAX];
 static void mbox_fifo_write(void __iomem *to, void *from, long count)
 {
 	int i = 0;
-	long len = count / 4 + (count % 4 ? 1 : 0);
+	long len = count / 4;
+	long rlen = count % 4;
+	u32 rdata = 0;
 	u32 *p = (u32 *)from;
 
 	while (len > 0) {
@@ -60,18 +87,33 @@ static void mbox_fifo_write(void __iomem *to, void *from, long count)
 		i++;
 		p++;
 	}
+
+	/*remainder data need use copy for no over mem size*/
+	if (rlen != 0) {
+		memcpy(&rdata, p, rlen);
+		writel(rdata, (to + 4 * i));
+	}
 }
 
 static void mbox_fifo_read(void *to, void __iomem *from, long count)
 {
 	int i = 0;
-	long len = count / 4 + (count % 4 ? 1 : 0);
+	long len = count / 4;
+	long rlen = count % 4;
+	u32 rdata = 0;
 	u32 *p = to;
 
 	while (len > 0) {
-		p[i] = readl(from + (4 * i));
+		*p = readl(from + (4 * i));
 		len--;
 		i++;
+		p++;
+	}
+
+	/*remainder data need use copy for no over mem size*/
+	if (rlen != 0) {
+		rdata = readl(from + (4 * i));
+		memcpy(p, &rdata, rlen);
 	}
 }
 
@@ -142,19 +184,19 @@ void mbox_irq_clean(unsigned int mask, void __iomem *addr)
 
 static void mbox_isr_handler(int mhu_id, void *p)
 {
-	struct mhu_ctrl *ctrl = (struct mhu_ctrl *)p;
-	void __iomem *mbox_rd_base = ctrl->mbox_rd_base;
-	void __iomem *mbox_clr_base = ctrl->mbox_clr_base;
-	void __iomem *mbox_sts_base = ctrl->mbox_sts_base;
-	void __iomem *mbox_irq_base = ctrl->mbox_irq_base;
+	struct mhu_ctlr *ctlr = (struct mhu_ctlr *)p;
+	void __iomem *mbox_rd_base = ctlr->mbox_rd_base;
+	void __iomem *mbox_clr_base = ctlr->mbox_clr_base;
+	void __iomem *mbox_sts_base = ctlr->mbox_sts_base;
+	void __iomem *mbox_irq_base = ctlr->mbox_irq_base;
 	struct mhu_chan *chan = NULL;
 	struct mhu_data_buf *data = NULL;
-	int irqctr = ctrl->mhu_irqctr;
+	int irqctr = ctlr->mhu_irqctr;
 	int channel = 0;
 	u32 status;
 
 	for (channel = 0; channel < CHANNEL_FIFO_MAX; channel++) {
-		if (ctrl->mhu_id[channel] == mhu_id)
+		if (ctlr->mhu_id[channel] == mhu_id)
 			break;
 	}
 
@@ -164,7 +206,7 @@ static void mbox_isr_handler(int mhu_id, void *p)
 		return;
 	}
 
-	chan = &ctrl->channels[channel];
+	chan = &ctlr->channels[channel];
 	data = chan->data;
 
 	status = readl(mbox_sts_base + CTL_OFFSET(mhu_id));
@@ -183,18 +225,19 @@ static void mbox_isr_handler(int mhu_id, void *p)
 
 void mbox_ack_isr_handler(int mhu_id, void *p)
 {
-	struct mhu_ctrl *ctrl = p;
-	void __iomem *mbox_irq_base = ctrl->mbox_irq_base;
-	void __iomem *mbox_rd_base = ctrl->mbox_rd_base;
-	struct mbox_controller *mbox_con = &ctrl->mbox_con;
-	int irqctr = ctrl->mhu_irqctr;
+	struct mhu_ctlr *ctlr = p;
+	void __iomem *mbox_irq_base = ctlr->mbox_irq_base;
+	void __iomem *mbox_rd_base = ctlr->mbox_rd_base;
+	void __iomem *mbox_wr_base = ctlr->mbox_wr_base;
+	struct mbox_controller *mbox_con = &ctlr->mbox_con;
+	int irqctr = ctlr->mhu_irqctr;
 	struct mhu_chan *chan = NULL;
 	struct mbox_chan *mbox_chan = NULL;
 	struct mhu_data_buf *data = NULL;
 	int channel;
 
 	for (channel = 0; channel < CHANNEL_FIFO_MAX; channel++) {
-		if (ctrl->mhu_id[channel] == mhu_id)
+		if (ctlr->mhu_id[channel] == mhu_id)
 			break;
 	}
 
@@ -204,7 +247,7 @@ void mbox_ack_isr_handler(int mhu_id, void *p)
 		return;
 	}
 
-	chan = &ctrl->channels[channel];
+	chan = &ctlr->channels[channel];
 	mbox_chan = &mbox_con->chans[channel];
 	data = chan->data;
 
@@ -220,20 +263,24 @@ void mbox_ack_isr_handler(int mhu_id, void *p)
 	mbox_chan_received_data(mbox_chan, data);
 
 	complete(&mbox_chan->tx_complete);
+	mbox_fifo_clr(mbox_wr_base + PAYLOAD_OFFSET(mhu_id),
+		      MBOX_FIFO_SIZE);
 	mbox_irq_clean(IRQ_SENDACK_BIT(mhu_id),
 		       mbox_irq_base + IRQ_CLR_OFFSET(irqctr));
 }
 
 static irqreturn_t mbox_handler(int irq, void *p)
 {
-	struct mhu_ctrl *ctrl = (struct mhu_ctrl *)p;
-	void __iomem *mbox_irq_base = ctrl->mbox_irq_base;
-	int irqctr = ctrl->mhu_irqctr;
+	struct mhu_ctlr *ctlr = (struct mhu_ctlr *)p;
+	void __iomem *mbox_irq_base = ctlr->mbox_irq_base;
+	int irqctr = ctlr->mhu_irqctr;
 	u32 status, prestatus = 0;
+	u32 outcnt;
 	int i;
 
+	outcnt = MHUIRQ_MAXNUM * 2;
 	status = readl(mbox_irq_base + IRQ_STS_OFFSET(0));
-	while (status) {
+	while (status && (outcnt != 0)) {
 		for (i = 0; i < MHUIRQ_MAXNUM; i++) {
 			if (status & (1 << i)) {
 				if (i % 2)
@@ -245,6 +292,8 @@ static irqreturn_t mbox_handler(int irq, void *p)
 		prestatus = status;
 		status = readl(mbox_irq_base + IRQ_STS_OFFSET(irqctr));
 		status = (status | prestatus) ^ prestatus;
+		outcnt--;
+		WARN_ON(!outcnt);
 	}
 	return IRQ_HANDLED;
 }
@@ -252,17 +301,15 @@ static irqreturn_t mbox_handler(int irq, void *p)
 static int mhu_send_data(struct mbox_chan *link, void *msg)
 {
 	struct mhu_chan *chan = link->con_priv;
-	struct mhu_ctrl *ctrl = chan->ctrl;
-	void __iomem *mbox_wr_base = ctrl->mbox_wr_base;
-	void __iomem *mbox_set_base = ctrl->mbox_set_base;
+	struct mhu_ctlr *ctlr = chan->ctlr;
+	void __iomem *mbox_wr_base = ctlr->mbox_wr_base;
+	void __iomem *mbox_set_base = ctlr->mbox_set_base;
 	struct mhu_data_buf *data = (struct mhu_data_buf *)msg;
 	int mhu_id = chan->mhu_id;
 
 	chan->data = data;
 
 	if (data->tx_buf) {
-		mbox_fifo_clr(mbox_wr_base + PAYLOAD_OFFSET(mhu_id),
-			      MHU_BUFFER_SIZE);
 		mbox_fifo_write(mbox_wr_base + PAYLOAD_OFFSET(mhu_id),
 				data->tx_buf, data->tx_size);
 	}
@@ -283,8 +330,8 @@ static void mhu_shutdown(struct mbox_chan *link)
 static bool mhu_last_tx_done(struct mbox_chan *link)
 {
 	struct mhu_chan *chan = link->con_priv;
-	struct mhu_ctrl *ctrl = chan->ctrl;
-	void __iomem *mbox_sts_base = ctrl->mbox_sts_base;
+	struct mhu_ctlr *ctlr = chan->ctlr;
+	void __iomem *mbox_sts_base = ctlr->mbox_sts_base;
 	int mhu_id = chan->mhu_id;
 
 	return !readl(mbox_sts_base + CTL_OFFSET(mhu_id));
@@ -316,9 +363,9 @@ static ssize_t mbox_message_write(struct file *filp,
 
 	send_channel = to_send_chan(channel);
 
-	if (count > MBOX_USER_MAX_LEN) {
+	if (count > MBOX_USER_MAX_LEN || count < MBOX_USER_CMD_LEN) {
 		dev_err(dev,
-			"Message length %zd greater than max allowed\n",
+			"Message length %zd over range\n",
 			count);
 		return -EINVAL;
 	}
@@ -488,7 +535,7 @@ static void mhu_cleanup_devs(void)
 	}
 }
 
-static int mhu_cdev_init(struct device *dev, struct mhu_ctrl *mhu_ctrl)
+static int mhu_cdev_init(struct device *dev, struct mhu_ctlr *mhu_ctlr)
 {
 	struct mhu_chan *mhu_chan;
 	dev_t char_dev;
@@ -525,7 +572,7 @@ static int mhu_cdev_init(struct device *dev, struct mhu_ctrl *mhu_ctrl)
 			goto out_err;
 		}
 
-		mhu_chan = &mhu_ctrl->channels[i * 2];
+		mhu_chan = &mhu_ctlr->channels[i * 2];
 		cur->channel_id = i * 2;
 		cur->char_no = MKDEV(char_major, i);
 		mutex_init(&cur->mutex);
@@ -579,7 +626,7 @@ err:
 
 static int mhu_probe(struct platform_device *pdev)
 {
-	struct mhu_ctrl *mhu_ctrl;
+	struct mhu_ctlr *mhu_ctlr;
 	struct mhu_chan *mhu_chan;
 	struct mbox_chan *mbox_chans;
 	struct device *dev = &pdev->dev;
@@ -589,8 +636,8 @@ static int mhu_probe(struct platform_device *pdev)
 	u32 irqctr = 0;
 
 	pr_info("mhu fifo start\n");
-	mhu_ctrl = devm_kzalloc(dev, sizeof(*mhu_ctrl), GFP_KERNEL);
-	if (!mhu_ctrl)
+	mhu_ctlr = devm_kzalloc(dev, sizeof(*mhu_ctlr), GFP_KERNEL);
+	if (!mhu_ctlr)
 		return -ENOMEM;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -598,45 +645,45 @@ static int mhu_probe(struct platform_device *pdev)
 		dev_err(dev, "failed to get mailbox memory resource\n");
 		return -ENXIO;
 	}
-	mhu_ctrl->mbox_wr_base = devm_ioremap_resource(dev, res);
-	if (IS_ERR(mhu_ctrl->mbox_wr_base))
-		return PTR_ERR(mhu_ctrl->mbox_wr_base);
+	mhu_ctlr->mbox_wr_base = devm_ioremap_resource(dev, res);
+	if (IS_ERR_OR_NULL(mhu_ctlr->mbox_wr_base))
+		return PTR_ERR(mhu_ctlr->mbox_wr_base);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
 	if (!res) {
 		dev_err(dev, "failed to get mailbox memory resource\n");
 		return -ENXIO;
 	}
-	mhu_ctrl->mbox_rd_base = devm_ioremap_resource(dev, res);
-	if (IS_ERR(mhu_ctrl->mbox_rd_base))
-		return PTR_ERR(mhu_ctrl->mbox_rd_base);
+	mhu_ctlr->mbox_rd_base = devm_ioremap_resource(dev, res);
+	if (IS_ERR_OR_NULL(mhu_ctlr->mbox_rd_base))
+		return PTR_ERR(mhu_ctlr->mbox_rd_base);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 2);
 	if (!res) {
 		dev_err(dev, "failed to get mailbox memory resource\n");
 		return -ENXIO;
 	}
-	mhu_ctrl->mbox_set_base = devm_ioremap_resource(dev, res);
-	if (IS_ERR(mhu_ctrl->mbox_set_base))
-		return PTR_ERR(mhu_ctrl->mbox_set_base);
+	mhu_ctlr->mbox_set_base = devm_ioremap_resource(dev, res);
+	if (IS_ERR(mhu_ctlr->mbox_set_base))
+		return PTR_ERR(mhu_ctlr->mbox_set_base);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 3);
 	if (!res) {
 		dev_err(dev, "failed to get mailbox memory resource\n");
 		return -ENXIO;
 	}
-	mhu_ctrl->mbox_clr_base = devm_ioremap_resource(dev, res);
-	if (IS_ERR(mhu_ctrl->mbox_clr_base))
-		return PTR_ERR(mhu_ctrl->mbox_clr_base);
+	mhu_ctlr->mbox_clr_base = devm_ioremap_resource(dev, res);
+	if (IS_ERR(mhu_ctlr->mbox_clr_base))
+		return PTR_ERR(mhu_ctlr->mbox_clr_base);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 4);
 	if (!res) {
 		dev_err(dev, "failed to get mailbox memory resource\n");
 		return -ENXIO;
 	}
-	mhu_ctrl->mbox_sts_base = devm_ioremap_resource(dev, res);
-	if (IS_ERR(mhu_ctrl->mbox_sts_base))
-		return PTR_ERR(mhu_ctrl->mbox_sts_base);
+	mhu_ctlr->mbox_sts_base = devm_ioremap_resource(dev, res);
+	if (IS_ERR(mhu_ctlr->mbox_sts_base))
+		return PTR_ERR(mhu_ctlr->mbox_sts_base);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 5);
 	if (!res) {
@@ -644,37 +691,37 @@ static int mhu_probe(struct platform_device *pdev)
 		return -ENXIO;
 	}
 
-	mhu_ctrl->mbox_irq_base = devm_ioremap_resource(dev, res);
-	if (IS_ERR(mhu_ctrl->mbox_irq_base))
-		return PTR_ERR(mhu_ctrl->mbox_irq_base);
+	mhu_ctlr->mbox_irq_base = devm_ioremap_resource(dev, res);
+	if (IS_ERR(mhu_ctlr->mbox_irq_base))
+		return PTR_ERR(mhu_ctlr->mbox_irq_base);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 6);
 	if (!res) {
 		dev_err(dev, "no payload, only use fifo\n");
 	} else {
-		mhu_ctrl->mbox_payload_base = devm_ioremap_resource(dev, res);
-		if (IS_ERR(mhu_ctrl->mbox_payload_base))
-			return PTR_ERR(mhu_ctrl->mbox_payload_base);
+		mhu_ctlr->mbox_payload_base = devm_ioremap_resource(dev, res);
+		if (IS_ERR(mhu_ctlr->mbox_payload_base))
+			return PTR_ERR(mhu_ctlr->mbox_payload_base);
 		dev_err(dev, "payload or fifo canbe use\n");
 	}
 
-	mhu_ctrl->mhu_irq = platform_get_irq(pdev, 0);
-	if (mhu_ctrl->mhu_irq < 0) {
+	mhu_ctlr->mhu_irq = platform_get_irq(pdev, 0);
+	if (mhu_ctlr->mhu_irq < 0) {
 		dev_err(dev, "failed to get interrupt %d\n", 0);
 		return -ENXIO;
 	}
 
 	err = of_property_read_u32(dev->of_node,
-				   "mbox-irqctrl", &irqctr);
+				   "mbox-irqctlr", &irqctr);
 	if (err) {
-		dev_err(dev, "failed to get mbox irq ctrl %d\n", err);
+		dev_err(dev, "failed to get mbox irq ctlr %d\n", err);
 		return -ENXIO;
 	}
 
-	mhu_ctrl->mhu_irqctr = irqctr;
+	mhu_ctlr->mhu_irqctr = irqctr;
 
-	mhu_ctrl->dev = dev;
-	platform_set_drvdata(pdev, mhu_ctrl);
+	mhu_ctlr->dev = dev;
+	platform_set_drvdata(pdev, mhu_ctlr);
 
 	num_chans = 0;
 	err = of_property_read_u32(dev->of_node,
@@ -684,7 +731,7 @@ static int mhu_probe(struct platform_device *pdev)
 		return -ENXIO;
 	}
 	if (of_property_read_u32_array(pdev->dev.of_node, "mbox-id",
-				       &mhu_ctrl->mhu_id[0], num_chans)) {
+				       &mhu_ctlr->mhu_id[0], num_chans)) {
 		dev_warn(&pdev->dev, "Missing mbox-id using default %d\n",
 			 0x0);
 	}
@@ -694,21 +741,21 @@ static int mhu_probe(struct platform_device *pdev)
 				  GFP_KERNEL);
 	if (!mbox_chans)
 		return -ENOMEM;
-	mhu_ctrl->mbox_con.chans = mbox_chans;
-	mhu_ctrl->mbox_con.num_chans = num_chans;
-	mhu_ctrl->mbox_con.txdone_irq = true;
-	mhu_ctrl->mbox_con.ops = &mhu_ops;
-	mhu_ctrl->mbox_con.dev = dev;
+	mhu_ctlr->mbox_con.chans = mbox_chans;
+	mhu_ctlr->mbox_con.num_chans = num_chans;
+	mhu_ctlr->mbox_con.txdone_irq = true;
+	mhu_ctlr->mbox_con.ops = &mhu_ops;
+	mhu_ctlr->mbox_con.dev = dev;
 
-	mhu_ctrl->channels = devm_kzalloc(dev,
+	mhu_ctlr->channels = devm_kzalloc(dev,
 					  sizeof(*mhu_chan) * num_chans,
 					  GFP_KERNEL);
 
 	for (idx = 0; idx < num_chans; idx++) {
-		mhu_chan = &mhu_ctrl->channels[idx];
+		mhu_chan = &mhu_ctlr->channels[idx];
 		mhu_chan->index = idx;
-		mhu_chan->mhu_id = mhu_ctrl->mhu_id[idx];
-		mhu_chan->ctrl = mhu_ctrl;
+		mhu_chan->mhu_id = mhu_ctlr->mhu_id[idx];
+		mhu_chan->ctlr = mhu_ctlr;
 		mbox_chans[idx].con_priv = mhu_chan;
 		pr_debug("%s, chan index: %d, idx: %d, mbu_id:%d\n",
 			 __func__, mhu_chan->index, idx, mhu_chan->mhu_id);
@@ -717,28 +764,32 @@ static int mhu_probe(struct platform_device *pdev)
 		mhu_chan->data = devm_kzalloc(dev,
 					      sizeof(struct mhu_data_buf),
 					      GFP_KERNEL);
+		if (!mhu_chan->data)
+			return -ENOMEM;
+
 		mhu_chan->data->rx_buf = devm_kzalloc(dev,
-						      MHU_BUFFER_SIZE,
+						      MBOX_FIFO_SIZE,
 						      GFP_KERNEL);
 		if (!mhu_chan->data->rx_buf)
 			return -ENOMEM;
-		mhu_chan->data->rx_size = MHU_BUFFER_SIZE;
+
+		mhu_chan->data->rx_size = MBOX_FIFO_SIZE;
 	}
 
-	if (mbox_controller_register(&mhu_ctrl->mbox_con)) {
+	if (mbox_controller_register(&mhu_ctlr->mbox_con)) {
 		dev_err(dev, "failed to register mailbox controller\n");
 		return -ENOMEM;
 	}
 
-	err = request_threaded_irq(mhu_ctrl->mhu_irq, mbox_handler,
+	err = request_threaded_irq(mhu_ctlr->mhu_irq, mbox_handler,
 				   NULL, IRQF_ONESHOT | IRQF_NO_SUSPEND,
-				   DRIVER_NAME, mhu_ctrl);
+				   DRIVER_NAME, mhu_ctlr);
 	if (err) {
 		dev_err(dev, "request irq error\n");
 		return err;
 	}
 
-	err = mhu_cdev_init(dev, mhu_ctrl);
+	err = mhu_cdev_init(dev, mhu_ctlr);
 	if (err < 0) {
 		dev_err(dev, "init cdev fail\n");
 		return err;
@@ -754,9 +805,9 @@ static int mhu_probe(struct platform_device *pdev)
 
 static int mhu_remove(struct platform_device *pdev)
 {
-	struct mhu_ctrl *ctrl = platform_get_drvdata(pdev);
+	struct mhu_ctlr *ctlr = platform_get_drvdata(pdev);
 
-	mbox_controller_unregister(&ctrl->mbox_con);
+	mbox_controller_unregister(&ctlr->mbox_con);
 
 	platform_set_drvdata(pdev, NULL);
 
