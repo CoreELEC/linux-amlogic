@@ -1313,6 +1313,7 @@ void tsync_pcr_avevent_locked(enum avevent_e event, u32 param)
 		video_jumped = false;
 		tsync_pcr_tsdemux_startpcr = 0;
 		play_mode = PLAY_MODE_NORMAL;
+		tsync_reset();
 		pr_info("video stop!\n");
 		break;
 
@@ -1387,6 +1388,7 @@ void tsync_pcr_avevent_locked(enum avevent_e event, u32 param)
 	case AUDIO_START:
 		tsync_set_av_state(1, AUDIO_START);
 		timestamp_apts_set(param);
+		timestamp_firstapts_set(param);
 		timestamp_apts_enable(1);
 		timestamp_apts_start(1);
 		tsync_pcr_first_audio_frame_pts = param;
@@ -1770,6 +1772,7 @@ void tsync_pcr_stop(void)
 	timestamp_vpts_set(0);
 	timestamp_vpts_set_u64(0);
 	timestamp_pcrscr_set(0);
+	tsync_reset();
 	tsync_demux_pcr_valid = 1;
 }
 EXPORT_SYMBOL(tsync_pcr_stop);

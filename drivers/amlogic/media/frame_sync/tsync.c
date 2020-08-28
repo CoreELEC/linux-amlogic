@@ -166,7 +166,11 @@ u8 demux_pcrscr_valid;
 u8 audio_pid_valid;
 u8 video_pid_valid;
 u32 demux_pcrscr;
-u32 first_demux_pcrscr;
+static u32 first_demux_pcrscr;
+struct dmx_info demux_info;
+
+pfun_amldemux_pcrscr_get amldemux_pcrscr_get_cb;
+
 
 pfun_tsdemux_pcrscr_valid tsdemux_pcrscr_valid_cb;
 
@@ -185,7 +189,6 @@ pfun_stbuf_level stbuf_level_cb;
 pfun_stbuf_space stbuf_space_cb;
 
 pfun_stbuf_size stbuf_size_cb;
-
 
 /*
  *used to set player start sync mode, 0-none; 1-smoothsync; 2-droppcm;
@@ -762,69 +765,77 @@ static void tsync_state_switch_timer_fun(unsigned long arg)
 	add_timer(&tsync_state_switch_timer);
 }
 
-void tsync_get_demux_pcrscr_valid_for_newarch(void)
+u8 tsync_get_demux_pcrscr_valid_for_newarch(void)
 {
-	demux_pcrscr_valid = 1;
+	return demux_pcrscr_valid;
 }
 EXPORT_SYMBOL(tsync_get_demux_pcrscr_valid_for_newarch);
 
 u8 tsync_get_demux_pcrscr_valid(void)
 {
 	if (new_arch) {
-		tsync_get_demux_pcrscr_valid_for_newarch();
+		return tsync_get_demux_pcrscr_valid_for_newarch();
 	} else {
 		if (tsdemux_pcrscr_valid_cb)
 			demux_pcrscr_valid = tsdemux_pcrscr_valid_cb();
 		else
 			demux_pcrscr_valid = 0;
+		return demux_pcrscr_valid;
 	}
-	return demux_pcrscr_valid;
 }
 EXPORT_SYMBOL(tsync_get_demux_pcrscr_valid);
 
-void tsync_get_audio_pid_valid_for_newarch(void)
+u8 tsync_get_audio_pid_valid_for_newarch(void)
 {
-	audio_pid_valid = 1;
+	return audio_pid_valid;
 }
 EXPORT_SYMBOL(tsync_get_audio_pid_valid_for_newarch);
 
 u8 tsync_get_audio_pid_valid(void)
 {
 	if (new_arch) {
-		tsync_get_audio_pid_valid_for_newarch();
+		return tsync_get_audio_pid_valid_for_newarch();
 	} else {
 		if (tsdemux_pcraudio_valid_cb)
 			audio_pid_valid = tsdemux_pcraudio_valid_cb();
 		else
 			audio_pid_valid = 0;
+		return audio_pid_valid;
 	}
-	return audio_pid_valid;
 }
 EXPORT_SYMBOL(tsync_get_audio_pid_valid);
 
-void tsync_get_video_pid_valid_for_newarch(void)
+u8 tsync_get_video_pid_valid_for_newarch(void)
 {
-	video_pid_valid = 1;
+	return video_pid_valid;
 }
 EXPORT_SYMBOL(tsync_get_video_pid_valid_for_newarch);
 
 u8 tsync_get_video_pid_valid(void)
 {
 	if (new_arch) {
-		tsync_get_video_pid_valid_for_newarch();
+		return tsync_get_video_pid_valid_for_newarch();
 	} else {
 		if (tsdemux_pcrvideo_valid_cb)
 			video_pid_valid = (tsdemux_pcrvideo_valid_cb)();
 		else
 			video_pid_valid = 0;
+		return video_pid_valid;
 	}
-	return video_pid_valid;
 }
 EXPORT_SYMBOL(tsync_get_video_pid_valid);
 
 void tsync_get_demux_pcr_for_newarch(void)
 {
-	demux_pcrscr = 0;
+	if (!amldemux_pcrscr_get_cb)
+		amldemux_pcrscr_get_cb = symbol_request(demux_get_pcr);
+
+	if (amldemux_pcrscr_get_cb) {
+		amldemux_pcrscr_get_cb(demux_info.demux_device_id,
+				       demux_info.index, (u64 *)&demux_pcrscr);
+		if (first_demux_pcrscr == 0)
+			first_demux_pcrscr = demux_pcrscr;
+	}
 }
 EXPORT_SYMBOL(tsync_get_demux_pcr_for_newarch);
 
@@ -833,6 +844,10 @@ u8 tsync_get_demux_pcr(u32 *pcr)
 	u8 ret = 0;
 
 	if (new_arch) {
+		if (!demux_pcrscr_valid) {
+			*pcr = 0;
+			return 0;
+		}
 		tsync_get_demux_pcr_for_newarch();
 		*pcr = demux_pcrscr;
 		ret = 1;
@@ -851,7 +866,7 @@ EXPORT_SYMBOL(tsync_get_demux_pcr);
 
 void tsync_get_first_demux_pcr_for_newarch(void)
 {
-	first_demux_pcrscr = 1;
+	tsync_get_demux_pcr_for_newarch();
 }
 EXPORT_SYMBOL(tsync_get_first_demux_pcr_for_newarch);
 
@@ -860,6 +875,10 @@ u8 tsync_get_first_demux_pcr(u32 *first_pcr)
 	u8 ret = 0;
 
 	if (new_arch) {
+		if (!demux_pcrscr_valid) {
+			*first_pcr = 0;
+			return 0;
+		}
 		tsync_get_first_demux_pcr_for_newarch();
 		*first_pcr = first_demux_pcrscr;
 		ret = 1;
@@ -987,6 +1006,35 @@ u8 tsync_get_stbuf_size(struct stream_buf_s *pbuf, u32 *buf_size)
 }
 EXPORT_SYMBOL(tsync_get_stbuf_size);
 
+int tsync_check_pid_valid_for_newarch(struct dmx_info demux_info)
+{
+	if (!new_arch)
+		return 0;
+	if (demux_info.vpid != 0x1FFF)
+		video_pid_valid = 1;
+	else
+		video_pid_valid = 0;
+
+	if (demux_info.apid != 0x1FFF)
+		audio_pid_valid = 1;
+	else
+		audio_pid_valid = 0;
+
+	if (demux_info.pcrpid != 0x1FFF)
+		demux_pcrscr_valid = 1;
+	else
+		demux_pcrscr_valid = 0;
+	pr_info("a/v/p valid:[%d,%d,%d].",
+		audio_pid_valid, video_pid_valid, demux_pcrscr_valid);
+	return 1;
+}
+
+void tsync_reset(void)
+{
+	checkin_apts_from_audiohal = 0;
+	first_demux_pcrscr = 0;
+}
+
 void tsync_mode_reinit(void)
 {
 	tsync_av_mode = TSYNC_STATE_S;
@@ -1087,6 +1135,7 @@ void tsync_avevent_locked(enum avevent_e event, u32 param)
 		timestamp_pcrscr_set(0);
 		timestamp_pcrscr_enable(0);
 		timestamp_firstvpts_set(0);
+		tsync_reset();
 		tsync_video_started = 0;
 		break;
 
@@ -1311,6 +1360,7 @@ void tsync_avevent_locked(enum avevent_e event, u32 param)
 			tsync_stat = TSYNC_STAT_PCRSCR_SETUP_NONE;
 		apause_flag = 0;
 		timestamp_apts_start(0);
+		tsync_reset();
 
 		break;
 
@@ -2714,14 +2764,22 @@ static long tsync_ioctl(struct file *file, unsigned int cmd, ulong arg)
 		break;
 
 	case TSYNC_IOC_SET_FIRST_CHECKIN_APTS:
-		if (get_user(tmppts, (unsigned int *)arg) >= 0) {
-			timestamp_firstapts_set(tmppts);
+		if (new_arch && get_user(tmppts, (unsigned int *)arg) >= 0)
 			timestamp_checkin_firstapts_set(tmppts);
-		}
 		break;
 
 	case TSYNC_IOC_SET_LAST_CHECKIN_APTS:
-		get_user(checkin_apts_from_audiohal, (unsigned int *)arg);
+		if (new_arch)
+			get_user(checkin_apts_from_audiohal,
+				 (unsigned int *)arg);
+		break;
+
+	case TSYNC_IOC_SET_DEMUX_INFO:
+		if (new_arch &&
+		    (copy_from_user((void *)&demux_info, (void *)arg,
+				    sizeof(demux_info)) == 0)) {
+			tsync_check_pid_valid_for_newarch(demux_info);
+		}
 		break;
 	default:
 		pr_info("invalid cmd:%d\n", cmd);
@@ -2742,6 +2800,7 @@ static long tsync_compat_ioctl(struct file *file, unsigned int cmd, ulong arg)
 	case TSYNC_IOC_GET_FIRST_FRAME_TOGGLED:
 	case TSYNC_IOC_SET_FIRST_CHECKIN_APTS:
 	case TSYNC_IOC_SET_LAST_CHECKIN_APTS:
+	case TSYNC_IOC_SET_DEMUX_INFO:
 		return tsync_ioctl(file, cmd, arg);
 	default:
 		return -EINVAL;
@@ -2811,6 +2870,12 @@ static int __init tsync_module_init(void)
 
 	add_timer(&tsync_state_switch_timer);
 	REG_PATH_CONFIGS("media.tsync", tsync_configs);
+
+	first_demux_pcrscr = 0;
+	demux_pcrscr = 0;
+	audio_pid_valid = 0;
+	video_pid_valid = 0;
+	demux_pcrscr_valid = 0;
 
 	if (get_cpu_type() == MESON_CPU_MAJOR_ID_SC2)
 		new_arch = true;

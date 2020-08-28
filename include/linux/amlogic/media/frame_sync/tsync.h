@@ -31,9 +31,15 @@
 #define TSYNC_IOC_GET_FIRST_FRAME_TOGGLED _IOR(TSYNC_IOC_MAGIC, 0x20, int)
 #define TSYNC_IOC_SET_FIRST_CHECKIN_APTS _IOW(TSYNC_IOC_MAGIC, 0x02, u32)
 #define TSYNC_IOC_SET_LAST_CHECKIN_APTS _IOW(TSYNC_IOC_MAGIC, 0x03, u32)
-#define TSYNC_IOC_SET_HAS_VIDEO _IOW(TSYNC_IOC_MAGIC, 0x04, u32)
-#define TSYNC_IOC_SET_HAS_AUDIO _IOW(TSYNC_IOC_MAGIC, 0x05, u32)
-#define TSYNC_IOC_SET_DEMUX_ID _IOW(TSYNC_IOC_MAGIC, 0x06, u32)
+#define TSYNC_IOC_SET_DEMUX_INFO _IOW(TSYNC_IOC_MAGIC, 0x06, struct dmx_info)
+
+struct dmx_info {
+int demux_device_id;
+int index;
+int vpid;
+int apid;
+int pcrpid;
+};
 
 enum avevent_e {
 	VIDEO_START,
@@ -70,11 +76,17 @@ enum tysnc_func_type_e {
 
 extern bool disable_slow_sync;
 
+int demux_get_pcr(int demux_device_index, int index, u64 *stc);
+
 typedef u8 (*pfun_tsdemux_pcrscr_valid)(void);
 extern pfun_tsdemux_pcrscr_valid tsdemux_pcrscr_valid_cb;
 
 typedef u32 (*pfun_tsdemux_pcrscr_get)(void);
 extern pfun_tsdemux_pcrscr_get tsdemux_pcrscr_get_cb;
+
+typedef int (*pfun_amldemux_pcrscr_get)(int demux_device_index, int index,
+					u64 *stc);
+extern pfun_amldemux_pcrscr_get amldemux_pcrscr_get_cb;
 
 typedef u32 (*pfun_tsdemux_first_pcrscr_get)(void);
 extern pfun_tsdemux_first_pcrscr_get tsdemux_first_pcrscr_get_cb;
@@ -188,7 +200,7 @@ extern u32 get_first_frame_toggled(void);
 
 void tsync_set_av_state(u8 type, int state);
 
-void tsync_get_demux_pcrscr_valid_for_newarch(void);
+u8 tsync_get_demux_pcrscr_valid_for_newarch(void);
 
 u8 tsync_get_demux_pcrscr_valid(void);
 
@@ -200,11 +212,11 @@ void tsync_get_first_demux_pcr_for_newarch(void);
 
 u8 tsync_get_first_demux_pcr(u32 *first_pcr);
 
-void tsync_get_audio_pid_valid_for_newarch(void);
+u8 tsync_get_audio_pid_valid_for_newarch(void);
 
 u8 tsync_get_audio_pid_valid(void);
 
-void tsync_get_video_pid_valid_for_newarch(void);
+u8 tsync_get_video_pid_valid_for_newarch(void);
 
 u8 tsync_get_video_pid_valid(void);
 
@@ -229,6 +241,8 @@ u8 tsync_get_stbuf_size(struct stream_buf_s *pbuf, u32 *buf_size);
 bool tsync_get_new_arch(void);
 
 u32 tsync_get_checkin_apts(void);
+
+void tsync_reset(void);
 
 static inline u32 tsync_vpts_discontinuity_margin(void)
 {
