@@ -1208,6 +1208,11 @@ int ts_output_add_pid(struct out_elem *pout, int pid, int pid_mask, int dmx_id)
 	struct pid_entry *pid_slot = NULL;
 	struct es_entry *es_pes = NULL;
 
+	if (pout->pchan)
+		SC2_bufferid_set_enable(pout->pchan, 1);
+	if (pout->pchan1)
+		SC2_bufferid_set_enable(pout->pchan1, 1);
+
 	pr_dbg("%s pout:0x%lx pid:%d, pid_mask:%d\n",
 	       __func__, (unsigned long)pout, pid, pid_mask);
 	if (pout->format == ES_FORMAT || pout->format == PES_FORMAT) {
@@ -1243,10 +1248,6 @@ int ts_output_add_pid(struct out_elem *pout, int pid, int pid_mask, int dmx_id)
 				      pid_slot->id, pout->pchan->id);
 	}
 
-	if (pout->pchan)
-		SC2_bufferid_set_enable(pout->pchan, 1);
-	if (pout->pchan1)
-		SC2_bufferid_set_enable(pout->pchan1, 1);
 	return 0;
 }
 

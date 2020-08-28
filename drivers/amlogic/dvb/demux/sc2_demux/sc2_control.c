@@ -18,6 +18,7 @@
 #include <linux/kernel.h>
 #include <linux/dvb/ca.h>
 #include <linux/module.h>
+#include <linux/delay.h>
 
 #include "sc2_control.h"
 #include "dvb_reg.h"
@@ -411,16 +412,17 @@ void wdma_config_enable(u8 chan_id, int enable,
 			unsigned int desc, unsigned int total_size)
 {
 	int times = 0;
+	unsigned int cnt = 0;
 
 	if (enable) {
 		do {
 		} while (!wdma_get_ready(chan_id) && times++ < 20);
 
-		wdma_clean(chan_id);
 
 		WRITE_CBUS_REG(TS_DMA_WCH_ADDR(chan_id), desc);
 		WRITE_CBUS_REG(TS_DMA_WCH_LEN(chan_id), total_size);
 
+		wdma_clean(chan_id);
 		pr_dbg("%s desc:0x%0x\n", __func__, desc);
 		pr_dbg("%s total_size:0x%0x\n", __func__, total_size);
 	} else {
@@ -431,6 +433,15 @@ void wdma_config_enable(u8 chan_id, int enable,
 //              WRITE_CBUS_REG(TS_DMA_WCH_CFG(chan_id), data);
 		WRITE_CBUS_REG(TS_DMA_WCH_ADDR(chan_id), 0);
 		WRITE_CBUS_REG(TS_DMA_WCH_LEN(chan_id), 0);
+
+		/*if dmx have cmd completed, need delay,
+		 * or clean will cause
+		 * demod enter overflow status,
+		 * it can't resolve except reboot
+		 */
+		cnt = wdma_get_wcmdcnt(chan_id);
+		if (cnt)
+			msleep(20);
 		wdma_clean(chan_id);
 		//delay
 //              while (times ++ < 500);
@@ -443,6 +454,11 @@ void wdma_config_enable(u8 chan_id, int enable,
 unsigned int wdma_get_wptr(u8 chan_id)
 {
 	return READ_CBUS_REG(TS_DMA_WCH_PTR(chan_id));
+}
+
+unsigned int wdma_get_wcmdcnt(u8 chan_id)
+{
+	return READ_CBUS_REG(TS_DMA_WCH_CMD_CNT(chan_id));
 }
 
 unsigned int wdma_get_batch_end(u8 chan_id)
@@ -690,7 +706,9 @@ void sc2_dump_register(void)
 		ts_cfg.b.pid_entry = i;
 		ts_cfg.b.remap_flag = 0;
 		ts_cfg.b.on_off = 0;
+		ts_cfg.b.buffer_id = 0;
 		ts_cfg.b.mode = MODE_READ;
+		ts_cfg.b.ap_pending = 1;
 		WRITE_CBUS_REG(TS_OUTPUT_PID_CFG, ts_cfg.data);
 		do {
 			ts_cfg.data = READ_CBUS_REG(TS_OUTPUT_PID_CFG);
