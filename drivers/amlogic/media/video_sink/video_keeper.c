@@ -1213,9 +1213,17 @@ static unsigned int vf_keep_current_locked(
 
 #if 1
 	if (cur_buf->type & VIDTYPE_PRE_INTERLACE) {
+		if (cur_buf->flag & VFRAME_FLAG_DOUBLE_FRAM) {
+			ret = video_keeper_frame_keep_locked(
+				cur_buf->vf_ext,
+				cur_buf_el);
+			pr_info("keep di_dec buffer\n");
+			return ret;
+		}
 		pr_info("keep exit is di\n");
 		return 2;
 	}
+
 #else
 	if (VSYNC_RD_MPEG_REG(DI_IF1_GEN_REG) & 0x1) {
 		pr_info("keep exit is di\n");
