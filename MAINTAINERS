@@ -15392,3 +15392,10 @@ AMLOGIC driver for vpu security
 M: Pengcheng Chen <pengcheng.chen@amlogic.com>
 F: drivers/amlogic/common/vpu_security
 F: include/linux/amlogic/media/vpu_secure
+
+AMLOGIC SC2 s905x4 DTS
+M: Bing Jiang <Bing.Jiang@amlogic.com>
+F: arch/arm/boot/dts/amlogic/sc2_s905x4_ah212_buildroot.dts
+F: arch/arm/boot/dts/amlogic/sc2_s905x4_ah219_buildroot.dts
+F: arch/arm64/boot/dts/amlogic/sc2_s905x4_ah212_buildroot.dts
+F: arch/arm64/boot/dts/amlogic/sc2_s905x4_ah219_buildroot.dts
