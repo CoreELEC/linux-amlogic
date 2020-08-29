@@ -25,8 +25,8 @@
 		part-10 = <&boot_a>;
 		part-11 = <&boot_b>;
 		part-12 = <&rsv>;
-		part-13 = <&metadata_a>;
-		part-14 = <&metadata_b>;
+		part-13 = <&metadata>;
+		part-14 = <&rsv2>;
 		part-15 = <&vbmeta_a>;
 		part-16 = <&vbmeta_b>;
 		part-17 = <&super>;
@@ -83,13 +83,13 @@
 			size = <0x0 0x1000000>;
 			mask = <1>;
 		};
-		metadata_a:metadata_a{
-			pname = "metadata_a";
+		metadata:metadata{
+			pname = "metadata";
 			size = <0x0 0x1000000>;
 			mask = <1>;
 		};
-		metadata_b:metadata_b{
-			pname = "metadata_b";
+		rsv2:rsv2{
+			pname = "rsv2";
 			size = <0x0 0x1000000>;
 			mask = <1>;
 		};
