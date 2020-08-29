@@ -8969,6 +8969,15 @@ static ssize_t amdolby_vision_core3_switch_show(struct class *cla,
 		core3_switch);
 }
 
+static ssize_t amdolby_vision_dv_support_info_show(
+	struct class *cla,
+	struct class_attribute *attr, char *buf)
+{
+	pr_dolby_dbg("show dv capability %d\n", support_info);
+	return snprintf(buf, 40, "%d\n",
+		support_info);
+}
+
 static ssize_t amdolby_vision_core3_switch_store(struct class *cla,
 			struct class_attribute *attr,
 			const char *buf, size_t count)
@@ -9011,6 +9020,9 @@ static struct class_attribute amdolby_vision_class_attrs[] = {
 	amdolby_vision_core1_switch_show, amdolby_vision_core1_switch_store),
 	__ATTR(core3_switch, 0644,
 	amdolby_vision_core3_switch_show, amdolby_vision_core3_switch_store),
+	__ATTR(
+	support_info, 0444,
+	amdolby_vision_dv_support_info_show, NULL),
 	__ATTR_NULL
 };
 
