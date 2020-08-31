@@ -153,7 +153,7 @@ static void pipeline_dfs(int osd_index, struct meson_vpu_pipeline_state *mvps,
 }
 
 static u8 find_out_port(struct meson_vpu_block *in,
-				struct meson_vpu_block *out)
+			struct meson_vpu_block *out)
 {
 	int i;
 	struct meson_vpu_block_link *mvbl;
@@ -167,7 +167,7 @@ static u8 find_out_port(struct meson_vpu_block *in,
 }
 
 void vpu_pipeline_scaler_scope_size_calc(u8 index, u8 osd_index,
-			struct meson_vpu_pipeline_state *mvps)
+					 struct meson_vpu_pipeline_state *mvps)
 {
 	u8 m, i;
 	u32 ratio_x[MESON_MAX_SCALERS], ratio_y[MESON_MAX_SCALERS];
@@ -177,15 +177,15 @@ void vpu_pipeline_scaler_scope_size_calc(u8 index, u8 osd_index,
 	if (mvps->scaler_cnt[i] == 0) {
 		/*scope size calc*/
 		mvps->osd_scope_pre[osd_index].h_start =
-			mvps->plane_info[osd_index].src_x;
+			mvps->plane_info[osd_index].dst_x;
 		mvps->osd_scope_pre[osd_index].v_start =
-			mvps->plane_info[osd_index].src_y;
+			mvps->plane_info[osd_index].dst_y;
 		mvps->osd_scope_pre[osd_index].h_end =
 			mvps->osd_scope_pre[osd_index].h_start
-			+ mvps->plane_info[osd_index].src_w - 1;
+			+ mvps->plane_info[osd_index].dst_w - 1;
 		mvps->osd_scope_pre[osd_index].v_end =
 			mvps->osd_scope_pre[osd_index].v_start
-			+ mvps->plane_info[osd_index].src_h - 1;
+			+ mvps->plane_info[osd_index].dst_h - 1;
 	} else if (mvps->scaler_cnt[i] == 1) {
 		m = mvps->scale_blk[i][0]->index;
 		scaler_param = &mvps->scaler_param[m];
@@ -215,7 +215,7 @@ void vpu_pipeline_scaler_scope_size_calc(u8 index, u8 osd_index,
 				SCALER_IN_H_CALC_DONE |
 				SCALER_OUT_W_CALC_DONE |
 				SCALER_OUT_H_CALC_DONE;
-			/*scope size calc*/
+			/*osdblend scope size calc*/
 			mvps->osd_scope_pre[osd_index].h_start =
 				mvps->plane_info[osd_index].dst_x;
 			mvps->osd_scope_pre[osd_index].v_start =
@@ -227,17 +227,30 @@ void vpu_pipeline_scaler_scope_size_calc(u8 index, u8 osd_index,
 				mvps->osd_scope_pre[osd_index].v_start
 				+ scaler_param->output_height - 1;
 		} else {/*scaler position is after osdlend*/
-			/*scope size calc firstly*/
+			/*osdblend scope size calc firstly*/
 			mvps->osd_scope_pre[osd_index].h_start =
-				mvps->plane_info[osd_index].src_x;
+				(mvps->plane_info[osd_index].dst_x *
+				scaler_param->ratio_x) / RATIO_BASE;
 			mvps->osd_scope_pre[osd_index].v_start =
-				mvps->plane_info[osd_index].src_y;
+				(mvps->plane_info[osd_index].dst_y *
+				scaler_param->ratio_y) / RATIO_BASE;
 			mvps->osd_scope_pre[osd_index].h_end =
 				mvps->osd_scope_pre[osd_index].h_start
-				+ mvps->plane_info[osd_index].src_w - 1;
+				+ (mvps->plane_info[osd_index].dst_w *
+				scaler_param->ratio_x) / RATIO_BASE - 1;
 			mvps->osd_scope_pre[osd_index].v_end =
 				mvps->osd_scope_pre[osd_index].v_start
-				+ mvps->plane_info[osd_index].src_h - 1;
+				+ (mvps->plane_info[osd_index].dst_h *
+				scaler_param->ratio_y) / RATIO_BASE - 1;
+			/*reset osd input mif scope,avoid no match with
+			 *the result of osdblend scope
+			 */
+			mvps->plane_info[osd_index].src_w =
+				mvps->osd_scope_pre[osd_index].h_end -
+				mvps->osd_scope_pre[osd_index].h_start + 1;
+			mvps->plane_info[osd_index].src_h =
+				mvps->osd_scope_pre[osd_index].v_end -
+				mvps->osd_scope_pre[osd_index].v_start + 1;
 			/*scaler size calc*/
 			scaler_param->input_width =
 				mvps->osd_scope_pre[osd_index].h_end + 1;
@@ -325,6 +338,7 @@ void vpu_pipeline_scaler_scope_size_calc(u8 index, u8 osd_index,
 		}
 	}
 }
+
 static void vpu_osd_shift_recalc(struct meson_vpu_pipeline_state *state)
 {
 	u8 i;
@@ -335,8 +349,9 @@ static void vpu_osd_shift_recalc(struct meson_vpu_pipeline_state *state)
 	}
 	state->scaler_param[0].input_height += 1;
 }
+
 int vpu_pipeline_scaler_check(int *combination, int num_planes,
-				struct meson_vpu_pipeline_state *mvps)
+			      struct meson_vpu_pipeline_state *mvps)
 {
 	int i, j, osd_index, ret, m;
 	struct meson_vpu_traverse *mvt;
@@ -349,9 +364,9 @@ int vpu_pipeline_scaler_check(int *combination, int num_planes,
 	ret = 0;
 	/*clean up scaler and scope size before check & calc*/
 	memset(mvps->scaler_param, 0,
-		MESON_MAX_SCALERS * sizeof(struct meson_vpu_scaler_param));
+	       MESON_MAX_SCALERS * sizeof(struct meson_vpu_scaler_param));
 	memset(mvps->osd_scope_pre, 0,
-		MESON_MAX_OSDS * sizeof(struct osd_scope_s));
+	       MESON_MAX_OSDS * sizeof(struct osd_scope_s));
 	for (i = 0; i < MESON_MAX_OSDS && !ret; i++) {
 		if (!mvps->plane_info[i].enable)
 			continue;
@@ -375,7 +390,7 @@ int vpu_pipeline_scaler_check(int *combination, int num_planes,
 				mvps->scaler_param[m].plane_mask |=
 					BIT(osd_index);
 				mvps->scaler_param[m].before_osdblend =
-					have_blend ? 0:1;
+					have_blend ? 0 : 1;
 			}
 		}
 
@@ -387,15 +402,15 @@ int vpu_pipeline_scaler_check(int *combination, int num_planes,
 				RATIO_BASE) /
 				mvps->plane_info[osd_index].dst_h;
 			if (ratio_x[0] != RATIO_BASE ||
-				ratio_y[0] != RATIO_BASE) {
+			    ratio_y[0] != RATIO_BASE) {
 				ret = -1;
 				break;
 			}
 			vpu_pipeline_scaler_scope_size_calc(i,
-				osd_index, mvps);
+							    osd_index, mvps);
 		} else if (mvps->scaler_cnt[i] == 1) {
 			vpu_pipeline_scaler_scope_size_calc(i,
-				osd_index, mvps);
+							    osd_index, mvps);
 		} else if (mvps->scaler_cnt[i] == 2) {
 			/*
 			 *check second scaler firstly,
@@ -444,11 +459,11 @@ int vpu_pipeline_scaler_check(int *combination, int num_planes,
 				break;
 			}
 			vpu_pipeline_scaler_scope_size_calc(i,
-				osd_index, mvps);
+							    osd_index, mvps);
 		}
 	}
 	if (ret == 0 && mvps->num_plane > 0 &&
-		mvps->pipeline->osd_version <= OSD_V2)
+	    mvps->pipeline->osd_version <= OSD_V2)
 		vpu_osd_shift_recalc(mvps);
 	return ret;
 }
@@ -465,7 +480,7 @@ int vpu_pipeline_scaler_check(int *combination, int num_planes,
  * 0 for the valid path or -1 for the invalid path
  */
 int vpu_pipeline_check_block(int *combination, int num_planes,
-					struct meson_vpu_pipeline_state *mvps,
+			     struct meson_vpu_pipeline_state *mvps,
 					struct drm_atomic_state *state)
 {
 	int i, j, osd_index, ret;
@@ -495,9 +510,9 @@ int vpu_pipeline_check_block(int *combination, int num_planes,
 
 			if (block == osdblend) {
 				mvps->dout_index[i] =
-					find_out_port(block, mvb[j+1]);
+					find_out_port(block, mvb[j + 1]);
 				DRM_DEBUG("osd-%d blend out port: %d.\n",
-						i, mvps->dout_index[i]);
+					  i, mvps->dout_index[i]);
 				break;
 			}
 		}
@@ -522,7 +537,7 @@ int vpu_pipeline_check_block(int *combination, int num_planes,
 
 				if (ret) {
 					DRM_ERROR("%s block check error.\n",
-						block->name);
+						  block->name);
 					return ret;
 				}
 			}
@@ -532,15 +547,39 @@ int vpu_pipeline_check_block(int *combination, int num_planes,
 	return ret;
 }
 
+int vpu_video_pipeline_check_block(struct meson_vpu_pipeline_state *mvps,
+				   struct drm_atomic_state *state)
+{
+	int i, ret;
+	struct meson_vpu_block *block;
+	struct meson_vpu_block_state *mvbs;
+
+	for (i = 0; i < MESON_MAX_VIDEO; i++) {
+		if (!mvps->video_plane_info[i].enable)
+			continue;
+		block = &mvps->pipeline->video[i]->base;
+		if (block->ops && block->ops->check_state) {
+			mvbs = meson_vpu_block_get_state(block, state);
+			ret = block->ops->check_state(block,
+					mvbs, mvps);
+
+			if (ret) {
+				DRM_ERROR("%s block check error.\n",
+					  block->name);
+				return ret;
+			}
+		}
+	}
+	return ret;
+}
+
 void vpu_pipeline_enable_block(int *combination, int num_planes,
-				struct meson_vpu_pipeline_state *mvps)
+			       struct meson_vpu_pipeline_state *mvps)
 {
 	int i, j, osd_index;
 	struct meson_vpu_traverse *mvt;
 	struct meson_vpu_block **mvb;
 	struct meson_vpu_block *block;
-
-	mvps->enable_blocks = 0;
 
 	for (i = 0; i < MESON_MAX_OSDS; i++) {
 		if (!mvps->plane_info[i].enable)
@@ -556,6 +595,47 @@ void vpu_pipeline_enable_block(int *combination, int num_planes,
 			mvps->enable_blocks |= BIT(block->id);
 		}
 	}
+	/*TODO*/
+	//for (i = 0; i < MESON_MAX_VIDEO; i++)
+}
+
+void vpu_pipeline_clean_block(int *combination, int num_planes,
+			      struct meson_vpu_pipeline_state *mvps,
+			      struct drm_atomic_state *state)
+{
+	int i, j, osd_index;
+	struct meson_vpu_traverse *mvt;
+	struct meson_vpu_block **mvb;
+	struct meson_vpu_block *block;
+	struct meson_vpu_block_state *mvbs;
+
+	for (i = 0; i < MESON_MAX_OSDS; i++) {
+		if (!mvps->plane_info[i].enable)
+			continue;
+		osd_index = mvps->plane_index[i];
+		mvt = &mvps->osd_traverse[osd_index];
+		mvb = mvt->path[combination[i]];
+
+		for (j = 0; j < MESON_MAX_BLOCKS; j++) {
+			block = mvb[j];
+			if (!block)
+				break;
+			if (block->ops && block->ops->check_state) {
+				mvbs = meson_vpu_block_get_state(block, state);
+				mvbs->checked = 0;
+			}
+		}
+	}
+	/*clean video wrapper block*/
+	for (i = 0; i < MESON_MAX_VIDEO; i++) {
+		if (!mvps->video_plane_info[i].enable)
+			continue;
+		block = &mvps->pipeline->video[i]->base;
+		if (block->ops && block->ops->check_state) {
+			mvbs = meson_vpu_block_get_state(block, state);
+			mvbs->checked = 0;
+		}
+	}
 }
 
 /**
@@ -569,7 +649,7 @@ void vpu_pipeline_enable_block(int *combination, int num_planes,
  * 0 for the valid path or -1 for the invalid path
  */
 int combinate_layer_path(int *path_num_array, int num_planes,
-				struct meson_vpu_pipeline_state *mvps,
+			 struct meson_vpu_pipeline_state *mvps,
 					struct drm_atomic_state *state)
 {
 	int i, j, ret;
@@ -582,12 +662,12 @@ int combinate_layer_path(int *path_num_array, int num_planes,
 	do {
 		// sum the combination result to check osd blend block
 		ret = vpu_pipeline_check_block(combination,
-				num_planes, mvps, state);
+					       num_planes, mvps, state);
 		if (!ret)
 			break;
-
+		vpu_pipeline_clean_block(combination, num_planes, mvps, state);
 		i++;
-		combination[num_planes-1] = i;
+		combination[num_planes - 1] = i;
 
 		for (j = num_planes - 1; j >= 0; j--) {
 			if (combination[j] >= path_num_array[j]) {
@@ -621,7 +701,7 @@ int combinate_layer_path(int *path_num_array, int num_planes,
  * 0 for the valid path or -1 for the invalid path
  */
 int vpu_pipeline_traverse(struct meson_vpu_pipeline_state *mvps,
-					struct drm_atomic_state *state)
+			  struct drm_atomic_state *state)
 {
 	int i, osd_index, ret;
 	int num_planes;
@@ -652,7 +732,7 @@ int vpu_pipeline_traverse(struct meson_vpu_pipeline_state *mvps,
 		osd_index = mvps->plane_index[i];
 		path[i] = mvps->osd_traverse[osd_index].num_path;
 		DRM_DEBUG("osd%d traverse path num: %d\n",
-			(osd_index + 1), path[i]);
+			  (osd_index + 1), path[i]);
 	}
 
 	ret = combinate_layer_path(path, num_planes, mvps, state);

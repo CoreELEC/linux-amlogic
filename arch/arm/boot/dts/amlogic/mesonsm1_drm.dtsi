@@ -43,7 +43,7 @@
 		hdcp = "disabled";
 		compatible = "amlogic,drm-amhdmitx";
 		dev_name = "meson-amhdmitx";
-		interrupts = <GIC_SPI 3 IRQ_TYPE_EDGE_RISING>;
+		interrupts = <GIC_SPI 57 IRQ_TYPE_EDGE_RISING>;
 		ports {
 			port {
 				#address-cells = <1>;
@@ -51,6 +51,22 @@
 				hdmi_in_vpu: endpoint@0 {
 					reg = <0>;
 					remote-endpoint = <&vpu_out_hdmi>;
+				};
+			};
+		};
+	};
+
+	drm_amcvbsout: drm-amcvbsout {
+		status = "disabled";
+		compatible = "amlogic,drm-cvbsout";
+		dev_name = "meson-amcvbsout";
+		ports {
+			port {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				cvbs_in_vpu: endpoint@0 {
+					reg = <0>;
+					remote-endpoint = <&vpu_out_cvbs>;
 				};
 			};
 		};
@@ -76,9 +92,10 @@
 		status = "disabled";
 		compatible = "amlogic, meson-sm1-vpu";
 		memory-region = <&logo_reserved>;
-		reg = <0x0 0xff900000 0x0 0x40000>,
-			  <0x0 0xff63c000 0x0 0x2000>,
-			  <0x0 0xff638000 0x0 0x2000>;
+		osd_ver = /bits/ 8 <OSD_V4>;
+		reg = <0xff900000 0x40000>,
+			  <0xff63c000 0x2000>,
+			  <0xff638000 0x2000>;
 		reg-names = "base", "hhi", "dmc";
 		interrupts = <GIC_SPI 3 IRQ_TYPE_EDGE_RISING>,
 			<GIC_SPI 56 IRQ_TYPE_EDGE_RISING>;
@@ -94,7 +111,11 @@
 				reg = <0>;
 				remote-endpoint = <&hdmi_in_vpu>;
 			};
-			vpu_out_lcd: endpoint@1 {
+			vpu_out_cvbs: endpoint@1 {
+				reg = <0>;
+				remote-endpoint = <&cvbs_in_vpu>;
+			};
+			vpu_out_lcd: endpoint@2 {
 				reg = <1>;
 				remote-endpoint = <&lcd_in_vpu>;
 			};
@@ -105,6 +126,11 @@
 		status = "okay";
 		compatible = "amlogic,drm-subsystem";
 		ports = <&vpu_out>;
+		fbdev_ui_w = <1920>;
+		fbdev_ui_h = <1080>;
+		fbdev_fb_w = <1920>;
+		fbdev_fb_h = <2160>;
+		fbdev_fb_bpp = <32>;
 
 		vpu_topology: vpu_topology {
 			vpu_blocks {
@@ -224,6 +250,22 @@
 					in_links = <0 &scaler_osd1_block>,
 						<1 &osd_blend_block>;
 					num_out_links = <0x0>;
+				};
+				video1_block: block@13 {
+					id = /bits/ 8 <VIDEO1_BLOCK>;
+					index = /bits/ 8  <0>;
+					type = /bits/ 8  <7>;
+					block_name = "video1_block";
+					num_in_links = /bits/ 8  <0x0>;
+					num_out_links = /bits/ 8  <0x0>;
+				};
+				video2_block: block@14 {
+					id = /bits/ 8 <VIDEO2_BLOCK>;
+					index = /bits/ 8  <1>;
+					type = /bits/ 8  <7>;
+					block_name = "video2_block";
+					num_in_links = /bits/ 8  <0x0>;
+					num_out_links = /bits/ 8  <0x0>;
 				};
 			};
 		};

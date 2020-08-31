@@ -18,7 +18,7 @@
 #include "meson_vpu_pipeline.h"
 
 static int hdr_check_state(struct meson_vpu_block *vblk,
-		struct meson_vpu_block_state *state,
+			   struct meson_vpu_block_state *state,
 		struct meson_vpu_pipeline_state *mvps)
 {
 	struct meson_vpu_hdr *hdr = to_hdr_block(vblk);
@@ -35,7 +35,7 @@ static int hdr_check_state(struct meson_vpu_block *vblk,
 }
 
 static void hdr_set_state(struct meson_vpu_block *vblk,
-		struct meson_vpu_block_state *state)
+			  struct meson_vpu_block_state *state)
 {
 	struct meson_vpu_hdr *hdr = to_hdr_block(vblk);
 	//struct meson_vpu_hdr_state *hdr_state = to_hdr_state(state);
@@ -65,7 +65,7 @@ struct meson_vpu_block_ops hdr_ops = {
 };
 
 static int dolby_check_state(struct meson_vpu_block *vblk,
-		struct meson_vpu_block_state *state,
+			     struct meson_vpu_block_state *state,
 		struct meson_vpu_pipeline_state *mvps)
 {
 	struct meson_vpu_dolby *dolby = to_dolby_block(vblk);
@@ -80,8 +80,9 @@ static int dolby_check_state(struct meson_vpu_block *vblk,
 	DRM_DEBUG("%s check_state called.\n", dolby->base.name);
 	return 0;
 }
+
 static void dolby_set_state(struct meson_vpu_block *vblk,
-		struct meson_vpu_block_state *state)
+			    struct meson_vpu_block_state *state)
 {
 	struct meson_vpu_dolby *dolby = to_dolby_block(vblk);
 

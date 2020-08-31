@@ -45,7 +45,7 @@ static int hdmitx_hdcp_opr(unsigned int val)
 	}
 	if (val == 2) { /* HDCP14_RESULT */
 		arm_smccc_smc(0x82000011, 0, 0, 0, 0, 0, 0, 0, &res);
-		return (unsigned int)((res.a0)&0xffffffff);
+		return (unsigned int)((res.a0) & 0xffffffff);
 	}
 	if (val == 0) { /* HDCP14_INIT */
 		arm_smccc_smc(0x82000012, 0, 0, 0, 0, 0, 0, 0, &res);
@@ -64,26 +64,26 @@ static int hdmitx_hdcp_opr(unsigned int val)
 	}
 	if (val == 7) { /* HDCP22_RESULT */
 		arm_smccc_smc(0x82000017, 0, 0, 0, 0, 0, 0, 0, &res);
-		return (unsigned int)((res.a0)&0xffffffff);
+		return (unsigned int)((res.a0) & 0xffffffff);
 	}
 	if (val == 0xa) { /* HDCP14_KEY_LSTORE */
 		arm_smccc_smc(0x8200001a, 0, 0, 0, 0, 0, 0, 0, &res);
-		return (unsigned int)((res.a0)&0xffffffff);
+		return (unsigned int)((res.a0) & 0xffffffff);
 	}
 	if (val == 0xb) { /* HDCP22_KEY_LSTORE */
 		arm_smccc_smc(0x8200001b, 0, 0, 0, 0, 0, 0, 0, &res);
-		return (unsigned int)((res.a0)&0xffffffff);
+		return (unsigned int)((res.a0) & 0xffffffff);
 	}
 	if (val == 0xc) { /* HDCP22_KEY_SET_DUK */
 		arm_smccc_smc(0x8200001c, 0, 0, 0, 0, 0, 0, 0, &res);
-		return (unsigned int)((res.a0)&0xffffffff);
+		return (unsigned int)((res.a0) & 0xffffffff);
 	}
 	if (val == 0xd) { /* HDCP22_SET_TOPO */
 		arm_smccc_smc(0x82000083, hdcp_topo_st, 0, 0, 0, 0, 0, 0, &res);
 	}
 	if (val == 0xe) { /* HDCP22_GET_TOPO */
 		arm_smccc_smc(0x82000084, 0, 0, 0, 0, 0, 0, 0, &res);
-		return (unsigned int)((res.a0)&0xffffffff);
+		return (unsigned int)((res.a0) & 0xffffffff);
 	}
 	return -1;
 }
@@ -180,7 +180,7 @@ int get_hdcp_downstream_ver(struct am_hdmi_tx *am_hdmi)
 		if (hdmitx_rd_reg(HDMITX_DWC_IH_I2CM_STAT0) & (1 << 0)) {
 			st = 0;
 			DRM_INFO("ddc rd8b error 0x%02x 0x%02x\n",
-				HDCP_SLAVE, HDCP2_VERSION);
+				 HDCP_SLAVE, HDCP2_VERSION);
 		} else
 			st = 1;
 		hdmitx_wr_reg(HDMITX_DWC_IH_I2CM_STAT0, 0x7);

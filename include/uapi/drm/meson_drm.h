@@ -25,7 +25,8 @@
 #define MESON_USE_CAMERA_WRITE		(1ull << 13)
 #define MESON_USE_CAMERA_READ		(1ull << 14)
 #define MESON_USE_TEXTURE			(1ull << 17)
-
+#define MESON_USE_VIDEO_PLANE		(1ull << 18)
+#define MESON_USE_VIDEO_AFBC		(1ull << 19)
 
 /**
  * User-desired buffer creation information structure.

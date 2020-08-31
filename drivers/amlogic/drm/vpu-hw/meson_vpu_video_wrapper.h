@@ -1,5 +1,5 @@
 /*
- * drivers/amlogic/media/vout/cvbs/cvbs_mode.h
+ * drivers/amlogic/drm/vpu-hw/meson_vpu_video_wrapper.h
  *
  * Copyright (C) 2017 Amlogic, Inc. All rights reserved.
  *
@@ -15,16 +15,8 @@
  *
  */
 
-#ifndef _CVBS_MODE_H_
-#define _CVBS_MODE_H_
+#ifndef _MESON_VPU_VIDEO_WRAPPER_H_
+#define _MESON_VPU_VIDEO_WRAPPER_H_
 
-enum cvbs_mode_e {
-	MODE_480CVBS = 0,
-	MODE_576CVBS,
-	MODE_PAL_M,
-	MODE_PAL_N,
-	MODE_NTSC_M,
-	MODE_MAX,
-};
-
+#define HW_VIDEO_MIF_NUM 2
 #endif

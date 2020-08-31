@@ -38,8 +38,6 @@
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT
 #include <linux/amlogic/media/amvecm/amvecm.h>
 #endif
-#include "osd.h"
-#include "osd_drm.h"
 #ifdef CONFIG_DRM_MESON_USE_ION
 #include "meson_fb.h"
 #endif
@@ -48,241 +46,9 @@
 #include "meson_crtc.h"
 #include "meson_vpu_pipeline.h"
 
-struct vpu_device_data_s {
-	enum cpuid_type_e cpu_id;
-	enum osd_ver_e osd_ver;
-	enum osd_afbc_e afbc_type;
-	u8 osd_count;
-	u8 has_deband;
-	u8 has_lut;
-	u8 has_rdma;
-	u8 osd_fifo_len;
-	u32 vpp_fifo_len;
-	u32 dummy_data;
-	u32 has_viu2;
-	u32 viu1_osd_count;
-	struct clk *vpu_clkc;
-};
-
-static struct am_vout_mode am_vout_modes[] = {
-	{ "1080p60hz", VMODE_HDMI, 1920, 1080, 60, 0},
-	{ "1080p30hz", VMODE_HDMI, 1920, 1080, 30, 0},
-	{ "1080p50hz", VMODE_HDMI, 1920, 1080, 50, 0},
-	{ "1080p25hz", VMODE_HDMI, 1920, 1080, 25, 0},
-	{ "1080p24hz", VMODE_HDMI, 1920, 1080, 24, 0},
-	{ "2160p30hz", VMODE_HDMI, 3840, 2160, 30, 0},
-	{ "2160p60hz", VMODE_HDMI, 3840, 2160, 60, 0},
-	{ "2160p50hz", VMODE_HDMI, 3840, 2160, 50, 0},
-	{ "2160p25hz", VMODE_HDMI, 3840, 2160, 25, 0},
-	{ "2160p24hz", VMODE_HDMI, 3840, 2160, 24, 0},
-	{ "1080i60hz", VMODE_HDMI, 1920, 1080, 60, DRM_MODE_FLAG_INTERLACE},
-	{ "1080i50hz", VMODE_HDMI, 1920, 1080, 50, DRM_MODE_FLAG_INTERLACE},
-	{ "720p60hz", VMODE_HDMI, 1280, 720, 60, 0},
-	{ "720p50hz", VMODE_HDMI, 1280, 720, 50, 0},
-	{ "480p60hz", VMODE_HDMI, 720, 480, 60, 0},
-	{ "480i60hz", VMODE_HDMI, 720, 480, 60, DRM_MODE_FLAG_INTERLACE},
-	{ "576p50hz", VMODE_HDMI, 720, 576, 50, 0},
-	{ "576i50hz", VMODE_HDMI, 720, 576, 50, DRM_MODE_FLAG_INTERLACE},
-	{ "480p60hz", VMODE_HDMI, 720, 480, 60, 0},
-};
-
-
-static struct osd_device_data_s osd_gxbb = {
-	.cpu_id = __MESON_CPU_MAJOR_ID_GXBB,
-	.osd_ver = OSD_NORMAL,
-	.afbc_type = NO_AFBC,
-	.osd_count = 2,
-	.has_deband = 0,
-	.has_lut = 0,
-	.has_rdma = 1,
-	.has_dolby_vision = 0,
-	.osd_fifo_len = 32,
-	.vpp_fifo_len = 0x77f,
-	.dummy_data = 0x00808000,
-	.has_viu2 = 0,
-};
-
-static struct osd_device_data_s osd_gxl = {
-	.cpu_id = __MESON_CPU_MAJOR_ID_GXL,
-	.osd_ver = OSD_NORMAL,
-	.afbc_type = NO_AFBC,
-	.osd_count = 2,
-	.has_deband = 0,
-	.has_lut = 0,
-	.has_rdma = 1,
-	.has_dolby_vision = 0,
-	.osd_fifo_len = 32,
-	.vpp_fifo_len = 0x77f,
-	.dummy_data = 0x00808000,
-	.has_viu2 = 0,
-};
-
-static struct osd_device_data_s osd_gxm = {
-	.cpu_id = __MESON_CPU_MAJOR_ID_GXM,
-	.osd_ver = OSD_NORMAL,
-	.afbc_type = MESON_AFBC,
-	.osd_count = 2,
-	.has_deband = 0,
-	.has_lut = 0,
-	.has_rdma = 1,
-	.has_dolby_vision = 0,
-	.osd_fifo_len = 32,
-	.vpp_fifo_len = 0xfff,
-	.dummy_data = 0x00202000,/* dummy data is different */
-	.has_viu2 = 0,
-};
-
-static struct osd_device_data_s osd_txl = {
-	.cpu_id = __MESON_CPU_MAJOR_ID_TXL,
-	.osd_ver = OSD_NORMAL,
-	.afbc_type = NO_AFBC,
-	.osd_count = 2,
-	.has_deband = 0,
-	.has_lut = 0,
-	.has_rdma = 1,
-	.has_dolby_vision = 0,
-	.osd_fifo_len = 64,
-	.vpp_fifo_len = 0x77f,
-	.dummy_data = 0x00808000,
-	.has_viu2 = 0,
-};
-
-static struct osd_device_data_s osd_txlx = {
-	.cpu_id = __MESON_CPU_MAJOR_ID_TXLX,
-	.osd_ver = OSD_NORMAL,
-	.afbc_type = NO_AFBC,
-	.osd_count = 2,
-	.has_deband = 1,
-	.has_lut = 1,
-	.has_rdma = 1,
-	.has_dolby_vision = 1,
-	.osd_fifo_len = 64, /* fifo len 64*8 = 512 */
-	.vpp_fifo_len = 0x77f,
-	.dummy_data = 0x00808000,
-	.has_viu2 = 0,
-};
-
-static struct osd_device_data_s osd_axg = {
-	.cpu_id = __MESON_CPU_MAJOR_ID_AXG,
-	.osd_ver = OSD_SIMPLE,
-	.afbc_type = NO_AFBC,
-	.osd_count = 1,
-	.has_deband = 1,
-	.has_lut = 1,
-	.has_rdma = 0,
-	.has_dolby_vision = 0,
-	 /* use iomap its self, no rdma, no canvas, no freescale */
-	.osd_fifo_len = 64, /* fifo len 64*8 = 512 */
-	.vpp_fifo_len = 0x400,
-	.dummy_data = 0x00808000,
-	.has_viu2 = 0,
-};
-
-static struct osd_device_data_s osd_g12a = {
-	.cpu_id = __MESON_CPU_MAJOR_ID_G12A,
-	.osd_ver = OSD_HIGH_ONE,
-	.afbc_type = MALI_AFBC,
-	.osd_count = 4,
-	.has_deband = 1,
-	.has_lut = 1,
-	.has_rdma = 1,
-	.has_dolby_vision = 0,
-	.osd_fifo_len = 64, /* fifo len 64*8 = 512 */
-	.vpp_fifo_len = 0xfff,/* 2048 */
-	.dummy_data = 0x00808000,
-	.has_viu2 = 1,
-};
-
-static struct osd_device_data_s osd_g12b = {
-	.cpu_id = __MESON_CPU_MAJOR_ID_G12B,
-	.osd_ver = OSD_HIGH_ONE,
-	.afbc_type = MALI_AFBC,
-	.osd_count = 4,
-	.has_deband = 1,
-	.has_lut = 1,
-	.has_rdma = 1,
-	.has_dolby_vision = 0,
-	.osd_fifo_len = 64, /* fifo len 64*8 = 512 */
-	.vpp_fifo_len = 0xfff,/* 2048 */
-	.dummy_data = 0x00808000,
-	.has_viu2 = 1,
-};
-
-static struct osd_device_data_s osd_tl1 = {
-	.cpu_id = __MESON_CPU_MAJOR_ID_TL1,
-	.osd_ver = OSD_HIGH_ONE,
-	.afbc_type = MALI_AFBC,
-	.osd_count = 3,
-	.has_deband = 1,
-	.has_lut = 1,
-	.has_rdma = 1,
-	.has_dolby_vision = 0,
-	.osd_fifo_len = 64, /* fifo len 64*8 = 512 */
-	.vpp_fifo_len = 0xfff,/* 2048 */
-	.dummy_data = 0x00808000,
-	.has_viu2 = 1,
-	.osd0_sc_independ = 0,
-};
-
-static struct osd_device_data_s osd_sm1 = {
-	.cpu_id = __MESON_CPU_MAJOR_ID_SM1,
-	.osd_ver = OSD_HIGH_ONE,
-	.afbc_type = MALI_AFBC,
-	.osd_count = 4,
-	.has_deband = 1,
-	.has_lut = 1,
-	.has_rdma = 1,
-	.has_dolby_vision = 1,
-	.osd_fifo_len = 64, /* fifo len 64*8 = 512 */
-	.vpp_fifo_len = 0xfff,/* 2048 */
-	.dummy_data = 0x00808000,
-	.has_viu2 = 1,
-	.osd0_sc_independ = 0,
-};
-
-static struct osd_device_data_s osd_tm2 = {
-	.cpu_id = __MESON_CPU_MAJOR_ID_TM2,
-	.osd_ver = OSD_HIGH_ONE,
-	.afbc_type = MALI_AFBC,
-	.osd_count = 4,
-	.has_deband = 1,
-	.has_lut = 1,
-	.has_rdma = 1,
-	.has_dolby_vision = 1,
-	.osd_fifo_len = 64, /* fifo len 64*8 = 512 */
-	.vpp_fifo_len = 0xfff,/* 2048 */
-	.dummy_data = 0x00808000,
-	.has_viu2 = 1,
-	.osd0_sc_independ = 1,
-};
-struct osd_device_data_s osd_meson_dev;
-static u32 logo_memsize;
-static struct page *logo_page;
-static struct delayed_work osd_dwork;
+#define AM_VOUT_NULL_MODE "null"
 static struct platform_device *gp_dev;
 static unsigned long gem_mem_start, gem_mem_size;
-
-int am_meson_crtc_dts_info_set(const void *dt_match_data)
-{
-	struct osd_device_data_s *osd_meson;
-
-	osd_meson = (struct osd_device_data_s *)dt_match_data;
-	if (osd_meson) {
-		memcpy(&osd_meson_dev, osd_meson,
-			sizeof(struct osd_device_data_s));
-		osd_meson_dev.viu1_osd_count = osd_meson_dev.osd_count;
-		if (osd_meson_dev.has_viu2) {
-			/* set viu1 osd count */
-			osd_meson_dev.viu1_osd_count--;
-			osd_meson_dev.viu2_index = osd_meson_dev.viu1_osd_count;
-		}
-	} else {
-		DRM_ERROR("%s data NOT match\n", __func__);
-		return -1;
-	}
-
-	return 0;
-}
 
 static int am_meson_crtc_loader_protect(struct drm_crtc *crtc, bool on)
 {
@@ -331,33 +97,45 @@ const struct meson_crtc_funcs meson_private_crtc_funcs = {
 
 char *am_meson_crtc_get_voutmode(struct drm_display_mode *mode)
 {
-	int i;
 	struct vinfo_s *vinfo;
+	char *name = NULL;
 
 	vinfo = get_current_vinfo();
 
 	if (vinfo && vinfo->mode == VMODE_LCD)
 		return mode->name;
-
-	for (i = 0; i < ARRAY_SIZE(am_vout_modes); i++) {
-		if (am_vout_modes[i].width == mode->hdisplay &&
-		    am_vout_modes[i].height == mode->vdisplay &&
-		    am_vout_modes[i].vrefresh == mode->vrefresh &&
-		    am_vout_modes[i].flags ==
-		    (mode->flags & DRM_MODE_FLAG_INTERLACE))
-			return am_vout_modes[i].name;
-	}
-	return NULL;
+#ifdef CONFIG_DRM_MESON_HDMI
+	name = am_meson_hdmi_get_voutmode(mode);
+#endif
+#ifdef CONFIG_DRM_MESON_CVBS
+	if (!name)
+		name = am_cvbs_get_voutmode(mode);
+#endif
+	if (!name)
+		return AM_VOUT_NULL_MODE;
+	else
+		return name;
 }
 
 void am_meson_crtc_handle_vsync(struct am_meson_crtc *amcrtc)
 {
 	unsigned long flags;
 	struct drm_crtc *crtc;
+	int i;
 
 	crtc = &amcrtc->base;
 	drm_crtc_handle_vblank(crtc);
-
+	for (i = 0; i < VIDEO_LATENCY_VSYNC; i++) {
+		if (!amcrtc->video_fence[i].fence)
+			continue;
+		atomic_dec(&amcrtc->video_fence[i].refcount);
+		if (!atomic_read(&amcrtc->video_fence[i].refcount)) {
+			fence_signal(amcrtc->video_fence[i].fence);
+			fence_put(amcrtc->video_fence[i].fence);
+			amcrtc->video_fence[i].fence = NULL;
+			DRM_DEBUG("video fence signal done index:%d\n", i);
+		}
+	}
 	spin_lock_irqsave(&crtc->dev->event_lock, flags);
 	if (amcrtc->event) {
 		drm_crtc_send_vblank_event(crtc, amcrtc->event);
@@ -373,10 +151,8 @@ void am_meson_crtc_irq(struct meson_drm *priv)
 	struct am_meson_crtc *amcrtc = to_am_meson_crtc(priv->crtc);
 
 	spin_lock_irqsave(&amcrtc->vblank_irq_lock, flags);
-	if (amcrtc->vblank_enable) {
-		osd_drm_vsync_isr_handler();
+	if (amcrtc->vblank_enable)
 		am_meson_crtc_handle_vsync(amcrtc);
-	}
 	spin_unlock_irqrestore(&amcrtc->vblank_irq_lock, flags);
 }
 
@@ -390,22 +166,47 @@ static irqreturn_t am_meson_vpu_irq(int irq, void *arg)
 	return IRQ_HANDLED;
 }
 
-static void mem_free_work(struct work_struct *work)
+void am_meson_free_logo_memory(void)
 {
-	if (logo_memsize > 0) {
+	phys_addr_t logo_addr = page_to_phys(logo.logo_page);
+
+	if (logo.size > 0) {
 #ifdef CONFIG_CMA
-		pr_info("%s, free memory: addr:0x%x\n",
-			__func__, logo_memsize);
+		DRM_INFO("%s, free memory: addr:0x%pa,size:0x%x\n",
+			 __func__, &logo_addr, logo.size);
 
 		dma_release_from_contiguous(&gp_dev->dev,
-					    logo_page,
-			logo_memsize >> PAGE_SHIFT);
+					    logo.logo_page,
+					    logo.size >> PAGE_SHIFT);
 #endif
 	}
+	logo.alloc_flag = 0;
+}
+
+static int am_meson_logo_info_update(struct meson_drm *priv)
+{
+	logo.start = page_to_phys(logo.logo_page);
+	logo.alloc_flag = 1;
+	/*config 1080p logo as default*/
+	if (!logo.width || !logo.height) {
+		logo.width = 1920;
+		logo.height = 1080;
+	}
+	if (!logo.bpp)
+		logo.bpp = 16;
+	if (!logo.outputmode_t) {
+		strcpy(logo.outputmode, "1080p60hz");
+	} else {
+		strncpy(logo.outputmode, logo.outputmode_t, VMODE_NAME_LEN_MAX);
+		logo.outputmode[VMODE_NAME_LEN_MAX - 1] = '\0';
+	}
+	priv->logo = &logo;
+
+	return 0;
 }
 
 static int am_meson_vpu_bind(struct device *dev,
-				struct device *master, void *data)
+			     struct device *master, void *data)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct drm_device *drm_dev = data;
@@ -418,7 +219,7 @@ static int am_meson_vpu_bind(struct device *dev,
 	int ret, irq;
 
 	/* Allocate crtc struct */
-	pr_info("[%s] in\n", __func__);
+	DRM_INFO("[%s] in\n", __func__);
 	amcrtc = devm_kzalloc(dev, sizeof(*amcrtc),
 			      GFP_KERNEL);
 	if (!amcrtc)
@@ -434,34 +235,40 @@ static int am_meson_vpu_bind(struct device *dev,
 	ret = of_reserved_mem_device_init(&pdev->dev);
 	if (ret != 0) {
 		dev_err(dev, "failed to init reserved memory\n");
+	} else {
 #ifdef CONFIG_CMA
 		gp_dev = pdev;
 		cma = dev_get_cma_area(&pdev->dev);
 		if (cma) {
-			logo_memsize = cma_get_size(cma);
-			pr_info("reserved memory base:0x%x, size:0x%x\n",
-				(u32)cma_get_base(cma), logo_memsize);
-			if (logo_memsize > 0) {
-				logo_page =
+			logo.size = cma_get_size(cma);
+			DRM_INFO("reserved memory base:0x%x, size:0x%x\n",
+				 (u32)cma_get_base(cma), logo.size);
+			if (logo.size > 0) {
+				logo.logo_page =
 				dma_alloc_from_contiguous(&pdev->dev,
-							  logo_memsize >>
+							  logo.size >>
 							  PAGE_SHIFT,
 							  0);
-				if (!logo_page) {
-					pr_err("allocate buffer failed:%d\n",
-					       logo_memsize);
-				}
+				if (!logo.logo_page)
+					DRM_INFO("allocate buffer failed\n");
+				else
+					am_meson_logo_info_update(private);
 			}
 		} else {
-			pr_info("------ NO CMA\n");
+			DRM_INFO("------ NO CMA\n");
 		}
 #endif
-	} else {
-		dma_declare_coherent_memory(drm_dev->dev, gem_mem_start,
-					    gem_mem_start, gem_mem_size,
-					    DMA_MEMORY_EXCLUSIVE);
-		pr_info("meson drm mem_start = 0x%x, size = 0x%x\n",
-			(u32)gem_mem_start, (u32)gem_mem_size);
+		if (gem_mem_start) {
+			dma_declare_coherent_memory(drm_dev->dev,
+						    gem_mem_start,
+						    gem_mem_start,
+						    gem_mem_size,
+						    DMA_MEMORY_EXCLUSIVE);
+			pr_info("meson drm mem_start = 0x%x, size = 0x%x\n",
+				(u32)gem_mem_start, (u32)gem_mem_size);
+		} else {
+			DRM_INFO("------ NO reserved dma\n");
+		}
 	}
 
 	ret = am_meson_plane_create(private);
@@ -490,15 +297,12 @@ static int am_meson_vpu_bind(struct device *dev,
 	amcrtc->vblank_enable = false;
 
 	ret = devm_request_irq(dev, amcrtc->vblank_irq, am_meson_vpu_irq,
-		IRQF_SHARED, dev_name(dev), drm_dev);
+			       IRQF_SHARED, dev_name(dev), drm_dev);
 	if (ret)
 		return ret;
 
 	disable_irq(amcrtc->vblank_irq);
-
-	INIT_DELAYED_WORK(&osd_dwork, mem_free_work);
-	schedule_delayed_work(&osd_dwork, msecs_to_jiffies(60 * 1000));
-	pr_info("[%s] out\n", __func__);
+	DRM_INFO("[%s] out\n", __func__);
 	return 0;
 }
 
@@ -513,7 +317,6 @@ static void am_meson_vpu_unbind(struct device *dev,
 	amvecm_drm_gamma_disable(0);
 	am_meson_ctm_disable();
 #endif
-	osd_drm_debugfs_exit();
 }
 
 static const struct component_ops am_meson_vpu_component_ops = {
@@ -522,28 +325,17 @@ static const struct component_ops am_meson_vpu_component_ops = {
 };
 
 static const struct of_device_id am_meson_vpu_driver_dt_match[] = {
-	{ .compatible = "amlogic,meson-gxbb-vpu",
-	 .data = &osd_gxbb, },
-	{ .compatible = "amlogic,meson-gxl-vpu",
-	 .data = &osd_gxl, },
-	{ .compatible = "amlogic,meson-gxm-vpu",
-	 .data = &osd_gxm, },
-	{ .compatible = "amlogic,meson-txl-vpu",
-	 .data = &osd_txl, },
-	{ .compatible = "amlogic,meson-txlx-vpu",
-	 .data = &osd_txlx, },
-	{ .compatible = "amlogic,meson-axg-vpu",
-	 .data = &osd_axg, },
-	{ .compatible = "amlogic,meson-g12a-vpu",
-	 .data = &osd_g12a, },
-	{ .compatible = "amlogic,meson-g12b-vpu",
-	.data = &osd_g12b, },
-	{.compatible = "amlogic, meson-tl1-vpu",
-	.data = &osd_tl1,},
-	{.compatible = "amlogic, meson-sm1-vpu",
-	.data = &osd_sm1,},
-	{.compatible = "amlogic, meson-tm2-vpu",
-	.data = &osd_tm2,},
+	{ .compatible = "amlogic,meson-gxbb-vpu",},
+	{ .compatible = "amlogic,meson-gxl-vpu",},
+	{ .compatible = "amlogic,meson-gxm-vpu",},
+	{ .compatible = "amlogic,meson-txl-vpu",},
+	{ .compatible = "amlogic,meson-txlx-vpu",},
+	{ .compatible = "amlogic,meson-axg-vpu",},
+	{ .compatible = "amlogic,meson-g12a-vpu",},
+	{ .compatible = "amlogic,meson-g12b-vpu",},
+	{.compatible = "amlogic, meson-tl1-vpu",},
+	{.compatible = "amlogic, meson-sm1-vpu",},
+	{.compatible = "amlogic, meson-tm2-vpu",},
 	{}
 };
 
@@ -552,25 +344,13 @@ MODULE_DEVICE_TABLE(of, am_meson_vpu_driver_dt_match);
 static int am_meson_vpu_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	const void *vpu_data;
-	int ret;
 
 	pr_info("[%s] in\n", __func__);
 	if (!dev->of_node) {
 		dev_err(dev, "can't find vpu devices\n");
 		return -ENODEV;
 	}
-
-	vpu_data = of_device_get_match_data(dev);
-	if (vpu_data) {
-		ret = am_meson_crtc_dts_info_set(vpu_data);
-		if (ret < 0)
-			return -ENODEV;
-	} else {
-		dev_err(dev, "%s NOT match\n", __func__);
-		return -ENODEV;
-	}
-	pr_info("[%s] out\n", __func__);
+	DRM_INFO("[%s] out\n", __func__);
 	return component_add(dev, &am_meson_vpu_component_ops);
 }
 

@@ -38,93 +38,122 @@ static struct postblend_reg_s postblend_reg = {
 /*vpp post&post blend for osd1 premult flag config as 0 default*/
 static void osd1_blend_premult_set(struct postblend_reg_s *reg)
 {
-	VSYNCOSD_WR_MPEG_REG_BITS(reg->osd1_blend_src_ctrl, 0, 4, 1);
-	VSYNCOSD_WR_MPEG_REG_BITS(reg->osd1_blend_src_ctrl, 0, 16, 1);
+	meson_vpu_write_reg_bits(reg->osd1_blend_src_ctrl, 0, 4, 1);
+	meson_vpu_write_reg_bits(reg->osd1_blend_src_ctrl, 0, 16, 1);
 }
 
 /*vpp pre&post blend for osd2 premult flag config as 0 default*/
 static void osd2_blend_premult_set(struct postblend_reg_s *reg)
 {
-	VSYNCOSD_WR_MPEG_REG_BITS(reg->osd2_blend_src_ctrl, 0, 4, 1);
-	VSYNCOSD_WR_MPEG_REG_BITS(reg->osd2_blend_src_ctrl, 0, 16, 1);
+	meson_vpu_write_reg_bits(reg->osd2_blend_src_ctrl, 0, 4, 1);
+	meson_vpu_write_reg_bits(reg->osd2_blend_src_ctrl, 0, 16, 1);
 }
 
 /*vpp osd1 blend sel*/
 static void osd1_blend_switch_set(struct postblend_reg_s *reg,
-	enum vpp_blend_e blend_sel)
+				  enum vpp_blend_e blend_sel)
 {
-	VSYNCOSD_WR_MPEG_REG_BITS(reg->osd1_blend_src_ctrl, blend_sel, 20, 1);
+	meson_vpu_write_reg_bits(reg->osd1_blend_src_ctrl, blend_sel, 20, 1);
 }
 
 /*vpp osd2 blend sel*/
 static void osd2_blend_switch_set(struct postblend_reg_s *reg,
-	enum vpp_blend_e blend_sel)
+				  enum vpp_blend_e blend_sel)
 {
-	VSYNCOSD_WR_MPEG_REG_BITS(reg->osd2_blend_src_ctrl, blend_sel, 20, 1);
+	meson_vpu_write_reg_bits(reg->osd2_blend_src_ctrl, blend_sel, 20, 1);
 }
 
 /*vpp osd1 preblend mux sel*/
 static void vpp_osd1_preblend_mux_set(struct postblend_reg_s *reg,
-	enum vpp_blend_src_e src_sel)
+				      enum vpp_blend_src_e src_sel)
 {
-	VSYNCOSD_WR_MPEG_REG_BITS(reg->osd1_blend_src_ctrl, src_sel, 0, 4);
+	meson_vpu_write_reg_bits(reg->osd1_blend_src_ctrl, src_sel, 0, 4);
 }
 
 /*vpp osd2 preblend mux sel*/
 static void vpp_osd2_preblend_mux_set(struct postblend_reg_s *reg,
-	enum vpp_blend_src_e src_sel)
+				      enum vpp_blend_src_e src_sel)
 {
-	VSYNCOSD_WR_MPEG_REG_BITS(reg->osd2_blend_src_ctrl, src_sel, 0, 4);
+	meson_vpu_write_reg_bits(reg->osd2_blend_src_ctrl, src_sel, 0, 4);
 }
 
 /*vpp osd1 postblend mux sel*/
 static void vpp_osd1_postblend_mux_set(struct postblend_reg_s *reg,
-	enum vpp_blend_src_e src_sel)
+				       enum vpp_blend_src_e src_sel)
 {
-	VSYNCOSD_WR_MPEG_REG_BITS(reg->osd1_blend_src_ctrl, src_sel, 8, 4);
+	meson_vpu_write_reg_bits(reg->osd1_blend_src_ctrl, src_sel, 8, 4);
 }
+
 /*vpp osd2 postblend mux sel*/
 static void vpp_osd2_postblend_mux_set(struct postblend_reg_s *reg,
-	enum vpp_blend_src_e src_sel)
+				       enum vpp_blend_src_e src_sel)
 {
-	VSYNCOSD_WR_MPEG_REG_BITS(reg->osd2_blend_src_ctrl, src_sel, 8, 4);
+	meson_vpu_write_reg_bits(reg->osd2_blend_src_ctrl, src_sel, 8, 4);
 }
+
 /*vpp osd1 blend scope set*/
 static void vpp_osd1_blend_scope_set(struct postblend_reg_s *reg,
-	struct osd_scope_s scope)
+				     struct osd_scope_s scope)
 {
-	VSYNCOSD_WR_MPEG_REG(reg->vpp_osd1_bld_h_scope,
-		(scope.h_start << 16) | scope.h_end);
-	VSYNCOSD_WR_MPEG_REG(reg->vpp_osd1_bld_v_scope,
-		(scope.v_start << 16) | scope.v_end);
+	meson_vpu_write_reg(reg->vpp_osd1_bld_h_scope,
+			    (scope.h_start << 16) | scope.h_end);
+	meson_vpu_write_reg(reg->vpp_osd1_bld_v_scope,
+			    (scope.v_start << 16) | scope.v_end);
 }
+
 /*vpp osd2 blend scope set*/
 static void vpp_osd2_blend_scope_set(struct postblend_reg_s *reg,
-	struct osd_scope_s scope)
+				     struct osd_scope_s scope)
 {
-	VSYNCOSD_WR_MPEG_REG(reg->vpp_osd2_bld_h_scope,
-		(scope.h_start << 16) | scope.h_end);
-	VSYNCOSD_WR_MPEG_REG(reg->vpp_osd2_bld_v_scope,
-		(scope.v_start << 16) | scope.v_end);
+	meson_vpu_write_reg(reg->vpp_osd2_bld_h_scope,
+			    (scope.h_start << 16) | scope.h_end);
+	meson_vpu_write_reg(reg->vpp_osd2_bld_v_scope,
+			    (scope.v_start << 16) | scope.v_end);
 }
 
 static int postblend_check_state(struct meson_vpu_block *vblk,
-		struct meson_vpu_block_state *state,
+				 struct meson_vpu_block_state *state,
 		struct meson_vpu_pipeline_state *mvps)
 {
 	struct meson_vpu_postblend *postblend = to_postblend_block(vblk);
+	u32 video_zorder, osd_zorder, top_flag, bottom_flag, i, j;
 
 	if (state->checked)
 		return 0;
 
 	state->checked = true;
+	for (i = 0; i < MESON_MAX_VIDEO &&
+	     mvps->video_plane_info[i].enable; i++) {
+		video_zorder = mvps->video_plane_info[i].zorder;
+		top_flag = 0;
+		bottom_flag = 0;
+		for (j = 0; j < MESON_MAX_OSDS &&
+		     mvps->plane_info[j].enable; j++) {
+			osd_zorder = mvps->plane_info[j].zorder;
+			if (video_zorder > osd_zorder)
+				top_flag++;
+			else
+				bottom_flag++;
+		}
+		if (top_flag && bottom_flag) {
+			DRM_DEBUG("unsupported zorder\n");
+			return -1;
+		} else if (top_flag) {
+			set_video_zorder(video_zorder +
+					 VPP_POST_BLEND_REF_ZORDER, i);
+			DRM_DEBUG("video on the top\n");
+		} else if (bottom_flag) {
+			set_video_zorder(video_zorder, i);
+			DRM_DEBUG("video on the bottom\n");
+		}
+	}
 
 	DRM_DEBUG("%s check_state called.\n", postblend->base.name);
 	return 0;
 }
 
 static void postblend_set_state(struct meson_vpu_block *vblk,
-		struct meson_vpu_block_state *state)
+				struct meson_vpu_block_state *state)
 {
 	struct drm_crtc *crtc;
 	struct am_meson_crtc *amc;
@@ -154,9 +183,10 @@ static void postblend_set_state(struct meson_vpu_block *vblk,
 		vpp_osd1_postblend_mux_set(postblend->reg, VPP_OSD1);
 
 	osd1_blend_premult_set(reg);
-	osd2_blend_premult_set(reg);
+	if (0)
+		osd2_blend_premult_set(reg);
 	DRM_DEBUG("scope h/v start/end [%d,%d,%d,%d].\n",
-		scope.h_start, scope.h_end, scope.v_start, scope.v_end);
+		  scope.h_start, scope.h_end, scope.v_start, scope.v_end);
 }
 
 static void postblend_hw_enable(struct meson_vpu_block *vblk)
@@ -174,7 +204,7 @@ static void postblend_hw_disable(struct meson_vpu_block *vblk)
 }
 
 static void postblend_dump_register(struct meson_vpu_block *vblk,
-				struct seq_file *seq)
+				    struct seq_file *seq)
 {
 	u32 value;
 	struct meson_vpu_postblend *postblend;

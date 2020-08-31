@@ -20,9 +20,7 @@
 
 #include <linux/amlogic/media/vout/vout_notify.h>
 
-struct am_meson_vpu_data {
-	u32 version;
-};
+#define VIDEO_LATENCY_VSYNC 2
 
 struct am_vout_mode {
 	char name[DRM_DISPLAY_MODE_LEN];
@@ -31,7 +29,14 @@ struct am_vout_mode {
 	unsigned int flags;
 };
 
-extern struct osd_device_data_s osd_meson_dev;
+extern struct am_meson_logo logo;
 char *am_meson_crtc_get_voutmode(struct drm_display_mode *mode);
+void am_meson_free_logo_memory(void);
+#ifdef CONFIG_DRM_MESON_HDMI
+char *am_meson_hdmi_get_voutmode(struct drm_display_mode *mode);
+#endif
+#ifdef CONFIG_DRM_MESON_CVBS
+char *am_cvbs_get_voutmode(struct drm_display_mode *mode);
+#endif
 
 #endif /* __AM_MESON_VPU_H */

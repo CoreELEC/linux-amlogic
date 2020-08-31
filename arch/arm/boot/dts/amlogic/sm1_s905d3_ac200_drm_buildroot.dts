@@ -1172,12 +1172,15 @@
 &drm_vpu {
 	status = "okay";
 	logo_addr = "0x7f800000";
-	osd_ver = /bits/ 8 <OSD_V5>;
 };
 
 &drm_amhdmitx {
 	status = "okay";
 	hdcp = "disabled";
+};
+
+&drm_amcvbsout {
+	status = "okay";
 };
 
 &drm_lcd {

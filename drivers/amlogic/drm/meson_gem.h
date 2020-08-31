@@ -20,7 +20,6 @@
 #include <drm/drm_gem.h>
 #include <uapi/drm/meson_drm.h>
 #include <ion/ion_priv.h>
-
 #include "meson_drv.h"
 
 struct am_meson_gem_object {
@@ -34,6 +33,11 @@ struct am_meson_gem_object {
 	/* for buffer import form other driver */
 	phys_addr_t addr;
 	struct sg_table *sg;
+
+	/* for uvm related field */
+	bool is_uvm;
+	bool is_afbc;
+	bool is_secure;
 };
 
 /* GEM MANAGER CREATE*/
@@ -64,7 +68,7 @@ int am_meson_gem_create_ioctl(
 int am_meson_gem_dumb_map_offset(
 	struct drm_file *file_priv,
 	struct drm_device *dev,
-	uint32_t handle,
+	u32 handle,
 	uint64_t *offset);
 
 /* GEM OBJECT OPERATIONS */
@@ -78,9 +82,10 @@ int am_meson_gem_object_mmap(
 	struct am_meson_gem_object *obj,
 	struct vm_area_struct *vma);
 
-extern int am_meson_gem_object_get_phyaddr(
+phys_addr_t am_meson_gem_object_get_phyaddr(
 	struct meson_drm *drm,
-	struct am_meson_gem_object *meson_gem);
+	struct am_meson_gem_object *meson_gem,
+	size_t *len);
 
 /* GEM PRIME OPERATIONS */
 struct sg_table *am_meson_gem_prime_get_sg_table(

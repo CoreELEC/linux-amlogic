@@ -1104,7 +1104,6 @@ struct am_hdmi_tx {
 #define HDMITX_DWC_HDCP22REG_STAT               (DWC_OFFSET_MASK + 0x790D)
 #define HDMITX_DWC_HDCP22REG_MUTE               (DWC_OFFSET_MASK + 0x790E)
 
-
 /* ********** CEC related ********** */
 
 /* CEC 2.0 Engine Registers */

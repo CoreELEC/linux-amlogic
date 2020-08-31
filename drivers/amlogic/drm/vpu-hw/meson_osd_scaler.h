@@ -68,7 +68,6 @@
 #define OSD34_SCALE_COEF_IDX 0x3d1e
 #define OSD34_SCALE_COEF 0x3d1f
 
-
 /*macro define for chip const*/
 /*bank length is related to scale fifo:4 line 1920??*/
 #define OSD_SCALE_BANK_LENGTH 4
@@ -79,20 +78,31 @@
 #define OSD_ZOOM_TOTAL_BITS 24
 #define OSD_PHASE_BITS 16
 
-enum f2v_vphase_type_e {
-	F2V_IT2IT = 0,
-	F2V_IB2IB,
-	F2V_IT2IB,
-	F2V_IB2IT,
-	F2V_P2IT,
-	F2V_P2IB,
-	F2V_IT2P,
-	F2V_IB2P,
-	F2V_P2P,
-	F2V_TYPE_MAX
+#define OSD_SCALER_COEFF_H 1
+#define OSD_SCALER_COEFF_V 0
+
+enum scaler_coef_e {
+	COEFS_BICUBIC = 0,
+	COEFS_2POINT_BINILEAR,
+	COEFS_4POINT_TRIANGLE,
+	COEFS_REPEATE,
+	COEFS_MAX
 };
 
-struct f2v_vphase_s {
+enum osd_scaler_f2v_vphase_type_e {
+	OSD_SCALER_F2V_IT2IT = 0,
+	OSD_SCALER_F2V_IB2IB,
+	OSD_SCALER_F2V_IT2IB,
+	OSD_SCALER_F2V_IB2IT,
+	OSD_SCALER_F2V_P2IT,
+	OSD_SCALER_F2V_P2IB,
+	OSD_SCALER_F2V_IT2P,
+	OSD_SCALER_F2V_IB2P,
+	OSD_SCALER_F2V_P2P,
+	OSD_SCALER_F2V_TYPE_MAX
+};
+
+struct osd_scaler_f2v_vphase_s {
 	u8 rcv_num;
 	u8 rpt_num;
 	u16 phase;
