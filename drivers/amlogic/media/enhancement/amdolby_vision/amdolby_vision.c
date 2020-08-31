@@ -318,6 +318,8 @@ static bool force_set_lut;
 /*core reg must be set at first time. bit0 is for core2, bit1 is for core3*/
 static u32 first_reseted;
 
+static char *ko_info;
+
 module_param(vtotal_add, uint, 0664);
 MODULE_PARM_DESC(vtotal_add, "\n vtotal_add\n");
 module_param(vpotch, uint, 0664);
@@ -8243,6 +8245,7 @@ int register_dv_functions(const struct dolby_vision_func_s *func)
 	unsigned int reg_value;
 	struct pq_config_s *pq_config;
 	const struct vinfo_s *vinfo = get_current_vinfo();
+	unsigned int ko_info_len = 0;
 
 	/*when dv ko load into kernel, this flag will be disabled
 	 *otherwise it will effect hdr module
@@ -8262,12 +8265,28 @@ int register_dv_functions(const struct dolby_vision_func_s *func)
 
 	if ((!p_funcs_stb || !p_funcs_tv) && func) {
 		if (func->control_path && !p_funcs_stb) {
-			pr_info("*** register_dv_stb_functions. version %s ***\n",
-				func->version_info);
+			pr_info("*** register_dv_stb_functions.***\n");
+			if (!ko_info) {
+				ko_info_len = strlen(func->version_info);
+				ko_info = vmalloc(ko_info_len + 1);
+				if (ko_info) {
+					strncpy(ko_info, func->version_info,
+						ko_info_len);
+					ko_info[ko_info_len] = '\0';
+				}
+			}
 			p_funcs_stb = func;
 		} else if (func->tv_control_path && !p_funcs_tv) {
-			pr_info("*** register_dv_tv_functions. version %s ***\n",
-				func->version_info);
+			pr_info("*** register_dv_tv_functions\n");
+			if (!ko_info) {
+				ko_info_len = strlen(func->version_info);
+				ko_info = vmalloc(ko_info_len + 1);
+				if (ko_info) {
+					strncpy(ko_info, func->version_info,
+						ko_info_len);
+					ko_info[ko_info_len] = '\0';
+				}
+			}
 			p_funcs_tv = func;
 		} else
 			return ret;
@@ -8360,6 +8379,10 @@ int unregister_dv_functions(void)
 		if (tv_dovi_setting) {
 			vfree(tv_dovi_setting);
 			tv_dovi_setting = NULL;
+		}
+		if (ko_info) {
+			vfree(ko_info);
+			ko_info = NULL;
 		}
 		p_funcs_stb = NULL;
 		p_funcs_tv = NULL;
@@ -8610,6 +8633,7 @@ static const char *amdolby_vision_debug_usage_str = {
 	"echo dolby_dma index(D) value(H) > /sys/class/amdolby_vision/debug; dolby dma table modify\n"
 	"echo dv_efuse > /sys/class/amdolby_vision/debug; get dv efuse info\n"
 	"echo dv_el > /sys/class/amdolby_vision/debug; get dv enhanced layer info\n"
+	"echo ko_info > /sys/class/amdolby_vision/debug; query ko info\n"
 };
 static ssize_t  amdolby_vision_debug_show(struct class *cla,
 		struct class_attribute *attr, char *buf)
@@ -8675,6 +8699,9 @@ static ssize_t amdolby_vision_debug_store(struct class *cla,
 						vpp_data_422T0444_backup);
 			}
 		}
+	} else if (!strcmp(parm[0], "ko_info")) {
+		if (ko_info)
+			pr_info("ko info: %s\n", ko_info);
 	} else {
 		pr_info("unsupport cmd\n");
 	}
