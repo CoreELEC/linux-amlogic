@@ -550,6 +550,7 @@ struct hw_osd_reg_s {
 	u32 osd_dimm_ctrl;/* VIU_OSD1_DIMM_CTRL */
 	//u32 osd_blend_din_scope_h; /* VIU_OSD_BLEND_DIN0_SCOPE_H */
 	//u32 osd_blend_din_scope_v; /* VIU_OSD_BLEND_DIN0_SCOPE_V */
+	u32 osd_matrix_en_ctrl;
 
 	u32 osd_scale_coef_idx;/* VPP_OSD_SCALE_COEF_IDX */
 	u32 osd_scale_coef;/* VPP_OSD_SCALE_COEF */
