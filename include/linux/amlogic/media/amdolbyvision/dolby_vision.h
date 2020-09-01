@@ -124,5 +124,6 @@ int parse_sei_and_meta_ext(
 	int *ret_flags,
 	char *md_buf,
 	char *comp_buf);
+void dolby_vision_clear_buf(void);
 
 #endif

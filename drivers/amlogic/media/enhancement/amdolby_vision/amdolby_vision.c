@@ -4193,6 +4193,20 @@ void dolby_vision_init_receiver(void *pdev)
 	}
 }
 
+void dolby_vision_clear_buf(void)
+{
+	int i;
+	unsigned long flags;
+
+	spin_lock_irqsave(&dovi_lock, flags);
+	for (i = 0; i < 16; i++) {
+		dv_vf[i][0] = NULL;
+		dv_vf[i][1] = NULL;
+	}
+	spin_unlock_irqrestore(&dovi_lock, flags);
+}
+EXPORT_SYMBOL(dolby_vision_clear_buf);
+
 #define MAX_FILENAME_LENGTH 64
 static const char comp_file[] = "%s_comp.%04d.reg";
 static const char dm_reg_core1_file[] = "%s_dm_core1.%04d.reg";
@@ -7450,6 +7464,11 @@ int dolby_vision_update_metadata(struct vframe_s *vf, bool drop_flag)
 
 	if (!dolby_vision_enable)
 		return -1;
+
+	/*clear dv_vf when render first frame */
+	if (vf && vf->omx_index == 0)
+		dolby_vision_clear_buf();
+
 	if (vf && dolby_vision_vf_check(vf)) {
 		ret = dolby_vision_parse_metadata(
 			vf, 1, false, drop_flag);
