@@ -1595,6 +1595,7 @@
 		mux { /* GPIOD_10 */
 			groups = "GPIOD_10";
 			function = "gpio_periphs";
+			output-low;
 		};
 	};
 
