@@ -828,7 +828,8 @@ static int vpp_process_speed_check(
 	u32 video_speed_check_width,
 	u32 video_speed_check_height,
 	struct vpp_frame_par_s *next_frame_par,
-	const struct vinfo_s *vinfo, struct vframe_s *vf)
+	const struct vinfo_s *vinfo, struct vframe_s *vf,
+	u32 vpp_flags)
 {
 	u32 cur_ratio, bpp = 1;
 	int min_ratio_1000 = 0;
@@ -843,7 +844,7 @@ static int vpp_process_speed_check(
 		return SPEED_CHECK_DONE;
 
 	/* store the debug info for legacy */
-	if (layer_id == 0)
+	if ((layer_id == 0) && (vpp_flags & VPP_FLAG_MORE_LOG))
 		cur_vf_type = vf->type;
 
 	if (force_vskip_cnt == 0xff)/*for debug*/
@@ -875,7 +876,8 @@ static int vpp_process_speed_check(
 	if (max_proc_height < max_height)
 		max_height = max_proc_height;
 
-	cur_proc_height = max_height;
+	if ((layer_id == 0) && (vpp_flags & VPP_FLAG_MORE_LOG))
+		cur_proc_height = max_height;
 
 	if (width_in > 720)
 		min_ratio_1000 =  min_skip_ratio;
@@ -916,7 +918,9 @@ static int vpp_process_speed_check(
 
 	if (freq_ratio < 1)
 		freq_ratio = 1;
-	cur_freq_ratio = freq_ratio;
+
+	if ((layer_id == 0) && (vpp_flags & VPP_FLAG_MORE_LOG))
+		cur_freq_ratio = freq_ratio;
 
 	/* #if (MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON8) */
 	if ((get_cpu_type() >= MESON_CPU_MAJOR_ID_M8) && !is_meson_mtvd_cpu()) {
@@ -952,7 +956,8 @@ static int vpp_process_speed_check(
 					cur_ratio = cur_ratio * 2;
 
 				/* store the debug info for legacy */
-				if (layer_id == 0)
+				if ((layer_id == 0) &&
+				    (vpp_flags & VPP_FLAG_MORE_LOG))
 					cur_skip_ratio = cur_ratio;
 
 				if ((cur_ratio > min_ratio_1000) &&
@@ -1097,9 +1102,14 @@ static int vpp_set_filters_internal(
 	bool no_compress = false;
 	u32 min_aspect_ratio_out, max_aspect_ratio_out;
 	int is_larger_4k60hz = 0;
+	u32 cur_super_debug = 0;
 
 	if (!input)
 		return vppfilter_fail;
+
+	if (vpp_flags & VPP_FLAG_MORE_LOG)
+		cur_super_debug = super_debug;
+
 	/* min = 0.95 x 1024 * height / width */
 	min_aspect_ratio_out =
 		((100 - screen_ar_threshold) << 10) / 100;
@@ -1168,7 +1178,7 @@ static int vpp_set_filters_internal(
 	else
 		vskip_step = 1;
 
-	if (super_debug)
+	if (cur_super_debug)
 		pr_info("sar_width=%d, sar_height = %d, %d\n",
 			vf->sar_width, vf->sar_height,
 			force_use_ext_ar);
@@ -1269,7 +1279,7 @@ RESTART:
 	}
 	/* if use the mode ar, will disable ext ar */
 
-	if (super_debug)
+	if (cur_super_debug)
 		pr_info("aspect_factor=%d,%d,%d,%d,%d,%d\n",
 			aspect_factor, w_in, height_out,
 			width_out, h_in, aspect_ratio_out >> 2);
@@ -1294,7 +1304,7 @@ RESTART:
 					(u32)tmp);
 		height_after_ratio /= sar_width;
 		aspect_factor = (height_after_ratio << 8) / h_in;
-		if (super_debug)
+		if (cur_super_debug)
 			pr_info("ext_sar: aspect_factor=%d, %d,%d,%d,%d,%d\n",
 				aspect_factor, w_in, h_in,
 				height_after_ratio,
@@ -1408,7 +1418,7 @@ RESTART:
 			ratio_x++;
 
 		ratio_y = (height_after_ratio << 18) / screen_height;
-		if (super_debug)
+		if (cur_super_debug)
 			pr_info("layer%d: height_after_ratio=%d,%d,%d,%d,%d\n",
 				input->layer_id,
 				height_after_ratio, ratio_x, ratio_y,
@@ -1461,7 +1471,7 @@ RESTART:
 		(vpp_zoom_center_y << 10) +
 		(ratio_y >> 1)) / ratio_y;
 	end = ((h_in << 18) + (ratio_y >> 1)) / ratio_y + start - 1;
-	if (super_debug)
+	if (cur_super_debug)
 		pr_info("layer%d: top:start =%d,%d,%d,%d  %d,%d,%d\n",
 			input->layer_id,
 			start, end, video_top,
@@ -1528,6 +1538,19 @@ RESTART:
 	next_frame_par->VPP_pic_in_height_ =
 		next_frame_par->VPP_pic_in_height_ /
 		(next_frame_par->vscale_skip_count + 1);
+
+	/* DI POST link, need make pps input size is even */
+	if ((next_frame_par->VPP_pic_in_height_ & 1) &&
+	    (vf->type & VIDTYPE_PRE_INTERLACE) &&
+	    !(vf->type & VIDTYPE_DI_PW)) {
+		next_frame_par->VPP_pic_in_height_ &= ~1;
+		next_frame_par->VPP_vd_end_lines_ =
+			next_frame_par->VPP_pic_in_height_ *
+			(next_frame_par->vscale_skip_count + 1) +
+			next_frame_par->VPP_vd_start_lines_;
+		if (next_frame_par->VPP_vd_end_lines_ > 0)
+			next_frame_par->VPP_vd_end_lines_--;
+	}
 	/*
 	 *find overlapped region between
 	 *[start, end], [0, height_out-1],
@@ -1577,7 +1600,7 @@ RESTART:
 		(vpp_zoom_center_x << 10) +
 		(ratio_x >> 1)) / ratio_x;
 	end = ((w_in << 18) + (ratio_x >> 1)) / ratio_x + start - 1;
-	if (super_debug)
+	if (cur_super_debug)
 		pr_info("layer%d: left:start =%d,%d,%d,%d  %d,%d,%d\n",
 			input->layer_id,
 			start, end, video_left,
@@ -1697,8 +1720,7 @@ RESTART:
 			speed_check_width,
 			speed_check_height,
 			next_frame_par,
-			vinfo,
-			vf);
+			vinfo, vf, vpp_flags);
 
 		if (skip == SPEED_CHECK_VSKIP) {
 			u32 next_vskip =
@@ -2206,7 +2228,7 @@ static void vpp_set_super_scaler(
 	u32 vpp_wide_mode,
 	const struct vinfo_s *vinfo,
 	struct vpp_frame_par_s *next_frame_par,
-	bool bypass_sr0, bool bypass_sr1)
+	bool bypass_sr0, bool bypass_sr1, u32 vpp_flags)
 {
 	unsigned int hor_sc_multiple_num, ver_sc_multiple_num, temp;
 	u32 width_out = next_frame_par->VPP_hsc_endp -
@@ -2691,7 +2713,7 @@ static void vpp_set_super_scaler(
 		}
 	}
 
-	if (super_debug) {
+	if (super_debug && (vpp_flags & VPP_FLAG_MORE_LOG)) {
 		pr_info("layer0: spsc0_w_in=%u, spsc0_h_in=%u, spsc1_w_in=%u, spsc1_h_in=%u.\n",
 			next_frame_par->spsc0_w_in, next_frame_par->spsc0_h_in,
 			next_frame_par->spsc1_w_in, next_frame_par->spsc1_h_in);
@@ -2979,9 +3001,13 @@ static int vpp_set_filters_no_scaler_internal(
 	u32 crop_ratio = 1;
 	u32 crop_left, crop_right, crop_top, crop_bottom;
 	bool no_compress = false;
+	u32 cur_super_debug = 0;
 
 	if (!input)
 		return vppfilter_fail;
+
+	if (vpp_flags & VPP_FLAG_MORE_LOG)
+		cur_super_debug = super_debug;
 
 	video_layer_global_offset_x = input->global_offset_x;
 	video_layer_global_offset_y = input->global_offset_y;
@@ -3072,7 +3098,7 @@ RESTART:
 		((h_in << 17) +
 		(ratio_y >> 1)) / ratio_y;
 	end = ((h_in << 18) + (ratio_y >> 1)) / ratio_y + start - 1;
-	if (super_debug)
+	if (cur_super_debug)
 		pr_info("layer%d: top:start =%d,%d,%d,%d  %d,%d\n",
 			input->layer_id,
 			start, end, video_top,
@@ -3139,6 +3165,19 @@ RESTART:
 	next_frame_par->VPP_pic_in_height_ =
 		next_frame_par->VPP_pic_in_height_ /
 		(next_frame_par->vscale_skip_count + 1);
+
+	/* DI POST link, need make pps input size is even */
+	if ((next_frame_par->VPP_pic_in_height_ & 1) &&
+	    (vf->type & VIDTYPE_PRE_INTERLACE) &&
+	    !(vf->type & VIDTYPE_DI_PW)) {
+		next_frame_par->VPP_pic_in_height_ &= ~1;
+		next_frame_par->VPP_vd_end_lines_ =
+			next_frame_par->VPP_pic_in_height_ *
+			(next_frame_par->vscale_skip_count + 1) +
+			next_frame_par->VPP_vd_start_lines_;
+		if (next_frame_par->VPP_vd_end_lines_ > 0)
+			next_frame_par->VPP_vd_end_lines_--;
+	}
 	/*
 	 *find overlapped region between
 	 *[start, end], [0, height_out-1],
@@ -3183,7 +3222,7 @@ RESTART:
 	start = video_left + (video_width + 1) / 2 -
 		((w_in << 17) + (ratio_x >> 1)) / ratio_x;
 	end = ((w_in << 18) + (ratio_x >> 1)) / ratio_x + start - 1;
-	if (super_debug)
+	if (cur_super_debug)
 		pr_info("layer%d: left:start =%d,%d,%d,%d  %d,%d\n",
 			input->layer_id,
 			start, end, video_left,
@@ -3562,7 +3601,8 @@ int vpp_set_filters(
 			wide_mode,
 			vinfo, next_frame_par,
 			(bypass_sr0 | bypass_spscl0),
-			(bypass_sr1 | bypass_spscl1));
+			(bypass_sr1 | bypass_spscl1),
+			vpp_flags);
 		/* cm input size will be set in super scaler function */
 	} else {
 		if (local_input.pps_support) {

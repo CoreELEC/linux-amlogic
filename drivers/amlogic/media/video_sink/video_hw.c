@@ -4782,9 +4782,12 @@ s32 layer_swap_frame(
 
 	/* enable new config on the new frames */
 	if (first_picture || force_toggle || frame_changed) {
-		layer->next_frame_par =
-			(&layer->frame_parms[0] == layer->next_frame_par) ?
-			&layer->frame_parms[1] : &layer->frame_parms[0];
+		if (layer->next_frame_par == layer->cur_frame_par)
+			layer->next_frame_par =
+				(&layer->frame_parms[0] ==
+				 layer->next_frame_par) ?
+				&layer->frame_parms[1] :
+				&layer->frame_parms[0];
 		/* FIXME: remove the global variables */
 		glayer_info[layer->layer_id].reverse = reverse;
 		glayer_info[layer->layer_id].proc_3d_type =
