@@ -1709,6 +1709,9 @@ EXPORT_SYMBOL(tsync_get_vpts_adjust);
 
 int tsync_pcr_start(void)
 {
+	if (tsync_pcr_started)
+		return 0;
+
 	timestamp_pcrscr_enable(0);
 	timestamp_pcrscr_set(0);
 
