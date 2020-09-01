@@ -1598,6 +1598,84 @@ int osd_sync_do_hwc(u32 output_index, struct do_hwc_cmd_s *hwc_cmd)
 }
 #endif
 
+static void osd_get_max_window_size(struct dispdata_s *dst_data)
+{
+	int i;
+
+	memset(dst_data, 0x0, sizeof(struct dispdata_s));
+	for (i = 0; i < osd_hw.osd_meson_dev.viu1_osd_count; i++) {
+		if (osd_hw.enable[i]) {
+			if (dst_data->x > osd_hw.dst_data[i].x)
+				dst_data->x = osd_hw.dst_data[i].x;
+			if (dst_data->y > osd_hw.dst_data[i].y)
+				dst_data->y = osd_hw.dst_data[i].y;
+			if (dst_data->w < osd_hw.dst_data[i].w)
+				dst_data->w = osd_hw.dst_data[i].w;
+			if (dst_data->h < osd_hw.dst_data[i].h)
+				dst_data->h = osd_hw.dst_data[i].h;
+		}
+	}
+	osd_log_dbg(MODULE_BLEND, "max window size:%d, %d,%d,%d\n",
+		    dst_data->x, dst_data->y, dst_data->w, dst_data->h);
+}
+
+static void osd_get_max_fb_size(struct dispdata_s *src_data)
+{
+	int i;
+
+	memset(src_data, 0x0, sizeof(struct dispdata_s));
+	for (i = 0; i < osd_hw.osd_meson_dev.viu1_osd_count; i++) {
+		if (src_data->x > osd_hw.src_data[i].x)
+			src_data->x = osd_hw.src_data[i].x;
+		if (src_data->y > osd_hw.src_data[i].y)
+			src_data->y = osd_hw.src_data[i].y;
+		if (src_data->w < osd_hw.src_data[i].w)
+			src_data->w = osd_hw.src_data[i].w;
+		if (src_data->h < osd_hw.src_data[i].h)
+			src_data->h = osd_hw.src_data[i].h;
+	}
+	osd_log_dbg(MODULE_BLEND, "max fb size:%d, %d,%d,%d\n",
+		    src_data->x, src_data->y, src_data->w, src_data->h);
+}
+
+static void osd_update_disp_dst_size(u32 index)
+{
+	u32 output_index;
+
+	output_index = get_output_device_id(index);
+	if (osd_hw.hwc_enable[output_index] &&
+	    osd_hw.osd_display_fb[output_index]) {
+		struct display_flip_info_s disp_info;
+		struct dispdata_s dst_data;
+
+		osd_get_background_size(index, &disp_info);
+		osd_get_max_window_size(&dst_data);
+		disp_info.position_x = dst_data.x;
+		disp_info.position_y = dst_data.y;
+		disp_info.position_w = dst_data.w;
+		disp_info.position_h = dst_data.h;
+		osd_set_background_size(index, &disp_info);
+	}
+}
+
+static void osd_update_disp_src_size(u32 index)
+{
+	u32 output_index;
+
+	output_index = get_output_device_id(index);
+	if (osd_hw.hwc_enable[output_index] &&
+	    osd_hw.osd_display_fb[output_index]) {
+		struct display_flip_info_s disp_info;
+		struct dispdata_s fb_data;
+
+		osd_get_background_size(index, &disp_info);
+		osd_get_max_fb_size(&fb_data);
+		disp_info.background_w = fb_data.w;
+		disp_info.background_h = fb_data.h;
+		osd_set_background_size(index, &disp_info);
+	}
+}
+
 
 void osd_set_enable_hw(u32 index, u32 enable)
 {
@@ -3123,6 +3201,8 @@ void osd_setup_hw(u32 index,
 			- osd_hw.pandata[index].x_start + 1;
 		osd_hw.src_data[index].h = osd_hw.pandata[index].y_end
 			- osd_hw.pandata[index].y_start + 1;
+
+		osd_update_disp_src_size(index);
 	}
 	spin_lock_irqsave(&osd_lock, lock_flags);
 	if (update_color_mode)
@@ -3452,8 +3532,11 @@ void osd_set_window_axis_hw(u32 index, s32 x0, s32 y0, s32 x1, s32 y1)
 	if (osd_hw.free_dst_data[index].y_end >= osd_hw.vinfo_height[index] - 1)
 		osd_set_dummy_data(index, 0xff);
 	osd_update_window_axis = true;
+	osd_update_disp_dst_size(index);
+
 	if (osd_hw.hwc_enable[output_index] &&
-	    (osd_hw.osd_display_debug[output_index] == OSD_DISP_DEBUG))
+	    ((osd_hw.osd_display_debug[output_index] == OSD_DISP_DEBUG) ||
+	    (osd_hw.osd_display_fb[output_index])))
 		osd_setting_blend(output_index);
 	mutex_unlock(&osd_mutex);
 }
@@ -3645,11 +3728,14 @@ void osd_enable_hw(u32 index, u32 enable)
 
 	osd_hw.enable[index] = enable;
 	output_index = get_output_device_id(index);
+	osd_update_disp_src_size(index);
+	osd_update_disp_dst_size(index);
 	if (get_osd_hwc_type(index) != OSD_G12A_NEW_HWC) {
 		add_to_update_list(index, OSD_ENABLE);
 		osd_wait_vsync_hw(index);
 	} else if (osd_hw.hwc_enable[output_index] &&
-		osd_hw.osd_display_debug[output_index])
+	    ((osd_hw.osd_display_debug[output_index] == OSD_DISP_DEBUG) ||
+	    (osd_hw.osd_display_fb[output_index])))
 		osd_setting_blend(output_index);
 }
 
@@ -4024,6 +4110,22 @@ void osd_set_display_debug(u32 index, u32 osd_display_debug_enable)
 
 	output_index = get_output_device_id(index);
 	osd_hw.osd_display_debug[output_index] = osd_display_debug_enable;
+}
+
+void osd_get_display_fb(u32 index, u32 *osd_display_fb)
+{
+	u32 output_index;
+
+	output_index = get_output_device_id(index);
+	*osd_display_fb = osd_hw.osd_display_fb[output_index];
+}
+
+void osd_set_display_fb(u32 index, u32 osd_display_fb)
+{
+	u32 output_index;
+
+	output_index = get_output_device_id(index);
+	osd_hw.osd_display_fb[output_index] = osd_display_fb;
 }
 
 void osd_get_background_size(u32 index, struct display_flip_info_s *disp_info)

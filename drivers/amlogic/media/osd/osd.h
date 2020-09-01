@@ -765,6 +765,7 @@ struct hw_para_s {
 	u32 osd_fps[VIU_COUNT];
 	u32 osd_fps_start[VIU_COUNT];
 	u32 osd_display_debug[VIU_COUNT];
+	u32 osd_display_fb[VIU_COUNT];
 	ulong screen_base[HW_OSD_COUNT];
 	ulong screen_size[HW_OSD_COUNT];
 	ulong screen_base_backup[HW_OSD_COUNT];
