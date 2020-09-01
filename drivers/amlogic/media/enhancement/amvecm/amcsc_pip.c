@@ -150,7 +150,7 @@ void hdr_proc(
 		process_id[1] = index;
 }
 
-void get_hdr_process_name(int id, char *name)
+void get_hdr_process_name(int id, char *name, char *output_fmt)
 {
 	int index;
 
@@ -158,6 +158,8 @@ void get_hdr_process_name(int id, char *name)
 		return;
 	index = process_id[id];
 	memcpy(name, process_str[index], strlen(process_str[index]) + 1);
+	memcpy(output_fmt, output_str[target_format[id]],
+	       strlen(output_str[target_format[id]]) + 1);
 }
 EXPORT_SYMBOL(get_hdr_process_name);
 

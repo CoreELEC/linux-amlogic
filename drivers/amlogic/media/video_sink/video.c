@@ -9405,6 +9405,7 @@ static ssize_t process_fmt_show(
 	struct vframe_s *dispbuf = NULL;
 	enum vframe_signal_fmt_e fmt;
 	char process_name[MAX_VD_LAYER][32];
+	char output_fmt[32];
 	bool dolby_on = false;
 	bool hdr_bypass = false;
 	int l;
@@ -9424,7 +9425,7 @@ static ssize_t process_fmt_show(
 		else
 			ret += sprintf(buf + ret, "vd1: src_fmt = null; ");
 
-		get_hdr_process_name(0, process_name[0]);
+		get_hdr_process_name(0, process_name[0], output_fmt);
 
 		l = strlen("HDR_BYPASS");
 		if (!strncmp(process_name[0], "HDR_BYPASS", l) ||
@@ -9435,8 +9436,16 @@ static ssize_t process_fmt_show(
 			ret += sprintf(buf + ret, "out_fmt = IPT\n");
 		} else if (hdr_bypass) {
 			if (fmt != VFRAME_SIGNAL_FMT_INVALID)
-				ret += sprintf(buf + ret, "out_fmt = %s\n",
-					fmt_str[fmt]);
+				if ((!strcmp(fmt_str[fmt], "HDR10") ||
+				     !strcmp(fmt_str[fmt], "HDR10+")) &&
+				    (!strcmp(output_fmt, "HDR") ||
+				      !strcmp(output_fmt, "HDR+")))
+					ret += sprintf(buf + ret,
+						"out_fmt = %s_%s\n",
+						fmt_str[fmt], output_fmt);
+				else
+					ret += sprintf(buf + ret,
+						"out_fmt = %s\n", fmt_str[fmt]);
 			else
 				ret += sprintf(buf + ret, "out_fmt = src!\n");
 		} else {
@@ -9444,6 +9453,7 @@ static ssize_t process_fmt_show(
 				process_name[0]);
 		}
 	}
+	hdr_bypass = false;
 	dispbuf = get_dispbuf(1);
 	if (dispbuf) {
 		fmt = get_vframe_src_fmt(dispbuf);
@@ -9453,7 +9463,7 @@ static ssize_t process_fmt_show(
 		else
 			ret += sprintf(buf + ret, "vd2: src_fmt = null; ");
 
-		get_hdr_process_name(1, process_name[1]);
+		get_hdr_process_name(1, process_name[1], output_fmt);
 
 		l = strlen("HDR_BYPASS");
 		if (!strncmp(process_name[1], "HDR_BYPASS", l) ||
@@ -9464,8 +9474,16 @@ static ssize_t process_fmt_show(
 			ret += sprintf(buf + ret, "out_fmt = IPT\n");
 		} else if (hdr_bypass) {
 			if (fmt != VFRAME_SIGNAL_FMT_INVALID)
-				ret += sprintf(buf + ret, "out_fmt = %s\n",
-					fmt_str[fmt]);
+				if ((!strcmp(fmt_str[fmt], "HDR10") ||
+				     !strcmp(fmt_str[fmt], "HDR10+")) &&
+				    (!strcmp(output_fmt, "HDR") ||
+				     !strcmp(output_fmt, "HDR+")))
+					ret += sprintf(buf + ret,
+						"out_fmt = %s_%s\n",
+						fmt_str[fmt], output_fmt);
+				else
+					ret += sprintf(buf + ret,
+						"out_fmt = %s\n", fmt_str[fmt]);
 			else
 				ret += sprintf(buf + ret, "out_fmt = src!\n");
 		} else {
