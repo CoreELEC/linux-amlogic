@@ -89,9 +89,13 @@ void dwmac4_dma_stop_rx(void __iomem *ioaddr)
 	value &= ~DMA_CONTROL_SR;
 	writel(value, ioaddr + DMA_CHAN_RX_CONTROL(STMMAC_CHAN0));
 
+#ifdef CONFIG_AMLOGIC_ETH_PRIVE
+	/*mac wol need rx been opened to receive magic packet*/
+#else
 	value = readl(ioaddr + GMAC_CONFIG);
 	value &= ~GMAC_CONFIG_RE;
 	writel(value, ioaddr + GMAC_CONFIG);
+#endif
 }
 
 void dwmac4_set_tx_ring_len(void __iomem *ioaddr, u32 len)
