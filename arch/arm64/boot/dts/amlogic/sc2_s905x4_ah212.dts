@@ -632,15 +632,14 @@
 	adc_keypad {
 		compatible = "amlogic, adc_keypad";
 		status = "okay";
-		key_name = "menu", "vol-", "vol+", "esc", "home";
-		key_num = <5>;
-		io-channels = <&saradc SARADC_CH2>;
-		io-channel-names = "key-chan-2";
-		key_chan = <SARADC_CH2 SARADC_CH2 SARADC_CH2
-			SARADC_CH2 SARADC_CH2>;
-		key_code = <139 114 115 1 102>;
-		key_val = <0 143 266 389 512>; //val=voltage/1800mV*1023
-		key_tolerance = <40 40 40 40 40>;
+		key_name = "vol-", "vol+", "power";
+		key_num = <3>;
+		io-channels = <&saradc SARADC_CH0>;
+		io-channel-names = "key-chan-0";
+		key_chan = <SARADC_CH0 SARADC_CH0 SARADC_CH0>;
+		key_code = <114 115 116>;
+		key_val = <630 910 20>; //val=voltage/1800mV*1023
+		key_tolerance = <40 40 40>;
 	};
 
 	unifykey{
