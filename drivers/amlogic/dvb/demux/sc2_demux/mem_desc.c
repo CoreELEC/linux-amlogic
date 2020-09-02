@@ -393,30 +393,6 @@ int SC2_bufferid_recv_data(struct chan_id *pchan)
 	return 0;
 }
 
-static int is_buffer_overflow(struct chan_id *pchan, unsigned int cur_w)
-{
-	unsigned int last_w = pchan->last_w_addr;
-	unsigned int r = pchan->r_offset;
-	unsigned int mem_size = pchan->mem_size;
-	unsigned int free_space = 0;
-	unsigned int used_space = 0;
-
-	if (last_w >= r)
-		free_space = mem_size - (last_w - r);
-	else
-		free_space = r - last_w;
-
-	if (cur_w >= last_w)
-		used_space = cur_w - last_w;
-	else
-		used_space = mem_size - (last_w - cur_w);
-
-	if (used_space > free_space)
-		return 1;
-	else
-		return 0;
-}
-
 unsigned int SC2_bufferid_get_free_size(struct chan_id *pchan)
 {
 	unsigned int now_w = 0;
@@ -459,8 +435,8 @@ int SC2_bufferid_read(struct chan_id *pchan, char **pread, unsigned int len,
 
 	w_offset_org = wdma_get_wr_len(pchan->id, &overflow);
 	w_offset = w_offset_org % pchan->mem_size;
-	if (is_buffer_overflow(pchan, w_offset))
-		dprint("chan buffer loop back\n");
+//      if (is_buffer_overflow(pchan, w_offset))
+//              dprint("chan buffer loop back\n");
 
 	pchan->last_w_addr = w_offset;
 	if (w_offset != pchan->r_offset && w_offset != 0) {

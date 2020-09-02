@@ -434,9 +434,9 @@ static int handle_desc_ext(struct aml_dsc *dsc, struct ca_sc2_descr_ex *d)
 			struct dsc_channel *ch;
 
 			pr_dbg("%s CA_FREE:%d\n", __func__,
-			       d->params.alloc_params.ca_index);
+			       d->params.free_params.ca_index);
 			ch = _get_chan_from_list(dsc,
-						 d->params.alloc_params.
+						 d->params.free_params.
 						 ca_index);
 			if (ch)
 				_dsc_chan_free(ch);

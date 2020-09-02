@@ -193,8 +193,9 @@ static struct sw_demux_ts_feed *_dmx_ts_feed_alloc(struct aml_dmx *demux)
 	return &demux->ts_feed[i];
 }
 
-static struct sw_demux_sec_filter *_dmx_dmx_sec_filter_alloc(
-		struct sw_demux_sec_feed *sec_feed)
+static struct sw_demux_sec_filter *_dmx_dmx_sec_filter_alloc(struct
+							     sw_demux_sec_feed
+							     * sec_feed)
 {
 	int i;
 
@@ -272,6 +273,7 @@ static int _ts_out_sec_cb(struct out_elem *pout, char *buf,
 	    (struct aml_dmx *)sec_feed->sec_feed.parent->priv;
 	int ret = 0;
 
+//      dprint("%s\n", __func__);
 	if (debug_dmx == 1) {
 		pr_dbg("%s len:%d\n", __func__, count);
 		prdump("org", buf, 4);
@@ -279,10 +281,10 @@ static int _ts_out_sec_cb(struct out_elem *pout, char *buf,
 	if (sec_feed->state != DMX_STATE_GO)
 		return 0;
 
-	if (mutex_lock_interruptible(demux->pmutex))
-		return 0;
+//      if (mutex_lock_interruptible(demux->pmutex))
+//              return 0;
 	ret = swdmx_ts_parser_run(demux->tsp, buf, count);
-	mutex_unlock(demux->pmutex);
+//      mutex_unlock(demux->pmutex);
 	return ret;
 }
 
@@ -400,9 +402,9 @@ static int _dmx_ts_feed_set(struct dmx_ts_feed *ts_feed, u16 pid, int ts_type,
 		if (feed->ts_out_elem) {
 			pr_dbg("find same pid elem:0x%lx\n",
 			       (unsigned long)(feed->ts_out_elem));
-			mutex_unlock(demux->pmutex);
 			ts_output_add_cb(feed->ts_out_elem,
-					 out_ts_elem_cb, feed);
+					 out_ts_elem_cb, feed, 0);
+			mutex_unlock(demux->pmutex);
 			return 0;
 		}
 	}
@@ -417,13 +419,11 @@ static int _dmx_ts_feed_set(struct dmx_ts_feed *ts_feed, u16 pid, int ts_type,
 		else
 			ts_output_add_pid(feed->ts_out_elem, feed->pid, 0,
 					  demux->id);
+		ts_output_add_cb(feed->ts_out_elem, out_ts_elem_cb, feed, 0);
 	} else {
 		dprint("%s error\n", __func__);
 	}
 	mutex_unlock(demux->pmutex);
-	if (feed->ts_out_elem)
-		ts_output_add_cb(feed->ts_out_elem, out_ts_elem_cb, feed);
-
 	return 0;
 
 HANLDE_PCR:
@@ -578,9 +578,9 @@ static int _dmx_section_feed_set(struct dmx_section_feed *feed,
 	if (sec_feed->sec_out_elem) {
 		pr_dbg("find same pid elem:0x%lx\n",
 		       (unsigned long)(sec_feed->sec_out_elem));
-		mutex_unlock(demux->pmutex);
 		ts_output_add_cb(sec_feed->sec_out_elem,
-				 _ts_out_sec_cb, sec_feed);
+				 _ts_out_sec_cb, sec_feed, 1);
+		mutex_unlock(demux->pmutex);
 		return 0;
 	}
 	sec_feed->sec_out_elem =
@@ -590,13 +590,12 @@ static int _dmx_section_feed_set(struct dmx_section_feed *feed,
 		ts_output_set_mem(sec_feed->sec_out_elem, mem_size, 0, 0);
 		ts_output_add_pid(sec_feed->sec_out_elem, sec_feed->pid, 0,
 				  demux->id);
+		ts_output_add_cb(sec_feed->sec_out_elem,
+				 _ts_out_sec_cb, sec_feed, 1);
 	}
 
 	pr_dbg("sec_out_elem:0x%lx\n", (unsigned long)(sec_feed->sec_out_elem));
 	mutex_unlock(demux->pmutex);
-	if (sec_feed->sec_out_elem)
-		ts_output_add_cb(sec_feed->sec_out_elem,
-				 _ts_out_sec_cb, sec_feed);
 	return 0;
 }
 
@@ -824,12 +823,13 @@ static int _dmx_release_ts_feed(struct dmx_demux *dmx,
 
 	feed = (struct sw_demux_ts_feed *)ts_feed;
 
-	if (feed->ts_out_elem) {
-		ts_output_remove_cb(feed->ts_out_elem, out_ts_elem_cb, feed);
-		ts_output_close(feed->ts_out_elem);
-	}
 	if (mutex_lock_interruptible(demux->pmutex))
 		return -ERESTARTSYS;
+
+	if (feed->ts_out_elem) {
+		ts_output_remove_cb(feed->ts_out_elem, out_ts_elem_cb, feed, 0);
+		ts_output_close(feed->ts_out_elem);
+	}
 
 	switch (feed->pes_type) {
 	case DMX_PES_PCR0:
@@ -925,17 +925,21 @@ static int _dmx_release_section_feed(struct dmx_demux *dmx,
 	struct sw_demux_sec_feed *sec_feed;
 
 	sec_feed = (struct sw_demux_sec_feed *)feed;
-	if (sec_feed->sec_out_elem) {
-		ts_output_remove_cb(sec_feed->sec_out_elem, _ts_out_sec_cb,
-				    sec_feed);
-		ts_output_close(sec_feed->sec_out_elem);
-	}
 
 	if (mutex_lock_interruptible(demux->pmutex))
 		return -ERESTARTSYS;
 
+	if (sec_feed->sec_out_elem) {
+		ts_output_remove_cb(sec_feed->sec_out_elem, _ts_out_sec_cb,
+				    sec_feed, 1);
+		ts_output_close(sec_feed->sec_out_elem);
+	}
+
 	sec_feed->state = DMX_STATE_FREE;
 	sec_feed->sec_out_elem = NULL;
+
+	if (sec_feed->filter)
+		vfree(sec_feed->filter);
 
 	mutex_unlock(demux->pmutex);
 	pr_dbg(" _dmx_release_section_feed\n");
@@ -1020,24 +1024,24 @@ int dmx_get_pcr(struct dmx_demux *dmx, unsigned int num, u64 *pcr)
 	int pcr_index = 0;
 	struct aml_dmx *demux = (struct aml_dmx *)dmx;
 
-//	mutex_lock(demux->pmutex);
+//      mutex_lock(demux->pmutex);
 	if (num >= EACH_DMX_MAX_PCR_NUM) {
-//		mutex_unlock(demux->pmutex);
+//              mutex_unlock(demux->pmutex);
 		dprint("dmx id:%d, num:%d inavlid\n", demux->id, num);
 		return 0;
 	}
 	pcr_index = demux->pcr_index[num];
 	if (pcr_index < 0 || pcr_index > MAX_PCR_NUM) {
-//		mutex_unlock(demux->pmutex);
+//              mutex_unlock(demux->pmutex);
 		dprint("invalid pcr index:%d\n", pcr_index);
 		return -1;
 	}
 	ret = ts_output_get_pcr(pcr_index, pcr);
 	if (ret != 0) {
-//		mutex_unlock(demux->pmutex);
+//              mutex_unlock(demux->pmutex);
 		return -1;
 	}
-//	mutex_unlock(demux->pmutex);
+//      mutex_unlock(demux->pmutex);
 	return 0;
 }
 
@@ -1414,7 +1418,7 @@ void test_sid(void)
 		ts_out_elem = ts_output_open(i, TS_FORMAT, OTHER_TYPE, 0, 0);
 		if (ts_out_elem) {
 			ts_output_add_cb(ts_out_elem,
-					 out_ts_elem_cb_test, NULL);
+					 out_ts_elem_cb_test, NULL, 1);
 			ts_output_set_mem(ts_out_elem, pes_buf_size, 0, 0);
 			ts_output_add_pid(ts_out_elem, 0, 0, 0);
 		} else {

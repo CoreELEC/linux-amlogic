@@ -137,7 +137,7 @@ enum ca_sc2_dsc_type {
 };
 
 /**
- * struct ca_alloc_t - malloc ca slot index by params
+ * struct ca_alloc - malloc ca slot index by params
  *
  * @pid:	slot use pid.
  * @algo:	use the algorithm
@@ -145,7 +145,7 @@ enum ca_sc2_dsc_type {
  *		CA_DSC_TSD_TYPE & CA_DSC_TSE_TYPE just support AES
  * @ca_index:	return slot index.
  */
-struct ca_sc2_alloc_t {
+struct ca_sc2_alloc {
 	unsigned int pid;
 	enum ca_sc2_algo_type algo;
 	enum ca_sc2_dsc_type dsc_type;
@@ -153,11 +153,11 @@ struct ca_sc2_alloc_t {
 };
 
 /**
- * struct ca_sc2_free_t - free slot index
+ * struct ca_sc2_free - free slot index
  *
  * @ca_index:	need free slot index.
  */
-struct ca_sc2_free_t {
+struct ca_sc2_free {
 	unsigned int ca_index;
 };
 
@@ -171,13 +171,13 @@ enum ca_sc2_key_type {
 };
 
 /**
- * struct ca_sc2_key_t - set key slot index
+ * struct ca_sc2_key - set key slot index
  *
  * @ca_index:	use slot index.
  * @parity:	key type (odd/even/key00)
  * @key_index: key store index.
  */
-struct ca_sc2_key_t {
+struct ca_sc2_key {
 	unsigned int ca_index;
 	enum ca_sc2_key_type parity;
 	unsigned int key_index;
@@ -191,9 +191,9 @@ struct ca_sc2_key_t {
 struct ca_sc2_descr_ex {
 	enum ca_sc2_cmd_type cmd;
 	union {
-		struct ca_sc2_alloc_t alloc_params;
-		struct ca_sc2_free_t free_params;
-		struct ca_sc2_key_t key_params;
+		struct ca_sc2_alloc alloc_params;
+		struct ca_sc2_free free_params;
+		struct ca_sc2_key key_params;
 	} params;
 };
 

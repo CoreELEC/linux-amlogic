@@ -46,6 +46,33 @@
 #define MAX_READ_BUF_LEN			(64 * 1024)
 
 static int ts_output_max_pid_num_per_sid = 16;
+/*protect cb_list/ts output*/
+static struct mutex *ts_output_mutex;
+static struct mutex es_output_mutex;
+
+struct es_params_t {
+	struct dmx_non_sec_es_header header;
+	char last_header[16];
+	u8 have_header;
+	u8 have_send_header;
+	unsigned long data_start;
+	unsigned int data_len;
+};
+
+struct ts_out {
+	struct out_elem *pout;
+	struct es_params_t *es_params;
+	struct ts_out *pnext;
+};
+
+struct ts_out_task {
+	int running;
+	wait_queue_head_t wait_queue;
+	struct task_struct *out_task;
+	u16 flush_time_ms;
+	struct timer_list out_timer;
+	struct ts_out *ts_out_list;
+};
 
 struct pid_entry {
 	u8 used;
@@ -80,14 +107,10 @@ struct out_elem {
 	char *cache;
 	u16 cache_len;
 	u16 remain_len;
-	struct cb_entry *cb_list;
+	struct cb_entry *cb_sec_list;
+	struct cb_entry *cb_ts_list;
 	u16 flush_time_ms;
-//      spinlock_t  slock;
-	unsigned int wakeup;
 	int running;
-	wait_queue_head_t wait_queue;
-	struct task_struct *out_task;
-	struct timer_list out_timer;
 	u8 output_mode;
 
 	s32 aucpu_handle;
@@ -96,8 +119,6 @@ struct out_elem {
 	unsigned long aucpu_mem;
 	unsigned int aucpu_mem_size;
 	unsigned int aucpu_read_offset;
-	/*protect cb_list */
-	struct mutex mutex;
 };
 
 struct sid_entry {
@@ -137,6 +158,10 @@ static struct remap_entry remap_table[MAX_REMAP_NUM];
 static struct es_entry es_table[MAX_ES_NUM];
 static struct out_elem *out_elem_table;
 static struct pcr_entry pcr_table[MAX_PCR_NUM];
+static struct ts_out_task ts_out_task_tmp;
+static struct ts_out_task es_out_task_tmp;
+static int timer_wake_up;
+static int timer_es_wake_up;
 
 #define dprint(fmt, args...) \
 	dprintk(LOG_ERROR, debug_ts_output, "ts_output:" fmt, ## args)
@@ -156,6 +181,9 @@ module_param(drop_dup, int, 0644);
 #define READ_CACHE_SIZE      (188)
 
 static int out_flush_time = 50;
+static int out_es_flush_time = 10;
+
+static int _handle_es(struct out_elem *pout, struct es_params_t *es_params);
 
 struct out_elem *_find_free_elem(void)
 {
@@ -262,52 +290,81 @@ static int _free_es_entry_slot(struct es_entry *es)
 	return 0;
 }
 
-static void _timer_out_func(unsigned long arg)
+static int _check_timer_wakeup(void)
 {
-	struct out_elem *pout = (struct out_elem *)arg;
-	struct chan_id *pchan;
-
-	if (pout->used && pout->cb_list) {
-		if (pout->pchan1)
-			pchan = pout->pchan1;
-		else
-			pchan = pout->pchan;
-
-		if (SC2_bufferid_recv_data(pchan)) {
-			pout->wakeup = 1;
-			wake_up_interruptible(&pout->wait_queue);
-		}
-	}
-	mod_timer(&pout->out_timer, jiffies + msecs_to_jiffies(out_flush_time));
-}
-
-static int _check_wakeup(struct out_elem *pout)
-{
-	if (pout->wakeup) {
-		pout->wakeup = 0;
+	if (timer_wake_up) {
+		timer_wake_up = 0;
 		return 1;
 	}
 	return 0;
 }
 
-static int out_output_cb_list(struct out_elem *pout, char *buf, int size)
+static void _timer_ts_out_func(unsigned long arg)
+{
+//      dprint("wakeup ts_out_timer\n");
+	timer_wake_up = 1;
+	wake_up_interruptible(&ts_out_task_tmp.wait_queue);
+	mod_timer(&ts_out_task_tmp.out_timer,
+		  jiffies + msecs_to_jiffies(out_flush_time));
+}
+
+static int _check_timer_es_wakeup(void)
+{
+	if (timer_es_wake_up) {
+		timer_es_wake_up = 0;
+		return 1;
+	}
+	return 0;
+}
+
+static void _timer_es_out_func(unsigned long arg)
+{
+//      dprint("wakeup ts_out_timer\n");
+	timer_es_wake_up = 1;
+	wake_up_interruptible(&es_out_task_tmp.wait_queue);
+	mod_timer(&es_out_task_tmp.out_timer,
+		  jiffies + msecs_to_jiffies(out_es_flush_time));
+}
+
+static int out_sec_cb_list(struct out_elem *pout, char *buf, int size)
 {
 	int w_size = 0;
 	int last_w_size = -1;
 	struct cb_entry *ptmp = NULL;
 
-	mutex_lock(&pout->mutex);
-	ptmp = pout->cb_list;
+	if (pout->running != TASK_RUNNING)
+		return 0;
+
+	ptmp = pout->cb_sec_list;
 	while (ptmp && ptmp->cb) {
 		w_size = ptmp->cb(pout, buf, size, ptmp->udata);
 		if (last_w_size != -1 && w_size != last_w_size) {
-			dprint("add cache for filter:");
+			dprint("ref:%d ", pout->ref);
+			dprint("add pid:%d cache for filter ",
+			       pout->pid_info->pid);
 			dprint("w:%d,last_w:%d\n", w_size, last_w_size);
 		}
 		last_w_size = w_size;
 		ptmp = ptmp->next;
 	}
-	mutex_unlock(&pout->mutex);
+
+	return w_size;
+}
+
+static int out_ts_cb_list(struct out_elem *pout, char *buf, int size)
+{
+	int w_size = 0;
+	struct cb_entry *ptmp = NULL;
+
+	if (pout->running != TASK_RUNNING)
+		return 0;
+
+	ptmp = pout->cb_ts_list;
+	while (ptmp && ptmp->cb) {
+		w_size = ptmp->cb(pout, buf, size, ptmp->udata);
+		ptmp = ptmp->next;
+	}
+
 	return w_size;
 }
 
@@ -321,20 +378,26 @@ static int ts_process(struct out_elem *pout)
 		len = MAX_READ_BUF_LEN;
 		ret = SC2_bufferid_read(pout->pchan, &pread, len, 0);
 		if (ret != 0) {
-			w_size = out_output_cb_list(pout, pread, ret);
-//                      pr_dbg("%s send:%d, w:%d wwwwww\n", __func__, ret,
-//                             w_size);
-			pout->remain_len = ret - w_size;
-			if (pout->remain_len) {
-				if (pout->remain_len >= READ_CACHE_SIZE) {
-					dprint("remain_len:%d lost data\n",
-					       pout->remain_len);
-					pout->remain_len = 0;
-				} else {
-					memcpy(pout->cache, pread + w_size,
-					       pout->remain_len);
+			if (pout->cb_sec_list) {
+				w_size = out_sec_cb_list(pout, pread, ret);
+				pr_dbg("%s send:%d, w:%d wwwwww\n", __func__,
+				       ret, w_size);
+				pout->remain_len = ret - w_size;
+				if (pout->remain_len) {
+					if (pout->remain_len >=
+							READ_CACHE_SIZE) {
+						dprint("len:%d lost data\n",
+						       pout->remain_len);
+						pout->remain_len = 0;
+					} else {
+						memcpy(pout->cache,
+						       pread + w_size,
+						       pout->remain_len);
+					}
 				}
 			}
+			if (pout->cb_ts_list)
+				out_ts_cb_list(pout, pread, ret);
 		}
 	} else {
 		len = READ_CACHE_SIZE - pout->remain_len;
@@ -345,7 +408,7 @@ static int ts_process(struct out_elem *pout)
 			if (ret == len) {
 				ret = pout->remain_len;
 				w_size =
-				    out_output_cb_list(pout, pout->cache, ret);
+				    out_sec_cb_list(pout, pout->cache, ret);
 				pr_dbg("%s send:%d, w:%d\n", __func__, ret,
 				       w_size);
 				pout->remain_len = ret - w_size;
@@ -353,9 +416,9 @@ static int ts_process(struct out_elem *pout)
 					memmove(pout->cache,
 						pout->cache + w_size,
 						pout->remain_len);
-			} else {
-				return -1;
 			}
+			if (pout->cb_ts_list)
+				out_ts_cb_list(pout, pread, ret);
 		}
 	}
 	return 0;
@@ -366,30 +429,89 @@ static int _task_out_func(void *data)
 	int timeout = 0;
 	int ret = 0;
 	int len = 0;
-	struct out_elem *pout = (struct out_elem *)data;
-	char *pread;
+	struct ts_out *ptmp;
+	char *pread = NULL;
 
-	pr_dbg("%s enter,line:%d\n", __func__, __LINE__);
-	while (pout->running == TASK_RUNNING) {
-		timeout = wait_event_interruptible_timeout(pout->wait_queue,
-							   _check_wakeup(pout),
-							   3 * HZ);
+	while (ts_out_task_tmp.running == TASK_RUNNING) {
+		timeout =
+		    wait_event_interruptible_timeout(ts_out_task_tmp.wait_queue,
+						     _check_timer_wakeup(),
+						     3 * HZ);
+
+		if (ts_out_task_tmp.running != TASK_RUNNING)
+			break;
+
 		if (timeout <= 0)
 			continue;
 
-		if (pout->running != TASK_RUNNING)
+		mutex_lock(ts_output_mutex);
+
+		ptmp = ts_out_task_tmp.ts_out_list;
+		while (ptmp) {
+			if (!ptmp->pout->enable) {
+				ptmp = ptmp->pnext;
+				continue;
+			}
+			if (ptmp->pout->format == TS_FORMAT) {
+				ts_process(ptmp->pout);
+			} else {
+				len = MAX_READ_BUF_LEN;
+				ret =
+				    SC2_bufferid_read(ptmp->pout->pchan, &pread,
+						      len, 0);
+				if (ret != 0)
+					out_ts_cb_list(ptmp->pout, pread, ret);
+			}
+			ptmp = ptmp->pnext;
+		}
+		mutex_unlock(ts_output_mutex);
+	}
+	ts_out_task_tmp.running = TASK_IDLE;
+	return 0;
+}
+
+static int _task_es_out_func(void *data)
+{
+	int timeout = 0;
+	struct ts_out *ptmp;
+	int ret = 0;
+
+	while (es_out_task_tmp.running == TASK_RUNNING) {
+		timeout =
+		    wait_event_interruptible_timeout(es_out_task_tmp.wait_queue,
+						     _check_timer_es_wakeup(),
+						     3 * HZ);
+
+		if (es_out_task_tmp.running != TASK_RUNNING)
 			break;
 
-		if (pout->format == TS_FORMAT) {
-			ts_process(pout);
-		} else {
-			len = MAX_READ_BUF_LEN;
-			ret = SC2_bufferid_read(pout->pchan, &pread, len, 0);
-			if (ret != 0)
-				out_output_cb_list(pout, pread, ret);
+		if (timeout <= 0)
+			continue;
+
+		mutex_lock(&es_output_mutex);
+
+		ptmp = es_out_task_tmp.ts_out_list;
+		while (ptmp) {
+			if (!ptmp->pout->enable) {
+				ptmp = ptmp->pnext;
+				continue;
+			}
+			if (ptmp->pout->format == ES_FORMAT) {
+				pr_dbg("get %s data\n",
+				       ptmp->pout->type ? "audio" : "video");
+				do {
+					ret =
+					    _handle_es(ptmp->pout,
+						       ptmp->es_params);
+				} while (ret == 0);
+				pr_dbg("get %s data done\n",
+				       ptmp->pout->type ? "audio" : "video");
+			}
+			ptmp = ptmp->pnext;
 		}
+		mutex_unlock(&es_output_mutex);
 	}
-	pout->running = TASK_IDLE;
+	es_out_task_tmp.running = TASK_IDLE;
 	return 0;
 }
 
@@ -409,17 +531,18 @@ static int get_non_sec_es_header(struct out_elem *pout, char *last_header,
 	unsigned int cur_es_bytes = 0;
 	unsigned int last_es_bytes = 0;
 
-	pr_dbg("%s enter\n", __func__);
+//      pr_dbg("%s enter\n", __func__);
 
 	header_len = 16;
 	offset = 0;
 	while (header_len) {
 		ret = SC2_bufferid_read(pout->pchan1, &pts_dts, header_len, 0);
-		pr_dbg("%s head ret:%d\n", __func__, ret);
 		if (ret != 0) {
 			memcpy((char *)(cur_header + offset), pts_dts, ret);
 			header_len -= ret;
 			offset += ret;
+		} else {
+			return -3;
 		}
 		if (pout->running == TASK_DEAD)
 			return -1;
@@ -475,25 +598,59 @@ static int get_non_sec_es_header(struct out_elem *pout, char *last_header,
 	return 0;
 }
 
-static int write_es_data(struct out_elem *pout, struct chan_id *pchan,
-			 unsigned int len, unsigned int isdirty)
+static int write_es_data(struct out_elem *pout, struct es_params_t *es_params)
+{
+	int ret;
+	char *ptmp;
+	int len;
+	int h_len = sizeof(struct dmx_non_sec_es_header);
+
+	if (es_params->have_header == 0)
+		return -1;
+
+	if (es_params->have_send_header == 0) {
+		pr_dbg("%s pdts_flag:%d, pts:0x%lx, dts:0x%lx, len:%d\n",
+		       pout->type ? "audio" : "video",
+		       es_params->header.pts_dts_flag,
+		       (unsigned long)es_params->header.pts,
+		       (unsigned long)es_params->header.dts,
+		       es_params->header.len);
+		out_ts_cb_list(pout, (char *)&es_params->header, h_len);
+		es_params->have_send_header = 1;
+	}
+
+	len = es_params->header.len - es_params->data_len;
+	ret = SC2_bufferid_read(pout->pchan, &ptmp, len, 0);
+	if (ret) {
+		out_ts_cb_list(pout, ptmp, ret);
+		es_params->data_len += ret;
+		pr_dbg("%s total len:%d, remain:%d\n",
+		       pout->type ? "audio" : "video",
+		       es_params->header.len,
+		       es_params->header.len - es_params->data_len);
+
+		if (ret != len)
+			return -1;
+		else
+			return 0;
+	}
+	return -1;
+}
+
+static int clean_es_data(struct out_elem *pout, struct chan_id *pchan,
+			 unsigned int len)
 {
 	int ret;
 	char *ptmp;
 
-	pr_dbg("%s chan id:%d, len:%d, isdirty:%d\n", __func__,
-	       pchan->id, len, isdirty);
 	while (len) {
 		ret = SC2_bufferid_read(pout->pchan, &ptmp, len, 0);
 		if (ret != 0) {
 			len -= ret;
-			if (!isdirty)
-				out_output_cb_list(pout, ptmp, ret);
 		}
 		if (pout->running == TASK_DEAD)
 			return -1;
 	}
-	pr_dbg("%s exit\n", __func__);
 	return 0;
 }
 
@@ -631,7 +788,7 @@ static int write_aucpu_es_data(struct out_elem *pout,
 		if (ret != 0) {
 			len -= ret;
 			if (!isdirty)
-				out_output_cb_list(pout, ptmp, ret);
+				out_ts_cb_list(pout, ptmp, ret);
 		} else {
 			msleep(20);
 		}
@@ -696,160 +853,180 @@ static int write_aucpu_sec_es_data(struct out_elem *pout, struct chan_id *pchan,
 	}
 	sec_es_data.data_start = data_start;
 	sec_es_data.data_end = data_end;
-	out_output_cb_list(pout, (char *)&sec_es_data,
-			   sizeof(struct dmx_sec_es_data));
+	out_ts_cb_list(pout, (char *)&sec_es_data,
+		       sizeof(struct dmx_sec_es_data));
 	return 0;
 }
 
-static int write_sec_video_es_data(struct out_elem *pout, struct chan_id *pchan,
-				   struct dmx_non_sec_es_header *header)
+static int write_sec_video_es_data(struct out_elem *pout,
+				   struct es_params_t *es_params)
 {
-	unsigned int len = header->len;
+	unsigned int len = es_params->header.len;
 	struct dmx_sec_es_data sec_es_data;
 	char *ptmp;
 	int ret;
-	unsigned int data_start = 0;
-	unsigned int data_end = 0;
 	int flag = 0;
 
-	memset(&sec_es_data, 0, sizeof(struct dmx_sec_es_data));
-	sec_es_data.pts_dts_flag = header->pts_dts_flag;
-	sec_es_data.dts = header->dts;
-	sec_es_data.pts = header->pts;
-	sec_es_data.buf_start = pout->pchan->mem;
-	sec_es_data.buf_end = pout->pchan->mem + pout->pchan->mem_size;
+	if (es_params->header.len == 0)
+		return -1;
 
 	if (pout->pchan->sec_level)
 		flag = 1;
+	len = es_params->header.len - es_params->data_len;
+	ret = SC2_bufferid_read(pout->pchan, &ptmp, len, flag);
+	if (es_params->data_start == 0)
+		es_params->data_start = (unsigned long)ptmp;
+	es_params->data_len += len;
+	if (ret != len)
+		return -1;
 
-	while (len) {
-		ret = SC2_bufferid_read(pout->pchan, &ptmp, len, flag);
-		if (ret != 0) {
-			if (data_start == 0)
-				data_start = (unsigned long)ptmp;
-			data_end = (unsigned long)ptmp + len;
-			len -= ret;
-		}
-		if (pout->running == TASK_DEAD)
-			return -1;
-	}
-	sec_es_data.data_start = data_start;
-	sec_es_data.data_end = data_end;
-	out_output_cb_list(pout, (char *)&sec_es_data,
-			   sizeof(struct dmx_sec_es_data));
+	memset(&sec_es_data, 0, sizeof(struct dmx_sec_es_data));
+	sec_es_data.pts_dts_flag = es_params->header.pts_dts_flag;
+	sec_es_data.dts = es_params->header.dts;
+	sec_es_data.pts = es_params->header.pts;
+	sec_es_data.buf_start = pout->pchan->mem;
+	sec_es_data.buf_end = pout->pchan->mem + pout->pchan->mem_size;
+	sec_es_data.data_start = es_params->data_start;
+	sec_es_data.data_end = (unsigned long)ptmp + len;
+
+	pr_dbg("video pdts_flag:%d, pts:0x%lx, dts:0x%lx\n",
+	       sec_es_data.pts_dts_flag, (unsigned long)sec_es_data.pts,
+	       (unsigned long)sec_es_data.dts);
+
+	out_ts_cb_list(pout, (char *)&sec_es_data,
+		       sizeof(struct dmx_sec_es_data));
+
+	es_params->data_start = 0;
+	es_params->data_len = 0;
 	return 0;
 }
 
-static int _task_out_func_for_es(void *data)
+static int _handle_es(struct out_elem *pout, struct es_params_t *es_params)
 {
-	int timeout = 0;
 	int ret = 0;
-	struct out_elem *pout = (struct out_elem *)data;
-	struct dmx_non_sec_es_header header;
-	char cur_header[16];
-	char last_header[16];
 	unsigned int dirty_len = 0;
 	unsigned int es_len = 0;
-	char *ptmp;
+	char cur_header[16];
 	char *pcur_header;
 	char *plast_header;
 	int h_len = sizeof(struct dmx_non_sec_es_header);
+	struct dmx_non_sec_es_header *pheader = &es_params->header;
 
-	pcur_header = (char *)cur_header;
-	plast_header = (char *)last_header;
 	memset(&cur_header, 0, sizeof(cur_header));
-	memset(&last_header, 0, sizeof(last_header));
-	last_header[0] = 0xff;
-	last_header[1] = 0xff;
-	pr_dbg("%s enter,line:%d\n", __func__, __LINE__);
-	while (pout->running == TASK_RUNNING) {
-		timeout = wait_event_interruptible_timeout(pout->wait_queue,
-							   _check_wakeup(pout),
-							   3 * HZ);
-		if (timeout <= 0)
-			continue;
-loop:
+	pcur_header = (char *)&cur_header;
+	plast_header = (char *)&es_params->last_header;
 
-		if (pout->running != TASK_RUNNING)
-			break;
+//      pr_dbg("enter es %s\n", pout->type ? "audio" : "video");
+//      pr_dbg("%s enter,line:%d\n", __func__, __LINE__);
 
-		ret = get_non_sec_es_header(pout,
-					    plast_header, pcur_header, &header);
-		if (ret == -1 || ret == -2) {
-			continue;
-		} else if (ret != 0) {
+	if (pout->running != TASK_RUNNING)
+		return -1;
+
+	if (es_params->have_header == 0) {
+		ret =
+		    get_non_sec_es_header(pout, plast_header, pcur_header,
+					  pheader);
+		if (ret < 0) {
+			return -1;
+		} else if (ret > 0) {
 			dirty_len = ret;
-			ret = write_es_data(pout, pout->pchan, dirty_len, 1);
-			if (ret != 0)
-				break;
-			ptmp = plast_header;
-			plast_header = pcur_header;
-			pcur_header = ptmp;
-			goto loop;
+			ret = clean_es_data(pout, pout->pchan, dirty_len);
+			memcpy(&es_params->last_header, pcur_header,
+			       sizeof(es_params->last_header));
+			return 0;
 		}
-		if (header.len == 0) {
-			ptmp = plast_header;
-			plast_header = pcur_header;
-			pcur_header = ptmp;
+		if (pheader->len == 0) {
+			memcpy(&es_params->last_header, pcur_header,
+			       sizeof(es_params->last_header));
 			pr_dbg("header.len is 0, jump\n");
-			goto loop;
+			return 0;
 		}
-		pr_dbg("%s line:%d\n", __func__, __LINE__);
-		if (pout->output_mode || pout->pchan->sec_level) {
-			if (pout->type == VIDEO_TYPE) {
-				ret = write_sec_video_es_data(pout,
-							      pout->pchan,
-							      &header);
-				if (ret != 0)
-					break;
-			} else {
-				//to do for use aucpu to handle non-video data
-				if (pout->output_mode) {
-					ret =
-					    write_aucpu_sec_es_data(pout,
-								    pout->pchan,
-								    &header);
-					if (ret != 0)
-						break;
-				} else {
-					es_len = header.len;
-					pr_dbg("aud pdts_flag:%d, pts:0x%lx,",
-					       header.pts_dts_flag,
-					       (unsigned long)header.pts);
-					pr_dbg("dts:0x%lx, len:%d\n",
-					       (unsigned long)header.dts,
-					       header.len);
-
-					out_output_cb_list(pout,
-							   (char *)&header,
-							   h_len);
-					ret =
-					    write_aucpu_es_data(pout, es_len,
-								0);
-					if (ret != 0)
-						break;
-				}
-			}
-		} else {
-			es_len = header.len;
-			pr_dbg("pdts_flag:%d, pts:0x%lx, dts:0x%lx, len:%d\n",
-			       header.pts_dts_flag, (unsigned long)header.pts,
-			       (unsigned long)header.dts, header.len);
-			out_output_cb_list(pout, (char *)&header,
-					   sizeof(struct
-						  dmx_non_sec_es_header));
-			ret = write_es_data(pout, pout->pchan, es_len, 0);
-			if (ret != 0)
-				break;
-		}
-		ptmp = plast_header;
-		plast_header = pcur_header;
-		pcur_header = ptmp;
-		if (SC2_bufferid_recv_data(pout->pchan1))
-			goto loop;
+		memcpy(&es_params->last_header, pcur_header,
+		       sizeof(es_params->last_header));
+		es_params->have_header = 1;
 	}
-	pout->running = TASK_IDLE;
-	return 0;
+
+	if (pout->output_mode || pout->pchan->sec_level) {
+		if (pout->type == VIDEO_TYPE) {
+			ret = write_sec_video_es_data(pout, es_params);
+		} else {
+			//to do for use aucpu to handle non-video data
+			if (pout->output_mode) {
+				ret =
+				    write_aucpu_sec_es_data(pout, pout->pchan,
+							    pheader);
+			} else {
+				es_len = pheader->len;
+				pr_dbg("aud pdts_flag:%d, pts:0x%lx,",
+				       pheader->pts_dts_flag,
+				       (unsigned long)pheader->pts);
+				pr_dbg("dts:0x%lx, len:%d\n",
+				       (unsigned long)pheader->dts,
+				       pheader->len);
+				out_ts_cb_list(pout, (char *)pheader, h_len);
+				ret = write_aucpu_es_data(pout, es_len, 0);
+			}
+		}
+		if (ret == 0) {
+			es_params->have_header = 0;
+			return 0;
+		} else {
+			return -1;
+		}
+	} else {
+		if (es_params->have_header) {
+			ret = write_es_data(pout, es_params);
+			if (ret == 0) {
+				es_params->have_header = 0;
+				es_params->have_send_header = 0;
+				es_params->data_len = 0;
+				es_params->data_start = 0;
+				return 0;
+			} else {
+				return -1;
+			}
+		}
+	}
+	return -1;
+}
+
+static void add_ts_out_list(struct ts_out_task *head, struct ts_out *ts_out_tmp)
+{
+	struct ts_out *cur_tmp = NULL;
+
+	cur_tmp = head->ts_out_list;
+	while (cur_tmp) {
+		if (!cur_tmp->pnext)
+			break;
+		cur_tmp = cur_tmp->pnext;
+	}
+	if (cur_tmp)
+		cur_tmp->pnext = ts_out_tmp;
+	else
+		head->ts_out_list = ts_out_tmp;
+}
+
+static void remove_ts_out_list(struct out_elem *pout, struct ts_out_task *head)
+{
+	struct ts_out *ts_out_pre = NULL;
+	struct ts_out *cur_tmp = NULL;
+
+	cur_tmp = head->ts_out_list;
+	ts_out_pre = cur_tmp;
+	while (cur_tmp) {
+		if (cur_tmp->pout == pout) {
+			if (cur_tmp == head->ts_out_list)
+				head->ts_out_list = cur_tmp->pnext;
+			else
+				ts_out_pre->pnext = cur_tmp->pnext;
+
+			kfree(cur_tmp->es_params);
+			kfree(cur_tmp);
+			break;
+		}
+		ts_out_pre = cur_tmp;
+		cur_tmp = cur_tmp->pnext;
+	}
 }
 
 /**
@@ -864,6 +1041,7 @@ int ts_output_init(int sid_num, int *sid_info)
 	int i = 0;
 	struct sid_entry *psid = NULL;
 	int times = 0;
+	struct aml_dvb *advb = aml_get_dvb_device();
 
 	do {
 	} while (!tsout_get_ready() && times++ < 20);
@@ -918,6 +1096,45 @@ int ts_output_init(int sid_num, int *sid_info)
 //      memset(&out_elem_table, 0, sizeof(out_elem_table));
 	memset(&pcr_table, 0, sizeof(pcr_table));
 
+	ts_out_task_tmp.running = TASK_RUNNING;
+
+	ts_out_task_tmp.out_task =
+	    kthread_run(_task_out_func, (void *)NULL, "ts_out_task");
+	if (!ts_out_task_tmp.out_task)
+		dprint("create ts_out_task fail\n");
+
+	ts_out_task_tmp.flush_time_ms = out_flush_time;
+
+	init_waitqueue_head(&ts_out_task_tmp.wait_queue);
+	init_timer(&ts_out_task_tmp.out_timer);
+	ts_out_task_tmp.out_timer.function = _timer_ts_out_func;
+	ts_out_task_tmp.out_timer.expires =
+	    jiffies + msecs_to_jiffies(ts_out_task_tmp.flush_time_ms);
+	ts_out_task_tmp.out_timer.data = 0;
+	add_timer(&ts_out_task_tmp.out_timer);
+
+	ts_out_task_tmp.ts_out_list = NULL;
+	ts_output_mutex = &advb->mutex;
+
+	es_out_task_tmp.running = TASK_RUNNING;
+
+	es_out_task_tmp.out_task =
+	    kthread_run(_task_es_out_func, (void *)NULL, "es_out_task");
+	if (!es_out_task_tmp.out_task)
+		dprint("create es_out_task fail\n");
+
+	es_out_task_tmp.flush_time_ms = out_es_flush_time;
+
+	init_waitqueue_head(&es_out_task_tmp.wait_queue);
+	init_timer(&es_out_task_tmp.out_timer);
+	es_out_task_tmp.out_timer.function = _timer_es_out_func;
+	es_out_task_tmp.out_timer.expires =
+	    jiffies + msecs_to_jiffies(es_out_task_tmp.flush_time_ms);
+	es_out_task_tmp.out_timer.data = 0;
+	add_timer(&es_out_task_tmp.out_timer);
+	es_out_task_tmp.ts_out_list = NULL;
+
+	mutex_init(&es_output_mutex);
 	return 0;
 }
 
@@ -1073,8 +1290,9 @@ struct out_elem *ts_output_open(int sid, u8 format,
 	struct bufferid_attr attr;
 	int ret = 0;
 	struct out_elem *pout;
+	struct ts_out *ts_out_tmp = NULL;
 
-	pr_dbg("%s sid:%d, format:%d, type:%d", __func__, sid, format, type);
+	pr_dbg("%s sid:%d, format:%d, type:%d ", __func__, sid, format, type);
 	pr_dbg("audio_type:%d, output_mode:%d\n", aud_type, output_mode);
 
 	if (sid >= MAX_SID_NUM) {
@@ -1093,7 +1311,6 @@ struct out_elem *ts_output_open(int sid, u8 format,
 	pout->type = type;
 	pout->aud_type = aud_type;
 	pout->ref = 0;
-	mutex_init(&pout->mutex);
 
 	memset(&attr, 0, sizeof(struct bufferid_attr));
 	attr.mode = OUTPUT_MODE;
@@ -1107,7 +1324,6 @@ struct out_elem *ts_output_open(int sid, u8 format,
 			return NULL;
 		}
 		pout->enable = 0;
-		pout->wakeup = 0;
 		pout->remain_len = 0;
 		pout->cache_len = 0;
 		pout->cache = NULL;
@@ -1120,40 +1336,55 @@ struct out_elem *ts_output_open(int sid, u8 format,
 			return NULL;
 		}
 		pout->enable = 0;
-		pout->wakeup = 0;
 		pout->remain_len = 0;
 		pout->cache_len = READ_CACHE_SIZE;
 		pout->cache = kmalloc(pout->cache_len, GFP_KERNEL);
-		if (!pout->cache)
+		if (!pout->cache) {
+			SC2_bufferid_dealloc(pout->pchan);
 			dprint("%s sid:%d kmalloc cache fail\n", __func__, sid);
+			return NULL;
+		}
 	}
 
-	init_waitqueue_head(&pout->wait_queue);
-	pout->running = TASK_RUNNING;
-	if (format == ES_FORMAT) {
-		pout->out_task = kthread_run(_task_out_func_for_es,
-					     (void *)pout, "out_sid%d",
-					     pout->sid);
+	ts_out_tmp = kmalloc(sizeof(*ts_out_tmp), GFP_KERNEL);
+	if (!ts_out_tmp) {
+		dprint("ts out list fail\n");
+		SC2_bufferid_dealloc(pout->pchan);
+		kfree(pout->cache);
+		return NULL;
 	} else {
-		pout->out_task = kthread_run(_task_out_func,
-					     (void *)pout, "out_sid%d",
-					     pout->sid);
+		if (format == ES_FORMAT) {
+			ts_out_tmp->es_params =
+			    kmalloc(sizeof(struct es_params_t), GFP_KERNEL);
+			if (!ts_out_tmp->es_params) {
+				dprint("ts out es_params fail\n");
+				SC2_bufferid_dealloc(pout->pchan);
+				kfree(pout->cache);
+				kfree(ts_out_tmp);
+				return NULL;
+			}
+			memset(ts_out_tmp->es_params, 0,
+			       sizeof(struct es_params_t));
+			ts_out_tmp->es_params->last_header[0] = 0xff;
+			ts_out_tmp->es_params->last_header[1] = 0xff;
+		} else {
+			ts_out_tmp->es_params = NULL;
+		}
+		ts_out_tmp->pout = pout;
+		ts_out_tmp->pnext = NULL;
 	}
 
-	if (!pout->out_task)
-		dprint("create ts out task fail\n");
-
-	pout->flush_time_ms = out_flush_time;
-
-	init_timer(&pout->out_timer);
-	pout->out_timer.function = _timer_out_func;
-	pout->out_timer.expires =
-	    jiffies + msecs_to_jiffies(pout->flush_time_ms);
-	pout->out_timer.data = (unsigned long)pout;
-	add_timer(&pout->out_timer);
-
+	if (format == ES_FORMAT) {
+		mutex_lock(&es_output_mutex);
+		add_ts_out_list(&es_out_task_tmp, ts_out_tmp);
+		mutex_unlock(&es_output_mutex);
+	} else {
+		add_ts_out_list(&ts_out_task_tmp, ts_out_tmp);
+	}
+	pout->running = TASK_RUNNING;
 	pout->used = 1;
 	pr_dbg("%s exit\n", __func__);
+
 	return pout;
 }
 
@@ -1171,17 +1402,14 @@ int ts_output_close(struct out_elem *pout)
 	}
 	ts_output_remove_pid(pout);
 
-	del_timer_sync(&pout->out_timer);
-
+	if (pout->format == ES_FORMAT) {
+		mutex_lock(&es_output_mutex);
+		remove_ts_out_list(pout, &es_out_task_tmp);
+		mutex_unlock(&es_output_mutex);
+	} else {
+		remove_ts_out_list(pout, &ts_out_task_tmp);
+	}
 	pout->running = TASK_DEAD;
-	pout->wakeup = 1;
-	wake_up_interruptible(&pout->wait_queue);
-	pr_dbg("%s line:%d\n", __func__, __LINE__);
-
-	while (pout->running != TASK_IDLE)
-		msleep(20);
-
-	pr_dbg("%s line:%d\n", __func__, __LINE__);
 
 	if (pout->pchan) {
 		SC2_bufferid_set_enable(pout->pchan, 0);
@@ -1251,7 +1479,7 @@ int ts_output_add_pid(struct out_elem *pout, int pid, int pid_mask, int dmx_id)
 		tsout_config_ts_table(pid_slot->pid, pid_slot->pid_mask,
 				      pid_slot->id, pout->pchan->id);
 	}
-
+	pout->enable = 1;
 	return 0;
 }
 
@@ -1303,8 +1531,8 @@ int ts_output_remove_pid(struct out_elem *pout)
 			pout->pid_info = NULL;
 		}
 	}
+	pout->enable = 0;
 	pr_dbg("%s line:%d\n", __func__, __LINE__);
-
 	return 0;
 }
 
@@ -1319,6 +1547,7 @@ int ts_output_set_mem(struct out_elem *pout,
 
 	if (pout->pchan->sec_level)
 		create_aucpu_inst(pout);
+
 	return 0;
 }
 
@@ -1350,10 +1579,12 @@ int ts_output_reset(struct out_elem *pout)
  * \param pout
  * \param cb
  * \param udata:private data
+ * \param is_sec: is section callback
  * \retval 0:success.
  * \retval -1:fail.
  */
-int ts_output_add_cb(struct out_elem *pout, ts_output_cb cb, void *udata)
+int ts_output_add_cb(struct out_elem *pout, ts_output_cb cb, void *udata,
+		     bool is_sec)
 {
 	struct cb_entry *tmp_cb = NULL;
 
@@ -1366,13 +1597,21 @@ int ts_output_add_cb(struct out_elem *pout, ts_output_cb cb, void *udata)
 	tmp_cb->udata = udata;
 	tmp_cb->next = NULL;
 
-	mutex_lock(&pout->mutex);
-	if (pout->cb_list)
-		tmp_cb->next = pout->cb_list;
+	if (is_sec) {
+		tmp_cb->next = pout->cb_sec_list;
+		pout->cb_sec_list = tmp_cb;
+	} else {
+		if (pout->type == VIDEO_TYPE || pout->type == AUDIO_TYPE)
+			mutex_lock(&es_output_mutex);
 
-	pout->cb_list = tmp_cb;
+		tmp_cb->next = pout->cb_ts_list;
+		pout->cb_ts_list = tmp_cb;
+
+		if (pout->type == VIDEO_TYPE || pout->type == AUDIO_TYPE)
+			mutex_unlock(&es_output_mutex);
+	}
+
 	pout->ref++;
-	mutex_unlock(&pout->mutex);
 	return 0;
 }
 
@@ -1381,32 +1620,59 @@ int ts_output_add_cb(struct out_elem *pout, ts_output_cb cb, void *udata)
  * \param pout
  * \param cb
  * \param udata:private data
+ * \param is_sec: is section callback
  * \retval 0:success.
  * \retval -1:fail.
  */
-int ts_output_remove_cb(struct out_elem *pout, ts_output_cb cb, void *udata)
+int ts_output_remove_cb(struct out_elem *pout, ts_output_cb cb, void *udata,
+			bool is_sec)
 {
 	struct cb_entry *tmp_cb = NULL;
 	struct cb_entry *pre_cb = NULL;
 
-	mutex_lock(&pout->mutex);
-	tmp_cb = pout->cb_list;
-	while (tmp_cb) {
-		if (tmp_cb->cb == cb && tmp_cb->udata == udata) {
-			if (tmp_cb == pout->cb_list)
-				pout->cb_list = tmp_cb->next;
-			else
-				pre_cb->next = tmp_cb->next;
+	if (is_sec) {
+		tmp_cb = pout->cb_sec_list;
+		while (tmp_cb) {
+			if (tmp_cb->cb == cb && tmp_cb->udata == udata) {
+				if (tmp_cb == pout->cb_sec_list)
+					pout->cb_sec_list = tmp_cb->next;
+				else
+					pre_cb->next = tmp_cb->next;
 
-			vfree(tmp_cb);
-			pout->ref--;
-			mutex_unlock(&pout->mutex);
-			return 0;
+				vfree(tmp_cb);
+				pout->ref--;
+				return 0;
+			}
+			pre_cb = tmp_cb;
+			tmp_cb = tmp_cb->next;
 		}
-		pre_cb = tmp_cb;
-		tmp_cb = tmp_cb->next;
+		if (!pout->cb_sec_list)
+			pout->remain_len = 0;
+	} else {
+		if (pout->type == VIDEO_TYPE || pout->type == AUDIO_TYPE)
+			mutex_lock(&es_output_mutex);
+
+		tmp_cb = pout->cb_ts_list;
+		while (tmp_cb) {
+			if (tmp_cb->cb == cb && tmp_cb->udata == udata) {
+				if (tmp_cb == pout->cb_ts_list)
+					pout->cb_ts_list = tmp_cb->next;
+				else
+					pre_cb->next = tmp_cb->next;
+
+				vfree(tmp_cb);
+				pout->ref--;
+				if (pout->type == VIDEO_TYPE ||
+				    pout->type == AUDIO_TYPE)
+					mutex_unlock(&es_output_mutex);
+				return 0;
+			}
+			pre_cb = tmp_cb;
+			tmp_cb = tmp_cb->next;
+		}
+		if (pout->type == VIDEO_TYPE || pout->type == AUDIO_TYPE)
+			mutex_unlock(&es_output_mutex);
 	}
-	mutex_unlock(&pout->mutex);
 	return 0;
 }
 
@@ -1442,10 +1708,15 @@ int ts_output_dump_info(char *buf)
 					       &total_size,
 					       &buf_phy_start,
 					       &free_size, &wp_offset);
+			r = sprintf(buf,
+				    "mem total:%d, buf_base:0x%0x, ",
+				    total_size, buf_phy_start);
+			buf += r;
+			total += r;
 
 			r = sprintf(buf,
-				    "mem: total:%d, buf_base:0x%0x, wp:0x%0x\n",
-				    total_size, buf_phy_start, wp_offset);
+				    "free size:0x%0x, wp:0x%0x\n",
+				    free_size, wp_offset);
 			buf += r;
 			total += r;
 
@@ -1480,12 +1751,18 @@ int ts_output_dump_info(char *buf)
 					       &total_size,
 					       &buf_phy_start,
 					       &free_size, &wp_offset);
-
 			r = sprintf(buf,
-				    "mem: total:%d, buf_base:0x%0x, wp:0x%0x\n",
-				    total_size, buf_phy_start, wp_offset);
+				    "mem total:%d, buf_base:0x%0x, ",
+				    total_size, buf_phy_start);
 			buf += r;
 			total += r;
+
+			r = sprintf(buf,
+				    "free size:0x%0x, wp:0x%0x\n",
+				    free_size, wp_offset);
+			buf += r;
+			total += r;
+
 			count++;
 		}
 	}
@@ -1503,9 +1780,9 @@ int ts_output_dump_info(char *buf)
 		unsigned int wp_offset = 0;
 
 		if (es_slot->used && es_slot->status == ES_FORMAT) {
-			r = sprintf(buf, "%d dmx_id:%d sid:%d type:%d", count,
+			r = sprintf(buf, "%d dmx_id:%d sid:%d type:%s", count,
 				    es_slot->dmx_id, es_slot->pout->sid,
-				    es_slot->pout->type);
+				    es_slot->pout->type ? "aud" : "vid");
 			buf += r;
 			total += r;
 
@@ -1519,10 +1796,17 @@ int ts_output_dump_info(char *buf)
 					       &free_size, &wp_offset);
 
 			r = sprintf(buf,
-				    "mem: total:%d, buf_base:0x%0x, wp:0x%0x\n",
-				    total_size, buf_phy_start, wp_offset);
+				    "mem total:%d, buf_base:0x%0x, ",
+				    total_size, buf_phy_start);
 			buf += r;
 			total += r;
+
+			r = sprintf(buf,
+				    "free size:0x%0x, wp:0x%0x\n",
+				    free_size, wp_offset);
+			buf += r;
+			total += r;
+
 			count++;
 		}
 	}

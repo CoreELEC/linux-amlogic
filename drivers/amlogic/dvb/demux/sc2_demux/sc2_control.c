@@ -418,11 +418,11 @@ void wdma_config_enable(u8 chan_id, int enable,
 		do {
 		} while (!wdma_get_ready(chan_id) && times++ < 20);
 
+		wdma_clean(chan_id);
 
 		WRITE_CBUS_REG(TS_DMA_WCH_ADDR(chan_id), desc);
 		WRITE_CBUS_REG(TS_DMA_WCH_LEN(chan_id), total_size);
 
-		wdma_clean(chan_id);
 		pr_dbg("%s desc:0x%0x\n", __func__, desc);
 		pr_dbg("%s total_size:0x%0x\n", __func__, total_size);
 	} else {

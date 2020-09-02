@@ -163,21 +163,24 @@ int ts_output_reset(struct out_elem *pout);
  * \param pout
  * \param cb
  * \param udata:private data
+ * \param is_sec: is section callback
  * \retval 0:success.
  * \retval -1:fail.
  */
-int ts_output_add_cb(struct out_elem *pout, ts_output_cb cb, void *udata);
+int ts_output_add_cb(struct out_elem *pout, ts_output_cb cb, void *udata,
+		     bool is_sec);
 
 /**
  * remove callback for getting data
  * \param pout
  * \param cb
  * \param udata:private data
+ * \param is_sec: is section callback
  * \retval 0:success.
  * \retval -1:fail.
  */
-int ts_output_remove_cb(struct out_elem *pout, ts_output_cb cb, void *udata);
-
+int ts_output_remove_cb(struct out_elem *pout, ts_output_cb cb, void *udata,
+			bool is_sec);
 int ts_output_sid_debug(void);
 int ts_output_dump_info(char *buf);
 
