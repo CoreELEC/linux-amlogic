@@ -306,8 +306,8 @@ extern struct disp_info_s glayer_info[MAX_VD_LAYER];
 extern struct video_dev_s *cur_dev;
 extern bool legacy_vpp;
 extern bool hscaler_8tap_enable;
-extern bool pre_hscaler_ntap_enable;
-
+extern int pre_hscaler_ntap_enable[MAX_VD_LAYER];
+extern int pre_hscaler_ntap_set[MAX_VD_LAYER];
 bool is_dolby_vision_enable(void);
 bool is_dolby_vision_on(void);
 bool is_dolby_vision_stb_mode(void);

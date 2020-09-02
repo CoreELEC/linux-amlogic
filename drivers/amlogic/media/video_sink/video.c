@@ -10304,8 +10304,12 @@ static ssize_t pre_hscaler_ntap_enable_show(
 	struct class_attribute *attr,
 	char *buf)
 {
-	return snprintf(buf, 64, "pre_hscaler_ntap_en: %d\n\n",
-		pre_hscaler_ntap_enable);
+	if (pre_hscaler_ntap_set[0] == 0xff)
+		return snprintf(buf, 64, "pre_hscaler_ntap_en(0xff):%d\n",
+			pre_hscaler_ntap_enable[0]);
+	else
+		return snprintf(buf, 64, "pre_hscaler_ntap_en: %d\n",
+			pre_hscaler_ntap_set[0]);
 }
 
 static ssize_t pre_hscaler_ntap_enable_store(
@@ -10320,8 +10324,38 @@ static ssize_t pre_hscaler_ntap_enable_store(
 	if (ret < 0)
 		return -EINVAL;
 
-	if (pre_hscaler_ntap_en != pre_hscaler_ntap_enable)
-		pre_hscaler_ntap_enable = pre_hscaler_ntap_en;
+	if (pre_hscaler_ntap_en != pre_hscaler_ntap_set[0])
+		pre_hscaler_ntap_set[0] = pre_hscaler_ntap_en;
+	return count;
+}
+
+static ssize_t pip_pre_hscaler_ntap_enable_show(
+	struct class *cla,
+	struct class_attribute *attr,
+	char *buf)
+{
+	if (pre_hscaler_ntap_set[1] == 0xff)
+		return snprintf(buf, 64, "pip_pre_hscaler_ntap_en(0xff):%d\n",
+			pre_hscaler_ntap_enable[1]);
+	else
+		return snprintf(buf, 64, "pip_pre_hscaler_ntap_en: %d\n",
+			pre_hscaler_ntap_set[1]);
+}
+
+static ssize_t pip_pre_hscaler_ntap_enable_store(
+	struct class *cla,
+	struct class_attribute *attr,
+	const char *buf, size_t count)
+{
+	int ret;
+	int pre_hscaler_ntap_en;
+
+	ret = kstrtoint(buf, 0, &pre_hscaler_ntap_en);
+	if (ret < 0)
+		return -EINVAL;
+
+	if (pre_hscaler_ntap_en != pre_hscaler_ntap_set[1])
+		pre_hscaler_ntap_set[1] = pre_hscaler_ntap_en;
 	return count;
 }
 
@@ -10608,6 +10642,10 @@ static struct class_attribute amvideo_class_attrs[] = {
 	       0664,
 	       pre_hscaler_ntap_enable_show,
 	       pre_hscaler_ntap_enable_store),
+	__ATTR(pip_pre_hscaler_ntap_en,
+	       0664,
+	       pip_pre_hscaler_ntap_enable_show,
+	       pip_pre_hscaler_ntap_enable_store),
 	__ATTR(film_grain,
 	       0664,
 	       film_grain_show,
@@ -10951,7 +10989,7 @@ static struct amvideo_device_data_s amvideo_tm2_revb = {
 static struct amvideo_device_data_s amvideo_sc2 = {
 	.cpu_type = MESON_CPU_MAJOR_ID_SC2_,
 	.hscaler_8tap_en = 1,
-	.pre_hscaler_ntap_en = 0,
+	.pre_hscaler_ntap_en = 1,
 };
 
 static const struct of_device_id amlogic_amvideom_dt_match[] = {

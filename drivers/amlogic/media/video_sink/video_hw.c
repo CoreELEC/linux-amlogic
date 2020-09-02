@@ -82,7 +82,8 @@ bool legacy_vpp = true;
 
 static bool bypass_cm;
 bool hscaler_8tap_enable;
-bool pre_hscaler_ntap_enable;
+int pre_hscaler_ntap_enable[MAX_VD_LAYER];
+int pre_hscaler_ntap_set[MAX_VD_LAYER];
 #ifdef CONFIG_AMLOGIC_MEDIA_LUT_DMA
 static bool fg_supported;
 #endif
@@ -2059,7 +2060,7 @@ static void vd1_scaler_setting(
 		sc_misc_val = VPP_SC_TOP_EN | VPP_SC_V1OUT_EN;
 		if (setting->sc_h_enable) {
 			if (cpu_after_eq(MESON_CPU_MAJOR_ID_SC2)) {
-				if (pre_hscaler_ntap_enable) {
+				if (pre_hscaler_ntap_enable[0]) {
 					sc_misc_val |=
 					(((vpp_filter->vpp_pre_hsc_en & 1)
 					<< VPP_SC_PREHORZ_EN_BIT)
@@ -2387,7 +2388,7 @@ static void vd2_scaler_setting(
 		sc_misc_val = VPP_SC_TOP_EN | VPP_SC_V1OUT_EN;
 		if (setting->sc_h_enable) {
 			if (cpu_after_eq(MESON_CPU_MAJOR_ID_SC2)) {
-				if (pre_hscaler_ntap_enable) {
+				if (pre_hscaler_ntap_enable[1]) {
 					sc_misc_val |=
 					(((vpp_filter->vpp_pre_hsc_en & 1)
 					<< VPP_SC_PREHORZ_EN_BIT)
@@ -5679,6 +5680,7 @@ int video_early_init(void)
 			glayer_info[i].fgrain_support = true;
 		else
 			glayer_info[i].fgrain_support = false;
+		pre_hscaler_ntap_set[i] = 0xff;
 	}
 
 	/* only enable vd1 as default */
@@ -5733,7 +5735,8 @@ int video_early_init(void)
 	/* g12a has no alpha overflow check in hardware */
 	vd_layer[1].layer_alpha = legacy_vpp ? 0x1ff : 0x100;
 	hscaler_8tap_enable = is_hscaler_8tap_en();
-	pre_hscaler_ntap_enable = is_pre_hscaler_ntap_en();
+	pre_hscaler_ntap_enable[0] = is_pre_hscaler_ntap_en();
+	pre_hscaler_ntap_enable[1] = is_pre_hscaler_ntap_en();
 	INIT_WORK(&vpu_delay_work, do_vpu_delay_work);
 
 	init_layer_canvas(&vd_layer[0], LAYER1_CANVAS_BASE_INDEX);

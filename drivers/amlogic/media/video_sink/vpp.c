@@ -795,6 +795,10 @@ static unsigned int force_no_compress;
 MODULE_PARM_DESC(force_no_compress, "force_no_compress");
 module_param(force_no_compress, uint, 0664);
 
+static unsigned int hscaler_input_h_threshold = 60;
+MODULE_PARM_DESC(hscaler_input_h_threshold, "hscaler_input_height_threshold");
+module_param(hscaler_input_h_threshold, uint, 0664);
+
 static unsigned int screen_ar_threshold = 3;
 
 /*
@@ -1092,6 +1096,7 @@ static int vpp_set_filters_internal(
 	bool ext_sar = false;
 	bool no_compress = false;
 	u32 min_aspect_ratio_out, max_aspect_ratio_out;
+	int is_larger_4k60hz = 0;
 
 	if (!input)
 		return vppfilter_fail;
@@ -1863,7 +1868,29 @@ RESTART:
 		filter->vpp_hsc_start_phase_step >>= 1;
 	} else
 		filter->vpp_pre_hsc_en = 0;
-
+	/* vscaler enable
+	 * vout 4k 60hz
+	 * video src heiht >= 2160*60%
+	 * 4tap pre-hscaler bandwidth issue, need used old pre hscaler
+	 */
+	if (vinfo->sync_duration_den) {
+		if ((vinfo->width >= 3840) &&
+		    (vinfo->height >= 2160) &&
+		    (vinfo->sync_duration_num /
+		    vinfo->sync_duration_den >= 59))
+			is_larger_4k60hz = 1;
+	}
+	if (pre_hscaler_ntap_set[input->layer_id] == 0xff) {
+		if (filter->vpp_pre_hsc_en &&
+		    is_larger_4k60hz &&
+		    (height_in >= 2160 * hscaler_input_h_threshold / 100) &&
+		    (filter->vpp_vsc_start_phase_step != 0x1000000))
+			pre_hscaler_ntap_enable[input->layer_id] = 0;
+		else
+			pre_hscaler_ntap_enable[input->layer_id] = 1;
+	} else
+		pre_hscaler_ntap_enable[input->layer_id] =
+			pre_hscaler_ntap_set[input->layer_id];
 	next_frame_par->VPP_hf_ini_phase_ = vpp_zoom_center_x & 0xff;
 
 	/* overwrite filter setting for interlace output*/
