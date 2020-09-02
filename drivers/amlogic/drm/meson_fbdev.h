@@ -22,5 +22,5 @@
 int am_meson_drm_fbdev_init(struct drm_device *dev);
 void am_meson_drm_fbdev_fini(struct drm_device *dev);
 #endif
-
+extern struct am_meson_logo logo;
 #endif /* __AM_MESON_FBDEV_H */

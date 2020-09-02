@@ -576,7 +576,7 @@ static const struct file_operations am_cvbs_fops = {
 	.poll		= NULL,
 };
 
-static const struct vinfo_s *get_valid_vinfo(char  *mode)
+const struct vinfo_s *get_valid_vinfo(char  *mode)
 {
 	struct vinfo_s *vinfo = NULL;
 	int  i, count = ARRAY_SIZE(cvbs_info);
@@ -603,6 +603,7 @@ static const struct vinfo_s *get_valid_vinfo(char  *mode)
 	}
 	return vinfo;
 }
+EXPORT_SYMBOL(get_valid_vinfo);
 
 static struct vinfo_s *cvbs_get_current_info(void)
 {
@@ -615,7 +616,7 @@ enum cvbs_mode_e get_local_cvbs_mode(void)
 }
 EXPORT_SYMBOL(get_local_cvbs_mode);
 
-static int cvbs_set_current_vmode(enum vmode_e mode)
+int cvbs_set_current_vmode(enum vmode_e mode)
 {
 	enum vmode_e tvmode;
 
@@ -645,6 +646,7 @@ static int cvbs_set_current_vmode(enum vmode_e mode)
 
 	return 0;
 }
+EXPORT_SYMBOL(cvbs_set_current_vmode);
 
 static enum vmode_e cvbs_validate_vmode(char *mode, unsigned int frac)
 {

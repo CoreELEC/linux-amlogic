@@ -32,6 +32,8 @@
 #define VPP_POST_BLEND_BLEND_DUMMY_DATA            0x3968
 #define VPP_POST_BLEND_DUMMY_ALPHA                 0x3969
 
+#define VPP_POST_BLEND_REF_ZORDER                  128
+
 struct postblend_reg_s {
 	u32 vpp_osd1_bld_h_scope;
 	u32 vpp_osd1_bld_v_scope;
@@ -56,4 +58,6 @@ enum vpp_blend_src_e {
 	VPP_OSD1,
 	VPP_OSD2
 };
+
+void set_video_zorder(u32 zorder, u32 index);
 #endif

@@ -18,13 +18,15 @@
 #ifndef __MESON_VPU_UTIL_H
 #define __MESON_VPU_UTIL_H
 
+#include <drm/drmP.h>
 #include <linux/types.h>
 #include <linux/amlogic/media/canvas/canvas.h>
 #include <linux/amlogic/media/canvas/canvas_mgr.h>
 #include <linux/amlogic/media/vpu/vpu.h>
 #include <linux/amlogic/iomap.h>
-#include "osd_rdma.h"
 
+#define LINE_THRESHOLD 90
+#define WAIT_CNT_MAX 20
 /*osd internal channel*/
 enum din_channel_e {
 	DIN0 = 0,
@@ -40,17 +42,17 @@ struct osd_scope_s {
 	u32 v_end;
 };
 
-u32 meson_util_rdma_read_reg(u32 addr);
-int meson_util_rdma_write_reg(u32 addr, u32 val);
-int meson_util_rdma_write_reg_bits(u32 addr, u32 val, u32 start, u32 len);
-int meson_util_rdma_set_reg_mask(u32 addr, u32 mask);
-int meson_util_rdma_clr_reg_mask(u32 addr, u32 mask);
-int meson_util_rdma_irq_write_reg(u32 addr, u32 val);
+u32 meson_vpu_read_reg(u32 addr);
+int meson_vpu_write_reg(u32 addr, u32 val);
+int meson_vpu_write_reg_bits(u32 addr, u32 val, u32 start, u32 len);
 u32 meson_drm_read_reg(u32 addr);
 
-void meson_util_canvas_config(u32 index, unsigned long addr, u32 width,
-					u32 height, u32 wrap, u32 blkmode);
-int meson_util_canvas_pool_alloc_table(const char *owner, u32 *table, int size,
-					enum canvas_map_type_e type);
-
+void meson_drm_canvas_config(u32 index, unsigned long addr, u32 width,
+			     u32 height, u32 wrap, u32 blkmode);
+int meson_drm_canvas_pool_alloc_table(const char *owner, u32 *table, int size,
+				      enum canvas_map_type_e type);
+void set_video_enabled(u32 value, u32 index);
+void meson_vpu_reg_handle_register(void);
+int meson_vpu_reg_vsync_config(void);
+void meson_vpu_line_check(int viu_index, int vdisplay);
 #endif

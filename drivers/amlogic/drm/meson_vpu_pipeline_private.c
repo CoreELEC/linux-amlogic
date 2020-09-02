@@ -56,13 +56,13 @@ meson_vpu_osd_atomic_duplicate_state(struct drm_private_obj *obj)
 }
 
 static void meson_vpu_osd_atomic_destroy_state(struct drm_private_obj *obj,
-				struct drm_private_state *state)
+					       struct drm_private_state *state)
 {
 	struct meson_vpu_block_state *mvbs = priv_to_block_state(state);
 	struct meson_vpu_osd_state *mvos = to_osd_state(mvbs);
 
 	DRM_DEBUG("%s id=%d,index=%d\n",
-		mvbs->pblk->name, mvbs->pblk->id, mvbs->pblk->index);
+		  mvbs->pblk->name, mvbs->pblk->id, mvbs->pblk->index);
 	kfree(mvos);
 }
 
@@ -72,7 +72,7 @@ static const struct drm_private_state_funcs meson_vpu_osd_obj_funcs = {
 };
 
 static int meson_vpu_osd_state_init(struct meson_drm *private,
-						struct meson_vpu_osd *osd)
+				    struct meson_vpu_osd *osd)
 {
 	struct meson_vpu_osd_state *state;
 
@@ -84,6 +84,57 @@ static int meson_vpu_osd_state_init(struct meson_drm *private,
 	drm_atomic_private_obj_init(&osd->base.obj,
 				    &state->base.obj,
 				    &meson_vpu_osd_obj_funcs);
+
+	return 0;
+}
+
+static struct drm_private_state *
+meson_vpu_video_atomic_duplicate_state(struct drm_private_obj *obj)
+{
+	struct meson_vpu_block *mvb;
+	struct meson_vpu_video_state *state;
+
+	mvb = priv_to_block(obj);
+
+	state = kzalloc(sizeof(*state), GFP_KERNEL);
+	state->base.pblk = mvb;
+
+	__drm_atomic_helper_private_obj_duplicate_state(obj, &state->base.obj);
+	vpu_pipeline_state_set(mvb, &state->base);
+
+	return &state->base.obj;
+}
+
+static void
+meson_vpu_video_atomic_destroy_state(struct drm_private_obj *obj,
+				     struct drm_private_state *state)
+{
+	struct meson_vpu_block_state *mvbs = priv_to_block_state(state);
+	struct meson_vpu_video_state *mvvs = to_video_state(mvbs);
+
+	DRM_DEBUG("%s id=%d,index=%d\n",
+		  mvbs->pblk->name, mvbs->pblk->id, mvbs->pblk->index);
+	kfree(mvvs);
+}
+
+static const struct drm_private_state_funcs meson_vpu_video_obj_funcs = {
+	.atomic_duplicate_state = meson_vpu_video_atomic_duplicate_state,
+	.atomic_destroy_state = meson_vpu_video_atomic_destroy_state,
+};
+
+static int meson_vpu_video_state_init(struct meson_drm *private,
+				      struct meson_vpu_video *video)
+{
+	struct meson_vpu_video_state *state;
+
+	state = kzalloc(sizeof(*state), GFP_KERNEL);
+	if (!state)
+		return -ENOMEM;
+
+	state->base.pblk = &video->base;
+	drm_atomic_private_obj_init(&video->base.obj,
+				    &state->base.obj,
+				    &meson_vpu_video_obj_funcs);
 
 	return 0;
 }
@@ -366,8 +417,9 @@ meson_vpu_pipeline_atomic_duplicate_state(struct drm_private_obj *obj)
 	return &state->obj;
 }
 
-static void meson_vpu_pipeline_atomic_destroy_state(struct drm_private_obj *obj,
-				struct drm_private_state *state)
+static void
+meson_vpu_pipeline_atomic_destroy_state(struct drm_private_obj *obj,
+					struct drm_private_state *state)
 {
 	struct meson_vpu_pipeline_state *mvps = priv_to_pipeline_state(state);
 
@@ -388,7 +440,7 @@ static const struct drm_private_state_funcs meson_vpu_pipeline_obj_funcs = {
 };
 
 static int meson_vpu_pipeline_state_init(struct meson_drm *private,
-		struct meson_vpu_pipeline *pipeline)
+					 struct meson_vpu_pipeline *pipeline)
 {
 	struct meson_vpu_pipeline_state *state;
 
@@ -398,7 +450,7 @@ static int meson_vpu_pipeline_state_init(struct meson_drm *private,
 
 	state->pipeline = pipeline;
 	drm_atomic_private_obj_init(&pipeline->obj, &state->obj,
-		&meson_vpu_pipeline_obj_funcs);
+				    &meson_vpu_pipeline_obj_funcs);
 
 	return 0;
 }
@@ -435,7 +487,7 @@ meson_vpu_pipeline_get_state(struct meson_vpu_pipeline *pipeline,
 }
 
 int meson_vpu_block_state_init(struct meson_drm *private,
-	struct meson_vpu_pipeline *pipeline)
+			       struct meson_vpu_pipeline *pipeline)
 {
 	int i, ret;
 
@@ -449,20 +501,25 @@ int meson_vpu_block_state_init(struct meson_drm *private,
 			return ret;
 	}
 
+	for (i = 0; i < pipeline->num_video; i++) {
+		ret = meson_vpu_video_state_init(private, pipeline->video[i]);
+		if (ret)
+			return ret;
+	}
+
 	for (i = 0; i < pipeline->num_afbc_osds; i++) {
 		ret = meson_vpu_afbc_state_init(private,
-			pipeline->afbc_osds[i]);
+						pipeline->afbc_osds[i]);
 		if (ret)
 			return ret;
 	}
 
 	for (i = 0; i < pipeline->num_scalers; i++) {
 		ret = meson_vpu_scaler_state_init(private,
-			pipeline->scalers[i]);
+						  pipeline->scalers[i]);
 		if (ret)
 			return ret;
 	}
-
 
 	ret = meson_vpu_osdblend_state_init(private, pipeline->osdblend);
 	if (ret)

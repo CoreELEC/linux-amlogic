@@ -398,6 +398,20 @@ u32 get_videopip_enabled(void)
 }
 EXPORT_SYMBOL(get_videopip_enabled);
 
+void set_video_enabled(u32 value, u32 index)
+{
+	u32 disable_video = value ? 0 : 1;
+
+	if (index >= MAX_VD_LAYER)
+		return;
+	vd_layer[index].global_output = value;
+	if (index == 0)
+		_video_set_disable(disable_video);
+	else
+		_videopip_set_disable(disable_video);
+}
+EXPORT_SYMBOL(set_video_enabled);
+
 bool is_di_on(void)
 {
 	bool ret = false;

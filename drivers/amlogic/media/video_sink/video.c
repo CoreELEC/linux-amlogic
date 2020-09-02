@@ -450,6 +450,13 @@ u32 get_video_angle(void)
 }
 EXPORT_SYMBOL(get_video_angle);
 
+void set_video_zorder(u32 zorder, u32 index)
+{
+	if (index < 2)
+		glayer_info[index].zorder = zorder;
+}
+EXPORT_SYMBOL(set_video_zorder);
+
 /*for video related files only.*/
 void video_module_lock(void)
 {
@@ -2077,6 +2084,10 @@ static inline bool vpts_expire(struct vframe_s *cur_vf,
 		return true;
 	/*freerun for game mode*/
 	if (next_vf->flag & VFRAME_FLAG_GAME_MODE)
+		return true;
+
+	/*freerun for drm video*/
+	if (next_vf->flag & VFRAME_FLAG_VIDEO_DRM)
 		return true;
 
 	/* FIXME: remove it */

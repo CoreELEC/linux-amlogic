@@ -15400,3 +15400,7 @@ F: arch/arm/boot/dts/amlogic/sc2_s905x4_ah212_buildroot.dts
 F: arch/arm/boot/dts/amlogic/sc2_s905x4_ah219_buildroot.dts
 F: arch/arm64/boot/dts/amlogic/sc2_s905x4_ah212_buildroot.dts
 F: arch/arm64/boot/dts/amlogic/sc2_s905x4_ah219_buildroot.dts
+
+AMLOGIC driver for drm
+M: Ao Xu <ao.xu@amlogic.com>
+F: drivers/amlogic/drm/

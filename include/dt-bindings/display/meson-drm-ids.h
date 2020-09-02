@@ -13,7 +13,9 @@
 #define OSD_BLEND_BLOCK 9
 #define OSD1_HDR_BLOCK 10
 #define VPP_POSTBLEND_BLOCK 11
-#define BLOCK_ID_MAX 12
+#define VIDEO1_BLOCK 12
+#define VIDEO2_BLOCK 13
+#define BLOCK_ID_MAX 14
 
 #define OSD1_PORT 0
 #define OSD2_PORT 1
@@ -34,21 +36,19 @@
 #define VPP_POSTBLEND_OSD1_IN_PORT 16
 #define VPP_POSTBLEND_OSD2_IN_PORT 17
 #define VPP_POSTBLEND_OUT_PORT 18
+#define VIDEO1_PORT 19
+#define VIDEO2_PORT 20
 
 /*
  *OSD VERSION
  *V1:G12A
  *V2:G12B-revA:base G12A,add repeate last line function
  *V3:G12B-RevB:add line interrupt support
- *V4:TL1:base G12A,fix shift issue,delete osd3
- *V5:SM1:base G12A,fix shift issue
- *V6:TM2,base G12A,fix shift issue,add mux for osd1-sr
+ *V4:SM1/TL1/TM2 etc , the ic after G12B-revB
  */
 #define OSD_V1 1
 #define OSD_V2 2
 #define OSD_V3 3
 #define OSD_V4 4
-#define OSD_V5 5
-#define OSD_V6 6
 
 #endif

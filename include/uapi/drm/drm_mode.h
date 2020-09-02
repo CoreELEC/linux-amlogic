@@ -112,6 +112,14 @@ extern "C" {
 #define DRM_MODE_CONTENT_PROTECTION_DESIRED     1
 #define DRM_MODE_CONTENT_PROTECTION_ENABLED     2
 
+/* HDR policy options */
+#define DRM_MODE_HDR_FOLLOW_SINK	0
+#define DRM_MODE_HDR_FOLLOW_SOURCE	1
+
+/* DV policy options */
+#define DRM_MODE_DV_FOLLOW_SINK		0
+#define DRM_MODE_DV_FOLLOW_SOURCE	1
+
 struct drm_mode_modeinfo {
 	__u32 clock;
 	__u16 hdisplay;
@@ -651,24 +659,24 @@ struct drm_mode_atomic {
 struct drm_format_modifier_blob {
 #define FORMAT_BLOB_CURRENT 1
 	/* Version of this blob format */
-	u32 version;
+	__u32 version;
 
 	/* Flags */
-	u32 flags;
+	__u32 flags;
 
 	/* Number of fourcc formats supported */
-	u32 count_formats;
+	__u32 count_formats;
 
 	/* Where in this blob the formats exist (in bytes) */
-	u32 formats_offset;
+	__u32 formats_offset;
 
 	/* Number of drm_format_modifiers */
-	u32 count_modifiers;
+	__u32 count_modifiers;
 
 	/* Where in this blob the modifiers exist (in bytes) */
-	u32 modifiers_offset;
+	__u32 modifiers_offset;
 
-	/* u32 formats[] */
+	/* __u32 formats[] */
 	/* struct drm_format_modifier modifiers[] */
 };
 

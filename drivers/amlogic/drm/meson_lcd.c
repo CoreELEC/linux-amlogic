@@ -152,7 +152,6 @@ enum drm_mode_status am_lcd_connector_mode_valid(
 	return MODE_OK;
 }
 
-
 static const struct drm_connector_helper_funcs am_lcd_connector_helper_funcs = {
 	.get_modes = am_lcd_connector_get_modes,
 	.mode_valid = am_lcd_connector_mode_valid,
@@ -190,7 +189,7 @@ static int am_lcd_connector_dpms(struct drm_connector *connector, int mode)
 }
 
 static int am_lcd_connector_fill_modes(struct drm_connector *connector,
-		uint32_t maxX, uint32_t maxY)
+				       u32 maxX, uint32_t maxY)
 {
 	int count = 0;
 
@@ -226,7 +225,7 @@ static struct drm_connector_state *am_lcd_connector_duplicate_state(
 }
 
 static void am_lcd_connector_destroy_state(struct drm_connector *connector,
-					  struct drm_connector_state *state)
+					   struct drm_connector_state *state)
 {
 	pr_info("am_drm_lcd: %s %d\n", __func__, __LINE__);
 
@@ -245,7 +244,7 @@ static const struct drm_connector_funcs am_lcd_connector_funcs = {
 #endif
 
 static void am_lcd_encoder_mode_set(struct drm_encoder *encoder,
-				   struct drm_display_mode *mode,
+				    struct drm_display_mode *mode,
 				   struct drm_display_mode *adjusted_mode)
 {
 	pr_info("am_drm_lcd: %s %d\n", __func__, __LINE__);
@@ -313,7 +312,7 @@ static void am_lcd_encoder_commit(struct drm_encoder *encoder)
 }
 
 static int am_lcd_encoder_atomic_check(struct drm_encoder *encoder,
-				struct drm_crtc_state *crtc_state,
+				       struct drm_crtc_state *crtc_state,
 				struct drm_connector_state *conn_state)
 {
 	pr_info("am_drm_lcd: %s %d\n", __func__, __LINE__);
@@ -436,7 +435,7 @@ static int am_lcd_get_modes(struct drm_panel *panel)
 }
 
 static int am_lcd_get_timings(struct drm_panel *panel,
-				    unsigned int num_timings,
+			      unsigned int num_timings,
 				    struct display_timing *timings)
 {
 	struct am_drm_lcd_s *lcd = panel_to_lcd(panel);
@@ -588,7 +587,7 @@ static void am_drm_lcd_display_mode_timing_init(struct am_drm_lcd_s *lcd)
 }
 
 int am_drm_lcd_notify_callback(struct notifier_block *block, unsigned long cmd,
-	void *para)
+			       void *para)
 {
 	am_drm_lcd->lcd_drv = aml_lcd_get_driver();
 	if (!am_drm_lcd->lcd_drv) {
@@ -617,7 +616,7 @@ static const struct of_device_id am_meson_lcd_dt_ids[] = {
 };
 
 static int am_meson_lcd_bind(struct device *dev, struct device *master,
-				    void *data)
+			     void *data)
 {
 	struct drm_device *drm = data;
 	struct drm_connector *connector;
@@ -641,6 +640,7 @@ static int am_meson_lcd_bind(struct device *dev, struct device *master,
 	 * avoid init with null info when lcd probe with unifykey case.
 	 */
 	vout_register_client(&am_drm_lcd_notifier_nb);
+	am_drm_lcd_display_mode_timing_init(am_drm_lcd);
 
 	drm_panel_init(&am_drm_lcd->panel);
 	am_drm_lcd->panel.dev = NULL;
@@ -675,7 +675,7 @@ static int am_meson_lcd_bind(struct device *dev, struct device *master,
 	/* Connector */
 	drm_connector_helper_add(connector, &am_lcd_connector_helper_funcs);
 	ret = drm_connector_init(drm, connector, &am_lcd_connector_funcs,
-				connector_type);
+				 connector_type);
 	if (ret) {
 		pr_err("error: am_drm_lcd: Failed to init lcd connector\n");
 		return ret;
@@ -692,7 +692,7 @@ static int am_meson_lcd_bind(struct device *dev, struct device *master,
 }
 
 static void am_meson_lcd_unbind(struct device *dev, struct device *master,
-				    void *data)
+				void *data)
 {
 	if (!am_drm_lcd)
 		return;

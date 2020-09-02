@@ -23,18 +23,31 @@
 #include <drm/drm_plane.h>
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
+#include <linux/sync_file.h>
 #include <linux/amlogic/media/vout/vout_notify.h>
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT
 #include <linux/amlogic/media/amvecm/amvecm.h>
 #endif
-#include "osd.h"
-#include "osd_drm.h"
 #include "meson_vpu.h"
 #include "meson_drv.h"
 #include "meson_fb.h"
 
+struct video_out_fence_state {
+	s32 __user *video_out_fence_ptr;
+	struct sync_file *sync_file;
+	int fd;
+};
+
 struct am_meson_crtc_state {
 	struct drm_crtc_state base;
+	u32 hdr_policy;
+	u32 dv_policy;
+	struct video_out_fence_state fence_state;
+};
+
+struct am_meson_video_out_fence {
+	struct fence *fence;
+	atomic_t refcount;
 };
 
 struct am_meson_crtc {
@@ -45,6 +58,7 @@ struct am_meson_crtc {
 	struct meson_drm *priv;
 
 	struct drm_pending_vblank_event *event;
+	struct am_meson_video_out_fence video_fence[VIDEO_LATENCY_VSYNC];
 
 	unsigned int vblank_irq;
 	spinlock_t vblank_irq_lock;/*atomic*/
@@ -53,7 +67,10 @@ struct am_meson_crtc {
 	struct dentry *crtc_debugfs_dir;
 
 	struct meson_vpu_pipeline *pipeline;
+	struct drm_property *prop_hdr_policy;
+	struct drm_property *prop_dv_policy;
 
+	struct drm_property *prop_video_out_fence_ptr;
 	int dump_enable;
 	int blank_enable;
 	int dump_counts;
@@ -67,5 +84,13 @@ struct am_meson_crtc {
 		struct am_meson_crtc_state, base)
 
 int am_meson_crtc_create(struct am_meson_crtc *amcrtc);
-
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
+void set_dolby_vision_policy(int policy);
+int get_dolby_vision_policy(void);
+#endif
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM
+void set_hdr_policy(int policy);
+int get_hdr_policy(void);
+#endif
+struct fence *drm_crtc_create_fence(struct drm_crtc *crtc);
 #endif

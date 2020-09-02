@@ -29,7 +29,7 @@
 #include <linux/amlogic/media/vout/vout_notify.h>
 #include "wss.h"
 #include "cvbs_out_reg.h"
-#include "cvbs_mode.h"
+#include <linux/amlogic/media/vout/cvbs_out.h>
 
 static const char * const wss_480i_cmd[] = {"ar", "cgms", "psp",
 		"prerec", "CC", "off"};

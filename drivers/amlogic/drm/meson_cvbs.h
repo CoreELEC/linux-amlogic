@@ -1,5 +1,5 @@
 /*
- * drivers/amlogic/media/vout/cvbs/cvbs_mode.h
+ * drivers/amlogic/drm/meson_cvbs.h
  *
  * Copyright (C) 2017 Amlogic, Inc. All rights reserved.
  *
@@ -15,16 +15,21 @@
  *
  */
 
-#ifndef _CVBS_MODE_H_
-#define _CVBS_MODE_H_
+#ifndef __MESON_CVBS_H_
+#define __MESON_CVBS_H_
 
-enum cvbs_mode_e {
-	MODE_480CVBS = 0,
-	MODE_576CVBS,
-	MODE_PAL_M,
-	MODE_PAL_N,
-	MODE_NTSC_M,
-	MODE_MAX,
+#include <drm/drm_connector.h>
+#include <drm/drm_encoder.h>
+#include <drm/drm_modes.h>
+
+#include <linux/amlogic/media/vout/vinfo.h>
+
+#include "meson_drv.h"
+
+struct am_drm_cvbs_s {
+	struct drm_device *drm;
+	struct drm_connector connector;
+	struct drm_encoder encoder;
 };
 
 #endif

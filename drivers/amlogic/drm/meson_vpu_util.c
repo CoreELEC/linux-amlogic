@@ -15,42 +15,156 @@
  *
  */
 
+#include <linux/ktime.h>
 #include "meson_vpu_util.h"
+#include "meson_vpu_reg.h"
+#ifdef CONFIG_AMLOGIC_MEDIA_RDMA
+#include <linux/amlogic/media/rdma/rdma_mgr.h>
+#endif
 
 /*****drm reg access by rdma*****/
+/*one item need two u32 = 8byte,total 512 item is enough for vpu*/
+#define MESON_VPU_RDMA_TABLE_SIZE (512 * 8)
 
-u32 meson_drm_rdma_read_reg(u32 addr)
+#ifdef CONFIG_AMLOGIC_MEDIA_RDMA
+static int meson_vpu_reg_handle;
+static void meson_vpu_vsync_rdma_irq(void *arg)
 {
-	return VSYNCOSD_RD_MPEG_REG(addr);
+	if (meson_vpu_reg_handle == -1)
+		return;
 }
 
-int meson_drm_rdma_write_reg(u32 addr, u32 val)
+static struct rdma_op_s meson_vpu_vsync_rdma_op = {
+	meson_vpu_vsync_rdma_irq,
+	NULL
+};
+
+void meson_vpu_reg_handle_register(void)
 {
-	return VSYNCOSD_WR_MPEG_REG(addr, val);
+	meson_vpu_reg_handle = rdma_register(&meson_vpu_vsync_rdma_op,
+					     NULL, MESON_VPU_RDMA_TABLE_SIZE);
 }
 
-int meson_drm_rdma_write_reg_bits(u32 addr, u32 val, u32 start, u32 len)
+/*suggestion: call this after atomic done*/
+int meson_vpu_reg_vsync_config(void)
 {
-	return VSYNCOSD_WR_MPEG_REG_BITS(addr, val, start, len);
+	return rdma_config(meson_vpu_reg_handle, RDMA_TRIGGER_VSYNC_INPUT);
 }
 
-int meson_drm_rdma_set_reg_mask(u32 addr, u32 mask)
+static int meson_vpu_get_active_begin_line(u32 viu_index)
 {
-	return VSYNCOSD_SET_MPEG_REG_MASK(addr, mask);
+	int active_line_begin;
+	u32 enc_sel;
+
+	if (viu_index == 1)
+		enc_sel = (aml_read_vcbus(VPU_VIU_VENC_MUX_CTRL) >> 2) & 0x3;
+	else
+		enc_sel = aml_read_vcbus(VPU_VIU_VENC_MUX_CTRL) & 0x3;
+	switch (enc_sel) {
+	case 0:
+		active_line_begin =
+			aml_read_vcbus(ENCL_VIDEO_VAVON_BLINE);
+		break;
+	case 1:
+		active_line_begin =
+			aml_read_vcbus(ENCI_VFIFO2VD_LINE_TOP_START);
+		break;
+	case 2:
+		active_line_begin =
+			aml_read_vcbus(ENCP_VIDEO_VAVON_BLINE);
+		break;
+	case 3:
+		active_line_begin =
+			aml_read_vcbus(ENCT_VIDEO_VAVON_BLINE);
+		break;
+	}
+
+	return active_line_begin;
 }
 
-int meson_drm_rdma_clr_reg_mask(u32 addr, u32 mask)
+static int meson_vpu_get_enter_encp_line(int viu_index)
 {
-	return VSYNCOSD_CLR_MPEG_REG_MASK(addr, mask);
+	int enc_line = 0;
+	unsigned int reg = 0;
+	u32 enc_sel;
+
+	if (viu_index == 1)
+		enc_sel = (aml_read_vcbus(VPU_VIU_VENC_MUX_CTRL) >> 2) & 0x3;
+	else
+		enc_sel = aml_read_vcbus(VPU_VIU_VENC_MUX_CTRL) & 0x3;
+	switch (enc_sel) {
+	case 0:
+		reg = aml_read_vcbus(ENCL_INFO_READ);
+		break;
+	case 1:
+		reg = aml_read_vcbus(ENCI_INFO_READ);
+		break;
+	case 2:
+		reg = aml_read_vcbus(ENCP_INFO_READ);
+		break;
+	case 3:
+		reg = aml_read_vcbus(ENCT_INFO_READ);
+		break;
+	}
+	enc_line = (reg >> 16) & 0x1fff;
+
+	return enc_line;
 }
 
-int meson_drm_rdma_irq_write_reg(u32 addr, u32 val)
+void meson_vpu_line_check(int viu_index, int vdisplay)
 {
-	return VSYNCOSD_IRQ_WR_MPEG_REG(addr, val);
+	int active_begin_line, wait_cnt, cur_line;
+
+	active_begin_line = meson_vpu_get_active_begin_line(viu_index);
+	cur_line = meson_vpu_get_enter_encp_line(viu_index);
+	/* if nearly vsync signal, wait vsync here */
+	wait_cnt = 0;
+	while (cur_line >= vdisplay + active_begin_line *
+	       (100 - LINE_THRESHOLD) / 100 ||
+	       cur_line <= active_begin_line * LINE_THRESHOLD / 100) {
+		DRM_DEBUG("enc line=%d\n", cur_line);
+		/* 0.5ms */
+		usleep_range(500, 600);
+		wait_cnt++;
+		if (wait_cnt >= WAIT_CNT_MAX) {
+			DRM_DEBUG("time out\n");
+			break;
+		}
+		cur_line = meson_vpu_get_enter_encp_line(viu_index);
+	}
+}
+#endif
+u32 meson_vpu_read_reg(u32 addr)
+{
+#ifdef CONFIG_AMLOGIC_MEDIA_RDMA
+	return rdma_read_reg(meson_vpu_reg_handle, addr);
+#else
+	return aml_read_vcbus(addr);
+#endif
+}
+
+int meson_vpu_write_reg(u32 addr, u32 val)
+{
+#ifdef CONFIG_AMLOGIC_MEDIA_RDMA
+	return rdma_write_reg(meson_vpu_reg_handle, addr, val);
+#else
+	aml_write_vcbus(addr, val);
+	return 0;
+#endif
+}
+
+int meson_vpu_write_reg_bits(u32 addr, u32 val, u32 start, u32 len)
+{
+#ifdef CONFIG_AMLOGIC_MEDIA_RDMA
+	return rdma_write_reg_bits(meson_vpu_reg_handle,
+				   addr, val, start, len);
+#else
+	aml_vcbus_update_bits(adr, ((1 << len) - 1) << start, val << start);
+	return 0;
+#endif
 }
 
 /** reg direct access without rdma **/
-
 u32 meson_drm_read_reg(u32 addr)
 {
 	u32 val;
@@ -64,70 +178,6 @@ void meson_drm_write_reg(u32 addr, u32 val)
 {
 	aml_write_vcbus(addr, val);
 }
-#if 0
-int meson_drm_write_reg_bits(u32 addr, u32 val, u32 start, u32 len)
-{
-	int ret;
-	u32 raw_val;
-
-	ret = aml_reg_read(IO_VAPB_BUS_BASE, addr << 2, &raw_val);
-	if (ret) {
-		pr_err("read vcbus reg %x error %d\n", addr, ret);
-		return -1;
-	}
-
-	raw_val |= val & GENMASK(start, start + len);
-
-	ret = aml_reg_write(IO_VAPB_BUS_BASE, addr << 2, raw_val);
-	if (ret) {
-		pr_err("write vcbus reg %x error %d\n", addr, ret);
-		return -1;
-	}
-	return 0;
-}
-
-int meson_drm_set_reg_mask(u32 addr, u32 mask)
-{
-	int ret;
-	u32 raw_val;
-
-	ret = aml_reg_read(IO_VAPB_BUS_BASE, addr << 2, &raw_val);
-	if (ret) {
-		pr_err("read vcbus reg %x error %d\n", addr, ret);
-		return -1;
-	}
-
-	raw_val |= mask;
-
-	ret = aml_reg_write(IO_VAPB_BUS_BASE, addr << 2, raw_val);
-	if (ret) {
-		pr_err("write vcbus reg %x error %d\n", addr, ret);
-		return -1;
-	}
-	return 0;
-}
-
-int meson_drm_clr_reg_mask(u32 addr, u32 mask)
-{
-	int ret;
-	u32 raw_val;
-
-	ret = aml_reg_read(IO_VAPB_BUS_BASE, addr << 2, &raw_val);
-	if (ret) {
-		pr_err("read vcbus reg %x error %d\n", addr, ret);
-		return -1;
-	}
-
-	raw_val &= ~mask;
-
-	ret = aml_reg_write(IO_VAPB_BUS_BASE, addr << 2, raw_val);
-	if (ret) {
-		pr_err("write vcbus reg %x error %d\n", addr, ret);
-		return -1;
-	}
-	return 0;
-}
-#endif
 
 /** canvas config  **/
 

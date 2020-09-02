@@ -817,9 +817,14 @@
 	hdcp = "okay";
 };
 
+&drm_amcvbsout {
+	status = "okay";
+};
+
 &drm_lcd {
 	status = "disable";
 };
+
 &pwm_AO_cd {
 		status = "okay";
 };
