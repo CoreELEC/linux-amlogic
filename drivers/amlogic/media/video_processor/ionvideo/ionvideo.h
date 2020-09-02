@@ -56,7 +56,7 @@
 #define MAX_WIDTH 4096
 #define MAX_HEIGHT 4096
 
-#define IONVIDEO_POOL_SIZE 16
+#define IONVIDEO_POOL_SIZE 32
 
 #define IONVID_INFO(fmt, args...) pr_info("ionvid: info: "fmt"", ## args)
 #define IONVID_DBG(fmt, args...) pr_debug("ionvid: dbg: "fmt"", ## args)
@@ -207,8 +207,8 @@ struct ppmgr2_device {
 	int dst_buffer_width;
 	int dst_buffer_height;
 	int ge2d_fmt;
-	int canvas_id[PPMGR2_MAX_CANVAS];
-	void *phy_addr[PPMGR2_MAX_CANVAS];
+	int canvas_id[IONVIDEO_POOL_SIZE];
+	void *phy_addr[IONVIDEO_POOL_SIZE];
 	int phy_size;
 
 	struct ge2d_context_s *context;

@@ -373,7 +373,7 @@ int ppmgr2_init(struct ppmgr2_device *ppd)
 	ppd->ge2d_fmt = 0;
 	ppd->dst_width = 0;
 	ppd->dst_height = 0;
-	for (i = 0; i < PPMGR2_MAX_CANVAS; i++) {
+	for (i = 0; i < IONVIDEO_POOL_SIZE; i++) {
 		ppd->phy_addr[i] = NULL;
 		ppd->canvas_id[i] = -1;
 	}
@@ -394,9 +394,9 @@ int ppmgr2_canvas_config(struct ppmgr2_device *ppd, int index)
 	canvas_width = ppd->dst_buffer_width;
 	canvas_height = ppd->dst_buffer_height;
 
-	if (index >= PPMGR2_MAX_CANVAS) {
+	if (index >= IONVIDEO_POOL_SIZE) {
 		pr_info("ppmgr2-dev: canvas index too large! %d>=%d\n",
-			index, PPMGR2_MAX_CANVAS);
+			index, IONVIDEO_POOL_SIZE);
 		return -1;
 	}
 
