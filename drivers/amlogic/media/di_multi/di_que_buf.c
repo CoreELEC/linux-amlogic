@@ -1211,8 +1211,8 @@ bool qbuf_is_full(struct buf_que_s *pqbuf, unsigned int qindex)
 }
 
 /**/
-int qbuf_move_some(struct buf_que_s *pqbuf, unsigned int qf,
-		   unsigned int qt, unsigned int index)
+bool qbuf_move_some(struct buf_que_s *pqbuf, unsigned int qf,
+		    unsigned int qt, unsigned int index)
 {
 	struct qs_cls_s *pqf, *pqt;
 	//enum Q_TYPE etypef, etypet;
@@ -1222,13 +1222,13 @@ int qbuf_move_some(struct buf_que_s *pqbuf, unsigned int qf,
 	if (!pqbuf->pque[qf]) {
 		PR_ERR_Q("%s:pq[%s]f[%d] is null\n", __func__,
 			 pqbuf->name, qf);
-		return -1;
+		return false;
 	}
 
 	if (!pqbuf->pque[qt]) {
 		PR_ERR_Q("%s:pq[%s]t[%d] is null\n", __func__,
 			 pqbuf->name, qt);
-		return -2;
+		return false;
 	}
 
 	pqf = pqbuf->pque[qf];
@@ -1240,19 +1240,19 @@ int qbuf_move_some(struct buf_que_s *pqbuf, unsigned int qf,
 	if (!pqf->ops.out_some) {
 		PR_ERR_Q("%s:qbuf[%s]:que[%s] no out_some\n", __func__,
 			 pqbuf->name, pqf->name);
-		return -3;
+		return false;
 	}
 	/*check qt is full*/
 	if (pqt->ops.is_full(pqbuf, pqt)) {
 		PR_ERR_Q("%s:qbuf[%s]:q[%s] is full\n", __func__,
 			 pqbuf->name, pqt->name);
-		return -4;
+		return false;
 	}
 	q_buf = pqbuf->pbuf[index];
 	if (pqf->ops.out_some(pqbuf, pqf, q_buf))
 		pqt->ops.in(pqbuf, pqt, q_buf);
 
-	return 1;
+	return true;
 }
 
 bool qbuf_move(struct buf_que_s *pqbuf, unsigned int qf,

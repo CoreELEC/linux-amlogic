@@ -166,7 +166,7 @@ unsigned int dim_get_trick_mode(void);
 /************************************************
  * reg / unreg 2020-06-12
  ************************************************/
-int dim_api_reg(enum DIME_REG_MODE rmode, struct di_ch_s *pch);
+bool dim_api_reg(enum DIME_REG_MODE rmode, struct di_ch_s *pch);
 bool dim_api_unreg(enum DIME_REG_MODE rmode, struct di_ch_s *pch);
 void dim_trig_unreg(unsigned int ch);
 

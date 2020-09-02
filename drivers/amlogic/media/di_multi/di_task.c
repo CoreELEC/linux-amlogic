@@ -482,7 +482,7 @@ static void mtask_wakeup(struct di_mtask *tsk)
 	/*dbg_tsk("wks[%d]\n", di_dbg_task_flg);*/
 }
 
-int mtask_send_cmd(unsigned int ch, struct mtsk_cmd_s *cmd)
+bool mtask_send_cmd(unsigned int ch, struct mtsk_cmd_s *cmd)
 {
 	struct di_mtask *tsk = get_mtask();
 	struct dim_fcmd_s *fcmd;
@@ -491,15 +491,15 @@ int mtask_send_cmd(unsigned int ch, struct mtsk_cmd_s *cmd)
 	fcmd = &tsk->fcmd[ch];
 	if (!fcmd->flg) {
 		//PR_ERR("%s:no fifo\n", __func__);
-		return -1;
+		return false;
 	}
 
 	//dbg_mem2("%s:cmd[%d]:\n", __func__, cmd);
 	if (kfifo_is_full(&fcmd->fifo)) {
 		if (kfifo_out(&fcmd->fifo, &val, sizeof(unsigned int))
 		    != sizeof(struct mtsk_cmd_s)) {
-			PR_ERR("%s:can't out\n", __func__);
-			return -2;
+			//PR_ERR("%s:can't out\n", __func__);
+			return false;
 		}
 
 		PR_ERR("%s:lost cmd[%d]\n", __func__, val.cmd);
@@ -514,7 +514,7 @@ int mtask_send_cmd(unsigned int ch, struct mtsk_cmd_s *cmd)
 
 	fcmd->doing++;
 	mtask_wakeup(tsk);
-	return 1;
+	return true;
 }
 
 bool mtsk_release(unsigned int ch, unsigned int cmd)
@@ -569,7 +569,7 @@ bool mtsk_release_block(unsigned int ch, unsigned int cmd)
 	return true;
 }
 
-static int mtask_get_cmd(unsigned int ch, struct mtsk_cmd_s *cmd)
+static bool mtask_get_cmd(unsigned int ch, struct mtsk_cmd_s *cmd)
 {
 	struct di_mtask *tsk = get_mtask();
 	struct dim_fcmd_s *fcmd;
@@ -579,11 +579,11 @@ static int mtask_get_cmd(unsigned int ch, struct mtsk_cmd_s *cmd)
 	fcmd = &tsk->fcmd[ch];
 	if (!fcmd->flg) {
 		//PR_ERR("%s:no fifo\n", __func__);
-		return -1;
+		return false;
 	}
 
 	if (kfifo_is_empty(&fcmd->fifo))
-		return -2;
+		return false;
 
 	if (fcmd->flg_lock & DIM_QUE_LOCK_RD)
 		ret = kfifo_out_spinlocked(&fcmd->fifo,
@@ -593,10 +593,10 @@ static int mtask_get_cmd(unsigned int ch, struct mtsk_cmd_s *cmd)
 	else
 		ret = kfifo_out(&fcmd->fifo, &val, sizeof(struct mtsk_cmd_s));
 	if (ret	!= sizeof(struct mtsk_cmd_s))
-		return -3;
+		return false;
 
 	*cmd = val;
-	return 1;
+	return true;
 }
 
 static void mtask_polling_cmd(unsigned int ch)

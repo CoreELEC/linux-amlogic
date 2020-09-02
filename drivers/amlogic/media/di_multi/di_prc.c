@@ -1519,28 +1519,28 @@ bool dip_chst_change_2unreg(void)
  *	block
  ***********************************************/
 
-int dim_api_reg(enum DIME_REG_MODE rmode, struct di_ch_s *pch)
+bool dim_api_reg(enum DIME_REG_MODE rmode, struct di_ch_s *pch)
 {
 	unsigned int ch;
 	struct di_mng_s *pbm = get_bufmng();
-	int ret = -1;
+	bool ret = false;
 	unsigned int cnt;
 	struct di_dev_s *de_devp = get_dim_de_devp();
 
 	if (!pch) {
 		PR_ERR("%s:no pch\n", __func__);
-		return -1;
+		return false;
 	}
 	ch = pch->ch_id;
 
 	dip_even_reg_init_val(ch);
 	if (de_devp->flags & DI_SUSPEND_FLAG) {
 		//PR_ERR("reg event device hasn't resumed\n");
-		return -2;
+		return -1;
 	}
 	if (get_reg_flag(ch)) {
-		//PR_ERR("no muti instance.\n");
-		return -3;
+		PR_ERR("no muti instance.\n");
+		return -1;
 	}
 	task_delay(50);
 
@@ -1566,7 +1566,7 @@ int dim_api_reg(enum DIME_REG_MODE rmode, struct di_ch_s *pch)
 	}
 
 	if (!atomic_read(&pbm->trig_reg[ch]))
-		ret = 1;
+		ret = true;
 	else
 		PR_ERR("%s:ch[%d]:failed\n", __func__, ch);
 

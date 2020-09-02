@@ -44,7 +44,7 @@ void dbg_mtask(void);
 //bool mtsk_release(unsigned int ch, unsigned int cmd);
 bool mtsk_alloc_block(unsigned int ch, struct mtsk_cmd_s *cmd);
 bool mtsk_release_block(unsigned int ch, unsigned int cmd);
-int mtask_send_cmd(unsigned int ch, struct mtsk_cmd_s *cmd);
+bool mtask_send_cmd(unsigned int ch, struct mtsk_cmd_s *cmd);
 bool mtsk_release(unsigned int ch, unsigned int cmd);
 
 #endif /*__DI_TASK_H__*/

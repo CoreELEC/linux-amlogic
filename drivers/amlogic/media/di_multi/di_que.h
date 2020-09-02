@@ -85,8 +85,8 @@ void qbuf_int(struct buf_que_s *pbufq, const struct que_creat_s *cfg,
 bool qbuf_release_que(struct buf_que_s *pqbuf);
 bool qbuf_is_empty(struct buf_que_s *pqbuf, unsigned int qindex);
 bool qbuf_is_full(struct buf_que_s *pqbuf, unsigned int qindex);
-int qbuf_move_some(struct buf_que_s *pqbuf, unsigned int qf,
-		   unsigned int qt, unsigned int index);
+bool qbuf_move_some(struct buf_que_s *pqbuf, unsigned int qf,
+		    unsigned int qt, unsigned int index);
 bool qbuf_move(struct buf_que_s *pqbuf, unsigned int qf,
 	       unsigned int qt, unsigned int *oindex);
 bool qbuf_in(struct buf_que_s *pqbuf, unsigned int qt, unsigned int data);
