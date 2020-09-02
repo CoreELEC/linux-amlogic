@@ -969,6 +969,10 @@ static unsigned long cma_shrinker_scan(struct shrinker *s,
 			    tasksize <= selected_tasksize)
 				continue;
 		}
+		if (!strcmp(p->comm, "s.device.statsd"))
+			continue;
+		if (p->parent && !strcmp(p->parent->comm, "s.device.statsd"))
+			continue;
 		selected = p;
 		selected_tasksize = tasksize;
 		selected_oom_score_adj = oom_score_adj;
