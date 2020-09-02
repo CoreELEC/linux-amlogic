@@ -434,7 +434,7 @@ static int bt_resume(struct platform_device *pdev)
 
 static int bt_probe(struct platform_device *pdev)
 {
-	int ret = 0, i = 0;
+	int ret = 0;
 	const void *prop;
 	struct rfkill *bt_rfk;
 	struct bt_dev_data *pdata = NULL;
@@ -604,8 +604,8 @@ static int bt_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 	set_bit(EV_KEY,  input_dev->evbit);
-	for (i = KEY_RESERVED; i < BTN_MISC; i++)
-		set_bit(i, input_dev->keybit);
+	set_bit(KEY_POWER, input_dev->keybit);
+	set_bit(133, input_dev->keybit);
 
 	input_dev->name = "input_btrcu";
 	input_dev->phys = "input_btrcu/input0";
