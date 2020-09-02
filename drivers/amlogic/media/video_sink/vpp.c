@@ -2326,14 +2326,15 @@ static void vpp_set_super_scaler(
 		} else if (is_meson_txhd_cpu() ||
 			is_meson_g12a_cpu() ||
 			is_meson_g12b_cpu() ||
-			is_meson_sm1_cpu() ||
-			is_meson_sc2_cpu()) {
+			is_meson_sm1_cpu()) {
 			if (next_frame_par->supsc0_hori_ratio &&
 			    next_frame_par->supsc0_vert_ratio)
 				next_frame_par->supscl_path = CORE0_BEFORE_PPS;
 			else
 				next_frame_par->supscl_path = CORE0_AFTER_PPS;
-		} else
+		} else if (is_meson_sc2_cpu())
+			next_frame_par->supscl_path = CORE0_BEFORE_PPS;
+		else
 			next_frame_par->supscl_path = CORE0_PPS_CORE1;
 	} else
 		next_frame_par->supscl_path = scaler_path_sel;
