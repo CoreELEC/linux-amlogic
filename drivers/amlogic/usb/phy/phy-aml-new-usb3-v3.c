@@ -425,6 +425,7 @@ static int amlogic_new_usb3_init_v3(struct usb_phy *x)
 	union usb_r1_v2 r1 = {.d32 = 0};
 	union usb_r2_v2 r2 = {.d32 = 0};
 	union usb_r3_v2 r3 = {.d32 = 0};
+	union usb_r5_v2 r5 = {.d32 = 0};
 	union usb_r7_v2 r7 = {.d32 = 0};
 	union phy3_r2 p3_r2 = {.d32 = 0};
 	union phy3_r1 p3_r1 = {.d32 = 0};
@@ -455,6 +456,12 @@ static int amlogic_new_usb3_init_v3(struct usb_phy *x)
 		usb_new_aml_regs_v3.usb_r_v2[i] = (void __iomem *)
 			((unsigned long)phy->regs + 4*i);
 	}
+
+	r5.d32 = readl(usb_new_aml_regs_v3.usb_r_v2[5]);
+	r5.b.iddig_en0 = 1;
+	r5.b.iddig_en1 = 1;
+	r5.b.iddig_th = 255;
+	writel(r5.d32, usb_new_aml_regs_v3.usb_r_v2[5]);
 
 	if (phy->portconfig_30) {
 		/* config usb30 phy */
