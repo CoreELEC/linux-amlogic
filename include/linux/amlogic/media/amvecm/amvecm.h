@@ -234,8 +234,15 @@ enum pc_mode_e {
 /*Local contrast command list*/
 #define AMVECM_IOC_S_LC_CURVE _IOW(_VE_CM, 0x62, struct ve_lc_curve_parm_s)
 
+enum lut_type_e {
+	HLG_LUT = 1,
+	HDR_LUT = 2,
+	LUT_MAX
+};
+
 /*tone mapping struct*/
 struct hdr_tone_mapping_s {
+	enum lut_type_e lut_type;
 	unsigned int lutlength;
 	unsigned int *tm_lut;
 };
