@@ -71,28 +71,6 @@ static unsigned int bist_mode;
 
 static char vout_axis[64] __nosavedata;
 
-static char hdmimode[VMODE_NAME_LEN_MAX] = {
-	'i', 'n', 'v', 'a', 'l', 'i', 'd', '\0'
-};
-static char cvbsmode[VMODE_NAME_LEN_MAX] = {
-	'i', 'n', 'v', 'a', 'l', 'i', 'd', '\0'
-};
-static char hdmichecksum[VMODE_NAME_LEN_MAX] = {
-	'i', 'n', 'v', 'a', 'l', 'i', 'd', 'c', 'r', 'c', '\0'
-};
-static char invalidchecksum[VMODE_NAME_LEN_MAX] = {
-	'i', 'n', 'v', 'a', 'l', 'i', 'd', 'c', 'r', 'c', '\0'
-};
-static char emptychecksum[VMODE_NAME_LEN_MAX] = {0};
-
-static enum vmode_e last_vmode = VMODE_MAX;
-static int tvout_monitor_flag = 1;
-static unsigned int tvout_monitor_timeout_cnt = 20;
-/* 500ms: 1*HZ/2 */
-static unsigned int tvout_monitor_interval = 500;
-
-static struct delayed_work tvout_mode_work;
-
 static struct extcon_dev *vout_excton_setmode;
 static const unsigned int vout_cable[] = {
 	EXTCON_TYPE_DISP,
@@ -270,9 +248,6 @@ static int vout_set_uevent(unsigned int vout_event, int val)
 
 static inline void vout_setmode_wakeup_queue(void)
 {
-	if (tvout_monitor_flag)
-		return;
-
 	if (vout_cdev)
 		wake_up(&vout_cdev->setmode_queue);
 }
@@ -344,7 +319,6 @@ static int set_vout_init_mode(void)
 	} else { /* recover vout_mode_uboot */
 		snprintf(local_name, VMODE_NAME_LEN_MAX, "%s", vout_mode_uboot);
 	}
-	last_vmode = vout_init_vmode;
 
 	if (uboot_display)
 		vmode = vout_init_vmode | VMODE_INIT_BIT_MASK;
@@ -444,7 +418,6 @@ static ssize_t vout_mode_store(struct class *class,
 	char mode[VMODE_NAME_LEN_MAX];
 
 	mutex_lock(&vout_serve_mutex);
-	tvout_monitor_flag = 0;
 	snprintf(mode, VMODE_NAME_LEN_MAX, "%s", buf);
 	set_vout_mode(mode);
 	mutex_unlock(&vout_serve_mutex);
@@ -977,111 +950,6 @@ static void aml_vout_late_resume(struct early_suspend *h)
 }
 #endif
 
-/* ***************************************************** */
-/* hdmi/cvbs output mode monitor */
-/* ***************************************************** */
-static int refresh_tvout_mode(void)
-{
-	enum vmode_e cur_vmode = VMODE_MAX;
-	char cur_mode_str[VMODE_NAME_LEN_MAX];
-	int hpd_state = 0;
-	struct vinfo_s *info = get_current_vinfo();
-	static int last_hpd_state;
-
-	if (tvout_monitor_flag == 0)
-		return 0;
-
-	hpd_state = vout_get_hpd_state();
-	if (hpd_state) {
-		if (hpd_state == last_hpd_state)
-			return 0;
-		/* Vout will check the checksum of EDID of uboot and kernel.
-		 * If checksum is different. Vout will set null to display/mode.
-		 * When systemcontrol bootup, it will set the correct mode and
-		 * colorspace according to current EDID from kernel.
-		 */
-		if ((memcmp(hdmichecksum, info->hdmichecksum, 10)) &&
-			(memcmp(emptychecksum, info->hdmichecksum, 10)) &&
-			(memcmp(invalidchecksum, hdmichecksum, 10))) {
-			VOUTPR("hdmi crc is diff between uboot and kernel\n");
-			cur_vmode = validate_vmode("null", 0);
-			snprintf(cur_mode_str, VMODE_NAME_LEN_MAX, "null");
-
-		} else {
-			cur_vmode = validate_vmode(hdmimode, 0);
-			snprintf(cur_mode_str, VMODE_NAME_LEN_MAX,
-				"%s", hdmimode);
-		}
-	} else {
-		cur_vmode = validate_vmode(cvbsmode, 0);
-		snprintf(cur_mode_str, VMODE_NAME_LEN_MAX, "%s", cvbsmode);
-	}
-	last_hpd_state = hpd_state;
-	if (cur_vmode >= VMODE_MAX) {
-		VOUTERR("%s: no matched cur_mode: %s, force to invalid\n",
-			__func__, cur_mode_str);
-		nulldisp_index = 1;
-		cur_vmode = nulldisp_vinfo[nulldisp_index].mode;
-		snprintf(cur_mode_str, VMODE_NAME_LEN_MAX, "%s",
-			nulldisp_vinfo[nulldisp_index].name);
-	}
-
-	/* not box platform */
-	if ((cur_vmode != VMODE_HDMI) &&
-		(cur_vmode != VMODE_CVBS) &&
-		(cur_vmode != VMODE_NULL) &&
-		(cur_vmode != VMODE_INVALID))
-		return -1;
-
-	if (cur_vmode != last_vmode) {
-		VOUTPR("%s: mode chang to %s\n", __func__, cur_mode_str);
-		set_vout_mode(cur_mode_str);
-		last_vmode = cur_vmode;
-	}
-
-	return 0;
-}
-
-static void aml_tvout_mode_work(struct work_struct *work)
-{
-	if (tvout_monitor_timeout_cnt-- == 0) {
-		tvout_monitor_flag = 0;
-		VOUTPR("%s: monitor_timeout\n", __func__);
-		return;
-	}
-
-	mutex_lock(&vout_serve_mutex);
-	refresh_tvout_mode();
-	mutex_unlock(&vout_serve_mutex);
-
-	if (tvout_monitor_flag)
-		schedule_delayed_work(&tvout_mode_work,
-			msecs_to_jiffies(tvout_monitor_interval));
-	else
-		VOUTPR("%s: monitor stop\n", __func__);
-}
-
-static void aml_tvout_mode_monitor(void)
-{
-	if ((vout_init_vmode != VMODE_HDMI) &&
-		(vout_init_vmode != VMODE_CVBS) &&
-		(vout_init_vmode != VMODE_NULL) &&
-		(vout_init_vmode != VMODE_INVALID))
-		return;
-
-	VOUTPR("%s\n", __func__);
-	last_vmode = vout_init_vmode;
-	tvout_monitor_flag = 1;
-	INIT_DELAYED_WORK(&tvout_mode_work, aml_tvout_mode_work);
-
-	mutex_lock(&vout_serve_mutex);
-	refresh_tvout_mode();
-	mutex_unlock(&vout_serve_mutex);
-
-	schedule_delayed_work(&tvout_mode_work,
-		msecs_to_jiffies(tvout_monitor_interval));
-}
-
 static void aml_vout_extcon_register(struct platform_device *pdev)
 {
 	struct extcon_dev *edev;
@@ -1116,24 +984,13 @@ static void aml_vout_get_dt_info(struct platform_device *pdev)
 	int ret;
 	unsigned int para[2];
 
-	/* e.g. dts: tvout_monitor = <100 250>
-	 * interval = 100(ms), timeout_cnt = 250
-	 */
-	ret = of_property_read_u32_array(pdev->dev.of_node,
-			"tvout_monitor", para, 2);
-	if (!ret) {
-		tvout_monitor_interval = para[0];
-		tvout_monitor_timeout_cnt = para[1];
-	}
-	VOUTPR("tvout monitor interval:%d(ms), timeout cnt:%d\n",
-		tvout_monitor_interval, tvout_monitor_timeout_cnt);
-
 	ret = of_property_read_u32(pdev->dev.of_node, "fr_policy", &para[0]);
 	if (!ret) {
 		set_vframe_rate_policy(para[0]);
 		VOUTPR("fr_policy:%d\n", para[0]);
 	}
 }
+
 
 /*****************************************************************
  **
@@ -1169,7 +1026,6 @@ static int aml_vout_probe(struct platform_device *pdev)
 	vout_register_server(&nulldisp_vout_server);
 	aml_vout_extcon_register(pdev);
 	set_vout_init_mode();
-	aml_tvout_mode_monitor();
 
 	VOUTPR("%s OK\n", __func__);
 	return ret;
@@ -1321,33 +1177,6 @@ static int __init get_vout_init_mode(char *str)
 	return 0;
 }
 __setup("vout=", get_vout_init_mode);
-
-static int __init get_hdmi_mode(char *str)
-{
-	snprintf(hdmimode, VMODE_NAME_LEN_MAX, "%s", str);
-
-	VOUTPR("get hdmimode: %s\n", hdmimode);
-	return 0;
-}
-__setup("hdmimode=", get_hdmi_mode);
-
-static int __init get_cvbs_mode(char *str)
-{
-	snprintf(cvbsmode, VMODE_NAME_LEN_MAX, "%s", str);
-
-	VOUTPR("get cvbsmode: %s\n", cvbsmode);
-	return 0;
-}
-__setup("cvbsmode=", get_cvbs_mode);
-
-static int __init get_hdmi_checksum(char *str)
-{
-	snprintf(hdmichecksum, VMODE_NAME_LEN_MAX, "%s", str);
-
-	VOUTPR("get hdmi checksum: %s\n", hdmichecksum);
-	return 0;
-}
-__setup("hdmichecksum=", get_hdmi_checksum);
 
 MODULE_AUTHOR("Platform-BJ <platform.bj@amlogic.com>");
 MODULE_DESCRIPTION("VOUT Server Module");
