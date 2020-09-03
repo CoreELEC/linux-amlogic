@@ -35,6 +35,11 @@
 #endif
 #include <trace/events/power.h>
 
+#ifdef CONFIG_AMLOGIC_DEBUG_FTRACE_PSTORE
+#include <linux/amlogic/debug_ftrace_ramoops.h>
+#define RAMOOPS_FREQMIN 500000U
+#endif
+
 #ifdef CONFIG_AMLOGIC_MODIFY
 static unsigned int freqmax0;
 core_param(freqmax0, freqmax0, uint, 0644);
@@ -1305,6 +1310,10 @@ static int cpufreq_online(unsigned int cpu)
 		pr_notice(" freqmax1:%d, max:%d\n", freqmax1, policy->max);
 	}
 #endif
+#ifdef CONFIG_AMLOGIC_DEBUG_FTRACE_PSTORE
+	if (ramoops_io_en)
+		policy->min = max(RAMOOPS_FREQMIN, policy->min);
+#endif
 
 	if (new_policy) {
 		/* related_cpus should at least include policy->cpus. */
@@ -2299,6 +2308,11 @@ static int cpufreq_set_policy(struct cpufreq_policy *policy,
 {
 	struct cpufreq_governor *old_gov;
 	int ret;
+
+#ifdef CONFIG_AMLOGIC_DEBUG_FTRACE_PSTORE
+	if (ramoops_io_en)
+		new_policy->min = max(RAMOOPS_FREQMIN, new_policy->min);
+#endif
 
 	pr_debug("setting new policy for CPU %u: %u - %u kHz\n",
 		 new_policy->cpu, new_policy->min, new_policy->max);
