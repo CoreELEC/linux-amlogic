@@ -922,7 +922,6 @@
 #define AFBCDM_VD1_FGRAIN_PARAM_ADDR                   0x4878
 #define AFBCDM_VD1_FGRAIN_PARAM_DATA                   0x4879
 
-
 /*afbcd add*/
 #define AFBCDM_INP_ENABLE                              0x5440
 #define AFBCDM_INP_MODE                                0x5441

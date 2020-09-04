@@ -234,6 +234,7 @@ unsigned int get_afbcd_offset(enum EAFBC_DEC dec)
 	return offset;
 }
 //--------------------display.c----------------------------
+
 static unsigned int set_afbcd_mult_simple(int index,
 					  struct AFBCD_S *inp_afbcd,
 					  const struct reg_acc *opin)
@@ -277,9 +278,17 @@ static unsigned int set_afbcd_mult_simple(int index,
 	u32 horz_skip_uv = inp_afbcd->h_skip_en;
 	// 2 bits 00-y0y1, 01-y0, 10-y1, 11-(y0+y1)/2
 
+#ifdef ARY_MARK
 	u32 def_color_y	= 0; //10 bits
 	u32 def_color_u	= (inp_afbcd->compbits == 0) ?
 		0x200 : (inp_afbcd->compbits == 1) ? 0x100 : 0x80; //10 bits
+#else //ary change
+	u32 def_color_y	= 0x3ff;	//ary 0; //10 bits
+	//u32 def_color_u	= (inp_afbcd->compbits == 0) ?
+	//	0x200 : (inp_afbcd->compbits == 1) ? 0x100 : 0x80; //10 bits
+	u32 def_color_u	= (inp_afbcd->compbits == 0) ?
+		0x80 : (inp_afbcd->compbits == 1) ? 0x100 : 0x200; //10 bits
+#endif
 	u32 def_color_v;
 	//ary	= def_color_u     ; //10 bits
 	u32 reg_lossy_en	= inp_afbcd->reg_lossy_en; // 2 bits
@@ -293,9 +302,9 @@ static unsigned int set_afbcd_mult_simple(int index,
 
 	u32 pip_src_mode	= inp_afbcd->pip_src_mode;
 	// 1 bits   0: src from vdin/dos  1:src from pip
-	u32 rot_ofmt_mode	= inp_afbcd->fmt_mode;
+	u32 rot_ofmt_mode	= inp_afbcd->rot_ofmt_mode;
 	// 2 bits   default = 2, 0:yuv444 1:yuv422 2:yuv420
-	u32 rot_ocompbit	= inp_afbcd->compbits;
+	u32 rot_ocompbit	= inp_afbcd->rot_ocompbit;
 	// 2 bits rot output bit width,0:8bit 1:9bit 2:10bit
 	u32 rot_drop_mode	= inp_afbcd->rot_drop_mode;
 	//rot_drop_mode
@@ -407,17 +416,18 @@ static unsigned int set_afbcd_mult_simple(int index,
 
 	//stimulus_display("jsen_debug ofst=%x\n", regs_ofst);
 	//stimulus_display("jsen_debug reg_addr=%x\n", (regs_ofst+AFBCDM_MODE));
-	stimulus_display("\n=====afbcd module %x==========\n", module_sel);
-	stimulus_display2("fmt=%d      bit=%d\n", fmt_mode, compbits_y);
-	stimulus_display2("hsize=%d    vsize=%d\n", hsize_in, vsize_in);
-	stimulus_display2("win_hbgn=%d win_hend=%d\n", out_horz_bgn,
-			  out_horz_end);
-	stimulus_display2("win_vbgn=%d win_vend=%d\n", out_vert_bgn,
-			  out_vert_end);
-	stimulus_display2("dos=%d      mmu=%d\n", reg_dos_uncomp_mode,
-			  ddr_sz_mode);
-	stimulus_display2("rot_en=%d   pip_src=%d\n", rot_en, pip_src_mode);
-	stimulus_print("===========================\n");
+	dbg_afbc("\n=====afbcd module %x==========\n", module_sel);
+	dbg_afbc("fmt=%d      bit=%d\n", fmt_mode, compbits_y);
+	dbg_afbc("hsize=%d    vsize=%d\n", hsize_in, vsize_in);
+	dbg_afbc("win_hbgn=%d win_hend=%d\n", out_horz_bgn,
+		 out_horz_end);
+	dbg_afbc("win_vbgn=%d win_vend=%d\n", out_vert_bgn,
+		 out_vert_end);
+	dbg_afbc("dos=%d      mmu=%d\n", reg_dos_uncomp_mode,
+		 ddr_sz_mode);
+	dbg_afbc("rot_en=%d   pip_src=%d\n", rot_en, pip_src_mode);
+	dbg_afbc("rev_mode=%d\n", rev_mode);
+	dbg_afbc("===========================\n");
 	hold_line_num = (hold_line_num > 4) ? (hold_line_num - 4) : 0;
 	//ary: below maybe set_di_afbc_dec_base===========
 	op->wr((regs_ofst + AFBCDM_MODE),
@@ -782,13 +792,13 @@ static unsigned int set_afbce_cfg_v1(int index,
 	int hblksize_buf = (hsize_buf    + 31) >> 5;
 	int vblksize_buf = (vsize_buf    + 3) >> 2;
 
-	int blk_out_end_h =  afbce->enc_win_bgn_h >> 5;
+	int blk_out_end_h =  (afbce->enc_win_end_h + 31) >> 5;
 	//output blk scope
-	int blk_out_bgn_h = (afbce->enc_win_end_h + 31) >> 5;
+	int blk_out_bgn_h = afbce->enc_win_bgn_h >> 5;
 	//output blk scope
-	int blk_out_end_v =  afbce->enc_win_bgn_v      >> 2;
+	int blk_out_end_v =  (afbce->enc_win_end_v + 3) >> 2;
 	//output blk scope
-	int blk_out_bgn_v = (afbce->enc_win_end_v + 3) >> 2;
+	int blk_out_bgn_v = afbce->enc_win_bgn_v      >> 2;
 	//output blk scope
 
 	int        lossy_luma_en;
@@ -797,7 +807,7 @@ static unsigned int set_afbce_cfg_v1(int index,
 	int        uncmp_size;//caculate
 	int        uncmp_bits;//caculate
 	int        sblk_num;//caculate
-	static int cur_mmu_used;//mmu info linear addr
+	int cur_mmu_used = 0;//mmu info linear addr
 	const struct reg_acc *op;
 
 	if (!opin)
@@ -823,7 +833,7 @@ static unsigned int set_afbce_cfg_v1(int index,
 		op->bwr(DI_TOP_CTRL1, afbce->reg_ram_comb, 2, 1);
 		//only di afbce have ram_comb
 	} else {
-		stimulus_print("ERROR:AFBCE INDEX WRONG!!!\n");
+		PR_ERR("ERROR:AFBCE INDEX WRONG!!!\n");
 	}
 
 	///////////////////////////////////////////////////////////////////////
@@ -858,7 +868,8 @@ static unsigned int set_afbce_cfg_v1(int index,
 		lossy_luma_en = 1;
 		lossy_chrm_en = 1;
 	}
-
+	dim_print("%s:0x%x\n", __func__, reg[AFBCEX_ENABLE]);
+	dim_print("\t:w[%d],h[%d]\n", afbce->hsize_in, afbce->vsize_in);
 	///////////////////////////////////////////////////////////////////////
 	//////Afbce configure registers
 	///////////////////////////////////////////////////////////////////////
@@ -3094,6 +3105,307 @@ static void enable_prepost_link_afbce(struct DI_PREPST_AFBC_S *pafcfg,
 		op->wr(DI_SC2_PRE_GL_CTRL, 0x80200001);
 }
 
+void set_di_memcpy_rot(struct mem_cpy_s *cfg)
+{
+	struct AFBCD_S    *in_afbcd;
+	struct AFBCE_S    *out_afbce;
+	struct DI_MIF_S  *in_rdmif;
+	struct DI_SIM_MIF_s  *out_wrmif;
+	bool         afbc_en;
+	bool	afbcd_rot = false;
+//	unsigned int         hold_line = cfg->hold_line;
+	const struct reg_acc *op;
+	bool is_4k = false;
+
+	//------------------
+	unsigned int hsize_int;
+	unsigned int vsize_int;
+	//ary no use    uint32_t m3_index;
+	unsigned int afbc_vd_sel = 0;
+
+	if (!cfg) {
+		//PR_ERR("%s:cfg is null\n", __func__);
+		return;
+	}
+	in_afbcd	= cfg->in_afbcd;
+	out_afbce	= cfg->out_afbce;
+	in_rdmif	= cfg->in_rdmif;
+	out_wrmif = cfg->out_wrmif;
+	afbc_en	= cfg->afbc_en;
+
+	if (!cfg->opin)
+		op = &di_pre_regset;
+	else
+		op = cfg->opin;
+
+	dim_print("%s:\n", __func__);
+	op->wr(DI_SC2_POST_GL_CTRL, 0xc0200001);
+#ifdef ARY_MARK
+	//disable all read mif
+	op->bwr(DI_TOP_CTRL, 0x3ffff, 4, 18);
+#endif
+	//dim_print("%s:2\n", __func__);
+
+	if (afbc_en) {
+		if (!in_afbcd || !out_afbce) {
+			//PR_ERR("%s:afbc_en[%d],noinput\n", __func__, afbc_en);
+			afbc_en = 0;
+		}
+	} else {
+		if (!in_rdmif || !out_wrmif) {
+			//PR_ERR("%s:2:input none\n", __func__);
+			return;
+		}
+	}
+	//dim_print("%s:3\n", __func__);
+	// config memory interface
+	if (afbc_en) {
+		hsize_int = out_afbce->enc_win_end_h -
+			out_afbce->enc_win_bgn_h + 1;
+		vsize_int = out_afbce->enc_win_end_v -
+			out_afbce->enc_win_bgn_v + 1;
+
+		if (hsize_int > 1920 || vsize_int > 1920)
+			is_4k = true;
+		//set_afbcd_mult_simple_v1(3,in_afbcd);
+		//set_afbcd_mult_simple_v1(in_afbcd->index,in_afbcd);
+		#if 1
+		opl2()->afbcd_set(in_afbcd->index, in_afbcd, op);
+		#else
+		dim_afds()->afbcd_set(cfg->afbcd_vf,
+				      cfg->afbcd_dec,
+				      cfg->afbcd_cfg);
+		#endif
+		afbcd_rot = in_afbcd->rot_en;
+		set_afbce_cfg_v1(
+			/*index, //0:vdin_afbce 1:di_afbce0 2:di_afbce1 */
+			2,
+			/*enable, //open  afbce */
+			1,
+			out_afbce,
+			op);
+	} else {
+		set_di_mif_v1(in_rdmif, in_rdmif->mif_index, op);
+
+		hsize_int = out_wrmif->end_x - out_wrmif->start_x + 1;
+		vsize_int = out_wrmif->end_y - out_wrmif->start_y + 1;
+		set_wrmif_simple_v3(out_wrmif, op, EDI_MIFSM_WR);
+	}
+	//dim_print("%s:4:\n", __func__);
+#ifdef ARY_MARK
+	op->wr(DI_INTR_CTRL, (1 << 16) |       // mask nrwr interrupt.
+		(1 << 17) |       // enable mtnwr interrupt.
+		(0 << 18) |       // mask diwr interrupt.
+		(1 << 19) |       // mask hist check interrupt.
+		(1 << 20) |       // mask cont interrupt.
+		(1 << 21) |       // mask medi interrupt.
+		(1 << 22) |       // mask vecwr interrupt.
+		(1 << 23) |       // mask infwr interrupt.
+		(1 << 24) |       // mask det3d interrupt.
+		(1 << 25) |       // mask nrds write.
+		(1 << 30) |       // mask both pre and post write done
+		0x3ff);         // clean all pending interrupt bits.
+#endif
+	op->wr(DI_POST_SIZE,  (hsize_int - 1) | ((vsize_int - 1) << 16));
+#ifdef ARY_MARK
+	afbc_vd_sel = afbc_en ? (1 << in_afbcd->index) : 0;
+#else
+	if (in_afbcd) {
+		switch (in_afbcd->index) {
+		case EAFBC_DEC_IF0:
+			afbc_vd_sel = 0x02 << 3;
+			break;
+		case EAFBC_DEC_IF1:
+			afbc_vd_sel = 0x01 << 3;
+			break;
+		case EAFBC_DEC_IF2:
+			afbc_vd_sel = 0x04 << 3;
+			break;
+		default:
+			//PR_ERR("%s:index\n", __func__);
+			afbc_vd_sel = 0x02 << 3;
+			break;
+		}
+	}
+#endif
+	//bypass en
+	op->wr(DI_POST_CTRL,
+		(1 << 0)	| // di_post_en      = post_ctrl[0];
+		(0 << 1)	| // di_blend_en     = post_ctrl[1];
+		(0 << 2)	| // di_ei_en        = post_ctrl[2];
+		(0 << 3)	| // di_mux_en       = post_ctrl[3];
+		(1 << 4)	| // di_wr_bk_en     = post_ctrl[4];
+		(0 << 5)	| // di_vpp_out_en   = post_ctrl[5];
+		(0 << 6)	| // reg_post_mb_en  = post_ctrl[6];
+		(0 << 10)	| // di_post_drop_1st= post_ctrl[10];
+		(0 << 11)	| // di_post_repeat  = post_ctrl[11];
+		(0 << 29)); // post_field_num  = post_ctrl[29];
+
+	op->wr(DI_TOP_POST_CTRL,
+		/* diwr_path_sel    = top_post_ctrl[1:0]; */
+		((afbc_en ? 2 : 1)			<< 0) |
+		/* afbc_vd_sel[5:3] = top_post_ctrl[6:4]; */
+		((afbc_en ? (afbc_vd_sel >> 3) : 0)	<< 4) |
+		/* afbcd_m[5:3] is_4k = top_post_ctrl[9:7] */
+		(((afbcd_rot | is_4k) ? 1 : 0)		<< 7) |
+		/* post_bypass_ctrl = top_post_ctrl[19:12]; */
+		(cfg->port	<< 12) |
+		/* fix_disable_post = top_post_ctrl[21:20]; */
+		(0		<< 20) |
+		/* post_frm_sel   =top_post_ctrl[3];//0:viu  1:internal */
+		(1		<< 30));
+	if (is_4k)
+		dim_sc2_4k_set(2);
+	#ifdef ARY_MARK
+	else
+		dim_sc2_4k_set(0);
+	#endif
+#ifdef ARY_MARK
+	/* closr pr/post_link */
+	op->bwr(DI_TOP_PRE_CTRL, 0, 30, 2);
+
+	/* pre afbc_vd_sel[2:0] */
+	op->bwr(DI_TOP_PRE_CTRL, afbc_vd_sel & 0x7, 4, 3);
+
+	op->bwr(DI_TOP_CTRL, in_afbcd->index, 13, 3);
+#endif
+
+	// post start
+	op->wr(DI_SC2_POST_GL_CTRL, 0x80200001);
+}
+
+/* ary add this for maybe from is non-afbc and out is afbc
+ * copy from set_di_memcpy_rot
+ */
+void set_di_memcpy(struct mem_cpy_s *cfg)
+{
+	struct AFBCD_S    *in_afbcd;
+	struct AFBCE_S    *out_afbce;
+	struct DI_MIF_S  *in_rdmif;
+	struct DI_SIM_MIF_s  *out_wrmif;
+	bool         afbc_en	= false;
+	bool	afbcd_rot = false;
+//	unsigned int         hold_line = cfg->hold_line;
+	const struct reg_acc *op;
+	bool is_4k = false;
+
+	//------------------
+	unsigned int hsize_int;
+	unsigned int vsize_int;
+	//ary no use    uint32_t m3_index;
+	unsigned int afbc_vd_sel = 0;
+
+	if (!cfg) {
+		//PR_ERR("%s:cfg is null\n", __func__);
+		return;
+	}
+	in_afbcd	= cfg->in_afbcd;
+	out_afbce	= cfg->out_afbce;
+	in_rdmif	= cfg->in_rdmif;
+	out_wrmif	= cfg->out_wrmif;
+
+	if (out_afbce)
+		afbc_en		= true;
+
+	if (!cfg->opin)
+		op = &di_pre_regset;
+	else
+		op = cfg->opin;
+
+	dim_print("%s:\n", __func__);
+	op->wr(DI_SC2_POST_GL_CTRL, 0xc0200001);
+
+	//dim_print("%s:2\n", __func__);
+
+	// config memory interface
+	/* input */
+	if (in_afbcd) {
+		//dbg_copy("inp:afbcd:\n");
+		opl2()->afbcd_set(in_afbcd->index, in_afbcd, op);
+	} else {
+		dbg_copy("inp:mif:%d\n", in_rdmif->mif_index);
+		set_di_mif_v1(in_rdmif, in_rdmif->mif_index, op);
+	}
+
+	if (out_afbce) {
+		dbg_copy("out:afbce:\n");
+		hsize_int = out_afbce->enc_win_end_h -
+			out_afbce->enc_win_bgn_h + 1;
+		vsize_int = out_afbce->enc_win_end_v -
+			out_afbce->enc_win_bgn_v + 1;
+
+		set_afbce_cfg_v1(
+			/* index, 0:vdin_afbce 1:di_afbce0 2:di_afbce1 */
+			2,
+			/* enable, open afbce */
+			1,
+			out_afbce,
+			op);
+	} else {
+		dbg_copy("out:mif:\n");
+		hsize_int = out_wrmif->end_x - out_wrmif->start_x + 1;
+		vsize_int = out_wrmif->end_y - out_wrmif->start_y + 1;
+		set_wrmif_simple_v3(out_wrmif, op, EDI_MIFSM_WR);
+	}
+	//dbg_copy("%s:4:\n", __func__);
+
+	if (hsize_int > 1920 || vsize_int > 1920)
+		is_4k = true;
+
+	op->wr(DI_POST_SIZE, (hsize_int - 1) | ((vsize_int - 1) << 16));
+
+	if (in_afbcd) {
+		switch (in_afbcd->index) {
+		case EAFBC_DEC_IF0:
+			afbc_vd_sel = 0x02 << 3;
+			break;
+		case EAFBC_DEC_IF1:
+			afbc_vd_sel = 0x01 << 3;
+			break;
+		case EAFBC_DEC_IF2:
+			afbc_vd_sel = 0x04 << 3;
+			break;
+		default:
+			//PR_ERR("%s:index\n", __func__);
+			afbc_vd_sel = 0x02 << 3;
+			break;
+		}
+	}
+
+	//bypass en
+	op->wr(DI_POST_CTRL,
+		(1 << 0)	| // di_post_en      = post_ctrl[0];
+		(0 << 1)	| // di_blend_en     = post_ctrl[1];
+		(0 << 2)	| // di_ei_en        = post_ctrl[2];
+		(0 << 3)	| // di_mux_en       = post_ctrl[3];
+		(1 << 4)	| // di_wr_bk_en     = post_ctrl[4];
+		(0 << 5)	| // di_vpp_out_en   = post_ctrl[5];
+		(0 << 6)	| // reg_post_mb_en  = post_ctrl[6];
+		(0 << 10)	| // di_post_drop_1st= post_ctrl[10];
+		(0 << 11)	| // di_post_repeat  = post_ctrl[11];
+		(0 << 29)); // post_field_num  = post_ctrl[29];
+
+	op->wr(DI_TOP_POST_CTRL,
+		/* diwr_path_sel    = top_post_ctrl[1:0]; */
+		((afbc_en ? 2 : 1)			<< 0)	|
+		/* afbc_vd_sel[5:3] = top_post_ctrl[6:4]; */
+		((afbc_en ? (afbc_vd_sel >> 3) : 0)	<< 4)	|
+		/* afbcd_m[5:3] is_4k = top_post_ctrl[9:7] */
+		(((afbcd_rot | is_4k) ? 1 : 0)		<< 7)	|
+		/* post_bypass_ctrl = top_post_ctrl[19:12]; */
+		(cfg->port	<< 12)	|
+		/* fix_disable_post = top_post_ctrl[21:20];*/
+		(0		<< 20)	|
+		/* post_frm_sel   =top_post_ctrl[3];//0:viu  1:internal*/
+		(1		<< 30));
+
+	if (is_4k)
+		dim_sc2_4k_set(2);
+
+	// post start
+	op->wr(DI_SC2_POST_GL_CTRL, 0x80200001);
+}
+
 /*ary change for test on g12a*/
 void set_di_mif_v3(struct DI_MIF_S *mif, enum DI_MIF0_ID mif_index,
 		   const struct reg_acc *opin)
@@ -3463,9 +3775,9 @@ static void di_pre_data_mif_ctrl_v3(bool enable)
 	}
 	if (enable) {
 
-		if (dim_afds() && dim_afds()->is_used()) {
+		if (dim_afds() && dim_afds()->is_used())
 			dim_afds()->inp_sw(true);
-		}
+
 		if (dim_afds() && !dim_afds()->is_used_chan2())
 			op->bwr(DI_SC2_CHAN2_GEN_REG, 1, 0, 1);
 
@@ -4018,6 +4330,20 @@ static void di_post_set_flow_v3(unsigned int post_wr_en,
 		op->wr(DI_POST_CTRL, 0x80000001); /*ary sc2 ??*/
 		op->wr(DI_SC2_POST_GL_CTRL, 0xc0000001);
 		break;
+	case EDI_POST_FLOW_STEP4_CP_START:
+		op->wr(DI_POST_CTRL,
+		(1 << 0)	| /* di_post_en      = post_ctrl[0]; */
+		(0 << 1)	| /* di_blend_en     = post_ctrl[1]; */
+		(0 << 2)	| /* di_ei_en        = post_ctrl[2]; */
+		(0 << 3)	| /* di_mux_en       = post_ctrl[3]; */
+		(1 << 4)	| /* di_wr_bk_en     = post_ctrl[4]; */
+		(0 << 5)	| /* di_vpp_out_en   = post_ctrl[5]; */
+		(0 << 6)	| /* reg_post_mb_en  = post_ctrl[6]; */
+		(0 << 10)	| /* di_post_drop_1st= post_ctrl[10]; */
+		(0 << 11)	| /* di_post_repeat  = post_ctrl[11]; */
+		(0 << 29));	/* post_field_num  = post_ctrl[29]; */
+		op->wr(DI_SC2_POST_GL_CTRL, 0x80200001);
+		break;
 	}
 }
 
@@ -4170,7 +4496,10 @@ void dim_sc2_contr_pst(union hw_sc2_ctr_pst_s *cfg)
 		(cfg->b.afbc_if1		<< 4)	|
 		(cfg->b.afbc_if0		<< 5)	|
 		(cfg->b.afbc_if2		<< 6)	|
-		((cfg->b.is_4k ? 7 : 0)	<< 7)	|
+		//((cfg->b.is_4k ? 7 : 0)	<< 7)	|
+		(cfg->b.is_if1_4k		<< 7)	|
+		(cfg->b.is_if0_4k		<< 8)	|
+		(cfg->b.is_if2_4k		<< 9)	|
 		(cfg->b.post_frm_sel	<< 30));
 
 	op->wr(DI_TOP_POST_CTRL, val);
@@ -4389,6 +4718,8 @@ static const struct hw_ops_s dim_hw_v3_ops = {
 	.post_set	= set_di_post,
 	.prepost_link	= enable_prepost_link,
 	.prepost_link_afbc	= enable_prepost_link_afbce,
+	.memcpy_rot	= set_di_memcpy_rot,
+	.memcpy		= set_di_memcpy,
 };
 
 bool di_attach_ops_v3(const struct hw_ops_s **ops)

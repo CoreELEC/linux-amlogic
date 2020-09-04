@@ -128,7 +128,7 @@ static int kpi_frame_num;// default print first coming n frames
  *
  *
  *************************************/
-unsigned int di_dbg = DBG_M_EVENT | DBG_M_DIS_P;
+unsigned int di_dbg = DBG_M_EVENT;
 module_param(di_dbg, uint, 0664);
 MODULE_PARM_DESC(di_dbg, "debug print");
 
@@ -1087,7 +1087,7 @@ store_dump_mem(struct device *dev, struct device_attribute *attr,
 		nr_size = canvas_w * canvas_h * 2;
 		dump_adr = di_buf->nr_adr;
 
-		pr_info("w=%d,h=%d,size=%ld,addr=%lu\n",
+		pr_info("w=%d,h=%d,size=%ld,addr=%lx\n",
 			canvas_w, canvas_h, nr_size, dump_adr);
 	}
 	old_fs = get_fs();
@@ -1756,7 +1756,7 @@ static int di_cnt_i_buf(struct di_ch_s *pch, int width, int height)
 	unsigned int nr_width = width, mtn_width = width, mv_width = width;
 	unsigned int nr_canvas_width = width, mtn_canvas_width = width;
 	unsigned int mv_canvas_width = width, canvas_align_width = 32;
-
+	unsigned int afbc_buffer_size = 0, blk_total = 0;
 	struct di_mm_s *mm;
 	unsigned int ch;
 	unsigned int afbc_info_size = 0, afbc_tab_size = 0, old_size;
@@ -1804,9 +1804,14 @@ static int di_cnt_i_buf(struct di_ch_s *pch, int width, int height)
 		mm->cfg.pbuf_flg.b.tvp = 0;
 	}
 	dbg_reg("%s1:tvp:%d\n", __func__, mm->cfg.pbuf_flg.b.tvp);
-	if (dim_afds() && dim_afds()->count_info_size &&
-	    (dim_afds()->is_sts(EAFBC_MEM_NEED) || cfgg(FIX_BUF)))
-		afbc_info_size = dim_afds()->count_info_size(width, height);
+	if (dim_afds() && dim_afds()->cnt_info_size &&
+	    (dim_afds()->is_sts(EAFBC_MEM_NEED) || cfgg(FIX_BUF))) {
+		afbc_info_size = dim_afds()->cnt_info_size(width,
+							   height / 2,
+							   &blk_total);
+		afbc_buffer_size = dim_afds()->cnt_buf_size(0x21,
+							    blk_total);
+	}
 
 	mm->cfg.buf_alloc_mode = 0;
 	/*nr_size(bits) = w * active_h * 8 * 2(yuv422)
@@ -1815,6 +1820,11 @@ static int di_cnt_i_buf(struct di_ch_s *pch, int width, int height)
 	 * mcinfo(bits) = active_h * 16
 	 */
 	nr_size = (nr_width * canvas_height) * 8 * 2 / 16;
+	if (afbc_buffer_size > nr_size) {
+		PR_INF("%s:0x%x, 0x%x\n", "buf large:",
+		       nr_size, afbc_buffer_size);
+		nr_size = afbc_buffer_size;
+	}
 	mtn_size = (mtn_width * canvas_height) * 4 / 16;
 	count_size = (mtn_width * canvas_height) * 4 / 16;
 	mv_size = (mv_width * canvas_height) / 5;
@@ -1831,9 +1841,9 @@ static int di_cnt_i_buf(struct di_ch_s *pch, int width, int height)
 	di_buf_size += insert_size;
 	di_buf_size = roundup(di_buf_size, PAGE_SIZE);
 	old_size = di_buf_size;
-	if (dim_afds() && dim_afds()->count_tab_size &&
+	if (dim_afds() && dim_afds()->cnt_tab_size &&
 	    (dim_afds()->is_sts(EAFBC_MEM_NEED) || cfgg(FIX_BUF)))
-		afbc_tab_size = dim_afds()->count_tab_size(nr_size);
+		afbc_tab_size = dim_afds()->cnt_tab_size(nr_size);
 	di_buf_size += afbc_info_size;
 	di_buf_size += afbc_tab_size;
 	if (is_mask(SC2_DW_EN))
@@ -1861,7 +1871,7 @@ static int di_cnt_i_buf(struct di_ch_s *pch, int width, int height)
 		mm->cfg.dw_size = 0;
 	dimp_set(edi_mp_same_field_top_count, 0);
 	same_field_bot_count = 0;
-	#ifdef MARK_SC2
+	#ifdef PRINT_BASIC
 	dbg_mem2("%s:size:\n", __func__);
 	dbg_mem2("\t%-15s:0x%x\n", "nr_size", mm->cfg.nr_size);
 	dbg_mem2("\t%-15s:0x%x\n", "count", mm->cfg.count_size);
@@ -1909,6 +1919,7 @@ static int di_cnt_post_buf(struct di_ch_s *pch /*,enum EDPST_OUT_MODE mode*/)
 	unsigned int tmpa, tmpb;
 	unsigned int canvas_height;
 	unsigned int afbc_info_size = 0, afbc_tab_size = 0;
+	unsigned int afbc_buffer_size = 0, blk_total = 0;
 	enum EDPST_MODE mode;
 
 	ch = pch->ch_id;
@@ -1975,13 +1986,23 @@ static int di_cnt_post_buf(struct di_ch_s *pch /*,enum EDPST_OUT_MODE mode*/)
 		mm->cfg.pst_buf_uv_size	= tmpa >> 1;
 		mm->cfg.pst_buf_y_size	= mm->cfg.pst_buf_uv_size;
 
-		if (dim_afds() && dim_afds()->count_info_size &&
+		if (dim_afds() && dim_afds()->cnt_info_size &&
 		    (dim_afds()->is_sts(EAFBC_MEM_NEED) || cfgg(FIX_BUF))) {
 			afbc_info_size =
-				dim_afds()->count_info_size(nr_width,
-							    canvas_height);
-			afbc_tab_size = dim_afds()->count_tab_size
-				(mm->cfg.pst_buf_size);
+				dim_afds()->cnt_info_size(nr_width,
+							  canvas_height,
+							  &blk_total);
+			afbc_buffer_size =
+				dim_afds()->cnt_buf_size(0x21, blk_total);
+			afbc_buffer_size = roundup(afbc_buffer_size, PAGE_SIZE);
+			if (afbc_buffer_size > mm->cfg.pst_buf_size) {
+				PR_INF("%s:0x%x, 0x%x\n", "buf large:",
+				       mm->cfg.pst_buf_size,
+				       afbc_buffer_size);
+				mm->cfg.pst_buf_size = afbc_buffer_size;
+			}
+			afbc_tab_size =
+				dim_afds()->cnt_tab_size(mm->cfg.pst_buf_size);
 		}
 		mm->cfg.pst_afbci_size	= afbc_info_size;
 		mm->cfg.pst_afbct_size	= afbc_tab_size;
@@ -2005,7 +2026,7 @@ static int di_cnt_post_buf(struct di_ch_s *pch /*,enum EDPST_OUT_MODE mode*/)
 		mm->cfg.pbuf_flg.b.dw = 1;
 	else
 		mm->cfg.pbuf_flg.b.dw = 0;
-	#ifdef MARK_SC2
+	#ifdef PRINT_BASIC
 	dbg_mem2("%s:size:\n", __func__);
 	dbg_mem2("\t%-15s:0x%x\n", "total_size", mm->cfg.size_post);
 	dbg_mem2("\t%-15s:0x%x\n", "total_page", mm->cfg.size_post_page);
@@ -2255,6 +2276,7 @@ static int di_init_buf(int width, int height, unsigned char prog_flag,
 
 	unsigned int mem_st_local;
 	unsigned int afbc_info_size = 0, afbc_tab_size = 0, old_size;
+	unsigned int afbc_buffer_size = 0, blk_total = 0;
 	unsigned int afbc_info_size_p = 0, afbc_tab_size_p = 0;
 
 	/**********************************************/
@@ -2297,6 +2319,13 @@ static int di_init_buf(int width, int height, unsigned char prog_flag,
 	else
 		mm->sts.flg_tvp = 0;
 
+	if (dim_afds() && dim_afds()->cnt_info_size &&
+	    (dim_afds()->is_sts(EAFBC_MEM_NEED) || cfgg(FIX_BUF))) {
+		afbc_info_size = dim_afds()->cnt_info_size(width, height,
+							   &blk_total);
+		afbc_buffer_size = dim_afds()->cnt_buf_size(0x21,
+							    blk_total);
+	}
 	if (prog_flag) {
 		ppre->prog_proc_type = 1;
 		mm->cfg.buf_alloc_mode = 1;
@@ -2305,11 +2334,11 @@ static int di_init_buf(int width, int height, unsigned char prog_flag,
 		old_size = di_buf_size;
 		nr_size	= di_buf_size;
 
-		if (dim_afds() && dim_afds()->count_tab_size &&
+		if (dim_afds() && dim_afds()->cnt_tab_size &&
 		    dim_afds()->is_sts(EAFBC_MEM_NEED)) {
 			afbc_info_size =
-				dim_afds()->count_info_size(width, height);
-			afbc_tab_size = dim_afds()->count_tab_size(nr_size);
+				dim_afds()->cnt_info_size(width, height);
+			afbc_tab_size = dim_afds()->cnt_tab_size(nr_size);
 
 			di_buf_size += afbc_info_size;
 			di_buf_size += afbc_tab_size;
@@ -2343,12 +2372,12 @@ static int di_init_buf(int width, int height, unsigned char prog_flag,
 		}
 		di_buf_size = roundup(di_buf_size, PAGE_SIZE);
 		old_size = di_buf_size;
-		if (dim_afds() && dim_afds()->count_tab_size &&
+		if (dim_afds() && dim_afds()->cnt_tab_size &&
 		    dim_afds()->is_sts(EAFBC_MEM_NEED)) {
 			afbc_info_size =
-				dim_afds()->count_info_size(width,
-							    height);/*ary ?*/
-			afbc_tab_size = dim_afds()->count_tab_size(nr_size);
+				dim_afds()->cnt_info_size(width,
+							  height);/*ary ?*/
+			afbc_tab_size = dim_afds()->cnt_tab_size(nr_size);
 		}
 		di_buf_size += afbc_info_size;
 		di_buf_size += afbc_tab_size;
@@ -2363,7 +2392,6 @@ static int di_init_buf(int width, int height, unsigned char prog_flag,
 	mm->cfg.mcinfo_size = mc_size;
 	mm->cfg.ll_afbci_size = afbc_info_size;
 	mm->cfg.ll_afbct_size = afbc_tab_size;
-
 
 	dimp_set(edi_mp_same_field_top_count, 0);
 	same_field_bot_count = 0;
@@ -2475,12 +2503,12 @@ static int di_init_buf(int width, int height, unsigned char prog_flag,
 	if (dimp_get(edi_mp_post_wr_en) && dimp_get(edi_mp_post_wr_support)) {
 		di_post_buf_size = nr_width * canvas_height * 2;
 		mm->cfg.p_nr_size = di_post_buf_size;
-		if (dim_afds() && dim_afds()->count_tab_size &&
+		if (dim_afds() && dim_afds()->cnt_tab_size &&
 		    dim_afds()->is_sts(EAFBC_MEM_NEED)) {
 			afbc_info_size_p =
-				dim_afds()->count_info_size(width, height);
+				dim_afds()->cnt_info_size(width, height);
 			afbc_tab_size_p =
-				dim_afds()->count_tab_size(di_post_buf_size);
+				dim_afds()->cnt_tab_size(di_post_buf_size);
 //			mm->cfg.pst_buf_size = di_buf_size;
 			di_post_buf_size += afbc_info_size_p;
 			di_post_buf_size += afbc_tab_size_p;
@@ -3808,7 +3836,7 @@ void dim_pre_de_process(unsigned int channel)
 	if (IS_ERR_OR_NULL(ppre->di_inp_buf))
 		return;
 
-	if (ppre->di_inp_buf && ppre->di_inp_buf->vframe)
+	if (/*ppre->di_inp_buf && */ppre->di_inp_buf->vframe)
 		vf_i = ppre->di_inp_buf->vframe;
 
 	if (dim_afds() && dim_afds()->pre_check)
@@ -3878,7 +3906,7 @@ void dim_pre_de_process(unsigned int channel)
 		    ppre->di_chan2_buf_dup_p->vframe)
 			vf_chan2 = ppre->di_chan2_buf_dup_p->vframe;
 
-		if (ppre->di_wr_buf && ppre->di_wr_buf->vframe)
+		if (/*ppre->di_wr_buf && */ppre->di_wr_buf->vframe)
 			dim_afds()->en_pre_set(vf_i,
 					       vf_mem,
 					       vf_chan2,
@@ -4439,6 +4467,13 @@ static void pre_inp_canvas_config(struct vframe_s *vf)
 }
 #endif
 
+void pre_cfg_cvs(struct vframe_s *vf)
+{
+#ifdef CONFIG_AMLOGIC_MEDIA_MULTI_DEC
+	pre_inp_canvas_config(vf);
+#endif
+}
+
 static void pre_inp_mif_w(struct DI_MIF_S *di_mif, struct vframe_s *vf)
 {
 	if (vf->canvas0Addr != (u32)-1)
@@ -4882,7 +4917,7 @@ unsigned char dim_pre_de_buf_config(unsigned int channel)
 				return 0;
 			PR_INF("eos\n");
 			if ((ppre->cur_prog_flag == 0)		&&
-			    (ppre->field_count_for_cont > 1)) {
+			    (ppre->field_count_for_cont > 0)) {
 				add_eos_pre(channel);
 			} else if (ppre->prog_proc_type == 0x10	&&
 				   ppre->di_mem_buf_dup_p		&&
@@ -4915,7 +4950,7 @@ unsigned char dim_pre_de_buf_config(unsigned int channel)
 		}
 		bypassr = dim_is_bypass(di_buf->vframe, channel);
 		change_type = is_source_change(vframe, channel);
-		if ((!bypassr) && change_type && (!mm->cfg.fix_buf)) {
+		if ((!bypassr) && change_type) {
 			sgn = di_vframe_2_sgn(vframe);
 			if ((sgn != ppre->sgn_lv)	&&
 			    dim_afds()			&&
@@ -4925,14 +4960,17 @@ unsigned char dim_pre_de_buf_config(unsigned int channel)
 			     ((sgn <= EDI_SGN_HD) &&
 			      (ppre->sgn_lv == EDI_SGN_4K)))) {
 				ppre->sgn_lv = sgn;
-				re_build_buf(pch, sgn);
-				/*debug*/
-				//pre_run_flag = DI_RUN_FLAG_PAUSE;
-				//dimp_set(edi_mp_di_printk_flag, 1);
-				//cnt_rebuild = 0;
-				PR_INF("%s:rebuild:%d,sgn[%d]\n", __func__,
-				       mm->cfg.fix_buf, ppre->sgn_lv);
-				return 0;
+				if (!mm->cfg.fix_buf) {
+					re_build_buf(pch, sgn);
+					/*debug*/
+					//pre_run_flag = DI_RUN_FLAG_PAUSE;
+					//dimp_set(edi_mp_di_printk_flag, 1);
+					//cnt_rebuild = 0;
+					PR_INF("%s:rebuild:%d,sgn[%d]\n",
+					       __func__,
+					       mm->cfg.fix_buf, ppre->sgn_lv);
+					return 0;
+				}
 			} else if (sgn != ppre->sgn_lv) {
 				PR_INF("%s:%d->%d\n", __func__,
 				       ppre->sgn_lv, sgn);
@@ -5054,7 +5092,7 @@ unsigned char dim_pre_de_buf_config(unsigned int channel)
 		if ((di_bypass_state_get(channel) == 0)	&&
 		    change_type				&&
 		    (ppre->cur_prog_flag == 0)		&&
-		    /*(ppre->in_seq > 1)*/(ppre->field_count_for_cont > 1)) {
+		    /*(ppre->in_seq > 1)*/(ppre->field_count_for_cont > 0)) {
 			/* last is i */
 			add_eos_pre(channel);
 		}
@@ -5346,7 +5384,8 @@ unsigned char dim_pre_de_buf_config(unsigned int channel)
 					VIDTYPE_INTERLACE_BOTTOM;
 				di_buf_tmp->post_proc_flag = 0;
 				/*keep dec vf*/
-				di_buf_tmp->dec_vf_state = DI_BIT0;
+				if (cfgg(KEEP_DEC_VF))
+					di_buf_tmp->dec_vf_state = DI_BIT0;
 
 				ppre->di_inp_buf = di_buf;
 #ifdef DI_BUFFER_DEBUG
@@ -5488,7 +5527,8 @@ unsigned char dim_pre_de_buf_config(unsigned int channel)
 		}
 		/*keep dec vf*/
 		//di_buf->dec_vf_state = DI_BIT0;
-		ppre->di_inp_buf->dec_vf_state = DI_BIT0;
+		if (cfgg(KEEP_DEC_VF))
+			ppre->di_inp_buf->dec_vf_state = DI_BIT0;
 		if (ppre->input_size_change_flag)
 			di_buf->trig_post_update = 1;
 		else
@@ -5515,7 +5555,9 @@ unsigned char dim_pre_de_buf_config(unsigned int channel)
 	di_buf->sgn_lv		= ppre->sgn_lv;
 	ppre->di_wr_buf		= di_buf;
 	ppre->di_wr_buf->pre_ref_count = 1;
-
+#ifdef DBG_TEST_CRC_P
+	dbg_checkcrc(ppre->di_wr_buf, 2); //debug
+#endif
 #ifdef DI_BUFFER_DEBUG
 	dim_print("%s: %s[%d] => di_wr_buf\n", __func__,
 		  vframe_type_name[di_buf->type], di_buf->index);
@@ -6124,7 +6166,8 @@ irqreturn_t dim_post_irq(int irq, void *dev_instance)
 			return IRQ_HANDLED;
 	}
 
-	if (pst->state != EDI_PST_ST_WAIT_INT) {
+	if ((pst->state != EDI_PST_ST_WAIT_INT) &&
+	    (!pst->pst_tst_use)) {
 		PR_ERR("%s:ch[%d]:s[%d]\n", __func__, channel, pst->state);
 		ddbg_sw(EDI_LOG_TYPE_MOD, false);
 		return IRQ_HANDLED;
@@ -6312,6 +6355,7 @@ bool dim_cfg_pre_nv21(unsigned int cmd)
 
 	return false;
 }
+
 /**********************************************************
  * canvans
  *	set vfm canvas by config | planes | index
@@ -6375,6 +6419,7 @@ static void dimpst_fill_outvf(struct vframe_s *vfm,
 	struct canvas_config_s *cvsp;
 	unsigned int cvsh, cvsv, csize;
 	struct di_dev_s *de_devp = get_dim_de_devp();
+
 	memcpy(vfm, di_buf->vframe, sizeof(*vfm));
 
 	/* canvas */
@@ -6663,7 +6708,6 @@ int dim_post_process(void *arg, unsigned int zoom_start_x_lines,
 		else
 			di_height++;
 	}
-
 
 #ifdef DIM_OUT_NV21
 	/* nv 21*/
@@ -7517,15 +7561,17 @@ static void post_ready_buf_set(unsigned int ch, struct di_buf_s *di_buf)
 		vframe_ret->mem_handle = NULL;
 		vframe_ret->type |= VIDTYPE_DI_PW;
 		if (di_buf->flg_nv21) {
-			vframe_ret->plane_num = di_buf->vframe->plane_num;
+			//vframe_ret->plane_num = di_buf->vframe->plane_num;
 			vframe_ret->canvas0Addr = -1;
 			vframe_ret->canvas1Addr = -1;
+			#ifdef ERR_CODE
 			memcpy(&vframe_ret->canvas0_config[0],
 			       &di_buf->vframe->canvas0_config[0],
 			       sizeof(vframe_ret->canvas0_config[0]));
 			memcpy(&vframe_ret->canvas0_config[1],
 			       &di_buf->vframe->canvas0_config[1],
 			       sizeof(vframe_ret->canvas0_config[1]));
+			#endif
 
 		} else {
 			vframe_ret->plane_num = 1;
@@ -7911,6 +7957,8 @@ int dim_process_post_vframe(unsigned int channel)
 	}
 	if (ready_di_buf->post_proc_flag > 0) {
 		if ((ready_count >= buffer_keep_count) && flg_eos)  {
+			for (i = 0; i < 3; i++)
+				tmp_buf[i] = NULL;
 			i = 0;
 			di_que_list(channel, QUE_PRE_READY, &tmpa[0], &psize);
 
@@ -7927,14 +7975,15 @@ int dim_process_post_vframe(unsigned int channel)
 
 			if (!tmp_buf[1]->is_eos && tmp_buf[1]->di_buf_post) {
 				di_buf = tmp_buf[1]->di_buf_post;
-				dim_print("%s:eos:post_buf:t[%d]idx[%d]\n",
-					  __func__, di_buf->type,
-					  di_buf->index);
+
 				tmp_buf[1]->di_buf_post = NULL;
 				if (!di_buf) {
 					PR_ERR("%s: eos pst null\n", __func__);
 					return 0;
 				}
+				dim_print("%s:eos:post_buf:t[%d]idx[%d]\n",
+					  __func__, di_buf->type,
+					  di_buf->index);
 				memcpy(di_buf->vframe,
 				       tmp_buf[1]->vframe,
 				       sizeof(vframe_t));
@@ -8891,10 +8940,10 @@ static unsigned int dim_bypass_check(struct vframe_s *vf)
 	} else if ((vf->width > default_width) ||
 		   (vf->height > (default_height + 8))) {
 		reason = 4;
-//#ifdef P_NOT_SUPPORT
-	} else if (VFMT_IS_P(vf->type) && (di_dbg & DBG_M_DIS_P)) {
+#ifdef P_NOT_SUPPORT
+	} else if (VFMT_IS_P(vf->type)) {
 		reason = 8;
-//#endif//temp bypass p
+#endif//temp bypass p
 	/*true bypass for 720p above*/
 	} else if ((vf->flag & VFRAME_FLAG_GAME_MODE) &&
 		   (vf->width > 720)) {

@@ -131,6 +131,8 @@ enum EDI_CFG_TOP_IDX {
 	EDI_CFG_PAUSE_SRC_CHG,
 	EDI_CFG_4K,
 	EDI_CFG_POUT_FMT,
+	EDI_CFG_ALLOC_WAIT, /* alloc wait */
+	EDI_CFG_KEEP_DEC_VF,
 	EDI_CFG_END,
 };
 
@@ -460,14 +462,21 @@ struct di_hpst_s {
 	unsigned int last_pst_size;
 	/****************/
 	unsigned int cfg_cp	: 1;
-	unsigned int cfg_rot	: 1;
+	unsigned int cfg_rot	: 2;
 	unsigned int cfg_afbce	: 1; /*wr use afbce*/
-	unsigned int cfg_rev0	: 1;
 	unsigned int cfg_from	: 4;	/* enum DI_SRC_ID */
 
+	/*****/
 	unsigned int pst_copy	: 1;
-	unsigned int cfg_rev1	: 7;
-	unsigned int cfg_rev2	: 8;
+	unsigned int pst_tst_use: 2;
+	unsigned int cfg_out_enc: 1;
+
+	unsigned int cfg_out_fmt: 2;
+	unsigned int cfg_out_bit: 2; /**/
+	/*****/
+	unsigned int cfg_pip_nub: 4;
+	unsigned int cfg_rev2	: 4;
+	/*****/
 	unsigned int cfg_rev3	: 8;
 	/****************/
 };
@@ -1269,6 +1278,48 @@ enum QBF_MEM_Q_TYPE {
  * 2020-06-16 test
  ************************************************/
 
+struct dim_wmode_s {
+	//enum EDIM_TMODE		tmode;
+	unsigned int	buf_type;	/*add this to split kinds */
+	unsigned int	is_afbc		:1,
+		is_vdin			:1,
+		is_i			:1,
+		need_bypass		:1,
+		is_bypass		:1,
+		pre_bypass		:1,
+		post_bypass		:1,
+		flg_keep		:1, /*keep buf*/
+
+		trick_mode		:1,
+		prog_proc_config	:1, /*debug only: proc*/
+	/**************************************
+	 *prog_proc_config:	same as p_as_i?
+	 *1: process p from decoder as field
+	 *0: process p from decoder as frame
+	 ***************************************/
+		is_invert_tp		:1,
+		p_as_i			:1,
+		p_as_p			:1,
+		p_use_2i		:1,
+		is_angle		:1,
+		is_top			:1, /*include */
+		is_eos			:1,
+		is_eos_insert		:1, /* this is internal eos */
+		bypass			:1, /* is_bypass | need_bypass*/
+		reserved		:13;
+	unsigned int vtype;	/*vfm->type*/
+	//unsigned int h;	/*taget h*/
+	//unsigned int w;	/*taget w*/
+	unsigned int src_h;
+	unsigned int src_w;
+	unsigned int tgt_h;
+	unsigned int tgt_w;
+	unsigned int o_h;
+	unsigned int o_w;
+	unsigned int seq;
+	unsigned int seq_sgn;
+};
+
 enum EDIM_TMODE {
 	EDIM_TMODE_NONE,
 	EDIM_TMODE_1_PW_VFM,
@@ -1566,10 +1617,10 @@ struct di_data_l_s {
 #define DBG_M_MEM2		DI_BIT12	/* 2nd task mem*/
 #define DBG_M_WQ		DI_BIT14	/*work que*/
 #define DBG_M_PL		DI_BIT15
+#define DBG_M_AFBC		DI_BIT16
+#define DBG_M_COPY		DI_BIT17
 
-#define DBG_M_RESET_PRE		DI_BIT16
-#define DBG_M_DIS_P		DI_BIT17
-
+#define DBG_M_RESET_PRE		DI_BIT29
 extern unsigned int di_dbg;
 
 #define dbg_m(mark, fmt, args ...)		\
@@ -1602,6 +1653,8 @@ extern unsigned int di_dbg;
 #define dbg_wq(fmt, args ...)		dbg_m(DBG_M_WQ, fmt, ##args)
 #define dbg_pl(fmt, args ...)		dbg_m(DBG_M_PL, fmt, ##args)
 #define dbg_mem2(fmt, args ...)		dbg_m(DBG_M_MEM2, fmt, ##args)
+#define dbg_afbc(fmt, args ...)		dbg_m(DBG_M_AFBC, fmt, ##args)
+#define dbg_copy(fmt, args ...)		dbg_m(DBG_M_COPY, fmt, ##args)
 
 char *di_cfgx_get_name(enum EDI_CFGX_IDX idx);
 bool di_cfgx_get(unsigned int ch, enum EDI_CFGX_IDX idx);

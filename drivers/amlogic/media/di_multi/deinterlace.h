@@ -31,11 +31,11 @@
 #include "../deinterlace/di_pqa.h"
 //#include "di_pqa.h"
 
-
 /************************************************
  * config define
  ***********************************************/
 #define DIM_OUT_NV21	(1)
+//#define TEST_PIP	(1)
 
 /*trigger_pre_di_process param*/
 #define TRIGGER_PRE_BY_PUT			'p'
@@ -537,6 +537,19 @@ struct di_post_stru_s {
 	union hw_sc2_ctr_pst_s	pst_top_cfg;
 	union afbc_blk_s	en_cfg;
 	union afbc_blk_s	en_set;
+#ifdef TEST_PIP
+	/* mem cpy */
+	struct mem_cpy_s	cfg_cpy;
+	struct AFBCD_S		in_afbcd;
+	struct AFBCE_S		out_afbce;
+	struct DI_MIF_S		out_wrmif;
+	struct dim_fmt_s	fmt_in;
+	struct dim_fmt_s	fmt_out;
+	struct dim_cvsi_s	cvsi_in;
+	struct dim_cvsi_s	cvsi_out;
+	struct di_buf_s		in_buf;
+	struct vframe_s		in_buf_vf;
+#endif
 	struct di_win_s win_dis;
 };
 
@@ -749,7 +762,7 @@ struct di_buf_s *dim_get_buf(unsigned int channel,
 /*this is debug for buf*/
 /*#define DI_DEBUG_POST_BUF_FLOW	(1)*/
 #define OPS_LV1		(1)
-#define TEST_DISABLE_BYPASS_P	(1)
+//#define TEST_DISABLE_BYPASS_P	(1)
 
 void sc2_dbg_set(unsigned int val);
 bool sc2_dbg_is_en_pre_irq(void);
@@ -758,4 +771,9 @@ void sc2_dbg_pre_info(unsigned int val);
 void sc2_dbg_pst_info(unsigned int val);
 void hpre_timout_read(void);
 #define TEST_4K_NR	(1)
+//#define DBG_TEST_CRC	(1)
+//#define DBG_TEST_CRC_P	(1)
+
+//#define PRINT_BASIC	(1)
+
 #endif

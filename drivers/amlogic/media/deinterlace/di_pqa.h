@@ -323,6 +323,9 @@ struct afbcd_ctr_s {
 
 	unsigned int size_tab;
 	unsigned int size_info;
+	unsigned int blk_nub_total;	/*2020-08-24*/
+	unsigned int size_afbc_buf;	/*2020-08-24*/
+
 	unsigned int l_vtype;
 	unsigned int l_vt_mem;
 	unsigned int l_vt_chan2;
@@ -375,8 +378,11 @@ struct afd_ops_s {
 	bool (*is_used_chan2)(void);
 	bool (*is_free)(void);/*?*/
 	bool (*is_cfg)(enum EAFBC_CFG cfg_cmd);
-	unsigned int (*count_info_size)(unsigned int w, unsigned int h);
-	unsigned int (*count_tab_size)(unsigned int buf_size);
+	unsigned int (*cnt_info_size)(unsigned int w, unsigned int h,
+				      unsigned int *blk_total);
+	unsigned int (*cnt_tab_size)(unsigned int buf_size);
+	unsigned int (*cnt_buf_size)(unsigned int format,
+				     unsigned int blk_nub_total);
 	unsigned int (*int_tab)(struct device *dev,
 				struct afbce_map_s *pcfg);
 	unsigned int (*tab_cnt_crc)(struct device *dev,

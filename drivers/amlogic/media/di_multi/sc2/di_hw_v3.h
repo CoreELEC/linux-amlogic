@@ -71,7 +71,6 @@ enum EAFBCE_INDEX_V3 {
 
 #define DIM_ERR		(0xffffffff)
 
-
 #ifdef MARK_SC2
 struct SHRK_S {
 	u32 hsize_in;
@@ -307,6 +306,8 @@ struct hw_ops_s {
 			     const struct reg_acc *op);
 	void (*prepost_link_afbc)(struct DI_PREPST_AFBC_S *pafcfg,
 				  const struct reg_acc *op);
+	void (*memcpy_rot)(struct mem_cpy_s *cfg);
+	void (*memcpy)(struct mem_cpy_s *cfg);
 };
 
 bool di_attach_ops_v3(const struct hw_ops_s **ops);

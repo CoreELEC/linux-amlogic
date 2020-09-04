@@ -176,6 +176,7 @@ static bool n_in(struct buf_que_s *pqb, struct qs_cls_s *p, union q_buf_u ubuf)
 		msg.err_id	= QS_ERR_INDEX_OVERFLOW;
 		msg.qname	= p->name;
 		msg.index1	= buf_index;
+		msg.index2	= 0;
 		qs_err_add(p->plog, &msg);
 		PR_ERR_Q("%s can't support %d\n", __func__, buf_index);
 
@@ -222,6 +223,7 @@ static bool n_out_some(struct buf_que_s *pqb, struct qs_cls_s *p,
 		msg.err_id	= QS_ERR_INDEX_OVERFLOW;
 		msg.qname	= p->name;
 		msg.index1	= buf_index;
+		msg.index2	= 0;
 		qs_err_add(p->plog, &msg);
 		PR_ERR_Q("%s can't support %d\n", __func__, buf_index);
 		return false;
@@ -410,6 +412,7 @@ static bool np_in(struct buf_que_s *pqb, struct qs_cls_s *p, union q_buf_u ubuf)
 		msg.err_id	= QS_ERR_INDEX_OVERFLOW;
 		msg.qname	= p->name;
 		msg.index1	= buf_index;
+		msg.index2	= 0;
 		qs_err_add(p->plog, &msg);
 		PR_ERR_Q("%s can't support %d\n", __func__, buf_index);
 
@@ -613,6 +616,7 @@ static bool f_in(struct buf_que_s *pqb, struct qs_cls_s *p, union q_buf_u ubuf)
 		msg.err_id	= QS_ERR_FIFO_IN;
 		msg.qname	= p->name;
 		msg.index1	= buf_index;
+		msg.index2	= 0;
 		qs_err_add(p->plog, &msg);
 
 		PR_ERR_Q("%s:%s:%d\n", __func__, p->name, buf_index);
@@ -641,7 +645,8 @@ static bool f_out(struct buf_que_s *pqb, struct qs_cls_s *p,
 		msg.func_id	= QS_FUNC_F_O;
 		msg.err_id	= QS_ERR_FIFO_O;
 		msg.qname	= p->name;
-		//msg.index1	= buf_index;
+		msg.index1	= 0;
+		msg.index2	= 0;
 		qs_err_add(p->plog, &msg);
 
 		PR_ERR_Q("%s:%s\n", __func__, p->name);
@@ -659,17 +664,20 @@ static bool f_peek(struct buf_que_s *pqb, struct qs_cls_s *p,
 	unsigned int index;
 	struct qs_err_msg_s msg;
 
-	pbuf = NULL;
-	if (kfifo_is_empty(&p->f.fifo))
+	if (kfifo_is_empty(&p->f.fifo)) {
+		pbuf = NULL;
 		return false;
+	}
 
 	if (kfifo_out_peek(&p->f.fifo, &index, tst_que_ele) !=
 	    tst_que_ele) {
 		msg.func_id	= QS_FUNC_F_PEEK;
 		msg.err_id	= QS_ERR_FIFO_PEEK;
 		msg.qname	= p->name;
-		//msg->index1	= buf_index;
+		msg.index1	= 0;
+		msg.index2	= 0;
 		qs_err_add(p->plog, &msg);
+		pbuf = NULL;
 		return false;
 	}
 	*pbuf = pqb->pbuf[index];
@@ -799,6 +807,7 @@ static bool fp_in(struct buf_que_s *pqb, struct qs_cls_s *p, union q_buf_u ubuf)
 		msg.err_id	= QS_ERR_FIFO_IN;
 		msg.qname	= p->name;
 		msg.index1	= buf_add;
+		msg.index2	= 0;
 		qs_err_add(p->plog, &msg);
 
 		PR_ERR_Q("%s:%s:%p\n", __func__, p->name, ubuf.qbc);
@@ -829,7 +838,8 @@ static bool fp_out(struct buf_que_s *pqb, struct qs_cls_s *p,
 		msg.func_id	= QS_FUNC_F_O;
 		msg.err_id	= QS_ERR_FIFO_O;
 		msg.qname	= p->name;
-		//msg.index1	= buf_index;
+		msg.index1	= 0;
+		msg.index2	= 0;
 		qs_err_add(p->plog, &msg);
 
 		PR_ERR_Q("%s:%s\n",
@@ -859,7 +869,8 @@ static bool fp_peek(struct buf_que_s *pqb, struct qs_cls_s *p,
 		msg.func_id	= QS_FUNC_F_PEEK;
 		msg.err_id	= QS_ERR_FIFO_PEEK;
 		msg.qname	= p->name;
-		//msg->index1	= buf_index;
+		msg.index1	= 0;
+		msg.index2	= 0;
 		qs_err_add(p->plog, &msg);
 		return false;
 	}

@@ -474,8 +474,35 @@ union hw_sc2_ctr_pst_s {
 	unsigned int afbc_if2		: 1;
 	unsigned int afbc_wr		: 1;
 
-	unsigned int reserve2		: 2;
+	unsigned int is_if0_4k		: 1;
+	unsigned int is_if1_4k		: 1;
+	unsigned int is_if2_4k		: 1;
+	unsigned int reserve2		: 1;
+
+	unsigned int reserve3		: 16;
 	} b;
+};
+
+struct mem_cpy_s {
+	struct AFBCD_S	*in_afbcd;
+	struct vframe_s *afbcd_vf;
+	enum EAFBC_DEC afbcd_dec;
+	struct AFBCD_CFG_S *afbcd_cfg;
+
+	struct AFBCE_S	*out_afbce;
+	struct DI_MIF_S	*in_rdmif;
+	//struct DI_MIF_S	*out_wrmif;
+	struct DI_SIM_MIF_s *out_wrmif;
+
+	unsigned int hold_line	: 4;
+	unsigned int afbc_en	: 1;
+	unsigned int en_print	: 1;
+	unsigned int rev1	: 2;
+
+	unsigned int port	: 8;
+	unsigned int rev2	: 16;
+
+	const struct reg_acc *opin;
 };
 
 /**********************************************/
@@ -629,6 +656,7 @@ enum EDI_POST_FLOW {
 	EDI_POST_FLOW_STEP1_STOP,
 	EDI_POST_FLOW_STEP2_START,
 	EDI_POST_FLOW_STEP3_IRQ,
+	EDI_POST_FLOW_STEP4_CP_START, /*add for test copy*/
 };
 
 void di_post_set_flow(unsigned int post_wr_en, enum EDI_POST_FLOW step);

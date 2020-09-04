@@ -185,6 +185,14 @@ void dim_mp_update_reg(void);
 void dim_mp_update_post(void);
 
 void dip_init_pq_ops(void);
-bool dbg_checkcrc(struct di_buf_s *di_buf);
+bool dbg_checkcrc(struct di_buf_s *di_buf, unsigned int cnt);
 
+void dbg_cp_4k(struct di_ch_s *pch, unsigned int mode);
+void dbg_afbc_update_level1(struct vframe_s *vf,
+			    enum EAFBC_DEC dec);//debug for copy
+void dbg_afbce_update_level1(struct vframe_s *vf,
+			     const struct reg_acc *op,
+			     enum EAFBC_ENC enc);
+void pre_cfg_cvs(struct vframe_s *vf);//debug only
+void dbg_pip_func(struct di_ch_s *pch, unsigned int mode);
 #endif	/*__DI_PRC_H__*/

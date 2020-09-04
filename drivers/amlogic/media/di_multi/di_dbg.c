@@ -957,6 +957,93 @@ static int seq_file_mif_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
+static ssize_t dbg_crc_store(struct file *file, const char __user *userbuf,
+			     size_t count, loff_t *ppos)
+{
+	unsigned int val;
+	char buf[80];
+	int ret;
+	int *chp;
+	unsigned int ch;
+//	struct dim_dbg_cvs_s *dbg;
+	struct di_ch_s *pch;
+	unsigned int mode;
+	int i;
+
+	count = min_t(size_t, count, (sizeof(buf) - 1));
+	if (copy_from_user(buf, userbuf, count))
+		return -EFAULT;
+
+	buf[count] = 0;
+	chp = (int *)file->private_data;
+	//pr_info("%s:ch[%d]\n", __func__, *chp);
+	ch = *chp;
+
+	ret = kstrtouint(buf, 0, &val);
+	if (ret) {
+		//pr_info("war:please enter val\n");
+		return 0;
+	}
+	pch = get_chdata(ch);
+	if (val < 0xf)
+		return count;
+
+	mode = ((val & 0xfff) >> 4);
+	pr_info("4k test:rotation:0x%x, 0x%x\n", mode, val);
+	if (val & DI_BIT16) {
+		//pr_info("5000\n");
+		for (i = 0; i < 5000; i++) {
+			dbg_cp_4k(pch, mode);
+			usleep_range(5000, 5001);
+		}
+	} else {
+		dbg_cp_4k(pch, mode);
+	}
+	return count;
+}
+
+static ssize_t dbg_pip_store(struct file *file, const char __user *userbuf,
+			     size_t count, loff_t *ppos)
+{
+	unsigned int val;
+	char buf[80];
+	int ret;
+	int *chp;
+	unsigned int ch;
+//	struct dim_dbg_cvs_s *dbg;
+	struct di_ch_s *pch;
+	unsigned int mode;
+	unsigned int i;
+
+	count = min_t(size_t, count, (sizeof(buf) - 1));
+	if (copy_from_user(buf, userbuf, count))
+		return -EFAULT;
+
+	buf[count] = 0;
+	chp = (int *)file->private_data;
+	//pr_info("%s:ch[%d]\n", __func__, *chp);
+	ch = *chp;
+
+	ret = kstrtouint(buf, 0, &val);
+	if (ret) {
+		//pr_info("war:please enter val\n");
+		return 0;
+	}
+	pch = get_chdata(ch);
+	//dbg = &pch->dbg_data.dbg_cvs;
+
+	mode = val & 0xffff;
+	if (val & DI_BIT16) {
+		for (i = 0; i < 200; i++) {
+			dbg_pip_func(pch, mode);
+			usleep_range(10000, 10001);
+		}
+	} else {
+		dbg_pip_func(pch, mode);
+	}
+	return count;
+}
+
 /********************************/
 #define DEFINE_SEQ_SHOW_ONLY(__name) \
 static int __name ## _open(struct inode *inode, struct file *file)	\
@@ -1981,6 +2068,8 @@ DEFINE_SEQ_SHOW_ONLY(mif_if2_reg);
 DEFINE_SEQ_SHOW_ONLY(reg_contr);
 
 DEFINE_SEQ_SHOW_ONLY(dbg_mif_print);
+DEFINE_STORE_ONLY(dbg_crc);
+DEFINE_STORE_ONLY(dbg_pip);
 /**********************/
 
 struct di_dbgfs_files_t {
@@ -2053,6 +2142,8 @@ static const struct di_dbgfs_files_t di_debugfs_files[] = {
 	{"mpxr", S_IFREG | 0644, &mpxr_fops},
 	{"mpxw", S_IFREG | 0644, &mpxw_fops},
 	{"vfmc", S_IFREG | 0644, &seq_file_curr_vframe_fops},
+	{"dbg_crc", S_IFREG | 0644, &dbg_crc_fops},
+	{"dbg_pip", S_IFREG | 0644, &dbg_pip_fops}
 };
 
 void didbg_fs_init(void)

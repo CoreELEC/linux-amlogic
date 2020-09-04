@@ -722,7 +722,8 @@ static void dim_buf_set_addr(unsigned int ch, struct di_buf_s *buf_p)
 			afbce_map.size_tab	= mm->cfg.afbct_size;
 
 			buf_p->afbc_crc =
-				dim_afds()->int_tab(devp->dev, &afbce_map);
+				dim_afds()->int_tab(&devp->pdev->dev,
+						    &afbce_map);
 		} else {
 			buf_p->afbc_crc = 0;
 		}
@@ -750,18 +751,6 @@ static void dim_buf_set_addr(unsigned int ch, struct di_buf_s *buf_p)
 			buf_p->insert_adr =
 				buf_p->mcinfo_adr + mm->cfg.mcinfo_size;
 		}
-		#ifdef MARK_HIS
-		/*********************************************/
-		/*debug for inset bufer*/
-		if (dim_afds() && mm->cfg.pre_inser_size) {
-			afbce_map.bodyadd = buf_p->nr_adr;
-			afbce_map.tabadd = buf_p->insert_adr;
-			afbce_map.size_buf = mm->cfg.nr_size;
-			afbce_map.size_tab = (mm->cfg.pre_inser_size - 100);
-			dim_afds()->int_tab(devp->dev, &afbce_map);
-		}
-		/*********************************************/
-		#endif
 		//
 		for (i = 0; i < 3; i++)
 			buf_p->canvas_width[i] = mm->cfg.canvas_width[i];
@@ -773,7 +762,7 @@ static void dim_buf_set_addr(unsigned int ch, struct di_buf_s *buf_p)
 		buf_p->afbc_adr = buf_p->afbct_adr + mm->cfg.pst_afbct_size;
 		buf_p->dw_adr = buf_p->afbc_adr + mm->cfg.pst_afbci_size;
 		buf_p->nr_adr = buf_p->dw_adr + mm->cfg.dw_size;
-		buf_p->tab_size = mm->cfg.afbct_size;
+		buf_p->tab_size = mm->cfg.pst_afbct_size;
 
 		if (dim_afds() && mm->cfg.pst_afbct_size) {
 			afbce_map.bodyadd	= buf_p->nr_adr;
@@ -782,7 +771,8 @@ static void dim_buf_set_addr(unsigned int ch, struct di_buf_s *buf_p)
 			afbce_map.size_tab	= mm->cfg.pst_afbct_size;
 
 			buf_p->afbc_crc =
-				dim_afds()->int_tab(devp->dev, &afbce_map);
+				dim_afds()->int_tab(&devp->pdev->dev,
+						    &afbce_map);
 		} else {
 			buf_p->afbc_crc = 0;
 		}
@@ -799,10 +789,10 @@ static void dim_buf_set_addr(unsigned int ch, struct di_buf_s *buf_p)
 		 buf_p->index,
 		 buf_p->buf_is_i,
 		 buf_p->nr_adr);
-	dbg_mem2("\t:i_ad[0x%lx]:t_add[0x%lx]:nr[0x%lx]:crc:0x%x\n",
+	dbg_mem2("\t:i_ad[0x%lx]:t_add[0x%lx]:dw[0x%lx]:crc:0x%x\n",
 		 buf_p->afbc_adr,
 		 buf_p->afbct_adr,
-		 buf_p->nr_adr,
+		 buf_p->dw_adr,
 		 buf_p->afbc_crc);
 	dbg_mem2("\t:mc_info_add[0x%lx]:insert_addr[0x%lx]\n",
 		 buf_p->mcinfo_adr,
@@ -822,6 +812,9 @@ static void dim_buf_set_addr(unsigned int ch, struct di_buf_s *buf_p)
 		 mm->cfg.nr_size);
 	#endif
 	//msleep(100);
+	#ifdef DBG_TEST_CRC_P
+	dbg_checkcrc(buf_p, 0);
+	#endif
 }
 
 void bufq_mem_clear(struct di_ch_s *pch)
@@ -1220,7 +1213,7 @@ void mem_cfg_realloc_wait(struct di_ch_s *pch)
 			//di_buf =
 				//di_que_out_to_di_buf(ch, QUE_PRE_NO_BUF_WAIT);
 			di_buf = di_que_peek(ch, QUE_PRE_NO_BUF_WAIT);
-			if (di_buf->afbc_crc) {
+			if (cfgg(ALLOC_WAIT) && di_buf->afbc_crc) {
 				if (!time_after_eq(jiffies,
 						   di_buf->jiff + HZ / 5))
 					break;
@@ -1239,7 +1232,7 @@ void mem_cfg_realloc_wait(struct di_ch_s *pch)
 			//di_buf =
 				//di_que_out_to_di_buf(ch, QUE_PRE_NO_BUF_WAIT);
 			di_buf = di_que_peek(ch, QUE_PST_NO_BUF_WAIT);
-			if (di_buf->afbc_crc) {
+			if (cfgg(ALLOC_WAIT) && di_buf->afbc_crc) {
 				if (!time_after_eq(jiffies,
 						   di_buf->jiff + HZ / 5))
 					break;

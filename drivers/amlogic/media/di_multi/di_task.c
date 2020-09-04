@@ -578,7 +578,9 @@ static bool mtask_get_cmd(unsigned int ch, struct mtsk_cmd_s *cmd)
 
 	fcmd = &tsk->fcmd[ch];
 	if (!fcmd->flg) {
-		//PR_ERR("%s:no fifo\n", __func__);
+#ifdef PRINT_BASIC
+		PR_ERR("%s:no fifo\n", __func__);
+#endif
 		return false;
 	}
 
@@ -615,17 +617,7 @@ static void mtask_polling_cmd(unsigned int ch)
 	for (i = 0; i < MAX_KFIFO_L_CMD_NUB; i++) {
 		if (!mtask_get_cmd(ch, &blk_cmd))
 			break;
-		#ifdef MARK_HIS
-		if (cmdbyte.b.cmd == ECMD_BLK_ALLOC) {
-			fcmd->alloc_cmd = true;
-			fcmd->reg_nub = cmdbyte.b.nub;
-			fcmd->reg_page = cmdbyte.b.page;
-		} else if (cmdbyte.b.cmd == ECMD_BLK_RELEASE) {
-			fcmd->release_cmd = true;
-		} else {
-			PR_ERR("%s\n", __func__);
-		}
-		#endif
+
 		blk_polling(ch, &blk_cmd);
 	}
 }

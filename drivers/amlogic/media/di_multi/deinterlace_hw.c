@@ -3994,6 +3994,8 @@ void di_post_set_flow(unsigned int post_wr_en, enum EDI_POST_FLOW step)
 		WR(DI_POST_CTRL, 0x80000045);
 		WR(DI_POST_GL_CTRL, 0xc0000001);
 		break;
+	default:
+		break;
 	}
 }
 #endif

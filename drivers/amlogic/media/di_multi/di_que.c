@@ -953,7 +953,9 @@ void queue_in(unsigned int channel, struct di_buf_s *di_buf, int queue_idx)
 			}
 		}
 		if (i == MAX_QUEUE_POOL_SIZE) {
-			//PR_ERR("%s: Error\n", __func__);
+#ifdef PRINT_BASIC
+			PR_ERR("%s: Error\n", __func__);
+#endif
 			if (dim_vcry_get_flg() == 0) {
 				dim_vcry_set_log_reason(9);
 				dim_vcry_set_log_q_idx(queue_idx);

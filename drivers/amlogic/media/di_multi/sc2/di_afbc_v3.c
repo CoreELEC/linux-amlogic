@@ -371,7 +371,9 @@ static bool src_i_set(struct vframe_s *vf)
 	struct di_buf_s *di_buf;
 
 	if (!vf->private_data) {
-		//PR_ERR("%s:novf\n", __func__);
+#ifdef PRINT_BASIC
+		PR_ERR("%s:novf\n", __func__);
+#endif
 		return false;
 	}
 
@@ -382,6 +384,7 @@ static bool src_i_set(struct vframe_s *vf)
 
 	return ret;
 }
+
 static const unsigned int reg_afbc[AFBC_DEC_NUB][AFBC_REG_INDEX_NUB] = {
 	{
 		AFBC_ENABLE,
@@ -895,7 +898,9 @@ static bool afbc_is_supported(void)
 	struct afbcd_ctr_s *pafd_ctr = di_get_afd_ctr();
 
 	if (!pafd_ctr || is_cfg(EAFBC_CFG_DISABLE)) {
-		//dim_print("%s:false\n", __func__);
+#ifdef PRINT_BASIC
+		dim_print("%s:false\n", __func__);
+#endif
 		return false;
 	}
 	if (pafd_ctr->fb.ver != AFBCD_NONE)
@@ -1115,7 +1120,9 @@ static void afbc_sgn_mode_set(unsigned int sgn_mode)
 		memcpy(&pafd_ctr->en_sgn,
 		       &cafbc_cfg_sgn[sgn_mode], sizeof(pafd_ctr->en_sgn));
 	} else {
-		//PR_ERR("%s:overflow %d\n", __func__, sgn_mode);
+#ifdef PRINT_BASIC
+		PR_ERR("%s:overflow %d\n", __func__, sgn_mode);
+#endif
 		pafd_ctr->en_sgn.d8 = 0;
 	}
 }
@@ -1138,19 +1145,6 @@ static unsigned char afbc_cnt_sgn_mode(unsigned int sgn)
 
 static void afbc_cfg_mode_set(unsigned int mode, union afbc_blk_s *en_cfg)
 {
-#ifdef MARK_SC2
-	struct afbcd_ctr_s *pafd_ctr;
-
-	pafd_ctr = &di_afdp->ctr;
-
-	if (mode <= AFBC_WK_6D_NV21) {
-		memcpy(&pafd_ctr->en_cfg,
-		       &cafbc_cfg_mode[mode], sizeof(pafd_ctr->en_cfg));
-	} else {
-		//PR_ERR("%s:overflow %d\n", __func__, mode);
-		pafd_ctr->en_cfg.d8 = 0;
-	}
-#endif
 	if (!en_cfg)
 		return;
 
@@ -1188,6 +1182,15 @@ static void afbc_get_mode_from_cfg(void)
 			pafd_ctr->fb.mode = AFBC_WK_6D_ALL;
 		else if (is_cfg(EAFBC_CFG_6DEC_1ENC3))
 			pafd_ctr->fb.mode = AFBC_WK_6D_NV21;
+	} else {
+		if (pafd_ctr->fb.ver >= AFBCD_V5)
+			pafd_ctr->fb.mode = AFBC_WK_6D_NV21;
+		else if (pafd_ctr->fb.ver >= AFBCD_V4)
+			pafd_ctr->fb.mode = AFBC_WK_P;
+		else if (pafd_ctr->fb.ver >= AFBCD_V1)
+			pafd_ctr->fb.mode = AFBC_WK_IN;
+		else
+			pafd_ctr->fb.mode = AFBC_WK_NONE;
 	}
 }
 
@@ -1210,7 +1213,6 @@ static void afbc_prob(unsigned int cid, struct afd_s *p)
 		memcpy(&pafd_ctr->fb, &cafbc_v5_sc2, sizeof(pafd_ctr->fb));
 		pafd_ctr->fb.mode = AFBC_WK_6D_NV21;
 		//AFBC_WK_6D_ALL;//AFBC_WK_IN;//
-
 	} else if (IS_IC_EF(cid, TM2B)) {
 		afbc_cfg = 0;
 		memcpy(&pafd_ctr->fb, &cafbc_v4_tm2, sizeof(pafd_ctr->fb));
@@ -1545,6 +1547,11 @@ static void afbc_update_level1(struct vframe_s *vf, enum EAFBC_DEC dec)
 	reg_wr(reg[EAFBC_BODY_BADDR], vf->compBodyAddr >> 4);
 }
 
+void dbg_afbc_update_level1(struct vframe_s *vf, enum EAFBC_DEC dec)
+{
+	afbc_update_level1(vf, dec);
+}
+
 /* ary add for v5 sc2 */
 struct AFBCD_CFG_S {
 	unsigned int pip_src_mode;
@@ -1770,13 +1777,6 @@ static u32 enable_afbc_input_local(struct vframe_s *vf, enum EAFBC_DEC dec,
 	       0x80 << (u + 10)	|
 	       0x80 << v);
 
-	u = (vf->bitdepth >> (BITDEPTH_U_SHIFT)) & 0x3;
-	v = (vf->bitdepth >> (BITDEPTH_V_SHIFT)) & 0x3;
-	reg_wr(reg[EAFBC_DEC_DEF_COLOR],
-	       0x3FF00000	| /*Y,bit20+*/
-	       0x80 << (u + 10)	|
-	       0x80 << v);
-
 	/* chroma formatter */
 	reg_wr(reg[EAFBC_VD_CFMT_CTRL],
 	       (rpt_pix << 28)	|
@@ -1819,7 +1819,7 @@ static u32 enable_afbc_input_local(struct vframe_s *vf, enum EAFBC_DEC dec,
 	reg_wr(reg[EAFBC_HEAD_BADDR], vf->compHeadAddr >> 4);
 	reg_wr(reg[EAFBC_BODY_BADDR], vf->compBodyAddr >> 4);
 
-	if (pafd_ctr->fb.ver >= AFBCD_V5) {
+	if (pafd_ctr->fb.ver >= AFBCD_V5 && cfg) {
 		regs_ofst = afbcd_v5_get_offset(dec);
 		reg_wrb((regs_ofst + AFBCDM_IQUANT_ENABLE),
 			(cfg->reg_lossy_en & 0x1), 0, 1);//lossy_luma_en
@@ -1954,7 +1954,7 @@ static u32 enable_afbc_input(struct vframe_s *inp_vf,
 	} else {
 		/* AFBCD_V5 */
 		if (!pafd_ctr->en_set.d8) {
-			dim_print("%s:%d\n", pafd_ctr->en_set.d8);
+			dim_print("%s:%d\n", __func__, pafd_ctr->en_set.d8);
 			afbc_sw(false);
 			return false;
 		}
@@ -2151,7 +2151,7 @@ static void afbc_pst_check_chg_l(struct vframe_s *if0_vf,
 		pctr->b.pst_chg_if1	= 3;
 		pctr->b.pst_chg_if2	= 3;
 	}
-#ifdef MARK_SC2
+#ifdef PRINT_BASIC
 	di_print("%s:\n", __func__);
 	di_print("\tif0:type[0x%x]\n", if0_vf->type);
 	di_print("\t\t:body[0x%x] inf[0x%x]\n",
@@ -2696,6 +2696,95 @@ static void afbc_reg_sw(bool on)
 	}
 }
 
+/*********************************************
+ * size v2 2020-08-24
+ ********************************************/
+static unsigned int afbc_count_info_size(unsigned int w, unsigned int h,
+					 unsigned int *blk_total)
+{
+	unsigned int length = 0;
+	struct afbcd_ctr_s *pafd_ctr = di_get_afd_ctr();
+
+	unsigned int blk_num_total, blk_hsize, blk_vsize;
+	unsigned int blk_hsize_align, blk_vsize_align;
+
+	if (!afbc_is_supported() ||
+	    ((pafd_ctr->fb.mode < AFBC_WK_P) && (!cfgg(FIX_BUF)))) {
+		pafd_ctr->blk_nub_total	= 0;
+		pafd_ctr->size_info	= 0;
+		return 0;
+	}
+	blk_hsize  = ((w + 31) >> 5);//hsize 32 ?? ??32
+	blk_vsize  = ((h + 3) >> 2);//size  4  ?? ??4
+
+	blk_hsize_align   = ((blk_hsize + 1) >> 1) << 1;//2??
+	blk_vsize_align   = ((blk_vsize + 15) >> 4) << 4;//8??
+	blk_num_total = blk_hsize_align * blk_vsize_align;
+
+	length	= blk_num_total * 4;
+	length	= PAGE_ALIGN(length); //ary add 2020-08-26
+	pafd_ctr->blk_nub_total = blk_num_total;
+	*blk_total = blk_num_total;
+	pafd_ctr->size_info = length;
+	return length;
+}
+
+static unsigned int v2_afbc_count_buffer_size(unsigned int format,
+					      unsigned int blk_nub_total)
+{
+	struct afbcd_ctr_s *pafd_ctr = di_get_afd_ctr();
+	unsigned int sblk_num, src_bits, each_blk_bytes, body_buffer_size;
+	unsigned int fmt_mode, compbits;
+
+	if (!afbc_is_supported() ||
+	    ((pafd_ctr->fb.mode < AFBC_WK_P) && (!cfgg(FIX_BUF)))) {
+		pafd_ctr->size_afbc_buf	= 0;
+		return 0;
+	}
+
+	fmt_mode = format & 0x0f;
+	compbits = (format > 4) & 0x0f;
+	if (!fmt_mode) /*4:2:0*/
+		sblk_num = 12;
+	else if (fmt_mode == 1)	/*4:2:2*/
+		sblk_num = 16;
+	else			/*4:4:4*/
+		sblk_num = 24;
+
+	if (compbits == 0)
+		src_bits = 8;
+	else if (compbits == 1)
+		src_bits = 9;
+	else
+		src_bits = 10;
+
+	each_blk_bytes = ((((sblk_num * 16 * src_bits + 7) >> 3) +
+			   63) >> 6) << 6;
+	body_buffer_size = ((blk_nub_total * each_blk_bytes) * 113 + 99) / 100;
+	PR_INF("%s:size=0x%x\n", __func__, body_buffer_size);
+	pafd_ctr->size_afbc_buf = body_buffer_size;
+
+	return body_buffer_size;
+}
+
+static unsigned int afbc_count_tab_size(unsigned int buf_size)
+{
+	unsigned int length = 0;
+	struct afbcd_ctr_s *pafd_ctr = di_get_afd_ctr();
+
+	/* tmp: large */
+	if (!afbc_is_supported() ||
+	    ((pafd_ctr->fb.mode < AFBC_WK_P) && (!cfgg(FIX_BUF))))
+		return 0;
+
+	length = PAGE_ALIGN(((buf_size + 0xfff) >> 12) *
+			    sizeof(unsigned int));
+
+	pafd_ctr->size_tab = length;
+	return length;
+}
+
+#ifdef HIST_CODE
 static unsigned int afbc_count_info_size(unsigned int w, unsigned int h)
 {
 	unsigned int length = 0;
@@ -2728,13 +2817,14 @@ static unsigned int afbc_count_tab_size(unsigned int buf_size)
 	pafd_ctr->size_tab = length;
 	return length;
 }
+#endif
 
 static unsigned int afbc_int_tab(struct device *dev,
 				 struct afbce_map_s *pcfg)
 {
 	bool flg = 0;
 	unsigned int *p;
-	int i, cnt, last;
+	unsigned int i, cnt, last;
 	unsigned int body;
 	struct afbcd_ctr_s *pafd_ctr = di_get_afd_ctr();
 	unsigned int crc = 0;
@@ -2754,7 +2844,6 @@ static unsigned int afbc_int_tab(struct device *dev,
 				   pcfg->size_tab,
 				   DMA_TO_DEVICE);
 
-	//p = (unsigned int *)dim_vmap(pcfg->tabadd, pcfg->size_buf, &flg);
 	p = (unsigned int *)dim_vmap(pcfg->tabadd, pcfg->size_tab, &flg);
 	if (!p) {
 		pafd_ctr->b.enc_err = 1;
@@ -2762,18 +2851,19 @@ static unsigned int afbc_int_tab(struct device *dev,
 		return 0;
 	}
 
-	cnt = (pcfg->size_buf * 2 + 0xfff) >> 12;
+	cnt = (pcfg->size_buf + 0xfff) >> 12;
 	body = (unsigned int)(pcfg->bodyadd >> 12);
 	for (i = 0; i < cnt; i++) {
 		*(p + i) = body;
 		crc_tmp += body;
 		body++;
 	}
-	last = pcfg->size_tab - (cnt * sizeof(unsigned int));
-	crc = (unsigned int)crc_tmp;
 
-	//memset((p + cnt), 0, last);
-	memset((p + cnt), body, last);
+	crc = (unsigned int)crc_tmp;
+	last = pcfg->size_tab - (cnt * sizeof(unsigned int));
+
+	memset((p + cnt), 0, last);
+	//memset((p + cnt), body, last);
 
 	/*debug*/
 	#ifdef DBG_AFBC
@@ -2808,6 +2898,10 @@ static unsigned int afbc_tab_cnt_crc(struct device *dev,
 	unsigned int fist_s_pos = 0, right_cnt = 0;
 
 	//p = (unsigned int *)dim_vmap(pcfg->tabadd, pcfg->size_buf, &flg);
+	dma_sync_single_for_cpu(dev,
+				pcfg->tabadd,
+				pcfg->size_tab,
+				DMA_FROM_DEVICE);
 	p = (unsigned int *)dim_vmap(pcfg->tabadd, pcfg->size_tab, &flg);
 	if (!p) {
 		pr_error("%s:vmap:0x%lx\n", __func__, pcfg->tabadd);
@@ -2815,7 +2909,7 @@ static unsigned int afbc_tab_cnt_crc(struct device *dev,
 	}
 	if (!pcfg->size_tab)
 		return 0;
-	cnt = (pcfg->size_buf * 2 + 0xfff) >> 12;
+	cnt = (pcfg->size_buf + 0xfff) >> 12;
 	body = (unsigned int)(pcfg->bodyadd >> 12);
 	for (i = 0; i < cnt; i++) {
 		if (check_mode == 1) {
@@ -2857,7 +2951,7 @@ static unsigned int afbc_tab_cnt_crc(struct device *dev,
 	return crc;
 }
 
-bool dbg_checkcrc(struct di_buf_s *di_buf)
+bool dbg_checkcrc(struct di_buf_s *di_buf, unsigned int cnt)
 {
 	struct di_dev_s *devp = get_dim_de_devp();
 	struct afbce_map_s pcfg;
@@ -2874,10 +2968,11 @@ bool dbg_checkcrc(struct di_buf_s *di_buf)
 	else if (!pcfg.size_tab)
 		return false;
 
-	crc = afbc_tab_cnt_crc(devp->dev, &pcfg, 1, di_buf->afbc_crc);
+	crc = afbc_tab_cnt_crc(&devp->pdev->dev, &pcfg, 1, di_buf->afbc_crc);
 
 	if (crc != di_buf->afbc_crc) {
-		PR_ERR("%s:0x%x->0x%x\n", __func__, crc, di_buf->afbc_crc);
+		PR_ERR("%s:cnt[%d],0x%x->0x%x\n",
+		       __func__, cnt, crc, di_buf->afbc_crc);
 		PR_INF("\t:bodyadd[0x%lx],tabadd[0x%lx]\n",
 		       pcfg.bodyadd, pcfg.tabadd);
 		PR_INF("\t:sizebuf[0x%x], sizetab[0x%x]\n",
@@ -2887,6 +2982,7 @@ bool dbg_checkcrc(struct di_buf_s *di_buf)
 	}
 	return true;
 }
+
 static void afbc_input_sw(bool on)
 {
 	const unsigned int *reg;// = afbc_get_regbase();
@@ -2926,7 +3022,6 @@ static void afbc_input_sw(bool on)
 		else
 			reg_wrb(reg_AFBC_ENABLE, 0, 8, 1);
 	}
-
 }
 
 void dbg_afd_reg_v3(struct seq_file *s, enum EAFBC_DEC eidx)
@@ -2942,6 +3037,7 @@ void dbg_afd_reg_v3(struct seq_file *s, enum EAFBC_DEC eidx)
 		if (eidx > EAFBC_DEC3_MEM) {
 			seq_printf(s, "eidx[%d] is overflow for ver[%d]\n",
 				   eidx, pafd_ctr->fb.ver);
+			return;
 		}
 		for (i = 0; i < AFBC_REG_INDEX_NUB; i++) {
 			addr = reg_afbc[eidx][i];
@@ -3000,8 +3096,9 @@ struct afd_ops_s di_afd_ops_v3 = {
 	.is_used_mem		= afbc_is_used_mem,
 	.is_used_chan2		= afbc_is_used_chan2,
 	.is_free		= afbc_is_free,
-	.count_info_size	= afbc_count_info_size,
-	.count_tab_size		= afbc_count_tab_size,
+	.cnt_info_size		= afbc_count_info_size,
+	.cnt_tab_size		= afbc_count_tab_size,
+	.cnt_buf_size		= v2_afbc_count_buffer_size,
 	.dump_reg		= dump_afbcd_reg,
 	.rqst_share		= di_requeset_afbc,
 	.get_d_addrp		= afbc_get_addrp,
@@ -3310,6 +3407,14 @@ static void ori_afbce_cfg(struct enc_cfg_s *cfg,
 
 	/* def_color_v*/
 	/* def_color_u*/
+	if (cfg->reg_compbits_c == 8)
+		def_color_2 = 0x80;
+	else if (cfg->reg_compbits_c == 9)
+		def_color_2 = 0x100;
+	else
+		def_color_2 = 0x200;
+
+	def_color_1 = def_color_2;
 	op->wr(reg[EAFBCE_DEFCOLOR_2],
 	       ((def_color_2 & 0xfff) << 12) |
 	       ((def_color_1 & 0xfff) << 0));
@@ -3376,7 +3481,9 @@ static void afbce_set(struct vframe_s *vf, enum EAFBC_ENC enc)
 	struct di_buf_s	*di_buf;
 	struct afbcd_ctr_s *pafd_ctr = di_get_afd_ctr();
 	bool flg_v5 = false;
-	//bool crc_right;
+	#ifdef DBG_CRC
+	bool crc_right;
+	#endif
 
 	if (!vf) {
 		pr_error("%s:0:no vf\n", __func__);
@@ -3397,7 +3504,7 @@ static void afbce_set(struct vframe_s *vf, enum EAFBC_ENC enc)
 		}
 		#endif
 	}
-	#ifdef MARK_SC2
+	#ifdef DBG_CRC
 	crc_right = dbg_checkcrc(di_buf);
 	if (!crc_right /*&& (!dim_dbg_is_cnt())*/) {
 		PR_INF("afbce[%d]s:t[%d:%d],inf[0x%lx],adr[0x%lx],vty[0x%x]\n",
@@ -3523,15 +3630,16 @@ static void afbce_update_level1(struct vframe_s *vf,
 	const unsigned int *reg;
 	struct di_buf_s *di_buf;
 	unsigned int cur_mmu_used = 0;
-	//bool crc_right;
-
+	#ifdef DBG_CRC
+	bool crc_right;
+	#endif
 	di_buf = (struct di_buf_s *)vf->private_data;
 
 	if (!di_buf) {
 		pr_error("%s:1:no di buf\n", __func__);
 		return;
 	}
-	#ifdef MARK_SC2
+	#ifdef DBG_CRC // DBG_TEST_CRC
 	crc_right = dbg_checkcrc(di_buf);
 	if (!crc_right) {
 		PR_INF("afbce[%d]s:t[%d:%d],inf[0x%lx],adr[0x%lx],vty[0x%x]\n",
@@ -3565,5 +3673,11 @@ static void afbce_update_level1(struct vframe_s *vf,
 	afbce_sw(enc, true);
 }
 
+void dbg_afbce_update_level1(struct vframe_s *vf,
+			     const struct reg_acc *op,
+			     enum EAFBC_ENC enc)
+{
+	afbce_update_level1(vf, op, enc);
+}
 #endif
 
