@@ -24,7 +24,7 @@ Arguments
 ``fd``
   File descriptor returned by a previous call to :c:func:`open() <dvb-ca-open>`.
 
- ``buf``
+``buf``
    Buffer to be filled
 
 ``count``
@@ -37,6 +37,13 @@ This system call returns filtered data, which might be section or PES
 data. The filtered data is transferred from the driver’s internal
 circular buffer to buf. The maximum amount of data to be transferred is
 implied by count.
+
+If the filter is a PES filter with flag DMX_OUTPUT_RAW_MODE,
+"read" return the data as :c:type:`dmx_sec_es_data`.
+
+If the filter is a PES filter without flag DMX_OUTPUT_RAW_MODE and DMX_MEM_SEC_LEVEL,
+"read" return the data with a prefixed header :c:type:`dmx_non_sec_es_header` and
+followed with the real ES data.
 
 Return Value
 ------------

@@ -49,7 +49,7 @@ Description
 ===========
 
 This system call opens a named frontend device
-(``/dev/dvb/adapter?/frontend?``) for subsequent use. Usually the first
+(``/dev/dvb?.frontend?``) for subsequent use. Usually the first
 thing to do after a successful open is to find out the frontend type
 with :ref:`FE_GET_INFO`.
 

@@ -22,8 +22,8 @@ API.
 Example: Tuning
 ===============
 
-We will start with a generic tuning subroutine that uses the frontend
-and SEC, as well as the demux devices. The example is given for QPSK
+We will start with a generic tuning subroutine that uses the frontend,
+as well as the demux devices. The example is given for QPSK
 tuners, but can easily be adjusted for QAM.
 
 
@@ -40,12 +40,10 @@ tuners, but can easily be adjusted for QAM.
 
      #include <linux/dvb/dmx.h>
      #include <linux/dvb/frontend.h>
-     #include <linux/dvb/sec.h>
      #include <sys/poll.h>
 
-     #define DMX "/dev/dvb/adapter0/demux1"
-     #define FRONT "/dev/dvb/adapter0/frontend1"
-     #define SEC "/dev/dvb/adapter0/sec1"
+     #define DMX "/dev/dvb0.demux1"
+     #define FRONT "/dev/dvb0.frontend1"
 
      /* routine for checking if we have a signal and other status information*/
      int FEReadStatus(int fd, fe_status_t *stat)
@@ -85,8 +83,6 @@ tuners, but can easily be adjusted for QAM.
 	     int diseqc, int pol, int srate, int fec, int lnb_lof1,
 	     int lnb_lof2, int lnb_slof)
      {
-	 struct secCommand scmd;
-	 struct secCmdSequence scmds;
 	 struct dmx_pes_filter_params pesFilterParams;
 	 FrontendParameters frp;
 	 struct pollfd pfd[1];
@@ -98,11 +94,6 @@ tuners, but can easily be adjusted for QAM.
 
 	 if((front = open(FRONT,O_RDWR)) < 0){
 	     perror("FRONTEND DEVICE: ");
-	     return -1;
-	 }
-
-	 if((sec = open(SEC,O_RDWR)) < 0){
-	     perror("SEC DEVICE: ");
 	     return -1;
 	 }
 
@@ -132,36 +123,10 @@ tuners, but can easily be adjusted for QAM.
 
 	 if (freq < lnb_slof) {
 	     frp.Frequency = (freq - lnb_lof1);
-	     scmds.continuousTone = SEC_TONE_OFF;
 	 } else {
 	     frp.Frequency = (freq - lnb_lof2);
-	     scmds.continuousTone = SEC_TONE_ON;
 	 }
-	 frp.Inversion = INVERSION_AUTO;
-	 if (pol) scmds.voltage = SEC_VOLTAGE_18;
-	 else scmds.voltage = SEC_VOLTAGE_13;
-
-	 scmd.type=0;
-	 scmd.u.diseqc.addr=0x10;
-	 scmd.u.diseqc.cmd=0x38;
-	 scmd.u.diseqc.numParams=1;
-	 scmd.u.diseqc.params[0] = 0xF0 | ((diseqc * 4) & 0x0F) |
-	     (scmds.continuousTone == SEC_TONE_ON ? 1 : 0) |
-	     (scmds.voltage==SEC_VOLTAGE_18 ? 2 : 0);
-
-	 scmds.miniCommand=SEC_MINI_NONE;
-	 scmds.numCommands=1;
-	 scmds.commands=&scmd;
-	 if (ioctl(sec, SEC_SEND_SEQUENCE, &scmds) < 0){
-	     perror("SEC SEND: ");
-	     return -1;
-	 }
-
-	 if (ioctl(sec, SEC_SEND_SEQUENCE, &scmds) < 0){
-	     perror("SEC SEND: ");
-	     return -1;
-	 }
-
+	 frp.inversion = INVERSION_AUTO;
 	 frp.u.qpsk.SymbolRate = srate;
 	 frp.u.qpsk.FEC_inner = fec;
 
@@ -261,9 +226,7 @@ recording.
      #include <linux/dvb/dmx.h>
      #include <linux/dvb/video.h>
      #include <sys/poll.h>
-     #define DVR "/dev/dvb/adapter0/dvr1"
-     #define AUDIO "/dev/dvb/adapter0/audio1"
-     #define VIDEO "/dev/dvb/adapter0/video1"
+     #define DVR "/dev/dvb0.dvr1"
 
      #define BUFFY (188*20)
      #define MAX_LENGTH (1024*1024*5) /* record 5MB */

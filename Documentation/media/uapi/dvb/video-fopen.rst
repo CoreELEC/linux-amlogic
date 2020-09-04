@@ -64,7 +64,7 @@ Description
 -----------
 
 This system call opens a named video device (e.g.
-/dev/dvb/adapter0/video0) for subsequent use.
+/dev/dvb0.video0) for subsequent use.
 
 When an open() call has succeeded, the device will be ready for use. The
 significance of blocking or non-blocking mode is described in the

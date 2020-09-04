@@ -2,9 +2,9 @@
 
 .. _CA_SC2_SET_DESCR_EX:
 
-===================
+============
 CA_SC2_SET_DESCR_EX
-===================
+============
 
 Name
 ----
@@ -26,13 +26,14 @@ Arguments
   File descriptor returned by a previous call to :c:func:`open() <cec-open>`.
 
 ``msg``
-  Pointer to struct :c:type:`ca_sc2_descr_ex`.
+  Pointer to struct :c:type:`ca_sc2_descr_ex`. the cmd it include
+  CA_ALLOC/CA_FREE/CA_KEY/CA_GET_STATUS/CA_SET_SCB/CA_SET_ALGO
 
 
 Description
 -----------
 
-.. note:: This ioctl is undocumented. Documentation is welcome.
+ this extend for amlogic sc2 chip, support DSC setting.
 
 
 Return Value

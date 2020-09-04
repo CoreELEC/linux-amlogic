@@ -6,7 +6,7 @@
 DVB Video Device
 ################
 The DVB video device controls the MPEG2 video decoder of the DVB
-hardware. It can be accessed through **/dev/dvb/adapter0/video0**. Data
+hardware. It can be accessed through **/dev/dvb0.video0**. Data
 types and and ioctl definitions can be accessed by including
 **linux/dvb/video.h** in your application.
 

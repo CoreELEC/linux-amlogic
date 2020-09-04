@@ -48,15 +48,15 @@ Arguments
 Description
 -----------
 
-This system call, used with a device name of /dev/dvb/adapter0/demux0,
+This system call, used with a device name of /dev/dvb0.demux0,
 allocates a new filter and returns a handle which can be used for
 subsequent control of that filter. This call has to be made for each
 filter to be used, i.e. every returned file descriptor is a reference to
-a single filter. /dev/dvb/adapter0/dvr0 is a logical device to be used
+a single filter. /dev/dvb0.dvr0 is a logical device to be used
 for retrieving Transport Streams for digital video recording. When
 reading from this device a transport stream containing the packets from
 all PES filters set in the corresponding demux device
-(/dev/dvb/adapter0/demux0) having the output set to DMX_OUT_TS_TAP. A
+(/dev/dvb0.demux0) having the output set to DMX_OUT_TS_TAP. A
 recorded Transport Stream is replayed by writing to this device.
 
 The significance of blocking or non-blocking mode is described in the

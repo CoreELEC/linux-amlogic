@@ -150,6 +150,23 @@ struct dmx_sct_filter_params
     #define DMX_KERNEL_CLIENT   0x8000
     };
 
+dmx_audio_format
+==============
+
+.. c:type:: dmx_audio_format
+
+.. code-block:: c
+
+    enum dmx_audio_format {
+        AUDIO_UNKNOWN = 0,      /* unknown media */
+        AUDIO_MPX = 1,          /* mpeg audio MP2/MP3 */
+        AUDIO_AC3 = 2,          /* Dolby AC3/EAC3 */
+        AUDIO_AAC_ADTS = 3,     /* AAC-ADTS */
+        AUDIO_AAC_LOAS = 4,     /* AAC-LOAS */
+        AUDIO_DTS = 5,          /* DTS */
+        AUDIO_MAX
+    };
+
 
 struct dmx_pes_filter_params
 ============================
@@ -165,20 +182,20 @@ struct dmx_pes_filter_params
 	dmx_output_t   output;
 	dmx_pes_type_t pes_type;
 	__u32          flags;
-#ifdef CONFIG_AMLOGIC_DVB_COMPAT
-/*bit 8~15 for mem sec_level*/
-#define DMX_MEM_SEC_LEVEL1   (1 << 10)
-#define DMX_MEM_SEC_LEVEL2   (1 << 11)
-#define DMX_MEM_SEC_LEVEL3   (1 << 12)
+    #ifdef CONFIG_AMLOGIC_DVB_COMPAT
+    /*bit 8~15 for mem sec_level*/
+    #define DMX_MEM_SEC_LEVEL1   (1 << 10)
+    #define DMX_MEM_SEC_LEVEL2   (1 << 11)
+    #define DMX_MEM_SEC_LEVEL3   (1 << 12)
 
-/*bit 16~23 for output */
-#define DMX_ES_OUTPUT        (1 << 16)
-/*set raw mode, it will send the struct dmx_sec_es_data, not es data*/
-#define DMX_OUTPUT_RAW_MODE	 (1 << 17)
+    /*bit 16~23 for output */
+    #define DMX_ES_OUTPUT        (1 << 16)
+    /*set raw mode, it will send the struct dmx_sec_es_data, not es data*/
+    #define DMX_OUTPUT_RAW_MODE	 (1 << 17)
 
-/*24~31 one byte for audio type, dmx_audio_format_t*/
-#define DMX_AUDIO_FORMAT_BIT 24
-#endif
+    /*24~31 one byte for audio type, dmx_audio_format*/
+    #define DMX_AUDIO_FORMAT_BIT 24
+    #endif
     };
 
 
@@ -208,9 +225,9 @@ struct dmx_stc
 .. code-block:: c
 
     struct dmx_stc {
-	unsigned int num;   /* input : which STC? 0..N */
-	unsigned int base;  /* output: divisor for stc to get 90 kHz clock */
-	__u64 stc;      /* output: stc in 'base'*90 kHz units */
+    	unsigned int num;   /* input : which STC? 0..N */
+    	unsigned int base;  /* output: divisor for stc to get 90 kHz clock */
+    	__u64 stc;      /* output: stc in 'base'*90 kHz units */
     };
 
 
@@ -251,11 +268,11 @@ enum dmx_input_source
 
 .. code-block:: c
 
-typedef enum dmx_input_source {
-       INPUT_DEMOD,
-       INPUT_LOCAL,
-       INPUT_LOCAL_SEC
-} dmx_input_source_t;
+    typedef enum dmx_input_source {
+       INPUT_DEMOD,     /* ts from demod */
+       INPUT_LOCAL,     /* ts from dma, input normal memory */
+       INPUT_LOCAL_SEC  /* ts from dma, input security memory */
+    } dmx_input_source_t;
 
 struct dmx_non_sec_es_header
 ============================
@@ -263,12 +280,12 @@ struct dmx_non_sec_es_header
 
 .. code-block:: c
 
-struct dmx_non_sec_es_header {
-       __u8 pts_dts_flag;
+    struct dmx_non_sec_es_header {
+       __u8 pts_dts_flag;   /* pts & dts flags */
        __u64 pts;
        __u64 dts;
-       __u32 len;
-};
+       __u32 len;           /* one frame es data len*/
+    };
 
 struct dmx_sec_es_data
 ======================
@@ -276,12 +293,87 @@ struct dmx_sec_es_data
 
 .. code-block:: c
 
-struct dmx_sec_es_data {
+    struct dmx_sec_es_data {
        __u8 pts_dts_flag;
        __u64 pts;
        __u64 dts;
-       __u32 buf_start;
-       __u32 buf_end;
-       __u32 data_start;
-       __u32 data_end;
-};
+       __u32 buf_start;     /* start physic buf of received buf */
+       __u32 buf_end;       /* end physic buf of received buf */
+       __u32 data_start;    /* data start physic addr */
+       __u32 data_end;      /* data end physic addr */
+    };
+
+struct dmx_sec_ts_data
+=====================
+.. c:type:: dmx_sec_ts_data
+
+.. code-block:: c
+
+    /*it return in dvr device when use secure memory */
+    struct dmx_sec_ts_data {
+	    __u32 buf_start;
+    	__u32 buf_end;
+    	__u32 data_start;
+    	__u32 data_end;
+    };
+
+struct dmx_mem_info
+====================
+.. c:type:: dmx_mem_info
+
+.. code-block:: c
+
+    struct dmx_mem_info {
+    	__u32 dmx_total_size;       /* total size of physic received memory */
+    	__u32 dmx_buf_phy_start;    /* start addr of physic received memory */
+    	__u32 dmx_free_size;        /* free size physic received memory */
+    	__u32 dvb_core_total_size;  /* dvb core use total size*/
+    	__u32 dvb_core_free_size;
+    	__u32 wp_offset;            /* write pointer that's offset in physic received memory */
+    	__u64 newest_pts;           /* lates the pts have got*/
+    };
+
+struct dmx_sec_mem
+======================
+.. c:type:: dmx_sec_mem
+
+.. code-block:: c
+
+    /* set secure memory for dvr */
+    struct dmx_sec_mem {
+	    __u32 buff;
+	    __u32 size;
+    };
+
+struct filter_mem_info
+======================
+.. c:type:: filter_mem_info
+
+.. code-block:: c
+
+    struct filter_mem_info {
+    	__u32 type;
+    	__u32 pid;
+    	struct dmx_mem_info	filter_info;
+    };
+
+struct dmx_filter_mem_info
+=========================
+.. c:type:: dmx_filter_mem_info
+
+.. code-block:: c
+
+    struct dmx_filter_mem_info {
+    	__u32 filter_num;                /* all filters in one demux */
+	    struct filter_mem_info info[40];
+    };
+
+struct dvr_mem_info
+======================
+.. c:type:: dvr_mem_info
+
+.. code-block:: c
+
+    struct dvr_mem_info {
+    	__u32 wp_offset;    /* wp in received memory for dvr */
+    };

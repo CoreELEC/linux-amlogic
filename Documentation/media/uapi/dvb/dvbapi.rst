@@ -5,7 +5,7 @@
 .. _dvbapi:
 
 ########################
-Part II - Digital TV API
+Digital TV API
 ########################
 
 .. note::
@@ -27,18 +27,16 @@ Part II - Digital TV API
     frontend
     demux
     ca
+    key
     net
-    legacy_dvb_apis
     examples
-    audio_h
     ca_h
+    key_h
     dmx_h
     frontend_h
     net_h
-    video_h
     dts
     class_node
-
 **********************
 Revision and Copyright
 **********************

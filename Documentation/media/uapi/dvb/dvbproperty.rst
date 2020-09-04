@@ -81,7 +81,7 @@ Example: Setting digital TV frontend properties
 
     int main(void)
     {
-	int fd = open("/dev/dvb/adapter0/frontend0", O_RDWR);
+	int fd = open("/dev/dvb0.frontend0", O_RDWR);
 
 	if (!fd) {
 	    perror ("open");

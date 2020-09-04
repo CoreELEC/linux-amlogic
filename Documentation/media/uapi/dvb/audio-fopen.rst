@@ -65,7 +65,7 @@ Description
 -----------
 
 This system call opens a named audio device (e.g.
-/dev/dvb/adapter0/audio0) for subsequent use. When an open() call has
+/dev/dvb0.audio0) for subsequent use. When an open() call has
 succeeded, the device will be ready for use. The significance of
 blocking or non-blocking mode is described in the documentation for
 functions where there is a difference. It does not affect the semantics

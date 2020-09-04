@@ -14,7 +14,13 @@ DVB class node
 ####################
 
 The Digital TV class node for extend the function
-   for example:
-   demux_buf_status: get demux buf status, it will use when inject data to dvr.
-   tuner_setting: it can dynamically config tuner.
-   ts_setting: get/config ts setting.
+
+- dmx_setting: get dmx source info.
+
+- dsc_setting: get dsc source info
+
+- ts_setting: get/configure ts setting.
+
+- get_pcr: get pcr info
+
+- tsn_source: get/set tsn source
