@@ -2141,7 +2141,7 @@
 
 	emmc_conf_pull_done:emmc_conf_pull_done {
 		mux {
-			groups = "emmc_nand_ds";
+			groups = "emmc_nand_dqs";
 			function = "emmc";
 			input-enable;
 			bias-pull-down;

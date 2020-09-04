@@ -1,5 +1,5 @@
 /*
- * arch/arm/boot/dts/amlogic/sc2_s905x4_ah212_buildroot.dts
+ * arch/arm/boot/dts/amlogic/sc2_s905x4_ah219_drm_buildroot.dts
  *
  * Copyright (C) 2017 Amlogic, Inc. All rights reserved.
  *
@@ -18,12 +18,13 @@
 /dts-v1/;
 
 #include "mesonsc2.dtsi"
+#include "mesonsc2_drm.dtsi"
 //#include "partition_mbox_normal_dynamic.dtsi"
 //#include "mesonsm1_skt-panel.dtsi"
 
 / {
 	model = "Amlogic";
-	amlogic-dt-id = "sc2_s905x4_ah212";
+	amlogic-dt-id = "sc2_s905x4_ah219";
 	compatible = "amlogic, sc2";
 	interrupt-parent = <&gic>;
 	#address-cells = <1>;
@@ -142,12 +143,25 @@
 			//no-map;
 		};
 
+		/*  vdin0 CMA pool */
+		vdin0_cma_reserved:linux,vdin0_cma {
+			compatible = "shared-dma-pool";
+			reusable;
+			/* up to 1920x1080 yuv422 8bit and 5 buffers
+			 * 1920x1080x2x5 = 20 M
+			 */
+			size = <0>;
+			alignment = <0x400000>;
+		};
+
 		/*  vdin1 CMA pool */
 		vdin1_cma_reserved:linux,vdin1_cma {
 			compatible = "shared-dma-pool";
 			reusable;
-			/* 1920x1080x2x4  =16 M */
-			size = <0x01000000>;
+			/* up to 1920x1080 yuv422 8bit and 5 buffers
+			 * 1920x1080x2x5 = 20 M
+			 */
+			size = <0x01400000>;
 			alignment = <0x400000>;
 		};
 
@@ -160,9 +174,9 @@
 		dsp_fw_reserved:linux,dsp_fw {
 			compatible = "shared-dma-pool";
 			reusable;
-			size = <0x00800000>;
+			size = <0x800000>;
 			alignment = <0x400000>;
-			alloc-ranges = <0x3400000 0x00800000>;
+			alloc-ranges = <0x3400000 0x800000>;
 		};
 	};
 
@@ -208,6 +222,7 @@
 
 	cvbsout {
 		compatible = "amlogic, cvbsout-sc2";
+		dev_name = "cvbsout";
 		status = "okay";
 		clock-names = "venci_top_gate",
 			"venci_0_gate",
@@ -227,7 +242,6 @@
 			0x1b05  0xfd
 			0x1c59  0xf850
 			0xffff  0x0>; /* ending flag */
-
 	};
 
 	bt-dev{
@@ -245,6 +259,7 @@
 		interrupt_pin = <&gpio       GPIOX_7       GPIO_ACTIVE_HIGH>;
 		irq_trigger_type = "GPIO_IRQ_LOW";
 		power_on_pin = <&gpio       GPIOX_6       GPIO_ACTIVE_HIGH>;
+		dhd_static_buf;	//if use bcm wifi, config dhd_static_buf
 		pinctrl-names = "default";
 		pinctrl-0 = <&pwm_e_pins>;
 		pwm_config = <&wifi_pwm_conf>;
@@ -349,7 +364,7 @@
 		};
 		vendor:vendor{
 			pname = "vendor";
-			size = <0x0 0x10000000>;
+			size = <0x0 0x20000000>;
 			mask = <1>;
 		};
 		odm:odm{
@@ -426,7 +441,119 @@
 		amlvideo2_id = <1>;
 		cma_mode = <1>;
 	};
+
+	dvb_avl6762 {
+		compatible = "amlogic, dvb";
+		dev_name = "dvb";
+		status = "disabled";
+		fe0_mode = "external";
+		fe0_demod = "Avl6762";
+		fe0_i2c_adap_id = <&i2c3>;
+		fe0_demod_i2c_addr = <0x14>;
+		fe0_ts = <0>;
+		fe0_reset_value = <0>;
+		//fe0_reset_gpio = <&gpio GPIOZ_10 GPIO_ACTIVE_HIGH>;
+
+		ts0 = "serial";
+		ts0_control = <0x800>;
+		ts0_invert = <0>;
+		interrupts = <0 23 1
+		0 5 1
+		0 53 1
+		0 19 1
+		0 25 1
+		0 18 1
+		0 24 1>;
+		interrupt-names = "demux0_irq",
+		"demux1_irq",
+		"demux2_irq",
+		"dvr0_irq",
+		"dvr1_irq",
+		"dvrfill0_fill",
+		"dvrfill1_flush";
+		pinctrl-names = "s_ts0";
+		pinctrl-0 = <&dvb_s_ts0_pins>;
+		clock-names = "demux", "ahbarb0", "parser_top";
+	};
+
+	dvb_mn88436 {
+		compatible = "amlogic, dvb";
+		dev_name = "dvb";
+		status = "disabled";
+
+		dtv_demod0 = "Mn88436";
+		dtv_demod0_i2c_adap = <&i2c3>;
+		dtv_demod0_i2c_addr = <0x14>;
+		dtv_demod0_reset_value = <0>;
+		//dtv_demod0_reset_gpio = <&gpio_ao GPIOAO_10 GPIO_ACTIVE_HIGH>;
+		dtv_demod0_ant_poweron_value = <0>;
+		dtv_demod0_ant_power_gpio = <&gpio GPIOH_5 GPIO_ACTIVE_HIGH>;
+		//dtv_demod0_tuner_type = <52>;
+		fe0_dtv_demod = <0>;
+		fe0_ts  = <0>;
+		fe0_dev = <0>;
+
+		ts0 = "serial";
+		ts0_control = <0x800>;
+		ts0_invert = <0>;
+		interrupts = <0 23 1
+		0 5 1
+		0 53 1
+		0 19 1
+		0 25 1
+		0 18 1
+		0 24 1>;
+		interrupt-names = "demux0_irq",
+		"demux1_irq",
+		"demux2_irq",
+		"dvr0_irq",
+		"dvr1_irq",
+		"dvrfill0_fill",
+		"dvrfill1_flush";
+		pinctrl-names = "s_ts0";
+		pinctrl-0 = <&dvb_s_ts0_pins>;
+		clock-names = "demux", "ahbarb0", "parser_top";
+	};
+
 	dvb_cxd2856 {
+		compatible = "amlogic, dvb";
+		dev_name = "dvb";
+		status = "disabled";
+		fe0_mode = "external";
+		fe0_demod = "cxd2856";
+		fe0_i2c_adap_id = <&i2c3>;
+		fe0_demod_i2c_addr = <0xD8>;
+		fe0_reset_value = <0>;
+		//fe0_reset_gpio = <&gpio_ao GPIOAO_10 GPIO_ACTIVE_HIGH>;
+		fe0_ant_poweron_value = <0>;
+		//fe0_ant_power_gpio = <&gpio GPIOH_5 GPIO_ACTIVE_HIGH>;
+		fe0_dtv_demod = <0>;
+		fe0_ts  = <0>;
+		fe0_dev = <0>;
+
+		ts0 = "serial";
+		ts0_control = <0x800>;
+		ts0_invert = <0>;
+		interrupts = <0 23 1
+		0 5 1
+		0 53 1
+		0 19 1
+		0 25 1
+		0 18 1
+		0 24 1>;
+		interrupt-names = "demux0_irq",
+		"demux1_irq",
+		"demux2_irq",
+		"dvr0_irq",
+		"dvr1_irq",
+		"dvrfill0_fill",
+		"dvrfill1_flush";
+		pinctrl-names = "s_ts0";
+		pinctrl-0 = <&dvb_s_ts0_pins>;
+		clock-names = "demux", "ahbarb0", "parser_top";
+	};
+
+	dvb_mxl258c {
 		compatible = "amlogic sc2, dvb";
 		dev_name = "dvb";
 		status = "okay";
@@ -434,76 +561,31 @@
 		reg = <0xfe000000 0x480000>;
 
 		dmxdev_num = <4>;
+		dmx0_sid = <0x20>;
+		dmx1_sid = <0x20>;
+		dmx2_sid = <0x20>;
+		dmx3_sid = <0x20>;
 
 		tsn_from = "demod";
-
-		fe0_mode = "external";
-		fe0_demod = "cxd2856";
-		fe0_i2c_adap_id = <&i2c2>;
-		fe0_demod_i2c_addr = <0xD8>;
-		fe0_reset_value = <0>;
-		fe0_reset_gpio = <&gpio GPIOC_7 GPIO_ACTIVE_HIGH>;
-		fe0_reset_dir = <1>; /* 0: out, 1: in. */
-		fe0_ant_poweron_value = <0>;
-		fe0_ant_power_gpio = <&gpio GPIOC_1 GPIO_ACTIVE_HIGH>;
-		fe0_dtv_demod = <0>;
-		fe0_ts  = <0>;
-		fe0_dev = <0>;
+		/*set pass tse or not, default is 1*/
+		tse_enable = <0>;
 
 		/*single demod setting */
-		ts0_sid = <0x20>;
-		ts0 = "serial-4wire"; /* tsinA: serial-4wire, serial-3wire */
-		ts0_control = <0x0>;
-		ts0_invert = <0>;
-
-		fe1_mode = "external";
-		fe1_demod = "cxd2856";
-		fe1_i2c_adap_id = <&i2c2>;
-		fe1_demod_i2c_addr = <0xCA>;
-		fe1_reset_value = <0>;
-		fe1_reset_gpio = <&gpio GPIOC_7 GPIO_ACTIVE_HIGH>;
-		fe1_reset_dir = <1>; /* 0: out, 1: in. */
-		fe1_ant_poweron_value = <0>;
-		fe1_ant_power_gpio = <&gpio GPIOC_1 GPIO_ACTIVE_HIGH>;
-		fe1_dtv_demod = <1>;
-		fe1_ts  = <1>;
-		fe1_dev = <1>;
-
-		ts1_sid = <0x21>;
-		ts1 = "serial-4wire";
-		ts1_control = <0x0>;
-		ts1_invert = <0>;
-
-		pinctrl-names = "s_ts0", "s_ts1";
-		pinctrl-0 = <&dvb_s_ts0_pins>;
-		pinctrl-1 = <&dvb_s_ts1_pins>;
-	};
-	dvb_mxl258c {
-		compatible = "amlogic sc2, dvb";
-		dev_name = "dvb";
-		status = "disabled";
-
-		reg = <0xfe000000 0x480000>;
-
-		dmxdev_num = <4>;
-
-		tsn_from = "demod";
-
-		/*single demod setting */
-		ts0_sid = <0x20>;
+		/*ts will bind with dmx device*/
+		ts0_dmx = <0>;
 		ts0 = "serial-4wire"; /* tsinA: serial-4wire, serial-3wire */
 		ts0_control = <0x0>;
 
+		//ts1_dmx = <1>;
 		/* tsinB: parallel, serial-4wire, serial-3wire */
-		//ts1_sid = <0x21>;
 		//ts1 = "serial-4wire";
 		//ts1_control = <0x0>;
 
-		//ts2_sid = <0x22>;
+		//ts2_dmx = <1>;
 		//ts2 = "serial-4wire"; /* tsinC: serial-4wire, serial-3wire */
 		//ts2_control = <0x0>;
 
-		//ts3_sid = <0x23>;
+		//ts3_dmx = <1>;
 		//ts3 = "serial-4wire"; /* tsinD: serial-4wire, serial-3wire */
 		//ts3_control = <0x0>;
 
@@ -605,10 +687,9 @@
 		//fe3_ts = <3>; /* select tsin port */
 
 		/* serial */
+		//pinctrl-names = "s_ts0", "s_ts1", "s_ts2", "s_ts3";
 		pinctrl-names = "s_ts0";
 		pinctrl-0 = <&dvb_s_ts0_pins>;
-		//pinctrl-names = "s_ts0", "s_ts1", "s_ts2", "s_ts3";
-		//pinctrl-0 = <&dvb_s_ts0_pins>;
 		//pinctrl-1 = <&dvb_s_ts1_pins>;
 		//pinctrl-2 = <&dvb_s_ts2_pins>;
 		//pinctrl-3 = <&dvb_s_ts3_pins>;
@@ -858,9 +939,7 @@
 		aml-audio-card,name = "AML-AUGESOUND";
 
 		/*avout mute gpio*/
-		avout_mute-gpios = <&gpio GPIOH_5 GPIO_ACTIVE_HIGH>;
-
-		spk_mute-gpios = <&gpio GPIOD_2 GPIO_ACTIVE_LOW>;
+		avout_mute-gpios = <&gpio GPIOD_2 GPIO_ACTIVE_HIGH>;
 
 		aml-audio-card,dai-link@0 {
 			format = "dsp_a";
@@ -1088,7 +1167,7 @@
 		};
 		opp10 {
 			opp-hz = /bits/ 64 <1800000000>;
-			opp-microvolt = <969000>;
+			opp-microvolt = <959000>;
 		};
 		opp11 {
 			opp-hz = /bits/ 64 <1908000000>;
@@ -1110,8 +1189,8 @@
 		status = "okay";
 		scan_period = <20>;
 		key_num = <1>;
-		key_name = "bluetooth";
-		key_code = <600>;
+		key_name = "power";
+		key_code = <116>;
 		key-gpios = <&gpio  GPIOD_3  GPIO_ACTIVE_HIGH>;
 		detect_mode = <0>;/*0:polling mode, 1:irq mode*/
 	};
@@ -1119,14 +1198,15 @@
 	adc_keypad {
 		compatible = "amlogic, adc_keypad";
 		status = "okay";
-		key_name = "vol-", "vol+", "power";
-		key_num = <3>;
-		io-channels = <&saradc SARADC_CH0>;
-		io-channel-names = "key-chan-0";
-		key_chan = <SARADC_CH0 SARADC_CH0 SARADC_CH0>;
-		key_code = <114 115 116>;
-		key_val = <630 910 20>; //val=voltage/1800mV*1023
-		key_tolerance = <40 40 40>;
+		key_name = "menu", "vol-", "vol+", "esc", "home";
+		key_num = <5>;
+		io-channels = <&saradc SARADC_CH2>;
+		io-channel-names = "key-chan-2";
+		key_chan = <SARADC_CH2 SARADC_CH2 SARADC_CH2
+			SARADC_CH2 SARADC_CH2>;
+		key_code = <139 114 115 1 102>;
+		key_val = <0 143 266 389 512>; //val=voltage/1800mV*1023
+		key_tolerance = <40 40 40 40 40>;
 	};
 
 }; /* end of / */
@@ -1138,12 +1218,30 @@
 };
 
 &meson_fb {
-	status = "okay";
+	status = "disabled";
 	display_size_default = <1920 1080 1920 2160 32>;
 	mem_size = <0x00800000 0x1980000 0x100000 0x100000 0x800000>;
 	logo_addr = "0x7f800000";
 	mem_alloc = <0>;
 	pxp_mode = <0>; /** 0:normal mode 1:pxp mode */
+};
+
+&drm_vpu {
+	status = "okay";
+	logo_addr = "0x7f800000";
+};
+
+&drm_amhdmitx {
+	status = "okay";
+	hdcp = "disabled";
+};
+
+&drm_amcvbsout {
+	status = "okay";
+};
+
+&drm_lcd {
+	status = "disabled";
 };
 
 &i2c0 {
@@ -1179,9 +1277,8 @@
 	clock-frequency = <300000>;
 };
 
-
 &i2c3 {
-	status = "okay";
+	status = "disabled";
 	pinctrl-names="default";
 	pinctrl-0=<&i2c3_master_pins2>;
 	clock-frequency = <300000>; /* default 100k */
@@ -1201,40 +1298,6 @@
 		dev_name = "lp8556";
 		reg = <0x2c>;
 		status = "disabled";
-	};
-
-	tlc59116: tlc59116@60 {
-		compatible = "amlogic,tlc59116_led";
-		reg = <0x60>;
-		status = "okay";
-
-		led0 {
-			default_colors = <0 0 0>;
-			r_io_number = <0>;
-			g_io_number = <10>;
-			b_io_number = <5>;
-		};
-
-		led1 {
-			default_colors = <0 0 0>;
-			r_io_number = <1>;
-			g_io_number = <11>;
-			b_io_number = <6>;
-		};
-
-		led2 {
-			default_colors = <0 0 0>;
-			r_io_number = <2>;
-			g_io_number = <12>;
-			b_io_number = <7>;
-		};
-
-		led3 {
-			default_colors = <0 0 0>;
-			r_io_number = <3>;
-			g_io_number = <13>;
-			b_io_number = <8>;
-		};
 	};
 };
 
@@ -1319,7 +1382,7 @@
 
 		interrupt-names = "irq_spdifin";
 		pinctrl-names = "spdif_pins", "spdif_pins_mute";
-		pinctrl-0 = <&spdifout>;
+		pinctrl-0 = <&spdifout &spdifin>;
 		pinctrl-1 = <&spdifout_a_mute>;
 
 		/*spdif clk tuning enable*/
@@ -1354,7 +1417,7 @@
 			"pdm_sysclk";
 
 		pinctrl-names = "pdm_pins";
-		pinctrl-0 = <&pdmin>;
+		pinctrl-0 = </*&pdmin*/>;
 
 		/* mode 0~4, defalut:1 */
 		filter_mode = <1>;
@@ -1635,9 +1698,12 @@
 	};
 
 	pdmin: pdmin {
-		mux { /* GPIOC_0, GPIOC_4 */
-			groups = "pdm_din0_c",
-			"pdm_dclk_c";
+		mux { /* GPIOX_0, GPIOX_1, GPIOX_2, GPIOX_3, GPIOX_4 */
+			groups = "pdm_din0_x",
+			"pdm_din1_x",
+			"pdm_din2_x",
+			"pdm_din3_x",
+			"pdm_dclk_x";
 			function = "pdm";
 		};
 	};
@@ -1770,6 +1836,8 @@
 	status = "okay";
 	portnum = <1>;
 	otg = <1>;
+	gpio-vbus-power = "GPIOH_6";
+	gpios = <&gpio GPIOH_6 GPIO_ACTIVE_HIGH>;
 };
 
 &dwc2_a {
@@ -1777,13 +1845,14 @@
 	/** 0: normal, 1: otg+dwc3 host only, 2: otg+dwc3 device only*/
 	controller-type = <3>;
 };
+
 &ethmac {
 	status = "okay";
 //	pinctrl-names = "internal_eth_pins", "internal_gpio_pins";
 //	pinctrl-0 = <&internal_eth_pins>;
 //	pinctrl-1 = <&internal_gpio_pins>;
 	mc_val = <0x4be04>;
-	led_setting = <0x0>;
+
 	internal_phy=<1>;
 };
 
@@ -1791,6 +1860,24 @@
 	status = "okay";
 };
 
+/*if you want to use vdin just modify status to "ok"*/
+&vdin0 {
+	/*compatible = "amlogic, vdin-sc2";*/
+	/*memory-region = <&vdin0_cma_reserved>;*/
+	status = "okay";
+	/* up to 1920x1080 yuv422 8bit and 5 buffers
+	 * 1920x1080x2x5 = 20 M
+	 */
+	cma_size = <20>;
+	/*vdin write mem color depth support:
+	 *bit0:support 8bit
+	 *bit1:support 9bit
+	 *bit2:support 10bit
+	 *bit3:support 12bit
+	 *bit4:support yuv422 10bit full pack mode (from txl new add)
+	 */
+	tv_bit_mode = <0x1>;
+};
 
 &vdin1 {
 	/*compatible = "amlogic, vdin-sc2";*/
@@ -1817,23 +1904,27 @@
 			 "MMC_CAP_ERASE",
 			 "MMC_CAP_CMD23",
 			 "MMC_CAP_DRIVER_TYPE_D";
-		caps2 = "MMC_CAP2_HS200", "MMC_CAP2_HS400";
+		caps2 = "MMC_CAP2_HS200";
 		f_min = <400000>;
 		f_max = <200000000>;
 	};
 };
 
 &sd_emmc_b {
-	status = "disabled";
+	status = "okay";
 	sd {
 		caps = "MMC_CAP_4_BIT_DATA",
 			 "MMC_CAP_MMC_HIGHSPEED",
 			 "MMC_CAP_SD_HIGHSPEED";
+			 /* "MMC_CAP_UHS_SDR12",
+			  *"MMC_CAP_UHS_SDR25",
+			  *"MMC_CAP_UHS_SDR50",
+			  *"MMC_CAP_UHS_SDR104";
+			  */
 		f_min = <400000>;
 		f_max = <50000000>;
 	};
 };
-
 
 &sd_emmc_a {
 	status = "okay";
