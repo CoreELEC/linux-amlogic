@@ -344,6 +344,7 @@ struct printk_log {
 	u8 level:3;		/* syslog level */
 #ifdef CONFIG_AMLOGIC_DRIVER
 	int cpu;
+	char state;
 #endif
 }
 #ifdef CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS
@@ -362,6 +363,7 @@ DEFINE_RAW_SPINLOCK(logbuf_lock);
 DECLARE_WAIT_QUEUE_HEAD(log_wait);
 #ifdef CONFIG_AMLOGIC_DRIVER
 static int current_cpu;
+static int current_state;
 #endif
 /* the next printk record to read by syslog(READ) or /proc/kmsg */
 static u64 syslog_seq;
@@ -539,6 +541,10 @@ static u32 truncate_msg(u16 *text_len, u16 *trunc_msg_len,
 	return msg_used_size(*text_len + *trunc_msg_len, 0, pad_len);
 }
 
+#ifdef CONFIG_AMLOGIC_DRIVER
+static unsigned long irq_flags;
+#endif
+
 /* insert record into the buffer, discard old ones, update heads */
 static int log_store(int facility, int level,
 		     enum log_flags flags, u64 ts_nsec,
@@ -586,6 +592,14 @@ static int log_store(int facility, int level,
 	msg->flags = flags & 0x1f;
 #ifdef CONFIG_AMLOGIC_DRIVER
 	msg->cpu = smp_processor_id();
+	if (in_irq())
+		msg->state = 'h';
+	else if (in_softirq())
+		msg->state = 's';
+	else if (irqs_disabled_flags(irq_flags))
+		msg->state = 'd';
+	else
+		msg->state = '-';
 #endif
 	if (ts_nsec > 0)
 		msg->ts_nsec = ts_nsec;
@@ -1205,8 +1219,8 @@ static size_t print_time(u64 ts, char *buf)
 #endif
 
 #if defined(CONFIG_SMP) && defined(CONFIG_AMLOGIC_DRIVER)
-	return sprintf(buf, "[%5lu.%06lu@%d] ",
-		       (unsigned long)ts, rem_nsec / 1000, current_cpu);
+	return sprintf(buf, "[%5lu.%06lu@%d]%c ",
+		       (unsigned long)ts, rem_nsec / 1000, current_cpu, current_state);
 #else
 	return sprintf(buf, "[%5lu.%06lu] ",
 		       (unsigned long)ts, rem_nsec / 1000);
@@ -1233,6 +1247,7 @@ static size_t print_prefix(const struct printk_log *msg, bool syslog, char *buf)
 	}
 #ifdef CONFIG_AMLOGIC_DRIVER
 	current_cpu = msg->cpu;
+	current_state = msg->state;
 #endif
 	len += print_time(msg->ts_nsec, buf ? buf + len : NULL);
 	return len;
@@ -1848,6 +1863,9 @@ asmlinkage int vprintk_emit(int facility, int level,
 	lockdep_off();
 	/* This stops the holder of console_sem just where we want him */
 	raw_spin_lock(&logbuf_lock);
+#ifdef CONFIG_AMLOGIC_DRIVER
+	irq_flags = flags;
+#endif
 	logbuf_cpu = this_cpu;
 
 	if (unlikely(recursion_bug)) {
