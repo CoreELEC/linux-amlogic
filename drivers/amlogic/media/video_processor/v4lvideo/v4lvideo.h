@@ -61,7 +61,7 @@
 #define V4LVID_ERR(fmt, args...) pr_err("v4lvid: err: " fmt, ## args)
 
 #define dprintk(dev, level, fmt, arg...)                    \
-v4l2_dbg(level, debug, &(dev)->v4l2_dev, fmt, ## arg)
+v4l2_dbg(level, v4lvideo_debug, &(dev)->v4l2_dev, fmt, ## arg)
 
 struct v4l2q_s {
 	int rp;
