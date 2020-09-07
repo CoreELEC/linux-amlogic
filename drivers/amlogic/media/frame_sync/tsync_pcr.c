@@ -1361,7 +1361,7 @@ void tsync_pcr_avevent_locked(enum avevent_e event, u32 param)
 					pr_info("sys=%x, param=%x, pcr=%x\n",
 						systime, param, demux_pcr);
 				}
-				if ((demux_pcr + 90000 > param) &&
+				if ((demux_pcr + 900000 > param) &&
 				    systime > param && tsync_demux_pcr_valid)
 					tsync_set_pcr_mode(1, param);
 				else
