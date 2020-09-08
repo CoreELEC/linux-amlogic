@@ -121,12 +121,14 @@ int SC2_bufferid_recv_data(struct chan_id *pchan);
 /**
  * chan read
  * \param pchan:struct chan_id handle
- * \param pread:data addr
+ * \param pread: if is secure will return physical addr, otherwise virtual addr
  * \param plen:data size addr
+ * \param is_sec: 1 is secure, 0 is normal
  * \retval >=0:read cnt.
  * \retval -1:fail.
  */
-int SC2_bufferid_read(struct chan_id *pchan, char **pread, unsigned int len);
+int SC2_bufferid_read(struct chan_id *pchan, char **pread, unsigned int len,
+		int is_sec);
 
 /**
  * write to channel

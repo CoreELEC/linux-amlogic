@@ -71,6 +71,7 @@ int _alloc_buff(unsigned int len, int sec_level,
 	int buf_page_num = 0;
 	unsigned long buf_start;
 	unsigned long buf_start_virt;
+	u32 ret;
 
 	if (len < BEN_LEVEL_SIZE)
 		flags = CODEC_MM_FLAGS_DMA_CPU;
@@ -85,10 +86,13 @@ int _alloc_buff(unsigned int len, int sec_level,
 		dprint("%s fail\n", __func__);
 		return -1;
 	}
-	if (sec_level)
-		tee_protect_mem_by_type(TEE_MEM_TYPE_DEMUX, buf_start, len,
-					handle);
-
+	if (sec_level) {
+		//ret = tee_protect_tvp_mem(buf_start, len, handle);
+		ret = tee_protect_mem_by_type(TEE_MEM_TYPE_DEMUX,
+				buf_start, len, handle);
+		pr_dbg("%s, protect 0x%lx, len:%d, ret:0x%x\n",
+				__func__, buf_start, len, ret);
+	}
 	buf_start_virt = (unsigned long)codec_mm_phys_to_virt(buf_start);
 
 	*vir_mem = buf_start_virt;
@@ -100,8 +104,10 @@ int _alloc_buff(unsigned int len, int sec_level,
 void _free_buff(unsigned long buf, unsigned int len, int sec_level,
 		unsigned int handle)
 {
-	if (sec_level)
+	if (sec_level) {
 		tee_unprotect_mem(handle);
+		pr_dbg("%s, unprotect handle:%d\n", __func__, handle);
+	}
 
 	codec_mm_free_for_dma("dmx", buf);
 }
@@ -131,8 +137,8 @@ static int _bufferid_malloc_desc_mem(struct chan_id *pchan,
 			dprint("%s malloc fail\n", __func__);
 			return -1;
 		}
-		pr_dbg("%s malloc 0x%lx\n", __func__, mem);
-		pr_dbg("%s mem phy addr 0x%lx\n", __func__, mem_phy);
+		pr_dbg("%s malloc mem:0x%lx, mem_phy:0x%lx, sec:%d\n",
+				__func__, mem, mem_phy, sec_level);
 	}
 	ret =
 	    _alloc_buff(sizeof(union mem_desc), 0, &memdescs, &memdescs_phy, 0);
@@ -438,10 +444,12 @@ unsigned int SC2_bufferid_get_wp_offset(struct chan_id *pchan)
  * \param pchan:struct chan_id handle
  * \param pread:data addr
  * \param plen:data size addr
+ * \param plen:is secure or not
  * \retval >=0:read cnt.
  * \retval -1:fail.
  */
-int SC2_bufferid_read(struct chan_id *pchan, char **pread, unsigned int len)
+int SC2_bufferid_read(struct chan_id *pchan, char **pread, unsigned int len,
+		int is_secure)
 {
 	unsigned int w_offset = 0;
 	unsigned int w_offset_org = 0;
@@ -461,20 +469,28 @@ int SC2_bufferid_read(struct chan_id *pchan, char **pread, unsigned int len)
 		       (u32)w_offset_org);
 		if (w_offset > pchan->r_offset) {
 			data_len = min((w_offset - pchan->r_offset), buf_len);
-			dma_sync_single_for_cpu(aml_get_device(),
+			if (!is_secure)
+				dma_sync_single_for_cpu(
+						aml_get_device(),
 						(dma_addr_t)(pchan->mem_phy +
 							      pchan->r_offset),
 						data_len, DMA_FROM_DEVICE);
-			*pread = (char *)(pchan->mem + pchan->r_offset);
+			*pread = (char *)(is_secure ?
+					pchan->mem_phy + pchan->r_offset :
+					pchan->mem + pchan->r_offset);
 			pchan->r_offset += data_len;
 		} else {
 			unsigned int part1_len = 0;
 
 			part1_len = pchan->mem_size - pchan->r_offset;
 			data_len = min(part1_len, buf_len);
-			*pread = (char *)(pchan->mem + pchan->r_offset);
+			*pread = (char *)(is_secure ?
+					pchan->mem_phy + pchan->r_offset :
+					pchan->mem + pchan->r_offset);
 			if (data_len < part1_len) {
-				dma_sync_single_for_cpu(aml_get_device(),
+				if (!is_secure)
+					dma_sync_single_for_cpu(
+							aml_get_device(),
 							(dma_addr_t)
 							(pchan->mem_phy +
 							 pchan->r_offset),
@@ -483,7 +499,9 @@ int SC2_bufferid_read(struct chan_id *pchan, char **pread, unsigned int len)
 				pchan->r_offset += data_len;
 			} else {
 				data_len = part1_len;
-				dma_sync_single_for_cpu(aml_get_device(),
+				if (!is_secure)
+					dma_sync_single_for_cpu(
+							aml_get_device(),
 							(dma_addr_t)
 							(pchan->mem_phy +
 							 pchan->r_offset),
