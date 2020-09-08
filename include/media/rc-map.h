@@ -10,6 +10,7 @@
  */
 
 #include <linux/input.h>
+#include <dt-bindings/media/rc-map.h>
 
 /**
  * enum rc_type - type of the Remote Controller protocol
@@ -39,29 +40,29 @@
  * @RC_TYPE_IRMP: IRMP software IR decoder
  */
 enum rc_type {
-	RC_TYPE_UNKNOWN		= 0,
-	RC_TYPE_OTHER		= 1,
-	RC_TYPE_RC5		= 2,
-	RC_TYPE_RC5X		= 3,
-	RC_TYPE_RC5_SZ		= 4,
-	RC_TYPE_JVC		= 5,
-	RC_TYPE_SONY12		= 6,
-	RC_TYPE_SONY15		= 7,
-	RC_TYPE_SONY20		= 8,
-	RC_TYPE_NEC		= 9,
-	RC_TYPE_NECX		= 10,
-	RC_TYPE_NEC32		= 11,
-	RC_TYPE_SANYO		= 12,
-	RC_TYPE_MCE_KBD		= 13,
-	RC_TYPE_RC6_0		= 14,
-	RC_TYPE_RC6_6A_20	= 15,
-	RC_TYPE_RC6_6A_24	= 16,
-	RC_TYPE_RC6_6A_32	= 17,
-	RC_TYPE_RC6_MCE		= 18,
-	RC_TYPE_SHARP		= 19,
-	RC_TYPE_XMP		= 20,
-	RC_TYPE_CEC		= 21,
-	RC_TYPE_IRMP		= 22,
+	RC_TYPE_UNKNOWN		= UNKNOWN,
+	RC_TYPE_OTHER		= OTHER,
+	RC_TYPE_RC5		= RC5,
+	RC_TYPE_RC5X		= RC5X,
+	RC_TYPE_RC5_SZ		= RC5_SZ,
+	RC_TYPE_JVC		= JVC,
+	RC_TYPE_SONY12		= SONY12,
+	RC_TYPE_SONY15		= SONY15,
+	RC_TYPE_SONY20		= SONY20,
+	RC_TYPE_NEC		= NEC,
+	RC_TYPE_NECX		= NECX,
+	RC_TYPE_NEC32		= NEC32,
+	RC_TYPE_SANYO		= SANYO,
+	RC_TYPE_MCE_KBD		= MCE_KBD,
+	RC_TYPE_RC6_0		= RC6_0,
+	RC_TYPE_RC6_6A_20	= RC6_6A_20,
+	RC_TYPE_RC6_6A_24	= RC6_6A_24,
+	RC_TYPE_RC6_6A_32	= RC6_6A_32,
+	RC_TYPE_RC6_MCE		= RC6_MCE,
+	RC_TYPE_SHARP		= SHARP,
+	RC_TYPE_XMP		= XMP,
+	RC_TYPE_CEC		= CEC,
+	RC_TYPE_IRMP		= IRMP,
 };
 
 #define RC_BIT_NONE		0ULL

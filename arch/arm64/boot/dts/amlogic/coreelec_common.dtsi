@@ -1,3 +1,5 @@
+#include <dt-bindings/media/rc-map.h>
+
 /{
 	coreelec;
 	/delete-property/ amlogic-dt-id;
@@ -117,7 +119,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&remote_pins>;
 		pulse-inverted;
-		wakeup_protocol = <8>; /* force default RC_TYPE_NEC (rc-map.h) */
+		wakeup_protocol = <NEC>; /* force default NEC by <dt-bindings/media/rc-map.h> */
 		status = "okay";
 	};
 	meson-remote {
