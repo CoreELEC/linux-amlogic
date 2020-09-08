@@ -145,6 +145,7 @@ struct meson_pwm {
 struct meson_pwm_channel {
 	unsigned int hi;
 	unsigned int lo;
+	unsigned int clkin_rate;
 	u8 pre_div;
 	struct pwm_state state;
 	struct clk *clk_parent;

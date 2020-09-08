@@ -134,6 +134,7 @@ static int meson_pwm_request(struct pwm_chip *chip, struct pwm_device *pwm)
 		return err;
 	}
 
+	channel->clkin_rate = clk_get_rate(channel->clk);
 	chip->ops->get_state(chip, pwm, &channel->state);
 
 	return 0;
@@ -169,7 +170,10 @@ static int meson_pwm_calc(struct meson_pwm *meson,
 	 *	return 0;
 	 */
 
-	fin_freq = clk_get_rate(channel->clk);
+	/* clk_get_rate may cause scheduling
+	 * and is not used in interrupt context
+	 */
+	fin_freq = channel->clkin_rate;
 	if (fin_freq == 0) {
 		dev_err(meson->chip.dev, "invalid source clock frequency\n");
 		return -EINVAL;
