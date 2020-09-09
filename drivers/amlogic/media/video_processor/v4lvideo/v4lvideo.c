@@ -51,50 +51,17 @@ static u32 alloc_sei = 1;
 #define V4L2_CID_USER_AMLOGIC_V4LVIDEO_BASE  (V4L2_CID_USER_BASE + 0x1100)
 
 static unsigned int video_nr_base = 30;
-module_param(video_nr_base, uint, 0644);
-MODULE_PARM_DESC(video_nr_base, "videoX start number, 30 is the base nr");
-
 static unsigned int n_devs = 9;
-
-module_param(n_devs, uint, 0644);
-MODULE_PARM_DESC(n_devs, "number of video devices to create");
-
-static unsigned int debug;
-module_param(debug, uint, 0644);
-MODULE_PARM_DESC(debug, "activates debug info");
-
+static unsigned int v4lvideo_debug;
 static unsigned int get_count;
-module_param(get_count, uint, 0644);
-MODULE_PARM_DESC(get_count, "get_count");
-
 static unsigned int put_count;
-module_param(put_count, uint, 0644);
-MODULE_PARM_DESC(put_count, "put_count");
-
 static unsigned int q_count;
-module_param(q_count, uint, 0644);
-MODULE_PARM_DESC(q_count, "q_count");
-
 static unsigned int dq_count;
-module_param(dq_count, uint, 0644);
-MODULE_PARM_DESC(dq_count, "dq_count");
-
 static unsigned int cts_use_di;
-module_param(cts_use_di, uint, 0644);
-MODULE_PARM_DESC(cts_use_di, "cts_use_di");
-
 /*set 1 means video_composer use dec vf when di NR; only debug!!!*/
 static unsigned int render_use_dec;
-module_param(render_use_dec, uint, 0644);
-MODULE_PARM_DESC(render_use_dec, "render_use_dec");
-
 static unsigned int dec_count;
-module_param(dec_count, uint, 0644);
-MODULE_PARM_DESC(dec_count, "dec_count");
-
 static unsigned int vf_dump;
-module_param(vf_dump, uint, 0644);
-MODULE_PARM_DESC(vf_dump, "vf_dump");
 
 bool di_bypass_p;
 /*dec set count mutex*/
@@ -1020,7 +987,7 @@ static s32 v4lvideo_import_sei_data(
  */
 unsigned int get_v4lvideo_debug(void)
 {
-	return debug;
+	return v4lvideo_debug;
 }
 EXPORT_SYMBOL(get_v4lvideo_debug);
 
@@ -1647,7 +1614,7 @@ static int __init v4lvideo_create_instance(int inst)
 
 	vfd = &dev->vdev;
 	*vfd = v4lvideo_template;
-	vfd->dev_debug = debug;
+	vfd->dev_debug = v4lvideo_debug;
 	vfd->v4l2_dev = &dev->v4l2_dev;
 
 	/*
@@ -1801,7 +1768,6 @@ static ssize_t sei_cnt_store(
 	if (r < 0)
 		return -EINVAL;
 
-	pr_info("set sei_cnt val:%d\n", val);
 	atomic_set(&global_set_cnt, val);
 	return count;
 }
@@ -1828,7 +1794,270 @@ static ssize_t alloc_sei_store(
 		alloc_sei = val;
 	else
 		alloc_sei = 0;
-	pr_info("set alloc_sei val:%d\n", alloc_sei);
+	return count;
+}
+
+static ssize_t video_nr_base_show(struct class *class,
+				  struct class_attribute *attr, char *buf)
+{
+	return sprintf(buf, "video_nr_base: %d\n", video_nr_base);
+}
+
+static ssize_t video_nr_base_store(struct class *class,
+				   struct class_attribute *attr,
+				   const char *buf, size_t count)
+{
+	ssize_t r;
+	int val;
+
+	r = kstrtoint(buf, 0, &val);
+	if (r < 0)
+		return -EINVAL;
+
+	if (val > 0)
+		video_nr_base = val;
+	else
+		video_nr_base = 0;
+	return count;
+}
+
+static ssize_t n_devs_show(struct class *class,
+			   struct class_attribute *attr, char *buf)
+{
+	return sprintf(buf, "n_devs: %d\n", n_devs);
+}
+
+static ssize_t n_devs_store(struct class *class,
+			    struct class_attribute *attr,
+			    const char *buf, size_t count)
+{
+	ssize_t r;
+	int val;
+
+	r = kstrtoint(buf, 0, &val);
+	if (r < 0)
+		return -EINVAL;
+
+	if (val > 0)
+		n_devs = val;
+	else
+		n_devs = 0;
+	return count;
+}
+
+static ssize_t v4lvideo_debug_show(struct class *class,
+				   struct class_attribute *attr, char *buf)
+{
+	return sprintf(buf, "v4lvideo_debug: %d\n", v4lvideo_debug);
+}
+
+static ssize_t v4lvideo_debug_store(struct class *class,
+				    struct class_attribute *attr,
+				    const char *buf, size_t count)
+{
+	ssize_t r;
+	int val;
+
+	r = kstrtoint(buf, 0, &val);
+	if (r < 0)
+		return -EINVAL;
+
+	if (val > 0)
+		v4lvideo_debug = val;
+	else
+		v4lvideo_debug = 0;
+	return count;
+}
+
+static ssize_t get_count_show(struct class *class,
+			      struct class_attribute *attr, char *buf)
+{
+	return sprintf(buf, "get_count: %d\n", get_count);
+}
+
+static ssize_t get_count_store(struct class *class,
+			       struct class_attribute *attr,
+			       const char *buf, size_t count)
+{
+	ssize_t r;
+	int val;
+
+	r = kstrtoint(buf, 0, &val);
+	if (r < 0)
+		return -EINVAL;
+
+	if (val > 0)
+		get_count = val;
+	else
+		get_count = 0;
+	return count;
+}
+
+static ssize_t put_count_show(struct class *class,
+			      struct class_attribute *attr, char *buf)
+{
+	return sprintf(buf, "put_count: %d\n", put_count);
+}
+
+static ssize_t put_count_store(struct class *class,
+			       struct class_attribute *attr,
+			       const char *buf, size_t count)
+{
+	ssize_t r;
+	int val;
+
+	r = kstrtoint(buf, 0, &val);
+	if (r < 0)
+		return -EINVAL;
+
+	if (val > 0)
+		put_count = val;
+	else
+		put_count = 0;
+	return count;
+}
+
+static ssize_t q_count_show(struct class *class,
+			    struct class_attribute *attr, char *buf)
+{
+	return sprintf(buf, "q_count: %d\n", q_count);
+}
+
+static ssize_t q_count_store(struct class *class,
+			     struct class_attribute *attr,
+			     const char *buf, size_t count)
+{
+	ssize_t r;
+	int val;
+
+	r = kstrtoint(buf, 0, &val);
+	if (r < 0)
+		return -EINVAL;
+
+	if (val > 0)
+		q_count = val;
+	else
+		q_count = 0;
+	return count;
+}
+
+static ssize_t dq_count_show(struct class *class,
+			     struct class_attribute *attr, char *buf)
+{
+	return sprintf(buf, "dq_count: %d\n", dq_count);
+}
+
+static ssize_t dq_count_store(struct class *class,
+			      struct class_attribute *attr,
+			      const char *buf, size_t count)
+{
+	ssize_t r;
+	int val;
+
+	r = kstrtoint(buf, 0, &val);
+	if (r < 0)
+		return -EINVAL;
+
+	if (val > 0)
+		dq_count = val;
+	else
+		dq_count = 0;
+	return count;
+}
+
+static ssize_t cts_use_di_show(struct class *class,
+			       struct class_attribute *attr, char *buf)
+{
+	return sprintf(buf, "cts_use_di: %d\n", cts_use_di);
+}
+
+static ssize_t cts_use_di_store(struct class *class,
+				struct class_attribute *attr,
+				const char *buf, size_t count)
+{
+	ssize_t r;
+	int val;
+
+	r = kstrtoint(buf, 0, &val);
+	if (r < 0)
+		return -EINVAL;
+
+	if (val > 0)
+		cts_use_di = val;
+	else
+		cts_use_di = 0;
+	return count;
+}
+
+static ssize_t render_use_dec_show(struct class *class,
+				   struct class_attribute *attr, char *buf)
+{
+	return sprintf(buf, "render_use_dec: %d\n", render_use_dec);
+}
+
+static ssize_t render_use_dec_store(struct class *class,
+				    struct class_attribute *attr,
+				    const char *buf, size_t count)
+{
+	ssize_t r;
+	int val;
+
+	r = kstrtoint(buf, 0, &val);
+	if (r < 0)
+		return -EINVAL;
+
+	if (val > 0)
+		render_use_dec = val;
+	else
+		render_use_dec = 0;
+	return count;
+}
+
+static ssize_t dec_count_show(struct class *class,
+			      struct class_attribute *attr, char *buf)
+{
+	return sprintf(buf, "dec_count: %d\n", dec_count);
+}
+
+static ssize_t dec_count_store(struct class *class,
+			       struct class_attribute *attr,
+			       const char *buf, size_t count)
+{
+	ssize_t r;
+	int val;
+
+	r = kstrtoint(buf, 0, &val);
+	if (r < 0)
+		return -EINVAL;
+
+	if (val > 0)
+		dec_count = val;
+	else
+		dec_count = 0;
+	return count;
+}
+
+static ssize_t vf_dump_show(struct class *class,
+			    struct class_attribute *attr, char *buf)
+{
+	return sprintf(buf, "vf_dump: %d\n", vf_dump);
+}
+
+static ssize_t vf_dump_store(struct class *class,
+			     struct class_attribute *attr,
+			     const char *buf, size_t count)
+{
+	ssize_t r;
+	int val;
+
+	r = kstrtoint(buf, 0, &val);
+	if (r < 0)
+		return -EINVAL;
+
+	if (val > 0)
+		vf_dump = val;
+	else
+		vf_dump = 0;
 	return count;
 }
 
@@ -1841,6 +2070,50 @@ static struct class_attribute v4lvideo_class_attrs[] = {
 	       0664,
 	       alloc_sei_show,
 	       alloc_sei_store),
+	__ATTR(video_nr_base,
+	       0664,
+	       video_nr_base_show,
+	       video_nr_base_store),
+	__ATTR(n_devs,
+	       0664,
+	       n_devs_show,
+	       n_devs_store),
+	__ATTR(v4lvideo_debug,
+	       0664,
+	       v4lvideo_debug_show,
+	       v4lvideo_debug_store),
+	__ATTR(get_count,
+	       0664,
+	       get_count_show,
+	       get_count_store),
+	__ATTR(put_count,
+	       0664,
+	       put_count_show,
+	       put_count_store),
+	__ATTR(q_count,
+	       0664,
+	       q_count_show,
+	       q_count_store),
+	__ATTR(dq_count,
+	       0664,
+	       dq_count_show,
+	       dq_count_store),
+	__ATTR(cts_use_di,
+	       0664,
+	       cts_use_di_show,
+	       cts_use_di_store),
+	__ATTR(render_use_dec,
+	       0664,
+	       render_use_dec_show,
+	       render_use_dec_store),
+	__ATTR(dec_count,
+	       0664,
+	       dec_count_show,
+	       dec_count_store),
+	__ATTR(vf_dump,
+	       0664,
+	       vf_dump_show,
+	       vf_dump_store),
 	__ATTR_NULL
 };
 
