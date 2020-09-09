@@ -2338,6 +2338,15 @@ static ssize_t show_last_checkin_apts(struct class *class,
 	return sprintf(buf, "0x%x\n", last_apts);
 }
 
+static ssize_t show_last_checkin_vpts(struct class *class,
+		struct class_attribute *attr, char *buf)
+{
+	unsigned int last_vpts;
+
+	last_vpts = get_last_checkin_pts(PTS_TYPE_VIDEO);
+	return sprintf(buf, "0x%x\n", last_vpts);
+}
+
 static ssize_t show_firstvpts(struct class *class,
 		struct class_attribute *attr, char *buf)
 {
@@ -2550,7 +2559,7 @@ static struct class_attribute tsync_class_attrs[] = {
 	show_av_threshold_min, store_av_threshold_min),
 	__ATTR(av_threshold_max, 0664,
 	show_av_threshold_max, store_av_threshold_max),
-	__ATTR(last_checkin_apts, 0644, show_last_checkin_apts,
+	__ATTR(last_checkin_apts, 0664, show_last_checkin_apts,
 	NULL),
 	__ATTR(firstvpts, 0644, show_firstvpts, NULL),
 	__ATTR(vpause_flag, 0644, show_vpause_flag,
@@ -2572,6 +2581,7 @@ static struct class_attribute tsync_class_attrs[] = {
 	__ATTR(pts_latency, 0664, show_latency, store_latency),
 	__ATTR(videostarted, 0664, show_videostarted, NULL),
 	__ATTR(avsync_count, 0664, show_avsync_counts, store_avsync_counts),
+	__ATTR(last_checkin_vpts, 0664, show_last_checkin_vpts, NULL),
 	__ATTR_NULL
 };
 
@@ -2706,6 +2716,10 @@ int tsync_show_fun(const char *trigger, int id, char *sbuf, int size)
 	case 25:
 		ret = show_pcrscr_u64(NULL, NULL, buf);
 		break;
+	case 26:
+		ret = show_last_checkin_vpts(NULL, NULL, buf);
+		break;
+
 	default:
 		ret = -1;
 	}
