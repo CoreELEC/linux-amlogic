@@ -230,7 +230,7 @@ static int meson_sc2_pll_set_rate(struct clk_hw *hw, unsigned long rate,
 	const struct pll_rate_table *rate_set;
 	unsigned long old_rate;
 	int ret = 0;
-	u32 reg = 0x8000000;
+	u32 reg = 0x8000000, reg1 = 0;
 	unsigned long flags = 0;
 	void *cntlbase;
 
@@ -287,7 +287,7 @@ static int meson_sc2_pll_set_rate(struct clk_hw *hw, unsigned long rate,
 
 		p = &pll->frac;
 		if (p->width)
-			reg = PARM_SET(p->width, p->shift, reg,
+			reg1 = PARM_SET(p->width, p->shift, reg1,
 				       (unsigned long)rate_set->frac);
 	}
 
@@ -347,8 +347,13 @@ static int meson_sc2_pll_set_rate(struct clk_hw *hw, unsigned long rate,
 		writel(reg, cntlbase);
 		udelay(20);
 		writel(reg | MESON_PLL_ENABLE | MESON_PLL_RESET, cntlbase);
-		writel(SC2_HIFI_PLL_CNTL1,
-		       cntlbase + (unsigned long)(1 * 4));
+		if (!reg1)
+			writel(SC2_HIFI_PLL_CNTL1,
+			       cntlbase + (unsigned long)(1 * 4));
+		else
+			writel(reg1,
+			       cntlbase + (unsigned long)(1 * 4));
+
 		writel(SC2_HIFI_PLL_CNTL2,
 		       cntlbase + (unsigned long)(2 * 4));
 		writel(SC2_HIFI_PLL_CNTL3,

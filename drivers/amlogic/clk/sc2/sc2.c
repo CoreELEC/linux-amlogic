@@ -194,6 +194,11 @@ static struct meson_clk_pll sc2_hifi_pll = {
 		.shift   = 16,
 		.width   = 2,
 	},
+	.frac = {
+		.reg_off = ANACTRL_HIFIPLL_CTRL1,
+		.shift   = 0,
+		.width   = 19,
+	},
 	.rate_table = sc2_hifi_pll_rate_table,
 	.rate_count = ARRAY_SIZE(sc2_hifi_pll_rate_table),
 	.lock = &clk_lock,
