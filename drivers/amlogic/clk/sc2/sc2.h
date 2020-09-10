@@ -318,6 +318,8 @@ static const struct pll_rate_table sc2_pcie_pll_rate_table[] = {
 };
 
 static const struct pll_rate_table sc2_hifi_pll_rate_table[] = {
-	PLL_RATE(666000000ULL,	222, 1, 3) /*DCO=5328M*/
+	PLL_RATE(666000000ULL,	222, 1, 3), /*DCO=5328M*/
+	PLL_FRAC_RATE(1806336000ULL, 150, 1, 1, 0, 0x00010E56),
+	{ /* sentinel */ }
 };
 #endif /* __SC2_H */
