@@ -411,6 +411,8 @@ struct hdmitx_dev {
 			    unsigned int arg); /* Other control */
 		void (*am_hdmitx_hdcp_disable)(void);
 		void (*am_hdmitx_hdcp_enable)(void);
+		void (*am_hdmitx_hdcp_result)(unsigned int *exe_type,
+				unsigned int *result_type);
 	} hwop;
 	struct {
 		unsigned int hdcp14_en;

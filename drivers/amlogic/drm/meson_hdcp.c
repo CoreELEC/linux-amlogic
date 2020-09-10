@@ -31,6 +31,7 @@
 #include <linux/amlogic/media/vout/vout_notify.h>
 #include <linux/amlogic/media/vout/hdmi_tx/hdmi_tx_module.h>
 #include <linux/arm-smccc.h>
+#include <linux/workqueue.h>
 #include "meson_drv.h"
 #include "meson_hdmi.h"
 #include "meson_hdcp.h"
@@ -88,30 +89,10 @@ static int hdmitx_hdcp_opr(unsigned int val)
 	return -1;
 }
 
-static void check_read_ksv_list_st(void)
-{
-	int cnt = 0;
-
-	for (cnt = 0; cnt < 5; cnt++) {
-		if (((hdmitx_rd_reg(HDMITX_DWC_A_HDCPOBS1) & 0x7) == 5) ||
-		    ((hdmitx_rd_reg(HDMITX_DWC_A_HDCPOBS1) & 0x7) == 6))
-			msleep(20);
-		else
-			return;
-	}
-	pr_info("hdcp14: FSM: A9 read ksv list\n");
-}
-
 static int am_hdcp14_enable(struct am_hdmi_tx *am_hdmi)
 {
-	check_read_ksv_list_st();
-	hdmitx_ddc_hw_op(DDC_MUX_DDC);
-	hdmitx_set_reg_bits(HDMITX_TOP_SKP_CNTL_STAT, 0, 3, 1);
-	hdmitx_set_reg_bits(HDMITX_TOP_CLK_CNTL, 1, 31, 1);
-	hdmitx_hdcp_opr(6);
-	hdmitx_hdcp_opr(1);
-	drm_hdcptx_events_handle((ulong)am_hdmi);
-	hdmitx_set_reg_bits(HDMITX_DWC_MC_CLKDIS, 0, 6, 1);
+	/*call hdmitx hdcp14 function*/
+	drm_hdcp14_on((ulong)am_hdmi);
 	return 0;
 }
 
@@ -207,16 +188,36 @@ static int am_get_hdcp_exe_type(struct am_hdmi_tx *am_hdmi)
 
 	if (am_hdmi->hdcp_user_type == 0)
 		return HDCP_NULL;
-
-	if ((am_hdmi->hdcp_tx_type & 2) &&
-	    (am_hdmi->hdcp_user_type & 2)) {
+	if (!am_hdmi->hdcp_downstream_type &&
+		am_hdmi->hdcp_tx_type)
 		get_hdcp_downstream_ver(am_hdmi);
-		if (am_hdmi->hdcp_downstream_type & 0x2)
+	switch (am_hdmi->hdcp_tx_type & 3) {
+	case 3:
+		if ((am_hdmi->hdcp_downstream_type & 0x2) &&
+			(am_hdmi->hdcp_user_type & 0x2))
+			type = HDCP_MODE22;
+		else if ((am_hdmi->hdcp_downstream_type & 0x1) &&
+			 (am_hdmi->hdcp_user_type & 0x1))
+			type = HDCP_MODE14;
+		else
+			type = HDCP_NULL;
+		break;
+	case 2:
+		if ((am_hdmi->hdcp_downstream_type & 0x2) &&
+			(am_hdmi->hdcp_user_type & 0x2))
 			type = HDCP_MODE22;
 		else
+			type = HDCP_NULL;
+		break;
+	case 1:
+		if ((am_hdmi->hdcp_downstream_type & 0x1) &&
+			(am_hdmi->hdcp_user_type & 0x1))
 			type = HDCP_MODE14;
-	} else {
-		type = HDCP_MODE14;
+		else
+			type = HDCP_NULL;
+		break;
+	default:
+		type = HDCP_NULL;
 	}
 	return type;
 }
@@ -228,9 +229,13 @@ int am_hdcp_disable(struct am_hdmi_tx *am_hdmi)
 		am_hdmi->hdcp_report = HDCP_TX22_STOP;
 		wake_up(&am_hdmi->hdcp_comm_queue);
 	}
+	/*call hdmitx hdcp14 function*/
 	if (am_hdmi->hdcp_execute_type  == HDCP_MODE14)
-		hdmitx_hdcp_opr(4);
+		drm_hdcp14_off((ulong)am_hdmi);
 	am_hdmi->hdcp_execute_type = HDCP_NULL;
+	am_hdmi->hdcp14_en_flag = 0;
+	am_hdmi->hdcp22_en_flag = 0;
+	am_hdmi->hdcp_result = 0;
 	return 0;
 }
 
@@ -242,32 +247,65 @@ int am_hdcp_disconnect(struct am_hdmi_tx *am_hdmi)
 	if (hpd)
 		return -1;
 	am_hdmi->hdcp_report = HDCP_TX22_DISCONNECT;
+	am_hdmi->hdcp_downstream_type = 0;
+	am_hdmi->hdcp_execute_type = HDCP_NULL;
+	am_hdmi->hdcp14_en_flag = 0;
+	am_hdmi->hdcp22_en_flag = 0;
+	am_hdmi->hdcp_result = 0;
 	wake_up(&am_hdmi->hdcp_comm_queue);
 	return 0;
 }
 
-int am_hdcp_enable(struct am_hdmi_tx *am_hdmi)
+void am_hdcp_enable(struct work_struct *work)
 {
-	int hdcp_type;
 	int hpd;
+	struct am_hdmi_tx *am_hdmi;
 
 	hpd = hdmitx_hpd_hw_op(HPD_READ_HPD_GPIO);
 	if (!hpd)
-		return -1;
-	hdcp_type = am_get_hdcp_exe_type(am_hdmi);
-	if (hdcp_type == HDCP_MODE22) {
+		return;
+	am_hdmi = container_of((struct delayed_work *)work,
+		struct am_hdmi_tx, hdcp_prd_proc);
+	if (am_hdmi->hdcp_execute_type == HDCP_MODE22 &&
+		am_hdmi->hdcp22_en_flag)
+		am_hdmi->hdcp_result = hdmitx_hdcp_opr(7);
+	if (am_hdmi->hdcp_execute_type == HDCP_MODE14 &&
+		am_hdmi->hdcp14_en_flag) {
+		/*read hdcp14 result*/
+		am_hdmi->hdcp_result = hdmitx_hdcp_opr(2);
+		if (am_hdmi->hdcp_result != 1 &&
+			am_hdmi->hdcp_retry_cnt++ > 1) {
+			DRM_INFO("[%s]: hdcp14 fail\n",
+				 __func__);
+			am_hdmi->hdcp_retry_cnt = 0;
+		}
+	}
+
+	if (!am_hdmi->hdcp_execute_type)
+		am_hdmi->hdcp_execute_type =
+			am_get_hdcp_exe_type(am_hdmi);
+	if (am_hdmi->hdcp_execute_type == HDCP_MODE22 &&
+		!am_hdmi->hdcp22_en_flag) {
 		am_hdcp22_enable(am_hdmi);
+		am_hdmi->hdcp22_en_flag = 1;
 		am_hdmi->hdcp_report = HDCP_TX22_START;
 		wake_up(&am_hdmi->hdcp_comm_queue);
+		DRM_INFO("[%s]: report=%d, use_type=%u, execute=%u\n",
+			 __func__, am_hdmi->hdcp_report,
+			 am_hdmi->hdcp_user_type, am_hdmi->hdcp_execute_type);
 	}
-	if (hdcp_type == HDCP_MODE14)
+	if (am_hdmi->hdcp_execute_type == HDCP_MODE14 &&
+		!am_hdmi->hdcp14_en_flag) {
 		am_hdcp14_enable(am_hdmi);
-	am_hdmi->hdcp_execute_type = hdcp_type;
+		am_hdmi->hdcp14_en_flag = 1;
+		am_hdmi->hdcp_retry_cnt = 0;
+		DRM_INFO("[%s]: report=%d, use_type=%u, execute=%u\n",
+			 __func__, am_hdmi->hdcp_report,
+			 am_hdmi->hdcp_user_type, am_hdmi->hdcp_execute_type);
+	}
 
-	DRM_INFO("[%s]: report=%d, use_type=%u, execute=%u\n",
-		 __func__, am_hdmi->hdcp_report,
-		 am_hdmi->hdcp_user_type, am_hdmi->hdcp_execute_type);
-	return 0;
+	queue_delayed_work(am_hdmi->hdcp_wq,
+		&am_hdmi->hdcp_prd_proc, HZ * 3);
 }
 
 int am_hdcp_init(struct am_hdmi_tx *am_hdmi)

@@ -34,7 +34,8 @@ int am_hdcp_init(struct am_hdmi_tx *am_hdmi);
 int get_hdcp_hdmitx_version(struct am_hdmi_tx *am_hdmi);
 int am_hdcp_disable(struct am_hdmi_tx *am_hdmi);
 int am_hdcp_disconnect(struct am_hdmi_tx *am_hdmi);
-int am_hdcp_enable(struct am_hdmi_tx *am_hdmi);
+void am_hdcp_enable(struct work_struct *work);
 int am_hdcp22_init(struct am_hdmi_tx *am_hdmi);
-void drm_hdcptx_events_handle(ulong param);
+void drm_hdcp14_on(ulong param);
+void drm_hdcp14_off(ulong param);
 #endif

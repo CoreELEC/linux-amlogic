@@ -5200,13 +5200,6 @@ static void hdcp_start_timer(struct hdmitx_dev *hdev)
 	mod_timer(&hdev->hdcp_timer, jiffies + HZ / 100);
 }
 
-void drm_hdcptx_events_handle(ulong param)
-{
-	struct hdmitx_dev *hdev = get_hdmitx_device();
-
-	hdcp_start_timer(hdev);
-}
-
 static void set_pkf_duk_nonce(void)
 {
 	static int nonce_mode = 1; /* 1: use HW nonce   0: use SW nonce */
@@ -5417,6 +5410,66 @@ static int hdmitx_cntl_ddc(struct hdmitx_dev *hdev, unsigned int cmd,
 		break;
 	}
 	return 1;
+}
+
+/* Equal to the code as follows.
+ * cntlddc(&hdmitx_device, DDC_HDCP_MUX_INIT, 1);
+ * cntlddc(&hdmitx_device, DDC_HDCP_OP, HDCP14_OFF);
+ * hdmitx_hdcp_do_work(&hdmitx_device);
+ */
+void drm_hdcp14_off(ulong param)
+{
+	struct hdmitx_dev *hdev = get_hdmitx_device();
+
+	hdmitx_hdcp_opr(6);
+	hdev->hdcp_max_exceed_state = 0;
+	hdev->hdcp_max_exceed_cnt = 0;
+	ksv_sha_matched = 0;
+	memset(&tmp_ksv_lists, 0, sizeof(tmp_ksv_lists));
+	del_timer(&hdev->hdcp_timer);
+	if (hdev->topo_info)
+		memset(hdev->topo_info, 0, sizeof(*hdev->topo_info));
+	hdmitx_hdcp_opr(4);
+	if (hdev->chip_type >= MESON_CPU_ID_SC2)
+		hdmitx_set_reg_bits(HDMITX_DWC_MC_CLKDIS_SC2,
+					0, 6, 1);
+	else
+		hdmitx_set_reg_bits(HDMITX_DWC_MC_CLKDIS,
+					0, 6, 1);
+}
+
+/* Equal to the code as follows.
+ * cntlddc(&hdmitx_device, DDC_HDCP_MUX_INIT, 1);
+ * hdmitx_hdcp_do_work(&hdmitx_device);
+ * cntlddc(&hdmitx_device, DDC_HDCP_OP, HDCP14_ON);
+ */
+void drm_hdcp14_on(ulong param)
+{
+	struct hdmitx_dev *hdev = get_hdmitx_device();
+
+	hdmitx_hdcp_opr(6);
+	if (hdev->chip_type >= MESON_CPU_ID_SC2)
+		hdmitx_set_reg_bits(HDMITX_DWC_MC_CLKDIS_SC2,
+					0, 6, 1);
+	else
+		hdmitx_set_reg_bits(HDMITX_DWC_MC_CLKDIS,
+					0, 6, 1);
+	hdev->hdcp_max_exceed_state = 0;
+	hdev->hdcp_max_exceed_cnt = 0;
+	ksv_sha_matched = 0;
+	memset(&tmp_ksv_lists, 0, sizeof(tmp_ksv_lists));
+	del_timer(&hdev->hdcp_timer);
+	if (hdev->topo_info)
+		memset(hdev->topo_info, 0, sizeof(*hdev->topo_info));
+	check_read_ksv_list_st();
+	if (hdev->topo_info)
+		hdev->topo_info->hdcp_ver = HDCPVER_14;
+	hdmitx_ddc_hw_op(DDC_MUX_DDC);
+	hdmitx_set_reg_bits(HDMITX_TOP_SKP_CNTL_STAT, 0, 3, 1);
+	hdmitx_set_reg_bits(HDMITX_TOP_CLK_CNTL, 1, 31, 1);
+	hdmitx_hdcp_opr(6);
+	hdmitx_hdcp_opr(1);
+	hdcp_start_timer(hdev);
 }
 
 static int hdmitx_hdmi_dvi_config(struct hdmitx_dev *hdev,

@@ -685,20 +685,15 @@ struct edid *meson_read_edid(struct drm_connector *connector)
 
 int am_hdmi_tx_get_modes(struct drm_connector *connector)
 {
-	struct edid *edid;
+	struct edid *edid = NULL;
 	int count = 0;
 
-	DRM_INFO("get_edid\n");
-	edid = meson_read_edid(connector);
-	if (edid) {
-		drm_mode_connector_update_edid_property(connector, edid);
+	if (connector->edid_blob_ptr)
+		edid = (struct edid *)connector->edid_blob_ptr->data;
+	if (edid)
 		count = drm_add_edid_modes(connector, edid);
-		am_hdmi_update_downstream_cap_property(connector, edid);
-		hdmi_tx_edid_proc((unsigned char *)edid);
-		kfree(edid);
-	} else {
+	else
 		add_default_modes(connector);
-	}
 	return count;
 }
 
@@ -723,6 +718,8 @@ static enum drm_connector_status am_hdmi_connector_detect
 	(struct drm_connector *connector, bool force)
 {
 	struct am_hdmi_tx *am_hdmi = to_am_hdmi(connector);
+	static bool edid_fsh_flag;
+	struct edid *edid = NULL;
 
 	/* HPD rising */
 	if (am_hdmi->hpd_flag == 1) {
@@ -737,6 +734,18 @@ static enum drm_connector_status am_hdmi_connector_detect
 	/*if the status is unknown, read GPIO*/
 	if (hdmitx_hpd_hw_op(HPD_READ_HPD_GPIO)) {
 		DRM_INFO("connector_status_connected\n");
+		if (!edid_fsh_flag) {
+			edid = meson_read_edid(connector);
+			if (edid) {
+				drm_mode_connector_update_edid_property(
+					connector, edid);
+				am_hdmi_update_downstream_cap_property(
+					connector, edid);
+				hdmi_tx_edid_proc((unsigned char *)edid);
+				kfree(edid);
+				edid_fsh_flag = true;
+			}
+		}
 		return connector_status_connected;
 	}
 	if (!(hdmitx_hpd_hw_op(HPD_READ_HPD_GPIO))) {
@@ -1224,10 +1233,18 @@ static irqreturn_t am_hdmi_hardirq(int irq, void *dev_id)
 {
 	unsigned int data32 = 0;
 	irqreturn_t ret = IRQ_NONE;
+	struct hdmitx_dev *hdmitx_dev;
 
 	data32 = hdmitx_rd_reg(HDMITX_TOP_INTR_STAT);
 	/* Clear The Interrupt ot TX Controller IP*/
 	hdmitx_wr_reg(HDMITX_TOP_INTR_STAT_CLR, ~0);
+	DRM_INFO("hotplug irq: %x\n", data32);
+	hdmitx_dev = get_hdmitx_device();
+	if (hdmitx_dev->hpd_lock == 1) {
+		DRM_INFO("[%s]: HDMI hpd locked\n", __func__);
+		return ret;
+	}
+
 	/* check HPD status */
 	if ((data32 & (1 << 1)) && (data32 & (1 << 2))) {
 		if (hdmitx_hpd_hw_op(HPD_READ_HPD_GPIO))
@@ -1238,7 +1255,6 @@ static irqreturn_t am_hdmi_hardirq(int irq, void *dev_id)
 
 	if ((data32 & (1 << 1)) || (data32 & (1 << 2))) {
 		ret = IRQ_WAKE_THREAD;
-		DRM_INFO("hotplug irq: %x\n", data32);
 		am_hdmi_info.hpd_flag = 0;
 		if (data32 & (1 << 1)) {
 			am_hdmi_info.hpd_flag = 1;/* HPD rising */
@@ -1256,7 +1272,26 @@ static irqreturn_t am_hdmi_hardirq(int irq, void *dev_id)
 static irqreturn_t am_hdmi_irq(int irq, void *dev_id)
 {
 	struct am_hdmi_tx *am_hdmi = dev_id;
+	struct hdmitx_dev *hdmitx_dev;
+	struct edid *edid = NULL;
+	struct drm_connector *connector;
 
+	hdmitx_dev = get_hdmitx_device();
+	if (hdmitx_dev->hpd_lock == 1) {
+		DRM_INFO("[%s]: HDMI hpd locked\n", __func__);
+		return IRQ_HANDLED;
+	}
+	if (am_hdmi->hpd_flag == 1) {
+		connector = &am_hdmi->connector;
+		edid = meson_read_edid(connector);
+		if (edid) {
+			drm_mode_connector_update_edid_property(
+				connector, edid);
+			am_hdmi_update_downstream_cap_property(connector, edid);
+			hdmi_tx_edid_proc((unsigned char *)edid);
+			kfree(edid);
+		}
+	}
 	drm_helper_hpd_irq_event(am_hdmi->connector.dev);
 	return IRQ_HANDLED;
 }
@@ -1404,12 +1439,22 @@ static const struct component_ops am_meson_hdmi_ops = {
 
 void am_hdmitx_hdcp_disable(void)
 {
+	cancel_delayed_work(&am_hdmi_info.hdcp_prd_proc);
+	flush_workqueue(am_hdmi_info.hdcp_wq);
 	am_hdcp_disable(&am_hdmi_info);
 }
 
 void am_hdmitx_hdcp_enable(void)
 {
-	am_hdcp_enable(&am_hdmi_info);
+	queue_delayed_work(am_hdmi_info.hdcp_wq,
+		&am_hdmi_info.hdcp_prd_proc, 0);
+}
+
+void am_hdmitx_hdcp_result(unsigned int *exe_type,
+		unsigned int *result_type)
+{
+	*exe_type = am_hdmi_info.hdcp_execute_type;
+	*result_type = (unsigned int)am_hdmi_info.hdcp_result;
 }
 
 static int am_meson_hdmi_probe(struct platform_device *pdev)
@@ -1422,6 +1467,7 @@ static int am_meson_hdmi_probe(struct platform_device *pdev)
 	hdmitx_dev = get_hdmitx_device();
 	hdmitx_dev->hwop.am_hdmitx_hdcp_disable = am_hdmitx_hdcp_disable;
 	hdmitx_dev->hwop.am_hdmitx_hdcp_enable = am_hdmitx_hdcp_enable;
+	hdmitx_dev->hwop.am_hdmitx_hdcp_result = am_hdmitx_hdcp_result;
 	return component_add(&pdev->dev, &am_meson_hdmi_ops);
 }
 

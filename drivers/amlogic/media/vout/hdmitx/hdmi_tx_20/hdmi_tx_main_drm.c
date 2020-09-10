@@ -3689,19 +3689,29 @@ static ssize_t show_hdcp_mode(struct device *dev,
 			      struct device_attribute *attr, char *buf)
 {
 	int pos = 0;
+	struct hdmitx_dev *hdev = &hdmitx_device;
+	unsigned int exe_type;
+	unsigned int result_type;
 
-	switch (hdmitx_device.hdcp_mode) {
+	hdev->hwop.am_hdmitx_hdcp_result(&exe_type, &result_type);
+	switch (exe_type) {
 	case 1:
-		pos += snprintf(buf + pos, PAGE_SIZE, "14");
+		pos += snprintf(buf + pos, PAGE_SIZE, "14 : ");
 		break;
 	case 2:
-		pos += snprintf(buf + pos, PAGE_SIZE, "22");
+		pos += snprintf(buf + pos, PAGE_SIZE, "22 : ");
 		break;
 	default:
 		pos += snprintf(buf + pos, PAGE_SIZE, "off");
 		break;
 	}
-
+	if (exe_type == 1 ||
+		exe_type == 2) {
+		if (result_type == 1)
+			pos += snprintf(buf + pos, PAGE_SIZE, "succeed");
+		else
+			pos += snprintf(buf + pos, PAGE_SIZE, "fail");
+	}
 	return pos;
 }
 

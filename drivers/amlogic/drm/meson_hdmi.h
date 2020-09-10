@@ -152,6 +152,9 @@ struct am_hdmi_tx {
 	unsigned int hdcp_downstream_type;/*bit0:hdcp14 bit 1:hdcp22*/
 	unsigned int hdcp_user_type;/*0: null hdcp 1: hdcp14 2: hdcp22*/
 	unsigned int hdcp_execute_type;/*0: null hdcp 1: hdcp14 2: hdcp22*/
+	unsigned int hdcp14_en_flag;/*0: disable 1: enable*/
+	unsigned int hdcp22_en_flag;/*0: disable 1: enable*/
+	unsigned int hdcp_retry_cnt; /*hdcp result fail count num*/
 	struct timer_list hdcp_timer;
 	unsigned int hdcp_mode;
 	unsigned int hdcp_state;
@@ -159,6 +162,9 @@ struct am_hdmi_tx {
 	unsigned int hdcp_try_times;
 	struct miscdevice hdcp_comm_device;
 	wait_queue_head_t hdcp_comm_queue;
+	struct workqueue_struct *hdcp_wq;
+	struct delayed_work hdcp_prd_proc;
+	int hdcp_result;
 	int hdcp_report;
 	int hdcp_poll_report;
 };

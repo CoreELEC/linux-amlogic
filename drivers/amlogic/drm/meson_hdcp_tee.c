@@ -20,8 +20,11 @@
 #include <linux/amlogic/media/vout/hdmi_tx/hdmi_common.h>
 #include <linux/amlogic/media/vout/hdmi_tx/hdmi_tx_module.h>
 #include <linux/uaccess.h>
+#include <linux/workqueue.h>
 #include "meson_hdmi.h"
 #include "meson_hdcp.h"
+
+#define DEVICE_NAME "drmhdmitx"
 
 /* ioctl numbers */
 enum {
@@ -91,8 +94,13 @@ static long hdcp_comm_ioctl(struct file *file,
 		} else {
 			am_hdmi->hdcp_user_type = arg;
 			rtn_val = 0;
-			if (hdmitx_hpd_hw_op(HPD_READ_HPD_GPIO))
-				am_hdcp_enable(am_hdmi);
+			if (hdmitx_hpd_hw_op(HPD_READ_HPD_GPIO)) {
+				cancel_delayed_work(&am_hdmi->hdcp_prd_proc);
+				flush_workqueue(am_hdmi->hdcp_wq);
+				am_hdcp_disable(am_hdmi);
+				queue_delayed_work(am_hdmi->hdcp_wq,
+					&am_hdmi->hdcp_prd_proc, 0);
+			}
 		}
 		break;
 	case HDCP_TX_VER_IOC_REPORT:
@@ -163,8 +171,12 @@ static const struct file_operations hdcp_comm_file_operations = {
 
 int hdcp_comm_init(struct am_hdmi_tx *am_hdmi)
 {
-	am_hdmi->hdcp_user_type = HDCP_MODE22;
+	am_hdmi->hdcp_user_type = 3;
 	init_waitqueue_head(&am_hdmi->hdcp_comm_queue);
+	am_hdmi->hdcp_wq = alloc_workqueue(DEVICE_NAME,
+		WQ_HIGHPRI | WQ_CPU_INTENSIVE, 0);
+	INIT_DELAYED_WORK(&am_hdmi->hdcp_prd_proc,
+			  am_hdcp_enable);
 	am_hdmi->hdcp_comm_device.minor = MISC_DYNAMIC_MINOR;
 	am_hdmi->hdcp_comm_device.name = "tee_comm_hdcp";
 	am_hdmi->hdcp_comm_device.fops = &hdcp_comm_file_operations;
