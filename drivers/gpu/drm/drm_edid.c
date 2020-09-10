@@ -3567,6 +3567,8 @@ add_cea_modes(struct drm_connector *connector, struct edid *edid)
 			if (cea_db_tag(db) == VIDEO_BLOCK) {
 				video = db + 1;
 				video_len = dbl;
+				svd = video;
+				svd_len = video_len;
 				modes += do_cea_modes(connector, video, dbl,
 						      mode_color_space);
 			} else if (cea_db_is_hdmi_vsdb(db)) {

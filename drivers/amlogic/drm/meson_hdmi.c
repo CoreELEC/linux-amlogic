@@ -71,12 +71,12 @@ static int am_hdmi_create_mode_default_attr(struct drm_display_mode *mode)
 	u8 tmp;
 
 	memset(mode->default_attr, 0, 16);
-	if (mode->mode_color_444)
+	if (mode->mode_color_420)
+		strcpy(mode->default_attr, "420");
+	else if (mode->mode_color_444)
 		strcpy(mode->default_attr, "444");
 	else if (mode->mode_color_422)
 		strcpy(mode->default_attr, "422");
-	else if (mode->mode_color_420)
-		strcpy(mode->default_attr, "420");
 	else
 		strcpy(mode->default_attr, "rgb");
 	tmp = strlen(mode->default_attr);
@@ -947,6 +947,10 @@ void am_hdmi_encoder_mode_set(struct drm_encoder *encoder,
 		 mode->name,  adjusted_mode->name);
 	am_hdmi->hdmi_info.vic = drm_match_cea_mode(adjusted_mode);
 	DRM_INFO("the hdmi mode vic : %d\n", am_hdmi->hdmi_info.vic);
+	adjusted_mode->mode_color_444 = 0;
+	adjusted_mode->mode_color_422 = 0;
+	adjusted_mode->mode_color_420 = 0;
+	adjusted_mode->mode_color_rgb = 0;
 	list_for_each_entry(mmode, &connector->modes, head) {
 		vic = drm_match_cea_mode(mmode);
 		if (vic == am_hdmi->hdmi_info.vic) {
@@ -954,11 +958,10 @@ void am_hdmi_encoder_mode_set(struct drm_encoder *encoder,
 				 mmode->mode_color_444,
 				 mmode->mode_color_422, mmode->mode_color_420,
 				 mmode->mode_color_rgb);
-			adjusted_mode->mode_color_444 = mmode->mode_color_444;
-			adjusted_mode->mode_color_422 = mmode->mode_color_422;
-			adjusted_mode->mode_color_420 = mmode->mode_color_420;
-			adjusted_mode->mode_color_rgb = mmode->mode_color_rgb;
-			break;
+			adjusted_mode->mode_color_444 |= mmode->mode_color_444;
+			adjusted_mode->mode_color_422 |= mmode->mode_color_422;
+			adjusted_mode->mode_color_420 |= mmode->mode_color_420;
+			adjusted_mode->mode_color_rgb |= mmode->mode_color_rgb;
 		}
 	}
 	/* Store the display mode for plugin/DPMS poweron events */
