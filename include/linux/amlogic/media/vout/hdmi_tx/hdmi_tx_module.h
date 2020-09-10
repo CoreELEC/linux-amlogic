@@ -356,6 +356,14 @@ struct hdmitx_dev {
 	int hpdmode;
 	/* -1, no hdcp; 0, NULL; 1, 1.4; 2, 2.2 */
 	int hdcp_mode;
+	/* in board dts file, here can add
+	 * &amhdmitx {
+	 *     hdcp_type_policy = <1>;
+	 * };
+	 * 0 is default for NTS 0->1, 1 is fixed as 1, and 2 is fixed as 0
+	 */
+	/* -1, fixed 0; 0, NTS 0->1; 1, fixed 1 */
+	int hdcp_type_policy;
 	int hdcp_bcaps_repeater;
 	int ready;	/* 1, hdmi stable output, others are 0 */
 	int hdcp_hpd_stick;	/* 1 not init & reset at plugout */

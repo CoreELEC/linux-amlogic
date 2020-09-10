@@ -3625,6 +3625,34 @@ static ssize_t show_frac_rate(struct device *dev,
 	return pos;
 }
 
+static ssize_t store_hdcp_type_policy(struct device *dev,
+	struct device_attribute *attr, const char *buf, size_t count)
+{
+	int val = 0;
+
+	if (strncmp(buf, "0", 1) == 0)
+		val = 0;
+	if (strncmp(buf, "1", 1) == 0)
+		val = 1;
+	if (strncmp(buf, "-1", 2) == 0)
+		val = -1;
+	pr_info(SYS "set hdcp_type_policy as %d\n", val);
+	hdmitx_device.hdcp_type_policy = val;
+
+	return count;
+}
+
+static ssize_t show_hdcp_type_policy(struct device *dev,
+	struct device_attribute *attr, char *buf)
+{
+	int pos = 0;
+
+	pos += snprintf(buf + pos, PAGE_SIZE, "%d\n",
+		hdmitx_device.hdcp_type_policy);
+
+	return pos;
+}
+
 static ssize_t store_hdcp_clkdis(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t count)
 {
@@ -4817,6 +4845,8 @@ static DEVICE_ATTR(hdcp_clkdis, 0664, show_hdcp_clkdis, store_hdcp_clkdis);
 static DEVICE_ATTR(hdcp_pwr, 0664, show_hdcp_pwr, store_hdcp_pwr);
 static DEVICE_ATTR(hdcp_byp, 0200, NULL, store_hdcp_byp);
 static DEVICE_ATTR(hdcp_mode, 0664, show_hdcp_mode, store_hdcp_mode);
+static DEVICE_ATTR(hdcp_type_policy, 0444, show_hdcp_type_policy,
+		   store_hdcp_type_policy);
 static DEVICE_ATTR(hdcp_lstore, 0664, show_hdcp_lstore, store_hdcp_lstore);
 static DEVICE_ATTR(hdcp_rptxlstore, 0664, show_hdcp_rptxlstore,
 	store_hdcp_rptxlstore);
@@ -5937,6 +5967,16 @@ static int amhdmitx_get_dt_info(struct platform_device *pdev)
 		if (!ret)
 			hdmitx_device.cedst_en = !!val;
 
+		ret = of_property_read_u32(pdev->dev.of_node,
+					   "hdcp_type_policy", &val);
+		if (!ret) {
+			hdmitx_device.hdcp_type_policy = 0;
+			if (val == 2)
+				hdmitx_device.hdcp_type_policy = -1;
+			if (val == 1)
+				hdmitx_device.hdcp_type_policy = 1;
+		}
+
 		/* Get vendor information */
 		ret = of_property_read_u32(pdev->dev.of_node,
 				"vend-data", &val);
@@ -6100,6 +6140,7 @@ static int amhdmitx_probe(struct platform_device *pdev)
 	ret = device_create_file(dev, &dev_attr_hdcp_ver);
 	ret = device_create_file(dev, &dev_attr_hdcp_byp);
 	ret = device_create_file(dev, &dev_attr_hdcp_mode);
+	ret = device_create_file(dev, &dev_attr_hdcp_type_policy);
 	ret = device_create_file(dev, &dev_attr_hdcp_repeater);
 	ret = device_create_file(dev, &dev_attr_hdcp_topo_info);
 	ret = device_create_file(dev, &dev_attr_hdcp22_type);
@@ -6234,6 +6275,7 @@ static int amhdmitx_remove(struct platform_device *pdev)
 	device_remove_file(dev, &dev_attr_div40);
 	device_remove_file(dev, &dev_attr_hdcp_repeater);
 	device_remove_file(dev, &dev_attr_hdcp_topo_info);
+	device_remove_file(dev, &dev_attr_hdcp_type_policy);
 	device_remove_file(dev, &dev_attr_hdcp22_type);
 	device_remove_file(dev, &dev_attr_hdcp_stickmode);
 	device_remove_file(dev, &dev_attr_hdcp_stickstep);
