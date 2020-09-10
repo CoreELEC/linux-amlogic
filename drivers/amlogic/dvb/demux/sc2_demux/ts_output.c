@@ -96,7 +96,7 @@ struct out_elem {
 	unsigned long aucpu_mem;
 	unsigned int aucpu_mem_size;
 	unsigned int aucpu_read_offset;
-	/*protect cb_list*/
+	/*protect cb_list */
 	struct mutex mutex;
 };
 
@@ -319,7 +319,7 @@ static int ts_process(struct out_elem *pout)
 
 	if (pout->remain_len == 0) {
 		len = MAX_READ_BUF_LEN;
-		ret = SC2_bufferid_read(pout->pchan, &pread, len);
+		ret = SC2_bufferid_read(pout->pchan, &pread, len, 0);
 		if (ret != 0) {
 			w_size = out_output_cb_list(pout, pread, ret);
 //                      pr_dbg("%s send:%d, w:%d wwwwww\n", __func__, ret,
@@ -338,7 +338,7 @@ static int ts_process(struct out_elem *pout)
 		}
 	} else {
 		len = READ_CACHE_SIZE - pout->remain_len;
-		ret = SC2_bufferid_read(pout->pchan, &pread, len);
+		ret = SC2_bufferid_read(pout->pchan, &pread, len, 0);
 		if (ret != 0) {
 			memcpy(pout->cache + pout->remain_len, pread, len);
 			pout->remain_len += len;
@@ -384,7 +384,7 @@ static int _task_out_func(void *data)
 			ts_process(pout);
 		} else {
 			len = MAX_READ_BUF_LEN;
-			ret = SC2_bufferid_read(pout->pchan, &pread, len);
+			ret = SC2_bufferid_read(pout->pchan, &pread, len, 0);
 			if (ret != 0)
 				out_output_cb_list(pout, pread, ret);
 		}
@@ -414,7 +414,7 @@ static int get_non_sec_es_header(struct out_elem *pout, char *last_header,
 	header_len = 16;
 	offset = 0;
 	while (header_len) {
-		ret = SC2_bufferid_read(pout->pchan1, &pts_dts, header_len);
+		ret = SC2_bufferid_read(pout->pchan1, &pts_dts, header_len, 0);
 		pr_dbg("%s head ret:%d\n", __func__, ret);
 		if (ret != 0) {
 			memcpy((char *)(cur_header + offset), pts_dts, ret);
@@ -484,7 +484,7 @@ static int write_es_data(struct out_elem *pout, struct chan_id *pchan,
 	pr_dbg("%s chan id:%d, len:%d, isdirty:%d\n", __func__,
 	       pchan->id, len, isdirty);
 	while (len) {
-		ret = SC2_bufferid_read(pout->pchan, &ptmp, len);
+		ret = SC2_bufferid_read(pout->pchan, &ptmp, len, 0);
 		if (ret != 0) {
 			len -= ret;
 			if (!isdirty)
@@ -710,6 +710,7 @@ static int write_sec_video_es_data(struct out_elem *pout, struct chan_id *pchan,
 	int ret;
 	unsigned int data_start = 0;
 	unsigned int data_end = 0;
+	int flag = 0;
 
 	memset(&sec_es_data, 0, sizeof(struct dmx_sec_es_data));
 	sec_es_data.pts_dts_flag = header->pts_dts_flag;
@@ -718,8 +719,11 @@ static int write_sec_video_es_data(struct out_elem *pout, struct chan_id *pchan,
 	sec_es_data.buf_start = pout->pchan->mem;
 	sec_es_data.buf_end = pout->pchan->mem + pout->pchan->mem_size;
 
+	if (pout->pchan->sec_level)
+		flag = 1;
+
 	while (len) {
-		ret = SC2_bufferid_read(pout->pchan, &ptmp, len);
+		ret = SC2_bufferid_read(pout->pchan, &ptmp, len, flag);
 		if (ret != 0) {
 			if (data_start == 0)
 				data_start = (unsigned long)ptmp;
