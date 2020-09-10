@@ -37,6 +37,7 @@ struct vout_op_s {
 	struct vinfo_s *(*get_vinfo)(void);
 	int (*set_vmode)(enum vmode_e);
 	enum vmode_e (*validate_vmode)(char *name, unsigned int frac);
+	int (*check_same_vmodeattr)(char *name);
 	int (*vmode_is_supported)(enum vmode_e);
 	int (*disable)(enum vmode_e);
 	int (*set_state)(int);

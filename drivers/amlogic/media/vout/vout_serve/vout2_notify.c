@@ -139,6 +139,15 @@ int set_current_vmode2(enum vmode_e mode)
 EXPORT_SYMBOL(set_current_vmode2);
 
 /*
+ *interface export to client who want to check same vmode attr.
+ */
+int vout2_check_same_vmodeattr(char *name)
+{
+	return vout_func_check_same_vmodeattr(2, name);
+}
+EXPORT_SYMBOL(vout2_check_same_vmodeattr);
+
+/*
  *interface export to client who want to set current vmode.
  */
 enum vmode_e validate_vmode2(char *name, unsigned int frac)
