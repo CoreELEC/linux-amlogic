@@ -204,6 +204,7 @@ struct composer_dev {
 	struct vframe_s fake_vf;
 	struct vframe_s fake_back_vf;
 	bool select_path_done;
+	bool composer_enabled;
 };
 
 #define VIDEO_COMPOSER_IOC_MAGIC  'V'

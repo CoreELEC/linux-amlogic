@@ -50,6 +50,7 @@ struct file_private_data {
 	struct vframe_s *vf_ext_p;
 	u32 flag;
 	struct metadata md;
+	void *private;
 };
 
 struct v4l_data_t {

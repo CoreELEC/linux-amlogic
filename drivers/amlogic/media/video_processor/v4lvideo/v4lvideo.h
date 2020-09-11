@@ -52,8 +52,7 @@
 #define MAX_WIDTH 4096
 #define MAX_HEIGHT 4096
 
-#define V4LVIDEO_POOL_SIZE 16
-#define VF_POOL_SIZE        32
+#define V4LVIDEO_POOL_SIZE 18
 #define ION_VF_RECEIVER_NAME_SIZE 32
 
 #define V4LVID_INFO(fmt, args...) pr_info("v4lvid: info: " fmt, ## args)
@@ -195,6 +194,16 @@ struct v4l2_amlogic_parm {
 		 master_display_colour;
 	};
 
+struct v4lvideo_file_s {
+	atomic_t on_use;
+	struct file_private_data *private_data_p;
+	struct vframe_s *vf_p;
+	struct vframe_s *vf_ext_p;
+	u32 flag;
+	u32 vf_type;
+	bool free_before_unreg;
+};
+
 struct v4lvideo_dev {
 	struct list_head v4lvideo_devlist;
 	struct v4l2_device v4l2_dev;
@@ -217,13 +226,14 @@ struct v4lvideo_dev {
 	struct v4l2q_s input_queue;
 	struct v4l2q_s display_queue;
 	struct v4l2_buffer *v4lvideo_input_queue[V4LVIDEO_POOL_SIZE];
-	struct file_private_data *v4lvideo_display_queue[VF_POOL_SIZE];
+	struct v4lvideo_file_s *v4lvideo_display_queue[V4LVIDEO_POOL_SIZE];
 	/* mutex_input */
 	struct mutex mutex_input;
 	struct v4l2_buffer v4lvideo_input[V4LVIDEO_POOL_SIZE];
 	struct v4l2_amlogic_parm am_parm;
 	u8 first_frame;
 	char *provider_name;
+	struct v4lvideo_file_s v4lvideo_file[V4LVIDEO_POOL_SIZE];
 };
 
 enum vframe_source_type {

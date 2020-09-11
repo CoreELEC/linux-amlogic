@@ -1399,6 +1399,13 @@ static void set_frames_info(struct composer_dev *dev,
 	bool current_is_sideband = false;
 	s32 sideband_type = -1;
 
+	if (!dev->composer_enabled) {
+		for (j = 0; j < frames_info->frame_count; j++)
+			frames_info->frame_info[j].composer_fen_fd = -1;
+		vc_print(dev->index, PRINT_ERROR,
+			 "set frame but not enable\n");
+	}
+
 	for (j = 0; j < frames_info->frame_count; j++) {
 		if (frames_info->frame_info[j].type == 2) {
 			vc_print(dev->index, PRINT_OTHER,
@@ -1902,6 +1909,9 @@ int video_composer_set_enable(struct composer_dev *dev, u32 val)
 		 "vc: set enable index=%d, val=%d\n",
 		 dev->index, val);
 
+	if (val == 0)
+		dev->composer_enabled = false;
+
 	if (dev->enable_composer == val) {
 		pr_err("vc: set_enable repeat set dev->index =%d,val=%d\n",
 		       dev->index, val);
@@ -1917,6 +1927,9 @@ int video_composer_set_enable(struct composer_dev *dev, u32 val)
 
 	if (ret != 0)
 		pr_err("vc: set failed\n");
+	else
+		if (val)
+			dev->composer_enabled = true;
 	return ret;
 }
 
