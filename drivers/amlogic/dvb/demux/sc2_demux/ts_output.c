@@ -1499,7 +1499,7 @@ int ts_output_remove_pid(struct out_elem *pout)
 		tsout_config_es_table(pout->es_pes->buff_id, -1,
 				      pout->sid, 1, !drop_dup, pout->format);
 		_free_es_entry_slot(pout->es_pes);
-		pout->es_pes = NULL;
+//		pout->es_pes = NULL;
 		if (pout->aucpu_handle >= 0) {
 			s32 ret;
 
