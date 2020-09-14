@@ -117,23 +117,11 @@ EXPORT_SYMBOL(am_meson_unregister_crtc_funcs);
 
 static int am_meson_enable_vblank(struct drm_device *dev, unsigned int crtc)
 {
-	struct meson_drm *priv = dev->dev_private;
-
-	if (crtc >= MESON_MAX_CRTC)
-		return -EBADFD;
-
-	priv->crtc_funcs[crtc]->enable_vblank(priv->crtc);
 	return 0;
 }
 
 static void am_meson_disable_vblank(struct drm_device *dev, unsigned int crtc)
 {
-	struct meson_drm *priv = dev->dev_private;
-
-	if (crtc >= MESON_MAX_CRTC)
-		return;
-
-	priv->crtc_funcs[crtc]->disable_vblank(priv->crtc);
 }
 
 /*Todo: change the type according to the uboot env boot args*/
@@ -616,7 +604,8 @@ static int am_meson_drm_bind(struct device *dev)
 	drm->mode_config.funcs = &meson_mode_config_funcs;
 	drm->mode_config.allow_fb_modifiers = true;
 	/*
-	 * irq will init in each crtc, just mark the enable flag here.
+	 * enable drm irq mode.
+	 * - with irq_enabled = true, we can use the vblank feature.
 	 */
 	drm->irq_enabled = true;
 
