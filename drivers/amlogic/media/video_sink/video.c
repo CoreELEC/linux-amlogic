@@ -95,7 +95,7 @@ MODULE_AMLOG(LOG_LEVEL_ERROR, 0, LOG_DEFAULT_LEVEL_DESC, LOG_MASK_DESC);
 #include <linux/amlogic/pm.h>
 #endif
 #include <linux/math64.h>
-
+#include <linux/fence.h>
 #include "video_receiver.h"
 #define CREATE_TRACE_POINTS
 #include "video_trace.h"
@@ -1126,6 +1126,7 @@ static inline void pip_vf_put(struct vframe_s *vf)
 
 static inline struct vframe_s *video_vf_peek(void)
 {
+	int ret = 0;
 	struct vframe_s *vf = vf_peek(RECEIVER_NAME);
 
 	if (hist_test_flag) {
@@ -1141,6 +1142,24 @@ static inline struct vframe_s *video_vf_peek(void)
 		vf->disp_pts = 0;
 		vf->disp_pts_us64 = 0;
 	}
+
+	if (vf && vf->fence) {
+		/*
+		 * the ret of fence status.
+		 * 0: has not been signaled.
+		 * 1: signaled without err.
+		 * other: fence err.
+		 */
+		ret = fence_get_status(vf->fence);
+		if (ret < 0) {
+			vf = vf_get(RECEIVER_NAME);
+			if (vf)
+				vf_put(vf, RECEIVER_NAME);
+		} else if (ret == 0) {
+			vf = NULL;
+		}
+	}
+
 	return vf;
 }
 
@@ -1229,8 +1248,8 @@ static inline struct vframe_s *video_vf_get(void)
 		receive_frame_count++;
 #endif
 	}
-	return vf;
 
+	return vf;
 }
 
 static int video_vf_get_states(struct vframe_states *states)
