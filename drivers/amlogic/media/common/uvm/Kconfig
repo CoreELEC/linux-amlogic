@@ -1,0 +1,26 @@
+#
+# uvm core configuration
+#
+
+
+menuconfig AMLOGIC_UVM_CORE
+	bool "Amlogic unified video memory management"
+	default n
+	help
+	  say y to enable Amlogic unified video memory management.
+	  The uvm core is dmabuf wrap vframe framework.
+
+menuconfig AMLOGIC_UVM_ALLOCATOR
+	bool "Amlogic uvm allocator device driver"
+	default n
+	select AMLOGIC_UVM_CORE
+	help
+	  say y to enable amlogic uvm allocator device driver.
+	  gralloc will call it to allocate dmabuf fd.
+
+menuconfig AMLOGIC_ION_DELAY_ALLOC
+	bool "Amlogic ion delay alloc device driver"
+	default n
+	help
+	  say y to enable amlogic ion delay alloc device driver.
+	  Android Q gralloc will call it to implement delay alloc.
