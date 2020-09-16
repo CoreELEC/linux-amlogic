@@ -793,8 +793,6 @@ void init_reg_map(unsigned int type);
 #define P_VPP_POSTBLEND_H_SIZE VCBUS_REG_ADDR(VPP_POSTBLEND_H_SIZE)
 
 
-#define VPU_VIU_VENC_MUX_CTRL 0x271a	/* register.h:9214 */
-#define P_VPU_VIU_VENC_MUX_CTRL VCBUS_REG_ADDR(VPU_VIU_VENC_MUX_CTRL)
 #define VPU_HDMI_SETTING 0x271b	/* register.h:9229 */
 #define P_VPU_HDMI_SETTING VCBUS_REG_ADDR(VPU_HDMI_SETTING)
 
