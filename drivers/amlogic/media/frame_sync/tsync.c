@@ -2813,6 +2813,21 @@ static long tsync_ioctl(struct file *file, unsigned int cmd, ulong arg)
 		    (copy_from_user((void *)&demux_info, (void *)arg,
 				    sizeof(demux_info)) == 0)) {
 			tsync_check_pid_valid_for_newarch(demux_info);
+			ret = pts_start(PTS_TYPE_VIDEO);
+			if (ret < 0)
+				pr_err("pts_start failed\n");
+
+			tsync_pcr_start();
+		}
+		break;
+
+	case TSYNC_IOC_STOP_TSYNC_PCR:
+		if (new_arch) {
+			ret = pts_stop(PTS_TYPE_VIDEO);
+			if (ret < 0)
+				pr_err("pts_stop failed=%ld\n", ret);
+
+			tsync_pcr_stop();
 		}
 		break;
 	default:
@@ -2835,6 +2850,7 @@ static long tsync_compat_ioctl(struct file *file, unsigned int cmd, ulong arg)
 	case TSYNC_IOC_SET_FIRST_CHECKIN_APTS:
 	case TSYNC_IOC_SET_LAST_CHECKIN_APTS:
 	case TSYNC_IOC_SET_DEMUX_INFO:
+	case TSYNC_IOC_STOP_TSYNC_PCR:
 		return tsync_ioctl(file, cmd, arg);
 	default:
 		return -EINVAL;
