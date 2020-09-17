@@ -1,5 +1,5 @@
 /*
- * arch/arm/boot/dts/amlogic/sc2_s905x4_ah212_buildroot.dts
+ * arch/arm/boot/dts/amlogic/sc2_s905x4_ah212_drm_buildroot.dts
  *
  * Copyright (C) 2017 Amlogic, Inc. All rights reserved.
  *
@@ -18,6 +18,7 @@
 /dts-v1/;
 
 #include "mesonsc2.dtsi"
+#include "mesonsc2_drm.dtsi"
 //#include "partition_mbox_normal_dynamic.dtsi"
 //#include "mesonsm1_skt-panel.dtsi"
 
@@ -349,7 +350,7 @@
 		};
 		vendor:vendor{
 			pname = "vendor";
-			size = <0x0 0x10000000>;
+			size = <0x0 0x20000000>;
 			mask = <1>;
 		};
 		odm:odm{
@@ -1088,7 +1089,7 @@
 		};
 		opp10 {
 			opp-hz = /bits/ 64 <1800000000>;
-			opp-microvolt = <969000>;
+			opp-microvolt = <959000>;
 		};
 		opp11 {
 			opp-hz = /bits/ 64 <1908000000>;
@@ -1138,12 +1139,30 @@
 };
 
 &meson_fb {
-	status = "okay";
+	status = "disabled";
 	display_size_default = <1920 1080 1920 2160 32>;
 	mem_size = <0x00800000 0x1980000 0x100000 0x100000 0x800000>;
 	logo_addr = "0x7f800000";
 	mem_alloc = <0>;
 	pxp_mode = <0>; /** 0:normal mode 1:pxp mode */
+};
+
+&drm_vpu {
+	status = "okay";
+	logo_addr = "0x7f800000";
+};
+
+&drm_amhdmitx {
+	status = "okay";
+	hdcp = "disabled";
+};
+
+&drm_amcvbsout {
+	status = "okay";
+};
+
+&drm_lcd {
+	status = "disabled";
 };
 
 &i2c0 {
@@ -1178,7 +1197,6 @@
 	pinctrl-0=<&i2c2_master_pins3>;
 	clock-frequency = <300000>;
 };
-
 
 &i2c3 {
 	status = "okay";
@@ -1777,6 +1795,7 @@
 	/** 0: normal, 1: otg+dwc3 host only, 2: otg+dwc3 device only*/
 	controller-type = <3>;
 };
+
 &ethmac {
 	status = "okay";
 //	pinctrl-names = "internal_eth_pins", "internal_gpio_pins";
@@ -1790,7 +1809,6 @@
 &uart_E {
 	status = "okay";
 };
-
 
 &vdin1 {
 	/*compatible = "amlogic, vdin-sc2";*/
@@ -1833,7 +1851,6 @@
 		f_max = <50000000>;
 	};
 };
-
 
 &sd_emmc_a {
 	status = "okay";
