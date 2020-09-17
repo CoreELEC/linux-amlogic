@@ -155,6 +155,13 @@ struct dmx_sec_es_data {
 	__u32 data_end;
 };
 
+struct dmx_sec_ts_data {
+	__u32 buf_start;
+	__u32 buf_end;
+	__u32 data_start;
+	__u32 data_end;
+};
+
 enum dmx_audio_format {
 	AUDIO_UNKNOWN = 0,	/* unknown media */
 	AUDIO_MPX = 1,		/* mpeg audio MP2/MP3 */

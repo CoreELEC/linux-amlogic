@@ -31,6 +31,7 @@ struct sw_demux_ts_feed {
 
 	dmx_ts_cb ts_cb;
 	struct out_elem *ts_out_elem;
+	int cb_id;
 	int type;
 	int ts_type;
 	int pes_type;
@@ -52,8 +53,8 @@ struct sw_demux_sec_feed {
 	struct sw_demux_sec_filter *filter;
 
 	struct out_elem *sec_out_elem;
-
 	dmx_section_cb sec_cb;
+	int cb_id;
 	int pid;
 	int check_crc;
 	int type;

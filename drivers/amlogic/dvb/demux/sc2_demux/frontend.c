@@ -203,7 +203,7 @@ ssize_t ts_setting_store(struct class *class,
 	struct aml_dvb *dvb = aml_get_dvb_device();
 
 	r = sscanf(buf, "%d %s %x", &id, mname, &ctrl);
-	if (r != 4)
+	if (r != 3)
 		return -EINVAL;
 
 	if (id < 0 || id >= FE_DEV_COUNT)
@@ -226,7 +226,7 @@ ssize_t ts_setting_store(struct class *class,
 
 	ts = &dvb->ts[id];
 
-	if ((mode != AM_TS_SERIAL_3WIRE) || (mode != AM_TS_SERIAL_4WIRE)) {
+	if ((mode != AM_TS_SERIAL_3WIRE) && (mode != AM_TS_SERIAL_4WIRE)) {
 		if (ts->pinctrl) {
 			devm_pinctrl_put(ts->pinctrl);
 			ts->pinctrl = NULL;
@@ -252,6 +252,7 @@ static void set_dvb_ts(struct platform_device *pdev,
 		       struct aml_dvb *advb, int i, const char *str)
 {
 	char buf[32];
+	u8 control = 0;
 
 	if (i >= 4) {
 		dprint("set tsin %d invalid\n", i);
@@ -264,8 +265,9 @@ static void set_dvb_ts(struct platform_device *pdev,
 		snprintf(buf, sizeof(buf), "s_ts%d", i);
 		advb->ts[i].mode = AM_TS_SERIAL_3WIRE;
 		advb->ts[i].pinctrl = devm_pinctrl_get_select(&pdev->dev, buf);
-
+		control = advb->ts[i].control;
 		demod_config_in(i, DEMOD_3WIRE);
+		demod_config_tsin_invert(i, control);
 	} else if (!strcmp(str, "serial-4wire")) {
 		dprint("ts%d:%s\n", i, str);
 
@@ -273,7 +275,9 @@ static void set_dvb_ts(struct platform_device *pdev,
 		snprintf(buf, sizeof(buf), "s_ts%d", i);
 		advb->ts[i].mode = AM_TS_SERIAL_4WIRE;
 		advb->ts[i].pinctrl = devm_pinctrl_get_select(&pdev->dev, buf);
+		control = advb->ts[i].control;
 		demod_config_in(i, DEMOD_4WIRE);
+		demod_config_tsin_invert(i, control);
 	} else if (!strcmp(str, "parallel")) {
 		dprint("ts%d:%s\n", i, str);
 
@@ -344,12 +348,6 @@ static void tsin_process(struct platform_device *pdev)
 		}
 
 		memset(buf, 0, 32);
-		snprintf(buf, sizeof(buf), "ts%d", i);
-		ret = of_property_read_string(pdev->dev.of_node, buf, &str);
-		if (!ret)
-			set_dvb_ts(pdev, advb, i, str);
-
-		memset(buf, 0, 32);
 		snprintf(buf, sizeof(buf), "ts%d_control", i);
 		ret = of_property_read_u32(pdev->dev.of_node, buf, &value);
 		if (!ret) {
@@ -358,6 +356,12 @@ static void tsin_process(struct platform_device *pdev)
 		} else {
 			dprint("read error:%s: 0x%x\n", buf, value);
 		}
+
+		memset(buf, 0, 32);
+		snprintf(buf, sizeof(buf), "ts%d", i);
+		ret = of_property_read_string(pdev->dev.of_node, buf, &str);
+		if (!ret)
+			set_dvb_ts(pdev, advb, i, str);
 	}
 }
 
