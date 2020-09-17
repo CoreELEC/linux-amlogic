@@ -817,7 +817,8 @@ static int set_disp_mode_auto(void)
 	enum hdmi_vic vic = 0;
 
 	/*STOP HDCP*/
-	hdev->hwop.am_hdmitx_hdcp_disable();
+	if (hdev->hwop.am_hdmitx_hdcp_disable)
+		hdev->hwop.am_hdmitx_hdcp_disable();
 
 	memset(mode, 0, sizeof(mode));
 	hdev->ready = 0;
@@ -876,7 +877,8 @@ static int set_disp_mode_auto(void)
 					   &hdev->work_cedst, 0);
 		}
 		/* enable drm hdcp*/
-		hdev->hwop.am_hdmitx_hdcp_enable();
+		if (hdev->hwop.am_hdmitx_hdcp_enable)
+			hdev->hwop.am_hdmitx_hdcp_enable();
 		hdev->output_blank_flag = 1;
 		hdev->ready = 1;
 	}
