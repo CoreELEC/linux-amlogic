@@ -58,6 +58,10 @@
 
 #define MALI_AFBC_REG_BACKUP_COUNT 41
 
+static u32 afbc_order_conf;
+module_param(afbc_order_conf, uint, 0664);
+MODULE_PARM_DESC(afbc_order_conf, "afbc order conf");
+
 static struct afbc_osd_reg_s afbc_osd_regs[MESON_MAX_OSDS] = {
 	{
 		VPU_MAFBC_HEADER_BUF_ADDR_LOW_S0,
@@ -187,6 +191,26 @@ static int afbc_pix_format(u32 fmt_mode)
 	return pix_format;
 }
 
+static u32 afbc_color_order(u32 fmt_mode)
+{
+	if (afbc_order_conf)
+		return afbc_order_conf;
+
+	switch (fmt_mode) {
+	case DRM_FORMAT_BGRX8888:
+	case DRM_FORMAT_XBGR8888:
+	case DRM_FORMAT_BGRA8888:
+	case DRM_FORMAT_ABGR8888:
+		return 0x1234;
+	case DRM_FORMAT_RGBX8888:
+	case DRM_FORMAT_XRGB8888:
+	case DRM_FORMAT_RGBA8888:
+	case DRM_FORMAT_ARGB8888:
+		return 0x3214;
+	default:
+		return 0x1234;
+	}
+}
 static u32 line_stride_calc_afbc(
 		u32 fmt_mode,
 		u32 hsize,
@@ -279,13 +303,15 @@ static void osd_afbc_set_state(struct meson_vpu_block *vblk,
 	afbc_reg = afbc->afbc_regs;
 	plane_info = &pipeline_state->plane_info[osd_index];
 
-	if (!plane_info->afbc_en)
+	if (!plane_info->afbc_en) {
+		osd_afbc_enable(osd_index, 0);
 		return;
+	}
 
 	afbc_backup_reset();
 	osd_afbc_enable(osd_index, 1);
 	aligned_32 = 1;
-	afbc_color_reorder = 0x1234;
+	afbc_color_reorder = afbc_color_order(plane_info->pixel_format);
 
 	pixel_format = afbc_pix_format(plane_info->pixel_format);
 	drm_fb_get_bpp_depth(plane_info->pixel_format, &depth, &bpp);
@@ -294,7 +320,7 @@ static void osd_afbc_set_state(struct meson_vpu_block *vblk,
 	line_stride = line_stride_calc_afbc(pixel_format,
 					    plane_info->src_w, aligned_32);
 
-	output_stride = plane_info->src_w * bpp;
+	output_stride = plane_info->src_w * bpp / 8;
 
 	header_addr = plane_info->phy_addr;
 	out_addr = ((u64)(vblk->index + 1)) << 24;

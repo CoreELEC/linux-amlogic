@@ -22,6 +22,32 @@
 #include "meson_vpu_pipeline.h"
 #include "meson_osd_afbc.h"
 
+static u64 afbc_modifier[] = {
+	/*
+	 * - TOFIX Support AFBC modifiers for YUV formats (16x16 + TILED)
+	 * - SPLIT is mandatory for performances reasons when in 16x16
+	 *   block size
+	 * - 32x8 block size + SPLIT is mandatory with 4K frame size
+	 *   for performances reasons
+	 */
+	DRM_FORMAT_MOD_ARM_AFBC(AFBC_FORMAT_MOD_BLOCK_SIZE_16x16 |
+				AFBC_FORMAT_MOD_SPARSE |
+				AFBC_FORMAT_MOD_SPLIT),
+	DRM_FORMAT_MOD_ARM_AFBC(AFBC_FORMAT_MOD_BLOCK_SIZE_16x16 |
+				AFBC_FORMAT_MOD_YTR |
+				AFBC_FORMAT_MOD_SPARSE |
+				AFBC_FORMAT_MOD_SPLIT),
+	DRM_FORMAT_MOD_ARM_AFBC(AFBC_FORMAT_MOD_BLOCK_SIZE_32x8 |
+				AFBC_FORMAT_MOD_SPARSE |
+				AFBC_FORMAT_MOD_SPLIT),
+	DRM_FORMAT_MOD_ARM_AFBC(AFBC_FORMAT_MOD_BLOCK_SIZE_32x8 |
+				AFBC_FORMAT_MOD_YTR |
+				AFBC_FORMAT_MOD_SPARSE |
+				AFBC_FORMAT_MOD_SPLIT),
+	DRM_FORMAT_MOD_LINEAR,
+	DRM_FORMAT_MOD_INVALID
+};
+
 static const u32 supported_drm_formats[] = {
 	DRM_FORMAT_XRGB8888,
 	DRM_FORMAT_XBGR8888,
@@ -42,12 +68,6 @@ static const u32 video_supported_drm_formats[] = {
 	DRM_FORMAT_NV21,
 	DRM_FORMAT_YUYV,
 	DRM_FORMAT_YVYU
-};
-
-static u64 afbc_wb_modifier[] = {
-	DRM_FORMAT_MOD_MESON_AFBC_WB,
-	DRM_FORMAT_MOD_LINEAR,
-	DRM_FORMAT_MOD_INVALID
 };
 
 static void
@@ -384,26 +404,27 @@ static int meson_plane_get_fb_info(struct drm_plane *plane,
 	}
 	plane_info->pixel_format = fb->pixel_format;
 	plane_info->byte_stride = fb->pitches[0];
+	plane_info->afbc_en = 0;
+	plane_info->afbc_inter_format = 0;
 
 	/*setup afbc info*/
-	switch (fb->modifier) {
-	case DRM_FORMAT_MOD_MESON_AFBC:
+	if (fb->modifier) {
 		plane_info->afbc_en = 1;
 		plane_info->afbc_inter_format = AFBC_EN;
-		break;
-	case DRM_FORMAT_MOD_MESON_AFBC_WB:
-		plane_info->afbc_en = 1;
-		plane_info->afbc_inter_format = AFBC_EN |
-			YUV_TRANSFORM | BLOCK_SPLIT |
-			SUPER_BLOCK_ASPECT;
-		break;
-	case DRM_FORMAT_MOD_INVALID:
-	case DRM_FORMAT_MOD_LINEAR:
-	default:
-		plane_info->afbc_en = 0;
-		plane_info->afbc_inter_format = 0;
-		break;
-	};
+	}
+
+	if (fb->modifier & AFBC_FORMAT_MOD_YTR)
+		plane_info->afbc_inter_format |= YUV_TRANSFORM;
+
+	if (fb->modifier & AFBC_FORMAT_MOD_SPLIT)
+		plane_info->afbc_inter_format |= BLOCK_SPLIT;
+
+	if (fb->modifier & AFBC_FORMAT_MOD_TILED)
+		plane_info->afbc_inter_format |= TILED_HEADER_EN;
+
+	if ((fb->modifier & AFBC_FORMAT_MOD_BLOCK_SIZE_MASK) ==
+	    AFBC_FORMAT_MOD_BLOCK_SIZE_32x8)
+		plane_info->afbc_inter_format |= SUPER_BLOCK_ASPECT;
 
 	DRM_DEBUG("flags:%d pixel_format:%d,modifer=%llu\n",
 		  fb->flags, fb->pixel_format,
@@ -545,25 +566,38 @@ static void meson_plane_destroy_state(struct drm_plane *plane,
 bool am_meson_vpu_check_format_mod(struct drm_plane *plane,
 				   u32 format, u64 modifier)
 {
-	bool ret = false;
+	DRM_DEBUG("modifier %llu", modifier);
+	if (modifier == DRM_FORMAT_MOD_INVALID)
+		return false;
 
-	switch (modifier) {
-	case DRM_FORMAT_MOD_LINEAR:
-		ret = true;
-		break;
-	case DRM_FORMAT_MOD_MESON_AFBC_WB:
-		if (plane->type == DRM_PLANE_TYPE_PRIMARY) {
-			if (format == DRM_FORMAT_BGR565)
-				ret = false;
-			else
-				ret = true;
-		}
-		break;
-	};
+	if (modifier == DRM_FORMAT_MOD_LINEAR)
+		return true;
 
-	DRM_DEBUG("modifier %llu return %d",
-		  modifier, ret);
-	return ret;
+	switch (format) {
+	case DRM_FORMAT_XRGB8888:
+	case DRM_FORMAT_ARGB8888:
+		/* YTR is forbidden for non XBGR formats */
+		if (modifier & AFBC_FORMAT_MOD_YTR)
+			return false;
+	/* fall through */
+	case DRM_FORMAT_XBGR8888:
+	case DRM_FORMAT_ABGR8888:
+		return true;
+	case DRM_FORMAT_RGB888:
+		/* YTR is forbidden for non XBGR formats */
+		if (modifier & AFBC_FORMAT_MOD_YTR)
+			return false;
+		return true;
+	case DRM_FORMAT_RGB565:
+		/* YTR is forbidden for non XBGR formats */
+		if (modifier & AFBC_FORMAT_MOD_YTR)
+			return false;
+		return true;
+	/* TOFIX support mode formats */
+	default:
+		DRM_DEBUG("unsupported afbc format[%08x]\n", format);
+		return false;
+	}
 }
 
 static const struct drm_plane_funcs am_osd_plane_funs = {
@@ -780,7 +814,7 @@ static struct am_osd_plane *am_plane_create(struct meson_drm *priv, int i)
 	struct meson_vpu_pipeline *pipeline = priv->pipeline;
 	u32 type = 0, zpos, min_zpos, max_zpos;
 	char plane_name[8];
-	const u64 *format_modifiers = afbc_wb_modifier;
+	const u64 *format_modifiers = afbc_modifier;
 
 	osd_plane = devm_kzalloc(priv->drm->dev, sizeof(*osd_plane),
 				 GFP_KERNEL);

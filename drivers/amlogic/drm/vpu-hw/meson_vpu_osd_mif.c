@@ -299,9 +299,10 @@ void osd_canvas_config(struct osd_mif_reg_s *reg, u32 canvas_index)
 /*osd mali afbc src en
  * 1: read data from mali afbcd;0: read data from DDR directly
  */
-void osd_mali_src_en(struct osd_mif_reg_s *reg, bool flag)
+void osd_mali_src_en(struct osd_mif_reg_s *reg, u8 osd_index, bool flag)
 {
 	meson_vpu_write_reg_bits(reg->viu_osd_blk0_cfg_w0, flag, 30, 1);
+	meson_vpu_write_reg_bits(OSD_PATH_MISC_CTRL, flag, (osd_index + 4), 1);
 }
 
 /*osd endian mode
@@ -466,10 +467,11 @@ static void osd_color_config(struct osd_mif_reg_s *reg,
 				 alpha_replace, 14, 1);
 }
 
-static void osd_afbc_config(struct osd_mif_reg_s *reg, bool afbc_en)
+static void osd_afbc_config(struct osd_mif_reg_s *reg,
+			    u8 osd_index, bool afbc_en)
 {
 	osd_mali_unpack_enable(reg, afbc_en);
-	osd_mali_src_en(reg, afbc_en);
+	osd_mali_src_en(reg, osd_index, afbc_en);
 	osd_endian_mode(reg, !afbc_en);
 	osd_mem_mode(reg, afbc_en);
 }
@@ -611,7 +613,7 @@ static void osd_set_state(struct meson_vpu_block *vblk,
 	osd_canvas_config(reg, canvas_index);
 	osd_input_size_config(reg, scope_src);
 	osd_color_config(reg, pixel_format, afbc_en);
-	osd_afbc_config(reg, afbc_en);
+	osd_afbc_config(reg, vblk->index, afbc_en);
 	osd_alpha_div_enable(reg, alpha_div_en);
 	if (crtc->index == 0)
 		hold_line = VIU1_DEFAULT_HOLD_LINE;
