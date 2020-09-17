@@ -53,6 +53,7 @@
 
 static struct vpu_security_device_info vpu_security_info;
 static struct sec_dev_data_s sec_meson_dev;
+static u32 secure_cfg;
 
 static struct sec_dev_data_s vpu_security_sc2 = {
 	.cpu_type = MESON_CPU_MAJOR_ID_SC2_,
@@ -91,11 +92,41 @@ static int check_secure_enable(enum secure_module_e module)
 	return secure_enable;
 }
 
+bool get_secure_state(enum module_port_e port)
+{
+	bool secure_enable = false;
+
+	switch (port) {
+	case VD1_OUT:
+		if (secure_cfg & VD1_INPUT_SECURE)
+			secure_enable = true;
+		break;
+	case VD2_OUT:
+		if (secure_cfg & VD2_INPUT_SECURE)
+			secure_enable = true;
+		break;
+	case OSD1_VPP_OUT:
+		if ((secure_cfg & OSD1_INPUT_SECURE) ||
+			(secure_cfg & OSD2_INPUT_SECURE) ||
+			(secure_cfg & OSD3_INPUT_SECURE))
+			secure_enable = true;
+		break;
+	case OSD2_VPP_OUT:
+		break;
+	case POST_BLEND_OUT:
+		if (secure_cfg)
+			secure_enable = true;
+		break;
+	}
+	return secure_enable;
+}
+
 u32 set_vpu_module_security(struct vpu_secure_ins *ins,
 			    enum secure_module_e module,
 			    u32 secure_src)
 {
 	static u32 osd_secure, video_secure;
+	static u32 value_save;
 	u32 value = 0;
 
 	if (is_meson_sc2_cpu()) {
@@ -144,10 +175,12 @@ u32 set_vpu_module_security(struct vpu_secure_ins *ins,
 			break;
 		}
 		if (OSD_MODULE || VIDEO_MODULE || DI_MODULE) {
-			if (ins->reg_wr_op)
+			if ((ins->reg_wr_op) && (value_save != value))
 				ins->reg_wr_op(VIU_DATA_SEC, value);
+			value_save = value;
 		}
 	}
+	secure_cfg = (osd_secure | video_secure) & (~VPP_OUTPUT_SECURE);
 	return value;
 }
 

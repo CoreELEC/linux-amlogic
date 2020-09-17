@@ -70,6 +70,9 @@
 #ifdef CONFIG_AMLOGIC_MEDIA_LUT_DMA
 #include <linux/amlogic/media/lut_dma/lut_dma.h>
 #endif
+#ifdef CONFIG_AMLOGIC_MEDIA_SECURITY
+#include <linux/amlogic/media/vpu_secure/vpu_secure.h>
+#endif
 
 /* #define DI_POST_PWR */
 
@@ -5513,6 +5516,43 @@ void vpp_probe_en_set(u32 enable)
 	}
 }
 
+void video_secure_set(void)
+{
+#ifdef CONFIG_AMLOGIC_MEDIA_SECURITY
+	int i;
+	u32 secure_src = 0;
+	u32 secure_enable = 0;
+	struct video_layer_s *layer = NULL;
+
+	for (i = 0; i < MAX_VD_LAYERS; i++) {
+		layer = &vd_layer[i];
+		if (layer->dispbuf &&
+			(layer->dispbuf->flag && VFRAME_FLAG_VIDEO_SECURE))
+			secure_enable = 1;
+		else
+			secure_enable = 0;
+		if (layer->dispbuf &&
+			secure_enable) {
+			if (layer->layer_id == 0)
+				secure_src |= VD1_INPUT_SECURE;
+			else if (layer->layer_id == 1)
+				secure_src |= VD2_INPUT_SECURE;
+		}
+	}
+	secure_config(VIDEO_MODULE, secure_src);
+#endif
+}
+
+#ifdef CONFIG_AMLOGIC_MEDIA_SECURITY
+void vpp_secure_cb(u32 arg)
+{
+	pr_debug("%s: arg=%x, reg:%x\n",
+		    __func__,
+		    arg,
+		    READ_VCBUS_REG(VIU_DATA_SEC));
+}
+#endif
+
 int video_hw_init(void)
 {
 	u32 cur_hold_line;
@@ -5619,6 +5659,10 @@ int video_hw_init(void)
 	}
 	for (i = 0; i < MAX_VD_LAYER; i++)
 		fgrain_init(i, FGRAIN_TBL_SIZE);
+#ifdef CONFIG_AMLOGIC_MEDIA_SECURITY
+	secure_register(VIDEO_MODULE, 0,
+		VSYNC_WR_MPEG_REG, vpp_secure_cb);
+#endif
 	return 0;
 }
 

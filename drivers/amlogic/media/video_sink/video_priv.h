@@ -480,5 +480,6 @@ void fgrain_setting(u8 layer_id,
 		    struct vframe_s *vf);
 void fgrain_update_table(u8 layer_id,
 			 struct vframe_s *vf);
+void video_secure_set(void);
 #endif
 /*VIDEO_PRIV_HEADER_HH*/

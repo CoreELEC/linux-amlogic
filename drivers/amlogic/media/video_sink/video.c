@@ -94,6 +94,9 @@ MODULE_AMLOG(LOG_LEVEL_ERROR, 0, LOG_DEFAULT_LEVEL_DESC, LOG_MASK_DESC);
 #ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
 #include <linux/amlogic/pm.h>
 #endif
+#ifdef CONFIG_AMLOGIC_MEDIA_SECURITY
+#include <linux/amlogic/media/vpu_secure/vpu_secure.h>
+#endif
 #include <linux/math64.h>
 #include <linux/fence.h>
 #include "video_receiver.h"
@@ -5386,6 +5389,7 @@ SET_FILTER:
 	/* filter setting management */
 	frame_par_di_set = primary_render_frame(&vd_layer[0]);
 	pip_render_frame(&vd_layer[1]);
+	video_secure_set();
 
 	if (vd_layer[0].dispbuf &&
 	    (vd_layer[0].dispbuf->flag & VFRAME_FLAG_FAKE_FRAME))
@@ -11437,7 +11441,9 @@ static void __exit video_exit(void)
 	vf_unreg_receiver(&videopip_vf_recv);
 	safe_switch_videolayer(0, false, false);
 	safe_switch_videolayer(1, false, false);
-
+#ifdef CONFIG_AMLOGIC_MEDIA_SECURITY
+	secure_unregister(VIDEO_MODULE);
+#endif
 	vsync_fiq_down();
 
 	if (gvideo_recv[0])
