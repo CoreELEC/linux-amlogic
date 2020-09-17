@@ -71,6 +71,8 @@
 #define TS_OUTPUT_CHAN_PES_BUF_SIZE		(3 * 188 * 1024)
 #define TS_OUTPUT_CHAN_SEC_BUF_SIZE		(188 * 500)
 #define TS_OUTPUT_CHAN_PTS_BUF_SIZE		(16 * 500)
+#define TS_OUTPUT_CHAN_DVR_BUF_SIZE		(10 * 1024 * 188)
+
 
 #define DMX_TYPE_TS  0
 #define DMX_TYPE_SEC 1
@@ -106,6 +108,10 @@ module_param(pes_buf_size, int, 0644);
 MODULE_PARM_DESC(sec_buf_size, "\n\t\t set sec buf size");
 static int sec_buf_size = TS_OUTPUT_CHAN_SEC_BUF_SIZE;
 module_param(sec_buf_size, int, 0644);
+
+MODULE_PARM_DESC(dvr_buf_size, "\n\t\t set sec buf size");
+static int dvr_buf_size = TS_OUTPUT_CHAN_DVR_BUF_SIZE;
+module_param(dvr_buf_size, int, 0644);
 
 static int out_ts_elem_cb(struct out_elem *pout,
 			  char *buf, int count, void *udata);
@@ -303,6 +309,7 @@ static int _dmx_ts_feed_set(struct dmx_ts_feed *ts_feed, u16 pid, int ts_type,
 	int output_mode = 0;
 	int mem_size = TS_OUTPUT_CHAN_PES_BUF_SIZE;
 	int aud_type = 0;
+	int cb_id = 0;
 
 	pr_dbg("_dmx_ts_feed_set pid:0x%0x\n", pid);
 
@@ -382,8 +389,9 @@ static int _dmx_ts_feed_set(struct dmx_ts_feed *ts_feed, u16 pid, int ts_type,
 	} else {
 		if (filter->params.pes.output == DMX_OUT_TS_TAP ||
 		    filter->params.pes.output == DMX_OUT_TSDEMUX_TAP) {
-			format = TS_FORMAT;
-			pr_dbg("%s TS_FORMAT\n", __func__);
+			format = DVR_FORMAT;
+			mem_size = dvr_buf_size;
+			pr_dbg("%s DVR_FORMAT\n", __func__);
 		} else {
 			format = PES_FORMAT;
 			pr_dbg("%s PES_FORMAT\n", __func__);
@@ -397,17 +405,26 @@ static int _dmx_ts_feed_set(struct dmx_ts_feed *ts_feed, u16 pid, int ts_type,
 	else if (filter->params.pes.flags & DMX_MEM_SEC_LEVEL3)
 		sec_level = DMX_MEM_SEC_LEVEL3;
 
-	if (format == TS_FORMAT) {
-		feed->ts_out_elem = ts_output_find_same_pid(sid, pid);
+	if (format == DVR_FORMAT) {
+		feed->ts_out_elem = ts_output_find_dvr(sid);
 		if (feed->ts_out_elem) {
 			pr_dbg("find same pid elem:0x%lx\n",
 			       (unsigned long)(feed->ts_out_elem));
+			if (feed->pid == 0x2000)
+				ts_output_add_pid(feed->ts_out_elem, feed->pid,
+						0x1fff, demux->id, &cb_id);
+			else
+				ts_output_add_pid(feed->ts_out_elem, feed->pid,
+						0, demux->id, &cb_id);
 			ts_output_add_cb(feed->ts_out_elem,
-					 out_ts_elem_cb, feed, 0);
+					 out_ts_elem_cb, feed, cb_id,
+					 format, 0);
+			feed->cb_id = cb_id;
 			mutex_unlock(demux->pmutex);
 			return 0;
 		}
 	}
+
 	feed->ts_out_elem = ts_output_open(sid,
 					   format, type, aud_type, output_mode);
 	if (feed->ts_out_elem) {
@@ -415,11 +432,13 @@ static int _dmx_ts_feed_set(struct dmx_ts_feed *ts_feed, u16 pid, int ts_type,
 				  sec_level, TS_OUTPUT_CHAN_PTS_BUF_SIZE);
 		if (feed->pid == 0x2000)
 			ts_output_add_pid(feed->ts_out_elem, feed->pid, 0x1fff,
-					  demux->id);
+					  demux->id, &cb_id);
 		else
 			ts_output_add_pid(feed->ts_out_elem, feed->pid, 0,
-					  demux->id);
-		ts_output_add_cb(feed->ts_out_elem, out_ts_elem_cb, feed, 0);
+					  demux->id, &cb_id);
+		ts_output_add_cb(feed->ts_out_elem, out_ts_elem_cb, feed,
+			cb_id, format, 0);
+		feed->cb_id = cb_id;
 	} else {
 		dprint("%s error\n", __func__);
 	}
@@ -551,6 +570,7 @@ static int _dmx_section_feed_set(struct dmx_section_feed *feed,
 	struct aml_dmx *demux = (struct aml_dmx *)feed->parent->priv;
 	int sid = 0;
 	int mem_size = 0;
+	int cb_id = 0;
 
 	pr_dbg("_dmx_section_feed_set\n");
 
@@ -574,24 +594,27 @@ static int _dmx_section_feed_set(struct dmx_section_feed *feed,
 		pr_dbg("pid elem:0x%lx exist\n",
 		       (unsigned long)(sec_feed->sec_out_elem));
 
-	sec_feed->sec_out_elem = ts_output_find_same_pid(sid, pid);
+	sec_feed->sec_out_elem = ts_output_find_same_section_pid(sid, pid);
 	if (sec_feed->sec_out_elem) {
 		pr_dbg("find same pid elem:0x%lx\n",
 		       (unsigned long)(sec_feed->sec_out_elem));
 		ts_output_add_cb(sec_feed->sec_out_elem,
-				 _ts_out_sec_cb, sec_feed, 1);
+				 _ts_out_sec_cb, sec_feed, demux->id,
+				 SECTION_FORMAT, 1);
 		mutex_unlock(demux->pmutex);
 		return 0;
 	}
+
 	sec_feed->sec_out_elem =
-	    ts_output_open(sid, TS_FORMAT, OTHER_TYPE, 0, 0);
+	    ts_output_open(sid, SECTION_FORMAT, OTHER_TYPE, 0, 0);
 	if (sec_feed->sec_out_elem) {
 		mem_size = sec_buf_size;
 		ts_output_set_mem(sec_feed->sec_out_elem, mem_size, 0, 0);
 		ts_output_add_pid(sec_feed->sec_out_elem, sec_feed->pid, 0,
-				  demux->id);
+				  demux->id, &cb_id);
 		ts_output_add_cb(sec_feed->sec_out_elem,
-				 _ts_out_sec_cb, sec_feed, 1);
+				 _ts_out_sec_cb, sec_feed, cb_id,
+				 SECTION_FORMAT, 1);
 	}
 
 	pr_dbg("sec_out_elem:0x%lx\n", (unsigned long)(sec_feed->sec_out_elem));
@@ -827,7 +850,9 @@ static int _dmx_release_ts_feed(struct dmx_demux *dmx,
 		return -ERESTARTSYS;
 
 	if (feed->ts_out_elem) {
-		ts_output_remove_cb(feed->ts_out_elem, out_ts_elem_cb, feed, 0);
+		ts_output_remove_pid(feed->ts_out_elem, feed->pid);
+		ts_output_remove_cb(feed->ts_out_elem,
+				out_ts_elem_cb, feed, feed->cb_id, 0);
 		ts_output_close(feed->ts_out_elem);
 	}
 
@@ -856,6 +881,7 @@ static int _dmx_release_ts_feed(struct dmx_demux *dmx,
 			jiffies_pcr_record[pcr_index].last_pcr = 0;
 			jiffies_pcr_record[pcr_index].last_time = 0;
 			pcr_flag[pcr_index] = 0;
+			demux->pcr_index[pcr_num] = -1;
 		}
 		break;
 	default:
@@ -930,8 +956,9 @@ static int _dmx_release_section_feed(struct dmx_demux *dmx,
 		return -ERESTARTSYS;
 
 	if (sec_feed->sec_out_elem) {
+		ts_output_remove_pid(sec_feed->sec_out_elem, sec_feed->pid);
 		ts_output_remove_cb(sec_feed->sec_out_elem, _ts_out_sec_cb,
-				    sec_feed, 1);
+				    sec_feed, sec_feed->cb_id, 1);
 		ts_output_close(sec_feed->sec_out_elem);
 	}
 
@@ -1415,12 +1442,14 @@ void test_sid(void)
 
 	for (i = 0; i < 64; i++) {
 		dprint("##########sid:%d\n", i);
-		ts_out_elem = ts_output_open(i, TS_FORMAT, OTHER_TYPE, 0, 0);
+		ts_out_elem = ts_output_open(i, SECTION_FORMAT,
+				OTHER_TYPE, 0, 0);
 		if (ts_out_elem) {
 			ts_output_add_cb(ts_out_elem,
-					 out_ts_elem_cb_test, NULL, 1);
+					 out_ts_elem_cb_test, NULL, 0,
+					 SECTION_FORMAT, 1);
 			ts_output_set_mem(ts_out_elem, pes_buf_size, 0, 0);
-			ts_output_add_pid(ts_out_elem, 0, 0, 0);
+			ts_output_add_pid(ts_out_elem, 0, 0, 0, 0);
 		} else {
 			dprint("%s error\n", __func__);
 		}

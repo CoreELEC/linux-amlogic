@@ -40,7 +40,9 @@ struct dsc_pid_table {
 enum output_format {
 	TS_FORMAT,
 	ES_FORMAT,
-	PES_FORMAT
+	PES_FORMAT,
+	SECTION_FORMAT,
+	DVR_FORMAT
 };
 
 enum pid_cfg_mode {
