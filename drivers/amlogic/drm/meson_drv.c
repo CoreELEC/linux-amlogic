@@ -587,6 +587,13 @@ static int am_meson_drm_bind(struct device *dev)
 	meson_vpu_block_state_init(priv, priv->pipeline);
 
 	drm_mode_config_init(drm);
+	/* init meson config before bind other component,
+	 * other component may use it.
+	 */
+	drm->mode_config.max_width = 4096;
+	drm->mode_config.max_height = 4096;
+	drm->mode_config.funcs = &meson_mode_config_funcs;
+	drm->mode_config.allow_fb_modifiers = true;
 
 	/* Try to bind all sub drivers. */
 	ret = component_bind_all(dev, drm);
@@ -599,10 +606,6 @@ static int am_meson_drm_bind(struct device *dev)
 		goto err_unbind_all;
 
 	drm_mode_config_reset(drm);
-	drm->mode_config.max_width = 4096;
-	drm->mode_config.max_height = 4096;
-	drm->mode_config.funcs = &meson_mode_config_funcs;
-	drm->mode_config.allow_fb_modifiers = true;
 	/*
 	 * enable drm irq mode.
 	 * - with irq_enabled = true, we can use the vblank feature.
