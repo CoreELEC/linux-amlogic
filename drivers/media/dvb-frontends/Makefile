@@ -58,6 +58,7 @@ obj-$(CONFIG_DVB_EC100) += ec100.o
 obj-$(CONFIG_DVB_GP8PSK_FE) += gp8psk-fe.o
 obj-$(CONFIG_DVB_HELENE) += helene.o
 obj-$(CONFIG_DVB_TAS2101) += tas2101.o
+obj-$(CONFIG_DVB_GX1133) += gx1133.o
 obj-$(CONFIG_DVB_HORUS3A) += horus3a.o
 obj-$(CONFIG_DVB_ISL6405) += isl6405.o
 obj-$(CONFIG_DVB_ISL6421) += isl6421.o
