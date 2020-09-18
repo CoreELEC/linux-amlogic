@@ -130,6 +130,7 @@ obj-$(CONFIG_DVB_GP8PSK_FE) += gp8psk-fe.o
 obj-$(CONFIG_DVB_TC90522) += tc90522.o
 obj-$(CONFIG_DVB_MN88443X) += mn88443x.o
 obj-$(CONFIG_DVB_TAS2101) += tas2101.o
+obj-$(CONFIG_DVB_GX1133) += gx1133.o
 obj-$(CONFIG_DVB_HORUS3A) += horus3a.o
 obj-$(CONFIG_DVB_ASCOT2E) += ascot2e.o
 obj-$(CONFIG_DVB_HELENE) += helene.o
