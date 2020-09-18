@@ -44,6 +44,7 @@
 #define MAX_PCR_NUM                 16
 
 #define MAX_READ_BUF_LEN			(64 * 1024)
+#define MAX_DVR_READ_BUF_LEN		(2 * 1024 * 1024)
 
 static int ts_output_max_pid_num_per_sid = 16;
 /*protect cb_list/ts output*/
@@ -182,6 +183,56 @@ module_param(debug_ts_output, int, 0644);
 MODULE_PARM_DESC(drop_dup, "\n\t\t drop duplicate packet");
 static int drop_dup;
 module_param(drop_dup, int, 0644);
+
+//#define DVR_DEBUG 1
+#ifdef DVR_DEBUG
+#include <linux/fs.h>
+
+static loff_t dvr_file_pos;
+static struct file *dvr_dump_fp;
+#define DVR_DUMP_FILE   "/data/data/dvr_dump.ts"
+
+void dvr_file_open(void)
+{
+	if (dvr_dump_fp) {
+		pr_info("create dump dvr file already\n");
+		return;
+	}
+	dvr_dump_fp = filp_open(DVR_DUMP_FILE, O_CREAT | O_RDWR, 0666);
+	if (IS_ERR(dvr_dump_fp)) {
+		dvr_dump_fp = NULL;
+		pr_err("create dump dvr file failed\n");
+	} else {
+		pr_err("ok to creat dvr dump file\n");
+	}
+}
+
+void dvr_file_write(char *buf, size_t count)
+{
+	mm_segment_t old_fs;
+
+	if (!dvr_dump_fp)
+		return;
+
+	old_fs = get_fs();
+	set_fs(KERNEL_DS);
+
+	if (count != vfs_write(dvr_dump_fp, buf, count, &dvr_file_pos))
+		pr_err("Failed to write dvr dump file\n");
+
+	set_fs(old_fs);
+}
+
+void dvr_file_close(void)
+{
+	if (dvr_dump_fp) {
+		vfs_fsync(dvr_dump_fp, 0);
+		filp_close(dvr_dump_fp, current->files);
+	} else {
+		pr_err("close dvr dump file already\n");
+	}
+}
+#endif
 
 #define READ_CACHE_SIZE      (188)
 
@@ -452,12 +503,15 @@ static int dvr_process(struct out_elem *pout)
 	if (pout->pchan->sec_level)
 		flag = 1;
 
-	len = MAX_READ_BUF_LEN;
+	len = MAX_DVR_READ_BUF_LEN;
 	ret = SC2_bufferid_read(pout->pchan, &pread, len, flag);
 	if (ret != 0) {
 		if (pout->cb_ts_list && flag == 0) {
 //                      dprint("%s w:%d wwwwww\n", __func__, len);
 			out_ts_cb_list(pout, pread, ret);
+#ifdef DVR_DEBUG
+			dvr_file_write(pread, ret);
+#endif
 		} else if (pout->cb_ts_list && flag == 1) {
 			write_sec_ts_data(pout, pread, ret);
 		}
@@ -1418,6 +1472,10 @@ struct out_elem *ts_output_open(int sid, u8 format,
 		pout->cache = NULL;
 		pout->aucpu_handle = -1;
 	} else {
+#ifdef DVR_DEBUG
+		if (format == DVR_FORMAT)
+			dvr_file_open();
+#endif
 		ret = SC2_bufferid_alloc(&attr, &pout->pchan, NULL);
 		if (ret != 0) {
 			dprint("%s sid:%d SC2_bufferid_alloc fail\n",
@@ -1494,6 +1552,10 @@ int ts_output_close(struct out_elem *pout)
 		remove_ts_out_list(pout, &es_out_task_tmp);
 		mutex_unlock(&es_output_mutex);
 	} else {
+#ifdef DVR_DEBUG
+		if (pout->format == DVR_FORMAT)
+			dvr_file_close();
+#endif
 		remove_ts_out_list(pout, &ts_out_task_tmp);
 	}
 	pout->running = TASK_DEAD;

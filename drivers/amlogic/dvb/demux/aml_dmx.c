@@ -71,7 +71,7 @@
 #define TS_OUTPUT_CHAN_PES_BUF_SIZE		(3 * 188 * 1024)
 #define TS_OUTPUT_CHAN_SEC_BUF_SIZE		(188 * 500)
 #define TS_OUTPUT_CHAN_PTS_BUF_SIZE		(16 * 500)
-#define TS_OUTPUT_CHAN_DVR_BUF_SIZE		(10 * 1024 * 188)
+#define TS_OUTPUT_CHAN_DVR_BUF_SIZE		(30 * 1024 * 188)
 
 struct jiffies_pcr {
 	u64 last_pcr;
