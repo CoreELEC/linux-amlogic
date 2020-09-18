@@ -604,6 +604,9 @@ struct dmx_demux {
 			struct dmx_mem_info *info);
 	int (*set_hw_source)(struct dmx_demux *demux, int hw_source);
 	int (*get_hw_source)(struct dmx_demux *demux, int *hw_source);
+	int (*get_dmx_mem_info)(
+			struct dmx_demux *demux,
+			struct dmx_filter_mem_info *info);
 #endif
 };
 

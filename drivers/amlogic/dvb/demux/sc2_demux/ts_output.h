@@ -36,10 +36,12 @@ typedef int (*ts_output_cb) (struct out_elem *pout,
 			     char *buf, int count, void *udata);
 
 enum content_type {
+	NONE_TYPE,
 	VIDEO_TYPE,
 	AUDIO_TYPE,
 	SUB_TYPE,
 	TTX_TYPE,
+	SEC_TYPE,
 	OTHER_TYPE
 };
 

@@ -263,6 +263,26 @@ enum {
 	FRONTEND_TS6,
 	FRONTEND_TS7,
 };
+
+/*define filter mem_info type*/
+enum {
+	DMX_VIDEO_TYPE = 0,
+	DMX_AUDIO_TYPE,
+	DMX_SUBTITLE_TYPE,
+	DMX_TELETEXT_TYPE,
+	DMX_SECTION_TYPE,
+};
+
+struct filter_mem_info {
+	__u32 type;
+	__u32 pid;
+	struct dmx_mem_info	filter_info;
+};
+
+struct dmx_filter_mem_info {
+	__u32 filter_num;
+	struct filter_mem_info info[40];
+};
 #endif
 
 #define DMX_START                _IO('o', 41)
@@ -281,6 +301,7 @@ enum {
 #define DMX_GET_MEM_INFO        _IOR('o', 81, struct dmx_mem_info)
 #define DMX_SET_HW_SOURCE       _IO('o', 82)
 #define DMX_GET_HW_SOURCE       _IOR('o', 83, int)
+#define DMX_GET_FILTER_MEM_INFO _IOR('o', 84, struct dmx_filter_mem_info)
 #endif
 
 #endif /* _UAPI_DVBDMX_H_ */

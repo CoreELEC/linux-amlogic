@@ -1102,6 +1102,20 @@ static int dvb_demux_do_ioctl(struct file *file,
 		}
 		mutex_unlock(&dmxdevfilter->mutex);
 		break;
+	case DMX_GET_FILTER_MEM_INFO:
+		if (mutex_lock_interruptible(&dmxdevfilter->mutex)) {
+			mutex_unlock(&dmxdev->mutex);
+			return -ERESTARTSYS;
+		}
+		{
+			struct dmx_filter_mem_info *info = parg;
+
+			if (dmxdev->demux->get_dmx_mem_info)
+				ret = dmxdev->demux->get_dmx_mem_info(
+						dmxdev->demux, info);
+		}
+		mutex_unlock(&dmxdevfilter->mutex);
+		break;
 	case DMX_SET_HW_SOURCE:
 		if (!dmxdev->demux->set_hw_source) {
 			ret = -EINVAL;
