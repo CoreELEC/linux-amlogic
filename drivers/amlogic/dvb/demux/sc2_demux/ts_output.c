@@ -408,8 +408,8 @@ static int section_process(struct out_elem *pout)
 		len = READ_CACHE_SIZE - pout->remain_len;
 		ret = SC2_bufferid_read(pout->pchan, &pread, len, 0);
 		if (ret != 0) {
-			memcpy(pout->cache + pout->remain_len, pread, len);
-			pout->remain_len += len;
+			memcpy(pout->cache + pout->remain_len, pread, ret);
+			pout->remain_len += ret;
 			if (ret == len) {
 				ret = pout->remain_len;
 				w_size =
@@ -636,7 +636,7 @@ static int get_non_sec_es_header(struct out_elem *pout, char *last_header,
 	else
 		pheader->len = cur_es_bytes - last_es_bytes;
 
-	pr_dbg("%s len:%d,cur_es_bytes:%d, last_es_bytes:%d\n",
+	pr_dbg("%s len:%d,cur_es_bytes:0x%0x, last_es_bytes:0x%0x\n",
 	       __func__, pheader->len, cur_es_bytes, last_es_bytes);
 	pr_dbg("%s exit\n", __func__);
 	return 0;
@@ -648,6 +648,7 @@ static int write_es_data(struct out_elem *pout, struct es_params_t *es_params)
 	char *ptmp;
 	int len;
 	int h_len = sizeof(struct dmx_non_sec_es_header);
+	int es_len = 0;
 
 	if (es_params->have_header == 0)
 		return -1;
@@ -663,20 +664,38 @@ static int write_es_data(struct out_elem *pout, struct es_params_t *es_params)
 		es_params->have_send_header = 1;
 	}
 
-	len = es_params->header.len - es_params->data_len;
+	es_len = es_params->header.len;
+	len = es_len - es_params->data_len;
 	ret = SC2_bufferid_read(pout->pchan, &ptmp, len, 0);
 	if (ret) {
 		out_ts_cb_list(pout, ptmp, ret);
 		es_params->data_len += ret;
 		pr_dbg("%s total len:%d, remain:%d\n",
 		       pout->type ? "audio" : "video",
-		       es_params->header.len,
-		       es_params->header.len - es_params->data_len);
+		       es_len,
+		       es_len - es_params->data_len);
 
-		if (ret != len)
-			return -1;
-		else
+		if (ret != len) {
+			if (pout->pchan->r_offset != 0)
+				return -1;
+			/*loop back ,read one time*/
+			len = es_params->header.len - es_params->data_len;
+			ret = SC2_bufferid_read(pout->pchan, &ptmp, len, 0);
+			if (ret) {
+				out_ts_cb_list(pout, ptmp, ret);
+				es_params->data_len += ret;
+				pr_dbg("%s total len:%d, remain:%d\n",
+					   pout->type ? "audio" : "video",
+					   es_len,
+					   es_len - es_params->data_len);
+				if (ret != len)
+					return -1;
+				else
+					return 0;
+			}
+		} else {
 			return 0;
+		}
 	}
 	return -1;
 }
@@ -920,10 +939,17 @@ static int write_sec_video_es_data(struct out_elem *pout,
 	ret = SC2_bufferid_read(pout->pchan, &ptmp, len, flag);
 	if (es_params->data_start == 0)
 		es_params->data_start = (unsigned long)ptmp;
-	es_params->data_len += len;
-	if (ret != len)
-		return -1;
-
+	es_params->data_len += ret;
+	if (ret != len) {
+		if (pout->pchan->r_offset != 0)
+			return -1;
+		/*if loop back , read one time */
+		len = es_params->header.len - es_params->data_len;
+		ret = SC2_bufferid_read(pout->pchan, &ptmp, len, flag);
+		es_params->data_len += ret;
+		if (ret != len)
+			return -1;
+	}
 	memset(&sec_es_data, 0, sizeof(struct dmx_sec_es_data));
 	sec_es_data.pts_dts_flag = es_params->header.pts_dts_flag;
 	sec_es_data.dts = es_params->header.dts;
@@ -933,6 +959,8 @@ static int write_sec_video_es_data(struct out_elem *pout,
 	sec_es_data.data_start = es_params->data_start;
 	sec_es_data.data_end = (unsigned long)ptmp + len;
 
+	pr_dbg("video data start:0x%x, end:0x%x\n",
+		sec_es_data.data_start, sec_es_data.data_end);
 	pr_dbg("video pdts_flag:%d, pts:0x%lx, dts:0x%lx, offset:0x%lx\n",
 	       sec_es_data.pts_dts_flag, (unsigned long)sec_es_data.pts,
 	       (unsigned long)sec_es_data.dts,
