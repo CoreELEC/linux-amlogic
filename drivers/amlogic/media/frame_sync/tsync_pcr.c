@@ -227,7 +227,6 @@ static u32 last_discontinue_checkin_apts;
 static u32 last_discontinue_checkin_vpts;
 static u32 last_pcr_checkin_apts;
 static u32 last_pcr_checkin_vpts;
-static u32 last_pcr_checkin_apts_count;
 static u32 last_pcr_checkin_vpts_count;
 static DEFINE_SPINLOCK(tsync_pcr_lock);
 static bool video_pid_valid;
@@ -1112,7 +1111,7 @@ void tsync_pcr_check_checinpts(void)
 		    (last_pcr_checkin_apts != 0) &&
 		    (last_pcr_checkin_apts != 0xffffffff)) {
 			if (abs(last_pcr_checkin_apts - checkin_apts)
-				> 2 * 90000) {
+				> AV_DISCONTINUE_THREDHOLD_MIN) {
 				tsync_pcr_tsdemuxpcr_discontinue |=
 				AUDIO_DISCONTINUE;
 				tsync_audio_discontinue = 1;
@@ -1124,43 +1123,22 @@ void tsync_pcr_check_checinpts(void)
 						checkin_apts);
 				}
 			}
-			/*+[SE][BUG][SWPL-27742][chengshun]play pvr,in order
-			 * to switch audio lost too audio es data, tsplayer
-			 * limit data write, lead checkin not update
-			 */
-			if (last_pcr_checkin_apts == checkin_apts) {
-				if (tsync_pcr_demux_pcr_used() == 1)
-					max_gap = 100;
-				else
-					max_gap = 300;
-				last_pcr_checkin_apts_count++;
-				if (last_pcr_checkin_apts_count > max_gap) {
-					tsync_pcr_tsdemuxpcr_discontinue |=
-						AUDIO_DISCONTINUE;
-					tsync_audio_discontinue = 1;
-					last_discontinue_checkin_apts = 0;
-					tsync_audio_continue_count = 0;
-					if (tsync_pcr_debug & 0x03)
-						pr_info("a_discontinue,count\n");
-				}
-			} else {
-				if (tsync_audio_discontinue == 1 &&
-					checkin_apts != 0xffffffff &&
-					last_discontinue_checkin_apts == 0 &&
-					checkin_apts > last_pcr_checkin_apts &&
-					((checkin_apts - last_pcr_checkin_apts)
-						< 500 * 90)) {
-					last_discontinue_checkin_apts =
-						last_pcr_checkin_apts;
-					tsync_audio_continue_count = 1;
-					if (tsync_pcr_debug & 0x03)
-						pr_info("a_last:%x, cur:%x\n",
-							last_pcr_checkin_apts,
-							checkin_apts);
-				}
-				last_pcr_checkin_apts = checkin_apts;
-				last_pcr_checkin_apts_count = 0;
+			if (tsync_audio_discontinue == 1 &&
+				checkin_apts != 0xffffffff &&
+				last_discontinue_checkin_apts == 0 &&
+				checkin_apts > last_pcr_checkin_apts &&
+				((checkin_apts - last_pcr_checkin_apts)
+					< 500 * 90)) {
+				last_discontinue_checkin_apts =
+					last_pcr_checkin_apts;
+				tsync_audio_continue_count = 1;
+				if (tsync_pcr_debug & 0x03)
+					pr_info("a_last:%x, cur:%x\n",
+						last_pcr_checkin_apts,
+						checkin_apts);
 			}
+			last_pcr_checkin_apts = checkin_apts;
+
 			if (tsync_audio_continue_count)
 				tsync_audio_continue_count++;
 			if (tsync_audio_discontinue && video_pid_valid) {
@@ -1699,7 +1677,6 @@ static void tsync_pcr_param_reset(void)
 
 	last_pcr_checkin_apts = 0;
 	last_pcr_checkin_vpts = 0;
-	last_pcr_checkin_apts_count = 0;
 	last_pcr_checkin_vpts_count = 0;
 	tsync_last_play_mode = PLAY_MODE_NORMAL;
 	tsync_pcr_first_jiffes = 0;
