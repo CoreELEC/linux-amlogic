@@ -1278,7 +1278,7 @@ static void am_meson_hdmi_connector_init_property(struct drm_device *drm_dev,
 	struct drm_property *prop;
 	/* Connector */
 	am_hdmi->color_depth = COLORDEPTH_RESERVED;
-	prop = drm_property_create_enum(drm_dev, 0, "Color Depth",
+	prop = drm_property_create_enum(drm_dev, 0, "max bpc",
 					am_color_depth_enum_names,
 			ARRAY_SIZE(am_color_depth_enum_names));
 	if (prop) {
@@ -1290,7 +1290,7 @@ static void am_meson_hdmi_connector_init_property(struct drm_device *drm_dev,
 	}
 
 	am_hdmi->color_space = COLORSPACE_RESERVED;
-	prop = drm_property_create_enum(drm_dev, 0, "Color Space",
+	prop = drm_property_create_enum(drm_dev, 0, "Colorspace",
 					am_color_space_enum_names,
 			ARRAY_SIZE(am_color_space_enum_names));
 	if (prop) {
