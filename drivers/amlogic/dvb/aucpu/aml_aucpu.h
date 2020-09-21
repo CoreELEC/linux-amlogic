@@ -154,6 +154,8 @@ enum aml_aucpu_stream_type {
 	MEDIA_AAC_ADTS = 3,	/* AAC-ADTS */
 	MEDIA_AAC_LOAS = 4,	/* AAC-LOAS */
 	MEDIA_DTS = 5,		/* DTS */
+	MEDIA_TS_SYS = 6,	/* TS System information (PAT, PMT, etc) */
+	MEDIA_PES_SUB = 7,	/* PES format subtitle/audio stream */
 	MEDIA_MAX,
 };
 
