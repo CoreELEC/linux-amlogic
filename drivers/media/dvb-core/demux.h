@@ -607,6 +607,8 @@ struct dmx_demux {
 	int (*get_dmx_mem_info)(
 			struct dmx_demux *demux,
 			struct dmx_filter_mem_info *info);
+	int (*set_sec_mem)(struct dmx_demux *demux,
+			struct dmx_sec_mem *sec_mem);
 #endif
 };
 

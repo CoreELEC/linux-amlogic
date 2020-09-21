@@ -484,8 +484,8 @@ static void write_sec_ts_data(struct out_elem *pout, char *buf, int size)
 {
 	struct dmx_sec_ts_data sec_ts_data;
 
-	sec_ts_data.buf_start = pout->pchan->mem;
-	sec_ts_data.buf_end = pout->pchan->mem + pout->pchan->mem_size;
+	sec_ts_data.buf_start = pout->pchan->mem_phy;
+	sec_ts_data.buf_end = sec_ts_data.buf_start + pout->pchan->mem_size;
 	sec_ts_data.data_start = (unsigned long)buf;
 	sec_ts_data.data_end = (unsigned long)buf + size;
 
@@ -1735,6 +1735,14 @@ int ts_output_set_mem(struct out_elem *pout,
 	if (pout->pchan->sec_level)
 		create_aucpu_inst(pout);
 
+	return 0;
+}
+
+int ts_output_set_sec_mem(struct out_elem *pout,
+	unsigned int buf, unsigned int size)
+{
+	if (pout && pout->pchan)
+		SC2_bufferid_set_sec_mem(pout->pchan, buf, size);
 	return 0;
 }
 
