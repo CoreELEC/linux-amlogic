@@ -552,7 +552,9 @@ static void meson_uart_change_speed(struct uart_port *port, unsigned long baud)
 	if (port->uartclk == 24000000) {
 		if (xtal_tick_en) {
 			/*xtal_tick_en first*/
-			aml_aobus_update_bits((0x19<<2), (1<<18), (1<<18));
+			if (xtal_tick_en != 3) {
+				aml_aobus_update_bits((0x19<<2), (1<<18), (1<<18));
+			}
 			dev_info(&pdev->dev, "ttyS%d use xtal(24M) %d change %ld to %ld\n",
 				port->line, port->uartclk,
 				mup->baud, baud);
@@ -560,7 +562,7 @@ static void meson_uart_change_speed(struct uart_port *port, unsigned long baud)
 				val = (port->uartclk + baud / 2) / baud  - 1;
 				val |= (AML_UART_BAUD_USE|AML_UART_BAUD_XTAL
 					|AML_UART_BAUD_XTAL_TICK);
-			} else if (xtal_tick_en == 2) {
+			} else if (xtal_tick_en == 2 || xtal_tick_en == 3) {
 				val = (port->uartclk/2 + baud / 2) / baud  - 1;
 				val |= (AML_UART_BAUD_USE|AML_UART_BAUD_XTAL
 					|AML_UART_BAUD_XTAL_DIV2);

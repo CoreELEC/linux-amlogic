@@ -740,7 +740,7 @@
 				status = "okay";
 				clocks = <&xtal>;
 				clock-names = "clk_uart";
-				xtal_tick_en = <2>;
+				xtal_tick_en = <3>;
 				fifosize = < 64 >;
 				pinctrl-names = "default";
 				/*pinctrl-0 = <&ao_uart_pins>;*/
@@ -1121,7 +1121,7 @@
 					&clkc CLKID_UART_A>;
 		clock-names = "clk_uart",
 			"clk_gate";
-		xtal_tick_en = <2>;
+		xtal_tick_en = <3>;
 		fifosize = < 128 >;
 		pinctrl-names = "default";
 		pinctrl-0 = <&a_uart_pins1>;
