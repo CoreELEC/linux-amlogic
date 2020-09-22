@@ -1994,6 +1994,7 @@ RESTART:
 		ret = vppfilter_changed_but_hold;
 	return ret;
 }
+
 /*
  *VPP_SRSHARP0_CTRL:0x1d91
  *[0]srsharp0 enable for sharpness module reg r/w
@@ -2154,15 +2155,10 @@ int vpp_set_super_scaler_regs(
 	}
 
 	/*ve input size setting*/
-	if (is_meson_txhd_cpu() ||
-		is_meson_g12a_cpu() ||
-		is_meson_g12b_cpu() ||
-		is_meson_sm1_cpu() ||
-		is_meson_sc2_cpu())
+	if (sr->core_support == ONLY_CORE0)
 		tmp_data = ((reg_srscl0_hsize & 0x1fff) << 16) |
 			(reg_srscl0_vsize & 0x1fff);
-	else if ((is_meson_tl1_cpu() || is_meson_tm2_cpu() ||
-		  is_meson_t5_cpu()) &&
+	else if ((sr->core_support == NEW_CORE0_CORE1) &&
 		((scaler_path_sel == PPS_CORE0_CORE1) ||
 		(scaler_path_sel == PPS_CORE0_POSTBLEND_CORE1)))
 		tmp_data = ((reg_srscl0_hsize & 0x1fff) << 16) |
@@ -2365,27 +2361,35 @@ static void vpp_set_super_scaler(
 	}
 	/* new add according to pq test @20170808 on gxlx*/
 	if (scaler_path_sel >= SCALER_PATH_MAX) {
-		if (is_meson_gxlx_cpu()) {
-			if (next_frame_par->supsc1_hori_ratio &&
-				next_frame_par->supsc1_vert_ratio)
-				next_frame_par->supscl_path = CORE1_BEFORE_PPS;
-			else
-				next_frame_par->supscl_path = CORE1_AFTER_PPS;
-		} else if (is_meson_txhd_cpu() ||
-			is_meson_g12a_cpu() ||
-			is_meson_g12b_cpu() ||
-			is_meson_sm1_cpu()) {
-			if (next_frame_par->supsc0_hori_ratio &&
-			    next_frame_par->supsc0_vert_ratio)
-				next_frame_par->supscl_path = CORE0_BEFORE_PPS;
-			else
-				next_frame_par->supscl_path = CORE0_AFTER_PPS;
-		} else if (is_meson_sc2_cpu() || is_meson_t5_cpu())
-			next_frame_par->supscl_path = CORE0_BEFORE_PPS;
-		else
-			next_frame_par->supscl_path = CORE0_PPS_CORE1;
-	} else
+		if (sr->supscl_path == 0xff) {
+			if (is_meson_gxlx_cpu()) {
+				if (next_frame_par->supsc1_hori_ratio &&
+					next_frame_par->supsc1_vert_ratio)
+					next_frame_par->supscl_path =
+						CORE1_BEFORE_PPS;
+				else
+					next_frame_par->supscl_path =
+						CORE1_AFTER_PPS;
+			} else if (is_meson_txhd_cpu() ||
+				is_meson_g12a_cpu() ||
+				is_meson_g12b_cpu() ||
+				is_meson_sm1_cpu()) {
+				if (next_frame_par->supsc0_hori_ratio &&
+				    next_frame_par->supsc0_vert_ratio)
+					next_frame_par->supscl_path =
+						CORE0_BEFORE_PPS;
+				else
+					next_frame_par->supscl_path =
+						CORE0_AFTER_PPS;
+			} else {
+				next_frame_par->supscl_path = CORE0_PPS_CORE1;
+			}
+		} else {
+			next_frame_par->supscl_path = sr->supscl_path;
+		}
+	} else {
 		next_frame_par->supscl_path = scaler_path_sel;
+	}
 
 	/*patch for width align 2*/
 	if (super_scaler && (width_out%2) &&
@@ -2582,8 +2586,7 @@ static void vpp_set_super_scaler(
 
 	sr_path = next_frame_par->supscl_path;
 	/* path config */
-	if (is_meson_tl1_cpu() || is_meson_tm2_cpu() ||
-	    is_meson_t5_cpu()) {
+	if (sr->core_support == NEW_CORE0_CORE1) {
 		if (sr_path == CORE0_PPS_CORE1) {
 			next_frame_par->sr0_position = 1;
 			next_frame_par->sr1_position = 1;
@@ -2627,11 +2630,7 @@ static void vpp_set_super_scaler(
 				next_frame_par->VPP_vsc_endp -
 				next_frame_par->VPP_vsc_startp + 1;
 		}
-	} else if (is_meson_txhd_cpu() ||
-		is_meson_g12a_cpu() ||
-		is_meson_g12b_cpu() ||
-		is_meson_sm1_cpu() ||
-		is_meson_sc2_cpu()) {
+	} else if (sr->core_support == ONLY_CORE0) {
 		if (sr_path == CORE0_BEFORE_PPS)
 			next_frame_par->sr0_position = 1;
 		else if (sr_path == CORE0_AFTER_PPS)
@@ -2656,7 +2655,7 @@ static void vpp_set_super_scaler(
 				next_frame_par->VPP_vsc_endp -
 				next_frame_par->VPP_vsc_startp + 1;
 		}
-	} else if (is_meson_gxlx_cpu()) {
+	} else if (sr->core_support == ONLY_CORE1) {
 		if (sr_path == CORE1_BEFORE_PPS)
 			next_frame_par->sr1_position = 1;
 		else if (sr_path == CORE1_AFTER_PPS)
@@ -2681,9 +2680,7 @@ static void vpp_set_super_scaler(
 				next_frame_par->VPP_vsc_endp -
 				next_frame_par->VPP_vsc_startp + 1;
 		}
-	} else if (is_meson_txlx_cpu()
-		|| is_meson_txl_cpu()
-		|| is_meson_gxtvbb_cpu()) {
+	} else if (sr->core_support == OLD_CORE0_CORE1) {
 		if (sr_path == CORE0_PPS_CORE1) {
 			next_frame_par->sr0_position = 1;
 			next_frame_par->sr1_position = 1;
@@ -3658,66 +3655,9 @@ void vpp_super_scaler_support(void)
 	struct sr_info_s *sr;
 
 	sr = &sr_info;
-	if (is_meson_gxlx_cpu()) {
-		sr->sr_support &= ~SUPER_CORE0_SUPPORT;
-		sr->sr_support |= SUPER_CORE1_SUPPORT;
-		sr->core1_v_disable_width_max = 4096;
-		sr->core1_v_enable_width_max = 2048;
-	} else if (is_meson_txhd_cpu()) {
-		/* 2k pannal */
-		sr->sr_support |= SUPER_CORE0_SUPPORT;
-		sr->sr_support &= ~SUPER_CORE1_SUPPORT;
-		sr->core0_v_disable_width_max = 2048;
-		sr->core0_v_enable_width_max = 1024;
-	} else if (is_meson_g12a_cpu() ||
-		is_meson_g12b_cpu() ||
-		is_meson_sm1_cpu() ||
-		is_meson_sc2_cpu()) {
-		sr->sr_support |= SUPER_CORE0_SUPPORT;
-		sr->sr_support &= ~SUPER_CORE1_SUPPORT;
-		sr->core0_v_disable_width_max = 4096;
-		sr->core0_v_enable_width_max = 2048;
-	} else if (is_meson_gxtvbb_cpu() ||
-		   is_meson_txl_cpu() ||
-		   is_meson_txlx_cpu() ||
-		   is_meson_tl1_cpu() ||
-		   is_meson_tm2_cpu() ||
-		   is_meson_t5_cpu()) {
-		sr->sr_support |= SUPER_CORE0_SUPPORT;
-		sr->sr_support |= SUPER_CORE1_SUPPORT;
-		sr->core0_v_disable_width_max = 2048;
-		sr->core0_v_enable_width_max = 1024;
-		sr->core1_v_disable_width_max = 4096;
-		sr->core1_v_enable_width_max = 2048;
-	} else {
-		sr->sr_support &= ~SUPER_CORE0_SUPPORT;
-		sr->sr_support &= ~SUPER_CORE1_SUPPORT;
-	}
 	if (super_scaler == 0) {
 		sr->sr_support &= ~SUPER_CORE0_SUPPORT;
 		sr->sr_support &= ~SUPER_CORE1_SUPPORT;
-	}
-	if (is_meson_g12a_cpu() ||
-		is_meson_g12b_cpu() ||
-		is_meson_sm1_cpu()) {
-		sr->sr_reg_offt = 0xc00;
-		sr->sr_reg_offt2 = 0x00;
-	} else if (is_meson_tl1_cpu() ||
-		is_meson_tm2_cpu() ||
-		is_meson_sc2_cpu() ||
-		is_meson_t5_cpu()) {
-		if (is_meson_tm2_revb() ||
-		    is_meson_sc2_cpu() ||
-		    is_meson_t5_cpu()) {
-			sr->sr_reg_offt = 0x1e00;
-			sr->sr_reg_offt2 = 0x1f80;
-		} else {
-			sr->sr_reg_offt = 0xc00;
-			sr->sr_reg_offt2 = 0xc80;
-		}
-	} else {
-		sr->sr_reg_offt = 0;
-		sr->sr_reg_offt2 = 0x00;
 	}
 }
 /*for gxlx only have core1 which will affact pip line*/

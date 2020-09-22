@@ -110,8 +110,8 @@ struct video_layer_s;
 
 struct mif_pos_s {
 	u32 id;
-	u32 afbc_reg_offt;
 	struct hw_vd_reg_s *p_vd_mif_reg;
+	struct hw_afbc_reg_s *p_vd_afbc_reg;
 
 	/* frame original size */
 	u32 src_w;
@@ -230,8 +230,8 @@ struct video_layer_s {
 
 	/* reg map offsett*/
 	u32 misc_reg_offt;
-	u32 afbc_reg_offt;
 	struct hw_vd_reg_s vd_mif_reg;
+	struct hw_afbc_reg_s vd_afbc_reg;
 	struct hw_fg_reg_s fg_reg;
 	u8 cur_canvas_id;
 #ifdef CONFIG_AMLOGIC_MEDIA_VSYNC_RDMA
@@ -288,6 +288,13 @@ struct video_layer_s {
 	bool do_switch;
 };
 
+enum {
+	ONLY_CORE0,
+	ONLY_CORE1,
+	NEW_CORE0_CORE1,
+	OLD_CORE0_CORE1,
+};
+
 enum cpu_type_e {
 	MESON_CPU_MAJOR_ID_COMPATIBALE = 0x1,
 	MESON_CPU_MAJOR_ID_TM2_REVB,
@@ -298,6 +305,19 @@ enum cpu_type_e {
 
 struct amvideo_device_data_s {
 	enum cpu_type_e cpu_type;
+	u32 sr_reg_offt;
+	u32 sr_reg_offt2;
+	u8 layer_support[MAX_VD_LAYER];
+	u8 afbc_support[MAX_VD_LAYER];
+	u8 pps_support[MAX_VD_LAYER];
+	u8 alpha_support[MAX_VD_LAYER];
+	u8 dv_support;
+	u8 sr0_support;
+	u8 sr1_support;
+	u32 core_v_disable_width_max[MAX_SR_NUM];
+	u32 core_v_enable_width_max[MAX_SR_NUM];
+	u8 supscl_path;
+	u8 fgrain_support[MAX_VD_LAYER];
 	u8 has_hscaler_8tap[MAX_VD_LAYER];
 	u8 has_pre_hscaler_ntap[MAX_VD_LAYER];
 	u8 has_pre_vscaler_ntap[MAX_VD_LAYER];
@@ -420,7 +440,7 @@ void enable_vpp_crc_viu2(u32 vpp_crc_en);
 int vpp_crc_viu2_check(u32 vpp_crc_en);
 
 int video_hw_init(void);
-int video_early_init(void);
+int video_early_init(struct amvideo_device_data_s *p_amvideo);
 int video_late_uninit(void);
 
 /* from video.c */
