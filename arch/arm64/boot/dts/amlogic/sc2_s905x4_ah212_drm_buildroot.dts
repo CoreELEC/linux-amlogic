@@ -1332,7 +1332,7 @@
 		compatible = "amlogic, tm2-revb-snd-tdmb";
 		#sound-dai-cells = <0>;
 		dai-tdm-lane-slot-mask-in = <0 1 0 0>;
-		dai-tdm-lane-slot-mask-out = <1 0 0 0>;
+		dai-tdm-lane-slot-mask-out = <1 1 1 1>;
 		dai-tdm-clk-sel = <1>;
 		clocks = <&clkaudio CLKID_AUDIO_MCLK_B
 				&clkaudio CLKID_AUDIO_MCLK_PAD0
@@ -1362,6 +1362,12 @@
 		clk_tuning_enable = <1>;
 
 		status = "okay";
+
+		/* !!!For --TV platform-- ONLY */
+		Channel_Mask {
+			/*i2s has 4 pins, 8channel, mux output*/
+			Spdif_samesource_Channel_Mask = "i2s_0/1";
+		};
 	};
 
 	tdmc: tdm@2 {
