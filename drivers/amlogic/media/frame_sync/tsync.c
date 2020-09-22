@@ -1031,7 +1031,7 @@ int tsync_check_pid_valid_for_newarch(struct dmx_info demux_info)
 
 void tsync_reset(void)
 {
-	checkin_apts_from_audiohal = 0;
+	checkin_apts_from_audiohal = 0xffffffff;
 	first_demux_pcrscr = 0;
 }
 

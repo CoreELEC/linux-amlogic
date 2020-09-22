@@ -115,7 +115,8 @@ static u32 tsync_pcr_recovery_span = 3; /* 10 */
 #define MIN_SYNC_ACHACH_TIME   27000
 
 #define PLAY_MODE_THRESHOLD 500	/*ms*/
-#define PLAY_PCR_INVALID_THRESHOLD	(10*90000)
+#define PLAY_PCR_INVALID_THRESHOLD (10 * 90000)
+
 /* ------------------------------------------------------------------ */
 /* The const */
 
@@ -162,6 +163,8 @@ static int tsync_pcr_astart_flag;
 static u8 tsync_pcr_inited_flag;
 static u8 tsync_pcr_inited_mode = INIT_PRIORITY_PCR;
 static u32 tsync_pcr_freerun_mode;
+
+static int tsync_pcr_latency_value;
 
 static int64_t tsync_pcr_stream_delta;
 
@@ -492,13 +495,11 @@ u32 tsync_pcr_get_ref_pcr(void)
 		ref_pcr = tsync_calcpcr_by_audio(first_apts,
 						audio_cache_pts);
 		pr_info("calc pcr by audio ref_pcr=0x%x\n", ref_pcr);
-
 	} else if ((first_vpts != 0 && first_apts >= first_vpts) ||
 		   (first_apts == 0 && cur_checkin_apts == 0xffffffff)) {
 		ref_pcr = tsync_calcpcr_by_video(first_vpts,
 						 video_cache_pts);
 		pr_info("calc pcr by video ref_pcr=0x%x\n", ref_pcr);
-
 	} else {
 		if (first_apts == 0 && first_vpts == 0) {
 			min_checkinpts = tsync_pcr_get_min_checkinpts();
@@ -1277,12 +1278,15 @@ EXPORT_SYMBOL(tsync_pcr_pcrscr_set);
 void tsync_pcr_avevent_locked(enum avevent_e event, u32 param)
 {
 	ulong flags;
-	u32 cur_checkin_vpts;
+	u32 first_apts;
+	u32 cur_checkin_vpts, cur_checkin_apts;
 	u32 ref_pcr;
 	spin_lock_irqsave(&tsync_pcr_lock, flags);
 
 	switch (event) {
 	case VIDEO_START:
+		first_apts = timestamp_firstapts_get();
+		cur_checkin_apts = get_last_checkin_pts(PTS_TYPE_AUDIO);
 		if (tsync_pcr_vstart_flag == 0) {
 			/* play_mode=PLAY_MODE_NORMAL; */
 			tsync_pcr_first_video_frame_pts = param;
@@ -1294,7 +1298,14 @@ void tsync_pcr_avevent_locked(enum avevent_e event, u32 param)
 		tsync_set_av_state(0, 2);
 		/*tsync_pcr_inited_mode = INIT_MODE_VIDEO;*/
 		tsync_pcr_vstart_flag = 1;
-		tsync_pcr_pcrscr_set();
+
+		if ((first_apts == 0 &&
+			cur_checkin_apts == 0xffffffff &&
+			tsync_get_audio_pid_valid()) ||
+			(tsync_pcr_inited_mode != 0)) {
+		} else {
+			tsync_pcr_pcrscr_set();
+		}
 		break;
 
 	case VIDEO_STOP:
@@ -1582,7 +1593,8 @@ static unsigned long tsync_pcr_check(void)
 		&& (!(tsync_pcr_inited_flag & TSYNC_PCR_INITCHECK_APTS))) {
 		u64 cur_system_time =
 			div64_u64((u64)jiffies * TIME_UNIT90K, HZ);
-		if ((cur_system_time - first_time_record) < 270000
+		if ((cur_system_time - first_time_record) <
+			tsync_pcr_latency_value
 			&& video_pid_valid) {
 		} else {
 			if (video_pid_valid)
@@ -1894,6 +1906,25 @@ static ssize_t tsync_audio_mode_store(struct class *cla,
 	size_t r;
 
 	r = kstrtoint(buf, 0, &tsync_audio_mode);
+	if (r != 0)
+		return -EINVAL;
+	return count;
+}
+
+static ssize_t tsync_latencytime_show(struct class *cla,
+		struct class_attribute *attr,
+		char *buf)
+{
+	return sprintf(buf, "%d\n", tsync_pcr_latency_value);
+}
+
+static ssize_t tsync_latencytime_store(struct class *cla,
+		struct class_attribute *attr,
+		const char *buf, size_t count)
+{
+	size_t r;
+
+	r = kstrtoint(buf, 0, &tsync_pcr_latency_value);
 	if (r != 0)
 		return -EINVAL;
 	return count;
@@ -2238,6 +2269,8 @@ static struct class_attribute tsync_pcr_class_attrs[] = {
 	tsync_pcr_inited_flag_show, NULL),
 	__ATTR(tsync_pcr_ref_latency, 0644,
 	tsync_pcr_ref_latency_show, tsync_pcr_ref_latency_store),
+	__ATTR(tsync_pcr_latency_value, 0644,
+	tsync_latencytime_show, tsync_latencytime_store),
 	__ATTR_NULL};
 
 static struct class tsync_pcr_class = {
@@ -2265,6 +2298,7 @@ int tsync_pcr_init(void)
 	tsync_pcr_debug = 0;
 	tsync_audio_mode = 0;
 	tsync_disable_demux_pcr = 0;
+	tsync_pcr_latency_value = 540000;
 	pr_info("[tsync_pcr_init]init success.\n");
 	return 0;
 }
