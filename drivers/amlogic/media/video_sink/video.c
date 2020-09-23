@@ -5071,6 +5071,8 @@ SET_FILTER:
 			if (cur_dispbuf == &vf_local)
 				vd_layer[0].dispbuf = cur_dispbuf;
 		}
+		if (new_frame || cur_dispbuf)
+			vd_layer[0].dispbuf_mapping = &cur_dispbuf;
 		cur_blackout = blackout | force_blackout;
 	} else {
 		cur_blackout = 1;
