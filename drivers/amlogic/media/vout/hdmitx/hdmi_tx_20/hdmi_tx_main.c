@@ -2872,6 +2872,7 @@ static ssize_t show_dc_cap(struct device *dev,
 	struct rx_cap *prxcap = &hdmitx_device.rxcap;
 	const struct dv_info *dv = &hdmitx_device.rxcap.dv_info;
 	const struct dv_info *dv2 = &hdmitx_device.rxcap.dv_info2;
+	struct hdmitx_dev *hdev = &hdmitx_device;
 
 #if 0
 	if (prxcap->dc_48bit_420)
@@ -2907,11 +2908,16 @@ static ssize_t show_dc_cap(struct device *dev,
 next444:
 	if (prxcap->dc_y444) {
 		if ((prxcap->dc_36bit) || (dv->sup_10b_12b_444 == 0x2) ||
-		    (dv2->sup_10b_12b_444 == 0x2))
-			pos += snprintf(buf + pos, PAGE_SIZE, "444,12bit\n");
+		    (dv2->sup_10b_12b_444 == 0x2)) {
+			if (!hdev->vend_id_hit)
+				pos += snprintf(buf + pos,
+						PAGE_SIZE, "444,12bit\n");
+		}
 		if ((prxcap->dc_30bit) || (dv->sup_10b_12b_444 == 0x1) ||
 		    (dv2->sup_10b_12b_444 == 0x1)) {
-			pos += snprintf(buf + pos, PAGE_SIZE, "444,10bit\n");
+			if (!hdev->vend_id_hit)
+				pos += snprintf(buf + pos,
+						PAGE_SIZE, "444,10bit\n");
 			pos += snprintf(buf + pos, PAGE_SIZE, "444,8bit\n");
 		}
 #if 0
@@ -2919,10 +2925,15 @@ next444:
 			pos += snprintf(buf + pos, PAGE_SIZE, "444,16bit\n");
 #endif
 		if ((prxcap->dc_36bit) || (dv->sup_yuv422_12bit) ||
-		    (dv2->sup_yuv422_12bit))
-			pos += snprintf(buf + pos, PAGE_SIZE, "422,12bit\n");
+		    (dv2->sup_yuv422_12bit)) {
+			if (!hdev->vend_id_hit)
+				pos += snprintf(buf + pos,
+						PAGE_SIZE, "422,12bit\n");
+		}
 		if (prxcap->dc_30bit) {
-			pos += snprintf(buf + pos, PAGE_SIZE, "422,10bit\n");
+			if (!hdev->vend_id_hit)
+				pos += snprintf(buf + pos,
+						PAGE_SIZE, "422,10bit\n");
 			pos += snprintf(buf + pos, PAGE_SIZE, "422,8bit\n");
 			goto nextrgb;
 		}
@@ -2938,11 +2949,17 @@ nextrgb:
 		pos += snprintf(buf + pos, PAGE_SIZE, "rgb,16bit\n");
 #endif
 	if ((prxcap->dc_36bit) || (dv->sup_10b_12b_444 == 0x2) ||
-	    (dv2->sup_10b_12b_444 == 0x2))
-		pos += snprintf(buf + pos, PAGE_SIZE, "rgb,12bit\n");
+	    (dv2->sup_10b_12b_444 == 0x2)) {
+		if (!hdev->vend_id_hit)
+			pos += snprintf(buf + pos,
+					PAGE_SIZE, "rgb,12bit\n");
+	}
 	if ((prxcap->dc_30bit) || (dv->sup_10b_12b_444 == 0x1) ||
-	    (dv2->sup_10b_12b_444 == 0x1))
-		pos += snprintf(buf + pos, PAGE_SIZE, "rgb,10bit\n");
+	    (dv2->sup_10b_12b_444 == 0x1)) {
+		if (!hdev->vend_id_hit)
+			pos += snprintf(buf + pos,
+					PAGE_SIZE, "rgb,10bit\n");
+	}
 	pos += snprintf(buf + pos, PAGE_SIZE, "rgb,8bit\n");
 	return pos;
 }

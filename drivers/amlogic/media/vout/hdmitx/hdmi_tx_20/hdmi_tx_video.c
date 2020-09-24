@@ -928,8 +928,9 @@ int hdmitx_set_display(struct hdmitx_dev *hdev, enum hdmi_vic VideoCode)
 	AVI_HB[2] = AVI_INFOFRAMES_LENGTH;
 	for (i = 0; i < 32; i++)
 		AVI_DB[i] = 0;
-
 	vic = hdev->hwop.getstate(hdev, STAT_VIDEO_VIC, 0);
+	if (hdev->vend_id_hit)
+		pr_info(VID "special tv detected\n");
 	pr_info(VID "already init VIC = %d  Now VIC = %d\n",
 		vic, VideoCode);
 	if ((vic != HDMI_Unknown) && (vic == VideoCode))
