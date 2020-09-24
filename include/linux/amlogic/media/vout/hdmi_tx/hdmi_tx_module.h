@@ -913,6 +913,10 @@ struct Hdcp_Sub {
 	unsigned int hdcp_sub_len;
 };
 
+void am_hdmitx_hdcp_disable(void);
+void am_hdmitx_hdcp_enable(void);
+void hdmi_tx_edid_proc(unsigned char *edid);
+
 extern void setup_attr(const char *buf);
 extern void get_attr(char attr[16]);
 extern unsigned int hd_read_reg(unsigned int addr);

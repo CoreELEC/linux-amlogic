@@ -5026,6 +5026,21 @@ unsigned int hdmitx_check_edid_all_zeros(unsigned char *buf)
 	return 1;
 }
 
+void hdmi_tx_edid_proc(unsigned char *edid)
+{
+	struct hdmitx_dev *hdev;
+	unsigned int edid_len;
+
+	hdev = &hdmitx_device;
+	edid_len = edid[126] + 1;
+	edid_len *= 128;
+	memcpy(hdev->EDID_buf, edid, edid_len);
+	memcpy(hdev->EDID_buf1, edid, edid_len);
+	hdmitx_edid_clear(hdev);
+	hdmitx_edid_parse(hdev);
+	hdmitx_edid_buf_compare_print(hdev);
+}
+
 static void hdmitx_get_edid(struct hdmitx_dev *hdev)
 {
 	unsigned int num;
