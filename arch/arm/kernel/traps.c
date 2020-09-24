@@ -38,6 +38,9 @@
 #include <asm/tls.h>
 #include <asm/system_misc.h>
 #include <asm/opcodes.h>
+#ifdef CONFIG_AMLOGIC_DMC_MONITOR
+#include <linux/amlogic/dmc_monitor.h>
+#endif
 
 
 static const char *handler[]= {
@@ -542,7 +545,15 @@ asmlinkage void __exception_irq_entry handle_fiq_as_nmi(struct pt_regs *regs)
  */
 asmlinkage void bad_mode(struct pt_regs *regs, int reason)
 {
+#ifdef CONFIG_AMLOGIC_DMC_MONITOR
+	char buf[512];
+#endif
 	console_verbose();
+
+#ifdef CONFIG_AMLOGIC_DMC_MONITOR
+	dump_dmc_reg(buf);
+	pr_err("%s\n", buf);
+#endif
 
 #ifdef CONFIG_AMLOGIC_USER_FAULT
 	if (user_fault_debug_ratelimited())

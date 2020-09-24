@@ -207,6 +207,11 @@ static size_t dump_reg(char *buf)
 	return sz;
 }
 
+size_t dump_dmc_reg(char *buf)
+{
+	return dump_reg(buf);
+}
+
 static irqreturn_t dmc_monitor_irq_handler(int irq, void *dev_instance)
 {
 	if (dmc_mon->ops && dmc_mon->ops->handle_irq)
