@@ -463,6 +463,7 @@ HANLDE_PCR:
 		jiffies_pcr_record[i].last_pcr = 0;
 		jiffies_pcr_record[i].last_time = 0;
 		pcr_flag[i] = 1;
+		feed->type = OTHER_TYPE;
 	}
 	mutex_unlock(demux->pmutex);
 	return 0;
