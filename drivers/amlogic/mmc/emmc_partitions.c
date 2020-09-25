@@ -1070,14 +1070,8 @@ static struct hd_struct *add_emmc_each_part(struct gendisk *disk, int partno,
 	if (!p->holder_dir)
 		goto out_del;
 
-	dev_set_uevent_suppress(pdev, 0);
-
 	/* everything is up and running, commence */
 	rcu_assign_pointer(ptbl->part[partno], p);
-
-	/* suppress uevent if the disk suppresses it */
-	if (!dev_get_uevent_suppress(ddev))
-		kobject_uevent(&pdev->kobj, KOBJ_ADD);
 
 	hd_ref_init(p);
 	return p;
@@ -1140,6 +1134,8 @@ static int add_emmc_partition(struct gendisk *disk,
 	uint64_t offset, size, cap;
 	struct partitions *pp;
 	struct proc_dir_entry *proc_card;
+	struct disk_part_iter piter;
+	struct hd_struct *part;
 
 	pr_info("add_emmc_partition\n");
 
@@ -1156,6 +1152,8 @@ static int add_emmc_partition(struct gendisk *disk,
 				 disk->disk_name, 1 + i,
 				 pp->name, offset << 9,
 				 size << 9, IS_ERR(ret) ? "add fail" : "");
+			if (IS_ERR(ret))
+				return -1;
 		} else {
 			pr_info("[%s] %s: partition exceeds device capacity:\n",
 					__func__, disk->disk_name);
@@ -1166,6 +1164,13 @@ static int add_emmc_partition(struct gendisk *disk,
 			break;
 		}
 	}
+	/* announce all partitions */
+	disk_part_iter_init(&piter, disk, 0);
+	while ((part = disk_part_iter_next(&piter))) {
+		dev_set_uevent_suppress(part_to_dev(part), 0);
+		kobject_uevent(&part_to_dev(part)->kobj, KOBJ_ADD);
+	}
+	disk_part_iter_exit(&piter);
 	/* create /proc/inand */
 
 	proc_card = proc_create("inand", 0444, NULL, &card_proc_fops);
