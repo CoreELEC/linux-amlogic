@@ -3892,6 +3892,9 @@ void enable_dolby_vision(int enable)
 						NULL);
 #endif
 				pr_dolby_dbg("Dolby Vision TV core turn off\n");
+				if (tv_dovi_setting)
+					tv_dovi_setting->src_format =
+					FORMAT_SDR;
 			} else if (is_meson_txlx_stbmode()
 				|| force_stb_mode) {
 				VSYNC_WR_DV_REG_BITS(
@@ -3920,6 +3923,7 @@ void enable_dolby_vision(int enable)
 				stb_core_setting_update_flag = FLAG_CHANGE_ALL;
 				stb_core2_const_flag = false;
 				memset(&dovi_setting, 0, sizeof(dovi_setting));
+				dovi_setting.src_format = FORMAT_SDR;
 				pr_dolby_dbg("Dolby Vision STB cores turn off\n");
 			} else if (is_meson_g12() ||
 				   is_meson_tm2_stbmode() ||
@@ -3949,6 +3953,7 @@ void enable_dolby_vision(int enable)
 				stb_core_setting_update_flag = FLAG_CHANGE_ALL;
 				stb_core2_const_flag = false;
 				memset(&dovi_setting, 0, sizeof(dovi_setting));
+				dovi_setting.src_format = FORMAT_SDR;
 				pr_dolby_dbg("Dolby Vision G12a turn off\n");
 			} else {
 				VSYNC_WR_DV_REG_BITS(
@@ -3979,6 +3984,7 @@ void enable_dolby_vision(int enable)
 				stb_core_setting_update_flag = FLAG_CHANGE_ALL;
 				stb_core2_const_flag = false;
 				memset(&dovi_setting, 0, sizeof(dovi_setting));
+				dovi_setting.src_format = FORMAT_SDR;
 				pr_dolby_dbg("Dolby Vision turn off\n");
 			}
 			VSYNC_WR_DV_REG(VIU_SW_RESET, 3 << 9);
@@ -8339,6 +8345,9 @@ int register_dv_functions(const struct dolby_vision_func_s *func)
 		support_info = support_info | (1 << 2); /*bit2=1 => updated*/
 		pr_info("dv capability %d\n", support_info);
 
+		dovi_setting.src_format = FORMAT_SDR;
+		new_dovi_setting.src_format = FORMAT_SDR;
+
 		/*stb core doesn't need run mode*/
 		/*TV core need run mode and the value is 2*/
 		if (is_meson_g12() || is_meson_txlx_stbmode() ||
@@ -8359,7 +8368,8 @@ int register_dv_functions(const struct dolby_vision_func_s *func)
 			tv_dovi_setting =
 				vmalloc(sizeof(struct tv_dovi_setting_s));
 			if (!tv_dovi_setting)
-			return -ENOMEM;
+				return -ENOMEM;
+			tv_dovi_setting->src_format = FORMAT_SDR;
 		}
 		adjust_vpotch();
 	}
