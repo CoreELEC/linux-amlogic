@@ -922,28 +922,31 @@ static int remote_resume(struct device *dev)
 	spin_unlock_irqrestore(&chip->slock, flags);
 
 #ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
-	if ((get_resume_method() == REMOTE_WAKEUP) ||
+	switch (get_resume_method()) {
+	case REMOTE_WAKEUP:
 #ifdef CONFIG_AMLOGIC_ETH_PRIVE
-			(get_resume_method() == ETH_PHY_WAKEUP) ||
+	case ETH_PHY_WAKEUP:
 #endif
-			(get_resume_method() == BT_WAKEUP)) {
 		input_event(chip->r_dev->input_device,
-		    EV_KEY, KEY_POWER, 1);
+			EV_KEY, KEY_POWER, 1);
 		input_sync(chip->r_dev->input_device);
 		input_event(chip->r_dev->input_device,
-		    EV_KEY, KEY_POWER, 0);
+			EV_KEY, KEY_POWER, 0);
 		input_sync(chip->r_dev->input_device);
 		if (scpi_clr_wakeup_reason())
 			pr_debug("clr wakeup reason fail.\n");
-	}
+		break;
 
-	if (get_resume_method() == REMOTE_CUS_WAKEUP) {
+	case REMOTE_CUS_WAKEUP:
 		input_event(chip->r_dev->input_device, EV_KEY, 133, 1);
 		input_sync(chip->r_dev->input_device);
 		input_event(chip->r_dev->input_device, EV_KEY, 133, 0);
 		input_sync(chip->r_dev->input_device);
 		if (scpi_clr_wakeup_reason())
 			pr_debug("clr wakeup reason fail.\n");
+		break;
+	default:
+		break;
 	}
 #endif
 

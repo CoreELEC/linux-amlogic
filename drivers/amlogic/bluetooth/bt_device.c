@@ -415,11 +415,13 @@ static int bt_suspend(struct platform_device *pdev,
 
 static int bt_resume(struct platform_device *pdev)
 {
+	int event = 0;
 	struct bt_dev_data *pdata = platform_get_drvdata(pdev);
 
 	BT_INFO("bt resume\n");
 	enable_irq(pdata->irqno_wakeup);
 	btwake_evt = 0;
+
 	if ((get_resume_method() == RTC_WAKEUP) ||
 		(get_resume_method() == AUTO_WAKEUP)) {
 		btwake_evt = 1;
@@ -427,6 +429,16 @@ static int bt_resume(struct platform_device *pdev)
 	    flag_n = 0;
 		flag_p = 0;
 		cnt = 0;
+	}
+	event = sdio_get_vendor();
+	BT_INFO("event = %d\n", event);
+	if ((event != 625) && get_resume_method() == BT_WAKEUP) {
+		input_event(pdata->input_dev,
+			EV_KEY, KEY_POWER, 1);
+		input_sync(pdata->input_dev);
+		input_event(pdata->input_dev,
+			EV_KEY, KEY_POWER, 0);
+		input_sync(pdata->input_dev);
 	}
 
 	return 0;

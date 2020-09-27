@@ -33,4 +33,5 @@ struct bt_dev_data {
 	struct hrtimer timer;
 };
 extern void set_usb_bt_power(int is_power);
+int sdio_get_vendor(void);
 #endif
