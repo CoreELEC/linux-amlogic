@@ -634,6 +634,9 @@ static int mmc_sdio_init_card(struct mmc_host *host, u32 ocr,
 	int retries = 10;
 	u32 rocr = 0;
 	u32 ocr_card = ocr;
+#ifdef CONFIG_AMLOGIC_MMC
+	struct amlsd_platform *pdata = NULL;
+#endif
 
 	BUG_ON(!host);
 	WARN_ON(!host->claimed);
@@ -867,6 +870,10 @@ try_again:
 		if (err)
 			goto remove;
 	}
+#ifdef CONFIG_AMLOGIC_MMC
+	pdata = mmc_priv(host);
+	pdata->sdio_vendor = card->cis.vendor;
+#endif
 finish:
 	if (!oldcard)
 		host->card = card;

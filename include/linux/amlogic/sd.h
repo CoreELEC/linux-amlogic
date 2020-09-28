@@ -352,6 +352,7 @@ struct amlsd_platform {
 	unsigned int power_level;
 	unsigned int calc_f;
 	unsigned int no_sduart;
+	unsigned int sdio_vendor;
 
 	unsigned int scan_val;
 	unsigned int auto_clk_close;

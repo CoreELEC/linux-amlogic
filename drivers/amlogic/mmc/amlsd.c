@@ -275,6 +275,20 @@ void aml_emmc_hw_reset(struct mmc_host *mmc)
 #endif
 }
 
+int sdio_get_vendor(void)
+{
+	int vendor = 0;
+	struct amlsd_platform *pdata = NULL;
+
+	if (sdio_host) {
+		pdata = mmc_priv(sdio_host);
+		vendor = pdata->sdio_vendor;
+	}
+	pr_info("sdio vendor is 0x%x\n", vendor);
+	return vendor;
+}
+EXPORT_SYMBOL(sdio_get_vendor);
+
 void sdio_clk_always_on(int on)
 {
 	u32 vconf = 0;
