@@ -839,12 +839,12 @@ static void set_enci_div(struct hdmitx_dev *hdev, unsigned int div)
  * vid_pll_div vid_clk_div hdmi_tx_pixel_div encp_div enci_div
  */
 static struct hw_enc_clk_val_group setting_enc_clk_val_24[] = {
-	{{HDMI_720x480i60_16x9,
-	  HDMI_720x576i50_16x9,
+	{{HDMI_720x480i60_16x9, HDMI_720x480i60_4x3,
+	  HDMI_720x576i50_16x9, HDMI_720x576i50_4x3,
 	  HDMI_VIC_END},
 		4324320, 4, 4, 1, VID_PLL_DIV_5, 1, 2, -1, 2},
-	{{HDMI_720x576p50_16x9,
-	  HDMI_720x480p60_16x9,
+	{{HDMI_720x576p50_16x9, HDMI_720x576p50_4x3,
+	  HDMI_720x480p60_16x9, HDMI_720x480p60_4x3,
 	  HDMI_VIC_END},
 		4324320, 4, 4, 1, VID_PLL_DIV_5, 1, 2, 2, -1},
 	{{HDMI_1280x720p50_16x9,
@@ -964,12 +964,12 @@ static struct hw_enc_clk_val_group setting_enc_clk_val_24[] = {
 
 /* For colordepth 10bits */
 static struct hw_enc_clk_val_group setting_enc_clk_val_30[] = {
-	{{HDMI_720x480i60_16x9,
-	  HDMI_720x576i50_16x9,
+	{{HDMI_720x480i60_16x9, HDMI_720x480i60_4x3,
+	  HDMI_720x576i50_16x9, HDMI_720x576i50_4x3,
 	  HDMI_VIC_END},
 		5405400, 4, 4, 1, VID_PLL_DIV_6p25, 1, 2, -1, 2},
-	{{HDMI_720x576p50_16x9,
-	  HDMI_720x480p60_16x9,
+	{{HDMI_720x576p50_16x9, HDMI_720x576p50_4x3,
+	  HDMI_720x480p60_16x9, HDMI_720x480p60_4x3,
 	  HDMI_VIC_END},
 		5405400, 4, 4, 1, VID_PLL_DIV_6p25, 1, 2, 2, -1},
 	{{HDMI_1280x720p50_16x9,
@@ -1017,12 +1017,12 @@ static struct hw_enc_clk_val_group setting_enc_clk_val_30[] = {
 
 /* For colordepth 12bits */
 static struct hw_enc_clk_val_group setting_enc_clk_val_36[] = {
-	{{HDMI_720x480i60_16x9,
-	  HDMI_720x576i50_16x9,
+	{{HDMI_720x480i60_16x9, HDMI_720x480i60_4x3,
+	  HDMI_720x576i50_16x9, HDMI_720x576i50_4x3,
 	  HDMI_VIC_END},
 		3243240, 2, 4, 1, VID_PLL_DIV_7p5, 1, 2, -1, 2},
-	{{HDMI_720x576p50_16x9,
-	  HDMI_720x480p60_16x9,
+	{{HDMI_720x576p50_16x9, HDMI_720x576p50_4x3,
+	  HDMI_720x480p60_16x9, HDMI_720x480p60_4x3,
 	  HDMI_VIC_END},
 		3243240, 2, 4, 1, VID_PLL_DIV_7p5, 1, 2, 2, -1},
 	{{HDMI_1280x720p50_16x9,
