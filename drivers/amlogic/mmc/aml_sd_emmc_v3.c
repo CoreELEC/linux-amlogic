@@ -571,6 +571,9 @@ irqreturn_t meson_mmc_irq_thread_v3(int irq, void *dev_id)
 	enum aml_mmc_waitfor xfer_step;
 	u32 status, xfer_bytes = 0;
 	u32 delay2 = 0, tmp = 0;
+	u32 vclkc = readl(host->base + SD_EMMC_CLOCK_V3);
+	struct sd_emmc_clock_v3 *clkc = (struct sd_emmc_clock_v3 *)&vclkc;
+	struct para_e *para = &host->data->sdmmc;
 
 	spin_lock_irqsave(&host->mrq_lock, flags);
 	pdata = mmc_priv(host->mmc);
@@ -675,6 +678,16 @@ irqreturn_t meson_mmc_irq_thread_v3(int irq, void *dev_id)
 			writel(delay2, host->base + SD_EMMC_DELAY2_V3);
 			pr_err("retune cmd-delay:0x%x\n", delay2);
 		}
+
+		if ((host->mmc->ios.timing == MMC_TIMING_MMC_HS200) &&
+			(pdata->caps2 & MMC_CAP2_HS400)) {
+			clkc->core_phase = para->hs.core_phase;
+			clkc->tx_phase = para->hs.tx_phase;
+			writel(vclkc, host->base + SD_EMMC_CLOCK_V3);
+			pdata->clkc = vclkc;
+			pr_err("retune timing:0x%x\n", vclkc);
+		}
+
 		/* set retry @ 1st error happens! */
 		if ((host->error_flag == 0)
 			&& (aml_card_type_mmc(pdata)
