@@ -36,7 +36,7 @@ u32 swdmx_crc32(const u8 *p, int len)
 {
 	u32 i_crc = 0xffffffff;
 
-	if (crc32_table[0] != 0)
+	if (crc32_table[1] == 0)
 		crc32_table_init();
 
 	while (len) {
