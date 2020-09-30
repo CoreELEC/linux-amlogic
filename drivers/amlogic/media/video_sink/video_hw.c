@@ -84,9 +84,12 @@ struct video_dev_s *cur_dev = &video_dev;
 bool legacy_vpp = true;
 
 static bool bypass_cm;
-bool hscaler_8tap_enable;
+bool hscaler_8tap_enable[MAX_VD_LAYER];
 int pre_hscaler_ntap_enable[MAX_VD_LAYER];
 int pre_hscaler_ntap_set[MAX_VD_LAYER];
+int pre_vscaler_ntap_enable[MAX_VD_LAYER];
+int pre_vscaler_ntap_set[MAX_VD_LAYER];
+
 #ifdef CONFIG_AMLOGIC_MEDIA_LUT_DMA
 static bool fg_supported;
 #endif
@@ -145,9 +148,14 @@ static int vpu_mem_power_off_count;
 		switch_vpu_mem_pd_vmod(VPU_VIU_VD1, VPU_MEM_POWER_ON); \
 		switch_vpu_mem_pd_vmod(VPU_AFBC_DEC, VPU_MEM_POWER_ON); \
 		switch_vpu_mem_pd_vmod(VPU_DI_POST, VPU_MEM_POWER_ON); \
-		if (!legacy_vpp) \
+		if (!legacy_vpp) { \
 			switch_vpu_mem_pd_vmod( \
 				VPU_VD1_SCALE, VPU_MEM_POWER_ON); \
+			if (is_meson_tm2_revb() || \
+			is_meson_sc2_cpu()) \
+				switch_vpu_mem_pd_vmod(VPU_FGRAIN0, \
+				VPU_MEM_POWER_ON); \
+		} \
 	} while (0)
 #else
 #define VD1_MEM_POWER_ON() \
@@ -162,7 +170,7 @@ static int vpu_mem_power_off_count;
 			switch_vpu_mem_pd_vmod( \
 				VPU_VD1_SCALE, VPU_MEM_POWER_ON); \
 		if (is_meson_tm2_revb() || \
-			cpu_after_eq(MESON_CPU_MAJOR_ID_SC2)) \
+			is_meson_sc2_cpu()) \
 			switch_vpu_mem_pd_vmod(VPU_FGRAIN0, \
 			VPU_MEM_POWER_ON); \
 	} while (0)
@@ -179,7 +187,7 @@ static int vpu_mem_power_off_count;
 			switch_vpu_mem_pd_vmod( \
 				VPU_VD2_SCALE, VPU_MEM_POWER_ON); \
 		if (is_meson_tm2_revb() || \
-			cpu_after_eq(MESON_CPU_MAJOR_ID_SC2)) \
+			is_meson_sc2_cpu()) \
 			switch_vpu_mem_pd_vmod(VPU_FGRAIN1, \
 			VPU_MEM_POWER_ON); \
 	} while (0)
@@ -2062,7 +2070,8 @@ static void vd1_scaler_setting(
 
 		sc_misc_val = VPP_SC_TOP_EN | VPP_SC_V1OUT_EN;
 		if (setting->sc_h_enable) {
-			if (cpu_after_eq(MESON_CPU_MAJOR_ID_SC2)) {
+			if (has_pre_hscaler_ntap(0)) {
+				/* for sc2/t5 support hscaler 8 tap */
 				if (pre_hscaler_ntap_enable[0]) {
 					sc_misc_val |=
 					(((vpp_filter->vpp_pre_hsc_en & 1)
@@ -2074,12 +2083,13 @@ static void vd1_scaler_setting(
 					<< VPP_SC_PREHORZ_EN_BIT_OLD)
 					| VPP_SC_HORZ_EN);
 				}
-			} else
+			} else {
 				sc_misc_val |=
 					(((vpp_filter->vpp_pre_hsc_en & 1)
 					<< VPP_SC_PREHORZ_EN_BIT)
 					| VPP_SC_HORZ_EN);
-			if (hscaler_8tap_enable) {
+			}
+			if (hscaler_8tap_enable[0]) {
 				sc_misc_val |=
 				((vpp_filter->vpp_horz_coeff[0] & 0xf)
 					<< VPP_SC_HBANK_LENGTH_BIT);
@@ -2118,7 +2128,7 @@ static void vd1_scaler_setting(
 
 	/* horitontal filter settings */
 	if (setting->sc_h_enable) {
-		if (hscaler_8tap_enable) {
+		if (hscaler_8tap_enable[0]) {
 			VSYNC_WR_MPEG_REG(VPP_SCALE_COEF_IDX + misc_off,
 					  VPP_COEF_HORZ);
 			for (i = 0; i < VPP_FILER_COEFS_NUM; i++) {
@@ -2181,7 +2191,8 @@ static void vd1_scaler_setting(
 			frame_par->VPP_hf_ini_phase_,
 			VPP_HSC_TOP_INI_PHASE_BIT,
 			VPP_HSC_TOP_INI_PHASE_WID);
-		if (cpu_after_eq(MESON_CPU_MAJOR_ID_SC2)) {
+		if (has_pre_hscaler_ntap(0)) {
+			int ds_ratio = 1;
 			int flt_num = 4;
 			int pre_hscaler_table[4] = {
 				0x0, 0x0, 0xf8, 0x48};
@@ -2191,7 +2202,7 @@ static void vd1_scaler_setting(
 				frame_par->VPP_hf_ini_phase_,
 				VPP_HSC_TOP_INI_PHASE_BIT,
 				VPP_HSC_TOP_INI_PHASE_WID);
-			if (hscaler_8tap_enable) {
+			if (hscaler_8tap_enable[0]) {
 				hsc_rpt_p0_num0 = 3;
 				hsc_init_rev_num0 = 8;
 			} else {
@@ -2239,12 +2250,60 @@ static void vd1_scaler_setting(
 				pre_hscaler_table[3],
 				VPP_PREHSC_COEF3_BIT,
 				VPP_PREHSC_COEF3_WID);
-			VSYNC_WR_MPEG_REG_BITS(
-				VPP_PREHSC_CTRL + misc_off,
-				flt_num,
-				VPP_PREHSC_FLT_NUM_BIT,
-			VPP_PREHSC_FLT_NUM_WID);
+			if (is_meson_sc2_cpu()) {
+				VSYNC_WR_MPEG_REG_BITS(
+					VPP_PREHSC_CTRL + misc_off,
+					flt_num,
+					VPP_PREHSC_FLT_NUM_BIT,
+					VPP_PREHSC_FLT_NUM_WID);
+			} else if (is_meson_t5_cpu()) {
+				VSYNC_WR_MPEG_REG_BITS(
+					VPP_PRE_SCALE_CTRL + misc_off,
+					flt_num,
+					VPP_PREHSC_FLT_NUM_BIT_T5,
+					VPP_PREHSC_FLT_NUM_WID_T5);
+				VSYNC_WR_MPEG_REG_BITS(
+					VPP_PRE_SCALE_CTRL + misc_off,
+					ds_ratio,
+					VPP_PREVSC_DS_RATIO_BIT_T5,
+					VPP_PREVSC_DS_RATIO_WID_T5);
+			}
 		}
+		if (has_pre_vscaler_ntap(0)) {
+			int ds_ratio = 1;
+			int flt_num = 4;
+			int pre_vscaler_table[2] = {
+				0xf8, 0x48};
+
+			if (!pre_vscaler_ntap_enable[0]) {
+				pre_vscaler_table[0] = 0;
+				pre_vscaler_table[1] = 0x40;
+				flt_num = 2;
+			}
+			VSYNC_WR_MPEG_REG_BITS(
+				VPP_PREVSC_COEF + misc_off,
+				pre_vscaler_table[0],
+				VPP_PREVSC_COEF0_BIT,
+				VPP_PREVSC_COEF0_WID);
+			VSYNC_WR_MPEG_REG_BITS(
+				VPP_PREVSC_COEF + misc_off,
+				pre_vscaler_table[1],
+				VPP_PREVSC_COEF1_BIT,
+				VPP_PREVSC_COEF1_WID);
+			if (is_meson_t5_cpu()) {
+				VSYNC_WR_MPEG_REG_BITS(
+					VPP_PRE_SCALE_CTRL + misc_off,
+					flt_num,
+					VPP_PREVSC_FLT_NUM_BIT_T5,
+					VPP_PREVSC_FLT_NUM_WID_T5);
+				VSYNC_WR_MPEG_REG_BITS(
+					VPP_PRE_SCALE_CTRL + misc_off,
+					ds_ratio,
+					VPP_PREVSC_DS_RATIO_BIT_T5,
+					VPP_PREVSC_DS_RATIO_WID_T5);
+			}
+		}
+
 		VSYNC_WR_MPEG_REG(
 			VPP_HSC_REGION12_STARTP + misc_off,
 			(0 << VPP_REGION1_BIT) |
@@ -2390,7 +2449,7 @@ static void vd2_scaler_setting(
 
 		sc_misc_val = VPP_SC_TOP_EN | VPP_SC_V1OUT_EN;
 		if (setting->sc_h_enable) {
-			if (cpu_after_eq(MESON_CPU_MAJOR_ID_SC2)) {
+			if (has_pre_hscaler_ntap(1)) {
 				if (pre_hscaler_ntap_enable[1]) {
 					sc_misc_val |=
 					(((vpp_filter->vpp_pre_hsc_en & 1)
@@ -2407,7 +2466,7 @@ static void vd2_scaler_setting(
 					(((vpp_filter->vpp_pre_hsc_en & 1)
 					<< VPP_SC_PREHORZ_EN_BIT)
 					| VPP_SC_HORZ_EN);
-			if (hscaler_8tap_enable)
+			if (hscaler_8tap_enable[1])
 				sc_misc_val |=
 					((vpp_filter->vpp_horz_coeff[0] & 0xf)
 					<< VPP_SC_HBANK_LENGTH_BIT);
@@ -2444,7 +2503,7 @@ static void vd2_scaler_setting(
 
 	/* horitontal filter settings */
 	if (setting->sc_h_enable) {
-		if (hscaler_8tap_enable) {
+		if (hscaler_8tap_enable[1]) {
 			VSYNC_WR_MPEG_REG(VD2_SCALE_COEF_IDX + misc_off,
 					  VPP_COEF_HORZ);
 			for (i = 0; i < VPP_FILER_COEFS_NUM; i++) {
@@ -2490,7 +2549,8 @@ static void vd2_scaler_setting(
 			frame_par->VPP_hf_ini_phase_,
 			VPP_HSC_TOP_INI_PHASE_BIT,
 			VPP_HSC_TOP_INI_PHASE_WID);
-		if (cpu_after_eq(MESON_CPU_MAJOR_ID_SC2)) {
+
+		if (has_pre_hscaler_ntap(1)) {
 			int flt_num = 4;
 			int pre_hscaler_table[4] = {
 				0x0, 0x0, 0xf8, 0x48};
@@ -2500,7 +2560,7 @@ static void vd2_scaler_setting(
 				frame_par->VPP_hf_ini_phase_,
 				VPP_HSC_TOP_INI_PHASE_BIT,
 				VPP_HSC_TOP_INI_PHASE_WID);
-			if (hscaler_8tap_enable) {
+			if (hscaler_8tap_enable[1]) {
 				hsc_rpt_p0_num0 = 3;
 				hsc_init_rev_num0 = 8;
 			} else {
@@ -2548,12 +2608,12 @@ static void vd2_scaler_setting(
 				pre_hscaler_table[3],
 				VPP_PREHSC_COEF3_BIT,
 				VPP_PREHSC_COEF3_WID);
-
-			VSYNC_WR_MPEG_REG_BITS(
-				VD2_PREHSC_CTRL + misc_off,
-				flt_num,
-				VPP_PREHSC_FLT_NUM_BIT,
-				VPP_PREHSC_FLT_NUM_WID);
+			if (is_meson_sc2_cpu())
+				VSYNC_WR_MPEG_REG_BITS(
+					VD2_PREHSC_CTRL + misc_off,
+					flt_num,
+					VPP_PREHSC_FLT_NUM_BIT,
+					VPP_PREHSC_FLT_NUM_WID);
 		}
 
 		VSYNC_WR_MPEG_REG(
@@ -5053,7 +5113,7 @@ static void do_vpu_delay_work(struct work_struct *work)
 						VPU_VD1_SCALE,
 						VPU_MEM_POWER_DOWN);
 				if (is_meson_tm2_revb() ||
-				    cpu_after_eq(MESON_CPU_MAJOR_ID_SC2))
+				    is_meson_sc2_cpu())
 					switch_vpu_mem_pd_vmod(
 					VPU_FGRAIN0,
 					VPU_MEM_POWER_DOWN);
@@ -5076,7 +5136,7 @@ static void do_vpu_delay_work(struct work_struct *work)
 						VPU_VD2_SCALE,
 						VPU_MEM_POWER_DOWN);
 				if (is_meson_tm2_revb() ||
-				    cpu_after_eq(MESON_CPU_MAJOR_ID_SC2))
+				    is_meson_sc2_cpu())
 					switch_vpu_mem_pd_vmod(
 					VPU_FGRAIN1,
 					VPU_MEM_POWER_DOWN);
@@ -5132,6 +5192,12 @@ void enable_vpp_crc_viu2(u32 vpp_crc_en)
 		WRITE_VCBUS_REG_BITS(VPP2_CRC_CHK, 1, 0, 1);
 }
 
+int get_osd_reverse(void)
+{
+	return (VSYNC_RD_MPEG_REG(VIU_OSD1_BLK0_CFG_W0) >> 28) & 3;
+}
+EXPORT_SYMBOL(get_osd_reverse);
+
 /*********************************************************
  * Film Grain APIs
  *********************************************************/
@@ -5157,7 +5223,8 @@ static void fgrain_set_config(struct fgrain_setting_s *setting)
 	u32 layer_id = 0;
 	struct hw_fg_reg_s *fg_reg;
 
-	if (!cpu_after_eq(MESON_CPU_MAJOR_ID_TM2_REVB))
+	if (!(is_meson_tm2_revb() ||
+		is_meson_sc2_cpu()))
 		return;
 	if (!setting)
 		return;
@@ -5190,7 +5257,8 @@ static void fgrain_start(u8 layer_id)
 	u32 reg_fgrain_loc_en = 1 << 1;
 	struct hw_fg_reg_s *fg_reg;
 
-	if (!cpu_after_eq(MESON_CPU_MAJOR_ID_TM2_REVB))
+	if (!(is_meson_tm2_revb() ||
+		is_meson_sc2_cpu()))
 		return;
 	if (glayer_info[layer_id].fgrain_start)
 		return;
@@ -5210,7 +5278,8 @@ static void fgrain_stop(u8 layer_id)
 	u32 reg_fgrain_loc_en = 0 << 1;
 	struct hw_fg_reg_s *fg_reg;
 
-	if (!cpu_after_eq(MESON_CPU_MAJOR_ID_TM2_REVB))
+	if (!(is_meson_tm2_revb() ||
+		is_meson_sc2_cpu()))
 		return;
 	if (!glayer_info[layer_id].fgrain_start)
 		return;
@@ -5243,7 +5312,8 @@ static int fgrain_init(u8 layer_id, u32 table_size)
 	u32 channel = FILM_GRAIN0_CHAN;
 	struct lut_dma_set_t lut_dma_set;
 
-	if (!cpu_after_eq(MESON_CPU_MAJOR_ID_TM2_REVB))
+	if (!(is_meson_tm2_revb() ||
+		is_meson_sc2_cpu()))
 		return -1;
 	if (layer_id == 0)
 		channel = FILM_GRAIN0_CHAN;
@@ -5269,7 +5339,8 @@ static void fgrain_uninit(u8 layer_id)
 {
 	u32 channel = FILM_GRAIN0_CHAN;
 
-	if (!cpu_after_eq(MESON_CPU_MAJOR_ID_TM2_REVB))
+	if (!(is_meson_tm2_revb() ||
+		is_meson_sc2_cpu()))
 		return;
 
 	if (layer_id == 0)
@@ -5331,7 +5402,8 @@ void fgrain_config(u8 layer_id,
 
 	if (!vf || !mif_setting || !setting || !frame_par)
 		return;
-	if (!cpu_after_eq(MESON_CPU_MAJOR_ID_TM2_REVB))
+	if (!(is_meson_tm2_revb() ||
+		is_meson_sc2_cpu()))
 		return;
 	if (!fg_supported)
 		return;
@@ -5627,11 +5699,13 @@ int video_hw_init(void)
 	}
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
 		/* force bypass dolby for TL1, no dolby function */
-		if (is_meson_tl1_cpu())
+		if (is_meson_tl1_cpu() ||
+		    is_meson_t5_cpu())
 			WRITE_VCBUS_REG_BITS(
 				DOLBY_PATH_CTRL, 0xf, 0, 6);
 		if (is_meson_tm2_revb() ||
-		    cpu_after_eq(MESON_CPU_MAJOR_ID_SC2)) {
+		    is_meson_sc2_cpu() ||
+		    is_meson_t5_cpu()) {
 			/* disable latch for sr core0/1 scaler */
 			WRITE_VCBUS_REG_BITS(
 				SRSHARP0_SHARP_SYNC_CTRL
@@ -5705,14 +5779,14 @@ int video_early_init(void)
 			glayer_info[i].afbc_support = true;
 			glayer_info[i].pps_support =
 				(i == 0) ? true : false;
-		} else if (is_meson_tl1_cpu()) {
+		} else if (is_meson_tl1_cpu() || is_meson_t5_cpu()) {
 			glayer_info[i].afbc_support =
 				(i == 0) ? true : false;
 			glayer_info[i].pps_support =
 				(i == 0) ? true : false;
 		} else if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2)) {
 			if (is_meson_tm2_revb() ||
-			    cpu_after_eq(MESON_CPU_MAJOR_ID_SC2))
+			    is_meson_sc2_cpu())
 				glayer_info[i].afbc_support = true;
 			else
 				glayer_info[i].afbc_support =
@@ -5727,7 +5801,11 @@ int video_early_init(void)
 			glayer_info[i].fgrain_support = true;
 		else
 			glayer_info[i].fgrain_support = false;
+		hscaler_8tap_enable[i] = has_hscaler_8tap(i);
+		pre_hscaler_ntap_enable[i] = has_pre_hscaler_ntap(i);
+		pre_vscaler_ntap_enable[i] = has_pre_vscaler_ntap(i);
 		pre_hscaler_ntap_set[i] = 0xff;
+		pre_vscaler_ntap_set[i] = 0xff;
 	}
 
 	/* only enable vd1 as default */
@@ -5781,9 +5859,7 @@ int video_early_init(void)
 
 	/* g12a has no alpha overflow check in hardware */
 	vd_layer[1].layer_alpha = legacy_vpp ? 0x1ff : 0x100;
-	hscaler_8tap_enable = is_hscaler_8tap_en();
-	pre_hscaler_ntap_enable[0] = is_pre_hscaler_ntap_en();
-	pre_hscaler_ntap_enable[1] = is_pre_hscaler_ntap_en();
+
 	INIT_WORK(&vpu_delay_work, do_vpu_delay_work);
 
 	init_layer_canvas(&vd_layer[0], LAYER1_CANVAS_BASE_INDEX);

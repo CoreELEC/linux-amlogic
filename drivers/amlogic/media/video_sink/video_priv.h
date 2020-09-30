@@ -63,6 +63,7 @@
 #define VIDEO_NOTIFY_POS_CHANGED  0x10
 #define VIDEO_NOTIFY_NEED_NO_COMP  0x20
 
+#define MAX_VD_LAYER 2
 #define COMPOSE_MODE_NONE			0
 #define COMPOSE_MODE_3D			1
 #define COMPOSE_MODE_DV			2
@@ -291,13 +292,15 @@ enum cpu_type_e {
 	MESON_CPU_MAJOR_ID_COMPATIBALE = 0x1,
 	MESON_CPU_MAJOR_ID_TM2_REVB,
 	MESON_CPU_MAJOR_ID_SC2_,
+	MESON_CPU_MAJOR_ID_T5_,
 	MESON_CPU_MAJOR_ID_UNKNOWN,
 };
 
 struct amvideo_device_data_s {
 	enum cpu_type_e cpu_type;
-	u8 hscaler_8tap_en;
-	u8 pre_hscaler_ntap_en;
+	u8 has_hscaler_8tap[MAX_VD_LAYER];
+	u8 has_pre_hscaler_ntap[MAX_VD_LAYER];
+	u8 has_pre_vscaler_ntap[MAX_VD_LAYER];
 };
 
 /* from video_hw.c */
@@ -305,9 +308,11 @@ extern struct video_layer_s vd_layer[MAX_VD_LAYER];
 extern struct disp_info_s glayer_info[MAX_VD_LAYER];
 extern struct video_dev_s *cur_dev;
 extern bool legacy_vpp;
-extern bool hscaler_8tap_enable;
+extern bool hscaler_8tap_enable[MAX_VD_LAYER];
 extern int pre_hscaler_ntap_enable[MAX_VD_LAYER];
 extern int pre_hscaler_ntap_set[MAX_VD_LAYER];
+extern int pre_vscaler_ntap_enable[MAX_VD_LAYER];
+extern int pre_vscaler_ntap_set[MAX_VD_LAYER];
 bool is_dolby_vision_enable(void);
 bool is_dolby_vision_on(void);
 bool is_dolby_vision_stb_mode(void);
@@ -465,11 +470,11 @@ int ext_frame_capture_poll(int endflags);
 #endif
 bool is_meson_tm2_revb(void);
 bool is_meson_sc2_cpu(void);
+bool is_meson_t5_cpu(void);
+
 void set_alpha(u8 layer_id,
 	       u32 win_en,
 	       struct pip_alpha_scpxn_s *alpha_win);
-bool is_hscaler_8tap_en(void);
-bool is_pre_hscaler_ntap_en(void);
 void fgrain_config(u8 layer_id,
 		   struct vpp_frame_par_s *frame_par,
 		   struct mif_pos_s *mif_setting,
@@ -481,5 +486,8 @@ void fgrain_setting(u8 layer_id,
 void fgrain_update_table(u8 layer_id,
 			 struct vframe_s *vf);
 void video_secure_set(void);
+bool has_hscaler_8tap(u8 layer_id);
+bool has_pre_hscaler_ntap(u8 layer_id);
+bool has_pre_vscaler_ntap(u8 layer_id);
 #endif
 /*VIDEO_PRIV_HEADER_HH*/
