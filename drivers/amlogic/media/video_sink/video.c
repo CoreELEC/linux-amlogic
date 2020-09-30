@@ -600,8 +600,7 @@ static int dump_reg_show(struct seq_file *s, void *what)
 	}
 	/* vd1 afbc regs */
 	seq_puts(s, "\nvd1 afbc registers:\n");
-	reg_addr = AFBC_ENABLE +
-		vd_layer[0].afbc_reg_offt;
+	reg_addr = vd_layer[0].vd_afbc_reg.afbc_enable;
 	count = 32;
 	for (i = 0; i < count; i++) {
 		reg_val = READ_VCBUS_REG(reg_addr);
@@ -611,8 +610,7 @@ static int dump_reg_show(struct seq_file *s, void *what)
 	}
 	/* vd2 afbc regs */
 	seq_puts(s, "\nvd2 afbc registers:\n");
-	reg_addr = VD2_AFBC_ENABLE +
-		vd_layer[1].afbc_reg_offt;
+	reg_addr = vd_layer[1].vd_afbc_reg.afbc_enable;
 	count = 32;
 	for (i = 0; i < count; i++) {
 		reg_val = READ_VCBUS_REG(reg_addr);
@@ -10355,9 +10353,9 @@ static ssize_t film_grain_show(
 	struct class_attribute *attr,
 	char *buf)
 {
-	return snprintf(buf, 40, "fgrain_support vd1: %d vd2: %d\n",
-		glayer_info[0].fgrain_support,
-		glayer_info[1].fgrain_support);
+	return snprintf(buf, 40, "fgrain_enable vd1: %d vd2: %d\n",
+		glayer_info[0].fgrain_enable,
+		glayer_info[1].fgrain_enable);
 }
 
 static ssize_t film_grain_store(
@@ -10368,8 +10366,8 @@ static ssize_t film_grain_store(
 	int parsed[2];
 
 	if (likely(parse_para(buf, 2, parsed) == 2)) {
-		glayer_info[0].fgrain_support = parsed[0];
-		glayer_info[1].fgrain_support = parsed[1];
+		glayer_info[0].fgrain_enable = parsed[0];
+		glayer_info[1].fgrain_enable = parsed[1];
 	}
 	return strnlen(buf, count);
 }
@@ -11121,6 +11119,26 @@ static struct early_suspend video_early_suspend_handler = {
 
 static struct amvideo_device_data_s amvideo = {
 	.cpu_type = MESON_CPU_MAJOR_ID_COMPATIBALE,
+	.sr_reg_offt = 0xff,
+	.sr_reg_offt2 = 0xff,
+	.layer_support[0] = 0xff,
+	.layer_support[1] = 0xff,
+	.afbc_support[0] = 0xff,
+	.afbc_support[1] = 0xff,
+	.pps_support[0] = 0xff,
+	.pps_support[1] = 0xff,
+	.alpha_support[0] = 0xff,
+	.alpha_support[1] = 0xff,
+	.dv_support = 1,
+	.sr0_support = 0xff,
+	.sr1_support = 0xff,
+	.core_v_disable_width_max[0] = 0xff,
+	.core_v_disable_width_max[1] = 0xff,
+	.core_v_enable_width_max[0] = 0xff,
+	.core_v_enable_width_max[1] = 0xff,
+	.supscl_path = 0xff,
+	.fgrain_support[0] = 0,
+	.fgrain_support[1] = 0,
 	.has_hscaler_8tap[0] = 0,
 	.has_hscaler_8tap[1] = 0,
 	.has_pre_hscaler_ntap[0] = 0,
@@ -11131,6 +11149,26 @@ static struct amvideo_device_data_s amvideo = {
 
 static struct amvideo_device_data_s amvideo_tm2_revb = {
 	.cpu_type = MESON_CPU_MAJOR_ID_TM2_REVB,
+	.sr_reg_offt = 0x1e00,
+	.sr_reg_offt2 = 0x1f80,
+	.layer_support[0] = 1,
+	.layer_support[1] = 1,
+	.afbc_support[0] = 1,
+	.afbc_support[1] = 1,
+	.pps_support[0] = 1,
+	.pps_support[1] = 1,
+	.alpha_support[0] = 0,
+	.alpha_support[1] = 0,
+	.dv_support = 1,
+	.sr0_support = 1,
+	.sr1_support = 1,
+	.core_v_disable_width_max[0] = 2048,
+	.core_v_disable_width_max[1] = 4096,
+	.core_v_enable_width_max[0] = 1024,
+	.core_v_enable_width_max[1] = 2048,
+	.supscl_path = CORE0_PPS_CORE1,
+	.fgrain_support[0] = 1,
+	.fgrain_support[1] = 1,
 	.has_hscaler_8tap[0] = 0,
 	.has_hscaler_8tap[1] = 0,
 	.has_pre_hscaler_ntap[0] = 0,
@@ -11141,6 +11179,26 @@ static struct amvideo_device_data_s amvideo_tm2_revb = {
 
 static struct amvideo_device_data_s amvideo_sc2 = {
 	.cpu_type = MESON_CPU_MAJOR_ID_SC2_,
+	.sr_reg_offt = 0x1e00,
+	.sr_reg_offt2 = 0x1f80,
+	.layer_support[0] = 1,
+	.layer_support[1] = 1,
+	.afbc_support[0] = 1,
+	.afbc_support[1] = 1,
+	.pps_support[0] = 1,
+	.pps_support[1] = 1,
+	.alpha_support[0] = 1,
+	.alpha_support[1] = 1,
+	.dv_support = 1,
+	.sr0_support = 1,
+	.sr1_support = 0,
+	.core_v_disable_width_max[0] = 4096,
+	.core_v_disable_width_max[1] = 4096,
+	.core_v_enable_width_max[0] = 2048,
+	.core_v_enable_width_max[1] = 2048,
+	.supscl_path = CORE0_BEFORE_PPS,
+	.fgrain_support[0] = 1,
+	.fgrain_support[1] = 1,
 	.has_hscaler_8tap[0] = 1,
 	.has_hscaler_8tap[1] = 1,
 	.has_pre_hscaler_ntap[0] = 1,
@@ -11151,6 +11209,26 @@ static struct amvideo_device_data_s amvideo_sc2 = {
 
 static struct amvideo_device_data_s amvideo_t5 = {
 	.cpu_type = MESON_CPU_MAJOR_ID_T5_,
+	.sr_reg_offt = 0x1e00,
+	.sr_reg_offt2 = 0x1f80,
+	.layer_support[0] = 1,
+	.layer_support[1] = 1,
+	.afbc_support[0] = 1,
+	.afbc_support[1] = 0,
+	.pps_support[0] = 1,
+	.pps_support[1] = 0,
+	.alpha_support[0] = 0,
+	.alpha_support[1] = 0,
+	.dv_support = 0,
+	.sr0_support = 1,
+	.sr1_support = 1,
+	.core_v_disable_width_max[0] = 2048,
+	.core_v_disable_width_max[1] = 4096,
+	.core_v_enable_width_max[0] = 1024,
+	.core_v_enable_width_max[1] = 2048,
+	.supscl_path = CORE0_PPS_CORE1,
+	.fgrain_support[0] = 0,
+	.fgrain_support[1] = 0,
 	.has_hscaler_8tap[0] = 1,
 	.has_hscaler_8tap[1] = 0,
 	.has_pre_hscaler_ntap[0] = 1,
@@ -11230,58 +11308,57 @@ bool has_pre_vscaler_ntap(u8 layer_id)
 		return false;
 }
 
-static void video_cap_set(void)
+static void video_cap_set(struct amvideo_device_data_s *p_amvideo)
 {
-	if (legacy_vpp)
-		layer_cap =
-			LAYER1_AFBC |
-			LAYER1_AVAIL |
-			LAYER0_AFBC |
-			LAYER0_SCALER |
-			LAYER0_AVAIL;
-	else if (is_meson_tl1_cpu() ||
-		is_meson_t5_cpu()) {
-		layer_cap =
-			LAYER1_AVAIL |
-			LAYER0_AFBC |
-			LAYER0_SCALER |
-			LAYER0_AVAIL;
-	} else if (is_meson_tm2_cpu()) {
-		if (is_meson_tm2_revb())
+	if (p_amvideo->cpu_type ==
+		MESON_CPU_MAJOR_ID_COMPATIBALE) {
+		if (legacy_vpp)
 			layer_cap =
 				LAYER1_AFBC |
-				LAYER1_SCALER |
 				LAYER1_AVAIL |
 				LAYER0_AFBC |
 				LAYER0_SCALER |
-				LAYER0_AVAIL |
-				LAYER1_AFBC;
-		else
+				LAYER0_AVAIL;
+		else if (is_meson_tl1_cpu()) {
+			layer_cap =
+				LAYER1_AVAIL |
+				LAYER0_AFBC |
+				LAYER0_SCALER |
+				LAYER0_AVAIL;
+		} else if (is_meson_tm2_cpu()) {
 			layer_cap =
 				LAYER1_SCALER |
 				LAYER1_AVAIL |
 				LAYER0_AFBC |
 				LAYER0_SCALER |
 				LAYER0_AVAIL;
-	} else if (is_meson_sc2_cpu()) {
-		layer_cap =
-			LAYER1_ALPHA |
-			LAYER1_AFBC |
-			LAYER1_SCALER |
-			LAYER1_AVAIL |
-			LAYER0_ALPHA |
-			LAYER0_AFBC |
-			LAYER0_SCALER |
-			LAYER0_AVAIL;
+		} else {
+			/* g12a, g12b, sm1 */
+			layer_cap =
+				LAYER1_AFBC |
+				LAYER1_SCALER |
+				LAYER1_AVAIL |
+				LAYER0_AFBC |
+				LAYER0_SCALER |
+				LAYER0_AVAIL;
+		}
 	} else {
-		/* g12a, g12b, sm1 */
-		layer_cap =
-			LAYER1_AFBC |
-			LAYER1_SCALER |
-			LAYER1_AVAIL |
-			LAYER0_AFBC |
-			LAYER0_SCALER |
-			LAYER0_AVAIL;
+		if (p_amvideo->layer_support[0])
+			layer_cap |= LAYER0_AVAIL;
+		if (p_amvideo->layer_support[1])
+			layer_cap |= LAYER1_AVAIL;
+		if (p_amvideo->afbc_support[0])
+			layer_cap |= LAYER0_AFBC;
+		if (p_amvideo->afbc_support[1])
+			layer_cap |= LAYER1_AFBC;
+		if (p_amvideo->pps_support[0])
+			layer_cap |= LAYER0_SCALER;
+		if (p_amvideo->pps_support[1])
+			layer_cap |= LAYER1_SCALER;
+		if (p_amvideo->alpha_support[0])
+			layer_cap |= LAYER0_ALPHA;
+		if (p_amvideo->alpha_support[1])
+			layer_cap |= LAYER1_ALPHA;
 	}
 }
 
@@ -11311,8 +11388,8 @@ static int amvideom_probe(struct platform_device *pdev)
 		}
 	}
 
-	video_early_init();
-	video_cap_set();
+	video_early_init(&amvideo_meson_dev);
+	video_cap_set(&amvideo_meson_dev);
 	video_hw_init();
 	video_suspend = false;
 	video_suspend_cycle = 0;
