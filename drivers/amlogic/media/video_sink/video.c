@@ -37,6 +37,7 @@
 #include <linux/amlogic/media/vfm/vframe_receiver.h>
 #include <linux/amlogic/media/utils/amstream.h>
 #include <linux/amlogic/media/vout/vout_notify.h>
+#include <linux/amlogic/media/video_sink/video_signal_notify.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/poll.h>
@@ -11000,6 +11001,7 @@ static int amvideo_notify_callback(
 	void *para)
 {
 	u32 *p, val;
+	static struct vd_signal_info_s vd_signal;
 
 	switch (cmd) {
 	case AMVIDEO_UPDATE_OSD_MODE:
@@ -11016,6 +11018,13 @@ static int amvideo_notify_callback(
 	case AMVIDEO_UPDATE_PREBLEND_MODE:
 		p = (u32 *)para;
 		osd_preblend_en = p[0];
+		break;
+	case AMVIDEO_UPDATE_SIGNAL_MODE:
+		memcpy(&vd_signal, para,
+			sizeof(struct vd_signal_info_s));
+		vd_signal_notifier_call_chain
+			(VIDEO_SIGNAL_TYPE_CHANGED,
+			&vd_signal);
 		break;
 	default:
 		break;

@@ -19,6 +19,8 @@
 #include <linux/amlogic/media/vfm/video_common.h>
 #include <linux/amlogic/media/amvecm/amvecm.h>
 #include <linux/amlogic/media/amdolbyvision/dolby_vision.h>
+#include <linux/amlogic/media/video_sink/video_signal_notify.h>
+#include <linux/amlogic/media/video_sink/video.h>
 #include "arch/vpp_regs.h"
 #include "amcsc.h"
 #include "set_hdr2_v0.h"
@@ -959,6 +961,16 @@ static void prepare_hdr_info(
 	}
 }
 
+static int notify_vd_signal_to_amvideo(struct vd_signal_info_s *vd_signal)
+{
+#ifdef CONFIG_AMLOGIC_MEDIA_VIDEO
+	amvideo_notifier_call_chain(
+		AMVIDEO_UPDATE_SIGNAL_MODE,
+		(void *)vd_signal);
+#endif
+	return 0;
+}
+
 static unsigned int content_max_lumin[VD_PATH_MAX];
 
 void hdmi_packet_process(
@@ -972,6 +984,7 @@ void hdmi_packet_process(
 	struct vout_device_s *vdev = NULL;
 	struct master_display_info_s send_info;
 	enum output_format_e cur_output_format = output_format;
+	struct vd_signal_info_s vd_signal;
 
 	if (customer_hdr_clipping)
 		content_max_lumin[vd_path] =
@@ -1040,6 +1053,7 @@ void hdmi_packet_process(
 			| (1 << 16)	/* bt709 */
 			| (1 << 8)	/* bt709 */
 			| (1 << 0);	/* bt709 */
+		vd_signal.signal_type = SIGNAL_SDR;
 		break;
 	case BT2020:
 		send_info.features =
@@ -1052,6 +1066,7 @@ void hdmi_packet_process(
 			| (9 << 16) /* 2020 */
 			| (1 << 8)	/* bt709 */
 			| (10 << 0);
+		vd_signal.signal_type = SIGNAL_HDR10;
 		break;
 	case BT2020_PQ:
 		send_info.features =
@@ -1063,6 +1078,7 @@ void hdmi_packet_process(
 			| (9 << 16)
 			| (16 << 8)
 			| (10 << 0);	/* bt2020c */
+		vd_signal.signal_type = SIGNAL_HDR10;
 		break;
 	case BT2020_HLG:
 		send_info.features =
@@ -1074,6 +1090,7 @@ void hdmi_packet_process(
 			| (9 << 16)
 			| (18 << 8)
 			| (10 << 0);
+		vd_signal.signal_type = SIGNAL_HLG;
 		break;
 	case BT2020_PQ_DYNAMIC:
 		send_info.features =
@@ -1085,6 +1102,7 @@ void hdmi_packet_process(
 			| (9 << 16)
 			| (16 << 8)  /* Always HDR10 */
 			| (10 << 0); /* bt2020c */
+		vd_signal.signal_type = SIGNAL_HDR10PLUS;
 		break;
 	case UNKNOWN_FMT:
 	case BT2100_IPT:
@@ -1111,11 +1129,14 @@ void hdmi_packet_process(
 				vdev->fresh_tx_hdr10plus_pkt(
 					1, hdmitx_hdr10plus_param);
 		}
+		notify_vd_signal_to_amvideo(&vd_signal);
 		return;
 	}
 	/* none hdr+ */
-	if (vdev->fresh_tx_hdr_pkt)
+	if (vdev->fresh_tx_hdr_pkt) {
 		vdev->fresh_tx_hdr_pkt(&send_info);
+		notify_vd_signal_to_amvideo(&vd_signal);
+	}
 }
 
 void video_post_process(
