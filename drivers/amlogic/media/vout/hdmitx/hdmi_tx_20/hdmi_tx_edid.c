@@ -90,6 +90,16 @@ static unsigned char __nosavedata edid_checkvalue[4] = {0};
 static unsigned int hdmitx_edid_check_valid_blocks(unsigned char *buf);
 static void Edid_DTD_parsing(struct rx_cap *prxcap, unsigned char *data);
 static void hdmitx_edid_set_default_aud(struct hdmitx_dev *hdev);
+/* Base Block, Vendor/Product Information, byte[8]~[18] */
+struct edid_venddat_t {
+	unsigned char data[10];
+};
+
+static struct edid_venddat_t vendor_id[] = {
+{ {0x41, 0x0C, 0x00, 0x00, 0x01, 0x01, 0x01, 0x01, 0x03, 0x14} },
+/* { {0x05, 0xAC, 0x30, 0x00, 0x01, 0x00, 0x00, 0x00, 0x20, 0x19} }, */
+/* Add new vendor data here */
+};
 
 static int xtochar(int num, unsigned char *checksum)
 {
@@ -2336,6 +2346,19 @@ static void check_dv_truly_support(struct hdmitx_dev *hdev, struct dv_info *dv)
 	}
 }
 
+int hdmitx_find_philips(struct hdmitx_dev *hdev)
+{
+	int j;
+	int length = sizeof(vendor_id) / sizeof(struct edid_venddat_t);
+
+	for (j = 0; j < length; j++) {
+		if (memcmp(&hdev->EDID_buf[8], &vendor_id[j],
+			sizeof(struct edid_venddat_t)) == 0)
+			return 1;
+	}
+	return 0;
+}
+
 int hdmitx_edid_parse(struct hdmitx_dev *hdmitx_device)
 {
 	unsigned char CheckSum;
@@ -2417,7 +2440,7 @@ int hdmitx_edid_parse(struct hdmitx_dev *hdmitx_device)
 			hdmitx_device->rxcap.ieeeoui = HDMI_IEEEOUI;
 		if (zero_numbers > 120)
 			hdmitx_device->rxcap.ieeeoui = HDMI_IEEEOUI;
-
+		hdmitx_device->vend_id_hit = hdmitx_find_philips(hdmitx_device);
 		return 0; /* do nothing. */
 	}
 
@@ -2431,6 +2454,7 @@ int hdmitx_edid_parse(struct hdmitx_dev *hdmitx_device)
 		hdmitx_device->rxcap.native_VIC = HDMI_720x480p60_16x9;
 		hdmitx_device->vic_count = hdmitx_device->rxcap.VIC_count;
 		pr_info(EDID "set default vic\n");
+		hdmitx_device->vend_id_hit = hdmitx_find_philips(hdmitx_device);
 		return 0;
 	} else if (BlockCount > EDID_MAX_BLOCK) {
 		BlockCount = EDID_MAX_BLOCK;
@@ -2578,6 +2602,7 @@ int hdmitx_edid_parse(struct hdmitx_dev *hdmitx_device)
 			pr_info(EDID "clear sup_2160p60hz\n");
 		}
 	}
+	hdmitx_device->vend_id_hit = hdmitx_find_philips(hdmitx_device);
 	return 0;
 
 }

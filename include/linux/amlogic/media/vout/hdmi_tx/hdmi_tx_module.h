@@ -513,6 +513,7 @@ struct hdmitx_dev {
 	unsigned int hdr_priority:1;
 	unsigned int bist_lock:1;
 	unsigned int drm_feature;/*Direct Rander Management*/
+	unsigned int vend_id_hit:1;
 };
 
 #define CMD_DDC_OFFSET          (0x10 << 24)
