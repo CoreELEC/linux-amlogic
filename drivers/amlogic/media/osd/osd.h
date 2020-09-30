@@ -149,16 +149,17 @@ enum color_index_e {
 
 #define MALI_AFBC_SPLIT_OFF  0
 #define MALI_AFBC_SPLIT_ON   1
-#define OSD_HW_CURSOR           (1 << 0)
-#define OSD_UBOOT_LOGO          (1 << 1)
-#define OSD_ZORDER			(1 << 2)
-#define OSD_PRIMARY		(1 << 3)
-#define OSD_FREESCALE		(1 << 4)
-#define OSD_VIU2                (1 << 29)
-#define OSD_VIU1                (1 << 30)
-#define OSD_LAYER_ENABLE        (1 << 31)
+#define OSD_HW_CURSOR           BIT(0)
+#define OSD_UBOOT_LOGO          BIT(1)
+#define OSD_ZORDER              BIT(2)
+#define OSD_PRIMARY             BIT(3)
+#define OSD_FREESCALE           BIT(4)
+#define OSD_AFBC                BIT(5)
+#define OSD_VIU2                BIT(29)
+#define OSD_VIU1                BIT(30)
+#define OSD_LAYER_ENABLE        BIT(31)
 
-#define BYPASS_DIN        (1 << 7)
+#define BYPASS_DIN        BIT(7)
 #define OSD_BACKUP_COUNT 24
 
 #define LOGO_DEV_OSD0      0x0
