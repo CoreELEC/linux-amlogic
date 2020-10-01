@@ -567,6 +567,9 @@ struct vframe_s {
 	unsigned int crc;
 	struct componser_info_t *componser_info;
 	void *decontour_pre;
+
+	u32 hdr10p_data_size;
+	char *hdr10p_data_buf;
 } /*vframe_t */;
 
 #if 0
