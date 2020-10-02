@@ -714,8 +714,8 @@ static struct meson_pmx_group meson_sc2_periphs_groups[] = {
 	GROUP(spi_a_ss0_c,		4),
 	GROUP(spi_a_sclk_c,		4),
 	GROUP(pwm_c_c,			4),
-	GROUP(iso7816_clk_c,		4),
-	GROUP(iso7816_data_c,		4),
+	GROUP(iso7816_clk_c,		5),
+	GROUP(iso7816_data_c,		5),
 
 	/* bank X func1 */
 	GROUP(sdio_d0_x,		1),
