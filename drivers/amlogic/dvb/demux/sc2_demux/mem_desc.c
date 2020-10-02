@@ -537,6 +537,7 @@ int SC2_bufferid_write(struct chan_id *pchan, const char __user *buf,
 	unsigned int times = 0;
 	dma_addr_t dma_addr = 0;
 	dma_addr_t dma_desc_addr = 0;
+	struct dmx_sec_ts_data ts_data;
 //      dma_addr_t dma_desc_addr = 0;
 
 	pr_dbg("%s start w:%d\n", __func__, r);
@@ -551,14 +552,22 @@ int SC2_bufferid_write(struct chan_id *pchan, const char __user *buf,
 	times = 0;
 	while (r) {
 		if (isphybuf) {
-			len = count;
 			pchan->enable = 1;
-			tmp = (unsigned long)buf & 0xFFFFFFFF;
+			if (copy_from_user((char *)(&ts_data),
+				p, sizeof(struct dmx_sec_ts_data))) {
+				dprint("copy_from user error\n");
+				return -EFAULT;
+			}
+			tmp = (unsigned long)ts_data.buf_start & 0xFFFFFFFF;
 			pchan->memdescs->bits.address = tmp;
-			pchan->memdescs->bits.byte_length = count;
+			pchan->memdescs->bits.byte_length =
+				ts_data.buf_end - ts_data.buf_start;
 			tmp = (unsigned long)(pchan->memdescs) & 0xFFFFFFFF;
+			len = pchan->memdescs->bits.byte_length;
 			rdma_config_enable(pchan->id, 1, tmp, count, len);
 			pr_dbg("%s isphybuf\n", __func__);
+			/*it will exit write loop*/
+			r = len;
 		} else {
 			if (r > pchan->mem_size)
 				len = pchan->mem_size;

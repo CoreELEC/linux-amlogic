@@ -56,8 +56,8 @@
 #define pr_dbg(fmt, args...)   \
 	dprintk(LOG_DBG, debug_dmx, "dmx:" fmt, ## args)
 
-#define MAX_SEC_FEED_NUM 20
-#define MAX_TS_FEED_NUM 20
+#define MAX_SEC_FEED_NUM 32
+#define MAX_TS_FEED_NUM 32
 #define MAX_FILTER_PER_SEC_FEED 8
 
 #define DMX_STATE_FREE      0
@@ -1157,26 +1157,39 @@ int dmx_get_stc(struct dmx_demux *dmx, unsigned int num,
 static int _dmx_set_input(struct dmx_demux *demux, int source)
 {
 	struct aml_dmx *pdmx = (struct aml_dmx *)demux;
+	int sec_level = 0;
 
 	pr_dbg("%s local:%d, input:%d\n", __func__, pdmx->source, source);
 //      if (pdmx->source == source)
 //              return 0;
 
 	if (source == INPUT_LOCAL || source == INPUT_LOCAL_SEC) {
-//              pr_dbg("%s local:%d\n", __func__, source);
+		pr_dbg("%s local:%d\n", __func__, source);
 		if (!pdmx->sc2_input) {
-			int sec_level = 0;
-
-			if (pdmx->source == INPUT_LOCAL_SEC)
+			if (source == INPUT_LOCAL_SEC)
 				sec_level = 1;
 			pdmx->sc2_input = ts_input_open(pdmx->id, sec_level);
 			if (!pdmx->sc2_input) {
 				dprint("ts_input_open fail\n");
 				return -ENODEV;
 			}
+		} else {
+			if (source != pdmx->source) {
+				ts_input_close(pdmx->sc2_input);
+				pdmx->sc2_input = NULL;
+
+				if (source == INPUT_LOCAL_SEC)
+					sec_level = 1;
+				pdmx->sc2_input =
+					ts_input_open(pdmx->id, sec_level);
+				if (!pdmx->sc2_input) {
+					dprint("ts_input_open fail\n");
+					return -ENODEV;
+				}
+			}
 		}
 	} else {
-//              pr_dbg("%s remote\n", __func__);
+		pr_dbg("%s remote\n", __func__);
 		if (pdmx->sc2_input) {
 			ts_input_close(pdmx->sc2_input);
 			pdmx->sc2_input = NULL;
