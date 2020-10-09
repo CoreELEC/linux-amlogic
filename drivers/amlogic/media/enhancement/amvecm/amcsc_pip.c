@@ -917,7 +917,12 @@ static void prepare_hdr_info(
 	enum vd_path_e vd_path,
 	enum hdr_type_e *source_type)
 {
+	hdr_data->max_content = 0;
+	hdr_data->max_frame_average = 0;
 	memset(hdr_data->primaries, 0, sizeof(hdr_data->primaries));
+	memset(hdr_data->white_point, 0, sizeof(hdr_data->white_point));
+	memset(hdr_data->luminance, 0, sizeof(hdr_data->luminance));
+
 	if (((hdr_data->features >> 16) & 0xff) == 9) {
 		if (p->present_flag & 1) {
 			memcpy(
@@ -941,7 +946,8 @@ static void prepare_hdr_info(
 			}
 			hdr_data->luminance[0] = hdr_data->luminance[0] / 10000;
 			hdr_data->present_flag = 1;
-		} else if (source_type[vd_path] == HDRTYPE_SDR) {
+		}
+		if (source_type[vd_path] == HDRTYPE_SDR) {
 			memcpy(
 				hdr_data->primaries,
 				bt2020_primaries, sizeof(u32) * 6);

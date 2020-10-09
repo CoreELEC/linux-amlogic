@@ -8317,6 +8317,8 @@ hdr_dump:
 		dbg_hdr_send.white_point[1]);
 	pr_err("\tmax,min luminance = %08x, %08x\n",
 		dbg_hdr_send.luminance[0], dbg_hdr_send.luminance[1]);
+	pr_err("\tmax_content = %08x\n", dbg_hdr_send.max_content);
+	pr_err("\tmax_frame_average = %08x\n", dbg_hdr_send.max_frame_average);
 
 	goto dbg_end;
 
