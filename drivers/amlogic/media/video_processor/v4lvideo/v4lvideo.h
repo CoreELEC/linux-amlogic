@@ -192,6 +192,8 @@ struct v4l2_amlogic_parm {
 		u32	signal_type;
 		struct vframe_master_display_colour_s
 		 master_display_colour;
+		u32 hdr10p_data_size;
+		char hdr10p_data_buf[128];
 	};
 
 struct v4lvideo_file_s {

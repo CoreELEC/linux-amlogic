@@ -1558,6 +1558,21 @@ static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *p)
 	dev->am_parm.signal_type = vf->signal_type;
 	dev->am_parm.master_display_colour
 		= vf->prop.master_display_colour;
+	if (vf->hdr10p_data_size > 0 && vf->hdr10p_data_buf) {
+		if (vf->hdr10p_data_size <= 128) {
+			dev->am_parm.hdr10p_data_size =
+					vf->hdr10p_data_size;
+			memcpy(dev->am_parm.hdr10p_data_buf,
+					vf->hdr10p_data_buf,
+					vf->hdr10p_data_size);
+		} else {
+			pr_info("v4lvideo: hdr10+ data size is %d, skip it!\n",
+					vf->hdr10p_data_size);
+			dev->am_parm.hdr10p_data_size = 0;
+		}
+	} else {
+		dev->am_parm.hdr10p_data_size = 0;
+	}
 
 	buf = v4l2q_pop(&dev->input_queue);
 	dev->vf_wait_cnt = 0;

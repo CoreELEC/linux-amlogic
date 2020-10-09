@@ -578,6 +578,21 @@ static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *p)
 	dev->am_parm.signal_type = dev->vf->signal_type;
 	dev->am_parm.master_display_colour
 		= dev->vf->prop.master_display_colour;
+	if (dev->vf->hdr10p_data_size > 0 && dev->vf->hdr10p_data_buf) {
+		if (dev->vf->hdr10p_data_size <= 128) {
+			dev->am_parm.hdr10p_data_size =
+					dev->vf->hdr10p_data_size;
+			memcpy(dev->am_parm.hdr10p_data_buf,
+					dev->vf->hdr10p_data_buf,
+					dev->vf->hdr10p_data_size);
+		} else {
+			pr_info("amlvideo: hdr10+ data size is %d, skip it!\n",
+					dev->vf->hdr10p_data_size);
+			dev->am_parm.hdr10p_data_size = 0;
+		}
+	} else {
+		dev->am_parm.hdr10p_data_size = 0;
+	}
 
 	if (dev->vf->pts_us64) {
 		dev->first_frame = 1;
