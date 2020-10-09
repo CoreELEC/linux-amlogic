@@ -1,3 +1,5 @@
+KASAN_SANITIZE_dmc_monitor.o := n
+
 obj-y += ddr_port_desc.o
 obj-$(CONFIG_AMLOGIC_DDR_WINDOW_TOOL)	+= ddr_window.o
 obj-$(CONFIG_AMLOGIC_DDR_BANDWIDTH)	+= ddr_bandwidth.o ddr_band_op_gxl.o \
