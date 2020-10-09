@@ -45,6 +45,10 @@
 #include <asm/system_misc.h>
 #include <asm/sysreg.h>
 
+#ifdef CONFIG_AMLOGIC_DMC_MONITOR
+#include <linux/amlogic/dmc_monitor.h>
+#endif
+
 static const char *handler[]= {
 	"Synchronous Abort",
 	"IRQ",
@@ -690,12 +694,20 @@ asmlinkage void bad_mode(struct pt_regs *regs, int reason, unsigned int esr,
 asmlinkage void bad_mode(struct pt_regs *regs, int reason, unsigned int esr)
 #endif
 {
+#ifdef CONFIG_AMLOGIC_DMC_MONITOR
+	char buf[512];
+#endif
+
 	console_verbose();
 
 	pr_crit("Bad mode in %s handler detected on CPU%d, code 0x%08x -- %s\n",
 		handler[reason], smp_processor_id(), esr,
 		esr_get_class_string(esr));
 
+#ifdef CONFIG_AMLOGIC_DMC_MONITOR
+	dump_dmc_reg(buf);
+	pr_crit("%s\n", buf);
+#endif
 #ifdef CONFIG_AMLOGIC_USER_FAULT
 	regs->unused = far;
 	pr_crit("FAR:%lx\n", far);

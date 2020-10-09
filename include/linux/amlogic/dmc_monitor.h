@@ -84,6 +84,7 @@ unsigned long dmc_prot_rw(unsigned long addr, unsigned long value, int rw);
 extern char *to_ports(int id);
 extern char *to_sub_ports(int mid, int sid, char *id_str);
 void show_violation_mem(unsigned long addr);
+size_t dump_dmc_reg(char *buf);
 
 #ifdef CONFIG_AMLOGIC_DMC_MONITOR_GX
 extern struct dmc_mon_ops gx_dmc_mon_ops;
