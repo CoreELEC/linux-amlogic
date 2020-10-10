@@ -179,6 +179,7 @@ struct dmx_mem_info {
 	__u32 dvb_core_total_size;
 	__u32 dvb_core_free_size;
 	__u32 wp_offset;
+	__u64 newest_pts;
 };
 
 #endif

@@ -125,6 +125,7 @@ struct out_elem {
 	unsigned long aucpu_mem;
 	unsigned int aucpu_mem_size;
 	unsigned int aucpu_read_offset;
+	__u64 newest_pts;
 };
 
 struct sid_entry {
@@ -683,6 +684,7 @@ static int get_non_sec_es_header(struct out_elem *pout, char *last_header,
 	pheader->pts |= last_header[15] << 24
 	    | last_header[14] << 16 | last_header[13] << 8 | last_header[12];
 
+	pheader->pts &= 0x1FFFFFFFF;
 	last_es_bytes = last_header[7] << 24
 	    | last_header[6] << 16 | last_header[5] << 8 | last_header[4];
 	if (cur_es_bytes < last_es_bytes)
@@ -714,6 +716,7 @@ static int write_es_data(struct out_elem *pout, struct es_params_t *es_params)
 		       (unsigned long)es_params->header.pts,
 		       (unsigned long)es_params->header.dts,
 		       es_params->header.len);
+		pout->newest_pts = es_params->header.pts;
 		out_ts_cb_list(pout, (char *)&es_params->header, h_len);
 		es_params->have_send_header = 1;
 	}
@@ -1020,6 +1023,7 @@ static int write_sec_video_es_data(struct out_elem *pout,
 	       (unsigned long)sec_es_data.dts,
 	       (unsigned long)(sec_es_data.data_start - sec_es_data.buf_start));
 
+	pout->newest_pts = sec_es_data.pts;
 	out_ts_cb_list(pout, (char *)&sec_es_data,
 		       sizeof(struct dmx_sec_es_data));
 
@@ -1090,6 +1094,7 @@ static int _handle_es(struct out_elem *pout, struct es_params_t *es_params)
 				pr_dbg("dts:0x%lx, len:%d\n",
 				       (unsigned long)pheader->dts,
 				       pheader->len);
+				pout->newest_pts = pheader->pts;
 				out_ts_cb_list(pout, (char *)pheader, h_len);
 				ret = write_aucpu_es_data(pout, es_len, 0);
 			}
@@ -1454,6 +1459,7 @@ struct out_elem *ts_output_open(int sid, u8 format,
 	pout->type = type;
 	pout->aud_type = aud_type;
 	pout->ref = 0;
+	pout->newest_pts = 0;
 
 	memset(&attr, 0, sizeof(struct bufferid_attr));
 	attr.mode = OUTPUT_MODE;
@@ -1741,12 +1747,15 @@ int ts_output_set_mem(struct out_elem *pout,
 int ts_output_get_mem_info(struct out_elem *pout,
 			   unsigned int *total_size,
 			   unsigned int *buf_phy_start,
-			   unsigned int *free_size, unsigned int *wp_offset)
+			   unsigned int *free_size, unsigned int *wp_offset,
+			   __u64 *newest_pts)
 {
 	*total_size = pout->pchan->mem_size;
 	*buf_phy_start = pout->pchan->mem_phy;
 	*wp_offset = SC2_bufferid_get_wp_offset(pout->pchan);
 	*free_size = SC2_bufferid_get_free_size(pout->pchan);
+	if (newest_pts)
+		*newest_pts = pout->newest_pts;
 	return 0;
 }
 
@@ -1930,7 +1939,7 @@ int ts_output_dump_info(char *buf)
 			ts_output_get_mem_info(pout,
 					       &total_size,
 					       &buf_phy_start,
-					       &free_size, &wp_offset);
+					       &free_size, &wp_offset, NULL);
 			r = sprintf(buf,
 				    "mem total:%d, buf_base:0x%0x, ",
 				    total_size, buf_phy_start);
@@ -1988,7 +1997,7 @@ int ts_output_dump_info(char *buf)
 			ts_output_get_mem_info(es_slot->pout,
 					       &total_size,
 					       &buf_phy_start,
-					       &free_size, &wp_offset);
+					       &free_size, &wp_offset, NULL);
 			r = sprintf(buf,
 				    "mem total:%d, buf_base:0x%0x, ",
 				    total_size, buf_phy_start);
@@ -2031,7 +2040,7 @@ int ts_output_dump_info(char *buf)
 			ts_output_get_mem_info(es_slot->pout,
 					       &total_size,
 					       &buf_phy_start,
-					       &free_size, &wp_offset);
+					       &free_size, &wp_offset, NULL);
 
 			r = sprintf(buf,
 				    "mem total:%d, buf_base:0x%0x, ",
@@ -2070,7 +2079,7 @@ int ts_output_dump_info(char *buf)
 			ts_output_get_mem_info(es_slot->pout,
 					       &total_size,
 					       &buf_phy_start,
-					       &free_size, &wp_offset);
+					       &free_size, &wp_offset, NULL);
 
 			r = sprintf(buf,
 				    "mem total:%d, buf_base:0x%0x, ",

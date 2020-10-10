@@ -152,7 +152,8 @@ int ts_output_set_mem(struct out_elem *pout,
 int ts_output_get_mem_info(struct out_elem *pout,
 			   unsigned int *total_size,
 			   unsigned int *buf_phy_start,
-			   unsigned int *free_size, unsigned int *wp_offset);
+			   unsigned int *free_size, unsigned int *wp_offset,
+			   __u64 *newest_pts);
 
 /**
  * reset index pipeline, clear the buf
