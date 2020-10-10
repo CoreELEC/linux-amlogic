@@ -352,8 +352,8 @@ int basisootf(
 
 	if (hdr10_plus_printk & 2)
 		pr_hdr(
-			"basisOOTF precision: ctrL=%d, k=%d\n",
-			centerluminance, k);
+			"basisOOTF precision: psll50 = %d, psll99 = %d, ctrL=%d, k=%d\n",
+			psll50, psll99, centerluminance, k);
 	sy1 = rampweight(
 		basisootf_params->SY1_V1,
 		basisootf_params->SY1_V2,
@@ -792,8 +792,6 @@ void vframe_hdr_plus_sei_s_init(struct hdr10_plus_sei_s *hdr10_plus_sei)
 	/*int percentilevalue_init[PERCENTILE_ORDER] = {*/
 	/*	0, 1, 2, 79, 2537, 9900, 9901, 9902, 9904};*/
 
-	hdr10_plus_sei->num_distributions[0] = PERCENTILE_ORDER - 1;
-
 	for (i = 0; i < 3; i++)
 		hdr10_plus_sei->maxscl[0][i] = hdr_plus_sei.maxscl[0][i];
 
@@ -801,8 +799,11 @@ void vframe_hdr_plus_sei_s_init(struct hdr10_plus_sei_s *hdr10_plus_sei)
 		hdr_plus_sei.tgt_sys_disp_max_lumi;
 
 	/*for hdmitx output no number, default 9*/
-	if (hdr10_plus_sei->num_distributions[0] == 0)
+	if (hdr_plus_sei.num_distribution_maxrgb_percentiles[0] == 0)
 		hdr10_plus_sei->num_distributions[0] = 9;
+	else
+		hdr10_plus_sei->num_distributions[0] =
+			hdr_plus_sei.num_distribution_maxrgb_percentiles[0];
 
 	for (i = 0; i < (hdr10_plus_sei->num_distributions[0]); i++) {
 		hdr10_plus_sei->distribution_index[0][i] =
