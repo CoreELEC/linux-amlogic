@@ -1732,7 +1732,10 @@ bool dim_process_unreg(struct di_ch_s *pch)
 		di_unreg_variable(ch);
 
 		set_reg_flag(ch, false);
-		if (!get_reg_flag_all()) {
+		set_reg_setting(ch, false);
+		if ((!get_reg_flag_all()) &&
+		    (!get_reg_setting_all())) {
+			dbg_pl("ch[%d]:unreg1,bypass:\n", ch);
 			di_unreg_setting();
 			dpre_init();
 			dpost_init();
@@ -1747,7 +1750,11 @@ bool dim_process_unreg(struct di_ch_s *pch)
 		break;
 	case EDI_TOP_STATE_REG_STEP2:
 		di_unreg_variable(ch);
-		if (!get_reg_flag_all()) {
+		set_reg_flag(ch, false);
+		set_reg_setting(ch, false);
+		if ((!get_reg_flag_all()) &&
+		    (!get_reg_setting_all())) {
+			dbg_pl("ch[%d]:unreg2,step2:\n", ch);
 			di_unreg_setting();
 			dpre_init();
 			dpost_init();
@@ -1766,12 +1773,15 @@ bool dim_process_unreg(struct di_ch_s *pch)
 		if (dpre_can_exit(ch) && dpst_can_exit(ch)) {
 			dip_chst_set(ch, EDI_TOP_STATE_UNREG_STEP2);
 			set_reg_flag(ch, false);
+			set_reg_setting(ch, false);
 			//reflesh = true;
 		}
 		break;
 	case EDI_TOP_STATE_UNREG_STEP2:
 		di_unreg_variable(ch);
-		if (!get_reg_flag_all()) {
+		if ((!get_reg_flag_all()) &&
+		    (!get_reg_setting_all())) {
+			dbg_pl("ch[%d]:unreg3,step2:\n", ch);
 			di_unreg_setting();
 			dpre_init();
 			dpost_init();
@@ -1849,6 +1859,7 @@ static void dip_process_reg_after(struct di_ch_s *pch)
 
 		di_reg_variable(ch, vframe);
 		/*di_reg_process_irq(ch);*/ /*check if bypass*/
+		set_reg_setting(ch, true);
 
 		/*?how  about bypass ?*/
 		if (ppre->bypass_flag) {
@@ -2602,7 +2613,7 @@ void dip_init_value_reg(unsigned int ch, struct vframe_s *vframe)
 	struct di_mm_s *mm;
 	enum EDI_SGN sgn;
 
-	dbg_reg("%s:\n", __func__);
+	dbg_reg("%s:ch[%d]\n", __func__, ch);
 
 	/*post*/
 	ppost = get_post_stru(ch);
@@ -2665,7 +2676,7 @@ void dip_init_value_reg(unsigned int ch, struct vframe_s *vframe)
 		mm->cfg.fix_buf = 1;
 	else
 		mm->cfg.fix_buf = 0;
-	PR_INF("%s:fix_buf:%d\n", __func__, mm->cfg.fix_buf);
+	PR_INF("%s:ch[%d]:fix_buf:%d\n", __func__, ch, mm->cfg.fix_buf);
 
 	pch->mode = dim_cnt_mode(pch);
 }

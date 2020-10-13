@@ -1444,6 +1444,7 @@ struct di_mng_s {
 	bool init_flg[DI_CHANNEL_NUB];	/*init_flag*/
 	/*bool reg_flg[DI_CHANNEL_NUB];*/	/*reg_flag*/
 	unsigned int reg_flg_ch;	/*for x ch reg/unreg flg*/
+	unsigned int reg_setting_ch;	/*ary 2020-10-10*/
 	bool trig_unreg_l[DI_CHANNEL_NUB];
 	bool hw_reg_flg;	/*for di_reg_setting/di_unreg_setting*/
 	bool act_flg		;/*active_flag*/
@@ -1834,6 +1835,22 @@ static inline void set_reg_flag(unsigned char ch, bool on)
 		get_bufmng()->reg_flg_ch = flg | di_ch2mask_table[ch];
 	else
 		get_bufmng()->reg_flg_ch = flg & (~di_ch2mask_table[ch]);
+	/*dim_print("%s:%d\n", __func__, get_bufmng()->reg_flg_ch);*/
+}
+
+static inline unsigned int get_reg_setting_all(void)
+{
+	return get_bufmng()->reg_setting_ch;
+}
+
+static inline void set_reg_setting(unsigned char ch, bool on)
+{
+	unsigned int flg = get_bufmng()->reg_setting_ch;
+
+	if (on)
+		get_bufmng()->reg_setting_ch = flg | di_ch2mask_table[ch];
+	else
+		get_bufmng()->reg_setting_ch = flg & (~di_ch2mask_table[ch]);
 	/*dim_print("%s:%d\n", __func__, get_bufmng()->reg_flg_ch);*/
 }
 

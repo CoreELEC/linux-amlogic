@@ -8992,7 +8992,7 @@ void di_reg_setting(unsigned int channel, struct vframe_s *vframe)
 	unsigned short nr_height = 0, first_field_type;
 	struct di_dev_s *de_devp = get_dim_de_devp();
 
-	//pr_info("%s:ch[%d]:for first ch reg:\n", __func__, channel);
+	dbg_pl("%s:ch[%d]:for first ch reg:\n", __func__, channel);
 
 	if (get_hw_reg_flg()) {
 		PR_ERR("%s:have setting?do nothing\n", __func__);
