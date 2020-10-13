@@ -424,6 +424,12 @@ static int _dmx_ts_feed_set(struct dmx_ts_feed *ts_feed, u16 pid, int ts_type,
 	feed->ts_out_elem = ts_output_open(sid,
 					   format, type, aud_type, output_mode);
 	if (feed->ts_out_elem) {
+		if (demux->sec_dvr_size != 0 && format == DVR_FORMAT) {
+			ts_output_set_sec_mem(feed->ts_out_elem,
+				demux->sec_dvr_buff, demux->sec_dvr_size);
+			demux->sec_dvr_size = 0;
+			sec_level = DMX_MEM_SEC_LEVEL1;
+		}
 		ts_output_set_mem(feed->ts_out_elem, mem_size,
 				  sec_level, TS_OUTPUT_CHAN_PTS_BUF_SIZE);
 		if (feed->pid == 0x2000)
@@ -1371,6 +1377,21 @@ static int _dmx_get_hw_source(struct dmx_demux *dmx, int *hw_source)
 	return 0;
 }
 
+static int _dmx_set_sec_mem(struct dmx_demux *dmx, struct dmx_sec_mem *sec_mem)
+{
+	struct aml_dmx *demux = (struct aml_dmx *)dmx->priv;
+
+	pr_dbg("%s dmx%d\n", __func__, demux->id);
+
+	if (mutex_lock_interruptible(demux->pmutex))
+		return -ERESTARTSYS;
+
+	demux->sec_dvr_buff = sec_mem->buff;
+	demux->sec_dvr_size = sec_mem->size;
+	mutex_unlock(demux->pmutex);
+	return 0;
+}
+
 void dmx_init_hw(int sid_num, int *sid_info)
 {
 	ts_output_init(sid_num, sid_info);
@@ -1439,6 +1460,7 @@ int dmx_init(struct aml_dmx *pdmx, struct dvb_adapter *dvb_adapter)
 	pdmx->dmx.set_hw_source = _dmx_set_hw_source;
 	pdmx->dmx.get_hw_source = _dmx_get_hw_source;
 	pdmx->dmx.get_dmx_mem_info = _dmx_get_mem_info,
+	pdmx->dmx.set_sec_mem = _dmx_set_sec_mem,
 
 	pdmx->dev.filternum = (MAX_TS_FEED_NUM + MAX_SEC_FEED_NUM);
 	pdmx->dev.demux = &pdmx->dmx;
@@ -1466,6 +1488,7 @@ int dmx_init(struct aml_dmx *pdmx, struct dvb_adapter *dvb_adapter)
 	}
 	pdmx->buf_warning_level = 60;
 	pdmx->init = 1;
+	pdmx->sec_dvr_size = 0;
 //      dvb_net_init(dvb_adapter, &dmx->dvb_net, &pdmx->dmx);
 
 	return 0;

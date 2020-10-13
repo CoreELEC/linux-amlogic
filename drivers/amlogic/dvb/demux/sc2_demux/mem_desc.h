@@ -51,6 +51,10 @@ struct chan_id {
 	unsigned long memdescs_map;
 	unsigned long last_w_addr;
 	unsigned int tee_handle;
+
+	/*just for DVR sec direct mem*/
+	unsigned int sec_mem;
+	unsigned int sec_size;
 };
 
 enum bufferid_mode {
@@ -100,6 +104,17 @@ int SC2_bufferid_dealloc(struct chan_id *pchan);
  */
 int SC2_bufferid_set_mem(struct chan_id *pchan,
 			 unsigned int mem_size, int sec_level);
+
+/**
+ * chan mem
+ * \param pchan:struct chan_id handle
+ * \param sec_mem:direct memory
+ * \param sec_size: memory size
+ * \retval success: 0
+ * \retval -1:fail.
+ */
+int SC2_bufferid_set_sec_mem(struct chan_id *pchan,
+			 unsigned int sec_mem, unsigned int sec_size);
 
 /**
  * set enable

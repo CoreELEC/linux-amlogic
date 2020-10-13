@@ -99,6 +99,10 @@ struct aml_dmx {
 	spinlock_t *pslock;
 
 	int init;
+
+	/*dvr sec mem*/
+	__u32 sec_dvr_buff;
+	__u32 sec_dvr_size;
 };
 
 void dmx_init_hw(int sid_num, int *sid_info);

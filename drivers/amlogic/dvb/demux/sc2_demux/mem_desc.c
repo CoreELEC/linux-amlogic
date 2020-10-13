@@ -130,15 +130,22 @@ static int _bufferid_malloc_desc_mem(struct chan_id *pchan,
 		mem_size = 0;
 		mem_phy = 0;
 	} else {
-		ret =
-		    _alloc_buff(mem_size, sec_level, &mem, &mem_phy,
-				&pchan->tee_handle);
-		if (ret != 0) {
-			dprint("%s malloc fail\n", __func__);
-			return -1;
+		if (pchan->sec_size) {
+			mem_size = pchan->sec_size;
+			mem_phy = pchan->sec_mem;
+			mem = mem_phy;
+			pr_dbg("use sec mem:0x%lx, size:0x%x\n",
+					mem_phy, mem_size);
+		} else {
+			ret = _alloc_buff(mem_size, sec_level, &mem,
+				&mem_phy, &pchan->tee_handle);
+			if (ret != 0) {
+				dprint("%s malloc fail\n", __func__);
+				return -1;
+			}
+			pr_dbg("%s malloc mem:0x%lx, mem_phy:0x%lx, sec:%d\n",
+					__func__, mem, mem_phy, sec_level);
 		}
-		pr_dbg("%s malloc mem:0x%lx, mem_phy:0x%lx, sec:%d\n",
-				__func__, mem, mem_phy, sec_level);
 	}
 	ret =
 	    _alloc_buff(sizeof(union mem_desc), 0, &memdescs, &memdescs_phy, 0);
@@ -174,7 +181,7 @@ static int _bufferid_malloc_desc_mem(struct chan_id *pchan,
 
 static void _bufferid_free_desc_mem(struct chan_id *pchan)
 {
-	if (pchan->mem)
+	if (pchan->mem && pchan->sec_size == 0)
 		_free_buff((unsigned long)pchan->mem_phy,
 			   pchan->mem_size, pchan->sec_level,
 			   pchan->tee_handle);
@@ -191,6 +198,7 @@ static void _bufferid_free_desc_mem(struct chan_id *pchan)
 	pchan->memdescs = NULL;
 	pchan->memdescs_phy = 0;
 	pchan->memdescs_map = 0;
+	pchan->sec_size = 0;
 }
 
 static int _bufferid_alloc_chan_w_for_es(struct chan_id **pchan,
@@ -340,6 +348,23 @@ int SC2_bufferid_set_mem(struct chan_id *pchan,
 {
 	pr_dbg("%s mem_size:%d,sec_level:%d\n", __func__, mem_size, sec_level);
 	_bufferid_malloc_desc_mem(pchan, mem_size, sec_level);
+	return 0;
+}
+
+/**
+ * chan mem
+ * \param pchan:struct chan_id handle
+ * \param sec_mem:direct memory
+ * \param sec_size: memory size
+ * \retval success: 0
+ * \retval -1:fail.
+ */
+int SC2_bufferid_set_sec_mem(struct chan_id *pchan,
+			 unsigned int sec_mem, unsigned int sec_size)
+{
+	pr_dbg("%s sec_mem:0x%x,sec_size:0x%0x\n", __func__, sec_mem, sec_size);
+	pchan->sec_mem = sec_mem;
+	pchan->sec_size = sec_size;
 	return 0;
 }
 
