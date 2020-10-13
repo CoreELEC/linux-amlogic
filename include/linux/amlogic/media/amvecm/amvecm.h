@@ -596,6 +596,7 @@ extern int am_meson_ctm_disable(void);
 
 extern void enable_osd1_mtx(unsigned int en);
 void set_cur_hdr_policy(uint policy);
+u32 hdr_set(u32 module_sel, u32 hdr_process_select);
 int dv_pq_ctl(enum dv_pq_ctl_e ctl);
 #endif /* AMVECM_H */
 

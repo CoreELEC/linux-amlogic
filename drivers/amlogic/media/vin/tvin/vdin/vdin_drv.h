@@ -36,6 +36,8 @@
 #include <linux/amlogic/media/vfm/vframe_receiver.h>
 #include <linux/amlogic/media/vfm/vframe_provider.h>
 #include <linux/amlogic/media/frame_provider/tvin/tvin_v4l2.h>
+#include <linux/amlogic/media/video_sink/video_signal_notify.h>
+#include <linux/amlogic/media/amvecm/amvecm.h>
 #ifdef CONFIG_AMLOGIC_MEDIA_RDMA
 #include <linux/amlogic/media/rdma/rdma_mgr.h>
 #endif
@@ -48,7 +50,7 @@
 /* Ref.2019/04/25: tl1 vdin0 afbce dynamically switch support,
  *                 vpp also should support this function
  */
-#define VDIN_VER "ver:2020-0703: vdin viu bringup for sc2-refboard"
+#define VDIN_VER "ver:2020-1021: support loopback HDR signal"
 
 /*the counter of vdin*/
 #define VDIN_MAX_DEVS			2
@@ -591,6 +593,8 @@ struct vdin_dev_s {
 	unsigned int skip_disp_md_check;
 	unsigned int vframe_wr_en;
 	unsigned int vframe_wr_en_pre;
+	unsigned int tx_fmt;
+	unsigned int vd1_fmt;
 };
 
 struct vdin_hist_s {

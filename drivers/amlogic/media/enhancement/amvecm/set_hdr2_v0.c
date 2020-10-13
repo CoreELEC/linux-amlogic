@@ -2478,7 +2478,9 @@ enum hdr_process_sel hdr_func(
 	/*mtx parameters*/
 	/* default matrix config */
 	if (module_sel == VD1_HDR ||
-	    module_sel == VD2_HDR) {
+	    module_sel == VD2_HDR ||
+	    module_sel == VDIN0_HDR ||
+	    module_sel == VDIN1_HDR) {
 		/* default setting for HDR*/
 		if (hdr_process_select & RGB_VDIN &&
 		    hdr_process_select & FULL_VDIN) {
@@ -2585,7 +2587,9 @@ enum hdr_process_sel hdr_func(
 		   hdr_process_select & HLG_BYPASS) {
 		hdr_mtx_param.mtx_gamut_mode = 1;
 		if (module_sel == VD1_HDR ||
-		    module_sel == VD2_HDR) {
+		    module_sel == VD2_HDR ||
+		    module_sel == VDIN0_HDR ||
+		    module_sel == VDIN1_HDR) {
 			if (hdr_process_select & RGB_VDIN &&
 			    hdr_process_select & FULL_VDIN) {
 				coeff_in = rgb2ycbcrf_709;
@@ -2854,6 +2858,12 @@ enum hdr_process_sel hdr_func(
 
 	return hdr_process_select;
 }
+
+u32 hdr_set(u32 module_sel, u32 hdr_process_select)
+{
+	return hdr_func(module_sel, hdr_process_select, NULL, NULL);
+}
+EXPORT_SYMBOL(hdr_set);
 
 int hdr10p_ebzcurve_update(
 	enum hdr_module_sel module_sel,

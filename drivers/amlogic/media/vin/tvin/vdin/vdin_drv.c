@@ -58,6 +58,7 @@
 #include <linux/amlogic/media/frame_sync/timestamp.h>
 #include <linux/amlogic/media/frame_sync/tsync.h>
 #include <linux/amlogic/media/frame_provider/tvin/tvin_v4l2.h>
+
 /* Local Headers */
 #include "../tvin_global.h"
 #include "../tvin_format_table.h"
@@ -739,8 +740,8 @@ void vdin_start_dec(struct vdin_dev_s *devp)
 	switch_vpu_mem_pd_vmod(devp->addr_offset?VPU_VIU_VDIN1:VPU_VIU_VDIN0,
 			VPU_MEM_POWER_ON);
 
-	vdin_hw_enable(devp);
 	vdin_set_all_regs(devp);
+	vdin_hw_enable(devp);
 	vdin_set_dolby_tunnel(devp);
 	vdin_write_mif_or_afbce_init(devp);
 	if (!(devp->parm.flag & TVIN_PARM_FLAG_CAP) &&
@@ -2181,6 +2182,14 @@ irqreturn_t vdin_v4l2_isr(int irq, void *dev_id)
 	isr_log(devp->vfp);
 	devp->irq_cnt++;
 	spin_lock_irqsave(&devp->isr_lock, flags);
+
+	if (devp->frame_drop_num) {
+		devp->frame_drop_num--;
+		devp->vdin_irq_flag = VDIN_IRQ_FLG_DROP_FRAME;
+		vdin_drop_frame_info(devp, "drop frame");
+		goto irq_handled;
+	}
+
 	/* set CRC check pulse */
 	vdin_set_crc_pulse(devp);
 	devp->vdin_reset_flag = vdin_vsync_reset_mif(devp->index);
@@ -3673,6 +3682,40 @@ static void vdin_event_work(struct work_struct *work)
 	/*cancel_delayed_work(&devp->event_dwork);*/
 }
 
+/* add for loopback case, vpp notify vdin which HDR format use */
+static int vdin_signal_notify_callback(struct notifier_block *block,
+					unsigned long cmd, void *para)
+{
+	struct vd_signal_info_s *vd_signal = NULL;
+	/* only for vdin1 to convert HDR(from VPP) to SDR*/
+	struct vdin_dev_s *devp = vdin_get_dev(1);
+
+	switch (cmd) {
+	case VIDEO_SIGNAL_TYPE_CHANGED:
+		vd_signal = para;
+
+		if (!vd_signal)
+			break;
+
+		devp->tx_fmt = vd_signal->signal_type;
+		devp->vd1_fmt = vd_signal->vd1_signal_type;
+
+		if (vdin_dbg_en)
+			pr_info("%s tx fmt:%d, vd1 fmt:%d\n",
+				__func__, devp->tx_fmt, devp->vd1_fmt);
+		break;
+
+	default:
+		break;
+	}
+
+	return 0;
+}
+
+static struct notifier_block vdin_signal_notifier = {
+	.notifier_call = vdin_signal_notify_callback,
+};
+
 static int vdin_drv_probe(struct platform_device *pdev)
 {
 	int ret = 0;
@@ -4000,6 +4043,9 @@ static int vdin_drv_probe(struct platform_device *pdev)
 
 	vdin_mif_config_init(vdevp); /* 2019-0425 add, ensure mif/afbc bit */
 	vdin_debugfs_init(vdevp);/*2018-07-18 add debugfs*/
+
+	if (vdevp->index)
+		vd_signal_register_client(&vdin_signal_notifier);
 
 	pr_info("%s: driver initialized ok\n", __func__);
 	return 0;
