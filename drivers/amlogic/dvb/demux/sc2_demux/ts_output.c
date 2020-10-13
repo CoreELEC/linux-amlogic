@@ -35,6 +35,7 @@
 #include "../../aucpu/aml_aucpu.h"
 #include "../aml_dvb.h"
 #include "../dmx_log.h"
+#include <linux/fs.h>
 
 #define MAX_TS_PID_NUM              1024
 #define MAX_SID_NUM                 64
@@ -185,9 +186,104 @@ MODULE_PARM_DESC(drop_dup, "\n\t\t drop duplicate packet");
 static int drop_dup;
 module_param(drop_dup, int, 0644);
 
+MODULE_PARM_DESC(dump_video_es, "\n\t\t dump video es packet");
+static int dump_video_es;
+module_param(dump_video_es, int, 0644);
+
+MODULE_PARM_DESC(dump_audio_es, "\n\t\t dump audio es packet");
+static int dump_audio_es;
+module_param(dump_audio_es, int, 0644);
+
+static loff_t video_es_file_pos;
+static struct file *video_es_dump_fp;
+#define VIDEOES_DUMP_FILE   "/data/data/video_es_dump.es"
+
+static loff_t audio_es_file_pos;
+static struct file *audio_es_dump_fp;
+#define AUDIOES_DUMP_FILE   "/data/data/audio_es_dump.es"
+
+void dump_file_open(char *path)
+{
+	if (video_es_dump_fp)
+		return;
+
+	video_es_dump_fp = filp_open(path, O_CREAT | O_RDWR, 0666);
+	if (IS_ERR(video_es_dump_fp)) {
+		pr_err("create video dump [%s] file failed [%d]\n",
+			path, (int)PTR_ERR(video_es_dump_fp));
+		video_es_dump_fp = NULL;
+	}
+}
+
+void dump_file_write(char *buf, size_t count)
+{
+	mm_segment_t old_fs;
+
+	if (!video_es_dump_fp) {
+		pr_err("Failed to write video dump file fp is null\n");
+		return;
+	}
+
+	old_fs = get_fs();
+	set_fs(KERNEL_DS);
+
+	if (count != vfs_write(video_es_dump_fp, buf, count,
+			&video_es_file_pos))
+		pr_err("Failed to write video dump file\n");
+
+	set_fs(old_fs);
+}
+
+void dump_file_close(void)
+{
+	if (video_es_dump_fp) {
+		vfs_fsync(video_es_dump_fp, 0);
+		filp_close(video_es_dump_fp, current->files);
+		video_es_dump_fp = NULL;
+	}
+}
+
+void dump_audio_file_open(char *path)
+{
+	if (audio_es_dump_fp)
+		return;
+	audio_es_dump_fp = filp_open(path, O_CREAT | O_RDWR, 0666);
+	if (IS_ERR(audio_es_dump_fp)) {
+		pr_err("create dump [%s] file failed [%d]\n",
+			path, (int)PTR_ERR(audio_es_dump_fp));
+		audio_es_dump_fp = NULL;
+	}
+}
+
+void dump_audio_file_write(char *buf, size_t count)
+{
+	mm_segment_t old_fs;
+
+	if (!audio_es_dump_fp) {
+		pr_err("Failed to write audio dump file fp is null\n");
+		return;
+	}
+
+	old_fs = get_fs();
+	set_fs(KERNEL_DS);
+
+	if (count != vfs_write(audio_es_dump_fp, buf, count,
+			&audio_es_file_pos))
+		pr_err("Failed to write audio dump file\n");
+
+	set_fs(old_fs);
+}
+
+void dump_audio_file_close(void)
+{
+	if (audio_es_dump_fp) {
+		vfs_fsync(audio_es_dump_fp, 0);
+		filp_close(audio_es_dump_fp, current->files);
+		audio_es_dump_fp = NULL;
+	}
+}
 //#define DVR_DEBUG 1
 #ifdef DVR_DEBUG
-#include <linux/fs.h>
 
 static loff_t dvr_file_pos;
 static struct file *dvr_dump_fp;
@@ -728,6 +824,8 @@ static int write_es_data(struct out_elem *pout, struct es_params_t *es_params)
 	ret = SC2_bufferid_read(pout->pchan, &ptmp, len, 0);
 	if (ret) {
 		out_ts_cb_list(pout, ptmp, ret);
+		if (dump_audio_es == 1)
+			dump_audio_file_write(ptmp, ret);
 		es_params->data_len += ret;
 		pr_dbg("%s total len:%d, remain:%d\n",
 		       pout->type == AUDIO_TYPE ? "audio" : "video",
@@ -742,6 +840,8 @@ static int write_es_data(struct out_elem *pout, struct es_params_t *es_params)
 			ret = SC2_bufferid_read(pout->pchan, &ptmp, len, 0);
 			if (ret) {
 				out_ts_cb_list(pout, ptmp, ret);
+				if (dump_audio_es == 1)
+					dump_audio_file_write(ptmp, ret);
 				es_params->data_len += ret;
 				pr_dbg("%s total len:%d, remain:%d\n",
 					   pout->type == AUDIO_TYPE ?
@@ -765,7 +865,6 @@ static int clean_es_data(struct out_elem *pout, struct chan_id *pchan,
 {
 	int ret;
 	char *ptmp;
-
 	while (len) {
 		ret = SC2_bufferid_read(pout->pchan, &ptmp, len, 0);
 		if (ret != 0) {
@@ -1016,7 +1115,14 @@ static int write_sec_video_es_data(struct out_elem *pout,
 	ret = SC2_bufferid_read(pout->pchan, &ptmp, len, flag);
 	if (es_params->data_start == 0)
 		es_params->data_start = (unsigned long)ptmp;
+
 	es_params->data_len += ret;
+
+	if (dump_video_es == 1) {
+		if (video_es_dump_fp)
+			dump_file_write(ptmp, ret);
+	}
+
 	if (ret != len) {
 		if (pout->pchan->r_offset != 0)
 			return -1;
@@ -1024,6 +1130,10 @@ static int write_sec_video_es_data(struct out_elem *pout,
 		len = es_params->header.len - es_params->data_len;
 		ret = SC2_bufferid_read(pout->pchan, &ptmp, len, flag);
 		es_params->data_len += ret;
+		if (dump_video_es == 1) {
+			if (video_es_dump_fp)
+				dump_file_write(ptmp, ret);
+		}
 		if (ret != len)
 			return -1;
 	}
@@ -1036,16 +1146,28 @@ static int write_sec_video_es_data(struct out_elem *pout,
 	sec_es_data.data_start = es_params->data_start;
 	sec_es_data.data_end = (unsigned long)ptmp + len;
 
-	pr_dbg("video data start:0x%x, end:0x%x\n",
-		sec_es_data.data_start, sec_es_data.data_end);
+	if (sec_es_data.data_end > sec_es_data.data_start)
+		pr_dbg("video data start:0x%x, end:0x%x len:0x%x\n",
+			sec_es_data.data_start, sec_es_data.data_end,
+			(sec_es_data.data_end - sec_es_data.data_start));
+	else
+		pr_err("video data start:0x%x,data end:0x%x\n",
+				sec_es_data.data_start, sec_es_data.data_end);
+
+	if (sec_es_data.data_start > sec_es_data.buf_end)
+		pr_err("video data start:0x%x, buf end:0x%x\n",
+			sec_es_data.data_start, sec_es_data.buf_end);
+
 	pr_dbg("video pdts_flag:%d, pts:0x%lx, dts:0x%lx, offset:0x%lx\n",
-	       sec_es_data.pts_dts_flag, (unsigned long)sec_es_data.pts,
-	       (unsigned long)sec_es_data.dts,
-	       (unsigned long)(sec_es_data.data_start - sec_es_data.buf_start));
+			sec_es_data.pts_dts_flag,
+			(unsigned long)sec_es_data.pts,
+			(unsigned long)sec_es_data.dts,
+			(unsigned long)(sec_es_data.data_start -
+				sec_es_data.buf_start));
 
 	pout->newest_pts = sec_es_data.pts;
 	out_ts_cb_list(pout, (char *)&sec_es_data,
-		       sizeof(struct dmx_sec_es_data));
+			sizeof(struct dmx_sec_es_data));
 
 	es_params->data_start = 0;
 	es_params->data_len = 0;
@@ -1083,17 +1205,17 @@ static int _handle_es(struct out_elem *pout, struct es_params_t *es_params)
 			dirty_len = ret;
 			ret = clean_es_data(pout, pout->pchan, dirty_len);
 			memcpy(&es_params->last_header, pcur_header,
-			       sizeof(es_params->last_header));
+					sizeof(es_params->last_header));
 			return 0;
 		}
 		if (pheader->len == 0) {
 			memcpy(&es_params->last_header, pcur_header,
-			       sizeof(es_params->last_header));
+					sizeof(es_params->last_header));
 			pr_dbg("header.len is 0, jump\n");
 			return 0;
 		}
 		memcpy(&es_params->last_header, pcur_header,
-		       sizeof(es_params->last_header));
+				sizeof(es_params->last_header));
 		es_params->have_header = 1;
 	}
 
@@ -1108,8 +1230,8 @@ static int _handle_es(struct out_elem *pout, struct es_params_t *es_params)
 			} else {
 				es_len = pheader->len;
 				pr_dbg("aud pdts_flag:%d, pts:0x%lx,",
-				       pheader->pts_dts_flag,
-				       (unsigned long)pheader->pts);
+						pheader->pts_dts_flag,
+						(unsigned long)pheader->pts);
 				pr_dbg("dts:0x%lx, len:%d\n",
 				       (unsigned long)pheader->dts,
 				       pheader->len);
@@ -1496,6 +1618,18 @@ struct out_elem *ts_output_open(int sid, u8 format,
 		pout->cache_len = 0;
 		pout->cache = NULL;
 		pout->aucpu_handle = -1;
+		if (dump_video_es == 1 && !video_es_dump_fp) {
+			dump_file_open(VIDEOES_DUMP_FILE);
+			if (video_es_dump_fp)
+				pr_err("open %s file success\n",
+						VIDEOES_DUMP_FILE);
+		}
+		if (dump_audio_es == 1 && !audio_es_dump_fp) {
+			dump_audio_file_open(AUDIOES_DUMP_FILE);
+			if (audio_es_dump_fp)
+				pr_err("open %s file success\n",
+						AUDIOES_DUMP_FILE);
+		}
 	} else {
 #ifdef DVR_DEBUG
 		if (format == DVR_FORMAT)
@@ -1573,6 +1707,18 @@ int ts_output_close(struct out_elem *pout)
 		return 0;
 
 	if (pout->format == ES_FORMAT) {
+		if (dump_video_es) {
+			if (video_es_dump_fp) {
+				dump_file_close();
+				video_es_dump_fp = NULL;
+			}
+		}
+		if (dump_audio_es) {
+			if (audio_es_dump_fp) {
+				dump_audio_file_close();
+				audio_es_dump_fp = NULL;
+			}
+		}
 		mutex_lock(&es_output_mutex);
 		remove_ts_out_list(pout, &es_out_task_tmp);
 		mutex_unlock(&es_output_mutex);
