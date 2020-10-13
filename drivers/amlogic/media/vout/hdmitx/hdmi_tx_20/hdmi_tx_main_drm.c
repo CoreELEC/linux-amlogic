@@ -1316,8 +1316,12 @@ static ssize_t show_edid_parsing(struct device *dev,
 				 struct device_attribute *attr, char *buf)
 {
 	int pos = 0;
+	struct hdmitx_dev *hdev = &hdmitx_device;
 
-	pos += snprintf(buf + pos, PAGE_SIZE, "ok\n");
+	if (hdmitx_edid_notify_ng(hdev->edid_ptr))
+		pos += snprintf(buf + pos, PAGE_SIZE, "ng\n");
+	else
+		pos += snprintf(buf + pos, PAGE_SIZE, "ok\n");
 	return pos;
 }
 
@@ -5030,21 +5034,6 @@ static int hdmitx_notify_callback_a(struct notifier_block *block,
 	}
 
 	return 0;
-}
-
-unsigned int hdmitx_check_edid_all_zeros(unsigned char *buf)
-{
-	unsigned int i = 0, j = 0;
-	unsigned int chksum = 0;
-
-	for (j = 0; j < EDID_MAX_BLOCK; j++) {
-		chksum = 0;
-		for (i = 0; i < 128; i++)
-			chksum += buf[i + j * 128];
-		if (chksum != 0)
-			return 0;
-	}
-	return 1;
 }
 
 void hdmi_tx_edid_proc(unsigned char *edid)

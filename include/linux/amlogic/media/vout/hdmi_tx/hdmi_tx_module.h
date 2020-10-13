@@ -430,7 +430,8 @@ struct hdmitx_dev {
 	unsigned char EDID_buf1[EDID_MAX_BLOCK*128]; /* for second read */
 	unsigned char tmp_edid_buf[128*EDID_MAX_BLOCK];
 	unsigned char *edid_ptr;
-	unsigned int edid_parsing; /* Indicator that RX edid data integrated */
+	/* indicate RX edid data integrated, HEAD valid and checksum pass */
+	unsigned int edid_parsing;
 	unsigned char EDID_hash[20];
 	struct rx_cap rxcap;
 	struct hdmitx_vidpara *cur_video_param;
@@ -692,6 +693,8 @@ extern void hdmitx_edid_ram_buffer_clear(struct hdmitx_dev *hdmitx_device);
 extern void hdmitx_edid_buf_compare_print(struct hdmitx_dev *hdmitx_device);
 
 extern const char *hdmitx_edid_get_native_VIC(struct hdmitx_dev *hdmitx_device);
+bool hdmitx_check_edid_all_zeros(unsigned char *buf);
+bool hdmitx_edid_notify_ng(unsigned char *buf);
 
 extern struct hdmitx_audpara hdmiaud_config_data;
 extern struct hdmitx_audpara hsty_hdmiaud_config_data[8];
