@@ -481,6 +481,8 @@ static void hdmitx_early_suspend(struct early_suspend *h)
 		clk_disable_unprepare(phdmi->hdmitx_clk_tree.hdmi_clk_vapb);
 	if (phdmi->hdmitx_clk_tree.hdmi_clk_vpu)
 		clk_disable_unprepare(phdmi->hdmitx_clk_tree.hdmi_clk_vpu);
+	hdev->hwop.cntlddc(hdev, DDC_SCDC_DIV40_SCRAMB, 0);
+	hdev->div40 = 0;
 }
 
 static int hdmitx_is_hdmi_vmode(char *mode_name)
