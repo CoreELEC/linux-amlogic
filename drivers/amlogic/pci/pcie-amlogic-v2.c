@@ -62,6 +62,7 @@ struct amlogic_pcie {
 
 #ifdef CONFIG_AMLOGIC_PCIE
 static struct amlogic_pcie *pcie_host;
+int IsQualcommDevices;
 
 void mask_pcie_irq(void)
 {
@@ -86,6 +87,31 @@ void unmask_pcie_irq(void)
 			unmask_irq(desc);
 	}
 }
+
+void amlogic_pcie_reset_gpio_ctrl(unsigned int val)
+{
+	struct pcie_port *pp = NULL;
+	struct device *dev = NULL;
+
+	if (!pcie_host)
+		return;
+
+	pp = &pcie_host->pp;
+	if (!pp)
+		return;
+
+	dev = pp->dev;
+	if (!dev)
+		return;
+
+	if (pcie_host->reset_gpio >= 0 &&
+	    gpio_is_valid(pcie_host->reset_gpio)) {
+		dev_info(dev, "PCIe reset GPIO %s\n",
+			 val ? "assert" : "deassert");
+		gpio_set_value_cansleep(pcie_host->reset_gpio, val);
+	}
+}
+EXPORT_SYMBOL(amlogic_pcie_reset_gpio_ctrl);
 #endif
 
 static void amlogic_elb_writel(struct amlogic_pcie *amlogic_pcie, u32 val,
@@ -1164,6 +1190,9 @@ static int amlogic_pcie_suspend_noirq(struct device *dev)
 	clk_disable_unprepare(amlogic_pcie->bus_clk);
 	amlogic_pcie->phy->reset_state = 0;
 
+	if (IsQualcommDevices)
+		amlogic_pcie_reset_gpio_ctrl(0);
+
 	return 0;
 }
 
@@ -1173,6 +1202,11 @@ static int amlogic_pcie_resume_noirq(struct device *dev)
 	struct amlogic_pcie *amlogic_pcie = platform_get_drvdata(pdev);
 	unsigned long rate = 100000000;
 	u32 val;
+
+	if (IsQualcommDevices) {
+		amlogic_pcie_reset_gpio_ctrl(1);
+		IsQualcommDevices = 0;
+	}
 
 	if (!amlogic_pcie->pm_enable) {
 		dev_info(dev, "don't noirq resume amlogic pcie\n");

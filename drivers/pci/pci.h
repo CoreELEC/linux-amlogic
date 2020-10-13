@@ -6,6 +6,10 @@
 
 #define PCI_FIND_CAP_TTL	48
 
+#ifdef CONFIG_AMLOGIC_PCIE
+extern int IsQualcommDevices;
+#endif
+
 extern const unsigned char pcie_link_speed[];
 
 bool pcie_cap_has_lnkctl(const struct pci_dev *dev);

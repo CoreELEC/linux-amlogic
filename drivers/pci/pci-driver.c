@@ -748,6 +748,14 @@ static int pci_pm_suspend(struct device *dev)
  Fixup:
 	pci_fixup_device(pci_fixup_suspend, pci_dev);
 
+#ifdef CONFIG_AMLOGIC_PCIE
+	if (pci_dev->vendor == 0x17cb) {
+		dev_warn(dev, "found qualcomm wifi: vendor_id=0x%x,device_id=0x%x\n",
+			 pci_dev->vendor, pci_dev->device);
+		IsQualcommDevices = 1;
+	}
+#endif
+
 	return 0;
 }
 
