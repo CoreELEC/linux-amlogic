@@ -22,7 +22,7 @@
 		hdcp = "disabled";
 		compatible = "amlogic,drm-amhdmitx";
 		dev_name = "meson-amhdmitx";
-		interrupts = <GIC_SPI 3 IRQ_TYPE_EDGE_RISING>;
+		interrupts = <GIC_SPI 7 IRQ_TYPE_EDGE_RISING>;
 		ports {
 			port {
 				#address-cells = <1>;
