@@ -5927,11 +5927,19 @@ static int prepare_vsif_pkt(
 
 static int notify_vd_signal_to_amvideo(struct vd_signal_info_s *vd_signal)
 {
+	static int pre_signal = -1;
 #ifdef CONFIG_AMLOGIC_MEDIA_VIDEO
-	amvideo_notifier_call_chain(
-		AMVIDEO_UPDATE_SIGNAL_MODE,
-		(void *)vd_signal);
+	if (pre_signal != vd_signal->signal_type) {
+		vd_signal->vd1_signal_type =
+			SIGNAL_DOVI;
+		vd_signal->vd2_signal_type =
+			SIGNAL_DOVI;
+		amvideo_notifier_call_chain(
+			AMVIDEO_UPDATE_SIGNAL_MODE,
+			(void *)vd_signal);
+	}
 #endif
+	pre_signal = vd_signal->signal_type;
 	return 0;
 }
 
