@@ -1647,7 +1647,9 @@ int ts_output_add_pid(struct out_elem *pout, int pid, int pid_mask, int dmx_id,
 			if (pid_slot->pid == pid) {
 				pid_slot->ref++;
 				if (cb_id)
-					*cb_id = pid_slot->ref;
+					*cb_id = dmx_id;
+				if (pout->enable == 0)
+					pr_err("!!!!!pout enable is 0, this is danger error!!!!!!\n");
 				return 0;
 			}
 			pid_slot = pid_slot->pnext;
@@ -1662,7 +1664,7 @@ int ts_output_add_pid(struct out_elem *pout, int pid, int pid_mask, int dmx_id,
 		pid_slot->pid_mask = pid_mask;
 		pid_slot->used = 1;
 		pid_slot->dmx_id = dmx_id;
-		pid_slot->ref = 0;
+		pid_slot->ref = 1;
 		pid_slot->pout = pout;
 
 		pid_slot->pnext = pout->pid_list;
@@ -1722,10 +1724,10 @@ int ts_output_remove_pid(struct out_elem *pout, int pid)
 		prev_pid = cur_pid;
 		while (cur_pid) {
 			if (cur_pid->pid == pid) {
-				if (cur_pid->ref >= 1) {
+				if (cur_pid->ref > 1) {
 					cur_pid->ref--;
 					return 0;
-				} else if (cur_pid->ref == 0) {
+				} else if (cur_pid->ref == 1) {
 					if (cur_pid == pout->pid_list)
 						pout->pid_list = cur_pid->pnext;
 					else
@@ -1742,6 +1744,8 @@ int ts_output_remove_pid(struct out_elem *pout, int pid)
 					      cur_pid->id, pout->pchan->id);
 			_free_pid_entry_slot(cur_pid);
 		}
+		if (pout->pid_list)
+			return 0;
 	}
 	pout->enable = 0;
 	pr_dbg("%s line:%d\n", __func__, __LINE__);
