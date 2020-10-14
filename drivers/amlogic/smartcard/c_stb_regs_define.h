@@ -18,9 +18,8 @@
 #ifndef __MACH_MESON8_REG_ADDR_H_
 #define __MACH_MESON8_REG_ADDR_H_
 #include <linux/amlogic/iomap.h>
-#include "dvb_reg.h"
-#define CBUS_REG_ADDR(_r) READ_CBUS_REG(_r)
-#define SMARTCARD_REG_BASE	(0xFE038000 - 0xFE000000)
+#define CBUS_REG_ADDR(_r) aml_read_cbus(_r)
+#define SMARTCARD_REG_BASE	smc_get_reg_base()
 #define SMARTCARD_REG0 (SMARTCARD_REG_BASE + 0x0)
 #define P_SMARTCARD_REG0                CBUS_REG_ADDR(SMARTCARD_REG0)
 #define SMARTCARD_REG1 (SMARTCARD_REG_BASE + 0x1)

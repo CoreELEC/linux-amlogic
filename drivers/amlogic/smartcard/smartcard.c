@@ -65,7 +65,6 @@
 #include "smartcard.h"
 #include "c_stb_regs_define.h"
 #include "smc_reg.h"
-#include "dvb_reg.h"
 
 #define DRIVER_NAME "amsmc"
 #define MODULE_NAME "amsmc"
@@ -384,11 +383,11 @@ struct smc_dev {
 #define SMC_CLASS_NAME  "smc-class"
 #define SMC_DEV_COUNT	1
 
-//#define WRITE_CBUS_REG(_r, _v)   aml_write_self((_r), _v)
-//#define READ_CBUS_REG(_r)        aml_read_self((_r))
+#define WRITE_CBUS_REG(_r, _v)   aml_write_cbus(_r, _v)
+#define READ_CBUS_REG(_r)        aml_read_cbus(_r)
 
-#define SMC_READ_REG(a)          READ_CBUS_REG(SMARTCARD_##a)
-#define SMC_WRITE_REG(a, b)      WRITE_CBUS_REG(SMARTCARD_##a, b)
+#define SMC_READ_REG(a)          READ_MPEG_REG(SMARTCARD_##a)
+#define SMC_WRITE_REG(a, b)      WRITE_MPEG_REG(SMARTCARD_##a, b)
 
 static struct mutex smc_lock;
 static int		 smc_major;
@@ -642,6 +641,17 @@ static struct class smc_class = {
 	.name = SMC_CLASS_NAME,
 	.class_attrs = smc_class_attrs,
 };
+
+long smc_get_reg_base(void)
+{
+	int newbase = 0;
+
+	if (get_cpu_type() > MESON_CPU_MAJOR_ID_TXL &&
+		get_cpu_type() != MESON_CPU_MAJOR_ID_GXLX) {
+		newbase = 1;
+	}
+	return (newbase) ? 0x9400 : 0x2110;
+}
 
 #ifndef CONFIG_OF
 static int _gpio_request(unsigned int gpio, const char *owner)
@@ -2544,12 +2554,6 @@ static int smc_probe(struct platform_device *pdev)
 
 	mutex_lock(&smc_lock);
 
-	if (init_smc_addr(pdev) != 0) {
-		dev_err(&pdev->dev, "get smartcard reg map fail\n");
-		mutex_unlock(&smc_lock);
-		return -1;
-	}
-
 	for (i = 0; i < SMC_DEV_COUNT; i++) {
 		if (!smc_dev[i].init) {
 			smc = &smc_dev[i];
@@ -2560,7 +2564,6 @@ static int smc_probe(struct platform_device *pdev)
 		devm_clk_get(&pdev->dev, "smartcard");
 	if (IS_ERR_OR_NULL(aml_smartcard_clk)) {
 		dev_err(&pdev->dev, "get smartcard clk fail\n");
-		mutex_unlock(&smc_lock);
 		return -1;
 	}
 	clk_prepare_enable(aml_smartcard_clk);
@@ -2572,6 +2575,7 @@ static int smc_probe(struct platform_device *pdev)
 		if (ret < 0)
 			smc = NULL;
 	}
+
 	mutex_unlock(&smc_lock);
 
 	return smc ? 0 : -1;
