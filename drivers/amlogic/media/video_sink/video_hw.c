@@ -1965,7 +1965,7 @@ static s32 vd2_mif_setting(struct mif_pos_s *setting)
 			setting->end_x_lines + 1, 32);
 	}
 	VSYNC_WR_MPEG_REG(
-		vd2_afbc_reg->afbc_vd_cfmt_ctrl,
+		vd2_afbc_reg->afbc_vd_cfmt_w,
 		(((r_aligned - l_aligned) / h_skip) << 16) |
 		((r_aligned / 2 - l_aligned / hc_skip) / h_skip));
 
