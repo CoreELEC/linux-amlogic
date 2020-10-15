@@ -501,10 +501,10 @@ static struct drm_driver meson_driver = {
 	.prime_handle_to_fd	= drm_gem_prime_handle_to_fd,
 	.prime_fd_to_handle	= drm_gem_prime_fd_to_handle,
 
-	.gem_prime_export	= drm_gem_prime_export,
+	.gem_prime_export	= am_meson_drm_gem_prime_export,
 	.gem_prime_get_sg_table	= am_meson_gem_prime_get_sg_table,
 
-	.gem_prime_import	= drm_gem_prime_import,
+	.gem_prime_import	= am_meson_drm_gem_prime_import,
 	/*
 	 * If gem_prime_import_sg_table is NULL,only buffer created
 	 * by meson driver can be imported ok.

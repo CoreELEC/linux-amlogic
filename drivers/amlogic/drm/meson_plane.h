@@ -24,6 +24,7 @@
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <linux/amlogic/media/vout/vout_notify.h>
+#include <linux/amlogic/meson_uvm_core.h>
 #include "meson_fb.h"
 
 #define MESON_PLANE_BEGIN_ZORDER	1

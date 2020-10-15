@@ -333,6 +333,7 @@ static int meson_video_plane_fb_check(struct drm_plane *plane,
 	struct am_video_plane *video_plane = to_am_video_plane(plane);
 	struct meson_drm *drv = video_plane->drv;
 	struct am_meson_fb *meson_fb;
+	struct uvm_buf_obj *ubo;
 	#else
 	struct drm_gem_cma_object *gem;
 	#endif
@@ -366,6 +367,13 @@ static int meson_video_plane_fb_check(struct drm_plane *plane,
 			am_meson_gem_object_get_phyaddr(drv,
 							meson_fb->bufp[1],
 							(size_t *)&fb_size[1]);
+	/* start to get vframe from uvm */
+	if (meson_fb->bufp[0]->is_uvm) {
+		ubo = &meson_fb->bufp[0]->ubo;
+		plane_info->vf = dmabuf_get_vframe(ubo->dmabuf);
+		dmabuf_put_vframe(ubo->dmabuf);
+		plane_info->is_uvm = meson_fb->bufp[0]->is_uvm;
+	}
 	#else
 	if (!fb) {
 		DRM_INFO("fb is NULL!\n");
