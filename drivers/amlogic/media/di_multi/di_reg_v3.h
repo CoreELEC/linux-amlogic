@@ -2263,5 +2263,10 @@
 #define DI_PD_RO_SUM_N		((0x17fa))
 #define DI_PD_RO_CNT_P		((0x17fb))
 #define DI_PD_RO_CNT_N		((0x17fc))
+
+#define DI_PRE_SEC_IN				0x2010
+#define DI_POST_SEC_IN				0x2011
+#define DI_VIU_DATA_SEC				0x1A50
+
 #endif	/*__DI_REG_V3_H__*/
 

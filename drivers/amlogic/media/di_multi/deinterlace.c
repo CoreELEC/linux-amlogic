@@ -61,6 +61,9 @@
 #include <linux/amlogic/media/rdma/rdma_mgr.h>
 #endif
 #include <linux/amlogic/media/video_sink/video.h>
+
+#include "../common/vfm/vfm.h"
+
 #include "register.h"
 #include "deinterlace.h"
 #include "deinterlace_dbg.h"
@@ -1750,6 +1753,31 @@ unsigned int insert_line = 0x100;
 module_param(insert_line, uint, 0664);
 MODULE_PARM_DESC(insert_line, "debug insert_line");
 
+static unsigned int di_cnt_pre_afbct(struct di_ch_s *pch)
+{
+	unsigned int afbc_info_size = 0, afbc_tab_size = 0;
+	unsigned int afbc_buffer_size = 0, blk_total = 0;
+	unsigned int width, height;
+
+	width = 1920;
+	height = 1088;
+
+	if (dim_afds() && dim_afds()->cnt_info_size &&
+	    (cfgg(DAT) & DI_BIT1)) {
+		afbc_info_size = dim_afds()->cnt_info_size(width,
+							   height / 2,
+							   &blk_total);
+		afbc_buffer_size = dim_afds()->cnt_buf_size(0x21,
+							    blk_total);
+
+		afbc_tab_size = dim_afds()->cnt_tab_size(afbc_buffer_size);
+	} else {
+		afbc_tab_size = 0;
+	}
+
+	return afbc_tab_size;
+}
+
 static int di_cnt_i_buf(struct di_ch_s *pch, int width, int height)
 {
 	unsigned int canvas_height = height;
@@ -1767,6 +1795,7 @@ static int di_cnt_i_buf(struct di_ch_s *pch, int width, int height)
 	//unsigned int insert_line = 544;
 	unsigned int insert_size;
 
+	unsigned int one_idat_size = 0;
 	/**********************************************/
 	/* count buf info */
 	/**********************************************/
@@ -1798,7 +1827,7 @@ static int di_cnt_i_buf(struct di_ch_s *pch, int width, int height)
 //	rot_width = roundup((rot_width << 1), canvas_align_width);
 
 	/* tvp flg */
-	if (codec_mm_video_tvp_enabled()) {
+	if (get_flag_tvp(ch) == 1) {
 		mm->sts.flg_tvp = 1;
 		mm->cfg.ibuf_flg.b.tvp = 1;
 		mm->cfg.pbuf_flg.b.tvp = 1;
@@ -1807,6 +1836,7 @@ static int di_cnt_i_buf(struct di_ch_s *pch, int width, int height)
 		mm->cfg.ibuf_flg.b.tvp = 0;
 		mm->cfg.pbuf_flg.b.tvp = 0;
 	}
+
 	dbg_reg("%s1:tvp:%d\n", __func__, mm->cfg.pbuf_flg.b.tvp);
 	if (dim_afds() && dim_afds()->cnt_info_size &&
 	    (dim_afds()->is_sts(EAFBC_MEMI_NEED) || cfgg(FIX_BUF))) {
@@ -1829,11 +1859,43 @@ static int di_cnt_i_buf(struct di_ch_s *pch, int width, int height)
 		       nr_size, afbc_buffer_size);
 		nr_size = afbc_buffer_size;
 	}
+
+	if (dim_afds() && dim_afds()->cnt_tab_size &&
+	    (dim_afds()->is_sts(EAFBC_MEM_NEED) || cfgg(FIX_BUF)))
+		afbc_tab_size = dim_afds()->cnt_tab_size(nr_size);
+
 	mtn_size = (mtn_width * canvas_height) * 4 / 16;
 	count_size = (mtn_width * canvas_height) * 4 / 16;
 	mv_size = (mv_width * canvas_height) / 5;
 	/*mc_size = canvas_height;*/
 	mc_size = roundup(canvas_height >> 1, canvas_align_width) << 1;
+
+#ifdef CFG_BUF_ALLOC_SP
+	insert_size = insert_line * nr_canvas_width;
+
+	di_buf_size	= nr_size;
+	if (mc_mem_alloc) {
+		di_buf_size += mtn_size +
+				count_size +
+				mv_size;
+		one_idat_size = mc_size;
+	} else {
+		di_buf_size += mtn_size +
+				count_size;
+		one_idat_size = 0;
+	}
+	mm->cfg.afbct_local_max_size = di_cnt_pre_afbct(pch);
+	one_idat_size += mm->cfg.afbct_local_max_size;
+
+	old_size	= nr_size;
+	di_buf_size = roundup(di_buf_size, PAGE_SIZE);
+	di_buf_size += afbc_info_size;
+
+	if (is_mask(SC2_DW_EN))
+		di_buf_size += dim_getdw()->size_info.p.size_buf;
+
+	di_buf_size = roundup(di_buf_size, PAGE_SIZE);
+#else
 	if (mc_mem_alloc) {
 		di_buf_size = nr_size + mtn_size + count_size +
 			mv_size + mc_size;
@@ -1845,14 +1907,12 @@ static int di_cnt_i_buf(struct di_ch_s *pch, int width, int height)
 	di_buf_size += insert_size;
 	di_buf_size = roundup(di_buf_size, PAGE_SIZE);
 	old_size = di_buf_size;
-	if (dim_afds() && dim_afds()->cnt_tab_size &&
-	    (dim_afds()->is_sts(EAFBC_MEMI_NEED) || cfgg(FIX_BUF)))
-		afbc_tab_size = dim_afds()->cnt_tab_size(nr_size);
 	di_buf_size += afbc_info_size;
 	di_buf_size += afbc_tab_size;
 	if (is_mask(SC2_DW_EN))
 		di_buf_size += dim_getdw()->size_info.p.size_buf;
 
+#endif
 	dbg_init("nr_width=%d,cvs_h=%d,w[%d],h[%d],al_w[%d]\n",
 		 nr_width, canvas_height,
 		 width, height,
@@ -1873,6 +1933,20 @@ static int di_cnt_i_buf(struct di_ch_s *pch, int width, int height)
 		mm->cfg.dw_size = dim_getdw()->size_info.p.size_buf;
 	else
 		mm->cfg.dw_size = 0;
+#ifdef CFG_BUF_ALLOC_SP
+	mm->cfg.size_idat_one	= one_idat_size;
+	mm->cfg.nub_idat	= DIM_IAT_NUB;
+	mm->cfg.size_idat_all	= mm->cfg.size_idat_one * mm->cfg.nub_idat;
+	mm->cfg.size_idat_all	+= mm->cfg.pre_inser_size;
+	mm->cfg.size_idat_all = roundup(mm->cfg.size_idat_all, PAGE_SIZE);
+	/* cfg i dat buf flg */
+	mm->cfg.dat_idat_flg.b.page = mm->cfg.size_idat_all >> PAGE_SHIFT;
+	mm->cfg.dat_idat_flg.b.is_i = 1;
+	mm->cfg.dat_idat_flg.b.afbc = 1;
+	mm->cfg.dat_idat_flg.b.dw = 0;
+	mm->cfg.dat_idat_flg.b.tvp	= 0;
+	mm->cfg.dat_idat_flg.b.typ	= EDIM_BLK_TYP_DATI;
+#endif
 	dimp_set(edi_mp_same_field_top_count, 0);
 	same_field_bot_count = 0;
 	#ifdef PRINT_BASIC
@@ -1888,6 +1962,12 @@ static int di_cnt_i_buf(struct di_ch_s *pch, int width, int height)
 	dbg_mem2("\t%-15s:0x%x\n", "dw_size", mm->cfg.dw_size);
 	dbg_mem2("\t%-15s:0x%x\n", "size_local", mm->cfg.size_local);
 	dbg_mem2("\t%-15s:0x%x\n", "size_page", mm->cfg.size_local_page);
+	dbg_mem2("\t%-15s:0x%x\n", "afbct_local_max_size",
+		 mm->cfg.afbct_local_max_size);
+	dbg_mem2("\t%-15s:0x%x\n", "size_idat_one", mm->cfg.size_idat_one);
+	dbg_mem2("\t%-15s:0x%x\n", "nub_idat", mm->cfg.nub_idat);
+	dbg_mem2("\t%-15s:0x%x\n", "size_idat_all", mm->cfg.size_idat_all);
+	dbg_mem2("\t%-15s:0x%x\n", "idat_pate", mm->cfg.dat_idat_flg.b.page);
 	#endif
 	mm->cfg.canvas_width[NR_CANVAS]		= nr_canvas_width;
 	mm->cfg.canvas_width[MTN_CANVAS]	= mtn_canvas_width;
@@ -1910,7 +1990,73 @@ static int di_cnt_i_buf(struct di_ch_s *pch, int width, int height)
 	else
 		mm->cfg.ibuf_flg.b.dw = 0;
 
+	mm->cfg.ibuf_flg.b.typ	= EDIM_BLK_TYP_OLDI;
 	return 0;
+}
+
+static void di_cnt_pst_afbct(struct di_ch_s *pch)
+{
+#ifdef CFG_BUF_ALLOC_SP
+
+	/* cnt the largest size to avoid rebuild */
+	unsigned int height, width, ch;
+	bool is_4k = false;
+	const struct di_mm_cfg_s *pcfg;
+	unsigned int afbc_buffer_size = 0, afbc_tab_size = 0;
+	unsigned int afbc_info_size = 0, blk_total = 0, tsize;
+	bool flg_afbc = false;
+	struct di_mm_s *mm;
+
+	if (!pch)
+		return;
+	ch = pch->ch_id;
+	mm = dim_mm_get(ch);
+
+	if (dim_afds()		&&
+	    dim_afds()->cnt_info_size &&
+	    (cfgg(DAT) & DI_BIT0))
+		flg_afbc = true;
+
+	if (!flg_afbc) {
+		mm->cfg.size_pafbct_all	= 0;
+		mm->cfg.size_pafbct_one	= 0;
+		mm->cfg.nub_pafbct	= 0;
+		mm->cfg.dat_pafbct_flg.d32 = 0;
+		return;
+	}
+
+	//if (cfgg(4K))
+	is_4k = true;
+
+	pcfg = di_get_mm_tab(is_4k);
+	width	= pcfg->di_w;
+	height	= pcfg->di_h;
+
+	afbc_info_size = dim_afds()->cnt_info_size(width,
+						  height,
+						  &blk_total);
+	afbc_buffer_size =
+		dim_afds()->cnt_buf_size(0x21, blk_total);
+	afbc_buffer_size = roundup(afbc_buffer_size, PAGE_SIZE);
+	tsize = afbc_buffer_size + afbc_info_size;
+	afbc_tab_size =
+		dim_afds()->cnt_tab_size(tsize);
+
+	mm->cfg.nub_pafbct	= DIM_PAT_NUB - 1;/*pcfg->num_post*/
+	mm->cfg.size_pafbct_all = afbc_tab_size * mm->cfg.nub_pafbct;
+	mm->cfg.size_pafbct_one = afbc_tab_size;
+
+	mm->cfg.dat_pafbct_flg.d32	= 0;
+	//mm->cfg.dat_pafbct_flg.b.afbc	= 1;
+	mm->cfg.dat_pafbct_flg.b.typ	= EDIM_BLK_TYP_PAFBCT;
+	mm->cfg.dat_pafbct_flg.b.page	= mm->cfg.size_pafbct_all >> PAGE_SHIFT;
+	mm->cfg.dat_pafbci_flg.b.tvp	= 0;
+	dbg_mem2("%s:size_pafbct_all:0x%x, 0x%x, nub[%d]\n",
+		  __func__,
+		  mm->cfg.size_pafbct_all,
+		  mm->cfg.size_pafbct_one,
+		  mm->cfg.nub_pafbct);
+#endif
 }
 
 /* width, height from mm*/
@@ -2013,8 +2159,14 @@ static int di_cnt_post_buf(struct di_ch_s *pch /*,enum EDPST_OUT_MODE mode*/)
 		mm->cfg.pst_afbci_size	= afbc_info_size;
 		mm->cfg.pst_afbct_size	= afbc_tab_size;
 
+		#ifdef CFG_BUF_ALLOC_SP
+		mm->cfg.size_post	= mm->cfg.pst_buf_size +
+					mm->cfg.pst_afbci_size;
+		#else
 		mm->cfg.size_post	= mm->cfg.pst_buf_size +
 			mm->cfg.pst_afbci_size + mm->cfg.pst_afbct_size;
+
+		#endif
 		mm->cfg.pst_cvs_w	= nr_width << 1;
 		mm->cfg.pst_cvs_h	= canvas_height;
 	}
@@ -2032,6 +2184,8 @@ static int di_cnt_post_buf(struct di_ch_s *pch /*,enum EDPST_OUT_MODE mode*/)
 		mm->cfg.pbuf_flg.b.dw = 1;
 	else
 		mm->cfg.pbuf_flg.b.dw = 0;
+
+	mm->cfg.pbuf_flg.b.typ = EDIM_BLK_TYP_OLDP;
 	#ifdef PRINT_BASIC
 	dbg_mem2("%s:size:\n", __func__);
 	dbg_mem2("\t%-15s:0x%x\n", "total_size", mm->cfg.size_post);
@@ -2209,6 +2363,47 @@ static int di_init_buf_simple(struct di_ch_s *pch)
 	return 0;
 }
 
+static void check_tvp_state(struct di_ch_s *pch)
+{
+	unsigned int ch;
+
+	struct provider_state_req_s req;
+	char *provider_name = vf_get_provider_name(pch->vfm.name);
+
+	ch = pch->ch_id;
+	set_flag_tvp(ch, -1);
+
+	while (provider_name) {
+		if (!vf_get_provider_name(provider_name))
+			break;
+		provider_name =
+			vf_get_provider_name(provider_name);
+	}
+	if (provider_name) {
+		req.vf = NULL;
+		req.req_type = REQ_STATE_SECURE;
+		req.req_result[0] = 0xffffffff;
+		vf_notify_provider_by_name(
+			provider_name,
+			VFRAME_EVENT_RECEIVER_REQ_STATE,
+			(void *)&req);
+		if (req.req_result[0] == 0)
+			set_flag_tvp(ch, 0);
+		else if (req.req_result[0] != 0xffffffff)
+			set_flag_tvp(ch, 1);
+	}
+	dbg_mem2("%s:tvp1:%d\n", __func__, get_flag_tvp(ch));
+	if ((get_flag_tvp(ch) == -1) &&
+	   codec_mm_video_tvp_enabled()) {
+		set_flag_tvp(ch, 1);
+		dim_sc2_secure_sw(true);
+	} else {
+		set_flag_tvp(ch, 0);
+		dim_sc2_secure_sw(false);
+	}
+	dbg_mem2("%s:tvp2:%d\n", __func__, get_flag_tvp(ch));
+}
+
 static int di_init_buf_new(struct di_ch_s *pch)
 {
 	struct mtsk_cmd_s blk_cmd;
@@ -2216,12 +2411,15 @@ static int di_init_buf_new(struct di_ch_s *pch)
 	struct di_mm_s *mm;
 	unsigned int ch;
 	unsigned int length_keep;
+	struct di_dat_s *pdat;
 
 	ch = pch->ch_id;
 	mm = dim_mm_get(ch);
 
+	check_tvp_state(pch);
 	di_cnt_i_buf(pch, 1920, 1088);
 	//di_cnt_i_buf(pch, 1920, 2160);
+	di_cnt_pst_afbct(pch);
 	di_cnt_post_buf(pch);
 	di_init_buf_simple(pch);
 
@@ -2231,6 +2429,16 @@ static int di_init_buf_new(struct di_ch_s *pch)
 	    cfgeq(MEM_FLAG, EDI_MEM_M_CODEC_A)	||
 	    cfgeq(MEM_FLAG, EDI_MEM_M_CODEC_B)) {	/*trig cma alloc*/
 		blk_cmd.cmd = ECMD_BLK_ALLOC;
+
+		/*pre idat*/
+		if (!pch->rse_ori.dat_i.blk_buf) {
+			blk_cmd.nub	= 1;
+			blk_cmd.flg.d32	= mm->cfg.dat_idat_flg.d32;
+			mtask_send_cmd(ch, &blk_cmd);
+			PR_INF("%s:alloc idat\n", __func__);
+		} else {
+			PR_INF("%s:no alloc idat\n", __func__);
+		}
 		if (mm->cfg.num_local) {
 			/* pre */
 			//blk_cmd.cmd = ECMD_BLK_ALLOC;
@@ -2244,6 +2452,19 @@ static int di_init_buf_new(struct di_ch_s *pch)
 		if (length_keep > 8)
 			PR_ERR("%s:keep nub:%d\n", __func__, length_keep);
 
+		#ifdef CFG_BUF_ALLOC_SP
+		pdat = get_pst_afbct(pch);
+		if ((!pdat->flg_alloc) && mm->cfg.dat_pafbct_flg.d32) {
+			blk_cmd.nub = 1;
+			blk_cmd.flg.d32 = mm->cfg.dat_pafbct_flg.d32;
+			mtask_send_cmd(ch, &blk_cmd);
+			dbg_mem2("%s:send alloc afbct cmd\n", __func__);
+		} else {
+			dbg_mem2("%s:not afbct %d,%d\n", __func__,
+				(!pdat->flg_alloc),
+				mm->cfg.dat_pafbct_flg.d32);
+		}
+		#endif
 		blk_cmd.nub = mm->cfg.num_post - length_keep;
 		blk_cmd.flg.d32 = mm->cfg.pbuf_flg.d32;
 
@@ -2625,7 +2846,7 @@ static int di_init_buf(int width, int height, unsigned char prog_flag,
 		nrds_mem = di_post_mem + mm->cfg.num_post * di_post_buf_size;
 		/*mm-0705 ppost->di_post_num * di_post_buf_size;*/
 		dim_nr_ds_buf_init(cfgg(MEM_FLAG), nrds_mem,
-				   &de_devp->pdev->dev);
+				   &de_devp->pdev->dev, 0);
 	}
 	return 0;
 }
@@ -2742,6 +2963,11 @@ static bool dim_post_keep_release_one(unsigned int ch,
 				 di_buf->blk_buf->flg.d32,
 				 mm->cfg.pbuf_flg.d32);
 			di_buf->blk_buf = NULL;
+			if (di_buf->pat_buf) {
+				qpat_in_ready(pch,
+					(struct dim_pat_s *)di_buf->pat_buf);
+				di_buf->pat_buf = NULL;
+			}
 			di_que_in(ch, QUE_PST_NO_BUF, di_buf);
 			release_flg = true;
 			mm->sts.flg_realloc++;
@@ -2809,6 +3035,10 @@ bool dim_post_keep_release_one_check(unsigned int ch, unsigned int di_buf_index)
 		/* IN_USED -> OUT */
 		pch = get_chdata(ch);
 		di_que_out_not_fifo(ch, QUE_POST_KEEP, di_buf);
+		if (di_buf->pat_buf) {
+			qpat_in_ready(pch, (struct dim_pat_s *)di_buf->pat_buf);
+			di_buf->pat_buf = NULL;
+		}
 		mem_release_one_inused(pch, di_buf->blk_buf);
 		di_que_in(ch, QUE_PST_NO_BUF, di_buf);
 
@@ -3039,6 +3269,7 @@ void dim_post_keep_cmd_proc(unsigned int ch, unsigned int index)
 			pw_queue_clear(ch, QUE_POST_KEEP);
 			pw_queue_clear(ch, QUE_POST_KEEP_BACK);
 			mm->sts.flg_release = 0;
+			qpat_in_ready_msk(pch, 0);
 			mem_release_all_inused(pch);
 			//mtsk_release(ch, ECMD_BLK_RELEASE);
 		}
@@ -3105,6 +3336,7 @@ void dim_uninit_buf(unsigned int disable_mirror, unsigned int channel)
 
 	queue_init(channel, 0);
 	di_que_init(channel); /*new que*/
+	qiat_all_back2_ready(pch);
 
 	/* decoder'buffer had been releae no need put */
 
@@ -4683,6 +4915,8 @@ static void pp_buf_cp(struct di_buf_s *buft, struct di_buf_s *buff)
 	buft->afbct_adr	= buff->afbct_adr;
 	buft->dw_adr	= buff->dw_adr;
 	buft->afbc_crc	= buff->afbc_crc;
+	buft->adr_start	= buff->adr_start;
+	buft->pat_buf	= buff->pat_buf;
 	buft->nr_size	= buff->nr_size;
 	buft->tab_size	= buff->tab_size;
 	buft->canvas_height	= buff->canvas_height;
@@ -4696,6 +4930,8 @@ static void pp_buf_cp(struct di_buf_s *buft, struct di_buf_s *buff)
 	buff->flg_null	= 1;
 	buff->buf_is_i	= 0;
 	buff->afbc_crc	= 0;
+	buff->pat_buf	= 0;
+	buff->adr_start = 0;
 	buff->nr_adr	= 0;
 	buff->afbc_adr	= 0;
 	buff->afbct_adr	= 0;
@@ -4830,6 +5066,14 @@ static void re_build_buf(struct di_ch_s *pch, enum EDI_SGN sgn)
 
 		blk_cmd.cmd = ECMD_BLK_ALLOC;
 		if (mm->cfg.num_local) {
+			/*pre idat*/
+			if (!pch->rse_ori.dat_i.blk_buf) {
+				blk_cmd.nub	= 1;
+				blk_cmd.flg.d32	= mm->cfg.dat_idat_flg.d32;
+				mtask_send_cmd(ch, &blk_cmd);
+			} else {
+				PR_INF("%s:need idat\n", __func__);
+			}
 			/* pre */
 			blk_cmd.nub = mm->cfg.num_local;
 			blk_cmd.flg.d32 = mm->cfg.ibuf_flg.d32;
@@ -4892,7 +5136,17 @@ unsigned char dim_pre_de_buf_config(unsigned int channel)
 	mm = dim_mm_get(channel);
 	if (!di_buf->blk_buf ||
 	    di_buf->blk_buf->flg.d32 != mm->cfg.pbuf_flg.d32) {
-		PR_ERR("%s:free'flg is err:idx[%d]\n", __func__, di_buf->index);
+		if (!di_buf->blk_buf)
+			PR_ERR("%s:pst no blk:idx[%d]\n",
+		       __func__,
+		       di_buf->index);
+		else
+			PR_ERR("%s:pst flgis err:buf:idx[%d] 0x%x->0x%x\n",
+		       __func__,
+		       di_buf->index,
+		       mm->cfg.pbuf_flg.d32,
+		       di_buf->blk_buf->flg.d32);
+
 		return 0;
 	}
 
@@ -5881,9 +6135,19 @@ int dim_check_recycle_buf(unsigned int channel)
 				di_buf->flg_nv21 = 0;
 				di_buf->post_ref_count = 0;/*ary maybe*/
 				if (mm->cfg.num_local == 0) {
+					if (di_buf->iat_buf) {
+						qiat_in_ready(pch,
+					(struct dim_iat_s *)di_buf->iat_buf);
+						di_buf->iat_buf = NULL;
+					}
 					mem_release_one_inused(pch,
 							       di_buf->blk_buf);
 					di_buf->blk_buf = NULL;
+					if (di_buf->pat_buf) {
+						qpat_in_ready(pch,
+					(struct dim_pat_s *)di_buf->pat_buf);
+						di_buf->pat_buf = NULL;
+					}
 					di_que_in(channel,
 						  QUE_PRE_NO_BUF, di_buf);
 				} else {
@@ -7800,6 +8064,11 @@ static void recycle_vframe_type_post(struct di_buf_s *di_buf,
 	mm = dim_mm_get(channel);
 	if (di_buf->blk_buf) {
 		if (di_buf->blk_buf->flg.d32 != mm->cfg.pbuf_flg.d32) {
+			if (di_buf->pat_buf) {
+				qpat_in_ready(pch,
+					(struct dim_pat_s *)di_buf->pat_buf);
+				di_buf->pat_buf = NULL;
+			}
 			mem_release_one_inused(pch, di_buf->blk_buf);
 			dbg_mem2("keep_buf:3:flg trig realloc,0x%x->0x%x\n",
 				 di_buf->blk_buf->flg.d32,

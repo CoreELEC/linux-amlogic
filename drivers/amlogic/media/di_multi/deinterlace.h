@@ -207,6 +207,7 @@ struct di_buf_s {
 	unsigned long mcvec_adr;
 	int mcvec_canvas_idx;
 	unsigned int afbc_crc;
+	unsigned long adr_start; /*2020-10-04*/
 	unsigned long afbc_adr;
 	unsigned long afbct_adr;
 	unsigned long dw_adr;
@@ -261,7 +262,8 @@ struct di_buf_s {
 	struct di_buf_s *di_buf_post; /*07-27 */
 	unsigned long jiff; // for wait
 	enum EDI_SGN	sgn_lv;
-
+	void *pat_buf; /*2020-10-05*/
+	void *iat_buf; /*2020-10-13*/
 	unsigned int buf_is_i	: 1; /* 1: i; 0: p */
 	unsigned int flg_nr	: 1;
 	unsigned int flg_null	: 1;
@@ -779,4 +781,6 @@ void hpre_timout_read(void);
 
 //#define PRINT_BASIC	(1)
 
+/*split buffer alloc to i, p , idata, iafbc xxx */
+#define CFG_BUF_ALLOC_SP (1)
 #endif

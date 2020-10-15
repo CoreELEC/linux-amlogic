@@ -143,6 +143,31 @@ void dim_mcinfo_v_release(struct di_buf_s *pbuf)
 	}
 }
 
+void dim_mcinfo_v_alloc_idat(struct dim_iat_s *idat, unsigned int bsize)
+{
+	if (/*!dimp_get(edi_mp_lmv_lock_win_en) ||*/
+	    idat->mcinfo_alloc_flg)
+		return;
+	idat->mcinfo_adr_v = (unsigned short *)dim_vmap(idat->start_mc,
+				      bsize,
+				      &idat->mcinfo_alloc_flg);
+	if (!idat->mcinfo_adr_v)
+		PR_ERR("%s:%d\n", __func__, idat->header.index);
+	else
+		dbg_mem2("mcinfo v [%d], ok 0x%px\n",
+			idat->header.index,
+			idat->mcinfo_adr_v);
+}
+
+void dim_mcinfo_v_release_idat(struct dim_iat_s *idat)
+{
+	if (idat->mcinfo_alloc_flg) {
+		dim_unmap_phyaddr((u8 *)idat->mcinfo_adr_v);
+		idat->mcinfo_alloc_flg = false;
+		PR_INF("%s [%d], ok\n", __func__, idat->header.index);
+	}
+}
+
 /********************************************
  * mem
  *******************************************/
@@ -150,11 +175,13 @@ void dim_mcinfo_v_release(struct di_buf_s *pbuf)
 #define TVP_MEM_PAGES	0xffff
 static bool mm_codec_alloc(const char *owner, size_t count,
 			   int cma_mode,
-			   struct dim_mm_s *o)
+			   struct dim_mm_s *o,
+			   bool tvp_flg)
 {
 	int flags = 0;
 	bool istvp = false;
 
+	#ifdef HIS_CODE
 	if (codec_mm_video_tvp_enabled()) {
 		istvp = true;
 		flags |= CODEC_MM_FLAGS_TVP;
@@ -163,6 +190,14 @@ static bool mm_codec_alloc(const char *owner, size_t count,
 		flags |= CODEC_MM_FLAGS_RESERVED | CODEC_MM_FLAGS_CPU;
 		o->flg &= (~DI_BIT0);
 	}
+	#else
+	if (tvp_flg) {
+		istvp = true;
+		flags |= CODEC_MM_FLAGS_TVP;
+	} else {
+		flags |= CODEC_MM_FLAGS_RESERVED | CODEC_MM_FLAGS_CPU;
+	}
+	#endif
 	if (cma_mode == 4 && !istvp)
 		flags = CODEC_MM_FLAGS_CMA_FIRST |
 			CODEC_MM_FLAGS_CPU;
@@ -193,7 +228,8 @@ static bool mm_cma_alloc(struct device *dev, size_t count,
 	return false;
 }
 
-bool dim_mm_alloc(int cma_mode, size_t count, struct dim_mm_s *o)
+bool dim_mm_alloc(int cma_mode, size_t count, struct dim_mm_s *o,
+		  bool tvp_flg)
 {
 	struct di_dev_s *de_devp = get_dim_de_devp();
 	bool ret;
@@ -202,7 +238,8 @@ bool dim_mm_alloc(int cma_mode, size_t count, struct dim_mm_s *o)
 		ret = mm_codec_alloc(DEVICE_NAME,
 				     count,
 				     cma_mode,
-				     o);
+				     o,
+				     tvp_flg);
 	else
 		ret = mm_cma_alloc(&de_devp->pdev->dev, count, o);
 	return ret;
@@ -233,13 +270,14 @@ unsigned int dim_cma_alloc_total(struct di_dev_s *de_devp)
 
 	ret = dim_mm_alloc(cfgg(MEM_FLAG),
 			   mmt->mem_size >> PAGE_SHIFT,
-			   &omm);
+			   &omm,
+			   0);
 	if (!ret) /*failed*/
 		return 0;
 	mmt->mem_start = omm.addr;
 	mmt->total_pages = omm.ppage;
 	if (cfgnq(MEM_FLAG, EDI_MEM_M_REV) && de_devp->nrds_enable)
-		dim_nr_ds_buf_init(cfgg(MEM_FLAG), 0, &de_devp->pdev->dev);
+		dim_nr_ds_buf_init(cfgg(MEM_FLAG), 0, &de_devp->pdev->dev, 0);
 	return 1;
 }
 
@@ -269,11 +307,12 @@ static bool dim_cma_release_total(void)
 
 #endif
 
-bool dim_mm_alloc_api(int cma_mode, size_t count, struct dim_mm_s *o)
+bool dim_mm_alloc_api(int cma_mode, size_t count, struct dim_mm_s *o,
+			     bool tvp_flg)
 {
 	bool ret = false;
 #ifdef CONFIG_CMA
-	ret = dim_mm_alloc(cma_mode, count, o);
+	ret = dim_mm_alloc(cma_mode, count, o, tvp_flg);
 #endif
 	return ret;
 }
@@ -602,7 +641,7 @@ void blk_polling(unsigned int ch, struct mtsk_cmd_s *cmd)
 		break;
 	case ECMD_BLK_ALLOC:
 		/* alloc */
-		dbg_mem2("%s:ch[%d] alloc:nub[%d],size[%d]\n",
+		dbg_mem2("%s:ch[%d] alloc:nub[%d],size[0x%x]\n",
 			 __func__, ch, cmd->nub, size_p);
 		cnt = 0;
 		for (i = 0; i < cmd->nub; i++) {
@@ -619,7 +658,8 @@ void blk_polling(unsigned int ch, struct mtsk_cmd_s *cmd)
 			omm.flg = 0;
 			aret = dim_mm_alloc(cfgg(MEM_FLAG),
 					    size_p,
-					    &omm);
+					    &omm,
+					    cmd->flg.b.tvp);
 			if (!aret) {
 				PR_ERR("2:%s: alloc failed %d fail.\n",
 				       __func__,
@@ -644,7 +684,7 @@ void blk_polling(unsigned int ch, struct mtsk_cmd_s *cmd)
 			blk_buf->flg.d32	= cmd->flg.d32;
 			//blk_buf->size_page	= cmdbyte->b.page;
 
-			blk_buf->flg.b.tvp	= omm.flg;
+			blk_buf->flg.b.tvp	= cmd->flg.b.tvp;//omm.flg;
 			blk_buf->flg_alloc	= true;
 			blk_buf->reg_cnt	= pch->sum_reg_cnt;
 			if (blk_buf->flg.b.is_i)
@@ -699,6 +739,162 @@ static const struct qbuf_creat_s qbf_mem_cfg_qbuf = {
 	.code		= 0,
 };
 
+bool di_pst_afbct_check(struct di_ch_s *pch)
+{
+	//bool ret;
+	struct di_mm_s *mm;
+	unsigned int ch;
+	struct di_dat_s *pdat;
+
+	ch = pch->ch_id;
+
+	mm = dim_mm_get(ch);
+	if (!mm->cfg.dat_pafbct_flg.d32)
+		return true;
+	pdat = get_pst_afbct(pch);
+
+	if (pdat->flg_alloc && pdat->blk_buf)
+		return true;
+	return false;
+}
+
+bool di_i_dat_check(struct di_ch_s *pch)
+{
+	struct di_mm_s *mm;
+	unsigned int ch;
+	struct di_dat_s *idat = get_idat(pch);
+
+	ch = pch->ch_id;
+
+	mm = dim_mm_get(ch);
+
+	if (!mm->cfg.num_local)
+		return true;
+
+	if (idat->blk_buf && idat->flg_alloc)
+		return true;
+
+	return false;
+}
+
+bool mem_alloc_check(struct di_ch_s *pch)
+{
+	struct di_mtask *tsk = get_mtask();
+	struct dim_fcmd_s *fcmd;
+	unsigned int ch;
+
+	ch = pch->ch_id;
+
+	fcmd = &tsk->fcmd[ch];
+
+	if (fcmd->doing > 0)
+		return false;
+	return true;
+}
+
+static unsigned long di_cnt_pst_afbct_addr(unsigned int ch,
+					   unsigned int nub)
+{
+	struct di_ch_s *pch;
+	struct di_mm_s *mm;
+	unsigned long addr;
+	struct di_dat_s *pdat;
+
+	mm = dim_mm_get(ch);
+
+	if (!mm->cfg.dat_pafbct_flg.d32)
+		return 0;
+
+	pch = get_chdata(ch);
+	pdat = get_pst_afbct(pch);
+	addr = pdat->addr_st +
+		(nub * mm->cfg.size_pafbct_one);
+	if ((addr + mm->cfg.size_pafbct_one) >
+	    pdat->addr_end) {
+		PR_ERR("%s:addr is overflow 0x%lx, 0x%lx\n",
+			__func__, (addr + mm->cfg.size_pafbct_one),
+			pdat->addr_end);
+		addr = pdat->addr_st;
+	}
+	dbg_mem2("%s:nub[%d], addr[0x%lx]\n", __func__, nub, addr);
+	return addr;
+}
+
+static void pat_set_addr(struct di_ch_s *pch)
+{
+	int i;
+	struct di_mm_s *mm;
+	unsigned int ch;
+	unsigned long addr;
+	bool ret;
+
+	ch = pch->ch_id;
+
+	mm = dim_mm_get(ch);
+
+	for (i = 0; i < mm->cfg.nub_pafbct; i++) {
+		addr = di_cnt_pst_afbct_addr(ch, i);
+		ret = qpat_idle_to_ready(pch, addr);
+		if (!ret) {
+			PR_ERR("%s:%d\n", __func__, i);
+			break;
+		}
+	}
+}
+
+/************************************************
+ * afbc_table
+ * afbc_info
+ ********************
+ * cnt
+ * xx
+ ********************
+ * mc info
+ */
+static void iat_set_addr(struct di_ch_s *pch)
+{
+	int i;
+	struct di_mm_s *mm;
+	unsigned int ch;
+	unsigned long addr_st_afbct, addr_st_mcinfo;
+//	unsigned long addr_afbct, addr_mc;
+	unsigned int size_tafbct;
+	unsigned int size_afbct;
+	struct dim_iat_s *idat;
+
+	bool ret;
+	struct di_dat_s *pdat;
+
+	ch = pch->ch_id;
+
+	mm = dim_mm_get(ch);
+	pdat = get_idat(pch);
+
+	size_afbct = mm->cfg.afbct_local_max_size;
+
+	size_tafbct	= size_afbct * mm->cfg.nub_idat;
+
+	addr_st_afbct	= pdat->addr_st;
+	addr_st_mcinfo	= pdat->addr_st + size_tafbct;
+
+	dbg_mem2("%s:ch[%d]\n", __func__, ch);
+	for (i = 0; i < mm->cfg.nub_idat; i++) {
+		ret = qiat_idle_to_ready(pch, &idat);
+		idat->start_afbct	= addr_st_afbct + size_afbct * i;
+
+		idat->start_mc = addr_st_mcinfo + mm->cfg.mcinfo_size * i;
+
+		dim_mcinfo_v_alloc_idat(idat, mm->cfg.mcinfo_size);
+		if (!ret) {
+			PR_ERR("%s:%d\n", __func__, i);
+			break;
+		}
+
+		dbg_mem2("%d\t:addr_afbct\t0x%lx\n", i, idat->start_afbct);
+		dbg_mem2("\t:addr_mc\t0x%lx\n", idat->start_mc);
+	}
+}
+
 static void dim_buf_set_addr(unsigned int ch, struct di_buf_s *buf_p)
 {
 	/*need have set nr_addr*/
@@ -707,10 +903,65 @@ static void dim_buf_set_addr(unsigned int ch, struct di_buf_s *buf_p)
 	struct di_dev_s *devp = get_dim_de_devp();
 	//struct di_pre_stru_s *ppre = get_pre_stru(channel);
 	int i;
+	//bool flg_afbct = false;
+	unsigned long addr_afbct = 0;
+	struct dim_pat_s *pat_buf;
+	struct dim_iat_s *iat_buf;
+	struct di_ch_s *pch;
 
+	pch = get_chdata(ch);
+	dbg_mem2("%s:ch[%d],buf t[%d] id[%d]\n",
+		 __func__,
+		 ch,
+		 buf_p->type,
+		 buf_p->index);
 	if (buf_p->buf_is_i) {
 		//buf_p->afbct_adr = buf_p->afbc_adr + mm->cfg.afbci_size;
 		//buf_p->dw_adr = buf_p->afbct_adr + mm->cfg.afbct_size;
+#ifdef CFG_BUF_ALLOC_SP
+		iat_buf = qiat_out_ready(pch);
+		if (iat_buf) {
+			buf_p->iat_buf		= iat_buf;
+
+			buf_p->afbct_adr	= iat_buf->start_afbct;
+			buf_p->mcinfo_adr	= iat_buf->start_mc;
+		} else {
+			buf_p->iat_buf = NULL;
+			PR_ERR("%s:iat is null\n", __func__);
+			return;
+		}
+		buf_p->afbc_adr	= buf_p->adr_start;
+		buf_p->dw_adr = buf_p->afbc_adr + mm->cfg.afbci_size;
+		buf_p->nr_adr = buf_p->dw_adr + mm->cfg.dw_size;
+
+		/* count afbct setting and crc */
+		if (dim_afds() && mm->cfg.afbci_size) {
+			afbce_map.bodyadd	= buf_p->nr_adr;
+			afbce_map.tabadd	= buf_p->afbct_adr;
+			afbce_map.size_buf	= mm->cfg.nr_size;
+			afbce_map.size_tab	= mm->cfg.afbct_size;
+
+			buf_p->afbc_crc =
+				dim_afds()->int_tab(&devp->pdev->dev,
+						    &afbce_map);
+		} else {
+			buf_p->afbc_crc = 0;
+		}
+
+		buf_p->mtn_adr = buf_p->nr_adr +
+			mm->cfg.nr_size;
+		buf_p->cnt_adr = buf_p->mtn_adr +
+			mm->cfg.mtn_size;
+		/*if (dim_get_mcmem_alloc()) {*/
+		buf_p->mcvec_adr = buf_p->cnt_adr +
+			mm->cfg.count_size;
+		buf_p->mcinfo_adr_v = iat_buf->mcinfo_adr_v;
+		//dim_mcinfo_v_alloc(buf_p, mm->cfg.mcinfo_size);
+
+		//buf_p->insert_adr = buf_p->mcinfo_adr + mm->cfg.mcinfo_size;
+		/*}*/
+#else
+		buf_p->afbct_adr = buf_p->adr_start;
 		buf_p->afbc_adr = buf_p->afbct_adr + mm->cfg.afbct_size;
 		buf_p->dw_adr = buf_p->afbc_adr + mm->cfg.afbci_size;
 		buf_p->nr_adr = buf_p->dw_adr + mm->cfg.dw_size;
@@ -751,18 +1002,59 @@ static void dim_buf_set_addr(unsigned int ch, struct di_buf_s *buf_p)
 			buf_p->insert_adr =
 				buf_p->mcinfo_adr + mm->cfg.mcinfo_size;
 		}
+#endif
+		buf_p->nr_size = mm->cfg.nr_size;
+		buf_p->tab_size = mm->cfg.afbct_size;
+
 		//
 		for (i = 0; i < 3; i++)
 			buf_p->canvas_width[i] = mm->cfg.canvas_width[i];
 		buf_p->canvas_config_flag = 2;
 		buf_p->canvas_height_mc = mm->cfg.canvas_height_mc;
 		buf_p->canvas_height	= mm->cfg.canvas_height;
+		dbg_mem2("\t:nr_adr\t[0x%lx]\n", buf_p->nr_adr);
+
+		dbg_mem2("\t:afbct_adr\t[0x%lx]\n", buf_p->afbct_adr);
+		dbg_mem2("\t:afbc_adr\t[0x%lx]\n", buf_p->afbc_adr);
+
+		dbg_mem2("\t:dw_adr\t[0x%lx]\n", buf_p->dw_adr);
+
+		dbg_mem2("\t:mtn_adr\t[0x%lx]\n", buf_p->mtn_adr);
+		dbg_mem2("\t:cnt_adr\t[0x%lx]\n", buf_p->cnt_adr);
+		dbg_mem2("\t:mcvec_adr\t[0x%lx]\n", buf_p->mcvec_adr);
+
+		dbg_mem2("\t:mcinfo_adr\t[0x%lx]\n", buf_p->mcinfo_adr);
+
 	} else {
 		//buf_p->afbct_adr = buf_p->afbc_adr + mm->cfg.pst_afbci_size;
+#ifdef CFG_BUF_ALLOC_SP
+		if (mm->cfg.dat_pafbct_flg.d32) {
+			pat_buf = qpat_out_ready(pch);
+			if (pat_buf) {
+				addr_afbct = pat_buf->mem_start;
+				buf_p->pat_buf = pat_buf;
+			} else {
+				buf_p->pat_buf = NULL;
+			}
+			buf_p->afbct_adr = addr_afbct;
+			buf_p->afbc_adr	= buf_p->adr_start;
+		} else {
+			buf_p->afbct_adr = buf_p->adr_start;
+			buf_p->afbc_adr	= buf_p->adr_start;
+			buf_p->pat_buf	= NULL;
+		}
+		dbg_mem2("%s:pst:flg_afbct[%d], addr[0x%lx]\n",
+			__func__,
+			mm->cfg.dat_pafbct_flg.d32, addr_afbct);
+#else
+		buf_p->afbct_adr = buf_p->adr_start;
 		buf_p->afbc_adr = buf_p->afbct_adr + mm->cfg.pst_afbct_size;
+		buf_p->pat_buf	= NULL;
+#endif
 		buf_p->dw_adr = buf_p->afbc_adr + mm->cfg.pst_afbci_size;
 		buf_p->nr_adr = buf_p->dw_adr + mm->cfg.dw_size;
 		buf_p->tab_size = mm->cfg.pst_afbct_size;
+		buf_p->nr_size = mm->cfg.pst_buf_size;
 
 		if (dim_afds() && mm->cfg.pst_afbct_size) {
 			afbce_map.bodyadd	= buf_p->nr_adr;
@@ -880,16 +1172,112 @@ void memq_2_recycle(struct di_ch_s *pch, struct dim_mm_blk_s *blk_buf)
 	qbufp_in(pbf_mem, QBF_MEM_Q_RECYCLE, q_buf);
 }
 
-bool mem_cfg(struct di_ch_s *pch)
+bool mem_cfg_pre(struct di_ch_s *pch)
 {
 	struct di_mtask *tsk = get_mtask();
 	struct dim_fcmd_s *fcmd;
 	struct buf_que_s *pbf_blk, *pbf_mem;
 	unsigned int index;
 //	int i;
-	bool ret;
+	bool ret = true;
 	union q_buf_u q_buf;
 	bool flg_q;
+	struct di_mm_s *mm;
+	struct dim_mm_blk_s *blk_buf;
+//	struct di_buf_s *di_buf = NULL;
+	unsigned int ch;
+//	unsigned int err_cnt = 0;
+	unsigned int cnt;
+	unsigned int length;
+	struct di_dat_s *pdat;
+
+	ch = pch->ch_id;
+	mm = dim_mm_get(ch);
+	fcmd = &tsk->fcmd[ch];
+
+	if (fcmd->doing > 0)
+		return false;
+
+	pbf_blk = &pch->blk_qb;
+	pbf_mem = &pch->mem_qb;
+
+	/* QBF_BLK_Q_READY -> 'QBF_MEM_Q_GET' */
+	cnt = 0;
+
+	length = qbufp_count(pbf_blk, QBF_BLK_Q_READY);
+	if (length)
+		flg_q = true;
+	else
+		flg_q = false;
+	while (flg_q) {
+		ret = qbuf_out(pbf_blk, QBF_BLK_Q_READY, &index);
+		if (!ret)
+			break;
+		q_buf = pbf_blk->pbuf[index];
+		blk_buf = (struct dim_mm_blk_s *)q_buf.qbc;
+		//if (blk_buf->flg.b.page == mm->cfg.ibuf_flg.b.page) {
+		if (blk_buf->flg.b.typ == mm->cfg.ibuf_flg.b.typ) {
+			ret = qbufp_in(pbf_mem, QBF_MEM_Q_GET_PRE, q_buf);
+		} else if (blk_buf->flg.b.typ == mm->cfg.pbuf_flg.b.typ) {
+			ret = qbufp_in(pbf_mem, QBF_MEM_Q_GET_PST, q_buf);
+		} else if (blk_buf->flg.b.typ == mm->cfg.dat_pafbct_flg.b.typ) {
+			pdat = get_pst_afbct(pch);
+			//PR_INF("cfg:idat\n");
+			if (!pdat->blk_buf) {
+				pdat->blk_buf = blk_buf;
+				pdat->flg_alloc = 1;
+				pdat->addr_st	= blk_buf->mem_start;
+				pdat->addr_end	=
+					blk_buf->mem_start +
+					(blk_buf->flg.b.page << PAGE_SHIFT);
+
+				pat_set_addr(pch);
+				dbg_mem2("pst_afbct\n");
+			} else {
+				PR_ERR("afbct have exit?\n");
+				/*to do: recycle*/
+			}
+		} else if (blk_buf->flg.b.typ == mm->cfg.dat_idat_flg.b.typ) {
+			pdat = get_idat(pch);
+			if (!pdat->blk_buf) {
+				pdat->blk_buf = blk_buf;
+				pdat->flg_alloc = 1;
+				pdat->addr_st	= blk_buf->mem_start;
+				pdat->addr_end	=
+					blk_buf->mem_start +
+					(blk_buf->flg.b.page << PAGE_SHIFT);
+
+				iat_set_addr(pch);
+				dbg_mem2("idat\n");
+			} else {
+				PR_ERR("idat have exit?\n");
+				/*to do: recycle*/
+			}
+		}
+		if (!ret) {
+			PR_ERR("%s:get is overflow\n", __func__);
+			break;
+		}
+		cnt++;
+		if (qbuf_is_empty(pbf_blk, QBF_BLK_Q_READY))
+			flg_q = false;
+		else
+			flg_q = true;
+	}
+
+	return ret;
+}
+
+bool mem_cfg(struct di_ch_s *pch)
+{
+	struct di_mtask *tsk = get_mtask();
+	struct dim_fcmd_s *fcmd;
+	struct buf_que_s *pbf_blk, *pbf_mem;
+//	unsigned int index;
+//	int i;
+//	bool ret;
+	union q_buf_u q_buf;
+//	bool flg_q;
 	struct di_mm_s *mm;
 	struct dim_mm_blk_s *blk_buf;
 	struct di_buf_s *di_buf = NULL;
@@ -910,7 +1298,7 @@ bool mem_cfg(struct di_ch_s *pch)
 
 	/* QBF_BLK_Q_READY -> 'QBF_MEM_Q_GET' */
 	cnt = 0;
-
+	#ifdef HIS_CODE /*move to pre*/
 	length = qbufp_count(pbf_blk, QBF_BLK_Q_READY);
 	if (length)
 		flg_q = true;
@@ -937,6 +1325,7 @@ bool mem_cfg(struct di_ch_s *pch)
 		else
 			flg_q = true;
 	}
+	#endif
 	length_pst = qbufp_count(pbf_mem, QBF_MEM_Q_GET_PST);
 	dbg_mem2("%s:ch[%d] ready[%d]\n", __func__, ch, cnt);
 	dbg_mem2("\t:pre:[%d],pst[%d]\n",
@@ -969,7 +1358,8 @@ bool mem_cfg(struct di_ch_s *pch)
 		di_buf->blk_buf = blk_buf;
 		//di_buf->nr_adr = blk_buf->mem_start;
 		//di_buf->afbc_adr = blk_buf->mem_start;
-		di_buf->afbct_adr = blk_buf->mem_start;
+		//di_buf->afbct_adr = blk_buf->mem_start;
+		di_buf->adr_start = blk_buf->mem_start;
 		di_buf->buf_is_i = 1;
 		di_buf->flg_null = 0;
 		dim_buf_set_addr(ch, di_buf);
@@ -1005,7 +1395,8 @@ bool mem_cfg(struct di_ch_s *pch)
 		di_buf->blk_buf = blk_buf;
 		//di_buf->nr_adr = blk_buf->mem_start;
 		//di_buf->afbc_adr = blk_buf->mem_start;
-		di_buf->afbct_adr = blk_buf->mem_start;
+		//di_buf->afbct_adr = blk_buf->mem_start;
+		di_buf->adr_start = blk_buf->mem_start;
 		di_buf->buf_is_i = 0;
 		di_buf->flg_null = 0;
 		dim_buf_set_addr(ch, di_buf);
@@ -1082,10 +1473,15 @@ bool mem_cfg_realloc(struct di_ch_s *pch) /*temp for re-alloc mem*/
 			break;
 		q_buf = pbf_blk->pbuf[index];
 		blk_buf = (struct dim_mm_blk_s *)q_buf.qbc;
-		if (blk_buf->flg.b.page == mm->cfg.ibuf_flg.b.page)
+		if (blk_buf->flg.b.typ == mm->cfg.ibuf_flg.b.typ)
 			ret = qbufp_in(pbf_mem, QBF_MEM_Q_GET_PRE, q_buf);
-		else
+		else if (blk_buf->flg.b.typ == mm->cfg.pbuf_flg.b.typ)
 			ret = qbufp_in(pbf_mem, QBF_MEM_Q_GET_PST, q_buf);
+		else if (blk_buf->flg.b.typ == mm->cfg.dat_pafbct_flg.b.typ)
+			PR_ERR("%s:pafbct?\n", __func__);
+		else
+		/*if (blk_buf->flg.b.typ == mm->cfg.dat_idat_flg.b.typ)*/
+			PR_ERR("%s:%d?\n", __func__, blk_buf->flg.b.typ);
 
 		if (!ret) {
 			PR_ERR("%s:get is overflow\n", __func__);
@@ -1122,7 +1518,8 @@ bool mem_cfg_realloc(struct di_ch_s *pch) /*temp for re-alloc mem*/
 		di_buf->blk_buf = blk_buf;
 		//di_buf->nr_adr = blk_buf->mem_start;
 		//di_buf->afbc_adr = blk_buf->mem_start;
-		di_buf->afbct_adr = blk_buf->mem_start;
+		//di_buf->afbct_adr = blk_buf->mem_start;
+		di_buf->adr_start = blk_buf->mem_start;
 		di_buf->buf_is_i = 1;
 		di_buf->flg_null = 0;
 		dbg_mem2("cfg:buf t[%d]ind[%d]:blk[%d][0x%lx]\n",
@@ -1164,7 +1561,8 @@ bool mem_cfg_realloc(struct di_ch_s *pch) /*temp for re-alloc mem*/
 		di_buf->blk_buf = blk_buf;
 		//di_buf->nr_adr = blk_buf->mem_start;
 		//di_buf->afbc_adr = blk_buf->mem_start;
-		di_buf->afbct_adr = blk_buf->mem_start;
+		//di_buf->afbct_adr = blk_buf->mem_start;
+		di_buf->adr_start	= blk_buf->mem_start;
 		di_buf->buf_is_i = 0;
 		di_buf->flg_null = 0;
 		//crash: msleep(200);
@@ -1324,7 +1722,10 @@ void mem_release_keep_back(struct di_ch_s *pch)
 
 	for (itmp = 0; itmp < psize; itmp++) {
 		p = pw_qindex_2_buf(ch, tmpa[itmp]);
-
+		if (p->pat_buf) {
+			qpat_in_ready(pch, (struct dim_pat_s *)p->pat_buf);
+			p->pat_buf = NULL;
+		}
 		mem_release_one_inused(pch, p->blk_buf);
 		di_que_out(ch, QUE_POST_KEEP_BACK, p);
 		di_que_out_not_fifo(ch, QUE_POST_KEEP, p);
@@ -1339,6 +1740,7 @@ void mem_release(struct di_ch_s *pch)
 	unsigned int psize, itmp;
 	struct di_buf_s *p;
 	unsigned int blk_mst;
+	unsigned int pat_mst;
 	unsigned int ch = pch->ch_id;
 
 	struct buf_que_s *pbf_blk, *pbf_mem;
@@ -1347,21 +1749,25 @@ void mem_release(struct di_ch_s *pch)
 	union q_buf_u bufq;
 	unsigned int length;
 //	unsigned int ch = pch->ch_id;
-	struct di_buf_s *pbuf_local;
-	struct di_mm_s *mm = dim_mm_get(ch);
-	int i;
-	struct di_buf_s *di_buf;
+//	struct di_buf_s *pbuf_local;
+	//struct di_mm_s *mm = dim_mm_get(ch);
+	//int i;
+	//struct di_buf_s *di_buf;
+	struct dim_pat_s *pat_buf;
 
 	/* clear local */
+	#ifdef HIS_CODE
 	pbuf_local = get_buf_local(ch);
 	for (i = 0; i < mm->cfg.num_local; i++) {
 		di_buf = &pbuf_local[i];
 		if (di_buf->mcinfo_alloc_flg)
 			dim_mcinfo_v_release(di_buf);
 	}
+	#endif
 	/***********/
 	/* mask blk */
 	blk_mst = 0;
+	pat_mst = 0;
 	di_que_list(ch, QUE_POST_KEEP, &tmpa[0], &psize);
 	dbg_keep("post_keep: curr(%d)\n", psize);
 
@@ -1379,8 +1785,17 @@ void mem_release(struct di_ch_s *pch)
 			continue;
 		}
 		bset(&blk_mst, p->blk_buf->header.index);
+		/* 2010-10-05 */
+		if (p->pat_buf) {
+			pat_buf = (struct dim_pat_s *)p->pat_buf;
+			bset(&pat_mst, pat_buf->header.index);
+		}
 	}
-	dbg_mem2("%s:blk_mst[0x%x]\n", __func__, blk_mst);
+
+	qpat_in_ready_msk(pch, pat_mst);
+	//dbg_mem2("%s:blk_mst[0x%x]\n", __func__, blk_mst);
+	PR_INF("%s:blk_mst[0x%x]\n", __func__, blk_mst);
+	PR_INF("%s:pat_mst[0x%x]\n", __func__, pat_mst);
 
 	pbf_blk = &pch->blk_qb;
 	pbf_mem = &pch->mem_qb;
@@ -1496,7 +1911,10 @@ unsigned int mem_release_free(struct di_ch_s *pch)
 		}
 		dbg_mem2("index %2d, 0x%p, type %d\n", p->index, p, p->type);
 		queue_out(ch, p);
-
+		if (p->iat_buf) {
+			qiat_in_ready(pch, (struct dim_iat_s *)p->iat_buf);
+			p->iat_buf = NULL;
+		}
 		mem_release_one_inused(pch, p->blk_buf);
 		p->blk_buf = NULL;
 		di_que_in(ch, QUE_PRE_NO_BUF, p);
@@ -1512,6 +1930,10 @@ unsigned int mem_release_free(struct di_ch_s *pch)
 			PR_ERR("%s:post out:%d\n", __func__, length);
 			break;
 		}
+		if (p->pat_buf) {
+			qpat_in_ready(pch, (struct dim_pat_s *)p->pat_buf);
+			p->pat_buf = NULL;
+		}
 
 		mem_release_one_inused(pch, p->blk_buf);
 		dbg_mem2("%s:pst:[%d]\n", __func__, p->index);
@@ -1521,6 +1943,435 @@ unsigned int mem_release_free(struct di_ch_s *pch)
 	}
 	return rls_pst;
 }
+
+/********************************************/
+/* post afbc table */
+
+static const struct que_creat_s qbf_pat_cfg_q[] = {//TST_Q_IN_NUB
+	[QBF_PAT_Q_IDLE] = {
+		.name	= "QBF_PAT_IDLE",
+		.type	= Q_T_FIFO,
+		.lock	= 0,
+	},
+	[QBF_PAT_Q_READY] = {
+		.name	= "QBF_PAT_READY",
+		.type	= Q_T_FIFO,
+		.lock	= 0,
+	},
+	[QBF_PAT_Q_IN_USED] = {
+		.name	= "QBF_PAT_Q_IN_USED",
+		.type	= Q_T_FIFO,
+		.lock	= 0,
+	}
+};
+
+static const struct qbuf_creat_s qbf_pat_cfg_qbuf = {
+	.name	= "qbuf_pat",
+	.nub_que	= QBF_PAT_Q_NUB,
+	.nub_buf	= DIM_PAT_NUB,
+	.code		= CODE_PAT,
+};
+
+void bufq_pat_int(struct di_ch_s *pch)
+{
+	struct dim_pat_s *pat_buf;
+	struct buf_que_s *pbufq;
+	int i;
+
+	if (!pch) {
+		//PR_ERR("%s:\n", __func__);
+		return;
+	}
+
+	/* clear buf*/
+	pat_buf = &pch->pat_bf[0];
+	memset(pat_buf, 0, sizeof(*pat_buf) * DIM_PAT_NUB);
+
+	/* set buf's header */
+	for (i = 0; i < DIM_PAT_NUB; i++) {
+		pat_buf = &pch->pat_bf[i];
+
+		pat_buf->header.code	= CODE_PAT;
+		pat_buf->header.index	= i;
+		pat_buf->header.ch	= pch->ch_id;
+	}
+
+	pbufq = &pch->pat_qb;
+	/*clear bq */
+	memset(pbufq, 0, sizeof(*pbufq));
+
+	/* point to resource */
+	for (i = 0; i < QBF_PAT_Q_NUB; i++)
+		pbufq->pque[i] = &pch->pat_q[i];
+
+	for (i = 0; i < DIM_PAT_NUB; i++)
+		pbufq->pbuf[i].qbc = &pch->pat_bf[i].header;
+
+	qbuf_int(pbufq, &qbf_pat_cfg_q[0], &qbf_pat_cfg_qbuf);
+
+	/* all to idle */
+	qbuf_in_all(pbufq, QBF_PAT_Q_IDLE);
+}
+
+void bufq_pat_exit(struct di_ch_s *pch)
+{
+	struct buf_que_s *pbufq;
+
+	PR_INF("%s:\n", __func__);
+	if (!pch) {
+		//PR_ERR("%s:\n", __func__);
+		return;
+	}
+	pbufq = &pch->pat_qb;
+
+	qbuf_release_que(pbufq);
+}
+
+bool qpat_idle_to_ready(struct di_ch_s *pch, unsigned long addr)
+{
+	unsigned int index;
+	bool ret;
+	struct buf_que_s *pbufq;
+	union q_buf_u q_buf;
+	struct dim_pat_s *pat_buf;
+
+	pbufq = &pch->pat_qb;
+
+	ret = qbuf_out(pbufq, QBF_PAT_Q_IDLE, &index);
+	if (!ret)
+		return false;
+
+	q_buf = pbufq->pbuf[index];
+	pat_buf = (struct dim_pat_s *)q_buf.qbc;
+
+	pat_buf->mem_start = addr;
+
+	qbuf_in(pbufq, QBF_PAT_Q_READY, index);
+
+	return true;
+}
+
+/* ready to in used */
+struct dim_pat_s *qpat_out_ready(struct di_ch_s *pch)
+{
+	unsigned int index;
+	bool ret;
+	struct buf_que_s *pbufq;
+	union q_buf_u q_buf;
+	struct dim_pat_s *pat_buf;
+
+	pbufq = &pch->pat_qb;
+
+	ret = qbuf_out(pbufq, QBF_PAT_Q_READY, &index);
+	if (!ret)
+		return NULL;
+	q_buf = pbufq->pbuf[index];
+	pat_buf = (struct dim_pat_s *)q_buf.qbc;
+	qbuf_in(pbufq, QBF_PAT_Q_IN_USED, index);
+
+	return pat_buf;
+}
+
+/* in_used to ready*/
+bool qpat_in_ready(struct di_ch_s *pch, struct dim_pat_s *pat_buf)
+{
+//	unsigned int index;
+	bool ret;
+	struct buf_que_s *pbufq;
+	union q_buf_u q_buf;
+	//struct dim_pat_s *pat_buf;
+
+	pbufq = &pch->pat_qb;
+	q_buf.qbc = &pat_buf->header;
+
+	ret = qbuf_out_some(pbufq, QBF_PAT_Q_IN_USED, q_buf);
+	if (!ret)
+		PR_ERR("%s:\n", __func__);
+	ret = qbuf_in(pbufq, QBF_PAT_Q_READY, pat_buf->header.index);
+	if (!ret)
+		return false;
+
+	return true;
+}
+
+bool qpat_in_ready_msk(struct di_ch_s *pch, unsigned int msk)
+{
+	unsigned int index;
+	bool ret;
+	struct buf_que_s *pbufq;
+//	union q_buf_u q_buf;
+	struct dim_pat_s *pat_buf;
+	unsigned int len;
+	int i;
+	bool err = false;
+
+	pbufq = &pch->pat_qb;
+
+	len = qbufp_count(pbufq, QBF_PAT_Q_IN_USED);
+	for (i = 0; i < len; i++) {
+		ret = qbuf_out(pbufq, QBF_PAT_Q_IN_USED, &index);
+		if (!ret) {
+			PR_ERR("%s:%d\n", __func__, i);
+			err = true;
+			break;
+		}
+		pat_buf = (struct dim_pat_s *)pbufq->pbuf[index].qbc;
+		if (bget(&msk, index))
+			qbuf_in(pbufq, QBF_PAT_Q_IN_USED,
+				pat_buf->header.index);
+		else
+			qbuf_in(pbufq, QBF_PAT_Q_READY,
+				pat_buf->header.index);
+	}
+	if (err)
+		return false;
+	return true;
+}
+
+/********************************************/
+/* local buffer exit table */
+static const struct que_creat_s qbf_iat_cfg_q[] = {//TST_Q_IN_NUB
+	[QBF_IAT_Q_IDLE] = {
+		.name	= "QBF_IAT_IDLE",
+		.type	= Q_T_FIFO,
+		.lock	= 0,
+	},
+	[QBF_IAT_Q_READY] = {
+		.name	= "QBF_IAT_READY",
+		.type	= Q_T_FIFO,
+		.lock	= 0,
+	},
+	[QBF_IAT_Q_IN_USED] = {
+		.name	= "QBF_IAT_Q_IN_USED",
+		.type	= Q_T_FIFO,
+		.lock	= 0,
+	}
+};
+
+static const struct qbuf_creat_s qbf_iat_cfg_qbuf = {
+	.name	= "qbuf_iat",
+	.nub_que	= QBF_IAT_Q_NUB,
+	.nub_buf	= DIM_IAT_NUB,
+	.code		= CODE_IAT,
+};
+
+void bufq_iat_int(struct di_ch_s *pch)
+{
+	struct dim_iat_s *iat_buf;
+	struct buf_que_s *pbufq;
+	int i;
+
+	if (!pch) {
+		//PR_ERR("%s:\n", __func__);
+		return;
+	}
+
+	/* clear buf*/
+	iat_buf = &pch->iat_bf[0];
+	memset(iat_buf, 0, sizeof(*iat_buf) * DIM_IAT_NUB);
+
+	/* set buf's header */
+	for (i = 0; i < DIM_IAT_NUB; i++) {
+		iat_buf = &pch->iat_bf[i];
+
+		iat_buf->header.code	= CODE_IAT;
+		iat_buf->header.index	= i;
+		iat_buf->header.ch	= pch->ch_id;
+	}
+
+	pbufq = &pch->iat_qb;
+	/*clear bq */
+	memset(pbufq, 0, sizeof(*pbufq));
+
+	/* point to resource */
+	for (i = 0; i < QBF_IAT_Q_NUB; i++)
+		pbufq->pque[i] = &pch->iat_q[i];
+
+	for (i = 0; i < DIM_IAT_NUB; i++)
+		pbufq->pbuf[i].qbc = &pch->iat_bf[i].header;
+
+	qbuf_int(pbufq, &qbf_iat_cfg_q[0], &qbf_iat_cfg_qbuf);
+
+	/* all to idle */
+	qbuf_in_all(pbufq, QBF_IAT_Q_IDLE);
+}
+
+void bufq_iat_exit(struct di_ch_s *pch)
+{
+	struct buf_que_s *pbufq;
+
+	PR_INF("%s:\n", __func__);
+	if (!pch) {
+		//PR_ERR("%s:\n", __func__);
+		return;
+	}
+	pbufq = &pch->iat_qb;
+
+	qbuf_release_que(pbufq);
+}
+
+void bufq_iat_rest(struct di_ch_s *pch)
+{
+//	struct dim_iat_s *iat_buf;
+	struct buf_que_s *pbufq;
+	int i;
+
+	if (!pch) {
+		//PR_ERR("%s:\n", __func__);
+		return;
+	}
+
+	pbufq = &pch->iat_qb;
+
+	for (i = 0; i < QBF_IAT_Q_NUB; i++)
+		qbufp_restq(pbufq, i);
+
+	/* all to idle */
+	qbuf_in_all(pbufq, QBF_IAT_Q_IDLE);
+}
+
+/* idle to ready*/
+bool qiat_idle_to_ready(struct di_ch_s *pch,
+			struct dim_iat_s **idat)
+{
+	unsigned int index;
+	bool ret;
+	struct buf_que_s *pbufq;
+	union q_buf_u q_buf;
+	struct dim_iat_s *iat_buf;
+
+	pbufq = &pch->iat_qb;
+
+	ret = qbuf_out(pbufq, QBF_IAT_Q_IDLE, &index);
+	if (!ret)
+		return false;
+
+	q_buf = pbufq->pbuf[index];
+	iat_buf = (struct dim_iat_s *)q_buf.qbc;
+
+	//iat_buf->start_idat	= addr;
+	//iat_buf->start_afbct	= addr_afbct;
+	//iat_buf->start_mc	= addr_mc;
+	*idat = iat_buf;
+	qbuf_in(pbufq, QBF_IAT_Q_READY, index);
+
+	return true;
+}
+
+/* ready to in used */
+struct dim_iat_s *qiat_out_ready(struct di_ch_s *pch)
+{
+	unsigned int index;
+	bool ret;
+	struct buf_que_s *pbufq;
+	union q_buf_u q_buf;
+	struct dim_iat_s *iat_buf;
+
+	pbufq = &pch->iat_qb;
+
+	ret = qbuf_out(pbufq, QBF_IAT_Q_READY, &index);
+	if (!ret)
+		return NULL;
+	q_buf = pbufq->pbuf[index];
+	iat_buf = (struct dim_iat_s *)q_buf.qbc;
+	qbuf_in(pbufq, QBF_IAT_Q_IN_USED, index);
+
+	return iat_buf;
+}
+
+/* in_used to ready*/
+bool qiat_in_ready(struct di_ch_s *pch, struct dim_iat_s *iat_buf)
+{
+//	unsigned int index;
+	bool ret;
+	struct buf_que_s *pbufq;
+	union q_buf_u q_buf;
+	//struct dim_pat_s *pat_buf;
+
+	pbufq = &pch->iat_qb;
+	q_buf.qbc = &iat_buf->header;
+
+	ret = qbuf_out_some(pbufq, QBF_IAT_Q_IN_USED, q_buf);
+	if (!ret) {
+		//PR_ERR("%s:\n", __func__);
+		//dbg_hd_print(&iat_buf->header);
+		//dbg_q_listid_print(pbufq);
+	}
+	ret = qbuf_in(pbufq, QBF_IAT_Q_READY, iat_buf->header.index);
+	if (!ret)
+		return false;
+
+	return true;
+}
+
+//add for unreg
+bool qiat_all_back2_ready(struct di_ch_s *pch)
+{
+	unsigned int len;
+	struct buf_que_s *pbufq;
+	int i;
+	unsigned int index;
+	union q_buf_u q_buf;
+
+	pbufq = &pch->iat_qb;
+
+	len = qbufp_count(pbufq, QBF_IAT_Q_IN_USED);
+	for (i = 0; i < len; i++) {
+		qbuf_out(pbufq, QBF_IAT_Q_IN_USED, &index);
+		q_buf = pbufq->pbuf[index];
+		qbuf_in(pbufq, QBF_IAT_Q_READY, index);
+	}
+	len = qbufp_count(pbufq, QBF_IAT_Q_READY);
+	PR_INF("%s:len[%d]", __func__, len);
+
+	return true;
+}
+
+bool qiat_all_release_mc_v(struct di_ch_s *pch)
+{
+	unsigned int len;
+	struct buf_que_s *pbufq;
+	int i;
+	unsigned int index;
+	union q_buf_u q_buf;
+	struct dim_iat_s *iat_buf;
+
+	pbufq = &pch->iat_qb;
+
+	len = qbufp_count(pbufq, QBF_IAT_Q_READY);
+	for (i = 0; i < len; i++) {
+		qbuf_out(pbufq, QBF_IAT_Q_READY, &index);
+		q_buf = pbufq->pbuf[index];
+		iat_buf = (struct dim_iat_s *)q_buf.qbc;
+
+		dim_mcinfo_v_release_idat(iat_buf);
+		qbuf_in(pbufq, QBF_IAT_Q_IDLE, index);
+	}
+
+	return true;
+}
+
+bool qiat_clear_buf(struct di_ch_s *pch)
+{
+	struct buf_que_s *pbf_mem;
+	union q_buf_u bufq;
+
+	/*all in ready*/
+	qiat_all_back2_ready(pch);
+	/* release mc infor addr v*/
+	qiat_all_release_mc_v(pch);
+
+	/* clear idat*/
+	if (pch->rse_ori.dat_i.blk_buf) {
+		pbf_mem = &pch->mem_qb;
+		bufq.qbc = (struct qs_buf_s *)pch->rse_ori.dat_i.blk_buf;
+		qbufp_in(pbf_mem, QBF_MEM_Q_RECYCLE, bufq);
+		memset(&pch->rse_ori.dat_i, 0, sizeof(pch->rse_ori.dat_i));
+		pch->rse_ori.dat_i.blk_buf = NULL;
+	}
+	return true;
+}
+
 static ssize_t
 show_config(struct device *dev,
 	    struct device_attribute *attr, char *buf)

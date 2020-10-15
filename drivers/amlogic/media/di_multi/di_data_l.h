@@ -131,6 +131,7 @@ enum EDI_CFG_TOP_IDX {
 	EDI_CFG_PAUSE_SRC_CHG,
 	EDI_CFG_4K,
 	EDI_CFG_POUT_FMT,
+	EDI_CFG_DAT,
 	EDI_CFG_ALLOC_WAIT, /* alloc wait */
 	EDI_CFG_KEEP_DEC_VF,
 	EDI_CFG_POST_NUB,
@@ -606,6 +607,16 @@ enum ECMD_BLK {
 	ECMD_BLK_RELEASE_ALL, /* ready to release */
 };
 
+enum EDIM_BLK_TYP {
+	EDIM_BLK_TYP_PST_TEST,
+	EDIM_BLK_TYP_OLDI,
+	EDIM_BLK_TYP_OLDP,
+	EDIM_BLK_TYP_BUFI,
+	EDIM_BLK_TYP_BUFP,
+	EDIM_BLK_TYP_DATI,
+	EDIM_BLK_TYP_PAFBCT,
+};
+
 struct blk_flg_s {
 	union {
 		unsigned int d32;
@@ -614,7 +625,8 @@ struct blk_flg_s {
 		unsigned int afbc	: 1;
 		unsigned int is_i	: 1;
 		unsigned int dw		: 1;
-		unsigned int rev1	: 4;
+		//2020-10-04 unsigned int rev1	: 4;
+		unsigned int typ	: 4;
 		unsigned int page: 24;
 		} b;
 	};
@@ -927,6 +939,13 @@ struct dev_vfram_t {
 
 };
 
+struct di_dat_s {
+	struct dim_mm_blk_s *blk_buf;
+	bool	flg_alloc;
+	unsigned long addr_st;
+	unsigned long addr_end;
+};
+
 struct di_ores_s {
 	/* same as ori */
 	struct di_pre_stru_s di_pre_stru;
@@ -944,6 +963,8 @@ struct di_ores_s {
 	struct vframe_s vframe_local[MAX_LOCAL_BUF_NUM * 2];
 	struct vframe_s vframe_post[MAX_POST_BUF_NUM];
 	/* ********** */
+	struct di_dat_s	dat_i;
+	struct di_dat_s dat_p_afbct;
 };
 
 enum EDI_CMA_ST {
@@ -978,6 +999,7 @@ struct di_mm_cfg_s {
 	unsigned int di_size;	/* no afbc info size */
 	unsigned int afbci_size;	/* afbc info size */
 	unsigned int afbct_size;
+	unsigned int afbct_local_max_size;
 	unsigned int dw_size;
 	unsigned int pst_buf_size;
 	unsigned int pst_afbci_size;	/*07-28*/
@@ -995,6 +1017,20 @@ struct di_mm_cfg_s {
 	unsigned int canvas_height_mc;
 	struct blk_flg_s ibuf_flg;
 	struct blk_flg_s pbuf_flg;
+	/*2020-10-04*/
+	struct blk_flg_s dat_idat_flg;
+	struct blk_flg_s dat_pafbci_flg;
+	struct blk_flg_s dat_pafbct_flg;
+	//unsigned int size_iafbc_all;
+	unsigned int size_pafbct_all;
+	unsigned int size_pafbct_one;
+
+	unsigned int nub_pafbct;
+	//unsigned int size_idat;
+	unsigned int size_idat_all; /* 2020-10-12 */
+	unsigned int size_idat_one;
+	unsigned int nub_idat;
+
 	unsigned int fix_buf	: 1;
 	unsigned int dis_afbce	: 1;
 	unsigned int rev1	: 30;
@@ -1065,6 +1101,8 @@ typedef uintptr_t ud;
 #define CODE_LL		(DIM_DATA_MASK | 0x04)
 #define CODE_PST	(DIM_DATA_MASK | 0x05)
 #define CODE_MEMN	(DIM_DATA_MASK | 0x06)
+#define CODE_PAT	(DIM_DATA_MASK | 0x07)
+#define CODE_IAT	(DIM_DATA_MASK | 0x08)
 
 #define CODE_OUT	(0xff123402)
 #define CODE_OUT_MODE2	(0xff123403)
@@ -1266,6 +1304,45 @@ struct dim_mm_blk_s {
 
 /*que buf block end*/
 /************************************************/
+/* que buf post afbc table */
+enum QBF_PAT_Q_TYPE {
+	QBF_PAT_Q_IDLE,
+	QBF_PAT_Q_READY, /* multi wr, multi rd */
+	QBF_PAT_Q_IN_USED,
+	QBF_PAT_Q_NUB,
+};
+
+#define DIM_PAT_NUB	16 /* buf number*/
+struct dim_pat_s {
+	struct qs_buf_s	header;
+
+	unsigned long	mem_start;
+};
+
+/*que post afbc tabl end*/
+/************************************************/
+/* que buf loacal buffer exit data */
+enum QBF_IAT_Q_TYPE {
+	QBF_IAT_Q_IDLE,
+	QBF_IAT_Q_READY, /* multi wr, multi rd */
+	QBF_IAT_Q_IN_USED,
+	QBF_IAT_Q_NUB,
+};
+
+#define DIM_IAT_NUB	(MAX_LOCAL_BUF_NUM * 2) /* buf number*/
+struct dim_iat_s {
+	struct qs_buf_s	header;
+
+//	unsigned long	start_idat;
+	unsigned long	start_afbct;
+	unsigned long	start_mc;
+	unsigned short	*mcinfo_adr_v;/**/
+	bool		mcinfo_alloc_flg;
+};
+
+/*que loacal buffer exit data end*/
+
+/************************************************/
 /* que buf mem config */
 enum QBF_MEM_Q_TYPE {
 	QBF_MEM_Q_GET_PRE,	/*tmp*/
@@ -1388,6 +1465,15 @@ struct di_ch_s {
 	/* qb:mem */
 	struct buf_que_s mem_qb;
 	struct qs_cls_s	mem_q[QBF_MEM_Q_NUB];
+	/* qb: post afbct 2020-10-05 */
+	struct buf_que_s pat_qb;
+	struct qs_cls_s pat_q[QBF_PAT_Q_NUB];
+	struct dim_pat_s	pat_bf[DIM_PAT_NUB];
+
+	/* qb: local 2020-10-12 */
+	struct buf_que_s iat_qb;
+	struct qs_cls_s iat_q[QBF_IAT_Q_NUB];
+	struct dim_iat_s	iat_bf[DIM_IAT_NUB];
 };
 
 struct dim_policy_s {
@@ -1459,6 +1545,7 @@ struct di_mng_s {
 	/*new reg/unreg*/
 	atomic_t trig_reg[DI_CHANNEL_NUB];
 	atomic_t trig_unreg[DI_CHANNEL_NUB];
+	s8 is_tvp[DI_CHANNEL_NUB];/* -1: unknown, 0: non tvp, 1: tvp */
 };
 
 /*************************
@@ -1699,6 +1786,16 @@ static inline const struct hw_ops_s  *opl2(void)
 	return get_datal()->hop_l2;
 }
 
+static inline struct di_dat_s *get_pst_afbct(struct di_ch_s *pch)
+{
+	return &pch->rse_ori.dat_p_afbct;
+}
+
+static inline struct di_dat_s *get_idat(struct di_ch_s *pch)
+{
+	return &pch->rse_ori.dat_i;
+}
+
 /****************************************
  * flg_hw_int
  *	for hw set once
@@ -1899,6 +1996,16 @@ static inline bool get_or_act_flag(void)
 static inline void set_or_act_flag(bool on)
 {
 	get_bufmng()->act_flg =  on;
+}
+
+static inline s8 get_flag_tvp(unsigned char ch)
+{
+	return get_bufmng()->is_tvp[ch];
+}
+
+static inline void set_flag_tvp(unsigned char ch, s8 data)
+{
+	get_bufmng()->is_tvp[ch] =  data;
 }
 
 /*sum*/
