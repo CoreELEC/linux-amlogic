@@ -245,6 +245,7 @@ bool dpst_step_timeout(void)
 	dim_post_de_done_buf_config(ch);
 	spin_unlock_irqrestore(&plist_lock, flags);
 	pst->flg_int_done = false;
+	pst->flg_have_set = false;
 
 	/*state*/
 	pst->state = EDI_PST_ST_IDLE;

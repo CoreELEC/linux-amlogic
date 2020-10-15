@@ -2070,6 +2070,12 @@ DEFINE_SEQ_SHOW_ONLY(reg_contr);
 DEFINE_SEQ_SHOW_ONLY(dbg_mif_print);
 DEFINE_STORE_ONLY(dbg_crc);
 DEFINE_STORE_ONLY(dbg_pip);
+
+/*decontour*/
+DEFINE_SEQ_SHOW_ONLY(dbg_dct_mif);
+DEFINE_SEQ_SHOW_ONLY(dbg_dct_contr);
+DEFINE_SEQ_SHOW_ONLY(dbg_dct_core);
+
 /**********************/
 
 struct di_dbgfs_files_t {
@@ -2128,6 +2134,10 @@ static const struct di_dbgfs_files_t di_debugfs_files_top[] = {
 	{"reg_mif_if1", S_IFREG | 0644, &mif_if1_reg_fops},
 	{"reg_mif_if2", S_IFREG | 0644, &mif_if2_reg_fops},
 	{"regmif", S_IFREG | 0644, &dbg_mif_print_fops},
+	{"dct_mif", S_IFREG | 0644, &dbg_dct_mif_fops},
+	{"dct_ctr", S_IFREG | 0644, &dbg_dct_contr_fops},
+	{"dct_other", S_IFREG | 0644, &dbg_dct_core_fops},
+
 };
 
 static const struct di_dbgfs_files_t di_debugfs_files[] = {

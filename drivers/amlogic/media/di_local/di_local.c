@@ -74,6 +74,8 @@ static const struct di_ext_ops *dil_api;	//temp
 
 static unsigned int diffver_flag;
 
+static unsigned int cpuver_id;
+
 /***************************************
  * dil api for make a distinction between old/new DI function *
  **************************************/
@@ -87,6 +89,20 @@ unsigned int dil_get_diffver_flag(void)
 	return diffver_flag;
 }
 EXPORT_SYMBOL(dil_get_diffver_flag);
+
+/***************************************
+ * dil api for cpu version *
+ **************************************/
+void dil_set_cpuver_flag(unsigned int para)
+{
+	cpuver_id = para;
+}
+EXPORT_SYMBOL(dil_set_cpuver_flag);
+unsigned int dil_get_cpuver_flag(void)
+{
+	return cpuver_id;
+}
+EXPORT_SYMBOL(dil_get_cpuver_flag);
 
 /***************************************
  * di api for other module *

@@ -470,6 +470,25 @@ static int dump_di_post_stru_seq(struct seq_file *seq, void *v,
 	return 0;
 }
 
+void dim_dump_crc_state(void)
+{
+	if (IS_IC(dil_get_cpuver_flag(), T5)) {
+		pr_info("CRC_NRWR=0x%x\n", RD(DI_T5_RO_CRC_NRWR));
+		pr_info("CRC_MTNWR=0x%x\n", RD(DI_T5_RO_CRC_MTNWR));
+		pr_info("CRC_DEINT=0x%x\n", RD(DI_T5_RO_CRC_DEINT));
+	}
+}
+
+void dim_dump_pulldown_state(void)
+{
+	if (IS_IC(dil_get_cpuver_flag(), T5)) {
+		pr_info("SUM_P=0x%x\n", RD(DI_T5_PD_RO_SUM_P));
+		pr_info("SUM_N=0x%x\n", RD(DI_T5_PD_RO_SUM_N));
+		pr_info("CNT_P=0x%x\n", RD(DI_T5_PD_RO_CNT_P));
+		pr_info("CNT_P=0x%x\n", RD(DI_T5_PD_RO_CNT_N));
+	}
+}
+
 void dim_dump_mif_size_state(struct di_pre_stru_s *pre_stru_p,
 			     struct di_post_stru_s *post_stru_p)
 {

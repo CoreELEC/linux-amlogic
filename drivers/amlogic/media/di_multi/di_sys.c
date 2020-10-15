@@ -1679,6 +1679,11 @@ static const struct di_meson_data  data_sc2 = {
 	.ic_id	= DI_IC_ID_SC2,
 };
 
+static const struct di_meson_data  data_t5 = {
+	.name = "dim_t5",
+	.ic_id	= DI_IC_ID_T5,
+};
+
 /* #ifdef CONFIG_USE_OF */
 static const struct of_device_id amlogic_deinterlace_dt_match[] = {
 	/*{ .compatible = "amlogic, deinterlace", },*/
@@ -1692,6 +1697,8 @@ static const struct of_device_id amlogic_deinterlace_dt_match[] = {
 		.data = &data_tm2_vb,
 	}, {	.compatible = "amlogic, dim-sc2",
 		.data = &data_sc2,
+	}, {	.compatible = "amlogic, dim-t5",
+		.data = &data_t5,
 	}, {}
 };
 #endif
@@ -1771,7 +1778,7 @@ static int dim_probe(struct platform_device *pdev)
 	pdata = (struct di_data_l_s *)di_pdev->data_l;
 	pdata->mdata = match->data;
 	PR_INF("match name: %s:id[%d]\n", pdata->mdata->name,
-		pdata->mdata->ic_id);
+	       pdata->mdata->ic_id);
 #endif
 
 	ret = of_reserved_mem_device_init(&pdev->dev);
@@ -1878,6 +1885,7 @@ static int dim_probe(struct platform_device *pdev)
 
 	dim_set_di_flag();
 	dim_polic_prob();
+	dcntr_prob();
 
 	task_start();
 	mtask_start();
@@ -1891,6 +1899,7 @@ static int dim_probe(struct platform_device *pdev)
 	dimh_patch_post_update_mc_sw(DI_MC_SW_IC, true);
 
 	dil_set_diffver_flag(1);
+	dil_set_cpuver_flag(get_datal()->mdata->ic_id);
 
 	pr_info("%s:ok\n", __func__);
 	return ret;

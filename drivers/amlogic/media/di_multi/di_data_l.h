@@ -133,6 +133,7 @@ enum EDI_CFG_TOP_IDX {
 	EDI_CFG_POUT_FMT,
 	EDI_CFG_ALLOC_WAIT, /* alloc wait */
 	EDI_CFG_KEEP_DEC_VF,
+	EDI_CFG_POST_NUB,
 	EDI_CFG_END,
 };
 
@@ -455,6 +456,7 @@ struct di_hpst_s {
 
 	/*dbg flow:*/
 	bool dbg_f_en;
+	bool flg_have_set;
 	unsigned int dbg_f_lstate;
 	unsigned int dbg_f_cnt;
 	struct vframe_s		vf_post;
@@ -994,7 +996,8 @@ struct di_mm_cfg_s {
 	struct blk_flg_s ibuf_flg;
 	struct blk_flg_s pbuf_flg;
 	unsigned int fix_buf	: 1;
-	unsigned int rev1	: 31;
+	unsigned int dis_afbce	: 1;
+	unsigned int rev1	: 30;
 	unsigned int pre_inser_size;
 };
 struct dim_mm_t_s {

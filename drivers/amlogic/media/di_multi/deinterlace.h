@@ -252,6 +252,8 @@ struct di_buf_s {
 	/*ary add */
 	unsigned int channel;
 	unsigned int width_bk; /*move from ppre*/
+	unsigned int dw_width_bk;
+	unsigned int dw_height_bk;
 //	unsigned int flg_tvp;
 	unsigned int afbc_info; /*bit 0: src is i; bit 1: src is real i */
 	unsigned char afbc_sgn_cfg;
@@ -495,6 +497,7 @@ struct di_pre_stru_s {
 	union hw_sc2_ctr_pre_s	pre_top_cfg;
 	union afbc_blk_s	en_cfg;
 	union afbc_blk_s	en_set;
+	struct vframe_s		vfm_cpy;
 };
 
 struct dim_fmt_s;

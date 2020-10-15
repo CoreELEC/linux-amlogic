@@ -154,8 +154,10 @@ bool di_attach_ops_mtn(const struct mtn_op_s **ops);
 #define DI_IC_ID_TL1		(0x16)
 #define DI_IC_ID_TM2		(0x17)
 #define DI_IC_ID_TM2B		(0x18)
+#define DI_IC_ID_T5		(0x19)// same with tm2b
 
 #define DI_IC_ID_SC2		(0x1B)
+#define DI_IC_ID_DEINTERLACE		(0xFF)
 
 /* is_meson_g12a_cpu */
 static inline bool is_ic_named(unsigned int crr_id, unsigned int ic_id)
@@ -236,6 +238,7 @@ enum EAFBC_CFG {
 
 enum EAFBC_STS {
 	EAFBC_MEM_NEED,
+	EAFBC_MEMI_NEED,
 
 };
 
@@ -273,7 +276,7 @@ struct afbc_fb_s {
 		 */
 	unsigned int	mode		: 4,
 		mem_alloc	: 1,
-		rev2		: 1,
+		mem_alloci	: 1,
 		rev3		: 2,
 
 		pre_dec		: 4,
@@ -355,7 +358,9 @@ enum AFBC_SGN {
 	AFBC_SGN_BYPSS,
 	AFBC_SGN_P_H265,
 	AFBC_SGN_P,
+	AFBC_SGN_P_SINP,
 	AFBC_SGN_P_H265_AS_P,
+	AFBC_SGN_H265_SINP,
 	AFBC_SGN_I,
 	AFBC_SGN_I_H265,
 };

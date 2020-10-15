@@ -30,6 +30,8 @@ void dim_print_di_buf(struct di_buf_s *di_buf, int format);
 void dim_dump_pre_mif_state(void);
 void dim_dump_post_mif_reg(void);
 void dim_dump_buf_addr(struct di_buf_s *di_buf, unsigned int num);
+void dim_dump_crc_state(void);
+void dim_dump_pulldown_state(void);
 void dim_dump_mif_size_state(struct di_pre_stru_s *pre,
 			     struct di_post_stru_s *post);
 void debug_device_files_add(struct device *dev);

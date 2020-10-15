@@ -527,6 +527,7 @@ void dpre_mtotal_timeout_contr(void)
 		opl1()->pre_gl_sw(false);
 
 	dimh_enable_di_pre_mif(false, dimp_get(edi_mp_mcpre_en));
+	dcntr_dis();
 	if (di_get_dts_nrds_en())
 		dim_nr_ds_hw_ctrl(false);
 	pre->pres->pre_de_irq_timeout_count++;

@@ -121,6 +121,8 @@ static void ma_di_init(void)
 		DIM_DI_WR(DI_MTN_1_CTRL1, 0x202015);
 	} else if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12B)) {
 		DIM_DI_WR_REG_BITS(DI_MTN_CTRL, 1, 0, 1);
+		DIM_DI_WR_REG_BITS(DI_MTN_CTRL, 1, 30, 1);
+		DIM_DI_WR_REG_BITS(DI_MTN_CTRL, 0xf, 24, 4);
 		DIM_DI_WR(DI_MTN_1_CTRL1, 0x202015);
 	} else {
 		DIM_DI_WR(DI_MTN_1_CTRL1, 0xa0202015);
@@ -189,7 +191,7 @@ void dimh_init_field_mode(unsigned short height)
 	if (height > 288)
 		DIM_DI_WR(DIPD_COMB_CTRL5, 0x04041020);
 	else
-		DIM_DI_WR(DIPD_COMB_CTRL5, 0x04040804);
+		DIM_DI_WR(DIPD_COMB_CTRL5, 0x04040805);
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_GXLX))
 		DIM_DI_WR(DIPD_COMB_CTRL6, 0x00107064);
 	DIM_DI_WR_REG_BITS(DI_MC_32LVL0, 16, 0, 8);
@@ -504,7 +506,8 @@ void dimh_hw_init(bool pd_enable, bool mc_enable)
 	    is_meson_g12b_cpu()	||
 	    is_meson_tl1_cpu()	||
 	    is_meson_sm1_cpu()	||
-	    is_meson_tm2_cpu()) {
+	    is_meson_tm2_cpu()	||
+	    DIM_IS_IC(T5)) {
 		dim_top_gate_control(true, true);
 	} else if (DIM_IS_IC_EF(SC2)) {
 		dim_top_gate_control_sc2(true, true);
@@ -525,7 +528,8 @@ void dimh_hw_init(bool pd_enable, bool mc_enable)
 	    is_meson_g12b_cpu() ||
 	    is_meson_sm1_cpu()	||
 	    is_meson_tl1_cpu()	||
-	    is_meson_tm2_cpu()) {
+	    is_meson_tm2_cpu()	||
+	    DIM_IS_IC(T5)) {
 		/* vpp fifo max size on txl :128*3=384[0x180] */
 		/* di fifo max size on txl :96*3=288[0x120] */
 		fifo_size_vpp = 0x180;
@@ -567,7 +571,8 @@ void dimh_hw_init(bool pd_enable, bool mc_enable)
 	    is_meson_g12b_cpu()	||
 	    is_meson_sm1_cpu()	||
 	    is_meson_tl1_cpu()	||
-	    is_meson_tm2_cpu()) {
+	    is_meson_tm2_cpu()	||
+	    DIM_IS_IC(T5)) {
 		dim_pre_gate_control(true, true);
 		dim_post_gate_control(true);
 	} else if (DIM_IS_IC_EF(SC2)) {
@@ -592,7 +597,8 @@ void dimh_hw_init(bool pd_enable, bool mc_enable)
 	    is_meson_sm1_cpu()	||
 	    is_meson_g12b_cpu()	||
 	    is_meson_tl1_cpu()	||
-	    is_meson_tm2_cpu()) {
+	    is_meson_tm2_cpu()	||
+	    DIM_IS_IC(T5)) {
 		dim_pre_gate_control(false, true);
 		dim_post_gate_control(false);
 		dim_top_gate_control(false, false);
@@ -677,7 +683,7 @@ static void set_ma_pre_mif_g12(struct DI_SIM_MIF_s *mtnwr_mif,
 	DIM_RDMA_WR_BITS(CONTRD_SCOPE_X, contprd_mif->end_x, 16, 13);
 	DIM_RDMA_WR_BITS(CONTRD_SCOPE_Y, contprd_mif->start_y, 0, 13);
 	DIM_RDMA_WR_BITS(CONTRD_SCOPE_Y, contprd_mif->end_y, 16, 13);
-	DIM_RDMA_WR_BITS(CONTRD_CTRL1, contprd_mif->canvas_num, 16, 8);
+	DIM_RDMA_WR_BITS(CONTRD_CTRL1, contp2rd_mif->canvas_num, 16, 8);
 	DIM_RDMA_WR_BITS(CONTRD_CTRL1, 2, 8, 2);
 	DIM_RDMA_WR_BITS(CONTRD_CTRL1, 0, 0, 3);
 
@@ -685,7 +691,7 @@ static void set_ma_pre_mif_g12(struct DI_SIM_MIF_s *mtnwr_mif,
 	DIM_RDMA_WR_BITS(CONT2RD_SCOPE_X, contp2rd_mif->end_x, 16, 13);
 	DIM_RDMA_WR_BITS(CONT2RD_SCOPE_Y, contp2rd_mif->start_y, 0, 13);
 	DIM_RDMA_WR_BITS(CONT2RD_SCOPE_Y, contp2rd_mif->end_y, 16, 13);
-	DIM_RDMA_WR_BITS(CONT2RD_CTRL1, contp2rd_mif->canvas_num, 16, 8);
+	DIM_RDMA_WR_BITS(CONT2RD_CTRL1, contprd_mif->canvas_num, 16, 8);
 	DIM_RDMA_WR_BITS(CONT2RD_CTRL1, 2, 8, 2);
 	DIM_RDMA_WR_BITS(CONT2RD_CTRL1, 0, 0, 3);
 
@@ -713,7 +719,7 @@ static void set_ma_pre_mif_g12(struct DI_SIM_MIF_s *mtnwr_mif,
 			 (contwr_mif->end_x - contwr_mif->start_x), 16, 13);
 }
 
-#if 1	/* move to di_hw_v2.c */
+#ifdef HIS_CODE	/* move to di_hw_v2.c */
 static void set_di_nrwr_mif(struct DI_SIM_MIF_s *nrwr_mif,
 			    unsigned short urgent)
 {
@@ -818,6 +824,10 @@ void dimh_int_ctr(unsigned int set_mod, unsigned char ma_en,
 	}
 }
 
+static void dimh_pre_mif_set(struct DI_SIM_MIF_s *cfg_mif,
+			     unsigned int urgent,
+			     unsigned int ddr_en);
+
 void dimh_enable_di_pre_aml(struct DI_MIF_S *di_inp_mif,
 			    struct DI_MIF_S *di_mem_mif,
 			    struct DI_MIF_S *di_chan2_mif,
@@ -866,8 +876,9 @@ void dimh_enable_di_pre_aml(struct DI_MIF_S *di_inp_mif,
 		set_di_inp_mif(di_inp_mif,
 			       dimp_get(edi_mp_pre_urgent),
 			       dimp_get(edi_mp_pre_hold_line));
-		set_di_nrwr_mif(di_nrwr_mif,
-				dimp_get(edi_mp_pre_urgent));
+		//set_di_nrwr_mif(di_nrwr_mif,
+		//		dimp_get(edi_mp_pre_urgent));
+		dimh_pre_mif_set(di_nrwr_mif, dimp_get(edi_mp_pre_urgent), 1);
 		set_di_mem_mif(di_mem_mif,
 			       dimp_get(edi_mp_pre_urgent),
 			       dimp_get(edi_mp_pre_hold_line));
@@ -895,12 +906,14 @@ void dimh_enable_di_pre_aml(struct DI_MIF_S *di_inp_mif,
 	/*
 	 * enable&disable contwr txt
 	 */
-	if (DIM_IS_IC_EF(SC2))
+	if (DIM_IS_IC_EF(SC2)) {
 		DIM_RDMA_WR_BITS(DI_MTN_1_CTRL1, madi_en ? 5 : 0, 29, 3);
-	else if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12B))
-		DIM_RDMA_WR_BITS(DI_MTN_CTRL, madi_en ? 5 : 0, 29, 3);
-	else
+	} else if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12B)) {
+		DIM_RDMA_WR_BITS(DI_MTN_CTRL, madi_en, 29, 1);
+		DIM_RDMA_WR_BITS(DI_MTN_CTRL, madi_en, 31, 1);
+	} else {
 		DIM_RDMA_WR_BITS(DI_MTN_1_CTRL1, madi_en ? 5 : 0, 29, 3);
+	}
 
 	if (DIM_IS_IC_EF(SC2))
 		sc2_tfbf = 2;
@@ -3189,6 +3202,11 @@ void dim_read_pulldown_info(unsigned int *glb_frm_mot_num,
 	*glb_fid_mot_num = (RD(DI_INFO_DATA) & 0xffffff);
 }
 
+unsigned int dim_rd_mcdi_fldcnt(void)
+{
+	return DIM_RDMA_RD(MCDI_RO_FLD_MTN_CNT);
+}
+
 /*
  * DIPD_RO_COMB_0~DIPD_RO_COMB11 and DI_INFO_DATA
  * will be reset, so call this function after all
@@ -4579,6 +4597,20 @@ static void dimh_pst_mif_set(struct DI_SIM_MIF_s *cfg_mif,
 	cfg_mif->l_endian = 0;
 
 	dimh_wrmif_set(cfg_mif, &di_pst_regset, NULL, EDI_MIFSM_WR);
+}
+
+static void dimh_pre_mif_set(struct DI_SIM_MIF_s *cfg_mif,
+			     unsigned int urgent,
+			     unsigned int ddr_en)
+{
+	//struct cfg_mifset_s mifset;
+
+	cfg_mif->ddr_en = ddr_en;
+	cfg_mif->urgent = urgent;
+	cfg_mif->cbcr_swap = 0;
+	cfg_mif->l_endian = 0;
+
+	dimh_wrmif_set(cfg_mif, &di_pst_regset, NULL, EDI_MIFSM_NR);
 }
 
 void dimh_pst_mif_update(struct DI_SIM_MIF_s *cfg_mif,

@@ -107,7 +107,8 @@ static unsigned int get_reg_bits(unsigned int val, unsigned int bstart,
 	       (((1L << bw) - 1) << bstart)) >> (bstart));
 }
 
-static void dbg_reg_tab(struct seq_file *s, const struct reg_t *pregtab)
+//static
+void dbg_reg_tab(struct seq_file *s, const struct reg_t *pregtab)
 {
 	struct reg_t creg;
 	int i;

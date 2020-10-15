@@ -36,9 +36,15 @@ enum ECMA_CMD {
 	ECMA_CMD_ONE_RELEAS,
 };
 
+enum ECFG_DIM {
+	ECFG_DIM_BYPASS_P,
+	ECFG_DIM_BYPASS_OTHER,
+};
+
 //void dip_wq_cma_run(unsigned char ch, unsigned int reg_cmd);
 //bool dip_cma_st_is_ready(unsigned int ch);
 //bool dip_cma_st_is_idle(unsigned int ch);
+void di_cfg_set(enum ECFG_DIM idx, unsigned int data);
 bool dip_cma_st_is_idl_all(void);
 enum EDI_CMA_ST dip_cma_get_st(unsigned int ch);
 void dip_cma_st_set_ready_all(void);
@@ -195,4 +201,20 @@ void dbg_afbce_update_level1(struct vframe_s *vf,
 			     enum EAFBC_ENC enc);
 void pre_cfg_cvs(struct vframe_s *vf);//debug only
 void dbg_pip_func(struct di_ch_s *pch, unsigned int mode);
+/************************************************/
+void dcntr_prob(void);
+void dcntr_reg(unsigned int on);
+void dcntr_check(struct vframe_s *vfm);
+void dcntr_dis(void);
+void dcntr_set(void);
+
+int  dbg_dct_mif_show(struct seq_file *s, void *v);
+int dbg_dct_core_show(struct seq_file *s, void *v);
+
+int dbg_dct_contr_show(struct seq_file *s, void *v);
+
+void dbg_regs_tab(struct seq_file *s, const struct regs_t *pregtab,
+			 const unsigned int *padd);//debug only
+void dbg_reg_tab(struct seq_file *s, const struct reg_t *pregtab);//debug only
+
 #endif	/*__DI_PRC_H__*/

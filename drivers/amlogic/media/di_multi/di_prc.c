@@ -96,7 +96,8 @@ const struct di_cfg_ctr_s di_cfg_top_ctr[K_DI_CFG_NUB] = {
 			0,
 			K_DI_CFG_T_FLG_DTS},
 	[EDI_CFG_POUT_FMT]  = {"po_fmt",
-		/* 0:default; 1: nv21; 2: nv12; 3:afbce */
+	/* 0:default; 1: nv21; 2: nv12; 3:afbce */
+	/* 4: dynamic change p out put;*/
 			EDI_CFG_POUT_FMT,
 			3,
 			K_DI_CFG_T_FLG_DTS},
@@ -105,14 +106,25 @@ const struct di_cfg_ctr_s di_cfg_top_ctr[K_DI_CFG_NUB] = {
 			0, //1, //
 			K_DI_CFG_T_FLG_NOTHING},
 	[EDI_CFG_KEEP_DEC_VF]  = {"keep_dec_vf",
-			/* 0:not keep; 1: keep dec vf for p*/
+			/* 0:not keep; 1: keep dec vf for p; 2: dynamic*/
 			EDI_CFG_KEEP_DEC_VF,
 			1,
+			K_DI_CFG_T_FLG_DTS},
+	[EDI_CFG_POST_NUB]  = {"post_nub",
+			/* 0:not config post nub;*/
+			EDI_CFG_POST_NUB,
+			0,
 			K_DI_CFG_T_FLG_DTS},
 	[EDI_CFG_END]  = {"cfg top end ", EDI_CFG_END, 0,
 			K_DI_CFG_T_FLG_NONE},
 
 };
+
+void di_cfg_set(enum ECFG_DIM idx, unsigned int data)
+{
+	if ((idx == ECFG_DIM_BYPASS_P) && (!data))
+		dim_cfg &= (~DI_BIT0);
+}
 
 char *di_cfg_top_get_name(enum EDI_CFG_TOP_IDX idx)
 {
@@ -2460,6 +2472,7 @@ void dim_polic_cfg_local(unsigned int cmd, bool on)
 		break;
 	}
 }
+
 //EXPORT_SYMBOL(dim_polic_cfg);
 
 void dim_polic_prob(void)
@@ -2467,7 +2480,7 @@ void dim_polic_prob(void)
 	struct dim_policy_s *pp = get_dpolicy();
 	struct di_dev_s *de_devp = get_dim_de_devp();
 
-	if (DIM_IS_IC_EF(SC2)) {
+	if (DIM_IS_IC_EF(SC2) || DIM_IS_IC(TM2B) || DIM_IS_IC(T5)) {
 		if (de_devp->clkb_max_rate >= 340000000)
 			pp->std = DIM_POLICY_NOT_LIMIT;
 		else if (de_devp->clkb_max_rate > 300000000)
@@ -2612,6 +2625,7 @@ void dip_init_value_reg(unsigned int ch, struct vframe_s *vframe)
 	struct di_ch_s *pch = get_chdata(ch);
 	struct di_mm_s *mm;
 	enum EDI_SGN sgn;
+	unsigned int post_nub;
 
 	dbg_reg("%s:ch[%d]\n", __func__, ch);
 
@@ -2661,9 +2675,12 @@ void dip_init_value_reg(unsigned int ch, struct vframe_s *vframe)
 			       sizeof(struct di_mm_cfg_s));
 		}
 		mm->cfg.fix_buf = 1;
-
+	} else if (!cfgg(4K)) {
+		memcpy(&mm->cfg, &c_mm_cfg_normal, sizeof(struct di_mm_cfg_s));
 	} else if (sgn <= EDI_SGN_HD) {
 		memcpy(&mm->cfg, &c_mm_cfg_normal, sizeof(struct di_mm_cfg_s));
+		if (cfgg(POUT_FMT) == 4)
+			mm->cfg.dis_afbce = 1;
 	} else if ((sgn <= EDI_SGN_4K)	&&
 		 dim_afds()		&&
 		 cfgg(4K)) {
@@ -2676,6 +2693,11 @@ void dip_init_value_reg(unsigned int ch, struct vframe_s *vframe)
 		mm->cfg.fix_buf = 1;
 	else
 		mm->cfg.fix_buf = 0;
+
+	post_nub = cfgg(POST_NUB);
+	if ((post_nub) && (post_nub < POST_BUF_NUM))
+		mm->cfg.num_post = post_nub;
+
 	PR_INF("%s:ch[%d]:fix_buf:%d\n", __func__, ch, mm->cfg.fix_buf);
 
 	pch->mode = dim_cnt_mode(pch);

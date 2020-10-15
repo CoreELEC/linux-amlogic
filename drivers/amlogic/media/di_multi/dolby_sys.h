@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: (GPL-2.0+ OR MIT) */
 /*
- * drivers/amlogic/media/di_multi/di_vframe.h
+ * drivers/amlogic/media/di_multi/dolby_sys.h
  *
  * Copyright (C) 2017 Amlogic, Inc. All rights reserved.
  *
@@ -31,76 +31,76 @@
 #define DIDEF_G2L_LUT_SIZE           0x100
 
 struct didm_lut_ipcore_s {
-	u32 TmLutI[64 * 4];
-	u32 TmLutS[64 * 4];
-	u32 SmLutI[64 * 4];
-	u32 SmLutS[64 * 4];
+	u32 tmluti[64 * 4];
+	u32 tmluts[64 * 4];
+	u32 smluti[64 * 4];
+	u32 smluts[64 * 4];
 	u32 G2L[DIDEF_G2L_LUT_SIZE];
 };
 
 struct didm_register_ipcore_1_s {
-	u32 SRange;
-	u32 Srange_Inverse;
-	u32 Frame_Format_1;
-	u32 Frame_Format_2;
-	u32 Frame_Pixel_Def;
-	u32 Y2RGB_Coefficient_1;
-	u32 Y2RGB_Coefficient_2;
-	u32 Y2RGB_Coefficient_3;
-	u32 Y2RGB_Coefficient_4;
-	u32 Y2RGB_Coefficient_5;
-	u32 Y2RGB_Offset_1;
-	u32 Y2RGB_Offset_2;
-	u32 Y2RGB_Offset_3;
-	u32 EOTF;
+	u32 srange;
+	u32 srange_inverse;
+	u32 frame_format_1;
+	u32 frame_format_2;
+	u32 frame_pixel_def;
+	u32 y2rgb_coefficient_1;
+	u32 y2rgb_coefficient_2;
+	u32 y2rgb_coefficient_3;
+	u32 y2rgb_coefficient_4;
+	u32 y2rgb_coefficient_5;
+	u32 y2rgb_offset_1;
+	u32 y2rgb_offset_2;
+	u32 y2rgb_offset_3;
+	u32 eotf;
 /*	u32 Sparam_1;*/
 /*	u32 Sparam_2;*/
 /*	u32 Sgamma; */
-	u32 A2B_Coefficient_1;
-	u32 A2B_Coefficient_2;
-	u32 A2B_Coefficient_3;
-	u32 A2B_Coefficient_4;
-	u32 A2B_Coefficient_5;
-	u32 C2D_Coefficient_1;
-	u32 C2D_Coefficient_2;
-	u32 C2D_Coefficient_3;
-	u32 C2D_Coefficient_4;
-	u32 C2D_Coefficient_5;
-	u32 C2D_Offset;
-	u32 Active_area_left_top;
-	u32 Active_area_bottom_right;
+	u32 a2b_coefficient_1;
+	u32 a2b_coefficient_2;
+	u32 a2b_coefficient_3;
+	u32 a2b_coefficient_4;
+	u32 a2b_coefficient_5;
+	u32 c2d_coefficient_1;
+	u32 c2d_coefficient_2;
+	u32 c2d_coefficient_3;
+	u32 c2d_coefficient_4;
+	u32 c2d_coefficient_5;
+	u32 c2d_offset;
+	u32 active_area_left_top;
+	u32 active_area_bottom_right;
 };
 
 struct dicomposer_register_ipcore_s {
 	/* offset 0xc8 */
-	u32 Composer_Mode;
-	u32 VDR_Resolution;
-	u32 Bit_Depth;
-	u32 Coefficient_Log2_Denominator;
-	u32 BL_Num_Pivots_Y;
-	u32 BL_Pivot[5];
-	u32 BL_Order;
-	u32 BL_Coefficient_Y[8][3];
-	u32 EL_NLQ_Offset_Y;
-	u32 EL_Coefficient_Y[3];
-	u32 Mapping_IDC_U;
-	u32 BL_Num_Pivots_U;
-	u32 BL_Pivot_U[3];
-	u32 BL_Order_U;
-	u32 BL_Coefficient_U[4][3];
-	u32 MMR_Coefficient_U[22][2];
-	u32 MMR_Order_U;
-	u32 EL_NLQ_Offset_U;
-	u32 EL_Coefficient_U[3];
-	u32 Mapping_IDC_V;
-	u32 BL_Num_Pivots_V;
-	u32 BL_Pivot_V[3];
-	u32 BL_Order_V;
-	u32 BL_Coefficient_V[4][3];
-	u32 MMR_Coefficient_V[22][2];
-	u32 MMR_Order_V;
-	u32 EL_NLQ_Offset_V;
-	u32 EL_Coefficient_V[3];
+	u32 composer_mode;
+	u32 vdr_resolution;
+	u32 bit_depth;
+	u32 coefficient_log2_denominator;
+	u32 bl_num_pivots_y;
+	u32 bl_pivot[5];
+	u32 bl_order;
+	u32 bl_coefficient_y[8][3];
+	u32 el_nlq_offset_y;
+	u32 el_coefficient_y[3];
+	u32 mapping_idc_u;
+	u32 bl_num_pivots_u;
+	u32 bl_pivot_u[3];
+	u32 bl_crder_u;
+	u32 bl_coefficient_u[4][3];
+	u32 mmr_coefficient_u[22][2];
+	u32 mmr_order_u;
+	u32 el_nlq_offset_u;
+	u32 el_coefficient_u[3];
+	u32 mapping_idc_v;
+	u32 bl_num_pivots_v;
+	u32 bl_pivot_v[3];
+	u32 bl_order_v;
+	u32 bl_coefficient_v[4][3];
+	u32 mmr_coefficient_v[22][2];
+	u32 mmr_order_V;
+	u32 el_nlq_offset_v;
+	u32 el_coefficient_v[3];
 };
 #endif
 

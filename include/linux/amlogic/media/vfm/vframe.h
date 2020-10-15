@@ -381,6 +381,30 @@ struct componser_info_t {
 	int axis[MAX_COMPOSER_COUNT][AXIS_INFO_COUNT];
 };
 
+struct dcntr_mem_s {
+	u32 index;
+	u32 grd_addr;
+	u32 yds_addr;
+	u32 cds_addr;
+	u32 grd_size;
+	u32 yds_size;
+	u32 cds_size;
+	u32 ds_ratio;
+	u32 pre_out_fmt;//VIDTYPE_VIU_NV12, VIDTYPE_VIU_444
+	u32 yflt_wrmif_length;
+	u32 cflt_wrmif_length;
+	bool free;
+	bool use_org;
+	bool grd_swap_64bit;
+	bool yds_swap_64bit;
+	bool cds_swap_64bit;
+	bool grd_little_endian;
+	bool yds_little_endian;
+	bool cds_little_endian;
+	bool yds_canvas_mode;//0:linear address mode  1:canvas mode
+	bool cds_canvas_mode;
+};
+
 struct vframe_s {
 	u32 index;
 	u32 index_disp;
@@ -501,6 +525,7 @@ struct vframe_s {
 	 *****************/
 	u32 di_pulldown;
 	u32 di_gmv;
+	u32 di_cm_cnt;
 	u32 axis[4];
 	u32 crop[4];
 	u32 zorder;
@@ -541,6 +566,7 @@ struct vframe_s {
 	/* currently only for keystone use */
 	unsigned int crc;
 	struct componser_info_t *componser_info;
+	void *decontour_pre;
 } /*vframe_t */;
 
 #if 0

@@ -194,6 +194,7 @@ unsigned int dw_get_h(void)
 	//bit 13: shrk en
 	return ((sc2_reg_mask >> 8) & 0x3);
 }
+
 /*************************************************/
 
 #define DI_SCALAR_DISABLE	(1)
@@ -233,6 +234,7 @@ unsigned int get_afbcd_offset(enum EAFBC_DEC dec)
 
 	return offset;
 }
+
 //--------------------display.c----------------------------
 
 static unsigned int set_afbcd_mult_simple(int index,
@@ -3774,7 +3776,6 @@ static void di_pre_data_mif_ctrl_v3(bool enable)
 		return;
 	}
 	if (enable) {
-
 		if (dim_afds() && dim_afds()->is_used())
 			dim_afds()->inp_sw(true);
 

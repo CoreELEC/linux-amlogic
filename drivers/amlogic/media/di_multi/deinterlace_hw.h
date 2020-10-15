@@ -508,6 +508,7 @@ struct mem_cpy_s {
 /**********************************************/
 void dim_read_pulldown_info(unsigned int *glb_frm_mot_num,
 			    unsigned int *glb_fid_mot_num);
+unsigned int dim_rd_mcdi_fldcnt(void);
 
 #ifdef MARK_HIS
 void read_new_pulldown_info(struct FlmModReg_t *pFMRegp);
