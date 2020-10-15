@@ -49,6 +49,10 @@
 #define DI_RUN_FLAG_STEP		2
 #define DI_RUN_FLAG_STEP_DONE	3
 
+#define DI_RUN_MIRROR_DIS	0
+#define DI_RUN_MIRROR_H		1
+#define DI_RUN_MIRROR_V		2
+
 #define USED_LOCAL_BUF_MAX		3
 #define BYPASS_GET_MAX_BUF_NUM	4
 
@@ -205,11 +209,11 @@ struct di_buf_s {
 #define VFM_NAME		"deinterlace"
 
 #ifdef CONFIG_AMLOGIC_MEDIA_VSYNC_RDMA
-extern void enable_rdma(int enable_flag);
-extern int VSYNC_WR_MPEG_REG(u32 adr, u32 val);
-extern int VSYNC_WR_MPEG_REG_BITS(u32 adr, u32 val, u32 start, u32 len);
-extern u32 VSYNC_RD_MPEG_REG(u32 adr);
-extern bool is_vsync_rdma_enable(void);
+void enable_rdma(int enable_flag);
+int VSYNC_WR_MPEG_REG(u32 adr, u32 val);
+int VSYNC_WR_MPEG_REG_BITS(u32 adr, u32 val, u32 start, u32 len);
+u32 VSYNC_RD_MPEG_REG(u32 adr);
+bool is_vsync_rdma_enable(void);
 #else
 #ifndef VSYNC_WR_MPEG_REG
 #define VSYNC_WR_MPEG_REG(adr, val) aml_write_vcbus(adr, val)
@@ -467,8 +471,9 @@ struct di_mm_s {
 	struct page	*ppage;
 	unsigned long	addr;
 };
-extern bool di_mm_alloc(int cma_mode, size_t count, struct di_mm_s *o);
-extern bool di_mm_release(int cma_mode,
+
+bool di_mm_alloc(int cma_mode, size_t count, struct di_mm_s *o);
+bool di_mm_release(int cma_mode,
 			struct page *pages,
 			int count,
 			unsigned long addr);
@@ -493,11 +498,12 @@ unsigned long get_di_reg_unreg_timeout_cnt(void);
 struct vframe_s **get_di_vframe_in(void);
 void di_unreg_notify(void); //from video.c
 
-extern s32 di_request_afbc_hw(u8 id, bool on);
+s32 di_request_afbc_hw(u8 id, bool on);
 u32 di_requeset_afbc(u32 onoff);
 /***********************/
-extern bool di_wr_cue_int(void);
-extern int reg_cue_int_show(struct seq_file *seq, void *v);
+bool di_wr_cue_int(void);
+int get_mirror_status(void);
+int reg_cue_int_show(struct seq_file *seq, void *v);
 
 bool dil_attach_ext_api(const struct di_ext_ops *di_api);
 /*--Different DI versions flag---*/

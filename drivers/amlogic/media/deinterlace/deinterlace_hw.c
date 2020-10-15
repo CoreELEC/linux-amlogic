@@ -1561,6 +1561,7 @@ static void set_di_inp_mif(struct DI_MIF_s *mif, int urgent, int hold_line)
 	unsigned int vt_ini_phase = 0;
 	unsigned int reset_on_gofield;
 	unsigned int burst_len = 2;
+	int tmp_mirror = DI_RUN_MIRROR_DIS;
 
 	if (mif->set_separate_en != 0 && mif->src_field_mode == 1) {
 		chro_rpt_lastl_ctrl = 1;
@@ -1642,7 +1643,15 @@ static void set_di_inp_mif(struct DI_MIF_s *mif, int urgent, int hold_line)
 	} else {
 		RDMA_WR_BITS(DI_INP_GEN_REG2, 0, 0, 1);
 	}
-
+	if (is_meson_tl1_cpu()) {
+		tmp_mirror = get_mirror_status();
+		if (tmp_mirror == DI_RUN_MIRROR_H)
+			RDMA_WR_BITS(DI_INP_GEN_REG2, 0x1, 2, 2);
+		else if (tmp_mirror == DI_RUN_MIRROR_V)
+			RDMA_WR_BITS(DI_INP_GEN_REG2, 0x2, 2, 2);
+		else
+			RDMA_WR_BITS(DI_INP_GEN_REG2, 0, 2, 2);
+	}
 	if (mif->canvas_w % 32)
 		burst_len = 0;
 	else if (mif->canvas_w % 64)
