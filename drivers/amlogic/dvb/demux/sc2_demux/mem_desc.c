@@ -22,6 +22,11 @@
 #include <linux/amlogic/media/codec_mm/codec_mm.h>
 #include <linux/amlogic/tee.h>
 
+//#define CHECK_PACKET_ALIGNM
+#ifdef CHECK_PACKET_ALIGNM
+#include <linux/highmem.h>
+#endif
+
 #include "mem_desc.h"
 #include "sc2_control.h"
 #include "../aml_dvb.h"
@@ -261,6 +266,43 @@ static int _bufferid_alloc_chan_r_for_ts(struct chan_id **pchan, u8 req_id)
 	*pchan = pchan_tmp;
 	return 0;
 }
+
+#ifdef CHECK_PACKET_ALIGNM
+static void check_packet_alignm(unsigned int start, unsigned int end)
+{
+	int n = 0;
+	char *p = NULL;
+	unsigned long reg;
+	unsigned int detect_len = end - start;
+
+	if (detect_len % 188 != 0) {
+		dprint_i("len:%d not alignm\n", detect_len);
+		return;
+	}
+	reg = round_down(start, 0x3);
+	if (reg != start)
+		dprint_i("mem addr not alignm 4\n");
+
+	if (!pfn_valid(__phys_to_pfn(reg)))
+		p = (void *)ioremap(reg, 0x4);
+	else
+		p = (void *)kmap(pfn_to_page(__phys_to_pfn(reg)));
+	if (!p) {
+		dprint_i("phy transfer to virt fail\n");
+		return;
+	}
+	//detect packet alignm
+	for (n = 0; n < detect_len / 188; n++) {
+		if (p[n * 188] != 0x47) {
+		dprint_i("packet not alignm at %d,header:0x%0x\n",
+				n * 188, p[n * 188]);
+			break;
+		}
+	}
+	if (!pfn_valid(__phys_to_pfn(reg)))
+		kunmap(pfn_to_page(__phys_to_pfn(reg)));
+}
+#endif
 
 /**
  * chan init
@@ -558,10 +600,18 @@ int SC2_bufferid_write(struct chan_id *pchan, const char __user *buf,
 				dprint("copy_from user error\n");
 				return -EFAULT;
 			}
+#ifdef CHECK_PACKET_ALIGNM
+			check_packet_alignm(ts_data.buf_start, ts_data.buf_end);
+#endif
 			tmp = (unsigned long)ts_data.buf_start & 0xFFFFFFFF;
 			pchan->memdescs->bits.address = tmp;
 			pchan->memdescs->bits.byte_length =
 				ts_data.buf_end - ts_data.buf_start;
+			dma_desc_addr = dma_map_single(aml_get_device(),
+						       (void *)pchan->memdescs,
+						       sizeof(union mem_desc),
+						       DMA_TO_DEVICE);
+
 			tmp = (unsigned long)(pchan->memdescs) & 0xFFFFFFFF;
 			len = pchan->memdescs->bits.byte_length;
 			rdma_config_enable(pchan->id, 1, tmp, count, len);
@@ -613,13 +663,14 @@ int SC2_bufferid_write(struct chan_id *pchan, const char __user *buf,
 			dma_unmap_single(aml_get_device(),
 					 dma_addr, pchan->mem_size,
 					 DMA_TO_DEVICE);
-			dma_unmap_single(aml_get_device(),
-					 dma_desc_addr, sizeof(union mem_desc),
-					 DMA_TO_DEVICE);
 		}
 
 		do {
 		} while (!rdma_get_done(pchan->id));
+
+		dma_unmap_single(aml_get_device(),
+				 dma_desc_addr, sizeof(union mem_desc),
+				 DMA_TO_DEVICE);
 
 		ret = rdma_get_rd_len(pchan->id);
 		if (ret != len)
