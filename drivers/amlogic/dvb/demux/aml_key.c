@@ -57,6 +57,7 @@
 #define KTE_INVALID_INDEX  (0xFF)
 
 #define KTE_PENDING          (1)
+#define KTE_MODE_CAS_A       (1)
 #define KTE_MODE_HOST        (3)
 #define KTE_CLEAN_KTE        (1)
 
@@ -175,7 +176,7 @@ static int kt_init(void)
 	return REE_SUCCESS;
 }
 
-static int kt_alloc(u32 *handle, struct key_config *config)
+static int kt_alloc(u32 *handle, struct key_alloc *config)
 {
 	int res = REE_SUCCESS;
 	int i;
@@ -186,8 +187,7 @@ static int kt_alloc(u32 *handle, struct key_config *config)
 	if (!handle)
 		return -1;
 
-	pr_dbg("%s user_id:%d, key_algo:%d, iv:%d\n", __func__,
-	       config->key_userid, config->key_algo, config->is_iv);
+	pr_dbg("%s iv:%d\n", __func__, config->is_iv);
 	if (config->is_iv) {
 		begin = IVE_BEGIN;
 		end = IVE_MAX;
@@ -199,52 +199,6 @@ static int kt_alloc(u32 *handle, struct key_config *config)
 
 	for (i = begin; i < end; i++) {
 		if (key_table[i].flag == KTE_INVALID) {
-			switch (config->key_userid) {
-			case DSC_LOC_DEC:
-				key_table[i].key_userid = MKL_USER_LOC_DEC;
-				break;
-			case DSC_NETWORK:
-				key_table[i].key_userid = MKL_USER_NETWORK;
-				break;
-			case DSC_LOC_ENC:
-				key_table[i].key_userid = MKL_USER_LOC_ENC;
-				break;
-			default:
-				dprint("%s, %d invalid user id\n",
-				       __func__, __LINE__);
-				return -1;
-			}
-			if (config->is_iv == 0) {
-				switch (config->key_algo) {
-				case KEY_ALGO_AES:
-					key_table[i].key_algo = MKL_USAGE_AES;
-					break;
-				case KEY_ALGO_TDES:
-					key_table[i].key_algo = MKL_USAGE_TDES;
-					break;
-				case KEY_ALGO_DES:
-					key_table[i].key_algo = MKL_USAGE_DES;
-					break;
-				case KEY_ALGO_CSA2:
-					key_table[i].key_algo = MKL_USAGE_CSA2;
-					break;
-				case KEY_ALGO_CSA3:
-					key_table[i].key_algo = MKL_USAGE_CSA3;
-					break;
-				case KEY_ALGO_NDL:
-					key_table[i].key_algo = MKL_USAGE_NDL;
-					break;
-				case KEY_ALGO_ND:
-					key_table[i].key_algo = MKL_USAGE_ND;
-					break;
-				default:
-					dprint("%s, %d invalid algo\n",
-					       __func__, __LINE__);
-					return -1;
-				}
-			}			else {
-				key_table[i].key_algo = 0xf;
-			}
 			key_table[i].flag = KTE_VALID;
 			*handle = key_table[i].kte |
 				(is_iv << KTE_IV_FLAG_OFFSET);
@@ -261,6 +215,72 @@ static int kt_alloc(u32 *handle, struct key_config *config)
 	return res;
 }
 
+static int kt_config(u32 handle, int key_userid, int key_algo)
+{
+	int res = REE_SUCCESS;
+	int index;
+	u32 kte;
+
+	kte = HANDLE_TO_KTE(handle);
+	index = find_kt_index(handle);
+
+	if (index == -1) {
+		dprint("%s, handle:%#x index invalid\n", __func__, handle);
+		return -1;
+	}
+
+	pr_dbg("%s user_id:%d, key_algo:%d\n", __func__, key_userid, key_algo);
+
+	switch (key_userid) {
+	case DSC_LOC_DEC:
+		key_table[index].key_userid = MKL_USER_LOC_DEC;
+		break;
+	case DSC_NETWORK:
+		key_table[index].key_userid = MKL_USER_NETWORK;
+		break;
+	case DSC_LOC_ENC:
+		key_table[index].key_userid = MKL_USER_LOC_ENC;
+		break;
+	default:
+		dprint("%s, %d invalid user id\n",
+		       __func__, __LINE__);
+		return -1;
+	}
+	if (key_table[index].is_iv == 0) {
+		switch (key_algo) {
+		case KEY_ALGO_AES:
+			key_table[index].key_algo = MKL_USAGE_AES;
+			break;
+		case KEY_ALGO_TDES:
+			key_table[index].key_algo = MKL_USAGE_TDES;
+			break;
+		case KEY_ALGO_DES:
+			key_table[index].key_algo = MKL_USAGE_DES;
+			break;
+		case KEY_ALGO_CSA2:
+			key_table[index].key_algo = MKL_USAGE_CSA2;
+			break;
+		case KEY_ALGO_CSA3:
+			key_table[index].key_algo = MKL_USAGE_CSA3;
+			break;
+		case KEY_ALGO_NDL:
+			key_table[index].key_algo = MKL_USAGE_NDL;
+			break;
+		case KEY_ALGO_ND:
+			key_table[index].key_algo = MKL_USAGE_ND;
+			break;
+		default:
+			dprint("%s, %d invalid algo\n",
+			       __func__, __LINE__);
+			return -1;
+		}
+	}			else {
+		key_table[index].key_algo = 0xf;
+	}
+
+	return res;
+}
+
 static int kt_set(u32 handle, unsigned char key[32], unsigned int key_len)
 {
 	int res = REE_SUCCESS;
@@ -271,6 +291,8 @@ static int kt_set(u32 handle, unsigned char key[32], unsigned int key_len)
 	int en_decrypt = 0;
 	int index;
 	u32 kte;
+	u32 mode = KTE_MODE_HOST;
+	int i;
 
 	kte = HANDLE_TO_KTE(handle);
 	index = find_kt_index(handle);
@@ -297,6 +319,11 @@ static int kt_set(u32 handle, unsigned char key[32], unsigned int key_len)
 	KT_KEY2 = KT_REE_KEY2;
 	KT_KEY3 = KT_REE_KEY3;
 
+	if (key_len == 1) {
+		dprint_i("driver aml_key key_len=1, mode=1 CAS_A\n");
+		mode = KTE_MODE_CAS_A;
+	}
+
 	if (key_len >= 4)
 		memcpy((void *)&key0, &key[0], 4);
 	if (key_len >= 8)
@@ -314,9 +341,13 @@ static int kt_set(u32 handle, unsigned char key[32], unsigned int key_len)
 
 	algo = key_table[index].key_algo;
 	//TODO: timeout instead of return error
-	if (READ_CBUS_REG(KT_REE_RDY) == 0) {
-		dprint("%s, %d not ready\n", __func__, __LINE__);
-		return -1;
+	i = 0;
+	while (READ_CBUS_REG(KT_REE_RDY) == 0) {
+		if (i++ > 10) {
+			dprint("%s, %d not ready\n", __func__, __LINE__);
+			return -1;
+		}
+		usleep_range(10000, 15000);
 	}
 
 	WRITE_CBUS_REG(KT_KEY0, key0);
@@ -324,7 +355,7 @@ static int kt_set(u32 handle, unsigned char key[32], unsigned int key_len)
 	WRITE_CBUS_REG(KT_KEY2, key2);
 	WRITE_CBUS_REG(KT_KEY3, key3);
 	WRITE_CBUS_REG(KT_REE_CFG, (KTE_PENDING << KTE_PENDING_OFFSET)
-		       | (KTE_MODE_HOST << KTE_MODE_OFFSET)
+		       | (mode << KTE_MODE_OFFSET)
 		       | (en_decrypt << KTE_FLAG_OFFSET)
 		       | (algo << KTE_KEYALGO_OFFSET)
 		       | (user_id << KTE_USERID_OFFSET)
@@ -463,10 +494,10 @@ int dmx_key_do_ioctl(struct file *file, unsigned int cmd, void *parg)
 
 	mutex_lock(&mutex);
 	switch (cmd) {
-	case KEY_MALLOC_SLOT:{
+	case KEY_ALLOC:{
 			u32 kte = 0;
 			int idx;
-			struct key_config *d = parg;
+			struct key_alloc *d = parg;
 
 			if (kt_alloc(&kte, d) == 0) {
 				d->key_index = kte;
@@ -478,7 +509,7 @@ int dmx_key_do_ioctl(struct file *file, unsigned int cmd, void *parg)
 			}
 			break;
 		}
-	case KEY_FREE_SLOT:{
+	case KEY_FREE:{
 			u32 kte = (unsigned long)parg;
 			int idx;
 
@@ -495,6 +526,14 @@ int dmx_key_do_ioctl(struct file *file, unsigned int cmd, void *parg)
 			struct key_descr *d = parg;
 
 			if (kt_set(d->key_index, d->key, d->key_len) == 0)
+				ret = 0;
+			break;
+		}
+	case KEY_CONFIG:{
+			struct key_config *config = parg;
+
+			if (kt_config(config->key_index,
+				config->key_userid, config->key_algo) == 0)
 				ret = 0;
 			break;
 		}

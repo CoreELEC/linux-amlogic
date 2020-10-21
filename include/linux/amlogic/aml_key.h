@@ -41,15 +41,20 @@ struct key_descr {
 };
 
 struct key_config {
+	unsigned int key_index;
 	int key_userid;
 	int key_algo;
+};
+
+struct key_alloc {
 	int is_iv;
 	unsigned int key_index;
 };
 
-#define KEY_MALLOC_SLOT   _IOWR('o', 64, struct key_config)
-#define KEY_FREE_SLOT     _IO('o', 65)
+#define KEY_ALLOC         _IOWR('o', 64, struct key_alloc)
+#define KEY_FREE          _IO('o', 65)
 #define KEY_SET           _IOR('o', 66, struct key_descr)
+#define KEY_CONFIG        _IOR('o', 67, struct key_config)
 
 //int dmx_key_init(void);
 //void dmx_key_exit(void);
