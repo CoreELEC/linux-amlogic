@@ -45,6 +45,7 @@
 
 #include <linux/amlogic/media/registers/regs/viu_regs.h>
 #include <linux/amlogic/media/vpu_secure/vpu_secure.h>
+#include <linux/amlogic/media/video_sink/video_signal_notify.h>
 
 #include "vpu_security.h"
 
@@ -126,8 +127,10 @@ u32 set_vpu_module_security(struct vpu_secure_ins *ins,
 			    u32 secure_src)
 {
 	static u32 osd_secure, video_secure;
-	static u32 value_save;
+	static int value_save = -1;
 	u32 value = 0;
+	int secure_update = 0;
+	struct vd_secure_info_s vd_secure[MAX_SECURE_OUT];
 
 	if (is_meson_sc2_cpu()) {
 		if (check_secure_enable(module) || secure_src)
@@ -174,13 +177,28 @@ u32 set_vpu_module_security(struct vpu_secure_ins *ins,
 		case VDIN_MODULE:
 			break;
 		}
-		if (OSD_MODULE || VIDEO_MODULE || DI_MODULE) {
-			if ((ins->reg_wr_op) && (value_save != value))
+		if (module == OSD_MODULE ||
+			module == VIDEO_MODULE ||
+			module == DI_MODULE) {
+			if ((ins->reg_wr_op) && (value_save != value)) {
 				ins->reg_wr_op(VIU_DATA_SEC, value);
+				secure_update = 1;
+			}
 			value_save = value;
 		}
 	}
 	secure_cfg = (osd_secure | video_secure) & (~VPP_OUTPUT_SECURE);
+	if (secure_update) {
+		int i;
+
+		for (i = 0; i < MAX_SECURE_OUT; i++) {
+			vd_secure[i].secure_type = i;
+			vd_secure[i].secure_enable = get_secure_state(i);
+		}
+		vd_signal_notifier_call_chain
+			(VIDEO_SECURE_TYPE_CHANGED,
+			&vd_secure[0]);
+	}
 	return value;
 }
 
