@@ -510,6 +510,21 @@ int VOFSftTop(UINT8 *rFlmPstGCm, UINT8 *rFlmSltPre, UINT8 *rFlmPstMod,
 
 	/* film-mode: pMod22[5-mDly] or pMod32[5-mDly] */
 	if ((*rFlmPstMod == 1) || (*rFlmPstMod == 2)) {
+		/*fix jira SWPL-34426,common issue,suggest from vlsi yanling*/
+		if (nWCmb >= 200) {
+			rPstCYWnd0[0] = 0;/* bgn */
+			rPstCYWnd0[1] = 0;/* end */
+			rPstCYWnd0[2] = 3;/*0-mtn,1-with-buffer,2-ei,3-di*/
+			rPstCYWnd1[0] = 0;/* bgn */
+			rPstCYWnd1[1] = 0;/* end */
+			rPstCYWnd1[2] = 3;/*0-mtn,1-with-buffer,2-ei,3-di*/
+			rPstCYWnd2[0] = 0;/* bgn */
+			rPstCYWnd2[1] = 0;/* end */
+			rPstCYWnd2[2] = 3;/*0-mtn,1-with-buffer,2-ei,3-di*/
+			rPstCYWnd3[0] = 0;/* bgn */
+			rPstCYWnd3[1] = 0;/* end */
+			rPstCYWnd3[2] = 3;/* 0-mtn,1-with-buffer,2-ei,3-di */
+		} else {
 		/* weaver with pre-field */
 		if (*rFlmSltPre == 1) {
 			/* Interpolation method:0-mtn,1-with-buffer,2-ei,3-di */
@@ -563,6 +578,7 @@ int VOFSftTop(UINT8 *rFlmPstGCm, UINT8 *rFlmSltPre, UINT8 *rFlmPstMod,
 					"pFlg32=%d, pFlg22=%d\n",
 					pFlg32[HISDETNUM - 1 - mDly],
 					pFlg22[HISDETNUM - 1 - mDly]);
+				}
 			}
 		}
 	} else {
