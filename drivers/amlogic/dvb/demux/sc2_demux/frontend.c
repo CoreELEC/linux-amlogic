@@ -44,6 +44,8 @@
 #include "sc2_control.h"
 #include "../dmx_log.h"
 
+#define TSIN_NUM		4
+
 #define dprint_i(fmt, args...)  \
 	dprintk(LOG_ERROR, debug_frontend, fmt, ## args)
 #define dprint(fmt, args...)   \
@@ -164,12 +166,17 @@ ssize_t ts_setting_show(struct class *class,
 	struct aml_dvb *dvb = aml_get_dvb_device();
 	int ctrl;
 
-	for (i = 0; i < FE_DEV_COUNT; i++) {
+	//print hardware TS input
+	r = sprintf(buf, "tsin:\n");
+	buf += r;
+	total += r;
+
+	for (i = 0; i < TSIN_NUM; i++) {
 		struct aml_ts_input *ts = &dvb->ts[i];
 
 		ctrl = ts->control;
 
-		r = sprintf(buf, "ts%d %s control: 0x%x ", i,
+		r = sprintf(buf, "tsin%d %s control: 0x%x\n", i,
 			    ts->mode == AM_TS_DISABLE ? "disable" :
 			    (ts->mode == AM_TS_SERIAL_3WIRE ?
 			     "serial-3wire" :
@@ -177,6 +184,16 @@ ssize_t ts_setting_show(struct class *class,
 			      "serial-4wire" : "parallel")), ctrl);
 		buf += r;
 		total += r;
+	}
+
+	//stream ts
+	r = sprintf(buf, "ts stream:\n");
+	buf += r;
+	total += r;
+
+	for (i = 0; i < FE_DEV_COUNT; i++) {
+		struct aml_ts_input *ts = &dvb->ts[i];
+
 		r = sprintf(buf, "ts_sid:0x%0x header_len:%d ",
 			    ts->ts_sid, ts->header_len);
 		buf += r;
@@ -187,7 +204,6 @@ ssize_t ts_setting_show(struct class *class,
 		buf += r;
 		total += r;
 	}
-
 	return total;
 }
 
@@ -206,7 +222,7 @@ ssize_t ts_setting_store(struct class *class,
 	if (r != 3)
 		return -EINVAL;
 
-	if (id < 0 || id >= FE_DEV_COUNT)
+	if (id < 0 || id >= TSIN_NUM)
 		return -EINVAL;
 
 	if ((mname[0] == 's') || (mname[0] == 'S')) {
@@ -254,7 +270,7 @@ static void set_dvb_ts(struct platform_device *pdev,
 	char buf[32];
 	u8 control = 0;
 
-	if (i >= 4) {
+	if (i >= TSIN_NUM) {
 		dprint("set tsin %d invalid\n", i);
 		return;
 	}
@@ -296,7 +312,7 @@ static void set_dvb_ts(struct platform_device *pdev,
 	}
 }
 
-static void tsin_process(struct platform_device *pdev)
+static void ts_process(struct platform_device *pdev)
 {
 	int ret = 0;
 	int i = 0, j = 0;
@@ -380,7 +396,7 @@ int frontend_probe(struct platform_device *pdev)
 
 #ifdef CONFIG_OF
 	if (pdev->dev.of_node)
-		tsin_process(pdev);
+		ts_process(pdev);
 #endif
 
 	for (i = 0; i < FE_DEV_COUNT; i++) {
@@ -591,7 +607,9 @@ void frontend_config_ts_sid(void)
 	int sid = 0;
 	struct aml_dvb *advb = aml_get_dvb_device();
 
-	for (i = 0; i < FE_DEV_COUNT; i++) {
+	for (i = 0; i < TSIN_NUM; i++) {
+		if (advb->ts[i].mode == AM_TS_DISABLE)
+			continue;
 		if (advb->ts[i].header_len == 0) {
 			if (advb->ts[i].ts_sid != -1) {
 				sid = advb->ts[i].ts_sid;
