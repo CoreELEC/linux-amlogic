@@ -92,5 +92,7 @@ unsigned int  mem_release_free(struct di_ch_s *pch);
 void mem_cfg_realloc_wait(struct di_ch_s *pch);
 
 void bufq_mem_clear(struct di_ch_s *pch);
+void pre_sec_alloc(struct di_ch_s *pch, unsigned int flg);
+void pst_sec_alloc(struct di_ch_s *pch, unsigned int flg);
 /*-------------------------*/
 #endif	/*__DI_SYS_H__*/

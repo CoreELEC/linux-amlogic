@@ -940,8 +940,11 @@ struct dev_vfram_t {
 };
 
 struct di_dat_s {
-	struct dim_mm_blk_s *blk_buf;
+//	struct dim_mm_blk_s *blk_buf;
+	void	*virt;
 	bool	flg_alloc;
+
+	struct blk_flg_s flg;
 	unsigned long addr_st;
 	unsigned long addr_end;
 };

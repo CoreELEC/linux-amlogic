@@ -97,7 +97,8 @@ const struct di_cfg_ctr_s di_cfg_top_ctr[K_DI_CFG_NUB] = {
 			K_DI_CFG_T_FLG_DTS},
 	[EDI_CFG_POUT_FMT]  = {"po_fmt",
 	/* 0:default; 1: nv21; 2: nv12; 3:afbce */
-	/* 4: dynamic change p out put;*/
+	/* 4: dynamic change p out put;	 4k:afbce, other:yuv422 10*/
+	/* 5: dynamic: 4k: nv21, other yuv422 10bit */
 			EDI_CFG_POUT_FMT,
 			3,
 			K_DI_CFG_T_FLG_DTS},

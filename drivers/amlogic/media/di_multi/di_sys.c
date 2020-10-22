@@ -753,7 +753,7 @@ bool di_pst_afbct_check(struct di_ch_s *pch)
 		return true;
 	pdat = get_pst_afbct(pch);
 
-	if (pdat->flg_alloc && pdat->blk_buf)
+	if (pdat->flg_alloc && pdat->virt)
 		return true;
 	return false;
 }
@@ -771,7 +771,7 @@ bool di_i_dat_check(struct di_ch_s *pch)
 	if (!mm->cfg.num_local)
 		return true;
 
-	if (idat->blk_buf && idat->flg_alloc)
+	if (idat->virt && idat->flg_alloc)
 		return true;
 
 	return false;
@@ -891,6 +891,85 @@ static void iat_set_addr(struct di_ch_s *pch)
 
 		dbg_mem2("%d\t:addr_afbct\t0x%lx\n", i, idat->start_afbct);
 		dbg_mem2("\t:addr_mc\t0x%lx\n", idat->start_mc);
+	}
+}
+
+void pre_sec_alloc(struct di_ch_s *pch, unsigned int flg)
+{
+	struct di_dat_s *idat;
+	struct blk_flg_s flgs;
+	unsigned int idat_size;
+
+	idat = get_idat(pch);
+
+	if (idat->flg_alloc)
+		return;
+	flgs.d32 = flg;
+	idat_size = flgs.b.page << PAGE_SHIFT;
+
+	idat->virt = kzalloc(idat_size, GFP_KERNEL);
+	if (!idat->virt) {
+		PR_ERR("%s:\n", __func__);
+		return;
+	}
+
+	idat->addr_st = virt_to_phys(idat->virt);
+	idat->addr_end = idat->addr_st + idat_size;
+	idat->flg.d32 = flg;
+	idat->flg_alloc = 1;
+	PR_INF("%s:size:%d,0x%px,0x%lx\n",
+	       __func__,
+	       idat_size, idat->virt, idat->addr_st);
+	iat_set_addr(pch);
+}
+
+void pst_sec_alloc(struct di_ch_s *pch, unsigned int flg)
+{
+	struct di_dat_s *pdat;
+	struct blk_flg_s flgs;
+	unsigned int dat_size;
+
+	pdat = get_pst_afbct(pch);
+
+	if (pdat->flg_alloc || (!flg))
+		return;
+
+	flgs.d32 = flg;
+	dat_size = flgs.b.page << PAGE_SHIFT;
+
+	pdat->virt = kzalloc(dat_size, GFP_KERNEL);
+	if (!pdat->virt) {
+		PR_ERR("%s:\n", __func__);
+		return;
+	}
+
+	pdat->addr_st = virt_to_phys(pdat->virt);
+	pdat->addr_end = pdat->addr_st + dat_size;
+	pdat->flg.d32 = flg;
+	pdat->flg_alloc = 1;
+	PR_INF("%s:size:%d,0x%px,0x%lx\n",
+	       __func__,
+	       dat_size, pdat->virt, pdat->addr_st);
+
+	pat_set_addr(pch);
+}
+
+void dim_sec_release(struct di_ch_s *pch)
+{
+	struct di_dat_s *dat;
+
+	dat = get_idat(pch);
+	if (dat->flg_alloc) {
+		kfree(dat->virt);
+		dat->virt = NULL;
+		memset(dat, 0, sizeof(*dat));
+	}
+
+	dat = get_pst_afbct(pch);
+	if (dat->flg_alloc) {
+		kfree(dat->virt);
+		dat->virt = NULL;
+		memset(dat, 0, sizeof(*dat));
 	}
 }
 
@@ -1188,7 +1267,7 @@ bool mem_cfg_pre(struct di_ch_s *pch)
 //	unsigned int err_cnt = 0;
 	unsigned int cnt;
 	unsigned int length;
-	struct di_dat_s *pdat;
+//	struct di_dat_s *pdat;
 
 	ch = pch->ch_id;
 	mm = dim_mm_get(ch);
@@ -1219,6 +1298,7 @@ bool mem_cfg_pre(struct di_ch_s *pch)
 			ret = qbufp_in(pbf_mem, QBF_MEM_Q_GET_PRE, q_buf);
 		} else if (blk_buf->flg.b.typ == mm->cfg.pbuf_flg.b.typ) {
 			ret = qbufp_in(pbf_mem, QBF_MEM_Q_GET_PST, q_buf);
+		#ifdef MARK_HIS
 		} else if (blk_buf->flg.b.typ == mm->cfg.dat_pafbct_flg.b.typ) {
 			pdat = get_pst_afbct(pch);
 			//PR_INF("cfg:idat\n");
@@ -1252,6 +1332,7 @@ bool mem_cfg_pre(struct di_ch_s *pch)
 				PR_ERR("idat have exit?\n");
 				/*to do: recycle*/
 			}
+		#endif
 		}
 		if (!ret) {
 			PR_ERR("%s:get is overflow\n", __func__);
@@ -2352,14 +2433,15 @@ bool qiat_all_release_mc_v(struct di_ch_s *pch)
 
 bool qiat_clear_buf(struct di_ch_s *pch)
 {
-	struct buf_que_s *pbf_mem;
-	union q_buf_u bufq;
+	//struct buf_que_s *pbf_mem;
+	//union q_buf_u bufq;
 
 	/*all in ready*/
 	qiat_all_back2_ready(pch);
 	/* release mc infor addr v*/
 	qiat_all_release_mc_v(pch);
 
+#ifdef MARK_HIS
 	/* clear idat*/
 	if (pch->rse_ori.dat_i.blk_buf) {
 		pbf_mem = &pch->mem_qb;
@@ -2368,6 +2450,7 @@ bool qiat_clear_buf(struct di_ch_s *pch)
 		memset(&pch->rse_ori.dat_i, 0, sizeof(pch->rse_ori.dat_i));
 		pch->rse_ori.dat_i.blk_buf = NULL;
 	}
+#endif
 	return true;
 }
 
@@ -2779,6 +2862,8 @@ fail_kmalloc_dev:
 static int dim_remove(struct platform_device *pdev)
 {
 	struct di_dev_s *di_devp = NULL;
+	int i;
+	struct di_ch_s *pch;
 
 	PR_INF("%s:\n", __func__);
 	di_devp = platform_get_drvdata(pdev);
@@ -2790,7 +2875,12 @@ static int dim_remove(struct platform_device *pdev)
 
 	di_devp->di_event = 0xff;
 
-	dim_uninit_buf(1, 0);/*channel 0*/
+	for (i = 0; i < DI_CHANNEL_NUB; i++) {
+		dim_uninit_buf(1, i);/*channel 0*/
+		pch = get_chdata(i);
+		qiat_clear_buf(pch);
+		dim_sec_release(pch);
+	}
 	di_set_flg_hw_int(false);
 
 	task_stop();
