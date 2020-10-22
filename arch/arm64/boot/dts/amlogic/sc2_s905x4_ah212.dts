@@ -547,14 +547,13 @@
 		enable_5v3v_pin-gpios = <&gpio GPIOC_4 GPIO_ACTIVE_HIGH>;
 		enable_pin-gpios = <&gpio GPIOC_1 GPIO_ACTIVE_HIGH>;
 
-		interrupts = <0 37 1>;
+		interrupts = <0 174 1>;
 		interrupt-names = "smc0_irq";
 		/*
 		 *Smc clock source, if change this,
 		 *you must adjust clk and divider in smartcard.c
 		 */
 		smc0_clock_source = <0>;
-		smc0_irq = <37>;		//smc irq
 		/*0: high voltage on detect pin indicates card in.*/
 		smc0_det_invert = <0>;
 		smc0_5v3v_level = <0>;
