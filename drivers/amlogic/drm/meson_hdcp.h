@@ -38,4 +38,5 @@ void am_hdcp_enable(struct work_struct *work);
 int am_hdcp22_init(struct am_hdmi_tx *am_hdmi);
 void drm_hdcp14_on(ulong param);
 void drm_hdcp14_off(ulong param);
+void drm_hdcp22_init(void);
 #endif
