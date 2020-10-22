@@ -38,6 +38,7 @@
 #include "vdin_ctl.h"
 #include "vdin_regs.h"
 #include "vdin_afbce.h"
+#include "vdin_canvas.h"
 /*2018-07-18 add debugfs*/
 #include <linux/seq_file.h>
 #include <linux/debugfs.h>
@@ -252,6 +253,11 @@ static void vdin_dump_one_buf_mem(char *path, struct vdin_dev_s *devp,
 	unsigned long phys;
 	mm_segment_t old_fs = get_fs();
 
+	if (devp->mem_protected) {
+		pr_err("can not capture picture in secure mode, return directly\n");
+		return;
+	}
+
 	set_fs(KERNEL_DS);
 	filp = filp_open(path, O_RDWR|O_CREAT, 0666);
 
@@ -346,10 +352,16 @@ static void vdin_dump_mem(char *path, struct vdin_dev_s *devp)
 	void *buf = NULL;
 	void *vfbuf[VDIN_CANVAS_MAX_CNT];
 	mm_segment_t old_fs = get_fs();
+
+	if (devp->mem_protected) {
+		pr_err("can not capture picture in secure mode, return directly\n");
+		return;
+	}
+
 	set_fs(KERNEL_DS);
 	filp = filp_open(path, O_RDWR|O_CREAT, 0666);
-
 	mem_size = (loff_t)devp->canvas_active_w * devp->canvas_h;
+
 	for (i = 0; i < VDIN_CANVAS_MAX_CNT; i++)
 		vfbuf[i] = NULL;
 	if (IS_ERR_OR_NULL(filp)) {
@@ -608,13 +620,19 @@ static void vdin_dump_one_afbce_mem(char *path, struct vdin_dev_s *devp,
 	set_fs(old_fs);
 }
 
-static void dump_other_mem(char *path,
-		unsigned int start, unsigned int offset)
+static void dump_other_mem(struct vdin_dev_s *devp, char *path,
+				unsigned int start, unsigned int offset)
 {
 	struct file *filp = NULL;
 	loff_t pos = 0;
 	void *buf = NULL;
 	mm_segment_t old_fs = get_fs();
+
+	if (devp->mem_protected) {
+		pr_err("can not capture picture in secure mode, return directly\n");
+		return;
+	}
+
 	set_fs(KERNEL_DS);
 	filp = filp_open(path, O_RDWR|O_CREAT, 0666);
 
@@ -630,6 +648,7 @@ static void dump_other_mem(char *path,
 	filp_close(filp, NULL);
 	set_fs(old_fs);
 }
+
 static void vdin_dv_debug(struct vdin_dev_s *devp)
 {
 	struct vframe_s *dv_vf;
@@ -1676,7 +1695,7 @@ static ssize_t vdin_attr_store(struct device *dev,
 				start = val;
 			if (kstrtol(parm[3], 16, &val) == 0)
 				offset = val;
-			dump_other_mem(parm[1], start, offset);
+			dump_other_mem(devp, parm[1], start, offset);
 		} else if (parm[2] != NULL) {
 			unsigned int buf_num = 0;
 

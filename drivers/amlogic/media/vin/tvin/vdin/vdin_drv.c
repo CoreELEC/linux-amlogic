@@ -58,6 +58,9 @@
 #include <linux/amlogic/media/frame_sync/timestamp.h>
 #include <linux/amlogic/media/frame_sync/tsync.h>
 #include <linux/amlogic/media/frame_provider/tvin/tvin_v4l2.h>
+#ifdef CONFIG_AMLOGIC_MEDIA_SECURITY
+#include <linux/amlogic/media/vpu_secure/vpu_secure.h>
+#endif
 
 /* Local Headers */
 #include "../tvin_global.h"
@@ -1057,9 +1060,45 @@ int start_tvin_service(int no, struct vdin_parm_s  *para)
 		mutex_unlock(&devp->fe_lock);
 		return -1;
 	}
-	/* #ifdef CONFIG_ARCH_MESON6 */
-	/* switch_mod_gate_by_name("vdin", 1); */
-	/* #endif */
+
+#ifdef CONFIG_AMLOGIC_MEDIA_SECURITY
+	/* config secure_en by loopback port */
+	switch (para->port) {
+	case TVIN_PORT_VIU1_WB0_VD1:
+	case TVIN_PORT_VIU1_WB1_VD1:
+		devp->secure_en = get_secure_state(VD1_OUT);
+		break;
+
+	case TVIN_PORT_VIU1_WB0_VD2:
+	case TVIN_PORT_VIU1_WB1_VD2:
+		devp->secure_en = get_secure_state(VD2_OUT);
+		break;
+
+	case TVIN_PORT_VIU1_WB0_OSD1:
+	case TVIN_PORT_VIU1_WB1_OSD1:
+		devp->secure_en = get_secure_state(OSD1_VPP_OUT);
+		break;
+
+	case TVIN_PORT_VIU1_WB0_OSD2:
+	case TVIN_PORT_VIU1_WB1_OSD2:
+		devp->secure_en = get_secure_state(OSD2_VPP_OUT);
+		break;
+
+	case TVIN_PORT_VIU1_WB0_POST_BLEND:
+	case TVIN_PORT_VIU1_WB1_POST_BLEND:
+	case TVIN_PORT_VIU1_WB0_VPP:
+	case TVIN_PORT_VIU1_WB1_VPP:
+	case TVIN_PORT_VIU2_ENCL:
+	case TVIN_PORT_VIU2_ENCI:
+	case TVIN_PORT_VIU2_ENCP:
+		devp->secure_en = get_secure_state(POST_BLEND_OUT);
+		break;
+
+	default:
+		devp->secure_en = 0;
+		break;
+	}
+#endif
 	vdin_start_dec(devp);
 	devp->flags |= VDIN_FLAG_DEC_OPENED;
 	devp->flags |= VDIN_FLAG_DEC_STARTED;
@@ -1565,7 +1604,7 @@ int vdin_vframe_put_and_recycle(struct vdin_dev_s *devp, struct vf_entry *vfe,
 		if (vfe)
 			receiver_vf_put(&vfe->vf, devp->vfp);
 		else
-			pr_info(">>>>> err2 vframe self receive\n");
+			pr_info(">>>>> no vframe can be recycled\n");
 		ret = -1;
 	} else if (vfe) {
 		provider_vf_put(vfe, devp->vfp);
@@ -2187,6 +2226,13 @@ irqreturn_t vdin_v4l2_isr(int irq, void *dev_id)
 		devp->frame_drop_num--;
 		devp->vdin_irq_flag = VDIN_IRQ_FLG_DROP_FRAME;
 		vdin_drop_frame_info(devp, "drop frame");
+		goto irq_handled;
+	}
+
+	/* protect mem will fail sometimes due to no res from tee module */
+	if (devp->secure_en && !devp->mem_protected) {
+		devp->vdin_irq_flag = VDIN_IRQ_FLG_SECURE_MD;
+		vdin_drop_frame_info(devp, "secure mode without protect mem");
 		goto irq_handled;
 	}
 
@@ -3682,13 +3728,15 @@ static void vdin_event_work(struct work_struct *work)
 	/*cancel_delayed_work(&devp->event_dwork);*/
 }
 
-/* add for loopback case, vpp notify vdin which HDR format use */
+/* add for loopback case, vpp notify vdin HDR format and secure mode */
 static int vdin_signal_notify_callback(struct notifier_block *block,
 					unsigned long cmd, void *para)
 {
 	struct vd_signal_info_s *vd_signal = NULL;
-	/* only for vdin1 to convert HDR(from VPP) to SDR*/
+	struct vd_secure_info_s *vd_secure = NULL;
+	/* only for vdin1 loopback */
 	struct vdin_dev_s *devp = vdin_get_dev(1);
+	unsigned int i = 0;
 
 	switch (cmd) {
 	case VIDEO_SIGNAL_TYPE_CHANGED:
@@ -3703,6 +3751,64 @@ static int vdin_signal_notify_callback(struct notifier_block *block,
 		if (vdin_dbg_en)
 			pr_info("%s tx fmt:%d, vd1 fmt:%d\n",
 				__func__, devp->tx_fmt, devp->vd1_fmt);
+		break;
+
+	case VIDEO_SECURE_TYPE_CHANGED:
+#ifdef CONFIG_AMLOGIC_MEDIA_SECURITY
+		vd_secure = (struct vd_secure_info_s *)para;
+		if (!vd_secure || !(devp->flags & VDIN_FLAG_DEC_STARTED))
+			break;
+
+		/* config secure_en by loopback port */
+		switch (devp->parm.port) {
+		case TVIN_PORT_VIU1_WB0_VD1:
+		case TVIN_PORT_VIU1_WB1_VD1:
+			devp->secure_en = vd_secure[VD1_OUT].secure_enable;
+			break;
+
+		case TVIN_PORT_VIU1_WB0_VD2:
+		case TVIN_PORT_VIU1_WB1_VD2:
+			devp->secure_en = vd_secure[VD2_OUT].secure_enable;
+			break;
+
+		case TVIN_PORT_VIU1_WB0_OSD1:
+		case TVIN_PORT_VIU1_WB1_OSD1:
+			devp->secure_en = vd_secure[OSD1_VPP_OUT].secure_enable;
+			break;
+
+		case TVIN_PORT_VIU1_WB0_OSD2:
+		case TVIN_PORT_VIU1_WB1_OSD2:
+			devp->secure_en = vd_secure[OSD2_VPP_OUT].secure_enable;
+			break;
+
+		case TVIN_PORT_VIU1_WB0_POST_BLEND:
+		case TVIN_PORT_VIU1_WB1_POST_BLEND:
+		case TVIN_PORT_VIU1_WB0_VPP:
+		case TVIN_PORT_VIU1_WB1_VPP:
+		case TVIN_PORT_VIU2_ENCL:
+		case TVIN_PORT_VIU2_ENCI:
+		case TVIN_PORT_VIU2_ENCP:
+			devp->secure_en =
+				vd_secure[POST_BLEND_OUT].secure_enable;
+			break;
+
+		default:
+			devp->secure_en = 0;
+			break;
+		}
+
+		/* vdin already started, set secure mode dynamically */
+		if (devp->secure_en && !devp->mem_protected) {
+			vdin_set_mem_protect(devp, 1);
+		} else if (!devp->secure_en && devp->mem_protected) {
+			/* buf already put out,should be exhausted */
+			for (i = 0; i < devp->vfmem_max_cnt; i++)
+				vdin_vframe_put_and_recycle(devp, NULL,
+							    VDIN_VF_RECYCLE);
+
+			vdin_set_mem_protect(devp, 0);
+		}
+#endif
 		break;
 
 	default:
