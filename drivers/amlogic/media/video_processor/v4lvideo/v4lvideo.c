@@ -1786,7 +1786,7 @@ static int video_receiver_event_fun(int type, void *data, void *private_data)
 		dq_count = 0;
 		pr_err("reg:v4lvideo\n");
 	} else if (type == VFRAME_EVENT_PROVIDER_QUREY_STATE) {
-		if (dev->vf_wait_cnt > 1)
+		if ((dev->vf_wait_cnt > 1) && v4l2q_empty(&dev->display_queue))
 			return RECEIVER_INACTIVE;
 		return RECEIVER_ACTIVE;
 	}
