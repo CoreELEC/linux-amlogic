@@ -381,6 +381,12 @@ enum render_cmd_type {
 	PAGE_FLIP,
 };
 
+enum osd_scaler_workaroud_type {
+	SC_NORMAL = 0,
+	SC_4K2K,
+	SC_DOUBLE,
+};
+
 struct pandata_s {
 	s32 x_start;
 	s32 x_end;

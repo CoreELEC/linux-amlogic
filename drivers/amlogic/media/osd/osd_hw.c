@@ -2763,7 +2763,8 @@ int osd_set_scan_mode(u32 index)
 	u32 data32 = 0x0;
 	s32 y_end = 0;
 	u32 output_index;
-	u32 scale_input_w;
+	u32 scale_input_w, scale_input_h;
+	u32 scale_output_w, scale_output_h;
 
 	output_index = get_output_device_id(index);
 	osd_hw.scan_mode[index] = SCAN_MODE_PROGRESSIVE;
@@ -2783,11 +2784,24 @@ int osd_set_scan_mode(u32 index)
 
 		scale_input_w = osd_hw.free_src_data[index].x_end -
 				osd_hw.free_src_data[index].x_start + 1;
+		scale_input_h = osd_hw.free_src_data[index].y_end -
+				osd_hw.free_src_data[index].y_start + 1;
+		scale_output_w = osd_hw.free_dst_data[index].x_end -
+				osd_hw.free_dst_data[index].x_start + 1;
+		scale_output_h = osd_hw.free_dst_data[index].y_end -
+				osd_hw.free_dst_data[index].y_start + 1;
+
 		if (((osd_hw.fb_for_4k2k) ||
 		     scale_input_w > FREE_SCALE_MAX_WIDTH) &&
 		    (osd_hw.free_scale_enable[index]))
-			osd_hw.scale_workaround = 1;
-
+			osd_hw.scale_workaround = SC_4K2K;
+		if ((scale_input_w * 2 == scale_output_w) &&
+			(scale_input_h * 2 == scale_output_h) &&
+			osd_hw.free_scale_enable[index]) {
+			osd_hw.scale_workaround = SC_DOUBLE;
+			osd_h_filter_mode = 2;
+			osd_v_filter_mode = 2;
+		}
 		if (is_interlaced(vinfo)) {
 			osd_hw.scan_mode[index] = SCAN_MODE_INTERLACE;
 			if (osd_hw.osd_meson_dev.osd_ver == OSD_NORMAL)
@@ -5527,6 +5541,7 @@ static void osd_update_disp_freescale_enable(u32 index)
 	u64 hf_phase_step, vf_phase_step;
 	int src_w, src_h, dst_w, dst_h;
 	int bot_ini_phase, top_ini_phase;
+	u32 h_init_phase = 0, v_init_phase = 0;
 	int vsc_ini_rcv_num, vsc_ini_rpt_p0_num;
 	int vsc_bot_rcv_num = 0, vsc_bot_rpt_p0_num = 0;
 	int hsc_ini_rcv_num, hsc_ini_rpt_p0_num;
@@ -5540,7 +5555,7 @@ static void osd_update_disp_freescale_enable(u32 index)
 	if (osd_hw.osd_meson_dev.osd_ver != OSD_HIGH_ONE)
 		osd_reg = &hw_osd_reg_array[0];
 
-	if (osd_hw.scale_workaround)
+	if (osd_hw.scale_workaround == SC_4K2K)
 		vf_bank_len = 2;
 	else
 		vf_bank_len = 4;
@@ -5576,7 +5591,6 @@ static void osd_update_disp_freescale_enable(u32 index)
 		osd_hw.free_dst_data[index].x_start + 1;
 	dst_h = osd_hw.free_dst_data[index].y_end -
 		osd_hw.free_dst_data[index].y_start + 1;
-
 	/* config osd sc control reg */
 	data32 = 0x0;
 	if (osd_hw.free_scale_enable[index]) {
@@ -5666,7 +5680,10 @@ static void osd_update_disp_freescale_enable(u32 index)
 			  (osd_hw.free_dst_data[index].y_start & 0xfff) << 16);
 		VSYNCOSD_WR_MPEG_REG(osd_reg->osd_sco_v_start_end, data32);
 	}
-
+	if (osd_hw.scale_workaround == SC_DOUBLE) {
+		vsc_ini_rpt_p0_num = 2;
+		hsc_ini_rpt_p0_num = 2;
+	}
 	data32 = 0x0;
 	if (osd_hw.free_scale[index].v_enable) {
 		data32 |= (vf_bank_len & 0x7)
@@ -5676,7 +5693,7 @@ static void osd_update_disp_freescale_enable(u32 index)
 			data32 |= ((vsc_bot_rcv_num & 0xf) << 11)
 				| ((vsc_bot_rpt_p0_num & 0x3) << 16)
 				| (1 << 23);
-		if (osd_hw.scale_workaround)
+		if (osd_hw.scale_workaround == SC_4K2K)
 			data32 |= 1 << 21;
 		data32 |= 1 << 24;
 		if (osd_hw.osd_meson_dev.cpu_id >=
@@ -5702,16 +5719,22 @@ static void osd_update_disp_freescale_enable(u32 index)
 			if (src_h == dst_h * 2)
 				data32 |= 0x80008000;
 		}
+		v_init_phase = data32;
+
+		if (osd_hw.scale_workaround == SC_DOUBLE) {
+			v_init_phase = 0xc000;
+			h_init_phase = 0xc000;
+		}
 		VSYNCOSD_WR_MPEG_REG_BITS(
 			osd_reg->osd_hsc_phase_step,
 			hf_phase_step, 0, 28);
 		VSYNCOSD_WR_MPEG_REG_BITS(
-			osd_reg->osd_hsc_init_phase, 0, 0, 16);
+			osd_reg->osd_hsc_init_phase, h_init_phase, 0, 16);
 		VSYNCOSD_WR_MPEG_REG_BITS(
 			osd_reg->osd_vsc_phase_step,
 			vf_phase_step, 0, 28);
 		VSYNCOSD_WR_MPEG_REG(
-			osd_reg->osd_vsc_init_phase, data32);
+			osd_reg->osd_vsc_init_phase, v_init_phase);
 	}
 	if ((osd_hw.osd_meson_dev.osd_ver == OSD_HIGH_ONE) &&
 	    (!osd_hw.hwc_enable[output_index])) {
@@ -5744,7 +5767,7 @@ static void osd_update_coef(u32 index)
 	}
 	use_v_filter_mode = osd_hw.use_v_filter_mode[index];
 	use_h_filter_mode = osd_hw.use_h_filter_mode[index];
-	if (osd_hw.scale_workaround) {
+	if (osd_hw.scale_workaround == SC_4K2K) {
 		if (use_v_filter_mode != 3) {
 			use_v_filter_mode = 3;
 			need_update_coef = true;
