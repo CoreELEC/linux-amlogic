@@ -26,13 +26,16 @@ u8 *dim_vmap(ulong addr, u32 size, bool *bflg);
 void dim_unmap_phyaddr(u8 *vaddr);
 void dim_mcinfo_v_alloc(struct di_buf_s *pbuf, unsigned int bsize);
 void dim_mcinfo_v_release(struct di_buf_s *pbuf);
+void dim_mcinfo_v_alloc_idat(struct dim_iat_s *idat, unsigned int bsize);
+void dim_mcinfo_v_release_idat(struct dim_iat_s *idat);
 struct dim_mm_s {
 	struct page	*ppage;
 	unsigned long	addr;
 	unsigned int	flg;/*bit0 for tvp*/
 };
 
-bool dim_mm_alloc_api(int cma_mode, size_t count, struct dim_mm_s *o);
+bool dim_mm_alloc_api(int cma_mode, size_t count, struct dim_mm_s *o,
+			     bool tvp_flg);
 bool dim_mm_release_api(int cma_mode,
 			struct page *pages,
 			int count,
@@ -55,9 +58,29 @@ void blk_polling(unsigned int ch, struct mtsk_cmd_s *cmd);
 void bufq_blk_int(struct di_ch_s *pch);
 void bufq_blk_exit(struct di_ch_s *pch);
 
+void bufq_pat_int(struct di_ch_s *pch);
+void bufq_pat_exit(struct di_ch_s *pch);
+bool qpat_idle_to_ready(struct di_ch_s *pch, unsigned long addr);
+struct dim_pat_s *qpat_out_ready(struct di_ch_s *pch);
+bool qpat_in_ready(struct di_ch_s *pch, struct dim_pat_s *pat_buf);
+bool qpat_in_ready_msk(struct di_ch_s *pch, unsigned int msk);
+
+void bufq_iat_int(struct di_ch_s *pch);
+void bufq_iat_exit(struct di_ch_s *pch);
+void bufq_iat_rest(struct di_ch_s *pch);
+bool qiat_idle_to_ready(struct di_ch_s *pch, struct dim_iat_s **idat);
+struct dim_iat_s *qiat_out_ready(struct di_ch_s *pch);
+bool qiat_in_ready(struct di_ch_s *pch, struct dim_iat_s *iat_buf);
+bool qiat_all_back2_ready(struct di_ch_s *pch);
+
 void bufq_mem_int(struct di_ch_s *pch);
 void bufq_mem_exit(struct di_ch_s *pch);
 
+bool di_pst_afbct_check(struct di_ch_s *pch);
+bool di_i_dat_check(struct di_ch_s *pch);
+bool mem_alloc_check(struct di_ch_s *pch);
+
+bool mem_cfg_pre(struct di_ch_s *pch);
 bool mem_cfg(struct di_ch_s *pch);
 void mem_release(struct di_ch_s *pch);
 bool mem_2_blk(struct di_ch_s *pch);

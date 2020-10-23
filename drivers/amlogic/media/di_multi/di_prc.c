@@ -101,6 +101,10 @@ const struct di_cfg_ctr_s di_cfg_top_ctr[K_DI_CFG_NUB] = {
 			EDI_CFG_POUT_FMT,
 			3,
 			K_DI_CFG_T_FLG_DTS},
+	[EDI_CFG_DAT]  = {"en_dat",/*bit 0: pst dat; bit 1: idat */
+			EDI_CFG_DAT,
+			0,
+			K_DI_CFG_T_FLG_DTS},
 	[EDI_CFG_ALLOC_WAIT]  = {"alloc waite", /* 0:not wait; 1: wait */
 			EDI_CFG_ALLOC_WAIT,
 			0, //1, //
@@ -221,6 +225,20 @@ void di_cfg_top_dts(void)
 		cfgs(4K, 0);
 		PR_INF("not support 4k\n");
 	}
+	/* dat */
+	/*bit 0: pst dat; bit 1: idat */
+	pd = &get_datal()->cfg_en[EDI_CFG_DAT];
+	pt = &di_cfg_top_ctr[EDI_CFG_DAT];
+	if (DIM_IS_IC(TM2B)	||
+	    DIM_IS_IC(SC2)) {//	    DIM_IS_IC(T5)
+		if (!pd->b.dts_have) {
+			pd->b.val_c = 0x3;
+			//pd->b.val_c = 0x0;//test
+		}
+	} else {
+		pd->b.val_c = 0;
+	}
+	PR_INF("%s:%s:0x%x\n", __func__, pt->dts_name, pd->b.val_c);
 }
 
 static void di_cfgt_show_item_one(struct seq_file *s, unsigned int index)
@@ -1907,7 +1925,12 @@ static void dip_process_reg_after(struct di_ch_s *pch)
 #ifdef	SC2_NEW_FLOW
 		if (memn_get(pch)) {
 #else
-		if (mem_cfg(pch)) {
+		//if (mem_cfg(pch)) {
+		mem_cfg_pre(pch);
+		if (di_pst_afbct_check(pch) &&
+		    di_i_dat_check(pch)		&&
+		    mem_alloc_check(pch)) {
+			mem_cfg(pch);
 #endif
 			mem_cfg_realloc_wait(pch);
 			if (di_cfg_top_get(EDI_CFG_FIRST_BYPASS)) {
@@ -2832,6 +2855,8 @@ bool dip_prob(void)
 		pch = get_chdata(i);
 		bufq_blk_int(pch);
 		bufq_mem_int(pch);
+		bufq_pat_int(pch);
+		bufq_iat_int(pch);
 	}
 
 	di_cfgx_init_val();
@@ -2863,6 +2888,8 @@ void dip_exit(void)
 		pch = get_chdata(i);
 		bufq_blk_exit(pch);
 		bufq_mem_exit(pch);
+		bufq_pat_exit(pch);
+		bufq_iat_exit(pch);
 	}
 	dim_release_canvas();
 //	dip_wq_ext();

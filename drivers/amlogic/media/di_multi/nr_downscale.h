@@ -36,7 +36,7 @@ struct nr_ds_s {
 };
 
 void dim_nr_ds_buf_init(unsigned int cma_flag, unsigned long mem_start,
-			struct device *dev);
+			struct device *dev, bool tvp_flg);
 void dim_nr_ds_buf_uninit(unsigned int cma_flag, struct device *dev);
 void dim_nr_ds_init(unsigned int width, unsigned int height);
 void dim_nr_ds_mif_config(void);

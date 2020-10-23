@@ -71,7 +71,7 @@ static void nr_ds_hw_init(unsigned int width, unsigned int height)
  * init nr ds buffer
  */
 void dim_nr_ds_buf_init(unsigned int cma_flag, unsigned long mem_start,
-			struct device *dev)
+			struct device *dev, bool tvp_flg)
 {
 	unsigned int i = 0;
 	bool ret;
@@ -89,7 +89,7 @@ void dim_nr_ds_buf_init(unsigned int cma_flag, unsigned long mem_start,
 		else
 			PR_ERR("DI: alloc nr ds mem error.\n");
 		#else
-		ret = dim_mm_alloc_api(cma_flag, NR_DS_PAGE_NUM, &omm);
+		ret = dim_mm_alloc_api(cma_flag, NR_DS_PAGE_NUM, &omm, tvp_flg);
 		if (ret) {
 			nrds_dev.nrds_pages = omm.ppage;
 			nrds_dev.nrds_addr = omm.addr;
