@@ -27,8 +27,10 @@
 #include <linux/pinctrl/consumer.h>
 #include <linux/amlogic/media/vout/vout_notify.h>
 
+#define DEVICE_NAME "amhdmitx"
+
 /* HDMITX driver version */
-#define HDMITX_VER "20200617.1"
+#define HDMITX_VER "20201030"
 
 /* chip type */
 #define MESON_CPU_ID_M8B		0
@@ -945,7 +947,6 @@ enum hdmi_tf_type hdmitx_get_cur_hdr10p_st(void);
 bool hdmitx_hdr_en(void);
 bool hdmitx_dv_en(void);
 bool hdmitx_hdr10p_en(void);
-
 bool LGAVIErrorTV(struct rx_cap *prxcap);
 bool hdmitx_find_vendor(struct hdmitx_dev *hdev);
 #endif

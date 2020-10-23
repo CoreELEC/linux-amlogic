@@ -44,6 +44,11 @@ struct reg_map {
 	void __iomem *p;
 };
 
+extern struct reg_map *map;
+
+unsigned int TO_PHY_ADDR(unsigned int addr);
+void __iomem *TO_PMAP_ADDR(unsigned int addr);
+
 extern unsigned int hd_read_reg(unsigned int addr);
 extern void hd_write_reg(unsigned int addr, unsigned int val);
 extern void hd_set_reg_bits(unsigned int addr, unsigned int value,
