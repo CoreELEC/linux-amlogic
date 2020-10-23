@@ -814,7 +814,8 @@ static int write_es_data(struct out_elem *pout, struct es_params_t *es_params)
 		       (unsigned long)es_params->header.pts,
 		       (unsigned long)es_params->header.dts,
 		       es_params->header.len);
-		pout->newest_pts = es_params->header.pts;
+		if (es_params->header.pts_dts_flag & 0x2)
+			pout->newest_pts = es_params->header.pts;
 		out_ts_cb_list(pout, (char *)&es_params->header, h_len);
 		es_params->have_send_header = 1;
 	}
@@ -1014,6 +1015,8 @@ static int write_aucpu_es_data(struct out_elem *pout,
 		       (unsigned long)es_params->header.pts,
 		       (unsigned long)es_params->header.dts,
 		       es_params->header.len);
+		if (es_params->header.pts_dts_flag & 0x2)
+			pout->newest_pts = es_params->header.pts;
 		out_ts_cb_list(pout, (char *)&es_params->header, h_len);
 		es_params->have_send_header = 1;
 	}
@@ -1097,6 +1100,38 @@ static int write_aucpu_sec_es_data(struct out_elem *pout,
 	return 0;
 }
 
+static int clean_aucpu_data(struct out_elem *pout, unsigned int len)
+{
+	int ret;
+	char *ptmp;
+
+	if (!pout->aucpu_start &&
+		pout->format == ES_FORMAT &&
+		pout->type == AUDIO_TYPE && pout->aucpu_handle >= 0) {
+		if (wdma_get_active(pout->pchan->id)) {
+			ret = aml_aucpu_strm_start(pout->aucpu_handle);
+			if (ret >= 0) {
+				pr_dbg("aucpu start success\n");
+				pout->aucpu_start = 1;
+			} else {
+				pr_dbg("aucpu start fail ret:%d\n",
+					   ret);
+				return -1;
+			}
+		}
+	}
+
+	while (len) {
+		ret = aucpu_bufferid_read(pout, &ptmp, len);
+		if (ret != 0)
+			len -= ret;
+
+		if (pout->running == TASK_DEAD)
+			return -1;
+	}
+	return 0;
+}
+
 static int write_sec_video_es_data(struct out_elem *pout,
 				   struct es_params_t *es_params)
 {
@@ -1165,7 +1200,8 @@ static int write_sec_video_es_data(struct out_elem *pout,
 			(unsigned long)(sec_es_data.data_start -
 				sec_es_data.buf_start));
 
-	pout->newest_pts = sec_es_data.pts;
+	if (es_params->header.pts_dts_flag & 0x2)
+		pout->newest_pts = sec_es_data.pts;
 	out_ts_cb_list(pout, (char *)&sec_es_data,
 			sizeof(struct dmx_sec_es_data));
 
@@ -1178,11 +1214,9 @@ static int _handle_es(struct out_elem *pout, struct es_params_t *es_params)
 {
 	int ret = 0;
 	unsigned int dirty_len = 0;
-	unsigned int es_len = 0;
 	char cur_header[16];
 	char *pcur_header;
 	char *plast_header;
-	int h_len = sizeof(struct dmx_non_sec_es_header);
 	struct dmx_non_sec_es_header *pheader = &es_params->header;
 
 	memset(&cur_header, 0, sizeof(cur_header));
@@ -1203,7 +1237,12 @@ static int _handle_es(struct out_elem *pout, struct es_params_t *es_params)
 			return -1;
 		} else if (ret > 0) {
 			dirty_len = ret;
-			ret = clean_es_data(pout, pout->pchan, dirty_len);
+			if (pout->pchan->sec_level &&
+					pout->type != VIDEO_TYPE)
+				ret = clean_aucpu_data(pout, dirty_len);
+			else
+				ret = clean_es_data(pout,
+						pout->pchan, dirty_len);
 			memcpy(&es_params->last_header, pcur_header,
 					sizeof(es_params->last_header));
 			return 0;
@@ -1228,20 +1267,14 @@ static int _handle_es(struct out_elem *pout, struct es_params_t *es_params)
 				ret =
 				    write_aucpu_sec_es_data(pout, es_params);
 			} else {
-				es_len = pheader->len;
-				pr_dbg("aud pdts_flag:%d, pts:0x%lx,",
-						pheader->pts_dts_flag,
-						(unsigned long)pheader->pts);
-				pr_dbg("dts:0x%lx, len:%d\n",
-				       (unsigned long)pheader->dts,
-				       pheader->len);
-				pout->newest_pts = pheader->pts;
-				out_ts_cb_list(pout, (char *)pheader, h_len);
 				ret = write_aucpu_es_data(pout, es_params, 0);
 			}
 		}
 		if (ret == 0) {
 			es_params->have_header = 0;
+			es_params->have_send_header = 0;
+			es_params->data_len = 0;
+			es_params->data_start = 0;
 			return 0;
 		} else {
 			return -1;
@@ -1706,6 +1739,8 @@ int ts_output_close(struct out_elem *pout)
 	if (pout->ref)
 		return 0;
 
+	pout->running = TASK_DEAD;
+
 	if (pout->format == ES_FORMAT) {
 		if (dump_video_es) {
 			if (video_es_dump_fp) {
@@ -1729,7 +1764,6 @@ int ts_output_close(struct out_elem *pout)
 #endif
 		remove_ts_out_list(pout, &ts_out_task_tmp);
 	}
-	pout->running = TASK_DEAD;
 
 	if (pout->pchan) {
 		SC2_bufferid_set_enable(pout->pchan, 0);

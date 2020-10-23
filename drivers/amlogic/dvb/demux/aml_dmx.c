@@ -351,8 +351,8 @@ static int _dmx_ts_feed_set(struct dmx_ts_feed *ts_feed, u16 pid, int ts_type,
 	    pes_type == DMX_PES_AUDIO2 || pes_type == DMX_PES_AUDIO3) {
 		type = AUDIO_TYPE;
 		mem_size = audio_buf_size;
-		aud_type = (filter->params.pes.flags
-			    & 0xFF000000) >> DMX_AUDIO_FORMAT_BIT;
+		aud_type = (filter->params.pes.flags >>
+		DMX_AUDIO_FORMAT_BIT) & 0xFF;
 	} else if (pes_type == DMX_PES_VIDEO0 ||
 		   pes_type == DMX_PES_VIDEO1 ||
 		   pes_type == DMX_PES_VIDEO2 || pes_type == DMX_PES_VIDEO3) {
