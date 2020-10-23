@@ -338,7 +338,7 @@ static struct meson_clk_mpll sc2_mpll0 = {
 		.ops = &meson_sc2_mpll_ops,
 		.parent_names = (const char *[]){ "fixed_pll" },
 		.num_parents = 1,
-		.flags = CLK_GET_RATE_NOCACHE,
+		.flags = (CLK_GET_RATE_NOCACHE | CLK_IS_CRITICAL),
 	},
 };
 
