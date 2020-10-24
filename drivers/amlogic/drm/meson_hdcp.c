@@ -103,45 +103,10 @@ static int am_hdcp22_enable(struct am_hdmi_tx *am_hdmi)
 	return 0;
 }
 
-static void set_pkf_duk_nonce(void)
-{
-	static int nonce_mode = 1; /* 1: use HW nonce   0: use SW nonce */
-
-	/* Configure duk/pkf */
-	hdmitx_hdcp_opr(0xc);
-	if (nonce_mode == 1)
-		hdmitx_wr_reg(HDMITX_TOP_SKP_CNTL_STAT, 0xf);
-	else {
-		hdmitx_wr_reg(HDMITX_TOP_SKP_CNTL_STAT, 0xe);
-/* Configure nonce[127:0].
- * MSB must be written the last to assert nonce_vld signal.
- */
-		hdmitx_wr_reg(HDMITX_TOP_NONCE_0,  0x32107654);
-		hdmitx_wr_reg(HDMITX_TOP_NONCE_1,  0xba98fedc);
-		hdmitx_wr_reg(HDMITX_TOP_NONCE_2,  0xcdef89ab);
-		hdmitx_wr_reg(HDMITX_TOP_NONCE_3,  0x45670123);
-		hdmitx_wr_reg(HDMITX_TOP_NONCE_0,  0x76543210);
-		hdmitx_wr_reg(HDMITX_TOP_NONCE_1,  0xfedcba98);
-		hdmitx_wr_reg(HDMITX_TOP_NONCE_2,  0x89abcdef);
-		hdmitx_wr_reg(HDMITX_TOP_NONCE_3,  0x01234567);
-	}
-	udelay(10);
-}
-
 int am_hdcp22_init(struct am_hdmi_tx *am_hdmi)
 {
 	am_hdmi->hdcp_mode = HDCP_MODE22;
-	hdmitx_ddc_hw_op(DDC_MUX_DDC);
-	hdmitx_set_reg_bits(HDMITX_DWC_MC_CLKDIS, 1, 6, 1);
-	udelay(5);
-	hdmitx_set_reg_bits(HDMITX_DWC_HDCP22REG_CTRL, 3, 1, 2);
-	hdmitx_set_reg_bits(HDMITX_TOP_SW_RESET, 1, 5, 1);
-	udelay(10);
-	hdmitx_set_reg_bits(HDMITX_TOP_SW_RESET, 0, 5, 1);
-	udelay(10);
-	hdmitx_wr_reg(HDMITX_DWC_HDCP22REG_MASK, 0);
-	hdmitx_wr_reg(HDMITX_DWC_HDCP22REG_MUTE, 0);
-	set_pkf_duk_nonce();
+	drm_hdcp22_init();
 
 	return 0;
 }

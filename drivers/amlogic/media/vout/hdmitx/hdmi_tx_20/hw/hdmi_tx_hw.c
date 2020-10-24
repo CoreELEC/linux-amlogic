@@ -5482,6 +5482,15 @@ void drm_hdcp14_on(ulong param)
 	hdcp_start_timer(hdev);
 }
 
+/* For DRM. Equal to echo 2 > hdcp_mode */
+void drm_hdcp22_init(void)
+{
+	struct hdmitx_dev *hdev = get_hdmitx_device();
+
+	hdmitx_hdcp_do_work(hdev);
+	hdev->hwop.cntlddc(hdev, DDC_HDCP_MUX_INIT, 2);
+}
+
 static int hdmitx_hdmi_dvi_config(struct hdmitx_dev *hdev,
 						unsigned int dvi_mode)
 {
