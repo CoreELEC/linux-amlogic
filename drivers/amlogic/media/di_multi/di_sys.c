@@ -146,7 +146,7 @@ void dim_mcinfo_v_release(struct di_buf_s *pbuf)
 void dim_mcinfo_v_alloc_idat(struct dim_iat_s *idat, unsigned int bsize)
 {
 	if (/*!dimp_get(edi_mp_lmv_lock_win_en) ||*/
-	    idat->mcinfo_alloc_flg)
+	    !idat || idat->mcinfo_alloc_flg)
 		return;
 	idat->mcinfo_adr_v = (unsigned short *)dim_vmap(idat->start_mc,
 				      bsize,
@@ -860,10 +860,9 @@ static void iat_set_addr(struct di_ch_s *pch)
 //	unsigned long addr_afbct, addr_mc;
 	unsigned int size_tafbct;
 	unsigned int size_afbct;
-	struct dim_iat_s *idat;
-
+	struct dim_iat_s *idat = NULL;
 	bool ret;
-	struct di_dat_s *pdat;
+	struct di_dat_s *pdat = NULL;
 
 	ch = pch->ch_id;
 
