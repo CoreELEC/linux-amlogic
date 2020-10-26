@@ -108,6 +108,11 @@ struct dmx_sct_filter_params
 #define DMX_KERNEL_CLIENT   0x8000
 #ifdef CONFIG_AMLOGIC_DVB_COMPAT
 #define DMX_USE_SWFILTER    0x100
+
+/*bit 8~15 for mem sec_level*/
+#define DMX_MEM_SEC_LEVEL1   (1 << 10)
+#define DMX_MEM_SEC_LEVEL2   (1 << 11)
+#define DMX_MEM_SEC_LEVEL3   (1 << 12)
 #endif
 };
 

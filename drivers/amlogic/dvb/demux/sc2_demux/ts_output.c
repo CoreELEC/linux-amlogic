@@ -101,9 +101,10 @@ struct out_elem {
 	u8 sid;
 	u8 enable;
 	u8 ref;
+	u8 dmx_id;
 	enum output_format format;
 	enum content_type type;
-	int aud_type;
+	int media_type;
 
 	struct pid_entry *pid_list;
 	struct es_entry *es_pes;
@@ -337,6 +338,9 @@ static int out_flush_time = 10;
 static int out_es_flush_time = 10;
 
 static int _handle_es(struct out_elem *pout, struct es_params_t *es_params);
+static int start_aucpu_non_es(struct out_elem *pout);
+static int aucpu_bufferid_read(struct out_elem *pout,
+			       char **pread, unsigned int len);
 
 struct out_elem *_find_free_elem(void)
 {
@@ -527,9 +531,15 @@ static int section_process(struct out_elem *pout)
 	int len = 0, w_size;
 	char *pread;
 
+	if (pout->pchan->sec_level)
+		start_aucpu_non_es(pout);
+
 	if (pout->remain_len == 0) {
 		len = MAX_READ_BUF_LEN;
-		ret = SC2_bufferid_read(pout->pchan, &pread, len, 0);
+		if (pout->pchan->sec_level)
+			ret = aucpu_bufferid_read(pout, &pread, len);
+		else
+			ret = SC2_bufferid_read(pout->pchan, &pread, len, 0);
 		if (ret != 0) {
 			if (pout->cb_sec_list) {
 				w_size = out_sec_cb_list(pout, pread, ret);
@@ -554,7 +564,10 @@ static int section_process(struct out_elem *pout)
 		}
 	} else {
 		len = READ_CACHE_SIZE - pout->remain_len;
-		ret = SC2_bufferid_read(pout->pchan, &pread, len, 0);
+		if (pout->pchan->sec_level)
+			ret = aucpu_bufferid_read(pout, &pread, len);
+		else
+			ret = SC2_bufferid_read(pout->pchan, &pread, len, 0);
 		if (ret != 0) {
 			memcpy(pout->cache + pout->remain_len, pread, ret);
 			pout->remain_len += ret;
@@ -651,9 +664,14 @@ static int _task_out_func(void *data)
 				dvr_process(ptmp->pout);
 			} else {
 				len = MAX_READ_BUF_LEN;
-				ret =
-				    SC2_bufferid_read(ptmp->pout->pchan, &pread,
-						      len, 0);
+				if (ptmp->pout->pchan->sec_level) {
+					start_aucpu_non_es(ptmp->pout);
+					ret = aucpu_bufferid_read(
+						ptmp->pout, &pread, len);
+				} else {
+					ret = SC2_bufferid_read(
+					ptmp->pout->pchan, &pread, len, 0);
+				}
 				if (ret != 0)
 					out_ts_cb_list(ptmp->pout, pread, ret);
 			}
@@ -877,6 +895,25 @@ static int clean_es_data(struct out_elem *pout, struct chan_id *pchan,
 	return 0;
 }
 
+static int start_aucpu_non_es(struct out_elem *pout)
+{
+	int ret;
+
+	if (!pout->aucpu_start &&
+		pout->aucpu_handle >= 0 &&
+		wdma_get_active(pout->pchan->id)) {
+		ret = aml_aucpu_strm_start(pout->aucpu_handle);
+		if (ret >= 0) {
+			pr_dbg("aucpu start success\n");
+			pout->aucpu_start = 1;
+		} else {
+			pr_dbg("aucpu start fail ret:%d\n", ret);
+			return -1;
+		}
+	}
+	return 0;
+}
+
 static void create_aucpu_inst(struct out_elem *pout)
 {
 	struct aml_aucpu_strm_buf src;
@@ -884,8 +921,12 @@ static void create_aucpu_inst(struct out_elem *pout)
 	struct aml_aucpu_inst_config cfg;
 	int ret;
 
-	/*now the audio will pass by aucpu */
-	if (pout->type == AUDIO_TYPE && pout->aucpu_handle < 0) {
+	if (pout->type == VIDEO_TYPE ||
+		pout->type == NONE_TYPE)
+		return;
+
+	/*now except the video, others will pass by aucpu */
+	if (pout->aucpu_handle < 0) {
 		src.phy_start = pout->pchan->mem_phy;
 		src.buf_size = pout->pchan->mem_size;
 		src.buf_flags = 0;
@@ -905,7 +946,7 @@ static void create_aucpu_inst(struct out_elem *pout)
 		dst.phy_start = pout->aucpu_mem_phy;
 		dst.buf_size = pout->aucpu_mem_size;
 		dst.buf_flags = 0;
-		cfg.media_type = pout->aud_type;	/*MEDIA_MPX; */
+		cfg.media_type = pout->media_type;	/*MEDIA_MPX; */
 		cfg.dma_chn_id = pout->pchan->id;
 		cfg.config_flags = 0;
 		pout->aucpu_handle = aml_aucpu_strm_create(&src, &dst, &cfg);
@@ -1026,6 +1067,8 @@ static int write_aucpu_es_data(struct out_elem *pout,
 	ret = aucpu_bufferid_read(pout, &ptmp, len);
 	if (ret) {
 		out_ts_cb_list(pout, ptmp, ret);
+		if (dump_audio_es == 1)
+			dump_audio_file_write(ptmp, ret);
 		es_params->data_len += ret;
 		pr_dbg("%s total len:%d, remain:%d\n",
 		       pout->type == AUDIO_TYPE ? "audio" : "video",
@@ -1154,8 +1197,14 @@ static int write_sec_video_es_data(struct out_elem *pout,
 	es_params->data_len += ret;
 
 	if (dump_video_es == 1) {
-		if (video_es_dump_fp)
-			dump_file_write(ptmp, ret);
+		if (video_es_dump_fp) {
+			if (flag)
+				dump_file_write(
+						ptmp - pout->pchan->mem_phy +
+						pout->pchan->mem, ret);
+			else
+				dump_file_write(ptmp, ret);
+		}
 	}
 
 	if (ret != len) {
@@ -1166,8 +1215,14 @@ static int write_sec_video_es_data(struct out_elem *pout,
 		ret = SC2_bufferid_read(pout->pchan, &ptmp, len, flag);
 		es_params->data_len += ret;
 		if (dump_video_es == 1) {
-			if (video_es_dump_fp)
-				dump_file_write(ptmp, ret);
+			if (video_es_dump_fp) {
+				if (flag)
+					dump_file_write(
+						ptmp - pout->pchan->mem_phy +
+						pout->pchan->mem, ret);
+				else
+					dump_file_write(ptmp, ret);
+			}
 		}
 		if (ret != len)
 			return -1;
@@ -1597,16 +1652,17 @@ struct out_elem *ts_output_find_dvr(int sid)
 
 /**
  * open one output pipeline
+ * \param dmx_id:demux id.
  * \param sid:stream id.
  * \param format:output format.
  * \param type:input content type.
- * \param aud_type:input audio format
+ * \param media_type:aucpu support format
  * \param output_mode:1 will output raw mode,just for ES.
  * \retval return out_elem.
  * \retval NULL:fail.
  */
-struct out_elem *ts_output_open(int sid, u8 format,
-				enum content_type type, int aud_type,
+struct out_elem *ts_output_open(int sid, u8 dmx_id, u8 format,
+				enum content_type type, int media_type,
 				int output_mode)
 {
 	struct bufferid_attr attr;
@@ -1615,7 +1671,7 @@ struct out_elem *ts_output_open(int sid, u8 format,
 	struct ts_out *ts_out_tmp = NULL;
 
 	pr_dbg("%s sid:%d, format:%d, type:%d ", __func__, sid, format, type);
-	pr_dbg("audio_type:%d, output_mode:%d\n", aud_type, output_mode);
+	pr_dbg("media_type:%d, output_mode:%d\n", media_type, output_mode);
 
 	if (sid >= MAX_SID_NUM) {
 		dprint("%s sid:%d fail\n", __func__, sid);
@@ -1626,12 +1682,13 @@ struct out_elem *ts_output_open(int sid, u8 format,
 		dprint("%s find free elem sid:%d fail\n", __func__, sid);
 		return NULL;
 	}
+	pout->dmx_id = dmx_id;
 	pout->format = format;
 	pout->sid = sid;
 	pout->pid_list = NULL;
 	pout->output_mode = output_mode;
 	pout->type = type;
-	pout->aud_type = aud_type;
+	pout->media_type = media_type;
 	pout->ref = 0;
 	pout->newest_pts = 0;
 
@@ -1765,6 +1822,29 @@ int ts_output_close(struct out_elem *pout)
 		remove_ts_out_list(pout, &ts_out_task_tmp);
 	}
 
+	if (pout->aucpu_handle >= 0) {
+		s32 ret;
+
+		if (pout->aucpu_start) {
+			ret = aml_aucpu_strm_stop(pout->aucpu_handle);
+			if (ret >= 0)
+				pr_dbg("aml_aucpu_strm_stop success\n");
+			else
+				pr_dbg("aucpu_stop fail ret:%d\n", ret);
+			pout->aucpu_start = 0;
+		}
+		ret = aml_aucpu_strm_remove(pout->aucpu_handle);
+		if (ret >= 0)
+			pr_dbg("aucpu_strm_remove success\n");
+		else
+			pr_dbg("aucpu_strm_remove fail ret:%d\n", ret);
+		pout->aucpu_handle = -1;
+
+		_free_buff(pout->aucpu_mem_phy,
+				pout->aucpu_mem_size, 0, 0);
+		pout->aucpu_mem = 0;
+	}
+
 	if (pout->pchan) {
 		SC2_bufferid_set_enable(pout->pchan, 0);
 		SC2_bufferid_dealloc(pout->pchan);
@@ -1877,28 +1957,6 @@ int ts_output_remove_pid(struct out_elem *pout, int pid)
 				      pout->sid, 1, !drop_dup, pout->format);
 		_free_es_entry_slot(pout->es_pes);
 //              pout->es_pes = NULL;
-		if (pout->aucpu_handle >= 0) {
-			s32 ret;
-
-			if (pout->aucpu_start) {
-				ret = aml_aucpu_strm_stop(pout->aucpu_handle);
-				if (ret >= 0)
-					pr_dbg("aml_aucpu_strm_stop success\n");
-				else
-					pr_dbg("aucpu_stop fail ret:%d\n", ret);
-				pout->aucpu_start = 0;
-			}
-			ret = aml_aucpu_strm_remove(pout->aucpu_handle);
-			if (ret >= 0)
-				pr_dbg("aucpu_strm_remove success\n");
-			else
-				pr_dbg("aucpu_strm_remove fail ret:%d\n", ret);
-			pout->aucpu_handle = -1;
-
-			_free_buff(pout->aucpu_mem_phy,
-				   pout->aucpu_mem_size, 0, 0);
-			pout->aucpu_mem = 0;
-		}
 	} else if (pout->format == DVR_FORMAT) {
 		cur_pid = pout->pid_list;
 		prev_pid = cur_pid;

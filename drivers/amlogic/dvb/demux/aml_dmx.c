@@ -45,6 +45,7 @@
 #include "sc2_demux/ts_output.h"
 #include "sc2_demux/ts_input.h"
 #include "sc2_demux/dvb_reg.h"
+#include "../aucpu/aml_aucpu.h"
 #include "aml_dsc.h"
 #include "dmx_log.h"
 #include "aml_dvb.h"
@@ -303,7 +304,7 @@ static int _dmx_ts_feed_set(struct dmx_ts_feed *ts_feed, u16 pid, int ts_type,
 	enum content_type type = 0;
 	int output_mode = 0;
 	int mem_size = TS_OUTPUT_CHAN_PES_BUF_SIZE;
-	int aud_type = 0;
+	int media_type = 0;
 	int cb_id = 0;
 
 	pr_dbg("_dmx_ts_feed_set pid:0x%0x\n", pid);
@@ -351,7 +352,7 @@ static int _dmx_ts_feed_set(struct dmx_ts_feed *ts_feed, u16 pid, int ts_type,
 	    pes_type == DMX_PES_AUDIO2 || pes_type == DMX_PES_AUDIO3) {
 		type = AUDIO_TYPE;
 		mem_size = audio_buf_size;
-		aud_type = (filter->params.pes.flags >>
+		media_type = (filter->params.pes.flags >>
 		DMX_AUDIO_FORMAT_BIT) & 0xFF;
 	} else if (pes_type == DMX_PES_VIDEO0 ||
 		   pes_type == DMX_PES_VIDEO1 ||
@@ -363,12 +364,14 @@ static int _dmx_ts_feed_set(struct dmx_ts_feed *ts_feed, u16 pid, int ts_type,
 		   pes_type == DMX_PES_SUBTITLE2 ||
 		   pes_type == DMX_PES_SUBTITLE3) {
 		type = SUB_TYPE;
+		media_type = MEDIA_PES_SUB;
 	} else if (pes_type == DMX_PES_TELETEXT0 ||
 		   pes_type == DMX_PES_TELETEXT1 ||
 		   pes_type == DMX_PES_TELETEXT2 ||
 		   pes_type == DMX_PES_TELETEXT3) {
 		type = TTX_TYPE;
 		mem_size = pes_buf_size;
+		media_type = MEDIA_PES_SUB;
 	} else {
 		type = OTHER_TYPE;
 		mem_size = pes_buf_size;
@@ -421,8 +424,8 @@ static int _dmx_ts_feed_set(struct dmx_ts_feed *ts_feed, u16 pid, int ts_type,
 		}
 	}
 
-	feed->ts_out_elem = ts_output_open(sid,
-					   format, type, aud_type, output_mode);
+	feed->ts_out_elem = ts_output_open(
+		sid, demux->id, format, type, media_type, output_mode);
 	if (feed->ts_out_elem) {
 		if (demux->sec_dvr_size != 0 && format == DVR_FORMAT) {
 			ts_output_set_sec_mem(feed->ts_out_elem,
@@ -571,9 +574,6 @@ static int _dmx_section_feed_set(struct dmx_section_feed *feed,
 {
 	struct sw_demux_sec_feed *sec_feed = (struct sw_demux_sec_feed *)feed;
 	struct aml_dmx *demux = (struct aml_dmx *)feed->parent->priv;
-	int sid = 0;
-	int mem_size = 0;
-	int cb_id = 0;
 
 	pr_dbg("_dmx_section_feed_set\n");
 
@@ -587,40 +587,6 @@ static int _dmx_section_feed_set(struct dmx_section_feed *feed,
 	sec_feed->check_crc = check_crc;
 	sec_feed->type = SEC_TYPE;
 	sec_feed->state = DMX_STATE_READY;
-
-	if (demux->source != INPUT_DEMOD)
-		sid = demux->local_sid;
-	else
-		sid = demux->demod_sid;
-
-	if (sec_feed->sec_out_elem)
-		pr_dbg("pid elem:0x%lx exist\n",
-		       (unsigned long)(sec_feed->sec_out_elem));
-
-	sec_feed->sec_out_elem = ts_output_find_same_section_pid(sid, pid);
-	if (sec_feed->sec_out_elem) {
-		pr_dbg("find same pid elem:0x%lx\n",
-		       (unsigned long)(sec_feed->sec_out_elem));
-		ts_output_add_cb(sec_feed->sec_out_elem,
-				 _ts_out_sec_cb, sec_feed, demux->id,
-				 SECTION_FORMAT, 1);
-		mutex_unlock(demux->pmutex);
-		return 0;
-	}
-
-	sec_feed->sec_out_elem =
-	    ts_output_open(sid, SECTION_FORMAT, OTHER_TYPE, 0, 0);
-	if (sec_feed->sec_out_elem) {
-		mem_size = sec_buf_size;
-		ts_output_set_mem(sec_feed->sec_out_elem, mem_size, 0, 0);
-		ts_output_add_pid(sec_feed->sec_out_elem, sec_feed->pid, 0,
-				  demux->id, &cb_id);
-		ts_output_add_cb(sec_feed->sec_out_elem,
-				 _ts_out_sec_cb, sec_feed, cb_id,
-				 SECTION_FORMAT, 1);
-	}
-
-	pr_dbg("sec_out_elem:0x%lx\n", (unsigned long)(sec_feed->sec_out_elem));
 	mutex_unlock(demux->pmutex);
 	return 0;
 }
@@ -672,6 +638,12 @@ static int _dmx_section_feed_start_filtering(struct dmx_section_feed *feed)
 	struct aml_dmx *demux = (struct aml_dmx *)feed->parent->priv;
 	int i = 0;
 	int start_flag = 0;
+	struct dmx_section_filter *sec_filter;
+	struct dmxdev_filter *filter;
+	int sec_level = 0;
+	int sid = 0;
+	int mem_size = 0;
+	int cb_id = 0;
 
 	pr_dbg("_dmx_section_feed_start_filtering\n");
 	if (mutex_lock_interruptible(demux->pmutex))
@@ -708,6 +680,60 @@ static int _dmx_section_feed_start_filtering(struct dmx_section_feed *feed)
 	spin_lock_irq(demux->pslock);
 	feed->is_filtering = 1;
 	spin_unlock_irq(demux->pslock);
+
+	if (sec_feed->sec_out_elem) {
+		mutex_unlock(demux->pmutex);
+		return 0;
+	}
+	if (demux->source != INPUT_DEMOD)
+		sid = demux->local_sid;
+	else
+		sid = demux->demod_sid;
+
+	if (sec_feed->sec_out_elem)
+		pr_dbg("pid elem:0x%lx exist\n",
+		       (unsigned long)(sec_feed->sec_out_elem));
+
+	sec_feed->sec_out_elem = ts_output_find_same_section_pid(
+		sid, sec_feed->pid);
+	if (sec_feed->sec_out_elem) {
+		pr_dbg("find same pid elem:0x%lx\n",
+		       (unsigned long)(sec_feed->sec_out_elem));
+		ts_output_add_cb(sec_feed->sec_out_elem,
+				 _ts_out_sec_cb, sec_feed, demux->id,
+				 SECTION_FORMAT, 1);
+		mutex_unlock(demux->pmutex);
+		return 0;
+	}
+	/*find the section filter flags for sec_level*/
+	for (i = 0; i < sec_feed->sec_filter_num; i++) {
+		if (sec_feed->filter[i].state != DMX_STATE_FREE) {
+			sec_filter = (struct dmx_section_filter *)
+			&sec_feed->filter[i].section_filter;
+			filter = (struct dmxdev_filter *)sec_filter->priv;
+			if (filter->params.sec.flags & DMX_MEM_SEC_LEVEL1)
+				sec_level = DMX_MEM_SEC_LEVEL1;
+			else if (filter->params.sec.flags & DMX_MEM_SEC_LEVEL2)
+				sec_level = DMX_MEM_SEC_LEVEL2;
+			else if (filter->params.sec.flags & DMX_MEM_SEC_LEVEL3)
+				sec_level = DMX_MEM_SEC_LEVEL3;
+			break;
+		}
+	}
+
+	sec_feed->sec_out_elem = ts_output_open(
+		sid, demux->id, SECTION_FORMAT, SEC_TYPE, MEDIA_TS_SYS, 0);
+	if (sec_feed->sec_out_elem) {
+		mem_size = sec_buf_size;
+		ts_output_set_mem(
+			sec_feed->sec_out_elem, mem_size, sec_level, 0);
+		ts_output_add_pid(sec_feed->sec_out_elem, sec_feed->pid, 0,
+				  demux->id, &cb_id);
+		ts_output_add_cb(sec_feed->sec_out_elem,
+				 _ts_out_sec_cb, sec_feed, cb_id,
+				 SECTION_FORMAT, 1);
+	}
+	pr_dbg("sec_out_elem:0x%lx\n", (unsigned long)(sec_feed->sec_out_elem));
 	mutex_unlock(demux->pmutex);
 
 	return 0;
@@ -1585,7 +1611,7 @@ void test_sid(void)
 
 	for (i = 0; i < 64; i++) {
 		dprint("##########sid:%d\n", i);
-		ts_out_elem = ts_output_open(i, SECTION_FORMAT,
+		ts_out_elem = ts_output_open(i, 0, SECTION_FORMAT,
 				OTHER_TYPE, 0, 0);
 		if (ts_out_elem) {
 			ts_output_add_cb(ts_out_elem,

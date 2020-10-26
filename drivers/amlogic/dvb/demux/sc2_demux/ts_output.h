@@ -96,16 +96,17 @@ struct out_elem *ts_output_find_same_section_pid(int sid, int pid);
 
 /**
  * open one output pipeline
+ * \param dmx_id:demux id.
  * \param sid:stream id.
  * \param format:output format.
  * \param type:input content type.
- * \param aud_type:just for audio format
+ * \param media_type:aucpu support format
  * \param output_mode:1 will output raw mode,just for ES.
  * \retval return out_elem.
  * \retval NULL:fail.
  */
-struct out_elem *ts_output_open(int sid, u8 format,
-				enum content_type type, int aud_type,
+struct out_elem *ts_output_open(int sid, u8 dmx_id, u8 format,
+				enum content_type type, int media_type,
 				int output_mode);
 
 /**
