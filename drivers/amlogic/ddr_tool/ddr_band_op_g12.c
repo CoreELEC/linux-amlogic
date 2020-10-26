@@ -128,8 +128,10 @@ static void g12_dmc_bandwidth_init(struct ddr_bandwidth *db)
 	writel(db->clock_count, db->ddr_reg + DMC_MON_G12_TIMER);
 	g12_dmc_bandwidth_enable(db);
 
-	for (i = 0; i < db->channels; i++)
-		g12_dmc_port_config(db, i, -1);
+	for (i = 0; i < db->channels; i++) {
+		if (!db->port[i])
+			g12_dmc_port_config(db, i, -1);
+	}
 }
 
 static int g12_handle_irq(struct ddr_bandwidth *db, struct ddr_grant *dg)
