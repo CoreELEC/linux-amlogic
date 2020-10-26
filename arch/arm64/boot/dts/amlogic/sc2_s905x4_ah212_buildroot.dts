@@ -250,12 +250,12 @@
 		pwm_channel1_conf {
 			pwms = <&pwm_ef MESON_PWM_0 30541 0>;
 			duty-cycle = <15270>;
-			times = <10>;
+			times = <7>;
 		};
 		pwm_channel2_conf {
 			pwms = <&pwm_ef MESON_PWM_2 30500 0>;
 			duty-cycle = <15250>;
-			times = <12>;
+			times = <10>;
 		};
 	};
 
