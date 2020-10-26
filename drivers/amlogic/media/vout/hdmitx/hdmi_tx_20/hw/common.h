@@ -97,4 +97,7 @@ void hdmitx_debugfs_init(void);
 
 struct dentry *hdmitx_get_dbgfsdentry(void);
 
+int hdmitx_uboot_audio_en(void);
+
 #endif
+

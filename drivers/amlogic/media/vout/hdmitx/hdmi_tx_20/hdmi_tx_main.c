@@ -6522,6 +6522,15 @@ static int amhdmitx_probe(struct platform_device *pdev)
 	vout2_register_server(&hdmitx_vout2_server);
 #endif
 #ifdef CONFIG_AMLOGIC_SND_SOC
+	if (hdmitx_uboot_audio_en()) {
+		struct hdmitx_dev *hdev = &hdmitx_device;
+		struct hdmitx_audpara *audpara = &hdev->cur_audio_param;
+
+		audpara->sample_rate = FS_48K;
+		audpara->type = CT_PCM;
+		audpara->sample_size = SS_16BITS;
+		audpara->channel_num = 2 - 1;
+	}
 	aout_register_client(&hdmitx_notifier_nb_a);
 #else
 	r = r ? (long int)&hdmitx_notifier_nb_a :

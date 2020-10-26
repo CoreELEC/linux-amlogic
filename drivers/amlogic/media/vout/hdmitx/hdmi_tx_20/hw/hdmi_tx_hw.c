@@ -596,6 +596,18 @@ static void hdmi_hwi_init(struct hdmitx_dev *hdev)
 	hdmitx_wr_reg(HDMITX_DWC_I2CM_SCDC_UPDATE,  data32);
 }
 
+int hdmitx_uboot_audio_en(void)
+{
+	unsigned int data;
+
+	data = hdmitx_rd_reg(HDMITX_DWC_FC_PACKET_TX_EN);
+	pr_info("%s[%d] data = 0x%x\n", __func__, __LINE__, data);
+	if ((data & 1) || ((data >> 3) & 1))
+		return 1;
+	else
+		return 0;
+}
+
 void HDMITX_Meson_Init(struct hdmitx_dev *hdev)
 {
 	hdev->hwop.setpacket = hdmitx_set_packet;
