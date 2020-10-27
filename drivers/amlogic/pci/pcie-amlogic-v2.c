@@ -31,10 +31,11 @@
 #include <linux/amlogic/power_ctrl.h>
 #include "../drivers/pci/host/pcie-designware.h"
 #include "pcie-amlogic.h"
-
+#include <dt-bindings/power/sc2-pd.h>
 #include <dt-bindings/clock/amlogic,axg-clkc.h>
 #include <linux/clk-provider.h>
 #include "../clk/clkc.h"
+#include <linux/amlogic/pwr_ctrl.h>
 #ifdef CONFIG_AMLOGIC_PCIE
 #include <linux/irqnr.h>
 #endif
@@ -866,7 +867,7 @@ static int __init amlogic_pcie_probe(struct platform_device *pdev)
 	else
 		amlogic_pcie->pwr_ctl = pwr_ctl;
 
-	if (pwr_ctl) {
+	if (pwr_ctl == 1) {
 		prop = of_get_property(dev->of_node,
 			"pcie-ctrl-sleep-shift", NULL);
 		if (prop)
@@ -911,8 +912,10 @@ static int __init amlogic_pcie_probe(struct platform_device *pdev)
 		}
 	}
 
-	if (pwr_ctl)
+	if (pwr_ctl == 1)
 		power_switch_to_pcie(amlogic_pcie->phy);
+	else if (pwr_ctl == 2)
+		pwr_ctrl_psci_smc(PDID_PCIE, PWR_ON);
 
 	if (!amlogic_pcie->phy->phy_base) {
 		phy_base = platform_get_resource_byname(
