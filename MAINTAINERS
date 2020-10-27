@@ -13630,6 +13630,7 @@ F:	arch/arm64/boot/dts/amlogic/gxm_q200_2g.dts
 
 AMLOGIC multimedia
 M:	Nanxin Qin <nanxin.qin@amlogic.com>
+M:	Tao Guo <tao.guo@amlogic.com>
 F:	drivers/amlogic/media/common/arch/registers/*
 F:	drivers/amlogic/media/common/canvas/*
 F:	drivers/amlogic/media/common/codec_mm/*
