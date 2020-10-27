@@ -606,18 +606,19 @@ static int __init __reserved_mem_reserve_reg(unsigned long node,
 		size = dt_mem_next_cell(dt_root_size_cells, &prop);
 
 		if (size &&
-		    early_init_dt_reserve_memory_arch(base, size, nomap) == 0)
+		    early_init_dt_reserve_memory_arch(base, size, nomap) == 0) {
 		#ifdef CONFIG_AMLOGIC_MODIFY
-			pr_emerg("\t%08lx - %08lx, %8ld KB, %s\n",
-				 (unsigned long)base,
-				 (unsigned long)(base + size),
-				 (unsigned long)(size >> 10),
-				 uname);
+			if (console_loglevel > 1)
+				pr_emerg("\t%08lx - %08lx, %8ld KB, %s\n",
+					 (unsigned long)base,
+					 (unsigned long)(base + size),
+					 (unsigned long)(size >> 10),
+					 uname);
 		#else
 			pr_debug("Reserved memory: reserved region for node '%s': base %pa, size %ld MiB\n",
 				uname, &base, (unsigned long)size / SZ_1M);
 		#endif
-		else
+		} else
 			pr_info("Reserved memory: failed to reserve memory for node '%s': base %pa, size %ld MiB\n",
 				uname, &base, (unsigned long)size / SZ_1M);
 
