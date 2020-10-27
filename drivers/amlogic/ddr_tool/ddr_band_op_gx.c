@@ -95,7 +95,8 @@ static void gx_dmc_bandwidth_init(struct ddr_bandwidth *db)
 	writel(db->clock_count, db->ddr_reg + DMC_MON_CTRL3);
 	gx_dmc_bandwidth_enable(db);
 
-	gx_dmc_port_config(db, 0, -1);
+	if (!db->port[0])
+		gx_dmc_port_config(db, 0, -1);
 }
 
 static int gx_handle_irq(struct ddr_bandwidth *db, struct ddr_grant *dg)
