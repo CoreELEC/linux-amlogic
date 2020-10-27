@@ -45,8 +45,8 @@ struct file_private_data {
 	int keep_id;
 	int keep_head_id;
 	struct file *file;
-	ulong v4l_dev_handle;
-	ulong v4l_inst_handle;
+	ulong vb_handle;
+	ulong v4l_dec_ctx;
 	u32 v4l_inst_id;
 	struct vframe_s vf_ext;
 	struct vframe_s *vf_ext_p;
@@ -71,4 +71,3 @@ int is_v4lvideo_buf_file(struct file *file);
 
 
 #endif /* V4LVIDEO_EXT_H */
-
