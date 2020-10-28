@@ -50,7 +50,7 @@
 /* Ref.2019/04/25: tl1 vdin0 afbce dynamically switch support,
  *                 vpp also should support this function
  */
-#define VDIN_VER "ver:2020-1021: support loopback HDR signal"
+#define VDIN_VER "ver:2020-1026: support secure mode for screen cap"
 
 /*the counter of vdin*/
 #define VDIN_MAX_DEVS			2
@@ -84,12 +84,13 @@ enum vdin_irq_flg_e {
 	VDIN_IRQ_FLG_SIG_NOT_STABLE,
 	VDIN_IRQ_FLG_FMT_TRANS_CHG,
 	VDIN_IRQ_FLG_CSC_CHG,
-	VDIN_IRQ_FLG_BUFF_SKIP,
+	VDIN_IRQ_FLG_BUFF_SKIP, /* 10 */
 	VDIN_IRQ_FLG_IGNORE_FRAME,
 	VDIN_IRQ_FLG_SKIP_FRAME,
 	VDIN_IRQ_FLG_GM_DV_CHK_SUM_ERR,
 	VDIN_IRQ_FLG_NO_WR_FE,
-	VDIN_IRQ_FLG_NO_NEXT_FE,
+	VDIN_IRQ_FLG_NO_NEXT_FE, /* 15 */
+	VDIN_IRQ_FLG_SECURE_MD,
 };
 
 /* for config hw function support */
