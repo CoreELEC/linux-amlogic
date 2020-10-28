@@ -85,7 +85,7 @@
 	} while (0)
 
 static s32 print_level = LOG_ERROR; //LOG_ALL;
-static s32 dbg_level = AUCPU_LOG_INFO;
+static s32 dbg_level = AUCPU_LOG_ERR;
 
 /* back up value for dts config failure */
 #define AUCPU_REG_BASE_ADDR	(0xFE09E080)
@@ -1008,7 +1008,7 @@ s32 aml_aucpu_strm_stop(s32 handle)
 		aucpu_pr(LOG_ERROR, "%s invalid_handle %d\n", __func__, handle);
 		return res;
 	}
-	if (pinst->inst_status != AUCPU_STA_RUNNING ||
+	if (pinst->inst_status != AUCPU_STA_RUNNING &&
 	    pinst->inst_status != AUCPU_STA_FLUSHING) {
 		aucpu_pr(LOG_ERROR, "AUCPU strm %d is not running\n", handle);
 		return AUCPU_DRVERR_WRONG_STATE;
