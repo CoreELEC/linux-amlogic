@@ -28,7 +28,7 @@
 #include <linux/amlogic/media/vout/vout_notify.h>
 
 /* HDMITX driver version */
-#define HDMITX_VER "20200122"
+#define HDMITX_VER "20200617.1"
 
 /* chip type */
 #define MESON_CPU_ID_M8B		0
@@ -592,6 +592,7 @@ struct hdmitx_dev {
 #define CONF_CLR_VSDB_PACKET    (CMD_CONF_OFFSET + 0x05)
 #define CONF_VIDEO_MAPPING	(CMD_CONF_OFFSET + 0x06)
 #define CONF_GET_HDMI_DVI_MODE	(CMD_CONF_OFFSET + 0x07)
+#define CONF_CLR_DV_VS10_SIG	(CMD_CONF_OFFSET + 0x10)
 
 #define CONF_AUDIO_MUTE_OP      (CMD_CONF_OFFSET + 0x1000 + 0x00)
 #define AUDIO_MUTE          0x1
@@ -936,6 +937,15 @@ extern unsigned int hdmitx_rd_check_reg(unsigned int addr,
 	unsigned int exp_data,
 	unsigned int mask);
 extern void vsem_init_cfg(struct hdmitx_dev *hdev);
+void update_current_para(struct hdmitx_dev *hdev);
+
+enum hdmi_tf_type hdmitx_get_cur_hdr_st(void);
+enum hdmi_tf_type hdmitx_get_cur_dv_st(void);
+enum hdmi_tf_type hdmitx_get_cur_hdr10p_st(void);
+bool hdmitx_hdr_en(void);
+bool hdmitx_dv_en(void);
+bool hdmitx_hdr10p_en(void);
+
 bool LGAVIErrorTV(struct rx_cap *prxcap);
 bool hdmitx_find_vendor(struct hdmitx_dev *hdev);
 #endif

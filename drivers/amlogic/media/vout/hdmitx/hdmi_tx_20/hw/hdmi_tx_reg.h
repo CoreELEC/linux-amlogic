@@ -29,6 +29,7 @@ void hdmitx_set_reg_bits(unsigned int addr, unsigned int value,
 unsigned int hdmitx_rd_reg(unsigned int addr);
 unsigned int hdmitx_rd_check_reg(unsigned int addr, unsigned int exp_data,
 	unsigned int mask);
+bool hdmitx_get_bit(unsigned int addr, unsigned int bit_nr);
 unsigned long aocec_rd_reg(unsigned long addr);
 void aocec_wr_reg(unsigned long addr, unsigned long data);
 int hdmitx_hdcp_opr(unsigned int val);
