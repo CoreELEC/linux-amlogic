@@ -3733,10 +3733,12 @@ static int vdin_signal_notify_callback(struct notifier_block *block,
 					unsigned long cmd, void *para)
 {
 	struct vd_signal_info_s *vd_signal = NULL;
-	struct vd_secure_info_s *vd_secure = NULL;
 	/* only for vdin1 loopback */
 	struct vdin_dev_s *devp = vdin_get_dev(1);
+#ifdef CONFIG_AMLOGIC_MEDIA_SECURITY
 	unsigned int i = 0;
+	struct vd_secure_info_s *vd_secure = NULL;
+#endif
 
 	switch (cmd) {
 	case VIDEO_SIGNAL_TYPE_CHANGED:
