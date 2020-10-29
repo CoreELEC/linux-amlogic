@@ -3,7 +3,6 @@
 #
 
 obj-$(CONFIG_AMLOGIC_COMMON_CLK_SCPI)	+= clk-scpi.o
-obj-$(CONFIG_AMLOGIC_RESET)	+= rstc.o
 
 obj-$(CONFIG_AMLOGIC_CLK) += clk-pll.o
 obj-$(CONFIG_AMLOGIC_CLK) += clk-mux.o clk-dualdiv.o

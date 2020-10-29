@@ -35,7 +35,7 @@ config RESET_LPC18XX
 
 config RESET_MESON
 	bool "Meson Reset Driver" if COMPILE_TEST
-	default ARCH_MESON
+	default n
 	help
 	  This enables the reset driver for Amlogic Meson SoCs.
 

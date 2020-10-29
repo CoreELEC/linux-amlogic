@@ -108,6 +108,7 @@ static const struct meson_reset_param meson_sc2_param = {
 };
 
 static const struct of_device_id meson_reset_dt_ids[] = {
+	 { .compatible = "amlogic,reset",            .data = &meson8b_param},
 	 { .compatible = "amlogic,meson8b-reset",    .data = &meson8b_param},
 	 { .compatible = "amlogic,meson-gxbb-reset", .data = &meson8b_param},
 	 { .compatible = "amlogic,meson-sc2-reset",   .data = &meson_sc2_param},
