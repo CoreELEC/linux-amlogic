@@ -1793,8 +1793,13 @@ struct out_elem *ts_output_open(int sid, u8 dmx_id, u8 format,
  */
 int ts_output_close(struct out_elem *pout)
 {
-	if (pout->ref)
+	if (pout->ref) {
+		if (pout->format != DVR_FORMAT)
+			pr_err("error not close pout fmt:%d es:pid:%d\r\n",
+				pout->format,
+				pout->es_pes->pid);
 		return 0;
+	}
 
 	pout->running = TASK_DEAD;
 
@@ -1930,9 +1935,9 @@ int ts_output_add_pid(struct out_elem *pout, int pid, int pid_mask, int dmx_id,
 		pid_slot->pnext = pout->pid_list;
 		pout->pid_list = pid_slot;
 		pr_dbg("sid:%d, pid:0x%0x, mask:0x%0x\n",
-		       pout->sid, pid_slot->pid, pid_slot->pid_mask);
+				pout->sid, pid_slot->pid, pid_slot->pid_mask);
 		tsout_config_ts_table(pid_slot->pid, pid_slot->pid_mask,
-				      pid_slot->id, pout->pchan->id);
+				pid_slot->id, pout->pchan->id);
 	}
 	pout->enable = 1;
 	return 0;
@@ -1952,11 +1957,20 @@ int ts_output_remove_pid(struct out_elem *pout, int pid)
 
 	pr_dbg("%s pout:0x%lx\n", __func__, (unsigned long)pout);
 	if (pout->format == ES_FORMAT ||
-	    pout->format == PES_FORMAT || pout->format == SECTION_FORMAT) {
-		tsout_config_es_table(pout->es_pes->buff_id, -1,
-				      pout->sid, 1, !drop_dup, pout->format);
-		_free_es_entry_slot(pout->es_pes);
-//              pout->es_pes = NULL;
+		pout->format == PES_FORMAT || pout->format == SECTION_FORMAT) {
+		if (pout->format != pout->es_pes->status) {
+			pr_err("rm pid error pout fmt:%d es_pes fmt:%d\r\n",
+			pout->format,
+			pout->es_pes->status);
+			return 0;
+		} else if (pout->ref <= 1) {
+			tsout_config_es_table(pout->es_pes->buff_id, -1,
+					pout->sid, 1, !drop_dup, pout->format);
+			_free_es_entry_slot(pout->es_pes);
+//          pout->es_pes = NULL;
+		} else {
+			return 0;
+		}
 	} else if (pout->format == DVR_FORMAT) {
 		cur_pid = pout->pid_list;
 		prev_pid = cur_pid;
