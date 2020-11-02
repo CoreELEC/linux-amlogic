@@ -1274,6 +1274,7 @@ int _dmx_get_mem_info(struct dmx_demux *dmx, struct dmx_filter_mem_info *info)
 	int i = 0, j = 0;
 	int free_mem = 0;
 	int total_mem = 0;
+	__u64 newest_pts = 0;
 	struct sw_demux_ts_feed *ts_feed;
 	struct sw_demux_sec_feed *section_feed;
 	struct dmxdev_filter *filter;
@@ -1318,16 +1319,17 @@ int _dmx_get_mem_info(struct dmx_demux *dmx, struct dmx_filter_mem_info *info)
 		total_mem = 0;
 		buf_phy_start = 0;
 		wp_offset = 0;
+		newest_pts = 0;
 
 		ts_output_get_mem_info(ts_feed->ts_out_elem,
 			   &total_mem,
 			   &buf_phy_start,
-			   &free_mem, &wp_offset, NULL);
+			   &free_mem, &wp_offset, &newest_pts);
 		pinfo->filter_info.dmx_buf_phy_start = buf_phy_start;
 		pinfo->filter_info.dmx_free_size = free_mem;
 		pinfo->filter_info.dmx_total_size = total_mem;
 		pinfo->filter_info.wp_offset = wp_offset;
-
+		pinfo->filter_info.newest_pts = newest_pts;
 		filter_num++;
 	}
 
