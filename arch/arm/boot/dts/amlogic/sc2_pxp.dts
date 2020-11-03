@@ -1092,7 +1092,7 @@
 		status = "okay";
 	};
 	pdm: pdm {
-		compatible = "amlogic, sm1-snd-pdm";
+		compatible = "amlogic, sc2-snd-pdm";
 		#sound-dai-cells = <0>;
 
 		clocks = <&clkaudio CLKID_AUDIO_GATE_PDM
@@ -1111,6 +1111,8 @@
 
 		/* mode 0~4, defalut:1 */
 		filter_mode = <1>;
+
+		train_sample_count = <0xe>;
 
 		status = "okay";
 	};
