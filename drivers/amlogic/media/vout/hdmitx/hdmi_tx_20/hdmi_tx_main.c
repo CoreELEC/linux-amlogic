@@ -234,6 +234,16 @@ static void hdmitx_early_suspend(struct early_suspend *h)
 		clk_disable_unprepare(phdmi->hdmitx_clk_tree.hdmi_clk_vapb);
 	if (phdmi->hdmitx_clk_tree.hdmi_clk_vpu != NULL)
 		clk_disable_unprepare(phdmi->hdmitx_clk_tree.hdmi_clk_vpu);
+	/* for huawei TV, it will display green screen pattern under
+	 * 4k50/60hz y420 deep color when receive amvute. After disable
+	 * phy of box, TV will continue mute and stay in still frame
+	 * mode for a few frames, if it receives scdc clk raito change
+	 * during this period, it may recognize it as signal unstable
+	 * instead of no signal, and keep mute pattern for several
+	 * seconds. Here keep hdmi output disabled for a few frames
+	 * so let TV exit its still frame mode and not show pattern
+	 */
+	usleep_range(120000, 120010);
 	hdev->hwop.cntlddc(hdev, DDC_SCDC_DIV40_SCRAMB, 0);
 	hdev->div40 = 0;
 }
