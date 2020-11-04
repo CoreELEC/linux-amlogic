@@ -3244,6 +3244,7 @@ static s32 pip_render_frame(struct video_layer_s *layer)
 {
 	struct vpp_frame_par_s *frame_par;
 	u32 zoom_start_y, zoom_end_y;
+	struct vframe_s *dispbuf = NULL;
 
 	if (!layer)
 		return -1;
@@ -3255,6 +3256,7 @@ static s32 pip_render_frame(struct video_layer_s *layer)
 	}
 
 	frame_par = layer->cur_frame_par;
+	dispbuf = layer->dispbuf;
 
 	/* process cur frame for each vsync */
 	if (layer->dispbuf) {
@@ -3276,8 +3278,17 @@ static s32 pip_render_frame(struct video_layer_s *layer)
 			frame_par, layer->dispbuf);
 	}
 
-	if (!layer->new_vpp_setting)
+	if (!layer->new_vpp_setting) {
+		/* when new frame is toggled but video layer is not on */
+		/* need always flush pps register before pwr on */
+		/* to avoid pps coeff lost */
+		if (frame_par && dispbuf && !is_local_vf(dispbuf) &&
+		    (!get_videopip_enabled() ||
+		     vd_layer[1].onoff_state ==
+		     VIDEO_ENABLE_STATE_ON_PENDING))
+			vd_scaler_setting(1, &layer->sc_setting);
 		return 0;
+	}
 
 	if (layer->dispbuf) {
 		/* progressive or decode interlace case height 1:1 */
@@ -3494,6 +3505,7 @@ static s32 primary_render_frame(struct video_layer_s *layer)
 	struct blend_setting_s local_vd2_blend;
 	struct mif_pos_s local_vd2_mif;
 	bool update_vd2 = false;
+	struct vframe_s *dispbuf = NULL;
 
 	if (!layer)
 		return -1;
@@ -3505,6 +3517,7 @@ static s32 primary_render_frame(struct video_layer_s *layer)
 	}
 
 	frame_par = layer->cur_frame_par;
+	dispbuf = layer->dispbuf;
 
 	/* process cur frame for each vsync */
 	if (layer->dispbuf) {
@@ -3554,6 +3567,15 @@ static s32 primary_render_frame(struct video_layer_s *layer)
 
 	/* no frame parameter change */
 	if ((!layer->new_vpp_setting && !force_setting) || !frame_par) {
+		/* when new frame is toggled but video layer is not on */
+		/* need always flush pps register before pwr on */
+		/* to avoid pps coeff lost */
+		if (frame_par && dispbuf && !is_local_vf(dispbuf) &&
+		    (!get_video_enabled() ||
+		     vd_layer[0].onoff_state ==
+		     VIDEO_ENABLE_STATE_ON_PENDING))
+			vd_scaler_setting(0, &layer->sc_setting);
+
 		/* dolby vision process for each vsync */
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 		dolby_vision_proc(layer, frame_par);
