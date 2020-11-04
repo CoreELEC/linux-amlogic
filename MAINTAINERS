@@ -15405,3 +15405,8 @@ M: Ao Xu <ao.xu@amlogic.com>
 F: drivers/amlogic/uvm
 F: drivers/amlogic/media/common/uvm
 F: include/linux/amlogic/meson_uvm_core.h
+
+AMLOGIC SC2 s905x4 DTS
+M: Luan Yuan <Luan.Yuan@amlogic.com>
+F: arch/arm/boot/dts/amlogic/sc2_s905x4_ah212_mxl258c.dts
+F: arch/arm64/boot/dts/amlogic/sc2_s905x4_ah212_mxl258c.dts
