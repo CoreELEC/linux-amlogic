@@ -90,6 +90,38 @@ static const struct soc_enum pdm_filter_mode_enum =
 	SOC_ENUM_SINGLE(SND_SOC_NOPM, 0, ARRAY_SIZE(pdm_filter_mode_texts),
 			pdm_filter_mode_texts);
 
+static struct aml_pdm *s_pdm;
+
+static struct aml_pdm *get_pdm(void)
+{
+	if (!s_pdm) {
+		pr_err("Not init pdm\n");
+		return NULL;
+	}
+
+	return s_pdm;
+}
+
+int pdm_get_train_sample_count_from_dts(void)
+{
+	struct aml_pdm *p_pdm = get_pdm();
+
+	if (p_pdm)
+		return  p_pdm->train_sample_count;
+	else
+		return -1;
+}
+
+int pdm_get_train_version(void)
+{
+	struct aml_pdm *p_pdm = get_pdm();
+
+	if (p_pdm && p_pdm->chipinfo)
+		return p_pdm->chipinfo->train_version;
+
+	return 0;
+}
+
 static int aml_pdm_filter_mode_get_enum(
 	struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
@@ -1278,6 +1310,15 @@ static int aml_pdm_platform_probe(struct platform_device *pdev)
 	}
 	pr_info("%s pdm filter mode from dts:%d\n",
 		__func__, p_pdm->filter_mode);
+
+	ret = of_property_read_u32(node, "train_sample_count",
+			&p_pdm->train_sample_count);
+	if (ret < 0)
+		p_pdm->train_sample_count = -1;
+	pr_info("%s pdm train sample count from dts:%d\n",
+		__func__, p_pdm->train_sample_count);
+
+	s_pdm = p_pdm;
 
 	p_pdm->dev = dev;
 	dev_set_drvdata(&pdev->dev, p_pdm);
