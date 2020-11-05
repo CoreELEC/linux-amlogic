@@ -4065,9 +4065,10 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 			if ((vf->sidebind_type
 				== glayer_info[0].sideband_type)
 				|| (vf->sidebind_type == 0)) {
-				pr_info("VID: path_id %d -> %d\n",
+				pr_info("VID: path_id %d -> %d, type=%d, %d\n",
 					glayer_info[0].display_path_id,
-					VFM_PATH_AMVIDEO);
+					VFM_PATH_AMVIDEO, vf->sidebind_type,
+					glayer_info[0].sideband_type);
 				glayer_info[0].display_path_id
 					= VFM_PATH_AMVIDEO;
 				vd1_path_id = glayer_info[0].display_path_id;
@@ -5080,7 +5081,7 @@ SET_FILTER:
 			vd_layer[0].dispbuf_mapping = &cur_dispbuf;
 		cur_blackout = blackout | force_blackout;
 	} else if (vd1_path_id == VFM_PATH_AUTO) {
-		new_frame = path0_new_frame;
+		new_frame = NULL;
 		if (!new_frame) {
 			if (cur_dispbuf == &vf_local)
 				vd_layer[0].dispbuf = cur_dispbuf;
