@@ -969,9 +969,12 @@ static unsigned long cma_shrinker_scan(struct shrinker *s,
 			    tasksize <= selected_tasksize)
 				continue;
 		}
-		if (!strcmp(p->comm, "s.device.statsd"))
+		if (!strcmp(p->comm, "s.device.statsd") ||
+		    !strcmp(p->comm, "rapps.simpleapp"))
 			continue;
-		if (p->parent && !strcmp(p->parent->comm, "s.device.statsd"))
+		if (p->parent &&
+		   (!strcmp(p->parent->comm, "s.device.statsd") ||
+		    !strcmp(p->parent->comm, "rapps.simpleapp")))
 			continue;
 		selected = p;
 		selected_tasksize = tasksize;
