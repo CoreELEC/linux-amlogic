@@ -336,6 +336,7 @@ static int aml_dvb_probe(struct platform_device *pdev)
 		tsn_in_reg = 1;
 
 	pr_dbg("tsn_in:%d, tsn_out:%d\n", tsn_in_reg, tsn_out);
+	advb->dsc_pipeline = tsn_in_reg;
 	//set demod/local
 	tee_demux_config_pipeline(tsn_in_reg, tsn_out);
 

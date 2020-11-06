@@ -21,6 +21,8 @@
 #include <linux/module.h>
 #include <linux/amlogic/media/codec_mm/codec_mm.h>
 #include <linux/amlogic/tee.h>
+#include <linux/fs.h>
+#include <linux/syscalls.h>
 
 //#define CHECK_PACKET_ALIGNM
 #ifdef CHECK_PACKET_ALIGNM
@@ -67,6 +69,58 @@ static int rch_sync_num = DEFAULT_RCH_SYNC_NUM;
 module_param(rch_sync_num, int, 0644);
 
 #define BEN_LEVEL_SIZE			(512 * 1024)
+
+MODULE_PARM_DESC(dump_input_ts, "\n\t\t dump input ts packet");
+static int dump_input_ts;
+module_param(dump_input_ts, int, 0644);
+
+static loff_t input_file_pos;
+static struct file *input_dump_fp;
+
+#define INPUT_DUMP_FILE   "/data/input_dump.ts"
+
+static void dump_file_open(char *path)
+{
+	if (input_dump_fp)
+		return;
+
+	input_dump_fp = filp_open(path, O_CREAT | O_RDWR, 0666);
+	if (IS_ERR(input_dump_fp)) {
+		pr_err("create input dump [%s] file failed [%d]\n",
+			path, (int)PTR_ERR(input_dump_fp));
+		input_dump_fp = NULL;
+	} else {
+		dprint("create dump ts:%s success\n", path);
+	}
+}
+
+static void dump_file_write(char *buf, size_t count)
+{
+	mm_segment_t old_fs;
+
+	if (!input_dump_fp) {
+		pr_err("Failed to write ts dump file fp is null\n");
+		return;
+	}
+
+	old_fs = get_fs();
+	set_fs(KERNEL_DS);
+
+	if (count != vfs_write(input_dump_fp, buf, count,
+			&input_file_pos))
+		pr_err("Failed to write video dump file\n");
+
+	set_fs(old_fs);
+}
+
+static void dump_file_close(void)
+{
+	if (input_dump_fp) {
+		vfs_fsync(input_dump_fp, 0);
+		filp_close(input_dump_fp, current->files);
+		input_dump_fp = NULL;
+	}
+}
 
 int _alloc_buff(unsigned int len, int sec_level,
 		unsigned long *vir_mem, unsigned long *phy_mem,
@@ -369,6 +423,7 @@ int SC2_bufferid_dealloc(struct chan_id *pchan)
 		_bufferid_free_desc_mem(pchan);
 		pchan->is_es = 0;
 		pchan->used = 0;
+		dump_file_close();
 	} else {
 		_bufferid_free_desc_mem(pchan);
 		pchan->is_es = 0;
@@ -506,7 +561,7 @@ int SC2_bufferid_read(struct chan_id *pchan, char **pread, unsigned int len,
 //              dprint("chan buffer loop back\n");
 
 	pchan->last_w_addr = w_offset;
-	if (w_offset != pchan->r_offset && w_offset != 0) {
+	if (w_offset != pchan->r_offset) {
 		pr_dbg("%s w:0x%0x, r:0x%0x, wr_len:0x%0x\n", __func__,
 		       (u32)w_offset, (u32)(pchan->r_offset),
 		       (u32)w_offset_org);
@@ -626,6 +681,10 @@ int SC2_bufferid_write(struct chan_id *pchan, const char __user *buf,
 			if (copy_from_user((char *)(pchan->mem), p, len)) {
 				dprint("copy_from user error\n");
 				return -EFAULT;
+			}
+			if (dump_input_ts) {
+				dump_file_open(INPUT_DUMP_FILE);
+				dump_file_write((char *)pchan->mem, len);
 			}
 			dma_addr = dma_map_single(aml_get_device(),
 						  (void *)pchan->mem,
