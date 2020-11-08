@@ -910,7 +910,7 @@ int am_meson_plane_create(struct meson_drm *priv)
 	int i, osd_index, video_index;
 
 	/*video plane*/
-	for (i = 0; i < pipeline->num_video; i++) {
+	for (i = pipeline->num_video - 1; i >= 0; i--) {
 		video_index = pipeline->video[i]->base.index;
 		video_plane = am_video_plane_create(priv, video_index);
 
