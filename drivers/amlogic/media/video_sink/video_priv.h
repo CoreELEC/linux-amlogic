@@ -286,6 +286,7 @@ struct video_layer_s {
 
 	bool need_switch_vf;
 	bool do_switch;
+	bool force_black;
 };
 
 enum {

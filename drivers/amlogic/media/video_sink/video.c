@@ -3373,6 +3373,7 @@ static void primary_swap_frame(
 
 	if ((vf->flag & (VFRAME_FLAG_VIDEO_COMPOSER |
 		VFRAME_FLAG_VIDEO_DRM)) &&
+		!(vf->flag & VFRAME_FLAG_FAKE_FRAME) &&
 	    !(debug_flag & DEBUG_FLAG_AXIS_NO_UPDATE)) {
 		axis[0] = vf->axis[0];
 		axis[1] = vf->axis[1];
@@ -3889,58 +3890,6 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 	if (!hist_test_flag && (cur_dispbuf == &hist_test_vf))
 		cur_dispbuf = NULL;
 
-	if ((vd_layer[0].dispbuf_mapping == &cur_dispbuf) &&
-	    ((cur_dispbuf == &vf_local) ||
-	     !cur_dispbuf) &&
-	    (vd_layer[0].dispbuf != cur_dispbuf))
-		vd_layer[0].dispbuf = cur_dispbuf;
-
-	if ((vd_layer[0].dispbuf_mapping == &cur_pipbuf) &&
-	    ((cur_pipbuf == &local_pip) ||
-	     !cur_pipbuf) &&
-	    (vd_layer[0].dispbuf != cur_pipbuf))
-		vd_layer[0].dispbuf = cur_pipbuf;
-
-	if (gvideo_recv[0] &&
-	    (vd_layer[0].dispbuf_mapping == &gvideo_recv[0]->cur_buf) &&
-	    ((gvideo_recv[0]->cur_buf == &gvideo_recv[0]->local_buf) ||
-	     !gvideo_recv[0]->cur_buf) &&
-	    (vd_layer[0].dispbuf != gvideo_recv[0]->cur_buf))
-		vd_layer[0].dispbuf = gvideo_recv[0]->cur_buf;
-
-	if (gvideo_recv[1] &&
-	    (vd_layer[0].dispbuf_mapping == &gvideo_recv[1]->cur_buf) &&
-	    ((gvideo_recv[1]->cur_buf == &gvideo_recv[1]->local_buf) ||
-	     !gvideo_recv[1]->cur_buf) &&
-	    (vd_layer[0].dispbuf != gvideo_recv[1]->cur_buf))
-		vd_layer[0].dispbuf = gvideo_recv[1]->cur_buf;
-
-	if ((vd_layer[1].dispbuf_mapping == &cur_dispbuf) &&
-	    ((cur_dispbuf == &vf_local) ||
-	     !cur_dispbuf) &&
-	    (vd_layer[1].dispbuf != cur_dispbuf))
-		vd_layer[1].dispbuf = cur_dispbuf;
-
-	if ((vd_layer[1].dispbuf_mapping == &cur_pipbuf) &&
-	    ((cur_pipbuf == &local_pip) ||
-	     !cur_pipbuf) &&
-	    (vd_layer[1].dispbuf != cur_pipbuf))
-		vd_layer[1].dispbuf = cur_pipbuf;
-
-	if (gvideo_recv[0] &&
-	    (vd_layer[1].dispbuf_mapping == &gvideo_recv[0]->cur_buf) &&
-	    ((gvideo_recv[0]->cur_buf == &gvideo_recv[0]->local_buf) ||
-	     !gvideo_recv[0]->cur_buf) &&
-	    (vd_layer[1].dispbuf != gvideo_recv[0]->cur_buf))
-		vd_layer[1].dispbuf = gvideo_recv[0]->cur_buf;
-
-	if (gvideo_recv[1] &&
-	    (vd_layer[1].dispbuf_mapping == &gvideo_recv[1]->cur_buf) &&
-	    ((gvideo_recv[1]->cur_buf == &gvideo_recv[1]->local_buf) ||
-	     !gvideo_recv[1]->cur_buf) &&
-	    (vd_layer[1].dispbuf != gvideo_recv[1]->cur_buf))
-		vd_layer[1].dispbuf = gvideo_recv[1]->cur_buf;
-
 	if (frame_detect_flag == 1 &&
 		receive_frame_count &&
 		frame_detect_time &&
@@ -4357,6 +4306,58 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 			recycle_cnt[1]--;
 		}
 	}
+
+	if ((vd_layer[0].dispbuf_mapping == &cur_dispbuf) &&
+	    ((cur_dispbuf == &vf_local) ||
+	     !cur_dispbuf) &&
+	    (vd_layer[0].dispbuf != cur_dispbuf))
+		vd_layer[0].dispbuf = cur_dispbuf;
+
+	if ((vd_layer[0].dispbuf_mapping == &cur_pipbuf) &&
+	    ((cur_pipbuf == &local_pip) ||
+	     !cur_pipbuf) &&
+	    (vd_layer[0].dispbuf != cur_pipbuf))
+		vd_layer[0].dispbuf = cur_pipbuf;
+
+	if (gvideo_recv[0] &&
+	    (vd_layer[0].dispbuf_mapping == &gvideo_recv[0]->cur_buf) &&
+	    ((gvideo_recv[0]->cur_buf == &gvideo_recv[0]->local_buf) ||
+	     !gvideo_recv[0]->cur_buf) &&
+	    (vd_layer[0].dispbuf != gvideo_recv[0]->cur_buf))
+		vd_layer[0].dispbuf = gvideo_recv[0]->cur_buf;
+
+	if (gvideo_recv[1] &&
+	    (vd_layer[0].dispbuf_mapping == &gvideo_recv[1]->cur_buf) &&
+	    ((gvideo_recv[1]->cur_buf == &gvideo_recv[1]->local_buf) ||
+	     !gvideo_recv[1]->cur_buf) &&
+	    (vd_layer[0].dispbuf != gvideo_recv[1]->cur_buf))
+		vd_layer[0].dispbuf = gvideo_recv[1]->cur_buf;
+
+	if ((vd_layer[1].dispbuf_mapping == &cur_dispbuf) &&
+	    ((cur_dispbuf == &vf_local) ||
+	     !cur_dispbuf) &&
+	    (vd_layer[1].dispbuf != cur_dispbuf))
+		vd_layer[1].dispbuf = cur_dispbuf;
+
+	if ((vd_layer[1].dispbuf_mapping == &cur_pipbuf) &&
+	    ((cur_pipbuf == &local_pip) ||
+	     !cur_pipbuf) &&
+	    (vd_layer[1].dispbuf != cur_pipbuf))
+		vd_layer[1].dispbuf = cur_pipbuf;
+
+	if (gvideo_recv[0] &&
+	    (vd_layer[1].dispbuf_mapping == &gvideo_recv[0]->cur_buf) &&
+	    ((gvideo_recv[0]->cur_buf == &gvideo_recv[0]->local_buf) ||
+	     !gvideo_recv[0]->cur_buf) &&
+	    (vd_layer[1].dispbuf != gvideo_recv[0]->cur_buf))
+		vd_layer[1].dispbuf = gvideo_recv[0]->cur_buf;
+
+	if (gvideo_recv[1] &&
+	    (vd_layer[1].dispbuf_mapping == &gvideo_recv[1]->cur_buf) &&
+	    ((gvideo_recv[1]->cur_buf == &gvideo_recv[1]->local_buf) ||
+	     !gvideo_recv[1]->cur_buf) &&
+	    (vd_layer[1].dispbuf != gvideo_recv[1]->cur_buf))
+		vd_layer[1].dispbuf = gvideo_recv[1]->cur_buf;
 
 	if (atomic_read(&video_pause_flag) &&
 	    !((vd_layer[0].global_output == 1) &&
@@ -5104,9 +5105,20 @@ SET_FILTER:
 		cur_blackout = blackout | force_blackout;
 	} else if (vd1_path_id == VFM_PATH_AUTO) {
 		new_frame = NULL;
+		if (path2_new_frame &&
+			(path2_new_frame->flag & VFRAME_FLAG_FAKE_FRAME)) {
+			new_frame = path2_new_frame;
+			pr_info("vsync: auto path2 get a fake\n");
+		}
+
 		if (!new_frame) {
 			if (cur_dispbuf == &vf_local)
 				vd_layer[0].dispbuf = cur_dispbuf;
+
+		if (gvideo_recv[0]->cur_buf &&
+			gvideo_recv[0]->cur_buf->flag & VFRAME_FLAG_FAKE_FRAME)
+			vd_layer[0].dispbuf = gvideo_recv[0]->cur_buf;
+
 		}
 		if (new_frame || cur_dispbuf)
 			vd_layer[0].dispbuf_mapping = &cur_dispbuf;
@@ -5154,6 +5166,7 @@ SET_FILTER:
 	if (vd_layer[0].dispbuf &&
 	    (vd_layer[0].dispbuf->flag & (VFRAME_FLAG_VIDEO_COMPOSER |
 		VFRAME_FLAG_VIDEO_DRM)) &&
+	    !(vd_layer[0].dispbuf->flag & VFRAME_FLAG_FAKE_FRAME) &&
 	    !(debug_flag & DEBUG_FLAG_AXIS_NO_UPDATE)) {
 		axis[0] = vd_layer[0].dispbuf->axis[0];
 		axis[1] = vd_layer[0].dispbuf->axis[1];
@@ -5428,8 +5441,25 @@ SET_FILTER:
 	video_secure_set();
 
 	if (vd_layer[0].dispbuf &&
-	    (vd_layer[0].dispbuf->flag & VFRAME_FLAG_FAKE_FRAME))
-		safe_switch_videolayer(0, false, true);
+		(vd_layer[0].dispbuf->flag & VFRAME_FLAG_FAKE_FRAME)) {
+		if (!vd_layer[0].force_black) {
+			pr_info("vsync: vd1 force black\n");
+			VSYNC_WR_MPEG_REG(VPP_VD1_CLIP_MISC0,
+				(0x0 << 20) |
+				(0x200 << 10) |
+				0x200);
+			VSYNC_WR_MPEG_REG(VPP_VD1_CLIP_MISC1,
+				(0x0 << 20) |
+				(0x200 << 10) |
+				0x200);
+			vd_layer[0].force_black = true;
+		}
+	} else if (vd_layer[0].force_black) {
+		pr_info("vsync: vd1 black to normal\n");
+		VSYNC_WR_MPEG_REG(VPP_VD1_CLIP_MISC0, 0x3fffffff);
+		VSYNC_WR_MPEG_REG(VPP_VD1_CLIP_MISC1, 0x0);
+		vd_layer[0].force_black = false;
+	}
 
 	if (vd_layer[1].dispbuf &&
 	    (vd_layer[1].dispbuf->flag & VFRAME_FLAG_FAKE_FRAME))
