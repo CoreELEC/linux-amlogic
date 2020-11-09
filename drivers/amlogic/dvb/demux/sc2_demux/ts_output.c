@@ -1148,6 +1148,9 @@ static int clean_aucpu_data(struct out_elem *pout, unsigned int len)
 	int ret;
 	char *ptmp;
 
+	if (pout->aucpu_handle < 0)
+		return -1;
+
 	if (!pout->aucpu_start &&
 		pout->format == ES_FORMAT &&
 		pout->type == AUDIO_TYPE && pout->aucpu_handle >= 0) {
@@ -2007,6 +2010,9 @@ int ts_output_remove_pid(struct out_elem *pout, int pid)
 int ts_output_set_mem(struct out_elem *pout,
 		      int memsize, int sec_level, int pts_memsize)
 {
+	pr_dbg("%s mem size:0x%0x, pts_memsize:0x%0x, sec_level:%d\n",
+		__func__, memsize, pts_memsize, sec_level);
+
 	if (pout && pout->pchan)
 		SC2_bufferid_set_mem(pout->pchan, memsize, sec_level);
 
@@ -2022,6 +2028,8 @@ int ts_output_set_mem(struct out_elem *pout,
 int ts_output_set_sec_mem(struct out_elem *pout,
 	unsigned int buf, unsigned int size)
 {
+	pr_dbg("%s size:0x%0x\n", __func__, size);
+
 	if (pout && pout->pchan)
 		SC2_bufferid_set_sec_mem(pout->pchan, buf, size);
 	return 0;
@@ -2214,7 +2222,7 @@ int ts_output_dump_info(char *buf)
 		struct pid_entry *pid_list;
 
 		if (pout->used && pout->format == DVR_FORMAT) {
-			r = sprintf(buf, "%d sid:%d ref:%d ",
+			r = sprintf(buf, "%d sid:0x%0x ref:%d ",
 				    count, pout->sid, pout->ref);
 			buf += r;
 			total += r;
@@ -2224,7 +2232,7 @@ int ts_output_dump_info(char *buf)
 					       &buf_phy_start,
 					       &free_size, &wp_offset, NULL);
 			r = sprintf(buf,
-				    "mem total:%d, buf_base:0x%0x, ",
+				    "mem total:0x%0x, buf_base:0x%0x, ",
 				    total_size, buf_phy_start);
 			buf += r;
 			total += r;
@@ -2241,7 +2249,7 @@ int ts_output_dump_info(char *buf)
 			total += r;
 
 			while (pid_list) {
-				r = sprintf(buf, "%d ", pid_list->pid);
+				r = sprintf(buf, "0x%0x ", pid_list->pid);
 				buf += r;
 				total += r;
 				pid_list = pid_list->pnext;
@@ -2267,9 +2275,9 @@ int ts_output_dump_info(char *buf)
 		unsigned int wp_offset = 0;
 
 		if (es_slot->used && es_slot->status == PES_FORMAT) {
-			r = sprintf(buf, "%d dmx_id:%d sid:%d type:%d,", count,
-				    es_slot->dmx_id, es_slot->pout->sid,
-				    es_slot->pout->type);
+			r = sprintf(buf, "%d dmx_id:%d sid:0x%0x type:%d,",
+				count, es_slot->dmx_id,
+				es_slot->pout->sid, es_slot->pout->type);
 			buf += r;
 			total += r;
 
@@ -2282,7 +2290,7 @@ int ts_output_dump_info(char *buf)
 					       &buf_phy_start,
 					       &free_size, &wp_offset, NULL);
 			r = sprintf(buf,
-				    "mem total:%d, buf_base:0x%0x, ",
+				    "mem total:0x%0x, buf_base:0x%0x, ",
 				    total_size, buf_phy_start);
 			buf += r;
 			total += r;
@@ -2310,8 +2318,8 @@ int ts_output_dump_info(char *buf)
 		unsigned int wp_offset = 0;
 
 		if (es_slot->used && es_slot->status == ES_FORMAT) {
-			r = sprintf(buf, "%d dmx_id:%d sid:%d type:%s", count,
-				    es_slot->dmx_id, es_slot->pout->sid,
+			r = sprintf(buf, "%d dmx_id:%d sid:0x%0x type:%s",
+				count, es_slot->dmx_id, es_slot->pout->sid,
 				    (es_slot->pout->type == AUDIO_TYPE) ?
 				    "aud" : "vid");
 			buf += r;
@@ -2327,14 +2335,28 @@ int ts_output_dump_info(char *buf)
 					       &free_size, &wp_offset, NULL);
 
 			r = sprintf(buf,
-				    "mem total:%d, buf_base:0x%0x, ",
+				    "mem total:0x%0x, buf_base:0x%0x, ",
 				    total_size, buf_phy_start);
 			buf += r;
 			total += r;
 
 			r = sprintf(buf,
-				    "free size:0x%0x, wp:0x%0x\n",
+				    "free size:0x%0x, wp:0x%0x, ",
 				    free_size, wp_offset);
+			buf += r;
+			total += r;
+
+			r = sprintf(buf,
+				    "h rp:0x%0x, h wp:0x%0x, ",
+				    es_slot->pout->pchan1->r_offset,
+					SC2_bufferid_get_wp_offset(
+						es_slot->pout->pchan1));
+			buf += r;
+			total += r;
+
+			r = sprintf(buf,
+				    "sec_level:0x%0x\n",
+				    es_slot->pout->pchan->sec_level);
 			buf += r;
 			total += r;
 
@@ -2354,8 +2376,12 @@ int ts_output_dump_info(char *buf)
 		unsigned int wp_offset = 0;
 
 		if (es_slot->used && es_slot->status == SECTION_FORMAT) {
-			r = sprintf(buf, "%d dmxid:%d sid:%d pid:0x%0x ref:%d ",
-				    count, es_slot->dmx_id, es_slot->pout->sid,
+			r = sprintf(buf, "%d dmxid:%d sid:0x%0x ",
+				    count, es_slot->dmx_id, es_slot->pout->sid);
+			buf += r;
+			total += r;
+
+			r = sprintf(buf, "pid:0x%0x ref:%d ",
 				    es_slot->pid, es_slot->pout->ref);
 			buf += r;
 			total += r;
@@ -2366,7 +2392,7 @@ int ts_output_dump_info(char *buf)
 					       &free_size, &wp_offset, NULL);
 
 			r = sprintf(buf,
-				    "mem total:%d, buf_base:0x%0x, ",
+				    "mem total:0x%0x, buf_base:0x%0x, ",
 				    total_size, buf_phy_start);
 			buf += r;
 			total += r;

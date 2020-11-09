@@ -215,6 +215,7 @@ static struct sw_demux_sec_filter *_dmx_dmx_sec_filter_alloc(struct
 
 static void prdump(const char *m, const void *data, u32 len)
 {
+	return;
 	if (m)
 		dprint_i("%s:\n", m);
 	if (data) {
@@ -403,6 +404,7 @@ static int _dmx_ts_feed_set(struct dmx_ts_feed *ts_feed, u16 pid, int ts_type,
 		sec_level = DMX_MEM_SEC_LEVEL3;
 
 	feed->type = type;
+	pr_dbg("%s sec_level:%d\n", __func__, sec_level);
 
 	if (format == DVR_FORMAT) {
 		feed->ts_out_elem = ts_output_find_dvr(sid);

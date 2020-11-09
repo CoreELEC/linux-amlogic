@@ -72,6 +72,11 @@ struct aml_dvb {
 	unsigned int tuner_cur;
 	struct aml_tuner *tuners;
 	bool tuner_attached;
+
+	/*1: dsc connect demod
+	 *0: dsc connect local
+	 */
+	unsigned int dsc_pipeline;
 };
 
 struct aml_dvb *aml_get_dvb_device(void);

@@ -728,6 +728,11 @@ int dsc_dump_info(char *buf)
 	struct dsc_channel *chans;
 	struct dsc_pid_table *ptmp;
 
+	r = sprintf(buf, "\n pay attation: dsc connected to %s\n\n",
+			dvb->dsc_pipeline ? "demod" : "local");
+	buf += r;
+	total += r;
+
 	for (i = 0; i < DSC_DEV_COUNT; i++) {
 		dsc = &dvb->dsc[i];
 		if (!dsc->dev)
