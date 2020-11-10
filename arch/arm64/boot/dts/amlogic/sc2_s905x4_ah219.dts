@@ -1215,7 +1215,7 @@
 
 &audiobus {
 	tdma: tdm@0 {
-		compatible = "amlogic, sc2-snd-tdma";
+		compatible = "amlogic, tm2-revb-snd-tdma";
 		#sound-dai-cells = <0>;
 		dai-tdm-lane-slot-mask-in = <0 1>;
 		dai-tdm-oe-lane-slot-mask-out = <1 0>;
@@ -1224,7 +1224,10 @@
 				&clkc CLKID_MPLL0>;
 		clock-names = "mclk", "clk_srcpll";
 		pinctrl-names = "tdm_pins";
-		pinctrl-0 = <&tdm_a>;
+		pinctrl-0 = <&tdm_a
+			&tdm_d3_pins
+			&tdm_d4_pins
+			&tdm_clk_pins>;
 
 		status = "okay";
 	};
@@ -1528,6 +1531,29 @@
 
 &earc {
 	status = "okay";
+};
+
+&pinctrl_audio {
+	tdm_d3_pins: tdm_d3_pin {
+		mux {
+			groups = "tdm_d3";
+			function = "tdmina_lane1";
+		};
+	};
+
+	tdm_d4_pins: tdm_d4_pin {
+		mux {
+			groups = "tdm_d4";
+			function = "tdmouta_lane0";
+		};
+	};
+
+	tdm_clk_pins: tdm_clk_pin {
+		mux {
+			groups = "tdm_sclk0", "tdm_lrclk0";
+			function = "tdm_clk_outa";
+		};
+	};
 };
 
 &pinctrl_periphs {

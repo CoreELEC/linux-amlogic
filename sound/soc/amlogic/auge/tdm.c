@@ -1573,9 +1573,6 @@ static int aml_tdm_platform_probe(struct platform_device *pdev)
 	pr_info("%s, tdm ID = %u, lane_cnt = %d\n", __func__,
 			p_tdm->id, p_tdm->lane_cnt);
 
-	if (p_chipinfo->pinmux_set)
-		aml_tdm_pinmux_set(p_tdm->id);
-
 	/* get audio controller */
 	node_prt = of_get_parent(node);
 	if (node_prt == NULL)
