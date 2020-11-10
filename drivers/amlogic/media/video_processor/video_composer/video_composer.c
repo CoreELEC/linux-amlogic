@@ -1266,7 +1266,8 @@ static int video_composer_thread(void *data)
 					 dev->enable_composer) ||
 					 dev->need_free_buffer ||
 					 dev->need_unint_receive_q ||
-					 dev->need_empty_ready,
+					 dev->need_empty_ready ||
+					 dev->thread_need_stop,
 					 msecs_to_jiffies(5000));
 		}
 
@@ -1356,6 +1357,7 @@ static int video_composer_open(struct inode *inode, struct file *file)
 	dev->last_frames.frames_info.frame_count = 0;
 	dev->is_sideband = false;
 	dev->need_empty_ready = false;
+	dev->thread_need_stop = false;
 
 	memcpy(dev->vf_provider_name, port->name,
 	       strlen(port->name) + 1);
@@ -1399,13 +1401,16 @@ static int video_composer_release(struct inode *inode, struct file *file)
 
 	if (dev->enable_composer) {
 		ret = video_composer_set_enable(dev, 0);
-		return ret;
+		if (ret != 0)
+			pr_err("video_composer_release, disable fail\n");
 	}
 
 	if (dev->kthread) {
+		dev->thread_need_stop = true;
 		kthread_stop(dev->kthread);
 		wake_up_interruptible(&dev->wq);
 		dev->kthread = NULL;
+		dev->thread_need_stop = false;
 	}
 
 	mutex_lock(&video_composer_mutex);
