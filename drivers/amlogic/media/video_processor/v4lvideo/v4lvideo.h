@@ -255,5 +255,6 @@ unsigned int get_v4lvideo_debug(void);
 #define V4LVIDEO_IOCTL_ALLOC_ID   _IOW(V4LVIDEO_IOC_MAGIC, 0x00, int)
 #define V4LVIDEO_IOCTL_FREE_ID    _IOW(V4LVIDEO_IOC_MAGIC, 0x01, int)
 #define V4LVIDEO_IOCTL_ALLOC_FD   _IOW(V4LVIDEO_IOC_MAGIC, 0x02, int)
+#define V4LVIDEO_IOCTL_LINK_FD    _IOW(V4LVIDEO_IOC_MAGIC, 0x03, int)
 
 #endif

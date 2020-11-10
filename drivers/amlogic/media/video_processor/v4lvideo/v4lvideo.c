@@ -63,6 +63,11 @@ static unsigned int cts_use_di;
 static unsigned int render_use_dec;
 static unsigned int dec_count;
 static unsigned int vf_dump;
+static unsigned int open_fd_count;
+static unsigned int release_fd_count;
+static unsigned int link_fd_count;
+static unsigned int link_put_fd_count;
+static unsigned int v4lvideo_version = 2;
 
 bool di_bypass_p;
 /*dec set count mutex*/
@@ -378,6 +383,7 @@ void init_file_private_data(struct file_private_data *file_private_data)
 		file_private_data->keep_head_id = -1;
 		file_private_data->file = NULL;
 		file_private_data->flag = 0;
+		file_private_data->cnt_file = NULL;
 	} else {
 		V4LVID_ERR("init_file_private_data is NULL!!");
 	}
@@ -955,7 +961,7 @@ struct file_private_data *v4lvideo_get_file_private_data(struct file *file_vf,
 	struct uvm_hook_mod_info info;
 	int ret;
 
-	if (!file_vf) {
+	if (IS_ERR_OR_NULL(file_vf)) {
 		pr_err("v4lvideo: get_file_private_data fail\n");
 		return NULL;
 	}
@@ -983,6 +989,11 @@ struct file_private_data *v4lvideo_get_file_private_data(struct file *file_vf,
 	file_private_data = kzalloc(sizeof(*file_private_data), GFP_KERNEL);
 	if (!file_private_data)
 		return NULL;
+	if (IS_ERR(file_private_data)) {
+		kfree(file_private_data);
+		file_private_data = NULL;
+		return NULL;
+	}
 	info.type = VF_PROCESS_V4LVIDEO;
 	info.arg = file_private_data;
 	info.free = free_fd_private;
@@ -1875,22 +1886,29 @@ static int v4lvideo_file_release(struct inode *inode, struct file *file)
 	/*pr_err("v4lvideo_file_release\n");*/
 
 	if (file_private_data) {
-		if (file_private_data->is_keep)
-			vf_free(file_private_data);
-		v4lvideo_release_sei_data(&file_private_data->vf);
+		if (file_private_data->cnt_file) {
+			fput(file_private_data->cnt_file);
+			link_put_fd_count++;
+			pr_debug("v4lvideo: %s pre file: %p\n",
+				__func__, file_private_data->cnt_file);
+			file_private_data->cnt_file = NULL;
+		} else {
+			if (file_private_data->is_keep)
+				vf_free(file_private_data);
+			v4lvideo_release_sei_data(&file_private_data->vf);
+			if (file_private_data->md.p_md)
+				vfree(file_private_data->md.p_md);
+			if (file_private_data->md.p_comp)
+				vfree(file_private_data->md.p_comp);
+		}
+		file_private_data->md.p_md = NULL;
+		file_private_data->md.p_comp = NULL;
 
-		if (file_private_data->md.p_md) {
-			vfree(file_private_data->md.p_md);
-			file_private_data->md.p_md = NULL;
-		}
-		if (file_private_data->md.p_comp) {
-			vfree(file_private_data->md.p_comp);
-			file_private_data->md.p_comp = NULL;
-		}
 		memset(file_private_data, 0, sizeof(struct file_private_data));
 		v4lvideo_private_data_release(file_private_data);
 		kfree((u8 *)file_private_data);
 		file->private_data = NULL;
+		release_fd_count++;
 	}
 	return 0;
 }
@@ -1924,6 +1942,7 @@ int v4lvideo_alloc_fd(int *fd)
 		pr_err("v4lvideo_alloc_fd: private_date fail\n");
 		return -ENOMEM;
 	}
+
 	init_file_private_data(private_data);
 
 	file = anon_inode_getfile("v4lvideo_file",
@@ -1956,6 +1975,50 @@ int v4lvideo_alloc_fd(int *fd)
 
 	fd_install(file_fd, file);
 	*fd = file_fd;
+	open_fd_count++;
+	return 0;
+}
+
+static int v4lvideo_fd_link(int src_fd, int dst_fd)
+{
+	struct file *file0 = NULL;
+	struct file *file1 = NULL;
+	struct file_private_data *private_data0 = NULL;
+	struct file_private_data *private_data1 = NULL;
+
+	file0 = fget(src_fd);
+	if (!file0) {
+		pr_err("v4lvideo: %s source file is NULL\n", __func__);
+		return -EINVAL;
+	}
+	file1 = fget(dst_fd);
+	if (!file1) {
+		fput(file0);
+		pr_err("v4lvideo: %s dst file is NULL\n", __func__);
+		return -EINVAL;
+	}
+
+	private_data0 = (struct file_private_data *)(file0->private_data);
+	private_data1 = (struct file_private_data *)(file1->private_data);
+
+	if (private_data1->cnt_file) {
+		fput(private_data1->cnt_file);
+		link_put_fd_count++;
+	} else {
+		if (private_data1->md.p_md) {
+			vfree(private_data1->md.p_md);
+			private_data1->md.p_md = NULL;
+		}
+		if (private_data1->md.p_comp) {
+			vfree(private_data1->md.p_comp);
+			private_data1->md.p_comp = NULL;
+		}
+	}
+
+	*private_data1 = *private_data0;
+	private_data1->cnt_file = file0;
+	fput(file1);
+	link_fd_count++;
 	return 0;
 }
 
@@ -2033,6 +2096,36 @@ static ssize_t video_nr_base_store(struct class *class,
 	else
 		video_nr_base = 0;
 	return count;
+}
+
+static ssize_t open_fd_count_show(struct class *class,
+				  struct class_attribute *attr, char *buf)
+{
+	return sprintf(buf, "open_fd_count: %d\n", open_fd_count);
+}
+
+static ssize_t release_fd_count_show(struct class *class,
+				     struct class_attribute *attr, char *buf)
+{
+	return sprintf(buf, "release_fd_count: %d\n", release_fd_count);
+}
+
+static ssize_t link_fd_count_show(struct class *class,
+				  struct class_attribute *attr, char *buf)
+{
+	return sprintf(buf, "link_fd_count: %d\n", link_fd_count);
+}
+
+static ssize_t link_put_fd_count_show(struct class *class,
+				      struct class_attribute *attr, char *buf)
+{
+	return sprintf(buf, "link_put_fd_count: %d\n", link_put_fd_count);
+}
+
+static ssize_t v4lvideo_version_show(struct class *class,
+			   struct class_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%d\n", v4lvideo_version);
 }
 
 static ssize_t n_devs_show(struct class *class,
@@ -2328,6 +2421,11 @@ static struct class_attribute v4lvideo_class_attrs[] = {
 	       0664,
 	       vf_dump_show,
 	       vf_dump_store),
+	__ATTR_RO(open_fd_count),
+	__ATTR_RO(release_fd_count),
+	__ATTR_RO(link_fd_count),
+	__ATTR_RO(link_put_fd_count),
+	__ATTR_RO(v4lvideo_version),
 	__ATTR_NULL
 };
 
@@ -2377,6 +2475,19 @@ static long v4lvideo_ioctl(struct file *file,
 			if (ret != 0)
 				break;
 			put_user(v4lvideo_fd, (u32 __user *)argp);
+		}
+		break;
+	case V4LVIDEO_IOCTL_LINK_FD: {
+			int data[2];
+			int src_fd, dst_fd;
+
+			if (copy_from_user(data, argp, sizeof(data)) == 0) {
+				src_fd = data[0];
+				dst_fd = data[1];
+				ret = v4lvideo_fd_link(src_fd, dst_fd);
+			} else {
+				ret = -EFAULT;
+			}
 		}
 		break;
 	default:
