@@ -4385,7 +4385,7 @@ void vpp_blend_update(
 			<< VPP_VD2_ALPHA_BIT);
 	}
 
-	if ((vd_layer[0].global_output == 0) ||
+	if (((vd_layer[0].global_output == 0) && !vd_layer[0].force_black) ||
 	    black_threshold_check(0)) {
 		vd_layer[0].enabled = 0;
 		/* preblend need disable together */

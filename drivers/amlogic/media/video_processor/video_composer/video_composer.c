@@ -1498,17 +1498,11 @@ static void set_frames_info(struct composer_dev *dev,
 	}
 	if (!dev->select_path_done) {
 		if (current_is_sideband) {
-			if (dev->received_count > 0) {
-				if (dev->index == 0)
-					set_video_path_select("amvideo", 0);
-				else if (dev->index == 1)
-					set_video_path_select("pipvideo", 1);
-			} else {
-				if (dev->index == 0) {
-					set_video_path_select("auto", 0);
-					set_sideband_type(sideband_type, 0);
-				} else if (dev->index == 1)
-					set_video_path_select("pipvideo", 1);
+			if (dev->index == 0) {
+				set_video_path_select("auto", 0);
+				set_sideband_type(sideband_type, 0);
+			} else if (dev->index == 1) {
+				set_video_path_select("pipvideo", 1);
 			}
 		}
 		vc_print(dev->index, PRINT_ERROR,
