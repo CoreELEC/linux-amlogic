@@ -404,7 +404,7 @@ void pd_combing_fix_patch(enum pd_comb_fix_lvl_e level)
 	dejaggy_reg_count = sr0_dej_setting[level].length;
 	dejaggy_reg = sr0_dej_setting[level].am_reg;
 	for (i = 0; i < dejaggy_reg_count; i++) {
-		WRITE_VPP_REG(
+		VSYNC_WR_MPEG_REG(
 		dejaggy_reg[i].addr + sr_offset[0],
 		(aml_read_vcbus(dejaggy_reg[i].addr + sr_offset[0]) &
 		(~(dejaggy_reg[i].mask))) |
