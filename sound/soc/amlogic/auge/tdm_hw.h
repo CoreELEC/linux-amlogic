@@ -175,6 +175,5 @@ void aml_tdm_set_oe_v2(
 	struct aml_audio_controller *actrl,
 	int index, int force_oe, int oe_val);
 
-void aml_tdm_pinmux_set(unsigned int tdm_id);
 
 #endif

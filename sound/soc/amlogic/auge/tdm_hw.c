@@ -874,17 +874,3 @@ void aml_tdm_out_reset(unsigned int tdm_id, int offset)
 	audiobus_update_bits(reg, val, val);
 	audiobus_update_bits(reg, val, 0);
 }
-
-void aml_tdm_pinmux_set(unsigned int tdm_id)
-{
-	/* sclk select */
-	audiobus_update_bits(EE_AUDIO_SCLK_PAD_CTRL0, 0x3, tdm_id);
-	/* fsclk selct */
-	audiobus_update_bits(EE_AUDIO_SCLK_PAD_CTRL1, 0x3, tdm_id);
-	/* tdmin_a lane 1 select tdm_d3 */
-	audiobus_update_bits(EE_AUDIO_DAT_PAD_CTRL0, 0x1F << 8, 0x3 << 8);
-	/* tdm_d4 select tdmout_a lane 0 */
-	audiobus_update_bits(EE_AUDIO_DAT_PAD_CTRL7, 0x1F, 0x0);
-	/* tdm_d3 as input */
-	audiobus_update_bits(EE_AUDIO_DAT_PAD_CTRLF, 0x1 << 3, 0x1 << 3);
-}
