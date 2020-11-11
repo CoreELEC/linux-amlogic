@@ -127,7 +127,7 @@ static int find_kt_index(u32 handle)
 
 static int kt_clean(int index)
 {
-	int res = REE_SUCCESS;
+	int i = 0, res = REE_SUCCESS;
 	u32 kte;
 
 	if (index < 0 || index >= KTE_IV_MAX) {
@@ -150,6 +150,13 @@ static int kt_clean(int index)
 		       | (kte << KTE_KTE_OFFSET));
 	do {
 		res = READ_CBUS_REG(KT_REE_CFG);
+		if (i++ > 800) {
+			dprint("KT_REE_CFG still pending. timed out\n");
+			WRITE_CBUS_REG(KT_REE_CFG, (0 << KTE_PENDING_OFFSET));
+			WRITE_CBUS_REG(KT_REE_RDY, 1);
+			return -1;
+		}
+		usleep_range(10000, 15000);
 	} while (res & (KTE_PENDING << KTE_PENDING_OFFSET));
 	pr_dbg("KT_REE_CFG=0x%08x\n", res);
 
@@ -341,7 +348,6 @@ static int kt_set(u32 handle, unsigned char key[32], unsigned int key_len)
 		en_decrypt = 1;
 
 	algo = key_table[index].key_algo;
-	//TODO: timeout instead of return error
 	i = 0;
 	while (READ_CBUS_REG(KT_REE_RDY) == 0) {
 		if (i++ > 10) {
@@ -356,15 +362,23 @@ static int kt_set(u32 handle, unsigned char key[32], unsigned int key_len)
 	WRITE_CBUS_REG(KT_KEY2, key2);
 	WRITE_CBUS_REG(KT_KEY3, key3);
 	WRITE_CBUS_REG(KT_REE_CFG, (KTE_PENDING << KTE_PENDING_OFFSET)
-		       | (mode << KTE_MODE_OFFSET)
-		       | (en_decrypt << KTE_FLAG_OFFSET)
-		       | (algo << KTE_KEYALGO_OFFSET)
-		       | (user_id << KTE_USERID_OFFSET)
-		       | (kte << KTE_KTE_OFFSET)
-		       | (0 << KTE_TEE_PRIV_OFFSET)
-		       | (0 << KTE_LEVEL_OFFSET));
+			| (mode << KTE_MODE_OFFSET)
+			| (en_decrypt << KTE_FLAG_OFFSET)
+			| (algo << KTE_KEYALGO_OFFSET)
+			| (user_id << KTE_USERID_OFFSET)
+			| (kte << KTE_KTE_OFFSET)
+			| (0 << KTE_TEE_PRIV_OFFSET)
+			| (0 << KTE_LEVEL_OFFSET));
+	i = 0;
 	do {
 		res = READ_CBUS_REG(KT_REE_CFG);
+		if (i++ > 800) {
+			dprint("KT_REE_CFG still pending. timed out\n");
+			WRITE_CBUS_REG(KT_REE_CFG, (0 << KTE_PENDING_OFFSET));
+			WRITE_CBUS_REG(KT_REE_RDY, 1);
+			return -1;
+		}
+		usleep_range(10000, 15000);
 	} while (res & (KTE_PENDING << KTE_PENDING_OFFSET));
 
 	pr_dbg("KT_CFG[0x%08x]=0x%08x\n", KT_REE_CFG, res);
