@@ -148,14 +148,12 @@ static int loopback_open(struct snd_pcm_substream *ss)
 
 	snd_soc_set_runtime_hwparams(ss, &loopback_hardware);
 
-	if (ss->stream == SNDRV_PCM_STREAM_CAPTURE) {
-		p_loopback->tddr = aml_audio_register_toddr(dev,
-			p_loopback->actrl,
-			loopback_ddr_isr, ss);
-		if (p_loopback->tddr == NULL) {
-			dev_err(dev, "failed to claim to ddr\n");
-			return -ENXIO;
-		}
+	p_loopback->tddr = aml_audio_register_toddr(dev,
+		p_loopback->actrl,
+		loopback_ddr_isr, ss);
+	if (!p_loopback->tddr) {
+		dev_err(dev, "failed to claim to ddr\n");
+		return -ENXIO;
 	}
 
 	runtime->private_data = p_loopback;
@@ -168,8 +166,7 @@ static int loopback_close(struct snd_pcm_substream *ss)
 	struct snd_pcm_runtime *runtime = ss->runtime;
 	struct loopback *p_loopback = runtime->private_data;
 
-	if (ss->stream == SNDRV_PCM_STREAM_CAPTURE)
-		aml_audio_unregister_toddr(p_loopback->dev, ss);
+	aml_audio_unregister_toddr(p_loopback->dev, ss);
 
 	runtime->private_data = NULL;
 
@@ -202,17 +199,14 @@ static int loopback_prepare(struct snd_pcm_substream *ss)
 	struct snd_pcm_runtime *runtime = ss->runtime;
 	struct loopback *p_loopback = runtime->private_data;
 	unsigned int start_addr, end_addr, int_addr;
+	struct toddr *to = p_loopback->tddr;
 
 	start_addr = runtime->dma_addr;
 	end_addr = start_addr + runtime->dma_bytes - 8;
 	int_addr = frames_to_bytes(runtime, runtime->period_size) / 8;
 
-	if (ss->stream == SNDRV_PCM_STREAM_CAPTURE) {
-		struct toddr *to = p_loopback->tddr;
-
-		aml_toddr_set_buf(to, start_addr, end_addr);
-		aml_toddr_set_intrpt(to, int_addr);
-	}
+	aml_toddr_set_buf(to, start_addr, end_addr);
+	aml_toddr_set_intrpt(to, int_addr);
 
 	return 0;
 }
@@ -225,12 +219,10 @@ static snd_pcm_uframes_t loopback_pointer(
 	unsigned int addr, start_addr;
 	snd_pcm_uframes_t frames = 0;
 
-	if (ss->stream == SNDRV_PCM_STREAM_CAPTURE) {
-		start_addr = runtime->dma_addr;
-		addr = aml_toddr_get_position(p_loopback->tddr);
+	start_addr = runtime->dma_addr;
+	addr = aml_toddr_get_position(p_loopback->tddr);
 
-		frames = bytes_to_frames(runtime, addr - start_addr);
-	}
+	frames = bytes_to_frames(runtime, addr - start_addr);
 	if (frames > runtime->buffer_size)
 		frames = 0;
 
@@ -407,11 +399,6 @@ static int loopback_dai_startup(
 {
 	struct loopback *p_loopback = snd_soc_dai_get_drvdata(dai);
 	int ret = 0;
-
-	if (ss->stream != SNDRV_PCM_STREAM_CAPTURE) {
-		ret = -EINVAL;
-		goto err;
-	}
 
 	pr_info("%s\n", __func__);
 
@@ -646,100 +633,94 @@ static int loopback_dai_prepare(
 	struct loopback *p_loopback = snd_soc_dai_get_drvdata(dai);
 	unsigned int bit_depth = snd_pcm_format_width(runtime->format);
 
-	if (ss->stream == SNDRV_PCM_STREAM_CAPTURE) {
-		struct toddr *to = p_loopback->tddr;
-		unsigned int msb = 32 - 1;
-		unsigned int lsb = 32 - bit_depth;
-		unsigned int toddr_type;
-		struct toddr_fmt fmt;
-		unsigned int src;
+	struct toddr *to = p_loopback->tddr;
+	unsigned int msb = 32 - 1;
+	unsigned int lsb = 32 - bit_depth;
+	unsigned int toddr_type;
+	struct toddr_fmt fmt;
+	unsigned int src;
 
-		if (vad_lb_is_running(p_loopback->id) &&
-		    pm_audio_is_suspend())
-			return 0;
+	if (vad_lb_is_running(p_loopback->id) &&
+	    pm_audio_is_suspend())
+		return 0;
 
-		if (p_loopback->id == 0)
-			src = LOOPBACK_A;
-		else
-			src = LOOPBACK_B;
+	if (p_loopback->id == 0)
+		src = LOOPBACK_A;
+	else
+		src = LOOPBACK_B;
 
-		pr_info("%s Expected toddr src:%s\n",
-			__func__,
-			toddr_src_get_str(src));
+	pr_info("%s Expected toddr src:%s\n",
+		__func__,
+		toddr_src_get_str(src));
 
-		switch (bit_depth) {
-		case 8:
-		case 16:
-		case 32:
-			toddr_type = 0;
-			break;
-		case 24:
-			toddr_type = 4;
-			break;
-		default:
-			dev_err(p_loopback->dev,
-				"invalid bit_depth: %d\n",
-				bit_depth);
-			return -EINVAL;
-		}
-
-		fmt.type      = toddr_type;
-		fmt.msb       = msb;
-		fmt.lsb       = lsb;
-		fmt.endian    = 0;
-		fmt.bit_depth = bit_depth;
-		fmt.ch_num    = runtime->channels;
-		fmt.rate      = runtime->rate;
-
-		aml_toddr_select_src(to, src);
-		aml_toddr_set_format(to, &fmt);
-		aml_toddr_set_fifos(to, 0x40);
-
-		switch (p_loopback->datain_src) {
-		case DATAIN_TDMA:
-		case DATAIN_TDMB:
-		case DATAIN_TDMC:
-			break;
-		case DATAIN_SPDIF:
-			break;
-		case DATAIN_PDM:
-			datatin_pdm_cfg(runtime, p_loopback);
-			break;
-		case DATAIN_LOOPBACK:
-			break;
-		default:
-			dev_err(p_loopback->dev,
-				"unexpected datain src 0x%02x\n",
-				p_loopback->datain_src);
-			return -EINVAL;
-		}
-
-		switch (p_loopback->datalb_src) {
-		case TDMINLB_TDMOUTA:
-		case TDMINLB_TDMOUTB:
-		case TDMINLB_TDMOUTC:
-			break;
-		case TDMINLB_PAD_TDMINA:
-		case TDMINLB_PAD_TDMINB:
-		case TDMINLB_PAD_TDMINC:
-			break;
-		case TDMINLB_PAD_TDMINA_D:
-		case TDMINLB_PAD_TDMINB_D:
-		case TDMINLB_PAD_TDMINC_D:
-			break;
-		case SPDIFINLB_SPDIFOUTA:
-		case SPDIFINLB_SPDIFOUTB:
-			break;
-		default:
-			dev_err(p_loopback->dev,
-				"unexpected datalb src 0x%02x\n",
-				p_loopback->datalb_src);
-			return -EINVAL;
-		}
-
-		/* config for loopback, datain, datalb */
-		loopback_set_ctrl(p_loopback, bit_depth);
+	switch (bit_depth) {
+	case 8:
+	case 16:
+	case 32:
+		toddr_type = 0;
+		break;
+	case 24:
+		toddr_type = 4;
+		break;
+	default:
+		pr_err("invalid bit_depth: %d\n", bit_depth);
+		return -EINVAL;
 	}
+
+	fmt.type      = toddr_type;
+	fmt.msb       = msb;
+	fmt.lsb       = lsb;
+	fmt.endian    = 0;
+	fmt.bit_depth = bit_depth;
+	fmt.ch_num    = runtime->channels;
+	fmt.rate      = runtime->rate;
+
+	aml_toddr_select_src(to, src);
+	aml_toddr_set_format(to, &fmt);
+	aml_toddr_set_fifos(to, 0x40);
+
+	switch (p_loopback->datain_src) {
+	case DATAIN_TDMA:
+	case DATAIN_TDMB:
+	case DATAIN_TDMC:
+		break;
+	case DATAIN_SPDIF:
+		break;
+	case DATAIN_PDM:
+		datatin_pdm_cfg(runtime, p_loopback);
+		break;
+	case DATAIN_LOOPBACK:
+		break;
+	default:
+		pr_err("loopback unexpected datain src 0x%02x\n",
+		       p_loopback->datain_src);
+		return -EINVAL;
+	}
+
+	switch (p_loopback->datalb_src) {
+	case TDMINLB_TDMOUTA:
+	case TDMINLB_TDMOUTB:
+	case TDMINLB_TDMOUTC:
+		break;
+	case TDMINLB_PAD_TDMINA:
+	case TDMINLB_PAD_TDMINB:
+	case TDMINLB_PAD_TDMINC:
+		break;
+	case TDMINLB_PAD_TDMINA_D:
+	case TDMINLB_PAD_TDMINB_D:
+	case TDMINLB_PAD_TDMINC_D:
+		break;
+	case SPDIFINLB_SPDIFOUTA:
+	case SPDIFINLB_SPDIFOUTB:
+		break;
+	default:
+		pr_err("loopback unexpected datalb src 0x%02x\n",
+		       p_loopback->datalb_src);
+		return -EINVAL;
+	}
+
+	/* config for loopback, datain, datalb */
+	loopback_set_ctrl(p_loopback, bit_depth);
 
 	return 0;
 }
@@ -750,6 +731,7 @@ static int loopback_dai_trigger(
 	struct snd_soc_dai *dai)
 {
 	struct loopback *p_loopback = snd_soc_dai_get_drvdata(dai);
+	bool toddr_stopped = false;
 
 	pr_info("%s\n", __func__);
 
@@ -757,70 +739,64 @@ static int loopback_dai_trigger(
 	case SNDRV_PCM_TRIGGER_START:
 	case SNDRV_PCM_TRIGGER_RESUME:
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
-		if (ss->stream == SNDRV_PCM_STREAM_CAPTURE) {
-			if (vad_lb_is_running(p_loopback->id) &&
-			    pm_audio_is_suspend()) {
-				pm_audio_set_suspend(false);
-				/* VAD switch to alsa buffer */
-				vad_update_buffer(0);
-				audio_toddr_irq_enable(p_loopback->tddr, true);
-				break;
-			}
-
-			dev_info(ss->pcm->card->dev, "Loopback Capture enable\n");
-
-			pdm_fifo_reset();
-			tdminlb_fifo_enable(true);
-
-			aml_toddr_enable(p_loopback->tddr, true);
-			/* loopback */
-			if (p_loopback->chipinfo)
-				lb_enable(p_loopback->id,
-					  true,
-					  p_loopback->chipinfo->chnum_en);
-			else
-				lb_enable(p_loopback->id, true, true);
-			/* tdminLB */
-			tdminlb_enable(p_loopback->datalb_src, true);
-			/* pdm */
-			pdm_enable(1);
+		if (vad_lb_is_running(p_loopback->id) &&
+		    pm_audio_is_suspend()) {
+			pm_audio_set_suspend(false);
+			/* VAD switch to alsa buffer */
+			vad_update_buffer(0);
+			audio_toddr_irq_enable(p_loopback->tddr, true);
+			break;
 		}
+
+		dev_info(ss->pcm->card->dev, "Loopback Capture enable\n");
+
+		pdm_fifo_reset();
+		tdminlb_fifo_enable(true);
+
+		aml_toddr_enable(p_loopback->tddr, true);
+		/* loopback */
+		if (p_loopback->chipinfo)
+			lb_enable(p_loopback->id,
+				  true,
+				  p_loopback->chipinfo->chnum_en);
+		else
+			lb_enable(p_loopback->id, true, true);
+		/* tdminLB */
+		tdminlb_enable(p_loopback->datalb_src, true);
+		/* pdm */
+		pdm_enable(1);
 		break;
 	case SNDRV_PCM_TRIGGER_STOP:
 	case SNDRV_PCM_TRIGGER_SUSPEND:
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
-		if (ss->stream == SNDRV_PCM_STREAM_CAPTURE) {
-			bool toddr_stopped = false;
-
-			if (vad_lb_is_running(p_loopback->id) &&
-			    pm_audio_is_suspend()) {
-				/* switch to VAD buffer */
-				vad_update_buffer(1);
-				audio_toddr_irq_enable(p_loopback->tddr, false);
-				break;
-			}
-
-			pdm_enable(0);
-
-			/* loopback */
-			if (p_loopback->chipinfo)
-				lb_enable(p_loopback->id,
-					  false,
-					  p_loopback->chipinfo->chnum_en);
-			else
-				lb_enable(p_loopback->id, false, true);
-			/* tdminLB */
-			tdminlb_fifo_enable(false);
-			tdminlb_enable(p_loopback->datalb_src, false);
-			dev_info(ss->pcm->card->dev, "Loopback Capture disable\n");
-
-			toddr_stopped =
-				aml_toddr_burst_finished(p_loopback->tddr);
-			if (toddr_stopped)
-				aml_toddr_enable(p_loopback->tddr, false);
-			else
-				pr_err("%s(), toddr may be stuck\n", __func__);
+		if (vad_lb_is_running(p_loopback->id) &&
+		    pm_audio_is_suspend()) {
+			/* switch to VAD buffer */
+			vad_update_buffer(1);
+			audio_toddr_irq_enable(p_loopback->tddr, false);
+			break;
 		}
+
+		pdm_enable(0);
+
+		/* loopback */
+		if (p_loopback->chipinfo)
+			lb_enable(p_loopback->id,
+				  false,
+				  p_loopback->chipinfo->chnum_en);
+		else
+			lb_enable(p_loopback->id, false, true);
+		/* tdminLB */
+		tdminlb_fifo_enable(false);
+		tdminlb_enable(p_loopback->datalb_src, false);
+		dev_info(ss->pcm->card->dev, "Loopback Capture disable\n");
+
+		toddr_stopped =
+			aml_toddr_burst_finished(p_loopback->tddr);
+		if (toddr_stopped)
+			aml_toddr_enable(p_loopback->tddr, false);
+		else
+			pr_err("%s(), toddr may be stuck\n", __func__);
 		break;
 	default:
 		return -EINVAL;
