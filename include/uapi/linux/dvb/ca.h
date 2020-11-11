@@ -111,7 +111,8 @@ struct ca_descr_ex {
 enum ca_sc2_cmd_type {
 	CA_ALLOC,
 	CA_FREE,
-	CA_KEY
+	CA_KEY,
+	CA_GET_STATUS
 };
 
 enum ca_sc2_algo_type {

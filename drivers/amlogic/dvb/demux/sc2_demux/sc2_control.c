@@ -184,6 +184,16 @@ unsigned int dsc_get_ready(int dsc_type)
 		return READ_CBUS_REG(TSE_PID_READY);
 }
 
+unsigned int dsc_get_status(int dsc_type)
+{
+	if (dsc_type == CA_DSC_COMMON_TYPE)
+		return READ_CBUS_REG(TSN_PID_STATUS);
+	else if (dsc_type == CA_DSC_TSD_TYPE)
+		return READ_CBUS_REG(TSD_PID_STATUS);
+	else
+		return READ_CBUS_REG(TSE_PID_STATUS);
+}
+
 void dsc_config_ready(int dsc_type)
 {
 	if (dsc_type == CA_DSC_COMMON_TYPE)

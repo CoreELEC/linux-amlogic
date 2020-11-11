@@ -463,6 +463,19 @@ static int handle_desc_ext(struct aml_dsc *dsc, struct ca_sc2_descr_ex *d)
 			}
 		}
 		break;
+	case CA_GET_STATUS:{
+			int dsc_type = d->params.key_params.ca_index;
+
+			if (dsc_type > CA_DSC_TSE_TYPE) {
+				d->params.key_params.key_index = 0xffffffff;
+				ret = -1;
+			} else {
+				d->params.key_params.key_index =
+						dsc_get_status(dsc_type);
+				ret = 0;
+			}
+		}
+		break;
 	default:
 		break;
 	}

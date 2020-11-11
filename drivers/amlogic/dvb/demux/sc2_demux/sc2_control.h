@@ -91,6 +91,7 @@ int tsout_config_get_pcr(u32 pcr_entry, u64 *pcr);
 /*****************************************************/
 /*****************************************************/
 /*****************************************************/
+unsigned int dsc_get_status(int dsc_type);
 unsigned int dsc_get_ready(int dsc_type);
 void dsc_config_ready(int dsc_type);
 void dsc_config_pid_table(struct dsc_pid_table *pid_entry, int dsc_type);
