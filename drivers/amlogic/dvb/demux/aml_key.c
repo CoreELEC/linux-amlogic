@@ -57,6 +57,7 @@
 #define KTE_INVALID_INDEX  (0xFF)
 
 #define KTE_PENDING          (1)
+#define KTE_MODE_READ_FLAG   (0)
 #define KTE_MODE_CAS_A       (1)
 #define KTE_MODE_HOST        (3)
 #define KTE_CLEAN_KTE        (1)
@@ -377,6 +378,68 @@ static int kt_set(u32 handle, unsigned char key[32], unsigned int key_len)
 	return res;
 }
 
+static int kt_get_flag(u32 handle, unsigned char key_flag[32], unsigned int len)
+{
+	int res = REE_SUCCESS;
+	int user_id = 0;
+	int algo = 0;
+	int en_decrypt = 0;
+	u32 flag = 0;
+	int i, index;
+	u32 kte;
+
+	kte = HANDLE_TO_KTE(handle);
+	index = find_kt_index(handle);
+
+	if (index == -1) {
+		dprint("%s, handle:%#x index invalid\n", __func__, handle);
+		return -1;
+	}
+
+	if (kte >= KTE_IV_MAX) {
+		dprint("%s,kte:%d invalid\n", __func__, kte);
+		return -1;
+	}
+	if (key_table[index].flag != KTE_VALID) {
+		dprint("%s, %d kte flag invalid\n", __func__, __LINE__);
+		return -1;
+	}
+
+	user_id = key_table[index].key_userid;
+	algo = key_table[index].key_algo;
+
+	i = 0;
+	while (READ_CBUS_REG(KT_REE_RDY) == 0) {
+		if (i++ > 10) {
+			dprint("not ready, not getting flag\n");
+			return -1;
+		}
+		usleep_range(10000, 15000);
+	}
+	WRITE_CBUS_REG(KT_REE_CFG, (KTE_PENDING << KTE_PENDING_OFFSET)
+			| (KTE_MODE_READ_FLAG << KTE_MODE_OFFSET)
+			| (en_decrypt << KTE_FLAG_OFFSET)
+			| (algo << KTE_KEYALGO_OFFSET)
+			| (user_id << KTE_USERID_OFFSET)
+			| (kte << KTE_KTE_OFFSET)
+			| (0 << KTE_TEE_PRIV_OFFSET)
+			| (0 << KTE_LEVEL_OFFSET));
+	i = 0;
+	do {
+		if (i++ > 10) {
+			dprint("timed out\n");
+			WRITE_CBUS_REG(KT_REE_CFG, (0 << KTE_PENDING_OFFSET));
+			WRITE_CBUS_REG(KT_REE_RDY, 1);
+			return -1;
+		}
+		res = READ_CBUS_REG(KT_REE_CFG);
+	} while (res & (KTE_PENDING << KTE_PENDING_OFFSET));
+	flag = READ_CBUS_REG(KT_REE_STS);
+	memcpy(&key_flag[0], &flag, sizeof(flag));
+	WRITE_CBUS_REG(KT_REE_RDY, 1);
+	return 0;
+}
+
 int kt_free(u32 handle)
 {
 	int index;
@@ -534,6 +597,13 @@ int dmx_key_do_ioctl(struct file *file, unsigned int cmd, void *parg)
 
 			if (kt_config(config->key_index,
 				config->key_userid, config->key_algo) == 0)
+				ret = 0;
+			break;
+		}
+	case KEY_GET_FLAG:{
+			struct key_descr *d = parg;
+
+			if (kt_get_flag(d->key_index, d->key, d->key_len) == 0)
 				ret = 0;
 			break;
 		}
