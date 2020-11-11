@@ -7841,7 +7841,9 @@ int amvecm_matrix_process(
 			/* dv from on to off */
 			if (dovi_on) {
 				cap_changed = true;
-				if (flags & CSC_FLAG_TOGGLE_FRAME)
+				if (flags &
+				    (CSC_FLAG_TOGGLE_FRAME |
+				    CSC_FLAG_CHECK_OUTPUT))
 					flags |= CSC_FLAG_FORCE_SIGNAL;
 				dovi_on = false;
 			}
