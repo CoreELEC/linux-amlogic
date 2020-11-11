@@ -169,7 +169,7 @@ module_param(dolby_vision_status, uint, 0664);
 MODULE_PARM_DESC(dolby_vision_status, "\n dolby_vision_status\n");
 
 /* delay before first frame toggle when core off->on */
-static uint dolby_vision_wait_delay;
+static uint dolby_vision_wait_delay = 3;
 module_param(dolby_vision_wait_delay, uint, 0664);
 MODULE_PARM_DESC(dolby_vision_wait_delay, "\n dolby_vision_wait_delay\n");
 static int dolby_vision_wait_count;
@@ -6273,6 +6273,56 @@ static bool send_hdmi_pkt(
 	return flag;
 }
 
+static void send_hdmi_pkt_ahead(
+	enum signal_format_e dst_format,
+	const struct vinfo_s *vinfo)
+{
+	bool dovi_ll_enable = false;
+	bool diagnostic_enable = false;
+
+	if ((dolby_vision_flags & FLAG_FORCE_DOVI_LL) ||
+	    dolby_vision_ll_policy == DOLBY_VISION_LL_YUV422 ||
+	    dolby_vision_ll_policy == DOLBY_VISION_LL_RGB444) {
+		dovi_ll_enable = true;
+		if (dolby_vision_ll_policy == DOLBY_VISION_LL_RGB444)
+			diagnostic_enable = true;
+	}
+
+	if (dst_format == FORMAT_DOVI) {
+		struct dv_vsif_para vsif;
+
+		memset(&vsif, 0, sizeof(vsif));
+		vsif.vers.ver2.low_latency = dovi_ll_enable;
+		vsif.vers.ver2.dobly_vision_signal = 1;
+		vsif.vers.ver2.backlt_ctrl_MD_present = 0;
+		vsif.vers.ver2.eff_tmax_PQ_hi = 0;
+		vsif.vers.ver2.eff_tmax_PQ_low = 0;
+		vsif.vers.ver2.auxiliary_MD_present = 0;
+		vsif.vers.ver2.auxiliary_runmode = 0;
+		vsif.vers.ver2.auxiliary_runversion = 0;
+		vsif.vers.ver2.auxiliary_debug0 = 0;
+
+		if (vinfo && vinfo->vout_device &&
+			vinfo->vout_device->fresh_tx_vsif_pkt) {
+			if (dovi_ll_enable)
+				vinfo->vout_device->fresh_tx_vsif_pkt(
+					EOTF_T_DV_AHEAD,
+					diagnostic_enable
+					? RGB_10_12BIT : YUV422_BIT12,
+					&vsif, false);
+			else
+				vinfo->vout_device->fresh_tx_vsif_pkt(
+					EOTF_T_DV_AHEAD,
+					dolby_vision_target_mode ==
+					dovi_ll_enable
+					? YUV422_BIT12 : RGB_8BIT, &vsif,
+					false);
+		}
+		pr_dolby_dbg("send_hdmi_pkt_fake: %s\n",
+			     dovi_ll_enable ? "LL" : "DV");
+	}
+}
+
 static uint32_t null_vf_cnt;
 static bool video_off_handled;
 static int is_video_output_off(struct vframe_s *vf)
@@ -7377,6 +7427,7 @@ int dolby_vision_wait_metadata(struct vframe_s *vf)
 	int ret = 0;
 	unsigned int mode = dolby_vision_mode;
 	enum signal_format_e check_format;
+	const struct vinfo_s *vinfo = get_current_vinfo();
 
 	if (single_step_enable) {
 		if (dolby_vision_flags & FLAG_SINGLE_STEP)
@@ -7467,10 +7518,19 @@ int dolby_vision_wait_metadata(struct vframe_s *vf)
 				&& (dolby_vision_mode ==
 				DOLBY_VISION_OUTPUT_MODE_BYPASS)) {
 				dolby_vision_wait_init = true;
-				dolby_vision_wait_count =
-					dolby_vision_wait_delay;
 				dolby_vision_target_mode = mode;
 				dolby_vision_wait_on = true;
+
+				/*dv off->on, delay vfream*/
+				if (dolby_vision_policy == 1 &&
+				    mode ==
+				    DOLBY_VISION_OUTPUT_MODE_IPT_TUNNEL &&
+				    dolby_vision_wait_delay > 0) {
+					dolby_vision_wait_count =
+					dolby_vision_wait_delay;
+					send_hdmi_pkt_ahead(FORMAT_DOVI, vinfo);
+				}
+
 				pr_dolby_dbg("dolby_vision_need_wait src=%d mode=%d\n",
 					check_format, mode);
 			}
@@ -7557,8 +7617,6 @@ int dolby_vision_update_src_format(struct vframe_s *vf, u8 toggle_mode)
 			    (dolby_vision_mode ==
 			     DOLBY_VISION_OUTPUT_MODE_BYPASS)) {
 				dolby_vision_wait_init = true;
-				dolby_vision_wait_count =
-					dolby_vision_wait_delay;
 				dolby_vision_target_mode = mode;
 				dolby_vision_wait_on = true;
 				pr_dolby_dbg(
