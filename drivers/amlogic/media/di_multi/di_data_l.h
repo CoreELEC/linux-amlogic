@@ -135,6 +135,7 @@ enum EDI_CFG_TOP_IDX {
 	EDI_CFG_ALLOC_WAIT, /* alloc wait */
 	EDI_CFG_KEEP_DEC_VF,
 	EDI_CFG_POST_NUB,
+	EDI_CFG_BYPASS_MEM,
 	EDI_CFG_END,
 };
 
@@ -1436,6 +1437,7 @@ struct di_ch_s {
 	struct di_dbg_datax_s dbg_data;
 
 	struct dev_vfram_t vfm;
+	enum vframe_source_type_e	src_type;
 	struct dentry *dbg_rootx;	/*dbg_fs*/
 
 	unsigned int ch_id;

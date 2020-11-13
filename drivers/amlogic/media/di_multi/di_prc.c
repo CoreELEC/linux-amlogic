@@ -93,6 +93,9 @@ const struct di_cfg_ctr_s di_cfg_top_ctr[K_DI_CFG_NUB] = {
 			K_DI_CFG_T_FLG_NOTHING},
 	[EDI_CFG_4K]  = {"en_4k",
 			EDI_CFG_4K,
+			/* 0: not support 4K;	*/
+			/* 1: enable 4K		*/
+			/* 2: dynamic: vdin: 4k enable, other, disable	*/
 			0,
 			K_DI_CFG_T_FLG_DTS},
 	[EDI_CFG_POUT_FMT]  = {"po_fmt",
@@ -118,6 +121,13 @@ const struct di_cfg_ctr_s di_cfg_top_ctr[K_DI_CFG_NUB] = {
 	[EDI_CFG_POST_NUB]  = {"post_nub",
 			/* 0:not config post nub;*/
 			EDI_CFG_POST_NUB,
+			0,
+			K_DI_CFG_T_FLG_DTS},
+	[EDI_CFG_BYPASS_MEM]  = {"bypass_mem",
+			/* 0:not bypass;	*/
+			/* 1:bypass;		*/
+			/* 2: when 4k bypass	*/
+			EDI_CFG_BYPASS_MEM,
 			0,
 			K_DI_CFG_T_FLG_DTS},
 	[EDI_CFG_END]  = {"cfg top end ", EDI_CFG_END, 0,
@@ -2642,6 +2652,16 @@ static enum EDPST_MODE dim_cnt_mode(struct di_ch_s *pch)
 }
 
 /****************************/
+bool dip_is_support_4k(unsigned int ch)
+{
+	struct di_ch_s *pch = get_chdata(ch);
+
+	if ((cfgg(4K) == 1) ||
+	    ((cfgg(4K) == 2) && IS_VDIN_SRC(pch->src_type)))
+		return true;
+	return false;
+}
+
 void dip_init_value_reg(unsigned int ch, struct vframe_s *vframe)
 {
 	struct di_post_stru_s *ppost;
@@ -2681,6 +2701,7 @@ void dip_init_value_reg(unsigned int ch, struct vframe_s *vframe)
 		dimp_set(edi_mp_prog_proc_config, 0x23);
 		dimp_set(edi_mp_use_2_interlace_buff, 1);
 	}
+	pch->src_type = vframe->source_type;
 	if (dim_afds())
 		di_set_default(ch);
 
@@ -2707,7 +2728,7 @@ void dip_init_value_reg(unsigned int ch, struct vframe_s *vframe)
 			mm->cfg.dis_afbce = 1;
 	} else if ((sgn <= EDI_SGN_4K)	&&
 		 dim_afds()		&&
-		 cfgg(4K)) {
+		 dip_is_support_4k(ch)) {
 		memcpy(&mm->cfg, &c_mm_cfg_4k, sizeof(struct di_mm_cfg_s));
 	} else {
 		memcpy(&mm->cfg, &c_mm_cfg_bypass, sizeof(struct di_mm_cfg_s));
