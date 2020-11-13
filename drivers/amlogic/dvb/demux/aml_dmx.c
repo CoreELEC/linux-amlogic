@@ -460,6 +460,11 @@ HANLDE_PCR:
 			if (pcr_flag[i] == 0)
 				break;
 		}
+		if (i == MAX_PCR_NUM) {
+			dprint("%s error pcr full\n", __func__);
+			mutex_unlock(demux->pmutex);
+			return -1;
+		}
 		if (pes_type == DMX_PES_PCR0)
 			pcr_num = 0;
 		else if (pes_type == DMX_PES_PCR1)

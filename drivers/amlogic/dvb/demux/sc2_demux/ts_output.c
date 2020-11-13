@@ -195,142 +195,22 @@ MODULE_PARM_DESC(dump_audio_es, "\n\t\t dump audio es packet");
 static int dump_audio_es;
 module_param(dump_audio_es, int, 0644);
 
-static loff_t video_es_file_pos;
-static struct file *video_es_dump_fp;
-#define VIDEOES_DUMP_FILE   "/data/data/video_es_dump.es"
+MODULE_PARM_DESC(dump_dvr_ts, "\n\t\t dump dvr ts packet");
+static int dump_dvr_ts;
+module_param(dump_dvr_ts, int, 0644);
 
-static loff_t audio_es_file_pos;
-static struct file *audio_es_dump_fp;
-#define AUDIOES_DUMP_FILE   "/data/data/audio_es_dump.es"
+struct dump_file {
+	loff_t file_pos;
+	struct file *file_fp;
+};
 
-void dump_file_open(char *path)
-{
-	if (video_es_dump_fp)
-		return;
+struct dump_file video_dump_file;
+struct dump_file audio_dump_file;
+struct dump_file dvr_dump_file;
 
-	video_es_dump_fp = filp_open(path, O_CREAT | O_RDWR, 0666);
-	if (IS_ERR(video_es_dump_fp)) {
-		pr_err("create video dump [%s] file failed [%d]\n",
-			path, (int)PTR_ERR(video_es_dump_fp));
-		video_es_dump_fp = NULL;
-	}
-}
-
-void dump_file_write(char *buf, size_t count)
-{
-	mm_segment_t old_fs;
-
-	if (!video_es_dump_fp) {
-		pr_err("Failed to write video dump file fp is null\n");
-		return;
-	}
-
-	old_fs = get_fs();
-	set_fs(KERNEL_DS);
-
-	if (count != vfs_write(video_es_dump_fp, buf, count,
-			&video_es_file_pos))
-		pr_err("Failed to write video dump file\n");
-
-	set_fs(old_fs);
-}
-
-void dump_file_close(void)
-{
-	if (video_es_dump_fp) {
-		vfs_fsync(video_es_dump_fp, 0);
-		filp_close(video_es_dump_fp, current->files);
-		video_es_dump_fp = NULL;
-	}
-}
-
-void dump_audio_file_open(char *path)
-{
-	if (audio_es_dump_fp)
-		return;
-	audio_es_dump_fp = filp_open(path, O_CREAT | O_RDWR, 0666);
-	if (IS_ERR(audio_es_dump_fp)) {
-		pr_err("create dump [%s] file failed [%d]\n",
-			path, (int)PTR_ERR(audio_es_dump_fp));
-		audio_es_dump_fp = NULL;
-	}
-}
-
-void dump_audio_file_write(char *buf, size_t count)
-{
-	mm_segment_t old_fs;
-
-	if (!audio_es_dump_fp) {
-		pr_err("Failed to write audio dump file fp is null\n");
-		return;
-	}
-
-	old_fs = get_fs();
-	set_fs(KERNEL_DS);
-
-	if (count != vfs_write(audio_es_dump_fp, buf, count,
-			&audio_es_file_pos))
-		pr_err("Failed to write audio dump file\n");
-
-	set_fs(old_fs);
-}
-
-void dump_audio_file_close(void)
-{
-	if (audio_es_dump_fp) {
-		vfs_fsync(audio_es_dump_fp, 0);
-		filp_close(audio_es_dump_fp, current->files);
-		audio_es_dump_fp = NULL;
-	}
-}
-//#define DVR_DEBUG 1
-#ifdef DVR_DEBUG
-
-static loff_t dvr_file_pos;
-static struct file *dvr_dump_fp;
-#define DVR_DUMP_FILE   "/data/data/dvr_dump.ts"
-
-void dvr_file_open(void)
-{
-	if (dvr_dump_fp) {
-		pr_info("create dump dvr file already\n");
-		return;
-	}
-	dvr_dump_fp = filp_open(DVR_DUMP_FILE, O_CREAT | O_RDWR, 0666);
-	if (IS_ERR(dvr_dump_fp)) {
-		dvr_dump_fp = NULL;
-		pr_err("create dump dvr file failed\n");
-	} else {
-		pr_err("ok to creat dvr dump file\n");
-	}
-}
-
-void dvr_file_write(char *buf, size_t count)
-{
-	mm_segment_t old_fs;
-
-	if (!dvr_dump_fp)
-		return;
-
-	old_fs = get_fs();
-	set_fs(KERNEL_DS);
-
-	if (count != vfs_write(dvr_dump_fp, buf, count, &dvr_file_pos))
-		pr_err("Failed to write dvr dump file\n");
-
-	set_fs(old_fs);
-}
-
-void dvr_file_close(void)
-{
-	if (dvr_dump_fp) {
-		vfs_fsync(dvr_dump_fp, 0);
-		filp_close(dvr_dump_fp, current->files);
-	} else {
-		pr_err("close dvr dump file already\n");
-	}
-}
-#endif
+#define VIDEOES_DUMP_FILE   "/data/video_es_dump.es"
+#define AUDIOES_DUMP_FILE   "/data/audio_es_dump.es"
+#define DVR_DUMP_FILE       "/data/dvr_dump.ts"
 
 #define READ_CACHE_SIZE      (188)
 
@@ -341,6 +221,50 @@ static int _handle_es(struct out_elem *pout, struct es_params_t *es_params);
 static int start_aucpu_non_es(struct out_elem *pout);
 static int aucpu_bufferid_read(struct out_elem *pout,
 			       char **pread, unsigned int len);
+
+static void dump_file_open(char *path, struct dump_file *dump_file_fp)
+{
+	if (dump_file_fp->file_fp)
+		return;
+
+	dump_file_fp->file_fp = filp_open(path, O_CREAT | O_RDWR, 0666);
+	if (IS_ERR(dump_file_fp->file_fp)) {
+		pr_err("create video dump [%s] file failed [%d]\n",
+			path, (int)PTR_ERR(dump_file_fp->file_fp));
+		dump_file_fp->file_fp = NULL;
+	} else {
+		dprint("create dump [%s] success\n", path);
+	}
+}
+
+static void dump_file_write(
+	char *buf, size_t count, struct dump_file *dump_file_fp)
+{
+	mm_segment_t old_fs;
+
+	if (!dump_file_fp->file_fp) {
+		pr_err("Failed to write video dump file fp is null\n");
+		return;
+	}
+
+	old_fs = get_fs();
+	set_fs(KERNEL_DS);
+
+	if (count != vfs_write(dump_file_fp->file_fp, buf, count,
+			&dump_file_fp->file_pos))
+		pr_err("Failed to write dump file\n");
+
+	set_fs(old_fs);
+}
+
+static void dump_file_close(struct dump_file *dump_file_fp)
+{
+	if (dump_file_fp->file_fp) {
+		vfs_fsync(dump_file_fp->file_fp, 0);
+		filp_close(dump_file_fp->file_fp, current->files);
+		dump_file_fp->file_fp = NULL;
+	}
+}
 
 struct out_elem *_find_free_elem(void)
 {
@@ -619,9 +543,7 @@ static int dvr_process(struct out_elem *pout)
 		if (pout->cb_ts_list && flag == 0) {
 //                      dprint("%s w:%d wwwwww\n", __func__, len);
 			out_ts_cb_list(pout, pread, ret);
-#ifdef DVR_DEBUG
-			dvr_file_write(pread, ret);
-#endif
+			dump_file_write(pread, ret, &dvr_dump_file);
 		} else if (pout->cb_ts_list && flag == 1) {
 			write_sec_ts_data(pout, pread, ret);
 		}
@@ -843,8 +765,13 @@ static int write_es_data(struct out_elem *pout, struct es_params_t *es_params)
 	ret = SC2_bufferid_read(pout->pchan, &ptmp, len, 0);
 	if (ret) {
 		out_ts_cb_list(pout, ptmp, ret);
-		if (dump_audio_es == 1)
-			dump_audio_file_write(ptmp, ret);
+		if (dump_audio_es == 1) {
+			dump_file_open(AUDIOES_DUMP_FILE, &audio_dump_file);
+			dump_file_write(ptmp, ret, &audio_dump_file);
+		} else if (audio_dump_file.file_fp) {
+			dump_file_close(&audio_dump_file);
+		}
+
 		es_params->data_len += ret;
 		pr_dbg("%s total len:%d, remain:%d\n",
 		       pout->type == AUDIO_TYPE ? "audio" : "video",
@@ -860,7 +787,8 @@ static int write_es_data(struct out_elem *pout, struct es_params_t *es_params)
 			if (ret) {
 				out_ts_cb_list(pout, ptmp, ret);
 				if (dump_audio_es == 1)
-					dump_audio_file_write(ptmp, ret);
+					dump_file_write(
+						ptmp, ret, &audio_dump_file);
 				es_params->data_len += ret;
 				pr_dbg("%s total len:%d, remain:%d\n",
 					   pout->type == AUDIO_TYPE ?
@@ -1067,8 +995,12 @@ static int write_aucpu_es_data(struct out_elem *pout,
 	ret = aucpu_bufferid_read(pout, &ptmp, len);
 	if (ret) {
 		out_ts_cb_list(pout, ptmp, ret);
-		if (dump_audio_es == 1)
-			dump_audio_file_write(ptmp, ret);
+		if (dump_audio_es == 1) {
+			dump_file_open(AUDIOES_DUMP_FILE, &audio_dump_file);
+			dump_file_write(ptmp, ret, &audio_dump_file);
+		} else if (audio_dump_file.file_fp) {
+			dump_file_close(&audio_dump_file);
+		}
 		es_params->data_len += ret;
 		pr_dbg("%s total len:%d, remain:%d\n",
 		       pout->type == AUDIO_TYPE ? "audio" : "video",
@@ -1178,6 +1110,14 @@ static int clean_aucpu_data(struct out_elem *pout, unsigned int len)
 	return 0;
 }
 
+static void enforce_flush_cache(char *addr, unsigned int len)
+{
+	dma_sync_single_for_cpu(
+			aml_get_device(),
+			(dma_addr_t)(addr),
+			len, DMA_FROM_DEVICE);
+}
+
 static int write_sec_video_es_data(struct out_elem *pout,
 				   struct es_params_t *es_params)
 {
@@ -1200,14 +1140,21 @@ static int write_sec_video_es_data(struct out_elem *pout,
 	es_params->data_len += ret;
 
 	if (dump_video_es == 1) {
-		if (video_es_dump_fp) {
-			if (flag)
+		dump_file_open(VIDEOES_DUMP_FILE, &video_dump_file);
+		if (video_dump_file.file_fp) {
+			if (flag) {
+				enforce_flush_cache(ptmp, ret);
 				dump_file_write(
-						ptmp - pout->pchan->mem_phy +
-						pout->pchan->mem, ret);
-			else
-				dump_file_write(ptmp, ret);
+					ptmp - pout->pchan->mem_phy +
+					pout->pchan->mem, ret,
+					&video_dump_file);
+			} else {
+				dump_file_write(ptmp, ret,
+					&video_dump_file);
+			}
 		}
+	} else if (video_dump_file.file_fp) {
+		dump_file_close(&video_dump_file);
 	}
 
 	if (ret != len) {
@@ -1218,13 +1165,17 @@ static int write_sec_video_es_data(struct out_elem *pout,
 		ret = SC2_bufferid_read(pout->pchan, &ptmp, len, flag);
 		es_params->data_len += ret;
 		if (dump_video_es == 1) {
-			if (video_es_dump_fp) {
-				if (flag)
+			if (video_dump_file.file_fp) {
+				if (flag) {
+					enforce_flush_cache(ptmp, ret);
 					dump_file_write(
 						ptmp - pout->pchan->mem_phy +
-						pout->pchan->mem, ret);
-				else
-					dump_file_write(ptmp, ret);
+						pout->pchan->mem, ret,
+						&video_dump_file);
+				} else {
+					dump_file_write(ptmp, ret,
+						&video_dump_file);
+				}
 			}
 		}
 		if (ret != len)
@@ -1711,23 +1662,15 @@ struct out_elem *ts_output_open(int sid, u8 dmx_id, u8 format,
 		pout->cache_len = 0;
 		pout->cache = NULL;
 		pout->aucpu_handle = -1;
-		if (dump_video_es == 1 && !video_es_dump_fp) {
-			dump_file_open(VIDEOES_DUMP_FILE);
-			if (video_es_dump_fp)
-				pr_err("open %s file success\n",
-						VIDEOES_DUMP_FILE);
-		}
-		if (dump_audio_es == 1 && !audio_es_dump_fp) {
-			dump_audio_file_open(AUDIOES_DUMP_FILE);
-			if (audio_es_dump_fp)
-				pr_err("open %s file success\n",
-						AUDIOES_DUMP_FILE);
-		}
+		if (dump_video_es == 1)
+			dump_file_open(VIDEOES_DUMP_FILE, &video_dump_file);
+
+		if (dump_audio_es == 1)
+			dump_file_open(AUDIOES_DUMP_FILE, &audio_dump_file);
 	} else {
-#ifdef DVR_DEBUG
-		if (format == DVR_FORMAT)
-			dvr_file_open();
-#endif
+		if (format == DVR_FORMAT && dump_dvr_ts)
+			dump_file_open(DVR_DUMP_FILE, &dvr_dump_file);
+
 		ret = SC2_bufferid_alloc(&attr, &pout->pchan, NULL);
 		if (ret != 0) {
 			dprint("%s sid:%d SC2_bufferid_alloc fail\n",
@@ -1807,26 +1750,18 @@ int ts_output_close(struct out_elem *pout)
 	pout->running = TASK_DEAD;
 
 	if (pout->format == ES_FORMAT) {
-		if (dump_video_es) {
-			if (video_es_dump_fp) {
-				dump_file_close();
-				video_es_dump_fp = NULL;
-			}
-		}
-		if (dump_audio_es) {
-			if (audio_es_dump_fp) {
-				dump_audio_file_close();
-				audio_es_dump_fp = NULL;
-			}
-		}
+		if (video_dump_file.file_fp)
+			dump_file_close(&video_dump_file);
+
+		if (audio_dump_file.file_fp)
+			dump_file_close(&audio_dump_file);
+
 		mutex_lock(&es_output_mutex);
 		remove_ts_out_list(pout, &es_out_task_tmp);
 		mutex_unlock(&es_output_mutex);
 	} else {
-#ifdef DVR_DEBUG
 		if (pout->format == DVR_FORMAT)
-			dvr_file_close();
-#endif
+			dump_file_close(&dvr_dump_file);
 		remove_ts_out_list(pout, &ts_out_task_tmp);
 	}
 

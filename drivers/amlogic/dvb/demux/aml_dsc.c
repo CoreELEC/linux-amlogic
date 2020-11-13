@@ -740,6 +740,14 @@ int dsc_dump_info(char *buf)
 	struct aml_dsc *dsc;
 	struct dsc_channel *chans;
 	struct dsc_pid_table *ptmp;
+	int have_show_n = 0;
+	int have_show_d = 0;
+	int have_show_e = 0;
+	unsigned int status;
+	char kte = 0;
+	int pid = 0;
+	char sid = 0;
+	char err = 0;
 
 	r = sprintf(buf, "\n pay attation: dsc connected to %s\n\n",
 			dvb->dsc_pipeline ? "demod" : "local");
@@ -764,6 +772,51 @@ int dsc_dump_info(char *buf)
 			    dsc->demod_sid, dsc->local_sid);
 		buf += r;
 		total += r;
+
+		/*add dsc status*/
+		chans = dsc->dsc_channels;
+		while (chans) {
+			status = dsc_get_status(chans->dsc_type);
+			kte = status & 0xff;
+			pid = (status >> 8) & 0x1FFF;
+			sid = (status >> 24) & 0x3F;
+			err = (status >> 30) & 0x3;
+			r = 0;
+			if (chans->dsc_type == 0 && have_show_n == 0) {
+				r = sprintf(buf, "tsn status: kte:%d, ", kte);
+				buf += r;
+				total += r;
+
+			r = sprintf(buf, "pid:0x%0x, sid:0x%0x, err:%d\n",
+					pid, sid, err);
+				buf += r;
+				total += r;
+
+				have_show_n = 1;
+			} else if (chans->dsc_type == 1 && have_show_d == 0) {
+				r = sprintf(buf, "tsd status: kte:%d, ", kte);
+				buf += r;
+				total += r;
+
+			r = sprintf(buf, "pid:0x%0x, sid:0x%0x, err:%d\n",
+					pid, sid, err);
+				buf += r;
+				total += r;
+
+				have_show_d = 1;
+			} else if (chans->dsc_type == 2 && have_show_e == 0) {
+				r = sprintf(buf, "tse status: kte:%d, ", kte);
+				buf += r;
+				total += r;
+
+			r = sprintf(buf, "pid:0x%0x, sid:0x%0x, err:%d\n",
+					pid, sid, err);
+				buf += r;
+				total += r;
+
+				have_show_e = 1;
+			}
+		}
 
 		chans = dsc->dsc_channels;
 		while (chans) {
