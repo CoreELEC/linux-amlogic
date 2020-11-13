@@ -4078,8 +4078,9 @@ int signal_type_changed(struct vframe_s *vf,
 		/*vf->signal_type, signal_type);*/
 	}
 
-	/* only check primary for bt2020 */
-	if (p_new && p_cur && ((signal_type >> 16) & 0xff) == 9) {
+	/* only check primary for new = bt2020 or  cur = bt2020 */
+	if (p_new && p_cur &&
+	    (((signal_type >> 16) & 0xff) == 9 || p_cur->present_flag)) {
 		ret = hdr10_primaries_changed(p_new, p_cur);
 		if (ret)
 			change_flag |= SIG_PRI_INFO;
