@@ -219,6 +219,8 @@ static u32 tsync_disable_demux_pcr;
 static u32 tsync_audio_mode;
 static u32 tsync_audio_state;
 static u32 tsync_video_state;
+static int tsync_audio_underrun;
+static int tsync_audio_underrun_maxgap = 40;
 static int tsync_audio_discontinue;
 static int tsync_video_discontinue;
 static int tsync_audio_continue_count;
@@ -227,6 +229,7 @@ static u32 last_discontinue_checkin_apts;
 static u32 last_discontinue_checkin_vpts;
 static u32 last_pcr_checkin_apts;
 static u32 last_pcr_checkin_vpts;
+static u32 last_pcr_checkin_apts_count;
 static u32 last_pcr_checkin_vpts_count;
 static DEFINE_SPINLOCK(tsync_pcr_lock);
 static bool video_pid_valid;
@@ -1096,6 +1099,25 @@ static void tsync_process_discontinue(void)
 		tsync_pcr_tsdemuxpcr_discontinue = 0;
 	}
 }
+
+static void tsync_audio_underrun_check(u32 last_pcr_checkin_apts,
+				u32 checkin_apts)
+{
+	if (last_pcr_checkin_apts == checkin_apts) {
+		if (tsync_pcr_demux_pcr_used() == 1)
+			tsync_audio_underrun_maxgap = 40;
+		last_pcr_checkin_apts_count++;
+		if (last_pcr_checkin_apts_count > tsync_audio_underrun_maxgap) {
+			tsync_audio_underrun = 1;
+			if (tsync_pcr_debug & 0x03)
+				pr_info("audio underrun\n");
+		}
+	} else {
+		last_pcr_checkin_apts_count = 0;
+		tsync_audio_underrun = 0;
+	}
+}
+
 void tsync_pcr_check_checinpts(void)
 {
 	u32 checkin_vpts = 0;
@@ -1123,6 +1145,11 @@ void tsync_pcr_check_checinpts(void)
 						checkin_apts);
 				}
 			}
+			if (tsync_get_new_arch() &&
+			    tsync_get_demux_pcrscr_valid())
+				tsync_audio_underrun_check(
+							last_pcr_checkin_apts,
+							checkin_apts);
 			if (tsync_audio_discontinue == 1 &&
 				checkin_apts != 0xffffffff &&
 				last_discontinue_checkin_apts == 0 &&
@@ -1683,6 +1710,7 @@ static void tsync_pcr_param_reset(void)
 
 	last_pcr_checkin_apts = 0;
 	last_pcr_checkin_vpts = 0;
+	last_pcr_checkin_apts_count = 0;
 	last_pcr_checkin_vpts_count = 0;
 	tsync_last_play_mode = PLAY_MODE_NORMAL;
 	tsync_pcr_first_jiffes = 0;
@@ -1959,6 +1987,32 @@ static ssize_t tsync_audio_level_show(struct class *cla,
 
 	audio_level = tsync_audio_discontinue & 0xff;
 	return sprintf(buf, "%d\n", audio_level);
+}
+
+static ssize_t tsync_audio_underrun_maxgap_show(struct class *cla,
+		struct class_attribute *attr,
+		char *buf)
+{
+	return sprintf(buf, "%d\n", tsync_audio_underrun_maxgap);
+}
+
+static ssize_t tsync_audio_underrun_maxgap_store(struct class *cla,
+		struct class_attribute *attr,
+		const char *buf, size_t count)
+{
+	size_t r;
+
+	r = kstrtoint(buf, 0, &tsync_audio_underrun_maxgap);
+	if (r != 0)
+		return -EINVAL;
+	return count;
+}
+
+static ssize_t tsync_audio_underrun_show(struct class *cla,
+		struct class_attribute *attr,
+		char *buf)
+{
+	return sprintf(buf, "%d\n", tsync_audio_underrun);
 }
 
 static ssize_t tsync_video_discontinue_show(struct class *cla,
@@ -2254,6 +2308,10 @@ static struct class_attribute tsync_pcr_class_attrs[] = {
 	tsync_pcr_ref_latency_show, tsync_pcr_ref_latency_store),
 	__ATTR(tsync_pcr_latency_value, 0644,
 	tsync_latencytime_show, tsync_latencytime_store),
+	__ATTR(tsync_audio_underrun, 0644,
+	tsync_audio_underrun_show, NULL),
+	__ATTR(tsync_audio_underrun_maxgap, 0644,
+	tsync_audio_underrun_maxgap_show, tsync_audio_underrun_maxgap_store),
 	__ATTR_NULL};
 
 static struct class tsync_pcr_class = {
