@@ -543,7 +543,12 @@ static int dvr_process(struct out_elem *pout)
 		if (pout->cb_ts_list && flag == 0) {
 //                      dprint("%s w:%d wwwwww\n", __func__, len);
 			out_ts_cb_list(pout, pread, ret);
-			dump_file_write(pread, ret, &dvr_dump_file);
+			if (dump_dvr_ts == 1) {
+				dump_file_open(DVR_DUMP_FILE, &dvr_dump_file);
+				dump_file_write(pread, ret, &dvr_dump_file);
+			} else {
+				dump_file_close(&dvr_dump_file);
+			}
 		} else if (pout->cb_ts_list && flag == 1) {
 			write_sec_ts_data(pout, pread, ret);
 		}
@@ -1760,7 +1765,8 @@ int ts_output_close(struct out_elem *pout)
 		remove_ts_out_list(pout, &es_out_task_tmp);
 		mutex_unlock(&es_output_mutex);
 	} else {
-		if (pout->format == DVR_FORMAT)
+		if (pout->format == DVR_FORMAT &&
+			dvr_dump_file.file_fp)
 			dump_file_close(&dvr_dump_file);
 		remove_ts_out_list(pout, &ts_out_task_tmp);
 	}
