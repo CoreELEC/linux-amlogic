@@ -570,6 +570,8 @@ struct vframe_s {
 
 	u32 hdr10p_data_size;
 	char *hdr10p_data_buf;
+
+	bool discard_dv_data;
 } /*vframe_t */;
 
 #if 0
