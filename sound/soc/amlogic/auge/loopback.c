@@ -403,35 +403,37 @@ static int loopback_dai_startup(
 	pr_info("%s\n", __func__);
 
 	/* datain */
-	switch (p_loopback->datain_src) {
-	case DATAIN_TDMA:
-	case DATAIN_TDMB:
-	case DATAIN_TDMC:
-		break;
-	case DATAIN_SPDIF:
-		break;
-	case DATAIN_PDM:
-		ret = datain_pdm_startup(p_loopback);
-		if (ret < 0)
-			goto err;
-		break;
-	case DATAIN_LOOPBACK:
-		break;
-	default:
-		break;
+	if (p_loopback->datain_chnum > 0) {
+		switch (p_loopback->datain_src) {
+		case DATAIN_TDMA:
+		case DATAIN_TDMB:
+		case DATAIN_TDMC:
+			break;
+		case DATAIN_SPDIF:
+			break;
+		case DATAIN_PDM:
+			ret = datain_pdm_startup(p_loopback);
+			if (ret < 0)
+				goto err;
+			break;
+		case DATAIN_LOOPBACK:
+			break;
+		default:
+			break;
+		}
 	}
-
 	/* datalb */
-	switch (p_loopback->datalb_src) {
-	case TDMINLB_TDMOUTA ... TDMINLB_PAD_TDMINC_D:
-		/*tdminlb_startup(p_loopback);*/
-		break;
-	case SPDIFINLB_SPDIFOUTA ... SPDIFINLB_SPDIFOUTB:
-		break;
-	default:
-		break;
+	if (p_loopback->datalb_chnum > 0) {
+		switch (p_loopback->datalb_src) {
+		case TDMINLB_TDMOUTA ... TDMINLB_PAD_TDMINC_D:
+			/*tdminlb_startup(p_loopback);*/
+			break;
+		case SPDIFINLB_SPDIFOUTA ... SPDIFINLB_SPDIFOUTB:
+			break;
+		default:
+			break;
+		}
 	}
-
 	return ret;
 err:
 	pr_err("Failed to enable datain clock\n");
@@ -447,33 +449,35 @@ static void loopback_dai_shutdown(
 	pr_info("%s\n", __func__);
 
 	/* datain */
-	switch (p_loopback->datain_src) {
-	case DATAIN_TDMA:
-	case DATAIN_TDMB:
-	case DATAIN_TDMC:
-		break;
-	case DATAIN_SPDIF:
-		break;
-	case DATAIN_PDM:
-		datain_pdm_shutdown(p_loopback);
-		break;
-	case DATAIN_LOOPBACK:
-		break;
-	default:
-		break;
+	if (p_loopback->datain_chnum > 0) {
+		switch (p_loopback->datain_src) {
+		case DATAIN_TDMA:
+		case DATAIN_TDMB:
+		case DATAIN_TDMC:
+			break;
+		case DATAIN_SPDIF:
+			break;
+		case DATAIN_PDM:
+			datain_pdm_shutdown(p_loopback);
+			break;
+		case DATAIN_LOOPBACK:
+			break;
+		default:
+			break;
+		}
 	}
-
 	/* datalb */
-	switch (p_loopback->datalb_src) {
-	case TDMINLB_TDMOUTA ... TDMINLB_PAD_TDMINC_D:
-		/*tdminlb_shutdown(p_loopback);*/
-		break;
-	case SPDIFINLB_SPDIFOUTA ... SPDIFINLB_SPDIFOUTB:
-		break;
-	default:
-		break;
+	if (p_loopback->datalb_chnum > 0) {
+		switch (p_loopback->datalb_src) {
+		case TDMINLB_TDMOUTA ... TDMINLB_PAD_TDMINC_D:
+			/*tdminlb_shutdown(p_loopback);*/
+			break;
+		case SPDIFINLB_SPDIFOUTA ... SPDIFINLB_SPDIFOUTB:
+			break;
+		default:
+			break;
+		}
 	}
-
 }
 
 static void loopback_set_clk(struct loopback *p_loopback,
@@ -522,67 +526,6 @@ static int loopback_set_ctrl(struct loopback *p_loopback, int bitwidth)
 	if (!p_loopback)
 		return -EINVAL;
 
-	switch (p_loopback->datain_src) {
-	case DATAIN_TDMA:
-	case DATAIN_TDMB:
-	case DATAIN_TDMC:
-	case DATAIN_PDM:
-		datain_toddr_type = 0;
-		datain_msb = 32 - 1;
-		datain_lsb = 0;
-		break;
-	case DATAIN_SPDIF:
-		datain_toddr_type = 3;
-		datain_msb = 27;
-		datain_lsb = 4;
-		if (bitwidth <= 24)
-			datain_lsb = 28 - bitwidth;
-		else
-			datain_lsb = 4;
-		break;
-	default:
-		pr_err("unsupport data in source:%d\n",
-		p_loopback->datain_src);
-		return -EINVAL;
-	}
-
-	switch (p_loopback->datalb_src) {
-	case TDMINLB_TDMOUTA ... TDMINLB_PAD_TDMINC_D:
-		if (bitwidth == 24) {
-			datalb_toddr_type = 4;
-			datalb_msb = 32 - 1;
-			datalb_lsb = 32 - bitwidth;
-		} else {
-			datalb_toddr_type = 0;
-			datalb_msb = 32 - 1;
-			datalb_lsb = 0;
-		}
-		break;
-	default:
-		pr_err("unsupport data lb source:%d\n",
-		p_loopback->datalb_src);
-		return -EINVAL;
-	}
-
-	datain_cfg.ext_signed = 0;
-	datain_cfg.chnum      = p_loopback->datain_chnum;
-	datain_cfg.chmask     = p_loopback->datain_chmask;
-	datain_cfg.type       = datain_toddr_type;
-	datain_cfg.m          = datain_msb;
-	datain_cfg.n          = datain_lsb;
-	datain_cfg.src        = p_loopback->datain_src;
-
-	datalb_cfg.ext_signed  = 0;
-	datalb_cfg.chnum       = p_loopback->datalb_chnum;
-	datalb_cfg.chmask      = p_loopback->datalb_chmask;
-	datalb_cfg.type        = datalb_toddr_type;
-	datalb_cfg.m           = datalb_msb;
-	datalb_cfg.n           = datalb_lsb;
-	datalb_cfg.datalb_src  = 0; /* todo: tdmin_LB */
-	/* get resample B status */
-	datalb_cfg.resample_enable =
-		(unsigned int)get_resample_enable(RESAMPLE_B);
-
 	if (p_loopback->chipinfo) {
 		datain_cfg.ch_ctrl_switch = p_loopback->chipinfo->ch_ctrl;
 		datalb_cfg.ch_ctrl_switch = p_loopback->chipinfo->ch_ctrl;
@@ -591,8 +534,80 @@ static int loopback_set_ctrl(struct loopback *p_loopback, int bitwidth)
 		datalb_cfg.ch_ctrl_switch = 0;
 	}
 
-	lb_set_datain_cfg(p_loopback->id, &datain_cfg);
-	lb_set_datalb_cfg(p_loopback->id, &datalb_cfg);
+	if (p_loopback->datain_chnum > 0) {
+		lb_set_mode(p_loopback->id, MIC_RATE);
+
+		switch (p_loopback->datain_src) {
+		case DATAIN_TDMA:
+		case DATAIN_TDMB:
+		case DATAIN_TDMC:
+		case DATAIN_PDM:
+			datain_toddr_type = 0;
+			datain_msb = 32 - 1;
+			datain_lsb = 0;
+			break;
+		case DATAIN_SPDIF:
+			datain_toddr_type = 3;
+			datain_msb = 27;
+			datain_lsb = 4;
+			if (bitwidth <= 24)
+				datain_lsb = 28 - bitwidth;
+			else
+				datain_lsb = 4;
+			break;
+		default:
+			pr_err("unsupport data in source:%d\n",
+			       p_loopback->datain_src);
+			return -EINVAL;
+		}
+
+		datain_cfg.ext_signed = 0;
+		datain_cfg.chnum      = p_loopback->datain_chnum;
+		datain_cfg.chmask     = p_loopback->datain_chmask;
+		datain_cfg.type       = datain_toddr_type;
+		datain_cfg.m          = datain_msb;
+		datain_cfg.n          = datain_lsb;
+		datain_cfg.src        = p_loopback->datain_src;
+
+		lb_set_datain_cfg(p_loopback->id, &datain_cfg);
+	}
+
+	if (p_loopback->datalb_chnum > 0) {
+		/* if src num is 0, set the lb out rate to lb rate */
+		if (p_loopback->datain_chnum == 0)
+			lb_set_mode(p_loopback->id, LB_RATE);
+
+		switch (p_loopback->datalb_src) {
+		case TDMINLB_TDMOUTA ... TDMINLB_PAD_TDMINC_D:
+			if (bitwidth == 24) {
+				datalb_toddr_type = 4;
+				datalb_msb = 32 - 1;
+				datalb_lsb = 32 - bitwidth;
+			} else {
+				datalb_toddr_type = 0;
+				datalb_msb = 32 - 1;
+				datalb_lsb = 0;
+			}
+			break;
+		default:
+			pr_err("unsupport data lb source:%d\n",
+			       p_loopback->datalb_src);
+			return -EINVAL;
+		}
+
+		datalb_cfg.ext_signed  = 0;
+		datalb_cfg.chnum       = p_loopback->datalb_chnum;
+		datalb_cfg.chmask      = p_loopback->datalb_chmask;
+		datalb_cfg.type        = datalb_toddr_type;
+		datalb_cfg.m           = datalb_msb;
+		datalb_cfg.n           = datalb_lsb;
+		datalb_cfg.datalb_src  = 0; /* todo: tdmin_LB */
+		/* get resample B status */
+		datalb_cfg.resample_enable =
+			(unsigned int)get_resample_enable(RESAMPLE_B);
+
+		lb_set_datalb_cfg(p_loopback->id, &datalb_cfg);
+	}
 
 	tdminlb_set_format(p_loopback->lb_format == SND_SOC_DAIFMT_I2S);
 	tdminlb_set_lanemask_and_chswap(0x76543210,
@@ -632,7 +647,6 @@ static int loopback_dai_prepare(
 	struct snd_pcm_runtime *runtime = ss->runtime;
 	struct loopback *p_loopback = snd_soc_dai_get_drvdata(dai);
 	unsigned int bit_depth = snd_pcm_format_width(runtime->format);
-
 	struct toddr *to = p_loopback->tddr;
 	unsigned int msb = 32 - 1;
 	unsigned int lsb = 32 - bit_depth;
@@ -679,46 +693,51 @@ static int loopback_dai_prepare(
 	aml_toddr_set_format(to, &fmt);
 	aml_toddr_set_fifos(to, 0x40);
 
-	switch (p_loopback->datain_src) {
-	case DATAIN_TDMA:
-	case DATAIN_TDMB:
-	case DATAIN_TDMC:
-		break;
-	case DATAIN_SPDIF:
-		break;
-	case DATAIN_PDM:
-		datatin_pdm_cfg(runtime, p_loopback);
-		break;
-	case DATAIN_LOOPBACK:
-		break;
-	default:
-		pr_err("loopback unexpected datain src 0x%02x\n",
-		       p_loopback->datain_src);
-		return -EINVAL;
+	if (p_loopback->datain_chnum > 0) {
+		switch (p_loopback->datain_src) {
+		case DATAIN_TDMA:
+		case DATAIN_TDMB:
+		case DATAIN_TDMC:
+			break;
+		case DATAIN_SPDIF:
+			break;
+		case DATAIN_PDM:
+			datatin_pdm_cfg(runtime, p_loopback);
+			break;
+		case DATAIN_LOOPBACK:
+			break;
+		default:
+			dev_err(p_loopback->dev,
+				"unexpected datain src 0x%02x\n",
+				p_loopback->datain_src);
+			return -EINVAL;
+		}
 	}
 
-	switch (p_loopback->datalb_src) {
-	case TDMINLB_TDMOUTA:
-	case TDMINLB_TDMOUTB:
-	case TDMINLB_TDMOUTC:
-		break;
-	case TDMINLB_PAD_TDMINA:
-	case TDMINLB_PAD_TDMINB:
-	case TDMINLB_PAD_TDMINC:
-		break;
-	case TDMINLB_PAD_TDMINA_D:
-	case TDMINLB_PAD_TDMINB_D:
-	case TDMINLB_PAD_TDMINC_D:
-		break;
-	case SPDIFINLB_SPDIFOUTA:
-	case SPDIFINLB_SPDIFOUTB:
-		break;
-	default:
-		pr_err("loopback unexpected datalb src 0x%02x\n",
-		       p_loopback->datalb_src);
-		return -EINVAL;
+	if (p_loopback->datalb_chnum > 0) {
+		switch (p_loopback->datalb_src) {
+		case TDMINLB_TDMOUTA:
+		case TDMINLB_TDMOUTB:
+		case TDMINLB_TDMOUTC:
+			break;
+		case TDMINLB_PAD_TDMINA:
+		case TDMINLB_PAD_TDMINB:
+		case TDMINLB_PAD_TDMINC:
+			break;
+		case TDMINLB_PAD_TDMINA_D:
+		case TDMINLB_PAD_TDMINB_D:
+		case TDMINLB_PAD_TDMINC_D:
+			break;
+		case SPDIFINLB_SPDIFOUTA:
+		case SPDIFINLB_SPDIFOUTB:
+			break;
+		default:
+			dev_err(p_loopback->dev,
+				"unexpected datalb src 0x%02x\n",
+				p_loopback->datalb_src);
+			return -EINVAL;
+		}
 	}
-
 	/* config for loopback, datain, datalb */
 	loopback_set_ctrl(p_loopback, bit_depth);
 
@@ -750,7 +769,8 @@ static int loopback_dai_trigger(
 
 		dev_info(ss->pcm->card->dev, "Loopback Capture enable\n");
 
-		pdm_fifo_reset();
+		if (p_loopback->datain_chnum > 0)
+			pdm_fifo_reset();
 		tdminlb_fifo_enable(true);
 
 		aml_toddr_enable(p_loopback->tddr, true);
@@ -764,7 +784,8 @@ static int loopback_dai_trigger(
 		/* tdminLB */
 		tdminlb_enable(p_loopback->datalb_src, true);
 		/* pdm */
-		pdm_enable(1);
+		if (p_loopback->datain_chnum > 0)
+			pdm_enable(1);
 		break;
 	case SNDRV_PCM_TRIGGER_STOP:
 	case SNDRV_PCM_TRIGGER_SUSPEND:
@@ -776,8 +797,8 @@ static int loopback_dai_trigger(
 			audio_toddr_irq_enable(p_loopback->tddr, false);
 			break;
 		}
-
-		pdm_enable(0);
+		if (p_loopback->datain_chnum > 0)
+			pdm_enable(0);
 
 		/* loopback */
 		if (p_loopback->chipinfo)
@@ -851,7 +872,6 @@ static int loopback_dai_hw_params(
 	struct snd_pcm_hw_params *params,
 	struct snd_soc_dai *dai)
 {
-	struct snd_pcm_runtime *runtime = ss->runtime;
 	struct loopback *p_loopback = snd_soc_dai_get_drvdata(dai);
 	unsigned int rate, channels;
 	snd_pcm_format_t format;
@@ -866,34 +886,36 @@ static int loopback_dai_hw_params(
 		rate,
 		p_loopback->sysclk_freq);
 
-	switch (p_loopback->datain_src) {
-	case DATAIN_TDMA:
-	case DATAIN_TDMB:
-	case DATAIN_TDMC:
-		break;
-	case DATAIN_SPDIF:
-		break;
-	case DATAIN_PDM:
-		datain_pdm_set_clk(p_loopback);
-		break;
-	case DATAIN_LOOPBACK:
-		break;
-	default:
-		break;
+	if (p_loopback->datain_chnum > 0) {
+		switch (p_loopback->datain_src) {
+		case DATAIN_TDMA:
+		case DATAIN_TDMB:
+		case DATAIN_TDMC:
+			break;
+		case DATAIN_SPDIF:
+			break;
+		case DATAIN_PDM:
+			datain_pdm_set_clk(p_loopback);
+			break;
+		case DATAIN_LOOPBACK:
+			break;
+		default:
+			break;
+		}
 	}
-
 	/* datalb */
-	switch (p_loopback->datalb_src) {
-	case TDMINLB_TDMOUTA ... TDMINLB_PAD_TDMINC_D:
-		/*datalb_tdminlb_set_clk(p_loopback);*/
-		break;
-	case SPDIFINLB_SPDIFOUTA ... SPDIFINLB_SPDIFOUTB:
-		break;
-	default:
-		break;
+	if (p_loopback->datalb_chnum > 0) {
+		switch (p_loopback->datalb_src) {
+		case TDMINLB_TDMOUTA ... TDMINLB_PAD_TDMINC_D:
+			/*datalb_tdminlb_set_clk(p_loopback);*/
+			break;
+		case SPDIFINLB_SPDIFOUTA ... SPDIFINLB_SPDIFOUTB:
+			break;
+		default:
+			break;
+		}
 	}
-
-	loopback_set_clk(p_loopback, runtime->rate, true);
+	loopback_set_clk(p_loopback, rate, true);
 
 	return ret;
 }
@@ -1198,24 +1220,25 @@ static int datain_parse_of(
 		return -EINVAL;
 	}
 
-	switch (p_loopback->datain_src) {
-	case DATAIN_TDMA:
-	case DATAIN_TDMB:
-	case DATAIN_TDMC:
-		break;
-	case DATAIN_SPDIF:
-		break;
-	case DATAIN_PDM:
-		ret = datain_pdm_parse_of(&pdev->dev, p_loopback);
-		if (ret < 0)
-			goto err;
-		break;
-	case DATAIN_LOOPBACK:
-		break;
-	default:
-		break;
+	if (p_loopback->datain_chnum > 0) {
+		switch (p_loopback->datain_src) {
+		case DATAIN_TDMA:
+		case DATAIN_TDMB:
+		case DATAIN_TDMC:
+			break;
+		case DATAIN_SPDIF:
+			break;
+		case DATAIN_PDM:
+			ret = datain_pdm_parse_of(&pdev->dev, p_loopback);
+			if (ret < 0)
+				goto err;
+			break;
+		case DATAIN_LOOPBACK:
+			break;
+		default:
+			break;
+		}
 	}
-
 	return 0;
 err:
 	pr_err("%s, error:%d\n", __func__, ret);
@@ -1330,9 +1353,7 @@ static int loopback_parse_of(
 	ret = of_property_read_u32(node, "datain_chnum",
 		&p_loopback->datain_chnum);
 	if (ret) {
-		pr_err("failed to get datain_chnum\n");
-		ret = -EINVAL;
-		goto fail;
+		pr_info("datain_chnum = 0, only record output data\n");
 	}
 	ret = of_property_read_u32(node, "datain_chmask",
 		&p_loopback->datain_chmask);

@@ -135,6 +135,14 @@ void lb_set_datain_src(int id, int src)
 	audiobus_update_bits(reg, 0x7 << 0, src);
 }
 
+void lb_set_mode(int id, enum lb_out_rate rate)
+{
+	int offset = EE_AUDIO_LB_B_CTRL0 - EE_AUDIO_LB_A_CTRL0;
+	int reg = EE_AUDIO_LB_A_CTRL0 + offset * id;
+
+	audiobus_update_bits(reg, 0x1 << 30, rate << 30);
+}
+
 void lb_set_datain_cfg(int id, struct data_cfg *datain_cfg)
 {
 	int offset = EE_AUDIO_LB_B_CTRL0 - EE_AUDIO_LB_A_CTRL0;
