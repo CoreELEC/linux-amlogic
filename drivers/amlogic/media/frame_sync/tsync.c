@@ -1307,13 +1307,8 @@ void tsync_avevent_locked(enum avevent_e event, u32 param)
 
 		t = timestamp_pcrscr_get();
 
-		amlog_level(LOG_LEVEL_INFO,
-					"[%s]param %d, t %d, tsync_abreak %d\n",
-					__func__, param, t, tsync_abreak);
-		/* 100ms, then wait to match */
-		if (tsync_abreak &&
-			(abs(param - t) > TIME_UNIT90K / 10))
-			break;
+		pr_info("[%s]param %d, t %d\n",
+					__func__, param, t);
 
 		tsync_abreak = 0;
 		/* after reset, video should be played first */
