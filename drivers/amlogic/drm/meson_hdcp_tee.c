@@ -24,8 +24,6 @@
 #include "meson_hdmi.h"
 #include "meson_hdcp.h"
 
-#define DEVICE_NAME "drmhdmitx"
-
 /* ioctl numbers */
 enum {
 	TEE_HDCP_START,

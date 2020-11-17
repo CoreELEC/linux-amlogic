@@ -256,7 +256,7 @@ static struct reg_map reg_maps_sc2[] = {
 	}
 };
 
-static struct reg_map *map;
+struct reg_map *map;
 
 void init_reg_map(unsigned int type)
 {
@@ -295,6 +295,28 @@ void init_reg_map(unsigned int type)
 	}
 }
 
+unsigned int TO_PHY_ADDR(unsigned int addr)
+{
+	unsigned int index;
+	unsigned int offset;
+
+	index = addr >> BASE_REG_OFFSET;
+	offset = addr & (((1 << BASE_REG_OFFSET) - 1));
+
+	return (map[index].phy_addr + offset);
+}
+
+void __iomem *TO_PMAP_ADDR(unsigned int addr)
+{
+	unsigned int index;
+	unsigned int offset;
+
+	index = addr >> BASE_REG_OFFSET;
+	offset = addr & (((1 << BASE_REG_OFFSET) - 1));
+
+	return (void __iomem *)(map[index].p + offset);
+}
+
 unsigned int get_hdcp22_base(void)
 {
 	if (map)
@@ -302,13 +324,6 @@ unsigned int get_hdcp22_base(void)
 	else
 		return reg_maps_def[ELP_ESM_REG_IDX].phy_addr;
 }
-
-#define TO_PHY_ADDR(addr) \
-	(map[(addr) >> BASE_REG_OFFSET].phy_addr + \
-	((addr) & (((1 << BASE_REG_OFFSET) - 1))))
-#define TO_PMAP_ADDR(addr) \
-	(map[(addr) >> BASE_REG_OFFSET].p + \
-	((addr) & (((1 << BASE_REG_OFFSET) - 1))))
 
 #define CHECKADDR(addr) \
 	do { \

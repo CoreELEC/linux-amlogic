@@ -63,7 +63,6 @@
 #include "hw/hw_clk.h"
 #include "hdmi_tx_hdcp.h"
 
-#define DEVICE_NAME "amhdmitx"
 #define HDMI_TX_COUNT 32
 #define HDMI_TX_POOL_NUM  6
 #define HDMI_TX_RESOURCE_NUM 4
