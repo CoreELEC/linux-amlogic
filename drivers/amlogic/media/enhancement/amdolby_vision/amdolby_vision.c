@@ -6504,8 +6504,9 @@ int dolby_vision_parse_metadata(
 
 		/* check source format */
 		fmt = get_vframe_src_fmt(vf);
-		if ((fmt == VFRAME_SIGNAL_FMT_DOVI) ||
-		    (fmt == VFRAME_SIGNAL_FMT_INVALID)) {
+		if (((fmt == VFRAME_SIGNAL_FMT_DOVI) ||
+		    (fmt == VFRAME_SIGNAL_FMT_INVALID)) &&
+		    !vf->discard_dv_data) {
 			u32 sei_size = 0;
 			char *sei;
 
@@ -6533,8 +6534,8 @@ int dolby_vision_parse_metadata(
 			}
 		}
 		if (debug_dolby & 1)
-			pr_dolby_dbg("dvbldec get vf %p, fmt %d, aux data %p %x, el %d\n",
-				     vf, fmt,
+			pr_dolby_dbg("dvbldec get vf %p(%d), fmt %d, aux %p %x, el %d\n",
+				     vf, vf->discard_dv_data, fmt,
 				     req.aux_buf,
 				     req.aux_size,
 				     req.dv_enhance_exist);

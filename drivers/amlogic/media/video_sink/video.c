@@ -6351,7 +6351,10 @@ s32 update_vframe_src_fmt(
 	if (vf->type & VIDTYPE_MVC) {
 		vf->src_fmt.fmt = VFRAME_SIGNAL_FMT_MVC;
 	} else if (sei && size) {
-		if (dual_layer || check_media_sei(sei, size, DV_SEI)) {
+		if (vf->discard_dv_data) {
+			if (debug_flag & DEBUG_FLAG_OMX_DV_DROP_FRAME)
+				pr_info("ignore nonstandard dv\n");
+		} else if (dual_layer || check_media_sei(sei, size, DV_SEI)) {
 			vf->src_fmt.fmt = VFRAME_SIGNAL_FMT_DOVI;
 			vf->src_fmt.dual_layer = dual_layer;
 #if PARSE_MD_IN_ADVANCE
