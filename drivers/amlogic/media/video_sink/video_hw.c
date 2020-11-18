@@ -5585,7 +5585,7 @@ void video_secure_set(void)
 	for (i = 0; i < MAX_VD_LAYERS; i++) {
 		layer = &vd_layer[i];
 		if (layer->dispbuf &&
-			(layer->dispbuf->flag && VFRAME_FLAG_VIDEO_SECURE))
+			(layer->dispbuf->flag & VFRAME_FLAG_VIDEO_SECURE))
 			secure_enable = 1;
 		else
 			secure_enable = 0;
