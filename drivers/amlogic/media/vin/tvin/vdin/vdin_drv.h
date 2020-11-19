@@ -461,13 +461,15 @@ struct vdin_dev_s {
 	unsigned int irq;
 	unsigned int rdma_irq;
 	unsigned int vpu_crash_irq;
+	unsigned int wr_done_irq;
 	char irq_name[12];
 	char vpu_crash_irq_name[20];
+	char wr_done_irq_name[20];
 	/* address offset(vdin0/vdin1/...) */
 	unsigned int addr_offset;
 
 	unsigned int unstable_flag;
-	unsigned int abnormal_cnt;
+	unsigned int wr_done_abnormal_cnt;
 	unsigned int stamp;
 	unsigned int hcnt64;
 	unsigned int cycle;
@@ -581,7 +583,9 @@ struct vdin_dev_s {
 	unsigned int irq_cnt;
 	unsigned int vpu_crash_cnt;
 	unsigned int frame_cnt;
+	unsigned int puted_frame_cnt;
 	unsigned int rdma_irq_cnt;
+	unsigned int wr_done_irq_cnt;
 	unsigned int vdin_irq_flag;
 	unsigned int vdin_reset_flag;
 	unsigned int vdin_dev_ssize;
