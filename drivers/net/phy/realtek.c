@@ -242,7 +242,6 @@ int rtl8211f_resume(struct phy_device *phydev)
 	u16 reg;
 
 #ifdef CONFIG_AMLOGIC_ETH_PRIVE
-	u16 reg;
 	/*switch page d08*/
 	phy_write(phydev, RTL8211F_PAGE_SELECT, 0xd08);
 	reg = phy_read(phydev, 0x15);
