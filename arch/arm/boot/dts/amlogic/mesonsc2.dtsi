@@ -1307,6 +1307,12 @@
 			0xfe000000 0x4a0>; /* clk reg */
 	};
 
+	vout_sys: vout_sys {
+		compatible = "amlogic, vout_sys_serve";
+		status = "okay";
+		reg = <0xfe01029c 0x4>;
+	};
+
 	vout {
 		compatible = "amlogic, vout";
 		status = "okay";

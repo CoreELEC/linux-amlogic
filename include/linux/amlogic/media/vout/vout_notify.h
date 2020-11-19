@@ -112,6 +112,7 @@ extern void vdac_enable(bool on, unsigned int module_sel);
 #define VOUT_EVENT_OSD_BLANK           0x00030000
 #define VOUT_EVENT_OSD_DISP_AXIS       0x00040000
 #define VOUT_EVENT_OSD_PREBLEND_ENABLE 0x00050000
+#define VOUT_EVENT_SYS_INIT            0x00060000
 
 /* ********** vout_ioctl ********** */
 #define VOUT_IOC_TYPE            'C'

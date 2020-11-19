@@ -1189,6 +1189,12 @@
 		vdin_id = <1>;
 	};
 
+	vout_sys: vout_sys {
+		compatible = "amlogic, vout_sys_serve";
+		status = "okay";
+		reg = <0x0 0xff8000ac 0x0 0x4>;
+	};
+
 	vout {
 		compatible = "amlogic, vout";
 		dev_name = "vout";
