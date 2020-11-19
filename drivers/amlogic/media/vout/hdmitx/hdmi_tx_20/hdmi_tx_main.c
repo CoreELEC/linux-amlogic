@@ -61,6 +61,7 @@
 #include "hw/common.h"
 #include "hw/hw_clk.h"
 #include "hdmi_tx_hdcp.h"
+#include "hdmi_tx_calibration.h"
 
 #define HDMI_TX_COUNT 32
 #define HDMI_TX_POOL_NUM  6
@@ -3601,7 +3602,9 @@ static ssize_t store_cedst_policy(struct device *dev,
 		queue_delayed_work(hdev->cedst_wq, &hdev->work_cedst, 0);
 	else
 		cancel_delayed_work(&hdev->work_cedst);
-
+	/* free cedst_buf */
+	if (strncmp("-1", buf, 2) == 0)
+		cedst_free_buf(hdev);
 
 	return count;
 }
@@ -3642,6 +3645,60 @@ static ssize_t show_cedst_count(struct device *dev,
 		pos += snprintf(buf + pos, PAGE_SIZE, "CH2 ErrCnt 0x%x\n",
 			ced->ch2_cnt);
 	memset(ced, 0, sizeof(*ced));
+
+	return pos;
+}
+
+static ssize_t store_phy_idx(struct device *dev,
+	struct device_attribute *attr, const char *buf, size_t count)
+{
+	int val = 0;
+	struct hdmitx_dev *hdev = &hdmitx_device;
+
+	if (isdigit(buf[0])) {
+		val = buf[0] - '0';
+		pr_info("hdmitx: set phy_idx as %d\n", val);
+		if ((val == 0) || (val == 1) || (val == 2)) {
+			hdev->phy_idx = val;
+			if (!hdev->cedst_buf)
+				cedst_malloc_buf(hdev);
+		} else {
+			pr_info("hdmitx: only accept as 0(default), 1, or 2\n");
+		}
+	}
+
+	return count;
+}
+
+static ssize_t show_phy_idx(struct device *dev,
+	struct device_attribute *attr, char *buf)
+{
+	int pos = 0;
+
+	pos += snprintf(buf + pos, PAGE_SIZE, "%d\n", hdmitx_device.phy_idx);
+
+	return pos;
+}
+
+static ssize_t show_phy_eval(struct device *dev,
+	struct device_attribute *attr, char *buf)
+{
+	int pos = 0;
+	int val = 0;
+	struct hdmitx_dev *hdev = &hdmitx_device;
+
+	if (!hdev->cedst_buf) {
+		pr_info("%s[%d]\n", __func__, __LINE__);
+		return pos;
+	}
+
+	val = cedst_phy_evaluation(hdev);
+	// only return as 0, 1, or 2
+	if (!(val == 0 || val == 1 || val == 2)) {
+		val = 0;
+		pr_info("hdmitx cedst_phy_evaluation return error\n");
+	}
+	pos += snprintf(buf + pos, PAGE_SIZE, "%d\n", val);
 
 	return pos;
 }
@@ -4938,6 +4995,8 @@ static DEVICE_ATTR(rxsense_policy, 0644, show_rxsense_policy,
 	store_rxsense_policy);
 static DEVICE_ATTR(cedst_policy, 0664, show_cedst_policy, store_cedst_policy);
 static DEVICE_ATTR(cedst_count, 0444, show_cedst_count, NULL);
+static DEVICE_ATTR(phy_idx, 0664, show_phy_idx, store_phy_idx);
+static DEVICE_ATTR(phy_eval, 0444, show_phy_eval, NULL);
 static DEVICE_ATTR(hdcp_clkdis, 0664, show_hdcp_clkdis, store_hdcp_clkdis);
 static DEVICE_ATTR(hdcp_pwr, 0664, show_hdcp_pwr, store_hdcp_pwr);
 static DEVICE_ATTR(hdcp_byp, 0200, NULL, store_hdcp_byp);
@@ -5129,10 +5188,12 @@ static int hdmitx_check_same_vmodeattr(char *name)
 	struct hdmitx_dev *hdev = &hdmitx_device;
 
 	if ((memcmp(hdev->backup_fmt_attr, hdev->fmt_attr, 16) == 0) &&
-	    (hdev->backup_frac_rate_policy == hdev->frac_rate_policy))
+	    (hdev->backup_frac_rate_policy == hdev->frac_rate_policy) &&
+	    (hdev->backup_phy_idx == hdev->phy_idx))
 		return 1;
 	memcpy(hdev->backup_fmt_attr, hdev->fmt_attr, 16);
 	hdev->backup_frac_rate_policy = hdev->frac_rate_policy;
+	hdev->backup_phy_idx = hdev->phy_idx;
 	return 0;
 }
 
@@ -6317,6 +6378,8 @@ static int amhdmitx_probe(struct platform_device *pdev)
 	ret = device_create_file(dev, &dev_attr_rxsense_policy);
 	ret = device_create_file(dev, &dev_attr_cedst_policy);
 	ret = device_create_file(dev, &dev_attr_cedst_count);
+	ret = device_create_file(dev, &dev_attr_phy_idx);
+	ret = device_create_file(dev, &dev_attr_phy_eval);
 	ret = device_create_file(dev, &dev_attr_hdcp_clkdis);
 	ret = device_create_file(dev, &dev_attr_hdcp_pwr);
 	ret = device_create_file(dev, &dev_attr_hdcp_ksv_info);
@@ -6455,6 +6518,8 @@ static int amhdmitx_remove(struct platform_device *pdev)
 	device_remove_file(dev, &dev_attr_rxsense_policy);
 	device_remove_file(dev, &dev_attr_cedst_policy);
 	device_remove_file(dev, &dev_attr_cedst_count);
+	device_remove_file(dev, &dev_attr_phy_idx);
+	device_remove_file(dev, &dev_attr_phy_eval);
 	device_remove_file(dev, &dev_attr_hdcp_pwr);
 	device_remove_file(dev, &dev_attr_div40);
 	device_remove_file(dev, &dev_attr_hdcp_repeater);
@@ -6715,6 +6780,20 @@ static int __init get_hdmi_checksum(char *str)
 }
 
 __setup("hdmichecksum=", get_hdmi_checksum);
+
+static int __init hdmitx_get_phy_idx(char *str)
+{
+	if (strncmp("1", str, 1) == 0)
+		hdmitx_device.phy_idx = 1;
+	if (strncmp("2", str, 1) == 0)
+		hdmitx_device.phy_idx = 2;
+
+	hdmitx_device.backup_phy_idx = hdmitx_device.phy_idx;
+	pr_info("hdmitx uboot phy_idx: %d\n", hdmitx_device.phy_idx);
+	return 0;
+}
+
+__setup("phy_idx=", hdmitx_get_phy_idx);
 
 MODULE_PARM_DESC(log_level, "\n log_level\n");
 module_param(log_level, int, 0644);

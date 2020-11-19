@@ -19,6 +19,7 @@
 #include <linux/amlogic/media/vout/hdmi_tx/hdmi_tx_module.h>
 #include <linux/amlogic/media/vout/hdmi_tx/hdmi_tx_ddc.h>
 #include "hw/common.h"
+#include "hdmi_tx_calibration.h"
 
 void scdc_config(struct hdmitx_dev *hdev)
 {
@@ -83,8 +84,11 @@ int scdc_status_flags(struct hdmitx_dev *hdev)
 	}
 	if (st & CED_UPDATE)
 		scdc_ced_cnt(hdev);
-	if (st & (STATUS_UPDATE | CED_UPDATE))
+
+	if (st & (STATUS_UPDATE | CED_UPDATE)) {
+		cedst_store_buf(hdev);
 		scdc_wr_sink(UPDATE_0, st & (STATUS_UPDATE | CED_UPDATE));
+	}
 	if (!hdev->chlocked_st.clock_detected)
 		pr_info("ced: clock undetected\n");
 	if (!hdev->chlocked_st.ch0_locked)

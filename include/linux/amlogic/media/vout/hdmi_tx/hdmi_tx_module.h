@@ -236,6 +236,19 @@ struct scdc_locked_st {
 	u8 ch2_locked:1;
 };
 
+#define CEDST_BUF_NO 60
+#define ERR_MAX_CNT (0xffff - 1)
+struct cedst_buf {
+	int buf_idx;
+	unsigned int unlock1_no;
+	unsigned int maxval_no;
+	unsigned int cnt_avg;
+	struct {
+		struct ced_cnt cnt;
+		struct scdc_locked_st st;
+	} buf[CEDST_BUF_NO];
+};
+
 enum hdmi_hdr_transfer {
 	T_UNKNOWN = 0,
 	T_BT709,
@@ -481,6 +494,9 @@ struct hdmitx_dev {
 	unsigned int cedst_policy;
 	struct ced_cnt ced_cnt;
 	struct scdc_locked_st chlocked_st;
+	unsigned int phy_idx;
+	unsigned int backup_phy_idx;
+	struct cedst_buf *cedst_buf; /* current only test 3 phy para */
 	unsigned int allm_mode; /* allm_mode: 1/on 0/off */
 	unsigned int ct_mode; /* 0/off 1/game, 2/graphcis, 3/photo, 4/cinema */
 	unsigned int sspll;

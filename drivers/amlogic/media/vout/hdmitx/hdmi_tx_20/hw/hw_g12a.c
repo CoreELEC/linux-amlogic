@@ -524,11 +524,20 @@ void hdmitx_phy_bandgap_en_g12(void)
 		hd_write_reg(P_HHI_HDMI_PHY_CNTL0, 0x0b4242);
 }
 
+static unsigned int g12_phy_array[] = {
+	0x37eb76d4,
+	0x37eb76e4,
+	0xf7eb84fa,
+};
+
 void set_phy_by_mode_g12(unsigned int mode)
 {
+	struct hdmitx_dev *hdev = get_hdmitx_device();
+
 	switch (mode) {
 	case HDMI_PHYPARA_6G: /* 5.94Gbps */
-		hd_write_reg(P_HHI_HDMI_PHY_CNTL0, 0x37eb76d4);
+		hd_write_reg(P_HHI_HDMI_PHY_CNTL0,
+			     g12_phy_array[hdev->phy_idx]);
 		hd_write_reg(P_HHI_HDMI_PHY_CNTL3, 0x2ab0ff3b);
 		hd_write_reg(P_HHI_HDMI_PHY_CNTL5, 0x0000080b);
 		break;
