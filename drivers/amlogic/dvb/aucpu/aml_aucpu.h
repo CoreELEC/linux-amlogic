@@ -139,7 +139,10 @@ struct aml_aucpu_buf_upd {
 struct aml_aucpu_inst_config {
 	u32 media_type;	/* aml_aucpu_stream_type supported types   */
 	u32 dma_chn_id;	/* stream DMX dma channel id               */
-	u32 config_flags;	/* config options:                         */
+			/* Extensions when media_type is MEDIA_PTS_PACK    */
+			/*    bit 0-7 : PTS pack dma channel id (>=64)     */
+			/*    bit 8-24 :PID of the PTS pack                */
+	u32 config_flags;	/* config options:                     */
 			/* bit 0: source wrptr update method               */
 			/*        0, automatally via DMX DMA dma_id used   */
 			/*        1, manually via function call src_update */
@@ -156,6 +159,7 @@ enum aml_aucpu_stream_type {
 	MEDIA_DTS = 5,		/* DTS */
 	MEDIA_TS_SYS = 6,	/* TS System information (PAT, PMT, etc) */
 	MEDIA_PES_SUB = 7,	/* PES format subtitle/audio stream */
+	MEDIA_PTS_PACK = 8,	/* PTS pack in proprietary format */
 	MEDIA_MAX,
 };
 
