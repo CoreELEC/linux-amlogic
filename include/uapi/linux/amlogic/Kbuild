@@ -1,0 +1,2 @@
+# amlogic Header export list
+header-y += msync.h

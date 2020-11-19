@@ -98,6 +98,7 @@ source "drivers/amlogic/media/enhancement/Kconfig"
 source "drivers/amlogic/media/gdc/Kconfig"
 source "drivers/amlogic/media/algorithm/Kconfig"
 source "drivers/amlogic/media/camera/Kconfig"
+source "drivers/amlogic/media/avsync/Kconfig"
 endif
 source "drivers/amlogic/media/dtv_demod/Kconfig"
 endmenu
