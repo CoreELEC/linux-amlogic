@@ -41,7 +41,6 @@
 #include <linux/amlogic/media/amdolbyvision/dolby_vision.h>
 #include <linux/amlogic/media/di/di.h>
 
-#include "video_priv.h"
 #include "video_receiver.h"
 
 /* #define ENABLE_DV */
@@ -136,6 +135,7 @@ static void common_vf_unreg_provider(struct video_recv_s *ins)
 	ulong flags;
 	bool layer1_used = false;
 	bool layer2_used = false;
+	int i;
 
 	if (!ins)
 		return;
@@ -146,7 +146,9 @@ static void common_vf_unreg_provider(struct video_recv_s *ins)
 		schedule();
 
 	spin_lock_irqsave(&ins->lock, flags);
-	ins->buf_to_put = NULL;
+	ins->buf_to_put_num = 0;
+	for (i = 0; i < DISPBUF_TO_PUT_MAX; i++)
+		ins->buf_to_put[i] = NULL;
 	ins->rdma_buf = NULL;
 	ins->original_vf = NULL;
 	ins->switch_vf = false;
@@ -192,6 +194,7 @@ static void common_vf_light_unreg_provider(
 	struct video_recv_s *ins)
 {
 	ulong flags;
+	int i;
 
 	if (!ins)
 		return;
@@ -202,7 +205,9 @@ static void common_vf_light_unreg_provider(
 		schedule();
 
 	spin_lock_irqsave(&ins->lock, flags);
-	ins->buf_to_put = NULL;
+	ins->buf_to_put_num = 0;
+	for (i = 0; i < DISPBUF_TO_PUT_MAX; i++)
+		ins->buf_to_put[i] = NULL;
 	ins->rdma_buf = NULL;
 
 	if (ins->cur_buf) {
@@ -290,25 +295,38 @@ static void common_toggle_frame(
 	if (ins->cur_buf &&
 	    (ins->cur_buf != &ins->local_buf) &&
 	    (ins->original_vf != vf)) {
-		ins->frame_count++;
 #ifdef CONFIG_AMLOGIC_MEDIA_VSYNC_RDMA
+		int i = 0;
+
 		if (is_vsync_rdma_enable()) {
-			if (ins->rdma_buf == ins->cur_buf)
-				ins->buf_to_put = ins->original_vf;
-			else
+			if (ins->rdma_buf == ins->cur_buf) {
+				if (ins->buf_to_put_num < DISPBUF_TO_PUT_MAX) {
+					ins->buf_to_put[ins->buf_to_put_num] =
+					    ins->original_vf;
+					ins->buf_to_put_num++;
+				} else {
+					common_vf_put(
+						ins, ins->original_vf);
+				}
+			} else {
 				common_vf_put(
 					ins, ins->original_vf);
-		} else {
-			if (ins->buf_to_put) {
-				common_vf_put(
-					ins, ins->buf_to_put);
-				ins->buf_to_put = NULL;
 			}
+		} else {
+			for (i = 0; i < ins->buf_to_put_num; i++) {
+				if (ins->buf_to_put[i]) {
+					common_vf_put(
+						ins, ins->buf_to_put[i]);
+					ins->buf_to_put[i] = NULL;
+				}
+			}
+			ins->buf_to_put_num = 0;
 			common_vf_put(ins, ins->original_vf);
 		}
 #else
 		common_vf_put(ins, ins->original_vf);
 #endif
+		ins->frame_count++;
 	}
 	if (ins->original_vf != vf)
 		vf->type_backup = vf->type;
@@ -320,18 +338,26 @@ static void common_toggle_frame(
  * recv func APIs
  *********************************************************/
 static s32 recv_common_early_process(
-	struct video_recv_s *ins)
+	struct video_recv_s *ins, u32 op)
 {
+	int i;
+
 	if (!ins) {
 		pr_err("recv_common_early_process error, empty ins\n");
 		return -1;
 	}
 
-	if (ins->buf_to_put) {
-		ins->buf_to_put->rendered = true;
-		common_vf_put(
-			ins, ins->buf_to_put);
-		ins->buf_to_put = NULL;
+	/* not over vsync */
+	if (!op) {
+		for (i = 0; i < ins->buf_to_put_num; i++) {
+			if (ins->buf_to_put[i]) {
+				ins->buf_to_put[i]->rendered = true;
+				common_vf_put(
+					ins, ins->buf_to_put[i]);
+				ins->buf_to_put[i] = NULL;
+			}
+		}
+		ins->buf_to_put_num = 0;
 	}
 	return 0;
 }
