@@ -5441,8 +5441,9 @@ SET_FILTER:
 
 	if (vd_layer[0].dispbuf &&
 		(vd_layer[0].dispbuf->flag & VFRAME_FLAG_FAKE_FRAME)) {
-		if (!vd_layer[0].force_black) {
-			pr_info("vsync: vd1 force black\n");
+		if ((vd_layer[0].force_black &&
+			!(debug_flag & DEBUG_FLAG_BLACK_NO_REWRITE_REG)) ||
+			!vd_layer[0].force_black) {
 			VSYNC_WR_MPEG_REG(VPP_VD1_CLIP_MISC0,
 				(0x0 << 20) |
 				(0x200 << 10) |
@@ -5451,6 +5452,9 @@ SET_FILTER:
 				(0x0 << 20) |
 				(0x200 << 10) |
 				0x200);
+		}
+		if (!vd_layer[0].force_black) {
+			pr_info("vsync: vd1 force black\n");
 			vd_layer[0].force_black = true;
 		}
 	} else if (vd_layer[0].force_black) {
