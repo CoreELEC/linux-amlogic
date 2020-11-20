@@ -245,6 +245,12 @@ static void hdmitx_early_suspend(struct early_suspend *h)
 	usleep_range(120000, 120010);
 	hdev->hwop.cntlddc(hdev, DDC_SCDC_DIV40_SCRAMB, 0);
 	hdev->div40 = 0;
+	/* enable hpd event to get EDID, because phy addr
+	 * needs to be updated for CEC under early suspend. meanwhile
+	 * systemcontrol not respond hpd event under early suspend
+	 * so that hdmitx output will keep disabled.
+	 */
+	phdmi->hpd_lock = 0;
 }
 
 static int hdmitx_is_hdmi_vmode(char *mode_name)
