@@ -1343,8 +1343,13 @@ alloced_finished:
 		tvp_pool->total_size = alloced_size;
 	if (for_tvp) {
 		if (alloced_size >= size) {
-			if (tvp_mode >= 1)
-				codec_mm_tvp_pool_protect(tvp_pool);
+			if (tvp_mode >= 1) {
+				if (codec_mm_tvp_pool_protect(tvp_pool)) {
+					codec_mm_extpool_pool_release_inner(
+						slot_num, tvp_pool);
+					alloced_size = 0;
+				}
+			}
 		} else {
 			codec_mm_extpool_pool_release_inner(
 						slot_num, tvp_pool);
