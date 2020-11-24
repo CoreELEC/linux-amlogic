@@ -75,6 +75,14 @@
 			alloc-ranges = <0x3e000000 0x2000000>;
 		};
 	};
+
+	cma_shrinker {
+		compatible = "amlogic, cma-shrinker";
+		status = "okay";
+		adj  = <0 100 200 250 900 950>;
+		free = <7680 24288 28528 32600 32768 36624>;
+	};
+
 	mtd_nand {
 		compatible = "amlogic, aml_mtd_nand";
 		dev_name = "mtdnand";

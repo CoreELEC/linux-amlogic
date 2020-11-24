@@ -44,6 +44,13 @@
 		};
 	};
 
+	cma_shrinker {
+		compatible = "amlogic, cma-shrinker";
+		status = "okay";
+		adj  = <0 100 200 250 900 950>;
+		free = <7680 24288 28528 32600 32768 36624>;
+	};
+
 	sdio {
 		compatible = "amlogic, aml_sdio";
 		dev_name = "aml_sdio.0";

@@ -172,6 +172,13 @@
 		};
 	};
 
+	cma_shrinker {
+		compatible = "amlogic, cma-shrinker";
+		status = "okay";
+		adj  = <0 100 200 250 900 950>;
+		free = <8192 12288 16384 24576 28672 32768>;
+	};
+
 	amlogic_battery:dummy-battery {
 		compatible = "amlogic, dummy-battery";
 		status = "disabled";

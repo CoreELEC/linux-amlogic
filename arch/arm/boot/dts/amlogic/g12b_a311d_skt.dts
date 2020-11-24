@@ -177,6 +177,14 @@
 			alignment = <0x400000>;
 		};
 	};
+
+	cma_shrinker {
+		compatible = "amlogic, cma-shrinker";
+		status = "okay";
+		adj  = <0 100 200 250 900 950>;
+		free = <8192 12288 16384 24576 28672 32768>;
+	};
+
 	galcore {
 		status = "okay";
 		memory-region = <&galcore_reserved>;
