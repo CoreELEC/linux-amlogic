@@ -1,0 +1,9 @@
+#include "g12b_s922x_ugoos_am6_2g.dts"
+
+/{
+	amlogic-dt-id = "g12b_AM6_b4g";
+
+	memory@00000000 {
+		linux,usable-memory = <0x0 0x000000 0x0 0xF5000000>;
+	};
+};
