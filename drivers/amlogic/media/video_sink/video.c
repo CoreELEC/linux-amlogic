@@ -4675,8 +4675,17 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 					timestamp_pcrscr_get() - vf->pts +
 					vsync_pts_align,
 					pts_trace);
-				if (pts_trace > 4)
-					pr_info("smooth trace:%d\n", pts_trace);
+				if (pts_trace > 4 || pts_trace == 0)
+					pr_info
+					("exception:pts trace:%d.", pts_trace);
+				if (vf->pts && vf->pts < timestamp_vpts_get()) {
+					int t;
+
+					t = timestamp_vpts_get() - vf->pts;
+					t = t / 90;
+					pr_info
+					("exception:video jumpback %dms.", t);
+				}
 			}
 			amlog_mask_if(toggle_cnt > 0, LOG_MASK_FRAMESKIP,
 				      "skipped\n");
