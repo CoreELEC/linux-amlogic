@@ -40,12 +40,14 @@
 #define MASK_MHU                (BIT(0))
 #define MASK_MHU_FIFO           (BIT(1))
 #define MASK_MHU_PL             (BIT(2))
+#define MASK_MHU_SEC            (BIT(3))
 
 int get_dsp_online_status(const char *dsp_name);
 
 extern struct device *mhu_device;
 extern struct device *mhu_fifo_device;
 extern struct device *mhu_pl_device;
+extern struct device *mhu_sec_device;
 
 extern u32 mhu_f;
 

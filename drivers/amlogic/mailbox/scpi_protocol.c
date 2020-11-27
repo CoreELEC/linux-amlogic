@@ -41,6 +41,7 @@
 struct device *mhu_device;
 struct device *mhu_fifo_device;
 struct device *mhu_pl_device;
+struct device *mhu_sec_device;
 u32 mhu_f;
 
 #define CMD_ID_SHIFT		0

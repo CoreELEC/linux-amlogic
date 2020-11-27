@@ -275,6 +275,22 @@
 		#mbox-cells = <1>;
 	};
 
+	mailbox_mhu_sec: mhu_sec@0 {
+		status = "okay";
+		compatible = "amlogic, meson_mhu_sec";
+		reg = <0x0 0xfe441800 0x0 0x10>,  /* nee2scpu csr */
+		      <0x0 0xfe441c00 0x0 0x10>,  /* scpu2nee csr */
+		      <0x0 0xfe441a00 0x0 0x80>,   /* nee2scpu st */
+		      <0x0 0xfe441e00 0x0 0x80>;   /* scpu2nee st*/
+		interrupts = <0 49 1>;   /* irq ree */
+		mbox-nums = <2>;
+		mbox-names = "nee2scpu",
+			     "scpu2nee";
+		mboxes = <&mailbox_mhu_sec 0>,
+			 <&mailbox_mhu_sec 1>;
+		#mbox-cells = <1>;
+	};
+
 	hifi4dsp: hifi4dsp {
 		compatible = "amlogic, hifi4dsp";
 		memory-region = <&dsp_fw_reserved>;
