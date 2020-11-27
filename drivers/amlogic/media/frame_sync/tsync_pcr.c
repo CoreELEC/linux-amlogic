@@ -513,7 +513,7 @@ u32 tsync_pcr_get_ref_pcr(void)
 			    cur_checkin_apts != 0xffffffff) &&
 			   (first_vpts > cur_checkin_apts) &&
 			   ((first_vpts - cur_checkin_apts) <= MAX_AV_DIFF) &&
-			   (audio_cache_pts < first_vpts - first_apts +
+			   (audio_cache_pts < first_vpts - cur_checkin_apts +
 					tsync_pcr_ref_latency)) {
 			ref_pcr = tsync_calcpcr_by_audio(cur_checkin_apts,
 							 audio_cache_pts);
@@ -1286,6 +1286,10 @@ void tsync_pcr_avevent_locked(enum avevent_e event, u32 param)
 	u32 first_apts;
 	u32 cur_checkin_vpts, cur_checkin_apts;
 	u32 ref_pcr;
+	u32 cur_pcr;
+	u8 complete_init_flag =
+		TSYNC_PCR_INITCHECK_PCR | TSYNC_PCR_INITCHECK_VPTS |
+		TSYNC_PCR_INITCHECK_APTS;
 	spin_lock_irqsave(&tsync_pcr_lock, flags);
 
 	switch (event) {
@@ -1308,7 +1312,15 @@ void tsync_pcr_avevent_locked(enum avevent_e event, u32 param)
 			cur_checkin_apts == 0xffffffff &&
 			tsync_get_audio_pid_valid()) {
 		} else {
-			tsync_pcr_pcrscr_set();
+			tsync_get_demux_pcr(&cur_pcr);
+			cur_checkin_vpts = get_last_checkin_pts(PTS_TYPE_VIDEO);
+			if ((abs(cur_pcr - cur_checkin_vpts) >
+				PLAY_PCR_INVALID_THRESHOLD) &&
+				(tsync_pcr_inited_flag & complete_init_flag) &&
+				tsync_get_new_arch())
+				tsync_set_pcr_mode(0, cur_checkin_vpts);
+			else
+				tsync_pcr_pcrscr_set();
 		}
 		break;
 
