@@ -2798,7 +2798,7 @@ int osd_set_scan_mode(u32 index)
 		if ((scale_input_w * 2 == scale_output_w) &&
 			(scale_input_h * 2 == scale_output_h) &&
 			osd_hw.free_scale_enable[index]) {
-			osd_hw.scale_workaround = SC_DOUBLE;
+			osd_hw.sc_filter_workaround[index] = SC_DOUBLE;
 			osd_h_filter_mode = 2;
 			osd_v_filter_mode = 2;
 		}
@@ -5680,7 +5680,7 @@ static void osd_update_disp_freescale_enable(u32 index)
 			  (osd_hw.free_dst_data[index].y_start & 0xfff) << 16);
 		VSYNCOSD_WR_MPEG_REG(osd_reg->osd_sco_v_start_end, data32);
 	}
-	if (osd_hw.scale_workaround == SC_DOUBLE) {
+	if (osd_hw.sc_filter_workaround[index] == SC_DOUBLE) {
 		vsc_ini_rpt_p0_num = 2;
 		hsc_ini_rpt_p0_num = 2;
 	}
@@ -5721,7 +5721,7 @@ static void osd_update_disp_freescale_enable(u32 index)
 		}
 		v_init_phase = data32;
 
-		if (osd_hw.scale_workaround == SC_DOUBLE) {
+		if (osd_hw.sc_filter_workaround[index] == SC_DOUBLE) {
 			v_init_phase = 0xc000;
 			h_init_phase = 0xc000;
 		}
