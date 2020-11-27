@@ -928,10 +928,6 @@ static struct vinfo_s *dummy_encl_get_current_info(void)
 
 static int dummy_encl_set_current_vmode(enum vmode_e mode)
 {
-#ifdef CONFIG_AMLOGIC_VPU
-	request_vpu_clk_vmod(dummy_encl_vinfo.video_clk, VPU_VENCP);
-	switch_vpu_mem_pd_vmod(VPU_VENCP, VPU_MEM_POWER_ON);
-#endif
 	dummy_encl_clk_gate_switch(1);
 
 	dummy_encl_clk_ctrl(1);
@@ -971,10 +967,6 @@ static int dummy_encl_disable(enum vmode_e cur_vmod)
 	vout_vcbus_write(ENCL_VIDEO_EN, 0);
 	dummy_encl_clk_ctrl(0);
 	dummy_encl_clk_gate_switch(0);
-#ifdef CONFIG_AMLOGIC_VPU
-	switch_vpu_mem_pd_vmod(VPU_VENCL, VPU_MEM_POWER_DOWN);
-	release_vpu_clk_vmod(VPU_VENCL);
-#endif
 
 	VOUTPR("%s finished\n", __func__);
 
@@ -984,13 +976,11 @@ static int dummy_encl_disable(enum vmode_e cur_vmod)
 #ifdef CONFIG_PM
 static int dummy_encl_lcd_suspend(void)
 {
-	dummy_encl_disable(VMODE_DUMMY_ENCL);
 	return 0;
 }
 
 static int dummy_encl_lcd_resume(void)
 {
-	dummy_encl_set_current_vmode(VMODE_DUMMY_ENCL);
 	return 0;
 }
 
