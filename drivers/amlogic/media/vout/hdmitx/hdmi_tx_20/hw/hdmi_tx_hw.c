@@ -467,7 +467,7 @@ static int hdmitx_uboot_sc2_already_display(void)
 	return ret;
 }
 
-static int hdmitx_uboot_already_display(int type)
+int hdmitx_uboot_already_display(int type)
 {
 	int ret = 0;
 
@@ -4343,7 +4343,10 @@ static int hdmitx_cntl_misc(struct hdmitx_dev *hdev, unsigned int cmd,
 	case MISC_HPD_GPI_ST:
 		return hdmitx_hpd_hw_op(HPD_READ_HPD_GPIO);
 	case MISC_TRIGGER_HPD:
-		hdmitx_wr_reg(HDMITX_TOP_INTR_STAT, 1 << 1);
+		if (argv == 1)
+			hdmitx_wr_reg(HDMITX_TOP_INTR_STAT, 1 << 1);
+		else
+			hdmitx_wr_reg(HDMITX_TOP_INTR_STAT, 1 << 2);
 		return 0;
 	case MISC_HPLL_FAKE:
 		hdmitx_set_fake_vic(hdev);

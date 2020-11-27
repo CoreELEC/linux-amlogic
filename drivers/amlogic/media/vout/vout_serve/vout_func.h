@@ -47,8 +47,11 @@ struct vout_cdev_s {
 
 #ifdef CONFIG_AMLOGIC_HDMITX
 extern int get_hpd_state(void);
+bool is_tv_changed(void);
 #endif
 extern int vout_get_hpd_state(void);
+bool vout_get_tv_changed(void);
+
 extern void vout_trim_string(char *str);
 
 struct vinfo_s *get_invalid_vinfo(int index, unsigned int flag);
