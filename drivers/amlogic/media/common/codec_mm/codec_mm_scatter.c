@@ -190,6 +190,7 @@ struct codec_mm_scatter_mgt {
 	int free_10_100ms_cnt;
 	int free_100ms_up_cnt;
 
+	struct device *dev;
 	struct delayed_work dealy_work;
 	int scatter_task_run_num;
 	struct codec_mm_scatter *cache_scs[2];
@@ -944,6 +945,12 @@ static int codec_mm_page_alloc_from_one_pages(
 			page |= sid;
 			pages[alloced++] = page;
 			neednum--;
+
+			/* Invalidate range of cache lines. */
+			dma_sync_single_for_device(smgt->dev,
+				virt_to_phys(vpage),
+				PAGE_SIZE,
+				DMA_FROM_DEVICE);
 		} else {
 			/*can't alloced memofy from ONEPAGE alloc */
 			WAR_LOG("Out of memory OnePage alloc =%d,%d\n",
@@ -2869,7 +2876,7 @@ static struct mconfig codec_mm_sc_configs[] = {
 
 static struct mconfig_node codec_mm_sc;
 
-int codec_mm_scatter_mgt_init(void)
+int codec_mm_scatter_mgt_init(struct device *dev)
 {
 	struct codec_mm_scatter_mgt *smgt;
 
@@ -2889,6 +2896,9 @@ int codec_mm_scatter_mgt_init(void)
 	g_scatter.support_from_slot_sys = smgt->support_from_slot_sys;
 	g_scatter.no_cache_size_M = smgt->no_cache_size_M;
 	g_scatter.no_alloc_from_sys = 0;
+
+	smgt->dev = dev;
+
 	INIT_REG_NODE_CONFIGS("media.codec_mm",
 		&codec_mm_sc, "scatter",
 		codec_mm_sc_configs,
