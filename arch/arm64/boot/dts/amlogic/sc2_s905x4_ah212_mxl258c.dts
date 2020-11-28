@@ -344,7 +344,7 @@
 
 		reg = <0x0 0xfe000000 0x0 0x480000>;
 
-		dmxdev_num = <4>;
+		dmxdev_num = <6>;
 
 		tsn_from = "demod";
 
@@ -396,7 +396,7 @@
 
 		reg = <0x0 0xfe000000 0x0 0x480000>;
 
-		dmxdev_num = <4>;
+		dmxdev_num = <6>;
 
 		tsn_from = "demod";
 
