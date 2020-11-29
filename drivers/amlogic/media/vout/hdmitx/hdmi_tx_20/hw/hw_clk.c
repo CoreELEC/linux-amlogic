@@ -1019,7 +1019,7 @@ static void hdmitx_set_clk_(struct hdmitx_dev *hdev)
 	enum hdmi_vic vic = hdev->cur_VIC;
 	enum hdmi_color_space cs = hdev->para->cs;
 	enum hdmi_color_depth cd;
-	if (hdev->cur_video_param->color_depth && hdev->cur_video_param->color_depth > 0)
+	if (hdev->cur_video_param && hdev->cur_video_param->color_depth && hdev->cur_video_param->color_depth > 0)
 		cd = hdev->cur_video_param->color_depth;
 	else
 		cd = hdev->para->cd;
