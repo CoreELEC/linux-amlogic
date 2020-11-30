@@ -94,6 +94,16 @@ static const struct dv_info dv_dummy;
 static int log_level;
 int hdr_status_pos;
 
+static char hdmichecksum[11] = {
+	'i', 'n', 'v', 'a', 'l', 'i', 'd', 'c', 'r', 'c', '\0'
+};
+
+static char invalidchecksum[11] = {
+	'i', 'n', 'v', 'a', 'l', 'i', 'd', 'c', 'r', 'c', '\0'
+};
+
+static char emptychecksum[11] = {0};
+
 static struct vinfo_s *hdmitx_get_current_vinfo(void)
 {
 	return hdmitx_device.vinfo;
@@ -5122,6 +5132,21 @@ static void hdmitx_cedst_process(struct work_struct *work)
 	extcon_set_state_sync(hdmitx_extcon_cedst, EXTCON_DISP_HDMI, ced);
 	queue_delayed_work(hdev->cedst_wq, &hdev->work_cedst, HZ);
 }
+
+bool is_tv_changed(void)
+{
+	bool ret = false;
+
+	if (memcmp(hdmichecksum, hdmitx_device.rxcap.chksum, 10) &&
+	    memcmp(emptychecksum, hdmitx_device.rxcap.chksum, 10) &&
+	    memcmp(invalidchecksum, hdmichecksum, 10)) {
+		ret = true;
+		pr_info("hdmi crc is diff between uboot and kernel\n");
+	}
+
+	return ret;
+}
+EXPORT_SYMBOL(is_tv_changed);
 
 static void hdmitx_hpd_plugin_handler(struct work_struct *work)
 {
