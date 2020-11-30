@@ -4478,10 +4478,10 @@ void dim_sc2_secure_pre_en(unsigned char ch)
 {
 	if (get_datal()->ch_data[ch].is_tvp == 2) {
 		DIM_DI_WR(DI_PRE_SEC_IN, 0x3F);//secure
-		get_datal()->ch_data[ch].is_secure = 2;
+		get_datal()->ch_data[ch].is_secure_pre = 2;
 	} else {
 		DIM_DI_WR(DI_PRE_SEC_IN, 0x0);
-		get_datal()->ch_data[ch].is_secure = 1;
+		get_datal()->ch_data[ch].is_secure_pre = 1;
 	}
 }
 
@@ -4489,11 +4489,12 @@ void dim_sc2_secure_sw_pre(unsigned char ch)
 {
 	if (DIM_IS_IC_BF(SC2))
 		return;
+	//dbg_mem2("%s:tvp3 pre:%d\n", __func__, ch);
 
-	if (get_datal()->ch_data[ch].is_secure == 0)//first set
+	if (get_datal()->ch_data[ch].is_secure_pre == 0)//first set
 		dim_sc2_secure_pre_en(ch);
 	else if (get_datal()->ch_data[ch].is_tvp !=
-		 get_datal()->ch_data[ch].is_secure)
+		 get_datal()->ch_data[ch].is_secure_pre)
 		dim_sc2_secure_pre_en(ch);
 }
 
@@ -4501,10 +4502,10 @@ void dim_sc2_secure_pst_en(unsigned char ch)
 {
 	if (get_datal()->ch_data[ch].is_tvp == 2) {
 		DIM_DI_WR(DI_POST_SEC_IN, 0x1F);//secure
-		get_datal()->ch_data[ch].is_secure = 2;
+		get_datal()->ch_data[ch].is_secure_pst = 2;
 	} else {
 		DIM_DI_WR(DI_POST_SEC_IN, 0x0);
-		get_datal()->ch_data[ch].is_secure = 1;
+		get_datal()->ch_data[ch].is_secure_pst = 1;
 	}
 }
 
@@ -4512,11 +4513,12 @@ void dim_sc2_secure_sw_post(unsigned char ch)
 {
 	if (DIM_IS_IC_BF(SC2))
 		return;
+	//dbg_mem2("%s:tvp4 post:%d\n", __func__, ch);
 
-	if (get_datal()->ch_data[ch].is_secure == 0)//first set
+	if (get_datal()->ch_data[ch].is_secure_pst == 0)//first set
 		dim_sc2_secure_pst_en(ch);
 	else if (get_datal()->ch_data[ch].is_tvp !=
-		 get_datal()->ch_data[ch].is_secure)
+		 get_datal()->ch_data[ch].is_secure_pst)
 		dim_sc2_secure_pst_en(ch);
 }
 

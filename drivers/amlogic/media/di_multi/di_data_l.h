@@ -1479,7 +1479,9 @@ struct di_ch_s {
 	struct dim_iat_s	iat_bf[DIM_IAT_NUB];
 	unsigned int		is_tvp	:2;
 	//0: unknown, 1: non tvp, 2: tvp
-	unsigned int		is_secure	:2;
+	unsigned int		is_secure_pre	:2;
+	//0: unknown, 1: non secure, 2: secure
+	unsigned int		is_secure_pst	:2;
 	//0: unknown, 1: non secure, 2: secure
 };
 
@@ -2014,14 +2016,24 @@ static inline void set_flag_tvp(unsigned char ch, unsigned int data)
 	get_datal()->ch_data[ch].is_tvp = data;
 }
 
-static inline unsigned int get_flag_secure(unsigned char ch)
+static inline unsigned int get_flag_secure_pre(unsigned char ch)
 {
-	return get_datal()->ch_data[ch].is_secure;
+	return get_datal()->ch_data[ch].is_secure_pre;
 }
 
-static inline void set_flag_secure(unsigned char ch, unsigned int data)
+static inline void set_flag_secure_pre(unsigned char ch, unsigned int data)
 {
-	get_datal()->ch_data[ch].is_secure = data;
+	get_datal()->ch_data[ch].is_secure_pre = data;
+}
+
+static inline unsigned int get_flag_secure_pst(unsigned char ch)
+{
+	return get_datal()->ch_data[ch].is_secure_pst;
+}
+
+static inline void set_flag_secure_pst(unsigned char ch, unsigned int data)
+{
+	get_datal()->ch_data[ch].is_secure_pst = data;
 }
 
 /*sum*/
