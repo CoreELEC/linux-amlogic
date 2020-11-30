@@ -612,6 +612,7 @@ struct usr_crc_info_t {
 #define AMSTREAM_SET_VIDEO_DELAY_LIMIT_MS 0x11A
 #define AMSTREAM_SET_AUDIO_DELAY_LIMIT_MS 0x11B
 #define AMSTREAM_SET_DRMMODE 0x11C
+#define AMSTREAM_SET_WORKMODE 0x11D
 
 /*  video set   cmd */
 #define AMSTREAM_SET_OMX_VPTS 0x160
@@ -640,7 +641,7 @@ struct usr_crc_info_t {
 #define AMSTREAM_SET_IS_RESET 0x177
 #define AMSTREAM_SET_NO_POWERDOWN   0x178
 #define AMSTREAM_SET_DV_META_WITH_EL 0x179
-
+#define AMSTREAM_SET_FCC_MODE 0x180
 
 /*  video set ex cmd */
 #define AMSTREAM_SET_EX_VIDEO_AXIS 0x260
@@ -690,6 +691,7 @@ struct usr_crc_info_t {
 #define AMSTREAM_GET_FREERUN_MODE 0x86B
 #define AMSTREAM_GET_3D_TYPE 0x86C
 #define AMSTREAM_GET_VSYNC_SLOW_FACTOR 0x86D
+#define AMSTREAM_GET_OFFSET 0x86E
 
 /*  amstream get ex cmd */
 #define AMSTREAM_GET_EX_VB_STATUS 0x900
@@ -708,6 +710,12 @@ struct usr_crc_info_t {
 
 #define AMSTREAM_IOC_VERSION_FIRST 2
 #define AMSTREAM_IOC_VERSION_SECOND 0
+
+enum fcc_mode_e {
+	FCC_DEC_MODE,
+	FCC_DISCARD_MODE,
+	FCC_BUTT
+};
 
 struct am_ioctl_parm {
 	union {
