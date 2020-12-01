@@ -1877,12 +1877,13 @@ static int di_cnt_i_buf(struct di_ch_s *pch, int width, int height)
 	if (mc_mem_alloc) {
 		di_buf_size += mtn_size +
 				count_size +
-				mv_size;
-		one_idat_size = mc_size;
+				mv_size +
+				mc_size;
+		//one_idat_size = mc_size;
 	} else {
 		di_buf_size += mtn_size +
 				count_size;
-		one_idat_size = 0;
+		//one_idat_size = 0;
 	}
 	mm->cfg.afbct_local_max_size = di_cnt_pre_afbct(pch);
 	one_idat_size += mm->cfg.afbct_local_max_size;

@@ -1338,7 +1338,7 @@ struct dim_iat_s {
 
 //	unsigned long	start_idat;
 	unsigned long	start_afbct;
-	unsigned long	start_mc;
+	//unsigned long	start_mc;
 	unsigned short	*mcinfo_adr_v;/**/
 	bool		mcinfo_alloc_flg;
 };

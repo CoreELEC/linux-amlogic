@@ -143,6 +143,7 @@ void dim_mcinfo_v_release(struct di_buf_s *pbuf)
 	}
 }
 
+#ifdef MARK_HIS
 void dim_mcinfo_v_alloc_idat(struct dim_iat_s *idat, unsigned int bsize)
 {
 	if (/*!dimp_get(edi_mp_lmv_lock_win_en) ||*/
@@ -168,6 +169,7 @@ void dim_mcinfo_v_release_idat(struct dim_iat_s *idat)
 	}
 }
 
+#endif
 /********************************************
  * mem
  *******************************************/
@@ -749,7 +751,7 @@ bool di_pst_afbct_check(struct di_ch_s *pch)
 	ch = pch->ch_id;
 
 	mm = dim_mm_get(ch);
-	if (!mm->cfg.dat_pafbct_flg.d32)
+	if (!mm->cfg.dat_pafbct_flg.b.page)
 		return true;
 	pdat = get_pst_afbct(pch);
 
@@ -770,7 +772,8 @@ bool di_i_dat_check(struct di_ch_s *pch)
 
 	if (!mm->cfg.num_local)
 		return true;
-
+	if (!mm->cfg.size_idat_one)
+		return true;
 	if (idat->virt && idat->flg_alloc)
 		return true;
 
@@ -856,7 +859,7 @@ static void iat_set_addr(struct di_ch_s *pch)
 	int i;
 	struct di_mm_s *mm;
 	unsigned int ch;
-	unsigned long addr_st_afbct, addr_st_mcinfo;
+	unsigned long addr_st_afbct/*, addr_st_mcinfo*/;
 //	unsigned long addr_afbct, addr_mc;
 	unsigned int size_tafbct;
 	unsigned int size_afbct;
@@ -874,23 +877,23 @@ static void iat_set_addr(struct di_ch_s *pch)
 	size_tafbct	= size_afbct * mm->cfg.nub_idat;
 
 	addr_st_afbct	= pdat->addr_st;
-	addr_st_mcinfo	= pdat->addr_st + size_tafbct;
+	//addr_st_mcinfo	= pdat->addr_st + size_tafbct;
 
 	dbg_mem2("%s:ch[%d]\n", __func__, ch);
 	for (i = 0; i < mm->cfg.nub_idat; i++) {
 		ret = qiat_idle_to_ready(pch, &idat);
 		idat->start_afbct	= addr_st_afbct + size_afbct * i;
 
-		idat->start_mc = addr_st_mcinfo + mm->cfg.mcinfo_size * i;
+		//idat->start_mc = addr_st_mcinfo + mm->cfg.mcinfo_size * i;
 
-		dim_mcinfo_v_alloc_idat(idat, mm->cfg.mcinfo_size);
+		//dim_mcinfo_v_alloc_idat(idat, mm->cfg.mcinfo_size);
 		if (!ret) {
 			PR_ERR("%s:%d\n", __func__, i);
 			break;
 		}
 
 		dbg_mem2("%d\t:addr_afbct\t0x%lx\n", i, idat->start_afbct);
-		dbg_mem2("\t:addr_mc\t0x%lx\n", idat->start_mc);
+		//dbg_mem2("\t:addr_mc\t0x%lx\n", idat->start_mc);
 	}
 }
 
@@ -907,6 +910,10 @@ void pre_sec_alloc(struct di_ch_s *pch, unsigned int flg)
 	flgs.d32 = flg;
 	idat_size = flgs.b.page << PAGE_SHIFT;
 
+	if (!idat_size) {
+		PR_INF("%s:no size\n", __func__);
+		return;
+	}
 	idat->virt = kzalloc(idat_size, GFP_KERNEL);
 	if (!idat->virt) {
 		PR_ERR("%s:\n", __func__);
@@ -930,12 +937,15 @@ void pst_sec_alloc(struct di_ch_s *pch, unsigned int flg)
 	unsigned int dat_size;
 
 	pdat = get_pst_afbct(pch);
-
-	if (pdat->flg_alloc || (!flg))
-		return;
-
 	flgs.d32 = flg;
 	dat_size = flgs.b.page << PAGE_SHIFT;
+
+	if (pdat->flg_alloc || (!dat_size)) {
+		PR_INF("%s:not alloc:%d,0x%x\n",
+		       __func__,
+		       pdat->flg_alloc, flg);
+		return;
+	}
 
 	pdat->virt = kzalloc(dat_size, GFP_KERNEL);
 	if (!pdat->virt) {
@@ -997,16 +1007,21 @@ static void dim_buf_set_addr(unsigned int ch, struct di_buf_s *buf_p)
 		//buf_p->afbct_adr = buf_p->afbc_adr + mm->cfg.afbci_size;
 		//buf_p->dw_adr = buf_p->afbct_adr + mm->cfg.afbct_size;
 #ifdef CFG_BUF_ALLOC_SP
-		iat_buf = qiat_out_ready(pch);
-		if (iat_buf) {
-			buf_p->iat_buf		= iat_buf;
+		if (mm->cfg.size_idat_one) {
+			iat_buf = qiat_out_ready(pch);
+			if (iat_buf) {
+				buf_p->iat_buf		= iat_buf;
 
-			buf_p->afbct_adr	= iat_buf->start_afbct;
-			buf_p->mcinfo_adr	= iat_buf->start_mc;
+				buf_p->afbct_adr	= iat_buf->start_afbct;
+				//buf_p->mcinfo_adr	= iat_buf->start_mc;
+			} else {
+				buf_p->iat_buf = NULL;
+				PR_ERR("%s:iat is null\n", __func__);
+				return;
+			}
 		} else {
 			buf_p->iat_buf = NULL;
-			PR_ERR("%s:iat is null\n", __func__);
-			return;
+			buf_p->afbct_adr = 0;
 		}
 		buf_p->afbc_adr	= buf_p->adr_start;
 		buf_p->dw_adr = buf_p->afbc_adr + mm->cfg.afbci_size;
@@ -1033,7 +1048,9 @@ static void dim_buf_set_addr(unsigned int ch, struct di_buf_s *buf_p)
 		/*if (dim_get_mcmem_alloc()) {*/
 		buf_p->mcvec_adr = buf_p->cnt_adr +
 			mm->cfg.count_size;
-		buf_p->mcinfo_adr_v = iat_buf->mcinfo_adr_v;
+		buf_p->mcinfo_adr = buf_p->mcvec_adr +
+			mm->cfg.mv_size;
+		dim_mcinfo_v_alloc(buf_p, mm->cfg.mcinfo_size);
 		//dim_mcinfo_v_alloc(buf_p, mm->cfg.mcinfo_size);
 
 		//buf_p->insert_adr = buf_p->mcinfo_adr + mm->cfg.mcinfo_size;
@@ -1106,7 +1123,7 @@ static void dim_buf_set_addr(unsigned int ch, struct di_buf_s *buf_p)
 	} else {
 		//buf_p->afbct_adr = buf_p->afbc_adr + mm->cfg.pst_afbci_size;
 #ifdef CFG_BUF_ALLOC_SP
-		if (mm->cfg.dat_pafbct_flg.d32) {
+		if (mm->cfg.dat_pafbct_flg.b.page) {
 			pat_buf = qpat_out_ready(pch);
 			if (pat_buf) {
 				addr_afbct = pat_buf->mem_start;
@@ -1829,14 +1846,14 @@ void mem_release(struct di_ch_s *pch)
 	union q_buf_u bufq;
 	unsigned int length;
 //	unsigned int ch = pch->ch_id;
-//	struct di_buf_s *pbuf_local;
-	//struct di_mm_s *mm = dim_mm_get(ch);
-	//int i;
-	//struct di_buf_s *di_buf;
+	struct di_buf_s *pbuf_local;
+	struct di_mm_s *mm = dim_mm_get(ch);
+	int i;
+	struct di_buf_s *di_buf;
 	struct dim_pat_s *pat_buf;
 
 	/* clear local */
-	#ifdef HIS_CODE
+	#if 1 //def HIS_CODE
 	pbuf_local = get_buf_local(ch);
 	for (i = 0; i < mm->cfg.num_local; i++) {
 		di_buf = &pbuf_local[i];
@@ -2407,6 +2424,7 @@ bool qiat_all_back2_ready(struct di_ch_s *pch)
 	return true;
 }
 
+#ifdef MARK_HIS
 bool qiat_all_release_mc_v(struct di_ch_s *pch)
 {
 	unsigned int len;
@@ -2430,7 +2448,9 @@ bool qiat_all_release_mc_v(struct di_ch_s *pch)
 
 	return true;
 }
+#endif
 
+#ifdef MARK_HIS
 bool qiat_clear_buf(struct di_ch_s *pch)
 {
 	//struct buf_que_s *pbf_mem;
@@ -2453,6 +2473,7 @@ bool qiat_clear_buf(struct di_ch_s *pch)
 #endif
 	return true;
 }
+#endif
 
 static ssize_t
 show_config(struct device *dev,
@@ -2878,7 +2899,7 @@ static int dim_remove(struct platform_device *pdev)
 	for (i = 0; i < DI_CHANNEL_NUB; i++) {
 		dim_uninit_buf(1, i);/*channel 0*/
 		pch = get_chdata(i);
-		qiat_clear_buf(pch);
+		//qiat_clear_buf(pch);
 		dim_sec_release(pch);
 	}
 	di_set_flg_hw_int(false);
