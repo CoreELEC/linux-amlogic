@@ -1024,8 +1024,12 @@ int tsync_check_pid_valid_for_newarch(struct dmx_info demux_info)
 		demux_pcrscr_valid = 1;
 	else
 		demux_pcrscr_valid = 0;
-	pr_info("a/v/p valid:[%d,%d,%d].",
-		audio_pid_valid, video_pid_valid, demux_pcrscr_valid);
+	if (!video_pid_valid)
+		pr_info("tsync exception video pid is valid.");
+	if (!audio_pid_valid)
+		pr_info("tsync exception audio pid is valid.");
+	if (!demux_pcrscr_valid)
+		pr_info("tsync exception demux pcr pid is valid.");
 	return 1;
 }
 
@@ -2606,8 +2610,6 @@ int tsync_store_fun(const char *trigger, int id, const char *buf, int size)
 	case 12:return store_debug_apts(NULL, NULL, buf, size);
 	case 13:return store_av_threshold_min(NULL, NULL, buf, size);
 	case 14:return store_av_threshold_max(NULL, NULL, buf, size);
-	/*case 15:return -1;*/
-	/*case 16:return -1;*/
 	case 17:return store_vpause_flag(NULL, NULL, buf, size);
 	case 18:return store_slowsync_enable(NULL, NULL, buf, size);
 	case 19:return store_startsync_mode(NULL, NULL, buf, size);
@@ -2714,7 +2716,6 @@ int tsync_show_fun(const char *trigger, int id, char *sbuf, int size)
 	case 26:
 		ret = show_last_checkin_vpts(NULL, NULL, buf);
 		break;
-
 	default:
 		ret = -1;
 	}

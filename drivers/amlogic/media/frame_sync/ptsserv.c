@@ -1054,8 +1054,8 @@ static int pts_lookup_offset_inline_locked(u8 type, u32 offset, u32 *val,
 				if (tsync_get_debug_pts_checkout()) {
 					if (tsync_get_debug_vpts()
 						&& (type == PTS_TYPE_VIDEO)) {
-						pr_info("first vpts look up");
-						pr_info(" offset<0x%x> failed,",
+						pr_info("first vpts look up fail");
+						pr_info(" offset<0x%x>,",
 								offset);
 						pr_info("return ");
 						pr_info("first_checkin_pts");
@@ -1064,8 +1064,8 @@ static int pts_lookup_offset_inline_locked(u8 type, u32 offset, u32 *val,
 					if (tsync_get_debug_apts()
 						&& (type == PTS_TYPE_AUDIO)) {
 
-						pr_info("first apts look up");
-						pr_info(" offset<0x%x> failed,",
+						pr_info("first apts look up fail");
+						pr_info(" offset<0x%x>,",
 								offset);
 						pr_info("return ");
 						pr_info("first_checkin_pts");
@@ -1080,16 +1080,16 @@ static int pts_lookup_offset_inline_locked(u8 type, u32 offset, u32 *val,
 			if (tsync_get_debug_pts_checkout()) {
 				if (tsync_get_debug_vpts()
 					&& (type == PTS_TYPE_VIDEO)) {
-					pr_info("vpts look up offset<0x%x> ",
+					pr_info("vpts look up offset<0x%x> fail,",
 							offset);
-					pr_info("failed,look_cnt = %d\n",
+					pr_info("look_cnt = %d\n",
 							look_cnt);
 				}
 				if (tsync_get_debug_apts()
 					&& (type == PTS_TYPE_AUDIO)) {
-					pr_info("apts look up offset<0x%x> ",
+					pr_info("apts look up offset<0x%x> fail,",
 							offset);
-					pr_info("failed,look_cnt = %d\n",
+					pr_info("look_cnt = %d\n",
 							look_cnt);
 				}
 			}
