@@ -5616,25 +5616,33 @@ SET_FILTER:
 	if (vd_layer[0].dispbuf &&
 		(vd_layer[0].dispbuf->flag & VFRAME_FLAG_FAKE_FRAME)) {
 		if ((vd_layer[0].force_black &&
-			!(debug_flag & DEBUG_FLAG_BLACK_NO_REWRITE_REG)) ||
+			!(debug_flag & DEBUG_FLAG_NO_CLIP_SETTING)) ||
 			!vd_layer[0].force_black) {
-			VSYNC_WR_MPEG_REG(VPP_VD1_CLIP_MISC0,
-				(0x0 << 20) |
-				(0x200 << 10) |
-				0x200);
-			VSYNC_WR_MPEG_REG(VPP_VD1_CLIP_MISC1,
-				(0x0 << 20) |
-				(0x200 << 10) |
-				0x200);
+			if (vd_layer[0].dispbuf->type & VIDTYPE_RGB_444) {
+				/* RGB */
+				vd_layer[0].clip_setting.clip_max =
+					(0x0 << 20) | (0x0 << 10) | 0;
+				vd_layer[0].clip_setting.clip_min =
+					vd_layer[0].clip_setting.clip_max;
+			} else {
+				/* YUV */
+				vd_layer[0].clip_setting.clip_max =
+					(0x0 << 20) | (0x200 << 10) | 0x200;
+				vd_layer[0].clip_setting.clip_min =
+					vd_layer[0].clip_setting.clip_max;
+			}
+			vd_layer[0].clip_setting.clip_done = false;
 		}
 		if (!vd_layer[0].force_black) {
-			pr_info("vsync: vd1 force black\n");
+			pr_debug("vsync: vd1 force black\n");
 			vd_layer[0].force_black = true;
 		}
 	} else if (vd_layer[0].force_black) {
-		pr_info("vsync: vd1 black to normal\n");
-		VSYNC_WR_MPEG_REG(VPP_VD1_CLIP_MISC0, 0x3fffffff);
-		VSYNC_WR_MPEG_REG(VPP_VD1_CLIP_MISC1, 0x0);
+		pr_debug("vsync: vd1 black to normal\n");
+		vd_layer[0].clip_setting.clip_max =
+			(0x3ff << 20) | (0x3ff << 10) | 0x3ff;
+		vd_layer[0].clip_setting.clip_min = 0;
+		vd_layer[0].clip_setting.clip_done = false;
 		vd_layer[0].force_black = false;
 	}
 
@@ -5715,6 +5723,10 @@ exit:
 #if defined(PTS_LOGGING) || defined(PTS_TRACE_DEBUG)
 	pts_trace++;
 #endif
+
+	vd_clip_setting(0, &vd_layer[0].clip_setting);
+	vd_clip_setting(1, &vd_layer[1].clip_setting);
+
 	vpp_blend_update(vinfo);
 
 	if (gvideo_recv[0])
