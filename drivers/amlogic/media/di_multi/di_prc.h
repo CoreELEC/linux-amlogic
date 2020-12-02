@@ -201,6 +201,8 @@ void dbg_afbce_update_level1(struct vframe_s *vf,
 			     enum EAFBC_ENC enc);
 void pre_cfg_cvs(struct vframe_s *vf);//debug only
 void dbg_pip_func(struct di_ch_s *pch, unsigned int mode);
+bool dip_is_support_4k(unsigned int ch);
+
 /************************************************/
 void dcntr_prob(void);
 void dcntr_reg(unsigned int on);

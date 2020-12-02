@@ -843,7 +843,8 @@ void di_set_default(unsigned int ch)
 //	struct di_pre_stru_s *ppre = get_pre_stru(ch);
 
 	mm = dim_mm_get(ch);
-	if (dim_afds() && cfgg(4K)) {
+	if (dim_afds()		&&
+	    dip_is_support_4k(ch)) {
 		default_width = 3840;
 		default_height = 2160;
 	} else {
@@ -4151,7 +4152,8 @@ void dim_pre_de_process(unsigned int channel)
 			       &ppre->di_contwr_mif,
 			       ppre->madi_enable,
 			       chan2_field_num,
-			       ppre->vdin2nr);
+			       ppre->vdin2nr |
+			       (ppre->is_bypass_mem << 4));
 
 	//dimh_enable_afbc_input(ppre->di_inp_buf->vframe);
 	if (IS_ERR_OR_NULL(ppre->di_wr_buf))
@@ -5275,7 +5277,7 @@ unsigned char dim_pre_de_buf_config(unsigned int channel)
 			sgn = di_vframe_2_sgn(vframe);
 			if ((sgn != ppre->sgn_lv)	&&
 			    dim_afds()			&&
-			    cfgg(4K) &&
+			    dip_is_support_4k(channel) &&
 			    (((sgn == EDI_SGN_4K) &&
 			      (ppre->sgn_lv <= EDI_SGN_HD)) ||
 			     ((sgn <= EDI_SGN_HD) &&
@@ -5516,6 +5518,7 @@ unsigned char dim_pre_de_buf_config(unsigned int channel)
 			ppre->orientation = di_buf->vframe->video_angle;
 			ppre->source_change_flag = 1;
 			ppre->input_size_change_flag = true;
+			ppre->is_bypass_mem = 0;
 #ifdef SUPPORT_MPEG_TO_VDIN
 			if ((!is_from_vdin(vframe)) &&
 			    vframe->sig_fmt == TVIN_SIG_FMT_NULL &&
@@ -5926,10 +5929,15 @@ unsigned char dim_pre_de_buf_config(unsigned int channel)
 	di_buf->vframe->canvas0Addr = di_buf->nr_canvas_idx;
 	di_buf->vframe->canvas1Addr = di_buf->nr_canvas_idx;
 	//if (di_buf->vframe->width == 3840 && di_buf->vframe->height == 2160)
-	if (ppre->sgn_lv == EDI_SGN_4K)
+	if (ppre->sgn_lv == EDI_SGN_4K) {
 		di_buf->is_4k = 1;
-	else
+		if (cfgg(BYPASS_MEM) == 2)
+			ppre->is_bypass_mem = 1;
+		else
+			ppre->is_bypass_mem = 0;
+	} else {
 		di_buf->is_4k = 0;
+	}
 
 	/* set vframe bit info */
 	di_buf->vframe->bitdepth &= ~(BITDEPTH_YMASK);
@@ -9093,6 +9101,7 @@ void di_unreg_variable(unsigned int channel)
 	mirror_disable = 0;
 	di_lock_irqfiq_save(irq_flag2);
 	dim_print("%s: dim_uninit_buf\n", __func__);
+	pch->src_type = 0;
 	dim_uninit_buf(mirror_disable, channel);
 #ifdef CONFIG_AMLOGIC_MEDIA_RDMA
 	if (di_pre_rdma_enable)

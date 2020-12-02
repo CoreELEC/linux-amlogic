@@ -846,6 +846,10 @@ void dimh_enable_di_pre_aml(struct DI_MIF_S *di_inp_mif,
 	unsigned short mem_hsize = 0, mem_vsize = 0;
 	unsigned int sc2_tfbf = 0; /* DI_PRE_CTRL bit [12:11] */
 
+	if (DIM_IS_IC(T5))
+		mem_bypass = (pre_vdin_link & DI_BIT4) ? true : false;
+	pre_vdin_link &= 0xf;
+
 	if (DIM_IS_IC_EF(SC2)) {
 		di_inp_mif->urgent	= dimp_get(edi_mp_pre_urgent);
 		di_inp_mif->hold_line	= dimp_get(edi_mp_pre_hold_line);
