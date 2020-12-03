@@ -2382,7 +2382,8 @@ static void check_tvp_state(struct di_ch_s *pch)
 
 	ch = pch->ch_id;
 	set_flag_tvp(ch, 0);
-	set_flag_secure(ch, 0);
+	set_flag_secure_pre(ch, 0);
+	set_flag_secure_pst(ch, 0);
 
 	while (provider_name) {
 		if (!vf_get_provider_name(provider_name))
