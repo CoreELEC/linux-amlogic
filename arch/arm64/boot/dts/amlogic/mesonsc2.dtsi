@@ -623,6 +623,16 @@
 		status = "disabled";
 	};
 
+	sspicc1: sspi@fe052000 {
+		compatible = "amlogic,slave-spicc";
+		reg = <0x0 0xfe052000 0x0 0x44>;
+		interrupts = <GIC_SPI 184 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&clkc CLKID_SPICC1>,
+			 <&clkc CLKID_SPICC1_GATE>;
+		clock-names = "core", "comp";
+		status = "disabled";
+	};
+
 	spifc: spifc@fe056000 {
 		compatible = "amlogic,aml-spi-nor";
 		status = "disabled";
@@ -2657,6 +2667,14 @@
 				 "spi_b_miso_h",
 				 //"spi_b_ss0_h",
 				 "spi_b_sclk_h";
+			function = "spi_b";
+			drive-strength = <1>;
+		};
+	};
+
+	spicc1_pins_cs_h: spicc1_pins_cs_h {
+		mux {
+			groups = "spi_b_ss0_h";
 			function = "spi_b";
 			drive-strength = <1>;
 		};
