@@ -2175,10 +2175,10 @@ static inline bool vpts_expire(struct vframe_s *cur_vf,
 			hold_property_changed = 0;
 	}
 	/* check video PTS discontinuity */
-	else if ((enable_video_discontinue_report) &&
-		 (first_frame_toggled) &&
-		 (abs(systime - pts) > tsync_vpts_discontinuity_margin()) &&
-		 ((next_vf->flag & VFRAME_FLAG_NO_DISCONTINUE) == 0)) {
+	if ((enable_video_discontinue_report) &&
+	    (first_frame_toggled) &&
+	    (abs(systime - pts) > tsync_vpts_discontinuity_margin()) &&
+	    ((next_vf->flag & VFRAME_FLAG_NO_DISCONTINUE) == 0)) {
 		/*
 		 * if paused ignore discontinue
 		 */
@@ -2398,8 +2398,12 @@ static inline bool vpts_expire(struct vframe_s *cur_vf,
 			video_frame_repeat_count = 0;
 		}
 	}
-
-	expired = (int)(timestamp_pcrscr_get() + vsync_pts_align - pts) >= 0;
+	if (tsync_get_mode() == TSYNC_MODE_PCRMASTER)
+		expired = (timestamp_pcrscr_get() + vsync_pts_align >= pts) ?
+				true : false;
+	else
+		expired = (int)(timestamp_pcrscr_get() +
+				vsync_pts_align - pts) >= 0;
 
 #ifdef PTS_THROTTLE
 	if (expired && next_vf && next_vf->next_vf_pts_valid &&
