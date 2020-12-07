@@ -127,7 +127,7 @@ static const struct snd_pcm_hardware extn_hardware = {
 	.periods_max = 1024,
 	.buffer_bytes_max = EXTN_BUFFER_BYTES,
 
-	.rate_min = 8000,
+	.rate_min = 32000,
 	.rate_max = 192000,
 	.channels_min = 1,
 	.channels_max = 32,

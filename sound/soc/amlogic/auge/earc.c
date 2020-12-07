@@ -223,7 +223,7 @@ static const struct snd_pcm_hardware earc_hardware = {
 	.periods_max = 1024,
 	.buffer_bytes_max = EARC_BUFFER_BYTES,
 
-	.rate_min = 8000,
+	.rate_min = 32000,
 	.rate_max = 192000,
 	.channels_min = 1,
 	.channels_max = 32,
