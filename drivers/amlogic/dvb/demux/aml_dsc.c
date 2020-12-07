@@ -392,7 +392,8 @@ static int _dsc_chan_set_key(struct dsc_channel *ch,
 	else
 		ptmp->kte_even_00 = kte;
 
-	dsc_config_pid_table(ptmp, ch->dsc_type);
+	if (ptmp->algo != (CA_ALGO_UNKNOWN + 1))
+		dsc_config_pid_table(ptmp, ch->dsc_type);
 	return 0;
 }
 
@@ -425,6 +426,22 @@ static int _dsc_chan_set_scb(struct dsc_channel *ch, u8 scb_out, u8 scb_as_is)
 	return 0;
 }
 
+static int _dsc_chan_set_algo(struct dsc_channel *ch,
+		enum ca_sc2_algo_type algo)
+{
+	struct dsc_pid_table *ptmp = NULL;
+
+	ptmp = _get_dsc_pid_table(ch->index, ch->dsc_type);
+	if (!ptmp) {
+		dprint("%s _get_dsc_pid_table fail\n", __func__);
+		return -1;
+	}
+	ptmp->algo = algo;
+	if (ptmp->valid)
+		dsc_config_pid_table(ptmp, ch->dsc_type);
+	return 0;
+}
+
 static void _dsc_reset(struct aml_dsc *dsc)
 {
 	dprint("dsc_reset not support\n");
@@ -448,7 +465,7 @@ static int handle_desc_ext(struct aml_dsc *dsc, struct ca_sc2_descr_ex *d)
 	switch (d->cmd) {
 	case CA_ALLOC:{
 //              pr_dbg("%s CA_ALLOC\n", __func__);
-			if (d->params.alloc_params.algo > CA_ALGO_ASA_LIGHT) {
+			if (d->params.alloc_params.algo > CA_ALGO_UNKNOWN) {
 				ret = -EINVAL;
 				break;
 			}
@@ -523,6 +540,20 @@ static int handle_desc_ext(struct aml_dsc *dsc, struct ca_sc2_descr_ex *d)
 							ca_scb,
 							d->params.scb_params.
 							ca_scb_as_is);
+			}
+		}
+		break;
+	case CA_SET_ALGO:{
+			struct dsc_channel *ch;
+
+			ch = _get_chan_from_list(dsc,
+					 d->params.algo_params.ca_index);
+			if (ch) {
+				pr_dbg("%s algo:%d\n",
+				       __func__,
+				       d->params.algo_params.algo);
+				ret = _dsc_chan_set_algo(ch,
+						d->params.algo_params.algo + 1);
 			}
 		}
 		break;
