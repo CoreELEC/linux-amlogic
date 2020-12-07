@@ -47,8 +47,8 @@ static struct snd_pcm_hardware aml_pdm_hardware = {
 					SNDRV_PCM_FMTBIT_S24 |
 					SNDRV_PCM_FMTBIT_S32,
 
-	.rate_min			=	8000,
-	.rate_max			=	96000,
+	.rate_min			=	32000,
+	.rate_max			=	192000,
 
 	.channels_min		=	PDM_CHANNELS_MIN,
 	.channels_max		=	PDM_CHANNELS_LB_MAX,
