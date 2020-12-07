@@ -188,7 +188,7 @@ static const struct snd_pcm_hardware loopback_hardware = {
 	.periods_min = 1,
 	.periods_max = 1024,
 
-	.rate_min = 8000,
+	.rate_min = 32000,
 	.rate_max = 192000,
 	.channels_min = 1,
 	.channels_max = 32,
