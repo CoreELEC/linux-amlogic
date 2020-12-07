@@ -29,7 +29,6 @@ extern void vdac_enable(bool on, unsigned int module_sel);
 extern int vdac_enable_check_dtv(void);
 extern int vdac_enable_check_cvbs(void);
 int vdac_vref_adj(unsigned int value);
-int vdac_gsw_adj(unsigned int value);
 unsigned int vdac_get_reg_addr(unsigned int index);
 
 #endif
