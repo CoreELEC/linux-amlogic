@@ -174,8 +174,8 @@ static const struct snd_pcm_hardware aml_tdm_hardware = {
 	.periods_max = 1024,
 	.buffer_bytes_max = 512 * 1024 * 2,
 
-	.rate_min = 8000,
-	.rate_max = 384000,
+	.rate_min = 32000,
+	.rate_max = 192000,
 	.channels_min = 1,
 	.channels_max = 32,
 };
@@ -1654,7 +1654,11 @@ static struct snd_soc_dai_ops aml_dai_tdm_ops = {
 	.mute_stream = aml_dai_tdm_mute_stream,
 };
 
-#define AML_DAI_TDM_RATES		(SNDRV_PCM_RATE_8000_384000)
+#define AML_DAI_TDM_RATES		\
+	(SNDRV_PCM_RATE_32000 | SNDRV_PCM_RATE_44100 |\
+	 SNDRV_PCM_RATE_48000 | SNDRV_PCM_RATE_88200 |\
+	 SNDRV_PCM_RATE_96000 | SNDRV_PCM_RATE_176400 |\
+	 SNDRV_PCM_RATE_192000)
 #define AML_DAI_TDM_FORMATS		(SNDRV_PCM_FMTBIT_S16_LE |\
 		SNDRV_PCM_FMTBIT_S24_LE | SNDRV_PCM_FMTBIT_S32_LE)
 
