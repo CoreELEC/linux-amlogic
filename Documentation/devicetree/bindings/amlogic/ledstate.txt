@@ -1,0 +1,6 @@
+Amlogic Meson LED
+============================
+
+Required properties:
+	-for sc2
+		amlogic,state-led-aocpu

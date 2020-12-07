@@ -13881,6 +13881,10 @@ M: Bichao Zheng <bichao.zheng@amlogic.com>
 F: drivers/amlogic/led/leds-tlc59116.c
 F: drivers/amlogic/led/leds-tlc59116.h
 
+AMLOGIC LED STATE DRIVER SUPPORT
+M: Bichao Zheng <bichao.zheng@amlogic.com>
+F: drivers/amlogic/led/leds-state.c
+
 AMLOGIC JTAG DRIVER SUPPORT
 M: Bo Yang <bo.yang@amlogic.com>
 F: drivers/amlogic/jtag/*
