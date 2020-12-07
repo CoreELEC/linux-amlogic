@@ -2001,6 +2001,10 @@
 		status = "okay";
 	};
 
+	state_led {
+		compatible = "amlogic,state-led-aocpu";
+		status = "disabled";
+	};
 };/* end of / */
 
 &pinctrl_periphs {
