@@ -1,0 +1,31 @@
+Amlogic Meson SPI controller
+
+* slave SPICC
+
+Required properties:
+ - compatible: should be "amlogic,slave-spicc"
+ - reg: physical base address and length of the controller registers
+ - interrupts: The interrupt specifier
+ - clock-names: Must contain "core", "comp"
+ - clocks: phandle of the input clock for the baud rate generator
+ - pinctrl-names: Should contain only one value - "default"
+ - cs-num: Should be 0~3
+ - spi-mode: Refer to spi-summary.txt
+ - vmem-bus-num: Should be 0~16
+
+Optional properties:
+
+Examples:
+	sspicc1: sspi@15000 {
+		compatible = "amlogic,slave-spicc";
+		reg = <0x15000 0x44>;
+		interrupts = <GIC_SPI 90 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&clkc CLKID_SPICC1>,
+			 <&clkc CLKID_SPICC1_COMP>;
+		clock-names = "core", "comp";
+		pinctrl-names = "default";
+		pinctrl-0 = <&spicc1_pins_dv &spicc1_pins_cs_dv>;
+		cs-num = <0>;
+		spi-mode = <0x0>;
+		vmem-bus-num = <0>;
+	};

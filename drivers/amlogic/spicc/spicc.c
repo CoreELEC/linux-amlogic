@@ -628,6 +628,9 @@ static int spicc_hw_xfer(struct spicc *spicc, u8 *txp, u8 *rxp, int len)
 	void __iomem *mem_base = spicc->regs;
 	int ret;
 
+	if (!len)
+		return 0;
+
 	spicc_reset_fifo(spicc);
 	setb(mem_base, CON_XCH, 0);
 	setb(mem_base, WAIT_CYCLES, 0);
@@ -1224,14 +1227,15 @@ static int of_spicc_get_data(
 		dev_err(&pdev->dev, "get clk fail\n");
 		return PTR_ERR(spicc->clk);
 	}
+	clk_prepare_enable(spicc->clk);
+	if (spicc->clk_rate)
+		clk_set_rate(spicc->clk, spicc->clk_rate);
+
 	spicc->hclk = devm_clk_get(&pdev->dev, "cts_spicc_hclk");
 	if (IS_ERR_OR_NULL(spicc->hclk))
 		dev_err(&pdev->dev, "get cts_spicc_hclk failed\n");
-	if (spicc->clk_rate) {
-		clk_set_rate(spicc->clk, spicc->clk_rate);
-		clk_prepare_enable(spicc->clk);
+	else
 		clk_prepare_enable(spicc->hclk);
-	}
 
 	if (spicc_get_flag(spicc, FLAG_ENHANCE)) {
 		err = of_property_read_u32(np, "enhance_dlyctl", &value);
@@ -1318,12 +1322,12 @@ static int spicc_probe(struct platform_device *pdev)
 	dev_warn(&pdev->dev, "no snor on spicc bus\n");
 #endif
 
-	master = spi_alloc_master(&pdev->dev, sizeof(*spicc));
+	master = spi_alloc_master(&pdev->dev, 0);
 	if (IS_ERR_OR_NULL(master)) {
 		dev_err(&pdev->dev, "allocate spi master failed!\n");
 		return -ENOMEM;
 	}
-	spicc = spi_master_get_devdata(master);
+	spi_master_set_devdata(master, spicc);
 	spicc->master = master;
 	master->dev.of_node = pdev->dev.of_node;
 	master->bus_num = spicc->device_id;

@@ -13899,6 +13899,11 @@ F: drivers/amlogic/media/video_processor/video_dev/common/vfutil.c
 AMLOGIC SPICC DRIVER
 M: Neil Armstrong <narmstrong@baylibre.com>
 F: drivers/spi/spi-meson-spicc.c
+M: Sunny Luo <sunny.luo@amlogic.com>
+F: drivers/amlogic/spicc/sspicc.c
+F: drivers/amlogic/spicc/vmem.c
+F: include/linux/amlogic/vmem.h
+F: Documentation/devicetree/bindings/amlogic/spi-meson.txt
 
 AMLOGIC BT/WIFI
 M: Rongjun Chen <rongjun.chen@amlogic.com>
