@@ -50,8 +50,7 @@ static int am_meson_gem_alloc_ion_buff(
 
 	//check flags to set different ion heap type.
 	//if flags is set to 0, need to use ion dma buffer.
-	if (((flags & (MESON_USE_SCANOUT | MESON_USE_CURSOR)) != 0)
-		|| (flags == 0)) {
+	if (((flags & (MESON_USE_SCANOUT | MESON_USE_CURSOR)) != 0)) {
 		handle = ion_alloc(client, meson_gem_obj->base.size,
 				   0, (1 << ION_HEAP_TYPE_DMA), 0);
 	} else if (flags & MESON_USE_VIDEO_PLANE) {
@@ -63,6 +62,16 @@ static int am_meson_gem_alloc_ion_buff(
 		meson_gem_obj->is_afbc = true;
 		handle = ion_alloc(client, UVM_FAKE_SIZE,
 				   0, (1 << ION_HEAP_TYPE_SYSTEM), 0);
+	} else if (flags == 0) {
+		// allocate from cma heap first
+		handle = ion_alloc(client, meson_gem_obj->base.size,
+				   0, (1 << ION_HEAP_TYPE_DMA), 0);
+		if (IS_ERR_OR_NULL(handle)) {
+			DRM_ERROR("CMA heap fail, try system heap.\n");
+			handle = ion_alloc(client, meson_gem_obj->base.size,
+					   0, (1 << ION_HEAP_TYPE_SYSTEM), 0);
+			bscatter = true;
+		}
 	} else {
 		handle = ion_alloc(client, meson_gem_obj->base.size,
 				   0, (1 << ION_HEAP_TYPE_SYSTEM), 0);

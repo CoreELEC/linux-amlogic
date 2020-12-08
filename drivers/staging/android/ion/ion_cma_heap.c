@@ -20,6 +20,11 @@
 #include <linux/errno.h>
 #include <linux/err.h>
 #include <linux/dma-mapping.h>
+#ifdef CONFIG_AMLOGIC_MODIFY
+#include <linux/cma.h>
+#include <linux/of.h>
+#include <linux/highmem.h>
+#endif
 
 #include "ion.h"
 #include "ion_priv.h"
@@ -37,8 +42,129 @@ struct ion_cma_buffer_info {
 	void *cpu_addr;
 	dma_addr_t handle;
 	struct sg_table *table;
+#ifdef CONFIG_AMLOGIC_MODIFY
+	struct page *pages;
+#endif
 };
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+static bool ion_cma_has_kernel_nomapping(struct ion_heap *heap)
+{
+	struct ion_cma_heap *cma_heap = to_cma_heap(heap);
+	struct device *dev = cma_heap->dev;
+	struct device_node *mem_region;
+
+	mem_region = of_parse_phandle(dev->of_node, "memory-region", 0);
+	if (!mem_region)
+		return false;
+
+	return of_property_read_bool(mem_region, "no-kernel-map");
+}
+
+/* ION CMA heap operations functions */
+static int ion_cma_nomap_allocate(struct ion_heap *heap,
+				  struct ion_buffer *buffer,
+				  unsigned long len, unsigned long align,
+				  unsigned long flags)
+{
+	int ret;
+	struct sg_table *table;
+	struct cma *cma = NULL;
+	struct page *pages = NULL;
+	unsigned long size = PAGE_ALIGN(len);
+	unsigned long nr_pages = size >> PAGE_SHIFT;
+	struct ion_cma_heap *cma_heap = to_cma_heap(heap);
+	struct device *dev = cma_heap->dev;
+	struct ion_cma_buffer_info *info;
+
+	if (buffer->flags & ION_FLAG_CACHED)
+		return -EINVAL;
+
+	if (align > PAGE_SIZE)
+		return -EINVAL;
+
+	if (!dev->cma_area)
+		return -EINVAL;
+
+	cma = dev->cma_area;
+	info = kzalloc(sizeof(*info), GFP_KERNEL);
+	if (!info)
+		return ION_CMA_ALLOCATE_FAILED;
+
+	pages = cma_alloc(cma, nr_pages, align);
+
+	if (!pages)
+		goto err;
+
+	if (PageHighMem(pages)) {
+		unsigned long nr_clear_pages = nr_pages;
+		struct page *page = pages;
+
+		while (nr_clear_pages > 0) {
+			void *vaddr = kmap_atomic(page);
+
+			memset(vaddr, 0, PAGE_SIZE);
+			kunmap_atomic(vaddr);
+			page++;
+			nr_clear_pages--;
+		}
+	} else {
+		memset(page_address(pages), 0, size);
+	}
+
+	ion_pages_sync_for_device(dev, pages, size, DMA_BIDIRECTIONAL);
+
+	table = kmalloc(sizeof(*table), GFP_KERNEL);
+	if (!table)
+		goto free_mem;
+
+	ret = sg_alloc_table(table, 1, GFP_KERNEL);
+	if (ret)
+		goto free_table;
+
+	sg_set_page(table->sgl, pages, size, 0);
+
+	/* keep this for memory release */
+	info->table = table;
+	info->pages = pages;
+	buffer->priv_virt = info;
+	buffer->sg_table = table;
+	return 0;
+
+free_table:
+	kfree(table);
+free_mem:
+	cma_release(cma, pages, nr_pages);
+err:
+	kfree(info);
+	return ION_CMA_ALLOCATE_FAILED;
+}
+
+static void ion_cma_nomap_free(struct ion_buffer *buffer)
+{
+	struct ion_cma_heap *cma_heap = to_cma_heap(buffer->heap);
+	struct device *dev = cma_heap->dev;
+	struct ion_cma_buffer_info *info = buffer->priv_virt;
+	struct page *pages = info->pages;
+	unsigned long nr_pages = PAGE_ALIGN(buffer->size) >> PAGE_SHIFT;
+
+	/* release memory */
+	cma_release(dev->cma_area, pages, nr_pages);
+	/* release sg table */
+	sg_free_table(info->table);
+	kfree(info->table);
+	kfree(info);
+}
+
+static struct ion_heap_ops ion_cma_nomap_ops = {
+	.allocate = ion_cma_nomap_allocate,
+	.free = ion_cma_nomap_free,
+	.map_user = ion_heap_map_user,
+	.map_kernel = ion_heap_map_kernel,
+	.unmap_kernel = ion_heap_unmap_kernel,
+};
+
+#endif
 
 /* ION CMA heap operations functions */
 static int ion_cma_allocate(struct ion_heap *heap, struct ion_buffer *buffer,
@@ -150,6 +276,10 @@ struct ion_heap *ion_cma_heap_create(struct ion_platform_heap *data)
 	 */
 	cma_heap->dev = data->priv;
 	cma_heap->heap.type = ION_HEAP_TYPE_DMA;
+#ifdef CONFIG_AMLOGIC_MODIFY
+	if (ion_cma_has_kernel_nomapping(&cma_heap->heap))
+		cma_heap->heap.ops = &ion_cma_nomap_ops;
+#endif
 	return &cma_heap->heap;
 }
 

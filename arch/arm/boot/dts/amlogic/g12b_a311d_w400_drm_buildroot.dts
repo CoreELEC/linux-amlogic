@@ -90,6 +90,7 @@
 			reusable;
 			size = <0x8000000>;
 			alignment = <0x400000>;
+			no-kernel-map;
 		};
 
 		//di_reserved:linux,di {
