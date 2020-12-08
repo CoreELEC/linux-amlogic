@@ -1678,7 +1678,8 @@
 
 &spicc0 {
 	status = "okay";
-	pinctrl-names = "default";
+	pinctrl-names = "default", "sleep";
 	pinctrl-0 = <&spi_a_pins>;
+	pinctrl-1 = <&spi_a_pins_sleep>;
 	cs-gpios = <&gpio GPIOZ_3 0>;
 };

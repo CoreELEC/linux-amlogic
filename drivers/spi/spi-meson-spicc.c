@@ -23,7 +23,8 @@
 #include <linux/reset.h>
 #include <linux/gpio.h>
 #include <linux/dma-mapping.h>
- #include <linux/delay.h>
+#include <linux/delay.h>
+#include <linux/amlogic/pm.h>
 
 /*
  * The Meson SPICC controller could support DMA based transfers, but is not
@@ -1164,6 +1165,30 @@ static int meson_spicc_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static int __maybe_unused meson_spicc_suspend(struct device *dev)
+{
+	if (is_pm_freeze_mode())
+		return 0;
+
+	pinctrl_pm_select_sleep_state(dev);
+
+	return 0;
+}
+
+static int __maybe_unused meson_spicc_resume(struct device *dev)
+{
+	if (is_pm_freeze_mode())
+		return 0;
+
+	pinctrl_pm_select_default_state(dev);
+
+	return 0;
+}
+
+static const struct dev_pm_ops meson_spicc_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(meson_spicc_suspend, meson_spicc_resume)
+};
+
 static const struct meson_spicc_data meson_spicc_gx_data = {
 	.min_speed_hz		= 325000,
 	.max_speed_hz		= 4166667,
@@ -1232,6 +1257,8 @@ static struct platform_driver meson_spicc_driver = {
 	.driver  = {
 		.name = "meson-spicc",
 		.of_match_table = of_match_ptr(meson_spicc_of_match),
+		.pm = &meson_spicc_pm_ops,
+
 	},
 };
 

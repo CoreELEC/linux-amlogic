@@ -1891,15 +1891,17 @@
 
 &spicc0 {
 	status = "disabled";
-	pinctrl-names = "default";
+	pinctrl-names = "default", "sleep";
 	pinctrl-0 = <&spicc0_pins_h>;
+	pinctrl-1 = <&spicc0_pins_h_sleep>;
 	cs-gpios = <&gpio GPIOH_20 0>;
 };
 
 &spicc_a {
 	status = "okay";
-	pinctrl-names= "default";
-	pinctrl-0=<&spicc0_pins_h>;
+	pinctrl-names = "default", "sleep";
+	pinctrl-0 = <&spicc0_pins_h>;
+	pinctrl-1 = <&spicc0_pins_h_sleep>;
 	cs-gpios = <&gpio GPIOH_20 GPIO_ACTIVE_HIGH>;
 	spi-nor@0 {
 		compatible = "jedec,spi-nor";

@@ -38,6 +38,7 @@
 #ifdef CONFIG_MTD_SPI_NOR
 #include <linux/mtd/spi-nor.h>
 #endif
+#include <linux/amlogic/pm.h>
 #include "spicc.h"
 
 /* #define CONFIG_SPICC_LOG */
@@ -1397,27 +1398,29 @@ static int spicc_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static int spicc_suspend(struct platform_device *pdev, pm_message_t state)
+static int __maybe_unused spicc_suspend(struct device *dev)
 {
-	struct spicc *spicc;
-	unsigned long flags;
+	if (is_pm_freeze_mode())
+		return 0;
 
-	spicc = (struct spicc *)dev_get_drvdata(&pdev->dev);
-	spin_lock_irqsave(&spicc->lock, flags);
-	spin_unlock_irqrestore(&spicc->lock, flags);
+	pinctrl_pm_select_sleep_state(dev);
+
 	return 0;
 }
 
-static int spicc_resume(struct platform_device *pdev)
+static int __maybe_unused spicc_resume(struct device *dev)
 {
-	struct spicc *spicc;
-	unsigned long flags;
+	if (is_pm_freeze_mode())
+		return 0;
 
-	spicc = (struct spicc *)dev_get_drvdata(&pdev->dev);
-	spin_lock_irqsave(&spicc->lock, flags);
-	spin_unlock_irqrestore(&spicc->lock, flags);
+	pinctrl_pm_select_default_state(dev);
+
 	return 0;
 }
+
+static const struct dev_pm_ops spicc_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(spicc_suspend, spicc_resume)
+};
 
 #ifdef CONFIG_OF
 static const struct of_device_id spicc_of_match[] = {
@@ -1431,12 +1434,11 @@ static const struct of_device_id spicc_of_match[] = {
 static struct platform_driver spicc_driver = {
 	.probe = spicc_probe,
 	.remove = spicc_remove,
-	.suspend = spicc_suspend,
-	.resume = spicc_resume,
 	.driver = {
 			.name = "spicc",
 			.of_match_table = spicc_of_match,
 			.owner = THIS_MODULE,
+			.pm = &spicc_pm_ops,
 		},
 };
 

@@ -35,6 +35,8 @@
 		serial2 = &uart_B;
 		serial3 = &uart_C;
 		serial4 = &uart_AO_B;
+		spi0 = &spicc0;
+		spi1 = &spicc1;
 	};
 
 	ion_dev {
@@ -1561,7 +1563,8 @@
 
 &spicc0 {
 	status = "okay";
-	pinctrl-names = "default";
+	pinctrl-names = "default", "sleep";
 	pinctrl-0 = <&spi_a_pins>;
+	pinctrl-1 = <&spi_a_pins_sleep>;
 	cs-gpios = <&gpio GPIOZ_3 0>;
 };

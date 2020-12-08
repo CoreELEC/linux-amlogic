@@ -2312,6 +2312,15 @@
 		};
 	};
 
+	spicc0_pins_h_sleep: spicc0_pins_h_sleep {
+		mux {
+			groups = "GPIOH_17", "GPIOH_18", "GPIOH_19";
+			function = "gpio_periphs";
+			bias-disable;
+			input-enable;
+		};
+	};
+
 	spicc1_pins_dv: spicc1_pins_dv {
 		mux {
 			groups = "spi1_mosi_dv",
@@ -2319,6 +2328,15 @@
 				 "spi1_clk_dv";
 			function = "spi1";
 			drive-strength = <1>;
+		};
+	};
+
+	spicc1_pins_dv_sleep: spicc1_pins_dv_sleep {
+		mux {
+			groups = "GPIODV_7", "GPIODV_8", "GPIODV_9";
+			function = "gpio_periphs";
+			bias-disable;
+			input-enable;
 		};
 	};
 
