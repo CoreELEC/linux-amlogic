@@ -3941,7 +3941,7 @@ void dim_pre_de_process(unsigned int channel)
 	if (IS_ERR_OR_NULL(ppre->di_mem_buf_dup_p))
 		return;
 
-	dim_sc2_secure_sw_pre(channel);
+	dim_secure_sw_pre(channel);
 
 	if (ppre->di_mem_buf_dup_p	&&
 	    ppre->di_mem_buf_dup_p != ppre->di_inp_buf) {
@@ -7075,7 +7075,7 @@ int dim_post_process(void *arg, unsigned int zoom_start_x_lines,
 			channel);
 	}
 
-	dim_sc2_secure_sw_post(channel);
+	dim_secure_sw_post(channel);
 
 	dim_ddbg_mod_save(EDI_DBG_MOD_POST_SETB, channel, ppost->frame_cnt);
 	dbg_post_cnt(channel, "ps1");
