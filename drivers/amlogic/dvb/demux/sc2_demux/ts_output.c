@@ -801,7 +801,8 @@ static int write_es_data(struct out_elem *pout, struct es_params_t *es_params)
 	ret = SC2_bufferid_read(pout->pchan, &ptmp, len, 0);
 	if (ret) {
 		out_ts_cb_list(pout, ptmp, ret);
-		if (dump_audio_es == 1) {
+		if ((dump_audio_es & 0xFFFF)  == pout->es_pes->pid &&
+		((dump_audio_es >> 16) & 0xFFFF) == pout->sid) {
 			dump_file_open(AUDIOES_DUMP_FILE, &audio_dump_file);
 			dump_file_write(ptmp, ret, &audio_dump_file);
 		} else if (audio_dump_file.file_fp) {
@@ -822,7 +823,10 @@ static int write_es_data(struct out_elem *pout, struct es_params_t *es_params)
 			ret = SC2_bufferid_read(pout->pchan, &ptmp, len, 0);
 			if (ret) {
 				out_ts_cb_list(pout, ptmp, ret);
-				if (dump_audio_es == 1)
+				if (((dump_audio_es & 0xFFFF) ==
+							pout->es_pes->pid) &&
+					(((dump_audio_es >> 16) & 0xFFFF)
+						== pout->sid))
 					dump_file_write(
 						ptmp, ret, &audio_dump_file);
 				es_params->data_len += ret;
@@ -1166,7 +1170,8 @@ static int write_aucpu_es_data(struct out_elem *pout,
 	ret = aucpu_bufferid_read(pout, &ptmp, len, 0);
 	if (ret) {
 		out_ts_cb_list(pout, ptmp, ret);
-		if (dump_audio_es == 1) {
+		if ((dump_audio_es & 0xFFFF)  == pout->es_pes->pid &&
+			((dump_audio_es >> 16) & 0xFFFF) == pout->sid) {
 			dump_file_open(AUDIOES_DUMP_FILE, &audio_dump_file);
 			dump_file_write(ptmp, ret, &audio_dump_file);
 		} else if (audio_dump_file.file_fp) {
@@ -1312,7 +1317,8 @@ static int write_sec_video_es_data(struct out_elem *pout,
 
 	es_params->data_len += ret;
 
-	if (dump_video_es == 1) {
+	if ((dump_video_es & 0xFFFF)  == pout->es_pes->pid &&
+		((dump_video_es >> 16) & 0xFFFF) == pout->sid) {
 		dump_file_open(VIDEOES_DUMP_FILE, &video_dump_file);
 		if (video_dump_file.file_fp) {
 			if (flag) {
@@ -1337,7 +1343,8 @@ static int write_sec_video_es_data(struct out_elem *pout,
 		len = es_params->header.len - es_params->data_len;
 		ret = SC2_bufferid_read(pout->pchan, &ptmp, len, flag);
 		es_params->data_len += ret;
-		if (dump_video_es == 1) {
+		if ((dump_video_es & 0xFFFF)  == pout->es_pes->pid &&
+			((dump_video_es >> 16) & 0xFFFF) == pout->sid) {
 			if (video_dump_file.file_fp) {
 				if (flag) {
 					enforce_flush_cache(ptmp, ret);
@@ -2049,6 +2056,15 @@ int ts_output_add_pid(struct out_elem *pout, int pid, int pid_mask, int dmx_id,
 		/*before pid filter enable */
 		if (pout->pchan->sec_level)
 			create_aucpu_inst(pout);
+		if ((dump_video_es & 0xFFFF)  == pout->es_pes->pid &&
+			((dump_video_es >> 16) & 0xFFFF) == pout->sid  &&
+			pout->format == ES_FORMAT)
+			dump_file_open(VIDEOES_DUMP_FILE, &video_dump_file);
+
+		if ((dump_audio_es & 0xFFFF)  == pout->es_pes->pid &&
+			((dump_audio_es >> 16) & 0xFFFF) == pout->sid  &&
+			pout->format == ES_FORMAT)
+			dump_file_open(AUDIOES_DUMP_FILE, &audio_dump_file);
 
 		tsout_config_es_table(es_pes->buff_id, es_pes->pid,
 				      pout->sid, 1, !drop_dup, pout->format);
