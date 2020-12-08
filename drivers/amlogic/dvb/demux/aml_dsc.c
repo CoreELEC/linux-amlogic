@@ -816,6 +816,7 @@ int dsc_dump_info(char *buf)
 
 				have_show_e = 1;
 			}
+			chans = chans->next;
 		}
 
 		chans = dsc->dsc_channels;
