@@ -1329,8 +1329,6 @@
 		pinctrl-names = "tdm_pins";
 		pinctrl-0 = </*&tdmb_mclk &tdmout_b &tdmin_b*/>;
 
-		mclk_pad = <0>;  /* 0: mclk_0; 1: mclk_1 */
-
 		/*
 		 * 0: tdmout_a;
 		 * 1: tdmout_b;
