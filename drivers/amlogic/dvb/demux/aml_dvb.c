@@ -63,6 +63,8 @@ DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 
 static struct aml_dvb aml_dvb_device;
 static int dmx_dev_num;
+static int tsn_in;
+static int tsn_out;
 
 #define MAX_DMX_DEV_NUM      32
 static int sid_info[MAX_DMX_DEV_NUM];
@@ -149,6 +151,62 @@ int demux_get_pcr(int demux_device_index, int index, u64 *pcr)
 }
 EXPORT_SYMBOL(demux_get_pcr);
 
+ssize_t tsn_source_show(struct class *class,
+			struct class_attribute *attr, char *buf)
+{
+	int r, total = 0;
+
+	if (tsn_in == INPUT_DEMOD)
+		r = sprintf(buf, "tsn_source:demod\n");
+	else if (tsn_in == INPUT_LOCAL)
+		r = sprintf(buf, "tsn_source:local\n");
+	else if (tsn_in == INPUT_LOCAL_SEC)
+		r = sprintf(buf, "tsn_source:local_sec\n");
+	else
+		return 0;
+
+	buf += r;
+	total += r;
+	return total;
+}
+
+ssize_t tsn_source_store(struct class *class,
+			 struct class_attribute *attr,
+			 const char *buf, size_t count)
+{
+	struct aml_dvb *advb = aml_get_dvb_device();
+	int tsn_in_reg = 0;
+	int i = 0;
+
+	if (!strncmp(buf, "demod", 5))
+		tsn_in = INPUT_DEMOD;
+	else if (!strncmp(buf, "local", 5))
+		tsn_in = INPUT_LOCAL;
+	else if (!strncmp(buf, "local_sec", 9))
+		tsn_in = INPUT_LOCAL_SEC;
+	else
+		return count;
+
+	if (mutex_lock_interruptible(&advb->mutex))
+		return -ERESTARTSYS;
+
+	if (tsn_in == INPUT_DEMOD)
+		tsn_in_reg = 1;
+
+//	pr_dbg("tsn_in:%d, tsn_out:%d\n", tsn_in_reg, tsn_out);
+	advb->dsc_pipeline = tsn_in_reg;
+	//set demod/local
+	tee_demux_config_pipeline(tsn_in_reg, tsn_out);
+
+	for (i = 0; i < dmx_dev_num; i++) {
+		advb->dmx[i].source = tsn_in;
+		advb->dsc[i].source = tsn_in;
+	}
+
+	mutex_unlock(&advb->mutex);
+	return count;
+}
+
 static struct class_attribute aml_dvb_class_attrs[] = {
 	__ATTR(tuner_setting, 0664, tuner_setting_show,
 	       tuner_setting_store),
@@ -156,6 +214,7 @@ static struct class_attribute aml_dvb_class_attrs[] = {
 	__ATTR(get_pcr, 0664, get_pcr_show, NULL),
 	__ATTR(dmx_setting, 0664, dmx_setting_show, NULL),
 	__ATTR(dsc_setting, 0664, dsc_setting_show, NULL),
+	__ATTR(tsn_source, 0664, tsn_source_show, tsn_source_store),
 	__ATTR_NULL
 };
 
@@ -301,8 +360,6 @@ static int aml_dvb_probe(struct platform_device *pdev)
 {
 	struct aml_dvb *advb;
 	int i, ret = 0;
-	int tsn_in = 0;
-	int tsn_out = 0;
 	int tsn_in_reg = 0;
 	int sid_num = 0;
 	int valid_ts = 0;
