@@ -72,6 +72,7 @@
 #define TS_OUTPUT_CHAN_PES_BUF_SIZE		(3 * 188 * 1024)
 #define TS_OUTPUT_CHAN_SEC_BUF_SIZE		(188 * 500)
 #define TS_OUTPUT_CHAN_PTS_BUF_SIZE		(16 * 500)
+#define TS_OUTPUT_CHAN_PTS_SEC_BUF_SIZE		(64 * 1024)
 #define TS_OUTPUT_CHAN_DVR_BUF_SIZE		(30 * 1024 * 188)
 
 struct jiffies_pcr {
@@ -435,7 +436,11 @@ static int _dmx_ts_feed_set(struct dmx_ts_feed *ts_feed, u16 pid, int ts_type,
 			demux->sec_dvr_size = 0;
 			sec_level = DMX_MEM_SEC_LEVEL1;
 		}
-		ts_output_set_mem(feed->ts_out_elem, mem_size,
+		if (sec_level != 0)
+			ts_output_set_mem(feed->ts_out_elem, mem_size,
+				  sec_level, TS_OUTPUT_CHAN_PTS_SEC_BUF_SIZE);
+		else
+			ts_output_set_mem(feed->ts_out_elem, mem_size,
 				  sec_level, TS_OUTPUT_CHAN_PTS_BUF_SIZE);
 		if (feed->pid == 0x2000)
 			ts_output_add_pid(feed->ts_out_elem, feed->pid, 0x1fff,

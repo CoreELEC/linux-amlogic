@@ -128,6 +128,14 @@ struct out_elem {
 	unsigned int aucpu_mem_size;
 	unsigned int aucpu_read_offset;
 	__u64 newest_pts;
+
+	/*pts/dts for aucpu*/
+	s32 aucpu_pts_handle;
+	u8 aucpu_pts_start;
+	unsigned long aucpu_pts_mem_phy;
+	unsigned long aucpu_pts_mem;
+	unsigned int aucpu_pts_mem_size;
+	unsigned int aucpu_pts_r_offset;
 };
 
 struct sid_entry {
@@ -220,7 +228,7 @@ static int out_es_flush_time = 10;
 static int _handle_es(struct out_elem *pout, struct es_params_t *es_params);
 static int start_aucpu_non_es(struct out_elem *pout);
 static int aucpu_bufferid_read(struct out_elem *pout,
-			       char **pread, unsigned int len);
+			       char **pread, unsigned int len, int is_pts);
 
 static void dump_file_open(char *path, struct dump_file *dump_file_fp)
 {
@@ -461,7 +469,7 @@ static int section_process(struct out_elem *pout)
 	if (pout->remain_len == 0) {
 		len = MAX_READ_BUF_LEN;
 		if (pout->pchan->sec_level)
-			ret = aucpu_bufferid_read(pout, &pread, len);
+			ret = aucpu_bufferid_read(pout, &pread, len, 0);
 		else
 			ret = SC2_bufferid_read(pout->pchan, &pread, len, 0);
 		if (ret != 0) {
@@ -489,7 +497,7 @@ static int section_process(struct out_elem *pout)
 	} else {
 		len = READ_CACHE_SIZE - pout->remain_len;
 		if (pout->pchan->sec_level)
-			ret = aucpu_bufferid_read(pout, &pread, len);
+			ret = aucpu_bufferid_read(pout, &pread, len, 0);
 		else
 			ret = SC2_bufferid_read(pout->pchan, &pread, len, 0);
 		if (ret != 0) {
@@ -594,7 +602,7 @@ static int _task_out_func(void *data)
 				if (ptmp->pout->pchan->sec_level) {
 					start_aucpu_non_es(ptmp->pout);
 					ret = aucpu_bufferid_read(
-						ptmp->pout, &pread, len);
+						ptmp->pout, &pread, len, 0);
 				} else {
 					ret = SC2_bufferid_read(
 					ptmp->pout->pchan, &pread, len, 0);
@@ -677,8 +685,31 @@ static int get_non_sec_es_header(struct out_elem *pout, char *last_header,
 
 	header_len = 16;
 	offset = 0;
+
+	if (!pout->aucpu_pts_start &&
+		 pout->aucpu_pts_handle >= 0) {
+		if (wdma_get_active(pout->pchan1->id)) {
+			ret = aml_aucpu_strm_start(pout->aucpu_pts_handle);
+			if (ret >= 0) {
+				pr_dbg("aucpu pts start success\n");
+				pout->aucpu_pts_start = 1;
+			} else {
+				pr_dbg("aucpu start fail ret:%d\n",
+					   ret);
+				return -1;
+			}
+		} else {
+			return -1;
+		}
+	}
+
 	while (header_len) {
-		ret = SC2_bufferid_read(pout->pchan1, &pts_dts, header_len, 0);
+		if (pout->aucpu_pts_start)
+			ret = aucpu_bufferid_read(pout, &pts_dts,
+					header_len, 1);
+		else
+			ret = SC2_bufferid_read(pout->pchan1,
+					&pts_dts, header_len, 0);
 		if (ret != 0) {
 			memcpy((char *)(cur_header + offset), pts_dts, ret);
 			header_len -= ret;
@@ -691,7 +722,7 @@ static int get_non_sec_es_header(struct out_elem *pout, char *last_header,
 	}
 	pid = (cur_header[1] & 0x1f) << 8 | cur_header[0];
 	if (pout->es_pes->pid != pid) {
-		pr_dbg("%s pid diff req pid %d, ret pid:%d\n",
+		dprint("%s pid diff req pid %d, ret pid:%d\n",
 		       __func__, pout->es_pes->pid, pid);
 		return -2;
 	}
@@ -854,10 +885,50 @@ static void create_aucpu_inst(struct out_elem *pout)
 	struct aml_aucpu_inst_config cfg;
 	int ret;
 
-	if (pout->type == VIDEO_TYPE ||
-		pout->type == NONE_TYPE)
+	if (pout->type == NONE_TYPE)
 		return;
 
+	if (pout->type == VIDEO_TYPE ||
+		pout->type == AUDIO_TYPE) {
+	if (pout->aucpu_pts_handle < 0) {
+		src.phy_start = pout->pchan1->mem_phy;
+		src.buf_size = pout->pchan1->mem_size;
+		src.buf_flags = 0;
+
+		pr_dbg("%s src aucpu pts phy:0x%lx, size:0x%0x\n",
+		       __func__, src.phy_start, src.buf_size);
+
+		pout->aucpu_pts_mem_size = pout->pchan1->mem_size;
+		ret =
+		    _alloc_buff(pout->aucpu_pts_mem_size, 0,
+					&pout->aucpu_pts_mem,
+					&pout->aucpu_pts_mem_phy, 0);
+		if (ret != 0)
+			return;
+		pr_dbg("%s dst aucpu pts mem:0x%lx, phy:0x%lx\n",
+		       __func__, pout->aucpu_pts_mem, pout->aucpu_pts_mem_phy);
+
+		dst.phy_start = pout->aucpu_pts_mem_phy;
+		dst.buf_size = pout->aucpu_pts_mem_size;
+		dst.buf_flags = 0;
+		cfg.media_type = MEDIA_PTS_PACK;
+		cfg.dma_chn_id = (pout->es_pes->pid << 8) |
+			pout->pchan1->id;
+		cfg.config_flags = 0;
+		pout->aucpu_pts_handle = aml_aucpu_strm_create(&src,
+				&dst, &cfg);
+		if (pout->aucpu_pts_handle < 0)
+			dprint("%s create aucpu pts fail, ret:%d\n",
+			       __func__, pout->aucpu_pts_handle);
+		else
+			dprint("%s create aucpu pts inst success\n", __func__);
+
+		pout->aucpu_pts_r_offset = 0;
+		pout->aucpu_pts_start = 0;
+	}
+	if (pout->type == VIDEO_TYPE)
+		return;
+	}
 	/*now except the video, others will pass by aucpu */
 	if (pout->aucpu_handle < 0) {
 		src.phy_start = pout->pchan->mem_phy;
@@ -894,12 +965,79 @@ static void create_aucpu_inst(struct out_elem *pout)
 	}
 }
 
-static unsigned int aucpu_read_process(struct out_elem *pout,
+static unsigned int aucpu_read_pts_process(struct out_elem *pout,
 				       unsigned int w_offset,
 				       char **pread, unsigned int len)
 {
 	unsigned int buf_len = len;
 	unsigned int data_len = 0;
+
+	pr_dbg("%s pts w:0x%0x, r:0x%0x\n", __func__,
+	       (u32)w_offset, (u32)(pout->aucpu_pts_r_offset));
+	if (w_offset > pout->aucpu_pts_r_offset) {
+		data_len = min((w_offset - pout->aucpu_pts_r_offset), buf_len);
+		if (data_len < 16)
+			return 0;
+		dma_sync_single_for_cpu(aml_get_device(),
+					(dma_addr_t)(pout->aucpu_pts_mem_phy +
+						      pout->aucpu_pts_r_offset),
+					data_len, DMA_FROM_DEVICE);
+		*pread = (char *)(pout->aucpu_pts_mem +
+				pout->aucpu_pts_r_offset);
+		pout->aucpu_pts_r_offset += data_len;
+	} else {
+		unsigned int part1_len = 0;
+
+		part1_len = pout->aucpu_pts_mem_size - pout->aucpu_pts_r_offset;
+		if (part1_len == 0) {
+			data_len = min(w_offset, buf_len);
+			if (data_len < 16)
+				return 0;
+			pout->aucpu_pts_r_offset = 0;
+			*pread = (char *)(pout->aucpu_pts_mem +
+				pout->aucpu_pts_r_offset);
+			dma_sync_single_for_cpu(aml_get_device(), (dma_addr_t)
+						(pout->aucpu_pts_mem_phy +
+						 pout->aucpu_pts_r_offset),
+						data_len, DMA_FROM_DEVICE);
+			pout->aucpu_pts_r_offset += data_len;
+			return data_len;
+		}
+		data_len = min(part1_len, buf_len);
+		if (data_len < 16)
+			return 0;
+
+		*pread = (char *)(pout->aucpu_pts_mem +
+				pout->aucpu_pts_r_offset);
+		if (data_len < part1_len) {
+			dma_sync_single_for_cpu(aml_get_device(), (dma_addr_t)
+						(pout->aucpu_pts_mem_phy +
+						 pout->aucpu_pts_r_offset),
+						data_len, DMA_FROM_DEVICE);
+			pout->aucpu_pts_r_offset += data_len;
+		} else {
+			data_len = part1_len;
+			dma_sync_single_for_cpu(aml_get_device(), (dma_addr_t)
+						(pout->aucpu_pts_mem_phy +
+						 pout->aucpu_pts_r_offset),
+						data_len, DMA_FROM_DEVICE);
+			pout->aucpu_pts_r_offset = 0;
+		}
+	}
+	pr_dbg("%s pts request:%d, ret:%d\n", __func__, len, data_len);
+	return data_len;
+}
+
+static unsigned int aucpu_read_process(struct out_elem *pout,
+				       unsigned int w_offset,
+				       char **pread, unsigned int len,
+					   int is_pts)
+{
+	unsigned int buf_len = len;
+	unsigned int data_len = 0;
+
+	if (is_pts)
+		return aucpu_read_pts_process(pout, w_offset, pread, len);
 
 	pr_dbg("%s w:0x%0x, r:0x%0x\n", __func__,
 	       (u32)w_offset, (u32)(pout->aucpu_read_offset));
@@ -915,6 +1053,18 @@ static unsigned int aucpu_read_process(struct out_elem *pout,
 		unsigned int part1_len = 0;
 
 		part1_len = pout->aucpu_mem_size - pout->aucpu_read_offset;
+		if (part1_len == 0) {
+			data_len = min(w_offset, buf_len);
+			pout->aucpu_read_offset = 0;
+			*pread = (char *)(pout->aucpu_mem +
+					pout->aucpu_read_offset);
+			dma_sync_single_for_cpu(aml_get_device(), (dma_addr_t)
+						(pout->aucpu_mem_phy +
+						 pout->aucpu_read_offset),
+						data_len, DMA_FROM_DEVICE);
+			pout->aucpu_read_offset += data_len;
+			return data_len;
+		}
 		data_len = min(part1_len, buf_len);
 		*pread = (char *)(pout->aucpu_mem + pout->aucpu_read_offset);
 		if (data_len < part1_len) {
@@ -937,16 +1087,30 @@ static unsigned int aucpu_read_process(struct out_elem *pout,
 }
 
 static int aucpu_bufferid_read(struct out_elem *pout,
-			       char **pread, unsigned int len)
+			       char **pread, unsigned int len, int is_pts)
 {
 	struct aml_aucpu_buf_upd upd;
 	unsigned int w_offset = 0;
+	s32 handle;
+	unsigned long mem_phy;
+	unsigned int r_offset;
 
-	if (aml_aucpu_strm_get_dst(pout->aucpu_handle, &upd)
+	if (is_pts) {
+		handle = pout->aucpu_pts_handle;
+		mem_phy = pout->aucpu_pts_mem_phy;
+		r_offset = pout->aucpu_pts_r_offset;
+	} else {
+		handle = pout->aucpu_handle;
+		mem_phy = pout->aucpu_mem_phy;
+		r_offset = pout->aucpu_read_offset;
+	}
+
+	if (aml_aucpu_strm_get_dst(handle, &upd)
 	    >= 0) {
-		w_offset = upd.phy_cur_ptr - pout->aucpu_mem_phy;
-		if (pout->aucpu_read_offset != w_offset)
-			return aucpu_read_process(pout, w_offset, pread, len);
+		w_offset = upd.phy_cur_ptr - mem_phy;
+		if (r_offset != w_offset)
+			return aucpu_read_process(pout,
+					w_offset, pread, len, is_pts);
 	}
 	return 0;
 }
@@ -979,6 +1143,8 @@ static int write_aucpu_es_data(struct out_elem *pout,
 					   ret);
 				return -1;
 			}
+		} else {
+			return -1;
 		}
 	}
 
@@ -997,7 +1163,7 @@ static int write_aucpu_es_data(struct out_elem *pout,
 
 	es_len = es_params->header.len;
 	len = es_len - es_params->data_len;
-	ret = aucpu_bufferid_read(pout, &ptmp, len);
+	ret = aucpu_bufferid_read(pout, &ptmp, len, 0);
 	if (ret) {
 		out_ts_cb_list(pout, ptmp, ret);
 		if (dump_audio_es == 1) {
@@ -1044,11 +1210,13 @@ static int write_aucpu_sec_es_data(struct out_elem *pout,
 					   ret);
 				return -1;
 			}
+		} else {
+			return -1;
 		}
 	}
 
 	len = es_params->header.len - es_params->data_len;
-	ret = aucpu_bufferid_read(pout, &ptmp, len);
+	ret = aucpu_bufferid_read(pout, &ptmp, len, 0);
 	if (es_params->data_start == 0)
 		es_params->data_start = (unsigned long)ptmp;
 
@@ -1105,7 +1273,7 @@ static int clean_aucpu_data(struct out_elem *pout, unsigned int len)
 	}
 
 	while (len) {
-		ret = aucpu_bufferid_read(pout, &ptmp, len);
+		ret = aucpu_bufferid_read(pout, &ptmp, len, 0);
 		if (ret != 0)
 			len -= ret;
 
@@ -1667,6 +1835,9 @@ struct out_elem *ts_output_open(int sid, u8 dmx_id, u8 format,
 		pout->cache_len = 0;
 		pout->cache = NULL;
 		pout->aucpu_handle = -1;
+		pout->aucpu_start = 0;
+		pout->aucpu_pts_handle = -1;
+		pout->aucpu_pts_start = 0;
 		if (dump_video_es == 1)
 			dump_file_open(VIDEOES_DUMP_FILE, &video_dump_file);
 
@@ -1683,6 +1854,9 @@ struct out_elem *ts_output_open(int sid, u8 dmx_id, u8 format,
 			return NULL;
 		}
 		pout->aucpu_handle = -1;
+		pout->aucpu_start = 0;
+		pout->aucpu_pts_handle = -1;
+		pout->aucpu_pts_start = 0;
 		pout->enable = 0;
 		pout->remain_len = 0;
 		pout->cache_len = READ_CACHE_SIZE;
@@ -1794,6 +1968,29 @@ int ts_output_close(struct out_elem *pout)
 		pout->aucpu_mem = 0;
 	}
 
+	if (pout->aucpu_pts_handle >= 0) {
+		s32 ret;
+
+		if (pout->aucpu_pts_start) {
+			ret = aml_aucpu_strm_stop(pout->aucpu_pts_handle);
+			if (ret >= 0)
+				pr_dbg("aml_aucpu_strm_stop pts success\n");
+			else
+				pr_dbg("aucpu_stop fail ret:%d\n", ret);
+			pout->aucpu_pts_start = 0;
+		}
+		ret = aml_aucpu_strm_remove(pout->aucpu_pts_handle);
+		if (ret >= 0)
+			pr_dbg("aucpu_strm_remove pts success\n");
+		else
+			pr_dbg("aucpu_strm_remove pts fail ret:%d\n", ret);
+		pout->aucpu_pts_handle = -1;
+
+		_free_buff(pout->aucpu_pts_mem_phy,
+				pout->aucpu_pts_mem_size, 0, 0);
+		pout->aucpu_pts_mem = 0;
+	}
+
 	if (pout->pchan) {
 		SC2_bufferid_set_enable(pout->pchan, 0);
 		SC2_bufferid_dealloc(pout->pchan);
@@ -1848,6 +2045,11 @@ int ts_output_add_pid(struct out_elem *pout, int pid, int pid_mask, int dmx_id,
 		es_pes->dmx_id = dmx_id;
 		es_pes->pout = pout;
 		pout->es_pes = es_pes;
+
+		/*before pid filter enable */
+		if (pout->pchan->sec_level)
+			create_aucpu_inst(pout);
+
 		tsout_config_es_table(es_pes->buff_id, es_pes->pid,
 				      pout->sid, 1, !drop_dup, pout->format);
 	} else {
@@ -1958,10 +2160,7 @@ int ts_output_set_mem(struct out_elem *pout,
 		SC2_bufferid_set_mem(pout->pchan, memsize, sec_level);
 
 	if (pout && pout->pchan1)
-		SC2_bufferid_set_mem(pout->pchan1, pts_memsize, 0);
-
-	if (pout->pchan->sec_level)
-		create_aucpu_inst(pout);
+		SC2_bufferid_set_mem(pout->pchan1, pts_memsize, sec_level);
 
 	return 0;
 }
