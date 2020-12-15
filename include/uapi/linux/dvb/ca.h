@@ -112,7 +112,8 @@ enum ca_sc2_cmd_type {
 	CA_ALLOC,
 	CA_FREE,
 	CA_KEY,
-	CA_GET_STATUS
+	CA_GET_STATUS,
+	CA_SET_SCB
 };
 
 enum ca_sc2_algo_type {
@@ -185,6 +186,20 @@ struct ca_sc2_key {
 };
 
 /**
+ * struct ca_sc2_scb - set scb
+ *
+ * @ca_index:	use slot index.
+ * @ca_scb:	ca_scb (2bit)
+ * @ca_scb_as_is:if 1, scb use orignal
+ *				 if 0, use ca_scb
+ */
+struct ca_sc2_scb {
+	unsigned int ca_index;
+	unsigned char ca_scb;
+	unsigned char ca_scb_as_is;
+};
+
+/**
  * struct ca_sc2_descr_ex - ca externd descriptor
  *
  * @params:	command resource params
@@ -195,6 +210,7 @@ struct ca_sc2_descr_ex {
 		struct ca_sc2_alloc alloc_params;
 		struct ca_sc2_free free_params;
 		struct ca_sc2_key key_params;
+		struct ca_sc2_scb scb_params;
 	} params;
 };
 
