@@ -96,6 +96,7 @@ static struct hdmitx_dev hdmitx_device = {
 
 static const struct dv_info dv_dummy;
 static int log_level;
+static int hdr_mute_frame = 3;
 
 struct vout_device_s hdmitx_vdev = {
 	.dv_info = &hdmitx_device.rxcap.dv_info,
@@ -1359,10 +1360,25 @@ static void hdmitx_sdr_hdr_uevent(struct hdmitx_dev *hdev)
 	}
 }
 
+/* frame duration(us) for one frame */
+unsigned int hdmitx_get_frame_duration(void)
+{
+	unsigned int frame_duration;
+	struct vinfo_s *vinfo = hdmitx_get_current_vinfo();
+
+	if (!vinfo || !vinfo->sync_duration_num)
+		return 0;
+
+	frame_duration =
+		1000000 * vinfo->sync_duration_den / vinfo->sync_duration_num;
+	return frame_duration;
+}
+
 static void hdr_work_func(struct work_struct *work)
 {
 	struct hdmitx_dev *hdev =
 		container_of(work, struct hdmitx_dev, work_hdr);
+	unsigned int mute_us;
 
 	if (hdev->hdr_transfer_feature == T_BT709 &&
 		hdev->hdr_color_feature == C_BT709) {
@@ -1390,6 +1406,14 @@ static void hdr_work_func(struct work_struct *work)
 			hdmitx_sdr_hdr_uevent(hdev);
 		}
 	} else {
+		if (hdr_mute_frame) {
+			pr_info("vid mute %d frames before play hdr/hlg video\n",
+				hdr_mute_frame);
+			mute_us = hdr_mute_frame * hdmitx_get_frame_duration();
+			usleep_range(mute_us, mute_us + 10);
+			hdmitx_video_mute_op(1);
+			hdmitx_audio_mute_op(1);
+		}
 		hdmitx_sdr_hdr_uevent(hdev);
 	}
 }
@@ -1618,8 +1642,13 @@ static void hdmitx_set_drm_pkt(struct master_display_info_s *data)
 	}
 
 	/* if sdr/hdr mode change ,notify uevent to userspace*/
-	if (hdev->hdmi_current_hdr_mode != hdev->hdmi_last_hdr_mode)
+	if (hdev->hdmi_current_hdr_mode != hdev->hdmi_last_hdr_mode) {
+		if (hdr_mute_frame) {
+			hdmitx_video_mute_op(0);
+			hdmitx_audio_mute_op(0);
+		}
 		schedule_work(&hdev->work_hdr);
+	}
 
 }
 
