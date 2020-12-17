@@ -1179,7 +1179,7 @@
 		compatible = "amlogic, unifykey";
 		status = "ok";
 
-		unifykey-num = <17>;
+		unifykey-num = <18>;
 		unifykey-index-0 = <&keysn_0>;
 		unifykey-index-1 = <&keysn_1>;
 		unifykey-index-2 = <&keysn_2>;
@@ -1197,6 +1197,7 @@
 		unifykey-index-14= <&keysn_14>;
 		unifykey-index-15= <&keysn_15>;
 		unifykey-index-16= <&keysn_16>;
+		unifykey-index-17= <&keysn_17>;
 
 		keysn_0: key_0{
 			key-name = "usid";
@@ -1285,6 +1286,11 @@
 			key-name = "netflix_mgkid";
 			key-device = "secure";
 			key-permit = "read","write","del";
+		};
+		keysn_17:key_17{
+			key-name = "KEY_PROVISION_XXX";
+			key-device = "provision";
+			key-permit = "write";
 		};
 	};//End unifykey
 
