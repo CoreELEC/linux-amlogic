@@ -846,6 +846,9 @@ static int vt_recv_cmd_process(struct vt_ctrl_data *data,
 	data->video_cmd_data = vcmd->cmd_data;
 	data->client_id = vcmd->client_id;
 
+	/* free the vt_cmd buffer allocated in vt_send_cmd_process() */
+	kfree(vcmd);
+
 	return 0;
 }
 
@@ -1132,7 +1135,7 @@ static int vt_acquire_buffer(struct vt_buffer_data *data,
 			}
 			kfifo_put(&instance->fifo_to_producer, buffer);
 			mutex_unlock(&instance->lock);
-			ret = -ENOMEM;
+			return -ENOMEM;
 		}
 
 		fd_install(fd, buffer->file_buffer);
