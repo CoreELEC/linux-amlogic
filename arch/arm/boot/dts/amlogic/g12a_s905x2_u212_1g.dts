@@ -362,9 +362,9 @@
 		cma_mode = <1>;
 	};
 
-	dvb {
-		compatible = "amlogic, dvb";
-		dev_name = "dvb";
+	demux {
+		compatible = "amlogic, dvb-demux";
+		dev_name = "dvb-demux";
 		status = "okay";
 
 		interrupts = <0 23 1

@@ -450,18 +450,37 @@
 	};
 	/* Audio Related end */
 
-	dvb_si2168 {
-		compatible = "amlogic, dvb";
-		dev_name = "dvb";
+	dvb-extern {
+		compatible = "amlogic, dvb-extern";
+		dev_name = "dvb-extern";
 		status = "okay";
 
-		fe0_mode = "external";
+		tuner_num = <2>;
+		tuner0_name = "si2151_tuner";
+		tuner0_code = <0x2151>;
+		tuner0_i2c_adap = <&i2c0>;
+		tuner0_i2c_addr = <0x60>;
+
+		tuner1_name = "av2018_tuner";
+		tuner1_code = <0xa2018>;
+		tuner1_i2c_adap = <&i2c0>;
+		tuner1_i2c_addr = <0x62>;
+
+		fe_num = <1>;
 		fe0_demod = "Si2168";
 		fe0_i2c_adap_id = <&i2c0>;
 		fe0_demod_i2c_addr = <0x64>;
 		fe0_ts = <0>;
 		fe0_reset_value = <0>;
 		fe0_reset_gpio = <&gpio GPIODV_11 GPIO_ACTIVE_HIGH>;
+		fe0_tuner0 = <0>;  /* demod internal T/C tuner */
+		fe0_tuner1 = <1>;  /* demod internal S/S2 tuner */
+	};
+
+	demux {
+		compatible = "amlogic, dvb-demux";
+		dev_name = "dvb-demux";
+		status = "okay";
 
 		/*"parallel","serial","disable"*/
 		ts0 = "serial";
@@ -1004,13 +1023,6 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&pwm_ao_d_pins3>;
 		status = "okay";
-	};
-
-	tuner: tuner {
-		compatible = "amlogic, tuner";
-		status = "okay";
-		tuner0_i2c_addr = <0x60>;
-		tuner1_i2c_addr = <0x62>;
 	};
 
 	bt-dev{

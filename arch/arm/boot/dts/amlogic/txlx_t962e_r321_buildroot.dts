@@ -661,23 +661,9 @@
 		interrupt-names = "mailbox_2";
 	};
 
-	tuner: tuner {
-		compatible = "amlogic, tuner";
-		status = "okay";
-		tuner_cur = <0>; /* default use tuner */
-		tuner_num = <1>; /* tuner number, multi tuner support */
-		tuner_name_0 = "si2151_tuner";
-		tuner_i2c_adap_0 = <&i2c1>;
-		tuner_i2c_addr_0 = <0x60>;
-		/* tuner_xtal_0 = <0>; */ /* unuse for si2151 */
-		/* tuner_xtal_mode_0 = <0>; */
-		/* tuner_xtal_cap_0 = <0>; */
-	};
-
 	atv-demod {
 		compatible = "amlogic, atv-demod";
 		status = "okay";
-		tuner = <&tuner>;
 		btsc_sap_mode = <1>;
 		/* pinctrl-names="atvdemod_agc_pins"; */
 		/* pinctrl-0=<&atvdemod_agc_pins>; */
@@ -1347,12 +1333,27 @@
 		};
 	};
 
-	dvb {
-		compatible = "amlogic, dvb";
-		dev_name = "dvb";
+	dvb-extern {
+		compatible = "amlogic, dvb-extern";
+		dev_name = "dvb-extern";
 		status = "okay";
-		fe0_mode = "internal";
-		fe0_tuner = <&tuner>;
+
+		fe_num = <1>;
+		fe0_demod = "internal";
+
+		tuner_num = <1>; /* tuner number, multi tuner support */
+		tuner0_name = "si2151_tuner";
+		tuner0_i2c_adap = <&i2c1>;
+		tuner0_i2c_addr = <0x60>;
+		/* tuner0_xtal = <0>; */ /* unuse for si2151 */
+		/* tuner0_xtal_mode = <0>; */
+		/* tuner0_xtal_cap = <0>; */
+	};
+
+	demux {
+		compatible = "amlogic, dvb-demux";
+		dev_name = "dvb-demux";
+		status = "okay";
 
 		/*"parallel","serial","disable"*/
 		ts2 = "parallel";
@@ -1400,28 +1401,6 @@
 		cma_flag = <1>;
 		cma_mem_size = <8>;
 		memory-region = <&demod_cma_reserved>;//<&demod_reserved>;
-	};
-	dvbfe {
-		compatible = "amlogic, dvbfe";
-		dev_name = "dvbfe";
-		status = "disabled";
-		dtv_demod0 = "AMLDEMOD";
-		fe0_dtv_demod = <0>;
-		fe0_ts = <2>;
-		fe0_dev = <0>;
-		dtv_demod0_mem = <0>;
-		dtv_demod0_spectrum = <1>;
-		dtv_demod0_cma_flag = <1>;
-		dtv_demod0_cma_mem_size = <8>;
-		memory-region = <&demod_cma_reserved>;//<&demod_reserved>;
-		tuner0 = "si2151_tuner";
-		tuner0_i2c_adap_id = <2>;
-		tuner0_i2c_addr = <0x60>;
-		//tuner0_reset_value = <0>;
-		//tuner0_reset_gpio =  "GPIOY_10" ;  /*GPIOX_8   76*/
-		fe0_tuner = <0>;
-		atv_demod0 = "aml_atv_demod";
-		fe0_atv_demod = <0>;
 	};
 
 	thermal-zones {

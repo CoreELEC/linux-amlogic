@@ -1290,11 +1290,12 @@
 		};
 	};//End unifykey
 
-	dvb_atbm8881 {
-		compatible = "amlogic, dvb";
-		dev_name = "dvb";
+	dvb-extern {
+		compatible = "amlogic, dvb-extern";
+		dev_name = "dvb-extern";
 		status = "okay";
 
+		fe_num = <1>;
 		fe0_mode = "external";
 		fe0_demod = "Atbm8881";
 		fe0_i2c_adap_id = <&i2c1>;
@@ -1302,6 +1303,12 @@
 		fe0_ts = <0>;
 		fe0_reset_value = <0>;
 		fe0_reset_gpio = <&gpio GPIODV_14 GPIO_ACTIVE_HIGH>;
+	};
+
+	demux {
+		compatible = "amlogic, dvb-demux";
+		dev_name = "dvb-demux";
+		status = "okay";
 
 		ts0 = "parallel";
 		ts0_control = <0>;

@@ -855,12 +855,12 @@
 		status = "disabled";
 	};
 	/* Audio Related end */
-	dvb {
-		compatible = "amlogic, dvb";
-		dev_name = "dvb";
+
+	demux {
+		compatible = "amlogic, dvb-demux";
+		dev_name = "dvb-demux";
 		status = "okay";
-//		fe0_mode = "internal";
-//		fe0_tuner = <&tuner>;
+
 		/*"parallel","serial","disable"*/
 //		ts2 = "parallel";
 //		ts2_control = <0>;
@@ -883,19 +883,6 @@
 			&clkc CLKID_AHB_ARB0
 			&clkc CLKID_DOS_PARSER>;
 		clock-names = "demux", "ahbarb0", "uparsertop";
-	};
-	tuner: tuner {
-		compatible = "amlogic, tuner";
-		status = "okay";
-		tuner_name = "mxl661_tuner";
-		tuner_i2c_adap = <&i2c1>;
-		tuner_i2c_addr = <0x60>;
-		tuner_xtal = <0>; /* 0: 16MHz, 1: 24MHz */
-		tuner_xtal_mode = <0>;
-					/* NO_SHARE_XTAL(0)
-					 * SLAVE_XTAL_SHARE(1)
-					 */
-		tuner_xtal_cap = <30>; /* when tuner_xtal_mode = 1, set 25 */
 	};
 
 	cpu_opp_table0: cpu_opp_table0 {

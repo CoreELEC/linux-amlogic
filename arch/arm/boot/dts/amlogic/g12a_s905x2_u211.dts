@@ -320,10 +320,12 @@
 		dev_name = "ionvideo";
 		status = "okay";
 	};
-	dvb{
-		compatible = "amlogic, dvb";
-		dev_name = "dvb";
+
+	demux {
+		compatible = "amlogic, dvb-demux";
+		dev_name = "dvb-demux";
 		status = "ok";
+
 		/*"parallel","serial","disable"*/
 		ts2 = "parallel";
 		ts2_control = <0>;
