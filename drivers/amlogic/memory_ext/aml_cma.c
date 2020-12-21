@@ -889,6 +889,22 @@ static void show_task_adj(void)
 	}
 }
 
+static int swapcache_low(void)
+{
+	unsigned long free_swap;
+	unsigned long total_swap;
+
+	free_swap  = get_nr_swap_pages();
+	total_swap = total_swap_pages;
+	if ((free_swap <= (total_swap / 8)) && total_swap) {
+		/* free swap < 1/8 total */
+		pr_debug("swap free is low, free:%ld, total:%ld\n",
+			 free_swap, total_swap);
+		return 1;
+	}
+	return 0;
+}
+
 static unsigned long cma_shrinker_scan(struct shrinker *s,
 				       struct shrink_control *sc)
 {
@@ -896,6 +912,7 @@ static unsigned long cma_shrinker_scan(struct shrinker *s,
 	struct task_struct *selected = NULL;
 	unsigned long rem = 0;
 	int tasksize;
+	int taskswap = 0;
 	int i;
 	short min_score_adj = OOM_SCORE_ADJ_MAX + 1;
 	int minfree = 0;
@@ -908,8 +925,14 @@ static unsigned long cma_shrinker_scan(struct shrinker *s,
 			 total_swapcache_pages();
 	int free_cma   = 0;
 	int file_cma   = 0;
+	int swap_low   = 0;
+	int cache_low  = 0;
+	int last_idx   = PARA_COUNT - 1;
+	int selected_taskswap = 0;
 
-	if (!cma_forbidden_mask(sc->gfp_mask) || current_is_kswapd())
+	swap_low = swapcache_low();
+	if ((!cma_forbidden_mask(sc->gfp_mask) || current_is_kswapd()) &&
+	    !swap_low)
 		return 0;
 
 	free_cma    = global_page_state(NR_FREE_CMA_PAGES);
@@ -922,6 +945,7 @@ static unsigned long cma_shrinker_scan(struct shrinker *s,
 		minfree = cs->free[i];
 		if (other_free < minfree && other_file < minfree) {
 			min_score_adj = cs->adj[i];
+			cache_low = 1;
 			break;
 		}
 	}
@@ -930,11 +954,20 @@ static unsigned long cma_shrinker_scan(struct shrinker *s,
 		 sc->nr_to_scan, sc->gfp_mask, other_free,
 		 other_file, min_score_adj);
 
-	if (min_score_adj == OOM_SCORE_ADJ_MAX + 1)  /* nothing to do */
-		return 0;
+	if (!cache_low) {
+		if (swap_low) {
+			/* kill from last prio task */
+			min_score_adj = cs->adj[last_idx];
+		} else {
+			/* nothing to do */
+			return 0;
+		}
+	}
 
+retry:
 	selected_oom_score_adj = min_score_adj;
-
+	pr_debug("%s, cachelow:%d, swaplow:%d, adj:%d\n",
+		 __func__, cache_low, swap_low, min_score_adj);
 	rcu_read_lock();
 	for_each_process(tsk) {
 		struct task_struct *p;
@@ -959,12 +992,24 @@ static unsigned long cma_shrinker_scan(struct shrinker *s,
 			continue;
 		}
 		tasksize = get_mm_rss(p->mm);
+		if (swap_low && !cache_low)
+			taskswap = get_mm_counter(p->mm, MM_SWAPENTS);
+
 		task_unlock(p);
 		if (tasksize <= 0)
 			continue;
+		if (swap_low && !cache_low && !taskswap) {
+			/* we need free swap but this task don't have swap */
+			continue;
+		}
 		if (selected) {
 			if (oom_score_adj < selected_oom_score_adj)
 				continue;
+
+			if (swap_low && !cache_low &&
+			    taskswap < selected_taskswap)
+				continue;
+
 			if (oom_score_adj == selected_oom_score_adj &&
 			    tasksize <= selected_tasksize)
 				continue;
@@ -977,16 +1022,39 @@ static unsigned long cma_shrinker_scan(struct shrinker *s,
 		    !strcmp(p->parent->comm, "rapps.simpleapp")))
 			continue;
 		selected = p;
+		selected_taskswap = taskswap;
 		selected_tasksize = tasksize;
 		selected_oom_score_adj = oom_score_adj;
 		pr_debug("select '%s' (%d), adj %hd, size %d, to kill\n",
 			 p->comm, p->pid, oom_score_adj, tasksize);
+	}
+	/* we try to kill somebody if swap is near full
+	 * but too many filecache, this is a coner case
+	 */
+	if (!selected && !cache_low && swap_low) {
+		last_idx--;
+		if (last_idx > 0) {	/* don't kill forground */
+			min_score_adj = cs->adj[last_idx];
+			rcu_read_unlock();
+			goto retry;
+		} else {
+			/* swap full but no one killed */
+			show_task_adj();
+		}
 	}
 	if (selected) {
 		long cache_size = other_file * (long)(PAGE_SIZE / 1024);
 		long cache_limit = minfree * (long)(PAGE_SIZE / 1024);
 		long free = other_free * (long)(PAGE_SIZE / 1024);
 
+		if (swap_low && !cache_low) {
+			pr_emerg("  Free Swap:%ld kB, Total Swap:%ld kB\n",
+				 get_nr_swap_pages() << (PAGE_SHIFT - 10),
+				 total_swap_pages << (PAGE_SHIFT - 10));
+			pr_emerg("  Task swap:%d, idx:%d\n",
+				 selected_taskswap << (PAGE_SHIFT - 10),
+				 last_idx);
+		}
 		task_lock(selected);
 		send_sig(SIGKILL, selected, 0);
 		if (selected->mm)
