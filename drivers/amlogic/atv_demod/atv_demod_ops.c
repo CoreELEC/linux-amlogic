@@ -18,13 +18,17 @@
 #include <linux/types.h>
 #include <linux/i2c.h>
 #include <uapi/linux/dvb/frontend.h>
-
+#include <linux/amlogic/cpu_version.h>
 #include <linux/amlogic/aml_atvdemod.h>
 #include <linux/amlogic/media/vout/vdac_dev.h>
+#include <linux/amlogic/media/frame_provider/tvin/tvin.h>
 
-#include "drivers/media/tuners/tuner-i2c.h"
-#include "drivers/media/dvb-core/dvb_frontend.h"
+#include <tuner-i2c.h>
+#include <dvb_frontend.h>
+
+#ifdef CONFIG_AMLOGIC_MEDIA_TVIN_AFE
 #include "drivers/amlogic/media/vin/tvin/tvafe/tvafe_general.h"
+#endif
 
 #include "atvdemod_func.h"
 #include "atvauddemod_func.h"
@@ -44,7 +48,7 @@ static DEFINE_MUTEX(atv_demod_list_mutex);
 static LIST_HEAD(hybrid_tuner_instance_list);
 
 unsigned int reg_23cf = 0x88188832; /*IIR filter*/
-unsigned int btsc_sap_mode = 1;	/*0: off 1:monitor 2:auto */
+unsigned int btsc_sap_mode = 1; /*0: off 1:monitor 2:auto */
 
 
 /*
@@ -72,7 +76,9 @@ void aml_fe_get_atvaudio_state(int *state)
 		return;
 	}
 
+#ifdef CONFIG_AMLOGIC_MEDIA_VDIN
 	av_status = tvin_get_av_status();
+#endif
 	/* scan mode need mute */
 	if (priv->state == ATVDEMOD_STATE_WORK
 			&& !priv->scanning
@@ -111,17 +117,18 @@ void aml_fe_get_atvaudio_state(int *state)
 			if (count > 100) {
 				count = 0;
 				mute = false;
-			} else
+			} else {
 				*state = 0;
-		} else
+			}
+		} else {
 			count = 0;
+		}
 	} else {
 		count = 0;
 		mute = true;
 	}
 #endif
-	pr_audio("aml_fe_get_atvaudio_state: %d, power = %d\n",
-			*state, power);
+	pr_audio("%s: %d, power = %d\n", __func__, *state, power);
 }
 
 int aml_atvdemod_get_btsc_sap_mode(void)
@@ -129,15 +136,27 @@ int aml_atvdemod_get_btsc_sap_mode(void)
 	return btsc_sap_mode;
 }
 
-static bool atvdemod_check_exited(struct atv_demod_priv *priv)
+static bool atvdemod_check_exited(struct v4l2_frontend *v4l2_fe)
 {
-	return (priv->state != ATVDEMOD_STATE_WORK);
+	struct dvb_frontend *fe = &v4l2_fe->fe;
+	struct atv_demod_priv *priv = fe->analog_demod_priv;
+
+	if (priv->state != ATVDEMOD_STATE_WORK ||
+		v4l2_fe->async_tune_needexit(v4l2_fe)) {
+		pr_err("%s: need to exit.\n", __func__);
+
+		return true;
+	}
+
+	return false;
 }
 
 int atv_demod_enter_mode(struct dvb_frontend *fe)
 {
 	int err_code = 0;
 	struct atv_demod_priv *priv = fe->analog_demod_priv;
+
+	atvdemod_power_switch(true);
 
 	if (amlatvdemod_devp->pin_name != NULL) {
 		amlatvdemod_devp->agc_pin =
@@ -149,21 +168,59 @@ int atv_demod_enter_mode(struct dvb_frontend *fe)
 		}
 	}
 
+#if defined(CONFIG_AMLOGIC_MEDIA_ADC) && defined(CONFIG_AMLOGIC_MEDIA_TVIN_AFE)
 	err_code = adc_set_pll_cntl(1, ADC_EN_ATV_DEMOD, NULL);
+	if (err_code) {
+		pr_dbg("%s: adc set pll error %d.\n", __func__, err_code);
+
+		if (!IS_ERR_OR_NULL(amlatvdemod_devp->agc_pin)) {
+			devm_pinctrl_put(amlatvdemod_devp->agc_pin);
+			amlatvdemod_devp->agc_pin = NULL;
+		}
+
+		atvdemod_power_switch(false);
+
+		return -1;
+	}
+#else
+	if (!IS_ERR_OR_NULL(amlatvdemod_devp->agc_pin)) {
+		devm_pinctrl_put(amlatvdemod_devp->agc_pin);
+		amlatvdemod_devp->agc_pin = NULL;
+	}
+
+	atvdemod_power_switch(false);
+
+	pr_dbg("%s: error, adc pll is not enabled.\n", __func__);
+
+	return -1;
+#endif
+
+#ifdef CONFIG_AMLOGIC_VDAC
 	vdac_enable(1, VDAC_MODULE_AVOUT_ATV);
+#else
+	if (!IS_ERR_OR_NULL(amlatvdemod_devp->agc_pin)) {
+		devm_pinctrl_put(amlatvdemod_devp->agc_pin);
+		amlatvdemod_devp->agc_pin = NULL;
+	}
+
+	atvdemod_power_switch(false);
+
+#if defined(CONFIG_AMLOGIC_MEDIA_ADC) && defined(CONFIG_AMLOGIC_MEDIA_TVIN_AFE)
+	adc_set_pll_cntl(0, ADC_EN_ATV_DEMOD, NULL);
+#endif
+
+	pr_dbg("%s: error, vdac is not enabled.\n", __func__);
+
+	return -1;
+#endif
 	usleep_range(2000, 2100);
 	atvdemod_clk_init();
 	/* err_code = atvdemod_init(); */
 
-	if (is_meson_txlx_cpu() || is_meson_txhd_cpu() || is_meson_tl1_cpu()
-			|| is_meson_tm2_cpu()) {
+	if (is_meson_txlx_cpu() || is_meson_txhd_cpu() || is_meson_tl1_cpu() ||
+		is_meson_tm2_cpu() || is_meson_t5_cpu()) {
 		aud_demod_clk_gate(1);
 		/* atvauddemod_init(); */
-	}
-
-	if (err_code) {
-		pr_dbg("%s: init atvdemod error %d.\n", __func__, err_code);
-		return -1;
 	}
 
 	if (priv->isr.enable)
@@ -175,7 +232,7 @@ int atv_demod_enter_mode(struct dvb_frontend *fe)
 
 	pr_info("%s: OK.\n", __func__);
 
-	return 0;
+	return err_code;
 }
 
 int atv_demod_leave_mode(struct dvb_frontend *fe)
@@ -202,15 +259,21 @@ int atv_demod_leave_mode(struct dvb_frontend *fe)
 		amlatvdemod_devp->agc_pin = NULL;
 	}
 
+#ifdef CONFIG_AMLOGIC_VDAC
 	vdac_enable(0, VDAC_MODULE_AVOUT_ATV);
+#endif
+#if defined(CONFIG_AMLOGIC_MEDIA_ADC) && defined(CONFIG_AMLOGIC_MEDIA_TVIN_AFE)
 	adc_set_pll_cntl(0, ADC_EN_ATV_DEMOD, NULL);
-	if (is_meson_txlx_cpu() || is_meson_txhd_cpu() || is_meson_tl1_cpu()
-			|| is_meson_tm2_cpu())
+#endif
+	if (is_meson_txlx_cpu() || is_meson_txhd_cpu() || is_meson_tl1_cpu() ||
+		is_meson_tm2_cpu() || is_meson_t5_cpu())
 		aud_demod_clk_gate(0);
 
 	amlatvdemod_devp->std = 0;
 	amlatvdemod_devp->audmode = 0;
 	amlatvdemod_devp->sound_mode = 0xFF;
+
+	atvdemod_power_switch(false);
 
 	pr_info("%s: OK.\n", __func__);
 
@@ -224,8 +287,15 @@ static void atv_demod_set_params(struct dvb_frontend *fe,
 	u32 if_info[2] = { 0 };
 	struct atv_demod_priv *priv = fe->analog_demod_priv;
 	struct atv_demod_parameters *p = &priv->atvdemod_param;
+	struct analog_parameters ptuner = { 0 };
 
 	priv->standby = true;
+
+	/* tuner config, no need cvbs format, just audio mode. */
+	ptuner.frequency = params->frequency;
+	ptuner.mode = params->mode;
+	ptuner.audmode = params->audmode;
+	ptuner.std = (params->std & 0xFF000000) | ptuner.audmode;
 
 	/* afc tune disable,must cancel wq before set tuner freq*/
 	if (priv->afc.pause)
@@ -235,7 +305,7 @@ static void atv_demod_set_params(struct dvb_frontend *fe,
 		priv->monitor.pause(&priv->monitor);
 
 	if (fe->ops.tuner_ops.set_analog_params)
-		ret = fe->ops.tuner_ops.set_analog_params(fe, params);
+		ret = fe->ops.tuner_ops.set_analog_params(fe, &ptuner);
 
 	if (fe->ops.tuner_ops.get_if_frequency)
 		ret = fe->ops.tuner_ops.get_if_frequency(fe, if_info);
@@ -262,7 +332,7 @@ static void atv_demod_set_params(struct dvb_frontend *fe,
 		if (priv->afc.enable && non_std_en == 0)
 			priv->afc.enable(&priv->afc);
 
-		if (priv->monitor.enable)
+		if (priv->monitor.enable && non_std_en == 0)
 			priv->monitor.enable(&priv->monitor);
 
 		/* for searching mute audio */
@@ -345,6 +415,7 @@ static void atv_demod_release(struct dvb_frontend *fe)
 
 static int atv_demod_set_config(struct dvb_frontend *fe, void *priv_cfg)
 {
+	int ret = 0;
 	int *state = (int *) priv_cfg;
 	struct atv_demod_priv *priv = fe->analog_demod_priv;
 
@@ -361,8 +432,14 @@ static int atv_demod_set_config(struct dvb_frontend *fe, void *priv_cfg)
 			priv->standby = true;
 			if (fe->ops.tuner_ops.set_config)
 				fe->ops.tuner_ops.set_config(fe, NULL);
-			if (!atv_demod_enter_mode(fe))
+
+			ret = atv_demod_enter_mode(fe);
+			if (!ret) {
 				priv->state = ATVDEMOD_STATE_WORK;
+			} else {
+				if (fe->ops.tuner_ops.release)
+					fe->ops.tuner_ops.release(fe);
+			}
 		}
 		break;
 
@@ -376,7 +453,8 @@ static int atv_demod_set_config(struct dvb_frontend *fe, void *priv_cfg)
 
 	case AML_ATVDEMOD_RESUME:
 		if (priv->state == ATVDEMOD_STATE_SLEEP) {
-			if (!atv_demod_enter_mode(fe)) {
+			ret = atv_demod_enter_mode(fe);
+			if (!ret) {
 				priv->state = ATVDEMOD_STATE_WORK;
 				priv->standby = false;
 			}
@@ -412,7 +490,7 @@ static int atv_demod_set_config(struct dvb_frontend *fe, void *priv_cfg)
 
 	mutex_unlock(&atv_demod_list_mutex);
 
-	return 0;
+	return ret;
 }
 
 static struct analog_demod_ops atvdemod_ops = {
@@ -447,21 +525,21 @@ static v4l2_std_id atvdemod_fmt_2_v4l2_std(int fmt)
 	v4l2_std_id std = 0;
 
 	switch (fmt) {
+	case AML_ATV_DEMOD_VIDEO_MODE_PROP_NTSC_DK:
 	case AML_ATV_DEMOD_VIDEO_MODE_PROP_PAL_DK:
 		std = V4L2_STD_PAL_DK;
 		break;
+	case AML_ATV_DEMOD_VIDEO_MODE_PROP_NTSC_I:
 	case AML_ATV_DEMOD_VIDEO_MODE_PROP_PAL_I:
 		std = V4L2_STD_PAL_I;
 		break;
+	case AML_ATV_DEMOD_VIDEO_MODE_PROP_NTSC_BG:
 	case AML_ATV_DEMOD_VIDEO_MODE_PROP_PAL_BG:
 		std = V4L2_STD_PAL_BG;
 		break;
 	case AML_ATV_DEMOD_VIDEO_MODE_PROP_PAL_M:
 		std = V4L2_STD_PAL_M;
 		break;
-	case AML_ATV_DEMOD_VIDEO_MODE_PROP_NTSC_DK:
-	case AML_ATV_DEMOD_VIDEO_MODE_PROP_NTSC_I:
-	case AML_ATV_DEMOD_VIDEO_MODE_PROP_NTSC_BG:
 	case AML_ATV_DEMOD_VIDEO_MODE_PROP_NTSC:
 	case AML_ATV_DEMOD_VIDEO_MODE_PROP_NTSC_M:
 		std = V4L2_STD_NTSC_M;
@@ -544,7 +622,7 @@ static void atvdemod_fe_try_analog_format(struct v4l2_frontend *v4l2_fe,
 	if (auto_search_std & AUTO_DETECT_COLOR) {
 		for (i = 0; i < try_vfmt_cnt; i++) {
 
-			if (atvdemod_check_exited(priv))
+			if (atvdemod_check_exited(v4l2_fe))
 				return;
 
 			/* SECAM-L/L' */
@@ -578,17 +656,21 @@ static void atvdemod_fe_try_analog_format(struct v4l2_frontend *v4l2_fe,
 				 * need set the std,
 				 * then, try others std.
 				 */
-				if (p->std & V4L2_COLOR_STD_PAL)
+				if (p->std & V4L2_COLOR_STD_PAL) {
 					p->std = V4L2_COLOR_STD_NTSC
 					| V4L2_STD_NTSC_M;
+					p->audmode = V4L2_STD_NTSC_M;
 #if 0 /*for secam */
-				else if (p->std & V4L2_COLOR_STD_NTSC)
+				} else if (p->std & V4L2_COLOR_STD_NTSC) {
 					p->std = V4L2_COLOR_STD_SECAM
 					| V4L2_STD_SECAM;
+					p->audmode = V4L2_STD_SECAM;
 #endif
-				else if (p->std & V4L2_COLOR_STD_NTSC)
+				} else if (p->std & V4L2_COLOR_STD_NTSC) {
 					p->std = V4L2_COLOR_STD_PAL
 					| V4L2_STD_PAL_DK;
+					p->audmode = V4L2_STD_PAL_DK;
+				}
 
 				p->frequency += 1;
 				params.frequency = p->frequency;
@@ -688,8 +770,8 @@ static void atvdemod_fe_try_analog_format(struct v4l2_frontend *v4l2_fe,
 
 #if 0 /* no detect when searching */
 	/* for audio standard detection */
-	if (is_meson_txlx_cpu() || is_meson_txhd_cpu() || is_meson_tl1_cpu()
-			|| is_meson_tm2_cpu()) {
+	if (is_meson_txlx_cpu() || is_meson_txhd_cpu() || is_meson_tl1_cpu() ||
+		is_meson_tm2_cpu() || is_meson_t5_cpu()) {
 		*soundsys = amlfmt_aud_standard(broad_std);
 		*soundsys = (*soundsys << 16) | 0x00FFFF;
 	} else
@@ -731,14 +813,14 @@ static void atvdemod_fe_try_signal(struct v4l2_frontend *v4l2_fe,
 
 	*lock = false;
 	do {
-		if (atvdemod_check_exited(priv))
+		if (atvdemod_check_exited(v4l2_fe))
 			break;
 
 		if (tuner_id == AM_TUNER_MXL661) {
 			usleep_range(30 * 1000, 30 * 1000 + 100);
 		} else if (tuner_id == AM_TUNER_R840 ||
 				tuner_id == AM_TUNER_R842) {
-			usleep_range(10 * 1000, 10 * 1000 + 100);
+			usleep_range(40 * 1000, 40 * 1000 + 100);
 			fe->ops.tuner_ops.get_status(fe, (u32 *)&tuner_state);
 		} else {
 			/* AM_TUNER_SI2151 and AM_TUNER_SI2159 */
@@ -789,8 +871,9 @@ static void atvdemod_fe_try_signal(struct v4l2_frontend *v4l2_fe,
 					p->audmode = V4L2_STD_SECAM_LC;
 
 					try_secamlc = true;
-				} else
+				} else {
 					break;
+				}
 
 				params.frequency = p->frequency;
 				params.mode = p->afc_range;
@@ -859,11 +942,14 @@ static int atvdemod_fe_afc_closer(struct v4l2_frontend *v4l2_fe, int minafcfreq,
 
 		set_freq = p->frequency;
 		while (abs(afc) > AFC_BEST_LOCK) {
-			if (atvdemod_check_exited(priv))
+			if (atvdemod_check_exited(v4l2_fe))
 				return -1;
 
 			if (tuner_id == AM_TUNER_MXL661)
 				usleep_range(30 * 1000, 30 * 1000 + 100);
+			else if (tuner_id == AM_TUNER_R840 ||
+					tuner_id == AM_TUNER_R842)
+				usleep_range(40 * 1000, 40 * 1000 + 100);
 			else
 				usleep_range(10 * 1000, 10 * 1000 + 100);
 
@@ -958,6 +1044,9 @@ static int atvdemod_fe_afc_closer(struct v4l2_frontend *v4l2_fe, int minafcfreq,
 
 			if (tuner_id == AM_TUNER_MXL661)
 				usleep_range(30 * 1000, 30 * 1000 + 100);
+			else if (tuner_id == AM_TUNER_R840 ||
+					tuner_id == AM_TUNER_R842)
+				usleep_range(40 * 1000, 40 * 1000 + 100);
 			else
 				usleep_range(10 * 1000, 10 * 1000 + 100);
 		}
@@ -1157,7 +1246,7 @@ static enum v4l2_search atvdemod_fe_search(struct v4l2_frontend *v4l2_fe)
 	}
 
 	priv = fe->analog_demod_priv;
-	if (atvdemod_check_exited(priv)) {
+	if (atvdemod_check_exited(v4l2_fe)) {
 		pr_err("[%s] ATV state is not work.\n", __func__);
 		return V4L2_SEARCH_INVALID;
 	}
@@ -1192,9 +1281,9 @@ static enum v4l2_search atvdemod_fe_search(struct v4l2_frontend *v4l2_fe)
 	}
 
 	if (p->audmode == 0) {
-		if (auto_search_std)
+		if (auto_search_std) {
 			p->audmode = p->std & 0x00FFFFFF;
-		else {
+		} else {
 			if (p->std & V4L2_COLOR_STD_PAL)
 				p->audmode = V4L2_STD_PAL_DK;
 			else if (p->std & V4L2_COLOR_STD_NTSC)
@@ -1237,7 +1326,7 @@ static enum v4l2_search atvdemod_fe_search(struct v4l2_frontend *v4l2_fe)
 	while (minafcfreq <= p->frequency &&
 			p->frequency <= maxafcfreq) {
 
-		if (atvdemod_check_exited(priv)) {
+		if (atvdemod_check_exited(v4l2_fe)) {
 			exit_status = 1;
 			break;
 		}
@@ -1330,7 +1419,7 @@ static enum v4l2_search atvdemod_fe_search(struct v4l2_frontend *v4l2_fe)
 	priv_cfg = AML_ATVDEMOD_UNSCAN_MODE;
 	fe->ops.analog_ops.set_config(fe, &priv_cfg);
 
-	return DVBFE_ALGO_SEARCH_FAILED;
+	return V4L2_SEARCH_FAILED;
 }
 
 static struct v4l2_frontend_ops atvdemod_fe_ops = {

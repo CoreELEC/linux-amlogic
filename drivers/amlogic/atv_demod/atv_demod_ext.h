@@ -32,4 +32,6 @@ extern bool aml_fe_has_hook_up(void);
 extern bool aml_fe_hook_call_get_fmt(int *fmt);
 extern bool aml_fe_hook_call_set_mode(bool mode);
 
+extern void atvdemod_power_switch(bool on);
+
 #endif /* __ATV_DEMOD_EXT_H__ */

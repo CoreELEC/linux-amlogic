@@ -37,7 +37,6 @@
 /* name, mode, parent, type, value */
 /* u32, bool, u64 type add here for debugfs */
 #define DEBUG_FS_CREATE_NODES(dentry)\
-{\
 	DEBUGFS_CREATE_NODE(reg_23cf, 0640, dentry, u32)\
 	DEBUGFS_CREATE_NODE(btsc_sap_mode, 0640, dentry, u32)\
 	DEBUGFS_CREATE_NODE(afc_limit, 0640, dentry, u32)\
@@ -105,13 +104,11 @@
 	DEBUGFS_CREATE_NODE(atv_audio_overmodulated_cnt, 0640, dentry, u32)\
 	DEBUGFS_CREATE_NODE(support_secam_l, 0640, dentry, bool)\
 	DEBUGFS_CREATE_NODE(atvdemod_horiz_freq_det_en, 0640, dentry, bool)\
-}
 
 
 /* name, mode, parent, data, fops, type */
 /* int type add here for debugfs */
 #define DEBUG_FS_CREATE_FILES(dentry, fops)\
-{\
 	DEBUGFS_CREATE_FILE(non_std_thld_4c_h, 0640, dentry, fops, int)\
 	DEBUGFS_CREATE_FILE(non_std_thld_4c_l, 0640, dentry, fops, int)\
 	DEBUGFS_CREATE_FILE(non_std_thld_54_h, 0640, dentry, fops, int)\
@@ -123,7 +120,6 @@
 	DEBUGFS_CREATE_FILE(afc_default, 0640, dentry, fops, int)\
 	DEBUGFS_CREATE_FILE(snr_threshold, 0640, dentry, fops, int)\
 	DEBUGFS_CREATE_FILE(snr_val, 0640, dentry, fops, int)\
-}
 
 
 #if defined(AML_ATVDEMOD_DEBUGFS)
@@ -191,12 +187,15 @@ static ssize_t debugfs_write(struct file *file, const char __user *userbuf,
 	int val = 0;
 	int i = 0;
 	char buf[20] = { 0 };
+	size_t buf_size = 0;
 	int len = ARRAY_SIZE(debugfs_dentry);
 
 	memset(buf, 0, sizeof(buf));
-	count = min_t(size_t, count, (sizeof(buf) - 1));
-	if (copy_from_user(buf, userbuf, count))
+	buf_size = min_t(size_t, count, (sizeof(buf) - 1));
+	if (copy_from_user(buf, userbuf, buf_size))
 		return -EFAULT;
+
+	buf[buf_size] = '\0';
 
 	/*i = sscanf(buf, "%d", &val);*/
 	i = kstrtoint(buf, 0, &val);
@@ -207,8 +206,9 @@ static ssize_t debugfs_write(struct file *file, const char __user *userbuf,
 				break;
 			}
 		}
-	} else
+	} else {
 		return -EINVAL;
+	}
 
 	return count;
 }

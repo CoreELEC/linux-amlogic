@@ -47,11 +47,17 @@ static void atv_demod_afc_sync_frontend(struct atv_demod_afc *afc,
 	struct v4l2_frontend *v4l2_fe =
 				container_of(fe, struct v4l2_frontend, fe);
 	struct analog_parameters *param = &priv->atvdemod_param.param;
+	s32 tuner_afc = 0;
 
 	v4l2_fe->params.frequency = param->frequency + freq_offset;
 
 	/* just play mode need sync */
 	if (!(v4l2_fe->params.flag & ANALOG_FLAG_ENABLE_AFC)) {
+		/* Get tuners internally correct frequency offset */
+		if (fe->ops.tuner_ops.get_afc)
+			fe->ops.tuner_ops.get_afc(fe, &tuner_afc);
+
+		freq_offset += tuner_afc;
 		v4l2_fe->params.frequency = param->frequency + freq_offset;
 
 		pr_afc("%s, sync frequency: %d.\n", __func__,
@@ -65,6 +71,7 @@ static void atv_demod_afc_do_work_pre(struct atv_demod_afc *afc)
 			container_of(afc, struct atv_demod_priv, afc);
 	struct dvb_frontend *fe = afc->fe;
 	struct analog_parameters *param = &priv->atvdemod_param.param;
+	struct analog_parameters p = priv->atvdemod_param.param;
 
 	afc->pre_unlock_cnt++;
 	if (!afc->lock) {
@@ -98,8 +105,11 @@ static void atv_demod_afc_do_work_pre(struct atv_demod_afc *afc)
 			afc->status = AFC_LOCK_STATUS_PRE_OVER_RANGE;
 		}
 
+		/* tuner config, no need cvbs format, just audio mode. */
+		p.frequency = param->frequency;
+		p.std = (param->std & 0xFF000000) | p.audmode;
 		if (fe->ops.tuner_ops.set_analog_params)
-			fe->ops.tuner_ops.set_analog_params(fe, param);
+			fe->ops.tuner_ops.set_analog_params(fe, &p);
 
 		afc->pre_unlock_cnt = 0;
 		pr_afc("%s,unlock offset:%d KHz, set freq:%d\n",
@@ -124,6 +134,7 @@ void atv_demod_afc_do_work(struct work_struct *work)
 				container_of(afc, struct atv_demod_priv, afc);
 	struct dvb_frontend *fe = afc->fe;
 	struct analog_parameters *param = &priv->atvdemod_param.param;
+	struct analog_parameters p = priv->atvdemod_param.param;
 
 	int freq_offset = 100;
 	int tmp = 0;
@@ -179,8 +190,12 @@ void atv_demod_afc_do_work(struct work_struct *work)
 		afc->status = AFC_LOCK_STATUS_POST_UNLOCK;
 		afc->pre_lock_cnt = 0;
 		param->frequency -= afc->offset * 1000;
+
+		/* tuner config, no need cvbs format, just audio mode. */
+		p.frequency = param->frequency;
+		p.std = (param->std & 0xFF000000) | p.audmode;
 		if (fe->ops.tuner_ops.set_analog_params)
-			fe->ops.tuner_ops.set_analog_params(fe, param);
+			fe->ops.tuner_ops.set_analog_params(fe, &p);
 		pr_afc("%s,freq_offset:%d , set freq:%d\n",
 				__func__, freq_offset, param->frequency);
 		afc->wave_cnt = 0;
@@ -195,8 +210,12 @@ void atv_demod_afc_do_work(struct work_struct *work)
 			param->frequency -= afc->offset * 1000;
 			pr_afc("%s,afc no_sig trig, set freq:%d\n",
 						__func__, param->frequency);
+
+			/*tuner config, no need cvbs format, just audio mode.*/
+			p.frequency = param->frequency;
+			p.std = (param->std & 0xFF000000) | p.audmode;
 			if (fe->ops.tuner_ops.set_analog_params)
-				fe->ops.tuner_ops.set_analog_params(fe, param);
+				fe->ops.tuner_ops.set_analog_params(fe, &p);
 			afc->wave_cnt = 0;
 			afc->offset = 0;
 			afc->status = AFC_LOCK_STATUS_POST_OVER_RANGE;
@@ -208,8 +227,12 @@ void atv_demod_afc_do_work(struct work_struct *work)
 	if (abs(freq_offset) >= AFC_BEST_LOCK) {
 		param->frequency += freq_offset * 1000;
 		afc->offset += freq_offset;
+
+		/* tuner config, no need cvbs format, just audio mode. */
+		p.frequency = param->frequency;
+		p.std = (param->std & 0xFF000000) | p.audmode;
 		if (fe->ops.tuner_ops.set_analog_params)
-			fe->ops.tuner_ops.set_analog_params(fe, param);
+			fe->ops.tuner_ops.set_analog_params(fe, &p);
 
 		pr_afc("%s,freq_offset:%d , set freq:%d\n",
 				__func__, freq_offset, param->frequency);

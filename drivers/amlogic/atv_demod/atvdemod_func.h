@@ -79,7 +79,7 @@ extern void configure_receiver(int Broadcast_Standard,
 extern int atvdemod_clk_init(void);
 extern int atvdemod_init(struct atv_demod_priv *priv);
 extern void atvdemod_uninit(void);
-extern void atv_dmd_set_std(unsigned long std);
+extern void atv_dmd_set_std(unsigned long std, unsigned long audmode);
 extern void retrieve_adc_power(int *adc_level);
 extern void retrieve_vpll_carrier_lock(int *lock);
 extern void retrieve_vpll_carrier_line_lock(int *lock);
@@ -165,6 +165,7 @@ extern void atvdemod_mixer_tune(void);
 #define AML_ATV_DEMOD_VIDEO_MODE_PROP_NTSC_I	14
 #define AML_ATV_DEMOD_VIDEO_MODE_PROP_NTSC_M    15
 #define AML_ATV_DEMOD_VIDEO_MODE_PROP_SECAM_LC  16
+#define AML_ATV_DEMOD_VIDEO_MODE_PROP_PAL_N     17
 /* new add @20150813 end */
 
 /*GDE_Curve*/

@@ -208,8 +208,6 @@ ssize_t tsn_source_store(struct class *class,
 }
 
 static struct class_attribute aml_dvb_class_attrs[] = {
-	__ATTR(tuner_setting, 0664, tuner_setting_show,
-	       tuner_setting_store),
 	__ATTR(ts_setting, 0664, ts_setting_show, ts_setting_store),
 	__ATTR(get_pcr, 0664, get_pcr_show, NULL),
 	__ATTR(dmx_setting, 0664, dmx_setting_show, NULL),
@@ -458,7 +456,7 @@ INIT_ERR:
 #ifdef CONFIG_OF
 static const struct of_device_id aml_dvb_dt_match[] = {
 	{
-	 .compatible = "amlogic sc2, dvb",
+	 .compatible = "amlogic sc2, dvb-demux",
 	 },
 	{}
 };
@@ -470,7 +468,7 @@ struct platform_driver aml_dvb_driver = {
 	.suspend = NULL,
 	.resume = NULL,
 	.driver = {
-		   .name = "amlogic-dvb",
+		   .name = "amlogic-dvb-demux",
 		   .owner = THIS_MODULE,
 #ifdef CONFIG_OF
 		   .of_match_table = aml_dvb_dt_match,

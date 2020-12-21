@@ -20,7 +20,7 @@
 
 #include <linux/amlogic/aml_atvdemod.h>
 #include <media/v4l2-device.h>
-#include "drivers/media/dvb-core/dvb_frontend.h"
+#include <dvb_frontend.h>
 
 /** generic attach function. */
 #ifdef CONFIG_AMLOGIC_ATV_DEMOD
@@ -101,6 +101,8 @@
 #define V4L2_TUNER_TYPE          8
 #define V4L2_TUNER_IF_FREQ       9
 #define V4L2_AFC                 10
+
+#define V4L2_MAX_COMMAND         V4L2_AFC
 
 struct v4l2_frontend;
 
@@ -201,6 +203,8 @@ struct v4l2_frontend_private {
 
 	unsigned int state;
 	enum v4l2_search algo_status;
+
+	unsigned int tune_needexit;
 };
 
 struct v4l2_adapter {
@@ -243,6 +247,9 @@ struct v4l2_frontend {
 	struct v4l2_analog_parameters params;
 
 	struct v4l2_frontend_ops ops;
+
+	/* Used for asynchronous exit of tune threads */
+	int (*async_tune_needexit)(struct v4l2_frontend *v4l2_fe);
 };
 
 struct v4l2_atvdemod_device {

@@ -17,7 +17,6 @@
 
 #include <linux/types.h>
 #include <uapi/linux/dvb/frontend.h>
-#include <linux/amlogic/cpu_version.h>
 
 #include "atvdemod_func.h"
 #include "atvauddemod_func.h"
@@ -104,9 +103,6 @@ static void atv_demod_monitor_timer_handler(unsigned long arg)
 	add_timer(&monitor->timer);
 
 	if (atvdemod_timer_en == 0)
-		return;
-
-	if (vdac_enable_check_dtv())
 		return;
 
 	if (monitor->state == MONI_PAUSE)

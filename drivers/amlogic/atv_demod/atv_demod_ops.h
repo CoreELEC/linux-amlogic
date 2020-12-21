@@ -18,8 +18,8 @@
 #ifndef __ATV_DEMOD_OPS_H__
 #define __ATV_DEMOD_OPS_H__
 
-#include "drivers/media/dvb-core/dvb_frontend.h"
-#include "drivers/media/tuners/tuner-i2c.h"
+#include <dvb_frontend.h>
+#include <tuner-i2c.h>
 
 #include "atv_demod_driver.h"
 #include "atv_demod_afc.h"
@@ -96,7 +96,9 @@ struct atv_demod_priv {
 
 
 extern int atv_demod_enter_mode(struct dvb_frontend *fe);
+#ifdef CONFIG_AMLOGIC_MEDIA_VDIN
 extern int tvin_get_av_status(void);
+#endif
 
 struct dvb_frontend *aml_atvdemod_attach(struct dvb_frontend *fe,
 		struct v4l2_frontend *v4l2_fe,

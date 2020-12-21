@@ -1,5 +1,5 @@
 /*
- * drivers/amlogic/dvb/demux/sc2_demux/frontend.h
+ * drivers/amlogic/dvb/aml_dvb_extern_driver.c
  *
  * Copyright (C) 2017 Amlogic, Inc. All rights reserved.
  *
@@ -15,18 +15,28 @@
  *
  */
 
-#ifndef _FRONTEND_H_
-#define _FRONTEND_H_
-#include <linux/platform_device.h>
+#ifndef __AML_DVB_EXTERN_DRIVER_H__
+#define __AML_DVB_EXTERN_DRIVER_H__
 
-int frontend_probe(struct platform_device *pdev);
-int frontend_remove(void);
-void frontend_config_ts_sid(void);
+#include <linux/device.h>
+#include <dvb_frontend.h>
 
-ssize_t ts_setting_show(struct class *class,
-			struct class_attribute *attr, char *buf);
-ssize_t ts_setting_store(struct class *class,
-			 struct class_attribute *attr,
-			 const char *buf, size_t count);
+struct dvb_extern_device {
+	char *name;
+	struct class class;
+	struct device *dev;
 
-#endif
+	/* for debug. */
+	struct dvb_frontend fe;
+	struct analog_parameters para;
+
+	int tuner_num;
+	int tuner_cur;
+	int tuner_cur_attached;
+
+	int demod_num;
+	int demod_cur;
+	int demod_cur_attached;
+};
+
+#endif /* __AML_DVB_EXTERN_DRIVER_H__ */

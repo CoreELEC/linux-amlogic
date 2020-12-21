@@ -17,9 +17,6 @@
 
 #include <linux/types.h>
 #include <linux/io.h>
-#include <linux/amlogic/cpu_version.h>
-
-#include "drivers/amlogic/media/vin/tvin/tvafe/tvafe_general.h"
 
 #include "atvdemod_func.h"
 #include "atv_demod_access.h"
@@ -29,79 +26,22 @@
 
 int amlatvdemod_reg_read(unsigned int reg, unsigned int *val)
 {
-#if 0 /* Don't need to check the CLK and PLL states, it's done in init */
-	int ret = 0;
-
-	if (is_meson_txlx_cpu() || is_meson_txhd_cpu()) {
-		amlatvdemod_hiu_reg_read(HHI_GCLK_MPEG0, &ret);
-		if (0 == ((1 << 29) & ret)) {
-			pr_err("%s GCLK_MPEG0:0x%x\n", __func__, ret);
-			return 0;
-		}
-	} else if (is_meson_tl1_cpu() || is_meson_tm2_cpu()) {
-		amlatvdemod_hiu_reg_read(HHI_GCLK_MPEG0, &ret);
-		if (0 == ((1 << 22) & ret)) {
-			pr_err("%s GCLK_MPEG0:0x%x\n", __func__, ret);
-			return 0;
-		}
-	} else if (0 == (ADC_EN_ATV_DEMOD & tvafe_adc_get_pll_flag())) {
-		/* pr_dbg("%s atv demod pll not init\n", __func__); */
-		return 0;
-	}
-#endif
-
-	*val = readl(amlatvdemod_devp->demod_reg_base + reg);
+	if (amlatvdemod_devp->demod_reg_base)
+		*val = readl(amlatvdemod_devp->demod_reg_base + reg);
 
 	return 0;
 }
 
 int amlatvdemod_reg_write(unsigned int reg, unsigned int val)
 {
-#if 0 /* Don't need to check the CLK and PLL states, it's done in init */
-	int ret = 0;
-
-	if (is_meson_txlx_cpu() || is_meson_txhd_cpu()) {
-		amlatvdemod_hiu_reg_read(HHI_GCLK_MPEG0, &ret);
-		if (0 == ((1 << 29) & ret)) {
-			pr_err("%s GCLK_MPEG0:0x%x\n", __func__, ret);
-			return 0;
-		}
-	} else if (is_meson_tl1_cpu() || is_meson_tm2_cpu()) {
-		amlatvdemod_hiu_reg_read(HHI_GCLK_MPEG0, &ret);
-		if (0 == ((1 << 22) & ret)) {
-			pr_err("%s GCLK_MPEG0:0x%x\n", __func__, ret);
-			return 0;
-		}
-	} else if (0 == (ADC_EN_ATV_DEMOD & tvafe_adc_get_pll_flag())) {
-		/* pr_dbg("%s atv demod pll not init\n", __func__); */
-		return 0;
-	}
-#endif
-
-	writel(val, (amlatvdemod_devp->demod_reg_base + reg));
+	if (amlatvdemod_devp->demod_reg_base)
+		writel(val, (amlatvdemod_devp->demod_reg_base + reg));
 
 	return 0;
 }
 
 int atvaudiodem_reg_read(unsigned int reg, unsigned int *val)
 {
-#if 0
-	int ret = 0;
-
-	if (is_meson_txlx_cpu() || is_meson_txhd_cpu()) {
-		amlatvdemod_hiu_reg_read(HHI_GCLK_MPEG0, &ret);
-		if (0 == ((1 << 31) & ret)) {
-			pr_err("%s GCLK_MPEG0:0x%x\n", __func__, ret);
-			return 0;
-		}
-	} else if (is_meson_tl1_cpu() || is_meson_tm2_cpu()) {
-		amlatvdemod_hiu_reg_read(HHI_GCLK_MPEG0, &ret);
-		if (0 == ((1 << 28) & ret)) {
-			pr_err("%s GCLK_MPEG0:0x%x\n", __func__, ret);
-			return 0;
-		}
-	}
-#endif
 	if (amlatvdemod_devp->audiodemod_reg_base)
 		*val = readl(amlatvdemod_devp->audiodemod_reg_base + reg);
 
@@ -110,24 +50,6 @@ int atvaudiodem_reg_read(unsigned int reg, unsigned int *val)
 
 int atvaudiodem_reg_write(unsigned int reg, unsigned int val)
 {
-#if 0
-	int ret = 0;
-
-	if (is_meson_txlx_cpu() || is_meson_txhd_cpu()) {
-		amlatvdemod_hiu_reg_read(HHI_GCLK_MPEG0, &ret);
-		if (0 == ((1 << 31) & ret)) {
-			pr_err("%s GCLK_MPEG0:0x%x\n", __func__, ret);
-			return 0;
-		}
-	} else if (is_meson_tl1_cpu() || is_meson_tm2_cpu()) {
-		amlatvdemod_hiu_reg_read(HHI_GCLK_MPEG0, &ret);
-		if (0 == ((1 << 28) & ret)) {
-			pr_err("%s GCLK_MPEG0:0x%x\n", __func__, ret);
-			return 0;
-		}
-	}
-#endif
-
 	if (amlatvdemod_devp->audiodemod_reg_base)
 		writel(val, (amlatvdemod_devp->audiodemod_reg_base + reg));
 
@@ -136,12 +58,12 @@ int atvaudiodem_reg_write(unsigned int reg, unsigned int val)
 
 int atvaudio_ctrl_read(unsigned int *val)
 {
-	/* only [0xffd0d340](others)/[0xff60074c](tl1) write */
+	/* only 0xffd0d340(others)/0xff60074c(tl1/tm2/t5) write */
 	/* others: */
 	/* bit0: I2s select in_src, 0 = atv_demod, 1 = adec */
 	/* bit1: Din5, 0 = atv_demod, 1 = adec */
 	/* bit2: L/R swap for adec audio data */
-	/* TL1: */
+	/* TL1/TM2/T5: */
 	/* bit19: L/R swap for adec audio data */
 	/* bit20: I2s select in_src, 0 = atv_demod, 1 = adec */
 	if (amlatvdemod_devp->audio_reg_base)
@@ -152,12 +74,12 @@ int atvaudio_ctrl_read(unsigned int *val)
 
 int atvaudio_ctrl_write(unsigned int val)
 {
-	/* only 0xffd0d340(others)/0xff60074c(tl1) write */
+	/* only 0xffd0d340(others)/0xff60074c(tl1/tm2/t5) write */
 	/* others: */
 	/* bit0: I2s select in_src, 0 = atv_demod, 1 = adec */
 	/* bit1: Din5, 0 = atv_demod, 1 = adec */
 	/* bit2: L/R swap for adec audio data */
-	/* TL1: */
+	/* TL1/TM2/T5: */
 	/* bit19: L/R swap for adec audio data */
 	/* bit20: I2s select in_src, 0 = atv_demod, 1 = adec */
 	if (amlatvdemod_devp->audio_reg_base)
@@ -302,9 +224,9 @@ void atv_dmd_wr_byte(unsigned long block_addr, unsigned long reg_addr,
 
 	data = data & 0xff;
 
-	if ((reg_addr & 0x3) == 0) {
+	if ((reg_addr & 0x3) == 0)
 		data = (data << 24 | (data_tmp & 0xffffff));
-	} else if ((reg_addr & 0x3) == 1)
+	else if ((reg_addr & 0x3) == 1)
 		data = ((data_tmp & 0xff000000) |
 				(data << 16) | (data_tmp & 0xffff));
 	else if ((reg_addr & 0x3) == 2)

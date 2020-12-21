@@ -13,4 +13,8 @@ atvdemod_fe-objs = atvdemod_func.o \
 		atv_demod_ext.o \
 
 ccflags-y += -I.
-ccflags-y += -Idrivers/media/dvb-core
+ccflags-y += -I$(srctree)/drivers/media/dvb-core
+ccflags-y += -I$(srctree)/drivers/media/tuners
+ccflags-y += -I$(srctree)/include/media
+ccflags-y += -I$(srctree)/sound/soc/amlogic/auge
+ccflags-y += -I$(srctree)/sound/soc/amlogic/meson
