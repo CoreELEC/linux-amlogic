@@ -111,7 +111,8 @@ static int dvr_buf_size = TS_OUTPUT_CHAN_DVR_BUF_SIZE;
 module_param(dvr_buf_size, int, 0644);
 
 static int out_ts_elem_cb(struct out_elem *pout,
-			  char *buf, int count, void *udata);
+			  char *buf, int count, void *udata,
+			  int req_len, int *req_ret);
 
 static inline void _invert_mode(struct dmx_section_filter *filter)
 {
@@ -270,7 +271,7 @@ static void _sec_cb(u8 *sec, int len, void *data)
 }
 
 static int _ts_out_sec_cb(struct out_elem *pout, char *buf,
-			  int count, void *udata)
+			  int count, void *udata, int req_len, int *req_ret)
 {
 	struct sw_demux_sec_feed *sec_feed = (struct sw_demux_sec_feed *)udata;
 	struct aml_dmx *demux =
@@ -386,14 +387,14 @@ static int _dmx_ts_feed_set(struct dmx_ts_feed *ts_feed, u16 pid, int ts_type,
 			pr_dbg("%s DMX_OUTPUT_RAW_MODE\n", __func__);
 		}
 	} else {
-		if (filter->params.pes.output == DMX_OUT_TS_TAP ||
-		    filter->params.pes.output == DMX_OUT_TSDEMUX_TAP) {
+		if (filter->params.pes.output == DMX_OUT_TAP ||
+			filter->params.pes.output == DMX_OUT_TSDEMUX_TAP) {
+			format = PES_FORMAT;
+			pr_dbg("%s PES_FORMAT\n", __func__);
+		} else {
 			format = DVR_FORMAT;
 			mem_size = dvr_buf_size;
 			pr_dbg("%s DVR_FORMAT\n", __func__);
-		} else {
-			format = PES_FORMAT;
-			pr_dbg("%s PES_FORMAT\n", __func__);
 		}
 	}
 
@@ -514,7 +515,6 @@ static int _dmx_ts_feed_start_filtering(struct dmx_ts_feed *ts_feed)
 //              mutex_unlock(demux->pmutex);
 //              return -EINVAL;
 //      }
-
 	spin_lock_irq(demux->pslock);
 	ts_feed->is_filtering = 1;
 	feed->state = DMX_STATE_GO;
@@ -529,7 +529,7 @@ static int _dmx_ts_feed_stop_filtering(struct dmx_ts_feed *ts_feed)
 	struct sw_demux_ts_feed *feed = (struct sw_demux_ts_feed *)ts_feed;
 	struct aml_dmx *demux = (struct aml_dmx *)ts_feed->parent->priv;
 
-	pr_dbg("_dmx_ts_feed_stop_filtering\n");
+	pr_dbg("_dmx_ts_feed_stop_filtering, pid:%d\n", feed->pid);
 	mutex_lock(demux->pmutex);
 
 	if (feed->state < DMX_STATE_GO) {
@@ -823,8 +823,39 @@ static int _dmx_section_feed_release_filter(struct dmx_section_feed *feed,
 	return 0;
 }
 
+int check_dmx_filter_buff(struct dmx_ts_feed *feed, int req_len)
+{
+	struct dmxdev_filter *dmxdevfilter = feed->priv;
+	ssize_t free;
+	struct dvb_ringbuffer *buffer;
+
+	spin_lock(&dmxdevfilter->dev->lock);
+	if (dmxdevfilter->params.pes.output == DMX_OUT_DECODER) {
+		spin_unlock(&dmxdevfilter->dev->lock);
+		return 0;
+	}
+
+	if (dmxdevfilter->params.pes.output == DMX_OUT_TAP ||
+		dmxdevfilter->params.pes.output == DMX_OUT_TSDEMUX_TAP)
+		buffer = &dmxdevfilter->buffer;
+	else
+		buffer = &dmxdevfilter->dev->dvr_buffer;
+	if (buffer->error) {
+		spin_unlock(&dmxdevfilter->dev->lock);
+		return 0;
+	}
+	free = dvb_ringbuffer_free(buffer);
+	if (req_len > free) {
+		pr_info("dvb-core: buffer isn't enough\n");
+		spin_unlock(&dmxdevfilter->dev->lock);
+		return 1;
+	}
+	spin_unlock(&dmxdevfilter->dev->lock);
+	return 0;
+}
+
 static int out_ts_elem_cb(struct out_elem *pout, char *buf,
-			  int count, void *udata)
+			  int count, void *udata, int req_len, int *req_ret)
 {
 	struct dmx_ts_feed *source_feed = (struct dmx_ts_feed *)udata;
 	struct sw_demux_ts_feed *ts_feed = (struct sw_demux_ts_feed *)udata;
@@ -832,6 +863,12 @@ static int out_ts_elem_cb(struct out_elem *pout, char *buf,
 	if (ts_feed->state != DMX_STATE_GO)
 		return 0;
 
+	/*if found dvb-core buff isn't enough, return*/
+	if (req_len && req_ret) {
+		*req_ret = check_dmx_filter_buff(source_feed, req_len);
+		if (*req_ret == 1)
+			return 0;
+	}
 	if (ts_feed->ts_cb)
 		ts_feed->ts_cb(buf, count, NULL, 0, source_feed);
 	return count;
@@ -891,6 +928,7 @@ static int _dmx_release_ts_feed(struct dmx_demux *dmx,
 		return -ERESTARTSYS;
 
 	if (feed->ts_out_elem) {
+		pr_dbg("%s pid:%d\n", __func__, feed->pid);
 		ts_output_remove_pid(feed->ts_out_elem, feed->pid);
 		ts_output_remove_cb(feed->ts_out_elem,
 				out_ts_elem_cb, feed, feed->cb_id, 0);
@@ -1612,7 +1650,8 @@ static ssize_t register_value_store(struct class *class,
 }
 
 static int out_ts_elem_cb_test(struct out_elem *pout, char *buf,
-			       int count, void *udata)
+			       int count, void *udata,
+				   int req_len, int *req_ret)
 {
 	dprint("get data...\n");
 	return count;

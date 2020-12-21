@@ -47,6 +47,7 @@
 #define MAX_READ_BUF_LEN			(64 * 1024)
 #define MAX_DVR_READ_BUF_LEN		(2 * 1024 * 1024)
 
+#define MAX_FEED_NUM				32
 static int ts_output_max_pid_num_per_sid = 16;
 /*protect cb_list/ts output*/
 static struct mutex *ts_output_mutex;
@@ -59,6 +60,7 @@ struct es_params_t {
 	u8 have_send_header;
 	unsigned long data_start;
 	unsigned int data_len;
+	int es_overflow;
 };
 
 struct ts_out {
@@ -92,7 +94,7 @@ struct cb_entry {
 	u8 format;
 	u8 ref;
 	ts_output_cb cb;
-	void *udata;
+	void *udata[MAX_FEED_NUM];
 	struct cb_entry *next;
 };
 
@@ -426,7 +428,7 @@ static int out_sec_cb_list(struct out_elem *pout, char *buf, int size)
 
 	ptmp = pout->cb_sec_list;
 	while (ptmp && ptmp->cb) {
-		w_size = ptmp->cb(pout, buf, size, ptmp->udata);
+		w_size = ptmp->cb(pout, buf, size, ptmp->udata[0], 0, 0);
 		if (last_w_size != -1 && w_size != last_w_size) {
 			dprint("ref:%d ", pout->ref);
 			dprint("add pid:%d cache for filter ",
@@ -440,7 +442,8 @@ static int out_sec_cb_list(struct out_elem *pout, char *buf, int size)
 	return w_size;
 }
 
-static int out_ts_cb_list(struct out_elem *pout, char *buf, int size)
+static int out_ts_cb_list(struct out_elem *pout, char *buf, int size,
+	int req_len, int *req_ret)
 {
 	int w_size = 0;
 	struct cb_entry *ptmp = NULL;
@@ -450,7 +453,10 @@ static int out_ts_cb_list(struct out_elem *pout, char *buf, int size)
 
 	ptmp = pout->cb_ts_list;
 	while (ptmp && ptmp->cb) {
-		w_size = ptmp->cb(pout, buf, size, ptmp->udata);
+		w_size = ptmp->cb(pout, buf, size, ptmp->udata[0],
+				req_len, req_ret);
+		if (req_ret && *req_ret == 1)
+			return 0;
 		ptmp = ptmp->next;
 	}
 
@@ -492,7 +498,7 @@ static int section_process(struct out_elem *pout)
 				}
 			}
 			if (pout->cb_ts_list)
-				out_ts_cb_list(pout, pread, ret);
+				out_ts_cb_list(pout, pread, ret, 0, 0);
 		}
 	} else {
 		len = READ_CACHE_SIZE - pout->remain_len;
@@ -516,7 +522,7 @@ static int section_process(struct out_elem *pout)
 						pout->remain_len);
 			}
 			if (pout->cb_ts_list)
-				out_ts_cb_list(pout, pread, ret);
+				out_ts_cb_list(pout, pread, ret, 0, 0);
 		}
 	}
 	return 0;
@@ -532,7 +538,7 @@ static void write_sec_ts_data(struct out_elem *pout, char *buf, int size)
 	sec_ts_data.data_end = (unsigned long)buf + size;
 
 	out_ts_cb_list(pout, (char *)&sec_ts_data,
-		       sizeof(struct dmx_sec_ts_data));
+		       sizeof(struct dmx_sec_ts_data), 0, 0);
 }
 
 static int dvr_process(struct out_elem *pout)
@@ -550,7 +556,7 @@ static int dvr_process(struct out_elem *pout)
 	if (ret != 0) {
 		if (pout->cb_ts_list && flag == 0) {
 //                      dprint("%s w:%d wwwwww\n", __func__, len);
-			out_ts_cb_list(pout, pread, ret);
+			out_ts_cb_list(pout, pread, ret, 0, 0);
 			if (dump_dvr_ts == 1) {
 				dump_file_open(DVR_DUMP_FILE, &dvr_dump_file);
 				dump_file_write(pread, ret, &dvr_dump_file);
@@ -608,7 +614,8 @@ static int _task_out_func(void *data)
 					ptmp->pout->pchan, &pread, len, 0);
 				}
 				if (ret != 0)
-					out_ts_cb_list(ptmp->pout, pread, ret);
+					out_ts_cb_list(ptmp->pout, pread,
+							ret, 0, 0);
 			}
 			ptmp = ptmp->pnext;
 		}
@@ -792,7 +799,9 @@ static int write_es_data(struct out_elem *pout, struct es_params_t *es_params)
 		       es_params->header.len);
 		if (es_params->header.pts_dts_flag & 0x2)
 			pout->newest_pts = es_params->header.pts;
-		out_ts_cb_list(pout, (char *)&es_params->header, h_len);
+		out_ts_cb_list(pout, (char *)&es_params->header, h_len,
+			(h_len + es_params->header.len),
+			&es_params->es_overflow);
 		es_params->have_send_header = 1;
 	}
 
@@ -800,7 +809,10 @@ static int write_es_data(struct out_elem *pout, struct es_params_t *es_params)
 	len = es_len - es_params->data_len;
 	ret = SC2_bufferid_read(pout->pchan, &ptmp, len, 0);
 	if (ret) {
-		out_ts_cb_list(pout, ptmp, ret);
+		if (!es_params->es_overflow)
+			out_ts_cb_list(pout, ptmp, ret, 0, 0);
+		else
+			pr_dbg("audio data lost\n");
 		if ((dump_audio_es & 0xFFFF)  == pout->es_pes->pid &&
 		((dump_audio_es >> 16) & 0xFFFF) == pout->sid) {
 			dump_file_open(AUDIOES_DUMP_FILE, &audio_dump_file);
@@ -822,7 +834,10 @@ static int write_es_data(struct out_elem *pout, struct es_params_t *es_params)
 			len = es_params->header.len - es_params->data_len;
 			ret = SC2_bufferid_read(pout->pchan, &ptmp, len, 0);
 			if (ret) {
-				out_ts_cb_list(pout, ptmp, ret);
+				if (!es_params->es_overflow)
+					out_ts_cb_list(pout, ptmp, ret, 0, 0);
+				else
+					pr_dbg("audio data lost\n");
 				if (((dump_audio_es & 0xFFFF) ==
 							pout->es_pes->pid) &&
 					(((dump_audio_es >> 16) & 0xFFFF)
@@ -1161,7 +1176,9 @@ static int write_aucpu_es_data(struct out_elem *pout,
 		       es_params->header.len);
 		if (es_params->header.pts_dts_flag & 0x2)
 			pout->newest_pts = es_params->header.pts;
-		out_ts_cb_list(pout, (char *)&es_params->header, h_len);
+		out_ts_cb_list(pout, (char *)&es_params->header, h_len,
+			(h_len + es_params->header.len),
+			&es_params->es_overflow);
 		es_params->have_send_header = 1;
 	}
 
@@ -1169,7 +1186,10 @@ static int write_aucpu_es_data(struct out_elem *pout,
 	len = es_len - es_params->data_len;
 	ret = aucpu_bufferid_read(pout, &ptmp, len, 0);
 	if (ret) {
-		out_ts_cb_list(pout, ptmp, ret);
+		if (!es_params->es_overflow)
+			out_ts_cb_list(pout, ptmp, ret, 0, 0);
+		else
+			pr_dbg("audio data lost\n");
 		if ((dump_audio_es & 0xFFFF)  == pout->es_pes->pid &&
 			((dump_audio_es >> 16) & 0xFFFF) == pout->sid) {
 			dump_file_open(AUDIOES_DUMP_FILE, &audio_dump_file);
@@ -1246,7 +1266,7 @@ static int write_aucpu_sec_es_data(struct out_elem *pout,
 	       (unsigned long)(sec_es_data.data_start - sec_es_data.buf_start));
 
 	out_ts_cb_list(pout, (char *)&sec_es_data,
-		       sizeof(struct dmx_sec_es_data));
+		       sizeof(struct dmx_sec_es_data), 0, 0);
 
 	es_params->data_start = 0;
 	es_params->data_len = 0;
@@ -1392,7 +1412,7 @@ static int write_sec_video_es_data(struct out_elem *pout,
 	if (es_params->header.pts_dts_flag & 0x2)
 		pout->newest_pts = sec_es_data.pts;
 	out_ts_cb_list(pout, (char *)&sec_es_data,
-			sizeof(struct dmx_sec_es_data));
+			sizeof(struct dmx_sec_es_data), 0, 0);
 
 	es_params->data_start = 0;
 	es_params->data_len = 0;
@@ -1464,6 +1484,7 @@ static int _handle_es(struct out_elem *pout, struct es_params_t *es_params)
 			es_params->have_send_header = 0;
 			es_params->data_len = 0;
 			es_params->data_start = 0;
+			es_params->es_overflow = 0;
 			return 0;
 		} else {
 			return -1;
@@ -1476,6 +1497,7 @@ static int _handle_es(struct out_elem *pout, struct es_params_t *es_params)
 				es_params->have_send_header = 0;
 				es_params->data_len = 0;
 				es_params->data_start = 0;
+				es_params->es_overflow = 0;
 				return 0;
 			} else {
 				return -1;
@@ -1926,10 +1948,10 @@ struct out_elem *ts_output_open(int sid, u8 dmx_id, u8 format,
 int ts_output_close(struct out_elem *pout)
 {
 	if (pout->ref) {
-		if (pout->format != DVR_FORMAT)
-			pr_err("error not close pout fmt:%d es:pid:%d\r\n",
-				pout->format,
-				pout->es_pes->pid);
+//		if (pout->format != DVR_FORMAT)
+//			pr_err("error not close pout fmt:%d es:pid:%d\r\n",
+//				pout->format,
+//				pout->es_pes->pid);
 		return 0;
 	}
 
@@ -2010,6 +2032,7 @@ int ts_output_close(struct out_elem *pout)
 	}
 
 	pout->used = 0;
+	pr_dbg("%s end\n", __func__);
 	return 0;
 }
 
@@ -2239,6 +2262,8 @@ int ts_output_add_cb(struct out_elem *pout, ts_output_cb cb, void *udata,
 			if (tmp_cb->id == cb_id &&
 				tmp_cb->format == DVR_FORMAT) {
 				tmp_cb->ref++;
+				if (tmp_cb->ref < MAX_FEED_NUM)
+					tmp_cb->udata[tmp_cb->ref] = udata;
 				return 0;
 			}
 			tmp_cb = tmp_cb->next;
@@ -2251,7 +2276,7 @@ int ts_output_add_cb(struct out_elem *pout, ts_output_cb cb, void *udata,
 		return -1;
 	}
 	tmp_cb->cb = cb;
-	tmp_cb->udata = udata;
+	tmp_cb->udata[0] = udata;
 	tmp_cb->next = NULL;
 	tmp_cb->format = format;
 	tmp_cb->ref = 0;
@@ -2273,6 +2298,19 @@ int ts_output_add_cb(struct out_elem *pout, ts_output_cb cb, void *udata,
 
 	pout->ref++;
 	return 0;
+}
+
+static void remove_udata(struct cb_entry *tmp_cb, void *udata)
+{
+	int i, j;
+
+	/*remove the free feed*/
+	for (i = 0; i <= tmp_cb->ref && i < MAX_FEED_NUM; i++) {
+		if (tmp_cb->udata[i] == udata) {
+			for (j = i; j < tmp_cb->ref && j < MAX_FEED_NUM; j++)
+				tmp_cb->udata[j] = tmp_cb->udata[j + 1];
+		}
+	}
 }
 
 /**
@@ -2305,6 +2343,7 @@ int ts_output_remove_cb(struct out_elem *pout, ts_output_cb cb, void *udata,
 					pout->ref--;
 					return 0;
 				}
+				remove_udata(tmp_cb, udata);
 				tmp_cb->ref--;
 				return 0;
 			}
@@ -2316,7 +2355,7 @@ int ts_output_remove_cb(struct out_elem *pout, ts_output_cb cb, void *udata,
 	if (is_sec) {
 		tmp_cb = pout->cb_sec_list;
 		while (tmp_cb) {
-			if (tmp_cb->cb == cb && tmp_cb->udata == udata) {
+			if (tmp_cb->cb == cb && tmp_cb->udata[0] == udata) {
 				if (tmp_cb == pout->cb_sec_list)
 					pout->cb_sec_list = tmp_cb->next;
 				else
@@ -2337,7 +2376,7 @@ int ts_output_remove_cb(struct out_elem *pout, ts_output_cb cb, void *udata,
 
 		tmp_cb = pout->cb_ts_list;
 		while (tmp_cb) {
-			if (tmp_cb->cb == cb && tmp_cb->udata == udata) {
+			if (tmp_cb->cb == cb && tmp_cb->udata[0] == udata) {
 				if (tmp_cb == pout->cb_ts_list)
 					pout->cb_ts_list = tmp_cb->next;
 				else
