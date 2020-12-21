@@ -2991,12 +2991,6 @@ void hdmitx_edid_clear(struct hdmitx_dev *hdmitx_device)
 	prxcap->ieeeoui = HDMI_IEEEOUI;
 
 	hdmitx_device->vic_count = 0;
-	hdmitx_device->hdmi_info.vsdb_phy_addr.a = 0;
-	hdmitx_device->hdmi_info.vsdb_phy_addr.b = 0;
-	hdmitx_device->hdmi_info.vsdb_phy_addr.c = 0;
-	hdmitx_device->hdmi_info.vsdb_phy_addr.d = 0;
-	hdmitx_device->hdmi_info.vsdb_phy_addr.valid = 0;
-	memset(&vsdb_local, 0, sizeof(struct vsdb_phyaddr));
 	memset(&hdmitx_device->EDID_hash[0], 0,
 		sizeof(hdmitx_device->EDID_hash));
 	hdmitx_device->edid_parsing = 0;
