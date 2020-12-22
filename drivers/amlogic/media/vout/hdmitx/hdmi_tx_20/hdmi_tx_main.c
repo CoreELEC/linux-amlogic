@@ -234,6 +234,7 @@ static void hdmitx_early_suspend(struct early_suspend *h)
 	phdmi->output_blank_flag = 0;
 	phdmi->hwop.cntlddc(phdmi, DDC_HDCP_MUX_INIT, 1);
 	phdmi->hwop.cntlddc(phdmi, DDC_HDCP_OP, HDCP14_OFF);
+	hdmitx_set_drm_pkt(NULL);
 	hdmitx_set_vsif_pkt(0, 0, NULL, true);
 	hdmitx_set_hdr10plus_pkt(0, NULL);
 	clear_rx_vinfo(hdev);
@@ -1350,14 +1351,14 @@ static void hdmitx_sdr_hdr_uevent(struct hdmitx_dev *hdev)
 	if ((hdev->hdmi_last_hdr_mode == 0) &&
 		(hdev->hdmi_current_hdr_mode != 0)) {
 		/* SDR -> HDR*/
-		hdev->hdmi_last_hdr_mode = hdev->hdmi_current_hdr_mode;
 		extcon_set_state_sync(hdmitx_extcon_hdr, EXTCON_DISP_HDMI, 1);
 	} else if ((hdev->hdmi_last_hdr_mode != 0) &&
 			(hdev->hdmi_current_hdr_mode == 0)) {
 		/* HDR -> SDR*/
-		hdev->hdmi_last_hdr_mode = hdev->hdmi_current_hdr_mode;
 		extcon_set_state_sync(hdmitx_extcon_hdr, EXTCON_DISP_HDMI, 0);
 	}
+	/* NOTE: for HDR <-> HLG, also need update last mode */
+	hdev->hdmi_last_hdr_mode = hdev->hdmi_current_hdr_mode;
 }
 
 /* frame duration(us) for one frame */
@@ -1404,6 +1405,10 @@ static void hdr_work_func(struct work_struct *work)
 			hdev->hwop.setpacket(HDMI_PACKET_DRM, NULL, NULL);
 			hdev->hdmi_current_hdr_mode = 0;
 			hdmitx_sdr_hdr_uevent(hdev);
+		} else {
+			pr_info("hdr_work_func: tf=%d, cf=%d\n",
+				hdev->hdr_transfer_feature,
+				hdev->hdr_color_feature);
 		}
 	} else {
 		if (hdr_mute_frame) {
@@ -1477,15 +1482,27 @@ static void hdmitx_set_drm_pkt(struct master_display_info_s *data)
 	 *	1:bt709 0xe:bt2020-10 0x10:smpte-st-2084 0x12:hlg(todo)
 	 */
 	if (data) {
-		hdev->hdr_transfer_feature = (data->features >> 8) & 0xff;
-		hdev->hdr_color_feature = (data->features >> 16) & 0xff;
-		hdev->colormetry = (data->features >> 30) & 0x1;
+		if ((hdev->hdr_transfer_feature !=
+			((data->features >> 8) & 0xff)) ||
+			(hdev->hdr_color_feature !=
+			((data->features >> 16) & 0xff)) ||
+			(hdev->colormetry !=
+			((data->features >> 30) & 0x1))) {
+			hdev->hdr_transfer_feature =
+				(data->features >> 8) & 0xff;
+			hdev->hdr_color_feature =
+				(data->features >> 16) & 0xff;
+			hdev->colormetry =
+				(data->features >> 30) & 0x1;
+			pr_info("hdmitx_set_drm_pkt: tf=%d, cf=%d, colormetry=%d\n",
+				hdev->hdr_transfer_feature,
+				hdev->hdr_color_feature,
+				hdev->colormetry);
+		}
+	} else {
+		pr_info("hdmitx_set_drm_pkt: disable drm pkt\n");
 	}
 
-	if ((hdr_status_pos != 1) && (hdr_status_pos != 3))
-		pr_info("hdmitx_set_drm_pkt: tf=%d, cf=%d, colormetry=%d\n",
-			hdev->hdr_transfer_feature, hdev->hdr_color_feature,
-			hdev->colormetry);
 	hdr_status_pos = 1;
 	/* if VSIF/DV or VSIF/HDR10P packet is enabled, disable it */
 	if (hdmitx_dv_en()) {
@@ -1515,6 +1532,7 @@ static void hdmitx_set_drm_pkt(struct master_display_info_s *data)
 		DRM_HB[1] = 0;
 		DRM_HB[2] = 0;
 		DRM_DB[0] = 0;
+		hdev->colormetry = 0;
 		hdmitx_device.hwop.setpacket(HDMI_PACKET_DRM, NULL, NULL);
 		hdmitx_device.hwop.cntlconfig(&hdmitx_device,
 			CONF_AVI_BT2020, hdev->colormetry);
@@ -1725,8 +1743,15 @@ void hdmitx_set_vsif_pkt(enum eotf_type type,
 		return;
 	}
 
-	if (hdr_status_pos != 2)
-		pr_info("hdmitx_set_vsif_pkt: type = %d\n", type);
+	if ((hdev->hdmi_current_eotf_type != type) ||
+		(hdev->hdmi_current_tunnel_mode != tunnel_mode) ||
+		(hdev->hdmi_current_signal_sdr != signal_sdr)) {
+		hdev->hdmi_current_eotf_type = type;
+		hdev->hdmi_current_tunnel_mode = tunnel_mode;
+		hdev->hdmi_current_signal_sdr = signal_sdr;
+		pr_info("hdmitx_set_vsif_pkt: type=%d, tunnel_mode=%d, signal_sdr=%d\n",
+			type, tunnel_mode, signal_sdr);
+	}
 	hdr_status_pos = 2;
 
 	/* if DRM/HDR packet is enabled, disable it */
@@ -1739,8 +1764,6 @@ void hdmitx_set_vsif_pkt(enum eotf_type type,
 		schedule_work(&hdev->work_hdr);
 	}
 
-	hdev->hdmi_current_eotf_type = type;
-	hdev->hdmi_current_tunnel_mode = tunnel_mode;
 	/*ver0 and ver1_15 and ver1_12bit with ll= 0 use hdmi 1.4b VSIF*/
 	if ((hdev->rxcap.dv_info.ver == 0) ||
 	    ((hdev->rxcap.dv_info.ver == 1) &&
@@ -5579,9 +5602,9 @@ static void hdmitx_hpd_plugin_handler(struct work_struct *work)
 					    CLR_AVMUTE);
 		} else {
 			/* keep avmute & clear pkt */
+			hdmitx_set_drm_pkt(NULL);
 			hdmitx_set_vsif_pkt(0, 0, NULL, true);
 			hdmitx_set_hdr10plus_pkt(0, NULL);
-			hdmitx_set_drm_pkt(NULL);
 		}
 		edidinfo_attach_to_vinfo(hdev);
 		plugout_mute_flg = false;
@@ -5649,6 +5672,7 @@ static void hdmitx_hpd_plugout_handler(struct work_struct *work)
 		return;
 	}
 	/*after plugout, DV mode can't be supported*/
+	hdmitx_set_drm_pkt(NULL);
 	hdmitx_set_vsif_pkt(0, 0, NULL, true);
 	hdmitx_set_hdr10plus_pkt(0, NULL);
 	hdev->ready = 0;
@@ -6145,6 +6169,12 @@ static int amhdmitx_device_init(struct hdmitx_dev *hdmi_dev)
 						hdmitx_device.fmt_attr);
 	hdmitx_device.hdmi_last_hdr_mode = 0;
 	hdmitx_device.hdmi_current_hdr_mode = 0;
+	hdmitx_device.hdr_transfer_feature = T_UNKNOWN;
+	hdmitx_device.hdr_color_feature = C_UNKNOWN;
+	hdmitx_device.colormetry = 0;
+	hdmitx_device.hdmi_current_eotf_type = EOTF_T_NULL;
+	hdmitx_device.hdmi_current_tunnel_mode = 0;
+	hdmitx_device.hdmi_current_signal_sdr = true;
 	hdmitx_device.unplug_powerdown = 0;
 	hdmitx_device.vic_count = 0;
 	hdmitx_device.auth_process_timer = 0;
