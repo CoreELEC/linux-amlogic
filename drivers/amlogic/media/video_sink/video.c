@@ -3358,6 +3358,7 @@ static s32 pip_render_frame(struct video_layer_s *layer)
 	struct vpp_frame_par_s *frame_par;
 	u32 zoom_start_y, zoom_end_y;
 	struct vframe_s *dispbuf = NULL;
+	bool force_setting = false;
 
 	if (!layer)
 		return -1;
@@ -3366,6 +3367,10 @@ static s32 pip_render_frame(struct video_layer_s *layer)
 		layer->cur_frame_par = layer->next_frame_par;
 		/* just keep the order variable */
 		curpip_frame_par = layer->cur_frame_par;
+	}
+	if (glayer_info[layer->layer_id].fgrain_force_update) {
+		force_setting = true;
+		glayer_info[layer->layer_id].fgrain_force_update = false;
 	}
 
 	frame_par = layer->cur_frame_par;
@@ -3391,7 +3396,7 @@ static s32 pip_render_frame(struct video_layer_s *layer)
 			frame_par, layer->dispbuf);
 	}
 
-	if (!layer->new_vpp_setting) {
+	if (!layer->new_vpp_setting && !force_setting) {
 		/* when new frame is toggled but video layer is not on */
 		/* need always flush pps register before pwr on */
 		/* to avoid pps coeff lost */
@@ -3629,7 +3634,10 @@ static s32 primary_render_frame(struct video_layer_s *layer)
 		layer->cur_frame_par = layer->next_frame_par;
 		cur_frame_par = layer->cur_frame_par;
 	}
-
+	if (glayer_info[layer->layer_id].fgrain_force_update) {
+		force_setting = true;
+		glayer_info[layer->layer_id].fgrain_force_update = false;
+	}
 	frame_par = layer->cur_frame_par;
 	dispbuf = layer->dispbuf;
 
