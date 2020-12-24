@@ -283,6 +283,7 @@ struct di_hw_ops_info_s {
 };
 
 extern const struct dim_hw_opsv_s dim_ops_l1_v3;
+extern const struct dim_hw_opsv_s dim_ops_l1_v4;
 
 struct hw_ops_s {
 	struct di_hw_ops_info_s info;
@@ -342,6 +343,7 @@ void dim_sc2_contr_pst(union hw_sc2_ctr_pst_s *cfg);
 void dim_sc2_4k_set(unsigned int mode_4k);
 void dim_sc2_afbce_rst(unsigned int ec_nub);
 void afbce_sw(enum EAFBC_ENC enc, bool on);//tmp
+unsigned int afbce_read_used(enum EAFBC_ENC enc);//tmp
 
 void hpre_gl_read(void);
 void cvsi_cfg(struct dim_cvsi_s	*pcvsi);

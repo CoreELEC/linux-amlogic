@@ -59,6 +59,7 @@ struct di_buffer {
 	struct vframe_s *vf;
 	void *caller_data; /*from di_init_parm.caller_data*/
 	u32 flag;
+	unsigned int crcout;
 };
 
 enum DI_FLAG {
@@ -93,6 +94,11 @@ enum di_output_format {
 	DI_OUTPUT_422 = 0,
 	DI_OUTPUT_NV12 = 1,
 	DI_OUTPUT_NV21 = 2,
+	DI_OUTPUT_TVP		= 0x20000000, /*21-03-02*/
+	DI_OUTPUT_LINEAR	= 0x40000000,
+	/*1:di output must linear, 0: determined by di,may be linear or block*/
+	DI_OUTPUT_AFBC_BEST = 0x80000000,
+	/*if di support afbc, use afbc is the best choice*/
 	DI_OUTPUT_MAX = 0x7FFFFFFF,
 };
 
@@ -181,6 +187,16 @@ int di_write(struct di_buffer *buffer, struct composer_dst *dst);
  *
  * @return      0 for success, or fail type if < 0
  */
-//int di_release_keep_buf(struct di_buffer *buffer);
+int di_release_keep_buf(struct di_buffer *buffer);
+
+/**
+ * @brief  di_get_buffer_num  get output buffer num
+ *
+ * @param[in]  index   instance index
+ * @param[in]  buffer  Pointer of buffer structure
+ *
+ * @return      number or fail type
+ */
+int di_get_buffer_num(int index);
 
 #endif	/*__DI_INTERLACE_H__*/

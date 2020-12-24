@@ -17,8 +17,7 @@
  */
 
 #ifndef __DOLBY_SYS_H__
-#define __DOLBY_SYS_H_
-#if 1
+#define __DOLBY_SYS_H__
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
@@ -102,7 +101,6 @@ struct dicomposer_register_ipcore_s {
 	u32 el_nlq_offset_v;
 	u32 el_coefficient_v[3];
 };
-#endif
 
 #define DOLBY_CORE1C_REG_START                     0x1800
 #define DOLBY_CORE1C_CLKGATE_CTRL                  0x18f2

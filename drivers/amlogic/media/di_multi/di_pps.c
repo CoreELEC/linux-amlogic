@@ -20,6 +20,8 @@
 #include <linux/err.h>
 #include <linux/amlogic/media/registers/regs/di_regs.h>
 #include <linux/amlogic/media/vfm/vframe.h>
+#include "deinterlace.h"
+#include "di_data_l.h"
 #include "di_pps.h"
 #include "register.h"
 
@@ -415,7 +417,7 @@ void dim_pps_config(unsigned char path, int src_w, int src_h,
 	unsigned short top_vphase, bot_vphase;
 	unsigned char is_frame;
 	int vert_bank_length = 4;
-
+	bool last_line_repeat = false; /* feijun.fan 2021-02-19 */
 	const unsigned int *filt_coef0 = di_filt_coef0;
 	/*unsigned int *filt_coef1 = di_filt_coef1;*/
 	const unsigned int *filt_coef2 = di_filt_coef2;
@@ -524,10 +526,17 @@ void dim_pps_config(unsigned char path, int src_w, int src_h,
 	WR(DI_HSC_REGION1_PHASE_SLOPE, 0);
 	WR(DI_HSC_REGION3_PHASE_SLOPE, 0);
 	WR(DI_HSC_REGION4_PHASE_SLOPE, 0);
-
+	/* from vlsi feijun.fan 2021-02-19 begin: green line */
+	if (DIM_IS_IC_EF(TL1)) {
+		WR(DI_SC_DUMMY_DATA, 0x4080200);
+		wr_reg_bits(DI_SC_TOP_CTRL, 0, 27, 1); //default is 0
+		last_line_repeat = true;
+	}
+	/* from vlsi feijun.fan 2021-02-19 end		*/
 	WR(DI_HSC_PHASE_CTRL, (1 << 21) | (4 << 16) | 0);
 	wr_reg_bits(DI_SC_TOP_CTRL, (path ? 3 : 0), 29, 2);
 	WR(DI_SC_MISC,
+	   (last_line_repeat << 24)	|		/* 2021-02-19*/
 	   (prevsc_en << 21)	|
 	   (prehsc_en << 20)	|	/* prehsc_en */
 	   (prevsc_en << 19)	|	/* prevsc_en */

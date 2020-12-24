@@ -232,6 +232,17 @@ static void dump_mif_state(struct DI_MIF_S *mif)
 		mif->canvas0_addr0,
 		mif->canvas0_addr1,
 		mif->canvas0_addr2);
+	pr_info("linear:%d:addr <0x%lx 0x%lx 0x%lx>.\n",
+		mif->linear,
+		mif->addr0,
+		mif->addr1,
+		mif->addr2);
+}
+
+void dim_dump_mif_state(struct DI_MIF_S *mif, char *name)
+{
+	pr_info("%s:%s\n", __func__, name);
+	dump_mif_state(mif);
 }
 
 /*2018-08-17 add debugfs*/
@@ -249,6 +260,15 @@ void dump_mif_state_seq(struct DI_MIF_S *mif,
 		   mif->canvas0_addr0,
 		   mif->canvas0_addr1,
 		   mif->canvas0_addr2);
+	seq_printf(seq, "\tlinear[%d] addr <0x%lx 0x%lx 0x%lx>.\n",
+		   mif->linear,
+		   mif->addr0,
+		   mif->addr1,
+		   mif->addr2);
+	seq_printf(seq, "\tbuf_crop_en[%d] buf_hsize <%d> blk<%d>.\n",
+		   mif->buf_crop_en,
+		   mif->buf_hsize,
+		   mif->block_mode);
 	seq_printf(seq, "\tbit_mode [%u] set_separate_en[%u]\n",
 		   mif->bit_mode,
 		   mif->set_separate_en);
@@ -258,6 +278,10 @@ void dump_mif_state_seq(struct DI_MIF_S *mif,
 	seq_printf(seq, "\tsrc_field_mode [%u] output_field_num[%u]\n",
 		   mif->src_field_mode,
 		   mif->output_field_num);
+	seq_printf(seq, "\tl_endian [%d] cbcr_swap[%d] reg_swap[%d]\n",
+		   mif->l_endian,
+		   mif->cbcr_swap,
+		   mif->reg_swap);
 }
 
 static void dump_simple_mif_state(struct DI_SIM_MIF_s *simp_mif)
@@ -279,6 +303,15 @@ void dump_simple_mif_state_seq(struct DI_SIM_MIF_s *simp_mif,
 		   simp_mif->start_y, simp_mif->end_y);
 	seq_printf(seq, "\tcanvas num <%u>.\n",
 		   simp_mif->canvas_num);
+	seq_printf(seq, "\tlinear[%d] <0x%lx 0x%lx>.\n",
+		   simp_mif->linear,
+		   simp_mif->addr,
+		   simp_mif->addr1);
+	seq_printf(seq, "\tper_bits[%d]\n",
+		   simp_mif->per_bits);
+	seq_printf(seq, "\tbuf_crop_en[%d] buf_hsize <%d>.\n",
+		   simp_mif->buf_crop_en,
+		   simp_mif->buf_hsize);
 	seq_printf(seq, "\tbit_mode [%u] set_separate_en[%u]\n",
 		   simp_mif->bit_mode,
 		   simp_mif->set_separate_en);
@@ -288,6 +321,10 @@ void dump_simple_mif_state_seq(struct DI_SIM_MIF_s *simp_mif,
 		   simp_mif->ddr_en, simp_mif->src_i);
 	seq_printf(seq, "\ten [%u], cbcr_swap[%u]\n",
 		   simp_mif->en, simp_mif->cbcr_swap);
+	seq_printf(seq, "\tl_endian [%d] cbcr_swap[%d] reg_swap[%d]\n",
+		   simp_mif->l_endian,
+		   simp_mif->cbcr_swap,
+		   simp_mif->reg_swap);
 }
 
 static void dump_mc_mif_state(struct DI_MC_MIF_s *mc_mif)
@@ -307,6 +344,11 @@ static void dump_mc_mif_state_seq(struct DI_MC_MIF_s *mc_mif,
 		   mc_mif->start_x, mc_mif->start_y,
 		   mc_mif->end_y, mc_mif->size_x,
 		   mc_mif->size_y);
+	seq_printf(seq, "\tlinear[%d],addr[0x%lx]\n",
+		   mc_mif->linear,
+		   mc_mif->addr);
+	seq_printf(seq, "\tper_bits[%d]\n",
+		   mc_mif->per_bits);
 }
 
 void dim_dump_pre_stru(struct di_pre_stru_s *ppre)
@@ -472,7 +514,8 @@ static int dump_di_post_stru_seq(struct seq_file *seq, void *v,
 
 void dim_dump_crc_state(void)
 {
-	if (IS_IC(dil_get_cpuver_flag(), T5)) {
+	if (IS_IC(dil_get_cpuver_flag(), T5) ||
+	    IS_IC(dil_get_cpuver_flag(), T5D)) {
 		pr_info("CRC_NRWR=0x%x\n", RD(DI_T5_RO_CRC_NRWR));
 		pr_info("CRC_MTNWR=0x%x\n", RD(DI_T5_RO_CRC_MTNWR));
 		pr_info("CRC_DEINT=0x%x\n", RD(DI_T5_RO_CRC_DEINT));
@@ -481,7 +524,8 @@ void dim_dump_crc_state(void)
 
 void dim_dump_pulldown_state(void)
 {
-	if (IS_IC(dil_get_cpuver_flag(), T5)) {
+	if (IS_IC(dil_get_cpuver_flag(), T5) ||
+	    IS_IC(dil_get_cpuver_flag(), T5D)) {
 		pr_info("SUM_P=0x%x\n", RD(DI_T5_PD_RO_SUM_P));
 		pr_info("SUM_N=0x%x\n", RD(DI_T5_PD_RO_SUM_N));
 		pr_info("CNT_P=0x%x\n", RD(DI_T5_PD_RO_CNT_P));
@@ -785,7 +829,7 @@ void dim_print_di_buf(struct di_buf_s *di_buf, int format)
 
 /*2018-08-17 add debugfs*/
 /*same as print_di_buf*/
-static void print_di_buf_seq(struct di_buf_s *di_buf, int format,
+void print_di_buf_seq(struct di_buf_s *di_buf, int format,
 			     struct seq_file *seq)
 {
 	if (!di_buf)
@@ -816,6 +860,8 @@ static void print_di_buf_seq(struct di_buf_s *di_buf, int format,
 			   di_buf->vframe->duration,
 			   di_buf->vframe->pts,
 			   di_buf->vframe->bitdepth);
+		seq_printf(seq, "afbce 420 10 %d\n",
+			   di_buf->afbce_out_yuv420_10);
 		if (di_buf->di_wr_linked_buf) {
 			seq_printf(seq, "linked index %d, 0x%p, type %d\n",
 				   di_buf->di_wr_linked_buf->index,
@@ -826,6 +872,16 @@ static void print_di_buf_seq(struct di_buf_s *di_buf, int format,
 			seq_printf(seq, "blk[%d], add[0x%lx]\n",
 				   di_buf->blk_buf->header.index,
 				   di_buf->blk_buf->mem_start);
+		}
+		if (di_buf->pq_rpt.spt_bits) {
+			seq_printf(seq, "bits[0x%x], map0[0x%x], map1[0x%x],map2[0x%x],map3[0x%x],map15[0x%x],bld_2[0x%x]\n",
+				   di_buf->pq_rpt.spt_bits,
+				   di_buf->pq_rpt.dct_map_0,
+				   di_buf->pq_rpt.dct_map_1,
+				   di_buf->pq_rpt.dct_map_2,
+				   di_buf->pq_rpt.dct_map_3,
+				   di_buf->pq_rpt.dct_map_15,
+				   di_buf->pq_rpt.dct_bld_2);
 		}
 	}
 }
@@ -960,7 +1016,7 @@ int dim_state_show(struct seq_file *seq, void *v, unsigned int channel)
 	struct di_hpre_s  *pre = get_hw_pre();
 	struct di_hpst_s *post = get_hw_pst();
 	char *splt = "---------------------------";
-	struct di_mm_s *mm = dim_mm_get(channel);	/*mm-0705*/
+	struct div2_mm_s *mm = dim_mm_get(channel);	/*mm-0705*/
 	struct di_ch_s *pch = get_chdata(channel);
 	struct di_mng_s *pbm = get_bufmng();
 
@@ -978,7 +1034,8 @@ int dim_state_show(struct seq_file *seq, void *v, unsigned int channel)
 	seq_printf(seq, "bypass:is:%d,0x%x\n",
 		   pch->bypass.b.is_bypass,
 		   pch->bypass.b.reason_i);
-
+	seq_printf(seq, "cfg:4k:%d\n",
+			   cfggch(pch, 4K));
 	seq_printf(seq, "recovery_flag = %d, reason=%d, di_blocking=%d",
 		   recovery_flag, recovery_log_reason, di_blocking);
 	seq_printf(seq, "recovery_log_q_idx=%d, recovery_log_di_buf=0x%p\n",
@@ -1056,7 +1113,52 @@ int dim_state_show(struct seq_file *seq, void *v, unsigned int channel)
 		print_di_buf_seq(p, 2, seq);
 	}
 	seq_printf(seq, "%s\n", splt);
+	/********************************/
+	/* pre_no_buf_list		*/
+	/********************************/
+	di_que_list(channel, QUE_PRE_NO_BUF, &tmpa[0], &psize); /*new que*/
+	seq_printf(seq, "pre_no_buf_list (max %d) (crr %d):\n",
+		   MAX_LOCAL_BUF_NUM * 2, psize);
+	for (itmp = 0; itmp < psize; itmp++) {			/*new que*/
+		p = pw_qindex_2_buf(channel, tmpa[itmp]); /*new que*/
 
+		seq_printf(seq, "index %2d, 0x%p, type %d, vframetype 0x%x\n",
+			   p->index, p, p->type, p->vframe->type);
+		if (p->blk_buf)
+			dbg_blk(seq, p->blk_buf);
+	}
+	seq_printf(seq, "%s\n", splt);
+
+	/********************************/
+	/* pst_no_buf_list		*/
+	/********************************/
+	di_que_list(channel, QUE_PST_NO_BUF, &tmpa[0], &psize); /*new que*/
+	seq_printf(seq, "pst_no_buf_list (max %d) (crr %d):\n",
+		   MAX_POST_BUF_NUM, psize);
+	for (itmp = 0; itmp < psize; itmp++) {			/*new que*/
+		p = pw_qindex_2_buf(channel, tmpa[itmp]); /*new que*/
+
+		seq_printf(seq, "index %2d, 0x%p, type %d, vframetype 0x%x\n",
+			   p->index, p, p->type, p->vframe->type);
+		if (p->blk_buf)
+			dbg_blk(seq, p->blk_buf);
+	}
+	seq_printf(seq, "%s\n", splt);
+	/********************************/
+	/* QUE_PST_NO_BUF_WAIT		*/
+	/********************************/
+	di_que_list(channel, QUE_PST_NO_BUF_WAIT, &tmpa[0], &psize); /*new que*/
+	seq_printf(seq, "pst_no_buf_wait_list (max %d) (crr %d):\n",
+		   MAX_POST_BUF_NUM, psize);
+	for (itmp = 0; itmp < psize; itmp++) {			/*new que*/
+		p = pw_qindex_2_buf(channel, tmpa[itmp]); /*new que*/
+
+		seq_printf(seq, "index %2d, 0x%p, type %d, vframetype 0x%x\n",
+			   p->index, p, p->type, p->vframe->type);
+		if (p->blk_buf)
+			dbg_blk(seq, p->blk_buf);
+	}
+	seq_printf(seq, "%s\n", splt);
 	/********************************/
 	/* post_free_list		*/
 	/********************************/
@@ -1079,9 +1181,9 @@ int dim_state_show(struct seq_file *seq, void *v, unsigned int channel)
 	/********************************/
 	/* post_ready_list		*/
 	/********************************/
-	di_que_list(channel, QUE_POST_READY, &tmpa[0], &psize); /*new que*/
-	seq_printf(seq, "post_ready_list: curr(%d)\n", psize);
-
+	//di_que_list(channel, QUE_POST_READY, &tmpa[0], &psize); /*new que*/
+	seq_printf(seq, "post_ready_list: curr(%d)\n", ndrd_cnt(pch));
+	#ifdef MARK_HIS
 	for (itmp = 0; itmp < psize; itmp++) {			/*new que*/
 		p = pw_qindex_2_buf(channel, tmpa[itmp]); /*new que*/
 
@@ -1089,6 +1191,8 @@ int dim_state_show(struct seq_file *seq, void *v, unsigned int channel)
 		print_di_buf_seq(p->di_buf[0], 1, seq);
 		print_di_buf_seq(p->di_buf[1], 1, seq);
 	}
+	#endif
+	//crash ndrd_dbg_list_buf(seq, pch);
 	seq_printf(seq, "%s\n", splt);
 
 	/********************************/
@@ -1136,6 +1240,7 @@ int dim_state_show(struct seq_file *seq, void *v, unsigned int channel)
 	}
 	seq_printf(seq, "%s\n", splt);
 
+#ifdef MARK_HIS
 	/********************************/
 	/* post keep			*/
 	/********************************/
@@ -1147,7 +1252,8 @@ int dim_state_show(struct seq_file *seq, void *v, unsigned int channel)
 		seq_printf(seq, "\ttype[%d],index[%d]\n", p->type, p->index);
 	}
 	seq_printf(seq, "%s\n", splt);
-
+#endif
+#ifdef MARK_HIS
 	/********************************
 	 * post keep back
 	 ********************************/
@@ -1159,7 +1265,7 @@ int dim_state_show(struct seq_file *seq, void *v, unsigned int channel)
 		seq_printf(seq, "\ttype[%d],index[%d]\n", p->type, p->index);
 	}
 	seq_printf(seq, "%s\n", splt);
-
+#endif
 	/********************************
 	 * post keep back release alloc
 	 ********************************/
@@ -1226,9 +1332,19 @@ int dim_state_show(struct seq_file *seq, void *v, unsigned int channel)
 		   get_sum_pst_g(channel));
 	seq_printf(seq, "%-15s=%d\n", "pst_put_sum",
 		   get_sum_pst_p(channel));
+	seq_printf(seq, "%-15s=%d\n", "sum_pre",
+			   pch->sum_pre);
+	seq_printf(seq, "%-15s=%d\n", "sum_pst",
+				   pch->sum_pst);
+	seq_printf(seq, "%-15s=%d\n", "sum_ext_buf_in",
+				   pch->sum_ext_buf_in);
+	seq_printf(seq, "%-15s=%d\n", "sum_ext_buf_in2",
+				   pch->sum_ext_buf_in2);
 
 	seq_printf(seq, "%-15s=%d\n", "sum_alloc_release",
 		   get_mtask()->fcmd[channel].sum_alloc);
+	seq_printf(seq, "%-15s=%d\n", "npst_cnt",
+		   npst_cnt(pch));
 	dump_state_flag = 0;
 	return 0;
 }

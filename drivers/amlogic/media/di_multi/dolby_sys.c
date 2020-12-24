@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
  * drivers/amlogic/media/di_multi/dolby_sys.c
  *
@@ -15,7 +16,6 @@
  *
  */
 
-#if 1
 #include <linux/version.h>
 #include <linux/module.h>
 #include <linux/types.h>
@@ -163,12 +163,11 @@ void di_dolby_enable(bool enable)
 	}
 }
 
-static int di_dolby_core_set(
-	struct di_dolby_hw_s *hw,
-	bool lut_endian,
-	u32 op_flag,
-	u32 update_flag,
-	bool reset)
+static int di_dolby_core_set(struct di_dolby_hw_s *hw,
+			     bool lut_endian,
+			     u32 op_flag,
+			     u32 update_flag,
+			     bool reset)
 {
 	u32 count;
 	u32 bypass_flag = 0;
@@ -201,22 +200,17 @@ static int di_dolby_core_set(
 		set_lut = true;
 
 	DIM_DI_WR(DOLBY_CORE1C_CLKGATE_CTRL, 0);
-	DIM_DI_WR(
-		DOLBY_CORE1C_SWAP_CTRL1,
-		((hw->hsize + hw->htotal) << 16) | (hw->vsize + hw->vtotal));
-	DIM_DI_WR(
-		DOLBY_CORE1C_SWAP_CTRL3,
-		(hw->hwidth << 16) | hw->vwidth);
-	DIM_DI_WR(
-		DOLBY_CORE1C_SWAP_CTRL4,
-		(hw->hpotch << 16) | hw->vpotch);
-	DIM_DI_WR(
-		DOLBY_CORE1C_SWAP_CTRL2,
-		(hw->hsize << 16) | hw->vsize);
+	DIM_DI_WR(DOLBY_CORE1C_SWAP_CTRL1,
+		  ((hw->hsize + hw->htotal) << 16) | (hw->vsize + hw->vtotal));
+	DIM_DI_WR(DOLBY_CORE1C_SWAP_CTRL3,
+		  (hw->hwidth << 16) | hw->vwidth);
+	DIM_DI_WR(DOLBY_CORE1C_SWAP_CTRL4,
+		  (hw->hpotch << 16) | hw->vpotch);
+	DIM_DI_WR(DOLBY_CORE1C_SWAP_CTRL2,
+		  (hw->hsize << 16) | hw->vsize);
 
-	DIM_DI_WR(
-		DOLBY_CORE1C_SWAP_CTRL5,
-		((hw->el_uv_mode & 3) << 2) | ((hw->bl_uv_mode & 3) << 0));
+	DIM_DI_WR(DOLBY_CORE1C_SWAP_CTRL5,
+		  ((hw->el_uv_mode & 3) << 2) | ((hw->bl_uv_mode & 3) << 0));
 
 	DIM_DI_WR(DOLBY_CORE1C_DMA_CTRL, 0x0);
 	DIM_DI_WR(DOLBY_CORE1C_REG_START + 4, 4);
@@ -242,11 +236,9 @@ static int di_dolby_core_set(
 		count = dm_count;
 	for (i = 0; i < count; i++)
 		if (reset ||
-		    (dm_regs[i] !=
-		     last_dm[i])) {
-			DIM_DI_WR(
-				DOLBY_CORE1C_REG_START + 6 + i,
-				dm_regs[i]);
+		    dm_regs[i] != last_dm[i]) {
+			DIM_DI_WR(DOLBY_CORE1C_REG_START + 6 + i,
+				  dm_regs[i]);
 		}
 
 	if (comp_count == 0)
@@ -255,11 +247,9 @@ static int di_dolby_core_set(
 		count = comp_count;
 	for (i = 0; i < count; i++)
 		if (reset ||
-		    (comp_regs[i] !=
-		     last_comp[i])) {
-			DIM_DI_WR(
-				DOLBY_CORE1C_REG_START + 6 + 44 + i,
-				comp_regs[i]);
+		    comp_regs[i] != last_comp[i]) {
+			DIM_DI_WR(DOLBY_CORE1C_REG_START + 6 + 44 + i,
+				  comp_regs[i]);
 		}
 	/* metadata program done */
 	DIM_DI_WR(DOLBY_CORE1C_REG_START + 3, 1);
@@ -274,7 +264,7 @@ static int di_dolby_core_set(
 					   2, 2, 2);
 		}
 		DIM_DI_WR(DOLBY_CORE1C_DMA_CTRL, 0x1401);
-		if (lut_endian)
+		if (lut_endian) {
 			for (i = 0; i < count; i += 4) {
 				DIM_DI_WR(DOLBY_CORE1C_DMA_PORT,
 					  lut_regs[i + 3]);
@@ -285,7 +275,7 @@ static int di_dolby_core_set(
 				DIM_DI_WR(DOLBY_CORE1C_DMA_PORT,
 					  lut_regs[i]);
 			}
-		else {
+		} else {
 			for (i = 0; i < count; i++)
 				DIM_DI_WR(DOLBY_CORE1C_DMA_PORT,
 					  lut_regs[i]);
@@ -299,14 +289,13 @@ static int di_dolby_core_set(
 	DIM_DI_WR(DI_HDR_IN_HSIZE, hw->hsize);
 	DIM_DI_WR(DI_HDR_IN_VSIZE, hw->vsize);
 
-	DIM_DI_WR(
-		DOLBY_CORE1C_SWAP_CTRL0,
-		((hw->roundup_output ? 1 : 0) << 12) |
-		((hw->bl_lay_line_delay & 0xf) << 8) |
-		((hw->el_lay_line_delay & 0xf) << 4) |
-		((hw->el_41_mode ? 1 : 0) << 2) |
-		((hw->el_enable ? 1 : 0) << 1) |
-		((hw->bl_enable ? 1 : 0) << 0));
+	DIM_DI_WR(DOLBY_CORE1C_SWAP_CTRL0,
+		  ((hw->roundup_output ? 1 : 0) << 12) |
+		  ((hw->bl_lay_line_delay & 0xf) << 8) |
+		  ((hw->el_lay_line_delay & 0xf) << 4) |
+		  ((hw->el_41_mode ? 1 : 0) << 2) |
+		  ((hw->el_enable ? 1 : 0) << 1) |
+		  ((hw->bl_enable ? 1 : 0) << 0));
 	return 0;
 }
 
@@ -348,16 +337,15 @@ int di_dolby_do_setting(void /*struct di_dolby_dev_s *dev*/)
 	return 0;
 }
 
-int di_dolby_update_setting(
-	struct didm_register_ipcore_1_s *dm_reg,
-	struct dicomposer_register_ipcore_s *comp_reg,
-	struct didm_lut_ipcore_s *dm_lut,
-	u32 dm_count,
-	u32 comp_count,
-	u32 lut_count,
-	u32 update_flag,
-	u32 hsize,
-	u32 vsize)
+int di_dolby_update_setting(struct didm_register_ipcore_1_s *dm_reg,
+			    struct dicomposer_register_ipcore_s *comp_reg,
+			    struct didm_lut_ipcore_s *dm_lut,
+			    u32 dm_count,
+			    u32 comp_count,
+			    u32 lut_count,
+			    u32 update_flag,
+			    u32 hsize,
+			    u32 vsize)
 {
 	struct didm_register_ipcore_1_s *new_dm_reg;
 	struct dicomposer_register_ipcore_s *new_comp_reg;
@@ -399,7 +387,7 @@ void di_dolby_sw_init(void)
 {
 	di_dolby = vmalloc(sizeof(*di_dolby));
 	if (!di_dolby) {
-		pr_info("di_dolby_sw_init fail\n");
+		//pr_info("di_dolby_sw_init fail\n");
 		return;
 	}
 	memset(di_dolby, 0, sizeof(struct di_dolby_dev_s));
@@ -434,5 +422,3 @@ void di_dolby_sw_init(void)
 	di_dolby->cur_tbl_id = 1;
 	di_dolby->next_tbl_id = 0xff;
 }
-
-#endif

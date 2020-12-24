@@ -27,34 +27,6 @@
 
 #define	SKIP_CTRE_NUM	13
 
-enum eAFBC_REG {
-	eAFBC_ENABLE,			/*0x1ae0*/
-	eAFBC_MODE,				/*0x1ae1*/
-	eAFBC_SIZE_IN,			/*0x1ae2*/
-	eAFBC_DEC_DEF_COLOR,	/*0x1ae3*/
-	eAFBC_CONV_CTRL,		/*0x1ae4*/
-	eAFBC_LBUF_DEPTH,		/*0x1ae5*/
-	eAFBC_HEAD_BADDR,		/*0x1ae6*/
-	eAFBC_BODY_BADDR,		/*0x1ae7*/
-	eAFBC_SIZE_OUT,			/*0x1ae8*/
-	eAFBC_OUT_YSCOPE,		/*0x1ae9*/
-	eAFBC_STAT,				/*0x1aea*/
-	eAFBC_VD_CFMT_CTRL,		/*0x1aeb*/
-	eAFBC_VD_CFMT_W,		/*0x1aec*/
-	eAFBC_MIF_HOR_SCOPE,	/*0x1aed*/
-	eAFBC_MIF_VER_SCOPE,	/*0x1aee*/
-	eAFBC_PIXEL_HOR_SCOPE,	/*0x1aef*/
-	eAFBC_PIXEL_VER_SCOPE,	/*0x1af0*/
-	eAFBC_VD_CFMT_H,		/*0x1af1*/
-};
-
-enum eAFBC_DEC {
-	eAFBC_DEC0,
-	eAFBC_DEC1,
-};
-#define AFBC_REG_INDEX_NUB	(18)
-#define AFBC_DEC_NUB		(2)
-
 struct DI_MIF_s {
 	unsigned short	luma_x_start0;
 	unsigned short	luma_x_end0;
@@ -141,7 +113,6 @@ void enable_di_pre_aml(
 	struct DI_SIM_MIF_s    *di_contwr_mif,
 	unsigned char madi_en, unsigned char pre_field_num,
 	unsigned char pre_vdin_link);
-u32 enable_afbc_input(struct vframe_s *vf);
 
 void mc_pre_mv_irq(void);
 void enable_mc_di_pre(struct DI_MC_MIF_s *di_mcinford_mif,
@@ -192,7 +163,6 @@ void di_top_gate_control(bool top_en, bool mc_en);
 void di_pre_gate_control(bool enable, bool mc_enable);
 void di_post_gate_control(bool gate);
 void diwr_set_power_control(unsigned char enable);
-void diwr_set_power_control_pst(unsigned char enable);
 void di_hw_disable(bool mc_enable);
 void enable_di_pre_mif(bool enable, bool mc_enable);
 void enable_di_post_mif(enum gate_mode_e mode);
@@ -211,14 +181,9 @@ void di_interrupt_ctrl(unsigned char ma_en,
 	unsigned char det3d_en, unsigned char nrds_en,
 	unsigned char post_wr, unsigned char mc_en);
 void di_txl_patch_prog(int prog_flg, unsigned int cnt, bool mc_en);
-bool afbc_is_supported(void);
 //extern void afbc_power_sw(bool on);
-extern void afbc_reg_sw(bool on);
 /*extern void afbc_sw_trig(bool  on);*/
-extern void afbc_sw(bool on);
-extern void afbc_input_sw(bool on);
 extern void dump_vd2_afbc(void);
-extern int afbc_reg_unreg_flag;
 
 extern u8 *di_vmap(ulong addr, u32 size, bool *bflg);
 extern void di_unmap_phyaddr(u8 *vaddr);
@@ -234,10 +199,20 @@ extern int di_print(const char *fmt, ...);
 extern void di_patch_post_update_mc(void);
 extern void di_patch_post_update_mc_sw(unsigned int cmd, bool on);
 
+#ifdef MARK_SC2
+struct reg_acc {
+	void (*wr)(unsigned int adr, unsigned int val);
+	unsigned int (*rd)(unsigned int adr);
+	unsigned int (*bwr)(unsigned int adr, unsigned int val,
+			    unsigned int start, unsigned int len);
+	unsigned int (*brd)(unsigned int adr, unsigned int start,
+			    unsigned int len);
+
+};
+#endif
 extern void di_rst_protect(bool on);
 extern void di_pre_nr_wr_done_sel(bool on);
 extern void di_arb_sw(bool on);
-extern bool afbc_is_free(void);
 extern enum eAFBC_DEC afbc_get_decnub(void);
 
 /*also see: dbg_mode_name*/
@@ -277,6 +252,9 @@ enum eDI_DBG_MOD {
 	eDI_DBG_MOD_END,
 
 };
+
+unsigned int get_reg_bits(unsigned int val, unsigned int bstart,
+			  unsigned int bw);
 
 extern void ddbg_mod_save(unsigned int mod, unsigned int ch, unsigned int cnt);
 

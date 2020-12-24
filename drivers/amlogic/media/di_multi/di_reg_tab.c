@@ -144,7 +144,7 @@ void dbg_reg_tab(struct seq_file *s, const struct reg_t *pregtab)
 
 		i++;
 		creg = pregtab[i];
-		if (i > TABLE_LEN_MAX) {
+		if (i > DIMTABLE_LEN_MAX) {
 			pr_info("warn: too long, stop\n");
 			break;
 		}
@@ -227,7 +227,7 @@ static bool di_wr_tab(const struct reg_acc *ops,
 
 	for (i = 0; i < tabsize; i++) {
 		if (pl->add == TABLE_FLG_END ||
-		    i > TABLE_LEN_MAX) {
+		    i > DIMTABLE_LEN_MAX) {
 			break;
 		}
 

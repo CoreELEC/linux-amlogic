@@ -22,6 +22,7 @@
 #include <linux/types.h>
 #include <linux/amlogic/media/vfm/vframe.h>
 #include <linux/amlogic/media/vfm/vframe_provider.h>
+#include <linux/amlogic/media/di/di.h>
 
 //#include "../di_local/di_local.h"
 #include "di_local.h"
@@ -36,6 +37,10 @@
  ***********************************************/
 #define DIM_OUT_NV21	(1)
 //#define TEST_PIP	(1)
+/************************************************
+ * from t7 cvs address is ulong
+ ************************************************/
+#define CVS_UINT	(1)
 
 /*trigger_pre_di_process param*/
 #define TRIGGER_PRE_BY_PUT			'p'
@@ -170,6 +175,14 @@ struct di_win_s {
 };
 
 #define pulldown_mode_t enum pulldown_mode_e
+
+struct dsub_bufv_s {
+	void *in; /* struct dim_nins_s */
+	bool in_noback; /* this is for dec reset */
+	bool src_is_i;
+	void *buffer;	/*for new interface */
+};
+
 struct di_buf_s {
 	struct vframe_s *vframe;
 	int index; /* index in vframe_in_dup[] or vframe_in[],
@@ -255,27 +268,35 @@ struct di_buf_s {
 	unsigned int width_bk; /*move from ppre*/
 	unsigned int dw_width_bk;
 	unsigned int dw_height_bk;
+	unsigned int buf_hsize;	/* for t7 */
 //	unsigned int flg_tvp;
 	unsigned int afbc_info; /*bit 0: src is i; bit 1: src is real i */
 	unsigned char afbc_sgn_cfg;
 	struct di_win_s win; /*post write*/
 	struct di_buf_s *di_buf_post; /*07-27 */
 	unsigned long jiff; // for wait
+	struct dim_rpt_s pq_rpt;
 	enum EDI_SGN	sgn_lv;
-	void *pat_buf; /*2020-10-05*/
+//	void *pat_buf; /*2020-10-05*/
 	void *iat_buf; /*2020-10-13*/
 	unsigned int buf_is_i	: 1; /* 1: i; 0: p */
 	unsigned int flg_nr	: 1;
 	unsigned int flg_null	: 1;
-	unsigned int flg_nv21	: 1;
+	unsigned int flg_nv21	: 2;
 	unsigned int is_4k	: 1;
 	unsigned int is_eos	: 1;
 	unsigned int is_lastp	: 1;
 	unsigned int flg_afbce_set	: 1;
 
 	unsigned int trig_post_update	: 1;
-	unsigned int rev1	: 7;
+	unsigned int afbce_out_yuv420_10	: 1; /* 2020-11-26*/
+	unsigned int is_nbypass	: 1; /*2020-12-07*/
+	unsigned int is_bypass_pst : 1; /*2021-01-07*/
+	unsigned int rev1	: 4;
+
 	unsigned int rev2	: 16;
+	struct dsub_bufv_s	c;
+	unsigned int datacrc;
 };
 
 #define RDMA_DET3D_IRQ			0x20
@@ -539,6 +560,7 @@ struct di_post_stru_s {
 	struct pst_cfg_afbc_s afbc_cfg;/* ary add for afbc dec*/
 	/*frame cnt*/
 	unsigned int frame_cnt;	/*cnt for post process*/
+	unsigned int seq; /* 2021-01-13 */
 //	unsigned int last_pst_size;
 	union hw_sc2_ctr_pst_s	pst_top_cfg;
 	union afbc_blk_s	en_cfg;
@@ -577,7 +599,7 @@ struct di_buf_pool_s {
 };
 
 unsigned char dim_is_bypass(vframe_t *vf_in, unsigned int channel);
-bool dim_bypass_first_frame(unsigned int ch);
+//bool dim_bypass_first_frame(unsigned int ch);
 
 int di_cnt_buf(int width, int height, int prog_flag, int mc_mm,
 	       int bit10_support, int pack422);
@@ -682,13 +704,22 @@ void dim_post_keep_cmd_proc(unsigned int ch, unsigned int index);
 bool dim_need_bypass(unsigned int ch, struct vframe_s *vf);
 
 /*--------------------------*/
-int di_ori_event_qurey_vdin2nr(unsigned int channel);
-int di_ori_event_reset(unsigned int channel);
-int di_ori_event_light_unreg(unsigned int channel);
-int di_ori_event_light_unreg_revframe(unsigned int channel);
-int di_ori_event_ready(unsigned int channel);
-int di_ori_event_qurey_state(unsigned int channel);
-void  di_ori_event_set_3D(int type, void *data, unsigned int channel);
+//int di_ori_event_qurey_vdin2nr(unsigned int channel);
+//int di_ori_event_reset(unsigned int channel);
+//int di_ori_event_light_unreg(unsigned int channel);
+//int di_ori_event_light_unreg_revframe(unsigned int channel);
+//int di_ori_event_ready(unsigned int channel);
+//int di_ori_event_qurey_state(unsigned int channel);
+//void  di_ori_event_set_3D(int type, void *data, unsigned int channel);
+void di_block_set(int val);
+int di_block_get(void);
+void di_lock_irqfiq_save(ulong irq_flag);
+void di_unlock_irqfiq_restore(ulong irq_flag);
+void di_lock_irq(void);
+void di_unlock_irq(void);
+
+int dump_state_flag_get(void);
+int di_get_kpi_frame_num(void);
 
 /*--------------------------*/
 extern int pre_run_flag;
@@ -704,7 +735,7 @@ struct vframe_s *di_vf_l_get(unsigned int channel);
 
 unsigned char pre_p_asi_de_buf_config(unsigned int ch);
 void dim_dbg_release_keep_all(unsigned int ch);
-void dim_post_keep_back_recycle(unsigned int ch);
+//void dim_post_keep_back_recycle(unsigned int ch);
 void dim_post_re_alloc(unsigned int ch);
 //void dim_post_release(unsigned int ch);
 unsigned int dim_cfg_nv21(void);
@@ -742,7 +773,7 @@ show_kpi_frame_num(struct device *dev,
 		   char *buf);
 ssize_t
 store_kpi_frame_num(struct device *dev, struct device_attribute *attr,
-	       const char *buf, size_t len);
+		    const char *buf, size_t len);
 
 ssize_t dim_read_log(char *buf);
 
@@ -775,7 +806,7 @@ bool sc2_dbg_is_en_pre_irq(void);
 bool sc2_dbg_is_en_pst_irq(void);
 void sc2_dbg_pre_info(unsigned int val);
 void sc2_dbg_pst_info(unsigned int val);
-void hpre_timout_read(void);
+void hpre_timeout_read(void);
 #define TEST_4K_NR	(1)
 //#define DBG_TEST_CRC	(1)
 //#define DBG_TEST_CRC_P	(1)
@@ -784,4 +815,11 @@ void hpre_timout_read(void);
 
 /*split buffer alloc to i, p , idata, iafbc xxx */
 #define CFG_BUF_ALLOC_SP (1)
+/*@ary_note: 2020-12-17*/
+/* */
+//#define TST_NEW_INS_INTERFACE		(1)
+
+//#define TMP_TEST	(1)
+
+//#define TMP_MASK_FOR_T7 (1)
 #endif

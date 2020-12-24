@@ -42,4 +42,58 @@ u32 di_api_get_instance_id(void);
 
 void di_api_post_disable(void);
 
+/**************************************************
+ * function:
+ *	get report information from di;
+ * version:
+ *
+ * spt_bits: bit 0 for decontour,
+ *	is 1 when there are decontour information;
+ *	is 0 when there are no decontour information;
+ * dct_map_0: DCTR_MAP_HIST_0
+ * dct_sta_0: DCTR_STA_HIST_0
+ * dct_sta_1: DCTR_STA_HIST_1
+ **************************************************/
+struct dim_rpt_s {
+	unsigned int version;
+	unsigned int spt_bits;/*bit 0: dct*/
+	unsigned int dct_map_0;
+	unsigned int dct_map_1;
+	unsigned int dct_map_2;
+	unsigned int dct_map_3;
+	unsigned int dct_map_15;
+	unsigned int dct_bld_2;
+};
+
+enum DIM_DB_SV {
+	DIM_DB_SV_DCT_BL2, /* DCTR_BLENDING2 */
+};
+
+#define DIM_DB_SAVE_NUB		1
+
+/**************************************************
+ * function:
+ *	get report information from di;
+ * vfm:
+ *	input vframe;
+ * return:
+ *	NULL: there is no report information from vfm;
+ *	other: refer to struct dim_rpt_s
+ **************************************************/
+struct dim_rpt_s *dim_api_getrpt(struct vframe_s *vfm);
+
+/**************************************************
+ * function:
+ *	select db value or pq value;
+ * idx:
+ *	ref to DIM_DB_SV's define
+ * mode:
+ *	0: db value;
+ *	1: value from pdate;
+ * pdate: only useful when mode is 1.
+ *	value / mask
+ **************************************************/
+bool dim_pq_db_sel(unsigned int idx, unsigned int mode, unsigned int *pdate);
+void dim_pq_db_setreg(unsigned int nub, unsigned int *preg);
+
 #endif /* VIDEO_H */

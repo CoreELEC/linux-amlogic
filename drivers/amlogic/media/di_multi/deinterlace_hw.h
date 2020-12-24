@@ -112,6 +112,7 @@ enum EDPST_MODE {
 	EDPST_MODE_422_10BIT_PACK,
 	EDPST_MODE_422_10BIT,
 	EDPST_MODE_422_8BIT,
+	EDPST_MODE_420_10BIT /* add 2020-11-26 */
 };
 
 struct AFBCD_S {
@@ -170,7 +171,7 @@ struct AFBCE_S {
 	u32 mmu_info_baddr ;//mmu_linear_addr
 	u32 reg_init_ctrl  ;//pip init frame flag
 	u32 reg_pip_mode   ;//pip open bit
-	u32 reg_ram_comb   ;//ram split bit open in di mult write case case
+	u32 reg_ram_comb   ;//ram split bit open in di mult write case
 	u32 reg_format_mode;//0:444 1:422 2:420
 	u32 reg_compbits_y ;//bits num after compression
 	u32 reg_compbits_c ;//bits num after compression
@@ -266,6 +267,10 @@ struct DI_MIF_S {
 	unsigned int		canvas0_addr0:8;
 	unsigned int		canvas0_addr1:8;
 	unsigned int		canvas0_addr2:8;
+	ulong		addr0;	//for t7
+	ulong		addr1;	//for t7
+	ulong		addr2;	//for t7
+
 	/* canvas_w: for input not 64 align*/
 	unsigned int	canvas_w;
 	/* ary move from parameter to here from sc2 */
@@ -283,7 +288,18 @@ struct DI_MIF_S {
 	/* ary no use*/
 	unsigned int nocompress		:1;
 	unsigned int		output_field_num:1;
-	unsigned int reseved		:8;
+	unsigned int		l_endian : 1; //2020-12-21
+	unsigned int		reg_swap : 1;
+	unsigned int		cbcr_swap: 1;
+	unsigned int		linear : 1;
+	unsigned int		buf_crop_en : 1;
+	unsigned int		block_mode : 1;
+	unsigned int		dbg_from_dec: 1; //
+	unsigned int reserved		:1;
+	unsigned int	buf_hsize;
+	unsigned int cvs0_w;
+	unsigned int cvs1_w;
+	unsigned int cvs2_w;
 
 	/**/
 	enum DI_MIF0_ID	mif_index; /* */
@@ -322,8 +338,16 @@ struct DI_SIM_MIF_s {
 
 	unsigned int	en		:1; /* add for sc2*/
 	unsigned int	src_i		:1; /* ary add for sc2 */
-	unsigned int	reserved	: 15;
+	unsigned int	reg_swap	:1;
+	unsigned int	linear		: 1;
+	unsigned int		buf_crop_en : 1;
+	unsigned int	reserved	: 3;
+	unsigned int	per_bits	: 8; /* for t7 */
 
+	unsigned int	buf_hsize;
+	ulong		addr; //for t7
+	ulong		addr1;
+	ulong		addr2;
 	enum DI_MIFS_ID	mif_index; /* */
 };
 
@@ -336,6 +360,9 @@ struct DI_MC_MIF_s {
 	unsigned short canvas_num;
 	unsigned short blend_en;
 	unsigned short vecrd_offset;
+	unsigned int	per_bits; /* for t7 */
+	ulong	addr; //for t7
+	bool linear;
 };
 
 enum gate_mode_e {
@@ -527,7 +554,8 @@ void dimh_enable_di_pre_aml(struct DI_MIF_S	*di_inp_mif,
 			    struct DI_SIM_MIF_s	*di_contwr_mif,
 			    unsigned char madi_en,
 			    unsigned char pre_field_num,
-			    unsigned char pre_vdin_link);
+			    unsigned char pre_vdin_link,
+			    void *ppre);
 //void dimh_enable_afbc_input(struct vframe_s *vf);
 
 void dimh_mc_pre_mv_irq(void);
@@ -733,6 +761,15 @@ struct dim_hw_opsv_s {
 	void (*wrmif_sw_buf)(struct DI_SIM_MIF_s *cfg_mif,
 			     const struct reg_acc *ops,
 			     enum EDI_MIFSM mifsel);
+	/* for t7 */
+	void (*pre_ma_mif_set)(void *ppre,
+			       unsigned short urgent);
+	void (*post_mtnrd_mif_set)(struct DI_SIM_MIF_s *mtnprd_mif);
+	void (*pre_enable_mc)(struct DI_MC_MIF_s *mcinford_mif,
+				       struct DI_MC_MIF_s *mcinfowr_mif,
+				       struct DI_MC_MIF_s *mcvecwr_mif,
+				       unsigned char mcdi_en);
+
 	void (*wrmif_trig)(enum EDI_MIFSM mifsel);
 	void (*wr_rst_protect)(bool on);
 	void (*hw_init)(void);
@@ -753,6 +790,9 @@ struct dim_hw_opsv_s {
 	void (*pre_gl_thd)(void);
 	void (*pst_gl_thd)(unsigned int hold_line);
 	const unsigned int *reg_mif_tab[MIF_NUB];
+	/*debug*/
+	const unsigned int *reg_mif_wr_tab[EDI_MIFS_NUB];
+	const struct regs_t *reg_mif_wr_bits_tab;
 	const struct reg_t *rtab_contr_bits_tab;
 };
 
@@ -770,7 +810,7 @@ void set_di_mif_v3(struct DI_MIF_S *mif,
 		   enum DI_MIF0_ID mif_index,
 		   const struct reg_acc *op);//debug only
 
-const char *dim_get_mif_id_name(enum EDI_MIF_REG_INDEX idx);
+const char *dim_get_mif_id_name(enum DI_MIF0_ID idx);
 /*********************************************************/
 struct SHRK_S {
 	unsigned int hsize_in;
@@ -840,5 +880,17 @@ void dw_int(void);
 void dw_fill_outvf(struct vframe_s *vfm,
 		   struct di_buf_s *di_buf);
 unsigned int dw_get_h(void);
+
+void di_mif1_linear_rd_cfg(struct DI_SIM_MIF_s *mif,
+			unsigned int CTRL1,
+			unsigned int CTRL2,
+			unsigned int BADDR);
+void di_mcmif_linear_rd_cfg(struct DI_MC_MIF_s *mif,
+			unsigned int CTRL1,
+			unsigned int CTRL2,
+			unsigned int BADDR);
+bool dip_is_linear(void);
+bool dim_dbg_cfg_post_byapss(void);
+void dbg_reg_mem(unsigned int dbgid);
 
 #endif

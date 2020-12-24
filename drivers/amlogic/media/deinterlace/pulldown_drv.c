@@ -404,7 +404,7 @@ static struct pd_param_s pd_params[] = {
 	{ "flm32_en",
 	     &(pd_param.flm32_en)   },
 	{ "flm22_force",
-	     &(pd_param.flm22_force)   },
+	     &pd_param.flm22_force   },
 	{ "flm22_flag",
 	  &(pd_param.flm22_flag)    },
 	{ "flm22_avg_flag",
@@ -531,7 +531,7 @@ void pd_device_files_add(struct device *dev)
 
 void pd_device_files_del(struct device *dev)
 {
-	device_remove_file(dev, &dev_attr_pd_param);
+	device_create_file(dev, &dev_attr_pd_param);
 }
 #ifdef DEBUG_SUPPORT
 module_param_named(flm22_sure_num, flm22_sure_num, uint, 0644);

@@ -771,8 +771,7 @@ unsigned int DIM_VSC_WR_MPG_BT(unsigned int addr,
 /* Bit 28,	   reg_NM_reset	     Reset to the status of the Loop filter.
  * Bit 27:24,   reg_NM_calc_length	  Length mode of the Noise
  * measurement sample number for statistics.
- *		0:  256 samples;    1: 512 samples;    2: 1024 samples;
- * ¡­X: 2^(8+x) samples
+ * 0:  256 samples;    1: 512 samples;    2: 1024 samples;
  * Bit 23:20,   reg_NM_inc_step	      Loop filter input gain increase step.
  * Bit 19:16,   reg_NM_dec_step	      Loop filter input gain decrease step.
  * Bit 15:8,	   reg_NM_YHPmot_thrd	  Luma channel HP portion motion

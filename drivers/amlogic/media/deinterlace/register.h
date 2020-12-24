@@ -755,7 +755,7 @@ void DI_VSYNC_WR_MPEG_REG_BITS(unsigned int addr,
  * Bit 27:24,   reg_NM_calc_length	  Length mode of the Noise
  * measurement sample number for statistics.
  *		0:  256 samples;    1: 512 samples;    2: 1024 samples;
- * ¡­X: 2^(8+x) samples
+ * 2^(8+x) samples
  * Bit 23:20,   reg_NM_inc_step	      Loop filter input gain increase step.
  * Bit 19:16,   reg_NM_dec_step	      Loop filter input gain decrease step.
  * Bit 15:8,	   reg_NM_YHPmot_thrd	  Luma channel HP portion motion
@@ -4417,5 +4417,104 @@ void DI_VSYNC_WR_MPEG_REG_BITS(unsigned int addr,
 #define NR3_CMOT_PARA					0x2ff4
 #define NR3_SUREMOT_YGAIN				0x2ff5
 #define NR3_SUREMOT_CGAIN				0x2ff6
+
+/* for tm2-b */
+
+#define DI_RO_PRE_FIELD_CNT0				((0x17A3))
+#define DI_RO_PRE_FIELD_CNT1				((0x17A4))
+#define DI_RO_POS_FRAME_CNT0				((0x17A5))
+#define DI_RO_POS_FRAME_CNT1				((0x17A6))
+#define DI_INP_AFBC_ENABLE		(0x1800)
+#define DI_INP_AFBC_MODE		(0x1801)
+#define DI_INP_AFBC_SIZE_IN		(0x1802)
+#define DI_INP_AFBC_DEC_DEF_COLOR	(0x1803)
+#define DI_INP_AFBC_CONV_CTRL		(0x1804)
+#define DI_INP_AFBC_LBUF_DEPTH		(0x1805)
+#define DI_INP_AFBC_HEAD_BADDR		(0x1806)
+#define DI_INP_AFBC_BODY_BADDR		(0x1807)
+#define DI_INP_AFBC_SIZE_OUT		(0x1808)
+#define DI_INP_AFBC_OUT_YSCOPE		(0x1809)
+#define DI_INP_AFBC_STAT		(0x180a)
+#define DI_INP_AFBC_VD_CFMT_CTRL	(0x180b)
+#define DI_INP_AFBC_VD_CFMT_W		(0x180c)
+#define DI_INP_AFBC_MIF_HOR_SCOPE	(0x180d)
+#define DI_INP_AFBC_MIF_VER_SCOPE	(0x180e)
+#define DI_INP_AFBC_PIXEL_HOR_SCOPE	(0x180f)
+#define DI_INP_AFBC_PIXEL_VER_SCOPE	(0x1810)
+#define DI_INP_AFBC_VD_CFMT_H		(0x1811)
+
+#define DI_MEM_AFBC_ENABLE		(0x1820)
+#define DI_MEM_AFBC_MODE		(0x1821)
+#define DI_MEM_AFBC_SIZE_IN		(0x1822)
+#define DI_MEM_AFBC_DEC_DEF_COLOR	(0x1823)
+#define DI_MEM_AFBC_CONV_CTRL		(0x1824)
+#define DI_MEM_AFBC_LBUF_DEPTH		(0x1825)
+#define DI_MEM_AFBC_HEAD_BADDR		(0x1826)
+#define DI_MEM_AFBC_BODY_BADDR		(0x1827)
+#define DI_MEM_AFBC_SIZE_OUT		(0x1828)
+#define DI_MEM_AFBC_OUT_YSCOPE		(0x1829)
+#define DI_MEM_AFBC_STAT		(0x182a)
+#define DI_MEM_AFBC_VD_CFMT_CTRL	(0x182b)
+#define DI_MEM_AFBC_VD_CFMT_W		(0x182c)
+#define DI_MEM_AFBC_MIF_HOR_SCOPE	(0x182d)
+#define DI_MEM_AFBC_MIF_VER_SCOPE	(0x182e)
+#define DI_MEM_AFBC_PIXEL_HOR_SCOPE	(0x182f)
+#define DI_MEM_AFBC_PIXEL_VER_SCOPE	(0x1830)
+#define DI_MEM_AFBC_VD_CFMT_H		(0x1831)
+
+#define DI_AFBCE_CTRL			(0x2003)
+/*
+ * bit[0]: nrwr_sel: 1: nr channel 0 to afbce; 0:nr channel 0 to normal mif
+ * bit[4]: nr_en: important! 1:enable nr write to DDR;
+ * bit[10]:inp_afbc0_sel:0:normal mif; 1:afbc dec0;
+ * bit[11]:inp_data_sel:0:normal sel; 1:afbc dec0;
+ * bit[12]:mem_afbc1_sel:0:normal mif; 1:afbc dec1;
+ * bit[13]:mem_data_sel:0:normal mif; 1:afbc dec1
+ */
+#define DI_AFBCE_ENABLE			(0x2060)
+#define DI_AFBCE_MODE			(0x2061)
+#define DI_AFBCE_SIZE_IN		(0x2062)
+#define DI_AFBCE_BLK_SIZE_IN		(0x2063)
+#define DI_AFBCE_HEAD_BADDR		(0x2064)
+#define DI_AFBCE_MIF_SIZE		(0x2065)
+#define DI_AFBCE_PIXEL_IN_HOR_SCOPE	(0x2066)
+#define DI_AFBCE_PIXEL_IN_VER_SCOPE	(0x2067)
+#define DI_AFBCE_CONV_CTRL		(0x2068)
+#define DI_AFBCE_MIF_HOR_SCOPE		(0x2069)
+#define DI_AFBCE_MIF_VER_SCOPE		(0x206a)
+#define DI_AFBCE_STAT1			(0x206b)
+#define DI_AFBCE_STAT2			(0x206c)
+#define DI_AFBCE_FORMAT			(0x206d)
+#define DI_AFBCE_MODE_EN		(0x206e)
+#define DI_AFBCE_DWSCALAR		(0x206f)
+#define DI_AFBCE_DEFCOLOR_1		(0x2070)
+#define DI_AFBCE_DEFCOLOR_2		(0x2071)
+#define DI_AFBCE_QUANT_ENABLE		(0x2072)
+#define DI_AFBCE_IQUANT_LUT_1		(0x2073)
+#define DI_AFBCE_IQUANT_LUT_2		(0x2074)
+#define DI_AFBCE_IQUANT_LUT_3		(0x2075)
+#define DI_AFBCE_IQUANT_LUT_4		(0x2076)
+#define DI_AFBCE_RQUANT_LUT_1		(0x2077)
+#define DI_AFBCE_RQUANT_LUT_2		(0x2078)
+#define DI_AFBCE_RQUANT_LUT_3		(0x2079)
+#define DI_AFBCE_RQUANT_LUT_4		(0x207a)
+#define DI_AFBCE_YUV_FORMAT_CONV_MODE	(0x207b)
+#define DI_AFBCE_DUMMY_DATA		(0x207c)
+#define DI_AFBCE_CLR_FLAG		(0x207d)
+#define DI_AFBCE_STA_FLAGT		(0x207e)
+#define DI_AFBCE_MMU_NUM		(0x207f)	/*read only*/
+#define DI_AFBCE_MMU_RMIF_CTRL1		(0x2080)
+#define DI_AFBCE_MMU_RMIF_CTRL2		(0x2081)
+#define DI_AFBCE_MMU_RMIF_CTRL3		(0x2082)
+#define DI_AFBCE_MMU_RMIF_CTRL4		(0x2083)
+#define DI_AFBCE_MMU_RMIF_SCOPE_X	(0x2084)
+#define DI_AFBCE_MMU_RMIF_SCOPE_Y	(0x2085)
+#define DI_AFBCE_MMU_RMIF_RO_STAT	(0x2086)
+
+/* for TM2-B DI FILM_GRAIN */
+
+#define DI_FGRAIN_CTRL					0x1840
+#define DI_FGRAIN_WIN_H					0x1841
+#define DI_FGRAIN_WIN_V					0x1842
 
 #endif

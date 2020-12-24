@@ -102,6 +102,8 @@ struct nr_op_s {
 	void (*cue_int)(struct vframe_s *vf);
 	void (*adaptive_cue_adjust)(unsigned int frame_diff,
 				    unsigned int field_diff);
+	void (*secam_cfr_adjust)(unsigned int sig_fmt,
+				 unsigned int frame_type);
 	int (*module_para)(struct seq_file *seq);
 
 };
@@ -154,9 +156,13 @@ bool di_attach_ops_mtn(const struct mtn_op_s **ops);
 #define DI_IC_ID_TL1		(0x16)
 #define DI_IC_ID_TM2		(0x17)
 #define DI_IC_ID_TM2B		(0x18)
-#define DI_IC_ID_T5		(0x19)// same with tm2b
+#define DI_IC_ID_T5			(0x19)// same with tm2b
+#define DI_IC_ID_T5D		(0x1A)// same with tm2b
 
 #define DI_IC_ID_SC2		(0x1B)
+#define DI_IC_ID_T7		(0x1C)
+#define DI_IC_ID_S4		(0x1D)
+
 #define DI_IC_ID_DEINTERLACE		(0xFF)
 
 /* is_meson_g12a_cpu */
@@ -216,6 +222,17 @@ enum EAFBC_ENC {
 	EAFBC_ENC1,
 };
 
+enum EAFBCV1_CFG {
+	EAFBCV1_CFG_EN,
+	EAFBCV1_CFG_PMODE,
+	EAFBCV1_CFG_EMODE,
+	EAFBCV1_CFG_ETEST,
+	EAFBCV1_CFG_4K,
+	EAFBCV1_CFG_PRE_LINK,
+	EAFBCV1_CFG_PAUSE,
+	EAFBCV1_CFG_LEVE3,
+};
+
 enum EAFBC_CFG {
 	EAFBC_CFG_DISABLE,
 	EAFBC_CFG_INP_AFBC,	/* < AFBCD_V4 */
@@ -239,7 +256,15 @@ enum EAFBC_CFG {
 enum EAFBC_STS {
 	EAFBC_MEM_NEED,
 	EAFBC_MEMI_NEED,
+	EAFBC_EN_6CH,	//en afbcd x 6
+	EAFBC_EN_ENC, //en afbce x 2
+};
 
+enum EAFBC_SNG_SET {
+	EAFBC_SNG_CLR_NR,
+	EAFBC_SNG_CLR_WR,
+	EAFBC_SNG_SET_NR,
+	EAFBC_SNG_SET_WR,
 };
 
 struct afbce_map_s {
@@ -289,6 +314,57 @@ struct afbc_fb_s {
 		if2_dec		: 4;
 
 		//rev4		: 8;
+};
+
+struct afbcdv1_ctr_s {
+	union {
+		unsigned int f32;
+		struct {
+			unsigned int ver	: 8,
+
+				sp_inp		: 1,
+				sp_mem		: 1,
+				/*0:inp only, 1: inp + mem*/
+				mode		: 2,
+				rev1		: 4,
+
+				pre_dec		: 4,
+				mem_dec		: 4,
+
+				rev4		: 8;
+		} fb;
+	};
+	union {
+		unsigned int d32;
+		struct {
+		unsigned int int_flg	: 1, /*addr ini*/
+			en		: 1,
+			enc_err		: 1,
+			rev1		: 5,
+
+			chg_level	: 2,
+			chg_mem		: 2, /*add*/
+			rev2		: 4,
+
+			rev3		: 8,
+			rev4		: 8;
+		} b;
+	};
+	unsigned int size_tab;
+	unsigned int size_info;
+	unsigned int l_vtype;
+	unsigned int l_vt_mem;
+	unsigned int l_h;
+	unsigned int l_w;
+	unsigned int l_bitdepth;
+	unsigned int addr_h;
+	unsigned int addr_b;
+	unsigned int mem_addr_h;
+	unsigned int mem_addr_b;
+};
+
+struct afdv1_s {
+	struct afbcdv1_ctr_s ctr;
 };
 
 struct afbcd_ctr_s {
@@ -365,6 +441,29 @@ enum AFBC_SGN {
 	AFBC_SGN_I_H265,
 };
 
+struct afdv1_ops_s {
+	void (*prob)(unsigned int cid);
+	bool (*is_supported)(void);
+	u32 (*en_pre_set)(struct vframe_s *inp_vf,
+			  struct vframe_s *mem_vf,
+			  struct vframe_s *nr_vf);
+	void (*inp_sw)(bool on);
+	bool (*is_used)(void);
+	bool (*is_free)(void);/*?*/
+	bool (*is_cfg)(enum EAFBCV1_CFG cfg_cmd);
+	unsigned int (*count_info_size)(unsigned int w, unsigned int h);
+	unsigned int (*count_tab_size)(unsigned int buf_size);
+	void (*int_tab)(struct device *dev,
+			struct afbce_map_s *pcfg);
+	void (*dump_reg)(void);
+	void (*reg_sw)(bool on);
+	void (*reg_val)(void);
+	u32 (*rqst_share)(bool onoff);
+	const unsigned int *(*get_d_addrp)(enum EAFBC_DEC eidx);
+	const unsigned int *(*get_e_addrp)(enum EAFBC_ENC eidx);
+	u32 (*dbg_rqst_share)(bool onoff);
+};
+
 struct afd_ops_s {
 	void (*prob)(unsigned int cid, struct afd_s *p);
 	bool (*is_supported)(void);
@@ -409,7 +508,7 @@ struct afd_ops_s {
 	//void (*pre_check2)(struct di_buf_s *di_buf);
 	void (*pst_check)(struct vframe_s *vf, void *pch);
 	bool (*is_sts)(enum EAFBC_STS status);
-	void (*sgn_mode_set)(unsigned int sgn_mode);
+	void (*sgn_mode_set)(unsigned char *sgn_mode, enum EAFBC_SNG_SET cmd);
 	unsigned char (*cnt_sgn_mode)(unsigned int sgn);
 	void (*cfg_mode_set)(unsigned int mode, union afbc_blk_s *en_cfg);
 };
@@ -435,7 +534,7 @@ bool dbg_di_prelink_v3(void);
 int dbg_afbc_cfg_v3_show(struct seq_file *s, void *v);/*debug*/
 void dbg_afd_reg_v3(struct seq_file *s, enum EAFBC_DEC eidx);
 
-bool di_attach_ops_afd(const struct afd_ops_s **ops);
+bool di_attach_ops_afd(const struct afdv1_ops_s **ops);
 bool di_attach_ops_afd_v3(const struct afd_ops_s **ops);
 
 /************************************************

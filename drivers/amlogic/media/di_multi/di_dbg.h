@@ -29,7 +29,8 @@ void didbg_fs_exit(void);
 void di_cfgx_init_val(void);
 
 void didbg_vframe_in_copy(unsigned int ch, struct vframe_s *pvfm);
-void didbg_vframe_out_save(unsigned int ch, struct vframe_s *pvfm);
+void didbg_vframe_out_save(unsigned int ch,
+			   struct vframe_s *pvfm, unsigned int id);
 
 /********************************
  *debug register:
@@ -63,9 +64,13 @@ struct dim_tr_ops_s {
 	void (*post_ir)(unsigned int index);
 	void (*post_do)(unsigned int index);
 	void (*post_peek)(unsigned int index);
+	void (*sct_alloc)(unsigned int index, u64 timer_begin);
+	void (*sct_tail)(unsigned int index, unsigned int used_cnt);
+	void (*self_trig)(unsigned int index);
 };
 
 extern const struct dim_tr_ops_s dim_tr_ops;
 void dbg_timer(unsigned int ch, enum EDBG_TIMER item);
+void dim_dump_mif_state(struct DI_MIF_S *mif, char *name);
 
 #endif	/*__DI_DBG_H__*/

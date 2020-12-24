@@ -1,6 +1,5 @@
-/* SPDX-License-Identifier: (GPL-2.0+ OR MIT) */
 /*
- * drivers/amlogic/media/deinterlace/sc2/di_afbc_v3.h
+ * drivers/amlogic/media/deinterlace/di_afbc.h
  *
  * Copyright (C) 2017 Amlogic, Inc. All rights reserved.
  *
@@ -24,9 +23,6 @@
 #define AFBC_DEC_NUB		(4)
 #define AFBC_ENC_NUB		(1)
 
-#define AFBC_DEC_NUB_V5		(8)
-#define AFBC_ENC_NUB_V5		(2)
-
 enum EAFBC_REG {
 	EAFBC_ENABLE,
 	EAFBC_MODE,
@@ -48,7 +44,7 @@ enum EAFBC_REG {
 	EAFBC_VD_CFMT_H,
 };
 
-#define DIM_AFBCE_NUB	(44)//for sc2 add 5 register (39)
+#define DIM_AFBCE_NUB	(39)
 #define DIM_AFBCE_UP_NUB	(21)
 
 /* afbce bytes index */
@@ -96,28 +92,12 @@ enum EAFBCE_INDEX {
 	EAFBCE_STAT1,		/*read only*/
 	EAFBCE_STAT2,
 	EAFBCE_MMU_RMIF_RO_STAT,
-	/* from sc2 */
-	EAFBCE_PIP_CTRL,
-	EAFBCE_ROT_CTRL,
-	EAFBCE_DIMM_CTRL,
-	EAFBCE_BND_DEC_MISC,
-	EAFBCE_RD_ARB_MISC,
-};
-
-enum AFBC_WK_MODE {
-	AFBC_WK_NONE,
-	AFBC_WK_IN,
-	AFBC_WK_P,
-	AFBC_WK_6D,
-	AFBC_WK_6D_ALL,
-	AFBC_WK_6D_NV21,
 };
 
 #define AFBC_VTYPE_MASK_CHG	(VIDTYPE_INTERLACE	|	\
 				 VIDTYPE_VIU_422	|	\
 				 VIDTYPE_VIU_444	|	\
 				 VIDTYPE_VIU_NV21	|	\
-				 VIDTYPE_VIU_NV12	|	\
 				 VIDTYPE_COMPRESS	|	\
 				 VIDTYPE_SCATTER	|	\
 				 VIDTYPE_COMB_MODE)
@@ -130,7 +110,6 @@ enum AFBC_WK_MODE {
 				 VIDTYPE_VIU_422	|	\
 				 VIDTYPE_VIU_444	|	\
 				 VIDTYPE_VIU_NV21	|	\
-				 VIDTYPE_VIU_NV12	|	\
 				 VIDTYPE_COMPRESS	|	\
 				 VIDTYPE_SCATTER	|	\
 				 VIDTYPE_COMB_MODE)
@@ -140,7 +119,6 @@ enum AFBC_WK_MODE {
 #define AFBCD_V2	(2) /*g12a*/
 #define AFBCD_V3	(3) /*tl1*/
 #define AFBCD_V4	(4) /*tm2 vb*/
-#define AFBCD_V5	(5)	/*sc2*/
 
 //void afbc_prob(void);
 
@@ -152,7 +130,6 @@ enum AFBC_WK_MODE {
 //const unsigned int *afbce_get_addrp(enum EAFBC_ENC eidx);
 /*define in vpp*/
 s32 di_request_afbc_hw(u8 id, bool on);
-unsigned int afbce_read_used(enum EAFBC_ENC enc);
 //bool cfg_pmode(void);
 //bool cfg_test4k(void);
 //bool dbg_di_prelink(void);
