@@ -55,10 +55,16 @@ void nl80211_send_assoc_timeout(struct cfg80211_registered_device *rdev,
 				struct net_device *netdev,
 				const u8 *addr, gfp_t gfp);
 void nl80211_send_connect_result(struct cfg80211_registered_device *rdev,
-				 struct net_device *netdev, const u8 *bssid,
-				 const u8 *req_ie, size_t req_ie_len,
-				 const u8 *resp_ie, size_t resp_ie_len,
-				 int status, gfp_t gfp);
+#ifdef CONFIG_AMLOGIC_MODIFY
+			 struct net_device *netdev,
+			 struct cfg80211_connect_resp_params *cr,
+			 gfp_t gfp);
+#else
+			 struct net_device *netdev, const u8 *bssid,
+			 const u8 *req_ie, size_t req_ie_len,
+			 const u8 *resp_ie, size_t resp_ie_len,
+			 int status, gfp_t gfp);
+#endif
 void nl80211_send_roamed(struct cfg80211_registered_device *rdev,
 			 struct net_device *netdev, const u8 *bssid,
 			 const u8 *req_ie, size_t req_ie_len,

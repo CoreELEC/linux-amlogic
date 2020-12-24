@@ -2332,6 +2332,10 @@ int regulatory_hint_user(const char *alpha2,
 	return 0;
 }
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+EXPORT_SYMBOL(regulatory_hint_user);
+#endif
+
 int regulatory_hint_indoor(bool is_indoor, u32 portid)
 {
 	spin_lock(&reg_indoor_lock);

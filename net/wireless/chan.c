@@ -592,7 +592,12 @@ static bool cfg80211_secondary_chans_ok(struct wiphy *wiphy,
 
 	for (freq = start_freq; freq <= end_freq; freq += 20) {
 		c = ieee80211_get_channel(wiphy, freq);
+#ifdef CONFIG_AMLOGIC_MODIFY
+		if (!c || ((c->flags & prohibited_flags) &&
+			!(wiphy->flags & WIPHY_FLAG_DFS_OFFLOAD)))
+#else
 		if (!c || c->flags & prohibited_flags)
+#endif
 			return false;
 	}
 
