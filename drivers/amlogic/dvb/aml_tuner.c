@@ -539,6 +539,12 @@ static int aml_tuner_match(const struct tuner_module *module, int std)
 		n++;
 	}
 
+	/* Now, does not match delivery system.
+	 * After the FE type is deactivated, use DTV_ENUM_DELSYS instead.
+	 */
+	return -EINVAL;
+
+#if 0
 	/* std = delivery system. */
 	n = 0;
 	while (n < AML_MAX_DELSYS && module->delsys[n] != SYS_UNDEFINED) {
@@ -549,6 +555,7 @@ static int aml_tuner_match(const struct tuner_module *module, int std)
 	}
 
 	return -EINVAL;
+#endif
 }
 
 static int aml_tuner_rw(struct i2c_adapter *i2c_adap,

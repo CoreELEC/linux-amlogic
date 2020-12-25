@@ -31,7 +31,7 @@
 #define AML_DVB_EXTERN_MODULE_NAME    "aml_dvb_extern"
 #define AML_DVB_EXTERN_CLASS_NAME     "aml_dvb_extern"
 
-#define AML_DVB_EXTERN_VERSION    "V1.01"
+#define AML_DVB_EXTERN_VERSION    "V1.02"
 
 static struct dvb_extern_device *dvb_extern_dev;
 
