@@ -33,7 +33,7 @@
 #define TSYNC_IOC_SET_LAST_CHECKIN_APTS _IOW(TSYNC_IOC_MAGIC, 0x03, u32)
 #define TSYNC_IOC_SET_DEMUX_INFO _IOW(TSYNC_IOC_MAGIC, 0x06, struct dmx_info)
 #define TSYNC_IOC_STOP_TSYNC_PCR _IO((TSYNC_IOC_MAGIC), 0x08)
-
+#define AM_ABSSUB(a, b) (((a) >= (b)) ? ((a) - (b)) : ((b) - (a)))
 struct dmx_info {
 int demux_device_id;
 int index;

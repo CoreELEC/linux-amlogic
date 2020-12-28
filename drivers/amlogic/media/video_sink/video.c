@@ -2285,7 +2285,7 @@ static inline bool vpts_expire(struct vframe_s *cur_vf,
 	/* check video PTS discontinuity */
 	if ((enable_video_discontinue_report) &&
 	    (first_frame_toggled) &&
-	    (abs(systime - pts) > tsync_vpts_discontinuity_margin()) &&
+	    (AM_ABSSUB(systime, pts) > tsync_vpts_discontinuity_margin()) &&
 	    ((next_vf->flag & VFRAME_FLAG_NO_DISCONTINUE) == 0)) {
 		/*
 		 * if paused ignore discontinue
@@ -2334,7 +2334,9 @@ static inline bool vpts_expire(struct vframe_s *cur_vf,
 			 */
 
 			/* pts==0 is a keep frame maybe. */
-			if (systime > next_vf->pts || next_vf->pts == 0)
+			if (systime > next_vf->pts || next_vf->pts == 0 ||
+			    (systime < pts &&
+			    (pts > 0xFFFFFFFF - TIME_UNIT90K)))
 				return true;
 			if (omx_secret_mode == true
 					&& cur_omx_index >= next_vf->omx_index)
@@ -4638,7 +4640,7 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 
 	while (vf && !video_suspend) {
 		if (debug_flag & DEBUG_FLAG_OMX_DEBUG_DROP_FRAME) {
-			pr_info("next pts= %d,index %d,pcr = %d,vpts = %d\n",
+			pr_info("next pts= %x,index %x,pcr = %x,vpts = %x\n",
 				vf->pts, vf->omx_index,
 				timestamp_pcrscr_get(), timestamp_vpts_get());
 		}
