@@ -50,7 +50,11 @@
  * Maximum number of Delivery systems per frontend. It
  * should be smaller or equal to 32
  */
+#ifdef CONFIG_AMLOGIC_DVB_COMPAT
+#define MAX_DELSYS	32
+#else
 #define MAX_DELSYS	8
+#endif
 
 /**
  * struct dvb_frontend_tune_settings - parameters to adjust frontend tuning
