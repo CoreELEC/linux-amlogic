@@ -53,7 +53,7 @@
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/nand_ecc.h>
 #include "aml_hwctrl.h"
-#include "nand_layout.h"
+#include "nand_bootpart.h"
 
 #define CONFIG_MTD_PARTITIONS 1
 #define NAND_MAX_DEVICE	4

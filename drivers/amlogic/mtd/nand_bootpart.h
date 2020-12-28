@@ -1,5 +1,5 @@
 /*
- * drivers/amlogic/mtd/nand_layout.h
+ * drivers/amlogic/mtd/nand_bootpart.h
  *
  * Copyright (C) 2017 Amlogic, Inc. All rights reserved.
  *
@@ -15,8 +15,8 @@
  *
  */
 
-#ifndef _AML_NAND_LAYOUT_
-#define _AML_NAND_LAYOUT_
+#ifndef _AML_NAND_BOOTPART_
+#define _AML_NAND_BOOTPART_
 
 struct nand_startup_parameter {
 	int page_size;
