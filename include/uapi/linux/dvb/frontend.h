@@ -350,19 +350,19 @@ struct fe_blind_scan_parameters {
 #ifdef CONFIG_AMLOGIC_DVB_COMPAT
 
 /* Get tne TS input of the frontend */
-#define DTV_TS_INPUT                    70
+#define DTV_TS_INPUT                    100
 /* Blind scan */
-#define DTV_START_BLIND_SCAN            71
-#define DTV_CANCEL_BLIND_SCAN           72
-#define DTV_BLIND_SCAN_MIN_FRE          73
-#define DTV_BLIND_SCAN_MAX_FRE          74
-#define DTV_BLIND_SCAN_MIN_SRATE        75
-#define DTV_BLIND_SCAN_MAX_SRATE        76
-#define DTV_BLIND_SCAN_FRE_RANGE        77
-#define DTV_BLIND_SCAN_FRE_STEP         78
-#define DTV_BLIND_SCAN_TIMEOUT          79
+#define DTV_START_BLIND_SCAN            101
+#define DTV_CANCEL_BLIND_SCAN           102
+#define DTV_BLIND_SCAN_MIN_FRE          103
+#define DTV_BLIND_SCAN_MAX_FRE          104
+#define DTV_BLIND_SCAN_MIN_SRATE        105
+#define DTV_BLIND_SCAN_MAX_SRATE        106
+#define DTV_BLIND_SCAN_FRE_RANGE        107
+#define DTV_BLIND_SCAN_FRE_STEP         108
+#define DTV_BLIND_SCAN_TIMEOUT          109
 /* Blind scan end*/
-#define DTV_DELIVERY_SUB_SYSTEM			80
+#define DTV_DELIVERY_SUB_SYSTEM			110
 #define DTV_MAX_COMMAND		DTV_DELIVERY_SUB_SYSTEM
 
 #else  /*!defined(CONFIG_AMLOGIC_DVB_COMPAT)*/
