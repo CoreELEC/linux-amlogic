@@ -143,11 +143,12 @@ int ts_output_remove_pid(struct out_elem *pout, int pid);
  * \param memsize
  * \param sec_level
  * \param pts_memsize
+ * \param pts_level
  * \retval 0:success.
  * \retval -1:fail.
  */
-int ts_output_set_mem(struct out_elem *pout,
-		      int memsize, int sec_level, int pts_memsize);
+int ts_output_set_mem(struct out_elem *pout, int memsize,
+	int sec_level, int pts_memsize, int pts_level);
 
 int ts_output_set_sec_mem(struct out_elem *pout,
 	unsigned int buf, unsigned int size);

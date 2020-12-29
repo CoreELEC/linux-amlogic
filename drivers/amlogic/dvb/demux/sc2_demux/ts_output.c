@@ -909,7 +909,7 @@ static void create_aucpu_inst(struct out_elem *pout)
 
 	if (pout->type == VIDEO_TYPE ||
 		pout->type == AUDIO_TYPE) {
-	if (pout->aucpu_pts_handle < 0) {
+	if (pout->aucpu_pts_handle < 0 && pout->pchan1->sec_level) {
 		src.phy_start = pout->pchan1->mem_phy;
 		src.buf_size = pout->pchan1->mem_size;
 		src.buf_flags = 0;
@@ -2189,8 +2189,8 @@ int ts_output_remove_pid(struct out_elem *pout, int pid)
 	return 0;
 }
 
-int ts_output_set_mem(struct out_elem *pout,
-		      int memsize, int sec_level, int pts_memsize)
+int ts_output_set_mem(struct out_elem *pout, int memsize,
+	int sec_level, int pts_memsize, int pts_level)
 {
 	pr_dbg("%s mem size:0x%0x, pts_memsize:0x%0x, sec_level:%d\n",
 		__func__, memsize, pts_memsize, sec_level);
@@ -2199,7 +2199,7 @@ int ts_output_set_mem(struct out_elem *pout,
 		SC2_bufferid_set_mem(pout->pchan, memsize, sec_level);
 
 	if (pout && pout->pchan1)
-		SC2_bufferid_set_mem(pout->pchan1, pts_memsize, sec_level);
+		SC2_bufferid_set_mem(pout->pchan1, pts_memsize, pts_level);
 
 	return 0;
 }

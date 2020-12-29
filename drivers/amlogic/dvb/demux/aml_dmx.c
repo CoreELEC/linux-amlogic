@@ -309,6 +309,7 @@ static int _dmx_ts_feed_set(struct dmx_ts_feed *ts_feed, u16 pid, int ts_type,
 	int mem_size = TS_OUTPUT_CHAN_PES_BUF_SIZE;
 	int media_type = 0;
 	int cb_id = 0;
+	int pts_level = 0;
 
 	pr_dbg("_dmx_ts_feed_set pid:0x%0x\n", pid);
 
@@ -407,6 +408,20 @@ static int _dmx_ts_feed_set(struct dmx_ts_feed *ts_feed, u16 pid, int ts_type,
 
 	feed->type = type;
 	pr_dbg("%s sec_level:%d\n", __func__, sec_level);
+	if (type != VIDEO_TYPE && sec_level != 0) {
+		if (aml_aucpu_strm_get_load_firmware_status() != 0) {
+			dprint("load aucpu firmware fail, don't use aucpu\n");
+			sec_level = 0;
+			pts_level = 0;
+		} else {
+			pts_level = sec_level;
+		}
+	} else {
+		if (aml_aucpu_strm_get_load_firmware_status() != 0)
+			pts_level = 0;
+		else
+			pts_level = sec_level;
+	}
 
 	if (format == DVR_FORMAT) {
 		feed->ts_out_elem = ts_output_find_dvr(sid);
@@ -438,11 +453,14 @@ static int _dmx_ts_feed_set(struct dmx_ts_feed *ts_feed, u16 pid, int ts_type,
 			sec_level = DMX_MEM_SEC_LEVEL1;
 		}
 		if (sec_level != 0)
-			ts_output_set_mem(feed->ts_out_elem, mem_size,
-				  sec_level, TS_OUTPUT_CHAN_PTS_SEC_BUF_SIZE);
+			ts_output_set_mem(feed->ts_out_elem,
+					mem_size, sec_level,
+					TS_OUTPUT_CHAN_PTS_SEC_BUF_SIZE,
+					pts_level);
 		else
-			ts_output_set_mem(feed->ts_out_elem, mem_size,
-				  sec_level, TS_OUTPUT_CHAN_PTS_BUF_SIZE);
+			ts_output_set_mem(feed->ts_out_elem,
+					mem_size, sec_level,
+					TS_OUTPUT_CHAN_PTS_BUF_SIZE, pts_level);
 		if (feed->pid == 0x2000)
 			ts_output_add_pid(feed->ts_out_elem, feed->pid, 0x1fff,
 					  demux->id, &cb_id);
@@ -732,13 +750,18 @@ static int _dmx_section_feed_start_filtering(struct dmx_section_feed *feed)
 			break;
 		}
 	}
-
+	if (sec_level != 0) {
+		if (aml_aucpu_strm_get_load_firmware_status() != 0) {
+			dprint("load aucpu firmware fail, don't use aucpu\n");
+			sec_level = 0;
+		}
+	}
 	sec_feed->sec_out_elem = ts_output_open(
 		sid, demux->id, SECTION_FORMAT, SEC_TYPE, MEDIA_TS_SYS, 0);
 	if (sec_feed->sec_out_elem) {
 		mem_size = sec_buf_size;
 		ts_output_set_mem(
-			sec_feed->sec_out_elem, mem_size, sec_level, 0);
+			sec_feed->sec_out_elem, mem_size, sec_level, 0, 0);
 		ts_output_add_pid(sec_feed->sec_out_elem, sec_feed->pid, 0,
 				  demux->id, &cb_id);
 		ts_output_add_cb(sec_feed->sec_out_elem,
@@ -1670,7 +1693,7 @@ void test_sid(void)
 			ts_output_add_cb(ts_out_elem,
 					 out_ts_elem_cb_test, NULL, 0,
 					 SECTION_FORMAT, 1);
-			ts_output_set_mem(ts_out_elem, pes_buf_size, 0, 0);
+			ts_output_set_mem(ts_out_elem, pes_buf_size, 0, 0, 0);
 			ts_output_add_pid(ts_out_elem, 0, 0, 0, 0);
 		} else {
 			dprint("%s error\n", __func__);

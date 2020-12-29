@@ -284,4 +284,14 @@ s32 aml_aucpu_strm_get_dst(s32 handle, struct aml_aucpu_buf_upd *upd);
  **/
 s32 aml_aucpu_strm_get_status(s32 handle, s32 *state, s32 *report);
 
+/**
+ * aml_aucpu_strm_get_load_firmware_status(void)
+ *
+ * get status of load firmware status
+ *
+ * @return:	0:success
+ *		error code <0 if errors on the operation
+ **/
+s32 aml_aucpu_strm_get_load_firmware_status(void);
+
 #endif /* _AML_AUCPU_H_ */
