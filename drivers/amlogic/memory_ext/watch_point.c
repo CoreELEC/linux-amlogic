@@ -447,7 +447,6 @@ static struct platform_driver aml_watch_point_driver = {
 		.name  = "aml_watch_point",
 		.owner = THIS_MODULE,
 	},
-	.probe = aml_watch_point_probe,
 	.remove = aml_watch_point_drv_remove,
 };
 

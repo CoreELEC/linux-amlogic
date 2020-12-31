@@ -43,9 +43,12 @@
 
 static struct dmc_monitor *dmc_mon;
 
-static unsigned long init_dev_mask   __initdata;
-static unsigned long init_start_addr __initdata;
-static unsigned long init_end_addr   __initdata;
+static unsigned long init_dev_mask;
+static unsigned long init_start_addr;
+static unsigned long init_end_addr;
+
+static struct ddr_port_desc *desc;
+static int ports = -1, chip = -1;
 
 static int __init early_dmc_param(char *buf)
 {
@@ -357,10 +360,9 @@ static struct class dmc_monitor_class = {
 
 static int dmc_monitor_probe(struct platform_device *pdev)
 {
-	int r = 0, irq, ports;
+	int r = 0, irq;
 	unsigned int io;
 	struct device_node *node = pdev->dev.of_node;
-	struct ddr_port_desc *desc = NULL;
 	struct resource *res;
 
 	pr_info("%s\n", __func__);
@@ -369,12 +371,7 @@ static int dmc_monitor_probe(struct platform_device *pdev)
 	if (!dmc_mon)
 		return -ENOMEM;
 
-	ports = ddr_find_port_desc(r, &desc);
-	if (ports < 0) {
-		pr_info("can't get port desc\n");
-		goto inval;
-	}
-	dmc_mon->chip = r;
+	dmc_mon->chip = chip;
 	dmc_mon->port_num = ports;
 	dmc_mon->port = desc;
 	if (dmc_mon->chip >= MESON_CPU_MAJOR_ID_G12A) {
@@ -462,6 +459,14 @@ static struct platform_driver dmc_monitor_driver = {
 static int __init dmc_monitor_init(void)
 {
 	int ret;
+
+	chip = get_cpu_type();
+
+	ports = ddr_find_port_desc(chip, &desc);
+	if (ports < 0) {
+		pr_info("can't get port desc\n");
+		return -ENODATA;
+	}
 
 	ret = platform_driver_register(&dmc_monitor_driver);
 	return ret;

@@ -215,7 +215,7 @@ ssize_t time_out_store(struct device *dev, struct device_attribute *attr,
 
 DEVICE_ATTR(time_out, 0664, time_out_show, time_out_store);
 
-static int __init meson_pm_probe(struct platform_device *pdev)
+static int meson_pm_probe(struct platform_device *pdev)
 {
 	struct device_node *cpu_node;
 	struct device_node *state_node;
