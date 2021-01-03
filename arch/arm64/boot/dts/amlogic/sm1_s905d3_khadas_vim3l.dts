@@ -65,39 +65,6 @@
 		interrupt-names = "vsync2";
 	};
 
-	meson-remote {
-		map = <&custom_maps>;
-	};
-
-	custom_maps:custom_maps {
-		mapnum = <1>;
-		map0 = <&map_0>;
-		map_0: map_0{
-			mapname = "khadas-ir";
-			customcode = <0xff00>;
-			release_delay = <80>;
-			fn_key_scancode = <0x5b>;
-			cursor_left_scancode = <0x0e>;
-			cursor_right_scancode = <0x1a>;
-			cursor_up_scancode = <0x03>;
-			cursor_down_scancode = <0x02>;
-			cursor_ok_scancode = <0x07>;
-			size = <12>;
-			keymap = <REMOTE_KEY(0x14,116)
-				REMOTE_KEY(0x13,46)
-				REMOTE_KEY(0x03,103)
-				REMOTE_KEY(0x02,108)
-				REMOTE_KEY(0x0e,105)
-				REMOTE_KEY(0x1a,106)
-				REMOTE_KEY(0x07,28)
-				REMOTE_KEY(0x58,114)
-				REMOTE_KEY(0x5c,90)
-				REMOTE_KEY(0x0b,115)
-				REMOTE_KEY(0x01,1)
-				REMOTE_KEY(0x48,172)>;
-		};
-	};
-
 	/delete-node/ rtc;
 };
 
