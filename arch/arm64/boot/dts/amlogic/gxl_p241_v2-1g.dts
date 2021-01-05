@@ -99,7 +99,7 @@
 		ion_reserved:linux,ion-dev {
 			compatible = "shared-dma-pool";
 			reusable;
-			size = <0x0 0x2400000>;
+			size = <0x0 0x1400000>;
 			alignment = <0x0 0x400000>;
 		};
 
@@ -158,7 +158,7 @@
 		compatible = "amlogic, cma-shrinker";
 		status = "okay";
 		adj  = <0 100 200 250 900 950>;
-		free = <7680 24288 28528 32600 32768 36624>;
+		free = <8192 12288 16384 24576 28672 32768>;
 	};
 
 	amlogic_battery:dummy-battery {
