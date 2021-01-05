@@ -393,10 +393,12 @@ static int _check_timer_wakeup(void)
 static void _timer_ts_out_func(unsigned long arg)
 {
 //      dprint("wakeup ts_out_timer\n");
-	timer_wake_up = 1;
-	wake_up_interruptible(&ts_out_task_tmp.wait_queue);
-	mod_timer(&ts_out_task_tmp.out_timer,
+	if (ts_out_task_tmp.ts_out_list) {
+		timer_wake_up = 1;
+		wake_up_interruptible(&ts_out_task_tmp.wait_queue);
+		mod_timer(&ts_out_task_tmp.out_timer,
 		  jiffies + msecs_to_jiffies(out_flush_time));
+	}
 }
 
 static int _check_timer_es_wakeup(void)
@@ -411,10 +413,12 @@ static int _check_timer_es_wakeup(void)
 static void _timer_es_out_func(unsigned long arg)
 {
 //      dprint("wakeup ts_out_timer\n");
-	timer_es_wake_up = 1;
-	wake_up_interruptible(&es_out_task_tmp.wait_queue);
-	mod_timer(&es_out_task_tmp.out_timer,
+	if (es_out_task_tmp.ts_out_list) {
+		timer_es_wake_up = 1;
+		wake_up_interruptible(&es_out_task_tmp.wait_queue);
+		mod_timer(&es_out_task_tmp.out_timer,
 		  jiffies + msecs_to_jiffies(out_es_flush_time));
+	}
 }
 
 static int out_sec_cb_list(struct out_elem *pout, char *buf, int size)
@@ -581,15 +585,11 @@ static int _task_out_func(void *data)
 
 	while (ts_out_task_tmp.running == TASK_RUNNING) {
 		timeout =
-		    wait_event_interruptible_timeout(ts_out_task_tmp.wait_queue,
-						     _check_timer_wakeup(),
-						     3 * HZ);
+		    wait_event_interruptible(ts_out_task_tmp.wait_queue,
+						     _check_timer_wakeup());
 
 		if (ts_out_task_tmp.running != TASK_RUNNING)
 			break;
-
-		if (timeout <= 0)
-			continue;
 
 		mutex_lock(ts_output_mutex);
 
@@ -633,15 +633,11 @@ static int _task_es_out_func(void *data)
 
 	while (es_out_task_tmp.running == TASK_RUNNING) {
 		timeout =
-		    wait_event_interruptible_timeout(es_out_task_tmp.wait_queue,
-						     _check_timer_es_wakeup(),
-						     3 * HZ);
+		    wait_event_interruptible(es_out_task_tmp.wait_queue,
+						     _check_timer_es_wakeup());
 
 		if (es_out_task_tmp.running != TASK_RUNNING)
 			break;
-
-		if (timeout <= 0)
-			continue;
 
 		mutex_lock(&es_output_mutex);
 
@@ -1625,8 +1621,6 @@ int ts_output_init(int sid_num, int *sid_info)
 	init_waitqueue_head(&ts_out_task_tmp.wait_queue);
 	init_timer(&ts_out_task_tmp.out_timer);
 	ts_out_task_tmp.out_timer.function = _timer_ts_out_func;
-	ts_out_task_tmp.out_timer.expires =
-	    jiffies + msecs_to_jiffies(ts_out_task_tmp.flush_time_ms);
 	ts_out_task_tmp.out_timer.data = 0;
 	add_timer(&ts_out_task_tmp.out_timer);
 
@@ -1645,8 +1639,6 @@ int ts_output_init(int sid_num, int *sid_info)
 	init_waitqueue_head(&es_out_task_tmp.wait_queue);
 	init_timer(&es_out_task_tmp.out_timer);
 	es_out_task_tmp.out_timer.function = _timer_es_out_func;
-	es_out_task_tmp.out_timer.expires =
-	    jiffies + msecs_to_jiffies(es_out_task_tmp.flush_time_ms);
 	es_out_task_tmp.out_timer.data = 0;
 	add_timer(&es_out_task_tmp.out_timer);
 	es_out_task_tmp.ts_out_list = NULL;
@@ -2297,6 +2289,13 @@ int ts_output_add_cb(struct out_elem *pout, ts_output_cb cb, void *udata,
 	}
 
 	pout->ref++;
+
+	if (pout->type == VIDEO_TYPE || pout->type == AUDIO_TYPE)
+		mod_timer(&es_out_task_tmp.out_timer,
+		  jiffies + msecs_to_jiffies(out_es_flush_time));
+	else
+		mod_timer(&ts_out_task_tmp.out_timer,
+		  jiffies + msecs_to_jiffies(out_flush_time));
 	return 0;
 }
 
