@@ -295,7 +295,7 @@
 	};
 
 	partitions: partitions{
-		parts = <14>;
+		parts = <15>;
 		part-0 = <&logo>;
 		part-1 = <&recovery>;
 		part-2 = <&misc>;
@@ -305,11 +305,12 @@
 		part-6 = <&boot>;
 		part-7 = <&rsv>;
 		part-8 = <&tee>;
-		part-9 = <&vendor>;
-		part-10 = <&odm>;
-		part-11 = <&system>;
-		part-12 = <&cache>;
-		part-13 = <&data>;
+		part-9 = <&factory>;
+		part-10 = <&vendor>;
+		part-11 = <&odm>;
+		part-12 = <&system>;
+		part-13 = <&cache>;
+		part-14 = <&data>;
 
 		logo:logo{
 			pname = "logo";
@@ -355,6 +356,11 @@
 			pname = "tee";
 			size = <0x0 0x2000000>;
 			mask = <1>;
+		};
+		factory:factory{
+			pname = "factory";
+			size = <0x0 0x800000>;
+			mask = <0x11>;
 		};
 		vendor:vendor{
 			pname = "vendor";

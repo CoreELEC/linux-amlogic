@@ -282,19 +282,20 @@
 	};
 
 	partitions: partitions{
-		parts = <12>;
+		parts = <13>;
 		part-0 = <&logo>;
 		part-1 = <&recovery>;
 		part-2 = <&rsv>;
 		part-3 = <&tee>;
-		part-4 = <&crypt>;
-		part-5 = <&misc>;
-		part-6 = <&boot>;
-		part-7 = <&system>;
-		part-8 = <&cache>;
-		part-9 = <&vendor>;
-		part-10 = <&odm>;
-		part-11 = <&data>;
+		part-4 = <&factory>;
+		part-5 = <&crypt>;
+		part-6 = <&misc>;
+		part-7 = <&boot>;
+		part-8 = <&system>;
+		part-9 = <&cache>;
+		part-10 = <&vendor>;
+		part-11 = <&odm>;
+		part-12 = <&data>;
 
 		logo:logo{
 			pname = "logo";
@@ -315,6 +316,11 @@
 			pname = "tee";
 			size = <0x0 0x800000>;
 			mask = <1>;
+		};
+		factory:factory{
+			pname = "factory";
+			size = <0x0 0x800000>;
+			mask = <0x11>;
 		};
 		crypt:crypt{
 			pname = "crypt";
