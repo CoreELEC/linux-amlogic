@@ -69,6 +69,30 @@ struct l_msg {
 /*for store listen message data*/
 static struct l_msg lmsg;
 
+struct sp_mb_csr {
+	union {
+		u32 d32;
+		struct {
+			/* words lengthm1   [7:0]   */
+			unsigned lengthm1:8;
+			/* Full             [8]     */
+			unsigned full:1;
+			/* Empty            [9]     */
+			unsigned empty:1;
+			/* Reserved         [15:10] */
+			unsigned reserved_1:6;
+			/* A2B disable      [16]    */
+			unsigned a2b_dis:1;
+			/* A2B state        [19:17] */
+			unsigned a2b_st:3;
+			/* A2B error        [20]    */
+			unsigned a2b_err:1;
+			/* Reserved         [31:21] */
+			unsigned reserved_2:11;
+		} b;
+	} reg;
+};
+
 /*
  * This function writes size of data into buffer of mailbox
  * for sending.
@@ -88,7 +112,7 @@ static void mb_write(void *to, void *from, u32 size)
 		return;
 	}
 
-	for (i = 0; i < size; i += sizeof(uint32_t))
+	for (i = 0; i < size; i += sizeof(u32))
 		writel(*rd_ptr++, wr_ptr++);
 }
 
@@ -111,7 +135,7 @@ static void mb_read(void *to, void *from, u32 size)
 		return;
 	}
 
-	for (i = 0; i < size; i += sizeof(uint32_t))
+	for (i = 0; i < size; i += sizeof(u32))
 		*wr_ptr++ = readl(rd_ptr++);
 }
 
@@ -139,18 +163,13 @@ static irqreturn_t mbox_handler(int irq, void *p)
 	void __iomem *mbox_scpu2nee_csr = ctlr->scpu2nee_csr;
 	void __iomem *mbox_scpu2nee_data_st = ctlr->scpu2nee_data_st;
 	struct mhu_data_buf *data;
-	u32 status;
-	u32 vcsr;
+	struct sp_mb_csr vcsr;
 	u32 rx_size;
 
-	vcsr = readl(mbox_scpu2nee_csr);
-	status = vcsr & (0x1 << 8);
-	rx_size = ((vcsr & 0xff) + 1) * sizeof(uint32_t);
+	vcsr.reg.d32 = readl(mbox_scpu2nee_csr);
+	rx_size = (vcsr.reg.b.lengthm1 + 1) * sizeof(u32);
 
-	if (rx_size == sizeof(uint32_t))
-		rx_size = MBOX_SEC_SIZE;
-
-	if (status) {
+	if (vcsr.reg.b.full) {
 		data = mhu_chan->data;
 		if (!data)
 			return IRQ_NONE;
@@ -173,15 +192,16 @@ static int mhu_send_data(struct mbox_chan *link, void *msg)
 	void __iomem *mbox_nee2scpu_data_st = ctlr->nee2scpu_data_st;
 	struct mhu_data_buf *data = (struct mhu_data_buf *)msg;
 	u32 tx_size = data->tx_size & 0xff;
-	u32 cmd = 0;
+	struct sp_mb_csr vcsr;
 
 	if (!data)
 		return -EINVAL;
 
 	chan->data = data;
 
-	cmd  = (((tx_size / sizeof(uint32_t)) - 1) | readl(mbox_nee2scpu_csr));
-	writel(cmd, mbox_nee2scpu_csr);
+	vcsr.reg.d32 = readl(mbox_nee2scpu_csr);
+	vcsr.reg.b.lengthm1 = (tx_size / sizeof(u32)) - 1;
+	writel(vcsr.reg.d32, mbox_nee2scpu_csr);
 
 	if (data->tx_buf) {
 		mb_write(mbox_nee2scpu_data_st,
@@ -204,8 +224,11 @@ static bool mhu_last_tx_done(struct mbox_chan *link)
 	struct mhu_chan *chan = link->con_priv;
 	struct mhu_ctlr *ctlr = chan->ctlr;
 	void __iomem *mbox_nee2scpu_csr = ctlr->nee2scpu_csr;
+	struct sp_mb_csr vcsr;
 
-	return !(readl(mbox_nee2scpu_csr) & (1 << 0x9));
+	vcsr.reg.d32 = readl(mbox_nee2scpu_csr);
+
+	return !(vcsr.reg.b.empty);
 }
 
 static struct mbox_chan_ops mhu_ops = {
@@ -432,6 +455,7 @@ static int mhu_sec_probe(struct platform_device *pdev)
 	struct resource *res;
 	int idx, err;
 	u32 num_chans = 0;
+	const char *name = NULL;
 
 	pr_info("mhu sec start\n");
 	mhu_ctlr = devm_kzalloc(dev, sizeof(*mhu_ctlr), GFP_KERNEL);
@@ -506,8 +530,18 @@ static int mhu_sec_probe(struct platform_device *pdev)
 		mhu_chan->index = idx;
 		mhu_chan->mhu_id = idx;//mhu_sec_ctlr->mhu_id[idx];
 		mhu_chan->ctlr = mhu_ctlr;
-		pr_debug("%s, sec chan index: %d, idx: %d, sec_mbu_id:%d\n",
-			 __func__, mhu_chan->index, idx, mhu_chan->mhu_id);
+
+		if (!of_property_read_string_index(dev->of_node,
+			    "mbox-names", idx, &name)) {
+			/* At most copy (buf size - 1) bytes for making
+			 * a null-terminated string
+			 */
+			strncpy(mhu_chan->mhu_name, name,
+				sizeof(mhu_chan->mhu_name) - 1);
+		}
+		pr_debug("%s, sec chan name: %s, index: %d, idx: %d, sec_mbu_id:%d\n",
+			 __func__, mhu_chan->mhu_name, mhu_chan->index, idx,
+			 mhu_chan->mhu_id);
 
 		mbox_chans[idx].con_priv = mhu_chan;
 	}
