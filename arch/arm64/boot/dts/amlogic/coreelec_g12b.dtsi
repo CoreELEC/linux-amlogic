@@ -15,3 +15,17 @@
 	mc_val = <0x1621>;
 	internal_phy=<0>;
 };
+
+&pinctrl_periphs {
+	a_uart_pins:a_uart {
+		mux {
+			groups = "uart_tx_a",
+				"uart_rx_a",
+				"uart_cts_a",
+				"uart_rts_a";
+			function = "uart_a";
+		};
+
+		/delete-node/ mux1;
+	};
+};
