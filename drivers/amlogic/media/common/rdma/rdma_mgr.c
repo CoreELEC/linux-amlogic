@@ -73,7 +73,7 @@ static int rdma_watchdog_count;
 static int rdma_force_reset = -1;
 
 #define RDMA_NUM 8
-#define RDMA_TABLE_SIZE (8 * (PAGE_SIZE))
+#define RDMA_TABLE_SIZE (16 * (PAGE_SIZE))
 #define MAX_TRACE_NUM  16
 #define RDMA_MGR_CLASS_NAME  "rdma_mgr"
 static int rdma_trace_num;
@@ -829,8 +829,7 @@ int rdma_write_reg(int handle, u32 adr, u32 val)
 		ins->rdma_item_count++;
 	} else {
 		int i;
-		if (debug_flag & 4)
-			pr_info("%s(%d, %x, %x ,%d) buf overflow\n",
+		pr_info("%s(%d, %x, %x ,%d) buf overflow\n",
 		__func__, rdma_watchdog_count, handle, adr, val);
 		for (i = 0; i < ins->rdma_item_count; i++)
 			WRITE_VCBUS_REG(ins->reg_buf[i << 1],

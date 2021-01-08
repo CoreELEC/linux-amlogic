@@ -268,10 +268,11 @@ static unsigned int dolby_vision_flags = FLAG_BYPASS_VPP | FLAG_FORCE_CVM;
 module_param(dolby_vision_flags, uint, 0664);
 MODULE_PARM_DESC(dolby_vision_flags, "\n dolby_vision_flags\n");
 
-/*bit0:set core1 lut; bit1: set core2 lut; bit 3: set all reg*/
-static unsigned int force_set;
-module_param(force_set, uint, 0664);
-MODULE_PARM_DESC(force_set, "\n force_set\n");
+/*bit0:reset core1 reg; bit1:reset core2 reg;bit2:reset core3 reg*/
+/*bit3: reset core1 lut; bit4: reset core2 lut*/
+static unsigned int force_update_reg;
+module_param(force_update_reg, uint, 0664);
+MODULE_PARM_DESC(force_update_reg, "\n force_update_reg\n");
 
 #define DV_NAME_LEN_MAX 32
 
@@ -1743,6 +1744,36 @@ static uint32_t tv_run_mode(int vsize, bool hdmi, bool hdr10, int el_41_mode)
 	return run_mode;
 }
 
+static void dolby_core_reset(enum core_type type)
+{
+	switch (type) {
+	case DOLBY_TVCORE:
+		if (is_meson_txlx())
+			VSYNC_WR_DV_REG(VIU_SW_RESET, 1 << 9);
+		else if (is_meson_tm2())
+			VSYNC_WR_DV_REG(VIU_SW_RESET, 1 << 1);
+		VSYNC_WR_DV_REG(VIU_SW_RESET, 0);
+		break;
+	case DOLBY_CORE1A:
+		if (is_meson_txlx())
+			VSYNC_WR_DV_REG(VIU_SW_RESET, 1 << 10);
+		else if (is_meson_g12() || is_meson_tm2() || is_meson_sc2())
+			VSYNC_WR_DV_REG(VIU_SW_RESET, 1 << 2);
+		VSYNC_WR_DV_REG(VIU_SW_RESET, 0);
+		break;
+	case DOLBY_CORE1B:
+		if (is_meson_txlx())
+			VSYNC_WR_DV_REG(VIU_SW_RESET, 1 << 11);
+		else if (is_meson_g12() || is_meson_tm2() || is_meson_sc2())
+			VSYNC_WR_DV_REG(VIU_SW_RESET, 1 << 3);
+		VSYNC_WR_DV_REG(VIU_SW_RESET, 0);
+		break;
+	default:
+		break;
+	return;
+	}
+}
+
 static int tv_dolby_core1_set(
 	uint64_t *dma_data,
 	int hsize,
@@ -1768,8 +1799,7 @@ static int tv_dolby_core1_set(
 		DOLBY_TV_CLKGATE_CTRL, 0x2800);
 
 	if (reset) {
-		VSYNC_WR_DV_REG(VIU_SW_RESET, 1 << 9);
-		VSYNC_WR_DV_REG(VIU_SW_RESET, 0);
+		dolby_core_reset(DOLBY_TVCORE);
 		VSYNC_WR_DV_REG(
 			DOLBY_TV_CLKGATE_CTRL, 0x2800);
 	}
@@ -2018,10 +2048,10 @@ static int dolby_core1_set(
 	if (dolby_vision_flags & FLAG_DISABLE_COMPOSER)
 		composer_enable = 0;
 
-	if (force_set & 1)
+	if (force_update_reg & 8)
 		set_lut = true;
 
-	if (force_set & 4)
+	if (force_update_reg & 1)
 		reset = true;
 
 	if (dolby_vision_on_count
@@ -2029,8 +2059,7 @@ static int dolby_core1_set(
 		reset = true;
 
 	if ((!dolby_vision_on || reset) && bl_enable) {
-		VSYNC_WR_DV_REG(VIU_SW_RESET, 1 << 9);
-		VSYNC_WR_DV_REG(VIU_SW_RESET, 0);
+		dolby_core_reset(DOLBY_CORE1A);
 		reset = true;
 	}
 
@@ -2379,8 +2408,7 @@ static int dolby_core2_set(
 		return 0;
 
 	if (!dolby_vision_on || force_reset_core2) {
-		VSYNC_WR_DV_REG(VIU_SW_RESET, (1 << 10));
-		VSYNC_WR_DV_REG(VIU_SW_RESET, 0);
+		dolby_core_reset(DOLBY_CORE2A);
 		force_reset_core2 = false;
 		reset = true;
 	}
@@ -2398,10 +2426,10 @@ static int dolby_core2_set(
 			reset = true;
 	}
 
-	if (force_set & 2)
+	if (force_update_reg & 0x10)
 		set_lut = true;
 
-	if (force_set & 4)
+	if (force_update_reg & 2)
 		reset = true;
 
 	if (stb_core_setting_update_flag & FLAG_CHANGE_TC2)
@@ -2547,7 +2575,7 @@ static int dolby_core3_set(
 		(dolby_vision_flags & FLAG_CERTIFICAION))
 		reset = true;
 
-	if (force_set & 4)
+	if (force_update_reg & 4)
 		reset = true;
 
 	if (is_meson_gxm()) {
@@ -8466,27 +8494,9 @@ EXPORT_SYMBOL(register_dv_functions);
 int unregister_dv_functions(void)
 {
 	int ret = -1;
-	int i;
 
 	module_installed = false;
-	for (i = 0; i < 2; i++) {
-		if (md_buf[i] != NULL) {
-			vfree(md_buf[i]);
-			md_buf[i] = NULL;
-		}
-		if (comp_buf[i] != NULL) {
-			vfree(comp_buf[i]);
-			comp_buf[i] = NULL;
-		}
-		if (drop_md_buf[i] != NULL) {
-			vfree(drop_md_buf[i]);
-			drop_md_buf[i] = NULL;
-		}
-		if (drop_comp_buf[i] != NULL) {
-			vfree(drop_comp_buf[i]);
-			drop_comp_buf[i] = NULL;
-		}
-	}
+
 	if (p_funcs_stb || p_funcs_tv) {
 		pr_info("*** unregister_dv_functions ***\n");
 		if (pq_config_fake) {
@@ -9355,10 +9365,30 @@ fail_alloc_region:
 static int __exit amdolby_vision_remove(struct platform_device *pdev)
 {
 	struct amdolby_vision_dev_s *devp = &amdolby_vision_dev;
+	int i;
 
 	if (pq_config_buf) {
 		vfree(pq_config_buf);
 		pq_config_buf = NULL;
+	}
+
+	for (i = 0; i < 2; i++) {
+		if (md_buf[i]) {
+			vfree(md_buf[i]);
+			md_buf[i] = NULL;
+		}
+		if (comp_buf[i]) {
+			vfree(comp_buf[i]);
+			comp_buf[i] = NULL;
+		}
+		if (drop_md_buf[i]) {
+			vfree(drop_md_buf[i]);
+			drop_md_buf[i] = NULL;
+		}
+		if (drop_comp_buf[i]) {
+			vfree(drop_comp_buf[i]);
+			drop_comp_buf[i] = NULL;
+		}
 	}
 
 	device_destroy(devp->clsp, devp->devno);
