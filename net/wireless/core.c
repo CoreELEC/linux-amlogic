@@ -689,6 +689,8 @@ int wiphy_register(struct wiphy *wiphy)
 
 	/* sanity check supported bands/channels */
 	for (band = 0; band < NUM_NL80211_BANDS; band++) {
+		u16 types = 0;
+
 		sband = wiphy->bands[band];
 		if (!sband)
 			continue;
@@ -731,6 +733,23 @@ int wiphy_register(struct wiphy *wiphy)
 			sband->channels[i].orig_mpwr =
 				sband->channels[i].max_power;
 			sband->channels[i].band = band;
+		}
+
+		for (i = 0; i < sband->n_iftype_data; i++) {
+			const struct ieee80211_sband_iftype_data *iftd;
+
+			iftd = &sband->iftype_data[i];
+
+			if (WARN_ON(!iftd->types_mask))
+				return -EINVAL;
+			if (WARN_ON(types & iftd->types_mask))
+				return -EINVAL;
+
+			/* at least one piece of information must be present */
+			if (WARN_ON(!iftd->he_cap.has_he))
+				return -EINVAL;
+
+			types |= iftd->types_mask;
 		}
 
 		have_band = true;

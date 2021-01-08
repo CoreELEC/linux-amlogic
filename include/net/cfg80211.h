@@ -32,6 +32,9 @@
 #define CFG80211_EXTERNAL_DH_UPDATE_SUPPORT 1
 #endif
 
+/* Indicate backport support for 6GHz band */
+#define CFG80211_6GHZ_BAND_SUPPORTED 1
+
 /**
  * DOC: Introduction
  *
@@ -87,6 +90,9 @@ struct wiphy;
 /* Indicate backport support for external authentication*/
 #define CFG80211_EXTERNAL_AUTH_SUPPORT 1
 #endif
+
+/* Indicate backport support for HE */
+#define CFG80211_HE_SUPPORT_BACKPORT 1
 
 /**
  * enum ieee80211_channel_flags - channel flags
@@ -305,6 +311,41 @@ struct ieee80211_sta_vht_cap {
 	struct ieee80211_vht_mcs_info vht_mcs;
 };
 
+#define IEEE80211_HE_PPE_THRES_MAX_LEN		25
+
+/**
+ * struct ieee80211_sta_he_cap - STA's HE capabilities
+ *
+ * This structure describes most essential parameters needed
+ * to describe 802.11ax HE capabilities for a STA.
+ *
+ * @has_he: true iff HE data is valid.
+ * @he_cap_elem: Fixed portion of the HE capabilities element.
+ * @he_mcs_nss_supp: The supported NSS/MCS combinations.
+ * @ppe_thres: Holds the PPE Thresholds data.
+ */
+struct ieee80211_sta_he_cap {
+	bool has_he;
+	struct ieee80211_he_cap_elem he_cap_elem;
+	struct ieee80211_he_mcs_nss_supp he_mcs_nss_supp;
+	u8 ppe_thres[IEEE80211_HE_PPE_THRES_MAX_LEN];
+};
+
+/**
+ * struct ieee80211_sband_iftype_data
+ *
+ * This structure encapsulates sband data that is relevant for the
+ * interface types defined in @types_mask.  Each type in the
+ * @types_mask must be unique across all instances of iftype_data.
+ *
+ * @types_mask: interface types mask
+ * @he_cap: holds the HE capabilities
+ */
+struct ieee80211_sband_iftype_data {
+	u16 types_mask;
+	struct ieee80211_sta_he_cap he_cap;
+};
+
 /**
  * struct ieee80211_supported_band - frequency band definition
  *
@@ -321,7 +362,12 @@ struct ieee80211_sta_vht_cap {
  * @n_bitrates: Number of bitrates in @bitrates
  * @ht_cap: HT capabilities in this band
  * @vht_cap: VHT capabilities in this band
- */
+ * @n_iftype_data: number of iftype data entries
+ * @iftype_data: interface type data entries.  Note that the bits in
+ *	@types_mask inside this structure cannot overlap (i.e. only
+ *	one occurrence of each type is allowed across all instances of
+ *	iftype_data).
+*/
 struct ieee80211_supported_band {
 	struct ieee80211_channel *channels;
 	struct ieee80211_rate *bitrates;
@@ -330,7 +376,68 @@ struct ieee80211_supported_band {
 	int n_bitrates;
 	struct ieee80211_sta_ht_cap ht_cap;
 	struct ieee80211_sta_vht_cap vht_cap;
+	u16 n_iftype_data;
+	const struct ieee80211_sband_iftype_data *iftype_data;
 };
+
+/**
+ * ieee80211_get_sband_iftype_data - return sband data for a given iftype
+ * @sband: the sband to search for the STA on
+ * @iftype: enum nl80211_iftype
+ *
+ * Return: pointer to struct ieee80211_sband_iftype_data, or NULL is none found
+ */
+static inline const struct ieee80211_sband_iftype_data *
+ieee80211_get_sband_iftype_data(const struct ieee80211_supported_band *sband,
+				u8 iftype)
+{
+	int i;
+
+	if (WARN_ON(iftype >= NL80211_IFTYPE_MAX))
+		return NULL;
+
+	for (i = 0; i < sband->n_iftype_data; i++)  {
+		const struct ieee80211_sband_iftype_data *data =
+			&sband->iftype_data[i];
+
+		if (data->types_mask & BIT(iftype))
+			return data;
+	}
+
+	return NULL;
+}
+
+/**
+ * ieee80211_get_he_iftype_cap - return HE capabilities for an sband's iftype
+ * @sband: the sband to search for the iftype on
+ * @iftype: enum nl80211_iftype
+ *
+ * Return: pointer to the struct ieee80211_sta_he_cap, or NULL is none found
+ */
+static inline const struct ieee80211_sta_he_cap *
+ieee80211_get_he_iftype_cap(const struct ieee80211_supported_band *sband,
+			    u8 iftype)
+{
+	const struct ieee80211_sband_iftype_data *data =
+		ieee80211_get_sband_iftype_data(sband, iftype);
+
+	if (data && data->he_cap.has_he)
+		return &data->he_cap;
+
+	return NULL;
+}
+
+/**
+ * ieee80211_get_he_sta_cap - return HE capabilities for an sband's STA
+ * @sband: the sband to search for the STA on
+ *
+ * Return: pointer to the struct ieee80211_sta_he_cap, or NULL is none found
+ */
+static inline const struct ieee80211_sta_he_cap *
+ieee80211_get_he_sta_cap(const struct ieee80211_supported_band *sband)
+{
+	return ieee80211_get_he_iftype_cap(sband, NL80211_IFTYPE_STATION);
+}
 
 /*
  * Wireless hardware/device configuration structures and methods
@@ -867,6 +974,8 @@ enum station_parameters_apply_mask {
  * @opmode_notif: operating mode field from Operating Mode Notification
  * @opmode_notif_used: information if operating mode field is used
  * @support_p2p_ps: information if station supports P2P PS mechanism
+ * @he_capa: HE capabilities of station
+ * @he_capa_len: the length of the HE capabilities
  */
 struct station_parameters {
 	const u8 *supported_rates;
@@ -894,6 +1003,8 @@ struct station_parameters {
 	u8 opmode_notif;
 	bool opmode_notif_used;
 	int support_p2p_ps;
+	const struct ieee80211_he_cap_elem *he_capa;
+	u8 he_capa_len;
 };
 
 /**
@@ -968,12 +1079,16 @@ int cfg80211_check_station_change(struct wiphy *wiphy,
  * @RATE_INFO_FLAGS_VHT_MCS: mcs field filled with VHT MCS
  * @RATE_INFO_FLAGS_SHORT_GI: 400ns guard interval
  * @RATE_INFO_FLAGS_60G: 60GHz MCS
+ * @RATE_INFO_FLAGS_HE_MCS: HE MCS information
+ * @RATE_INFO_FLAGS_EDMG: 60GHz MCS in EDMG mode
  */
 enum rate_info_flags {
 	RATE_INFO_FLAGS_MCS			= BIT(0),
 	RATE_INFO_FLAGS_VHT_MCS			= BIT(1),
 	RATE_INFO_FLAGS_SHORT_GI		= BIT(2),
 	RATE_INFO_FLAGS_60G			= BIT(3),
+	RATE_INFO_FLAGS_HE_MCS			= BIT(4),
+	RATE_INFO_FLAGS_EDMG			= BIT(5),
 };
 
 /**
@@ -987,6 +1102,7 @@ enum rate_info_flags {
  * @RATE_INFO_BW_40: 40 MHz bandwidth
  * @RATE_INFO_BW_80: 80 MHz bandwidth
  * @RATE_INFO_BW_160: 160 MHz bandwidth
+ * @RATE_INFO_BW_HE_RU: bandwidth determined by HE RU allocation
  */
 enum rate_info_bw {
 	RATE_INFO_BW_20 = 0,
@@ -995,6 +1111,7 @@ enum rate_info_bw {
 	RATE_INFO_BW_40,
 	RATE_INFO_BW_80,
 	RATE_INFO_BW_160,
+	RATE_INFO_BW_HE_RU,
 };
 
 /**
@@ -1003,10 +1120,15 @@ enum rate_info_bw {
  * Information about a receiving or transmitting bitrate
  *
  * @flags: bitflag of flags from &enum rate_info_flags
- * @mcs: mcs index if struct describes a 802.11n bitrate
+ * @mcs: mcs index if struct describes an HT/VHT/HE rate
  * @legacy: bitrate in 100kbit/s for 802.11abg
- * @nss: number of streams (VHT only)
+ * @nss: number of streams (VHT & HE only)
  * @bw: bandwidth (from &enum rate_info_bw)
+ * @he_gi: HE guard interval (from &enum nl80211_he_gi)
+ * @he_dcm: HE DCM value
+ * @he_ru_alloc: HE RU allocation (from &enum nl80211_he_ru_alloc,
+ *	only valid if bw is %RATE_INFO_BW_HE_RU)
+ * @n_bonded_ch: In case of EDMG the number of bonded channels (1-4)
  */
 struct rate_info {
 	u8 flags;
@@ -1014,6 +1136,10 @@ struct rate_info {
 	u16 legacy;
 	u8 nss;
 	u8 bw;
+	u8 he_gi;
+	u8 he_dcm;
+	u8 he_ru_alloc;
+	u8 n_bonded_ch;
 };
 
 /**
