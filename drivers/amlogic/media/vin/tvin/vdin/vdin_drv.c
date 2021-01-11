@@ -2848,6 +2848,17 @@ static long vdin_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		if (time_en)
 			pr_info("TVIN_IOC_CLOSE %ums.\n",
 					jiffies_to_msecs(jiffies));
+		if (devp->flags & VDIN_FLAG_DEC_STARTED) {
+			devp->flags |= VDIN_FLAG_DEC_STOP_ISR;
+			vdin_stop_dec(devp);
+			/* init flag */
+			devp->flags &= ~VDIN_FLAG_DEC_STOP_ISR;
+			/* devp->flags &= ~VDIN_FLAG_FORCE_UNSTABLE; */
+			/* clear the flag of decode started */
+			devp->flags &= (~VDIN_FLAG_DEC_STARTED);
+			pr_info("close port stop dec\n");
+		}
+
 		vdin_close_fe(devp);
 		/*devp->flags &= (~VDIN_FLAG_DEC_OPENED);*/
 		if (vdin_dbg_en)
