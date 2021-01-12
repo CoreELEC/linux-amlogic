@@ -26,6 +26,8 @@ struct dvb_extern_device {
 	struct class class;
 	struct device *dev;
 
+	struct proc_dir_entry *debug_proc_dir;
+
 	/* for debug. */
 	struct dvb_frontend fe;
 	struct analog_parameters para;
