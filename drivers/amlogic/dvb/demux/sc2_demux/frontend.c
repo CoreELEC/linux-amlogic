@@ -125,11 +125,10 @@ ssize_t ts_setting_store(struct class *class,
 
 	if ((mname[0] == 's') || (mname[0] == 'S')) {
 		sprintf(pname, "s_ts%d", id);
-		if (mname[1] == '3') {
+		if (mname[1] == '3')
 			mode = AM_TS_SERIAL_3WIRE;
-		} else {
+		else
 			mode = AM_TS_SERIAL_4WIRE;
-		}
 	} else if ((mname[0] == 'p') || (mname[0] == 'P')) {
 		sprintf(pname, "p_ts%d", id);
 		mode = AM_TS_PARALLEL;
@@ -140,7 +139,7 @@ ssize_t ts_setting_store(struct class *class,
 
 	ts = &dvb->ts[id];
 
-	if ((mode != AM_TS_SERIAL_3WIRE) && (mode != AM_TS_SERIAL_4WIRE)) {
+	if (mode != AM_TS_SERIAL_3WIRE && mode != AM_TS_SERIAL_4WIRE) {
 		if (ts->pinctrl) {
 			devm_pinctrl_put(ts->pinctrl);
 			ts->pinctrl = NULL;

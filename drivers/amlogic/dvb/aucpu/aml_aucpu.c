@@ -139,7 +139,7 @@ static s32 s_aucpu_major;
 static s32 s_register_flag;
 static struct device *aucpu_dev;
 static ulong s_aucpu_register_base;
-static s32 load_firmware_status;
+static s32 load_firmware_status = AUCPU_DRVERR_NO_INIT;
 
 struct aucpu_buffer_t {
 	u32 size;
@@ -208,7 +208,7 @@ struct aucpu_inst_t {
 };
 
 struct aucpu_ctx_t {
-	u32 actived_inst_num; /* active instances number */
+	u32 activated_inst_num; /* active instances number */
 	struct aucpu_inst_t strm_inst[AUCPU_MAX_INTST_NUM];
 	struct aml_cmd_set last_cmd;
 	struct aucpu_buffer_t aucpu_reg; /* resigster assignment */
@@ -235,16 +235,14 @@ static struct aucpu_ctx_t *s_aucpu_ctx;
 static void dma_flush(u32 buf_start, u32 buf_size)
 {
 	if (aucpu_pdev)
-		dma_sync_single_for_device(
-			&aucpu_pdev->dev, buf_start,
+		dma_sync_single_for_device(&aucpu_pdev->dev, buf_start,
 			buf_size, DMA_TO_DEVICE);
 }
 
 static void cache_flush(u32 buf_start, u32 buf_size)
 {
 	if (aucpu_pdev)
-		dma_sync_single_for_cpu(
-			&aucpu_pdev->dev, buf_start,
+		dma_sync_single_for_cpu(&aucpu_pdev->dev, buf_start,
 			buf_size, DMA_FROM_DEVICE);
 }
 
@@ -570,7 +568,7 @@ static bool do_debug_work_in(struct aucpu_ctx_t *pctx)
 		len = strlen(cur_ptr); // count the null
 		if (print_level <= LOG_DEBUG && len &&
 		    (fullness <= 1024 || count < 20))
-			printk("Aucpu:%s", cur_ptr);
+			aucpu_pr(LOG_ERROR, "Aucpu:%s", cur_ptr);
 		len += 1; // add the null at the end
 		cur_ptr += len;
 		fullness -= len;
@@ -861,7 +859,7 @@ s32 aml_aucpu_strm_create(struct aml_aucpu_strm_buf *src,
 		aucpu_pr(LOG_ERROR, "AUCPU driver did not init yet\n");
 		return AUCPU_DRVERR_NO_INIT;
 	}
-	if (pctx->actived_inst_num >= AUCPU_MAX_INTST_NUM) {
+	if (pctx->activated_inst_num >= AUCPU_MAX_INTST_NUM) {
 		aucpu_pr(LOG_ERROR, "AUCPU too many stream instances\n");
 		return AUCPU_DRVERR_TOO_MANY_STRM;
 	}
@@ -925,7 +923,7 @@ s32 aml_aucpu_strm_create(struct aml_aucpu_strm_buf *src,
 	if (res >= 0) { // success
 		pinst->inst_handle = res;
 		pinst->inst_status = AUCPU_STA_IDLE; // change status
-		pctx->actived_inst_num++;
+		pctx->activated_inst_num++;
 		res = handle_idx;
 		aucpu_pr(LOG_INFO, "New strm %d  %d created\n",
 			 pinst->inst_handle, res);
@@ -944,7 +942,7 @@ static s32 valid_handle2Inst(s32 handle, struct aucpu_ctx_t *pctx,
 		aucpu_pr(LOG_ERROR, "AUCPU driver did not init yet\n");
 		return AUCPU_DRVERR_NO_INIT;
 	}
-	if (pctx->actived_inst_num == 0) {
+	if (pctx->activated_inst_num == 0) {
 		aucpu_pr(LOG_ERROR, "AUCPU No strm active\n");
 		return AUCPU_DRVERR_NO_ACTIVE;
 	}
@@ -1083,7 +1081,7 @@ s32 aml_aucpu_strm_remove(s32 handle)
 	res = send_aucpu_cmd(cmd);
 	if (res >= 0) { // success
 		pinst->inst_status = AUCPU_STA_NONE; // change status
-		pctx->actived_inst_num--;
+		pctx->activated_inst_num--;
 		aucpu_pr(LOG_INFO, "Strm %d removed\n", pinst->inst_handle);
 	}
 	mutex_unlock(&pctx->mutex);
@@ -1208,7 +1206,7 @@ static void clear_aucpu_all_intances(void)
 		aucpu_pr(LOG_ERROR, "AUCPU driver did not init yet\n");
 		return;
 	}
-	if (pctx->actived_inst_num == 0)
+	if (pctx->activated_inst_num == 0)
 		aucpu_pr(LOG_ERROR, "AUCPU no active stream instances\n");
 
 	mutex_lock(&pctx->mutex);
@@ -1223,9 +1221,9 @@ static void clear_aucpu_all_intances(void)
 		pinst = &pctx->strm_inst[handle_idx];
 		if (pinst->inst_status != AUCPU_STA_NONE) {
 			pinst->inst_status = AUCPU_STA_NONE;
-			pctx->actived_inst_num--;
+			pctx->activated_inst_num--;
 		}
-		if (pctx->actived_inst_num == 0)
+		if (pctx->activated_inst_num == 0)
 			break;
 	}
 	mutex_unlock(&pctx->mutex);
@@ -1266,7 +1264,7 @@ static s32 aucpu_release(struct inode *inode, struct file *filp)
 {
 	s32 ret = 0;
 
-	aucpu_pr(LOG_DEBUG, "aucpu_release\n");
+	aucpu_pr(LOG_DEBUG, "%s\n", __func__);
 	aucpu_pr(LOG_ERROR, "NO thing to do now, ret: %d\n", ret);
 	return ret;
 }
@@ -1288,7 +1286,7 @@ static ssize_t aucpu_status_show(struct class *cla,
 
 	pbuf += snprintf(buf, 40, "\n Opened Aucpu instances:\n");
 	pbuf += snprintf(buf, 80, "Total active %d\n",
-			 s_aucpu_ctx->actived_inst_num);
+			 s_aucpu_ctx->activated_inst_num);
 	return pbuf - buf;
 }
 
@@ -1345,8 +1343,8 @@ s32 uninit_Aucpu_device(void)
 	return 0;
 }
 
-static s32 aucpu_mem_device_init(
-	struct reserved_mem *rmem, struct device *dev)
+static s32 aucpu_mem_device_init(struct reserved_mem *rmem,
+	struct device *dev)
 {
 	s32 r;
 	struct aucpu_ctx_t *pctx;
@@ -1387,7 +1385,7 @@ static s32 aucpu_probe(struct platform_device *pdev)
 	struct device_node *np, *child;
 	struct aucpu_ctx_t *pctx;
 
-	aucpu_pr(LOG_DEBUG, "aucpu_probe\n");
+	aucpu_pr(LOG_DEBUG, "%s\n", __func__);
 
 	s_aucpu_major = 0;
 	use_reserve = false;
@@ -1430,7 +1428,7 @@ static s32 aucpu_probe(struct platform_device *pdev)
 	np = pdev->dev.of_node;
 	for_each_child_of_node(np, child) {
 		if (of_address_to_resource(child, 0, &res) ||
-		    (reg_count > 1)) {
+		    reg_count > 1) {
 			aucpu_pr(LOG_ERROR,
 				 "no reg ranges or more reg ranges %d\n",
 				 reg_count);
@@ -1441,8 +1439,8 @@ static s32 aucpu_probe(struct platform_device *pdev)
 		if (res.start != 0) {
 			pctx->aucpu_reg.phys_addr = res.start;
 			pctx->aucpu_reg.base =
-				(ulong)ioremap_nocache(
-				res.start, resource_size(&res));
+				(ulong)ioremap_nocache(res.start,
+				resource_size(&res));
 			pctx->aucpu_reg.size = res.end - res.start;
 
 			aucpu_pr(LOG_DEBUG,
@@ -1454,8 +1452,8 @@ static s32 aucpu_probe(struct platform_device *pdev)
 		} else {
 			pctx->aucpu_reg.phys_addr = AUCPU_REG_BASE_ADDR;
 			pctx->aucpu_reg.base =
-				(ulong)ioremap_nocache(
-				pctx->aucpu_reg.phys_addr, AUCPU_REG_SIZE);
+			(ulong)ioremap_nocache(pctx->aucpu_reg.phys_addr,
+				AUCPU_REG_SIZE);
 
 			pctx->aucpu_reg.size = AUCPU_REG_SIZE;
 			aucpu_pr(LOG_DEBUG,
@@ -1578,16 +1576,16 @@ static s32 __init aucpu_init(void)
 {
 	s32 res;
 
-	aucpu_pr(LOG_DEBUG, "aucpu_init\n");
+	aucpu_pr(LOG_DEBUG, "%s\n", __func__);
 
 	res = platform_driver_register(&aucpu_driver);
-	aucpu_pr(LOG_INFO, "end aucpu_init result=0x%x\n", res);
+	aucpu_pr(LOG_INFO, "end %s result=0x%x\n", __func__, res);
 	return res;
 }
 
 static void __exit aucpu_exit(void)
 {
-	aucpu_pr(LOG_DEBUG, "aucpu_exit\n");
+	aucpu_pr(LOG_DEBUG, "%s\n", __func__);
 	platform_driver_unregister(&aucpu_driver);
 }
 

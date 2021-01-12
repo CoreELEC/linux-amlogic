@@ -112,7 +112,7 @@ struct aml_aucpu_strm_buf {
  * @phy_cur_ptr: Physical addess of the current buffer pointer,
  *		read pointer or write pointer based on the context that
  *		it is acted as consumer or producer
- * @byte_cnt: The total bytes count of the buffer was inputed (producer) or
+ * @byte_cnt: The total bytes count of the buffer was inputed (producer)
  *		or used (consumer)
  **/
 struct aml_aucpu_buf_upd {

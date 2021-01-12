@@ -893,18 +893,13 @@ static int start_aucpu_non_es(struct out_elem *pout)
 	return 0;
 }
 
-static void create_aucpu_inst(struct out_elem *pout)
+static void create_aucpu_pts(struct out_elem *pout)
 {
 	struct aml_aucpu_strm_buf src;
 	struct aml_aucpu_strm_buf dst;
 	struct aml_aucpu_inst_config cfg;
 	int ret;
 
-	if (pout->type == NONE_TYPE)
-		return;
-
-	if (pout->type == VIDEO_TYPE ||
-		pout->type == AUDIO_TYPE) {
 	if (pout->aucpu_pts_handle < 0 && pout->pchan1->sec_level) {
 		src.phy_start = pout->pchan1->mem_phy;
 		src.buf_size = pout->pchan1->mem_size;
@@ -941,8 +936,23 @@ static void create_aucpu_inst(struct out_elem *pout)
 		pout->aucpu_pts_r_offset = 0;
 		pout->aucpu_pts_start = 0;
 	}
-	if (pout->type == VIDEO_TYPE)
+}
+
+static void create_aucpu_inst(struct out_elem *pout)
+{
+	struct aml_aucpu_strm_buf src;
+	struct aml_aucpu_strm_buf dst;
+	struct aml_aucpu_inst_config cfg;
+	int ret;
+
+	if (pout->type == NONE_TYPE)
 		return;
+
+	if (pout->type == VIDEO_TYPE) {
+		create_aucpu_pts(pout);
+		return;
+	} else if (pout->type == AUDIO_TYPE) {
+		create_aucpu_pts(pout);
 	}
 	/*now except the video, others will pass by aucpu */
 	if (pout->aucpu_handle < 0) {
@@ -1610,40 +1620,37 @@ int ts_output_init(int sid_num, int *sid_info)
 	memset(&pcr_table, 0, sizeof(pcr_table));
 
 	ts_out_task_tmp.running = TASK_RUNNING;
+	ts_out_task_tmp.flush_time_ms = out_flush_time;
+	ts_out_task_tmp.ts_out_list = NULL;
+	ts_output_mutex = &advb->mutex;
 
+	init_waitqueue_head(&ts_out_task_tmp.wait_queue);
 	ts_out_task_tmp.out_task =
 	    kthread_run(_task_out_func, (void *)NULL, "ts_out_task");
 	if (!ts_out_task_tmp.out_task)
 		dprint("create ts_out_task fail\n");
 
-	ts_out_task_tmp.flush_time_ms = out_flush_time;
-
-	init_waitqueue_head(&ts_out_task_tmp.wait_queue);
 	init_timer(&ts_out_task_tmp.out_timer);
 	ts_out_task_tmp.out_timer.function = _timer_ts_out_func;
 	ts_out_task_tmp.out_timer.data = 0;
 	add_timer(&ts_out_task_tmp.out_timer);
 
-	ts_out_task_tmp.ts_out_list = NULL;
-	ts_output_mutex = &advb->mutex;
-
 	es_out_task_tmp.running = TASK_RUNNING;
+	es_out_task_tmp.flush_time_ms = out_es_flush_time;
+	mutex_init(&es_output_mutex);
+	es_out_task_tmp.ts_out_list = NULL;
 
+	init_waitqueue_head(&es_out_task_tmp.wait_queue);
 	es_out_task_tmp.out_task =
 	    kthread_run(_task_es_out_func, (void *)NULL, "es_out_task");
 	if (!es_out_task_tmp.out_task)
 		dprint("create es_out_task fail\n");
 
-	es_out_task_tmp.flush_time_ms = out_es_flush_time;
-
-	init_waitqueue_head(&es_out_task_tmp.wait_queue);
 	init_timer(&es_out_task_tmp.out_timer);
 	es_out_task_tmp.out_timer.function = _timer_es_out_func;
 	es_out_task_tmp.out_timer.data = 0;
 	add_timer(&es_out_task_tmp.out_timer);
-	es_out_task_tmp.ts_out_list = NULL;
 
-	mutex_init(&es_output_mutex);
 	return 0;
 }
 
@@ -1895,27 +1902,27 @@ struct out_elem *ts_output_open(int sid, u8 dmx_id, u8 format,
 		SC2_bufferid_dealloc(pout->pchan);
 		kfree(pout->cache);
 		return NULL;
-	} else {
-		if (format == ES_FORMAT) {
-			ts_out_tmp->es_params =
-			    kmalloc(sizeof(struct es_params_t), GFP_KERNEL);
-			if (!ts_out_tmp->es_params) {
-				dprint("ts out es_params fail\n");
-				SC2_bufferid_dealloc(pout->pchan);
-				kfree(pout->cache);
-				kfree(ts_out_tmp);
-				return NULL;
-			}
-			memset(ts_out_tmp->es_params, 0,
-			       sizeof(struct es_params_t));
-			ts_out_tmp->es_params->last_header[0] = 0xff;
-			ts_out_tmp->es_params->last_header[1] = 0xff;
-		} else {
-			ts_out_tmp->es_params = NULL;
-		}
-		ts_out_tmp->pout = pout;
-		ts_out_tmp->pnext = NULL;
 	}
+
+	if (format == ES_FORMAT) {
+		ts_out_tmp->es_params =
+			kmalloc(sizeof(struct es_params_t), GFP_KERNEL);
+		if (!ts_out_tmp->es_params) {
+			dprint("ts out es_params fail\n");
+			SC2_bufferid_dealloc(pout->pchan);
+			kfree(pout->cache);
+			kfree(ts_out_tmp);
+			return NULL;
+		}
+		memset(ts_out_tmp->es_params, 0,
+				sizeof(struct es_params_t));
+		ts_out_tmp->es_params->last_header[0] = 0xff;
+		ts_out_tmp->es_params->last_header[1] = 0xff;
+	} else {
+		ts_out_tmp->es_params = NULL;
+	}
+	ts_out_tmp->pout = pout;
+	ts_out_tmp->pnext = NULL;
 
 	if (format == ES_FORMAT) {
 		mutex_lock(&es_output_mutex);

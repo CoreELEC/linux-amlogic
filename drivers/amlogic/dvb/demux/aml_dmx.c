@@ -160,8 +160,8 @@ static int _dmx_write_from_user(struct dmx_demux *demux,
 
 	ret = ts_input_write(pdmx->sc2_input, buf, count);
 
-	if (signal_pending(current))
-		return -EINTR;
+//	if (signal_pending(current))
+//		return -EINTR;
 	return ret;
 }
 
@@ -311,7 +311,7 @@ static int _dmx_ts_feed_set(struct dmx_ts_feed *ts_feed, u16 pid, int ts_type,
 	int cb_id = 0;
 	int pts_level = 0;
 
-	pr_dbg("_dmx_ts_feed_set pid:0x%0x\n", pid);
+	pr_dbg("%s pid:0x%0x\n", __func__, pid);
 
 	if (pid >= SWDMX_MAX_PID && pid != 0x2000)
 		return -EINVAL;
@@ -349,7 +349,7 @@ static int _dmx_ts_feed_set(struct dmx_ts_feed *ts_feed, u16 pid, int ts_type,
 	    pes_type == DMX_PES_PCR1 ||
 	    pes_type == DMX_PES_PCR2 || pes_type == DMX_PES_PCR3) {
 		pr_dbg("%s PCR\n", __func__);
-		goto HANLDE_PCR;
+		goto HANDLE_PCR;
 	}
 	if (pes_type == DMX_PES_AUDIO0 ||
 	    pes_type == DMX_PES_AUDIO1 ||
@@ -482,7 +482,7 @@ static int _dmx_ts_feed_set(struct dmx_ts_feed *ts_feed, u16 pid, int ts_type,
 	mutex_unlock(demux->pmutex);
 	return 0;
 
-HANLDE_PCR:
+HANDLE_PCR:
 	{
 		int i = 0;
 
@@ -521,7 +521,7 @@ static int _dmx_ts_feed_start_filtering(struct dmx_ts_feed *ts_feed)
 	struct aml_dmx *demux = (struct aml_dmx *)ts_feed->parent->priv;
 //      swdmx_tsfilter_params  tsfp;
 
-	pr_dbg("_dmx_ts_feed_start_filtering\n");
+	pr_dbg("%s\n", __func__);
 	if (mutex_lock_interruptible(demux->pmutex)) {
 		dprint("%s line:%d\n", __func__, __LINE__);
 		return -ERESTARTSYS;
@@ -553,7 +553,7 @@ static int _dmx_ts_feed_stop_filtering(struct dmx_ts_feed *ts_feed)
 	struct sw_demux_ts_feed *feed = (struct sw_demux_ts_feed *)ts_feed;
 	struct aml_dmx *demux = (struct aml_dmx *)ts_feed->parent->priv;
 
-	pr_dbg("_dmx_ts_feed_stop_filtering, pid:%d\n", feed->pid);
+	pr_dbg("%s\n", __func__);
 	mutex_lock(demux->pmutex);
 
 	if (feed->state < DMX_STATE_GO) {
@@ -611,7 +611,7 @@ static int _dmx_section_feed_set(struct dmx_section_feed *feed,
 	struct sw_demux_sec_feed *sec_feed = (struct sw_demux_sec_feed *)feed;
 	struct aml_dmx *demux = (struct aml_dmx *)feed->parent->priv;
 
-	pr_dbg("_dmx_section_feed_set\n");
+	pr_dbg("%s\n", __func__);
 
 	if (pid >= SWDMX_MAX_PID)
 		return -EINVAL;
@@ -681,7 +681,7 @@ static int _dmx_section_feed_start_filtering(struct dmx_section_feed *feed)
 	int mem_size = 0;
 	int cb_id = 0;
 
-	pr_dbg("_dmx_section_feed_start_filtering\n");
+	pr_dbg("%s\n", __func__);
 	if (mutex_lock_interruptible(demux->pmutex))
 		return -ERESTARTSYS;
 
@@ -787,7 +787,7 @@ static int _dmx_section_feed_stop_filtering(struct dmx_section_feed *feed)
 	int i = 0;
 	int start_flag = 0;
 
-	pr_dbg("_dmx_section_feed_stop_filtering\n");
+	pr_dbg("%s\n", __func__);
 
 	if (mutex_lock_interruptible(demux->pmutex))
 		return -ERESTARTSYS;
@@ -827,7 +827,7 @@ static int _dmx_section_feed_release_filter(struct dmx_section_feed *feed,
 	struct aml_dmx *demux = (struct aml_dmx *)feed->parent->priv;
 	int i = 0;
 
-	pr_dbg("_dmx_section_feed_release_filter\n");
+	pr_dbg("%s\n", __func__);
 
 	if (mutex_lock_interruptible(demux->pmutex))
 		return -ERESTARTSYS;
@@ -916,7 +916,7 @@ static int _dmx_allocate_ts_feed(struct dmx_demux *dmx,
 	feed = _dmx_ts_feed_alloc(demux);
 	if (!feed) {
 		mutex_unlock(demux->pmutex);
-		dprint("_dmx_allocate_ts_feed line:%d\n", __LINE__);
+		dprint("%s alloc fail\n", __func__);
 		return -EBUSY;
 	}
 
@@ -1084,7 +1084,7 @@ static int _dmx_release_section_feed(struct dmx_demux *dmx,
 		vfree(sec_feed->filter);
 
 	mutex_unlock(demux->pmutex);
-	pr_dbg(" _dmx_release_section_feed\n");
+	pr_dbg("%s\n", __func__);
 	return 0;
 }
 
@@ -1169,7 +1169,7 @@ int dmx_get_pcr(struct dmx_demux *dmx, unsigned int num, u64 *pcr)
 //      mutex_lock(demux->pmutex);
 	if (num >= EACH_DMX_MAX_PCR_NUM) {
 //              mutex_unlock(demux->pmutex);
-		dprint("dmx id:%d, num:%d inavlid\n", demux->id, num);
+		dprint("dmx id:%d, num:%d invalid\n", demux->id, num);
 		return 0;
 	}
 	pcr_index = demux->pcr_index[num];
@@ -1205,7 +1205,7 @@ int dmx_get_stc(struct dmx_demux *dmx, unsigned int num,
 	if (num >= EACH_DMX_MAX_PCR_NUM) {
 		*stc = jiffes_90K;
 		mutex_unlock(demux->pmutex);
-		dprint("dmx id:%d, num:%d inavlid\n", demux->id, num);
+		dprint("dmx id:%d, num:%d invalid\n", demux->id, num);
 		return 0;
 	}
 	pcr_index = demux->pcr_index[num];
