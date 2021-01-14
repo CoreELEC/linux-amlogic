@@ -3691,6 +3691,10 @@ int stmmac_resume(struct device *dev)
 	if (priv->phydev)
 		phy_start(priv->phydev);
 
+#ifdef CONFIG_AMLOGIC_ETH_PRIVE
+	stmmac_release(ndev);
+	stmmac_open(ndev);
+#endif
 	return 0;
 }
 EXPORT_SYMBOL_GPL(stmmac_resume);
