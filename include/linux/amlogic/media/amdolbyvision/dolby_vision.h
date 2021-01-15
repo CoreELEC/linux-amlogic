@@ -56,6 +56,10 @@
 #define MD_BUF_SIZE 1024
 #define COMP_BUF_SIZE 8196
 
+#define DV_SEI 0x01000000
+#define DV_AV1_SEI 0x14000000
+#define HDR10P 0x02000000
+
 void enable_dolby_vision(int enable);
 bool is_dolby_vision_enable(void);
 bool is_dolby_vision_on(void);

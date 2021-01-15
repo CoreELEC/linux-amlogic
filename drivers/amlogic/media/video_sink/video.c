@@ -6576,9 +6576,6 @@ EXPORT_SYMBOL(di_unreg_notify);
 #define signal_color_primaries ((vf->signal_type >> 16) & 0xff)
 #define signal_transfer_characteristic ((vf->signal_type >> 8) & 0xff)
 
-#define DV_SEI 0x01000000
-#define HDR10P 0x02000000
-
 static int check_media_sei(char *sei, u32 sei_size, u32 sei_type)
 {
 	int ret = 0;
@@ -6599,7 +6596,10 @@ static int check_media_sei(char *sei, u32 sei_size, u32 sei_type)
 		type = (type << 8) | *p++;
 		type = (type << 8) | *p++;
 
-		if (type == sei_type) {
+		if (((sei_type == DV_SEI || sei_type == HDR10P) &&
+			sei_type == type) ||
+			(sei_type == DV_AV1_SEI &&
+			sei_type == (type & 0xffff0000))) {
 			ret = 1;
 			break;
 		}
@@ -6613,7 +6613,7 @@ static s32 clear_vframe_dovi_md_info(struct vframe_s *vf)
 	if (!vf)
 		return -1;
 
-	/* invaild src fmt case */
+	/* invalid src fmt case */
 	if (vf->src_fmt.sei_magic_code != SEI_MAGIC_CODE)
 		return -1;
 
@@ -6635,6 +6635,8 @@ s32 update_vframe_src_fmt(
 	int src_fmt = -1;
 	int ret = 0;
 #endif
+	int i;
+	char *p;
 
 	if (!vf)
 		return -1;
@@ -6644,6 +6646,31 @@ s32 update_vframe_src_fmt(
 	vf->src_fmt.sei_ptr = sei;
 	vf->src_fmt.sei_size = size;
 	vf->src_fmt.dual_layer = false;
+	if (debug_flag & DEBUG_FLAG_OMX_DV_DROP_FRAME) {
+		pr_info("===update vf %p, sei %p, size %d, dual_layer %d===\n",
+			vf, sei, size, dual_layer);
+		if (sei && size > 15) {
+			p = (char *)sei;
+			for (i = 0; i < size; i += 16)
+				pr_info("%02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x\n",
+					p[i],
+					p[i + 1],
+					p[i + 2],
+					p[i + 3],
+					p[i + 4],
+					p[i + 5],
+					p[i + 6],
+					p[i + 7],
+					p[i + 8],
+					p[i + 9],
+					p[i + 10],
+					p[i + 11],
+					p[i + 12],
+					p[i + 13],
+					p[i + 14],
+					p[i + 15]);
+		}
+	}
 
 	if (vf->type & VIDTYPE_MVC) {
 		vf->src_fmt.fmt = VFRAME_SIGNAL_FMT_MVC;
@@ -6651,7 +6678,8 @@ s32 update_vframe_src_fmt(
 		if (vf->discard_dv_data) {
 			if (debug_flag & DEBUG_FLAG_OMX_DV_DROP_FRAME)
 				pr_info("ignore nonstandard dv\n");
-		} else if (dual_layer || check_media_sei(sei, size, DV_SEI)) {
+		} else if (dual_layer || check_media_sei(sei, size, DV_SEI) ||
+			   check_media_sei(sei, size, DV_AV1_SEI)) {
 			vf->src_fmt.fmt = VFRAME_SIGNAL_FMT_DOVI;
 			vf->src_fmt.dual_layer = dual_layer;
 #if PARSE_MD_IN_ADVANCE
