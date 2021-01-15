@@ -233,7 +233,9 @@ static int meson_sc2_pll_set_rate(struct clk_hw *hw, unsigned long rate,
 	u32 reg = 0x8000000, reg1 = 0;
 	unsigned long flags = 0;
 	void *cntlbase;
+	int i = 10;
 
+retry:
 	/*pr_info("%s:  %d, %s\n", __func__, __LINE__, clk_hw_get_name(hw));*/
 	if (parent_rate == 0 || rate == 0)
 		return -EINVAL;
@@ -311,10 +313,10 @@ static int meson_sc2_pll_set_rate(struct clk_hw *hw, unsigned long rate,
 		       cntlbase + (unsigned long)(5 * 4));
 		writel(SC2_PCIE_PLL_CNTL5_,
 		       cntlbase + (unsigned long)(5 * 4));
-		udelay(20);
+		udelay(20 + 10 * i);
 		writel(SC2_PCIE_PLL_CNTL4_,
 		       cntlbase + (unsigned long)(4 * 4));
-		udelay(100);
+		udelay(100 + 5 * i);
 		/*set pcie_apll_afc_start bit*/
 		writel(SC2_PCIE_PLL_CNTL0_2,
 		       cntlbase + (unsigned long)(0 * 4));
@@ -326,8 +328,9 @@ static int meson_sc2_pll_set_rate(struct clk_hw *hw, unsigned long rate,
 		goto OUT;
 	} else if (!strcmp(clk_hw_get_name(hw), "gp0_pll")) {
 		writel(reg, cntlbase);
-		udelay(20);
+		udelay(20 + 10 * i);
 		writel(reg | MESON_PLL_ENABLE | MESON_PLL_RESET, cntlbase);
+		udelay(10 + 10 * i);
 		writel(SC2_GP0_PLL_CNTL1,
 		       cntlbase + (unsigned long)(1 * 4));
 		writel(SC2_GP0_PLL_CNTL2,
@@ -340,12 +343,12 @@ static int meson_sc2_pll_set_rate(struct clk_hw *hw, unsigned long rate,
 		       cntlbase + (unsigned long)(5 * 4));
 		writel(SC2_PLL_CNTL6,
 		       cntlbase + (unsigned long)(6 * 4));
-		udelay(10);
+		udelay(80 + 10 * i);
 		writel(reg | MESON_PLL_ENABLE, cntlbase);
 
 	} else if (!strcmp(clk_hw_get_name(hw), "hifi_pll")) {
 		writel(reg, cntlbase);
-		udelay(20);
+		udelay(20 + 10 * i);
 		writel(reg | MESON_PLL_ENABLE | MESON_PLL_RESET, cntlbase);
 		if (!reg1)
 			writel(SC2_HIFI_PLL_CNTL1,
@@ -364,7 +367,7 @@ static int meson_sc2_pll_set_rate(struct clk_hw *hw, unsigned long rate,
 		       cntlbase + (unsigned long)(5 * 4));
 		writel(SC2_PLL_CNTL6,
 		       cntlbase + (unsigned long)(6 * 4));
-		udelay(10);
+		udelay(80 + 10 * i);
 		writel(reg | MESON_PLL_ENABLE, cntlbase);
 	} else {
 		pr_err("%s: %s pll not found!!!\n",
@@ -382,7 +385,8 @@ OUT:
 	if (ret) {
 		pr_info("%s: %s pll did not lock, trying to lock rate %lu again\n",
 			__func__, clk_hw_get_name(hw), rate);
-		meson_sc2_pll_set_rate(hw, rate, parent_rate);
+		if (i--)
+			goto retry;
 	}
 
 	return ret;
@@ -397,11 +401,14 @@ static int meson_sc2_secure_pll_set_rate(struct clk_hw *hw,
 	int ret = 0;
 	unsigned long flags = 0;
 	struct arm_smccc_res res;
+	int i = 10;
 
-	if (parent_rate == 0 || rate == 0)
-		return -EINVAL;
 	if (!strcmp(clk_hw_get_name(hw), "sys_pll"))
 		rate *= 1000;
+
+retry:
+	if (parent_rate == 0 || rate == 0)
+		return -EINVAL;
 
 	p = &pll->n;
 	if (pll->lock)
@@ -419,7 +426,7 @@ static int meson_sc2_secure_pll_set_rate(struct clk_hw *hw,
 		return -EINVAL;
 	}
 	/* waiting for 10us to rewrite */
-	udelay(10);
+	udelay(10 + 5 * i);
 
 	if (!strcmp(clk_hw_get_name(hw), "sys_pll"))
 		arm_smccc_smc(CLK_SECURE_RW, SYS_PLL_STEP1,
@@ -428,7 +435,7 @@ static int meson_sc2_secure_pll_set_rate(struct clk_hw *hw,
 		arm_smccc_smc(CLK_SECURE_RW, GP1_PLL_STEP1,
 			      0, 0, 0, 0, 0, 0, &res);
 
-	udelay(20);
+	udelay(20 + 5 * i);
 	ret = meson_sc2_pll_wait_lock(pll, p);
 	if (pll->lock)
 		spin_unlock_irqrestore(pll->lock, flags);
@@ -436,7 +443,8 @@ static int meson_sc2_secure_pll_set_rate(struct clk_hw *hw,
 	if (ret) {
 		pr_info("%s: %s did not lock, trying to lock rate %lu again\n",
 			__func__, clk_hw_get_name(hw), rate);
-		meson_sc2_secure_pll_set_rate(hw, rate, parent_rate);
+		if (i--)
+			goto retry;
 	}
 	return ret;
 }
