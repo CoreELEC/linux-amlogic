@@ -4318,8 +4318,21 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 			}
 			if (provider_name)
 				dolby_vision_set_provider(provider_name);
-		} else
-			dolby_vision_set_provider("dvbldec");
+			else
+				dolby_vision_set_provider("dvbldec");
+		} else {
+			provider_name = vf_get_provider_name("amvideo");
+			while (provider_name) {
+				if (!vf_get_provider_name(provider_name))
+					break;
+				provider_name =
+					vf_get_provider_name(provider_name);
+			}
+			if (provider_name)
+				dolby_vision_set_provider(provider_name);
+			else
+				dolby_vision_set_provider("dvbldec");
+		}
 	}
 
 #endif
