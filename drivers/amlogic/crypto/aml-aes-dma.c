@@ -1248,6 +1248,9 @@ static void aml_aes_done_task(unsigned long data)
 			return; /* DMA started. Not fininishing. */
 	}
 
+	if (dd->ctx->kte < 0)
+		err = set_aes_key_iv(dd, NULL, 0, NULL, 0);
+
 	aml_aes_finish_req(dd, err);
 	aml_aes_handle_queue(dd, NULL);
 }
