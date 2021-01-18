@@ -293,6 +293,13 @@ static int ceca_rx_irq_handle(unsigned char *msg, unsigned char *len)
 static void ceca_tx_irq_handle(void)
 {
 	unsigned int tx_status = aocec_rd_reg(CEC_TX_MSG_STATUS);
+	unsigned int cec_sel;
+
+	/* only use cec a send msg */
+	if (cec_dev->cec_num > ENABLE_ONE_CEC)
+		cec_sel = CEC_A;
+	else
+		cec_sel = ee_cec;
 
 	cec_tx_result = -1;
 	switch (tx_status) {
@@ -309,10 +316,7 @@ static void ceca_tx_irq_handle(void)
 	case TX_ERROR:
 		CEC_INFO("TX ERROR!\n");
 		aocec_wr_reg(CEC_TX_MSG_CMD, TX_ABORT);
-		ceca_hw_reset();
-		if (cec_dev->cec_num <= ENABLE_ONE_CEC)
-			cec_restore_logical_addr(CEC_A,
-						 cec_dev->cec_info.addr_enable);
+		cec_hw_reset(cec_sel);
 		cec_tx_result = CEC_FAIL_NACK;
 		break;
 
