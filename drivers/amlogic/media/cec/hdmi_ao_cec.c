@@ -1737,6 +1737,16 @@ static long hdmitx_cec_ioctl(struct file *f,
 			CEC_ERR("CEC framework ctrl disabled\n");
 		}
 
+		/* cec hw module reset */
+		if (cec_dev->cec_num > ENABLE_ONE_CEC) {
+			cec_dev->cec_info.addr_enable = 0;
+			cec_hw_reset(CEC_A);
+			cec_hw_reset(CEC_B);
+		} else {
+			cec_dev->cec_info.addr_enable = 0;
+			cec_hw_reset(ee_cec);
+		}
+
 		cec_dev->hal_flag |= (1 << HDMI_OPTION_SERVICE_FLAG);
 		break;
 
