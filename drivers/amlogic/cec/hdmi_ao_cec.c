@@ -1423,7 +1423,7 @@ static inline bool is_report_phy_addr_msg(const unsigned char *msg, int len)
 static bool need_nack_repeat_msg(const unsigned char *msg, int len, int t)
 {
 	if (len == last_cec_msg->len &&
-	    (is_poll_message(msg[0]) || is_feature_abort_msg(msg, len) ||
+	    (len == 1 || is_feature_abort_msg(msg, len) ||
 	      is_report_phy_addr_msg(msg, len)) &&
 	    last_cec_msg->last_result == CEC_FAIL_NACK &&
 	    jiffies - last_cec_msg->last_jiffies < t) {
