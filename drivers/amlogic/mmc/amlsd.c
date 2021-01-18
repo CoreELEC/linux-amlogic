@@ -758,8 +758,6 @@ static int aml_is_sduart(struct amlsd_platform *pdata)
 	struct amlsd_host *host = pdata->host;
 	struct sd_emmc_status *ista = (struct sd_emmc_status *)&vstat;
 
-	if (host->data->chip_type == MMC_CHIP_SC2)
-		return 0;
 	if (pdata->no_sduart)
 		return 0;
 
@@ -800,8 +798,6 @@ static int aml_uart_switch(struct amlsd_platform *pdata, bool on)
 	};
 	struct amlsd_host *host = pdata->host;
 
-	if (host->data->chip_type == MMC_CHIP_SC2)
-		return 0;
 	pdata->is_sduart = on;
 	mutex_lock(&host->pinmux_lock);
 	pc = aml_devm_pinctrl_get_select(host, name[on]);
@@ -891,8 +887,6 @@ static void aml_jtag_switch_ao(struct amlsd_platform *pdata)
 	int i;
 	struct amlsd_host *host = pdata->host;
 
-	if (host->data->chip_type == MMC_CHIP_SC2)
-		return;
 	for (i = 0; i < 100; i++) {
 		mutex_lock(&host->pinmux_lock);
 		pc = aml_devm_pinctrl_get_select(host,
