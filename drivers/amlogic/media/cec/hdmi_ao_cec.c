@@ -402,8 +402,10 @@ int cec_ll_tx(const unsigned char *msg, unsigned char len, unsigned char signal_
 	 * AO CEC controller will ack poll message itself if logical
 	 *	address already set. Must clear it before poll again
 	 * self polling mode
+	 * Only clear if the poll initiator/destination equal on one of
+	 *	the enabled logical addresses
 	 */
-	if (is_poll_message(msg[0]))
+	if (is_poll_message(msg[0]) && ((cec_dev->cec_info.addr_enable >> (msg[0] & 0xf)) & 0x1))
 		cec_clear_all_logical_addr(cec_sel);
 
 	/*
