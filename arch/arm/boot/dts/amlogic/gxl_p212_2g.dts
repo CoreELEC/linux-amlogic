@@ -1123,11 +1123,20 @@
 		tx_op_color_primary = <0>;
 	};
 
-	unifykey{
+	provisionkey {
+		compatible = "amlogic, provisionkey";
+		status = "okay";
+		key-permit-default = "write";
+		//new key not need add dts if started with KEY_PROVISION_
+		KEY_PROVISION_XXX { };
+		//test_my_added_keyname { };
+	};//End provisionkey
+
+unifykey{
 		compatible = "amlogic, unifykey";
 		status = "ok";
 
-		unifykey-num = <19>;
+		unifykey-num = <18>;
 		unifykey-index-0 = <&keysn_0>;
 		unifykey-index-1 = <&keysn_1>;
 		unifykey-index-2 = <&keysn_2>;
@@ -1146,7 +1155,6 @@
 		unifykey-index-15= <&keysn_15>;
 		unifykey-index-16= <&keysn_16>;
 		unifykey-index-17= <&keysn_17>;
-		unifykey-index-18= <&keysn_18>;
 
 		keysn_0: key_0{
 			key-name = "usid";
@@ -1240,11 +1248,6 @@
 			key-name = "oemkey";
 			key-device = "normal";
 			key-permit = "read","write","del";
-		};
-		keysn_18:key_18{
-			key-name = "KEY_PROVISION_XXX";
-			key-device = "provision";
-			key-permit = "write";
 		};
 	};//End unifykey
 
