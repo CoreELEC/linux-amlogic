@@ -68,6 +68,9 @@ static unsigned int release_fd_count;
 static unsigned int link_fd_count;
 static unsigned int link_put_fd_count;
 static unsigned int v4lvideo_version = 2;
+static unsigned int total_get_count;
+static unsigned int total_put_count;
+static unsigned int total_release_count;
 
 bool di_bypass_p;
 /*dec set count mutex*/
@@ -91,6 +94,30 @@ struct keeper_mgr {
 static struct keeper_mgr keeper_mgr_private;
 
 static const struct file_operations v4lvideo_file_fops;
+
+static u32 print_flag;
+
+#define PRINT_ERROR		0X0
+#define PRINT_QUEUE_STATUS	0X0001
+#define PRINT_COUNT		0X0002
+#define PRINT_OTHER		0X0040
+
+int v4l_print(int index, int debug_flag, const char *fmt, ...)
+{
+	if ((print_flag & debug_flag) ||
+	    (debug_flag == PRINT_ERROR)) {
+		unsigned char buf[256];
+		int len = 0;
+		va_list args;
+
+		va_start(args, fmt);
+		len = sprintf(buf, "v4lvideo:[%d]", index);
+		vsnprintf(buf + len, 256 - len, fmt, args);
+		pr_info("%s", buf);
+		va_end(args);
+	}
+	return 0;
+}
 
 void v4lvideo_dec_count_increase(void)
 {
@@ -282,7 +309,8 @@ static void video_keeper_free_mem(
 	codec_mm_keeper_unmask_keeper(keep_id, delayms);
 }
 
-static void vf_keep(struct v4lvideo_file_s *v4lvideo_file,
+static void vf_keep(struct v4lvideo_dev *dev,
+		    struct v4lvideo_file_s *v4lvideo_file,
 		    struct file_private_data *file_private_data)
 {
 	struct vframe_s *vf_p;
@@ -290,6 +318,7 @@ static void vf_keep(struct v4lvideo_file_s *v4lvideo_file,
 	int type = MEM_TYPE_CODEC_MM;
 	int keep_id = 0;
 	int keep_head_id = 0;
+	u32 flag;
 
 	if (!file_private_data) {
 		V4LVID_ERR("vf_keep error: file_private_data is NULL");
@@ -299,8 +328,26 @@ static void vf_keep(struct v4lvideo_file_s *v4lvideo_file,
 	vf_p = file_private_data->vf_p;
 
 	if (!vf_p || (vf_p != v4lvideo_file->vf_p)) {
-		pr_info("v4lvideo: maybe file has been released\n");
-		v4lvideo_file->free_before_unreg = true;
+		v4l_print(dev->inst, PRINT_ERROR,
+			"maybe file has been released\n");
+		mutex_lock(&dev->mutex_opened);
+		if (dev->opened) {
+			mutex_unlock(&dev->mutex_opened);
+			v4lvideo_file->free_before_unreg = true;
+		} else {
+			mutex_unlock(&dev->mutex_opened);
+			v4l_print(dev->inst, PRINT_ERROR,
+				"vf keep: device has beed closed\n");
+			flag = v4lvideo_file->flag;
+			if (flag & V4LVIDEO_FLAG_DI_DEC)
+				v4l_print(dev->inst, PRINT_ERROR,
+					"vf keep shold not here");
+			if (v4lvideo_file->vf_type & VIDTYPE_DI_PW) {
+				vf_p = v4lvideo_file->vf_p;
+				dim_post_keep_cmd_release2(vf_p);
+				total_release_count++;
+			}
+		}
 		return;
 	}
 
@@ -353,8 +400,13 @@ static void vf_free(struct file_private_data *file_private_data)
 		vf_p = file_private_data->vf_ext_p;
 	}
 
-	if (vf->type & VIDTYPE_DI_PW)
+	if (vf->type & VIDTYPE_DI_PW) {
 		dim_post_keep_cmd_release2(vf_p);
+		total_release_count++;
+		v4l_print(0xff, PRINT_COUNT,
+			"di release1 get=%d, put=%d, release=%d\n",
+			total_get_count, total_put_count, total_release_count);
+	}
 }
 
 static void vf_free_force(struct v4lvideo_file_s *v4lvideo_file)
@@ -367,8 +419,13 @@ static void vf_free_force(struct v4lvideo_file_s *v4lvideo_file)
 	if (flag & V4LVIDEO_FLAG_DI_DEC)
 		vf_p = v4lvideo_file->vf_ext_p;
 
-	if (v4lvideo_file->vf_type & VIDTYPE_DI_PW)
+	if (v4lvideo_file->vf_type & VIDTYPE_DI_PW) {
 		dim_post_keep_cmd_release2(vf_p);
+		total_release_count++;
+		v4l_print(0xff, PRINT_COUNT,
+			"di release2 get=%d, put=%d, release=%d\n",
+			total_get_count, total_put_count, total_release_count);
+	}
 }
 
 void init_file_private_data(struct file_private_data *file_private_data)
@@ -1192,6 +1249,9 @@ static int vidioc_open(struct file *file)
 
 	//dprintk(dev, 2, "vidioc_open\n");
 	V4LVID_DBG("v4lvideo open\n");
+	mutex_lock(&dev->mutex_opened);
+	dev->opened = true;
+	mutex_unlock(&dev->mutex_opened);
 	return 0;
 }
 
@@ -1213,6 +1273,15 @@ static int vidioc_close(struct file *file)
 
 	if (dev->fd_num > 0)
 		dev->fd_num--;
+
+	mutex_lock(&dev->mutex_opened);
+	dev->opened = false;
+	mutex_unlock(&dev->mutex_opened);
+
+	v4l_print(dev->inst, PRINT_COUNT,
+		"close get=%d, put=%d, release=%d, %d\n",
+		total_get_count, total_put_count, total_release_count,
+		total_get_count - total_put_count - total_release_count);
 
 	return 0;
 }
@@ -1438,6 +1507,7 @@ static int vidioc_qbuf(struct file *file, void *priv, struct v4l2_buffer *p)
 						vf_p = vf_ext_p;
 					vf_put(vf_p, dev->vf_receiver_name);
 					put_count++;
+					total_put_count++;
 				} else {
 					vf_free(file_private_data);
 					pr_err("vidioc_qbuf: vfm is unreg\n");
@@ -1563,8 +1633,10 @@ static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *p)
 		vf_put(vf, dev->vf_receiver_name);
 		mutex_unlock(&dev->mutex_input);
 		put_count++;
+		total_put_count++;
 		return -EAGAIN;
 	}
+	total_get_count++;
 	if (!dev->provider_name) {
 		provider_name = vf_get_provider_name(
 			dev->vf_receiver_name);
@@ -1791,11 +1863,14 @@ static int video_receiver_event_fun(int type, void *data, void *private_data)
 				return 0;
 			}
 			file_private_data = v4lvideo_file->private_data_p;
-			vf_keep(v4lvideo_file, file_private_data);
+			vf_keep(dev, v4lvideo_file, file_private_data);
 			/*pr_err("unreg:v4lvideo, keep last frame\n");*/
 		}
 		mutex_unlock(&dev->mutex_input);
 		pr_err("unreg:v4lvideo\n");
+		v4l_print(dev->inst, PRINT_COUNT,
+			"unreg get=%d, put=%d, release=%d\n",
+			total_get_count, total_put_count, total_release_count);
 	} else if (type == VFRAME_EVENT_PROVIDER_REG) {
 		mutex_lock(&dev->mutex_input);
 		v4l2q_init(&dev->display_queue,
@@ -1885,6 +1960,7 @@ static int __init v4lvideo_create_instance(int inst)
 	v4lvideo_devlist_unlock(flags);
 
 	mutex_init(&dev->mutex_input);
+	mutex_init(&dev->mutex_opened);
 
 	return 0;
 
@@ -2383,6 +2459,48 @@ static ssize_t vf_dump_store(struct class *class,
 	return count;
 }
 
+static ssize_t print_flag_show(struct class *class,
+			    struct class_attribute *attr, char *buf)
+{
+	return sprintf(buf, "print_flag: %d\n", print_flag);
+}
+
+static ssize_t print_flag_store(struct class *class,
+			     struct class_attribute *attr,
+			     const char *buf, size_t count)
+{
+	ssize_t r;
+	int val;
+
+	r = kstrtoint(buf, 0, &val);
+	if (r < 0)
+		return -EINVAL;
+
+	if (val > 0)
+		print_flag = val;
+	else
+		print_flag = 0;
+	return count;
+}
+
+static ssize_t total_get_count_show(struct class *class,
+			    struct class_attribute *attr, char *buf)
+{
+	return sprintf(buf, "total_get_count: %d\n", total_get_count);
+}
+
+static ssize_t total_put_count_show(struct class *class,
+			    struct class_attribute *attr, char *buf)
+{
+	return sprintf(buf, "total_put_count: %d\n", total_put_count);
+}
+
+static ssize_t total_release_count_show(struct class *class,
+			    struct class_attribute *attr, char *buf)
+{
+	return sprintf(buf, "total_release_count: %d\n", total_release_count);
+}
+
 static struct class_attribute v4lvideo_class_attrs[] = {
 	__ATTR(sei_cnt,
 	       0664,
@@ -2436,11 +2554,18 @@ static struct class_attribute v4lvideo_class_attrs[] = {
 	       0664,
 	       vf_dump_show,
 	       vf_dump_store),
+	__ATTR(print_flag,
+	       0664,
+	       print_flag_show,
+	       print_flag_store),
 	__ATTR_RO(open_fd_count),
 	__ATTR_RO(release_fd_count),
 	__ATTR_RO(link_fd_count),
 	__ATTR_RO(link_put_fd_count),
 	__ATTR_RO(v4lvideo_version),
+	__ATTR_RO(total_get_count),
+	__ATTR_RO(total_put_count),
+	__ATTR_RO(total_release_count),
 	__ATTR_NULL
 };
 

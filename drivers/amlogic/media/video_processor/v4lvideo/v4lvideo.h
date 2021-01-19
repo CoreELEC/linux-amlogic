@@ -231,11 +231,14 @@ struct v4lvideo_dev {
 	struct v4lvideo_file_s *v4lvideo_display_queue[V4LVIDEO_POOL_SIZE];
 	/* mutex_input */
 	struct mutex mutex_input;
+	/* mutex_opened */
+	struct mutex mutex_opened;
 	struct v4l2_buffer v4lvideo_input[V4LVIDEO_POOL_SIZE];
 	struct v4l2_amlogic_parm am_parm;
 	u8 first_frame;
 	char *provider_name;
 	struct v4lvideo_file_s v4lvideo_file[V4LVIDEO_POOL_SIZE];
+	bool opened;
 };
 
 enum vframe_source_type {

@@ -72,6 +72,8 @@ static u32  drop_cnt;
 static u32  drop_cnt_pip;
 static u32  receive_count;
 static u32  receive_count_pip;
+static u32 total_get_count;
+static u32 total_put_count;
 
 #define PRINT_ERROR		0X0
 #define PRINT_QUEUE_STATUS	0X0001
@@ -346,9 +348,15 @@ static void frames_put_file(struct composer_dev *dev,
 	current_count = current_frames->frames_info.frame_count;
 	for (i = 0; i < current_count; i++) {
 		file_vf = current_frames->file_vf[i];
-		fput(file_vf);
+		if (file_vf) {
+			fput(file_vf);
+			total_put_count++;
+			dev->fput_count++;
+		} else {
+			vc_print(dev->index, PRINT_ERROR,
+				"put_file file_vf null!!!\n");
+		}
 	}
-	dev->fput_count++;
 }
 
 static void vf_pop_display_q(struct composer_dev *dev, struct vframe_s *vf)
@@ -394,6 +402,7 @@ static void display_q_uninit(struct composer_dev *dev)
 					 dis_vf->omx_index);
 				for (i = 0; i <= repeat_count; i++) {
 					fput(dis_vf->file_vf);
+					total_put_count++;
 					dev->fput_count++;
 				}
 			} else if (!(dis_vf->flag
@@ -440,6 +449,7 @@ static void ready_q_uninit(struct composer_dev *dev)
 				repeat_count = dis_vf->repeat_count[dev->index];
 				for (i = 0; i <= repeat_count; i++) {
 					fput(dis_vf->file_vf);
+					total_put_count++;
 					dev->fput_count++;
 				}
 			}
@@ -1010,6 +1020,7 @@ static void empty_ready_queue(struct composer_dev *dev)
 			if (!is_composer) {
 				for (i = 0; i <= repeat_count; i++) {
 					fput(file_vf);
+					total_put_count++;
 					dev->fput_count++;
 				}
 			} else {
@@ -1488,6 +1499,7 @@ static void set_frames_info(struct composer_dev *dev,
 			frames_info->frame_info[j].composer_fen_fd = -1;
 		vc_print(dev->index, PRINT_ERROR,
 			 "set frame but not enable\n");
+		return;
 	}
 
 	for (j = 0; j < frames_info->frame_count; j++) {
@@ -1618,6 +1630,7 @@ static void set_frames_info(struct composer_dev *dev,
 			vc_print(dev->index, PRINT_ERROR, "fget fd fail\n");
 			return;
 		}
+		total_get_count++;
 		dev->received_frames[i].file_vf[j] = file_vf;
 		if (frames_info->frame_info[j].type == 0) {
 			if (is_valid_mod_type(file_vf->private_data,
@@ -1800,9 +1813,14 @@ static void vc_vf_put(struct vframe_s *vf, void *op_arg)
 
 	if (!is_composer) {
 		for (i = 0; i <= repeat_count; i++) {
-			if (file_vf)
+			if (file_vf) {
 				fput(file_vf);
-			dev->fput_count++;
+				total_put_count++;
+				dev->fput_count++;
+			} else {
+				vc_print(dev->index, PRINT_ERROR,
+					"put: file_vf is NULL!!!\n");
+			}
 		}
 	} else {
 		videocom_vf_put(vf, dev);
@@ -2506,6 +2524,52 @@ static ssize_t receive_count_pip_show(struct class *class,
 	return sprintf(buf, "%d\n", receive_count_pip);
 }
 
+static ssize_t total_get_count_store(struct class *class,
+				    struct class_attribute *attr,
+				    const char *buf, size_t count)
+{
+	ssize_t r;
+	int val;
+
+	r = kstrtoint(buf, 0, &val);
+	if (r < 0)
+		return -EINVAL;
+
+	total_get_count = val;
+	pr_info("set total get count:%d\n", total_get_count);
+	return count;
+}
+
+static ssize_t total_get_count_show(struct class *class,
+				      struct class_attribute *attr,
+				      char *buf)
+{
+	return sprintf(buf, "%d\n", total_get_count);
+}
+
+static ssize_t total_put_count_store(struct class *class,
+				    struct class_attribute *attr,
+				    const char *buf, size_t count)
+{
+	ssize_t r;
+	int val;
+
+	r = kstrtoint(buf, 0, &val);
+	if (r < 0)
+		return -EINVAL;
+
+	total_put_count = val;
+	pr_info("set total put count:%d\n", total_put_count);
+	return count;
+}
+
+static ssize_t total_put_count_show(struct class *class,
+				      struct class_attribute *attr,
+				      char *buf)
+{
+	return sprintf(buf, "%d\n", total_put_count);
+}
+
 static struct class_attribute video_composer_class_attrs[] = {
 	__ATTR(force_composer, 0664,
 	       force_composer_show,
@@ -2561,6 +2625,12 @@ static struct class_attribute video_composer_class_attrs[] = {
 	__ATTR(composer_use_444, 0664,
 	       composer_use_444_show,
 	       composer_use_444_store),
+	__ATTR(total_get_count, 0664,
+	       total_get_count_show,
+	       total_get_count_store),
+	__ATTR(total_put_count, 0664,
+	       total_put_count_show,
+	       total_put_count_store),
 	__ATTR_RO(drop_cnt),
 	__ATTR_RO(drop_cnt_pip),
 	__ATTR_RO(receive_count),
