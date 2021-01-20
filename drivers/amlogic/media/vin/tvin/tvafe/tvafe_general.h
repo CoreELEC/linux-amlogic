@@ -199,6 +199,7 @@ extern void adc_set_pll_reset(void);
 extern int tvafe_adc_get_pll_flag(void);
 extern int tvafe_cpu_type(void);
 extern void tvafe_clk_gate_ctrl(int status);
+void white_pattern_pga_reset(enum tvin_port_e port);
 
 extern struct mutex pll_mutex;
 extern unsigned int cvd_reg87_pal;
