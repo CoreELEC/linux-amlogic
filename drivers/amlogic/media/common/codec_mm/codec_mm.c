@@ -61,6 +61,7 @@
 #define RES_IS_MAPED
 #define DEFAULT_TVP_SIZE_FOR_4K (236 * SZ_1M)
 #define DEFAULT_TVP_SIZE_FOR_NO4K (160 * SZ_1M)
+#define DEFAULT_TVP_SEGMENT_MIN_SIZE (16 * SZ_1M)
 
 #define ALLOC_MAX_RETRY 1
 
@@ -113,7 +114,18 @@ EXPORT_SYMBOL(codec_mm_get_keep_debug_mode);
 static int default_tvp_size;
 static int default_tvp_4k_size;
 static int default_cma_res_size;
+static int default_tvp_pool_segment_size[4];
+static int default_tvp_4k_pool_segment_size[4];
+static int default_tvp_pool_size_0;
+static int default_tvp_pool_size_1;
+static int default_tvp_pool_size_2;
+static int default_tvp_4k_pool_size_0;
+static int default_tvp_4k_pool_size_1;
+static int default_tvp_4k_pool_size_2;
+static u32 tvp_dynamic_increase_disable;
 
+#define TVP_POOL_SEGMENT_MAX_USED 4
+#define TVP_POOL_SEGMENT_USED_NORMAL 3
 #define TVP_MAX_SLOT 8
 /*
  *tvp_mode == 0 means protect secure memory in secmem ta
@@ -172,6 +184,8 @@ struct codec_mm_mgt_s {
 #define VAL_OFF_VAL(mem, off) (*(unsigned long *)((unsigned long)(mem) + off))
 
 static int codec_mm_extpool_pool_release(struct extpool_mgt_s *tvp_pool);
+static int codec_mm_tvp_pool_alloc_by_slot(struct extpool_mgt_s *tvp_pool,
+	int memflags, int flags);
 
 static struct codec_mm_mgt_s *get_mem_mgt(void)
 {
@@ -277,8 +291,22 @@ static int codec_mm_alloc_pre_check_in(
 		mgt->tvp_pool.alloced_size)
 		have_space |= 8;
 
-	if (flags & 1)
-		have_space = have_space & 8;
+	if (!tvp_dynamic_increase_disable &&
+		(flags & CODEC_MM_FLAGS_TVP) && !(have_space & 8)) {
+		do {
+			if (codec_mm_tvp_pool_alloc_by_slot(
+				&mgt->tvp_pool, 0, mgt->tvp_enable) == 0) {
+				pr_err("no more memory can be alloc %d",
+					mgt->tvp_enable);
+				break;
+			}
+			if (aligned_size <= mgt->tvp_pool.total_size -
+				mgt->tvp_pool.alloced_size) {
+				have_space |= 8;
+				break;
+			}
+		} while (mgt->tvp_pool.slot_num <= TVP_POOL_SEGMENT_MAX_USED);
+	}
 
 	if (debug_mode & 0xf) {
 		have_space = have_space & (~(debug_mode & 1));
@@ -502,7 +530,8 @@ static int codec_mm_alloc_in(
 		can_from_cma = 0;
 	}
 
-	have_space = codec_mm_alloc_pre_check_in(mgt, mem->buffer_size, 0);
+	have_space = codec_mm_alloc_pre_check_in(mgt, mem->buffer_size,
+		mem->flags);
 	if (!have_space)
 		return -10001;
 
@@ -642,18 +671,49 @@ static int codec_mm_alloc_in(
 			int aligned_buffer_size = ALIGN(mem->buffer_size,
 					(1 << RESERVE_MM_ALIGNED_2N));
 			alloc_trace_mask |= 1 << 5;
-			mem->mem_handle = (void *)codec_mm_extpool_alloc(
+			if (tvp_dynamic_increase_disable) {
+				mem->mem_handle =
+				(void *)codec_mm_extpool_alloc(
 					&mgt->tvp_pool,
 					&mem->from_ext,
 					aligned_buffer_size);
-			mem->from_flags =
-				AMPORTS_MEM_FLAGS_FROM_GET_FROM_TVP;
-			if (mem->mem_handle) {
-				/*no vaddr for TVP MEMORY */
-				mem->vbuffer = NULL;
-				mem->phy_addr = (unsigned long)mem->mem_handle;
-				mem->buffer_size = aligned_buffer_size;
-				break;
+				mem->from_flags =
+					AMPORTS_MEM_FLAGS_FROM_GET_FROM_TVP;
+				if (mem->mem_handle) {
+					/*no vaddr for TVP MEMORY */
+					mem->vbuffer = NULL;
+					mem->phy_addr =
+						(unsigned long)mem->mem_handle;
+					mem->buffer_size = aligned_buffer_size;
+					break;
+				}
+			} else {
+				do {
+					mem->mem_handle =
+					(void *)codec_mm_extpool_alloc(
+						&mgt->tvp_pool,
+						&mem->from_ext,
+						aligned_buffer_size);
+					if (mem->mem_handle) {
+						/*no vaddr for TVP MEMORY */
+						mem->from_flags =
+					AMPORTS_MEM_FLAGS_FROM_GET_FROM_TVP;
+						mem->vbuffer = NULL;
+						mem->phy_addr = (unsigned long)
+							mem->mem_handle;
+						mem->buffer_size =
+							aligned_buffer_size;
+						break;
+					}
+					if (codec_mm_tvp_pool_alloc_by_slot(
+						&mgt->tvp_pool, 0,
+						mgt->tvp_enable) == 0) {
+						pr_err("no more memory can be alloc %d",
+							mgt->tvp_enable);
+						break;
+					}
+				} while (mgt->tvp_pool.slot_num <=
+					TVP_POOL_SEGMENT_MAX_USED);
 			}
 		}
 
@@ -1310,6 +1370,243 @@ static int codec_mm_extpool_pool_release_inner(int slot_num_start,
 	return slot_num_start;
 }
 
+static int codec_mm_tvp_pool_alloc_by_type(
+	struct extpool_mgt_s *tvp_pool,
+	int size, int memflags, int type)
+{
+	struct codec_mm_s *mem;
+	int ret;
+
+	if (type == CODEC_MM_FLAGS_CMA) {
+		mem = codec_mm_alloc(TVP_POOL_NAME,
+					size,
+					RESERVE_MM_ALIGNED_2N,
+					CODEC_MM_FLAGS_FOR_LOCAL_MGR |
+					CODEC_MM_FLAGS_CMA);
+		if (mem) {
+			struct page *mm = mem->mem_handle;
+
+			if (mem->from_flags ==
+				AMPORTS_MEM_FLAGS_FROM_GET_FROM_CMA_RES)
+				mm = phys_to_page((unsigned long)mm);
+			cma_mmu_op(mm, mem->page_count, 0);
+			ret = codec_mm_init_tvp_pool(tvp_pool, mem);
+			if (ret < 0) {
+				cma_mmu_op(mm, mem->page_count, 1);
+				codec_mm_release(mem, TVP_POOL_NAME);
+			} else {
+				tvp_pool->total_size += size;
+				tvp_pool->slot_num++;
+				if (tvp_mode >= 1) {
+					if (codec_mm_tvp_pool_protect
+					(tvp_pool)) {
+					codec_mm_extpool_pool_release_inner(
+						tvp_pool->slot_num - 1,
+						tvp_pool);
+						return 1;
+					}
+				}
+				return 0;
+			}
+		}
+	} else if (type == CODEC_MM_FLAGS_RESERVED) {
+		mem = codec_mm_alloc(TVP_POOL_NAME,
+				size,
+				RESERVE_MM_ALIGNED_2N,
+				CODEC_MM_FLAGS_FOR_LOCAL_MGR |
+				CODEC_MM_FLAGS_RESERVED);
+
+		if (mem) {
+			ret = codec_mm_init_tvp_pool(
+				tvp_pool, mem);
+			if (ret < 0) {
+				codec_mm_release(mem, TVP_POOL_NAME);
+			} else {
+				tvp_pool->total_size += size;
+				tvp_pool->slot_num++;
+				if (tvp_mode >= 1) {
+					if (codec_mm_tvp_pool_protect
+					(tvp_pool)) {
+					codec_mm_extpool_pool_release_inner(
+							tvp_pool->slot_num - 1,
+							tvp_pool);
+						return 1;
+					}
+				}
+				return 0;
+			}
+		}
+	}
+	return 1;
+}
+
+static int codec_mm_tvp_pool_alloc_by_slot(
+	struct extpool_mgt_s *tvp_pool, int memflags, int flags)
+{
+	struct codec_mm_mgt_s *mgt = get_mem_mgt();
+	int size = 0;
+	int try_alloced_size = 0;
+	int max_reserved_free_size = 0;
+	int max_cma_free_size = 0;
+	int use_cma_pool_first = 0;
+	int retry_cnt = 0;
+	int need_add_size = 0;
+	int needed_total_size = 0;
+	int i = 0;
+
+	mutex_lock(&tvp_pool->pool_lock);
+	max_reserved_free_size = mgt->total_reserved_size
+		- mgt->alloced_res_size;
+	max_cma_free_size = mgt->total_cma_size - mgt->alloced_cma_size;
+	use_cma_pool_first = max_cma_free_size > max_reserved_free_size ? 1 : 0;
+
+	if (flags == 1) {
+		if (tvp_pool->slot_num >= TVP_POOL_SEGMENT_USED_NORMAL) {
+			try_alloced_size = 0;
+			pr_info("slot_num exceed the limit %d\n",
+				tvp_pool->slot_num);
+			goto alloced_finished;
+		}
+		size = default_tvp_pool_segment_size[tvp_pool->slot_num];
+		for (i = 0; i < tvp_pool->slot_num; i++)
+			needed_total_size += default_tvp_pool_segment_size[i];
+	} else {
+		if (tvp_pool->slot_num >= TVP_POOL_SEGMENT_MAX_USED) {
+			try_alloced_size = 0;
+			pr_info("slot_num for 4k exceed the limit %d\n",
+				tvp_pool->slot_num);
+			goto alloced_finished;
+		}
+		size = default_tvp_4k_pool_segment_size[tvp_pool->slot_num];
+		for (i = 0; i < tvp_pool->slot_num; i++)
+			needed_total_size +=
+				default_tvp_4k_pool_segment_size[i];
+	}
+
+	if (needed_total_size > 0) {
+		if (needed_total_size >= tvp_pool->total_size) {
+			need_add_size = needed_total_size
+				- tvp_pool->total_size;
+		} else {
+			pr_info("have alloc engouth buffer %d %d",
+				needed_total_size, tvp_pool->total_size);
+			try_alloced_size = size;
+			goto alloced_finished;
+		}
+	}
+	size += need_add_size;
+	if (size <= 0)
+		return 0;
+
+	if (use_cma_pool_first) {
+		try_alloced_size = size > max_cma_free_size
+			? max_cma_free_size : size;
+		try_alloced_size = MM_ALIGN_DOWN_2N(try_alloced_size,
+							RESERVE_MM_ALIGNED_2N);
+		retry_cnt = try_alloced_size / (4 * SZ_1M);
+		if (try_alloced_size > 0) {
+			int retry = 0;
+
+			do {
+				if (codec_mm_tvp_pool_alloc_by_type(tvp_pool,
+					try_alloced_size, memflags,
+						CODEC_MM_FLAGS_CMA)) {
+					try_alloced_size = try_alloced_size
+						- 4 * SZ_1M;
+					if (try_alloced_size < 16 * SZ_1M)
+						break;
+					try_alloced_size = MM_ALIGN_UP2N(
+							try_alloced_size,
+							RESERVE_MM_ALIGNED_2N);
+				} else {
+					goto alloced_finished;
+				}
+			} while (retry++ < retry_cnt);
+		}
+	} else {
+		try_alloced_size = size > max_reserved_free_size
+			? max_reserved_free_size : size;
+		try_alloced_size = MM_ALIGN_DOWN_2N(try_alloced_size,
+							RESERVE_MM_ALIGNED_2N);
+		retry_cnt = try_alloced_size / (4 * SZ_1M);
+		if (try_alloced_size > 0) {
+			int retry = 0;
+
+			do {
+				if (codec_mm_tvp_pool_alloc_by_type(tvp_pool,
+					try_alloced_size, memflags,
+						CODEC_MM_FLAGS_RESERVED)) {
+					try_alloced_size = try_alloced_size
+						- 4 * SZ_1M;
+					if (try_alloced_size < 16 * SZ_1M)
+						break;
+					try_alloced_size = MM_ALIGN_UP2N(
+							try_alloced_size,
+							RESERVE_MM_ALIGNED_2N);
+				} else {
+					goto alloced_finished;
+				}
+			} while (retry++ < retry_cnt);
+		}
+	}
+
+	if (use_cma_pool_first) {
+		try_alloced_size = size > max_reserved_free_size
+			? max_reserved_free_size : size;
+		try_alloced_size = MM_ALIGN_DOWN_2N(try_alloced_size,
+							RESERVE_MM_ALIGNED_2N);
+		retry_cnt = try_alloced_size / (4 * SZ_1M);
+		if (try_alloced_size > 0) {
+			int retry = 0;
+
+			do {
+				if (codec_mm_tvp_pool_alloc_by_type(tvp_pool,
+					try_alloced_size, memflags,
+						CODEC_MM_FLAGS_RESERVED)) {
+					try_alloced_size = try_alloced_size
+						- 4 * SZ_1M;
+					if (try_alloced_size < 16 * SZ_1M)
+						break;
+					try_alloced_size = MM_ALIGN_UP2N(
+							try_alloced_size,
+							RESERVE_MM_ALIGNED_2N);
+				} else {
+					goto alloced_finished;
+				}
+			} while (retry++ < retry_cnt);
+		}
+	} else {
+		try_alloced_size = size > max_cma_free_size
+			? max_cma_free_size : size;
+		try_alloced_size = MM_ALIGN_DOWN_2N(try_alloced_size,
+							RESERVE_MM_ALIGNED_2N);
+		retry_cnt = try_alloced_size / (4 * SZ_1M);
+		if (try_alloced_size > 0) {
+			int retry = 0;
+
+			do {
+				if (codec_mm_tvp_pool_alloc_by_type(tvp_pool,
+					try_alloced_size, memflags,
+					CODEC_MM_FLAGS_CMA)) {
+					try_alloced_size = try_alloced_size
+						- 4 * SZ_1M;
+					if (try_alloced_size < 16 * SZ_1M)
+						break;
+					try_alloced_size = MM_ALIGN_UP2N(
+							try_alloced_size,
+							RESERVE_MM_ALIGNED_2N);
+				} else {
+					goto alloced_finished;
+				}
+			} while (retry++ < retry_cnt);
+		}
+	}
+	try_alloced_size = 0;
+alloced_finished:
+	mutex_unlock(&tvp_pool->pool_lock);
+	return try_alloced_size;
+}
+
 int codec_mm_extpool_pool_alloc(
 	struct extpool_mgt_s *tvp_pool,
 	int size, int memflags, int for_tvp)
@@ -1356,7 +1653,7 @@ int codec_mm_extpool_pool_alloc(
 				if (try_alloced_size < 16 * SZ_1M)
 					break;
 			}
-			if (tvp_pool->slot_num < 3 &&
+			if (tvp_pool->slot_num < TVP_POOL_SEGMENT_USED_NORMAL &&
 			    alloced_size < size) {
 				try_alloced_size = MM_ALIGN_UP2N(
 					try_alloced_size,
@@ -1366,7 +1663,8 @@ int codec_mm_extpool_pool_alloc(
 			}
 		} while (retry++ < retry_cnt);
 	}
-	if (alloced_size >= size || tvp_pool->slot_num >= 3) {
+	if (alloced_size >= size || tvp_pool->slot_num >=
+		TVP_POOL_SEGMENT_USED_NORMAL) {
 		/*alloc finished. */
 		goto alloced_finished;
 	}
@@ -1421,7 +1719,7 @@ int codec_mm_extpool_pool_alloc(
 				if (try_alloced_size < 16 * SZ_1M)
 					break;
 			}
-			if (tvp_pool->slot_num < 3 &&
+			if (tvp_pool->slot_num < TVP_POOL_SEGMENT_USED_NORMAL &&
 			    alloced_size < size) {
 				try_alloced_size = MM_ALIGN_UP2N(
 					try_alloced_size,
@@ -1833,6 +2131,147 @@ static int dump_free_mem_infos(void *buf, int size)
 	return 0;
 }
 
+static void codec_mm_tvp_segment_init(void)
+{
+	int size = 0;
+	int segment_size = 0;
+	int rest_size = 0;
+
+	size = default_tvp_pool_size_0 +
+		default_tvp_pool_size_1 + default_tvp_pool_size_2;
+	if (size > default_tvp_size) {
+		default_tvp_pool_size_0 = 0;
+		default_tvp_pool_size_1 = 0;
+		default_tvp_pool_size_2 = 0;
+	}
+
+	if (default_tvp_4k_pool_size_0 < default_tvp_pool_size_0)
+		default_tvp_4k_pool_size_0 = default_tvp_pool_size_0;
+	if (default_tvp_4k_pool_size_1 < default_tvp_pool_size_1)
+		default_tvp_4k_pool_size_1 = default_tvp_pool_size_1;
+	if (default_tvp_4k_pool_size_2 < default_tvp_pool_size_2)
+		default_tvp_4k_pool_size_2 = default_tvp_pool_size_2;
+
+	size = default_tvp_4k_pool_size_0 +
+		default_tvp_4k_pool_size_1 + default_tvp_4k_pool_size_2;
+	if (size > default_tvp_4k_size) {
+		default_tvp_4k_pool_size_0 = 0;
+		default_tvp_4k_pool_size_1 = 0;
+		default_tvp_4k_pool_size_2 = 0;
+	}
+
+	if (default_tvp_4k_size > default_tvp_size) {
+		if (default_tvp_4k_pool_size_0 >=
+			DEFAULT_TVP_SEGMENT_MIN_SIZE) {
+			default_tvp_4k_pool_segment_size[0] =
+				default_tvp_4k_pool_size_0;
+		} else {
+			default_tvp_4k_pool_segment_size[0] =
+				default_tvp_4k_size * 4 / 12;
+		}
+		size = default_tvp_4k_pool_segment_size[0];
+		if (default_tvp_4k_pool_size_1 >=
+			DEFAULT_TVP_SEGMENT_MIN_SIZE) {
+			default_tvp_4k_pool_segment_size[1] =
+				default_tvp_4k_pool_size_1;
+		} else {
+			segment_size = default_tvp_4k_size * 3 / 12;
+			rest_size = default_tvp_4k_size - size;
+			default_tvp_4k_pool_segment_size[1] =
+				(rest_size > segment_size) ?
+					segment_size : rest_size;
+		}
+		size += default_tvp_4k_pool_segment_size[1];
+		if (default_tvp_4k_pool_size_2 >=
+			DEFAULT_TVP_SEGMENT_MIN_SIZE) {
+			default_tvp_4k_pool_segment_size[2] =
+				default_tvp_4k_pool_size_2;
+		} else {
+			segment_size = default_tvp_4k_size * 3 / 12;
+			rest_size = default_tvp_4k_size - size;
+			default_tvp_4k_pool_segment_size[2] =
+				(rest_size > segment_size) ?
+					segment_size : rest_size;
+		}
+		size += default_tvp_4k_pool_segment_size[2];
+		default_tvp_4k_pool_segment_size[3] =
+			default_tvp_4k_size - size;
+
+		if (default_tvp_pool_size_0 >= DEFAULT_TVP_SEGMENT_MIN_SIZE) {
+			default_tvp_pool_segment_size[0] =
+				default_tvp_pool_size_0;
+		} else {
+			default_tvp_pool_segment_size[0] =
+				default_tvp_size * 4 / 12;
+		}
+		size = default_tvp_pool_segment_size[0];
+		if (default_tvp_pool_size_1 >= DEFAULT_TVP_SEGMENT_MIN_SIZE) {
+			default_tvp_pool_segment_size[1] =
+				default_tvp_pool_size_1;
+		} else {
+			segment_size = default_tvp_size * 3 / 12;
+			rest_size = default_tvp_size - size;
+			default_tvp_pool_segment_size[1] =
+				(rest_size > segment_size) ?
+					segment_size : rest_size;
+		}
+		size += default_tvp_pool_segment_size[1];
+		if (default_tvp_pool_size_2 >= DEFAULT_TVP_SEGMENT_MIN_SIZE) {
+			default_tvp_pool_segment_size[2] =
+				default_tvp_pool_size_2;
+			default_tvp_size =
+				size + default_tvp_pool_size_2;
+		} else {
+			default_tvp_pool_segment_size[2] =
+				default_tvp_size - size;
+		}
+		default_tvp_pool_segment_size[3] = 0;
+	} else {
+		if (default_tvp_pool_size_0 >= DEFAULT_TVP_SEGMENT_MIN_SIZE) {
+			default_tvp_4k_pool_segment_size[0] =
+				default_tvp_pool_size_0;
+			default_tvp_pool_segment_size[0] =
+				default_tvp_pool_size_0;
+		} else {
+			default_tvp_4k_pool_segment_size[0] =
+				default_tvp_4k_size * 4 / 12;
+			default_tvp_pool_segment_size[0] =
+				default_tvp_4k_size * 4 / 12;
+		}
+		size = default_tvp_pool_segment_size[0];
+		if (default_tvp_pool_size_1 >= DEFAULT_TVP_SEGMENT_MIN_SIZE) {
+			default_tvp_4k_pool_segment_size[1] =
+				default_tvp_pool_size_1;
+			default_tvp_pool_segment_size[1] =
+				default_tvp_pool_size_1;
+		} else {
+			segment_size = default_tvp_4k_size * 3 / 12;
+			rest_size = default_tvp_4k_size - size;
+			default_tvp_4k_pool_segment_size[1] =
+				(rest_size > segment_size) ?
+					segment_size : rest_size;
+			default_tvp_pool_segment_size[1] =
+				(rest_size > segment_size) ?
+					segment_size : rest_size;
+		}
+		size += default_tvp_pool_segment_size[1];
+		if (default_tvp_pool_size_2 >= DEFAULT_TVP_SEGMENT_MIN_SIZE) {
+			default_tvp_4k_pool_segment_size[2] =
+				default_tvp_pool_size_2;
+			default_tvp_pool_segment_size[2] =
+				default_tvp_pool_size_2;
+		} else {
+			default_tvp_4k_pool_segment_size[2] =
+				default_tvp_4k_size - size;
+			default_tvp_pool_segment_size[2] =
+				default_tvp_4k_size - size;
+		}
+		default_tvp_pool_segment_size[3] = 0;
+		default_tvp_4k_size = size + default_tvp_pool_segment_size[2];
+		default_tvp_size = default_tvp_4k_size;
+	}
+}
+
 int codec_mm_enable_tvp(int size, int flags)
 {
 	int ret;
@@ -1845,20 +2284,47 @@ int codec_mm_enable_tvp(int size, int flags)
 		else
 			size = default_tvp_4k_size;
 	}
-	ret = codec_mm_extpool_pool_alloc(
-		&mgt->tvp_pool,
-		size, 0, 1);
-	if (ret) {
-		ret = 0;
-		mgt->tvp_enable = flags;
-		if (tvp_mode > 0)
-			atomic_add_return(1, &mgt->tvp_user_count);
-		pr_info("enable tvp for %d\n", flags);
+	if (tvp_dynamic_increase_disable) {
+		ret = codec_mm_extpool_pool_alloc(
+			&mgt->tvp_pool,
+			size, 0, 1);
+		if (ret) {
+			ret = 0;
+			mgt->tvp_enable = flags;
+			if (tvp_mode > 0)
+				atomic_add_return(1, &mgt->tvp_user_count);
+			pr_info("enable tvp for %d\n", flags);
+		} else {
+			pr_info("tvp enable failed size %d\n", size);
+			mutex_unlock(&mgt->tvp_protect_lock);
+			return -1;
+		}
 	} else {
-		pr_info("tvp enable failed size %d\n",
-			size);
-		mutex_unlock(&mgt->tvp_protect_lock);
-		return -1;
+		if (mgt->tvp_pool.slot_num <= 0) {
+			codec_mm_tvp_segment_init();
+			ret = codec_mm_tvp_pool_alloc_by_slot(
+				&mgt->tvp_pool, 0, flags);
+			if (ret) {
+				ret = 0;
+				if (mgt->tvp_enable != 2)
+					mgt->tvp_enable = flags;
+				if (tvp_mode > 0)
+					atomic_add_return(1,
+						&mgt->tvp_user_count);
+				pr_info("enable tvp for %d\n", flags);
+			} else {
+				pr_info("tvp enable failed size %d\n", size);
+				mutex_unlock(&mgt->tvp_protect_lock);
+				return -1;
+			}
+		} else {
+			ret = 0;
+			if (mgt->tvp_enable != 2)
+				mgt->tvp_enable = flags;
+			if (tvp_mode > 0)
+				atomic_add_return(1, &mgt->tvp_user_count);
+			pr_info("enable tvp for %d\n", flags);
+		}
 	}
 	if (tvp_mode > 0)
 		pr_info("tvp_user_count is %d\n",
@@ -2055,7 +2521,6 @@ EXPORT_SYMBOL(codec_mm_enough_for_size);
 
 int codec_mm_mgt_init(struct device *dev)
 {
-
 	struct codec_mm_mgt_s *mgt = get_mem_mgt();
 
 	INIT_LIST_HEAD(&mgt->mem_list);
@@ -2095,6 +2560,7 @@ int codec_mm_mgt_init(struct device *dev)
 			DEFAULT_TVP_SIZE_FOR_NO4K ?
 				DEFAULT_TVP_SIZE_FOR_NO4K :
 				default_tvp_4k_size;
+	codec_mm_tvp_segment_init();
 
 	default_cma_res_size = mgt->total_cma_size;
 	mgt->global_memid = 0;
@@ -2527,6 +2993,12 @@ static struct mconfig codec_mm_configs[] = {
 	MC_PI32("default_tvp_size", &default_tvp_size),
 	MC_PI32("default_tvp_4k_size", &default_tvp_4k_size),
 	MC_PI32("default_cma_res_size", &default_cma_res_size),
+	MC_PI32("default_tvp_pool_size_0", &default_tvp_pool_size_0),
+	MC_PI32("default_tvp_pool_size_1", &default_tvp_pool_size_1),
+	MC_PI32("default_tvp_pool_size_2", &default_tvp_pool_size_2),
+	MC_PI32("default_tvp_4k_pool_size_0", &default_tvp_4k_pool_size_0),
+	MC_PI32("default_tvp_4k_pool_size_1", &default_tvp_4k_pool_size_1),
+	MC_PI32("default_tvp_4k_pool_size_2", &default_tvp_4k_pool_size_2),
 };
 static struct mconfig_node codec_mm_trigger_node;
 int codec_mm_trigger_fun(const char *trigger, int id, const char *buf, int size)
@@ -2722,3 +3194,5 @@ module_param(debug_keep_mode, uint, 0664);
 MODULE_PARM_DESC(debug_keep_mode, "\n debug keep module\n");
 module_param(tvp_mode, uint, 0664);
 MODULE_PARM_DESC(tvp_mode, "\n tvp module\n");
+module_param(tvp_dynamic_increase_disable, uint, 0664);
+MODULE_PARM_DESC(tvp_dynamic_increase_disable, "\n disable tvp_dynamic_increase\n");
