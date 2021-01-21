@@ -791,7 +791,7 @@ void v4lvideo_data_copy(struct v4l_data_t *v4l_data, struct dma_buf *dmabuf)
 		file_private_data = v4l_data->file_private_data;
 	} else {
 		uhmod = uvm_get_hook_mod(dmabuf, VF_PROCESS_V4LVIDEO);
-		if (!(uhmod && uhmod->arg)) {
+		if (!(!IS_ERR_VALUE(uhmod) && uhmod->arg)) {
 			pr_err("uvm_get_hook_mod fail.\n");
 			return;
 		}
@@ -1034,7 +1034,7 @@ struct file_private_data *v4lvideo_get_file_private_data(struct file *file_vf,
 
 	uhmod = uvm_get_hook_mod((struct dma_buf *)(file_vf->private_data),
 				 VF_PROCESS_V4LVIDEO);
-	if (uhmod && uhmod->arg) {
+	if (!IS_ERR_VALUE(uhmod) && uhmod->arg) {
 		file_private_data = uhmod->arg;
 		uvm_put_hook_mod((struct dma_buf *)(file_vf->private_data),
 				 VF_PROCESS_V4LVIDEO);
