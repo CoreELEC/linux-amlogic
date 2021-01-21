@@ -1336,6 +1336,17 @@ static int aml_dai_spdif_prepare(
 		separated = p_spdif->chipinfo->separate_tohdmitx_en;
 		spdifout_to_hdmitx_ctrl(separated, p_spdif->id);
 
+		if (p_spdif->codec_type == AUD_CODEC_TYPE_TRUEHD ||
+		    p_spdif->codec_type == AUD_CODEC_TYPE_DTS_HD) {
+			aml_spdif_enable(p_spdif->actrl,
+				substream->stream, p_spdif->id, false);
+			if (p_spdif->samesource_sel != SHAREBUFFER_NONE)
+				spdif_sharebuffer_trigger(p_spdif, runtime->channels,
+							  SNDRV_PCM_TRIGGER_STOP);
+			aml_spdif_mute(p_spdif->actrl,
+				substream->stream, p_spdif->id, false);
+		}
+
 		if (get_spdif_to_hdmitx_id() == p_spdif->id) {
 			/* notify to hdmitx */
 			spdif_notify_to_hdmitx(substream, p_spdif->codec_type);

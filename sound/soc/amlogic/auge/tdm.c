@@ -1254,6 +1254,13 @@ static int aml_dai_tdm_prepare(struct snd_pcm_substream *substream,
 	struct snd_pcm_chmap *info;
 	struct aml_chmap *prtd;
 	int bit_depth, separated = 0;
+	struct aud_para aud_param;
+
+	memset(&aud_param, 0, sizeof(aud_param));
+
+	aud_param.rate = runtime->rate;
+	aud_param.size = runtime->sample_bits;
+	aud_param.chs  = runtime->channels;
 
 	bit_depth = snd_pcm_format_width(runtime->format);
 
@@ -1289,7 +1296,7 @@ static int aml_dai_tdm_prepare(struct snd_pcm_substream *substream,
 			}
 
 			aout_notifier_call_chain(AOUT_EVENT_IEC_60958_PCM,
-						 substream);
+						 &aud_param);
 		}
 
 		fifo_id = aml_frddr_get_fifo_id(fr);
