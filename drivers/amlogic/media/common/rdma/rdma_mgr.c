@@ -1163,7 +1163,7 @@ static int rdma_probe(struct platform_device *pdev)
 	/* get rdma_table_num resource  */
 	rdma_table_size = RDMA_TABLE_SIZE;
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12A)) {
-		rdma_table_size = RDMA_TABLE_SIZE * 2;
+		rdma_table_size = 16 * PAGE_SIZE;
 		prop = of_get_property(pdev->dev.of_node,
 		"rdma_table_page_count", NULL);
 		if (prop)
