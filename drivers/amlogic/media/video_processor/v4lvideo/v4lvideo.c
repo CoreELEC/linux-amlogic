@@ -71,6 +71,7 @@ static unsigned int v4lvideo_version = 2;
 static unsigned int total_get_count;
 static unsigned int total_put_count;
 static unsigned int total_release_count;
+static unsigned int inactive_check_disp;
 
 bool di_bypass_p;
 /*dec set count mutex*/
@@ -1887,8 +1888,12 @@ static int video_receiver_event_fun(int type, void *data, void *private_data)
 		dq_count = 0;
 		pr_err("reg:v4lvideo\n");
 	} else if (type == VFRAME_EVENT_PROVIDER_QUREY_STATE) {
-		if ((dev->vf_wait_cnt > 1) && v4l2q_empty(&dev->display_queue))
-			return RECEIVER_INACTIVE;
+		if (dev->vf_wait_cnt > 1) {
+			if (!inactive_check_disp)
+				return RECEIVER_INACTIVE;
+			else if (v4l2q_empty(&dev->display_queue))
+				return RECEIVER_INACTIVE;
+		}
 		return RECEIVER_ACTIVE;
 	}
 	return 0;
@@ -2483,6 +2488,30 @@ static ssize_t print_flag_store(struct class *class,
 	return count;
 }
 
+static ssize_t inactive_check_disp_show(struct class *class,
+			    struct class_attribute *attr, char *buf)
+{
+	return sprintf(buf, "inactive_check_disp: %d\n", inactive_check_disp);
+}
+
+static ssize_t inactive_check_disp_store(struct class *class,
+			     struct class_attribute *attr,
+			     const char *buf, size_t count)
+{
+	ssize_t r;
+	int val;
+
+	r = kstrtoint(buf, 0, &val);
+	if (r < 0)
+		return -EINVAL;
+
+	if (val > 0)
+		inactive_check_disp = val;
+	else
+		inactive_check_disp = 0;
+	return count;
+}
+
 static ssize_t total_get_count_show(struct class *class,
 			    struct class_attribute *attr, char *buf)
 {
@@ -2558,6 +2587,10 @@ static struct class_attribute v4lvideo_class_attrs[] = {
 	       0664,
 	       print_flag_show,
 	       print_flag_store),
+	__ATTR(inactive_check_disp,
+	       0664,
+	       inactive_check_disp_show,
+	       inactive_check_disp_store),
 	__ATTR_RO(open_fd_count),
 	__ATTR_RO(release_fd_count),
 	__ATTR_RO(link_fd_count),
