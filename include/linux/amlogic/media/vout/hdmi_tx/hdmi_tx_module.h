@@ -602,6 +602,7 @@ struct hdmitx_dev {
 	#define SET_CT_GRAPHICS	2
 	#define SET_CT_PHOTO	3
 	#define SET_CT_CINEMA	4
+#define CONF_GET_AVI_BT2020 (CMD_CONF_OFFSET + 0X2000 + 0x05)
 #define CONF_VIDEO_MUTE_OP      (CMD_CONF_OFFSET + 0x1000 + 0x04)
 #define VIDEO_MUTE          0x1
 #define VIDEO_UNMUTE        0x2

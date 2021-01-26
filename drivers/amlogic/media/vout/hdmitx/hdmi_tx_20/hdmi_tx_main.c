@@ -6154,6 +6154,31 @@ static void hdmitx_init_parameters(struct hdmitx_info *info)
 	info->hw_sha_calculator_flag = 1;
 }
 
+static void hdmitx_hdr_state_init(struct hdmitx_dev *hdev)
+{
+	enum hdmi_tf_type hdr_type = HDMI_NONE;
+	unsigned int colorimetry = 0;
+	unsigned int hdr_mode = 0;
+
+	hdr_type = hdmitx_get_cur_hdr_st();
+	colorimetry = hdev->hwop.cntlconfig(hdev, CONF_GET_AVI_BT2020, 0);
+	/* 1:standard HDR, 2:non-standard, 3:HLG, 0:other */
+	if (hdr_type == HDMI_HDR_SMPTE_2084) {
+		if (colorimetry == 1)
+			hdr_mode = 1;
+		else
+			hdr_mode = 2;
+	} else if (hdr_type == HDMI_HDR_HLG) {
+		if (colorimetry == 1)
+			hdr_mode = 3;
+	} else {
+		hdr_mode = 0;
+	}
+
+	hdev->hdmi_last_hdr_mode = hdr_mode;
+	hdev->hdmi_current_hdr_mode = hdr_mode;
+}
+
 static int amhdmitx_device_init(struct hdmitx_dev *hdmi_dev)
 {
 	if (hdmi_dev == NULL)
@@ -6169,6 +6194,9 @@ static int amhdmitx_device_init(struct hdmitx_dev *hdmi_dev)
 						hdmitx_device.fmt_attr);
 	hdmitx_device.hdmi_last_hdr_mode = 0;
 	hdmitx_device.hdmi_current_hdr_mode = 0;
+	/* hdr/vsif packet status init, no need to get actual status,
+	 * force to print function callback for confirmation.
+	 */
 	hdmitx_device.hdr_transfer_feature = T_UNKNOWN;
 	hdmitx_device.hdr_color_feature = C_UNKNOWN;
 	hdmitx_device.colormetry = 0;
@@ -6485,7 +6513,7 @@ static int amhdmitx_probe(struct platform_device *pdev)
 	vsem_init_cfg(&hdmitx_device);
 
 	HDMITX_Meson_Init(&hdmitx_device);
-
+	hdmitx_hdr_state_init(&hdmitx_device);
 	/* When init hdmi, clear the hdmitx module edid ram and edid buffer. */
 	hdmitx_edid_clear(&hdmitx_device);
 	hdmitx_edid_ram_buffer_clear(&hdmitx_device);

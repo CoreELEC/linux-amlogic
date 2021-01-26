@@ -4202,6 +4202,13 @@ static int hdmitx_cntl_config(struct hdmitx_dev *hdev, unsigned int cmd,
 		if (argv == CLR_AVI_BT2020)
 			hdmitx_set_avi_colorimetry(hdev->para);
 		break;
+	case CONF_GET_AVI_BT2020:
+		if (((hdmitx_rd_reg(HDMITX_DWC_FC_AVICONF1) & 0xC0) == 0xC0) &&
+		    ((hdmitx_rd_reg(HDMITX_DWC_FC_AVICONF2) & 0x70) == 0x60))
+			ret = 1;
+		else
+			ret = 0;
+		break;
 	case CONF_CLR_DV_VS10_SIG:
 /* if current is DV/VSIF.DOVI, next will swith to HDR, need set
  * Dolby_Vision_VS10_Signal_Type as 0
