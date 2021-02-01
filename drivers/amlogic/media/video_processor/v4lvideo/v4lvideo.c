@@ -1674,6 +1674,13 @@ static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *p)
 	}
 
 	buf = v4l2q_pop(&dev->input_queue);
+	if (!buf) {
+		dprintk(dev, 0, "pop buf is NULL\n");
+		put_count++;
+		vf_put(vf, dev->vf_receiver_name);
+		mutex_unlock(&dev->mutex_input);
+		return -EAGAIN;
+	}
 	dev->vf_wait_cnt = 0;
 	file_vf = fget(buf->m.fd);
 	if (!file_vf) {
@@ -1684,6 +1691,8 @@ static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *p)
 
 	file_private_data = v4lvideo_get_file_private_data(file_vf, false);
 	if (!file_private_data) {
+		put_count++;
+		vf_put(vf, dev->vf_receiver_name);
 		mutex_unlock(&dev->mutex_input);
 		fput(file_vf);
 		pr_err("v4lvideo: file_private_data NULL\n");
