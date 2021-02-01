@@ -243,7 +243,7 @@
 };
 
 &aocec {
-	/delete-property/ ee_cec;
+	/delete-property/ arc_port_mask;
 };
 
 &sd_emmc_c {
