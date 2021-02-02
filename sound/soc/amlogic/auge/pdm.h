@@ -58,6 +58,7 @@ struct pdm_chipinfo {
 	bool truncate_data;
 	/* train */
 	bool train;
+	bool chnum_flag;
 
 	int train_version;
 };
@@ -108,5 +109,7 @@ struct aml_pdm {
 
 int pdm_get_train_sample_count_from_dts(void);
 int pdm_get_train_version(void);
+int pdm_get_chnum_flag(void);
+
 
 #endif /*__AML_PDM_H__*/

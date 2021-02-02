@@ -36,18 +36,21 @@ void pdm_enable(int is_enable)
 	spin_lock_irqsave(&pdm_lock, flags);
 	if (is_enable) {
 		/* en chnum sync default */
-		if (pdm_enable_cnt == 0)
-			aml_pdm_update_bits(
-				PDM_CTRL,
-				0x1 << 31 | 1 << 17,
-				is_enable << 31 | 1 << 17);
+		if (pdm_enable_cnt == 0) {
+			aml_pdm_update_bits(PDM_CTRL,
+					    0x1 << 31,
+					    is_enable << 31);
+			if (pdm_get_chnum_flag())
+				aml_pdm_update_bits(PDM_CTRL,
+						    0x1 << 17,
+						    0x1 << 17);
+		}
 		pdm_enable_cnt++;
 	} else {
 		if (WARN_ON(pdm_enable_cnt == 0))
 			goto exit;
 		if (--pdm_enable_cnt == 0)
-			aml_pdm_update_bits(
-				PDM_CTRL,
+			aml_pdm_update_bits(PDM_CTRL,
 				0x1 << 31 | 0x1 << 16,
 				0 << 31 | 0 << 16);
 	}
@@ -61,15 +64,13 @@ void pdm_fifo_reset(void)
 	/* PDM Asynchronous FIFO soft reset.
 	 * write 1 to soft reset AFIFO
 	 */
-	aml_pdm_update_bits(
-		PDM_CTRL,
-		0x1 << 16,
-		0 << 16);
+	aml_pdm_update_bits(PDM_CTRL,
+			    0x1 << 16,
+			    0 << 16);
 
-	aml_pdm_update_bits(
-		PDM_CTRL,
-		0x1 << 16,
-		0x1 << 16);
+	aml_pdm_update_bits(PDM_CTRL,
+			    0x1 << 16,
+			    0x1 << 16);
 }
 
 void pdm_force_sysclk_to_oscin(bool force)

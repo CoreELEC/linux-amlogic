@@ -122,6 +122,16 @@ int pdm_get_train_version(void)
 	return 0;
 }
 
+int pdm_get_chnum_flag(void)
+{
+	struct aml_pdm *p_pdm = get_pdm();
+
+	if (p_pdm && p_pdm->chipinfo)
+		return p_pdm->chipinfo->chnum_flag;
+
+	return 0;
+}
+
 static int aml_pdm_filter_mode_get_enum(
 	struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)

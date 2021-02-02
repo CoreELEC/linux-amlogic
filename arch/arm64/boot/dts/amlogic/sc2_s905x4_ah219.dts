@@ -1194,7 +1194,7 @@
 
 		/* mode 0~4, defalut:1 */
 		filter_mode = <1>;
-
+		/* lane-mask-in = <0 1 0 0>; */
 		train_sample_count = <0xe>;
 
 		status = "okay";
