@@ -463,6 +463,9 @@ bool cec_message_op(unsigned char *msg, unsigned char len)
 {
 	int i, j;
 
+	if (cec_dev->hal_flag & (1 << HDMI_OPTION_SYSTEM_CEC_CONTROL))
+		return true;
+
 	if (((msg[0] & 0xf0) >> 4) == cec_dev->cec_info.log_addr) {
 		CEC_ERR("bad initiator with self 0x%x",
 			cec_dev->cec_info.log_addr);
