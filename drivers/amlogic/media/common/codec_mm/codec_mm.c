@@ -186,6 +186,8 @@ struct codec_mm_mgt_s {
 static int codec_mm_extpool_pool_release(struct extpool_mgt_s *tvp_pool);
 static int codec_mm_tvp_pool_alloc_by_slot(struct extpool_mgt_s *tvp_pool,
 	int memflags, int flags);
+static int codec_mm_tvp_pool_unprotect_and_release(
+	struct extpool_mgt_s *tvp_pool);
 
 static struct codec_mm_mgt_s *get_mem_mgt(void)
 {
@@ -259,6 +261,18 @@ static int codec_mm_valid_mm_locked(struct codec_mm_s *mmhandle)
 	return have_found;
 }
 
+static int codec_mm_alloc_tvp_pre_check_in(
+	struct codec_mm_mgt_s *mgt, int need_size, int flags)
+{
+	struct extpool_mgt_s *tvp_pool = &mgt->tvp_pool;
+	int i = 0;
+
+	for (i = 0; i < tvp_pool->slot_num; i++) {
+		if (gen_pool_avail(tvp_pool->gen_pool[i]) >= need_size)
+			return 1;
+	}
+	return 0;
+}
 
 /*
  *have_space:
@@ -287,25 +301,34 @@ static int codec_mm_alloc_pre_check_in(
 
 	if (aligned_size / PAGE_SIZE <= mgt->alloc_from_sys_pages_max)
 		have_space |= 4;
-	if (aligned_size <= mgt->tvp_pool.total_size -
-		mgt->tvp_pool.alloced_size)
-		have_space |= 8;
-
-	if (!tvp_dynamic_increase_disable &&
-		(flags & CODEC_MM_FLAGS_TVP) && !(have_space & 8)) {
-		do {
-			if (codec_mm_tvp_pool_alloc_by_slot(
-				&mgt->tvp_pool, 0, mgt->tvp_enable) == 0) {
-				pr_err("no more memory can be alloc %d",
-					mgt->tvp_enable);
-				break;
-			}
-			if (aligned_size <= mgt->tvp_pool.total_size -
-				mgt->tvp_pool.alloced_size) {
+	if (tvp_dynamic_increase_disable) {
+		if (aligned_size <= mgt->tvp_pool.total_size -
+			mgt->tvp_pool.alloced_size)
+			have_space |= 8;
+	} else {
+		if (flags & CODEC_MM_FLAGS_TVP) {
+			if (codec_mm_alloc_tvp_pre_check_in(mgt, aligned_size,
+				flags)) {
 				have_space |= 8;
-				break;
+			} else {
+				do {
+					if (codec_mm_tvp_pool_alloc_by_slot(
+						&mgt->tvp_pool, 0,
+						mgt->tvp_enable) == 0) {
+						pr_err("no more memory can be alloc %d",
+							mgt->tvp_enable);
+						break;
+					}
+					if (codec_mm_alloc_tvp_pre_check_in(mgt,
+						aligned_size,
+						flags)) {
+						have_space |= 8;
+						break;
+					}
+				} while (mgt->tvp_pool.slot_num
+					<= TVP_POOL_SEGMENT_MAX_USED);
 			}
-		} while (mgt->tvp_pool.slot_num <= TVP_POOL_SEGMENT_MAX_USED);
+		}
 	}
 
 	if (debug_mode & 0xf) {
@@ -757,27 +780,6 @@ static int codec_mm_alloc_in(
 	}
 }
 
-static int codec_mm_tvp_pool_unprotect(struct extpool_mgt_s *tvp_pool)
-{
-	struct codec_mm_mgt_s *mgt = get_mem_mgt();
-	int ret = -1;
-	int i = 0;
-
-	if (mgt->tvp_pool.alloced_size <= 0) {
-		for (i = 0; i < tvp_pool->slot_num; i++) {
-			pr_info("unprotect tvp %d handle is %d\n",
-				i, tvp_pool->mm[i]->tvp_handle);
-			if (tvp_pool->mm[i]->tvp_handle > 0) {
-				tee_unprotect_tvp_mem(
-					tvp_pool->mm[i]->tvp_handle);
-				tvp_pool->mm[i]->tvp_handle = -1;
-			}
-		}
-		ret = 0;
-	}
-	return ret;
-}
-
 static void codec_mm_free_in(struct codec_mm_mgt_s *mgt,
 		struct codec_mm_s *mem)
 {
@@ -836,11 +838,11 @@ static void codec_mm_free_in(struct codec_mm_mgt_s *mgt,
 
 	spin_unlock_irqrestore(&mgt->lock, flags);
 	if ((mem->from_flags == AMPORTS_MEM_FLAGS_FROM_GET_FROM_TVP) &&
-	    (tvp_mode >= 1)) {
+		(tvp_mode >= 1)) {
 		mutex_lock(&mgt->tvp_protect_lock);
 		if (atomic_read(&mgt->tvp_user_count) == 0) {
-			if (codec_mm_tvp_pool_unprotect(&mgt->tvp_pool) == 0) {
-				codec_mm_extpool_pool_release(&mgt->tvp_pool);
+			if (codec_mm_tvp_pool_unprotect_and_release(
+				&mgt->tvp_pool) == 0) {
 				mgt->tvp_enable = 0;
 				pr_info("disalbe tvp\n");
 			}
@@ -1495,8 +1497,10 @@ static int codec_mm_tvp_pool_alloc_by_slot(
 		}
 	}
 	size += need_add_size;
-	if (size <= 0)
-		return 0;
+	if (size <= 0) {
+		try_alloced_size = 0;
+		goto alloced_finished;
+	}
 
 	if (use_cma_pool_first) {
 		try_alloced_size = size > max_cma_free_size
@@ -1804,8 +1808,6 @@ static int codec_mm_extpool_pool_release(struct extpool_mgt_s *tvp_pool)
 					tvp_pool->gen_pool[i];
 				tvp_pool->mm[before_free_slot] =
 					tvp_pool->mm[i];
-				tvp_pool->gen_pool[i] = NULL;
-				tvp_pool->mm[i] = NULL;
 				before_free_slot++;
 			}
 			if (!tvp_pool->gen_pool[i] && before_free_slot > i) {
@@ -1814,6 +1816,74 @@ static int codec_mm_extpool_pool_release(struct extpool_mgt_s *tvp_pool)
 			}
 		}
 
+	}
+	tvp_pool->slot_num = ignored;
+	mutex_unlock(&tvp_pool->pool_lock);
+	return ignored;
+}
+
+static int codec_mm_tvp_pool_unprotect_and_release(
+	struct extpool_mgt_s *tvp_pool)
+{
+	int i;
+	int ignored = 0;
+
+	mutex_lock(&tvp_pool->pool_lock);
+	for (i = 0; i < tvp_pool->slot_num; i++) {
+		struct gen_pool *gpool = tvp_pool->gen_pool[i];
+		int slot_mem_size = 0;
+
+		if (gpool) {
+			if (gen_pool_avail(gpool) != gen_pool_size(gpool)) {
+				pr_err("ERROR: TVP pool is not free.\n");
+				ignored++;
+				continue;	/*ignore this free now, */
+			}
+			slot_mem_size = gen_pool_size(gpool);
+			gen_pool_destroy(tvp_pool->gen_pool[i]);
+			if (tvp_pool->mm[i]) {
+				struct page *mm = tvp_pool->mm[i]->mem_handle;
+
+				pr_info("unprotect tvp %d handle is %d\n",
+					i, tvp_pool->mm[i]->tvp_handle);
+				if (tvp_pool->mm[i]->tvp_handle > 0) {
+					tee_unprotect_tvp_mem(
+						tvp_pool->mm[i]->tvp_handle);
+					tvp_pool->mm[i]->tvp_handle = -1;
+				}
+				if (tvp_pool->mm[i]->from_flags ==
+					AMPORTS_MEM_FLAGS_FROM_GET_FROM_CMA_RES)
+					mm = phys_to_page(
+						(unsigned long)mm);
+				cma_mmu_op(mm,
+					tvp_pool->mm[i]->page_count,
+					1);
+				codec_mm_release(tvp_pool->mm[i],
+					TVP_POOL_NAME);
+			}
+		}
+		tvp_pool->total_size -= slot_mem_size;
+		tvp_pool->gen_pool[i] = NULL;
+		tvp_pool->mm[i] = NULL;
+	}
+	if (ignored > 0) {
+		int before_free_slot = tvp_pool->slot_num + 1;
+
+		for (i = 0; i < tvp_pool->slot_num; i++) {
+			if (tvp_pool->gen_pool[i] && before_free_slot < i) {
+				tvp_pool->gen_pool[before_free_slot] =
+					tvp_pool->gen_pool[i];
+				tvp_pool->mm[before_free_slot] =
+					tvp_pool->mm[i];
+				tvp_pool->mm[before_free_slot]->tvp_handle =
+					tvp_pool->mm[i]->tvp_handle;
+				before_free_slot++;
+			}
+			if (!tvp_pool->gen_pool[i] && before_free_slot > i) {
+				before_free_slot = i;
+				/**/
+			}
+		}
 	}
 	tvp_pool->slot_num = ignored;
 	mutex_unlock(&tvp_pool->pool_lock);
@@ -2348,8 +2418,8 @@ int codec_mm_disable_tvp(void)
 		return ret;
 	}
 	if (atomic_dec_and_test(&mgt->tvp_user_count)) {
-		if (codec_mm_tvp_pool_unprotect(&mgt->tvp_pool) == 0) {
-			ret = codec_mm_extpool_pool_release(&mgt->tvp_pool);
+		if (codec_mm_tvp_pool_unprotect_and_release(&mgt->tvp_pool)
+			== 0) {
 			mgt->tvp_enable = 0;
 			pr_info("disalbe tvp\n");
 			mutex_unlock(&mgt->tvp_protect_lock);
