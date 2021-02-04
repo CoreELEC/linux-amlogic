@@ -5536,6 +5536,23 @@ static void osd_set_dummy_data(u32 index, u32 alpha)
 		osd_hw.osd_meson_dev.dummy_data | alpha);
 }
 
+static u32 is_scaler_interlaced(u32 index)
+{
+	u32 output_index = 0;
+	u32 osd_sc_interlaced;
+
+	output_index = get_output_device_id(index);
+	if (osd_hw.osd_meson_dev.osd0_sc_independ) {
+		osd_sc_interlaced = osd_hw.field_out_en[output_index];
+	} else {
+		if (index == OSD1)
+			osd_sc_interlaced = osd_hw.field_out_en[output_index];
+		else
+			osd_sc_interlaced = 0;
+	}
+	return osd_sc_interlaced;
+}
+
 static void osd_update_disp_freescale_enable(u32 index)
 {
 	u64 hf_phase_step, vf_phase_step;
@@ -5621,7 +5638,7 @@ static void osd_update_disp_freescale_enable(u32 index)
 	}
 
 #ifdef NEW_PPS_PHASE
-	if (osd_hw.field_out_en[output_index]) {
+	if (is_scaler_interlaced(index)) {
 		struct osd_f2v_vphase_s vphase;
 
 		f2v_get_vertical_phase(
@@ -5652,7 +5669,7 @@ static void osd_update_disp_freescale_enable(u32 index)
 		bot_ini_phase = 0;
 	}
 #else
-	if (osd_hw.field_out_en[output_index])   /* interface output */
+	if (is_scaler_interlaced(index))   /* interface output */
 		bot_ini_phase = ((vf_phase_step / 2) >> 4);
 	else
 		bot_ini_phase = 0;
@@ -5664,7 +5681,7 @@ static void osd_update_disp_freescale_enable(u32 index)
 	data32 = 0x0;
 	if (shift_workaround) {
 		vsc_ini_rcv_num++;
-		if (osd_hw.field_out_en[output_index])
+		if (is_scaler_interlaced(index))
 			vsc_bot_rcv_num++;
 	}
 
@@ -5689,7 +5706,7 @@ static void osd_update_disp_freescale_enable(u32 index)
 		data32 |= (vf_bank_len & 0x7)
 			| ((vsc_ini_rcv_num & 0xf) << 3)
 			| ((vsc_ini_rpt_p0_num & 0x3) << 8);
-		if (osd_hw.field_out_en[output_index])
+		if (is_scaler_interlaced(index))
 			data32 |= ((vsc_bot_rcv_num & 0xf) << 11)
 				| ((vsc_bot_rpt_p0_num & 0x3) << 16)
 				| (1 << 23);
@@ -5713,7 +5730,7 @@ static void osd_update_disp_freescale_enable(u32 index)
 	data32 = top_ini_phase;
 	if (osd_hw.free_scale_enable[index]) {
 		data32 |= (bot_ini_phase & 0xffff) << 16;
-		if (osd_hw.field_out_en[output_index]) {
+		if (is_scaler_interlaced(index)) {
 			if (shift_workaround)
 				src_h--;
 			if (src_h == dst_h * 2)
