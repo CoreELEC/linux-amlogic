@@ -331,12 +331,18 @@ enum fe_code_rate {
 	FEC_13_45,
 	FEC_26_45,
 	FEC_28_45,
+	FEC_29_45,
+	FEC_31_45,
 	FEC_32_45,
 	FEC_77_90,
 	FEC_11_45,
 	FEC_4_15,
 	FEC_14_45,
 	FEC_7_15,
+	FEC_R_58,
+	FEC_R_60,
+	FEC_R_62,
+	FEC_R_5E,
 };
 
 /**
