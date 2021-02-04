@@ -543,6 +543,14 @@ config DVB_ZD1301_DEMOD
 	help
 	  Say Y when you want to support this frontend.
 
+config DVB_M88RS6060
+        tristate "Montage Technology M88RS6060 Demodulation and tuner"
+        depends on DVB_CORE && I2C 
+        select REGMAP_I2C
+        default m if !MEDIA_SUBDRV_AUTOSELECT
+        help
+          Say Y when you want to support this frontend.
+
 config DVB_GP8PSK_FE
 	tristate
 	depends on DVB_CORE
