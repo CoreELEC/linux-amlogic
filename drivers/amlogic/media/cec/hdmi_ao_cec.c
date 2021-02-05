@@ -385,6 +385,10 @@ int cec_ll_tx(const unsigned char *msg, unsigned char len, unsigned char signal_
 	unsigned int cec_sel;
 
 	mutex_lock(&cec_dev->cec_tx_mutex);
+
+	if (cec_dev->hal_flag & (1 << HDMI_OPTION_SYSTEM_CEC_CONTROL))
+		retry = 0;
+
 	/* only use cec a send msg */
 	if (cec_dev->cec_num > ENABLE_ONE_CEC)
 		cec_sel = CEC_A;
