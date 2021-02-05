@@ -313,7 +313,7 @@ static const struct fclk_rate_table fclk_pll_rate_table[] = {
 
 /*PCIE clk_out = 24M*m/2/2/OD*/
 static const struct pll_rate_table sc2_pcie_pll_rate_table[] = {
-	PLL_RATE(100000000, 150, 0, 9),
+	PLL_RATE(100000000, 200, 1, 12),
 	{ /* sentinel */ }
 };
 

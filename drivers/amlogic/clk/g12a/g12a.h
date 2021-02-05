@@ -35,6 +35,7 @@
 
 #define HHI_PCIE_PLL_CNTL0		0x98 /* 0x26 offset in data sheet */
 #define HHI_PCIE_PLL_CNTL1		0x9c /* 0x27 offset in data sheet */
+#define HHI_PCIE_PLL_CNTL5		0xac /* 0x2b offset in data sheet */
 #define HHI_XTAL_DIVN_CNTL		0xbc /* 0x2f offset in data sheet */
 //#define HHI_PCIE_PLL_CNTL6	0xf0 /* 0x3c offset in data sheet */
 
@@ -223,7 +224,7 @@ static const struct fclk_rate_table fclk_pll_rate_table[] = {
 
 /*PCIE clk_out = 24M*m/2/2/OD*/
 static const struct pll_rate_table g12a_pcie_pll_rate_table[] = {
-	PLL_RATE(100000000, 150, 0, 9),
+	PLL_RATE(100000000, 100, 1, 9),
 	{ /* sentinel */ },
 };
 

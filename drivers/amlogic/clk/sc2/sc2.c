@@ -246,6 +246,19 @@ static struct meson_clk_pll sc2_pcie_pll = {
 	},
 };
 
+static struct clk_gate sc2_pcie_hcsl = {
+	.reg = (void *)ANACTRL_PCIEPLL_CTRL5,
+	.bit_idx = 3,
+	.lock = &clk_lock,
+	.hw.init = &(struct clk_init_data){
+		.name = "pcie_hcsl",
+		.ops = &clk_gate_ops,
+		.parent_names = (const char *[]){ "pcie_pll" },
+		.num_parents = 1,
+		.flags = (CLK_SET_RATE_PARENT | CLK_GET_RATE_NOCACHE),
+	},
+};
+
 static struct clk_fixed_factor sc2_fclk_div2 = {
 	.mult = 1,
 	.div = 2,
@@ -3166,6 +3179,7 @@ static struct clk_hw *sc2_clk_hws[] = {
 	[CLKID_GP1_PLL]		= &sc2_gp1_pll.hw,
 	[CLKID_HIFI_PLL]	= &sc2_hifi_pll.hw,
 	[CLKID_PCIE_PLL]	= &sc2_pcie_pll.hw,
+	[CLKID_PCIE_HCSL]	= &sc2_pcie_hcsl.hw,
 	[CLKID_FCLK_DIV2]	= &sc2_fclk_div2.hw,
 	[CLKID_FCLK_DIV3]	= &sc2_fclk_div3.hw,
 	[CLKID_FCLK_DIV4]	= &sc2_fclk_div4.hw,
@@ -3839,6 +3853,8 @@ static void __init sc2_clkc_init(struct device_node *np)
 	/* Populate base address for MPLLs */
 	for (i = 0; i < ARRAY_SIZE(sc2_clk_mplls); i++)
 		sc2_clk_mplls[i]->base = pll_base;
+
+	sc2_pcie_hcsl.reg = pll_base + (unsigned long)sc2_pcie_hcsl.reg;
 
 	/* Populate the base address for CPU clk */
 	sc2_cpu_fclk_p.reg = cpu_clk_base + (unsigned long)sc2_cpu_fclk_p.reg;

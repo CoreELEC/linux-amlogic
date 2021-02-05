@@ -55,9 +55,10 @@
 #define CLKID_MIPI_ENABLE_GATE  30
 #define CLKID_MIPI_BANDGAP_GATE 31
 #define CLKID_FCLK_DIV2P5       32
+#define CLKID_PCIE_HCSL		33
 
 /*HHI_GCLK_MPEG0: 0x50*/
-#define GATE_BASE0              33
+#define GATE_BASE0              34
 #define CLKID_DDR               (GATE_BASE0 + 0)
 #define CLKID_DOS               (GATE_BASE0 + 1)
 #define CLKID_AUDIO_LOCKER      (GATE_BASE0 + 2)
