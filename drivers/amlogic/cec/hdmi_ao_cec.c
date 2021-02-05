@@ -5054,8 +5054,6 @@ static int aml_cec_probe(struct platform_device *pdev)
 					      &cec_dev->cec_wk_as_msg[1]);
 	}
 	cec_irq_enable(true);
-	/* still check bus by default, maybe not necessary */
-	cec_dev->sw_chk_bus = true;
 	/*CEC_ERR("%s success end\n", __func__);*/
 	cec_dev->probe_finish = true;
 	return 0;
