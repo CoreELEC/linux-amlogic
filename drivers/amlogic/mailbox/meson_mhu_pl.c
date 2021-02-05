@@ -368,27 +368,19 @@ static ssize_t mbox_message_read(struct file *filp, char __user *userbuf,
 	struct mhu_mbox *mbox_dev = filp->private_data;
 	struct device *dev = mbox_dev->mhu_dev;
 	int channel =  mbox_dev->channel_id;
-	unsigned long wait;
-
-	pr_debug("%s, %d, chanenel %d\n", __func__, __LINE__, channel);
 
 	spin_lock_irqsave(&mhu_list_lock, flags);
 	if (list_empty(&mbox_list[channel])) {
 		spin_unlock_irqrestore(&mhu_list_lock, flags);
 		return -ENXIO;
 	}
-	pr_debug("%s, %d, chanenel %d\n", __func__, __LINE__, channel);
 	list_for_each(list, &mbox_list[channel]) {
 		msg = list_entry(list, struct mbox_message, list);
 		if (msg->task == current) {
 			spin_unlock_irqrestore(&mhu_list_lock, flags);
-			wait = msecs_to_jiffies(MBOX_TIME_OUT);
-			ret =
-			wait_for_completion_killable_timeout(&msg->complete,
-							     wait);
-			if (ret == 0 || ret == -ERESTARTSYS) {
-				dev_err(dev, "Read msg wait time out or killable %d\n",
-					ret);
+			ret = wait_for_completion_killable(&msg->complete);
+			if (ret < 0) {
+				dev_err(dev, "Read msg wait killed %d\n", ret);
 				return -ENXIO;
 			}
 			dev_dbg(dev, "Wait end %s\n", msg->data);
