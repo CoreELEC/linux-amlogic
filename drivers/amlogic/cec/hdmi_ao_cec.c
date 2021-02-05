@@ -1769,8 +1769,8 @@ try_again:
 	 * free time, that means a send is already started by other
 	 * device, we should wait it finished.
 	 */
-	if (check_confilct()) {
-		CEC_ERR("bus confilct too long\n");
+	if (!(cec_dev->hal_flag & (1 << HDMI_OPTION_SYSTEM_CEC_CONTROL)) && check_confilct()) {
+		CEC_ERR("bus conflict too long\n");
 		mutex_unlock(&cec_dev->cec_tx_mutex);
 		return CEC_FAIL_BUSY;
 	}
