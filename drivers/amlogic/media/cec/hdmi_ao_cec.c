@@ -2789,7 +2789,7 @@ static int aml_cec_probe(struct platform_device *pdev)
 	#endif
 	cec_irq_enable(true);
 	/* still check bus by default, maybe not necessary */
-	cec_dev->sw_chk_bus = true;
+	cec_dev->sw_chk_bus = false;
 	cec_dev->chk_sig_free_time = false;
 	CEC_ERR("%s success end\n", __func__);
 	cec_dev->probe_finish = true;
