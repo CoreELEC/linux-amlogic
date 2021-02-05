@@ -1584,10 +1584,10 @@ static ssize_t hdmitx_cec_write(struct file *f, const char __user *buf,
 	if (cec_cfg & CEC_FUNC_CFG_CEC_ON) {
 		/*cec module on*/
 		ret = cec_ll_tx(tempbuf, size, SIGNAL_FREE_TIME_NEW_INITIATOR);
-		if (ret == CEC_FAIL_NACK) {
-			return -1;
-		} else {
+		if (ret == CEC_FAIL_NONE) {
 			return size;
+		} else {
+			return -1;
 		}
 	}
 	return ret;
