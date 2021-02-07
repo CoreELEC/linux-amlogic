@@ -3179,7 +3179,8 @@ static int vpp_set_filters_no_scaler_internal(
 	next_frame_par->vscale_skip_count = 0;
 	next_frame_par->hscale_skip_count = 0;
 	next_frame_par->nocomp = false;
-	if (vpp_flags & VPP_FLAG_INTERLACE_IN)
+	if (vpp_flags & VPP_FLAG_INTERLACE_IN ||
+	   vpp_flags & VPP_FLAG_INTERLACE_OUT)
 		next_frame_par->vscale_skip_count++;
 	if (vpp_flags & VPP_FLAG_INTERLACE_OUT)
 		height_shift++;
@@ -3335,12 +3336,8 @@ RESTART:
 		next_frame_par->VPP_vsc_startp = 0;
 		next_frame_par->VPP_vsc_endp = 0;
 	} else {
-		next_frame_par->VPP_vsc_startp =
-			(vpp_flags & VPP_FLAG_INTERLACE_OUT) ?
-			(start >> 1) : start;
-		next_frame_par->VPP_vsc_endp =
-			(vpp_flags & VPP_FLAG_INTERLACE_OUT) ?
-			(end >> 1) : end;
+		next_frame_par->VPP_vsc_startp = start;
+		next_frame_par->VPP_vsc_endp = end;
 	}
 
 	/* set filter co-efficients */
@@ -3512,15 +3509,6 @@ RESTART:
 		if (skip_policy & 0x40) {
 			next_frame_par->vscale_skip_count = skip_policy & 0xf;
 			goto RESTART;
-		} else if (skip_policy & 0x80) {
-			if ((((vf->width >= 4096) &&
-			(!(vf->type & VIDTYPE_COMPRESS))) ||
-			(vf->flag & VFRAME_FLAG_HIGH_BANDWIDTH))
-			&& (next_frame_par->vscale_skip_count == 0)) {
-				next_frame_par->vscale_skip_count =
-				skip_policy & 0xf;
-				goto RESTART;
-			}
 		}
 	}
 
