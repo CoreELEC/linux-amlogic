@@ -1035,7 +1035,8 @@ struct file_private_data *v4lvideo_get_file_private_data(struct file *file_vf,
 
 	uhmod = uvm_get_hook_mod((struct dma_buf *)(file_vf->private_data),
 				 VF_PROCESS_V4LVIDEO);
-	if (!IS_ERR_VALUE(uhmod) && uhmod->arg) {
+
+	if (!IS_ERR_OR_NULL(uhmod) && uhmod->arg) {
 		file_private_data = uhmod->arg;
 		uvm_put_hook_mod((struct dma_buf *)(file_vf->private_data),
 				 VF_PROCESS_V4LVIDEO);
