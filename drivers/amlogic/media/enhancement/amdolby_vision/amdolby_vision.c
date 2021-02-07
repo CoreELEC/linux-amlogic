@@ -3725,6 +3725,7 @@ void enable_dolby_vision(int enable)
 				   is_meson_tm2_stbmode() ||
 				   is_meson_sc2()) {
 				hdr_osd_off();
+				hdr_vd1_off();
 				set_hdr_module_status(VD1_PATH,
 					HDR_MODULE_BYPASS);
 				if (dolby_vision_mask & 4)
