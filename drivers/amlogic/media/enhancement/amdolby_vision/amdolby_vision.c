@@ -7946,6 +7946,7 @@ int dolby_vision_wait_metadata(struct vframe_s *vf)
 	unsigned int mode = dolby_vision_mode;
 	enum signal_format_e check_format;
 	const struct vinfo_s *vinfo = get_current_vinfo();
+	bool vd1_on = false;
 
 	if (single_step_enable) {
 		if (dolby_vision_flags & FLAG_SINGLE_STEP)
@@ -8053,9 +8054,16 @@ int dolby_vision_wait_metadata(struct vframe_s *vf)
 					check_format, mode);
 			}
 		}
+		/*chip after g12 not used bit VPP_MISC 9:11*/
+		if (is_meson_gxm() || is_meson_txlx() || is_meson_g12()) {
+			if (READ_VPP_DV_REG(VPP_MISC) & (1 << 10))
+				vd1_on = true;
+		} else if (is_meson_tm2() || is_meson_sc2()) {
+			if (READ_VPP_DV_REG(VD1_BLEND_SRC_CTRL) & (1 << 0))
+				vd1_on = true;
+		}
 		/* don't use run mode when sdr -> dv and vd1 not disable */
-		if (dolby_vision_wait_init &&
-			(READ_VPP_DV_REG(VPP_MISC) & (1<<10)))
+		if (dolby_vision_wait_init && vd1_on)
 			dolby_vision_on_count =
 				dolby_vision_run_mode_delay + 1;
 	}
