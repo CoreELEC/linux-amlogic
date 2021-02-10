@@ -669,4 +669,6 @@ extern int VSYNC_WR_MPEG_REG(u32 adr, u32 val);
 void dv_mem_power_on(enum vpu_mod_e mode);
 void dv_mem_power_off(enum vpu_mod_e mode);
 int get_dv_mem_power_flag(enum vpu_mod_e mode);
+bool get_disable_video_flag(enum vd_path_e vd_path);
+
 #endif
