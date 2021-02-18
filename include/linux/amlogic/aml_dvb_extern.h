@@ -27,6 +27,7 @@
 struct tuner_ops {
 	bool attached;
 	bool valid; /* There is hardware exist. */
+	bool pre_inited;
 
 	int refcount;
 	int index;
@@ -34,7 +35,8 @@ struct tuner_ops {
 	int type; /* The tuner's current FE type. */
 
 	const struct tuner_module *module;
-	struct dvb_frontend fe;
+	struct dvb_frontend fe; /* Used to attach tuner. */
+	struct dvb_frontend *user; /* The current tuner user. */
 	struct tuner_config cfg;
 	struct list_head list;
 };
@@ -48,12 +50,15 @@ struct dvb_tuner {
 	int (*attach)(struct dvb_tuner *tuner, bool attach);
 	struct tuner_ops *(*match)(struct dvb_tuner *tuner, int std);
 	int (*detect)(struct dvb_tuner *tuner);
+	int (*pre_init)(struct dvb_tuner *tuner);
 };
 
 struct demod_ops {
 	bool attached;
 	bool registered;
 	bool valid; /* There is hardware. */
+	bool pre_inited;
+	bool external; /* external demod. */
 
 	int refcount;
 	int index;
@@ -78,6 +83,7 @@ struct dvb_demod {
 	struct demod_ops *(*match)(struct dvb_demod *demod, int std);
 	int (*detect)(struct dvb_demod *demod);
 	int (*register_frontend)(struct dvb_demod *demod, bool regist);
+	int (*pre_init)(struct dvb_demod *demod);
 };
 
 #if (defined CONFIG_AMLOGIC_DVB_EXTERN)
