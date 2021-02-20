@@ -2172,6 +2172,8 @@ int ts_output_add_pid(struct out_elem *pout, int pid, int pid_mask, int dmx_id,
 		tsout_config_es_table(es_pes->buff_id, es_pes->pid,
 				      pout->sid, 1, !drop_dup, pout->format);
 	} else {
+		if (cb_id)
+			*cb_id = dmx_id;
 		pid_slot = pout->pid_list;
 		while (pid_slot) {
 			if (pid_slot->pid == pid) {
