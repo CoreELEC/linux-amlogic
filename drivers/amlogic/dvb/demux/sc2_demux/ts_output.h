@@ -198,4 +198,5 @@ struct out_elem *ts_output_find_dvr(int sid);
 
 int ts_output_sid_debug(void);
 int ts_output_dump_info(char *buf);
+
 #endif
