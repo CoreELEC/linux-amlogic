@@ -19,6 +19,7 @@
 #define _HDMI_TX_MODULE_H
 #include "hdmi_info_global.h"
 #include "hdmi_config.h"
+#include "hdmi_hdcp.h"
 #include <linux/wait.h>
 #include <linux/clk.h>
 #include <linux/cdev.h>
@@ -293,48 +294,6 @@ struct hdmitx_clk_tree_s {
 	struct clk *venci_top_gate;
 	struct clk *venci_0_gate;
 	struct clk *venci_1_gate;
-};
-
-/* 2kB should be enough to record */
-#define HDCP_LOG_SIZE (1024 * 2)
-struct hdcplog_buf {
-	int idx;
-	unsigned char buf[HDCP_LOG_SIZE + 64]; /* padding 8 bytes */
-};
-
-enum hdcp_ver_e {
-	HDCPVER_NONE = 0,
-	HDCPVER_14,
-	HDCPVER_22,
-};
-
-#define MAX_KSV_LISTS 127
-struct hdcprp14_topo {
-	unsigned char max_cascade_exceeded:1;
-	unsigned char depth:3;
-	unsigned char max_devs_exceeded:1;
-	unsigned char device_count:7; /* 1 ~ 127 */
-	unsigned char ksv_list[MAX_KSV_LISTS * 5];
-};
-
-struct hdcprp22_topo {
-	unsigned int depth;
-	unsigned int device_count;
-	unsigned int v1_X_device_down;
-	unsigned int v2_0_repeater_down;
-	unsigned int max_devs_exceeded;
-	unsigned int max_cascade_exceeded;
-	unsigned char id_num;
-	unsigned char id_lists[MAX_KSV_LISTS * 5];
-};
-
-struct hdcprp_topo {
-	/* hdcp_ver currently used */
-	enum hdcp_ver_e hdcp_ver;
-	union {
-		struct hdcprp14_topo topo14;
-		struct hdcprp22_topo topo22;
-	} topo;
 };
 
 #define EDID_MAX_BLOCK              4

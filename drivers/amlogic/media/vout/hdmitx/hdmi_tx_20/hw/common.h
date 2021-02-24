@@ -95,4 +95,6 @@ void set_hpll_sspll_sc2(enum hdmi_vic vic);
 
 void hdmitx_debugfs_init(void);
 
+struct dentry *hdmitx_get_dbgfsdentry(void);
+
 #endif
