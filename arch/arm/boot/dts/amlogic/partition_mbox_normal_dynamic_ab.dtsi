@@ -24,9 +24,9 @@
 		part-9 = <&param>;
 		part-10 = <&boot_a>;
 		part-11 = <&boot_b>;
-		part-12 = <&rsv>;
+		part-12 = <&oem_a>;
 		part-13 = <&metadata>;
-		part-14 = <&rsv2>;
+		part-14 = <&oem_b>;
 		part-15 = <&vbmeta_a>;
 		part-16 = <&vbmeta_b>;
 		part-17 = <&super>;
@@ -78,8 +78,8 @@
 			size = <0x0 0x800000>;
 			mask = <2>;
 		};
-		rsv:rsv{
-			pname = "rsv";
+		oem_a:oem_a{
+			pname = "oem_a";
 			size = <0x0 0x1000000>;
 			mask = <1>;
 		};
@@ -88,8 +88,8 @@
 			size = <0x0 0x1000000>;
 			mask = <1>;
 		};
-		rsv2:rsv2{
-			pname = "rsv2";
+		oem_b:oem_b{
+			pname = "oem_b";
 			size = <0x0 0x1000000>;
 			mask = <1>;
 		};

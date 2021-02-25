@@ -21,7 +21,7 @@
 		part-6 = <&cri_data>;
 		part-7 = <&param>;
 		part-8 = <&boot>;
-		part-9 = <&rsv>;
+		part-9 = <&oem>;
 		part-10 = <&metadata>;
 		part-11 = <&vbmeta>;
 		part-12 = <&super>;
@@ -64,8 +64,8 @@
 			size = <0x0 0x800000>;
 			mask = <2>;
 		};
-		rsv:rsv{
-			pname = "rsv";
+		oem:oem{
+			pname = "oem";
 			size = <0x0 0x1000000>;
 			mask = <1>;
 		};
