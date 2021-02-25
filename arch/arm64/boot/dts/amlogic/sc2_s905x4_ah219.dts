@@ -356,7 +356,6 @@
 		status = "okay";
 
 		fe_num = <1>;
-		fe0_mode = "external";
 		fe0_demod = "cxd2856";
 		fe0_i2c_adap_id = <&i2c2>;
 		fe0_demod_i2c_addr = <0xD8>;
@@ -366,6 +365,8 @@
 		fe0_ant_poweron_value = <0>;
 		fe0_ant_power_gpio = <&gpio GPIOC_1 GPIO_ACTIVE_HIGH>;
 		fe0_ts  = <0>;
+		fe0_tuner0 = <0>; /* T/C */
+		fe0_tuner1 = <1>; /* S */
 
 		fe1_demod = "cxd2856";
 		fe1_i2c_adap_id = <&i2c2>;
@@ -376,6 +377,12 @@
 		fe1_ant_poweron_value = <0>;
 		fe1_ant_power_gpio = <&gpio GPIOC_1 GPIO_ACTIVE_HIGH>;
 		fe1_ts  = <1>;
+		fe1_tuner0 = <0>; /* T/C */
+		fe1_tuner1 = <1>; /* S */
+
+		tuner_num = <2>; /* for extern demod use tuner */
+		tuner0_name = "r836_tuner";
+		tuner1_name = "av2018_tuner";
 	};
 
 	demux {
