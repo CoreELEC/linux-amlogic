@@ -2547,8 +2547,8 @@ static int dolby_core2_set(
 				((g_vtiming >> 16) & 0xff) : g_vsize_add)));
 	}
 	if (debug_dolby & 2)
-		pr_dolby_dbg("g_hpotch %x, g_vpotch %x\n",
-		g_hpotch, g_vpotch);
+		pr_dolby_dbg("core2a g_hpotch %x, g_vpotch %x, reset %d, set_lut %d\n",
+			     g_hpotch, g_vpotch, reset, set_lut);
 	VSYNC_WR_DV_REG(DOLBY_CORE2A_SWAP_CTRL3,
 		(g_hwidth << 16) | ((g_vtiming & 0xff00) ?
 				((g_vtiming >> 8) & 0xff) : g_vwidth));
@@ -2920,16 +2920,18 @@ static int is_graphic_changed(void)
 		ret |= 2;
 	}
 
-	if ((osd_graphic_width != new_osd_graphic_width) ||
-	(osd_graphic_height != new_osd_graphic_height)) {
-		if (debug_dolby & 0x10)
+	if (osd_graphic_width != new_osd_graphic_width ||
+	    osd_graphic_height != new_osd_graphic_height) {
+		if (debug_dolby & 0x2)
 			pr_dolby_dbg("osd changed %d %d-%d %d\n",
 				     osd_graphic_width,
 				     osd_graphic_height,
 				     new_osd_graphic_width,
 				     new_osd_graphic_height);
-		/* TODO: since tm2 can change osd pps position */
-		if (!is_osd_off && !is_meson_tm2() && !is_meson_sc2()) {
+
+		/* TODO: g12/tm2/sc2/t7 osd pps is after dolby core2, but */
+		/* sometimes osd do crop,should monitor osd size change*/
+		if (!is_osd_off /*&& !is_meson_tm2() && !is_meson_sc2()*/) {
 			osd_graphic_width = new_osd_graphic_width;
 			osd_graphic_height = new_osd_graphic_height;
 			ret |= 2;
@@ -2937,7 +2939,7 @@ static int is_graphic_changed(void)
 	}
 	if (old_dolby_vision_graphic_max !=
 	    dolby_vision_graphic_max) {
-		if (debug_dolby & 0x10)
+		if (debug_dolby & 0x2)
 			pr_dolby_dbg("graphic max changed %d-%d\n",
 				     old_dolby_vision_graphic_max,
 				     dolby_vision_graphic_max);
