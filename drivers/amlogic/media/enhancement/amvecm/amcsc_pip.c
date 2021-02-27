@@ -194,7 +194,8 @@ int hdr_policy_process(
 		dv_hdr_policy = get_dolby_vision_hdr_policy();
 	}
 
-	if (get_hdr_module_status(vd_path) != HDR_MODULE_ON) {
+	if (get_hdr_module_status(vd_path) != HDR_MODULE_ON &&
+	   cur_hdr_policy != 2) {
 		/* hdr module off or bypass */
 		sdr_process_mode[vd_path] = PROC_BYPASS;
 		hdr_process_mode[vd_path] = PROC_BYPASS;
@@ -740,6 +741,8 @@ int hdr_policy_process(
 				case HDRTYPE_SDR:
 					/* VD2 source SDR */
 					if ((target_format[oth_path] ==
+					BT2020) ||
+					(target_format[oth_path] ==
 					BT2020_PQ) ||
 					(target_format[oth_path] ==
 					BT2020_PQ_DYNAMIC)) {
@@ -748,7 +751,7 @@ int hdr_policy_process(
 						sdr_process_mode[vd_path] =
 							PROC_SDR_TO_HDR;
 						target_format[vd_path] =
-							BT2020_PQ;
+							target_format[oth_path];
 					} else if (target_format[oth_path] ==
 					BT2020_HLG) {
 						/* other layer on and not sdr */
