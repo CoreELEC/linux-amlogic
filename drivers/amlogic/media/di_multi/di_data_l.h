@@ -28,7 +28,7 @@
 #include "../deinterlace/di_pqa.h"
 //#include "di_pqa.h"
 
-#define DI_CHANNEL_NUB	(2)
+#define DI_CHANNEL_NUB	(4)
 #define DI_CHANNEL_MAX  (4)
 
 /* for vfm mode limit input vf */
