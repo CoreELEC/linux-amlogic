@@ -43,6 +43,7 @@ dtb-$(CONFIG_ARM64) += coreelec-gxl/gxl_p212_3g.dtb
 dtb-$(CONFIG_ARM64) += coreelec-gxl/gxl_p230_2g.dtb
 dtb-$(CONFIG_ARM64) += coreelec-gxl/gxl_p230_k1_pro.dtb
 dtb-$(CONFIG_ARM64) += coreelec-gxl/gxl_p230_k1_pro_ser.dtb
+dtb-$(CONFIG_ARM64) += coreelec-gxl/gxl_p230_k2_pro_100mbit.dtb
 dtb-$(CONFIG_ARM64) += coreelec-gxl/gxl_p231_1g.dtb
 dtb-$(CONFIG_ARM64) += coreelec-gxl/gxl_p231_1g_dm14.dtb
 dtb-$(CONFIG_ARM64) += coreelec-gxl/gxl_p231_1g_dvb.dtb
