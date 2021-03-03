@@ -2128,6 +2128,9 @@ int ts_output_add_pid(struct out_elem *pout, int pid, int pid_mask, int dmx_id,
 	struct pid_entry *pid_slot = NULL;
 	struct es_entry *es_pes = NULL;
 
+	if (!pout)
+		return -1;
+
 	if (cb_id)
 		*cb_id = 0;
 
@@ -2274,15 +2277,21 @@ int ts_output_remove_pid(struct out_elem *pout, int pid)
 int ts_output_set_mem(struct out_elem *pout, int memsize,
 	int sec_level, int pts_memsize, int pts_level)
 {
+	int ret = 0;
 	pr_dbg("%s mem size:0x%0x, pts_memsize:0x%0x, sec_level:%d\n",
 		__func__, memsize, pts_memsize, sec_level);
 
-	if (pout && pout->pchan)
-		SC2_bufferid_set_mem(pout->pchan, memsize, sec_level);
-
-	if (pout && pout->pchan1)
-		SC2_bufferid_set_mem(pout->pchan1, pts_memsize, pts_level);
-
+	if (pout && pout->pchan) {
+		ret = SC2_bufferid_set_mem(pout->pchan, memsize, sec_level);
+		if (ret != 0)
+			return -1;
+	}
+	if (pout && pout->pchan1) {
+		ret = SC2_bufferid_set_mem(pout->pchan1,
+				pts_memsize, pts_level);
+		if (ret != 0)
+			return -1;
+	}
 	return 0;
 }
 
@@ -2396,7 +2405,8 @@ static void remove_udata(struct cb_entry *tmp_cb, void *udata)
 	/*remove the free feed*/
 	for (i = 0; i <= tmp_cb->ref && i < MAX_FEED_NUM; i++) {
 		if (tmp_cb->udata[i] == udata) {
-			for (j = i; j < tmp_cb->ref && j < MAX_FEED_NUM; j++)
+			for (j = i; j < tmp_cb->ref && j < MAX_FEED_NUM - 1;
+				j++)
 				tmp_cb->udata[j] = tmp_cb->udata[j + 1];
 		}
 	}
