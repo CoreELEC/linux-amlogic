@@ -549,6 +549,8 @@ meson_plane_duplicate_state(struct drm_plane *plane)
 	if (WARN_ON(!plane->state))
 		return NULL;
 
+	DRM_DEBUG("meson_plane_duplicate_state (%s)\n", plane->name);
+
 	old_plane_state = to_am_meson_plane_state(plane->state);
 	meson_plane_state = kmemdup(old_plane_state,
 				    sizeof(*meson_plane_state), GFP_KERNEL);
@@ -666,6 +668,9 @@ static int meson_plane_atomic_check(struct drm_plane *plane,
 		DRM_INFO("%s state/meson_drm is NULL!\n", __func__);
 		return -EINVAL;
 	}
+
+	DRM_DEBUG("meson_plane_atomic_check [%d]\n", osd_plane->plane_index);
+
 	mvps = meson_vpu_pipeline_get_state(drv->pipeline, state->state);
 	if (!mvps || osd_plane->plane_index >= MESON_MAX_OSDS) {
 		DRM_INFO("%s mvps/osd_plane is NULL!\n", __func__);
@@ -695,14 +700,17 @@ static int meson_plane_atomic_check(struct drm_plane *plane,
 	if (ret < 0 || plane_info->src_w > MESON_OSD_INPUT_W_LIMIT ||
 	    plane_info->src_w == 0) {
 		plane_info->enable = 0;
+		DRM_DEBUG("fb is invalid, disable plane[%d].\n",
+			  plane_info->src_w);
 		return ret;
 	}
 
 	plane_state = to_am_meson_plane_state(state);
 	plane_info->premult_en = plane_state->premult_en;
 	plane_info->enable = 1;
-	DRM_DEBUG("index=%d, zorder=%d\n",
-		  plane_info->plane_index, plane_info->zorder);
+	DRM_DEBUG("OSD PLANE index=%d, zorder=%d, phy = %llx\n",
+		  plane_info->plane_index, plane_info->zorder,
+		  plane_info->phy_addr);
 	DRM_DEBUG("src_x/y/w/h=%d/%d/%d/%d\n",
 		  plane_info->src_x, plane_info->src_y,
 		plane_info->src_w, plane_info->src_h);
@@ -726,6 +734,9 @@ static int meson_video_plane_atomic_check(struct drm_plane *plane,
 		DRM_INFO("%s state/meson_drm is NULL!\n", __func__);
 		return -EINVAL;
 	}
+
+	DRM_DEBUG("planeidx [%d]\n", video_plane->plane_index);
+
 	mvps = meson_vpu_pipeline_get_state(drv->pipeline, state->state);
 	if (!mvps || video_plane->plane_index >= MESON_MAX_VIDEO) {
 		DRM_INFO("%s mvps/video_plane is NULL!\n", __func__);
@@ -733,7 +744,7 @@ static int meson_video_plane_atomic_check(struct drm_plane *plane,
 	}
 	plane_info = &mvps->video_plane_info[video_plane->plane_index];
 	plane_info->plane_index = video_plane->plane_index;
-	plane_info->zorder = state->zpos;
+	plane_info->zorder = state->zpos + plane_info->plane_index;
 
 	mvps->plane_index[video_plane->plane_index] = video_plane->plane_index;
 	meson_video_plane_position_calc(plane_info, state,
@@ -754,7 +765,7 @@ static int meson_video_plane_atomic_check(struct drm_plane *plane,
 
 	plane_state = to_am_meson_plane_state(state);
 	plane_info->enable = 1;
-	DRM_DEBUG("index=%d, zorder=%d\n",
+	DRM_DEBUG("VIDOE PLANE index=%d, zorder=%d\n",
 		  plane_info->plane_index, plane_info->zorder);
 	DRM_DEBUG("src_x/y/w/h=%d/%d/%d/%d\n",
 		  plane_info->src_x, plane_info->src_y,
@@ -815,11 +826,10 @@ int drm_plane_create_premult_en_property(struct drm_plane *plane)
 	return 0;
 }
 
-static struct am_osd_plane *am_plane_create(struct meson_drm *priv, int i)
+static struct am_osd_plane *am_osd_plane_create(struct meson_drm *priv, int i)
 {
 	struct am_osd_plane *osd_plane;
 	struct drm_plane *plane;
-	struct meson_vpu_pipeline *pipeline = priv->pipeline;
 	u32 type = 0, zpos, min_zpos, max_zpos;
 	char plane_name[8];
 	const u64 *format_modifiers = afbc_modifier;
@@ -834,15 +844,17 @@ static struct am_osd_plane *am_plane_create(struct meson_drm *priv, int i)
 	else
 		type = DRM_PLANE_TYPE_OVERLAY;
 
+	min_zpos = OSD_PLANE_BEGIN_ZORDER;
+	max_zpos = OSD_PLANE_END_ZORDER;
+
 	osd_plane->drv = priv;
 	osd_plane->plane_index = i;
+	osd_plane->plane_type = OSD_PLANE;
 	if (logo.osd_reverse)
 		osd_plane->osd_reverse = DRM_REFLECT_MASK;
 	else
 		osd_plane->osd_reverse = DRM_ROTATE_0;
-	zpos = osd_plane->plane_index + pipeline->num_video;
-	min_zpos = MESON_PLANE_BEGIN_ZORDER;
-	max_zpos = MESON_PLANE_END_ZORDER;
+	zpos = osd_plane->plane_index + min_zpos;
 
 	plane = &osd_plane->base;
 	sprintf(plane_name, "osd%d", i);
@@ -861,6 +873,7 @@ static struct am_osd_plane *am_plane_create(struct meson_drm *priv, int i)
 						  DRM_REFLECT_MASK);
 	drm_plane_create_zpos_property(plane, zpos, min_zpos, max_zpos);
 	drm_plane_helper_add(plane, &am_osd_helper_funcs);
+	DRM_INFO("osd plane %d create done\n", i);
 	return osd_plane;
 }
 
@@ -879,12 +892,13 @@ static struct am_video_plane *am_video_plane_create(struct meson_drm *priv,
 		DRM_INFO("no memory to alloc video plane\n");
 		return 0;
 	}
+	min_zpos = 0;
+	max_zpos = 255;
 
 	video_plane->drv = priv;
 	video_plane->plane_index = i;
-	zpos = video_plane->plane_index;
-	min_zpos = MESON_PLANE_BEGIN_ZORDER;
-	max_zpos = MESON_PLANE_END_ZORDER;
+	video_plane->plane_type = VIDEO_PLANE;
+	zpos = video_plane->plane_index + min_zpos;
 
 	plane = &video_plane->base;
 	sprintf(plane_name, "video%d", i);
@@ -909,8 +923,29 @@ int am_meson_plane_create(struct meson_drm *priv)
 	struct meson_vpu_pipeline *pipeline = priv->pipeline;
 	int i, osd_index, video_index;
 
-	/*video plane*/
-	for (i = pipeline->num_video - 1; i >= 0; i--) {
+	memset(priv->osd_planes, 0,
+	       sizeof(struct am_osd_plane *) * MESON_MAX_OSD);
+	memset(priv->video_planes, 0,
+	       sizeof(struct am_video_plane *) * MESON_MAX_VIDEO);
+
+	/*osd plane*/
+	for (i = 0; i < pipeline->num_osds; i++) {
+		osd_index = pipeline->osds[i]->base.index;
+		plane = am_osd_plane_create(priv, osd_index);
+
+		if (!plane)
+			return -ENOMEM;
+
+		if (i == 0)
+			priv->primary_plane = &plane->base;
+
+		priv->osd_planes[i] = plane;
+		priv->num_planes++;
+	}
+	DRM_INFO("create %d osd plane done\n", pipeline->num_osds);
+
+	/*video plane: init after osd to provide osd id at first.*/
+	for (i = 0; i < pipeline->num_video; i++) {
 		video_index = pipeline->video[i]->base.index;
 		video_plane = am_video_plane_create(priv, video_index);
 
@@ -920,21 +955,7 @@ int am_meson_plane_create(struct meson_drm *priv)
 		priv->video_planes[i] = video_plane;
 		priv->num_planes++;
 	}
-	DRM_DEBUG("create %d video plane done\n", pipeline->num_video);
-	/*osd plane*/
-	for (i = 0; i < pipeline->num_osds; i++) {
-		osd_index = pipeline->osds[i]->base.index;
-		plane = am_plane_create(priv, osd_index);
-
-		if (!plane)
-			return -ENOMEM;
-
-		if (i == 0)
-			priv->primary_plane = &plane->base;
-
-		priv->planes[priv->num_planes++] = plane;
-	}
-	DRM_DEBUG("create %d osd plane done\n", pipeline->num_osds);
+	DRM_INFO("create %d video plane done\n", pipeline->num_video);
 
 	return 0;
 }

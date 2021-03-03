@@ -414,7 +414,7 @@ int drm_plane_create_dv_policy_property(struct drm_crtc *crtc)
 	#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 	dv_policy = get_dolby_vision_policy();
 	#else
-	dv_policy = DRM_MODE_DV_FOLLOW_SINK
+	dv_policy = DRM_MODE_DV_FOLLOW_SINK;
 	#endif
 
 	amcrtc = to_am_meson_crtc(crtc);

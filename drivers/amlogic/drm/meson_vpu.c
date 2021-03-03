@@ -266,6 +266,7 @@ static int am_meson_vpu_bind(struct device *dev,
 
 	ret = of_property_read_u8(dev->of_node,
 				  "osd_ver", &pipeline->osd_version);
+	meson_drm_osd_canvas_alloc();
 	vpu_pipeline_init(pipeline);
 
 	/*vsync irq.*/
@@ -297,6 +298,7 @@ static void am_meson_vpu_unbind(struct device *dev,
 	amvecm_drm_gamma_disable(0);
 	am_meson_ctm_disable();
 #endif
+	meson_drm_osd_canvas_free();
 }
 
 static const struct component_ops am_meson_vpu_component_ops = {

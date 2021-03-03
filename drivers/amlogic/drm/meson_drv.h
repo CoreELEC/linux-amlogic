@@ -80,7 +80,7 @@ struct meson_drm {
 	struct am_meson_crtc *crtcs[MESON_MAX_CRTC];
 
 	u32 num_planes;
-	struct am_osd_plane *planes[MESON_MAX_OSD];
+	struct am_osd_plane *osd_planes[MESON_MAX_OSD];
 	struct am_video_plane *video_planes[MESON_MAX_VIDEO];
 	struct meson_drm_fbdev_config ui_config;
 };

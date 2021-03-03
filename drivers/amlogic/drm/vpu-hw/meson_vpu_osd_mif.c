@@ -98,8 +98,7 @@ static struct osd_mif_reg_s osd_mif_reg[HW_OSD_MIF_NUM] = {
 	}
 };
 
-static unsigned int osd_canvas[3][2] = {
-	{0x41, 0x42}, {0x43, 0x44}, {0x45, 0x46} };
+static unsigned int osd_canvas[3][2];
 static u32 osd_canvas_index[3] = {0, 0, 0};
 
 /*
@@ -528,6 +527,24 @@ void meson_drm_unmap_phyaddr(u8 *vaddr)
 	vunmap(addr);
 }
 
+void meson_drm_osd_canvas_alloc(void)
+{
+	if (canvas_pool_alloc_canvas_table("osd_drm",
+					   &osd_canvas[0][0],
+					   sizeof(osd_canvas) /
+					   sizeof(osd_canvas[0][0]),
+					   CANVAS_MAP_TYPE_1)) {
+		DRM_INFO("allocate drm osd canvas error.\n");
+	}
+}
+
+void meson_drm_osd_canvas_free(void)
+{
+	canvas_pool_free_canvas_table(&osd_canvas[0][0],
+				      sizeof(osd_canvas) /
+				      sizeof(osd_canvas[0][0]));
+}
+
 static int osd_check_state(struct meson_vpu_block *vblk,
 			   struct meson_vpu_block_state *state,
 		struct meson_vpu_pipeline_state *mvps)
@@ -545,7 +562,7 @@ static int osd_check_state(struct meson_vpu_block *vblk,
 		DRM_INFO("mvos is NULL!\n");
 		return -1;
 	}
-	DRM_DEBUG("%s check_state called.\n", osd->base.name);
+	DRM_DEBUG("%s - %d check_state called.\n", osd->base.name, vblk->index);
 	plane_info = &mvps->plane_info[vblk->index];
 	mvos->src_x = plane_info->src_x;
 	mvos->src_y = plane_info->src_y;
@@ -559,6 +576,7 @@ static int osd_check_state(struct meson_vpu_block *vblk,
 	mvos->rotation = plane_info->rotation;
 	mvos->afbc_en = plane_info->afbc_en;
 	mvos->blend_bypass = plane_info->blend_bypass;
+	mvos->plane_index = plane_info->plane_index;
 	return 0;
 }
 

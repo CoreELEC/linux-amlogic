@@ -546,4 +546,9 @@ extern struct meson_vpu_block_ops hdr_ops;
 extern struct meson_vpu_block_ops dolby_ops;
 extern struct meson_vpu_block_ops postblend_ops;
 
+extern u32 overwrite_reg[256];
+extern u32 overwrite_val[256];
+extern int overwrite_enable;
+extern int reg_num;
+
  #endif

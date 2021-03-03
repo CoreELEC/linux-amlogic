@@ -412,6 +412,7 @@ static void am_meson_load_logo(struct drm_device *dev)
 	struct drm_framebuffer *fb;
 	struct drm_display_mode *mode;
 	struct drm_connector **connector_set;
+	struct drm_connector *connector;
 	struct meson_drm *private = dev->dev_private;
 
 	if (!logo.alloc_flag) {
@@ -427,14 +428,15 @@ static void am_meson_load_logo(struct drm_device *dev)
 				      GFP_KERNEL);
 	if (!connector_set)
 		return;
-#ifdef CONFIG_DRM_MESON_HDMI
-	connector_set[0] = am_meson_hdmi_connector();
-#endif
-	if (!connector_set[0]) {
-		DRM_INFO("%s:connector is NULL!\n", __func__);
-		kfree(connector_set);
-		return;
+
+	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
+		if (connector->connector_type == DRM_MODE_CONNECTOR_LVDS)
+			break;
+		else if (connector->connector_type == DRM_MODE_CONNECTOR_HDMIA)
+			break;
 	}
+
+	connector_set[0] = connector;
 	mode = am_meson_drm_display_mode_init(connector_set[0]);
 	if (!mode) {
 		DRM_INFO("%s:display mode is NULL!\n", __func__);

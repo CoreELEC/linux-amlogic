@@ -27,29 +27,43 @@
 #include <linux/amlogic/meson_uvm_core.h>
 #include "meson_fb.h"
 
-#define MESON_PLANE_BEGIN_ZORDER	1
-#define MESON_PLANE_END_ZORDER		65
+/*legacy video driver issue caused zorder problem.*/
+#define OSD_PLANE_BEGIN_ZORDER	65
+#define OSD_PLANE_END_ZORDER		128
 
 struct am_meson_plane_state {
 	struct drm_plane_state base;
 	u32 premult_en;
 };
 
+enum meson_plane_type {
+	OSD_PLANE = 0,
+	VIDEO_PLANE,
+};
+
 struct am_osd_plane {
+	/*base struct, same as am_video_plane*/
 	struct drm_plane base; //must be first element.
 	struct meson_drm *drv; //point to struct parent.
 	struct dentry *plane_debugfs_dir;
 	int plane_index;
+	int plane_type;
+
+	/*osd extend*/
 	u32 osd_reverse;
 	u32 osd_blend_bypass;
 	struct drm_property *prop_premult_en;
 };
 
 struct am_video_plane {
+	/*base struct, same as am_video_plane*/
 	struct drm_plane base; //must be first element.
 	struct meson_drm *drv; //point to struct parent.
 	struct dentry *plane_debugfs_dir;
 	int plane_index;
+	int plane_type;
+
+	/*video exted*/
 };
 
 #define to_am_osd_plane(x) container_of(x, \

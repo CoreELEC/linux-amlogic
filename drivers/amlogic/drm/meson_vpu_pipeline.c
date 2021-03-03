@@ -312,7 +312,15 @@ static void vpu_pipeline_planes_calc(struct meson_vpu_pipeline *pipeline,
 				mvps->plane_info[i].enable = 0;
 				continue;
 			}
+			DRM_DEBUG("osdplane [%d] enable:(%d-%llx, %d-%d)\n",
+				mvps->plane_info[i].plane_index,
+				mvps->plane_info[i].zorder,
+				mvps->plane_info[i].phy_addr,
+				mvps->plane_info[i].dst_w,
+				mvps->plane_info[i].dst_h);
 			mvps->num_plane++;
+		} else {
+			DRM_DEBUG("osdplane indx [%d] disable.\n", i);
 		}
 	}
 	for (i = 0; i < pipeline->num_video; i++) {
@@ -372,6 +380,9 @@ void vpu_pipeline_init(struct meson_vpu_pipeline *pipeline)
 int vpu_pipeline_update(struct meson_vpu_pipeline *pipeline,
 			struct drm_atomic_state *old_state)
 {
+#ifdef CONFIG_DEBUG_FS
+	int i;
+#endif
 	unsigned long id;
 	struct meson_vpu_block *mvb;
 	struct meson_vpu_block_state *mvbs;
@@ -399,6 +410,13 @@ int vpu_pipeline_update(struct meson_vpu_pipeline *pipeline,
 			mvb->ops->disable(mvb);
 		}
 	}
+
+#ifdef CONFIG_DEBUG_FS
+	if (overwrite_enable) {
+		for (i = 0; i < reg_num; i++)
+			meson_vpu_write_reg(overwrite_reg[i], overwrite_val[i]);
+	}
+#endif
 
 	return 0;
 }
