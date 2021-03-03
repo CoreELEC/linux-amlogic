@@ -1055,6 +1055,8 @@ void set_hdr_matrix(
 	unsigned int GMUT_COEF4 = 0;
 
 	unsigned int hdr_ctrl = 0;
+	unsigned int hdr_clk_gate = 0;
+	unsigned int cur_hdr_ctrl = 0;
 
 	int adpscl_mode = 0;
 
@@ -1145,6 +1147,7 @@ void set_hdr_matrix(
 		GMUT_COEF4 = VD1_HDR2_GMUT_COEF4;
 
 		hdr_ctrl = VD1_HDR2_CTRL;
+		hdr_clk_gate = VD1_HDR2_CLK_GATE;
 	} else if (module_sel == VD2_HDR) {
 		MATRIXI_COEF00_01 = VD2_HDR2_MATRIXI_COEF00_01;
 		MATRIXI_COEF00_01 = VD2_HDR2_MATRIXI_COEF00_01;
@@ -1197,6 +1200,7 @@ void set_hdr_matrix(
 		GMUT_COEF4 = VD2_HDR2_GMUT_COEF4;
 
 		hdr_ctrl = VD2_HDR2_CTRL;
+		hdr_clk_gate = VD2_HDR2_CLK_GATE;
 	} else if (module_sel == OSD1_HDR) {
 		MATRIXI_COEF00_01 = OSD1_HDR2_MATRIXI_COEF00_01;
 		MATRIXI_COEF00_01 = OSD1_HDR2_MATRIXI_COEF00_01;
@@ -1249,6 +1253,7 @@ void set_hdr_matrix(
 		GMUT_COEF4 = OSD1_HDR2_GMUT_COEF4;
 
 		hdr_ctrl = OSD1_HDR2_CTRL;
+		hdr_clk_gate = OSD1_HDR2_CLK_GATE;
 	} else if (module_sel == DI_HDR) {
 		MATRIXI_COEF00_01 = DI_HDR2_MATRIXI_COEF00_01;
 		MATRIXI_COEF00_01 = DI_HDR2_MATRIXI_COEF00_01;
@@ -1301,6 +1306,7 @@ void set_hdr_matrix(
 		GMUT_COEF4 = DI_HDR2_GMUT_COEF4;
 
 		hdr_ctrl = DI_HDR2_CTRL;
+		/* hdr_clk_gate = DI_HDR2_CLK_GATE; */
 	} else if (module_sel == VDIN0_HDR) {
 		MATRIXI_COEF00_01 = VDIN0_HDR2_MATRIXI_COEF00_01;
 		MATRIXI_COEF00_01 = VDIN0_HDR2_MATRIXI_COEF00_01;
@@ -1353,6 +1359,7 @@ void set_hdr_matrix(
 		GMUT_COEF4 = VDIN0_HDR2_GMUT_COEF4;
 
 		hdr_ctrl = VDIN0_HDR2_CTRL;
+		/* hdr_clk_gate = VDIN0_HDR2_CLK_GATE; */
 	} else if (module_sel == VDIN1_HDR) {
 		MATRIXI_COEF00_01 = VDIN1_HDR2_MATRIXI_COEF00_01;
 		MATRIXI_COEF00_01 = VDIN1_HDR2_MATRIXI_COEF00_01;
@@ -1405,13 +1412,36 @@ void set_hdr_matrix(
 		GMUT_COEF4 = VDIN1_HDR2_GMUT_COEF4;
 
 		hdr_ctrl = VDIN1_HDR2_CTRL;
+		/* hdr_clk_gate = VDIN1_HDR2_CLK_GATE; */
 	}
 
 	if (hdr_mtx_param == NULL)
 		return;
 
+	/* need change clock gate as freerun */
+	/* when mtx on directly, not rdma op */
+	/* Now only operate osd1/vd1/vd2 hdr core */
+	if (get_cpu_type() <= MESON_CPU_MAJOR_ID_SC2) {
+		if (hdr_clk_gate != 0) {
+			cur_hdr_ctrl = READ_VPP_REG(hdr_ctrl);
+			if (hdr_mtx_param->mtx_on &&
+				!(cur_hdr_ctrl & (1 << 13))) {
+				WRITE_VPP_REG_BITS(hdr_clk_gate, 0xaaa, 0, 12);
+				VSYNC_WR_MPEG_REG_BITS(hdr_clk_gate, 0xaaa,
+					0, 12);
+			}
+		}
+	}
+
 	VSYNC_WR_MPEG_REG_BITS(hdr_ctrl,
-		hdr_mtx_param->mtx_on, 13, 1);
+		 hdr_mtx_param->mtx_on, 13, 1);
+
+	/* recover the clock gate as auto gate by rdma op when mtx off */
+	/* Now only operate osd1/vd1/vd2 hdr core */
+	if (get_cpu_type() <= MESON_CPU_MAJOR_ID_SC2) {
+		if (hdr_clk_gate != 0 && !hdr_mtx_param->mtx_on)
+			VSYNC_WR_MPEG_REG_BITS(hdr_clk_gate, 0, 0, 12);
+	}
 
 	if (mtx_sel == HDR_IN_MTX) {
 		for (i = 0; i < MTX_NUM_PARAM; i++)
