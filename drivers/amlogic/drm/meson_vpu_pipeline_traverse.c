@@ -550,7 +550,7 @@ int vpu_pipeline_check_block(int *combination, int num_planes,
 int vpu_video_pipeline_check_block(struct meson_vpu_pipeline_state *mvps,
 				   struct drm_atomic_state *state)
 {
-	int i, ret;
+	int i, ret = 0;
 	struct meson_vpu_block *block;
 	struct meson_vpu_block_state *mvbs;
 
