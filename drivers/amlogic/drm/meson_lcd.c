@@ -110,6 +110,11 @@ static int am_lcd_connector_get_modes(struct drm_connector *connector)
 		lcd->mode->hdisplay, lcd->mode->vdisplay);
 
 	mode = drm_mode_duplicate(connector->dev, lcd->mode);
+	if (!mode) {
+		pr_warn("am_drm_lcd: %s, null mode after duplication!\n",
+		__func__);
+		goto out;
+	}
 	pr_info("am_drm_lcd: %s: drm mode [%s] display size: %d x %d\n",
 		__func__, mode->name, mode->hdisplay, mode->vdisplay);
 	pr_info("am_drm_lcd: %s: lcd config size: %d x %d\n",
@@ -118,6 +123,8 @@ static int am_lcd_connector_get_modes(struct drm_connector *connector)
 
 	drm_mode_probed_add(connector, mode);
 	count = 1;
+
+out:
 	pr_info("am_drm_lcd: %s %d\n", __func__, __LINE__);
 	pr_info("***************************************************\n");
 
