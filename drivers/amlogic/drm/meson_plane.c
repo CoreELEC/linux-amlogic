@@ -280,7 +280,7 @@ static int meson_plane_fb_check(struct drm_plane *plane,
 	#else
 	struct drm_gem_cma_object *gem;
 	#endif
-	u32 fb_size = 0;
+	size_t fb_size = 0;
 	phys_addr_t phyaddr;
 
 	#ifdef CONFIG_DRM_MESON_USE_ION
@@ -300,7 +300,7 @@ static int meson_plane_fb_check(struct drm_plane *plane,
 	} else  if (meson_fb->bufp[0]) {
 		phyaddr = am_meson_gem_object_get_phyaddr(drv,
 							  meson_fb->bufp[0],
-							  (size_t *)&fb_size);
+							  &fb_size);
 	} else {
 		phyaddr = 0;
 		DRM_INFO("don't find phyaddr!\n");
@@ -320,7 +320,7 @@ static int meson_plane_fb_check(struct drm_plane *plane,
 	phyaddr = gem->paddr;
 	#endif
 	plane_info->phy_addr = phyaddr;
-	plane_info->fb_size = fb_size;
+	plane_info->fb_size = (u32)fb_size;
 	return 0;
 }
 
@@ -337,7 +337,7 @@ static int meson_video_plane_fb_check(struct drm_plane *plane,
 	#else
 	struct drm_gem_cma_object *gem;
 	#endif
-	u32 fb_size[2] = {0};
+	size_t fb_size[2] = {0};
 	phys_addr_t phyaddr, phyaddr1 = 0;
 
 	#ifdef CONFIG_DRM_MESON_USE_ION
@@ -354,7 +354,7 @@ static int meson_video_plane_fb_check(struct drm_plane *plane,
 		phyaddr =
 			am_meson_gem_object_get_phyaddr(drv,
 							meson_fb->bufp[0],
-							(size_t *)&fb_size[0]);
+							&fb_size[0]);
 	} else {
 		phyaddr = 0;
 		DRM_INFO("don't find phyaddr!\n");
@@ -366,7 +366,7 @@ static int meson_video_plane_fb_check(struct drm_plane *plane,
 		phyaddr1 =
 			am_meson_gem_object_get_phyaddr(drv,
 							meson_fb->bufp[1],
-							(size_t *)&fb_size[1]);
+							&fb_size[1]);
 	/* start to get vframe from uvm */
 	if (meson_fb->bufp[0]->is_uvm) {
 		ubo = &meson_fb->bufp[0]->ubo;
@@ -388,9 +388,9 @@ static int meson_video_plane_fb_check(struct drm_plane *plane,
 	phyaddr = gem->paddr;
 	#endif
 	plane_info->phy_addr[0] = phyaddr;
-	plane_info->fb_size[0] = fb_size[0];
+	plane_info->fb_size[0] = (u32)fb_size[0];
 	plane_info->phy_addr[1] = phyaddr1;
-	plane_info->fb_size[1] = fb_size[1];
+	plane_info->fb_size[1] = (u32)fb_size[1];
 	return 0;
 }
 

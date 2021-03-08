@@ -139,7 +139,7 @@ static void parse_vpu_node(struct device_node *child_node,
 			link = of_find_node_by_phandle(be32_to_cpup(phandle));
 			of_property_read_u8(link, "id", &id);
 			para->inputs[j].id = id;
-			in_mask |= 1 << id;
+			in_mask |= ((u64)1) << id;
 		}
 		para->inputs_mask = in_mask;
 	}
@@ -157,7 +157,7 @@ static void parse_vpu_node(struct device_node *child_node,
 			link = of_find_node_by_phandle(be32_to_cpup(phandle));
 			of_property_read_u8(link, "id", &id);
 			para->outputs[j].id = id;
-			out_mask |= 1 << id;
+			out_mask |= ((u64)1) << id;
 		}
 		para->outputs_mask = out_mask;
 	}

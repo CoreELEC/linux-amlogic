@@ -288,7 +288,8 @@ phys_addr_t am_meson_gem_object_get_phyaddr(
 	struct am_meson_gem_object *meson_gem,
 	size_t *len)
 {
-	*len = meson_gem->base.size;
+	if (len)
+		*len = meson_gem->base.size;
 	return meson_gem->addr;
 }
 EXPORT_SYMBOL(am_meson_gem_object_get_phyaddr);
