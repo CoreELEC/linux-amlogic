@@ -33,7 +33,7 @@
 		part-18 = <&vbmeta_a>;
 		part-19 = <&vbmeta_b>;
 		part-20 = <&super>;
-		part-21 = <&data>;
+		part-21 = <&userdata>;
 
 		logo:logo{
 			pname = "logo";
@@ -146,9 +146,9 @@
 			size = <0x0 0xC8800000>;
 			mask = <1>;
 		};
-		data:data
+		userdata:userdata
 		{
-			pname = "data";
+			pname = "userdata";
 			size = <0xffffffff 0xffffffff>;
 			mask = <4>;
 		};
