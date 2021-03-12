@@ -97,6 +97,9 @@ static unsigned int dolby_vision_level = 0xff;
 module_param(dolby_vision_level, uint, 0664);
 MODULE_PARM_DESC(dolby_vision_level, "\n dolby_vision_level\n");
 
+static unsigned int primary_debug;
+module_param(primary_debug, uint, 0664);
+MODULE_PARM_DESC(primary_debug, "\n primary_debug\n");
 /* STB: if sink support DV, always output DV*/
 /*		else always output SDR/HDR */
 /* TV:  when source is DV, convert to SDR */
@@ -6142,13 +6145,24 @@ static int parse_sei_and_meta(
 }
 
 #define INORM	50000
+
 static u32 bt2020_primaries[3][2] = {
 	{0.17 * INORM + 0.5, 0.797 * INORM + 0.5},	/* G */
 	{0.131 * INORM + 0.5, 0.046 * INORM + 0.5},	/* B */
 	{0.708 * INORM + 0.5, 0.292 * INORM + 0.5},	/* R */
 };
 
+static u32 p3_primaries[3][2] = {
+	{0.265 * INORM + 0.5, 0.69 * INORM + 0.5},	/* G */
+	{0.15 * INORM + 0.5, 0.06 * INORM + 0.5},	/* B */
+	{0.68 * INORM + 0.5, 0.32 * INORM + 0.5},	/* R */
+};
+
 static u32 bt2020_white_point[2] = {
+	0.3127 * INORM + 0.5, 0.3290 * INORM + 0.5
+};
+
+static u32 p3_white_point[2] = {
 	0.3127 * INORM + 0.5, 0.3290 * INORM + 0.5
 };
 
@@ -6163,7 +6177,9 @@ void prepare_hdr10_param(
 	uint32_t min_lum = 50;
 	int primaries_type = 0;
 
-	if (dolby_vision_flags & FLAG_CERTIFICAION) {
+	if (get_primary_policy() == PRIMARIES_NATIVE ||
+		primary_debug == 1 ||
+		(dolby_vision_flags & FLAG_CERTIFICAION)) {
 		p_hdr10_param->
 		min_display_mastering_luminance
 			= min_lum;
@@ -6186,6 +6202,33 @@ void prepare_hdr10_param(
 			= bt2020_white_point[0];
 		p_hdr10_param->Wy
 			= bt2020_white_point[1];
+		p_hdr10_param->max_content_light_level = 0;
+		p_hdr10_param->max_pic_average_light_level = 0;
+		return;
+	} else if (get_primary_policy() == PRIMARIES_AUTO ||
+		primary_debug == 2) {
+		p_hdr10_param->
+		min_display_mastering_luminance
+			= min_lum;
+		p_hdr10_param->
+		max_display_mastering_luminance
+			= max_lum;
+		p_hdr10_param->Rx
+			= p3_primaries[2][0];
+		p_hdr10_param->Ry
+			= p3_primaries[2][1];
+		p_hdr10_param->Gx
+			= p3_primaries[0][0];
+		p_hdr10_param->Gy
+			= p3_primaries[0][1];
+		p_hdr10_param->Bx
+			= p3_primaries[1][0];
+		p_hdr10_param->By
+			= p3_primaries[1][1];
+		p_hdr10_param->Wx
+			= p3_white_point[0];
+		p_hdr10_param->Wy
+			= p3_white_point[1];
 		p_hdr10_param->max_content_light_level = 0;
 		p_hdr10_param->max_pic_average_light_level = 0;
 		return;
