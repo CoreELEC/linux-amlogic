@@ -395,6 +395,7 @@ struct hdmitx_dev {
 	struct hdmi_config_platform_data config_data;
 	enum hdmi_event_t hdmitx_event;
 	unsigned int irq_hpd;
+	unsigned int irq_viu1_vsync;
 	/*EDID*/
 	unsigned int cur_edid_block;
 	unsigned int cur_phy_block_ptr;
@@ -494,6 +495,7 @@ struct hdmitx_dev {
 	unsigned int drm_feature;/*Direct Rander Management*/
 	unsigned int vend_id_hit:1;
 	bool systemcontrol_on;
+	unsigned char vid_mute_op;
 };
 
 #define CMD_DDC_OFFSET          (0x10 << 24)
@@ -563,6 +565,7 @@ struct hdmitx_dev {
 	#define SET_CT_CINEMA	4
 #define CONF_GET_AVI_BT2020 (CMD_CONF_OFFSET + 0X2000 + 0x05)
 #define CONF_VIDEO_MUTE_OP      (CMD_CONF_OFFSET + 0x1000 + 0x04)
+#define VIDEO_NONE_OP		0x0
 #define VIDEO_MUTE          0x1
 #define VIDEO_UNMUTE        0x2
 #define CONF_EMP_NUMBER         (CMD_CONF_OFFSET + 0x3000 + 0x00)

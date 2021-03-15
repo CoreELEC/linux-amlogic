@@ -96,7 +96,10 @@ static struct hdmitx_dev hdmitx_device = {
 
 static const struct dv_info dv_dummy;
 static int log_level;
-static int hdr_mute_frame = 3;
+/* for SONY-KD-55A8F TV, need to mute more frames
+ * when switch DV(LL)->HLG
+ */
+static int hdr_mute_frame = 20;
 
 struct vout_device_s hdmitx_vdev = {
 	.dv_info = &hdmitx_device.rxcap.dv_info,
@@ -1336,12 +1339,15 @@ EXPORT_SYMBOL(hdmitx_audio_mute_op);
 
 void hdmitx_video_mute_op(unsigned int flag)
 {
-	if (flag == 0)
-		hdmitx_device.hwop.cntlconfig(&hdmitx_device,
-			CONF_VIDEO_MUTE_OP, VIDEO_MUTE);
-	else
-		hdmitx_device.hwop.cntlconfig(&hdmitx_device,
-			CONF_VIDEO_MUTE_OP, VIDEO_UNMUTE);
+	if (flag == 0) {
+		/* hdmitx_device.hwop.cntlconfig(&hdmitx_device, */
+			/* CONF_VIDEO_MUTE_OP, VIDEO_MUTE); */
+		hdmitx_device.vid_mute_op = VIDEO_MUTE;
+	} else {
+		/* hdmitx_device.hwop.cntlconfig(&hdmitx_device, */
+			/* CONF_VIDEO_MUTE_OP, VIDEO_UNMUTE); */
+		hdmitx_device.vid_mute_op = VIDEO_UNMUTE;
+	}
 }
 EXPORT_SYMBOL(hdmitx_video_mute_op);
 
@@ -6202,7 +6208,7 @@ static int amhdmitx_device_init(struct hdmitx_dev *hdmi_dev)
 	if (!hdmitx_device.topo_info)
 		pr_info("failed to alloc hdcp topo info\n");
 	hdmitx_init_parameters(&hdmitx_device.hdmi_info);
-
+	hdmitx_device.vid_mute_op = VIDEO_NONE_OP;
 	return 0;
 }
 
@@ -6316,8 +6322,10 @@ static int amhdmitx_get_dt_info(struct platform_device *pdev)
 	hdmi_pdata = pdev->dev.platform_data;
 #endif
 	hdmitx_device.irq_hpd = platform_get_irq_byname(pdev, "hdmitx_hpd");
-
-	pr_info(SYS "hpd irq = %d\n", hdmitx_device.irq_hpd);
+	hdmitx_device.irq_viu1_vsync =
+		platform_get_irq_byname(pdev, "viu1_vsync");
+	pr_info(SYS "hpd irq = %d, viu1_vsync = %d\n",
+		hdmitx_device.irq_hpd, hdmitx_device.irq_viu1_vsync);
 
 	return ret;
 }
