@@ -43,6 +43,7 @@
 #define DMC_DEV_ID_GE2D                                    15
 #define DMC_DEV_ID_DI_PRE                                  16
 #define DMC_DEV_ID_DI_POST                                 17
+#define DMC_DEV_ID_GDC                                     18
 
 /*
  * Desc: tee enabled state
