@@ -749,6 +749,11 @@ static void check_page_to_cma(struct compact_control *cc, struct page *page)
 		return;
 
 	mapping = page_mapping(page);
+	if (mapping == TAIL_MAPPING) {
+		cc->forbid_to_cma = true;
+		return;
+	}
+
 	if ((unsigned long)mapping & PAGE_MAPPING_ANON)
 		mapping = NULL;
 
@@ -1267,6 +1272,9 @@ static int can_migrate_to_cma(struct page *page)
 	mapping = page_mapping(page);
 	if ((unsigned long)mapping & PAGE_MAPPING_ANON)
 		mapping = NULL;
+
+	if (mapping == TAIL_MAPPING)
+		return 0;
 
 	if (PageKsm(page) && !PageSlab(page))
 		return 0;
