@@ -813,7 +813,8 @@
 
 		ion_dev {
 			compatible = "amlogic, ion_dev";
-			memory-region = <&ion_cma_reserved>;
+			memory-region = <&ion_cma_reserved
+					&ion_fb_reserved>;
 		};/* end of ion_dev*/
 
 		audiobus: audiobus@0xFF660000 {

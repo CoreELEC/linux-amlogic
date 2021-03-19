@@ -32,15 +32,9 @@ MODULE_DESCRIPTION("AMLOGIC ION driver");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Amlogic SH");
 
-static unsigned int debug = 2;
-module_param(debug, uint, 0644);
-MODULE_PARM_DESC(debug, "activates debug info");
-
-#define dprintk(level, fmt, arg...)             \
-	do {                                        \
-		if (debug > level)                     \
-			pr_debug("ion-dev: " fmt, ## arg);  \
-	} while (0)
+#define ION_INFO(fmt, args...)     pr_info("ion-dev: " fmt "", ## args)
+#define ION_DEBUG(fmt, args...)    pr_debug("ion-dev: debug: " fmt "", ## args)
+#define ION_ERR(fmt, args...)    pr_err("ion-dev: error: " fmt "", ## args)
 
 /*
  * TODO instead with enum ion_heap_type from ion.h
@@ -63,12 +57,12 @@ struct ion_client *meson_ion_client_create(unsigned int heap_mask,
 	 *
 	 */
 	if (idev == NULL) {
-		dprintk(0, "create error");
+		ION_DEBUG("create error");
 		return ERR_PTR(-EPROBE_DEFER);
 	}
 
 	if (IS_ERR(idev)) {
-		dprintk(0, "idev error");
+		ION_DEBUG("idev error");
 		return (struct ion_client *)idev;
 	}
 
@@ -116,10 +110,10 @@ int meson_ion_share_fd_to_phys(struct ion_client *client,
 	}
 
 	ret = ion_phys(client, handle, addr, (size_t *)len);
-	pr_debug("ion_phys ret=%d, phys=0x%lx\n", ret, *addr);
+	ION_DEBUG("ion_phys ret=%d, phys=0x%lx\n", ret, *addr);
 	ion_free(client, handle);
 	if (ret < 0) {
-		pr_err("ion_get_phys error, ret=%d\n", ret);
+		ION_ERR("ion_get_phys error, ret=%d\n", ret);
 		return ret;
 	}
 
@@ -143,16 +137,16 @@ static int meson_ion_get_phys(
 	}
 	handle = ion_import_dma_buf_fd(client, data.handle);
 	if (IS_ERR_OR_NULL(handle)) {
-		dprintk(0, "EINVAL, client=%p, share_fd=%d\n",
+		ION_DEBUG("EINVAL, client=%p, share_fd=%d\n",
 			client, data.handle);
 		return PTR_ERR(handle);
 	}
 
 	ret = ion_phys(client, handle, &addr, (size_t *)&len);
-	dprintk(1, "ret=%d, phys=0x%lX\n", ret, addr);
+	ION_DEBUG("ret=%d, phys=0x%lX\n", ret, addr);
 	ion_free(client, handle);
 	if (ret < 0) {
-		dprintk(0, "meson_ion_get_phys error, ret=%d\n", ret);
+		ION_DEBUG("meson_ion_get_phys error, ret=%d\n", ret);
 		return ret;
 	}
 
@@ -183,6 +177,9 @@ int dev_ion_probe(struct platform_device *pdev)
 {
 	int err = 0;
 	int i;
+#ifdef CONFIG_AMLOGIC_TEE
+	unsigned int handle;
+#endif
 
 	my_ion_heap[num_heaps].type = ION_HEAP_TYPE_SYSTEM;
 	my_ion_heap[num_heaps].id = ION_HEAP_TYPE_SYSTEM;
@@ -208,7 +205,15 @@ int dev_ion_probe(struct platform_device *pdev)
 	/* init reserved memory */
 	err = of_reserved_mem_device_init(&pdev->dev);
 	if (err != 0)
-		dprintk(1, "failed get reserved memory\n");
+		ION_INFO("failed get reserved memory\n");
+	err = of_reserved_mem_device_init_by_idx(&pdev->dev,
+		pdev->dev.of_node, 1);
+	if (err != 0)
+		ION_INFO("failed get fb memory\n");
+	err = of_reserved_mem_device_init_by_idx(&pdev->dev,
+		pdev->dev.of_node, 2);
+	if (err != 0)
+		ION_INFO("failed get secure memory\n");
 	heaps = kcalloc(num_heaps, sizeof(struct ion_heap *), GFP_KERNEL);
 	if (!heaps)
 		return -ENOMEM;
@@ -229,15 +234,27 @@ int dev_ion_probe(struct platform_device *pdev)
 			err = PTR_ERR(heaps[i]);
 			goto failed;
 		}
+#ifdef CONFIG_AMLOGIC_TEE
+		if (my_ion_heap[i].type == ION_HEAP_TYPE_CUSTOM &&
+		    my_ion_heap[i].id == ION_HEAP_ID_SECURE &&
+		    my_ion_heap[i].base &&
+		    my_ion_heap[i].size) {
+			tee_protect_mem_by_type(TEE_MEM_TYPE_GPU,
+						(u32)my_ion_heap[i].base,
+						(u32)my_ion_heap[i].size,
+						&handle);
+			ION_INFO("tee protect gpu mem done\n");
+		}
+#endif
 		ion_device_add_heap(idev, heaps[i]);
-		dprintk(2, "add heap type:%d id:%d\n",
+		ION_INFO("add heap type:%d id:%d\n",
 				my_ion_heap[i].type, my_ion_heap[i].id);
 	}
 
-	dprintk(1, "%s, create %d heaps\n", __func__, num_heaps);
+	ION_INFO("%s, create %d heaps\n", __func__, num_heaps);
 	return 0;
 failed:
-	dprintk(0, "ion heap create failed\n");
+	ION_ERR("ion heap create failed\n");
 	kfree(heaps);
 	heaps = NULL;
 	panic(0);
@@ -275,19 +292,15 @@ static struct platform_driver ion_driver = {
  */
 static int ion_dev_mem_init(struct reserved_mem *rmem, struct device *dev)
 {
-
 	my_ion_heap[num_heaps].type = ION_HEAP_TYPE_CARVEOUT;
 	my_ion_heap[num_heaps].id = ION_HEAP_TYPE_CARVEOUT;
 	my_ion_heap[num_heaps].name = "carveout_ion";
 	my_ion_heap[num_heaps].base = (ion_phys_addr_t) rmem->base;
 	my_ion_heap[num_heaps].size = rmem->size;
-
-	pr_info("ion_dev_mem_init size=%pa\n", &rmem->size);
+	ION_INFO("ion_dev_mem_init size=%pa\n", &rmem->size);
 	num_heaps++;
 
 	return 0;
-
-
 }
 
 static const struct reserved_mem_ops rmem_ion_dev_ops = {
@@ -308,10 +321,64 @@ static int __init ion_dev_mem_setup(struct reserved_mem *rmem)
 #else
 	rmem->ops = &rmem_ion_dev_ops;
 #endif
-	pr_debug("ion_dev mem setup\n");
+	ION_DEBUG("ion_dev mem setup\n");
 
 	return 0;
 }
+
+static int ion_secure_mem_init(struct reserved_mem *rmem, struct device *dev)
+{
+	my_ion_heap[num_heaps].type = ION_HEAP_TYPE_CUSTOM;
+	my_ion_heap[num_heaps].id = ION_HEAP_ID_SECURE;
+	my_ion_heap[num_heaps].name = "secure_ion";
+	my_ion_heap[num_heaps].base = (ion_phys_addr_t)rmem->base;
+	my_ion_heap[num_heaps].size = rmem->size;
+	ION_INFO("ion secure_mem_init size=0x%pa, paddr=0x%pa\n",
+		&rmem->size, &rmem->base);
+	num_heaps++;
+	return 0;
+}
+
+static const struct reserved_mem_ops rmem_ion_secure_ops = {
+	.device_init = ion_secure_mem_init,
+};
+
+static int __init ion_secure_mem_setup(struct reserved_mem *rmem)
+{
+	rmem->ops = &rmem_ion_secure_ops;
+	ION_DEBUG("ion secure mem setup\n");
+	return 0;
+}
+
+static int ion_fb_mem_init(struct reserved_mem *rmem, struct device *dev)
+{
+	my_ion_heap[num_heaps].type = ION_HEAP_TYPE_CUSTOM;
+	my_ion_heap[num_heaps].id = ION_HEAP_ID_FB;
+	my_ion_heap[num_heaps].name = "fb_ion";
+	my_ion_heap[num_heaps].base = (ion_phys_addr_t)rmem->base;
+	my_ion_heap[num_heaps].size = rmem->size;
+	ION_INFO("ion fb_mem_init size=0x%pa, paddr=0x%pa\n",
+		 &rmem->size, &rmem->base);
+	num_heaps++;
+	return 0;
+}
+
+static const struct reserved_mem_ops rmem_ion_fb_ops = {
+	.device_init = ion_fb_mem_init,
+};
+
+static int __init ion_fb_mem_setup(struct reserved_mem *rmem)
+{
+	rmem->ops = &rmem_ion_fb_ops;
+	ION_DEBUG("ion fb mem setup\n");
+	return 0;
+}
+
+RESERVEDMEM_OF_DECLARE(ion_fb_mem, "amlogic, ion-fb-mem",
+		       ion_fb_mem_setup);
+
+RESERVEDMEM_OF_DECLARE(ion_secure_mem, "amlogic, ion-secure-mem",
+		       ion_secure_mem_setup);
 
 RESERVEDMEM_OF_DECLARE(ion_dev_mem, "amlogic, idev-mem", ion_dev_mem_setup);
 /*

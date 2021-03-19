@@ -400,6 +400,14 @@ void ion_cma_heap_destroy(struct ion_heap *);
 struct ion_heap *ion_codec_mm_heap_create(struct ion_platform_heap *heap_data);
 void ion_codec_mm_heap_destroy(struct ion_heap *heap);
 
+#define ION_HEAP_ID_SECURE (ION_HEAP_TYPE_CUSTOM + 2)
+struct ion_heap *ion_secure_heap_create(struct ion_platform_heap *heap_data);
+void ion_secure_heap_destroy(struct ion_heap *heap);
+
+#define ION_HEAP_ID_FB (ION_HEAP_TYPE_CUSTOM + 1)
+struct ion_heap *ion_fb_heap_create(struct ion_platform_heap *heap_data);
+void ion_fb_heap_destroy(struct ion_heap *heap);
+
 /**
  * functions for creating and destroying a heap pool -- allows you
  * to keep a pool of pre allocated memory to use from your heap.  Keeping

@@ -20,6 +20,7 @@
 
 #include <linux/types.h>
 #include <ion/ion.h>
+#include <linux/amlogic/tee.h>
 
 /**
  * CUSTOM IOCTL - CMD
@@ -57,5 +58,4 @@ int meson_ion_share_fd_to_phys(struct ion_client *client,
 
 int ion_phys(struct ion_client *client, struct ion_handle *handle,
 	     ion_phys_addr_t *addr, size_t *len);
-
 #endif
