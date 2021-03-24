@@ -33,6 +33,7 @@
 #include <linux/slab.h>
 #include <linux/sched.h>
 #include <linux/platform_device.h>
+#include <linux/of_address.h>
 #include <linux/uaccess.h>
 #ifdef CONFIG_COMPAT
 #include <linux/compat.h>
@@ -81,6 +82,8 @@ static const char audio_standards[32] = {"AAC,DDP,DD,MPEG"};
 static const char * const audio_format[] = {"PCM", "CUSTOM_1", "CUSTOM_2",
 	"CUSTOM_3", "DD", "AUTO"};
 static int hdmi_format;
+static void __iomem *base;
+
 
 static const struct file_operations amaudio_ctl_fops = {
 	.owner = THIS_MODULE,
@@ -481,19 +484,28 @@ static ssize_t dts_enable_show(struct class *class,
 {
 	unsigned int val;
 
-	val = aml_read_aobus(0x228);
-	val = (val>>14)&1;
-
+	if (!base) {
+		val = aml_read_aobus(0x228);
+		val = (val >> 14) & 1;
+	} else {
+		val = readl(base + 0x48);
+		val = (val >> 16) & 1;
+		val = !val;
+	}
 	return sprintf(buf, "0x%x\n", val);
 }
 static ssize_t dolby_enable_show(struct class *class,
 				struct class_attribute *attr, char *buf)
 {
 	unsigned int val;
-
-	val = aml_read_aobus(0x228);
-	val = (val>>16)&1;
-
+	if (!base) {
+		val = aml_read_aobus(0x228);
+		val = (val >> 16) & 1;
+	} else {
+		val = readl(base + 0x48);
+		val = (val >> 17) & 1;
+		val = !val;
+	}
 	return sprintf(buf, "0x%x\n", val);
 }
 
@@ -570,6 +582,40 @@ static struct class amaudio_class = {
 	.class_attrs = amaudio_attrs,
 };
 
+static int amaudio_probe(struct platform_device *pdev)
+{
+		struct resource res;
+
+		if (of_address_to_resource(pdev->dev.of_node, 0, &res)) {
+			pr_err("found resource failed\n");
+			return -1;
+		}
+
+		if (res.start != 0) {
+			base = ioremap_nocache(res.start, resource_size(&res));
+			if (!base) {
+				pr_err("cannot map otp_tee registers\n");
+				return -ENOMEM;
+			}
+		}
+		return 0;
+}
+
+static const struct of_device_id amlogic_amaudio_dt_match[] = {
+	{	.compatible = "amlogic, amaudio",
+	},
+	{},
+};
+
+static struct platform_driver amlogic_amaudio_driver = {
+	.probe = amaudio_probe,
+	.driver = {
+		.name = "amaudio",
+		.of_match_table = amlogic_amaudio_dt_match,
+	.owner = THIS_MODULE,
+	},
+};
+
 static int __init amaudio_init(void)
 {
 	int ret = 0;
@@ -620,7 +666,7 @@ static int __init amaudio_init(void)
 
 	pr_info("%s - amaudio: driver %s succuess!\n",
 		__func__, AMAUDIO_DRIVER_NAME);
-	return 0;
+	return platform_driver_register(&amlogic_amaudio_driver);
 
  err4:
 	device_destroy(&amaudio_class, MKDEV(AMAUDIO_MAJOR, 10));
@@ -648,6 +694,8 @@ static void __exit amaudio_exit(void)
 		device_destroy(amaudio_classp, MKDEV(AMAUDIO_MAJOR, i));
 	class_destroy(amaudio_classp);
 	unregister_chrdev(AMAUDIO_MAJOR, AMAUDIO_DRIVER_NAME);
+
+	platform_driver_unregister(&amlogic_amaudio_driver);
 }
 
 module_init(amaudio_init);

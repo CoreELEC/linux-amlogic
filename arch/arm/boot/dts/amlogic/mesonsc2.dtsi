@@ -431,6 +431,13 @@
 		status = "disabled";
 	};
 
+	amaudio: amaudio {
+		compatible = "amlogic, amaudio";
+		reg = <0xfe440000 0x10000>;
+		reg-names = "otp_tee_base";
+		status = "okay";
+	};
+
 	dwc3: dwc3@fde00000 {
 		compatible = "synopsys, dwc3";
 		status = "disable";
