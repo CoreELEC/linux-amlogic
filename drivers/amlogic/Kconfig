@@ -152,5 +152,7 @@ source "drivers/amlogic/reset/Kconfig"
 
 source "drivers/amlogic/dvb/Kconfig"
 
+source "drivers/amlogic/soc_info/Kconfig"
+
 endmenu
 endif
