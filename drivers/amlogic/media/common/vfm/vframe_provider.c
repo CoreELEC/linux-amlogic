@@ -284,8 +284,10 @@ int vf_reg_provider(struct vframe_provider_s *prov)
 	}
 	TABLE_UNLOCK();
 	if (i < MAX_PROVIDER_NUM) {
+		TABLE_LOCK();
 		vf_update_active_map();
 		receiver = vf_get_receiver(prov->name);
+		TABLE_UNLOCK();
 		if (receiver && receiver->ops && receiver->ops->event_cb) {
 			receiver->ops->event_cb(VFRAME_EVENT_PROVIDER_REG,
 				(void *)prov->name,
@@ -331,7 +333,9 @@ void vf_unreg_provider(struct vframe_provider_s *prov)
 			vf_provider_close(prov);
 			if (vfm_debug_flag & 1)
 				pr_err("%s:%s\n", __func__, prov->name);
+			TABLE_LOCK();
 			receiver = vf_get_receiver(prov->name);
+			TABLE_UNLOCK();
 			if (receiver && receiver->ops
 				&& receiver->ops->event_cb) {
 				receiver->ops->event_cb(
@@ -342,7 +346,9 @@ void vf_unreg_provider(struct vframe_provider_s *prov)
 				pr_err("%s Error to notify receiver\n",
 					__func__);
 			}
+			TABLE_LOCK();
 			vf_update_active_map();
+			TABLE_UNLOCK();
 			break;
 		}
 		TABLE_UNLOCK();
