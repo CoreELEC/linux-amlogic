@@ -644,7 +644,8 @@ module_param(enable_vd_zorder, uint, 0664);
 
 static int vsync_enter_line_max;
 static int vsync_exit_line_max;
-static int line_threshold = 90;
+static int line_threshold = 5;
+static int line_threshold_2 = 90;
 static int vsync_threshold = 10;
 static int vsync_adjust_hit;
 MODULE_PARM_DESC(vsync_enter_line_max, "\n vsync_enter_line_max\n");
@@ -653,6 +654,8 @@ MODULE_PARM_DESC(vsync_exit_line_max, "\n vsync_exit_line_max\n");
 module_param(vsync_exit_line_max, uint, 0664);
 MODULE_PARM_DESC(line_threshold, "\n line_threshold\n");
 module_param(line_threshold, uint, 0664);
+MODULE_PARM_DESC(line_threshold_2, "\n line_threshold_2\n");
+module_param(line_threshold_2, uint, 0664);
 MODULE_PARM_DESC(vsync_threshold, "\n vsync_threshold\n");
 module_param(vsync_threshold, uint, 0664);
 MODULE_PARM_DESC(vsync_adjust_hit, "\n vsync_adjust_hit\n");
@@ -917,6 +920,21 @@ static void f2v_get_vertical_phase(
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM
 static bool osd_hdr_on;
 #endif
+static bool is_encp(u32 viu_type)
+{
+	u32 viu = VIU1;
+	bool ret = false;
+
+	if (viu_type == VIU1)
+		viu = osd_reg_read(VPU_VIU_VENC_MUX_CTRL) & 0x3;
+	else if (viu_type == VIU2)
+		viu = (osd_reg_read(VPU_VIU_VENC_MUX_CTRL) >> 2) & 0x3;
+	if (viu == 2)
+		/* encpi case, for 1080i */
+		ret = true;
+	/* for cvbs is enci */
+	return ret;
+}
 
 static int get_active_begin_line(u32 viu_type)
 {
@@ -9018,11 +9036,12 @@ static int osd_setting_order(u32 output_index)
 	int line1;
 	int line2;
 	int active_begin_line;
-	int vinfo_height;
 	u32 val, wait_cnt = 0;
 #ifdef CONFIG_AMLOGIC_MEDIA_SECURITY
 	u32 secure_src = 0;
 #endif
+	u32 total_line;
+
 	blending = &osd_blending;
 	blend_reg = &(blending->blend_reg);
 
@@ -9095,15 +9114,18 @@ static int osd_setting_order(u32 output_index)
 	active_begin_line = get_active_begin_line(VIU1);
 	line1 = get_enter_encp_line(VIU1);
 	/* if nearly vsync signal, wait vsync here */
-	vinfo_height = osd_hw.field_out_en[output_index] ?
-		(osd_hw.vinfo_height[output_index] * 2) :
-		osd_hw.vinfo_height[output_index];
-	while (line1 >= vinfo_height + active_begin_line *
+	if (osd_hw.field_out_en[VIU1] && is_encp(VIU1)) {
+		total_line = osd_hw.vinfo_height[VIU1] + active_begin_line;
+		if (line1 >= total_line)
+			/* bottom*/
+			line1 -= total_line;
+	} else {
+		total_line = osd_hw.vinfo_height[VIU1] + active_begin_line;
+	}
+
+	while (line1 >= total_line *
 			(100 - line_threshold) / 100 ||
-			line1 <= active_begin_line * line_threshold / 100) {
-		osd_log_dbg(MODULE_RENDER,
-			"enter osd_setting_order:encp line=%d\n",
-			line1);
+			line1 <= active_begin_line * line_threshold_2 / 100) {
 		/* 0.5ms */
 		usleep_range(500, 600);
 		wait_cnt++;
@@ -9112,7 +9134,7 @@ static int osd_setting_order(u32 output_index)
 		line1 = get_enter_encp_line(VIU1);
 	}
 	if (wait_cnt > 0)
-		osd_hw.rdma_delayed_cnt++;
+		osd_hw.rdma_delayed_cnt1++;
 	spin_lock_irqsave(&osd_lock, lock_flags);
 	if (blending->osd1_freescale_disable)
 		osd_hw.reg[DISP_FREESCALE_ENABLE].update_func(OSD1);
@@ -9213,16 +9235,22 @@ static int osd_setting_order(u32 output_index)
 	VSYNCOSD_WR_MPEG_REG(RDMA_DETECT_REG, rdma_dt_cnt);
 	spin_unlock_irqrestore(&osd_lock, lock_flags);
 	line2 = get_exit_encp_line(VIU1);
-	osd_log_dbg2(MODULE_RENDER,
-		"enter osd_setting_order:encp line=%d\n",
-		line2);
+	osd_log_dbg(MODULE_RENDER,
+		"osd_setting_order:encp line1=%d, line2=%d, total_line=%d\n",
+		line1, line2, total_line);
 	osd_wait_vsync_hw_viu1();
 	val = osd_reg_read(RDMA_DETECT_REG);
+	if (line2 < line1) {
+		osd_hw.rdma_delayed_cnt3++;
+		osd_log_dbg(MODULE_ENCP_STAT, "osd line stat %d,%d, rdma_delayed_cnt3=%d\n",
+			line1, line2, osd_hw.rdma_delayed_cnt3);
+	}
 	/* if missed, need wait vsync */
 	if (/*(line2 < line1) || */(val != rdma_dt_cnt)) {
 		osd_wait_vsync_hw_viu1();
-		osd_hw.rdma_delayed_cnt++;
-		osd_log_dbg(MODULE_RENDER, "osd line %d,%d\n", line1, line2);
+		osd_hw.rdma_delayed_cnt2++;
+		osd_log_dbg(MODULE_ENCP_STAT, "osd line stat %d,%d val=0x%x, rdma_dt_cnt=0x%x\n",
+			line1, line2, val, rdma_dt_cnt);
 	}
 	return 0;
 }
