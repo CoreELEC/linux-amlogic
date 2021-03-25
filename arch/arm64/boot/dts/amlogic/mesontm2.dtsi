@@ -1335,10 +1335,10 @@
 		num-lanes = <1>;
 		pcie-num = <1>;
 
-		clocks = <&clkc1 CLKID_PCIE_PLL
-			&clkc1 CLKID_PCIE0
-			&clkc1 CLKID_PCIE0PHY
-			&clkc1 CLKID_PCIE0_GATE>;
+		clocks = <&clkc CLKID_PCIE_PLL
+			&clkc CLKID_PCIE0
+			&clkc CLKID_PCIE0PHY
+			&clkc CLKID_PCIE0_GATE>;
 		clock-names = "pcie_refpll",
 				"pcie",
 				"pcie_phy",
@@ -1380,10 +1380,10 @@
 		num-lanes = <1>;
 		pcie-num = <1>;
 
-		clocks = <&clkc1 CLKID_PCIE_PLL
-			&clkc1 CLKID_PCIE1
-			&clkc1 CLKID_PCIE1PHY
-			&clkc1 CLKID_PCIE1_GATE>;
+		clocks = <&clkc CLKID_PCIE_PLL
+			&clkc CLKID_PCIE1
+			&clkc CLKID_PCIE1PHY
+			&clkc CLKID_PCIE1_GATE>;
 		clock-names = "pcie_refpll",
 				"pcie",
 				"pcie_phy",
