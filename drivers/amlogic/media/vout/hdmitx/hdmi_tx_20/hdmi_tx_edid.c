@@ -2479,8 +2479,9 @@ int hdmitx_edid_parse(struct hdmitx_dev *hdmitx_device)
 		if ((BlockCount > 1) && (i == 1))
 			CheckSum = 0;	   /* ignore the block1 data */
 		else {
-			if (((BlockCount == 1) && (i == 1)) ||
-				((BlockCount > 1) && (i == 2)))
+			if ((((BlockCount == 1) && (i == 1)) ||
+				((BlockCount > 1) && (i == 2))) &&
+				(i * 128 < sizeof(hdmitx_device->EDID_buf)))
 				Edid_Parse_check_HDMI_VSDB(
 					hdmitx_device,
 					&EDID_buf[i * 128]);
@@ -2501,8 +2502,9 @@ int hdmitx_edid_parse(struct hdmitx_dev *hdmitx_device)
 					&EDID_buf[i * 128]);
 			}
 		}
-
-		hdmitx_edid_block_parse(hdmitx_device, &(EDID_buf[i*128]));
+		if (i * 128 < sizeof(hdmitx_device->EDID_buf))
+			hdmitx_edid_block_parse(hdmitx_device,
+				&EDID_buf[i * 128]);
 	}
 
 	/* EDID parsing complete - check if 4k60/50 DV can be truly supported */
