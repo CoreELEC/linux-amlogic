@@ -113,8 +113,12 @@ static WORD GetVSyncFreq(WORD wHtot, WORD wVtot)
 		}
 		if (bRegVal & 0x10)
 			wXClks <<= 1;
-		SiI_Inf.Sync.bFPix = (BYTE)((WORD)
+		if (wXClks == 0) {
+			SiI_Inf.Sync.bFPix = 0;
+		} else {
+			SiI_Inf.Sync.bFPix = (BYTE)((WORD)
 			(SII_XCLOCK_OSC_SCALED2047_FOR_CALK_FPIX / wXClks));
+		}
 	} else {
 		for (i = 0; i < 8; i++) {
 			/* by doing this we will get average XClk */
@@ -122,8 +126,12 @@ static WORD GetVSyncFreq(WORD wHtot, WORD wVtot)
 		}
 		if (bRegVal & 0x10)
 			wXClks <<= 1;
-		SiI_Inf.Sync.bFPix = (BYTE)((WORD)
+		if (wXClks == 0) {
+			SiI_Inf.Sync.bFPix = 0;
+		} else {
+			SiI_Inf.Sync.bFPix = (BYTE)((WORD)
 			(SII_XCLOCK_OSC_SCALED_FOR_CALK_FPIX / wXClks));
+		}
 	}
 
 	RXEXTPR("%s: wXClks=%d, bFPix=%d\n",
