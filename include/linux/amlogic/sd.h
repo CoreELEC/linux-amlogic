@@ -295,6 +295,13 @@ struct aml_tuning_para {
 	long long checksum;
 };
 
+/* flag is "@ML" */
+#define TUNED_FLAG            0x004C4D40
+/* version is "V1" */
+#define TUNED_VERSION         0x00003156
+/* magic is 0x00487e44 */
+#define TUNED_MAGIC           0x00487e44
+
 struct amlsd_platform {
 	struct amlsd_host *host;
 	struct mmc_host *mmc;

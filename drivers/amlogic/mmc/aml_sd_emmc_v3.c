@@ -2692,9 +2692,9 @@ static void aml_save_tuning_para(struct mmc_host *mmc)
 	pdata->para.hs4[temp_index].delay1 = delay1;
 	pdata->para.hs4[temp_index].delay2 = delay2;
 	pdata->para.hs4[temp_index].intf3 = intf3;
-	pdata->para.hs4[temp_index].flag = 1;
-	pdata->para.magic = 0x00487e44; /*E~K\0*/
-	pdata->para.version = 1;
+	pdata->para.hs4[temp_index].flag = TUNED_FLAG;
+	pdata->para.magic = TUNED_MAGIC; /*E~K\0*/
+	pdata->para.version = TUNED_VERSION;
 
 	checksum = _para_checksum_calc(para);
 	pdata->para.checksum = checksum;
@@ -2739,7 +2739,17 @@ static int aml_para_is_exist(struct mmc_host *mmc)
 		return 0;
 	}
 
-	if (para->hs4[temp_index].flag == 0) {
+	if (para->magic != TUNED_MAGIC) {
+		pr_warn("[%s] magic is not match\n", __func__);
+		return 0;
+	}
+
+	if (para->version != TUNED_VERSION) {
+		pr_warn("[%s] VERSION is not match\n", __func__);
+		return 0;
+	}
+
+	if (para->hs4[temp_index].flag != TUNED_FLAG) {
 		pr_info("current temperature %d degree not tuning yet\n",
 			temperature / 1000);
 		return 0;
