@@ -182,6 +182,44 @@ static ssize_t debug_enable_store(struct device *dev,
 	return count;
 }
 
+static ssize_t enable_show(struct device *dev,
+	struct device_attribute *attr, char *buf)
+{
+	int enable;
+
+	enable = remote_get_enable();
+
+	return sprintf(buf, "%d\n", enable);
+}
+
+static ssize_t enable_store(struct device *dev,
+				   struct device_attribute *attr,
+					const char *buf, size_t count)
+{
+	struct remote_chip *chip = dev_get_drvdata(dev);
+	unsigned int val;
+	int enable;
+	int ret;
+	int cnt;
+
+	ret = kstrtoint(buf, 0, &enable);
+	if ((ret != 0) || ((enable != 0) && (enable != 1)))
+		return -EINVAL;
+
+	for (cnt = 0; cnt < (ENABLE_LEGACY_IR(chip->protocol) ? 2 : 1); cnt++) {
+		if (enable) {
+			remote_reg_read(chip, cnt, REG_FRAME, &val);
+			remote_reg_update_bits(chip, cnt, REG_REG1,
+					       BIT(15), BIT(15));
+		} else {
+			remote_reg_update_bits(chip, cnt, REG_REG1, BIT(15), 0);
+		}
+	}
+	remote_set_enable(enable);
+
+	return count;
+}
+
 int debug_log_printk(struct remote_dev *dev, const char *fmt)
 {
 	char *p;
@@ -492,6 +530,7 @@ DEVICE_ATTR_RW(repeat_enable);
 DEVICE_ATTR_RW(protocol);
 DEVICE_ATTR_RW(keymap);
 DEVICE_ATTR_RW(debug_enable);
+DEVICE_ATTR_RW(enable);
 DEVICE_ATTR_RW(debug_log);
 DEVICE_ATTR_RO(map_tables);
 
@@ -500,6 +539,7 @@ static struct attribute *remote_attrs[] = {
 	&dev_attr_map_tables.attr,
 	&dev_attr_keymap.attr,
 	&dev_attr_debug_enable.attr,
+	&dev_attr_enable.attr,
 	&dev_attr_repeat_enable.attr,
 	&dev_attr_debug_log.attr,
 	&dev_attr_led_blink.attr,

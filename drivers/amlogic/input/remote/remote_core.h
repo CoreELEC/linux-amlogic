@@ -227,6 +227,8 @@ void remote_raw_init(void);
 /*debug printk */
 void remote_debug_set_enable(bool enable);
 bool remote_debug_get_enable(void);
+void remote_set_enable(bool enable);
+bool remote_get_enable(void);
 int debug_log_printk(struct remote_dev *dev, const char *fmt);
 
 #endif
