@@ -543,6 +543,10 @@ static ssize_t mtp_read(struct file *fp, char __user *buf,
 	int ret = 0;
 	size_t len = 0;
 
+#ifdef CONFIG_AMLOGIC_USB
+	if (!cdev)
+		return -EINVAL;
+#endif
 	DBG(cdev, "mtp_read(%zu)\n", count);
 
 	/* we will block until we're online */
