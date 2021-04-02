@@ -228,6 +228,7 @@ static void hdmitx_early_suspend(struct early_suspend *h)
 {
 	struct hdmitx_dev *phdmi = (struct hdmitx_dev *)h->param;
 	struct hdmitx_dev *hdev = phdmi;
+	bool need_rst_ratio = hdmitx_find_vendor_ratio(hdev);
 
 	phdmi->ready = 0;
 	phdmi->hpd_lock = 1;
@@ -267,9 +268,11 @@ static void hdmitx_early_suspend(struct early_suspend *h)
 	 * seconds. Here keep hdmi output disabled for a few frames
 	 * so let TV exit its still frame mode and not show pattern
 	 */
-	usleep_range(120000, 120010);
-	hdev->hwop.cntlddc(hdev, DDC_SCDC_DIV40_SCRAMB, 0);
-	hdev->div40 = 0;
+	if (need_rst_ratio) {
+		usleep_range(120000, 120010);
+		hdev->hwop.cntlddc(hdev, DDC_SCDC_DIV40_SCRAMB, 0);
+		hdev->div40 = 0;
+	}
 	/* enable hpd event to get EDID, because phy addr
 	 * needs to be updated for CEC under early suspend. meanwhile
 	 * systemcontrol not respond hpd event under early suspend
