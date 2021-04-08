@@ -907,6 +907,7 @@ static u32 vsync_freerun;
  * >1000: speed*(vsync_slow_factor/1000000)
  */
 static u32 vsync_slow_factor = 1;
+static int video_delay_val;
 
 /* pts alignment */
 static bool vsync_pts_aligned;
@@ -2481,17 +2482,18 @@ static inline bool vpts_expire(struct vframe_s *cur_vf,
 #else
 	if (smooth_sync_enable) {
 		org_vpts = timestamp_vpts_get();
-		if ((abs(org_vpts + vsync_pts_inc - systime) <
-			M_PTS_SMOOTH_MAX)
-		    && (abs(org_vpts + vsync_pts_inc - systime) >
-			M_PTS_SMOOTH_MIN)) {
+		if ((abs(org_vpts + vsync_pts_inc + video_delay_val - systime) <
+			M_PTS_SMOOTH_MAX) &&
+		(abs(org_vpts + vsync_pts_inc + video_delay_val - systime)
+			> M_PTS_SMOOTH_MIN)) {
 
 			if (!video_frame_repeat_count) {
 				vpts_ref = org_vpts;
 				video_frame_repeat_count++;
 			}
 
-			if ((int)(org_vpts + vsync_pts_inc - systime) > 0) {
+			if ((int)(org_vpts + vsync_pts_inc +
+				video_delay_val - systime) > 0) {
 				adjust_pts =
 				    vpts_ref + (vsync_pts_inc -
 						M_PTS_SMOOTH_ADJUST) *
@@ -2511,13 +2513,17 @@ static inline bool vpts_expire(struct vframe_s *cur_vf,
 			video_frame_repeat_count = 0;
 		}
 	}
+	if (video_delay_val && !omx_secret_mode) {
+		expired = ((int)(timestamp_pcrscr_get() +
+			vsync_pts_align - pts - video_delay_val)) >= 0;
+		return expired;
+	}
 	if (tsync_get_mode() == TSYNC_MODE_PCRMASTER)
 		expired = (timestamp_pcrscr_get() + vsync_pts_align >= pts) ?
 				true : false;
 	else
-		expired = (int)(timestamp_pcrscr_get() +
-				vsync_pts_align - pts) >= 0;
-
+		expired = ((int)(timestamp_pcrscr_get() +
+			vsync_pts_align - pts)) >= 0;
 #ifdef PTS_THROTTLE
 	if (expired && next_vf && next_vf->next_vf_pts_valid &&
 		(vsync_slow_factor == 1) &&
@@ -8340,6 +8346,30 @@ static ssize_t video_seek_flag_store(struct class *cla,
 	return count;
 }
 
+static ssize_t video_videodelay_store(struct class *class,
+				struct class_attribute *attr,
+				const char *buf, size_t count)
+{
+	int r;
+	int value;
+
+	r = kstrtoint(buf, 0, &value);
+	if (r < 0)
+		return -EINVAL;
+
+	video_delay_val = value * 90;
+
+	return count;
+}
+
+static ssize_t video_videodelay_show(struct class *cla,
+				struct class_attribute *attr,
+				char *buf)
+{
+	return sprintf(buf, "%d(%dms)\n", video_delay_val,
+						video_delay_val / 90);
+}
+
 #ifdef PTS_TRACE_DEBUG
 static ssize_t pts_trace_show(struct class *cla,
 			struct class_attribute *attr, char *buf)
@@ -11109,6 +11139,10 @@ static struct class_attribute amvideo_class_attrs[] = {
 	       0664,
 	       video_seek_flag_show,
 	       video_seek_flag_store),
+	__ATTR(video_delay_val,
+		   0664,
+		   video_videodelay_show,
+		   video_videodelay_store),
 	__ATTR(disable_video,
 	       0664,
 	       video_disable_show,
