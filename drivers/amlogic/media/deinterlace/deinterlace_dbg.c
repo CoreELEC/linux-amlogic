@@ -952,6 +952,8 @@ static void print_di_buf_seq(struct di_buf_s *di_buf, int format,
 			di_buf->vframe->type,
 			di_buf->vframe->trans_fmt,
 			di_buf->vframe->bitdepth);
+		seq_printf(seq, "\t\tsts 0x%x,seq:%d\n",
+			   di_buf->sts, di_buf->seq);
 		if (di_buf->di_wr_linked_buf) {
 			seq_printf(seq, "\tlinked  +index %d, 0x%p, type %d\n",
 				di_buf->di_wr_linked_buf->index,
@@ -959,9 +961,10 @@ static void print_di_buf_seq(struct di_buf_s *di_buf, int format,
 				di_buf->di_wr_linked_buf->type);
 		}
 	} else if (format == 2) {
-		seq_printf(seq, "index %d, 0x%p(vframe 0x%p), type %d\n",
+		seq_printf(seq, "index %d, 0x%p(vframe 0x%p), type %d, sts 0x%x\n",
 			di_buf->index, di_buf,
-			di_buf->vframe, di_buf->type);
+			di_buf->vframe, di_buf->type,
+			di_buf->sts);
 		seq_printf(seq, "vframetype 0x%x, trans_fmt %u,duration %d pts %d,bitdepth %d\n",
 			di_buf->vframe->type,
 			di_buf->vframe->trans_fmt,
@@ -1116,10 +1119,12 @@ static int seq_file_di_state_show(struct seq_file *seq, void *v)
 	int video_peek_cnt = get_di_video_peek_cnt();
 	unsigned long reg_unreg_timeout_cnt = get_di_reg_unreg_timeout_cnt();
 	struct vframe_s **vframe_in = get_di_vframe_in();
+	char *splt = "---------------------------";
 
 	dump_state_flag = 1;
-	seq_printf(seq, "version %s, init_flag %d, is_bypass %d\n",
-			version_s, init_flag, is_bypass(NULL));
+	seq_printf(seq, "version %s, init_flag %d, is_bypass %d:%d\n",
+			version_s, init_flag, is_bypass(NULL),
+			di_pre_stru_p->is_bypass_fg);
 	seq_printf(seq, "recovery_flag = %d, recovery_log_reason=%d, di_blocking=%d",
 		recovery_flag, recovery_log_reason, di_blocking);
 seq_printf(seq, "recovery_log_queue_idx=%d, recovery_log_di_buf=0x%p\n",
@@ -1194,6 +1199,17 @@ seq_printf(seq, "recovery_log_queue_idx=%d, recovery_log_di_buf=0x%p\n",
 				p->di_wr_linked_buf->post_ref_count);
 		}
 	}
+	/********************************/
+	/* local_list		*/
+	/********************************/
+	seq_puts(seq, "local list\n");
+	for (i = 0; i < MAX_LOCAL_BUF_NUM * 2; i++) {
+		p = di_get_di_buf_local(i);
+		if (!p->pages)
+			continue;
+		print_di_buf_seq(p, 2, seq);
+	}
+	seq_printf(seq, "%s\n", splt);
 	if (di_pre_stru_p->di_inp_buf) {
 		seq_printf(seq, "di_inp_buf:index %d, 0x%p, type %d\n",
 			di_pre_stru_p->di_inp_buf->index,

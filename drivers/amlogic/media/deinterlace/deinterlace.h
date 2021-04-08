@@ -159,6 +159,25 @@ enum canvas_idx_e {
 	MV_CANVAS,
 };
 #define pulldown_mode_t enum pulldown_mode_e
+
+enum EDI_ST {
+	EDI_ST_PRE = 0x01,
+	EDI_ST_BYPASS = 0x02,
+	EDI_ST_P_T = 0x04,
+	EDI_ST_P_B = 0x08,
+	EDI_ST_PRE_DONE = 0x10,
+	EDI_ST_DIS = 0x20,
+	EDI_ST_RECYCLE = 0x40,
+	EDI_ST_AS_LINKA = 0x80,
+	EDI_ST_AS_LINKB = 0x100,
+	EDI_ST_AS_LINK_ERR1 = 0x200,
+	EDI_ST_DUMMY = 0x400,
+	EDI_ST_VFM_A = 0x800,
+	EDI_ST_VFM_B = 0x1000,
+	EDI_ST_PRE_SET	= 0x2000,
+	EDI_ST_DROP1	= 0x4000
+};
+
 struct di_buf_s {
 	struct vframe_s *vframe;
 	int index; /* index in vframe_in_dup[] or vframe_in[],
@@ -232,6 +251,7 @@ struct di_buf_s {
 	u8 *local_meta;
 	u32 local_meta_used_size;
 	u32 local_meta_total_size;
+	unsigned int sts;
 };
 #define RDMA_DET3D_IRQ				0x20
 /* vdin0 rdma irq */
@@ -486,6 +506,7 @@ struct di_pre_stru_s {
 	bool bypass_pre;
 	bool invert_flag;
 	bool vdin_source;
+	bool is_bypass_fg;
 	int nr_size;
 	int count_size;
 	int mcinfo_size;
@@ -619,6 +640,7 @@ int di_get_disp_cnt_demo(void);
 bool dil_attach_ext_api(const struct di_ext_ops *di_api);
 const struct afdv1_ops_s *di_afds(void);
 struct afbcdv1_ctr_s *div1_get_afd_ctr(void);
+struct di_buf_s *di_get_di_buf_local(unsigned int index);
 
 /*--Different DI versions flag---*/
 void dil_set_diffver_flag(unsigned int para);

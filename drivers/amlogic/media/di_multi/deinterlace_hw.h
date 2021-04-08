@@ -203,12 +203,12 @@ struct dim_fmt_s {
 
 	unsigned int bit_mode	: 4;	/*count*/
 	unsigned int endian	: 1;
-	unsigned int block_mode	: 1;
+	unsigned int block_mode	: 2;
 	/* flg for mif */
 	unsigned int p_as_i	: 1; /* working mode */
 	unsigned int p_top	: 1;
 
-	unsigned int rev1	: 24;
+	unsigned int rev1	: 23;
 
 	enum EDPST_MODE mode;	/* count */
 
@@ -286,14 +286,14 @@ struct DI_MIF_S {
 	unsigned int burst_size_cb	:2;//set 1 as default
 	unsigned int burst_size_cr	:2;//set 1 as default
 	/* ary no use*/
-	unsigned int nocompress		:1;
+//	unsigned int nocompress		:1;
 	unsigned int		output_field_num:1;
 	unsigned int		l_endian : 1; //2020-12-21
 	unsigned int		reg_swap : 1;
 	unsigned int		cbcr_swap: 1;
 	unsigned int		linear : 1;
 	unsigned int		buf_crop_en : 1;
-	unsigned int		block_mode : 1;
+	unsigned int		block_mode : 2;
 	unsigned int		dbg_from_dec: 1; //
 	unsigned int reserved		:1;
 	unsigned int	buf_hsize;
@@ -347,7 +347,7 @@ struct DI_SIM_MIF_s {
 	unsigned int	buf_hsize;
 	ulong		addr; //for t7
 	ulong		addr1;
-	ulong		addr2;
+	ulong		addr2;	// addr2 or hf buffer v_size;
 	enum DI_MIFS_ID	mif_index; /* */
 };
 
@@ -769,7 +769,9 @@ struct dim_hw_opsv_s {
 				       struct DI_MC_MIF_s *mcinfowr_mif,
 				       struct DI_MC_MIF_s *mcvecwr_mif,
 				       unsigned char mcdi_en);
-
+	/* from t3:*/
+	bool (*aisr_pre)(struct DI_SIM_MIF_s *mif, bool sel, bool para);
+	void (*aisr_disable)(void);
 	void (*wrmif_trig)(enum EDI_MIFSM mifsel);
 	void (*wr_rst_protect)(bool on);
 	void (*hw_init)(void);
@@ -892,5 +894,6 @@ void di_mcmif_linear_rd_cfg(struct DI_MC_MIF_s *mif,
 bool dip_is_linear(void);
 bool dim_dbg_cfg_post_byapss(void);
 void dbg_reg_mem(unsigned int dbgid);
+bool dim_aisr_test(struct DI_SIM_MIF_s *mif, bool sel);//test only
 
 #endif

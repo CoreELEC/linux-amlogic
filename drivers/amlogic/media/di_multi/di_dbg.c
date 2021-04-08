@@ -111,6 +111,14 @@ static void trace_post(unsigned int index, unsigned long ctime)
 	trace_dim_post("POST-IRQ-1", index, ctime);
 }
 
+static void trace_irq_aisr(unsigned int index)
+{
+	u64 ustime;
+
+	ustime = cur_to_usecs();
+	trace_dim_irq_aisr("PRE-AISR-1", index, ustime);
+}
+
 #define DI_TRACE_LIMIT		50
 static void trace_pre_get(unsigned int index)
 {
@@ -264,42 +272,95 @@ const struct dim_tr_ops_s dim_tr_ops = {
 	.sct_alloc = trace_msct,
 	.sct_tail  = trace_msct_tail,
 	.self_trig = trace_slef_trig,
+	.irq_aisr = trace_irq_aisr,
+};
+
+/*keep same order as enum EDBG_TIMER*/
+static const char * const dbg_timer_name[] = {
+	"reg_b",
+	"reg_e",
+	"unreg_b",
+	"unreg_e",
+	"1_peek",
+	"1_get",
+	"2_get",
+	"3_get",
+	"alloc",
+	"mem1",
+	"mem2",
+	"mem3",
+	"mem4",
+	"mem5",
+	"ready",
+	"1_pre_cfg",
+	"1_pre_ready",
+	"2_pre_cfg",
+	"2_pre_ready",
+	"3_pre_cfg",
+	"3_pre_ready",
+	"1_pst",
+	"2_pst",
 };
 
 void dbg_timer(unsigned int ch, enum EDBG_TIMER item)
 {
 	u64 ustime, udiff;
 	struct di_ch_s *pch;
+	unsigned int tmp;
 
 	pch = get_chdata(ch);
-	ustime = cur_to_usecs();
+	//ustime = cur_to_usecs();
+	ustime	= cur_to_msecs();
 
+	if (item >= EDBG_TIMER_NUB)
+		return;
+	if (item == EDBG_TIMER_MEM_1) {
+		if (pch->dbg_data.timer_mem_alloc_cnt < 5) {
+			tmp = EDBG_TIMER_MEM_1 +
+				pch->dbg_data.timer_mem_alloc_cnt;
+			pch->dbg_data.ms_dbg[tmp] = ustime;
+			pch->dbg_data.timer_mem_alloc_cnt++;
+			//PR_INF("%s:%s:%lu\n", __func__,
+			//	 dbg_timer_name[item],
+			//	 (unsigned long)ustime);
+		}
+		return;
+	}
+	//PR_INF("%s:%s:%lu\n", __func__,
+		//dbg_timer_name[item], (unsigned long)ustime);
+	pch->dbg_data.ms_dbg[item] = ustime;
+	//PR_INF("%s:%d:ms[%llu]\n", __func__, item, ustime);
 	switch (item) {
-	case EDBG_TIMER_REG_B:
-		pch->dbg_data.us_reg_begin = ustime;
-		break;
 	case EDBG_TIMER_REG_E:
-		pch->dbg_data.us_reg_end = ustime;
-		udiff = pch->dbg_data.us_reg_end -
-			pch->dbg_data.us_reg_begin;
-		//dbg_ev("reg:use[%llu]us\n", udiff);
-		break;
-	case EDBG_TIMER_UNREG_B:
-		pch->dbg_data.us_unreg_begin = ustime;
+		udiff = pch->dbg_data.ms_dbg[EDBG_TIMER_REG_E] -
+			pch->dbg_data.ms_dbg[EDBG_TIMER_REG_B];
+		dbg_ev("reg:use[%llu]ms\n", udiff);
 		break;
 	case EDBG_TIMER_UNREG_E:
-		pch->dbg_data.us_unreg_end = ustime;
-		udiff = pch->dbg_data.us_unreg_end -
-			pch->dbg_data.us_unreg_begin;
-		//dbg_ev("unreg:use[%llu]us\n", udiff);
+
+		udiff = pch->dbg_data.ms_dbg[EDBG_TIMER_UNREG_E] -
+			pch->dbg_data.ms_dbg[EDBG_TIMER_UNREG_B];
+		dbg_ev("unreg:use[%llu]ms\n", udiff);
+		//dbg_ev("\tb[%llu]:e[%llu]\n",
+		 //      pch->dbg_data.ms_dbg[EDBG_TIMER_UNREG_B],
+		 //      pch->dbg_data.ms_dbg[EDBG_TIMER_UNREG_E]);
 		break;
-	case EDBG_TIMER_FIRST_GET:
-		pch->dbg_data.us_first_get = ustime;
-		break;
-	case EDBG_TIMER_FIRST_READY:
-		pch->dbg_data.us_first_ready = ustime;
+	default:
 		break;
 	}
+}
+
+void dbg_timer_clear(unsigned int ch)
+{
+	int i;
+	struct di_ch_s *pch;
+
+	pch = get_chdata(ch);
+
+	for (i = EDBG_TIMER_FIRST_PEEK; i < EDBG_TIMER_NUB; i++)
+		pch->dbg_data.ms_dbg[i] = 0;
+
+	pch->dbg_data.timer_mem_alloc_cnt = 0;
 }
 static unsigned int seq_get_channel(struct seq_file *s)
 {
@@ -545,6 +606,20 @@ static ssize_t ddbg_log_reg_store(struct file *file, const char __user *userbuf,
 }
 
 /**********************/
+
+static int seq_hf_info(struct seq_file *seq, void *v, struct hf_info_t *hf)
+{
+	if (!hf) {
+		//seq_printf(seq, "no hf\n");
+		return 0;
+	}
+	seq_printf(seq, "hf_info:0x%px, 0x%x\n", hf, hf->index);
+	seq_printf(seq, "\t<%d,%d>\n", hf->width, hf->height);
+	seq_printf(seq, "\t<%d,%d>\n", hf->buffer_w, hf->buffer_h);
+	seq_printf(seq, "\taddr:0x%lx\n", hf->phy_addr);
+	return 0;
+}
+
 static int seq_file_vframe(struct seq_file *seq, void *v, struct vframe_s *pvfm)
 {
 	int i;
@@ -577,6 +652,16 @@ static int seq_file_vframe(struct seq_file *seq, void *v, struct vframe_s *pvfm)
 	seq_printf(seq, "%-15s:0x%x\n", "flag", pvfm->flag);
 	seq_printf(seq, "\t%-15s:%d\n", "flag:VFRAME_FLAG_DOUBLE_FRAM",
 		   pvfm->flag & VFRAME_FLAG_DOUBLE_FRAM);
+	seq_printf(seq, "\t%-15s:%d\n", "flag:VFRAME_FLAG_DI_P_ONLY",
+		   pvfm->flag & VFRAME_FLAG_DI_P_ONLY);
+	seq_printf(seq, "\t%-15s:%d\n", "flag:VFRAME_FLAG_DI_PW_VFM",
+		   pvfm->flag & VFRAME_FLAG_DI_PW_VFM);
+	seq_printf(seq, "\t%-15s:%d\n", "flag:VFRAME_FLAG_DI_PW_N_LOCAL",
+		   pvfm->flag & VFRAME_FLAG_DI_PW_N_LOCAL);
+	seq_printf(seq, "\t%-15s:%d\n", "flag:VFRAME_FLAG_DI_PW_N_EXT",
+		   pvfm->flag & VFRAME_FLAG_DI_PW_N_EXT);
+	seq_printf(seq, "\t%-15s:%d\n", "flag:VFRAME_FLAG_HF",
+		   pvfm->flag & VFRAME_FLAG_HF);
 	seq_printf(seq, "%-15s:0x%x\n", "canvas0Addr", pvfm->canvas0Addr);
 	seq_printf(seq, "%-15s:0x%x\n", "canvas1Addr", pvfm->canvas1Addr);
 	seq_printf(seq, "%-15s:0x%x\n", "compHeadAddr", pvfm->compHeadAddr);
@@ -589,8 +674,8 @@ static int seq_file_vframe(struct seq_file *seq, void *v, struct vframe_s *pvfm)
 	seq_printf(seq, "%-15s:%d\n", "compWidth", pvfm->compWidth);
 	seq_printf(seq, "%-15s:%d\n", "compHeight", pvfm->compHeight);
 	seq_printf(seq, "%-15s:%d\n", "ratio_control", pvfm->ratio_control);
-	seq_printf(seq, "%-15s:%d\n", "bitdepth", pvfm->bitdepth);
-	seq_printf(seq, "%-15s:%d\n", "signal_type", pvfm->signal_type);
+	seq_printf(seq, "%-15s:0x%x\n", "bitdepth", pvfm->bitdepth);
+	seq_printf(seq, "%-15s:0x%x\n", "signal_type", pvfm->signal_type);
 
 	/*
 	 *	   bit 29: present_flag
@@ -671,6 +756,8 @@ static int seq_file_vframe(struct seq_file *seq, void *v, struct vframe_s *pvfm)
 			   pcvs->endian);
 	}
 
+	seq_hf_info(seq, v, pvfm->hf_info);
+
 	if (pvfm->vf_ext)
 		seq_printf(seq, "%-15s\n", "vf_ext");
 	else
@@ -727,8 +814,8 @@ static int seq_file_vframe_in_show(struct seq_file *seq, void *v)
 /***********************/
 /* debug output vframe */
 /***********************/
-void didbg_vframe_out_save(unsigned int ch,
-			   struct vframe_s *pvfm, unsigned int id)
+void didbg_vframe_out_save(unsigned int ch, struct vframe_s *pvfm,
+	unsigned int id)
 {
 	//unsigned int ch;
 	//struct vframe_s **pvfm_t;
@@ -1129,6 +1216,43 @@ static int seq_file_state_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
+static int seq_file_stateb_show(struct seq_file *s, void *v)
+{
+	unsigned int ch;
+	struct di_ch_s *pch;
+	//struct di_pre_stru_s *ppre;
+	//struct di_post_stru_s *ppst;
+	int i;
+	u64 diff1, diff2, treg, tlast, tcrr, tcrr_old;
+	//struct di_dat_s *pdat;
+	//struct di_mm_s *mm;
+
+	ch = seq_get_channel(s);
+	seq_printf(s, "%s:ch[%d]\n", __func__, ch);
+
+	//mm = dim_mm_get(ch);
+
+	pch = get_chdata(ch);
+	if (pch) {
+		treg = pch->dbg_data.ms_dbg[EDBG_TIMER_REG_B];
+		tlast = treg;
+		seq_printf(s, "%s:%llu\n", "timer", treg);
+		for (i = EDBG_TIMER_FIRST_PEEK; i < EDBG_TIMER_NUB; i++) {
+			tcrr = pch->dbg_data.ms_dbg[i];
+			tcrr_old = tcrr;
+			if (!tcrr)
+				tcrr = tlast;
+			diff1 = tcrr - treg;
+			diff2 = tcrr - tlast;
+			seq_printf(s, "\t%-20s:%-10llu, %-10llu, %-10llu\n",
+				   dbg_timer_name[i],
+				   tcrr_old,
+				   diff1, diff2);
+			tlast = tcrr;
+		}
+	}
+	return 0;
+}
 static int seq_file_mif_show(struct seq_file *seq, void *v)
 {
 	unsigned int ch;
@@ -1867,7 +1991,7 @@ void dbg_f_post_disable(unsigned int para)
 
 void dbg_f_trig_task(unsigned int para)
 {
-	task_send_ready();
+	task_send_ready(10);
 }
 
 void dbg_f_pq_sel(unsigned int para)
@@ -2049,6 +2173,38 @@ static int policy_show(struct seq_file *s, void *what)
 	}
 	seq_printf(s, "order=0x%x\n", pp->order_i);
 	seq_printf(s, "std=%d, total:%d\n", pp->std, ptt);
+
+	return 0;
+}
+
+static int hf_en_show(struct seq_file *s, void *what)
+{
+	int ch;
+
+	struct di_ch_s *pch;
+
+	/*ch*/
+	seq_puts(s, "ch:\n");
+	for (ch = 0; ch < DI_CHANNEL_NUB; ch++) {
+		pch = get_chdata(ch);
+		seq_printf(s, "ch[%d];ext:%d\n",
+			   ch, dip_itf_is_ins_exbuf(pch));
+		seq_printf(s, "\ten_hf_buf:%d,en_hf:%d\n",
+			   pch->en_hf_buf,
+			   pch->en_hf);
+	}
+	/*top*/
+	if (get_datal() && get_datal()->mdata)
+		seq_printf(s, "ic:%s;cfg:\n",
+		get_datal()->mdata->name);
+	seq_printf(s, "\tcfg:\t%d\n",
+		   cfgg(HF));
+	seq_printf(s, "\tbusy:\t%d\n",
+		   get_datal()->hf_busy);
+	seq_printf(s, "\tcnt:\t%d\n",
+		   get_datal()->hf_src_cnt);
+	seq_printf(s, "\thf_owner:\t%d\n",
+		   get_datal()->hf_owner);
 
 	return 0;
 }
@@ -2247,11 +2403,15 @@ static int dbg_mif_print_show(struct seq_file *s, void *v)
 /**********************/
 DEFINE_SEQ_SHOW_ONLY(dim_reg_cue_int);
 DEFINE_SEQ_SHOW_ONLY(policy);
+DEFINE_SEQ_SHOW_ONLY(hf_en);
+
 /**********************/
 DEFINE_SEQ_SHOW_ONLY(rcfgx);
 DEFINE_SEQ_SHOW_ONLY(seq_file_vframe_in);
 DEFINE_SEQ_SHOW_ONLY(seq_file_vframe_out);
 DEFINE_SEQ_SHOW_ONLY(seq_file_state);
+DEFINE_SEQ_SHOW_ONLY(seq_file_stateb);
+
 DEFINE_SEQ_SHOW_ONLY(seq_file_mif);
 DEFINE_SEQ_SHOW_ONLY(seq_file_sum);
 
@@ -2379,6 +2539,7 @@ static const struct di_dbgfs_files_t di_debugfs_files_top[] = {
 	{"cfg_one", S_IFREG | 0644, &cfgt_one_fops},
 	{"cfg_sel", S_IFREG | 0644, &cfgt_sel_fops},
 	{"policy", S_IFREG | 0644, &policy_fops},
+	{"hf_cfg", S_IFREG | 0644, &hf_en_fops},
 	{"afbc_cfg", S_IFREG | 0644, &dbg_afbc_cfg_v3_fops},
 	{"reg_afd0", S_IFREG | 0644, &dbg_afd0_reg_fops},
 	{"reg_afd1", S_IFREG | 0644, &dbg_afd1_reg_fops},
@@ -2425,6 +2586,7 @@ static const struct di_dbgfs_files_t di_debugfs_files[] = {
 	{"rvfm_in", S_IFREG | 0644, &seq_file_vframe_in_fops},
 	{"rvfm_out", S_IFREG | 0644, &seq_file_vframe_out_fops},
 	{"state", S_IFREG | 0644, &seq_file_state_fops},
+	{"stateb", S_IFREG | 0644, &seq_file_stateb_fops},
 	{"dumpmif", S_IFREG | 0644, &seq_file_mif_fops},
 	{"test_reg", S_IFREG | 0644, &reg_fops},
 	{"sum", S_IFREG | 0644, &seq_file_sum_fops},

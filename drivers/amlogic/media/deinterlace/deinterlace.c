@@ -354,11 +354,16 @@ static struct di_buf_s di_buf_post[MAX_POST_BUF_NUM];
 #define signal_color_primaries ((vframe->signal_type >> 16) & 0xff)
 #define signal_transfer_characteristic ((vframe->signal_type >> 8) & 0xff)
 
+struct di_buf_s *di_get_di_buf_local(unsigned int index)
+{
+	return &di_buf_local[index];
+}
+
 /************For Write register**********************/
 static unsigned int di_stop_reg_flag;
 static unsigned int num_di_stop_reg_addr = 4;
 static unsigned int di_stop_reg_addr[4] = {0};
-static unsigned int di_dbg_mask;
+static unsigned int di_dbg_mask = 0x102;
 
 unsigned int is_need_stop_reg(unsigned int addr)
 {
@@ -1029,6 +1034,8 @@ static char *vframe_type_name[] = {
 static unsigned int default_width = 1920;
 static unsigned int default_height = 1080;
 
+static void di_dbg_log_save(unsigned int data, struct di_buf_s *di_buf);
+
 /*
  * all buffers are in
  * 1) list of local_free_list,in_free_list,pre_ready_list,recycle_list
@@ -1234,6 +1241,10 @@ static void queue_out(struct di_buf_s *di_buf)
 				 di_buf->queue_index, q->num, q->in_idx,
 				 q->out_idx, di_buf);
 
+		if (di_buf->queue_index == QUEUE_PRE_READY) {
+			di_dbg_log_save(0x71, di_buf);
+		}
+
 		if (q->num > 0) {
 			if (q->type == 0) {
 				if (q->pool[q->out_idx] ==
@@ -1245,9 +1256,8 @@ static void queue_out(struct di_buf_s *di_buf)
 						q->out_idx = 0;
 					di_buf->queue_index = -1;
 				} else {
-
-					pr_dbg(
-						"%s: Error (%d, %x,%x)\n",
+					pr_err(
+						"DI:%s: Error (%d, %x,%x)\n",
 						__func__,
 						di_buf->queue_index,
 						q->pool[q->out_idx],
@@ -1357,6 +1367,9 @@ static void queue_in(struct di_buf_s *di_buf, int queue_idx)
 			 q->num, q->in_idx, q->out_idx, di_buf);
 
 	if (q->type == 0) {
+		if (queue_idx == QUEUE_PRE_READY)
+			di_dbg_log_save(0x70, di_buf);
+
 		q->pool[q->in_idx] = (di_buf->type << 8) | (di_buf->index);
 		di_buf->queue_index = queue_idx;
 		q->in_idx++;
@@ -1748,7 +1761,12 @@ unsigned char is_bypass(vframe_t *vf_in)
 	unsigned int vtype = 0;
 	int ret = 0;
 	static vframe_t vf_tmp;
+	static bool last_bypass;
 
+	if (last_bypass != isbypass_flag) {
+		pr_info("DI:bypass:%d -> %d\n", last_bypass, isbypass_flag);
+		last_bypass = isbypass_flag;
+	}
 	isbypass_flag = true;
 	if (di_debug_flag & 0x10000) /* for debugging */
 		return (di_debug_flag >> 17) & 0x1;
@@ -1839,6 +1857,14 @@ unsigned char is_bypass(vframe_t *vf_in)
 			)
 			return 1;
 	}
+
+	if (vf_in	&&
+	    (vf_in->fgs_valid	||
+	     di_pre_stru.is_bypass_fg)) {
+		di_pre_stru.is_bypass_fg = 1;
+		return 1;
+	}
+
 	isbypass_flag = false;
 	return 0;
 }
@@ -2881,7 +2907,7 @@ static int di_init_buf(int width, int height, unsigned char prog_flag)
 			di_buf->canvas_width[NR_CANVAS] = nr_canvas_width;
 			di_buf->canvas_width[MTN_CANVAS] = mtn_canvas_width;
 			di_buf->canvas_width[MV_CANVAS] = mv_canvas_width;
-
+			di_buf->sts = 0;
 			if (prog_flag) {
 				di_buf->canvas_height = canvas_height;
 
@@ -3180,6 +3206,7 @@ static void di_uninit_buf(unsigned int disable_mirror)
 		vframe_in[i] = NULL;
 	di_pre_stru.pre_de_process_done = 0;
 	di_pre_stru.pre_de_process_flag = 0;
+	di_pre_stru.is_bypass_fg = 0;
 	if (post_wr_en && post_wr_support) {
 		di_post_stru.cur_post_buf = NULL;
 		di_post_stru.post_de_busy = 0;
@@ -3636,6 +3663,8 @@ static void pre_inp_canvas_config(struct vframe_s *vf);
 
 static void pre_inp_mif_w(struct DI_MIF_s *di_mif, struct vframe_s *vf);
 
+//static void di_dbg_log_save(unsigned int data, struct di_buf_s *di_buf);
+
 static void pre_de_process(void)
 {
 	ulong irq_flag2 = 0;
@@ -3657,6 +3686,11 @@ static void pre_de_process(void)
 	 * di_pre_stru.di_inp_mif.set_separate_en,
 	 * di_pre_stru.di_inp_buf->vframe->type);
 	 */
+
+	if (di_pre_stru.di_wr_buf) {
+		di_pre_stru.di_wr_buf->sts |= EDI_ST_PRE_SET;
+		di_dbg_log_save(0x30, di_pre_stru.di_wr_buf);
+	}
 #ifdef DI_USE_FIXED_CANVAS_IDX
 	if (di_pre_stru.di_mem_buf_dup_p != NULL &&
 		di_pre_stru.di_mem_buf_dup_p != di_pre_stru.di_inp_buf) {
@@ -3705,9 +3739,10 @@ static void pre_de_process(void)
 	} else
 		config_di_mif(&di_pre_stru.di_chan2_mif,
 			di_pre_stru.di_chan2_buf_dup_p);
-
-	config_di_wr_mif(&di_pre_stru.di_nrwr_mif, &di_pre_stru.di_mtnwr_mif,
-		di_pre_stru.di_wr_buf);
+	if (di_pre_stru.di_wr_buf)
+		config_di_wr_mif(&di_pre_stru.di_nrwr_mif,
+			&di_pre_stru.di_mtnwr_mif,
+			di_pre_stru.di_wr_buf);
 
 	if (di_pre_stru.di_chan2_buf_dup_p)
 		config_di_cnt_mif(&di_pre_stru.di_contprd_mif,
@@ -3783,7 +3818,7 @@ static void pre_de_process(void)
 			di_pre_stru.vdin2nr);
 
 	/*enable_afbc_input(di_pre_stru.di_inp_buf->vframe);*/
-	if (di_afds())
+	if (di_afds() && di_pre_stru.di_wr_buf)
 		di_afds()->en_pre_set(di_pre_stru.di_inp_buf->vframe,
 				      di_pre_stru.di_mem_buf_dup_p->vframe,
 				      di_pre_stru.di_wr_buf->vframe);
@@ -3856,13 +3891,16 @@ static void pre_de_process(void)
 	di_pre_stru.irq_time[0] = cur_to_msecs();
 	di_pre_stru.irq_time[1] = cur_to_msecs();
 	ddbg_mod_save(eDI_DBG_MOD_PRE_SETE, 0, di_pre_stru.in_seq);/*dbg*/
-	di_tr_ops.pre_set(di_pre_stru.di_wr_buf->vframe->omx_index);
+	if (di_pre_stru.di_wr_buf)
+		di_tr_ops.pre_set(di_pre_stru.di_wr_buf->vframe->omx_index);
 #ifdef CONFIG_AMLOGIC_MEDIA_RDMA
 	if (di_pre_rdma_enable & 0x2)
 		rdma_config(de_devp->rdma_handle, RDMA_TRIGGER_MANUAL);
 	else if (di_pre_rdma_enable & 1)
 		rdma_config(de_devp->rdma_handle, RDMA_DEINT_IRQ);
 #endif
+	if (di_pre_stru.di_wr_buf)
+		di_dbg_log_save(0x31, di_pre_stru.di_wr_buf);
 	di_pre_stru.pre_de_process_flag = 0;
 }
 
@@ -3934,6 +3972,8 @@ static void pre_de_done_buf_config(void)
 		di_tr_ops.pre_cnt0(di_pre_stru.di_wr_buf->vframe->omx_index);
 		di_tr_ops.pre_cnt1(di_pre_stru.di_wr_buf->vframe->omx_index);
 		di_tr_ops.pre_ready(di_pre_stru.di_wr_buf->vframe->omx_index);
+		di_pre_stru.di_wr_buf->sts |= EDI_ST_PRE_DONE;
+		di_dbg_log_save(0x40, di_pre_stru.di_wr_buf);
 
 		if (di_pre_stru.pre_throw_flag > 0) {
 			di_pre_stru.di_wr_buf->throw_flag = 1;
@@ -4203,6 +4243,7 @@ static void add_dummy_vframe_type_pre(struct di_buf_s *src_buf)
 			di_buf_tmp->post_ref_count = 0;
 			di_buf_tmp->post_proc_flag = 3;
 			di_buf_tmp->new_format_flag = 0;
+			di_buf_tmp->sts |= EDI_ST_DUMMY;
 			if (!IS_ERR_OR_NULL(src_buf))
 				memcpy(di_buf_tmp->vframe, src_buf->vframe,
 					sizeof(vframe_t));
@@ -4254,6 +4295,7 @@ static struct di_buf_s *get_free_linked_buf(int idx)
 				di_buf = &(di_buf_pool[pool_idx].
 					di_buf_ptr[di_buf_idx]);
 				queue_out(di_buf);
+				di_buf->sts |= EDI_ST_AS_LINKA;
 			}
 		}
 		pool_idx = ((q->pool[idx + 1] >> 8) & 0xff) - 1;
@@ -4263,10 +4305,15 @@ static struct di_buf_s *get_free_linked_buf(int idx)
 				di_buf_linked =	&(di_buf_pool[pool_idx].
 					di_buf_ptr[di_buf_idx]);
 				queue_out(di_buf_linked);
+				di_buf_linked->sts |= EDI_ST_AS_LINKB;
 			}
 		}
-		if (IS_ERR_OR_NULL(di_buf))
+		if (IS_ERR_OR_NULL(di_buf)) {
+			pr_error("%s:err 1\n", __func__);
+			//di_buf->sts |= EDI_ST_AS_LINK_ERR1;
 			return NULL;
+		}
+
 		di_buf->di_wr_linked_buf = di_buf_linked;
 	}
 	return di_buf;
@@ -4318,6 +4365,79 @@ module_param_named(pre_hsc_down_en, pre_hsc_down_en, bool, 0644);
 static int pre_hsc_down_width = 480;
 module_param_named(pre_hsc_down_width, pre_hsc_down_width, int, 0644);
 
+/* test code for log infor */
+static DEFINE_SPINLOCK(di_log_lock);
+
+struct log_one_s {
+	u64 timer;
+	unsigned int data;
+	unsigned int vtype;
+	unsigned long p;
+};
+
+#define DIM_LOG_LEN	20
+
+struct log_s {
+	unsigned int pos;
+	struct log_one_s one[DIM_LOG_LEN];
+};
+
+static struct log_s di_log_data;
+
+static u64 cur_to_usecs(void)/*2019*/
+{
+	u64 cur = sched_clock();
+
+	do_div(cur, NSEC_PER_USEC);
+	return cur;
+}
+
+static void di_dbg_log_save(unsigned int data, struct di_buf_s *di_buf)
+{
+	struct log_s *plog = &di_log_data;
+	struct log_one_s *pone;
+	unsigned long flags;
+
+	spin_lock_irqsave(&di_log_lock, flags);
+	if (plog->pos >= DIM_LOG_LEN)
+		plog->pos = 0;
+	pone = &plog->one[plog->pos];
+	pone->timer = cur_to_usecs();
+	pone->data = data;
+	if (di_buf) {
+		pone->p		= (unsigned long)di_buf;
+		pone->vtype	= di_buf->vframe->type;
+	} else {
+		pone->p		= 0;
+		pone->vtype	= 0;
+	}
+	plog->pos++;
+	if (plog->pos >= DIM_LOG_LEN)
+		plog->pos = 0;
+	spin_unlock_irqrestore(&di_log_lock, flags);
+}
+
+void di_dbg_log_print(void)
+{
+	struct log_s *plog = &di_log_data;
+	struct log_one_s *pone;
+	unsigned long flags;
+	int i;
+
+	spin_lock_irqsave(&di_log_lock, flags);
+	pr_info("DI:log:%d:\n", plog->pos);
+	for (i = 0; i < DIM_LOG_LEN; i++) {
+		pone = &plog->one[i];
+		pr_info("DI:\t%d:%lu:0x%x,%lu,0x%x\n", i,
+			(unsigned long)pone->timer,
+			pone->data,
+			pone->p,
+			pone->vtype);
+	}
+	spin_unlock_irqrestore(&di_log_lock, flags);
+}
+
+/***********************/
 static unsigned char pre_de_buf_config(void)
 {
 	struct di_buf_s *di_buf = NULL;
@@ -4326,6 +4446,7 @@ static unsigned char pre_de_buf_config(void)
 	unsigned char change_type = 0;
 	bool bit10_pack_patch = false;
 	unsigned int width_roundup = 2;
+	unsigned int flg_next = 0;
 	bool flg_1080i = false;
 	bool flg_480i = false;
 	u32 cur_dw_width = 0xffff;
@@ -4370,6 +4491,8 @@ static unsigned char pre_de_buf_config(void)
 	if (di_pre_stru.di_inp_buf_next) {
 		di_pre_stru.di_inp_buf = di_pre_stru.di_inp_buf_next;
 		di_pre_stru.di_inp_buf_next = NULL;
+		flg_next = 2;
+		di_dbg_log_save(0x12, di_pre_stru.di_inp_buf);
 #ifdef DI_BUFFER_DEBUG
 		di_print("%s: di_inp_buf_next %s[%d] => di_inp_buf\n",
 			__func__,
@@ -4542,6 +4665,8 @@ jiffies_to_msecs(jiffies_64 - vframe->ready_jiffies64));
 			}
 		}
 		change_type = is_source_change(vframe);
+		if (change_type)
+			di_pre_stru.is_bypass_fg = 0;
 		/* source change, when i mix p,force p as i*/
 		if (change_type == 1 || (change_type == 2 &&
 					 di_pre_stru.cur_prog_flag == 1)) {
@@ -4793,6 +4918,8 @@ jiffies_to_msecs(jiffies_64 - vframe->ready_jiffies64));
 				di_buf_tmp->post_proc_flag = 0;
 
 				di_pre_stru.di_inp_buf = di_buf;
+				flg_next = 1;
+				di_dbg_log_save(0x11, di_buf);
 #ifdef DI_BUFFER_DEBUG
 				di_print(
 			"%s: %s[%d] => di_inp_buf; %s[%d] => di_inp_buf_next\n",
@@ -4895,6 +5022,11 @@ jiffies_to_msecs(jiffies_64 - vframe->ready_jiffies64));
 			return 0;
 		}
 		queue_out(di_buf);
+		di_buf->sts |= EDI_ST_PRE;
+		if (flg_next == 1)
+			di_buf->sts |= EDI_ST_P_T;
+		else if (flg_next == 2)
+			di_buf->sts |= EDI_ST_P_B;
 		if (di_pre_stru.prog_proc_type & 0x10)
 			di_buf->canvas_config_flag = 1;
 		else
@@ -5029,7 +5161,7 @@ jiffies_to_msecs(jiffies_64 - vframe->ready_jiffies64));
 
 	if ((di_pre_stru.di_mem_buf_dup_p == di_pre_stru.di_wr_buf) ||
 	    (di_pre_stru.di_chan2_buf_dup_p == di_pre_stru.di_wr_buf)) {
-		pr_dbg("+++++++++++++++++++++++\n");
+		pr_error("+++++++++++++++++++++++\n");
 		if (recovery_flag == 0)
 			recovery_log_reason = 12;
 
@@ -5053,6 +5185,7 @@ jiffies_to_msecs(jiffies_64 - vframe->ready_jiffies64));
 		else
 			com_patch_pre_sw_set(0);
 	}
+	di_dbg_log_save(0x20 + flg_next, di_pre_stru.di_wr_buf);
 	return 1;
 }
 
@@ -5103,8 +5236,10 @@ static int check_recycle_buf(void)
 			} else {
 				queue_out(di_buf);
 				di_buf->invert_top_bot_flag = 0;
+				di_buf->sts = 0;
 				queue_in(di_buf, QUEUE_LOCAL_FREE);
 				if (di_buf->di_wr_linked_buf) {
+					di_buf->di_wr_linked_buf->sts = 0;
 					queue_in(
 						di_buf->di_wr_linked_buf,
 						QUEUE_LOCAL_FREE);
@@ -7073,17 +7208,26 @@ VFRAME_EVENT_PROVIDER_VFRAME_READY, NULL);
 
 			di_buf->di_buf[0] = di_buf->di_buf_dup_p[0];
 			queue_out(di_buf->di_buf[0]);
+			di_buf->di_buf[0]->sts |= EDI_ST_VFM_A;
 			/*check if the field is error,then drop*/
-			if (
-				(di_buf->di_buf_dup_p[0]->vframe->type &
+			di_dbg_log_save(0x50, di_buf->di_buf_dup_p[0]);
+			di_dbg_log_save(0x51, di_buf->di_buf_dup_p[1]);
+			if (di_dbg_mask & 0x200) {
+				di_dbg_log_print();
+				di_dbg_mask &= (~0x200);
+			}
+			if ((di_dbg_mask & 0x100) &&
+				((di_buf->di_buf_dup_p[0]->vframe->type &
 				 VIDTYPE_TYPEMASK) ==
-				VIDTYPE_INTERLACE_BOTTOM) {
+				VIDTYPE_INTERLACE_BOTTOM)) {
+				di_dbg_log_print();
 				di_buf->di_buf[1] =
 					di_buf->di_buf_dup_p[1] = NULL;
 				queue_in(di_buf, QUEUE_TMP);
 				recycle_vframe_type_post(di_buf);
-				pr_dbg("%s drop field %d.\n", __func__,
+				pr_error("di:%s drop field %d.end\n", __func__,
 					di_buf->di_buf_dup_p[0]->seq);
+				//di_dbg_mask = 2;
 			} else {
 				di_buf->di_buf[1] =
 					di_buf->di_buf_dup_p[1];
@@ -7105,6 +7249,8 @@ VFRAME_EVENT_PROVIDER_VFRAME_READY, NULL);
 						 vf->index_disp);
 				}
 #endif /*DI_KEEP_DEC_VF*/
+				di_buf->di_buf[1]->sts |= EDI_ST_VFM_B;
+
 				drop_frame(check_start_drop_prog,
 					(di_buf->di_buf_dup_p[0]->throw_flag) ||
 					(di_buf->di_buf_dup_p[1]->throw_flag),

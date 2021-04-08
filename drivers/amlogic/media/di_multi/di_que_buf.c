@@ -382,7 +382,7 @@ static bool n_out(struct buf_que_s *pqb, struct qs_cls_s *p,
 		spin_lock_irqsave(&p->lock_rd, flags);
 
 	if (!p->n.nub) {
-		/* *pbuf = NULL; */
+		/* *pbuf = NULL;*/
 		if (p->flg_lock)
 			spin_unlock_irqrestore(&p->lock_rd, flags);
 		return false;
@@ -409,8 +409,8 @@ static bool n_out(struct buf_que_s *pqb, struct qs_cls_s *p,
 }
 
 /* 2020-12-07 */
-static bool n_is_in(struct buf_que_s *pqb,
-		    struct qs_cls_s *p, union q_buf_u ubuf)
+static bool n_is_in(struct buf_que_s *pqb, struct qs_cls_s *p,
+	union q_buf_u ubuf)
 {
 	struct qs_err_msg_s msg;
 	//struct qs_cls_s *p;
@@ -1221,7 +1221,7 @@ void qfp_int(struct qs_cls_s	*pq,
 		pq->flg_lock |= DIM_QUE_LOCK_WR;
 	}
 
-	PR_INF("%s:%s:end\n", __func__, qname);
+	dbg_reg("%s:%s:end\n", __func__, qname);
 }
 
 bool qfp_release(struct qs_cls_s	*pq)
@@ -1354,7 +1354,7 @@ void qbuf_int(struct buf_que_s *pbufq, const struct que_creat_s *cfg,
 	else
 		pbufq->rflg = false;
 
-	PR_INF("%s:%s:end\n", __func__, pbufq->name);
+	dbg_reg("%s:%s:end\n", __func__, pbufq->name);
 }
 
 bool qbuf_release_que(struct buf_que_s *pqbuf)

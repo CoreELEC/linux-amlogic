@@ -63,8 +63,8 @@
 #define BYPASS_GET_MAX_BUF_NUM			9//4
 
 /* buffer management related */
-#define MAX_IN_BUF_NUM				(10)	/*change 4 to 8*/
-#define MAX_LOCAL_BUF_NUM			(7)
+#define MAX_IN_BUF_NUM				(15)	/*change 4 to 8*/
+#define MAX_LOCAL_BUF_NUM			(5)
 #define MAX_POST_BUF_NUM			(20)//(11)	/*(5)*/ /* 16 */
 #define POST_BUF_NUM				(11)
 #define VFRAME_TYPE_IN				1
@@ -74,6 +74,12 @@
 
 #define DI_POST_GET_LIMIT			8
 #define DI_PRE_READY_LIMIT			4
+
+#define LOCAL_META_BUFF_SIZE 0x800 /* 2K size */
+
+/* nrcrc count for slt */
+#define MAX_CRC_COUNT_NUM				(10)
+
 /*vframe define*/
 #define vframe_t struct vframe_s
 
@@ -96,6 +102,8 @@
 #endif
 
 #define IS_I_SRC(vftype) ((vftype) & VIDTYPE_INTERLACE_BOTTOM)
+#define IS_FIELD_I_SRC(vftype) ((vftype) & VIDTYPE_INTERLACE_BOTTOM && \
+				(vftype) & VIDTYPE_VIU_FIELD)
 
 #define IS_COMP_MODE(vftype) ((vftype) & VIDTYPE_COMPRESS)
 #define IS_PROG(vftype) ((vftype & VIDTYPE_TYPEMASK) == VIDTYPE_PROGRESSIVE)
@@ -225,6 +233,7 @@ struct di_buf_s {
 	unsigned long afbct_adr;
 	unsigned long dw_adr;
 	unsigned long insert_adr;
+	unsigned long hf_adr;
 	struct mcinfo_pre_s {
 		unsigned int highvertfrqflg;
 		unsigned int motionparadoxflg;
@@ -274,6 +283,7 @@ struct di_buf_s {
 	unsigned char afbc_sgn_cfg;
 	struct di_win_s win; /*post write*/
 	struct di_buf_s *di_buf_post; /*07-27 */
+	struct hf_info_t hf;	/* struct hf_info_t */
 	unsigned long jiff; // for wait
 	struct dim_rpt_s pq_rpt;
 	enum EDI_SGN	sgn_lv;
@@ -292,11 +302,20 @@ struct di_buf_s {
 	unsigned int afbce_out_yuv420_10	: 1; /* 2020-11-26*/
 	unsigned int is_nbypass	: 1; /*2020-12-07*/
 	unsigned int is_bypass_pst : 1; /*2021-01-07*/
-	unsigned int rev1	: 4;
+	unsigned int is_bypass_mem : 1;
+	unsigned int en_hf	: 1; //only flg post buffer
+	unsigned int hf_done	: 1; //
+	unsigned int rev1	: 1;
 
 	unsigned int rev2	: 16;
 	struct dsub_bufv_s	c;
 	unsigned int datacrc;
+	unsigned int nrcrc;
+	/* local meta buffer */
+	u8 *local_meta;
+	u32 local_meta_used_size;
+	u32 local_meta_total_size;
+	bool hf_irq;
 };
 
 #define RDMA_DET3D_IRQ			0x20
@@ -387,6 +406,7 @@ struct di_dev_s {
 	unsigned char	   di_event;
 	unsigned int	   pre_irq;
 	unsigned int	   post_irq;
+	unsigned int	aisr_irq;
 	unsigned int	   flags;
 	unsigned long	   jiffy;
 	bool	mem_flg;	/*ary add for make sure mem is ok*/
@@ -404,7 +424,11 @@ struct di_dev_s {
 	/***************************/
 	/*struct di_data_l_s	data_l;*/
 	void *data_l;
-
+	u8 *local_meta_addr;
+	u32 local_meta_size;
+	unsigned int di_pre_nrcrc[MAX_CRC_COUNT_NUM];
+	unsigned int getcrccount;
+	unsigned int setcrccount;
 };
 
 struct di_pre_stru_s {
@@ -427,6 +451,7 @@ struct di_pre_stru_s {
 	struct DI_SIM_MIF_s	di_contp2rd_mif;
 	struct DI_SIM_MIF_s	di_contprd_mif;
 	struct DI_SIM_MIF_s	di_contwr_mif;
+	struct DI_SIM_MIF_s	hf_mif;
 	int		field_count_for_cont;
 /*
  * 0 (f0,null,f0)->nr0,
@@ -469,8 +494,11 @@ struct di_pre_stru_s {
 /* true: bypass di all logic, false: not bypass */
 	bool bypass_flag;
 	unsigned int is_bypass_all	: 1;
-	unsigned int is_bypass_mem	: 1;
-	unsigned int rev1		: 30;
+	/* bit0 for cfg, bit1 for t5dvb*/
+	unsigned int is_bypass_mem	: 2;
+	unsigned int is_bypass_fg	: 1;
+	unsigned int is_disable_chan2	: 1;
+	unsigned int rev1		: 27;
 	unsigned char prog_proc_type;
 /* set by prog_proc_config when source is vdin,0:use 2 i
  * serial buffer,1:use 1 p buffer,3:use 2 i paralleling buffer
@@ -522,6 +550,8 @@ struct di_pre_stru_s {
 	union afbc_blk_s	en_cfg;
 	union afbc_blk_s	en_set;
 	struct vframe_s		vfm_cpy;
+	unsigned int		h_size; //real di h_size
+	unsigned int		v_size;	//real di v_size
 };
 
 struct dim_fmt_s;
@@ -531,6 +561,7 @@ struct di_post_stru_s {
 	struct DI_MIF_S	di_buf1_mif;
 	struct DI_MIF_S	di_buf2_mif;
 	struct DI_SIM_MIF_s di_diwr_mif;
+	struct DI_SIM_MIF_s hf_mif;
 	struct DI_SIM_MIF_s	di_mtnprd_mif;
 	struct DI_MC_MIF_s	di_mcvecrd_mif;
 	/*post doing buf and write buf to post ready*/
@@ -642,6 +673,7 @@ void dim_release_canvas(void);
 unsigned int dim_cma_alloc_total(struct di_dev_s *de_devp);
 irqreturn_t dim_irq(int irq, void *dev_instance);
 irqreturn_t dim_post_irq(int irq, void *dev_instance);
+irqreturn_t dim_aisr_irq(int irq, void *dev_instance);
 
 void dim_rdma_init(void);
 void dim_rdma_exit(void);
@@ -699,7 +731,7 @@ bool dim_get_mcmem_alloc(void);
 int dim_get_reg_unreg_cnt(void);
 void dim_reg_timeout_inc(void);
 
-bool is_bypass2(struct vframe_s *vf_in, unsigned int ch);
+unsigned int is_bypass2(struct vframe_s *vf_in, unsigned int ch);
 void dim_post_keep_cmd_proc(unsigned int ch, unsigned int index);
 bool dim_need_bypass(unsigned int ch, struct vframe_s *vf);
 
@@ -807,6 +839,9 @@ bool sc2_dbg_is_en_pst_irq(void);
 void sc2_dbg_pre_info(unsigned int val);
 void sc2_dbg_pst_info(unsigned int val);
 void hpre_timeout_read(void);
+void hpst_timeout_read(void);
+void dpre_vdoing(unsigned int ch);
+
 #define TEST_4K_NR	(1)
 //#define DBG_TEST_CRC	(1)
 //#define DBG_TEST_CRC_P	(1)

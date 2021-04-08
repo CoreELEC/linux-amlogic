@@ -60,11 +60,12 @@ bool task_send_cmd(unsigned int cmd)
 	return true;
 }
 
-void task_send_ready(void)
+void task_send_ready(unsigned int id)
 {
 	struct di_task *tsk = get_task();
 
 	task_wakeup(tsk);
+	dbg_tsk("trig:r:%u\n", id);
 }
 
 static void task_self_trig(void)
@@ -91,8 +92,8 @@ static void task_self_trig(void)
 		//dim_tr_ops.self_trig(DI_BIT29 | pch->self_trig_need);
 	}
 	if (ret) {
-		dbg_tsk("trig[0x%x]\n", pch->self_trig_need);
-		task_send_ready();
+		dbg_tsk("trig:s[0x%x]\n", pch->self_trig_need);
+		task_send_ready(8);
 	}
 }
 bool task_get_cmd(unsigned int *cmd)
@@ -529,6 +530,7 @@ bool mtask_send_cmd(unsigned int ch, struct mtsk_cmd_s *cmd)
 	}
 
 	//dbg_mem2("%s:cmd[%d]:\n", __func__, cmd);
+	cmd->block_mode = 0;
 	if (kfifo_is_full(&fcmd->fifo)) {
 		if (kfifo_out(&fcmd->fifo, &val, sizeof(unsigned int))
 		    != sizeof(struct mtsk_cmd_s)) {
@@ -546,7 +548,43 @@ bool mtask_send_cmd(unsigned int ch, struct mtsk_cmd_s *cmd)
 	else
 		kfifo_in(&fcmd->fifo, cmd, sizeof(struct mtsk_cmd_s));
 
-	fcmd->doing++;
+	atomic_inc(&fcmd->doing);//fcmd->doing++;
+	mtask_wakeup(tsk);
+	return true;
+}
+
+bool mtask_send_cmd_block(unsigned int ch, struct mtsk_cmd_s *cmd)
+{
+	struct di_mtask *tsk = get_mtask();
+	struct dim_fcmd_s *fcmd;
+	struct mtsk_cmd_s val;
+
+	fcmd = &tsk->fcmd[ch];
+	if (!fcmd->flg) {
+		//PR_ERR("%s:no fifo\n", __func__);
+		return false;
+	}
+
+	//dbg_mem2("%s:cmd[%d]:\n", __func__, cmd);
+	cmd->block_mode = 1;
+	if (kfifo_is_full(&fcmd->fifo)) {
+		if (kfifo_out(&fcmd->fifo, &val, sizeof(unsigned int))
+		    != sizeof(struct mtsk_cmd_s)) {
+			//PR_ERR("%s:can't out\n", __func__);
+			return false;
+		}
+
+		PR_ERR("%s:lost cmd[%d]\n", __func__, val.cmd);
+		tsk->err_cmd_cnt++;
+		/*return false;*/
+	}
+	if (fcmd->flg_lock & DIM_QUE_LOCK_WR)
+		kfifo_in_spinlocked(&fcmd->fifo, cmd, sizeof(struct mtsk_cmd_s),
+				    &fcmd->lock_w);
+	else
+		kfifo_in(&fcmd->fifo, cmd, sizeof(struct mtsk_cmd_s));
+
+	atomic_inc(&fcmd->doing);//fcmd->doing++;
 	mtask_wakeup(tsk);
 	return true;
 }
@@ -570,12 +608,33 @@ bool mtsk_alloc_block(unsigned int ch, struct mtsk_cmd_s *cmd)
 	mtask_send_cmd(ch, cmd);
 	fcmd = &tsk->fcmd[ch];
 	cnt = 0;
-	while ((fcmd->doing > 0) && (cnt < 200)) { /*wait 2s for finish*/
+	while ((atomic_read(&fcmd->doing) > 0) && (cnt < 200)) {
+		/*wait 2s for finish*/
 		usleep_range(10000, 10001);
 		cnt++;
 	}
-	if (fcmd->doing > 0) {
-		PR_ERR("%s:can't finish[%d]\n", __func__, fcmd->doing);
+	if (atomic_read(&fcmd->doing) > 0) {
+		PR_ERR("%s:can't finish[%d]\n", __func__,
+		       atomic_read(&fcmd->doing));
+		return false;
+	}
+	return true;
+}
+
+bool mtsk_alloc_block2(unsigned int ch, struct mtsk_cmd_s *cmd)
+{
+	struct dim_fcmd_s *fcmd;
+	struct di_mtask *tsk = get_mtask();
+//	unsigned int cnt;
+	int timeout = 0;
+
+	mtask_send_cmd_block(ch, cmd);
+	fcmd = &tsk->fcmd[ch];
+
+	timeout = wait_for_completion_timeout(&fcmd->alloc_done,
+		msecs_to_jiffies(30));
+	if (!timeout) {
+		PR_ERR("%s:timeout\n", __func__);
 		return false;
 	}
 	return true;
@@ -592,12 +651,16 @@ bool mtsk_release_block(unsigned int ch, unsigned int cmd)
 	mtask_send_cmd(ch, &blk_cmd);
 	fcmd = &tsk->fcmd[ch];
 	cnt = 0;
-	while ((fcmd->doing > 0) && (cnt < 200)) { /*wait 2s for finish*/
+	while ((atomic_read(&fcmd->doing) > 0) && (cnt < 200)) {
+		/*wait 2s for finish*/
 		usleep_range(10000, 10001);
 		cnt++;
 	}
-	if (fcmd->doing > 0) {
-		PR_ERR("%s:can't finish[%d]\n", __func__, fcmd->doing);
+	if (atomic_read(&fcmd->doing) > 0) {
+		PR_ERR("%s:can't finish[%d] fix\n", __func__,
+		       atomic_read(&fcmd->doing));
+		/*fix*/
+		atomic_set(&fcmd->doing, 0);
 		return false;
 	}
 	return true;
@@ -653,6 +716,8 @@ static void mtask_polling_cmd(unsigned int ch)
 			break;
 
 		blk_polling(ch, &blk_cmd);
+		if (blk_cmd.block_mode)
+			complete(&fcmd->alloc_done);
 	}
 }
 
@@ -756,7 +821,7 @@ static void mtask_alloc(struct di_mtask *tsk)
 			       __func__, i);
 			break;
 		}
-
+		init_completion(&fcmd->alloc_done);
 		fcmd->flg = true;
 	}
 }

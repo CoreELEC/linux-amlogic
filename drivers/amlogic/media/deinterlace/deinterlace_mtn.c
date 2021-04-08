@@ -467,11 +467,15 @@ struct combing_status_s *adpative_combing_config(unsigned int width,
 	cmb_param.prog_flag = prog;
 	return &cmb_status;
 }
+
+/*from PQ qianyufei,add ic config from sc2*/
 void mtn_int_combing_glbmot(void)
 {
 	if (is_meson_tl1_cpu() || is_meson_tm2_cpu() ||
-	    IS_IC(dil_get_cpuver_flag(), T5) ||
-		IS_IC(dil_get_cpuver_flag(), T5D)) {/*from VLSI yanling.liu*/
+	    IS_IC(dil_get_cpuver_flag(), T5)	||
+	    IS_IC(dil_get_cpuver_flag(), T5D)	||
+	    IS_IC(dil_get_cpuver_flag(), T5DB) ||/*from VLSI yanling.liu*/
+	    IS_IC_EF(dil_get_cpuver_flag(), SC2)) {
 		combing_glbmot_radprat[0] = 30;
 	}
 	di_mtn_p_mode = 0;
@@ -539,7 +543,6 @@ unsigned int adp_set_mtn_ctrl3(unsigned int diff, unsigned int dlvel)
 	return rst;
 }
 
-
 int cmb_num_rat_ctl4 = 64; /* 0~255 */
 module_param(cmb_num_rat_ctl4, int, 0644);
 MODULE_PARM_DESC(cmb_num_rat_ctl4, "cmb_num_rat_ctl4");
@@ -547,7 +550,6 @@ MODULE_PARM_DESC(cmb_num_rat_ctl4, "cmb_num_rat_ctl4");
 int cmb_rat_ctl4_minthd = 64;
 module_param(cmb_rat_ctl4_minthd, int, 0644);
 MODULE_PARM_DESC(cmb_rat_ctl4_minthd, "cmb_rat_ctl4_minthd");
-
 
 unsigned int adp_set_mtn_ctrl4(unsigned int diff, unsigned int dlvel,
 	unsigned int height, int cmb_cnt)
@@ -925,12 +927,15 @@ int adaptive_combing_fixing(
 		combing_cnt = combing_cnt + 1;
 	else
 		combing_cnt = 0;
+	/*from PQ qianyufei,add ic config from sc2*/
 	if (
 		is_meson_txhd_cpu() ||
 		is_meson_tl1_cpu() ||
 		is_meson_tm2_cpu() ||
-		IS_IC(dil_get_cpuver_flag(), T5) ||
-		IS_IC(dil_get_cpuver_flag(), T5D)) {
+		IS_IC(dil_get_cpuver_flag(), T5)	||
+		IS_IC(dil_get_cpuver_flag(), T5D)	||
+		IS_IC(dil_get_cpuver_flag(), T5DB)	||
+		IS_IC_EF(dil_get_cpuver_flag(), SC2)) {
 		if (
 			glb_mot[0] < combing_diff_min &&
 			glb_mot[1] > combing_diff_max &&

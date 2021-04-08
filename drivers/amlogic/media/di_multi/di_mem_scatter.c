@@ -471,7 +471,7 @@ void sct_sw_off(struct di_ch_s *pch)
 	ch = pch->ch_id;
 	psct = &pch->msct_top;
 	if (!psct->box) {
-		PR_INF("%s:no box\n", __func__);
+		dbg_reg("%s:no box\n", __func__);
 		return;
 	}
 
@@ -656,7 +656,7 @@ void sct_free_tail_l(struct di_ch_s *pch,
 	diff = timer_end - timer_st;
 	dim_tr_ops.sct_tail(sct->header.index, buffer_used);
 	//dbg_sct("%s:use %uus 0x%x\n", __func__,
-	//(unsigned int)diff, buffer_used);
+		//  (unsigned int)diff, buffer_used);
 }
 
 void sct_free_l(struct di_ch_s *pch, struct dim_sct_s *sct)
@@ -864,7 +864,7 @@ void sct_mng_working(struct di_ch_s *pch)
 	unsigned int cnt_pst_free, cnt_sct_ready, cnt_sct_req;
 	unsigned int cnt_idle, cnt_wait, need_req, req_new = 0;
 	unsigned int cnt_recycle, ready_set, cnt_pst_ready;
-	struct buf_que_s *pbufq;
+	struct buf_que_s *pbufq, *pbufq_dis;
 	struct dim_mscttop_s	*pmsct;
 	struct dim_sct_s *sct;
 	//bool f_no_res = false;
@@ -880,6 +880,7 @@ void sct_mng_working(struct di_ch_s *pch)
 	struct di_dev_s *devp = get_dim_de_devp();
 	struct di_pre_stru_s *ppre;
 	unsigned int frame_nub;
+	unsigned int cnt_display = 0;
 
 	if (!pch)
 		return;
@@ -928,6 +929,9 @@ void sct_mng_working(struct di_ch_s *pch)
 	cnt_sct_ready	= qbufp_count(pbufq, QBF_SCT_Q_READY);
 	cnt_sct_req	= qbufp_count(pbufq, QBF_SCT_Q_REQ);
 	mutex_unlock(&pmsct->lock_ready);
+
+	pbufq_dis = &pch->ndis_qb;
+	cnt_display = qbufp_count(pbufq_dis, QBF_NDIS_Q_DISPLAY);
 
 	ready_set = cnt_sct_ready;
 	if (cnt_sct_ready && (cnt_wait < cnt_sct_ready)) {
@@ -981,8 +985,8 @@ void sct_mng_working(struct di_ch_s *pch)
 	if ((cnt_pst_free + cnt_sct_req + cnt_sct_ready) >= DIM_SCT_KEEP_READY)
 		return;
 
-	need_req = DIM_SCT_KEEP_READY - cnt_pst_free - cnt_sct_req -
-		cnt_sct_ready;
+	need_req =
+		DIM_SCT_KEEP_READY - cnt_pst_free - cnt_sct_req - cnt_sct_ready;
 
 	if (cnt_idle >= need_req) {
 		f_req = true;
@@ -1000,7 +1004,7 @@ void sct_mng_working(struct di_ch_s *pch)
 			if (pat_buf) {
 				pat_set_vaddr(pat_buf,
 					      mm->cfg.pst_afbct_size);
-				#if 1
+				//#if 1
 				/* cash */
 				if ((dbg_sct_clear_first() &&
 				     (!pat_buf->flg_mode)) ||
@@ -1010,7 +1014,7 @@ void sct_mng_working(struct di_ch_s *pch)
 						pat_buf);
 					pat_buf->flg_mode = 1;
 				}
-				#endif
+				//#endif
 			} else {
 				PR_ERR("%s:no pat\n", __func__);
 				err++;
@@ -1034,6 +1038,8 @@ void sct_mng_working(struct di_ch_s *pch)
 		//if (req_new)
 		//	mtask_wake_for_sct();
 	} else if (cnt_pst_ready >= 1) {
+	} else if (dip_itf_is_ins_lbuf(pch) &&
+		   cnt_display >= (pmsct->max_nub - 3)) {
 	} else {
 		/* no resource */
 		if (f_no_wbuf)
@@ -1130,23 +1136,6 @@ void sct_sw_off_rebuild(struct di_ch_s *pch)
 	}
 	ch = pch->ch_id;
 
-	#ifdef HIS_CODE
-	/* clear QUE_POST_FREE */
-	for (i = 0; i < 2; i++) {
-		di_buf = di_que_peek(ch, QUE_POST_FREE);
-		if (di_buf->blk_buf && di_buf->blk_buf->sct) {
-			di_buf = di_que_out_to_di_buf(ch, QUE_POST_FREE);
-			sct = (struct dim_sct_s *)di_buf->blk_buf->sct;
-			qsct_used_some_to_recycle(pch, sct);
-			di_buf->afbct_adr	= 0;
-			di_buf->blk_buf->sct = NULL;
-			di_buf->blk_buf->pat_buf = NULL;
-			di_que_in(ch, QUE_PST_NO_BUF_WAIT, di_buf);
-		} else {
-			break;
-		}
-	}
-	#endif
 	pbufq = &pch->sct_qb;
 	/* clear req */
 	len = qbufp_count(pbufq, QBF_SCT_Q_REQ);

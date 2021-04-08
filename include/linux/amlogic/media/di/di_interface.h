@@ -60,6 +60,7 @@ struct di_buffer {
 	void *caller_data; /*from di_init_parm.caller_data*/
 	u32 flag;
 	unsigned int crcout;
+	unsigned int nrcrcout;
 };
 
 enum DI_FLAG {
@@ -97,8 +98,15 @@ enum di_output_format {
 	DI_OUTPUT_TVP		= 0x20000000, /*21-03-02*/
 	DI_OUTPUT_LINEAR	= 0x40000000,
 	/*1:di output must linear, 0: determined by di,may be linear or block*/
-	DI_OUTPUT_AFBC_BEST = 0x80000000,
-	/*if di support afbc, use afbc is the best choice*/
+	DI_OUTPUT_BY_DI_DEFINE	= 0x80000000,
+	/* when use di's local buffer, can use this option,
+	 * when use this option, blow define is no use
+	 *	DI_OUTPUT_422
+	 *	DI_OUTPUT_NV12
+	 *	DI_OUTPUT_NV21
+	 *	DI_OUTPUT_LINEAR
+	 */
+
 	DI_OUTPUT_MAX = 0x7FFFFFFF,
 };
 
@@ -190,13 +198,23 @@ int di_write(struct di_buffer *buffer, struct composer_dst *dst);
 int di_release_keep_buf(struct di_buffer *buffer);
 
 /**
- * @brief  di_get_buffer_num  get output buffer num
+ * @brief  di_get_output_buffer_num  get output buffer num
  *
  * @param[in]  index   instance index
  * @param[in]  buffer  Pointer of buffer structure
  *
  * @return      number or fail type
  */
-int di_get_buffer_num(int index);
+int di_get_output_buffer_num(int index);
+
+/**
+ * @brief  di_get_input_buffer_num  get input buffer num
+ *
+ * @param[in]  index   instance index
+ * @param[in]  buffer  Pointer of buffer structure
+ *
+ * @return      number or fail type
+ */
+int di_get_input_buffer_num(int index);
 
 #endif	/*__DI_INTERLACE_H__*/

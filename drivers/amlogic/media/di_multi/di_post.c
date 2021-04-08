@@ -217,6 +217,7 @@ bool dpst_step_wait_int(void)
 			ppost = get_post_stru(ch);
 			PR_WARN("ch[%d]:post timeout[%d]\n", ch,
 				ppost->cur_post_buf->seq_post);
+			hpst_timeout_read();
 			dim_ddbg_mod_save(EDI_DBG_MOD_POST_TIMEOUT, ch, 0);
 			/*state*/
 			pst->state = EDI_PST_ST_TIMEOUT;
@@ -311,11 +312,12 @@ bool dpst_can_exit(unsigned int ch)
 		if (pst->state <= EDI_PST_ST_IDLE)
 			ret = true;
 	}
-	pr_info("%s:ch[%d]:curr[%d]:stat[%s] ret[%d]\n",
-		__func__,
-		ch, pst->curr_ch,
-		dpst_state_name_get(pst->state),
-		ret);
+	if (!ret)
+		PR_INF("%s:ch[%d]:curr[%d]:stat[%s] ret[%d]\n",
+		       __func__,
+		       ch, pst->curr_ch,
+		       dpst_state_name_get(pst->state),
+		       ret);
 	return ret;
 }
 

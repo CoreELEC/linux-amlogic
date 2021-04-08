@@ -316,11 +316,12 @@ bool dpre_can_exit(unsigned int ch)
 		if (pre->pre_st <= EDI_PRE_ST4_IDLE)
 			ret = true;
 	}
-	pr_info("%s:ch[%d]:curr[%d]:stat[%s] ret[%d]\n",
-		__func__,
-		ch, pre->curr_ch,
-		dpre_state4_name_get(pre->pre_st),
-		ret);
+	if (!ret)
+		PR_INF("%s:ch[%d]:curr[%d]:stat[%s] ret[%d]\n",
+		       __func__,
+		       ch, pre->curr_ch,
+		       dpre_state4_name_get(pre->pre_st),
+		       ret);
 	return ret;
 }
 
@@ -392,23 +393,18 @@ unsigned int dpre_mtotal_check(void *data)
 	struct di_hpre_s  *pre = get_hw_pre();
 	unsigned int ret = K_DO_R_JUMP(K_DO_TABLE_ID_STOP);//K_DO_R_NOT_FINISH;
 	unsigned int cfg_val;
+	struct di_ch_s *pch;
 
 	dbg_src_change_simple(pre->curr_ch);/*dbg only*/
-#ifdef MARK_HIS
-	if (pre_run_flag == DI_RUN_FLAG_RUN	||
-	    pre_run_flag == DI_RUN_FLAG_STEP) {
-		if (pre_run_flag == DI_RUN_FLAG_STEP)
-			pre_run_flag = DI_RUN_FLAG_STEP_DONE;
-		dim_print("%s:\n", __func__);
-		if (dim_pre_de_buf_config(pre->curr_ch))
-			ret = K_DO_R_FINISH;
-		else
-			ret = K_DO_R_JUMP(K_DO_TABLE_ID_STOP);
 
-		dim_dbg_pre_cnt(pre->curr_ch, "x");
+	pch = get_chdata(pre->curr_ch);
+	cfg_val = dim_pre_bypass(pch);
+	if (cfg_val) {
+		dbg_dt("cfg fail:bypass%d\n", cfg_val);
+		cfg_val = dim_pre_de_buf_config(pre->curr_ch);
+	} else {
+		cfg_val = 70;
 	}
-#else
-	cfg_val = dim_pre_de_buf_config(pre->curr_ch);
 	if (!cfg_val) {/*ok*/
 		ret = K_DO_R_FINISH;
 	} else {
@@ -416,7 +412,6 @@ unsigned int dpre_mtotal_check(void *data)
 		ret = K_DO_R_JUMP(K_DO_TABLE_ID_STOP);
 	}
 
-#endif
 	return ret;
 }
 
@@ -429,6 +424,7 @@ unsigned int dpre_mtotal_set(void *data)
 	//trace_printk("%s\n", __func__);
 //ary 2020-12-09	spin_lock_irqsave(&plist_lock, flags);
 	dim_pre_de_process(pre->curr_ch);
+	pre->irq_nr = false;
 //ary 2020-12-09	spin_unlock_irqrestore(&plist_lock, flags);
 	/*begin to count timer*/
 	di_tout_contr(EDI_TOUT_CONTR_EN, &pre->tout);
@@ -484,7 +480,6 @@ enum EDI_WAIT_INT di_pre_wait_int(void *data)
 		//tmp spin_unlock_irqrestore(&plist_lock, flags);
 
 		ppre = get_pre_stru(pre->curr_ch);
-
 
 		ret = EDI_WAIT_INT_HAVE_INT;
 
@@ -550,12 +545,13 @@ void dpre_mtotal_timeout_contr(void)
 	pre->pres->pre_de_busy = 0;
 	pre->pres->pre_de_clear_flag = 2;
 	if ((dimp_get(edi_mp_di_dbg_mask) & 0x2)) {
-		pr_info("DI:ch[%d]*****wait %d timeout 0x%x(%d ms)*****\n",
+		PR_WARN("DI:ch[%d]*****wait %d timeout 0x%x(%d ms)*****[%d]\n",
 			pre->curr_ch,
 			pre->pres->field_count_for_cont,
 			RD(DI_INTR_CTRL),
 			(unsigned int)(cur_to_msecs() -
-			pre->pres->irq_time[1]));
+			pre->pres->irq_time[1]),
+			pre->irq_nr);
 	}
 	/*******************************/
 	dim_pre_de_done_buf_config(pre->curr_ch, true);

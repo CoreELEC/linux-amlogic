@@ -555,6 +555,10 @@ void dim_pps_config(unsigned char path, int src_w, int src_h,
 		path ? "pre" : "post", src_w, src_h, dst_w, dst_h);
 }
 
+void dim_pps_disable(void)
+{
+	wr_reg_bits(DI_SC_MISC, 0, 16, 1);
+}
 /*
  * 0x374e ~ 0x376d, 20 regs
  */

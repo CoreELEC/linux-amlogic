@@ -118,9 +118,12 @@ bool di_i_dat_check(struct di_ch_s *pch);
 bool mem_alloc_check(struct di_ch_s *pch);
 
 bool mem_cfg_pre(struct di_ch_s *pch);
+bool mem_cfg_2local(struct di_ch_s *pch);
+bool mem_cfg_2pst(struct di_ch_s *pch);
+
 bool mem_cfg(struct di_ch_s *pch);
-void mem_release(struct di_ch_s *pch,
-		 struct dim_mm_blk_s **blks, unsigned int blk_nub);
+void mem_release(struct di_ch_s *pch, struct dim_mm_blk_s **blks,
+	unsigned int blk_nub);
 bool mem_2_blk(struct di_ch_s *pch);
 void mem_release_all_inused(struct di_ch_s *pch);
 void mem_release_one_inused(struct di_ch_s *pch, struct dim_mm_blk_s *blk_buf);

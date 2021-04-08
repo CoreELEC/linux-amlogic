@@ -261,9 +261,8 @@ void di_que_init(unsigned int ch)
 	struct di_ch_s *pch = get_chdata(ch);
 
 	for (i = 0; i < QUE_NUB; i++) {
-		if (
-//		    i == QUE_POST_KEEP		||
-//		    i == QUE_POST_KEEP_BACK	||
+		if (//		    i == QUE_POST_KEEP		||
+		    //		    i == QUE_POST_KEEP_BACK	||
 		    i == QUE_POST_KEEP_RE_ALLOC)
 			continue;
 		pw_queue_clear(ch, i);
@@ -299,7 +298,7 @@ bool di_que_alloc(unsigned int ch)
 
 	if (!flg_err) {
 		/*pbm->flg_fifo = 1;*/
-		pr_info("%s:ok\n", __func__);
+		dbg_reg("%s:ok\n", __func__);
 		ret = true;
 	} else {
 		di_que_release(ch);

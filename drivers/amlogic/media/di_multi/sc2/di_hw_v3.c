@@ -1423,7 +1423,7 @@ static unsigned int set_afbce_cfg_v1(int index,
 		((hblksize_buf & 0x1fff) << 16) |  // out blk hsize
 		((vblksize_buf & 0x1fff) << 0)    // out blk vsize
 		);
-	if (DIM_IS_IC(T7))
+	if (DIM_IS_IC_EF(T7))
 		op->wr(reg[AFBCEX_HEAD_BADDR], afbce->head_baddr >> 4);
 	else
 		op->wr(reg[AFBCEX_HEAD_BADDR], afbce->head_baddr);
@@ -1471,7 +1471,7 @@ static unsigned int set_afbce_cfg_v1(int index,
 
 //ary temp	cur_mmu_used += op->rd(AFBCE_MMU_NUM);
 //4k addr have used in every frame;
-	if (DIM_IS_IC(T7))
+	if (DIM_IS_IC_EF(T7))
 		op->wr(reg[AFBCEX_MMU_RMIF_CTRL4], afbce->mmu_info_baddr >> 4);
 	else
 		op->wr(reg[AFBCEX_MMU_RMIF_CTRL4], afbce->mmu_info_baddr);
@@ -1677,10 +1677,9 @@ static unsigned int di_mif_add_get_offset_v3(enum DI_MIF0_ID mif_index)
 	case DI_MIF0_ID_IF2:
 		index = 5;
 		break;
-
-		break;
 	default:
 		addr = DIM_ERR;
+		break;
 	};
 
 	if (addr == DIM_ERR)
@@ -2437,6 +2436,99 @@ static void set_wrmif_simple_v3(struct DI_SIM_MIF_s *mif,
 		       (2      << 26) |   // burst lim
 		       (mif->reg_swap      << 30));   // 64-bits swap enable
 	}
+}
+
+bool dim_aisr_test(struct DI_SIM_MIF_s *mif, bool sel)
+{
+	dbg_ic("%s:%d\n", __func__, sel);
+	dbg_ic("\t <%d,%d>\n", mif->end_x + 1, mif->end_y + 1);
+	dbg_ic("\t addr= 0x%lx\n", mif->addr);
+	return true;
+}
+
+static unsigned int dim_hf_dbg;
+module_param_named(dim_hf_dbg, dim_hf_dbg, uint, 0644);
+
+/* from t3 */
+/* ucode: aisr_pre_cfg */
+/* sel: pre: 0; post: 1*/
+/* .aisr_pre */
+bool dim_aisr_pre_cfg(struct DI_SIM_MIF_s *mif, bool sel, bool para)
+{
+	unsigned int wrmif_stride;
+	const struct reg_acc *op = &di_pre_regset;
+	unsigned int dummy_en = 1, dummy_x = 0, dummy_y = 0;
+	unsigned int d_x, d_y, b_x, b_y;
+
+	/*dummy*/
+	d_x = mif->end_x - mif->start_x + 1;
+	d_y = mif->end_y - mif->start_y + 1;
+
+	b_x = mif->buf_hsize;
+	b_y = (unsigned int)mif->addr2;
+	dim_print("hf:hw cfg:sel:%d\n", sel);
+	if (b_x == d_x &&
+	    b_y == d_y) {
+		dummy_en = 0;
+	} else {
+		dummy_x = b_x - d_x;
+		dummy_y = b_y - d_y;
+	}
+	if (dummy_x > 1920 || dummy_y > 1080) {
+		PR_ERR("%s:size err:%d,%d\n", __func__, dummy_x, dummy_y);
+		PR_INF("%d,%d,%d,%d\n", d_x, d_y, b_x, b_y);
+		return false;
+	}
+
+	op->wr(NN_LRHF6, 128		<< 24	|
+			 dummy_x	<< 12	|
+			 dummy_en	<< 11	|
+			 dummy_y);
+	dbg_ic("nn6:0x%x = 0x%x\n", NN_LRHF6, op->rd(NN_LRHF6));
+	dbg_ic("nn6:<%d,%d,%d>\n", dummy_en, dummy_x, dummy_y);
+	/*bit3:2   1: pre 2: post */
+	if (!sel)
+		op->bwr(DI_TOP_CTRL, 1, 2, 2);//select nr dout to nn_lr_hf
+	else
+		op->bwr(DI_TOP_CTRL, 2, 2, 2);//select post
+
+	/*use canvas_num for dbg mode: not update this register*/
+	if (dim_hf_dbg >= 2)
+		dim_print("hw:dbg_not cfg\n");
+	else
+		op->bwr(NN_LRHF0, 3, 30, 2);
+
+	//05-06 from jintao: op->bwr(AISR_PRE_WRMIF_BADDR,0,6,1);//little endian
+	op->bwr(AISR_PRE_WRMIF_BADDR, 1, 6, 1);//little endian //05-06fromjintao
+	op->bwr(AISR_PRE_WRMIF_BADDR, 0, 7, 1);//swap 64 bit
+
+	wrmif_stride = ((mif->buf_hsize * 8 + 511) >> 9) <<  2;
+	op->bwr(AISR_PRE_WMIF_CTRL3, 1, 16, 1);
+	op->bwr(AISR_PRE_WMIF_CTRL3, wrmif_stride, 0, 13);
+	op->wr(AISR_PRE_WMIF_CTRL4, mif->addr >> 4);
+	#ifdef HIS_CODE
+	op->wr(AISR_PRE_WMIF_SCOPE_X, ((b_x - 1) << 16) | 0);
+	op->wr(AISR_PRE_WMIF_SCOPE_Y, ((b_y - 1) << 16) | 0);
+	#else
+	op->wr(AISR_PRE_WMIF_SCOPE_X, ((mif->end_x - mif->start_x) << 16) | 0);
+	op->wr(AISR_PRE_WMIF_SCOPE_Y, ((mif->end_y - mif->start_y) << 16) | 0);
+	#endif
+	op->bwr(AISR_PRE_WRMIF_BADDR, para, 5, 1);//is_di_hf_y_reverse
+
+	return true;
+}
+
+void dim_aisr_disable(void)
+{
+	const struct reg_acc *op = &di_pre_regset;
+
+	if (dim_hf_dbg) {
+		dim_hf_dbg = 2;
+		return;
+	}
+	dim_print("hf:hw disable\n");
+	op->bwr(NN_LRHF0, 0, 30, 2);
+	op->bwr(DI_TOP_CTRL, 0, 2, 2);
 }
 
 /* ref to config_di_wr_mif */
@@ -3801,7 +3893,8 @@ void set_di_memcpy_rot(struct mem_cpy_s *cfg)
 		/* post_frm_sel   =top_post_ctrl[3];//0:viu  1:internal */
 		(1		<< 30));
 
-	if (DIM_IS_IC_EF(T7) && (!IS_ERR_OR_NULL(in_afbcd))) {
+	if ((DIM_IS_IC_EF(T7) || DIM_IS_IC(S4)) &&
+	    (!IS_ERR_OR_NULL(in_afbcd))) {
 		if (in_afbcd->index == EAFBC_DEC_IF0) {
 			//op->bwr(AFBCDM_IF0_CTRL0,cfg->b.is_if0_4k,14,1);
 			//reg_use_4kram
@@ -4767,7 +4860,7 @@ void config_di_mif_v3(struct DI_MIF_S *di_mif,
 		}
 	}
 	//dbg_ic("%s:%d:linear:%d\n", __func__, mif_index, di_mif->linear);
-	di_mif->nocompress = (di_buf->vframe->type & VIDTYPE_COMPRESS) ? 0 : 1;
+//	di_mif->nocompress = (di_buf->vframe->type & VIDTYPE_COMPRESS) ? 0 : 1;
 
 	if (di_buf->vframe->bitdepth & BITDEPTH_Y10) {
 		if (di_buf->vframe->type & VIDTYPE_VIU_444)
@@ -4997,6 +5090,13 @@ void hpre_timeout_read(void)
 	dim_print("c:0x%x:0x%x\n", DI_RO_PRE_DBG, DIM_RDMA_RD(DI_RO_PRE_DBG));
 }
 
+void hpst_timeout_read(void)
+{
+	if (DIM_IS_IC_BF(SC2))
+		return;
+	dim_print("c:0x%x:0x%x\n", DI_RO_POST_DBG, DIM_RDMA_RD(DI_RO_POST_DBG));
+	dim_print("c:0x%x:0x%x\n", DI_RO_POST_DBG, DIM_RDMA_RD(DI_RO_POST_DBG));
+}
 static void hpre_gl_thd_v3(void)
 {
 	const struct reg_acc *op = &di_pre_regset;
@@ -5056,7 +5156,7 @@ void dim_sc2_contr_pre(union hw_sc2_ctr_pre_s *cfg)
 		  DI_TOP_PRE_CTRL,
 		  val);
 	op->wr(DI_TOP_PRE_CTRL, val);
-	if (DIM_IS_IC(T7)) {
+	if (DIM_IS_IC_EF(T7)) {
 		op->bwr(AFBCDM_INP_CTRL0, cfg->b.is_inp_4k,  14, 1);
 		//reg_use_4kram
 		op->bwr(AFBCDM_INP_CTRL0, cfg->b.afbc_inp, 13, 1);
@@ -5219,7 +5319,7 @@ void dim_sc2_contr_pst(union hw_sc2_ctr_pst_s *cfg)
 		  "DI_TOP_POST_CTRL",
 		  DI_TOP_POST_CTRL,
 		  val);
-	if (DIM_IS_IC(T7)) {
+	if (DIM_IS_IC_EF(T7)) {
 		op->bwr(AFBCDM_IF0_CTRL0, cfg->b.is_if0_4k, 14, 1);
 		//reg_use_4kram
 		op->bwr(AFBCDM_IF0_CTRL0, cfg->b.afbc_if0, 13, 1);
@@ -5405,6 +5505,8 @@ const struct dim_hw_opsv_s dim_ops_l1_v3 = {
 	.wrmif_sw_buf	= NULL,
 	.wrmif_trig	= NULL,
 	.wr_rst_protect	= NULL,
+	.aisr_pre	= NULL,
+	.aisr_disable	= NULL,
 	.hw_init	= hw_init_v3,
 	.pre_hold_block_txlx = NULL,
 	.pre_cfg_mif	= config_di_mif_v3,
@@ -5451,6 +5553,8 @@ const struct dim_hw_opsv_s dim_ops_l1_v4 = { //for t7
 	.pre_ma_mif_set	= set_ma_pre_mif_t7,
 	.post_mtnrd_mif_set = set_post_mtnrd_mif_t7,
 	.pre_enable_mc	= pre_enable_mc_t7,
+	.aisr_pre	= dim_aisr_pre_cfg,
+	.aisr_disable	= dim_aisr_disable,
 	.wrmif_trig	= NULL,
 	.wr_rst_protect	= NULL,
 	.hw_init	= hw_init_v3,

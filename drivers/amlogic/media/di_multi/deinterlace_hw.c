@@ -187,7 +187,7 @@ static void crc_init(void)//debug crc init
 	if (DIM_IS_IC_EF(SC2))
 		DIM_DI_WR_REG_BITS(DI_CRC_CHK0, 0x7, 0, 3);
 	else if ((DIM_IS_IC(T5)) || (DIM_IS_IC(T5D)))
-		DIM_DI_WR_REG_BITS(DI_T5_CRC_CHK0, 0x7, 0, 3);
+		;//test crc DIM_DI_WR_REG_BITS(DI_T5_CRC_CHK0, 0x7, 0, 3);
 }
 
 void dimh_init_field_mode(unsigned short height)
@@ -207,6 +207,7 @@ void dimh_init_field_mode(unsigned short height)
 	DIM_DI_WR_REG_BITS(DI_MC_22LVL0, 256, 0, 16);
 }
 
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 static void mc_pd22_check_irq(void)
 {
 	int cls_2_stl_thd = 1, cls_2_stl = 0;
@@ -248,13 +249,16 @@ static void mc_pd22_check_irq(void)
 		}
 	}
 }
+#endif
 
 void dimh_mc_pre_mv_irq(void)
 {
 	unsigned int val1;
 
 	if (dimp_get(edi_mp_pd22_flg_calc_en) && is_meson_gxlx_cpu()) {
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 		mc_pd22_check_irq();
+#endif
 	} else {
 		val1 = DIM_RDMA_RD(MCDI_RO_PD_22_FLG);
 		DIM_RDMA_WR(MCDI_PD_22_CHK_FLG_CNT, val1);
@@ -516,6 +520,7 @@ void dimh_hw_init(bool pd_enable, bool mc_enable)
 	    is_meson_sm1_cpu()	||
 	    is_meson_tm2_cpu()	||
 	    DIM_IS_IC(T5)	||
+	    DIM_IS_IC(T5DB)	||
 	    DIM_IS_IC(T5D)) {
 		dim_top_gate_control(true, true);
 	} else if (DIM_IS_IC_EF(SC2)) {
@@ -523,7 +528,9 @@ void dimh_hw_init(bool pd_enable, bool mc_enable)
 	} else if (is_meson_gxl_cpu()	||
 		 is_meson_gxm_cpu()	||
 		 is_meson_gxlx_cpu()) {
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 		DIM_DI_WR(DI_CLKG_CTRL, 0xffff0001);
+#endif
 	} else {
 		DIM_DI_WR(DI_CLKG_CTRL, 0x1); /* di no clock gate */
 	}
@@ -538,6 +545,7 @@ void dimh_hw_init(bool pd_enable, bool mc_enable)
 	    is_meson_tl1_cpu()	||
 	    is_meson_tm2_cpu()	||
 	    DIM_IS_IC(T5)	||
+	    DIM_IS_IC(T5DB)	||
 	    DIM_IS_IC(T5D)) {
 		/* vpp fifo max size on txl :128*3=384[0x180] */
 		/* di fifo max size on txl :96*3=288[0x120] */
@@ -582,6 +590,7 @@ void dimh_hw_init(bool pd_enable, bool mc_enable)
 	    is_meson_tl1_cpu()	||
 	    is_meson_tm2_cpu()	||
 	    DIM_IS_IC(T5)	||
+	    DIM_IS_IC(T5DB)	||
 	    DIM_IS_IC(T5D)) {
 		dim_pre_gate_control(true, true);
 		dim_post_gate_control(true);
@@ -610,6 +619,7 @@ void dimh_hw_init(bool pd_enable, bool mc_enable)
 	    is_meson_tl1_cpu()	||
 	    is_meson_tm2_cpu()	||
 	    DIM_IS_IC(T5)	||
+	    DIM_IS_IC(T5DB)	||
 	    DIM_IS_IC(T5D)) {
 		dim_pre_gate_control(false, true);
 		dim_post_gate_control(false);
@@ -619,8 +629,10 @@ void dimh_hw_init(bool pd_enable, bool mc_enable)
 		dim_post_gate_control_sc2(false);
 		dim_top_gate_control_sc2(false, false);
 	} else if (is_meson_txl_cpu() || is_meson_gxlx_cpu()) {
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 		/* di clock div enable for pq load */
 		DIM_DI_WR(DI_CLKG_CTRL, 0x80000000);
+#endif
 	} else {
 		DIM_DI_WR(DI_CLKG_CTRL, 0x2); /* di clock gate all */
 	}
@@ -859,9 +871,14 @@ void dimh_enable_di_pre_aml(struct DI_MIF_S *di_inp_mif,
 	unsigned short mem_hsize = 0, mem_vsize = 0;
 	unsigned int sc2_tfbf = 0; /* DI_PRE_CTRL bit [12:11] */
 	struct di_pre_stru_s *ppre = (struct di_pre_stru_s *)pre;
+	static bool last_bypass; //dbg only
+	static bool last_disable_chan2; //dbg only
 
-	if (DIM_IS_IC(T5))
-		mem_bypass = (pre_vdin_link & DI_BIT4) ? true : false;
+	if (DIM_IS_IC(T5) || DIM_IS_IC(T5DB)) {
+		mem_bypass = (pre_vdin_link & 0x30) ? true : false;
+		chan2_disable = ppre->is_disable_chan2;
+	}
+
 	pre_vdin_link &= 0xf;
 
 	if (DIM_IS_IC_EF(SC2)) {
@@ -921,6 +938,16 @@ void dimh_enable_di_pre_aml(struct DI_MIF_S *di_inp_mif,
 		chan2_disable = true;
 	if (mem_hsize != nrwr_hsize || mem_vsize != nrwr_vsize)
 		mem_bypass = true;
+
+	if (last_bypass != mem_bypass) {	//dbg only
+		dbg_reg("mem_bypass %d->%d\n", last_bypass, mem_bypass);
+		last_bypass = mem_bypass;
+	}
+	if (last_disable_chan2 != chan2_disable) {
+		dbg_reg("chan2_disable %d->%d\n",
+			last_disable_chan2, chan2_disable);
+		last_disable_chan2 = chan2_disable;
+	}
 	/*
 	 * enable&disable contwr txt
 	 */
@@ -944,11 +971,12 @@ void dimh_enable_di_pre_aml(struct DI_MIF_S *di_inp_mif,
 	 * the bit define is not same with before ,
 	 * from sc2 DI_PRE_CTRL 0x1700,
 	 * bit5/6/8/9/10/11/12
+	 * bit21/22 chan2 t/b reverse,check with vlsi feijun
 	 */
 
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12A)) {
 		if (madi_en) {
-			if (DIM_IS_IC_EF(T7) && opl1()->pre_ma_mif_set)
+			if (DIM_IS_IC_EF(T7))
 				opl1()->pre_ma_mif_set(ppre,
 					dimp_get(edi_mp_pre_urgent));
 			else
@@ -990,6 +1018,7 @@ void dimh_enable_di_pre_aml(struct DI_MIF_S *di_inp_mif,
 					    (pre_vdin_link << 13)	   |
 					/* pre go line link */
 					    (pre_vdin_link << 14)	   |
+					    (1 << 21)	| /*chan2 t/b reverse*/
 					    (0 << 25)   |
 					    /* contrd en */
 					    ((mem_bypass ? 1 : 0) << 28)   |
@@ -1009,23 +1038,29 @@ void dimh_enable_di_pre_aml(struct DI_MIF_S *di_inp_mif,
 					    /*hist check enable*/
 					/* hist check  use chan2. */
 					    (madi_en << 6)	|
-					//hist check use data
-					//before noise reduction
+					//hist check use data before
+					//noise reduction.
 					    ((chan2_disable ? 0 : 1) << 8) |
-					/* chan 2 enable 2:2 pulldown check*/
+					//chan 2 enable for 2:2 pull down check
 					/* line buffer 2 enable */
 					    ((chan2_disable ? 0 : 1) << 9) |
-					    (0 << 10) | /* pre drop first. */
-					    //(1 << 11) | /* nrds mif enable */
-					    (sc2_tfbf << 11) |
+					    (0 << 10)		|
+					    /* pre drop first. */
+					    //(1 << 11)		|
 					    /* nrds mif enable */
-					    (0 << 12) | /* pre viu link */
+					    (sc2_tfbf << 11)	|
+					    /* nrds mif enable */
+					    (0 << 12)		|
+					    /* pre viu link */
 					    (pre_vdin_link << 13)	   |
 					/* pre go line link */
 					    (pre_vdin_link << 14)	   |
-					    (1 << 21) | /*invertNRfield num*/
-					    (1 << 22) | /* MTN after NR. */
-					    (0 << 25) | /* contrd en */
+					    (1 << 21)		|
+					    /*invertNRfield num*/
+					    (1 << 22)		|
+					    /* MTN after NR. */
+					    (0 << 25)		|
+					    /* contrd en */
 					    ((mem_bypass ? 1 : 0) << 28)   |
 					    pre_field_num << 29);
 		}
@@ -1114,8 +1149,10 @@ void dimh_enable_mc_di_pre(struct DI_MC_MIF_s *di_mcinford_mif,
 	unsigned int ctrl_mode = 0;
 
 	DIM_RDMA_WR_BITS(DI_MTN_CTRL1, (mcdi_en ? 3 : 0), 12, 2);
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 	if (is_meson_gxlx_cpu() || is_meson_txhd_cpu())
 		me_auto_en = false;
+#endif
 
 	ctrl_mode = (me_auto_en ? 0x1bfff7ff : 0x1bfe37ff);
 	DIM_RDMA_WR(MCDI_CTRL_MODE, (mcdi_en ? ctrl_mode : 0));
@@ -1604,7 +1641,7 @@ static void set_di_mem_mif(struct DI_MIF_S *mif, int urgent, int hold_line)
 		    );
 	if (mif->set_separate_en == 2) {
 		/* Enable NV12 Display */
-		//DIM_RDMA_WR_BITS(DI_MEM_GEN_REG2, 1, 0, 2);
+		//DIM_RDMA_WR_BITS(DI_MEM_GEN_REG2, 1, 0, 1);
 		if (mif->cbcr_swap)
 			DIM_RDMA_WR_BITS(DI_MEM_GEN_REG2, 2, 0, 2);
 		else
@@ -2102,7 +2139,7 @@ static void set_di_chan2_mif(struct DI_MIF_S *mif, int urgent, int hold_line)
 	/* ---------------------- */
 	if (mif->set_separate_en == 2) {
 		/* Enable NV12 Display */
-		//DIM_RDMA_WR_BITS(DI_CHAN2_GEN_REG2, 1, 0, 2);
+		//DIM_RDMA_WR_BITS(DI_CHAN2_GEN_REG2, 1, 0, 1);
 		if (mif->cbcr_swap)
 			DIM_RDMA_WR_BITS(DI_CHAN2_GEN_REG2, 2, 0, 2);
 		else
@@ -2433,6 +2470,7 @@ void dimh_patch_post_update_mc_sw(unsigned int cmd, bool on)
 	unsigned int l_flg = di_mc_update;
 
 	switch (cmd) {
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 	case DI_MC_SW_IC:
 		if (is_meson_gxtvbb_cpu()	||
 		    is_meson_txl_cpu()		||
@@ -2441,6 +2479,7 @@ void dimh_patch_post_update_mc_sw(unsigned int cmd, bool on)
 			di_mc_update |= DI_MC_SW_IC;
 		}
 		break;
+#endif
 	case DI_MC_SW_REG:
 		if (on) {
 			di_mc_update |= cmd;
@@ -2639,7 +2678,7 @@ void dimh_post_switch_buffer(struct DI_MIF_S *di_buf0_mif,
 						   DI_MIF0_ID_IF0, NULL);
 			if (di_ddr_en)
 				opl1()->wrmif_set(di_diwr_mif, NULL,
-						  EDI_MIFSM_WR);
+					EDI_MIFSM_WR);
 		}
 		else
 			DIM_VSYNC_WR_MPEG_REG
@@ -2741,7 +2780,6 @@ void dimh_post_switch_buffer(struct DI_MIF_S *di_buf0_mif,
 
 	if (di_ddr_en) {
 	}
-
 	if (DIM_IS_IC_EF(SC2))
 		DIM_VSC_WR_MPG_BT(DI_POST_CTRL, blend_en, 1, 1);
 	else
@@ -3879,11 +3917,12 @@ void dim_post_gate_control_sc2(bool gate)
 	}
 }
 
+/*from t7 nr writ mif reset bit is 0x17d3 bit22 from vlsi feijun*/
 static void di_async_reset(void)/*2019-01-17 add for debug*/
 {
 	if (DIM_IS_IC_EF(T7)) {
-		DIM_RDMA_WR_BITS(VIUB_SW_RESET, 1, 4, 1);
-		DIM_RDMA_WR_BITS(VIUB_SW_RESET, 0, 4, 1);
+		DIM_RDMA_WR_BITS(DI_TOP_CTRL1, 1, 22, 1);
+		DIM_RDMA_WR_BITS(DI_TOP_CTRL1, 0, 22, 1);
 	} else {
 	/*wrmif async reset*/
 		DIM_RDMA_WR_BITS(VIUB_SW_RESET, 1, 14, 1);
@@ -3934,7 +3973,8 @@ static bool di_pre_idle(void)
 {
 	bool ret = false;
 
-	if (DIM_IS_IC(T5)) {
+	if (DIM_IS_IC(T5) || DIM_IS_IC(T5D) || DIM_IS_IC(T5DB) ||
+	    DIM_IS_IC(T3)) {
 		if ((DIM_RDMA_RD(DI_ARB_DBG_STAT_L1C1) &
 			PRE_ID_MASK_T5) == PRE_ID_MASK_T5)
 			ret = true;
@@ -4536,9 +4576,9 @@ void dimh_load_regs(struct di_pq_parm_s *di_pq_ptr)
 		PR_ERR("[DI] table ptr error.\n");
 		return;
 	}
-	pr_info("[DI]%s hw load 0x%x pq table len %u.\n",
-		__func__, di_pq_ptr->pq_parm.table_name,
-		di_pq_ptr->pq_parm.table_len);
+	PR_INF("load 0x%x pq table len %u.\n",
+	       di_pq_ptr->pq_parm.table_name,
+	       di_pq_ptr->pq_parm.table_len);
 	nr_table = TABLE_NAME_NR | TABLE_NAME_DEBLOCK | TABLE_NAME_DEMOSQUITO;
 	regs_p = (struct am_reg_s *)di_pq_ptr->regs;
 	len = di_pq_ptr->pq_parm.table_len;
@@ -4571,8 +4611,7 @@ void dimh_load_regs(struct di_pq_parm_s *di_pq_ptr)
 		if (table_name & nr_table)
 			ctrl_reg_flag =
 			get_ops_nr()->set_nr_ctrl_reg_table(addr, value);
-		if (table_name & (TABLE_NAME_NR))//mark for undefine
-		//if (table_name & (TABLE_NAME_NR | TABLE_NAME_SMOOTHPLUS))
+		if (table_name & (TABLE_NAME_NR | TABLE_NAME_SMOOTHPLUS))
 			save_db = pq_save_db(addr, value, mask);
 
 		if ((!ctrl_reg_flag) && (!save_db))

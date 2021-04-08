@@ -382,11 +382,47 @@ bool dim_dbg_new_int(unsigned int id);
 int dim_dbg_tst_in_show(struct seq_file *s, void *what);
 
 #endif
+bool cma_alloc_blk_block(struct dim_mm_blk_s *blk_buf,
+		      unsigned int cma_type,
+		      unsigned int tvp,
+		      unsigned int size_page);
+void cma_release_blk_block(struct dim_mm_blk_s *blk_buf,
+				  unsigned int cma_type);
+unsigned char dim_pre_bypass(struct di_ch_s *pch);
+
 unsigned int dim_get_dbg_dec21(void);
 bool dim_in_linear(void);
 bool dim_dbg_cfg_disable_arb(void);
 void dbg_vfm_w(struct vframe_s *vfm, unsigned int dbgid);
 bool dbg_is_trig_eos(unsigned int ch);
 void pre_inp_mif_w(struct DI_MIF_S *di_mif, struct vframe_s *vf);
+void di_reg_setting_working(struct di_ch_s *pch,
+			    struct vframe_s *vfm);
+void dim_slt_init(void);
+bool dim_is_slt_mode(void);
+unsigned int dim_int_tab(struct device *dev,
+				 struct afbce_map_s *pcfg);
+
+void di_decontour_disable(bool on);
+void dip_pps_cnt_hv(unsigned int *w_in, unsigned int *h_in);
+bool dip_cfg_is_pps_4k(unsigned int ch);
+
+unsigned int di_hf_cnt_size(unsigned int w, unsigned int h, bool is_4k);
+bool di_hf_set_buffer(struct di_buf_s *di_buf, struct div2_mm_s *mm);
+bool di_hf_hw_try_alloc(unsigned int who);
+void di_hf_hw_release(unsigned int who);
+bool di_hf_hw_is_busy(void);
+bool di_hf_buf_size_set(struct DI_SIM_MIF_s *hf_mif);
+bool di_hf_t_try_alloc(struct di_ch_s *pch);
+void di_hf_t_release(struct di_ch_s *pch);
+void di_hf_reg(struct di_ch_s *pch);
+bool di_hf_size_check(struct DI_SIM_MIF_s *w_mif);
+
+void di_hf_lock_blend_buffer_pre(struct di_buf_s *di_buf);
+void di_hf_lock_blend_buffer_pst(struct di_buf_s *di_buf);
+void di_hf_lock_irq_flg(void);
+
+void dim_print_hf(struct hf_info_t *phf);
+void dim_dbg_seq_hf(struct hf_info_t *hf, struct seq_file *seq);
 
 #endif	/*__DI_PRC_H__*/

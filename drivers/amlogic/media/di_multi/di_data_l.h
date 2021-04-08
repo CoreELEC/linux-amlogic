@@ -142,7 +142,11 @@ enum EDI_CFG_TOP_IDX {
 	EDI_CFG_TMODE_2,	/*EDIM_TMODE_2_PW_OUT*/
 	EDI_CFG_TMODE_3,	/*EDIM_TMODE_3_PW_LOCAL*/
 	EDI_CFG_LINEAR,
+	EDI_CFG_PONLY_MODE,
+	EDI_CFG_HF,
 	EDI_CFG_PONLY_BP_THD,
+	EDI_CFG_T5DB_P_NOTNR_THD, /**/
+	EDI_CFG_T5DB_AFBCD_EN,
 	EDI_CFG_END,
 };
 
@@ -230,17 +234,42 @@ struct di_vframe_type_info {
 	char *other;
 };
 
+/*keep same order as dbg_timer_name */
+enum EDBG_TIMER {
+	EDBG_TIMER_REG_B,
+	EDBG_TIMER_REG_E,
+	EDBG_TIMER_UNREG_B,
+	EDBG_TIMER_UNREG_E,
+	EDBG_TIMER_FIRST_PEEK,
+	EDBG_TIMER_1_GET,
+	EDBG_TIMER_2_GET,
+	EDBG_TIMER_3_GET,
+	EDBG_TIMER_ALLOC,
+	EDBG_TIMER_MEM_1,
+	EDBG_TIMER_MEM_2,
+	EDBG_TIMER_MEM_3,
+	EDBG_TIMER_MEM_4,
+	EDBG_TIMER_MEM_5,
+	EDBG_TIMER_READY,
+	EDBG_TIMER_1_PRE_CFG,
+	EDBG_TIMER_1_PREADY,
+	EDBG_TIMER_2_PRE_CFG,
+	EDBG_TIMER_2_PREADY,
+	EDBG_TIMER_3_PRE_CFG,
+	EDBG_TIMER_3_PREADY,
+	EDBG_TIMER_1_PSTREADY,
+	EDBG_TIMER_2_PSTREADY,
+
+	EDBG_TIMER_NUB,
+};
+
 struct di_dbg_datax_s {
 	struct vframe_s vfm_input;	/*debug input vframe*/
 	struct vframe_s *pfm_out;	/*debug di_get vframe*/
 	/*timer:*/
-	u64 us_reg_begin;
-	u64 us_reg_end;
-	u64 us_unreg_begin;
-	u64 us_unreg_end;
-	u64 us_first_get;
-	u64 us_first_ready;
+	u64 ms_dbg[EDBG_TIMER_NUB];
 
+	unsigned char timer_mem_alloc_cnt; //limit to EDBG_TIMER_MEM_5 -> 5
 };
 
 /*debug function*/
@@ -394,7 +423,7 @@ struct dim_wmode_s {
 	//enum EDIM_TMODE		tmode;
 	unsigned int	buf_type;	/*add this to split kinds */
 	unsigned int	is_afbc		:1,
-		is_vdin			:1,
+		is_vdin		:1,
 		is_i			:1,
 		need_bypass		:1,
 		is_bypass		:1,
@@ -489,6 +518,10 @@ struct di_hpre_s {
 	unsigned int idle_cnt;	/*use this avoid repeat idle <->check*/
 	/*dbg flow:*/
 	bool dbg_f_en;
+	bool hf_busy;
+	bool irq_nr;/* dbg hf timeout only */
+	unsigned char hf_owner;
+	void *hf_w_buf; //di_buf_s;
 	unsigned int dbg_f_lstate;
 	unsigned int dbg_f_cnt;
 	union hw_sc2_ctr_pre_s pre_top_cfg;
@@ -604,8 +637,11 @@ struct dim_fcmd_s {
 	bool release_cmd;
 	unsigned int reg_nub;
 	unsigned int reg_page; /*size >> page_shift*/
-	int doing; /* inc in send_cmd, and set 0 when thread done*/
+	atomic_t doing; /* inc in send_cmd, and set 0 when thread done*/
 	int	sum_alloc; /* alloc ++, releas -- */
+	int	sum_hf_alloc; /* alloc ++, releas -- */
+	unsigned int sum_hf_psize;
+	struct completion alloc_done;
 };
 
 struct di_mtask {
@@ -700,7 +736,9 @@ struct blk_flg_s {
 
 struct mtsk_cmd_s {
 	unsigned int cmd	: 4;
-	unsigned int rev1	: 4;
+	unsigned int block_mode : 1;
+	unsigned int hf_need	: 1; //
+	unsigned int rev1	: 2;
 	unsigned int nub	: 8;
 	unsigned int rev2	: 16;
 	struct blk_flg_s	flg;
@@ -1107,6 +1145,7 @@ struct di_mm_cfg_s {
 	/**/
 	unsigned int num_local;
 	unsigned int num_post;
+	unsigned int num_rebuild_keep; //ary add
 	unsigned int num_step1_post;
 
 	unsigned int size_local;
@@ -1159,6 +1198,9 @@ struct di_mm_cfg_s {
 	unsigned int pre_inser_size;
 	unsigned int ibuf_hsize;
 	unsigned int pbuf_hsize;
+	unsigned int size_buf_hf; //from t3
+	unsigned int hf_hsize;
+	unsigned int hf_vsize;
 };
 struct dim_mm_t_s {
 	/* use for reserved and alloc all*/
@@ -1177,6 +1219,7 @@ struct di_mm_st_s {
 	unsigned int	num_pst_alloc;
 	unsigned int	flg_release;
 	int	cnt_alloc; /* debug only */
+	bool flg_alloced; /**/
 };
 
 struct div2_mm_s {
@@ -1193,6 +1236,9 @@ struct dim_sum_s {
 	unsigned int b_pst_free;
 	unsigned int b_display;
 	unsigned int b_nin;
+	unsigned int b_in_free;
+	bool	need_local; //set by pre_config
+	bool flg_rebuild;
 };
 
 struct dim_bypass_s {
@@ -1345,8 +1391,8 @@ struct qsp_ops_s {
 		     union q_buf_u *pbuf);
 	bool (*out_some)(struct buf_que_s *pqb, struct qs_cls_s *q,
 			 union q_buf_u pbuf);
-	bool (*is_in)(struct buf_que_s *pqb,
-		      struct qs_cls_s *p, union q_buf_u ubuf);
+	bool (*is_in)(struct buf_que_s *pqb, struct qs_cls_s *p,
+		union q_buf_u ubuf);
 	bool (*n_get_marsk)(struct buf_que_s *pqb, struct qs_cls_s *q,
 			    unsigned int *marsk);
 };
@@ -1423,6 +1469,12 @@ enum QBF_BLK_Q_TYPE {
 	QBF_BLK_Q_NUB,
 };
 
+struct dim_sub_mem_s {
+	unsigned long	mem_start;
+	struct page	*pages;
+	unsigned int	cnt;
+};
+
 #define DIM_BLK_NUB	20 /* buf number*/
 struct dim_mm_blk_s {
 	struct qs_buf_s	header;
@@ -1439,6 +1491,9 @@ struct dim_mm_blk_s {
 	void *sct;
 	unsigned int sct_keep; //keep number
 	void *buffer; //new_interface
+	struct dim_sub_mem_s	hf_buff;
+	bool	flg_hf;
+	atomic_t	p_ref_mem;
 };
 
 /*que buf block end*/
@@ -1583,12 +1638,13 @@ enum QBF_NINS_Q_TYPE {
 	QBF_NINS_Q_NUB,
 };
 
-#define DIM_NINS_NUB	(11) /* buf number*/
+#define DIM_NINS_NUB	(16) /* buf number*/
 
 struct dsub_nins_s {
 	void *ori;
 	struct vframe_s vfm_cp;
 	struct dim_wmode_s	wmode; /*tmp*/
+	unsigned int cnt;
 };
 
 struct dim_nins_s {
@@ -1624,6 +1680,7 @@ struct dsub_ndis_s {
 	/* @ary_note:	used dbuff + vfm	*/
 	/* @ary_note: mode3: di use out buffer	*/
 	/*		used pbuff		*/
+	struct hf_info_t hf;//for display
 };
 
 struct dim_ndis_s {
@@ -1725,7 +1782,7 @@ struct di_ch_s {
 
 	struct di_dbg_datax_s dbg_data;
 	unsigned char cfg_cp[EDI_CFG_END];/*2020-12-15*/
-	//n struct dev_vfram_t vfm;
+	//struct dev_vfram_t vfm;
 	enum vframe_source_type_e	src_type;
 	bool	ponly;
 	struct dentry *dbg_rootx;	/*dbg_fs*/
@@ -1752,6 +1809,7 @@ struct di_ch_s {
 	unsigned int sum_ext_buf_in2;
 	unsigned int sum_pre;
 	unsigned int sum_pst;
+	unsigned int in_cnt;
 	/*@ary_note:*/
 	unsigned int self_trig_mask;
 	unsigned int self_trig_need;
@@ -1811,6 +1869,15 @@ struct di_ch_s {
 	struct qs_cls_s		ndis_que_kback;
 	struct qs_cls_s		npst_que; /*new interface */
 	struct dim_itf_s itf;
+	/**/
+	unsigned char sts_mem_pre_cfg;
+	unsigned char sts_mem_2_local;
+	unsigned char sts_mem_2_pst;
+	unsigned char	sts_unreg_dis2keep;
+	unsigned int	sts_unreg_blk_msk;
+	unsigned int	sts_unreg_pat_mst;
+	bool en_hf_buf;
+	bool en_hf; //
 };
 
 struct dim_policy_s {
@@ -1957,14 +2024,6 @@ struct di_dbg_reg_log {
 	bool overflow;
 };
 
-enum EDBG_TIMER {
-	EDBG_TIMER_REG_B,
-	EDBG_TIMER_REG_E,
-	EDBG_TIMER_UNREG_B,
-	EDBG_TIMER_UNREG_E,
-	EDBG_TIMER_FIRST_GET,
-	EDBG_TIMER_FIRST_READY,
-};
 struct di_dbg_data {
 	unsigned int vframe_type;	/*use for type info*/
 	unsigned int cur_channel;
@@ -2035,6 +2094,9 @@ struct di_data_l_s {
 	/*di ops for other module */
 	/*struct di_ext_ops *di_api; */
 	const struct di_meson_data *mdata;
+	unsigned char hf_src_cnt;//
+	unsigned char hf_owner;	//
+	bool	hf_busy;//
 };
 
 /**************************************
@@ -2069,6 +2131,7 @@ struct di_data_l_s {
 #define DBG_M_NQ		DI_BIT20
 #define DBG_M_BPASS		DI_BIT21
 #define DBG_M_DCT		DI_BIT22
+#define DBG_M_PP		DI_BIT23
 #define DBG_M_IC		DI_BIT28
 #define DBG_M_RESET_PRE		DI_BIT29
 extern unsigned int di_dbg;
@@ -2108,11 +2171,20 @@ extern unsigned int di_dbg;
 #define dbg_pq(fmt, args ...)		dbg_m(DBG_M_PQ, fmt, ##args)
 #define dbg_sct(fmt, args ...)		dbg_m(DBG_M_SCT, fmt, ##args)
 #define dbg_nq(fmt, args ...)		dbg_m(DBG_M_NQ, fmt, ##args)
+#define dbg_pp(fmt, args ...)		dbg_m(DBG_M_PP, fmt, ##args)
+
 #define dbg_bypass(fmt, args ...)	dbg_m(DBG_M_BPASS, fmt, ##args)
 #define dbg_ic(fmt, args ...)		dbg_m(DBG_M_IC, fmt, ##args)
 char *di_cfgx_get_name(enum EDI_CFGX_IDX idx);
 bool di_cfgx_get(unsigned int ch, enum EDI_CFGX_IDX idx);
 void di_cfgx_set(unsigned int ch, enum EDI_CFGX_IDX idx, bool en);
+
+/****************************************
+ *bit control
+ ****************************************/
+void bset(unsigned int *p, unsigned int bitn);
+void bclr(unsigned int *p, unsigned int bitn);
+bool bget(unsigned int *p, unsigned int bitn);
 
 static inline struct di_data_l_s *get_datal(void)
 {
@@ -2278,7 +2350,7 @@ static inline bool get_reg_flag(unsigned char ch)
 	unsigned int flg = get_bufmng()->reg_flg_ch;
 	bool ret = false;
 
-	if (di_ch2mask_table[ch] & flg)
+	if (bget(&flg, ch))
 		ret = true;
 
 	/*dim_print("%s:%d\n", __func__, ret);*/
@@ -2292,12 +2364,10 @@ static inline unsigned int get_reg_flag_all(void)
 
 static inline void set_reg_flag(unsigned char ch, bool on)
 {
-	unsigned int flg = get_bufmng()->reg_flg_ch;
-
 	if (on)
-		get_bufmng()->reg_flg_ch = flg | di_ch2mask_table[ch];
+		bset(&get_bufmng()->reg_flg_ch, ch);
 	else
-		get_bufmng()->reg_flg_ch = flg & (~di_ch2mask_table[ch]);
+		bclr(&get_bufmng()->reg_flg_ch, ch);
 	/*dim_print("%s:%d\n", __func__, get_bufmng()->reg_flg_ch);*/
 }
 
@@ -2308,12 +2378,10 @@ static inline unsigned int get_reg_setting_all(void)
 
 static inline void set_reg_setting(unsigned char ch, bool on)
 {
-	unsigned int flg = get_bufmng()->reg_setting_ch;
-
 	if (on)
-		get_bufmng()->reg_setting_ch = flg | di_ch2mask_table[ch];
+		bset(&get_bufmng()->reg_setting_ch, ch);
 	else
-		get_bufmng()->reg_setting_ch = flg & (~di_ch2mask_table[ch]);
+		bclr(&get_bufmng()->reg_setting_ch, ch);
 	/*dim_print("%s:%d\n", __func__, get_bufmng()->reg_flg_ch);*/
 }
 
@@ -2468,7 +2536,7 @@ static inline void sum_pst_p_inc(unsigned int ch)
 
 static inline void sum_pst_p_clear(unsigned int ch)
 {
-	//get_datal()->ch_data[ch].sum_pst_put = 0;
+	get_datal()->ch_data[ch].sum_pst_put = 0;
 }
 
 static inline unsigned int get_sum_release(unsigned int ch)
@@ -2635,9 +2703,32 @@ static inline bool is_ic_between(unsigned int ic_min, unsigned int ic_max)
 {
 	unsigned int id = get_datal()->mdata->ic_id;
 
-	if ((id >= ic_min) && (id <= ic_max))
+	if (id >= ic_min && id <= ic_max)
 		return true;
 	return false;
+}
+
+/**************************************
+ * error flg: ?
+ *	bit 0: 1 mean no buf is error
+ *	bit 1: 1 mean no blk_buf is error
+ **************************************/
+static inline void p_ref_set_buf(struct di_buf_s *buf,
+				 bool set,
+				 unsigned char flg, unsigned char post)
+{
+	if (!buf || !buf->blk_buf) {
+		if (!buf) {
+			PR_WARN("p_ref_set:no buf %d\n", post);
+			return;
+		}
+		if (!buf->blk_buf)
+			PR_WARN("p_ref_set:no blk %d\n", post);
+
+		return;
+	}
+	dbg_mem("p_ref_set:0x%px:%d\n", buf->blk_buf, set);
+	atomic_set(&buf->blk_buf->p_ref_mem, set);
 }
 
 #define DIM_IS_IC(cc)		is_ic_named((get_datal()->mdata->ic_id), \
@@ -2647,4 +2738,5 @@ static inline bool is_ic_between(unsigned int ic_min, unsigned int ic_max)
 #define DIM_IS_IC_BF(cc)	is_ic_before((get_datal()->mdata->ic_id), \
 					DI_IC_ID_##cc)
 #define DIM_IS_IC_BT(cc1, cc2)	is_ic_between(DI_IC_ID_##cc1, DI_IC_ID_##cc2)
+
 #endif	/*__DI_DATA_L_H__*/

@@ -162,6 +162,8 @@ static bool nins_m_in_vf(struct di_ch_s *pch)
 		}
 		pins = (struct dim_nins_s *)pbufq->pbuf[index].qbc;
 		pins->c.ori = vf;
+		pins->c.cnt = pch->in_cnt;
+		pch->in_cnt++;
 		//pins->c.etype = EDIM_NIN_TYPE_VFM;
 		memcpy(&pins->c.vfm_cp, vf, sizeof(pins->c.vfm_cp));
 		flg_q = qbuf_in(pbufq, QBF_NINS_Q_CHECK, index);
@@ -171,6 +173,14 @@ static bool nins_m_in_vf(struct di_ch_s *pch)
 			pw_vf_put(vf, ch);
 			qbuf_in(pbufq, QBF_NINS_Q_IDLE, index);
 			break;
+		}
+		if (pch->in_cnt < 4) {
+			if (pch->in_cnt == 1)
+				dbg_timer(ch, EDBG_TIMER_1_GET);
+			else if (pch->in_cnt == 2)
+				dbg_timer(ch, EDBG_TIMER_2_GET);
+			else if (pch->in_cnt == 3)
+				dbg_timer(ch, EDBG_TIMER_3_GET);
 		}
 	}
 
@@ -437,7 +447,7 @@ static int di_ori_event_ready(unsigned int channel)
 	if (dip_chst_get(channel) == EDI_TOP_STATE_REG_STEP1)
 		task_send_cmd(LCMD1(ECMD_READY, channel));
 	else
-		task_send_ready();
+		task_send_ready(9);
 
 	di_irq_ori_event_ready(channel);
 	return 0;
@@ -482,123 +492,6 @@ static void  di_ori_event_set_3D(int type, void *data, unsigned int channel)
 /*************************/
 /************************************/
 /************************************/
-#ifdef MARK_HIS
-struct vframe_s *di_vf_l_get(unsigned int channel)
-{
-	vframe_t *vframe_ret = NULL;
-	struct di_buf_s *di_buf = NULL;
-	struct di_ch_s *pch;
-#ifdef DI_DEBUG_POST_BUF_FLOW
-	struct di_buf_s *nr_buf = NULL;
-#endif
-	struct vframe_s *vfm_dbg;
-	ulong irq_flag2 = 0;
-//	struct di_post_stru_s *ppost = get_post_stru(channel);
-
-	dim_print("%s:ch[%d]\n", __func__, channel);
-
-	pch = get_chdata(channel);
-
-	if (!get_init_flag(channel)	||
-	    dim_vcry_get_flg()		||
-	    di_block_get()			||
-	    !get_reg_flag(channel)	||
-	    dump_state_flag_get()) {
-		dim_tr_ops.post_get2(1);
-		return NULL;
-	}
-
-	/**************************/
-	if (list_count(channel, QUEUE_DISPLAY) > DI_POST_GET_LIMIT) {
-		dim_tr_ops.post_get2(2);
-		return NULL;
-	}
-	/**************************/
-
-	if (!di_que_is_empty(channel, QUE_POST_READY)) {
-		dim_log_buffer_state("ge_", channel);
-		di_lock_irqfiq_save(irq_flag2);
-
-		di_buf = di_que_out_to_di_buf(channel, QUE_POST_READY);
-		if (dim_check_di_buf(di_buf, 21, channel)) {
-			di_unlock_irqfiq_restore(irq_flag2);
-			return NULL;
-		}
-		if (di_buf->type != VFRAME_TYPE_POST)
-			PR_ERR("%s:t[%d][%d]\n", __func__, di_buf->type,
-			       di_buf->index);
-
-		#ifdef MARK_HIS
-		if (!di_buf->blk_buf)
-			PR_ERR("%s:no blk:t[%d][%d]\n", __func__,
-			       di_buf->type, di_buf->index);
-		#endif
-		/* add it into display_list */
-		queue_in(channel, di_buf, QUEUE_DISPLAY);
-
-		di_unlock_irqfiq_restore(irq_flag2);
-
-		if (di_buf) {
-			vframe_ret = di_buf->vframe;
-
-			di_buf->seq = pch->disp_frame_count;
-			atomic_set(&di_buf->di_cnt, 1);
-			#ifdef MARK_HIS
-			if (di_buf->in_buf)
-				dbg_nins_log_buf(di_buf->in_buf, 2);
-			#endif
-		}
-		pch->disp_frame_count++;
-
-		dim_log_buffer_state("get", channel);
-	}
-	if (vframe_ret) {
-		dim_print("%s: %s[%d]:vtype[0x%x],0x%px [%d] %u ms\n", __func__,
-			  dim_get_vfm_type_name(di_buf->type),
-			  di_buf->index,
-			  vframe_ret->type,
-			  vframe_ret,
-			  vframe_ret->index_disp,
-			  jiffies_to_msecs(jiffies_64 -
-			  vframe_ret->ready_jiffies64));
-		dbg_buf_log_save(pch, di_buf, 12);
-		dbg_cvs_log_save(
-				pch,
-				di_buf,
-				12,
-				0,
-				vframe_ret->canvas0_config[0].phy_addr);
-		didbg_vframe_out_save(channel, vframe_ret);
-		dim_print("\t:cw=%d,ch=%d\n",
-			vframe_ret->width,
-			vframe_ret->height);
-		if (pch->disp_frame_count == 1 && di_get_kpi_frame_num() > 0) {
-			pr_dbg("[di_kpi] %s: 1st frame get success. %s[%d]:0x%p %u ms\n",
-				__func__,
-				dim_get_vfm_type_name(di_buf->type),
-				di_buf->index,
-				vframe_ret,
-				jiffies_to_msecs(jiffies_64 -
-				vframe_ret->ready_jiffies64));
-		}
-		dim_tr_ops.post_get(vframe_ret->index_disp);
-
-		/*dbg to use dec vf */
-		if (dbg_sct_used_decoder_buffer() && vframe_ret->vf_ext) {
-			vfm_dbg = (struct vframe_s *)vframe_ret->vf_ext;
-			vframe_ret->compBodyAddr = vfm_dbg->compBodyAddr;
-			vframe_ret->compHeadAddr = vfm_dbg->compHeadAddr;
-			vframe_ret->type &= (~0xffff);
-			vframe_ret->type |= (vfm_dbg->type & 0xffff);
-			dim_print("use dec vfm\n");
-		}
-	} else {
-		dim_tr_ops.post_get2(3);
-	}
-
-	return vframe_ret;
-}
-#else
 struct vframe_s *di_vf_l_get(unsigned int channel)
 {
 	vframe_t *vframe_ret = NULL;
@@ -645,8 +538,6 @@ struct vframe_s *di_vf_l_get(unsigned int channel)
 	dim_tr_ops.post_get(vframe_ret->index_disp);
 	return vframe_ret;
 }
-
-#endif
 
 #ifdef MARK_HIS
 void di_vf_l_put(struct vframe_s *vf, unsigned char channel)
@@ -713,8 +604,7 @@ void di_vf_l_put(struct vframe_s *vf, unsigned char channel)
 				       di_buf->index));
 			di_unlock_irqfiq_restore(irq_flag2);
 			PR_WARN("%s:ch[%d]not in display %d\n",
-				__func__, channel,
-				di_buf->index);
+				__func__, channel, di_buf->index);
 		}
 	} else {
 		PR_ERR("%s:t[%d][%d]\n", __func__, di_buf->type, di_buf->index);
@@ -766,7 +656,7 @@ void di_vf_l_put(struct vframe_s *vf, unsigned char channel)
 			LCMD2(ECMD_RL_KEEP,
 			     channel,
 			     ndis1->header.index));
-	task_send_ready();
+	//task_send_ready();
 }
 
 #endif
@@ -856,7 +746,7 @@ struct vframe_s *di_vf_l_peek(unsigned int channel)
 	if (vframe_ret) {
 		dim_tr_ops.post_peek(9);
 	} else {
-		task_send_ready();
+//		task_send_ready(22);
 		dim_tr_ops.post_peek(4);
 	}
 	return vframe_ret;
