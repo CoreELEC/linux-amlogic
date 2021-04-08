@@ -36,6 +36,7 @@ static void __iomem *sharemem_out_base;
 static long phy_in_base;
 static long phy_out_base;
 static unsigned long secmon_start_virt;
+static unsigned int mem_size;
 
 #ifdef CONFIG_ARM64
 #define IN_SIZE	0x1000
@@ -64,7 +65,7 @@ int within_secmon_region(unsigned long addr)
 		return 0;
 
 	if ((addr >= secmon_start_virt) &&
-	    (addr <= (secmon_start_virt + RESERVE_MEM_SIZE)))
+	    (addr <= (secmon_start_virt + mem_size)))
 		return 1;
 
 	return 0;
@@ -75,7 +76,6 @@ static int secmon_probe(struct platform_device *pdev)
 	struct device_node *np = pdev->dev.of_node;
 	unsigned int id;
 	int ret;
-	int mem_size;
 	struct page *page;
 
 	if (!of_property_read_u32(np, "in_base_func", &id))

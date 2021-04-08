@@ -263,6 +263,27 @@ static void show_user_data(unsigned long addr, int nbytes, const char *name)
 	if (!access_ok(VERIFY_READ, (void *)addr, nbytes))
 		return;
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+	/*
+	 * Treating data in general purpose register as an address
+	 * and dereferencing it is quite a dangerous behaviour,
+	 * especially when it belongs to secure monotor region or
+	 * ioremap region(for arm64 vmalloc region is already filtered
+	 * out), which can lead to external abort on non-linefetch and
+	 * can not be protected by probe_kernel_address.
+	 * We need more strict filtering rules
+	 */
+
+#ifdef CONFIG_AMLOGIC_SEC
+	/*
+	 * filter out secure monitor region
+	 */
+	if (within_secmon_region(addr)) {
+		pr_info("\n%s: %#lx S\n", name, addr);
+		return;
+	}
+#endif
+#endif
 	pr_info("\n%s: %#lx:\n", name, addr);
 
 	/*
