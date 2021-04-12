@@ -26,6 +26,7 @@
 struct in_elem {
 	__u8 used;
 	__u8 mem_level;
+	__u8 id;
 	struct chan_id *pchan;
 };
 
@@ -102,6 +103,7 @@ struct in_elem *ts_input_open(int id, int sec_level)
 		return NULL;
 
 	ts_input_table[id].mem_level = sec_level;
+	ts_input_table[id].id = id;
 	ts_input_table[id].used = 1;
 	elem = &ts_input_table[id];
 
@@ -143,8 +145,6 @@ int ts_input_write(struct in_elem *elem, const char *buf, int count)
 {
 	int ret = 0;
 
-	pr_dbg("%s count:%d\n", __func__, count);
-
 	if (!elem)
 		return -1;
 
@@ -152,6 +152,8 @@ int ts_input_write(struct in_elem *elem, const char *buf, int count)
 		pr_dbg("%s invalid parameter line:%d\n", __func__, __LINE__);
 		return 0;
 	}
+	pr_dbg("%s id:%d count:%d\n", __func__, elem->id, count);
+
 	ret = SC2_bufferid_write(elem->pchan,
 				 buf, count, elem->mem_level ? 1 : 0);
 	return ret;
