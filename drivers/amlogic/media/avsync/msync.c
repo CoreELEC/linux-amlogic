@@ -167,6 +167,10 @@ struct msync {
 	u32 vsync_pts_inc;
 };
 
+struct msync_priv {
+	int session_id;
+};
+
 enum {
 	LOG_ERR = 0,
 	LOG_WARN = 1,
@@ -178,7 +182,7 @@ enum {
 #define msync_dbg(level, x...) \
 	do { \
 		if ((level) <= log_level) \
-		pr_info(x); \
+			pr_info(x); \
 	} while (0)
 
 static struct msync sync;
@@ -430,7 +434,7 @@ static void pcr_set(struct sync_session *session)
 		gap_pa = abs_diff(cur_pcr, cur_apts);
 		gap_av = abs_diff(cur_apts, cur_vpts);
 		gap_pv = abs_diff(cur_pcr, cur_vpts);
-		if ((gap_pa > MAX_GAP) && (gap_pv > MAX_GAP)) {
+		if (gap_pa > MAX_GAP && gap_pv > MAX_GAP) {
 			if (gap_av > MAX_GAP)
 				ref_pcr = cur_vpts;
 			else
@@ -544,7 +548,7 @@ static void session_video_start(struct sync_session *session, u32 pts)
 	} else if (session->mode == AVS_MODE_A_MASTER) {
 		update_f_vpts(session, pts);
 
-		if ((session->start_policy == AMSYNC_START_ALIGN) &&
+		if (session->start_policy == AMSYNC_START_ALIGN &&
 			VALID_PTS(session->first_apts.pts)) {
 			if (!session->clock_start) {
 				session->clock_start = true;
@@ -560,7 +564,7 @@ static void session_video_start(struct sync_session *session, u32 pts)
 	} else if (session->mode == AVS_MODE_IPTV) {
 		update_f_vpts(session, pts);
 
-		if ((session->start_policy == AMSYNC_START_ASAP) &&
+		if (session->start_policy == AMSYNC_START_ASAP &&
 				!VALID_PTS(session->first_apts.pts)) {
 			session_set_wall_clock(session, pts);
 			session->clock_start = true;
@@ -594,7 +598,7 @@ static u32 session_audio_start(struct sync_session *session,
 		session_set_wall_clock(session, start_pts);
 		update_f_apts(session, pts);
 
-		if ((session->start_policy == AMSYNC_START_ALIGN) &&
+		if (session->start_policy == AMSYNC_START_ALIGN &&
 			!VALID_PTS(session->first_vpts.pts)) {
 			msync_dbg(LOG_INFO, "[%d]%d audio start %u deferred\n",
 					session->id, __LINE__, pts);
@@ -619,7 +623,7 @@ static u32 session_audio_start(struct sync_session *session,
 	} else if (session->mode == AVS_MODE_IPTV) {
 		update_f_apts(session, pts);
 
-		if ((session->start_policy == AMSYNC_START_ASAP) &&
+		if (session->start_policy == AMSYNC_START_ASAP &&
 			!VALID_PTS(session->first_vpts.pts)) {
 			session_set_wall_clock(session, start_pts);
 			session->clock_start = true;
@@ -1315,6 +1319,17 @@ static long session_ioctl(struct file *file, unsigned int cmd, ulong arg)
 	return 0;
 }
 
+#ifdef CONFIG_COMPAT
+static long session_compat_ioctl(struct file *filp, u32 cmd, ulong arg)
+{
+	long ret;
+
+	arg = (ulong)compat_ptr(arg);
+	ret = session_ioctl(filp, cmd, arg);
+	return ret;
+}
+#endif
+
 static int session_open(struct inode *inode, struct file *file)
 {
 	struct sync_session *session = NULL;
@@ -1595,6 +1610,7 @@ static long msync_ioctl(struct file *file, unsigned int cmd, ulong arg)
 	switch (cmd) {
 	case AMSYNC_IOC_ALLOC_SESSION:
 	{
+		struct msync_priv *priv = NULL;
 		spin_lock_irqsave(&sync.lock, flags);
 		for (i = 0 ; i < MAX_SESSION_NUM ; i++) {
 			if (!sync.id_pool[i]) {
@@ -1608,6 +1624,10 @@ static long msync_ioctl(struct file *file, unsigned int cmd, ulong arg)
 			return -EMFILE;
 		}
 
+		priv = vmalloc(sizeof(*priv));
+		if (!priv)
+			return -ENOMEM;
+
 		rc = create_session(i);
 		if (rc) {
 			spin_lock_irqsave(&sync.lock, flags);
@@ -1617,7 +1637,8 @@ static long msync_ioctl(struct file *file, unsigned int cmd, ulong arg)
 			return rc;
 		}
 		put_user(i, (u32 __user *)argp);
-		file->private_data = (void *)i;
+		priv->session_id = i;
+		file->private_data = priv;
 		break;
 	}
 	case AMSYNC_IOC_REMOVE_SESSION:
@@ -1638,7 +1659,8 @@ static long msync_ioctl(struct file *file, unsigned int cmd, ulong arg)
 		spin_unlock_irqrestore(&sync.lock, flags);
 
 		destroy_session(id);
-		file->private_data = (void *)-1;
+		vfree(file->private_data);
+		file->private_data = NULL;
 		break;
 	}
 	default:
@@ -1646,6 +1668,17 @@ static long msync_ioctl(struct file *file, unsigned int cmd, ulong arg)
 	}
 	return 0;
 }
+
+#ifdef CONFIG_COMPAT
+static long msync_compat_ioctl(struct file *filp, u32 cmd, ulong arg)
+{
+	long ret;
+
+	arg = (ulong)compat_ptr(arg);
+	ret = msync_ioctl(filp, cmd, arg);
+	return ret;
+}
+#endif
 
 static int msync_open(struct inode *inode, struct file *file)
 {
@@ -1655,11 +1688,13 @@ static int msync_open(struct inode *inode, struct file *file)
 
 static int msync_release(struct inode *inode, struct file *file)
 {
-	int id = (int)file->private_data;
+	struct msync_priv *priv = file->private_data;
+	int id = MAX_SESSION_NUM;
 	unsigned long flags;
 
-	if (id == -1)
+	if (!priv)
 		return 0;
+	id = priv->session_id;
 	if (id >= MAX_SESSION_NUM) {
 		msync_dbg(LOG_ERR, "destroy invalid id %d\n", id);
 		return -EINVAL;
@@ -1673,7 +1708,8 @@ static int msync_release(struct inode *inode, struct file *file)
 	spin_unlock_irqrestore(&sync.lock, flags);
 
 	destroy_session(id);
-	file->private_data = (void *)-1;
+	vfree(priv);
+	file->private_data = NULL;
 	return 0;
 }
 
@@ -1815,5 +1851,9 @@ static void __exit msync_exit(void)
 	unregister_chrdev(AMSYNC_MAJOR, "aml_msync");
 }
 
+#ifndef MODULE
 module_init(msync_init);
 module_exit(msync_exit);
+#endif
+
+MODULE_LICENSE("GPL");
