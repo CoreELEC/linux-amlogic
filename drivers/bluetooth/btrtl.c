@@ -86,8 +86,9 @@ static int rtl8723b_parse_firmware(struct hci_dev *hdev, u16 lmp_subver,
 		{ RTL_ROM_LMP_8723A, 0 },
 		{ RTL_ROM_LMP_8723B, 1 },
 		{ RTL_ROM_LMP_8821A, 2 },
-		{ RTL_ROM_LMP_8761A, 3 },
+		{ RTL_ROM_LMP_8761A, 3 },  /* rev a */
 		{ RTL_ROM_LMP_8822B, 8 },
+		{ RTL_ROM_LMP_8761A, 14 }, /* rev b */
 	};
 
 	ret = rtl_read_rom_version(hdev, &rom_version);
@@ -321,7 +322,7 @@ out:
 	return ret;
 }
 
-static int btrtl_setup_rtl8723b(struct hci_dev *hdev, u16 lmp_subver,
+static int btrtl_setup_rtl8723b(struct hci_dev *hdev, u16 lmp_subver, u16 hci_rev,
 				const char *fw_name)
 {
 	unsigned char *fw_data = NULL;
@@ -340,7 +341,10 @@ static int btrtl_setup_rtl8723b(struct hci_dev *hdev, u16 lmp_subver,
 		cfg_name = "rtl_bt/rtl8821a_config.bin";
 		break;
 	case RTL_ROM_LMP_8761A:
-		cfg_name = "rtl_bt/rtl8761a_config.bin";
+		if (hci_rev == 0xb)
+			cfg_name = "rtl_bt/rtl8761b_config.bin";
+		else
+			cfg_name = "rtl_bt/rtl8761a_config.bin";
 		break;
 	case RTL_ROM_LMP_8822B:
 		cfg_name = "rtl_bt/rtl8822b_config.bin";
@@ -424,7 +428,7 @@ int btrtl_setup_realtek(struct hci_dev *hdev)
 {
 	struct sk_buff *skb;
 	struct hci_rp_read_local_version *resp;
-	u16 lmp_subver;
+	u16 lmp_subver, hci_rev;
 
 	skb = btrtl_read_local_version(hdev);
 	if (IS_ERR(skb))
@@ -436,6 +440,7 @@ int btrtl_setup_realtek(struct hci_dev *hdev)
 		resp->lmp_ver, resp->lmp_subver);
 
 	lmp_subver = le16_to_cpu(resp->lmp_subver);
+	hci_rev = le16_to_cpu(resp->hci_rev);
 	kfree_skb(skb);
 
 	/* Match a set of subver values that correspond to stock firmware,
@@ -449,16 +454,20 @@ int btrtl_setup_realtek(struct hci_dev *hdev)
 	case RTL_ROM_LMP_3499:
 		return btrtl_setup_rtl8723a(hdev);
 	case RTL_ROM_LMP_8723B:
-		return btrtl_setup_rtl8723b(hdev, lmp_subver,
+		return btrtl_setup_rtl8723b(hdev, lmp_subver, hci_rev,
 					    "rtl_bt/rtl8723b_fw.bin");
 	case RTL_ROM_LMP_8821A:
-		return btrtl_setup_rtl8723b(hdev, lmp_subver,
+		return btrtl_setup_rtl8723b(hdev, lmp_subver, hci_rev,
 					    "rtl_bt/rtl8821a_fw.bin");
 	case RTL_ROM_LMP_8761A:
-		return btrtl_setup_rtl8723b(hdev, lmp_subver,
-					    "rtl_bt/rtl8761a_fw.bin");
+		if (hci_rev == 0xb)
+		  return btrtl_setup_rtl8723b(hdev, lmp_subver, hci_rev,
+			  		    "rtl_bt/rtl8761b_fw.bin");
+		else
+		  return btrtl_setup_rtl8723b(hdev, lmp_subver, hci_rev,
+			  		    "rtl_bt/rtl8761a_fw.bin");
 	case RTL_ROM_LMP_8822B:
-		return btrtl_setup_rtl8723b(hdev, lmp_subver,
+		return btrtl_setup_rtl8723b(hdev, lmp_subver, hci_rev,
 					    "rtl_bt/rtl8822b_fw.bin");
 	default:
 		BT_INFO("rtl: assuming no firmware upload needed.");
