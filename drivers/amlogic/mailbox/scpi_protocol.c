@@ -827,7 +827,7 @@ EXPORT_SYMBOL_GPL(scpi_get_sensor_value);
  * multi-times when your data is bigger
  * than 0x1fe
  */
-int scpi_send_usr_data(u32 client_id, u32 *val, u32 size)
+int scpi_send_usr_data(u32 client_id, void *val, u32 size)
 {
 	struct scpi_data_buf sdata;
 	struct mhu_data_buf mdata;
@@ -1016,7 +1016,7 @@ EXPORT_SYMBOL_GPL(scpi_get_cec_val);
  * multi-times when your data is bigger
  * than 0x20
  */
-int scpi_send_cec_data(u32 cmd_id, u32 *val, u32 size)
+int scpi_send_cec_data(u32 cmd_id, void *val, u32 size)
 {
 	struct scpi_data_buf sdata;
 	struct mhu_data_buf mdata;
