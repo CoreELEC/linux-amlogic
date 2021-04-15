@@ -4899,7 +4899,9 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 					(cur_dispbuf, vf,
 					frame_repeat_count
 					* vsync_pts_inc) &&
-					timestamp_pcrscr_enable_state()) {
+					((timestamp_pcrscr_enable_state() ||
+					tsync_get_mode() ==
+					TSYNC_MODE_PCRMASTER))) {
 #if defined(CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM)
 					int iret1 = 0, iret2 = 0;
 #endif
