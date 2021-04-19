@@ -11,7 +11,7 @@
 
 / {
     partitions: partitions{
-		parts = <15>;
+		parts = <17>;
 		part-0 = <&logo>;
 		part-1 = <&recovery>;
 		part-2 = <&tee>;
@@ -22,11 +22,13 @@
 		part-7 = <&param>;
 		part-8 = <&boot>;
 		part-9 = <&oem>;
-		part-10 = <&metadata>;
-		part-11 = <&vbmeta>;
-		part-12 = <&super>;
-		part-13 = <&cache>;
-		part-14 = <&data>;
+		part-10 = <&odm_ext>;
+		part-11 = <&rsv>;
+		part-12 = <&metadata>;
+		part-13 = <&vbmeta>;
+		part-14 = <&super>;
+		part-15 = <&cache>;
+		part-16 = <&data>;
 
 		logo:logo{
 			pname = "logo";
@@ -66,6 +68,17 @@
 		};
 		oem:oem{
 			pname = "oem";
+			size = <0x0 0x1000000>;
+			mask = <1>;
+		};
+		odm_ext:odm_ext
+		{
+			pname = "odm_ext";
+			size = <0x0 0x1000000>;
+			mask = <1>;
+		};
+		rsv:rsv{
+			pname = "rsv";
 			size = <0x0 0x1000000>;
 			mask = <1>;
 		};
