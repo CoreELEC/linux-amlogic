@@ -443,6 +443,24 @@
 
 		pinctrl-names = "default";
 		pinctrl-0 = <&sd_iso7816_pins>;
+
+		/* For NSK2 Smartcard
+		pinctrl-names = "default", "pins-mode0", "pins-mode1",
+						"pins-mode2", "data-m0-h",
+						"data-m1-h", "data-m2-h",
+						"data-m0-l", "data-m1-l",
+						"data-m2-l";
+		pinctrl-0 = <&sd_iso7816_pins>;
+		pinctrl-1 = <&iso7816_pins_mode_0>;
+		pinctrl-2 = <&iso7816_pins_mode_1>;
+		pinctrl-3 = <&iso7816_pins_mode_2>;
+		pinctrl-4 = <&iso7816_pin_data_m_0_h>;
+		pinctrl-5 = <&iso7816_pin_data_m_1_h>;
+		pinctrl-6 = <&iso7816_pin_data_m_2_h>;
+		pinctrl-7 = <&iso7816_pin_data_m_0_l>;
+		pinctrl-8 = <&iso7816_pin_data_m_1_l>;
+		pinctrl-9 = <&iso7816_pin_data_m_2_l>;
+		*/
 		clocks = <&clkc CLKID_SC_CLK_GATE>;
 		clock-names = "smartcard";
 	};
@@ -1093,6 +1111,8 @@
 				&clkc CLKID_MPLL0>;
 		clock-names = "mclk", "clk_srcpll";
 		pinctrl-names = "tdm_pins";
+
+                /* Disable pinctrl-0 for NSK2 smartcard */
 		pinctrl-0 = <&tdm_a
 			&tdm_d3_pins
 			&tdm_d4_pins
@@ -1429,6 +1449,8 @@
 			groups = "tdm_sclk0",
 				"tdm_fs0",
 				"tdm_d3",
+
+                                /* Disable for NSK2 Smartcard */
 				"tdm_d4";
 			function = "tdm";
 		};
