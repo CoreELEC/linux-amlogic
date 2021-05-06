@@ -245,8 +245,18 @@ extern void key_revoke(struct key *key);
 extern void key_invalidate(struct key *key);
 extern void key_put(struct key *key);
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+#include <asm/memory.h>
+#endif
+
 static inline struct key *__key_get(struct key *key)
 {
+#ifdef CONFIG_AMLOGIC_MODIFY
+	if (key < (struct key *)PAGE_OFFSET) {
+		WARN(1, "INVALID__x2__KEY:%p\n", key);
+		return NULL;
+	}
+#endif
 	atomic_inc(&key->usage);
 	return key;
 }
