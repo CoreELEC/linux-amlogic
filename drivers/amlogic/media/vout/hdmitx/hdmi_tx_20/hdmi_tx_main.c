@@ -249,7 +249,8 @@ static void hdmitx_early_suspend(struct early_suspend *h)
 	hdmitx_edid_clear(hdev);
 	hdmitx_edid_ram_buffer_clear(hdev);
 	edidinfo_detach_to_vinfo(hdev);
-	extcon_set_state_sync(hdmitx_extcon_power, EXTCON_DISP_HDMI, 0);
+	extcon_set_state_sync(hdmitx_extcon_power, EXTCON_DISP_HDMI,
+			      HDMI_SUSPEND);
 	phdmi->hwop.cntlconfig(&hdmitx_device, CONF_CLR_AVI_PACKET, 0);
 	phdmi->hwop.cntlconfig(&hdmitx_device, CONF_CLR_VSDB_PACKET, 0);
 	/*close vpu clk*/
@@ -325,7 +326,8 @@ static void hdmitx_late_resume(struct early_suspend *h)
 
 	extcon_set_state_sync(hdmitx_extcon_hdmi, EXTCON_DISP_HDMI,
 		hdmitx_device.hpd_state);
-	extcon_set_state_sync(hdmitx_extcon_power, EXTCON_DISP_HDMI, 1);
+	extcon_set_state_sync(hdmitx_extcon_power, EXTCON_DISP_HDMI,
+			      HDMI_WAKEUP);
 	extcon_set_state_sync(hdmitx_extcon_audio, EXTCON_DISP_HDMI,
 		hdmitx_device.hpd_state);
 
@@ -6043,7 +6045,7 @@ static int hdmi_task_handle(void *data)
 	hdmitx_notify_hpd(hdmitx_device->hpd_state, NULL);
 
 	extcon_set_state_sync(hdmitx_extcon_power, EXTCON_DISP_HDMI,
-		hdmitx_device->hpd_state);
+			      HDMI_WAKEUP);
 
 	INIT_WORK(&hdmitx_device->work_hdr, hdr_work_func);
 	hdmitx_device->hdmi_wq = alloc_workqueue(DEVICE_NAME,

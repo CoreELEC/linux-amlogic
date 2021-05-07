@@ -786,6 +786,9 @@ extern int hdmi_set_3d(struct hdmitx_dev *hdmitx_device, int type,
 extern int hdmitx_set_audio(struct hdmitx_dev *hdmitx_device,
 	struct hdmitx_audpara *audio_param);
 
+#define HDMI_SUSPEND	0
+#define HDMI_WAKEUP	1
+
 enum hdmitx_event {
 	HDMITX_NONE_EVENT = 0,
 	HDMITX_HPD_EVENT,
