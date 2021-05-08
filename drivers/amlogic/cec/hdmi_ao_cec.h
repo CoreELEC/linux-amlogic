@@ -19,7 +19,7 @@
 #ifndef __AO_CEC_H__
 #define __AO_CEC_H__
 
-#define CEC_DRIVER_VERSION     "2021/01/19:phy addr error, defaut is 0xffff"
+#define CEC_DRIVER_VERSION     "2021/05/14: hdmi plug & cec rx msg uevent"
 
 #define CEC_DEV_NAME		"cec"
 
@@ -165,14 +165,19 @@ struct ao_cec_dev {
 	void __iomem *clk_reg;
 	struct hdmitx_dev *tx_dev;
 	struct workqueue_struct *cec_thread;
+	struct workqueue_struct *hdmi_plug_wq;
+	struct workqueue_struct *cec_rx_event_wq;
 	struct device *dbg_dev;
 	const char *pin_name;
 	struct delayed_work cec_work;
+	struct delayed_work work_hdmi_plug;
+	struct delayed_work work_cec_rx;
 	struct completion rx_ok;
 	struct completion tx_ok;
 	spinlock_t cec_reg_lock;/*cec register access*/
 	struct mutex cec_tx_mutex;/*pretect tx cec msg*/
 	struct mutex cec_ioctl_mutex;
+	struct mutex cec_uevent_mutex; /* cec uevent */
 	struct cec_wakeup_t wakup_data;
 	unsigned int wakeup_reason;
 #ifdef CONFIG_PM
@@ -505,6 +510,20 @@ enum {
 	CECB_STAT0_P2S_SEND_ACK = 4,
 	CECB_STAT0_P2S_FBACK_ACK = 5,
 	CECB_STAT0_P2S_FBACK_RX_ERR = 6,
+};
+
+enum cec_event_type {
+	CEC_NONE_EVENT = 0,
+	HDMI_PLUG_EVENT = 1,
+	CEC_RX_MSG = 2
+};
+
+#define MAX_UEVENT_LEN 64
+
+struct cec_uevent {
+	enum cec_event_type type;
+	unsigned int state;
+	const char *env;
 };
 
 /* cec ip irq flags bit discription */

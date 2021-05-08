@@ -1291,7 +1291,11 @@ static irqreturn_t am_hdmi_irq(int irq, void *dev_id)
 			hdmi_tx_edid_proc((unsigned char *)edid);
 			kfree(edid);
 		}
+		hdmitx_dev->hpd_state = 1;
+	} else if (am_hdmi->hpd_flag == 2) {
+		hdmitx_dev->hpd_state = 0;
 	}
+	hdmitx_notify_hpd(hdmitx_dev->hpd_state, NULL);
 	drm_helper_hpd_irq_event(am_hdmi->connector.dev);
 	return IRQ_HANDLED;
 }
@@ -1457,6 +1461,10 @@ void am_hdmitx_hdcp_result(unsigned int *exe_type,
 	*result_type = (unsigned int)am_hdmi_info.hdcp_result;
 }
 
+void am_hdmitx_set_hdcp_mode(unsigned int user_type)
+{
+	am_hdmi_info.hdcp_user_type = user_type;
+}
 static int am_meson_hdmi_probe(struct platform_device *pdev)
 {
 	struct hdmitx_dev *hdmitx_dev;
@@ -1468,6 +1476,7 @@ static int am_meson_hdmi_probe(struct platform_device *pdev)
 	hdmitx_dev->hwop.am_hdmitx_hdcp_disable = am_hdmitx_hdcp_disable;
 	hdmitx_dev->hwop.am_hdmitx_hdcp_enable = am_hdmitx_hdcp_enable;
 	hdmitx_dev->hwop.am_hdmitx_hdcp_result = am_hdmitx_hdcp_result;
+	hdmitx_dev->hwop.am_hdmitx_set_hdcp_mode = am_hdmitx_set_hdcp_mode;
 	return component_add(&pdev->dev, &am_meson_hdmi_ops);
 }
 

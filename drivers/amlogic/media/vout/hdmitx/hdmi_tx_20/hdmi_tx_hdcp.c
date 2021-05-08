@@ -203,15 +203,23 @@ static int hdmitx_hdcp_task(void *data)
 {
 	static int auth_trigger;
 	struct hdmitx_dev *hdev = (struct hdmitx_dev *)data;
+	unsigned int hdcp_mode;
 
 	INIT_DELAYED_WORK(&hdev->work_do_hdcp, _hdcp_do_work);
 	while (hdev->hpd_event != 0xff) {
-		hdmi_authenticated = hdev->hwop.cntlddc(hdev,
-			DDC_HDCP_GET_AUTH, 0);
+		if (hdev->drm_feature) {
+			if (hdev->hwop.am_hdmitx_hdcp_result)
+				hdev->hwop.am_hdmitx_hdcp_result(&hdcp_mode,
+				&hdmi_authenticated);
+		} else {
+			hdmi_authenticated = hdev->hwop.cntlddc(hdev,
+				DDC_HDCP_GET_AUTH, 0);
+			hdcp_mode = hdev->hdcp_mode;
+		}
 		hdmitx_hdcp_status(hdmi_authenticated);
 		if (auth_trigger != hdmi_authenticated) {
 			auth_trigger = hdmi_authenticated;
-			pr_info("hdcptx: %d  auth: %d\n", hdev->hdcp_mode,
+			pr_info("hdcptx: %d  auth: %d\n", hdcp_mode,
 				auth_trigger);
 		}
 		msleep_interruptible(200);

@@ -387,6 +387,7 @@ struct hdmitx_dev {
 		void (*am_hdmitx_hdcp_enable)(void);
 		void (*am_hdmitx_hdcp_result)(unsigned int *exe_type,
 				unsigned int *result_type);
+		void (*am_hdmitx_set_hdcp_mode)(unsigned int user_type);
 	} hwop;
 	struct {
 		unsigned int hdcp14_en;
@@ -798,6 +799,9 @@ int hdmitx_set_uevent(enum hdmitx_event type, int val);
 #ifdef CONFIG_AMLOGIC_HDMITX
 extern struct hdmitx_dev *get_hdmitx_device(void);
 extern int get_hpd_state(void);
+#ifdef CONFIG_DRM_MESON_HDMI
+void hdmitx_notify_hpd(int hpd, void *p);
+#endif
 bool is_tv_changed(void);
 extern int hdmitx_event_notifier_regist(struct notifier_block *nb);
 extern int hdmitx_event_notifier_unregist(struct notifier_block *nb);

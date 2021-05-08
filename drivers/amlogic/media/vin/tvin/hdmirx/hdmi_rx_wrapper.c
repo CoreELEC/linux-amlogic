@@ -45,6 +45,7 @@
 #include "hdmi_rx_wrapper.h"
 #include "hdmi_rx_pktinfo.h"
 #include "hdmi_rx_edid.h"
+#include "hdmi_rx_drv_ext.h"
 
 static int pll_unlock_cnt;
 static int pll_unlock_max = 30;
@@ -208,6 +209,7 @@ static int esd_phy_rst_cnt;
 static int esd_phy_rst_max;
 static int cec_dev_info;
 struct rx_s rx;
+static cec_callback cec_hdmirx5v_update;
 
 void hdmirx_init_params(void)
 {
@@ -246,6 +248,19 @@ int cec_set_dev_info(uint8_t dev_idx)
 	return 0;
 }
 EXPORT_SYMBOL(cec_set_dev_info);
+
+int register_cec_callback(cec_callback callback)
+{
+	cec_hdmirx5v_update = callback;
+	return 0;
+}
+EXPORT_SYMBOL(register_cec_callback);
+
+void unregister_cec_callback(void)
+{
+	cec_hdmirx5v_update = NULL;
+}
+EXPORT_SYMBOL(unregister_cec_callback);
 
 /*
  *func: irq tasklet
@@ -1989,6 +2004,8 @@ void rx_5v_monitor(void)
 		check_cnt = 0;
 		pwr_sts = tmp_5v;
 		rx.cur_5v_sts = (pwr_sts >> rx.port) & 1;
+		if (cec_hdmirx5v_update)
+			cec_hdmirx5v_update(pwr_sts);
 		hotplug_wait_query();
 		rx_pr("hotplug-0x%x\n", pwr_sts);
 		if (rx.cur_5v_sts == 0) {

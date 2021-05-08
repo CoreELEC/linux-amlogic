@@ -15,8 +15,8 @@
  *
  */
 
-#ifndef _TVHDMI_H
-#define _TVHDMI_H
+#ifndef __HDMI_RX_DRV_H__
+#define __HDMI_RX_DRV_H__
 
 #include <linux/workqueue.h>
 #include <linux/extcon.h>
@@ -32,7 +32,7 @@
 //#include "hdmirx_repeater.h"
 //#include "hdmi_rx_pktinfo.h"
 #include "hdmi_rx_edid.h"
-
+#include "hdmi_rx_drv_ext.h"
 
 #define RX_VER0 "ver.2019/10/21"
 /*
@@ -47,7 +47,7 @@
  *
  *
  */
-#define RX_VER2 "ver.2019/11/18"
+#define RX_VER2 "ver.2021/05/14"
 
 /*print type*/
 #define	LOG_EN		0x01
@@ -483,7 +483,6 @@ extern struct reg_map reg_maps[MAP_ADDR_MODULE_NUM];
 extern bool downstream_repeat_support;
 extern void rx_tasklet_handler(unsigned long arg);
 extern void skip_frame(unsigned int cnt);
-extern int cec_set_dev_info(uint8_t dev_idx);
 
 /* reg */
 
@@ -563,5 +562,4 @@ extern unsigned int *pd_fifo_buf;
 /* for other modules */
 extern int External_Mute(int mute_flag);
 extern int rx_is_hdcp22_support(void);
-extern int hdmirx_get_connect_info(void);
 #endif

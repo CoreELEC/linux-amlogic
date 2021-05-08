@@ -3388,6 +3388,11 @@ static void hdmitx_debug(struct hdmitx_dev *hdev, const char *buf)
 		}
 	} else if (strncmp(tmpbuf, "stop_vsif", 9) == 0) {
 		hdmitx_disable_packet(HDMI_PACKET_VEND);
+	} else if (strncmp(tmpbuf, "hdcp_mode", 9) == 0) {
+		ret = kstrtoul(tmpbuf + 9, 16, &value);
+		if ((value >= 0) && (value <= 3) &&
+			hdev->hwop.am_hdmitx_set_hdcp_mode)
+			hdev->hwop.am_hdmitx_set_hdcp_mode(value);
 	}
 }
 

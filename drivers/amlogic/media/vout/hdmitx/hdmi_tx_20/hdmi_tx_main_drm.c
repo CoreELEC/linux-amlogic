@@ -455,13 +455,15 @@ struct extcon_dev *hdmitx_extcon_cedst;
  * are remained the same. So, add hdr_status_pos and place it in the above 3
  * functions to record the position.
  */
-static inline void hdmitx_notify_hpd(int hpd, void *p)
+void hdmitx_notify_hpd(int hpd, void *p)
 {
 	if (hpd)
 		hdmitx_event_notify(HDMITX_PLUG, p);
 	else
 		hdmitx_event_notify(HDMITX_UNPLUG, NULL);
 }
+EXPORT_SYMBOL(hdmitx_notify_hpd);
+
 
 #if defined(CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND) && !defined(CONFIG_AMLOGIC_DRM)
 #include <linux/amlogic/pm.h>
