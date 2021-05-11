@@ -251,6 +251,11 @@
 		storage_version = <0x8200006C>;
 	};
 
+	ddr-scrambler@0xfe02e030 {
+		compatible = "amlogic, ddr-scrambler-preserve";
+		reg = <0x0 0xfe02e030 0x0 0x4>;
+	};
+
 	mailbox_mhu_fifo: mhu@0 {
 		status = "okay";
 		compatible = "amlogic, meson_mhu_fifo";

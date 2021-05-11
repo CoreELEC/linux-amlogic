@@ -89,4 +89,8 @@ extern int pstore_register(struct pstore_info *);
 extern void pstore_unregister(struct pstore_info *);
 extern bool pstore_cannot_block_path(enum kmsg_dump_reason reason);
 
+#ifdef CONFIG_AMLOGIC_DEBUG_SCRAMBLER_RAMOOPS
+int scrambler_ramoops_init(void);
+#endif
+
 #endif /*_LINUX_PSTORE_H*/
