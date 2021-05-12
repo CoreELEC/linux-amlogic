@@ -1,0 +1,11 @@
+#include "sm1_s905x3_bananapi_m5.dts"
+
+/{
+	model = "Sinovoip Bananapi-M2Pro";
+	coreelec-dt-id = "sm1_s905x3_bananapi_m2pro";
+
+	memory@00000000 {
+		device_type = "memory";
+		linux,usable-memory = <0x0 0x000000 0x0 0x80000000>;
+	};
+};
