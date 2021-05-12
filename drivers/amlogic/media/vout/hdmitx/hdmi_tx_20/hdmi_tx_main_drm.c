@@ -151,8 +151,11 @@ void hdmitx_set_vsif_pkt(enum eotf_type type, enum mode_type tunnel_mode,
 	static unsigned char ltmode = -1;
 
 	hdmi_debug();
-	if (hdev->bist_lock)
+	mutex_lock(&getedid_mutex);
+	if (hdev->bist_lock) {
+		mutex_unlock(&getedid_mutex);
 		return;
+	}
 
 	if (!data)
 		memcpy(&vsif_debug_info.data, &para,
@@ -177,10 +180,12 @@ void hdmitx_set_vsif_pkt(enum eotf_type type, enum mode_type tunnel_mode,
 		!= DV_IEEE_OUI)) {
 		ltype = EOTF_T_NULL;
 		ltmode = -1;
+		mutex_unlock(&getedid_mutex);
 		return;
 	}
 	if ((hdev->chip_type) < MESON_CPU_ID_GXL) {
 		pr_info("hdmitx: not support DolbyVision\n");
+		mutex_unlock(&getedid_mutex);
 		return;
 	}
 
@@ -414,6 +419,7 @@ void hdmitx_set_vsif_pkt(enum eotf_type type, enum mode_type tunnel_mode,
 			}
 		}
 	}
+	mutex_unlock(&getedid_mutex);
 }
 
 struct vout_device_s hdmitx_vdev = {
@@ -1633,6 +1639,7 @@ static void hdmitx_set_drm_pkt(struct master_display_info_s *data)
 	static unsigned char DRM_DB[26] = {0x0};
 
 	hdmi_debug();
+	mutex_lock(&getedid_mutex);
 	if (data)
 		memcpy(&drm_config_data, data,
 		       sizeof(struct master_display_info_s));
@@ -1693,6 +1700,7 @@ static void hdmitx_set_drm_pkt(struct master_display_info_s *data)
 		hdmitx_device.hwop.setpacket(HDMI_PACKET_DRM, NULL, NULL);
 		hdmitx_device.hwop.cntlconfig(&hdmitx_device,
 			CONF_AVI_BT2020, hdev->colormetry);
+		mutex_unlock(&getedid_mutex);
 		return;
 	}
 
@@ -1706,6 +1714,7 @@ static void hdmitx_set_drm_pkt(struct master_display_info_s *data)
 			schedule_work(&hdev->work_hdr);
 			DRM_DB[0] = 0;
 		}
+		mutex_unlock(&getedid_mutex);
 		return;
 	}
 
@@ -1756,6 +1765,7 @@ static void hdmitx_set_drm_pkt(struct master_display_info_s *data)
 			hdmitx_device.hwop.cntlconfig(&hdmitx_device,
 				CONF_AVI_BT2020, SET_AVI_BT2020);
 		}
+		mutex_unlock(&getedid_mutex);
 		return;
 	}
 
@@ -1817,6 +1827,7 @@ static void hdmitx_set_drm_pkt(struct master_display_info_s *data)
 	/* if sdr/hdr mode change ,notify uevent to userspace*/
 	if (hdev->hdmi_current_hdr_mode != hdev->hdmi_last_hdr_mode)
 		schedule_work(&hdev->work_hdr);
+	mutex_unlock(&getedid_mutex);
 }
 
 struct hdr10plus_para hdr10p_config_data;
