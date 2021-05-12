@@ -26,6 +26,7 @@ dtb-$(CONFIG_ARM64) += sm1_s905x3_2g.dtb
 dtb-$(CONFIG_ARM64) += sm1_s905x3_2g_1gbit.dtb
 dtb-$(CONFIG_ARM64) += sm1_s905x3_4g.dtb
 dtb-$(CONFIG_ARM64) += sm1_s905x3_4g_1gbit.dtb
+dtb-$(CONFIG_ARM64) += sm1_s905x3_bananapi_m5.dtb
 dtb-$(CONFIG_ARM64) += sm1_s905x3_odroid_c4.dtb
 dtb-$(CONFIG_ARM64) += sm1_s905x3_odroid_hc4.dtb
 dtb-$(CONFIG_ARM64) += sm1_s905x3_beelink_gt1mini2_2g.dtb
