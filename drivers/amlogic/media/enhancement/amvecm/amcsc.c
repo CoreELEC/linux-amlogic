@@ -7697,10 +7697,10 @@ static int vpp_matrix_update(
 		source_format[vd_path] = get_hdr_source_type();
 	}
 
-	if ((vf != NULL) && (flags & CSC_FLAG_TOGGLE_FRAME)) {
-		hdr10p_meta_updated = hdr10_plus_metadata_update(
-			vf, csc_type,
-			&hdmitx_hdr10plus_params[vd_path]);
+	if (vf && (flags & (CSC_FLAG_TOGGLE_FRAME | CSC_FLAG_FORCE_SIGNAL))) {
+		hdr10p_meta_updated =
+		hdr10_plus_metadata_update(vf, csc_type,
+					   &hdmitx_hdr10plus_params[vd_path]);
 
 		if ((csc_type == VPP_MATRIX_BT2020YUV_BT2020RGB_DYNAMIC) ||
 		    (csc_type == VPP_MATRIX_BT2020YUV_BT2020RGB)) {
