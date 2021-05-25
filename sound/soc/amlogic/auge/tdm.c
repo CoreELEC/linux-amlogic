@@ -149,6 +149,9 @@ static inline enum toddr_src aml_tdm_id2src(int id)
 		src = TDMIN_C;
 	break;
 	case 3:
+		src = TDMIN_D;
+	break;
+	case 4:
 		src = TDMIN_LB;
 	break;
 	default:
@@ -469,14 +472,14 @@ unsigned int get_tdmin_src(struct src_table *table, const char *src)
 
 void aml_tdmin_set_src(struct aml_tdm *p_tdm)
 {
-	enum toddr_src src = TDMIN_A;
-
+	int src_val;
 	if (!p_tdm)
 		return;
 
 	/* if tdm* is using internal ADC, reset tdmin src to ACODEC */
 	if (p_tdm->chipinfo->adc_fn && strlen(p_tdm->tdmin_src_name) > 0) {
-		src = get_tdmin_src(p_tdm->chipinfo->tdmin_srcs, p_tdm->tdmin_src_name);
+		src_val = get_tdmin_src(p_tdm->chipinfo->tdmin_srcs,
+			p_tdm->tdmin_src_name);
 	} else {
 		const char *tdm_src;
 
@@ -490,13 +493,16 @@ void aml_tdmin_set_src(struct aml_tdm *p_tdm)
 		case TDM_C:
 			tdm_src = SRC_TDMIN_C;
 			break;
+		case TDM_D:
+			tdm_src = SRC_TDMIN_D;
+			break;
 		default:
 			tdm_src = SRC_TDMIN_A;
 			break;
 		}
-		src = get_tdmin_src(p_tdm->chipinfo->tdmin_srcs, tdm_src);
+		src_val = get_tdmin_src(p_tdm->chipinfo->tdmin_srcs, tdm_src);
 	}
-	aml_update_tdmin_src(p_tdm->actrl, p_tdm->id, src);
+	aml_update_tdmin_src(p_tdm->actrl, p_tdm->id, src_val);
 }
 
 void tdm_mute_capture(struct aml_tdm *p_tdm, bool mute)
@@ -681,6 +687,17 @@ static const struct snd_kcontrol_new snd_tdm_c_controls[] = {
 			    tdmout_set_mute_enum),
 };
 
+static const struct snd_kcontrol_new snd_tdm_d_controls[] = {
+	/*TDMOUT_C gain, enable data * gain*/
+	SOC_SINGLE_EXT("TDMOUT_D GAIN",
+		       0, 0, 255, 0,
+		       tdmout_gain_get,
+		       tdmout_gain_set),
+	SOC_SINGLE_BOOL_EXT("TDMOUT_D Mute",
+			    0,
+			    tdmout_get_mute_enum,
+			    tdmout_set_mute_enum),
+};
 static irqreturn_t aml_tdm_ddr_isr(int irq, void *devid)
 {
 	struct snd_pcm_substream *substream = (struct snd_pcm_substream *)devid;
@@ -1087,6 +1104,9 @@ static int aml_dai_tdm_prepare(struct snd_pcm_substream *substream,
 		case 2:
 			dst = TDMOUT_C;
 			break;
+		case 3:
+			dst = TDMOUT_D;
+			break;
 		default:
 			dev_err(p_tdm->dev,	"invalid id: %d\n",
 					p_tdm->id);
@@ -1427,9 +1447,14 @@ static int aml_dai_tdm_probe(struct snd_soc_dai *cpu_dai)
 					       snd_tdm_c_controls,
 					       ARRAY_SIZE(snd_tdm_c_controls));
 		if (ret < 0)
-			pr_err("failed add snd tdmA controls\n");
+			pr_err("failed add snd tdmC controls\n");
+	} else if (p_tdm->ctrl_gain_enable && p_tdm->id == 3) {
+		ret = snd_soc_add_dai_controls(cpu_dai,
+						snd_tdm_d_controls,
+						ARRAY_SIZE(snd_tdm_d_controls));
+		if (ret < 0)
+			pr_err("failed add snd tdmD controls\n");
 	}
-
 	return 0;
 }
 
@@ -1552,7 +1577,26 @@ static struct snd_soc_dai_driver aml_tdm_dai[] = {
 		},
 		.ops = &aml_dai_tdm_ops,
 		.symmetric_rates = 1,
-	}
+	},
+	{
+		.name = "TDM-D",
+		.id = 4,
+		.probe = aml_dai_tdm_probe,
+		.playback = {
+		      .channels_min = 1,
+		      .channels_max = 32,
+		      .rates = AML_DAI_TDM_RATES,
+		      .formats = AML_DAI_TDM_FORMATS,
+		},
+		.capture = {
+		     .channels_min = 1,
+		     .channels_max = 32,
+		     .rates = AML_DAI_TDM_RATES,
+		     .formats = AML_DAI_TDM_FORMATS,
+		},
+		.ops = &aml_dai_tdm_ops,
+		.symmetric_rates = 1,
+	},
 };
 
 #ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
@@ -1800,6 +1844,13 @@ static int aml_tdm_platform_probe(struct platform_device *pdev)
 		}
 		clk_prepare_enable(p_tdm->mclk2pad);
 	}
+	p_tdm->clk_gate = devm_clk_get(&pdev->dev, "gate_in");
+	if (!IS_ERR(p_tdm->clk_gate))
+		clk_prepare_enable(p_tdm->clk_gate);
+	p_tdm->clk_gate = devm_clk_get(&pdev->dev, "gate_out");
+	if (!IS_ERR(p_tdm->clk_gate))
+		clk_prepare_enable(p_tdm->clk_gate);
+
 	if (!p_tdm->i2s2hdmitx) {
 		p_tdm->pin_ctl = devm_pinctrl_get_select(dev, "tdm_pins");
 		if (IS_ERR(p_tdm->pin_ctl)) {
