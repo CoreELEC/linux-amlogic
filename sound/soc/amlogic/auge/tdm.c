@@ -473,9 +473,30 @@ unsigned int get_tdmin_src(struct src_table *table, const char *src)
 void aml_tdmin_set_src(struct aml_tdm *p_tdm)
 {
 	int src_val;
+	char *tdm_src;
+	int id;
 	if (!p_tdm)
 		return;
-
+	id = p_tdm->id;
+	switch (id) {
+	case TDM_A:
+		tdm_src = SRC_TDMIN_A;
+		break;
+	case TDM_B:
+		tdm_src = SRC_TDMIN_B;
+		break;
+	case TDM_C:
+		tdm_src = SRC_TDMIN_C;
+		break;
+	case TDM_D:
+		tdm_src = SRC_TDMIN_D;
+		break;
+	default:
+		tdm_src = SRC_TDMIN_A;
+		break;
+	}
+	src_val = get_tdmin_src(p_tdm->chipinfo->tdmin_srcs, tdm_src);
+	aml_update_tdmin_src(p_tdm->actrl, p_tdm->id, src_val);
 	/* if tdm* is using internal ADC, reset tdmin src to ACODEC */
 	if (p_tdm->chipinfo->adc_fn && strlen(p_tdm->tdmin_src_name) > 0) {
 		src_val = get_tdmin_src(p_tdm->chipinfo->tdmin_srcs,
@@ -501,6 +522,9 @@ void aml_tdmin_set_src(struct aml_tdm *p_tdm)
 			break;
 		}
 		src_val = get_tdmin_src(p_tdm->chipinfo->tdmin_srcs, tdm_src);
+	if (p_tdm->chipinfo->adc_fn && p_tdm->acodec_adc) {
+		src_val = get_tdmin_src(p_tdm->chipinfo->tdmin_srcs, SRC_ACODEC);
+		aml_update_tdmin_src(p_tdm->actrl, p_tdm->id, src_val);
 	}
 	aml_update_tdmin_src(p_tdm->actrl, p_tdm->id, src_val);
 }
@@ -1850,13 +1874,16 @@ static int aml_tdm_platform_probe(struct platform_device *pdev)
 	p_tdm->clk_gate = devm_clk_get(&pdev->dev, "gate_out");
 	if (!IS_ERR(p_tdm->clk_gate))
 		clk_prepare_enable(p_tdm->clk_gate);
-
 	if (!p_tdm->i2s2hdmitx) {
 		p_tdm->pin_ctl = devm_pinctrl_get_select(dev, "tdm_pins");
 		if (IS_ERR(p_tdm->pin_ctl)) {
 			dev_info(dev, "aml_tdm_get_pins error!\n");
 			/*return PTR_ERR(p_tdm->pin_ctl);*/
 		}
+	p_tdm->pin_ctl = devm_pinctrl_get_select(dev, "tdm_pins");
+	if (IS_ERR(p_tdm->pin_ctl)) {
+		dev_info(dev, "aml_tdm_get_pins error!\n");
+		/*return PTR_ERR(p_tdm->pin_ctl);*/
 	}
 	ret = of_property_read_u32(node, "start_clk_enable", &p_tdm->start_clk_enable);
 	if (ret < 0)

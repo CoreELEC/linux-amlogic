@@ -1223,7 +1223,6 @@ static const struct snd_soc_component_driver loopback_component[] = {
 		.controls	  = snd_loopbackb_controls,
 		.num_controls = ARRAY_SIZE(snd_loopbackb_controls),
 	},
-};
 
 #ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
 static void loopback_platform_early_suspend(struct early_suspend *h)
