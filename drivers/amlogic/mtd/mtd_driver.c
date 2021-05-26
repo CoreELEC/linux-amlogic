@@ -280,7 +280,9 @@ static int mtd_nand_remove(struct platform_device *pdev)
 		if (aml_chip) {
 			mtd = aml_chip->mtd;
 			if (mtd) {
+#ifndef CONFIG_AMLOGIC_SYNC_20210524
 				nand_release(mtd);
+#endif
 				kfree(mtd);
 			}
 			kfree(aml_chip);

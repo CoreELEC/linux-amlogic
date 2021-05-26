@@ -273,7 +273,7 @@ static void enh_desc_init_rx_desc(struct dma_desc *p, int disable_rx_ic,
 {
 	int bfsize1;
 
-	p->des0 |= RDES0_OWN;
+	p->des0 |= cpu_to_le32(RDES0_OWN);
 
 	bfsize1 = min(bfsize, BUF_SIZE_8KiB);
 	p->des1 |= cpu_to_le32(bfsize1 & ERDES1_BUFFER1_SIZE_MASK);

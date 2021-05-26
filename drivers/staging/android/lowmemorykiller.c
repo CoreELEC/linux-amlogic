@@ -45,10 +45,14 @@
 #include <linux/circ_buf.h>
 #include <linux/proc_fs.h>
 #include <linux/slab.h>
+<<<<<<< HEAD
 
 #ifdef CONFIG_AMLOGIC_CMA
 #include <linux/amlogic/aml_cma.h>
 #endif
+=======
+#include <linux/poll.h>
+>>>>>>> android-4.9-q
 
 #define CREATE_TRACE_POINTS
 #include "trace/lowmemorykiller.h"
@@ -100,12 +104,18 @@ struct lmk_event {
 	struct list_head list;
 };
 
+<<<<<<< HEAD
 void handle_lmk_event(struct task_struct *selected, short min_score_adj)
+=======
+void handle_lmk_event(struct task_struct *selected, int selected_tasksize,
+		      short min_score_adj)
+>>>>>>> android-4.9-q
 {
 	int head;
 	int tail;
 	struct lmk_event *events;
 	struct lmk_event *event;
+<<<<<<< HEAD
 	int res;
 	long rss_in_pages = -1;
 	struct mm_struct *mm = get_task_mm(selected);
@@ -114,6 +124,8 @@ void handle_lmk_event(struct task_struct *selected, short min_score_adj)
 		rss_in_pages = get_mm_rss(mm);
 		mmput(mm);
 	}
+=======
+>>>>>>> android-4.9-q
 
 	spin_lock(&lmk_event_lock);
 
@@ -129,6 +141,7 @@ void handle_lmk_event(struct task_struct *selected, short min_score_adj)
 	events = (struct lmk_event *) event_buffer.buf;
 	event = &events[head];
 
+<<<<<<< HEAD
 	res = get_cmdline(selected, event->taskname, MAX_TASKNAME - 1);
 
 	/* No valid process name means this is definitely not associated with a
@@ -141,6 +154,10 @@ void handle_lmk_event(struct task_struct *selected, short min_score_adj)
 	}
 
 	event->taskname[res] = '\0';
+=======
+	strncpy(event->taskname, selected->comm, MAX_TASKNAME);
+
+>>>>>>> android-4.9-q
 	event->pid = selected->pid;
 	event->uid = from_kuid_munged(current_user_ns(), task_uid(selected));
 	if (selected->group_leader)
@@ -151,7 +168,11 @@ void handle_lmk_event(struct task_struct *selected, short min_score_adj)
 	event->maj_flt = selected->maj_flt;
 	event->oom_score_adj = selected->signal->oom_score_adj;
 	event->start_time = nsec_to_clock_t(selected->real_start_time);
+<<<<<<< HEAD
 	event->rss_in_pages = rss_in_pages;
+=======
+	event->rss_in_pages = selected_tasksize;
+>>>>>>> android-4.9-q
 	event->min_score_adj = min_score_adj;
 
 	event_buffer.head = (head + 1) & (MAX_BUFFERED_EVENTS - 1);
@@ -412,17 +433,26 @@ static unsigned long lowmem_scan(struct shrinker *s, struct shrink_control *sc)
 		lowmem_deathpending_timeout = jiffies + HZ;
 	#endif /* CONFIG_AMLOGIC_CMA */
 		rem += selected_tasksize;
+<<<<<<< HEAD
 	#ifdef CONFIG_AMLOGIC_MEMORY_EXTEND
 		if (!selected_oom_score_adj) /* forgeround task killed */
 			show_task_adj();
 	#endif /* CONFIG_AMLOGIC_MEMORY_EXTEND */
 
 		handle_lmk_event(selected, min_score_adj);
+=======
+		get_task_struct(selected);
+>>>>>>> android-4.9-q
 	}
 
 	lowmem_print(4, "lowmem_scan %lu, %x, return %lu\n",
 		     sc->nr_to_scan, sc->gfp_mask, rem);
 	rcu_read_unlock();
+
+	if (selected) {
+		handle_lmk_event(selected, selected_tasksize, min_score_adj);
+		put_task_struct(selected);
+	}
 	return rem;
 }
 

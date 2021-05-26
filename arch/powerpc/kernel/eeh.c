@@ -362,10 +362,16 @@ static inline unsigned long eeh_token_to_phys(unsigned long token)
 					   NULL, &hugepage_shift);
 	if (!ptep)
 		return token;
-	WARN_ON(hugepage_shift);
-	pa = pte_pfn(*ptep) << PAGE_SHIFT;
 
-	return pa | (token & (PAGE_SIZE-1));
+	pa = pte_pfn(*ptep);
+
+	/* On radix we can do hugepage mappings for io, so handle that */
+	if (!hugepage_shift)
+		hugepage_shift = PAGE_SHIFT;
+
+	pa <<= PAGE_SHIFT;
+	pa |= token & ((1ul << hugepage_shift) - 1);
+	return pa;
 }
 
 /*
