@@ -1,17 +1,17 @@
-#include "gxl_p281_2g.dts"
+#include "../gxl_p281_1g.dts"
 #include "coreelec_gxl.dtsi"
 
 /{
 	coreelec-dt-id = "gxl_p281_1g";
-	amlogic-dt-id = "gxl_p281_1g";
 
-	memory@00000000 {
-		linux,usable-memory = <0x0 0x0100000 0x0 0x3ff00000>;
+	reserved-memory {
+		logo_reserved:linux,meson-fb {
+			/delete-property/ alloc-ranges;
+		};
 	};
 
 	meson-fb {
-		/delete-property/ memory-region;
+		mem_alloc = <1>;
 		logo_addr = "0x3dc00000";
 	};
-
 };

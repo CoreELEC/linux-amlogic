@@ -3,5 +3,18 @@
 
 /{
 	coreelec-dt-id = "gxl_p231_2g";
+
+	ion_dev {
+		memory-region = <&ion_reserved>;
+	};
+
+	reserved-memory {
+		ion_reserved:linux,ion-dev {
+			compatible = "shared-dma-pool";
+			reusable;
+			size = <0x0 0x7C00000>;
+			alignment = <0x0 0x400000>;
+		};
+	};
 };
 
