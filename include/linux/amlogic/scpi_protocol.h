@@ -76,6 +76,8 @@ enum scpi_std_cmd {
 	SCPI_CMD_GET_CEC1		= 0xB4,
 	SCPI_CMD_GET_CEC2		= 0xB5,
 	SCPI_CMD_SET_CEC_DATA		= 0xB6,
+	SCPI_CMD_GET_CEC_OTP_MSG	= 0xBB,
+	SCPI_CMD_GET_CEC_AS_MSG		= 0xBC,
 	SCPI_CMD_BL4_WAIT_UNLOCK	= 0xD6,
 	SCPI_CMD_BL4_SEND		= 0xD7,
 	SCPI_CMD_BL4_LISTEN		= 0xD8,
@@ -124,6 +126,7 @@ int scpi_get_wakeup_reason(u32 *wakeup_reason);
 int scpi_clr_wakeup_reason(void);
 int scpi_get_cec_val(enum scpi_std_cmd index, u32 *p_cec);
 int scpi_send_cec_data(u32 cmd_id, void *val, u32 size);
+int scpi_get_cec_wk_msg(enum scpi_std_cmd index, unsigned char *cec_msg);
 u8  scpi_get_ethernet_calc(void);
 int scpi_get_cpuinfo(enum scpi_get_pfm_type type, u32 *freq, u32 *vol);
 int scpi_init_dsp_cfg0(u32 id, u32 addr, u32 cfg0);

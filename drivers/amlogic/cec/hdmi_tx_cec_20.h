@@ -26,7 +26,7 @@
 #define CEC0_LOG_ADDR 4 /* MBX logical address */
 #define TV_CEC_INTERVAL     (HZ * 3)
 
-#define CEC_VERSION     "v1.3"
+#define CEC_VERSION     "v1.4"
 #define _RX_DATA_BUF_SIZE_ 16
 
 #define AO_CEC  /* for switch between aocec and hdmi cec2.0 */
@@ -80,29 +80,6 @@ enum _cec_log_dev_addr_e {
 #define CEC_TUNER_DEVICE         (CEC_TUNER_1 | CEC_TUNER_2 \
 	    | CEC_TUNER_3 | CEC_TUNER_4)
 #define CEC_AUDIO_SYSTEM_DEVICE  (CEC_AUDIO_SYSTEM)
-
-#define CEC_IOC_MAGIC                   'C'
-#define CEC_IOC_GET_PHYSICAL_ADDR       _IOR(CEC_IOC_MAGIC, 0x00, uint16_t)
-#define CEC_IOC_GET_VERSION             _IOR(CEC_IOC_MAGIC, 0x01, int)
-#define CEC_IOC_GET_VENDOR_ID           _IOR(CEC_IOC_MAGIC, 0x02, uint32_t)
-#define CEC_IOC_GET_PORT_INFO           _IOR(CEC_IOC_MAGIC, 0x03, int)
-#define CEC_IOC_GET_PORT_NUM            _IOR(CEC_IOC_MAGIC, 0x04, int)
-#define CEC_IOC_GET_SEND_FAIL_REASON    _IOR(CEC_IOC_MAGIC, 0x05, uint32_t)
-#define CEC_IOC_SET_OPTION_WAKEUP       _IOW(CEC_IOC_MAGIC, 0x06, uint32_t)
-#define CEC_IOC_SET_OPTION_ENALBE_CEC   _IOW(CEC_IOC_MAGIC, 0x07, uint32_t)
-#define CEC_IOC_SET_OPTION_SYS_CTRL     _IOW(CEC_IOC_MAGIC, 0x08, uint32_t)
-#define CEC_IOC_SET_OPTION_SET_LANG     _IOW(CEC_IOC_MAGIC, 0x09, uint32_t)
-#define CEC_IOC_GET_CONNECT_STATUS      _IOR(CEC_IOC_MAGIC, 0x0A, uint32_t)
-#define CEC_IOC_ADD_LOGICAL_ADDR        _IOW(CEC_IOC_MAGIC, 0x0B, uint32_t)
-#define CEC_IOC_CLR_LOGICAL_ADDR        _IOW(CEC_IOC_MAGIC, 0x0C, uint32_t)
-#define CEC_IOC_SET_DEV_TYPE            _IOW(CEC_IOC_MAGIC, 0x0D, uint32_t)
-#define CEC_IOC_SET_ARC_ENABLE          _IOW(CEC_IOC_MAGIC, 0x0E, uint32_t)
-#define CEC_IOC_SET_AUTO_DEVICE_OFF     _IOW(CEC_IOC_MAGIC, 0x0F, uint32_t)
-#define CEC_IOC_GET_BOOT_ADDR           _IOW(CEC_IOC_MAGIC, 0x10, uint32_t)
-#define CEC_IOC_GET_BOOT_REASON         _IOW(CEC_IOC_MAGIC, 0x11, uint32_t)
-#define CEC_IOC_SET_FREEZE_MODE         _IOW(CEC_IOC_MAGIC, 0x12, uint32_t)
-#define CEC_IOC_GET_BOOT_PORT           _IOW(CEC_IOC_MAGIC, 0x13, uint32_t)
-#define CEC_IOC_SET_DEBUG_EN		_IOW(CEC_IOC_MAGIC, 0x14, uint32_t)
 
 enum cec_tx_ret {
 	CEC_FAIL_NONE = 0,
