@@ -27,6 +27,7 @@
 #include <linux/device.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/amlogic/media/vout/vout_notify.h>
+#include <linux/spinlock.h>
 
 #define DEVICE_NAME "amhdmitx"
 
@@ -494,6 +495,7 @@ struct hdmitx_dev {
 	unsigned int vend_id_hit:1;
 	bool systemcontrol_on;
 	unsigned char vid_mute_op;
+	spinlock_t edid_spinlock; /* edid hdr/dv cap lock */
 };
 
 #define CMD_DDC_OFFSET          (0x10 << 24)

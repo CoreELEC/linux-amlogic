@@ -149,11 +149,12 @@ void hdmitx_set_vsif_pkt(enum eotf_type type, enum mode_type tunnel_mode,
 	unsigned int hdmi_vic_4k_flag = 0;
 	static enum eotf_type ltype = EOTF_T_NULL;
 	static unsigned char ltmode = -1;
+	unsigned long flags = 0;
 
 	hdmi_debug();
-	mutex_lock(&getedid_mutex);
+	spin_lock_irqsave(&hdev->edid_spinlock, flags);
 	if (hdev->bist_lock) {
-		mutex_unlock(&getedid_mutex);
+		spin_unlock_irqrestore(&hdev->edid_spinlock, flags);
 		return;
 	}
 
@@ -180,12 +181,12 @@ void hdmitx_set_vsif_pkt(enum eotf_type type, enum mode_type tunnel_mode,
 		!= DV_IEEE_OUI)) {
 		ltype = EOTF_T_NULL;
 		ltmode = -1;
-		mutex_unlock(&getedid_mutex);
+		spin_unlock_irqrestore(&hdev->edid_spinlock, flags);
 		return;
 	}
 	if ((hdev->chip_type) < MESON_CPU_ID_GXL) {
 		pr_info("hdmitx: not support DolbyVision\n");
-		mutex_unlock(&getedid_mutex);
+		spin_unlock_irqrestore(&hdev->edid_spinlock, flags);
 		return;
 	}
 
@@ -419,7 +420,7 @@ void hdmitx_set_vsif_pkt(enum eotf_type type, enum mode_type tunnel_mode,
 			}
 		}
 	}
-	mutex_unlock(&getedid_mutex);
+	spin_unlock_irqrestore(&hdev->edid_spinlock, flags);
 }
 
 struct vout_device_s hdmitx_vdev = {
@@ -1637,9 +1638,10 @@ static void hdmitx_set_drm_pkt(struct master_display_info_s *data)
 	struct hdmitx_dev *hdev = &hdmitx_device;
 	unsigned char DRM_HB[3] = {0x87, 0x1, 26};
 	static unsigned char DRM_DB[26] = {0x0};
+	unsigned long flags = 0;
 
 	hdmi_debug();
-	mutex_lock(&getedid_mutex);
+	spin_lock_irqsave(&hdev->edid_spinlock, flags);
 	if (data)
 		memcpy(&drm_config_data, data,
 		       sizeof(struct master_display_info_s));
@@ -1700,7 +1702,7 @@ static void hdmitx_set_drm_pkt(struct master_display_info_s *data)
 		hdmitx_device.hwop.setpacket(HDMI_PACKET_DRM, NULL, NULL);
 		hdmitx_device.hwop.cntlconfig(&hdmitx_device,
 			CONF_AVI_BT2020, hdev->colormetry);
-		mutex_unlock(&getedid_mutex);
+		spin_unlock_irqrestore(&hdev->edid_spinlock, flags);
 		return;
 	}
 
@@ -1714,7 +1716,7 @@ static void hdmitx_set_drm_pkt(struct master_display_info_s *data)
 			schedule_work(&hdev->work_hdr);
 			DRM_DB[0] = 0;
 		}
-		mutex_unlock(&getedid_mutex);
+		spin_unlock_irqrestore(&hdev->edid_spinlock, flags);
 		return;
 	}
 
@@ -1765,7 +1767,7 @@ static void hdmitx_set_drm_pkt(struct master_display_info_s *data)
 			hdmitx_device.hwop.cntlconfig(&hdmitx_device,
 				CONF_AVI_BT2020, SET_AVI_BT2020);
 		}
-		mutex_unlock(&getedid_mutex);
+		spin_unlock_irqrestore(&hdev->edid_spinlock, flags);
 		return;
 	}
 
@@ -1827,7 +1829,7 @@ static void hdmitx_set_drm_pkt(struct master_display_info_s *data)
 	/* if sdr/hdr mode change ,notify uevent to userspace*/
 	if (hdev->hdmi_current_hdr_mode != hdev->hdmi_last_hdr_mode)
 		schedule_work(&hdev->work_hdr);
-	mutex_unlock(&getedid_mutex);
+	spin_unlock_irqrestore(&hdev->edid_spinlock, flags);
 }
 
 struct hdr10plus_para hdr10p_config_data;
@@ -5075,6 +5077,7 @@ void hdmi_tx_edid_proc(unsigned char *edid)
 static void hdmitx_get_edid(struct hdmitx_dev *hdev)
 {
 	unsigned int num;
+	unsigned long flags = 0;
 
 	mutex_lock(&getedid_mutex);
 	/* TODO hdmitx_edid_ram_buffer_clear(hdev); */
@@ -5107,16 +5110,17 @@ static void hdmitx_get_edid(struct hdmitx_dev *hdev)
 			hdev->hwop.cntlddc(hdev, DDC_EDID_GET_DATA, 1);
 		}
 	}
-
+	spin_lock_irqsave(&hdev->edid_spinlock, flags);
 	hdmitx_edid_clear(hdev);
 	hdmitx_edid_parse(hdev);
-	hdmitx_edid_buf_compare_print(hdev);
 
 	if (hdev->hdr_priority) { /* clear dv_info */
 		struct dv_info *dv = &hdev->rxcap.dv_info;
 
 		memset(dv, 0, sizeof(struct dv_info));
 	}
+	spin_unlock_irqrestore(&hdev->edid_spinlock, flags);
+	hdmitx_edid_buf_compare_print(hdev);
 	mutex_unlock(&getedid_mutex);
 }
 
