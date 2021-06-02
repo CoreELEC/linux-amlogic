@@ -62,7 +62,7 @@
 #include <phy_debug.h>
 #endif
 
-#define	STMMAC_ALIGN(x)		__ALIGN_KERNEL(x, SMP_CACHE_BYTES)
+#define	STMMAC_ALIGN(x)		ALIGN(ALIGN(x, SMP_CACHE_BYTES), 16)
 #define	TSO_MAX_BUFF_SIZE	(SZ_16K - 1)
 
 /* Module parameters */
@@ -945,7 +945,9 @@ static int stmmac_set_bfsize(int mtu, int bufsize)
 {
 	int ret = bufsize;
 
-	if (mtu >= BUF_SIZE_4KiB)
+	if (mtu >= BUF_SIZE_8KiB)
+		ret = BUF_SIZE_16KiB;
+	else if (mtu >= BUF_SIZE_4KiB)
 		ret = BUF_SIZE_8KiB;
 	else if (mtu >= BUF_SIZE_2KiB)
 		ret = BUF_SIZE_4KiB;
@@ -972,13 +974,11 @@ static void stmmac_clear_descriptors(struct stmmac_priv *priv)
 		if (priv->extend_desc)
 			priv->hw->desc->init_rx_desc(&priv->dma_erx[i].basic,
 						     priv->use_riwt, priv->mode,
-						     (i == DMA_RX_SIZE - 1),
-						     priv->dma_buf_sz);
+						     (i == DMA_RX_SIZE - 1), priv->dma_buf_sz);
 		else
 			priv->hw->desc->init_rx_desc(&priv->dma_rx[i],
 						     priv->use_riwt, priv->mode,
-						     (i == DMA_RX_SIZE - 1),
-						     priv->dma_buf_sz);
+						     (i == DMA_RX_SIZE - 1), priv->dma_buf_sz);
 	for (i = 0; i < DMA_TX_SIZE; i++)
 		if (priv->extend_desc)
 			priv->hw->desc->init_tx_desc(&priv->dma_etx[i].basic,
@@ -1939,9 +1939,6 @@ static int stmmac_release(struct net_device *dev)
 {
 	struct stmmac_priv *priv = netdev_priv(dev);
 
-	if (priv->eee_enabled)
-		del_timer_sync(&priv->eee_ctrl_timer);
-
 	/* Stop and disconnect the PHY */
 	if (priv->phydev) {
 		phy_stop(priv->phydev);
@@ -1961,6 +1958,11 @@ static int stmmac_release(struct net_device *dev)
 		free_irq(priv->wol_irq, dev);
 	if (priv->lpi_irq > 0)
 		free_irq(priv->lpi_irq, dev);
+
+	if (priv->eee_enabled) {
+		priv->tx_path_in_lpi_mode = false;
+		del_timer_sync(&priv->eee_ctrl_timer);
+	}
 
 	/* Stop TX/RX DMA and clear the descriptors */
 	priv->hw->dma->stop_tx(priv->ioaddr);
@@ -2519,8 +2521,7 @@ static inline void stmmac_rx_refill(struct stmmac_priv *priv)
 		wmb();
 
 		if (unlikely(priv->synopsys_id >= DWMAC_CORE_4_00))
-			priv->hw->desc->init_rx_desc(p, priv->use_riwt, 0, 0,
-						     priv->dma_buf_sz);
+			priv->hw->desc->init_rx_desc(p, priv->use_riwt, 0, 0, priv->dma_buf_sz);
 		else
 			priv->hw->desc->set_rx_owner(p);
 
@@ -3593,6 +3594,11 @@ int stmmac_suspend(struct device *dev)
 #ifdef CONFIG_AMLOGIC_ETH_PRIVE
 	del_timer_sync(&priv->txtimer);
 #endif
+	if (priv->eee_enabled) {
+		priv->tx_path_in_lpi_mode = false;
+		del_timer_sync(&priv->eee_ctrl_timer);
+	}
+
 	/* Stop TX/RX DMA */
 	priv->hw->dma->stop_tx(priv->ioaddr);
 	priv->hw->dma->stop_rx(priv->ioaddr);

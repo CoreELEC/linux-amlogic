@@ -37,8 +37,9 @@ static inline void ehn_desc_rx_set_on_ring(struct dma_desc *p, int end,
 					   int bfsize)
 {
 	if (bfsize == BUF_SIZE_16KiB)
-		p->des1 |= ((BUF_SIZE_8KiB - 1) << ERDES1_BUFFER2_SIZE_SHIFT)
-			& ERDES1_BUFFER2_SIZE_MASK;
+		p->des1 |= cpu_to_le32((BUF_SIZE_8KiB
+				<< ERDES1_BUFFER2_SIZE_SHIFT)
+                & ERDES1_BUFFER2_SIZE_MASK);
 
 	if (end)
 		p->des1 |= cpu_to_le32(ERDES1_END_RING);

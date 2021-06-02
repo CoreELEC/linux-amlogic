@@ -17,6 +17,12 @@ config AMLOGIC_MODIFY
 		standard kernel source code. All modify of kernel
 		standard code should be wrapped by this config
 
+config AMLOGIC_SYNC_20210524
+	bool "Amlogic sync android-4.9-q 20210524" 
+	default n
+	help
+		this represents sync from android-4.9-q 20210524	
+
 if AMLOGIC_DRIVER
 menu "Amlogic Device Drivers"
 

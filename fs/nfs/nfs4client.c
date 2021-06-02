@@ -781,9 +781,12 @@ found:
 
 static void nfs4_destroy_server(struct nfs_server *server)
 {
+	LIST_HEAD(freeme);
+
 	nfs_server_return_all_delegations(server);
 	unset_pnfs_layoutdriver(server);
-	nfs4_purge_state_owners(server);
+	nfs4_purge_state_owners(server, &freeme);
+	nfs4_free_state_owners(&freeme);
 }
 
 /*
@@ -844,7 +847,7 @@ nfs4_find_client_sessionid(struct net *net, const struct sockaddr *addr,
 
 	spin_lock(&nn->nfs_client_lock);
 	list_for_each_entry(clp, &nn->nfs_client_list, cl_share_link) {
-		if (nfs4_cb_match_client(addr, clp, minorversion) == false)
+		if (!nfs4_cb_match_client(addr, clp, minorversion))
 			continue;
 
 		if (!nfs4_has_session(clp))

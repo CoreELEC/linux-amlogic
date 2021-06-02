@@ -53,7 +53,11 @@ int efi_set_mapping_permissions(struct mm_struct *mm, efi_memory_desc_t *md);
 #define efi_is_64bit()			(true)
 
 #define alloc_screen_info(x...)		&screen_info
-#define free_screen_info(x...)
+
+static inline void free_screen_info(efi_system_table_t *sys_table_arg,
+				    struct screen_info *si)
+{
+}
 
 /* redeclare as 'hidden' so the compiler will generate relative references */
 extern struct screen_info screen_info __attribute__((__visibility__("hidden")));
@@ -98,11 +102,9 @@ static inline void efi_set_pgd(struct mm_struct *mm)
 			 * Defer the switch to the current thread's TTBR0_EL1
 			 * until uaccess_enable(). Restore the current
 			 * thread's saved ttbr0 corresponding to its active_mm
-			 * (if different from init_mm).
 			 */
 			uaccess_ttbr0_disable();
-			if (current->active_mm != &init_mm)
-				update_saved_ttbr0(current, current->active_mm);
+			update_saved_ttbr0(current, current->active_mm);
 		}
 	}
 }

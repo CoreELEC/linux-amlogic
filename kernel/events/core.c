@@ -90,11 +90,11 @@ static void remote_function(void *data)
  * @info:	the function call argument
  *
  * Calls the function @func when the task is currently running. This might
- * be on the current CPU, which just calls the function directly
+ * be on the current CPU, which just calls the function directly.  This will
+ * retry due to any failures in smp_call_function_single(), such as if the
+ * task_cpu() goes offline concurrently.
  *
- * returns: @func return value, or
- *	    -ESRCH  - when the process isn't running
- *	    -EAGAIN - when the process moved away
+ * returns @func return value or -ESRCH or -ENXIO when the process isn't running
  */
 static int
 task_function_call(struct task_struct *p, remote_function_f func, void *info)
@@ -107,11 +107,17 @@ task_function_call(struct task_struct *p, remote_function_f func, void *info)
 	};
 	int ret;
 
-	do {
-		ret = smp_call_function_single(task_cpu(p), remote_function, &data, 1);
+	for (;;) {
+		ret = smp_call_function_single(task_cpu(p), remote_function,
+					       &data, 1);
 		if (!ret)
 			ret = data.ret;
-	} while (ret == -EAGAIN);
+
+		if (ret != -EAGAIN)
+			break;
+
+		cond_resched();
+	}
 
 	return ret;
 }
@@ -4629,6 +4635,9 @@ static int perf_event_period(struct perf_event *event, u64 __user *arg)
 	if (perf_event_check_period(event, value))
 		return -EINVAL;
 
+	if (!event->attr.freq && (value & (1ULL << 63)))
+		return -EINVAL;
+
 	event_function_call(event, __perf_event_period, &value);
 
 	return 0;
@@ -5065,11 +5074,11 @@ static void perf_pmu_output_stop(struct perf_event *event);
 static void perf_mmap_close(struct vm_area_struct *vma)
 {
 	struct perf_event *event = vma->vm_file->private_data;
-
 	struct ring_buffer *rb = ring_buffer_get(event);
 	struct user_struct *mmap_user = rb->mmap_user;
 	int mmap_locked = rb->mmap_locked;
 	unsigned long size = perf_data_size(rb);
+	bool detach_rest = false;
 
 	if (event->pmu->event_unmapped)
 		event->pmu->event_unmapped(event);
@@ -5100,7 +5109,8 @@ static void perf_mmap_close(struct vm_area_struct *vma)
 		mutex_unlock(&event->mmap_mutex);
 	}
 
-	atomic_dec(&rb->mmap_count);
+	if (atomic_dec_and_test(&rb->mmap_count))
+		detach_rest = true;
 
 	if (!atomic_dec_and_mutex_lock(&event->mmap_count, &event->mmap_mutex))
 		goto out_put;
@@ -5109,7 +5119,7 @@ static void perf_mmap_close(struct vm_area_struct *vma)
 	mutex_unlock(&event->mmap_mutex);
 
 	/* If there's still other mmap()s of this buffer, we're done. */
-	if (atomic_read(&rb->mmap_count))
+	if (!detach_rest)
 		goto out_put;
 
 	/*
@@ -5305,7 +5315,15 @@ accounting:
 	 */
 	user_lock_limit *= num_online_cpus();
 
-	user_locked = atomic_long_read(&user->locked_vm) + user_extra;
+	user_locked = atomic_long_read(&user->locked_vm);
+
+	/*
+	 * sysctl_perf_event_mlock may have changed, so that
+	 *     user->locked_vm > user_lock_limit
+	 */
+	if (user_locked > user_lock_limit)
+		user_locked = user_lock_limit;
+	user_locked += user_extra;
 
 	if (user_locked > user_lock_limit)
 		extra = user_locked - user_lock_limit;
@@ -5497,7 +5515,7 @@ static void perf_sample_regs_user(struct perf_regs *regs_user,
 	if (user_mode(regs)) {
 		regs_user->abi = perf_reg_abi(current);
 		regs_user->regs = regs;
-	} else if (current->mm) {
+	} else if (!(current->flags & PF_KTHREAD)) {
 		perf_get_regs_user(regs_user, regs, regs_user_copy);
 	} else {
 		regs_user->abi = PERF_SAMPLE_REGS_ABI_NONE;
@@ -6259,7 +6277,7 @@ static void perf_event_addr_filters_exec(struct perf_event *event, void *data)
 
 	raw_spin_lock_irqsave(&ifh->lock, flags);
 	list_for_each_entry(filter, &ifh->list, entry) {
-		if (filter->inode) {
+		if (filter->path.dentry) {
 			event->addr_filters_offs[count] = 0;
 			restart++;
 		}
@@ -6425,10 +6443,17 @@ static void perf_event_task_output(struct perf_event *event,
 		goto out;
 
 	task_event->event_id.pid = perf_event_pid(event, task);
-	task_event->event_id.ppid = perf_event_pid(event, current);
-
 	task_event->event_id.tid = perf_event_tid(event, task);
-	task_event->event_id.ptid = perf_event_tid(event, current);
+
+	if (task_event->event_id.header.type == PERF_RECORD_EXIT) {
+		task_event->event_id.ppid = perf_event_pid(event,
+							task->real_parent);
+		task_event->event_id.ptid = perf_event_pid(event,
+							task->real_parent);
+	} else {  /* PERF_RECORD_FORK */
+		task_event->event_id.ppid = perf_event_pid(event, current);
+		task_event->event_id.ptid = perf_event_tid(event, current);
+	}
 
 	task_event->event_id.time = perf_event_clock(event);
 
@@ -6795,7 +6820,11 @@ static bool perf_addr_filter_match(struct perf_addr_filter *filter,
 				     struct file *file, unsigned long offset,
 				     unsigned long size)
 {
-	if (filter->inode != file->f_inode)
+	/* d_inode(NULL) won't be equal to any mapped user-space file */
+	if (!filter->path.dentry)
+		return false;
+
+	if (d_inode(filter->path.dentry) != file_inode(file))
 		return false;
 
 	if (filter->offset > offset + size)
@@ -7705,11 +7734,9 @@ void perf_trace_run_bpf_submit(void *raw_data, int size, int rctx,
 			       struct pt_regs *regs, struct hlist_head *head,
 			       struct task_struct *task)
 {
-	struct bpf_prog *prog = call->prog;
-
-	if (prog) {
+	if (bpf_prog_array_valid(call)) {
 		*(struct pt_regs **)raw_data = regs;
-		if (!trace_call_bpf(prog, raw_data) || hlist_empty(head)) {
+		if (!trace_call_bpf(call, raw_data) || hlist_empty(head)) {
 			perf_swevent_put_recursion_context(rctx);
 			return;
 		}
@@ -7894,6 +7921,7 @@ static int perf_event_set_bpf_prog(struct perf_event *event, u32 prog_fd)
 {
 	bool is_kprobe, is_tracepoint;
 	struct bpf_prog *prog;
+	int ret;
 
 	if (event->attr.type == PERF_TYPE_HARDWARE ||
 	    event->attr.type == PERF_TYPE_SOFTWARE)
@@ -7901,9 +7929,6 @@ static int perf_event_set_bpf_prog(struct perf_event *event, u32 prog_fd)
 
 	if (event->attr.type != PERF_TYPE_TRACEPOINT)
 		return -EINVAL;
-
-	if (event->tp_event->prog)
-		return -EEXIST;
 
 	is_kprobe = event->tp_event->flags & TRACE_EVENT_FL_UKPROBE;
 	is_tracepoint = event->tp_event->flags & TRACE_EVENT_FL_TRACEPOINT;
@@ -7930,26 +7955,20 @@ static int perf_event_set_bpf_prog(struct perf_event *event, u32 prog_fd)
 			return -EACCES;
 		}
 	}
-	event->tp_event->prog = prog;
-	event->tp_event->bpf_prog_owner = event;
 
-	return 0;
+	ret = perf_event_attach_bpf_prog(event, prog);
+	if (ret)
+		bpf_prog_put(prog);
+	return ret;
 }
 
 static void perf_event_free_bpf_prog(struct perf_event *event)
 {
-	struct bpf_prog *prog;
-
-	perf_event_free_bpf_handler(event);
-
-	if (!event->tp_event)
+	if (event->attr.type != PERF_TYPE_TRACEPOINT) {
+		perf_event_free_bpf_handler(event);
 		return;
-
-	prog = event->tp_event->prog;
-	if (prog && event->tp_event->bpf_prog_owner == event) {
-		event->tp_event->prog = NULL;
-		bpf_prog_put(prog);
 	}
+	perf_event_detach_bpf_prog(event);
 }
 
 #else
@@ -8009,8 +8028,7 @@ static void free_filters_list(struct list_head *filters)
 	struct perf_addr_filter *filter, *iter;
 
 	list_for_each_entry_safe(filter, iter, filters, entry) {
-		if (filter->inode)
-			iput(filter->inode);
+		path_put(&filter->path);
 		list_del(&filter->entry);
 		kfree(filter);
 	}
@@ -8104,7 +8122,7 @@ static void perf_event_addr_filters_apply(struct perf_event *event)
 		 * Adjust base offset if the filter is associated to a binary
 		 * that needs to be mapped:
 		 */
-		if (filter->inode)
+		if (filter->path.dentry)
 			event->addr_filters_offs[count] =
 				perf_addr_filter_apply(filter, mm);
 
@@ -8177,7 +8195,6 @@ perf_event_parse_addr_filter(struct perf_event *event, char *fstr,
 {
 	struct perf_addr_filter *filter = NULL;
 	char *start, *orig, *filename = NULL;
-	struct path path;
 	substring_t args[MAX_OPT_ARGS];
 	int state = IF_STATE_ACTION, token;
 	unsigned int kernel = 0;
@@ -8240,6 +8257,7 @@ perf_event_parse_addr_filter(struct perf_event *event, char *fstr,
 			if (token == IF_SRC_FILE || token == IF_SRC_FILEADDR) {
 				int fpos = filter->range ? 2 : 1;
 
+				kfree(filename);
 				filename = match_strdup(&args[fpos]);
 				if (!filename) {
 					ret = -ENOMEM;
@@ -8268,19 +8286,15 @@ perf_event_parse_addr_filter(struct perf_event *event, char *fstr,
 					goto fail;
 
 				/* look up the path and grab its inode */
-				ret = kern_path(filename, LOOKUP_FOLLOW, &path);
+				ret = kern_path(filename, LOOKUP_FOLLOW,
+						&filter->path);
 				if (ret)
-					goto fail_free_name;
-
-				filter->inode = igrab(d_inode(path.dentry));
-				path_put(&path);
-				kfree(filename);
-				filename = NULL;
+					goto fail;
 
 				ret = -EINVAL;
-				if (!filter->inode ||
-				    !S_ISREG(filter->inode->i_mode))
-					/* free_filters_list() will iput() */
+				if (!filter->path.dentry ||
+				    !S_ISREG(d_inode(filter->path.dentry)
+					     ->i_mode))
 					goto fail;
 			}
 
@@ -8293,13 +8307,13 @@ perf_event_parse_addr_filter(struct perf_event *event, char *fstr,
 	if (state != IF_STATE_ACTION)
 		goto fail;
 
+	kfree(filename);
 	kfree(orig);
 
 	return 0;
 
-fail_free_name:
-	kfree(filename);
 fail:
+	kfree(filename);
 	free_filters_list(filters);
 	kfree(orig);
 
@@ -10138,7 +10152,7 @@ perf_event_create_kernel_counter(struct perf_event_attr *attr, int cpu,
 		goto err_unlock;
 	}
 
-	perf_install_in_context(ctx, event, cpu);
+	perf_install_in_context(ctx, event, event->cpu);
 	perf_unpin_context(ctx);
 	mutex_unlock(&ctx->mutex);
 

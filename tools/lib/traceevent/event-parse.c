@@ -267,10 +267,10 @@ static int add_new_comm(struct pevent *pevent, const char *comm, int pid)
 		errno = ENOMEM;
 		return -1;
 	}
+	pevent->cmdlines = cmdlines;
 
 	cmdlines[pevent->cmdline_count].comm = strdup(comm);
 	if (!cmdlines[pevent->cmdline_count].comm) {
-		free(cmdlines);
 		errno = ENOMEM;
 		return -1;
 	}
@@ -281,7 +281,6 @@ static int add_new_comm(struct pevent *pevent, const char *comm, int pid)
 		pevent->cmdline_count++;
 
 	qsort(cmdlines, pevent->cmdline_count, sizeof(*cmdlines), cmdline_cmp);
-	pevent->cmdlines = cmdlines;
 
 	return 0;
 }
@@ -2765,6 +2764,7 @@ process_dynamic_array_len(struct event_format *event, struct print_arg *arg,
 	if (read_expected(EVENT_DELIM, ")") < 0)
 		goto out_err;
 
+	free_token(token);
 	type = read_token(&token);
 	*tok = token;
 
