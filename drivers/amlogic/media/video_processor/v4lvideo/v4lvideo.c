@@ -1136,11 +1136,11 @@ static s32 v4lvideo_import_sei_data(
 							    provider, NULL);
 				if (!ret) {
 				/* FIXME: work around for sei/el out of sync */
-					if ((dup_vf->src_fmt.fmt ==
-					     VFRAME_SIGNAL_FMT_SDR) &&
-					    !strcmp(provider, "dvbldec"))
-						dup_vf->src_fmt.fmt =
-							VFRAME_SIGNAL_FMT_DOVI;
+					/*if ((dup_vf->src_fmt.fmt == */
+					/*     VFRAME_SIGNAL_FMT_SDR) && */
+					/*    !strcmp(provider, "dvbldec")) */
+					/*	dup_vf->src_fmt.fmt = */
+					/*	VFRAME_SIGNAL_FMT_DOVI; */
 					atomic_inc(&global_set_cnt);
 				} else {
 					vfree(p);
