@@ -350,9 +350,8 @@ typedef struct {
 	uByte		bDescriptorType;
 	uWord		bString[127];
 } UPACKED usb_string_descriptor_t;
-#ifdef CONFIG_AMLOGIC_SYNC_20210524
+
 #undef USB_MAX_STRING_LEN
-#endif
 #define USB_MAX_STRING_LEN 128
 #define USB_LANGUAGE_TABLE 0	/* # of the string language id table */
 

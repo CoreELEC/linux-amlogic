@@ -248,7 +248,7 @@ static int mtd_nand_remove(struct platform_device *pdev)
 		if (aml_chip) {
 			mtd = aml_chip->mtd;
 			if (mtd) {
-				nand_release(mtd);
+				nand_release(mtd_to_nand(mtd));
 				kfree(mtd);
 			}
 			kfree(aml_chip);
