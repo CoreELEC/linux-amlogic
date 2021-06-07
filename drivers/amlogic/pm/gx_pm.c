@@ -43,6 +43,7 @@
 #include <../kernel/power/power.h>
 #include <linux/amlogic/scpi_protocol.h>
 #include "vad_power.h"
+#include <linux/syscore_ops.h>
 
 typedef unsigned long (psci_fn)(unsigned long, unsigned long,
 				unsigned long, unsigned long);
@@ -70,6 +71,7 @@ static void __iomem *debug_reg;
 static void __iomem *exit_reg;
 static int max_idle_lvl;
 static suspend_state_t pm_state;
+static unsigned int resume_reason;
 
 
 /*
@@ -110,7 +112,11 @@ static void meson_pm_finish(void)
 {
 	pr_info("enter meson_pm_finish!\n");
 }
-unsigned int get_resume_method(void)
+
+/*
+ * get_resume_reason always return last resume reason.
+ */
+unsigned int get_resume_reason(void)
 {
 	unsigned int val = 0;
 
@@ -118,7 +124,36 @@ unsigned int get_resume_method(void)
 		val = (readl(exit_reg) >> 28) & 0xf;
 	return val;
 }
-EXPORT_SYMBOL(get_resume_method);
+EXPORT_SYMBOL_GPL(get_resume_reason);
+
+/*
+ * get_resume_method return last resume reason.
+ * It can be cleared by clr_resume_method().
+ */
+unsigned int get_resume_method(void)
+{
+	return resume_reason;
+}
+EXPORT_SYMBOL_GPL(get_resume_method);
+
+static void set_resume_method(unsigned int val)
+{
+	resume_reason = val;
+}
+
+static int clr_suspend_notify(struct notifier_block *nb,
+				     unsigned long event, void *dummy)
+{
+	if (event == PM_SUSPEND_PREPARE)
+		set_resume_method(UDEFINED_WAKEUP);
+
+	return NOTIFY_OK;
+}
+
+static struct notifier_block clr_suspend_notifier = {
+	.notifier_call = clr_suspend_notify,
+};
+
 
 static const struct platform_suspend_ops meson_gx_ops = {
 	.enter = meson_gx_enter,
@@ -195,6 +230,7 @@ ssize_t time_out_show(struct device *dev, struct device_attribute *attr,
 	return len;
 }
 
+static int sys_time_out;
 ssize_t time_out_store(struct device *dev, struct device_attribute *attr,
 		const char *buf, size_t count)
 {
@@ -204,6 +240,7 @@ ssize_t time_out_store(struct device *dev, struct device_attribute *attr,
 	ret = kstrtouint(buf, 10, &time_out);
 	switch (ret) {
 	case 0:
+		sys_time_out = time_out;
 		writel(time_out, debug_reg);
 		break;
 	default:
@@ -214,6 +251,30 @@ ssize_t time_out_store(struct device *dev, struct device_attribute *attr,
 }
 
 DEVICE_ATTR(time_out, 0664, time_out_show, time_out_store);
+
+int gx_pm_syscore_suspend(void)
+{
+	if (sys_time_out)
+		writel_relaxed(sys_time_out, debug_reg);
+	return 0;
+}
+
+void gx_pm_syscore_resume(void)
+{
+	sys_time_out = 0;
+	set_resume_method(get_resume_reason());
+}
+
+static struct syscore_ops gx_pm_syscore_ops = {
+	.suspend = gx_pm_syscore_suspend,
+	.resume	= gx_pm_syscore_resume,
+};
+
+static int __init gx_pm_init_ops(void)
+{
+	register_syscore_ops(&gx_pm_syscore_ops);
+	return 0;
+}
 
 static int meson_pm_probe(struct platform_device *pdev)
 {
@@ -282,6 +343,11 @@ static int meson_pm_probe(struct platform_device *pdev)
 		return -1;
 #endif
 	freeze_set_ops(&meson_gx_frz_ops);
+	gx_pm_init_ops();
+
+	ret = register_pm_notifier(&clr_suspend_notifier);
+	if (unlikely(ret))
+		return ret;
 
 	pr_info("meson_pm_probe done\n");
 	return 0;
