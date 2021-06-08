@@ -1342,6 +1342,31 @@ __ATTR(bl_off_bytes, 0444, get_bootloader_offset, NULL);
  *	__ATTR(cdirq_cnt, S_IRUGO, get_cdirq_cnt, NULL);
  */
 
+int add_fake_boot_partition(struct gendisk *disk, char *name, int idx)
+{
+	u64 boot_size = (u64)get_capacity(disk) - 1;
+	char fake_name[80];
+	int offset = 1;
+	struct hd_struct *ret = NULL;
+	struct disk_part_iter piter;
+	struct hd_struct *part;
+
+	sprintf(fake_name, name, idx);
+	ret = add_emmc_each_part(disk, 1 + idx,
+			offset, boot_size, 0, fake_name);
+	if (IS_ERR(ret))
+		pr_info("%s added failed\n", fake_name);
+
+	disk_part_iter_init(&piter, disk, 0);
+	while ((part = disk_part_iter_next(&piter))) {
+		dev_set_uevent_suppress(part_to_dev(part), 0);
+		kobject_uevent(&part_to_dev(part)->kobj, KOBJ_ADD);
+	}
+	disk_part_iter_exit(&piter);
+
+	return 0;
+}
+
 int aml_emmc_partition_ops(struct mmc_card *card, struct gendisk *disk)
 {
 	int ret = 0;
