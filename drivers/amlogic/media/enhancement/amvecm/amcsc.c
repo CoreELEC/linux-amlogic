@@ -628,7 +628,7 @@ void set_force_output(enum output_format_e output)
 }
 EXPORT_SYMBOL(set_force_output);
 
-static uint hdr_mode = 2; /* 0: hdr->hdr, 1:hdr->sdr, 2:auto */
+uint hdr_mode; /* 0: hdr->hdr (auto), 1:hdr->sdr */
 module_param(hdr_mode, uint, 0664);
 MODULE_PARM_DESC(hdr_mode, "\n set hdr_mode\n");
 
@@ -674,7 +674,7 @@ static uint force_pure_hlg[VD_PATH_MAX];
 module_param_array(force_pure_hlg, uint, &vd_path_max, 0664);
 MODULE_PARM_DESC(force_pure_hlg, "\n current force_pure_hlg\n");
 
-uint sdr_mode; /* 0: sdr->sdr, 1:sdr->hdr, 2:auto */
+uint sdr_mode; /* 0: sdr->sdr (auto), 1:sdr->hdr */
 module_param(sdr_mode, uint, 0664);
 MODULE_PARM_DESC(sdr_mode, "\n set sdr_mode\n");
 
