@@ -3415,6 +3415,18 @@ static ssize_t show_allm_mode(struct device *dev,
 	return pos;
 }
 
+static ssize_t show_allfmt_names(struct device *dev,
+			      struct device_attribute *attr, char *buf)
+{
+	int pos = 0;
+	char names[PAGE_SIZE] = { 0 };
+
+	if (hdmi_get_fmt_names(names))
+		pos += snprintf(buf + pos, PAGE_SIZE, "%s\n", names);
+
+	return pos;
+}
+
 static inline int com_str(const char *buf, const char *str)
 {
 	return strncmp(buf, str, strlen(str)) == 0;
@@ -5378,6 +5390,7 @@ static DEVICE_ATTR(dc_cap, 0444, show_dc_cap, NULL);
 static DEVICE_ATTR(valid_mode, 0664, show_valid_mode, store_valid_mode);
 static DEVICE_ATTR(allm_cap, 0444, show_allm_cap, NULL);
 static DEVICE_ATTR(allm_mode, 0664, show_allm_mode, store_allm_mode);
+static DEVICE_ATTR(allfmt_names, 0444, show_allfmt_names, NULL);
 static DEVICE_ATTR(contenttype_cap, 0444, show_contenttype_cap, NULL);
 static DEVICE_ATTR(contenttype_mode, 0664,
 	show_contenttype_mode, store_contenttype_mode);
@@ -6854,6 +6867,7 @@ static int amhdmitx_probe(struct platform_device *pdev)
 	ret = device_create_file(dev, &dev_attr_valid_mode);
 	ret = device_create_file(dev, &dev_attr_allm_cap);
 	ret = device_create_file(dev, &dev_attr_allm_mode);
+	ret = device_create_file(dev, &dev_attr_allfmt_names);
 	ret = device_create_file(dev, &dev_attr_contenttype_cap);
 	ret = device_create_file(dev, &dev_attr_contenttype_mode);
 	ret = device_create_file(dev, &dev_attr_hdmi_config_info);
@@ -6951,6 +6965,7 @@ static int amhdmitx_remove(struct platform_device *pdev)
 	device_remove_file(dev, &dev_attr_valid_mode);
 	device_remove_file(dev, &dev_attr_allm_cap);
 	device_remove_file(dev, &dev_attr_allm_mode);
+	device_remove_file(dev, &dev_attr_allfmt_names);
 	device_remove_file(dev, &dev_attr_contenttype_cap);
 	device_remove_file(dev, &dev_attr_contenttype_mode);
 	device_remove_file(dev, &dev_attr_hpd_state);

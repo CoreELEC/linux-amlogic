@@ -426,6 +426,7 @@ unsigned int hdmi_get_csc_coef(
 	unsigned int input_format, unsigned int output_format,
 	unsigned int color_depth, unsigned int color_format,
 	unsigned char **coef_array, unsigned int *coef_length);
+int hdmi_get_fmt_names(char *names);
 struct hdmi_format_para *hdmi_get_fmt_name(char const *name, char const *attr);
 struct hdmi_format_para *hdmi_tst_fmt_name(char const *name, char const *attr);
 struct vinfo_s *hdmi_get_valid_vinfo(char *mode);

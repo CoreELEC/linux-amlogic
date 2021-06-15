@@ -3125,6 +3125,23 @@ struct hdmi_format_para *hdmi_get_fmt_paras(enum hdmi_vic vic)
 	return &fmt_para_non_hdmi_fmt;
 }
 
+int hdmi_get_fmt_names(char *names)
+{
+	int i;
+
+	if (!names)
+		return 0;
+
+	for (i = 0; all_fmt_paras[i] != NULL; i++) {
+		if (all_fmt_paras[i]->sname && strlen(all_fmt_paras[i]->sname) > 1)
+		{
+			strcat(names, all_fmt_paras[i]->sname);
+			strcat(names, " ");
+		}
+	}
+	return 1;
+}
+
 struct hdmi_format_para *hdmi_match_dtd_paras(struct dtd *t)
 {
 	int i;
