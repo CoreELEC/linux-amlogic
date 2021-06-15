@@ -1329,6 +1329,9 @@ static ssize_t show_hdcp22_base(struct device *dev,
 
 void hdmitx_audio_mute_op(unsigned int flag)
 {
+	if (hdmitx_device.hdmi_init != 1)
+		return;
+
 	hdmitx_device.tx_aud_cfg = flag;
 	if (flag == 0)
 		hdmitx_device.hwop.cntlconfig(&hdmitx_device,
@@ -1341,6 +1344,9 @@ EXPORT_SYMBOL(hdmitx_audio_mute_op);
 
 void hdmitx_video_mute_op(unsigned int flag)
 {
+	if (hdmitx_device.hdmi_init != 1)
+		return;
+
 	if (flag == 0) {
 		/* hdmitx_device.hwop.cntlconfig(&hdmitx_device, */
 			/* CONF_VIDEO_MUTE_OP, VIDEO_MUTE); */
@@ -4147,6 +4153,9 @@ void direct_hdcptx14_opr(enum rptx_hdcp14_cmd cmd, void *args)
 	int rst;
 	struct hdmitx_dev *hdev = &hdmitx_device;
 
+	if (hdmitx_device.hdmi_init != 1)
+		return;
+
 	pr_info("%s[%d] cmd: %d\n", __func__, __LINE__, cmd);
 	switch (cmd) {
 	case RPTX_HDCP14_OFF:
@@ -5949,6 +5958,8 @@ int hdmitx_event_notifier_regist(struct notifier_block *nb)
 {
 	int ret = 0;
 
+	if (hdmitx_device.hdmi_init != 1)
+		return 1;
 	if (!nb)
 		return ret;
 
@@ -5969,6 +5980,8 @@ int hdmitx_event_notifier_unregist(struct notifier_block *nb)
 {
 	int ret;
 
+	if (hdmitx_device.hdmi_init != 1)
+		return 1;
 	ret = blocking_notifier_chain_unregister(&hdmitx_event_notify_list, nb);
 
 	return ret;
