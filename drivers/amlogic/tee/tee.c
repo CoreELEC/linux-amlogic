@@ -282,7 +282,24 @@ uint32_t tee_protect_mem_by_type(uint32_t type,
 }
 EXPORT_SYMBOL(tee_protect_mem_by_type);
 
-void tee_unprotect_mem(uint32_t handle)
+u32 tee_protect_mem(u32 type, u32 level,
+		u32 start, u32 size, u32 *handle)
+{
+	struct arm_smccc_res res;
+
+	if (!handle)
+		return 0xFFFF0006;
+
+	arm_smccc_smc(TEE_SMC_PROTECT_MEM_BY_TYPE,
+			type, start, size, level, 0, 0, 0, &res);
+
+	*handle = res.a1;
+
+	return res.a0;
+}
+EXPORT_SYMBOL(tee_protect_mem);
+
+void tee_unprotect_mem(u32 handle)
 {
 	struct arm_smccc_res res;
 
