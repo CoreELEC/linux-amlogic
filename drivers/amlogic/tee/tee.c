@@ -80,6 +80,10 @@ static int disable_flag;
 #define TEE_SMC_DEMUX_CONFIG_PIPELINE \
 	TEE_SMC_FAST_CALL_VAL(TEE_SMC_FUNCID_DEMUX_CONFIG_PIPELINE)
 
+#define TEE_SMC_FUNCID_SYS_BOOT_COMPLETE           0xE060
+#define TEE_SMC_SYS_BOOT_COMPLETE \
+		TEE_SMC_FAST_CALL_VAL(TEE_SMC_FUNCID_SYS_BOOT_COMPLETE)
+
 static struct class *tee_sys_class;
 
 struct tee_smc_calls_revision_result {
@@ -119,6 +123,24 @@ static int tee_msg_api_revision(uint32_t *major, uint32_t *minor)
 	return 0;
 }
 
+static int tee_set_sys_boot_complete(void)
+{
+	struct arm_smccc_res res;
+	static int inited;
+
+	res.a0 = 0;
+
+	if (!inited) {
+		arm_smccc_smc(TEE_SMC_SYS_BOOT_COMPLETE,
+				0, 0, 0, 0, 0, 0, 0, &res);
+
+		if (!res.a0)
+			inited = 1;
+	}
+
+	return res.a0;
+}
+
 static ssize_t tee_os_version_show(struct class *class,
 		struct class_attribute *attr, char *buf)
 {
@@ -149,10 +171,31 @@ static ssize_t tee_api_version_show(struct class *class,
 	return ret;
 }
 
+static ssize_t tee_sys_boot_complete_store(struct class *class,
+						struct class_attribute *attr,
+						const char *buf, size_t count)
+{
+	bool val;
+	int ret = 0;
+
+	if (kstrtobool(buf, &val))
+		return -EINVAL;
+
+	if (val)
+		ret = tee_set_sys_boot_complete();
+
+	if (ret)
+		return -EINVAL;
+
+	return count;
+}
+
 static CLASS_ATTR(os_version, 0644, tee_os_version_show,
 		NULL);
 static CLASS_ATTR(api_version, 0644, tee_api_version_show,
 		NULL);
+static CLASS_ATTR(sys_boot_complete, 0644, NULL,
+		tee_sys_boot_complete_store);
 
 /*
  * index: firmware index
@@ -281,6 +324,12 @@ int tee_create_sysfs(void)
 	ret = class_create_file(tee_sys_class, &class_attr_api_version);
 	if (ret != 0) {
 		pr_err("create class file os_version fail\n");
+		return ret;
+	}
+
+	ret = class_create_file(tee_sys_class, &class_attr_sys_boot_complete);
+	if (ret != 0) {
+		pr_err("create class file sys_boot_complete fail\n");
 		return ret;
 	}
 
