@@ -1423,7 +1423,7 @@ void set_hdr_matrix(
 	/* Now only operate osd1/vd1/vd2 hdr core */
 	if (get_cpu_type() <= MESON_CPU_MAJOR_ID_SC2) {
 		if (hdr_clk_gate != 0) {
-			cur_hdr_ctrl = READ_VPP_REG(hdr_ctrl);
+			cur_hdr_ctrl = VSYNC_RD_MPEG_REG(hdr_ctrl);
 			if (hdr_mtx_param->mtx_on &&
 				!(cur_hdr_ctrl & (1 << 13))) {
 				WRITE_VPP_REG_BITS(hdr_clk_gate, 0xaaa, 0, 12);
