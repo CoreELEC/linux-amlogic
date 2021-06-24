@@ -7438,7 +7438,7 @@ int dolby_vision_parse_metadata(
 	}
 
 	/* if not DOVI, release metadata_parser */
-	if ((src_format != FORMAT_DOVI)
+	if (vf && (src_format != FORMAT_DOVI)
 		&& metadata_parser
 		&& !bypass_release) {
 		if (p_funcs_stb)
@@ -7446,6 +7446,7 @@ int dolby_vision_parse_metadata(
 		if (p_funcs_tv)
 			p_funcs_tv->metadata_parser_release();
 		metadata_parser = NULL;
+		pr_dolby_dbg("parser release\n");
 	}
 
 	if (drop_flag) {
@@ -8383,6 +8384,7 @@ int dolby_vision_process(
 	int policy_changed = 0;
 	int sink_changed = 0;
 	int format_changed = 0;
+	static u8 last_toggle_mode;
 
 	if (!is_meson_box() && !is_meson_txlx() && !is_meson_tm2())
 		return -1;
@@ -8459,6 +8461,19 @@ int dolby_vision_process(
 				     get_video_enabled() ? "on" : "off");
 		}
 	}
+
+	/* release metadata_parser when stop playing */
+	if (last_toggle_mode != 2 && toggle_mode == 2) {
+		if (metadata_parser) {
+			if (p_funcs_stb)
+				p_funcs_stb->metadata_parser_release();
+			if (p_funcs_tv)
+				p_funcs_tv->metadata_parser_release();
+			metadata_parser = NULL;
+			pr_dolby_dbg("release parser\n");
+		}
+	}
+	last_toggle_mode = toggle_mode;
 
 	if ((dolby_vision_flags & FLAG_CERTIFICAION)
 		&& (setting_update_count > crc_count)
