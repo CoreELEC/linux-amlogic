@@ -48,6 +48,9 @@
 #include <linux/arm-smccc.h>
 #include "checksha.h"
 #include <linux/amlogic/media/sound/hdmi_earc.h>
+#ifdef CONFIG_AMLOGIC_VPU
+#include <linux/amlogic/media/vpu/vpu.h>
+#endif
 #include "reg_sc2.h"
 
 static void mode420_half_horizontal_para(void);
@@ -439,6 +442,11 @@ static void hdmi_hwp_init(struct hdmitx_dev *hdev)
 		hd_set_reg_bits(P_PWRCTRL_MEM_PD11, 0, 8, 8);
 	else
 		hd_set_reg_bits(P_HHI_MEM_PD_REG0, 0, 8, 8);
+#ifdef CONFIG_AMLOGIC_VPU
+	/* VPU_HDMI since tm2_B: P_HHI_MEM_PD_REG4 bit[13:12] */
+	switch_vpu_mem_pd_vmod(VPU_HDMI, VPU_MEM_POWER_ON);
+#endif
+	/* hd_set_reg_bits(P_HHI_MEM_PD_REG4, 0, 12, 2); */
 	/* enable CLK_TO_DIG */
 	if (hdev->chip_type >= MESON_CPU_ID_SC2)
 		hd_set_reg_bits(P_ANACTRL_HDMIPHY_CTRL3, 0x3, 0, 2);
