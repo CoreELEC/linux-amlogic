@@ -290,8 +290,10 @@ static void update_cpu_capacity(unsigned int cpu)
 
 	set_capacity_scale(cpu, capacity);
 
+#ifndef CONFIG_AMLOGIC_MODIFY
 	pr_info("CPU%d: update cpu_capacity %lu\n",
 		cpu, arch_scale_cpu_capacity(NULL, cpu));
+#endif
 }
 
 static void update_siblings_masks(unsigned int cpuid)
@@ -349,9 +351,11 @@ void store_cpu_topology(unsigned int cpuid)
 					 MPIDR_AFFINITY_LEVEL(mpidr, 3) << 16;
 	}
 
+#ifndef CONFIG_AMLOGIC_MODIFY
 	pr_debug("CPU%u: cluster %d core %d thread %d mpidr %#016llx\n",
 		 cpuid, cpuid_topo->cluster_id, cpuid_topo->core_id,
 		 cpuid_topo->thread_id, mpidr);
+#endif
 
 topology_populated:
 	update_siblings_masks(cpuid);

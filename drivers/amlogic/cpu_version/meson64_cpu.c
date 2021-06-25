@@ -86,8 +86,7 @@ int __init meson_cpu_version_init(void)
 	meson_cpu_version[MESON_CPU_VERSION_LVL_MINOR] = ver;
 	ver =  (readl(assist_hw_rev) >> 16) & 0xff;
 	meson_cpu_version[MESON_CPU_VERSION_LVL_PACK] = ver;
-	pr_info("Meson chip version = Rev%X (%X:%X - %X:%X)\n",
-		meson_cpu_version[MESON_CPU_VERSION_LVL_MINOR],
+	pr_info("chip version = %X:%X - %X:%X\n",
 		meson_cpu_version[MESON_CPU_VERSION_LVL_MAJOR],
 		meson_cpu_version[MESON_CPU_VERSION_LVL_MINOR],
 		meson_cpu_version[MESON_CPU_VERSION_LVL_PACK],
