@@ -4423,6 +4423,26 @@ static ssize_t store_sysctrl_enable(struct device *dev,
 	return count;
 }
 
+static ssize_t hdr_mute_frame_show(struct device *dev,
+	struct device_attribute *attr, char *buf)
+{
+	int pos = 0;
+
+	pos += snprintf(buf + pos, PAGE_SIZE, "%d\r\n", hdr_mute_frame);
+	return pos;
+}
+
+static ssize_t hdr_mute_frame_store(struct device *dev,
+	struct device_attribute *attr, const char *buf, size_t count)
+{
+	unsigned long mute_frame = 0;
+
+	pr_info("set hdr_mute_frame: %s\n", buf);
+	if (kstrtoul(buf, 10, &mute_frame) == 0)
+		hdr_mute_frame = mute_frame;
+	return count;
+}
+
 #undef pr_fmt
 #define pr_fmt(fmt) "" fmt
 void print_drm_config_data(void)
@@ -5108,6 +5128,8 @@ static DEVICE_ATTR(hdmi_rx_info, 0444, show_hdmirx_info, NULL);
 static DEVICE_ATTR(hdmi_hsty_config_info, 0444, show_hdmi_hsty_config, NULL);
 static DEVICE_ATTR(sysctrl_enable, 0664,
 	show_sysctrl_enable, store_sysctrl_enable);
+static DEVICE_ATTR(hdr_mute_frame, 0664,
+		   hdr_mute_frame_show, hdr_mute_frame_store);
 
 static struct vinfo_s *hdmitx_get_current_vinfo(void)
 {
@@ -5479,6 +5501,7 @@ static void hdmitx_get_edid(struct hdmitx_dev *hdev)
 		pr_info("clear dv_info\n");
 	}
 	spin_unlock_irqrestore(&hdev->edid_spinlock, flags);
+	hdmitx_event_notify(HDMITX_PHY_ADDR_VALID, &hdev->physical_addr);
 	hdmitx_edid_buf_compare_print(hdev);
 	mutex_unlock(&getedid_mutex);
 }
@@ -6496,6 +6519,7 @@ static int amhdmitx_probe(struct platform_device *pdev)
 	ret = device_create_file(dev, &dev_attr_hdmi_hsty_config_info);
 	ret = device_create_file(dev, &dev_attr_drm_mode_setting);
 	ret = device_create_file(dev, &dev_attr_sysctrl_enable);
+	ret = device_create_file(dev, &dev_attr_hdr_mute_frame);
 
 #ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
 	register_early_suspend(&hdmitx_early_suspend_handler);
@@ -6625,6 +6649,7 @@ static int amhdmitx_remove(struct platform_device *pdev)
 	device_remove_file(dev, &dev_attr_hdmi_hsty_config_info);
 	device_remove_file(dev, &dev_attr_drm_mode_setting);
 	device_remove_file(dev, &dev_attr_sysctrl_enable);
+	device_remove_file(dev, &dev_attr_hdr_mute_frame);
 
 	cdev_del(&hdmitx_device.cdev);
 
