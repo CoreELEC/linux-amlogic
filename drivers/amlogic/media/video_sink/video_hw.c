@@ -5269,7 +5269,8 @@ s32 layer_swap_frame(
 				enable_video_layer2();
 		}
 	}
-
+	if (vd_layer[0].enabled && !vd_layer[1].enabled && is_mvc)
+		enable_video_layer2();
 	if (first_picture)
 		layer->new_vpp_setting = true;
 	layer->dispbuf = vf;
@@ -5480,7 +5481,6 @@ static void do_vpu_delay_work(struct work_struct *work)
 			    ((r & VPP_VD2_PREBLEND) == 0)) {
 				vpu_delay_work_flag &=
 				    ~VPU_DELAYWORK_MEM_POWER_OFF_VD2;
-
 				switch_vpu_mem_pd_vmod(
 					VPU_VIU_VD2,
 					VPU_MEM_POWER_DOWN);
