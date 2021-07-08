@@ -138,6 +138,7 @@ static int c_show(struct seq_file *m, void *v)
 		{ "A113D", MESON_CPU_MAJOR_ID_AXG, 0x22, 0xff },
 		{ "S905D2", MESON_CPU_MAJOR_ID_G12A, 0x10, 0xf0 },
 		{ "S905X2", MESON_CPU_MAJOR_ID_G12A, 0x40, 0xf0 },
+		{ "S905Y2", MESON_CPU_MAJOR_ID_G12A, 0x30, 0xf0 },
 		{ "S922X", MESON_CPU_MAJOR_ID_G12B, 0x40, 0xf0 },
 		{ "A311D", MESON_CPU_MAJOR_ID_G12B, 0x10, 0xf0 },
 		{ "S905X3", MESON_CPU_MAJOR_ID_SM1, 0x01, 0x0f },
