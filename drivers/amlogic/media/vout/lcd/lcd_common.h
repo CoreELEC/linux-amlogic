@@ -57,13 +57,23 @@
 /* 20210311: add global reset to clear tcon last state*/
 /* 20210608: add tcon multi lut support*/
 /* 20210705: add lcd mute and test state protection*/
-#define LCD_DRV_VERSION    "20210705"
+/* 20211009: support 59 & 47 frame rate for tv mode*/
+#define LCD_DRV_VERSION    "20211009"
 
 #define VPP_OUT_SATURATE            (1 << 0)
 
 extern struct mutex lcd_vout_mutex;
 extern unsigned char lcd_resume_flag;
 extern int lcd_vout_serve_bypass;
+
+static inline unsigned int lcd_do_div(unsigned long long num, unsigned int den)
+{
+	unsigned long long ret = num;
+
+	do_div(ret, den);
+
+	return (unsigned int)ret;
+}
 
 /* lcd common */
 extern int lcd_type_str_to_type(const char *str);
