@@ -1416,6 +1416,7 @@ static void hdmitx_set_drm_pkt(struct master_display_info_s *data)
 	struct hdmitx_dev *hdev = &hdmitx_device;
 	unsigned char DRM_HB[3] = {0x87, 0x1, 26};
 	static unsigned char DRM_DB[26] = {0x0};
+	static unsigned char clear_hdr10plus_flag = 0;
 
 	hdmi_debug();
 	if (data)
@@ -1477,6 +1478,8 @@ static void hdmitx_set_drm_pkt(struct master_display_info_s *data)
 		DRM_HB[1] = 0;
 		DRM_HB[2] = 0;
 		DRM_DB[0] = 0;
+		clear_hdr10plus_flag = 1;
+		pr_info("hdmitx_set_drm_pkt: disable DRM\n");
 		hdmitx_device.hwop.setpacket(HDMI_PACKET_DRM, NULL, NULL);
 		hdmitx_device.hwop.cntlconfig(&hdmitx_device,
 			CONF_AVI_BT2020, hdev->colormetry);
@@ -1487,11 +1490,12 @@ static void hdmitx_set_drm_pkt(struct master_display_info_s *data)
 	if (hdev->hdr_transfer_feature == T_BT709 &&
 		hdev->hdr_color_feature == C_BT709) {
 		/* send zero drm only for HDR->SDR transition */
-		if ((DRM_DB[0] == 0x02) || (DRM_DB[0] == 0x03)) {
+		if ((DRM_DB[0] == 0x02) || (DRM_DB[0] == 0x03) || clear_hdr10plus_flag) {
 			pr_info("hdmitx_set_drm_pkt: HDR->SDR, DRM_DB[0]=%d\n",
 				DRM_DB[0]);
 			schedule_work(&hdev->work_hdr);
 			DRM_DB[0] = 0;
+			clear_hdr10plus_flag = 0;
 		}
 		return;
 	}
