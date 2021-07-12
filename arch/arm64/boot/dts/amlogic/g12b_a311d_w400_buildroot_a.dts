@@ -127,6 +127,7 @@
 			size = <0x0 0x13400000>;
 			alignment = <0x0 0x400000>;
 			linux,contiguous-region;
+			clear-map;
 		};
 		/* codec shared reserved */
 		codec_mm_reserved:linux,codec_mm_reserved {
@@ -173,6 +174,12 @@
 			reusable;
 			status = "okay";
 			size = <0x0 0x04000000>;
+			alignment = <0x0 0x400000>;
+		};
+		jpegenc_cma_reserved:linux,jpegenc_cma {
+			compatible = "shared-dma-pool";
+			reusable;
+			size = <0x0 0x2400000>;
 			alignment = <0x0 0x400000>;
 		};
 	};
@@ -300,96 +307,6 @@
 		status = "okay";
 	};
 
-
-	partitions: partitions{
-		parts = <14>;
-		part-0 = <&logo>;
-		part-1 = <&recovery>;
-		part-2 = <&misc>;
-		part-3 = <&dto>;
-		part-4 = <&cri_data>;
-		part-5 = <&param>;
-		part-6 = <&boot>;
-		part-7 = <&rsv>;
-		part-8 = <&tee>;
-		part-9 = <&vendor>;
-		part-10 = <&odm>;
-		part-11 = <&system>;
-		part-12 = <&cache>;
-		part-13 = <&data>;
-
-		logo:logo{
-			pname = "logo";
-			size = <0x0 0x800000>;
-			mask = <1>;
-		};
-		recovery:recovery{
-			pname = "recovery";
-			size = <0x0 0x1800000>;
-			mask = <1>;
-		};
-		misc:misc{
-			pname = "misc";
-			size = <0x0 0x800000>;
-			mask = <1>;
-		};
-		dto:dto{
-			pname = "dto";
-			size = <0x0 0x800000>;
-			mask = <1>;
-		};
-		cri_data:cri_data{
-			pname = "cri_data";
-			size = <0x0 0x800000>;
-			mask = <2>;
-		};
-		rsv:rsv{
-			pname = "rsv";
-			size = <0x0 0x1000000>;
-			mask = <1>;
-		};
-		param:param{
-			pname = "param";
-			size = <0x0 0x1000000>;
-			mask = <2>;
-		};
-		boot:boot{
-			pname = "boot";
-			size = <0x0 0x1000000>;
-			mask = <1>;
-		};
-		tee:tee{
-			pname = "tee";
-			size = <0x0 0x2000000>;
-			mask = <1>;
-		};
-		vendor:vendor{
-			pname = "vendor";
-			size = <0x0 0x10000000>;
-			mask = <1>;
-		};
-		odm:odm{
-			pname = "odm";
-			size = <0x0 0x10000000>;
-			mask = <1>;
-		};
-		system:system{
-			pname = "system";
-			size = <0x0 0x80000000>;
-			mask = <1>;
-		};
-		cache:cache{
-			pname = "cache";
-			size = <0x0 0x46000000>;
-			mask = <2>;
-		};
-		data:data{
-			pname = "data";
-			size = <0xffffffff 0xffffffff>;
-			mask = <4>;
-		};
-	};
-
 	gpio_keypad {
 		compatible = "amlogic, gpio_keypad";
 		status = "okay";
@@ -404,14 +321,14 @@
 	adc_keypad {
 		compatible = "amlogic, adc_keypad";
 		status = "okay";
-		key_name = "vol-", "vol+", "enter";
-		key_num = <3>;
+		key_name = "update", "vol-", "vol+", "enter";
+		key_num = <4>;
 		io-channels = <&saradc SARADC_CH2>;
 		io-channel-names = "key-chan-2";
-		key_chan = <SARADC_CH2 SARADC_CH2 SARADC_CH2>;
-		key_code = <114 115 28>;
-		key_val = <143 266 389>; //val=voltage/1800mV*1023
-		key_tolerance = <40 40 40>;
+		key_chan = <SARADC_CH2 SARADC_CH2 SARADC_CH2 SARADC_CH2>;
+		key_code = <141 114 115 28>;
+		key_val = <0 143 266 389>; //val=voltage/1800mV*1023
+		key_tolerance = <40 40 40 40>;
 	};
 
 	unifykey{
@@ -805,14 +722,34 @@
 		clocks = <&clkc CLKID_24M>;
 		clock-names = "g12a_24m";
 		reset = <&gpio GPIOZ_12 GPIO_ACTIVE_HIGH>;
+#if 0
 		ir_cut_gpio = <&gpio GPIOZ_11 GPIO_ACTIVE_HIGH
 				&gpio GPIOZ_7 GPIO_ACTIVE_HIGH>;
+#endif
 	};
 
 	iq: iq {
 		compatible = "soc, iq";
 		status = "okay";
 		sensor-name = "imx290"; /*imx290;os08a10;imx227;imx307*/
+	};
+
+	ircut: ircut {
+		compatible = "amlogic, aml-ircut";
+		status = "okay";
+		ircut-gpio = <&gpio GPIOZ_11 GPIO_ACTIVE_HIGH
+				&gpio GPIOZ_7 GPIO_ACTIVE_HIGH>;
+		ircut-chip = <1>;
+		ir-led-gpio = <&gpio_ao GPIOAO_10 GPIO_ACTIVE_HIGH>;
+		ir-led-chip = <0>;
+		ldr-gpio = <&gpio_ao GPIOAO_7 GPIO_ACTIVE_LOW>;
+		ldr-chip = <0>;
+		ircut-sequence = "init: 1=1,w=200,1=0,w=1000,0=1,w=200,0=0,w=1000",
+				"enable: 1=1,w=200,1=0,w=1000,0=0",
+				"disable: 0=1,w=200,0=0,w=1000,1=0";
+		ir-led-sequence = "init: 0=0",
+				"enable: 0=1",
+				"disable: 0=0";
 	};
 }; /* end of / */
 
@@ -834,6 +771,10 @@
 
 &isp {
 	status = "okay";
+	temper-line-offset = <0x1680>;
+	temper-buf-size = <12>;
+	temper-frame-num = <1>;
+	temper-frame-size = <0xBDD800>;
 	memory-region = <&isp_cma_reserved>;
 };
 

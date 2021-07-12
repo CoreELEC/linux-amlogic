@@ -17,7 +17,7 @@
 
 /dts-v1/;
 
-#include "partition_mbox_normal.dtsi"
+#include "partition_mbox_normal_dynamic.dtsi"
 #include "mesong12b_a.dtsi"
 #include "mesong12b_skt-panel.dtsi"
 
@@ -151,33 +151,25 @@
 		galcore_reserved:linux,galcore {
 			compatible = "shared-dma-pool";
 			reusable;
-			size = <0x1000000>;
-			alignment = <0x400000>;
+			size = <0x0 0x1000000>;
+			alignment = <0x0 0x400000>;
 			linux,contiguous-region;
 		};
 		isp_cma_reserved:linux,isp_cma {
 			compatible = "shared-dma-pool";
 			reusable;
 			status = "okay";
-			size = <0x6800000>;
-			alignment = <0x400000>;
+			size = <0x0 0x8000000>;
+			alignment = <0x0 0x400000>;
 		};
 		adapt_cma_reserved:linux,adapt_cma {
 			compatible = "shared-dma-pool";
 			reusable;
 			status = "okay";
-			size = <0x01800000>;
-			alignment = <0x400000>;
+			size = <0x0 0x1800000>;
+			alignment = <0x0 0x400000>;
 		};
 	};
-
-	cma_shrinker {
-		compatible = "amlogic, cma-shrinker";
-		status = "okay";
-		adj  = <0 100 200 250 900 950>;
-		free = <8192 12288 16384 24576 28672 32768>;
-	};
-
 	galcore {
 		status = "okay";
 		memory-region = <&galcore_reserved>;
@@ -466,34 +458,6 @@
 			key-permit = "read","write","del";
 		};
 	};//End unifykey
-
-	efusekey:efusekey{
-		keynum = <4>;
-		key0 = <&key_0>;
-		key1 = <&key_1>;
-		key2 = <&key_2>;
-		key3 = <&key_3>;
-		key_0:key_0{
-			keyname = "mac";
-			offset = <0>;
-			size = <6>;
-		};
-		key_1:key_1{
-			keyname = "mac_bt";
-			offset = <6>;
-			size = <6>;
-		};
-		key_2:key_2{
-			keyname = "mac_wifi";
-			offset = <12>;
-			size = <6>;
-		};
-		key_3:key_3{
-			keyname = "usid";
-			offset = <18>;
-			size = <16>;
-		};
-	};//End efusekey
 
 	amlvecm {
 		compatible = "amlogic, vecm";
@@ -818,11 +782,16 @@
 
 &isp {
 	status = "okay";
+	temper-line-offset = <0x1E00>;
+	temper-buf-size = <32>;
+	temper-frame-num = <1>;
+	temper-frame-size = <0x1FA4000>;
 	memory-region = <&isp_cma_reserved>;
 };
 
 &adapter {
 	status = "okay";
+	mem_alloc = <24>;
 	memory-region = <&adapt_cma_reserved>;
 };
 
@@ -1018,7 +987,7 @@
 		interrupt-names = "irq_spdifin";
 		pinctrl-names = "spdif_pins",
 				"spdif_pins_mute";
-		pinctrl-0 = <&spdifout &spdifin>;
+		pinctrl-0 = <&spdifout>;
 		pinctrl-1 = <&spdifout_a_mute>;
 		status = "okay";
 	};

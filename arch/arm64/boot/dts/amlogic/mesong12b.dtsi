@@ -1,5 +1,5 @@
 /*
- * arch/arm64/boot/dts/amlogic/mesong12b.dtsi
+ * arch/arm64/boot/dts/amlogic/mesong12a.dtsi
  *
  * Copyright (C) 2017 Amlogic, Inc. All rights reserved.
  *
@@ -28,6 +28,7 @@
 #include <dt-bindings/phy/phy-amlogic-pcie.h>
 #include "mesong12a-bifrost.dtsi"
 #include "g12b-sched-energy.dtsi"
+#include <dt-bindings/thermal/thermal.h>
 
 / {
 	cpus:cpus {
@@ -339,6 +340,12 @@
 		compatible = "aml, reboot";
 		sys_reset = <0x84000009>;
 		sys_poweroff = <0x84000008>;
+	};
+
+	videosync {
+		compatible = "amlogic, videosync";
+		dev_name = "videosync";
+		status = "okay";
 	};
 
 	vpu {
@@ -1215,7 +1222,7 @@
 	};
 
 	aocec: aocec {
-		compatible = "amlogic, aocec-g12a";
+		compatible = "amlogic, aocec-g12b";
 		device_name = "aocec";
 		status = "okay";
 		vendor_name = "Amlogic"; /* Max Chars: 8     */
@@ -1227,7 +1234,7 @@
 		cec_osd_string = "AML_MBOX"; /* Max Chars: 14    */
 		port_num = <1>;
 		output = <1>;
-		ee_cec;
+		/*ee_cec;*/
 		arc_port_mask = <0x2>;
 		interrupts = <0 203 1
 					0 199 1>;	/*0:snps 1:ts*/
@@ -1355,7 +1362,15 @@
 		interrupts = <0 3 1>;
 		interrupt-names = "vsync";
 	};
-
+	video_composer {
+		compatible = "amlogic, video_composer";
+		dev_name = "video_composer";
+		status = "okay";
+	};
+	meson_uvm{
+		compatible = "amlogic, meson_uvm";
+		status = "okay";
+	};
 	codec_io: codec_io {
 		compatible = "amlogic, codec_io";
 		status = "okay";
@@ -1440,6 +1455,12 @@
 			"mailbox_2";
 	};
 
+	vcodec_dec {
+		compatible = "amlogic, vcodec-dec";
+		dev_name = "aml-vcodec-dec";
+		status = "okay";
+	};
+
 	amvenc_avc{
 		compatible = "amlogic, amvenc_avc";
 		dev_name = "amvenc_avc";
@@ -1461,6 +1482,24 @@
 		io_reg_base{
 			reg = <0x0 0xff610000 0x0 0x4000>;
 		};
+	};
+
+	jpegenc{
+		compatible = "amlogic, jpegenc";
+		//memory-region = <&jpegenc_cma_reserved>;
+		dev_name = "jpegenc";
+		status = "okay";
+		//power-domains = <&pwrdm PDID_HCODEC>;
+		//clocks = <&clkc CLKID_SYS_DOS
+		//	&clkc CLKID_DOS_APB
+		//	&clkc CLKID_JPEG_GATE>;
+		//clock-names = "clk_dos",
+		//	"clk_apb_dos",
+		//	"clk_jpeg_enc";
+		//interrupts = <GIC_SPI 88 IRQ_TYPE_EDGE_RISING>;
+		//interrupt-names = "mailbox_0";
+		interrupts = <0 45 1>;
+		interrupt-names = "mailbox_2";
 	};
 
 	rdma{
@@ -1519,6 +1558,9 @@
 			ocr_avail = <0x200080>; /**VDD voltage 3.3 ~ 3.4 */
 			/*caps defined in dts*/
 			tx_delay = <0>;
+			save_para = <0>;
+			compute_cmd_delay = <0>;
+			compute_coef = <0>;
 			max_req_size = <0x20000>; /**128KB*/
 			gpio_dat3 = <&gpio BOOT_3 GPIO_ACTIVE_HIGH>;
 			hw_reset = <&gpio BOOT_9 GPIO_ACTIVE_HIGH>;
@@ -1573,7 +1615,7 @@
 			ocr_avail = <0x200080>; /**VDD voltage 3.3 ~ 3.4 */
 			max_req_size = <0x20000>; /**128KB*/
 			gpio_dat3 = <&gpio GPIOC_3 GPIO_ACTIVE_HIGH>;
-			jtag_pin = <&gpio GPIOC_0 GPIO_ACTIVE_HIGH>;
+			jtag_pin = <&gpio GPIOC_1 GPIO_ACTIVE_HIGH>;
 			gpio_cd = <&gpio GPIOC_6 GPIO_ACTIVE_HIGH>;
 			card_type = <5>;
 			/* 3:sdio device(ie:sdio-wifi),
@@ -1655,7 +1697,6 @@
 					min_state = <1000000>;
 					dyn_coeff = <120>;
 					cluster_id = <0>;
-					gpu_pp = <2>;
 					node_name = "cpufreq_cool0";
 					device_type = "cpufreq";
 				};
@@ -1663,30 +1704,23 @@
 					min_state = <1000000>;
 					dyn_coeff = <460>;
 					cluster_id = <1>;
-					gpu_pp = <2>;
 					node_name = "cpufreq_cool1";
 					device_type = "cpufreq";
 				};
 				cpucore_cool_cluster {
 					min_state = <1>;
-					dyn_coeff = <0>;
-					gpu_pp = <2>;
 					node_name = "cpucore_cool";
 					device_type = "cpucore";
 				};
 				gpufreq_cool {
 					min_state = <400>;
 					dyn_coeff = <358>;
-					cluster_id = <0>;
 					gpu_pp = <2>;
 					node_name = "gpufreq_cool0";
 					device_type = "gpufreq";
 				};
 				gpucore_cool {
 					min_state = <1>;
-					dyn_coeff = <0>;
-					cluster_id = <0>;
-					gpu_pp = <2>;
 					node_name = "gpucore_cool0";
 					device_type = "gpucore";
 				};
@@ -1741,27 +1775,32 @@
 			cooling-maps {
 				cpufreq_cooling_map0 {
 					trip = <&pcontrol>;
-					cooling-device = <&cpufreq_cool0 0 10>;
+					cooling-device = <&cpufreq_cool0 0
+							  THERMAL_NO_LIMIT>;
 					contribution = <1024>;
 				};
 				cpufreq_cooling_map1 {
 					trip = <&pcontrol>;
-					cooling-device = <&cpufreq_cool1 0 9>;
+					cooling-device = <&cpufreq_cool1 0
+							  THERMAL_NO_LIMIT>;
 					contribution = <1024>;
 				};
 				cpucore_cooling_map0 {
 					trip = <&pcontrol>;
-					cooling-device = <&cpucore_cool 0 5>;
+					cooling-device = <&cpucore_cool 0
+							  THERMAL_NO_LIMIT>;
 					contribution = <1024>;
 				};
 				gpufreq_cooling_map {
 					trip = <&pcontrol>;
-					cooling-device = <&gpufreq_cool0 0 4>;
+					cooling-device = <&gpufreq_cool0 0
+							  THERMAL_NO_LIMIT>;
 					contribution = <1024>;
 				};
 				gpucore_cooling_map {
 					trip = <&pcontrol>;
-					cooling-device = <&gpucore_cool0 0 2>;
+					cooling-device = <&gpucore_cool0 0
+							  THERMAL_NO_LIMIT>;
 					contribution = <1024>;
 				};
 			};
@@ -2010,6 +2049,45 @@
 		reg = <0x0 0xff630218 0x0 0x4>; /*RNG_USR_DATA*/
 		mem_size = <0x0 0x100000>;
 		status = "okay";
+	};
+
+	efuse: efuse{
+		compatible = "amlogic, efuse";
+		read_cmd = <0x82000030>;
+		write_cmd = <0x82000031>;
+		get_max_cmd = <0x82000033>;
+		key = <&efusekey>;
+		clocks = <&clkc CLKID_EFUSE>;
+		clock-names = "efuse_clk";
+		status = "disabled";
+	};
+
+	efusekey:efusekey{
+		keynum = <4>;
+		key0 = <&key_0>;
+		key1 = <&key_1>;
+		key2 = <&key_2>;
+		key3 = <&key_3>;
+		key_0:key_0{
+			keyname = "mac";
+			offset = <0>;
+			size = <6>;
+		};
+		key_1:key_1{
+			keyname = "mac_bt";
+			offset = <6>;
+			size = <6>;
+		};
+		key_2:key_2{
+			keyname = "mac_wifi";
+			offset = <12>;
+			size = <6>;
+		};
+		key_3:key_3{
+			keyname = "usid";
+			offset = <18>;
+			size = <16>;
+		};
 	};
 };/* end of / */
 
@@ -2638,7 +2716,6 @@
 			"eth_rxd2_rgmii",
 			"eth_rxd3_rgmii",
 			"eth_rgmii_tx_clk",
-			"eth_txen",
 			"eth_txd0",
 			"eth_txd1",
 			"eth_txd2_rgmii",

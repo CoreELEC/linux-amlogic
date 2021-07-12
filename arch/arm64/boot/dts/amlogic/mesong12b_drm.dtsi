@@ -280,3 +280,35 @@
 		};
 	};
 };
+
+&gpu{
+	def_clk = <1>;
+	tbl =  <&dvfs285_cfg
+		&dvfs400_cfg
+		&dvfs500_cfg
+		&dvfs666_cfg
+		&dvfs800_cfg
+		&dvfs800_cfg>;
+
+	dvfs285_cfg:dvfs285_cfg {
+		 threshold = <30 120>;
+	};
+
+	dvfs400_cfg:dvfs400_cfg {
+		 threshold = <80 120>;
+	};
+
+	dvfs500_cfg:dvfs500_cfg {
+		 threshold = <80 120>;
+	};
+
+	dvfs666_cfg:dvfs666_cfg {
+		 threshold = <80 120>;
+	};
+
+	dvfs800_cfg:dvfs800_cfg {
+		 threshold = <80 255>;
+	};
+
+};
+
