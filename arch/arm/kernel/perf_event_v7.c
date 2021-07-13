@@ -2150,15 +2150,17 @@ static void enable_pmuserenr_single(void *info)
 
 static void enable_pmuserenr_all(void)
 {
-	pr_info("enable_pmuserenr_all() start\n");
+	preempt_disable();
 
+	pr_info("enable_pmuserenr_all() start\n");
 	enable_pmuserenr_single(NULL);
 	smp_call_function_many(cpu_possible_mask,
 				enable_pmuserenr_single,
 				NULL,
 				1);
-
 	pr_info("enable_pmuserenr_all() end\n");
+
+	preempt_enable();
 }
 
 static int pmu_user_callback(struct notifier_block *nfb,
