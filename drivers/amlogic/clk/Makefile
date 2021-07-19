@@ -8,6 +8,7 @@ obj-$(CONFIG_AMLOGIC_CLK) += clk-pll.o
 obj-$(CONFIG_AMLOGIC_CLK) += clk-mux.o clk-dualdiv.o
 obj-$(CONFIG_AMLOGIC_CLK) += clk_measure.o
 obj-$(CONFIG_AMLOGIC_CLK) += clk-meson-register.o
+obj-$(CONFIG_AMLOGIC_CLK) += meson-clk-debug.o
 
 obj-$(CONFIG_AMLOGIC_GX_CLK) += clk-cpu.o clk-mpll.o clk_test.o clk-cpu-fclk-composite.o
 obj-$(CONFIG_AMLOGIC_GX_CLK) += gxl/
