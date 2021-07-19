@@ -53,3 +53,15 @@ make ARCH=arm64 sc2_pxp.dtb || echo "Compile dtb Fail!!"
 make ARCH=arm64 sc2_s905x4_ah212.dtb || echo "Compile dtb Fail!!"
 
 make ARCH=arm64 sc2_s905x4_ah219.dtb || echo "Compile dtb Fail!!"
+
+make ARCH=arm64 tl1_t962x2_t309.dtb
+make ARCH=arm64  tl1_t962x2_x301_1g_drm.dtb
+make ARCH=arm64 tl1_t962x2_x301_1g.dtb
+make ARCH=arm64 tl1_t962x2_x301_2g_drm.dtb
+make ARCH=arm64 tl1_t962x2_x301_2g.dtb
+make ARCH=arm64 txlx_t962e_r321_buildroot.dtb
+make ARCH=arm64 txlx_t962e_r321.dtb
+make ARCH=arm64 txlx_t962x_r311_1g.dtb
+make ARCH=arm64 txlx_t962x_r311_2g.dtb
+make ARCH=arm64 txlx_t962x_r311_720p.dtb
+make ARCH=arm64 txlx_t962x_r314.dtb
