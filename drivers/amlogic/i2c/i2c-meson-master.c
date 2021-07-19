@@ -26,6 +26,7 @@
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/types.h>
+#include <linux/amlogic/pm.h>
 
 /* Meson I2C register map */
 #define REG_CTRL					0x00
@@ -660,6 +661,30 @@ static int meson_i2c_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static int __maybe_unused meson_i2c_resume(struct device *dev)
+{
+	if (is_pm_freeze_mode())
+		return 0;
+
+	pinctrl_pm_select_default_state(dev);
+
+	return 0;
+}
+
+static int __maybe_unused meson_i2c_suspend(struct device *dev)
+{
+	if (is_pm_freeze_mode())
+		return 0;
+
+	pinctrl_pm_select_sleep_state(dev);
+
+	return 0;
+}
+
+static const struct dev_pm_ops meson_i2c_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(meson_i2c_suspend, meson_i2c_resume)
+};
+
 static const struct meson_i2c_data i2c_meson6_data = {
 	.div_factor = 4,
 	.delay_ajust = 15,
@@ -720,6 +745,7 @@ static struct platform_driver meson_i2c_driver = {
 	.remove  = meson_i2c_remove,
 	.driver  = {
 		.name  = "meson-i2c",
+		.pm = &meson_i2c_pm_ops,
 		.of_match_table = meson_i2c_match,
 	},
 };
