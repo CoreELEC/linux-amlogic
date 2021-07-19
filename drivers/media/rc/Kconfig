@@ -243,6 +243,16 @@ config IR_MESON
 	   To compile this driver as a module, choose M here: the
 	   module will be called meson-ir.
 
+config IR_MESON_TX
+	tristate "Amlogic Meson IR TX"
+	depends on RC_CORE
+	---help---
+	   Say Y if you want to use the IR transmitter available on
+	   Amlogic Meson SoCs.
+
+	   To compile this driver as a module, choose M here: the
+	   module will be called meson-ir-tx.
+
 config IR_NUVOTON
 	tristate "Nuvoton w836x7hg Consumer Infrared Transceiver"
 	depends on PNP
