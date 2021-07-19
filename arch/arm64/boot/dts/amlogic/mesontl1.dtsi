@@ -285,8 +285,8 @@
 
 	aml_pm {
 		compatible = "amlogic, pm";
-		status = "okay";
-		device_name = "aml_pm";
+		status = "disabled";
+                device_name = "aml_pm";
 		debug_reg = <0xff8000a8>;
 		exit_reg = <0xff80023c>;
 		dmc_asr = <0xff638634>;

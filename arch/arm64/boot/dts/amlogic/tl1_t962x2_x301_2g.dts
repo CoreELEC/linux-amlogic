@@ -1038,7 +1038,7 @@
 
 	bt-dev{
 		compatible = "amlogic, bt-dev";
-		status = "okay";
+		status = "disabled";
 		gpio_reset = <&gpio       GPIOC_13       GPIO_ACTIVE_HIGH>;
 	};
 
