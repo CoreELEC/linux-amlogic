@@ -66,6 +66,8 @@ static struct aml_dvb aml_dvb_device;
 static int dmx_dev_num;
 static int tsn_in;
 static int tsn_out;
+static int print_stc;
+static int print_dmx;
 
 #define MAX_DMX_DEV_NUM      32
 static int sid_info[MAX_DMX_DEV_NUM];
@@ -79,20 +81,47 @@ ssize_t get_pcr_show(struct class *class,
 	struct aml_dvb *dvb = aml_get_dvb_device();
 	int r, total = 0;
 	int i;
-	u64 stc;
+	u64 value;
 	unsigned int base;
+	int ret = 0;
 
 	for (i = 0; i < 4; i++) {
-		stc = 0;
+		value = 0;
 		base = 0;
-		dmx_get_stc(&dvb->dmx[0].dmx, i, &stc, &base);
+		if (print_stc) {
+			ret = dmx_get_stc(&dvb->dmx[print_dmx].dmx, i,
+				&value, &base);
+			if (ret != 0)
+				continue;
+			r = sprintf(buf, "dmx:%d num%d stc:0x%llx base:%d\n",
+				print_dmx, i, value, base);
+		} else {
+			ret = dmx_get_pcr(&dvb->dmx[print_dmx].dmx, i, &value);
+			if (ret != 0)
+				continue;
+			r = sprintf(buf, "dmx:%d num%d pcr:0x%llx\n",
+				print_dmx, i, value);
+		}
 
-		r = sprintf(buf, "num%d stc:0x%llx base:%d\n", i, stc, base);
 		buf += r;
 		total += r;
 	}
 
 	return total;
+}
+
+ssize_t get_pcr_store(struct class *class,
+			 struct class_attribute *attr,
+			 const char *buf, size_t count)
+{
+	if (!strncmp(buf, "dmx", 3))
+		print_dmx = buf[4] - 0x30;
+
+	if (!strncmp(&buf[6], "stc", 3))
+		print_stc = buf[10] - 0x30;
+
+	dprint("dmx=%d stc=%d\n", print_dmx, print_stc);
+	return count;
 }
 
 ssize_t dmx_setting_show(struct class *class, struct class_attribute *attr,
@@ -208,7 +237,7 @@ ssize_t tsn_source_store(struct class *class,
 
 static struct class_attribute aml_dvb_class_attrs[] = {
 	__ATTR(ts_setting, 0664, ts_setting_show, ts_setting_store),
-	__ATTR(get_pcr, 0664, get_pcr_show, NULL),
+	__ATTR(get_pcr, 0664, get_pcr_show, get_pcr_store),
 	__ATTR(dmx_setting, 0664, dmx_setting_show, NULL),
 	__ATTR(dsc_setting, 0664, dsc_setting_show, NULL),
 	__ATTR(tsn_source, 0664, tsn_source_show, tsn_source_store),
