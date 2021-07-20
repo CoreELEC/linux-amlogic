@@ -1411,6 +1411,15 @@
 		interrupts = <0 3 1>;
 		interrupt-names = "vsync";
 	};
+	video_composer {
+		compatible = "amlogic, video_composer";
+		dev_name = "video_composer";
+		status = "okay";
+	};
+	meson_uvm{
+		compatible = "amlogic, meson_uvm";
+		status = "okay";
+	};
 
 	ionvideo {
 		compatible = "amlogic, ionvideo";
