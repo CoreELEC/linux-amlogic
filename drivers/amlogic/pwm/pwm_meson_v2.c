@@ -369,7 +369,8 @@ static const struct meson_pwm_data pwm_v2_data = {
 	.default_extern_clk = 24000000,
 };
 
-static const struct of_device_id meson_pwm_v2_matches[] __initconst = {
+/*defer probe cause crash*/
+static const struct of_device_id meson_pwm_v2_matches[] = {
 	{
 		.compatible = "amlogic,meson-v2-pwm",
 		.data = &pwm_v2_data
