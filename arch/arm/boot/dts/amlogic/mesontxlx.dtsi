@@ -1071,10 +1071,65 @@
 	};
 
 	pwmleds_pins:pwmleds {
-
 		mux {
 			groups = "pwm_ao_a_ao3";
 			function = "pwm_ao_a";
+		};
+	};
+
+	pwm_ao_a_pins2: pwm_ao_a_pins2 {
+		mux {
+			groups = "pwm_ao_a_ao7";
+			function = "pwm_ao_a";
+		};
+	};
+
+	pwm_ao_b_pins1: pwm_ao_b_pins1 {
+		mux {
+			groups = "pwm_ao_b_ao8";
+			function = "pwm_ao_b";
+		};
+	};
+
+	pwm_ao_b_pins2: pwm_ao_b_pins2 {
+		mux {
+			groups = "pwm_ao_b_ao9";
+			function = "pwm_ao_b";
+		};
+	};
+
+	pwm_ao_c_pins1: pwm_ao_c_pins1 {
+		mux {
+			groups = "pwm_ao_c_ao10";
+			function = "pwm_ao_c";
+		};
+	};
+
+	pwm_ao_c_pins2: pwm_ao_c_pins2 {
+		mux {
+			groups = "pwm_ao_c_ao12";
+			function = "pwm_ao_c";
+		};
+	};
+
+	pwm_ao_d_pins1: pwm_ao_d_pins1 {
+		mux {
+			groups = "pwm_ao_d_ao2";
+			function = "pwm_ao_d";
+		};
+	};
+
+	pwm_ao_d_pins2: pwm_ao_d_pins2 {
+		mux {
+			groups = "pwm_ao_d_ao11";
+			function = "pwm_ao_d";
+		};
+	};
+
+	pwm_ao_d_pins3: pwm_ao_d_pins3 {
+		mux {
+			groups = "pwm_ao_d_ao13";
+			function = "pwm_ao_d";
 		};
 	};
 
@@ -1229,6 +1284,83 @@
 				"hdmitx_sck";
 			function = "hdmitx";
 			bias-disable;
+		};
+	};
+
+	pwm_a_pins: pwm_a_pins {
+		mux {
+			groups = "pwm_a";
+			function = "pwm_a";
+		};
+	};
+
+	pwm_b_pins: pwm_b_pins {
+		mux {
+			groups = "pwm_b";
+			function = "pwm_b";
+		};
+	};
+
+	pwm_c_pins1: pwm_c_pins1 {
+		mux {
+			groups = "pwm_c_z";
+			function = "pwm_c";
+		};
+	};
+
+	pwm_c_pins2: pwm_c_pins2 {
+		mux {
+			groups = "pwm_c_h";
+			function = "pwm_c";
+		};
+	};
+
+	pwm_d_pins: pwm_d_pins {
+		mux {
+			groups = "pwm_d_z";
+			function = "pwm_d";
+		};
+	};
+
+	pwm_e_pins1: pwm_e_pins1 {
+		mux {
+			groups = "pwm_e_dv";
+			function = "pwm_e";
+		};
+	};
+
+	pwm_e_pins2: pwm_e_pins2 {
+		mux {
+			groups = "pwm_e_z";
+			function = "pwm_e";
+		};
+	};
+
+	pwm_e_pins3: pwm_e_pins3 {
+		mux {
+			groups = "pwm_e_h";
+			function = "pwm_e";
+		};
+	};
+
+	pwm_e_pins4: pwm_e_pins4 {
+		mux {
+			groups = "pwm_e_y";
+			function = "pwm_e";
+		};
+	};
+
+	pwm_f_pins1: pwm_f_pins1 {
+		mux {
+			groups = "pwm_f_dv";
+			function = "pwm_f";
+		};
+	};
+
+	pwm_f_pins2: pwm_f_pins2 {
+		mux {
+			groups = "pwm_f_h";
+			function = "pwm_f";
 		};
 	};
 
