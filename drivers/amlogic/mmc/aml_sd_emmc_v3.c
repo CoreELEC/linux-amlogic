@@ -571,9 +571,6 @@ irqreturn_t meson_mmc_irq_thread_v3(int irq, void *dev_id)
 	enum aml_mmc_waitfor xfer_step;
 	u32 status, xfer_bytes = 0;
 	u32 delay2 = 0, tmp = 0;
-	u32 vclkc = readl(host->base + SD_EMMC_CLOCK_V3);
-	struct sd_emmc_clock_v3 *clkc = (struct sd_emmc_clock_v3 *)&vclkc;
-	struct para_e *para = &host->data->sdmmc;
 
 	spin_lock_irqsave(&host->mrq_lock, flags);
 	pdata = mmc_priv(host->mmc);
@@ -677,15 +674,6 @@ irqreturn_t meson_mmc_irq_thread_v3(int irq, void *dev_id)
 			delay2 = (delay2 & ~(0x3f << 24)) | (tmp << 24);
 			writel(delay2, host->base + SD_EMMC_DELAY2_V3);
 			pr_err("retune cmd-delay:0x%x\n", delay2);
-		}
-
-		if ((host->mmc->ios.timing == MMC_TIMING_MMC_HS200) &&
-			(pdata->caps2 & MMC_CAP2_HS400)) {
-			clkc->core_phase = para->hs.core_phase;
-			clkc->tx_phase = para->hs.tx_phase;
-			writel(vclkc, host->base + SD_EMMC_CLOCK_V3);
-			pdata->clkc = vclkc;
-			pr_err("retune timing:0x%x\n", vclkc);
 		}
 
 		/* set retry @ 1st error happens! */
@@ -1457,6 +1445,14 @@ static void aml_emmc_hs400_general(struct mmc_host *mmc)
 static void aml_emmc_hs400_tl1(struct mmc_host *mmc)
 {
 	u32 cmd_size = 0;
+	struct amlsd_platform *pdata = mmc_priv(mmc);
+	struct amlsd_host *host = pdata->host;
+	u32 intf3 = readl(host->base + SD_EMMC_INTF3);
+
+	intf3 = readl(host->base + SD_EMMC_INTF3);
+	intf3 |= (1 << 22);
+	writel(intf3, (host->base + SD_EMMC_INTF3));
+	pdata->intf3 = intf3;
 
 	cmd_size = set_emmc_cmd_delay(mmc, 1);
 	tl1_emmc_line_timing(mmc);
@@ -2597,6 +2593,11 @@ int aml_mmc_execute_tuning_v3(struct mmc_host *mmc, u32 opcode)
 		err = _aml_sd_emmc_execute_tuning(mmc, opcode,
 					&tuning_data, adj_win_start);
 	} else {
+		if (host->data->chip_type == MMC_CHIP_SC2) {
+			err = _aml_sd_emmc_execute_tuning(mmc, opcode,
+				&tuning_data, adj_win_start);
+			return 0;
+		}
 		intf3 = readl(host->base + SD_EMMC_INTF3);
 		intf3 |= (1<<22);
 		writel(intf3, (host->base + SD_EMMC_INTF3));
