@@ -911,6 +911,7 @@ RETRY:
 	/*****test start*************/
 	udelay(5);
 	host->is_tunning = 1;
+	host->cmd_retune = 0;
 	if (line_x < 9)
 		aml_sd_emmc_cali_v3(mmc,
 			MMC_READ_MULTIPLE_BLOCK,
@@ -918,6 +919,7 @@ RETRY:
 	else
 		aml_sd_emmc_cmd_v3(mmc);
 	host->is_tunning = 0;
+	host->cmd_retune = 1;
 	udelay(1);
 	eyetest_log = readl(host->base + SD_EMMC_EYETEST_LOG);
 
@@ -1137,7 +1139,7 @@ static void emmc_show_cmd_window(char *str, int repeat_times)
 	pr_info("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<\n");
 }
 
-static u32 emmc_search_cmd_delay(char *str, int repeat_times)
+static u32 emmc_search_cmd_delay(char *str, int repeat_times, u32 *p_size)
 {
 	int best_start = -1, best_size = -1;
 	int cur_start = -1, cur_size = 0;
@@ -1161,12 +1163,15 @@ static u32 emmc_search_cmd_delay(char *str, int repeat_times)
 	}
 
 	cmd_delay =  (best_start + best_size / 2) << 24;
+	if (p_size)
+		*p_size = best_size;
 	pr_info("best_start 0x%x, best_size %d, cmd_delay is 0x%x\n",
 			best_start, best_size, cmd_delay >> 24);
 	return cmd_delay;
 }
 
-static u32 scan_emmc_cmd_win(struct mmc_host *mmc, int send_status)
+static u32 scan_emmc_cmd_win(struct mmc_host *mmc, int send_status,
+			u32 *pcmd_size)
 {
 	struct amlsd_platform *pdata = mmc_priv(mmc);
 	struct amlsd_host *host = pdata->host;
@@ -1178,8 +1183,11 @@ static u32 scan_emmc_cmd_win(struct mmc_host *mmc, int send_status)
 	char str[64] = {0};
 	long long before_time;
 	long long after_time;
-	u32 capacity = 8 * SZ_1M;
+	u32 capacity = 2 * SZ_1M;
 	u32 offset;
+
+	if (pdata->card_capacity)
+		capacity = pdata->card_capacity;
 
 	delay2 &= ~(0xff << 24);
 
@@ -1190,16 +1198,24 @@ static u32 scan_emmc_cmd_win(struct mmc_host *mmc, int send_status)
 		writel(delay2, host->base + SD_EMMC_DELAY2_V3);
 		offset = (u32)(get_random_long() % capacity);
 		for (j = 0; j < repeat_times; j++) {
-			if (send_status)
+			if (send_status) {
 				err = emmc_send_cmd(mmc,
 					   MMC_SEND_STATUS,
 					   1 << 16,
 					   MMC_RSP_R1 | MMC_CMD_AC);
-			else
+			} else {
 				err = single_read_cmd_for_scan(mmc,
 					 MMC_READ_SINGLE_BLOCK,
 					 host->blk_test, 512, 1,
 					 offset);
+				emmc_send_cmd(mmc,
+					   MMC_STOP_TRANSMISSION,
+					   0, MMC_RSP_R1 | MMC_CMD_AC);
+				emmc_send_cmd(mmc,
+					   MMC_SEND_STATUS,
+					   1 << 16,
+					   MMC_RSP_R1 | MMC_CMD_AC);
+			}
 			if (!err)
 				str[i]++;
 			else
@@ -1216,22 +1232,25 @@ static u32 scan_emmc_cmd_win(struct mmc_host *mmc, int send_status)
 	pr_info("scan time distance: %llu ns\n", after_time - before_time);
 
 	writel(delay2_bak, host->base + SD_EMMC_DELAY2_V3);
-	cmd_delay = emmc_search_cmd_delay(str, repeat_times);
+	cmd_delay = emmc_search_cmd_delay(str, repeat_times, pcmd_size);
+	if (!send_status)
+		emmc_show_cmd_window(str, repeat_times);
 
 	return cmd_delay;
 }
 
-static void set_emmc_cmd_delay(struct mmc_host *mmc, int send_status)
+static u32 set_emmc_cmd_delay(struct mmc_host *mmc, int send_status)
 {
 	struct amlsd_platform *pdata = mmc_priv(mmc);
 	struct amlsd_host *host = pdata->host;
 	u32 delay2 = readl(host->base + SD_EMMC_DELAY2_V3);
-	u32 cmd_delay = 0;
+	u32 cmd_delay = 0, cmd_size = 0;
 
 	delay2 &= ~(0xff << 24);
-	cmd_delay = scan_emmc_cmd_win(mmc, send_status);
+	cmd_delay = scan_emmc_cmd_win(mmc, send_status, &cmd_size);
 	delay2 |= cmd_delay;
 	writel(delay2, host->base + SD_EMMC_DELAY2_V3);
+	return cmd_size;
 }
 
 static unsigned int get_emmc_cmd_win(struct mmc_host *mmc)
@@ -1437,10 +1456,13 @@ static void aml_emmc_hs400_general(struct mmc_host *mmc)
 
 static void aml_emmc_hs400_tl1(struct mmc_host *mmc)
 {
-	set_emmc_cmd_delay(mmc, 1);
+	u32 cmd_size = 0;
+
+	cmd_size = set_emmc_cmd_delay(mmc, 1);
 	tl1_emmc_line_timing(mmc);
 	emmc_ds_manual_sht(mmc);
-	set_emmc_cmd_delay(mmc, 0);
+	if (cmd_size >= EMMC_CMD_WIN_MAX_SIZE)
+		set_emmc_cmd_delay(mmc, 0);
 }
 
 static int emmc_data_alignment(struct mmc_host *mmc, int best_size)
@@ -2793,7 +2815,7 @@ ssize_t emmc_scan_cmd_win(struct device *dev,
 	struct mmc_host *mmc = host->mmc;
 
 	mmc_claim_host(mmc);
-	scan_emmc_cmd_win(mmc, 0);
+	scan_emmc_cmd_win(mmc, 0, NULL);
 	mmc_release_host(mmc);
 	return sprintf(buf, "%s\n", "Emmc scan command window.\n");
 }
@@ -2832,7 +2854,7 @@ static void scan_emmc_tx_win(struct mmc_host *mmc)
 	host->cmd_retune = 1;
 
 	writel(clk_bak, host->base + SD_EMMC_CLOCK_V3);
-	emmc_search_cmd_delay(str, repeat_times);
+	emmc_search_cmd_delay(str, repeat_times, NULL);
 	pr_info(">>>>>>>>>>>>>>>>>>>>this is tx window>>>>>>>>>>>>>>>>>>>>>>\n");
 	emmc_show_cmd_window(str, repeat_times);
 }

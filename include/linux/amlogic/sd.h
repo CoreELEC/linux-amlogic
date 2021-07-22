@@ -29,6 +29,8 @@
 
 #define EMMC_ERASE_TIMEOUT	(40 * HZ)
 
+#define EMMC_CMD_WIN_MAX_SIZE 50
+
 #define AML_FIXED_ADJ_MIN	5
 #define AML_FIXED_ADJ_MAX	6
 #define AML_FIXED_ADJ_STEP	4
