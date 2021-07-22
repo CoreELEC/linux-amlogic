@@ -159,6 +159,16 @@
 		method = "smc";
 	};
 
+	video_composer {
+		compatible = "amlogic, video_composer";
+		dev_name = "video_composer";
+		status = "okay";
+	};
+	meson_uvm{
+		compatible = "amlogic, meson_uvm";
+		status = "okay";
+	};
+
 	aml_pm {
 		compatible = "amlogic, pm";
 		status = "okay";
