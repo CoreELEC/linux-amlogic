@@ -1172,8 +1172,10 @@ int amvecm_on_vs(
 		/* to test if output will change */
 		return amvecm_matrix_process(
 			toggle_vf, vf, flags, vd_path);
-	} else if (vd_path == VD1_PATH)
+	} else if (vd_path == VD1_PATH) {
 		send_hdr10_plus_pkt(vd_path);
+		send_cuva_pkt(vd_path);
+	}
 	if ((toggle_vf != NULL) || (vf != NULL)) {
 		/* matrix adjust */
 		result = amvecm_matrix_process(

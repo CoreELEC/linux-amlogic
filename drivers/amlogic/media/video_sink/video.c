@@ -4315,6 +4315,7 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 		dolby_vision_check_hdr10(vf);
 		dolby_vision_check_hdr10plus(vf);
 		dolby_vision_check_hlg(vf);
+		dolby_vision_check_cuva(vf);
 	}
 
 	if (cur_vd1_path_id != vd1_path_id) {
@@ -5025,6 +5026,7 @@ SET_FILTER:
 		dolby_vision_check_hdr10(vf);
 		dolby_vision_check_hdr10plus(vf);
 		dolby_vision_check_hlg(vf);
+		dolby_vision_check_cuva(vf);
 	}
 #endif
 	while (vf && !video_suspend) {

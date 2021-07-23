@@ -101,6 +101,7 @@ struct hdr10_plus_info {
 };
 
 struct cuva_info {
+	u32 cuva_support;
 	u8 rawdata[15];
 	u8 length;
 	u32 ieeeoui;
@@ -376,6 +377,7 @@ struct vinfo_s {
 	enum viu_mux_e viu_mux;
 	struct master_display_info_s master_display_info;
 	struct hdr_info hdr_info;
+	struct cuva_info cuva_info;
 	struct rx_av_latency rx_latency;
 	struct vout_device_s *vout_device;
 };

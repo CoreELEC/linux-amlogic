@@ -526,6 +526,7 @@ static void hdrinfo_to_vinfo(struct vinfo_s *info, struct hdmitx_dev *hdev)
 			| (hdev->rxcap.hdr_sup_eotf_smpte_st_2084 << 2)
 			| (hdev->rxcap.hdr_sup_eotf_hlg << 3);
 	memcpy(info->hdr_info.rawdata, hdev->rxcap.hdr_rawdata, 7);
+
 	/*dynamic hdr*/
 	for (i = 0; i < 4; i++) {
 		if (hdev->rxcap.hdr_dynamic_info[i].type == 0) {
@@ -547,6 +548,7 @@ static void hdrinfo_to_vinfo(struct vinfo_s *info, struct hdmitx_dev *hdev)
 	/*hdr 10+*/
 	memcpy(&info->hdr_info.hdr10plus_info,
 	       &hdev->rxcap.hdr10plus_info, sizeof(struct hdr10_plus_info));
+
 	/* cuva info */
 	memcpy(&info->hdr_info.cuva_info, &hdev->rxcap.cuva_info,
 	       sizeof(struct cuva_info));
@@ -558,6 +560,14 @@ static void hdrinfo_to_vinfo(struct vinfo_s *info, struct hdmitx_dev *hdev)
 	info->hdr_info.lumi_min = hdev->rxcap.hdr_lum_min;
 	pr_info(SYS "update rx hdr info %x\n",
 		info->hdr_info.hdr_support);
+}
+
+static void cuvainfo_to_vinfo(struct vinfo_s *info, struct hdmitx_dev *hdev)
+{
+	memcpy(&info->cuva_info, &hdev->rxcap.cuva_info,
+				sizeof(struct cuva_info));
+
+	//info->cuva_info = hdev->rxcap.cuva_info;
 }
 
 static void rxlatency_to_vinfo(struct vinfo_s *info, struct rx_cap *rx)
@@ -585,6 +595,7 @@ static void edidinfo_attach_to_vinfo(struct hdmitx_dev *hdev)
 		return;
 
 	hdrinfo_to_vinfo(info, hdev);
+	cuvainfo_to_vinfo(info, hdev);
 	if (hdev->para->cd == COLORDEPTH_24B)
 		memset(&info->hdr_info, 0, sizeof(struct hdr_info));
 	rxlatency_to_vinfo(info, &hdev->rxcap);
@@ -2163,6 +2174,8 @@ static void hdmitx_set_cuva_hdr_vs_emds(struct cuva_hdr_vs_emds_para *data)
 	unsigned long phys_ptr;
 
 	memset(vs_emds, 0, sizeof(vs_emds));
+	//hdmi_debug();
+
 	spin_lock_irqsave(&hdev->edid_spinlock, flags);
 	if (!data) {
 		hdev->hwop.cntlconfig(hdev, CONF_EMP_NUMBER, 0);
@@ -2262,7 +2275,10 @@ static void hdmitx_set_cuva_hdr_vs_emds(struct cuva_hdr_vs_emds_para *data)
 	memcpy(virt_ptr_align32bit, vs_emds, sizeof(vs_emds));
 	phys_ptr = virt_to_phys(virt_ptr_align32bit);
 
-	pr_info("emp_pkt phys_ptr: %lx\n", phys_ptr);
+	if (!data)
+		pr_info("emp_pkt data is null: %lx\n", phys_ptr);
+	else
+		pr_info("emp_pkt phys_ptr: %lx\n", phys_ptr);
 
 	hdev->hwop.cntlconfig(hdev, CONF_EMP_NUMBER,
 			      sizeof(vs_emds) / (sizeof(struct hdmi_packet_t)));

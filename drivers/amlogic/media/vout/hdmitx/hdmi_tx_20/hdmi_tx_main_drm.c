@@ -791,6 +791,15 @@ static void hdrinfo_to_vinfo(struct vinfo_s *info, struct hdmitx_dev *hdev)
 		info->hdr_info.hdr_support);
 }
 
+static void cuvainfo_to_vinfo(struct vinfo_s *info, struct hdmitx_dev *hdev)
+{
+	memcpy(&info->cuva_info, &hdev->rxcap.cuva_info,
+				sizeof(struct cuva_info));
+
+	//info->cuva_info = hdev->rxcap.cuva_info;
+
+}
+
 static void rxlatency_to_vinfo(struct vinfo_s *info, struct rx_cap *rx)
 {
 	if (!info || !rx)
@@ -816,6 +825,7 @@ static void edidinfo_attach_to_vinfo(struct hdmitx_dev *hdev)
 		return;
 
 	hdrinfo_to_vinfo(info, hdev);
+	cuvainfo_to_vinfo(info, hdev);
 	rxlatency_to_vinfo(info, &hdev->rxcap);
 	hdmitx_vdev.dv_info = &hdmitx_device.rxcap.dv_info;
 }

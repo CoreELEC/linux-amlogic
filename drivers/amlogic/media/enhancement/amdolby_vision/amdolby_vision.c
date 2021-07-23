@@ -4889,6 +4889,9 @@ static enum signal_format_e get_cur_src_format(void)
 	case 7: /* MVC */
 		ret = FORMAT_MVC;
 		break;
+	case 8: /* CUVA */
+		ret = FORMAT_CUVA;
+		break;
 	default:
 		break;
 	}
@@ -5048,6 +5051,20 @@ static int dolby_vision_policy_process(
 		}
 		return mode_change;
 	}
+	if (src_format == FORMAT_CUVA) {
+		if (dolby_vision_mode !=
+			DOLBY_VISION_OUTPUT_MODE_BYPASS) {
+			if (debug_dolby & 2)
+				pr_dolby_dbg(
+					"cuva, dovi output -> DOLBY_VISION_OUTPUT_MODE_BYPASS\n");
+			*mode = DOLBY_VISION_OUTPUT_MODE_BYPASS;
+			mode_change = 1;
+		} else {
+			mode_change = 0;
+		}
+		return mode_change;
+	}
+
 	if (dolby_vision_policy == DOLBY_VISION_FOLLOW_SINK) {
 		/* bypass dv_mode with efuse */
 		if ((efuse_mode == 1) && !dolby_vision_efuse_bypass)  {
@@ -5391,6 +5408,13 @@ static bool vf_is_hdr10_plus(struct vframe_s *vf)
 	return false;
 }
 
+static bool is_cuva_frame(struct vframe_s *vf)
+{
+	if ((vf->signal_type >> 31) & 1)
+		return true;
+	return false;
+}
+
 static bool is_hdr10plus_frame(struct vframe_s *vf)
 {
 	const struct vinfo_s *vinfo = get_current_vinfo();
@@ -5510,6 +5534,27 @@ int dolby_vision_check_hdr10plus(struct vframe_s *vf)
 	return 0;
 }
 EXPORT_SYMBOL(dolby_vision_check_hdr10plus);
+
+int dolby_vision_check_cuva(struct vframe_s *vf)
+{
+	int mode;
+
+	if (is_cuva_frame(vf) && !dolby_vision_on) {
+		/* dovi source, but dovi not enabled */
+		mode = dolby_vision_mode;
+		if (dolby_vision_policy_process(
+			&mode, FORMAT_CUVA)) {
+			if ((mode != DOLBY_VISION_OUTPUT_MODE_BYPASS)
+				&& (dolby_vision_mode ==
+				DOLBY_VISION_OUTPUT_MODE_BYPASS))
+				dolby_vision_wait_on = true;
+			dolby_vision_target_mode = mode;
+			return 1;
+		}
+	}
+	return 0;
+}
+EXPORT_SYMBOL(dolby_vision_check_cuva);
 
 int dolby_vision_check_hdr10(struct vframe_s *vf)
 {
@@ -6851,8 +6896,10 @@ static bool send_hdmi_pkt(
 			if (vinfo && vinfo->vout_device &&
 				vinfo->vout_device->fresh_tx_vsif_pkt) {
 				if (vf && (is_hlg_frame(vf) ||
-					is_hdr10plus_frame(vf))) {
-					/* HLG/HDR10+ case: first switch to SDR
+					is_hdr10plus_frame(vf) ||
+					is_cuva_frame(vf))) {
+					/* HLG/HDR10+/cuva case: first
+					 * switch to SDR
 					 * immediately.
 					 */
 					pr_dolby_dbg("send_hdmi_pkt: HDR10+/HLG: signal SDR first\n");
@@ -7320,6 +7367,11 @@ int dolby_vision_parse_metadata(
 			src_format = FORMAT_MVC;
 		}
 
+		if ((src_format != FORMAT_CUVA)
+			&& is_cuva_frame(vf)) {
+			src_format = FORMAT_CUVA;
+		}
+
 #ifdef V2_4
 		/* TODO: need 962e ? */
 		if ((src_format == FORMAT_SDR)
@@ -7337,7 +7389,8 @@ int dolby_vision_parse_metadata(
 			(src_format == FORMAT_DOVI ? "DOVI" :
 			(src_format == FORMAT_HLG ? "HLG" :
 			(src_format == FORMAT_HDR10PLUS ? "HDR10+" :
-			(req.dv_enhance_exist ? "DOVI (el meta)" : "SDR")))),
+			(src_format == FORMAT_CUVA ? "CUVA" :
+			(req.dv_enhance_exist ? "DOVI (el meta)" : "SDR"))))),
 			req.aux_size, req.dv_enhance_exist);
 		if ((src_format != FORMAT_DOVI)
 			&& !req.dv_enhance_exist)
@@ -8190,6 +8243,8 @@ int dolby_vision_wait_metadata(struct vframe_s *vf)
 			check_format = FORMAT_HDR10PLUS;
 		else if (is_mvc_frame(vf))
 			check_format = FORMAT_MVC;
+		else if (is_cuva_frame(vf))
+			check_format = FORMAT_CUVA;
 		else
 			check_format = FORMAT_SDR;
 
@@ -8316,6 +8371,8 @@ int dolby_vision_update_src_format(struct vframe_s *vf, u8 toggle_mode)
 		check_format = FORMAT_HDR10PLUS;
 	else if (is_mvc_frame(vf))
 		check_format = FORMAT_MVC;
+	else if (is_cuva_frame(vf))
+		check_format = FORMAT_CUVA;
 	else
 		check_format = FORMAT_SDR;
 	if (vf)
@@ -8646,6 +8703,12 @@ int dolby_vision_process(
 					/* disable dolby immediately */
 					pr_dolby_dbg("Dolby bypass: HLG: Switched to SDR first\n");
 					send_hdmi_pkt(FORMAT_HLG,
+						      FORMAT_SDR, vinfo, vf);
+					enable_dolby_vision(0);
+				} else if (vf && is_cuva_frame(vf)) {
+					/* disable dolby immediately */
+					pr_dolby_dbg("Dolby bypass: cuva: Switched to SDR first\n");
+					send_hdmi_pkt(FORMAT_CUVA,
 						      FORMAT_SDR, vinfo, vf);
 					enable_dolby_vision(0);
 				} else if (last_dst_format != FORMAT_DOVI) {

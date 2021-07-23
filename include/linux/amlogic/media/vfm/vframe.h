@@ -448,6 +448,7 @@ struct vframe_s {
 	u32 ratio_control;
 	u32 bitdepth;
 	/*
+	 * bit 31: is_cuva
 	 * bit 30: is_dv
 	 * bit 29: present_flag
 	 * bit 28-26: video_format
