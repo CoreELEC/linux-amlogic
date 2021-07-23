@@ -235,3 +235,7 @@ void get_hist(
 #define NUM_HDR_HIST 16
 extern u32 hdr_hist[NUM_HDR_HIST][128];
 extern u32 percentile[9];
+struct aml_gain_reg *get_cuva_gain(void);
+int cuva_hdr_update(
+	enum hdr_module_sel module_sel,
+	enum hdr_process_sel hdr_process_select);

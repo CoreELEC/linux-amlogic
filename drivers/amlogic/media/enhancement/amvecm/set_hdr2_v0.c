@@ -28,6 +28,8 @@
 #include "arch/vpp_regs.h"
 #include "arch/vpp_dolbyvision_regs.h"
 #include "hdr/gamut_convert.h"
+#include "hdr/am_cuva_hdr_tm.h"
+#include <linux/amlogic/media/amvecm/cuva_alg.h>
 
 // sdr to hdr table  12bit
 int cgain_lut0[65] = {
@@ -1508,7 +1510,8 @@ void set_hdr_matrix(
 				hdr_mtx_param->mtx_gamut[i];
 		if ((hdr_mtx_param->p_sel & HDR_SDR) ||
 		    (hdr_mtx_param->p_sel & HDR10P_SDR) ||
-		    (hdr_mtx_param->p_sel & HLG_SDR)) {
+		    (hdr_mtx_param->p_sel & HLG_SDR) ||
+		    (hdr_mtx_param->p_sel & CUVA_SDR)) {
 			if (hdr_mtx_param->gmt_bit_mode) {
 				gmut_shift = 8;
 				/*gamut shift bit for used for enable oo 33bit*/
@@ -1566,11 +1569,11 @@ void set_hdr_matrix(
 
 		/*shift0 is for x coordinate*/
 		/*shift1 is for scale multiple*/
-		if (hdr_mtx_param->p_sel & HDR_SDR) {
+		if (hdr_mtx_param->p_sel & (HDR_SDR | CUVA_SDR)) {
 			if (hdr_mtx_param->gmt_bit_mode) {
 				adpscl_shift[0] = adp_scal_x_shift;
 				adpscl_shift[1] = OO_NOR -
-				_log2((1 << OO_NOR) / oo_y_lut_hdr_sdr[148]);
+				_log2((1 << OO_NOR) / 64);
 			} else {
 			/*because input 1/2, shift0/shift1 need change*/
 				adpscl_shift[0] = adp_scal_x_shift - 1;
@@ -3233,6 +3236,49 @@ enum hdr_process_sel hdr10p_func(
 	hdr_hist_config(module_sel, &hdr_lut_param);
 
 	return hdr_process_select;
+}
+
+int cuva_hdr_update(
+	enum hdr_module_sel module_sel,
+	enum hdr_process_sel hdr_process_select)
+{
+	int bit_depth;
+	unsigned int i = 0;
+	struct aml_gain_reg *cuva_gain;
+
+	cuva_gain = get_gain_lut();
+	memset(&hdr_lut_param, 0, sizeof(struct hdr_proc_lut_param_s));
+
+	if (module_sel == VD1_HDR ||
+	    module_sel == VD2_HDR ||
+	    module_sel == OSD1_HDR)
+		bit_depth = 12;
+	else if (
+		module_sel == VDIN0_HDR ||
+	    module_sel == VDIN1_HDR ||
+	    module_sel == DI_HDR)
+		bit_depth = 10;
+	else
+		return 0;
+
+	if (is_meson_tl1_cpu())
+		bit_depth = 10;
+
+	if (hdr_process_select & HDR_SDR) {
+		for (i = 0; i < HDR2_OOTF_LUT_SIZE; i++)
+			hdr_lut_param.ogain_lut[i] = cuva_gain->ogain_lut[i];
+		for (i = 0; i < HDR2_CGAIN_LUT_SIZE; i++)
+			hdr_lut_param.cgain_lut[i] = cuva_gain->cgain_lut[i];
+		hdr_lut_param.lut_on = LUT_ON;
+		hdr_lut_param.cgain_en = LUT_ON;
+	} else {
+		return 0;
+	}
+
+	set_ootf_lut(module_sel, &hdr_lut_param);
+	set_c_gain(module_sel, &hdr_lut_param);
+
+	return 0;
 }
 
 /*G12A matrix setting*/

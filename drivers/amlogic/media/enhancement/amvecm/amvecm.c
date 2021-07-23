@@ -69,6 +69,7 @@
 #include "local_contrast.h"
 #include "arch/vpp_hdr_regs.h"
 #include "set_hdr2_v0.h"
+#include "hdr/am_cuva_hdr_tm.h"
 
 #define pr_amvecm_dbg(fmt, args...)\
 	do {\
@@ -4095,8 +4096,8 @@ static ssize_t amvecm_hdr_dbg_store(struct class *cla,
 			for (i = 0; i < 65; i++)
 				cgain_lut_bypass[i] = curve_val[i];
 		}
-	} else {
-		pr_info("error cmd\n");
+	} else if (!strcmp(parm[0], "cuva_dbg")) {
+		cuva_hdr_dbg();
 	}
 
 free_buf:

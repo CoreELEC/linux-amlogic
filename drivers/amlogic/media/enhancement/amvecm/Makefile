@@ -21,3 +21,4 @@ am_vecm-objs += amvecm_drm.o
 am_vecm-objs += hdr/am_hdr10_plus_ootf.o
 am_vecm-objs += hdr/gamut_convert.o
 am_vecm-objs += hdr/am_hdr10_tm.o
+am_vecm-objs += hdr/am_cuva_hdr_tm.o

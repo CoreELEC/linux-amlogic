@@ -32,6 +32,7 @@
 #include "../../vin/tvin/tvin_global.h"
 #include "arch/vpp_hdr_regs.h"
 #include "arch/hdr_curve.h"
+#include <linux/amlogic/media/amvecm/cuva_alg.h>
 
 /* use osd rdma reg w/r */
 #include "../../osd/osd_rdma.h"
@@ -46,6 +47,7 @@
 #include "hdr/am_hdr10_plus_ootf.h"
 #include "hdr/gamut_convert.h"
 #include "hdr/am_hdr10_tm.h"
+#include "hdr/am_cuva_hdr_tm.h"
 
 uint debug_csc;
 static int cur_mvc_type[2];
@@ -4225,6 +4227,7 @@ int signal_type_changed(struct vframe_s *vf,
 	return change_flag;
 }
 
+#define signal_cuva ((cur_vd_signal_type >> 31) & 1)
 #define signal_format ((cur_vd_signal_type >> 26) & 7)
 #define signal_range ((cur_vd_signal_type >> 25) & 1)
 #define signal_color_primaries ((cur_vd_signal_type >> 16) & 0xff)
@@ -4248,14 +4251,21 @@ enum vpp_matrix_csc_e get_csc_type(void)
 	} else if ((signal_color_primaries == 9) ||
 			(signal_transfer_characteristic >= 14)) {
 		if (signal_transfer_characteristic == 16) {
+			if (signal_cuva) {
+				csc_type = VPP_MATRIX_BT2020YUV_BT2020RGB_CUVA;
 			/* smpte st-2084 */
-			if (signal_color_primaries != 9)
-				pr_csc(1, "\tWARNING: non-standard HDR!!!\n");
-			csc_type = VPP_MATRIX_BT2020YUV_BT2020RGB;
-		} else if (signal_transfer_characteristic == 14) {
+			} else {
+				if (signal_color_primaries != 9)
+					pr_csc(1, "\tWARNING: non-standard HDR!!!\n");
+				csc_type = VPP_MATRIX_BT2020YUV_BT2020RGB;
+			}
+		} else if ((signal_transfer_characteristic == 14) ||
+				(signal_transfer_characteristic == 18)) {
 			/* bt2020-10 */
-			pr_csc(1, "\tWARNING: bt2020-10 HDR!!!\n");
-			csc_type = VPP_MATRIX_BT2020YUV_BT2020RGB;
+			if (signal_cuva)
+				csc_type = VPP_MATRIX_BT2020YUV_BT2020RGB_CUVA;
+			else
+				csc_type = VPP_MATRIX_BT2020YUV_BT2020RGB;
 		} else if (signal_transfer_characteristic == 15) {
 			/* bt2020-12 */
 			pr_csc(1, "\tWARNING: bt2020-12 HDR!!!\n");
@@ -4263,10 +4273,6 @@ enum vpp_matrix_csc_e get_csc_type(void)
 				csc_type = VPP_MATRIX_YUV709_RGB;
 			else
 				csc_type = VPP_MATRIX_YUV709F_RGB;
-		} else if (signal_transfer_characteristic == 18) {
-			/* bt2020-12 */
-			/* pr_csc(1, "\tHLG!!!\n"); */
-			csc_type = VPP_MATRIX_BT2020YUV_BT2020RGB;
 		} else if (signal_transfer_characteristic == 0x30) {
 			if (signal_color_primaries == 9) {
 				/* pr_csc(1, "\tHDR10+!!!\n"); */
@@ -4314,14 +4320,20 @@ enum hdr_type_e get_hdr_source_type(void)
 
 	if (((signal_transfer_characteristic == 14) ||
 		(signal_transfer_characteristic == 18)) &&
-		(signal_color_primaries == 9))
-		hdr_source_type = HLG_SOURCE;
-	else if ((signal_transfer_characteristic == 0x30)
-		&& (signal_color_primaries == 9))
+		(signal_color_primaries == 9)) {
+		if (signal_cuva)
+			hdr_source_type = CUVA_HLG_SOURCE;
+		else
+			hdr_source_type = HLG_SOURCE;
+	} else if ((signal_transfer_characteristic == 0x30) &&
+		(signal_color_primaries == 9)) {
 		hdr_source_type = HDR10PLUS_SOURCE;
-	else if (signal_transfer_characteristic == 16)
-		hdr_source_type = HDR10_SOURCE;
-	else
+	} else if (signal_transfer_characteristic == 16) {
+		if (signal_cuva)
+			hdr_source_type = CUVA_HDR_SOURCE;
+		else
+			hdr_source_type = HDR10_SOURCE;
+	} else
 		hdr_source_type = SDR_SOURCE;
 
 	hdr_type = hdr_source_type;
@@ -6743,9 +6755,12 @@ static enum hdr_type_e get_source_type(enum vd_path_e vd_path)
 		return HDRTYPE_DOVI;
 	if (((signal_transfer_characteristic == 14) ||
 	     (signal_transfer_characteristic == 18)) &&
-	    (signal_color_primaries == 9))
-		return HDRTYPE_HLG;
-	else if ((signal_transfer_characteristic == 0x30) &&
+	    (signal_color_primaries == 9)) {
+		if (signal_cuva)
+			return HDRTYPE_CUVA_HLG;
+		else
+			return HDRTYPE_HLG;
+	} else if ((signal_transfer_characteristic == 0x30) &&
 		 (signal_color_primaries == 9)) {
 		if (sink_support_hdr10_plus(get_current_vinfo()) &&
 		    (vd_path == VD1_PATH))
@@ -6757,9 +6772,12 @@ static enum hdr_type_e get_source_type(enum vd_path_e vd_path)
 			return HDRTYPE_HDR10PLUS;
 		else
 			return HDRTYPE_HDR10;
-	} else if (signal_transfer_characteristic == 16)
-		return HDRTYPE_HDR10;
-	else
+	} else if (signal_transfer_characteristic == 16) {
+		if (signal_cuva)
+			return HDRTYPE_CUVA_HDR;
+		else
+			return HDRTYPE_HDR10;
+	} else
 		return HDRTYPE_SDR;
 }
 
@@ -6797,12 +6815,18 @@ static bool hdr10_plus_metadata_update(
 	enum vpp_matrix_csc_e csc_type,
 	struct hdr10plus_para *p)
 {
+	struct cuva_hdr_vsif_para vsif_para;
+	struct cuva_hdr_vs_emds_para emds_para;
+
 	if (!vf)
 		return false;
-	if (csc_type != VPP_MATRIX_BT2020YUV_BT2020RGB_DYNAMIC)
+	if (csc_type < VPP_MATRIX_BT2020YUV_BT2020RGB_DYNAMIC)
 		return false;
 
-	hdr10_plus_parser_metadata(vf);
+	parser_dynmic_metadata(vf);
+
+	cuva_hdr_vsif_pkt_update(&vsif_para);
+	cuva_hdr_emds_pkt_update(&emds_para);
 
 	if (tx_hdr10_plus_support) {
 		hdr10_plus_hdmitx_vsif_parser(p, vf);
@@ -6884,6 +6908,20 @@ static void hdr10_tm_process_update(
 		hdr10_tm_update(VD1_HDR, HDR_SDR);
 	else if (vd_path == VD2_PATH)
 		hdr10_tm_update(VD2_HDR, HDR_SDR);
+}
+
+static void cuva_hdr_process_update(enum vd_path_e vd_path)
+{
+	struct aml_cuva_data_s *cuva_data = get_cuva_data();
+
+	if (cuva_data->cuva_hdr_alg) {
+		cuva_data->cuva_hdr_alg(cuva_data);
+
+		if (vd_path == VD1_PATH)
+			cuva_hdr_update(VD1_HDR, HDR_SDR);
+		else if (vd_path == VD2_PATH)
+			cuva_hdr_update(VD2_HDR, HDR_SDR);
+	}
 }
 
 static struct hdr10plus_para hdmitx_hdr10plus_params[VD_PATH_MAX];
@@ -7703,7 +7741,8 @@ static int vpp_matrix_update(
 					   &hdmitx_hdr10plus_params[vd_path]);
 
 		if ((csc_type == VPP_MATRIX_BT2020YUV_BT2020RGB_DYNAMIC) ||
-		    (csc_type == VPP_MATRIX_BT2020YUV_BT2020RGB)) {
+		    (csc_type == VPP_MATRIX_BT2020YUV_BT2020RGB) ||
+		    (csc_type == VPP_MATRIX_BT2020YUV_BT2020RGB_CUVA)) {
 			if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2))
 				get_hist(vd_path, HIST_E_RGBMAX);
 			else if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12A))
@@ -7768,9 +7807,9 @@ static int vpp_matrix_update(
 		    (csc_type == VPP_MATRIX_BT2020YUV_BT2020RGB) &&
 			!(get_hdr_type() & HLG_FLAG))
 			hdr10_tm_process_update(p, vd_path);
-		if (
-			hdr10p_meta_updated &&
-			hdr10_plus_process_mode[vd_path] == PROC_HDRP_TO_SDR)
+		if (hdr10p_meta_updated &&
+			hdr10_plus_process_mode[vd_path] == PROC_HDRP_TO_SDR &&
+			csc_type == VPP_MATRIX_BT2020YUV_BT2020RGB_DYNAMIC)
 			hdr10_plus_process_update(0, vd_path);
 	} else if (get_cpu_type() == MESON_CPU_MAJOR_ID_TL1) {
 		if (
@@ -7778,11 +7817,16 @@ static int vpp_matrix_update(
 		    (csc_type == VPP_MATRIX_BT2020YUV_BT2020RGB) &&
 			!(get_hdr_type() & HLG_FLAG))
 			hdr10_tm_process_update(p, vd_path);
-		if (
-			hdr10p_meta_updated &&
-			hdr10_plus_process_mode[vd_path] == PROC_MATCH)
+		if (hdr10p_meta_updated &&
+			hdr10_plus_process_mode[vd_path] == PROC_MATCH &&
+			csc_type == VPP_MATRIX_BT2020YUV_BT2020RGB_DYNAMIC)
 			hdr10_plus_process_update(0, vd_path);
 	}
+
+	if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12A) &&
+		(csc_type == VPP_MATRIX_BT2020YUV_BT2020RGB_CUVA) &&
+		(cuva_hdr_process_mode[vd_path] == PROC_CUVA_TO_SDR))
+		cuva_hdr_process_update(vd_path);
 
 	/* eye protection mode */
 	if (signal_change_flag & SIG_WB_CHG)
@@ -8327,8 +8371,8 @@ hdr_dump:
 	pr_err("hdr10_plus_process_mode = 0x%x\n", hdr10_plus_process_mode[0]);
 
 	//if (signal_transfer_characteristic == 0x30)
-	if (cur_csc_type[0] == VPP_MATRIX_BT2020YUV_BT2020RGB_DYNAMIC)
-		hdr10_plus_debug();
+	if (cur_csc_type[0] >= VPP_MATRIX_BT2020YUV_BT2020RGB_DYNAMIC)
+		hdr10_plus_debug(cur_csc_type[0]);
 
 	if ((receiver_hdr_info.hdr_support & 0xc) == 0)
 		goto dbg_end;

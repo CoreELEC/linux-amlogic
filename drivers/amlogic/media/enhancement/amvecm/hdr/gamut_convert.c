@@ -328,7 +328,9 @@ int gamut_convert_process(
 			}
 	} else if ((source_type[vd_path] == HDRTYPE_HDR10) ||
 		(source_type[vd_path] == HDRTYPE_HLG) ||
-		(source_type[vd_path] == HDRTYPE_HDR10PLUS)) {
+		(source_type[vd_path] == HDRTYPE_HDR10PLUS) ||
+		(source_type[vd_path] == CUVA_HDR_SOURCE) ||
+		(source_type[vd_path] == CUVA_HLG_SOURCE)) {
 		if (get_primary_policy() == PRIMARIES_AUTO) {
 			for (i = 0; i < 3; i++)
 				for (j = 0; j < 2; j++) {
