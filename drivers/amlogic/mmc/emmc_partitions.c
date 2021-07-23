@@ -1351,6 +1351,7 @@ int add_fake_boot_partition(struct gendisk *disk, char *name, int idx)
 	struct disk_part_iter piter;
 	struct hd_struct *part;
 
+	idx ^= 1;
 	sprintf(fake_name, name, idx);
 	ret = add_emmc_each_part(disk, 1 + idx,
 			offset, boot_size, 0, fake_name);
