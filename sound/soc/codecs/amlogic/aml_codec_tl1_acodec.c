@@ -51,6 +51,7 @@ struct tl1_acodec_chipinfo {
 	bool is_dac_phase_differ_exist;
 	bool is_adc_phase_differ_exist;
 	int mclk_sel;
+	bool separate_toacodec_en;
 };
 
 struct tl1_acodec_priv {
@@ -94,6 +95,21 @@ static struct tl1_acodec_chipinfo tl1_acodec_cinfo = {
 	//if is_adc_phase_differ=true,modified tdmin_in_rev_ws,revert ws(lrclk);
 	//0 :disable; 1: enable;
 	//.mclk_sel = 1,
+	.separate_toacodec_en = false,
+};
+
+static struct tl1_acodec_chipinfo tm2_revb_acodec_cinfo = {
+	.id = 0,
+	.is_bclk_cap_inv = true,	//default  true
+	.is_bclk_o_inv = false,		//default  false
+	.is_lrclk_inv = false,
+
+	.is_dac_phase_differ_exist = false,
+	.is_adc_phase_differ_exist = true,
+	//if is_adc_phase_differ=true,modified tdmin_in_rev_ws,revert ws(lrclk);
+	//0 :disable; 1: enable;
+	//.mclk_sel = 1,
+	.separate_toacodec_en = true,
 };
 
 static int tl1_acodec_reg_init(struct snd_soc_codec *codec)
@@ -732,7 +748,7 @@ static int tl1_acodec_set_toacodec(struct tl1_acodec_priv *aml_acodec)
 	int dat0_sel, dat1_sel, lrclk_sel, bclk_sel, mclk_sel;
 	unsigned int update_bits_msk = 0x0, update_bits = 0x0;
 
-	update_bits_msk = 0x80FF7777;
+	update_bits_msk = 0xFF7777;
 	if (aml_acodec->chipinfo->is_bclk_cap_inv == true)
 		update_bits |= (0x1<<9);
 	if (aml_acodec->chipinfo->is_bclk_o_inv == true)
@@ -751,10 +767,23 @@ static int tl1_acodec_set_toacodec(struct tl1_acodec_priv *aml_acodec)
 	mclk_sel = aml_acodec->tdmin_index;
 
 	update_bits |= dat0_sel|dat1_sel|lrclk_sel|bclk_sel|mclk_sel;
-	update_bits |= 0x1<<31;
 
 	audiobus_update_bits(EE_AUDIO_TOACODEC_CTRL0, update_bits_msk,
 						update_bits);
+
+	/* if toacodec_en is separated, need do:
+	 * step1: enable/disable mclk
+	 * step2: enable/disable bclk
+	 * step3: enable/disable dat
+	 */
+	if (aml_acodec->chipinfo->separate_toacodec_en) {
+		audiobus_update_bits(EE_AUDIO_TOACODEC_CTRL0,
+				     0x20000000, 0x1 << 29);
+		audiobus_update_bits(EE_AUDIO_TOACODEC_CTRL0,
+				     0x40000000, 0x1 << 30);
+	}
+	audiobus_update_bits(EE_AUDIO_TOACODEC_CTRL0, 0x80000000, 0x1 << 31);
+
 	pr_info("%s, is_bclk_cap_inv %s\n", __func__,
 		aml_acodec->chipinfo->is_bclk_cap_inv?"true":"false");
 	pr_info("%s, is_bclk_o_inv %s\n", __func__,
@@ -812,6 +841,9 @@ static int aml_tl1_acodec_probe(struct platform_device *pdev)
 	pr_info("aml_tl1_acodec tdmout_index=%d\n",
 		aml_acodec->tdmout_index);
 
+	of_property_read_u32(pdev->dev.of_node,
+			"dat0_ch_sel", &aml_acodec->dat0_ch_sel);
+
 	of_property_read_u32(
 			pdev->dev.of_node,
 			"dat1_ch_sel",
@@ -863,6 +895,10 @@ static const struct of_device_id aml_tl1_acodec_dt_match[] = {
 	{
 		.compatible = "amlogic, tl1_acodec",
 		.data = &tl1_acodec_cinfo,
+	},
+	{
+		.compatible = "amlogic, tm2_revb_acodec",
+		.data = &tm2_revb_acodec_cinfo,
 	},
 	{},
 };

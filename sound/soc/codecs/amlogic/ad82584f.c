@@ -51,6 +51,22 @@ static void ad82584f_late_resume(struct early_suspend *h);
 static const DECLARE_TLV_DB_SCALE(mvol_tlv, -10300, 50, 1);
 static const DECLARE_TLV_DB_SCALE(chvol_tlv, -10300, 50, 1);
 
+static int ad82584f_reg_init(struct snd_soc_codec *codec);
+static int ad82584f_set_eq_drc(struct snd_soc_codec *codec,
+			       int ram_id, char *ram_ptr);
+static int ad82584f_get_ram_param(struct snd_kcontrol *kcontrol,
+				  unsigned int __user *bytes,
+				  unsigned int size);
+static int ad82584f_set_ram_param(struct snd_kcontrol *kcontrol,
+				  const unsigned int __user *bytes,
+				  unsigned int size);
+static int ad82584f_get_reg(struct snd_kcontrol *kcontrol,
+			    unsigned int __user *bytes,
+			    unsigned int size);
+static int ad82584f_set_reg(struct snd_kcontrol *kcontrol,
+			    const unsigned int __user *bytes,
+			    unsigned int size);
+
 static const struct snd_kcontrol_new ad82584f_snd_controls[] = {
 	SOC_SINGLE_TLV("Master Volume", MVOL, 0,
 				0xff, 1, mvol_tlv),
@@ -61,15 +77,20 @@ static const struct snd_kcontrol_new ad82584f_snd_controls[] = {
 
 	SOC_SINGLE("Ch1 Switch", MUTE, 5, 1, 1),
 	SOC_SINGLE("Ch2 Switch", MUTE, 4, 1, 1),
+	SOC_SINGLE("EQ enable", CTRL4, 1, 1, 1),
+	SOC_DOUBLE_R("DRC enable", CH1_CONFIG, CH2_CONFIG, 2, 1, 1),
+	SND_SOC_BYTES_TLV("RAM table", (AD82584F_RAM_TABLE_SIZE * 2),
+			  ad82584f_get_ram_param,
+			  ad82584f_set_ram_param),
+	SND_SOC_BYTES_TLV("Reg table", AD82584F_REGISTER_TABLE_SIZE,
+			  ad82584f_get_reg,
+			  ad82584f_set_reg),
 };
 
-static int ad82584f_reg_init(struct snd_soc_codec *codec);
-static int ad82584f_set_eq_drc(struct snd_soc_codec *codec);
-//static int reset_ad82584f(struct snd_soc_codec *codec);
 /* Power-up register defaults */
 static const
 struct reg_default ad82584f_reg_defaults[AD82584F_REGISTER_COUNT] = {
-	{0x00, 0x04},//##State_Control_1
+	{0x00, 0x00},//##State_Control_1
 	{0x01, 0x04},//##State_Control_2
 	{0x02, 0x30},//##State_Control_3
 	{0x03, 0x4e},//##Master_volume_control
@@ -206,8 +227,8 @@ struct reg_default ad82584f_reg_defaults[AD82584F_REGISTER_COUNT] = {
 
 };
 
-static const int m_reg_tab[AD82584F_REGISTER_COUNT][2] = {
-	{0x00, 0x04},//##State_Control_1
+static char m_reg_tab[AD82584F_REGISTER_COUNT][2] = {
+	{0x00, 0x00},//##State_Control_1
 	{0x01, 0x04},//##State_Control_2
 	{0x02, 0x30},//##State_Control_3
 	{0x03, 0x4e},//##Master_volume_control
@@ -344,7 +365,7 @@ static const int m_reg_tab[AD82584F_REGISTER_COUNT][2] = {
 
 };
 
-static const int m_ram1_tab[][4] = {
+static char m_ram1_tab[AD82584F_RAM_TABLE_COUNT][4] = {
 	{0x00, 0x00, 0x00, 0x00},//##Channel_1_EQ1_A1
 	{0x01, 0x00, 0x00, 0x00},//##Channel_1_EQ1_A2
 	{0x02, 0x00, 0x00, 0x00},//##Channel_1_EQ1_B1
@@ -475,7 +496,7 @@ static const int m_ram1_tab[][4] = {
 	{0x7f, 0x00, 0x00, 0x00},//##Reserve
 };
 
-static int m_ram2_tab[][4] = {
+static char m_ram2_tab[AD82584F_RAM_TABLE_COUNT][4] = {
 	{0x00, 0x00, 0x00, 0x00},//##Channel_2_EQ1_A1
 	{0x01, 0x00, 0x00, 0x00},//##Channel_2_EQ1_A2
 	{0x02, 0x00, 0x00, 0x00},//##Channel_2_EQ1_B1
@@ -616,6 +637,10 @@ struct ad82584f_priv {
 	unsigned char master_vol;
 	unsigned char mute_val;
 
+	char *m_ram1_tab;
+	char *m_ram2_tab;
+	char *m_reg_tab;
+
 #ifdef CONFIG_HAS_EARLYSUSPEND
 	struct early_suspend early_suspend;
 #endif
@@ -752,24 +777,123 @@ static struct snd_soc_dai_driver ad82584f_dai = {
 };
 
 
-static int ad82584f_set_eq_drc(struct snd_soc_codec *codec)
+static int ad82584f_set_eq_drc(struct snd_soc_codec *codec,
+			       int ram_id, char *ram_ptr)
 {
-	u8 i;
+	int i;
+	char *ptr = ram_ptr;
 
 	for (i = 0; i < AD82584F_RAM_TABLE_COUNT; i++) {
-		snd_soc_write(codec, CFADDR, m_ram1_tab[i][0]);
-		snd_soc_write(codec, A1CF1, m_ram1_tab[i][1]);
-		snd_soc_write(codec, A1CF2, m_ram1_tab[i][2]);
-		snd_soc_write(codec, A1CF3, m_ram1_tab[i][3]);
-		snd_soc_write(codec, CFUD, 0x01);
+		snd_soc_write(codec, CFADDR, *ptr++);
+		snd_soc_write(codec, A1CF1, *ptr++);
+		snd_soc_write(codec, A1CF2, *ptr++);
+		snd_soc_write(codec, A1CF3, *ptr++);
+		if (ram_id == 1)
+			snd_soc_write(codec, CFUD, 0x1);
+		else if (ram_id == 2)
+			snd_soc_write(codec, CFUD, 0x41);
 	}
-	for (i = 0; i < AD82584F_RAM_TABLE_COUNT; i++) {
-		snd_soc_write(codec, CFADDR, m_ram2_tab[i][0]);
-		snd_soc_write(codec, A1CF1, m_ram2_tab[i][1]);
-		snd_soc_write(codec, A1CF2, m_ram2_tab[i][2]);
-		snd_soc_write(codec, A1CF3, m_ram2_tab[i][3]);
-		snd_soc_write(codec, CFUD, 0x41);
-	}
+
+	return 0;
+}
+
+static int ad82584f_set_ram_param(struct snd_kcontrol *kcontrol,
+				  const unsigned int __user *bytes,
+				  unsigned int size)
+{
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
+	struct snd_soc_codec *codec = snd_soc_component_to_codec(component);
+	struct ad82584f_priv *ad82584f = snd_soc_codec_get_drvdata(codec);
+	struct snd_ctl_tlv *tlv;
+	char *val = (char *)bytes + sizeof(*tlv);
+	char *p1 = ad82584f->m_ram1_tab;
+	char *p2 = ad82584f->m_ram2_tab;
+	int res = 0;
+
+	res = copy_from_user(p1, val, AD82584F_RAM_TABLE_SIZE);
+	if (res)
+		return -EFAULT;
+
+	res = copy_from_user(p2, (val + AD82584F_RAM_TABLE_SIZE),
+			     AD82584F_RAM_TABLE_SIZE);
+	if (res)
+		return -EFAULT;
+
+	ad82584f_set_eq_drc(codec, 1, p1);
+	ad82584f_set_eq_drc(codec, 2, p2);
+
+	return 0;
+}
+
+static int ad82584f_get_ram_param(struct snd_kcontrol *kcontrol,
+				  unsigned int __user *bytes,
+				  unsigned int size)
+{
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
+	struct snd_soc_codec *codec = snd_soc_component_to_codec(component);
+	struct ad82584f_priv *ad82584f = snd_soc_codec_get_drvdata(codec);
+	struct snd_ctl_tlv *tlv;
+	char *val = (char *)bytes + sizeof(*tlv);
+	char *p1 = ad82584f->m_ram1_tab;
+	char *p2 = ad82584f->m_ram2_tab;
+	int res = 0;
+
+	res = copy_to_user(val, p1, AD82584F_RAM_TABLE_SIZE);
+	if (res)
+		return -EFAULT;
+
+	res = copy_to_user((val + AD82584F_RAM_TABLE_SIZE),
+			   p2, AD82584F_RAM_TABLE_SIZE);
+	if (res)
+		return -EFAULT;
+
+	return 0;
+}
+
+static int ad82584f_set_reg(struct snd_kcontrol *kcontrol,
+			    const unsigned int __user *bytes,
+			    unsigned int size)
+{
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
+	struct snd_soc_codec *codec = snd_soc_component_to_codec(component);
+	struct ad82584f_priv *ad82584f = snd_soc_codec_get_drvdata(codec);
+	struct snd_ctl_tlv *tlv;
+	char *val = (char *)bytes + sizeof(*tlv);
+	char *p1 = ad82584f->m_reg_tab;
+	int res = 0, i;
+
+	res = copy_from_user(p1, val, AD82584F_REGISTER_TABLE_SIZE);
+	if (res)
+		return -EFAULT;
+
+	/* State_Control can't be changed by user */
+	/* volume is changed by "volume kcontrol" */
+	for (i = 6; i < AD82584F_REGISTER_COUNT; i++) {
+		int reg = (int)p1[2 * i];
+		int val = (int)p1[2 * i + 1];
+
+		snd_soc_write(codec, reg, val);
+	};
+
+	return 0;
+}
+
+static int ad82584f_get_reg(struct snd_kcontrol *kcontrol,
+			    unsigned int __user *bytes,
+			    unsigned int size)
+{
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
+	struct snd_soc_codec *codec = snd_soc_component_to_codec(component);
+	struct ad82584f_priv *ad82584f = snd_soc_codec_get_drvdata(codec);
+	struct snd_ctl_tlv *tlv;
+	char *val = (char *)bytes + sizeof(*tlv);
+	char *p1 = ad82584f->m_reg_tab;
+	int res = 0;
+
+	res = copy_to_user(val, p1, AD82584F_REGISTER_TABLE_SIZE);
+	if (res)
+		return -EFAULT;
+
 	return 0;
 }
 
@@ -831,15 +955,19 @@ static int ad82584f_init(struct snd_soc_codec *codec)
 	ad82584f_reg_init(codec);
 
 	/* Bclk system */
-	if (ad82584f->pdata->no_mclk)
+	if (ad82584f->pdata->no_mclk) {
+		snd_soc_write(codec, 0x00, 0x04);
+
 		snd_soc_write(codec,
 			0x01,
 			0x1 << 7 | /* Bclk system enable */
 			0x1 << 0   /* 64x bclk/fs */
 			);
+	}
 
 	/* eq and drc */
-	ad82584f_set_eq_drc(codec);
+	ad82584f_set_eq_drc(codec, 1, &m_ram1_tab[0][0]);
+	ad82584f_set_eq_drc(codec, 2, &m_ram2_tab[0][0]);
 
 	/* for de-pop */
 	udelay(100);
@@ -1038,11 +1166,45 @@ static int ad82584f_i2c_probe(struct i2c_client *i2c,
 	if (ret != 0)
 		dev_err(&i2c->dev, "Failed to register codec (%d)\n", ret);
 
+	ad82584f->m_ram1_tab =
+		kzalloc(sizeof(char) * AD82584F_RAM_TABLE_SIZE, GFP_KERNEL);
+	if (!ad82584f->m_ram1_tab)
+		return -ENOMEM;
+
+	memcpy(ad82584f->m_ram1_tab, m_ram1_tab, AD82584F_RAM_TABLE_SIZE);
+
+	ad82584f->m_ram2_tab =
+		kzalloc(sizeof(char) * AD82584F_RAM_TABLE_SIZE, GFP_KERNEL);
+	if (!ad82584f->m_ram2_tab) {
+		kfree(ad82584f->m_ram1_tab);
+		return -ENOMEM;
+	}
+	memcpy(ad82584f->m_ram2_tab, m_ram2_tab, AD82584F_RAM_TABLE_SIZE);
+
+	ad82584f->m_reg_tab =
+		kzalloc(sizeof(char) * AD82584F_REGISTER_TABLE_SIZE,
+			GFP_KERNEL);
+	if (!ad82584f->m_reg_tab) {
+		kfree(ad82584f->m_ram1_tab);
+		kfree(ad82584f->m_ram2_tab);
+		return -ENOMEM;
+	}
+	memcpy(ad82584f->m_reg_tab, m_reg_tab, AD82584F_REGISTER_TABLE_SIZE);
+
 	return ret;
 }
 
 static int ad82584f_i2c_remove(struct i2c_client *client)
 {
+	struct ad82584f_priv *ad82584f =
+		(struct ad82584f_priv *)i2c_get_clientdata(client);
+
+	if (ad82584f) {
+		kfree(ad82584f->m_ram1_tab);
+		kfree(ad82584f->m_ram2_tab);
+		kfree(ad82584f->m_reg_tab);
+	}
+
 	snd_soc_unregister_codec(&client->dev);
 
 	return 0;
