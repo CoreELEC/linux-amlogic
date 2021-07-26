@@ -17,15 +17,58 @@
 #ifndef __AML_AUDIO_SHAREBUFFER_H__
 #define __AML_AUDIO_SHAREBUFFER_H__
 
+#include <sound/pcm.h>
+#include <linux/amlogic/media/sound/iec_info.h>
+
+enum sharebuffer_srcs {
+	SHAREBUFFER_NONE = -1,
+	SHAREBUFFER_TDMA = 0,
+	SHAREBUFFER_TDMB = 1,
+	SHAREBUFFER_TDMC = 2,
+	SHAREBUFFER_SPDIFA = 3,
+	SHAREBUFFER_SPDIFB = 4,
+	SHAREBUFFER_EARCTX = 5,
+	SHAREBUFFER_SRC_NUM = 6
+};
+
+struct clk;
+
+struct samesrc_ops {
+	enum sharebuffer_srcs src;
+	void *private;
+
+	int (*prepare)(struct snd_pcm_substream *substream,
+			void *pfrddr,
+			int samesource_sel,
+			int lane_i2s,
+			enum aud_codec_types type,
+			int share_lvl,
+			int separated);
+	int (*trigger)(int cmd, int samesource_sel, bool reenable);
+	int (*hw_free)(struct snd_pcm_substream *substream,
+		     void *pfrddr,
+		     int samesource_sel,
+		     int share_lvl);
+	int (*set_clks)(int id,
+		struct clk *clk_src, int rate, int same);
+	void (*mute)(int id, bool mute);
+	void (*reset)(unsigned int id, int offset);
+};
+
+struct samesrc_ops *get_samesrc_ops(enum sharebuffer_srcs src);
+int register_samesrc_ops(enum sharebuffer_srcs src, struct samesrc_ops *ops);
+
 int sharebuffer_prepare(struct snd_pcm_substream *substream,
 			void *pfrddr,
 			int samesource_sel,
 			int lane_i2s,
-			int offset,
+			enum aud_codec_types type,
+			int share_lvl,
 			int separated);
 int sharebuffer_free(struct snd_pcm_substream *substream,
 		     void *pfrddr,
-		     int samesource_sel);
+		     int samesource_sel,
+		     int share_lvl);
 int release_spdif_same_src(struct snd_pcm_substream *substream);
 int sharebuffer_trigger(int cmd, int samesource_sel, bool reenable);
 

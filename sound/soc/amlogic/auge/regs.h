@@ -445,6 +445,7 @@ struct register_table {
 #define EE_AUDIO_SPDIFIN_STAT1             0x108
 #define EE_AUDIO_SPDIFIN_STAT2             0x109
 #define EE_AUDIO_SPDIFIN_MUTE_VAL          0x10a
+#define EE_AUDIO_SPDIFIN_CTRL7             0x10b
 
 #define EE_AUDIO_RESAMPLEA_CTRL0           0x110
 #define EE_AUDIO_RESAMPLEA_CTRL1           0x111
@@ -516,6 +517,8 @@ struct register_table {
 #define EE_AUDIO_TDMOUT_A_MUTE5            0x2a9
 #define EE_AUDIO_TDMOUT_A_MUTE6            0x2aa
 #define EE_AUDIO_TDMOUT_A_MUTE7            0x2ab
+#define EE_AUDIO_TDMOUT_A_GAIN_EN          0x2ac
+#define EE_AUDIO_TDMOUT_A_GAIN_CTRL        0x2ad
 #define EE_AUDIO_TDMOUT_A_MASK_VAL         0x14f
 
 #define EE_AUDIO_TDMOUT_B_CTRL0            0x150
@@ -545,6 +548,8 @@ struct register_table {
 #define EE_AUDIO_TDMOUT_B_MUTE5            0x2b9
 #define EE_AUDIO_TDMOUT_B_MUTE6            0x2ba
 #define EE_AUDIO_TDMOUT_B_MUTE7            0x2bb
+#define EE_AUDIO_TDMOUT_B_GAIN_EN          0x2bc
+#define EE_AUDIO_TDMOUT_B_GAIN_CTRL        0x2bd
 #define EE_AUDIO_TDMOUT_B_MASK_VAL         0x15f
 
 #define EE_AUDIO_TDMOUT_C_CTRL0            0x160
@@ -574,27 +579,9 @@ struct register_table {
 #define EE_AUDIO_TDMOUT_C_MUTE5            0x2c9
 #define EE_AUDIO_TDMOUT_C_MUTE6            0x2ca
 #define EE_AUDIO_TDMOUT_C_MUTE7            0x2cb
+#define EE_AUDIO_TDMOUT_C_GAIN_EN          0x2cc
+#define EE_AUDIO_TDMOUT_C_GAIN_CTRL        0x2cd
 #define EE_AUDIO_TDMOUT_C_MASK_VAL         0x16f
-
-#define EE_AUDIO_MCLK_PAD_CTRL0            0x3A0
-#define EE_AUDIO_MCLK_PAD_CTRL1            0x3A1
-#define EE_AUDIO_SCLK_PAD_CTRL0            0x3A2
-#define EE_AUDIO_SCLK_PAD_CTRL1            0x3A3
-#define EE_AUDIO_DAT_PAD_CTRL0             0x390
-#define EE_AUDIO_DAT_PAD_CTRL1             0x391
-#define EE_AUDIO_DAT_PAD_CTRL2             0x392
-#define EE_AUDIO_DAT_PAD_CTRL3             0x393
-#define EE_AUDIO_DAT_PAD_CTRL4             0x394
-#define EE_AUDIO_DAT_PAD_CTRL5             0x395
-#define EE_AUDIO_DAT_PAD_CTRL6             0x396
-#define EE_AUDIO_DAT_PAD_CTRL7             0x397
-#define EE_AUDIO_DAT_PAD_CTRL8             0x398
-#define EE_AUDIO_DAT_PAD_CTRL9             0x399
-#define EE_AUDIO_DAT_PAD_CTRLA             0x39a
-#define EE_AUDIO_DAT_PAD_CTRLB             0x39b
-#define EE_AUDIO_DAT_PAD_CTRLC             0x39c
-#define EE_AUDIO_DAT_PAD_CTRLE             0x39e
-#define EE_AUDIO_DAT_PAD_CTRLF             0x39f
 
 /*
  *	AUDIO POWER DETECT
@@ -649,7 +636,9 @@ struct register_table {
 /*
  *	HIU, ARC
  */
-#define HHI_HDMIRX_ARC_CNTL                0xe8
+#define HHI_HDMIRX_ARC_CNTL                0x0e8
+#define HHI_HDMIRX_EARCTX_CNTL0            0x069
+#define HHI_HDMIRX_EARCTX_CNTL1            0x06a
 
 /*
  *	AUDIO MUX CONTROLS
@@ -1280,6 +1269,7 @@ struct register_table {
 #define EARCTX_FE_CTRL0                    0x01a
 #define EARCTX_FE_STAT0                    0x01b
 #define EARCTX_SPDIFOUT_STAT               0x01c
+#define EARCTX_SPDIFOUT_CTRL2              0x01d
 /* eARC RX */
 #define EARCRX_TOP_CTRL0                   0x000
 #define EARCRX_DMAC_INT_MASK               0x001
@@ -1317,6 +1307,7 @@ struct register_table {
 #define AUDIO_RSAMP_ADJ_IDET_LEN           0x009
 #define AUDIO_RSAMP_ADJ_FORCE              0x00a
 #define AUDIO_RSAMP_ADJ_KI_FORCE           0x00b
+#define AUDIO_RSAMP_WATCHDOG_THRD          0x00c
 #define AUDIO_RSAMP_RO_STATUS              0x010
 #define AUDIO_RSAMP_RO_ADJ_FREQ            0x011
 #define AUDIO_RSAMP_RO_ADJ_DIFF_BAK        0x012
@@ -1355,6 +1346,36 @@ struct register_table {
 #define EE_AUDIO_RSAMP_B_CHNUM_ID6         0x366
 #define EE_AUDIO_RSAMP_B_CHNUM_ID7         0x367
 #define EE_AUDIO_RSAMP_B_CHSYNC_CTRL       0x36F
+
+/* 64 exception irq */
+#define EE_AUDIO_EXCEPTION_IRQ_STS0        0x380
+#define EE_AUDIO_EXCEPTION_IRQ_STS1        0x381
+#define EE_AUDIO_EXCEPTION_IRQ_MASK0       0x382
+#define EE_AUDIO_EXCEPTION_IRQ_MASK1       0x383
+#define EE_AUDIO_EXCEPTION_IRQ_CLR0        0x386
+#define EE_AUDIO_EXCEPTION_IRQ_CLR1        0x387
+
+#define EE_AUDIO_DAT_PAD_CTRL0             0x390
+#define EE_AUDIO_DAT_PAD_CTRL1             0x391
+#define EE_AUDIO_DAT_PAD_CTRL2             0x392
+#define EE_AUDIO_DAT_PAD_CTRL3             0x393
+#define EE_AUDIO_DAT_PAD_CTRL4             0x394
+#define EE_AUDIO_DAT_PAD_CTRL5             0x395
+#define EE_AUDIO_DAT_PAD_CTRL6             0x396
+#define EE_AUDIO_DAT_PAD_CTRL7             0x397
+#define EE_AUDIO_DAT_PAD_CTRL8             0x398
+#define EE_AUDIO_DAT_PAD_CTRL9             0x399
+#define EE_AUDIO_DAT_PAD_CTRLA             0x39A
+#define EE_AUDIO_DAT_PAD_CTRLB             0x39B
+#define EE_AUDIO_DAT_PAD_CTRLC             0x39C
+#define EE_AUDIO_DAT_PAD_CTRLD             0x39D
+#define EE_AUDIO_DAT_PAD_CTRLE             0x39E
+#define EE_AUDIO_DAT_PAD_CTRLF             0x39F
+
+#define EE_AUDIO_MCLK_PAD_CTRL0            0x3A0
+#define EE_AUDIO_MCLK_PAD_CTRL1            0x3A1
+#define EE_AUDIO_SCLK_PAD_CTRL0            0x3A2
+#define EE_AUDIO_SCLK_PAD_CTRL1            0x3A3
 
 /*HHI bus*/
 #define HHI_AUDIO_MEM_PD_REG0              0x045

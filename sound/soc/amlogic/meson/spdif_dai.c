@@ -50,6 +50,16 @@
 #include <linux/amlogic/media/sound/audin_regs.h>
 #include <linux/amlogic/media/sound/audio_iomap.h>
 
+/*
+ * 0 --  other formats except(DD,DD+,DTS)
+ * 1 --  DTS
+ * 2 --  DD
+ * 3 -- DTS with 958 PCM RAW package mode
+ * 4 -- DD+
+ */
+unsigned int IEC958_mode_codec;
+EXPORT_SYMBOL(IEC958_mode_codec);
+
 struct aml_spdif {
 	struct clk *clk_mpl1;
 	struct clk *clk_i958;

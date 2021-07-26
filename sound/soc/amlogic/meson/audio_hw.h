@@ -19,7 +19,7 @@
 #define __AML_AUDIO_HW_H__
 
 #include "sound/asound.h"
-#include <linux/amlogic/media/sound/spdif_info.h>
+#include <linux/amlogic/media/sound/iec_info.h>
 
 #define AUDIO_CLK_GATE_ON(a) CLK_GATE_ON(a)
 #define AUDIO_CLK_GATE_OFF(a) CLK_GATE_OFF(a)

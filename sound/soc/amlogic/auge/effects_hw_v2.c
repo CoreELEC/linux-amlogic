@@ -146,8 +146,7 @@ void aed_get_multiband_drc_coeff(int band, unsigned int *params)
 	int reg = AED_MDRC_RMS_COEF00;
 
 	for (i = 0; i < offset; i++) {
-		*(params + band * offset + i) =
-			eqdrc_read(reg + band * offset + i);
+		*(params + i) = eqdrc_read(reg + band * offset + i);
 	}
 }
 
@@ -169,15 +168,18 @@ void aed_set_fullband_drc_coeff(int group, unsigned int *params)
 		eqdrc_write(AED_DRC_ATTACK_COEF11, *p++);
 		eqdrc_write(AED_DRC_THD1, *p++);
 		eqdrc_write(AED_DRC_K2, *p++);
-		eqdrc_write(AED_DRC_THD_OUT0, eqdrc_read(AED_DRC_THD1));
+
 	} else if (group == 2) {
 		eqdrc_write(AED_DRC_RMS_COEF0, *p++);
 		eqdrc_write(AED_DRC_RMS_COEF1, *p++);
 		eqdrc_write(AED_DRC_LOOPBACK_CNTL, *p++);
-		/*THD_OUT0 = THD1; K1 = 1.0*/
-		eqdrc_write(AED_DRC_THD_OUT0, eqdrc_read(AED_DRC_THD1));
-		eqdrc_write(AED_DRC_K1, 0x40000);
+		/* bypass THD_OUT0 and K1, it can't be set by user space. */
+		p += 2;
+		eqdrc_write(AED_DRC_OFFSET, *p++);
 	}
+	/*THD_OUT0 = THD1; K1 = 1.0*/
+	eqdrc_write(AED_DRC_THD_OUT0, eqdrc_read(AED_DRC_THD1));
+	eqdrc_write(AED_DRC_K1, 0x40000);
 }
 
 void aed_get_fullband_drc_coeff(int len, unsigned int *params)
@@ -203,6 +205,7 @@ void aed_get_fullband_drc_coeff(int len, unsigned int *params)
 	*p++ = eqdrc_read(AED_DRC_LOOPBACK_CNTL);
 	*p++ = eqdrc_read(AED_DRC_THD_OUT0);
 	*p++ = eqdrc_read(AED_DRC_K1);
+	*p++ = eqdrc_read(AED_DRC_OFFSET);
 }
 
 void aed_set_mixer_params(void)
@@ -386,6 +389,12 @@ void aed_set_format(int msb, enum ddr_types frddr_type,
 	eqdrc_update_bits(AED_TOP_CTL,
 		0x7 << 11 | 0x1f << 6 | 0x3 << (4 - offset),
 		frddr_type << 11 | msb << 6 | source << (4 - offset));
+}
+
+void aed_reload_config(void)
+{
+	eqdrc_update_bits(AED_TOP_CTL, 0x1 << 29, 0x1 << 29);
+	eqdrc_update_bits(AED_TOP_CTL, 0x1 << 29, 0x0 << 29);
 }
 
 void aed_enable(bool enable)

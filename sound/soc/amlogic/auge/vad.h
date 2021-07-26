@@ -31,20 +31,22 @@ enum vad_src {
 	VAD_SRC_LOOPBACK_A,
 };
 
-extern void vad_update_buffer(int isvad);
-extern int vad_transfer_chunk_data(unsigned long data, int frames);
+#define DEFAULT_WAKEUP_SAMPLERATE 16000
 
-extern bool vad_tdm_is_running(int tdm_idx);
-extern bool vad_pdm_is_running(void);
+void vad_update_buffer(bool isvadbuf);
+int vad_transfer_chunk_data(unsigned long data, int frames);
+
+bool vad_tdm_is_running(int tdm_idx);
+bool vad_pdm_is_running(void);
 bool vad_lb_is_running(int lb_id);
 void vad_lb_force_two_channel(bool en);
 
-extern void vad_enable(bool enable);
-extern void vad_set_toddr_info(struct toddr *to);
+void vad_enable(bool enable);
+void vad_set_toddr_info(struct toddr *to);
 
-extern void vad_set_trunk_data_readable(bool en);
+void vad_set_trunk_data_readable(bool en);
 
-extern int card_add_vad_kcontrols(struct snd_soc_card *card);
+int card_add_vad_kcontrols(struct snd_soc_card *card);
 
-extern void vad_set_lowerpower_mode(bool isLowPower);
+void vad_set_lowerpower_mode(bool islowpower);
 #endif

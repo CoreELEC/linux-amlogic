@@ -20,6 +20,19 @@
 
 #include <linux/types.h>
 #include "loopback.h"
+#include "resample.h"
+
+struct mux_conf {
+	char name[32];
+	unsigned int val;
+	unsigned int reg;
+	unsigned int shift;
+	unsigned int mask;
+};
+
+#define AUDIO_SRC_CONFIG(_name, _val, _reg, _shift, _mask) \
+{	.name = (_name), .val = (_val), .reg = (_reg),\
+	.shift = (_shift), .mask = (_mask)}
 
 struct data_cfg {
 	/*
@@ -41,17 +54,20 @@ struct data_cfg {
 	/* loopback datalb src */
 	unsigned int src;
 
-	unsigned int datalb_src;
+	unsigned int loopback_src;
 
 	/* channel and mask in new ctrol register */
 	bool ch_ctrl_switch;
 
 	/* enable resample B for loopback*/
 	unsigned int resample_enable;
+	/* srcs from chipinfo */
+	struct mux_conf *srcs;
+	struct mux_conf *tdmin_lb_srcs;
 };
 
 void tdminlb_set_clk(enum datalb_src lb_src,
-		     int sclk_div, int ratio, bool enable);
+		     int sclk_div, int ratio, bool slave, bool enable);
 
 extern void tdminlb_set_format(int i2s_fmt);
 
@@ -65,11 +81,14 @@ extern void tdminlb_set_format(int i2s_fmt);
 void tdminlb_set_lanemask_and_chswap
 	(int swap, int lane_mask, unsigned int mask);
 
+void tdmin_frame_revert(int tdm_index, bool revert);
+void tdminlb_frame_revert(bool revert);
+
 extern void tdminlb_set_src(int src);
 extern void lb_set_datain_src(int id, int src);
 
 extern void lb_set_datain_cfg(int id, struct data_cfg *datain_cfg);
-extern void lb_set_datalb_cfg(int id, struct data_cfg *datalb_cfg);
+void lb_set_datalb_cfg(int id, struct data_cfg *datalb_cfg, int version);
 
 void lb_enable(int id, bool enable, bool chnum_en);
 

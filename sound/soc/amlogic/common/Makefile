@@ -1,4 +1,4 @@
 obj-y += notify.o \
-	spdif_info.o \
+	iec_info.o \
 	misc.o \
 	iomapres.o

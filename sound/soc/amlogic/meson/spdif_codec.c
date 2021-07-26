@@ -29,7 +29,7 @@
 #include <linux/amlogic/media/vout/hdmi_tx/hdmi_tx_ext.h>
 #endif
 #include "spdif_dai.h"
-#include <linux/amlogic/media/sound/spdif_info.h>
+#include <linux/amlogic/media/sound/iec_info.h>
 
 #define DRV_NAME "spdif-dit"
 
@@ -165,6 +165,28 @@ static int aml_audio_get_spdif_mute(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
+static int spdif_format_get_enum(
+	struct snd_kcontrol *kcontrol,
+	struct snd_ctl_elem_value *ucontrol)
+{
+	ucontrol->value.enumerated.item[0] = IEC958_mode_codec;
+	return 0;
+}
+
+static int spdif_format_set_enum(
+	struct snd_kcontrol *kcontrol,
+	struct snd_ctl_elem_value *ucontrol)
+{
+	int index = ucontrol->value.enumerated.item[0];
+
+	if (index >= 10) {
+		pr_err("bad parameter for spdif format set\n");
+		return -1;
+	}
+	IEC958_mode_codec = index;
+	return 0;
+}
+
 #ifdef CONFIG_AMLOGIC_HDMITX
 static const char * const hdmi_out_channel_mask_texts[] = {
 		"SPDIF",
@@ -236,7 +258,7 @@ static const struct snd_kcontrol_new spdif_controls[] = {
 				0, aml_audio_get_spdif_mute,
 				aml_audio_set_spdif_mute),
 	SOC_ENUM_EXT("Audio spdif format",
-				spdif_format_enum,
+				aud_codec_type_enum,
 				spdif_format_get_enum,
 				spdif_format_set_enum),
 #ifdef CONFIG_AMLOGIC_HDMITX

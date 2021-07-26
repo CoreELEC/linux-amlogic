@@ -33,11 +33,38 @@ static int snd_int_info(struct snd_kcontrol *kcontrol,
 
 #define SND_INT(xname, xhandler_get, xhandler_put)     \
 {                                      \
-	.iface = SNDRV_CTL_ELEM_IFACE_PCM, \
+	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, \
 	.name  = xname,               \
 	.info  = snd_int_info,        \
 	.get   = xhandler_get,        \
 	.put   = xhandler_put,        \
+}
+
+/*
+ * IEC958 controller(mixer) functions
+ *
+ *	Channel status get/put control
+ *	User bit value get/put control
+ *	Valid bit value get control
+ *	DPLL lock status get control
+ *	User bit sync mode selection control
+ */
+static int IEC958_info(struct snd_kcontrol *kcontrol,
+		       struct snd_ctl_elem_info *uinfo)
+{
+	uinfo->type = SNDRV_CTL_ELEM_TYPE_IEC958;
+	uinfo->count = 1;
+
+	return 0;
+}
+
+#define SND_IEC958(xname, xhandler_get, xhandler_put) \
+{                                          \
+	.iface = SNDRV_CTL_ELEM_IFACE_PCM,   \
+	.name = xname,           \
+	.info = IEC958_info,      \
+	.get = xhandler_get,     \
+	.put = xhandler_put,     \
 }
 
 #endif

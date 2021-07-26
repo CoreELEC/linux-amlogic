@@ -38,4 +38,5 @@ obj-$(CONFIG_AMLOGIC_SND_SOC_AUGE)	+= audio_controller.o \
 						vad_dev.o \
 						earc.o \
 						earc_hw.o \
+						soft_locker.o \
 						card.o

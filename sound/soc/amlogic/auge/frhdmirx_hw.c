@@ -16,10 +16,23 @@
  */
 #include <linux/types.h>
 #include <linux/kernel.h>
+#include <linux/amlogic/iomap.h>
 
 #include "frhdmirx_hw.h"
 #include "regs.h"
 #include "iomap.h"
+
+void frhdmirx_afifo_reset(void)
+{
+	unsigned int enable = audiobus_read(EE_AUDIO_FRHDMIRX_CTRL0) >> 31;
+
+	if (enable) {
+		audiobus_update_bits(EE_AUDIO_FRHDMIRX_CTRL0,
+				     0x1 << 29, 0x0 << 29);
+		audiobus_update_bits(EE_AUDIO_FRHDMIRX_CTRL0,
+				     0x1 << 29, 0x1 << 29);
+	}
+}
 
 void frhdmirx_enable(bool enable)
 {
@@ -36,6 +49,9 @@ void frhdmirx_enable(bool enable)
 			0x0 << 28);
 
 	audiobus_update_bits(EE_AUDIO_FRHDMIRX_CTRL0, 0x1 << 31, enable << 31);
+
+	/* from tm2 revb, need enable pao separately */
+	audiobus_update_bits(EE_AUDIO_FRHDMIRX_CTRL0, 0x1 << 19, enable << 19);
 }
 
 /* source select
@@ -89,21 +105,22 @@ void frhdmirx_clr_all_irq_bits(void)
 
 void frhdmirx_ctrl(int channels, int src)
 {
+	int lane, lane_mask = 0, i;
+
+	lane = (channels % 2) ? (channels / 2 + 1) : (channels / 2);
+	for (i = 0; i < lane; i++)
+		lane_mask |= (1 << i);
+
 	/* PAO mode */
 	if (src) {
 		audiobus_write(EE_AUDIO_FRHDMIRX_CTRL0,
+			lane_mask << 24 | /* chnum_sel */
 			0x1 << 22 | /* capture input by fall edge*/
 			0x1 << 8  | /* start detect PAPB */
 			0x1 << 7  | /* add channel num */
 			0x4 << 4    /* chan status sel: pao pc/pd value */
 			);
 	} else {
-		int lane, lane_mask = 0, i;
-
-		lane = (channels % 2) ? (channels / 2 + 1) : (channels / 2);
-		for (i = 0; i < lane; i++)
-			lane_mask |= (1 << i);
-
 		audiobus_update_bits(EE_AUDIO_FRHDMIRX_CTRL0,
 			0x1 << 30 | 0xf << 24 | 0x1 << 22 |
 			0x3 << 11 | 0x1 << 8 | 0x1 << 7 | 0x7 << 0,
@@ -163,16 +180,100 @@ void frhdmirx_clr_SPDIF_irq_bits(void)
 	}
 }
 
-unsigned int frhdmirx_get_ch_status0to31(void)
+/*
+ * reg_ status_sel[6:4];
+ * 0: spdif lane0;
+ * 1: spdif lane1;
+ * 2: spdif lane2;
+ * 3: spdif lane3;
+ * 4: pao pc/pd value;
+ * 5: valid bits;
+ */
+static void frhdmirx_set_reg_status_sel(uint32_t sel)
 {
-	return (unsigned int)audiobus_read(EE_AUDIO_FRHDMIRX_STAT0);
+	audiobus_update_bits(EE_AUDIO_FRHDMIRX_CTRL0, 0x7 << 4, sel << 4);
 }
 
-unsigned int frhdmirx_get_chan_status_pc(void)
+/*
+ * reg_status_sel[3]: 0: channel A; 1: channel B;
+ * reg_status_sel[2:0]:
+ * 0: ch_status[31:0];
+ * 1: ch_status[63:32];
+ * 2: ch_status[95:64];
+ * 3: ch_status[127:96];
+ * 4: ch_status[159:128];
+ * 5: ch_status[191:160];
+ * 6: pc[15:0],pd[15:0];
+ */
+static void frhdmirx_spdif_channel_status_sel(uint32_t sel)
+{
+	/* alway select chanel A */
+	audiobus_update_bits(EE_AUDIO_FRHDMIRX_CTRL0, 0xf, sel);
+}
+
+static DEFINE_SPINLOCK(frhdmirx_lock);
+
+unsigned int frhdmirx_get_ch_status(int num)
 {
 	unsigned int val;
+	unsigned long flags = 0;
+
+	spin_lock_irqsave(&frhdmirx_lock, flags);
+	/* default spdif lane 0, channal A */
+	frhdmirx_set_reg_status_sel(0);
+	frhdmirx_spdif_channel_status_sel(num);
+	val = audiobus_read(EE_AUDIO_FRHDMIRX_STAT1);
+	spin_unlock_irqrestore(&frhdmirx_lock, flags);
+
+	return val;
+}
+
+unsigned int frhdmirx_get_chan_status_pc(enum hdmirx_mode mode)
+{
+	unsigned int val;
+	unsigned long flags = 0;
+
+	spin_lock_irqsave(&frhdmirx_lock, flags);
+	if (mode == HDMIRX_MODE_PAO) {
+		frhdmirx_set_reg_status_sel(4);
+	} else if (mode == HDMIRX_MODE_SPDIFIN) {
+		frhdmirx_set_reg_status_sel(0);
+		frhdmirx_spdif_channel_status_sel(6);
+	}
 
 	val = audiobus_read(EE_AUDIO_FRHDMIRX_STAT1);
+	spin_unlock_irqrestore(&frhdmirx_lock, flags);
 	return (val >> 16) & 0xff;
+}
+
+/* this is used for TL1, arc source select and enable */
+void arc_source_enable(int src, bool enable)
+{
+	/* bits[1:0], 0x2: common; 0x1: single; 0x0: disabled */
+	aml_hiubus_update_bits(HHI_HDMIRX_ARC_CNTL,
+			       0x1f << 0,
+			       src << 2 | (enable ? 0x1 : 0) << 0);
+}
+
+/* this is used for TM2, arc/earc source select */
+void arc_earc_source_select(int src)
+{
+	if (src == SPDIFA_TO_HDMIRX || src == SPDIFB_TO_HDMIRX) {
+		/* spdif_a = 1; spdif_b = 2*/
+		aml_write_hiubus(HHI_HDMIRX_ARC_CNTL, 0xfffffff8 | src);
+		/* analog registers: single mode, about 520mv*/
+		aml_write_hiubus(HHI_HDMIRX_EARCTX_CNTL0, 0x14710490);
+		aml_write_hiubus(HHI_HDMIRX_EARCTX_CNTL1, 0x40011508);
+	} else {
+		/* earctx_spdif*/
+		aml_write_hiubus(HHI_HDMIRX_ARC_CNTL, 0x0);
+	}
+}
+
+/* this is used for TM2, arc source enable */
+void arc_enable(bool enable)
+{
+	aml_hiubus_update_bits(HHI_HDMIRX_EARCTX_CNTL0, 0x1 << 31,
+			       (enable ? 0x1 : 0) << 31);
 }
 

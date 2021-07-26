@@ -106,6 +106,16 @@ int check_aed_version(void)
 	return p_effect->chipinfo->version;
 }
 
+bool is_aed_reserve_frddr(void)
+{
+	struct audioeffect *p_effect = get_audioeffects();
+
+	if ((!p_effect) || (!p_effect->chipinfo))
+		return false;
+
+	return p_effect->chipinfo->reserved_frddr;
+}
+
 static int eqdrc_clk_set(struct audioeffect *p_effect)
 {
 	int ret = 0;
@@ -353,10 +363,9 @@ static int mixer_set_multiband_DRC_params(struct snd_kcontrol *kcontrol,
 		return 0;
 	}
 
-    /*Don't update offset and gain*/
 	p_data = &tmp_data[1];
 	p = &multiband_drc_coeff[band_id*AED_SINGLE_BAND_DRC_SIZE];
-	for (i = 0; i < (AED_SINGLE_BAND_DRC_SIZE - 2) ; i++)
+	for (i = 0; i < AED_SINGLE_BAND_DRC_SIZE; i++)
 		*p++ = *p_data++;
 
 	p = &multiband_drc_coeff[0];
@@ -510,8 +519,24 @@ static const struct snd_kcontrol_new snd_effect_controls[] = {
 		master_vol_tlv),
 
 	SOC_SINGLE_EXT("AED Clip THD",
-		AED_CLIP_THD, 0, 0x7FFFFF, 0,
-		mixer_aed_read, mixer_aed_write),
+		       AED_CLIP_THD, 0, 0x7FFFFF, 0,
+		       mixer_aed_read, mixer_aed_write),
+
+	SOC_SINGLE_EXT("AED Mixer Gain LL",
+		       AED_MIX0_LL, 0, 0x3ffffff, 0,
+		       mixer_aed_read, mixer_aed_write),
+
+	SOC_SINGLE_EXT("AED Mixer Gain RL",
+		       AED_MIX0_RL, 0, 0x3ffffff, 0,
+		       mixer_aed_read, mixer_aed_write),
+
+	SOC_SINGLE_EXT("AED Mixer Gain LR",
+		       AED_MIX0_LR, 0, 0x3ffffff, 0,
+		       mixer_aed_read, mixer_aed_write),
+
+	SOC_SINGLE_EXT("AED Mixer Gain RR",
+		       AED_MIX0_RR, 0, 0x3ffffff, 0,
+		       mixer_aed_read, mixer_aed_write),
 };
 
 int card_add_effect_v2_kcontrols(struct snd_soc_card *card)
@@ -545,9 +570,10 @@ static struct effect_chipinfo sm1_effect_chipinfo = {
 	.reserved_frddr = true,
 };
 
+/* tm2_revb afterward */
 static struct effect_chipinfo tm2_revb_effect_chipinfo = {
 	.version = VERSION4,
-	.reserved_frddr = true,
+	.reserved_frddr = false,
 };
 
 static const struct of_device_id effect_device_id[] = {

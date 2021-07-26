@@ -29,16 +29,13 @@ struct spdif_chipinfo {
 	 * Reg_clr_interrupt[7:0] for each bit of irq_status[7:0];
 	 */
 	bool clr_irq_all_bits;
-	/* no PaPb irq */
-	bool irq_no_papb;
 	/* reg_hold_start_en; 1: add delay to match TDM out when share buff; */
 	bool hold_start;
 	/* eq/drc */
 	bool eq_drc_en;
 	/* pc, pd interrupt is separated. */
 	bool pcpd_separated;
-	/* same source, spdif re-enable */
-	bool same_src_spdif_reen;
+
 	/* async fifo */
 	bool async_fifo;
 
@@ -50,7 +47,6 @@ struct spdif_chipinfo {
 
 struct spdif_chipinfo axg_spdif_chipinfo = {
 	.id               = SPDIF_A,
-	.irq_no_papb      = true,
 	.clr_irq_all_bits = true,
 	.pcpd_separated   = true,
 	.spdifout_lane_mask = SPDIFOUT_LANE_MASK_V1,

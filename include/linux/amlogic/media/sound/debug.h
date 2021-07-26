@@ -1,5 +1,5 @@
 /*
- * sound/soc/amlogic/auge/card.h
+ * include/linux/amlogic/media/sound/debug.h
  *
  * Copyright (C) 2017 Amlogic, Inc. All rights reserved.
  *
@@ -15,24 +15,14 @@
  *
  */
 
-#ifndef __AML_CARD_H_
-#define __AML_CARD_H_
+#ifndef __AUDIO_DEBUG_H__
+#define __AUDIO_DEBUG_H__
 
-#include <sound/soc.h>
-#include "card_utils.h"
-#include "soft_locker.h"
+extern bool audio_debug;
 
-struct aml_card_info {
-	const char *name;
-	const char *card;
-	const char *codec;
-	const char *platform;
-
-	unsigned int daifmt;
-	struct aml_dai cpu_dai;
-	struct aml_dai codec_dai;
-};
-
-struct soft_locker *aml_get_card_locker(struct snd_soc_card *card);
-
-#endif /* __AML_CARD_H_ */
+#define aud_dbg(dev, fmt, args...) \
+({                                 \
+	if (audio_debug)               \
+		dev_dbg(dev, fmt, ##args); \
+})
+#endif

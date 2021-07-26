@@ -27,11 +27,13 @@ static unsigned int get_tdmin_id_from_lb_src(enum datalb_src lb_src)
 	return lb_src % TDMINLB_PAD_TDMINA;
 }
 
+#define TDMINLB_CLK_SLV_OFFSET 6
 void tdminlb_set_clk(enum datalb_src lb_src,
-		     int sclk_div, int ratio, bool enable)
+		     int sclk_div, int ratio, bool slave, bool enable)
 {
 	unsigned int bclk_sel, fsclk_sel;
 	unsigned int tdmin_src;
+	unsigned int lb_sclk_inv = 1;
 
 	/* config for external codec */
 	if (lb_src >= TDMINLB_PAD_TDMINA) {
@@ -56,11 +58,16 @@ void tdminlb_set_clk(enum datalb_src lb_src,
 	} else
 		tdmin_src = lb_src;
 
+	if (slave) {
+		tdmin_src += TDMINLB_CLK_SLV_OFFSET;
+		lb_sclk_inv = 0;
+	}
+
 	audiobus_update_bits(
 		EE_AUDIO_CLK_TDMIN_LB_CTRL,
 		0x3 << 30 | 1 << 29 | 0xf << 24 | 0xf << 20,
 		(enable ? 0x3 : 0x0) << 30 |
-		1 << 29 | tdmin_src << 24 | tdmin_src << 20
+		lb_sclk_inv << 29 | tdmin_src << 24 | tdmin_src << 20
 	);
 }
 
@@ -98,6 +105,23 @@ void tdminlb_fifo_enable(int is_enable)
 		audiobus_update_bits(EE_AUDIO_TDMIN_LB_CTRL, 1<<28, 1<<28);
 	} else
 		audiobus_update_bits(EE_AUDIO_TDMIN_LB_CTRL, 3<<28, 0);
+}
+
+void tdmin_frame_revert(int tdm_index, bool revert)
+{
+	unsigned int offset, reg;
+	bool val = !revert;
+
+	offset = EE_AUDIO_TDMIN_B_CTRL - EE_AUDIO_TDMIN_A_CTRL;
+	reg = EE_AUDIO_TDMIN_A_CTRL + offset * tdm_index;
+	audiobus_update_bits(reg, 0x1 << 25, val << 25);
+}
+
+void tdminlb_frame_revert(bool revert)
+{
+	bool val = !revert;
+
+	audiobus_update_bits(EE_AUDIO_TDMIN_LB_CTRL, 0x1 << 25, val << 25);
 }
 
 static void tdminlb_set_lane_mask(int lane, int mask)
@@ -147,6 +171,7 @@ void lb_set_datain_cfg(int id, struct data_cfg *datain_cfg)
 {
 	int offset = EE_AUDIO_LB_B_CTRL0 - EE_AUDIO_LB_A_CTRL0;
 	int reg = EE_AUDIO_LB_A_CTRL0 + offset * id;
+	struct mux_conf *conf = NULL;
 
 	if (!datain_cfg)
 		return;
@@ -181,9 +206,16 @@ void lb_set_datain_cfg(int id, struct data_cfg *datain_cfg)
 			datain_cfg->n           << 3  |
 			datain_cfg->src         << 0
 		);
+
+	conf = datain_cfg->srcs;
+	conf += datain_cfg->src;
+	reg = conf->reg + offset * id;
+	audiobus_update_bits(reg,
+			     conf->mask << conf->shift,
+			     conf->val << conf->shift);
 }
 
-void lb_set_datalb_cfg(int id, struct data_cfg *datalb_cfg)
+void lb_set_datalb_cfg(int id, struct data_cfg *datalb_cfg, int version)
 {
 	int offset = EE_AUDIO_LB_B_CTRL1 - EE_AUDIO_LB_A_CTRL1;
 	int reg = EE_AUDIO_LB_A_CTRL1 + offset * id;
@@ -193,15 +225,18 @@ void lb_set_datalb_cfg(int id, struct data_cfg *datalb_cfg)
 
 	if (datalb_cfg->ch_ctrl_switch) {
 		audiobus_update_bits(reg,
-			0x3 << 30 | 0x1 << 29 | 0x7 << 13 |
-			0x1f << 8 | 0x1f << 3 | 0x1 << 1,
-			datalb_cfg->resample_enable << 30 |
+			0x1 << 29 | 0x7 << 13 |
+			0x1f << 8 | 0x1f << 3,
 			datalb_cfg->ext_signed << 29 |
 			datalb_cfg->type       << 13 |
 			datalb_cfg->m          << 8  |
-			datalb_cfg->n          << 3  |
-			datalb_cfg->datalb_src << 0
-		);
+			datalb_cfg->n          << 3);
+		if (version < T5_RESAMPLE)
+			audiobus_update_bits(reg,
+				0x3 << 30 |
+				0x1 << 0,
+				datalb_cfg->resample_enable << 30 |
+				datalb_cfg->loopback_src << 0);
 
 		/* channel and mask */
 		offset = EE_AUDIO_LB_B_CTRL3 - EE_AUDIO_LB_A_CTRL3;
@@ -210,6 +245,18 @@ void lb_set_datalb_cfg(int id, struct data_cfg *datalb_cfg)
 			(datalb_cfg->chnum - 1) << 16 |
 			datalb_cfg->chmask	<< 0
 		);
+		if (version >= T5_RESAMPLE) {
+		/* from t5 chip, loopback src changed
+		 * if resample for loopback
+		 */
+			int loopback_src;
+
+			if (datalb_cfg->resample_enable)
+				loopback_src = RESAMPLEB;
+			else
+				loopback_src = TDMIN_LB;
+		audiobus_update_bits(reg, 0x1f << 20, loopback_src << 20);
+		}
 	} else
 		audiobus_write(reg,
 			datalb_cfg->ext_signed   << 29 |

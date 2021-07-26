@@ -20,21 +20,10 @@
 #include "audio_io.h"
 #include "regs.h"
 
-#include <linux/amlogic/media/sound/spdif_info.h>
+#include <linux/amlogic/media/sound/iec_info.h>
 
-enum spdif_id {
-	SPDIF_A = 0,
-	SPDIF_B,
-	SPDIF_ID_CNT
-};
+#define SPDIFIN_500M_HZ    (500000000)
 
-unsigned int aml_spdif_ctrl_read(struct aml_audio_controller *actrl,
-				 int stream,
-				 int index);
-void aml_spdif_ctrl_write(struct aml_audio_controller *actrl,
-			  int stream,
-			  int index,
-			  int val);
 void aml_spdifin_chnum_en(struct aml_audio_controller *actrl,
 			  int index,
 			  bool is_enable);
@@ -87,7 +76,7 @@ void aml_spdifout_get_aed_info(int spdifout_id,
 			       int *bitwidth,
 			       int *frddrtype);
 
-void enable_spdifout_to_hdmitx(int spdif_tohdmitxen_separated);
+void spdifout_to_hdmitx_ctrl(int spdif_tohdmitxen_separated, int spdif_index);
 
 void spdifout_samesource_set(int spdif_index,
 			     int fifo_id,
@@ -108,7 +97,7 @@ void spdif_set_channel_status_info(
 
 void spdifout_play_with_zerodata(unsigned int spdif_id,
 				 bool reenable,
-				 int separated);
+				 int reparated);
 void spdifout_play_with_zerodata_free(unsigned int spdif_id);
 void spdifin_set_src(int src);
 void aml_spdif_out_reset(unsigned int spdif_id, int offset);

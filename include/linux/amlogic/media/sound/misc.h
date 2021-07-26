@@ -22,6 +22,12 @@
 #include <sound/pcm.h>
 #include <sound/control.h>
 
+int audio_debug_get(struct snd_kcontrol *kcontrol,
+		    struct snd_ctl_elem_value *ucontrol);
+
+int audio_debug_put(struct snd_kcontrol *kcontrol,
+		    struct snd_ctl_elem_value *ucontrol);
+
 #ifdef CONFIG_AMLOGIC_ATV_DEMOD
 extern const struct soc_enum atv_audio_status_enum;
 
@@ -62,6 +68,9 @@ extern int aml_get_hdmiin_audio_channels(
 extern int aml_get_hdmiin_audio_format(
 	struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol);
+
+int aml_get_hdmiin_audio_bitwidth(struct snd_kcontrol *kcontrol,
+				  struct snd_ctl_elem_value *ucontrol);
 
 extern int aml_set_atmos_audio_edid(
 	struct snd_kcontrol *kcontrol,

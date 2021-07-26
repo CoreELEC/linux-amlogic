@@ -22,7 +22,6 @@
 #include <linux/pinctrl/consumer.h>
 
 
-#define DRV_NAME "snd_pdm"
 
 #define DEFAULT_FS_RATIO		256
 
@@ -58,8 +57,6 @@ struct pdm_chipinfo {
 	bool truncate_data;
 	/* train */
 	bool train;
-	bool chnum_flag;
-
 	int train_version;
 };
 
@@ -103,13 +100,17 @@ struct aml_pdm {
 
 	/* low power mode, for dclk_sycpll to 24m */
 	bool isLowPower;
-
+	/* force to lower power when suspend */
+	bool force_lowpower;
+	/* Hibernation for vad, suspended or not */
+	bool vad_hibernation;
+	/* whether vad buffer is used, for xrun */
+	bool vad_buf_occupation;
+	bool vad_buf_recovery;
+	int pdm_gain_index;
 	int train_sample_count;
 };
 
 int pdm_get_train_sample_count_from_dts(void);
 int pdm_get_train_version(void);
-int pdm_get_chnum_flag(void);
-
-
 #endif /*__AML_PDM_H__*/

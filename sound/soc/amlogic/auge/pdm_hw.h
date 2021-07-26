@@ -41,7 +41,7 @@ void aml_pdm_arb_config(struct aml_audio_controller *actrl);
 
 int aml_pmd_set_HPF_filter_parameters(void *array);
 
-void aml_pdm_filter_ctrl(int osr, int set);
+void aml_pdm_filter_ctrl(int pdm_gain_index, int osr, int set);
 
 void pdm_enable(int is_enable);
 
@@ -58,9 +58,7 @@ void pdm_train_clr(void);
 int pdm_train_sts(void);
 
 int pdm_dclkidx2rate(int idx);
-int pdm_get_sample_count(int islowpower, int dclk_idx);
+int pdm_get_sample_count(int is_low_power, int dclk_idx);
 int pdm_get_ors(int dclk_idx, int sample_rate);
-
-extern int pdm_hcic_shift_gain;
 
 #endif /*__AML_PDM_HW_H__*/

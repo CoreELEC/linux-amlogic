@@ -18,7 +18,6 @@
 static struct pdm_chipinfo g12a_pdm_chipinfo = {
 	.mute_fn         = true,
 	.truncate_data   = false,
-	.chnum_flag      = true,
 };
 
 static struct pdm_chipinfo tl1_pdm_chipinfo = {
