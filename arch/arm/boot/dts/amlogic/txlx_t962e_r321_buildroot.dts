@@ -1231,7 +1231,7 @@
 		#sound-dai-cells = <0>;
 		compatible = "amlogic, txlx_acodec";
 		reg = <0xFF632000 0x1c>;
-		status = "okay";
+		status = "disabled";
 	};
 
 	aml_snd_tv {
@@ -1264,7 +1264,7 @@
 			sound-dai = <&i2s2_dai>;
 		};
 		codec0: codec0 {
-			sound-dai = <&amlogic_codec>;
+			sound-dai = </* &amlogic_codec */ &dummy_codec>;
 		};
 		codec1: codec1 {
 			sound-dai = <&spdif_codec>;
