@@ -15,16 +15,20 @@
  *
  */
 
+#define AML_PM_DMC_ASR     0
+#define AML_PM_CPU         1
+#define AML_PM_MAX         2
+
 struct pm_data {
 	struct device *dev;
 	int vddio3v3_en;
+	int dmc_asr_value;
 	bool vad_wakeup_disable;
-	void __iomem *dmc_asr;
-	void __iomem *cpu_reg;
 	struct clk *switch_clk81;
 	struct clk *clk81;
 	struct clk *fixed_pll;
 	struct clk *xtal;
+	void __iomem *reg_table[AML_PM_MAX];
 };
 
 int vad_wakeup_power_init(struct platform_device *pdev, struct pm_data *p_data);

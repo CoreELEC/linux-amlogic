@@ -33,12 +33,46 @@
 
 static int fixed_pll_cnt;
 
+static const char * const aml_pm_reg_table[] = {
+	"dmc_asr",
+	"cpu"
+};
+
 int vad_wakeup_power_init(struct platform_device *pdev, struct pm_data *p_data)
 {
 	int ret;
 	const char *value;
 	struct gpio_desc *desc;
 	u32 paddr = 0;
+	u32 pdata = 0;
+	int i;
+	int index;
+	struct resource res;
+
+	for (i = 0; i < AML_PM_MAX; i++) {
+		index = of_property_match_string(pdev->dev.of_node, "reg-names",
+							aml_pm_reg_table[i]);
+		if (index < 0) {
+			p_data->reg_table[i] = 0;
+		} else {
+			ret = of_address_to_resource(pdev->dev.of_node,
+							index, &res);
+			if (!ret)
+				p_data->reg_table[i] = ioremap(res.start,
+							resource_size(&res));
+			else
+				p_data->reg_table[i] = 0;
+		}
+	}
+
+	ret = of_property_read_u32(pdev->dev.of_node,
+				   "dmc_asr_value", &pdata);
+	if (!ret) {
+		p_data->dmc_asr_value = pdata;
+		pr_info("dmc_asr_value: 0x%x\n", pdata);
+	} else {
+		p_data->dmc_asr_value = 0;
+	}
 
 	ret = of_property_read_string(pdev->dev.of_node, "vddio3v3_en", &value);
 	if (ret) {
@@ -59,24 +93,6 @@ int vad_wakeup_power_init(struct platform_device *pdev, struct pm_data *p_data)
 		pr_info("vad_wakeup_disable: 0x%x\n", paddr);
 	} else {
 		p_data->vad_wakeup_disable = 1;
-	}
-
-	ret = of_property_read_u32(pdev->dev.of_node,
-				   "dmc_asr", &paddr);
-	if (!ret) {
-		pr_info("dmc_asr: 0x%x\n", paddr);
-		p_data->dmc_asr = ioremap(paddr, 0x4);
-	} else {
-		p_data->dmc_asr = 0;
-	}
-
-	ret = of_property_read_u32(pdev->dev.of_node,
-				   "cpu_reg", &paddr);
-	if (!ret) {
-		pr_info("cpu_reg: 0x%x\n", paddr);
-		p_data->cpu_reg = ioremap(paddr, 0x4);
-	} else {
-		p_data->cpu_reg = 0;
 	}
 
 	p_data->switch_clk81 = devm_clk_get(&pdev->dev, "switch_clk81");
@@ -162,8 +178,10 @@ int vad_wakeup_power_suspend(struct device *dev)
 	pr_info("switch clk81 to 24M.\n");
 
 	/*cpu clk switch to gp1*/
-	cpu_clk_switch_to_gp1(0, p_data->cpu_reg);
-	pr_info("cpu clk switch to gp1.\n");
+	if (p_data->reg_table[AML_PM_CPU]) {
+		cpu_clk_switch_to_gp1(0, p_data->reg_table[AML_PM_CPU]);
+		pr_info("cpu clk switch to gp1.\n");
+	}
 
 	fixed_pll_cnt = __clk_get_enable_count(p_data->fixed_pll);
 	if (fixed_pll_cnt > 1)
@@ -177,8 +195,9 @@ int vad_wakeup_power_suspend(struct device *dev)
 	gpio_direction_output(p_data->vddio3v3_en, 0);
 	pr_info("power off vddio_3v3.\n");
 
-	if (p_data->dmc_asr) {
-		writel(0x3fe00, p_data->dmc_asr);
+	if (p_data->reg_table[AML_PM_DMC_ASR]) {
+		writel(p_data->dmc_asr_value,
+				p_data->reg_table[AML_PM_DMC_ASR]);
 		pr_info("enable dmc asr\n");
 	}
 
@@ -196,8 +215,8 @@ int vad_wakeup_power_resume(struct device *dev)
 	gpio_direction_output(p_data->vddio3v3_en, 1);
 	pr_info("power on vddio_3v3.\n");
 
-	if (p_data->dmc_asr) {
-		writel(0x0, p_data->dmc_asr);
+	if (p_data->reg_table[AML_PM_DMC_ASR]) {
+		writel(0x0, p_data->reg_table[AML_PM_DMC_ASR]);
 		pr_info("disable dmc asr\n");
 	}
 
@@ -208,8 +227,10 @@ int vad_wakeup_power_resume(struct device *dev)
 	}
 
 	/*restore cpu clk*/
-	cpu_clk_switch_to_gp1(1, p_data->cpu_reg);
-	pr_info("cpu clk restore.\n");
+	if (p_data->reg_table[AML_PM_CPU]) {
+		cpu_clk_switch_to_gp1(1, p_data->reg_table[AML_PM_CPU]);
+		pr_info("cpu clk restore.\n");
+	}
 	clk_set_parent(p_data->switch_clk81, p_data->clk81);
 	pr_info("switch clk81 to 166M.\n");
 

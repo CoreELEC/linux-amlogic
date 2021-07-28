@@ -70,6 +70,9 @@ struct wakeup_source {
 	unsigned long		wakeup_count;
 	bool			active:1;
 	bool			autosleep_enabled:1;
+#ifdef CONFIG_AMLOGIC_MODIFY
+	char comm[TASK_COMM_LEN];
+#endif
 };
 
 #ifdef CONFIG_PM_SLEEP

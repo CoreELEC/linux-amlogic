@@ -46,9 +46,13 @@ static struct dmc_monitor *dmc_mon;
 static unsigned long init_dev_mask;
 static unsigned long init_start_addr;
 static unsigned long init_end_addr;
+static unsigned long suspend_dev_mask;
+static unsigned long suspend_start_addr;
+static unsigned long suspend_end_addr;
 
 static struct ddr_port_desc *desc;
 static int ports = -1, chip = -1;
+static unsigned char write_block;
 
 static int __init early_dmc_param(char *buf)
 {
@@ -73,6 +77,31 @@ static int __init early_dmc_param(char *buf)
 	return 0;
 }
 early_param("dmc_monitor", early_dmc_param);
+
+static int __init early_dmc_suspend(char *buf)
+{
+	unsigned long s_addr, e_addr, mask;
+	/*
+	 * Patten:  dmc_suspend=[start_addr],[end_addr],[mask]
+	 * Example: dmc_suspend=0x00000000,0x20000000,0x7fce
+	 */
+	if (!buf)
+		return -EINVAL;
+
+	if (sscanf(buf, "%lx,%lx,%lx", &s_addr, &e_addr, &mask) != 3)
+		return -EINVAL;
+
+	suspend_start_addr = s_addr;
+	suspend_end_addr   = e_addr;
+	suspend_dev_mask   = mask;
+
+	pr_info("%s, buf:%s, %lx-%lx, %lx\n",
+		__func__, buf, s_addr, e_addr, mask);
+
+	return 0;
+}
+
+early_param("dmc_suspend", early_dmc_suspend);
 
 void show_violation_mem(unsigned long addr)
 {
@@ -245,6 +274,10 @@ int dmc_set_monitor(unsigned long start, unsigned long end,
 
 	dmc_mon->addr_start = start;
 	dmc_mon->addr_end   = end;
+	if (write_block)
+		dmc_mon->addr_start |= 1;
+	else
+		dmc_mon->addr_start &= ~1UL;
 	if (en)
 		dmc_mon->device |= dev_mask;
 	else
@@ -304,12 +337,15 @@ static ssize_t dev_store(struct class *cla,
 
 	if (!strncmp(buf, "none", 4)) {
 		dmc_monitor_disable();
+		write_block = 0;
 		return count;
 	}
 	if (!strncmp(buf, "all", 3))
 		dmc_mon->device = get_all_dev_mask();
 	else if (!strncmp(buf, "other", 5))
 		dmc_mon->device = get_other_dev_mask();
+	else if (!strncmp(buf, "wb", 2))
+		write_block = 1;
 	else {
 		i = dev_name_to_id(buf);
 		if (i < 0) {
@@ -444,6 +480,37 @@ static const struct of_device_id dmc_monitor_match[] = {
 };
 #endif
 
+static char dmc_lg_buf[1024] = {};
+int dmc_suspend(struct platform_device *pdev, pm_message_t state)
+{
+	if (!suspend_dev_mask)
+		return 0;
+
+	dmc_set_monitor(suspend_start_addr,
+			suspend_end_addr,
+			suspend_dev_mask, 1);
+	memset(dmc_lg_buf, 0, sizeof(dmc_lg_buf));
+	dump_reg(dmc_lg_buf);
+	pr_info("%s\n", __func__);
+	pr_info("%s\n", dmc_lg_buf);
+	return 0;
+}
+
+int dmc_resume(struct platform_device *pdev)
+{
+	if (!suspend_dev_mask)
+		return 0;
+
+	memset(dmc_lg_buf, 0, sizeof(dmc_lg_buf));
+	dump_reg(dmc_lg_buf);
+	pr_info("%s\n", __func__);
+	pr_info("%s\n", dmc_lg_buf);
+	dmc_set_monitor(suspend_start_addr,
+			suspend_end_addr,
+			suspend_dev_mask, 0);
+	return 0;
+}
+
 static struct platform_driver dmc_monitor_driver = {
 	.driver = {
 		.name  = "dmc_monitor",
@@ -454,6 +521,8 @@ static struct platform_driver dmc_monitor_driver = {
 	},
 	.probe = dmc_monitor_probe,
 	.remove = dmc_monitor_remove,
+	.suspend = dmc_suspend,
+	.resume = dmc_resume,
 };
 
 static int __init dmc_monitor_init(void)
