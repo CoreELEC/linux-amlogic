@@ -1,0 +1,29 @@
+#include "g12b_s922x_ugoos_am6_2g.dts"
+
+/{
+	model = "UGOOS AM6B";
+	coreelec-dt-id = "g12b_s922x_ugoos_am6b";
+	amlogic-dt-id = "g12b_AM6b_b2g";
+
+	auge_sound {
+		aml-audio-card,dai-link@1 {
+			codec {
+				sound-dai = <&es8388>;
+			};
+		};
+	};
+};
+
+&i2c3 {
+	/delete-node/ rt5651@1a;
+
+	es8388: es8388@10 {
+		status = "okay";
+		compatible = "everest,es8388";
+		#sound-dai-cells = <0>;
+		reg = <0x10>;
+		def-vol = <0x1d>;
+		def-dacvol = <0x0a>;
+		aux-det-gpio = <&gpio GPIOH_4 GPIO_ACTIVE_HIGH>;
+	};
+};
