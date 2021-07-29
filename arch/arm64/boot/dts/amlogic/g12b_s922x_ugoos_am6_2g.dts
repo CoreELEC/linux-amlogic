@@ -17,14 +17,10 @@
 		};
 	};
 
-	sys_green {
-		compatible = "amlogic, sysled";
-		dev_name = "sysled";
-		label = "sys_green";
-		status = "okay";
-		led_gpio = <&gpio GPIOC_7 GPIO_ACTIVE_HIGH>;
-		led_active_low = <0>;
-		led_gpio_workaround;    /* GPIOC_7 cant control output */
+	gpioleds {
+		sys_led {
+			gpios=<&gpio GPIOC_7 GPIO_ACTIVE_HIGH>;
+		};
 	};
 
 	wifi{
