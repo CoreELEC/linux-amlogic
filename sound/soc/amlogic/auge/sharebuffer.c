@@ -94,6 +94,9 @@ void sharebuffer_enable(int sel, bool enable, bool reenable)
 	}
 }
 
+void *p_frddr;
+int same_src_on;
+
 int sharebuffer_prepare(struct snd_pcm_substream *substream,
 			void *pfrddr,
 			int samesource_sel,
@@ -117,6 +120,8 @@ int sharebuffer_prepare(struct snd_pcm_substream *substream,
 
 	/* frddr, share buffer, src_sel1 */
 	aml_frddr_select_dst_ss(fr, samesource_sel, 1, true);
+	p_frddr = pfrddr;
+	same_src_on = 1;
 
 	return 0;
 }
@@ -139,10 +144,18 @@ int sharebuffer_free(struct snd_pcm_substream *substream,
 
 	/* frddr, share buffer, src_sel1 */
 	aml_frddr_select_dst_ss(fr, samesource_sel, 1, false);
+	same_src_on = 0;
 
 	return 0;
 }
 
+int release_spdif_same_src(struct snd_pcm_substream *substream)
+{
+	if (same_src_on)
+		sharebuffer_free(substream, p_frddr, 3);
+
+	return 0;
+}
 
 int sharebuffer_trigger(int cmd, int samesource_sel, bool reenable)
 {

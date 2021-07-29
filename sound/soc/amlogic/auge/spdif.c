@@ -39,6 +39,7 @@
 #include "resample_hw.h"
 #include "spdif.h"
 #include "spdif_match_table.c"
+#include "sharebuffer.h"
 
 #define DRV_NAME "snd_spdif"
 
@@ -903,6 +904,9 @@ static int aml_spdif_open(struct snd_pcm_substream *substream)
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		p_spdif->on = true;
+
+		if (p_spdif->id == 0)
+			release_spdif_same_src(substream);
 		p_spdif->fddr = aml_audio_register_frddr(dev,
 			p_spdif->actrl,
 			aml_spdif_ddr_isr, substream, false);

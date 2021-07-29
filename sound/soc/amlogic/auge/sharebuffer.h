@@ -26,6 +26,7 @@ int sharebuffer_prepare(struct snd_pcm_substream *substream,
 int sharebuffer_free(struct snd_pcm_substream *substream,
 		     void *pfrddr,
 		     int samesource_sel);
+int release_spdif_same_src(struct snd_pcm_substream *substream);
 int sharebuffer_trigger(int cmd, int samesource_sel, bool reenable);
 
 void sharebuffer_get_mclk_fs_ratio(int samesource_sel,
