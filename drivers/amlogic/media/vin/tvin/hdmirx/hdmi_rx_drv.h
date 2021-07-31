@@ -47,7 +47,7 @@
  *
  *
  */
-#define RX_VER2 "ver.2021/05/14"
+#define RX_VER2 "ver.2021/07/30"
 
 /*print type*/
 #define	LOG_EN		0x01
@@ -80,7 +80,7 @@
 
 
 #define PFIFO_SIZE 160
-
+#define HDCP14_KEY_SIZE 368
 enum chip_id_e {
 	CHIP_ID_GXTVBB,
 	CHIP_ID_TXL,
@@ -455,6 +455,9 @@ struct rx_s {
 	uint32_t arc_port;
 	enum edid_ver_e edid_ver;
 	bool arc_5vsts;
+#ifdef CONFIG_AMLOGIC_HDMITX
+	struct notifier_block tx_notify;
+#endif
 };
 
 struct _hdcp_ksv {
@@ -509,6 +512,7 @@ extern int en_4k_2_2k;
 extern bool hdmi_cec_en;
 extern int hdmi_yuv444_enable;
 extern int vdin_drop_frame_cnt;
+extern int aud_compose_type;
 /* debug */
 extern bool hdcp_enable;
 extern int log_level;
@@ -551,7 +555,8 @@ extern unsigned int downstream_hpd_flag;
 extern void hdmirx_fill_edid_buf(const char *buf, int size);
 extern unsigned int hdmirx_read_edid_buf(char *buf, int max_size);
 extern void hdmirx_fill_key_buf(const char *buf, int size);
-
+extern int rx_audio_block_len;
+extern u8 rx_audio_block[MAX_AUDIO_BLK_LEN];
 /* packets */
 extern int dv_nopacket_timeout;
 extern unsigned int packet_fifo_cfg;

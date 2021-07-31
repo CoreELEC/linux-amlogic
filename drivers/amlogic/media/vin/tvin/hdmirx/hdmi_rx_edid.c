@@ -34,9 +34,16 @@
 #include "hdmi_rx_drv.h"
 #include "hdmi_rx_edid.h"
 #include "hdmi_rx_hw.h"
-
+/* temp edid buff for edid calc & update */
 unsigned char edid_temp[EDID_SIZE];
+/* buff to store downstream EDID or EDID load from bin */
 static char edid_buf[MAX_EDID_BUF_SIZE] = {0x0};
+#ifdef CONFIG_AMLOGIC_HDMITX
+/* buff to backup EDID loaded from uplayer bin,
+ * for recovery EDID of hdmirx itself on soundbar
+ */
+static unsigned char edid_bin[MAX_EDID_BUF_SIZE] = {0x0};
+#endif
 static int edid_size;
 struct edid_data_s tmp_edid_data;
 int arc_port_id;
@@ -56,6 +63,16 @@ module_param(port_map, int, 0664);
 bool new_hdr_lum;
 MODULE_PARM_DESC(new_hdr_lum, "\n new_hdr_lum\n");
 module_param(new_hdr_lum, bool, 0664);
+
+#ifdef CONFIG_AMLOGIC_HDMITX
+/* bit 0: 1-edid from tx, 0-not from tx */
+/* bit 1: 1-auto, if TX update EDID bit0 set to 1 */
+int edid_from_tx = 0x2;
+MODULE_PARM_DESC(edid_from_tx, "\n edid_from_tx\n");
+module_param(edid_from_tx, int, 0664);
+
+static unsigned char edid_tx[EDID_SIZE];
+#endif
 
 /*
  * 1:reset hpd after atmos edid update
@@ -607,6 +624,11 @@ unsigned int hdmirx_read_edid_buf(char *buf, int max_size)
 
 void hdmirx_fill_edid_buf(const char *buf, int size)
 {
+#ifdef CONFIG_AMLOGIC_HDMITX
+	int i;
+	u8 *aud_blk;
+#endif
+
 	if (size > MAX_EDID_BUF_SIZE) {
 		rx_pr("Error: %s,edid size %d",
 				__func__,
@@ -615,6 +637,31 @@ void hdmirx_fill_edid_buf(const char *buf, int size)
 			MAX_EDID_BUF_SIZE);
 		return;
 	}
+#ifdef CONFIG_AMLOGIC_HDMITX
+	memcpy(edid_bin, buf, size);
+	/* save AUDIO blk of primary EDID, it maybe
+	 * overwritten by audio_blk_store later
+	 */
+	if (size % EDID_SIZE == 0) {
+		aud_blk = edid_tag_extract(edid_bin, AUDIO_TAG);
+		if (aud_blk) {
+			rx_audio_block_len = BLK_LENGTH(aud_blk[0]) + 1;
+			if (rx_audio_block_len <= MAX_AUDIO_BLK_LEN)
+				memcpy(rx_audio_block, aud_blk,
+				       rx_audio_block_len);
+		}
+	}
+
+	if ((edid_from_tx & 1) &&
+	    (size == 2 * EDID_SIZE * PORT_NUM)) {
+		rx_pr("using EDID from TX, blocking user EDID change\n");
+		for (i = 0; i < 2 * PORT_NUM; i++)
+			memcpy(edid_buf + i * EDID_SIZE,
+			       edid_tx, EDID_SIZE);
+		edid_size = 2 * PORT_NUM * EDID_SIZE;
+		return;
+	}
+#endif
 	memcpy(edid_buf, buf, size);
 
 	edid_size = size;
@@ -706,12 +753,18 @@ int rx_get_ceadata_offset(uint8_t *cur_edid, uint8_t *addition)
 	return 0;
 }
 
-void rx_mix_edid_audio(uint8_t *cur_data, uint8_t *addition)
+void rx_mix_edid_audio(u8 *cur_data, u8 *addition, int free_size)
 {
 	struct edid_audio_block_t *ori_data;
 	struct edid_audio_block_t *add_data;
 	unsigned char ori_len, add_len;
 	int i, j;
+	int byte_available = free_size;
+	int aud_blk_size;
+	bool new_audio;
+	int n_sad;
+	unsigned char header;
+	unsigned char ori_aud_blk[32];
 
 	if ((cur_data == 0) || (addition == 0) ||
 		(*cur_data >> 5) != (*addition >> 5))
@@ -724,9 +777,89 @@ void rx_mix_edid_audio(uint8_t *cur_data, uint8_t *addition)
 	if (log_level & VIDEO_LOG)
 		rx_pr("mix audio format ori len:%d,add len:%d\n",
 							ori_len, add_len);
+#ifdef CONFIG_AMLOGIC_HDMITX
+	if (edid_from_tx & 1) {
+		aud_blk_size = (*cur_data & 0x1f);
+		byte_available += aud_blk_size;
+		if (log_level & EDID_LOG)
+			rx_pr("aud len:%d,tx len:%d,free:%d\n",
+			      *addition & 0x1f,
+			      aud_blk_size,
+			      free_size);
+		memcpy(ori_aud_blk, cur_data, aud_blk_size + 1);
+		ori_data = (struct edid_audio_block_t *)
+			(ori_aud_blk + 1);
+		if (log_level & EDID_LOG)
+			rx_pr("%d sad from audio blk\n", add_len);
+		n_sad = 0;
+		for (i = 0; i < add_len; i++) {
+			if (byte_available < FORMAT_SIZE)
+				break;
+			if (n_sad * FORMAT_SIZE > 0x1b)
+				break;
+			if (log_level & EDID_LOG)
+				rx_pr(" +sad %d: %d\n", n_sad,
+				      add_data[i].format_code);
+			memcpy(cur_data + 1 + n_sad * FORMAT_SIZE,
+			       &add_data[i], FORMAT_SIZE);
+			n_sad++;
+			byte_available -= FORMAT_SIZE;
+		}
+		if (i < add_len) {
+			header = *cur_data & 0xe0;
+			header += n_sad * FORMAT_SIZE;
+			*cur_data = header;
+			if (log_level & EDID_LOG) {
+				rx_pr("error: not enough bytes for aud blk\n");
+				rx_pr("total %d sad mixed\n", n_sad);
+			}
+			return;
+		}
+		if (log_level & EDID_LOG)
+			rx_pr("%d sad from tx edid\n", ori_len);
+		for (i = 0; i < ori_len; i++) {
+			new_audio = true;
+			for (j = 0; j < add_len; j++)
+				if (ori_data[i].format_code ==
+				    add_data[j].format_code)
+					new_audio = false;
+			if (!new_audio) {
+				if (log_level & EDID_LOG)
+					rx_pr(" -sad  : %d\n",
+					      ori_data[i].format_code);
+				continue;
+			}
+			if (byte_available < FORMAT_SIZE)
+				break;
+			if (n_sad * FORMAT_SIZE > 0x1b)
+				break;
+			if (log_level & EDID_LOG)
+				rx_pr(" +sad %d: %d\n", n_sad,
+				      ori_data[i].format_code);
+			memcpy(cur_data + 1 + n_sad * FORMAT_SIZE,
+			       &ori_data[i], FORMAT_SIZE);
+			n_sad++;
+			byte_available -= FORMAT_SIZE;
+		}
+		if (i < ori_len) {
+			if (log_level & EDID_LOG) {
+				rx_pr(" *sad %d: %d\n", n_sad,
+				      ori_data[i].format_code);
+				rx_pr("error: not enough bytes for tx aud\n");
+			}
+		}
+		header = *cur_data & 0xe0;
+		header += n_sad * FORMAT_SIZE;
+		*cur_data = header;
+		if (log_level & EDID_LOG)
+			rx_pr("total %d sad mixed\n", n_sad);
+		return;
+	}
+#endif
 	for (i = 0; i < add_len; i++) {
 		if (log_level & VIDEO_LOG)
 			rx_pr("mix audio format:%d\n", add_data[i].format_code);
+		/* change according to project */
 		/*only support lpcm dts dd+*/
 		if (!is_audio_support(add_data[i].format_code))
 			continue;
@@ -825,7 +958,7 @@ int rx_edid_free_size(uint8_t *cur_edid, int size)
 		return -1;
 }
 
-void rx_mix_block(uint8_t *cur_data, uint8_t *addition)
+void rx_mix_block(u8 *cur_data, u8 *addition, int free_size)
 {
 	int tag_code;
 
@@ -841,7 +974,7 @@ void rx_mix_block(uint8_t *cur_data, uint8_t *addition)
 
 	switch (tag_code) {
 	case EDID_TAG_AUDIO:
-		rx_mix_edid_audio(cur_data, addition);
+		rx_mix_edid_audio(cur_data, addition, free_size);
 		break;
 
 	case EDID_TAG_HDR:
@@ -886,7 +1019,8 @@ void rx_modify_edid(unsigned char *buffer,
 				rx_pr("%s mix size:%d\n", __func__,
 					 (cur_size + addition_size));
 			/*add addition block property to local edid*/
-			rx_mix_block(cur_data, addition);
+			free_size = rx_edid_free_size(buffer, EDID_SIZE);
+			rx_mix_block(cur_data, addition, free_size);
 			addition_size = (*cur_data & 0x1f) + 1;
 		} else
 			return;
@@ -903,8 +1037,12 @@ void rx_modify_edid(unsigned char *buffer,
 		if (log_level & VIDEO_LOG)
 			rx_pr("%s free_size:%d\n", __func__, free_size);
 		if ((free_size < (addition_size - temp_len)) ||
-			(free_size <= 0))
+			(free_size <= 0)) {
+			rx_pr(
+			"error: free_size %d, addition_size %d, temp_len %d\n",
+			free_size, addition_size, temp_len);
 			return;
+		}
 		if (log_level & VIDEO_LOG)
 			rx_pr("edid_temp start: %#x, len: %d\n",
 			start_addr_temp, temp_len);
@@ -3159,7 +3297,7 @@ unsigned char rx_get_cea_dtd_size(unsigned char *cur_edid, unsigned int size)
 		(cur_edid[dtd_block_offset] ||
 		cur_edid[dtd_block_offset+1])) {
 		dtd_block_offset += DETAILED_TIMING_LEN;
-		if (dtd_block_offset >= size-1)
+		if (dtd_block_offset > size - 1)
 			break;
 		dtd_size += DETAILED_TIMING_LEN;
 	}
@@ -3216,6 +3354,51 @@ bool rx_set_earc_cap_ds(unsigned char *data, unsigned int len)
 	return true;
 }
 EXPORT_SYMBOL(rx_set_earc_cap_ds);
+
+#ifdef CONFIG_AMLOGIC_HDMITX
+bool rx_update_tx_edid_with_audio_block(unsigned char *edid_data,
+					unsigned char *audio_block)
+{
+	int i;
+	bool ret = false;
+
+	if (!edid_data || !audio_block) {
+		ret = false;
+		/* recovery primary EDID loaded from bin */
+		memcpy(edid_buf, edid_bin, sizeof(edid_bin));
+	} else {
+		if (edid_from_tx & 2)
+			edid_from_tx |= 1;
+		if (edid_from_tx & 1)
+			edid_select = 0;
+		memcpy(edid_tx, edid_data, EDID_SIZE);
+		/* not mix audio blk */
+		/* rx_modify_edid(edid_tx, EDID_SIZE, audio_block); */
+		if (aud_compose_type == 0) {
+			return false;
+		} else if (aud_compose_type == 1) {
+			edid_rm_db_by_tag(edid_tx, AUDIO_TAG);
+			/* place aud data blk to blk index = 0x1 */
+			splice_data_blk_to_edid(edid_tx, audio_block, 0x1);
+		}
+		rx_pr("update edid after merge audio block\n");
+		for (i = 0; i < 2 * PORT_NUM; i++)
+			memcpy(edid_buf + i * EDID_SIZE, edid_tx, EDID_SIZE);
+		edid_size = 2 * PORT_NUM * EDID_SIZE;
+		ret = true;
+	}
+
+	hdmi_rx_top_edid_update();
+	if (rx.open_fg) {
+		rx_pr("rx_send_hpd_pulse\n");
+		rx_send_hpd_pulse();
+	} else {
+		pre_port = 0xff;
+	}
+	return ret;
+}
+EXPORT_SYMBOL(rx_update_tx_edid_with_audio_block);
+#endif
 
 /* cap_info need to be cleared firstly */
 static bool parse_earc_cap_ds(unsigned char *cap_ds_in, unsigned int len_in,

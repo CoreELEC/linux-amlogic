@@ -78,6 +78,7 @@
 /* short audio descriptor length */
 #define SAD_LEN 3
 #define BLK_LENGTH(a) (a & 0x1F)
+#define MAX_AUDIO_BLK_LEN 31
 
 enum edid_audio_format_e {
 	AUDIO_FORMAT_HEADER,
@@ -738,4 +739,8 @@ void rx_modify_edid(unsigned char *buffer,
 void rx_edid_update_audio_info(unsigned char *p_edid,
 						unsigned int len);
 extern bool is_ddc_idle(unsigned char port_id);
+#ifdef CONFIG_AMLOGIC_HDMITX
+bool rx_update_tx_edid_with_audio_block(unsigned char *edid_data,
+					unsigned char *audio_block);
+#endif
 #endif

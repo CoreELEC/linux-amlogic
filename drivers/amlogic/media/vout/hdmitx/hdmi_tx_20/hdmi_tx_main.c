@@ -57,6 +57,7 @@
 #include <linux/amlogic/media/vout/hdmi_tx/hdmi_tx_ddc.h>
 #include <linux/amlogic/media/vout/hdmi_tx/hdmi_tx_module.h>
 #include <linux/amlogic/media/vout/hdmi_tx/hdmi_config.h>
+#include <linux/amlogic/media/vout/hdmi_tx/hdmi_tx_notify.h>
 #include "hw/tvenc_conf.h"
 #include "hw/common.h"
 #include "hw/hw_clk.h"
@@ -214,10 +215,10 @@ int hdmitx_set_uevent(enum hdmitx_event type, int val)
  */
 int hdr_status_pos;
 
-static inline void hdmitx_notify_hpd(int hpd)
+static inline void hdmitx_notify_hpd(int hpd, void *p)
 {
 	if (hpd)
-		hdmitx_event_notify(HDMITX_PLUG, NULL);
+		hdmitx_event_notify(HDMITX_PLUG, p);
 	else
 		hdmitx_event_notify(HDMITX_UNPLUG, NULL);
 }
@@ -311,11 +312,13 @@ static void hdmitx_late_resume(struct early_suspend *h)
 		hdmitx_device.already_used = 1;
 
 	pr_info("hdmitx hpd state: %d\n", hdmitx_device.hpd_state);
-	hdmitx_notify_hpd(hdmitx_device.hpd_state);
 
 	/*force to get EDID after resume for Amplifer Power case*/
 	if (hdmitx_device.hpd_state)
 		hdmitx_get_edid(phdmi);
+	hdmitx_notify_hpd(hdmitx_device.hpd_state,
+			  hdmitx_device.edid_parsing ?
+			  hdmitx_device.edid_ptr : NULL);
 
 	hdmitx_device.hwop.cntlconfig(&hdmitx_device,
 		CONF_AUDIO_MUTE_OP, AUDIO_MUTE);
@@ -5834,7 +5837,9 @@ static void hdmitx_hpd_plugin_handler(struct work_struct *work)
 		plugout_mute_flg = false;
 	}
 	hdev->hpd_state = 1;
-	hdmitx_notify_hpd(hdev->hpd_state);
+	hdmitx_notify_hpd(hdmitx_device.hpd_state,
+			  hdmitx_device.edid_parsing ?
+			  hdmitx_device.edid_ptr : NULL);
 	extcon_set_state_sync(hdmitx_extcon_hdmi, EXTCON_DISP_HDMI, 1);
 	hdmitx_set_uevent(HDMITX_HPD_EVENT, 1);
 	extcon_set_state_sync(hdmitx_extcon_audio, EXTCON_DISP_HDMI, 1);
@@ -5887,7 +5892,7 @@ static void hdmitx_hpd_plugout_handler(struct work_struct *work)
 		hdmi_physical_size_update(hdev);
 		hdmitx_edid_ram_buffer_clear(hdev);
 		hdev->hpd_state = 0;
-		hdmitx_notify_hpd(hdev->hpd_state);
+		hdmitx_notify_hpd(hdev->hpd_state, NULL);
 		hdev->hwop.cntlmisc(hdev, MISC_AVMUTE_OP, SET_AVMUTE);
 		extcon_set_state_sync(hdmitx_extcon_hdmi, EXTCON_DISP_HDMI, 0);
 		hdmitx_set_uevent(HDMITX_HPD_EVENT, 0);
@@ -5915,7 +5920,7 @@ static void hdmitx_hpd_plugout_handler(struct work_struct *work)
 	hdmi_physical_size_update(hdev);
 	hdmitx_edid_ram_buffer_clear(hdev);
 	hdev->hpd_state = 0;
-	hdmitx_notify_hpd(hdev->hpd_state);
+	hdmitx_notify_hpd(hdev->hpd_state, NULL);
 	extcon_set_state_sync(hdmitx_extcon_hdmi, EXTCON_DISP_HDMI, 0);
 	hdmitx_set_uevent(HDMITX_HPD_EVENT, 0);
 	extcon_set_state_sync(hdmitx_extcon_audio, EXTCON_DISP_HDMI, 0);
@@ -6019,7 +6024,7 @@ static int hdmi_task_handle(void *data)
 	struct hdmitx_dev *hdmitx_device = (struct hdmitx_dev *)data;
 
 	hdmitx_extcon_hdmi->state = hdmitx_device->hpd_state;
-	hdmitx_notify_hpd(hdmitx_device->hpd_state);
+	hdmitx_notify_hpd(hdmitx_device->hpd_state, NULL);
 
 	extcon_set_state_sync(hdmitx_extcon_power, EXTCON_DISP_HDMI,
 		hdmitx_device->hpd_state);
@@ -6205,7 +6210,9 @@ int hdmitx_event_notifier_regist(struct notifier_block *nb)
 	ret = blocking_notifier_chain_register(&hdmitx_event_notify_list, nb);
 	/* update status when register */
 	if (!ret && nb->notifier_call) {
-		hdmitx_notify_hpd(hdmitx_device.hpd_state);
+		hdmitx_notify_hpd(hdmitx_device.hpd_state,
+				  hdmitx_device.edid_parsing ?
+				  hdmitx_device.edid_ptr : NULL);
 		if (hdmitx_device.physical_addr != 0xffff)
 			hdmitx_event_notify(HDMITX_PHY_ADDR_VALID,
 					    &hdmitx_device.physical_addr);
