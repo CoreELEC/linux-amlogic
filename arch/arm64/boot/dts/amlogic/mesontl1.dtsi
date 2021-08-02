@@ -289,8 +289,11 @@
                 device_name = "aml_pm";
 		debug_reg = <0xff8000a8>;
 		exit_reg = <0xff80023c>;
-		dmc_asr = <0xff638634>;
-		cpu_reg = <0xff63c19c>;
+		reg = <0x0 0xff638634 0x0 0x4   /* dmc_asr */
+			0x0 0xff63c19c 0x0 0x4>; /* cpu gp1 */
+		reg-names = "dmc_asr",
+			"cpu";
+		dmc_asr_value = <0x3fe00>;
 		clocks = <&clkc CLKID_SWITCH_CLK81>,
 			<&clkc CLKID_CLK81>,
 			<&clkc CLKID_FIXED_PLL>,
