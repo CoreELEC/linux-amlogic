@@ -66,6 +66,10 @@
 	};
 
 	/delete-node/ rtc;
+
+	auge_sound {
+		/delete-property/ avout_mute-gpios;
+	};
 };
 
 &audiobus {
