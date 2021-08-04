@@ -281,6 +281,11 @@ int hdr_policy_process(
 			target_format[vd_path] = BT2020YUV_BT2020RGB_CUVA;
 		} else if ((source_format[vd_path] == HDRTYPE_CUVA_HDR) &&
 			(sink_hdr_support(vinfo)
+			& HDR_SUPPORT)) {
+			cuva_hdr_process_mode[vd_path] = PROC_CUVA_TO_HDR;
+			target_format[vd_path] = BT2020;
+		} else if ((source_format[vd_path] == HDRTYPE_CUVA_HDR) &&
+			(sink_hdr_support(vinfo)
 			& HLG_SUPPORT)) {
 			cuva_hdr_process_mode[vd_path] = PROC_CUVA_TO_HLG;
 			target_format[vd_path] = BT2020_HLG;
@@ -1708,13 +1713,13 @@ void video_post_process(
 				hdr_proc(vf, VD1_HDR, CUVA_HDR, vinfo, NULL);
 			else
 				hdr_proc(vf, VD2_HDR, CUVA_HDR, vinfo, NULL);
-			hdr_proc(vf, OSD1_HDR, CUVA_HDR, vinfo, NULL);
+			hdr_proc(vf, OSD1_HDR, SDR_HDR, vinfo, NULL);
 		} else if (cuva_hdr_process_mode[vd_path] == PROC_CUVA_TO_HLG) {
 			if (vd_path == VD1_PATH)
 				hdr_proc(vf, VD1_HDR, CUVA_HLG, vinfo, NULL);
 			else
 				hdr_proc(vf, VD2_HDR, CUVA_HLG, vinfo, NULL);
-			hdr_proc(vf, OSD1_HDR, CUVA_HLG, vinfo, NULL);
+			hdr_proc(vf, OSD1_HDR, SDR_HLG, vinfo, NULL);
 		}
 
 		break;
