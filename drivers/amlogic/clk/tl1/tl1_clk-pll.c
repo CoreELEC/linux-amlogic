@@ -140,13 +140,14 @@ static unsigned long meson_tl1_pll_recalc_rate(struct clk_hw *hw,
 				((parent_rate_mhz * frac)
 				>> (p->width - 2)));
 			do_div(tmp64, n);
-			rate_mhz = (unsigned long)tmp64;
 		}
 
 		if (!strcmp(clk_hw_get_name(hw), "pcie_pll"))
-			rate_mhz = rate_mhz/4/od;
+			tmp64 = tmp64 >> (2 + od);
 		else
-			rate_mhz = rate_mhz >> od;
+			tmp64 = tmp64 >> od;
+
+		rate_mhz = (unsigned long)tmp64;
 	} else {
 		if (!strcmp(clk_hw_get_name(hw), "pcie_pll")) {
 			tmp64 = parent_rate_mhz * m;
