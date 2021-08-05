@@ -39,8 +39,9 @@
 #include <linux/amlogic/media/video_sink/vpp.h>
 #include <linux/amlogic/media/video_sink/video.h>
 #include <linux/amlogic/media/amdolbyvision/dolby_vision.h>
+#ifdef CONFIG_AMLOGIC_MEDIA_DEINTERLACE
 #include <linux/amlogic/media/di/di.h>
-
+#endif
 #include "video_receiver.h"
 
 /* #define ENABLE_DV */
@@ -156,7 +157,19 @@ static void common_vf_unreg_provider(struct video_recv_s *ins)
 	ins->last_switch_state = false;
 
 	if (ins->cur_buf) {
+		if ((ins->cur_buf->vf_ext) &&
+		    (ins->cur_buf->type & VIDTYPE_DI_PW)) {
+			struct vframe_s *tmp =
+				(struct vframe_s *)ins->cur_buf->vf_ext;
+
+			memcpy(&tmp->pic_mode, &ins->cur_buf->pic_mode,
+				sizeof(struct vframe_pic_mode_s));
+			ins->local_buf_ext = *tmp;
 		ins->local_buf = *ins->cur_buf;
+			ins->local_buf.vf_ext = (void *)&ins->local_buf_ext;
+		} else {
+			ins->local_buf = *ins->cur_buf;
+		}
 		ins->cur_buf = &ins->local_buf;
 	}
 	spin_unlock_irqrestore(&ins->lock, flags);
@@ -170,6 +183,8 @@ static void common_vf_unreg_provider(struct video_recv_s *ins)
 		layer2_used = true;
 	}
 
+	if (layer1_used || !vd_layer[0].dispbuf_mapping)
+		atomic_set(&primary_src_fmt, VFRAME_SIGNAL_FMT_INVALID);
 	if (!layer1_used && !layer2_used) {
 		ins->cur_buf = NULL;
 	} else {
@@ -385,7 +400,9 @@ static struct vframe_s *recv_common_dequeue_frame(
 	struct vframe_s *vf = NULL;
 	struct vframe_s *toggle_vf = NULL;
 	s32 drop_count = -1;
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 	enum vframe_signal_fmt_e fmt;
+#endif
 
 	if (!ins) {
 		pr_err("recv_common_dequeue_frame error, empty ins\n");

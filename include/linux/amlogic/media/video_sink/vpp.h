@@ -37,6 +37,9 @@ extern struct sr_info_s sr_info;
 #define VPP_FLAG_VSCALE_DISABLE     0x00080000
 #define VPP_FLAG_MORE_LOG     0x00100000
 #define VPP_FLAG_FORCE_NO_COMPRESS     0x00200000
+#define VPP_FLAG_FORCE_SWITCH_VF     0x00400000
+#define VPP_FLAG_FORCE_NOT_SWITCH_VF     0x00800000
+#define VPP_FLAG_FROM_TOGGLE_FRAME	0x00000001
 
 #define IDX_H           (2 << 8)
 #define IDX_V_Y         (1 << 13)
@@ -58,7 +61,9 @@ enum vppfilter_state_e {
 	vppfilter_fail = -1,
 	vppfilter_success = 0,
 	vppfilter_success_and_changed,
+	vppfilter_success_and_switched,
 	vppfilter_changed_but_hold,
+	vppfilter_changed_but_switch
 };
 
 enum f2v_vphase_type_e {
@@ -203,7 +208,6 @@ struct disp_info_s {
 	bool pps_support;
 
 	bool need_no_compress;
-	s32 sideband_type;
 	bool fgrain_support;
 	bool fgrain_enable;
 	bool fgrain_start;
@@ -211,7 +215,10 @@ struct disp_info_s {
 	bool lut_dma_support;
 	bool dv_support;
 	bool alpha_support;
+	s32 sideband_type;
 	u32 mirror;
+	u32 src_width_max;
+	u32 src_height_max;
 };
 
 enum select_scaler_path_e {
@@ -227,6 +234,9 @@ enum select_scaler_path_e {
 	PPS_CORE0_CORE1,
 	PPS_CORE0_POSTBLEND_CORE1,
 	CORE0_PPS_POSTBLEND_CORE1,
+	/* t5d only have core1, support below tow mode */
+	PPS_POSTBLEND_CORE1,
+	PPS_CORE1_CM,
 	SCALER_PATH_MAX,
 };
 /*

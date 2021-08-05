@@ -211,9 +211,11 @@
 #define AMSTREAM_IOC_GET_OMX_VERSION _IOW((_A_M), 0xb1, int)
 #define AMSTREAM_IOC_GET_OMX_INFO    _IOR((_A_M), 0xb2, unsigned int)
 #define AMSTREAM_IOC_SET_HDR_INFO    _IOW((_A_M), 0xb3, int)
+#define AMSTREAM_IOC_GET_VIDEO_LATENCY _IOW((_A_M), 0xb4, int)
 #define AMSTREAM_IOC_SET_TUNNEL_MODE _IOR(_A_M, 0xbd, unsigned int)
 #define AMSTREAM_IOC_GET_FIRST_FRAME_TOGGLED _IOR(_A_M, 0xbe, unsigned int)
 #define AMSTREAM_IOC_SET_VIDEOPEEK   _IOW(_A_M, 0xbf, unsigned int)
+#define AMSTREAM_IOC_SET_NO_VIDEO_STOP _IOW(_A_M, 0xf5, unsigned int)
 
 #define AMSTREAM_IOC_GET_TRICK_VPTS _IOR((_A_M), 0xf0, int)
 #define AMSTREAM_IOC_DISABLE_SLOW_SYNC _IOW((_A_M), 0xf1, int)

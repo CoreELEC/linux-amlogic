@@ -26,13 +26,16 @@
 #define VIDEO_ENABLE_STATE_ON_PENDING 2
 #define VIDEO_ENABLE_STATE_OFF_REQ    3
 
-#define DEBUG_FLAG_BLACKOUT     0x1
+#define DEBUG_FLAG_BASIC_INFO     0x1
 #define DEBUG_FLAG_PRINT_TOGGLE_FRAME 0x2
 #define DEBUG_FLAG_PRINT_RDMA                0x4
 #define DEBUG_FLAG_GET_COUNT                 0x8
 #define DEBUG_FLAG_PRINT_DISBUF_PER_VSYNC        0x10
 #define DEBUG_FLAG_PRINT_PATH_SWITCH        0x20
+#define DEBUG_FLAG_TRACE_EVENT	        0x40
+#define DEBUG_FLAG_PRINT_DISPLAY_TIME       0x80
 #define DEBUG_FLAG_LOG_RDMA_LINE_MAX         0x100
+#define DEBUG_FLAG_BLACKOUT     0x200
 #define DEBUG_FLAG_TOGGLE_SKIP_KEEP_CURRENT  0x10000
 #define DEBUG_FLAG_TOGGLE_FRAME_PER_VSYNC    0x20000
 #define DEBUG_FLAG_RDMA_WAIT_1		     0x40000
@@ -48,6 +51,12 @@
 #define DEBUG_FLAG_COMPOSER_NO_DROP_FRAME     0x10000000
 #define DEBUG_FLAG_AXIS_NO_UPDATE     0x20000000
 #define DEBUG_FLAG_NO_CLIP_SETTING    0x40000000
+#define DEBUG_FLAG_HDMI_AVSYNC_DEBUG  0x40000000
+#define DEBUG_FLAG_HDMI_DV_CRC     0x80000000
+
+/*for performance_debug*/
+#define DEBUG_FLAG_VSYNC_PROCESS_TIME  0x1
+#define DEBUG_FLAG_OVER_VSYNC          0x2
 
 #define VOUT_TYPE_TOP_FIELD 0
 #define VOUT_TYPE_BOT_FIELD 1
@@ -69,6 +78,12 @@
 #define COMPOSE_MODE_3D			1
 #define COMPOSE_MODE_DV			2
 #define COMPOSE_MODE_BYPASS_CM	4
+#define VIDEO_PROP_CHANGE_NONE		0
+#define VIDEO_PROP_CHANGE_SIZE		0x1
+#define VIDEO_PROP_CHANGE_FMT		0x2
+#define VIDEO_PROP_CHANGE_ENABLE	0x4
+#define VIDEO_PROP_CHANGE_DISABLE	0x8
+#define VIDEO_PROP_CHANGE_AXIS		0x10
 
 #define MAX_ZOOM_RATIO 300
 
@@ -86,8 +101,21 @@
 #define VIDEO_AUTO_POST_BLEND_DUMMY BIT(24)
 
 #define DISPBUF_TO_PUT_MAX 3
+
+#define IS_DI_PROCESSED(vftype) \
+	((vftype) & (VIDTYPE_PRE_INTERLACE | VIDTYPE_DI_PW))
+#define IS_DI_POST(vftype) \
+	(((vftype) & (VIDTYPE_PRE_INTERLACE | VIDTYPE_DI_PW)) \
+	 == VIDTYPE_PRE_INTERLACE)
+#define IS_DI_POSTWRTIE(vftype) ((vftype) & VIDTYPE_DI_PW)
 #define MAX_PIP_WINDOW    16
+
 #define VPP_FILER_COEFS_NUM   33
+
+#define OP_VPP_MORE_LOG 1
+#define OP_FORCE_SWITCH_VF 2
+#define OP_FORCE_NOT_SWITCH_VF 4
+
 #define IS_DI_POSTWRTIE(vftype) ((vftype) & VIDTYPE_DI_PW)
 
 enum vd_path_id {
@@ -266,6 +294,9 @@ struct video_layer_s {
 	bool new_frame;
 	u32 vout_type;
 	bool bypass_pps;
+	bool switch_vf;
+	u8 force_switch_mode;
+	struct vframe_s *vf_ext;
 
 	struct vpp_frame_par_s *cur_frame_par;
 	struct vpp_frame_par_s *next_frame_par;
@@ -303,6 +334,7 @@ struct video_layer_s {
 	bool need_switch_vf;
 	bool do_switch;
 	bool force_black;
+	bool vd1_vd2_mux;
 
 	u32 video_en_bg_color;
 	u32 video_dis_bg_color;
@@ -320,6 +352,8 @@ enum cpu_type_e {
 	MESON_CPU_MAJOR_ID_TM2_REVB,
 	MESON_CPU_MAJOR_ID_SC2_,
 	MESON_CPU_MAJOR_ID_T5_,
+	MESON_CPU_MAJOR_ID_T5D_,
+	MESON_CPU_MAJOR_ID_T5D_REVB_,
 	MESON_CPU_MAJOR_ID_UNKNOWN,
 };
 
@@ -341,6 +375,17 @@ struct amvideo_device_data_s {
 	u8 has_hscaler_8tap[MAX_VD_LAYER];
 	u8 has_pre_hscaler_ntap[MAX_VD_LAYER];
 	u8 has_pre_vscaler_ntap[MAX_VD_LAYER];
+	u32 src_width_max[MAX_VD_LAYER];
+	u32 src_height_max[MAX_VD_LAYER];
+	u32 ofifo_size;
+	u32 afbc_conv_lbuf_len;
+};
+
+struct time_info_t {
+	u32 toogle_index;
+	u32 set_index;
+	long long hwc_time;
+	long long display_time;
 };
 
 /* from video_hw.c */
@@ -442,6 +487,7 @@ void proc_vd_vsc_phase_per_vsync(
 void vpp_blend_update(
 	const struct vinfo_s *vinfo);
 
+void set_video_ipt(u8 layer_id, u32 enable);
 int get_layer_display_canvas(u8 layer_id);
 int set_layer_display_canvas(
 	u8 layer_id, struct vframe_s *vf,
@@ -488,13 +534,18 @@ extern struct vframe_s *cur_dispbuf;
 extern struct vframe_s *cur_pipbuf;
 extern bool need_disable_vd2;
 extern u32 last_el_status;
+extern u32 video_prop_status;
 extern u32 force_blackout;
 extern atomic_t video_unreg_flag;
 extern atomic_t video_inirq_flag;
 extern struct video_recv_s *gvideo_recv[2];
 extern uint load_pps_coef;
+extern bool vd1_vd2_mux;
 
 bool black_threshold_check(u8 id);
+extern atomic_t primary_src_fmt;
+extern atomic_t cur_primary_src_fmt;
+
 struct vframe_s *get_cur_dispbuf(void);
 s32 set_video_path_select(const char *recv_name, u8 layer_id);
 s32 set_sideband_type(s32 type, u8 layer_id);
@@ -517,10 +568,14 @@ int ext_frame_capture_poll(int endflags);
 bool is_meson_tm2_revb(void);
 bool is_meson_sc2_cpu(void);
 bool is_meson_t5_cpu(void);
-
+bool video_is_meson_t5d_revb_cpu(void);
 void set_alpha(u8 layer_id,
 	       u32 win_en,
 	       struct pip_alpha_scpxn_s *alpha_win);
+
+#ifdef CONFIG_AMLOGIC_MEDIA_DEINTERLACE
+void di_trig_free_mirror_mem(void);
+#endif
 void fgrain_config(u8 layer_id,
 		   struct vpp_frame_par_s *frame_par,
 		   struct mif_pos_s *mif_setting,
@@ -535,5 +590,6 @@ void video_secure_set(void);
 bool has_hscaler_8tap(u8 layer_id);
 bool has_pre_hscaler_ntap(u8 layer_id);
 bool has_pre_vscaler_ntap(u8 layer_id);
+void di_used_vd1_afbc(bool di_used);
 #endif
 /*VIDEO_PRIV_HEADER_HH*/
