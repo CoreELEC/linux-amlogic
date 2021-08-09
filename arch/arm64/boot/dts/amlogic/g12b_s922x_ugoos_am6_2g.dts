@@ -18,8 +18,10 @@
 	};
 
 	gpioleds {
-		sys_led {
-			gpios=<&gpio GPIOC_7 GPIO_ACTIVE_HIGH>;
+		green_led {
+			label = "green_led";
+			gpios = <&gpio GPIOC_7 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "default-on";
 		};
 	};
 
