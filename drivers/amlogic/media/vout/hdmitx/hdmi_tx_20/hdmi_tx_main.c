@@ -292,7 +292,6 @@ static void hdmitx_late_resume(struct early_suspend *h)
 	const struct vinfo_s *info = hdmitx_get_current_vinfo();
 	struct hdmitx_dev *phdmi = (struct hdmitx_dev *)h->param;
 
-	extcon_set_state_sync(hdmitx_extcon_power, EXTCON_DISP_HDMI, 1);
 	/*open vpu clk*/
 	if (phdmi->hdmitx_clk_tree.hdmi_clk_vapb != NULL)
 		clk_prepare_enable(phdmi->hdmitx_clk_tree.hdmi_clk_vapb);
@@ -326,6 +325,7 @@ static void hdmitx_late_resume(struct early_suspend *h)
 
 	extcon_set_state_sync(hdmitx_extcon_hdmi, EXTCON_DISP_HDMI,
 		hdmitx_device.hpd_state);
+	extcon_set_state_sync(hdmitx_extcon_power, EXTCON_DISP_HDMI, 1);
 	extcon_set_state_sync(hdmitx_extcon_audio, EXTCON_DISP_HDMI,
 		hdmitx_device.hpd_state);
 
