@@ -379,6 +379,10 @@ const char video_dev_id[] = "amvideo-dev";
 
 static u32 stop_update;
 
+#ifdef CONFIG_AMLOGIC_MEDIA_VSYNC_RDMA
+static bool first_irq = true;
+#endif
+
 #ifdef CONFIG_PM
 struct video_pm_state_s {
 	int event;
@@ -4052,6 +4056,18 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 	if (cur_vd2_path_id == 0xff)
 		cur_vd2_path_id = vd2_path_id;
 
+#ifdef CONFIG_AMLOGIC_MEDIA_VSYNC_RDMA
+	/* Just a workaround to enable RDMA without any register config.
+	 * Becasuse rdma is enabled after first rdma config.
+	 * Previously, it will write register directly and
+	 * maybe out of blanking in first irq.
+	 */
+	if (first_irq) {
+		first_irq = false;
+		goto RUN_FIRST_RDMA;
+	}
+#endif
+
 	vout_type = detect_vout_type(vinfo);
 	hold_line = calc_hold_line();
 
@@ -5790,6 +5806,7 @@ exit:
 #ifdef CONFIG_AMLOGIC_MEDIA_VSYNC_RDMA
 	cur_rdma_buf = cur_dispbuf;
 	pip_rdma_buf = cur_pipbuf;
+RUN_FIRST_RDMA:
 	/* vsync_rdma_config(); */
 	vsync_rdma_process();
 	if (debug_flag & DEBUG_FLAG_PRINT_RDMA) {

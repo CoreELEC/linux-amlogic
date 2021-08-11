@@ -31,6 +31,10 @@
 #include "hdr/am_cuva_hdr_tm.h"
 #include <linux/amlogic/media/amvecm/cuva_alg.h>
 
+u32 disable_flush_flag;
+module_param(disable_flush_flag, uint, 0664);
+MODULE_PARM_DESC(disable_flush_flag, "\n disable_flush_flag\n");
+
 // sdr to hdr table  12bit
 int cgain_lut0[65] = {
 	0x400, 0x400, 0x400, 0x400, 0x400, 0x400, 0x400, 0x400, 0x400,
@@ -2225,6 +2229,9 @@ enum hdr_process_sel hdr_func(
 	int *oft_post_out = bypass_pos;
 	bool always_full_func = false;
 
+	if (disable_flush_flag)
+		return hdr_process_select;
+
 	memset(&hdr_mtx_param, 0, sizeof(struct hdr_proc_mtx_param_s));
 	memset(&hdr_lut_param, 0, sizeof(struct hdr_proc_lut_param_s));
 
@@ -3137,6 +3144,9 @@ int hdr10p_ebzcurve_update(
 	struct hdr_proc_mtx_param_s hdr_mtx_param;
 	bool eo_gmt_bit_mode = false;
 
+	if (disable_flush_flag)
+		return hdr_process_select;
+
 	memset(&hdr_mtx_param, 0, sizeof(struct hdr_proc_mtx_param_s));
 	memset(&hdr_lut_param, 0, sizeof(struct hdr_proc_lut_param_s));
 
@@ -3219,6 +3229,9 @@ int hdr10_tm_update(
 	unsigned int i = 0;
 	struct hdr_proc_mtx_param_s hdr_mtx_param;
 
+	if (disable_flush_flag)
+		return hdr_process_select;
+
 	memset(&hdr_mtx_param, 0, sizeof(struct hdr_proc_mtx_param_s));
 	memset(&hdr_lut_param, 0, sizeof(struct hdr_proc_lut_param_s));
 
@@ -3263,6 +3276,9 @@ enum hdr_process_sel hdr10p_func(
 	int *coeff_in = bypass_coeff;
 	int *oft_pre_in = bypass_pre;
 	int *oft_post_in = bypass_pos;
+
+	if (disable_flush_flag)
+		return hdr_process_select;
 
 	memset(&hdr_mtx_param, 0, sizeof(struct hdr_proc_mtx_param_s));
 	memset(&hdr_lut_param, 0, sizeof(struct hdr_proc_lut_param_s));
@@ -3475,6 +3491,9 @@ int cuva_hdr_update(
 	unsigned int i = 0;
 	struct aml_gain_reg *cuva_gain;
 
+	if (disable_flush_flag)
+		return 0;
+
 	cuva_gain = get_gain_lut();
 	memset(&hdr_lut_param, 0, sizeof(struct hdr_proc_lut_param_s));
 
@@ -3529,6 +3548,9 @@ void mtx_setting(enum vpp_matrix_e mtx_sel,
 	unsigned int matrix_pre_offset0_1 = 0;
 	unsigned int matrix_pre_offset2 = 0;
 	unsigned int matrix_en_ctrl = 0;
+
+	if (disable_flush_flag)
+		return;
 
 	if (mtx_sel == VD1_MTX) {
 		matrix_coef00_01 = VPP_VD1_MATRIX_COEF00_01;
