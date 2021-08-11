@@ -85,9 +85,10 @@ static int rtl8723b_parse_firmware(struct hci_dev *hdev, u16 lmp_subver,
 	} project_id_to_lmp_subver[] = {
 		{ RTL_ROM_LMP_8723A, 0 },
 		{ RTL_ROM_LMP_8723B, 1 },
-		{ RTL_ROM_LMP_8821A, 2 },
+		{ RTL_ROM_LMP_8821A, 2 },  /* rev a */
 		{ RTL_ROM_LMP_8761A, 3 },  /* rev a */
 		{ RTL_ROM_LMP_8822B, 8 },
+		{ RTL_ROM_LMP_8821A, 10 }, /* rev c */
 		{ RTL_ROM_LMP_8761A, 14 }, /* rev b */
 	};
 
@@ -338,7 +339,10 @@ static int btrtl_setup_rtl8723b(struct hci_dev *hdev, u16 lmp_subver, u16 hci_re
 		cfg_name = "rtl_bt/rtl8723b_config.bin";
 		break;
 	case RTL_ROM_LMP_8821A:
-		cfg_name = "rtl_bt/rtl8821a_config.bin";
+		if (hci_rev == 0xc)
+		  cfg_name = "rtl_bt/rtl8821c_config.bin";
+		else
+		  cfg_name = "rtl_bt/rtl8821a_config.bin";
 		break;
 	case RTL_ROM_LMP_8761A:
 		if (hci_rev == 0xb)
@@ -457,8 +461,12 @@ int btrtl_setup_realtek(struct hci_dev *hdev)
 		return btrtl_setup_rtl8723b(hdev, lmp_subver, hci_rev,
 					    "rtl_bt/rtl8723b_fw.bin");
 	case RTL_ROM_LMP_8821A:
-		return btrtl_setup_rtl8723b(hdev, lmp_subver, hci_rev,
-					    "rtl_bt/rtl8821a_fw.bin");
+		if (hci_rev == 0xc)
+		  return btrtl_setup_rtl8723b(hdev, lmp_subver, hci_rev,
+			  		    "rtl_bt/rtl8821c_fw.bin");		
+		else
+		  return btrtl_setup_rtl8723b(hdev, lmp_subver, hci_rev,
+			  		    "rtl_bt/rtl8821a_fw.bin");
 	case RTL_ROM_LMP_8761A:
 		if (hci_rev == 0xb)
 		  return btrtl_setup_rtl8723b(hdev, lmp_subver, hci_rev,
