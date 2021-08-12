@@ -83,6 +83,8 @@ struct jiffies_pcr {
 #define MAX_PCR_NUM			16
 #define MAX_PCR_DIFF		100
 
+//#define OPEN_REGISTER_NODE
+
 static struct jiffies_pcr jiffies_pcr_record[MAX_PCR_NUM];
 static u8 pcr_flag[MAX_PCR_NUM];
 
@@ -1686,6 +1688,7 @@ int dmx_destroy(struct aml_dmx *pdmx)
 	return 0;
 }
 
+#ifdef OPEN_REGISTER_NODE
 static int reg_addr;
 
 static ssize_t register_addr_show(struct class *class,
@@ -1734,6 +1737,7 @@ static ssize_t register_value_store(struct class *class,
 	WRITE_CBUS_REG(reg_addr, value);
 	return size;
 }
+#endif
 
 static ssize_t dump_register_show(struct class *class,
 				  struct class_attribute *attr, char *buf)
@@ -1897,10 +1901,12 @@ static ssize_t dump_av_level_show(struct class *class,
 }
 
 static struct class_attribute aml_dmx_class_attrs[] = {
+#ifdef OPEN_REGISTER_NODE
 	__ATTR(register_addr, 0644, register_addr_show,
 	       register_addr_store),
 	__ATTR(register_value, 0644, register_value_show,
 	       register_value_store),
+#endif
 	__ATTR(dump_register, 0644, dump_register_show,
 	       dump_register_store),
 	__ATTR(dump_filter, 0644, dump_filter_show,
