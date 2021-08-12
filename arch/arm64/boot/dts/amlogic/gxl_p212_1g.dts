@@ -37,7 +37,8 @@
 
 	ion_dev {
 		compatible = "amlogic, ion_dev";
-		memory-region = <&ion_reserved>;
+		memory-region = <&ion_reserved
+				&ion_fb_reserved>;
 	};
 
 	memory@00000000 {
@@ -100,7 +101,13 @@
 			size = <0x0 0x4C00000>;
 			alignment = <0x0 0x400000>;
 		};
-
+		ion_fb_reserved:linux,ion-fb {
+			compatible = "amlogic, ion-fb-mem";
+			reusable;
+			/* 1920x1080x4x3 round up 4M align */
+			size = <0x0 0x1c00000>;
+			alignment = <0x0 0x400000>;
+		};
 		/*  vdin0 CMA pool */
 		//vdin0_cma_reserved:linux,vdin0_cma {
 		//	compatible = "shared-dma-pool";
