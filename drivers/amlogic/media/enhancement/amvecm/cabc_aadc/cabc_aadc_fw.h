@@ -1,5 +1,5 @@
 /*
- * drivers/amlogic/media/enhancement/amvecm/hdr/am_hdr10_tm.h
+ * drivers/amlogic/media/enhancement/amvecm/cacb_aadc.h
  *
  * Copyright (C) 2017 Amlogic, Inc. All rights reserved.
  *
@@ -15,19 +15,17 @@
  *
  */
 
-#include "../amcsc.h"
-#include "am_hdr10_tmo_fw.h"
+#ifndef CABC_AADC_H
+#define CABC_AADC_H
 
-#ifndef HDR10_TONE_MAPPING
-#define HDR10_TONE_MAPPING
+#define AAD_DEBUG 0x1
+#define CABC_DEBUG 0X2
+#define PRE_GAM_DEBUG 0x4
 
-#define MAX12_BIT 12
-#define OE_X 149
-#define MAX32_BIT 32
-#define MAX_BEIZER_ORDER 10
-#define TM_GAIN_BIT 6
-#define MAX_32 0xffffffff
-
-extern unsigned int panell;
-int hdr10_tm_dynamic_proc(struct vframe_master_display_colour_s *p);
+void aml_cabc_alg_process(struct work_struct *work);
+void aml_cabc_alg_bypass(struct work_struct *work);
+int cabc_aad_debug(char **param);
+int cabc_aad_print(void);
+int *vf_hist_get(void);
+int fw_en_get(void);
 #endif

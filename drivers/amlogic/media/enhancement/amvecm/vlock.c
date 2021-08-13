@@ -27,6 +27,7 @@
 #include <linux/amlogic/media/vout/vout_notify.h>
 #include <linux/amlogic/media/video_sink/vpp.h>
 #include <linux/io.h>
+#include <linux/clk.h>
 #ifdef CONFIG_AMLOGIC_LCD
 #include <linux/amlogic/media/vout/lcd/lcd_notify.h>
 #endif
@@ -34,6 +35,7 @@
 #include "vlock.h"
 #include "amvecm_vlock_regmap.h"
 #include "amcm.h"
+#include "reg_helper.h"
 
 /* video lock */
 /* 0:off;
@@ -66,8 +68,8 @@ static unsigned int vlock_intput_type;
  * change from 4 to 3,for 4 may cause shake issue for 60.3hz input
  */
 static signed int vlock_line_limit = 2;
-static signed int vlock_enc_maxtune_line_num = 10;
-static signed int vlock_enc_maxtune_pixel_num = 20;
+static signed int vlock_enc_maxtune_line_num = 8;
+static signed int vlock_enc_maxtune_pixel_num = 10;
 
 static unsigned int vlock_enc_adj_limit;
 /* 0x3009 default setting for 2 line(1080p-output) is 0x8000 */
@@ -150,6 +152,11 @@ static unsigned int vlock_latch_en_cnt = 20;
 module_param(vlock_latch_en_cnt, uint, 0664);
 MODULE_PARM_DESC(vlock_latch_en_cnt, "\n vlock_latch_en_cnt\n");
 
+module_param(vlock_enc_maxtune_line_num, uint, 0664);
+MODULE_PARM_DESC(vlock_enc_maxtune_line_num, "\n vlock_enc_maxtune_line_num\n");
+module_param(vlock_enc_maxtune_pixel_num, uint, 0664);
+MODULE_PARM_DESC(vlock_enc_maxtune_pixel_num, "\n vlock_enc_maxtune_pixel_num\n");
+
 static unsigned int vlock_log_en;
 struct vlock_log_s **vlock_log;
 
@@ -215,22 +222,30 @@ u32 vlock_get_panel_pll_frac(void)
 
 void vlock_set_panel_pll_m(u32 val)
 {
+#ifdef CONFIG_AMLOGIC_LCD
 	u32 m = val;
+#endif
 
 	if (vlock.dtdata->vlk_pll_sel == vlock_pll_sel_hdmi)
 		amvecm_hiu_reg_write(HHI_HDMI_PLL_CNTL, val);
+#ifdef CONFIG_AMLOGIC_LCD
 	else
 		lcd_vlock_m_update(m);
+#endif
 }
 
 void vlock_set_panel_pll_frac(u32 val)
 {
+#ifdef CONFIG_AMLOGIC_LCD
 	u32 frac = val;
+#endif
 
 	if (vlock.dtdata->vlk_pll_sel == vlock_pll_sel_hdmi)
 		amvecm_hiu_reg_write(HHI_HDMI_PLL_CNTL2, val);
+#ifdef CONFIG_AMLOGIC_LCD
 	else
 		lcd_vlock_farc_update(frac);
+#endif
 }
 
 void vlock_set_panel_pll(u32 m, u32 frac)
@@ -242,10 +257,12 @@ void vlock_set_panel_pll(u32 m, u32 frac)
 void vlock_set_panel_ss(u32 onoff)
 {
 	if (IS_PLL_MODE(vlock_mode)) {
+#ifdef CONFIG_AMLGIC_LCD
 		if (onoff)
 			lcd_ss_enable(1);
 		else
 			lcd_ss_enable(0);
+#endif
 	}
 }
 
@@ -314,7 +331,7 @@ static unsigned int vlock_check_output_hz(unsigned int sync_duration_num,
  */
 static void vlock_pll_select(u32 vlock_mode, u32 workmd)
 {
-	if (is_meson_tm2_cpu()) {
+	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2)) {
 		if (workmd == vlock_pll_sel_disable) {
 			amvecm_hiu_reg_write_bits(
 				HHI_HDMI_PLL_VLOCK_CNTL, 0, 0, 2);
@@ -493,6 +510,29 @@ static void vlock_hw_reinit(struct vlock_regs_s *vlock_regs, unsigned int len)
 	if (vlock_debug & VLOCK_DEBUG_INFO)
 		pr_info("[%s]\n", __func__);
 }
+
+void vlock_clk_config(struct device *dev)
+{
+	struct clk *clk;
+	/*unsigned int clk_frq;*/
+
+	/*pr_info("%s\n", __func__);*/
+	if (vlock.dtdata->vlk_chip <= vlock_chip_tm2)
+		amvecm_hiu_reg_write(HHI_VID_LOCK_CLK_CNTL, 0x80);
+
+	/*need set clock tree */
+	clk = devm_clk_get(dev, "cts_vid_lock_clk");
+	if (!IS_ERR(clk)) {
+		clk_set_rate(clk, 24000000);
+		if (clk_prepare_enable(clk) < 0)
+			pr_info("vlock clk enable fail\n");
+		/*clk_frq = clk_get_rate(clk);*/
+		/*pr_info("cts_vid_lock_clk:%d\n", clk_frq);*/
+	} else {
+		pr_err("vlock clk not cfg\n");
+	}
+}
+
 static void vlock_setting(struct vframe_s *vf,
 		unsigned int input_hz, unsigned int output_hz)
 {
@@ -506,7 +546,9 @@ static void vlock_setting(struct vframe_s *vf,
 		pr_info("type_original:0x%x\n", vf->type_original);
 	}
 	vlock_set_phase_frq_lock_speed();
-	amvecm_hiu_reg_write(HHI_VID_LOCK_CLK_CNTL, 0x80);
+	/*vlock_set_clk_src, after tm2 use clk tree*/
+	if (vlock.dtdata->vlk_chip <= vlock_chip_tm2)
+		amvecm_hiu_reg_write(HHI_VID_LOCK_CLK_CNTL, 0x80);
 	if (IS_ENC_MODE(vlock_mode)) {
 		/*init default config for enc mode*/
 		vlock_hw_reinit(vlock_enc_setting, VLOCK_DEFAULT_REG_SIZE);
@@ -751,9 +793,9 @@ static void vlock_setting(struct vframe_s *vf,
 		/* Input Vsync source select from hdmi-rx */
 		WRITE_VPP_REG_BITS(VPU_VLOCK_CTRL, 1, 16, 3);
 	/*frq lock flag window*/
-	WRITE_VPP_REG_BITS(VPU_VLOCK_STBDET_WIN0_WIN1, 0x10, 0, 8);
+	WRITE_VPP_REG_BITS(VPU_VLOCK_STBDET_WIN0_WIN1, 0x4, 0, 8);
 	/*phase lock flag window*/
-	WRITE_VPP_REG_BITS(VPU_VLOCK_STBDET_WIN0_WIN1, 0x18, 8, 8);
+	WRITE_VPP_REG_BITS(VPU_VLOCK_STBDET_WIN0_WIN1, 0x4, 8, 8);
 
 	/*enable vlock*/
 	WRITE_VPP_REG_BITS(VPU_VLOCK_CTRL, 1, 31, 1);
@@ -850,7 +892,8 @@ void vlock_vmode_check(void)
 }
 static void vlock_disable_step1(void)
 {
-	unsigned int m_reg_value, tmp_value, enc_max_line, enc_max_pixel;
+	unsigned int m_reg_value, tmp_value;
+	/*unsigned int enc_max_line, enc_max_pixel;*/
 	u32 m_f_reg_value, pll_m, pll_f;
 
 	/* VLOCK_CNTL_EN disable */
@@ -923,23 +966,33 @@ static void vlock_disable_step1(void)
 			}
 		}
 	}
+
 	if ((vlock_mode & (VLOCK_MODE_MANUAL_ENC |
 		VLOCK_MODE_AUTO_ENC |
 		VLOCK_MODE_MANUAL_SOFT_ENC))) {
 		err_accum = 0;
 		WRITE_VPP_REG_BITS(enc_video_mode_adv_addr, 0, 14, 1);
+		#if 0
 		enc_max_line = READ_VPP_REG(enc_max_line_addr);
 		enc_max_pixel = READ_VPP_REG_BITS(enc_max_line_switch_addr,
 			0, 13);
 		if (!(vlock_debug & VLOCK_DEBUG_ENC_LINE_ADJ_DIS) &&
-			(enc_max_line != pre_enc_max_line) &&
-			(pre_enc_max_line != 0) && (enc_max_line_addr != 0))
-			WRITE_VPP_REG(enc_max_line_addr, pre_enc_max_line);
+			(enc_max_line != org_enc_line_num) &&
+			(org_enc_line_num != 0) && (enc_max_line_addr != 0))
+			WRITE_VPP_REG(enc_max_line_addr, org_enc_line_num);
 		if (!(vlock_debug & VLOCK_DEBUG_ENC_PIXEL_ADJ_DIS) &&
 			(enc_max_pixel != pre_enc_max_pixel) &&
 			(enc_max_line_switch_addr != 0))
 			WRITE_VPP_REG_BITS(enc_max_line_switch_addr,
 				0x1fff, 0, 13);
+		#endif
+		/*restore h,v total*/
+		WRITE_VPP_REG_BITS(enc_max_line_switch_addr, 0x1fff, 0, 13);
+		WRITE_VPP_REG(enc_max_line_addr, org_enc_line_num);
+		WRITE_VPP_REG(enc_max_pixel_addr, org_enc_pixel_num);
+		if (vlock_debug & VLOCK_DEBUG_INFO)
+			pr_info("restore hv total:%d %d\n", org_enc_line_num,
+				org_enc_pixel_num);
 	}
 	vlock_dis_cnt = vlock_dis_cnt_limit;
 	pre_source_type = VFRAME_SOURCE_TYPE_OTHERS;
@@ -987,6 +1040,7 @@ static bool vlock_disable_step2(void)
 		}
 
 		vlock_reset(1);
+		vlock_reset(0);
 		WRITE_VPP_REG_BITS(VPU_VLOCK_CTRL, 0, 0, 2);
 		ret = true;
 
@@ -1127,7 +1181,8 @@ static void vlock_enable_step3_enc(void)
 	}
 
 	/*vlock pixel num adjust*/
-	if (!(vlock_debug & VLOCK_DEBUG_ENC_PIXEL_ADJ_DIS)) {
+	if (!(vlock_debug & VLOCK_DEBUG_ENC_PIXEL_ADJ_DIS) &&
+	    vlock.dtdata->vlk_chip < vlock_chip_tm2) {
 		polity_pixel_num = READ_VPP_REG_BITS(VPU_VLOCK_RO_LINE_PIX_ADJ,
 			13, 1);
 		pixel_num = READ_VPP_REG_BITS(VPU_VLOCK_RO_LINE_PIX_ADJ, 0, 14);
@@ -1152,7 +1207,7 @@ static void vlock_enable_step3_enc(void)
 			/*val = enc_max_pixel;*/
 		}
 		if ((vlock_debug & VLOCK_DEBUG_INFO) && (cnt == 0)) {
-			pr_info("pixel:polity_pixel_num=%d, pixel_num=%d, org_line=%d\n",
+			pr_info("pixel:polity_pixel_num=%d, pixel_num=%d, org_pixel=%d\n",
 				polity_pixel_num, pixel_num, org_enc_pixel_num);
 			pr_info("pixel:wr addr:0x%x, 0x%x\n",
 				enc_max_line_switch_addr, enc_max_pixel);
@@ -1764,6 +1819,8 @@ void vlock_clear_frame_counter(void)
 	/*vlock.frqlock_stable_cnt = 0;*/
 	if (phase_en_after_frqlock)
 		vlock.phlock_en = false;
+	vlock.start_chk_ph = false;
+	vlock.all_lock_cnt = 0;
 }
 
 void vlock_set_en(bool en)
@@ -1772,7 +1829,7 @@ void vlock_set_en(bool en)
 		vlock_en = en;
 }
 
-static void vlock_enable_step3_auto_enc(void)
+void vlock_enable_step3_auto_enc(void)
 {
 	struct vinfo_s *vinfo;
 	u32 oa;
@@ -1791,8 +1848,8 @@ static void vlock_enable_step3_auto_enc(void)
 	stbdec_win0 = READ_VPP_REG(VPU_VLOCK_STBDET_WIN0_WIN1) & 0xff;
 	stbdec_win1 = (READ_VPP_REG(VPU_VLOCK_STBDET_WIN0_WIN1) >> 8) & 0xff;
 
-	th0 = (oa * stbdec_win0 * 3) / vinfo->vtotal;
-	th1 = (oa * stbdec_win1 * 3) / vinfo->vtotal;
+	th0 = (oa * stbdec_win0 * 20) / vinfo->vtotal;
+	th1 = (oa * stbdec_win1 * 20) / vinfo->vtotal;
 
 	WRITE_VPP_REG(VPU_VLOCK_WIN0_TH, th0);
 	WRITE_VPP_REG(VPU_VLOCK_WIN1_TH, th1);
@@ -1803,17 +1860,9 @@ void vlock_status_init(void)
 	/*config vlock mode*/
 	/*todo:txlx & g9tv support auto pll,*/
 	/*but support not good,need vlsi support optimize*/
-	#if 0
-	if (is_meson_gxtvbb_cpu() ||
-		is_meson_txl_cpu() || is_meson_txlx_cpu()
-		|| is_meson_tl1_cpu() || is_meson_tm2_cpu())
-		vlock_en = 1;
-	else
-		vlock_en = 0;
-	#endif
 
 	/*initial pll register address*/
-	if (is_meson_tl1_cpu() || is_meson_tm2_cpu()) {
+	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2)) {
 		hhi_pll_reg_m = HHI_TCON_PLL_CNTL0;
 		hhi_pll_reg_frac = HHI_TCON_PLL_CNTL1;
 		/*hhi_pll_reg_vlock_ctl = HHI_HDMI_PLL_VLOCK_CNTL;*/
@@ -1896,7 +1945,10 @@ void vlock_status_init(void)
 		vlock.phlock_en = vlock.dtdata->vlk_phlock_en;
 	/* vlock.phlock_percent = phlock_percent; */
 	vlock_clear_frame_counter();
-
+	vlock_hw_reinit(vlock_enc_setting, VLOCK_DEFAULT_REG_SIZE);
+	vlock_dis_cnt = 0;
+	msleep(2);
+	vlock_disable_step2();
 	pr_info("%s vlock_en:%d\n", __func__, vlock_en);
 }
 
@@ -1976,7 +2028,6 @@ void vlock_phaselock_check(struct stvlock_sig_sts *pvlock,
 				vlock_reset(1);
 				vlock_reset(0);
 			}
-
 			vlock.vdinsts.lcnt_sts =
 				READ_VPP_REG(0x1204/*VDIN_LCNT_STATUS*/);
 			vlock.vdinsts.com_sts0 =
@@ -2144,8 +2195,8 @@ u32 vlock_fsm_input_check(struct stvlock_sig_sts *vlock, struct vframe_s *vf)
 	/*check vf exist status*/
 	if (vlock->vf_sts != vframe_sts) {
 		vlock->vf_sts = vframe_sts;
-		if (vlock_debug & VLOCK_DEBUG_INFO)
-			pr_info("vlock vfsts chg %d\n", vframe_sts);
+		/*if (vlock_debug & VLOCK_DEBUG_INFO)*/
+		/*	pr_info("vlock vfsts chg %d\n", vframe_sts);*/
 		ret = 1;
 	} else if (vlock_notify_event) {
 		/*check video mode status*/
@@ -2203,6 +2254,17 @@ u32 vlock_fsm_to_en_func(struct stvlock_sig_sts *pvlock,
 		}
 		ret = 1;
 	}
+
+	/* set phase
+	 * out > in, game mode can't read write the same buffer
+	 */
+	if (vlock.video_inverse)
+		vlock.phlock_percent = 15;
+	else if ((pvlock->input_hz > 0) &&
+	    (pvlock->input_hz * 2 == pvlock->output_hz))
+		vlock.phlock_percent = 25;
+	else
+		vlock.phlock_percent = 40;
 
 	return ret;
 }
@@ -2275,8 +2337,11 @@ u32 vlock_fsm_check_lock_sts(struct stvlock_sig_sts *pvlock,
 	u32 phlock_sts = vlock_get_phlock_flag();
 	u32 pherr;
 	static u32 rstflag;
-	u32 ret = 1;
+	u32 ret = VLOCK_CHG_NONE;
 	static u32 cnt;
+	static u32 vs_in, vs_out;
+	u32 temp_vs_in, temp_vs_out;
+	u32 pherr_negative = 0;/*-*/
 
 	if (cnt++ > 10)
 		cnt = 0;
@@ -2315,13 +2380,16 @@ u32 vlock_fsm_check_lock_sts(struct stvlock_sig_sts *pvlock,
 	if ((vlock_debug & VLOCK_DEBUG_INFO) && (cnt == 1) &&
 	    IS_AUTO_MODE(vlock_mode))
 		pr_info("pherr 0x%x\n", pherr);
+
+	/*after frq lock, then enable phase lock*/
+	if (pherr & 0x800000) {
+		pherr = 0xffffff - pherr + 1;/*negative value*/
+		pherr_negative = 1;
+	}
+
 	/*check phase error*/
 	if (IS_PLL_MODE(vlock_mode) &&
 			pvlock->phlock_en) {
-		/*after frq lock, then enable phase lock*/
-		if (pherr & 0x800000)
-			pherr = 0xffffff - pherr + 1;/*negative value*/
-
 		if (rstflag) {
 			rstflag = false;
 			vlock_reset(0);
@@ -2332,6 +2400,25 @@ u32 vlock_fsm_check_lock_sts(struct stvlock_sig_sts *pvlock,
 			}
 		}
 	}
+
+	/*check input vs time*/
+	temp_vs_in = READ_VPP_REG(VPU_VLOCK_RO_VS_I_DIST);
+	temp_vs_out = READ_VPP_REG(VPU_VLOCK_RO_VS_O_DIST);
+	/*counter clock 24Mhz, diff time > 2/10 is error sync*/
+	if ((diff(vs_in, temp_vs_in) >
+	    (((2000000000 / (vlock.input_hz * 83)) * 2) / 10)) &&
+	    vlock.frame_cnt_in > 2000)
+		pr_info("err insync t: cur:0x%x pre:0x%x\n",
+			temp_vs_in, vs_in);
+	vs_in = temp_vs_in;
+
+	/*check outpu vs time*/
+	if ((diff(vs_out, temp_vs_out) >
+	    (((2000000000 / (vlock.output_hz * 83)) * 2) / 10)) &&
+	    vlock.frame_cnt_in > 2000)
+		pr_info("err outsync t: cur:0x%x pre:0x%x\n",
+			temp_vs_out, vs_out);
+	vs_out = temp_vs_out;
 
 	/*check phase lock*/
 	if (pvlock->phlock_en) {
@@ -2363,6 +2450,49 @@ u32 vlock_fsm_check_lock_sts(struct stvlock_sig_sts *pvlock,
 		}
 	}
 
+	/*check phase flag*/
+	if (vlock.dtdata->vlk_hwver >= vlock_hw_ver2 && pvlock->phlock_en) {
+		if (pvlock->start_chk_ph) {
+			if (!vlock_get_phlock_flag()) {
+				#if 0
+				if (pvlock->all_lock_cnt++ < 50) {
+					pr_info("ph unlock:ph err=0x%x\n",
+						pherr | 0x800000);
+				} else {
+					pvlock->start_chk_ph = 0;
+				}
+				#else
+				if (pvlock->all_lock_cnt++ > 2) {
+					if (pherr_negative)
+						pherr = pherr | 0x800000;
+					if (vlock_debug & VLOCK_DEBUG_INFO_ERR)
+						pr_info("ph unlock:ph err=0x%x\n",
+							pherr);
+					return VLOCK_CHG_NEED_RESET;
+				}
+				#endif
+			}
+		} else {
+			if (frqlock_sts && phlock_sts) {
+				if (pvlock->all_lock_cnt++ > 500) {
+					pvlock->start_chk_ph = 1;
+					pvlock->all_lock_cnt = 0;
+					if (vlock_debug & VLOCK_DEBUG_INFO_ERR)
+						pr_info("vlock:all lock\n");
+				}
+			} else {
+				pvlock->all_lock_cnt = 0;
+				pvlock->start_chk_ph = 0;
+				/* long time not lock reset vlock*/
+				if ((pvlock->frame_cnt_in++ % 18000) == 0) {
+					if (vlock_debug & VLOCK_DEBUG_INFO_ERR)
+						pr_info("long time unlock,rst\n");
+					return VLOCK_CHG_NEED_RESET;
+				}
+			}
+		}
+	}
+
 	/*pretect and enable ss*/
 	if (IS_PLL_MODE(vlock_mode) &&
 			pvlock->phlock_en) {
@@ -2374,7 +2504,7 @@ u32 vlock_fsm_check_lock_sts(struct stvlock_sig_sts *pvlock,
 				vlock_set_panel_ss(true);
 				if (vlock_debug & VLOCK_DEBUG_INFO)
 					pr_info("vlock phase err, need retry\n");
-				return 0;
+				return VLOCK_CHG_NEED_RESET;
 			}
 		}
 	}
@@ -2412,7 +2542,10 @@ u32 vlock_fsm_en_step2_func(struct stvlock_sig_sts *pvlock,
 
 	ret = vlock_fsm_check_lock_sts(pvlock, vf);
 
-	return ret;
+	if (ret == VLOCK_CHG_NEED_RESET)
+		return 0;
+	else
+		return 1;
 }
 
 
@@ -2428,6 +2561,7 @@ void vlock_fsm_monitor(struct vframe_s *vf)
 	case VLOCK_STATE_NULL:
 		if (vlock.vf_sts) {
 			/*have frame in*/
+			vlock.frame_cnt_no = 0;
 			if (vlock.frame_cnt_in++ >= VLOCK_START_CNT) {
 				/*vframe input valid*/
 				if (vlock.md_support) {
@@ -2447,13 +2581,15 @@ void vlock_fsm_monitor(struct vframe_s *vf)
 			vlock.fsm_sts = VLOCK_STATE_DISABLE_STEP2_DONE;
 		} else {
 			/*disabled and waitting here*/
-			vlock_clear_frame_counter();
+			if (vlock.frame_cnt_no++ > vlock_dis_cnt_no_vf_limit)
+				vlock_clear_frame_counter();
 		}
 		break;
 
 	case VLOCK_STATE_ENABLE_STEP1_DONE:
 		if (vlock.vf_sts) {
 			vlock.frame_cnt_in++;
+			vlock.frame_cnt_no = 0;
 			if (vlock_fsm_en_step1_func(&vlock, vf))
 				vlock.fsm_sts = VLOCK_STATE_ENABLE_STEP2_DONE;
 		} else if (vlock.vmd_chg) {
@@ -2461,7 +2597,6 @@ void vlock_fsm_monitor(struct vframe_s *vf)
 			vlock.vmd_chg = false;
 			vlock.fsm_sts = VLOCK_STATE_DISABLE_STEP1_DONE;
 		} else {
-			vlock.frame_cnt_in = 0;
 			if (vlock.frame_cnt_no++ > vlock_dis_cnt_no_vf_limit) {
 				/*go to disable state*/
 				vlock_clear_frame_counter();
@@ -2473,6 +2608,7 @@ void vlock_fsm_monitor(struct vframe_s *vf)
 	case VLOCK_STATE_ENABLE_STEP2_DONE:
 		if (vlock.vf_sts) {
 			vlock.frame_cnt_in++;
+			vlock.frame_cnt_no = 0;
 			if (!vlock.md_support) {
 				/*function not support*/
 				vlock_clear_frame_counter();
@@ -2537,10 +2673,10 @@ void vlock_fsm_monitor(struct vframe_s *vf)
 		vlock_log_cnt++;
 	}
 
-	if ((vlock_debug & VLOCK_DEBUG_INFO) &&
-			vlock.fsm_sts != vlock.fsm_prests) {
-		pr_info(">>> %s fsm %d to %d\n", __func__,
-			vlock.fsm_prests, vlock.fsm_sts);
+	if (vlock.fsm_sts != vlock.fsm_prests) {
+		if (vlock_debug & VLOCK_DEBUG_INFO)
+			pr_info(">>> %s fsm %d to %d\n", __func__,
+				vlock.fsm_prests, vlock.fsm_sts);
 		vlock.fsm_prests = vlock.fsm_sts;
 	}
 }
@@ -2754,8 +2890,13 @@ void vlock_reg_dump(void)
 	/*amvecm_hiu_reg_read(hhi_pll_reg_frac, &val);*/
 	val = vlock_get_panel_pll_frac();
 	pr_info("HIU pll f[0x%04x]=0x%08x\n", hhi_pll_reg_frac, val);
+	if (vlock.dtdata->vlk_chip <= vlock_chip_tm2) {
+		amvecm_hiu_reg_read(HHI_VID_LOCK_CLK_CNTL, &val);
+		pr_info("HIU clk reg:0x%x val:0x%x\n",
+			HHI_VID_LOCK_CLK_CNTL, val);
+	}
 
-	if (is_meson_tm2_cpu()) {
+	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2)) {
 		amvecm_hiu_reg_read(HHI_HDMI_PLL_CNTL, &val);
 		pr_info("HIU HDMI_PLL_CNTL 0x%x=0x%x\n",
 			HHI_HDMI_PLL_CNTL, val);
@@ -2922,10 +3063,13 @@ static int __init phlock_phase_config(char *str)
 	unsigned char *ptr = str;
 
 	pr_info("%s: bootargs is %s.\n", __func__, str);
-	if (strstr(ptr, "1"))
-		vlock.phlock_percent = 15;
-	else
-		vlock.phlock_percent = 40;
+	if (strstr(ptr, "1")) {
+		vlock.phlock_percent = 15;/*give a default value*/
+		vlock.video_inverse = 1;
+	} else {
+		vlock.phlock_percent = 40;/*give a default value*/
+		vlock.video_inverse = 0;
+	}
 
 	return 0;
 }

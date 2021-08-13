@@ -37,6 +37,7 @@
 #include "../amvecm/arch/vpp_hdr_regs.h"
 #include "../amvecm/arch/vpp_dolbyvision_regs.h"
 #include "../amvecm/amcsc.h"
+#include "../amvecm/reg_helper.h"
 #include <linux/amlogic/media/registers/regs/viu_regs.h>
 #include <linux/amlogic/media/amdolbyvision/dolby_vision.h>
 #include <linux/cma.h>

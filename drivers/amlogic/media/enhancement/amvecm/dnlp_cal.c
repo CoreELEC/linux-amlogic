@@ -29,6 +29,8 @@
 #include <linux/amlogic/media/amvecm/ve.h>
 #include "dnlp_algorithm/dnlp_alg.h"
 #include <linux/amlogic/media/amvecm/amvecm.h>
+#include "ai_pq/ai_pq.h"
+#include "reg_helper.h"
 
 bool ve_en;
 unsigned int ve_dnlp_rt;
@@ -334,11 +336,11 @@ static void ve_dnlp_add_cm(unsigned int value)
 {
 	unsigned int reg_value;
 
-	VSYNC_WR_MPEG_REG(VPP_CHROMA_ADDR_PORT, 0x207);
-	reg_value = VSYNC_RD_MPEG_REG(VPP_CHROMA_DATA_PORT);
+	VSYNC_WRITE_VPP_REG(VPP_CHROMA_ADDR_PORT, 0x207);
+	reg_value = VSYNC_READ_VPP_REG(VPP_CHROMA_DATA_PORT);
 	reg_value = (reg_value & 0xf000ffff) | (value << 16);
-	VSYNC_WR_MPEG_REG(VPP_CHROMA_ADDR_PORT, 0x207);
-	VSYNC_WR_MPEG_REG(VPP_CHROMA_DATA_PORT, reg_value);
+	VSYNC_WRITE_VPP_REG(VPP_CHROMA_ADDR_PORT, 0x207);
+	VSYNC_WRITE_VPP_REG(VPP_CHROMA_DATA_PORT, reg_value);
 }
 
 /*in: vf (hist), h_sel
@@ -515,7 +517,6 @@ int ve_dnlp_calculate_tgtx(struct vframe_s *vf)
 void ve_dnlp_calculate_lpf(void)
 {
 	ulong i = 0;
-
 	for (i = 0; i < 64; i++)
 		ve_dnlp_lpf[i] = ve_dnlp_lpf[i] -
 		(ve_dnlp_lpf[i] >> ve_dnlp_rt) + ve_dnlp_tgt_copy[i];
@@ -549,6 +550,14 @@ void ve_dnlp_calculate_reg(void)
 			}
 		}
 	}
+}
+
+void ai_dnlp_param_update(int value)
+{
+	dnlp_alg_param.dnlp_final_gain = value;
+	if (dnlp_insmod_ok == 0)
+		return;
+	dnlp_dbg_node_copy();
 }
 
 void ve_set_v3_dnlp(struct ve_dnlp_curve_param_s *p)
@@ -856,6 +865,7 @@ void ve_set_v3_dnlp(struct ve_dnlp_curve_param_s *p)
 		/* disable dnlp */
 		ve_disable_dnlp();
 	}
-
+	/*ai pq get dnlp final gain*/
+	aipq_base_dnlp_param(dnlp_alg_param.dnlp_final_gain);
 }
 

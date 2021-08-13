@@ -153,6 +153,7 @@ struct cuva_md_bits_s {
 
 extern uint debug_hdr;
 #define HDR_PLUS_IEEE_OUI 0x90848B
+#define CUVA_IEEEOUI		0x047503
 #define SEI_Syntax 0x4
 extern void hdr10_plus_hdmitx_vsif_parser(
 	struct hdr10plus_para *hdmitx_hdr10plus_param,

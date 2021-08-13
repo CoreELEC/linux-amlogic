@@ -23,7 +23,7 @@
 #include <linux/amlogic/media/vfm/vframe.h>
 #include "linux/amlogic/media/amvecm/ve.h"
 
-#define VLOCK_VER "Ref.2020/03/27: improve auto pll mode for tm2 verb"
+#define VLOCK_VER "Ref.2020/1127: sometime power on vlock not works"
 
 #define VLOCK_REG_NUM	33
 
@@ -76,6 +76,7 @@ struct stvlock_sig_sts {
 	u32 input_hz;
 	u32 output_hz;
 	bool md_support;
+	u32 video_inverse;
 	u32 phlock_percent;
 	u32 phlock_sts;
 	u32 phlock_en;
@@ -88,6 +89,15 @@ struct stvlock_sig_sts {
 	u32 val_frac;
 	u32 val_m;
 	struct vdin_sts vdinsts;
+
+	u32 start_chk_ph;
+	u32 all_lock_cnt;
+};
+
+enum vlock_change {
+	VLOCK_CHG_NONE = 0,
+	VLOCK_CHG_PH_UNCLOCK,
+	VLOCK_CHG_NEED_RESET,
 };
 
 #define diff(a, b)	\
@@ -163,7 +173,7 @@ enum vlock_pll_sel {
 };
 
 
-#define VLOCK_START_CNT		50
+#define VLOCK_START_CNT		10
 #define VLOCK_WORK_CNT	(VLOCK_START_CNT + 10)
 
 #define VLOCK_UPDATE_M_CNT	8
@@ -192,6 +202,7 @@ enum vlock_pll_sel {
 #define VLOCK_DEBUG_AUTO_MODE_LOG_EN (0x10)
 #define VLOCK_DEBUG_PLL2ENC_DIS (0x20)
 #define VLOCK_DEBUG_FSM_DIS (0x40)
+#define VLOCK_DEBUG_INFO_ERR	(BIT(15))
 
 /* 0:enc;1:pll;2:manual pll */
 extern unsigned int vlock_mode;
@@ -230,4 +241,5 @@ ssize_t vlock_debug_store(struct class *cla,
 				const char *buf, size_t count);
 ssize_t vlock_debug_show(struct class *cla,
 			struct class_attribute *attr, char *buf);
+void vlock_clk_config(struct device *dev);
 

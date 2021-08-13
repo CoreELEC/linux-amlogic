@@ -83,6 +83,8 @@ extern int detect_signal_range_threshold_black;
 extern int detect_signal_range_threshold_white;
 extern int lc_en;
 extern int lc_demo_mode;
+extern int lc_curve_isr_defined;
+extern int use_lc_curve_isr;
 extern unsigned int lc_hist_vs;
 extern unsigned int lc_hist_ve;
 extern unsigned int lc_hist_hs;
@@ -123,6 +125,9 @@ extern void lc_process(struct vframe_s *vf,
 	unsigned int sps_w_in,
 	unsigned int sps_h_in);
 extern void lc_free(void);
+void lc_read_region(int blk_vnum, int blk_hnum);
 void lc_disable(void);
+bool lc_curve_ctrl_reg_set_flag(unsigned int addr);
+
 #endif
 

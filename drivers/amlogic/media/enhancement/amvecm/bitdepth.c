@@ -29,6 +29,7 @@
 #include "arch/vpp_regs.h"
 #include "arch/vpp_dolbyvision_regs.h"
 #include "bitdepth.h"
+#include "reg_helper.h"
 
 
 /*u2s_mode:0:true 12bit;1:false 12bit*/

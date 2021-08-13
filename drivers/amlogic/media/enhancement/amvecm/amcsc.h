@@ -112,8 +112,9 @@ enum output_format_e {
 #define BT2020_SUPPORT	(1 << 5)
 #define DV_SUPPORT_SHF	(6)
 #define DV_SUPPORT		(3 << DV_SUPPORT_SHF)
-#define CUVA_SUPPORT	(1 << 8)
-#define CUVA_IEEEOUI		0x047503
+//#define CUVA_SUPPORT	(1 << 8)
+#define CUVA_SUPPORT	BIT(8)
+
 
 bool is_vinfo_available(const struct vinfo_s *vinfo);
 int is_sink_cap_changed(const struct vinfo_s *vinfo,
@@ -137,8 +138,10 @@ int is_video_turn_on(bool *vd_on, enum vd_path_e vd_path);
 #define SIG_OUTPUT_MODE_CHG	0x2000
 #define SIG_HDR_OOTF_CHG 0x4000
 #define SIG_FORCE_CHG 0x8000
-#define SIG_CUVA_HDR_MODE	0x10000
-#define SIG_CUVA_HLG_MODE	0x20000
+#define SIG_RANGE_CHG 0x10000
+#define SIG_BS_CHG 0x20000
+#define SIG_CUVA_HDR_MODE	0x40000
+#define SIG_CUVA_HLG_MODE	0x80000
 
 #define LUT_289_SIZE	289
 extern unsigned int lut_289_mapping[LUT_289_SIZE];
@@ -249,6 +252,8 @@ extern int get_primaries_type(struct vframe_master_display_colour_s *p_mdc);
 #define PROC_SDR_TO_HDR		1
 #define PROC_SDR_TO_HLG		2
 #define PROC_SDR_TO_CUVA	3
+#define PROC_SDR_TO_TRG		4
+
 /* hdr */
 #define PROC_HDR_TO_SDR		1
 #define PROC_HDR_TO_HLG		2
@@ -274,14 +279,14 @@ extern void update_hdr10_plus_pkt(bool enable,
 	void *hdr10plus_params,
 	void *send_info);
 extern void send_hdr10_plus_pkt(enum vd_path_e vd_path);
-extern void send_cuva_pkt(enum vd_path_e vd_path);
+void send_cuva_pkt(enum vd_path_e vd_path);
 
 #define HDRPLUS_PKT_UPDATE	2
 #define HDRPLUS_PKT_REPEAT	1
 #define HDRPLUS_PKT_IDLE	0
 
-extern uint get_cuva_pkt_delay(void);
-extern void update_cuva_pkt(bool enable,
+uint get_cuva_pkt_delay(void);
+void update_cuva_pkt(bool enable,
 	void *cuva_params,
 	void *edms_params,
 	void *send_info);
@@ -298,5 +303,6 @@ extern int customer_hdr_clipping;
 uint32_t sink_dv_support(const struct vinfo_s *vinfo);
 uint32_t sink_hdr_support(const struct vinfo_s *vinfo);
 
+extern uint gamut_conv_enable;
 #endif /* AM_CSC_H */
 

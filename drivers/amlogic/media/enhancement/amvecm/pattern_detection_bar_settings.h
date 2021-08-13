@@ -154,8 +154,8 @@ static struct setting_regs_s colorbar_vpp_settings[] = {
 	 *{
 	 *	2,
 	 *	{
-	 *	{REG_TYPE_VCBUS, SHARP0_NR_TI_DNLP_BLEND, 0xc, 0x4},
-	 *	{REG_TYPE_VCBUS, SHARP0_HCTI_BST_CORE, 0xff000000, 0x4000000},
+	 *	{REG_TYPE_OFFSET_VCBUS, SHARP0_NR_TI_DNLP_BLEND, 0xc, 0x4},
+	 *	{REG_TYPE_OFFSET_VCBUS, SHARP0_HCTI_BST_CORE, 0xff000000, 0x4000000},
 	 *	}
 	 *},
 	 */
@@ -165,8 +165,8 @@ static struct setting_regs_s colorbar_vpp_settings[] = {
 	 *{
 	 *	2,
 	 *	{
-	 *	{REG_TYPE_VCBUS, SHARP0_NR_TI_DNLP_BLEND, 0xc, 0x4},
-	 *	{REG_TYPE_VCBUS, SHARP0_HCTI_BST_CORE, 0xff000000, 0x4000000},
+	 *	{REG_TYPE_OFFSET_VCBUS, SHARP0_NR_TI_DNLP_BLEND, 0xc, 0x4},
+	 *	{REG_TYPE_OFFSET_VCBUS, SHARP0_HCTI_BST_CORE, 0xff000000, 0x4000000},
 	 *	}
 	 *},
 	 */
@@ -176,8 +176,8 @@ static struct setting_regs_s colorbar_vpp_settings[] = {
 	 *{
 	 *	2,
 	 *	{
-	 *	{REG_TYPE_VCBUS, SHARP0_NR_TI_DNLP_BLEND, 0xc, 0x4},
-	 *	{REG_TYPE_VCBUS, SHARP0_HCTI_BST_CORE, 0xff000000, 0x4000000},
+	 *	{REG_TYPE_OFFSET_VCBUS, SHARP0_NR_TI_DNLP_BLEND, 0xc, 0x4},
+	 *	{REG_TYPE_OFFSET_VCBUS, SHARP0_HCTI_BST_CORE, 0xff000000, 0x4000000},
 	 *	}
 	 *},
 	 */
@@ -187,8 +187,8 @@ static struct setting_regs_s colorbar_vpp_settings[] = {
 	 *{
 	 *	2,
 	 *	{
-	 *	{REG_TYPE_VCBUS, SHARP0_NR_TI_DNLP_BLEND, 0xc, 0x4},
-	 *	{REG_TYPE_VCBUS, SHARP0_HCTI_BST_CORE, 0xff000000, 0x4000000},
+	 *	{REG_TYPE_OFFSET_VCBUS, SHARP0_NR_TI_DNLP_BLEND, 0xc, 0x4},
+	 *	{REG_TYPE_OFFSET_VCBUS, SHARP0_HCTI_BST_CORE, 0xff000000, 0x4000000},
 	 *	}
 	 *},
 	 */
@@ -198,8 +198,8 @@ static struct setting_regs_s colorbar_vpp_settings[] = {
 	 *{
 	 *	2,
 	 *	{
-	 *	{REG_TYPE_VCBUS, SHARP0_NR_TI_DNLP_BLEND, 0xc, 0x4},
-	 *	{REG_TYPE_VCBUS, SHARP0_HCTI_BST_CORE, 0xff000000, 0x4000000},
+	 *	{REG_TYPE_OFFSET_VCBUS, SHARP0_NR_TI_DNLP_BLEND, 0xc, 0x4},
+	 *	{REG_TYPE_OFFSET_VCBUS, SHARP0_HCTI_BST_CORE, 0xff000000, 0x4000000},
 	 *	}
 	 *},
 	 */
@@ -209,8 +209,8 @@ static struct setting_regs_s colorbar_vpp_settings[] = {
 	 *{
 	 *	2,
 	 *	{
-	 *	{REG_TYPE_VCBUS, SHARP0_NR_TI_DNLP_BLEND, 0xc, 0x4},
-	 *	{REG_TYPE_VCBUS, SHARP0_HCTI_BST_CORE, 0xff000000, 0x4000000},
+	 *	{REG_TYPE_OFFSET_VCBUS, SHARP0_NR_TI_DNLP_BLEND, 0xc, 0x4},
+	 *	{REG_TYPE_OFFSET_VCBUS, SHARP0_HCTI_BST_CORE, 0xff000000, 0x4000000},
 	 *	}
 	 *},
 	 */
@@ -220,8 +220,8 @@ static struct setting_regs_s colorbar_vpp_settings[] = {
 	 *{
 	 *	2,
 	 *	{
-	 *	{REG_TYPE_VCBUS, SHARP0_NR_TI_DNLP_BLEND, 0xc, 0x4},
-	 *	{REG_TYPE_VCBUS, SHARP0_HCTI_BST_CORE, 0xff000000, 0x4000000},
+	 *	{REG_TYPE_OFFSET_VCBUS, SHARP0_NR_TI_DNLP_BLEND, 0xc, 0x4},
+	 *	{REG_TYPE_OFFSET_VCBUS, SHARP0_HCTI_BST_CORE, 0xff000000, 0x4000000},
 	 *	}
 	 *},
 	 */
@@ -231,8 +231,8 @@ static struct setting_regs_s colorbar_vpp_settings[] = {
 	 *{
 	 *	2,
 	 *	{
-	 *	{REG_TYPE_VCBUS, SHARP0_NR_TI_DNLP_BLEND, 0xc, 0x4},
-	 *	{REG_TYPE_VCBUS, SHARP0_HCTI_BST_CORE, 0xff000000, 0x4000000},
+	 *	{REG_TYPE_OFFSET_VCBUS, SHARP0_NR_TI_DNLP_BLEND, 0xc, 0x4},
+	 *	{REG_TYPE_OFFSET_VCBUS, SHARP0_HCTI_BST_CORE, 0xff000000, 0x4000000},
 	 *	}
 	 *},
 	 */
@@ -242,8 +242,8 @@ static struct setting_regs_s colorbar_vpp_settings[] = {
 	 *{
 	 *	2,
 	 *	{
-	 *	{REG_TYPE_VCBUS, SHARP0_NR_TI_DNLP_BLEND, 0xc, 0x4},
-	 *	{REG_TYPE_VCBUS, SHARP0_HCTI_BST_CORE, 0xff000000, 0x4000000},
+	 *	{REG_TYPE_OFFSET_VCBUS, SHARP0_NR_TI_DNLP_BLEND, 0xc, 0x4},
+	 *	{REG_TYPE_OFFSET_VCBUS, SHARP0_HCTI_BST_CORE, 0xff000000, 0x4000000},
 	 *	}
 	 *},
 	 */
@@ -253,8 +253,8 @@ static struct setting_regs_s colorbar_vpp_settings[] = {
 	 *{
 	 *	2,
 	 *	{
-	 *	{REG_TYPE_VCBUS, SHARP0_NR_TI_DNLP_BLEND, 0xc, 0x4},
-	 *	{REG_TYPE_VCBUS, SHARP0_HCTI_BST_CORE, 0xff000000, 0x4000000},
+	 *	{REG_TYPE_OFFSET_VCBUS, SHARP0_NR_TI_DNLP_BLEND, 0xc, 0x4},
+	 *	{REG_TYPE_OFFSET_VCBUS, SHARP0_HCTI_BST_CORE, 0xff000000, 0x4000000},
 	 *	}
 	 *},
 	 */
@@ -264,8 +264,8 @@ static struct setting_regs_s colorbar_vpp_settings[] = {
 	 *{
 	 *	2,
 	 *	{
-	 *	{REG_TYPE_VCBUS, SHARP0_NR_TI_DNLP_BLEND, 0xc, 0x4},
-	 *	{REG_TYPE_VCBUS, SHARP0_HCTI_BST_CORE, 0xff000000, 0x4000000},
+	 *	{REG_TYPE_OFFSET_VCBUS, SHARP0_NR_TI_DNLP_BLEND, 0xc, 0x4},
+	 *	{REG_TYPE_OFFSET_VCBUS, SHARP0_HCTI_BST_CORE, 0xff000000, 0x4000000},
 	 *	}
 	 *},
 	 */
@@ -275,8 +275,8 @@ static struct setting_regs_s colorbar_vpp_settings[] = {
 	 *{
 	 *	2,
 	 *	{
-	 *	{REG_TYPE_VCBUS, SHARP0_NR_TI_DNLP_BLEND, 0xc, 0x4},
-	 *	{REG_TYPE_VCBUS, SHARP0_HCTI_BST_CORE, 0xff000000, 0x4000000},
+	 *	{REG_TYPE_OFFSET_VCBUS, SHARP0_NR_TI_DNLP_BLEND, 0xc, 0x4},
+	 *	{REG_TYPE_OFFSET_VCBUS, SHARP0_HCTI_BST_CORE, 0xff000000, 0x4000000},
 	 *	}
 	 *},
 	 */

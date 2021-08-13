@@ -6174,9 +6174,7 @@ SET_FILTER:
 
 #if defined(CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM)
 	if (new_frame)
-		refresh_on_vs(new_frame);
-	else if (vd_layer[0].dispbuf)
-		refresh_on_vs(vd_layer[0].dispbuf);
+		refresh_on_vs(new_frame, vd_layer[0].dispbuf);
 
 	amvecm_on_vs(
 		!is_local_vf(vd_layer[0].dispbuf)

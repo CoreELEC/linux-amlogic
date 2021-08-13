@@ -172,12 +172,6 @@ extern enum hdr_process_sel hdr_func(enum hdr_module_sel module_sel,
 	u32 hdr_process_select,
 	struct vinfo_s *vinfo,
 	struct matrix_s *gmt_mtx);
-/*G12A vpp matrix*/
-enum vpp_matrix_e {
-	VD1_MTX = 0x1,
-	POST2_MTX = 0x2,
-	POST_MTX = 0x4
-};
 
 enum mtx_csc_e {
 	MATRIX_NULL = 0,
@@ -248,3 +242,4 @@ struct aml_gain_reg *get_cuva_gain(void);
 int cuva_hdr_update(
 	enum hdr_module_sel module_sel,
 	enum hdr_process_sel hdr_process_select);
+void mtx_init(enum vpp_matrix_e mtx_sel, enum mtx_csc_e mtx_csc, int mtx_on);

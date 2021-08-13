@@ -21,26 +21,7 @@
 #include <linux/amlogic/media/vfm/vframe.h>
 #include <linux/amlogic/media/amvecm/ve.h>
 #include "linux/amlogic/media/amvecm/cm.h"
-
-/* #if (MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON8) */
-/* #define WRITE_VPP_REG(x,val) */
-/* WRITE_VCBUS_REG(x,val) */
-/* #define WRITE_VPP_REG_BITS(x,val,start,length) */
-/* WRITE_VCBUS_REG_BITS(x,val,start,length) */
-/* #define READ_VPP_REG(x) */
-/* READ_VCBUS_REG(x) */
-/* #define READ_VPP_REG_BITS(x,start,length) */
-/* READ_VCBUS_REG_BITS(x,start,length) */
-/* #else */
-/* #define WRITE_VPP_REG(x,val) */
-/* WRITE_CBUS_REG(x,val) */
-/* #define WRITE_VPP_REG_BITS(x,val,start,length) */
-/* WRITE_CBUS_REG_BITS(x,val,start,length) */
-/* #define READ_VPP_REG(x) */
-/* READ_CBUS_REG(x) */
-/* #define READ_VPP_REG_BITS(x,start,length) */
-/* READ_CBUS_REG_BITS(x,start,length) */
-/* #endif */
+#include "linux/amlogic/media/amvecm/amvecm.h"
 
 enum pq_ctl_cfg_e {
 	TV_CFG_DEF = 0,
@@ -105,6 +86,10 @@ extern struct tcon_gamma_table_s video_gamma_table_b_adj;
 extern struct tcon_rgb_ogo_s     video_rgb_ogo;
 
 extern spinlock_t vpp_lcd_gamma_lock;
+extern struct mutex vpp_lut3d_lock;
+extern int lut3d_en;/*0:disabel;1:enable */
+extern int lut3d_order;/* 0 RGB 1 GBR */
+extern int lut3d_debug;
 
 extern u16 gamma_data_r[256];
 extern u16 gamma_data_g[256];
@@ -168,14 +153,6 @@ extern unsigned int sync_3d_black_color;
 extern unsigned int sync_3d_sync_to_vbo;
 
 
-#ifndef CONFIG_AMLOGIC_MEDIA_VSYNC_RDMA
-#define VSYNC_WR_MPEG_REG(adr, val) WRITE_VPP_REG(adr, val)
-#define VSYNC_RD_MPEG_REG(adr) READ_VPP_REG(adr)
-#else
-extern u32 VSYNC_RD_MPEG_REG(u32 adr);
-extern int VSYNC_WR_MPEG_REG(u32 adr, u32 val);
-#endif
-
 /* #if defined(CONFIG_ARCH_MESON2) */
 /* unsigned long long ve_get_vs_cnt(void); */
 /* #endif */
@@ -196,16 +173,32 @@ extern struct am_regs_s sr1reg_cvbs;
 extern struct am_regs_s sr1reg_hv_noscale;
 extern void amvecm_fresh_overscan(struct vframe_s *vf);
 extern void amvecm_reset_overscan(void);
-extern int vpp_set_lut3d(int enable, int bLut3DLoad,
-	int *pLut3D, int bLut3DCheck);
-extern void vpp_lut3d_table_init(int *pLut3D, int bitdepth);
-extern void dump_plut3d_table(void);
-extern void dump_plut3d_reg_table(void);
+void ve_hist_gamma_tgt(struct vframe_s *vf);
+extern unsigned int *plut3d;
+int vpp_set_lut3d(
+	int bfromkey,
+	int keyindex,
+	unsigned int p3dlut_in[][3],
+	int blut3dcheck);
+int vpp_write_lut3d_section(
+	int index,
+	int section_len,
+	unsigned int *p3dlut_section_in);
+int vpp_read_lut3d_section(
+	int index,
+	int section_len,
+	unsigned int *p3dlut_section_out);
+void vpp_lut3d_table_init(int r, int g, int b);
+void vpp_lut3d_table_release(void);
+int vpp_enable_lut3d(int enable, int vs_wr);
+void dump_plut3d_table(void);
+void dump_plut3d_reg_table(void);
 
 extern void amvecm_gamma_init(bool en);
 extern void set_gamma_regs(int en, int sel);
 void amvecm_wb_enable(int enable);
 int vpp_pq_ctrl_config(struct pq_ctrl_s pq_cfg);
 unsigned int skip_pq_ctrl_load(struct am_reg_s *p);
+void set_pre_gamma_reg(struct pre_gamma_table_s *pre_gma_tb);
 #endif
 

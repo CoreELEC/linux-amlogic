@@ -1,5 +1,5 @@
 /*
- * drivers/amlogic/media/enhancement/amvecm/hdr/am_hdr10_tm.h
+ * drivers/amlogic/media/enhancement/amvecm/am_hdr10_tmo_fw.h
  *
  * Copyright (C) 2017 Amlogic, Inc. All rights reserved.
  *
@@ -16,18 +16,11 @@
  */
 
 #include "../amcsc.h"
-#include "am_hdr10_tmo_fw.h"
 
-#ifndef HDR10_TONE_MAPPING
-#define HDR10_TONE_MAPPING
+void hdr10_tmo_gen(u32 *oo_gain);
+int hdr10_tmo_dbg(char **param);
+void hdr10_tmo_parm_show(void);
+void hdr10_tmo_reg_set(struct hdr_tmo_sw *pre_tmo_reg);
+void hdr10_tmo_reg_get(struct hdr_tmo_sw *pre_tmo_reg_s);
+void hdr_tmo_adb_show(char *str);
 
-#define MAX12_BIT 12
-#define OE_X 149
-#define MAX32_BIT 32
-#define MAX_BEIZER_ORDER 10
-#define TM_GAIN_BIT 6
-#define MAX_32 0xffffffff
-
-extern unsigned int panell;
-int hdr10_tm_dynamic_proc(struct vframe_master_display_colour_s *p);
-#endif

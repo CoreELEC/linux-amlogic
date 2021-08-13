@@ -1732,29 +1732,6 @@ void video_post_process(
 		break;
 	}
 
-	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A) {
-		if (!vinfo_lcd_support()) {
-			mtx_setting(POST2_MTX, MATRIX_NULL, MTX_OFF);
-		} else {
-			if ((vf && vf->type & VIDTYPE_RGB_444) &&
-			    (source_type[vd_path] == HDRTYPE_SDR) &&
-			    (get_hdr_module_status(vd_path) !=
-			     HDR_MODULE_OFF)) {
-				VSYNC_WR_MPEG_REG_BITS(VPP_VADJ1_MISC, 0, 1, 1);
-				VSYNC_WR_MPEG_REG_BITS(VPP_VADJ2_MISC, 0, 1, 1);
-				mtx_setting(
-					POST2_MTX,
-					MATRIX_YUV709F_RGB, MTX_ON);
-			} else {
-				VSYNC_WR_MPEG_REG_BITS(VPP_VADJ1_MISC, 1, 1, 1);
-				VSYNC_WR_MPEG_REG_BITS(VPP_VADJ2_MISC, 1, 1, 1);
-				mtx_setting(
-					POST2_MTX,
-					MATRIX_YUV709_RGB, MTX_ON);
-			}
-		}
-	}
-
 	if (cur_sdr_process_mode[vd_path] !=
 		sdr_process_mode[vd_path]) {
 		if (cur_source_format[vd_path] == HDRTYPE_SDR)

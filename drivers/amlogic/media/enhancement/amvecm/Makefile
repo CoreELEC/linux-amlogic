@@ -1,7 +1,6 @@
 #
 # AMLOGIC VE & CM.
 #
-
 obj-$(CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM) += am_vecm.o
 am_vecm-objs := amve.o
 am_vecm-objs += amcm.o
@@ -21,4 +20,11 @@ am_vecm-objs += amvecm_drm.o
 am_vecm-objs += hdr/am_hdr10_plus_ootf.o
 am_vecm-objs += hdr/gamut_convert.o
 am_vecm-objs += hdr/am_hdr10_tm.o
+am_vecm-objs += ai_pq/ai_pq.o
+am_vecm-objs += util/huffman.o
+am_vecm-objs += util/base64.o
+am_vecm-objs += util/enc_dec.o
+am_vecm-objs += cabc_aadc/cabc_aadc_fw.o
+am_vecm-objs += hdr/am_hdr10_tmo_fw.o
+am_vecm-objs += blue_stretch/blue_str.o
 am_vecm-objs += hdr/am_cuva_hdr_tm.o

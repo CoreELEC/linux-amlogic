@@ -1,5 +1,5 @@
 /*
- * drivers/amlogic/media/enhancement/amvecm/hdr/am_hdr10_tm.h
+ * drivers/amlogic/media/enhancement/amvecm/blue_stretch/blue_str.h
  *
  * Copyright (C) 2017 Amlogic, Inc. All rights reserved.
  *
@@ -15,19 +15,12 @@
  *
  */
 
-#include "../amcsc.h"
-#include "am_hdr10_tmo_fw.h"
+#ifndef BLUE_STRETCH_H
+#define BLUE_STRETCH_H
 
-#ifndef HDR10_TONE_MAPPING
-#define HDR10_TONE_MAPPING
-
-#define MAX12_BIT 12
-#define OE_X 149
-#define MAX32_BIT 32
-#define MAX_BEIZER_ORDER 10
-#define TM_GAIN_BIT 6
-#define MAX_32 0xffffffff
-
-extern unsigned int panell;
-int hdr10_tm_dynamic_proc(struct vframe_master_display_colour_s *p);
+#define BITDEPTH 10
+void bls_par_show(void);
+int bls_par_dbg(char **param);
+//void lut3d_yuv2rgb(int en);
+extern int bs_proc_en;
 #endif
