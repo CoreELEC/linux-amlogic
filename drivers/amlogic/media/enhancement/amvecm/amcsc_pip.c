@@ -294,7 +294,8 @@ int hdr_policy_process(
 			& SDR_SUPPORT)) {
 			cuva_hdr_process_mode[vd_path] = PROC_CUVA_TO_SDR;
 			target_format[vd_path] = BT709;
-		} else if (is_dolby_vision_on() && (vd_path == VD2_PATH)) {
+		} else if (is_dolby_vision_on() && (vd_path == VD2_PATH) &&
+			is_dolby_vision_stb_mode()) {
 			/* vd2 *->ipt when vd1 dolby on */
 			hdr_process_mode[vd_path] = PROC_MATCH;
 			hlg_process_mode[vd_path] = PROC_MATCH;
