@@ -1614,7 +1614,6 @@ static void hdmitx_set_drm_pkt(struct master_display_info_s *data)
 		DRM_HB[2] = 0;
 		DRM_DB[0] = 0;
 		clear_hdr10plus_flag = 1;
-		pr_info("hdmitx_set_drm_pkt: disable DRM\n");
 		hdev->colormetry = 0;
 		hdmitx_device.hwop.setpacket(HDMI_PACKET_DRM, NULL, NULL);
 		hdmitx_device.hwop.cntlconfig(&hdmitx_device,
