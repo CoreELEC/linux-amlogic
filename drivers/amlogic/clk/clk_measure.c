@@ -1305,20 +1305,17 @@ static int aml_clkmsr_probe(struct platform_device *pdev)
 	u32 ringctrl;
 
 	np = pdev->dev.of_node;
-	debugfs_root = debugfs_create_dir("aml_clkmsr", NULL);
-	if (IS_ERR(debugfs_root) || !debugfs_root) {
-		pr_warn("failed to create debugfs directory\n");
-		debugfs_root = NULL;
-		return -1;
-	}
-	debugfs_create_file("clkmsr", S_IFREG | 0444,
-			    debugfs_root, NULL, &clkmsr_file_ops);
-
-	debugfs_create_file("ringmsr", S_IFREG | 0444,
-			    debugfs_root, NULL, &ringmsr_file_ops);
-
 	msr_clk_reg0 = of_iomap(np, 0);
+	if (!msr_clk_reg0) {
+		pr_err("%s: failed to map msr_clk_reg0 registers\n", __func__);
+		return -EINVAL;
+	}
+
 	msr_clk_reg2 = of_iomap(np, 1);
+	if (!msr_clk_reg2) {
+		pr_err("%s: failed to map msr_clk_reg2 registers\n", __func__);
+		goto err_out;
+	}
 	pr_info("msr_clk_reg0=%p,msr_clk_reg2=%p\n",
 		msr_clk_reg0, msr_clk_reg2);
 
@@ -1329,13 +1326,35 @@ static int aml_clkmsr_probe(struct platform_device *pdev)
 		msr_ring_reg0 = NULL;
 	} else {
 		msr_ring_reg0 = ioremap(ringctrl, 1);
+		if (!msr_ring_reg0) {
+			pr_err("%s: failed to map msr_ring_reg0 registers\n",
+			      __func__);
+			goto err_out1;
+		}
 		pr_info("msr_ring_reg0=%p\n", msr_ring_reg0);
 	}
 
 	clk_data = (struct meson_clkmsr_data *)
 	of_device_get_match_data(&pdev->dev);
 
+	debugfs_root = debugfs_create_dir("aml_clkmsr", NULL);
+	if (IS_ERR(debugfs_root) || !debugfs_root) {
+		pr_warn("failed to create debugfs directory\n");
+		return 0;
+	}
+
+	debugfs_create_file("clkmsr", S_IFREG | 0444,
+			    debugfs_root, NULL, &clkmsr_file_ops);
+
+	debugfs_create_file("ringmsr", S_IFREG | 0444,
+			    debugfs_root, NULL, &ringmsr_file_ops);
+
 	return 0;
+err_out1:
+	iounmap(msr_clk_reg2);
+err_out:
+	iounmap(msr_clk_reg0);
+	return -EINVAL;
 }
 
 static const char * const tl1_table[] = {
