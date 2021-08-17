@@ -71,8 +71,6 @@
 #include <linux/sched/rt.h>
 
 #define AVMLVIDEO2_MODULE_NAME "amlvideo2"
-#define AMLVIDEO2_RES_CANVAS 0xc0
-#define AMLVIDEO2_1_RES_CANVAS 0xcc
 
 #define MULTI_NODE
 /* #define USE_SEMA_QBUF */
@@ -111,9 +109,7 @@ KERNEL_VERSION(\
 #define DEVICE_NAME   "amlvideo2.0"
 #endif
 
-#define AMLVIDEO2_RES0_CANVAS_INDEX AMLVIDEO2_RES_CANVAS
-#define AMLVIDEO2_RES1_CANVAS_INDEX AMLVIDEO2_1_RES_CANVAS
-
+#define BUFFER_COUNT 4
 #define DUR2PTS(x) ((x) - ((x) >> 4))
 #define DUR2PTS_RM(x) ((x) & 0xf)
 
@@ -319,18 +315,18 @@ struct amlvideo2_node_dmaqueue {
 };
 
 struct amlvideo2_device {
-struct mutex mutex;
-struct v4l2_device v4l2_dev;
-struct platform_device *pdev;
-struct amlvideo2_node *node[MAX_SUB_DEV_NODE];
-int node_num;
-resource_size_t buffer_start;
-unsigned int buffer_size;
-struct page *cma_pages;
-struct resource memobj;
-int cma_mode;
-int node_id;
-bool use_reserve;
+	struct mutex mutex;  /*device mutex*/
+	struct v4l2_device v4l2_dev;
+	struct platform_device *pdev;
+	struct amlvideo2_node *node[MAX_SUB_DEV_NODE];
+	int node_num;
+	resource_size_t buffer_start;
+	unsigned int buffer_size;
+	struct page *cma_pages;
+	struct resource memobj;
+	int cma_mode;
+	int node_id;
+	bool use_reserve;
 };
 
 struct crop_info_s {
@@ -348,62 +344,68 @@ struct screen_display_info_s {
 
 struct amlvideo2_fh;
 struct amlvideo2_node {
+	spinlock_t slock; /*node spinlock*/
+	struct mutex mutex;  /*node mutex*/
+	int vid;
+	int users;
 
-spinlock_t slock;
-struct mutex mutex;
-int vid;
-int users;
+	struct amlvideo2_device *vid_dev;
 
-struct amlvideo2_device *vid_dev;
+	/* various device info */
+	struct video_device *vfd;
 
-/* various device info */
-struct video_device *vfd;
+	struct amlvideo2_node_dmaqueue vidq;
 
-struct amlvideo2_node_dmaqueue vidq;
+	/* Control 'registers' */
+	int qctl_regs[ARRAY_SIZE(amlvideo2_node_qctrl)];
 
-/* Control 'registers' */
-int qctl_regs[ARRAY_SIZE(amlvideo2_node_qctrl)];
+	struct videobuf_res_privdata res;
+	struct vframe_receiver_s recv;
+	struct vframe_receiver_s *sub_recv;
+	struct vframe_provider_s *provider;
+	enum aml_provider_type_e p_type;
+	enum aml_receiver_type_e r_type;
+	int provide_ready;
 
-struct videobuf_res_privdata res;
-struct vframe_receiver_s recv;
-struct vframe_receiver_s *sub_recv;
-struct vframe_provider_s *provider;
-enum aml_provider_type_e p_type;
-enum aml_receiver_type_e r_type;
-int provide_ready;
+	struct amlvideo2_fh *fh;
+	unsigned int input; /* 0:mirrocast; 1:hdmiin */
+	enum tvin_port_e porttype;
+	unsigned int start_vdin_flag;
+	struct ge2d_context_s *context;
+	struct vdin_v4l2_ops_s vops;
+	int vdin_device_num;
+	struct vdisplay_info_s display_info;
+	struct crop_info_s crop_info;
+	enum aml_screen_mode_e mode;
+	bool has_amvideo_node;
 
-struct amlvideo2_fh *fh;
-unsigned int input; /* 0:mirrocast; 1:hdmiin */
-enum tvin_port_e porttype;
-unsigned int start_vdin_flag;
-struct ge2d_context_s *context;
-struct vdin_v4l2_ops_s vops;
-int vdin_device_num;
-struct vdisplay_info_s display_info;
-struct crop_info_s crop_info;
-enum aml_screen_mode_e mode;
-bool has_amvideo_node;
+	struct vframe_provider_s amlvideo2_vf_prov;
 
-struct vframe_provider_s amlvideo2_vf_prov;
+	int amlvideo2_pool_size;
+	struct vfq_s q_ready;
+	struct vframe_s *amlvideo2_pool_ready;
 
-int amlvideo2_pool_size;
-struct vfq_s q_ready;
-struct vframe_s *amlvideo2_pool_ready;
-
-bool video_blocking;
-struct timeval thread_ts1;
-struct timeval thread_ts2;
-int frameInv_adjust;
-int frameInv;
-struct vframe_s *tmp_vf;
-int frame_inittime;
-struct amlvideo2_latency_info latency_info;
-bool pflag;
-struct completion plug_sema;
-bool field_flag;
-bool field_condition_flag;
-bool ge2d_multi_process_flag;
-int aml2_canvas[3];
+	bool video_blocking;
+	struct timeval thread_ts1;
+	struct timeval thread_ts2;
+	int frameInv_adjust;
+	int frameInv;
+	struct vframe_s *tmp_vf;
+	int frame_inittime;
+	struct amlvideo2_latency_info latency_info;
+	bool pflag;
+	struct completion plug_sema;
+	bool field_flag;
+	bool field_condition_flag;
+	bool ge2d_multi_process_flag;
+	int aml2_canvas[3];
+#ifdef CONFIG_PM
+	atomic_t is_suspend;
+	struct completion thread_sema;
+	bool could_suspend;
+	struct completion suspend_sema;
+#endif
+	int vdin_port_ext;
 };
 
 struct amlvideo2_fh {
@@ -438,114 +440,162 @@ static struct v4l2_frmsize_discrete amlvideo2_prev_resolution[] = {{160, 120}, {
 
 static struct v4l2_frmsize_discrete amlvideo2_pic_resolution[] = {{1280, 960} };
 
+static int amlvideo2_canvas[2][2 * BUFFER_COUNT] = {
+	{-1, -1, -1, -1, -1, -1, -1, -1},
+	{-1, -1, -1, -1, -1, -1, -1, -1}
+};
+
+static int yuv420_canvas[2][BUFFER_COUNT] = {
+	{-1, -1, -1, -1},
+	{-1, -1, -1, -1}
+};
+
 static unsigned int print_cvs_idx;
 module_param(print_cvs_idx, uint, 0644);
 MODULE_PARM_DESC(print_cvs_idx, "print canvas index\n");
 
 int get_amlvideo2_canvas_index(struct amlvideo2_output *output,
-				int start_canvas)
+			       int inst, int buffer_id)
 {
-int canvas = start_canvas;
-int v4l2_format = output->v4l2_format;
-void *buf = (void *)output->vbuf;
-int width = output->width;
-int height = output->height;
-int canvas_height = height;
-
-switch (v4l2_format) {
-case V4L2_PIX_FMT_RGB565X:
-case V4L2_PIX_FMT_VYUY:
-	canvas = start_canvas;
-	canvas_config(canvas, (unsigned long)buf, width * 2, canvas_height,
-	CANVAS_ADDR_NOWRAP,
-			CANVAS_BLKMODE_LINEAR);
-	break;
-case V4L2_PIX_FMT_YUV444:
-case V4L2_PIX_FMT_BGR24:
-case V4L2_PIX_FMT_RGB24:
-	canvas = start_canvas;
-	canvas_config(canvas, (unsigned long)buf, width * 3, canvas_height,
-	CANVAS_ADDR_NOWRAP,
-			CANVAS_BLKMODE_LINEAR);
-	break;
-case V4L2_PIX_FMT_RGB32:
-	canvas = start_canvas;
-	canvas_config(canvas, (unsigned long)buf, width * 4, canvas_height,
-	CANVAS_ADDR_NOWRAP,
-			CANVAS_BLKMODE_LINEAR);
-	break;
-case V4L2_PIX_FMT_NV12:
-case V4L2_PIX_FMT_NV21:
-	canvas_config(start_canvas, (unsigned long)buf, width, canvas_height,
-	CANVAS_ADDR_NOWRAP,
-			CANVAS_BLKMODE_LINEAR);
-	canvas_config(start_canvas + 1, (unsigned long)(buf + width * height),
-			width, canvas_height / 2,
-			CANVAS_ADDR_NOWRAP,
-			CANVAS_BLKMODE_LINEAR);
-	canvas = start_canvas | ((start_canvas + 1) << 8);
-	break;
-case V4L2_PIX_FMT_YVU420:
-case V4L2_PIX_FMT_YUV420:
-	canvas_config(start_canvas, (unsigned long)buf, width, canvas_height,
-	CANVAS_ADDR_NOWRAP,
-			CANVAS_BLKMODE_LINEAR);
-	canvas_config(start_canvas + 1, (unsigned long)(buf + width * height),
-			width / 2, canvas_height / 2,
-			CANVAS_ADDR_NOWRAP,
-			CANVAS_BLKMODE_LINEAR);
-	canvas_config(start_canvas + 2,
-			(unsigned long)(buf + width * height * 5 / 4),
-			width / 2, canvas_height / 2,
-			CANVAS_ADDR_NOWRAP,
-			CANVAS_BLKMODE_LINEAR);
-	if (v4l2_format == V4L2_PIX_FMT_YUV420) {
-		canvas = start_canvas | ((start_canvas + 1) << 8)
-				| ((start_canvas + 2) << 16);
-	} else {
-		canvas = start_canvas | ((start_canvas + 2) << 8)
-				| ((start_canvas + 1) << 16);
-	}
-	break;
-default:
-	break;
-}
-if (print_cvs_idx == 1) {
-	pr_err("v4l2_format=%x, canvas=%x\n", v4l2_format, canvas);
-	print_cvs_idx = 0;
-}
-return canvas;
-}
-/* #if MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON8 */
-int convert_canvas_index(struct amlvideo2_output *output, int start_canvas)
-{
-	int canvas = start_canvas;
+	int canvas = amlvideo2_canvas[inst][2 * buffer_id];
 	int v4l2_format = output->v4l2_format;
+	void *buf = (void *)output->vbuf;
+	int width = output->width;
+	int height = output->height;
+	int canvas_height = height;
+	const char *canvas_owner0 = "amlvideo2.0";
+	const char *canvas_owner1 = "amlvideo2.1";
+
+	if (canvas < 0)
+		return -1;
 
 	switch (v4l2_format) {
 	case V4L2_PIX_FMT_RGB565X:
 	case V4L2_PIX_FMT_VYUY:
-		canvas = start_canvas;
+		canvas_config(canvas, (unsigned long)buf,
+			      width * 2, canvas_height,
+			      CANVAS_ADDR_NOWRAP, CANVAS_BLKMODE_LINEAR);
+		break;
+	case V4L2_PIX_FMT_YUV444:
+	case V4L2_PIX_FMT_BGR24:
+	case V4L2_PIX_FMT_RGB24:
+		canvas_config(canvas, (unsigned long)buf,
+			      width * 3, canvas_height,
+			      CANVAS_ADDR_NOWRAP, CANVAS_BLKMODE_LINEAR);
+		break;
+	case V4L2_PIX_FMT_RGB32:
+		canvas_config(canvas, (unsigned long)buf,
+			      width * 4, canvas_height,
+			      CANVAS_ADDR_NOWRAP, CANVAS_BLKMODE_LINEAR);
+		break;
+	case V4L2_PIX_FMT_NV12:
+	case V4L2_PIX_FMT_NV21:
+		if (amlvideo2_canvas[inst][2 * buffer_id + 1] < 0)
+			return -1;
+		canvas_config(amlvideo2_canvas[inst][2 * buffer_id],
+			      (unsigned long)buf, width, canvas_height,
+			      CANVAS_ADDR_NOWRAP, CANVAS_BLKMODE_LINEAR);
+		canvas_config(amlvideo2_canvas[inst][2 * buffer_id + 1],
+			      (unsigned long)(buf + width * height),
+			      width, canvas_height / 2,
+			      CANVAS_ADDR_NOWRAP, CANVAS_BLKMODE_LINEAR);
+		canvas = amlvideo2_canvas[inst][2 * buffer_id]
+			| (amlvideo2_canvas[inst][2 * buffer_id + 1] << 8);
+		break;
+	case V4L2_PIX_FMT_YVU420:
+	case V4L2_PIX_FMT_YUV420:
+		if (amlvideo2_canvas[inst][2 * buffer_id + 1] < 0)
+			return -1;
+
+		if (yuv420_canvas[inst][buffer_id] < 0)
+			yuv420_canvas[inst][buffer_id] =
+				canvas_pool_map_alloc_canvas((inst == 0) ?
+							     canvas_owner0 :
+							     canvas_owner1);
+		if (yuv420_canvas[inst][buffer_id] < 0)
+			return -1;
+		canvas_config(amlvideo2_canvas[inst][2 * buffer_id],
+			      (unsigned long)buf, width, canvas_height,
+			      CANVAS_ADDR_NOWRAP, CANVAS_BLKMODE_LINEAR);
+		canvas_config(amlvideo2_canvas[inst][2 * buffer_id + 1],
+			      (unsigned long)(buf + width * height),
+			      width / 2, canvas_height / 2,
+			      CANVAS_ADDR_NOWRAP, CANVAS_BLKMODE_LINEAR);
+		canvas_config(yuv420_canvas[inst][buffer_id],
+			      (unsigned long)(buf + width * height * 5 / 4),
+			      width / 2, canvas_height / 2,
+			      CANVAS_ADDR_NOWRAP, CANVAS_BLKMODE_LINEAR);
+		if (v4l2_format == V4L2_PIX_FMT_YUV420) {
+			canvas = amlvideo2_canvas[inst][2 * buffer_id]
+				| (amlvideo2_canvas[inst][2 * buffer_id + 1]
+				   << 8) | (yuv420_canvas[inst][buffer_id]
+					    << 16);
+		} else {
+			canvas = amlvideo2_canvas[inst][2 * buffer_id]
+				| (yuv420_canvas[inst][buffer_id] << 8)
+				| (amlvideo2_canvas[inst][2 * buffer_id + 1]
+				   << 16);
+		}
+		break;
+	default:
+		break;
+	}
+	if (print_cvs_idx == 1) {
+		pr_err("v4l2_format=%x, canvas=%x\n", v4l2_format, canvas);
+		print_cvs_idx = 0;
+	}
+	return canvas;
+}
+/* #if MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON8 */
+int convert_canvas_index(struct amlvideo2_output *output,
+			       int inst, int buffer_id)
+{
+	int canvas = amlvideo2_canvas[inst][2 * buffer_id];
+	int v4l2_format = output->v4l2_format;
+	const char *canvas_owner0 = "amlvideo2.0";
+	const char *canvas_owner1 = "amlvideo2.1";
+
+	if (canvas < 0)
+		return -1;
+
+	switch (v4l2_format) {
+	case V4L2_PIX_FMT_RGB565X:
+	case V4L2_PIX_FMT_VYUY:
+		canvas = amlvideo2_canvas[inst][2 * buffer_id];
 		break;
 	case V4L2_PIX_FMT_YUV444:
 	case V4L2_PIX_FMT_BGR24:
 	case V4L2_PIX_FMT_RGB24:
 	case V4L2_PIX_FMT_RGB32:
-		canvas = start_canvas;
+		canvas = amlvideo2_canvas[inst][2 * buffer_id];
 		break;
 	case V4L2_PIX_FMT_NV12:
 	case V4L2_PIX_FMT_NV21:
-		canvas = start_canvas | ((start_canvas + 1) << 8);
+		if (amlvideo2_canvas[inst][2 * buffer_id + 1] < 0)
+			return -1;
+		canvas = amlvideo2_canvas[inst][2 * buffer_id]
+			| (amlvideo2_canvas[inst][2 * buffer_id + 1] << 8);
 		break;
 	case V4L2_PIX_FMT_YVU420:
 	case V4L2_PIX_FMT_YUV420:
-		if (v4l2_format == V4L2_PIX_FMT_YUV420) {
-			canvas = start_canvas | ((start_canvas + 1) << 8)
-					| ((start_canvas + 2) << 16);
-		} else {
-			canvas = start_canvas | ((start_canvas + 2) << 8)
-					| ((start_canvas + 1) << 16);
-		}
+		if (amlvideo2_canvas[inst][2 * buffer_id + 1] < 0)
+			return -1;
+		if (yuv420_canvas[inst][buffer_id] < 0)
+			yuv420_canvas[inst][buffer_id] =
+				canvas_pool_map_alloc_canvas((inst == 0) ?
+							     canvas_owner0 :
+							     canvas_owner1);
+		if (yuv420_canvas[inst][buffer_id] < 0)
+			return -1;
+
+		if (v4l2_format == V4L2_PIX_FMT_YUV420)
+			canvas = amlvideo2_canvas[inst][2 * buffer_id]
+			| (amlvideo2_canvas[inst][2 * buffer_id + 1] << 8)
+			| (yuv420_canvas[inst][buffer_id] << 16);
+		else
+			canvas = amlvideo2_canvas[inst][2 * buffer_id]
+			| (yuv420_canvas[inst][buffer_id] << 8)
+			| (amlvideo2_canvas[inst][2 * buffer_id + 1] << 16);
 		break;
 	default:
 		break;
@@ -3022,7 +3072,7 @@ int amlvideo2_ge2d_multi_pre_process(struct vframe_s *vf,
 	int current_mirror;
 	int cur_angle = 0;
 	int output_canvas = output->canvas_id;
-	int temp_canvas = AMLVIDEO2_1_RES_CANVAS + 8;
+	int temp_canvas;
 	unsigned long temp_start = node->vid_dev->buffer_start +
 		(CMA_ALLOC_SIZE * SZ_1M);
 	int temp_w = vf->width/4;
@@ -3039,6 +3089,16 @@ int amlvideo2_ge2d_multi_pre_process(struct vframe_s *vf,
 		pr_info("vf->width = %d, vf->height = %d\n",
 			vf->width, vf->height);
 	}
+
+	if (yuv420_canvas[node->vid][0] < 0)
+		yuv420_canvas[node->vid][0] =
+			canvas_pool_map_alloc_canvas("amlvideo2.1");
+	if (yuv420_canvas[node->vid][0] < 0) {
+		pr_info("amlvideo2 has no canvas to use %d\n", __LINE__);
+		return -1;
+	}
+
+	temp_canvas = yuv420_canvas[node->vid][0];
 
 	if (amlvideo2_scaledown1 == 0) {
 		context->config.h_scale_coef_type = FILTER_TYPE_BICUBIC;
@@ -3722,19 +3782,17 @@ static int amlvideo2_fillbuff(struct amlvideo2_fh *fh,
 	output.vbuf = vbuf;
 	output.width = buf->vb.width;
 	output.height = buf->vb.height;
-	output.canvas_id = buf->canvas_id;
 	output.angle = node->qctl_regs[0];
 	output.frame = &buf->axis;
 	output.info.mode = node->mode;
 	memcpy(&output.info.display_info, &(node->display_info),
 			sizeof(struct vdisplay_info_s));
 
-	if (output.canvas_id == 0) {
-		output.canvas_id = get_amlvideo2_canvas_index(
-				&output, (node->vid == 0) ?
-				(AMLVIDEO2_RES0_CANVAS_INDEX + buf->vb.i * 3) :
-				(AMLVIDEO2_RES1_CANVAS_INDEX + buf->vb.i * 3));
-		buf->canvas_id = output.canvas_id;
+	output.canvas_id =
+		get_amlvideo2_canvas_index(&output, node->vid, buf->vb.i);
+	if (output.canvas_id < 0) {
+		pr_info("amlvideo2: has no canvas value, %d\n", __LINE__);
+		return -1;
 	}
 
 	switch (output.v4l2_format) {
@@ -3755,6 +3813,9 @@ static int amlvideo2_fillbuff(struct amlvideo2_fh *fh,
 	}
 	src_canvas = vf->canvas0Addr;
 	if (ge2d_proc) {
+#ifdef CONFIG_PM
+		node->could_suspend = false;
+#endif
 		if ((vf->type & VIDTYPE_INTERLACE_BOTTOM) || (vf->type
 			& VIDTYPE_INTERLACE_TOP)) {
 			if (vf->canvas0Addr == vf->canvas1Addr) {
@@ -3792,6 +3853,11 @@ static int amlvideo2_fillbuff(struct amlvideo2_fh *fh,
 				vf, node->context,
 				&ge2d_config, &output, node);
 		}
+#ifdef CONFIG_PM
+		node->could_suspend = true;
+		if (atomic_read(&node->is_suspend))
+			complete(&node->suspend_sema);
+#endif
 	}
 
 	buf->vb.state = VIDEOBUF_DONE;
@@ -3872,6 +3938,23 @@ static int amlvideo2_thread_tick(struct amlvideo2_fh *fh)
 	if (i_ret == 0 || node->vidq.task_running == 0) {
 		if (node->pflag)
 			complete(&node->plug_sema);
+		if (amlvideo2_dbg_en & 2) {
+			if (node->vid == 0) {
+				if (!vf_peek(node->recv.name))
+					pr_info("amlvideo2.0 peek vf NULL\n");
+				if (!node->provide_ready)
+					pr_info("amlvideo2.0 no ready\n");
+				if (node->vidq.task_running == 0)
+					pr_info("amlvideo2.0 no running\n");
+			} else {
+				if (!vf_peek(node->recv.name))
+					pr_info("amlvideo2.1 peek vf NULL\n");
+				if (!node->provide_ready)
+					pr_info("amlvideo2.1 no ready\n");
+				if (node->vidq.task_running == 0)
+					pr_info("amlvideo2.1 no running\n");
+			}
+		}
 		return 0;
 	}
 
@@ -4140,7 +4223,8 @@ static int amlvideo2_thread_tick(struct amlvideo2_fh *fh)
 		else
 			pr_info("node1 fillbuff start .\n");
 	}
-	amlvideo2_fillbuff(fh, buf, vf);
+	if (amlvideo2_fillbuff(fh, buf, vf) < 0)
+		pr_info("amlvideo2 fill buff error!\n");
 	if (amlvideo2_dbg_en & 2) {
 		if (node->vid == 0)
 			pr_info("node0 fillbuff end .\n");
@@ -4269,6 +4353,10 @@ static int amlvideo2_thread(void *data)
 	set_freezable();
 
 	while (1) {
+#ifdef CONFIG_PM
+		if (atomic_read(&node->is_suspend))
+			wait_for_completion(&node->thread_sema);
+#endif
 		if (kthread_should_stop()) {
 			if (amlvideo2_dbg_en & 2) {
 				if (node->vid == 0)
@@ -4903,8 +4991,8 @@ static int vidioc_querybuf(struct file *file, void *priv, struct v4l2_buffer *p)
 {
 	struct amlvideo2_fh *fh = priv;
 	int ret = videobuf_querybuf(&fh->vb_vidq, p);
+
 	/* #if MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON8 */
-	#if 1
 	if (ret == 0) {
 		struct amlvideo2_output output;
 
@@ -4915,14 +5003,14 @@ static int vidioc_querybuf(struct file *file, void *priv, struct v4l2_buffer *p)
 		output.width = fh->width;
 		output.height = fh->height;
 		output.canvas_id = -1;
-		p->reserved = convert_canvas_index(
-			&output, fh->node->vid == 0 ?
-			(AMLVIDEO2_RES0_CANVAS_INDEX + p->index * 3) :
-			(AMLVIDEO2_RES1_CANVAS_INDEX + p->index * 3));
+		p->reserved =
+			convert_canvas_index(&output, fh->node->vid, p->index);
+		if (p->reserved == (u32)-1)
+			pr_info("amlvideo2 canvas alloc failed, %d\n",
+				__LINE__);
 	} else {
 		p->reserved = 0;
 	}
-	#endif
 	return ret;
 }
 
@@ -4943,7 +5031,13 @@ static int vidioc_qbuf(struct file *file, void *priv, struct v4l2_buffer *p)
 static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *p)
 {
 	struct amlvideo2_fh *fh = priv;
-	int ret = videobuf_dqbuf(&fh->vb_vidq, p, file->f_flags & O_NONBLOCK);
+	int ret;
+
+#ifdef CONFIG_PM
+	if (atomic_read(&fh->node->is_suspend))
+		return -ENOMEM;
+#endif
+	ret = videobuf_dqbuf(&fh->vb_vidq, p, file->f_flags & O_NONBLOCK);
 	return ret;
 }
 
@@ -5118,11 +5212,21 @@ static int amlvideo2_start_tvin_service(struct amlvideo2_node *node)
 		pr_info("node->vdin_device_num = %d .\n",
 			node->vdin_device_num);
 	}
-	if (!(vops->start_tvin_service)) {
-		pr_info("start_tvin_service is NULL.\n");
-		return -1;
+	if (node->vdin_port_ext < 0) {
+		if (IS_ERR_OR_NULL(vops->start_tvin_service)) {
+			pr_info("%s amlvideo2 start_tvin_service is NULL\n",
+				__func__);
+			return -1;
+		}
+		vops->start_tvin_service(node->vdin_device_num, &para);
+	} else {
+		if (!(vops->start_tvin_service_ex)) {
+			pr_info("start_tvin_service_ex is NULL.\n");
+			return -1;
+		}
+		vops->start_tvin_service_ex(node->vdin_device_num,
+					    node->vdin_port_ext, &para);
 	}
-	vops->start_tvin_service(node->vdin_device_num, &para);
 
 start: node->frame_inittime = 1;
 	/* frameInv_adjust = 0; */
@@ -5399,8 +5503,31 @@ static int vidioc_streamon(struct file *file, void *priv, enum v4l2_buf_type i)
 		pr_info("node->vdin_device_num = %d .\n",
 			node->vdin_device_num);
 	}
-	vops->start_tvin_service(node->vdin_device_num, &para);
-
+	if (IS_ERR_OR_NULL(vops)) {
+		pr_info("%s amlvideo2 vdin ops is NULL\n", __func__);
+		return 0;
+	}
+	if (node->vdin_port_ext < 0) {
+		if (IS_ERR_OR_NULL(vops->start_tvin_service)) {
+			pr_info("%s amlvideo2 vdin start_tvin_service is NULL\n",
+				__func__);
+			return 0;
+		}
+		ret = vops->start_tvin_service(node->vdin_device_num, &para);
+	} else {
+		if (IS_ERR_OR_NULL(vops->start_tvin_service_ex)) {
+			pr_info("%s amlvideo2 vdin start_tvin_service_ex is NULL\n",
+				__func__);
+			return 0;
+		}
+		ret = vops->start_tvin_service_ex(node->vdin_device_num,
+						  node->vdin_port_ext, &para);
+	}
+	if (ret < 0) {
+		pr_info("%s amlvideo2 vdin start_tvin_service_ex fail\n",
+			__func__);
+		return 0;
+	}
 start: node->frame_inittime = 1;
 	fh->is_streamed_on = 1;
 	/* frameInv_adjust = 0; */
@@ -5439,7 +5566,21 @@ static int vidioc_streamoff(struct file *file, void *priv, enum v4l2_buf_type i)
 		(node->r_type == AML_RECEIVER_NONE)) {
 		if (amlvideo2_dbg_en)
 			pr_info("stop tvin service .\n");
-		vops->stop_tvin_service(node->vdin_device_num);
+		if (IS_ERR_OR_NULL(vops)) {
+			pr_info("%s amlvideo2 vdin ops is NULL\n", __func__);
+			return 0;
+		}
+		if (IS_ERR_OR_NULL(vops->stop_tvin_service)) {
+			pr_info("%s amlvideo2 vdin stop_tvin_service is NULL\n",
+				__func__);
+			return 0;
+		}
+
+		ret = vops->stop_tvin_service(node->vdin_device_num);
+		if (ret < 0) {
+			pr_err("%s amlvideo2 vdin stop failed\n", __func__);
+			return 0;
+		}
 	}
 	if (node->r_type == AML_RECEIVER_NONE)
 		amlvideo2_stop_thread(&node->vidq);
@@ -5562,10 +5703,24 @@ static int vidioc_s_input(struct file *file, void *priv, unsigned int i)
 	/*bit 24 : vdin device num : 0 or 1 */
 	node->vdin_device_num = (i >> 24) & 1;
 	node->ge2d_multi_process_flag = (i >> 16) & 1;
-	node->porttype = (i & 0xffff);
+	if ((i & 0xffff) == 1) {
+		node->vdin_port_ext = 0;
+		node->porttype = TVIN_PORT_VIU1_WB0_VPP;
+	} else if ((i & 0xffff) == 0) {
+		node->vdin_port_ext = 1;
+		node->porttype = TVIN_PORT_VIU1_WB0_VD1;
+	} else {
+		node->vdin_port_ext = -1;
+		node->porttype = i & 0xffff;
+	}
 	if (amlvideo2_dbg_en) {
-		pr_info("porttype:%x ,start_vdin_flag = %d.\n",
-			node->porttype, node->start_vdin_flag);
+		if (node->vdin_port_ext < 0)
+			pr_info("porttype:%x ,start_vdin_flag = %d.\n",
+				node->porttype, node->start_vdin_flag);
+		else
+			pr_info("data: %s ,start_vdin_flag = %d.\n",
+				node->vdin_port_ext ? "video" : "video + osd",
+				node->start_vdin_flag);
 		pr_info("%s, vdin_device_num = %d\n",
 			__func__, node->vdin_device_num);
 		pr_info("%s, ge2d_multi_process_flag = %d\n",
@@ -5712,6 +5867,12 @@ int amlvideo2_cma_buf_init(struct amlvideo2_device *vid_dev,  int node_id)
 	int ret;
 
 	if (!vid_dev->use_reserve) {
+		ret = alloc_canvas(vid_dev->node[node_id]);
+		if (ret < 0) {
+			pr_err("amlvideo2.%d alloc cma failed!\n", node_id);
+			return -1;
+		}
+
 		if (vid_dev->cma_mode == 0) {
 			vid_dev->cma_pages = dma_alloc_from_contiguous(
 			&(vid_dev->pdev->dev),
@@ -5721,17 +5882,16 @@ int amlvideo2_cma_buf_init(struct amlvideo2_device *vid_dev,  int node_id)
 				vid_dev->cma_pages);
 				vid_dev->buffer_size = (CMA_ALLOC_SIZE*SZ_1M);
 			} else {
-				pr_err("amlvideo2 alloc cma alone failed\n");
+				pr_err("amlvideo2.%d alloc cma mode0 failed\n",
+				       node_id);
 				return -1;
 			}
+			pr_info("amlvideo2.%d cma mode0 is %x , size is  %x\n",
+				node_id, (unsigned int)vid_dev->buffer_start,
+				(unsigned int)vid_dev->buffer_size);
 		} else {
 			flags = CODEC_MM_FLAGS_DMA |
 				CODEC_MM_FLAGS_CMA_CLEAR;
-			ret = alloc_canvas(vid_dev->node[node_id]);
-			if (ret < 0) {
-				pr_err("amlvideo2 alloc cma failed!\n");
-				return -1;
-			}
 
 			if (node_id == 0) {
 				if (vid_dev->node[node_id]->
@@ -5801,6 +5961,8 @@ int amlvideo2_cma_buf_uninit(struct amlvideo2_device *vid_dev, int node_id)
 					(CMA_ALLOC_SIZE*SZ_1M) >> PAGE_SHIFT);
 				vid_dev->cma_pages = NULL;
 			}
+			pr_info("amlvideo2.%d cma mode0 release succeed\n",
+				node_id);
 		} else {
 			ret = free_canvas(vid_dev->node[node_id]);
 			if (ret < 0)
@@ -5838,8 +6000,16 @@ static int amlvideo2_open(struct file *file)
 	struct amlvideo2_fh *fh = NULL;
 	struct videobuf_res_privdata *res = NULL;
 	struct resource *reserve = NULL;
+	int temp_canvas;
+	const char *canvas_owner0 = "amlvideo2.0";
+	const char *canvas_owner1 = "amlvideo2.1";
+	int i;
 	int ret;
 
+#ifdef CONFIG_PM
+	if (atomic_read(&node->is_suspend))
+		return -ENOMEM;
+#endif
 	mutex_lock(&node->mutex);
 	node->users++;
 	if (node->users > 1) {
@@ -5848,24 +6018,6 @@ static int amlvideo2_open(struct file *file)
 		return -EBUSY;
 	}
 
-	#if 0
-	node->provider = vf_get_provider(
-		(node->vid == 0)?RECEIVER_NAME0:RECEIVER_NAME1);
-
-	if (node->provider == NULL) {
-		node->users--;
-		mutex_unlock(&node->mutex);
-		return -ENODEV;
-	}
-	node->p_type = get_provider_type(node->provider->name, node->input);
-	if ((node->p_type == AML_PROVIDE_NONE)
-		|| (node->p_type >= AML_PROVIDE_MAX)) {
-		node->users--;
-		node->provider = NULL;
-		mutex_unlock(&node->mutex);
-		return -ENODEV;
-	}
-	#endif
 	ret = amlvideo2_cma_buf_init(node->vid_dev, node->vid);
 	if (ret < 0) {
 		if (node->vid == 0)
@@ -5874,6 +6026,35 @@ static int amlvideo2_open(struct file *file)
 			pr_err("alloc amlvideo2.1 cma buffer failed.\n");
 		node->users--;
 		mutex_unlock(&node->mutex);
+		return -ENOMEM;
+	}
+
+	if (node->vid == 0) {
+		for (i = 0; i < 2 * BUFFER_COUNT; i++) {
+			amlvideo2_canvas[0][i] =
+				canvas_pool_map_alloc_canvas(canvas_owner0);
+		}
+	} else {
+		for (i = 0; i < 2 * BUFFER_COUNT; i++) {
+			amlvideo2_canvas[1][i] =
+				canvas_pool_map_alloc_canvas(canvas_owner1);
+		}
+	}
+
+	for (i = 0; i < 2 * BUFFER_COUNT; i++)
+		if (amlvideo2_canvas[node->vid][i] < 0)
+			break;
+	if (i != 2 * BUFFER_COUNT && amlvideo2_canvas[node->vid][i] < 0) {
+		for (i = 0; i < 2 * BUFFER_COUNT; i++) {
+			if (amlvideo2_canvas[node->vid][i] >= 0) {
+				temp_canvas = amlvideo2_canvas[node->vid][i];
+				canvas_pool_map_free_canvas(temp_canvas);
+				amlvideo2_canvas[node->vid][i] = -1;
+			}
+		}
+		pr_info("%s: %s alloc canvas failed, %d\n",
+			(node->vid == 0) ? canvas_owner0 : canvas_owner1,
+			__func__, __LINE__);
 		return -ENOMEM;
 	}
 
@@ -5962,10 +6143,28 @@ static int amlvideo2_close(struct file *file)
 {
 	struct amlvideo2_fh *fh = file->private_data;
 	struct amlvideo2_node *node = fh->node;
+	int temp_canvas;
+	int i;
 
 	videobuf_stop(&fh->vb_vidq);
 	videobuf_mmap_free(&fh->vb_vidq);
 	amlvideo2_cma_buf_uninit(node->vid_dev, node->vid);
+
+	for (i = 0; i < 2 * BUFFER_COUNT; i++) {
+		if (amlvideo2_canvas[node->vid][i] >= 0) {
+			temp_canvas = amlvideo2_canvas[node->vid][i];
+			canvas_pool_map_free_canvas(temp_canvas);
+			amlvideo2_canvas[node->vid][i] = -1;
+		}
+	}
+
+	for (i = 0; i < BUFFER_COUNT; i++) {
+		if (yuv420_canvas[node->vid][i] >= 0) {
+			temp_canvas = yuv420_canvas[node->vid][i];
+			canvas_pool_map_free_canvas(temp_canvas);
+			yuv420_canvas[node->vid][i] = -1;
+		}
+	}
 	mutex_lock(&node->mutex);
 	if (node->r_type == AML_RECEIVER_NONE) {
 		/* #if MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON6 */
@@ -6183,6 +6382,50 @@ static const struct vframe_receiver_op_s video_vf_receiver = {
  * Initialization and module stuff
  * -----------------------------------------------------------------
  */
+#ifdef CONFIG_PM
+static int amlvideo2_drv_suspend(struct platform_device *pdev,
+				 pm_message_t state)
+{
+	int i;
+	struct v4l2_device *v4l2_dev = platform_get_drvdata(pdev);
+	struct amlvideo2_device *vid_dev =
+		container_of(v4l2_dev, struct amlvideo2_device, v4l2_dev);
+	struct amlvideo2_node_dmaqueue *dma_q;
+	struct amlvideo2_node *node = NULL;
+
+	for (i = 0; i < vid_dev->node_num; i++) {
+		node = vid_dev->node[i];
+		if (node) {
+			atomic_set(&node->is_suspend, 1);
+			dma_q = &node->vidq;
+			if (dma_q->kthread && !node->could_suspend)
+				wait_for_completion(&node->suspend_sema);
+			pr_info("amlvideo2.%d suspend ok\n", i);
+		}
+	}
+	return 0;
+}
+
+static int amlvideo2_drv_resume(struct platform_device *pdev)
+{
+	int i;
+	struct v4l2_device *v4l2_dev = platform_get_drvdata(pdev);
+	struct amlvideo2_device *vid_dev =
+		container_of(v4l2_dev, struct amlvideo2_device, v4l2_dev);
+	struct amlvideo2_node_dmaqueue *dma_q;
+
+	for (i = 0; i < vid_dev->node_num; i++) {
+		if (vid_dev->node[i]) {
+			dma_q = &vid_dev->node[i]->vidq;
+			atomic_set(&vid_dev->node[i]->is_suspend, 0);
+			if (dma_q->kthread)
+				complete(&vid_dev->node[i]->thread_sema);
+			pr_info("amlvideo2.%d resume ok\n", i);
+		}
+	}
+	return 0;
+}
+#endif
 
 static int amlvideo2_release_node(struct amlvideo2_device *vid_dev)
 {
@@ -6232,9 +6475,6 @@ static int amlvideo2_create_node(struct platform_device *pdev, int node_id)
 
 	vid_dev->node[node_id] = NULL;
 	ret = -ENOMEM;
-#if 0
-	res = platform_get_resource(pdev, IORESOURCE_MEM, i);
-#else
 
 	res = &vid_dev->memobj;
 /*
@@ -6247,7 +6487,6 @@ static int amlvideo2_create_node(struct platform_device *pdev, int node_id)
  * res->end = res->start +
  * (phys_addr_t)get_reserve_block_size(ret)-1;
  */
-#endif
 	if (!res)
 		return ret;
 
@@ -6287,7 +6526,10 @@ static int amlvideo2_create_node(struct platform_device *pdev, int node_id)
 	spin_lock_init(&vid_node->slock);
 	mutex_init(&vid_node->mutex);
 	init_completion(&vid_node->plug_sema);
-
+#ifdef CONFIG_PM
+	init_completion(&vid_node->suspend_sema);
+	init_completion(&vid_node->thread_sema);
+#endif
 	vfd = video_device_alloc();
 	if (!vfd) {
 		destroy_ge2d_work_queue(vid_node->context);
@@ -6349,6 +6591,10 @@ static int amlvideo2_create_node(struct platform_device *pdev, int node_id)
 	vid_node->field_flag = false;
 	vid_node->field_condition_flag = false;
 	vid_node->ge2d_multi_process_flag = false;
+#ifdef CONFIG_PM
+	atomic_set(&vid_node->is_suspend, 0);
+	vid_node->could_suspend = true;
+#endif
 	vid_node->r_type = AML_RECEIVER_NONE;
 	vid_node->aml2_canvas[0] = -1;
 	vid_node->aml2_canvas[1] = -1;
@@ -6421,52 +6667,6 @@ probe_err1: v4l2_device_unregister(&dev->v4l2_dev);
 
 probe_err0: kfree(dev);
 	return ret;
-
-	/* int ret = 0; */
-	/* struct amlvideo2_device *dev = NULL; */
-	/*  */
-	/* if(of_get_property(pdev->dev.of_node, "reserve-memory", NULL)) */
-	/* pdev->num_resources = MAX_SUB_DEV_NODE; */
-	/*  */
-	/* if (pdev->num_resources == 0) */
-	/* { */
-	/* dev_err(&pdev->dev, "probed for an unknown device\n"); */
-	/* return -ENODEV; */
-	/* } */
-	/*  */
-	/* dev = kzalloc(sizeof(struct amlvideo2_device), GFP_KERNEL); */
-	/*  */
-	/* if (dev == NULL) */
-	/* return -ENOMEM; */
-	/*  */
-	/* memset(dev,0,sizeof(struct amlvideo2_device)); */
-	/*  */
-	/* snprintf(dev->v4l2_dev.name,
-	 * sizeof(dev->v4l2_dev.name),
-	 * "%s", AVMLVIDEO2_MODULE_NAME);
-	 */
-	/*  */
-	/* if (v4l2_device_register(&pdev->dev, &dev->v4l2_dev) < 0) { */
-	/* dev_err(&pdev->dev, "v4l2_device_register failed\n"); */
-	/* ret = -ENODEV; */
-	/* goto probe_err0; */
-	/* } */
-	/*  */
-	/* mutex_init(&dev->mutex); */
-	/* video_nr = 11; */
-	/*  */
-	/* ret = amlvideo2_create_node(pdev); */
-	/* if (ret) */
-	/* goto probe_err1; */
-	/*  */
-	/* return 0; */
-	/*  */
-	/* probe_err1: */
-	/* v4l2_device_unregister(&dev->v4l2_dev); */
-	/*  */
-	/* probe_err0: */
-	/* kfree(dev); */
-	/* return ret; */
 }
 
 static int amlvideo2_mem_device_init(struct reserved_mem *rmem,
@@ -6525,10 +6725,18 @@ static const struct of_device_id amlvideo2_dt_match[] = {
 
 /* general interface for a linux driver .*/
 static struct platform_driver amlvideo2_drv = {
-.probe = amlvideo2_driver_probe,
-.remove = amlvideo2_drv_remove,
-.driver = {.name = "amlvideo2", .owner = THIS_MODULE, .of_match_table =
-amlvideo2_dt_match, } };
+	.probe = amlvideo2_driver_probe,
+	.remove = amlvideo2_drv_remove,
+#ifdef CONFIG_PM
+	.suspend = amlvideo2_drv_suspend,
+	.resume = amlvideo2_drv_resume,
+#endif
+	.driver = {
+		.name = "amlvideo2",
+		.owner = THIS_MODULE,
+		.of_match_table = amlvideo2_dt_match,
+	}
+};
 
 static int __init amlvideo2_init(void)
 {
