@@ -880,7 +880,7 @@ int hdr_policy_process(
 				hdr10_plus_process_mode[vd_path]
 					= PROC_BYPASS;
 				cuva_hdr_process_mode[vd_path]
-					= BT_BYPASS;
+					= PROC_BYPASS;
 				break;
 			case BT2020YUV_BT2020RGB_CUVA:
 				sdr_process_mode[vd_path] =
