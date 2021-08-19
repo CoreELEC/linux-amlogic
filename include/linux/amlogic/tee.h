@@ -30,6 +30,8 @@
 #define TEE_MEM_TYPE_DEMUX                                 0xa
 #define TEE_MEM_TYPE_TCON                                  0xb
 #define TEE_MEM_TYPE_PCIE                                  0xc
+#define TEE_MEM_TYPE_FRC                                   0xd
+#define TEE_MEM_TYPE_KERNEL                                0xe
 #define TEE_MEM_TYPE_INVALID                               0xff
 
 /* device ID used by tee_config_device_state() */
@@ -146,6 +148,8 @@ extern void tee_unprotect_mem(uint32_t handle);
 extern int tee_config_device_state(int dev_id, int secure);
 
 extern void tee_demux_config_pipeline(int tsn_in, int tsn_out);
+
+int tee_demux_config_pad(int reg, int val);
 
 u32 tee_protect_mem(u32 type, u32 level,
 		u32 start, u32 size, u32 *handle);

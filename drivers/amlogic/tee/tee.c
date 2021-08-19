@@ -43,7 +43,6 @@ static int disable_flag;
 			   ARM_SMCCC_OWNER_TRUSTED_OS_END, \
 			   TEE_SMC_FUNCID_CALLS_UID)
 
-
 #define TEE_SMC_FAST_CALL_VAL(func_num) \
 	ARM_SMCCC_CALL_VAL(ARM_SMCCC_FAST_CALL, ARM_SMCCC_SMC_32, \
 			ARM_SMCCC_OWNER_TRUSTED_OS, (func_num))
@@ -80,9 +79,13 @@ static int disable_flag;
 #define TEE_SMC_DEMUX_CONFIG_PIPELINE \
 	TEE_SMC_FAST_CALL_VAL(TEE_SMC_FUNCID_DEMUX_CONFIG_PIPELINE)
 
+#define TEE_SMC_FUNCID_DEMUX_CONFIG_PAD            0xE051
+#define TEE_SMC_DEMUX_CONFIG_PAD \
+	TEE_SMC_FAST_CALL_VAL(TEE_SMC_FUNCID_DEMUX_CONFIG_PAD)
+
 #define TEE_SMC_FUNCID_SYS_BOOT_COMPLETE           0xE060
 #define TEE_SMC_SYS_BOOT_COMPLETE \
-		TEE_SMC_FAST_CALL_VAL(TEE_SMC_FUNCID_SYS_BOOT_COMPLETE)
+	TEE_SMC_FAST_CALL_VAL(TEE_SMC_FUNCID_SYS_BOOT_COMPLETE)
 
 #define TEE_SMC_FUNCID_VP9_PROB_PROCESS            0xE070
 #define TEE_SMC_VP9_PROB_PROCESS \
@@ -238,6 +241,7 @@ EXPORT_SYMBOL(tee_load_video_fw_swap);
 bool tee_enabled(void)
 {
 	struct arm_smccc_res res;
+
 	if (disable_flag == 1)
 		return false;
 	/*return false;*/ /*disable tee load temporary*/
@@ -339,6 +343,17 @@ void tee_demux_config_pipeline(int tsn_in, int tsn_out)
 			tsn_in, tsn_out, 0, 0, 0, 0, 0, &res);
 }
 EXPORT_SYMBOL(tee_demux_config_pipeline);
+
+int tee_demux_config_pad(int reg, int val)
+{
+	struct arm_smccc_res res;
+
+	arm_smccc_smc(TEE_SMC_DEMUX_CONFIG_PAD,
+			reg, val, 0, 0, 0, 0, 0, &res);
+
+	return res.a0;
+}
+EXPORT_SYMBOL(tee_demux_config_pad);
 
 int tee_vp9_prob_process(u32 cur_frame_type, u32 prev_frame_type,
 		u32 prob_status, u32 prob_addr)
