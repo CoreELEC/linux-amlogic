@@ -39,6 +39,10 @@
 #ifdef CONFIG_AMLOGIC_PCIE
 #include <linux/irqnr.h>
 #endif
+#include <asm/sections.h>
+#include <linux/amlogic/tee.h>
+
+static u32 handle;
 
 struct amlogic_pcie {
 	struct pcie_port	pp;
@@ -867,6 +871,13 @@ static int __init amlogic_pcie_probe(struct platform_device *pdev)
 		amlogic_pcie->pwr_ctl = 0;
 	else
 		amlogic_pcie->pwr_ctl = pwr_ctl;
+
+	tee_protect_mem_by_type(TEE_MEM_TYPE_KERNEL,
+		roundup(virt_to_phys((void *)_text),
+		TEE_MEM_ALIGN_SIZE),
+		rounddown(virt_to_phys((void *)_end),
+		TEE_MEM_ALIGN_SIZE),
+		&handle);
 
 	if (pwr_ctl == 1) {
 		prop = of_get_property(dev->of_node,
