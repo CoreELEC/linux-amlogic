@@ -1370,6 +1370,7 @@ void hdmi_packet_process(
 	}
 
 	switch (output_format) {
+	case BT_BYPASS:
 	case BT709:
 		send_info.features =
 			/* default 709 limit */
@@ -1437,7 +1438,6 @@ void hdmi_packet_process(
 		break;
 	case UNKNOWN_FMT:
 	case BT2100_IPT:
-	case BT_BYPASS:
 		/* handle by dolby vision */
 		return;
 	}
