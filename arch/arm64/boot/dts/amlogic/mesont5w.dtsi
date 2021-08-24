@@ -1069,12 +1069,65 @@
 			pinctrl-0=<&jtag_apao_pins>;
 		};
 
+<<<<<<< HEAD
 		vclk_serve: vclk_serve {
 			compatible = "amlogic, vclk_serve";
 			status = "okay";
 			reg = <0x0 0xff63c000 0x0 0x400    /* ana reg */
 			       0x0 0xff646000 0x0 0x4a0>; /* clk reg */
 		};
+=======
+	codec_io: codec_io {
+		compatible = "amlogic, meson-t5w, codec-io";
+		status = "okay";
+		#address-cells=<2>;
+		#size-cells=<2>;
+		ranges;
+		reg =   <0x0 0xffd00000 0x0 0x2000>,
+			<0x0 0xff620000 0x0 0x10000>,
+			<0x0 0xff63c000 0x0 0x2000>,
+			<0x0 0xff800000 0x0 0x10000>,
+			<0x0 0xff900000 0x0 0x40000>,
+			<0x0 0xff638000 0x0 0x2000>,
+			<0x0 0xff630000 0x0 0x2000>;
+		reg-names = "cbus",
+			    "dosbus",
+			    "hiubus",
+			    "aobus",
+			    "vcbus",
+			    "dmcbus",
+			    "efusebus";
+	};
+
+	canvas: canvas {
+		compatible = "amlogic, meson, canvas";
+		status = "okay";
+		reg = <0x0 0xfe036048 0x0 0x2000>;
+	};
+
+	ion_dev {
+		compatible = "amlogic, ion_dev";
+		memory-region = <&ion_cma_reserved
+				&ion_fb_reserved>;
+	};
+
+	fb: fb {
+		compatible = "amlogic, fb-t5w";
+		memory-region = <&logo_reserved>;
+		status = "disabled";
+		interrupts = <GIC_SPI 3 IRQ_TYPE_EDGE_RISING
+			GIC_SPI 56 IRQ_TYPE_EDGE_RISING
+			GIC_SPI 89 IRQ_TYPE_EDGE_RISING>;
+		interrupt-names = "viu-vsync", "viu2-vsync", "rdma";
+		/* uboot logo,fb0/fb1 memory size,if afbcd fb0=0x01851000*/
+		display_mode_default = "1080p60hz";
+		scale_mode = <1>;
+		/** 0:VPU free scale 1:OSD free scale 2:OSD super scale */
+		display_size_default = <1920 1080 1920 2160 32>;
+		/*1920*1080*4*3 = 0x17BB000*/
+	};
+}; /* end of / */
+>>>>>>> 5af454b27cbc... osd: add osd support for t5w [1/1]
 
 		vout_mux: vout_mux {
 			compatible = "amlogic, vout_mux-t5w";
