@@ -136,6 +136,7 @@
     #define VCLK_XD0                0
 #define HHI_VID_CLK_CNTL                           0x5f
 #define HHI_VID_CLK_CNTL2                          0x65
+#define HHI_VID_CLK_CNTL2_T5W                      0xa4
     #define HDMI_TX_PIXEL_GATE_VCLK  5
     #define VDAC_GATE_VCLK           4
     #define ENCL_GATE_VCLK           3
@@ -169,6 +170,11 @@
 #define CLKCTRL_HDMI_VID_PLL_CLK_DIV               0x0081
 /* T3 */
 #define CLKCTRL_TCON_CLK_CNTL                      0x0087
+
+/* T5W */
+#define HHI_VIID_CLK0_DIV		0x0a0
+#define HHI_VIID_CLK0_CTRL		0x0a1
+#define HHI_VID_CLK0_CTRL2              0x0a4
 
 /* g12A */
 #define HHI_HDMI_PLL_CNTL0                         0xc8
