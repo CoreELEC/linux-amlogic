@@ -7367,7 +7367,7 @@ void init_pq_setting(void)
 
 	int bitdepth;
 
-	if (vinfo->viu_color_fmt == COLOR_FMT_RGB444)
+	if (vinfo->mode == VMODE_LCD)
 		init_pq_control(PQ_TV);
 	else
 		init_pq_control(PQ_BOX);
