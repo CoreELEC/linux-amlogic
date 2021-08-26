@@ -648,6 +648,7 @@
 			cpu {
 				sound-dai = <&spdifb>;
 				system-clock-frequency = <6144000>;
+				sound-dai = <&pdmb>;
 			};
 			codec {
 				sound-dai = <&dummy_codec>;
@@ -877,6 +878,13 @@
 		clocks = <&clkaudio CLKID_AUDIO_MCLK_A
 				&clkc CLKID_MPLL0>;
 		clock-names = "mclk", "clk_srcpll";
+		pinctrl-names = "tdm_pins";
+		pinctrl-0 = <&mclk_0_pins
+		&tdm_a_pins
+		&tdm_d0_pins
+		&tdm_d1_pins
+		&tdma_clk_pins>;
+		status = "okay";
 
 		pinctrl-names = "tdm_pins";
 		pinctrl-0 = <&tdm_a_pins
@@ -927,6 +935,13 @@
 		ctrl_gain = <1>;
 		/*tdm clk tuning enable*/
 		clk_tuning_enable = <1>;
+		clock-names = "mclk", "clk_srcpll";
+		pinctrl-names = "tdm_pins";
+		pinctrl-0 = <&mclk_1_pins
+		&tdm_b_pins
+		&tdm_d2_pins
+		&tdm_d3_pins
+		&tdmb_clk_pins>;
 		status = "okay";
 
 		/* !!!For --TV platform-- ONLY */
@@ -955,6 +970,41 @@
 
 	pdm:pdm {
 		compatible = "amlogic, tm2-snd-pdm";
+
+		pinctrl-names = "tdm_pins";
+		pinctrl-0 = <&mclk_2_pins
+		&tdm_c_pins
+		&tdm_d4_pins
+		&tdm_d5_pins
+		&tdmc_clk_pins>;
+		status = "okay";
+	};
+	tdmd:tdm@3 {
+		compatible = "amlogic, p1-snd-tdmd";
+		#sound-dai-cells = <0>;
+
+		dai-tdm-lane-slot-mask-in = <1 0 0 0>;
+		dai-tdm-lane-slot-mask-out = <1 1 1 1>;
+		dai-tdm-clk-sel = <3>;
+
+		clocks = <&clkaudio CLKID_AUDIO_GATE_TDMIND
+			&clkaudio CLKID_AUDIO_GATE_TDMOUTD
+			&clkaudio CLKID_AUDIO_MCLK_D
+			&clkaudio CLKID_AUDIO_MCLK_PAD3
+			&clkc CLKID_MPLL3>;
+		clock-names = "gate_in","gate_out","mclk",
+					"mclk_pad","clk_srcpll";
+		pinctrl-names = "tdm_pins";
+		pinctrl-0 = <&mclk_3_pins
+			&tdm_d_pins
+			&tdm_d6_pins
+			&tdm_d7_pins
+			&tdmd_clk_pins>;
+		start_clk_enable = <1>;
+		status = "okay";
+	};
+	pdm:pdm@0 {
+		compatible = "amlogic, p1-snd-pdm-a";
 		#sound-dai-cells = <0>;
 
 		clocks = <&clkaudio CLKID_AUDIO_GATE_PDM
@@ -978,7 +1028,31 @@
 
 		status = "okay";
 	};
+	pdmb:pdm@1 {
+		compatible = "amlogic, p1-snd-pdm-b";
+		#sound-dai-cells = <0>;
 
+		clocks = <&clkaudio CLKID_AUDIO_GATE_PDM_B
+			&clkc CLKID_FCLK_DIV3
+			&clkc CLKID_MPLL3
+			&clkaudio CLKID_AUDIO_PDMBIN0
+			&clkaudio CLKID_AUDIO_PDMBIN1>;
+		clock-names = "gate",
+			"sysclk_srcpll",
+			"dclk_srcpll",
+			"pdm_dclk",
+			"pdm_sysclk";
+
+		pinctrl-names = "pdm_pins";
+		pinctrl-0 = <&pdmbin_pins>;
+
+		/* mode 0~4, defalut:1 */
+		filter_mode = <1>;
+
+		train_sample_count = <0xb>;
+
+		status = "okay";
+	};
 	spdifa:spdif@0 {
 		compatible = "amlogic, tm2-revb-snd-spdif-a";
 		#sound-dai-cells = <0>;
@@ -1523,18 +1597,30 @@
 
 &periphs_pinctrl {
 	pdmin_pins: pdmin_pin {
-		mux { /* GPIOM_3, GPIOM_4, GPIOM_5, GPIOM_1, GPIOM_2 */
-			groups = "pdm_dclk",
-				"pdm_din0",
-				"pdm_din1_m5",
-				"pdm_din2",
-				"pdm_din3";
+		mux { /* GPIOT_24, GPIOT_26, GPIOT_28, GPIOT_30*/
+			groups = "pdm_a_din0",
+				"pdm_a_din1",
+				"pdm_a_din2",
+				"pdm_a_din3",
+				"pdm_a_dclk_t24",
+				"pdm_a_dclk_t26",
+				"pdm_a_dclk_t28",
+				"pdm_a_dclk_t30";
 			function = "pdm";
 		};
 	};
-
+	pdmbin_pins: pdmbin_pin {
+		mux { /* GPIOT_24, GPIOT_26, GPIOT_28, GPIOT_30, GPIOM_2 */
+			groups = "pdm_b_din0",
+				"pdm_b_din1",
+				"pdm_b_dclk_k13",
+				"pdm_b_dclk_k15";
+			function = "pdm";
+		};
+	};
 	tdm_a_pins: tdm_a_pin {
 		mux { /* GPIOX_11, GPIOX_10, GPIOX_8, GPIOX_9 */
+		mux { /* GPIOT_15, GPIOT_16, GPIOT_17, GPIOT_18 */
 			groups = "tdm_sclk0",
 				"tdm_fs0",
 				"tdm_d0",
@@ -1545,14 +1631,33 @@
 
 	tdm_b_pins: tdm_b_pin {
 		mux { /* GPIOT_1, GPIOT_2, GPIOT_5, GPIOT_6 */
+	tdm_b_pins: tdm_b_pin {
+		mux { /* GPIOT_20, GPIOT_21, GPIOT_22, GPIOT_23 */
 			groups = "tdm_sclk1",
 				"tdm_fs1",
+				"tdm_d2",
+				"tdm_d3";
+			function = "tdm";
+		};
+	};
+	tdm_c_pins: tdm_c_pin {
+		mux { /* GPIOK_9, GPIOK_10, GPIOK_11, GPIOK_12 */
+			groups = "tdm_sclk2",
+				"tdm_fs2",
 				"tdm_d4",
 				"tdm_d5";
 			function = "tdm";
 		};
 	};
-
+	tdm_d_pins: tdm_d_pin {
+		mux { /* GPIOW_1, GPIOW_2, GPIOW_3, GPIOW_4 */
+			groups = "tdm_sclk3_w",
+				"tdm_fs3_w",
+				"tdm_d6_w",
+				"tdm_d7_w";
+			function = "tdm";
+		};
+	};
     dvb_s_ts0_pins: dvb_s_ts0_pins {
 		tsin_a {
 			groups = "tsin_a_sop_t",
@@ -1637,6 +1742,9 @@
 		};
 	};
 
+			function = "tdmouta_lane0";
+		};
+	};
 	tdm_d1_pins: tdm_d1_pin {
 		mux {
 			groups = "tdm_d1";
@@ -1648,6 +1756,23 @@
 		mux {
 			groups = "tdm_d4";
 			function = "tdmoutb_lane0";
+
+	tdm_d2_pins: tdm_d2_pin {
+		mux {
+			groups = "tdm_d2";
+			function = "tdmoutb_lane0";
+		};
+	};
+	tdm_d3_pins: tdm_d3_pin {
+		mux {
+			groups = "tdm_d3";
+			function = "tdminb_lane0";
+		};
+	};
+	tdm_d4_pins: tdm_d4_pin {
+		mux {
+			groups = "tdm_d4";
+			function = "tdmoutc_lane0";
 		};
 	};
 
@@ -1660,15 +1785,44 @@
 
 	tdma_clk_pins: tdma_clk_pin {
 		mux {
+			function = "tdminc_lane0";
+		};
+	};
+	tdm_d6_pins: tdm_d6_pin {
+		mux {
+			groups = "tdm_d6";
+			function = "tdmoutd_lane1";
+		};
+	};
+
+	tdm_d7_pins: tdm_d7_pin {
+		mux {
+			groups = "tdm_d7";
+			function = "tdmoutd_lane0";
+		};
+	};
+	tdma_clk_pins: tdma_clk_pin {
+		mux {
 			groups = "tdm_sclk0", "tdm_lrclk0";
 			function = "tdm_clk_outa";
 		};
 	};
-
 	tdmb_clk_pins: tdmb_clk_pin {
 		mux {
 			groups = "tdm_sclk1", "tdm_lrclk1";
 			function = "tdm_clk_outb";
+		};
+	};
+	tdmc_clk_pins: tdmc_clk_pin {
+		mux {
+			groups = "tdm_sclk2", "tdm_lrclk2";
+			function = "tdm_clk_outc";
+		};
+	};
+	tdmd_clk_pins: tdmd_clk_pin {
+		mux {
+			groups = "tdm_sclk3", "tdm_lrclk3";
+			function = "tdm_clk_outd";
 		};
 	};
 };

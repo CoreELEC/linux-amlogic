@@ -497,11 +497,18 @@
 			suffix-name = "alsaPORT-dsp";
 			tdmacpu: cpu {
 				sound-dai = <&tdma>;
+				/*
 				dai-tdm-slot-tx-mask =
 							<1 1>;
 				dai-tdm-slot-rx-mask =
 							<1 1>;
 				dai-tdm-slot-num = <2>;
+				*/
+				 dai-tdm-slot-tx-mask =
+					<1 1 1 1 1 1 1 1>;
+				 dai-tdm-slot-rx-mask =
+					<1 1 1 1 1 1 1 1>;
+				dai-tdm-slot-num = <8>;
 				dai-tdm-slot-width = <32>;
 				system-clock-frequency = <12288000>;
 			};
@@ -1108,10 +1115,14 @@
 		 * 2: tdmoutC
 		 * 3: tdmoutD
 		 */
-
 		datalb_src = <3>;
 		datalb_chnum = <8>;
 		datalb_chmask = <0xff>;
+		/* if tdmin_lb >= 3, use external loopback */
+		datalb_src = <1>;
+		datalb_chnum = <2>;
+		datalb_chmask = <0x3>;
+
 		/* config which data pin as loopback */
 		datalb-lane-mask-in = <1 1 1 1>;
 
@@ -1657,6 +1668,10 @@
 	};
 };
 
+&i2c5 {
+	clock-frequency = <400000>;
+};
+
 &csiphy0 {
 	port {
 		csiphy0_ep: endpoint {
@@ -2004,13 +2019,16 @@
 	tdm_d2_pins: tdm_d2_pin {
 		mux {
 			groups = "tdm_d2";
+
 			function = "tdminb_lane0";
+			function = "tdmoutb_lane0";
 		};
 	};
 	tdm_d3_pins: tdm_d3_pin {
 		mux {
 			groups = "tdm_d3";
 			function = "tdmoutb_lane0";
+			function = "tdminb_lane0";
 		};
 	};
 	tdm_d4_pins: tdm_d4_pin {

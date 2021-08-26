@@ -610,7 +610,7 @@
 			/* suffix-name, sync with android audio hal used for */
 			suffix-name = "alsaPORT-pdmb";
 			cpu {
-				sound-dai = <&pdm_b>;
+				sound-dai = <&pdmb>;
 			};
 			codec {
 				sound-dai = <&dummy_codec>;
@@ -849,7 +849,7 @@
 		#sound-dai-cells = <0>;
 
 		dai-tdm-lane-slot-mask-in = <1 0 0 0>;
-		dai-tdm-lane-slot-mask-out = <1 0 0 0>;
+		dai-tdm-lane-slot-mask-out = <1 1 1 1>;
 		dai-tdm-clk-sel = <3>;
 
 		clocks = <&clkaudio CLKID_AUDIO_GATE_TDMIND
@@ -868,7 +868,7 @@
 		start_clk_enable = <1>;
 		status = "okay";
 	};
-	pdm:pdm {
+	pdm:pdm@0 {
 		compatible = "amlogic, p1-snd-pdm-a";
 		#sound-dai-cells = <0>;
 
@@ -883,8 +883,8 @@
 			"pdm_dclk",
 			"pdm_sysclk";
 
-		//pinctrl-names = "pdm_pins";
-		//pinctrl-0 = <&pdmin_pins>;
+		pinctrl-names = "pdm_pins";
+		pinctrl-0 = <&pdmin_pins>;
 
 		/* mode 0~4, defalut:1 */
 		filter_mode = <1>;
@@ -893,23 +893,23 @@
 
 		status = "okay";
 	};
-	pdm_b:pdm {
+	pdmb:pdm@1 {
 		compatible = "amlogic, p1-snd-pdm-b";
 		#sound-dai-cells = <0>;
 
 		clocks = <&clkaudio CLKID_AUDIO_GATE_PDM_B
 			&clkc CLKID_FCLK_DIV3
 			&clkc CLKID_MPLL3
-			&clkaudio CLKID_AUDIO_PDMIN2
-			&clkaudio CLKID_AUDIO_PDMIN3>;
+			&clkaudio CLKID_AUDIO_PDMBIN0
+			&clkaudio CLKID_AUDIO_PDMBIN1>;
 		clock-names = "gate",
 			"sysclk_srcpll",
 			"dclk_srcpll",
 			"pdm_dclk",
 			"pdm_sysclk";
 
-		//pinctrl-names = "pdm_pins";
-		//pinctrl-0 = <&pdmin_pins>;
+		pinctrl-names = "pdm_pins";
+		pinctrl-0 = <&pdmbin_pins>;
 
 		/* mode 0~4, defalut:1 */
 		filter_mode = <1>;
@@ -1129,8 +1129,8 @@
 		clocks = <&clkaudio CLKID_AUDIO_GATE_PDM
 			&clkc CLKID_FCLK_DIV3
 			&clkc CLKID_MPLL3
-			&clkaudio CLKID_AUDIO_PDMIN2
-			&clkaudio CLKID_AUDIO_PDMIN3
+			&clkaudio CLKID_AUDIO_PDMIN0
+			&clkaudio CLKID_AUDIO_PDMIN1
 			&clkc CLKID_MPLL0
 			&clkaudio CLKID_AUDIO_MCLK_A>;
 		clock-names = "pdm_gate",
