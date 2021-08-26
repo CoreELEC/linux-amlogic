@@ -33,7 +33,7 @@
 #define DEVICE_NAME "amhdmitx"
 
 /* HDMITX driver version */
-#define HDMITX_VER "20201030"
+#define HDMITX_VER "20210902"
 
 /* chip type */
 #define MESON_CPU_ID_M8B		0
@@ -625,6 +625,7 @@ struct hdmitx_dev {
 #define MISC_TMDS_CEDST		(CMD_MISC_OFFSET + 0x13)
 #define MISC_TRIGGER_HPD        (CMD_MISC_OFFSET + 0X14)
 #define MISC_SUSFLAG		(CMD_MISC_OFFSET + 0X15)
+#define MISC_AUDIO_RESET	(CMD_MISC_OFFSET + 0x16)
 
 /***********************************************************************
  *                          Get State //getstate
