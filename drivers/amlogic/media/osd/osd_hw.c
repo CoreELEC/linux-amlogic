@@ -9194,10 +9194,13 @@ static int osd_setting_order(u32 output_index)
 	for (i = 0; i < osd_count; i++) {
 		if (osd_hw.enable[i]) {
 			struct hw_osd_reg_s *osd_reg = &hw_osd_reg_array[i];
-			enum color_index_e idx =
-				osd_hw.color_info[i]->color_index;
+			enum color_index_e idx = COLOR_INDEX_32_BGRX;
 			bool rgbx = false;
 
+			if (osd_hw.color_info[i])
+				idx = osd_hw.color_info[i]->color_index;
+			else
+				osd_log_err("osd%d color_info is NULL\n", i);
 			/* update = is_freescale_para_changed(i); */
 			if (!osd_hw.osd_afbcd[i].enable)
 				canvas_config(osd_hw.fb_gem[i].canvas_idx,
