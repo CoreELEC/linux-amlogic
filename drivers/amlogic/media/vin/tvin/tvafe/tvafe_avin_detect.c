@@ -323,8 +323,14 @@ void tvafe_cha2_SYNCTIP_close_config(void)
 		tvafe_pr_info("%s\n", __func__);
 
 	if (meson_data) {
-		W_HIU_BIT(HHI_CVBS_DETECT_CNTL, 0, AFE_CH2_EN_DC_BIAS_BIT,
-			AFE_CH2_EN_DC_BIAS_WIDTH);
+		if (meson_data->cpu_id >= AVIN_CPU_TYPE_T5)
+			W_HIU_BIT(HHI_CVBS_DETECT_CNTL, 0,
+				  AFE_T5_CH2_EN_DC_BIAS_BIT,
+				  AFE_T5_CH2_EN_DC_BIAS_WIDTH);
+		else
+			W_HIU_BIT(HHI_CVBS_DETECT_CNTL, 0,
+				  AFE_CH2_EN_DC_BIAS_BIT,
+				  AFE_CH2_EN_DC_BIAS_WIDTH);
 	} else {
 		W_HIU_BIT(HHI_CVBS_DETECT_CNTL, 0, AFE_CH2_EN_SYNC_TIP_BIT,
 			AFE_CH2_EN_SYNC_TIP_WIDTH);
@@ -391,8 +397,14 @@ void tvafe_cha2_detect_restart_config(void)
 		tvafe_pr_info("%s\n", __func__);
 
 	if (meson_data) {
-		W_HIU_BIT(HHI_CVBS_DETECT_CNTL, 1, AFE_CH2_EN_DC_BIAS_BIT,
-			AFE_CH2_EN_DC_BIAS_WIDTH);
+		if (meson_data->cpu_id >= AVIN_CPU_TYPE_T5)
+			W_HIU_BIT(HHI_CVBS_DETECT_CNTL, 1,
+				  AFE_T5_CH2_EN_DC_BIAS_BIT,
+				  AFE_T5_CH2_EN_DC_BIAS_WIDTH);
+		else
+			W_HIU_BIT(HHI_CVBS_DETECT_CNTL, 1,
+				  AFE_CH2_EN_DC_BIAS_BIT,
+				  AFE_CH2_EN_DC_BIAS_WIDTH);
 	} else {
 		W_HIU_BIT(HHI_CVBS_DETECT_CNTL, 1, AFE_CH2_EN_SYNC_TIP_BIT,
 			AFE_CH2_EN_SYNC_TIP_WIDTH);
@@ -458,8 +470,14 @@ static void tvafe_avin_detect_anlog_config(void)
 		AFE_CH2_COMP_LEVEL_ADJ_BIT, AFE_CH2_COMP_LEVEL_ADJ_WIDTH);
 		W_HIU_BIT(HHI_CVBS_DETECT_CNTL, 0,
 			AFE_CH2_COMP_HYS_ADJ_BIT, AFE_CH2_COMP_HYS_ADJ_WIDTH);
-		W_HIU_BIT(HHI_CVBS_DETECT_CNTL, 1, AFE_CH2_EN_DC_BIAS_BIT,
-			AFE_CH2_EN_DC_BIAS_WIDTH);
+		if (meson_data->cpu_id >= AVIN_CPU_TYPE_T5)
+			W_HIU_BIT(HHI_CVBS_DETECT_CNTL, 1,
+				  AFE_T5_CH2_EN_DC_BIAS_BIT,
+				  AFE_T5_CH2_EN_DC_BIAS_WIDTH);
+		else
+			W_HIU_BIT(HHI_CVBS_DETECT_CNTL, 1,
+				  AFE_CH2_EN_DC_BIAS_BIT,
+				  AFE_CH2_EN_DC_BIAS_WIDTH);
 	} else {
 		if (detect_mode == 0) {
 			/*for ch1*/
@@ -730,6 +748,13 @@ static ssize_t tvafe_avin_detect_store(struct device *dev,
 				tvafe_pr_info("[%s]:invaild parameter\n",
 					__func__);
 				goto tvafe_avin_detect_store_err;
+			} else {
+				W_HIU_BIT(HHI_CVBS_DETECT_CNTL, dc_level_adj,
+					  AFE_CH1_DC_LEVEL_ADJ_BIT,
+					  AFE_CH1_DC_LEVEL_ADJ_WIDTH);
+				W_HIU_BIT(HHI_CVBS_DETECT_CNTL, dc_level_adj,
+					  AFE_CH2_DC_LEVEL_ADJ_BIT,
+					  AFE_CH2_DC_LEVEL_ADJ_WIDTH);
 			}
 		}
 		tvafe_pr_info("[%s]: dc_level_adj: %d\n",
@@ -740,6 +765,13 @@ static ssize_t tvafe_avin_detect_store(struct device *dev,
 				tvafe_pr_info("[%s]:invaild parameter\n",
 					__func__);
 				goto tvafe_avin_detect_store_err;
+			} else {
+				W_HIU_BIT(HHI_CVBS_DETECT_CNTL, comp_level_adj,
+					  AFE_CH1_COMP_LEVEL_ADJ_BIT,
+					  AFE_CH1_COMP_LEVEL_ADJ_WIDTH);
+				W_HIU_BIT(HHI_CVBS_DETECT_CNTL, comp_level_adj,
+					  AFE_CH2_COMP_LEVEL_ADJ_BIT,
+					  AFE_CH2_COMP_LEVEL_ADJ_WIDTH);
 			}
 		}
 		tvafe_pr_info("[%s]: comp_level_adj: %d\n",
@@ -1173,6 +1205,16 @@ struct meson_avin_data tm2_data = {
 	.name = "meson-tm2-avin-detect",
 };
 
+struct meson_avin_data t5_data = {
+	.cpu_id = AVIN_CPU_TYPE_T5,
+	.name = "meson-t5-avin-detect",
+};
+
+struct meson_avin_data t5d_data = {
+	.cpu_id = AVIN_CPU_TYPE_T5D,
+	.name = "meson-t5d-avin-detect",
+};
+
 static const struct of_device_id tvafe_avin_dt_match[] = {
 	{	.compatible = "amlogic, tvafe_avin_detect",
 	},
@@ -1181,6 +1223,12 @@ static const struct of_device_id tvafe_avin_dt_match[] = {
 	},
 	{	.compatible = "amlogic, tm2_tvafe_avin_detect",
 		.data = &tm2_data,
+	},
+	{	.compatible = "amlogic, t5_tvafe_avin_detect",
+		.data = &t5_data,
+	},
+	{	.compatible = "amlogic, t5d_tvafe_avin_detect",
+		.data = &t5d_data,
 	},
 	{},
 };

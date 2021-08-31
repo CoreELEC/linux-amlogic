@@ -135,6 +135,7 @@ struct tvafe_cvd2_info_s {
 	unsigned int hcnt64[4];
 	unsigned int hcnt64_cnt;
 #endif
+	unsigned int cdto_value;
 	unsigned int hs_adj_level;
 	unsigned int vs_adj_level;
 #ifdef TVAFE_SET_CVBS_PGA_EN
@@ -159,7 +160,12 @@ struct tvafe_cvd2_info_s {
 	bool vs_adj_en;
 	/*0:+;1:-*/
 	bool hs_adj_dir;
+	bool vs_adj_dir;
 	unsigned int auto_hs_flag;
+
+	unsigned int h_unlock_cnt;
+	unsigned int v_unlock_cnt;
+	unsigned int sig_unlock_cnt;
 
 #ifdef TVAFE_CVD2_AUTO_DE_ENABLE
 	struct tvafe_cvd2_lines_s vlines;
@@ -168,6 +174,7 @@ struct tvafe_cvd2_info_s {
 
 	unsigned int smr_cnt;
 	unsigned int isr_cnt;
+	unsigned int unlock_cnt;
 };
 
 /* CVD2 status list */
@@ -175,6 +182,7 @@ struct tvafe_cvd2_s {
 	struct tvafe_cvd2_hw_data_s hw_data[3];
 	struct tvafe_cvd2_hw_data_s hw;
 	struct tvafe_cvd2_info_s info;
+	const unsigned int *acd_table;
 	struct tvafe_reg_table_s *pq_conf;
 	unsigned int fmt_loop_cnt;
 	unsigned char hw_data_cur;
@@ -193,7 +201,7 @@ extern int cvd_get_rf_strength(void);
 extern void tvafe_cvd2_try_format(struct tvafe_cvd2_s *cvd2,
 			struct tvafe_cvd2_mem_s *mem, enum tvin_sig_fmt_e fmt);
 extern bool tvafe_cvd2_no_sig(struct tvafe_cvd2_s *cvd2,
-			struct tvafe_cvd2_mem_s *mem);
+			struct tvafe_cvd2_mem_s *mem, bool is_dec_start);
 extern bool tvafe_cvd2_fmt_chg(struct tvafe_cvd2_s *cvd2);
 extern enum tvin_sig_fmt_e tvafe_cvd2_get_format(
 			struct tvafe_cvd2_s *cvd2);

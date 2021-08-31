@@ -933,8 +933,6 @@ static void vbi_slicer_work(struct work_struct *p_work)
 
 	if (!devp)
 		return;
-	if (devp->vbi_start == false)
-		return;
 	if (tvafe_clk_status == false) {
 		vbi_ringbuffer_flush(&devp->slicer->buffer);
 		return;
@@ -951,7 +949,11 @@ static void vbi_slicer_work(struct work_struct *p_work)
 		return;
 	}
 
-	mutex_lock(&devp->slicer->task_mutex);
+	mutex_lock(&devp->slicer->mutex);
+	if (!devp->vbi_start) {
+		mutex_unlock(&devp->slicer->mutex);
+		return;
+	}
 	devp->slicer->busy = 1;
 	if (devp->slicer->slicer_cnt++ >= 0xffffffff)
 		devp->slicer->slicer_cnt = 0;
@@ -961,7 +963,7 @@ static void vbi_slicer_work(struct work_struct *p_work)
 	ret = init_vbi_data_sync(devp);
 	if (!ret) {
 		devp->slicer->busy = 0;
-		mutex_unlock(&devp->slicer->task_mutex);
+		mutex_unlock(&devp->slicer->mutex);
 		return;
 	}
 
@@ -1130,6 +1132,13 @@ static void vbi_slicer_work(struct work_struct *p_work)
 			}
 			continue;
 		}
+
+		if (((local_rptr + vbi_data.nbytes) > devp->temp_addr_end) ||
+		    (local_rptr < devp->temp_addr_start)) {
+			tvafe_pr_info("neo:local_rptr:%p, addr:%p, bytes:%d\n",
+				      local_rptr, devp->temp_addr_end,
+				      vbi_data.nbytes);
+		}
 		memcpy(&(vbi_data.b[0]), local_rptr, vbi_data.nbytes);
 		local_rptr += vbi_data.nbytes;
 		/* capture data to vbi buffer */
@@ -1200,7 +1209,7 @@ vbi_slicer_work_next:
 
 vbi_slicer_work_exit:
 	devp->slicer->busy = 0;
-	mutex_unlock(&devp->slicer->task_mutex);
+	mutex_unlock(&devp->slicer->mutex);
 
 	return;
 }

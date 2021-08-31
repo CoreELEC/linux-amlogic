@@ -43,8 +43,6 @@
 #define VAFE_CLK_SELECT			24
 #define VAFE_CLK_SELECT_WIDTH	2
 
-static unsigned int adc_pll_chg;
-
 /* TOP */
 static const unsigned int cvbs_top_reg_default[][2] = {
 	{TVFE_DVSS_MUXCTRL, 0x07000008,},
@@ -257,10 +255,13 @@ static const unsigned int tvafe_pq_reg_trust_table[][2] = {
 	{ACD_REG_56,                        0x00f00000},
 	{ACD_REG_57,                        0x03ff81ff},
 	{ACD_REG_58,                        0x8fffffff},
+	{ACD_REG_5B,                        0x3ff7ffff},
 	{ACD_REG_64,                        0xffffffff},
 	{ACD_REG_65,                        0xffffffff},
 	{ACD_REG_66,                        0x80000ff0},
 	{ACD_REG_6F,                        0xffffffff},
+	{ACD_REG_74,                        0xffffffff},
+	{ACD_REG_75,                        0x000000ff},
 	{ACD_REG_86,                        0xc0000000},
 	{ACD_REG_89,                        0x803ff3ff},
 	{ACD_REG_8A,                        0x03ff1fff},
@@ -269,6 +270,8 @@ static const unsigned int tvafe_pq_reg_trust_table[][2] = {
 	{ACD_REG_94,                        0xffffffff},
 	{ACD_REG_95,                        0xffffffff},
 	{ACD_REG_96,                        0xffffffff},
+	{ACD_REG_AE,                        0x00000001},
+	{ACD_REG_AF,                        0x1f1f0000},
 
 	{0xffffffff,                        0x00000000}, /* ending */
 };
@@ -317,88 +320,64 @@ static void tvafe_pq_apb_reg_trust_write(unsigned int addr,
 	cvd_reg87_pal = R_APB_REG(CVD2_REG_87);
 }
 
-/*
- * tvafe cvd2 video poaition reg setting
- */
-static enum tvafe_adc_ch_e tvafe_adc_pin_muxing(
-					enum tvafe_adc_pin_e pin)
+enum tvafe_adc_ch_e tvafe_port_to_channel(enum tvin_port_e port,
+					  struct tvafe_pin_mux_s *pinmux)
 {
-	enum tvafe_adc_ch_e ret = TVAFE_ADC_CH_NULL;
+	enum tvafe_adc_ch_e adc_ch = TVAFE_ADC_CH_NULL;
 
-	if (tvafe_cpu_type() == CPU_TYPE_TXL ||
-		tvafe_cpu_type() == CPU_TYPE_TXLX ||
-		tvafe_cpu_type() >= CPU_TYPE_TL1) {
-		tvafe_pr_info("[tvafe]%s:pin:%d\n",
-			__func__, (unsigned int)pin);
-		if (pin == TVAFE_CVBS_IN0) {
-
-			W_APB_BIT(TVFE_VAFE_CTRL1, 1,
-				VAFE_IN_SEL_BIT, VAFE_IN_SEL_WID);
-			if (tvafe_cpu_type() < CPU_TYPE_TL1)
-				W_APB_BIT(TVFE_VAFE_CTRL2, 3, 4, 3);
-			ret = TVAFE_ADC_CH_0;
-
-		} else if (pin == TVAFE_CVBS_IN1) {
-
-			W_APB_BIT(TVFE_VAFE_CTRL1, 2,
-				VAFE_IN_SEL_BIT, VAFE_IN_SEL_WID);
-			if (tvafe_cpu_type() < CPU_TYPE_TL1)
-				W_APB_BIT(TVFE_VAFE_CTRL2, 5, 4, 3);
-			ret = TVAFE_ADC_CH_1;
-
-		} else if (pin == TVAFE_CVBS_IN2) {
-
-			W_APB_BIT(TVFE_VAFE_CTRL1, 3,
-				VAFE_IN_SEL_BIT, VAFE_IN_SEL_WID);
-			W_APB_BIT(TVFE_VAFE_CTRL2, 6, 4, 3);
-			ret = TVAFE_ADC_CH_2;
-
-		} else if (pin == TVAFE_CVBS_IN3) {
-
-			/* atv demod data for cvd2 */
-			W_APB_REG(TVFE_ATV_DMD_CLP_CTRL, 0x1300010);
-			W_APB_BIT(TVFE_VAFE_CTRL2, 6, 4, 3);
-			ret = TVAFE_ADC_CH_3;
-		}
-
+	if (!IS_TVAFE_SRC(port)) {
+		tvafe_pr_info("%s set pin mux error!!!!!.\n", __func__);
+		return TVAFE_ADC_CH_NULL;
 	}
-	return ret;
+
+	adc_ch = pinmux->pin[port - TVIN_PORT_CVBS0];
+
+	return adc_ch;
 }
 
 /*
- * tvafe pin mux setting for input source
+ * tvafe pin mux setting for input source, cvd2 video poaition reg setting
  */
-int tvafe_set_source_muxing(enum tvin_port_e port,
-		struct tvafe_pin_mux_s *pinmux)
+int tvafe_adc_pin_muxing(enum tvafe_adc_ch_e adc_ch)
 {
-	int ret = 0;
-
-	switch (port) {
-
-	case TVIN_PORT_CVBS0:
-		tvafe_adc_pin_muxing(pinmux->pin[CVBS_IN0]);
-		break;
-	case TVIN_PORT_CVBS1:
-		tvafe_adc_pin_muxing(pinmux->pin[CVBS_IN1]);
-		break;
-	case TVIN_PORT_CVBS2:
-		tvafe_adc_pin_muxing(pinmux->pin[CVBS_IN2]);
-		break;
-	case TVIN_PORT_CVBS3:
-		tvafe_adc_pin_muxing(pinmux->pin[CVBS_IN3]);
-		break;
-	default:
-		ret = -EFAULT;
-		break;
+	if (adc_ch == TVAFE_ADC_CH_NULL) {
+		tvafe_pr_info("%s set pin mux error!!!!!.\n", __func__);
+		return -1;
 	}
-	if (ret == 0)
-		tvafe_pr_info("%s set pin mux to port:0x%x ok.\n",
-		__func__, port);
-	else
-		tvafe_pr_info("%s set pin mux error!!!!!.\n",
-		__func__);
 
-	return ret;
+	if (adc_ch == TVAFE_ADC_CH_0) {
+
+		W_APB_BIT(TVFE_VAFE_CTRL1, 1,
+			  VAFE_IN_SEL_BIT, VAFE_IN_SEL_WID);
+		if (tvafe_cpu_type() < TVAFE_CPU_TYPE_TL1)
+			W_APB_BIT(TVFE_VAFE_CTRL2, 3, 4, 3);
+
+	} else if (adc_ch == TVAFE_ADC_CH_1) {
+
+		W_APB_BIT(TVFE_VAFE_CTRL1, 2,
+			  VAFE_IN_SEL_BIT, VAFE_IN_SEL_WID);
+		if (tvafe_cpu_type() < TVAFE_CPU_TYPE_TL1)
+			W_APB_BIT(TVFE_VAFE_CTRL2, 5, 4, 3);
+
+	} else if (adc_ch == TVAFE_ADC_CH_2) {
+
+		W_APB_BIT(TVFE_VAFE_CTRL1, 3,
+			  VAFE_IN_SEL_BIT, VAFE_IN_SEL_WID);
+		W_APB_BIT(TVFE_VAFE_CTRL2, 6, 4, 3);
+
+	} else if (adc_ch == TVAFE_ADC_CH_ATV) {
+
+		/* atv demod data for cvd2 */
+		W_APB_REG(TVFE_ATV_DMD_CLP_CTRL, 0x1300010);
+		W_APB_BIT(TVFE_VAFE_CTRL2, 6, 4, 3);
+	} else {
+		tvafe_pr_info("%s set pin mux error!!!!!.\n", __func__);
+		return -1;
+	}
+
+	tvafe_pr_info("%s set pin mux to adc_ch: %d ok.\n",
+		      __func__, (unsigned int)adc_ch);
+	return 0;
 }
 
 void tvafe_set_regmap(struct am_regs_s *p)
@@ -444,48 +423,17 @@ for (i = 0; i < p->length; i++) {
  * tvafe init cvbs setting with pal-i
  */
 static void tvafe_set_cvbs_default(struct tvafe_cvd2_s *cvd2,
-			struct tvafe_cvd2_mem_s *mem, enum tvin_port_e port,
-				struct tvafe_pin_mux_s *mux)
+			struct tvafe_cvd2_mem_s *mem, enum tvin_port_e port)
 {
 	unsigned int i = 0;
 
 	/**disable auto mode clock**/
-	if (tvafe_cpu_type() < CPU_TYPE_TL1)
+	if (tvafe_cpu_type() < TVAFE_CPU_TYPE_TL1)
 		W_HIU_REG(HHI_TVFE_AUTOMODE_CLK_CNTL, 0);
 
-	/*config adc*/
-	if (port == TVIN_PORT_CVBS3) {
-		if (tvafe_cpu_type() == CPU_TYPE_TXL ||
-			tvafe_cpu_type() == CPU_TYPE_TXLX) {
-			/** DADC CNTL for LIF signal input **/
-			W_HIU_REG(HHI_DADC_CNTL, 0x00102038);
-			W_HIU_REG(HHI_DADC_CNTL2, 0x00000406);
-			W_HIU_REG(HHI_DADC_CNTL3, 0x00082183);
-		} else if (tvafe_cpu_type() >= CPU_TYPE_TL1) {
-			/** DADC CNTL for LIF signal input **/
-			W_HIU_REG(HHI_DADC_CNTL, 0x00303044);
-			W_HIU_REG(HHI_DADC_CNTL2, 0x00003480);
-			W_HIU_REG(HHI_DADC_CNTL3, 0x08300b83);
-		} else {
-			/** DADC CNTL for LIF signal input **/
-			W_HIU_REG(HHI_DADC_CNTL, 0x1411036);
-			W_HIU_REG(HHI_DADC_CNTL2, 0x0);
-			W_HIU_REG(HHI_DADC_CNTL3, 0x430036);
-			W_HIU_REG(HHI_DADC_CNTL4, 0x80600240);
-		}
-	} else {
-		if (tvafe_cpu_type() == CPU_TYPE_TXL ||
-			tvafe_cpu_type() == CPU_TYPE_TXLX) {
-			W_HIU_REG(HHI_CADC_CNTL, 0x02000A08);
-			W_HIU_REG(HHI_CADC_CNTL2, 0x04007B05);
-		} else if (tvafe_cpu_type() >= CPU_TYPE_TL1) {
-			W_HIU_REG(HHI_DADC_CNTL, 0x00303044);
-			W_HIU_REG(HHI_DADC_CNTL2, 0x00003400);
-			W_HIU_REG(HHI_DADC_CNTL3, 0x08300b83);
-		}
-	}
 	/** enable tv_decoder mem clk **/
-	W_HIU_BIT(HHI_VPU_CLK_CNTL, 1, 28, 1);
+	if (tvafe_cpu_type() < TVAFE_CPU_TYPE_TM2_B)
+		W_HIU_BIT(HHI_VPU_CLK_CNTL, 1, 28, 1);
 
 	/** write top register **/
 	i = 0;
@@ -494,19 +442,15 @@ static void tvafe_set_cvbs_default(struct tvafe_cvd2_s *cvd2,
 			cvbs_top_reg_default[i][1]);
 		i++;
 	}
-	if (tvafe_cpu_type() == CPU_TYPE_TXL ||
-		tvafe_cpu_type() == CPU_TYPE_TXLX ||
-		tvafe_cpu_type() >= CPU_TYPE_TL1) {
-		if (tvafe_cpu_type() >= CPU_TYPE_TL1) {
-			if (port == TVIN_PORT_CVBS3) {
-				W_APB_REG(TVFE_VAFE_CTRL0, 0x000d0710);
-				W_APB_REG(TVFE_VAFE_CTRL1, 0x00003000);
-				W_APB_REG(TVFE_VAFE_CTRL2, 0x1fe09e31);
-			} else if ((port == TVIN_PORT_CVBS1) ||
-					(port == TVIN_PORT_CVBS2)) {
-				W_APB_REG(TVFE_VAFE_CTRL0, 0x00490710);
-				W_APB_REG(TVFE_VAFE_CTRL1, 0x0000110e);
-				W_APB_REG(TVFE_VAFE_CTRL2, 0x1fe09f83);
+	if (tvafe_cpu_type() == TVAFE_CPU_TYPE_TXL ||
+		tvafe_cpu_type() == TVAFE_CPU_TYPE_TXLX ||
+		tvafe_cpu_type() >= TVAFE_CPU_TYPE_TL1) {
+		if (tvafe_cpu_type() >= TVAFE_CPU_TYPE_TL1) {
+			if (IS_TVAFE_ATV_SRC(port)) {
+				adc_set_filter_ctrl(true,
+					FILTER_ATV_DEMOD, NULL);
+			} else if (IS_TVAFE_AVIN_SRC(port)) {
+				adc_set_filter_ctrl(true, FILTER_TVAFE, NULL);
 			}
 		} else {
 			W_APB_REG(TVFE_VAFE_CTRL0, 0x00090b00);
@@ -515,7 +459,7 @@ static void tvafe_set_cvbs_default(struct tvafe_cvd2_s *cvd2,
 		}
 
 #if (defined(CONFIG_ADC_DOUBLE_SAMPLING_FOR_CVBS) && defined(CRYSTAL_24M))
-		if ((port != TVIN_PORT_CVBS3) && (port != TVIN_PORT_CVBS0)) {
+		if (!IS_TVAFE_ATV_SRC(port)) {
 			W_APB_REG(TVFE_TOP_CTRL, 0x010c4d6c);
 			W_APB_REG(TVFE_AAFILTER_CTRL1, 0x00012721);
 			W_APB_REG(TVFE_AAFILTER_CTRL2, 0x1304fcfa);
@@ -544,56 +488,21 @@ static void tvafe_set_cvbs_default(struct tvafe_cvd2_s *cvd2,
 
 }
 
-/* add for dtv demod */
-void tvafe_set_ddemod_default(void)
-{
-	if (tvafe_cpu_type() == CPU_TYPE_TXL ||
-		tvafe_cpu_type() == CPU_TYPE_TXLX ||
-		tvafe_cpu_type() == CPU_TYPE_GXLX) {
-		W_HIU_REG(HHI_DADC_CNTL, 0x00102038);
-		W_HIU_REG(HHI_DADC_CNTL2, 0x00000406);
-		W_HIU_REG(HHI_DADC_CNTL3, 0x00082183);
-
-		/*W_HIU_REG(HHI_VDAC_CNTL0, 0x00000200);*/
-		/*W_HIU_BIT(HHI_VDAC_CNTL0, 1, 9, 1);*/
-		/* remove vdac reg write, make sure it write in vdac driver,
-		 * because multi module use it
-		 */
-
-	} else if (tvafe_cpu_type() >= CPU_TYPE_TL1) {
-		W_APB_REG(TVFE_VAFE_CTRL0, 0x000d0710);
-		W_APB_REG(TVFE_VAFE_CTRL1, 0x3000);
-		W_APB_REG(TVFE_VAFE_CTRL2, 0x1fe09e31);
-
-		W_HIU_REG(HHI_DADC_CNTL, 0x00303044);
-		W_HIU_REG(HHI_DADC_CNTL2, 0x00003480);
-		W_HIU_REG(HHI_DADC_CNTL3, 0x08300b83);
-
-		//HHI_VDAC_CNTL1
-		/*W_HIU_REG(0xbc, 0x0);*/
-		/* remove vdac reg write, make sure it write in vdac driver,
-		 * because multi module use it
-		 */
-	}
-
-}
-EXPORT_SYMBOL(tvafe_set_ddemod_default);
-
 void tvafe_enable_avout(enum tvin_port_e port, bool enable)
 {
-	if (tvafe_cpu_type() == CPU_TYPE_TXL ||
-		tvafe_cpu_type() == CPU_TYPE_TXLX ||
-		tvafe_cpu_type() >= CPU_TYPE_TL1) {
+	if (tvafe_cpu_type() == TVAFE_CPU_TYPE_TXL ||
+		tvafe_cpu_type() == TVAFE_CPU_TYPE_TXLX ||
+		tvafe_cpu_type() >= TVAFE_CPU_TYPE_TL1) {
 		if (enable) {
 			tvafe_clk_gate_ctrl(1);
-			if (port == TVIN_PORT_CVBS3) {
+			if (IS_TVAFE_ATV_SRC(port)) {
 				vdac_enable(1, VDAC_MODULE_AVOUT_ATV);
 			} else {
 				W_APB_REG(TVFE_ATV_DMD_CLP_CTRL, 0);
 				vdac_enable(1, VDAC_MODULE_AVOUT_AV);
 			}
 		} else {
-			if (port == TVIN_PORT_CVBS3)
+			if (IS_TVAFE_ATV_SRC(port))
 				vdac_enable(0, VDAC_MODULE_AVOUT_ATV);
 			else
 				vdac_enable(0, VDAC_MODULE_AVOUT_AV);
@@ -602,393 +511,29 @@ void tvafe_enable_avout(enum tvin_port_e port, bool enable)
 	}
 }
 
-void adc_pll_down(void)
-{
-	if (!adc_pll_chg &&
-		tvafe_cpu_type() == CPU_TYPE_TL1 &&
-		R_HIU_BIT(HHI_ADC_PLL_CNTL0_TL1, 28, 1)) {
-		W_HIU_BIT(HHI_ADC_PLL_CNTL0_TL1, 0, 28, 1);
-		tvafe_pr_info("%s: ok\n", __func__);
-	}
-}
-
-/*module_sel*/
-/*ADC_EN_ATV_DEMOD	0x1*/
-/*ADC_EN_TVAFE		0x2*/
-/*ADC_EN_DTV_DEMOD	0x4*/
-/*ADC_EN_DTV_DEMODPLL	0x8*/
-int adc_set_pll_cntl(bool on, unsigned int module_sel, void *pDtvPara)
-{
-	unsigned int adc_pll_lock_cnt = 0;
-	int ret = 0;	/* 0: success; -x: failed*/
-
-	struct dfe_adcpll_para *pDpara = pDtvPara;	/*only for dtv demod*/
-
-	if (!on) {
-		mutex_lock(&pll_mutex);
-		adc_pll_chg &= ~module_sel;
-		mutex_unlock(&pll_mutex);
-		if (tvafe_dbg_print & TVAFE_DBG_NORMAL)
-			tvafe_pr_info("%s: init flag on:%d,module:0x%x,flag:0x%x\n",
-				__func__, on, module_sel, adc_pll_chg);
-		return ret;
-	}
-	switch (module_sel) {
-	case ADC_EN_ATV_DEMOD: /* atv demod */
-		if (adc_pll_chg & (ADC_EN_TVAFE | ADC_EN_DTV_DEMOD)) {
-			ret = -1;
-			tvafe_pr_info("%s:ADEMOD fail!:%d\n",
-				__func__, adc_pll_chg);
-			break;
-		}
-		if (adc_pll_chg & ADC_EN_ATV_DEMOD) {
-			tvafe_pr_info("%s:ADEMOD ATV had done!:%d\n",
-				__func__, adc_pll_chg);
-			break;
-		}
-		mutex_lock(&pll_mutex);
-		if (tvafe_cpu_type() >= CPU_TYPE_TL1) {
-			do {
-				W_HIU_REG(HHI_ADC_PLL_CNTL0_TL1, 0x01200490);
-				W_HIU_REG(HHI_ADC_PLL_CNTL0_TL1, 0x31200490);
-				W_HIU_REG(HHI_ADC_PLL_CNTL1_TL1, 0x06c00000);
-				W_HIU_REG(HHI_ADC_PLL_CNTL2_TL1, 0xe1800000);
-				W_HIU_REG(HHI_ADC_PLL_CNTL3_TL1, 0x48681c00);
-				W_HIU_REG(HHI_ADC_PLL_CNTL4_TL1, 0x88770290);
-				W_HIU_REG(HHI_ADC_PLL_CNTL5_TL1, 0x39272000);
-				W_HIU_REG(HHI_ADC_PLL_CNTL6_TL1, 0x56540000);
-				W_HIU_REG(HHI_ADC_PLL_CNTL0_TL1, 0x11010490);
-
-				udelay(100);
-				adc_pll_lock_cnt++;
-			} while (!R_HIU_BIT(HHI_ADC_PLL_CNTL0_TL1, 31, 1) &&
-				(adc_pll_lock_cnt < 10));
-		} else {
-			do {
-			if (tvafe_cpu_type() == CPU_TYPE_TXL ||
-				tvafe_cpu_type() == CPU_TYPE_TXLX) {
-				W_HIU_REG(HHI_ADC_PLL_CNTL3, 0x4a6a2110);
-				W_HIU_REG(HHI_ADC_PLL_CNTL, 0x30f14250);
-				W_HIU_REG(HHI_ADC_PLL_CNTL1, 0x22000442);
-				/*0x5ba00380 from pll;0x5ba00384 clk*/
-				/*form crystal*/
-				W_HIU_REG(HHI_ADC_PLL_CNTL2, 0x5ba00384);
-				W_HIU_REG(HHI_ADC_PLL_CNTL3, 0x4a6a2110);
-				W_HIU_REG(HHI_ADC_PLL_CNTL4, 0x02913004);
-				W_HIU_REG(HHI_ADC_PLL_CNTL5, 0x00034a00);
-				W_HIU_REG(HHI_ADC_PLL_CNTL6, 0x00005000);
-				W_HIU_REG(HHI_ADC_PLL_CNTL3, 0xca6a2110);
-				W_HIU_REG(HHI_ADC_PLL_CNTL3, 0x4a6a2110);
-			} else {
-				W_HIU_REG(HHI_ADC_PLL_CNTL3, 0xca2a2110);
-				W_HIU_REG(HHI_ADC_PLL_CNTL4, 0x2933800);
-				W_HIU_REG(HHI_ADC_PLL_CNTL, 0xe0644220);
-				W_HIU_REG(HHI_ADC_PLL_CNTL2, 0x34e0bf84);
-				W_HIU_REG(HHI_ADC_PLL_CNTL3, 0x4a2a2110);
-				/* TVFE reset */
-				W_HIU_BIT(RESET1_REGISTER, 1, 7, 1);
-			}
-			udelay(100);
-			adc_pll_lock_cnt++;
-			} while (!R_HIU_BIT(HHI_ADC_PLL_CNTL, 31, 1) &&
-				(adc_pll_lock_cnt < 10));
-		}
-		adc_pll_chg |= ADC_EN_ATV_DEMOD;
-		mutex_unlock(&pll_mutex);
-		if (adc_pll_lock_cnt == 10)
-			tvafe_pr_info("%s: adc pll lock fail!!!\n", __func__);
-		if (tvafe_dbg_print & TVAFE_DBG_NORMAL)
-			tvafe_pr_info("%s: on:%d,module:0x%x,flag:0x%x...\n",
-				__func__, on, module_sel, adc_pll_chg);
-		break;
-	case ADC_EN_TVAFE: /* tvafe */
-		if (adc_pll_chg & (ADC_EN_ATV_DEMOD | ADC_EN_DTV_DEMOD)) {
-			ret = -2;
-			tvafe_pr_info("%s:AFE fail!!!:%d\n",
-				__func__, adc_pll_chg);
-			break;
-		}
-		mutex_lock(&pll_mutex);
-		if (tvafe_cpu_type() >= CPU_TYPE_TL1) {
-			do {
-				W_HIU_REG(HHI_ADC_PLL_CNTL0_TL1, 0x01200490);
-				W_HIU_REG(HHI_ADC_PLL_CNTL0_TL1, 0x31200490);
-				W_HIU_REG(HHI_ADC_PLL_CNTL1_TL1, 0x06c00000);
-				W_HIU_REG(HHI_ADC_PLL_CNTL2_TL1, 0xe0800000);
-				W_HIU_REG(HHI_ADC_PLL_CNTL3_TL1, 0x48681c00);
-				W_HIU_REG(HHI_ADC_PLL_CNTL4_TL1, 0x88770290);
-				W_HIU_REG(HHI_ADC_PLL_CNTL5_TL1, 0x39272000);
-				W_HIU_REG(HHI_ADC_PLL_CNTL6_TL1, 0x56540000);
-				W_HIU_REG(HHI_ADC_PLL_CNTL0_TL1, 0x11010490);
-
-				udelay(100);
-				adc_pll_lock_cnt++;
-			} while (!R_HIU_BIT(HHI_ADC_PLL_CNTL0_TL1, 31, 1) &&
-				(adc_pll_lock_cnt < 10));
-			tvafe_pr_info("b0=0x%x\n",
-				R_HIU_REG(HHI_ADC_PLL_CNTL0_TL1));
-			tvafe_pr_info("b1=0x%x\n",
-				R_HIU_REG(HHI_ADC_PLL_CNTL1_TL1));
-			tvafe_pr_info("b2=0x%x\n",
-				R_HIU_REG(HHI_ADC_PLL_CNTL2_TL1));
-			tvafe_pr_info("b3=0x%x\n",
-				R_HIU_REG(HHI_ADC_PLL_CNTL3_TL1));
-			tvafe_pr_info("b4=0x%x\n",
-				R_HIU_REG(HHI_ADC_PLL_CNTL4_TL1));
-			tvafe_pr_info("b5=0x%x\n",
-				R_HIU_REG(HHI_ADC_PLL_CNTL5_TL1));
-			tvafe_pr_info("b6=0x%x\n",
-				R_HIU_REG(HHI_ADC_PLL_CNTL6_TL1));
-
-		} else {
-			do {
-			if (tvafe_cpu_type() == CPU_TYPE_TXL ||
-				tvafe_cpu_type() == CPU_TYPE_TXLX) {
-				W_HIU_REG(HHI_ADC_PLL_CNTL3, 0x4a6a2110);
-				W_HIU_REG(HHI_ADC_PLL_CNTL, 0x30f14250);
-				W_HIU_REG(HHI_ADC_PLL_CNTL1, 0x22000442);
-				/*0x5ba00380 from pll;0x5ba00384 clk*/
-				/*form crystal*/
-				W_HIU_REG(HHI_ADC_PLL_CNTL2, 0x5ba00384);
-				W_HIU_REG(HHI_ADC_PLL_CNTL3, 0x4a6a2110);
-				W_HIU_REG(HHI_ADC_PLL_CNTL4, 0x02913004);
-				W_HIU_REG(HHI_ADC_PLL_CNTL5, 0x00034a00);
-				W_HIU_REG(HHI_ADC_PLL_CNTL6, 0x00005000);
-				W_HIU_REG(HHI_ADC_PLL_CNTL3, 0xca6a2110);
-				W_HIU_REG(HHI_ADC_PLL_CNTL3, 0x4a6a2110);
-			} else {
-				W_HIU_REG(HHI_ADC_PLL_CNTL3, 0xca2a2110);
-				W_HIU_REG(HHI_ADC_PLL_CNTL4, 0x2933800);
-				W_HIU_REG(HHI_ADC_PLL_CNTL, 0xe0644220);
-				W_HIU_REG(HHI_ADC_PLL_CNTL2, 0x34e0bf84);
-				W_HIU_REG(HHI_ADC_PLL_CNTL3, 0x4a2a2110);
-				/* TVFE reset */
-				W_HIU_BIT(RESET1_REGISTER, 1, 7, 1);
-			}
-			udelay(100);
-			adc_pll_lock_cnt++;
-			} while (!R_HIU_BIT(HHI_ADC_PLL_CNTL, 31, 1) &&
-				(adc_pll_lock_cnt < 10));
-		}
-		adc_pll_chg |= ADC_EN_TVAFE;
-		mutex_unlock(&pll_mutex);
-		if (adc_pll_lock_cnt == 10)
-			tvafe_pr_info("%s: adc pll lock fail!!!\n", __func__);
-		if (tvafe_dbg_print & TVAFE_DBG_NORMAL)
-			tvafe_pr_info("%s: on:%d,module:0x%x,flag:0x%x...\n",
-				__func__, on, module_sel, adc_pll_chg);
-
-		break;
-	case ADC_EN_DTV_DEMOD: /* dtv demod default*/
-		if (adc_pll_chg & (ADC_EN_ATV_DEMOD | ADC_EN_TVAFE)) {
-			ret = -3;
-			tvafe_pr_info("%s:DDEMOD fail!:%d\n",
-				__func__, adc_pll_chg);
-			break;
-		}
-		mutex_lock(&pll_mutex);
-		if (tvafe_cpu_type() >= CPU_TYPE_TL1) {
-			do {
-				W_HIU_REG(HHI_ADC_PLL_CNTL0_TL1, 0x012004e0);
-				W_HIU_REG(HHI_ADC_PLL_CNTL0_TL1, 0x312004e0);
-				W_HIU_REG(HHI_ADC_PLL_CNTL1_TL1, 0x05400000);
-				W_HIU_REG(HHI_ADC_PLL_CNTL2_TL1, 0xe0800000);
-				W_HIU_REG(HHI_ADC_PLL_CNTL3_TL1, 0x48681c00);
-				W_HIU_REG(HHI_ADC_PLL_CNTL4_TL1, 0x88770290);
-				W_HIU_REG(HHI_ADC_PLL_CNTL5_TL1, 0x39272000);
-				W_HIU_REG(HHI_ADC_PLL_CNTL6_TL1, 0x56540000);
-				W_HIU_REG(HHI_ADC_PLL_CNTL0_TL1, 0x111104e0);
-
-				udelay(100);
-				adc_pll_lock_cnt++;
-			} while (!R_HIU_BIT(HHI_ADC_PLL_CNTL0_TL1, 31, 1) &&
-				(adc_pll_lock_cnt < 10));
-
-			W_HIU_REG(0xf3, 0x00800000);
-			//HHI_AUDPLL_CLK_OUT_CNTL
-			W_HIU_REG(HHI_DEMOD_CLK_CNTL, 0x501);
-
-		} else if (tvafe_cpu_type() == CPU_TYPE_TXL ||
-			tvafe_cpu_type() == CPU_TYPE_TXLX) {
-			do {
-				W_HIU_REG(HHI_ADC_PLL_CNTL3, 0x4a6a2110);
-				W_HIU_REG(HHI_ADC_PLL_CNTL,  0x5d414260);
-				W_HIU_REG(HHI_ADC_PLL_CNTL1, 0x22000442);
-				if (tvafe_cpu_type() == CPU_TYPE_TXL) {
-
-					W_HIU_REG(HHI_ADC_PLL_CNTL2,
-						0x5ba00384);
-				} else {
-
-					W_HIU_REG(HHI_ADC_PLL_CNTL2,
-						0x5ba00385);
-				}
-				W_HIU_REG(HHI_ADC_PLL_CNTL3, 0x4a6a2110);
-				W_HIU_REG(HHI_ADC_PLL_CNTL4, 0x02913004);
-				W_HIU_REG(HHI_ADC_PLL_CNTL5, 0x00034a00);
-				W_HIU_REG(HHI_ADC_PLL_CNTL6, 0x00005000);
-				/* reset*/
-				W_HIU_REG(HHI_ADC_PLL_CNTL3, 0xca6a2110);
-				W_HIU_REG(HHI_ADC_PLL_CNTL3, 0x4a6a2110);
-
-				udelay(100);
-				adc_pll_lock_cnt++;
-
-			} while (!R_HIU_BIT(HHI_ADC_PLL_CNTL, 31, 1)
-				&& (adc_pll_lock_cnt < 10));
-
-		} else if (tvafe_cpu_type() == CPU_TYPE_GXLX) {
-
-			W_HIU_REG(HHI_ADC_PLL_CNTL1, 0x22000442);
-			W_HIU_REG(HHI_ADC_PLL_CNTL5, 0x00034a00);
-			W_HIU_REG(HHI_ADC_PLL_CNTL6, 0x00005000);
-			adc_pll_lock_cnt = 1;
-		}
-
-		adc_pll_chg |= ADC_EN_DTV_DEMOD;
-		mutex_unlock(&pll_mutex);
-		if (adc_pll_lock_cnt >= 10)
-			tvafe_pr_info("%s: adc pll lock fail!!!\n", __func__);
-		if (tvafe_dbg_print & TVAFE_DBG_NORMAL)
-			tvafe_pr_info("%s: on:%d,module:0x%x,flag:0x%x...\n",
-				__func__, on, module_sel, adc_pll_chg);
-		break;
-	case ADC_EN_DTV_DEMODPLL: /* dtv demod */
-
-		if (adc_pll_chg & (ADC_EN_ATV_DEMOD | ADC_EN_TVAFE)) {
-			ret = -4;
-			tvafe_pr_info("%s:DMODPLL fail!!!:%d\n",
-						__func__, adc_pll_chg);
-			break;
-		}
-
-		if (pDpara == NULL) {
-			ret = -5;
-			tvafe_pr_info("%s: DTV para is NULL\n", __func__);
-			break;
-		}
-		mutex_lock(&pll_mutex);
-
-		if (tvafe_cpu_type() == CPU_TYPE_TXL ||
-			tvafe_cpu_type() == CPU_TYPE_TXLX) {
-			do {
-				/*reset*/
-				W_HIU_REG(HHI_ADC_PLL_CNTL3, 0xca6a2110);
-				W_HIU_REG(HHI_ADC_PLL_CNTL,  pDpara->adcpllctl);
-				if (pDpara->atsc) {
-					W_HIU_REG(HHI_DEMOD_CLK_CNTL, 0x507);
-				} else {
-					/*bugzilla 139044*/
-					if (tvafe_cpu_type() == CPU_TYPE_TXL)
-						W_HIU_REG(HHI_DEMOD_CLK_CNTL,
-							0x301);
-					else
-						W_HIU_REG(HHI_DEMOD_CLK_CNTL,
-							0x502);
-				}
-
-				W_HIU_REG(HHI_ADC_PLL_CNTL3, 0x4a6a2110);
-
-				udelay(100);
-				adc_pll_lock_cnt++;
-
-			} while (!R_HIU_BIT(HHI_ADC_PLL_CNTL, 31, 1)
-				&& (adc_pll_lock_cnt < 10));
-
-		} else if (tvafe_cpu_type() == CPU_TYPE_GXLX) {
-			W_HIU_REG(HHI_DEMOD_CLK_CNTL, 0x1000502);
-
-			adc_pll_lock_cnt = 1;
-		} else if (tvafe_cpu_type() >= CPU_TYPE_TL1) {
-			do {//25M
-				W_HIU_REG(HHI_ADC_PLL_CNTL0_TL1, 0x001104c8);
-				W_HIU_REG(HHI_ADC_PLL_CNTL0_TL1, 0x301104c8);
-				W_HIU_REG(HHI_ADC_PLL_CNTL1_TL1, 0x03000000);
-				W_HIU_REG(HHI_ADC_PLL_CNTL2_TL1, 0xe1800000);
-				W_HIU_REG(HHI_ADC_PLL_CNTL3_TL1, 0x48681c00);
-				W_HIU_REG(HHI_ADC_PLL_CNTL4_TL1, 0x88770290);
-				W_HIU_REG(HHI_ADC_PLL_CNTL5_TL1, 0x39272000);
-				W_HIU_REG(HHI_ADC_PLL_CNTL6_TL1, 0x56540000);
-				W_HIU_REG(HHI_ADC_PLL_CNTL0_TL1, 0x101104c8);
-
-				udelay(100);
-				adc_pll_lock_cnt++;
-			} while (!R_HIU_BIT(HHI_ADC_PLL_CNTL0_TL1, 31, 1) &&
-				(adc_pll_lock_cnt < 10));
-
-		} else {
-			/*is_meson_gxtvbb_cpu()*/
-			W_HIU_REG(HHI_ADC_PLL_CNTL3, 0x8a2a2110);/*reset*/
-			W_HIU_REG(HHI_ADC_PLL_CNTL,  pDpara->adcpllctl);
-			W_HIU_REG(HHI_DEMOD_CLK_CNTL, pDpara->demodctl);
-			W_HIU_REG(HHI_ADC_PLL_CNTL3, 0x0a2a2110);
-
-			adc_pll_lock_cnt = 1;
-		}
-
-		adc_pll_chg |= ADC_EN_DTV_DEMOD;
-		mutex_unlock(&pll_mutex);
-		if (adc_pll_lock_cnt == 10)
-			tvafe_pr_info("%s: adc pll lock fail!!!\n", __func__);
-		if (tvafe_dbg_print & TVAFE_DBG_NORMAL)
-			tvafe_pr_info("\n%s: on:%d,module:0x%x,flag:0x%x...\n",
-				__func__, on, module_sel, adc_pll_chg);
-		break;
-
-	default:
-		tvafe_pr_err("%s:module: 0x%x wrong module index !! ",
-			__func__, module_sel);
-		break;
-	}
-
-	return ret;
-}
-EXPORT_SYMBOL(adc_set_pll_cntl);
-
-void adc_set_pll_reset(void)
-{
-	adc_pll_chg = 0;
-}
-
-int tvafe_adc_get_pll_flag(void)
-{
-	unsigned int ret = 0;
-
-	if (!mutex_trylock(&pll_mutex)) {
-		tvafe_pr_info("%s trylock pll_mutex fail.\n", __func__);
-		return 0;
-	}
-	ret = adc_pll_chg;
-	mutex_unlock(&pll_mutex);
-	return ret;
-}
-EXPORT_SYMBOL(tvafe_adc_get_pll_flag);
-
 /*
  * tvafe init the whole module
  */
-void tvafe_init_reg(struct tvafe_cvd2_s *cvd2,
-	struct tvafe_cvd2_mem_s *mem, enum tvin_port_e port,
-	struct tvafe_pin_mux_s *pinmux)
+void tvafe_init_reg(struct tvafe_cvd2_s *cvd2, struct tvafe_cvd2_mem_s *mem,
+		    enum tvin_port_e port)
 {
 	unsigned int module_sel = ADC_EN_TVAFE;
 	struct tvafe_user_param_s *user_param = tvafe_get_user_param();
 
-	if (port == TVIN_PORT_CVBS3)
+	if (IS_TVAFE_ATV_SRC(port))
 		module_sel = ADC_EN_ATV_DEMOD;
-	else if ((port >= TVIN_PORT_CVBS0) && (port <= TVIN_PORT_CVBS2))
+	else if (IS_TVAFE_AVIN_SRC(port))
 		module_sel = ADC_EN_TVAFE;
 
-	if ((port >= TVIN_PORT_CVBS0) && (port <= TVIN_PORT_CVBS3)) {
+	if (IS_TVAFE_SRC(port)) {
 
 #ifdef CRYSTAL_25M
-	if (tvafe_cpu_type() < CPU_TYPE_TL1)
+	if (tvafe_cpu_type() < TVAFE_CPU_TYPE_TL1)
 		W_HIU_REG(HHI_VAFE_CLKIN_CNTL, 0x703);/* can't write !!! */
 #endif
 
 #if (defined(CONFIG_ADC_DOUBLE_SAMPLING_FOR_CVBS) && defined(CRYSTAL_24M))
-		if ((port != TVIN_PORT_CVBS3)
-			&& (port != TVIN_PORT_CVBS0)) {
+		if (!IS_TVAFE_ATV_SRC(port)) {
 			W_HIU_REG(HHI_ADC_PLL_CNTL3, 0xa92a2110);
 			W_HIU_REG(HHI_ADC_PLL_CNTL4, 0x02973800);
 			W_HIU_REG(HHI_ADC_PLL_CNTL, 0x08664220);
@@ -996,16 +541,15 @@ void tvafe_init_reg(struct tvafe_cvd2_s *cvd2,
 			W_HIU_REG(HHI_ADC_PLL_CNTL3, 0x292a2110);
 		} else
 #endif
+#ifdef CONFIG_AMLOGIC_MEDIA_ADC
 		adc_set_pll_cntl(1, module_sel, NULL);
+#endif
 
-		tvafe_set_cvbs_default(cvd2, mem, port, pinmux);
+		tvafe_set_cvbs_default(cvd2, mem, port);
 		/*turn on/off av out*/
 		tvafe_enable_avout(port, user_param->avout_en);
 		/* CDAC_CTRL_RESV2<1>=0 */
 	}
-
-	/* must reload mux if you change adc reg table!!! */
-	tvafe_set_source_muxing(port, pinmux);
 
 	tvafe_pr_info("%s ok.\n", __func__);
 
@@ -1034,6 +578,13 @@ static void tvafe_reset_module(void)
 	W_APB_BIT(TVFE_RST_CTRL, 0, SAMPLE_OUT_RST_BIT, SAMPLE_OUT_RST_WID);
 }
 
+void tvafe_reg_setb(void __iomem *reg, unsigned int value,
+		unsigned int _start, unsigned int _len)
+{
+	writel(((readl(reg) & (~(((1L << _len) - 1) << _start))) |
+	       ((value & ((1L << _len) - 1)) << _start)), reg);
+}
+
 /*
  * tvafe power control of the module
  */
@@ -1042,11 +593,17 @@ void tvafe_enable_module(bool enable)
 	/* enable */
 
 	/* main clk up */
-	if (tvafe_cpu_type() >= CPU_TYPE_TL1) {
+	if (tvafe_cpu_type() >= TVAFE_CPU_TYPE_T5) {
+		tvafe_reg_setb(ana_addr, 1, VAFE_CLK_SELECT,
+			       VAFE_CLK_SELECT_WIDTH);
+		tvafe_reg_setb(ana_addr, 1, VAFE_CLK_EN,
+			       VAFE_CLK_EN_WIDTH);
+	} else if ((tvafe_cpu_type() >= TVAFE_CPU_TYPE_TL1) &&
+		  (tvafe_cpu_type() <= TVAFE_CPU_TYPE_TM2_B)) {
 		W_HIU_BIT(HHI_ATV_DMD_SYS_CLK_CNTL, 1,
-			VAFE_CLK_SELECT, VAFE_CLK_SELECT_WIDTH);
+			  VAFE_CLK_SELECT, VAFE_CLK_SELECT_WIDTH);
 		W_HIU_BIT(HHI_ATV_DMD_SYS_CLK_CNTL, 1,
-			VAFE_CLK_EN, VAFE_CLK_EN_WIDTH);
+			  VAFE_CLK_EN, VAFE_CLK_EN_WIDTH);
 	} else {
 		W_HIU_REG(HHI_VAFE_CLKXTALIN_CNTL, 0x100);
 		W_HIU_REG(HHI_VAFE_CLKOSCIN_CNTL, 0x100);
@@ -1074,6 +631,7 @@ void tvafe_enable_module(bool enable)
 		W_APB_BIT(TVFE_VAFE_CTRL2, 0, 28, 1);
 		/*disable afe buffer*/
 		W_APB_BIT(TVFE_VAFE_CTRL2, 0, 0, 1);
+		W_APB_BIT(TVFE_VAFE_CTRL2, 0, 21, 1);
 
 		/* tvfe power down */
 		W_APB_BIT(TVFE_TOP_CTRL, 0, COMP_CLK_ENABLE_BIT,
@@ -1085,11 +643,17 @@ void tvafe_enable_module(bool enable)
 			TVFE_ADC_CLK_DIV_WID);
 
 		/* main clk down */
-		if (tvafe_cpu_type() >= CPU_TYPE_TL1) {
+		if (tvafe_cpu_type() >= TVAFE_CPU_TYPE_T5) {
+			tvafe_reg_setb(ana_addr, 0, VAFE_CLK_SELECT,
+				       VAFE_CLK_SELECT_WIDTH);
+			tvafe_reg_setb(ana_addr, 0, VAFE_CLK_EN,
+				       VAFE_CLK_EN_WIDTH);
+		} else if ((tvafe_cpu_type() >= TVAFE_CPU_TYPE_TL1) &&
+			  (tvafe_cpu_type() <= TVAFE_CPU_TYPE_TM2_B)) {
 			W_HIU_BIT(HHI_ATV_DMD_SYS_CLK_CNTL, 0,
-				VAFE_CLK_SELECT, VAFE_CLK_SELECT_WIDTH);
+				  VAFE_CLK_SELECT, VAFE_CLK_SELECT_WIDTH);
 			W_HIU_BIT(HHI_ATV_DMD_SYS_CLK_CNTL, 0,
-				VAFE_CLK_EN, VAFE_CLK_EN_WIDTH);
+				  VAFE_CLK_EN, VAFE_CLK_EN_WIDTH);
 		} else {
 			W_HIU_REG(HHI_VAFE_CLKXTALIN_CNTL, 0);
 			W_HIU_REG(HHI_VAFE_CLKOSCIN_CNTL, 0);
@@ -1139,3 +703,7 @@ void white_pattern_pga_reset(enum tvin_port_e port)
 	mdelay(10);
 }
 
+void tvafe_set_ddemod_default(void)
+{
+}
+EXPORT_SYMBOL(tvafe_set_ddemod_default);

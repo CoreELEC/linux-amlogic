@@ -595,6 +595,7 @@ int adc_set_pll_cntl(bool on, enum adc_sel module_sel, void *p_para_);
 /* add for dtv demod */
 void adc_set_ddemod_default(enum fe_delivery_system delsys);
 int adc_set_filter_ctrl(bool on, enum filter_sel module_sel, void *data);
+void tvafe_set_ddemod_default(void);
 #else
 static inline void adc_pll_down(void)
 {

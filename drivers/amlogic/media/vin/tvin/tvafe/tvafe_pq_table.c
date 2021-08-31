@@ -584,16 +584,19 @@ int tvafe_pq_config_probe(struct meson_tvafe_data *tvafe_data)
 	}
 
 	switch (tvafe_data->cpu_id) {
-	case CPU_TYPE_TXL:
+	case TVAFE_CPU_TYPE_TXL:
 		tvafe_data->cvbs_pq_conf = cvbs_pq_config_txl;
 		tvafe_data->rf_pq_conf = rf_pq_config_txl;
 		break;
-	case CPU_TYPE_TXLX:
+	case TVAFE_CPU_TYPE_TXLX:
 		tvafe_data->cvbs_pq_conf = cvbs_pq_config_txlx;
 		tvafe_data->rf_pq_conf = rf_pq_config_txlx;
 		break;
-	case CPU_TYPE_TL1:
-	case CPU_TYPE_TM2:
+	case TVAFE_CPU_TYPE_TL1:
+	case TVAFE_CPU_TYPE_TM2:
+	case TVAFE_CPU_TYPE_TM2_B:
+	case TVAFE_CPU_TYPE_T5:
+	case TVAFE_CPU_TYPE_T5D:
 		tvafe_data->cvbs_pq_conf = cvbs_pq_config_tl1;
 		tvafe_data->rf_pq_conf = rf_pq_config_tl1;
 		break;

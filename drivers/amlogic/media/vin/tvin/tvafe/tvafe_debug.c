@@ -25,6 +25,7 @@
 #include <linux/uaccess.h>
 #include <linux/io.h>
 #include <linux/module.h>
+#include <linux/delay.h>
 #include <linux/amlogic/media/codec_mm/codec_mm.h>
 /* Local Headers */
 #include "../tvin_global.h"
@@ -62,6 +63,9 @@ static void tvafe_state(struct tvafe_dev_s *devp)
 	tvafe_pr_info("devp->cma_mem_size:0x%x\n", devp->cma_mem_size);
 	tvafe_pr_info("devp->cma_mem_alloc:%d\n", devp->cma_mem_alloc);
 	#endif
+	tvafe_pr_info("devp->mem.start:0x%x\n", devp->mem.start);
+	tvafe_pr_info("devp->mem.end:%d\n", devp->mem.start + devp->mem.size);
+	tvafe_pr_info("devp->mem.size:0x%x\n", devp->mem.size);
 	tvafe_pr_info("tvafe_info_s->aspect_ratio:%d\n",
 		devp->tvafe.aspect_ratio);
 	tvafe_pr_info("tvafe_info_s->aspect_ratio_cnt:%d\n",
@@ -108,6 +112,8 @@ static void tvafe_state(struct tvafe_dev_s *devp)
 		cvd2_info->non_std_worst);
 	tvafe_pr_info("tvafe_cvd2_info_s->adc_reload_en:%d\n",
 		cvd2_info->adc_reload_en);
+	tvafe_pr_info("tvafe_cvd2_info_s->cdto_value:%d\n",
+		cvd2_info->cdto_value);
 	tvafe_pr_info("tvafe_cvd2_info_s->hs_adj_en:%d\n",
 		cvd2_info->hs_adj_en);
 	tvafe_pr_info("tvafe_cvd2_info_s->hs_adj_dir:%d\n",
@@ -130,10 +136,6 @@ static void tvafe_state(struct tvafe_dev_s *devp)
 	tvafe_pr_info("tvafe_cvd2_info_s->hcnt64[3]:0x%x\n",
 		cvd2_info->hcnt64[3]);
 #endif
-	tvafe_pr_info("tvafe_cvd2_info_s->smr_cnt:%d\n",
-		cvd2_info->smr_cnt);
-	tvafe_pr_info("tvafe_cvd2_info_s->isr_cnt:%d\n",
-		cvd2_info->isr_cnt);
 
 	/* tvafe_cvd2_info_s->tvafe_cvd2_lines_s struct info */
 	tvafe_pr_info("\n!!tvafe_cvd2_info_s->tvafe_cvd2_lines_s struct info:\n");
@@ -186,6 +188,14 @@ static void tvafe_state(struct tvafe_dev_s *devp)
 	tvafe_pr_info("tvafe_cvd2_hw_data_s->fsc_358:%d\n", hw->fsc_358);
 	tvafe_pr_info("tvafe_cvd2_hw_data_s->fsc_425:%d\n", hw->fsc_425);
 	tvafe_pr_info("tvafe_cvd2_hw_data_s->fsc_443:%d\n", hw->fsc_443);
+
+	tvafe_pr_info("\ntvafe_cvd2_info_s->smr_cnt:%d\n",
+		cvd2_info->smr_cnt);
+	tvafe_pr_info("tvafe_cvd2_info_s->isr_cnt:%d\n",
+		cvd2_info->isr_cnt);
+	tvafe_pr_info("tvafe_cvd2_info_s->unlock_cnt:%d\n\n",
+		cvd2_info->unlock_cnt);
+
 	for (i = 0; i < 5; i++) {
 		tvafe_pr_info("cutwindow_val_h[%d]:%d\n",
 			i, user_param->cutwindow_val_h[i]);
@@ -196,6 +206,13 @@ static void tvafe_state(struct tvafe_dev_s *devp)
 	}
 	tvafe_pr_info("cutwindow_val_vs_ve:%d\n",
 		user_param->cutwindow_val_vs_ve);
+	tvafe_pr_info("cdto_adj_hcnt_th:0x%x\n", user_param->cdto_adj_hcnt_th);
+	tvafe_pr_info("cdto_adj_ratio_p:0x%x\n", user_param->cdto_adj_ratio_p);
+	tvafe_pr_info("cdto_adj_offset_p:0x%x\n",
+		      user_param->cdto_adj_offset_p);
+	tvafe_pr_info("cdto_adj_ratio_n:0x%x\n", user_param->cdto_adj_ratio_n);
+	tvafe_pr_info("cdto_adj_offset_n:0x%x\n",
+		      user_param->cdto_adj_offset_n);
 	tvafe_pr_info("auto_adj_en:0x%x\n", user_param->auto_adj_en);
 	tvafe_pr_info("vline_chk_cnt:%d\n", user_param->vline_chk_cnt);
 	tvafe_pr_info("nostd_vs_th:0x%x\n", user_param->nostd_vs_th);
@@ -207,6 +224,8 @@ static void tvafe_state(struct tvafe_dev_s *devp)
 	tvafe_pr_info("nostd_dmd_clp_step:0x%x\n",
 		user_param->nostd_dmd_clp_step);
 	tvafe_pr_info("skip_vf_num:%d\n", user_param->skip_vf_num);
+	tvafe_pr_info("unlock_cnt_max:%d\n", user_param->unlock_cnt_max);
+	tvafe_pr_info("nostd_bypass_iir:%d\n", user_param->nostd_bypass_iir);
 	tvafe_pr_info("try_fmt_max_atv:%d\n", try_fmt_max_atv);
 	tvafe_pr_info("try_fmt_max_av:%d\n", try_fmt_max_av);
 	tvafe_pr_info("avout_en:%d\n", user_param->avout_en);
@@ -451,6 +470,14 @@ static ssize_t tvafe_store(struct device *dev,
 		}
 		pr_info("[tvafe..]%s: skip_vf_num = %d\n",
 			__func__, user_param->skip_vf_num);
+	} else if (!strncmp(buff, "unlock_cnt", strlen("unlock_cnt"))) {
+		if (parm[1]) {
+			if (kstrtouint(parm[1], 10,
+				&user_param->unlock_cnt_max) < 0)
+				goto tvafe_store_err;
+		}
+		pr_info("[tvafe..]%s: unlock_cnt_max = %d\n",
+			__func__, user_param->unlock_cnt_max);
 	} else if (!strncmp(buff, "try_fmt_max_atv",
 		strlen("try_fmt_max_atv"))) {
 		if (kstrtouint(parm[1], 10, &try_fmt_max_atv) < 0)
@@ -470,6 +497,14 @@ static ssize_t tvafe_store(struct device *dev,
 		}
 		pr_info("[tvafe..]%s: avout_en = 0x%x\n",
 			__func__, user_param->avout_en);
+	} else if (!strncmp(buff, "search", strlen("search"))) {
+		if (parm[1]) {
+			if (kstrtouint(parm[1], 16, &val) < 0)
+				goto tvafe_store_err;
+			tvafe_atv_search_channel = (val ? true : false);
+		}
+		pr_info("[tvafe..]%s: tvafe_atv_search_channel = %d\n",
+			__func__, tvafe_atv_search_channel);
 	} else if (!strncmp(buff, "dbg_print", strlen("dbg_print"))) {
 		if (parm[1]) {
 			if (kstrtouint(parm[1], 16, &tvafe_dbg_print) < 0)
@@ -512,6 +547,19 @@ static ssize_t tvafe_store(struct device *dev,
 		} else
 			pr_info("[shift_cnt_atv]miss parameter,ori val = %d\n",
 				cvd_get_shift_cnt(TVAFE_CVD2_SHIFT_CNT_ATV));
+	} else if (!strncmp(parm[0], "nostd_bypass_iir",
+			    strlen("nostd_bypass_iir"))) {
+		/* bypass iir influence electric performance test */
+		if (parm[1]) {
+			if (kstrtouint(parm[1], 10, &val) == 0)
+				user_param->nostd_bypass_iir = val;
+			pr_info("[tvafe]%s nostd_bypass_iir val = %u\n",
+				__func__, user_param->nostd_bypass_iir);
+		} else
+			pr_info("[tvafe]%s nostd_bypass_iir, ori val = %u\n",
+				__func__, user_param->nostd_bypass_iir);
+	} else if (!strncmp(parm[0], "tvafe_init", strlen("tvafe_init"))) {
+		tvafe_bringup_detect_signal(devp, TVIN_PORT_CVBS1);
 	} else
 		tvafe_pr_info("[%s]:invaild command.\n", __func__);
 	kfree(buf_orig);
@@ -567,21 +615,92 @@ static ssize_t tvafe_show(struct device *dev,
 
 static DEVICE_ATTR(debug, 0644, tvafe_show, tvafe_store);
 
-/**************************************************/
-/*before to excute the func of tvafe_dumpmem_store ,*/
-/*it must be setting the steps below:*/
-/*echo wa 0x30b2 4c > /sys/class/register/reg*/
-/*echo wa 0x3122 3000000 > /sys/class/register/reg*/
-/*echo wa 0x3096 0 > /sys/class/register/reg*/
-/*echo wa 0x3150 2 > /sys/class/register/reg*/
+static void tvafe_dumpmem_adc(struct tvafe_dev_s *devp)
+{
+	unsigned int mem_start, mem_end;
+	unsigned int i, n;
 
-/*echo wa 0x3151 11b40000 > /sys/class/register/reg   //start mem adr*/
-/*echo wa 0x3152 11bf61f0 > /sys/class/register/reg	//end mem adr*/
-/*echo wa 0x3150 3 > /sys/class/register/reg*/
-/*echo wa 0x3150 1 > /sys/class/register/reg*/
+	tvafe_pr_info("%s: mem_start: 0x%x, mem_end: 0x%x, size: 0x%x\n",
+		     __func__, devp->mem.start,
+		     devp->mem.start + devp->mem.size,
+		     devp->mem.size);
+	mem_start = devp->mem.start >> 4;
+	mem_end = (devp->mem.start + devp->mem.size) >> 4;
 
-/*the steps above set  the cvd that  will  write the signal data to mem*/
-/**************************************************/
+	/* step 1: */
+	W_APB_REG(CVD2_REG_B2, 0x4c);
+	msleep(20);
+	W_APB_REG(ACD_REG_22, 0x3000000);
+	msleep(20);
+	W_APB_REG(CVD2_REG_96, 0x0);
+	msleep(20);
+	W_APB_REG(ACD_REG_50, 0x2);
+	msleep(20);
+
+	/* step 2: */
+	mem_start = devp->mem.start >> 4;
+	mem_end = (devp->mem.start + devp->mem.size) >> 4;
+	W_APB_REG(ACD_REG_51, mem_start);
+	msleep(20);
+	W_APB_REG(ACD_REG_52, mem_end);
+	msleep(20);
+	W_APB_REG(ACD_REG_50, 0x3);
+	msleep(20);
+	W_APB_REG(ACD_REG_50, 0x1);
+
+	/* wait adc data write to memory */
+	n = devp->cma_mem_size / SZ_1M + 1;
+	for (i = 0; i < n; i++)
+		msleep(500);
+	tvafe_pr_info("%s: adc data write done\n", __func__);
+}
+
+static int tvafe_dumpmem_save_buf(struct tvafe_dev_s *devp, const char *str)
+{
+	unsigned int highmem_flag = 0;
+	unsigned long highaddr;
+	struct file *filp = NULL;
+	loff_t pos = 0;
+	void *buf = NULL;
+/* unsigned int canvas_real_size = devp->canvas_h * devp->canvas_w; */
+	mm_segment_t old_fs = get_fs();
+	int i;
+
+	set_fs(KERNEL_DS);
+	filp = filp_open(str, O_RDWR | O_CREAT, 0666);
+	if (IS_ERR(filp)) {
+		tvafe_pr_err("create %s error.\n", str);
+		return -1;
+	}
+	highmem_flag = PageHighMem(phys_to_page(devp->mem.start));
+	pr_info("highmem_flag:%d\n", highmem_flag);
+	if (devp->cma_config_flag == 1 && highmem_flag != 0) {
+		/*tvafe dts config 5M memory*/
+		for (i = 0; i < devp->cma_mem_size / SZ_1M; i++) {
+			highaddr = devp->mem.start + i * SZ_1M;
+			buf = vdin_vmap(highaddr, SZ_1M);
+			if (!buf) {
+				pr_info("vdin_vmap error\n");
+				return -1;
+			}
+			pr_info("buf:0x%p\n", buf);
+/*vdin_dma_flush(devp, buf, SZ_1M, DMA_FROM_DEVICE);*/
+			vfs_write(filp, buf, SZ_1M, &pos);
+			vdin_unmap_phyaddr(buf);
+		}
+	} else {
+		buf = phys_to_virt(devp->mem.start);
+		vfs_write(filp, buf, devp->mem.size, &pos);
+	}
+	vfs_fsync(filp, 0);
+	filp_close(filp, NULL);
+	set_fs(old_fs);
+
+	tvafe_pr_info("write mem 0x%x (size 0x%x) to %s done\n",
+		      devp->mem.start, devp->mem.size, str);
+	return 0;
+}
+
 static ssize_t tvafe_dumpmem_store(struct device *dev,
 		struct device_attribute *attr, const char *buff, size_t len)
 {
@@ -591,16 +710,18 @@ static ssize_t tvafe_dumpmem_store(struct device *dev,
 	struct tvafe_dev_s *devp;
 	char delim1[3] = " ";
 	char delim2[2] = "\n";
-	unsigned int highmem_flag = 0;
-	unsigned long highaddr;
-	int i;
+
+	devp = dev_get_drvdata(dev);
+	if (!(devp->flags & TVAFE_FLAG_DEV_OPENED)) {
+		tvafe_pr_err("tvafe havn't opened, error!!!\n");
+		return len;
+	}
 
 	strcat(delim1, delim2);
 	if (!buff)
 		return len;
 	buf_orig = kstrdup(buff, GFP_KERNEL);
 	/* printk(KERN_INFO "input cmd : %s",buf_orig); */
-	devp = dev_get_drvdata(dev);
 	ps = buf_orig;
 	while (1) {
 		token = strsep(&ps, delim1);
@@ -610,54 +731,17 @@ static ssize_t tvafe_dumpmem_store(struct device *dev,
 			continue;
 		parm[n++] = token;
 	}
-	if (!strncmp(parm[0], "dumpmem", strlen("dumpmem"))) {
-		if (parm[1] != NULL) {
-			struct file *filp = NULL;
-			loff_t pos = 0;
-			void *buf = NULL;
-/* unsigned int canvas_real_size = devp->canvas_h * devp->canvas_w; */
-			mm_segment_t old_fs = get_fs();
 
-			set_fs(KERNEL_DS);
-			filp = filp_open(parm[1], O_RDWR|O_CREAT, 0666);
-			if (IS_ERR(filp)) {
-				tvafe_pr_err("create %s error.\n",
-					parm[1]);
-				kfree(buf_orig);
-				return len;
-			}
-			highmem_flag =
-				PageHighMem(phys_to_page(devp->mem.start));
-			pr_info("highmem_flag:%d\n", highmem_flag);
-			if (devp->cma_config_flag == 1 &&
-				highmem_flag != 0) {
-				/*tvafe dts config 5M memory*/
-				for (i = 0;
-					i < devp->cma_mem_size / SZ_1M;
-					i++) {
-					highaddr = devp->mem.start + i * SZ_1M;
-					buf = vdin_vmap(highaddr, SZ_1M);
-					if (!buf) {
-						pr_info("vdin_vmap error\n");
-						return len;
-					}
-					pr_info("buf:0x%p\n", buf);
-		/*vdin_dma_flush(devp, buf, SZ_1M, DMA_FROM_DEVICE);*/
-					vfs_write(filp, buf, SZ_1M, &pos);
-					vdin_unmap_phyaddr(buf);
-				}
-			} else {
-				buf = phys_to_virt(devp->mem.start);
-				vfs_write(filp, buf, devp->mem.size, &pos);
-				tvafe_pr_info("write buffer %2d of %s.\n",
-					devp->mem.size, parm[1]);
-				tvafe_pr_info("devp->mem.start   %x .\n",
-					devp->mem.start);
-			}
-			vfs_fsync(filp, 0);
-			filp_close(filp, NULL);
-			set_fs(old_fs);
-		}
+	if (!parm[1]) {
+		tvafe_pr_err("%s: dumpmem file name missed\n", __func__);
+		kfree(buf_orig);
+		return len;
+	}
+	if (!strncmp(parm[0], "dumpmem", strlen("dumpmem"))) {
+		tvafe_dumpmem_save_buf(devp, parm[1]);
+	} else if (!strncmp(parm[0], "adc", strlen("adc"))) {
+		tvafe_dumpmem_adc(devp);
+		tvafe_dumpmem_save_buf(devp, parm[1]);
 	}
 	kfree(buf_orig);
 	return len;
@@ -675,6 +759,10 @@ static ssize_t tvafereg_store(struct device *dev,
 	char *argv[3];
 
 	devp = dev_get_drvdata(dev);
+	if (!(devp->flags & TVAFE_FLAG_DEV_OPENED)) {
+		tvafe_pr_err("tvafe havn't opened, error!!!\n");
+		return count;
+	}
 
 	buf_work = kstrdup(buff, GFP_KERNEL);
 	p = buf_work;
@@ -693,11 +781,6 @@ static ssize_t tvafereg_store(struct device *dev,
 
 	cmd = argv[0][0];
 
-	if (!(devp->flags & TVAFE_FLAG_DEV_OPENED)) {
-
-		tvafe_pr_err("tvafe havn't opened, error!!!\n");
-		return count;
-	}
 		switch (cmd) {
 		case 'r':
 		case 'R':
@@ -757,7 +840,7 @@ static ssize_t tvafereg_store(struct device *dev,
 					      addr, R_APB_REG(addr << 2));
 			tvafe_pr_info("dump ACD reg----\n");
 			for (addr = ACD_BASE_ADD;
-				addr <= (ACD_BASE_ADD + 0xa5); addr++)
+				addr <= (ACD_BASE_ADD + 0xc2); addr++)
 				tvafe_pr_info("APB[0x%04x]=0x%08x\n",
 					      addr, R_APB_REG(addr << 2));
 			tvafe_pr_info("dump CVD2 reg----\n");
@@ -809,14 +892,37 @@ static ssize_t tvafe_cutwindow_show(struct device *dev,
 	return len;
 }
 
+static void tvafe_cutwindow_info_print(void)
+{
+	struct tvafe_user_param_s *user_param = tvafe_get_user_param();
+	char *pr_buf;
+	unsigned int pr_len;
+	int i;
+
+	pr_buf = kzalloc(sizeof(char) * 100, GFP_KERNEL);
+	if (!pr_buf)
+		return;
+	pr_len = 0;
+	pr_len += sprintf(pr_buf + pr_len, "cutwindow_h:");
+	for (i = 0; i < 5; i++) {
+		pr_len += sprintf(pr_buf + pr_len,
+			" %d", user_param->cutwindow_val_h[i]);
+	}
+	pr_len += sprintf(pr_buf + pr_len, "\ncutwindow_v:");
+	for (i = 0; i < 5; i++) {
+		pr_len += sprintf(pr_buf + pr_len,
+			" %d", user_param->cutwindow_val_v[i]);
+	}
+	pr_info("%s\n", pr_buf);
+	kfree(pr_buf);
+}
+
 static ssize_t tvafe_cutwindow_store(struct device *dev,
 		struct device_attribute *attr, const char *buff, size_t count)
 {
 	struct tvafe_user_param_s *user_param = tvafe_get_user_param();
 	char *buf_orig, *parm[20] = {NULL};
 	unsigned int index, val;
-	char *pr_buf;
-	unsigned int pr_len;
 
 	if (!buff)
 		return count;
@@ -824,6 +930,10 @@ static ssize_t tvafe_cutwindow_store(struct device *dev,
 	tvafe_parse_param(buf_orig, (char **)&parm);
 
 	if (!strcmp(parm[0], "h")) {
+		if (!parm[1]) {
+			tvafe_cutwindow_info_print();
+			goto tvafe_cutwindow_store_err;
+		}
 		if (kstrtouint(parm[1], 10, &index) < 0)
 			goto tvafe_cutwindow_store_err;
 		if (index < 5) {
@@ -835,6 +945,10 @@ static ssize_t tvafe_cutwindow_store(struct device *dev,
 			pr_info("error: invalid index %d\n", index);
 		}
 	} else if (!strcmp(parm[0], "v")) {
+		if (!parm[1]) {
+			tvafe_cutwindow_info_print();
+			goto tvafe_cutwindow_store_err;
+		}
 		if (kstrtouint(parm[1], 10, &index) < 0)
 			goto tvafe_cutwindow_store_err;
 		if (index < 5) {
@@ -846,26 +960,96 @@ static ssize_t tvafe_cutwindow_store(struct device *dev,
 			pr_info("error: invalid index %d\n", index);
 		}
 	} else if (!strcmp(parm[0], "r")) {
-		pr_buf = kzalloc(sizeof(char) * 100, GFP_KERNEL);
-		if (!pr_buf) {
-			pr_info("print buf malloc error\n");
+		tvafe_cutwindow_info_print();
+	} else if (!strcmp(parm[0], "test")) {
+		if (!parm[2]) {
+			pr_info("cutwin test en=0x%x, hcnt=0x%x, vcnt=0x%x, hcut=%d, vcut=%d\n",
+				user_param->cutwin_test_en,
+				user_param->cutwin_test_hcnt,
+				user_param->cutwin_test_vcnt,
+				user_param->cutwin_test_hcut,
+				user_param->cutwin_test_vcut);
 			goto tvafe_cutwindow_store_err;
 		}
-		pr_len = 0;
-		pr_len += sprintf(pr_buf+pr_len, "cutwindow_h:");
-		for (index = 0; index < 5; index++) {
-			pr_len += sprintf(pr_buf+pr_len,
-				" %d", user_param->cutwindow_val_h[index]);
+		if (!strcmp(parm[1], "en")) {
+			if (kstrtouint(parm[2], 16,
+				       &user_param->cutwin_test_en) < 0)
+				goto tvafe_cutwindow_store_err;
+			pr_info("set cutwin_test_en = 0x%x\n",
+				user_param->cutwin_test_en);
+		} else if (!strcmp(parm[1], "hcnt")) {
+			if (kstrtouint(parm[2], 16,
+				       &user_param->cutwin_test_hcnt) < 0)
+				goto tvafe_cutwindow_store_err;
+			pr_info("set cutwin_test_hcnt = 0x%x\n",
+				user_param->cutwin_test_hcnt);
+		} else if (!strcmp(parm[1], "vcnt")) {
+			if (kstrtouint(parm[2], 16,
+				       &user_param->cutwin_test_vcnt) < 0)
+				goto tvafe_cutwindow_store_err;
+			pr_info("set cutwin_test_vcnt = 0x%x\n",
+				user_param->cutwin_test_vcnt);
+		} else if (!strcmp(parm[1], "hcut")) {
+			if (kstrtouint(parm[2], 10,
+				       &user_param->cutwin_test_hcut) < 0)
+				goto tvafe_cutwindow_store_err;
+			pr_info("set cutwin_test_hcut = %d\n",
+				user_param->cutwin_test_hcut);
+		} else if (!strcmp(parm[1], "vcut")) {
+			if (kstrtouint(parm[2], 10,
+				       &user_param->cutwin_test_vcut) < 0)
+				goto tvafe_cutwindow_store_err;
+			pr_info("set cutwin_test_vcut = %d\n",
+				user_param->cutwin_test_vcut);
+		} else {
+			pr_info("error: invaild command\n");
 		}
-		pr_len += sprintf(pr_buf+pr_len, "\ncutwindow_v:");
-		for (index = 0; index < 5; index++) {
-			pr_len += sprintf(pr_buf+pr_len,
-				" %d", user_param->cutwindow_val_v[index]);
+	} else if (!strcmp(parm[0], "cdto")) {
+		if (!parm[2]) {
+			pr_info("cdto_adj hcnt_th=0x%x, ratio_p=%d, offset_p=0x%x, ratio_n=%d, offset_n=0x%x\n",
+				user_param->cdto_adj_hcnt_th,
+				user_param->cdto_adj_ratio_p,
+				user_param->cdto_adj_offset_p,
+				user_param->cdto_adj_ratio_n,
+				user_param->cdto_adj_offset_n);
+			goto tvafe_cutwindow_store_err;
 		}
-		pr_info("%s\n", pr_buf);
-		kfree(pr_buf);
-	} else
+		if (!strcmp(parm[1], "hcnt_th")) {
+			if (kstrtouint(parm[2], 16,
+				       &user_param->cdto_adj_hcnt_th) < 0)
+				goto tvafe_cutwindow_store_err;
+			pr_info("set cdto_adj_hcnt_th = 0x%x\n",
+				user_param->cdto_adj_hcnt_th);
+		} else if (!strcmp(parm[1], "ratio_p")) {
+			if (kstrtouint(parm[2], 10,
+				       &user_param->cdto_adj_ratio_p) < 0)
+				goto tvafe_cutwindow_store_err;
+			pr_info("set cdto_adj_ratio_p = %d\n",
+				user_param->cdto_adj_ratio_p);
+		} else if (!strcmp(parm[1], "offset_p")) {
+			if (kstrtouint(parm[2], 16,
+				       &user_param->cdto_adj_offset_p) < 0)
+				goto tvafe_cutwindow_store_err;
+			pr_info("set cdto_adj_offset_p = 0x%x\n",
+				user_param->cdto_adj_offset_p);
+		} else if (!strcmp(parm[1], "ratio_n")) {
+			if (kstrtouint(parm[2], 10,
+				       &user_param->cdto_adj_ratio_n) < 0)
+				goto tvafe_cutwindow_store_err;
+			pr_info("set cdto_adj_ratio_n = %d\n",
+				user_param->cdto_adj_ratio_n);
+		} else if (!strcmp(parm[1], "offset_n")) {
+			if (kstrtouint(parm[2], 16,
+				       &user_param->cdto_adj_offset_n) < 0)
+				goto tvafe_cutwindow_store_err;
+			pr_info("set cdto_adj_offset_n = 0x%x\n",
+				user_param->cdto_adj_offset_n);
+		} else {
+			pr_info("error: invaild command\n");
+		}
+	} else {
 		pr_info("error: invaild command\n");
+	}
 
 	kfree(buf_orig);
 	return count;

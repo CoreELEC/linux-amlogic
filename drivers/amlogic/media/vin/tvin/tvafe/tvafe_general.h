@@ -26,6 +26,8 @@
 /* *** macro definitions *********************** */
 /* ************************************ */
 
+#define HHI_ANA_CLK_BASE	0xff6463cc
+
 /* reg need in tvafe_general.c */
 #define HHI_VDAC_CNTL0			0xbd
 #define HHI_VDAC_CNTL1			0xbe
@@ -34,8 +36,6 @@
 #define HHI_VIID_DIVIDER_CNTL	0x4c
 #define HHI_VID_CLK_CNTL2		0x65
 #define HHI_VID_DIVIDER_CNTL	0x66
-
-#define RESET1_REGISTER				0x1102
 
 #define VENC_VDAC_DACSEL0			0x1b78
 #define P_VENC_VDAC_DACSEL0		VCBUS_REG_ADDR(VENC_VDAC_DACSEL0)
@@ -106,8 +106,6 @@
 #define HHI_DADC_CNTL3				0x2a
 #define HHI_DADC_CNTL4				0x2b
 
-#define HHI_DEMOD_CLK_CNTL			0x74
-
 #define HHI_ADC_PLL_CNTL			0xaa
 #define P_HHI_ADC_PLL_CNTL			CBUS_REG_ADDR(HHI_ADC_PLL_CNTL)
 #define HHI_ADC_PLL_CNTL2			0xab
@@ -125,12 +123,6 @@
 #define HHI_GCLK_OTHER              0x54
 
 #define HHI_ADC_PLL_CNTL0_TL1		0xb0
-#define HHI_ADC_PLL_CNTL1_TL1		0xb1
-#define HHI_ADC_PLL_CNTL2_TL1		0xb2
-#define HHI_ADC_PLL_CNTL3_TL1		0xb3
-#define HHI_ADC_PLL_CNTL4_TL1		0xb4
-#define HHI_ADC_PLL_CNTL5_TL1		0xb5
-#define HHI_ADC_PLL_CNTL6_TL1		0xb6
 
 /* adc pll ctl, atv demod & tvafe use the same adc module*/
 /* module index: atv demod:0x01; tvafe:0x2*/
@@ -146,19 +138,22 @@
 /* ************************************************** */
 enum tvafe_adc_ch_e {
 	TVAFE_ADC_CH_NULL = 0,
-	TVAFE_ADC_CH_0 = 1,
-	TVAFE_ADC_CH_1 = 2,
-	TVAFE_ADC_CH_2 = 3,
-	TVAFE_ADC_CH_3 = 4,
+	TVAFE_ADC_CH_0 = 1,  /* avin ch0 */
+	TVAFE_ADC_CH_1 = 2,  /* avin ch1 */
+	TVAFE_ADC_CH_2 = 3,  /* avin ch2 */
+	TVAFE_ADC_CH_ATV = 4,  /* virtual channel for atv demod */
 };
 
 enum tvafe_cpu_type {
-	CPU_TYPE_TXL  = 0,
-	CPU_TYPE_TXLX = 1,
-	CPU_TYPE_GXLX = 2,
-	CPU_TYPE_TL1  = 3,
-	CPU_TYPE_TM2  = 4,
-	CPU_TYPE_MAX,
+	TVAFE_CPU_TYPE_TXL  = 0,
+	TVAFE_CPU_TYPE_TXLX = 1,
+	TVAFE_CPU_TYPE_GXLX = 2,
+	TVAFE_CPU_TYPE_TL1  = 3,
+	TVAFE_CPU_TYPE_TM2  = 4,
+	TVAFE_CPU_TYPE_TM2_B  = 5,
+	TVAFE_CPU_TYPE_T5  = 6,
+	TVAFE_CPU_TYPE_T5D  = 7,
+	TVAFE_CPU_TYPE_MAX,
 };
 
 #define TVAFE_PQ_CONFIG_NUM_MAX    20
@@ -185,24 +180,20 @@ struct tvafe_clkgate_type {
 /* ********************************************* */
 /* ******** function claims ******************** */
 /* ********************************************* */
-extern int  tvafe_set_source_muxing(enum tvin_port_e port,
-			struct tvafe_pin_mux_s *pinmux);
-extern void tvafe_set_regmap(struct am_regs_s *p);
-extern void tvafe_init_reg(struct tvafe_cvd2_s *cvd2,
-		struct tvafe_cvd2_mem_s *mem, enum tvin_port_e port,
-		struct tvafe_pin_mux_s *pinmux);
+enum tvafe_adc_ch_e tvafe_port_to_channel(enum tvin_port_e port,
+					  struct tvafe_pin_mux_s *pinmux);
+int tvafe_adc_pin_muxing(enum tvafe_adc_ch_e adc_ch);
+void tvafe_set_regmap(struct am_regs_s *p);
+void tvafe_init_reg(struct tvafe_cvd2_s *cvd2, struct tvafe_cvd2_mem_s *mem,
+		    enum tvin_port_e port);
 extern void tvafe_set_apb_bus_err_ctrl(void);
 extern void tvafe_enable_module(bool enable);
 extern void tvafe_enable_avout(enum tvin_port_e port, bool enable);
-
-extern void adc_set_pll_reset(void);
-extern int tvafe_adc_get_pll_flag(void);
 extern int tvafe_cpu_type(void);
 extern void tvafe_clk_gate_ctrl(int status);
 void white_pattern_pga_reset(enum tvin_port_e port);
 
-extern struct mutex pll_mutex;
 extern unsigned int cvd_reg87_pal;
-
+extern void __iomem *ana_addr;
 #endif  /* _TVAFE_GENERAL_H */
 

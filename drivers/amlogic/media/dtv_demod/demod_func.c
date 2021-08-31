@@ -728,7 +728,7 @@ void clocks_set_sys_defaults(unsigned char dvb_mode)
 	int sts_pll;
 
 	demod_power_switch(PWR_ON);
-#ifdef CONFIG_AMLOGIC_MEDIA_TVIN_AFE
+#ifdef CONFIG_AMLOGIC_MEDIA_ADC
 	tvafe_set_ddemod_default();
 #endif
 	demod_set_demod_default();
