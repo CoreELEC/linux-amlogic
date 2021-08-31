@@ -1440,6 +1440,12 @@
 		status = "okay";
 	};
 
+	adc: adc {
+		compatible = "amlogic, adc-tl1";
+		status = "okay";
+		reg = <0x0 0xff654000 0x0 0x2000>;/* afe reg base */
+	};
+
 	dummy_venc: dummy_venc {
 		compatible = "amlogic, dummy_venc";
 		status = "disabled";

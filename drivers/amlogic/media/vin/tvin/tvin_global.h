@@ -396,19 +396,6 @@ enum tvin_ar_b3_b0_val_e {
 	TVIN_AR_14x9_FULL_VAL = 0x1e,
 };
 
-enum tvin_aspect_ratio_e {
-	TVIN_ASPECT_NULL = 0,
-	TVIN_ASPECT_1x1,
-	TVIN_ASPECT_4x3_FULL,
-	TVIN_ASPECT_14x9_FULL,
-	TVIN_ASPECT_14x9_LB_CENTER,
-	TVIN_ASPECT_14x9_LB_TOP,
-	TVIN_ASPECT_16x9_FULL,
-	TVIN_ASPECT_16x9_LB_CENTER,
-	TVIN_ASPECT_16x9_LB_TOP,
-	TVIN_ASPECT_MAX,
-};
-
 const char *tvin_aspect_ratio_str(enum tvin_aspect_ratio_e aspect_ratio);
 
 enum tvin_hdr_eotf_e {
@@ -511,8 +498,10 @@ struct tvin_sig_property_s {
 	struct tvin_hdr10plus_info_s hdr10p_info;
 	struct tvin_emp_data_s emp_data;
 	unsigned int cnt;
+
 	/* only use for loopback, 0=positvie, 1=negative */
 	unsigned int polarity_vs;
+	unsigned int hdcp_sts;	/* pretected content src. 1:pretected 0:not*/
 };
 
 #define TVAFE_VF_POOL_SIZE			6 /* 8 */

@@ -742,9 +742,12 @@ enum cam_interface_e {
 	CAM_MIPI,
 };
 
-#define PARAM_STATE_NULL			0x00000000
-#define PARAM_STATE_HISTGRAM		0x00000001
-#define PARAM_STATE_SCREENCAP		0x00000002
+enum param_flag {
+	PARAM_STATE_NULL		= 0x00000000,
+	PARAM_STATE_HISTGRAM		= 0x00000001,
+	PARAM_STATE_SCREENCAP		= 0x00000002,
+	PARAM_STATE_WR_MEM_ORDER_STD	= 0x00000004,
+};
 
 /* *********************************************************************** */
 
@@ -819,7 +822,7 @@ struct vdin_parm_s {
 	struct csi_parm_s csi_hw_info;
 
 	/*for reserved */
-	uintptr_t reserved;
+	uintptr_t reserved;	/* enum param_flag */
 };
 
 struct fe_arg_s {
