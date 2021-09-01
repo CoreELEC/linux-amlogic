@@ -497,18 +497,11 @@
 			suffix-name = "alsaPORT-dsp";
 			tdmacpu: cpu {
 				sound-dai = <&tdma>;
-				/*
 				dai-tdm-slot-tx-mask =
 							<1 1>;
 				dai-tdm-slot-rx-mask =
 							<1 1>;
 				dai-tdm-slot-num = <2>;
-				*/
-				 dai-tdm-slot-tx-mask =
-					<1 1 1 1 1 1 1 1>;
-				 dai-tdm-slot-rx-mask =
-					<1 1 1 1 1 1 1 1>;
-				dai-tdm-slot-num = <8>;
 				dai-tdm-slot-width = <32>;
 				system-clock-frequency = <12288000>;
 			};
