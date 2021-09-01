@@ -2229,6 +2229,10 @@ enum hdr_process_sel hdr_func(
 	int *oft_post_out = bypass_pos;
 	bool always_full_func = false;
 
+	pr_csc(16, "hdr func: hdr module=%d, select=%x\n",
+	       module_sel,
+	       hdr_process_select);
+
 	if (disable_flush_flag)
 		return hdr_process_select;
 

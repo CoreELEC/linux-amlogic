@@ -2196,7 +2196,11 @@ static int dolby_core1_set(
 				/* vd2 to vpp */
 				1, 17, 1);
 	}
-	if (is_meson_tm2_stbmode() || is_meson_g12() || is_meson_sc2()) {
+
+	if ((is_meson_tm2_stbmode() ||
+		is_meson_g12() ||
+		is_meson_sc2()) &&
+		bl_enable) {
 		if (get_vpu_mem_pd_vmod(VPU_DOLBY1A) == VPU_MEM_POWER_DOWN ||
 			get_dv_mem_power_flag(VPU_DOLBY1A) ==
 			VPU_MEM_POWER_DOWN)
