@@ -252,6 +252,7 @@ static void hdmitx_early_suspend(struct early_suspend *h)
 	edidinfo_detach_to_vinfo(hdev);
 	extcon_set_state_sync(hdmitx_extcon_power, EXTCON_DISP_HDMI,
 			      HDMI_SUSPEND);
+	hdmitx_set_uevent(HDMITX_HDCPPWR_EVENT, 0);
 	phdmi->hwop.cntlconfig(&hdmitx_device, CONF_CLR_AVI_PACKET, 0);
 	phdmi->hwop.cntlconfig(&hdmitx_device, CONF_CLR_VSDB_PACKET, 0);
 	/*close vpu clk*/
@@ -329,10 +330,13 @@ static void hdmitx_late_resume(struct early_suspend *h)
 
 	extcon_set_state_sync(hdmitx_extcon_hdmi, EXTCON_DISP_HDMI,
 		hdmitx_device.hpd_state);
+	hdmitx_set_uevent(HDMITX_HPD_EVENT, hdmitx_device.hpd_state);
 	extcon_set_state_sync(hdmitx_extcon_power, EXTCON_DISP_HDMI,
 			      HDMI_WAKEUP);
+	hdmitx_set_uevent(HDMITX_HDCPPWR_EVENT, 1);
 	extcon_set_state_sync(hdmitx_extcon_audio, EXTCON_DISP_HDMI,
 		hdmitx_device.hpd_state);
+	hdmitx_set_uevent(HDMITX_AUDIO_EVENT, hdmitx_device.hpd_state);
 
 	pr_info("amhdmitx: late resume module %d\n", __LINE__);
 	phdmi->hwop.cntl((struct hdmitx_dev *)h->param,
@@ -1349,10 +1353,12 @@ static void hdmitx_sdr_hdr_uevent(struct hdmitx_dev *hdev)
 		(hdev->hdmi_current_hdr_mode != 0)) {
 		/* SDR -> HDR*/
 		extcon_set_state_sync(hdmitx_extcon_hdr, EXTCON_DISP_HDMI, 1);
+		hdmitx_set_uevent(HDMITX_HDR_EVENT, 1);
 	} else if ((hdev->hdmi_last_hdr_mode != 0) &&
 			(hdev->hdmi_current_hdr_mode == 0)) {
 		/* HDR -> SDR*/
 		extcon_set_state_sync(hdmitx_extcon_hdr, EXTCON_DISP_HDMI, 0);
+		hdmitx_set_uevent(HDMITX_HDR_EVENT, 0);
 	}
 	/* NOTE: for HDR <-> HLG, also need update last mode */
 	hdev->hdmi_last_hdr_mode = hdev->hdmi_current_hdr_mode;
@@ -4545,6 +4551,7 @@ static ssize_t store_fake_plug(struct device *dev,
 
 	extcon_set_state_sync(hdmitx_extcon_hdmi, EXTCON_DISP_HDMI,
 			      hdev->hpd_state);
+	hdmitx_set_uevent(HDMITX_HPD_EVENT, hdev->hpd_state);
 
 	return count;
 }
@@ -5836,6 +5843,7 @@ static void hdmitx_hpd_plugin_handler(struct work_struct *work)
 	extcon_set_state_sync(hdmitx_extcon_hdmi, EXTCON_DISP_HDMI, 1);
 	hdmitx_set_uevent(HDMITX_HPD_EVENT, 1);
 	extcon_set_state_sync(hdmitx_extcon_audio, EXTCON_DISP_HDMI, 1);
+	hdmitx_set_uevent(HDMITX_AUDIO_EVENT, 1);
 	mutex_unlock(&setclk_mutex);
 	/* Should be started at end of output */
 	cancel_delayed_work(&hdev->work_cedst);
@@ -5890,6 +5898,7 @@ static void hdmitx_hpd_plugout_handler(struct work_struct *work)
 		extcon_set_state_sync(hdmitx_extcon_hdmi, EXTCON_DISP_HDMI, 0);
 		hdmitx_set_uevent(HDMITX_HPD_EVENT, 0);
 		extcon_set_state_sync(hdmitx_extcon_audio, EXTCON_DISP_HDMI, 0);
+		hdmitx_set_uevent(HDMITX_AUDIO_EVENT, 0);
 		mutex_unlock(&setclk_mutex);
 		return;
 	}
@@ -5917,6 +5926,7 @@ static void hdmitx_hpd_plugout_handler(struct work_struct *work)
 	extcon_set_state_sync(hdmitx_extcon_hdmi, EXTCON_DISP_HDMI, 0);
 	hdmitx_set_uevent(HDMITX_HPD_EVENT, 0);
 	extcon_set_state_sync(hdmitx_extcon_audio, EXTCON_DISP_HDMI, 0);
+	hdmitx_set_uevent(HDMITX_AUDIO_EVENT, 0);
 	mutex_unlock(&setclk_mutex);
 }
 
@@ -6027,6 +6037,7 @@ static int hdmi_task_handle(void *data)
 
 	extcon_set_state_sync(hdmitx_extcon_power, EXTCON_DISP_HDMI,
 			      HDMI_WAKEUP);
+	hdmitx_set_uevent(HDMITX_HDCPPWR_EVENT, 1);
 
 	INIT_WORK(&hdmitx_device->work_hdr, hdr_work_func);
 	hdmitx_device->hdmi_wq = alloc_workqueue(DEVICE_NAME,
