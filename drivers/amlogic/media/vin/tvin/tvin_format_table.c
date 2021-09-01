@@ -136,6 +136,8 @@ const char *tvin_sig_fmt_str(enum tvin_sig_fmt_e fmt)
 		return "TVIN_SIG_FMT_HDMI_1024x768";
 	case TVIN_SIG_FMT_HDMI_720X400_00HZ:
 		return "TVIN_SIG_FMT_HDMI_720_400";
+	case TVIN_SIG_FMT_HDMI_720X350_00HZ:
+		return "TVIN_SIG_FMT_HDMI_720_350";
 	case TVIN_SIG_FMT_HDMI_1280X768_00HZ:
 		return "TVIN_SIG_FMT_HDMI_1280_768";
 	case TVIN_SIG_FMT_HDMI_1280X800_00HZ:
@@ -158,6 +160,10 @@ const char *tvin_sig_fmt_str(enum tvin_sig_fmt_e fmt)
 		return "TVIN_SIG_FMT_HDMI_1400X1050_00HZ";
 	case TVIN_SIG_FMT_HDMI_1680X1050_00HZ:
 		return "TVIN_SIG_FMT_HDMI_1680X1050_00HZ";
+	case TVIN_SIG_FMT_HDMI_1152X864_00HZ:
+		return "TVIN_SIG_FMT_HDMI_1152X864_00HZ";
+	case TVIN_SIG_FMT_HDMI_2688X1520_00HZ:
+		return "TVIN_SIG_FMT_HDMI_2688X1520_00HZ";
 		/* for alternative and 4k2k */
 	case TVIN_SIG_FMT_HDMI_1920X1080I_60HZ_ALTERNATIVE:
 		return "TVIN_SIG_FMT_HDMI_1920X1080I_60HZ_ALTERNATIVE";
@@ -173,6 +179,8 @@ const char *tvin_sig_fmt_str(enum tvin_sig_fmt_e fmt)
 		return "TVIN_SIG_FMT_HDMI_4096_2160_00HZ";
 	case TVIN_SIG_FMT_HDMI_1600X900_60HZ:
 		return "TVIN_SIG_FMT_HDMI_1600X900_60HZ";
+	case TVIN_SIG_FMT_HDMI_3840X600_00HZ:
+		return "TVIN_SIG_FMT_HDMI_3840X600_00HZ";
 	case TVIN_SIG_FMT_HDMI_RESERVE8:
 		return "TVIN_SIG_FMT_HDMI_RESERVE8";
 	case TVIN_SIG_FMT_HDMI_RESERVE9:
@@ -238,7 +246,7 @@ const struct tvin_format_s *tvin_get_fmt_info(enum tvin_sig_fmt_e fmt)
 {
 	/* find  format table through format */
 	if ((fmt < TVIN_SIG_FMT_HDMI_MAX) &&
-			(fmt > TVIN_SIG_FMT_NULL))
+			(fmt >= TVIN_SIG_FMT_HDMI_640X480P_60HZ))
 		return &tvin_hdmi_fmt_tbl[fmt-TVIN_SIG_FMT_HDMI_640X480P_60HZ];
 	else if ((fmt < TVIN_SIG_FMT_CVBS_MAX) &&
 			(fmt > TVIN_SIG_FMT_HDMI_THRESHOLD))
@@ -731,6 +739,30 @@ const struct tvin_format_s tvin_hdmi_fmt_tbl[TVIN_SIG_FMT_HDMI_MAX -
 	800,  525,  16,  96,  48, 10, 2,
 	33, TVIN_SYNC_POL_NEGATIVE, TVIN_SYNC_POL_NEGATIVE,
 	TVIN_SCAN_MODE_PROGRESSIVE,  3125,   0,   0, 1066
+	},
+	{/* TVIN_SIG_FMT_HDMI_1152X864_00HZ, */
+	1152,  864, 0, 10, 10, 0, 10,
+	1600,  900,  64,  128,  256, 1, 3,
+	32, TVIN_SYNC_POL_POSITIVE, TVIN_SYNC_POL_POSITIVE,
+	TVIN_SCAN_MODE_PROGRESSIVE,  10800,   0,   0, 1600
+	},
+	{/* TVIN_SIG_FMT_HDMI_3840X600_00HZ, */
+	3840,  600, 0, 0, 0, 0, 0,
+	0,  0,  0,  0,  0, 0, 0,
+	0, TVIN_SYNC_POL_NULL, TVIN_SYNC_POL_NULL,
+	TVIN_SCAN_MODE_PROGRESSIVE,  0,   0,   0, 1600
+	},
+	{ /* TVIN_SIG_FMT_HDMI_720_350, */
+	720,   350, 0,  0, 0,  0, 0,
+	0,    0,   0,   0,   0, 0, 0,
+	0, TVIN_SYNC_POL_NULL, TVIN_SYNC_POL_NULL,
+	TVIN_SCAN_MODE_PROGRESSIVE,  0,   0,   0,   1600
+	},
+	{/* TVIN_SIG_FMT_HDMI_2688X1520_00HZ, */
+	2688,  1520, 0, 0, 0, 0, 0,
+	0,  0,  0,  0,  0, 0, 0,
+	0, TVIN_SYNC_POL_NULL, TVIN_SYNC_POL_NULL,
+	TVIN_SCAN_MODE_PROGRESSIVE,  0,   0,   0, 1600
 	},
 	{/* TVIN_SIG_FMT_HDMI_MAX,//227 */
 	0,    0, 0,  0, 0,  0, 0,

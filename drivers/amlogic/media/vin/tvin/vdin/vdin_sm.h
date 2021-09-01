@@ -46,6 +46,8 @@ enum tvin_sg_chg_flg {
 	TVIN_SIG_CHG_BIT	= 0x40,	/*color bit deepth: 8,10,12 ...*/
 	TVIN_SIG_CHG_VS_FRQ	= 0x80,
 	TVIN_SIG_CHG_DV_ALLM	= 0x100,
+	TVIN_SIG_CHG_AFD	= 0x200,/*aspect ratio*/
+	TVIN_SIG_CHG_CLOSE_FE	= 0x40000000,	/*closed frontend*/
 	TVIN_SIG_CHG_STS	= 0x80000000,	/*sm state change*/
 };
 
@@ -90,5 +92,7 @@ void reset_tvin_smr(unsigned int index);
 enum tvin_sm_status_e tvin_get_sm_status(int index);
 void vdin_dump_vs_info(struct vdin_dev_s *devp);
 void vdin_send_event(struct vdin_dev_s *devp, enum tvin_sg_chg_flg sts);
+void vdin_update_prop(struct vdin_dev_s *devp);
 
 #endif
+

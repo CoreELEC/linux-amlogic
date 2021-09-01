@@ -1,5 +1,5 @@
 /*
- * include/linux/amlogic/media/registers/regs/vdin_regs.h
+ * drivers/amlogic/media/vin/tvin/vdin/vdin_v4l2_dbg.h
  *
  * Copyright (C) 2017 Amlogic, Inc. All rights reserved.
  *
@@ -15,8 +15,10 @@
  *
  */
 
-#ifndef VDIN_REGS_HEADER_
-#define VDIN_REGS_HEADER_
+extern unsigned int vdin_v4l_debug;
 
-#endif
+ /*external test function*/
+void vdin_parse_param(char *buf_orig, char **parm);
+void vdin_v4l2_create_device_files(struct device *dev);
+void vdin_v4l2_remove_device_files(struct device *dev);
 

@@ -21,8 +21,14 @@
 #include "vdin_ctl.h"
 
 #define AFBCE_ENABLE  0x41a0
+/* 0 = auto, triggered by vsync, 1 = pulse, triggered manually */
+#define AFBCE_WORK_MD_BIT	12
+#define AFBCE_WORK_MD_WID	1
 #define AFBCE_EN_BIT	8
 #define AFBCE_EN_WID	1
+#define AFBCE_START_PULSE_BIT	0
+#define AFBCE_START_PULSE_WID	1
+
 //Bit   31:13,    reserved
 //Bit   12 ,      reg_clk_en       default = 1,
 //Bit   11:9,     reserved

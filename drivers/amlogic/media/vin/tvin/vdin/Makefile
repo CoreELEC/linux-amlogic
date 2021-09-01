@@ -15,4 +15,6 @@ tvin_vdin-objs += vdin_ctl.o
 tvin_vdin-objs += vdin_sm.o
 tvin_vdin-objs += vdin_canvas.o
 tvin_vdin-objs += vdin_afbce.o
+tvin_vdin-objs += vdin_v4l2_if.o
+tvin_vdin-objs += vdin_v4l2_dbg.o
 

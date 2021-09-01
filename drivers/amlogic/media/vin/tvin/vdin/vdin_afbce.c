@@ -92,10 +92,9 @@ void vdin_write_mif_or_afbce_init(struct vdin_dev_s *devp)
 		sel = VDIN_OUTPUT_TO_AFBCE;
 
 	if (sel == VDIN_OUTPUT_TO_MIF) {
-		W_VCBUS_BIT(AFBCE_ENABLE, 0, 8, 1);
+		W_VCBUS_BIT(AFBCE_ENABLE, 0, AFBCE_EN_BIT, AFBCE_EN_WID);
 
-		if (is_meson_tm2_cpu() ||
-		    (devp->dtdata->hw_ver == VDIN_HW_SC2)) {
+		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2)) {
 			W_VCBUS_BIT(VDIN_TOP_DOUBLE_CTRL, WR_SEL_VDIN0_NOR,
 				MIF0_OUT_SEL_BIT, VDIN_REORDER_SEL_WID);
 			W_VCBUS_BIT(VDIN_TOP_DOUBLE_CTRL, WR_SEL_DIS,
@@ -116,8 +115,7 @@ void vdin_write_mif_or_afbce_init(struct vdin_dev_s *devp)
 			W_VCBUS_BIT(VDIN_MISC_CTRL, 1, VDIN0_OUT_MIF_BIT, 1);
 		}
 	} else if (sel == VDIN_OUTPUT_TO_AFBCE) {
-		if (is_meson_tm2_cpu() ||
-		    (devp->dtdata->hw_ver == VDIN_HW_SC2)) {
+		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2)) {
 			W_VCBUS_BIT(VDIN_TOP_DOUBLE_CTRL, WR_SEL_DIS,
 				MIF0_OUT_SEL_BIT, VDIN_REORDER_SEL_WID);
 			W_VCBUS_BIT(VDIN_TOP_DOUBLE_CTRL, WR_SEL_VDIN0_NOR,
@@ -133,7 +131,7 @@ void vdin_write_mif_or_afbce_init(struct vdin_dev_s *devp)
 			W_VCBUS_BIT(VDIN_MISC_CTRL, 1, VDIN0_OUT_AFBCE_BIT, 1);
 		}
 
-		W_VCBUS_BIT(AFBCE_ENABLE, 1, 8, 1);
+		W_VCBUS_BIT(AFBCE_ENABLE, 1, AFBCE_EN_BIT, AFBCE_EN_WID);
 	}
 }
 
@@ -146,10 +144,9 @@ void vdin_write_mif_or_afbce(struct vdin_dev_s *devp,
 		return;
 
 	if (sel == VDIN_OUTPUT_TO_MIF) {
-		rdma_write_reg_bits(devp->rdma_handle, AFBCE_ENABLE, 0, 8, 1);
-
-		if (is_meson_tm2_cpu() ||
-		    (devp->dtdata->hw_ver == VDIN_HW_SC2)) {
+		rdma_write_reg_bits(devp->rdma_handle, AFBCE_ENABLE, 0,
+				    AFBCE_EN_BIT, AFBCE_EN_WID);
+		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2)) {
 			rdma_write_reg_bits(devp->rdma_handle,
 				VDIN_TOP_DOUBLE_CTRL, WR_SEL_VDIN0_NOR,
 				MIF0_OUT_SEL_BIT, VDIN_REORDER_SEL_WID);
@@ -171,13 +168,12 @@ void vdin_write_mif_or_afbce(struct vdin_dev_s *devp,
 					    PROTECT_EN21_BIT, PROTECT_EN_WID);
 		} else {
 			rdma_write_reg_bits(devp->rdma_handle, VDIN_MISC_CTRL,
-					    0, VDIN0_OUT_AFBCE_BIT, 1);
+				0, VDIN0_OUT_AFBCE_BIT, 1);
 			rdma_write_reg_bits(devp->rdma_handle, VDIN_MISC_CTRL,
-					    1, VDIN0_OUT_MIF_BIT, 1);
+				1, VDIN0_OUT_MIF_BIT, 1);
 		}
 	} else if (sel == VDIN_OUTPUT_TO_AFBCE) {
-		if (is_meson_tm2_cpu() ||
-		    (devp->dtdata->hw_ver == VDIN_HW_SC2)) {
+		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2)) {
 			rdma_write_reg_bits(devp->rdma_handle,
 				VDIN_TOP_DOUBLE_CTRL, WR_SEL_DIS,
 				MIF0_OUT_SEL_BIT, VDIN_REORDER_SEL_WID);
@@ -200,7 +196,8 @@ void vdin_write_mif_or_afbce(struct vdin_dev_s *devp,
 		if (devp->afbce_flag & VDIN_AFBCE_EN_LOOSY)
 			rdma_write_reg(devp->rdma_handle, AFBCE_QUANT_ENABLE,
 				       0xc11);
-		rdma_write_reg_bits(devp->rdma_handle, AFBCE_ENABLE, 1, 8, 1);
+		rdma_write_reg_bits(devp->rdma_handle, AFBCE_ENABLE, 1,
+				    AFBCE_EN_BIT, AFBCE_EN_WID);
 	}
 }
 /*
@@ -460,7 +457,7 @@ void vdin_afbce_config(struct vdin_dev_s *devp)
 	 */
 	W_VCBUS_BIT(AFBCE_MMU_RMIF_SCOPE_X, 0x1c4f, 16, 13);
 
-	W_VCBUS_BIT(AFBCE_ENABLE, 1, 12, 1); //set afbce pulse mode
+	W_VCBUS_BIT(AFBCE_ENABLE, 1, AFBCE_WORK_MD_BIT, AFBCE_WORK_MD_WID);
 
 	if (devp->double_wr)
 		W_VCBUS_BIT(AFBCE_ENABLE, 1, AFBCE_EN_BIT, AFBCE_EN_WID);
@@ -554,7 +551,15 @@ void vdin_afbce_set_next_frame(struct vdin_dev_s *devp,
 			devp->afbce_info->fm_head_paddr[i]);
 		rdma_write_reg_bits(devp->rdma_handle, AFBCE_MMU_RMIF_CTRL4,
 			devp->afbce_info->fm_table_paddr[i], 0, 32);
-		rdma_write_reg_bits(devp->rdma_handle, AFBCE_ENABLE, 1, 0, 1);
+		rdma_write_reg_bits(devp->rdma_handle, AFBCE_ENABLE, 1,
+				    AFBCE_START_PULSE_BIT,
+				    AFBCE_START_PULSE_WID);
+		if (devp->pause_dec)
+			rdma_write_reg_bits(devp->rdma_handle, AFBCE_ENABLE, 0,
+					    AFBCE_EN_BIT, AFBCE_EN_WID);
+		else
+			rdma_write_reg_bits(devp->rdma_handle, AFBCE_ENABLE, 1,
+					    AFBCE_EN_BIT, AFBCE_EN_WID);
 	}
 #endif
 	vdin_afbce_clear_writedown_flag(devp);
@@ -581,7 +586,7 @@ int vdin_afbce_read_writedown_flag(void)
 
 void vdin_afbce_soft_reset(void)
 {
-	W_VCBUS_BIT(AFBCE_ENABLE, 0, 8, 1);
+	W_VCBUS_BIT(AFBCE_ENABLE, 0, AFBCE_EN_BIT, AFBCE_EN_WID);
 	W_VCBUS_BIT(AFBCE_MODE, 0, 30, 1);
 	W_VCBUS_BIT(AFBCE_MODE, 1, 30, 1);
 	W_VCBUS_BIT(AFBCE_MODE, 0, 30, 1);

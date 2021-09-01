@@ -372,10 +372,7 @@ void vdin_canvas_auto_config(struct vdin_dev_s *devp)
 
 	devp->canvas_max_size = PAGE_ALIGN(devp->canvas_w*
 			devp->canvas_h+chroma_size);
-	/*
-	 * devp->canvas_max_num  =
-	 *	devp->mem_size / devp->canvas_max_size;
-	 */
+	/* devp->canvas_max_num  = devp->mem_size / devp->canvas_max_size; */
 
 	devp->canvas_max_num = min(devp->canvas_max_num, canvas_num);
 	devp->canvas_max_num = min(devp->canvas_max_num, max_buffer_num);
@@ -466,7 +463,8 @@ unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 		max_buffer_num = devp->frame_buff_num;
 
 	devp->canvas_max_num = max_buffer_num;
-	devp->vfmem_max_cnt = max_buffer_num;
+	devp->vfmem_max_cnt = devp->canvas_max_num;
+
 	if ((devp->cma_config_en == 0) ||
 		(devp->cma_mem_alloc == 1)) {
 		pr_info("\nvdin%d %s use_reserved mem or cma already alloced (%d,%d)!!!\n",
@@ -519,32 +517,52 @@ unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 		/* 422 mode, 4k upto 444 8bitmode,
 		 * other up to 10 bit mode
 		 */
-		if (vdin_is_4k(devp)) {
-			/*up to 444 8bit*/
-			h_size = roundup(h_size *
-				VDIN_YUV444_8BIT_PER_PIXEL_BYTE,
-				devp->canvas_align);
-			devp->canvas_alin_w = h_size /
-				VDIN_YUV444_8BIT_PER_PIXEL_BYTE;
-		} else {
-			/*up to 444 10bit*/
-			h_size = roundup(h_size *
-				VDIN_YUV444_10BIT_PER_PIXEL_BYTE,
-				devp->canvas_align);
-			devp->canvas_alin_w = h_size /
-				VDIN_YUV444_10BIT_PER_PIXEL_BYTE;
+		if (devp->index == 0) {
+			if (vdin_is_4k(devp)) {
+				/*up to 444 8bit*/
+				h_size = roundup(h_size *
+					VDIN_YUV444_8BIT_PER_PIXEL_BYTE,
+					devp->canvas_align);
+				devp->canvas_alin_w = h_size /
+					VDIN_YUV444_8BIT_PER_PIXEL_BYTE;
+			} else {
+				/*up to 444 10bit*/
+				h_size = roundup(h_size *
+					VDIN_YUV444_10BIT_PER_PIXEL_BYTE,
+					devp->canvas_align);
+				devp->canvas_alin_w = h_size /
+					VDIN_YUV444_10BIT_PER_PIXEL_BYTE;
+			}
+		} else if (devp->index) {
+			if (devp->source_bitdepth > VDIN_MIN_SOURCE_BITDEPTH) {
+				if (devp->full_pack == VDIN_422_FULL_PK_EN) {
+					h_size = roundup((h_size * 5) / 2,
+							 devp->canvas_align);
+					devp->canvas_alin_w = (h_size * 2) / 5;
+				} else {
+					h_size = roundup(h_size *
+					      VDIN_YUV422_10BIT_PER_PIXEL_BYTE,
+					      devp->canvas_align);
+					devp->canvas_alin_w =  h_size /
+					    VDIN_YUV422_10BIT_PER_PIXEL_BYTE;
+				}
+			} else {
+				h_size = roundup(h_size *
+					VDIN_YUV422_8BIT_PER_PIXEL_BYTE,
+					devp->canvas_align);
+				devp->canvas_alin_w = h_size /
+					VDIN_YUV422_8BIT_PER_PIXEL_BYTE;
+			}
 		}
 	}
 
 	/*1 frame bytes*/
 	mem_size = h_size * v_size;
-	/*for almost uncompressed pattern,garbage at bottom
-	 *1024x1658 is the worst case,each page wast 2160x3x256byte for 4096
-	 *since every block must not be separated by 2 pages
-	 *screen cap & v4l2 debug doesn't use afbce,no need inc mem
+	/* for almost uncompressed pattern,garbage at bottom
+	 * 1024x1658 is the worst case,each page wast 2160x3x256byte for 4096
+	 * since every block must not be separated by 2 pages
 	 */
-	if (!(devp->parm.reserved & PARAM_STATE_SCREENCAP) &&
-	    (!(devp->flags & VDIN_FLAG_V4L2_DEBUG)))
+	if (devp->afbce_valid)
 		mem_size += 1024 * 1658;
 
 	if ((devp->format_convert >= VDIN_FORMAT_CONVERT_YUV_NV12) &&
@@ -553,7 +571,7 @@ unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 	devp->vfmem_size = PAGE_ALIGN(mem_size) + dolby_size_byte;
 	devp->vfmem_size = roundup(devp->vfmem_size, PAGE_SIZE);
 
-	if (devp->double_wr || K_FORCE_HV_SHRINK) {
+	if (devp->double_wr) {
 		if ((devp->h_shrink_out < devp->h_active) &&
 		    (devp->v_shrink_out < devp->v_active))
 			devp->vfmem_size_small = devp->vfmem_size /
@@ -574,7 +592,6 @@ unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 		devp->vfmem_size_small =
 			roundup(devp->vfmem_size_small, PAGE_SIZE);
 
-	pr_info("%s vfmem_size_small:0x%x\n", __func__, devp->vfmem_size_small);
 	/* frame is consist of the following part
 	 * 1st, small frame for dw
 	 * 2nd, big frame for dw, or normal frame for non-dw
@@ -595,22 +612,22 @@ unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 	 */
 	if (devp->afbce_info) {
 		if (devp->afbce_valid) {
-			/*allocate mem according to resolution
-			 *each block contains 32 * 4 pixels
-			 *one block associated to one header(4 bytes)
-			 *dolby has one page size, & each vframe
-			 * aligned to page size
-			 *(((h(align 32 pixel) * v(align 4 pixel)) /
+			/* allocate mem according to resolution
+			 * each block contains 32 * 4 pixels
+			 * one block associated to one header(4 bytes)
+			 * dolby has one page size, &
+			 * each vframe aligned to page size
+			 * (((h(align 32 pixel) * v(align 4 pixel)) /
 			 * (32 * 4)) * 4)  + dolby
-			 *total max_buffer_num
+			 * block should align to,  H:2 blocks, V: 16 blocks
 			 */
 			devp->afbce_info->frame_head_size =
-				PAGE_ALIGN((roundup(devp->h_active, 32) *
-					    roundup(devp->v_active, 4)) / 32 +
-					    dolby_size_byte);
+				PAGE_ALIGN((roundup(devp->h_active, 64) *
+					    roundup(devp->v_active, 64)) / 32 +
+					   dolby_size_byte);
 
-			/*((h * v * byte_per_pixel + dolby) /
-			 * page_size) * 4(one address size)
+			/*((h * v * byte_per_pixel + dolby) / page_size) *
+			 * 4(one address size)
 			 * total max_buffer_num
 			 */
 			devp->afbce_info->frame_table_size =
@@ -622,8 +639,7 @@ unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 
 		frame_size = devp->vfmem_size_small + devp->vfmem_size +
 			devp->afbce_info->frame_head_size +
-			devp->afbce_info->frame_table_size;
-
+				devp->afbce_info->frame_table_size;
 	} else {
 		frame_size = devp->vfmem_size_small + devp->vfmem_size;
 	}
@@ -649,18 +665,17 @@ unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 	}
 
 #ifdef CONFIG_AMLOGIC_TEE
-	/* must align to 64k for secure protection
-	 * always align for switch secure mode dynamically
-	 */
-	mem_size = roundup(mem_size, 64 * 1024);
+	/* must align to 64k for secure protection */
+	if (devp->secure_en)
+		mem_size = roundup(mem_size, 64 * 1024);
 #endif
 
 	if (mem_size > devp->cma_mem_size) {
-		pr_err("\nvdin%d cma_mem_size (%d, %d) is not enough!!!\n",
+		pr_err("vdin[%d] warning: cma_mem_size (need %d, cur %d) is not enough!!!\n",
 		       devp->index, mem_size, devp->cma_mem_size);
-		mem_size = devp->cma_mem_size;
-		devp->cma_mem_alloc = 0;
-		return 1;
+		/*mem_size = devp->cma_mem_size;*/
+		/*devp->cma_mem_alloc = 0;*/
+		/*return 1;*/
 	}
 
 	if (devp->index == 0)
@@ -671,19 +686,18 @@ unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 	if (devp->cma_config_flag & MEM_ALLOC_DISCRETE) {
 		for (i = 0; i < max_buffer_num; i++) {
 			if (devp->cma_config_flag & MEM_ALLOC_FROM_CODEC) {
-				/*add for 1g config, codec can't release
-				 *mem in time
-				 */
+				/* add for 1g config */
+				/* codec can't release mem in time */
 				for (j = 0; j < 20; j++) {
 					devp->vfmem_start[i] =
-					codec_mm_alloc_for_dma(vdin_name,
-							       frame_size /
-							       PAGE_SIZE, 0,
-							       flags);
+						codec_mm_alloc_for_dma(
+							vdin_name,
+							frame_size / PAGE_SIZE,
+							0, flags);
+
 					if (devp->vfmem_start[i] == 0) {
 						msleep(50);
-						pr_err("alloc mem fail:50*%dms\n",
-						       j);
+						pr_err("allfail:50*%dms\n", j);
 					} else {
 						break;
 					}
@@ -692,49 +706,71 @@ unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 				if (j >= 20) {
 					pr_err("\nvdin%d buf[%d]codec alloc fail!!!\n",
 					       devp->index, i);
-					devp->cma_mem_alloc = 0;
-					return 1;
+					if (i <= min_buf_num) {
+						devp->cma_mem_alloc = 0;
+						return 1;
+					}
+					/*real buffer number*/
+					max_buffer_num = i;
+					devp->canvas_max_num = i;
+					devp->vfmem_max_cnt = i;
+					/*update to real total frames size*/
+					mem_size = PAGE_ALIGN(frame_size) *
+							max_buffer_num;
+					break;
 				}
 			} else {
 				devp->vfvenc_pages[i] =
-				dma_alloc_from_contiguous(&devp->this_pdev->dev,
-							  frame_size >>
-							  PAGE_SHIFT, 0);
+					dma_alloc_from_contiguous(
+						&devp->this_pdev->dev,
+						frame_size >> PAGE_SHIFT, 0);
 				if (!devp->vfvenc_pages[i]) {
-					devp->cma_mem_alloc = 0;
-					pr_err("\nvdin%d cma mem undefined2.\n",
-					       devp->index);
-					return 1;
+					pr_err("\nvdin%d cma mem undefine2.\n",
+						devp->index);
+					if (i <= min_buf_num) {
+						devp->cma_mem_alloc = 0;
+						return 1;
+					}
+					/*real buffer number*/
+					max_buffer_num = i;
+					devp->canvas_max_num = i;
+					devp->vfmem_max_cnt = i;
+					/*update to real total frames size*/
+					mem_size = PAGE_ALIGN(frame_size) *
+							max_buffer_num;
+					break;
 				}
 				devp->vfmem_start[i] =
 					page_to_phys(devp->vfvenc_pages[i]);
 			}
 
-			if (vdin_dbg_en)
-				pr_info("vdin%d buf[%d] mem_start = 0x%lx, mem_size = 0x%x\n",
-					devp->index, i,	devp->vfmem_start[i],
-					frame_size);
+			if (vdin_dbg_en) {
+				pr_info("vdin%d buf[%d] ", devp->index, i);
+				pr_info("mem_start = 0x%lx, mem_size = 0x%x\n",
+					devp->vfmem_start[i], frame_size);
+			}
 		}
 	} else {
 		if (devp->cma_config_flag & MEM_ALLOC_FROM_CODEC) {
 			devp->mem_start =
-			codec_mm_alloc_for_dma(vdin_name,
-					       mem_size / PAGE_SIZE, 0, flags);
+				codec_mm_alloc_for_dma(vdin_name,
+					mem_size / PAGE_SIZE, 0, flags);
 
 			if (devp->mem_start == 0) {
 				pr_err("\nvdin%d codec alloc fail!!!\n",
-				       devp->index);
+					devp->index);
 				devp->cma_mem_alloc = 0;
 				return 1;
 			}
 		} else {
 			devp->venc_pages =
-			dma_alloc_from_contiguous(&devp->this_pdev->dev,
-						  mem_size >> PAGE_SHIFT, 0);
+				dma_alloc_from_contiguous(
+						&devp->this_pdev->dev,
+						mem_size >> PAGE_SHIFT, 0);
 			if (!devp->venc_pages) {
 				devp->cma_mem_alloc = 0;
 				pr_err("\nvdin%d cma mem undefined2.\n",
-				       devp->index);
+					devp->index);
 				return 1;
 			}
 			devp->mem_start = page_to_phys(devp->venc_pages);
@@ -778,7 +814,6 @@ unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 			devp->afbce_info->fm_head_paddr[i] =
 				devp->afbce_info->fm_body_paddr[i] +
 				devp->vfmem_size;
-
 			devp->afbce_info->fm_table_paddr[i] =
 				devp->afbce_info->fm_head_paddr[i] +
 				devp->afbce_info->frame_head_size;
@@ -796,7 +831,8 @@ unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 		}
 	}
 
-	pr_info("vdin%d cma alloc ok!\n", devp->index);
+	pr_info("vdin%d cma alloc %d buffers ok!\n", devp->index,
+		devp->vfmem_max_cnt);
 	return 0;
 }
 
@@ -827,16 +863,15 @@ void vdin_cma_release(struct vdin_dev_s *devp)
 			/* canvas or afbce paddr */
 			for (i = 0; i < devp->vfmem_max_cnt; i++)
 				codec_mm_free_for_dma(vdin_name,
-						      devp->vfmem_start[i]);
+						devp->vfmem_start[i]);
 
 			pr_info("vdin%d codec cma release ok!\n", devp->index);
 		} else {
 			for (i = 0; i < devp->vfmem_max_cnt; i++)
-			dma_release_from_contiguous(&devp->this_pdev->dev,
-						    devp->vfvenc_pages[i],
-						    devp->frame_size >>
-						    PAGE_SHIFT);
-
+				dma_release_from_contiguous(
+					&devp->this_pdev->dev,
+					devp->vfvenc_pages[i],
+					devp->frame_size >> PAGE_SHIFT);
 			pr_info("vdin%d cma release ok!\n", devp->index);
 		}
 	} else {
@@ -851,11 +886,10 @@ void vdin_cma_release(struct vdin_dev_s *devp)
 			pr_info("vdin%d codec cma release ok!\n", devp->index);
 		} else {
 			if (devp->venc_pages && devp->mem_size)
-			dma_release_from_contiguous(&devp->this_pdev->dev,
-						    devp->venc_pages,
-						    devp->mem_size >>
-						    PAGE_SHIFT);
-
+				dma_release_from_contiguous(
+						&devp->this_pdev->dev,
+						devp->venc_pages,
+						devp->mem_size >> PAGE_SHIFT);
 			pr_info("vdin%d cma release ok!\n", devp->index);
 		}
 	}
@@ -865,28 +899,6 @@ void vdin_cma_release(struct vdin_dev_s *devp)
 	devp->cma_mem_alloc = 0;
 }
 /*@20170823 new add for the case of csc change after signal stable*/
-
-void vdin_set_mem_protect(struct vdin_dev_s *devp, unsigned int protect)
-{
-#ifdef CONFIG_AMLOGIC_TEE
-	unsigned int res = 0;
-
-	if (protect) {
-		res = tee_protect_mem_by_type(TEE_MEM_TYPE_VDIN,
-					      devp->mem_start,
-					      devp->mem_size,
-					      &devp->secure_handle);
-		if (res)
-			devp->mem_protected = 0;
-		else
-			devp->mem_protected = 1;
-	} else {
-		tee_unprotect_mem(devp->secure_handle);
-		devp->mem_protected = 0;
-	}
-#endif
-}
-
 void vdin_cma_malloc_mode(struct vdin_dev_s *devp)
 {
 	unsigned int h_size, v_size;

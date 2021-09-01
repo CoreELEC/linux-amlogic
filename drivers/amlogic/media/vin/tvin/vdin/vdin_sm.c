@@ -186,6 +186,17 @@ enum tvin_color_fmt_range_e tvin_get_force_fmt_range(
 	return fmt_range;
 }
 
+void vdin_update_prop(struct vdin_dev_s *devp)
+{
+	/*devp->pre_prop.fps = devp->prop.fps;*/
+	devp->dv.dv_flag = devp->prop.dolby_vision;
+	/*devp->pre_prop.latency.allm_mode = devp->prop.latency.allm_mode;*/
+	/*devp->pre_prop.aspect_ratio = devp->prop.aspect_ratio;*/
+	devp->parm.info.aspect_ratio = devp->prop.aspect_ratio;
+	memcpy(&devp->pre_prop, &devp->prop,
+	       sizeof(struct tvin_sig_property_s));
+}
+
 /*
  * check hdmirx color format
  */
@@ -280,6 +291,64 @@ static enum tvin_sg_chg_flg vdin_hdmirx_fmt_chg_detect(struct vdin_dev_s *devp)
 			}
 		}
 
+		if (devp->pre_prop.latency.it_content !=
+		    devp->prop.latency.it_content) {
+			if (devp->dv.allm_chg_cnt > vdin_dv_chg_cnt) {
+				devp->dv.allm_chg_cnt = 0;
+				signal_chg |= TVIN_SIG_CHG_DV_ALLM;
+				temp = devp->pre_prop.latency.it_content;
+				if (signal_chg)
+					pr_info("%s it_content chg:(0x%x->0x%x)\n",
+						__func__,
+						temp,
+						devp->prop.latency.it_content);
+				devp->pre_prop.latency.it_content =
+					devp->prop.latency.it_content;
+			}
+		}
+
+		if (devp->pre_prop.latency.cn_type !=
+		    devp->prop.latency.cn_type) {
+			if (devp->dv.allm_chg_cnt > vdin_dv_chg_cnt) {
+				devp->dv.allm_chg_cnt = 0;
+				signal_chg |= TVIN_SIG_CHG_DV_ALLM;
+				temp = devp->pre_prop.latency.cn_type;
+				if (signal_chg)
+					pr_info("%s cn_type chg:(0x%x->0x%x)\n",
+						__func__,
+						temp,
+						devp->prop.latency.cn_type);
+				devp->pre_prop.latency.cn_type =
+					devp->prop.latency.cn_type;
+			}
+		}
+
+		if (devp->pre_prop.fps != devp->prop.fps) {
+			signal_chg |= TVIN_SIG_CHG_VS_FRQ;
+			pr_info("%s fps chg:(0x%x->0x%x)\n", __func__,
+				devp->pre_prop.fps,
+				devp->prop.fps);
+			devp->pre_prop.fps = devp->prop.fps;
+			devp->parm.info.fps = devp->prop.fps;
+		}
+
+		if ((devp->pre_prop.aspect_ratio !=
+		     devp->prop.aspect_ratio) &&
+		    IS_HDMI_SRC(devp->parm.port)) {
+			if (devp->sg_chg_afd_cnt > 1) {
+				signal_chg |= TVIN_SIG_CHG_AFD;
+				if (signal_chg)
+					pr_info("%s afd chg:(0x%x->0x%x)\n",
+						__func__,
+						devp->pre_prop.aspect_ratio,
+						devp->prop.aspect_ratio);
+				devp->pre_prop.aspect_ratio =
+						    devp->prop.aspect_ratio;
+				devp->parm.info.aspect_ratio =
+					prop->aspect_ratio;
+			}
+		}
+
 		if (color_range_force)
 			prop->color_fmt_range =
 			tvin_get_force_fmt_range(pre_prop->color_format);
@@ -334,10 +403,11 @@ void vdin_auto_de_handler(struct vdin_dev_s *devp)
 		pre_he = prop->pre_he;
 		if ((pre_vs != cur_vs) || (pre_ve != cur_ve) ||
 			(pre_hs != cur_hs) || (pre_he != cur_he)) {
-			pr_info("[smr.%d] pre_vs(%d->%d),pre_ve(%d->%d),pre_hs(%d->%d),pre_he(%d->%d),cutwindow_cfg:0x%x\n",
-				devp->index, pre_vs, cur_vs, pre_ve, cur_ve,
-				pre_hs, cur_hs, pre_he, cur_he,
-				devp->cutwindow_cfg);
+			if (sm_debug_enable & VDIN_SM_LOG_L_4)
+				pr_info("[smr.%d] pre_vs(%d->%d),pre_ve(%d->%d),pre_hs(%d->%d),pre_he(%d->%d),cutwindow_cfg:0x%x\n",
+					devp->index, pre_vs, cur_vs, pre_ve,
+					cur_ve, pre_hs, cur_hs, pre_he, cur_he,
+					devp->cutwindow_cfg);
 			devp->cutwindow_cfg = 1;
 		}
 	}
@@ -366,7 +436,7 @@ u32 tvin_hdmirx_signal_type_check(struct vdin_dev_s *devp)
 	if (!(devp->flags & VDIN_FLAG_ISR_EN) && devp->frontend) {
 		sm_ops = devp->frontend->sm_ops;
 		if (sm_ops && sm_ops->get_sig_property) {
-			if (IS_CVBS_SRC(devp->parm.port) ||
+			if (IS_TVAFE_SRC(devp->parm.port) ||
 			    vdin_get_prop_in_sm_en)
 				sm_ops->get_sig_property(devp->frontend,
 					&devp->prop);
@@ -495,6 +565,10 @@ void tvin_sigchg_event_process(struct vdin_dev_s *devp, u32 chg)
 	/*struct tvin_sm_s *sm_p;*/
 	bool re_cfg = 0;
 
+	/*avoid when doing start dec, hdr or dv change re-config coming*/
+	if (!(devp->flags & VDIN_FLAG_DEC_STARTED))
+		return;
+
 	if (chg & TVIN_SIG_CHG_STS) {
 		devp->event_info.event_sts = TVIN_SIG_CHG_STS;
 	} else {
@@ -518,6 +592,8 @@ void tvin_sigchg_event_process(struct vdin_dev_s *devp, u32 chg)
 			devp->event_info.event_sts = TVIN_SIG_CHG_DV_ALLM;
 			if (vdin_re_config & RE_CONFIG_ALLM_EN)
 				re_cfg = true;
+		} else if (chg & TVIN_SIG_CHG_AFD) {
+			devp->event_info.event_sts = TVIN_SIG_CHG_AFD;
 		} else {
 			return;
 		}
@@ -529,7 +605,7 @@ void tvin_sigchg_event_process(struct vdin_dev_s *devp, u32 chg)
 		devp->parm.info.status = TVIN_SIG_STATUS_UNSTABLE;
 		devp->frame_drop_num = vdin_re_cfg_drop_cnt;
 	}
-
+	devp->pre_event_info.event_sts = devp->event_info.event_sts;
 	vdin_send_event(devp, devp->event_info.event_sts);
 	wake_up(&devp->queue);
 }
@@ -780,6 +856,7 @@ void tvin_smr(struct vdin_dev_s *devp)
 
 			sm_p->state = TVIN_SM_STATUS_STABLE;
 			info->status = TVIN_SIG_STATUS_STABLE;
+			vdin_update_prop(devp);
 			if (sm_debug_enable)
 				pr_info("[smr.%d] %ums prestable --> stable\n",
 						devp->index,
@@ -817,8 +894,10 @@ void tvin_smr(struct vdin_dev_s *devp)
 		if (IS_TVAFE_SRC(port))
 			vdin_auto_de_handler(devp);
 
-		if (IS_TVAFE_SRC(port) && sm_ops->get_sig_property)
+		if (IS_TVAFE_SRC(port) && sm_ops->get_sig_property) {
 			sm_ops->get_sig_property(devp->frontend, prop);
+			devp->parm.info.fps = prop->fps;
+		}
 
 		if (nosig || fmt_changed /* || !pll_lock */) {
 			++sm_p->state_cnt;
@@ -902,6 +981,8 @@ void tvin_smr(struct vdin_dev_s *devp)
 		if (sm_p->sig_status != info->status) {
 			sm_p->sig_status = info->status;
 			devp->event_info.event_sts = TVIN_SIG_CHG_STS;
+			devp->pre_event_info.event_sts =
+				devp->event_info.event_sts;
 			vdin_send_event(devp, devp->event_info.event_sts);
 			wake_up(&devp->queue);
 		}

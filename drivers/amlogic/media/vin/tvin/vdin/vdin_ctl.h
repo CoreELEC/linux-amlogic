@@ -53,6 +53,14 @@ enum vdin_mif_bits {
 	MIF_8BIT = 0,
 	MIF_10BIT = 1,
 };
+
+enum vdin_mif_fmt {
+	MIF_FMT_YUV422 = 0,
+	MIF_FMT_YUV444 = 1,
+	MIF_FMT_NV12_21 = 2,
+	MIF_FMT_YUV422_FULL_PACK = 3
+};
+
 /* *************************************************** */
 /* *** structure definitions ************************* */
 /* *************************************************** */
@@ -100,9 +108,9 @@ struct dv_meta_pkt {
 };
 
 extern unsigned int game_mode;
+extern unsigned int force_game_mode;
 extern bool vdin_dbg_en;
 extern unsigned int vdin_pc_mode;
-extern enum tvin_force_color_range_e color_range_force;
 
 /* ************************************************************************ */
 /* ******** GLOBAL FUNCTION CLAIM ******** */
@@ -110,23 +118,20 @@ extern enum tvin_force_color_range_e color_range_force;
 u8 *vdin_vmap(ulong addr, u32 size);
 void vdin_unmap_phyaddr(u8 *vaddr);
 void vdin_dma_flush(struct vdin_dev_s *devp, void *vaddr,
-		    int size, enum dma_data_direction dir);
+		int size, enum dma_data_direction dir);
 
 void vdin_set_vframe_prop_info(struct vframe_s *vf,
-			       struct vdin_dev_s *devp);
+		struct vdin_dev_s *devp);
 void vdin_get_crc_val(struct vframe_s *vf, struct vdin_dev_s *devp);
-void LDIM_Initial_2(int pic_h, int pic_v, int blk_vnum,
-		    int blk_Hnum, int backlit_mode,
-		    int ldim_bl_en, int ldim_hvcnt_bypass);
 void vdin_get_format_convert(struct vdin_dev_s *devp);
-enum vdin_format_convert_e
-	vdin_get_format_convert_matrix0(struct vdin_dev_s *devp);
-enum vdin_format_convert_e
-	vdin_get_format_convert_matrix1(struct vdin_dev_s *devp);
+enum vdin_format_convert_e vdin_get_format_convert_matrix0(
+		struct vdin_dev_s *devp);
+enum vdin_format_convert_e vdin_get_format_convert_matrix1(
+		struct vdin_dev_s *devp);
 void vdin_set_prob_xy(unsigned int offset, unsigned int x,
-		      unsigned int y, struct vdin_dev_s *devp);
+		unsigned int y, struct vdin_dev_s *devp);
 void vdin_prob_get_rgb(unsigned int offset, unsigned int *r,
-		       unsigned int *g, unsigned int *b);
+		unsigned int *g, unsigned int *b);
 void vdin_set_all_regs(struct vdin_dev_s *devp);
 void vdin_set_double_write_regs(struct vdin_dev_s *devp);
 void vdin_set_default_regmap(struct vdin_dev_s *devp);
@@ -147,27 +152,24 @@ unsigned int vdin_get_active_v(unsigned int offset);
 unsigned int vdin_get_total_v(unsigned int offset);
 unsigned int vdin_get_canvas_id(unsigned int offset);
 void vdin_set_canvas_id(struct vdin_dev_s *devp,
-			unsigned int rdma_enable,
-			unsigned int canvas_id);
+			unsigned int rdma_enable, unsigned int canvas_id);
 unsigned int vdin_get_chma_canvas_id(unsigned int offset);
 void vdin_set_chma_canvas_id(struct vdin_dev_s *devp,
-			     unsigned int rdma_enable,
-			     unsigned int canvas_id);
+		unsigned int rdma_enable, unsigned int canvas_id);
 void vdin_set_crc_pulse(struct vdin_dev_s *devp);
 void vdin_enable_module(struct vdin_dev_s *devp, bool enable);
 void vdin_set_matrix(struct vdin_dev_s *devp);
 void vdin_set_matrixs(struct vdin_dev_s *devp, unsigned char no,
-		      enum vdin_format_convert_e csc);
+		enum vdin_format_convert_e csc);
 bool vdin_check_cycle(struct vdin_dev_s *devp);
 bool vdin_write_done_check(unsigned int offset,
-			   struct vdin_dev_s *devp);
+		struct vdin_dev_s *devp);
 void vdin_calculate_duration(struct vdin_dev_s *devp);
-void vdin_wr_reverse(unsigned int offset, bool hreverse,
-		     bool vreverse);
+void vdin_wr_reverse(unsigned int offset, bool hreverse, bool vreverse);
 void vdin_set_hvscale(struct vdin_dev_s *devp);
 void vdin_set_bitdepth(struct vdin_dev_s *devp);
 void vdin_set_cm2(unsigned int offset, unsigned int w,
-		  unsigned int h, unsigned int *data);
+		unsigned int h, unsigned int *data);
 void vdin_bypass_isp(unsigned int offset);
 void vdin_set_mpegin(struct vdin_dev_s *devp);
 void vdin_force_gofiled(struct vdin_dev_s *devp);
@@ -176,82 +178,75 @@ void vdin_set_config(struct vdin_dev_s *devp);
 void vdin_set_wr_mif(struct vdin_dev_s *devp);
 void vdin_dolby_config(struct vdin_dev_s *devp);
 void vdin_dolby_buffer_update(struct vdin_dev_s *devp,
-			      unsigned int index);
+	unsigned int index);
 void vdin_dolby_addr_update(struct vdin_dev_s *devp, unsigned int index);
 void vdin_dolby_addr_alloc(struct vdin_dev_s *devp, unsigned int size);
 void vdin_dolby_addr_release(struct vdin_dev_s *devp, unsigned int size);
 int vdin_event_cb(int type, void *data, void *op_arg);
 void vdin_hdmiin_patch(struct vdin_dev_s *devp);
 void vdin_set_top(struct vdin_dev_s *devp, unsigned int offset,
-		  enum tvin_port_e port,
-		  enum tvin_color_fmt_e input_cfmt, unsigned int h,
-		  enum bt_path_e bt_path);
+		enum tvin_port_e port,
+		enum tvin_color_fmt_e input_cfmt, unsigned int h,
+		enum bt_path_e bt_path);
 void vdin_set_wr_ctrl_vsync(struct vdin_dev_s *devp,
-			    unsigned int offset,
-			    enum vdin_format_convert_e format_convert,
-			    unsigned int full_pack,
-			    unsigned int source_bitdeth,
-			    unsigned int rdma_enable);
+	unsigned int offset, enum vdin_format_convert_e format_convert,
+	unsigned int full_pack, unsigned int source_bitdeth,
+	unsigned int rdma_enable);
 
 void vdin_urgent_patch_resume(unsigned int offset);
 int vdin_hdr_sei_error_check(struct vdin_dev_s *devp);
 void vdin_set_drm_data(struct vdin_dev_s *devp,
-		       struct vframe_s *vf);
+		struct vframe_s *vf);
 u32 vdin_get_curr_field_type(struct vdin_dev_s *devp);
 void vdin_set_source_type(struct vdin_dev_s *devp,
-			  struct vframe_s *vf);
+		struct vframe_s *vf);
 void vdin_set_source_mode(struct vdin_dev_s *devp,
-			  struct vframe_s *vf);
+	   struct vframe_s *vf);
 void vdin_set_source_bitdepth(struct vdin_dev_s *devp,
-			      struct vframe_s *vf);
+		struct vframe_s *vf);
 void vdin_set_pixel_aspect_ratio(struct vdin_dev_s *devp,
-				 struct vframe_s *vf);
+		struct vframe_s *vf);
 void vdin_set_display_ratio(struct vdin_dev_s *devp,
-			    struct vframe_s *vf);
+		struct vframe_s *vf);
 void vdin_source_bitdepth_reinit(struct vdin_dev_s *devp);
 void set_invert_top_bot(bool invert_flag);
 void vdin_clk_onoff(struct vdin_dev_s *devp, bool onoff);
+extern enum tvin_force_color_range_e color_range_force;
 
 void vdin_vlock_input_sel(unsigned int type,
-			  enum vframe_source_type_e source_type);
+	enum vframe_source_type_e source_type);
 void vdin_set_dolby_tunnel(struct vdin_dev_s *devp);
+void vdin_check_hdmi_hdr(struct vdin_dev_s *devp);
 void vdin_dobly_mdata_write_en(unsigned int offset, unsigned int en);
 void vdin_prob_set_xy(unsigned int offset,
-		      unsigned int x, unsigned int y,
-		      struct vdin_dev_s *devp);
-void vdin_check_hdmi_hdr(struct vdin_dev_s *devp);
+		unsigned int x, unsigned int y, struct vdin_dev_s *devp);
 void vdin_prob_set_before_or_after_mat(unsigned int offset,
-				       unsigned int x,
-				       struct vdin_dev_s *devp);
+		unsigned int x, struct vdin_dev_s *devp);
 void vdin_prob_get_yuv(unsigned int offset,
-		       unsigned int *rgb_yuv0,
-		       unsigned int *rgb_yuv1,
-		       unsigned int *rgb_yuv2);
+		unsigned int *rgb_yuv0,	unsigned int *rgb_yuv1,
+		unsigned int *rgb_yuv2);
 void vdin_prob_matrix_sel(unsigned int offset,
-			  unsigned int sel, struct vdin_dev_s *devp);
+		unsigned int sel, struct vdin_dev_s *devp);
 void vdin_dolby_desc_sc_enable(struct vdin_dev_s *devp,
 			       unsigned int  onoff);
 bool vdin_is_dolby_tunnel_444_input(struct vdin_dev_s *devp);
 bool vdin_is_dolby_signal_in(struct vdin_dev_s *devp);
 void vdin_dolby_de_tunnel_to_12bit(struct vdin_dev_s *devp,
-				   unsigned int onoff);
+					  unsigned int onoff);
 void vdin_wr_frame_en(unsigned int ch, unsigned int onoff);
 void vdin_set_mif_onoff(struct vdin_dev_s *devp, unsigned int rdma_enable);
 void vdin_vs_proc_monitor(struct vdin_dev_s *devp);
-enum tvin_color_fmt_range_e
-	tvin_get_force_fmt_range(enum tvin_color_fmt_e color_fmt);
+enum tvin_color_fmt_range_e tvin_get_force_fmt_range(
+	enum tvin_color_fmt_e color_fmt);
 bool vdin_is_convert_to_444(u32 format_convert);
 bool vdin_is_convert_to_422(u32 format_convert);
+bool vdin_is_convert_to_nv21(u32 format_convert);
+enum tvin_color_fmt_e vdin_get_color_fmt(u32 format_convert);
+enum vdin_buf_fmt_e vdin_get_buf_fmt(enum tvin_color_fmt_e);
 bool vdin_is_4k(struct vdin_dev_s *devp);
-
-bool is_dolby_vision_enable(void);
-bool is_dolby_vision_on(void);
-bool is_dolby_vision_stb_mode(void);
-bool for_dolby_vision_certification(void);
-void vdin_set_bist_md(unsigned int id);
-void vdin_change_matrix0(u32 offset, u32 matrix_csc);
-void vdin_change_matrix1(u32 offset, u32 matrix_csc);
-void vdin_change_matrixhdr(u32 offset, u32 matrix_csc);
-
+void vdin_set_matrix_color(unsigned int id, unsigned int onoff);
+void vdin_set_bist_pattern(struct vdin_dev_s *devp,
+			   unsigned int onoff, unsigned int pat);
+void vdin_dmc_ctrl(struct vdin_dev_s *devp, bool onoff);
 #endif
 

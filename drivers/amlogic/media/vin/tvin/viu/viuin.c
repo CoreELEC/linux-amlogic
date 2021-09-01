@@ -252,10 +252,17 @@ static int viuin_open(struct tvin_frontend_s *fe, enum tvin_port_e port)
 		}
 
 		if (viu_sel == 1) {
+			/* for vdi6 */
 			wr_bits_viu(VPU_VIU_VDIN_IF_MUX_CTRL, 0, 0, 5);
 			wr_bits_viu(VPU_VIU_VDIN_IF_MUX_CTRL, viu_mux, 0, 5);
 			wr_bits_viu(VPU_VIU_VDIN_IF_MUX_CTRL, 0, 8, 5);
 			wr_bits_viu(VPU_VIU_VDIN_IF_MUX_CTRL, viu_mux, 8, 5);
+
+			/* for vdi8 */
+			wr_bits_viu(VPU_VIU_VDIN_IF_MUX_CTRL, 0, 16, 5);
+			wr_bits_viu(VPU_VIU_VDIN_IF_MUX_CTRL, viu_mux, 16, 5);
+			wr_bits_viu(VPU_VIU_VDIN_IF_MUX_CTRL, 0, 24, 5);
+			wr_bits_viu(VPU_VIU_VDIN_IF_MUX_CTRL, viu_mux, 24, 5);
 		} else if (viu_sel == 2) {
 			wr_bits_viu(VPU_VIU_VDIN_IF_MUX_CTRL, 0, 16, 5);
 			wr_bits_viu(VPU_VIU_VDIN_IF_MUX_CTRL, viu_mux, 16, 5);
@@ -332,9 +339,7 @@ static void viuin_close(struct tvin_frontend_s *fe)
 	if (open_cnt)
 		open_cnt--;
 	if (open_cnt == 0) {
-		if (is_meson_g12a_cpu() || is_meson_g12b_cpu() ||
-			is_meson_tl1_cpu() || is_meson_sm1_cpu() ||
-			is_meson_tm2_cpu()) {
+		if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12A)) {
 			wr_viu(VPU_VIU_VDIN_IF_MUX_CTRL, 0);
 			wr_viu(VPP_WRBAK_CTRL, 0);
 
@@ -408,7 +413,9 @@ static void viuin_sig_property(struct tvin_frontend_s *fe,
 {
 	static const struct vinfo_s *vinfo;
 	struct viuin_s *devp = container_of(fe, struct viuin_s, frontend);
+#ifdef CONFIG_AMLOGIC_VOUT2_SERVE
 	unsigned int line_begin, line_end;
+#endif
 
 	switch (devp->parm.port) {
 	case TVIN_PORT_VIU1_VIDEO:
@@ -426,6 +433,7 @@ static void viuin_sig_property(struct tvin_frontend_s *fe,
 	/* ENCL/ENCI/ENCP is only for viu2 loopback currently
 	 * though hw also support viu1 loopback through ENC
 	 */
+#ifdef CONFIG_AMLOGIC_VOUT2_SERVE
 	case TVIN_PORT_VIU2_ENCL:
 		vinfo = get_current_vinfo2();
 		line_begin = rd_viu(ENCL_VIDEO_VSO_BLINE);
@@ -461,6 +469,7 @@ static void viuin_sig_property(struct tvin_frontend_s *fe,
 
 		prop->color_format = vinfo->viu_color_fmt;
 		break;
+#endif
 	default:
 		prop->color_format = devp->parm.cfmt;
 		break;
