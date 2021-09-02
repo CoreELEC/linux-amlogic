@@ -43,10 +43,10 @@ static unsigned int fw_ld_whist[16] = {
 
 static struct fw_ctrl_config_s ldim_fw_ctrl = {
 	.fw_LD_ThSF_l = 1600,
-	.fw_LD_ThTF_l = 256,
+	.fw_LD_ThTF_l = 128, /*same video sence alpha*/
 	.fw_ld_thist = 0, /* 0 for default ((vnum * hnum * 5) >> 2) */
-	.boost_gain = 456, /*norm 256 to 1,T960 finally use*/
-	.TF_alpha = 256, /*256;*/
+	.boost_gain = 326,//456, /*norm 256 to 1,T960 finally use*/
+	.TF_alpha = 32, /*sc alpha*/
 	.lpf_gain = 128,  /* [0~128~256], norm 128 as 1*/
 	.boost_gain_neg = 3,
 	.alpha_delta = 255,/* to fix flicker */
@@ -66,7 +66,7 @@ static struct fw_ctrl_config_s ldim_fw_ctrl = {
 	.LPF_method = 3,
 	.LD_TF_STEP_TH = 100,
 	.TF_step_method = 3,
-	.TF_FRESH_BL = 8,
+	.TF_FRESH_BL = 8,  //tf_step
 
 	.TF_BLK_FRESH_BL = 5,
 	.side_blk_diff_th = 100,
@@ -93,6 +93,9 @@ static struct fw_ctrl_config_s ldim_fw_ctrl = {
 	.fw_ld_blest_acmode = 1,
 	.min_bl_alpha = 64,
 	.glb_blend_alpha = 128,
+
+	.sc_method = 3,
+	.sc_step = 100,
 };
 
 static struct ldim_fw_para_s ldim_fw_para = {

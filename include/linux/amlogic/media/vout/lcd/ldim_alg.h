@@ -333,6 +333,9 @@ struct fw_ctrl_config_s {
 	unsigned int fw_ld_blest_acmode;
 	unsigned int min_bl_alpha;
 	unsigned int glb_blend_alpha;
+
+	unsigned int sc_method;
+	unsigned int sc_step;
 };
 
 struct ldim_fw_para_s {

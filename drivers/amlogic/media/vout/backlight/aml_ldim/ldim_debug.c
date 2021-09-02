@@ -2141,6 +2141,26 @@ static ssize_t ldim_attr_store(struct class *cla,
 				goto ldim_attr_store_err;
 		}
 		pr_info("TF_alpha = %d\n", fw_ctrl->TF_alpha);
+	} else if (!strcmp(parm[0], "sc_method")) {
+		if (parm[1]) {
+			if (!strcmp(parm[1], "r")) {
+				pr_info("for_tool:%d\n", fw_ctrl->sc_method);
+				goto ldim_attr_store_end;
+			}
+			if (kstrtouint(parm[1], 10, &fw_ctrl->sc_method) < 0)
+				goto ldim_attr_store_err;
+		}
+		pr_info("sc_method = %d\n", fw_ctrl->sc_method);
+	} else if (!strcmp(parm[0], "sc_step")) {
+		if (parm[1]) {
+			if (!strcmp(parm[1], "r")) {
+				pr_info("for_tool:%d\n", fw_ctrl->sc_step);
+				goto ldim_attr_store_end;
+			}
+			if (kstrtouint(parm[1], 10, &fw_ctrl->sc_step) < 0)
+				goto ldim_attr_store_err;
+		}
+		pr_info("sc_step = %d\n", fw_ctrl->sc_step);
 	} else if (!strcmp(parm[0], "lpf_gain")) {
 		if (parm[1]) {
 			if (!strcmp(parm[1], "r")) {
