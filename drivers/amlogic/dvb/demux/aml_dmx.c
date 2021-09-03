@@ -1310,7 +1310,8 @@ static int _dmx_set_input(struct dmx_demux *demux, int source)
 	pr_dbg("%s local:%d, input:%d\n", __func__, pdmx->source, source);
 //      if (pdmx->source == source)
 //              return 0;
-
+	if (mutex_lock_interruptible(pdmx->pmutex))
+		return -ERESTARTSYS;
 	if (source == INPUT_LOCAL || source == INPUT_LOCAL_SEC) {
 		pr_dbg("%s local:%d\n", __func__, source);
 		if (!pdmx->sc2_input) {
@@ -1319,6 +1320,7 @@ static int _dmx_set_input(struct dmx_demux *demux, int source)
 			pdmx->sc2_input = ts_input_open(pdmx->id, sec_level);
 			if (!pdmx->sc2_input) {
 				dprint("ts_input_open fail\n");
+				mutex_unlock(pdmx->pmutex);
 				return -ENODEV;
 			}
 		} else {
@@ -1332,6 +1334,7 @@ static int _dmx_set_input(struct dmx_demux *demux, int source)
 					ts_input_open(pdmx->id, sec_level);
 				if (!pdmx->sc2_input) {
 					dprint("ts_input_open fail\n");
+					mutex_unlock(pdmx->pmutex);
 					return -ENODEV;
 				}
 			}
@@ -1345,6 +1348,7 @@ static int _dmx_set_input(struct dmx_demux *demux, int source)
 	}
 	pdmx->source = source;
 	dsc_set_source(pdmx->id, source);
+	mutex_unlock(pdmx->pmutex);
 	return 0;
 }
 
