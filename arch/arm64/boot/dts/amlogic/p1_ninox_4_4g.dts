@@ -2014,7 +2014,6 @@
 	tdm_d2_pins: tdm_d2_pin {
 		mux {
 			groups = "tdm_d2";
-
 			function = "tdminb_lane0";
 			function = "tdmoutb_lane0";
 		};
