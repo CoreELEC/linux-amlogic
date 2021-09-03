@@ -753,51 +753,10 @@ static void hdmi_physical_size_update(struct hdmitx_dev *hdev)
 
 static void hdrinfo_to_vinfo(struct vinfo_s *info, struct hdmitx_dev *hdev)
 {
-	unsigned int i, j;
-	/*static hdr*/
-	info->hdr_info.hdr_support = (hdev->rxcap.hdr_sup_eotf_sdr << 0)
-			| (hdev->rxcap.hdr_sup_eotf_hdr << 1)
-			| (hdev->rxcap.hdr_sup_eotf_smpte_st_2084 << 2)
-			| (hdev->rxcap.hdr_sup_eotf_hlg << 3);
-	memcpy(info->hdr_info.rawdata, hdev->rxcap.hdr_rawdata, 7);
-	/*dynamic hdr*/
-	for (i = 0; i < 4; i++) {
-		if (hdev->rxcap.hdr_dynamic_info[i].type == 0) {
-			memset(&info->hdr_info.dynamic_info[i],
-			       0, sizeof(struct hdr_dynamic));
-			continue;
-		}
-		info->hdr_info.dynamic_info[i].type =
-			hdev->rxcap.hdr_dynamic_info[i].type;
-		info->hdr_info.dynamic_info[i].of_len =
-			hdev->rxcap.hdr_dynamic_info[i].hd_len - 3;
-		info->hdr_info.dynamic_info[i].support_flags =
-			hdev->rxcap.hdr_dynamic_info[i].support_flags;
-
-		for (j = 0; j < hdev->rxcap.hdr_dynamic_info[i].hd_len - 3; j++)
-			info->hdr_info.dynamic_info[i].optional_fields[j] =
-			hdev->rxcap.hdr_dynamic_info[i].optional_fields[j];
-	}
-	/*hdr 10+*/
-	memcpy(&info->hdr_info.hdr10plus_info,
-	       &hdev->rxcap.hdr10plus_info, sizeof(struct hdr10_plus_info));
-
-	info->hdr_info.colorimetry_support =
-		hdev->rxcap.colorimetry_data;
-	info->hdr_info.lumi_max = hdev->rxcap.hdr_lum_max;
-	info->hdr_info.lumi_avg = hdev->rxcap.hdr_lum_avg;
-	info->hdr_info.lumi_min = hdev->rxcap.hdr_lum_min;
+	memcpy(&info->hdr_info, &hdev->rxcap.hdr_info, sizeof(struct hdr_info));
+	info->hdr_info.colorimetry_support = hdev->rxcap.colorimetry_data;
 	pr_info(SYS "update rx hdr info %x\n",
 		info->hdr_info.hdr_support);
-}
-
-static void cuvainfo_to_vinfo(struct vinfo_s *info, struct hdmitx_dev *hdev)
-{
-	memcpy(&info->cuva_info, &hdev->rxcap.cuva_info,
-				sizeof(struct cuva_info));
-
-	//info->cuva_info = hdev->rxcap.cuva_info;
-
 }
 
 static void rxlatency_to_vinfo(struct vinfo_s *info, struct rx_cap *rx)
@@ -825,7 +784,8 @@ static void edidinfo_attach_to_vinfo(struct hdmitx_dev *hdev)
 		return;
 
 	hdrinfo_to_vinfo(info, hdev);
-	cuvainfo_to_vinfo(info, hdev);
+	if (hdev->para->cd == COLORDEPTH_24B)
+		memset(&info->hdr_info, 0, sizeof(struct hdr_info));
 	rxlatency_to_vinfo(info, &hdev->rxcap);
 	hdmitx_vdev.dv_info = &hdmitx_device.rxcap.dv_info;
 }
@@ -1647,6 +1607,7 @@ struct master_display_info_s drm_config_data;
 static void hdmitx_set_drm_pkt(struct master_display_info_s *data)
 {
 	struct hdmitx_dev *hdev = &hdmitx_device;
+	struct hdr_info *hdr_info = &hdev->rxcap.hdr_info;
 	unsigned char DRM_HB[3] = {0x87, 0x1, 26};
 	static unsigned char DRM_DB[26] = {0x0};
 	unsigned long flags = 0;
@@ -1696,17 +1657,14 @@ static void hdmitx_set_drm_pkt(struct master_display_info_s *data)
 
 	/* hdr10+ content on a hdr10 sink case */
 	if (hdev->hdr_transfer_feature == 0x30) {
-		if ((hdev->rxcap.hdr10plus_info.ieeeoui != 0x90848B) ||
-		    (hdev->rxcap.hdr10plus_info.application_version != 1)) {
+		if ((hdr_info->hdr10plus_info.ieeeoui != 0x90848B) ||
+		    (hdr_info->hdr10plus_info.application_version != 1)) {
 			hdev->hdr_transfer_feature = T_SMPTE_ST_2084;
 			pr_info("hdmitx_set_drm_pkt: HDR10+ not supported, treat as hdr10\n");
 		}
 	}
 
-	if ((!data) || (!(hdev->rxcap.hdr_sup_eotf_smpte_st_2084) &&
-			!(hdev->rxcap.hdr_sup_eotf_hdr) &&
-			!(hdev->rxcap.hdr_sup_eotf_sdr) &&
-			!(hdev->rxcap.hdr_sup_eotf_hlg))) {
+	if ((!data) || !hdev->rxcap.hdr_info2.hdr_support) {
 		DRM_HB[1] = 0;
 		DRM_HB[2] = 0;
 		DRM_DB[0] = 0;
@@ -1786,7 +1744,7 @@ static void hdmitx_set_drm_pkt(struct master_display_info_s *data)
 	hdev->hdmi_current_hdr_mode = 0;
 
 	/* SMPTE ST 2084 and (BT2020 or NON_STANDARD) */
-	if (hdev->rxcap.hdr_sup_eotf_smpte_st_2084) {
+	if (hdev->rxcap.hdr_info2.hdr_support & 0x4) {
 		if (hdev->hdr_transfer_feature == T_SMPTE_ST_2084 &&
 		    hdev->hdr_color_feature == C_BT2020)
 			hdev->hdmi_current_hdr_mode = 1;
@@ -1796,7 +1754,7 @@ static void hdmitx_set_drm_pkt(struct master_display_info_s *data)
 	}
 
 	/*HLG and BT2020*/
-	if (hdev->rxcap.hdr_sup_eotf_hlg) {
+	if (hdev->rxcap.hdr_info2.hdr_support & 0x8) {
 		if (hdev->hdr_color_feature == C_BT2020 &&
 		    (hdev->hdr_transfer_feature == T_BT2020_10 ||
 		     hdev->hdr_transfer_feature == T_HLG))
@@ -3089,54 +3047,55 @@ static ssize_t show_hdr_cap(struct device *dev,
 {
 	int pos = 0;
 	unsigned int i, j;
-	struct rx_cap *prxcap = &hdmitx_device.rxcap;
+	const struct hdr_info *hdr = &hdmitx_device.rxcap.hdr_info;
+	const struct hdr10_plus_info *hdr10p = &hdr->hdr10plus_info;
 	int hdr10plugsupported = 0;
 
-	if ((prxcap->hdr10plus_info.ieeeoui == HDR10_PLUS_IEEE_OUI) &&
-	    (prxcap->hdr10plus_info.application_version != 0xFF))
+	if ((hdr10p->ieeeoui == HDR10_PLUS_IEEE_OUI) &&
+	    (hdr10p->application_version != 0xFF))
 		hdr10plugsupported = 1;
 	pos += snprintf(buf + pos, PAGE_SIZE, "HDR10Plus Supported: %d\n",
 		hdr10plugsupported);
 	pos += snprintf(buf + pos, PAGE_SIZE, "HDR Static Metadata:\n");
 	pos += snprintf(buf + pos, PAGE_SIZE, "    Supported EOTF:\n");
 	pos += snprintf(buf + pos, PAGE_SIZE, "        Traditional SDR: %d\n",
-		prxcap->hdr_sup_eotf_sdr);
+		!!(hdr->hdr_support & 0x1));
 	pos += snprintf(buf + pos, PAGE_SIZE, "        Traditional HDR: %d\n",
-		prxcap->hdr_sup_eotf_hdr);
+		!!(hdr->hdr_support & 0x2));
 	pos += snprintf(buf + pos, PAGE_SIZE, "        SMPTE ST 2084: %d\n",
-		prxcap->hdr_sup_eotf_smpte_st_2084);
+		!!(hdr->hdr_support & 0x4));
 	pos += snprintf(buf + pos, PAGE_SIZE, "        Hybrif Log-Gamma: %d\n",
-		prxcap->hdr_sup_eotf_hlg);
+		!!(hdr->hdr_support & 0x8));
 	pos += snprintf(buf + pos, PAGE_SIZE, "    Supported SMD type1: %d\n",
-		prxcap->hdr_sup_SMD_type1);
+		hdr->static_metadata_type1);
 	pos += snprintf(buf + pos, PAGE_SIZE, "    Luminance Data\n");
 	pos += snprintf(buf + pos, PAGE_SIZE, "        Max: %d\n",
-		prxcap->hdr_lum_max);
+		hdr->lumi_max);
 	pos += snprintf(buf + pos, PAGE_SIZE, "        Avg: %d\n",
-		prxcap->hdr_lum_avg);
+		hdr->lumi_avg);
 	pos += snprintf(buf + pos, PAGE_SIZE, "        Min: %d\n\n",
-		prxcap->hdr_lum_min);
+		hdr->lumi_min);
 	pos += snprintf(buf + pos, PAGE_SIZE, "HDR Dynamic Metadata:");
 
 	for (i = 0; i < 4; i++) {
-		if (prxcap->hdr_dynamic_info[i].type == 0)
+		if (hdr->dynamic_info[i].type == 0)
 			continue;
 		pos += snprintf(buf + pos, PAGE_SIZE,
 			"\n    metadata_version: %x\n",
-			prxcap->hdr_dynamic_info[i].type);
+			hdr->dynamic_info[i].type);
 		pos += snprintf(buf + pos, PAGE_SIZE,
 			"        support_flags: %x\n",
-			prxcap->hdr_dynamic_info[i].support_flags);
+			hdr->dynamic_info[i].support_flags);
 		pos += snprintf(buf + pos, PAGE_SIZE,
 			"        optional_fields:");
 		for (j = 0; j <
-			(prxcap->hdr_dynamic_info[i].hd_len - 3); j++)
+			(hdr->dynamic_info[i].of_len - 3); j++)
 			pos += snprintf(buf + pos, PAGE_SIZE, " %x",
-				prxcap->hdr_dynamic_info[i].optional_fields[j]);
+				hdr->dynamic_info[i].optional_fields[j]);
 	}
 
 	pos += snprintf(buf + pos, PAGE_SIZE, "\n\ncolorimetry_data: %x\n",
-		prxcap->colorimetry_data);
+		hdr->colorimetry_support);
 
 	return pos;
 }
