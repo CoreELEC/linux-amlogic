@@ -263,7 +263,7 @@ extern int get_primaries_type(struct vframe_master_display_colour_s *p_mdc);
 #define PROC_HDRP_TO_HLG	3
 #define PROC_HDRP_TO_CUVA	4
 
-/* hdr+ */
+/* cuva */
 #define PROC_CUVA_TO_SDR	1
 #define PROC_CUVA_TO_HDR	2
 #define PROC_CUVA_TO_HLG	3
@@ -283,7 +283,8 @@ extern void send_cuva_pkt(enum vd_path_e vd_path);
 extern uint get_cuva_pkt_delay(void);
 extern void update_cuva_pkt(bool enable,
 	void *cuva_params,
-	void *edms_params);
+	void *edms_params,
+	void *send_info);
 
 #define CUVA_PKT_UPDATE	2
 #define CUVA_PKT_REPEAT	1

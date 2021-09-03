@@ -2234,7 +2234,6 @@ enum hdr_process_sel hdr_func(
 
 	memset(&hdr_mtx_param, 0, sizeof(struct hdr_proc_mtx_param_s));
 	memset(&hdr_lut_param, 0, sizeof(struct hdr_proc_lut_param_s));
-
 	if ((module_sel == OSD1_HDR) &&
 	    (cpu_after_eq(MESON_CPU_MAJOR_ID_G12A))) {
 		/* turn off OSD mtx and use HDR for g12, sm1, tl1 */

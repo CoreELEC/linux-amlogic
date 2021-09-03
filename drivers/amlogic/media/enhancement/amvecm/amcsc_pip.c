@@ -1298,7 +1298,6 @@ void hdmi_packet_process(
 		pr_info("vdev->fresh_tx_hdr_pkt is null, return\n");
 		/* continue */
 	}
-
 	if ((target_format[vd_path] == cur_output_format) &&
 	    (cur_output_format != BT2020_PQ_DYNAMIC) &&
 	    !(signal_change_flag & SIG_FORCE_CHG) &&
@@ -1326,10 +1325,11 @@ void hdmi_packet_process(
 		if (get_cuva_pkt_delay()) {
 			update_cuva_pkt(false,
 				(void *)NULL,
+				(void *)NULL,
 				(void *)NULL);
 		} else if (vdev->fresh_tx_cuva_hdr_vsif &&
 			vdev->fresh_tx_cuva_hdr_vs_emds) {
-			if (vinfo->cuva_info.monitor_mode_sup == 1) {
+			if (vinfo->hdr_info.cuva_info.monitor_mode_sup == 1) {
 				vdev->fresh_tx_cuva_hdr_vsif(
 					NULL);
 			} else {
@@ -1340,21 +1340,6 @@ void hdmi_packet_process(
 		pr_csc(4, "am_vecm: vd%d hdmi clean cuva pkt\n",
 			vd_path + 1);
 	}
-
-#if 0
-	/* clean cuva packet when switch to others */
-	if ((target_format[vd_path] != BT2020YUV_BT2020RGB_CUVA)
-		&& (cur_output_format == BT2020YUV_BT2020RGB_CUVA)) {
-		if (vdev->fresh_tx_cuva_hdr_vsif)
-			vdev->fresh_tx_cuva_hdr_vsif(
-				NULL);
-		if (vdev->fresh_tx_cuva_hdr_vs_emds)
-			vdev->fresh_tx_cuva_hdr_vs_emds(
-				NULL);
-		pr_csc(4, "am_vecm: vd%d hdmi clean cuva pkt\n",
-			vd_path + 1);
-	}
-#endif
 
 	if (output_format != target_format[vd_path]) {
 		pr_csc(4,
@@ -1434,6 +1419,16 @@ void hdmi_packet_process(
 		vd_signal.signal_type = SIGNAL_HDR10PLUS;
 		break;
 	case BT2020YUV_BT2020RGB_CUVA:
+			/* same as hdr10 */
+			send_info.features =
+			(0 << 30) /*sdr output 709*/
+			| (1 << 29)	/*video available*/
+			| (5 << 26)	/* unspecified */
+			| (0 << 25)	/* limit */
+			| (1 << 24)	/*color available*/
+			| (9 << 16)
+			| (16 << 8)
+			| (10 << 0);	/* bt2020c */
 		vd_signal.signal_type = SIGNAL_CUVA;
 		break;
 	case UNKNOWN_FMT:
@@ -1464,7 +1459,6 @@ void hdmi_packet_process(
 		notify_vd_signal_to_amvideo(&vd_signal);
 		return;
 	}
-
 	/* cuva */
 	if ((output_format == BT2020YUV_BT2020RGB_CUVA) &&
 		hdmitx_vsif_param &&
@@ -1472,9 +1466,12 @@ void hdmi_packet_process(
 		if (get_cuva_pkt_delay()) {
 			update_cuva_pkt(true,
 				(void *)hdmitx_vsif_param,
-				(void *)hdmitx_edms_param);
+				(void *)hdmitx_edms_param,
+				(void *)&send_info);
 		} else {
-			if (vinfo->cuva_info.monitor_mode_sup == 1) {
+			if (vdev->fresh_tx_hdr_pkt)
+				vdev->fresh_tx_hdr_pkt(&send_info);
+			if (vinfo->hdr_info.cuva_info.monitor_mode_sup == 1) {
 				if (vdev->fresh_tx_cuva_hdr_vsif)
 					vdev->fresh_tx_cuva_hdr_vsif(
 						hdmitx_vsif_param);

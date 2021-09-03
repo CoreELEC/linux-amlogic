@@ -4001,7 +4001,7 @@ uint32_t sink_hdr_support(const struct vinfo_s *vinfo)
 		== 1))
 			hdr_cap |= HDRP_SUPPORT;
 
-		if (vinfo->cuva_info.ieeeoui
+		if (vinfo->hdr_info.cuva_info.ieeeoui
 			== CUVA_IEEEOUI)
 		hdr_cap |= CUVA_SUPPORT;
 		if (vinfo->hdr_info.colorimetry_support & 0xe0)
@@ -4010,6 +4010,8 @@ uint32_t sink_hdr_support(const struct vinfo_s *vinfo)
 		if (dv_cap)
 			hdr_cap |= (dv_cap << DV_SUPPORT_SHF) & DV_SUPPORT;
 	}
+	if (debug_csc == 0x80)
+		pr_info("%s: hdr_cap = 0x%x\n", __func__, hdr_cap);
 	return hdr_cap;
 }
 EXPORT_SYMBOL(sink_hdr_support);
@@ -7037,6 +7039,7 @@ static struct cuva_hdr_vs_emds_para hdmitx_edms_params[VD_PATH_MAX];
 static struct cuva_hdr_vsif_para cur_cuva_params;
 static struct cuva_hdr_vs_emds_para cur_edms_params;
 static uint cuva_pkt_delay = 1; // should set 1, 0 is ok
+module_param(cuva_pkt_delay, uint, 0664);
 
 uint get_cuva_pkt_delay(void)
 {
@@ -7095,11 +7098,9 @@ EXPORT_SYMBOL(update_hdr10_plus_pkt);
 
 void update_cuva_pkt(bool enable,
 	void *cuva_params,
-	void *edms_params)
+	void *edms_params,
+	void *send_info)
 {
-	//static struct cuva_hdr_vsif_para cur_cuva_params;
-	//static struct cuva_hdr_vs_emds_para cur_edms_params;
-
 	struct vinfo_s *vinfo = get_current_vinfo();
 	struct vout_device_s *vdev = NULL;
 	bool follow_sink;
@@ -7120,6 +7121,8 @@ void update_cuva_pkt(bool enable,
 			sizeof(struct cuva_hdr_vsif_para));
 		memcpy((void *)&cur_edms_params, edms_params,
 			sizeof(struct cuva_hdr_vs_emds_para));
+		memcpy((void *)&cur_send_info, send_info,
+					sizeof(struct master_display_info_s));
 		cuva_pkt_update = CUVA_PKT_UPDATE;
 		pr_csc(2, "update_cuva_pkt on\n");
 	} else {
@@ -7135,7 +7138,7 @@ void update_cuva_pkt(bool enable,
 		    (sink_hdr_support(vinfo) & CUVA_SUPPORT) &&
 		    (!sink_support_dolby_vision(vinfo))) {
 			pr_csc(2, "update_cuva_pkt: DISABLE_VSIF\n");
-			if (vinfo->cuva_info.monitor_mode_sup == 1) {
+			if (vinfo->hdr_info.cuva_info.monitor_mode_sup == 1) {
 				vdev->fresh_tx_cuva_hdr_vsif(
 					NULL);
 			} else {
@@ -7144,6 +7147,7 @@ void update_cuva_pkt(bool enable,
 			}
 		} else {
 			pr_csc(2, "update_hdr10_plus_pkt: ZERO_VSIF\n");
+			vdev->fresh_tx_hdr_pkt(send_info);
 			vdev->fresh_tx_cuva_hdr_vsif(
 				NULL);
 			vdev->fresh_tx_cuva_hdr_vs_emds(
@@ -7181,7 +7185,9 @@ void send_hdr10_plus_pkt(enum vd_path_e vd_path)
 			hdr10_plus_pkt_update = HDRPLUS_PKT_REPEAT;
 		else
 			hdr10_plus_pkt_update = HDRPLUS_PKT_IDLE;
-		pr_csc(2, "send_hdr10_plus_pkt update\n");
+		pr_csc(2, "%s update hdr10_plus_pkt_update = %d\n",
+			__func__,
+			hdr10_plus_pkt_update);
 	} else if ((hdr10_plus_pkt_update == HDRPLUS_PKT_REPEAT) &&
 		(get_hdr10_plus_pkt_delay() > 1)) {
 		if (!vdev)
@@ -7191,7 +7197,9 @@ void send_hdr10_plus_pkt(enum vd_path_e vd_path)
 		vdev->fresh_tx_hdr10plus_pkt(
 			hdr10_plus_pkt_on,
 			&cur_hdr10plus_params);
-		pr_csc(2, "send_hdr10_plus_pkt repeat\n");
+		pr_csc(2, "%s repeat hdr10_plus_pkt_update = %d\n",
+			__func__,
+			hdr10_plus_pkt_update);
 	}
 }
 EXPORT_SYMBOL(send_hdr10_plus_pkt);
@@ -7207,13 +7215,17 @@ void send_cuva_pkt(enum vd_path_e vd_path)
 			return;
 		if (!vdev->fresh_tx_hdr_pkt)
 			return;
-		if (!vdev->fresh_tx_hdr10plus_pkt)
+		if (!vdev->fresh_tx_cuva_hdr_vsif)
+			return;
+		if (!vdev->fresh_tx_cuva_hdr_vs_emds)
 			return;
 	}
 	if (cuva_pkt_update == CUVA_PKT_UPDATE) {
 		if (!vdev)
 			return;
-		if (vinfo->cuva_info.monitor_mode_sup == 1) {
+		vdev->fresh_tx_hdr_pkt(
+			&cur_send_info);
+		if (vinfo->hdr_info.cuva_info.monitor_mode_sup == 1) {
 			vdev->fresh_tx_cuva_hdr_vsif(
 				&cur_cuva_params);
 		} else {
@@ -7224,19 +7236,23 @@ void send_cuva_pkt(enum vd_path_e vd_path)
 			cuva_pkt_update = CUVA_PKT_REPEAT;
 		else
 			cuva_pkt_update = CUVA_PKT_IDLE;
-		pr_csc(2, "send_cuva_pkt update\n");
+		pr_csc(2, "%s update cuva_pkt_update = %d\n",
+			__func__,
+			cuva_pkt_update);
 	} else if ((cuva_pkt_update == CUVA_PKT_REPEAT) &&
 		(get_cuva_pkt_delay() > 1)) {
 		if (!vdev)
 			return;
-		if (vinfo->cuva_info.monitor_mode_sup == 1) {
+		if (vinfo->hdr_info.cuva_info.monitor_mode_sup == 1) {
 			vdev->fresh_tx_cuva_hdr_vsif(
 				&cur_cuva_params);
 		} else {
 			vdev->fresh_tx_cuva_hdr_vs_emds(
 				&cur_edms_params);
 		}
-		pr_csc(2, "send_cuva_pkt repeat\n");
+		pr_csc(2, "%s repeat cuva_pkt_update = %d\n",
+			__func__,
+			cuva_pkt_update);
 	}
 }
 EXPORT_SYMBOL(send_cuva_pkt);
@@ -7319,7 +7335,7 @@ static void hdr_tx_pkt_cb(
 			if (cur_csc_type[vd_path] ==
 				VPP_MATRIX_BT2020YUV_BT2020RGB_CUVA) {
 				if (vdev) {
-					if (vinfo->cuva_info.monitor_mode_sup
+					if (vinfo->hdr_info.cuva_info.monitor_mode_sup
 						== 1) {
 					if (vdev->fresh_tx_cuva_hdr_vsif)
 						vdev->fresh_tx_cuva_hdr_vsif
@@ -7499,10 +7515,11 @@ static void hdr_tx_pkt_cb(
 				if (get_cuva_pkt_delay()) {
 					update_cuva_pkt(true,
 						hdmitx_vsif_param,
-						hdmitx_edms_param);
+						hdmitx_edms_param,
+						&send_info);
 				} else {
 					/* send cuva packet */
-					if (vinfo->cuva_info.monitor_mode_sup
+					if (vinfo->hdr_info.cuva_info.monitor_mode_sup
 						== 1) {
 					if (vdev->fresh_tx_cuva_hdr_vsif)
 						vdev->fresh_tx_cuva_hdr_vsif

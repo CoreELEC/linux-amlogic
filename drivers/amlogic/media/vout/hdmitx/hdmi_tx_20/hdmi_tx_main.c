@@ -2129,7 +2129,7 @@ static void hdmitx_set_cuva_hdr_vs_emds(struct cuva_hdr_vs_emds_para *data)
 	unsigned long phys_ptr;
 
 	memset(vs_emds, 0, sizeof(vs_emds));
-	//hdmi_debug();
+	hdmi_debug();
 
 	spin_lock_irqsave(&hdev->edid_spinlock, flags);
 	if (!data) {
@@ -6022,6 +6022,12 @@ static int hdmi_task_handle(void *data)
 	struct vinfo_s *info = NULL;
 	struct hdmitx_dev *hdmitx_device = (struct hdmitx_dev *)data;
 
+	if (hdmitx_device->hpd_state) {
+		/* need to get edid before vout probe */
+		hdmitx_get_edid(hdmitx_device);
+		edidinfo_attach_to_vinfo(hdmitx_device);
+	}
+
 	hdmitx_extcon_hdmi->state = hdmitx_device->hpd_state;
 	hdmitx_notify_hpd(hdmitx_device->hpd_state, NULL);
 
@@ -6758,11 +6764,6 @@ static int amhdmitx_probe(struct platform_device *pdev)
 	hdmitx_edid_ram_buffer_clear(&hdmitx_device);
 	hdmitx_device.hpd_state = !!(hdmitx_device.hwop.cntlmisc(
 		&hdmitx_device, MISC_HPD_GPI_ST, 0));
-	if (hdmitx_device.hpd_state) {
-		hdmitx_device.already_used = 1;
-		/* need to get edid before vout probe */
-		hdmitx_get_edid(&hdmitx_device);
-	}
 
 	vout_register_server(&hdmitx_vout_server);
 #ifdef CONFIG_AMLOGIC_VOUT2_SERVE
