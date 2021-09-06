@@ -20,14 +20,6 @@
 
 /* This module is atv demod interacts with other modules */
 
-typedef int (*hook_func_t) (void);
-typedef int (*hook_func1_t)(bool);
-
-extern hook_func_t aml_fe_hook_atv_status;
-extern hook_func_t aml_fe_hook_hv_lock;
-extern hook_func_t aml_fe_hook_get_fmt;
-extern hook_func1_t aml_fe_hook_set_mode;
-
 extern bool aml_fe_has_hook_up(void);
 extern bool aml_fe_hook_call_get_fmt(int *fmt);
 extern bool aml_fe_hook_call_set_mode(bool mode);

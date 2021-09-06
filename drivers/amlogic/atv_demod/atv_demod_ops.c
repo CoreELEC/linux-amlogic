@@ -26,10 +26,6 @@
 #include <tuner-i2c.h>
 #include <dvb_frontend.h>
 
-#ifdef CONFIG_AMLOGIC_MEDIA_TVIN_AFE
-#include "drivers/amlogic/media/vin/tvin/tvafe/tvafe_general.h"
-#endif
-
 #include "atvdemod_func.h"
 #include "atvauddemod_func.h"
 #include "atv_demod_debug.h"
@@ -130,6 +126,7 @@ void aml_fe_get_atvaudio_state(int *state)
 #endif
 	pr_audio("%s: %d, power = %d\n", __func__, *state, power);
 }
+EXPORT_SYMBOL_GPL(aml_fe_get_atvaudio_state);
 
 int aml_atvdemod_get_btsc_sap_mode(void)
 {
@@ -168,8 +165,8 @@ int atv_demod_enter_mode(struct dvb_frontend *fe)
 		}
 	}
 
-#if defined(CONFIG_AMLOGIC_MEDIA_ADC) && defined(CONFIG_AMLOGIC_MEDIA_TVIN_AFE)
-	err_code = adc_set_pll_cntl(1, ADC_EN_ATV_DEMOD, NULL);
+#ifdef CONFIG_AMLOGIC_MEDIA_ADC
+	err_code = adc_set_pll_cntl(1, ADC_ATV_DEMOD, NULL);
 	if (err_code) {
 		pr_dbg("%s: adc set pll error %d.\n", __func__, err_code);
 
@@ -182,6 +179,8 @@ int atv_demod_enter_mode(struct dvb_frontend *fe)
 
 		return -1;
 	}
+
+	adc_set_filter_ctrl(true, FILTER_ATV_DEMOD, NULL);
 #else
 	if (!IS_ERR_OR_NULL(amlatvdemod_devp->agc_pin)) {
 		devm_pinctrl_put(amlatvdemod_devp->agc_pin);
@@ -205,20 +204,23 @@ int atv_demod_enter_mode(struct dvb_frontend *fe)
 
 	atvdemod_power_switch(false);
 
-#if defined(CONFIG_AMLOGIC_MEDIA_ADC) && defined(CONFIG_AMLOGIC_MEDIA_TVIN_AFE)
-	adc_set_pll_cntl(0, ADC_EN_ATV_DEMOD, NULL);
+#ifdef CONFIG_AMLOGIC_MEDIA_ADC
+	adc_set_pll_cntl(0, ADC_ATV_DEMOD, NULL);
+	adc_set_filter_ctrl(false, FILTER_ATV_DEMOD, NULL);
 #endif
 
 	pr_dbg("%s: error, vdac is not enabled.\n", __func__);
 
 	return -1;
 #endif
+
+	adc_set_filter_ctrl(true, FILTER_ATV_DEMOD, NULL);
+
 	usleep_range(2000, 2100);
 	atvdemod_clk_init();
 	/* err_code = atvdemod_init(); */
 
-	if (is_meson_txlx_cpu() || is_meson_txhd_cpu() || is_meson_tl1_cpu() ||
-		is_meson_tm2_cpu() || is_meson_t5_cpu()) {
+	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXLX)) {
 		aud_demod_clk_gate(1);
 		/* atvauddemod_init(); */
 	}
@@ -262,11 +264,11 @@ int atv_demod_leave_mode(struct dvb_frontend *fe)
 #ifdef CONFIG_AMLOGIC_VDAC
 	vdac_enable(0, VDAC_MODULE_AVOUT_ATV);
 #endif
-#if defined(CONFIG_AMLOGIC_MEDIA_ADC) && defined(CONFIG_AMLOGIC_MEDIA_TVIN_AFE)
-	adc_set_pll_cntl(0, ADC_EN_ATV_DEMOD, NULL);
+#ifdef CONFIG_AMLOGIC_MEDIA_ADC
+	adc_set_pll_cntl(0, ADC_ATV_DEMOD, NULL);
+	adc_set_filter_ctrl(false, FILTER_ATV_DEMOD, NULL);
 #endif
-	if (is_meson_txlx_cpu() || is_meson_txhd_cpu() || is_meson_tl1_cpu() ||
-		is_meson_tm2_cpu() || is_meson_t5_cpu())
+	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXLX))
 		aud_demod_clk_gate(0);
 
 	amlatvdemod_devp->std = 0;
@@ -770,8 +772,7 @@ static void atvdemod_fe_try_analog_format(struct v4l2_frontend *v4l2_fe,
 
 #if 0 /* no detect when searching */
 	/* for audio standard detection */
-	if (is_meson_txlx_cpu() || is_meson_txhd_cpu() || is_meson_tl1_cpu() ||
-		is_meson_tm2_cpu() || is_meson_t5_cpu()) {
+	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXLX)) {
 		*soundsys = amlfmt_aud_standard(broad_std);
 		*soundsys = (*soundsys << 16) | 0x00FFFF;
 	} else
@@ -822,6 +823,9 @@ static void atvdemod_fe_try_signal(struct v4l2_frontend *v4l2_fe,
 				tuner_id == AM_TUNER_R842) {
 			usleep_range(40 * 1000, 40 * 1000 + 100);
 			fe->ops.tuner_ops.get_status(fe, (u32 *)&tuner_state);
+		} else if (tuner_id == AM_TUNER_ATBM2040 ||
+				tuner_id == AM_TUNER_ATBM253) {
+			usleep_range(50 * 1000, 50 * 1000 + 100);
 		} else {
 			/* AM_TUNER_SI2151 and AM_TUNER_SI2159 */
 			usleep_range(10 * 1000, 10 * 1000 + 100);
@@ -950,6 +954,9 @@ static int atvdemod_fe_afc_closer(struct v4l2_frontend *v4l2_fe, int minafcfreq,
 			else if (tuner_id == AM_TUNER_R840 ||
 					tuner_id == AM_TUNER_R842)
 				usleep_range(40 * 1000, 40 * 1000 + 100);
+			else if (tuner_id == AM_TUNER_ATBM2040 ||
+					tuner_id == AM_TUNER_ATBM253)
+				usleep_range(50 * 1000, 50 * 1000 + 100);
 			else
 				usleep_range(10 * 1000, 10 * 1000 + 100);
 
@@ -1047,6 +1054,9 @@ static int atvdemod_fe_afc_closer(struct v4l2_frontend *v4l2_fe, int minafcfreq,
 			else if (tuner_id == AM_TUNER_R840 ||
 					tuner_id == AM_TUNER_R842)
 				usleep_range(40 * 1000, 40 * 1000 + 100);
+			else if (tuner_id == AM_TUNER_ATBM2040 ||
+					tuner_id == AM_TUNER_ATBM253)
+				usleep_range(50 * 1000, 50 * 1000 + 100);
 			else
 				usleep_range(10 * 1000, 10 * 1000 + 100);
 		}
@@ -1307,15 +1317,21 @@ static enum v4l2_search atvdemod_fe_search(struct v4l2_frontend *v4l2_fe)
 
 	/*from the current freq start, and set the afc_step*/
 	/*if step is 2Mhz,r840 will miss program*/
-	if (slow_mode ||
-		(tuner_id == AM_TUNER_R840 || tuner_id == AM_TUNER_R842) ||
-		(p->afc_range == ATV_AFC_1_0MHZ)) {
+	if (slow_mode || p->afc_range == ATV_AFC_1_0MHZ) {
 		pr_dbg("[%s] slow mode to search the channel\n", __func__);
 		afc_step = ATV_AFC_1_0MHZ;
 	} else if (!slow_mode) {
-		afc_step = p->afc_range/* ATV_AFC_2_0MHZ */;
+		if ((tuner_id == AM_TUNER_R840 || tuner_id == AM_TUNER_R842) &&
+			p->afc_range >= ATV_AFC_2_0MHZ) {
+			pr_dbg("[%s] r842/r840 use slow mode to search the channel\n",
+					__func__);
+			afc_step = ATV_AFC_1_0MHZ;
+		} else {
+			afc_step = p->afc_range;
+		}
 	} else {
-		pr_dbg("[%s] slow mode to search the channel\n", __func__);
+		pr_dbg("[%s] default use slow mode to search the channel\n",
+				__func__);
 		afc_step = ATV_AFC_1_0MHZ;
 	}
 

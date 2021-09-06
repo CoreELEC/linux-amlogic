@@ -82,17 +82,4 @@ extern struct aml_atvdemod_device *amlatvdemod_devp;
 extern int aml_atvdemod_attach_demod(struct aml_atvdemod_device *dev);
 extern int aml_atvdemod_attach_tuner(struct aml_atvdemod_device *dev);
 
-static inline bool is_meson_t5_cpu(void)
-{
-	return false;
-
-#if 0
-	if (get_cpu_type() == MESON_CPU_MAJOR_ID_T5 ||
-		get_cpu_type() == MESON_CPU_MAJOR_ID_T5D)
-		return true;
-	else
-		return false;
-#endif
-}
-
 #endif /* __ATV_DEMOD_DRIVER_H__ */

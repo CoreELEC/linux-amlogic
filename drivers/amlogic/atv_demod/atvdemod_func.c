@@ -99,6 +99,7 @@ unsigned int audio_nicam_delay = 100;
 
 unsigned int audio_atv_ov;
 unsigned int audio_atv_ov_flag;
+unsigned int audio_atv_ov_threshold = 0x10;
 
 enum AUDIO_SCAN_ID {
 	ID_PAL_I = 0,
@@ -356,7 +357,7 @@ void atv_dmd_ring_filter(bool on, int std)
 			0x94d888, 0x5a39fb, 0xd8ebb, 0x5a39fb, 0x226744 }
 	};
 
-	if (!is_meson_tl1_cpu() && !is_meson_tm2_cpu() && !is_meson_t5_cpu())
+	if (!cpu_after_eq(MESON_CPU_MAJOR_ID_TL1))
 		return;
 
 	if (on) {
@@ -1496,7 +1497,6 @@ void retrieve_frequency_offset(int *freq_offset)
 
 	*freq_offset = *freq_offset + if_freq / 1000 - mixer1_reg * 125;
 }
-//EXPORT_SYMBOL(retrieve_frequency_offset);
 
 void retrieve_video_lock(int *lock)
 {
@@ -1693,6 +1693,8 @@ static int atvdemod_get_snr(void)
 void atvdemod_det_snr_serice(void)
 {
 	snr_val = atvdemod_get_snr();
+
+	pr_snr("%s snr_val %d.\n", __func__, snr_val);
 }
 
 int atvdemod_clk_init(void)
@@ -1701,7 +1703,8 @@ int atvdemod_clk_init(void)
 	/* 1.set system clock */
 	/* now set pll in tvafe_general.c */
 
-	if (is_meson_tl1_cpu() || is_meson_tm2_cpu() || is_meson_t5_cpu())
+	/* bit[25-16]: tvafe, bit[9-0]: atv demod. */
+	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1))
 		W_HIU_REG(HHI_ATV_DMD_SYS_CLK_CNTL, 0x1800080);
 	else
 		W_HIU_REG(HHI_ATV_DMD_SYS_CLK_CNTL, 0x80);
@@ -1750,7 +1753,7 @@ int amlfmt_aud_standard(int broad_std)
 
 		/* maybe need wait */
 		reg_value = adec_rd_reg(CARRIER_MAG_REPORT);
-		pr_info("\n%s CARRIER_MAG_REPORT: 0x%x\n",
+		pr_info("%s CARRIER_MAG_REPORT: 0x%x\n",
 				__func__, (reg_value >> 16) & 0xffff);
 		if (((reg_value >> 16) & 0xffff) > audio_a2_threshold) {
 			std = AUDIO_STANDARD_A2_K;
@@ -1802,7 +1805,7 @@ int amlfmt_aud_standard(int broad_std)
 
 		reg_value = adec_rd_reg(NICAM_LEVEL_REPORT);
 		nicam_lock = (reg_value >> 28) & 1;
-		pr_info("\n%s NICAM_LEVEL_REPORT: 0x%x\n",
+		pr_info("%s NICAM_LEVEL_REPORT: 0x%x\n",
 				__func__, reg_value);
 		if (nicam_lock) {
 			std = AUDIO_STANDARD_NICAM_BG;
@@ -1841,7 +1844,7 @@ int amlfmt_aud_standard(int broad_std)
 
 		reg_value = adec_rd_reg(NICAM_LEVEL_REPORT);
 		nicam_lock = (reg_value >> 28) & 1;
-		pr_info("\n%s NICAM_LEVEL_REPORT: 0x%x\n",
+		pr_info("%s NICAM_LEVEL_REPORT: 0x%x\n",
 				__func__, reg_value);
 		if (nicam_lock) {
 			std = AUDIO_STANDARD_NICAM_DK;
@@ -1880,7 +1883,7 @@ int amlfmt_aud_standard(int broad_std)
 
 		reg_value = adec_rd_reg(NICAM_LEVEL_REPORT);
 		nicam_lock = (reg_value >> 28) & 1;
-		pr_info("\n%s NICAM_LEVEL_REPORT: 0x%x\n",
+		pr_info("%s NICAM_LEVEL_REPORT: 0x%x\n",
 				__func__, reg_value);
 		if (nicam_lock) {
 			std = AUDIO_STANDARD_NICAM_I;
@@ -1915,7 +1918,7 @@ int amlfmt_aud_standard(int broad_std)
 
 		reg_value = adec_rd_reg(NICAM_LEVEL_REPORT);
 		nicam_lock = (reg_value >> 28) & 1;
-		pr_info("\n%s NICAM_LEVEL_REPORT: 0x%x\n",
+		pr_info("%s NICAM_LEVEL_REPORT: 0x%x\n",
 				__func__, reg_value);
 		if (nicam_lock) {
 			std = AUDIO_STANDARD_NICAM_L;
@@ -1947,8 +1950,7 @@ int amlfmt_aud_standard(int broad_std)
 
 int atvauddemod_init(void)
 {
-	if (is_meson_txlx_cpu() || is_meson_txhd_cpu() || is_meson_tl1_cpu() ||
-		is_meson_tm2_cpu() || is_meson_t5_cpu()) {
+	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXLX)) {
 		if (audio_thd_en)
 			audio_thd_init();
 
@@ -1971,8 +1973,7 @@ int atvauddemod_init(void)
 
 void atvauddemod_set_outputmode(void)
 {
-	if (is_meson_txlx_cpu() || is_meson_txhd_cpu() || is_meson_tl1_cpu() ||
-		is_meson_tm2_cpu() || is_meson_t5_cpu()) {
+	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXLX)) {
 		if (aud_reinit) {
 			/* before maybe need check afc status */
 			atvauddemod_init();
@@ -2009,9 +2010,7 @@ int atvdemod_init(struct atv_demod_priv *priv)
 			p->secam_lc = false;
 		}
 
-		if (is_meson_txlx_cpu() || is_meson_txhd_cpu() ||
-			is_meson_tl1_cpu() || is_meson_tm2_cpu() ||
-			is_meson_t5_cpu())
+		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXLX))
 			sound_format = 1;
 
 		configure_receiver(broad_std, if_freq, if_inv, gde_curve,
@@ -2488,14 +2487,20 @@ void aml_audio_overmodulation(int enable)
 	if (atvdemod_get_snr() < snr_threshold)
 		return;
 
-	if (enable && Broadcast_Standard ==
-		AML_ATV_DEMOD_VIDEO_MODE_PROP_PAL_DK) {
+	/* Not under A2/NICAM/BTSC. */
+	if (get_audio_signal_input_mode() != 0)
+		return;
+
+	if (enable && (Broadcast_Standard ==
+		AML_ATV_DEMOD_VIDEO_MODE_PROP_PAL_DK ||
+		Broadcast_Standard == AML_ATV_DEMOD_VIDEO_MODE_PROP_PAL_I ||
+		Broadcast_Standard == AML_ATV_DEMOD_VIDEO_MODE_PROP_PAL_BG)) {
 		tmp_v = atv_dmd_rd_long(APB_BLOCK_ADDR_SIF_STG_2, 0x28);
 		tmp_v = tmp_v&0xffff;
-		if (tmp_v > 0x10 && audio_atv_ov_flag == 0) {
+		if (tmp_v > audio_atv_ov_threshold && audio_atv_ov_flag == 0) {
 			tmp_v1 =
 				atv_dmd_rd_long(APB_BLOCK_ADDR_SIF_STG_2, 0);
-			tmp_v1 = (tmp_v1&0xffffff)|(1<<24);
+			tmp_v1 = (tmp_v1 & 0xfffff8) | (1 << 24) | 2;
 			atv_dmd_wr_long(APB_BLOCK_ADDR_SIF_STG_2, 0, tmp_v1);
 			atv_dmd_wr_long(APB_BLOCK_ADDR_SIF_STG_2,
 					0x14, 0x8000015);
@@ -2509,11 +2514,11 @@ void aml_audio_overmodulation(int enable)
 			aml_audio_valume_gain_set(audio_gain_val);
 
 			audio_atv_ov_flag = 1;
-			pr_info("tmp_v[0x%lx] > 0x10 && audio_atv_ov_flag == 0.\n",
-					tmp_v);
+			pr_info("tmp_v[0x%lx] > 0x%x && audio_atv_ov_flag == 0.\n",
+					tmp_v, audio_atv_ov_threshold);
 		}
 #if 0 /* No need, Enter and hold */
-		else if (tmp_v <= 0x10 && audio_atv_ov_flag == 1) {
+		else if (tmp_v <= audio_atv_ov_threshold && audio_atv_ov_flag == 1) {
 			tmp_v1 = atv_dmd_rd_long(APB_BLOCK_ADDR_SIF_STG_2, 0);
 			tmp_v1 = (tmp_v1&0xffffff)|(0<<24);
 			atv_dmd_wr_long(APB_BLOCK_ADDR_SIF_STG_2, 0, tmp_v1);
@@ -2527,8 +2532,8 @@ void aml_audio_overmodulation(int enable)
 			audio_source_select(1);
 
 			audio_atv_ov_flag = 0;
-			pr_info("tmp_v[0x%lx] <= 0x10 && audio_atv_ov_flag == 1.\n",
-					tmp_v);
+			pr_info("tmp_v[0x%lx] <= 0x%x && audio_atv_ov_flag == 1.\n",
+					tmp_v, audio_atv_ov_threshold);
 		}
 #endif
 	}

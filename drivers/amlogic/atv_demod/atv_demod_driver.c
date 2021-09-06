@@ -26,6 +26,7 @@
 #include <linux/io.h>
 #include <linux/platform_device.h>
 #include <linux/amlogic/cpu_version.h>
+#include <linux/amlogic/media/vout/vdac_dev.h>
 #include <linux/amlogic/media/frame_provider/tvin/tvin.h>
 #include <linux/amlogic/aml_atvdemod.h>
 #include <linux/amlogic/aml_tuner.h>
@@ -64,7 +65,13 @@
 /* 2020/09/24 --- V2.26 --- Bringup t5 */
 /* 2020/11/03 --- V2.27 --- Bringup t5d. */
 /* 2020/11/23 --- V2.28 --- Adapter multi tuner switch. */
-#define AMLATVDEMOD_VER "V2.28"
+/* 2021/05/12 --- V2.29 --- Fix adc filter enable/disable in tvafe and demod. */
+/*                          Fix atbm253/2040 stable delay when scanning. */
+/*                          Fix pal-dk and add pal-bg/i audio overmodulation. */
+/* 2021/05/20 --- V2.30 --- Fix nicam output mode when the signal changes. */
+/*                          Fix afc search range settings for r842/r840. */
+/*                          Fix missing the second changes in the V2.29. */
+#define AMLATVDEMOD_VER "V2.30"
 
 struct aml_atvdemod_device *amlatvdemod_devp;
 
@@ -109,37 +116,61 @@ static ssize_t aml_atvdemod_store(struct class *class,
 #endif
 
 	if (!strncmp(parm[0], "init", 4)) {
+		int priv_cfg = AML_ATVDEMOD_INIT;
+		struct dvb_frontend *fe = &dev->v4l2_fe.fe;
+
+		if (parm[1] && kstrtoul(parm[1], 10, &tmp) == 0) {
+			if (tmp)
+				priv_cfg = AML_ATVDEMOD_INIT;
+			else
+				priv_cfg = AML_ATVDEMOD_UNINIT;
+		}
+
+		fe->ops.analog_ops.set_config(fe, &priv_cfg);
+
+		pr_info("%s.\n", priv_cfg ? "init" : "uninit");
+	} else if (!strncmp(parm[0], "reinit", 6)) {
 		ret = atv_demod_enter_mode(&dev->v4l2_fe.fe);
 		if (ret)
 			pr_info("atv init error.\n");
 	} else if (!strncmp(parm[0], "audout_mode", 11)) {
-		if (is_meson_txlx_cpu() || is_meson_txhd_cpu() ||
-			is_meson_tl1_cpu() || is_meson_tm2_cpu() ||
-			is_meson_t5_cpu()) {
+		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXLX)) {
 			atvauddemod_set_outputmode();
 			pr_info("atvauddemod_set_outputmode done ....\n");
 		}
 	} else if (!strncmp(parm[0], "signal_audmode", 14)) {
 		int stereo_flag = 0, sap_flag = 0;
 
-		if (is_meson_txlx_cpu() || is_meson_txhd_cpu() ||
-			is_meson_tl1_cpu() || is_meson_tm2_cpu() ||
-			is_meson_t5_cpu()) {
+		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXLX)) {
 			update_btsc_mode(1, &stereo_flag, &sap_flag);
 			pr_info("get signal_audmode done ....\n");
 		}
-	} else if (!strncmp(parm[0], "clk", 3)) {
+	} else if (!strncmp(parm[0], "adc_pll", 7)) {
 #ifdef CONFIG_AMLOGIC_MEDIA_ADC
-		adc_set_pll_cntl(1, 0x1, NULL);
+		if (kstrtoul(parm[1], 16, &tmp) == 0)
+			val = tmp;
+		else
+			val = 1;
+
+		adc_set_pll_cntl(!!val, ADC_ATV_DEMOD, NULL);
+		adc_set_filter_ctrl(!!val, FILTER_ATV_DEMOD, NULL);
 #endif
+		pr_info("adc_pll %s done ....\n", val ? "ON" : "OFF");
+	} else if (!strncmp(parm[0], "vdac", 4)) {
+#ifdef CONFIG_AMLOGIC_VDAC
+		if (kstrtoul(parm[1], 16, &tmp) == 0)
+			val = tmp;
+		else
+			val = 1;
+
+		vdac_enable(!!val, VDAC_MODULE_AVOUT_ATV);
+#endif
+		pr_info("vdac %s done ....\n", val ? "ON" : "OFF");
+	} else if (!strncmp(parm[0], "clock", 5)) {
 		atvdemod_clk_init();
-		if (is_meson_txlx_cpu() || is_meson_txhd_cpu() ||
-			is_meson_tl1_cpu() || is_meson_tm2_cpu() ||
-			is_meson_t5_cpu())
+		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXLX))
 			aud_demod_clk_gate(1);
 		pr_info("atvdemod_clk_init done ....\n");
-	} else if (!strncmp(parm[0], "tune", 4)) {
-		/* val  = simple_strtol(parm[1], NULL, 10); */
 	} else if (!strncmp(parm[0], "set", 3)) {
 		if (!strncmp(parm[1], "avout_gain", 10)) {
 			if (kstrtoul(buf + strlen("avout_offset") + 1,
@@ -188,12 +219,6 @@ static ssize_t aml_atvdemod_store(struct class *class,
 		pr_info("**********snr_hist_128avg:0x%x(%d)*********\n",
 				data_snr_avg,
 				data_snr_avg);
-	} else if (!strncmp(parm[0], "afc_info", 8)) {
-		data_afc = retrieve_vpll_carrier_afc();
-		pr_info("afc %d Khz.\n", data_afc);
-	} else if (!strncmp(parm[0], "ver_info", 8)) {
-		pr_info("aml_atvdemod_ver %s.\n",
-				AMLATVDEMOD_VER);
 	} else if (!strncmp(parm[0], "audio_autodet", 13)) {
 		aml_audiomode_autodet(&dev->v4l2_fe);
 	} else if (!strncmp(parm[0], "audio_gain_set", 14)) {
@@ -254,75 +279,75 @@ static ssize_t aml_atvdemod_store(struct class *class,
 				block_reg, block_val);
 		block_val = atv_dmd_rd_long(block_addr, block_reg);
 		pr_info("readback_val:0x%x\n", block_val);
-	} else if (!strncmp(parm[0], "snr_cur", 7)) {
-		data_snr_avg = atvdemod_get_snr_val();
-		pr_info("**********snr_cur:%d*********\n", data_snr_avg);
-	} else if (!strncmp(parm[0], "pll_status", 10)) {
-		int vpll_lock;
-
-		retrieve_vpll_carrier_lock(&vpll_lock);
-		if ((vpll_lock & 0x1) == 0)
-			pr_info("visual carrier lock:locked\n");
-		else
-			pr_info("visual carrier lock:unlocked\n");
-	} else if (!strncmp(parm[0], "line_lock", 9)) {
-		int line_lock;
-
-		retrieve_vpll_carrier_line_lock(&line_lock);
-		if (line_lock == 0)
-			pr_info("line lock:locked\n");
-		else
-			pr_info("line lock:unlocked\n");
-	} else if (!strncmp(parm[0], "audio_power", 11)) {
-		unsigned int audio_power = 0;
-
-		retrieve_vpll_carrier_audio_power(&audio_power, 1);
-		pr_info("audio_power: %d.\n", audio_power);
-	} else if (!strncmp(parm[0], "adc_power", 9)) {
-		int adc_power = 0;
-
-		retrieve_adc_power(&adc_power);
-		pr_info("adc_power:%d\n", adc_power);
-	} else if (!strncmp(parm[0], "mode_set", 8)) {
-		int priv_cfg = AML_ATVDEMOD_INIT;
-		struct dvb_frontend *fe = NULL;
-
-		fe = &dev->v4l2_fe.fe;
-
-		if (parm[1] && kstrtoul(parm[1], 10, &tmp) == 0)
-			priv_cfg = tmp;
-
-		fe->ops.analog_ops.set_config(fe, &priv_cfg);
-
-		pr_info("mode_set mode %d\n", priv_cfg);
-	} else if (!strncmp(parm[0], "params_set", 8)) {
+	} else if (!strncmp(parm[0], "tune", 4)) {
 		struct dvb_frontend *fe = NULL;
 		struct analog_parameters params;
 		struct v4l2_analog_parameters *p = NULL;
-		unsigned int std = 0;
-		unsigned int freq = 0;
 
 		fe = &dev->v4l2_fe.fe;
 		p = &dev->v4l2_fe.params;
 
-		if (parm[1] && kstrtoul(parm[1], 0, &tmp) == 0)
-			std = tmp;
-		else
-			std = p->std;
+		if (!strncmp(parm[1], "pal", 3)) {
+			p->std = V4L2_COLOR_STD_PAL;
+		} else if (!strncmp(parm[1], "ntsc", 4)) {
+			p->std = V4L2_COLOR_STD_NTSC;
+		} else if (!strncmp(parm[1], "secam", 5)) {
+			p->std = V4L2_COLOR_STD_SECAM;
+		} else {
+			pr_err("Invalid video std, force to pal.\n");
+			p->std = V4L2_COLOR_STD_PAL;
+		}
 
-		if (parm[2] && kstrtoul(parm[2], 0, &tmp) == 0)
-			freq = tmp;
-		else
-			freq = p->frequency;
+		if (!strncmp(parm[2], "dk", 2)) {
+			p->audmode = V4L2_STD_PAL_DK;
+			p->std |= V4L2_STD_PAL_I;
+		} else if (!strncmp(parm[2], "bg", 2)) {
+			p->audmode = V4L2_STD_BG;
+			p->std |= V4L2_STD_PAL_I;
+		} else if (!strncmp(parm[2], "i", 1)) {
+			p->audmode = V4L2_STD_PAL_I;
+			p->std |= V4L2_STD_PAL_I;
+		} else if (!strncmp(parm[2], "nm", 2)) {
+			p->audmode = V4L2_STD_NTSC_M;
+			p->std |= V4L2_STD_NTSC_M;
+		} else if (!strncmp(parm[2], "pm", 2)) {
+			p->audmode = V4L2_STD_PAL_M;
+			p->std |= V4L2_STD_PAL_M;
+		} else if (!strncmp(parm[2], "lc", 2)) {
+			p->audmode = V4L2_STD_SECAM_LC;
+			p->std |= V4L2_STD_SECAM_LC;
+		} else if (!strncmp(parm[2], "l", 1)) {
+			p->audmode = V4L2_STD_SECAM_L;
+			p->std |= V4L2_STD_SECAM_L;
+		} else if (!strncmp(parm[2], "n", 1)) {
+			p->audmode = V4L2_STD_PAL_M;
+			p->std |= V4L2_STD_PAL_N;
+		} else {
+			pr_err("Invalid audio std, force to i.\n");
+			p->audmode = V4L2_STD_PAL_I;
+			p->std |= V4L2_STD_PAL_I;
+		}
 
-		params.frequency = freq;
+		if (parm[3] && kstrtoul(parm[3], 0, &tmp) == 0) {
+			p->frequency = tmp;
+		} else {
+			pr_err("Invalid frequency, force to 144250000 Hz.\n");
+			p->frequency = 144250000;
+		}
+
+		p->afc_range = 0;
+
+		params.frequency = p->frequency;
 		params.mode = p->afc_range;
 		params.audmode = p->audmode;
-		params.std = std;
+		params.std = p->std;
 
 		fe->ops.analog_ops.set_params(fe, &params);
 
-		pr_info("params_set std 0x%x\n", std);
+		pr_info("tune std color %s, audio %s, cvbs %s, freq %d Hz.\n",
+				v4l2_std_to_str((0xff000000 & p->std)),
+				v4l2_std_to_str((0xffffff & p->audmode)),
+				v4l2_std_to_str((0xffffff & p->std)), p->frequency);
 	} else if (!strncmp(parm[0], "audio_set", 9)) {
 		int std = AUDIO_STANDARD_A2_K;
 
@@ -337,6 +362,8 @@ static ssize_t aml_atvdemod_store(struct class *class,
 		struct v4l2_analog_parameters *p = &dev->v4l2_fe.params;
 		int vpll_lock = 0;
 		int line_lock = 0;
+		int adc_power = 0;
+		unsigned int audio_power = 0;
 
 		if (priv->state == ATVDEMOD_STATE_WORK) {
 			retrieve_vpll_carrier_lock(&vpll_lock);
@@ -353,6 +380,14 @@ static ssize_t aml_atvdemod_store(struct class *class,
 
 			data_snr_avg = atvdemod_get_snr_val();
 			pr_info("snr: %d.\n", data_snr_avg);
+
+			retrieve_vpll_carrier_audio_power(&audio_power, 1);
+			pr_info("audio_power: %d.\n", audio_power);
+
+			retrieve_adc_power(&adc_power);
+			pr_info("adc_power: %d.\n", adc_power);
+		} else {
+			pr_info("Not yet initialized.\n");
 		}
 
 		pr_info("[params] afc_range: %d\n", p->afc_range);
@@ -415,20 +450,22 @@ static ssize_t aml_atvdemod_show(struct class *class,
 	struct v4l2_analog_parameters *p = &dev->v4l2_fe.params;
 	int vpll_lock = 0;
 	int line_lock = 0;
+	int adc_power = 0;
+	unsigned int audio_power = 0;
 	int data = 0;
 	int len = 0;
+	const char *patch = "/sys/class/aml_atvdemod/atvdemod_debug";
 
-	pr_dbg("\n usage:\n");
-	pr_dbg("[get soft version] echo ver_info > /sys/class/amlatvdemod/atvdemod_debug\n");
-	pr_dbg("[get afc value] echo afc_info > /sys/class/amlatvdemod/atvdemod_debug\n");
-	pr_dbg("[reinit atvdemod] echo init > /sys/class/amlatvdemod/atvdemod_debug\n");
-	pr_dbg("[get av-out-gain/av-out-offset/atv-gain/atv-offset]:\n"
-				"echo get av_gain/av_offset/atv_gain/atv_offset > /sys/class/amlatvdemod/atvdemod_debug\n");
-	pr_dbg("[set av-out-gain/av-out-offset/atv-gain/atv-offset]:\n"
-				"echo set av_gain/av_offset/atv_gain/atv_offset val(0~255) > /sys/class/amlatvdemod/atvdemod_debug\n");
+	len += sprintf(buff + len, "\nATV Demod Usage:\n");
+	len += sprintf(buff + len, "[atvdemod_status]\n\techo atvdemod_status > %s\n", patch);
+	len += sprintf(buff + len, "[init/uninit atvdemod]\n\techo init/uninit > %s\n", patch);
+	len += sprintf(buff + len, "[reinit atvdemod]\n\techo reinit > %s\n", patch);
+	len += sprintf(buff + len, "[tune]\n\techo tune vstd astd freq > %s\n", patch);
+	len += sprintf(buff + len, "[adc_pll]\n\techo adc_pll on_off > %s\n", patch);
+	len += sprintf(buff + len, "[vdac\n\techo vdac on_off > %s\n", patch);
 
 	len += sprintf(buff + len, "ATV Demod Status:\n");
-	if (priv->state == ATVDEMOD_STATE_WORK) {
+	if (priv && priv->state == ATVDEMOD_STATE_WORK) {
 		retrieve_vpll_carrier_lock(&vpll_lock);
 		len += sprintf(buff + len, "atv_demod: vpp lock: %s.\n",
 			vpll_lock == 0 ? "Locked" : "Unlocked");
@@ -442,6 +479,14 @@ static ssize_t aml_atvdemod_show(struct class *class,
 
 		data = atvdemod_get_snr_val();
 		len += sprintf(buff + len, "atv_demod: snr: %d.\n", data);
+
+		retrieve_vpll_carrier_audio_power(&audio_power, 1);
+		len += sprintf(buff + len, "atv_demod: audio_power: %d.\n", audio_power);
+
+		retrieve_adc_power(&adc_power);
+		len += sprintf(buff + len, "atv_demod: adc_power: %d.\n", adc_power);
+	} else {
+		len += sprintf(buff + len, "atv_demod: Not yet initialized.\n");
 	}
 
 	len += sprintf(buff + len, "atv_demod: [params] afc_range: %d\n",
@@ -699,8 +744,7 @@ static int aml_atvdemod_probe(struct platform_device *pdev)
 		dev->audio_reg_base = ioremap(round_down(0xffd0d340, 0x3), 4);
 
 		pr_info("audio_reg_base = 0x%p.\n", dev->audio_reg_base);
-	} else if (is_meson_tl1_cpu() || is_meson_tm2_cpu() ||
-			is_meson_t5_cpu()) {
+	} else if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
 		dev->audio_reg_base = ioremap(round_down(0xff60074c, 0x3), 4);
 
 		pr_info("audio_reg_base = 0x%p.\n", dev->audio_reg_base);
@@ -767,9 +811,6 @@ static void aml_atvdemod_shutdown(struct platform_device *pdev)
 	struct aml_atvdemod_device *dev = platform_get_drvdata(pdev);
 
 	v4l2_frontend_shutdown(&dev->v4l2_fe);
-#ifdef CONFIG_AMLOGIC_MEDIA_ADC
-	adc_pll_down();
-#endif
 
 	pr_info("%s: OK.\n", __func__);
 }

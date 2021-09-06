@@ -79,6 +79,13 @@ extern unsigned int atvdemod_debug_en;
 			printk("atv_demod: "fmt, ##__VA_ARGS__);\
 	} while (0)
 
+#undef pr_snr
+#define pr_snr(fmt, ...)\
+	do {\
+		if (atvdemod_debug_en & 0x20)\
+			printk("atv_demod: "fmt, ##__VA_ARGS__);\
+	} while (0)
+
 #if defined(CONFIG_DEBUG_FS)
 #define AML_ATVDEMOD_DEBUGFS
 #endif

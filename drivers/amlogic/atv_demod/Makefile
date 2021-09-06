@@ -18,3 +18,4 @@ ccflags-y += -I$(srctree)/drivers/media/tuners
 ccflags-y += -I$(srctree)/include/media
 ccflags-y += -I$(srctree)/sound/soc/amlogic/auge
 ccflags-y += -I$(srctree)/sound/soc/amlogic/meson
+ccflags-y += -I$(srctree)/drivers/amlogic/media/vin/tvin/tvafe

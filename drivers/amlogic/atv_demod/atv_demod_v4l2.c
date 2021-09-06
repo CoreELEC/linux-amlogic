@@ -1047,11 +1047,12 @@ static const struct v4l2_ioctl_ops v4l2_fe_ioctl_ops = {
 };
 
 static struct video_device aml_atvdemod_vdev = {
-	.fops      = &v4l2_fe_fops,
-	.ioctl_ops = &v4l2_fe_ioctl_ops,
-	.name      = DEVICE_NAME,
-	.release   = v4l2_frontend_vdev_release,
-	.vfl_dir   = VFL_DIR_TX,
+	.fops        = &v4l2_fe_fops,
+	.ioctl_ops   = &v4l2_fe_ioctl_ops,
+	.name        = DEVICE_NAME,
+	.release     = v4l2_frontend_vdev_release,
+	.vfl_type    = VFL_TYPE_GRABBER,
+	.vfl_dir     = VFL_DIR_TX,
 };
 
 int v4l2_resister_frontend(struct v4l2_frontend *v4l2_fe)
@@ -1094,7 +1095,7 @@ int v4l2_resister_frontend(struct v4l2_frontend *v4l2_fe)
 
 	ret = v4l2_device_register(v4l2dev->dev, &v4l2dev->v4l2_dev);
 	if (ret) {
-		pr_err("register v4l2_device fail.\n");
+		pr_err("register v4l2_device fail, ret = %d.\n", ret);
 		goto v4l2_fail;
 	}
 
@@ -1105,9 +1106,9 @@ int v4l2_resister_frontend(struct v4l2_frontend *v4l2_fe)
 
 	v4l2dev->video_dev->dev.init_name = DEVICE_NAME;
 	ret = video_register_device(v4l2dev->video_dev,
-			VFL_TYPE_GRABBER, 36);/* -1 --> 36 */
+			v4l2dev->video_dev->vfl_type, 36);/* -1 --> 36 */
 	if (ret) {
-		pr_err("register video device fail.\n");
+		pr_err("register video device fail, ret = %d.\n", ret);
 		goto vdev_fail;
 	}
 
