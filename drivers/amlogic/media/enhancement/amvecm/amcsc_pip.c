@@ -1733,7 +1733,7 @@ void video_post_process(
 	}
 
 	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A) {
-		if (vinfo->mode != VMODE_LCD) {
+		if (!vinfo_lcd_support()) {
 			mtx_setting(POST2_MTX, MATRIX_NULL, MTX_OFF);
 		} else {
 			if ((vf && vf->type & VIDTYPE_RGB_444) &&
