@@ -19,68 +19,51 @@
 #define _AMLFRONTEND_H
 /**/
 #include "depend.h" /**/
+#include <linux/amlogic/cpu_version.h>
 
 #define KERNEL_4_9_EN		1
+#define DTVDEMOD_VER	"2021/24/Jun: atsc co-channel inteference"
+#define DEMOD_DEVICE_NAME  "dtvdemod"
 
-struct amlfe_config {
-	int fe_mode;
-	int i2c_id;
-	int tuner_type;
-	int tuner_addr;
-};
+#define THRD_TUNER_STRENTH_ATSC (-87)
+#define THRD_TUNER_STRENTH_J83 (-76)
+/* tested on BTC, sensertivity of demod is -100dBm */
+#define THRD_TUNER_STRENTH_DVBT (-101)
+#define THRD_TUNER_STRENTH_DVBS (-79)
+
+#define TIMEOUT_ATSC		2000
+#define TIMEOUT_DVBT		3000
+#define TIMEOUT_DVBS		2000
+#define TIMEOUT_DVBC		3000
+
 enum Gxtv_Demod_Tuner_If {
 	SI2176_5M_IF = 5,
 	SI2176_6M_IF = 6
 };
-/* 0 -DVBC, 1-DVBT, ISDBT, 2-ATSC */
-enum Gxtv_Demod_Dvb_Mode {
-	Gxtv_Dvbc = 0,
-	Gxtv_Dvbt_Isdbt = 1,
-	Gxtv_Atsc = 2,
-	Gxtv_Dtmb = 3,
-};
 
-enum demod_md {
-	UNKNOWN = 0,
-	AML_DVBC,
-	AML_DTMB,
-	AML_DVBT,
-	AML_ATSC,
-	AML_J83B,
-	AML_ISDBT,
-	AML_DVBT2
-};
+#define ADC_CLK_24M	24000
+#define ADC_CLK_25M	25000
+#define ADC_CLK_54M	54000
+#define ADC_CLK_135M	135000
 
-#define Adc_Clk_35M             35714	/* adc clk    dvbc */
-#define Demod_Clk_71M   71428	/* demod clk */
+#define DEMOD_CLK_60M	60000
+#define DEMOD_CLK_72M	72000
+#define DEMOD_CLK_125M	125000
+#define DEMOD_CLK_167M	167000
+#define DEMOD_CLK_200M	200000
+#define DEMOD_CLK_216M	216000
+#define DEMOD_CLK_225M	225000
+#define DEMOD_CLK_250M	250000
+#define DEMOD_CLK_270M	270000
 
-#define ADC_CLK_24M             24000
-#define Demod_Clk_72M       72000
-#define Demod_Clk_60M       60000
-
-#define Adc_Clk_28M             28571	/* dvbt,isdbt */
-#define Demod_Clk_66M   66666
-
-#define Adc_Clk_26M                     26000	/* atsc  air */
-#define Demod_Clk_78M     78000	/*  */
-
-#define Adc_Clk_25_2M                   25200	/* atsc  cable */
-#define Demod_Clk_75M     75600	/*  */
-
-#define Adc_Clk_25M                     25000	/* dtmb */
-#define Demod_Clk_100M    100000	/*  */
-#define Demod_Clk_167M    167000	/*  */
-#define Demod_Clk_180M    180000	/*  */
-#define Demod_Clk_200M    200000	/*  */
-#define Demod_Clk_225M    225000
-#define Demod_Clk_250M    250000
-
-#define Adc_Clk_27M                     27777	/* atsc */
-#define Demod_Clk_83M     83333	/*  */
+#define FIRMWARE_NAME	"dtvdemod_t2.bin"
+#define FIRMWARE_DIR	"dtvdemod"
+#define PATH_MAX_LEN	50
+#define FW_BUFF_SIZE	(100 * 1024)
 
 enum M6_Demod_Pll_Mode {
-	Cry_mode = 0,
-	Adc_mode = 1
+	CRY_MODE = 0,
+	ADC_MODE = 1
 };
 
 /*
@@ -105,91 +88,33 @@ struct ss_reg_vt {
 	int flag;
 };
 
-/* rigister offset page */
-#define IC_OFFS_V2	(0x02)	/*MG9TV, GXTVBB, TXL*/
-#define IC_OFFS_V3	(0x03)	/*TXLX, GXLX, TXHD*/
-#define IC_OFFS_V4	(0x04)	/*TL1*/
-
-
-
-#define IC_MD_NONE	(0x00)
-
-#define IC_DVBC_V2	(0x02)	/*MG9TV, GXTVBB, TXL*/
-#define IC_DVBC_V3	(0x03)	/*TXLX, GXLX*/
-
-#define IC_DTMB_V2	(0x02)	/*MG9TV, GXTVBB*/
-#define IC_DTMB_V3	(0x03)	/*TXL, TXHD*/
-
-#define IC_DVBT_V2	(0x02)	/*TXLX*/
-#define IC_ATSC_V2	(0x02)	/*TXLX*/
-
-/*-----------------------*/
-#define IC_VER_GTVBB	(0x00)
-#define IC_VER_TXL	(0x01)
-#define IC_VER_TXLX	(0x02)
-#define IC_VER_GXLX	(0x03)
-#define IC_VER_TXHD	(0x04)
-#define IC_VER_TL1	(0x05)
-#define IC_VER_TM2	(0x06)
-
-#define IC_VER_NUB	(0x07)
-
-
-/*-----------------------*/
-#if 0
-struct ic_cfg_s {
-	/* register */
-#if 0
-	unsigned int reg_demod_st;
-	unsigned int reg_demod_size;
-	unsigned int reg_iohiu_st;
-	unsigned int reg_iohiu_size;
-	unsigned int reg_aobus_st;	/*ao bus*/
-	unsigned int reg_aobus_size;
-	unsigned int reg_reset_st;	/*reset*/
-	unsigned int reg_reset_size;
-#endif
-
-	/* module version */
-	union {
-		unsigned int all;
-		struct {
-			unsigned int atsc:4, dvbt:4, dtmb:4, dvbc:4,
-				reserved:4, offset:4, ic:8;
-		} b;
-	} hwver;
-};
-#endif
-
-struct ic_ver {
-	unsigned int atsc:4, dvbt:4, dtmb:4, dvbc:4,
-					reserved:4, offset:4, ic:8;
-
-};
 struct ddemod_reg_off {
-	/* register address offset for demod*/
 	unsigned int off_demod_top;
 	unsigned int off_dvbc;
 	unsigned int off_dtmb;
-	unsigned int off_dvbt;
+	unsigned int off_dvbt_isdbt;
+	unsigned int off_dvbt_t2;
+	unsigned int off_dvbs;
 	unsigned int off_atsc;
 	unsigned int off_front;
 	unsigned int off_isdbt;
-
-#if 0
-	/*vertual address for dtv demod*/
-	void __iomem *base_demod;
-	void __iomem *base_iohiu;
-	void __iomem *base_aobus;
-	void __iomem *base_reset;
-#else
-
-#endif
 };
+
+enum dtv_demod_hw_ver_e {
+	DTVDEMOD_HW_ORG = 0,
+	DTVDEMOD_HW_TXLX,
+	DTVDEMOD_HW_SM1,
+	DTVDEMOD_HW_TL1,
+	DTVDEMOD_HW_TM2,
+	DTVDEMOD_HW_TM2_B,
+	DTVDEMOD_HW_T5,
+	DTVDEMOD_HW_T5D,
+	DTVDEMOD_HW_T5D_B,
+};
+
 struct meson_ddemod_data {
-	const char *name;
-	struct ic_ver icver;
-	/*struct ddemod_reg_off regoff;*/
+	struct ddemod_reg_off regoff;
+	enum dtv_demod_hw_ver_e hw_ver;
 };
 enum DTVDEMOD_ST {
 	DTVDEMOD_ST_NOT_INI,	/*driver is not init or init failed*/
@@ -218,17 +143,32 @@ struct poll_machie_s {
 
 };
 
+struct aml_demod_para {
+	u32_t dvbc_symbol;
+	u32_t dvbc_qam;
+	u32_t dtmb_qam;
+	u32_t dtmb_coderate;
+};
+
+#define CAP_NAME_LEN	100
+struct dtvdemod_capture_s {
+	char cap_dev_name[CAP_NAME_LEN];
+	unsigned int cap_size;
+};
+
 struct amldtvdemod_device_s {
 
 	struct class *clsp;
 	struct device *dev;
 	enum DTVDEMOD_ST state;
 	struct mutex lock;	/*aml_lock*/
-
-	/*struct ic_cfg_s iccfg;*/
-	struct ic_ver icver;
 	struct ss_reg_phy reg_p[ES_MAP_ADDR_NUM];
 	struct ss_reg_vt reg_v[ES_MAP_ADDR_NUM];
+	unsigned int dmc_phy_addr;
+	unsigned int dmc_saved;
+	void __iomem *dmc_v_addr;
+	unsigned int ddr_phy_addr;
+	void __iomem *ddr_v_addr;
 
 	struct ddemod_reg_off ireg;
 	struct meson_ddemod_data *data;
@@ -244,8 +184,7 @@ struct amldtvdemod_device_s {
 	struct clk *vdac_clk_gate;
 #endif
 	/*agc pin mux*/
-	struct pinctrl *pin;
-	const char *pin_name;
+	struct pinctrl *pin;	/*agc pintrcl*/
 
 #if 1 /*move to aml_dtv_demod*/
 	/*for mem reserved*/
@@ -266,17 +205,73 @@ struct amldtvdemod_device_s {
 	int			atsc_version;
 	/*for dtv priv*/
 #endif
-	enum aml_fe_n_mode_t n_mode;	/*temp for mode*/
 	enum fe_delivery_system last_delsys;
 #ifndef DVB_49
-	struct dvb_frontend *frontend;	/**/
+	struct dvb_frontend *frontend;
 #else
-	struct dvb_frontend frontend;	/**/
+	struct dvb_frontend frontend;
 #endif
 	const struct amlfe_exp_config *afe_cfg;
 	struct dentry *demod_root;
+
+	/* only for tm2,first time of pwr on,reset after signal locked begin */
+	unsigned int atsc_rst_needed;
+	unsigned int atsc_rst_done;
+	unsigned int atsc_rst_wait_cnt;
+	/* only for tm2,first time of pwr on,reset after signal locked end */
+
+	unsigned short symbol_rate;
+	unsigned int symb_rate_en;
+	unsigned int auto_sr;
+	unsigned int freq;
+	enum fe_modulation atsc_mode;
+	struct aml_demod_para para_demod;
+	struct dtvdemod_capture_s capture_para;
+	unsigned int stop_reg_wr;
+	char firmware_path[PATH_MAX_LEN];
+	char *fw_buf;
+	struct delayed_work fw_dwork;
+	struct work_struct blind_scan_work;
+	unsigned int timeout_atsc_ms;
+	unsigned int timeout_dvbt_ms;
+	unsigned int timeout_dvbs_ms;
+	unsigned int timeout_dvbc_ms;
+
+	/* diseqc */
+	const char *diseqc_name;
+	unsigned int demod_irq_num;
+	unsigned int demod_irq_en;
+	struct pinctrl_state *diseqc_pin_st;/*diseqc pin state*/
+	struct mutex mutex_tx_msg;/*pretect tx cec msg*/
+	unsigned int print_on;
+	unsigned int bw;
+	int tuner_strength_limit;
+	unsigned int plp_id;
+	unsigned int debug_on;
+	unsigned int demod_thread;
+	unsigned int fw_wr_done;
+	unsigned int blind_min_fre;
+	unsigned int blind_max_fre;
+	unsigned int blind_min_srate;
+	unsigned int blind_max_srate;
+	unsigned int blind_fre_range;
+	unsigned int blind_fre_step;
+	unsigned int blind_timeout;
+	unsigned int blind_scan_stop;
+	unsigned int time_start;
+	unsigned int time_passed;
+	unsigned int sr_val_hw;
+	unsigned int symbol_rate_manu;
+	int peak[2048];
+	unsigned int p1_peak;
+	unsigned int fast_search_finish;
+
+	enum fe_status last_status;
+	unsigned int ber_base;
+	unsigned int atsc_cr_step_size_dbg;
 };
-extern struct amldtvdemod_device_s *dtvdd_devp;	/**/
+
+extern struct amldtvdemod_device_s *dtvdd_devp;
 
 /*int M6_Demod_Dtmb_Init(struct aml_fe_dev *dev);*/
 int convert_snr(int in_snr);
@@ -284,138 +279,47 @@ int convert_snr(int in_snr);
 
 extern unsigned  int ats_thread_flg;
 
-/*version*/
-static inline int is_atsc_ver(unsigned int ver)
+static inline void __iomem *gbase_dvbt_isdbt(void)
 {
-	return dtvdd_devp->icver.atsc == ver;
-}
-static inline int is_dvbt_ver(unsigned int ver)
-{
-	return dtvdd_devp->icver.dvbt == ver;
-}
-static inline int is_dtmb_ver(unsigned int ver)
-{
-	return dtvdd_devp->icver.dtmb == ver;
-}
-static inline int is_dvbc_ver(unsigned int ver)
-{
-	return dtvdd_devp->icver.dvbc == ver;
+	return dtvdd_devp->reg_v[ES_MAP_ADDR_DEMOD].v + dtvdd_devp->data->regoff.off_dvbt_isdbt;
 }
 
-static inline int is_offset_ver(unsigned int ver)
+static inline void __iomem *gbase_dvbt_t2(void)
 {
-	return dtvdd_devp->icver.offset == ver;
-}
-static inline int get_atsc_ver(void)
-{
-	return dtvdd_devp->icver.atsc;
-}
-static inline int get_dvbt_ver(void)
-{
-	return dtvdd_devp->icver.dvbt;
+	return dtvdd_devp->reg_v[ES_MAP_ADDR_DEMOD].v + dtvdd_devp->data->regoff.off_dvbt_t2;
 }
 
-static inline int get_dtmb_ver(void)
+static inline void __iomem *gbase_dvbs(void)
 {
-	return dtvdd_devp->icver.dtmb;
-}
-static inline int get_dvbc_ver(void)
-{
-	return dtvdd_devp->icver.dvbc;
+	return dtvdd_devp->reg_v[ES_MAP_ADDR_DEMOD].v + dtvdd_devp->data->regoff.off_dvbs;
 }
 
-static inline int is_ic_ver(unsigned int ver)
-{
-	return dtvdd_devp->icver.ic == ver;
-}
-static inline int get_ic_ver(void)
-{
-	return dtvdd_devp->icver.ic;
-}
-
-#if 0
-static inline void __iomem *gbase_dvbt(void)
-{
-	return dtvdd_devp->ireg.base_demod + dtvdd_devp->ireg.off_dvbt;
-}
 static inline void __iomem *gbase_dvbc(void)
 {
-	return dtvdd_devp->ireg.base_demod + dtvdd_devp->ireg.off_dvbc;
+	return dtvdd_devp->reg_v[ES_MAP_ADDR_DEMOD].v + dtvdd_devp->data->regoff.off_dvbc;
 }
 static inline void __iomem *gbase_dtmb(void)
 {
-	return dtvdd_devp->ireg.base_demod + dtvdd_devp->ireg.off_dtmb;
+	return dtvdd_devp->reg_v[ES_MAP_ADDR_DEMOD].v + dtvdd_devp->data->regoff.off_dtmb;
 }
 
 static inline void __iomem *gbase_atsc(void)
 {
-	return dtvdd_devp->ireg.base_demod + dtvdd_devp->ireg.off_atsc;
+	return dtvdd_devp->reg_v[ES_MAP_ADDR_DEMOD].v + dtvdd_devp->data->regoff.off_atsc;
 }
 static inline void __iomem *gbase_demod(void)
 {
-	return dtvdd_devp->ireg.base_demod + dtvdd_devp->ireg.off_demod;
-}
-
-static inline void __iomem *gbase_aobus(void)
-{
-	return dtvdd_devp->ireg.base_aobus;
-}
-
-static inline void __iomem *gbase_iohiu(void)
-{
-	return dtvdd_devp->ireg.base_iohiu;
-}
-static inline void __iomem *gbase_reset(void)
-{
-	return dtvdd_devp->ireg.base_reset;
-}
-
-static inline unsigned int gphybase_demod(void)
-{
-	return dtvdd_devp->iccfg.reg_demod_st + dtvdd_devp->ireg.off_demod;
-}
-static inline unsigned int gphybase_hiu(void)
-{
-	return dtvdd_devp->iccfg.reg_iohiu_st;
-}
-#else
-static inline void __iomem *gbase_dvbt(void)
-{
-	return dtvdd_devp->reg_v[ES_MAP_ADDR_DEMOD].v
-					+ dtvdd_devp->ireg.off_dvbt;
-}
-static inline void __iomem *gbase_dvbc(void)
-{
-	return dtvdd_devp->reg_v[ES_MAP_ADDR_DEMOD].v
-					+ dtvdd_devp->ireg.off_dvbc;
-}
-static inline void __iomem *gbase_dtmb(void)
-{
-	return dtvdd_devp->reg_v[ES_MAP_ADDR_DEMOD].v
-		+ dtvdd_devp->ireg.off_dtmb;
-}
-
-static inline void __iomem *gbase_atsc(void)
-{
-	return dtvdd_devp->reg_v[ES_MAP_ADDR_DEMOD].v
-		+ dtvdd_devp->ireg.off_atsc;
-}
-static inline void __iomem *gbase_demod(void)
-{
-	return dtvdd_devp->reg_v[ES_MAP_ADDR_DEMOD].v
-		+ dtvdd_devp->ireg.off_demod_top;
+	return dtvdd_devp->reg_v[ES_MAP_ADDR_DEMOD].v + dtvdd_devp->data->regoff.off_demod_top;
 }
 
 static inline void __iomem *gbase_isdbt(void)
 {
-	return dtvdd_devp->reg_v[ES_MAP_ADDR_DEMOD].v
-		+ dtvdd_devp->ireg.off_isdbt;
+	return dtvdd_devp->reg_v[ES_MAP_ADDR_DEMOD].v + dtvdd_devp->data->regoff.off_isdbt;
 }
 
 static inline void __iomem *gbase_front(void)
 {
-	return dtvdd_devp->reg_v[ES_MAP_ADDR_DEMOD].v
-		+ dtvdd_devp->ireg.off_front;
+	return dtvdd_devp->reg_v[ES_MAP_ADDR_DEMOD].v + dtvdd_devp->data->regoff.off_front;
 }
 
 static inline void __iomem *gbase_aobus(void)
@@ -427,9 +331,20 @@ static inline void __iomem *gbase_iohiu(void)
 {
 	return dtvdd_devp->reg_v[ES_MAP_ADDR_IOHIU].v;
 }
+
 static inline void __iomem *gbase_reset(void)
 {
 	return dtvdd_devp->reg_v[ES_MAP_ADDR_RESET].v;
+}
+
+static inline void __iomem *gbase_dmc(void)
+{
+	return dtvdd_devp->dmc_v_addr;
+}
+
+static inline void __iomem *gbase_ddr(void)
+{
+	return dtvdd_devp->ddr_v_addr;
 }
 
 static inline unsigned int gphybase_demod(void)
@@ -438,8 +353,8 @@ static inline unsigned int gphybase_demod(void)
 }
 static inline unsigned int gphybase_demodcfg(void)
 {
-	return dtvdd_devp->reg_p[ES_MAP_ADDR_DEMOD].phy_addr
-			+ dtvdd_devp->ireg.off_demod_top;
+	return dtvdd_devp->reg_p[ES_MAP_ADDR_DEMOD].phy_addr +
+		dtvdd_devp->data->regoff.off_demod_top;
 }
 
 static inline unsigned int gphybase_hiu(void)
@@ -447,7 +362,6 @@ static inline unsigned int gphybase_hiu(void)
 	return dtvdd_devp->reg_p[ES_MAP_ADDR_IOHIU].phy_addr;
 }
 
-#endif
 /*poll*/
 extern void dtmb_poll_start(void);
 extern void dtmb_poll_stop(void);
@@ -455,7 +369,16 @@ extern unsigned int dtmb_is_update_delay(void);
 extern unsigned int dtmb_get_delay_clear(void);
 extern unsigned int dtmb_is_have_check(void);
 extern void dtmb_poll_v3(void);
-extern enum demod_md demod_get_current_mode(void);
 extern unsigned int demod_dvbc_get_fast_search(void);
 extern void demod_dvbc_set_fast_search(unsigned int en);
+unsigned int dtvdemod_get_atsc_lock_sts(void);
+struct amldtvdemod_device_s *dtvdemod_get_dev(void);
+const char *dtvdemod_get_cur_delsys(enum fe_delivery_system delsys);
+void aml_dtv_demode_isr_en(struct amldtvdemod_device_s *devp, u32 en);
+void cci_run_new(struct amldtvdemod_device_s *devp);
+void atsc_reset_new(void);
+unsigned int cfo_run_new(void);
+void set_cr_ck_rate_new(void);
+unsigned int demod_is_t5d_cpu(struct amldtvdemod_device_s *devp);
+int dtmb_information(struct seq_file *seq);
 #endif

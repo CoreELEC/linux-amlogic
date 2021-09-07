@@ -20,14 +20,6 @@
 
 #include "demod_func.h"
 
-#if 0
-#ifdef pr_dbg
-undef pr_dbg
-#endif
-
-#define pr_dbg		aml_dbgdtmb
-#endif
-
 static int dtmb_spectrum = 2;
 MODULE_PARM_DESC(demod_enable_performance, "\n\t\t demod_enable_performance information");
 static int demod_enable_performance = 1;
@@ -72,54 +64,9 @@ void dtmb_clk_set(unsigned int adc_clk)
 	dtmb_set_fe_config_modify(fe_modify);
 
 }
-#if 0
-void dtmb_clk_set(unsigned int adc_clk)
-{
-	unsigned int fe_modify = 0x4d6a;
-
-	switch (adc_clk) {
-	case Adc_Clk_24M:
-		fe_modify = 0x50a3;
-		break;
-	case Adc_Clk_25M:
-		fe_modify = 0x4d6a;
-		break;
-	default:
-		pr_error("error:%s:not support,adc_clk=%d\n",
-				__func__, adc_clk);
-		fe_modify = 0x4d6a;
-		break;
-	}
-	dtmb_set_fe_config_modify(fe_modify);
-}
-#endif
 
 static void dtmb_24m_coeff(void)
 {
-	#if 0
-	dtmb_write_reg(DTMB_FRONT_COEF_SET19, 0xf230ee02);
-	dtmb_write_reg(DTMB_FRONT_COEF_SET18, 0x0be241ed);
-	dtmb_write_reg(DTMB_FRONT_COEF_SET17, 0x0306031d);
-	dtmb_write_reg(DTMB_FRONT_COEF_SET16, 0x051d191c);
-	dtmb_write_reg(DTMB_FRONT_COEF_SET15, 0x171a0308);
-	dtmb_write_reg(DTMB_FRONT_COEF_SET14, 0x0b071d);
-	dtmb_write_reg(DTMB_FRONT_COEF_SET13, 0x3d333703);
-	dtmb_write_reg(DTMB_FRONT_COEF_SET12, 0x33030f0a);
-	dtmb_write_reg(DTMB_FRONT_COEF_SET11, 0x140f3c2f);
-	dtmb_write_reg(DTMB_FRONT_COEF_SET10, 0x292d04);
-	dtmb_write_reg(DTMB_FRONT_COEF_SET9, 0x041c177c);
-	dtmb_write_reg(DTMB_FRONT_COEF_SET8, 0x247c5e64);
-	dtmb_write_reg(DTMB_FRONT_COEF_SET7, 0x2b);
-	dtmb_write_reg(DTMB_FRONT_COEF_SET6, 0xc8d104);
-	dtmb_write_reg(DTMB_FRONT_COEF_SET5, 0x0431fc);
-	dtmb_write_reg(DTMB_FRONT_COEF_SET4, 0x51);
-	dtmb_write_reg(DTMB_FRONT_COEF_SET3, 0x392004);
-	dtmb_write_reg(DTMB_FRONT_COEF_SET2, 0x372);
-	dtmb_write_reg(DTMB_FRONT_COEF_SET1, 0x1187fc);
-	dtmb_write_reg(DTMB_FRONT_ACF_BYPASS,
-		((dtmb_read_reg(DTMB_FRONT_ACF_BYPASS) & ~0xffffff)
-		| 0x2af236));
-	#else
 	dtmb_write_reg(DTMB_FRONT_COEF_SET19, 0xebd2530d);
 	dtmb_write_reg(DTMB_FRONT_COEF_SET18, 0x04dad364);
 	dtmb_write_reg(DTMB_FRONT_COEF_SET17, 0x181e0508);
@@ -142,7 +89,6 @@ static void dtmb_24m_coeff(void)
 	dtmb_write_reg(DTMB_FRONT_ACF_BYPASS,
 		((dtmb_read_reg(DTMB_FRONT_ACF_BYPASS) & ~0xffffff)
 		| 0x29922b));
-	#endif
 }
 
 static void dtmb_25m_coeff(void)
@@ -174,8 +120,9 @@ static void dtmb_25m_coeff(void)
 void dtmb_all_reset(void)
 {
 	int temp_data = 0;
+	unsigned int reg_val;
 
-	if (is_ic_ver(IC_VER_TXL)) {
+	if (is_meson_txl_cpu()) {
 		/*fix bug 139044: DTMB lost sync*/
 		/*dtmb_write_reg(DTMB_FRONT_AFIFO_ADC, 0x1f);*/
 		dtmb_write_reg(DTMB_FRONT_AFIFO_ADC, 0x22);
@@ -193,8 +140,8 @@ void dtmb_all_reset(void)
 		/*fix agc problem,skip warm_up status*/
 		dtmb_write_reg(DTMB_FRONT_46_CONFIG, 0x1a000f0f);
 		dtmb_write_reg(DTMB_FRONT_ST_FREQ, 0xf2400000);
-		dtmb_clk_set(Adc_Clk_25M);
-	} else if (is_ic_ver(IC_VER_TXHD)) {
+		dtmb_clk_set(ADC_CLK_25M);
+	} else if (is_meson_txhd_cpu()) {
 		/* dtmb_write_reg(DTMB_FRONT_AFIFO_ADC, 0x1f); */
 		dtmb_write_reg(DTMB_FRONT_AFIFO_ADC, 0x1e);
 
@@ -217,16 +164,17 @@ void dtmb_all_reset(void)
 		dtmb_write_reg(DTMB_FRONT_46_CONFIG, 0x1a000f0f);
 		dtmb_write_reg(DTMB_FRONT_ST_FREQ, 0xf2400000);
 		dtmb_clk_set(ADC_CLK_24M);
-	} else if (is_ic_ver(IC_VER_TL1) || is_ic_ver(IC_VER_TM2)) {
+		dtmb_write_reg(DTMB_CHE_EQ_CONFIG, 0x1b027719);
+	} else if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
 		if (demod_get_adc_clk() == ADC_CLK_24M) {
 			dtmb_write_reg(DTMB_FRONT_DDC_BYPASS, 0x6aaaaa);
 			dtmb_write_reg(DTMB_FRONT_SRC_CONFIG1, 0x13196596);
-			dtmb_write_reg(0x5b << 2, 0x50a30a25);
+			dtmb_write_reg(0x5b, 0x50a30a25);
 			dtmb_24m_coeff();
-		} else if (demod_get_adc_clk() == Adc_Clk_25M) {
+		} else if (demod_get_adc_clk() == ADC_CLK_25M) {
 			dtmb_write_reg(DTMB_FRONT_DDC_BYPASS, 0x62c1a5);
 			dtmb_write_reg(DTMB_FRONT_SRC_CONFIG1, 0x131a747d);
-			dtmb_write_reg(0x5b << 2, 0x4d6a0a25);
+			dtmb_write_reg(0x5b, 0x4d6a0a25);
 			dtmb_25m_coeff();
 		}
 
@@ -241,6 +189,16 @@ void dtmb_all_reset(void)
 		dtmb_write_reg(DTMB_FRONT_DEBUG_CFG, 0x5480000);
 		/*reduce fec lost timeout*/
 		dtmb_write_reg(DTMB_FRONT_19_CONFIG, 0x30);
+
+		reg_val = dtmb_read_reg(DTMB_TOP_CTRL_TPS);
+		/* for Task 19:Switch mode and modulation parameters test
+		 * dtmb_spectrum: 0=normal, 1=inverted
+		 */
+		if (dtmb_spectrum == 0)
+			reg_val |= 0x4;
+		else if (dtmb_spectrum == 1)
+			reg_val &= ~0x4;
+		dtmb_write_reg(DTMB_TOP_CTRL_TPS, reg_val);
 	} else {
 		dtmb_write_reg(DTMB_FRONT_AGC_CONFIG1, 0x10127);
 		dtmb_write_reg(DTMB_CHE_IBDFE_CONFIG6, 0x943228cc);
@@ -333,15 +291,11 @@ int check_dtmb_mobile_det(void)
 }
 
 
-int dtmb_information(void)
+int dtmb_information(struct seq_file *seq)
 {
-	int tps, snr, fec_lock, fec_bch_add, fec_ldpc_unc_acc, fec_ldpc_it_avg,
-	    /*tmp,*/ che_snr;
+	int tps, snr, fec_lock, fec_bch_add, fec_ldpc_unc_acc, fec_ldpc_it_avg, che_snr;
 
-
-	unsigned int buf[3]; /**/
-
-	struct dvb_frontend *fe = aml_get_fe();
+	unsigned int buf[3];
 
 	tps = dtmb_read_reg(DTMB_TOP_CTRL_CHE_WORKCNT);
 
@@ -357,49 +311,63 @@ int dtmb_information(void)
 	fec_bch_add = dtmb_reg_r_bch();
 	fec_ldpc_unc_acc = dtmb_read_reg(DTMB_TOP_FEC_LDPC_UNC_ACC);
 	fec_ldpc_it_avg = dtmb_read_reg(DTMB_TOP_FEC_LDPC_IT_AVG);
-	PR_DTMB("[FSM] : %x %x %x %x\n",
-	       dtmb_read_reg(DTMB_TOP_CTRL_FSM_STATE0),
-	       dtmb_read_reg(DTMB_TOP_CTRL_FSM_STATE1),
-	       dtmb_read_reg(DTMB_TOP_CTRL_FSM_STATE2),
-	       dtmb_read_reg(DTMB_TOP_CTRL_FSM_STATE3));
-	/* PR_DTMB*/
-	/*    ("[AGC]: agc_power %d,agc_if_gain %d,agc_rf_gain %d,",*/
-	/*     (-(((dtmb_read_reg(DTMB_TOP_FRONT_AGC) >> 22) & 0x3ff) / 16)),*/
-	/*     ((dtmb_read_reg(DTMB_TOP_FRONT_AGC)) & 0x3ff),*/
-	/*    ((dtmb_read_reg(DTMB_TOP_FRONT_AGC) >> 11) & 0x7ff));*/
-
 	dtmb_read_agc(DTMB_D9_ALL, &buf[0]);
-	PR_DTMB
-	    ("[AGC]: agc_power %d,agc_if_gain %d,agc_rf_gain %d,",
-	     (-((buf[2]) / 16)),
-	     buf[0],
-	     buf[1]);
 
-	PR_DTMB
-	      ("dagc_power %3d,dagc_gain %3d mobi_det_power %d\n",
-	      ((dtmb_read_reg(DTMB_TOP_FRONT_DAGC) >> 0) & 0xff),
-	     ((dtmb_read_reg(DTMB_TOP_FRONT_DAGC) >> 8) & 0xfff),
-	     (dtmb_read_reg(DTMB_TOP_CTRL_SYS_OFDM_CNT) >> 8) & 0x7ffff);
-	PR_DTMB
-	    ("[TPS] SC or MC %2d,f_r %2d qam_nr %2d ",
-	     (dtmb_read_reg(DTMB_TOP_CHE_OBS_STATE1) >> 1) & 0x1,
-	     (tps >> 22) & 0x1, (tps >> 21) & 0x1);
-	PR_DTMB
-		("intlv %2d,cr %2d constl %2d\n",
-		(tps >> 20) & 0x1,
-	     (tps >> 18) & 0x3, (tps >> 16) & 0x3);
+	if (seq) {
+		seq_printf(seq, "[FSM] : %x %x %x %x\n",
+		       dtmb_read_reg(DTMB_TOP_CTRL_FSM_STATE0),
+		       dtmb_read_reg(DTMB_TOP_CTRL_FSM_STATE1),
+		       dtmb_read_reg(DTMB_TOP_CTRL_FSM_STATE2),
+		       dtmb_read_reg(DTMB_TOP_CTRL_FSM_STATE3));
 
-	PR_DTMB
-	    ("[dtmb] snr is %d,fec_lock is %d,fec_bch_add is %d,",
-	     snr, fec_lock, fec_bch_add);
-	PR_DTMB
-	    ("fec_ldpc_unc_acc is %d ,fec_ldpc_it_avg is %d\n",
-	     fec_ldpc_unc_acc,
-	     fec_ldpc_it_avg / 256);
-	PR_DTMB
-	    ("------------------------------------------------------------\n");
+		seq_printf(seq, "[AGC]: agc_power %d,agc_if_gain %d,agc_rf_gain %d,",
+			   (-((buf[2]) / 16)),	buf[0], buf[1]);
 
-	tuner_get_ch_power(fe);
+		seq_printf(seq, "dagc_power %3d,dagc_gain %3d mobi_det_power %d\n",
+		      ((dtmb_read_reg(DTMB_TOP_FRONT_DAGC) >> 0) & 0xff),
+		     ((dtmb_read_reg(DTMB_TOP_FRONT_DAGC) >> 8) & 0xfff),
+		     (dtmb_read_reg(DTMB_TOP_CTRL_SYS_OFDM_CNT) >> 8) & 0x7ffff);
+		seq_printf(seq, "[TPS] SC or MC %2d,f_r %2d qam_nr %2d ",
+		     (dtmb_read_reg(DTMB_TOP_CHE_OBS_STATE1) >> 1) & 0x1,
+		     (tps >> 22) & 0x1, (tps >> 21) & 0x1);
+		seq_printf(seq, "intlv %2d,cr %2d constl %2d\n",
+			(tps >> 20) & 0x1,
+		     (tps >> 18) & 0x3, (tps >> 16) & 0x3);
+
+		seq_printf(seq, "[dtmb] snr is %d,fec_lock is %d,fec_bch_add is %d,",
+		     snr, fec_lock, fec_bch_add);
+		seq_printf(seq, "fec_ldpc_unc_acc is %d ,fec_ldpc_it_avg is %d\n",
+		     fec_ldpc_unc_acc,
+		     fec_ldpc_it_avg / 256);
+		seq_puts(seq, "------------------------------------------------------------\n");
+	} else {
+		PR_DTMB("[FSM] : %x %x %x %x\n",
+		       dtmb_read_reg(DTMB_TOP_CTRL_FSM_STATE0),
+		       dtmb_read_reg(DTMB_TOP_CTRL_FSM_STATE1),
+		       dtmb_read_reg(DTMB_TOP_CTRL_FSM_STATE2),
+		       dtmb_read_reg(DTMB_TOP_CTRL_FSM_STATE3));
+
+		PR_DTMB("[AGC]: agc_power %d,agc_if_gain %d,agc_rf_gain %d,", (-((buf[2]) / 16)),
+			buf[0], buf[1]);
+
+		PR_DTMB("dagc_power %3d,dagc_gain %3d mobi_det_power %d\n",
+		      ((dtmb_read_reg(DTMB_TOP_FRONT_DAGC) >> 0) & 0xff),
+		     ((dtmb_read_reg(DTMB_TOP_FRONT_DAGC) >> 8) & 0xfff),
+		     (dtmb_read_reg(DTMB_TOP_CTRL_SYS_OFDM_CNT) >> 8) & 0x7ffff);
+		PR_DTMB("[TPS] SC or MC %2d,f_r %2d qam_nr %2d ",
+		     (dtmb_read_reg(DTMB_TOP_CHE_OBS_STATE1) >> 1) & 0x1,
+		     (tps >> 22) & 0x1, (tps >> 21) & 0x1);
+		PR_DTMB("intlv %2d,cr %2d constl %2d\n",
+			(tps >> 20) & 0x1,
+		     (tps >> 18) & 0x3, (tps >> 16) & 0x3);
+
+		PR_DTMB("[dtmb] snr is %d,fec_lock is %d,fec_bch_add is %d,",
+		     snr, fec_lock, fec_bch_add);
+		PR_DTMB("fec_ldpc_unc_acc is %d ,fec_ldpc_it_avg is %d\n",
+		     fec_ldpc_unc_acc,
+		     fec_ldpc_it_avg / 256);
+		PR_DTMB("------------------------------------------------------------\n");
+	}
 
 	return 0;
 }
@@ -544,7 +512,7 @@ int dtmb_check_status_gxtv(struct dvb_frontend *fe)
 	int time_cnt;/* cci_det, src_config;*/
 	int cfo_init, count;
 
-	dtmb_information();
+	dtmb_information(NULL);
 	time_cnt = 0;
 	local_state = 0;
 	cfo_init = 0;
@@ -576,7 +544,7 @@ int dtmb_check_status_gxtv(struct dvb_frontend *fe)
 			msleep(demod_timeout);
 			time_cnt++;
 			local_state = AMLOGIC_DTMB_STEP3;
-			dtmb_information();
+			dtmb_information(NULL);
 			dtmb_check_cci();
 			if (time_cnt > 8)
 				PR_DTMB
@@ -618,12 +586,12 @@ int dtmb_check_status_txl(struct dvb_frontend *fe)
 	int time_cnt;
 
 	time_cnt = 0;
-	dtmb_information();
+	dtmb_information(NULL);
 	if (check_dtmb_fec_lock() != 1) {
 		while ((time_cnt < 10) && (check_dtmb_fec_lock() != 1)) {
 			msleep(demod_timeout);
 			time_cnt++;
-			dtmb_information();
+			dtmb_information(NULL);
 			if (((dtmb_read_reg(DTMB_TOP_CTRL_CHE_WORKCNT)
 				>> 21) & 0x1) == 0x1) {
 				PR_DTMB("4qam-nr,need set spectrum\n");
@@ -735,7 +703,6 @@ int dtmb_set_ch(struct aml_demod_sta *demod_sta,
 	demod_sta->ch_mode = demod_dtmb->mode;	/* TODO */
 	demod_sta->agc_mode = agc_mode;
 	demod_sta->ch_freq = ch_freq;
-	demod_sta->dvb_mode = demod_mode;
 	demod_sta->ch_bw = (8 - bw) * 1000;
 	dtmb_initial(demod_sta);
 	PR_DTMB("DTMB mode\n");
@@ -788,7 +755,7 @@ unsigned int dtmb_reg_r_fec_lock(void)
 
 	rval.d32 = dtmb_read_reg(DTMB_TOP_FEC_LOCK_SNR);
 
-	if (is_dtmb_ver(IC_DTMB_V2))
+	if (is_meson_gxtvbb_cpu())
 		fec_lock = rval.b_v2.fec_lock;
 	else
 		fec_lock = rval.b.fec_lock;
@@ -802,7 +769,7 @@ unsigned int dtmb_reg_r_che_snr(void)
 
 	rval.d32 = dtmb_read_reg(DTMB_TOP_FEC_LOCK_SNR);
 
-	if (is_dtmb_ver(IC_DTMB_V2))
+	if (is_meson_gxtvbb_cpu())
 		che_snr = rval.b_v2.che_snr;
 	else
 		che_snr = rval.b.che_snr;

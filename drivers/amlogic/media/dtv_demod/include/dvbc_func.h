@@ -1,5 +1,5 @@
 /*
- * drivers/amlogic/media/dtv_demod/include/depend.h
+ * drivers/amlogic/media/dtv_demod/include/dvbc_func.h
  *
  * Copyright (C) 2017 Amlogic, Inc. All rights reserved.
  *
@@ -15,21 +15,22 @@
  *
  */
 
-#ifndef __DEPEND_H__
-#define __DEPEND_H__
+#ifndef __DVBC_FUNC_H__
+#define __DVBC_FUNC_H__
 
-#include <linux/device.h>	/**/
-
-
-/*dma_alloc_from_contiguous*/
-struct page *aml_dma_alloc_contiguous(struct device *dev, int count,
-						unsigned int order);
-/*dma_release_from_contiguous*/
-bool aml_dma_release_contiguous(struct device *dev, struct page *pages,
-						int count);
-
-struct aml_exp_func {
-	int (*leave_mode)(enum fe_delivery_system delsys);
+enum qam_md_e {
+	QAM_MODE_16,
+	QAM_MODE_32,
+	QAM_MODE_64,
+	QAM_MODE_128,
+	QAM_MODE_256,
+	QAM_MODE_NUM
 };
 
-#endif	/*__DEPEND_H__*/
+u32 dvbc_get_symb_rate(void);
+
+#define SYMB_CNT_CFG		0x3
+#define SR_OFFSET_ACC		0x8
+#define SR_SCAN_SPEED		0xc
+#define TIM_SWEEP_RANGE_CFG	0xe
+#endif

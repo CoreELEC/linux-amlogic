@@ -32,7 +32,7 @@ void tuner_set_params(struct dvb_frontend *fe)
 	if (fe->ops.tuner_ops.set_params)
 		ret = fe->ops.tuner_ops.set_params(fe);
 	else
-		PR_ERR("error: no tuner");
+		PR_ERR("error: no tuner\n");
 
 
 }
@@ -45,12 +45,6 @@ int tuner_get_ch_power(struct dvb_frontend *fe)
 #endif
 
 	if (fe != NULL) {
-#if 0
-		if (fe->ops.tuner_ops.get_strength)
-			strength = fe->ops.tuner_ops.get_strength(fe);
-		else
-			PR_INFO("no tuner get_strength\n");
-#endif
 #ifdef CONFIG_AMLOGIC_DVB_COMPAT
 		if (fe->ops.tuner_ops.get_strength) {
 			fe->ops.tuner_ops.get_strength(fe, &strengtha);
@@ -108,8 +102,10 @@ u16 tuner_get_ch_power3(void)
 			/*from negative to positive*/
 			if (strengtha < -100)
 				strength = 0;
+			else if (strengtha > -20)
+				strength = 100;
 			else
-				strength = strengtha + 100;
+				strength = (strengtha + 100) * 100 / 80;
 
 		} else {
 			PR_INFO("no tuner get_strength\n");

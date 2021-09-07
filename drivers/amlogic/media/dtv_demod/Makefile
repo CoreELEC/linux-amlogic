@@ -7,7 +7,7 @@ dtvdemod-objs := demod_func.o  dvbc_func.o i2c_func.o tuner_func.o atsc_func.o d
 
 dtvdemod-objs += amlfrontend.o demod_dbg.o
 
-dtvdemod-objs	+= aml_demod.o
+dtvdemod-objs	+= aml_demod.o dvbs.o dvbs_diseqc.o
 
 
 ccflags-y += -I.

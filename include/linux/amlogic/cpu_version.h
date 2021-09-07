@@ -207,6 +207,10 @@ static inline bool is_meson_tm2_cpu(void)
 	return get_cpu_type() == MESON_CPU_MAJOR_ID_TM2;
 }
 
+static inline bool is_meson_t5d_cpu(void)
+{
+	return get_cpu_type() == MESON_CPU_MAJOR_ID_T5D;
+}
 static inline bool cpu_after_eq(unsigned int id)
 {
 	return get_cpu_type() >= id;

@@ -79,132 +79,7 @@ const char aml_demod_dev_id[] = "aml_demod";
  *******************************/
 
 static struct aml_demod_sta demod_sta;
-static int read_start;
 
-int sdio_read_ddr(unsigned long sdio_addr, unsigned long byte_count,
-		  unsigned char *data_buf)
-{
-	return 0;
-}
-
-int sdio_write_ddr(unsigned long sdio_addr, unsigned long byte_count,
-		   unsigned char *data_buf)
-{
-	return 0;
-}
-#if 0
-int read_reg(int addr)
-{
-	addr = addr + ddemod_reg_base;	/* DEMOD_BASE;*/
-	return apb_read_reg(addr);
-}
-#endif
-void wait_capture(int cap_cur_addr, int depth_MB, int start)
-{
-	int readfirst;
-	int tmp;
-	int time_out;
-	int last = 0x90000000;
-
-	time_out = readfirst = 0;
-	tmp = depth_MB << 20;
-	while (tmp && (time_out < 1000)) {      /*10seconds time out */
-		time_out = time_out + 1;
-		msleep(20);
-		readfirst = app_apb_read_reg(cap_cur_addr);
-		if ((last - readfirst) > 0)
-			tmp = 0;
-		else
-			last = readfirst;
-		/*      usleep(1000); */
-		/*      readsecond= app_apb_read_reg(cap_cur_addr); */
-
-		/*      if((readsecond-start)>tmp) */
-/*                      tmp=0;*/
-/*              if((readsecond-readfirst)<0)  // turn around*/
-/*                      tmp=0;*/
-		pr_dbg("First  %x = [%08x],[%08x]%x\n", cap_cur_addr, readfirst,
-		       last, (last - readfirst));
-/*              printf("Second %x = [%08x]\n",cap_cur_addr, readsecond);*/
-		msleep(20);
-	}
-	read_start = readfirst + 0x40000000;
-	pr_dbg("read_start is %x\n", read_start);
-}
-#if 0 /*no use*/
-int cap_adc_data(struct aml_cap_data *cap)
-{
-	int tmp;
-	int tb_depth;
-
-	pr_dbg("capture ADC\n ");
-	/*      printf("set mem_start (you can read in kernel start log */
-	/* (memstart is ).(hex)  :  ");*/
-	/*      scanf("%x",&tmp);*/
-	tmp = 0x94400000;
-	app_apb_write_reg(0x9d, cap->cap_addr);
-	app_apb_write_reg(0x9e, cap->cap_addr + cap->cap_size * 0x100000);
-	/*0x8000000-128m, 0x400000-4m */
-	read_start = tmp + 0x40000000;
-	/*printf("set afifo rate. (hex)(adc_clk/demod_clk)*256+2 :  "); // */
-	/* (adc_clk/demod_clk)*256+2 */
-	/*  scanf("%x",&tmp); */
-	cap->cap_afifo = 0x60;
-	app_apb_write_reg(0x15, 0x18715f2);
-	app_apb_write_reg(0x15, (app_apb_read_reg(0x15) & 0xfff00fff) |
-			  ((cap->cap_afifo & 0xff) << 12));     /* set afifo */
-	app_apb_write_reg(0x9b, 0x1c9);	/* capture ADC 10bits */
-	app_apb_write_reg(0x7f, 0x00008000);	/* enable testbus 0x8000 */
-
-	tb_depth = cap->cap_size;                               /*127; */
-	tmp = 9;
-	app_apb_write_reg(0x9b, (app_apb_read_reg(0x9b) & ~0x1f) | tmp);
-	/* set testbus width */
-
-	tmp = 0x100000;
-	app_apb_write_reg(0x9c, tmp);   /* by ADC data enable */
-	/*  printf("Set test mode. (0 is normal ,1 is testmode) :  ");  //0 */
-	/*  scanf("%d",&tmp); */
-	tmp = 0;
-	if (tmp == 1)
-		app_apb_write_reg(0x9b, app_apb_read_reg(0x9b) | (1 << 10));
-	/* set test mode; */
-	else
-		app_apb_write_reg(0x9b, app_apb_read_reg(0x9b) & ~(1 << 10));
-	/* close test mode; */
-
-	app_apb_write_reg(0x9b, app_apb_read_reg(0x9b) & ~(1 << 9));
-	/* close cap; */
-	app_apb_write_reg(0x9b, app_apb_read_reg(0x9b) | (1 << 9));
-	/* open  cap; */
-
-	app_apb_write_reg(0x9b, app_apb_read_reg(0x9b) | (1 << 7));
-	/* close tb; */
-	app_apb_write_reg(0x9b, app_apb_read_reg(0x9b) & ~(1 << 7));
-	/* open  tb; */
-
-	app_apb_write_reg(0x9b, app_apb_read_reg(0x9b) | (1 << 5));
-	/* close intlv; */
-
-	app_apb_write_reg(0x303, 0x8);  /* open dc_arbit */
-
-	tmp = 0;
-	if (tmp)
-		app_apb_write_reg(0x9b, app_apb_read_reg(0x9b) & ~(1 << 5));
-	/* open  intlv; */
-
-	app_apb_write_reg(0x9b, app_apb_read_reg(0x9b) & ~(1 << 8));
-	/* go  tb; */
-
-	wait_capture(0x9f, tb_depth, app_apb_read_reg(0x9d));
-
-	app_apb_write_reg(0x9b, app_apb_read_reg(0x9b) | (1 << 8));
-	/* stop  tb; */
-	app_apb_write_reg(0x9b, app_apb_read_reg(0x9b) | (1 << 7));
-	/* close tb; */
-	return 0;
-}
-#endif
 static DECLARE_WAIT_QUEUE_HEAD(lock_wq);
 
 static ssize_t aml_demod_info(struct class *cla,
@@ -239,22 +114,6 @@ static int aml_demod_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-#if 0
-static int amdemod_islock(void)
-{
-	struct aml_demod_sts demod_sts;
-
-	if (demod_sta.dvb_mode == 0) {
-		dvbc_status(&demod_sta, &demod_i2c, &demod_sts);
-		return demod_sts.ch_sts & 0x1;
-	} else if (demod_sta.dvb_mode == 1) {
-		dvbt_status(&demod_sta, &demod_i2c, &demod_sts);
-		return demod_sts.ch_sts >> 12 & 0x1;
-	}
-	return 0;
-}
-#endif
-
 void mem_read(struct aml_demod_mem *arg)
 {
 	int data;
@@ -270,26 +129,49 @@ static long aml_demod_ioctl(struct file *file,
 {
 	int strength = 0;
 	struct dvb_frontend *dvbfe;
-	struct aml_tuner_sys *tuner;
 	struct aml_tuner_sys  tuner_para = {0};
 	struct aml_demod_reg  arg_t;
+	unsigned int val;
+	struct amldtvdemod_device_s *devp = dtvdemod_get_dev();
+
+	if (!devp) {
+		pr_err("%s devp is NULL\n", __func__);
+		return -EFAULT;
+	}
 
 	switch (cmd) {
+	case AML_DEMOD_GET_LOCK_STS:
+		val = dvbt_get_status_ops()->get_status();
+
+		if (copy_to_user((void __user *)arg, &val, sizeof(unsigned int)))
+			pr_dbg("copy_to_user error AML_DEMOD_GET_PLL_INIT\n");
+		break;
+
+	case AML_DEMOD_GET_PER:
+		val = dvbt_get_status_ops()->get_ber() & 0xffff;
+
+		if (copy_to_user((void __user *)arg, &val, sizeof(unsigned int)))
+			pr_dbg("copy_to_user error AML_DEMOD_GET_PLL_INIT\n");
+		break;
+
+	case AML_DEMOD_GET_CPU_ID:
+		val = get_cpu_type();
+
+		if (copy_to_user((void __user *)arg, &val, sizeof(unsigned int)))
+			pr_dbg("copy_to_user error AML_DEMOD_GET_PLL_INIT\n");
+		break;
+
 	case AML_DEMOD_GET_RSSI:
-		pr_dbg("Ioctl Demod GET_RSSI.\n");
-		dvbfe = aml_get_fe();/*get_si2177_tuner();*/
-#if 0
-		if (dvbfe != NULL)
-			if (dvbfe->ops.tuner_ops.get_strength)
-			strength = dvbfe->ops.tuner_ops.get_strength(dvbfe);
-#else
 		strength = tuner_get_ch_power2();
-#endif
-		pr_dbg("[si2177] strength is %d\n", strength - 256);
+
 		if (strength < 0)
 			strength = 0 - strength;
-		tuner = (struct aml_tuner_sys *)arg;
-		tuner->rssi = strength;
+
+		tuner_para.rssi = strength;
+		if (copy_to_user((void __user *)arg, &tuner_para,
+			sizeof(struct aml_tuner_sys))) {
+			pr_err("copy_to_user error AML_DEMOD_GET_RSSI\n");
+		}
 		break;
 
 	case AML_DEMOD_SET_TUNER:
@@ -302,7 +184,7 @@ static long aml_demod_ioctl(struct file *file,
 
 		if (copy_from_user(&tuner_para, (void __user *)arg,
 			sizeof(struct aml_tuner_sys))) {
-			PR_ERR("copy error AML_DEMOD_SET_REG\n");
+			PR_ERR("copy error AML_DEMOD_SET_TUNER\n");
 		} else {
 			if (tuner_para.mode <= FE_ISDBT) {
 				PR_INFO("set tuner md = %d\n",
@@ -321,8 +203,7 @@ static long aml_demod_ioctl(struct file *file,
 
 	case AML_DEMOD_SET_SYS:
 		pr_dbg("Ioctl Demod Set System\n");
-		demod_set_sys(&demod_sta,/* &demod_i2c,*/
-			      (struct aml_demod_sys *)arg);
+		demod_set_sys(devp, &demod_sta, (struct aml_demod_sys *)arg);
 		break;
 
 	case AML_DEMOD_GET_SYS:
@@ -331,41 +212,18 @@ static long aml_demod_ioctl(struct file *file,
 		/*demod_get_sys(&demod_i2c, (struct aml_demod_sys *)arg); */
 		break;
 
-	case AML_DEMOD_TEST:
-		pr_dbg("Ioctl Demod Test. It is blank now\n");
-		/*demod_msr_clk(13); */
-		/*demod_msr_clk(14); */
-		/*demod_calc_clk(&demod_sta); */
-		break;
-
-	case AML_DEMOD_TURN_ON:
-		pr_dbg("Ioctl Demod Turn ON.It is blank now\n");
-		/*demod_turn_on(&demod_sta, (struct aml_demod_sys *)arg); */
-		break;
-
-	case AML_DEMOD_TURN_OFF:
-		pr_dbg("Ioctl Demod Turn OFF.It is blank now\n");
-		/*demod_turn_off(&demod_sta, (struct aml_demod_sys *)arg); */
-		break;
-
 	case AML_DEMOD_DVBC_SET_CH:
 		pr_dbg("Ioctl DVB-C Set Channel.\n");
-		dvbc_set_ch(&demod_sta,/* &demod_i2c,*/
-			    (struct aml_demod_dvbc *)arg);
+		dvbc_set_ch(&demod_sta, (struct aml_demod_dvbc *)arg);
 		break;
 
 	case AML_DEMOD_DVBC_GET_CH:
-		/*      pr_dbg("Ioctl DVB-C Get Channel. It is blank\n"); */
-		dvbc_status(&demod_sta, /*&demod_i2c,*/
-			    (struct aml_demod_sts *)arg);
+		dvbc_status(devp, (struct aml_demod_sts *)arg, NULL);
 		break;
-	case AML_DEMOD_DVBC_TEST:
-		pr_dbg("Ioctl DVB-C Test. It is blank\n");
-		/*dvbc_get_test_out(0xb, 1000, (u32 *)arg); */
-		break;
+
 	case AML_DEMOD_DVBT_SET_CH:
 		pr_dbg("Ioctl DVB-T Set Channel\n");
-		dvbt_set_ch(&demod_sta, /*&demod_i2c,*/
+		dvbt_isdbt_set_ch(&demod_sta, /*&demod_i2c,*/
 			    (struct aml_demod_dvbt *)arg);
 		break;
 
@@ -375,20 +233,9 @@ static long aml_demod_ioctl(struct file *file,
 		/* (struct aml_demod_sts *)arg); */
 		break;
 
-	case AML_DEMOD_DVBT_TEST:
-		pr_dbg("Ioctl DVB-T Test. It is blank\n");
-		/*dvbt_get_test_out(0x1e, 1000, (u32 *)arg); */
-		break;
-
 	case AML_DEMOD_DTMB_SET_CH:
 		dtmb_set_ch(&demod_sta, /*&demod_i2c,*/
 			    (struct aml_demod_dtmb *)arg);
-		break;
-
-	case AML_DEMOD_DTMB_GET_CH:
-		break;
-
-	case AML_DEMOD_DTMB_TEST:
 		break;
 
 	case AML_DEMOD_ATSC_SET_CH:
@@ -400,22 +247,16 @@ static long aml_demod_ioctl(struct file *file,
 		check_atsc_fsm_status();
 		break;
 
-	case AML_DEMOD_ATSC_TEST:
-		break;
-
 	case AML_DEMOD_SET_REG:
-		/*      pr_dbg("Ioctl Set Register\n"); */
 		if (copy_from_user(&arg_t, (void __user *)arg,
 			sizeof(struct aml_demod_reg))) {
 			pr_dbg("copy error AML_DEMOD_SET_REG\n");
 		} else
 			demod_set_reg(&arg_t);
 
-		//demod_set_reg((struct aml_demod_reg *)arg);
 		break;
 
 	case AML_DEMOD_GET_REG:
-		/*      pr_dbg("Ioctl Get Register\n"); */
 		if (copy_from_user(&arg_t, (void __user *)arg,
 			sizeof(struct aml_demod_reg)))
 			pr_dbg("copy error AML_DEMOD_GET_REG\n");
@@ -428,21 +269,8 @@ static long aml_demod_ioctl(struct file *file,
 		}
 		break;
 
-/* case AML_DEMOD_SET_REGS: */
-/* break; */
-
-/* case AML_DEMOD_GET_REGS: */
-/* break; */
-
-	case AML_DEMOD_RESET_MEM:
-		pr_dbg("set mem ok\n");
-		break;
-
-	case AML_DEMOD_READ_MEM:
-		break;
 	case AML_DEMOD_SET_MEM:
 		/*step=(struct aml_demod_mem)arg;*/
-		/* pr_dbg("[%x]0x%x------------------\n",i,mem_buf[step]); */
 		/* for(i=step;i<1024-1;i++){ */
 		/* pr_dbg("0x%x,",mem_buf[i]); */
 		/* } */
@@ -452,11 +280,25 @@ static long aml_demod_ioctl(struct file *file,
 	case AML_DEMOD_ATSC_IRQ:
 		atsc_read_iqr_reg();
 		break;
+	case AML_DEMOD_GET_PLL_INIT:
+		val = get_dtvpll_init_flag();
+
+		if (copy_to_user((void __user *)arg, &val,
+			sizeof(unsigned int))) {
+			pr_dbg("copy_to_user error AML_DEMOD_GET_PLL_INIT\n");
+		}
+		break;
+
+	case AML_DEMOD_GET_CAPTURE_ADDR:
+		val = dtvdd_devp->mem_start;
+
+		if (copy_to_user((void __user *)arg, &val,
+				 sizeof(unsigned int)))
+			pr_dbg("copy_to_user error AML_DEMOD_GET_CAPTURE_ADDR\n");
+		break;
 
 	default:
-		pr_dbg("Enter Default ! 0x%X\n", cmd);
-/* pr_dbg("AML_DEMOD_GET_REGS=0x%08X\n", AML_DEMOD_GET_REGS); */
-/* pr_dbg("AML_DEMOD_SET_REGS=0x%08X\n", AML_DEMOD_SET_REGS); */
+		pr_dbg("enter Default! 0x%X\n", cmd);
 		return -EINVAL;
 	}
 

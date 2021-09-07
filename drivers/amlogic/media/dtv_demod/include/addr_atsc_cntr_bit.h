@@ -18,7 +18,7 @@
 #ifndef __ADDR_ATSC_CNTR_BIT_H__
 #define __ADDR_ATSC_CNTR_BIT_H__
 
-union ATSC_CNTR_REG_0X20_BITS {
+union atsc_cntl_reg_0x20 {
 	unsigned int bits;
 	struct	 {
 		unsigned int	cpu_rst                        :1,

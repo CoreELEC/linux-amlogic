@@ -10,6 +10,7 @@
 #define u32_t u32
 #define u64_t u64
 #include <linux/amlogic/cpu_version.h>
+#include <linux/dvb/frontend.h>
 
 struct aml_demod_i2c {
 	u8_t tuner;		/*type */
@@ -75,7 +76,6 @@ struct aml_demod_sta {
 	u8_t adc_en;		/*on/off */
 	u32_t clk_freq;		/*kHz */
 	u32_t adc_freq;		/*kHz */
-	u8_t dvb_mode;		/*dvb-t/c mode */
 	u8_t ch_mode;		/* 16,32,..,256QAM or 2K,4K,8K */
 	u8_t agc_mode;		/*if, rf or both. */
 	u8_t tuner;		/*type */
@@ -87,6 +87,7 @@ struct aml_demod_sta {
 	u8_t tmp;
 	u32_t sts;		/*pointer */
 	u8_t spectrum;
+	enum fe_delivery_system delsys;
 };
 
 struct aml_demod_dvbc {
@@ -140,21 +141,6 @@ struct aml_demod_mem {
 
 };
 
-struct aml_cap_data {
-	u32_t cap_addr;
-	u32_t cap_size;
-	u32_t cap_afifo;
-	char  *cap_dev_name;
-};
-
-struct aml_demod_reg {
-	u8_t mode;
-	u8_t rw;		/* 0: read, 1: write. */
-	u32_t addr;
-	u32_t val;
-/*	u32_t val_high;*/
-};
-
 struct aml_demod_regs {
 	u8_t mode;
 	u8_t rw;		/* 0: read, 1: write. */
@@ -167,13 +153,6 @@ struct fpga_m1_sdio {
 	unsigned long addr;
 	unsigned long byte_count;
 	unsigned char *data_buf;
-};
-
-struct aml_demod_para {
-	u32_t dvbc_symbol;
-	u32_t dvbc_qam;
-	u32_t dtmb_qam;
-	u32_t dtmb_coderate;
 };
 
 //cmd
@@ -191,48 +170,39 @@ struct aml_demod_para {
 #define AML_DBG_DEMOD_MODUL		11
 
 
-#define AML_DEMOD_SET_SYS        _IOW('D',  0, struct aml_demod_sys)
-#define AML_DEMOD_GET_SYS        _IOR('D',  1, struct aml_demod_sys)
-#define AML_DEMOD_TEST           _IOR('D',  2, u32_t)
-#define AML_DEMOD_TURN_ON        _IOR('D',  3, u32_t)
-#define AML_DEMOD_TURN_OFF       _IOR('D',  4, u32_t)
-#define AML_DEMOD_SET_TUNER      _IOW('D',  5, struct aml_tuner_sys)
-#define AML_DEMOD_GET_RSSI       _IOR('D',  6, struct aml_tuner_sys)
+#define AML_DEMOD_SET_SYS		_IOW('D', 0, struct aml_demod_sys)
+#define AML_DEMOD_GET_SYS		_IOR('D', 1, struct aml_demod_sys)
+#define AML_DEMOD_GET_LOCK_STS		_IOR('D', 2, unsigned int)
+#define AML_DEMOD_GET_PER		_IOR('D', 3, unsigned int)
+#define AML_DEMOD_GET_CPU_ID		_IOR('D', 4, unsigned int)
+#define AML_DEMOD_SET_TUNER		_IOW('D', 5, struct aml_tuner_sys)
+#define AML_DEMOD_GET_RSSI		_IOR('D', 6, struct aml_tuner_sys)
+#define AML_DEMOD_GET_PLL_INIT		_IOR('D', 7, u32_t)
+#define AML_DEMOD_GET_CAPTURE_ADDR	_IOR('D', 8, u32_t)
 
-#define AML_DEMOD_DVBC_SET_CH    _IOW('D', 10, struct aml_demod_dvbc)
-#define AML_DEMOD_DVBC_GET_CH    _IOR('D', 11, struct aml_demod_dvbc)
-#define AML_DEMOD_DVBC_TEST      _IOR('D', 12, u32_t)
+#define AML_DEMOD_DVBC_SET_CH		_IOW('D', 10, struct aml_demod_dvbc)
+#define AML_DEMOD_DVBC_GET_CH		_IOR('D', 11, struct aml_demod_dvbc)
 
-#define AML_DEMOD_DVBT_SET_CH    _IOW('D', 20, struct aml_demod_dvbt)
-#define AML_DEMOD_DVBT_GET_CH    _IOR('D', 21, struct aml_demod_dvbt)
-#define AML_DEMOD_DVBT_TEST      _IOR('D', 22, u32_t)
+#define AML_DEMOD_DVBT_SET_CH		_IOW('D', 20, struct aml_demod_dvbt)
+#define AML_DEMOD_DVBT_GET_CH		_IOR('D', 21, struct aml_demod_dvbt)
 
-#define AML_DEMOD_DTMB_SET_CH    _IOW('D', 50, struct aml_demod_dtmb)
-#define AML_DEMOD_DTMB_GET_CH    _IOR('D', 51, struct aml_demod_dtmb)
-#define AML_DEMOD_DTMB_TEST      _IOR('D', 52, u32_t)
+#define AML_DEMOD_DTMB_SET_CH		_IOW('D', 50, struct aml_demod_dtmb)
 
-#define AML_DEMOD_ATSC_SET_CH    _IOW('D', 60, struct aml_demod_atsc)
-#define AML_DEMOD_ATSC_GET_CH    _IOR('D', 61, struct aml_demod_atsc)
-#define AML_DEMOD_ATSC_TEST      _IOR('D', 62, u32_t)
-#define AML_DEMOD_ATSC_IRQ       _IOR('D', 63, u32_t)
+#define AML_DEMOD_ATSC_SET_CH		_IOW('D', 60, struct aml_demod_atsc)
+#define AML_DEMOD_ATSC_GET_CH		_IOR('D', 61, struct aml_demod_atsc)
+#define AML_DEMOD_ATSC_IRQ		_IOR('D', 63, u32_t)
 
-#define AML_DEMOD_RESET_MEM		  _IOR('D', 70, u32_t)
-#define	AML_DEMOD_READ_MEM		  _IOR('D', 71, u32_t)
-#define AML_DEMOD_SET_MEM		  _IOR('D', 72, struct aml_demod_mem)
+#define AML_DEMOD_SET_MEM		_IOR('D', 72, struct aml_demod_mem)
 
-#define AML_DEMOD_SET_REG        _IOW('D', 30, struct aml_demod_reg)
-#define AML_DEMOD_GET_REG        _IOR('D', 31, struct aml_demod_reg)
-/* #define AML_DEMOD_SET_REGS        _IOW('D', 32, struct aml_demod_regs)*/
-/*#define AML_DEMOD_GET_REGS        _IOR('D', 33, struct aml_demod_regs)*/
-#define FPGA2M1_SDIO_WR_DDR      _IOW('D', 40, struct fpga_m1_sdio)
-#define FPGA2M1_SDIO_RD_DDR      _IOR('D', 41, struct fpga_m1_sdio)
-#define FPGA2M1_SDIO_INIT        _IO('D', 42)
-#define FPGA2M1_SDIO_EXIT        _IO('D', 43)
+#define AML_DEMOD_SET_REG		_IOW('D', 30, struct aml_demod_reg)
+#define AML_DEMOD_GET_REG		_IOR('D', 31, struct aml_demod_reg)
+/* #define AML_DEMOD_SET_REGS		_IOW('D', 32, struct aml_demod_regs)*/
+/*#define AML_DEMOD_GET_REGS		_IOR('D', 33, struct aml_demod_regs)*/
+#define FPGA2M1_SDIO_WR_DDR		_IOW('D', 40, struct fpga_m1_sdio)
+#define FPGA2M1_SDIO_RD_DDR		_IOR('D', 41, struct fpga_m1_sdio)
+#define FPGA2M1_SDIO_INIT		_IO('D', 42)
+#define FPGA2M1_SDIO_EXIT		_IO('D', 43)
 
-int read_memory_to_file(struct aml_cap_data *cap);
-int read_reg(int addr);
-void wait_capture(int cap_cur_addr, int depth_MB, int start);
-int cap_adc_data(struct aml_cap_data *cap);
 extern unsigned int get_symbol_rate(void);
 extern unsigned int get_ch_freq(void);
 extern unsigned int get_modu(void);

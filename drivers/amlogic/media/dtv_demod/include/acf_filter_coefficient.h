@@ -20,10 +20,10 @@ void program_acf(int acf1[20], int acf2[33])
 	int i;
 
 	for (i = 0; i < 20; i++)
-		dvbt_write_reg((0x2c + i) * 4, acf1[i]);
+		dvbt_isdbt_wr_reg((0x2c + i) * 4, acf1[i]);
 	for (i = 0; i < 33; i++) {
-		dvbt_write_reg(0xfe * 4, i);
-		dvbt_write_reg(0xff * 4, acf2[i]);
+		dvbt_isdbt_wr_reg(0xfe * 4, i);
+		dvbt_isdbt_wr_reg(0xff * 4, acf2[i]);
 	}
 }
 

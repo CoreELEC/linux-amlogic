@@ -114,7 +114,7 @@ struct dvb_diseqc_slave_reply {
 enum fe_sec_voltage {
 	SEC_VOLTAGE_13,
 	SEC_VOLTAGE_18,
-	SEC_VOLTAGE_OFF,
+	SEC_VOLTAGE_OFF
 };
 
 enum fe_sec_tone_mode {

@@ -298,31 +298,22 @@ void dvbc_kill_cci_task(void)
 #endif
 
 
-int dvbc_set_ch(struct aml_demod_sta *demod_sta,
-		/*struct aml_demod_i2c *demod_i2c,*/
-		struct aml_demod_dvbc *demod_dvbc)
+int dvbc_set_ch(struct aml_demod_sta *demod_sta, struct aml_demod_dvbc *demod_dvbc)
 {
 	int ret = 0;
 	u16 symb_rate;
 	u8 mode;
 	u32 ch_freq;
 
-	PR_DVBC("f=%d, s=%d, q=%d\n",
-		demod_dvbc->ch_freq, demod_dvbc->symb_rate, demod_dvbc->mode);
-/*ary no use	demod_i2c->tuner = 7;*/
+	PR_DVBC("f=%d, s=%d, q=%d\n", demod_dvbc->ch_freq, demod_dvbc->symb_rate, demod_dvbc->mode);
 	mode = demod_dvbc->mode;
 	symb_rate = demod_dvbc->symb_rate;
 	ch_freq = demod_dvbc->ch_freq;
-	if (mode > 4) {
-		PR_DVBC("Error: Invalid QAM mode option %d\n", mode);
-		mode = 4;
-		ret = -1;
-	}
 
-	if (symb_rate < 1000 || symb_rate > 7000) {
-		PR_DVBC("Error: Invalid Symbol Rate option %d\n", symb_rate);
-		symb_rate = 5361;
-		ret = -1;
+	if (mode > 4) {
+		/* auto QAM mode, force to QAM64 */
+		mode = 2;
+		PR_DVBC("QAM mode option %d\n", mode);
 	}
 
 	if (ch_freq < 1000 || ch_freq > 900000) {
@@ -330,42 +321,24 @@ int dvbc_set_ch(struct aml_demod_sta *demod_sta,
 		ch_freq = 474000;
 		ret = -1;
 	}
-	/* if (ret != 0) return ret; */
-	//demod_sta->dvb_mode = 0;
+
 	demod_sta->ch_mode = mode;
 	/* 0:16, 1:32, 2:64, 3:128, 4:256 */
 	demod_sta->agc_mode = 1;
 	/* 0:NULL, 1:IF, 2:RF, 3:both */
 	demod_sta->ch_freq = ch_freq;
-	/*ary no use demod_sta->tuner = demod_i2c->tuner;*/
-#if 0	/*ary no use*/
-	if (demod_i2c->tuner == 1)
-		demod_sta->ch_if = 36130;	/* TODO  DCT tuner */
-	else if (demod_i2c->tuner == 2)
-		demod_sta->ch_if = 4570;	/* TODO  Maxlinear tuner */
-	else if (demod_i2c->tuner == 7)
-		/*   demod_sta->ch_if     = 5000; // TODO  Si2176 tuner */
-#endif
-	demod_sta->ch_bw = 8000;	/* TODO */
+	demod_sta->ch_bw = 8000;
 	if (demod_sta->ch_if == 0)
 		demod_sta->ch_if = 5000;
 	demod_sta->symb_rate = symb_rate;
-	if ((!is_ic_ver(IC_VER_TL1)) && !is_ic_ver(IC_VER_TM2)
-		&& is_dvbc_ver(IC_DVBC_V3))
+
+	if (!cpu_after_eq(MESON_CPU_MAJOR_ID_TL1) && cpu_after_eq(MESON_CPU_MAJOR_ID_TXLX))
 		demod_sta->adc_freq = demod_dvbc->dat0;
 
-#if 0
-	if (is_meson_txlx_cpu() || is_meson_gxlx_cpu())
-		dvbc_reg_initial(demod_sta);
-	else
+	if (is_meson_gxtvbb_cpu() || is_meson_txl_cpu())
 		dvbc_reg_initial_old(demod_sta);
-#endif
-	if (is_dvbc_ver(IC_DVBC_V2))
-		dvbc_reg_initial_old(demod_sta);
-	else if (is_dvbc_ver(IC_DVBC_V3))
+	else if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXLX) && !is_meson_txhd_cpu())
 		dvbc_reg_initial(demod_sta);
-	else
-		PR_ERR("%s:not support %d\n", __func__, get_dvbc_ver());
 
 	return ret;
 }
