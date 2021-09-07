@@ -767,8 +767,8 @@ static void vd1_set_dcu(
 	if (type & VIDTYPE_MVC)
 		is_mvc = true;
 
-	pr_debug("%s for vd%d %p, type:0x%x\n",
-		 __func__, layer->layer_id, vf, type);
+	pr_debug("%s for vd%d %p, type:0x%x, flag:%x\n",
+		 __func__, layer->layer_id, vf, type, vf->flag);
 
 #ifdef CONFIG_AMLOGIC_MEDIA_DEINTERLACE
 	if (is_di_post_mode(vf) && is_di_post_on())
@@ -1258,8 +1258,8 @@ static void vd2_set_dcu(
 	type = vf->type;
 	if (type & VIDTYPE_MVC)
 		is_mvc = true;
-	pr_debug("%s for vd%d %p, type:0x%x\n",
-		 __func__, layer->layer_id, vf, type);
+	pr_debug("%s for vd%d %p, type:0x%x, flag:%x\n",
+		 __func__, layer->layer_id, vf, type, vf->flag);
 
 	if (frame_par->nocomp)
 		type &= ~VIDTYPE_COMPRESS;
@@ -4957,6 +4957,8 @@ static bool is_vframe_changed(
 	struct vframe_s *cur_vf,
 	struct vframe_s *new_vf)
 {
+	u32 old_flag, new_flag;
+
 	if (cur_vf && new_vf &&
 	    (cur_vf->ratio_control & DISP_RATIO_ADAPTED_PICMODE) &&
 	    (cur_vf->ratio_control == new_vf->ratio_control) &&
@@ -4988,6 +4990,13 @@ static bool is_vframe_changed(
 	      (new_vf->type_backup & VIDTYPE_INTERLACE)) ||
 	     (cur_vf->type != new_vf->type)))
 		return true;
+
+	if (cur_vf && new_vf) {
+		old_flag = cur_vf->flag & VFRAME_FLAG_DISP_ATTR_MASK;
+		new_flag = new_vf->flag & VFRAME_FLAG_DISP_ATTR_MASK;
+		if (old_flag != new_flag)
+			return true;
+	}
 	return false;
 }
 
