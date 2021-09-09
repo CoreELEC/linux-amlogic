@@ -194,6 +194,7 @@ extern void tvafe_clk_gate_ctrl(int status);
 void white_pattern_pga_reset(enum tvin_port_e port);
 
 extern unsigned int cvd_reg87_pal;
+extern unsigned int acd_166;
 extern void __iomem *ana_addr;
 #endif  /* _TVAFE_GENERAL_H */
 
