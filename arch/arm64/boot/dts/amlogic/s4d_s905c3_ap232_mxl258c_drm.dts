@@ -6,6 +6,7 @@
 /dts-v1/;
 
 #include "meson-s4d.dtsi"
+#include "mesons4_drm.dtsi"
 #include "partition_mbox_ab.dtsi"
 #include <dt-bindings/input/input.h>
 
@@ -14,8 +15,8 @@
 	amlogic-dt-id = "s4d_s905c3_ap232";
 	compatible = "amlogic, s4d";
 	interrupt-parent = <&gic>;
-	#address-cells = <1>;
-	#size-cells = <1>;
+	#address-cells = <2>;
+	#size-cells = <2>;
 
 	aliases {
 		serial0 = &uart_B;
@@ -35,18 +36,18 @@
 
 	memory@00000000 {
 		device_type = "memory";
-		linux,usable-memory = <0x0 0x80000000>;
+		linux,usable-memory = <0x0 0x0 0x0 0x80000000>;
 	};
 
 	reserved-memory {
-		#address-cells = <1>;
-		#size-cells = <1>;
+		#address-cells = <2>;
+		#size-cells = <2>;
 		ranges;
 
 		/* global autoconfigured region for contiguous allocations */
 		ramoops@0x07400000 {
 			compatible = "ramoops";
-			reg = <0x07400000 0x00100000>;
+			reg = <0x0 0x07400000 0x0 0x00100000>;
 			record-size = <0x20000>;
 			console-size = <0x40000>;
 			ftrace-size = <0x80000>;
@@ -56,31 +57,31 @@
 		secmon_reserved:linux,secmon {
 			compatible = "shared-dma-pool";
 			reusable;
-			size = <0x3400000>;
-			alignment = <0x400000>;
-			alloc-ranges = <0x05000000 0x3400000>;
+			size = <0x0 0x3400000>;
+			alignment = <0x0 0x400000>;
+			alloc-ranges = <0x0 0x05000000 0x0 0x3400000>;
 		};
 
 		logo_reserved:linux,meson-fb {
 			compatible = "shared-dma-pool";
 			reusable;
-			size = <0x800000>;
-			alignment = <0x400000>;
-			alloc-ranges = <0x7f800000 0x800000>;
+			size = <0x0 0x800000>;
+			alignment = <0x0 0x400000>;
+			alloc-ranges = <0x0 0x7f800000 0x0 0x800000>;
 		};
 
 		ion_cma_reserved:linux,ion-dev {
 			compatible = "shared-dma-pool";
 			reusable;
-			size = <0x6400000>;
-			alignment = <0x400000>;
+			size = <0x0 0x5c00000>;
+			alignment = <0x0 0x400000>;
 		};
 		ion_fb_reserved:linux,ion-fb {
 			compatible = "shared-dma-pool";
 			reusable;
-			/* 1920x1080x4x3 round up 4M align */
-			size = <0x1c00000>;
-			alignment = <0x400000>;
+			/* 1920x1080x4x4 round up 4M align */
+			size = <0x0 0x2400000>;
+			alignment = <0x0 0x400000>;
 		};
 		/*di CMA pool */
 		di_cma_reserved:linux,di_cma {
@@ -95,7 +96,7 @@
 			 */
 			//size = <0x0 0x0B000000>;
 			//size = <0x0 0x0>;
-			alignment = <0x400000>;
+			alignment = <0x0 0x400000>;
 		};
 
 		/*  POST PROCESS MANAGER */
@@ -108,16 +109,16 @@
 			compatible = "shared-dma-pool";
 			reusable;
 			/* ion_codec_mm max can alloc size 80M*/
-			size = <0x1b000000>;
-			alignment = <0x400000>;
+			size = <0x0 0x1b000000>;
+			alignment = <0x0 0x400000>;
 			linux,contiguous-region;
 		};
 
 		/* codec shared reserved */
 		codec_mm_reserved:linux,codec_mm_reserved {
 			compatible = "amlogic, codec-mm-reserved";
-			size = <0x0>;
-			alignment = <0x100000>;
+			size = <0x0 0x0>;
+			alignment = <0x0 0x100000>;
 			//no-map;
 		};
 
@@ -128,8 +129,8 @@
 			/* up to 1920x1080 yuv422 8bit and 5 buffers
 			 * 1920x1080x2x5 = 20 M
 			 */
-		//	size = <0x01400000>;
-		//	alignment = <0x400000>;
+		//	size = <0x0 0x01400000>;
+		//	alignment = <0x0 0x400000>;
 		//};
 		/*  vdin1 CMA pool */
 		vdin1_cma_reserved:linux,vdin1_cma {
@@ -138,26 +139,27 @@
 			/* up to 1920x1080 yuv422 8bit and 5 buffers
 			 * 1920x1080x2x5 = 20 M
 			 */
-			size = <0x01400000>;
-			alignment = <0x400000>;
+			size = <0x0 0x01400000>;
+			alignment = <0x0 0x400000>;
 		};
 
 		/* demod_reserved:linux,demod {
 		 *	compatible = "amlogic, demod-mem";
-		 *	size = <0x6400000>; //8M //100m 0x6400000
-		 *	alloc-ranges = <0x0 0x30000000>;
+		 *	size = <0x0 0x6400000>; //8M //100m 0x6400000
+		 *	alloc-ranges = <0x0 0x0 0x0 0x30000000>;
 		 *	//multi-use;
 		 *	//no-map;
 		 * };
 		 */
 
-		demod_cma_reserved:linux,demod_cma {
-			compatible = "shared-dma-pool";
-			reusable;
-			/* 20M */
-			size = <0x1400000>;
-			alignment = <0x400000>;
-		};
+		/* demod_cma_reserved:linux,demod_cma {
+		 *	compatible = "shared-dma-pool";
+		 *	reusable;
+		 *	//20M
+		 *	size = <0x0 0x1400000>;
+		 *	alignment = <0x0 0x400000>;
+		 *};
+		 */
 	};
 	codec_mm {
 		compatible = "amlogic, codec, mm";
@@ -184,7 +186,7 @@
 
 		/* performance: reg_address, reg_value */
 		/* s4d */
-		performance_pal = <0x1bf0  0x9 /* default Matrx625 CTCC value*/
+		performance_pal = <0x1bf0  0x9 /* default Matrx625 CTCC value */
 			0x1b12  0x80c0
 			0x1b05  0xfa
 			0x1b56  0x333
@@ -214,61 +216,97 @@
 		dvb_power_value = <1>;
 		dvb_power_dir = <0>; /* 0: out, 1: in. */
 
-		/* interal 1 * dvb-c/s, interal 1 * dvb-c, extern 1 * dvb-s */
-		fe_num = <3>;
-		fe0_demod = "internal";
-		fe0_tuner0 = <0>; /* use tuner0 C */
-		fe0_tuner1 = <2>; /* use tuner2 S */
+		fe_num = <4>;
 
-		fe1_demod = "internal";
-		fe1_tuner0 = <1>; /* use tuner1 C */
+		/* header: max 12 bytes */
+		/* data: The same as demux */
+		fe0_ts_header_bytes = <4>;
+		fe0_ts_header_data = <0x4b 0x20 0x0 0x0>;
 
-		fe2_demod = "cxd2856";
-		fe2_i2c_adap_id = <&i2c4>;
-		fe2_demod_i2c_addr = <0xD8>;
+		fe1_ts_header_bytes = <4>;
+		fe1_ts_header_data = <0x4b 0x21 0x0 0x0>;
+
+		fe2_ts_header_bytes = <4>;
+		fe2_ts_header_data = <0x4b 0x22 0x0 0x0>;
+
+		fe3_ts_header_bytes = <4>;
+		fe3_ts_header_data = <0x4b 0x23 0x0 0x0>;
+
+		fe0_demod = "MXL258C";
+		fe0_i2c_adap_id = <&i2c3>;
+		fe0_demod_i2c_addr = <0x50>;
+		fe0_demod_code = <0x254c>;
+
+		/* 0: NO_MUX_4, 1: MUX_1, 2: MUX_2, 3: MUX_3. */
+		/* 4: MUX_4, 5: MUX_2_B, 6: NO_MUX_2.*/
+		/* not require in parallel mode */
+		fe0_ts_mux_mode = <2>;
+		/* 10, 21, 25, 28, 42, 56, 84, 112 (MHz). */
+		fe0_ts_clk = <112>;
+		fe0_reset_value = <0>;
+		fe0_reset_gpio = <&gpio GPIOZ_4 GPIO_ACTIVE_HIGH>;
+		fe0_reset_dir = <0>; /* 0:out, 1:in */
+		/*fe0_ant_poweron_value = <0>;*/
+		/*fe0_ant_power_gpio = <&gpio GPIOH_9 GPIO_ACTIVE_HIGH>;*/
+		fe0_ts = <3>; /* select tsin port */
+		fe0_ts_out_mode = <0>; /* 0: serial, 1: parallel. */
+
+		fe1_demod = "MXL258C";
+		fe1_i2c_adap_id = <&i2c3>;
+		fe1_demod_i2c_addr = <0x50>;
+		fe1_demod_code = <0x254c>;
+
+		/* 0: NO_MUX_4, 1: MUX_1, 2: MUX_2, 3: MUX_3. */
+		/* 4: MUX_4, 5: MUX_2_B, 6: NO_MUX_2.*/
+		/* not require in parallel mode */
+		fe1_ts_mux_mode = <2>;
+		/* 10, 21, 25, 28, 42, 56, 84, 112 (MHz). */
+		fe1_ts_clk = <112>;
+		fe1_reset_value = <0>;
+		fe1_reset_gpio = <&gpio GPIOZ_4 GPIO_ACTIVE_HIGH>;
+		fe1_reset_dir = <0>; /* 0:out, 1:in */
+		/*fe1_ant_poweron_value = <0>;*/
+		/*fe1_ant_power_gpio = <&gpio GPIOH_9 GPIO_ACTIVE_HIGH>;*/
+		fe1_ts = <3>; /* select tsin port */
+		fe1_ts_out_mode = <0>; /* 0: serial, 1: parallel. */
+
+		fe2_demod = "MXL258C";
+		fe2_i2c_adap_id = <&i2c3>;
+		fe2_demod_i2c_addr = <0x50>;
+		fe2_demod_code = <0x254c>;
+
+		/* 0: NO_MUX_4, 1: MUX_1, 2: MUX_2, 3: MUX_3. */
+		/* 4: MUX_4, 5: MUX_2_B, 6: NO_MUX_2.*/
+		/* not require in parallel mode */
+		fe2_ts_mux_mode = <2>;
+		/* 10, 21, 25, 28, 42, 56, 84, 112 (MHz). */
+		fe2_ts_clk = <112>;
 		fe2_reset_value = <0>;
 		fe2_reset_gpio = <&gpio GPIOZ_4 GPIO_ACTIVE_HIGH>;
-		fe2_reset_dir = <0>; /* 0: out, 1: in. */
-		fe2_ant_poweron_value = <0>;
-		fe2_ant_power_gpio = <&gpio GPIOH_9 GPIO_ACTIVE_HIGH>;
-		fe2_lnb_en_gpio = <&gpio GPIOZ_6 GPIO_ACTIVE_HIGH>;
-		fe2_lnb_en_value = <1>;
-		fe2_lnb_sel_gpio = <&gpio GPIOH_6 GPIO_ACTIVE_HIGH>;
-		fe2_lnb_sel_value = <1>;
-		fe2_ts = <0>;
-		fe2_tuner0 = <1>; /* use tuner0, only TC. */
-		fe2_tuner1 = <3>; /* use tuner3, only S. */
+		fe2_reset_dir = <0>; /* 0:out, 1:in */
+		/*fe2_ant_poweron_value = <0>;*/
+		/*fe2_ant_power_gpio = <&gpio GPIOH_9 GPIO_ACTIVE_HIGH>;*/
+		fe2_ts = <0>; /* select tsin port */
+		fe2_ts_out_mode = <0>; /* 0: serial, 1: parallel. */
 
-		tuner_num = <4>; /* tuner number, multi tuner support */
-		tuner0_name = "r836_tuner";
-		tuner0_i2c_adap = <&i2c3>;
-		tuner0_i2c_addr = <0x1a>; /* 7bit */
-		tuner0_xtal = <0>; /* 0: 16MHz, 1: 24MHz */
-		tuner0_xtal_mode = <0>;
-					/* NO_SHARE_XTAL(0)
-					 * SLAVE_XTAL_SHARE(3)
-					 */
-		tuner0_xtal_cap = <16>;
-		tuner0_lt_out = <1>;
+		fe3_demod = "MXL258C";
+		fe3_i2c_adap_id = <&i2c3>;
+		fe3_demod_i2c_addr = <0x50>;
+		fe3_demod_code = <0x254c>;
 
-		tuner1_name = "r836_tuner";
-		tuner1_i2c_adap = <&i2c3>;
-		tuner1_i2c_addr = <0x3a>; /* 7bit */
-		tuner1_xtal = <0>; /* 0: 16MHz, 1: 24MHz */
-		tuner1_xtal_mode = <0>;
-					/* NO_SHARE_XTAL(0)
-					 * SLAVE_XTAL_SHARE(3)
-					 */
-		tuner1_xtal_cap = <16>;
-		tuner1_lt_out = <1>;
-
-		tuner2_name = "av2018_tuner";
-		tuner2_i2c_adap = <&i2c3>;
-		tuner2_i2c_addr = <0xC4>; /* 8bit */
-		tuner2_lt_out = <1>;
-
-		tuner3_name = "av2018_tuner";
-		tuner3_lt_out = <1>;
+		/* 0: NO_MUX_4, 1: MUX_1, 2: MUX_2, 3: MUX_3. */
+		/* 4: MUX_4, 5: MUX_2_B, 6: NO_MUX_2.*/
+		/* not require in parallel mode */
+		fe3_ts_mux_mode = <2>;
+		/* 10, 21, 25, 28, 42, 56, 84, 112 (MHz). */
+		fe3_ts_clk = <112>;
+		fe3_reset_value = <0>;
+		fe3_reset_gpio = <&gpio GPIOZ_4 GPIO_ACTIVE_HIGH>;
+		fe3_reset_dir = <0>; /* 0:out, 1:in */
+		/*fe3_ant_poweron_value = <0>;*/
+		/*fe3_ant_power_gpio = <&gpio GPIOH_9 GPIO_ACTIVE_HIGH>;*/
+		fe3_ts = <0>; /* select tsin port */
+		fe3_ts_out_mode = <0>; /* 0: serial, 1: parallel. */
 	};
 
 	dvb-demux {
@@ -276,30 +314,59 @@
 		dev_name = "dvb-demux";
 		status = "okay";
 
-		reg = <0xfe000000 0x480000>;
+		reg = <0x0 0xfe000000 0x0 0x480000>;
 
 		dmxdev_num = <4>;
 
 		tsn_from = "demod";
 
 		/*single demod setting */
-		ts0_sid = <0x20>;
+		//ts0_sid = <0x20>;
 		ts0 = "serial-4wire"; /* tsinA: serial-4wire, serial-3wire */
 		ts0_control = <0x0>;
-		ts0_invert = <0>;
 
-		ts1_sid = <0x21>;
+		//ts1_sid = <0x21>;
 		ts1 = "parallel";
 		ts1_control = <0x0>;
-		ts1_invert = <0>;
 
-		ts2_sid = <0x22>;
+		//ts2_sid = <0x22>;
 		ts2 = "parallel";
 		ts2_control = <0x0>;
-		ts2_invert = <0>;
 
-		pinctrl-names = "s_ts0";
+		//ts3_sid = <0x23>;
+		ts3 = "serial-4wire";
+		ts3_control = <0x0>;
+
+		/*multi demod setting, such as maxlinear demod*/
+		/*attention: ts how to bind to dmx device
+		 * it should set sid in maxlinear driver
+		 * sid list:
+		 * dmx0 sid:0x20
+		 * dmx1 sid:0x21
+		 * ...
+		 * dmx31 sid:0x2F
+		 */
+		ts0_header_len = <4>;
+		ts0_header = <0x4b 0x20 0x0 0x0>;
+		ts0_sid_offset = <1>;
+
+		ts1_header_len = <4>;
+		ts1_header = <0x4b 0x21 0x0 0x0>;
+		ts1_sid_offset = <1>;
+
+		ts2_header_len = <4>;
+		ts2_header = <0x4b 0x22 0x0 0x0>;
+		ts2_sid_offset = <1>;
+
+		ts3_header_len = <4>;
+		ts3_header = <0x4b 0x23 0x0 0x0>;
+		ts3_sid_offset = <1>;
+
+		/*tsinb=0,tsinb1=1,tsinb2=2*/
+		tsinb = <2>;
+		pinctrl-names = "s_ts0", "s_ts3";
 		pinctrl-0 = <&dvb_s_ts0_pins>;
+		pinctrl-1 = <&dvb_s_ts3_pins>;
 	};
 
 	ionvideo {
@@ -370,12 +437,12 @@
 	aml_dtv_demod {
 		compatible = "amlogic, ddemod-s4d";
 		dev_name = "aml_dtv_demod";
-		status = "okay";
+		status = "disabled";
 		diseqc_name = "sgm_41286";
-		pinctrl-names="if_agc_pins", "rf_agc_pins", "diseqc";
-		pinctrl-0=<&dtvdemod_if_agc_pins>;
-		pinctrl-1=<&dtvdemod_rf_agc_pins>;
-		pinctrl-2=<&diseqc_out>;
+		//pinctrl-names="if_agc_pins", "rf_agc_pins", "diseqc";
+		//pinctrl-0=<&dtvdemod_if_agc_pins>;
+		//pinctrl-1=<&dtvdemod_rf_agc_pins>;
+		//pinctrl-2=<&diseqc_out>;
 		lnb_en-gpios = <&gpio GPIOZ_6 GPIO_ACTIVE_HIGH>;
 		lnb_sel-gpios = <&gpio GPIOH_6 GPIO_ACTIVE_HIGH>;
 		interrupts = <GIC_SPI 221 IRQ_TYPE_EDGE_RISING>;
@@ -385,17 +452,17 @@
 		/* clocks = <&clkc CLKID_DAC_CLK>; */
 		/* clock-names = "vdac_clk_gate"; */
 
-		reg = <0xfe350000 0x10000	/* dtv demod base */
-			   0xfe000000 0x2000	/* div base */
-			   0xff800000 0x1000	/* io_aobus_base */
-			   0xffd01000 0x1000	/* reset */
+		reg = <0x0 0xfe350000 0x0 0x10000	/* dtv demod base */
+			   0x0 0xfe000000 0x0 0x2000	/* div base */
+			   0x0 0xff800000 0x0 0x1000	/* io_aobus_base */
+			   0x0 0xffd01000 0x0 0x1000	/* reset */
 			>;
 
 		dtv_demod0_mem = <0>;	// need move to aml_dtv_demod ?
 		spectrum = <1>;
 		cma_flag = <1>;
 		cma_mem_size = <8>;
-		memory-region = <&demod_cma_reserved>;//<&demod_reserved>;
+		//memory-region = <&demod_cma_reserved>;//<&demod_reserved>;
 		agc_pin_direction;//for S4D av2018 rf agc reverse
 	};
 
@@ -734,70 +801,6 @@
 		status = "disabled";
 	};/* Audio Related end */
 
-	cpu_opp_table0: cpu_opp_table0 {
-		compatible = "operating-points-v2";
-		status = "okay";
-		opp-shared;
-
-		opp00 {
-			opp-hz = /bits/ 64 <100000000>;
-			opp-microvolt = <769000>;
-		};
-		opp01 {
-			opp-hz = /bits/ 64 <250000000>;
-			opp-microvolt = <769000>;
-		};
-		opp02 {
-			opp-hz = /bits/ 64 <500000000>;
-			opp-microvolt = <769000>;
-		};
-		opp03 {
-			opp-hz = /bits/ 64 <666000000>;
-			opp-microvolt = <769000>;
-		};
-		opp04 {
-			opp-hz = /bits/ 64 <1000000000>;
-			opp-microvolt = <769000>;
-		};
-		opp05 {
-			opp-hz = /bits/ 64 <1200000000>;
-			opp-microvolt = <769000>;
-		};
-		opp06 {
-			opp-hz = /bits/ 64 <1404000000>;
-			opp-microvolt = <799000>;
-		};
-		opp07 {
-			opp-hz = /bits/ 64 <1500000000>;
-			opp-microvolt = <829000>;
-		};
-		opp08 {
-			opp-hz = /bits/ 64 <1608000000>;
-			opp-microvolt = <869000>;
-		};
-		opp09 {
-			opp-hz = /bits/ 64 <1704000000>;
-			opp-microvolt = <909000>;
-		};
-		opp10 {
-			opp-hz = /bits/ 64 <1800000000>;
-			opp-microvolt = <959000>;
-		};
-		opp11 {
-			opp-hz = /bits/ 64 <1908000000>;
-			opp-microvolt = <979000>;
-		};
-		opp12 {
-			opp-hz = /bits/ 64 <2004000000>;
-			opp-microvolt = <1009000>;
-		};
-	};
-
-	cpufreq-meson {
-		compatible = "amlogic, cpufreq-meson";
-		status = "okay";
-	};
-
 	adc_keypad {
 		compatible = "amlogic, adc_keypad";
 		status = "okay";
@@ -835,14 +838,14 @@
 };
 
 &i2c4 {
-	status = "okay";
+	status = "disabled";
 	pinctrl-names="default";
 	pinctrl-0=<&i2c4_pins3>;
 	clock-frequency = <300000>;
 };
 
 &i2c1 {
-	status = "okay";
+	status = "disabled";
 	pinctrl-names="default";
 	pinctrl-0=<&i2c1_pins2>;
 	clock-frequency = <300000>; /* default 100k */
@@ -928,10 +931,10 @@
 		dai-tdm-lane-slot-mask-out = <1>;
 		dai-tdm-clk-sel = <2>;
 		clocks = <&clkaudio CLKID_AUDIO_MCLK_C
-			&clkaudio CLKID_AUDIO_MCLK_PAD0
-			&clkc CLKID_MPLL2
-			&clkc CLKID_MPLL0
-			&clkaudio CLKID_AUDIO_SPDIFOUT_A>;
+				&clkaudio CLKID_AUDIO_MCLK_PAD0
+				&clkc CLKID_MPLL2
+				&clkc CLKID_MPLL0
+				&clkaudio CLKID_AUDIO_SPDIFOUT_A>;
 		clock-names = "mclk", "mclk_pad", "clk_srcpll",
 			"samesource_srcpll", "samesource_clk";
 		/*
@@ -1002,8 +1005,8 @@
 			"pdm_dclk",
 			"pdm_sysclk";
 
-		pinctrl-names = "pdm_pins";
-		pinctrl-0 = <&pdmin>;
+		/* pinctrl-names = "pdm_pins"; */
+		/* pinctrl-0 = <&pdmin>; */
 
 		/* mode 0~4, defalut:1 */
 		filter_mode = <1>;
@@ -1107,10 +1110,10 @@
 		 * 4: pdmin;
 		 */
 		datain_src = <4>;
-		datain_chnum = <0>;
-		datain_chmask = <0x0>;
+		datain_chnum = <2>;
+		datain_chmask = <0x3>;
 		/* config which data pin for loopback */
-		datain-lane-mask-in = <0 0 0 0>;
+		datain-lane-mask-in = <1 0 0 0>;
 
 		/* calc mclk for datalb */
 		mclk-fs = <256>;
@@ -1276,6 +1279,26 @@
 				"tsin_a_clk",
 				"tsin_a_din0";
 			function = "tsin_a";
+		};
+	};
+
+	//dvb_s_ts3_pins: dvb_s_ts3_pins {
+	//	tsin_b {
+	//		groups = "tsin_b_sop_c",
+	//			"tsin_b_valid_c",
+	//			"tsin_b_clk_c",
+	//			"tsin_b_d0_c";
+	//		function = "tsin_b";
+	//	};
+	//};
+
+	dvb_s_ts3_pins: dvb_s_ts3_pins {
+		tsin_b {
+			groups = "tsin_b_sop_z",
+				"tsin_b_valid_z",
+				"tsin_b_clk_z",
+				"tsin_b_d0_z";
+			function = "tsin_b";
 		};
 	};
 }; /* end of periphs_pinctrl */
@@ -1498,7 +1521,7 @@
 };
 
 &fb {
-	status = "okay";
+	status = "disabled";
 	display_size_default = <1920 1080 1920 2160 32>;
 	mem_size = <0x00800000 0x1980000 0x100000>;
 	logo_addr = "0x7f800000";
@@ -1506,8 +1529,27 @@
 	pxp_mode = <0>; /** 0:normal mode 1:pxp mode */
 };
 
+&drm_vpu {
+	status = "okay";
+	logo_addr = "0x7f800000";
+
+};
+
 &amhdmitx {
 	status = "okay";
+};
+
+&drm_amhdmitx {
+	status = "okay";
+	hdcp = "disabled";
+};
+
+&drm_amcvbsout {
+	status = "okay";
+};
+
+&drm_lcd {
+	status = "disabled";
 };
 
 &vpu {
