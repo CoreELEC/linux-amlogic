@@ -207,19 +207,6 @@ static struct sync_pt *sync_pt_create(struct sync_timeline *obj,
 	return pt;
 }
 
-static void sync_pt_free(struct sync_timeline *obj,
-				      struct sync_pt *pt)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&obj->lock, flags);
-	list_del(&pt->link);
-	sync_timeline_put(obj);
-	spin_unlock_irqrestore(&obj->lock, flags);
-	kfree(pt);
-	pt = NULL;
-}
-
 void *aml_sync_create_timeline(const char *tname)
 {
 	struct sync_timeline *timeline;
@@ -261,8 +248,6 @@ int aml_sync_create_fence(void *timeline, unsigned int value)
 
 err:
 	put_unused_fd(fd);
-	if (pt)
-		sync_pt_free(tl, pt);
 	return err;
 }
 
