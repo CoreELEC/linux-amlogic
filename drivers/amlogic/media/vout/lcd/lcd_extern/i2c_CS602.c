@@ -145,7 +145,8 @@ static int lcd_extern_power_cmd_dynamic_size(unsigned char *table, int flag)
 				delay_ms += table[i+2+j];
 			if (delay_ms > 0)
 				mdelay(delay_ms);
-		} else if (type == LCD_EXT_CMD_TYPE_CMD) {
+		} else if ((type == LCD_EXT_CMD_TYPE_CMD) ||
+			   (type == LCD_EXT_CMD_TYPE_CMD_BIN)) {
 			if (i2c_dev == NULL) {
 				EXTERR("invalid i2c device\n");
 				return -1;
@@ -212,7 +213,8 @@ static int lcd_extern_power_cmd_fixed_size(unsigned char *table, int flag)
 				delay_ms += table[i+1+j];
 			if (delay_ms > 0)
 				mdelay(delay_ms);
-		} else if (type == LCD_EXT_CMD_TYPE_CMD) {
+		} else if ((type == LCD_EXT_CMD_TYPE_CMD) ||
+			   (type == LCD_EXT_CMD_TYPE_CMD_BIN)) {
 			if (i2c_dev == NULL) {
 				EXTERR("invalid i2c device\n");
 				return -1;

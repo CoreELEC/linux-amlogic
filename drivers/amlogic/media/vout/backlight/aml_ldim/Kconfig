@@ -10,3 +10,22 @@ config AMLOGIC_LOCAL_DIMMING
 		image information, calculate the corresponding
 		brightness values, to improve the effect of image quality
 
+config CONFIG_AML_LOCAL_DIMMING_IW7038
+	bool "Amlogic local Diming Iw7038"
+	depends on AMLOGIC_LOCAL_DIMMING
+	default n
+	help
+		Spi iw7038 controller support.
+		Once use the local dimming, add the spi driver
+		Through the spi iw7038 to write data like brightness
+		values for the local dimming
+
+config CONFIG_AML_LOCAL_DIMMING_IW7027
+        bool "Amlogic local Diming Iw7027"
+        depends on AMLOGIC_LOCAL_DIMMING
+        default n
+        help
+                Spi iw7029 controller support.
+		Once use the local dimming, add the spi driver
+                Through the spi iw7029 to write data like brightness
+                values for the local dimming

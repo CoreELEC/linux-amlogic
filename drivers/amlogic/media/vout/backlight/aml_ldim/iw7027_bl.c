@@ -62,7 +62,6 @@ struct iw7027_s {
 	unsigned char cmd_size;
 	unsigned char *init_data;
 	unsigned int init_data_cnt;
-	struct class cls;
 };
 struct iw7027_s *bl_iw7027;
 
@@ -116,7 +115,8 @@ static int iw7027_wregs(struct spi_device *spi, unsigned char addr,
 	return ret;
 }
 
-static int iw7027_reg_write(unsigned char *buf, unsigned int len)
+static int iw7027_reg_write(unsigned int dev_id, unsigned char *buf,
+			    unsigned int len)
 {
 	int ret;
 
@@ -133,7 +133,8 @@ static int iw7027_reg_write(unsigned char *buf, unsigned int len)
 	return ret;
 }
 
-static int iw7027_reg_read(unsigned char *buf, unsigned int len)
+static int iw7027_reg_read(unsigned int dev_id, unsigned char *buf,
+			   unsigned int len)
 {
 	int ret;
 
@@ -402,7 +403,7 @@ static int iw7027_spi_dump_dim(char *buf)
 	mutex_lock(&iw7027_spi_mutex);
 
 	len += sprintf(buf, "iw7027 reg dimming:\n");
-	num = ldim_drv->ldev_conf->bl_regnum;
+	num = ldim_drv->ldev_conf->bl_zone_num;
 	for (i = 0x40; i <= (0x40 + (num * 2)); i++) {
 		iw7027_rreg(bl_iw7027->spi, i, &val);
 		len += sprintf(buf+len, "  0x%02x=0x%02x\n", i, val);
@@ -481,7 +482,7 @@ static int iw7027_smr(unsigned short *buf, unsigned char len)
 			LDIMPR("%s: on_flag=%d\n", __func__, iw7027_on_flag);
 		return 0;
 	}
-	num = ldim_drv->ldev_conf->bl_regnum;
+	num = ldim_drv->ldev_conf->bl_zone_num;
 	if (len != num) {
 		if (vsync_cnt == 0)
 			LDIMERR("%s: data len %d invalid\n", __func__, len);
@@ -612,7 +613,7 @@ static ssize_t iw7027_show(struct class *class,
 			return ret;
 		}
 		ret = sprintf(buf, "test_brightness: ");
-		for (i = 0; i < ldim_drv->ldev_conf->bl_regnum; i++)
+		for (i = 0; i < ldim_drv->ldev_conf->bl_zone_num; i++)
 			ret += sprintf(buf+ret, " 0x%x", test_brightness[i]);
 		ret += sprintf(buf+ret, "\n");
 	} else if (!strcmp(attr->attr.name, "status")) {
@@ -699,7 +700,7 @@ static ssize_t iw7027_store(struct class *class,
 			LDIMERR("test_brightness is null\n");
 			return count;
 		}
-		if ((i == 2) && (val < ldim_drv->ldev_conf->bl_regnum)) {
+		if ((i == 2) && (val < ldim_drv->ldev_conf->bl_zone_num)) {
 			test_brightness[val] = (unsigned short)val2;
 			LDIMPR("test brightness[%d] = %d\n", val, val2);
 		}
@@ -734,9 +735,10 @@ static int iw7027_ldim_driver_update(struct aml_ldim_driver_s *ldim_drv)
 
 int ldim_dev_iw7027_probe(struct aml_ldim_driver_s *ldim_drv)
 {
+	struct class *dev_class;
 	int ret, i;
 
-	if (ldim_drv->spi_dev == NULL) {
+	if (!ldim_drv->ldev_conf->spi_dev) {
 		LDIMERR("%s: spi_dev is null\n", __func__);
 		return -1;
 	}
@@ -752,37 +754,39 @@ int ldim_dev_iw7027_probe(struct aml_ldim_driver_s *ldim_drv)
 	}
 
 	bl_iw7027->test_mode = 0;
-	bl_iw7027->spi = ldim_drv->spi_dev;
+	bl_iw7027->spi = ldim_drv->ldev_conf->spi_dev;
 	bl_iw7027->cs_hold_delay = ldim_drv->ldev_conf->cs_hold_delay;
 	bl_iw7027->cs_clk_delay = ldim_drv->ldev_conf->cs_clk_delay;
 	bl_iw7027->cmd_size = ldim_drv->ldev_conf->cmd_size;
 	bl_iw7027->init_data = ldim_drv->ldev_conf->init_on;
 	bl_iw7027->init_data_cnt = ldim_drv->ldev_conf->init_on_cnt;
 
-	val_brightness = kcalloc(ldim_drv->ldev_conf->bl_regnum * 2,
-		sizeof(unsigned char), GFP_KERNEL);
-	if (val_brightness == NULL) {
-		LDIMERR("malloc val_brightness failed\n");
+	val_brightness = kcalloc(ldim_drv->ldev_conf->bl_zone_num * 2,
+				 sizeof(unsigned char), GFP_KERNEL);
+	if (!val_brightness) {
 		kfree(bl_iw7027);
 		return -1;
 	}
-	test_brightness = kcalloc(ldim_drv->ldev_conf->bl_regnum,
-		sizeof(unsigned short), GFP_KERNEL);
-	if (test_brightness == NULL) {
-		LDIMERR("malloc test_brightness failed\n");
-	} else {
-		for (i = 0; i < ldim_drv->ldev_conf->bl_regnum; i++)
+	test_brightness = kcalloc(ldim_drv->ldev_conf->bl_zone_num,
+				  sizeof(unsigned short), GFP_KERNEL);
+	if (test_brightness) {
+		for (i = 0; i < ldim_drv->ldev_conf->bl_zone_num; i++)
 			test_brightness[i] = 0xfff;
 	}
 
 	iw7027_ldim_driver_update(ldim_drv);
 
-	bl_iw7027->cls.name = kzalloc(10, GFP_KERNEL);
-	sprintf((char *)bl_iw7027->cls.name, "iw7027");
-	bl_iw7027->cls.class_attrs = iw7027_class_attrs;
-	ret = class_register(&bl_iw7027->cls);
-	if (ret < 0)
-		LDIMERR("register iw7027 class failed\n");
+	if (ldim_drv->ldev_conf->dev_class) {
+		dev_class = ldim_drv->ldev_conf->dev_class;
+		for (i = 0; i < ARRAY_SIZE(iw7027_class_attrs); i++) {
+			if (class_create_file(dev_class,
+					      &iw7027_class_attrs[i])) {
+				LDIMERR
+				("create ldim_dev class attribute %s fail\n",
+				 iw7027_class_attrs[i].attr.name);
+			}
+		}
+	}
 
 	iw7027_on_flag = 1; /* default enable in uboot */
 

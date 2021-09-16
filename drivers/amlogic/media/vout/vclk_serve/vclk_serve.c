@@ -102,9 +102,11 @@ static int vclk_ioremap(struct platform_device *pdev)
 			return -1;
 		}
 		vclk_reg_map[table[i]].flag = 1;
-		VCLKPR("%s: reg mapped: 0x%x -> %px\n",
-		       __func__, vclk_reg_map[table[i]].base_addr,
-		       vclk_reg_map[table[i]].p);
+		/*
+		 *VCLKPR("%s: reg mapped: 0x%x -> %px\n",
+		 *      __func__, vclk_reg_map[table[i]].base_addr,
+		 *      vclk_reg_map[table[i]].p);
+		 */
 	}
 
 	return 0;

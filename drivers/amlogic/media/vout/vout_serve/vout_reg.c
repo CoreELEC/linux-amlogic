@@ -90,3 +90,4 @@ unsigned int vout_vcbus_getb(unsigned int reg,
 {
 	return (vout_vcbus_read(reg) >> _start) & ((1L << _len) - 1);
 }
+

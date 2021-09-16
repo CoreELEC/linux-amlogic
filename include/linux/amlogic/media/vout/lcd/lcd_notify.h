@@ -60,11 +60,6 @@
 				LCD_EVENT_BL_OFF | LCD_EVENT_IF_OFF)
 #define LCD_EVENT_UNPREPARE         (LCD_EVENT_ENCL_OFF)
 
-/* lcd backlight index select */
-#define LCD_EVENT_BACKLIGHT_SEL     (1 << 8)
-/* lcd backlight pwm_vs vfreq change occurred */
-#define LCD_EVENT_BACKLIGHT_UPDATE  (1 << 9)
-
 #define LCD_EVENT_GAMMA_UPDATE      (1 << 10)
 #define LCD_EVENT_EXTERN_SEL        (1 << 11)
 
@@ -80,6 +75,10 @@
 #define LCD_VLOCK_PARAM_BIT_VALID   (1 << 0)
 #define LCD_EVENT_VLOCK_PARAM       (1 << 16)
 
+/* lcd backlight index select */
+#define LCD_EVENT_BACKLIGHT_SEL     BIT(24)
+/* lcd backlight pwm_vs vfreq change occurred */
+#define LCD_EVENT_BACKLIGHT_UPDATE  BIT(25)
 /* lcd backlight brightness update by global dimming */
 #define LCD_EVENT_BACKLIGHT_GD_DIM  BIT(26)
 /* lcd backlight brightness on/off by global dimming */
@@ -87,9 +86,13 @@
 /* lcd backlight brightness on/off by local dimming */
 #define LCD_EVENT_BACKLIGHT_LD_SEL  BIT(28)
 
+/* blocking notify */
 int aml_lcd_notifier_register(struct notifier_block *nb);
 int aml_lcd_notifier_unregister(struct notifier_block *nb);
 int aml_lcd_notifier_call_chain(unsigned long event, void *v);
+/* atomic notify */
+int aml_lcd_atomic_notifier_register(struct notifier_block *nb);
+int aml_lcd_atomic_notifier_unregister(struct notifier_block *nb);
 int aml_lcd_atomic_notifier_call_chain(unsigned long event, void *v);
 
 #endif /* _INC_LCD_NOTIFY_H_ */

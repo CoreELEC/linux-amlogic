@@ -105,6 +105,21 @@
 /* LD_CFG_BASE */
 #define REG_LD_BLMAT_RAM_MISC           0xf
 
+/* each base has 16 address space */
+/******  TM2  ******/
+#define REG_LD_RGB_NRMW_BASE_TM2       0x20
+#define REG_LD_BLK_HIDX_BASE_TM2       0x30
+#define REG_LD_BLK_VIDX_BASE_TM2       0x50
+#define REG_LD_LUT_VHK_NEGPOS_BASE_TM2 0x70
+#define REG_LD_LUT_VHO_NEGPOS_BASE_TM2 0x80
+#define REG_LD_LUT_HHK_BASE_TM2        0x90
+#define REG_LD_REFLECT_DGR_BASE_TM2    0xa0
+#define REG_LD_LUT_LEXT_BASE_TM2       0xb0
+#define REG_LD_LUT_HDG_BASE_TM2        0x100
+#define REG_LD_LUT_VDG_BASE_TM2        0x200
+#define REG_LD_LUT_VHK_BASE_TM2        0x300
+#define REG_LD_LUT_ID_BASE_TM2         0x400
+
 /* #define LDIM_STTS_HIST_REGION_IDX      0x1aa0 */
 #define LOCAL_DIM_STATISTIC_EN_BIT          31
 #define LOCAL_DIM_STATISTIC_EN_WID           1
@@ -125,6 +140,33 @@
 #define REGION_RD_INDEX_BIT                  0
 #define REGION_RD_INDEX_WID                  7
 
+// configure DMA
+#define VPU_DMA_RDMIF_CTRL3				0x27cc
+#define VPU_DMA_RDMIF_BADDR0				0x27cd
+#define VPU_DMA_WRMIF_CTRL1				0x27d1
+#define VPU_DMA_WRMIF_CTRL2				0x27d2
+#define VPU_DMA_WRMIF_CTRL3				0x27d3
+#define VPU_DMA_WRMIF_BADDR0				0x27d4
+#define VPU_DMA_RDMIF_CTRL				0x27d8
+#define VPU_DMA_RDMIF_BADDR1				0x27d9
+#define VPU_DMA_RDMIF_BADDR2				0x27da
+#define VPU_DMA_RDMIF_BADDR3				0x27db
+#define VPU_DMA_WRMIF_CTRL				0x27dc
+#define VPU_DMA_WRMIF_BADDR1				0x27dd
+#define VPU_DMA_WRMIF_BADDR2				0x27de
+#define VPU_DMA_WRMIF_BADDR3				0x27df
+
+#define VPU_DMA_RDMIF_CTRL1                        0x27ca
+#define VPU_DMA_RDMIF_CTRL2                        0x27cb
+#define VPU_DMA_RDMIF0_CTRL                        0x2750
+#define VPU_DMA_RDMIF0_BADR0                       0x2758
+//Bit 31:0  lut0_reg_baddr0
+#define VPU_DMA_RDMIF0_BADR1                       0x2759
+//Bit 31:0  lut0_reg_baddr1
+#define VPU_DMA_RDMIF0_BADR2                       0x275a
+//Bit 31:0  lut0_reg_baddr2
+#define VPU_DMA_RDMIF0_BADR3                       0x275b
+//Bit 31:0  lut0_reg_baddr3
 
 #ifndef CONFIG_AMLOGIC_MEDIA_RDMA
 #define LDIM_VSYNC_RDMA      0
@@ -132,17 +174,37 @@
 #define LDIM_VSYNC_RDMA      0
 #endif
 
-#define Wr_reg_bits(adr, val, start, len)  \
-		aml_vcbus_update_bits(adr, ((1<<len)-1)<<start, val<<start)
-#define Rd_reg_bits(adr, start, len)  \
-		((aml_read_vcbus(adr)>>start)&((1<<len)-1))
+extern spinlock_t  ldim_reg_lock;
 
-#define Wr_reg(reg, val)    aml_write_vcbus(reg, val)
-#define Rd_reg(reg)         aml_read_vcbus(reg)
-
-
-static inline void LDIM_WR_32Bits(unsigned int addr, unsigned int data)
+static inline void ldim_wr_vcbus(unsigned int addr, unsigned int val)
 {
+	aml_write_vcbus(addr, val);
+}
+
+static inline unsigned int ldim_rd_vcbus(unsigned int addr)
+{
+	return aml_read_vcbus(addr);
+}
+
+static inline void ldim_wr_vcbus_bits(unsigned int addr, unsigned int val,
+				      unsigned int start, unsigned int len)
+{
+	aml_vcbus_update_bits(addr, ((1 << len) - 1) << start, val << start);
+}
+
+static inline unsigned int ldim_rd_vcbus_bits(unsigned int addr,
+					      unsigned int start,
+					      unsigned int len)
+{
+	return ((aml_read_vcbus(addr) >> start) & ((1 << len) - 1));
+}
+
+static inline void ldim_wr_reg(unsigned int addr, unsigned int data)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&ldim_reg_lock, flags);
+
 #if (LDIM_VSYNC_RDMA == 1)
 	VSYNC_WR_MPEG_REG(LDIM_BL_ADDR_PORT, addr);
 	VSYNC_WR_MPEG_REG(LDIM_BL_DATA_PORT, data);
@@ -150,45 +212,67 @@ static inline void LDIM_WR_32Bits(unsigned int addr, unsigned int data)
 	aml_write_vcbus(LDIM_BL_ADDR_PORT, addr);
 	aml_write_vcbus(LDIM_BL_DATA_PORT, data);
 #endif
+
+	spin_unlock_irqrestore(&ldim_reg_lock, flags);
 }
 
-static inline unsigned int LDIM_RD_32Bits(unsigned int addr)
-{
-	aml_write_vcbus(LDIM_BL_ADDR_PORT, addr);
-	return aml_read_vcbus(LDIM_BL_DATA_PORT);
-}
-
-static inline void LDIM_WR_reg_bits(unsigned int addr, unsigned int val,
-				unsigned int start, unsigned int len)
+static inline unsigned int ldim_rd_reg(unsigned int addr)
 {
 	unsigned int data;
+	unsigned long flags;
 
-	data = LDIM_RD_32Bits(addr);
-	data = (data & (~((1 << len) - 1)<<start))  |
-		((val & ((1 << len) - 1)) << start);
-	LDIM_WR_32Bits(addr, data);
+	spin_lock_irqsave(&ldim_reg_lock, flags);
+
+	aml_write_vcbus(LDIM_BL_ADDR_PORT, addr);
+	data = aml_read_vcbus(LDIM_BL_DATA_PORT);
+
+	spin_unlock_irqrestore(&ldim_reg_lock, flags);
+	return data;
 }
 
-static inline void LDIM_WR_BASE_LUT(unsigned int base, unsigned int *pData,
-				unsigned int size_t, unsigned int len)
+static inline void ldim_wr_reg_bits(unsigned int addr, unsigned int val,
+				    unsigned int start, unsigned int len)
+{
+	unsigned int data;
+	unsigned long flags;
+
+	spin_lock_irqsave(&ldim_reg_lock, flags);
+
+	aml_write_vcbus(LDIM_BL_ADDR_PORT, addr);
+	data = aml_read_vcbus(LDIM_BL_DATA_PORT);
+	//pr_info("%s: reg 0x%x=0x%x\n", __func__, addr, data);
+	data = ((data & ~(((1L << len) - 1) << start)) |
+		((val & ((1L << len) - 1)) << start));
+	//pr_info("%s: new data 0x%x\n", __func__, data);
+	aml_write_vcbus(LDIM_BL_ADDR_PORT, addr);
+	aml_write_vcbus(LDIM_BL_DATA_PORT, data);
+
+	spin_unlock_irqrestore(&ldim_reg_lock, flags);
+}
+
+static inline void ldim_wr_lut(unsigned int base, unsigned int *pdata,
+			       unsigned int size_t, unsigned int len)
 {
 	unsigned int i;
 	unsigned int addr, data;
-	unsigned int mask, subCnt;
+	unsigned int mask, sub_cnt;
 	unsigned int cnt;
+	unsigned long flags;
+
+	spin_lock_irqsave(&ldim_reg_lock, flags);
 
 	addr   = base;/* (base<<4); */
 	mask   = (1 << size_t)-1;
-	subCnt = 32 / size_t;
+	sub_cnt = 32 / size_t;
 	cnt  = 0;
 	data = 0;
 
 	aml_write_vcbus(LDIM_BL_ADDR_PORT, addr);
 
 	for (i = 0; i < len; i++) {
-		data = data | ((pData[i] & mask) << (size_t *cnt));
+		data = data | ((pdata[i] & mask) << (size_t *cnt));
 		cnt++;
-		if (cnt == subCnt) {
+		if (cnt == sub_cnt) {
 			aml_write_vcbus(LDIM_BL_DATA_PORT, data);
 			data = 0;
 			cnt = 0;
@@ -197,19 +281,24 @@ static inline void LDIM_WR_BASE_LUT(unsigned int base, unsigned int *pData,
 	}
 	if (cnt != 0)
 		aml_write_vcbus(LDIM_BL_DATA_PORT, data);
+
+	spin_unlock_irqrestore(&ldim_reg_lock, flags);
 }
 
-static inline void LDIM_RD_BASE_LUT(unsigned int base, unsigned int *pData,
-				unsigned int size_t, unsigned int len)
+static inline void ldim_rd_lut(unsigned int base, unsigned int *pdata,
+			       unsigned int size_t, unsigned int len)
 {
 	unsigned int i;
 	unsigned int addr, data;
-	unsigned int mask, subCnt;
+	unsigned int mask, sub_cnt;
 	unsigned int cnt;
+	unsigned long flags;
+
+	spin_lock_irqsave(&ldim_reg_lock, flags);
 
 	addr   = base;/* (base<<4); */
 	mask   = (1 << size_t)-1;
-	subCnt = 32 / size_t;
+	sub_cnt = 32 / size_t;
 	cnt  = 0;
 	data = 0;
 
@@ -217,10 +306,10 @@ static inline void LDIM_RD_BASE_LUT(unsigned int base, unsigned int *pData,
 
 	for (i = 0; i < len; i++) {
 		cnt++;
-		if (cnt == subCnt) {
+		if (cnt == sub_cnt) {
 			data = aml_read_vcbus(LDIM_BL_DATA_PORT);
-			pData[i-1] = data & mask;
-			pData[i] = mask & (data >> size_t);
+			pdata[i - 1] = data & mask;
+			pdata[i] = mask & (data >> size_t);
 			data = 0;
 			cnt = 0;
 			addr++;
@@ -228,19 +317,24 @@ static inline void LDIM_RD_BASE_LUT(unsigned int base, unsigned int *pData,
 	}
 	if (cnt != 0)
 		data = aml_read_vcbus(LDIM_BL_DATA_PORT);
+
+	spin_unlock_irqrestore(&ldim_reg_lock, flags);
 }
 
-static inline void LDIM_RD_BASE_LUT_2(unsigned int base, unsigned int *pData,
+static inline void ldim_rd_lut2(unsigned int base, unsigned int *pdata,
 				unsigned int size_t, unsigned int len)
 {
 	unsigned int i;
 	unsigned int addr, data;
-	unsigned int mask, subCnt;
+	unsigned int mask, sub_cnt;
 	unsigned int cnt;
+	unsigned long flags;
+
+	spin_lock_irqsave(&ldim_reg_lock, flags);
 
 	addr   = base;/* (base<<4); */
 	mask   = (1 << size_t)-1;
-	subCnt = 2;
+	sub_cnt = 2;
 	cnt  = 0;
 	data = 0;
 
@@ -248,10 +342,10 @@ static inline void LDIM_RD_BASE_LUT_2(unsigned int base, unsigned int *pData,
 
 	for (i = 0; i < len; i++) {
 		cnt++;
-		if (cnt == subCnt) {
+		if (cnt == sub_cnt) {
 			data = aml_read_vcbus(LDIM_BL_DATA_PORT);
-			pData[i-1] = data & mask;
-			pData[i] = mask & (data >> size_t);
+			pdata[i - 1] = data & mask;
+			pdata[i] = mask & (data >> size_t);
 			data = 0;
 			cnt = 0;
 			addr++;
@@ -259,22 +353,28 @@ static inline void LDIM_RD_BASE_LUT_2(unsigned int base, unsigned int *pData,
 	}
 	if (cnt != 0)
 		data = aml_read_vcbus(LDIM_BL_DATA_PORT);
+
+	spin_unlock_irqrestore(&ldim_reg_lock, flags);
 }
 
-static inline void LDIM_WR_BASE_LUT_DRT(int base, int *pData, int len)
+static inline void ldim_wr_lut_drt(int base, int *pdata, int len)
 {
 	int i;
 	int addr;
+	unsigned long flags;
+
+	spin_lock_irqsave(&ldim_reg_lock, flags);
 
 	addr  = base;/*(base<<4)*/
 #if (LDIM_VSYNC_RDMA == 1)
 	VSYNC_WR_MPEG_REG(LDIM_BL_ADDR_PORT, addr);
 	for (i = 0; i < len; i++)
-		VSYNC_WR_MPEG_REG(LDIM_BL_DATA_PORT, pData[i]);
+		VSYNC_WR_MPEG_REG(LDIM_BL_DATA_PORT, pdata[i]);
 #else
 	aml_write_vcbus(LDIM_BL_ADDR_PORT, addr);
 	for (i = 0; i < len; i++)
-		aml_write_vcbus(LDIM_BL_DATA_PORT, pData[i]);
+		aml_write_vcbus(LDIM_BL_DATA_PORT, pdata[i]);
 #endif
-}
 
+	spin_unlock_irqrestore(&ldim_reg_lock, flags);
+}

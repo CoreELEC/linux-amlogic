@@ -303,8 +303,10 @@ static void dummy_encp_vinfo_update(void)
 		return;
 
 	if (dummy_encp_drv->viu_sel == 1) {
+#ifdef CONFIG_AMLOGIC_VOUT2_SERVE
 		vinfo = get_current_vinfo2();
 		lcd_viu_sel = 2;
+#endif
 	} else if (dummy_encp_drv->viu_sel == 2) {
 		vinfo = get_current_vinfo();
 		lcd_viu_sel = 1;
@@ -953,6 +955,10 @@ static struct vinfo_s *dummy_encl_get_current_info(void)
 
 static int dummy_encl_set_current_vmode(enum vmode_e mode)
 {
+#ifdef CONFIG_AMLOGIC_VPU
+	request_vpu_clk_vmod(dummy_encl_vinfo.video_clk, VPU_VENCP);
+	switch_vpu_mem_pd_vmod(VPU_VENCP, VPU_MEM_POWER_ON);
+#endif
 	if (dummy_venc_data && dummy_venc_data->encl_clk_gate_switch)
 		dummy_venc_data->encl_clk_gate_switch(1);
 
@@ -994,6 +1000,10 @@ static int dummy_encl_disable(enum vmode_e cur_vmod)
 	dummy_encl_clk_ctrl(0);
 	if (dummy_venc_data && dummy_venc_data->encl_clk_gate_switch)
 		dummy_venc_data->encl_clk_gate_switch(0);
+#ifdef CONFIG_AMLOGIC_VPU
+	switch_vpu_mem_pd_vmod(VPU_VENCL, VPU_MEM_POWER_DOWN);
+	release_vpu_clk_vmod(VPU_VENCL);
+#endif
 
 	VOUTPR("%s finished\n", __func__);
 
@@ -1003,11 +1013,13 @@ static int dummy_encl_disable(enum vmode_e cur_vmod)
 #ifdef CONFIG_PM
 static int dummy_encl_lcd_suspend(void)
 {
+	dummy_encl_disable(VMODE_DUMMY_ENCL);
 	return 0;
 }
 
 static int dummy_encl_lcd_resume(void)
 {
+	dummy_encl_set_current_vmode(VMODE_DUMMY_ENCL);
 	return 0;
 }
 
@@ -1099,13 +1111,17 @@ static int dummy_venc_vout_mode_update(void)
 
 	if (dummy_encp_drv->viu_sel == 1)
 		vout_notifier_call_chain(VOUT_EVENT_MODE_CHANGE_PRE, &mode);
+#ifdef CONFIG_AMLOGIC_VOUT2_SERVE
 	else if (dummy_encp_drv->viu_sel == 2)
 		vout2_notifier_call_chain(VOUT_EVENT_MODE_CHANGE_PRE, &mode);
+#endif
 	dummy_encp_set_current_vmode(mode);
 	if (dummy_encp_drv->viu_sel == 1)
 		vout_notifier_call_chain(VOUT_EVENT_MODE_CHANGE, &mode);
+#ifdef CONFIG_AMLOGIC_VOUT2_SERVE
 	else if (dummy_encp_drv->viu_sel == 2)
 		vout2_notifier_call_chain(VOUT_EVENT_MODE_CHANGE, &mode);
+#endif
 
 	return 0;
 }

@@ -52,6 +52,9 @@ enum bl_chip_type_e {
 	BL_CHIP_TL1,
 	BL_CHIP_SM1,
 	BL_CHIP_TM2,
+	BL_CHIP_TM2B,
+	BL_CHIP_T5,
+	BL_CHIP_T5D,
 	BL_CHIP_MAX,
 };
 
@@ -131,6 +134,7 @@ struct bl_pwm_config_s {
 	unsigned int level_min;
 	unsigned int pwm_freq; /* pwm_vs: 1~4(vfreq), pwm: freq(unit: Hz) */
 	unsigned int pwm_duty; /* unit: % */
+	unsigned int pwm_duty_save; /* unit: %, for power on recovery */
 	unsigned int pwm_duty_max; /* unit: % */
 	unsigned int pwm_duty_min; /* unit: % */
 	unsigned int pwm_cnt; /* internal used for pwm control */
@@ -177,12 +181,16 @@ struct bl_config_s {
 /* backlight_properties: state */
 /* Flags used to signal drivers of state changes */
 /* Upper 4 bits in bl props are reserved for driver internal use */
-#define BL_STATE_LCD_ON               (1 << 3)
-#define BL_STATE_BL_POWER_ON          (1 << 1)
-#define BL_STATE_BL_ON                (1 << 0)
+#define BL_STATE_GD_EN                BIT(4)
+#define BL_STATE_LCD_ON               BIT(3)
+#define BL_STATE_BL_INIT_ON           BIT(2)
+#define BL_STATE_BL_POWER_ON          BIT(1)
+#define BL_STATE_BL_ON                BIT(0)
 struct aml_bl_drv_s {
 	unsigned int index;
 	unsigned int level;
+	unsigned int brightness_level;
+	unsigned int gd_level;
 	unsigned int state;
 	struct bl_data_s *data;
 	struct device             *dev;
@@ -191,6 +199,7 @@ struct aml_bl_drv_s {
 	struct workqueue_struct   *workqueue;
 	struct delayed_work       bl_delayed_work;
 	struct resource *res_ldim_vsync_irq;
+	struct resource *res_bl_vsync_irq;
 	/*struct resource *res_ldim_rdma_irq;*/
 };
 

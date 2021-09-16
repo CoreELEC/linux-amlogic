@@ -34,7 +34,6 @@
 static int ob3350_on_flag;
 
 struct ob3350 {
-	struct class cls;
 	unsigned char cur_addr;
 };
 
@@ -178,7 +177,8 @@ static int ob3350_ldim_driver_update(struct aml_ldim_driver_s *ldim_drv)
 
 int ldim_dev_ob3350_probe(struct aml_ldim_driver_s *ldim_drv)
 {
-	int ret;
+	struct class *dev_class;
+	int ret, i;
 
 	ob3350_on_flag = 0;
 	bl_ob3350 = kzalloc(sizeof(struct ob3350), GFP_KERNEL);
@@ -189,12 +189,17 @@ int ldim_dev_ob3350_probe(struct aml_ldim_driver_s *ldim_drv)
 
 	ob3350_ldim_driver_update(ldim_drv);
 
-	bl_ob3350->cls.name = kzalloc(10, GFP_KERNEL);
-	sprintf((char *)bl_ob3350->cls.name, "ob3350");
-	bl_ob3350->cls.class_attrs = ob3350_class_attrs;
-	ret = class_register(&bl_ob3350->cls);
-	if (ret < 0)
-		pr_err("register ob3350 class failed\n");
+	if (ldim_drv->ldev_conf->dev_class) {
+		dev_class = ldim_drv->ldev_conf->dev_class;
+		for (i = 0; i < ARRAY_SIZE(ob3350_class_attrs); i++) {
+			if (class_create_file(dev_class,
+					      &ob3350_class_attrs[i])) {
+				LDIMERR
+				("create ldim_dev class attribute %s fail\n",
+				 ob3350_class_attrs[i].attr.name);
+			}
+		}
+	}
 
 	ob3350_on_flag = 1; /* default enable in uboot */
 	LDIMPR("%s ok\n", __func__);

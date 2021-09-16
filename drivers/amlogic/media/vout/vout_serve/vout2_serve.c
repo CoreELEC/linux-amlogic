@@ -631,7 +631,7 @@ static ssize_t vout2_vinfo_show(struct class *class,
 }
 
 static ssize_t vout2_cap_show(struct class *class,
-			      struct class_attribute *attr, char *buf)
+			     struct class_attribute *attr, char *buf)
 {
 	int ret;
 
@@ -854,7 +854,6 @@ static void vout2_fops_remove(void)
 static int aml_vout2_suspend(struct platform_device *pdev, pm_message_t state)
 {
 #ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
-
 	if (early_suspend_flag)
 		return 0;
 
@@ -866,7 +865,6 @@ static int aml_vout2_suspend(struct platform_device *pdev, pm_message_t state)
 static int aml_vout2_resume(struct platform_device *pdev)
 {
 #ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
-
 	if (early_suspend_flag)
 		return 0;
 
@@ -1076,8 +1074,11 @@ static void aml_vout2_get_dt_info(struct platform_device *pdev)
 
 	ret = of_property_read_u32(pdev->dev.of_node, "fr_policy", &para[0]);
 	if (!ret) {
-		set_vframe2_rate_policy(para[0]);
-		VOUTPR("vout2: fr_policy:%d\n", para[0]);
+		ret = set_vframe2_rate_policy(para[0]);
+		if (ret)
+			VOUTERR("vout2: init fr_policy %d failed\n", para[0]);
+		else
+			VOUTPR("vout2: fr_policy:%d\n", para[0]);
 	}
 }
 

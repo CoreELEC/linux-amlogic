@@ -28,6 +28,7 @@
 #include <linux/delay.h>
 #include <linux/notifier.h>
 #include <linux/of_device.h>
+#include <linux/interrupt.h>
 #include <linux/pwm.h>
 #include <linux/amlogic/pwm_meson.h>
 #include <linux/amlogic/cpu_version.h>
@@ -76,6 +77,7 @@ static unsigned char bl_on_request; /* for lcd power sequence */
 static unsigned char bl_step_on_flag;
 static unsigned int bl_on_level;
 
+static DEFINE_MUTEX(bl_status_mutex);
 static DEFINE_MUTEX(bl_power_mutex);
 static DEFINE_MUTEX(bl_level_mutex);
 
@@ -105,16 +107,6 @@ static struct bl_config_s bl_config = {
 	},
 
 	.pinmux_flag = 0xff,
-};
-
-const char *bl_chip_table[] = {
-	"GXTVBB",
-	"GXM",
-	"GXL",
-	"TXL",
-	"TXLX",
-	"AXG",
-	"invalid",
 };
 
 struct bl_method_match_s {
@@ -447,7 +439,7 @@ static void bl_set_pwm_vs(struct bl_pwm_config_s *bl_pwm,
 		unsigned int pol, unsigned int out_level)
 {
 	unsigned int pwm_hi, n, sw;
-	unsigned int vs[4], ve[4];
+	unsigned int vs[8], ve[8];
 	int i;
 
 	if (bl_debug_print_flag) {
@@ -456,12 +448,12 @@ static void bl_set_pwm_vs(struct bl_pwm_config_s *bl_pwm,
 	}
 
 	if (out_level == 0) {
-		for (i = 0; i < 4; i++) {
+		for (i = 0; i < 8; i++) {
 			vs[i] = 0x1fff;
 			ve[i] = 0;
 		}
 	} else if (out_level == 1) {
-		for (i = 0; i < 4; i++) {
+		for (i = 0; i < 8; i++) {
 			vs[i] = 0;
 			ve[i] = 0x1fff;
 		}
@@ -479,13 +471,13 @@ static void bl_set_pwm_vs(struct bl_pwm_config_s *bl_pwm,
 			vs[i] = 1 + (sw * i);
 			ve[i] = vs[i] + pwm_hi - 1;
 		}
-		for (i = n; i < 4; i++) {
-			vs[i] = 0xffff;
-			ve[i] = 0xffff;
+		for (i = n; i < 8; i++) {
+			vs[i] = 0x1fff;
+			ve[i] = 0x1fff;
 		}
 	}
 	if (bl_debug_print_flag) {
-		for (i = 0; i < 4; i++) {
+		for (i = 0; i < 8; i++) {
 			BLPR("pwm_vs: vs[%d]=%d, ve[%d]=%d\n",
 				i, vs[i], i, ve[i]);
 		}
@@ -497,12 +489,31 @@ static void bl_set_pwm_vs(struct bl_pwm_config_s *bl_pwm,
 	bl_vcbus_write(VPU_VPU_PWM_V1, (ve[1] << 16) | (vs[1]));
 	bl_vcbus_write(VPU_VPU_PWM_V2, (ve[2] << 16) | (vs[2]));
 	bl_vcbus_write(VPU_VPU_PWM_V3, (ve[3] << 16) | (vs[3]));
-
 	if (bl_debug_print_flag) {
 		BLPR("VPU_VPU_PWM_V0=0x%08x\n", bl_vcbus_read(VPU_VPU_PWM_V0));
 		BLPR("VPU_VPU_PWM_V1=0x%08x\n", bl_vcbus_read(VPU_VPU_PWM_V1));
 		BLPR("VPU_VPU_PWM_V2=0x%08x\n", bl_vcbus_read(VPU_VPU_PWM_V2));
 		BLPR("VPU_VPU_PWM_V3=0x%08x\n", bl_vcbus_read(VPU_VPU_PWM_V3));
+	}
+
+	if (bl_drv->data->chip_type >= BL_CHIP_TL1) {
+		bl_vcbus_setb(VPU_VPU_PWM_H0, 1, 31, 1);
+		bl_vcbus_setb(VPU_VPU_PWM_V0, vs[4], 0, 13);
+		bl_vcbus_setb(VPU_VPU_PWM_V0, ve[4], 16, 13);
+		bl_vcbus_write(VPU_VPU_PWM_V1, (ve[5] << 16) | (vs[5]));
+		bl_vcbus_write(VPU_VPU_PWM_V2, (ve[6] << 16) | (vs[6]));
+		bl_vcbus_write(VPU_VPU_PWM_V3, (ve[7] << 16) | (vs[7]));
+		if (bl_debug_print_flag) {
+			BLPR("VPU_VPU_PWM_V4=0x%08x\n",
+			     bl_vcbus_read(VPU_VPU_PWM_V0));
+			BLPR("VPU_VPU_PWM_V5=0x%08x\n",
+			     bl_vcbus_read(VPU_VPU_PWM_V1));
+			BLPR("VPU_VPU_PWM_V6=0x%08x\n",
+			     bl_vcbus_read(VPU_VPU_PWM_V2));
+			BLPR("VPU_VPU_PWM_V7=0x%08x\n",
+			     bl_vcbus_read(VPU_VPU_PWM_V3));
+		}
+		bl_vcbus_setb(VPU_VPU_PWM_H0, 0, 31, 1);
 	}
 }
 
@@ -517,7 +528,7 @@ static void bl_set_pwm_normal(struct bl_pwm_config_s *bl_pwm,
 	}
 
 	port_index = bl_pwm->pwm_data.port_index;
-	if (bl_debug_print_flag) {
+	if (bl_debug_print_flag == 2) {
 		pr_info("pwm: pwm=0x%p, port_index=%d, meson_index=%d\n",
 		bl_pwm->pwm_data.pwm, port_index, bl_pwm->pwm_data.meson_index);
 	}
@@ -527,7 +538,7 @@ static void bl_set_pwm_normal(struct bl_pwm_config_s *bl_pwm,
 		bl_pwm->pwm_data.state.duty_cycle = bl_pwm->pwm_level;
 		bl_pwm->pwm_data.state.period =  bl_pwm->pwm_cnt;
 		bl_pwm->pwm_data.state.enabled = true;
-		if (bl_debug_print_flag) {
+		if (bl_debug_print_flag == 2) {
 			BLPR(
 	"pwm state: polarity=%d, duty_cycle=%d, period=%d, enabled=%d\n",
 				bl_pwm->pwm_data.state.polarity,
@@ -559,7 +570,7 @@ void bl_pwm_ctrl(struct bl_pwm_config_s *bl_pwm, int status)
 	if (status) {
 		/* enable pwm */
 		out_level = bl_pwm_out_level_check(bl_pwm);
-		if (bl_debug_print_flag) {
+		if (bl_debug_print_flag == 2) {
 			BLPR("port %d: pwm_duty=%d, out_level=%d, pol=%s\n",
 				bl_pwm->pwm_port, bl_pwm->pwm_duty, out_level,
 				(pol ? "negative":"positive"));
@@ -622,7 +633,11 @@ void bl_pwm_ctrl(struct bl_pwm_config_s *bl_pwm, int status)
 
 static void bl_set_pwm(struct bl_pwm_config_s *bl_pwm)
 {
-	if (bl_drv->state & BL_STATE_BL_ON) {
+	if ((bl_drv->state & BL_STATE_BL_INIT_ON) == 0)
+		bl_pwm->pwm_duty_save = bl_pwm->pwm_duty;
+
+	if ((bl_drv->state & BL_STATE_BL_ON) ||
+	    (bl_drv->state & BL_STATE_BL_INIT_ON)) {
 		bl_pwm_ctrl(bl_pwm, 1);
 	} else {
 		if (bl_debug_print_flag)
@@ -665,6 +680,10 @@ static void bl_power_on(void)
 
 	if ((bl_drv->state & BL_STATE_LCD_ON) == 0) {
 		BLPR("%s exit, for lcd is off\n", __func__);
+		goto exit_power_on_bl;
+	}
+	if ((bl_drv->state & BL_STATE_BL_POWER_ON) == 0) {
+		BLPR("%s exit, for backlight power off\n", __func__);
 		goto exit_power_on_bl;
 	}
 
@@ -822,7 +841,7 @@ static void bl_power_off(void)
 		bl_power_en_ctrl(bconf, 0);
 		break;
 	case BL_CTRL_PWM:
-		if (bconf->en_sequence_reverse) {
+		if (bconf->en_sequence_reverse == 1) {
 			/* step 1: power off pwm */
 			bl_pwm_pinmux_set(bconf, 0);
 			bl_pwm_ctrl(bconf->bl_pwm, 0);
@@ -841,7 +860,7 @@ static void bl_power_off(void)
 		}
 		break;
 	case BL_CTRL_PWM_COMBO:
-		if (bconf->en_sequence_reverse) {
+		if (bconf->en_sequence_reverse == 1) {
 			/* step 1: power off pwm_combo */
 			bl_pwm_pinmux_set(bconf, 0);
 			bl_pwm_ctrl(bconf->bl_pwm_combo0, 0);
@@ -868,7 +887,7 @@ static void bl_power_off(void)
 			BLERR("no ldim driver\n");
 			goto exit_power_off_bl;
 		}
-		if (bconf->en_sequence_reverse) {
+		if (bconf->en_sequence_reverse == 1) {
 			/* step 1: power off ldim */
 			if (ldim_drv->power_off) {
 				ret = ldim_drv->power_off();
@@ -900,7 +919,7 @@ static void bl_power_off(void)
 			BLERR("no bl_extern driver\n");
 			goto exit_power_off_bl;
 		}
-		if (bconf->en_sequence_reverse) {
+		if (bconf->en_sequence_reverse == 1) {
 			/* step 1: power off bl_extern */
 			if (bl_ext->power_off) {
 				ret = bl_ext->power_off();
@@ -935,7 +954,9 @@ static void bl_power_off(void)
 	bl_drv->state &= ~BL_STATE_BL_ON;
 	BLPR("backlight power off\n");
 
+#ifdef CONFIG_AMLOGIC_BL_EXTERN
 exit_power_off_bl:
+#endif
 	mutex_unlock(&bl_power_mutex);
 }
 
@@ -1008,7 +1029,7 @@ static void bl_set_duty_pwm(struct bl_pwm_config_s *bl_pwm)
 			bl_do_div(((temp * bl_pwm->pwm_duty) + 50), 100);
 	}
 
-	if (bl_debug_print_flag) {
+	if (bl_debug_print_flag == 2) {
 		if (bl_pwm->pwm_duty_max > 100) {
 			BLPR("pwm port %d: duty=%d, duty_max=%d, duty_min=%d\n",
 				bl_pwm->pwm_port, bl_pwm->pwm_duty,
@@ -1205,15 +1226,40 @@ static unsigned int aml_bl_get_level(void)
 	return bl_drv->level;
 }
 
-static unsigned int aml_bl_update_brightness_level(unsigned int brightness)
+static inline unsigned int bl_brightness_level_mapping(unsigned int brightness)
 {
-	unsigned int bl_level = brightness;
+	unsigned int level;
 
-	mutex_lock(&bl_level_mutex);
-	if (bl_level > 255) {
-		BLPR("0-255 is the valid data\n");
-		bl_level = 255;
-	}
+	if (brightness == 0)
+		level = 0;
+	else if (brightness > bl_drv->bconf->level_max)
+		level = bl_drv->bconf->level_max;
+	else if (brightness < bl_drv->bconf->level_min)
+		level = bl_drv->bconf->level_min;
+	else
+		level = brightness;
+
+	return level;
+}
+
+static inline unsigned int bl_gd_level_mapping(unsigned int level)
+{
+	unsigned int max, min, val;
+
+	if (!bl_drv)
+		return 0;
+
+	min = bl_drv->bconf->level_min;
+	max = bl_drv->bconf->level_max;
+	val = (level - min) * (bl_drv->brightness_level - min) /
+		(max - min) + min;
+
+	return val;
+}
+
+static unsigned int aml_bl_init_level(unsigned int level)
+{
+	unsigned int bl_level = level;
 
 	if (((bl_drv->state & BL_STATE_LCD_ON) == 0) ||
 		((bl_drv->state & BL_STATE_BL_POWER_ON) == 0))
@@ -1229,19 +1275,40 @@ static unsigned int aml_bl_update_brightness_level(unsigned int brightness)
 	}
 
 	if (bl_debug_print_flag) {
-		BLPR("%s: %u, real brightness: %u, state: 0x%x\n",
-		     __func__, brightness, bl_level, bl_drv->state);
+		BLPR("%s: %u, final level: %u, state: 0x%x\n",
+		     __func__, level, bl_level, bl_drv->state);
 	}
-	mutex_unlock(&bl_level_mutex);
+
 	return 0;
 }
 
 static int aml_bl_update_status(struct backlight_device *bd)
 {
+	unsigned int level;
+
 	if (brightness_bypass)
 		return 0;
 
-	aml_bl_update_brightness_level(bd->props.brightness);
+	bl_drv->brightness_level =
+		bl_brightness_level_mapping(bl_drv->bldev->props.brightness);
+
+	mutex_lock(&bl_status_mutex);
+	if (bl_drv->brightness_level == 0) {
+		if (bl_drv->state & BL_STATE_BL_ON)
+			bl_power_off();
+	} else {
+		if ((bl_drv->state & BL_STATE_GD_EN) == 0) {
+			aml_bl_set_level(bl_drv->brightness_level);
+		} else {
+			level = bl_gd_level_mapping(bl_drv->gd_level);
+			aml_bl_set_level(level);
+		}
+
+		if ((bl_drv->state & BL_STATE_BL_ON) == 0)
+			bl_power_on();
+	}
+	mutex_unlock(&bl_status_mutex);
+
 	return 0;
 }
 
@@ -1538,8 +1605,14 @@ static int aml_bl_config_load_from_dts(struct bl_config_s *bconf,
 	}
 	ret = of_property_read_u32(child, "bl_ldim_region_row_col",
 		&bl_para[0]);
-	if (ret == 0)
+	if (ret) {
+		ret = of_property_read_u32(child, "bl_ldim_zone_row_col",
+					   &bl_para[0]);
+		if (ret == 0)
+			bconf->ldim_flag = 1;
+	} else {
 		bconf->ldim_flag = 1;
+	}
 
 	switch (bconf->method) {
 	case BL_CTRL_PWM:
@@ -2161,6 +2234,9 @@ static int aml_bl_config_load(struct bl_config_s *bconf,
 		BLERR("no backlight of_node exist\n");
 		return -1;
 	}
+
+	bl_drv->res_bl_vsync_irq = NULL;
+
 	ret = of_property_read_u32(pdev->dev.of_node,
 			"key_valid", &bl_key_valid);
 	if (ret) {
@@ -2199,6 +2275,14 @@ static int aml_bl_config_load(struct bl_config_s *bconf,
 		aml_ldim_probe(pdev);
 #endif
 
+	bl_drv->res_bl_vsync_irq = platform_get_resource_byname
+				(pdev, IORESOURCE_IRQ, "vsync");
+	if (!bl_drv->res_bl_vsync_irq) {
+		ret = -ENODEV;
+		BLERR("bl_vsync_irq resource error\n");
+		return -1;
+	}
+
 	switch (bconf->method) {
 	case BL_CTRL_PWM:
 	case BL_CTRL_PWM_COMBO:
@@ -2217,47 +2301,88 @@ static int aml_bl_config_load(struct bl_config_s *bconf,
 }
 
 /* lcd notify */
-static void aml_bl_step_on(int brightness)
-{
-	mutex_lock(&bl_level_mutex);
-	BLPR("bl_step_on level: %d\n", brightness);
-
-	if (brightness == 0) {
-		if (bl_drv->state & BL_STATE_BL_ON)
-			bl_power_off();
-	} else {
-		aml_bl_set_level(brightness);
-		if ((bl_drv->state & BL_STATE_BL_ON) == 0)
-			bl_power_on();
-	}
-	msleep(120);
-	mutex_unlock(&bl_level_mutex);
-}
-
 static void aml_bl_on_function(void)
 {
-	/* lcd power on backlight flag */
-	bl_drv->state |= (BL_STATE_LCD_ON | BL_STATE_BL_POWER_ON);
-	BLPR("%s: bl_level=%u, state=0x%x\n",
-		__func__, bl_drv->level, bl_drv->state);
-	if (brightness_bypass)
-		bl_drv->bldev->props.brightness = bl_drv->level;
+	struct bl_config_s *bconf;
 
+	mutex_lock(&bl_level_mutex);
+
+	/* lcd power on backlight flag */
+	bl_drv->state |= BL_STATE_LCD_ON;
+	BLPR("%s: bl_step_on_flag=%d, bl_level=%u, state=0x%x\n",
+	     __func__, bl_step_on_flag, bl_drv->level, bl_drv->state);
+	bconf = bl_drv->bconf;
+	bl_drv->brightness_level =
+		bl_brightness_level_mapping(bl_drv->bldev->props.brightness);
+
+	bl_drv->state |= BL_STATE_BL_INIT_ON;
 	switch (bl_step_on_flag) {
 	case 1:
-		aml_bl_step_on(bl_drv->bconf->level_default);
-		BLPR("bl_on level: %d\n",
-		     bl_drv->bldev->props.brightness);
+		BLPR("bl_step_on level: %d\n", bconf->level_default);
+		aml_bl_init_level(bconf->level_default);
+		msleep(120);
+		if (brightness_bypass) {
+			switch (bconf->method) {
+			case BL_CTRL_PWM:
+				bconf->bl_pwm->pwm_duty =
+					bconf->bl_pwm->pwm_duty_save;
+				bl_set_duty_pwm(bconf->bl_pwm);
+				break;
+			case BL_CTRL_PWM_COMBO:
+				bconf->bl_pwm_combo0->pwm_duty =
+					bconf->bl_pwm_combo0->pwm_duty_save;
+				bconf->bl_pwm_combo1->pwm_duty =
+					bconf->bl_pwm_combo1->pwm_duty_save;
+				bl_set_duty_pwm(bconf->bl_pwm_combo0);
+				bl_set_duty_pwm(bconf->bl_pwm_combo1);
+				break;
+			default:
+				break;
+			}
+		} else {
+			BLPR("bl_on level: %d\n", bl_drv->brightness_level);
+			aml_bl_init_level(bl_drv->brightness_level);
+		}
 		break;
 	case 2:
-		bl_drv->bldev->props.brightness = bl_level_uboot;
-		BLPR("bl_on level: %d\n",
-		     bl_drv->bldev->props.brightness);
+		BLPR("bl_step_on level: %d\n", bl_level_uboot);
+		aml_bl_init_level(bl_level_uboot);
+		msleep(120);
+		if (brightness_bypass) {
+			switch (bconf->method) {
+			case BL_CTRL_PWM:
+				bconf->bl_pwm->pwm_duty =
+					bconf->bl_pwm->pwm_duty_save;
+				bl_set_duty_pwm(bconf->bl_pwm);
+				break;
+			case BL_CTRL_PWM_COMBO:
+				bconf->bl_pwm_combo0->pwm_duty =
+					bconf->bl_pwm_combo0->pwm_duty_save;
+				bconf->bl_pwm_combo1->pwm_duty =
+					bconf->bl_pwm_combo1->pwm_duty_save;
+				bl_set_duty_pwm(bconf->bl_pwm_combo0);
+				bl_set_duty_pwm(bconf->bl_pwm_combo1);
+				break;
+			default:
+				break;
+			}
+		} else {
+			BLPR("bl_on level: %d\n", bl_drv->brightness_level);
+			aml_bl_init_level(bl_drv->brightness_level);
+		}
 		break;
 	default:
+		if (brightness_bypass) {
+			if ((bl_drv->state & BL_STATE_BL_ON) == 0)
+				bl_power_on();
+		} else {
+			aml_bl_init_level(bl_drv->brightness_level);
+		}
 		break;
 	}
-	aml_bl_update_brightness_level(bl_drv->bldev->props.brightness);
+	bl_drv->state &= ~(BL_STATE_BL_INIT_ON);
+
+	mutex_unlock(&bl_level_mutex);
 }
 
 static void aml_bl_delayd_on(struct work_struct *work)
@@ -2315,12 +2440,13 @@ static int aml_bl_off_notifier(struct notifier_block *nb,
 		return NOTIFY_DONE;
 
 	bl_on_request = 0;
-	bl_drv->state &= ~(BL_STATE_LCD_ON | BL_STATE_BL_POWER_ON);
-	if (brightness_bypass) {
-		if (bl_drv->state & BL_STATE_BL_ON)
-			bl_power_off();
-	} else
-		aml_bl_update_brightness_level(bl_drv->bldev->props.brightness);
+	bl_drv->state &= ~BL_STATE_LCD_ON;
+	mutex_lock(&bl_level_mutex);
+	bl_drv->state |= BL_STATE_BL_INIT_ON;
+	if (bl_drv->state & BL_STATE_BL_ON)
+		bl_power_off();
+	bl_drv->state &= ~BL_STATE_BL_INIT_ON;
+	mutex_unlock(&bl_level_mutex);
 
 	return NOTIFY_OK;
 }
@@ -2348,11 +2474,19 @@ static inline int aml_bl_pwm_vs_lcd_update(struct bl_pwm_config_s *bl_pwm)
 	if (cnt == bl_pwm->pwm_cnt)
 		return 0;
 
+	mutex_lock(&bl_level_mutex);
 	bl_pwm_config_init(bl_pwm);
+
+	if (bl_drv->state & BL_STATE_GD_EN) {
+		mutex_unlock(&bl_level_mutex);
+		return 0;
+	}
+
 	if (brightness_bypass)
 		bl_set_duty_pwm(bl_pwm);
 	else
-		aml_bl_update_brightness_level(bl_drv->bldev->props.brightness);
+		aml_bl_set_level(bl_drv->bldev->props.brightness);
+	mutex_unlock(&bl_level_mutex);
 
 	return 0;
 }
@@ -2449,6 +2583,97 @@ static struct notifier_block aml_bl_lcd_test_nb = {
 	.notifier_call = aml_bl_lcd_test_notifier,
 };
 
+static int aml_bl_gd_dimming_notifier(struct notifier_block *nb,
+				      unsigned long event, void *data)
+{
+	unsigned int level;
+
+	/* If we aren't interested in this event, skip it immediately */
+	if (event != LCD_EVENT_BACKLIGHT_GD_DIM)
+		return NOTIFY_DONE;
+
+	if (brightness_bypass)
+		return NOTIFY_DONE;
+	if ((bl_drv->state & BL_STATE_GD_EN) == 0)
+		return NOTIFY_DONE;
+	if (!data)
+		return NOTIFY_DONE;
+
+	if (((bl_drv->state & BL_STATE_LCD_ON) == 0) ||
+	    (bl_drv->state & BL_STATE_BL_INIT_ON) ||
+	    ((bl_drv->state & BL_STATE_BL_POWER_ON) == 0) ||
+	    ((bl_drv->state & BL_STATE_BL_ON) == 0))
+		return NOTIFY_DONE;
+
+	/* atomic notifier, can't schedule or sleep */
+	level = *(unsigned int *)data;
+
+	bl_drv->gd_level = (level < 10) ? 10 : ((level > 255) ? 255 : level);
+	level = bl_gd_level_mapping(bl_drv->gd_level);
+	aml_bl_set_level(level);
+
+	if (bl_debug_print_flag) {
+		BLPR("%s: %u, final level: %u, state: 0x%x\n",
+		     __func__, *(unsigned int *)data,
+		     level, bl_drv->state);
+	}
+
+	return NOTIFY_OK;
+}
+
+static struct notifier_block aml_bl_gd_dimming_nb = {
+	.notifier_call = aml_bl_gd_dimming_notifier,
+};
+
+static int aml_bl_gd_sel_notifier(struct notifier_block *nb,
+				  unsigned long event, void *data)
+{
+	unsigned int *sel;
+#ifdef CONFIG_AMLOGIC_LOCAL_DIMMING
+	struct aml_ldim_driver_s *ldim_drv = aml_ldim_get_driver();
+#endif
+
+	/* If we aren't interested in this event, skip it immediately */
+	if (event != LCD_EVENT_BACKLIGHT_GD_SEL)
+		return NOTIFY_DONE;
+
+	if (aml_bl_check_driver())
+		return NOTIFY_DONE;
+
+	if (brightness_bypass)
+		return NOTIFY_DONE;
+	if (!data)
+		return NOTIFY_DONE;
+
+	sel = (unsigned int *)data;
+	if (bl_debug_print_flag)
+		BLPR("%s: gd_sel: %d\n", __func__, *sel);
+
+	if (*sel) {
+		bl_drv->state |= BL_STATE_GD_EN;
+#ifdef CONFIG_AMLOGIC_LOCAL_DIMMING
+	if (bl_drv->bconf->method == BL_CTRL_LOCAL_DIMMING) {
+		if (ldim_drv->ld_sel_ctrl)
+			ldim_drv->ld_sel_ctrl(0);
+	}
+#endif
+	} else {
+		bl_drv->state &= ~BL_STATE_GD_EN;
+#ifdef CONFIG_AMLOGIC_LOCAL_DIMMING
+	if (bl_drv->bconf->method == BL_CTRL_LOCAL_DIMMING) {
+		if (ldim_drv->ld_sel_ctrl)
+			ldim_drv->ld_sel_ctrl(1);
+	}
+#endif
+	}
+
+	return NOTIFY_OK;
+}
+
+static struct notifier_block aml_bl_gd_sel_nb = {
+	.notifier_call = aml_bl_gd_sel_notifier,
+};
+
 /* bl debug calss */
 struct class *bl_debug_class;
 
@@ -2499,6 +2724,8 @@ static ssize_t bl_status_read(struct class *class,
 		"name:               %s\n"
 		"state:              0x%x\n"
 		"level:              %d\n"
+		"brightness_level:   %d\n"
+		"gd_level:           %d\n"
 		"level_uboot:        %d\n"
 		"level_default:      %d\n"
 		"step_on_flag        %d\n"
@@ -2515,7 +2742,8 @@ static ssize_t bl_status_read(struct class *class,
 		"power_off_delay:    %d\n\n",
 		bl_key_valid, bl_config_load,
 		bl_drv->index, bconf->name, bl_drv->state,
-		bl_drv->level,  bl_level_uboot, bconf->level_default,
+		bl_drv->level, bl_drv->brightness_level, bl_drv->gd_level,
+		bl_level_uboot, bconf->level_default,
 		bl_step_on_flag, brightness_bypass,
 		bconf->level_max, bconf->level_min,
 		bconf->level_mid, bconf->level_mid_mapping,
@@ -2923,6 +3151,8 @@ static void bl_debug_pwm_set(unsigned int index, unsigned int value, int state)
 	if (aml_bl_check_driver())
 		return;
 
+	mutex_lock(&bl_level_mutex);
+
 	switch (bconf->method) {
 	case BL_CTRL_PWM:
 		bl_pwm = bconf->bl_pwm;
@@ -3028,6 +3258,7 @@ static void bl_debug_pwm_set(unsigned int index, unsigned int value, int state)
 			break;
 		}
 	}
+	mutex_unlock(&bl_level_mutex);
 }
 
 static ssize_t bl_debug_pwm_store(struct class *class,
@@ -3108,17 +3339,18 @@ static ssize_t bl_debug_pwm_store(struct class *class,
 static ssize_t bl_debug_power_show(struct class *class,
 		struct class_attribute *attr, char *buf)
 {
-	int state;
+	int pwr_state, real_state;
 
-	if ((bl_drv->state & BL_STATE_LCD_ON) == 0) {
-		state = 0;
-	} else {
-		if (bl_drv->state & BL_STATE_BL_POWER_ON)
-			state = 1;
-		else
-			state = 0;
-	}
-	return sprintf(buf, "backlight power state: %d\n", state);
+	if (bl_drv->state & BL_STATE_BL_POWER_ON)
+		pwr_state = 1;
+	else
+		pwr_state = 0;
+	if (bl_drv->state & BL_STATE_BL_ON)
+		real_state = 1;
+	else
+		real_state = 0;
+	return sprintf(buf, "backlight power state: %d, real state: %d\n",
+		       pwr_state, real_state);
 }
 
 static ssize_t bl_debug_power_store(struct class *class,
@@ -3134,10 +3366,6 @@ static ssize_t bl_debug_power_store(struct class *class,
 	}
 
 	BLPR("power control: %u\n", temp);
-	if ((bl_drv->state & BL_STATE_LCD_ON) == 0) {
-		temp = 0;
-		BLPR("backlight force off for lcd is off\n");
-	}
 	if (temp == 0) {
 		bl_drv->state &= ~BL_STATE_BL_POWER_ON;
 		if (bl_drv->state & BL_STATE_BL_ON)
@@ -3261,19 +3489,19 @@ static ssize_t bl_debug_brightness_bypass_store(struct class *class,
 	return count;
 }
 
-static ssize_t bl_debug_brightness_show(struct class *class,
+static ssize_t bl_debug_level_show(struct class *class,
 		struct class_attribute *attr, char *buf)
 {
 	return sprintf(buf, "%d\n", bl_drv->level);
 }
 
-static ssize_t bl_debug_brightness_store(struct class *class,
+static ssize_t bl_debug_level_store(struct class *class,
 		struct class_attribute *attr, const char *buf, size_t count)
 {
 	unsigned int ret;
-	unsigned int brightness_level = 0;
+	unsigned int level = 0;
 
-	ret = kstrtouint(buf, 10, &brightness_level);
+	ret = kstrtouint(buf, 10, &level);
 	if (ret != 0) {
 		BLERR("invalid data\n");
 		return -EINVAL;
@@ -3282,11 +3510,13 @@ static ssize_t bl_debug_brightness_store(struct class *class,
 	if (!brightness_bypass)
 		brightness_bypass = 1;
 
-	ret = aml_bl_update_brightness_level(brightness_level);
-	if (ret == 0)
-		BLPR("brightness %d update ok\n", brightness_level);
-	else
-		BLERR("update fail\n");
+	mutex_lock(&bl_level_mutex);
+
+	aml_bl_set_level(level);
+	BLPR("%s: %u, state: 0x%x\n", __func__, level, bl_drv->state);
+
+	mutex_unlock(&bl_level_mutex);
+
 	return count;
 }
 
@@ -3303,8 +3533,7 @@ static struct class_attribute bl_debug_class_attrs[] = {
 	__ATTR(print, 0644, bl_debug_print_show, bl_debug_print_store),
 	__ATTR(brightness_bypass, 0644, bl_debug_brightness_bypass_show,
 		bl_debug_brightness_bypass_store),
-	__ATTR(brightness_level, 0644, bl_debug_brightness_show,
-		bl_debug_brightness_store),
+	__ATTR(debug_level, 0644, bl_debug_level_show, bl_debug_level_store),
 };
 
 static int aml_bl_creat_class(void)
@@ -3431,6 +3660,24 @@ static struct bl_data_s bl_data_tm2 = {
 	.pwm_reg = pwm_reg_txlx,
 };
 
+static struct bl_data_s bl_data_tm2b = {
+	.chip_type = BL_CHIP_TM2B,
+	.chip_name = "tm2b",
+	.pwm_reg = pwm_reg_txlx,
+};
+
+static struct bl_data_s bl_data_t5 = {
+	.chip_type = BL_CHIP_T5,
+	.chip_name = "t5",
+	.pwm_reg = pwm_reg_txlx,
+};
+
+static struct bl_data_s bl_data_t5d = {
+	.chip_type = BL_CHIP_T5D,
+	.chip_name = "t5d",
+	.pwm_reg = pwm_reg_txlx,
+};
+
 static const struct of_device_id bl_dt_match_table[] = {
 	{
 		.compatible = "amlogic, backlight-gxl",
@@ -3472,7 +3719,19 @@ static const struct of_device_id bl_dt_match_table[] = {
 		.compatible = "amlogic, backlight-tm2",
 		.data = &bl_data_tm2,
 	},
-	{},
+	{
+		.compatible = "amlogic, backlight-tm2b",
+		.data = &bl_data_tm2b,
+	},
+	{
+		.compatible = "amlogic, backlight-t5",
+		.data = &bl_data_t5,
+	},
+	{
+		.compatible = "amlogic, backlight-t5d",
+		.data = &bl_data_t5d,
+	},
+	{}
 };
 #endif
 
@@ -3481,6 +3740,8 @@ static void aml_bl_power_init(void)
 	struct bl_config_s *bconf = bl_drv->bconf;
 	unsigned long m_jif;
 
+	/* update bl status */
+	bl_drv->state = (BL_STATE_LCD_ON | BL_STATE_BL_POWER_ON);
 	bl_on_request = 1;
 	m_jif = msecs_to_jiffies(bconf->power_on_delay);
 	/* lcd power on sequence control */
@@ -3523,10 +3784,16 @@ static void aml_bl_init_status_update(void)
 			BL_STATE_BL_POWER_ON | BL_STATE_BL_ON);
 	bl_on_request = 1;
 
-	if (brightness_bypass)
+	mutex_lock(&bl_level_mutex);
+	if (brightness_bypass) {
 		aml_bl_set_level(bl_on_level);
-	else
-		aml_bl_update_brightness_level(bl_drv->bldev->props.brightness);
+	} else {
+		bl_drv->brightness_level =
+			bl_brightness_level_mapping
+				(bl_drv->bldev->props.brightness);
+		aml_bl_init_level(bl_drv->brightness_level);
+	}
+	mutex_unlock(&bl_level_mutex);
 
 	switch (bl_drv->bconf->method) {
 	case BL_CTRL_PWM:
@@ -3536,6 +3803,56 @@ static void aml_bl_init_status_update(void)
 	default:
 		break;
 	}
+}
+
+static inline void aml_bl_vsync_handler(void)
+{
+	unsigned int level;
+
+	if (brightness_bypass)
+		return;
+
+	if ((bl_drv->state & BL_STATE_GD_EN) == 0) {
+		if (bl_drv->bldev->props.brightness == bl_drv->level)
+			return;
+		aml_bl_set_level(bl_drv->bldev->props.brightness);
+	} else {
+		level = bl_gd_level_mapping(bl_drv->gd_level);
+		if (level == bl_drv->level)
+			return;
+		aml_bl_set_level(level);
+	}
+}
+
+static irqreturn_t aml_bl_vsync_isr(int irq, void *dev_id)
+{
+	if (!bl_drv)
+		return IRQ_HANDLED;
+
+	aml_bl_vsync_handler();
+	return IRQ_HANDLED;
+}
+
+static int aml_bl_vsync_irq_init(void)
+{
+	if (bl_drv->res_bl_vsync_irq) {
+		if (request_irq(bl_drv->res_bl_vsync_irq->start,
+				aml_bl_vsync_isr, IRQF_SHARED,
+				"bl_vsync", (void *)"bl_vsync")) {
+			BLPR("can't request bl_vsync_irq\n");
+		} else {
+			if (bl_debug_print_flag)
+				BLPR("request bl_vsync_irq successful\n");
+		}
+	}
+
+	return 0;
+}
+
+static void aml_bl_vsync_irq_remove(void)
+{
+	if (bl_drv->res_bl_vsync_irq)
+		free_irq(bl_drv->res_bl_vsync_irq->start, (void *)"bl_vsync");
 }
 
 static int aml_bl_probe(struct platform_device *pdev)
@@ -3614,9 +3931,16 @@ static int aml_bl_probe(struct platform_device *pdev)
 	ret = aml_lcd_notifier_register(&aml_bl_lcd_test_nb);
 	if (ret)
 		BLERR("register aml_bl_lcd_test_nb failed\n");
+	ret = aml_lcd_atomic_notifier_register(&aml_bl_gd_dimming_nb);
+	if (ret)
+		BLERR("register aml_bl_gd_dimming_nb failed\n");
+	ret = aml_lcd_atomic_notifier_register(&aml_bl_gd_sel_nb);
+	if (ret)
+		BLERR("register aml_bl_gd_sel_nb failed\n");
 #endif
 	aml_bl_creat_class();
 
+	aml_bl_vsync_irq_init();
 	aml_bl_init_status_update();
 
 	BLPR("probe OK\n");
@@ -3636,6 +3960,7 @@ static int __exit aml_bl_remove(struct platform_device *pdev)
 		return 0;
 
 	aml_bl_remove_class();
+	aml_bl_vsync_irq_remove();
 
 	ret = cancel_delayed_work_sync(&bl_drv->bl_delayed_work);
 	if (bl_drv->workqueue)
@@ -3643,6 +3968,9 @@ static int __exit aml_bl_remove(struct platform_device *pdev)
 
 	backlight_device_unregister(bl_drv->bldev);
 #ifdef CONFIG_AMLOGIC_LCD
+	aml_lcd_atomic_notifier_unregister(&aml_bl_gd_sel_nb);
+	aml_lcd_atomic_notifier_unregister(&aml_bl_gd_dimming_nb);
+	aml_lcd_notifier_unregister(&aml_bl_lcd_test_nb);
 	aml_lcd_notifier_unregister(&aml_bl_lcd_update_nb);
 	aml_lcd_notifier_unregister(&aml_bl_on_nb);
 	aml_lcd_notifier_unregister(&aml_bl_off_nb);

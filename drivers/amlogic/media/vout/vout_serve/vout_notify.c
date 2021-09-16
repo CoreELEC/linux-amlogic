@@ -189,6 +189,12 @@ int get_vframe_rate_hint(void)
 }
 EXPORT_SYMBOL(get_vframe_rate_hint);
 
+int set_clock_drift(int ppm)
+{
+	return vout_func_set_clock_drift(1, ppm);
+}
+EXPORT_SYMBOL(set_clock_drift);
+
 /* dummy for temp */
 int set_vframe_rate_end_hint(void)
 {

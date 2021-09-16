@@ -50,6 +50,7 @@ struct vout_op_s {
 	int (*vout_suspend)(void);
 	int (*vout_resume)(void);
 	int (*vout_shutdown)(void);
+	int (*set_clock_drift)(int);
 };
 
 struct vout_server_s {
@@ -134,5 +135,6 @@ extern void update_vout_viu(void);
 extern int set_vout_vmode(enum vmode_e mode);
 enum vmode_e validate_vmode(char *name, unsigned int frac);
 extern int set_current_vmode(enum vmode_e mode);
+int set_clock_drift(int ppm);
 
 #endif /* _VOUT_NOTIFY_H_ */

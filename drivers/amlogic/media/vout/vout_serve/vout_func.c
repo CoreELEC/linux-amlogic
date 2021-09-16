@@ -224,6 +224,7 @@ void vout_func_update_viu(int index)
 		VPU_VENCX_CLK_CTRL,
 		vout_vcbus_read(VPU_VENCX_CLK_CTRL));
 #endif
+
 	if (p_server) {
 		if (p_server->op.get_vinfo)
 			vinfo = p_server->op.get_vinfo();
@@ -252,6 +253,7 @@ void vout_func_update_viu(int index)
 	}
 	if (clk_bit < 0xff)
 		vout_vcbus_setb(VPU_VENCX_CLK_CTRL, clk_sel, clk_bit, 1);
+
 #if 0
 	VOUTPR("%s: %d, mux_sel=%d, mux_bit=%d, clk_sel=%d clk_bit=%d\n",
 		__func__, index, mux_sel, mux_bit, clk_sel, clk_bit);
@@ -459,6 +461,30 @@ int vout_func_get_vframe_rate_hint(int index)
 	return ret;
 }
 EXPORT_SYMBOL(vout_func_get_vframe_rate_hint);
+
+int vout_func_set_clock_drift(int index, int ppm)
+{
+	int ret = -1;
+	struct vout_server_s *p_server = NULL;
+
+	mutex_lock(&vout_mutex);
+
+	if (index == 1)
+		p_server = vout_module.curr_vout_server;
+#ifdef CONFIG_AMLOGIC_VOUT2_SERVE
+	else if (index == 2)
+		p_server = vout2_module.curr_vout_server;
+#endif
+
+	if (!IS_ERR_OR_NULL(p_server)) {
+		if (p_server->op.set_clock_drift)
+			ret = p_server->op.set_clock_drift(ppm);
+	}
+
+	mutex_unlock(&vout_mutex);
+	return ret;
+}
+EXPORT_SYMBOL(vout_func_set_clock_drift);
 
 /*
  * interface export to client who want to set test bist.

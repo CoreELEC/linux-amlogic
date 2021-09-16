@@ -25,6 +25,10 @@
  * clk config
  * **********************************
  */
+#define LCD_PLL_MODE_DEFAULT         BIT(0)
+#define LCD_PLL_MODE_SPECIAL_CNTL    BIT(1)
+#define LCD_PLL_MODE_FRAC_SHIFT      BIT(2)
+
 #define PLL_RETRY_MAX		20
 #define LCD_CLK_CTRL_EN      0
 #define LCD_CLK_CTRL_RST     1
@@ -41,6 +45,9 @@ struct lcd_clk_ctrl_s {
 	unsigned int len;
 };
 
+#define LCD_PRBS_MODE_LVDS    BIT(0)
+#define LCD_PRBS_MODE_VX1     BIT(1)
+#define LCD_PRBS_MODE_MAX     2
 struct lcd_clk_data_s {
 	/* clk path node parameters */
 	unsigned int pll_od_fb;
@@ -49,6 +56,7 @@ struct lcd_clk_data_s {
 	unsigned int pll_n_max;
 	unsigned int pll_n_min;
 	unsigned int pll_frac_range;
+	unsigned int pll_frac_sign_bit;
 	unsigned int pll_od_sel_max;
 	unsigned int pll_ref_fmax;
 	unsigned int pll_ref_fmin;
@@ -82,7 +90,11 @@ struct lcd_clk_data_s {
 	void (*clktree_probe)(void);
 	void (*clktree_remove)(void);
 	void (*clk_config_init_print)(void);
+	void (*prbs_clk_config)(unsigned int prbs_mode);
 	int (*clk_config_print)(char *buf, int offset);
+
+	int ppm;
+	void (*clk_finetune)(struct lcd_config_s *pconf, int ppm);
 };
 
 struct lcd_clk_config_s { /* unit: kHz */
@@ -102,6 +114,7 @@ struct lcd_clk_config_s { /* unit: kHz */
 	unsigned int pll_tcon_div_sel;
 	unsigned int pll_level;
 	unsigned int pll_frac;
+	unsigned int pll_frac_half_shift;
 	unsigned int pll_fout;
 	unsigned int ss_level;
 	unsigned int ss_freq;
@@ -113,6 +126,7 @@ struct lcd_clk_config_s { /* unit: kHz */
 	unsigned int err_fmin;
 
 	struct lcd_clk_data_s *data;
+	int ppm_adj;
 };
 
 struct lcd_clktree_s {
@@ -143,6 +157,7 @@ extern void lcd_pll_reset(void);
 extern int lcd_get_ss(char *buf);
 extern int lcd_set_ss(unsigned int level, unsigned int freq, unsigned int mode);
 extern void lcd_clk_update(struct lcd_config_s *pconf);
+void lcd_clk_finetune(struct lcd_config_s *pconf, int ppm);
 extern void lcd_clk_set(struct lcd_config_s *pconf);
 extern void lcd_clk_disable(void);
 extern void lcd_clk_generate_parameter(struct lcd_config_s *pconf);

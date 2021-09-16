@@ -32,7 +32,9 @@
 #define LD_BLKHMAX 32
 #define LD_BLKVMAX 32
 
-#define LD_BLKREGNUM 384  /* maximum support 24*16*/
+#define LD_BLKREGNUM   1536  /* maximum support 48*32*/
+#define LD_NUM_PROFILE 8  //16
+#define LD_NUM_PROFILE_TM2  16  //16
 
 struct LDReg_s {
 	int reg_LD_pic_RowMax;            /*u13*/
@@ -134,10 +136,10 @@ struct LDReg_s {
 	int reg_ldfw_sta_norm;
 	int reg_ldfw_sta_norm_rs;
 	int reg_ldfw_tf_enable;
-	int reg_LD_LUT_Hdg_TXLX[8][32];
-	int reg_LD_LUT_Vdg_TXLX[8][32];
-	int reg_LD_LUT_VHk_TXLX[8][32];
-	int reg_LD_LUT_Id[16 * 24];
+	int reg_LD_LUT_Hdg_TXLX[8][LD_LUT_LEN];
+	int reg_LD_LUT_Vdg_TXLX[8][LD_LUT_LEN];
+	int reg_LD_LUT_VHk_TXLX[8][LD_LUT_LEN];
+	int reg_LD_LUT_Id[LD_BLKREGNUM];
 	int reg_LD_LUT_Hdg_LEXT_TXLX[8];
 	int reg_LD_LUT_Vdg_LEXT_TXLX[8];
 	int reg_LD_LUT_VHk_LEXT_TXLX[8];
@@ -190,7 +192,7 @@ struct LDReg_s {
 	 */
 	int reg_LD_Reflect_Vdgr[20];
 	/*20*u6:  cells 1~20 for V Gains of different dist of Top/Bot;*/
-	int reg_LD_Reflect_Xdgr[4];     /*4*u6:*/
+	int reg_LD_Reflect_Xdgr[6];     /*4*u6:*/
 	int reg_LD_Vgain;               /*u12*/
 	int reg_LD_Hgain;               /*u12*/
 	int reg_LD_Litgain;             /*u12*/
@@ -212,13 +214,13 @@ struct LDReg_s {
 	/* VHk positive and negative side gain, normalized to 128
 	 *	as "1" 20150428
 	 */
-	int reg_LD_LUT_VHk_pos[32];   /* u8*/
-	int reg_LD_LUT_VHk_neg[32];   /* u8*/
-	int reg_LD_LUT_HHk[32];
+	int reg_LD_LUT_VHk_pos[LD_LUT_LEN];   /* u8*/
+	int reg_LD_LUT_VHk_neg[LD_LUT_LEN];   /* u8*/
+	int reg_LD_LUT_HHk[LD_LUT_LEN];
 	/* u8 side gain for LED direction hdist gain for different LED*/
 	/* VHo possitive and negative side offset, use with LS, (x<<LS)*/
-	int reg_LD_LUT_VHo_pos[32];   /* s8*/
-	int reg_LD_LUT_VHo_neg[32];   /* s8*/
+	int reg_LD_LUT_VHo_pos[LD_LUT_LEN];   /* s8*/
+	int reg_LD_LUT_VHo_neg[LD_LUT_LEN];   /* s8*/
 	int reg_LD_LUT_VHo_LS;/* u3:0~6,left shift bits of VH0_pos/neg*/
 	/* adding three cells for left boundary extend during
 	 *	Cubic interpolation
@@ -269,24 +271,16 @@ struct FW_DAT_s {
 	unsigned int *TF_BL_alpha;
 	unsigned int *last_YUVsum;
 	unsigned int *last_RGBsum;
-	unsigned int *last_STA1_MaxRGB;
+	unsigned int *last_sta1_maxrgb;
 	unsigned int *SF_BL_matrix;
 	unsigned int *TF_BL_matrix;
 	unsigned int *TF_BL_matrix_2;
 };
 
-struct ldim_fw_para_s {
-	/* header */
-	unsigned int para_ver;
-	unsigned int para_size;
-	char ver_str[20];
-	unsigned char ver_num;
-
-	unsigned char hist_col;
-	unsigned char hist_row;
-
+struct fw_ctrl_config_s {
 	unsigned int fw_LD_ThSF_l;
 	unsigned int fw_LD_ThTF_l;
+	unsigned int fw_ld_thist; /* pre-calc gain */
 	unsigned int boost_gain; /*norm 256 to 1,T960 finally use*/
 	unsigned int TF_alpha; /*256;*/
 	unsigned int lpf_gain;  /* [0~128~256], norm 128 as 1*/
@@ -319,26 +313,59 @@ struct ldim_fw_para_s {
 	unsigned char bbd_detect_en;
 	unsigned char diff_blk_luma_en;
 
-	unsigned char Sf_bypass, Boost_light_bypass;
-	unsigned char Lpf_bypass, Ld_remap_bypass;
+	unsigned char Sf_bypass;
+	unsigned char Boost_light_bypass;
+	unsigned char Lpf_bypass;
+	unsigned char Ld_remap_bypass;
 	unsigned char black_frm;
+	unsigned char black_frm_en;
+	unsigned int black_frm_rgbmax_th;
+	unsigned int black_frm_cnt_th;
+
+	unsigned char white_area_remap_en;
+	unsigned int white_area;
+	unsigned int white_lvl;
+	unsigned int white_area_th_max;
+	unsigned int white_area_th_min;
+	unsigned int white_lvl_th_max;
+	unsigned int white_lvl_th_min;
+
+	unsigned int fw_ld_blest_acmode;
+	unsigned int min_bl_alpha;
+	unsigned int glb_blend_alpha;
+};
+
+struct ldim_fw_para_s {
+	/* header */
+	unsigned int para_ver;
+	unsigned int para_size;
+	unsigned int fw_ctrl_size;
+	char ver_str[20];
+	unsigned char ver_num;
+	unsigned char valid;
+
+	unsigned char hist_col;
+	unsigned char hist_row;
 
 	/* for debug print */
 	unsigned char fw_hist_print;/*20180525*/
 	unsigned int fw_print_frequent;/*20180606,print every 8 frame*/
 	unsigned int Dbprint_lv;
 
-	struct LDReg_s *nPRM;
-	struct FW_DAT_s *FDat;
+	struct LDReg_s *nprm;
+	struct FW_DAT_s *fdat;
 	unsigned int *bl_remap_curve; /* size: 16 */
-	unsigned int *fw_LD_Whist;    /* size: 16 */
+	unsigned int *fw_ld_whist;    /* size: 16 */
+
+	struct fw_ctrl_config_s *ctrl;
 
 	void (*fw_alg_frm)(struct ldim_fw_para_s *fw_para,
 		unsigned int *max_matrix, unsigned int *hist_matrix);
 	void (*fw_alg_para_print)(struct ldim_fw_para_s *fw_para);
 };
+
 /* if struct ldim_fw_para_s changed, FW_PARA_VER must be update */
-#define FW_PARA_VER    1
+#define FW_PARA_VER    5
 
 extern struct ldim_fw_para_s *aml_ldim_get_fw_para(void);
 

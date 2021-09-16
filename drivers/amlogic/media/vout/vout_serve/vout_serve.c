@@ -46,7 +46,7 @@
 #include "vout_func.h"
 #include "vout_reg.h"
 
-#ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
+#if defined(CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND) && !defined(CONFIG_AMLOGIC_DRM)
 #include <linux/amlogic/pm.h>
 static struct early_suspend early_suspend;
 static int early_suspend_flag;
@@ -854,7 +854,7 @@ static void vout_fops_remove(void)
 #ifdef CONFIG_PM
 static int aml_vout_suspend(struct platform_device *pdev, pm_message_t state)
 {
-#ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
+#if defined(CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND) && !defined(CONFIG_AMLOGIC_DRM)
 
 	if (early_suspend_flag)
 		return 0;
@@ -875,7 +875,6 @@ static int aml_vout_resume(struct platform_device *pdev)
 
 #endif
 #ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
-
 	if (early_suspend_flag)
 		return 0;
 
@@ -987,11 +986,13 @@ static void aml_vout_get_dt_info(struct platform_device *pdev)
 
 	ret = of_property_read_u32(pdev->dev.of_node, "fr_policy", &para[0]);
 	if (!ret) {
-		set_vframe_rate_policy(para[0]);
-		VOUTPR("fr_policy:%d\n", para[0]);
+		ret = set_vframe_rate_policy(para[0]);
+		if (ret)
+			VOUTERR("init fr_policy %d failed\n", para[0]);
+		else
+			VOUTPR("fr_policy:%d\n", para[0]);
 	}
 }
-
 
 /*****************************************************************
  **

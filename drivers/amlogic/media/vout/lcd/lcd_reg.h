@@ -233,6 +233,32 @@
 #define CRT_MASK                                   0x1117
 #define RESET7_MASK                                0x1118
 
+#define VERSION_CTRL_T5                            0x0000
+#define RESET0_REGISTER_T5                         0x0001
+#define RESET1_REGISTER_T5                         0x0002
+#define RESET2_REGISTER_T5                         0x0003
+#define RESET3_REGISTER_T5                         0x0004
+#define RESET4_REGISTER_T5                         0x0005
+#define RESET5_REGISTER_T5                         0x0006
+#define RESET6_REGISTER_T5                         0x0007
+#define RESET7_REGISTER_T5                         0x0008
+#define RESET0_MASK_T5                             0x0010
+#define RESET1_MASK_T5                             0x0011
+#define RESET2_MASK_T5                             0x0012
+#define RESET3_MASK_T5                             0x0013
+#define RESET4_MASK_T5                             0x0014
+#define RESET5_MASK_T5                             0x0015
+#define RESET6_MASK_T5                             0x0016
+#define RESET7_MASK_T5                             0x0017
+#define RESET0_LEVEL_T5                            0x0020
+#define RESET1_LEVEL_T5                            0x0021
+#define RESET2_LEVEL_T5                            0x0022
+#define RESET3_LEVEL_T5                            0x0023
+#define RESET4_LEVEL_T5                            0x0024
+#define RESET5_LEVEL_T5                            0x0025
+#define RESET6_LEVEL_T5                            0x0026
+#define RESET7_LEVEL_T5                            0x0027
+
 /* ********************************
  * TCON:  VCBUS_BASE = 0x14
  */
@@ -955,8 +981,6 @@
  * TCON TOP:  TCON_TOP_BASE = 0x2000
  * ********************************
  */
-#define TCON_CORE_REG_START                        0x0000
-
 #define TCON_CTRL_TIMING_BASE                      0x01b0
 
 #define TCON_TOP_BASE                              0x2000
@@ -1505,6 +1529,7 @@
 extern int lcd_reg_gxb[];
 extern int lcd_reg_axg[];
 extern int lcd_reg_tl1[];
+extern int lcd_reg_t5[];
 
 extern int lcd_ioremap(struct platform_device *pdev);
 extern unsigned int lcd_vcbus_read(unsigned int _reg);
@@ -1525,6 +1550,13 @@ extern unsigned int lcd_hiu_getb(unsigned int _reg,
 extern void lcd_hiu_set_mask(unsigned int _reg, unsigned int _mask);
 extern void lcd_hiu_clr_mask(unsigned int _reg, unsigned int _mask);
 
+unsigned int lcd_ana_read(unsigned int _reg);
+void lcd_ana_write(unsigned int _reg, unsigned int _value);
+void lcd_ana_setb(unsigned int _reg, unsigned int _value,
+		  unsigned int _start, unsigned int _len);
+unsigned int lcd_ana_getb(unsigned int _reg,
+			  unsigned int _start, unsigned int _len);
+
 extern unsigned int lcd_cbus_read(unsigned int _reg);
 extern void lcd_cbus_write(unsigned int _reg, unsigned int _value);
 extern void lcd_cbus_setb(unsigned int _reg, unsigned int _value,
@@ -1532,8 +1564,10 @@ extern void lcd_cbus_setb(unsigned int _reg, unsigned int _value,
 
 extern unsigned int lcd_periphs_read(unsigned int _reg);
 extern void lcd_periphs_write(unsigned int _reg, unsigned int _value);
-extern void lcd_pinmux_set_mask(unsigned int _reg, unsigned int _mask);
-extern void lcd_pinmux_clr_mask(unsigned int _reg, unsigned int _mask);
+unsigned int lcd_reset_read(unsigned int _reg);
+void lcd_reset_write(unsigned int _reg, unsigned int _value);
+void lcd_reset_setb(unsigned int _reg, unsigned int _value,
+		    unsigned int _start, unsigned int _len);
 
 extern unsigned int dsi_host_read(unsigned int _reg);
 extern void dsi_host_write(unsigned int _reg, unsigned int _value);
@@ -1560,12 +1594,19 @@ extern unsigned int lcd_tcon_getb(unsigned int reg,
 		unsigned int _start, unsigned int _len);
 extern void lcd_tcon_set_mask(unsigned int reg, unsigned int _mask);
 extern void lcd_tcon_clr_mask(unsigned int reg, unsigned int _mask);
+void lcd_tcon_update_bits(unsigned int reg, unsigned int mask,
+			  unsigned int value);
+int lcd_tcon_check_bits(unsigned int reg, unsigned int mask,
+			unsigned int value);
 extern unsigned char lcd_tcon_read_byte(unsigned int _reg);
 extern void lcd_tcon_write_byte(unsigned int _reg, unsigned char _value);
 extern void lcd_tcon_setb_byte(unsigned int reg, unsigned char value,
 		unsigned int _start, unsigned int _len);
 extern unsigned char lcd_tcon_getb_byte(unsigned int reg,
 		unsigned int _start, unsigned int _len);
-
+void lcd_tcon_update_bits_byte(unsigned int reg, unsigned char mask,
+			       unsigned char value);
+int lcd_tcon_check_bits_byte(unsigned int reg, unsigned char mask,
+			     unsigned char value);
 #endif
 

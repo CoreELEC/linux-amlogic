@@ -17,8 +17,9 @@
 
 #ifndef _INC_AML_LCD_UNIFYKEY_H__
 #define _INC_AML_LCD_UNIFYKEY_H__
+#include <linux/amlogic/media/vout/lcd/lcd_tcon_data.h>
 
-#define LCD_UNIFYKEY_WAIT_TIMEOUT      500
+#define LCD_UNIFYKEY_WAIT_TIMEOUT      2000
 #define LCD_UNIFYKEY_RETRY_INTERVAL    20   /* ms */
 
 /* declare external unifykey function */
@@ -254,6 +255,7 @@ extern int lcd_unifykey_header_check(unsigned char *buf,
 		struct aml_lcd_unifykey_header_s *header);
 extern int lcd_unifykey_get(char *key_name,
 		unsigned char *buf, int *len);
+int lcd_unifykey_get_tcon(char *key_name, unsigned char *buf, int *len);
 extern int lcd_unifykey_check_no_header(char *key_name);
 extern int lcd_unifykey_get_no_header(char *key_name,
 		unsigned char *buf, int *len);

@@ -69,6 +69,7 @@ enum vmode_e vout_func_validate_vmode(int index, char *name, unsigned int frac);
 int vout_func_get_disp_cap(int index, char *buf);
 int vout_func_set_vframe_rate_hint(int index, int duration);
 int vout_func_get_vframe_rate_hint(int index);
+int vout_func_set_clock_drift(int index, int ppm);
 extern void vout_func_set_test_bist(int index, unsigned int bist);
 extern int vout_func_vout_suspend(int index);
 extern int vout_func_vout_resume(int index);
