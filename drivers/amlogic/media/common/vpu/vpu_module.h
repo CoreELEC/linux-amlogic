@@ -94,6 +94,7 @@ static char *vpu_mod_table[] = {
 	"di_afbcd",
 	"di_afbce",
 	"di_dolby",
+	"decontour_grid",
 
 	"vpu_mod_max",
 

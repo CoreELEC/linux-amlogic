@@ -864,34 +864,32 @@ static void vdac_power_level_store(char *para)
 
 static void dump_clk_registers(void)
 {
-	unsigned int clk_regs[] = {
-		/* hiu 10c8 ~ 10cd */
-		HHI_HDMI_PLL_CNTL,
-		HHI_HDMI_PLL_CNTL2,
-		HHI_HDMI_PLL_CNTL3,
-		HHI_HDMI_PLL_CNTL4,
-		HHI_HDMI_PLL_CNTL5,
-		HHI_HDMI_PLL_CNTL6,
+	struct meson_cvbsout_data *cvbs_data;
+	unsigned int vdac_reg0, vdac_reg1;
 
-		/* hiu 1068 */
-		HHI_VID_PLL_CLK_DIV,
+		cvbs_data = get_cvbs_data();
+		if (!cvbs_data)
+			return;
 
-		/* hiu 104a, 104b*/
-		HHI_VIID_CLK_DIV,
-		HHI_VIID_CLK_CNTL,
+	pr_info("----hiu----\n");
+	pr_info("0x%x", cvbs_out_ana_read(cvbs_data->reg_vid_pll_clk_div));
+	pr_info("0x%x", cvbs_out_hiu_read(cvbs_data->reg_vid_clk_div));
+	pr_info("0x%x", cvbs_out_hiu_read(cvbs_data->reg_vid_clk_ctrl));
+	pr_info("0x%x", cvbs_out_hiu_read(cvbs_data->reg_vid2_clk_div));
+	pr_info("0x%x", cvbs_out_hiu_read(cvbs_data->reg_vid2_clk_ctrl));
+	pr_info("0x%x", cvbs_out_hiu_read(cvbs_data->reg_vid_clk_ctrl2));
+	pr_info("----hiu----\n");
 
-		/* hiu 1059, 105f */
-		HHI_VID_CLK_DIV,
-		HHI_VID_CLK_CNTL,
-	};
-	unsigned int i, max;
-
-	max = sizeof(clk_regs)/sizeof(unsigned int);
-	pr_info("\n total %d registers of clock path for hdmi pll:\n", max);
-	for (i = 0; i < max; i++) {
-		pr_info("hiu [0x%x] = 0x%x\n", clk_regs[i],
-			cvbs_out_hiu_read(clk_regs[i]));
+	pr_info("------------------------\n");
+	vdac_reg0 = vdac_get_reg_addr(0);
+	vdac_reg1 = vdac_get_reg_addr(1);
+	if ((vdac_reg0 < 0x1000) && (vdac_reg1 < 0x1000)) {
+		pr_info("hiu [0x%x] = 0x%x\n"
+			"hiu [0x%x] = 0x%x\n",
+			vdac_reg0, cvbs_out_ana_read(vdac_reg0),
+			vdac_reg1, cvbs_out_ana_read(vdac_reg1));
 	}
+	pr_info("------------------------\n");
 }
 
 static void cvbs_performance_regs_dump(void)
@@ -1022,6 +1020,13 @@ enum {
 		func_getb = cvbs_out_reg_getb;\
 		func_setb = cvbs_out_reg_setb;\
 	} \
+	else if (!strcmp(a, "a")) {\
+		str_type = "ana";\
+		func_read = cvbs_out_ana_read;\
+		func_write = cvbs_out_ana_write;\
+		func_getb = cvbs_out_ana_getb;\
+		func_setb = cvbs_out_ana_setb;\
+	} \
 }
 
 static void cvbs_debug_store(char *buf)
@@ -1134,7 +1139,7 @@ static void cvbs_debug_store(char *buf)
 
 	case CMD_REG_DUMP:
 		if (argc != 4) {
-			pr_info("[%s] cmd_reg_dump format: dump c/h/v start_dec end_dec\n",
+			pr_info("[%s] cmd_reg_dump format: dump a/h/v start_dec end_dec\n",
 				__func__);
 			goto DEBUG_END;
 		}
@@ -1632,6 +1637,36 @@ struct meson_cvbsout_data meson_sc2_cvbsout_data = {
 	.reg_vid_clk_ctrl2 = CLKCTRL_VID_CLK_CTRL2,
 };
 
+struct meson_cvbsout_data meson_t5_cvbsout_data = {
+	.cpu_id = CVBS_CPU_TYPE_T5,
+	.name = "meson-t5-cvbsout",
+
+	.vdac_vref_adj = 0x10,
+	.vdac_gsw = 0x5c,
+
+	.reg_vid_pll_clk_div = HHI_VID_PLL_CLK_DIV,
+	.reg_vid_clk_div = HHI_VID_CLK_DIV,
+	.reg_vid_clk_ctrl = HHI_VID_CLK_CNTL,
+	.reg_vid2_clk_div = HHI_VIID_CLK_DIV,
+	.reg_vid2_clk_ctrl = HHI_VIID_CLK_CNTL,
+	.reg_vid_clk_ctrl2 = HHI_VID_CLK_CNTL2,
+};
+
+struct meson_cvbsout_data meson_t5d_cvbsout_data = {
+	.cpu_id = CVBS_CPU_TYPE_T5D,
+	.name = "meson-t5d-cvbsout",
+
+	.vdac_vref_adj = 0x10,
+	.vdac_gsw = 0x5c,
+
+	.reg_vid_pll_clk_div = HHI_VID_PLL_CLK_DIV,
+	.reg_vid_clk_div = HHI_VID_CLK_DIV,
+	.reg_vid_clk_ctrl = HHI_VID_CLK_CNTL,
+	.reg_vid2_clk_div = HHI_VIID_CLK_DIV,
+	.reg_vid2_clk_ctrl = HHI_VIID_CLK_CNTL,
+	.reg_vid_clk_ctrl2 = HHI_VID_CLK_CNTL2,
+};
+
 static const struct of_device_id meson_cvbsout_dt_match[] = {
 	{
 		.compatible = "amlogic, cvbsout-gxl",
@@ -1660,6 +1695,12 @@ static const struct of_device_id meson_cvbsout_dt_match[] = {
 	}, {
 		.compatible = "amlogic, cvbsout-sc2",
 		.data		= &meson_sc2_cvbsout_data,
+	}, {
+		.compatible = "amlogic, cvbsout-t5",
+		.data		= &meson_t5_cvbsout_data,
+	}, {
+		.compatible = "amlogic, cvbsout-t5d",
+		.data		= &meson_t5d_cvbsout_data,
 	},
 	{}
 };

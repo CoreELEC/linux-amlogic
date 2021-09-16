@@ -48,6 +48,26 @@
 #define HHI_VPU_MEM_PD_REG3_SM1      0x43
 #define HHI_VPU_MEM_PD_REG4_SM1      0x44
 
+/* pwrctrl reg: SC2 */
+#define PWRCTRL_MEM_PD0              0x0010
+#define PWRCTRL_MEM_PD1              0x0011
+#define PWRCTRL_MEM_PD2              0x0012
+#define PWRCTRL_MEM_PD3              0x0013
+#define PWRCTRL_MEM_PD4              0x0014
+#define PWRCTRL_MEM_PD5              0x0015
+#define PWRCTRL_MEM_PD6              0x0016
+#define PWRCTRL_MEM_PD7              0x0017
+#define PWRCTRL_MEM_PD8              0x0018
+#define PWRCTRL_MEM_PD9              0x0019
+#define PWRCTRL_MEM_PD10             0x001a
+#define PWRCTRL_MEM_PD11             0x001b
+
+#define PWRCTRL_MEM_PD3_T5           0x00a
+#define PWRCTRL_MEM_PD4_T5           0x00b
+#define PWRCTRL_MEM_PD5_T5           0x00c
+#define PWRCTRL_MEM_PD6_T5           0x00d
+#define PWRCTRL_MEM_PD7_T5           0x00e
+
 #define HHI_VPU_CLKC_CNTL            0x6d
 #define HHI_VPU_CLK_CNTL             0x6f
 #define HHI_VPU_CLKB_CNTL            0x83
@@ -107,20 +127,6 @@
 #define RESET6_LEVEL_TXLX            0x0426
 #define RESET7_LEVEL_TXLX            0x0427
 
-/* pwrctrl reg */
-#define PWRCTRL_MEM_PD0              0x0010
-#define PWRCTRL_MEM_PD1              0x0011
-#define PWRCTRL_MEM_PD2              0x0012
-#define PWRCTRL_MEM_PD3              0x0013
-#define PWRCTRL_MEM_PD4              0x0014
-#define PWRCTRL_MEM_PD5              0x0015
-#define PWRCTRL_MEM_PD6              0x0016
-#define PWRCTRL_MEM_PD7              0x0017
-#define PWRCTRL_MEM_PD8              0x0018
-#define PWRCTRL_MEM_PD9              0x0019
-#define PWRCTRL_MEM_PD10             0x001a
-#define PWRCTRL_MEM_PD11             0x001b
-
 /* vpu clk gate */
 /* hiu_bus */
 #define HHI_GCLK_OTHER               0x54
@@ -169,15 +175,6 @@ extern void vpu_hiu_clr_mask(unsigned int _reg, unsigned int _mask);
 unsigned int vpu_pwrctrl_read(unsigned int _reg);
 unsigned int vpu_pwrctrl_getb(unsigned int _reg,
 			      unsigned int _start, unsigned int _len);
-
-extern unsigned int vpu_vcbus_read(unsigned int _reg);
-extern void vpu_vcbus_write(unsigned int _reg, unsigned int _value);
-extern void vpu_vcbus_setb(unsigned int _reg, unsigned int _value,
-		unsigned int _start, unsigned int _len);
-extern unsigned int vpu_vcbus_getb(unsigned int _reg,
-		unsigned int _start, unsigned int _len);
-extern void vpu_vcbus_set_mask(unsigned int _reg, unsigned int _mask);
-extern void vpu_vcbus_clr_mask(unsigned int _reg, unsigned int _mask);
 
 extern unsigned int vpu_ao_read(unsigned int _reg);
 extern void vpu_ao_write(unsigned int _reg, unsigned int _value);

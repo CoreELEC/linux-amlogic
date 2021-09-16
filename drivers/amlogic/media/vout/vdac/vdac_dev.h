@@ -50,6 +50,8 @@ enum vdac_cpu_type {
 	VDAC_CPU_SM1 = 6,
 	VDAC_CPU_TM2 = 7,
 	VDAC_CPU_SC2 = 8,
+	VDAC_CPU_T5  = 9,
+	VDAC_CPU_T5D = 10,
 	VDAC_CPU_MAX,
 };
 

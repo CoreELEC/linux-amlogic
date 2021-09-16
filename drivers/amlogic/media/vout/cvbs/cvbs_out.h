@@ -26,7 +26,8 @@
 #include "cvbs_mode.h"
 
 /* 20200619: add sc2 support */
-#define CVBSOUT_VER "Ref.2020/06/19"
+/* 20210916: add txlx/tl1 support */
+#define CVBSOUT_VER "Ref.2021/09/16"
 
 #define CVBS_CLASS_NAME	"cvbs"
 #define CVBS_NAME	"cvbs"
@@ -53,6 +54,8 @@ enum cvbs_cpu_type {
 	CVBS_CPU_TYPE_SM1    = 6,
 	CVBS_CPU_TYPE_TM2    = 7,
 	CVBS_CPU_TYPE_SC2    = 8,
+	CVBS_CPU_TYPE_T5     = 9,
+	CVBS_CPU_TYPE_T5D    = 10,
 };
 
 struct meson_cvbsout_data {

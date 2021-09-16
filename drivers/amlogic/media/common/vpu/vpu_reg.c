@@ -23,6 +23,7 @@
 #include <linux/err.h>
 #include <linux/delay.h>
 #include <linux/amlogic/iomap.h>
+#include <linux/amlogic/media/vpu/vpu.h>
 #include "vpu_reg.h"
 #include "vpu.h"
 
@@ -30,13 +31,13 @@
  * mem map
  * *********************************
  */
-#define VPU_MAP_HIU       0
+#define VPU_MAP_CLK       0
 #define VPU_MAP_PWRCTRL   1
 #define VPU_MAP_VCBUS     2
 #define VPU_MAP_MAX       3
 
 static int vpu_reg_table[] = {
-	VPU_MAP_HIU,
+	VPU_MAP_CLK,
 	VPU_MAP_PWRCTRL,
 	VPU_MAP_VCBUS,
 	VPU_MAP_MAX,
@@ -116,20 +117,20 @@ static int check_vpu_ioremap(int n)
 	return 0;
 }
 
-static inline void __iomem *check_vpu_hiu_reg(unsigned int _reg)
+static inline void __iomem *check_vpu_clk_reg(unsigned int _reg)
 {
 	void __iomem *p;
 	int reg_bus;
 	unsigned int reg_offset;
 
-	reg_bus = VPU_MAP_HIU;
+	reg_bus = VPU_MAP_CLK;
 	if (check_vpu_ioremap(reg_bus))
 		return NULL;
 
 	reg_offset = VPU_REG_OFFSET(_reg);
 
 	if (reg_offset >= vpu_reg_map[reg_bus].size) {
-		VPUERR("invalid hiu reg offset: 0x%04x\n", _reg);
+		VPUERR("invalid clk reg offset: 0x%04x\n", _reg);
 		return NULL;
 	}
 	p = vpu_reg_map[reg_bus].p + reg_offset;
@@ -186,7 +187,7 @@ unsigned int vpu_hiu_read(unsigned int _reg)
 	unsigned int ret = 0;
 
 	if (vpu_ioremap_flag) {
-		p = check_vpu_hiu_reg(_reg);
+		p = check_vpu_clk_reg(_reg);
 		if (p)
 			ret = readl(p);
 		else
@@ -203,7 +204,7 @@ void vpu_hiu_write(unsigned int _reg, unsigned int _value)
 	void __iomem *p;
 
 	if (vpu_ioremap_flag) {
-		p = check_vpu_hiu_reg(_reg);
+		p = check_vpu_clk_reg(_reg);
 		if (p)
 			writel(_value, p);
 	} else {

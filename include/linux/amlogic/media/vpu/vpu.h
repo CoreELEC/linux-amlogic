@@ -94,6 +94,7 @@ enum vpu_mod_e {
 	VPU_DI_AFBCD,          /* reg9[23:18], SC2 */
 	VPU_DI_AFBCE,          /* reg9[27:24], SC2 */
 	VPU_DI_DOLBY,          /* reg9[29:28], SC2 */
+	VPU_DECONTOUR,        /* reg4[19:18], T5 */
 
 	VPU_MOD_MAX,
 
