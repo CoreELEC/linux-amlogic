@@ -247,17 +247,17 @@ module_param(force_best_pq, uint, 0664);
 MODULE_PARM_DESC(force_best_pq, "\n force_best_pq\n");
 
 /* by default, both std and ll use same cfg: */
-/* cfg_0.01_700_POWER_2.4_YUV_NARROW_v1-12.txt */
+/* cfg 0.01_700_POWER_2.4_NARROW_v1-12.txt */
 
-/*0:cfg_0.005_500_BT1886_2.4_YUV_NARROW_v0.txt    -tid 0 */
-/*1:cfg_0.01_700_POWER_2.4_YUV_NARROW_v1-12.txt   -tid 2 */
+/*0:cfg 0.005_500_BT1886_2.4_NARROW_v0.txt    -tid 0 */
+/*1:cfg 0.01_700_POWER_2.4_NARROW_v1-12.txt   -tid 2 */
 static unsigned int cfg_id = 1;/*dv cert need cfg_id=0*/
 module_param(cfg_id, uint, 0664);
 MODULE_PARM_DESC(cfg_id, "\n cfg_id\n");
 
-/*0:cfg_0.001_6300_POWER_2.4_YUV_NARROW_v2.txt      -tid2*/
-/*1:cfg_0.034_890_BT1886_2.2_YUV_NARROW_v2.txt      -tid2*/
-/*2:cfg_0.01_700_POWER_2.4_YUV_NARROW_v1-12.txt      -tid2*/
+/*0:cfg 0.001_6300_POWER_2.4_NARROW_v2.txt      -tid2*/
+/*1:cfg 0.034_890_BT1886_2.2_NARROW_v2.txt      -tid2*/
+/*2:cfg 0.01_700_POWER_2.4_NARROW_v1-12.txt      -tid2*/
 static unsigned int cfg_ll_id = 2;
 module_param(cfg_ll_id, uint, 0664);
 MODULE_PARM_DESC(cfg_ll_id, "\n cfg_ll_id\n");
@@ -624,7 +624,6 @@ struct ambient_cfg_s ambient_test_cfg[AMBIENT_CFG_FRAMES] = {
 	{ 4, 0, 0, 0, 32636, 5799 }
 };
 
-/*cfg_0.005_500_BT1886_2.4_YUV_NARROW_v0.txt    --tid 0 */
 /*tv cert: OTT mode/HDMI MODE(5010~5013 and 5232,5272,5332) use this cfg*/
 struct target_config def_tgt_display_cfg = {
 	39322,
@@ -885,7 +884,6 @@ struct target_config def_tgt_display_cfg_bestpq = {
 	0, 0, 0, 0} /* padding */
 };
 
-/*cfg_0.001_6300_POWER_2.4_YUV_NARROW_v2.txt	  --tid 2*/
 /*tv cert: DV LL case 5053 use this cfg */
 struct target_config def_tgt_display_cfg_ll = {
 	39322,
@@ -1016,7 +1014,6 @@ struct target_config def_tgt_display_cfg_ll = {
 	0, 0, 0, 0} /* padding */
 };
 
-/*cfg_0.034_890_BT1886_2.2_YUV_NARROW_v2.txt --tid 2*/
 /*tv cert: DV LL case 5052 use this cfg */
 struct target_config def_tgt_display_cfg_ll_1 = {
 	36045,
@@ -1147,7 +1144,6 @@ struct target_config def_tgt_display_cfg_ll_1 = {
 	0, 0, 0, 0} /* padding */
 };
 
-/*cfg_0.01_700_POWER_2.4_YUV_NARROW_v1-12.txt --tid2*/
 /*tv cert: DV LL case 5051 and 5055 use this cfg */
 struct target_config def_tgt_display_cfg_ll_2 = {
 	36045,
@@ -1279,22 +1275,17 @@ struct target_config def_tgt_display_cfg_ll_2 = {
 };
 
 struct target_config *DV_cfg_ll[3] = {
-	/*cfg_0.001_6300_POWER_2.4_YUV_NARROW_v2.txt -tid2*/
 	/*tv cert: DV LL case 5053 use this cfg */
 	&def_tgt_display_cfg_ll,
-	/*cfg_0.034_890_BT1886_2.2_YUV_NARROW_v2.txt     -tid2*/
 	/*tv cert: DV LL case 5052 use this cfg */
 	&def_tgt_display_cfg_ll_1,
-	/*cfg_0.01_700_POWER_2.4_YUV_NARROW_v1-12.txt     -tid2*/
 	/*tv cert: DV LL case 5051 and 5055 use this cfg */
 	&def_tgt_display_cfg_ll_2
 };
 
 struct target_config *DV_cfg[2] = {
-	/*cfg_0.005_500_BT1886_2.4_YUV_NARROW_v0.txt    --tid 0 */
 	/*tv cert: OTT mode/HDMI mode(DV STD)use this cfg*/
 	&def_tgt_display_cfg,
-	/*cfg_0.01_700_POWER_2.4_YUV_NARROW_v1-12.txt --tid2*/
 	/*tv cert: DV LL case 5051 and 5055 use this cfg */
 	&def_tgt_display_cfg_ll_2
 };
@@ -4138,7 +4129,8 @@ void enable_dolby_vision(int enable)
 						 0x55555455);
 						dolby_vision_core1_on = false;
 					}
-				} else if  (is_meson_tm2_stbmode()) {
+				} else if  (is_meson_tm2_stbmode() ||
+					is_meson_sc2()) {
 					if (is_meson_tm2_stb_hdmimode())
 						core_flag = 1;
 					VSYNC_WR_DV_REG_BITS
