@@ -4556,6 +4556,19 @@ static ssize_t store_fake_plug(struct device *dev,
 	return count;
 }
 
+static ssize_t show_rxsense_state(struct device *dev,
+	struct device_attribute *attr, char *buf)
+{
+	int pos = 0;
+	int sense;
+	struct hdmitx_dev *hdev = &hdmitx_device;
+
+	sense = hdev->hwop.cntlmisc(hdev, MISC_TMDS_RXSENSE, 0);
+
+	pos += snprintf(buf + pos, PAGE_SIZE, "%d", sense);
+	return pos;
+}
+
 static ssize_t show_rhpd_state(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
@@ -5327,6 +5340,7 @@ static DEVICE_ATTR(disp_cap_3d, 0444, show_disp_cap_3d, NULL);
 static DEVICE_ATTR(hdcp_ksv_info, 0444, show_hdcp_ksv_info, NULL);
 static DEVICE_ATTR(hdcp_ver, 0444, show_hdcp_ver, NULL);
 static DEVICE_ATTR(hpd_state, 0444, show_hpd_state, NULL);
+static DEVICE_ATTR(rxsense_state, 0444, show_rxsense_state, NULL);
 static DEVICE_ATTR(drm_mode_setting, 0444, show_mode_setting, NULL);
 static DEVICE_ATTR(hdmi_used, 0444, show_hdmi_used, NULL);
 static DEVICE_ATTR(rhpd_state, 0444, show_rhpd_state, NULL);
@@ -6712,6 +6726,7 @@ static int amhdmitx_probe(struct platform_device *pdev)
 	ret = device_create_file(dev, &dev_attr_frac_rate_policy);
 	ret = device_create_file(dev, &dev_attr_sspll);
 	ret = device_create_file(dev, &dev_attr_rxsense_policy);
+	ret = device_create_file(dev, &dev_attr_rxsense_state);
 	ret = device_create_file(dev, &dev_attr_cedst_policy);
 	ret = device_create_file(dev, &dev_attr_cedst_count);
 	ret = device_create_file(dev, &dev_attr_phy_idx);
@@ -6858,6 +6873,7 @@ static int amhdmitx_remove(struct platform_device *pdev)
 	device_remove_file(dev, &dev_attr_frac_rate_policy);
 	device_remove_file(dev, &dev_attr_sspll);
 	device_remove_file(dev, &dev_attr_rxsense_policy);
+	device_remove_file(dev, &dev_attr_rxsense_state);
 	device_remove_file(dev, &dev_attr_cedst_policy);
 	device_remove_file(dev, &dev_attr_cedst_count);
 	device_remove_file(dev, &dev_attr_phy_idx);
