@@ -1693,22 +1693,19 @@ static ssize_t ldim_attr_store(struct class *cla,
 					ldim_drv->conf->remap_en);
 				goto ldim_attr_store_end;
 			}
-			if (ldim_drv->func_en == 0) {
-				LDIMERR("%s: ldim function is disabled\n",
-					__func__);
-				goto ldim_attr_store_end;
-			}
 			if (kstrtoul(parm[1], 10, &val1) < 0)
 				goto ldim_attr_store_err;
 			if (val1) {
 				if (ldim_drv->conf->remap_en == 0) {
 					ldim_drv->conf->remap_en = 1;
-					ldim_remap_ctrl(1);
+					if (ldim_drv->func_en)
+						ldim_remap_ctrl(1);
 				}
 			} else {
 				if (ldim_drv->conf->remap_en) {
 					ldim_drv->conf->remap_en = 0;
-					ldim_remap_ctrl(0);
+					if (ldim_drv->func_en)
+						ldim_remap_ctrl(0);
 				}
 			}
 		}
@@ -2580,23 +2577,20 @@ static ssize_t ldim_remap_store(struct class *class,
 	unsigned int val = 0;
 	int ret = 0;
 
-	if (ldim_drv->func_en == 0) {
-		LDIMERR("%s: ldim function is disabled\n", __func__);
-		return count;
-	}
-
 	ret = kstrtouint(buf, 10, &val);
 	LDIMPR("local diming remap: %s\n", (val ? "enable" : "disable"));
 
 	if (val) {
 		if (ldim_drv->conf->remap_en == 0) {
 			ldim_drv->conf->remap_en = 1;
-			ldim_remap_ctrl(1);
+			if (ldim_drv->func_en)
+				ldim_remap_ctrl(1);
 		}
 	} else {
 		if (ldim_drv->conf->remap_en) {
 			ldim_drv->conf->remap_en = 0;
-			ldim_remap_ctrl(0);
+			if (ldim_drv->func_en)
+				ldim_remap_ctrl(0);
 		}
 	}
 	return count;
