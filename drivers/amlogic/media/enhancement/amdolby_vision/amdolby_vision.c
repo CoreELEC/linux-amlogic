@@ -246,18 +246,11 @@ static unsigned int force_best_pq;
 module_param(force_best_pq, uint, 0664);
 MODULE_PARM_DESC(force_best_pq, "\n force_best_pq\n");
 
-/* by default, both std and ll use same cfg: */
-/* cfg 0.01_700_POWER_2.4_NARROW_v1-12.txt */
-
-/*0:cfg 0.005_500_BT1886_2.4_NARROW_v0.txt    -tid 0 */
-/*1:cfg 0.01_700_POWER_2.4_NARROW_v1-12.txt   -tid 2 */
+/* by default, both std and ll use same cfg: cfg_id=1 */
 static unsigned int cfg_id = 1;/*dv cert need cfg_id=0*/
 module_param(cfg_id, uint, 0664);
 MODULE_PARM_DESC(cfg_id, "\n cfg_id\n");
 
-/*0:cfg 0.001_6300_POWER_2.4_NARROW_v2.txt      -tid2*/
-/*1:cfg 0.034_890_BT1886_2.2_NARROW_v2.txt      -tid2*/
-/*2:cfg 0.01_700_POWER_2.4_NARROW_v1-12.txt      -tid2*/
 static unsigned int cfg_ll_id = 2;
 module_param(cfg_ll_id, uint, 0664);
 MODULE_PARM_DESC(cfg_ll_id, "\n cfg_ll_id\n");
@@ -1390,7 +1383,7 @@ static bool tv_backlight_force_update;
 static int force_disable_dv_backlight;
 static bool dv_control_backlight_status;
 static bool bypass_all_vpp_pq;
-static int use_target_lum_from_cfg = true;
+static int use_target_lum_from_cfg;
 
 /*0: not debug mode; 1:force bypass vpp pq; 2:force enable vpp pq*/
 /*3: force do nothing*/
@@ -7905,29 +7898,28 @@ int dolby_vision_parse_metadata(struct vframe_s *vf,
 
 		/*check vsem_if_buf */
 		if (vsem_if_size &&
-			!(vsem_if_buf[0] == 0x81 &&
-			vsem_if_buf[1] == 0x1)) {
+			vsem_if_buf[0] != 0x81) {
 			/*not vsif, continue to check vsem*/
 			if (!(vsem_if_buf[0] == 0x7F &&
 				vsem_if_buf[1] == 0x80 &&
 				vsem_if_buf[10] == 0x46 &&
 				vsem_if_buf[11] == 0xd0 &&
 				vsem_if_buf[12] == 0x00)) {
-				pr_dolby_error("vsem_if_buf is invalid!\n");
 				vsem_if_size = 0;
-				pr_info("%x %x %x %x %x %x %x %x %x %x %x %x\n",
-					vsem_if_buf[0],
-					vsem_if_buf[1],
-					vsem_if_buf[2],
-					vsem_if_buf[3],
-					vsem_if_buf[4],
-					vsem_if_buf[5],
-					vsem_if_buf[6],
-					vsem_if_buf[7],
-					vsem_if_buf[8],
-					vsem_if_buf[9],
-					vsem_if_buf[10],
-					vsem_if_buf[11]);
+				pr_dolby_dbg("vsem_if_buf is invalid!\n");
+				pr_dolby_dbg("%x %x %x %x %x %x %x %x %x %x %x %x\n",
+					     vsem_if_buf[0],
+					     vsem_if_buf[1],
+					     vsem_if_buf[2],
+					     vsem_if_buf[3],
+					     vsem_if_buf[4],
+					     vsem_if_buf[5],
+					     vsem_if_buf[6],
+					     vsem_if_buf[7],
+					     vsem_if_buf[8],
+					     vsem_if_buf[9],
+					     vsem_if_buf[10],
+					     vsem_if_buf[11]);
 			}
 		}
 		if ((dolby_vision_flags & FLAG_FORCE_DOVI_LL) ||
@@ -10803,8 +10795,11 @@ static bool load_dv_pq_config_data(char *bin_path, char *txt_path)
 	}
 
 	error = vfs_stat(bin_path, &stat);
-	if (error < 0)
+	if (error < 0) {
 		ret = false;
+		filp_close(filp, NULL);
+		goto LOAD_END;
+	}
 	length = (stat.size > cfg_len) ? cfg_len : stat.size;
 	num_picture_mode = length / sizeof(struct pq_config);
 
@@ -10831,10 +10826,17 @@ static bool load_dv_pq_config_data(char *bin_path, char *txt_path)
 	if (IS_ERR(filp_txt)) {
 		ret = false;
 		pr_info("[%s] failed to open file: |%s|\n", __func__, txt_path);
+		filp_close(filp, NULL);
+		goto LOAD_END;
 	} else {
 		error = vfs_stat(txt_path, &stat);
-		if (error < 0)
+		if (error < 0) {
 			ret = false;
+			filp_close(filp, NULL);
+			filp_close(filp_txt, NULL);
+			goto LOAD_END;
+		}
+
 		length = stat.size;
 		txt_buf = vmalloc(length);
 
@@ -10851,7 +10853,9 @@ static bool load_dv_pq_config_data(char *bin_path, char *txt_path)
 	update_vsvdb_to_rx();
 
 	filp_close(filp, NULL);
+	filp_close(filp_txt, NULL);
 
+	use_target_lum_from_cfg = true;
 	pr_info("DV config: load %d picture mode\n", num_picture_mode);
 
 LOAD_END:
