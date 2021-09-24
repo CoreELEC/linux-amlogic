@@ -19,7 +19,7 @@
 #ifndef __AO_CEC_H__
 #define __AO_CEC_H__
 
-#define CEC_DRIVER_VERSION     "2021/07/10: transfer cec wakeup msg to uplayer"
+#define CEC_DRIVER_VERSION     "2021/09/24: bringup for tl1/txlx"
 
 #define CEC_DEV_NAME		"cec"
 
@@ -144,6 +144,13 @@ struct st_cec_mailbox_data {
 	unsigned char osd_name[16];
 } __packed;
 
+struct cec_dev_info_t {
+	unsigned char devtype;
+	unsigned char vendorid[16];
+	unsigned char osd_name[16];
+	unsigned int phyaddr;
+};
+
 /* global struct for tx and rx */
 struct ao_cec_dev {
 	bool probe_finish;
@@ -156,7 +163,7 @@ struct ao_cec_dev {
 	unsigned int hal_flag;
 	unsigned int phy_addr;
 	unsigned int port_seq;
-	unsigned int cpu_type;
+	/* unsigned int cpu_type; */
 	unsigned int irq_ceca;
 	unsigned int irq_cecb;
 	void __iomem *exit_reg;
@@ -176,11 +183,14 @@ struct ao_cec_dev {
 	struct delayed_work work_cec_rx;
 	struct completion rx_ok;
 	struct completion tx_ok;
+	struct completion msg_feedback;
+	unsigned int msg_feedbackmd;
 	spinlock_t cec_reg_lock;/*cec register access*/
 	struct mutex cec_tx_mutex;/*pretect tx cec msg*/
 	struct mutex cec_ioctl_mutex;
 	struct mutex cec_uevent_mutex; /* cec uevent */
 	struct cec_wakeup_t wakup_data;
+	/* msg_len + maximum msg len */
 	unsigned char cec_wk_otp_msg[17];
 	unsigned char cec_wk_as_msg[17];
 	unsigned int wakeup_reason;
@@ -200,6 +210,9 @@ struct ao_cec_dev {
 
 	struct clk *ceca_clk;
 	struct clk *cecb_clk;
+	unsigned char devlist[16];
+	unsigned char devexist_num;
+	struct cec_dev_info_t devinfo[16];
 	bool framework_on;
 };
 
@@ -551,7 +564,7 @@ struct cec_uevent {
 #define EECEC_IRQ_TX_ERR_INITIATOR	BIT(20)
 #define EECEC_IRQ_RX_ERR_FOLLOWER	BIT(21)
 #define EECEC_IRQ_RX_WAKEUP			BIT(22)
-#define EE_CEC_IRQ_EN_MASK			(0x3f00)
+#define EE_CEC_IRQ_EN_MASK			(0x3f0000)
 
 /* cec irq bit flags for AO_CEC_B */
 #define CECB_IRQ_TX_DONE			BIT(0)
@@ -592,28 +605,30 @@ struct cec_uevent {
 #define HHI_32K_CLK_CNTL		(0x89 << 2)
 #define HHI_HDMIRX_ARC_CNTL		(0xe8  << 2)
 
-#define CEC_IOC_MAGIC	'C'
-#define CEC_IOC_GET_PHYSICAL_ADDR	_IOR(CEC_IOC_MAGIC, 0x00, uint16_t)
-#define CEC_IOC_GET_VERSION	_IOR(CEC_IOC_MAGIC, 0x01, int)
-#define CEC_IOC_GET_VENDOR_ID	_IOR(CEC_IOC_MAGIC, 0x02, uint32_t)
-#define CEC_IOC_GET_PORT_INFO	_IOR(CEC_IOC_MAGIC, 0x03, int)
-#define CEC_IOC_GET_PORT_NUM	_IOR(CEC_IOC_MAGIC, 0x04, int)
-#define CEC_IOC_GET_SEND_FAIL_REASON	_IOR(CEC_IOC_MAGIC, 0x05, uint32_t)
-#define CEC_IOC_SET_OPTION_WAKEUP	_IOW(CEC_IOC_MAGIC, 0x06, uint32_t)
-#define CEC_IOC_SET_OPTION_ENALBE_CEC	_IOW(CEC_IOC_MAGIC, 0x07, uint32_t)
-#define CEC_IOC_SET_OPTION_SYS_CTRL	_IOW(CEC_IOC_MAGIC, 0x08, uint32_t)
-#define CEC_IOC_SET_OPTION_SET_LANG	_IOW(CEC_IOC_MAGIC, 0x09, uint32_t)
-#define CEC_IOC_GET_CONNECT_STATUS	_IOR(CEC_IOC_MAGIC, 0x0A, uint32_t)
-#define CEC_IOC_ADD_LOGICAL_ADDR	_IOW(CEC_IOC_MAGIC, 0x0B, uint32_t)
-#define CEC_IOC_CLR_LOGICAL_ADDR	_IOW(CEC_IOC_MAGIC, 0x0C, uint32_t)
-#define CEC_IOC_SET_DEV_TYPE	_IOW(CEC_IOC_MAGIC, 0x0D, uint32_t)
-#define CEC_IOC_SET_ARC_ENABLE	_IOW(CEC_IOC_MAGIC, 0x0E, uint32_t)
-#define CEC_IOC_SET_AUTO_DEVICE_OFF	_IOW(CEC_IOC_MAGIC, 0x0F, uint32_t)
-#define CEC_IOC_GET_BOOT_ADDR	_IOW(CEC_IOC_MAGIC, 0x10, uint32_t)
-#define CEC_IOC_GET_BOOT_REASON	_IOW(CEC_IOC_MAGIC, 0x11, uint32_t)
-#define CEC_IOC_SET_FREEZE_MODE	_IOW(CEC_IOC_MAGIC, 0x12, uint32_t)
-#define CEC_IOC_GET_BOOT_PORT	_IOW(CEC_IOC_MAGIC, 0x13, uint32_t)
-#define CEC_IOC_SET_DEBUG_EN	_IOW(CEC_IOC_MAGIC, 0x14, uint32_t)
+#define CEC_IOC_MAGIC                   'C'
+#define CEC_IOC_GET_PHYSICAL_ADDR       _IOR(CEC_IOC_MAGIC, 0x00, uint16_t)
+#define CEC_IOC_GET_VERSION             _IOR(CEC_IOC_MAGIC, 0x01, int)
+#define CEC_IOC_GET_VENDOR_ID           _IOR(CEC_IOC_MAGIC, 0x02, uint32_t)
+#define CEC_IOC_GET_PORT_INFO           _IOR(CEC_IOC_MAGIC, 0x03, int)
+#define CEC_IOC_GET_PORT_NUM            _IOR(CEC_IOC_MAGIC, 0x04, int)
+#define CEC_IOC_GET_SEND_FAIL_REASON    _IOR(CEC_IOC_MAGIC, 0x05, uint32_t)
+#define CEC_IOC_SET_OPTION_WAKEUP       _IOW(CEC_IOC_MAGIC, 0x06, uint32_t)
+#define CEC_IOC_SET_OPTION_ENALBE_CEC   _IOW(CEC_IOC_MAGIC, 0x07, uint32_t)
+#define CEC_IOC_SET_OPTION_SYS_CTRL     _IOW(CEC_IOC_MAGIC, 0x08, uint32_t)
+#define CEC_IOC_SET_OPTION_SET_LANG     _IOW(CEC_IOC_MAGIC, 0x09, uint32_t)
+#define CEC_IOC_GET_CONNECT_STATUS      _IOR(CEC_IOC_MAGIC, 0x0A, uint32_t)
+#define CEC_IOC_ADD_LOGICAL_ADDR        _IOW(CEC_IOC_MAGIC, 0x0B, uint32_t)
+#define CEC_IOC_CLR_LOGICAL_ADDR        _IOW(CEC_IOC_MAGIC, 0x0C, uint32_t)
+#define CEC_IOC_SET_DEV_TYPE            _IOW(CEC_IOC_MAGIC, 0x0D, uint32_t)
+#define CEC_IOC_SET_ARC_ENABLE          _IOW(CEC_IOC_MAGIC, 0x0E, uint32_t)
+#define CEC_IOC_SET_AUTO_DEVICE_OFF     _IOW(CEC_IOC_MAGIC, 0x0F, uint32_t)
+#define CEC_IOC_GET_BOOT_ADDR           _IOW(CEC_IOC_MAGIC, 0x10, uint32_t)
+#define CEC_IOC_GET_BOOT_REASON         _IOW(CEC_IOC_MAGIC, 0x11, uint32_t)
+#define CEC_IOC_SET_FREEZE_MODE         _IOW(CEC_IOC_MAGIC, 0x12, uint32_t)
+#define CEC_IOC_GET_BOOT_PORT           _IOW(CEC_IOC_MAGIC, 0x13, uint32_t)
+#define CEC_IOC_SET_DEBUG_EN		_IOW(CEC_IOC_MAGIC, 0x14, uint32_t)
+#define CEC_IOC_GET_DEV_NUM		_IOW(CEC_IOC_MAGIC, 0x15, uint32_t)
+#define CEC_IOC_GET_DEV_VENDOR		_IOW(CEC_IOC_MAGIC, 0x16, uint32_t)
 #define CEC_IOC_GET_WK_OTP_MSG	_IOR(CEC_IOC_MAGIC, 0x17, struct st_rx_msg)
 #define CEC_IOC_GET_WK_AS_MSG	_IOR(CEC_IOC_MAGIC, 0x18, struct st_rx_msg)
 
@@ -624,7 +639,7 @@ uint32_t hdmirx_rd_dwc(u16 addr);
 void hdmirx_wr_dwc(u16 addr, u32 data);
 unsigned int rd_reg_hhi(unsigned int offset);
 void wr_reg_hhi(unsigned int offset, unsigned int val);
-int __attribute__((weak))cec_set_dev_info(uint8_t dev_idx);
+
 #else
 
 static inline unsigned long hdmirx_rd_top(unsigned long addr)
@@ -641,7 +656,7 @@ static inline uint32_t hdmirx_rd_dwc(u16 addr)
 	return 0;
 }
 
-static inline void hdmirx_wr_dwc(u16 addr, u16 data)
+static inline void hdmirx_wr_dwc(u16 addr, u32 data)
 {
 }
 
@@ -657,6 +672,8 @@ void wr_reg_hhi(unsigned int offset, unsigned int val)
 #endif
 
 int hdmirx_get_connect_info(void);
+int cec_set_dev_info(uint8_t dev_idx);
+
 
 unsigned int aocec_rd_reg(unsigned long addr);
 void aocec_wr_reg(unsigned long addr, unsigned long data);
@@ -680,4 +697,11 @@ unsigned int cec_config2_phyaddr(unsigned int value, bool wr_flag);
 unsigned int cec_config2_logaddr(unsigned int value, bool wr_flag);
 unsigned int cec_config2_devtype(unsigned int value, bool wr_flag);
 unsigned int cec_config(unsigned int value, bool wr_flag);
+void cec_give_device_vendor_id(unsigned char devtype);
+void cec_give_physical_address(unsigned char dest);
+
+void cec_update_dev_info(unsigned char *msg, unsigned int msglen);
+unsigned int get_cec_num(void);
+void cec_dev_list_info(void);
+void get_cec_vendorid(unsigned int idx, unsigned char *str);
 #endif	/* __AO_CEC_H__ */
