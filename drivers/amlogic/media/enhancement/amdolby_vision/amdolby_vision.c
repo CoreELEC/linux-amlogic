@@ -3602,11 +3602,10 @@ static bool is_video_effect_bypass;
 
 static void video_effect_bypass(int bypass)
 {
-	if (is_meson_tm2_tvmode()) {
-		/*only bypass vpp pq for dovi source*/
+	if (is_meson_tvmode()) {
+		/*only bypass vpp pq for IDK cert or debug mode*/
 		if (!debug_bypass_vpp_pq &&
-		    (dolby_vision_src_format != 3 &&
-		    !(dolby_vision_flags & FLAG_CERTIFICAION)))
+		    !(dolby_vision_flags & FLAG_CERTIFICAION))
 			return;
 	}
 	if (debug_bypass_vpp_pq == 1) {
