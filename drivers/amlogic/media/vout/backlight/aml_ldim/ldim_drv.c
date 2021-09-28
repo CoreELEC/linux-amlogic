@@ -139,6 +139,7 @@ static struct aml_ldim_driver_s ldim_driver = {
 	.remap_ram_step = 0,
 	.remap_mif_flag = 0,
 	.remap_init_flag = 0,
+	.remap_bypass_flag = 0,
 	.alg_en = 0,
 	.top_en = 0,
 	.hist_en = 0,
@@ -231,6 +232,7 @@ void ldim_remap_regs_update(void)
 {
 	LDIMPR("%s\n", __func__);
 	/* force update in vsync isr */
+	ldim_driver.remap_ram_step = 1;
 	ldim_driver.state |= LDIM_STATE_REMAP_FORCE_UPDATE;
 }
 
@@ -472,9 +474,11 @@ static void ldim_remap_ctrl_update(void)
 
 		ldim_driver.avg_update_en = 1;
 		ldim_driver.matrix_update_en = 1;
-		ldim_driver.state |= LDIM_STATE_REMAP_EN;
+		if (ldim_driver.remap_bypass_flag == 0)
+			ldim_driver.state |= LDIM_STATE_REMAP_EN;
 	} else {
-		ldim_driver.state &= ~LDIM_STATE_REMAP_EN;
+		if (ldim_driver.remap_bypass_flag)
+			ldim_driver.state &= ~LDIM_STATE_REMAP_EN;
 		ldim_driver.avg_update_en = 0;
 		ldim_driver.matrix_update_en = 0;
 

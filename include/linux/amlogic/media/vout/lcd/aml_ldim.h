@@ -230,6 +230,7 @@ struct aml_ldim_driver_s {
 	unsigned char remap_ram_step;
 	unsigned char remap_mif_flag;
 	unsigned char remap_init_flag;
+	unsigned char remap_bypass_flag;
 	unsigned char alg_en;
 	unsigned char top_en;
 	unsigned char hist_en;

@@ -521,6 +521,25 @@ void ldim_hw_remap_init_txlx(struct LDReg_s *nprm, unsigned int remap_en,
 	ldim_hw_update_matrix_txlx(nprm->BL_matrix, 16 * 24);
 }
 
+static void ldim_hw_remap_recover_roi(struct LDReg_s *nprm)
+{
+	unsigned int data;
+
+	/* REG_LD_XLUT_DEMO_ROI_CTRL */
+	data = ((nprm->reg_LD_xlut_oroi_enable & 0x1) << 1) |
+		(nprm->reg_LD_xlut_iroi_enable & 0x1);
+	ldim_wr_reg(REG_LD_XLUT_DEMO_ROI_CTRL, data);
+	if (ldim_debug_print)
+		LDIMPR("%s\n", __func__);
+}
+
+static void ldim_hw_remap_bypass_roi(void)
+{
+	ldim_wr_reg(REG_LD_XLUT_DEMO_ROI_CTRL, 0);
+	if (ldim_debug_print)
+		LDIMPR("%s\n", __func__);
+}
+
 /* vsync shadow */
 static void ldim_hw_remap_disable_tm2(void)
 {
@@ -534,6 +553,9 @@ static void ldim_hw_remap_disable_tm2(void)
 		ldim_hw_vpu_dma_mif_en(LDIM_VPU_DMA_RD, 0);
 	else if (bl_drv->data->chip_type == BL_CHIP_TM2B)
 		ldim_hw_vpu_dma_mif_en_tm2b(LDIM_VPU_DMA_RD, 0);
+
+	if (ldim_debug_print)
+		LDIMPR("%s\n", __func__);
 }
 
 static void ldim_fw_remap_update_tm2(struct LDReg_s *nprm)
@@ -623,9 +645,9 @@ static void ldim_fw_remap_update_tm2(struct LDReg_s *nprm)
 	ldim_wr_reg(REG_LD_XLUT_DEMO_ROI_YPOS, data);
 
 	/* REG_LD_XLUT_DEMO_ROI_CTRL */
-	data = ((nprm->reg_LD_xlut_oroi_enable & 0x1) << 1) |
-		(nprm->reg_LD_xlut_iroi_enable & 0x1);
-	ldim_wr_reg(REG_LD_XLUT_DEMO_ROI_CTRL, data);
+	//data = ((nprm->reg_LD_xlut_oroi_enable & 0x1) << 1) |
+	//	(nprm->reg_LD_xlut_iroi_enable & 0x1);
+	ldim_wr_reg(REG_LD_XLUT_DEMO_ROI_CTRL, 0);
 
 	/*  X_idx: 12*16  */
 	ldim_wr_lut(REG_LD_RGB_IDX_BASE, nprm->X_idx[0], 16, 16);
@@ -745,6 +767,11 @@ void ldim_hw_remap_update_tm2(struct LDReg_s *nprm, unsigned int remap_en,
 		LDIMPR("%s\n", __func__);
 
 	if (remap_en == 0) {
+		if (ldim_drv->remap_bypass_flag == 0) {
+			ldim_hw_remap_bypass_roi();
+			ldim_drv->remap_bypass_flag = 1;
+			return;
+		}
 		ldim_hw_remap_disable_tm2();
 		ldim_drv->remap_mif_flag = 0;
 		return;
@@ -759,6 +786,11 @@ void ldim_hw_remap_update_tm2(struct LDReg_s *nprm, unsigned int remap_en,
 			return;
 		}
 	}
+	if (ldim_drv->remap_ram_step == 2) {
+		ldim_hw_remap_recover_roi(ldim_drv->fw_para->nprm);
+		ldim_drv->remap_bypass_flag = 0;
+		return;
+	}
 
 	ldim_fw_remap_update_tm2(nprm);
 
@@ -768,6 +800,7 @@ void ldim_hw_remap_update_tm2(struct LDReg_s *nprm, unsigned int remap_en,
 	misc_ctrl = 0 | (0 << 1) | (1 << 2) |
 		(1 << 8) | (3 << 9) | (1 << 4); //(hvcnt_bypass << 5)
 	ldim_wr_reg(REG_LD_MISC_CTRL0, misc_ctrl);
+	ldim_drv->remap_ram_step = 2;
 
 	if (ldim_drv->remap_mif_flag == 1)
 		return;
@@ -776,7 +809,6 @@ void ldim_hw_remap_update_tm2(struct LDReg_s *nprm, unsigned int remap_en,
 	else if (bl_drv->data->chip_type == BL_CHIP_TM2B)
 		ldim_hw_vpu_dma_mif_en_tm2b(LDIM_VPU_DMA_RD, 1);
 	ldim_drv->remap_mif_flag = 1;
-	ldim_drv->remap_ram_step = 2;
 }
 
 void ldim_hw_remap_init_tm2(struct LDReg_s *nprm, unsigned int remap_en,
