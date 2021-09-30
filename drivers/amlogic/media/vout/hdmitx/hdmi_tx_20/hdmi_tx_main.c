@@ -89,6 +89,7 @@ static void edidinfo_attach_to_vinfo(struct hdmitx_dev *hdev);
 static void edidinfo_detach_to_vinfo(struct hdmitx_dev *hdev);
 static bool is_cur_tmds_div40(struct hdmitx_dev *hdev);
 static void hdmitx_resend_div40(struct hdmitx_dev *hdev);
+static unsigned int hdmitx_get_frame_duration(void);
 
 static DEFINE_MUTEX(setclk_mutex);
 static DEFINE_MUTEX(getedid_mutex);
@@ -232,13 +233,21 @@ static void hdmitx_early_suspend(struct early_suspend *h)
 	struct hdmitx_dev *phdmi = (struct hdmitx_dev *)h->param;
 	struct hdmitx_dev *hdev = phdmi;
 	bool need_rst_ratio = hdmitx_find_vendor_ratio(hdev);
+	unsigned int mute_us =
+		hdev->debug_param.avmute_frame * hdmitx_get_frame_duration();
 
 	phdmi->ready = 0;
 	phdmi->hpd_lock = 1;
 	hdev->hwop.cntlmisc(hdev, MISC_SUSFLAG, 1);
 	usleep_range(10000, 10010);
 	phdmi->hwop.cntlmisc(phdmi, MISC_AVMUTE_OP, SET_AVMUTE);
-	usleep_range(100000, 100010);
+	/* delay 100ms after avmute is a empirical value,
+	 * mute_us is for debug, at least 16ms for 60fps
+	 */
+	if (hdev->debug_param.avmute_frame > 0)
+		msleep(mute_us / 1000);
+	else
+		msleep(100);
 	pr_info(SYS "HDMITX: Early Suspend\n");
 	phdmi->hwop.cntl((struct hdmitx_dev *)h->param,
 		HDMITX_EARLY_SUSPEND_RESUME_CNTL, HDMITX_EARLY_SUSPEND);
@@ -277,7 +286,6 @@ static void hdmitx_early_suspend(struct early_suspend *h)
 	if (need_rst_ratio) {
 		usleep_range(120000, 120010);
 		hdev->hwop.cntlddc(hdev, DDC_SCDC_DIV40_SCRAMB, 0);
-		hdev->div40 = 0;
 	}
 	/* enable hpd event to get EDID, because phy addr
 	 * needs to be updated for CEC under early suspend. meanwhile
@@ -355,10 +363,15 @@ static int hdmitx_reboot_notifier(struct notifier_block *nb,
 	unsigned long action, void *data)
 {
 	struct hdmitx_dev *hdev = container_of(nb, struct hdmitx_dev, nb);
+	unsigned int mute_us =
+		hdev->debug_param.avmute_frame * hdmitx_get_frame_duration();
 
 	hdev->ready = 0;
 	hdev->hwop.cntlmisc(hdev, MISC_AVMUTE_OP, SET_AVMUTE);
-	usleep_range(100000, 100010);
+	if (hdev->debug_param.avmute_frame > 0)
+		msleep(mute_us / 1000);
+	else
+		msleep(100);
 	hdev->hwop.cntlmisc(hdev, MISC_TMDS_PHY_OP, TMDS_PHY_DISABLE);
 	hdev->hwop.cntl(hdev, HDMITX_EARLY_SUSPEND_RESUME_CNTL,
 		HDMITX_EARLY_SUSPEND);
@@ -1370,7 +1383,7 @@ static void hdmitx_sdr_hdr_uevent(struct hdmitx_dev *hdev)
 }
 
 /* frame duration(us) for one frame */
-unsigned int hdmitx_get_frame_duration(void)
+static unsigned int hdmitx_get_frame_duration(void)
 {
 	unsigned int frame_duration;
 	struct vinfo_s *vinfo = hdmitx_get_current_vinfo();
@@ -3717,6 +3730,8 @@ static ssize_t store_avmute(struct device *dev,
 	static int mask0;
 	static int mask1;
 	static DEFINE_MUTEX(avmute_mutex);
+	unsigned int mute_us =
+		hdmitx_device.debug_param.avmute_frame * hdmitx_get_frame_duration();
 
 	pr_info("store_avmute %s\n", buf);
 	mutex_lock(&avmute_mutex);
@@ -3745,6 +3760,8 @@ static ssize_t store_avmute(struct device *dev,
 	else if ((mask0 == -1) && (mask1 == -1))
 		cmd = CLR_AVMUTE;
 	hdmitx_device.hwop.cntlmisc(&hdmitx_device, MISC_AVMUTE_OP, cmd);
+	if (cmd == SET_AVMUTE && hdmitx_device.debug_param.avmute_frame > 0)
+		msleep(mute_us / 1000);
 	mutex_unlock(&avmute_mutex);
 
 	return count;
@@ -4237,7 +4254,6 @@ static ssize_t store_div40(struct device *dev,
 	struct hdmitx_dev *hdev = &hdmitx_device;
 
 	hdev->hwop.cntlddc(hdev, DDC_SCDC_DIV40_SCRAMB, buf[0] == '1');
-	hdmitx_device.div40 = (buf[0] == '1');
 
 	return count;
 }
@@ -6047,7 +6063,6 @@ static bool is_cur_tmds_div40(struct hdmitx_dev *hdev)
 static void hdmitx_resend_div40(struct hdmitx_dev *hdev)
 {
 	hdev->hwop.cntlddc(hdev, DDC_SCDC_DIV40_SCRAMB, 1);
-	hdev->div40 = 1;
 }
 
 static int hdmi_task_handle(void *data)
@@ -6512,6 +6527,8 @@ static int amhdmitx_device_init(struct hdmitx_dev *hdmi_dev)
 		pr_info("failed to alloc hdcp topo info\n");
 	hdmitx_init_parameters(&hdmitx_device.hdmi_info);
 	hdmitx_device.vid_mute_op = VIDEO_NONE_OP;
+	/* init debug param */
+	hdmitx_device.debug_param.avmute_frame = 0;
 	spin_lock_init(&hdmitx_device.edid_spinlock);
 	return 0;
 }

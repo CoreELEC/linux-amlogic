@@ -302,6 +302,10 @@ struct hdmitx_clk_tree_s {
 	struct clk *venci_1_gate;
 };
 
+struct st_debug_param {
+	unsigned int avmute_frame;
+};
+
 #define EDID_MAX_BLOCK              4
 struct hdmitx_dev {
 	struct cdev cdev; /* The cdev structure */
@@ -502,6 +506,7 @@ struct hdmitx_dev {
 	bool systemcontrol_on;
 	unsigned char vid_mute_op;
 	spinlock_t edid_spinlock; /* edid hdr/dv cap lock */
+	struct st_debug_param debug_param;
 };
 
 #define CMD_DDC_OFFSET          (0x10 << 24)
