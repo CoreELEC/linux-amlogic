@@ -98,6 +98,80 @@ static struct keeper_mgr keeper_mgr_private;
 static const struct file_operations v4lvideo_file_fops;
 
 static u32 print_flag;
+static u32 cts_video_flag;
+
+const struct video_info_t cts_vp9_videos[] = {
+	{
+		.width = 426,
+		.height = 240,
+	},
+	{
+		.width = 2560,
+		.height = 1090,
+	},
+	{
+		.width = 1216,
+		.height = 2160,
+	},
+};
+
+const struct video_info_t cts_videos[] = {
+	{
+		.width = 256,
+		.height = 108,
+	},
+	{
+		.width = 256,
+		.height = 144,
+	},
+	{
+		.width = 192,
+		.height = 144,
+	},
+	{
+		.width = 82,
+		.height = 144,
+	},
+	{
+		.width = 320,
+		.height = 240,
+	},
+	{
+		.width = 136,
+		.height = 240,
+	},
+	{
+		.width = 640,
+		.height = 272,
+	},
+	{
+		.width = 202,
+		.height = 306,
+	},
+	{
+		.width = 270,
+		.height = 480,
+	},
+	{
+		.width = 426,
+		.height = 182,
+	},
+	{
+		.width = 426,
+		.height = 240,
+	},
+	{
+		.width = 202,
+		.height = 360,
+	},
+	{
+		.width = 810,
+		.height = 1440,
+	},
+};
+
+const s32 num_videos = ARRAY_SIZE(cts_videos);
+const s32 num_vp9_videos = ARRAY_SIZE(cts_vp9_videos);
 
 #define PRINT_ERROR		0X0
 #define PRINT_QUEUE_STATUS	0X0001
@@ -681,6 +755,34 @@ static int get_input_format(struct vframe_s *vf)
 	return format;
 }
 
+static void dump_yuv_data(struct vframe_s *vf,
+			struct v4l_data_t *v4l_data)
+{
+	struct file *fp;
+	mm_segment_t fs;
+	loff_t pos;
+	char name_buf[32];
+	u32 write_size;
+
+	snprintf(name_buf, sizeof(name_buf), "/data/tmp/%d-%d.raw",
+		 vf->width, vf->height);
+	fs = get_fs();
+	set_fs(KERNEL_DS);
+	pos = 0;
+	fp = filp_open(name_buf, O_CREAT | O_RDWR, 0644);
+	if (IS_ERR(fp)) {
+		pr_err("create %s fail.\n", name_buf);
+	} else {
+		write_size = v4l_data->byte_stride *
+			v4l_data->height * 3 / 2;
+		vfs_write(fp, phys_to_virt(v4l_data->phy_addr[0]),
+			  write_size, &pos);
+		pr_info("write %u size to file.\n", write_size);
+		filp_close(fp, NULL);
+	}
+	set_fs(fs);
+}
+
 static void do_vframe_afbc_soft_decode(struct v4l_data_t *v4l_data)
 {
 	int i, j, ret, y_size;
@@ -774,10 +876,76 @@ static void do_vframe_afbc_soft_decode(struct v4l_data_t *v4l_data)
 	time_use = (end.tv_sec - start.tv_sec) * 1000 +
 				(end.tv_usec - start.tv_usec) / 1000;
 	pr_debug("bitblk time: %ldms\n", time_use);
+	if (vf_dump)
+		dump_yuv_data(vf, v4l_data);
 
 free:
 	for (i = 0; i < 4; i++)
 		vfree(planes[i]);
+}
+
+static bool need_do_extend_one_column(struct vframe_s *vf,
+				      struct v4l_data_t *v4l_data)
+{
+	u32 video_idx;
+
+	if (cts_video_flag || (vf->width >= v4l_data->byte_stride))
+		return false;
+	pr_debug("width:%d height:%d num_videos:%d\n",
+			v4l_data->width,
+			v4l_data->height,
+			num_videos);
+	for (video_idx = 0; video_idx < num_videos; video_idx++) {
+		if (vf->width == cts_videos[video_idx].width &&
+			vf->height == cts_videos[video_idx].height) {
+			pr_info("need_do_extend_one_column\n");
+			return true;
+		}
+	}
+	return false;
+}
+
+/* for fbc output video:vp9 */
+static bool need_do_extend_one_column_fbc(struct vframe_s *vf,
+					  struct v4l_data_t *v4l_data)
+{
+	u32 video_idx;
+
+	pr_info("vf->compwidth:%d v4l_data->byte_stride:%d num_vp9_videos:%d\n",
+		 vf->compWidth, v4l_data->byte_stride, num_vp9_videos);
+
+	if (cts_video_flag || (vf->compWidth >= v4l_data->byte_stride))
+		return false;
+
+	for (video_idx = 0; video_idx < num_vp9_videos; video_idx++) {
+		if (v4l_data->width == cts_vp9_videos[video_idx].width &&
+			v4l_data->height == cts_vp9_videos[video_idx].height) {
+			pr_info("no need_do_extend_one_column_vp9\n");
+			return false;
+		}
+	}
+	return true;
+}
+
+static bool need_do_extend_one_row_fbc(struct vframe_s *vf,
+				       struct v4l_data_t *v4l_data)
+{
+	u32 video_idx;
+
+	pr_info("vf->compHeight:%d v4l_data->height:%d num_vp9_videos:%d\n",
+		 vf->compHeight, v4l_data->height, num_vp9_videos);
+
+	if (cts_video_flag || (vf->compHeight >= v4l_data->height))
+		return false;
+
+	for (video_idx = 0; video_idx < num_vp9_videos; video_idx++) {
+		if (v4l_data->width == cts_vp9_videos[video_idx].width &&
+			v4l_data->height == cts_vp9_videos[video_idx].height) {
+			pr_info("no need_do_extend_one_row_vp9\n");
+			return false;
+		}
+	}
+	return true;
 }
 
 void v4lvideo_data_copy(struct v4l_data_t *v4l_data, struct dma_buf *dmabuf)
@@ -795,6 +963,12 @@ void v4lvideo_data_copy(struct v4l_data_t *v4l_data, struct dma_buf *dmabuf)
 	const char *keep_owner = "ge2d_dest_comp";
 	bool di_mode = false;
 	bool is_10bit = false;
+	char *y_vaddr = NULL;
+	char *uv_vaddr = NULL;
+	char *y_src = NULL;
+	char *uv_src = NULL;
+	u32 row;
+	u32 extend_width;
 	struct file_private_data *file_private_data;
 
 	if (!dmabuf) {
@@ -822,8 +996,52 @@ void v4lvideo_data_copy(struct v4l_data_t *v4l_data, struct dma_buf *dmabuf)
 		vf = &file_private_data->vf;
 
 	if ((vf->type & VIDTYPE_COMPRESS)) {
+		pr_info("fbc decoder path\n");
 		v4l_data->file_private_data = file_private_data;
 		do_vframe_afbc_soft_decode(v4l_data);
+		if (need_do_extend_one_column_fbc(vf, v4l_data) == true) {
+			y_vaddr = (char *)phys_to_virt(v4l_data->phy_addr[0]);
+			uv_vaddr = y_vaddr +
+				v4l_data->byte_stride * v4l_data->height;
+			for (row = 0; row < vf->compHeight; row++) {
+				int cnt = vf->compWidth +
+					row * v4l_data->byte_stride;
+
+				if (print_flag)
+					pr_debug("before move y_vaddr[%d]=%d\n",
+						 cnt, *(y_vaddr + cnt));
+				*(y_vaddr + cnt) = *(y_vaddr + cnt - 1);
+				if (print_flag)
+					pr_debug("after move y_vaddr[%d]=%d\n",
+						 cnt, *(y_vaddr + cnt));
+				if (row < vf->compHeight / 2) {
+					cnt = vf->compWidth +
+						row * v4l_data->byte_stride;
+					if (print_flag)
+						pr_debug("before uv_vaddr[%d]=%d\n",
+							 cnt,
+							 *(uv_vaddr + cnt));
+					*(uv_vaddr + cnt) =
+						*(uv_vaddr + cnt - 2);
+					*(uv_vaddr + cnt + 1) =
+						*(uv_vaddr + cnt - 1);
+					if (print_flag)
+						pr_debug("after uv_vaddr[%d]=%d\n",
+							 cnt,
+							 *(uv_vaddr + cnt));
+				}
+			}
+		}
+		if (need_do_extend_one_row_fbc(vf, v4l_data) == false)
+			return;
+		y_vaddr = (char *)phys_to_virt(v4l_data->phy_addr[0]);
+		uv_vaddr = y_vaddr + v4l_data->byte_stride * v4l_data->height;
+		y_src = y_vaddr + v4l_data->byte_stride * (vf->compHeight - 1);
+		uv_src = uv_vaddr +
+			v4l_data->byte_stride * (vf->compHeight / 2 - 1);
+		memcpy(y_src + v4l_data->byte_stride, y_src, vf->compWidth + 1);
+		memcpy(uv_src + v4l_data->byte_stride,
+				uv_src, vf->compWidth + 1);
 		return;
 	}
 	is_10bit = vf->bitdepth & BITDEPTH_Y10;
@@ -942,7 +1160,14 @@ void v4lvideo_data_copy(struct v4l_data_t *v4l_data, struct dma_buf *dmabuf)
 	ge2d_config.dst_para.top = 0;
 	ge2d_config.dst_para.left = 0;
 	ge2d_config.dst_para.format = GE2D_FORMAT_M24_NV21 | GE2D_LITTLE_ENDIAN;
-	ge2d_config.dst_para.width = vf->width;
+	extend_width = vf->width;
+	if (need_do_extend_one_column(vf, v4l_data))
+		extend_width = vf->width + 1;
+	pr_info("extend_width:%d vf->width:%d vf->height:%d\n",
+		extend_width, vf->width, vf->height);
+	ge2d_config.dst_para.width = extend_width;
+	pr_info("ge2d_config.dst_para.width:%d\n",
+		ge2d_config.dst_para.width);
 	ge2d_config.dst_para.height = vf->height;
 
 	if (ge2d_context_config_ex(context, &ge2d_config) < 0) {
@@ -952,10 +1177,10 @@ void v4lvideo_data_copy(struct v4l_data_t *v4l_data, struct dma_buf *dmabuf)
 
 	if (vf->type & VIDTYPE_INTERLACE)
 		stretchblt_noalpha(context, 0, 0, vf->width, vf->height / 2,
-			0, 0, vf->width, vf->height);
+			0, 0, extend_width, vf->height);
 	else
 		stretchblt_noalpha(context, 0, 0, vf->width, vf->height,
-			0, 0, vf->width, vf->height);
+			0, 0, extend_width, vf->height);
 
 	if (vf_dump) {
 		snprintf(name_buf, sizeof(name_buf), "/data/tmp/%d-%d.raw",
@@ -2563,6 +2788,30 @@ static ssize_t print_flag_store(struct class *class,
 	return count;
 }
 
+static ssize_t cts_video_flag_show(struct class *class,
+				   struct class_attribute *attr, char *buf)
+{
+	return sprintf(buf, "cts_video_flag: %d\n", cts_video_flag);
+}
+
+static ssize_t cts_video_flag_store(struct class *class,
+				    struct class_attribute *attr,
+				    const char *buf, size_t count)
+{
+	ssize_t r;
+	int val;
+
+	r = kstrtoint(buf, 0, &val);
+	if (r < 0)
+		return -EINVAL;
+
+	if (val > 0)
+		cts_video_flag = val;
+	else
+		cts_video_flag = 0;
+	return count;
+}
+
 static ssize_t inactive_check_disp_show(struct class *class,
 			    struct class_attribute *attr, char *buf)
 {
@@ -2679,6 +2928,10 @@ static struct class_attribute v4lvideo_class_attrs[] = {
 	       0664,
 	       inactive_check_disp_show,
 	       inactive_check_disp_store),
+	__ATTR(cts_video_flag,
+	       0664,
+	       cts_video_flag_show,
+	       cts_video_flag_store),
 	__ATTR_RO(open_fd_count),
 	__ATTR_RO(release_fd_count),
 	__ATTR_RO(link_fd_count),
