@@ -84,6 +84,8 @@ static bool pin_status;
 static unsigned int cec_msg_dbg_en;
 static struct st_cec_mailbox_data cec_mailbox;
 static void cec_stored_msg_push(void);
+static void init_cec_port_info(struct hdmi_port_info *port,
+			       struct ao_cec_dev *cec_dev);
 
 #define CEC_ERR(format, args...)				\
 	{if (cec_dev->dbg_dev)					\
@@ -3148,6 +3150,59 @@ static ssize_t dbg_show(struct class *cla,
 	return 0;
 }
 
+static ssize_t port_info_show(struct class *cla,
+			struct class_attribute *attr, char *buf)
+{
+	unsigned char i = 0;
+	int pos = 0;
+	struct hdmi_port_info *port;
+
+	port = kcalloc(cec_dev->port_num, sizeof(*port), GFP_KERNEL);
+	if (!port) {
+		CEC_ERR("no memory for port info\n");
+		return pos;
+	}
+	/* check delay time:20 x 40ms maximum */
+	check_physical_addr_valid(20);
+	init_cec_port_info(port, cec_dev);
+
+	for (i = 0; i < cec_dev->port_num; i++) {
+		/* port_id: 1/2/3 means HDMIRX1/2/3, 0 means HDMITX port */
+		pos += snprintf(buf + pos, PAGE_SIZE, "port_id: %d, ",
+				port[i].port_id);
+		pos += snprintf(buf + pos, PAGE_SIZE, "port_type: %s, ",
+				port[i].type == HDMI_INPUT ?
+				"hdmirx" : "hdmitx");
+		pos += snprintf(buf + pos, PAGE_SIZE, "physical_address: %x, ",
+				port[i].physical_address);
+		pos += snprintf(buf + pos, PAGE_SIZE, "cec_supported: %s, ",
+				port[i].cec_supported ? "true" : "false");
+		pos += snprintf(buf + pos, PAGE_SIZE, "arc_supported: %s\n",
+				port[i].arc_supported ? "true" : "false");
+	}
+	kfree(port);
+
+	return pos;
+}
+
+/* cat after receive "hdmi_conn=" uevent
+ * 0xXY, bit[4] stands for HDMITX port,
+ * bit[3~0] stands for HDMIRX PCB port D~A,
+ * bit value 1: plug, 0: unplug
+ */
+static ssize_t conn_status_show(struct class *cla,
+			struct class_attribute *attr, char *buf)
+{
+	unsigned int tmp = 0;
+
+#ifdef CONFIG_AMLOGIC_HDMITX
+	tmp |= (cec_dev->tx_dev->hpd_state << 4);
+#endif
+#ifdef CONFIG_AMLOGIC_MEDIA_TVIN_HDMI
+	tmp |= (hdmirx_get_connect_info() & 0xF);
+#endif
+	return sprintf(buf, "0x%x\n", tmp);
+}
 
 void cec_update_dev_info(unsigned char *msg, unsigned int msglen)
 {
@@ -4028,6 +4083,8 @@ static struct class_attribute aocec_class_attr[] = {
 	__ATTR(log_addr, 0664, log_addr_show, log_addr_store),
 	__ATTR(fun_cfg, 0664, fun_cfg_show, fun_cfg_store),
 	__ATTR(dbg, 0664, dbg_show, dbg_store),
+	__ATTR_RO(conn_status),
+	__ATTR_RO(port_info),
 	__ATTR_NULL
 };
 
