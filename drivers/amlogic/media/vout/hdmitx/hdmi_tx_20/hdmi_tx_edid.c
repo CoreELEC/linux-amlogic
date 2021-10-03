@@ -2547,17 +2547,12 @@ int hdmitx_edid_parse(struct hdmitx_dev *hdmitx_device)
 	Edid_ParsingIDSerialNumber(&hdmitx_device->rxcap, &EDID_buf[0x0C]);
 
 	Edid_EstablishedTimings(&hdmitx_device->rxcap, &EDID_buf[0x23]);
-	Edid_StandardTiming(&hdmitx_device->rxcap, &EDID_buf[0x26], 8);
 
 	Edid_ManufactureDateParse(&hdmitx_device->rxcap, &EDID_buf[16]);
 
 	Edid_VersionParse(&hdmitx_device->rxcap, &EDID_buf[18]);
 
 	Edid_PhyscialSizeParse(&hdmitx_device->rxcap, &EDID_buf[21]);
-
-	Edid_DecodeStandardTiming(&hdmitx_device->hdmi_info, &EDID_buf[26], 8);
-	Edid_ParseCEADetailedTimingDescriptors(&hdmitx_device->rxcap,
-		&EDID_buf[0x36]);
 
 	BlockCount = EDID_buf[0x7E];
 	hdmitx_device->rxcap.blk0_chksum = EDID_buf[0x7F];
@@ -2639,6 +2634,14 @@ int hdmitx_edid_parse(struct hdmitx_dev *hdmitx_device)
 	check_dv_truly_support(hdmitx_device, dv);
 
 	edid_check_pcm_declare(&hdmitx_device->rxcap);
+	/* move parts that may contain cea timing parse behind
+	 * VDB parse, so that to not affect VDB index which
+	 * will be used in Y420CMDB map
+	 */
+	Edid_StandardTiming(&hdmitx_device->rxcap, &EDID_buf[0x26], 8);
+	Edid_DecodeStandardTiming(&hdmitx_device->hdmi_info, &EDID_buf[26], 8);
+	Edid_ParseCEADetailedTimingDescriptors(&hdmitx_device->rxcap,
+		&EDID_buf[0x36]);
 /*
  * Because DTDs are not able to represent some Video Formats, which can be
  * represented as SVDs and might be preferred by Sinks, the first DTD in the
