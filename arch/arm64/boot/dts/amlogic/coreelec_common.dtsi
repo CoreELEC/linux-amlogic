@@ -154,7 +154,7 @@
 
 	/delete-node/ sensor;
 	/delete-node/ iq;
-	/delete-node/ dvb;
+	/delete-node/ demux;
 	/delete-node/ amvdec_656in;
 	/delete-node/ aml_cams;
 

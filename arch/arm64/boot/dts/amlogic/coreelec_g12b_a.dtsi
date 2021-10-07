@@ -5,6 +5,7 @@
 	reserved-memory {
 		galcore_reserved:linux,galcore {
 			size = <0x0 0x1000000>;
+			alignment = <0x0 0x400000>;
 		};
 	};
 };

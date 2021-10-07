@@ -38,6 +38,10 @@
 		compatible = "amlogic, g12a-snd-tdmc";
 	};
 
+	aml_spdif: spdif {
+		pinctrl-0 = <&spdifout>;
+	};
+
 	aml_spdif_b: spdif_b {
 		status = "okay";
 	};
