@@ -4643,10 +4643,8 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 	msync_vsync_update();
 #endif
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
-#ifdef BUILD_ERR
 	if (is_dolby_vision_on())
 		dolby_vision_update_backlight();
-#endif
 #endif
 
 	if (cur_vd1_path_id == 0xff)
@@ -6222,9 +6220,7 @@ SET_FILTER:
 			new_src_fmt = get_dolby_vision_src_format();
 		else
 #endif
-#ifdef BUILD_ERR
 			new_src_fmt = get_cur_source_type(VD1_PATH);
-#endif
 #endif
 		if (new_src_fmt > 0 && new_src_fmt < 8)
 			fmt = src_map[new_src_fmt];

@@ -60,6 +60,7 @@
 #include <linux/string.h>
 #include <linux/vmalloc.h>
 #include <linux/arm-smccc.h>
+#include <linux/amlogic/media/vout/lcd/lcd_notify.h>
 #include <linux/amlogic/media/vout/hdmi_tx/hdmi_tx_module.h>
 #include "../../common/vfm/vfm.h"
 
@@ -1356,6 +1357,7 @@ static bool tv_dovi_setting_update_flag;
 static bool dovi_setting_video_flag;
 static struct platform_device *dovi_pdev;
 static bool vsvdb_config_set_flag;
+static bool vfm_path_on;
 
 #define CP_FLAG_CHANGE_CFG      0x000001
 #define CP_FLAG_CHANGE_MDS      0x000002
@@ -4754,6 +4756,64 @@ static struct vframe_s *dv_vf[16][2];
 static void *metadata_parser;
 static bool metadata_parser_reset_flag;
 static char meta_buf[1024];
+void dv_vf_light_unreg_provider(void)
+{
+	int i;
+	unsigned long flags;
+
+	spin_lock_irqsave(&dovi_lock, flags);
+	if (vfm_path_on) {
+		for (i = 0; i < 16; i++) {
+			if (dv_vf[i][0]) {
+				if (dv_vf[i][1])
+					dvel_vf_put(dv_vf[i][1]);
+				dv_vf[i][1] = NULL;
+			}
+			dv_vf[i][0] = NULL;
+		}
+		/* if (metadata_parser && p_funcs) {*/
+		/*	p_funcs->metadata_parser_release();*/
+		/*	metadata_parser = NULL;*/
+		/*} */
+
+		memset(&hdr10_data, 0, sizeof(hdr10_data));
+		memset(&hdr10_param, 0, sizeof(hdr10_param));
+		memset(&last_hdr10_param, 0, sizeof(last_hdr10_param));
+		frame_count = 0;
+		setting_update_count = 0;
+		crc_count = 0;
+		crc_bypass_count = 0;
+		dolby_vision_el_disable = 0;
+	}
+	vfm_path_on = false;
+	spin_unlock_irqrestore(&dovi_lock, flags);
+}
+EXPORT_SYMBOL(dv_vf_light_unreg_provider);
+void dv_vf_light_reg_provider(void)
+{
+	int i;
+	unsigned long flags;
+
+	spin_lock_irqsave(&dovi_lock, flags);
+	if (!vfm_path_on) {
+		for (i = 0; i < 16; i++) {
+			dv_vf[i][0] = NULL;
+			dv_vf[i][1] = NULL;
+		}
+		memset(&hdr10_data, 0, sizeof(hdr10_data));
+		memset(&hdr10_param, 0, sizeof(hdr10_param));
+		memset(&last_hdr10_param, 0, sizeof(last_hdr10_param));
+		frame_count = 0;
+		setting_update_count = 0;
+		crc_count = 0;
+		crc_bypass_count = 0;
+		dolby_vision_el_disable = 0;
+	}
+	vfm_path_on = true;
+	spin_unlock_irqrestore(&dovi_lock, flags);
+}
+EXPORT_SYMBOL(dv_vf_light_reg_provider);
+
 static int dvel_receiver_event_fun(int type, void *data, void *arg)
 {
 	char *provider_name = (char *)data;

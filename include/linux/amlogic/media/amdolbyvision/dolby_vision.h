@@ -21,6 +21,7 @@
 
 #include <linux/types.h>
 #include <linux/amlogic/media/vout/vinfo.h>
+#include <linux/amlogic/media/vfm/vframe.h>
 
 #define DOLBY_VISION_OUTPUT_MODE_IPT			0
 #define DOLBY_VISION_OUTPUT_MODE_IPT_TUNNEL		1
@@ -201,19 +202,21 @@ int dolby_vision_check_mvc(struct vframe_s *vf);
 bool for_dolby_vision_video_effect(void);
 int get_dolby_vision_hdr_policy(void);
 int get_dv_support_info(void);
+void dv_vf_light_reg_provider(void);
+void dv_vf_light_unreg_provider(void);
 void dolby_vision_update_backlight(void);
 int dolby_vision_update_src_format(struct vframe_s *vf, u8 toggle_mode);
 void update_graphic_status(void);
-int parse_sei_and_meta_ext
-	(struct vframe_s *vf,
-	 char *aux_buf,
-	 int aux_size,
-	 int *total_comp_size,
-	 int *total_md_size,
-	 void *fmt,
-	 int *ret_flags,
-	 char *md_buf,
-	 char *comp_buf);
+int parse_sei_and_meta_ext(
+	struct vframe_s *vf,
+	char *aux_buf,
+	int aux_size,
+	int *total_comp_size,
+	int *total_md_size,
+	void *fmt,
+	int *ret_flags,
+	char *md_buf,
+	char *comp_buf);
 void dolby_vision_clear_buf(void);
 bool is_dv_control_backlight(void);
 #endif

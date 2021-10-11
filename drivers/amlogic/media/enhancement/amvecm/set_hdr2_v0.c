@@ -2242,14 +2242,14 @@ enum hdr_process_sel hdr_func(
 
 	memset(&hdr_mtx_param, 0, sizeof(struct hdr_proc_mtx_param_s));
 	memset(&hdr_lut_param, 0, sizeof(struct hdr_proc_lut_param_s));
+
 	if ((module_sel == OSD1_HDR) &&
 	    (cpu_after_eq(MESON_CPU_MAJOR_ID_G12A))) {
 		/* turn off OSD mtx and use HDR for g12, sm1, tl1 */
 		VSYNC_WRITE_VPP_REG(
 			VPP_WRAP_OSD1_MATRIX_EN_CTRL, 0);
-		if (!is_dolby_vision_on()) {
+		if (!is_dolby_vision_on() || is_hdr_tvmode())
 			hdr_process_select |= RGB_OSD;
-		}
 		/*for g12a/g12b osd blend shift rtl bug*/
 		if (is_meson_g12a_cpu() ||
 		    (is_meson_g12b_cpu() && is_meson_rev_a()))

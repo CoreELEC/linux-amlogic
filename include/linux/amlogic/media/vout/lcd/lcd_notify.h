@@ -80,9 +80,16 @@
 #define LCD_VLOCK_PARAM_BIT_VALID   (1 << 0)
 #define LCD_EVENT_VLOCK_PARAM       (1 << 16)
 
+/* lcd backlight brightness update by global dimming */
+#define LCD_EVENT_BACKLIGHT_GD_DIM  BIT(26)
+/* lcd backlight brightness on/off by global dimming */
+#define LCD_EVENT_BACKLIGHT_GD_SEL  BIT(27)
+/* lcd backlight brightness on/off by local dimming */
+#define LCD_EVENT_BACKLIGHT_LD_SEL  BIT(28)
 
-extern int aml_lcd_notifier_register(struct notifier_block *nb);
-extern int aml_lcd_notifier_unregister(struct notifier_block *nb);
-extern int aml_lcd_notifier_call_chain(unsigned long event, void *v);
+int aml_lcd_notifier_register(struct notifier_block *nb);
+int aml_lcd_notifier_unregister(struct notifier_block *nb);
+int aml_lcd_notifier_call_chain(unsigned long event, void *v);
+int aml_lcd_atomic_notifier_call_chain(unsigned long event, void *v);
 
 #endif /* _INC_LCD_NOTIFY_H_ */
