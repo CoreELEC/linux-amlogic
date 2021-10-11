@@ -6838,7 +6838,8 @@ static int process_post_vframe(void)
 				queue_out(di_buf->di_buf[0]);
 #ifdef DI_KEEP_DEC_VF
 				/* dec vf keep */
-				di_tmp = di_buf->di_buf[0];
+				//di_tmp = di_buf->di_buf[0];
+				di_tmp = di_buf->di_buf_dup_p[1];
 				if (di_tmp->type == VFRAME_TYPE_LOCAL	&&
 				    di_tmp->in_buf) {
 					di_buf->in_buf = di_tmp->in_buf;
