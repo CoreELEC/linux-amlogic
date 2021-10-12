@@ -49,32 +49,12 @@
 #include "register.h"
 #include <linux/amlogic/media/vfm/vframe.h>
 #include <linux/amlogic/media/amdolbyvision/dolby_vision.h>
+
 #define OP_BYPASS_CVM				0x01
 #define OP_BYPASS_CSC				0x02
 #define OP_CLKGATE_WHEN_LOAD_LUT	0x04
 
-/* general control config change */
-#define FLAG_CHANGE_CFG		0x000001
-/* general metadata change */
-#define FLAG_CHANGE_MDS		0x000002
-/* metadata config (below level 2) change */
-#define FLAG_CHANGE_MDS_CFG	0x000004
-/* global dimming change */
-#define FLAG_CHANGE_GD			0x000008
-/* tone curve lut change */
-#define FLAG_CHANGE_TC			0x000010
-/* 2nd tone curve (graphics) lut change */
-#define FLAG_CHANGE_TC2		0x000020
-/* L2NL lut change (for DM3.1) */
-#define FLAG_CHANGE_L2NL		0x000040
-/* 3D lut change (for DM2.12) */
-#define FLAG_CHANGE_3DLUT		0x000080
-/* 0xX00000 for other status */
-/* (video) tone mapping to a constant */
-#define FLAG_CONST_TC			0x100000
-/* 2nd tone mapping to a constant */
-#define FLAG_CONST_TC2			0x200000
-#define FLAG_CHANGE_ALL		0xffffffff
+#define DI_FLAG_CHANGE_TC			0x000010
 
 #define DIFLAG_FORCE_CVM				0x01
 #define DIFLAG_BYPASS_CVM				0x02
@@ -110,13 +90,13 @@ struct di_dolby_hw_s {
 	u32 dm_count;
 	u32 comp_count;
 	u32 lut_count;
-	struct dicomposer_register_ipcore_s *comp_reg;
-	struct didm_register_ipcore_1_s *dm_reg;
-	struct didm_lut_ipcore_s *dm_lut;
+	struct composer_reg_ipcore *comp_reg;
+	struct dm_reg_ipcore1 *dm_reg;
+	struct dm_lut_ipcore *dm_lut;
 
-	struct dicomposer_register_ipcore_s *last_comp_reg;
-	struct didm_register_ipcore_1_s *last_dm_reg;
-	struct didm_lut_ipcore_s *last_dm_lut;
+	struct composer_reg_ipcore *last_comp_reg;
+	struct dm_reg_ipcore1 *last_dm_reg;
+	struct dm_lut_ipcore *last_dm_lut;
 };
 
 enum disignal_format_e {
@@ -145,9 +125,9 @@ struct di_dolby_dev_s {
 	//struct mutex di_mutex;
 
 	u32 update_flag[2];
-	struct dicomposer_register_ipcore_s comp_reg[2];
-	struct didm_register_ipcore_1_s dm_reg[2];
-	struct didm_lut_ipcore_s dm_lut[2];
+	struct composer_reg_ipcore comp_reg[2];
+	struct dm_reg_ipcore1 dm_reg[2];
+	struct dm_lut_ipcore dm_lut[2];
 	struct di_dolby_hw_s hw;
 };
 
@@ -197,7 +177,7 @@ static int di_dolby_core_set(struct di_dolby_hw_s *hw,
 
 	//reset = true;
 
-	if (update_flag & FLAG_CHANGE_TC)
+	if (update_flag & DI_FLAG_CHANGE_TC)
 		set_lut = true;
 
 	DIM_DI_WR(DOLBY_CORE1C_CLKGATE_CTRL, 0);
@@ -338,9 +318,9 @@ int di_dolby_do_setting(void /*struct di_dolby_dev_s *dev*/)
 	return 0;
 }
 
-int di_dolby_update_setting(struct didm_register_ipcore_1_s *dm_reg,
-			    struct dicomposer_register_ipcore_s *comp_reg,
-			    struct didm_lut_ipcore_s *dm_lut,
+int di_dolby_update_setting(struct dm_reg_ipcore1 *dm_reg,
+			    struct composer_reg_ipcore *comp_reg,
+			    struct dm_lut_ipcore *dm_lut,
 			    u32 dm_count,
 			    u32 comp_count,
 			    u32 lut_count,
@@ -348,9 +328,9 @@ int di_dolby_update_setting(struct didm_register_ipcore_1_s *dm_reg,
 			    u32 hsize,
 			    u32 vsize)
 {
-	struct didm_register_ipcore_1_s *new_dm_reg;
-	struct dicomposer_register_ipcore_s *new_comp_reg;
-	struct didm_lut_ipcore_s *new_dm_lut;
+	struct dm_reg_ipcore1 *new_dm_reg;
+	struct composer_reg_ipcore *new_comp_reg;
+	struct dm_lut_ipcore *new_dm_lut;
 
 	if (!dm_reg || !comp_reg || !dm_lut || !dm_count || !comp_count ||
 	    !lut_count)

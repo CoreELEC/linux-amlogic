@@ -3559,7 +3559,7 @@ static void apply_stb_core_settings
 		if (need_send_emp_meta(vinfo)) {
 			convert_hdmi_metadata
 				(new_dovi_setting.md_reg3.raw_metadata);
-			send_dv_emp(EOTF_T_DOLBYVISION,
+			send_emp(EOTF_T_DOLBYVISION,
 				dolby_vision_mode ==
 				DOLBY_VISION_OUTPUT_MODE_IPT_TUNNEL
 				? RGB_8BIT : YUV422_BIT12,
@@ -7220,7 +7220,7 @@ static bool send_hdmi_pkt
 		if (vinfo && vinfo->vout_device &&
 			vinfo->vout_device->fresh_tx_vsif_pkt) {
 #ifdef V2_4_3
-			send_dv_emp(EOTF_T_NULL,
+			send_emp(EOTF_T_NULL,
 				YUV422_BIT12,
 				(struct dv_vsif_para *)NULL,
 				(unsigned char *)NULL,
@@ -7296,7 +7296,7 @@ static bool send_hdmi_pkt
 		    vinfo->vout_device->fresh_tx_vsif_pkt) {
 			if (dovi_setting.dovi_ll_enable) {
 #ifdef V2_4_3
-				send_dv_emp(EOTF_T_LL_MODE,
+				send_emp(EOTF_T_LL_MODE,
 					dovi_setting.diagnostic_enable
 					? RGB_10_12BIT : YUV422_BIT12,
 					&vsif, vsif_emp, 15, false);
@@ -7309,7 +7309,7 @@ static bool send_hdmi_pkt
 #endif
 			} else {
 #ifdef V2_4_3
-				send_dv_emp(EOTF_T_DOLBYVISION,
+				send_emp(EOTF_T_DOLBYVISION,
 				dolby_vision_mode ==
 				DOLBY_VISION_OUTPUT_MODE_IPT_TUNNEL
 				? RGB_8BIT : YUV422_BIT12,
@@ -7377,7 +7377,7 @@ static bool send_hdmi_pkt
 					pr_dolby_dbg
 				("send pkt: HDR10+/HLG: signal SDR first\n");
 #ifdef V2_4_3
-					send_dv_emp(EOTF_T_NULL,
+					send_emp(EOTF_T_NULL,
 					YUV422_BIT12,
 					(struct dv_vsif_para *)NULL,
 					(unsigned char *)NULL,
@@ -7395,7 +7395,7 @@ static bool send_hdmi_pkt
 					pr_dolby_dbg
 				("send pkt: VSIF disabled, signal SDR\n");
 #ifdef V2_4_3
-					send_dv_emp(EOTF_T_NULL,
+					send_emp(EOTF_T_NULL,
 					YUV422_BIT12,
 					(struct dv_vsif_para *)NULL,
 					(unsigned char *)NULL,
@@ -7412,7 +7412,7 @@ static bool send_hdmi_pkt
 						pr_dolby_dbg("send pkt: disable Dovi/H14b VSIF\n");
 
 #ifdef V2_4_3
-					send_dv_emp(EOTF_T_NULL,
+					send_emp(EOTF_T_NULL,
 					YUV422_BIT12,
 					(struct dv_vsif_para *)NULL,
 					(unsigned char *)NULL,
