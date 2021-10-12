@@ -435,6 +435,8 @@ static void d_convert_str(int num,
 	}
 }
 
+static int hist_chl;
+
 /* vpp brightness/contrast/saturation/hue */
 int __init amvecm_load_pq_val(char *str)
 {
