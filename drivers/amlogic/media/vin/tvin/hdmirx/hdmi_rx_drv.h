@@ -34,20 +34,8 @@
 #include "hdmi_rx_edid.h"
 #include "hdmi_rx_drv_ext.h"
 
-#define RX_VER0 "ver.2019/10/21"
-/*
- *
- *
- *
- *
- */
-#define RX_VER1 "ver.2019/11/05"
-/*
- *
- *
- *
- */
-#define RX_VER2 "ver.2021/07/30"
+/* modified sda sample rate */
+#define RX_VER0 "ver.2021/03/30"
 
 /*print type*/
 #define	LOG_EN		0x01
@@ -59,15 +47,21 @@
 #define REG_LOG		0x40
 #define ERR_LOG		0x80
 #define EDID_LOG	0x100
+#define PHY_LOG		0x200
 #define VSI_LOG		0x800
+#define DBG_LOG		0x1000
+
+/* avmute skip frame */
+#define RX_VER1 "ver.2021/04/21"
 
 /* 50ms timer for hdmirx main loop (HDMI_STATE_CHECK_FREQ is 20) */
 
 #define ABS(x) ((x) < 0 ? -(x) : (x))
 
 #define EDID_MIX_MAX_SIZE 64
-
-#define ESM_KILL_WAIT_TIMES 250
+/* reduce kill_esm waiting time when suspend, */
+/* to avoid VAD wake-up failure */
+#define ESM_KILL_WAIT_TIMES 25
 #define str_cmp(buff, str) ((strlen((str)) == strlen((buff))) &&	\
 		(strncmp((buff), (str), strlen((str))) == 0))
 #define pr_var(str, index) rx_pr("%5d %-30s = %#x\n", (index), #str, (str))
@@ -76,8 +70,8 @@
 #define set_pr_var(a, b, c, d, e)  (comp_set_pr_var((a), \
 	(var_to_str(b)), (&b), (c), (d), (e), (sizeof(b))))
 
-
-
+/* update hdmirx/tx edid compose */
+#define RX_VER2 "ver.2021/07/30"
 
 #define PFIFO_SIZE 160
 #define HDCP14_KEY_SIZE 368
@@ -88,11 +82,15 @@ enum chip_id_e {
 	CHIP_ID_TXHD,
 	CHIP_ID_TL1,
 	CHIP_ID_TM2,
+	CHIP_ID_T5,
+	CHIP_ID_T5D,
 };
 
 enum phy_ver_e {
 	PHY_VER_ORG,
 	PHY_VER_TL1,
+	PHY_VER_TM2,
+	PHY_VER_T5,
 };
 
 struct meson_hdmirx_data {
@@ -158,10 +156,16 @@ enum colorspace_e {
 	E_COLOR_YUV420,
 };
 
-enum colorrange_e {
-	E_RANGE_DEFAULT,
-	E_RANGE_LIMIT,
-	E_RANGE_FULL,
+enum colorrange_rgb_e {
+	E_RGB_RANGE_DEFAULT,
+	E_RGB_RANGE_LIMIT,
+	E_RGB_RANGE_FULL,
+};
+
+enum colorrange_ycc_e {
+	E_YCC_RANGE_LIMIT,
+	E_YCC_RANGE_FULL,
+	E_YCC_RANGE_RSVD,
 };
 
 enum colordepth_e {
@@ -202,6 +206,7 @@ enum map_addr_module_e {
 	MAP_ADDR_MODULE_SEC_AHB2,
 	MAP_ADDR_MODULE_APB4,
 	MAP_ADDR_MODULE_TOP,
+	MAP_ADDR_MODULE_CLK_CTRL,
 	MAP_ADDR_MODULE_NUM
 };
 
@@ -210,6 +215,129 @@ enum rx_cn_type_e {
 	CN_PHOTO,
 	CN_CINEMA,
 	CN_GAME,
+};
+
+struct rx_var_param {
+	int pll_unlock_cnt;
+	int pll_unlock_max;
+	int pll_lock_cnt;
+	int pll_lock_max;
+	int dwc_rst_wait_cnt;
+	int dwc_rst_wait_cnt_max;
+	int sig_stable_cnt;
+	int sig_stable_max;
+	int sig_stable_err_cnt;
+	int sig_stable_err_max;
+	int max_err_cnt;
+	bool clk_debug;
+	int hpd_wait_cnt;
+	/* increase time of hpd low, to avoid some source like */
+	/* MTK box/KaiboerH9 i2c communicate error */
+	int hpd_wait_max;
+	int sig_unstable_cnt;
+	int sig_unstable_max;
+	bool vic_check_en;
+	bool dvi_check_en;
+	int sig_unready_cnt;
+	int sig_unready_max;
+	int pow5v_max_cnt;
+	/* timing diff offset */
+	int diff_pixel_th;
+	int diff_line_th;
+	int diff_frame_th;
+	int err_dbg_cnt;
+	int err_dbg_cnt_max;
+	int force_vic;
+	u32 err_chk_en;
+	int aud_sr_stb_max;
+	int log_level;
+	bool auto_switch_off;
+	int clk_unstable_cnt;
+	int clk_unstable_max;
+	int clk_stable_cnt;
+	int clk_stable_max;
+	int unnormal_wait_max;
+	int wait_no_sig_max;
+	int phy_retry_times;
+	/* No need to judge frame rate while checking timing stable,as there are
+	 * some out-spec sources whose framerate change a lot(e.g:59.7~60.16hz).
+	 * Other brands of tv can support this,we also need to support.
+	 */
+	int stable_check_lvl;
+	/* If dvd source received the frequent pulses on HPD line,
+	 * It will sent a length of dirty audio data sometimes.it's TX's issues.
+	 * Compared with other brands TV, delay 1.5S to avoid this noise.
+	 */
+	int edid_update_delay;
+	int skip_frame_cnt;
+	bool hdcp22_reauth_enable;
+	unsigned int edid_update_flag;
+	unsigned int downstream_hpd_flag;
+	bool hdcp22_stop_auth_enable;
+	bool hdcp22_esm_reset2_enable;
+	int sm_pause;
+	int pre_port;
+	/* waiting time cannot be reduced */
+	/* it will cause hdcp1.4 cts fail */
+	int hdcp_none_wait_max;
+	int esd_phy_rst_cnt;
+	int esd_phy_rst_max;
+	int cec_dev_info;
+	bool term_flag;
+	int clk_chg_cnt;
+	int clk_chg_max;
+	/* vpp mute when signal change, used
+	 * in companion with vlock phase = 84
+	 */
+	bool vpp_mute_enable;
+	/* mute delay cnt before vpp unmute */
+	int mute_cnt;
+	u8 dbg_ve;
+	/* after DE stable, start DE count */
+	bool de_stable;
+	u32 de_cnt;
+	u8 avi_chk_frames;
+	u32 avi_rcv_cnt;
+	bool force_pattern;
+};
+
+struct rx_aml_phy {
+	int dfe_en;
+	int ofst_en;
+	int cdr_mode;
+	int pre_int;
+	int pre_int_en;
+	int phy_bwth;
+	int alirst_en;
+	int tap1_byp;
+	int eq_byp;
+	int long_cable;
+	int osc_mode;
+	int pll_div;
+	bool sqrst_en;
+	int vga_dbg;
+	int vga_dbg_delay;
+	u8 eq_fix_val;
+	int cdr_fr_en;
+	bool force_sqo;
+	/* add for t5 */
+	int os_rate;
+	u32 vga_gain;
+	u32 eq_stg1;
+	u32 eq_stg2;
+	bool dfe_hold;
+	bool eq_hold;
+	int eye_delay;
+	bool eq_retry;
+	bool tap2_byp;
+	bool long_bist_en;
+};
+
+enum scan_mode_e {
+	E_UNKNOWN_SCAN,
+	E_OVERSCAN,
+	E_UNDERSCAN,
+	E_FUTURE,
 };
 
 /**
@@ -260,7 +388,19 @@ struct rx_video_info {
 	/** AVI Q1-0, RGB quantization range */
 	unsigned int rgb_quant_range;
 	/** AVI Q1-0, YUV quantization range */
-	unsigned int yuv_quant_range;
+	u8 yuv_quant_range;
+	u8 active_valid;
+	u8 active_ratio;
+	u8 bar_valid;
+	u8 scan_info;
+	u8 colorimetry;
+	u8 picture_ratio;
+	u8 ext_colorimetry;
+	u8 n_uniform_scale;
+	u8 bar_end_top;
+	u8 bar_start_bottom;
+	u8 bar_end_left;
+	u8 bar_start_right;
 	bool sw_fp;
 	bool sw_alternative;
 };
@@ -274,10 +414,19 @@ struct rx_video_info {
 #define DUMP_MODE_EMP	0
 #define DUMP_MODE_TMDS	1
 #define TMDS_BUFFER_SIZE	0x2000000 /*32M*/
-#define EMP_BUFFER_SIZE		0x200000	/*2M*/
-#define EMP_BUFF_MAX_PKT_CNT ((EMP_BUFFER_SIZE/2)/32 - 200)
+#define EMP_BUFFER_SIZE		0x1000	/*4k*/
+#define EMP_BUFF_MAX_PKT_CNT 32 /* 1024/32 */
 #define TMDS_DATA_BUFFER_SIZE	0x200000
 
+struct rx_fastswitch_mode {
+	enum hdcp_version_e hdcp_ver[E_PORT_NUM];
+	/* if edid ver is the same after switch
+	 * edid ver in UI, no need to update edid
+	 */
+	enum edid_ver_e	edid_ver[E_PORT_NUM];
+	u8 hdmi5v_sts[E_PORT_NUM];
+	/* uint8_t hpd_sts[E_PORT_NUM]; */
+};
 
 /**
  * @short HDMI RX controller HDCP configuration
@@ -308,6 +457,9 @@ struct hdmi_rx_hdcp {
 	uint32_t keys[HDCP_KEYS_SIZE];
 	struct extcon_dev *rx_excton_auth;
 	enum hdcp_version_e hdcp_version;/* 0 no hdcp;1 hdcp14;2 hdcp22 */
+	/* add for dv cts */
+	enum hdcp_version_e hdcp_pre_ver;
+	bool hdcp_source;
 	unsigned char hdcp22_exception;/*esm exception code,reg addr :0x60*/
 };
 
@@ -323,10 +475,12 @@ struct vsi_info_s {
 	bool dolby_vision;
 	bool low_latency;
 	bool backlt_md_bit;
-	unsigned int dolby_timeout;
 	unsigned int eff_tmax_pq;
 	bool allm_mode;
 	bool hdr10plus;
+	u8 vsi_state;
+	u8 emp_pkt_cnt;
+	u8 timeout;
 };
 
 #define CHANNEL_STATUS_SIZE   24
@@ -354,7 +508,8 @@ struct aud_info_s {
 	 */
 	int aud_hbr_rcv;
 	int aud_packet_received;
-
+	/* aud mute by gcp_avmute or aud_spflat mute */
+	bool aud_mute_en;
 	/* channel status */
 	unsigned char channel_status[CHANNEL_STATUS_SIZE];
 	unsigned char channel_status_bak[CHANNEL_STATUS_SIZE];
@@ -396,10 +551,17 @@ struct emp_buff {
 	unsigned long irqcnt;
 	unsigned int emppktcnt;
 	unsigned int tmdspktcnt;
+	bool end;
+	u8 ogi_id;
+	unsigned int emp_tagid;
+	u8 emp_content_type;
+	u8 data[128];
+	u8 data_ver;
 };
 
 struct rx_s {
 	enum chip_id_e chip_id;
+	enum phy_ver_e phy_ver;
 	struct hdmirx_dev_s *hdmirxdev;
 	/** HDMI RX received signal changed */
 	uint8_t skip;
@@ -426,7 +588,9 @@ struct rx_s {
 
 	/* wrapper */
 	unsigned int state;
+	unsigned int fsm_ext_state;
 	unsigned int pre_state;
+	struct rx_fastswitch_mode fs_mode;
 	/* recovery mode */
 	unsigned char err_rec_mode;
 	unsigned char err_code;
@@ -455,9 +619,13 @@ struct rx_s {
 	uint32_t arc_port;
 	enum edid_ver_e edid_ver;
 	bool arc_5vsts;
+	u32 vsync_cnt;
 #ifdef CONFIG_AMLOGIC_HDMITX
 	struct notifier_block tx_notify;
 #endif
+	struct rx_var_param var;
+	struct rx_aml_phy aml_phy;
+	u8 last_hdcp22_state;
 };
 
 struct _hdcp_ksv {
@@ -478,6 +646,8 @@ extern struct workqueue_struct	*eq_wq;
 extern struct delayed_work	esm_dwork;
 extern struct workqueue_struct	*esm_wq;
 extern struct delayed_work	repeater_dwork;
+extern struct work_struct	amlphy_dwork;
+extern struct workqueue_struct	*amlphy_wq;
 extern struct workqueue_struct	*repeater_wq;
 extern struct tasklet_struct rx_tasklet;
 extern struct device *hdmirx_dev;
@@ -507,6 +677,8 @@ extern int it_content;
 extern int rgb_quant_range;
 extern int yuv_quant_range;
 extern int en_4k_timing;
+extern int cec_dev_en;
+extern bool dev_is_appletv_v2;
 extern bool en_4096_2_3840;
 extern int en_4k_2_2k;
 extern bool hdmi_cec_en;
@@ -544,6 +716,7 @@ extern void rx_debug_loadkey(void);
 extern void rx_debug_load22key(void);
 extern int rx_debug_wr_reg(const char *buf, char *tmpbuf, int i);
 extern int rx_debug_rd_reg(const char *buf, char *tmpbuf);
+void rx_update_sig_info(void);
 
 /* repeater */
 bool hdmirx_repeat_support(void);
@@ -553,16 +726,14 @@ extern unsigned int edid_update_flag;
 extern unsigned int downstream_hpd_flag;
 
 extern void hdmirx_fill_edid_buf(const char *buf, int size);
+void hdmirx_fill_edid_with_port_buf(const char *buf, int size);
 extern unsigned int hdmirx_read_edid_buf(char *buf, int max_size);
 extern void hdmirx_fill_key_buf(const char *buf, int size);
 extern int rx_audio_block_len;
 extern u8 rx_audio_block[MAX_AUDIO_BLK_LEN];
 /* packets */
-extern int dv_nopacket_timeout;
 extern unsigned int packet_fifo_cfg;
 extern unsigned int *pd_fifo_buf;
-
-
 
 /* for other modules */
 extern int External_Mute(int mute_flag);

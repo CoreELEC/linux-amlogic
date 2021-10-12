@@ -27,6 +27,7 @@
 
 #define K_FLAG_TAB_END			0xa0a05f5f
 
+#define VSIF_PKT_READ_FROM_PD_FIFO
 
 #define IEEE_VSI14		0x000c03
 #define IEEE_DV15		0x00d046
@@ -36,10 +37,10 @@
 enum vsi_state_e {
 	E_VSI_NULL,
 	E_VSI_4K3D,
-	E_VSI_DV10,
-	E_VSI_DV15,
+	E_VSI_VSI21,
 	E_VSI_HDR10PLUS,
-	E_VSI_VSI21
+	E_VSI_DV10,
+	E_VSI_DV15
 };
 
 enum pkt_length_e {
@@ -573,14 +574,14 @@ struct fifo_rawdata_st {
 
 /* vendor specific infoFrame packet - 0x81 */
 struct vsi_infoframe_st {
-	uint8_t pkttype;
+	uint8_t pkttype:8;
 	struct vsi_ver_st {
 		uint8_t version:7;
 		uint8_t chgbit:1;
 	} __packed ver_st;
-	uint8_t length;
-	uint8_t rsd;
-
+	uint8_t length:5;
+	uint8_t rsd:3;
+	u8 rsd_hdmi;
 	/*PB0*/
 	uint32_t checksum:8;
 	/*PB1-3*/
@@ -621,16 +622,59 @@ struct vsi_infoframe_st {
 			uint8_t threeD_meta_data[20];
 		} __packed vsi_3Dext;
 
-		/*dolby vision , length 0x18*/
-		struct vsi_DobV_st {
+		/* dolby vision, length 0x18 */
+		/* ieee 0x000c03 */
+		struct vsi_dobv_st {
 			/*pb4*/
-			uint8_t rsvd0:5;
-			uint8_t vdfmt:3;
+			/*	0x00: Video formats not defined in Table 8-14
+			 *		of the HDMI specification v1.4b
+			 *	0x20: Video formats defined in Table 8-14
+			 *		of the HDMI specification v1.4b
+			 */
+			uint8_t vdfmt;
 			/*pb5*/
+			/*	0x0: Video formats not defined in Table 8-14
+			 *		of the HDMI specification, v1.4b
+			 *	0x1: 4K x 2K at 29.97 Hz or 30Hz
+			 *		as defined in Table 8-14
+			 *		of the HDMI specification, v1.4b
+			 *	0x2: 4K x 2K at 25 Hz as defined in Table 8-14
+			 *		of the HDMI specification, v1.4b
+			 *	0x3: 4K x 2K at 23.98 Hz or 24Hz
+			 *		as defined in Table 8-14
+			 *		of the HDMI specification, v1.4b
+			 */
 			uint8_t hdmi_vic;
 			/*pb6*/
-			uint8_t data[22];/* val=0 */
-		} __packed vsi_DobV;
+			uint8_t data[22]; /* val=0 */
+		} __packed vsi_dobv_st;
+
+		/* dolby vision, length 0x1b*/
+		/* ieee 0x00d046 */
+		struct vsi_dobv {
+			/*pb4*/
+			u8 ll:1;
+			u8 dv_on:1;
+			u8 rsvd0:6;
+			/*pb5*/
+			u8 tmax_pq_lo:4;
+			u8 rsvd:2;
+			u8 aux_md:1;
+			u8 bklt_md:1;
+			/*pb6*/
+			u8 tmax_pq_hi;
+			/*pb7*/
+			u8 aux_run_mode;
+			/*pb8*/
+			u8 aux_run_ver;
+			/*pb9*/
+			u8 aux_debug;
+			/* pb10 */
+			u8 content_type;
+			/*pb11~27*/
+			u8 data[17]; /* val=0 */
+		} __packed vsi_dobv;
+
 		/*TODO:hdmi2.1 spec vsi packet*/
 		struct vsi_st_21 {
 			/*pb4*/
@@ -902,6 +946,7 @@ struct rxpkt_st {
 
 	uint32_t fifo_Int_cnt;
 	uint32_t fifo_pkt_num;
+	u8	dv_pkt_num;
 
 	uint32_t pkt_chk_flg;
 
@@ -1018,7 +1063,7 @@ extern void rx_pkt_check_content(void);
 extern void rx_pkt_set_fifo_pri(uint32_t pri);
 extern uint32_t rx_pkt_get_fifo_pri(void);
 
-extern uint8_t rx_get_vsi_info(void);
+void rx_get_vsi_info(void);
 
 /*please ignore checksum byte*/
 extern void rx_pkt_get_audif_ex(void *pktinfo);

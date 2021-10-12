@@ -150,7 +150,7 @@ extern int eq_dbg_ch0;
 extern int eq_dbg_ch1;
 extern int eq_dbg_ch2;
 extern int long_cable_best_setting;
-
+extern enum eq_sts_e eq_sts;
 /*--------------------------function declare------------------*/
 int rx_eq_algorithm(void);
 int hdmirx_phy_start_eq(void);

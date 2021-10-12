@@ -53,7 +53,7 @@ MODULE_PARM_DESC(edid_len, "\n edid_len\n");
 module_param(edid_len, int, 0664);
 bool new_edid;
 /*original bksv from device*/
-static unsigned char receive_hdcp[MAX_KSV_LIST_SIZE];
+unsigned char receive_hdcp[MAX_KSV_LIST_SIZE];
 int hdcp_array_len = MAX_KSV_LIST_SIZE;
 MODULE_PARM_DESC(receive_hdcp, "\n receive_hdcp\n");
 module_param_array(receive_hdcp, byte, &hdcp_array_len, 0664);
@@ -248,6 +248,7 @@ void rx_hdcp14_resume(void)
 void rx_set_repeater_support(bool enable)
 {
 	downstream_repeat_support = enable;
+	repeat_plug = enable;
 	rx_pr("****************=%d\n", downstream_repeat_support);
 }
 EXPORT_SYMBOL(rx_set_repeater_support);

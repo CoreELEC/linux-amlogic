@@ -37,6 +37,7 @@
 #define HHI_GCLK_MPEG0			(0x50 << 2) /* (0xC883C000 + 0x140) */
 #define HHI_HDMIRX_CLK_CNTL		0x200 /* (0xC883C000 + 0x200)  */
 #define HHI_HDMIRX_AUD_CLK_CNTL	0x204 /* 0x1081 */
+#define HHI_AXI_CLK_CTNL		(0xb8 * 4)
 #define HHI_VDAC_CNTL0			(0xbb * 4)
 #define HHI_VDAC_CNTL1			(0xbc * 4)
 #define HHI_AUD_PLL_CNTL		(0xf8 * 4)
@@ -158,7 +159,8 @@
 /* ------------------------------------- */
 
 #define TOP_SW_RESET                     0x000
-	#define HDCP22_TMDSCLK_EN		_BIT(3)
+	#define HDCP22_TMDSCLK_EN_TXLX		_BIT(3)
+	#define HDCP22_TMDSCLK_EN_TL1		_BIT(11)
 #define TOP_CLK_CNTL                     0x001
 #define TOP_HPD_PWR5V                    0x002
 #define TOP_PORT_SEL                     0x003
@@ -243,6 +245,7 @@
 #define	TOP_AUDMEAS_INTR_STAT			0x049
 #define	TOP_AUDMEAS_REF_CYCLES_STAT0	0x04a
 #define	TOP_AUDMEAS_REF_CYCLES_STAT1	0x04b
+#define TOP_SHIFT_PTTN_012				0x050
 #define	TOP_HDCP22_BSOD					0x060
 
 
@@ -293,6 +296,7 @@
 
 
 #define TOP_DWC_BASE_OFFSET				0x8000
+#define TOP_AMLPHY_BASE_OFFSET			0xc000
 
 
 #define TOP_DONT_TOUCH0                  0x0fe
@@ -432,6 +436,12 @@
 #define DWC_SCDC_WRDATA7                0x087C
 #define DWC_HDMI20_STATUS               0x08E0
 #define DWC_HDCP22_STATUS               0x08FC
+#define HDCP_DECRYPTED	_BIT(0)
+#define HDCP22_CAPABLE	_BIT(16)
+#define HDCP22_NOT_CAPABLE	_BIT(17)
+#define HDCP22_AUTH_LOST	_BIT(18)
+#define HDCP22_AUTH_PASS	_BIT(19)
+#define HDCP22_AUTH_FAIL	_BIT(20)
 
 #define DWC_PDEC_DRM_HB				     0x4c0
 #define DWC_PDEC_DRM_PAYLOAD0			 0x4c4
@@ -685,6 +695,7 @@
 #define PD_NEW_ENTRY	MSK(1, 8)
 #define PD_TH_START		MSK(1, 2)
 #define PD_AUD_LAYOUT	_BIT(11)
+#define PD_GCP_MUTE_EN	_BIT(21)
 #define DWC_PDEC_STS             (0x360UL)
 /** Register address: Packet Decoder Audio Status*/
 #define DWC_PDEC_AUD_STS         (0x364UL)
@@ -851,7 +862,7 @@
 #define		AVI_CKS_CHG				_BIT(24)
 /** GCP AVMUTE changed */
 #define		GCP_AV_MUTE_CHG			_BIT(21)
-
+#define		AVI_RCV					_BIT(18)
 #define		GCP_RCV					_BIT(16)
 /** Vendor Specific Info frame rcv*/
 #define		VSI_RCV				_BIT(15)
@@ -1053,26 +1064,103 @@
 /* tl1 HIU related register */
 #define HHI_HDMIRX_AXI_CLK_CNTL			(0xb8<<2)
 
-/* tl1 HIU apll register */
-#define HHI_HDMIRX_APLL_CNTL0			(0xd2<<2)/* 0x4C */
-#define HHI_HDMIRX_APLL_CNTL1			(0xd3<<2)/* 0x4D */
-#define HHI_HDMIRX_APLL_CNTL2			(0xd4<<2)/* 0x4E */
-#define HHI_HDMIRX_APLL_CNTL3			(0xd5<<2)/* 0x4F */
-#define HHI_HDMIRX_APLL_CNTL4			(0xd6<<2)/* 0x50 */
+/* tl1/TM2 HIU apll register */
+#define HHI_HDMIRX_APLL_CNTL0			(0xd2<<2)
+#define HHI_HDMIRX_APLL_CNTL1			(0xd3<<2)
+#define HHI_HDMIRX_APLL_CNTL2			(0xd4<<2)
+#define HHI_HDMIRX_APLL_CNTL3			(0xd5<<2)
+#define HHI_HDMIRX_APLL_CNTL4			(0xd6<<2)
 
-/* tl1 HIU PHY register */
-#define HHI_HDMIRX_PHY_MISC_CNTL0		(0xd7<<2)/*0x040*/
-#define HHI_HDMIRX_PHY_MISC_CNTL1		(0xd8<<2)/*0x041*/
-#define HHI_HDMIRX_PHY_MISC_CNTL2		(0xe0<<2)/*0x042*/
-#define HHI_HDMIRX_PHY_MISC_CNTL3		(0xe1<<2)/*0x043*/
-#define HHI_HDMIRX_PHY_DCHA_CNTL0		(0xe2<<2)/*0x045*/
-#define HHI_HDMIRX_PHY_DCHA_CNTL1		(0xe3<<2)/*0x046*/
-#define HHI_HDMIRX_PHY_DCHA_CNTL2		(0xe4<<2)/*0x047*/
-#define HHI_HDMIRX_PHY_DCHD_CNTL0		(0xe5<<2)/*0x048*/
-#define HHI_HDMIRX_PHY_DCHD_CNTL1		(0xe6<<2)/*0x049*/
-#define HHI_HDMIRX_PHY_DCHD_CNTL2		(0xe7<<2)/*0x04A*/
-/*#define HHI_HDMIRX_PHY_MISC_STAT		(0xee<<2)*//*0x044*/
-#define HHI_HDMIRX_PHY_DCHD_STAT		(0xef<<2)/*0x04B*/
+/* tl1/TM2 HIU PHY register */
+#define HHI_HDMIRX_PHY_MISC_CNTL0		(0xd7<<2)
+#define MISCI_COMMON_RST				_BIT(10)
+#define HHI_HDMIRX_PHY_MISC_CNTL1		(0xd8<<2)
+#define MISCI_MANUAL_MODE				_BIT(22)
+#define HHI_HDMIRX_PHY_MISC_CNTL2		(0xe0<<2)
+#define HHI_HDMIRX_PHY_MISC_CNTL3		(0xe1<<2)
+#define HHI_HDMIRX_PHY_DCHA_CNTL0		(0xe2<<2)
+#define HHI_HDMIRX_PHY_DCHA_CNTL1		(0xe3<<2)
+	#define DFE_OFSETCAL_START			_BIT(27)
+	#define DFE_TAP1_EN					_BIT(17)
+	#define DEF_SUM_RS_TRIM				MSK(3, 12)
+	/*[4:5] in trim,[6:7] im trim*/
+	#define DFE_SUM_TRIM				MSK(4, 4)
+#define HHI_HDMIRX_PHY_DCHA_CNTL2		(0xe4<<2)
+	#define DFE_VADC_EN					_BIT(21)
+#define HHI_HDMIRX_PHY_DCHA_CNTL3		(0xc5<<2)/*for revB*/
+#define HHI_HDMIRX_PHY_DCHD_CNTL0		(0xe5<<2)
+	#define CDR_LKDET_EN				_BIT(28)
+	/*bit'24:eq rst bit'25:cdr rst*/
+	#define CDR_EQ_RSTB					MSK(2, 24)
+	/*0:manual 1:c only 2:r only 3:both rc*/
+	#define EQ_ADP_MODE					MSK(2, 10)
+	#define EQ_ADP_STG					MSK(2, 8)
+#define HHI_HDMIRX_PHY_DCHD_CNTL1		(0xe6<<2)
+	/*tm2b*/
+	#define OFST_CAL_START				_BIT(31)
+	#define EQ_BYP_VAL					MSK(5, 12)
+#define HHI_HDMIRX_PHY_DCHD_CNTL2		(0xe7<<2)
+	#define DFE_DBG_STL					MSK(3, 28)
+	#define	DFE_EN						_BIT(27)
+	#define DFE_RSTB					_BIT(26)
+	#define TAP1_BYP_EN					_BIT(19)
+#define HHI_HDMIRX_PHY_DCHD_CNTL3		(0xc6<<2)/*for revB*/
+	#define DBG_STS_SEL					MSK(2, 30)
+#define HHI_HDMIRX_PHY_ARC_CNTL			(0xe8<<2)
+#define HHI_HDMIRX_EARCTX_CNTL0			(0x69<<2)
+#define HHI_HDMIRX_EARCTX_CNTL1			(0x6a<<2)
+#define HHI_HDMIRX_PHY_MISC_STAT		(0xee<<2)
+#define HHI_HDMIRX_PHY_DCHD_STAT		(0xef<<2)
+
+/* T5 HIU apll register */
+#define HHI_RX_APLL_CNTL0			(0x0<<2)/*0x0*/
+#define HHI_RX_APLL_CNTL1			(0x1<<2)/*0x4*/
+#define HHI_RX_APLL_CNTL2			(0x2<<2)/*0x8*/
+#define HHI_RX_APLL_CNTL3			(0x3<<2)/*0xc*/
+#define HHI_RX_APLL_CNTL4			(0x4<<2)/*0x10*/
+
+/* T5 HIU PHY register */
+#define HHI_RX_PHY_MISC_CNTL0		(0x5<<2)/*0x14*/
+	#define SQO_GATE				_BIT(30)
+	#define PLL_SRC_SEL				_BIT(29)
+#define HHI_RX_PHY_MISC_CNTL1		(0x6<<2)/*0x18*/
+#define HHI_RX_PHY_MISC_CNTL2		(0x7<<2)/*0x1c*/
+#define HHI_RX_PHY_MISC_CNTL3		(0x8<<2)/*0x20*/
+#define HHI_RX_PHY_DCHA_CNTL0		(0x9<<2)/*0x24*/
+	#define HYPER_GAIN				MSK(3, 12)
+#define HHI_RX_PHY_DCHA_CNTL1		(0xa<<2)/*0x28*/
+#define HHI_RX_PHY_DCHA_CNTL2		(0xb<<2)/*0x2c*/
+	#define EYE_MONITOR_EN1			_BIT(27)/*The same as dchd_eye[19]*/
+	#define AFE_EN					_BIT(17)
+#define HHI_RX_PHY_DCHA_CNTL3		(0xc<<2)/*0x30*/
+#define HHI_RX_PHY_DCHD_CNTL0		(0xd<<2)/*0x34*/
+	#define CDR_MODE				_BIT(31)
+	#define CDR_FR_EN				_BIT(30)
+	#define EQ_EN					_BIT(29)
+	#define CDR_PH_DIV				MSK(3, 0)
+#define HHI_RX_PHY_DCHD_CNTL1		(0xe<<2)/*0x38*/
+	#define IQ_OFST_SIGN			_BIT(27)
+	#define IQ_OFST_VAL				MSK(5, 22)
+	#define EQ_BYP_VAL2				MSK(5, 17)
+	#define EQ_BYP_VAL1				MSK(5, 12)
+#define HHI_RX_PHY_DCHD_CNTL2		(0xf<<2)/*0x3c*/
+	#define DFE_HOLD				_BIT(31)
+	#define DFE_RST					_BIT(26)
+	#define TAP0_BYP				_BIT(23)
+	#define EYE_STATUS				MSK(3, 28)
+	#define ERROR_CNT				0x0
+	#define SCAN_STATE				0x1
+	#define POSITIVE_EYE_HEIGHT		0x2
+	#define NEGATIVE_EYE_HEIGHT		0x3
+	#define LEFT_EYE_WIDTH			0x4
+	#define RIGHT_EYE_WIDTH			0x5
+#define HHI_RX_PHY_DCHD_CNTL3		(0x10<<2)/*0x40*/
+#define HHI_RX_PHY_DCHD_CNTL4		(0x11<<2)/*0x44*/
+	#define EYE_MONITOR_EN			_BIT(19)
+	#define EYE_STATUS_EN			_BIT(18)
+	#define EYE_EN_HW_SCAN			_BIT(16)
+#define HHI_RX_PHY_MISC_STAT		(0x12<<2)/*0x48*/
+#define HHI_RX_PHY_DCHD_STAT		(0x13<<2)/*0x4c*/
 
 #define TMDS_CLK_MIN			(24000UL)
 #define TMDS_CLK_MAX			(340000UL)
@@ -1116,11 +1204,17 @@ extern int pll_rst_max;
 extern int cdr_lock_level;
 extern int top_intr_maskn_value;
 extern int hbr_force_8ch;
+extern bool term_cal_en;
 extern int clock_lock_th;
 extern int scdc_force_en;
 extern bool hdcp_hpd_ctrl_en;
 extern int eq_dbg_lvl;
+extern int phy_term_lel;
+extern bool phy_tdr_en;
+extern int hdcp_tee_path;
+extern int i2c_err_cnt;
 
+extern char emp_buf[1024];
 extern void rx_get_best_eq_setting(void);
 extern void wr_reg_hhi(unsigned int offset, unsigned int val);
 extern void wr_reg_hhi_bits(unsigned int offset, unsigned int mask,
@@ -1209,7 +1303,7 @@ extern void hdmirx_config_audio(void);
 extern void set_dv_ll_mode(bool en);
 extern void rx_get_audinfo(struct aud_info_s *audio_info);
 extern bool rx_clkrate_monitor(void);
-
+void rx_i2c_err_monitor(void);
 extern unsigned char rx_get_hdcp14_sts(void);
 extern unsigned int rx_hdcp22_rd_reg_bits(unsigned int addr, unsigned int mask);
 extern int rx_get_aud_pll_err_sts(void);
@@ -1228,6 +1322,7 @@ void rx_audio_bandgap_en(void);
 void rx_aml_eq_debug(int eq_lvl);
 extern void rx_phy_rxsense_pulse(unsigned int t1, unsigned int t2, bool en);
 extern void rx_phy_power_on(unsigned int onoff);
+extern void dump_reg_phy(void);
 
 enum measure_clk_top_e {
 	TOP_HDMI_TMDSCLK = 0,
@@ -1252,22 +1347,22 @@ enum measure_clk_src_e {
 #define PHY_DEFAULT_FRQ	((100)*MHz)
 
 enum phy_frq_band {
-	phy_frq_band_0 = 0,	/*45Mhz*/
-	phy_frq_band_1,		/*77Mhz*/
-	phy_frq_band_2,		/*155Mhz*/
-	phy_frq_band_3,		/*340Mhz*/
-	phy_frq_band_4,		/*525Mhz*/
-	phy_frq_band_5,		/*600Mhz*/
-	phy_frq_null = 0xf,
+	PHY_BW_0 = 0,	/*45Mhz*/
+	PHY_BW_1,		/*77Mhz*/
+	PHY_BW_2,		/*155Mhz*/
+	PHY_BW_3,		/*340Mhz*/
+	PHY_BW_4,		/*525Mhz*/
+	PHY_BW_5,		/*600Mhz*/
+	PHY_BW_NULL = 0xf,
 };
 
 enum pll_frq_band {
-	pll_frq_band_0 = 0,	/*35Mhz*/
-	pll_frq_band_1,		/*77Mhz*/
-	pll_frq_band_2,		/*155Mhz*/
-	pll_frq_band_3,		/*300Mhz*/
-	pll_frq_band_4,		/*600Mhz*/
-	pll_frq_null = 0xf,
+	PLL_BW_0 = 0,	/*35Mhz*/
+	PLL_BW_1,		/*77Mhz*/
+	PLL_BW_2,		/*155Mhz*/
+	PLL_BW_3,		/*300Mhz*/
+	PLL_BW_4,		/*600Mhz*/
+	PLL_BW_NULL = 0xf,
 };
 
 struct apll_param {
@@ -1285,7 +1380,7 @@ extern int rx_get_clock(enum measure_clk_top_e clk_src);
 extern unsigned int clk_util_clk_msr(unsigned int clk_mux);
 extern unsigned int rx_measure_clock(enum measure_clk_src_e clksrc);
 extern void aml_phy_init(void);
-extern void aml_phy_pw_onoff(uint32_t onoff);
+/*extern void aml_phy_pw_onoff(uint32_t onoff);*/
 extern uint32_t aml_cable_clk_band(uint32_t cableclk,
 	uint32_t clkrate);
 extern uint32_t aml_phy_pll_band(uint32_t cableclk,
@@ -1307,6 +1402,29 @@ extern void rx_run_eq(void);
 extern bool rx_eq_done(void);
 extern bool is_tmds_valid(void);
 extern void hdmirx_top_irq_en(bool flag);
+void rx_phy_rt_cal(void);
+bool is_ft_trim_done(void);
+void aml_phy_get_trim_val(void);
+unsigned int rx_set_hdcp14_secure_key(void);
+bool rx_clr_tmds_valid(void);
+void rx_set_suspend_edid_clk(bool en);
+void aml_phy_init_handler(struct work_struct *work);
+void aml_phy_init_tm2(void);
+void aml_phy_init_tl1(void);
+void aml_phy_init_t5(void);
+bool is_tmds_clk_stable(void);
+void dump_reg_phy_t5(void);
+void dump_reg_phy_tl1_tm2(void);
+void dump_aml_phy_sts_t5(void);
+void dump_aml_phy_sts_tm2(void);
+void dump_aml_phy_sts_tl1(void);
+void aml_eq_eye_monitor_t5(void);
+void aml_phy_offset_cal(void);
+void aml_phy_short_bist_tl1(void);
+void aml_phy_short_bist_tm2(void);
+void aml_phy_short_bist_t5(void);
+void rx_phy_short_bist(void);
+void aml_phy_iq_skew_monitor(void);
 #endif
 
 

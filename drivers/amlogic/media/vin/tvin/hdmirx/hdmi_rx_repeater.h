@@ -49,10 +49,11 @@ enum repeater_state_e {
 struct hdcp14_topo_s {
 	unsigned char max_cascade_exceeded:1;
 	unsigned char depth:3;
+	unsigned char rsvd : 4;
 	unsigned char max_devs_exceeded:1;
 	unsigned char device_count:7; /* 1 ~ 127 */
 	unsigned char ksv_list[HDCP14_KSV_MAX_COUNT * 5];
-};
+} __packed;
 
 struct hdcp_hw_info_s {
 	unsigned int cur_5v:4;
@@ -71,6 +72,7 @@ extern int hdcp_repeat_depth;
 extern bool new_hdcp;
 extern bool repeat_plug;
 extern int up_phy_addr;/*d c b a 4bit*/
+extern unsigned char receive_hdcp[MAX_KSV_LIST_SIZE];
 
 extern void rx_set_repeater_support(bool enable);
 extern int rx_set_receiver_edid(const char *data, int len);

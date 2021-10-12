@@ -42,7 +42,6 @@
  */
 static struct rxpkt_st rxpktsts;
 struct packet_info_s rx_pkt;
-int dv_nopacket_timeout = 30;
 uint32_t gpkt_fifo_pri;
 /*struct mutex pktbuff_lock;*/
 
@@ -113,7 +112,7 @@ void rx_pkt_status(void)
 	rx_pr("pkt_cnt_gcp_ex=%d\n", rxpktsts.pkt_cnt_gcp_ex);
 	rx_pr("pkt_cnt_amp_ex=%d\n", rxpktsts.pkt_cnt_amp_ex);
 	rx_pr("pkt_cnt_nvbi_ex=%d\n", rxpktsts.pkt_cnt_nvbi_ex);
-	rx_pr("pkt_cnt_nvbi_ex=%d\n", rxpktsts.pkt_cnt_emp_ex);
+	rx_pr("pkt_cnt_emp_ex=%d\n", rxpktsts.pkt_cnt_emp_ex);
 
 	rx_pr("pkt_chk_flg=%d\n", rxpktsts.pkt_chk_flg);
 
@@ -174,7 +173,8 @@ void rx_pkt_debug(void)
 	data32 |= (rx_pkt_type_mapping(PKT_TYPE_INFOFRAME_AUD));
 	data32 |= (rx_pkt_type_mapping(PKT_TYPE_INFOFRAME_VSI));
 	data32 |= (rx_pkt_type_mapping(PKT_TYPE_INFOFRAME_MPEGSRC));
-	if (rx.chip_id != CHIP_ID_TXHD) {
+	if (rx.chip_id != CHIP_ID_TXHD &&
+		rx.chip_id != CHIP_ID_T5D) {
 		data32 |= (rx_pkt_type_mapping(PKT_TYPE_INFOFRAME_NVBI));
 		data32 |= (rx_pkt_type_mapping(PKT_TYPE_INFOFRAME_DRM));
 		data32 |= (rx_pkt_type_mapping(PKT_TYPE_AUD_META));
@@ -672,26 +672,24 @@ static void rx_pktdump_drm(void *pdata)
 
 	rx_pr(">---drm infoframe detail -------->\n");
 	rx_pr("type: 0x%x\n", pktdata->pkttype);
-	rx_pr("ver: %d\n", pktdata->version);
-	rx_pr("length: %d\n", pktdata->length);
+	rx_pr("ver: %x\n", pktdata->version);
+	rx_pr("length: %x\n", pktdata->length);
 
 	rx_pr("b1 eotf: 0x%x\n", pktdata->des_u.tp1.eotf);
 	rx_pr("b2 meta des id: 0x%x\n", pktdata->des_u.tp1.meta_des_id);
 
-	rx_pr("dis_pri_x0: %d\n", pktdata->des_u.tp1.dis_pri_x0);
-	rx_pr("dis_pri_y0: %d\n", pktdata->des_u.tp1.dis_pri_y0);
-	rx_pr("dis_pri_x1: %d\n", pktdata->des_u.tp1.dis_pri_x1);
-	rx_pr("dis_pri_y1: %d\n", pktdata->des_u.tp1.dis_pri_y1);
-	rx_pr("dis_pri_x2: %d\n", pktdata->des_u.tp1.dis_pri_x2);
-	rx_pr("dis_pri_y2: %d\n", pktdata->des_u.tp1.dis_pri_y2);
-	rx_pr("white_points_x: %d\n",
-		pktdata->des_u.tp1.white_points_x);
-	rx_pr("white_points_y: %d\n",
-		pktdata->des_u.tp1.white_points_y);
-	rx_pr("max_dislum: %d\n", pktdata->des_u.tp1.max_dislum);
-	rx_pr("min_dislum: %d\n", pktdata->des_u.tp1.min_dislum);
-	rx_pr("max_light_lvl: %d\n", pktdata->des_u.tp1.max_light_lvl);
-	rx_pr("max_fa_light_lvl: %d\n", pktdata->des_u.tp1.max_fa_light_lvl);
+	rx_pr("dis_pri_x0: %x\n", pktdata->des_u.tp1.dis_pri_x0);
+	rx_pr("dis_pri_y0: %x\n", pktdata->des_u.tp1.dis_pri_y0);
+	rx_pr("dis_pri_x1: %x\n", pktdata->des_u.tp1.dis_pri_x1);
+	rx_pr("dis_pri_y1: %x\n", pktdata->des_u.tp1.dis_pri_y1);
+	rx_pr("dis_pri_x2: %x\n", pktdata->des_u.tp1.dis_pri_x2);
+	rx_pr("dis_pri_y2: %x\n", pktdata->des_u.tp1.dis_pri_y2);
+	rx_pr("white_points_x: %x\n", pktdata->des_u.tp1.white_points_x);
+	rx_pr("white_points_y: %x\n", pktdata->des_u.tp1.white_points_y);
+	rx_pr("max_dislum: %x\n", pktdata->des_u.tp1.max_dislum);
+	rx_pr("min_dislum: %x\n", pktdata->des_u.tp1.min_dislum);
+	rx_pr("max_light_lvl: %x\n", pktdata->des_u.tp1.max_light_lvl);
+	rx_pr("max_fa_light_lvl: %x\n", pktdata->des_u.tp1.max_fa_light_lvl);
 	rx_pr(">------------------>end\n");
 }
 
@@ -1129,10 +1127,13 @@ void rx_pkt_get_vsi_ex(void *pktinfo)
 	pkt->checksum = (st0 >> 24) & 0xff;
 	pkt->ieee = st0 & 0xffffff;
 
-	pkt->ver_st.version = 0;
+	pkt->ver_st.version = 1;
 	pkt->ver_st.chgbit = 0;
 
-	if (rx.chip_id != CHIP_ID_TXHD) {
+	if (rx.chip_id != CHIP_ID_TXHD &&
+		rx.chip_id != CHIP_ID_T5D) {
+		/* data alignment mismatch */
+		/* TODO */
 		pkt->sbpkt.payload.data[0] =
 			hdmirx_rd_dwc(DWC_PDEC_VSI_PLAYLOAD0);
 		pkt->sbpkt.payload.data[1] =
@@ -1271,7 +1272,8 @@ void rx_pkt_get_ntscvbi_ex(void *pktinfo)
 		return;
 	}
 
-	if (rx.chip_id != CHIP_ID_TXHD) {
+	if (rx.chip_id != CHIP_ID_TXHD &&
+		rx.chip_id != CHIP_ID_T5D) {
 		/*byte 0 , 1*/
 		pkt->HB = hdmirx_rd_dwc(DWC_PDEC_NTSCVBI_HB);
 		pkt->PB0 = hdmirx_rd_dwc(DWC_PDEC_NTSCVBI_PB0);
@@ -1351,25 +1353,59 @@ static int vsi_handler(struct hdmi_rx_ctrl *ctx)
  *	stop: 0x05,0x04
  *
  */
-uint8_t rx_get_vsi_info(void)
+//static int vsi_pkt_cnt;
+void rx_get_vsi_info(void)
 {
 	struct vsi_infoframe_st *pkt;
-	uint8_t ret = E_VSI_NULL;
 	unsigned int tmp;
+	static u32 num;
 
-	pkt = (struct vsi_infoframe_st *)&(rx_pkt.vs_info);
+	rx.vs_info_details.vsi_state = E_VSI_NULL;
 	rx.vs_info_details._3d_structure = 0;
 	rx.vs_info_details._3d_ext_data = 0;
 	rx.vs_info_details.low_latency = false;
 	rx.vs_info_details.backlt_md_bit = false;
-	/* rx.vs_info_details.dolby_timeout = 0xffff; */
+	rx.vs_info_details.allm_mode = false;
+	rx.vs_info_details.dolby_vision = false;
+	rx.vs_info_details.hdr10plus = false;
+	rx.vs_info_details.emp_pkt_cnt = rx.empbuff.emppktcnt;
+	rx.empbuff.emppktcnt = 0;
+	pkt = (struct vsi_infoframe_st *)&rx_pkt.vs_info;
+
+	if (rx.vs_info_details.emp_pkt_cnt &&
+	    rx.empbuff.emp_tagid == IEEE_DV15) {
+		pkt->pkttype = 0x81;
+		pkt->length = E_PKT_LENGTH_27;
+		pkt->ieee = rx.empbuff.emp_tagid;
+		pkt->sbpkt.vsi_dobv.dv_on = 1;
+		pkt->sbpkt.vsi_dobv.ll =
+			(rx.empbuff.data_ver == 1) ? 1 : 0;
+		pkt->sbpkt.vsi_dobv.bklt_md = 0;
+		pkt->sbpkt.vsi_dobv.aux_md = 0;
+		pkt->sbpkt.vsi_dobv.content_type =
+			rx.empbuff.emp_content_type;
+		if (log_level & 0x1000) {
+			rx_pr("***type=%x,ieee=%x,pb=%x, data_ver:%d\n",
+				pkt->pkttype, pkt->ieee,
+				rx_pkt.vs_info.HB, rx.empbuff.data_ver);
+		}
+	} else {
+		if (num == rxpktsts.pkt_cnt_vsi)
+			pkt->ieee = 0;
+		num = rxpktsts.pkt_cnt_vsi;
+	}
+	if (log_level & PACKET_LOG)
+		rx_pr("%x\n", pkt->ieee);
 	switch (pkt->ieee) {
 	case IEEE_DV15:
 		/* dolbyvision 1.5 */
-		ret = E_VSI_DV15;
-		if (pkt->length != E_PKT_LENGTH_27)
+		rx.vs_info_details.vsi_state = E_VSI_DV15;
+		if (pkt->length != E_PKT_LENGTH_27) {
 			if (log_level & PACKET_LOG)
 				rx_pr("vsi dv15 length err\n");
+			rx.vs_info_details.dolby_vision = false;
+			break;
+		}
 		tmp = pkt->sbpkt.payload.data[0] & _BIT(1);
 		rx.vs_info_details.dolby_vision = tmp ? true : false;
 		tmp = pkt->sbpkt.payload.data[0] & _BIT(0);
@@ -1377,20 +1413,23 @@ uint8_t rx_get_vsi_info(void)
 		tmp = pkt->sbpkt.payload.data[0] >> 15 & 0x01;
 		rx.vs_info_details.backlt_md_bit = tmp ? true : false;
 		if (tmp) {
-			tmp = (pkt->sbpkt.payload.data[0] >> 16 & 0x0f) |
+			tmp = (pkt->sbpkt.payload.data[0] >> 16 & 0xff) |
 				(pkt->sbpkt.payload.data[0] & 0xf00);
 			rx.vs_info_details.eff_tmax_pq = tmp;
 		}
+		tmp = (pkt->sbpkt.payload.data[1] >> 16 & 0xf);
+		if (tmp == 2)
+			rx.vs_info_details.allm_mode = true;
 		break;
 	case IEEE_VSI21:
 		/* hdmi2.1 */
-		ret = E_VSI_VSI21;
+		rx.vs_info_details.vsi_state = E_VSI_VSI21;
 		tmp = pkt->sbpkt.payload.data[0] & _BIT(9);
 		rx.vs_info_details.allm_mode = tmp ? true : false;
 		break;
 	case IEEE_HDR10PLUS:
 		/* HDR10+ */
-		ret = E_VSI_HDR10PLUS;
+		rx.vs_info_details.vsi_state = E_VSI_HDR10PLUS;
 		if ((pkt->length != E_PKT_LENGTH_27) ||
 			(pkt->pkttype != 0x01) ||
 			(pkt->ver_st.version != 0x01) ||
@@ -1402,14 +1441,13 @@ uint8_t rx_get_vsi_info(void)
 		break;
 	case IEEE_VSI14:
 		/* dolbyvision1.0 */
-		ret = E_VSI_4K3D;
+		rx.vs_info_details.vsi_state = E_VSI_4K3D;
 		if (pkt->length == E_PKT_LENGTH_24) {
 			rx.vs_info_details.dolby_vision = true;
 			if ((pkt->sbpkt.payload.data[0] & 0xffff) == 0) {
-				rx.vs_info_details.dolby_timeout =
-					dv_nopacket_timeout;
 				pkt->sbpkt.payload.data[0] = 0xffff;
 			}
+			rx.vs_info_details.vsi_state = E_VSI_DV10;
 		} else if ((pkt->length == E_PKT_LENGTH_5) &&
 			(pkt->sbpkt.payload.data[0] & 0xffff)) {
 			rx.vs_info_details.dolby_vision = false;
@@ -1434,7 +1472,9 @@ uint8_t rx_get_vsi_info(void)
 	default:
 		break;
 	}
-	return ret;
+	rx.empbuff.emp_tagid = 0;
+	/* pkt->ieee = 0; */
+	/* memset(&rx_pkt.vs_info, 0, sizeof(struct pd_infoframe_s)); */
 }
 
 #if 0
@@ -1868,17 +1908,62 @@ void rx_pkt_check_content(void)
 	}
 }
 
+bool is_new_visf_pkt_rcv(union infoframe_u *pktdata)
+{
+	struct vsi_infoframe_st *pkt;
+	enum vsi_state_e new_pkt, old_pkt;
+
+	pkt = (struct vsi_infoframe_st *)&rx_pkt.vs_info;
+	/* old vsif pkt */
+	if (pkt->ieee == IEEE_DV15)
+		old_pkt = E_VSI_DV15;
+	else if (pkt->ieee == IEEE_VSI21)
+		old_pkt = E_VSI_VSI21;
+	else if (pkt->ieee == IEEE_HDR10PLUS)
+		old_pkt = E_VSI_HDR10PLUS;
+	else if ((pkt->ieee == IEEE_VSI14) &&
+		 (pkt->length == E_PKT_LENGTH_24))
+		old_pkt = E_VSI_DV10;
+	else
+		old_pkt = E_VSI_4K3D;
+
+	pkt = (struct vsi_infoframe_st *)(pktdata);
+	/* new vsif */
+	if (pkt->ieee == IEEE_DV15)
+		new_pkt = E_VSI_DV15;
+	else if (pkt->ieee == IEEE_VSI21)
+		new_pkt = E_VSI_VSI21;
+	else if (pkt->ieee == IEEE_HDR10PLUS)
+		new_pkt = E_VSI_HDR10PLUS;
+	else if ((pkt->ieee == IEEE_VSI14) &&
+		 (pkt->length == E_PKT_LENGTH_24))
+		new_pkt = E_VSI_DV10;
+	else
+		new_pkt = E_VSI_4K3D;
+
+	if (new_pkt > old_pkt)
+		return true;
+
+	return false;
+}
+
 int rx_pkt_fifodecode(struct packet_info_s *prx,
 				union infoframe_u *pktdata,
 				struct rxpkt_st *pktsts)
 {
 	switch (pktdata->raw_infoframe.pkttype) {
 	case PKT_TYPE_INFOFRAME_VSI:
-		pktsts->pkt_attach_vsi++;
-		pktsts->pkt_cnt_vsi++;
+		if (rxpktsts.dv_pkt_num > 0) {
+			if (!is_new_visf_pkt_rcv(pktdata))
+				break;
+		} else {
+			pktsts->pkt_attach_vsi++;
+			pktsts->pkt_cnt_vsi++;
+		}
+		rxpktsts.dv_pkt_num++;
 		pktsts->pkt_op_flag |= PKT_OP_VSI;
-		/*memset(&prx->vs_info, 0, sizeof(struct pd_infoframe_s));*/
-		memcpy(&prx->vs_info, pktdata, sizeof(struct pd_infoframe_s));
+		memcpy(&prx->vs_info, pktdata,
+		       sizeof(struct pd_infoframe_s));
 		pktsts->pkt_op_flag &= ~PKT_OP_VSI;
 		break;
 	case PKT_TYPE_INFOFRAME_AVI:
@@ -2004,57 +2089,50 @@ int rx_pkt_fifodecode(struct packet_info_s *prx,
 
 int rx_pkt_handler(enum pkt_decode_type pkt_int_src)
 {
-	uint32_t i = 0;
+	//uint32_t i = 0;
 	uint32_t j = 0;
 	uint32_t pkt_num = 0;
-	uint32_t pkt_cnt = 0;
+	//uint32_t pkt_cnt = 0;
+	u8 try_cnt = 3;
 	union infoframe_u *pktdata;
 	struct packet_info_s *prx = &rx_pkt;
 	/*uint32_t t1, t2;*/
 
+	rxpktsts.dv_pkt_num = 0;
+	rxpktsts.fifo_pkt_num = 0;
 	if (pkt_int_src == PKT_BUFF_SET_FIFO) {
 		/*from pkt fifo*/
 		if (!pd_fifo_buf)
 			return 0;
-
+		memset(pd_fifo_buf, 0, PFIFO_SIZE);
+		memset(&prx->vs_info, 0, sizeof(struct pd_infoframe_s));
 		/*t1 = sched_clock();*/
 		/*for recode interrupt cnt*/
-		rxpktsts.fifo_Int_cnt++;
-
-		/*ps:read 10 packet from fifo cost time < less than 200 us */
-		if (hdmirx_rd_dwc(DWC_PDEC_STS) & PD_TH_START) {
-readpkt:
-			/*how many packet number need read from fifo*/
-			/* If software tries to read more packets from the */
-			/* FIFO than what is stored already, an underflow */
-			/* occurs. */
-			pkt_num = hdmirx_rd_dwc(DWC_PDEC_FIFO_STS1) >> 3;
-			rxpktsts.fifo_pkt_num = pkt_num;
-
-			for (pkt_cnt = 0; pkt_cnt < pkt_num; pkt_cnt++) {
-				/*read one pkt from fifo*/
-				for (j = 0; j < K_ONEPKT_BUFF_SIZE; j++) {
-					/*8 word per packet size*/
-					pd_fifo_buf[i+j] =
+		/* rxpktsts.fifo_Int_cnt++; */
+		pkt_num = hdmirx_rd_dwc(DWC_PDEC_FIFO_STS1);
+		if (log_level & 0x8000)
+			rx_pr("pkt=%d\n", pkt_num);
+		while (pkt_num >= K_ONEPKT_BUFF_SIZE) {
+			rxpktsts.fifo_pkt_num++;
+			/*read one pkt from fifo*/
+			for (j = 0; j < K_ONEPKT_BUFF_SIZE; j++) {
+				/*8 word per packet size*/
+				pd_fifo_buf[j] =
 					hdmirx_rd_dwc(DWC_PDEC_FIFO_DATA);
-				}
-
-				if (log_level & PACKET_LOG)
-					rx_pr("PD[%d]=%x\n", i, pd_fifo_buf[i]);
-
-				pktdata = (union infoframe_u *)&pd_fifo_buf[i];
-				/*mutex_lock(&pktbuff_lock);*/
-				/*pkt decode*/
-				rx_pkt_fifodecode(prx, pktdata, &rxpktsts);
-				/*mutex_unlock(&pktbuff_lock);*/
-				i += 8;
-				if (i > (PFIFO_SIZE - 8))
-					i = 0;
 			}
-			/*while read from buff, other more packets attach*/
-			pkt_num = hdmirx_rd_dwc(DWC_PDEC_FIFO_STS1) >> 3;
-			if (pkt_num > K_PKT_REREAD_SIZE)
-				goto readpkt;
+			if (log_level & PACKET_LOG)
+				rx_pr("PD[%d]=%x\n",
+				      rxpktsts.fifo_pkt_num,
+				      pd_fifo_buf[0]);
+			pktdata = (union infoframe_u *)pd_fifo_buf;
+			rx_pkt_fifodecode(prx, pktdata, &rxpktsts);
+			rx.irq_flag &= ~IRQ_PACKET_FLAG;
+			if (try_cnt != 0)
+				try_cnt--;
+			if (try_cnt == 0)
+				return 0;
+
+			pkt_num = hdmirx_rd_dwc(DWC_PDEC_FIFO_STS1);
 		}
 	} else if (pkt_int_src == PKT_BUFF_SET_VSI) {
 		rxpktsts.pkt_attach_vsi++;
@@ -2062,6 +2140,7 @@ readpkt:
 		rx_pkt_get_vsi_ex(&prx->vs_info);
 		rxpktsts.pkt_op_flag &= ~PKT_OP_VSI;
 		rxpktsts.pkt_cnt_vsi_ex++;
+		rxpktsts.pkt_cnt_vsi++;
 	} else if (pkt_int_src == PKT_BUFF_SET_DRM) {
 		rxpktsts.pkt_attach_drm++;
 		rxpktsts.pkt_op_flag |= PKT_OP_DRM;
