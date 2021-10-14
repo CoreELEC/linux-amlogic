@@ -8,6 +8,13 @@
 			alignment = <0x0 0x400000>;
 		};
 	};
+
+	cpu_opp_table0: cpu_opp_table0 {
+		opp08 {
+			opp-hz = /bits/ 64 <1800000000>;
+			opp-microvolt = <981000>;
+		};
+	};
 };
 
 &ethmac {
