@@ -841,6 +841,8 @@ void vdin_start_dec(struct vdin_dev_s *devp)
 	devp->unreliable_vs_cnt = 0;
 	devp->unreliable_vs_cnt_pre = 0;
 	devp->unreliable_vs_idx = 0;
+	if (devp->dv.dv_flag)
+		color_range_force = COLOR_RANGE_AUTO;
 
 	/* write vframe as default */
 	devp->vframe_wr_en = 1;
@@ -3185,6 +3187,12 @@ static long vdin_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		pr_info("get color range-%d\n\n", color_range_force);
 		break;
 	case TVIN_IOC_SET_COLOR_RANGE:
+		if (devp->dv.dv_flag) {
+			ret = -EFAULT;
+			pr_info("dv not support set COLOR_RANGE\n");
+			break;
+		}
+
 		if (copy_from_user(&color_range_force,
 						argp,
 		sizeof(enum tvin_force_color_range_e))) {
