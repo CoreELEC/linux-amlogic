@@ -8,6 +8,36 @@
 			alignment = <0x0 0x400000>;
 		};
 	};
+
+	cpu_opp_table0: cpu_opp_table0 {
+		opp08 {
+			opp-hz = /bits/ 64 <1800000000>;
+			opp-microvolt = <1020000>;
+		};
+	};
+
+	cpu_opp_table1: cpu_opp_table1 {
+		opp08 {
+			opp-hz = /bits/ 64 <1800000000>;
+			opp-microvolt = <830000>;
+		};
+		opp09 {
+			opp-hz = /bits/ 64 <1908000000>;
+			opp-microvolt = <860000>;
+		};
+		opp10 {
+			opp-hz = /bits/ 64 <2016000000>;
+			opp-microvolt = <910000>;
+		};
+		opp11 {
+			opp-hz = /bits/ 64 <2100000000>;
+			opp-microvolt = <960000>;
+		};
+		opp12 {
+			opp-hz = /bits/ 64 <2208000000>;
+			opp-microvolt = <1030000>;
+		};
+	};
 };
 
 &ethmac {
