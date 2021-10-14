@@ -70,8 +70,8 @@
 #define set_pr_var(a, b, c, d, e)  (comp_set_pr_var((a), \
 	(var_to_str(b)), (&b), (c), (d), (e), (sizeof(b))))
 
-/* update hdmirx/tx edid compose */
-#define RX_VER2 "ver.2021/07/30"
+/* calc phy addr for old chips */
+#define RX_VER2 "ver.2021/10/14"
 
 #define PFIFO_SIZE 160
 #define HDCP14_KEY_SIZE 368
