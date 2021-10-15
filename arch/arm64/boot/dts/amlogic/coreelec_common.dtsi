@@ -152,6 +152,10 @@
 		status = "okay";
 	};
 
+	dummy_venc: dummy_venc {
+		status = "disabled";
+	};
+
 	/delete-node/ sensor;
 	/delete-node/ iq;
 	/delete-node/ demux;
