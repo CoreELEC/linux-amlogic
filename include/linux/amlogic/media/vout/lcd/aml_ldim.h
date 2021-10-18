@@ -236,6 +236,7 @@ struct aml_ldim_driver_s {
 	unsigned char load_db_en;
 	unsigned char db_print_flag;
 	unsigned char rdmif_flag;
+	unsigned char litstep_en;
 	unsigned int state;
 
 	unsigned int data_min;

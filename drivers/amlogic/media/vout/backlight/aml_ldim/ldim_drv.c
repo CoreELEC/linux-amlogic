@@ -145,6 +145,7 @@ static struct aml_ldim_driver_s ldim_driver = {
 	.load_db_en = 1,
 	.db_print_flag = 0,
 	.rdmif_flag = 0,
+	.litstep_en = 0,
 	.state = 0,
 
 	.data_min = LD_DATA_MIN,
@@ -534,6 +535,47 @@ static irqreturn_t ldim_vsync_isr(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
+static unsigned int litgain_pre;
+static unsigned int litgain_cur;
+
+/* return: 0=litgain no change, 1=litgain changed */
+static int ldim_litgain_update(void)
+{
+	if (litgain_pre == 0) {
+		litgain_pre = ldim_driver.litgain;
+		litgain_cur = ldim_driver.litgain;
+		return 1;
+	}
+
+	if (ldim_driver.litstep_en == 0) {
+		litgain_cur = ldim_driver.litgain;
+	} else {
+		if (ldim_driver.litgain >= litgain_pre) {
+			if (ldim_driver.litgain > (litgain_pre + 50))
+				litgain_cur = litgain_pre + 50;
+			else
+				litgain_cur = ldim_driver.litgain;
+		} else {
+			if (litgain_pre <= 50)
+				litgain_cur = ldim_driver.litgain;
+			else if (ldim_driver.litgain < (litgain_pre - 50))
+				litgain_cur = litgain_pre - 50;
+			else
+				litgain_cur = ldim_driver.litgain;
+		}
+	}
+
+	if (litgain_pre != litgain_cur) {
+		if (ldim_debug_print) {
+			LDIMPR("%s: level update: 0x%x\n",
+				__func__, litgain_cur);
+		}
+		return 1;
+	}
+
+	return 0;
+}
+
 static void ldim_on_vs_brightness(void)
 {
 	struct LDReg_s *nprm = ldim_driver.fw_para->nprm;
@@ -564,12 +606,13 @@ static void ldim_on_vs_brightness(void)
 				ldim_driver.test_matrix[i];
 		}
 	} else {
+		ldim_litgain_update();
 		for (i = 0; i < size; i++) {
 			ldim_driver.local_ldim_matrix[i] =
 				(unsigned short)nprm->BL_matrix[i];
 			ldim_driver.ldim_matrix_buf[i] =
 				(unsigned short)
-				(((nprm->BL_matrix[i] * ldim_driver.litgain)
+				(((nprm->BL_matrix[i] * litgain_cur)
 				+ (LD_DATA_MAX / 2)) >> LD_DATA_DEPTH);
 		}
 	}
@@ -581,6 +624,8 @@ static void ldim_on_vs_brightness(void)
 		if (brightness_vs_cnt == 0)
 			LDIMERR("%s: device_bri_update is null\n", __func__);
 	}
+
+	litgain_pre = litgain_cur;
 }
 
 static void ldim_off_vs_brightness(void)
@@ -597,19 +642,11 @@ static void ldim_off_vs_brightness(void)
 
 	size = ldim_driver.conf->hist_row * ldim_driver.conf->hist_col;
 
-	if (ldim_level_update) {
+	ret = ldim_litgain_update();
+	if (ret == 0)
 		ldim_level_update = 0;
-		if (ldim_debug_print) {
-			LDIMPR("%s: level update: 0x%x\n",
-			       __func__, ldim_driver.litgain);
-		}
-		for (i = 0; i < size; i++) {
-			ldim_driver.local_ldim_matrix[i] =
-				(unsigned short)nprm->BL_matrix[i];
-			ldim_driver.ldim_matrix_buf[i] =
-				(unsigned short)(ldim_driver.litgain);
-		}
-	} else {
+
+	if (ldim_level_update == 0) {
 		if (ldim_driver.device_bri_check) {
 			ret = ldim_driver.device_bri_check();
 			if (ret) {
@@ -623,6 +660,12 @@ static void ldim_off_vs_brightness(void)
 		return;
 	}
 
+	for (i = 0; i < size; i++) {
+		ldim_driver.local_ldim_matrix[i] =
+			(unsigned short)nprm->BL_matrix[i];
+		ldim_driver.ldim_matrix_buf[i] = (unsigned short)litgain_cur;
+	}
+
 	if (ldim_driver.device_bri_update) {
 		ldim_driver.device_bri_update(ldim_driver.ldim_matrix_buf,
 					      size);
@@ -630,6 +673,8 @@ static void ldim_off_vs_brightness(void)
 		if (brightness_vs_cnt == 0)
 			LDIMERR("%s: device_bri_update is null\n", __func__);
 	}
+
+	litgain_pre = litgain_cur;
 }
 
 void ldim_on_vs_arithmetic_tm2(void)

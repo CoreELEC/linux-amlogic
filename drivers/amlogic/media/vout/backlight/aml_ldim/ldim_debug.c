@@ -1809,6 +1809,17 @@ static ssize_t ldim_attr_store(struct class *cla,
 				goto ldim_attr_store_err;
 		}
 		pr_info("litgain = %d\n", ldim_drv->litgain);
+	} else if (!strcmp(parm[0], "litstep_en")) {
+		if (parm[1]) {
+			if (!strcmp(parm[1], "r")) {
+				pr_info("for_tool:%d\n", ldim_drv->litstep_en);
+				goto ldim_attr_store_end;
+			}
+			if (kstrtoul(parm[1], 10, &val1) < 0)
+				goto ldim_attr_store_err;
+			ldim_drv->litstep_en = val1 ? 1 : 0;
+		}
+		pr_info("litstep_en = %d\n", ldim_drv->litstep_en);
 	} else if (!strcmp(parm[0], "brightness_bypass")) {
 		if (parm[1]) {
 			if (!strcmp(parm[1], "r")) {
