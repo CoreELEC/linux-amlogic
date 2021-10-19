@@ -3133,9 +3133,9 @@ int hdmi_get_fmt_names(char *names)
 		return 0;
 
 	for (i = 0; all_fmt_paras[i] != NULL; i++) {
-		if (all_fmt_paras[i]->sname && strlen(all_fmt_paras[i]->sname) > 1)
+		if (all_fmt_paras[i]->hdmitx_vinfo.name && strlen(all_fmt_paras[i]->hdmitx_vinfo.name) > 1)
 		{
-			strcat(names, all_fmt_paras[i]->sname);
+			strcat(names, all_fmt_paras[i]->hdmitx_vinfo.name);
 			strcat(names, " ");
 		}
 	}
