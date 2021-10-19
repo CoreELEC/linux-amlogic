@@ -87,6 +87,7 @@ struct jiffies_pcr {
 
 static struct jiffies_pcr jiffies_pcr_record[MAX_PCR_NUM];
 static u8 pcr_flag[MAX_PCR_NUM];
+static struct out_elem *ts_out_elem;
 
 MODULE_PARM_DESC(debug_dmx, "\n\t\t Enable demux debug information");
 static int debug_dmx;
@@ -1919,6 +1920,65 @@ static ssize_t dump_av_level_show(struct class *class,
 	return total;
 }
 
+static ssize_t dump_ts_show(struct class *class,
+				struct class_attribute *attr, char *buf)
+{
+	return 0;
+}
+
+static ssize_t dump_ts_store(struct class *class,
+				 struct class_attribute *attr,
+				 const char *buf, size_t size)
+{
+	struct aml_dvb *advb = aml_get_dvb_device();
+	int ret = 0;
+	int sid = 0;
+	long val = 0;
+
+	if (kstrtol(buf, 0, &val) == 0) {
+		sid = (int)val;
+		dprint("dump sid:0x%0x\n", sid);
+	} else {
+		dprint("%s parameter fail\n", buf);
+		return size;
+	}
+	if (sid == -1 && !ts_out_elem) {
+		dprint("no dump_ts to free\n");
+		return size;
+	}
+	if (mutex_lock_interruptible(&advb->mutex))
+		return -ERESTARTSYS;
+	if (sid == -1 && ts_out_elem) {
+		ts_output_set_dvr_dump(0);
+		ts_output_remove_pid(ts_out_elem, 0x1fff);
+		ts_output_close(ts_out_elem);
+		ts_out_elem = NULL;
+		dprint("have free dump_ts");
+		mutex_unlock(&advb->mutex);
+		return size;
+	}
+
+	ts_out_elem = ts_output_open(sid, 0, DVR_FORMAT, OTHER_TYPE, 0, 0);
+	if (ts_out_elem) {
+		ret = ts_output_set_mem(ts_out_elem,
+					TS_OUTPUT_CHAN_DVR_BUF_SIZE, 0,
+					TS_OUTPUT_CHAN_PTS_BUF_SIZE, 0);
+		if (ret != 0) {
+			ts_output_close(ts_out_elem);
+			ts_out_elem = NULL;
+			mutex_unlock(&advb->mutex);
+			return size;
+		}
+		ts_output_set_dvr_dump(1);
+		ts_output_add_pid(ts_out_elem, 0x1fff, 0x1fff, 0, NULL);
+		dprint("create dump ts success\n");
+	} else {
+		dprint("%s error\n", __func__);
+	}
+
+	mutex_unlock(&advb->mutex);
+	return size;
+}
 static struct class_attribute aml_dmx_class_attrs[] = {
 #ifdef OPEN_REGISTER_NODE
 	__ATTR(register_addr, 0644, register_addr_show,
@@ -1934,6 +1994,8 @@ static struct class_attribute aml_dmx_class_attrs[] = {
 		   NULL),
 	__ATTR(cache_status, 0644, cache_status_show,
 	       cache_status_store),
+	__ATTR(dump_ts, 0644, dump_ts_show,
+	       dump_ts_store),
 	__ATTR_NULL
 };
 
