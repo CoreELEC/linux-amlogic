@@ -1288,12 +1288,8 @@ static int aml_dai_tdm_prepare(struct snd_pcm_substream *substream,
 				hdmitx_ext_set_i2s_mask(runtime->channels, 0x1);
 			}
 
-			if (spdif_get_codec() == AUD_CODEC_TYPE_MULTI_LPCM)
 			aout_notifier_call_chain(AOUT_EVENT_IEC_60958_PCM,
 						 substream);
-			else
-				pr_warn("%s(), i2s2hdmi with wrong fmt,codec_type:%d\n",
-					__func__, spdif_get_codec());
 		}
 
 		fifo_id = aml_frddr_get_fifo_id(fr);
