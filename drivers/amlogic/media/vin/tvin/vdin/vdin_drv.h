@@ -123,12 +123,8 @@ enum vdin_hw_ver_e {
 	 */
 	VDIN_HW_S4,
 	VDIN_HW_S4D,
-	/*
-	 * t3 removed canvas
-	 * no DV meta data slicer
-	 * dv 422 to 444, and to 10 bit 422 (fix shrink issue)
-	 */
 	VDIN_HW_T3,
+	VDIN_HW_T5W,
 };
 
 enum vdin_irq_flg_e {
