@@ -7041,6 +7041,9 @@ static bool need_bypass(struct vframe_s *vf)
 
 	needbypass_flag = true;
 
+	if (di_debug_flag & 0x10000) /* for debugging like in is_bypass function */
+		return ((di_debug_flag >> 17) & 0x1);
+
 	di_vf_x_y(vf, &x, &y);
 
 	if (vf->type & VIDTYPE_MVC)
