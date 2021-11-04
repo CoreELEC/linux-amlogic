@@ -129,7 +129,10 @@ struct extcon_dev *hdmitx_extcon_rxsense;
 struct extcon_dev *hdmitx_extcon_hdcp;
 struct extcon_dev *hdmitx_extcon_cedst;
 
-/* For compliance with p/r, need both extcon and hdmi_event */
+/* For compliance with p/q/r/s, need both extcon and hdmi_event
+ * there're mixed android/kernel combination, android P/Q
+ * only listen to extcon; while R/S only listen to uevent
+ */
 static struct hdmitx_uevent hdmi_events[] = {
 	{
 		.type = HDMITX_HPD_EVENT,
@@ -252,7 +255,9 @@ static void hdmitx_early_suspend(struct early_suspend *h)
 	edidinfo_detach_to_vinfo(hdev);
 	extcon_set_state_sync(hdmitx_extcon_power, EXTCON_DISP_HDMI,
 			      HDMI_SUSPEND);
-	hdmitx_set_uevent(HDMITX_HDCPPWR_EVENT, 0);
+	hdmitx_set_uevent(HDMITX_HDCPPWR_EVENT, HDMI_SUSPEND);
+	extcon_set_state_sync(hdmitx_extcon_audio, EXTCON_DISP_HDMI, 0);
+	hdmitx_set_uevent(HDMITX_AUDIO_EVENT, 0);
 	phdmi->hwop.cntlconfig(&hdmitx_device, CONF_CLR_AVI_PACKET, 0);
 	phdmi->hwop.cntlconfig(&hdmitx_device, CONF_CLR_VSDB_PACKET, 0);
 	/*close vpu clk*/
@@ -333,7 +338,7 @@ static void hdmitx_late_resume(struct early_suspend *h)
 	hdmitx_set_uevent(HDMITX_HPD_EVENT, hdmitx_device.hpd_state);
 	extcon_set_state_sync(hdmitx_extcon_power, EXTCON_DISP_HDMI,
 			      HDMI_WAKEUP);
-	hdmitx_set_uevent(HDMITX_HDCPPWR_EVENT, 1);
+	hdmitx_set_uevent(HDMITX_HDCPPWR_EVENT, HDMI_WAKEUP);
 	extcon_set_state_sync(hdmitx_extcon_audio, EXTCON_DISP_HDMI,
 		hdmitx_device.hpd_state);
 	hdmitx_set_uevent(HDMITX_AUDIO_EVENT, hdmitx_device.hpd_state);
@@ -5747,6 +5752,7 @@ static void hdmitx_rxsense_process(struct work_struct *work)
 
 	sense = hdev->hwop.cntlmisc(hdev, MISC_TMDS_RXSENSE, 0);
 	extcon_set_state_sync(hdmitx_extcon_rxsense, EXTCON_DISP_HDMI, sense);
+	hdmitx_set_uevent(HDMITX_RXSENSE_EVENT, sense);
 	queue_delayed_work(hdev->rxsense_wq, &hdev->work_rxsense, HZ);
 }
 
@@ -5760,6 +5766,8 @@ static void hdmitx_cedst_process(struct work_struct *work)
 	/* firstly send as 0, then real ced, A trigger signal */
 	extcon_set_state_sync(hdmitx_extcon_cedst, EXTCON_DISP_HDMI, 0);
 	extcon_set_state_sync(hdmitx_extcon_cedst, EXTCON_DISP_HDMI, ced);
+	hdmitx_set_uevent(HDMITX_CEDST_EVENT, 0);
+	hdmitx_set_uevent(HDMITX_CEDST_EVENT, ced);
 	queue_delayed_work(hdev->cedst_wq, &hdev->work_cedst, HZ);
 }
 
@@ -5856,6 +5864,13 @@ static void hdmitx_hpd_plugin_handler(struct work_struct *work)
 			  hdmitx_device.edid_ptr : NULL);
 	extcon_set_state_sync(hdmitx_extcon_hdmi, EXTCON_DISP_HDMI, 1);
 	hdmitx_set_uevent(HDMITX_HPD_EVENT, 1);
+	/* audio uevent is used for android to
+	 * register hdmi audio device, it should
+	 * sync with hdmi hpd state.
+	 * 1.when bootup, android will get from hpd_state
+	 * 2.when hotplug or suspend/resume, sync audio
+	 * uevent with hpd uevent
+	 */
 	extcon_set_state_sync(hdmitx_extcon_audio, EXTCON_DISP_HDMI, 1);
 	hdmitx_set_uevent(HDMITX_AUDIO_EVENT, 1);
 	mutex_unlock(&setclk_mutex);
@@ -6051,7 +6066,7 @@ static int hdmi_task_handle(void *data)
 
 	extcon_set_state_sync(hdmitx_extcon_power, EXTCON_DISP_HDMI,
 			      HDMI_WAKEUP);
-	hdmitx_set_uevent(HDMITX_HDCPPWR_EVENT, 1);
+	hdmitx_set_uevent(HDMITX_HDCPPWR_EVENT, HDMI_WAKEUP);
 
 	INIT_WORK(&hdmitx_device->work_hdr, hdr_work_func);
 	hdmitx_device->hdmi_wq = alloc_workqueue(DEVICE_NAME,
