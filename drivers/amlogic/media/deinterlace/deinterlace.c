@@ -7570,6 +7570,10 @@ static void di_pre_size_change(unsigned short width,
 static bool need_bypass(struct vframe_s *vf)
 {
 	needbypass_flag = true;
+
+	if (di_debug_flag & 0x10000) /* for debugging like in is_bypass function */
+		return ((di_debug_flag >> 17) & 0x1);
+
 	if ((is_meson_gxl_package_805X() || is_meson_gxl_package_805Y()) &&
 	    is_progressive(vf))
 		return true;
