@@ -28,7 +28,7 @@
 #include "nr_drv.h"
 #include "../di_local/di_local.h"
 
-#define DI_KEEP_DEC_VF		(1)
+//#define DI_KEEP_DEC_VF		(1)
 /* for android q s805 */
 #define DI_UNREG_RELEAS_ALL_BUF		(1)
 
