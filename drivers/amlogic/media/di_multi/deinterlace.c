@@ -638,6 +638,12 @@ store_dbg(struct device *dev,
 		dim_dump_crc_state();
 	} else if (strncmp(buf, "pulldown", 8) == 0) {
 		dim_dump_pulldown_state();
+	} else if (strncmp(buf, "di_debug_flag", 13) == 0) {
+		unsigned long di_debug_flag = 0;
+
+		if (kstrtoul(buf + 13, 16, &di_debug_flag))
+			return count;
+		dimp_set(edi_mp_di_debug_flag, di_debug_flag);
 	} else {
 		pr_info("DI no support cmd %s!!!\n", buf);
 	}
@@ -1502,10 +1508,10 @@ store_config(struct device *dev,
 
 static unsigned char is_progressive(vframe_t *vframe)
 {
-	unsigned char ret = 0;
+	if (dimp_get(edi_mp_di_debug_flag) & 0x10000) /* for debugging */
+		return (dimp_get(edi_mp_di_debug_flag) >> 17) & 0x1;
 
-	ret = ((vframe->type & VIDTYPE_TYPEMASK) == VIDTYPE_PROGRESSIVE);
-	return ret;
+	return IS_PROG(vframe->type);
 }
 
 //static
@@ -1565,6 +1571,9 @@ unsigned char dim_is_bypass(vframe_t *vf_in, unsigned int ch)
 	struct di_pre_stru_s *ppre = get_pre_stru(ch);
 	unsigned int reason = 0;
 	struct di_ch_s *pch;
+
+	if (dimp_get(edi_mp_di_debug_flag) & 0x10000) /* for debugging */
+		return (dimp_get(edi_mp_di_debug_flag) >> 17) & 0x1;
 
 	/*need bypass*/
 	reason = dim_bypass_check(vf_in);
@@ -10951,6 +10960,9 @@ static unsigned int dim_bypass_check(struct vframe_s *vf)
 {
 	unsigned int reason = 0;
 	unsigned int x, y;
+
+	if (dimp_get(edi_mp_di_debug_flag) & 0x10000) /* for debugging */
+		return (dimp_get(edi_mp_di_debug_flag) >> 17) & 0x1;
 
 	if (dimp_get(edi_mp_di_debug_flag) & 0x100000)
 		reason = 1;
