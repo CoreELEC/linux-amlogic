@@ -118,9 +118,6 @@
 	((src) == VFRAME_SOURCE_TYPE_COMP)	||	\
 	((src) == VFRAME_SOURCE_TYPE_HDMI))
 
-#define VFMT_IS_I(vftype) ((vftype) & VIDTYPE_INTERLACE_BOTTOM)
-#define VFMT_IS_P(vftype) (((vftype) & VIDTYPE_INTERLACE_BOTTOM) == 0)
-
 #define VFMT_IS_I_FIELD(vftype) ((vftype) & VIDTYPE_INTERLACE_BOTTOM	&& \
 			      (vftype) & VIDTYPE_VIU_FIELD)
 
@@ -857,4 +854,22 @@ void dpre_vdoing(unsigned int ch);
 //#define TMP_TEST	(1)
 
 //#define TMP_MASK_FOR_T7 (1)
+
+#include "di_data_l.h"
+#define VFMT_IS_I(vftype)                                     \
+	({                                                          \
+		int ret = (vftype) & VIDTYPE_INTERLACE_BOTTOM;            \
+		if (dimp_get(edi_mp_di_debug_flag) & 0x10000)             \
+			ret = !((dimp_get(edi_mp_di_debug_flag) >> 17) & 0x1);  \
+		ret;                                                      \
+	})
+
+#define VFMT_IS_P(vftype)                                     \
+({                                                            \
+		int ret = ((vftype) & VIDTYPE_INTERLACE_BOTTOM) == 0;     \
+		if (dimp_get(edi_mp_di_debug_flag) & 0x10000)             \
+			ret = (dimp_get(edi_mp_di_debug_flag) >> 17) & 0x1;     \
+		ret;                                                      \
+})
+
 #endif
