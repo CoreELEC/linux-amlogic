@@ -37,6 +37,9 @@ obj-$(CONFIG_DVB_CX24117) += cx24117.o
 obj-$(CONFIG_DVB_CX24120) += cx24120.o
 obj-$(CONFIG_DVB_CX24123) += cx24123.o
 obj-$(CONFIG_DVB_CXD2099) += cxd2099.o
+obj-$(CONFIG_DVB_CXD2878) += cxd2878.o
+CFLAGS_cxd2878.o += -Wno-parentheses -Wno-uninitialized -Wno-switch \
+		    -Wno-unused-variable -Wno-unused-value
 obj-$(CONFIG_DVB_CXD2820R) += cxd2820r.o
 obj-$(CONFIG_DVB_CXD2841ER) += cxd2841er.o
 obj-$(CONFIG_DVB_CXD2880) += cxd2880/
