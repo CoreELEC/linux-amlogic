@@ -3022,15 +3022,28 @@ static long amvecm_ioctl(struct file *file,
 		}
 		break;
 	case AMVECM_IOC_G_PQ_CTRL:
-		argp = (void __user *)arg;
-		pq_ctrl.length = sizeof(struct pq_ctrl_s);
-		pq_ctrl.ptr = (void *)&pq_cfg;
-		if (copy_to_user(argp, &pq_ctrl,
-				 sizeof(struct vpp_pq_ctrl_s))) {
+		if (copy_from_user(
+			&pq_ctrl,
+			(void __user *)arg,
+			sizeof(struct vpp_pq_ctrl_s))) {
 			ret = -EFAULT;
-			pr_info("pq control cp to user fail\n");
+			pr_amvecm_dbg("pq control cp vpp_pq_ctrl_s fail\n");
 		} else {
-			pr_info("pq control cp to user success\n");
+			argp = (void __user *)pq_ctrl.ptr;
+			pr_amvecm_dbg("argp = %p\n", argp);
+			mem_size = sizeof(struct pq_ctrl_s);
+			if (pq_ctrl.length > mem_size) {
+				pq_ctrl.length = mem_size;
+				pr_amvecm_dbg("system control length > kernel length\n");
+			}
+			if (copy_to_user(
+				argp,
+				&pq_cfg,
+				mem_size)) {
+				ret = -EFAULT;
+				pr_amvecm_dbg("pq control cp to user fail\n");
+			} else
+				pr_amvecm_dbg("pq control cp to user success\n");
 		}
 		break;
 	case AMVECM_IOC_S_MESON_CPU_VER:
