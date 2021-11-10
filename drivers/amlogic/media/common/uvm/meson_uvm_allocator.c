@@ -62,7 +62,7 @@ static void mua_handle_free(struct uvm_buf_obj *obj)
 }
 
 static int meson_uvm_fill_pattern(struct mua_buffer *buffer,
-				  struct dma_buf *dmabuf, void *vaddr)
+					struct dma_buf *dmabuf, void *vaddr)
 {
 	struct v4l_data_t val_data;
 
@@ -83,7 +83,7 @@ static int meson_uvm_fill_pattern(struct mua_buffer *buffer,
 }
 
 static int mua_process_gpu_realloc(struct dma_buf *dmabuf,
-				   struct uvm_buf_obj *obj, int scalar)
+					struct uvm_buf_obj *obj, int scalar)
 {
 	int i, j, num_pages;
 	struct ion_handle *handle;
@@ -103,8 +103,11 @@ static int mua_process_gpu_realloc(struct dma_buf *dmabuf,
 			__func__, scalar, buffer->width, buffer->height);
 	memset(&info, 0, sizeof(info));
 
+	MUA_PRINTK(1, "%p, current->tgid:%d mdev->pid:%d buffer->commit_display:%d.\n",
+		__func__, current->tgid, mdev->pid, buffer->commit_display);
+
 	if (!enable_screencap && current->tgid == mdev->pid &&
-	    buffer->commit_display) {
+		buffer->commit_display) {
 		MUA_PRINTK(0, "screen cap should not access the uvm buffer.\n");
 		return -ENODEV;
 	}
@@ -164,7 +167,7 @@ static int mua_process_gpu_realloc(struct dma_buf *dmabuf,
 }
 
 static int mua_process_delay_alloc(struct dma_buf *dmabuf,
-				   struct uvm_buf_obj *obj)
+					struct uvm_buf_obj *obj, u64 *flag)
 {
 	int i, j, num_pages;
 	struct ion_handle *handle;
@@ -182,16 +185,19 @@ static int mua_process_delay_alloc(struct dma_buf *dmabuf,
 	buffer = container_of(obj, struct mua_buffer, base);
 	memset(&info, 0, sizeof(info));
 
-	MUA_PRINTK(1, "%p, %d.\n", __func__, __LINE__);
+	MUA_PRINTK(1, "%p, current->tgid:%d mdev->pid:%d buffer->commit_display:%d.\n",
+		__func__, current->tgid, mdev->pid, buffer->commit_display);
+
 	if (!enable_screencap && current->tgid == mdev->pid &&
-	    buffer->commit_display) {
-		MUA_PRINTK(0, "screen cap should not access the uvm buffer.\n");
+		buffer->commit_display) {
+		*flag |= BIT(UVM_SKIP_REALLOC);
+		MUA_PRINTK(0, "screen cap should not access the uvm buffer. *flag:%llu\n", *flag);
 		return -ENODEV;
 	}
 
 	if (!buffer->handle) {
 		handle = ion_alloc(mdev->client, dmabuf->size, 0,
-				   (1 << ION_HEAP_TYPE_CUSTOM), 0);
+					(1 << ION_HEAP_TYPE_CUSTOM), 0);
 		if (IS_ERR(handle)) {
 			MUA_PRINTK(0, "%s: ion_alloc fail.\n", __func__);
 			return -ENOMEM;

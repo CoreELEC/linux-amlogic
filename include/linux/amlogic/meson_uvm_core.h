@@ -39,6 +39,7 @@ enum uvm_alloc_flag {
 	UVM_DELAY_ALLOC,
 	UVM_FAKE_ALLOC,
 	UVM_SECURE_ALLOC,
+	UVM_SKIP_REALLOC
 };
 
 /**
@@ -111,7 +112,8 @@ struct uvm_alloc {
 	int scalar;
 	struct uvm_buf_obj *obj;
 	void (*free)(struct uvm_buf_obj *obj);
-	int (*delay_alloc)(struct dma_buf *dmabuf, struct uvm_buf_obj *obj);
+	int (*delay_alloc)(struct dma_buf *dmabuf,
+			struct uvm_buf_obj *obj, u64 *flag);
 	int (*gpu_realloc)(struct dma_buf *dmabuf,
 			struct uvm_buf_obj *obj, int scalar);
 };
@@ -123,7 +125,8 @@ struct uvm_alloc_info {
 	struct sg_table *sgt;
 	struct uvm_buf_obj *obj;
 	void (*free)(struct uvm_buf_obj *obj);
-	int (*delay_alloc)(struct dma_buf *dmabuf, struct uvm_buf_obj *obj);
+	int (*delay_alloc)(struct dma_buf *dmabuf,
+			struct uvm_buf_obj *obj, u64 *flag);
 	int (*gpu_realloc)(struct dma_buf *dmabuf,
 			struct uvm_buf_obj *obj, int scalar);
 };

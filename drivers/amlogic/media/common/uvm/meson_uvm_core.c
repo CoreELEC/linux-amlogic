@@ -59,14 +59,14 @@ static void uvm_handle_destroy(struct kref *kref)
 static int meson_uvm_attach(struct dma_buf *dmabuf, struct device *dev,
 			    struct dma_buf_attachment *attach)
 {
-	UVM_PRINTK(1, "%s called, %s.\n", __func__, current->comm);
+	UVM_PRINTK(2, "%s called, %s.\n", __func__, current->comm);
 	return 0;
 }
 
 static void meson_uvm_detach(struct dma_buf *dmabuf,
 			     struct dma_buf_attachment *attach)
 {
-	UVM_PRINTK(1, "%s called, %s.\n", __func__, current->comm);
+	UVM_PRINTK(2, "%s called, %s.\n", __func__, current->comm);
 	/* TODO */
 }
 
@@ -79,6 +79,7 @@ static struct sg_table *meson_uvm_map_dma_buf(
 	struct uvm_alloc *ua;
 	struct sg_table *sgt;
 	bool gpu_access = false;
+	u64 flag = 0;
 
 	if (strstr(dev_name(attachment->dev), "bifrost") ||
 		strstr(dev_name(attachment->dev), "mali")) {
@@ -89,11 +90,19 @@ static struct sg_table *meson_uvm_map_dma_buf(
 	handle = dmabuf->priv;
 	ua = handle->ua;
 
-	UVM_PRINTK(1, "%s called, %s. gpu_access:%d\n",
-			__func__, current->comm, gpu_access);
+	UVM_PRINTK(1, "%s called, %s. gpu_access:%d ua->flags:%llu dmabuf:%p\n",
+			__func__, current->comm, gpu_access, ua->flags, dmabuf);
 
-	if (ua->flags & BIT(UVM_DELAY_ALLOC) && gpu_access)
-		ua->delay_alloc(dmabuf, ua->obj);
+	if (ua->flags & BIT(UVM_DELAY_ALLOC) && gpu_access) {
+		if (ua->flags & BIT(UVM_SKIP_REALLOC))
+			return ERR_PTR(-ENOMEM);
+
+		if (ua->delay_alloc(dmabuf, ua->obj, &flag)) {
+			ua->flags |= flag;
+			UVM_PRINTK(0, "delay_realloc fail. ua->flags:%llu\n", ua->flags);
+			return ERR_PTR(-ENOMEM);
+		}
+	}
 
 	if (ua->flags & BIT(UVM_IMM_ALLOC) && gpu_access && ua->scalar > 1) {
 		UVM_PRINTK(1, "begin ua->gpu_realloc. size: %zu scalar: %d\n",
@@ -115,7 +124,7 @@ static struct sg_table *meson_uvm_map_dma_buf(
 
 	if (ua->flags & BIT(UVM_FAKE_ALLOC)) {
 		dma_map_page(attachment->dev, sg_page(sgt->sgl), 0,
-			     UVM_FAKE_SIZE, direction);
+					UVM_FAKE_SIZE, direction);
 	} else if (!dma_map_sg(attachment->dev, sgt->sgl, sgt->nents,
 				direction)) {
 		UVM_PRINTK(0, "meson_uvm: dma_map_sg call failed.\n");
@@ -134,13 +143,19 @@ static void meson_uvm_unmap_dma_buf(struct dma_buf_attachment *attachment,
 	struct uvm_handle *handle;
 	struct uvm_alloc *ua;
 
+	if (!attachment || !sgt)
+		return;
+
 	dmabuf = attachment->dmabuf;
 	handle = dmabuf->priv;
 	ua = handle->ua;
 
-	UVM_PRINTK(1, "%s called, %s.\n", __func__, current->comm);
-	if (ua->flags & BIT(UVM_SECURE_ALLOC))
+	UVM_PRINTK(1, "%s called, %s. sgt:%p dmabuf:%p handle:%p ua:%p\n",
+				__func__, current->comm, sgt, dmabuf, handle, ua);
+
+	if (ua->flags & (BIT(UVM_SECURE_ALLOC) | BIT(UVM_SKIP_REALLOC)))
 		return;
+
 	if (ua->flags & BIT(UVM_FAKE_ALLOC))
 		dma_unmap_page(attachment->dev, sgt->sgl->dma_address,
 			       UVM_FAKE_SIZE, direction);
@@ -155,7 +170,7 @@ static void meson_uvm_release(struct dma_buf *dmabuf)
 	struct uvm_handle *handle = dmabuf->priv;
 	struct uvm_alloc *ua = handle->ua;
 
-	UVM_PRINTK(1, "%s called, %s.\n", __func__, current->comm);
+	UVM_PRINTK(2, "%s called, %s.\n", __func__, current->comm);
 
 	if (ua->free)
 		ua->free(ua->obj);
@@ -169,41 +184,41 @@ static void meson_uvm_release(struct dma_buf *dmabuf)
 static int meson_uvm_begin_cpu_access(struct dma_buf *dmabuf,
 				      enum dma_data_direction dir)
 {
-	UVM_PRINTK(1, "%s called.\n", __func__);
+	UVM_PRINTK(2, "%s called.\n", __func__);
 	return 0;
 }
 
 static int meson_uvm_end_cpu_access(struct dma_buf *dmabuf,
 				    enum dma_data_direction dir)
 {
-	UVM_PRINTK(1, "%s called.\n", __func__);
+	UVM_PRINTK(2, "%s called.\n", __func__);
 	return 0;
 }
 
 static void *meson_uvm_kmap(struct dma_buf *dmabuf, unsigned long offset)
 {
-	UVM_PRINTK(1, "%s called.\n", __func__);
+	UVM_PRINTK(2, "%s called.\n", __func__);
 	return NULL;
 }
 
 static void meson_uvm_kunmap(struct dma_buf *dmabuf,
 			     unsigned long offset, void *ptr)
 {
-	UVM_PRINTK(1, "%s called.\n", __func__);
+	UVM_PRINTK(2, "%s called.\n", __func__);
 	/* TODO */
 }
 
 static void *meson_uvm_kmap_atomic(struct dma_buf *dmabuf,
 				   unsigned long offset)
 {
-	UVM_PRINTK(1, "%s called.\n", __func__);
+	UVM_PRINTK(2, "%s called.\n", __func__);
 	return NULL;
 }
 
 static void meson_uvm_kunmap_atomic(struct dma_buf *dmabuf,
 				    unsigned long offset, void *ptr)
 {
-	UVM_PRINTK(1, "%s called.\n", __func__);
+	UVM_PRINTK(2, "%s called.\n", __func__);
 	/* TODO */
 }
 
@@ -243,7 +258,7 @@ static void *meson_uvm_vmap(struct dma_buf *dmabuf)
 		return ERR_PTR(-ENOMEM);
 
 	handle->ua->vaddr = vaddr;
-	UVM_PRINTK(1, "%s called.\n", __func__);
+	UVM_PRINTK(2, "%s called.\n", __func__);
 	return vaddr;
 }
 
@@ -251,7 +266,7 @@ static void meson_uvm_vunmap(struct dma_buf *dmabuf, void *vaddr)
 {
 	struct uvm_handle *handle = dmabuf->priv;
 
-	UVM_PRINTK(1, "%s called.\n", __func__);
+	UVM_PRINTK(2, "%s called.\n", __func__);
 	vunmap(handle->ua->vaddr);
 }
 
@@ -265,7 +280,7 @@ static int meson_uvm_mmap(struct dma_buf *dmabuf, struct vm_area_struct *vma)
 	unsigned long addr = vma->vm_start;
 	unsigned long offset = vma->vm_pgoff * PAGE_SIZE;
 
-	UVM_PRINTK(1, "%s called.\n", __func__);
+	UVM_PRINTK(2, "%s called.\n", __func__);
 
 	if (!table) {
 		UVM_PRINTK(0, "buffer was not allocated.\n");
@@ -580,7 +595,7 @@ int uvm_attach_hook_mod(struct dma_buf *dmabuf,
 	handle->mod_attached_mask |= 1 << (uhmod->type);
 	mutex_unlock(&handle->lock);
 
-	UVM_PRINTK(1, "%s called.\n", __func__);
+	UVM_PRINTK(2, "%s called.\n", __func__);
 
 	return 0;
 }
@@ -588,7 +603,7 @@ EXPORT_SYMBOL(uvm_attach_hook_mod);
 
 int uvm_detach_hook_mod(struct dma_buf *dmabuf, int type)
 {
-	UVM_PRINTK(1, "%s called.\n", __func__);
+	UVM_PRINTK(2, "%s called.\n", __func__);
 	return uvm_put_hook_mod(dmabuf, type);
 }
 EXPORT_SYMBOL(uvm_detach_hook_mod);
@@ -631,7 +646,7 @@ struct uvm_hook_mod *uvm_get_hook_mod(struct dma_buf *dmabuf,
 	if (uhmod)
 		kref_get(&uhmod->ref);
 
-	UVM_PRINTK(1, "%s %px, %d.\n", __func__, uhmod, type);
+	UVM_PRINTK(2, "%s %px, %d.\n", __func__, uhmod, type);
 	return uhmod;
 }
 EXPORT_SYMBOL(uvm_get_hook_mod);
@@ -642,7 +657,7 @@ static void uvm_hook_mod_release(struct kref *kref)
 
 	uhmod = container_of(kref, struct uvm_hook_mod, ref);
 	list_del(&uhmod->list);
-	UVM_PRINTK(1, "%s called, %px.\n", __func__, uhmod);
+	UVM_PRINTK(2, "%s called, %px.\n", __func__, uhmod);
 	uhmod->free(uhmod->arg);
 }
 
