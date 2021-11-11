@@ -1533,6 +1533,11 @@ static int osd_open(struct fb_info *info, int arg)
 		int vpu_clkc_rate;
 		if (osd_get_logo_index() != LOGO_DEV_VIU2_OSD0) {
 			/* select mux0, if select mux1, mux0 must be set */
+			if (!osd_meson_dev.vpu_clkc)
+			{
+				struct platform_device *pdev = fbdev->dev;
+				osd_meson_dev.vpu_clkc = devm_clk_get(&pdev->dev, "vpu_clkc");
+			}
 			clk_prepare_enable(osd_meson_dev.vpu_clkc);
 			clk_set_rate(osd_meson_dev.vpu_clkc, CUR_VPU_CLKC_CLK);
 			vpu_clkc_rate = clk_get_rate(osd_meson_dev.vpu_clkc);
@@ -1900,6 +1905,7 @@ static int osd_release(struct fb_info *info, int arg)
 		if (osd_meson_dev.has_viu2 &&
 		    fbdev->fb_index == osd_meson_dev.viu2_index)
 			clk_disable_unprepare(osd_meson_dev.vpu_clkc);
+		osd_meson_dev.vpu_clkc = NULL;
 		osd_hw.powered[fbdev->fb_index] = 0;
 	}
 	fbdev->open_count--;
