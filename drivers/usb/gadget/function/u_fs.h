@@ -147,7 +147,7 @@ enum ffs_setup_state {
 	FFS_SETUP_CANCELLED
 };
 
-#define FFS_BUFFER_MAX	100
+#define FFS_BUFFER_MAX	256
 struct ffs_data_buffer {
 	char *data_ep;
 	int data_state;
