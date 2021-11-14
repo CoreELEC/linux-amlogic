@@ -1839,7 +1839,7 @@ static s32 recycle_cnt[MAX_VD_LAYERS];
 
 static u32 post_canvas;
 
-u32 blackout;
+u32 blackout = 1;
 u32 force_blackout;
 u32 blackout_pip;
 u32 blackout_pip2;
