@@ -895,7 +895,7 @@ static s32 recycle_cnt[2];
 
 static u32 post_canvas;
 
-static u32 blackout;
+static u32 blackout = 1;
 u32 force_blackout;
 static u32 blackout_pip;
 
