@@ -319,14 +319,14 @@
 				system-clock-frequency = <12288000>;
 			};
 			tdmacodec: codec {
-				sound-dai = <&dummy_codec &acodec>;
+				sound-dai = <&dummy_codec>;
 			};
 		};
 
 		aml-audio-card,dai-link@1 {
 			format = "i2s";
 			mclk-fs = <256>;
-			continuous-clock;
+			//continuous-clock;
 			//bitclock-inversion;
 			//frame-inversion;
 			/* master mode */
@@ -336,7 +336,7 @@
 			//bitclock-master = <&tdmbcodec>;
 			//frame-master = <&tdmbcodec>;
 			/* suffix-name, sync with android audio hal used for */
-			suffix-name = "alsaPORT-i2s";
+			suffix-name = "alsaPORT-i2s-i2s4hdmirx";
 			cpu {
 				sound-dai = <&tdmb>;
 				dai-tdm-slot-tx-mask = <1 1>;
@@ -364,7 +364,7 @@
 			//bitclock-master = <&tdmccodec>;
 			//frame-master = <&tdmccodec>;
 			/* suffix-name, sync with android audio hal used for */
-			//suffix-name = "alsaPORT-tdm";
+			suffix-name = "alsaPORT-i2s4parser";
 			cpu {
 				sound-dai = <&tdmc>;
 				dai-tdm-slot-tx-mask = <1 1>;
@@ -440,6 +440,19 @@
 				sound-dai = <&dummy_codec>;
 			};
 		};
+
+		aml-audio-card,dai-link@8 {
+			mclk-fs = <256>;
+			suffix-name = "alsaPORT-earc";
+			cpu {
+				sound-dai = <&earc>;
+				system-clock-frequency = <12288000>;
+			};
+			codec {
+				sound-dai = <&dummy_codec>;
+			};
+		};
+
 	};
 
 	codec_mm {
@@ -552,9 +565,6 @@
 				&clkc CLKID_MPLL0>;
 		clock-names = "mclk", "clk_srcpll";
 
-		/* enable control gain */
-		ctrl_gain = <1>;
-
 		status = "okay";
 	};
 
@@ -562,7 +572,7 @@
 		compatible = "amlogic, t7-snd-tdmb";
 		#sound-dai-cells = <0>;
 
-		dai-tdm-lane-slot-mask-in = <1 0>;
+		dai-tdm-lane-slot-mask-in = <1 1 1 1>;
 		dai-tdm-lane-slot-mask-out = <1 1 1 1>;
 		dai-tdm-clk-sel = <1>;
 
@@ -583,7 +593,8 @@
 		 */
 		samesource_sel = <3>;
 		/* In for ACODEC_ADC */
-		tdmin-src-name = "acodec_adc";
+		/* tdmin-src-name = "acodec_adc"; */
+		tdmin-src-name = "hdmirx";
 		/*enable default mclk(12.288M), before extern codec start*/
 		start_clk_enable = <1>;
 
@@ -606,17 +617,14 @@
 		compatible = "amlogic, t7-snd-tdmc";
 		#sound-dai-cells = <0>;
 
-		dai-tdm-lane-slot-mask-in = <1 0 0 0>;
+		dai-tdm-lane-slot-mask-in = <1 1 1 1>;
 		dai-tdm-lane-slot-mask-out = <1 0 0 0>;
 		dai-tdm-clk-sel = <2>;
 
 		clocks = <&clkaudio CLKID_AUDIO_MCLK_C
 				&clkc CLKID_MPLL2>;
 		clock-names = "mclk", "clk_srcpll";
-
-		/* enable control gain */
-		ctrl_gain = <1>;
-
+		tdmin-src-name = "hdmirx";
 		status = "okay";
 	};
 
@@ -687,7 +695,7 @@
 	};
 
 	extn:extn {
-		compatible = "amlogic, tm2-snd-extn";
+		compatible = "amlogic, t7-snd-extn";
 		#sound-dai-cells = <0>;
 
 		interrupts =
@@ -757,7 +765,7 @@
 
 		/*this resample is only used for loopback_A.*/
 
-		status = "disabled";
+		status = "okay";
 	};
 
 	vad:vad {
@@ -1103,3 +1111,10 @@
 	};
 };
 
+&uart_A {
+	status = "okay";
+	uart-has-rtscts;
+};
+
+&earc {
+	status = "okay";};

@@ -135,6 +135,389 @@
 		};
 	};
 
+	vcc_3v3_reg: fixedregulator@5{
+		vin-supply = <&vddao3v3_reg>;
+		compatible = "regulator-fixed";
+		regulator-name = "VCC_3V3";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-boot-on;
+		gpio = <&gpio_ao GPIOD_10 GPIO_ACTIVE_HIGH>;	/* gpio d 10 */
+		startup-delay-us = <70000>;
+		enable-active-high;
+	};
+
+	avdd0v8_reg: fixedregulator@6{
+		compatible = "regulator-fixed";
+		vin-supply = <&vcc_3v3_reg>;
+		regulator-name = "AVDD0V8";
+		regulator-min-microvolt = <800000>;
+		regulator-max-microvolt = <800000>;
+		regulator-boot-on;
+		regulator-always-on;
+	};
+
+	avdd1v8_reg: fixedregulator@7{
+		compatible = "regulator-fixed";
+		vin-supply = <&vcc_3v3_reg>;
+		regulator-name = "AVDD1V8";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		regulator-boot-on;
+		regulator-always-on;
+	};
+
+	vdd18_boot_reg: fixedregulator@8{
+		compatible = "regulator-fixed";
+		vin-supply = <&vcc_3v3_reg>;
+		regulator-name = "VDD18_BOOT";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		regulator-boot-on;
+		regulator-always-on;
+	};
+
+	unifykey{
+		compatible = "amlogic,unifykey";
+		status = "okay";
+		unifykey-num = <24>;
+		unifykey-index-0 = <&keysn_0>;
+		unifykey-index-1 = <&keysn_1>;
+		unifykey-index-2 = <&keysn_2>;
+		unifykey-index-3 = <&keysn_3>;
+		unifykey-index-4 = <&keysn_4>;
+		unifykey-index-5 = <&keysn_5>;
+		unifykey-index-6 = <&keysn_6>;
+		unifykey-index-7 = <&keysn_7>;
+		unifykey-index-8 = <&keysn_8>;
+		unifykey-index-9 = <&keysn_9>;
+		unifykey-index-10= <&keysn_10>;
+		unifykey-index-11= <&keysn_11>;
+		unifykey-index-12= <&keysn_12>;
+		unifykey-index-13= <&keysn_13>;
+		unifykey-index-14= <&keysn_14>;
+		unifykey-index-15= <&keysn_15>;
+		unifykey-index-16= <&keysn_16>;
+		unifykey-index-17= <&keysn_17>;
+		unifykey-index-18= <&keysn_18>;
+		unifykey-index-19= <&keysn_19>;
+		unifykey-index-20= <&keysn_20>;
+		unifykey-index-21= <&keysn_21>;
+		unifykey-index-22= <&keysn_22>;
+		unifykey-index-23= <&keysn_23>;
+
+		keysn_0: key_0{
+			key-name = "usid";
+			key-device = "normal";
+			key-permit = "read","write","del";
+		};
+		keysn_1:key_1{
+			key-name = "mac";
+			key-device = "normal";
+			key-permit = "read","write","del";
+		};
+		keysn_2:key_2{
+			key-name = "hdcp";
+			key-device = "secure";
+			key-type = "sha1";
+			key-permit = "read","write","del";
+		};
+		keysn_3:key_3{
+			key-name = "secure_boot_set";
+			key-device = "efuse";
+			key-permit = "write";
+		};
+		keysn_4:key_4{
+			key-name = "mac_bt";
+			key-device = "normal";
+			key-permit = "read","write","del";
+			key-type  = "mac";
+		};
+		keysn_5:key_5{
+			key-name = "mac_wifi";
+			key-device = "normal";
+			key-permit = "read","write","del";
+			key-type = "mac";
+		};
+		keysn_6:key_6{
+			key-name = "hdcp2_tx";
+			key-device = "normal";
+			key-permit = "read","write","del";
+		};
+		keysn_7:key_7{
+			key-name = "hdcp2_rx";
+			key-device = "normal";
+			key-permit = "read","write","del";
+		};
+		keysn_8:key_8{
+			key-name = "widevinekeybox";
+			key-device = "secure";
+			key-permit = "read","write","del";
+		};
+		keysn_9:key_9{
+			key-name = "deviceid";
+			key-device = "normal";
+			key-permit = "read","write","del";
+		};
+		keysn_10:key_10{
+			key-name = "hdcp22_fw_private";
+			key-device = "secure";
+			key-permit = "read","write","del";
+		};
+		keysn_11:key_11{
+			key-name = "PlayReadykeybox25";
+			key-device = "secure";
+			key-permit = "read","write","del";
+		};
+		keysn_12:key_12{
+			key-name = "prpubkeybox";// PlayReady
+			key-device = "secure";
+			key-permit = "read","write","del";
+		};
+		keysn_13:key_13{
+			key-name = "prprivkeybox";// PlayReady
+			key-device = "secure";
+			key-permit = "read","write","del";
+		};
+		keysn_14:key_14{
+			key-name = "attestationkeybox";// attestation key
+			key-device = "secure";
+			key-permit = "read","write","del";
+		};
+		keysn_15:key_15{
+			key-name = "region_code";
+			key-device = "normal";
+			key-permit = "read","write","del";
+		};
+		keysn_16:key_16{
+			key-name = "netflix_mgkid";
+			key-device = "secure";
+			key-permit = "read","write","del";
+		};
+		keysn_17:key_17{
+			key-name = "attestationdevidbox";// attest dev id box
+			key-device = "secure";
+			key-permit = "read","write","del";
+		};
+		keysn_18:key_18{
+			key-name = "oemkey";
+			key-device = "normal";
+			key-permit = "read","write","del";
+		};
+		keysn_19:key_19{
+			key-name = "lcd";
+			key-device = "normal";
+			key-permit = "read","write","del";
+		};
+		keysn_20:key_20{
+			key-name = "lcd_extern";
+			key-device = "normal";
+			key-permit = "read","write","del";
+		};
+		keysn_21:key_21{
+			key-name = "backlight";
+			key-device = "normal";
+			key-permit = "read","write","del";
+		};
+		keysn_22:key_22{
+			key-name = "lcd_tcon";
+			key-device = "normal";
+			key-permit = "read","write","del";
+		};
+		keysn_23:key_23{
+			key-name = "lcd_tcon_spi";
+			key-device = "normal";
+			key-permit = "read","write","del";
+		};
+	};//End unifykey
+
+	/* for external keypad */
+	adc_keypad {
+		compatible = "amlogic, adc_keypad";
+		status = "okay";
+		key_name = "power","vol-","vol+","enter","menu","source","exit";
+		key_num = <7>;
+		io-channels = <&saradc SARADC_CH1>,<&saradc SARADC_CH2>;
+		io-channel-names = "key-chan-1", "key-chan-2";
+		key_chan = <SARADC_CH1 SARADC_CH1 SARADC_CH1 SARADC_CH1
+			SARADC_CH1 SARADC_CH2 SARADC_CH2>;
+		key_code = <116 114 115 28 139 466 174>;
+		key_val = <0 143 266 389 507 143 266>; //val=voltage/1800mV*1023
+		key_tolerance = <40 40 40 40 40 40 40>;
+	};
+
+	/* Audio Related start */
+	auge_sound {
+		compatible = "amlogic, auge-sound-card";
+		aml-audio-card,name = "AML-AUGESOUND";
+
+		avout_mute-gpios = <&gpio_ao GPIOD_6 GPIO_ACTIVE_HIGH>;
+
+		interrupts = <GIC_SPI 235 IRQ_TYPE_EDGE_RISING>;
+		interrupt-names = "audio_exception64";
+
+		aml-audio-card,dai-link@0 {
+			format = "i2s";
+			mclk-fs = <256>;
+			//continuous-clock;
+			//bitclock-inversion;
+			//frame-inversion;
+			/* master mode */
+			bitclock-master = <&tdma>;
+			frame-master = <&tdma>;
+			/* slave mode */
+			/*
+			 * bitclock-master = <&tdmacodec>;
+			 * frame-master = <&tdmacodec>;
+			 */
+			/* suffix-name, sync with android audio hal used for */
+			suffix-name = "alsaPORT-pcm";
+			tdmacpu: cpu {
+				sound-dai = <&tdma>;
+				dai-tdm-slot-tx-mask =
+							<1 1>;
+				dai-tdm-slot-rx-mask =
+							<1 1>;
+				dai-tdm-slot-num = <2>;
+				dai-tdm-slot-width = <32>;
+				system-clock-frequency = <12288000>;
+			};
+			tdmacodec: codec {
+				sound-dai = <&dummy_codec>;
+			};
+		};
+
+		aml-audio-card,dai-link@1 {
+			format = "i2s";
+			mclk-fs = <256>;
+			continuous-clock;
+			//bitclock-inversion;
+			//frame-inversion;
+			/* master mode */
+			bitclock-master = <&tdmb>;
+			frame-master = <&tdmb>;
+			/* slave mode */
+			//bitclock-master = <&tdmbcodec>;
+			//frame-master = <&tdmbcodec>;
+			/* suffix-name, sync with android audio hal used for */
+			suffix-name = "alsaPORT-i2s";
+			cpu {
+				sound-dai = <&tdmb>;
+				dai-tdm-slot-tx-mask = <1 1>;
+				dai-tdm-slot-rx-mask = <1 1>;
+				dai-tdm-slot-num = <2>;
+				dai-tdm-slot-width = <32>;
+				system-clock-frequency = <12288000>;
+			};
+			tdmbcodec: codec {
+				sound-dai = <&dummy_codec>;
+			};
+		};
+
+		aml-audio-card,dai-link@2 {
+			format = "i2s";
+			mclk-fs = <256>;
+			//continuous-clock;
+			//bitclock-inversion;
+			//frame-inversion;
+			/* master mode */
+			bitclock-master = <&tdmc>;
+			frame-master = <&tdmc>;
+			/* slave mode */
+			//bitclock-master = <&tdmccodec>;
+			//frame-master = <&tdmccodec>;
+			/* suffix-name, sync with android audio hal used for */
+			//suffix-name = "alsaPORT-tdm";
+			cpu {
+				sound-dai = <&tdmc>;
+				dai-tdm-slot-tx-mask = <1 1>;
+				dai-tdm-slot-rx-mask = <1 1>;
+				dai-tdm-slot-num = <2>;
+				dai-tdm-slot-width = <32>;
+				system-clock-frequency = <12288000>;
+			};
+			tdmccodec: codec {
+				sound-dai = <&dummy_codec>;
+			};
+		};
+
+		aml-audio-card,dai-link@3 {
+			mclk-fs = <64>;
+			/* suffix-name, sync with android audio hal used for */
+			suffix-name = "alsaPORT-pdm";
+			cpu {
+				sound-dai = <&pdm>;
+			};
+			codec {
+				sound-dai = <&dummy_codec>;
+			};
+		};
+
+		aml-audio-card,dai-link@4 {
+			mclk-fs = <128>;
+			continuous-clock;
+			/* suffix-name, sync with android audio hal used for */
+			suffix-name = "alsaPORT-spdif";
+			cpu {
+				sound-dai = <&spdifa>;
+				system-clock-frequency = <6144000>;
+			};
+			codec {
+				sound-dai = <&dummy_codec>;
+			};
+		};
+
+		aml-audio-card,dai-link@5 {
+			mclk-fs = <128>;
+			suffix-name = "alsaPORT-spdifb";
+			cpu {
+				sound-dai = <&spdifb>;
+				system-clock-frequency = <6144000>;
+			};
+			codec {
+				sound-dai = <&dummy_codec>;
+			};
+		};
+
+		aml-audio-card,dai-link@6 {
+			mclk-fs = <256>;
+			suffix-name = "alsaPORT-tv";
+			cpu {
+				sound-dai = <&extn>;
+				system-clock-frequency = <12288000>;
+			};
+			codec {
+				sound-dai = <&dummy_codec>;
+			};
+		};
+
+		aml-audio-card,dai-link@7 {
+			mclk-fs = <256>;
+			continuous-clock;
+			suffix-name = "alsaPORT-loopback";
+			cpu {
+				sound-dai = <&loopbacka>;
+				system-clock-frequency = <12288000>;
+			};
+			codec {
+				sound-dai = <&dummy_codec>;
+			};
+		};
+
+		aml-audio-card,dai-link@8 {
+			mclk-fs = <256>;
+			suffix-name = "alsaPORT-earc";
+			cpu {
+				sound-dai = <&earc>;
+				system-clock-frequency = <12288000>;
+			};
+			codec {
+				sound-dai = <&dummy_codec>;
+			};
+		};
+
+	};
+>>>>>>> 57d682eb6a62... Audio: add hdmi in function and earc function [1/1]
 	codec_mm {
 		compatible = "amlogic, codec, mm";
 		memory-region = <&codec_mm_cma &codec_mm_reserved>;
@@ -378,7 +761,7 @@
 	};
 
 	extn:extn {
-		compatible = "amlogic, tm2-snd-extn";
+		compatible = "amlogic, t7-snd-extn";
 		#sound-dai-cells = <0>;
 
 		interrupts =
@@ -745,4 +1128,28 @@
 	status = "okay";
 	phy-handle = <&internal_ephy>;
 	phy-mode = "rmii";
+};
+
+&saradc {
+	status = "okay";
+};
+
+&pinctrl_periphs {
+	pdmin: pdmin {
+		mux { /* GPIOH_19, GPIOH_18 */
+			groups = "pdm_dclk_h19",
+				"pdm_din0_h18",
+				"pdm_din1_h14";
+			function = "pdm";
+		};
+	};
+};
+
+&uart_A {
+	status = "okay";
+	uart-has-rtscts;
+};
+
+&earc {
+	status = "okay";
 };
