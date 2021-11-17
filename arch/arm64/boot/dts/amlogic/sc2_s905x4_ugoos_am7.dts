@@ -1,0 +1,79 @@
+#include "coreelec_sc2.dtsi"
+
+/ {
+	model = "Ugoos AM7";
+	coreelec-dt-id = "sc2_s905x4_ah212";
+
+	/delete-node/ memory@00000000;
+
+	wifi{
+		dhd_static_buf; /* if use bcm wifi, config dhd_static_buf */
+	};
+
+	gpioleds {
+		/* red led */
+		net_red {
+			label="net_red";
+			gpios=<&gpio GPIOD_11 GPIO_ACTIVE_LOW>;
+			linux,default-trigger="default-on";
+			retain-state-suspended;
+		};
+
+		/* green led */
+		sys_led {
+			gpios=<&gpio GPIOD_10 GPIO_ACTIVE_HIGH>;
+		};
+
+		/* blue led */
+		net_blue {
+			label="net_blue";
+			gpios=<&gpio GPIOH_7 GPIO_ACTIVE_LOW>;
+			linux,default-trigger="default-on";
+			retain-state-shutdown;
+		};
+	};
+
+	auge_sound {
+		/delete-property/ avout_mute-gpios;
+	};
+};
+
+&ethmac {
+	rst_pin-gpios = <&gpio GPIOZ_15 GPIO_ACTIVE_LOW>;
+};
+
+&i2c3 {
+	status = "okay";
+	clock-frequency = <100000>; /* default 100k */
+
+	hym8563: hym8563@51 {
+		compatible = "haoyu,hym8563";
+		reg = <0x51>;
+		#clock-cells = <0>;
+		clock-frequency = <32768>;
+		clock-output-names = "xin32k";
+	};
+
+	es8388: es8388@10 {
+		status = "okay";
+		compatible = "everest,es8388";
+		#sound-dai-cells = <0>;
+		reg = <0x10>;
+		/*spk-con-gpio = <&gpio GPIOA_6 0x00>;*/
+		def-vol = <0x1d>;
+		def-dacvol = <0x0a>;
+	};
+};
+
+&usb2_phy_v2 {
+	gpio-vbus-power = "GPIOH_6";
+	gpios = <&gpio GPIOH_6 GPIO_ACTIVE_HIGH>;
+};
+
+&usb3_phy_v2 {
+	default-host; // or default-otg, or nothing for auto
+};
+
+&sd_emmc_b {
+	status = "disabled";
+};
