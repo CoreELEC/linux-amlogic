@@ -155,6 +155,7 @@ static int c_show(struct seq_file *m, void *v)
 		{ "S905X3", MESON_CPU_MAJOR_ID_SM1, 0x01, 0x0f },
 		{ "S905X3", MESON_CPU_MAJOR_ID_SM1, 0x10, 0xf0 },
 		{ "S905D3", MESON_CPU_MAJOR_ID_SM1, 0xb0, 0xf0 },
+		{ "S905X4", MESON_CPU_MAJOR_ID_SC2, 0x2, 0xf },
 	};
 #endif
 
