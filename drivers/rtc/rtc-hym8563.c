@@ -518,6 +518,9 @@ static int hym8563_probe(struct i2c_client *client,
 {
 	struct hym8563 *hym8563;
 	int ret;
+#ifdef CONFIG_RTC_DRV_HYM8563_SHW_PATCH
+	u8 buf1[7]={0x00,0x00,0x00,0x01,0x03,0x81,0x14};
+#endif
 
 	hym8563 = devm_kzalloc(&client->dev, sizeof(*hym8563), GFP_KERNEL);
 	if (!hym8563)
@@ -554,8 +557,32 @@ static int hym8563_probe(struct i2c_client *client,
 	if (ret < 0)
 		return ret;
 
+#ifdef CONFIG_RTC_DRV_HYM8563_SHW_PATCH
+	dev_warn(&client->dev, "rtc information is %s\n",
+#else
 	dev_dbg(&client->dev, "rtc information is %s\n",
+#endif
 		(ret & HYM8563_SEC_VL) ? "invalid" : "valid");
+
+#ifdef CONFIG_RTC_DRV_HYM8563_SHW_PATCH
+	if (ret & HYM8563_SEC_VL) {
+		/* software clear VL */
+		ret = i2c_smbus_write_byte_data(client, HYM8563_SEC, ret&(~(1<<7)));
+		if (ret < 0)
+			return ret;
+		/* check state of calendar information */
+		ret = i2c_smbus_read_byte_data(client, HYM8563_SEC);
+		if (ret < 0)
+			return ret;
+		ret = i2c_smbus_write_i2c_block_data(client, HYM8563_SEC, 7, buf1);
+		if (ret < 0)
+			return ret;
+		printk("hym8563 init time!\n");
+
+		dev_warn(&client->dev, "again, rtc information is %s\n",
+		(ret & HYM8563_SEC_VL) ? "invalid" : "valid");
+	}
+#endif
 
 	hym8563->rtc = devm_rtc_device_register(&client->dev, client->name,
 						&hym8563_rtc_ops, THIS_MODULE);
