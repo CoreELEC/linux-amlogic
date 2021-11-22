@@ -5236,7 +5236,7 @@ bool di_hf_t_try_alloc(struct di_ch_s *pch)
 
 	get_datal()->hf_busy = true;
 	get_datal()->hf_owner = pch->ch_id;
-	PR_INF("hf:t:ch[%d]:alloc:ok\n", pch->ch_id);
+	PR_INF("hf:a:ch[%d]:alloc:ok\n", pch->ch_id);
 	return true;
 }
 
@@ -5257,6 +5257,9 @@ void di_hf_t_release(struct di_ch_s *pch)
 		get_datal()->hf_src_cnt--;
 		pch->en_hf_buf = false;
 	}
+	PR_INF("hf:r:ch[%d]:cnt[%d]\n",
+		pch->ch_id,
+		get_datal()->hf_src_cnt);
 }
 
 void di_hf_reg(struct di_ch_s *pch)
@@ -5280,6 +5283,14 @@ void di_hf_reg(struct di_ch_s *pch)
 
 	if (di_hf_t_try_alloc(pch))
 		pch->en_hf = true;
+}
+
+void di_hf_polling_active(struct di_ch_s *pch)
+{
+	if (pch->en_hf_buf && !pch->en_hf) {
+		if (di_hf_t_try_alloc(pch))
+			pch->en_hf = true;
+	}
 }
 
 static DEFINE_SPINLOCK(di_hf_lock);
