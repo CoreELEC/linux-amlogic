@@ -1747,7 +1747,8 @@ static int hdmitx_edid_block_parse(struct hdmitx_dev *hdev,
 	prxcap->native_VIC = 0xff;
 
 	Edid_Y420CMDB_Reset(&(hdev->hdmi_info));
-
+	if (end > 126)
+		return 0;
 	for (offset = 4 ; offset < end ; ) {
 		tag = blockbuf[offset] >> 5;
 		count = blockbuf[offset] & 0x1f;
