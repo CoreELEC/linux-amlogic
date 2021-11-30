@@ -15,6 +15,7 @@ dtb-$(CONFIG_ARM64) += g12b_s922x_beelink_gt_king_rev_a.dtb
 dtb-$(CONFIG_ARM64) += g12b_s922x_beelink_gs_king_x.dtb
 dtb-$(CONFIG_ARM64) += g12b_s922x_beelink_gs_king_x_rev_a.dtb
 dtb-$(CONFIG_ARM64) += g12b_s922x_minix_u22xj.dtb
+dtb-$(CONFIG_ARM64) += g12b_s922x_minix_u22xj_max.dtb
 dtb-$(CONFIG_ARM64) += g12b_s922x_odroid_n2.dtb
 dtb-$(CONFIG_ARM64) += g12b_s922x_odroid_n2plus.dtb
 dtb-$(CONFIG_ARM64) += g12b_s922x_ugoos_am6_2g.dtb
