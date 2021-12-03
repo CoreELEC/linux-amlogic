@@ -570,6 +570,40 @@ static int eo_y_hdr_10000[143] = {
 	6903, 7431, 8001, 8616, 9281, 10000
 };
 
+int eo_y_lut_hdr_merge_oo[143] = {
+	132288, 136832, 165440, 181832, 193440, 202088, 210400, 216476, 221882,
+	227920, 231986, 235648, 239639, 243964, 247193, 249698, 252377, 271330,
+	285261, 297148, 306377, 314682, 321922, 329204, 334486, 340750, 346085,
+	350369, 355325, 360734, 363991, 367697, 371896, 376636, 379400, 382389,
+	385731, 389458, 393410, 395711, 398260, 401078, 404188, 407615, 410492,
+	412562, 414834, 417322, 420045, 423021, 426127, 427900, 429831, 431934,
+	434222, 436709, 439410, 442342, 443945, 445668, 447230, 448187, 449224,
+	450344, 451555, 452864, 454277, 455803, 457449, 458988, 459945, 460977,
+	462089, 463286, 464576, 465964, 467458, 469066, 470795, 472655, 474655,
+	475971, 477126, 478368, 479702, 481136, 482676, 484330, 486107, 488015,
+	490063, 491891, 493071, 494339, 495699, 497159, 498727, 500409, 502262,
+	504308, 506503, 508381, 509646, 511003, 512460, 512934, 513098, 513279,
+	513477, 513691, 513923, 514172, 514438, 514720, 515017, 515328, 515650,
+	515981, 516320, 516662, 517006, 517349, 517689, 518022, 518347, 518662,
+	518968, 519263, 519549, 519827, 520097, 520363, 520625, 520888, 521155,
+	521431, 521727, 522054, 522431, 522871, 523371, 523881, 524287
+};
+
+int oo_y_lut_hdr_sdr_bp[149] = {
+	255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
+	255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
+	255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
+	255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
+	255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
+	255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
+	255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
+	255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
+	255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
+	255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
+	255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
+	255, 255, 255, 255, 255, 255
+};
+
 unsigned int hdr10_pr;
 unsigned int hdr10_clip_disable = 1;
 unsigned int hdr10_clip_luma;
@@ -1526,6 +1560,10 @@ void set_hdr_matrix(
 				/* use integer mode for gamut coeff */
 				gmut_shift = 0;
 			}
+
+			if ((get_cpu_type() == MESON_CPU_MAJOR_ID_G12A) ||
+				(get_cpu_type() == MESON_CPU_MAJOR_ID_G12B))
+				gmut_shift = 11;
 		} else
 			/* 2048 as 1.0 for gamut coeff */
 			gmut_shift = 11;
@@ -1585,6 +1623,13 @@ void set_hdr_matrix(
 				adpscl_shift[1] = OO_NOR -
 				_log2((1 << OO_NOR) / oo_y_lut_hdr_sdr[148])
 				- 1;
+			}
+
+			if ((hdr_mtx_param->p_sel & HDR_SDR) &&
+				((get_cpu_type() == MESON_CPU_MAJOR_ID_G12A) ||
+				(get_cpu_type() == MESON_CPU_MAJOR_ID_G12B))) {
+				adpscl_shift[0] = adp_scal_x_shift;
+				adpscl_shift[1] = 8;
 			}
 		} else if (hdr_mtx_param->p_sel & HLG_SDR) {
 			if (hdr_mtx_param->gmt_bit_mode) {
@@ -2333,6 +2378,20 @@ enum hdr_process_sel hdr_func(
 			if (i < HDR2_CGAIN_LUT_SIZE)
 				hdr_lut_param.cgain_lut[i] = cgain_lut1[i] - 1;
 		}
+
+		if (is_meson_g12a_cpu() ||
+		    is_meson_g12b_cpu()) {
+			for (i = 0; i < HDR2_OETF_LUT_SIZE; i++) {
+				hdr_lut_param.oetf_lut[i]  = oe_y_lut_sdr[i];
+				hdr_lut_param.ogain_lut[i] = oo_y_lut_hdr_sdr_bp[i];
+				if (i < HDR2_EOTF_LUT_SIZE)
+					hdr_lut_param.eotf_lut[i] =
+						eo_y_lut_hdr_merge_oo[i];
+
+				if (i < HDR2_CGAIN_LUT_SIZE)
+					hdr_lut_param.cgain_lut[i] = cgain_lut1[i] - 1;
+			}
+		}
 		hdr_lut_param.lut_on = LUT_ON;
 		hdr_lut_param.bitdepth = bit_depth;
 		hdr_lut_param.cgain_en = LUT_OFF;
@@ -2830,6 +2889,15 @@ enum hdr_process_sel hdr_func(
 				hdr_mtx_param.mtx_gamut[i] =
 				ncl_2020_709_8bit[i];
 		}
+
+			if ((is_meson_g12a_cpu() ||
+			    is_meson_g12b_cpu()) &&
+			    (hdr_process_select & HDR_SDR)) {
+				for (i = 0; i < 9; i++)
+					hdr_mtx_param.mtx_gamut[i] =
+					ncl_2020_709[i];
+			}
+
 		for (i = 0; i < MTX_NUM_PARAM; i++) {
 			hdr_mtx_param.mtx_in[i] = coeff_in[i];
 			hdr_mtx_param.mtx_cgain[i] = rgb2ycbcr_709[i];
@@ -3235,6 +3303,10 @@ int hdr10_tm_update(
 	int bit_depth;
 	unsigned int i = 0;
 	struct hdr_proc_mtx_param_s hdr_mtx_param;
+
+	if (is_meson_g12a_cpu() ||
+		is_meson_g12b_cpu())
+		return 0;
 
 	if (disable_flush_flag)
 		return hdr_process_select;

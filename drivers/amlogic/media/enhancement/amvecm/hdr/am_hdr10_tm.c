@@ -444,6 +444,11 @@ int hdr10_tm_dynamic_proc(struct vframe_master_display_colour_s *p)
 	int scn_chang_flag = 1;
 	struct aml_tmo_reg_sw *pre_tmo_reg;
 
+	if (!is_hdr_tmo_support()) {
+		pr_hdr_tm("ic unsupport tmo\n");
+		return 0;
+	}
+
 	if (p->luminance[0] > 10000)
 		p->luminance[0] /= 10000;
 	/*no luminance*/
