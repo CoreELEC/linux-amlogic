@@ -64,7 +64,8 @@
 /* Ref.2019/04/25: tl1 vdin0 afbce dynamically switch support,
  *                 vpp also should support this function
  */
-#define VDIN_VER "ver:2021-0901: txlx/tl1 bringup"
+
+#define VDIN_VER "ver:2021-1218: use same porttype to screenshot"
 
 enum vdin_work_mode_e {
 	VDIN_WORK_MD_NORMAL = 0,
@@ -727,6 +728,7 @@ extern unsigned int vdin_get_prop_in_fe_en;
 
 char *vf_get_receiver_name(const char *provider_name);
 int start_tvin_service(int no, struct vdin_parm_s *para);
+int start_tvin_capture_ex(int dev_num, int port, struct vdin_parm_s  *para);
 int stop_tvin_service(int no);
 int vdin_reg_v4l2(struct vdin_v4l2_ops_s *v4l2_ops);
 void vdin_unreg_v4l2(void);

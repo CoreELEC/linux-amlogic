@@ -901,15 +901,16 @@
 #define VDIN_HDR2_PROC_WIN2 0x12ba
 #define VDIN_HDR2_MATRIXI_EN_CTRL 0x12bb
 #define VDIN_HDR2_MATRIXO_EN_CTRL 0x12bc
+#define VDIN_WRARB_REQEN_SLV       0x12c1
 /*g12a new add end*/
 
-#define VDIN_WRARB_REQEN_SLV       0x12c1
-
+/*TL1 new add begin*/
 #define VDIN_CRC_CHK	0x12c9
 #define VDIN_CRC_CHK_START_BIT	0
 #define VDIN_CRC_CHK_START_WID	1
 
 #define VDIN_RO_CRC	0x12ca
+/*TL1 new add end*/
 
 /*tm2 new add begin*/
 #define VDIN_VSHRK_SIZE_M1	0x12d9

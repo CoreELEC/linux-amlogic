@@ -1007,8 +1007,8 @@ int start_tvin_service(int no, struct vdin_parm_s  *para)
 	mutex_lock(&devp->fe_lock);
 	fmt = devp->parm.info.fmt;
 	if (vdin_dbg_en) {
-		pr_info("**[%s]cfmt:%d;dfmt:%d;dest_hactive:%d;",
-				__func__, para->cfmt,
+		pr_info("**[%s]port:0x%x, cfmt:%d;dfmt:%d;dest_hactive:%d;",
+				__func__, para->port, para->cfmt,
 				para->dfmt, para->dest_hactive);
 		pr_info("dest_vactive:%d;frame_rate:%d;h_active:%d,",
 				para->dest_vactive, para->frame_rate,
@@ -1247,6 +1247,31 @@ int stop_tvin_service(int no)
 }
 EXPORT_SYMBOL(stop_tvin_service);
 
+/*
+ * dev_num: 0:vdin0 1:vdin1
+ * port 0: capure_osd_plus_video = 0
+ * port 1: capure_only_video
+ */
+int start_tvin_capture_ex(int dev_num, int port, struct vdin_parm_s  *para)
+{
+	unsigned int loop_port;
+	unsigned int vdin_dev;
+
+	if (port == 1)/*only video*/
+		loop_port = TVIN_PORT_VIU1_WB0_VD1;
+	else if (port == 0)/*osd + video*/
+		loop_port = TVIN_PORT_VIU1_WB0_VPP;
+	else
+		loop_port = TVIN_PORT_VIU1_WB0_VD1;
+	para->port = loop_port;
+
+	if (dev_num == 0)
+		vdin_dev = 0;
+	else
+		vdin_dev = 1;
+	return start_tvin_service(vdin_dev, para);
+}
+
 static void get_tvin_canvas_info(int *start, int *num)
 {
 	*start = vdin_canvas_ids[0][0];
@@ -1390,6 +1415,7 @@ static struct vdin_v4l2_ops_s vdin_4v4l2_ops = {
 	.set_tvin_canvas_info = NULL,
 	.tvin_fe_func         = vdin_ioctl_fe,
 	.tvin_vdin_func	      = vdin_func,
+	.start_tvin_service_ex = start_tvin_capture_ex,
 };
 
 void vdin_pause_dec(struct vdin_dev_s *devp)
@@ -2353,7 +2379,8 @@ irqreturn_t vdin_v4l2_isr(int irq, void *dev_id)
 		stamp  = vdin_get_meas_vstamp(offset);
 
 	/* check input content is pretected */
-	if (vdin_dbg_en && (devp->irq_cnt % 20 == 0)) {
+	if ((vdin_isr_monitor & BIT(8)) &&
+	    (devp->irq_cnt % 10 == 0)) {
 		pr_info("hdcp(%d.%d) matx:%d\n",
 			vdin0_devp->pre_prop.hdcp_sts,
 			vdin0_devp->prop.hdcp_sts,
@@ -2363,7 +2390,9 @@ irqreturn_t vdin_v4l2_isr(int irq, void *dev_id)
 	pretect_mode = vdin0_devp->prop.hdcp_sts ? 4 : 0;
 	if (pretect_mode != devp->matrix_pattern_mode) {
 		devp->matrix_pattern_mode = pretect_mode;
-		pr_info("vdin0:hdcp chg to %d\n", vdin0_devp->prop.hdcp_sts);
+		if (vdin_isr_monitor & BIT(8))
+			pr_info("vdin0:hdcp chg to %d\n",
+				vdin0_devp->prop.hdcp_sts);
 		vdin_set_matrix(devp);
 	}
 

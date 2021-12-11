@@ -1781,7 +1781,8 @@ void vdin_set_matrix(struct vdin_dev_s *devp)
 			devp->prop.vdin_hdr_flag | devp->dv.dv_flag,
 			devp->color_range_mode);
 
-		vdin_set_hdr(devp);
+		if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12A))
+			vdin_set_hdr(devp);
 
 		#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 		if (vdin_is_dolby_signal_in(devp) ||
@@ -2439,7 +2440,7 @@ unsigned int vdin_get_chma_canvas_id(unsigned int offset)
 
 void vdin_set_crc_pulse(struct vdin_dev_s *devp)
 {
-	if (!cpu_after_eq(MESON_CPU_MAJOR_ID_SM1))
+	if (!cpu_after_eq(MESON_CPU_MAJOR_ID_TL1))
 		return;
 
 #ifdef CONFIG_AMLOGIC_MEDIA_RDMA
@@ -2812,6 +2813,9 @@ void vdin_set_vframe_prop_info(struct vframe_s *vf,
 
 void vdin_get_crc_val(struct vframe_s *vf, struct vdin_dev_s *devp)
 {
+	if (!cpu_after_eq(MESON_CPU_MAJOR_ID_TL1))
+		return;
+
 	/* fetch CRC value of the previous frame */
 	vf->crc = rd(devp->addr_offset, VDIN_RO_CRC);
 }
