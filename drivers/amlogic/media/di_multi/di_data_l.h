@@ -1908,6 +1908,7 @@ struct di_ch_s {
 	unsigned int sum_pre;
 	unsigned int sum_pst;
 	unsigned int in_cnt;
+	unsigned int crc_cnt;
 	/*@ary_note:*/
 	unsigned int self_trig_mask;
 	unsigned int self_trig_need;
