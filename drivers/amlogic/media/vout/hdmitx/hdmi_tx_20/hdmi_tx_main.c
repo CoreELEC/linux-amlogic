@@ -581,8 +581,6 @@ static void edidinfo_attach_to_vinfo(struct hdmitx_dev *hdev)
 		return;
 
 	hdrinfo_to_vinfo(info, hdev);
-	if (hdev->para->cd == COLORDEPTH_24B)
-		memset(&info->hdr_info, 0, sizeof(struct hdr_info));
 	rxlatency_to_vinfo(info, &hdev->rxcap);
 	hdmitx_vdev.dv_info = &hdmitx_device.rxcap.dv_info;
 }
