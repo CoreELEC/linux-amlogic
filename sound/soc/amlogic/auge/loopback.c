@@ -606,7 +606,8 @@ static int loopback_set_ctrl(struct loopback *p_loopback, int bitwidth)
 
 		lb_set_datalb_cfg(p_loopback->id,
 			&datalb_cfg,
-			p_loopback->chipinfo->multi_bits_lbsrcs);
+			p_loopback->chipinfo->multi_bits_lbsrcs,
+			p_loopback->chipinfo->use_resamplea);
 	}
 
 	tdminlb_set_format(p_loopback->lb_format == SND_SOC_DAIFMT_I2S);
