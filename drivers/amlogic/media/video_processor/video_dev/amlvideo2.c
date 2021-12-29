@@ -949,10 +949,10 @@ int amlvideo2_ge2d_interlace_two_canvasaddr_process(struct vframe_s *vf,
 	dst_left = (output->width - dst_width) / 2;
 	dst_top = dst_top & 0xfffffffe;
 	dst_left = dst_left & 0xfffffffe;
-	node->crop_info.source_top_crop = dst_top;
-	node->crop_info.source_left_crop = dst_left;
-	node->crop_info.source_width_crop = dst_width;
-	node->crop_info.source_height_crop = dst_height;
+	//node->crop_info.source_top_crop = dst_top;
+	//node->crop_info.source_left_crop = dst_left;
+	//node->crop_info.source_width_crop = dst_width;
+	//node->crop_info.source_height_crop = dst_height;
 
 	/* data operating. */
 
@@ -1758,10 +1758,10 @@ int amlvideo2_ge2d_interlace_vdindata_process(struct vframe_s *vf,
 	dst_left = (output->width - dst_width) / 2;
 	dst_top = dst_top & 0xfffffffe;
 	dst_left = dst_left & 0xfffffffe;
-	node->crop_info.source_top_crop = dst_top;
-	node->crop_info.source_left_crop = dst_left;
-	node->crop_info.source_width_crop = dst_width;
-	node->crop_info.source_height_crop = dst_height;
+	//node->crop_info.source_top_crop = dst_top;
+	//node->crop_info.source_left_crop = dst_left;
+	//node->crop_info.source_width_crop = dst_width;
+	//node->crop_info.source_height_crop = dst_height;
 	/* data operating. */
 
 	memset(ge2d_config, 0, sizeof(struct config_para_ex_s));
@@ -2198,10 +2198,10 @@ int amlvideo2_ge2d_interlace_one_canvasaddr_process(struct vframe_s *vf,
 	dst_left = (output->width - dst_width) / 2;
 	dst_top = dst_top & 0xfffffffe;
 	dst_left = dst_left & 0xfffffffe;
-	node->crop_info.source_top_crop = dst_top;
-	node->crop_info.source_left_crop = dst_left;
-	node->crop_info.source_width_crop = dst_width;
-	node->crop_info.source_height_crop = dst_height;
+	//node->crop_info.source_top_crop = dst_top;
+	//node->crop_info.source_left_crop = dst_left;
+	//node->crop_info.source_width_crop = dst_width;
+	//node->crop_info.source_height_crop = dst_height;
 	/* data operating. */
 
 	memset(ge2d_config, 0, sizeof(struct config_para_ex_s));
@@ -2633,10 +2633,10 @@ int amlvideo2_ge2d_interlace_dtv_process(struct vframe_s *vf,
 	dst_left = (output->width - dst_width) / 2;
 	dst_top = dst_top & 0xfffffffe;
 	dst_left = dst_left & 0xfffffffe;
-	node->crop_info.source_top_crop = dst_top;
-	node->crop_info.source_left_crop = dst_left;
-	node->crop_info.source_width_crop = dst_width;
-	node->crop_info.source_height_crop = dst_height;
+	//node->crop_info.source_top_crop = dst_top;
+	//node->crop_info.source_left_crop = dst_left;
+	//node->crop_info.source_width_crop = dst_width;
+	//node->crop_info.source_height_crop = dst_height;
 	/* data operating. */
 
 	memset(ge2d_config, 0, sizeof(struct config_para_ex_s));
@@ -3030,10 +3030,10 @@ int amlvideo2_ge2d_multi_pre_process(struct vframe_s *vf,
 	dst_left = (output->width - dst_width) / 2;
 	dst_top = dst_top & 0xfffffffe;
 	dst_left = dst_left & 0xfffffffe;
-	node->crop_info.source_top_crop = dst_top;
-	node->crop_info.source_left_crop = dst_left;
-	node->crop_info.source_width_crop = dst_width;
-	node->crop_info.source_height_crop = dst_height;
+	//node->crop_info.source_top_crop = dst_top;
+	//node->crop_info.source_left_crop = dst_left;
+	//node->crop_info.source_width_crop = dst_width;
+	//node->crop_info.source_height_crop = dst_height;
 	/* data operating. */
 
 	memset(ge2d_config, 0, sizeof(struct config_para_ex_s));
@@ -3321,10 +3321,10 @@ int amlvideo2_ge2d_pre_process(struct vframe_s *vf,
 	dst_left = (output->width - dst_width) / 2;
 	dst_top = dst_top & 0xfffffffe;
 	dst_left = dst_left & 0xfffffffe;
-	node->crop_info.source_top_crop = dst_top;
-	node->crop_info.source_left_crop = dst_left;
-	node->crop_info.source_width_crop = dst_width;
-	node->crop_info.source_height_crop = dst_height;
+	//node->crop_info.source_top_crop = dst_top;
+	//node->crop_info.source_left_crop = dst_left;
+	//node->crop_info.source_width_crop = dst_width;
+	//node->crop_info.source_height_crop = dst_height;
 	/* data operating. */
 
 	memset(ge2d_config, 0, sizeof(struct config_para_ex_s));
