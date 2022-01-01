@@ -45,6 +45,7 @@ MODULE_AUTHOR("Johnson Leung");
 MODULE_LICENSE("GPL");
 
 static int enable_wol = 0;
+static int auto_negotiation_en = 0;
 
 #ifdef CONFIG_AMLOGIC_ETH_PRIVE
 unsigned int support_external_phy_wol;
@@ -144,7 +145,7 @@ static int rtl8211f_reset(struct phy_device *phydev)
 	do {
 		msleep(50);
 		ret = phy_read(phydev, MII_BMSR);
-	} while (!(ret & BMSR_ANEGCOMPLETE) && --retries);
+	} while (!(ret & BMSR_ANEGCOMPLETE) && --retries && auto_negotiation_en);
 
 	return 0;
 }
@@ -241,6 +242,8 @@ int rtl8211f_resume(struct phy_device *phydev)
 	int ret;
 	u16 reg;
 
+	mutex_lock(&phydev->lock);
+
 #ifdef CONFIG_AMLOGIC_ETH_PRIVE
 	/*switch page d08*/
 	phy_write(phydev, RTL8211F_PAGE_SELECT, 0xd08);
@@ -263,8 +266,6 @@ int rtl8211f_resume(struct phy_device *phydev)
 	}
 	phy_write(phydev, RTL8211F_PAGE_SELECT, 0x0);
 #endif
-
-	mutex_lock(&phydev->lock);
 
 	/* enable TX-delay for rgmii-id and rgmii-txid, otherwise disable it */
 	phy_write(phydev, RTL8211F_PAGE_SELECT, 0xd08);
@@ -289,6 +290,9 @@ int rtl8211f_resume(struct phy_device *phydev)
 
 	/*reset phy to apply*/
 	ret = rtl8211f_reset(phydev);
+
+	/* enable auto negotiation after boot */
+	auto_negotiation_en = 1;
 
 	mutex_unlock(&phydev->lock);
 
