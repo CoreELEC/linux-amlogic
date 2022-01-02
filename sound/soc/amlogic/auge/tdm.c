@@ -222,7 +222,8 @@ static int aml_tdm_set_lanes(struct aml_tdm *p_tdm,
 		for (i = 0; i < p_tdm->lane_cnt; i++) {
 			if (((1 << i) & lane_mask) && lanes) {
 				aml_tdm_set_channel_mask(p_tdm->actrl,
-					stream, p_tdm->id, i, setting->tx_mask);
+					stream, p_tdm->id, i, setting->tx_mask,
+					p_tdm->chipinfo->use_vadtop);
 				lanes--;
 			}
 		}
@@ -234,19 +235,22 @@ static int aml_tdm_set_lanes(struct aml_tdm *p_tdm,
 		if (p_tdm->lane_cnt > LANE_MAX1)
 			swap_val1 = 0xfedcba98;
 		aml_tdm_set_lane_channel_swap(p_tdm->actrl,
-			stream, p_tdm->id, swap_val, swap_val1);
+			stream, p_tdm->id, swap_val, swap_val1,
+			p_tdm->chipinfo->use_vadtop);
 	} else {
 		/* set lanes mask acordingly */
 		lane_mask = setting->lane_mask_in;
 
 		if (p_tdm->chipinfo->slot_num_en && setting->slots > 0)
 			aml_tdmin_set_slot_num(p_tdm->actrl, p_tdm->id,
-					       setting->slots);
+					       setting->slots,
+					       p_tdm->chipinfo->use_vadtop);
 
 		for (i = 0; i < p_tdm->lane_cnt; i++) {
 			if (((1 << i) & lane_mask) && lanes) {
 				aml_tdm_set_channel_mask(p_tdm->actrl,
-					stream, p_tdm->id, i, setting->rx_mask);
+					stream, p_tdm->id, i, setting->rx_mask,
+					p_tdm->chipinfo->use_vadtop);
 				lanes--;
 			}
 		}
@@ -254,7 +258,8 @@ static int aml_tdm_set_lanes(struct aml_tdm *p_tdm,
 		if (p_tdm->lane_cnt > LANE_MAX1)
 			swap_val1 = 0xfedcba98;
 		aml_tdm_set_lane_channel_swap(p_tdm->actrl,
-			stream, p_tdm->id, swap_val, swap_val1);
+			stream, p_tdm->id, swap_val, swap_val1,
+			p_tdm->chipinfo->use_vadtop);
 	}
 
 	return 0;
@@ -279,7 +284,8 @@ static int aml_set_bclk_ratio(struct aml_tdm *p_tdm, unsigned int ratio)
 		(p_tdm->actrl,
 		p_tdm->clk_sel,
 		lrclk_hi,
-		bclk_ratio);
+		bclk_ratio,
+		p_tdm->chipinfo->use_vadtop);
 
 	return 0;
 }
@@ -291,7 +297,8 @@ static int aml_tdm_set_clkdiv(struct aml_tdm *p_tdm, int div)
 	pr_debug("%s, div %d, clksel(%d)\n", __func__, div, p_tdm->clk_sel);
 	p_tdm->setting.sysclk_bclk_ratio = div;
 	mclk_ratio = div - 1;
-	aml_tdm_set_lrclkdiv(p_tdm->actrl, p_tdm->clk_sel, mclk_ratio);
+	aml_tdm_set_lrclkdiv(p_tdm->actrl, p_tdm->clk_sel, mclk_ratio,
+			     p_tdm->chipinfo->use_vadtop);
 	return 0;
 }
 
@@ -389,7 +396,8 @@ static int aml_tdm_set_fmt(struct aml_tdm *p_tdm, unsigned int fmt, bool capture
 		tdmin_src_hdmirx = true;
 	aml_tdm_set_format(p_tdm->actrl, &p_tdm->setting,
 			   p_tdm->clk_sel, p_tdm->id, fmt, 1, 1,
-			   tdmin_src_hdmirx);
+			   tdmin_src_hdmirx,
+			   p_tdm->chipinfo->use_vadtop);
 	if (p_tdm->contns_clk && !IS_ERR(p_tdm->mclk)) {
 		int ret = clk_prepare_enable(p_tdm->mclk);
 
@@ -405,8 +413,10 @@ static int aml_tdm_set_fmt(struct aml_tdm *p_tdm, unsigned int fmt, bool capture
 	    p_tdm->chipinfo->adc_fn &&
 	    strncmp(p_tdm->tdmin_src_name, SRC_ACODEC,
 		    strlen(SRC_ACODEC)) == 0) {
-		aml_update_tdmin_skew(p_tdm->actrl, p_tdm->id, 4);
-		aml_update_tdmin_rev_ws(p_tdm->actrl, p_tdm->id, 0);
+		aml_update_tdmin_skew(p_tdm->actrl, p_tdm->id, 4,
+				      p_tdm->chipinfo->use_vadtop);
+		aml_update_tdmin_rev_ws(p_tdm->actrl, p_tdm->id, 0,
+					p_tdm->chipinfo->use_vadtop);
 	}
 
 	return 0;
@@ -417,7 +427,8 @@ void aml_tdm_trigger(struct aml_tdm *p_tdm, int stream, bool enable)
 	if (!p_tdm)
 		return;
 
-	aml_tdm_enable(p_tdm->actrl, stream, p_tdm->id, enable, p_tdm->tdm_fade_out_enable);
+	aml_tdm_enable(p_tdm->actrl, stream, p_tdm->id, enable, p_tdm->tdm_fade_out_enable,
+		       p_tdm->chipinfo->use_vadtop);
 }
 
 int aml_tdm_hw_setting_init(struct aml_tdm *p_tdm,
@@ -451,7 +462,8 @@ int aml_tdm_hw_setting_init(struct aml_tdm *p_tdm,
 	if (p_tdm->chipinfo->chnum_en &&
 	    stream == SNDRV_PCM_STREAM_CAPTURE &&
 	    vad_tdm_is_running(p_tdm->id))
-		tdmin_set_chnum_en(p_tdm->actrl, p_tdm->id, true);
+		tdmin_set_chnum_en(p_tdm->actrl, p_tdm->id, true,
+				   p_tdm->chipinfo->use_vadtop);
 
 	if (!p_tdm->contns_clk && !IS_ERR(p_tdm->mclk)) {
 		pr_debug("%s(), enable mclk for tdm-%d\n", __func__, p_tdm->id);
@@ -474,7 +486,8 @@ void aml_tdm_hw_setting_free(struct aml_tdm *p_tdm, int stream)
 
 	for (i = 0; i < p_tdm->lane_cnt; i++)
 		aml_tdm_set_channel_mask(p_tdm->actrl,
-			stream, p_tdm->id, i, 0);
+			stream, p_tdm->id, i, 0,
+			p_tdm->chipinfo->use_vadtop);
 
 	/* disable clock and gate */
 	if (!p_tdm->contns_clk && !IS_ERR(p_tdm->mclk)) {
@@ -549,7 +562,7 @@ void aml_tdmin_set_src(struct aml_tdm *p_tdm)
 		src_val = get_tdmin_src(p_tdm->chipinfo->tdmin_srcs, SRC_ACODEC);
 		aml_update_tdmin_src(p_tdm->actrl, p_tdm->id, src_val);
 	}
-	aml_update_tdmin_src(p_tdm->actrl, p_tdm->id, src_val);
+	aml_update_tdmin_src(p_tdm->actrl, p_tdm->id, src_val, p_tdm->chipinfo->use_vadtop);
 }
 
 void tdm_mute_capture(struct aml_tdm *p_tdm, bool mute)
@@ -558,7 +571,8 @@ void tdm_mute_capture(struct aml_tdm *p_tdm, bool mute)
 		return;
 
 	aml_tdm_mute_capture(p_tdm->actrl, p_tdm->id,
-			mute, p_tdm->lane_cnt);
+			mute, p_tdm->lane_cnt,
+			p_tdm->chipinfo->use_vadtop);
 }
 
 static int tdm_clk_get(struct snd_kcontrol *kcontrol,
@@ -759,7 +773,7 @@ static irqreturn_t aml_tdm_ddr_isr(int irq, void *devid)
 
 	if (substream->stream == SNDRV_PCM_STREAM_CAPTURE &&
 	    p_tdm->chipinfo->reset_tdmin &&
-	    (aml_tdmin_get_status(p_tdm->id) & 0x3ff)) {
+	    (aml_tdmin_get_status(p_tdm->id, p_tdm->chipinfo->use_vadtop) & 0x3ff)) {
 		pr_info("%s(), reset tdmin, jiffies:%lu\n", __func__, jiffies);
 		snd_pcm_stop_xrun(substream);
 	}
@@ -1322,7 +1336,8 @@ static int aml_dai_tdm_trigger(struct snd_pcm_substream *substream, int cmd,
 		/* reset fifo here.
 		 * If not, xrun will cause channel mapping mismatch
 		 */
-		aml_tdm_fifo_reset(p_tdm->actrl, substream->stream, p_tdm->id);
+		aml_tdm_fifo_reset(p_tdm->actrl, substream->stream, p_tdm->id,
+				   p_tdm->chipinfo->use_vadtop);
 
 		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 			/* output START sequence:
@@ -1338,7 +1353,8 @@ static int aml_dai_tdm_trigger(struct snd_pcm_substream *substream, int cmd,
 			/*don't change this flow*/
 			aml_aed_top_enable(p_tdm->fddr, true);
 			aml_tdm_enable(p_tdm->actrl,
-				substream->stream, p_tdm->id, true, p_tdm->tdm_fade_out_enable);
+				substream->stream, p_tdm->id, true, p_tdm->tdm_fade_out_enable,
+				p_tdm->chipinfo->use_vadtop);
 			if (p_tdm->samesource_sel != SHAREBUFFER_NONE)
 				tdm_sharebuffer_trigger(p_tdm, runtime->channels, cmd);
 
@@ -1358,7 +1374,8 @@ static int aml_dai_tdm_trigger(struct snd_pcm_substream *substream, int cmd,
 				 p_tdm->id);
 			aml_toddr_enable(p_tdm->tddr, 1);
 			aml_tdm_enable(p_tdm->actrl,
-				substream->stream, p_tdm->id, true, p_tdm->tdm_fade_out_enable);
+				substream->stream, p_tdm->id, true, p_tdm->tdm_fade_out_enable,
+				p_tdm->chipinfo->use_vadtop);
 			p_tdm->tdm_trigger_state = TRIGGER_START_ALSA_BUF;
 		}
 		break;
@@ -1393,7 +1410,8 @@ static int aml_dai_tdm_trigger(struct snd_pcm_substream *substream, int cmd,
 				tdm_sharebuffer_mute(p_tdm, true);
 			aml_aed_top_enable(p_tdm->fddr, false);
 			aml_tdm_enable(p_tdm->actrl,
-				substream->stream, p_tdm->id, false, p_tdm->tdm_fade_out_enable);
+				substream->stream, p_tdm->id, false, p_tdm->tdm_fade_out_enable,
+				p_tdm->chipinfo->use_vadtop);
 			if (p_tdm->samesource_sel != SHAREBUFFER_NONE)
 				tdm_sharebuffer_trigger(p_tdm, runtime->channels, cmd);
 
@@ -1407,7 +1425,8 @@ static int aml_dai_tdm_trigger(struct snd_pcm_substream *substream, int cmd,
 			if (p_tdm->tdm_trigger_state == TRIGGER_STOP)
 				break;
 			aml_tdm_enable(p_tdm->actrl,
-				substream->stream, p_tdm->id, false, p_tdm->tdm_fade_out_enable);
+				substream->stream, p_tdm->id, false, p_tdm->tdm_fade_out_enable,
+				p_tdm->chipinfo->use_vadtop);
 			dev_info(substream->pcm->card->dev,
 				 "TDM[%d] Capture stop\n",
 				 p_tdm->id);
@@ -1447,7 +1466,8 @@ static int aml_dai_tdm_hw_free(struct snd_pcm_substream *substream,
 	if (p_tdm->chipinfo->chnum_en &&
 	    substream->stream == SNDRV_PCM_STREAM_CAPTURE &&
 	    vad_tdm_is_running(p_tdm->id))
-		tdmin_set_chnum_en(p_tdm->actrl, p_tdm->id, false);
+		tdmin_set_chnum_en(p_tdm->actrl, p_tdm->id, false,
+				   p_tdm->chipinfo->use_vadtop);
 
 	/* share buffer free */
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
@@ -1493,7 +1513,8 @@ static int aml_dai_set_bclk_ratio(struct snd_soc_dai *cpu_dai,
 		pr_debug("%s, select TDM mode\n", __func__);
 	}
 	aml_tdm_set_bclk_ratio(p_tdm->actrl,
-		p_tdm->clk_sel, lrclk_hi, bclk_ratio);
+		p_tdm->clk_sel, lrclk_hi, bclk_ratio,
+		p_tdm->chipinfo->use_vadtop);
 
 	return 0;
 }
@@ -1509,7 +1530,8 @@ static int aml_dai_set_clkdiv(struct snd_soc_dai *cpu_dai,
 
 	p_tdm->setting.sysclk_bclk_ratio = div;
 	mclk_ratio = div - 1;
-	aml_tdm_set_lrclkdiv(p_tdm->actrl, p_tdm->clk_sel, mclk_ratio);
+	aml_tdm_set_lrclkdiv(p_tdm->actrl, p_tdm->clk_sel, mclk_ratio,
+			     p_tdm->chipinfo->use_vadtop);
 
 	return 0;
 }
@@ -1539,7 +1561,8 @@ static int aml_dai_set_tdm_slot(struct snd_soc_dai *cpu_dai,
 
 	if (in_lanes > 0 && in_lanes <= LANE_MAX3)
 		aml_tdm_set_slot_in(p_tdm->actrl,
-			p_tdm->id, p_tdm->id, slot_width);
+			p_tdm->id, p_tdm->id, slot_width,
+			p_tdm->chipinfo->use_vadtop);
 
 	if (out_lanes > 0 && out_lanes <= LANE_MAX3)
 		aml_tdm_set_slot_out(p_tdm->actrl,
@@ -1645,10 +1668,12 @@ static int aml_set_default_tdm_clk(struct aml_tdm *p_tdm)
 	lrclk_hi = p_tdm->setting.bclk_lrclk_ratio - 1;
 
 	aml_tdm_set_lrclkdiv(p_tdm->actrl, p_tdm->clk_sel,
-		p_tdm->setting.sysclk_bclk_ratio - 1);
+		p_tdm->setting.sysclk_bclk_ratio - 1,
+		p_tdm->chipinfo->use_vadtop);
 
 	aml_tdm_set_bclk_ratio(p_tdm->actrl,
-		p_tdm->clk_sel, lrclk_hi / 2, lrclk_hi);
+		p_tdm->clk_sel, lrclk_hi / 2, lrclk_hi,
+		p_tdm->chipinfo->use_vadtop);
 
 	clk_name = (char *)__clk_get_name(p_tdm->clk);
 	if (!strcmp(clk_name, "hifipll") || !strcmp(clk_name, "t5_hifi_pll")) {
