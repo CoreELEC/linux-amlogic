@@ -105,6 +105,9 @@ static int cma_max_size;
 #define gUNLOCK() mutex_unlock(&(getgctrl()->lock))
 #define gLOCKINIT() mutex_init(&(getgctrl()->lock))
 
+int multi_di = 0;
+EXPORT_SYMBOL(multi_di);
+
 /*********************************************************
  * /dev/amvideo APIs
  *********************************************************/
@@ -112,6 +115,7 @@ static int amvideocap_open(struct inode *inode, struct file *file)
 {
 	struct amvideocap_private *priv;
 	gLOCK();
+	pr_debug("%s, multi_di: %d\n", __FUNCTION__, multi_di);
 #ifdef CONFIG_CMA
 	if (use_cma && amvideocap_pdev) {
 		unsigned long phybufaddr;
@@ -345,40 +349,43 @@ static ssize_t amvideocap_YUV_to_RGB(
 		input_height = priv->src_rect.height;
 
 	height_after_di = vf->height;
-	if (((vf->bitdepth & BITDEPTH_Y10)) &&
-		((intfmt == GE2D_FORMAT_S16_YUV422) ||
-		((intfmt == GE2D_FORMAT_S24_YUV444) &&
-		(get_cpu_type() >= MESON_CPU_MAJOR_ID_TXL)))) {
-		pr_debug("input_height = %d , vf->type_original = %x\n" ,
-			input_height, vf->type_original);
-		if ((vf->source_type == VFRAME_SOURCE_TYPE_HDMI) ||
-			(vf->source_type == VFRAME_SOURCE_TYPE_CVBS) ||
-			(vf->source_type == VFRAME_SOURCE_TYPE_TUNER)) {
-			if (vf->type_original & VIDTYPE_INTERLACE) {
-				height_after_di = vf->height >> 1;
-				input_height >>= 1;
+	if (!multi_di) {
+		if (((vf->bitdepth & BITDEPTH_Y10)) &&
+			((intfmt == GE2D_FORMAT_S16_YUV422) ||
+			((intfmt == GE2D_FORMAT_S24_YUV444) &&
+			(get_cpu_type() >= MESON_CPU_MAJOR_ID_TXL)))) {
+			pr_debug("input_height = %d , vf->type_original = %x\n" ,
+				input_height, vf->type_original);
+			if ((vf->source_type == VFRAME_SOURCE_TYPE_HDMI) ||
+				(vf->source_type == VFRAME_SOURCE_TYPE_CVBS) ||
+				(vf->source_type == VFRAME_SOURCE_TYPE_TUNER)) {
+				if (vf->type_original & VIDTYPE_INTERLACE) {
+					height_after_di = vf->height >> 1;
+					input_height >>= 1;
+				} else {
+					height_after_di = vf->height;
+				}
 			} else {
-				height_after_di = vf->height;
+				//local playback and DTV
+				pr_debug("vf->prog_proc_config = %d\n",
+					vf->prog_proc_config);
+				if ((!vf->prog_proc_config) &&
+					(!(vf->type_original & VIDTYPE_INTERLACE))) {
+					height_after_di = vf->height;
+				} else {
+					height_after_di = vf->height >> 1;
+					input_height >>= 1;
+				}
 			}
+		} else if (is_meson_g9tv_cpu() || is_meson_gxtvbb_cpu()) {
+			if (vf->type_original & VIDTYPE_INTERLACE)
+				input_height = input_height / 2;
 		} else {
-			/*local playback and DTV*/
-			pr_debug("vf->prog_proc_config = %d",
-				vf->prog_proc_config);
-			if ((!vf->prog_proc_config) &&
-				(!(vf->type_original & VIDTYPE_INTERLACE))) {
-				height_after_di = vf->height;
-			} else {
-				height_after_di = vf->height >> 1;
-				input_height >>= 1;
-			}
+			if (intfmt == GE2D_FORMAT_S16_YUV422)
+				input_height = input_height / 2;
 		}
-	} else if (is_meson_g9tv_cpu() || is_meson_gxtvbb_cpu()) {
-		if (vf->type_original & VIDTYPE_INTERLACE)
-			input_height = input_height / 2;
-	} else {
-		if (intfmt == GE2D_FORMAT_S16_YUV422)
-			input_height = input_height / 2;
 	}
+
 	ge2d_config.alu_const_color = 0;
 	ge2d_config.bitmask_en = 0;
 	ge2d_config.src1_gb_alpha = 0;

@@ -75,6 +75,8 @@
 #include <linux/seq_file.h>
 #include <linux/debugfs.h>
 
+extern int multi_di;
+
 #ifdef DET3D
 #include "detect3d.h"
 #endif
@@ -9312,6 +9314,7 @@ static int di_probe(struct platform_device *pdev)
 	//struct di_device_data_s *di_meson;
 
 	di_pr_info("%s:\n", __func__);
+	multi_di = 0;
 
 #if 1	/*move from init*/
 	ret = alloc_chrdev_region(&di_devno, 0, DI_COUNT, DEVICE_NAME);
