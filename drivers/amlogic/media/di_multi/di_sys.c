@@ -69,6 +69,8 @@
 
 static di_dev_t *di_pdev;
 
+extern int multi_di;
+
 struct di_dev_s *get_dim_de_devp(void)
 {
 	return di_pdev;
@@ -3743,6 +3745,7 @@ static int dim_probe(struct platform_device *pdev)
 	struct di_data_l_s *pdata;
 
 	PR_INF("%s:\n", __func__);
+	multi_di = 1;
 
 	/*move from init to here*/
 	di_pdev = kzalloc(sizeof(*di_pdev), GFP_KERNEL);
