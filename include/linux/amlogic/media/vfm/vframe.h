@@ -397,6 +397,12 @@ struct vsif_info {
 	unsigned int size;
 };
 
+/* point to hdr rawdata of prop */
+struct drm_info_t {
+	void *addr;
+	unsigned int size;
+};
+
 struct emp_info {
 	void *addr;
 	unsigned int size;
@@ -663,6 +669,7 @@ struct vframe_s {
 	u32 crop[4];
 
 	struct vsif_info vsif;
+	struct drm_info_t drm_if;
 	struct emp_info emp;
 	struct spd_data spd;
 	struct vtem_data vtem;
