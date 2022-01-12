@@ -468,6 +468,7 @@ static int dwmac_meson_recover_analog(struct device *dev)
 }
 
 extern int stmmac_pltfr_suspend(struct device *dev);
+extern void realtek_setup_wol(int enable, bool is_shutdown);
 static int aml_dwmac_suspend(struct device *dev)
 {
 	int ret = 0;
@@ -484,6 +485,7 @@ static int aml_dwmac_suspend(struct device *dev)
 	/*internal phy only*/
 	if (internal_phy != 2)
 		dwmac_meson_disable_analog(dev);
+	realtek_setup_wol(1, 0);
 	return ret;
 }
 
@@ -522,12 +524,16 @@ static int aml_dwmac_resume(struct device *dev)
 			}
 		}
 	}
+
+	realtek_setup_wol(0, 0);
+
 	return 0;
 }
 
 void meson8b_dwmac_shutdown(struct platform_device *pdev)
 {
 	pr_info("aml_eth_shutdown\n");
+	realtek_setup_wol(1, 1);
 	stmmac_pltfr_remove(pdev);
 	if (internal_phy != 2)
 		dwmac_meson_disable_analog(&pdev->dev);
