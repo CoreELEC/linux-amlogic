@@ -452,13 +452,18 @@ static int dwmac_meson_recover_analog(struct device *dev)
 }
 
 extern int stmmac_pltfr_suspend(struct device *dev);
+extern int rtl8211f_suspend(struct phy_device *phydev);
 static int aml_dwmac_suspend(struct device *dev)
 {
 	int ret = 0;
 	struct net_device *ndev = dev_get_drvdata(dev);
 	struct phy_device *phydev = ndev->phydev;
 
+#ifdef CONFIG_REALTEK_PHY
+	if ((support_mac_wol) || (support_gpio_wol)) {
+#else
 	if (support_mac_wol) {
+#endif
 		if (!phydev)
 			return 0;
 		backup_adv = 0;
@@ -474,6 +479,9 @@ static int aml_dwmac_suspend(struct device *dev)
 				}
 				/*phy is linkup, wol need on*/
 				mac_wol_enable = 1;
+#ifdef CONFIG_REALTEK_PHY
+				rtl8211f_suspend(phydev);
+#endif
 			} else {
 				/*phy is linkdown, wol need off */
 				mac_wol_enable = 0;
@@ -501,6 +509,7 @@ static int aml_dwmac_suspend(struct device *dev)
 }
 
 extern int stmmac_pltfr_resume(struct device *dev);
+extern int rtl8211f_resume(struct phy_device *phydev);
 static int aml_dwmac_resume(struct device *dev)
 {
 	int ret = 0;
@@ -521,10 +530,14 @@ static int aml_dwmac_resume(struct device *dev)
 
 	ret = stmmac_pltfr_resume(dev);
 	if (mac_wol_enable) {
+#ifdef CONFIG_REALTEK_PHY
+		rtl8211f_resume(phydev);
+#endif
 		if (backup_adv && phydev) {
 			phy_write(phydev, MII_ADVERTISE, backup_adv);
 			genphy_restart_aneg(phydev);
 			backup_adv = 0;
+			msleep(3000);
 		}
 
 		pr_info("eth hold wakelock 5s\n");
