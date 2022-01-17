@@ -40,6 +40,10 @@
 		clear-map;
 	};
 
+	vcodec_dec {
+		status = "disable";
+	};
+
 	gpio_keypad {
 		reg = <0x0 0xFF800000 0x0 0x400>;
 	};

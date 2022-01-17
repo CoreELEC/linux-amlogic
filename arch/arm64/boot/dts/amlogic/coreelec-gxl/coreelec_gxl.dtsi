@@ -44,6 +44,10 @@
 		clear-map;
 	};
 
+	vcodec_dec {
+		status = "disable";
+	};
+
 	/delete-node/ partitions;
 	partitions {
 		bootloader {};
