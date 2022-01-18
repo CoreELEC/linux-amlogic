@@ -815,6 +815,9 @@
 			&tdma_clk_pins
 			&tdmain_clk_pins>;
 
+		tdm5v-supply = <&vcc5v_reg>;
+		tdm3v3-supply = <&vcc3v3_reg>;
+
 		status = "okay";
 	};
 
@@ -841,6 +844,9 @@
 			&tdm_d13_pins
 			&tdmb_clk_pins>;
 
+		tdm5v-supply = <&vcc5v_reg>;
+		tdm3v3-supply = <&vcc3v3_reg>;
+
 		status = "okay";
 	};
 
@@ -858,6 +864,9 @@
 			//&tdm_c_pins
 			//&tdm_d11_pins
 			//&tdmc_clk_pins>;
+
+		tdm5v-supply = <&vcc5v_reg>;
+		tdm3v3-supply = <&vcc3v3_reg>;
 
 		status = "okay";
 	};
@@ -884,6 +893,8 @@
 		/*spdif clk tuning enable*/
 		clk_tuning_enable = <1>;
 
+		spdif5v-supply = <&vcc5v_reg>;
+		spdif3v3-supply = <&vcc3v3_reg>;
 		status = "okay";
 	};
 
@@ -908,6 +919,8 @@
 		/* mode 0~4, defalut:1 */
 		filter_mode = <1>;
 
+		pdm5v-supply = <&vcc5v_reg>;
+		pdm3v3-supply = <&vcc3v3_reg>;
 		status = "okay";
 	};
 
