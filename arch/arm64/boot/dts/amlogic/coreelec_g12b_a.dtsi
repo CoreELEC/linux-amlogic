@@ -3,6 +3,10 @@
 
 /{
 	reserved-memory {
+		di_cma_reserved:linux,di_cma {
+			size = <0x0 0x0>;
+		};
+
 		codec_mm_cma:linux,codec_mm_cma {
 			size = <0x0 0x1b000000>;
 		};
@@ -24,7 +28,7 @@
 		compatible = "amlogic, dim-g12b";
 		status = "okay";
 		/* 0:use reserved; 1:use cma; 2:use cma as reserved */
-		flag_cma = <1>;
+		flag_cma = <4>; //<1>
 		//memory-region = <&di_reserved>;
 		memory-region = <&di_cma_reserved>;
 		interrupts = <0 46 1
