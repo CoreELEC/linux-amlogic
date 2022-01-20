@@ -375,7 +375,7 @@ static enum tvin_sg_chg_flg vdin_hdmirx_fmt_chg_detect(struct vdin_dev_s *devp)
 		if (cur_color_fmt != pre_color_fmt ||
 		    /*(vdin_hdr_flag != pre_vdin_hdr_flag) ||*/
 		    vdin_fmt_range != pre_vdin_fmt_range) {
-			if (sm_debug_enable & VDIN_SM_LOG_L_2)
+			if (sm_debug_enable & VDIN_SM_LOG_L_1)
 				pr_info("[smr.%d] fmt(%d->%d), hdr_flag(%d->%d), csc_cfg:0x%x\n",
 					devp->index,
 					pre_color_fmt, cur_color_fmt,
@@ -461,8 +461,18 @@ u32 tvin_hdmirx_signal_type_check(struct vdin_dev_s *devp)
 		}
 	}
 
-	if (prop->low_latency != devp->dv.low_latency)
+	if (prop->low_latency != devp->dv.low_latency) {
 		devp->dv.low_latency = prop->low_latency;
+		if ((devp->dtdata->hw_ver == VDIN_HW_TM2 ||
+		     devp->dtdata->hw_ver == VDIN_HW_TM2_B) &&
+		    prop->dolby_vision) {
+			signal_chg |= TVIN_SIG_DV_CHG;
+			if (sm_debug_enable & VDIN_SM_LOG_L_2)
+				pr_info("[sm.%d]dv.ll:%d prop.ll:%d\n",
+					devp->index, devp->dv.low_latency,
+					prop->low_latency);
+		}
+	}
 	memcpy(&devp->dv.dv_vsif,
 	       &prop->dv_vsif, sizeof(struct tvin_dv_vsif_s));
 
@@ -911,6 +921,7 @@ void tvin_smr(struct vdin_dev_s *devp)
 				devp->pre_prop.vtem_data.vrr_en,
 				devp->prop.vtem_data.vrr_en);
 			vdin_update_prop(devp);
+			devp->csc_cfg = 0;
 			if (sm_debug_enable)
 				pr_info("[smr.%d] %ums prestable --> stable\n",
 					devp->index, jiffies_to_msecs(jiffies));
