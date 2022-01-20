@@ -540,10 +540,11 @@ static void cecrx_check_irq_enable(void)
 	}
 }
 
-static int cecb_trigle_tx(const unsigned char *msg, unsigned char len)
+static int cecb_trigle_tx(const unsigned char *msg, unsigned char len, unsigned char sig_free)
 {
 	int i = 0, size = 0;
 	int lock;
+	u32 cec_ctrl = 0;
 
 	cecrx_check_irq_enable();
 	while (1) {
@@ -563,6 +564,7 @@ static int cecb_trigle_tx(const unsigned char *msg, unsigned char len)
 			return -1;
 		}
 		msleep(20);
+		CEC_INFO("%s busy cnt: %d\n", __func__, i);
 	}
 	size += sprintf(msg_log_buf + size, "cecb: tx len: %d data:", len);
 	for (i = 0; i < len; i++) {
@@ -573,7 +575,20 @@ static int cecb_trigle_tx(const unsigned char *msg, unsigned char len)
 	CEC_INFO("%s\n", msg_log_buf);
 	/* start send */
 	hdmirx_cec_write(DWC_CEC_TX_CNT, len);
-	hdmirx_set_bits_dwc(DWC_CEC_CTRL, 3, 0, 3);
+	if (cec_dev->chk_sig_free_time) {
+		cec_ctrl = 0x1;
+		if (sig_free == SIGNAL_FREE_TIME_RETRY)
+			cec_ctrl |= (0 << 1);
+		else if (sig_free == SIGNAL_FREE_TIME_NEW_INITIATOR)
+			cec_ctrl |= (1 << 1);
+		else if (sig_free == SIGNAL_FREE_TIME_NEXT_XFER)
+			cec_ctrl |= (2 << 1);
+		else
+			cec_ctrl |= (1 << 1);
+	} else {
+		cec_ctrl = 3;
+	}
+	hdmirx_set_bits_dwc(DWC_CEC_CTRL, cec_ctrl, 0, 3);
 	return 0;
 }
 
@@ -1704,7 +1719,7 @@ static bool check_physical_addr_valid(int timeout)
 }
 
 /* Return value: < 0: fail, > 0: success */
-int cec_ll_tx(const unsigned char *msg, unsigned char len)
+int cec_ll_tx(const unsigned char *msg, unsigned char len, unsigned char signal_free_time)
 {
 	int ret = -1;
 	int t;
@@ -1760,14 +1775,19 @@ try_again:
 	 * free time, that means a send is already started by other
 	 * device, we should wait it finished.
 	 */
-	if (check_confilct()) {
-		CEC_ERR("bus confilct too long\n");
-		mutex_unlock(&cec_dev->cec_tx_mutex);
-		return CEC_FAIL_BUSY;
+	/* remove SW check of bus, let controller to
+	 * get bus arbitration directly, otherwise it
+	 * may cause message transfer delay/lost
+	 */
+	if (cec_dev->sw_chk_bus) {
+		if (check_confilct()) {
+			CEC_ERR("bus confilct too long\n");
+			mutex_unlock(&cec_dev->cec_tx_mutex);
+			return CEC_FAIL_BUSY;
+		}
 	}
-
 	if (cec_sel == CEC_B)
-		ret = cecb_trigle_tx(msg, len);
+		ret = cecb_trigle_tx(msg, len, signal_free_time);
 	else
 		ret = ceca_trigle_tx(msg, len);
 	if (ret < 0) {
@@ -2161,7 +2181,7 @@ void cec_give_version(unsigned int dest)
 		msg[0] = ((index & 0xf) << 4) | dest;
 		msg[1] = CEC_OC_CEC_VERSION;
 		msg[2] = cec_dev->cec_info.cec_version;
-		cec_ll_tx(msg, 3);
+		cec_ll_tx(msg, 3, SIGNAL_FREE_TIME_NEW_INITIATOR);
 	}
 }
 
@@ -2179,7 +2199,7 @@ void cec_report_physical_address_smp(void)
 	msg[3] = phy_addr_cd;
 	msg[4] = cec_dev->dev_type;
 
-	cec_ll_tx(msg, 5);
+	cec_ll_tx(msg, 5, SIGNAL_FREE_TIME_NEW_INITIATOR);
 }
 
 void cec_give_physical_address(unsigned char dest)
@@ -2189,7 +2209,7 @@ void cec_give_physical_address(unsigned char dest)
 	msg[0] = dest;
 	msg[1] = CEC_OC_GIVE_PHYSICAL_ADDRESS;
 
-	cec_ll_tx(msg, 2);
+	cec_ll_tx(msg, 2, SIGNAL_FREE_TIME_NEW_INITIATOR);
 }
 
 void cec_device_vendor_id(void)
@@ -2205,7 +2225,7 @@ void cec_device_vendor_id(void)
 	msg[3] = (vendor_id >> 8) & 0xff;
 	msg[4] = (vendor_id >> 0) & 0xff;
 
-	cec_ll_tx(msg, 5);
+	cec_ll_tx(msg, 5, SIGNAL_FREE_TIME_NEW_INITIATOR);
 }
 
 void cec_give_device_vendor_id(unsigned char devtype)
@@ -2214,7 +2234,7 @@ void cec_give_device_vendor_id(unsigned char devtype)
 
 	msg[0] = devtype & 0x0f;
 	msg[1] = CEC_OC_GIVE_DEVICE_VENDOR_ID;
-	cec_ll_tx(msg, 2);
+	cec_ll_tx(msg, 2, SIGNAL_FREE_TIME_NEW_INITIATOR);
 }
 
 void cec_give_deck_status(unsigned int dest)
@@ -2225,7 +2245,7 @@ void cec_give_deck_status(unsigned int dest)
 	msg[0] = ((index & 0xf) << 4) | dest;
 	msg[1] = CEC_OC_DECK_STATUS;
 	msg[2] = 0x1a;
-	cec_ll_tx(msg, 3);
+	cec_ll_tx(msg, 3, SIGNAL_FREE_TIME_NEW_INITIATOR);
 }
 
 void cec_menu_status_smp(int dest, int status)
@@ -2239,7 +2259,7 @@ void cec_menu_status_smp(int dest, int status)
 		msg[2] = DEVICE_MENU_ACTIVE;
 	else
 		msg[2] = DEVICE_MENU_INACTIVE;
-	cec_ll_tx(msg, 3);
+	cec_ll_tx(msg, 3, SIGNAL_FREE_TIME_NEW_INITIATOR);
 }
 
 void cec_inactive_source(int dest)
@@ -2255,7 +2275,7 @@ void cec_inactive_source(int dest)
 	msg[2] = phy_addr_ab;
 	msg[3] = phy_addr_cd;
 
-	cec_ll_tx(msg, 4);
+	cec_ll_tx(msg, 4, SIGNAL_FREE_TIME_NEW_INITIATOR);
 }
 
 void cec_set_osd_name(int dest)
@@ -2269,7 +2289,7 @@ void cec_set_osd_name(int dest)
 		msg[1] = CEC_OC_SET_OSD_NAME;
 		memcpy(&msg[2], cec_dev->cec_info.osd_name, osd_len);
 
-		cec_ll_tx(msg, 2 + osd_len);
+		cec_ll_tx(msg, 2 + osd_len, SIGNAL_FREE_TIME_NEW_INITIATOR);
 	}
 }
 
@@ -2286,7 +2306,7 @@ void cec_active_source_smp(void)
 	msg[1] = CEC_OC_ACTIVE_SOURCE;
 	msg[2] = phy_addr_ab;
 	msg[3] = phy_addr_cd;
-	cec_ll_tx(msg, 4);
+	cec_ll_tx(msg, 4, SIGNAL_FREE_TIME_NEW_INITIATOR);
 }
 
 void cec_request_active_source(void)
@@ -2296,7 +2316,7 @@ void cec_request_active_source(void)
 
 	msg[0] = ((index & 0xf) << 4) | CEC_BROADCAST_ADDR;
 	msg[1] = CEC_OC_REQUEST_ACTIVE_SOURCE;
-	cec_ll_tx(msg, 2);
+	cec_ll_tx(msg, 2, SIGNAL_FREE_TIME_NEW_INITIATOR);
 }
 
 void cec_set_stream_path(unsigned char *msg)
@@ -2323,7 +2343,7 @@ void cec_report_power_status(int dest, int status)
 	msg[0] = ((index & 0xf) << 4) | dest;
 	msg[1] = CEC_OC_REPORT_POWER_STATUS;
 	msg[2] = status;
-	cec_ll_tx(msg, 3);
+	cec_ll_tx(msg, 3, SIGNAL_FREE_TIME_NEW_INITIATOR);
 }
 
 static void cec_rx_process(void)
@@ -2731,7 +2751,7 @@ static ssize_t pin_status_show(struct class *cla,
 		}
 		if (pin_status == 0) {
 			p = (cec_dev->cec_info.log_addr << 4) | CEC_TV_ADDR;
-			if (cec_ll_tx(&p, 1) == CEC_FAIL_NONE)
+			if (cec_ll_tx(&p, 1, SIGNAL_FREE_TIME_NEW_INITIATOR) == CEC_FAIL_NONE)
 				return sprintf(buf, "%s\n", "ok");
 			else
 				return sprintf(buf, "%s\n", "fail");
@@ -2813,7 +2833,7 @@ static ssize_t cmd_store(struct class *cla, struct class_attribute *attr,
 		buf[i] = (char)tmpbuf[i];
 
 	/*CEC_ERR("cnt=%d\n", cnt);*/
-	ret = cec_ll_tx(buf, cnt);
+	ret = cec_ll_tx(buf, cnt, SIGNAL_FREE_TIME_NEW_INITIATOR);
 	CEC_INFO_L(L_2, "%s ret:%d, %s\n", __func__, ret, cec_tx_ret_str(ret));
 	return count;
 }
@@ -2867,7 +2887,9 @@ static ssize_t cmdb_store(struct class *cla, struct class_attribute *attr,
 		buf[i] = (char)tmpbuf[i];
 
 	if (cec_dev->cec_num > ENABLE_ONE_CEC)
-		cecb_trigle_tx(buf, cnt);
+		cecb_trigle_tx(buf, cnt, SIGNAL_FREE_TIME_NEW_INITIATOR);
+	else
+		CEC_ERR("cecb not valid\n");
 
 	return count;
 }
@@ -3113,6 +3135,18 @@ static ssize_t dbg_store(struct class *cla, struct class_attribute *attr,
 			pr_info("idx:%d vendor:0x%x 0x%x 0x%x\n", val,
 				str[0], str[1], str[2]);
 		}
+	} else if (token && strncmp(token, "chk_sig_free", 12) == 0) {
+		token = strsep(&cur, delim);
+		if (!token || kstrtouint(token, 16, &addr) < 0)
+			return count;
+		cec_dev->chk_sig_free_time = !!addr;
+		CEC_ERR("check signal free time enable: %d\n", cec_dev->chk_sig_free_time);
+	}  else if (token && strncmp(token, "sw_chk_bus", 10) == 0) {
+		token = strsep(&cur, delim);
+		if (!token || kstrtouint(token, 16, &addr) < 0)
+			return count;
+		cec_dev->sw_chk_bus = !!addr;
+		CEC_ERR("sw_chk_bus enable: %d\n", cec_dev->sw_chk_bus);
 	} else {
 		if (token)
 			CEC_ERR("no cmd:%s, supported list:\n", token);
@@ -3264,7 +3298,7 @@ unsigned int get_cec_num(void)
 		idx < CEC_UNREGISTERED_ADDR; idx++) {
 		msgbuf[0] = (idx << 4 | idx) & 0xff;
 		/*cec module on*/
-		ret = cec_ll_tx(msgbuf, 1);
+		ret = cec_ll_tx(msgbuf, 1, SIGNAL_FREE_TIME_NEW_INITIATOR);
 		/*pr_info("ping 0x%x ret:%d\n", msgbuf[0], ret);*/
 		/*send msg is ok and have ack*/
 		if (ret == CEC_FAIL_NONE) {
@@ -3440,7 +3474,7 @@ static ssize_t hdmitx_cec_write(struct file *f, const char __user *buf,
 		return -EINVAL;
 
 	/*osd name configed in android prop file*/
-	if ((size > 0 && size < 16) && (tempbuf[1] == CEC_OC_SET_OSD_NAME)) {
+	if (tempbuf[1] == CEC_OC_SET_OSD_NAME) {
 		memset(cec_dev->cec_info.osd_name, 0, 16);
 		memcpy(cec_dev->cec_info.osd_name, &tempbuf[2], (size - 2));
 		cec_dev->cec_info.osd_name[15] = (size - 2);
@@ -3449,7 +3483,7 @@ static ssize_t hdmitx_cec_write(struct file *f, const char __user *buf,
 	cec_cfg = cec_config(0, 0);
 	if (cec_cfg & CEC_FUNC_CFG_CEC_ON) {
 		/*cec module on*/
-		ret = cec_ll_tx(tempbuf, size);
+		ret = cec_ll_tx(tempbuf, size, SIGNAL_FREE_TIME_NEW_INITIATOR);
 	} else {
 		CEC_ERR("err:cec module disabled\n");
 	}
@@ -3606,6 +3640,8 @@ void cec_status(void)
 		}
 	}
 	CEC_ERR("addr_enable:0x%x\n", cec_dev->cec_info.addr_enable);
+	CEC_ERR("chk_sig_free_time: %d\n", cec_dev->chk_sig_free_time);
+	CEC_ERR("sw_chk_bus: %d\n", cec_dev->sw_chk_bus)
 }
 
 void cec_ap_clear_logical_addr(void)
@@ -4215,7 +4251,8 @@ static const struct cec_platform_data_s cec_sm1_data = {
 
 static const struct cec_platform_data_s cec_tm2_data = {
 	.chip_id = CEC_CHIP_TM2,
-	.line_reg = 0,/*line_reg=0:AO_GPIO_I*/
+	/* don't check */
+	.line_reg = 0xff,
 	.line_bit = 10,
 	.ee_to_ao = 1,
 	.ceca_sts_reg = 1,
@@ -4991,6 +5028,9 @@ static int aml_cec_probe(struct platform_device *pdev)
 					      &cec_dev->cec_wk_as_msg[1]);
 	}
 	cec_irq_enable(true);
+	/* still check bus by default, maybe not necessary */
+	cec_dev->sw_chk_bus = true;
+	/*CEC_ERR("%s success end\n", __func__);*/
 	cec_dev->probe_finish = true;
 	return 0;
 

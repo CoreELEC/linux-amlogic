@@ -19,7 +19,7 @@
 #ifndef __AO_CEC_H__
 #define __AO_CEC_H__
 
-#define CEC_DRIVER_VERSION     "2021/09/24: bringup for tl1/txlx"
+#define CEC_DRIVER_VERSION     "2021/12/28: rm sw check of bus & add dbg"
 
 #define CEC_DEV_NAME		"cec"
 
@@ -33,6 +33,11 @@
 
 #define MAX_INT				0x7ffffff
 #define PHY_ADDR_LEN 4
+
+#define SIGNAL_FREE_TIME_RETRY 3
+#define SIGNAL_FREE_TIME_NEW_INITIATOR 5
+#define SIGNAL_FREE_TIME_NEXT_XFER 7
+
 enum cec_chip_ver {
 	CEC_CHIP_GXL = 0,
 	CEC_CHIP_GXM,
@@ -214,6 +219,9 @@ struct ao_cec_dev {
 	unsigned char devexist_num;
 	struct cec_dev_info_t devinfo[16];
 	bool framework_on;
+	bool chk_sig_free_time;
+	/* enable SW check, for debug */
+	bool sw_chk_bus;
 };
 
 struct cec_msg_last {
