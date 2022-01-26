@@ -2676,3 +2676,9 @@
   zs_map_object
   zs_pool_stats
   zs_unmap_object
+ # some customers may need
+  i2c_smbus_write_byte
+  devm_fwnode_pwm_get
+
+# aml-erofs.ko
+  register_sysctl
