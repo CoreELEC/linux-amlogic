@@ -262,9 +262,9 @@ static int meson_gpio_kp_probe(struct platform_device *pdev)
 					bank = AOBUS;
 
 				if (!IS_ERR_OR_NULL(ao_reg) && bank != UNKNOWN) {
-					val = readl((ao_reg + AO_DEBUG_REG0)) & 0xFFFF;
+					val = readl((ao_reg + AO_DEBUG_REG0)) & 0x8000FFFF;
 					val |= ((gpiopower - chip->base) & 0xFFF) << 16;
-					val |= bank << 28;
+					val |= (bank << 28) & 0x7;
 					writel(val, (ao_reg + AO_DEBUG_REG0));
 				}
 				else
