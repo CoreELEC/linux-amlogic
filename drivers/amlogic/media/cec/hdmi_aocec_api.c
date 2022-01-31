@@ -1637,7 +1637,10 @@ bool need_nack_repeat_msg(const unsigned char *msg, int len, int t)
 unsigned int cec_config(unsigned int value, bool wr_flag)
 {
 	if (wr_flag) {
-		write_ao(AO_DEBUG_REG0, value);
+		// use lower 8bit for cec_config
+		cec_set_reg_bits(AO_DEBUG_REG0, value, 0, 8);
+		// use highest bit for debug flag
+		cec_set_reg_bits(AO_DEBUG_REG0, value, 31, 1);
 		cec_dev->cfg = value;
 	}
 
