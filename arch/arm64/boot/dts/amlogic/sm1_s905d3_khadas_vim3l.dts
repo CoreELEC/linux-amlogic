@@ -153,7 +153,7 @@
 
 &pwm_ef {
 	pinctrl-names = "default";
-	pinctrl-0 = <&pwm_f_pins2>;
+	pinctrl-0 = <&pwm_f_pins1>;
 };
 
 &usb2_phy_v2 {
