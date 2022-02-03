@@ -1,6 +1,48 @@
 #include "g12a_s905x2_u211.dts"
 #include "coreelec_g12_common.dtsi"
 
+/{
+	reserved-memory {
+		di_cma_reserved:linux,di_cma {
+			status = "disable";
+			size = <0x0 0x0>;
+		};
+
+		codec_mm_cma:linux,codec_mm_cma {
+			size = <0x0 0x1b000000>;
+		};
+	};
+
+	multi-di {
+		compatible = "amlogic, dim-g12a";
+		status = "okay";
+		/* 0:use reserved; 1:use cma; 2:use cma as reserved */
+		flag_cma = <4>;//<1>;
+		//memory-region = <&di_reserved>;
+		memory-region = <&di_cma_reserved>;
+		interrupts = <0 46 1
+				0 40 1>;
+		interrupt-names = "pre_irq", "post_irq";
+		clocks = <&clkc CLKID_VPU_CLKB_TMP_COMP>,
+			<&clkc CLKID_VPU_CLKB_COMP>;
+		clock-names = "vpu_clkb_tmp_composite",
+			"vpu_clkb_composite";
+		clock-range = <334 667>;
+		/* buffer-size = <3621952>;(yuv422 8bit) */
+		buffer-size = <4074560>;/*yuv422 fullpack*/
+		/* reserve-iomap = "true"; */
+		/* if enable nr10bit, set nr10bit-support to 1 */
+		post-wr-support = <1>;
+		nr10bit-support = <1>;
+		nrds-enable = <1>;
+		pps-enable = <1>;
+	};
+
+	deinterlace {
+		status = "disable";
+	};
+};
+
 &sd_emmc_b2 {
 	status = "okay";
 };
