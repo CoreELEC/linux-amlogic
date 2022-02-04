@@ -5822,10 +5822,11 @@ static void osd_update_disp_freescale_enable(u32 index)
 			  (osd_hw.free_dst_data[index].y_start & 0xfff) << 16);
 		VSYNCOSD_WR_MPEG_REG(osd_reg->osd_sco_v_start_end, data32);
 	}
+	/* Wrong values used for double scaling. Use default values.
 	if (osd_hw.sc_filter_workaround[index] == SC_DOUBLE) {
 		vsc_ini_rpt_p0_num = 2;
 		hsc_ini_rpt_p0_num = 2;
-	}
+	} */
 	data32 = 0x0;
 	if (osd_hw.free_scale[index].v_enable) {
 		data32 |= (vf_bank_len & 0x7)
