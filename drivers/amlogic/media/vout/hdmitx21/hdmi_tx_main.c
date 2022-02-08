@@ -1101,6 +1101,12 @@ static ssize_t attr_store(struct device *dev,
 		hdev->para->cs = HDMI_COLORSPACE_YUV420;
 	else
 		hdev->para->cs = HDMI_COLORSPACE_YUV444;
+
+	if (strstr(hdev->fmt_attr, "now")) {
+		set_disp_mode_auto();
+		memcpy(strstr(hdev->fmt_attr, "now"), "   ", 3);
+	}
+
 	return count;
 }
 
