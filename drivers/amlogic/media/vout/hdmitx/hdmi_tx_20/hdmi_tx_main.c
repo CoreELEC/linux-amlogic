@@ -818,6 +818,12 @@ ssize_t store_attr(struct device *dev,
 		hdmitx_device.para->cs = COLORSPACE_YUV420;
 	else
 		hdmitx_device.para->cs = COLORSPACE_YUV444;
+
+	if (strstr(hdmitx_device.fmt_attr,"now")){
+		set_disp_mode_auto();
+		memcpy(strstr(hdmitx_device.fmt_attr,"now"), " ", 3);
+	}
+
 	return count;
 }
 /*aud_mode attr*/
