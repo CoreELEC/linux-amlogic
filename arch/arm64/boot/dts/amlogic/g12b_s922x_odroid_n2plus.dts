@@ -4,7 +4,7 @@
 /{
 	model = "Hardkernel ODROID-N2Plus";
 	coreelec-dt-id = "g12b_s922x_odroid_n2plus";
-	amlogic-dt-id = "g12b_w400_c";
+	amlogic-dt-id = "g12b_w400_b";
 
 	/delete-node/ memory@00000000;
 	/delete-node/ bt-dev;

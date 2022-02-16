@@ -19,6 +19,7 @@ dtb-$(CONFIG_ARM64) += g12b_s922x_minix_u22xj.dtb
 dtb-$(CONFIG_ARM64) += g12b_s922x_minix_u22xj_max.dtb
 dtb-$(CONFIG_ARM64) += g12b_s922x_odroid_n2.dtb
 dtb-$(CONFIG_ARM64) += g12b_s922x_odroid_n2plus.dtb
+dtb-$(CONFIG_ARM64) += g12b_s922x_odroid_n2plus_rev_c.dtb
 dtb-$(CONFIG_ARM64) += g12b_s922x_ugoos_am6_2g.dtb
 dtb-$(CONFIG_ARM64) += g12b_s922x_ugoos_am6_4g.dtb
 dtb-$(CONFIG_ARM64) += g12b_s922x_ugoos_am6_rev_a_2g.dtb
