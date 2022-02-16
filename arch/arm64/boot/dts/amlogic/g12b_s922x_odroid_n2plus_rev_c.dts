@@ -1,0 +1,6 @@
+#include "g12b_s922x_odroid_n2plus.dts"
+
+/{
+	coreelec-dt-id = "g12b_s922x_odroid_n2plus_rev_c";
+	amlogic-dt-id = "g12b_w400_c";
+};
