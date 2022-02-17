@@ -3,7 +3,7 @@
 /{
 	coreelec-dt-id = "gxl_p231_1g_dvb_ser";
 
-	demux {
+	dvb {
 		ts0 = "serial";
 	};
 

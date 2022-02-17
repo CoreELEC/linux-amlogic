@@ -2,7 +2,7 @@
 
 /{
 	coreelec-dt-id = "gxl_p231_1g_m8s_dvb-s2";
-	demux {
+	dvb {
 		fe0_demod_i2c_addr = <0x69>;
 	};
 
