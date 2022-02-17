@@ -14,9 +14,9 @@
 		led_gpio = <&gpio_ao GPIOAO_9 GPIO_ACTIVE_HIGH>;
 	};
 
-	demux {
-		compatible = "amlogic, dvb-demux";
-		dev_name = "dvb-demux";
+	dvb {
+		compatible = "amlogic,dvb";
+		dev_name = "avl6762";
 		ts0 = "parallel";
 		ts0_control = <0x0>;
 		ts0_invert = <0x0>;

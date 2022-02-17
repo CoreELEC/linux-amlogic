@@ -3,9 +3,9 @@
 /{
 	coreelec-dt-id = "gxl_p231_1g_dm14";
 
-	demux {
-		compatible = "amlogic, dvb-demux";
-		dev_name = "dvb-demux";
+	dvb {
+		compatible = "amlogic,dvb";
+		dev_name = "magicsee";
 		ts0 = "parallel";
 		ts0_control = <0x0>;
 		ts0_invert = <0x0>;
