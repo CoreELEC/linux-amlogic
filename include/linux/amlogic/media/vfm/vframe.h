@@ -26,6 +26,7 @@
 #include <linux/amlogic/media/canvas/canvas.h>
 #include <linux/atomic.h>
 #include <linux/amlogic/iomap.h>
+#include <linux/amlogic/media/utils/amstream.h>
 
 #define VIDTYPE_PROGRESSIVE             0x0
 #define VIDTYPE_INTERLACE_TOP           0x1
@@ -504,6 +505,15 @@ struct video_composer_private {
 	struct vframe_s *src_vf;
 };
 
+#define VF_UD_MAX_SIZE 5120 /* 5K size */
+#define UD_MAGIC_CODE 0x55445020 /* UDP */
+#define is_ud_param_valid(ud) ((ud.magic_code) == UD_MAGIC_CODE)
+
+struct vf_ud_param_s {
+	u32 magic_code;
+	struct userdata_param_t ud_param;
+};
+
 struct vframe_s {
 	u32 index;
 	u32 index_disp;
@@ -690,6 +700,9 @@ struct vframe_s {
 
 	u32 meta_data_size;
 	char *meta_data_buf;
+
+	/* data address of userdata_param_t structure */
+	struct vf_ud_param_s vf_ud_param;
 } /*vframe_t */;
 
 int get_curren_frame_para(int *top, int *left, int *bottom, int *right);
