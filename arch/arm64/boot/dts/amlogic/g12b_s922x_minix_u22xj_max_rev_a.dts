@@ -1,0 +1,32 @@
+#include "g12b_s922x_minix_u22xj.dts"
+
+/{
+	model = "Minix U22-XJ Max";
+	coreelec-dt-id = "g12b_s922x_minix_u22xj_max_rev_a";
+
+	auge_sound {
+		aml-audio-card,dai-link@1 {
+			codec {
+				sound-dai = <&es8316>;
+			};
+		};
+	};
+};
+
+&ethmac {
+	mc_val = <0x1629>;
+	cali_val = <0x10000>;
+	rx_delay = <0>;
+	auto_cali_idx = <0>;
+};
+
+&i2c3 {
+	/delete-node/ rt5651@1a;
+
+	es8316: es8316@10 {
+		compatible = "everest,es8316";
+		#sound-dai-cells = <0>;
+		reg = <0x10>;
+		status = "okay";
+	};
+};
