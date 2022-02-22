@@ -182,7 +182,7 @@ struct dv_vsif_para {
 	union {
 		struct {
 			uint8_t low_latency:1;
-			uint8_t dobly_vision_signal:1;
+			uint8_t dobly_vision_signal:4;
 			uint8_t backlt_ctrl_MD_present:1;
 			uint8_t auxiliary_MD_present:1;
 			uint8_t eff_tmax_PQ_hi;
@@ -193,7 +193,7 @@ struct dv_vsif_para {
 		} ver2;
 		struct {
 			uint8_t low_latency:1;
-			uint8_t dobly_vision_signal:1;
+			uint8_t dobly_vision_signal:4;
 			uint8_t backlt_ctrl_MD_present:1;
 			uint8_t auxiliary_MD_present:1;
 			uint8_t eff_tmax_PQ_hi;
