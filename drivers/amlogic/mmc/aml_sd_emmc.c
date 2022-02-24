@@ -1380,9 +1380,13 @@ int aml_emmc_clktree_init(struct amlsd_host *host)
 	ret = clk_prepare_enable(host->cfg_div_clk);
 	if (ret)
 		pr_info("enable cfg_div_clk, ret=%d\n", ret);
-	ret = clk_set_rate(host->mux_parent[0], 24000000);
-	if (ret)
-		pr_info("set mux_parent[0] ret:%d\n", ret);
+
+	if (host->data->chip_type > MMC_CHIP_GXL) {
+		ret = clk_set_rate(host->mux_parent[0], 24000000);
+		if (ret)
+			pr_info("set mux_parent[0] ret:%d\n", ret);
+	}
+
 	pr_debug("[%s] clock: 0x%x\n",
 		__func__, readl(host->base + SD_EMMC_CLOCK_V3));
 	return ret;
