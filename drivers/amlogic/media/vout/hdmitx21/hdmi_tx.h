@@ -8,11 +8,13 @@
 #include <linux/hdmi.h>
 #include <linux/amlogic/media/vout/hdmi_tx21/hdmi_tx_module.h>
 
-#define HDCP_STAGE1_RETRY_TIMER 2000 /* unit: ms */
+#define HDCP_STAGE1_RETRY_TIMER 2000//400 /* unit: ms */
 #define HDCP_BSKV_CHECK_TIMER 100
 #define HDCP_FAILED_RETRY_TIMER 200
-#define HDCP_DS_KSVLIST_RETRY_TIMER 5000
-#define HDCP_RCVIDLIST_CHECK_TIMER 3000
+#define HDCP_DS_KSVLIST_RETRY_TIMER 5000//200
+#define HDCP_RCVIDLIST_CHECK_TIMER 3000//200
+#define DEFAULT_STREAM_TYPE 0
+
 
 #define HDCPTX_IOOPR		0x820000ab
 enum hdcptx_oprcmd {
@@ -159,6 +161,10 @@ struct hdcp_t {
 	struct hdcp_work timer_hdcp_start;
 	struct hdcp_work timer_ddc_check_nak;
 	struct hdcp_work timer_update_csm;
+	struct delayed_work ksv_notify_wk;
+	struct delayed_work req_reauth_wk;
+	/* 0: auto hdcp version, 1: hdcp1.4, 2: hdcp2.3 */
+	u8 req_reauth_ver;
 };
 
 bool get_hdcp1_lstore(void);
@@ -207,5 +213,12 @@ void hdmitx_top_intr_handler(struct work_struct *work);
 void hdmitx_setupirqs(struct hdmitx_dev *phdev);
 void ddc_toggle_sw_tpi(void);
 bool hdmitx_ddcm_read(u8 seg_index, u8 slave_addr, u8 reg_addr, u8 *p_buf, uint16_t len);
+u8 hdmitx_reauth_request(u8 hdcp_version);
+void hdmitx21_enable_hdcp(struct hdmitx_dev *hdev);
+void hdmitx21_rst_stream_type(struct hdcp_t *hdcp);
+
+extern unsigned long hdcp_reauth_dbg;
+extern unsigned long streamtype_dbg;
+extern unsigned long en_fake_rcv_id;
 
 #endif /* __HDMI_TX_H__ */
