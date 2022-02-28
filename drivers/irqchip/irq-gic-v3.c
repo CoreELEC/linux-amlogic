@@ -33,6 +33,10 @@
 #include <linux/bits.h>
 #include <linux/arm-smccc.h>
 
+#if IS_ENABLED(CONFIG_AMLOGIC_FREERTOS)
+#include <linux/amlogic/freertos.h>
+#endif
+
 #include <asm/cputype.h>
 #include <asm/exception.h>
 #include <asm/smp_plat.h>
@@ -979,8 +983,15 @@ void gic_v3_dist_init(void)
 	void __iomem *base = gic_data.dist_base;
 	u32 val;
 
-	/* Disable the distributor */
+#if IS_ENABLED(CONFIG_AMLOGIC_FREERTOS)
+	u32 tmp __attribute__((unused));
+	/*disable gic distributor will result in freertos lost interrupt*/
+#else
 	writel_relaxed(0, base + GICD_CTLR);
+#endif
+
+	/* Disable the distributor */
+	//writel_relaxed(0, base + GICD_CTLR);
 	gic_v3_dist_wait_for_rwp();
 
 	/*
@@ -1026,11 +1037,25 @@ void gic_v3_dist_init(void)
 	 * enabled.
 	 */
 	affinity = gic_cpu_to_affinity(smp_processor_id());
+#if IS_ENABLED(CONFIG_AMLOGIC_FREERTOS)
+	for (i = 32; i < GIC_LINE_NR; i++) {
+		u64 val = readq_relaxed(base + GICD_IROUTER + i * 8);
+		u64 tmp = freertos_get_irqregval(affinity, val, i, 1);
+		gic_write_irouter(tmp, base + GICD_IROUTER + i * 8);
+	}
+
+	for (i = 0; i < GIC_ESPI_NR; i++) {
+		u64 val = readq_relaxed(base + GICD_IROUTERnE + i * 8);
+		u64 tmp = freertos_get_irqregval(affinity, val, i + ESPI_BASE_INTID, 1);
+		gic_write_irouter(tmp, base + GICD_IROUTERnE + i * 8);
+	}
+#else
 	for (i = 32; i < GIC_LINE_NR; i++)
 		gic_write_irouter(affinity, base + GICD_IROUTER + i * 8);
 
 	for (i = 0; i < GIC_ESPI_NR; i++)
 		gic_write_irouter(affinity, base + GICD_IROUTERnE + i * 8);
+#endif
 }
 EXPORT_SYMBOL_GPL(gic_v3_dist_init);
 
