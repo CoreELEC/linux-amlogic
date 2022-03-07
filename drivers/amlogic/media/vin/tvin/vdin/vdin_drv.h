@@ -65,6 +65,7 @@
 /* 20220214: The desktop screenshot probability gray screen */
 /* 20220301: 119.88 get duration value is 800 not correct */
 /* 20220308: screen capture 720 and then 1080 fail */
+/* 20220310: vdin and vrr/dlg support */
 /* 20220331: starting state chg not send event */
 /* 20220401: 59.94 duration need set to 1601 */
 #define VDIN_VER    "20220401: 59.94 duration need set to 1601"
@@ -442,6 +443,13 @@ struct vdin_event_info {
 	u32 event_sts;
 };
 
+enum vdin_game_mode_chg_e {
+	VDIN_GAME_MODE_UNCHG = 0,
+	VDIN_GAME_MODE_OFF_2_ON,
+	VDIN_GAME_MODE_ON_2_OFF,
+	VDIN_GAME_MODE_NUM
+};
+
 struct vdin_dev_s {
 	struct cdev cdev;
 	struct device *dev;
@@ -623,7 +631,13 @@ struct vdin_dev_s {
 	 */
 	unsigned int game_mode;
 	unsigned int game_mode_pre;
+	enum vdin_game_mode_chg_e game_mode_chg;
+	/* game mode current state before ioctl change game mode */
+	unsigned int game_mode_bak;
+	int game_chg_drop_frame_cnt;
+	unsigned int vrr_mode;
 	unsigned int rdma_enable;
+	unsigned int vdin_vrr_en_flag;
 	/* afbce_mode: (amlogic frame buff compression encoder)
 	 * 0: normal mode, not use afbce
 	 * 1: use afbce non-mmu mode: head/body addr set by code
@@ -713,6 +727,7 @@ struct vdin_dev_s {
 	unsigned int vd1_fmt;
 	unsigned int dbg_dump_frames;
 	unsigned int dbg_stop_dec_delay;
+	unsigned int vinfo_std_duration; /* get vinfo fps value */
 };
 
 struct vdin_hist_s {
@@ -727,6 +742,23 @@ struct vdin_v4l2_param_s {
 	int width;
 	int height;
 	int fps;
+};
+
+enum vdin_vrr_mode_e {
+	VDIN_VRR_OFF = 0,
+	VDIN_VRR_BASIC,
+	VDIN_VRR_FREESYNC,
+	VDIN_VRR_FREESYNC_PREMIUM,
+	VDIN_VRR_FREESYNC_PREMIUM_PRO,
+	VDIN_VRR_FREESYNC_PREMIUM_G_SYNC,
+	VDIN_VRR_NUM
+};
+
+struct vdin_vrr_freesync_param_s {
+	enum vdin_vrr_mode_e cur_vrr_status;
+	u8 tone_mapping_en;
+	u8 local_dimming_disable;
+	u8 native_color_en;
 };
 
 extern unsigned int max_ignore_frame_cnt;
@@ -805,6 +837,8 @@ int vdin_v4l2_if_isr(struct vdin_dev_s *pdev, struct vframe_s *vfp);
 void vdin_frame_write_ctrl_set(struct vdin_dev_s *devp,
 				struct vf_entry *vfe, bool rdma_en);
 irqreturn_t vdin_write_done_isr(int irq, void *dev_id);
+void vdin_game_mode_chg(struct vdin_dev_s *devp,
+	unsigned int old_mode, unsigned int new_mode);
 
 #endif /* __TVIN_VDIN_DRV_H */
 
