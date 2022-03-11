@@ -891,6 +891,10 @@
 		//pinctrl-names = "spdif_pins", "spdif_pins_mute";
 		//pinctrl-0 = <&spdifout>;
 		//pinctrl-1 = <&spdifout_a_mute>;
+		pinctrl-names = "spdif_pins", "spdif_pins_mute";
+		pinctrl-0 = <&spdifout
+			     &spdifin>;
+		pinctrl-1 = <&spdif_a_mute>;
 
 		/*spdif clk tuning enable*/
 		clk_tuning_enable = <1>;
