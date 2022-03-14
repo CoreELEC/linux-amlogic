@@ -2584,18 +2584,7 @@ int hdmitx_edid_parse(struct hdmitx_dev *hdmitx_device)
 	}
 
 	/* Note: some DVI monitor have more than 1 block */
-	if ((BlockCount == 1) && (EDID_buf[0x81] == 1)) {
-		hdmitx_device->rxcap.ieeeoui = 0;
-		hdmitx_device->rxcap.VIC_count = 0x3;
-		hdmitx_device->rxcap.VIC[0] = HDMI_720x480p60_16x9;
-		hdmitx_device->rxcap.VIC[1] = HDMI_1280x720p60_16x9;
-		hdmitx_device->rxcap.VIC[2] = HDMI_1920x1080p60_16x9;
-		hdmitx_device->rxcap.native_VIC = HDMI_720x480p60_16x9;
-		hdmitx_device->vic_count = hdmitx_device->rxcap.VIC_count;
-		pr_info(EDID "set default vic\n");
-		hdmitx_device->vend_id_hit = hdmitx_find_philips(hdmitx_device);
-		return 0;
-	} else if (BlockCount > EDID_MAX_BLOCK) {
+	if (BlockCount > EDID_MAX_BLOCK) {
 		BlockCount = EDID_MAX_BLOCK;
 	}
 
