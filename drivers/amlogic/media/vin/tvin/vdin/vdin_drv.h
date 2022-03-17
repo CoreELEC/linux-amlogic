@@ -75,6 +75,7 @@
 /* 20220401: 59.94 duration need set to 1601 */
 /* 20220402: add vdin v4l2 feature */
 /* 20220408: get format convert when started */
+/* 20220415: transmit freesync data */
 /* 20220608: t7 screenshot picture abnormal when width greater than vdin1_line_buff_size */
 #define VDIN_VER "20220402: add vdin v4l2 feature"
 
@@ -282,6 +283,7 @@ enum vdin_vf_put_md {
 #define VDIN_ISR_MONITOR_GAME	BIT(4)
 #define VDIN_ISR_MONITOR_VS	BIT(5)
 #define VDIN_ISR_MONITOR_VF	BIT(6)
+#define VDIN_ISR_MONITOR_VRR_DATA	BIT(9)
 
 /* *********************************************************************** */
 /* *** enum definitions ********************************************* */
