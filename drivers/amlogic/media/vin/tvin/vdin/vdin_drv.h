@@ -76,6 +76,7 @@
 /* 20220402: add vdin v4l2 feature */
 /* 20220408: get format convert when started */
 /* 20220415: transmit freesync data */
+/* 20220416: dv game mode picture display abnormal */
 /* 20220608: t7 screenshot picture abnormal when width greater than vdin1_line_buff_size */
 #define VDIN_VER "20220402: add vdin v4l2 feature"
 
@@ -415,6 +416,7 @@ struct vdin_debug_s {
 
 struct vdin_dv_s {
 	struct vframe_provider_s vprov_dv;
+	struct tvin_dv_vsif_raw_s dv_vsif_raw;
 	struct delayed_work dv_dwork;
 	unsigned int dv_cur_index;
 	unsigned int dv_next_index;
