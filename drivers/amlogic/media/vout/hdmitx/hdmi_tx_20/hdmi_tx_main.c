@@ -2755,8 +2755,7 @@ void hdmitx_ext_set_i2s_mask(char ch_num, char ch_msk)
 	struct hdmitx_dev *hdev = &hdmitx_device;
 	static unsigned int update_flag = -1;
 
-	if (!((ch_num == 2) || (ch_num == 4) || (ch_num == 6)
-		|| (ch_num == 8))) {
+	if (!ch_num || !(ch_num % 2 == 0)) {
 		pr_info("err chn setting, must be 2, 4, 6 or 8, Rst as def\n");
 		hdev->aud_output_ch = 0;
 		if (update_flag != hdev->aud_output_ch) {
@@ -2769,7 +2768,7 @@ void hdmitx_ext_set_i2s_mask(char ch_num, char ch_msk)
 		pr_info("err chn msk, must larger than 0\n");
 		return;
 	}
-	hdev->aud_output_ch = (ch_num << 4) + ch_msk;
+	hdev->aud_output_ch = ((ch_num << 4) & 0xf0) | (ch_msk & 0xf);
 	if (update_flag != hdev->aud_output_ch) {
 		update_flag = hdev->aud_output_ch;
 		hdev->hdmi_ch = 0;
@@ -5708,14 +5707,13 @@ static int hdmitx_notify_callback_a(struct notifier_block *block,
 
 	if (audio_param->channel_num !=
 		(substream->runtime->channels - 1)) {
-		int chnum = substream->runtime->channels;
-		int lane_cnt = chnum / 2;
-		int lane_mask = (1 << lane_cnt) - 1;
+		int ch_num = substream->runtime->channels;
+		int ch_msk = (1 << (ch_num / 2)) - 1;
 
-		pr_info(AUD "aout notify channel num: %d\n", chnum);
-		audio_param->channel_num = chnum - 1;
-		if (cmd == CT_PCM && chnum > 2)
-			hdmitx_device.aud_output_ch = chnum << 4 | lane_mask;
+		pr_info(AUD "aout notify channel num: %d\n", ch_num);
+		audio_param->channel_num = ch_num - 1;
+		if ((cmd == CT_PCM) && ch_num && (ch_num % 2 == 0))
+			hdmitx_device.aud_output_ch = ((ch_num << 4) & 0xf0) | (ch_msk & 0xf);
 		else
 			hdmitx_device.aud_output_ch = 0;
 		hdmitx_device.audio_param_update_flag = 1;
