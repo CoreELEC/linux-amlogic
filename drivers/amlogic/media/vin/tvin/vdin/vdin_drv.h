@@ -66,7 +66,8 @@
 /* 20220301: 119.88 get duration value is 800 not correct */
 /* 20220308: screen capture 720 and then 1080 fail */
 /* 20220331: starting state chg not send event */
-#define VDIN_VER "20220331: starting state chg not send event"
+/* 20220401: 59.94 duration need set to 1601 */
+#define VDIN_VER    "20220401: 59.94 duration need set to 1601"
 
 
 //#define VDIN_BRINGUP_NO_VF
