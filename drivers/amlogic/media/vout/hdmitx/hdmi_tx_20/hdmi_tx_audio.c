@@ -206,6 +206,15 @@ static void hdmi_tx_construct_aud_packet(
 			AUD_DB[3] = 0;
 			AUD_DB[4] = 0;
 		}
+	} else if (audio_param->type == CT_DTS_HD_MA) {
+		pr_info(AUD "Audio Type: DTS-HD MA\n");
+		if (AUD_DB) {
+			AUD_DB[0] =
+				(CT_DTS_HD_MA<<4)|(CC_REFER_TO_STREAM);
+			AUD_DB[1] = (FS_REFER_TO_STREAM<<2)|SS_REFER_TO_STREAM;
+			AUD_DB[3] = 0;
+			AUD_DB[4] = 0;
+		}
 	} else {
 		;
 	}
