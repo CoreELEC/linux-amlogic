@@ -1337,7 +1337,8 @@ static int aml_dai_spdif_prepare(
 		spdifout_to_hdmitx_ctrl(separated, p_spdif->id);
 
 		if (p_spdif->codec_type == AUD_CODEC_TYPE_TRUEHD ||
-		    p_spdif->codec_type == AUD_CODEC_TYPE_DTS_HD) {
+		    p_spdif->codec_type == AUD_CODEC_TYPE_DTS_HD ||
+		    p_spdif->codec_type == AUD_CODEC_TYPE_DTS_HD_MA) {
 			aml_spdif_enable(p_spdif->actrl,
 				substream->stream, p_spdif->id, false);
 			if (p_spdif->samesource_sel != SHAREBUFFER_NONE)

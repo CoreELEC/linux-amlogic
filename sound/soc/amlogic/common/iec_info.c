@@ -372,6 +372,7 @@ void spdif_notify_to_hdmitx(struct snd_pcm_substream *substream,
 		aout_notifier_call_chain(AOUT_EVENT_RAWDATA_MAT_MLP,
 					 &aud_param);
 	} else if (codec_type == AUD_CODEC_TYPE_DTS_HD_MA) {
+		aud_param.fifo_rst = 1;
 		aout_notifier_call_chain(AOUT_EVENT_RAWDATA_DTS_HD_MA,
 					 &aud_param);
 	} else {
