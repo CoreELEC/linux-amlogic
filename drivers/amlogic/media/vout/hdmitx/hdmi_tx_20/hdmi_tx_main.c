@@ -2799,6 +2799,9 @@ static ssize_t config_show(struct device *dev,
 	case CT_WMA:
 		conf = "WMA";
 		break;
+	case CT_DTS_HD_MA:
+		conf = "DTS_HD_MA";
+		break;
 	default:
 		conf = "MAX";
 	}
@@ -6033,6 +6036,7 @@ static unsigned char *aud_type_string[] = {
 	"CT_MAT",
 	"CT_DST",
 	"CT_WMA",
+	"CT_DTS_HD_MA",
 	"CT_MAX",
 };
 
