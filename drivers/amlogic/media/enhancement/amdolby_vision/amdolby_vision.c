@@ -5960,6 +5960,8 @@ static bool vf_is_hdr10_plus(struct vframe_s *vf);
 static bool vf_is_hdr10(struct vframe_s *vf);
 static bool vf_is_hlg(struct vframe_s *vf);
 static bool is_mvc_frame(struct vframe_s *vf);
+static bool is_primesl_frame(struct vframe_s *vf);
+
 static const char *input_str[8] = {
 	"NONE",
 	"HDR",
@@ -6013,7 +6015,10 @@ static void update_src_format
 		dolby_vision_src_format = 3;
 	} else {
 		if (vf) {
-			if (vf_is_hdr10_plus(vf))
+			/* need check prime_sl before hdr and sdr */
+			if (is_primesl_frame(vf))
+				dolby_vision_src_format = 4;
+			else if (vf_is_hdr10_plus(vf))
 				dolby_vision_src_format = 2;
 			else if (vf_is_hdr10(vf))
 				dolby_vision_src_format = 1;
@@ -6057,6 +6062,9 @@ static enum signal_format_enum get_cur_src_format(void)
 		break;
 	case 3: /* DOVI */
 		ret = FORMAT_DOVI;
+		break;
+	case 4: /* PRIMESL */
+		ret = FORMAT_PRIMESL;
 		break;
 	case 5: /* HLG */
 		ret = FORMAT_HLG;
@@ -6220,6 +6228,19 @@ static int dolby_vision_policy_process
 			if (debug_dolby & 2)
 				pr_dolby_dbg
 					("mvc, dovi output -> BYPASS\n");
+			*mode = DOLBY_VISION_OUTPUT_MODE_BYPASS;
+			mode_change = 1;
+		} else {
+			mode_change = 0;
+		}
+		return mode_change;
+	}
+	if (src_format == FORMAT_PRIMESL) {
+		if (dolby_vision_mode !=
+			DOLBY_VISION_OUTPUT_MODE_BYPASS) {
+			if (debug_dolby & 2)
+				pr_dolby_dbg
+					("prime_sl, dovi output -> BYPASS\n");
 			*mode = DOLBY_VISION_OUTPUT_MODE_BYPASS;
 			mode_change = 1;
 		} else {
@@ -6700,6 +6721,20 @@ static bool is_mvc_frame(struct vframe_s *vf)
 	return false;
 }
 
+static bool is_primesl_frame(struct vframe_s *vf)
+{
+	enum vframe_signal_fmt_e fmt;
+
+	if (!vf)
+		return false;
+
+	fmt = get_vframe_src_fmt(vf);
+	if (fmt == VFRAME_SIGNAL_FMT_HDR10PRIME)
+		return true;
+
+	return false;
+}
+
 int dolby_vision_check_mvc(struct vframe_s *vf)
 {
 	int mode;
@@ -6779,6 +6814,26 @@ int dolby_vision_check_hdr10(struct vframe_s *vf)
 	return 0;
 }
 EXPORT_SYMBOL(dolby_vision_check_hdr10);
+
+int dolby_vision_check_primesl(struct vframe_s *vf)
+{
+	int mode;
+
+	if (is_primesl_frame(vf) && dolby_vision_on) {
+		/* primesl source, but dovi enabled, need bypass dv */
+		mode = dolby_vision_mode;
+		if (dolby_vision_policy_process(&mode, FORMAT_PRIMESL)) {
+			if (mode != DOLBY_VISION_OUTPUT_MODE_BYPASS &&
+			    dolby_vision_mode ==
+			    DOLBY_VISION_OUTPUT_MODE_BYPASS)
+				dolby_vision_wait_on = true;
+			dolby_vision_target_mode = mode;
+			return 1;
+		}
+	}
+	return 0;
+}
+EXPORT_SYMBOL(dolby_vision_check_primesl);
 
 void dolby_vision_vf_put(struct vframe_s *vf)
 {
@@ -8089,7 +8144,9 @@ static bool send_hdmi_pkt
 		if (last_dst_format == FORMAT_HDR10) {
 			sdr_transition_delay = 0;
 			if (!(vf && (is_hlg_frame(vf) ||
-				is_hdr10plus_frame(vf)))) {
+				is_hdr10plus_frame(vf) ||
+				is_primesl_frame(vf)))) {
+				/* TODO: double check if need add prime sl case */
 				hdr10_data.features =
 					  (1 << 29)	/* video available */
 					| (5 << 26)	/* unspecified */
@@ -8119,12 +8176,14 @@ static bool send_hdmi_pkt
 			if (vinfo && vinfo->vout_device &&
 			    vinfo->vout_device->fresh_tx_vsif_pkt) {
 				if (vf && (is_hlg_frame(vf) ||
-					   is_hdr10plus_frame(vf))) {
-					/* HLG/HDR10+ case: first switch to SDR
+					   is_hdr10plus_frame(vf) ||
+					   is_primesl_frame(vf))) {
+					/* TODO: double check if need add prime sl case */
+					/* HLG/HDR10+/PRIMESL case: first switch to SDR
 					 * immediately.
 					 */
 					pr_dolby_dbg
-				("send pkt: HDR10+/HLG: signal SDR first\n");
+				("send pkt: HDR10+/HLG/PRIMESL: signal SDR first\n");
 #ifdef V2_4_3
 					send_emp(EOTF_T_NULL,
 					YUV422_BIT12,
@@ -8929,13 +8988,17 @@ int dolby_vision_parse_metadata(struct vframe_s *vf,
 							comp_buf[current_id][i + 7]);
 				}
 			} else {  /*no parse or parse failed*/
-				meta_flag_bl =
-				parse_sei_and_meta
-					(vf, &req,
-					 &total_comp_size,
-					 &total_md_size,
-					 &src_format,
-					  &ret_flags, drop_flag);
+				if (get_vframe_src_fmt(vf) ==
+				    VFRAME_SIGNAL_FMT_HDR10PRIME)
+					src_format = FORMAT_PRIMESL;
+				else
+					meta_flag_bl =
+					parse_sei_and_meta
+						(vf, &req,
+						&total_comp_size,
+						&total_md_size,
+						&src_format,
+						&ret_flags, drop_flag);
 			}
 			if (force_mel)
 				ret_flags = 1;
@@ -8988,6 +9051,11 @@ int dolby_vision_parse_metadata(struct vframe_s *vf,
 			src_format = tv_dovi_setting->src_format;
 		}
 
+		if (src_format != FORMAT_DOVI && is_primesl_frame(vf)) {
+			src_format = FORMAT_PRIMESL;
+			src_bdp = 10;
+		}
+
 		if (src_format != FORMAT_DOVI && is_hdr10_frame(vf)) {
 			src_format = FORMAT_HDR10;
 			/* prepare parameter from SEI for hdr10 */
@@ -9029,7 +9097,8 @@ int dolby_vision_parse_metadata(struct vframe_s *vf,
 			 (src_format == FORMAT_DOVI ? "DOVI" :
 			 (src_format == FORMAT_HLG ? "HLG" :
 			 (src_format == FORMAT_HDR10PLUS ? "HDR10+" :
-			 (req.dv_enhance_exist ? "DOVI (el meta)" : "SDR")))),
+		     (src_format == FORMAT_PRIMESL ? "PRIMESL" :
+			 (req.dv_enhance_exist ? "DOVI (el meta)" : "SDR"))))),
 			 req.aux_size, req.dv_enhance_exist);
 		if (src_format != FORMAT_DOVI && !req.dv_enhance_exist)
 			memset(&req, 0, sizeof(req));
@@ -9290,7 +9359,9 @@ int dolby_vision_parse_metadata(struct vframe_s *vf,
 		if ((dolby_vision_mode == DOLBY_VISION_OUTPUT_MODE_IPT_TUNNEL ||
 		     dolby_vision_mode == DOLBY_VISION_OUTPUT_MODE_IPT) &&
 		    (last_current_format == FORMAT_HLG ||
-		    last_current_format == FORMAT_HDR10PLUS)) {
+		     last_current_format == FORMAT_PRIMESL ||
+		     last_current_format == FORMAT_HDR10PLUS)) {
+			/* TODO: if need add primesl */
 			bypass_frame = 0;
 			pr_dolby_dbg
 			("[%s] source transition from %d to %d\n",
@@ -10181,6 +10252,8 @@ int dolby_vision_wait_metadata(struct vframe_s *vf)
 			else
 				check_format = FORMAT_DOVI;
 			ret = 0;
+		} else if (is_primesl_frame(vf)) {
+			check_format = FORMAT_PRIMESL;
 		} else if (is_hdr10_frame(vf)) {
 			check_format = FORMAT_HDR10;
 		} else if (is_hlg_frame(vf)) {
@@ -10318,6 +10391,8 @@ int dolby_vision_update_src_format(struct vframe_s *vf, u8 toggle_mode)
 			check_format = FORMAT_HDR10;
 		else
 			check_format = FORMAT_DOVI;
+	} else if (is_primesl_frame(vf)) {
+		check_format = FORMAT_PRIMESL;
 	} else if (is_hdr10_frame(vf)) {
 		check_format = FORMAT_HDR10;
 	} else if (is_hlg_frame(vf)) {
@@ -10373,7 +10448,6 @@ static void update_dolby_vision_status(enum signal_format_enum src_format)
 		pr_dolby_dbg("Dolby Vision mode changed to HDR_PROCESS %d\n",
 			     src_format);
 		dolby_vision_status = HDR_PROCESS;
-
 	} else if (src_format == FORMAT_HLG &&
 		   dolby_vision_status != HLG_PROCESS &&
 		   (is_meson_tm2_tvmode() || is_meson_t7_tvmode() ||
@@ -10382,7 +10456,6 @@ static void update_dolby_vision_status(enum signal_format_enum src_format)
 			("Dolby Vision mode changed to HLG_PROCESS %d\n",
 			src_format);
 		dolby_vision_status = HLG_PROCESS;
-
 	} else if (src_format == FORMAT_SDR &&
 		   dolby_vision_status != SDR_PROCESS) {
 		pr_dolby_dbg("Dolby Vision mode changed to SDR_PROCESS %d\n",
@@ -10788,7 +10861,13 @@ int dolby_vision_process(struct vframe_s *vf,
 		}
 		if (dolby_vision_status != BYPASS_PROCESS) {
 			if (vinfo && !is_meson_tvmode()) {
-				if (vf && is_hdr10plus_frame(vf)) {
+				if (vf && is_primesl_frame(vf)) {
+					/* disable dolby immediately */
+					pr_dolby_dbg("Dolby bypass: PRIMESL: Switched to SDR first\n");
+					send_hdmi_pkt(FORMAT_PRIMESL,
+						      FORMAT_SDR, vinfo, vf);
+					enable_dolby_vision(0);
+				} else if (vf && is_hdr10plus_frame(vf)) {
 					/* disable dolby immediately */
 					pr_dolby_dbg("Dolby bypass: HDR10+: Switched to SDR first\n");
 					send_hdmi_pkt(FORMAT_HDR10PLUS,

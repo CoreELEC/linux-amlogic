@@ -795,6 +795,7 @@ int hdr_policy_process(struct vinfo_s *vinfo,
 				}
 				break;
 			case HDRTYPE_HDR10:
+			case HDRTYPE_PRIMESL:
 				/* source HDR10 */
 				if (sink_hdr_support(vinfo) & HDR_SUPPORT) {
 					/* hdr bypass */
@@ -898,6 +899,7 @@ int hdr_policy_process(struct vinfo_s *vinfo,
 					}
 					break;
 				case HDRTYPE_HDR10:
+				case HDRTYPE_PRIMESL:
 					/* VD2 source HDR10 */
 					if (target_format[oth_path] == BT2020_PQ ||
 					    target_format[oth_path] == BT2020_PQ_DYNAMIC) {
@@ -1056,6 +1058,7 @@ int hdr_policy_process(struct vinfo_s *vinfo,
 					}
 					break;
 				case HDRTYPE_HDR10:
+				case HDRTYPE_PRIMESL:
 					/* VD2 source HDR10 */
 					if (target_format[oth_path] == BT2020_PQ ||
 					    target_format[oth_path] == BT2020_PQ_DYNAMIC) {
@@ -1164,6 +1167,7 @@ out:
 				PROC_OFF;
 			break;
 		case HDRTYPE_HDR10:
+		case HDRTYPE_PRIMESL:
 			cur_hdr_process_mode[oth_path] = PROC_OFF;
 			break;
 		case HDRTYPE_HLG:
@@ -1642,6 +1646,7 @@ void video_post_process(struct vframe_s *vf,
 		}
 		break;
 	case HDRTYPE_HDR10:
+	case HDRTYPE_PRIMESL:
 		if (vd_path == VD2_PATH &&
 		    is_dolby_vision_on() &&
 		    is_dolby_vision_stb_mode()) {
