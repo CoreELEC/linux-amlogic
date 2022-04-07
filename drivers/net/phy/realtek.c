@@ -362,6 +362,23 @@ static struct phy_driver realtek_drvs[] = {
 		.suspend	= genphy_suspend,
 		.resume		= genphy_resume,
 #endif
+	},{
+		.phy_id		= 0x001cc878,
+		.name		= "RTL8211F-VD Gigabit Ethernet",
+		.phy_id_mask	= 0x001fffff,
+		.features	= PHY_GBIT_FEATURES,
+		.flags		= PHY_HAS_INTERRUPT,
+		.config_aneg	= &genphy_config_aneg,
+		.config_init	= &rtl8211f_config_init,
+		.read_status	= &genphy_read_status,
+		.ack_interrupt	= &rtl8211f_ack_interrupt,
+		.config_intr	= &rtl8211f_config_intr,
+#ifdef CONFIG_AMLOGIC_ETH_PRIVE
+		.resume		= rtl8211f_resume,
+#else
+		.suspend	= genphy_suspend,
+		.resume		= genphy_resume,
+#endif
 	},
 };
 
@@ -372,6 +389,7 @@ static struct mdio_device_id __maybe_unused realtek_tbl[] = {
 	{ 0x001cc914, 0x001fffff },
 	{ 0x001cc915, 0x001fffff },
 	{ 0x001cc916, 0x001fffff },
+	{ 0x001cc878, 0x001fffff },
 	{ }
 };
 
