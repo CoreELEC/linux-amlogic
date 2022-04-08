@@ -74,6 +74,7 @@
 /* 20220331: starting state chg not send event */
 /* 20220401: 59.94 duration need set to 1601 */
 /* 20220402: add vdin v4l2 feature */
+/* 20220408: get format convert when started */
 /* 20220608: t7 screenshot picture abnormal when width greater than vdin1_line_buff_size */
 #define VDIN_VER "20220402: add vdin v4l2 feature"
 
