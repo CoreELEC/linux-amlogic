@@ -5,25 +5,29 @@
 
 / {
 	lcd:lcd {
-		compatible = "amlogic, lcd-t3";
+		compatible = "amlogic, lcd-t5w";
 		status = "okay";
 		index = <0>;
 		mode = "tv";
-		fr_auto_policy = <1>; /* 0=disable, 1=60/50hz, 2=60/50/48hz */
-		key_valid = <0>;
-		clocks = <&clkc CLKID_SYS_CLK_TCON
-				&clkc CLKID_FCLK_DIV5
-				&clkc CLKID_CTS_TCON_PLL_CLK>;
-		clock-names = "tcon_gate",
-				"fclk_div5",
-				"clk_tcon";
-		reg = <0x0 0xfe3b0000 0x0 0xd000   /* tcon */
-			0x0 0xfe004000 0x0 0x70    /* periphs */
-			0x0 0xfe002000 0x0 0xa0>;  /* reset */
-		interrupts = <0 197 1
-			0 194 1
-			0 282 1
-			0 56 1>;
+		fr_auto_policy = <0>; /* 0=disable, 1=60/50hz, 2=60/50/48hz */
+		key_valid = <1>;
+		clocks = <&clkc CLKID_CLK81_VCLK2_ENCL
+			&clkc CLKID_CLK81_VCLK2_VENCL
+			&clkc CLKID_CLK81_TCON
+			&clkc CLKID_FCLK_DIV5
+			&clkc CLKID_CTS_TCON_PLL_CLK>;
+		clock-names = "encl_top_gate",
+			"encl_int_gate",
+			"tcon_gate",
+			"fclk_div5",
+			"clk_tcon";
+		reg = <0x0 0xff660000 0x0 0xd000 /*tcon*/
+			0x0 0xff634400 0x0 0x300 /*periphs*/
+			0x0 0xffd01000 0x0 0xa0>; /*reset*/
+		interrupts = <0 3 1
+			0 56 1
+			0 78 1
+			0 88 1>;
 		interrupt-names = "vsync","vsync2","vbyone","tcon";
 		pinctrl-names = "vbyone","vbyone_off",
 				"tcon_p2p","tcon_p2p_usit","tcon_p2p_off",
@@ -42,9 +46,8 @@
 		/* power index:(gpios_index, or extern_index, 0xff=invalid) */
 		/* power value:(0=output low, 1=output high, 2=input) */
 		/* power delay:(unit in ms) */
-		lcd_cpu-gpios = < &gpio GPIOH_7 GPIO_ACTIVE_HIGH
-			&gpio GPIOH_3 GPIO_ACTIVE_HIGH>;
-		lcd_cpu_gpio_names = "GPIOH_7","GPIOH_3";
+		lcd_cpu-gpios = < &gpio GPIOH_7 GPIO_ACTIVE_HIGH>;
+		lcd_cpu_gpio_names = "GPIOH_7";
 
 		lvds_0{
 			model_name = "1080p-vfreq";
@@ -80,12 +83,12 @@
 
 			/* power step: type, index, value, delay(ms) */
 			power_on_step = <
-				0 0 1 50   /*panel power*/
+				0 0 1 50 /*panel power on*/
 				2 0 0 0   /*signal enable*/
 				0xff 0 0 0>; /*ending*/
 			power_off_step = <
-				2 0 0 10  /*signal disable*/
-				0 0 0 500   /*panel power*/
+				2 0 0 0 /*signal disable*/
+				0 0 0 100 /*panel power off*/
 				0xff 0 0 0>; /*ending*/
 			backlight_index = <0xff>;
 		};
@@ -122,12 +125,12 @@
 
 			/* power step: type, index, value, delay(ms) */
 			power_on_step = <
-				0 0 1 50   /*panel power*/
+				0 0 1 50 /*panel power on*/
 				2 0 0 0   /*signal enable*/
 				0xff 0 0 0>; /*ending*/
 			power_off_step = <
-				2 0 0 10  /*signal disable*/
-				0 0 0 500   /*panel power*/
+				2 0 0 0 /*signal disable*/
+				0 0 0 100 /*panel power off*/
 				0xff 0 0 0>; /*ending*/
 			backlight_index = <0xff>;
 		};
@@ -174,7 +177,7 @@
 				2 0 0 10 /*signal disable*/
 				0 0 0 500   /*panel power*/
 				0xff 0 0 0>; /*ending*/
-			backlight_index = <0>;
+			backlight_index = <0xff>;
 		};
 		vbyone_1{
 			model_name = "public_1region";
@@ -213,14 +216,15 @@
 			/* power step: type, index, value, delay(ms) */
 			power_on_step = <
 				0 0 1 500   /*panel power*/
-				2 0 0 10 /*signal enable*/
+				2 0 0 10  /*signal enable*/
 				0xff 0 0 0>; /*ending*/
 			power_off_step = <
-				2 0 0 10  /*signal disable*/
+				2 0 0 10 /*signal disable*/
 				0 0 0 500   /*panel power*/
 				0xff 0 0 0>; /*ending*/
-			backlight_index = <0>;
+			backlight_index = <0xff>;
 		};
+
 		p2p_0{
 			model_name = "p2p_ceds";
 			interface = "p2p"; /*lcd_interface
@@ -425,7 +429,7 @@
 		compatible = "amlogic, lcd_extern";
 		status = "okay";
 		index = <0>;
-		key_valid = <0>;
+		key_valid = <1>;
 		i2c_bus = "i2c_bus_2";
 
 		extern_0{
@@ -463,17 +467,25 @@
 	};
 
 	backlight{
-		compatible = "amlogic, backlight-t3";
+		compatible = "amlogic, backlight-t5w";
 		status = "okay";
 		index = <0>;
-		key_valid = <0>;
+		key_valid = <1>;
 		pinctrl-names = "pwm_on","pwm_vs_on",
-				"pwm_off";
-		pinctrl-0 = <&pwm_d_pins6>;
+				"pwm_combo_0_1_on",
+				"pwm_combo_0_vs_1_on",
+				"pwm_combo_0_1_vs_on",
+				"pwm_off",
+				"pwm_combo_off";
+		pinctrl-0 = <&pwm_d_pins3>;
 		pinctrl-1 = <&bl_pwm_vs_on_pins>;
-		pinctrl-2 = <&bl_pwm_off_pins>;
+		pinctrl-2 = <&pwm_d_pins3 &pwm_e_pins2>;
+		pinctrl-3 = <&bl_pwm_combo_0_vs_on_pins &pwm_e_pins2>;
+		pinctrl-4 = <&pwm_d_pins3 &bl_pwm_combo_1_vs_on_pins>;
+		pinctrl-5 = <&bl_pwm_off_pins>;
+		pinctrl-6 = <&bl_pwm_combo_off_pins>;
 		pinctrl_version = <2>; /* for uboot */
-		interrupts-extended = <&gic 0 197 1>,<&gpio_intc 119 1>;
+		interrupts-extended = <&gic 0 3 1>,<&gpio_intc 23 1>;
 		interrupt-names = "vsync","ldim_pwm_vs";
 		bl_pwm_config = <&bl_pwm_conf>;
 		memory-region = <&ldc_mem_reserved>;
@@ -563,7 +575,7 @@
 		pinctrl-names = "ldim_pwm",
 			"ldim_pwm_vs",
 			"ldim_pwm_off";
-		pinctrl-0 = <&pwm_d_pins6>;
+		pinctrl-0 = <&pwm_d_pins3>;
 		pinctrl-1 = <&bl_pwm_vs_on_pins>;
 		pinctrl-2 = <&bl_pwm_off_pins>;
 		pinctrl_version = <2>; /* for uboot */
@@ -571,9 +583,8 @@
 
 		/* pwm port: PWM_A, PWM_B, PWM_C, PWM_D, PWM_E, PWM_F, PWM_VS*/
 		ldim_dev-gpios = <&gpio GPIOH_13 GPIO_ACTIVE_HIGH
-			&gpio GPIOH_12 GPIO_ACTIVE_HIGH
-			&gpio GPIOD_8 GPIO_ACTIVE_HIGH>;
-		ldim_dev_gpio_names = "GPIOH_13","GPIOH_12","GPIOD_8";
+			&gpio GPIOH_12 GPIO_ACTIVE_HIGH>;
+		ldim_dev_gpio_names = "GPIOH_13","GPIOH_12";
 
 		ldim_dev_0 {
 			index = <0>;
@@ -604,10 +615,10 @@
 			index = <2>;
 			type = <1>; /* 0=normal,1=spi,2=i2c */
 			ldim_dev_name = "iw7027";
-			ldim_pwm_port = "PWM_D";
+			ldim_pwm_port = "PWM_VS";
 			ldim_pwm_attr = <1  /* pol */
-				120 /*freq(pwm:Hz, pwm_vs:multiple of vs)*/
-				2>;/*default duty(%)*/
+				2 /*freq(pwm:Hz, pwm_vs:multiple of vs)*/
+				50>;/*default duty(%)*/
 			spi_bus_num = <2>;
 			spi_chip_select = <0>;
 			spi_max_frequency = <1000000>; /* unit: hz */
@@ -622,7 +633,7 @@
 				/* ldim_dev-gpios index, 0xff=invalid */
 			spi_write_check = <0>; /* 0=disable, 1=enable */
 
-			dim_max_min = <0xfff 0x7f>; /* dim_max, dim_min */
+			dim_max_min = <0xfff 0x10>; /* dim_max, dim_min */
 			chip_count = <3>;
 			ldim_zone_mapping = <
 				37 38 39 40 41
@@ -638,20 +649,8 @@
 			ldim_bl_profile_k_bits = <
 				3487 24>; /*profile_k, profile_bits*/
 			ldim_bl_profile_path =
-				"/odm/etc/tvconfig/panel/tcon/HV650QUB-F70_LDIM/bl_profile.bin";
-
-			ldim_cus_param = < /* maximum = 32 x 4 bytes*/
-				0
-				594
-				268
-				30550
-				1231500
-				20960790
-				0
-				5000000
-				0
-				0
-				>;
+				"/mnt/vendor/odm_ext/etc/tvconfig/\
+panel/tcon/HV650QUB-F70_LDIM/bl_profile.bin";
 
 			cmd_size = <0xff>;
 			/* init: (type, data...) */
@@ -764,7 +763,7 @@
 			ldim_pwm_port = "PWM_VS";
 			ldim_pwm_attr = <1  /* pol */
 				1 /*freq(pwm:Hz, pwm_vs:multiple of vs)*/
-				2>;/*default duty(%)*/
+				50>;/*default duty(%)*/
 			spi_bus_num = <2>;
 			spi_chip_select = <0>;
 			spi_max_frequency = <3000000>; /* unit: hz */
@@ -784,9 +783,10 @@
 			ldim_zone_mapping = <0>;
 			ldim_bl_profile_mode = <2>; /*0=no profile*/
 			ldim_bl_profile_k_bits = <
-				3487 24>; /*profile_k, profile_bits*/
+				2827 24>; /*profile_k, profile_bits*/
 			ldim_bl_profile_path =
-				"/odm/etc/tvconfig/panel/UHD_2RG_LDIM_BLMCU/bl_profile.bin";
+				"/mnt/vendor/odm_ext/etc/tvconfig/\
+panel/UHD_2RG_LDIM_BLMCU/bl_profile.bin";
 
 			ldim_cus_param = < /* maximum = 32 x 4 bytes*/
 				11
@@ -802,77 +802,8 @@
 			 */
 			/*   data: spi data, fill 0x0 for no use */
 			/*   delay: unit ms */
-			init_on = <	0xff 0>;
+			init_on = <0xff 0>;
 			init_off = <0xff 0>;
-		};
-	};
-
-	lcd1 {
-		compatible = "amlogic, lcd-t3";
-		status = "okay";
-		index = <1>;
-		mode = "tablet";
-		fr_auto_policy = <1>; /* 0=disable, 1=60/50hz, 2=60/50/48hz */
-		key_valid = <0>;
-		reg = <0x0 0xfe3b0000 0x0 0xd000   /* tcon */
-			0x0 0xfe004000 0x0 0x70    /* periphs */
-			0x0 0xfe002000 0x0 0xa0>;  /* reset */
-		interrupts = <0 197 1
-			0 194 1
-			0 282 1>;
-		interrupt-names = "vsync","vsync2","vbyone";
-		pinctrl-names = "vbyone","vbyone_off";
-		pinctrl-0 = <&lcd_vbyone_b_pins>;
-		pinctrl-1 = <&lcd_vbyone_b_off_pins>;
-		pinctrl_version = <2>; /* for uboot */
-
-		/* power type:(0=cpu_gpio, 2=signal, 3=extern, 0xff=ending) */
-		/* power index:(gpios_index, or extern_index, 0xff=invalid) */
-		/* power value:(0=output low, 1=output high, 2=input) */
-		/* power delay:(unit in ms) */
-
-		vbyone_0{
-			model_name = "fhd_1region";
-			interface = "vbyone"; /*lcd_interface(lvds, vbyone)*/
-			basic_setting = <
-				1920 1080 /*h_active, v_active*/
-				2200 1125 /*h_period, v_period*/
-				10     /*lcd_bits */
-				16 9>; /*screen_widht, screen_height*/
-			range_setting = <
-				2080 2720 /*h_period min, max*/
-				1100 1380 /*v_period min, max*/
-				133940000 156000000>; /*pclk_min, max*/
-			lcd_timing = <
-				44 148 0   /*hs_width, hs_bp, hs_pol*/
-				5  30  0>; /*vs_width, vs_bp, vs_pol*/
-			clk_attr = <
-				2 /*fr_adj_type
-				   *(0=clk, 1=htotal, 2=vtotal, 3=auto_range,
-				   * 4=hdmi_mode)
-				   */
-				0 /*clk_ss_level*/
-				1 /*clk_auto_generate*/
-				0>; /*pixel_clk(unit in Hz)*/
-			vbyone_attr = <
-				4 /*lane_count*/
-				1 /*region_num*/
-				4 /*byte_mode*/
-				4>; /*color_fmt*/
-			vbyone_intr_enable = <
-				1 /*vbyone_intr_enable */
-				3>; /*vbyone_vsync_intr_enable*/
-			phy_attr=<0x7 1>; /* vswing_level, preem_level */
-			hw_filter=<0 0>;  /* filter_time, filter_cnt*/
-
-			/* power step: type, index, value, delay(ms) */
-			power_on_step = <
-				2 0 0 10  /*signal enable*/
-				0xff 0 0 0>; /*ending*/
-			power_off_step = <
-				2 0 0 10 /*signal disable*/
-				0xff 0 0 0>; /*ending*/
-			backlight_index = <0xff>;
 		};
 	};
 
@@ -881,6 +812,11 @@
 			pwm_port = "PWM_D";
 			pwms = <&pwm_cd MESON_PWM_1 30040 0>;
 		};
-	};
-}; /* end of / */
 
+		pwm_channel_1 {
+			pwm_port = "PWM_E";
+			pwms = <&pwm_ef MESON_PWM_0 30040 0>;
+		};
+	};
+
+}; /* end of / */

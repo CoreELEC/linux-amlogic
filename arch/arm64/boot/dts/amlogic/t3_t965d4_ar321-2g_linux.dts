@@ -6,6 +6,7 @@
 /dts-v1/;
 
 #include "mesont3.dtsi"
+#include "mesont3_drm.dtsi"
 #include "partition_normal_linux.dtsi"
 #include "mesont3_ar301_linux-panel.dtsi"
 
@@ -41,6 +42,11 @@
 		#size-cells = <2>;
 		ranges;
 
+		ramdump_bl33z@00000000 {
+			reg = <0x0 0x0 0x0 0x1800000>; /* 0 ~ 24M */
+			status = "disabled";
+		};
+
 		ramoops@0x07400000 {
 			compatible = "ramoops";
 			reg = <0x0 0x07400000 0x0 0x00100000>;
@@ -73,18 +79,14 @@
 			compatible = "shared-dma-pool";
 			reusable;
 			/* keep sync with fb, fox example:logo_addr = "0x7f800000"*/
-			size = <0x0 0x800000>;
 			alignment = <0x0 0x400000>;
-			alloc-ranges = <0x0 0x7f800000 0x0 0x800000>;
+			reg = <0x0 0x7f800000 0x0 0x800000>;
 		};
 
 		lcd_tcon_reserved:linux,lcd_tcon {
-			compatible = "shared-dma-pool";
-			reusable;
-			/* alloc-ranges start should not be 0x0*/
-			size = <0x0 0x00c00000>;
-			alignment = <0x0 0x400000>;
-			alloc-ranges = <0x0 0x3ec00000 0x0 0x00c00000>;
+			compatible = "amlogic, lcd_tcon";
+			reg = <0x0 0x3ec00000 0x0 0x00c00000>;
+			no-map;
 		};
 
 		ion_cma_reserved:linux,ion-dev {
@@ -185,19 +187,10 @@
 			 * 384Mhz (0x18000000)
 			 * 368Mhz (0x17000000)
 			 */
-			size = <0x0 0x0d400000>;
+			size = <0x0 0x0a000000>;
 			alignment = <0x0 0x400000>;
 			linux,contiguous-region;
 			/*alloc-ranges = <0x0 0x0 0x0 0x3f800000>;*/
-		};
-
-		demod_cma_reserved:linux,demod_cma {
-			compatible = "shared-dma-pool";
-			reusable;
-			/* 40M */
-			size = <0x0 0x02800000>;
-			alignment = <0x0 0x400000>;
-			linux,contiguous-region;
 		};
 
 		ldc_mem_reserved:linux,ldc_mem {
@@ -645,11 +638,12 @@
 	dvbci {
 		compatible = "amlogic, dvbci";
 		dev_name = "dvbci";
+		le_enable_level = <1>; /*LE pin enable level*/
 		io_type = <4>; /* 0=iobus,1=spi,2=cimax,3=spi-t312 4:T5D,ci bus*/
 		/*gpio pin define*/
 		pinctrl-names= "ci_ts_pins", "ci_addr_pins";
-		pinctrl-0=<&dvb_ci_bus_pins &ci_ts_pins>;
-		pinctrl-1=<&dvb_ci_bus_pins &ci_addr_pins>;
+		pinctrl-0=<&dvb_ci_bus_pins &ci_ts_pins &ci_ts_clk_pins>;
+		pinctrl-1=<&dvb_ci_bus_pins &ci_addr_pins &ci_gpio_pins>;
 		reg = <0x0 0xFE080000 0x0 0x1FFF>;
 		/*irq define*/
 		interrupts = <0 186 1
@@ -660,6 +654,7 @@
 			/*gpio define  GPIOM_27 GPIOM_28*/
 			cd_pin1 = <&gpio       GPIOM_27       GPIO_ACTIVE_HIGH>;
 			pwr_pin = <&gpio       GPIOM_28       GPIO_ACTIVE_HIGH>;
+			le_pin = <&gpio       GPIOM_30       GPIO_ACTIVE_HIGH>;
 		};
 	};
 
@@ -685,11 +680,8 @@
 			   0x0 0xfe002000 0x0 0x2000	/*reset*/
 			>;
 
-		dtv_demod0_mem = <0>;	// need move to aml_dtv_demod ?
 		spectrum = <1>;
-		cma_flag = <1>;
-		cma_mem_size = <8>;
-		memory-region = <&demod_cma_reserved>;//<&demod_reserved>;
+		cma_mem_size = <40>; // MB
 	};
 
 	/* Audio Related start */
@@ -934,6 +926,13 @@
 		       0x0 0xFF000000 0x0 0x10000>; /*frc clk reg*/
 		reg-names = "frc_reg","frc_clk_reg","vpu_reg";
 	};
+
+	aml_vpp {
+		compatible = "amlogic, vpp-t3";
+		dev_name = "aml_vpp";
+		status = "disabled";
+		pq_en = <1>;
+	};
 }; /* end of / */
 
 &i2c0 {
@@ -972,12 +971,46 @@
 };
 
 &fb {
-	status = "okay";
+	status = "disabled";
 	display_size_default = <1920 1080 1920 2160 32>;
 	mem_size = <0x00800000 0x1980000 0x100000 0x100000>;
 	logo_addr = "0x7f800000";
 	mem_alloc = <0>;
 	pxp_mode = <0>; /** 0:normal mode 1:pxp mode */
+};
+
+&drm_vpu {
+	status = "okay";
+	logo_addr = "0x7f800000";
+
+	connectors_dev: port@2 {
+		drm_to_lcd0: endpoint@2 {
+			reg = <2>;
+			remote-endpoint = <&lcd0_to_drm>;
+		};
+	};
+};
+
+&lcd {
+	ports {
+		port {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			lcd0_to_drm: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&drm_to_lcd0>;
+			};
+		};
+	};
+};
+
+&drm_amhdmitx {
+	status = "disabled";
+	hdcp = "disabled";
+};
+
+&drm_amcvbsout {
+	status = "disabled";
 };
 
 &audiobus {
@@ -1057,7 +1090,7 @@
 	};
 
 	pdm:pdm {
-		compatible = "amlogic, tm2-snd-pdm";
+		compatible = "amlogic, tm2-revb-snd-pdm";
 		#sound-dai-cells = <0>;
 
 		clocks = <&clkaudio CLKID_AUDIO_GATE_PDM
@@ -1342,6 +1375,7 @@
 }; /* end of audiobus */
 
 &earc {
+	earctx_port = <1>;
 	status = "okay";
 };
 
@@ -1629,6 +1663,7 @@
 &aml_wifi{
 	status = "okay";
 	power_on-gpios = <&gpio   GPIOC_11  GPIO_ACTIVE_HIGH>;
+	disable-wifi-32k;
 };
 
 &aml_bt {
