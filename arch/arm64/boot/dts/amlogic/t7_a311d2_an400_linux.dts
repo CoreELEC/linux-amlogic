@@ -1449,8 +1449,23 @@
 	pxp_mode = <0>; /** 0:normal mode 1:pxp mode */
 };
 
+&drm_vpu {
+	status = "okay";
+	logo_addr = "0x3f800000";
+};
+
+&drm_amhdmitx {
+	status = "okay";
+	hdcp = "disabled";
+};
+
+&drm_lcd {
+	status = "okay";
+};
+
 &amhdmitx {
 	status = "okay";
+	enc_idx = <0>;
 };
 
 /*if you want to use vdin just modify status to "ok"*/
@@ -1772,8 +1787,4 @@
 		<&a53pwm_opp_table3>;
 };
 
-&drm_vpu {
-	status = "okay";
-	logo_addr = "0x3f800000";
-};
 
