@@ -11,7 +11,7 @@
 #include <linux/types.h>
 #include <linux/errno.h>
 
-/*#define PHY_ADDR_NEED_64BITS*/
+#define PHY_ADDR_NEED_64BITS
 #ifdef PHY_ADDR_NEED_64BITS
 #define phy_addr_type u64
 #else /* */
