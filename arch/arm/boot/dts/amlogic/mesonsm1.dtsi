@@ -1194,7 +1194,7 @@
 			"hdmi_vapb_clk",
 			"hdmi_vpu_clk";
 		/* HPD, 57 + 32 = 89; CEC, 151 + 32 = 183*/
-		interrupts = <0 57 1
+		interrupts = <0 57 4
 			0 3 1>;
 		interrupt-names = "hdmitx_hpd", "viu1_vsync";
 		/* 0:M8B   1:GXBB 2:GXTVBB 3:GXL  4:GXM
