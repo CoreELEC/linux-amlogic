@@ -2844,6 +2844,13 @@ irqreturn_t vdin_v4l2_isr(int irq, void *dev_id)
 		return IRQ_HANDLED;
 	isr_log(devp->vfp);
 	devp->irq_cnt++;
+
+	if (vdin_isr_drop) {
+		vdin_isr_drop--;
+		vdin_drop_frame_info(devp, "drop debug");
+		return IRQ_HANDLED;
+	}
+
 	spin_lock_irqsave(&devp->isr_lock, flags);
 
 	if (devp->frame_drop_num) {
@@ -3944,6 +3951,7 @@ static long vdin_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 		param.frame_rate = vdin_v4l2_param.fps;
 		param.cfmt = TVIN_YUV422;
+		devp->prop.colordepth = vdin_v4l2_param.bit_dep;
 
 		if (devp->set_canvas_manual == 1)
 			param.dfmt = TVIN_RGB444;
@@ -4203,6 +4211,11 @@ static unsigned int vdin_poll(struct file *file, poll_table *wait)
 		return mask;
 
 	if (devp->set_canvas_manual == 1) {
+		if (check_vdin_readlist(devp)) {
+			mask = (POLLIN | POLLRDNORM);
+			return mask;
+		}
+
 		poll_wait(file, &vframe_waitq, wait);
 
 		if (devp->keystone_vframe_ready == 1)
@@ -4602,6 +4615,7 @@ const struct match_data_s vdin_dt_tl1 = {
 	.vdin0_en = 1,			.vdin1_en = 1,
 	.de_tunnel_tunnel = 0,		.ipt444_to_422_12bit = 0,
 	.vdin0_line_buff_size = 0xf00,	.vdin1_line_buff_size = 0xf00,
+					.vdin1_set_hdr = false,
 };
 #endif
 
@@ -4611,6 +4625,7 @@ const struct match_data_s vdin_dt_sm1 = {
 	.vdin0_en = 1,			.vdin1_en = 1,
 	.de_tunnel_tunnel = 0,		.ipt444_to_422_12bit = 0,
 	.vdin0_line_buff_size = 0x780,	.vdin1_line_buff_size = 0x780,
+					.vdin1_set_hdr = true,
 };
 
 static const struct match_data_s vdin_dt_tm2 = {
@@ -4619,6 +4634,7 @@ static const struct match_data_s vdin_dt_tm2 = {
 	.vdin0_en = 1,			.vdin1_en = 1,
 	.de_tunnel_tunnel = 0, /*0,1*/	.ipt444_to_422_12bit = 0, /*0,1*/
 	.vdin0_line_buff_size = 0xf00,	.vdin1_line_buff_size = 0xf00,
+					.vdin1_set_hdr = true,
 };
 
 static const struct match_data_s vdin_dt_tm2_ver_b = {
@@ -4627,6 +4643,7 @@ static const struct match_data_s vdin_dt_tm2_ver_b = {
 	.vdin0_en = 1,			.vdin1_en = 1,
 	.de_tunnel_tunnel = 0, /*0,1*/	.ipt444_to_422_12bit = 0, /*0,1*/
 	.vdin0_line_buff_size = 0xf00,	.vdin1_line_buff_size = 0xf00,
+					.vdin1_set_hdr = true,
 };
 
 static const struct match_data_s vdin_dt_sc2 = {
@@ -4635,6 +4652,7 @@ static const struct match_data_s vdin_dt_sc2 = {
 	.vdin0_en = 1,			.vdin1_en = 1,
 	.de_tunnel_tunnel = 0, /*0,1*/	.ipt444_to_422_12bit = 0, /*0,1*/
 	.vdin0_line_buff_size = 0x780,	.vdin1_line_buff_size = 0x780,
+					.vdin1_set_hdr = true,
 };
 
 static const struct match_data_s vdin_dt_t5 = {
@@ -4643,6 +4661,7 @@ static const struct match_data_s vdin_dt_t5 = {
 	.vdin0_en = 1,			.vdin1_en = 1,
 	.de_tunnel_tunnel = 0, /*0,1*/	.ipt444_to_422_12bit = 0, /*0,1*/
 	.vdin0_line_buff_size = 0xf00,	.vdin1_line_buff_size = 0x780,
+					.vdin1_set_hdr = false,
 };
 
 static const struct match_data_s vdin_dt_t5d = {
@@ -4651,6 +4670,7 @@ static const struct match_data_s vdin_dt_t5d = {
 	.vdin0_en = 1,			.vdin1_en = 1,
 	.de_tunnel_tunnel = 0, /*0,1*/	.ipt444_to_422_12bit = 0, /*0,1*/
 	.vdin0_line_buff_size = 0x780,	.vdin1_line_buff_size = 0x780,
+					.vdin1_set_hdr = false,
 };
 
 static const struct match_data_s vdin_dt_t7 = {
@@ -4659,6 +4679,7 @@ static const struct match_data_s vdin_dt_t7 = {
 	.vdin0_en = 1,			.vdin1_en = 1,
 	.de_tunnel_tunnel = 0, /*0,1*/	.ipt444_to_422_12bit = 0, /*0,1*/
 	.vdin0_line_buff_size = 0x780,	.vdin1_line_buff_size = 0x780,
+					.vdin1_set_hdr = true,
 };
 
 static const struct match_data_s vdin_dt_s4 = {
@@ -4667,6 +4688,7 @@ static const struct match_data_s vdin_dt_s4 = {
 	.vdin0_en = 0,			.vdin1_en = 1,
 	.de_tunnel_tunnel = 0,		.ipt444_to_422_12bit = 0,
 	.vdin0_line_buff_size = 0x780,	.vdin1_line_buff_size = 0x780,
+					.vdin1_set_hdr = true,
 };
 
 static const struct match_data_s vdin_dt_t3 = {
@@ -4675,6 +4697,7 @@ static const struct match_data_s vdin_dt_t3 = {
 	.vdin0_en = 1,                  .vdin1_en = 1,
 	.de_tunnel_tunnel = 0, /*0,1*/  .ipt444_to_422_12bit = 0, /*0,1*/
 	.vdin0_line_buff_size = 0x1000,  .vdin1_line_buff_size = 0x1000,
+					.vdin1_set_hdr = false,
 };
 
 static const struct match_data_s vdin_dt_s4d = {
@@ -4683,6 +4706,7 @@ static const struct match_data_s vdin_dt_s4d = {
 	.vdin0_en = 0,			.vdin1_en = 1,
 	.de_tunnel_tunnel = 0,		.ipt444_to_422_12bit = 0,
 	.vdin0_line_buff_size = 0x780,	.vdin1_line_buff_size = 0x780,
+					.vdin1_set_hdr = true,
 };
 
 static const struct match_data_s vdin_dt_t5w = {
@@ -4691,6 +4715,7 @@ static const struct match_data_s vdin_dt_t5w = {
 	.vdin0_en = 1,                  .vdin1_en = 1,
 	.de_tunnel_tunnel = 0, /*0,1*/  .ipt444_to_422_12bit = 0, /*0,1*/
 	.vdin0_line_buff_size = 0x1000,  .vdin1_line_buff_size = 0x780,
+					.vdin1_set_hdr = false,
 };
 
 static const struct of_device_id vdin_dt_match[] = {
