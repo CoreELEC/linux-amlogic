@@ -139,6 +139,22 @@ static unsigned int amlvideo2_scaledown2 = 2;
 module_param(amlvideo2_scaledown2, uint, 0664);
 MODULE_PARM_DESC(amlvideo2_scaledown2, "amlvideo2_scaledown2");
 
+static int amlvideo2_angle;
+module_param(amlvideo2_angle, uint, 0664);
+MODULE_PARM_DESC(amlvideo2_angle, "amlvideo2_angle");
+
+static int amlvideo2_dump;
+module_param(amlvideo2_dump, uint, 0664);
+MODULE_PARM_DESC(amlvideo2_dump, "amlvideo2_dump");
+
+static int amlvideo2_dest_w;
+module_param(amlvideo2_dest_w, uint, 0664);
+MODULE_PARM_DESC(amlvideo2_dest_w, "amlvideo2_dest_w");
+
+static int amlvideo2_dest_h;
+module_param(amlvideo2_dest_h, uint, 0664);
+MODULE_PARM_DESC(amlvideo2_dest_h, "amlvideo2_dest_w");
+
 static struct v4l2_fract amlvideo2_frmintervals_active = {
 	.numerator = 1, .denominator = DEF_FRAMERATE, };
 
@@ -3239,6 +3255,7 @@ int amlvideo2_ge2d_pre_process(struct vframe_s *vf,
 		pr_info("crop_width = %d, crop_height = %d\n\n",
 			node->crop_info.source_width_crop,
 			node->crop_info.source_height_crop);
+		pr_info("output->angle=%d\n", output->angle);
 	}
 	if (node->crop_info.capture_crop_enable == 1) {
 		if (node->crop_info.source_top_crop > 0 &&
@@ -3462,6 +3479,10 @@ int amlvideo2_ge2d_pre_process(struct vframe_s *vf,
 	}
 
 	canvas_read(output_canvas & 0xff, &cd);
+	if (amlvideo2_dbg_en & 4)
+		pr_info("amlvideo2: add =%lx, %d*%d\n",
+			cd.addr, cd.width, cd.height);
+
 	ge2d_config->dst_planes[0].addr = cd.addr;
 	ge2d_config->dst_planes[0].w = cd.width;
 	ge2d_config->dst_planes[0].h = cd.height;
@@ -3651,6 +3672,85 @@ int amlvideo2_ge2d_pre_process(struct vframe_s *vf,
 	return output_canvas;
 }
 
+static void dump_vf(struct vframe_s *vf)
+{
+	struct file *fp;
+	char name_buf[32];
+	int write_size;
+	u8 *data;
+	mm_segment_t fs;
+	loff_t pos;
+
+	if (!vf)
+		return;
+
+	snprintf(name_buf, sizeof(name_buf), "/data/vdin.yuv");
+	fp = filp_open(name_buf, O_CREAT | O_RDWR, 0644);
+	if (IS_ERR(fp))
+		return;
+	write_size = vf->canvas0_config[0].width * vf->canvas0_config[0].height
+		* 3 / 2;
+	pr_info("amlvideo2: dump in %d %d, phy_addr=%ld\n",
+		vf->canvas0_config[0].width,
+		vf->canvas0_config[0].height,
+		vf->canvas0_config[0].phy_addr);
+
+	data = codec_mm_vmap(vf->canvas0_config[0].phy_addr, write_size);
+	if (!data)
+		return;
+	fs = get_fs();
+	set_fs(KERNEL_DS);
+	pos = 0;
+	vfs_write(fp, data, write_size, &pos);
+	vfs_fsync(fp, 0);
+	pr_info("amlvideo2: dump in %u size to addr%p\n", write_size, data);
+	codec_mm_unmap_phyaddr(data);
+	filp_close(fp, NULL);
+	set_fs(fs);
+}
+
+static void dump_output(struct amlvideo2_output *output)
+{
+	struct file *fp;
+	char name_buf[32];
+	int write_size;
+	u8 *data;
+	mm_segment_t fs;
+	loff_t pos;
+	int output_canvas;
+	struct canvas_s cd;
+
+	if (!output)
+		return;
+
+	output_canvas = output->canvas_id;
+	canvas_read(output_canvas & 0xff, &cd);
+
+	snprintf(name_buf, sizeof(name_buf), "/data/amlvideo2.yuv");
+	fp = filp_open(name_buf, O_CREAT | O_RDWR, 0644);
+	if (IS_ERR(fp))
+		return;
+	write_size = cd.width * cd.height * 3 / 2;
+	pr_info("amlvideo2: dump output %d %d, phy_addr=%ld\n",
+		cd.width,
+		cd.width,
+		cd.addr);
+
+	data = codec_mm_vmap(cd.addr, write_size);
+	if (!data)
+		return;
+	fs = get_fs();
+	set_fs(KERNEL_DS);
+	pos = 0;
+	vfs_write(fp, data, write_size, &pos);
+	vfs_fsync(fp, 0);
+	pr_info("amlvideo2: dump output %u size to addr%p\n",
+		write_size, data);
+	codec_mm_unmap_phyaddr(data);
+	filp_close(fp, NULL);
+	set_fs(fs);
+}
+
 static int amlvideo2_fillbuff(struct amlvideo2_fh *fh,
 			      struct amlvideo2_node_buffer *buf,
 			      struct vframe_s *vf)
@@ -3756,6 +3856,12 @@ static int amlvideo2_fillbuff(struct amlvideo2_fh *fh,
 		if (atomic_read(&node->is_suspend))
 			complete(&node->suspend_sema);
 #endif
+	}
+
+	if (amlvideo2_dump) {
+		dump_vf(vf);
+		dump_output(&output);
+		amlvideo2_dump = 0;
 	}
 
 	buf->vb.state = VIDEOBUF_DONE;
@@ -4527,9 +4633,9 @@ static void free_buffer(struct videobuf_queue *vq,
 }
 
 #define norm_maxw() 2000
-#define norm_maxh() 1600
+#define norm_maxh() 2000
 #define norm_maxw_4k() 3840
-#define norm_maxh_4k() 2160
+#define norm_maxh_4k() 3840
 
 static int buffer_prepare(struct videobuf_queue *vq, struct videobuf_buffer *vb,
 			  enum v4l2_field field)
@@ -4730,6 +4836,9 @@ static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 	struct amlvideo2_fh *fh = priv;
 	struct videobuf_queue *q = &fh->vb_vidq;
 
+	pr_info("amlvideo2 s_fmt_1 %d * %d\n",
+		f->fmt.pix.width, f->fmt.pix.height);
+
 	f->fmt.pix.width = (f->fmt.pix.width + (CANVAS_WIDTH_ALIGN - 1)) &
 				(~(CANVAS_WIDTH_ALIGN - 1));
 	if (f->fmt.pix.pixelformat == V4L2_PIX_FMT_YVU420 ||
@@ -4750,6 +4859,9 @@ static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 		ret = -EBUSY;
 		goto out;
 	}
+
+	pr_info("amlvideo2 s_fmt_2 %d * %d\n",
+		f->fmt.pix.width, f->fmt.pix.height);
 
 	fh->fmt = get_format(f);
 	fh->width = f->fmt.pix.width;
@@ -4983,6 +5095,7 @@ static int amlvideo2_start_tvin_service(struct amlvideo2_node *node)
 	const struct vinfo_s *vinfo;
 #endif
 	int dst_w, dst_h;
+	int angle = node->qctl_regs[0];
 
 #ifdef CONFIG_AMLOGIC_MEDIA_TVIN
 	vinfo = get_current_vinfo();
@@ -5055,8 +5168,8 @@ static int amlvideo2_start_tvin_service(struct amlvideo2_node *node)
 			para.h_active, para.v_active);
 		pr_info("para.dest_hactive: %d, para.dest_vactive: %d,",
 			para.dest_hactive, para.dest_vactive);
-		pr_info("fh->width: %d, fh->height: %d,",
-			fh->width, fh->height);
+		pr_info("fh->width: %d, fh->height: %d,angle=%d\n",
+			fh->width, fh->height, angle);
 		pr_info("vinfo->mode: %d,para.scan_mode: %d\n",
 			vinfo->mode, para.scan_mode);
 		pr_info("node->vdin_device_num = %d .\n",
@@ -5218,6 +5331,12 @@ static int vidioc_streamon(struct file *file, void *priv, enum v4l2_buf_type i)
 	struct vdin_parm_s para;
 	const struct vinfo_s *vinfo;
 	int dst_w, dst_h;
+	int angle;
+
+	if (node->qctl_regs[0] == 0)
+		node->qctl_regs[0] = amlvideo2_angle;
+
+	angle = node->qctl_regs[0];
 
 	vinfo = get_current_vinfo();
 #endif
@@ -5340,6 +5459,13 @@ static int vidioc_streamon(struct file *file, void *priv, enum v4l2_buf_type i)
 	}
 	para.dest_hactive = dst_w;
 	para.dest_vactive = dst_h;
+
+	if (amlvideo2_dest_w != 0)
+		para.dest_hactive = amlvideo2_dest_w;
+
+	if (amlvideo2_dest_h != 0)
+		para.dest_hactive = amlvideo2_dest_h;
+
 	para.reserved |= PARAM_STATE_SCREENCAP;
 	if (para.scan_mode == TVIN_SCAN_MODE_INTERLACED)
 		para.dest_vactive = para.dest_vactive / 2;
@@ -5357,8 +5483,8 @@ static int vidioc_streamon(struct file *file, void *priv, enum v4l2_buf_type i)
 			para.h_active, para.v_active);
 		pr_info("para.dest_hactive: %d, para.dest_vactive: %d,",
 			para.dest_hactive, para.dest_vactive);
-		pr_info("fh->width: %d, fh->height: %d,",
-			fh->width, fh->height);
+		pr_info("fh->width: %d, fh->height: %d,angle=%d",
+			fh->width, fh->height, angle);
 		pr_info("vinfo->mode: %d,para.scan_mode: %d\n",
 			vinfo->mode, para.scan_mode);
 		pr_info("node->vdin_device_num = %d .\n",
@@ -5537,6 +5663,9 @@ static int amlvideo2_setting(struct amlvideo2_node *node, int PROP_ID,
 		if (node->qctl_regs[index] != value)
 			node->qctl_regs[index] = value;
 
+		if (node->qctl_regs[index] == 0)
+			node->qctl_regs[index] = amlvideo2_angle;
+		pr_info("amvlvideo2: set rotate=%d\n", node->qctl_regs[index]);
 		break;
 	default:
 		ret = -1;
@@ -5696,6 +5825,7 @@ static int vidioc_s_output(struct file *file, void *fh,
 	if (mode > AML_SCREEN_MODE_MAX)
 		return -1;
 	node->mode = (enum aml_screen_mode_e)mode;
+	pr_info("amlvideo2 set aml_screen_mode_e =%d\n", mode);
 	return 0;
 }
 
