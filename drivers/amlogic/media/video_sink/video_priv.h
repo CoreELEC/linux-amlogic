@@ -145,9 +145,10 @@ enum pre_hscaler_e {
 };
 
 enum vpp_type_e {
-	VPP0,
-	VPP1,
-	VPP2,
+	VPP0 = 0,
+	VPP1 = 1,
+	VPP2 = 2,
+	VPP_MAX = 3
 };
 
 enum reshape_mode_e {
@@ -527,6 +528,7 @@ extern int vdec_out_size_threshold_8k;
 extern int vpp_in_size_threshold_8k;
 extern int vdec_out_size_threshold_4k;
 extern int vpp_in_size_threshold_4k;
+extern u64 vsync_cnt[VPP_MAX];
 
 bool is_amdv_enable(void);
 bool is_amdv_on(void);
