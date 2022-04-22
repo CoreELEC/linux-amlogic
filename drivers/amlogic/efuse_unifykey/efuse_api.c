@@ -257,7 +257,7 @@ static ssize_t _efuse_read(char *buf, size_t count, loff_t *ppos)
 	unsigned int pos = *ppos;
 
 	struct efuse_hal_api_arg arg;
-	unsigned int retcnt;
+	unsigned long retcnt;
 	ssize_t ret;
 
 	arg.cmd = EFUSE_HAL_API_READ;
@@ -279,7 +279,7 @@ static ssize_t _efuse_write(const char *buf, size_t count, loff_t *ppos)
 	unsigned int pos = *ppos;
 
 	struct efuse_hal_api_arg arg;
-	unsigned int retcnt;
+	unsigned long retcnt;
 	ssize_t ret;
 
 	arg.cmd = EFUSE_HAL_API_WRITE;
