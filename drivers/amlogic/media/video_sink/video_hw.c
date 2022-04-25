@@ -5929,7 +5929,7 @@ static inline bool is_tv_panel(void)
 		return false;
 
 	/*panel*/
-	if (vinfo->viu_color_fmt == COLOR_FMT_RGB444 &&
+	if (vinfo->mode == VMODE_LCD &&
 	    (get_cpu_type() == MESON_CPU_MAJOR_ID_TL1 ||
 	    get_cpu_type() == MESON_CPU_MAJOR_ID_TM2 ||
 	    get_cpu_type() == MESON_CPU_MAJOR_ID_T5 ||
