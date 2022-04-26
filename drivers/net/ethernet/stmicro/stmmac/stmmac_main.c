@@ -31,6 +31,9 @@
 #include <linux/pm_runtime.h>
 #include <linux/prefetch.h>
 #include <linux/pinctrl/consumer.h>
+#if IS_ENABLED(CONFIG_AMLOGIC_ETH_PRIVE)
+#include <linux/amlogic/aml_phy_debug.h>
+#endif
 #ifdef CONFIG_DEBUG_FS
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
@@ -3805,6 +3808,9 @@ static int stmmac_open(struct net_device *dev)
 	netif_tx_start_all_queues(priv->dev);
 	stmmac_enable_all_dma_irq(priv);
 
+#if IS_ENABLED(CONFIG_AMLOGIC_ETH_PRIVE)
+	gmac_create_sysfs(priv->phylink->phydev, priv->ioaddr);
+#endif
 	return 0;
 
 irq_error:
@@ -3889,6 +3895,9 @@ static int stmmac_release(struct net_device *dev)
 	if (priv->dma_cap.fpesel)
 		stmmac_fpe_stop_wq(priv);
 
+#if IS_ENABLED(CONFIG_AMLOGIC_ETH_PRIVE)
+	gmac_remove_sysfs(priv->phylink->phydev);
+#endif
 	return 0;
 }
 
