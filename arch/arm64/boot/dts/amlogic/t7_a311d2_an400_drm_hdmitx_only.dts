@@ -5,7 +5,8 @@
 
 /dts-v1/;
 
-#include "mesont7.dtsi"
+#include "mesont7_hdmitx_only.dtsi"
+#include "mesont7_drm.dtsi"
 #include "partition_normal_PR_32.dtsi"
 #include <dt-bindings/input/input.h>
 #include "mesont7_an400-panel.dtsi"
@@ -59,6 +60,11 @@
 		#size-cells = <2>;
 		ranges;
 
+		ramdump_bl33z@00000000 {
+			reg = <0x0 0x0 0x0 0x1800000>; /* 0 ~ 24M */
+			status = "disabled";
+		};
+
 		/* global autoconfigured region for contiguous allocations */
 		ramoops@0x07400000 {
 			compatible = "ramoops";
@@ -105,7 +111,7 @@
 			compatible = "shared-dma-pool";
 			reusable;
 			/* ion_codec_mm max can alloc size 80M*/
-			size = <0x0 0x1bc00000>;
+			size = <0x0 0x1b000000>;
 			alignment = <0x0 0x400000>;
 			linux,contiguous-region;
 			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
@@ -173,7 +179,7 @@
 			compatible = "shared-dma-pool";
 			reusable;
 			/* 1920x1080x4x3 round up 4M align */
-			size = <0x0 0x0d000000>;
+			size = <0x0 0x6000000>;
 			alignment = <0x0 0x400000>;
 			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 		};
@@ -206,6 +212,13 @@
 			size = <0x0 0x01400000>;
 			alignment = <0x0 0x400000>;
 			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
+		};
+
+		ldc_mem_reserved:linux,ldc_mem {
+			compatible = "shared-dma-pool";
+			reusable;
+			size = <0x0 0x400000>;
+			alignment = <0x0 0x400000>;
 		};
 	};
 
@@ -303,7 +316,7 @@
 	unifykey{
 		compatible = "amlogic,unifykey";
 		status = "okay";
-		unifykey-num = <28>;
+		unifykey-num = <19>;
 		unifykey-index-0 = <&keysn_0>;
 		unifykey-index-1 = <&keysn_1>;
 		unifykey-index-2 = <&keysn_2>;
@@ -326,12 +339,6 @@
 		unifykey-index-19= <&keysn_19>;
 		unifykey-index-20= <&keysn_20>;
 		unifykey-index-21= <&keysn_21>;
-		unifykey-index-22= <&keysn_22>;
-		unifykey-index-23= <&keysn_23>;
-		unifykey-index-24= <&keysn_24>;
-		unifykey-index-25= <&keysn_25>;
-		unifykey-index-26= <&keysn_26>;
-		unifykey-index-27= <&keysn_27>;
 
 		keysn_0: key_0{
 			key-name = "usid";
@@ -446,52 +453,17 @@
 			key-device = "normal";
 			key-permit = "read","write","del";
 		};
-		keysn_22:key_22{
-			key-name = "lcd1";
-			key-device = "normal";
-			key-permit = "read","write","del";
-		};
-		keysn_23:key_23{
-			key-name = "lcd1_extern";
-			key-device = "normal";
-			key-permit = "read","write","del";
-		};
-		keysn_24:key_24{
-			key-name = "backlight1";
-			key-device = "normal";
-			key-permit = "read","write","del";
-		};
-		keysn_25:key_25{
-			key-name = "lcd2";
-			key-device = "normal";
-			key-permit = "read","write","del";
-		};
-		keysn_26:key_26{
-			key-name = "lcd2_extern";
-			key-device = "normal";
-			key-permit = "read","write","del";
-		};
-		keysn_27:key_27{
-			key-name = "backlight2";
-			key-device = "normal";
-			key-permit = "read","write","del";
-		};
 	};//End unifykey
 
 	sensor: sensor {
 		compatible = "soc, sensor";
 		status = "okay";
 		sensor-name = "imx290"; /*imx290;os08a10;imx227*/
-		sensor-name-sub = "imx290sub";
 		pinctrl-names= "default";
 		power-domains = <&pwrdm PDID_T7_MIPI_ISP>;
 		clocks = <&clkc CLKID_MCLK_0>,
-				<&clkc CLKID_MCLK_1>,
-				<&clkc CLKID_MCLK_0_PRE>,
-				<&clkc CLKID_MCLK_1_PRE>,
-				<&clkc CLKID_MCLK_PLL>,
-				<&xtal>;
-		clock-names = "mclk_0","mclk_1","mclk_0_pre","mclk_1_pre","mclk_p","mclk_x";
+				<&clkc CLKID_MCLK_1>;
+		clock-names = "mclk_0","mclk_1";
 		pwdn = <&gpio GPIOM_5 GPIO_ACTIVE_HIGH>;
 		reset = <&gpio GPIOM_11 GPIO_ACTIVE_HIGH>;
 	};
@@ -705,19 +677,7 @@
 				sound-dai = <&dummy_codec>;
 			};
 		};
-/*
-		aml-audio-card,dai-link@7 {
-			mclk-fs = <256>;
-			suffix-name = "alsaPORT-earc";
-			cpu {
-				sound-dai = <&earc>;
-				system-clock-frequency = <12288000>;
-			};
-			codec {
-				sound-dai = <&dummy_codec>;
-			};
-		};
-*/
+
 		aml-audio-card,dai-link@7 {
 			mclk-fs = <256>;
 			continuous-clock;
@@ -993,7 +953,7 @@
 	};
 
 	pdm:pdm {
-		compatible = "amlogic, tm2-snd-pdm";
+		compatible = "amlogic, tm2-revb-snd-pdm";
 		#sound-dai-cells = <0>;
 
 		clocks = <&clkaudio CLKID_AUDIO_GATE_PDM
@@ -1038,7 +998,7 @@
 		pinctrl-0 = <&spdifout_d>;
 		pinctrl-1 = <&spdifout_d_mute>;
 
-		//samesource_sel = <4>;
+		samesource_sel = <4>;
 
 		/*spdif clk tuning enable*/
 		clk_tuning_enable = <1>;
@@ -1379,22 +1339,6 @@
 	};
 };
 
-&i2c3 {
-	status = "okay";
-	pinctrl-names = "default";//, "sleep"
-	pinctrl-0 = <&i2c3_pins1>;
-	clock-frequency = <100000>; /* default 100k */
-	sensor-i2c@6c {
-		compatible = "arm, i2c-sensor-sub";
-		reg = <0x6c>;
-		reg-names = "i2c-sensor";
-		slave-addr = <0x6c>;
-		reg-type = <2>;
-		reg-data-type = <1>;
-		link-device = <&phycsi>;
-	};
-};
-
 &i2c5 {
 	status = "okay";
 	pinctrl-names = "default";//, "sleep"
@@ -1500,12 +1444,18 @@
 	temper-buf-size1 = <6>;
 	temper-frame-num1 = <1>;
 	temper-frame-size1 = <0x5EEC00>;
+	temper-line-offset2 = <0x1680>;
+	temper-buf-size2 = <6>;
+	temper-frame-num2 = <1>;
+	temper-frame-size2 = <0x5EEC00>;
 	memory-region = <&isp_cma_reserved>;
 };
 
 &adapter {
 	status = "okay";
-	mem_alloc = <64>;
+	mem_alloc = <32>;
+	mem_alloc1 = <16>;
+	mem_alloc2 = <16>;
 	memory-region = <&adapt_cma_reserved>;
 };
 
@@ -1522,6 +1472,13 @@
 	};
 };
 
+&spicc2 {	//for UWB/LocalDimm
+	status = "disabled";
+	pinctrl-names = "default";
+	pinctrl-0 = <&spicc2_pins>;
+	cs-gpios = <&gpio GPIOY_3 GPIO_ACTIVE_HIGH>;
+};
+
 &spicc3 {
 	status = "disabled";
 	pinctrl-names = "default";
@@ -1536,7 +1493,7 @@
 };
 
 &fb {
-	status = "okay";
+	status = "disabled";
 	display_size_default = <3840 2160 3840 4320 32>;
 	mem_size = <0x00800000 0x4000000 0x100000 0x100000 0x100000>;
 	4k2k_fb = <1>;
@@ -1544,6 +1501,16 @@
 	logo_addr = "0x3f800000";
 	mem_alloc = <0>;
 	pxp_mode = <0>; /** 0:normal mode 1:pxp mode */
+};
+
+&drm_vpu {
+	status = "okay";
+	logo_addr = "0x3f800000";
+};
+
+&drm_amhdmitx {
+	status = "okay";
+	hdcp = "disabled";
 };
 
 &amvideom {
@@ -1667,6 +1634,14 @@
 		mux {
 			groups = "pwm_vs_y";
 			function = "pwm_vs";
+		};
+	};
+
+	bl_pwm_vs_off_pins:bl_pwm_vs_off_pin {
+		mux {
+			groups = "GPIOY_14";
+			function = "gpio_periphs";
+			output-low;
 		};
 	};
 

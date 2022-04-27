@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
+ * Copyright (c) 2021 Amlogic, Inc. All rights reserved.
  */
 
 /dts-v1/;
@@ -12,7 +12,7 @@
 
 / {
 	model = "Amlogic";
-	amlogic-dt-id = "t7_a311d2_an400";
+	amlogic-dt-id = "t7_a311d2_an400_mercury";
 	compatible = "amlogic, t7";
 	interrupt-parent = <&gic>;
 	#address-cells = <2>;
@@ -48,6 +48,10 @@
 		tsensor5 = &vpu_tsensor;
 	};
 
+	chosen {
+		kaslr-seed = <0x0 0x0>;
+	};
+
 	memory@00000000 {
 		device_type = "memory";
 		linux,usable-memory = <0x00000000 0x00000000 0x00000000 0xE0000000
@@ -58,6 +62,11 @@
 		#address-cells = <2>;
 		#size-cells = <2>;
 		ranges;
+
+		ramdump_bl33z@00000000 {
+			reg = <0x0 0x0 0x0 0x1800000>; /* 0 ~ 24M */
+			status = "disabled";
+		};
 
 		/* global autoconfigured region for contiguous allocations */
 		ramoops@0x07400000 {
@@ -77,6 +86,12 @@
 			alignment = <0x0 0x400000>;
 			alloc-ranges = <0x0 0x05000000 0x0 0x3400000>;
 			clear-map;
+		};
+
+		rtos_reserved:linux,rtos_reserved {
+			compatible = "amlogic, aml_rtos_memory";
+			reg = <0x0 0x10000000 0x0 0x20000000>;
+			no-map;
 		};
 
 		dsp_fw_reserved:linux,dsp_fw {
@@ -105,7 +120,7 @@
 			compatible = "shared-dma-pool";
 			reusable;
 			/* ion_codec_mm max can alloc size 80M*/
-			size = <0x0 0x1bc00000>;
+			size = <0x0 0x1b000000>;
 			alignment = <0x0 0x400000>;
 			linux,contiguous-region;
 			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
@@ -173,7 +188,7 @@
 			compatible = "shared-dma-pool";
 			reusable;
 			/* 1920x1080x4x3 round up 4M align */
-			size = <0x0 0x0d000000>;
+			size = <0x0 0x6000000>;
 			alignment = <0x0 0x400000>;
 			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 		};
@@ -207,6 +222,20 @@
 			alignment = <0x0 0x400000>;
 			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 		};
+
+		ldc_mem_reserved:linux,ldc_mem {
+			compatible = "shared-dma-pool";
+			reusable;
+			size = <0x0 0x400000>;
+			alignment = <0x0 0x400000>;
+		};
+	};
+
+	freertos {
+		compatible = "amlogic,freertos";
+		status = "okay";
+		irqs_rsv = <32>;
+		info_offset = <0x1000>;
 	};
 
 	codec_mm {
@@ -483,6 +512,7 @@
 		status = "okay";
 		sensor-name = "imx290"; /*imx290;os08a10;imx227*/
 		sensor-name-sub = "imx290sub";
+		sensor-name-ssub = "imx290ssub";
 		pinctrl-names= "default";
 		power-domains = <&pwrdm PDID_T7_MIPI_ISP>;
 		clocks = <&clkc CLKID_MCLK_0>,
@@ -706,18 +736,18 @@
 			};
 		};
 /*
-		aml-audio-card,dai-link@7 {
-			mclk-fs = <256>;
-			suffix-name = "alsaPORT-earc";
-			cpu {
-				sound-dai = <&earc>;
-				system-clock-frequency = <12288000>;
-			};
-			codec {
-				sound-dai = <&dummy_codec>;
-			};
-		};
-*/
+ *		aml-audio-card,dai-link@7 {
+ *			mclk-fs = <256>;
+ *			suffix-name = "alsaPORT-earc";
+ *			cpu {
+ *				sound-dai = <&earc>;
+ *				system-clock-frequency = <12288000>;
+ *			};
+ *			codec {
+ *				sound-dai = <&dummy_codec>;
+ *			};
+ *		};
+ */
 		aml-audio-card,dai-link@7 {
 			mclk-fs = <256>;
 			continuous-clock;
@@ -993,7 +1023,7 @@
 	};
 
 	pdm:pdm {
-		compatible = "amlogic, tm2-snd-pdm";
+		compatible = "amlogic, tm2-revb-snd-pdm";
 		#sound-dai-cells = <0>;
 
 		clocks = <&clkaudio CLKID_AUDIO_GATE_PDM
@@ -1038,7 +1068,7 @@
 		pinctrl-0 = <&spdifout_d>;
 		pinctrl-1 = <&spdifout_d_mute>;
 
-		//samesource_sel = <4>;
+		samesource_sel = <4>;
 
 		/*spdif clk tuning enable*/
 		clk_tuning_enable = <1>;
@@ -1345,6 +1375,16 @@
 	status = "okay";
 	pinctrl-names="default";
 	pinctrl-0=<&i2c1_pins1>;
+	clock-frequency = <100000>; /* default 100k */
+	sensor-i2c@6c {
+		compatible = "arm, i2c-sensor-ssub";
+		reg = <0x6c>;
+		reg-names = "i2c-sensor";
+		slave-addr = <0x6c>;
+		reg-type = <2>;
+		reg-data-type = <1>;
+		link-device = <&phycsi>;
+	};
 
 	tas5707_36: tas5707_36@1b {
 		compatible = "ti,tas5707";
@@ -1500,12 +1540,18 @@
 	temper-buf-size1 = <6>;
 	temper-frame-num1 = <1>;
 	temper-frame-size1 = <0x5EEC00>;
+	temper-line-offset2 = <0x1680>;
+	temper-buf-size2 = <6>;
+	temper-frame-num2 = <1>;
+	temper-frame-size2 = <0x5EEC00>;
 	memory-region = <&isp_cma_reserved>;
 };
 
 &adapter {
 	status = "okay";
-	mem_alloc = <64>;
+	mem_alloc = <32>;
+	mem_alloc1 = <16>;
+	mem_alloc2 = <16>;
 	memory-region = <&adapt_cma_reserved>;
 };
 
@@ -1520,6 +1566,13 @@
 	spi-nor@0 {
 		status = "disabled";
 	};
+};
+
+&spicc2 {	//for UWB/LocalDimm
+	status = "disabled";
+	pinctrl-names = "default";
+	pinctrl-0 = <&spicc2_pins>;
+	cs-gpios = <&gpio GPIOY_3 GPIO_ACTIVE_HIGH>;
 };
 
 &spicc3 {
@@ -1548,6 +1601,9 @@
 
 &amvideom {
 	display_device_cnt = <2>;
+	vpp0_layer_count = <2>;
+	/* number of video layer display on vpp1 */
+	vpp1_layer_count = <1>;
 };
 
 &amhdmitx {
@@ -1667,6 +1723,14 @@
 		mux {
 			groups = "pwm_vs_y";
 			function = "pwm_vs";
+		};
+	};
+
+	bl_pwm_vs_off_pins:bl_pwm_vs_off_pin {
+		mux {
+			groups = "GPIOY_14";
+			function = "gpio_periphs";
+			output-low;
 		};
 	};
 
