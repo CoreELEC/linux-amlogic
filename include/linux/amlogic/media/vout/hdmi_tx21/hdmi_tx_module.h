@@ -429,6 +429,8 @@ struct hdmitx_dev {
 	spinlock_t edid_spinlock; /* edid hdr/dv cap lock */
 	struct vpu_dev_s *hdmitx_vpu_clk_gate_dev;
 
+	unsigned int hdcp_ctl_lvl;
+
 	/*DRM related*/
 	int drm_hdmitx_id;
 	struct connector_hpd_cb drm_hpd_cb;
