@@ -1319,7 +1319,8 @@ struct di_mm_cfg_s {
 
 	unsigned int fix_buf	: 1;
 	unsigned int dis_afbce	: 1;
-	unsigned int rev1	: 30;
+	unsigned int is_4k	: 1; //for hf
+	unsigned int rev1	: 29;
 	unsigned int pre_inser_size;
 	unsigned int ibuf_hsize;
 	unsigned int pbuf_hsize;
@@ -1594,6 +1595,8 @@ enum QBF_BLK_Q_TYPE {
 };
 
 struct dim_sub_mem_s {
+	unsigned char	index; //add for mng hf buffer
+	unsigned char	ch;
 	unsigned long	mem_start;
 	struct page	*pages;
 	unsigned int	cnt;
@@ -1615,7 +1618,7 @@ struct dim_mm_blk_s {
 	void *sct;
 	unsigned int sct_keep; //keep number
 	void *buffer; //new_interface
-	struct dim_sub_mem_s	hf_buff;
+	struct dim_sub_mem_s	*hf_buff;
 	bool	flg_hf;
 	atomic_t	p_ref_mem;
 };
@@ -2202,6 +2205,7 @@ struct di_data_l_s {
 	bool	hf_busy;//
 	unsigned int ic_sub_ver;
 	struct reg_t s4dw_reg[DIM_S4DW_REG_BACK_NUB];
+	void *mng_hf_buf;
 };
 
 /**************************************
