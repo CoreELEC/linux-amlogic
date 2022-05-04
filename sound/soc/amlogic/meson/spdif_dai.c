@@ -49,6 +49,9 @@
 #include <linux/amlogic/media/sound/aiu_regs.h>
 #include <linux/amlogic/media/sound/audin_regs.h>
 #include <linux/amlogic/media/sound/audio_iomap.h>
+#ifdef CONFIG_AMLOGIC_HDMITX
+#include <linux/amlogic/media/vout/hdmi_tx/hdmi_tx_ext.h>
+#endif
 
 /*
  * 0 --  other formats except(DD,DD+,DTS)
@@ -101,15 +104,14 @@ void aml_spdif_play(int samesrc)
 		static int iec958buf[DEFAULT_PLAYBACK_SIZE];
 		struct _aiu_958_raw_setting_t set;
 		struct iec958_chsts chstat;
-		struct snd_pcm_substream substream;
-		struct snd_pcm_runtime runtime;
 		int size = DEFAULT_PLAYBACK_SIZE;
+		struct aud_para aud_param;
 
-		substream.runtime = &runtime;
-		runtime.rate = 48000;
-		runtime.format = SNDRV_PCM_FORMAT_S16_LE;
-		runtime.channels = 2;
-		runtime.sample_bits = 16;
+		memset(&aud_param, 0, sizeof(aud_param));
+		aud_param.rate = 48000;
+		aud_param.chs = 2;
+		aud_param.size = 16;
+
 		memset((void *)(&set), 0, sizeof(set));
 		memset((void *)(&chstat), 0, sizeof(chstat));
 		set.chan_stat = &chstat;
@@ -149,7 +151,7 @@ void aml_spdif_play(int samesrc)
 				& (~(DEFAULT_PLAYBACK_SIZE - 1)),
 			size, 0);
 		audio_set_958_mode(AIU_958_MODE_PCM16, &set);
-		aout_notifier_call_chain(AOUT_EVENT_IEC_60958_PCM, &substream);
+		aout_notifier_call_chain(AOUT_EVENT_IEC_60958_PCM, &aud_param);
 		audio_hw_958_enable(1);
 	}
 }
@@ -212,11 +214,18 @@ void aml_hw_iec958_init(struct snd_pcm_substream *substream, int samesrc)
 	int div;
 	struct snd_dma_buffer *buf = &substream->dma_buffer;
 	struct snd_pcm_runtime *runtime = substream->runtime;
+	struct aud_para aud_param;
+
+	memset(&aud_param, 0, sizeof(aud_param));
 
 	if (buf == NULL && runtime == NULL) {
 		pr_info("buf/%p runtime/%p\n", buf, runtime);
 		return;
 	}
+
+	aud_param.rate = runtime->rate;
+	aud_param.size = runtime->sample_bits;
+	aud_param.chs = runtime->channels;
 
 	i2s_mode = AIU_I2S_MODE_PCM16;
 	sample_rate = AUDIO_CLK_FREQ_48;
@@ -404,27 +413,31 @@ void aml_hw_iec958_init(struct snd_pcm_substream *substream, int samesrc)
 	audio_set_958_mode(iec958_mode, &set);
 
 	if (IEC958_mode_codec == 2) {
-		aout_notifier_call_chain(AOUT_EVENT_RAWDATA_AC_3, substream);
+		aout_notifier_call_chain(AOUT_EVENT_RAWDATA_AC_3, &aud_param);
 	} else if (IEC958_mode_codec == 3) {
-		aout_notifier_call_chain(AOUT_EVENT_RAWDATA_DTS, substream);
+		aout_notifier_call_chain(AOUT_EVENT_RAWDATA_DTS, &aud_param);
 	} else if (IEC958_mode_codec == 4) {
 		aout_notifier_call_chain(AOUT_EVENT_RAWDATA_DOBLY_DIGITAL_PLUS,
-					 substream);
+					 &aud_param);
 	} else if (IEC958_mode_codec == 5) {
-		aout_notifier_call_chain(AOUT_EVENT_RAWDATA_DTS_HD, substream);
+		aud_param.fifo_rst = 1;
+		aout_notifier_call_chain(AOUT_EVENT_RAWDATA_DTS_HD, &aud_param);
 	} else if (IEC958_mode_codec == 7 || IEC958_mode_codec == 8) {
 		//aml_aiu_write(AIU_958_CHSTAT_L0, 0x1902);
 		//aml_aiu_write(AIU_958_CHSTAT_L1, 0x900);
 		//aml_aiu_write(AIU_958_CHSTAT_R0, 0x1902);
 		//aml_aiu_write(AIU_958_CHSTAT_R1, 0x900);
 		if (IEC958_mode_codec == 8)
+		{
+			aud_param.fifo_rst = 1;
 			aout_notifier_call_chain(AOUT_EVENT_RAWDATA_DTS_HD_MA,
-			substream);
+			&aud_param);
+		}
 		else
 			aout_notifier_call_chain(AOUT_EVENT_RAWDATA_MAT_MLP,
-			substream);
+			&aud_param);
 	} else {
-		aout_notifier_call_chain(AOUT_EVENT_IEC_60958_PCM, substream);
+		aout_notifier_call_chain(AOUT_EVENT_IEC_60958_PCM, &aud_param);
 	}
 }
 
