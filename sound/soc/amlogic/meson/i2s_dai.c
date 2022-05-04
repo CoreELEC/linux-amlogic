@@ -53,6 +53,9 @@
 #ifdef CONFIG_AMLOGIC_SND_USB_CAPTURE_DATA
 #include <linux/amlogic/media/sound/usb_karaoke.h>
 #endif
+#ifdef CONFIG_AMLOGIC_HDMITX
+#include <linux/amlogic/media/vout/hdmi_tx/hdmi_tx_ext.h>
+#endif
 
 struct channel_speaker_allocation {
 	int channels;
@@ -401,6 +404,13 @@ static int aml_dai_i2s_prepare(struct snd_pcm_substream *substream,
 	struct aml_runtime_data *prtd = runtime->private_data;
 	struct audio_stream *s = &prtd->s;
 	struct aml_i2s *i2s = snd_soc_dai_get_drvdata(dai);
+	struct aud_para aud_param;
+
+	memset(&aud_param, 0, sizeof(aud_param));
+
+	aud_param.rate = runtime->rate;
+	aud_param.size = runtime->sample_bits;
+	aud_param.chs = runtime->channels;
 
 	if (substream->stream == SNDRV_PCM_STREAM_CAPTURE) {
 		dev_info(substream->pcm->card->dev, "I2S capture prepare!\n");
@@ -474,7 +484,7 @@ static int aml_dai_i2s_prepare(struct snd_pcm_substream *substream,
 				 "%dch PCM output->notify HDMI\n", runtime->channels);
 			aout_notifier_call_chain(
 					AOUT_EVENT_IEC_60958_PCM,
-					substream);
+					&aud_param);
 		}
 
 		// Alsa Channel Mapping API handling
