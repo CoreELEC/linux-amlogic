@@ -6,9 +6,10 @@
 /dts-v1/;
 
 #include "mesont7.dtsi"
+#include "mesont7_an400-panel.dtsi"
+#include "mesont7_drm.dtsi"
 #include "partition_normal_PR_32.dtsi"
 #include <dt-bindings/input/input.h>
-#include "mesont7_an400-panel.dtsi"
 
 / {
 	model = "Amlogic";
@@ -90,7 +91,7 @@
 
 		rtos_reserved:linux,rtos_reserved {
 			compatible = "amlogic, aml_rtos_memory";
-			reg = <0x0 0x10000000 0x0 0x20000000>;
+			reg = <0x0 0x80000000 0x0 0x20000000>;
 			no-map;
 		};
 
@@ -138,8 +139,8 @@
 			 * 10x4736064=45.2M(0x2e) support 12bit
 			 * 10x4074560=40M(0x28) support 10bit
 			 */
-			//size = <0x0 0x0B000000>;
-			size = <0x0 0x0>;
+			size = <0x0 0x0B000000>;
+			//size = <0x0 0x0>;
 			alignment = <0x0 0x400000>;
 			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 		};
@@ -234,7 +235,7 @@
 	freertos {
 		compatible = "amlogic,freertos";
 		status = "okay";
-		irqs_rsv = <32>;
+		irqs_rsv = <32 227>;
 		info_offset = <0x1000>;
 	};
 
@@ -299,7 +300,7 @@
 		 ***************************************************/
 		en_4k = <0>;
 		//keep_dec_vf = <2>;
-		po_fmt = <0>;
+		//po_fmt = <6>;
 		/***************************************************
 		 * post_nub: default is 11 (T7/T3/SC2/S4 new path)
 		 * local 7*4075520 = 28
@@ -736,18 +737,18 @@
 			};
 		};
 /*
- *		aml-audio-card,dai-link@7 {
- *			mclk-fs = <256>;
- *			suffix-name = "alsaPORT-earc";
- *			cpu {
- *				sound-dai = <&earc>;
- *				system-clock-frequency = <12288000>;
- *			};
- *			codec {
- *				sound-dai = <&dummy_codec>;
- *			};
- *		};
- */
+		aml-audio-card,dai-link@7 {
+			mclk-fs = <256>;
+			suffix-name = "alsaPORT-earc";
+			cpu {
+				sound-dai = <&earc>;
+				system-clock-frequency = <12288000>;
+			};
+			codec {
+				sound-dai = <&dummy_codec>;
+			};
+		};
+*/
 		aml-audio-card,dai-link@7 {
 			mclk-fs = <256>;
 			continuous-clock;
@@ -1068,7 +1069,7 @@
 		pinctrl-0 = <&spdifout_d>;
 		pinctrl-1 = <&spdifout_d_mute>;
 
-		samesource_sel = <4>;
+		//samesource_sel = <4>;
 
 		/*spdif clk tuning enable*/
 		clk_tuning_enable = <1>;
@@ -1589,7 +1590,7 @@
 };
 
 &fb {
-	status = "okay";
+	status = "disabled";
 	display_size_default = <3840 2160 3840 4320 32>;
 	mem_size = <0x00800000 0x4000000 0x100000 0x100000 0x100000>;
 	4k2k_fb = <1>;
@@ -1597,6 +1598,62 @@
 	logo_addr = "0x3f800000";
 	mem_alloc = <0>;
 	pxp_mode = <0>; /** 0:normal mode 1:pxp mode */
+};
+
+&drm_vpu {
+	status = "okay";
+	logo_addr = "0x3f800000";
+	osd_occupied_index = <1>;
+
+	connectors_dev: port@1 {
+		drm_to_lcd0: endpoint@2 {
+			reg = <2>;
+			remote-endpoint = <&lcd0_to_drm>;
+		};
+		drm_to_lcd1: endpoint@3 {
+			reg = <3>;
+			remote-endpoint = <&lcd1_to_drm>;
+		};
+		drm_to_lcd2: endpoint@4 {
+			reg = <4>;
+			remote-endpoint = <&lcd2_to_drm>;
+		};
+	};
+};
+
+&lcd {
+	ports {
+		port {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			lcd0_to_drm: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&drm_to_lcd0>;
+			};
+		};
+	};
+};
+
+&lcd1 {
+	ports {
+		port {
+			lcd1_to_drm: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&drm_to_lcd1>;
+			};
+		};
+	};
+};
+
+&lcd2 {
+	ports {
+		port {
+			lcd2_to_drm: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&drm_to_lcd2>;
+			};
+		};
+	};
 };
 
 &amvideom {
