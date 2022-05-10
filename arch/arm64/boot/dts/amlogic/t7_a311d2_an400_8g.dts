@@ -96,9 +96,9 @@
 		logo_reserved:linux,meson-fb {
 			compatible = "shared-dma-pool";
 			reusable;
-			size = <0x0 0x800000>;
+			size = <0x0 0x4800000>;
 			alignment = <0x0 0x400000>;
-			alloc-ranges = <0x0 0x3f800000 0x0 0x800000>;
+			alloc-ranges = <0x0 0x2b800000 0x0 0x4800000>;
 		};
 
 		codec_mm_cma:linux,codec_mm_cma {
@@ -159,7 +159,7 @@
 			reusable;
 			size = <0x0 0x9800000>;
 			alignment = <0x0 0x400000>;
-			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
+			//alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 		};
 		/* secure ion for gpu,advice size is 0x8000000 */
 		ion_secure_reserved:linux,ion-secure {
@@ -173,9 +173,9 @@
 			compatible = "shared-dma-pool";
 			reusable;
 			/* 1920x1080x4x3 round up 4M align */
-			size = <0x0 0x1c00000>;
+			size = <0x0 0x0d000000>;
 			alignment = <0x0 0x400000>;
-			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
+			//alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 		};
 		/* codec shared reserved */
 		codec_mm_reserved:linux,codec_mm_reserved {
@@ -201,9 +201,9 @@
 			compatible = "shared-dma-pool";
 			reusable;
 			/* up to 1920x1080 yuv422 8bit and 5 buffers
-			 * 1920x1080x2x5 = 20 M
+			 * 3840x2160x2x5 = 80 M
 			 */
-			size = <0x0 0x01400000>;
+			size = <0x0 0x05000000>;
 			alignment = <0x0 0x400000>;
 			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 		};
@@ -1460,8 +1460,10 @@
 
 &fb {
 	status = "okay";
-	display_size_default = <1920 1080 1920 2160 32>;
-	mem_size = <0x00800000 0x1980000 0x100000 0x100000 0x100000>;
+	display_size_default = <3840 2160 3840 4320 32>;
+	mem_size = <0x00800000 0x4000000 0x100000 0x100000 0x100000>;
+	4k2k_fb = <1>;
+	display_device_cnt = <2>;
 	logo_addr = "0x3f800000";
 	mem_alloc = <0>;
 	pxp_mode = <0>; /** 0:normal mode 1:pxp mode */
