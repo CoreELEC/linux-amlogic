@@ -1766,6 +1766,39 @@ static void hdmitx21_edid_parse_hdmi14(struct rx_cap *prxcap,
 	}
 }
 
+static void hdmitx21_edid_parse_hfscdb(struct rx_cap *prxcap,
+	u8 offset, u8 *blockbuf, u8 count)
+{
+	prxcap->hf_ieeeoui = HDMI_FORUM_IEEE_OUI;
+	prxcap->Max_TMDS_Clock2 = blockbuf[offset + 4];
+	prxcap->scdc_present = !!(blockbuf[offset + 5] & (1 << 7));
+	prxcap->scdc_rr_capable = !!(blockbuf[offset + 5] & (1 << 6));
+	prxcap->lte_340mcsc_scramble = !!(blockbuf[offset + 5] & (1 << 3));
+	set_vsdb_dc_420_cap(prxcap, &blockbuf[offset]);
+
+	if (count < 8)
+		return;
+	prxcap->allm = !!(blockbuf[offset + 7] & (1 << 1));
+	prxcap->fva = !!(blockbuf[offset + 7] & (1 << 2));
+	prxcap->neg_mvrr = !!(blockbuf[offset + 7] & (1 << 3));
+	//prxcap->cinemavrr = !!(blockbuf[offset + 7] & (1 << 4));
+	prxcap->mdelta = !!(blockbuf[offset + 7] & (1 << 5));
+	prxcap->qms = !!(blockbuf[offset + 7] & (1 << 6));
+	//prxcap->fapa_end_extended = !!(blockbuf[offset + 7] & (1 << 7));
+
+	if (count < 10)
+		return;
+	prxcap->vrr_max = (((blockbuf[offset + 8] & 0xc0) >> 6) << 8) +
+				blockbuf[offset + 9];
+	prxcap->vrr_min = (blockbuf[offset + 8] & 0x3f);
+	prxcap->fapa_start_loc = !!(blockbuf[offset + 7] & (1 << 0));
+
+	if (count < 11)
+		return;
+	prxcap->qms_tfr_min = !!(blockbuf[offset + 10] & (1 << 4));
+	prxcap->qms_tfr_max = !!(blockbuf[offset + 10] & (1 << 5));
+}
+
 /* refer to CEA-861-G 7.5.1 video data block */
 static void _store_vics(struct rx_cap *prxcap, u8 vic_dat)
 {
@@ -1786,48 +1819,6 @@ static void _store_vics(struct rx_cap *prxcap, u8 vic_dat)
 	} else {
 		store_cea_idx(prxcap, vic_dat);
 	}
-}
-
-static void hdmitx21_edid_parse_hfscdb(struct rx_cap *prxcap,
-	u8 offset, u8 *blockbuf, u8 count)
-{
-	prxcap->hf_ieeeoui = HDMI_FORUM_IEEE_OUI;
-	prxcap->Max_TMDS_Clock2 = blockbuf[offset + 4];
-	prxcap->scdc_present =
-		!!(blockbuf[offset + 5] & (1 << 7));
-	prxcap->scdc_rr_capable =
-		!!(blockbuf[offset + 5] & (1 << 6));
-	prxcap->lte_340mcsc_scramble =
-		!!(blockbuf[offset + 5] & (1 << 3));
-	set_vsdb_dc_420_cap(prxcap,
-				&blockbuf[offset]);
-
-	if (count < 8)
-		return;
-	prxcap->qms =
-		!!(blockbuf[offset + 7] & (1 << 6));
-	prxcap->qms_tfr_max =
-		!!(blockbuf[offset + 7] & (1 << 7));
-	prxcap->qms_tfr_min =
-		!!(blockbuf[offset + 7] & (1 << 4));
-	prxcap->mdelta =
-		!!(blockbuf[offset + 7] & (1 << 5));
-	prxcap->neg_mvrr =
-		!!(blockbuf[offset + 7] & (1 << 3));
-	prxcap->fva =
-		!!(blockbuf[offset + 7] & (1 << 2));
-	prxcap->allm =
-		!!(blockbuf[offset + 7] & (1 << 1));
-	prxcap->fapa_start_loc =
-		!!(blockbuf[offset + 7] & (1 << 0));
-
-	if (count < 9)
-		return;
-	prxcap->vrr_max =
-		(((blockbuf[offset + 8] & 0xc0) >> 6) << 8) +
-				blockbuf[offset + 9];
-	prxcap->vrr_min =
-		(blockbuf[offset + 8] & 0x3f);
 }
 
 static int hdmitx_edid_block_parse(struct hdmitx_dev *hdev,
@@ -1895,9 +1886,11 @@ static int hdmitx_edid_block_parse(struct hdmitx_dev *hdev,
 							 blockbuf, count);
 			} else if ((blockbuf[offset] == 0xd8) &&
 				(blockbuf[offset + 1] == 0x5d) &&
-				(blockbuf[offset + 2] == 0xc4))
+				(blockbuf[offset + 2] == 0xc4)) {
 				hdmitx21_edid_parse_hfscdb(prxcap, offset,
-					blockbuf, count);
+							 blockbuf, count);
+			}
+
 			offset += count; /* ignore the remaind. */
 			break;
 
