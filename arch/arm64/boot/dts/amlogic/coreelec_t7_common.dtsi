@@ -1,0 +1,171 @@
+#include "coreelec_common.dtsi"
+
+/ {
+	amhdmitx: amhdmitx{
+		vend_data: vend_data{ /* Should modified by Customer */
+			product_desc = "T7"; /* Max Chars: 16 */
+		};
+	};
+
+	reserved-memory {
+		codec_mm_cma:linux,codec_mm_cma {
+			size = <0x0 0x2fc00000>;
+			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
+		};
+
+		di_cma_reserved:linux,di_cma {
+			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
+		};
+
+		ppmgr_reserved:linux,ppmgr {
+			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
+		};
+
+		isp_cma_reserved:linux,isp_cma {
+			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
+		};
+
+		adapt_cma_reserved:linux,adapt_cma {
+			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
+		};
+
+		ion_cma_reserved:linux,ion-dev {
+			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
+		};
+
+		ion_secure_reserved:linux,ion-secure {
+			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
+		};
+
+		ion_fb_reserved:linux,ion-fb {
+			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
+		};
+
+		codec_mm_reserved:linux,codec_mm_reserved {
+			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
+		};
+
+		vdin1_cma_reserved:linux,vdin1_cma {
+			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
+		};
+	};
+
+	/delete-node/ hdmirx;
+	/delete-node/ smartcard;
+	/delete-node/ dvb-extern;
+	/delete-node/ dvb-demux;
+	/delete-node/ adc_keypad;
+	/delete-node/ lcd;
+	/delete-node/ backlight;
+	/delete-node/ local_dimming_device;
+	/delete-node/ lcd1;
+	/delete-node/ backlight1;
+	/delete-node/ lcd2;
+
+	/delete-node/ auge_sound;
+	auge_sound {
+		compatible = "amlogic, auge-sound-card";
+		aml-audio-card,name = "AML-AUGESOUND";
+
+		/*avout mute gpio*/
+		avout_mute-gpios = <&gpio GPIOH_2 GPIO_ACTIVE_HIGH>;
+
+		aml-audio-card,dai-link@0 {
+			mclk-fs = <128>;
+			cpu {
+				system-clock-frequency = <6144000>;
+				sound-dai = <&spdifb>;
+			};
+			codec {
+				sound-dai = <&spdifb>;
+			};
+		};
+
+		aml-audio-card,dai-link@1 {
+			format = "i2s";
+			mclk-fs = <256>;
+			bitclock-master = <&tdmb>;
+			frame-master = <&tdmb>;
+			cpu {
+				dai-tdm-slot-tx-mask = <1 1>;
+				dai-tdm-slot-rx-mask = <1 1>;
+				dai-tdm-slot-num = <2>;
+				dai-tdm-slot-width = <32>;
+				system-clock-frequency = <12288000>;
+				sound-dai = <&tdmb>;
+			};
+			codec {
+				sound-dai = <&tdmb>;
+			};
+		};
+
+		aml-audio-card,dai-link@2 {
+			mclk-fs = <128>;
+			cpu {
+				system-clock-frequency = <6144000>;
+				sound-dai = <&spdifa>;
+			};
+			codec {
+				sound-dai = <&spdifa>;
+			};
+		};
+
+		aml-audio-card,dai-link@3 {
+			format = "i2s";
+			mclk-fs = <256>;
+			bitclock-master = <&aml_i2s2hdmi>;
+			frame-master = <&aml_i2s2hdmi>;
+			cpu {
+				sound-dai = <&aml_i2s2hdmi>;
+				dai-tdm-slot-tx-mask = <1 1>;
+				dai-tdm-slot-rx-mask = <1 1>;
+				dai-tdm-slot-num = <2>;
+				dai-tdm-slot-width = <32>;
+				system-clock-frequency = <12288000>;
+			};
+			codec {
+				sound-dai = <&dummy_codec>;
+			};
+		};
+	};
+};
+
+&vdin0 {
+	status = "disabled";
+};
+
+&vdin1 {
+	status = "disabled";
+};
+
+&audiobus {
+	aml_i2s2hdmi: i2s2hdmi {
+		compatible = "amlogic, t7-snd-tdmc";
+	};
+	tdm@1 {
+		/delete-property/ tdmin-src-name;
+		/delete-property/ ctrl_gain;
+		/delete-node/ Channel_Mask;
+	};
+	resample@0 {
+		status = "disabled";
+	};
+	/delete-node/ resample@1;
+	loopback@0 {
+		datain_chnum = <0>;
+		datain_chmask = <0x0>;
+		/* config which data pin for loopback */
+		datain-lane-mask-in = <0 0 0 0>;
+	};
+	spdif@0 {
+		/delete-property/ samesource_sel;
+	};
+};
+
+&crg21_otg {
+	controller-type = <1>;
+};
+
+&nna_tsensor {
+	status = "disabled";
+};
