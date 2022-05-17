@@ -160,7 +160,7 @@ static int am_meson_drm_fbdev_ioctl(struct fb_info *info,
 		if (plane->crtc)
 			drm_wait_one_vblank(helper->dev, plane->crtc->index);
 		else
-			DRM_ERROR("crtc is not set for plane [%d]\n", plane->index);
+			DRM_DEBUG("crtc is not set for plane [%d]\n", plane->index);
 	}
 
 	DRM_DEBUG("am_meson_drm_fbdev_ioctl CMD   [%x] - [%d] OUT\n", cmd, plane->index);
