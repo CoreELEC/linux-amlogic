@@ -1,0 +1,86 @@
+/{
+	coreelec;
+	/delete-property/ amlogic-dt-id;
+
+	reserved-memory {
+		codec_mm_cma:linux,codec_mm_cma {
+			size = <0x0 0x2fc00000>;
+		};
+
+		ion_fb_reserved:linux,ion-fb {
+			/* 1920x1080x4x4 round up 4M align */
+			size = <0x0 0x11000000>;
+		};
+	};
+
+	gpioleds {
+		compatible = "gpio-leds";
+		status = "okay";
+	};
+
+	ir: ir@8000 {
+		status = "okay";
+	};
+
+	openvfd {
+		compatible = "open,vfd";
+		dev_name = "openvfd";
+		status = "okay";
+	};
+
+	dummy_venc: dummy_venc {
+		status = "disabled";
+	};
+
+	/delete-node/ partitions;
+	/delete-node/ firmware;
+
+	dvb-extern {
+		status = "disabled";
+	};
+
+	dvb-demux {
+		status = "disabled";
+	};
+
+	jtag {
+		status = "disabled";
+	};
+};
+
+&aocec {
+	/delete-property/ arc_port_mask;
+};
+
+&audiobus {
+	aml_i2s2hdmi: i2s2hdmi {
+		#sound-dai-cells = <0>;
+
+		dai-tdm-lane-slot-mask-in = <0 0 0 0>;
+		dai-tdm-lane-slot-mask-out = <1 1 1 1>;
+		dai-tdm-clk-sel = <2>;
+
+		clocks = <&clkaudio CLKID_AUDIO_MCLK_C
+				&clkc CLKID_MPLL2>;
+		clock-names = "mclk", "clk_srcpll";
+		i2s2hdmi = <1>;
+		status = "okay";
+	};
+
+	/delete-node/ tdma;
+	/delete-node/ tdm@0;
+	/delete-node/ tdmc;
+	/delete-node/ tdm@2;
+	/delete-node/ tdm@3;
+	/delete-node/ pdm;
+	/delete-node/ extn;
+	/delete-node/ effect;
+};
+
+&amhdmitx {
+	/delete-property/ hdcp_ctl_lvl;
+};
+
+&drm_subsystem {
+	fbdev_sizes = <4096 2160 4096 4320 32>;
+};
