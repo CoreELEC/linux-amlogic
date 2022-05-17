@@ -1,0 +1,34 @@
+#include "t7_a311d2_beelink_gt_king_ii_4g.dts"
+
+/ {
+	model = "Beelink GT-King II";
+	coreelec-dt-id = "t7_a311d2_beelink_gt_king_ii_8g";
+	amlogic-dt-id = "t7_a311d2_an400-8g";
+
+	memory@00000000 {
+		device_type = "memory";
+		linux,usable-memory = <0x00000000 0x00000000 0x00000000 0xE0000000
+		                       0x00000001 0x00000000 0x00000001 0x20000000>;
+	};
+
+	gpioleds {
+		sys_led {
+			label = "sys_led";
+			gpios = <&gpio GPIOD_7 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "default-on";
+		};
+	};
+};
+
+&i2c0 {
+	status = "okay";
+	pinctrl-names="default";
+	pinctrl-0=<&i2c0_pins1>;
+	hym8563: hym8563@51 {
+		compatible = "haoyu,hym8563";
+		reg = <0x51>;
+		i2c_bus = "i2c_bus_c";
+		#clock-cells = <0>;
+		status = "okay";
+	};
+};
