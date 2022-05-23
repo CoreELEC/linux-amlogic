@@ -1430,22 +1430,23 @@ void es8388_i2c_shutdown(struct i2c_client *client)
 {
 	struct es8388_priv *es8388 = es8388_private;
 
-	cancel_delayed_work(&es8388->Aux_det_work);
-	flush_workqueue(es8388->Aux_det_wq);
+	if (es8388_codec != NULL) {
+		cancel_delayed_work(&es8388->Aux_det_work);
+		flush_workqueue(es8388->Aux_det_wq);
 
-//	es8388_set_gpio(ES8388_CODEC_SET_SPK,!es8388->spk_gpio_level);
-//	es8388_set_gpio(ES8388_CODEC_SET_HP,!es8388->hp_gpio_level);
-	snd_soc_write(es8388_codec, ES8388_CONTROL2, 0x58);
-	snd_soc_write(es8388_codec, ES8388_CONTROL1, 0x32);
-  snd_soc_write(es8388_codec, ES8388_CHIPPOWER, 0xf3);
-  snd_soc_write(es8388_codec, ES8388_DACPOWER, 0xc0);
-	mdelay(150);
-  snd_soc_write(es8388_codec, ES8388_DACCONTROL26, 0x00);
-  snd_soc_write(es8388_codec, ES8388_DACCONTROL27, 0x00);
-	mdelay(150);
-	snd_soc_write(es8388_codec, ES8388_CONTROL1, 0x30);
-	snd_soc_write(es8388_codec, ES8388_CONTROL1, 0x34);
-
+	//	es8388_set_gpio(ES8388_CODEC_SET_SPK,!es8388->spk_gpio_level);
+	//	es8388_set_gpio(ES8388_CODEC_SET_HP,!es8388->hp_gpio_level);
+		snd_soc_write(es8388_codec, ES8388_CONTROL2, 0x58);
+		snd_soc_write(es8388_codec, ES8388_CONTROL1, 0x32);
+	  snd_soc_write(es8388_codec, ES8388_CHIPPOWER, 0xf3);
+	  snd_soc_write(es8388_codec, ES8388_DACPOWER, 0xc0);
+		mdelay(150);
+	  snd_soc_write(es8388_codec, ES8388_DACCONTROL26, 0x00);
+	  snd_soc_write(es8388_codec, ES8388_DACCONTROL27, 0x00);
+		mdelay(150);
+		snd_soc_write(es8388_codec, ES8388_CONTROL1, 0x30);
+		snd_soc_write(es8388_codec, ES8388_CONTROL1, 0x34);
+	}
 }
 
 static struct i2c_driver es8388_i2c_driver = {
