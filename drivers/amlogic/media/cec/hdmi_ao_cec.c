@@ -96,6 +96,8 @@ static int hdmitx_notify_callback(struct notifier_block *block,
 				   &cec_dev->work_hdmi_plug, 0);
 		ret = NOTIFY_OK;
 		break;
+	case HDMITX_PHY_ADDR_VALID:
+		break;
 	default:
 		CEC_ERR("[%s] unsupported notify:%ld\n", __func__, cmd);
 		ret = NOTIFY_DONE;
