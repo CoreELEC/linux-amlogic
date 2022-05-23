@@ -4607,6 +4607,8 @@ static int hdmitx_notify_callback(struct notifier_block *block,
 		queue_delayed_work(cec_dev->hdmi_plug_wq,
 				   &cec_dev->work_hdmi_plug, 0);
 		break;
+	case HDMITX_PHY_ADDR_VALID:
+		break;
 	default:
 		CEC_ERR("[%s] unsupported notify:%ld\n", __func__, cmd);
 		ret = -EINVAL;
