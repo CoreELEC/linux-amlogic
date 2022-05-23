@@ -31,6 +31,7 @@ dtb-$(CONFIG_ARM64) += g12b_s922x_ugoos_am6b_rev_a_2g.dtb
 dtb-$(CONFIG_ARM64) += g12b_s922x_ugoos_am6b_rev_a_4g.dtb
 dtb-$(CONFIG_ARM64) += g12b_s922x_x88_king_rev_a.dtb
 dtb-$(CONFIG_ARM64) += sc2_s905x4_ugoos_am7.dtb
+dtb-$(CONFIG_ARM64) += sc2_s905x4_ugoos_x4.dtb
 dtb-$(CONFIG_ARM64) += sm1_s905d3_khadas_vim3l.dtb
 dtb-$(CONFIG_ARM64) += sm1_s905x3_2g.dtb
 dtb-$(CONFIG_ARM64) += sm1_s905x3_2g_1gbit.dtb

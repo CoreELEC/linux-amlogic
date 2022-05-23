@@ -2,10 +2,10 @@
 #include "sc2_s905x4_ah212.dts"
 
 / {
-  coreelec;
-  /delete-property/ amlogic-dt-id;
+	coreelec;
+	/delete-property/ amlogic-dt-id;
 
-  reserved-memory {
+	reserved-memory {
 		linux,vdin0_cma {
 			status = "disabled";
 		};
@@ -20,15 +20,15 @@
 		};
 	};
 
-  soc {
-    apb4: apb4@fe000000 {
-      meson_clk_msr {
-        ringctrl = <0xff6345fc>;
-      };
-    };
-  };
+	soc {
+		apb4: apb4@fe000000 {
+			meson_clk_msr {
+				ringctrl = <0xff6345fc>;
+			};
+		};
+	};
 
-  gpioleds {
+	gpioleds {
 		status = "okay";
 		/delete-node/ net_red;
 		/delete-node/ net_green;
@@ -40,16 +40,16 @@
 		};
 	};
 
-  codec_mm {
+	codec_mm {
 		clear-map;
 	};
 
-  /delete-node/ auge_sound;
+	/delete-node/ auge_sound;
 	auge_sound {
 		compatible = "amlogic, g12a-sound-card";
 		aml-audio-card,name = "AML-AUGESOUND";
 
-    /*avout mute gpio*/
+		/*avout mute gpio*/
 		avout_mute-gpios = <&gpio GPIOH_5 GPIO_ACTIVE_HIGH>;
 
 		aml-audio-card,dai-link@0 {
@@ -66,7 +66,7 @@
 		aml-audio-card,dai-link@1 {
 			format = "i2s";
 			mclk-fs = <256>;
-      bitclock-master = <&tdmb>;
+			bitclock-master = <&tdmb>;
 			frame-master = <&tdmb>;
 			cpu {
 				dai-tdm-slot-tx-mask = <1 1>;
@@ -111,17 +111,17 @@
 		};
 	};
 
-  audiolocker: locker {
+	audiolocker: locker {
 		status = "okay";
 	};
 
-  /delete-node/ partitions;
+	/delete-node/ partitions;
 	/delete-node/ firmware;
 
 	/delete-node/ rc@0xfe084000;
 	/delete-node/ custom_maps;
 
-  meson-ir {
+	meson-ir {
 		compatible = "amlogic,meson6-ir";
 		/* Multi-format IR controller */
 		reg = <0x0 0xfe084040 0x0 0x44>;
@@ -147,7 +147,7 @@
 		max_frame_time = <200>; /*set software decoder max frame time*/
 	};
 
-  amvideocap {
+	amvideocap {
 		compatible = "amlogic, amvideocap";
 		dev_name = "amvideocap.0";
 		status = "okay";
@@ -216,7 +216,7 @@
 	pinctrl-names = "external_eth_pins";
 	pinctrl-0 = <&external_eth_pins>;
 	internal_phy=<0>;
-  cali_val = <0x10000>;
+	cali_val = <0x10000>;
 	rx_delay = <0>;
 	auto_cali_idx = <0>;
 };
