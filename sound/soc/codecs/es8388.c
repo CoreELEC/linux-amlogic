@@ -672,9 +672,6 @@ static int es8388_set_dai_sysclk(struct snd_soc_dai *codec_dai,
     DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);
 	printk("es8388_set_dai_sysclk freq = %d!\n",freq);
 
-	es8388->sysclk = 12288000;
-	return 0;
-
 	switch (freq) {
 	case 11289600:
 	case 18432000:
@@ -1430,9 +1427,11 @@ void es8388_i2c_shutdown(struct i2c_client *client)
 {
 	struct es8388_priv *es8388 = es8388_private;
 
-	if (es8388_codec != NULL) {
+	if (es8388_codec != NULL && es8388 != NULL) {
 		cancel_delayed_work(&es8388->Aux_det_work);
-		flush_workqueue(es8388->Aux_det_wq);
+
+		if (es8388->Aux_det_wq)
+			flush_workqueue(es8388->Aux_det_wq);
 
 	//	es8388_set_gpio(ES8388_CODEC_SET_SPK,!es8388->spk_gpio_level);
 	//	es8388_set_gpio(ES8388_CODEC_SET_HP,!es8388->hp_gpio_level);
