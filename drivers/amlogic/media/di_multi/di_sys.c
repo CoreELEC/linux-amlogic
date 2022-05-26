@@ -503,6 +503,7 @@ static const struct qbuf_creat_s qbf_blk_cfg_qbuf = {
 	.nub_que	= QBF_BLK_Q_NUB,
 	.nub_buf	= DIM_BLK_NUB,
 	.code		= CODE_BLK,
+	.que_id		= EBUF_QUE_ID_BLK
 };
 
 void bufq_blk_int(struct di_ch_s *pch)
@@ -882,6 +883,7 @@ static const struct qbuf_creat_s qbf_mem_cfg_qbuf = {
 	.nub_que	= QBF_MEM_Q_NUB,
 	.nub_buf	= 0,
 	.code		= 0,
+	.que_id		= EBUF_QUE_ID_MEM,
 };
 
 bool di_pst_afbct_check(struct di_ch_s *pch)
@@ -1790,7 +1792,7 @@ bool mem_cfg_2pst(struct di_ch_s *pch)
 	return true;
 }
 
-void di_buf_no2wait(struct di_ch_s *pch)
+void di_buf_no2wait(struct di_ch_s *pch, unsigned int post_nub)
 {
 	unsigned int len, ch;
 	int i;
@@ -1800,8 +1802,8 @@ void di_buf_no2wait(struct di_ch_s *pch)
 	len = di_que_list_count(ch, QUE_PST_NO_BUF);
 	if (!len)
 		return;
-	if (len > 11)
-		len = 11;
+	if (len > post_nub)
+		len = post_nub;
 	for (i = 0; i < len; i++) {
 		di_buf = di_que_out_to_di_buf(ch, QUE_PST_NO_BUF);
 		di_que_in(ch, QUE_PST_NO_BUF_WAIT, di_buf);
@@ -2661,6 +2663,7 @@ static const struct qbuf_creat_s qbf_pat_cfg_qbuf = {
 	.nub_que	= QBF_PAT_Q_NUB,
 	.nub_buf	= DIM_PAT_NUB,
 	.code		= CODE_PAT,
+	.que_id		= EBUF_QUE_ID_PAT,
 };
 
 void bufq_pat_int(struct di_ch_s *pch)
@@ -2897,6 +2900,7 @@ static const struct qbuf_creat_s qbf_iat_cfg_qbuf = {
 	.nub_que	= QBF_IAT_Q_NUB,
 	.nub_buf	= DIM_IAT_NUB,
 	.code		= CODE_IAT,
+	.que_id		= EBUF_QUE_ID_IAT,
 };
 
 void bufq_iat_int(struct di_ch_s *pch)
@@ -3162,7 +3166,8 @@ static const struct qbuf_creat_s qbf_sct_cfg_qbuf = {
 	.name	= "qbuf_sct",
 	.nub_que	= QBF_SCT_Q_NUB,
 	.nub_buf	= DIM_SCT_NUB,
-	.code		= CODE_SCT
+	.code		= CODE_SCT,
+	.que_id		= EBUF_QUE_ID_SCT
 };
 
 void bufq_sct_int(struct di_ch_s *pch)
@@ -3204,7 +3209,7 @@ void bufq_sct_int(struct di_ch_s *pch)
 	qbuf_int(pbufq, &qbf_sct_cfg_q[0], &qbf_sct_cfg_qbuf);
 
 	post_nub = cfgg(POST_NUB);
-	if ((post_nub) && post_nub < POST_BUF_NUM)
+	if ((post_nub) && post_nub <= POST_BUF_NUM)
 		sct_nub = post_nub;
 	else
 		sct_nub = DIM_SCT_NUB;
