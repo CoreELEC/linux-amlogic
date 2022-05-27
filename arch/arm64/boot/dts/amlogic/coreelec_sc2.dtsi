@@ -167,6 +167,7 @@
 
 &meson_fb {
 	display_size_default = <1920 1080 1920 2160 32>;
+	mem_size = <0x00800000 0x4b80000 0x100000 0x100000 0x800000>;
 	mem_alloc = <1>;
 	4k2k_fb = <1>;
 };
