@@ -1,0 +1,9 @@
+#include "coreelec_sc2.dtsi"
+
+/ {
+	model = "Amlogic";
+	coreelec-dt-id = "sc2_s905x4_1gbit";
+
+	/delete-node/ memory@00000000;
+	/delete-node/ rtc;
+};
