@@ -1554,6 +1554,7 @@
 	status = "okay";
 	repeater_tx = <0>;
 	enc_idx = <0>;
+	tv_usage = <1>;
 };
 
 /*if you want to use vdin just modify status to "ok"*/
