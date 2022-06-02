@@ -37,6 +37,7 @@
 			/delete-property/ retain-state-suspended;
 			/delete-property/ default-state;
 			linux,default-trigger="default-on";
+			gpios = <&gpio GPIOD_11 GPIO_ACTIVE_HIGH>;
 		};
 	};
 
@@ -109,6 +110,10 @@
 				sound-dai = <&dummy_codec>;
 			};
 		};
+	};
+
+	wifi{
+		dhd_static_buf; /* if use bcm wifi, config dhd_static_buf */
 	};
 
 	audiolocker: locker {
@@ -194,6 +199,10 @@
 	emmc {
 		caps2 = "MMC_CAP2_HS200";
 	};
+};
+
+&sd_emmc_b {
+	status = "okay";
 };
 
 &i2c0 {
