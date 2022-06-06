@@ -2354,3 +2354,12 @@ void hdmi21_vframe_write_reg(u32 max_lcnt)
 
 	hd21_write_reg(ENCP_VIDEO_MAX_LNCNT, max_lcnt);
 }
+
+int hdmitx21_read_phy_status(void)
+{
+	int phy_value = 0;
+
+	phy_value = !!(hd21_read_reg(ANACTRL_HDMIPHY_CTRL0) & 0xffff);
+
+	return phy_value;
+}
