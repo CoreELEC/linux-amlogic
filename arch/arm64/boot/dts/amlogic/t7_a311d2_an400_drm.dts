@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- * Copyright (c) 2021 Amlogic, Inc. All rights reserved.
+ * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
  */
 
 /dts-v1/;
 
 #include "mesont7.dtsi"
+#include "partition_normal_PR_32.dtsi"
+#include <dt-bindings/input/input.h>
 #include "mesont7_an400-panel.dtsi"
 #include "mesont7_drm.dtsi"
-#include "partition_mbox_ab.dtsi"
-#include <dt-bindings/input/input.h>
 
 / {
 	model = "Amlogic";
@@ -106,7 +106,7 @@
 			compatible = "shared-dma-pool";
 			reusable;
 			/* ion_codec_mm max can alloc size 80M*/
-			size = <0x0 0x1b000000>;
+			size = <0x0 0x1fc00000>;
 			alignment = <0x0 0x400000>;
 			linux,contiguous-region;
 			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
@@ -174,7 +174,7 @@
 			compatible = "shared-dma-pool";
 			reusable;
 			/* 1920x1080x4x3 round up 4M align */
-			size = <0x0 0x6000000>;
+			size = <0x0 0x0d000000>;
 			alignment = <0x0 0x400000>;
 			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 		};
@@ -207,13 +207,6 @@
 			size = <0x0 0x01400000>;
 			alignment = <0x0 0x400000>;
 			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
-		};
-
-		ldc_mem_reserved:linux,ldc_mem {
-			compatible = "shared-dma-pool";
-			reusable;
-			size = <0x0 0x400000>;
-			alignment = <0x0 0x400000>;
 		};
 	};
 
@@ -491,7 +484,6 @@
 		status = "okay";
 		sensor-name = "imx290"; /*imx290;os08a10;imx227*/
 		sensor-name-sub = "imx290sub";
-		sensor-name-ssub = "imx290ssub";
 		pinctrl-names= "default";
 		power-domains = <&pwrdm PDID_T7_MIPI_ISP>;
 		clocks = <&clkc CLKID_MCLK_0>,
@@ -581,7 +573,7 @@
 
 		aml-audio-card,dai-link@0 {
 			format = "dsp_a";
-			mclk-fs = <512>;
+			mclk-fs = <64>;
 			continuous-clock;
 			//bitclock-inversion;
 			//frame-inversion;
@@ -603,7 +595,7 @@
 							<1>;
 				dai-tdm-slot-num = <2>;
 				dai-tdm-slot-width = <16>;
-				system-clock-frequency = <256000>;
+				system-clock-frequency = <512000>;
 			};
 			tdmacodec: codec {
 				sound-dai = <&dummy_codec>;
@@ -668,7 +660,7 @@
 		aml-audio-card,dai-link@3 {
 			mclk-fs = <64>;
 			/* suffix-name, sync with android audio hal used for */
-			suffix-name = "alsaPORT-pdm";
+			suffix-name = "alsaPORT-pdm-builtinmic";
 			cpu {
 				sound-dai = <&pdm>;
 			};
@@ -715,18 +707,18 @@
 			};
 		};
 /*
- *		aml-audio-card,dai-link@7 {
- *			mclk-fs = <256>;
- *			suffix-name = "alsaPORT-earc";
- *			cpu {
- *				sound-dai = <&earc>;
- *				system-clock-frequency = <12288000>;
- *			};
- *			codec {
- *				sound-dai = <&dummy_codec>;
- *			};
- *		};
- */
+		aml-audio-card,dai-link@7 {
+			mclk-fs = <256>;
+			suffix-name = "alsaPORT-earc";
+			cpu {
+				sound-dai = <&earc>;
+				system-clock-frequency = <12288000>;
+			};
+			codec {
+				sound-dai = <&dummy_codec>;
+			};
+		};
+*/
 		aml-audio-card,dai-link@7 {
 			mclk-fs = <256>;
 			continuous-clock;
@@ -919,12 +911,21 @@
 		#sound-dai-cells = <0>;
 
 		dai-tdm-lane-slot-mask-in = <1 0>;
-		dai-tdm-lane-slot-mask-out = <1 1>;
+		dai-tdm-lane-slot-mask-out = <0 1>;
 		dai-tdm-clk-sel = <0>;
 
 		clocks = <&clkaudio CLKID_AUDIO_MCLK_A
 				&clkc CLKID_MPLL0>;
 		clock-names = "mclk", "clk_srcpll";
+
+		pinctrl-names = "tdm_pins";
+		pinctrl-0 = <&tdm_a_pins
+			&tdm_d0_pins
+			&tdm_d1_pins
+			&tdma_clk_pins>;
+
+		/*enable default mclk(12.288M), before extern codec start*/
+		//start_clk_enable = <1>;
 
 		status = "okay";
 	};
@@ -947,7 +948,7 @@
 			&tdm_b_pins
 			&tdm_d4_pins
 			&tdm_d5_pins
-			&tdm_clk_pins>;
+			&tdmb_clk_pins>;
 
 		/*
 		 * 0: tdmout_a;
@@ -971,7 +972,7 @@
 		/* !!!For --TV platform-- ONLY */
 		Channel_Mask {
 			/*i2s has 4 pins, 8channel, mux output*/
-			Spdif_samesource_Channel_Mask = "i2s_2/3";
+			Spdif_samesource_Channel_Mask = "i2s_0/1";
 		};
 	};
 
@@ -993,7 +994,7 @@
 	};
 
 	pdm:pdm {
-		compatible = "amlogic, tm2-revb-snd-pdm";
+		compatible = "amlogic, tm2-snd-pdm";
 		#sound-dai-cells = <0>;
 
 		clocks = <&clkaudio CLKID_AUDIO_GATE_PDM
@@ -1038,7 +1039,7 @@
 		pinctrl-0 = <&spdifout_d>;
 		pinctrl-1 = <&spdifout_d_mute>;
 
-		//samesource_sel = <4>;
+		samesource_sel = <4>;
 
 		/*spdif clk tuning enable*/
 		clk_tuning_enable = <1>;
@@ -1345,16 +1346,6 @@
 	status = "okay";
 	pinctrl-names="default";
 	pinctrl-0=<&i2c1_pins1>;
-	clock-frequency = <100000>; /* default 100k */
-	sensor-i2c@6c {
-		compatible = "arm, i2c-sensor-ssub";
-		reg = <0x6c>;
-		reg-names = "i2c-sensor";
-		slave-addr = <0x6c>;
-		reg-type = <2>;
-		reg-data-type = <1>;
-		link-device = <&phycsi>;
-	};
 
 	tas5707_36: tas5707_36@1b {
 		compatible = "ti,tas5707";
@@ -1510,18 +1501,12 @@
 	temper-buf-size1 = <6>;
 	temper-frame-num1 = <1>;
 	temper-frame-size1 = <0x5EEC00>;
-	temper-line-offset2 = <0x1680>;
-	temper-buf-size2 = <6>;
-	temper-frame-num2 = <1>;
-	temper-frame-size2 = <0x5EEC00>;
 	memory-region = <&isp_cma_reserved>;
 };
 
 &adapter {
 	status = "okay";
-	mem_alloc = <32>;
-	mem_alloc1 = <16>;
-	mem_alloc2 = <16>;
+	mem_alloc = <64>;
 	memory-region = <&adapt_cma_reserved>;
 };
 
@@ -1536,13 +1521,6 @@
 	spi-nor@0 {
 		status = "disabled";
 	};
-};
-
-&spicc2 {	//for UWB/LocalDimm
-	status = "disabled";
-	pinctrl-names = "default";
-	pinctrl-0 = <&spicc2_pins>;
-	cs-gpios = <&gpio GPIOY_3 GPIO_ACTIVE_HIGH>;
 };
 
 &spicc3 {
@@ -1626,13 +1604,11 @@
 
 &amvideom {
 	display_device_cnt = <2>;
-	vpp0_layer_count = <2>;
-	/* number of video layer display on vpp1 */
-	vpp1_layer_count = <1>;
 };
 
 &amhdmitx {
 	status = "okay";
+	repeater_tx = <0>;
 	enc_idx = <0>;
 };
 
@@ -1669,6 +1645,16 @@
 				"pdm_din2",
 				"pdm_din3";
 			function = "pdm";
+		};
+	};
+
+	tdm_a_pins: tdm_a_pin {
+		mux { /* GPIOX_11, GPIOX_10, GPIOX_8, GPIOX_9 */
+			groups = "tdm_sclk0",
+				"tdm_fs0",
+				"tdm_d0",
+				"tdm_d1";
+			function = "tdm";
 		};
 	};
 
@@ -1741,14 +1727,6 @@
 		};
 	};
 
-	bl_pwm_vs_off_pins:bl_pwm_vs_off_pin {
-		mux {
-			groups = "GPIOY_14";
-			function = "gpio_periphs";
-			output-low;
-		};
-	};
-
 	bl_pwm_off_pins:bl_pwm_off_pin {
 		mux {
 			groups = "GPIOY_1";
@@ -1767,6 +1745,20 @@
 };
 
 &pinctrl_audio {
+	tdm_d0_pins: tdm_d0_pin {
+		mux {
+			groups = "tdm_d0";
+			function = "tdmouta_lane1";
+		};
+	};
+
+	tdm_d1_pins: tdm_d1_pin {
+		mux {
+			groups = "tdm_d1";
+			function = "tdmina_lane0";
+		};
+	};
+
 	tdm_d4_pins: tdm_d4_pin {
 		mux {
 			groups = "tdm_d4";
@@ -1781,7 +1773,14 @@
 		};
 	};
 
-	tdm_clk_pins: tdm_clk_pin {
+	tdma_clk_pins: tdma_clk_pin {
+		mux {
+			groups = "tdm_sclk0", "tdm_lrclk0";
+			function = "tdm_clk_outa";
+		};
+	};
+
+	tdmb_clk_pins: tdmb_clk_pin {
 		mux {
 			groups = "tdm_sclk1", "tdm_lrclk1";
 			function = "tdm_clk_outb";
