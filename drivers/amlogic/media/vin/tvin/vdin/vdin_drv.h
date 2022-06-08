@@ -74,8 +74,8 @@
 /* 20220331: starting state chg not send event */
 /* 20220401: 59.94 duration need set to 1601 */
 /* 20220402: add vdin v4l2 feature */
+/* 20220608: t7 screenshot picture abnormal when width greater than vdin1_line_buff_size */
 #define VDIN_VER "20220402: add vdin v4l2 feature"
-
 
 //#define VDIN_BRINGUP_NO_VF
 //#define VDIN_BRINGUP_NO_VLOCK
@@ -407,6 +407,7 @@ struct vdin_debug_s {
 	unsigned short scaler4h;/* for vscaler */
 	unsigned short scaler4w;/* for hscaler */
 	unsigned short dest_cfmt;/* for color fmt conversion */
+	unsigned short vdin1_line_buff;
 };
 
 struct vdin_dv_s {
