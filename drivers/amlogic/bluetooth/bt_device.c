@@ -718,6 +718,19 @@ static struct platform_driver bt_driver = {
 	.resume		= bt_resume,
 };
 
+void extern_bt_set_enable(int is_on)
+{
+
+    if (is_on) {
+        set_usb_bt_power(1);
+        pr_info("BT Enable! set_usb_bt_power 1\n");
+    } else {
+        set_usb_bt_power(0);
+        pr_info("BT Disable! set_usb_bt_power 0\n");
+    }
+}
+EXPORT_SYMBOL(extern_bt_set_enable);
+
 static int __init bt_init(void)
 {
 	pr_info("amlogic rfkill init\n");
