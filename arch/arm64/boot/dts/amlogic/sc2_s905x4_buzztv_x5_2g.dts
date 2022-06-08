@@ -1,0 +1,66 @@
+#include "coreelec_sc2.dtsi"
+
+/ {
+	model = "BuzzTV X5";
+	amlogic-dt-id = "sc2_s905x4_ah212-Eth-2g";
+	coreelec-dt-id = "sc2_s905x4_buzztv_x5_2g";
+
+	/delete-node/ rtc;
+	/delete-node/ dvb-extern;
+
+	gpio_keypad{
+		key_num = <1>;
+		key_name = "powerkey";
+		key_code = <116>;
+		key_type = <EV_KEY>;
+	};
+
+	adc_keypad {
+		status = "disable";
+	};
+
+	gpioleds {
+		net_green {
+			label="net_green";
+			gpios = <&gpio GPIOD_4 GPIO_ACTIVE_LOW>;
+			default-state ="off";
+		};
+	};
+};
+
+&i2c2 {
+	status = "disable";
+};
+
+&i2c3 {
+	tlc59116: tlc59116@60 {
+		status = "disable";
+	};
+
+	hym8563: hym8563@51 {
+		compatible = "haoyu,hym8563";
+		reg = <0x51>;
+		//interrupts = <13 IRQ_TYPE_EDGE_FALLING>;
+		//i2c_bus = "i2c_bus_c";
+		//#clock-cells = <0>;
+		status = "okay";
+	};
+};
+
+&pinctrl_periphs {
+	spdifout_a_mute: spdifout_a_mute {
+		mux { /* GPIOH_4 */
+			groups = "GPIOH_4";
+		};
+	};
+};
+
+&sd_emmc_a {
+	sdio {
+		f_max = <170000000>;
+	};
+};
+
+&ethmac {
+	cali_val = <0x80000>;
+};

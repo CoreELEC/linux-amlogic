@@ -1,0 +1,15 @@
+#include "sc2_s905x4_buzztv_x5_4g.dts"
+
+/ {
+	amlogic-dt-id = "sc2_s905x4_ah212-gEth-4g";
+	coreelec-dt-id = "sc2_s905x4_buzztv_x5_4g_1gbit";
+};
+
+&ethmac {
+	pinctrl-names = "external_eth_pins";
+	pinctrl-0 = <&external_eth_pins>;
+	rst_pin-gpios = <&gpio GPIOZ_15 GPIO_ACTIVE_LOW>;
+	internal_phy = <0>;
+	rx_delay = <0>;
+	auto_cali_idx = <0>;
+};
