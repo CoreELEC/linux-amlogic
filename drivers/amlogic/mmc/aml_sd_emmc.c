@@ -3040,6 +3040,19 @@ const char *get_wifi_inf(void)
 }
 EXPORT_SYMBOL(get_wifi_inf);
 
+void sdio_set_max_regs(unsigned int size)
+{
+	if (sdio_host) {
+		sdio_host->max_req_size = size;
+		sdio_host->max_seg_size = sdio_host->max_req_size;
+	} else {
+		pr_info("Error: sdio_host is NULL\n");
+	}
+
+	pr_info("[%s] finish\n", __func__);
+}
+EXPORT_SYMBOL(sdio_set_max_regs);
+
 static const struct mmc_host_ops meson_mmc_ops = {
 	.request = meson_mmc_request,
 	.set_ios = meson_mmc_set_ios,
