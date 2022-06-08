@@ -1,0 +1,15 @@
+#include "sc2_s905x4_2g.dts"
+
+/ {
+	coreelec-dt-id = "sc2_s905x4_2g_1gbit";
+};
+
+&ethmac {
+	pinctrl-names = "external_eth_pins";
+	pinctrl-0 = <&external_eth_pins>;
+	internal_phy=<0>;
+	cali_val = <0x10000>;
+	rx_delay = <0>;
+	auto_cali_idx = <0>;
+	rst_pin-gpios = <&gpio GPIOZ_15 GPIO_ACTIVE_LOW>;
+};

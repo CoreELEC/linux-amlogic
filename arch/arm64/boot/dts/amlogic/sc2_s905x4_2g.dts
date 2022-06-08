@@ -2,8 +2,7 @@
 
 / {
 	model = "Amlogic";
-	coreelec-dt-id = "sc2_s905x4_1gbit";
+	coreelec-dt-id = "sc2_s905x4_2g";
 
-	/delete-node/ memory@00000000;
 	/delete-node/ rtc;
 };
