@@ -995,6 +995,8 @@ enum hdmi_tf_type hdmitx21_get_cur_hdr_st(void)
 		mytype = HDMI_HDR_SMPTE_2084;
 	if (type == HDMI_EOTF_BT_2100_HLG)
 		mytype = HDMI_HDR_HLG;
+	if (type == HDMI_EOTF_TRADITIONAL_GAMMA_HDR)
+		mytype = HDMI_HDR_HDR;
 
 	return mytype;
 }
