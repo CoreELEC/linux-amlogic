@@ -2676,8 +2676,12 @@ static ssize_t config_show(struct device *dev,
 	int pos = 0;
 	unsigned char *conf;
 	struct hdmitx_dev *hdev = &hdmitx_device;
+	int colour_depths[] = { 8, 10, 12, 16 };
 	char* pix_fmt[] = {"RGB","YUV422","YUV444","YUV420"};
-	char* eotf[] = {"SDR","HDR","HDR10","HLG"};
+	char* eotf_hdr[] = {"unknown", "HDR10","HLG","HDR","SDR"};
+	char* eotf_DV[] = {"unknown", "DV-Std","DV-LL"};
+	char* eotf_hdr10p[] = {"unknown", "HDR10+"};
+	char* eotf = eotf_hdr[4];
 	char* range[] = {"default","limited","full"};
 	char* colourimetry[] = {"default", "BT.601", "BT.709", "xvYCC601","xvYCC709",
 	"sYCC601","Adobe_YCC601","Adobe_RGB","BT.2020c","BT.2020nc","P3 D65","P3 DCI"};
@@ -2691,15 +2695,28 @@ static ssize_t config_show(struct device *dev,
 			hdev->cur_video_param->VIC);
 	if (hdev->para) {
 		struct hdmi_format_para *para;
+		int cs = hdmitx_rd_reg(HDMITX_DWC_FC_AVICONF0) & 0x3;
+		int cd = (hdmitx_rd_reg(HDMITX_DWC_TX_INVID0) & 0x6) >> 1;
 		para = hdev->para;
+
+		// YUV422
+		if (cs == 1)
+			cd = (~cd & 0x3);
+
+		if (hdmitx_hdr10p_en())
+			eotf = eotf_hdr10p[hdmitx_get_cur_hdr10p_st() & ~HDMI_HDR10P_TYPE];
+		else if (hdmitx_dv_en())
+			eotf = eotf_DV[hdmitx_get_cur_dv_st() & ~HDMI_DV_TYPE];
+		else if (hdmitx_hdr_en())
+			eotf = eotf_hdr[hdmitx_get_cur_hdr_st() & ~HDMI_HDR_TYPE];
 
 		pos += snprintf(buf+pos, PAGE_SIZE, "VIC: %d %s\n",
 				hdmitx_device.cur_VIC, para->name);
 		pos += snprintf(buf + pos, PAGE_SIZE, "Colour depth: %d-bit\nColourspace: %s\nColour range: %s\nEOTF: %s\nYCC colour range: %s\n",
-				(((hdmitx_rd_reg(HDMITX_DWC_TX_INVID0) & 0x6) >> 1) + 4 ) * 2,
-				pix_fmt[(hdmitx_rd_reg(HDMITX_DWC_FC_AVICONF0) & 0x3)],
+				colour_depths[cd],
+				pix_fmt[cs],
 				range[(hdmitx_rd_reg(HDMITX_DWC_FC_AVICONF2) & 0xc) >> 2],
-				eotf[(hdmitx_rd_reg(HDMITX_DWC_FC_DRM_PB00) & 7)],
+				eotf,
 				range[((hdmitx_rd_reg(HDMITX_DWC_FC_AVICONF3) & 0xc) >> 2) + 1]);
         if (((hdmitx_rd_reg(HDMITX_DWC_FC_AVICONF1) & 0xc0) >> 6) < 0x3)
 			pos += snprintf(buf + pos, PAGE_SIZE, "Colourimetry: %s\n",
