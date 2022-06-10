@@ -82,12 +82,6 @@
 		};
 	};
 
-	spdifout: spdifout {
-		mux { /* GPIOH_4 */
-			groups = "spdif_out_h";
-		};
-	};
-
 	spdifout_a_mute: spdifout_a_mute {
 		mux { /* GPIOH_4 */
 			groups = "GPIOH_4";

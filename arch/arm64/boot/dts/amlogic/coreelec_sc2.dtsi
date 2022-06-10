@@ -195,6 +195,20 @@
 	/delete-property/ arc_port_mask;
 };
 
+&pinctrl_periphs {
+	spdifout: spdifout {
+		mux { /* GPIOH_4 */
+			groups = "spdif_out_h";
+		};
+	};
+
+	spdifout_a_mute: spdifout_a_mute {
+		mux { /* GPIOH_5 */
+			groups = "GPIOH_5";
+		};
+	};
+};
+
 &sd_emmc_c {
 	emmc {
 		caps2 = "MMC_CAP2_HS200";
