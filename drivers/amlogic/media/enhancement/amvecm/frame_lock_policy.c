@@ -99,11 +99,7 @@ int flock_vrr_nfy_callback(struct notifier_block *block, unsigned long cmd,
 
 	switch (cmd) {
 	case FRAME_LOCK_EVENT_ON:
-		if (get_cpu_type() == MESON_CPU_MAJOR_ID_T3)
-			frame_sts.vrr_en = vrr_data->vrr_mode;
-		else
-			frame_sts.vrr_en = 0;
-
+		frame_sts.vrr_en = vrr_data->vrr_mode;
 		if (frame_lock_debug & VRR_POLICY_DEBUG_FLAG)
 			FrameLockPR("%s FRAME_LOCK_EVENT_ON vrr_en:%d\n",
 			__func__, frame_sts.vrr_en);
