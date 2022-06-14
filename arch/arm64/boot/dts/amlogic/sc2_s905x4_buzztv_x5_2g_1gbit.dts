@@ -1,0 +1,60 @@
+#include "sc2_s905x4_buzztv_x5_2g.dts"
+
+/ {
+	amlogic-dt-id = "sc2_s905x4_ah212-gEth-2g";
+	coreelec-dt-id = "sc2_s905x4_buzztv_x5_2g_1gbit";
+};
+
+&periphs_pinctrl {
+	eth_pins: eth {
+		mux {
+			groups = "eth_mdio",
+				"eth_mdc",
+				"eth_rgmii_rx_clk",
+				"eth_rx_dv",
+				"eth_rxd0",
+				"eth_rxd1",
+				"eth_txen",
+				"eth_txd0",
+				"eth_txd1";
+			function = "eth";
+			drive-strength-microamp = <4000>;
+			bias-disable;
+		};
+	};
+
+	eth_rgmii_pins: eth-rgmii {
+		mux {
+			groups = "eth_rxd2_rgmii",
+				"eth_rxd3_rgmii",
+				"eth_rgmii_tx_clk",
+				"eth_txd2_rgmii",
+				"eth_txd3_rgmii";
+			function = "eth";
+			drive-strength-microamp = <4000>;
+			bias-disable;
+		};
+	};
+};
+
+&ext_mdio {
+	external_phy: ethernet-phy@0 {
+		reg = <0>;
+		max-speed = <1000>;
+
+		reset-assert-us = <20000>;
+		reset-deassert-us = <50000>;
+		reset-gpios = <&gpio GPIOZ_15 (GPIO_ACTIVE_LOW |
+					GPIO_OPEN_DRAIN)>;
+	};
+};
+
+&ethmac {
+	status = "okay";
+	pinctrl-0 = <&eth_pins>, <&eth_rgmii_pins>;
+	pinctrl-names = "default";
+	phy-handle = <&external_phy>;
+	phy-mode = "rgmii";
+	amlogic,tx-delay-ns = <2>;
+	/delete-property/ mc_val;
+};

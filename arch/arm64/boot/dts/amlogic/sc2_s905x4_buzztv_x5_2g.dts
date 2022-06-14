@@ -1,0 +1,65 @@
+#include "sc2_s905x4_ah212_linux.dts"
+#include "coreelec_sc2_common.dtsi"
+
+/ {
+	model = "BuzzTV X5";
+	amlogic-dt-id = "sc2_s905x4_ah212-Eth-2g";
+	coreelec-dt-id = "sc2_s905x4_buzztv_x5_2g";
+
+	/delete-node/ rtc;
+	/delete-node/ adc_keypad;
+	/delete-node/ dvb-extern;
+	/delete-node/ dvb-demux;
+
+	gpio_keypad{
+		key_type = <EV_KEY>;
+	};
+
+	gpioleds {
+		sys_led {
+			label = "sys_led";
+			gpios = <&gpio GPIOD_11 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "default-on";
+		};
+		net_green {
+			label = "net_green";
+			gpios = <&gpio GPIOD_4 GPIO_ACTIVE_LOW>;
+			linux,default-trigger = "none";
+		};
+	};
+};
+
+&i2c2 {
+	status = "disable";
+};
+
+&i2c3 {
+	status = "okay";
+	hym8563: hym8563@51 {
+		compatible = "haoyu,hym8563";
+		reg = <0x51>;
+		//interrupts = <13 IRQ_TYPE_EDGE_FALLING>;
+		//i2c_bus = "i2c_bus_c";
+		//#clock-cells = <0>;
+		status = "okay";
+	};
+};
+
+&periphs_pinctrl {
+	spdifout_a_mute: spdifout_a_mute {
+		mux { /* GPIOH_4 */
+			groups = "GPIOH_4";
+		};
+	};
+};
+
+&sd_emmc_a {
+	max-frequency = <170000000>;
+	brcmf: wifi@1 {
+		compatible = "sprd,unisoc-wifi";
+	};
+};
+
+&ethmac {
+	cali_val = <0x80000>;
+};
