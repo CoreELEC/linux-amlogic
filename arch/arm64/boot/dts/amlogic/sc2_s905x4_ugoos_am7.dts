@@ -1,0 +1,222 @@
+#include "sc2_s905x4_ah212_linux.dts"
+#include "coreelec_sc2_common.dtsi"
+
+/ {
+	model = "Ugoos AM7";
+	coreelec-dt-id = "sc2_s905x4_ugoos_am7";
+
+	/delete-node/ memory@00000000;
+	/delete-node/ rtc;
+
+	gpioleds {
+		/* red led */
+		net_red {
+			label = "net_red";
+			gpios = <&gpio GPIOD_11 GPIO_ACTIVE_LOW>;
+			linux,default-trigger = "default-on";
+			retain-state-suspended;
+		};
+
+		/* green led */
+		net_green {
+			label = "net_green";
+			gpios = <&gpio GPIOD_10 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "default-on";
+		};
+
+		/* blue led */
+		net_blue {
+			label = "net_blue";
+			gpios = <&gpio GPIOH_7 GPIO_ACTIVE_LOW>;
+			linux,default-trigger = "default-on";
+			retain-state-shutdown;
+		};
+	};
+
+	aml_wifi {
+		dhd_static_buf; /* if use bcm wifi, config dhd_static_buf */
+	};
+
+	auge_sound {
+		/delete-property/ avout_mute-gpios;
+
+		aml-audio-card,dai-link@1 {
+			codec {
+				sound-dai = <&es8388>;
+			};
+		};
+	};
+
+	cvbsout {
+		/* default: auto,
+		switch-default-enable;  force enable
+		switch-default-disable; force disable */
+		out-switch-gpios = <&gpio GPIOE_2 GPIO_ACTIVE_LOW>;
+	};
+
+	gpio_keypad {
+		key-gpios = <&gpio GPIOD_3 GPIO_ACTIVE_HIGH>;
+	};
+
+	/delete-node/ adc_keypad;
+	/delete-node/ dvb-extern;
+	/delete-node/ dvb-demux;
+};
+
+&ext_mdio {
+	external_phy: ethernet-phy@0 {
+		reg = <0>;
+		max-speed = <1000>;
+
+		reset-assert-us = <10000>;
+		reset-deassert-us = <30000>;
+		reset-gpios = <&gpio GPIOZ_15 (GPIO_ACTIVE_LOW |
+					GPIO_OPEN_DRAIN)>;
+	};
+};
+
+&ethmac {
+	pinctrl-0 = <&eth_pins>, <&eth_rgmii_pins>;
+	pinctrl-names = "default";
+	phy-handle = <&external_phy>;
+	phy-mode = "rgmii";
+	amlogic,tx-delay-ns = <2>;
+	/delete-property/ mc_val;
+};
+
+&pinctrl_audio {
+	tdm_d0_pins: tdm_d0_pin {
+		mux {
+			groups = "tdm_d0";
+			function = "tdmoutb_lane0";
+		};
+	};
+
+	tdm_d1_pins: tdm_d1_pin {
+		mux {
+			groups = "tdm_d1";
+			function = "tdminb_lane1";
+		};
+	};
+
+	tdm_clkb_pins: tdm_clkb_pin {
+		mux {
+			groups = "tdm_sclk1", "tdm_lrclk1";
+			function = "tdm_clk_outb";
+		};
+	};
+};
+
+&tdmb {
+	clocks = <&clkaudio CLKID_AUDIO_MCLK_B
+			&clkaudio CLKID_AUDIO_MCLK_PAD1
+			&clkc CLKID_MPLL2
+			&clkaudio CLKID_AUDIO_SPDIFOUT_A>;
+	pinctrl-0 = <&tdm_b
+		&tdm_d0_pins
+		&tdm_d1_pins
+		&tdmb_mclk
+		&tdm_clkb_pins>;
+	/delete-property/ mclk_pad;
+};
+
+&periphs_pinctrl {
+	tdmb_mclk: tdmb_mclk {
+		mux { /* GPIOD_9 */
+			groups = "mclk1";
+			function = "mclk";
+			drive-strength = <2>;
+		};
+	};
+
+	tdm_b: tdm_b {
+		mux { /* GPIOD_8, GPIOD_7, GPIOD_6, GPIOD_4 */
+			groups = "tdm_sclk1",
+				"tdm_fs1",
+				"tdm_d0",
+				"tdm_d1";
+			function = "tdm";
+		};
+	};
+
+	tdmin_b: tdmin_b {
+		mux { /* GPIOD_4 */
+			groups = "tdmb_din1";
+			function = "tdma_in";
+		};
+	};
+
+	spdifout_a_mute: spdifout_a_mute {
+		mux { /* GPIOH_4 */
+			groups = "GPIOH_4";
+		};
+	};
+
+	eth_pins: eth {
+		mux {
+			groups = "eth_mdio",
+				"eth_mdc",
+				"eth_rgmii_rx_clk",
+				"eth_rx_dv",
+				"eth_rxd0",
+				"eth_rxd1",
+				"eth_txen",
+				"eth_txd0",
+				"eth_txd1";
+			function = "eth";
+			drive-strength-microamp = <4000>;
+			bias-disable;
+		};
+	};
+
+	eth_rgmii_pins: eth-rgmii {
+		mux {
+			groups = "eth_rxd2_rgmii",
+				"eth_rxd3_rgmii",
+				"eth_rgmii_tx_clk",
+				"eth_txd2_rgmii",
+				"eth_txd3_rgmii";
+			function = "eth";
+			drive-strength-microamp = <4000>;
+			bias-disable;
+		};
+	};
+};
+
+&i2c2 {
+	status = "disabled";
+};
+
+&i2c3 {
+	status = "okay";
+	clock-frequency = <100000>; /* default 100k */
+
+	hym8563: hym8563@51 {
+		compatible = "haoyu,hym8563";
+		reg = <0x51>;
+		#clock-cells = <0>;
+		clock-frequency = <32768>;
+		clock-output-names = "xin32k";
+	};
+
+	es8388: es8388@10 {
+		status = "okay";
+		compatible = "everest,es8388";
+		#sound-dai-cells = <0>;
+		reg = <0x10>;
+		/*spk-con-gpio = <&gpio GPIOA_6 0x00>;*/
+		def-vol = <0x1d>;
+		def-dacvol = <0x0a>;
+	};
+};
+
+&usb2_phy_v2 {
+	gpio-vbus-power = "GPIOH_6";
+	gpios = <&gpio GPIOH_6 GPIO_ACTIVE_HIGH>;
+};
+
+&usb3_phy_v2 {
+	default-host; // or default-otg, or nothing for auto
+	/delete-property/ gpio-vbus-power;
+	/delete-property/ gpios;
+};
