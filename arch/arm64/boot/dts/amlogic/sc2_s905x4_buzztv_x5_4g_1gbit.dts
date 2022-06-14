@@ -1,0 +1,14 @@
+#include "sc2_s905x4_buzztv_x5_2g_1gbit.dts"
+
+/ {
+	amlogic-dt-id = "sc2_s905x4_ah212-gEth-4g";
+	coreelec-dt-id = "sc2_s905x4_buzztv_x5_4g_1gbit";
+
+	memory@00000000 {
+		linux,usable-memory = <0x0 0x000000 0x0 0xf1000000>;
+	};
+};
+
+&drm_vpu {
+	logo_addr = "0xf0800000";
+};
