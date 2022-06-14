@@ -1,0 +1,82 @@
+#include "sc2_s905x4_ugoos_am7.dts"
+
+/ {
+	model = "Ugoos X4";
+	coreelec-dt-id = "sc2_s905x4_ugoos_x4";
+
+	gpioleds {
+		/delete-node/ net_red;
+		/delete-node/ net_green;
+		/delete-node/ net_blue;
+
+		/* red led */
+		net_red {
+			label = "net_red";
+			gpios = <&gpio GPIOD_8 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "default-on";
+			retain-state-shutdown;
+		};
+
+		/* blue led */
+		net_blue {
+			label = "net_blue";
+			gpios = <&gpio GPIOD_9 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "default-on";
+			retain-state-suspended;
+		};
+	};
+
+	auge_sound {
+		avout_mute-gpios = <&gpio GPIOD_2 GPIO_ACTIVE_HIGH>;
+
+		aml-audio-card,dai-link@1 {
+			codec {
+				sound-dai = <&tdmb>;
+			};
+		};
+	};
+
+	cvbsout {
+		/delete-property/ switch-default-enable;
+		/delete-property/ switch-default-disable;
+		/delete-property/ out-switch-gpios;
+	};
+
+	/delete-node/ gpio_keypad;
+};
+
+&periphs_pinctrl {
+	/delete-node/ tdmb_mclk;
+	/delete-node/ tdm_b;
+	/delete-node/ tdmout_b;
+	/delete-node/ tdmin_b;
+};
+
+&pinctrl_audio {
+	/delete-node/ tdm_d0_pins;
+	/delete-node/ tdm_d1_pins;
+	/delete-node/ tdm_clkb_pins;
+};
+
+&tdmb {
+	clocks = <&clkaudio CLKID_AUDIO_MCLK_B
+			&clkaudio CLKID_AUDIO_MCLK_PAD0
+			&clkc CLKID_MPLL1
+			&clkc CLKID_MPLL0
+			&clkaudio CLKID_AUDIO_SPDIFOUT_A>;
+	pinctrl-0 = </*&tdmb_mclk &tdmout_b &tdmin_b*/>;
+	mclk_pad = <0>;  /* 0: mclk_0; 1: mclk_1 */
+};
+
+&i2c3 {
+	/delete-node/ es8388;
+};
+
+&usb2_phy_v2 {
+	gpio-vbus-power = "GPIOH_5";
+	gpios = <&gpio GPIOH_5 GPIO_ACTIVE_HIGH>;
+};
+
+&sd_emmc_b {
+	status = "okay";
+};
