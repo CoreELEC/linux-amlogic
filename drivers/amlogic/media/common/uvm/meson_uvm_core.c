@@ -513,7 +513,7 @@ bool is_valid_mod_type(struct dma_buf *dmabuf,
 	struct uvm_handle *handle;
 
 	if (IS_ERR_OR_NULL(dmabuf) || !dmabuf_is_uvm(dmabuf)) {
-		UVM_PRINTK(0, "dmabuf is not uvm. %s %d\n", __func__, __LINE__);
+		//UVM_PRINTK(0, "dmabuf is not uvm. %s %d\n", __func__, __LINE__);
 		return 0;
 	}
 
