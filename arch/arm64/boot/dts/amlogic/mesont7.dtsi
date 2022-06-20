@@ -2846,17 +2846,17 @@
 			thermal-sensors = <&a73_tsensor 0>;
 			trips {
 				a73switch_on: trip-point@0 {
-					temperature = <80000>;
+					temperature = <95000>;
 					hysteresis = <5000>;
 					type = "passive";
 				};
 				a73control: trip-point@1 {
-					temperature = <90000>;
+					temperature = <105000>;
 					hysteresis = <5000>;
 					type = "passive";
 				};
 				a73critical: trip-point@2 {
-					temperature = <110000>;
+					temperature = <115000>;
 					hysteresis = <1000>;
 					type = "critical";
 				};
@@ -2876,17 +2876,17 @@
 			thermal-sensors = <&a53_tsensor 1>;
 			trips {
 				a53switch_on: trip-point@0 {
-					temperature = <90000>;
+					temperature = <95000>;
 					hysteresis = <5000>;
 					type = "passive";
 				};
 				a53control: trip-point@1 {
-					temperature = <100000>;
+					temperature = <105000>;
 					hysteresis = <5000>;
 					type = "passive";
 				};
 				a53critical: trip-point@2 {
-					temperature = <110000>;
+					temperature = <115000>;
 					hysteresis = <1000>;
 					type = "critical";
 				};
@@ -2906,17 +2906,17 @@
 			thermal-sensors = <&gpu_tsensor 2>;
 			trips {
 				gpuswitch_on: trip-point@0 {
-					temperature = <85000>;
-					hysteresis = <5000>;
-					type = "passive";
-				};
-				gpucontrol: trip-point@1 {
 					temperature = <95000>;
 					hysteresis = <5000>;
 					type = "passive";
 				};
+				gpucontrol: trip-point@1 {
+					temperature = <105000>;
+					hysteresis = <5000>;
+					type = "passive";
+				};
 				gpucritical: trip-point@2 {
-					temperature = <110000>;
+					temperature = <115000>;
 					hysteresis = <1000>;
 					type = "critical";
 				};
@@ -2929,17 +2929,17 @@
 			thermal-sensors = <&nna_tsensor 3>;
 			trips {
 				nnaswitch_on: trip-point@0 {
-					temperature = <85000>;
-					hysteresis = <5000>;
-					type = "passive";
-				};
-				nnacontrol: trip-point@1 {
 					temperature = <95000>;
 					hysteresis = <5000>;
 					type = "passive";
 				};
+				nnacontrol: trip-point@1 {
+					temperature = <105000>;
+					hysteresis = <5000>;
+					type = "passive";
+				};
 				nnacritical: trip-point@2 {
-					temperature = <110000>;
+					temperature = <115000>;
 					hysteresis = <1000>;
 					type = "critical";
 				};
@@ -2952,17 +2952,17 @@
 			thermal-sensors = <&hevc_tsensor 4>;
 			trips {
 				hevcswitch_on: trip-point@0 {
-					temperature = <85000>;
-					hysteresis = <5000>;
-					type = "passive";
-				};
-				hevccontrol: trip-point@1 {
 					temperature = <95000>;
 					hysteresis = <5000>;
 					type = "passive";
 				};
+				hevccontrol: trip-point@1 {
+					temperature = <105000>;
+					hysteresis = <5000>;
+					type = "passive";
+				};
 				hevccritical: trip-point@2 {
-					temperature = <110000>;
+					temperature = <115000>;
 					hysteresis = <1000>;
 					type = "critical";
 				};
@@ -2975,17 +2975,17 @@
 			thermal-sensors = <&vpu_tsensor 5>;
 			trips {
 				vpuswitch_on: trip-point@0 {
-					temperature = <85000>;
-					hysteresis = <5000>;
-					type = "passive";
-				};
-				vpucontrol: trip-point@1 {
 					temperature = <95000>;
 					hysteresis = <5000>;
 					type = "passive";
 				};
+				vpucontrol: trip-point@1 {
+					temperature = <105000>;
+					hysteresis = <5000>;
+					type = "passive";
+				};
 				vpucritical: trip-point@2 {
-					temperature = <110000>;
+					temperature = <115000>;
 					hysteresis = <1000>;
 					type = "critical";
 				};
