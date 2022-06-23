@@ -56,8 +56,14 @@
 };
 
 &sd_emmc_a {
+	#address-cells = <1>;
+	#size-cells = <0>;
 	sdio {
 		f_max = <170000000>;
+	};
+	brcmf: wifi@1 {
+		reg = <1>;
+		compatible = "sprd,unisoc-wifi";
 	};
 };
 
