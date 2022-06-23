@@ -1364,6 +1364,7 @@ void mmc_power_up(struct mmc_host *host, u32 ocr)
 	 */
 	mmc_delay(host->ios.power_delay_ms);
 }
+EXPORT_SYMBOL(mmc_power_up);
 
 void mmc_power_off(struct mmc_host *host)
 {
