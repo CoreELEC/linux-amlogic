@@ -608,7 +608,6 @@ static int set_disp_mode_auto(void)
 	struct hdmi_format_para *para = NULL;
 	unsigned char mode[32];
 	enum hdmi_vic vic = HDMI_Unknown;
-	enum hdmi_color_depth stream_cur_cd;
 
 	memset(mode, 0, sizeof(mode));
 	hdev->ready = 0;
@@ -617,13 +616,6 @@ static int set_disp_mode_auto(void)
 	info = hdmitx_get_current_vinfo();
 	if ((info == NULL) || (info->name == NULL))
 		return -1;
-
-	stream_cur_cd = hdev->para->cd;
-
-	if (hdev->cur_video_param != NULL){
-		pr_info("hdmitx: display colourdepth was %d in cur_param 0x%08x (VIC: %d)\n",hdev->cur_video_param->color_depth * 2,
-			hdev->cur_video_param,  hdev->cur_video_param->VIC);
-	}
 
 	pr_info(SYS "get current mode: %s\n", info->name);
 
@@ -646,7 +638,6 @@ static int set_disp_mode_auto(void)
 		hdev->hwop.cntlconfig(hdev, CONF_CLR_VSDB_PACKET, 0);
 		hdev->hwop.cntlmisc(hdev, MISC_TMDS_PHY_OP, TMDS_PHY_DISABLE);
 		hdev->para = hdmi_get_fmt_name("invalid", hdev->fmt_attr);
-		para->cd = stream_cur_cd;
 		if (hdev->cedst_policy)
 			cancel_delayed_work(&hdev->work_cedst);
 		return -1;
@@ -668,56 +659,18 @@ static int set_disp_mode_auto(void)
 		}
 	}
 
+	/* In the file hdmi_common/hdmi_parameters.c,
+	 * the data array all_fmt_paras[] treat 2160p60hz and 2160p60hz420
+	 * as two different modes, such Scrambler
+	 * So if node "attr" contains 420, need append 420 to mode.
+	 */
+	if (strstr(hdev->fmt_attr, "420")) {
+		if (!strstr(mode, "420"))
+			strncat(mode, "420", 3);
+	}
+
 	para = hdmi_get_fmt_name(mode, hdev->fmt_attr);
-	/* force 4k50/60Hz to 420 unless manually set */
-	if (strstr(hdmitx_device.fmt_attr,"422") == NULL){
-		switch ((para->vic) & 0xff) {
-			case HDMI_3840x2160p50_16x9:
-			case HDMI_3840x2160p60_16x9:
-			case HDMI_4096x2160p50_256x135:
-			case HDMI_4096x2160p60_256x135:
-			case HDMI_3840x2160p50_64x27:
-			case HDMI_3840x2160p60_64x27:
-				para->cs = COLORSPACE_YUV420;
-				break;
-			default:
-				break;
-		}
-	}
 	hdev->para = para;
-
-	if (hdev->cur_video_param != NULL){
-		if (strstr(hdmitx_device.fmt_attr,"bit") != NULL){
-			hdev->cur_video_param->color_depth = para->cd;
-			pr_info("hdmitx: display colourdepth set by attr to %d in cur_param 0x%08x (VIC: %d)\n",hdev->cur_video_param->color_depth * 2,
-					hdev->cur_video_param,  hdev->cur_video_param->VIC);
-		} else {
-			hdev->cur_video_param->color_depth = COLORDEPTH_30B;
-			pr_info("hdmitx: display colourdepth is %d in cur_param 0x%08x (VIC: %d)\n",hdev->cur_video_param->color_depth * 2,
-					hdev->cur_video_param,  hdev->cur_video_param->VIC);
-		}
-		if (hdev->cur_video_param->color_depth > COLORDEPTH_24B){
-			int dc_support = 0;
-			if (hdev->rxcap.ColorDeepSupport & 0x78 && hdev->para->cs != COLORSPACE_YUV420)
-				dc_support = 1;
-			else if ((hdev->rxcap.hf_ieeeoui) &&
-					((hdev->rxcap.dc_30bit_420 && hdev->cur_video_param->color_depth == COLORDEPTH_30B) ||
-					 (hdev->rxcap.dc_36bit_420 && hdev->cur_video_param->color_depth == COLORDEPTH_36B) ||
-					 (hdev->rxcap.dc_48bit_420 && hdev->cur_video_param->color_depth == COLORDEPTH_48B)))
-				dc_support = 1;
-			if (! dc_support){
-				pr_warn("Bitdepth is set to %d bits but display does not support deep colour",
-						hdev->cur_video_param->color_depth * 2);
-				/* drop to 8 bit unless forced */
-				if (strstr(hdmitx_device.fmt_attr,"bit") == NULL)
-					hdev->cur_video_param->color_depth = COLORDEPTH_24B;
-			}
-		}
-	}
-
-	/* and recover the original bitstream bitdepth */
-	para->cd = stream_cur_cd;
-
 	vic = hdmitx_edid_get_VIC(hdev, mode, 1);
 	if (strncmp(info->name, "2160p30hz", strlen("2160p30hz")) == 0) {
 		vic = HDMI_4k2k_30;
@@ -6925,7 +6878,7 @@ static int amhdmitx_probe(struct platform_device *pdev)
 	hdmitx_extcon_register(pdev, dev);
 
 	/* update fmt_attr */
-	/*hdmitx_init_fmt_attr(&hdmitx_device); /**/
+	hdmitx_init_fmt_attr(&hdmitx_device);
 
 	hdmitx_device.task = kthread_run(hdmi_task_handle,
 		&hdmitx_device, "kthread_hdmi");
@@ -7284,3 +7237,4 @@ __setup("phy_idx=", hdmitx_get_phy_idx);
 
 MODULE_PARM_DESC(log_level, "\n log_level\n");
 module_param(log_level, int, 0644);
+
