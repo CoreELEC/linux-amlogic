@@ -634,6 +634,7 @@ static int set_disp_mode_auto(void)
 	struct hdmi_format_para *para = NULL;
 	unsigned char mode[32];
 	enum hdmi_vic vic = HDMI_UNKNOWN;
+	int colour_depths[] = { 8, 10, 12, 16 };
 
 	mutex_lock(&hdmimode_mutex);
 
@@ -716,6 +717,49 @@ static int set_disp_mode_auto(void)
 	}
 
 	vic = hdmitx_edid_get_VIC(hdev, mode, 1);
+
+	if (strstr(hdev->fmt_attr,"bit") != NULL) {
+		pr_info("hdmitx: display colourdepth forced by attr to %d bits (VIC: %d)\n", colour_depths[para->cd - COLORDEPTH_24B], vic);
+	} else {
+		// parse and set maximum colourdepth given by edid
+		if (hdev->rxcap.ColorDeepSupport & 0x78 && hdev->para->cs != COLORSPACE_YUV420) {
+			enum hdmi_color_depth cd;
+			for (cd = COLORDEPTH_36B; cd >= COLORDEPTH_24B; cd--) {
+				if (hdev->rxcap.ColorDeepSupport & (1 << (cd - 1))) {
+					para->cd = cd;
+					break;
+				}
+			}
+		} else if (hdev->rxcap.hf_ieeeoui == HF_IEEEOUI) {
+			if (hdev->rxcap.dc_36bit_420)
+				para->cd = COLORDEPTH_36B;
+			else if (hdev->rxcap.dc_30bit_420)
+				para->cd = COLORDEPTH_30B;
+			else
+				para->cd = COLORDEPTH_24B;
+		}
+
+		// check for colour subsampling limit
+		switch (vic & 0xff) {
+			case HDMI_3840x2160p50_16x9:
+			case HDMI_3840x2160p60_16x9:
+			case HDMI_4096x2160p50_256x135:
+			case HDMI_4096x2160p60_256x135:
+			case HDMI_3840x2160p50_64x27:
+			case HDMI_3840x2160p60_64x27:
+				if (para->cs == COLORSPACE_RGB444 || para->cs == COLORSPACE_YUV444)
+				{
+					para->cd = COLORDEPTH_24B;
+					pr_info("hdmitx: forced colourdepth to %d bits because of current video information code\n", colour_depths[para->cd - COLORDEPTH_24B]);
+				}
+				break;
+			default:
+				break;
+		}
+
+		pr_info("hdmitx: display colourdepth is auto set to %d bits (VIC: %d)\n", colour_depths[para->cd - COLORDEPTH_24B], vic);
+	}
+
 	if (strncmp(info->name, "2160p30hz", strlen("2160p30hz")) == 0) {
 		vic = HDMI_4k2k_30;
 	} else if (strncmp(info->name, "2160p25hz",
@@ -5867,7 +5911,29 @@ static int hdmitx_set_current_vmode(enum vmode_e mode, void *data)
 static enum vmode_e hdmitx_validate_vmode(char *mode, unsigned int frac,
 					  void *data)
 {
-	struct vinfo_s *info = hdmi_get_valid_vinfo(mode);
+	struct vinfo_s *info = NULL;
+	struct hdmitx_dev *hdev = &hdmitx_device;
+
+	// force 4k50/60Hz to 420 unless manually set
+	if (strstr(hdev->fmt_attr, "rgb") == NULL &&
+	    strstr(hdev->fmt_attr, "422") == NULL &&
+	    strstr(hdev->fmt_attr, "444") == NULL) {
+		switch (hdmitx_edid_vic_tab_map_vic(mode)) {
+			case HDMI_3840x2160p50_16x9:
+			case HDMI_3840x2160p60_16x9:
+			case HDMI_4096x2160p50_256x135:
+			case HDMI_4096x2160p60_256x135:
+			case HDMI_3840x2160p50_64x27:
+			case HDMI_3840x2160p60_64x27:
+				if (!strstr(mode, "420"))
+					strncat(mode, "420", 3);
+				break;
+			default:
+				break;
+		}
+	}
+
+	info = hdmi_get_valid_vinfo(mode);
 
 	if (info) {
 		/* //remove frac support for vout api
@@ -7270,7 +7336,7 @@ static int amhdmitx_probe(struct platform_device *pdev)
 #endif
 	spin_lock_init(&hdev->edid_spinlock);
 	/* update fmt_attr */
-	hdmitx_init_fmt_attr(hdev);
+	//hdmitx_init_fmt_attr(hdev);
 
 	hdev->hpd_state = !!hdev->hwop.cntlmisc(hdev, MISC_HPD_GPI_ST, 0);
 	hdmitx_notify_hpd(hdev->hpd_state, NULL);
@@ -7596,12 +7662,13 @@ static void check_hdmiuboot_attr(char *token)
 				if (strlen(cd[i]) <
 					(sizeof(attr) - strlen(attr)))
 					strcat(attr, cd[i]);
-			strncpy(hdmitx_device.fmt_attr, attr,
-				sizeof(hdmitx_device.fmt_attr));
-			hdmitx_device.fmt_attr[15] = '\0';
 			break;
 		}
 	}
+
+	strncpy(hdmitx_device.fmt_attr, attr,
+		sizeof(hdmitx_device.fmt_attr));
+	hdmitx_device.fmt_attr[15] = '\0';
 	memcpy(hdmitx_device.backup_fmt_attr, hdmitx_device.fmt_attr,
 	       sizeof(hdmitx_device.fmt_attr));
 }

@@ -948,6 +948,7 @@ int hdmitx_set_display(struct hdmitx_dev *hdev, enum hdmi_vic videocode)
 		hdev->cur_VIC = vic;
 
 	param = hdmi_get_video_param(videocode);
+	param->color_depth = hdev->para->cd;
 	hdev->cur_video_param = param;
 	if (param) {
 		param->color = param->color_prefer;
@@ -956,11 +957,13 @@ int hdmitx_set_display(struct hdmitx_dev *hdev, enum hdmi_vic videocode)
 		 */
 		switch (hdev->rxcap.native_Mode & 0x30) {
 		case 0x20:/*bit5==1, then support YCBCR444 + RGB*/
-		case 0x30:
 			param->color = COLORSPACE_YUV444;
 			break;
 		case 0x10:/*bit4==1, then support YCBCR422 + RGB*/
 			param->color = COLORSPACE_YUV422;
+			break;
+		case 0x30:
+			param->color = hdev->para->cs;
 			break;
 		default:
 			param->color = COLORSPACE_RGB444;
