@@ -4903,7 +4903,7 @@ static int amhdmitx_probe(struct platform_device *pdev)
 #endif
 pr_info("%s[%d]\n", __func__, __LINE__);
 	/* update fmt_attr */
-	hdmitx_init_fmt_attr(hdev);
+	//hdmitx_init_fmt_attr(hdev);
 pr_info("%s[%d]\n", __func__, __LINE__);
 
 	hdev->hpd_state = !!hdev->hwop.cntlmisc(hdev, MISC_HPD_GPI_ST, 0);
@@ -5190,12 +5190,13 @@ static void check_hdmiuboot_attr(char *token)
 				if (strlen(cd[i]) <
 					(sizeof(attr) - strlen(attr)))
 					strcat(attr, cd[i]);
-			strncpy(hdev->fmt_attr, attr,
-				sizeof(hdev->fmt_attr));
-			hdev->fmt_attr[15] = '\0';
 			break;
 		}
 	}
+
+	strncpy(hdev->fmt_attr, attr,
+		sizeof(hdev->fmt_attr));
+	hdev->fmt_attr[15] = '\0';
 	memcpy(hdev->backup_fmt_attr, hdev->fmt_attr,
 	       sizeof(hdev->fmt_attr));
 }
