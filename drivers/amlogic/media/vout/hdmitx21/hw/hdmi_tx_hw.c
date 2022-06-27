@@ -376,7 +376,7 @@ static void hdmi_hwp_init(struct hdmitx_dev *hdev, u8 reset)
 				hdev->para->cd = _get_colordepth();
 				if (hdev->para->cs == HDMI_COLORSPACE_YUV422)
 					hdev->para->cd = COLORDEPTH_36B;
-				hdmitx21_fmt_attr(hdev);
+				//hdmitx21_fmt_attr(hdev);
 				vic = avi->video_code;
 				if (vic == HDMI_0_UNKNOWN)
 					vic = _get_vic_from_vsif(hdev);
