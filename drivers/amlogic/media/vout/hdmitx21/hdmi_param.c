@@ -37,6 +37,70 @@ static struct parse_cr parse_cr_[] = {
 	{COLORRANGE_FUL, "full",},
 };
 
+/* setup cs/cd by give mode and vic */
+static void _auto_setup_attr(char const *mode, char const *attr,
+	enum hdmi_colorspace *cs,
+	enum hdmi_color_depth *cd)
+{
+	enum hdmi_vic vic = HDMI_0_UNKNOWN;
+	struct hdmitx_dev *hdev = get_hdmitx21_device();
+	int colour_depths[] = { 8, 10, 12, 16 };
+
+	if (!mode || !attr)
+		return;
+
+	vic = hdmitx21_edid_get_VIC(hdev, mode, 1);
+
+	if (vic != HDMI_0_UNKNOWN) {
+		pr_info("hdmitx: hdmi attr: %s\n", attr);
+		// check if any colour subsampling is set
+		if (strstr(attr, "rgb") == NULL &&
+		    strstr(attr, "420") == NULL &&
+		    strstr(attr, "422") == NULL &&
+		    strstr(attr, "444") == NULL) {
+			// nothing set, set to VUY420 if 420 vic
+			if (_is_y420_vic(vic)) {
+				pr_info("hdmitx: set colour subsampling to 4:2:0 because of current video information code %d\n", vic);
+				*cs = HDMI_COLORSPACE_YUV420;
+			}
+		}
+
+		// check colourdepth
+		if (strstr(attr,"bit") != NULL) {
+			pr_info("hdmitx: display colourdepth forced by attr to %d bits (VIC: %d)\n", colour_depths[*cd - COLORDEPTH_24B], vic);
+		} else {
+			// parse and set maximum colourdepth given by edid
+			*cd = COLORDEPTH_24B;
+			if (hdev->rxcap.ColorDeepSupport & 0x78 && *cs != HDMI_COLORSPACE_YUV420) {
+				enum hdmi_color_depth _cd;
+				for (_cd = COLORDEPTH_36B; _cd > COLORDEPTH_24B; _cd--) {
+					if (hdev->rxcap.ColorDeepSupport & (1 << (_cd - 1))) {
+						*cd = _cd;
+						break;
+					}
+				}
+			} else if (hdev->rxcap.hf_ieeeoui == HDMI_FORUM_IEEE_OUI) {
+				if (hdev->rxcap.dc_36bit_420)
+					*cd = COLORDEPTH_36B;
+				else if (hdev->rxcap.dc_30bit_420)
+					*cd = COLORDEPTH_30B;
+				else
+					*cd = COLORDEPTH_24B;
+			}
+
+			// check for colour subsampling limit
+			if (_is_y420_vic(vic) && *cd > COLORDEPTH_24B && (*cs == HDMI_COLORSPACE_RGB || *cs == HDMI_COLORSPACE_YUV444))
+			{
+				*cd = COLORDEPTH_24B;
+				pr_info("hdmitx: forced colourdepth to %d bits because of current video information code\n", colour_depths[*cd - COLORDEPTH_24B]);
+			}
+
+			pr_info("hdmitx: display colourdepth is auto set to %d bits (VIC: %d)\n", colour_depths[*cd - COLORDEPTH_24B], vic);
+		}
+	} else
+		pr_info("hdmitx: vic unknown for mode %s\n", mode);
+}
+
 /* parse the name string to cs/cd/cr */
 static void _parse_hdmi_attr(char const *name,
 	enum hdmi_colorspace *cs,
@@ -146,6 +210,7 @@ static bool _tst_fmt_name(struct hdmi_format_para *para,
 		return 0;
 next:
 	_parse_hdmi_attr(attr, &para->cs, &para->cd, &para->cr);
+	_auto_setup_attr(name, attr, &para->cs, &para->cd);
 
 	para->tmds_clk = _calc_tmds_clk(timing->pixel_freq, para->cs, para->cd);
 
@@ -329,6 +394,7 @@ struct hdmi_format_para *hdmitx21_get_fmtpara(const char *mode,
 
 	para->timing = *timing;
 	_parse_hdmi_attr(attr, &para->cs, &para->cd, &para->cr);
+	_auto_setup_attr(mode, attr, &para->cs, &para->cd);
 
 	para->tmds_clk = _calc_tmds_clk(para->timing.pixel_freq,
 		para->cs, para->cd);
