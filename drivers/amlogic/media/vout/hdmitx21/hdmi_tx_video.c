@@ -103,26 +103,18 @@ int hdmitx21_set_display(struct hdmitx_dev *hdev, enum hdmi_vic videocode)
 		return ret;
 	}
 
-	if (param->cs == HDMI_COLORSPACE_YUV444)
-		if (!(hdev->rxcap.native_Mode & (1 << 5))) {
-			param->cs = HDMI_COLORSPACE_YUV422;
-			pr_info("change cs from 444 to 422\n");
-		}
-	if (param->cs == HDMI_COLORSPACE_YUV422)
-		if (!(hdev->rxcap.native_Mode & (1 << 4))) {
-			param->cs = HDMI_COLORSPACE_RGB;
-			pr_info("change cs from 422 to rgb\n");
-		}
-	/* For Y420 modes */
-	switch (videocode) {
-	case HDMI_96_3840x2160p50_16x9:
-	case HDMI_97_3840x2160p60_16x9:
-	case HDMI_101_4096x2160p50_256x135:
-	case HDMI_102_4096x2160p60_256x135:
-		//param->cs = COLORSPACE_YUV420; /* TODO */
+	switch (hdev->rxcap.native_Mode & 0x30) {
+	case 0x20:/*bit5==1, then support YCBCR444 + RGB*/
+		param->cs = HDMI_COLORSPACE_YUV444;
+		break;
+	case 0x10:/*bit4==1, then support YCBCR422 + RGB*/
+		param->cs = HDMI_COLORSPACE_YUV422;
+		break;
+	case 0x30:
+		param->cs = hdev->para->cs;
 		break;
 	default:
-		break;
+		param->cs = HDMI_COLORSPACE_RGB;
 	}
 
 	if (param->cs == HDMI_COLORSPACE_RGB)
