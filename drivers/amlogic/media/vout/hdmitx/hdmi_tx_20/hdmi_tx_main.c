@@ -2471,6 +2471,7 @@ static ssize_t show_config(struct device *dev,
 	int pos = 0;
 	unsigned char *conf;
 	struct hdmitx_dev *hdev = &hdmitx_device;
+	int colour_depths[] = { 8, 10, 12, 16 };
 	char* pix_fmt[] = {"RGB","YUV422","YUV444","YUV420"};
 	char* eotf[] = {"SDR","HDR","HDR10","HLG"};
 	char* range[] = {"default","limited","full"};
@@ -2486,13 +2487,19 @@ static ssize_t show_config(struct device *dev,
 			hdev->cur_video_param->VIC);
 	if (hdev->para) {
 		struct hdmi_format_para *para;
+		int cs = hdmitx_rd_reg(HDMITX_DWC_FC_AVICONF0) & 0x3;
+		int cd = (hdmitx_rd_reg(HDMITX_DWC_TX_INVID0) & 0x6) >> 1;
 		para = hdev->para;
+
+		// YUV422
+		if (cs == 1)
+			cd = (~cd & 0x3);
 
 		pos += snprintf(buf+pos, PAGE_SIZE, "VIC: %d %s\n",
 				hdmitx_device.cur_VIC, para->name);
 		pos += snprintf(buf + pos, PAGE_SIZE, "Colour depth: %d-bit\nColourspace: %s\nColour range: %s\nEOTF: %s\nYCC colour range: %s\n",
-				(((hdmitx_rd_reg(HDMITX_DWC_TX_INVID0) & 0x6) >> 1) + 4 ) * 2,
-				pix_fmt[(hdmitx_rd_reg(HDMITX_DWC_FC_AVICONF0) & 0x3)],
+				colour_depths[cd],
+				pix_fmt[cs],
 				range[(hdmitx_rd_reg(HDMITX_DWC_FC_AVICONF2) & 0xc) >> 2],
 				eotf[(hdmitx_rd_reg(HDMITX_DWC_FC_DRM_PB00) & 7)],
 				range[((hdmitx_rd_reg(HDMITX_DWC_FC_AVICONF3) & 0xc) >> 2) + 1]);
