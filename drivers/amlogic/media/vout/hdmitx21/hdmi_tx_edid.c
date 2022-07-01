@@ -58,6 +58,7 @@
 #define EXTENSION_Y420_VDB_TAG	0xe
 #define EXTENSION_Y420_CMDB_TAG	0xf
 #define EXTENSION_DOLBY_VSADB	0x11
+#define EXTENSION_SCDB_EXT_TAG	0x79
 
 #define EDID_DETAILED_TIMING_DES_BLOCK0_POS 0x36
 #define EDID_DETAILED_TIMING_DES_BLOCK1_POS 0x48
@@ -1762,6 +1763,48 @@ static void _store_vics(struct rx_cap *prxcap, u8 vic_dat)
 	}
 }
 
+static void hdmitx21_edid_parse_hfscdb(struct rx_cap *prxcap,
+	u8 offset, u8 *blockbuf, u8 count)
+{
+	prxcap->hf_ieeeoui = HDMI_FORUM_IEEE_OUI;
+	prxcap->Max_TMDS_Clock2 = blockbuf[offset + 4];
+	prxcap->scdc_present =
+		!!(blockbuf[offset + 5] & (1 << 7));
+	prxcap->scdc_rr_capable =
+		!!(blockbuf[offset + 5] & (1 << 6));
+	prxcap->lte_340mcsc_scramble =
+		!!(blockbuf[offset + 5] & (1 << 3));
+	set_vsdb_dc_420_cap(prxcap,
+				&blockbuf[offset]);
+
+	if (count < 8)
+		return;
+	prxcap->qms =
+		!!(blockbuf[offset + 7] & (1 << 6));
+	prxcap->qms_tfr_max =
+		!!(blockbuf[offset + 7] & (1 << 7));
+	prxcap->qms_tfr_min =
+		!!(blockbuf[offset + 7] & (1 << 4));
+	prxcap->mdelta =
+		!!(blockbuf[offset + 7] & (1 << 5));
+	prxcap->neg_mvrr =
+		!!(blockbuf[offset + 7] & (1 << 3));
+	prxcap->fva =
+		!!(blockbuf[offset + 7] & (1 << 2));
+	prxcap->allm =
+		!!(blockbuf[offset + 7] & (1 << 1));
+	prxcap->fapa_start_loc =
+		!!(blockbuf[offset + 7] & (1 << 0));
+
+	if (count < 9)
+		return;
+	prxcap->vrr_max =
+		(((blockbuf[offset + 8] & 0xc0) >> 6) << 8) +
+				blockbuf[offset + 9];
+	prxcap->vrr_min =
+		(blockbuf[offset + 8] & 0x3f);
+}
+
 static int hdmitx_edid_block_parse(struct hdmitx_dev *hdev,
 				   u8 *blockbuf)
 {
@@ -1827,40 +1870,9 @@ static int hdmitx_edid_block_parse(struct hdmitx_dev *hdev,
 							 blockbuf, count);
 			} else if ((blockbuf[offset] == 0xd8) &&
 				(blockbuf[offset + 1] == 0x5d) &&
-				(blockbuf[offset + 2] == 0xc4)) {
-				prxcap->hf_ieeeoui = HDMI_FORUM_IEEE_OUI;
-				prxcap->Max_TMDS_Clock2 = blockbuf[offset + 4];
-				prxcap->scdc_present =
-					!!(blockbuf[offset + 5] & (1 << 7));
-				prxcap->scdc_rr_capable =
-					!!(blockbuf[offset + 5] & (1 << 6));
-				prxcap->lte_340mcsc_scramble =
-					!!(blockbuf[offset + 5] & (1 << 3));
-				set_vsdb_dc_420_cap(&hdev->rxcap,
-						    &blockbuf[offset]);
-				prxcap->vrr_max =
-					(((blockbuf[offset + 8] & 0xc0) >> 6) << 8) +
-							blockbuf[offset + 9];
-				prxcap->vrr_min =
-					(blockbuf[offset + 8] & 0x3f);
-				prxcap->qms =
-					!!(blockbuf[offset + 7] & (1 << 6));
-				prxcap->qms_tfr_max =
-					!!(blockbuf[offset + 7] & (1 << 7));
-				prxcap->qms_tfr_min =
-					!!(blockbuf[offset + 7] & (1 << 4));
-				prxcap->mdelta =
-					!!(blockbuf[offset + 7] & (1 << 5));
-				prxcap->neg_mvrr =
-					!!(blockbuf[offset + 7] & (1 << 3));
-				prxcap->fva =
-					!!(blockbuf[offset + 7] & (1 << 2));
-				prxcap->allm =
-					!!(blockbuf[offset + 7] & (1 << 1));
-				prxcap->fapa_start_loc =
-					!!(blockbuf[offset + 7] & (1 << 0));
-			}
-
+				(blockbuf[offset + 2] == 0xc4))
+				hdmitx21_edid_parse_hfscdb(prxcap, offset,
+					blockbuf, count);
 			offset += count; /* ignore the remaind. */
 			break;
 
@@ -1919,6 +1931,10 @@ static int hdmitx_edid_block_parse(struct hdmitx_dev *hdev,
 				case EXTENSION_DOLBY_VSADB:
 					edid_parsingdolbyvsadb(hdev,
 							     &blockbuf[offset]);
+					break;
+				case EXTENSION_SCDB_EXT_TAG:
+					hdmitx21_edid_parse_hfscdb(prxcap, offset + 1,
+							 blockbuf, count);
 					break;
 				default:
 					break;
