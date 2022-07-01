@@ -433,7 +433,6 @@ struct hdmitx_dev {
 	int drm_hdmitx_id;
 	struct connector_hpd_cb drm_hpd_cb;
 	struct miscdevice hdcp_comm_device;
-	u8 tv_usage;
 };
 
 #define CMD_DDC_OFFSET          (0x10 << 24)
