@@ -113,7 +113,7 @@ static void _parse_hdmi_attr(char const *name,
 		return;
 	if (!name) {
 		/* assign defalut value*/
-		*cs = HDMI_COLORSPACE_RGB;
+		*cs = HDMI_COLORSPACE_YUV444;
 		*cd = COLORDEPTH_24B;
 		*cr = COLORRANGE_FUL;
 		return;
@@ -139,7 +139,7 @@ static void _parse_hdmi_attr(char const *name,
 	}
 	/* set default value */
 	if (i == sizeof(parse_cs_) / sizeof(struct parse_cs))
-		*cs = HDMI_COLORSPACE_RGB;
+		*cs = HDMI_COLORSPACE_YUV444;
 
 	/* parse color range */
 	for (i = 0; i < sizeof(parse_cr_) / sizeof(struct parse_cr); i++) {
