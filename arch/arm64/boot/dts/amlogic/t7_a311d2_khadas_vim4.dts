@@ -41,3 +41,35 @@
 	cali_val = <0xa0000>;
 	amlogic,tx-delay-ns = <2>;
 };
+
+&i2c_AO_A {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c0_ao_pins1>;
+	clock-frequency = <100000>; /* default 100k */
+
+	hym8563-rtc@51 {
+		compatible = "haoyu,hym8563";
+		reg = <0x51>;
+	};
+
+	khadas-mcu@18 {
+		compatible = "khadas-mcu";
+		reg = <0x18>;
+		fan,trig_temp_level0 = <50>;
+		fan,trig_temp_level1 = <60>;
+		fan,trig_temp_level2 = <70>;
+		fan,trig_temp_level3 = <80>;
+		hwver = "VIM4.V12"; /* Will be updated in uboot. */
+	};
+};
+
+&vrtc {
+	status = "disabled";
+};
+
+&pwm_ef {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&pwm_f_pins>;
+};
