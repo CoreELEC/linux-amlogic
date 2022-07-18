@@ -2141,7 +2141,6 @@ static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *p)
 	active_file_list_push(dev, file_private_data);
 
 	fput(file_vf);
-	mutex_unlock(&dev->mutex_input);
 
 	if (vf->pts_us64) {
 		dev->first_frame = 1;
@@ -2189,6 +2188,7 @@ static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *p)
 	if (vf->type_original & VIDTYPE_INTERLACE || vf->type & VIDTYPE_INTERLACE)
 		p->field = V4L2_FIELD_INTERLACED;
 
+	mutex_unlock(&dev->mutex_input);
 	//pr_err("dqbuf: frame_num=%d\n", p->sequence);
 	dq_count[inst_id]++;
 	return 0;
