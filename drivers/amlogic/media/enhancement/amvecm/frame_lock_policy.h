@@ -46,5 +46,6 @@ ssize_t frame_lock_debug_show(struct class *cla,
 int flock_vrr_nfy_callback(struct notifier_block *block, unsigned long cmd,
 			  void *para);
 void frame_lock_mode_chg(unsigned int cmd);
+u16 frame_lock_get_vrr_status(void);
 
 #endif
