@@ -812,11 +812,6 @@ struct viu2_osd_reg_item {
 	u32 mask;
 };
 
-struct ffile_info {
-	u32 fget_count;
-	u32 fput_count;
-};
-
 struct hw_para_s {
 	struct pandata_s pandata[HW_OSD_COUNT];
 	struct pandata_s dispdata[HW_OSD_COUNT];
@@ -943,6 +938,5 @@ struct hw_para_s {
 	u32 blend_mode[HW_OSD_COUNT];
 	bool afbc_support[HW_OSD_COUNT];
 	bool pps_support[HW_OSD_COUNT];
-	struct ffile_info file_info_debug[HW_OSD_COUNT];
 };
 #endif /* _OSD_H_ */
