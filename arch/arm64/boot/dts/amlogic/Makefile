@@ -30,6 +30,7 @@ dtb-$(CONFIG_ARM64) += g12b_s922x_ugoos_am6b_4g.dtb
 dtb-$(CONFIG_ARM64) += g12b_s922x_ugoos_am6b_rev_a_2g.dtb
 dtb-$(CONFIG_ARM64) += g12b_s922x_ugoos_am6b_rev_a_4g.dtb
 dtb-$(CONFIG_ARM64) += g12b_s922x_x88_king_rev_a.dtb
+dtb-$(CONFIG_ARM64) += g12b_s922x_bananapi_m2s.dtb
 dtb-$(CONFIG_ARM64) += sc2_s905x4_2g.dtb
 dtb-$(CONFIG_ARM64) += sc2_s905x4_2g_1gbit.dtb
 dtb-$(CONFIG_ARM64) += sc2_s905x4_4g.dtb

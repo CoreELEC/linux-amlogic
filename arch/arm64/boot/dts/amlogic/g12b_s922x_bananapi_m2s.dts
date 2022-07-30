@@ -1,0 +1,44 @@
+#include "coreelec_g12b.dtsi"
+
+/{
+	model = "Sinovoip Bananapi-M2S";
+	coreelec-dt-id = "g12b_s922x_bananapi_m2s";
+
+	memory@00000000 {
+		linux,usable-memory = <0x0 0x0 0x0 0xf5000000>;
+	};
+
+	gpioleds {
+		sys_led {  /* blue */
+			gpios = <&gpio_ao GPIOAO_7 GPIO_ACTIVE_LOW>;
+			linux,default-trigger = "default-on";
+			retain-state-suspended;
+		};
+
+		green_led {
+			gpios = <&gpio_ao GPIOAO_2 GPIO_ACTIVE_LOW>;
+			linux,default-trigger = "heartbeat";
+		};
+	};
+
+	bt-dev {
+		status = "disabled";
+	};
+
+	wifi {
+		status = "disabled";
+	};
+};
+
+&pcie_A {
+	reset-gpio = <&gpio GPIOA_8 GPIO_ACTIVE_HIGH>;
+	status = "okay";
+};
+
+&i2c3 {
+	status = "disabled";
+};
+
+&usb3_phy_v2 {
+	portnum = <0>;
+};
