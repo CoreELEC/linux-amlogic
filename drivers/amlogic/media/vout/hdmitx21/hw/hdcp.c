@@ -92,10 +92,6 @@ void set_hdcp2_topo(u32 topo_type)
 
 void hdcptx_init_reg(void)
 {
-	if (hdmitx21_get_bit(TPI_HW_OPT3_IVCTX, 0) == 1)
-		hdmitx21_set_reg_bits(TPI_HW_OPT3_IVCTX, 0, 4, 3); /* hdmi case */
-	else
-		hdmitx21_set_reg_bits(TPI_HW_OPT3_IVCTX, 3, 4, 3); /* dvi case */
 	hdmitx21_set_bit(HDCP_CTRL_IVCTX, BIT(2), false);
 	hdmitx21_set_bit(HDCP_CTRL_IVCTX, BIT(2), true);
 	hdmitx21_wr_reg(CP2TX_TP1_IVCTX, 0x92);
