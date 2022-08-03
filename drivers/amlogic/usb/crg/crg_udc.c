@@ -4670,7 +4670,8 @@ static struct platform_driver crg_udc_driver = {
 void crg_gadget_exit(void)
 {
 	CRG_ERROR("crg gadget exit\n");
-
+	if (!crg_udc_driver.driver.p)
+		return;
 	platform_driver_unregister(&crg_udc_driver);
 }
 
