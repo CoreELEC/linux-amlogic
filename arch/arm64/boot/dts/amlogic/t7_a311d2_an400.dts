@@ -1554,6 +1554,7 @@
 	status = "okay";
 	repeater_tx = <0>;
 	enc_idx = <0>;
+	vrr_type = <2>; /* 1: GAME-VRR, 2: QMS-VRR */
 	tv_usage = <1>;
 };
 
