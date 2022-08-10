@@ -716,7 +716,10 @@ enum hdmi_vic_e {
 	HDMI_1080p_ALTERNATIVE,
 	HDMI_1080p_FRAMEPACKING,
 
-	HDMI_800_600 = HDMI_VESA_OFFSET,
+	HDMI_640_350 = HDMI_VESA_OFFSET,
+	HDMI_640_400,
+	HDMI_800_600,
+	HDMI_848_480,
 	HDMI_1024_768,
 	HDMI_720_400,
 	HDMI_720_350,
@@ -728,13 +731,18 @@ enum hdmi_vic_e {
 	HDMI_1366_768,
 	HDMI_1600_900,
 	HDMI_1600_1200,
+	HDMI_1792_1344,
+	HDMI_1856_1392,
 	HDMI_1920_1200,
+	HDMI_1920_1440,
 	HDMI_1440_900,
 	HDMI_1400_1050,
 	HDMI_1680_1050,
+	HDMI_2048_1152,
 	HDMI_1152_864,
 	HDMI_3840_600,
 	HDMI_2560_1440,
+	HDMI_2560_1600,
 	HDMI_2688_1520,
 	HDMI_UNSUPPORT,
 };
@@ -793,6 +801,7 @@ void rx_modify_edid(unsigned char *buffer,
 void rx_edid_update_audio_info(unsigned char *p_edid,
 			       unsigned int len);
 bool is_ddc_idle(unsigned char port_id);
+bool is_edid_buff_normal(unsigned char port_id);
 bool need_update_edid(void);
 enum edid_ver_e get_edid_selection(u8 port);
 enum edid_ver_e rx_parse_edid_ver(u8 *p_edid);

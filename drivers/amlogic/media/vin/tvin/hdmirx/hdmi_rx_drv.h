@@ -23,7 +23,7 @@
 #include "hdmi_rx_drv_ext.h"
 
 /* repeater */
-#define RX_VER0 "ver.2022/02/25"
+#define RX_VER0 "ver.2022/07/26"
 
 /*print type*/
 #define	LOG_EN		0x01
@@ -797,7 +797,7 @@ void rx_get_global_variable(const char *buf);
 int rx_pr(const char *fmt, ...);
 unsigned int hdmirx_hw_dump_reg(unsigned char *buf, int size);
 unsigned int hdmirx_show_info(unsigned char *buf, int size);
-bool is_afifo_error(void);
+bool is_aud_fifo_error(void);
 bool is_aud_pll_error(void);
 int hdmirx_debug(const char *buf, int size);
 void dump_reg(void);

@@ -252,8 +252,8 @@ void hdmirx_fsm_var_init(void)
 		sig_stable_err_max = 5;
 		sig_stable_max = 10;
 		dwc_rst_wait_cnt_max = 1;
-		clk_unstable_max = 100;
-		esd_phy_rst_max = 8;
+		clk_unstable_max = 50;
+		esd_phy_rst_max = 16;
 		pll_unlock_max = 30;
 		stable_check_lvl = 0x7cf;
 		pll_lock_max = 5;
@@ -277,8 +277,8 @@ void hdmirx_fsm_var_init(void)
 		sig_stable_err_max = 5;
 		sig_stable_max = 10;
 		dwc_rst_wait_cnt_max = 30;
-		clk_unstable_max = 100;
-		esd_phy_rst_max = 8;
+		clk_unstable_max = 50;
+		esd_phy_rst_max = 16;
 		pll_unlock_max = 30;
 		stable_check_lvl = 0x7cf;
 		pll_lock_max = 5;
@@ -326,8 +326,8 @@ void hdmirx_fsm_var_init(void)
 		sig_stable_err_max = 5;
 		sig_stable_max = 10;
 		dwc_rst_wait_cnt_max = 5; //for repeater
-		clk_unstable_max = 100;
-		esd_phy_rst_max = 8;
+		clk_unstable_max = 50;
+		esd_phy_rst_max = 16;
 		pll_unlock_max = 30;
 		stable_check_lvl = 0x7d3;
 		pll_lock_max = 2;
@@ -1141,6 +1141,19 @@ reisr:hdmirx_top_intr_stat = hdmirx_rd_top(TOP_INTR_STAT);
 			if (log_level & COR_LOG)
 				rx_pr("[isr] ctrl aon\n");
 	}
+	if (rx.chip_id <= CHIP_ID_TL1) {
+		if (hdmirx_top_intr_stat & MSK(4, 17)) {
+			if (!is_edid_buff_normal(rx.port)) {
+				hdmirx_wr_top(TOP_SW_RESET, 0x02);
+				udelay(1);
+				hdmirx_wr_top(TOP_SW_RESET, 0);
+
+				if (log_level & EDID_LOG)
+					rx_pr("[isr] edid addr irq\n");
+			}
+		}
+	}
+
 	if (rx.chip_id < CHIP_ID_TL1) {
 		if (error == 1)
 			goto reisr;
@@ -1231,8 +1244,11 @@ static const struct freq_ref_s freq_ref[] = {
 	{0,	0,	0,	2880,	576,	HDMI_2880x576p50},
 	/* vesa format*/
 	{0,	0,	0,	640,	480,	HDMI_640x480p60},
+	{0,	0,	0,	640,	350,	HDMI_640_350},
+	{0,	0,	0,	640,	400,	HDMI_640_400},
 	{0,	0,	0,	720,	400,	HDMI_720_400},
 	{0,	0,	0,	800,	600,	HDMI_800_600},
+	{0,	0,	0,	848,	480,	HDMI_848_480},
 	{0,	0,	0,	1024,	768,	HDMI_1024_768},
 	{0,	0,	0,	1280,	768,	HDMI_1280_768},
 	{0,	0,	0,	1280,	800,	HDMI_1280_800},
@@ -1245,13 +1261,18 @@ static const struct freq_ref_s freq_ref[] = {
 	{0,	0,	0,	1600,	900,	HDMI_1600_900},
 	{0,	0,	0,	1600,	1200,	HDMI_1600_1200},
 	{0,	0,	0,	1680,	1050,	HDMI_1680_1050},
+	{0,	0,	0,	1792,	1344,	HDMI_1792_1344},
+	{0,	0,	0,	1856,	1392,	HDMI_1856_1392},
 	{0,	0,	0,	1920,	1200,	HDMI_1920_1200},
+	{0,	0,	0,	1920,	1440,	HDMI_1920_1440},
 	{0,	0,	0,	1152,	864,	HDMI_1152_864},
+	{0,	0,	0,	2048,	1152,	HDMI_2048_1152},
+	{0,	0,	0,	2560,	1600,	HDMI_2560_1600},
 	{0,	0,	0,	3840,	600,	HDMI_3840_600},
 	{0, 0,	0,	2688,	1520,	HDMI_2688_1520},
 	/* 4k2k mode */
 	{0,	0,	0,	3840,	2160,	HDMI_2160p24_16x9},
-	{0,	0,	0,	1920,	2160,	HDMI_2160p25_16x9},
+	/*{0,	0,	0,	1920,	2160,	HDMI_2160p25_16x9},*/
 	{0,	0,	0,	4096,	2160,	HDMI_4096p24_256x135},
 	{0,	0,	0,	2560,	1440,	HDMI_2560_1440},
 	{0,	0,	1,	2560,	3488,	HDMI_2560_1440},
@@ -1349,6 +1370,12 @@ enum tvin_sig_fmt_e hdmirx_hw_get_fmt(void)
 	case HDMI_640x480p60:
 		fmt = TVIN_SIG_FMT_HDMI_640X480P_60HZ;
 		break;
+	case HDMI_640_350:
+		fmt = TVIN_SIG_FMT_HDMI_640X350_85HZ;
+		break;
+	case HDMI_640_400:
+		fmt = TVIN_SIG_FMT_HDMI_640X400_85HZ;
+		break;
 	case HDMI_480p60:	/*2 */
 	case HDMI_480p60_16x9:	/*3 */
 	case HDMI_480p120:	/* 48 */
@@ -1363,6 +1390,9 @@ enum tvin_sig_fmt_e hdmirx_hw_get_fmt(void)
 		break;
 	case HDMI_480p_FRAMEPACKING:
 		fmt = TVIN_SIG_FMT_HDMI_720X480P_60HZ_FRAME_PACKING;
+		break;
+	case HDMI_848_480:
+		fmt = TVIN_SIG_FMT_HDMI_848X480_60HZ;
 		break;
 	case HDMI_720p24:	/* 60 */
 	case HDMI_720p25:	/* 61 */
@@ -1544,8 +1574,20 @@ enum tvin_sig_fmt_e hdmirx_hw_get_fmt(void)
 	case HDMI_1600_900:
 		fmt = TVIN_SIG_FMT_HDMI_1600X900_60HZ;
 		break;
+	case HDMI_1792_1344:
+		fmt = TVIN_SIG_FMT_HDMI_1792X1344_85HZ;
+		break;
+	case HDMI_1856_1392:
+		fmt = TVIN_SIG_FMT_HDMI_1856X1392_00HZ;
+		break;
 	case HDMI_1920_1200:
 		fmt = TVIN_SIG_FMT_HDMI_1920X1200_00HZ;
+		break;
+	case HDMI_1920_1440:
+		fmt = TVIN_SIG_FMT_HDMI_1920X1440_00HZ;
+		break;
+	case HDMI_2048_1152:
+		fmt = TVIN_SIG_FMT_HDMI_2048X1152_60HZ;
 		break;
 	case HDMI_1440_900:
 		fmt = TVIN_SIG_FMT_HDMI_1440X900_00HZ;
@@ -1561,6 +1603,9 @@ enum tvin_sig_fmt_e hdmirx_hw_get_fmt(void)
 		break;
 	case HDMI_3840_600:
 		fmt = TVIN_SIG_FMT_HDMI_3840X600_00HZ;
+		break;
+	case HDMI_2560_1600:
+		fmt = TVIN_SIG_FMT_HDMI_2560X1600_00HZ;
 		break;
 	case HDMI_2688_1520:
 		fmt = TVIN_SIG_FMT_HDMI_2688X1520_00HZ;
@@ -1597,7 +1642,7 @@ enum tvin_sig_fmt_e hdmirx_hw_get_fmt(void)
 			fmt = TVIN_SIG_FMT_NULL;
 		break;
 	case HDMI_2560_1440:
-		fmt = TVIN_SIG_FMT_HDMI_1920X1200_00HZ;
+		fmt = TVIN_SIG_FMT_HDMI_2560X1440_00HZ;
 		break;
 	case HDMI_1920x2160p60_16x9:
 		fmt = TVIN_SIG_FMT_HDMI_1920X2160_60HZ;
@@ -3371,6 +3416,12 @@ void rx_main_state_machine(void)
 					rx_pr("update audio-err:%d\n", aud_sts);
 				rx.aud_sr_unstable_cnt = 0;
 			}
+		} else if (is_aud_fifo_error()) {
+			rx.aud_sr_unstable_cnt++;
+			if (rx.aud_sr_unstable_cnt > aud_sr_stb_max) {
+				hdmirx_audio_fifo_rst();
+				rx.aud_sr_unstable_cnt = 0;
+			}
 		} else {
 			rx.aud_sr_unstable_cnt = 0;
 		}
@@ -3583,7 +3634,7 @@ static void dump_video_status(void)
 	rx_pr("cnt_type = %d\n", rx.cur.cn_type);
 	rx_pr("dolby_vision = %d\n", rx.vs_info_details.dolby_vision_flag);
 	rx_pr("dv ll = %d\n", rx.vs_info_details.low_latency);
-	rx_pr("VTEM = %d\n", rx.vrr_en);
+	//rx_pr("VTEM = %d\n", rx.vrr_en);
 	rx_pr("DRM = %d\n", rx_pkt_chk_attach_drm());
 	rx_pr("freesync = %d\n-bit0 supported,bit1:enabled.bit2:active", rx.free_sync_sts);
 	rx_pr("edid_selected_ver: %s\n",
@@ -3898,6 +3949,11 @@ int hdmirx_debug(const char *buf, int size)
 		rx_sec_hdcp_cfg_t7();
 	} else if (strncmp(tmpbuf, "phyoff", 6) == 0) {
 		aml_phy_power_off();
+	} else if (strncmp(tmpbuf, "clkoff", 6) == 0) {
+		if (tmpbuf[6] == '1')
+			rx_dig_clk_en(1);
+		else
+			rx_dig_clk_en(0);
 	}
 	return 0;
 }

@@ -1318,20 +1318,21 @@ void rx_get_vsi_info(void)
 			break;
 		}
 		tmp = pkt->sbpkt.payload.data[0] & _BIT(1);
-		if (tmp)
-			rx.vs_info_details.dolby_vision_flag = DV_VSIF;
-		tmp = pkt->sbpkt.payload.data[0] & _BIT(0);
-		rx.vs_info_details.low_latency = tmp ? true : false;
-		tmp = pkt->sbpkt.payload.data[0] >> 15 & 0x01;
-		rx.vs_info_details.backlt_md_bit = tmp ? true : false;
 		if (tmp) {
-			tmp = (pkt->sbpkt.payload.data[0] >> 16 & 0xff) |
-			      (pkt->sbpkt.payload.data[0] & 0xf00);
-			rx.vs_info_details.eff_tmax_pq = tmp;
+			rx.vs_info_details.dolby_vision_flag = DV_VSIF;
+			tmp = pkt->sbpkt.payload.data[0] & _BIT(0);
+			rx.vs_info_details.low_latency = tmp ? true : false;
+			tmp = pkt->sbpkt.payload.data[0] >> 15 & 0x01;
+			rx.vs_info_details.backlt_md_bit = tmp ? true : false;
+			if (tmp) {
+				tmp = (pkt->sbpkt.payload.data[0] >> 16 & 0xff) |
+				      (pkt->sbpkt.payload.data[0] & 0xf00);
+				rx.vs_info_details.eff_tmax_pq = tmp;
+			}
+			tmp = (pkt->sbpkt.payload.data[1] >> 16 & 0xf);
+			if (tmp == 2)
+				rx.vs_info_details.allm_mode = true;
 		}
-		tmp = (pkt->sbpkt.payload.data[1] >> 16 & 0xf);
-		if (tmp == 2)
-			rx.vs_info_details.allm_mode = true;
 		break;
 	//====================for dv5.0 ====================
 	case IEEE_DV_PLUS_ALLM:
@@ -1347,16 +1348,17 @@ void rx_get_vsi_info(void)
 			break;
 		}
 		tmp = pkt->sbpkt.payload.data[0] & _BIT(1);
-		if (tmp)
-			rx.vs_info_details.dolby_vision_flag = DV_VSIF;
-		tmp = pkt->sbpkt.payload.data[0] & _BIT(0);
-		rx.vs_info_details.low_latency = tmp ? true : false;
-		tmp = pkt->sbpkt.payload.data[0] >> 15 & 0x01;
-		rx.vs_info_details.backlt_md_bit = tmp ? true : false;
 		if (tmp) {
-			tmp = (pkt->sbpkt.payload.data[0] >> 16 & 0xff) |
-			      (pkt->sbpkt.payload.data[0] & 0xf00);
-			rx.vs_info_details.eff_tmax_pq = tmp;
+			rx.vs_info_details.dolby_vision_flag = DV_VSIF;
+			tmp = pkt->sbpkt.payload.data[0] & _BIT(0);
+			rx.vs_info_details.low_latency = tmp ? true : false;
+			tmp = pkt->sbpkt.payload.data[0] >> 15 & 0x01;
+			rx.vs_info_details.backlt_md_bit = tmp ? true : false;
+			if (tmp) {
+				tmp = (pkt->sbpkt.payload.data[0] >> 16 & 0xff) |
+				      (pkt->sbpkt.payload.data[0] & 0xf00);
+				rx.vs_info_details.eff_tmax_pq = tmp;
+			}
 		}
 		//tmp = (pkt->sbpkt.payload.data[1] >> 16 & 0xf);
 		//if (tmp == 2)
@@ -1871,10 +1873,14 @@ bool is_new_visf_pkt_rcv(union infoframe_u *pktdata)
 		if (pkt->sbpkt.payload.data[0] & _BIT(9))
 			allm_sts = true;
 	}
-	if ((old_pkt == E_VSI_VSI21 && new_pkt == E_VSI_DV15) ||
-		(old_pkt == E_VSI_DV15 && new_pkt == E_VSI_VSI21))
-		if (allm_sts)
+	if (allm_sts) {
+		if (old_pkt == E_VSI_VSI21 && new_pkt == E_VSI_DV15) {
 			pkt->ieee = IEEE_DV_PLUS_ALLM;
+		} else if (old_pkt == E_VSI_DV15 && new_pkt == E_VSI_VSI21) {
+			pkt = (struct vsi_infoframe_st *)&rx_pkt.vs_info;
+			pkt->ieee = IEEE_DV_PLUS_ALLM;
+		}
+	}
 	//====================for dv5.0 end=================
 	if (new_pkt > old_pkt)
 		return true;

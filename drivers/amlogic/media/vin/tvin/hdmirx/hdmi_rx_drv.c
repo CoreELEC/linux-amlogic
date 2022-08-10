@@ -25,6 +25,7 @@
 #include <linux/of_reserved_mem.h>
 #include <linux/poll.h>
 #include <linux/io.h>
+#include <linux/compat.h>
 #include <linux/suspend.h>
 /* #include <linux/earlysuspend.h> */
 #include <linux/delay.h>
@@ -506,8 +507,8 @@ int hdmirx_dec_isr(struct tvin_frontend_s *fe, unsigned int hcnt64)
 			avmuteflag = rx_get_avmute_sts();
 			if (avmuteflag == 1) {
 				rx.avmute_skip += 1;
-				skip_frame(1);
 				hdmirx_set_video_mute(1);
+				skip_frame(2);
 				/* return TVIN_BUF_SKIP; */
 			} else {
 				hdmirx_set_video_mute(0);
@@ -1061,7 +1062,7 @@ void hdmirx_get_emp_info(struct tvin_sig_property_s *prop)
 void hdmirx_get_vtem_info(struct tvin_sig_property_s *prop)
 {
 	memset(&prop->vtem_data, 0, sizeof(struct tvin_vtem_data_s));
-	if (rx.vrr_en)
+	if (rx.vtem_info.vrr_en)
 		memcpy(&prop->vtem_data,
 			   &rx.vtem_info, sizeof(struct vtem_info_s));
 }
@@ -2963,10 +2964,10 @@ static int hdmirx_probe(struct platform_device *pdev)
 		hdcp_tee_path = 0;
 		rx_pr("not find hdcp_tee_path, hdcp normal path\n");
 	}
-	if (hdcp_tee_path)
-		hdcp22_on = 1;
-	else
-		rx_is_hdcp22_support();
+	/*if (hdcp_tee_path)*/
+		/*hdcp22_on = 1;*/
+	/*else*/
+	rx_is_hdcp22_support();
 	ret = of_property_read_u32(pdev->dev.of_node,
 				   "aud_compose_type",
 				   &aud_compose_type);
@@ -2985,6 +2986,7 @@ static int hdmirx_probe(struct platform_device *pdev)
 	if (ret != 0)
 		rx_pr("warning: no rev cmd mem\n");
 	rx_emp_resource_allocate(&pdev->dev);
+	rx.port = rx.arc_port;
 	aml_phy_get_trim_val();
 	fs_mode_init();
 	hdmirx_hw_probe();
@@ -3205,6 +3207,7 @@ static int hdmirx_suspend(struct platform_device *pdev, pm_message_t state)
 			}
 		}
 	}
+	rx_dig_clk_en(0);
 	rx_pr("hdmirx: suspend success\n");
 	return 0;
 }
@@ -3215,6 +3218,7 @@ static int hdmirx_resume(struct platform_device *pdev)
 
 	hdevp = platform_get_drvdata(pdev);
 	add_timer(&hdevp->timer);
+	rx_dig_clk_en(1);
 #ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
 	/* if early suspend not called, need to pw up phy here */
 	if (!early_suspend_flag)
@@ -3252,6 +3256,7 @@ static void hdmirx_shutdown(struct platform_device *pdev)
 		hdcp_22_off();
 	hdmirx_top_irq_en(false);
 	hdmirx_output_en(false);
+	rx_dig_clk_en(0);
 	rx_pr("%s- success\n", __func__);
 }
 
