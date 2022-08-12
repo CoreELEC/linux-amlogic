@@ -8,7 +8,6 @@ menu "Amlogic amprime_sl Driver"
 
 config AMLOGIC_MEDIA_ENHANCEMENT_PRIME_SL
 	tristate "Amlogic Prime SL driver"
-        bool "Amlogic amprime_sl driver"
         default n
         help
 		Select to enable amlogic prime_sl support

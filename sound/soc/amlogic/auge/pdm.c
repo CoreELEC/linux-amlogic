@@ -1207,6 +1207,7 @@ static int aml_pdm_platform_probe(struct platform_device *pdev)
 
 	/*config ddr arb */
 	aml_pdm_arb_config(p_pdm->actrl, p_pdm->chipinfo->use_arb);
+	INIT_WORK(&p_pdm->debug_work, aml_pdm_train_debug_work);
 
 	ret = devm_snd_soc_register_component(&pdev->dev,
 					      &aml_pdm_component[p_pdm->pdm_id],
