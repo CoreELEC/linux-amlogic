@@ -18,8 +18,31 @@
 		status = "okay";
 	};
 
-	ir: ir@8000 {
+	/delete-node/ custom_maps;
+	/delete-node/ ir@8000;
+
+	meson-ir {
+		compatible = "amlogic,meson6-ir";
 		status = "okay";
+		/* Multi-format IR controller */
+		reg = <0x0 0xfe084040 0x00 0xa4>;
+		interrupts = <GIC_SPI 22 IRQ_TYPE_EDGE_RISING>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&remote_pins>;
+		pulse-inverted;
+		wakeup_protocol = <9>; /* force default NEC by <include/uapi/linux/lirc.h> */
+	};
+
+	meson-remote {
+		compatible = "amlogic, meson-ir";
+		status = "okay";
+		reg = <0x0 0xfe084040 0x00 0xa4>, /*Multi-format IR controller*/
+		      <0x0 0xfe084000 0x00 0x20>; /*Legacy IR controller*/
+		interrupts = <GIC_SPI 22 IRQ_TYPE_EDGE_RISING>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&remote_pins>;
+		protocol = <REMOTE_TYPE_NEC>;
+		max_frame_time = <200>; /*set software decoder max frame time*/
 	};
 
 	openvfd {
