@@ -230,9 +230,10 @@
 };
 
 &i2c3 {
+	status = "disabled";
 	/delete-node/ ad82584f_62@62;
 	/delete-node/ bl_extern_i2c;
-	/delete-node/ tlc59116@32;
+	/delete-node/ tlc59116@60;
 };
 
 &ethmac {
