@@ -305,10 +305,6 @@ static int aml_tdm_set_lanes(struct aml_tdm *p_tdm,
 			}
 		}
 		swap_val = 0x76543210;
-		/* TODO: find why LFE and FC(2ch, 3ch) HDMITX needs swap */
-		if (p_tdm->i2s2hdmitx &&
-			spdif_get_codec() == AUD_CODEC_TYPE_MULTI_LPCM)
-			swap_val = 0x76542310;
 		if (p_tdm->lane_cnt > LANE_MAX1)
 			swap_val1 = 0xfedcba98;
 		aml_tdm_set_lane_channel_swap(p_tdm->actrl,
