@@ -245,8 +245,7 @@ const struct soc_enum aud_codec_type_enum =
 bool codec_is_raw(enum aud_codec_types codec_type)
 {
 	return ((codec_type != AUD_CODEC_TYPE_STEREO_PCM) &&
-		(codec_type != AUD_CODEC_TYPE_HSR_STEREO_PCM) &&
-		(codec_type != AUD_CODEC_TYPE_MULTI_LPCM));
+		(codec_type != AUD_CODEC_TYPE_HSR_STEREO_PCM));
 }
 
 bool raw_is_4x_clk(enum aud_codec_types codec_type)
