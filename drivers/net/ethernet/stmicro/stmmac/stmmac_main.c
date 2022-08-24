@@ -3651,6 +3651,7 @@ int stmmac_suspend(struct device *dev)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(stmmac_suspend);
+#define MAXIO_PHY_MAE0621A_ID 0x7b744411
 
 /**
  * stmmac_resume - resume callback
@@ -3703,6 +3704,10 @@ int stmmac_resume(struct device *dev)
 	priv->mss = 0;
 
 	stmmac_clear_descriptors(priv);
+	if (ndev->phydev->drv->config_init) {
+		if (ndev->phydev->phy_id == MAXIO_PHY_MAE0621A_ID)
+			ndev->phydev->drv->config_init(ndev->phydev);
+	}
 
 	spin_unlock_irqrestore(&priv->lock, flags);
 #ifdef CONFIG_AMLOGIC_ETH_PRIVE
