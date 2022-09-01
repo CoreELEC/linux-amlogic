@@ -60,3 +60,4 @@ dtb-y += t3_t982_ar311-4g.dtb
 dtb-y += t3_t965d4_ar331-4g.dtb
 dtb-y += t3_t982_ar301-2g.dtb
 dtb-y += t3_t965d4_ar321-2g.dtb
+dtb-y += t7c_a311d2_an400_drm_hdmitx_only.dtb
