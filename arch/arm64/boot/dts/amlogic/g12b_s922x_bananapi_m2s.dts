@@ -3,10 +3,9 @@
 /{
 	model = "Sinovoip Bananapi-M2S";
 	coreelec-dt-id = "g12b_s922x_bananapi_m2s";
+	amlogic-dt-id = "bananapi_m2s_922x";
 
-	memory@00000000 {
-		linux,usable-memory = <0x0 0x0 0x0 0xf5000000>;
-	};
+	/delete-node/ memory@00000000;
 
 	gpioleds {
 		sys_led {  /* blue */

@@ -1,0 +1,7 @@
+#include "g12b_s922x_bananapi_m2s.dts"
+
+/{
+	model = "Sinovoip Bananapi-M2S";
+	coreelec-dt-id = "g12b_a311d_bananapi_m2s";
+	amlogic-dt-id = "bananapi_m2s_a311d";
+};
