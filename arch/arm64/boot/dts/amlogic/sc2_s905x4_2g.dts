@@ -1,0 +1,38 @@
+#include "sc2_s905x4_ah212_linux.dts"
+#include "coreelec_sc2_common.dtsi"
+
+/ {
+	model = "Amlogic";
+	coreelec-dt-id = "sc2_s905x4_2g";
+
+	auge_sound {
+		/delete-property/ avout_mute-gpios;
+	};
+
+	gpioleds {
+		sys_led {
+			label = "sys_led";
+			gpios = <&gpio GPIOD_11 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "default-on";
+		};
+	};
+
+	gpio_keypad {
+		status = "disabled";
+	};
+
+	adc_keypad {
+		status = "disabled";
+	};
+};
+
+&i2c2 {
+	status = "disabled";
+};
+
+&sd_emmc_b {
+	max-frequency = <150000000>;
+	card-detect-delay = <800>;
+	supports-sd;
+	cap-mmc-highspeed;
+};
