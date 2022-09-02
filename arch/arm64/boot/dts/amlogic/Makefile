@@ -1,6 +1,10 @@
 # SPDX-License-Identifier: GPL-2.0
 dtb-y += s4_s905y4_buzztv_hd5_2g.dtb
 dtb-y += s4_s905y4_buzztv_hd5_4g.dtb
+dtb-y += sc2_s905x4_2g.dtb
+dtb-y += sc2_s905x4_2g_1gbit.dtb
+dtb-y += sc2_s905x4_4g.dtb
+dtb-y += sc2_s905x4_4g_1gbit.dtb
 dtb-y += sc2_s905x4_buzztv_x5_2g.dtb
 dtb-y += sc2_s905x4_buzztv_x5_2g_1gbit.dtb
 dtb-y += sc2_s905x4_buzztv_x5_4g.dtb
