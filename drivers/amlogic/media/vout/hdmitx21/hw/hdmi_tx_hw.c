@@ -1041,20 +1041,14 @@ enum hdmi_tf_type hdmitx21_get_cur_dv_st(void)
 
 enum hdmi_tf_type hdmitx21_get_cur_hdr10p_st(void)
 {
-	int ret;
 	unsigned int ieee_code = 0;
 	u8 body[31] = {0};
 	enum hdmi_tf_type type = HDMI_NONE;
-	union hdmi_infoframe info;
-	struct hdmi_vendor_infoframe *vend = (struct hdmi_vendor_infoframe *)&info;
 
 	if (!hdmitx_vsif_en(body))
 		return type;
 
-	ret = hdmi_infoframe_unpack(&info, body, sizeof(body));
-	if (ret)
-		return type;
-	ieee_code = vend->oui;
+	ieee_code = *(unsigned int *)&body[4] & 0xFFFFFF;
 	if (ieee_code == HDR10PLUS_IEEEOUI)
 		type = HDMI_HDR10P_DV_VSIF;
 
