@@ -46,6 +46,7 @@
 #include <linux/amlogic/media/vout/hdmi_tx21/hdmi_config.h>
 #include <linux/amlogic/media/vout/hdmi_tx_ext.h>
 #include <linux/amlogic/media/vrr/vrr.h>
+#include <../../enhancement/amvecm/amcsc.h>
 #include "hdmi_tx_ext.h"
 #include "hdmi_tx.h"
 
@@ -1523,9 +1524,10 @@ static void hdmitx_set_drm_pkt(struct master_display_info_s *data)
 	if (hdev->hdr_transfer_feature == T_BT709 &&
 		hdev->hdr_color_feature == C_BT709) {
 		/* send zero drm only for HDR->SDR transition */
-		if (drm_db[0] == 0x02 || drm_db[0] == 0x03) {
-			pr_info("%s: HDR->SDR, drm_db[0]=%d\n",
-				__func__, drm_db[0]);
+		/* and also by user defined hdr_mode or sdr_mode */
+		if ((sdr_mode == 0 || hdr_mode == 1 ) || (drm_db[0] == 0x02 || drm_db[0] == 0x03)) {
+			//pr_info("%s: HDR->SDR, drm_db[0]=%d\n",
+			//	__func__, drm_db[0]);
 			hdev->colormetry = 0;
 			hdmi_avi_infoframe_config(CONF_AVI_BT2020, 0);
 			schedule_work(&hdev->work_hdr);
