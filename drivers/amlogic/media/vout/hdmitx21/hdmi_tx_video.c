@@ -250,9 +250,8 @@ int hdmi21_set_3d(struct hdmitx_dev *hdev, int type, u32 param)
  */
 static void hdmitx_set_spd_info(struct hdmitx_dev *hdev)
 {
-	u8 spd_db[28] = {0x00};
-	u32 len = 0;
 	struct vendor_info_data *vend_data;
+	struct hdmi_spd_infoframe *info = &hdev->infoframes.spd.spd;
 
 	if (hdev->config_data.vend_data) {
 		vend_data = hdev->config_data.vend_data;
@@ -260,18 +259,11 @@ static void hdmitx_set_spd_info(struct hdmitx_dev *hdev)
 		pr_info(VID "packet: can\'t get vendor data\n");
 		return;
 	}
-	if (vend_data->vendor_name) {
-		len = strlen(vend_data->vendor_name);
-		strncpy(&spd_db[0], vend_data->vendor_name,
-			(len > 8) ? 8 : len);
-	}
-	if (vend_data->product_desc) {
-		len = strlen(vend_data->product_desc);
-		strncpy(&spd_db[8], vend_data->product_desc,
-			(len > 16) ? 16 : len);
-	}
-	spd_db[24] = 0x1;
-	// TODO hdev->hwop.setinfoframe(HDMI_INFOFRAME_TYPE_SPD, SPD_HB);
+
+	hdmi_spd_infoframe_init(info,
+		vend_data->vendor_name,
+		vend_data->product_desc);
+	hdmi_spd_infoframe_set(info);
 }
 
 static void fill_hdmi4k_vsif_data(enum hdmi_vic vic, u8 *db,
