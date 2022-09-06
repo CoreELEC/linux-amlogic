@@ -5,5 +5,16 @@
 
 	memory@00000000 {
 		linux,usable-memory = <0x0 0x100000 0x0 0xf0800000>;
+		/* 0xf5700000 used in stock android dtb changed
+		to 0xf0800000 to fix some 4G generic devices 
+		not able to boot with the default value.*/
 	};
+};
+
+&logo_reserved {
+	alloc-ranges = <0x0 0xdf800000 0x0 0x800000>;
+};
+
+&meson_fb {
+	logo_addr = "0xdf800000";
 };
