@@ -1,0 +1,20 @@
+#include "s4_s905y4_ap222_linux.dts"
+#include "coreelec_s4_common.dtsi"
+
+/ {
+	model = "Amlogic";
+	coreelec-dt-id = "s4_s905y4_2g";
+
+	/delete-node/ dvb-extern;
+	/delete-node/ dvb-demux;
+	/delete-node/ aml_dtv_demod;
+	/delete-node/ adc_keypad;
+};
+
+&sd_emmc_b {
+	status = "okay";
+};
+
+&i2c1 {
+	status = "disabled";
+};
