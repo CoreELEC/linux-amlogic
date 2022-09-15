@@ -41,6 +41,17 @@
 		/delete-property/ switch-default-disable;
 		/delete-property/ out-switch-gpios;
 	};
+
+	regulator-vbus_usb {
+		compatible = "regulator-fixed";
+		regulator-name = "vbus_usb";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		gpio = <&gpio GPIOH_5 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		regulator-boot-on;
+		regulator-always-on;
+  };
 };
 
 &pinctrl_periphs {
@@ -82,11 +93,6 @@
 	/delete-node/ tdm_d0_pins;
 	/delete-node/ tdm_d1_pins;
 	/delete-node/ tdm_clkb_pins;
-};
-
-&usb2_phy_v2 {
-	gpio-vbus-power = "GPIOH_5";
-	gpios = <&gpio GPIOH_5 GPIO_ACTIVE_HIGH>;
 };
 
 &sd_emmc_b {

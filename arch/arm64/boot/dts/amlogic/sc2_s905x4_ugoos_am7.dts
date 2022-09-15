@@ -54,6 +54,17 @@
 		switch-default-disable; force disable */
 		out-switch-gpios = <&gpio GPIOE_2 GPIO_ACTIVE_LOW>;
 	};
+
+	regulator-vbus_usb {
+		compatible = "regulator-fixed";
+		regulator-name = "vbus_usb";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		gpio = <&gpio GPIOH_6 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		regulator-boot-on;
+		regulator-always-on;
+	};
 };
 
 &pinctrl_periphs {
@@ -156,11 +167,6 @@
 			function = "tdm_clk_outb";
 		};
 	};
-};
-
-&usb2_phy_v2 {
-	gpio-vbus-power = "GPIOH_6";
-	gpios = <&gpio GPIOH_6 GPIO_ACTIVE_HIGH>;
 };
 
 &usb3_phy_v2 {
