@@ -43,6 +43,21 @@
 	};
 
 	/delete-node/ gpio_keypad;
+
+	regulator-vbus_usb {
+		compatible = "regulator-fixed";
+		regulator-name = "vbus_usb";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		gpio = <&gpio GPIOH_5 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		regulator-boot-on;
+		regulator-always-on;
+	};
+};
+
+&logo_reserved {
+	/delete-property/ alloc-ranges;
 };
 
 &periphs_pinctrl {
@@ -70,11 +85,6 @@
 
 &i2c3 {
 	/delete-node/ es8388;
-};
-
-&usb2_phy_v2 {
-	gpio-vbus-power = "GPIOH_5";
-	gpios = <&gpio GPIOH_5 GPIO_ACTIVE_HIGH>;
 };
 
 &sd_emmc_b {

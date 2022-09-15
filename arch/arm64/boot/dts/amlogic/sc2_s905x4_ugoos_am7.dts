@@ -61,6 +61,17 @@
 	/delete-node/ adc_keypad;
 	/delete-node/ dvb-extern;
 	/delete-node/ dvb-demux;
+
+	regulator-vbus_usb {
+		compatible = "regulator-fixed";
+		regulator-name = "vbus_usb";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		gpio = <&gpio GPIOH_6 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		regulator-boot-on;
+		regulator-always-on;
+	};
 };
 
 &ext_mdio {
@@ -210,13 +221,6 @@
 	};
 };
 
-&usb2_phy_v2 {
-	gpio-vbus-power = "GPIOH_6";
-	gpios = <&gpio GPIOH_6 GPIO_ACTIVE_HIGH>;
-};
-
 &usb3_phy_v2 {
 	default-host; // or default-otg, or nothing for auto
-	/delete-property/ gpio-vbus-power;
-	/delete-property/ gpios;
 };
