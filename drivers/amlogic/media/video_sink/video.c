@@ -5593,6 +5593,9 @@ s32 pip2_render_frame(struct video_layer_s *layer, const struct vinfo_s *vinfo)
 		proc_vd_vsc_phase_per_vsync
 			(layer,
 			frame_par, dispbuf);
+
+		/* update alpha win */
+		alpha_win_set(layer);
 	}
 
 	if (!layer->new_vpp_setting && !force_setting) {
@@ -5648,7 +5651,6 @@ s32 pip2_render_frame(struct video_layer_s *layer, const struct vinfo_s *vinfo)
 	fgrain_setting(layer,
 		       &layer->fgrain_setting,
 		       dispbuf);
-	alpha_win_set(layer);
 	layer->new_vpp_setting = false;
 	return 1;
 }
@@ -5755,6 +5757,8 @@ s32 pip_render_frame(struct video_layer_s *layer, const struct vinfo_s *vinfo)
 		proc_vd_vsc_phase_per_vsync
 			(layer,
 			frame_par, dispbuf);
+		/* update alpha win */
+		alpha_win_set(layer);
 	}
 
 	if (!layer->new_vpp_setting && !force_setting) {
@@ -5810,7 +5814,6 @@ s32 pip_render_frame(struct video_layer_s *layer, const struct vinfo_s *vinfo)
 	fgrain_setting(layer,
 		       &layer->fgrain_setting,
 		       dispbuf);
-	alpha_win_set(layer);
 	layer->new_vpp_setting = false;
 	return 1;
 }
@@ -6068,6 +6071,8 @@ s32 primary_render_frame(struct video_layer_s *layer)
 
 		/* Do 3D process if enabled */
 		switch_3d_view_per_vsync(layer);
+		/* update alpha win */
+		alpha_win_set(layer);
 	}
 
 	/* no frame parameter change */
@@ -6213,7 +6218,6 @@ s32 primary_render_frame(struct video_layer_s *layer)
 		amdolby_vision_proc(layer, frame_par, NULL, NULL);
 #endif
 	fgrain_setting(layer, &layer->fgrain_setting, dispbuf);
-	alpha_win_set(layer);
 	layer->new_vpp_setting = false;
 	return 1;
 }
