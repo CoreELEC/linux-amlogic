@@ -534,6 +534,25 @@ static int am_meson_drv_remove_prune(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
+#include <linux/amlogic/pm.h>
+static struct early_suspend early_suspend;
+static int am_meson_drm_pm_suspend(struct device *dev);
+static int am_meson_drm_pm_resume(struct device *dev);
+
+static void am_meson_drv_early_suspend(struct early_suspend *h)
+{
+	struct device *dev = (struct device *)h->param;
+	am_meson_drm_pm_suspend(dev);
+}
+
+static void am_meson_drv_late_resume(struct early_suspend *h)
+{
+	struct device *dev = (struct device *)h->param;
+	am_meson_drm_pm_resume(dev);
+}
+#endif
+
 static int am_meson_drv_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -595,6 +614,13 @@ static int am_meson_drv_probe(struct platform_device *pdev)
 		am_meson_add_endpoints(dev, &match, port);
 		of_node_put(port);
 	}
+#ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
+	early_suspend.level = EARLY_SUSPEND_LEVEL_BLANK_SCREEN - 11,
+	early_suspend.suspend = am_meson_drv_early_suspend;
+	early_suspend.resume = am_meson_drv_late_resume;
+	early_suspend.param = &pdev->dev,
+	register_early_suspend(&early_suspend);
+#endif
 	DRM_INFO("[%s] out\n", __func__);
 #ifdef CONFIG_AMLOGIC_VOUT_SERVE
 	disable_vout_mode_set_sysfs();
@@ -604,6 +630,9 @@ static int am_meson_drv_probe(struct platform_device *pdev)
 
 static int am_meson_drv_remove(struct platform_device *pdev)
 {
+#ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
+	unregister_early_suspend(&early_suspend);
+#endif
 	if (am_meson_drv_use_osd())
 		return am_meson_drv_remove_prune(pdev);
 
@@ -699,10 +728,12 @@ static int am_meson_drm_pm_resume(struct device *dev)
 }
 #endif
 
+#ifndef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
 static const struct dev_pm_ops am_meson_drm_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(am_meson_drm_pm_suspend,
 				am_meson_drm_pm_resume)
 };
+#endif
 
 static struct platform_driver am_meson_drm_platform_driver = {
 	.probe      = am_meson_drv_probe,
@@ -711,7 +742,9 @@ static struct platform_driver am_meson_drm_platform_driver = {
 		.owner  = THIS_MODULE,
 		.name   = DRIVER_NAME,
 		.of_match_table = am_meson_drm_dt_match,
+#ifndef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
 		.pm = &am_meson_drm_pm_ops,
+#endif
 	},
 };
 
