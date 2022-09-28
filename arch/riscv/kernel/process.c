@@ -24,6 +24,10 @@
 #include <asm/switch_to.h>
 #include <asm/thread_info.h>
 
+#ifdef CONFIG_AMLOGIC_USER_FAULT
+#include <linux/amlogic/user_fault.h>
+#endif
+
 #if defined(CONFIG_STACKPROTECTOR) && !defined(CONFIG_STACKPROTECTOR_PER_TASK)
 #include <linux/stackprotector.h>
 unsigned long __stack_chk_guard __read_mostly;
@@ -41,6 +45,9 @@ void arch_cpu_idle(void)
 
 void __show_regs(struct pt_regs *regs)
 {
+#ifdef CONFIG_AMLOGIC_USER_FAULT
+	show_user_fault_info(regs, regs->ra, regs->sp);
+#endif
 	show_regs_print_info(KERN_DEFAULT);
 
 	if (!user_mode(regs)) {
@@ -73,6 +80,10 @@ void __show_regs(struct pt_regs *regs)
 
 	pr_cont("status: " REG_FMT " badaddr: " REG_FMT " cause: " REG_FMT "\n",
 		regs->status, regs->badaddr, regs->cause);
+
+#ifdef CONFIG_AMLOGIC_USER_FAULT
+	show_extra_reg_data(regs);
+#endif
 }
 void show_regs(struct pt_regs *regs)
 {
