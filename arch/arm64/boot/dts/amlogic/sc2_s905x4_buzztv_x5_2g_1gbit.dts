@@ -8,8 +8,9 @@
 &ethmac {
 	pinctrl-names = "external_eth_pins";
 	pinctrl-0 = <&external_eth_pins>;
-	rst_pin-gpios = <&gpio GPIOZ_15 GPIO_ACTIVE_LOW>;
 	internal_phy = <0>;
-	rx_delay = <0>;
-	auto_cali_idx = <0>;
+	auto_cali_idx = <1>;
+	/delete-property/ cali_val;
+	/delete-property/ mc_val;
+	rst_pin-gpios = <&gpio GPIOZ_15 GPIO_ACTIVE_LOW>;
 };

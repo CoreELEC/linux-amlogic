@@ -13,13 +13,6 @@
 	};
 };
 
-&ethmac {
-	mc_val = <0x1629>;
-	cali_val = <0x10000>;
-	rx_delay = <0>;
-	auto_cali_idx = <0>;
-};
-
 &i2c3 {
 	/delete-node/ rt5651@1a;
 

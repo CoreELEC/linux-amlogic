@@ -57,6 +57,8 @@
 &ethmac {
 	pinctrl-names = "external_eth_pins";
 	pinctrl-0 = <&external_eth_pins>;
-	mc_val = <0x1621>;
-	internal_phy=<0>;
+	internal_phy = <0>;
+	auto_cali_idx = <1>;
+	/delete-property/ cali_val;
+	/delete-property/ mc_val;
 };
