@@ -1,0 +1,122 @@
+#include "s4_s905y4_ap222_linux.dts"
+#include "coreelec_s4_common.dtsi"
+
+/ {
+	model = "Khadas VIM1S";
+	coreelec-dt-id = "s4_s905y4_khadas_vim1s";
+
+	memory@00000000 {
+		linux,usable-memory = <0x0 0x0 0x0 0x80000000>;
+	};
+
+	gpio_keypad {
+		key-gpios = <&gpio GPIOD_8 GPIO_ACTIVE_LOW>;
+	};
+
+	gpioleds {
+		sys_led {
+			label = "sys_led";
+			gpios = <&gpio GPIOD_11 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "default-on";
+		};
+	};
+
+	gpiomem {
+		compatible = "amlogic, gpiomem";
+		reg = <0x0 0xfe004000 0x0 0x1000>;
+		status = "okay";
+	};
+
+	sdcard_power: regulator-sdcard {
+		compatible = "regulator-fixed";
+		regulator-name = "SDCARD_POWER";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		gpio = <&gpio GPIOD_4 GPIO_ACTIVE_LOW>;
+		enable-active-low;
+		regulator-always-on;
+	};
+
+	vddio_card: gpio-regulator {
+		compatible = "regulator-gpio";
+		regulator-name = "VDDIO_CARD";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <3300000>;
+		gpios = <&gpio GPIOD_9 GPIO_ACTIVE_HIGH>;
+		gpios-states = <1>;
+		states = <1800000 1 3300000 0>;
+	};
+
+	onewire: onewire {
+		compatible = "w1-gpio";
+		gpios = <&gpio GPIOZ_8 GPIO_ACTIVE_HIGH>;
+		status = "disabled";
+	};
+
+	/delete-node/ dvb-extern;
+	/delete-node/ dvb-demux;
+	/delete-node/ aml_dtv_demod;
+	/delete-node/ adc_keypad;
+};
+
+&i2c1 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c1_pins2>;
+	clock-frequency = <300000>; /* default 100k */
+
+	hym8563-rtc@51 {
+		compatible = "haoyu,hym8563";
+		reg = <0x51>;
+	};
+
+	khadas-mcu@18 {
+		compatible = "khadas-mcu";
+		reg = <0x18>;
+		fan,trig_temp_level0 = <50>;
+		fan,trig_temp_level1 = <60>;
+		fan,trig_temp_level2 = <70>;
+		fan,trig_temp_level3 = <80>;
+		hwver = "VIM1S.V10"; /* Will be updated in uboot. */
+	};
+
+	tlc59116: tlc59116@60 {
+		status = "disabled";
+	};
+};
+
+&vrtc {
+	status = "disabled";
+};
+
+&usb3_phy_v2 {
+	otg = <1>;
+};
+
+&i2c4 {
+	status = "disabled";
+};
+
+&aml_bt {
+	power_down_disable = <1>;
+};
+
+&aml_wifi {
+	dhd_static_buf;
+};
+
+&sd_emmc_b {
+	cap-sd-highspeed;
+	sd-uhs-sdr12;
+	sd-uhs-sdr25;
+	sd-uhs-sdr50;
+	sd-uhs-sdr104;
+
+	//vmmc-supply = <&vddao_3v3>;
+	vqmmc-supply = <&vddio_card>;
+};
+
+&dwc2_a {
+	/** 0: normal, 1: otg+dwc3 host only, 2: otg+dwc3 device only*/
+	controller-type = <2>;
+};
