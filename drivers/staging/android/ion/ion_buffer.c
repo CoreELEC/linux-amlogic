@@ -207,11 +207,7 @@ EXPORT_SYMBOL_GPL(ion_buffer_prep_noncached);
 
 void ion_buffer_release(struct ion_buffer *buffer)
 {
-	if (buffer->kmap_cnt > 0) {
-		pr_warn_once("%s: buffer still mapped in the kernel\n",
-			     __func__);
-		ion_heap_unmap_kernel(buffer->heap, buffer);
-	}
+	ion_buffer_kmap_put(buffer);
 	buffer->heap->ops->free(buffer);
 	spin_lock(&buffer->heap->stat_lock);
 	buffer->heap->num_of_buffers--;
@@ -233,6 +229,12 @@ int ion_buffer_destroy(struct ion_device *dev, struct ion_buffer *buffer)
 		return -EINVAL;
 	}
 
+	if (buffer->kmap_cnt > 0) {
+		pr_warn_once("%s: buffer still mapped in the kernel\n",
+			     __func__);
+		return 0;
+	}
+
 	heap = buffer->heap;
 	track_buffer_destroyed(buffer);
 
@@ -248,7 +250,7 @@ void *ion_buffer_kmap_get(struct ion_buffer *buffer)
 {
 	void *vaddr;
 
-	if (buffer->kmap_cnt) {
+	if (buffer->kmap_cnt > 0) {
 		buffer->kmap_cnt++;
 		return buffer->vaddr;
 	}
@@ -266,7 +268,7 @@ void *ion_buffer_kmap_get(struct ion_buffer *buffer)
 void ion_buffer_kmap_put(struct ion_buffer *buffer)
 {
 	buffer->kmap_cnt--;
-	if (!buffer->kmap_cnt) {
+	if (buffer->kmap_cnt == 0) {
 		ion_heap_unmap_kernel(buffer->heap, buffer);
 		buffer->vaddr = NULL;
 	}
