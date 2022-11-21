@@ -1332,13 +1332,12 @@ static int hdmitx_set_audmode(struct hdmitx_dev *hdev,
 		/* channel status: for i2s hbr/pcm
 		 * actually audio module only notify 4 bytes
 		 */
-		hdmitx21_wr_reg(I2S_CHST0_IVCTX, audio_param->status[0]); //I2S_CHST0
-		hdmitx21_wr_reg(I2S_CHST1_IVCTX, audio_param->status[1]); //I2S_CHST1
-		hdmitx21_wr_reg(I2S_CHST2_IVCTX, audio_param->status[2]); //I2S_CHST2
-		hdmitx21_wr_reg(I2S_CHST3_IVCTX, audio_param->status[3]); //I2S_CHST3
-		hdmitx21_wr_reg(I2S_CHST4_IVCTX, audio_param->status[4]); //I2S_CHST4
+		hdmitx21_wr_reg(I2S_CHST0_IVCTX, 0x15); //I2S_CHST0
+		hdmitx21_wr_reg(I2S_CHST1_IVCTX, audio_param->status[0]); //I2S_CHST1
+		hdmitx21_wr_reg(I2S_CHST2_IVCTX, audio_param->status[1]); //I2S_CHST2
+		hdmitx21_wr_reg(I2S_CHST3_IVCTX, audio_param->status[2]); //I2S_CHST3
+		hdmitx21_wr_reg(I2S_CHST4_IVCTX, audio_param->status[3]); //I2S_CHST4
 		/* hardcode: test that it works well for i2s pcm 2~8ch */
-		/* hdmitx21_wr_reg(I2S_CHST0_IVCTX, 0x15); //I2S_CHST0 */
 		/* hdmitx21_wr_reg(I2S_CHST1_IVCTX, 0x55); //I2S_CHST1 */
 		/* hdmitx21_wr_reg(I2S_CHST2_IVCTX, 0xfa); //I2S_CHST2 */
 		/* hdmitx21_wr_reg(I2S_CHST3_IVCTX, 0x32); //I2S_CHST3 */
