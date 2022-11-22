@@ -1565,18 +1565,18 @@ static int hdmitx_set_audmode(struct hdmitx_dev *hdev,
 	//[ 0] PKT_EN
 	data32 = 0;
 	if (hdev->tx_aud_src == 1) {
-		/* todo: other channel num(4/6ch) */
-		if (audio_param->channel_num == 2 - 1) {
-			i2s_line_mask = 1;
-		} else if (audio_param->channel_num == 4 - 1) {
-			/* SD0/1 */
-			i2s_line_mask = 0x3;
-		} else if (audio_param->channel_num == 6 - 1) {
-			/* SD0/1/2 */
-			i2s_line_mask = 0x7;
-		} else if (audio_param->channel_num == 8 - 1) {
+		if (audio_param->channel_num > 6) {
 			/* SD0/1/2/3 */
 			i2s_line_mask = 0xf;
+		} else if (audio_param->channel_num > 4) {
+			/* SD0/1/2 */
+			i2s_line_mask = 0x7;
+		} else if (audio_param->channel_num > 2) {
+			/* SD0/1 */
+			i2s_line_mask = 0x3;
+		} else {
+			/* SD0 */
+			i2s_line_mask = 0x1;
 		}
 		data32 |= (i2s_line_mask << 4);
 		data32 |= (0 << 3);
