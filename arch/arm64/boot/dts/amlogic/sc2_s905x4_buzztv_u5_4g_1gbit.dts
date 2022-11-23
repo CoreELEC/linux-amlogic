@@ -1,0 +1,7 @@
+#include "sc2_s905x4_buzztv_x5_4g_1gbit.dts"
+
+/ {
+	model = "BuzzTV U5";
+	amlogic-dt-id = "sc2_s905x4_ah212-gEth-4g";
+	coreelec-dt-id = "sc2_s905x4_buzztv_u5_4g_1gbit";
+};
