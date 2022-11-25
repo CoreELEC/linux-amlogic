@@ -97,7 +97,7 @@ extern bool early_init_dt_verify(void *dt_virt, phys_addr_t dt_phys);
 extern void early_init_dt_scan_nodes(void);
 
 extern const char *of_flat_dt_get_machine_name(void);
-extern const char *of_flat_dt_get_coreelec_dt_id(void);
+extern const char *of_flat_dt_get_name_dt_id(const char *name);
 extern const void *of_flat_dt_match_machine(const void *default_match,
 		const void * (*get_next_compat)(const char * const**));
 
