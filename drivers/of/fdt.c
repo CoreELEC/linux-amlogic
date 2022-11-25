@@ -817,11 +817,11 @@ const char * __init of_flat_dt_get_machine_name(void)
 	return name;
 }
 
-const char * __init of_flat_dt_get_coreelec_dt_id(void)
+const char * __init of_flat_dt_get_name_dt_id(const char *name)
 {
 	unsigned long dt_root = of_get_flat_dt_root();
 
-	return of_get_flat_dt_prop(dt_root, "coreelec-dt-id", NULL);
+	return of_get_flat_dt_prop(dt_root, name, NULL);
 }
 
 /**
