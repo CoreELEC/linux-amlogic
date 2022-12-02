@@ -1462,7 +1462,7 @@ int ext_register_end_frame_callback(struct amvideocap_req *req)
 		}
 		return -EBUSY;
 	}
-	else if (capture_state == CAPTURE_STATE_ON && req)
+	else if (capture_state == CAPTURE_STATE_ON && req && req->callback)
 	{
 		layer->capture_frame_req = req;
 		atomic_set(&layer->capture_use_cnt, CAPTURE_STATE_CAPTURE);
@@ -1486,7 +1486,7 @@ int ext_frame_capture_poll(struct vframe_s *vf)
 				(struct amvideocap_req_data *)layer->capture_frame_req->data;
 			int index = READ_VCBUS_REG(layer->vd_mif_reg.vd_if0_canvas0);
 
-			if (layer->capture_frame_req->callback && reqdata && reqdata->privdata)
+			if (layer->capture_frame_req && layer->capture_frame_req->callback && reqdata && reqdata->privdata)
 				ret = layer->capture_frame_req->callback(reqdata->privdata, vf, index);
 
 			layer->capture_frame_req = NULL;
