@@ -1,0 +1,17 @@
+#include "g12b_s922x_odroid_n2plus.dts"
+
+/{
+	model = "Hardkernel ODROID-N2L";
+	coreelec-dt-id = "g12b_s922x_odroid_n2l";
+
+	/delete-property/ amlogic-dt-id;
+	/delete-node/ gpio-reset;
+};
+
+&ethmac {
+	status = "disabled";
+};
+
+&i2c3 {
+	status = "disabled";
+};
