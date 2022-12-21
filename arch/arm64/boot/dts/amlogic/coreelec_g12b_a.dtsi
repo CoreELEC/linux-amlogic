@@ -58,7 +58,7 @@
 	pinctrl-names = "external_eth_pins";
 	pinctrl-0 = <&external_eth_pins>;
 	internal_phy = <0>;
-	auto_cali_idx = <1>;
+	auto_cali_idx = <0>;
 	/delete-property/ cali_val;
 	/delete-property/ mc_val;
 };

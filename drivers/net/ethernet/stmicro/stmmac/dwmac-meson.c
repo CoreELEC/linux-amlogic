@@ -492,17 +492,18 @@ static void __iomem *g12a_network_interface_setup(struct platform_device *pdev)
 
 		/*switch to extern phy*/
 		writel(0x0, ETH_PHY_config_addr + ETH_PHY_CNTL2);
-		/*set PRG_ETH_REG1 for exphy delay*/
-		if (of_property_read_u32(np, "cali_val", &cali_val))
-			pr_info("Not set  cali_val for REG1\n");
-		else
-			writel(cali_val, REG_ETH_reg0_addr +
-					REG_ETH_REG1_OFFSET);
 
-		if (auto_cali_idx != -1 && auto_cali_idx < 64) {
+		if (auto_cali_idx > 0 && auto_cali_idx < 64) {
 			cali_val = ((auto_cali_idx % 16) << 16);
 			writel(cali_val, REG_ETH_reg0_addr +
 				REG_ETH_REG1_OFFSET);
+		} else {
+			/*set PRG_ETH_REG1 for exphy delay*/
+			if (of_property_read_u32(np, "cali_val", &cali_val))
+				pr_info("Not set  cali_val for REG1\n");
+			else
+				writel(cali_val, REG_ETH_reg0_addr +
+						REG_ETH_REG1_OFFSET);
 		}
 		pin_ctl = devm_pinctrl_get_select
 			(&pdev->dev, "external_eth_pins");
