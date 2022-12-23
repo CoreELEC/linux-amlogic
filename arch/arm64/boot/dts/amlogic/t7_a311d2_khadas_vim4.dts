@@ -38,7 +38,6 @@
 	phy-mode = "rgmii";
 	phy-handle = <&external_phy>;
 	mc_val = <0x1621>;
-	cali_val = <0xa0000>;
 	amlogic,tx-delay-ns = <2>;
 };
 
