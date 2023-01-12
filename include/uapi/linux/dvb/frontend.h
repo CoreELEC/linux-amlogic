@@ -381,13 +381,19 @@ enum fe_modulation {
 	APSK_32,
 	DQPSK,
 	QAM_4_NR,
+	QAM_512,
 	QAM_1024,
 	QAM_4096,
 	APSK_8_L,
 	APSK_16_L,
 	APSK_32_L,
 	APSK_64,
+	APSK_128,
+	APSK_256,
+	APSK_1024,
 	APSK_64_L,
+	APSK_128_L,
+	APSK_256_L,
 };
 
 /**
@@ -1056,5 +1062,44 @@ struct dvb_frontend_event {
 #define FE_GET_FRONTEND		   _IOR('o', 77, struct dvb_frontend_parameters)
 
 #endif
+
+struct ecp3_info
+{
+	__u8 reg;
+	__u32 data;
+};
+
+struct mcu24cxx_info
+{
+	__u32 bassaddr;
+	__u8 reg;
+	__u32 data;
+};
+
+struct usbi2c_access
+{
+	__u8 chip_addr;
+	__u8 reg;
+	__u8 num;
+	__u8 buf[8];
+};
+
+struct eeprom_info
+{
+	__u8 reg;
+	__u8 data;
+};
+
+#define FE_ECP3FW_READ    _IOR('o', 90, struct ecp3_info)
+#define FE_ECP3FW_WRITE   _IOW('o', 91, struct ecp3_info)
+
+#define FE_24CXX_READ    _IOR('o', 92, struct mcu24cxx_info)
+#define FE_24CXX_WRITE   _IOW('o', 93, struct mcu24cxx_info)
+
+#define FE_REGI2C_READ    _IOR('o', 94, struct usbi2c_access)
+#define FE_REGI2C_WRITE   _IOW('o', 95, struct usbi2c_access)
+
+#define FE_EEPROM_READ    _IOR('o', 96, struct eeprom_info)
+#define FE_EEPROM_WRITE   _IOW('o', 97, struct eeprom_info)
 
 #endif /*_DVBFRONTEND_H_*/

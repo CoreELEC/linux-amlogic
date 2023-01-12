@@ -191,6 +191,13 @@ config DVB_S5H1420
 	help
 	  A DVB-S tuner module. Say Y when you want to support this frontend.
 
+config DVB_SI2183
+	tristate "Silicon Labs Si2183 demodulator"
+	depends on DVB_CORE && I2C
+	default m if !MEDIA_SUBDRV_AUTOSELECT
+	help
+	  Say Y when you want to support this frontend.
+
 config DVB_SI21XX
 	tristate "Silicon Labs SI21XX based"
 	depends on DVB_CORE && I2C
