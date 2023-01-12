@@ -297,4 +297,10 @@ config MEDIA_TUNER_XC5000
 	  This device is only used inside a SiP called together with a
 	  demodulator for now.
 
+config MEDIA_TUNER_AV201X
+	tristate "Airoha Technology AV201x silicon tuner"
+	depends on MEDIA_SUPPORT && I2C
+	default m if !MEDIA_SUBDRV_AUTOSELECT
+	help
+	  Airoha Technology AV201x silicon tuner driver.
 endmenu
