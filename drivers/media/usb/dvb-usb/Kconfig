@@ -343,3 +343,13 @@ config DVB_USB_TECHNISAT_USB2
 	select DVB_STV6110x if MEDIA_SUBDRV_AUTOSELECT
 	help
 	  Say Y here to support the Technisat USB2 DVB-S/S2 device
+
+config DVB_USB_TBS5520SE
+	tristate "Turbosight TBS5520SE DVB-T/T2/C/C2/S/S2/ISDB-T USB2.0 support"
+	depends on DVB_USB
+	select DVB_PLL if MEDIA_SUBDRV_AUTOSELECT
+	select MEDIA_TUNER_AV201X if MEDIA_SUBDRV_AUTOSELECT
+	select MEDIA_TUNER_SI2157 if MEDIA_SUBDRV_AUTOSELECT
+	select DVB_SI2183 if MEDIA_SUBDRV_AUTOSELECT
+	help
+	  Say Y here to support the Turbosight TBS5520SE USB2 DVB-T/T2/C/C2/S/S2/ISDB-T device
