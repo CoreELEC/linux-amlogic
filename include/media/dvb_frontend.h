@@ -444,6 +444,10 @@ struct dvb_frontend_internal_info {
  * @search:		callback function used on some custom algo search algos.
  * @tuner_ops:		pointer to &struct dvb_tuner_ops
  * @analog_ops:		pointer to &struct analog_demod_ops
+ * @tuner_ops:		pointer to struct dvb_tuner_ops
+ * @analog_ops:		pointer to struct analog_demod_ops
+ * @set_property:	callback function to allow the frontend to validade
+ *			incoming properties. Should not be used on new drivers.
  */
 struct dvb_frontend_ops {
 	struct dvb_frontend_internal_info info;
@@ -504,6 +508,18 @@ struct dvb_frontend_ops {
 
 	struct dvb_tuner_ops tuner_ops;
 	struct analog_demod_ops analog_ops;
+
+	void(*spi_read)( struct dvb_frontend *fe,struct ecp3_info *ecp3inf);
+	void(*spi_write)( struct dvb_frontend *fe,struct ecp3_info *ecp3inf);
+
+	void(*mcu_read)( struct dvb_frontend *fe,struct mcu24cxx_info *mcu24cxxinf);
+	void(*mcu_write)( struct dvb_frontend *fe,struct mcu24cxx_info *mcu24cxxinf);
+
+	void(*reg_i2cread)( struct dvb_frontend *fe,struct usbi2c_access *pi2cinf);
+	void(*reg_i2cwrite)( struct dvb_frontend *fe,struct usbi2c_access *pi2cinf);
+
+	void(*eeprom_read)( struct dvb_frontend *fe,struct eeprom_info *peepinf);
+	void(*eeprom_write)( struct dvb_frontend *fe,struct eeprom_info *peepinf);
 
 #ifdef CONFIG_AMLOGIC_DVB_COMPAT
 	int (*set_property)(struct dvb_frontend *fe, struct dtv_property *tvp);
