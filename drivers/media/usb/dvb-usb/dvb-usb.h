@@ -370,6 +370,8 @@ struct usb_data_stream {
 struct dvb_usb_fe_adapter {
 	struct dvb_frontend *fe;
 
+	struct dvb_frontend *fe2;
+	struct dvb_frontend _fe2;
 	int (*fe_init)  (struct dvb_frontend *);
 	int (*fe_sleep) (struct dvb_frontend *);
 
