@@ -2563,6 +2563,69 @@ static int dvb_frontend_handle_ioctl(struct file *file,
 	dev_dbg(fe->dvb->device, "%s:\n", __func__);
 
 	switch (cmd) {
+	case FE_ECP3FW_READ:
+		//printk("FE_ECP3FW_READ *****************");
+		if (fe->ops.spi_read) {
+			struct ecp3_info *info = parg;
+			fe->ops.spi_read(fe, info);
+		}
+		err = 0;
+		break;
+	case FE_ECP3FW_WRITE:
+		//printk("FE_ECP3FW_WRITE *****************");
+		if (fe->ops.spi_write) {
+			struct ecp3_info *info = parg;
+			fe->ops.spi_write(fe, info);
+
+		}
+		err = 0;
+		break;
+
+	case FE_24CXX_READ:
+		//printk("FE_24CXX_READ *****************");
+		if (fe->ops.mcu_read) {
+			struct mcu24cxx_info *info = parg;
+			fe->ops.mcu_read(fe, info);
+		}
+		err = 0;
+		break;
+	case FE_24CXX_WRITE:
+		//printk("FE_24CXX_WRITE *****************");
+		if (fe->ops.mcu_write) {
+			struct mcu24cxx_info *info = parg;
+			fe->ops.mcu_write(fe, info);
+
+		}
+		err = 0;
+		break;
+	case FE_REGI2C_READ:
+		if (fe->ops.reg_i2cread) {
+			struct usbi2c_access *info = parg;
+			fe->ops.reg_i2cread(fe, info);
+		}
+		err = 0;
+		break;
+	case FE_REGI2C_WRITE:
+		if (fe->ops.reg_i2cwrite) {
+			struct usbi2c_access *info = parg;
+			fe->ops.reg_i2cwrite(fe, info);
+		}
+		err = 0;
+		break;
+	case FE_EEPROM_READ:
+		if (fe->ops.eeprom_read) {
+			struct eeprom_info *info = parg;
+			fe->ops.eeprom_read(fe, info);
+		}
+		err = 0;
+		break;
+	case FE_EEPROM_WRITE:
+		if (fe->ops.eeprom_write) {
+			struct eeprom_info *info = parg;
+			fe->ops.eeprom_write(fe, info);
+		}
+		err = 0;
+		break;
 	case FE_SET_PROPERTY: {
 		struct dtv_properties *tvps = parg;
 		struct dtv_property *tvp = NULL;
