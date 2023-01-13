@@ -10,6 +10,8 @@
 #include "dvb-usb-common.h"
 #include <media/media-device.h>
 
+#undef CONFIG_MEDIA_CONTROLLER_DVB
+
 /* does the complete input transfer handling */
 static int dvb_usb_ctrl_feed(struct dvb_demux_feed *dvbdmxfeed, int onoff)
 {
@@ -317,6 +319,22 @@ int dvb_usb_adapter_frontend_init(struct dvb_usb_adapter *adap)
 				return 0;
 		}
 
+		if(adap->fe_adap[i].fe2!=NULL){
+			if (dvb_register_frontend(&adap->dvb_adap, adap->fe_adap[i].fe2)) {
+				err("Frontend %d registration failed.", i);
+				dvb_frontend_detach(adap->fe_adap[i].fe2);
+				adap->fe_adap[i].fe2 = NULL;
+				/* In error case, do not try register more FEs,
+				 * still leaving already registered FEs alive. */
+				if (i == 0)
+					return -ENODEV;
+				else
+					return 0;
+			}
+
+
+		}
+
 		/* only attach the tuner if the demod is there */
 		if (adap->props.fe[i].tuner_attach != NULL)
 			adap->props.fe[i].tuner_attach(adap);
@@ -342,6 +360,10 @@ int dvb_usb_adapter_frontend_exit(struct dvb_usb_adapter *adap)
 		if (adap->fe_adap[i].fe != NULL) {
 			dvb_unregister_frontend(adap->fe_adap[i].fe);
 			dvb_frontend_detach(adap->fe_adap[i].fe);
+		}
+		if (adap->fe_adap[i].fe2 != NULL) {
+			dvb_unregister_frontend(adap->fe_adap[i].fe2);
+			dvb_frontend_detach(adap->fe_adap[i].fe2);
 		}
 	}
 	adap->num_frontends_initialized = 0;
