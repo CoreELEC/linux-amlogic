@@ -117,7 +117,7 @@ static int tbs5520se_i2c_transfer(struct i2c_adapter *adap,
 					inbuf, buf6[0], TBS5520SE_READ_MSG);
 				memcpy(msg[0].buf, inbuf, msg[0].len);
 			}
-			//msleep(3);
+			msleep(3);
 		break;
 		case (TBS5520SE_VOLTAGE_CTRL):
 			buf6[0] = 3;
@@ -235,7 +235,7 @@ static int tbs5520se_frontend_attach(struct dvb_usb_adapter *adap)
 	info.platform_data = &si2183_config;
 	request_module(info.type);
 	client_demod = i2c_new_client_device(&d->i2c_adap, &info);
-	if (client_demod == NULL || client_demod->dev.driver == NULL)
+	if (IS_ERR(client_demod) || IS_ERR(client_demod->dev.driver))
 		return -ENODEV;
 
 	if (!try_module_get(client_demod->dev.driver->owner)) {
@@ -269,7 +269,7 @@ static int tbs5520se_frontend_attach(struct dvb_usb_adapter *adap)
 	info.platform_data = &si2157_config;
 	request_module(info.type);
 	client_tuner = i2c_new_client_device(adapter, &info);
-	if (client_tuner == NULL || client_tuner->dev.driver == NULL) {
+	if (IS_ERR(client_tuner) || IS_ERR(client_tuner->dev.driver)) {
 		module_put(client_demod->dev.driver->owner);
 		i2c_unregister_device(client_demod);
 		return -ENODEV;
