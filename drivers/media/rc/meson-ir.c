@@ -65,7 +65,6 @@
 #define REG1_POL		BIT(1)
 #define REG1_ENABLE		BIT(15)
 
-#define AO_RTI_PIN_MUX_REG	0x14	/* offset 0x5 */
 #define STATUS_IR_DEC_IN	BIT(8)
 
 #define MESON_TRATE		10	/* us */
@@ -239,6 +238,7 @@ static int meson_ir_probe(struct platform_device *pdev)
 	struct resource *res;
 	const char *map_name;
 	struct meson_ir *ir;
+	struct pinctrl *p;
 	int ret;
 	unsigned int reg_val;
 	bool pulse_inverted = false;
@@ -299,13 +299,12 @@ static int meson_ir_probe(struct platform_device *pdev)
 		goto out_unreg;
 	}
 
-	/* Set remote_input alternative function - GPIOAO.BIT5 */
-	reg_val = aml_read_aobus(AO_RTI_PIN_MUX_REG);
-	reg_val |= (0x1 << 20); /* [23:20], func1 IR_REMOTE_IN */
-	aml_write_aobus(AO_RTI_PIN_MUX_REG, reg_val);
-
-	reg_val = aml_read_aobus(AO_RTI_PIN_MUX_REG);
-	dev_info(dev, "AO_RTI_PIN_MUX : 0x%x\n", reg_val);
+	/* Set remote_input defined by DT */
+	p = devm_pinctrl_get_select_default(dev);
+	if (IS_ERR(p)) {
+		dev_err(dev, "pinctrl error, %ld\n", PTR_ERR(p));
+		goto out_unreg;
+	}
 
 	/* Reset the decoder */
 	meson_ir_set_mask(ir, IR_DEC_REG1, REG1_RESET, REG1_RESET);
