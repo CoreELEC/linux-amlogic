@@ -131,7 +131,24 @@
 		status = "okay";
 	};
 
+	meson-ir {
+		pinctrl-0 = <&remote_pin_a>;
+	};
+
+	meson-remote {
+		pinctrl-0 = <&remote_pin_a>;
+	};
+
 	/delete-node/ gpio-reset;
+};
+
+&pinctrl_periphs {
+	remote_pin_a:remote_pin {
+		mux {
+			groups = "remote_input_a";
+			function = "remote_input";
+		};
+	};
 };
 
 &ethmac {
