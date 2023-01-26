@@ -210,8 +210,6 @@ int am_meson_gem_object_mmap(struct am_meson_gem_object *obj,
 			     struct vm_area_struct *vma)
 {
 	int ret = 0;
-	struct ion_buffer *buffer = obj->ionbuffer;
-	struct ion_heap *heap = buffer->heap;
 
 	/*
 	 * Clear the VM_PFNMAP flag that was set by drm_gem_mmap(), and set the
@@ -224,7 +222,8 @@ int am_meson_gem_object_mmap(struct am_meson_gem_object *obj,
 	if (obj->base.import_attach) {
 		DRM_ERROR("Not support import buffer from other driver.\n");
 	} else {
-		ret = ion_heap_map_user(heap, buffer, vma);
+		if (obj->dmabuf->ops->mmap)
+			ret = obj->dmabuf->ops->mmap(obj->dmabuf, vma);
 	}
 
 	if (ret) {
