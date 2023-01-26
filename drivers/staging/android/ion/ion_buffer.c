@@ -231,7 +231,7 @@ int ion_buffer_destroy(struct ion_device *dev, struct ion_buffer *buffer)
 		return -EINVAL;
 	}
 
-	if (buffer->kmap_cnt > 0) {
+	if (buffer->kmap_cnt > 1) {
 		pr_warn_once("%s: buffer still mapped in the kernel\n",
 			     __func__);
 		return 0;
@@ -272,10 +272,12 @@ void *ion_buffer_kmap_get(struct ion_buffer *buffer)
 
 void ion_buffer_kmap_put(struct ion_buffer *buffer)
 {
-	buffer->kmap_cnt--;
-	if (buffer->kmap_cnt == 0) {
-		ion_heap_unmap_kernel(buffer->heap, buffer);
-		buffer->vaddr = NULL;
+	if (buffer->kmap_cnt > 0) {
+		buffer->kmap_cnt--;
+		if (buffer->kmap_cnt == 0) {
+			ion_heap_unmap_kernel(buffer->heap, buffer);
+			buffer->vaddr = NULL;
+		}
 	}
 }
 
