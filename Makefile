@@ -486,7 +486,8 @@ ifndef CONFIG_KASAN
 KBUILD_CFLAGS	+= -Werror
 endif
 
-KBUILD_CFLAGS	+= -Wno-stringop-overread -Wno-tautological-compare -Wno-tautological-pointer-compare -Wno-error=array-compare -Wno-error=address
+KBUILD_CFLAGS	+= -Wno-stringop-overread -Wno-tautological-compare -Wno-tautological-pointer-compare
+KBUILD_CFLAGS	+= -Wno-error=array-compare -Wno-error=address -Wno-dangling-pointer
 
 ifdef CONFIG_AMLOGIC_MODIFY
 ifndef CONFIG_DYNAMIC_DEBUG
