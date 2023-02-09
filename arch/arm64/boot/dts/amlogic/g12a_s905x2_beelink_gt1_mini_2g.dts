@@ -16,6 +16,7 @@
 		0x0 0xff64c000 0x0 0xa0>;
 	reg-names = "eth_base", "eth_cfg", "eth_pll";
 	/delete-property/ pinctrl-1;
+	auto_cali_idx = <1>;
 };
 
 &i2c3 {
