@@ -120,6 +120,10 @@
 	};
 };
 
+&ethmac {
+	auto_cali_idx = <1>;
+};
+
 &usb3_phy_v2 {
 	gpio-vbus-power = "GPIOH_5";
 	gpios = <&gpio GPIOH_5 GPIO_ACTIVE_HIGH>;

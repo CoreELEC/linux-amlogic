@@ -43,6 +43,12 @@
 	controller-type = <3>;
 };
 
+&ethmac {
+	auto_cali_idx = <1>;
+	/delete-property/ cali_val;
+	/delete-property/ mc_val;
+};
+
 &earc {
 	status = "disabled";
 };
