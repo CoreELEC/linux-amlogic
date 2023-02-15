@@ -1090,6 +1090,7 @@ int __init early_init_dt_scan_chosen(char *cmdline)
 	if (read_dt_cmdline)
 		p = of_get_flat_dt_prop(node, "bootargs", &l);
 	if (p != NULL && l > 0) {
+		char *ix = cmdline;
 		if (concat_cmdline) {
 			int cmdline_len;
 			int copy_len;
@@ -1102,6 +1103,9 @@ int __init early_init_dt_scan_chosen(char *cmdline)
 		} else {
 			strscpy(cmdline, p, min(l, COMMAND_LINE_SIZE));
 		}
+		while ((ix = strchr(ix, '\n')) != NULL) *ix++ = ' ';
+		ix = cmdline;
+		while ((ix = strchr(ix, '\r')) != NULL) *ix++ = ' ';
 	}
 
 handle_cmdline:
