@@ -415,7 +415,9 @@ retry:
 		plane_state->zpos, plane_state->crtc_w,
 		plane_state->crtc_h);
 
-	state->legacy_cursor_update = true;
+	if (plane == mode_set->crtc->cursor)
+		state->legacy_cursor_update = true;
+
 	ret = drm_atomic_commit(state);
 	if (ret != 0)
 		goto fail;
