@@ -158,12 +158,10 @@ static int am_meson_drm_fbdev_ioctl(struct fb_info *info,
 		fbdma.flags = O_CLOEXEC;
 		ret = copy_to_user(argp, &fbdma, sizeof(fbdma)) ? -EFAULT : 0;
 	} else if (cmd == FBIO_WAITFORVSYNC) {
-		if (plane->crtc) {
+		if (plane->crtc)
 			drm_wait_one_vblank(helper->dev, plane->crtc->index);
-		} else if (fbdev->modeset.crtc) {
-			drm_wait_one_vblank(helper->dev, fbdev->modeset.crtc->index);
+		else
 			DRM_DEBUG("crtc is not set for plane [%d]\n", plane->index);
-		}
 	}
 
 	DRM_DEBUG("am_meson_drm_fbdev_ioctl CMD   [%x] - [%d] OUT\n", cmd, plane->index);
