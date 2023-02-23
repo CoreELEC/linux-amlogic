@@ -53,7 +53,7 @@ static char vout3_mode[VMODE_NAME_LEN_MAX];
 static char local_name[VMODE_NAME_LEN_MAX] = {0};
 static char vout3_mode_uboot[VMODE_NAME_LEN_MAX] = "null";
 static unsigned int vout3_init_vmode = VMODE_INIT_NULL;
-static int uboot_display;
+static int uboot_display = 0;
 static unsigned int bist_mode3;
 
 static struct vout_cdev_s *vout3_cdev;
@@ -1103,7 +1103,7 @@ static int get_vout3_init_mode(char *str)
 
 	return 0;
 }
-__setup("vout3=", get_vout3_init_mode);
+//__setup("vout3=", get_vout3_init_mode);
 
 //MODULE_AUTHOR("Platform-BJ <platform.bj@amlogic.com>");
 //MODULE_DESCRIPTION("vout3 Server Module");
