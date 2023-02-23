@@ -329,7 +329,6 @@ int am_meson_drm_fb_helper_set_par(struct fb_info *info)
 			DRM_DEBUG("%s reallocate success.\n", __func__);
 		}
 	}
-	drm_wait_one_vblank(fb_helper->dev, 0);
 
 	DRM_INFO("%s OUT\n", __func__);
 
