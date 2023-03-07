@@ -10,5 +10,6 @@
 void cpuinfo_get_chipid(unsigned char *cid, unsigned int size);
 
 extern const char *machine_name;
+extern const char *ce_name;
 
 #endif
