@@ -26,6 +26,7 @@
 #include <linux/delay.h>
 #ifdef CONFIG_AMLOGIC_CPU_INFO
 #include <linux/amlogic/cpu_info.h>
+#include <linux/amlogic/cpu_version.h>
 #endif
 
 /*
@@ -218,7 +219,29 @@ static int c_show(struct seq_file *m, void *v)
 	seq_puts(m, "\n");
 #endif
 
-	seq_printf(m, "Hardware\t: %s\n\n", machine_name);
+	seq_printf(m, "Hardware\t: %s\n", machine_name);
+
+#ifdef CONFIG_AMLOGIC_CPU_INFO
+	seq_printf(m, "SoC\t\t: ");
+
+	switch (chipid[0]) {
+		case MESON_CPU_MAJOR_ID_SC2:
+			seq_puts(m, "S905X4\n");
+			break;
+		case MESON_CPU_MAJOR_ID_T7:
+			seq_puts(m, "A311D2\n");
+			break;
+		case MESON_CPU_MAJOR_ID_S4:
+			if (strstr(ce_name, "s905y4") != NULL)
+				seq_puts(m, "S905Y4\n");
+			else if (strstr(ce_name, "s905w2") != NULL)
+				seq_puts(m, "S905W2\n");
+			break;
+		default:
+			seq_puts(m, "Unknown\n");
+	}
+	seq_puts(m, "\n");
+#endif
 
 	return 0;
 }
