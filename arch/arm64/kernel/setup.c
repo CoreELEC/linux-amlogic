@@ -62,6 +62,9 @@ phys_addr_t __fdt_pointer __initdata;
 const char *machine_name;
 EXPORT_SYMBOL(machine_name);
 
+const char *ce_name;
+EXPORT_SYMBOL(ce_name);
+
 /*
  * Standard memory resources
  */
@@ -214,8 +217,10 @@ static void __init setup_machine_fdt(phys_addr_t dt_phys)
 	}
 
 	name = of_flat_dt_get_name_dt_id("coreelec-dt-id");
-	if (name)
+	if (name) {
+		ce_name = name;
 		pr_info("CoreELEC dt-id: %s\n", name);
+	}
 
 	name = of_flat_dt_get_name_dt_id("amlogic-dt-id");
 	if (name)
