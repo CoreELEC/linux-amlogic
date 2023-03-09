@@ -717,16 +717,12 @@ static int set_disp_mode_auto(void)
 	u8 mode[32];
 	enum hdmi_vic vic = HDMI_0_UNKNOWN;
 
-	mutex_lock(&hdev->hdmimode_mutex);
-
 	if (hdev->hpd_state == 0) {
 		pr_info("current hpd_state0, exit %s\n", __func__);
-		mutex_unlock(&hdev->hdmimode_mutex);
 		return -1;
 	}
 	if (hdev->suspend_flag) {
 		pr_info("currently under suspend, exit %s\n", __func__);
-		mutex_unlock(&hdev->hdmimode_mutex);
 		return -1;
 	}
 	memset(mode, 0, sizeof(mode));
@@ -735,14 +731,12 @@ static int set_disp_mode_auto(void)
 	/* get current vinfo */
 	info = hdmitx_get_current_vinfo(NULL);
 	if (!info || !info->name) {
-		mutex_unlock(&hdev->hdmimode_mutex);
 		return -1;
 	}
 	pr_info("hdmitx: get current mode: %s\n", info->name);
 	hdmitx_vrr_disable();
 	if (strncmp(info->name, "invalid", strlen("invalid")) == 0) {
 		hdmitx21_disable_hdcp(hdev);
-		mutex_unlock(&hdev->hdmimode_mutex);
 		return -1;
 	}
 	/*update hdmi checksum to vout*/
@@ -771,7 +765,6 @@ static int set_disp_mode_auto(void)
 	if (!para) {
 		pr_info("%s[%d] %s %s\n", __func__, __LINE__, mode,
 			hdev->fmt_attr);
-		mutex_unlock(&hdev->hdmimode_mutex);
 		return -1;
 	}
 	/* disable hdcp before set mode if hdcp enabled.
@@ -850,7 +843,6 @@ static int set_disp_mode_auto(void)
 	} else {
 		queue_delayed_work(hdev->hdmi_wq, &hdev->work_start_hdcp, HZ / 4);
 	}
-	mutex_unlock(&hdev->hdmimode_mutex);
 	return ret;
 }
 
@@ -970,7 +962,9 @@ static ssize_t attr_store(struct device *dev,
 		hdev->para->cs = HDMI_COLORSPACE_YUV444;
 
 	if (strstr(hdev->fmt_attr, "now")) {
+		mutex_lock(&hdev->hdmimode_mutex);
 		set_disp_mode_auto();
+		mutex_unlock(&hdev->hdmimode_mutex);
 		memcpy(strstr(hdev->fmt_attr, "now"), "   ", 3);
 	}
 
@@ -5130,7 +5124,9 @@ static int hdmitx_set_current_vmode(enum vmode_e mode, void *data)
 
 	hdmitx_register_vrr(hdev);
 	if (!(mode & VMODE_INIT_BIT_MASK) && get_hpd_state()) {
+		mutex_lock(&hdev->hdmimode_mutex);
 		set_disp_mode_auto();
+		mutex_unlock(&hdev->hdmimode_mutex);
 	} else {
 		pr_info("alread display in uboot\n");
 		update_current_para(hdev);
