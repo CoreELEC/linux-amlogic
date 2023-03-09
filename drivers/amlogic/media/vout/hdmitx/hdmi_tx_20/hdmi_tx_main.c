@@ -636,11 +636,8 @@ static int set_disp_mode_auto(void)
 	enum hdmi_vic vic = HDMI_UNKNOWN;
 	int colour_depths[] = { 8, 10, 12, 16 };
 
-	mutex_lock(&hdmimode_mutex);
-
 	if (hdev->hpd_state == 0) {
 		pr_info("current hpd_state0, exit %s\n", __func__);
-		mutex_unlock(&hdmimode_mutex);
 		return -1;
 	}
 
@@ -650,7 +647,6 @@ static int set_disp_mode_auto(void)
 	/* get current vinfo */
 	info = hdmitx_get_current_vinfo(NULL);
 	if (!info || !info->name) {
-		mutex_unlock(&hdmimode_mutex);
 		return -1;
 	}
 
@@ -677,7 +673,6 @@ static int set_disp_mode_auto(void)
 		hdev->para = hdmi_get_fmt_name("invalid", hdev->fmt_attr);
 		if (hdev->cedst_policy)
 			cancel_delayed_work(&hdev->work_cedst);
-		mutex_unlock(&hdmimode_mutex);
 		return -1;
 	}
 	strncpy(mode, info->name, sizeof(mode));
@@ -712,7 +707,6 @@ static int set_disp_mode_auto(void)
 
 	if (!hdmitx_edid_check_valid_mode(hdev, para)) {
 		pr_err("check failed vic: %d\n", para->vic);
-		mutex_unlock(&hdmimode_mutex);
 		return -1;
 	}
 
@@ -812,7 +806,6 @@ static int set_disp_mode_auto(void)
 	/* backup values need to be updated to latest values */
 	memcpy(hdev->backup_fmt_attr, hdev->fmt_attr, 16);
 	hdev->backup_frac_rate_policy = hdev->frac_rate_policy;
-	mutex_unlock(&hdmimode_mutex);
 	return ret;
 }
 
@@ -865,7 +858,9 @@ ssize_t attr_store(struct device *dev,
 		hdmitx_device.para->cs = COLORSPACE_YUV444;
 
 	if (strstr(hdmitx_device.fmt_attr, "now")) {
+		mutex_lock(&hdmimode_mutex);
 		set_disp_mode_auto();
+		mutex_unlock(&hdmimode_mutex);
 		memcpy(strstr(hdmitx_device.fmt_attr, "now"), "   ", 3);
 	}
 
@@ -5899,7 +5894,9 @@ static int hdmitx_set_current_vmode(enum vmode_e mode, void *data)
 					   hdmitx_device.frac_rate_policy);
 
 	if (!(mode & VMODE_INIT_BIT_MASK) && get_hpd_state()) {
+		mutex_lock(&hdmimode_mutex);
 		set_disp_mode_auto();
+		mutex_unlock(&hdmimode_mutex);
 	} else {
 		pr_info("alread display in uboot\n");
 		update_current_para(&hdmitx_device);
