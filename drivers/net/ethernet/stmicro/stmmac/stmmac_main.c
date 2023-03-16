@@ -7497,6 +7497,7 @@ int stmmac_suspend(struct device *dev)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(stmmac_suspend);
+#define MAXIO_PHY_MAE0621A_ID 0x7b744411
 
 /**
  * stmmac_reset_queues_param - reset queue parameters
@@ -7599,6 +7600,10 @@ int stmmac_resume(struct device *dev)
 
 	stmmac_free_tx_skbufs(priv);
 	stmmac_clear_descriptors(priv);
+	if (ndev->phydev->drv->config_init) {
+		if (ndev->phydev->phy_id == MAXIO_PHY_MAE0621A_ID)
+			ndev->phydev->drv->config_init(ndev->phydev);
+	}
 
 #if IS_ENABLED(CONFIG_AMLOGIC_ETH_PRIVE)
 	ret = stmmac_hw_setup(ndev, false);
