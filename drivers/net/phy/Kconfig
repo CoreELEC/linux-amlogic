@@ -465,6 +465,11 @@ config ROCKCHIP_PHY
 	---help---
 	  Currently supports the integrated Ethernet PHY.
 
+config MAXIO_PHY
+        tristate "Maxio PHYs"
+        ---help---
+          Supports the Maxio MAExxxx PHY.
+
 config SMSC_PHY
 	tristate "SMSC PHYs"
 	---help---
