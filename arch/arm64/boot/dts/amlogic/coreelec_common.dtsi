@@ -109,6 +109,7 @@
 
 &amhdmitx {
 	/delete-property/ hdcp_ctl_lvl;
+	/delete-property/ vrr_type;
 };
 
 &drm_subsystem {
