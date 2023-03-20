@@ -96,8 +96,6 @@ static int hdmitx_cntl_misc(struct hdmitx_dev *hdev, unsigned int cmd,
 			    unsigned int  argv);
 static enum hdmi_vic get_vic_from_pkt(void);
 
-static DEFINE_MUTEX(aud_mutex);
-
 #define EDID_RAM_ADDR_SIZE	 (8)
 
 /* HSYNC polarity: active high */
@@ -2779,7 +2777,6 @@ static void audio_mute_op(bool flag)
 	else
 		return;
 
-	mutex_lock(&aud_mutex);
 	if (flag == 0) {
 		hdmitx_set_reg_bits(HDMITX_TOP_CLK_CNTL, 0, 2, 2);
 		hdmitx_set_reg_bits(HDMITX_DWC_FC_PACKET_TX_EN, 0, 0, 1);
@@ -2789,7 +2786,6 @@ static void audio_mute_op(bool flag)
 		hdmitx_set_reg_bits(HDMITX_DWC_FC_PACKET_TX_EN, 1, 0, 1);
 		hdmitx_set_reg_bits(HDMITX_DWC_FC_PACKET_TX_EN, 1, 3, 1);
 	}
-	mutex_unlock(&aud_mutex);
 }
 
 static bool audio_get_mute_st(void)
@@ -2820,7 +2816,7 @@ static int hdmitx_set_audmode(struct hdmitx_dev *hdev,
 	if (!audio_param)
 		return 0;
 	pr_info(HW "set audio\n");
-	mutex_lock(&aud_mutex);
+
 	memcpy(&hdmiaud_config_data,
 		   audio_param, sizeof(struct hdmitx_audpara));
 	if (hsty_hdmiaud_config_loc > 7)
@@ -2924,7 +2920,6 @@ static int hdmitx_set_audmode(struct hdmitx_dev *hdev,
 		pr_info(HW "enable ACR: [0x10e3] = 0x%x\n", data32);
 	}
 	hdmitx_set_reg_bits(HDMITX_DWC_FC_DATAUTO3, 1, 0, 1);
-	mutex_unlock(&aud_mutex);
 
 	return 1;
 }
