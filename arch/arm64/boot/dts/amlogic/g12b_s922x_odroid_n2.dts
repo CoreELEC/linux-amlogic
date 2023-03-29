@@ -115,6 +115,13 @@
 			     <GIC_SPI 25 IRQ_TYPE_EDGE_RISING>;
 		interrupt-names = "demux0", "demux1", "asyncfifo0", "asyncfifo1";
 	};
+
+	onewire {
+		compatible = "w1-gpio";
+		pinctrl-names = "default";
+		gpios = <&gpio GPIOX_7 GPIO_ACTIVE_HIGH>;
+		status = "disabled";
+	};
 };
 
 &i2c0 {
