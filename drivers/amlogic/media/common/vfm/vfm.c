@@ -402,7 +402,7 @@ static void vfm_init(void)
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 	char def_dvbl_id[VFM_NAME_LEN] = "dvblpath";
 /*	char def_dvbl_chain[] = "dvbldec dvbl amvideo";*/
-	char def_dvbl_chain[] = "dvbldec amvideo";
+	char def_dvbl_chain[] = "dvbldec amlvideo ppmgr deinterlace amvideo";
 
 	char def_dvel_id[VFM_NAME_LEN] = "dvelpath";
 	char def_dvel_chain[] = "dveldec dvel";
