@@ -5933,19 +5933,27 @@ static enum vmode_e hdmitx_validate_vmode(char *mode, unsigned int frac,
 
 	// force 4k50/60Hz to 420 unless manually set
 	if (strstr(hdev->fmt_attr, "rgb") == NULL &&
+	    strstr(hdev->fmt_attr, "420") == NULL &&
 	    strstr(hdev->fmt_attr, "422") == NULL &&
 	    strstr(hdev->fmt_attr, "444") == NULL) {
-		switch (hdmitx_edid_vic_tab_map_vic(mode)) {
-			case HDMI_3840x2160p50_16x9:
-			case HDMI_3840x2160p60_16x9:
-			case HDMI_4096x2160p50_256x135:
-			case HDMI_4096x2160p60_256x135:
-			case HDMI_3840x2160p50_64x27:
-			case HDMI_3840x2160p60_64x27:
-				if (!strstr(mode, "420"))
-					strncat(mode, "420", 3);
+		switch (hdev->hdmi_current_eotf_type) {
+			case EOTF_T_DOLBYVISION:
+			case EOTF_T_LL_MODE:
 				break;
 			default:
+				switch (hdmitx_edid_vic_tab_map_vic(mode)) {
+					case HDMI_3840x2160p50_16x9:
+					case HDMI_3840x2160p60_16x9:
+					case HDMI_4096x2160p50_256x135:
+					case HDMI_4096x2160p60_256x135:
+					case HDMI_3840x2160p50_64x27:
+					case HDMI_3840x2160p60_64x27:
+						if (!strstr(mode, "420"))
+							strncat(mode, "420", 3);
+						break;
+					default:
+						break;
+				}
 				break;
 		}
 	}
