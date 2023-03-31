@@ -59,9 +59,16 @@ static void _auto_setup_attr(char const *mode, char const *attr,
 		    strstr(attr, "422") == NULL &&
 		    strstr(attr, "444") == NULL) {
 			// nothing set, set to VUY420 if 420 vic
-			if (_is_y420_vic(vic)) {
-				pr_info("hdmitx: set colour subsampling to 4:2:0 because of current video information code %d\n", vic);
-				*cs = HDMI_COLORSPACE_YUV420;
+			switch (hdev->hdmi_current_eotf_type) {
+				case EOTF_T_DOLBYVISION:
+				case EOTF_T_LL_MODE:
+					break;
+				default:
+					if (_is_y420_vic(vic)) {
+						pr_info("hdmitx: set colour subsampling to 4:2:0 because of current video information code %d\n", vic);
+						*cs = HDMI_COLORSPACE_YUV420;
+					}
+					break;
 			}
 		}
 
