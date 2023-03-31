@@ -636,11 +636,6 @@ static int set_disp_mode_auto(void)
 	enum hdmi_vic vic = HDMI_UNKNOWN;
 	int colour_depths[] = { 8, 10, 12, 16 };
 
-	if (hdev->hpd_state == 0) {
-		pr_info("current hpd_state0, exit %s\n", __func__);
-		return -1;
-	}
-
 	memset(mode, 0, sizeof(mode));
 	hdev->ready = 0;
 
