@@ -12465,6 +12465,16 @@ static const struct file_operations amdolby_vision_fops = {
 	.poll = amdolby_vision_poll,
 };
 
+static ssize_t amdolby_vision_ko_info_show
+		(struct class *cla,
+		 struct class_attribute *attr, char *buf)
+{
+	if (ko_info)
+		return sprintf(buf, "%s", ko_info);
+	else
+		return 0;
+}
+
 static const char *amdolby_vision_debug_usage_str = {
 	"Usage:\n"
 	"echo dolby_crc 0/1 > /sys/class/amdolby_vision/debug; dolby_crc insert or clr\n"
@@ -13230,6 +13240,8 @@ static ssize_t  amdolby_vision_crc_show(struct class *cla,
 }
 
 static struct class_attribute amdolby_vision_class_attrs[] = {
+	__ATTR(ko_info, 0444,
+	amdolby_vision_ko_info_show, NULL),
 	__ATTR(debug, 0644,
 	amdolby_vision_debug_show, amdolby_vision_debug_store),
 	__ATTR(dv_mode, 0644,
