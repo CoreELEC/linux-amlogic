@@ -8,3 +8,87 @@
 &ethmac {
 	internal_phy = <0>;
 };
+
+&i2c3 {
+	status = "okay";
+
+	bct3236@3c {
+		compatible = "amlogic,bct3236_led";
+		reg = <0x3c>;
+		status = "okay";
+		ignore-led-suspend;
+		edge_color_on = <0x10 0x10 0x10>;
+		edge_color_off = <0x10 0x00 0x00>;
+		edge_color_suspend = <0x00 0x10 0x00>;
+
+		led0 {
+			default_colors = <0x00 0x00 0x00>;
+			red_io_number = <0x00>;
+			green_io_number = <0x01>;
+			blue_io_number = <0x02>;
+		};
+
+		led1 {
+			default_colors = <0x00 0x00 0x00>;
+			red_io_number = <0x03>;
+			green_io_number = <0x04>;
+			blue_io_number = <0x05>;
+		};
+
+		led2 {
+			default_colors = <0x00 0x00 0x00>;
+			red_io_number = <0x06>;
+			green_io_number = <0x07>;
+			blue_io_number = <0x08>;
+		};
+
+		led3 {
+			default_colors = <0x00 0x00 0x00>;
+			red_io_number = <0x09>;
+			green_io_number = <0x0a>;
+			blue_io_number = <0x0b>;
+		};
+
+		led4 {
+			default_colors = <0x00 0x00 0x00>;
+			red_io_number = <0x0c>;
+			green_io_number = <0x0d>;
+			blue_io_number = <0x0e>;
+		};
+
+		led5 {
+			default_colors = <0x00 0x00 0x00>;
+			red_io_number = <0x0f>;
+			green_io_number = <0x10>;
+			blue_io_number = <0x11>;
+		};
+
+		led6 {
+			default_colors = <0x00 0x00 0x00>;
+			red_io_number = <0x12>;
+			green_io_number = <0x13>;
+			blue_io_number = <0x14>;
+		};
+
+		led7 {
+			default_colors = <0x00 0x00 0x00>;
+			red_io_number = <0x15>;
+			green_io_number = <0x16>;
+			blue_io_number = <0x17>;
+		};
+
+		led8 {
+			default_colors = <0x00 0x00 0x00>;
+			red_io_number = <0x18>;
+			green_io_number = <0x19>;
+			blue_io_number = <0x1a>;
+		};
+
+		led9 {
+			default_colors = <0x00 0x00 0x00>;
+			red_io_number = <0x1b>;
+			green_io_number = <0x1c>;
+			blue_io_number = <0x1d>;
+		};
+	};
+};
