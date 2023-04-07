@@ -1,0 +1,10 @@
+#include "sc2_s905x4_4g_1gbit.dts"
+
+/ {
+	model = "Homatics R 4K Plus";
+	coreelec-dt-id = "sc2_s905x4_homatics_r4kplus";
+};
+
+&ethmac {
+	internal_phy = <0>;
+};
