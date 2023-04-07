@@ -39,4 +39,12 @@ config AMLOGIC_LEDS_STATE
 	  Choose this option if you want to use the LED state
 		and led function
 
+config AMLOGIC_LEDS_BCT3236
+	tristate "LED Support for the BCT3236"
+	depends on LEDS_CLASS
+	default n
+	help
+	  Choose this option if you want to use the LED on
+	  BCT3236.
+
 endif
