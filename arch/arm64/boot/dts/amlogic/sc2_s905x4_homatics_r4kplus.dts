@@ -16,7 +16,9 @@
 		compatible = "amlogic,bct3236_led";
 		reg = <0x3c>;
 		status = "okay";
+		linux,default-trigger = "default-on";
 		ignore-led-suspend;
+		brightness = <1>;
 		edge_color_on = <0x10 0x10 0x10>;
 		edge_color_off = <0x10 0x00 0x00>;
 		edge_color_suspend = <0x00 0x10 0x00>;

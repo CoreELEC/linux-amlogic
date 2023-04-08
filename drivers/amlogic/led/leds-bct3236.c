@@ -88,13 +88,13 @@ struct bct3236 {
 	int led_counts;
 	u32 *led_colors;
 	int ignore_led_suspend;
+	int brightness;
 	u32 edge_color_on;
 	u32 edge_color_off;
 	u32 edge_color_suspend;
 };
 
-#define REGISTER_OFFSET 1
-#define CONV_BRI(b) ((b) ^ 0x03 << 1)
+#define CONV_BRI(bri, state) ((((bri)-1) ^ 0x03) << 1 | (state))
 
 #define BCT3236_I2C_NAME "bct3236_led"
 #define LEDS_CDEV_NAME "bct3236"
@@ -108,7 +108,6 @@ struct bct3236 {
 
 #define BCT3236_BRI_IOUT_MIN 1
 #define BCT3236_BRI_IOUT_MAX 4
-#define BCT3236_BRI_IOUT_DEF BCT3236_BRI_IOUT_MIN
 
 #define BCT3236_BRI_IOUT_LED_ON 0x01
 #define BCT3236_BRI_IOUT_LED_OFF 0x00
@@ -126,48 +125,63 @@ struct bct3236 {
 #define COLOR_TO_GREEN(color) (((color) >> 8) & 0xff)
 #define COLOR_TO_BLUE(color) ((color)&0xff)
 
-static int debug = 0;
-module_param(debug, int, 0644);
+static uint debug = 0;
+module_param(debug, uint, 0644);
 static DEFINE_MUTEX(bct3236_lock);
 
-static int bct3236_i2c_writes(struct bct3236 *bct3236, unsigned char sreg_addr,
-			      u8 length, u8 *bufs)
+static int bct3236_i2c_writes(struct bct3236 *bct3236, unsigned char reg_addr,
+			      u8 len, u8 *bufs)
 {
 	struct i2c_msg msg;
 	int i, ret;
 	u8 data[1 + BCT3236_MAX_IO];
 
 	if (!bct3236->i2c) {
-		dev_err(bct3236->dev, "%s: i2c client not set\n", __func__);
+		pr_err("%s: i2c client not set\n", __func__);
 		return -1;
 	}
 
-	if (length >= BCT3236_MAX_IO) {
-		dev_err(bct3236->dev, "%s: too much data to send\n", __func__);
-		length = BCT3236_MAX_IO;
+	if (len >= BCT3236_MAX_IO) {
+		pr_err("%s: length is too long\n", __func__);
+		len = BCT3236_MAX_IO;
 	}
 
 	if (debug) {
-		dev_info(bct3236->dev, "%s: length=%d sreg_addr=0x%02x\n",
-			 __func__, length, sreg_addr);
-		for (i = 0; i < length; i++)
-			dev_info(bct3236->dev, "%s: bufs[%d]=0x%02x\n",
-				 __func__, i, bufs[i]);
+		if (len == 1) {
+			pr_info("%s: len = %u addr = %02x data = %02x\n",
+				__func__, len, reg_addr, bufs[0]);
+		} else {
+			for (i = 1; i < len; i++) {
+				if (bufs[0] != bufs[i])
+					break;
+			}
+
+			if (i == len) {
+				pr_info("%s: len = %u addr = %02x data = %02x ...",
+					__func__, len, reg_addr, bufs[0]);
+			} else {
+				pr_info("%s: len = %u addr = %02x data =",
+					__func__, len, reg_addr);
+
+				for (i = 0; i < len; i++)
+					pr_cont(" %02x", bufs[i]);
+				pr_cont("\n");
+			}
+		}
 	}
 
-	data[0] = sreg_addr;
-	for (i = 1; i <= length; i++)
+	data[0] = reg_addr;
+	for (i = 1; i <= len; i++)
 		data[i] = bufs[i - 1];
 
 	msg.addr = bct3236->i2c->addr;
 	msg.flags = !I2C_M_RD;
-	msg.len = length + 1;
+	msg.len = len + 1;
 	msg.buf = data;
 
 	ret = i2c_transfer(bct3236->i2c->adapter, &msg, 1);
 	if (ret < 0) {
-		dev_err(bct3236->dev, "%s: i2c transfer error ret=%d\n",
-			__func__, ret);
+		pr_err("%s: i2c write failed ret = %d\n", __func__, ret);
 		return ret;
 	}
 
@@ -180,20 +194,28 @@ static int bct3236_i2c_write(struct bct3236 *bct3236, unsigned char reg_addr,
 	int ret = -1;
 	unsigned char cnt = 0;
 
+	if (!bct3236->i2c) {
+		pr_err("%s: i2c client not set\n", __func__);
+		return ret;
+	}
+
 	while (cnt < BCT3236_I2C_RETRIES) {
 		if (debug) {
-			dev_info(bct3236->dev,
-				 "%s: cnt=%d reg_addr=0x%02x reg_data=0x%02x\n",
-				 __func__, cnt, reg_addr, reg_data);
+			if (cnt)
+				pr_info("%s: addr = %02x data = %02x (cnt = %u)\n",
+					__func__, reg_addr, reg_data, cnt);
+			else
+				pr_info("%s: addr = %02x data = %02x\n",
+					__func__, reg_addr, reg_data);
 		}
 
 		ret = i2c_smbus_write_byte_data(bct3236->i2c, reg_addr,
 						reg_data);
 		if (!ret)
-			return ret;
+			return 0;
 
-		dev_err(bct3236->dev, "%s: i2c write cnt = %d ret=%d\n",
-			__func__, cnt, ret);
+		pr_err("%s: i2c write failed cnt = %d ret = %d\n", __func__,
+		       cnt, ret);
 
 		cnt++;
 		msleep(BCT3236_I2C_RETRY_DELAY);
@@ -208,14 +230,22 @@ static ssize_t io_show(struct device *dev, struct device_attribute *attr,
 	struct led_classdev *led_cdev = dev_get_drvdata(dev);
 	struct bct3236 *bct3236 = container_of(led_cdev, struct bct3236, cdev);
 	ssize_t len = 0;
-	int i = 0;
+	int i;
+	u32 led_num;
 
-	for (i = 0; i < bct3236->led_counts; i++)
+	mutex_lock(&bct3236_lock);
+
+	for (i = 0; i < bct3236->led_counts; i++) {
+		led_num = (bct3236->led_counts - 1) - i;
+
 		len += snprintf(buf + len, PAGE_SIZE - len,
 				"led[%d]  R: %2d  G: %2d  B: %2d\n", i,
-				bct3236->io[i].red, bct3236->io[i].green,
-				bct3236->io[i].blue);
+				bct3236->io[led_num].red,
+				bct3236->io[led_num].green,
+				bct3236->io[led_num].blue);
+	}
 
+	mutex_unlock(&bct3236_lock);
 	return len;
 }
 
@@ -223,18 +253,35 @@ static int bct3236_set_colors(struct bct3236 *bct3236)
 {
 	struct group_rgb *io;
 	u8 color_data[BCT3236_MAX_IO] = {};
-	unsigned int i;
-	int ret;
+	int i, ret;
+	u32 led_num;
 
 	if (debug) {
-		for (i = 0; i < bct3236->led_counts; i++) {
-			dev_info(bct3236->dev, "%s: set color %-2d: 0x%x\n",
-				 __func__, i, bct3236->led_colors[i]);
+		pr_info("%s: colors =", __func__);
+
+		if (bct3236->led_counts == 1) {
+			pr_cont(" %06x\n", bct3236->led_colors[0]);
+		} else {
+			for (i = 1; i < bct3236->led_counts; i++)
+				if (bct3236->led_colors[0] !=
+				    bct3236->led_colors[i])
+					break;
+
+			if (i == bct3236->led_counts) {
+				pr_cont(" %06x ...\n", bct3236->led_colors[0]);
+			} else {
+				for (i = 0; i < bct3236->led_counts; i++)
+					pr_cont(" %06x",
+						bct3236->led_colors[i]);
+				pr_cont("\n");
+			}
 		}
 	}
 
 	for (i = 0; i < bct3236->led_counts; i++) {
-		io = &bct3236->io[i];
+		led_num = (bct3236->led_counts - 1) - i;
+		io = &bct3236->io[led_num];
+
 		color_data[io->red] = COLOR_TO_RED(bct3236->led_colors[i]);
 		color_data[io->green] = COLOR_TO_GREEN(bct3236->led_colors[i]);
 		color_data[io->blue] = COLOR_TO_BLUE(bct3236->led_colors[i]);
@@ -243,36 +290,84 @@ static int bct3236_set_colors(struct bct3236 *bct3236)
 	ret = bct3236_i2c_writes(bct3236, BCT3236_REG_BRIGHTNESS_LED,
 				 bct3236->led_counts * BCT3236_COLORS_COUNT,
 				 color_data);
-	if (ret != 0)
+	if (ret < 0)
 		return ret;
 
 	return bct3236_i2c_write(bct3236, BCT3236_REG_UPDATE_LED, 0x00);
 }
 
-static ssize_t edge_color_store(struct device *dev,
-				struct device_attribute *attr, const char *buf,
-				size_t count)
+static ssize_t edge_color_on_store(struct device *dev,
+				   struct device_attribute *attr,
+				   const char *buf, size_t count)
+{
+	struct led_classdev *led_cdev = dev_get_drvdata(dev);
+	struct bct3236 *bct3236 = container_of(led_cdev, struct bct3236, cdev);
+	u32 color;
+	int i, ret;
+
+	mutex_lock(&bct3236_lock);
+
+	ret = sscanf(buf, "%6x", &color);
+	if (ret != 1) {
+		pr_info("bct3236_%s: Invalid number of arguments\n", __func__);
+		mutex_unlock(&bct3236_lock);
+		return count;
+	}
+
+	bct3236->edge_color_on = color;
+	for (i = 0; i < bct3236->led_counts; i++)
+		bct3236->led_colors[i] = color;
+
+	ret = bct3236_set_colors(bct3236);
+	if (ret < 0)
+		pr_info("bct3236_%s: set color failed\n", __func__);
+
+	mutex_unlock(&bct3236_lock);
+	return count;
+}
+
+static ssize_t edge_color_off_store(struct device *dev,
+				    struct device_attribute *attr,
+				    const char *buf, size_t count)
 {
 	struct led_classdev *led_cdev = dev_get_drvdata(dev);
 	struct bct3236 *bct3236 = container_of(led_cdev, struct bct3236, cdev);
 	unsigned int color_buf;
 	int ret;
-	int i;
 
 	mutex_lock(&bct3236_lock);
 
-	ret = sscanf(buf, "%x", &color_buf);
+	ret = sscanf(buf, "%6x", &color_buf);
 	if (ret != 1) {
-		dev_info(bct3236->dev, "bct3236_%s: argument error\n",
-			 __func__);
+		pr_info("bct3236_%s: Invalid number of arguments\n", __func__);
 		mutex_unlock(&bct3236_lock);
 		return count;
 	}
 
-	for (i = 0; i < bct3236->led_counts; i++)
-		bct3236->led_colors[i] = color_buf;
+	bct3236->edge_color_off = color_buf;
+	mutex_unlock(&bct3236_lock);
+	return count;
+}
 
-	bct3236_set_colors(bct3236);
+static ssize_t edge_color_suspend_store(struct device *dev,
+					struct device_attribute *attr,
+					const char *buf, size_t count)
+{
+	struct led_classdev *led_cdev = dev_get_drvdata(dev);
+	struct bct3236 *bct3236 = container_of(led_cdev, struct bct3236, cdev);
+	unsigned int color_buf;
+	int ret;
+
+	mutex_lock(&bct3236_lock);
+
+	ret = sscanf(buf, "%6x", &color_buf);
+	if (ret != 1) {
+		pr_info("bct3236_%s: Invalid number of arguments\n", __func__);
+		mutex_unlock(&bct3236_lock);
+		return count;
+	}
+
+	bct3236->edge_color_suspend = color_buf;
 	mutex_unlock(&bct3236_lock);
 	return count;
 }
@@ -283,18 +378,16 @@ static ssize_t colors_store(struct device *dev, struct device_attribute *attr,
 	struct led_classdev *led_cdev = dev_get_drvdata(dev);
 	struct bct3236 *bct3236 = container_of(led_cdev, struct bct3236, cdev);
 	u32 colors[BCT3236_MAX_LED] = {};
-	int ret;
-	int i;
+	int i, ret;
 
 	mutex_lock(&bct3236_lock);
 
-	ret = sscanf(buf, "%x %x %x %x %x %x %x %x %x %x %x %x", &colors[0],
-		     &colors[1], &colors[2], &colors[3], &colors[4], &colors[5],
-		     &colors[6], &colors[7], &colors[8], &colors[9],
+	ret = sscanf(buf, "%6x %6x %6x %6x %6x %6x %6x %6x %6x %6x %6x %6x",
+		     &colors[0], &colors[1], &colors[2], &colors[3], &colors[4],
+		     &colors[5], &colors[6], &colors[7], &colors[8], &colors[9],
 		     &colors[10], &colors[11]);
 	if (ret != bct3236->led_counts) {
-		dev_info(bct3236->dev, "bct3236_%s: argument error\n",
-			 __func__);
+		pr_info("bct3236_%s: Invalid number of arguments\n", __func__);
 		mutex_unlock(&bct3236_lock);
 		return count;
 	}
@@ -302,7 +395,10 @@ static ssize_t colors_store(struct device *dev, struct device_attribute *attr,
 	for (i = 0; i < bct3236->led_counts; i++)
 		bct3236->led_colors[i] = colors[i];
 
-	bct3236_set_colors(bct3236);
+	ret = bct3236_set_colors(bct3236);
+	if (ret < 0)
+		pr_info("bct3236_%s: store colors failed\n", __func__);
+
 	mutex_unlock(&bct3236_lock);
 	return count;
 }
@@ -314,6 +410,8 @@ static ssize_t colors_show(struct device *dev, struct device_attribute *attr,
 	struct bct3236 *bct3236 = container_of(led_cdev, struct bct3236, cdev);
 	ssize_t len = 0;
 	int i;
+
+	mutex_lock(&bct3236_lock);
 
 	len = snprintf(buf, PAGE_SIZE - len, "     current: ");
 	for (i = 0; i < bct3236->led_counts; i++)
@@ -327,59 +425,69 @@ static ssize_t colors_show(struct device *dev, struct device_attribute *attr,
 			bct3236->edge_color_off);
 	len += snprintf(buf + len, PAGE_SIZE - len, "edge suspend: %06x\n",
 			bct3236->edge_color_suspend);
+
+	mutex_unlock(&bct3236_lock);
 	return len;
 }
 
-static int bct3236_set_single_color(u32 led_id, struct bct3236 *bct3236)
+static int bct3236_set_single_color(struct bct3236 *bct3236, u32 led_num)
 {
 	struct group_rgb *io;
 	u8 color_data[BCT3236_MAX_IO] = {};
-
-	if (led_id > bct3236->led_counts) {
-		dev_info(bct3236->dev,
-			 "%s: Exceed the maximum number of leds!\n", __func__);
-		return 0;
-	}
+	int ret;
 
 	if (debug)
-		dev_info(bct3236->dev, "%s: colors: 0x%x\n", __func__,
-			 bct3236->led_colors[0]);
+		pr_info("%s: color = %06x\n", __func__,
+			bct3236->led_colors[led_num]);
 
-	io = &bct3236->io[led_id];
-	color_data[io->red] = COLOR_TO_RED(bct3236->led_colors[0]);
-	color_data[io->green] = COLOR_TO_GREEN(bct3236->led_colors[0]);
-	color_data[io->blue] = COLOR_TO_BLUE(bct3236->led_colors[0]);
+	io = &bct3236->io[led_num];
+	color_data[io->red] = COLOR_TO_RED(bct3236->led_colors[led_num]);
+	color_data[io->green] = COLOR_TO_GREEN(bct3236->led_colors[led_num]);
+	color_data[io->blue] = COLOR_TO_BLUE(bct3236->led_colors[led_num]);
 
-	bct3236_i2c_write(bct3236, bct3236->io[led_id].red + REGISTER_OFFSET,
-			  color_data[io->red]);
-	bct3236_i2c_write(bct3236, bct3236->io[led_id].green + REGISTER_OFFSET,
-			  color_data[io->green]);
-	bct3236_i2c_write(bct3236, bct3236->io[led_id].blue + REGISTER_OFFSET,
-			  color_data[io->blue]);
-	bct3236_i2c_write(bct3236, BCT3236_REG_UPDATE_LED, 0x00);
-	return 0;
+	ret = bct3236_i2c_writes(bct3236,
+				 BCT3236_REG_BRIGHTNESS_LED +
+					 (led_num * BCT3236_COLORS_COUNT),
+				 BCT3236_COLORS_COUNT,
+				 color_data + (led_num * BCT3236_COLORS_COUNT));
+	if (ret < 0)
+		return ret;
+
+	return bct3236_i2c_write(bct3236, BCT3236_REG_UPDATE_LED, 0x00);
 }
 
 static ssize_t single_color_store(struct device *dev,
 				  struct device_attribute *attr,
 				  const char *buf, size_t count)
 {
-	u32 led_id;
+	u32 led_num;
 	struct led_classdev *led_cdev = dev_get_drvdata(dev);
 	struct bct3236 *bct3236 = container_of(led_cdev, struct bct3236, cdev);
+	u32 color = 0;
 	int ret;
 
 	mutex_lock(&bct3236_lock);
 
-	ret = sscanf(buf, "%d %x", &led_id, &bct3236->led_colors[0]);
+	ret = sscanf(buf, "%u %6x", &led_num, &color);
 	if (ret != 2) {
-		dev_info(bct3236->dev, "bct3236_%s: argument error\n",
-			 __func__);
+		pr_info("bct3236_%s: Invalid number of arguments\n", __func__);
 		mutex_unlock(&bct3236_lock);
 		return count;
 	}
 
-	bct3236_set_single_color(led_id, bct3236);
+	if (led_num == 0 || led_num > bct3236->led_counts) {
+		pr_info("%s: Wrong led number!\n", __func__);
+		return count;
+	}
+
+	led_num--; /* leds starts with 0 */
+	led_num = (bct3236->led_counts - 1) - led_num;
+
+	bct3236->led_colors[led_num] = color;
+	ret = bct3236_set_single_color(bct3236, led_num);
+	if (ret < 0)
+		pr_info("bct3236_%s: set color failed\n", __func__);
+
 	mutex_unlock(&bct3236_lock);
 	return count;
 }
@@ -389,28 +497,33 @@ static ssize_t reg_store(struct device *dev, struct device_attribute *attr,
 {
 	struct led_classdev *led_cdev = dev_get_drvdata(dev);
 	struct bct3236 *bct3236 = container_of(led_cdev, struct bct3236, cdev);
-
+	int ret;
 	unsigned char reg_addr, reg_data;
 
-	if (sscanf(buf, "%x %x", &reg_addr, &reg_data) != 2) {
-		dev_err(bct3236->dev, "bct3236_%s: error number of arguments\n",
-			__func__);
+	mutex_lock(&bct3236_lock);
+
+	if (sscanf(buf, "%2x %6x", &reg_addr, &reg_data) != 2) {
+		pr_err("bct3236_%s: Invalid number of arguments\n", __func__);
+		mutex_unlock(&bct3236_lock);
 		return count;
 	}
 
 	if (reg_addr >= BCT3236_REG_MAX) {
-		dev_err(bct3236->dev,
-			"bct3236_%s: error max register addr = 0x%x\n",
-			__func__, BCT3236_REG_MAX);
+		pr_err("bct3236_%s: error max register addr = 0x%x\n", __func__,
+		       BCT3236_REG_MAX);
+		mutex_unlock(&bct3236_lock);
 		return count;
 	}
 
 	if (debug)
-		dev_info(bct3236->dev,
-			 "bct3236_%s: reg_addr=0x%02x reg_data=0x%02x\n",
-			 __func__, reg_addr, reg_data);
+		pr_info("bct3236_%s: addr = 0x%02x data = 0x%02x\n", __func__,
+			reg_addr, reg_data);
 
-	bct3236_i2c_write(bct3236, reg_addr, reg_data);
+	ret = bct3236_i2c_write(bct3236, reg_addr, reg_data);
+	if (ret < 0)
+		pr_info("bct3236_%s: set register failed\n", __func__);
+
+	mutex_unlock(&bct3236_lock);
 	return count;
 }
 
@@ -421,8 +534,8 @@ static ssize_t debug_store(struct device *dev, struct device_attribute *attr,
 
 	if (!kstrtoint(buf, 10, &debug_read)) {
 		debug = debug_read;
-		pr_info("bct3236_%s: bct3236 debug %s\n", __func__,
-			debug ? "on" : "off");
+		pr_info("bct3236_%s: bct3236 debug = %u (%s)\n", __func__,
+			debug, debug ? "on" : "off");
 	}
 
 	return count;
@@ -435,19 +548,25 @@ static ssize_t debug_show(struct device *dev, struct device_attribute *attr,
 }
 
 static DEVICE_ATTR_RO(io);
-static DEVICE_ATTR_WO(edge_color);
+static DEVICE_ATTR_WO(edge_color_on);
+static DEVICE_ATTR_WO(edge_color_off);
+static DEVICE_ATTR_WO(edge_color_suspend);
 static DEVICE_ATTR_RW(colors);
 static DEVICE_ATTR_WO(single_color);
 static DEVICE_ATTR_WO(reg);
 static DEVICE_ATTR_RW(debug);
 
-static struct attribute *bct3236_attributes[] = { &dev_attr_io.attr,
-						  &dev_attr_edge_color.attr,
-						  &dev_attr_colors.attr,
-						  &dev_attr_single_color.attr,
-						  &dev_attr_reg.attr,
-						  &dev_attr_debug.attr,
-						  NULL };
+static struct attribute *bct3236_attributes[] = {
+	&dev_attr_io.attr,
+	&dev_attr_edge_color_on.attr,
+	&dev_attr_edge_color_off.attr,
+	&dev_attr_edge_color_suspend.attr,
+	&dev_attr_colors.attr,
+	&dev_attr_single_color.attr,
+	&dev_attr_reg.attr,
+	&dev_attr_debug.attr,
+	NULL
+};
 
 static struct attribute_group bct3236_attribute_group = {
 	.attrs = bct3236_attributes
@@ -455,77 +574,61 @@ static struct attribute_group bct3236_attribute_group = {
 
 static int bct3236_init(struct bct3236 *bct3236)
 {
-	int i;
+	u8 brightness_iout[BCT3236_MAX_IO];
+	u8 brightness_reg;
+	int i, ret;
 
 	bct3236_i2c_write(bct3236, BCT3236_REG_RESET, 0x00);
 	bct3236_i2c_write(bct3236, BCT3236_REG_SHUTDOWN, 0x01);
 	bct3236_i2c_write(bct3236, BCT3236_REG_GLOBAL_CONTROL, 0x00);
 
-	for (i = 0; i < bct3236->led_counts * BCT3236_COLORS_COUNT; i++)
-		bct3236_i2c_write(bct3236, BCT3236_REG_LED_CONTROL + i,
-				  CONV_BRI(BCT3236_BRI_IOUT_DEF) |
-					  BCT3236_BRI_IOUT_LED_ON);
+	if (bct3236->cdev.default_trigger &&
+	    strncmp(bct3236->cdev.default_trigger, "none", 4) != 0 &&
+	    bct3236->brightness > 0)
+		brightness_reg =
+			CONV_BRI(bct3236->brightness, BCT3236_BRI_IOUT_LED_ON);
+	else
+		brightness_reg = CONV_BRI(BCT3236_BRI_IOUT_MIN,
+					  BCT3236_BRI_IOUT_LED_OFF);
+
+	for (i = 0; i < BCT3236_MAX_IO; i++)
+		brightness_iout[i] = brightness_reg;
+
+	ret = bct3236_i2c_writes(bct3236, BCT3236_REG_LED_CONTROL,
+				 bct3236->led_counts * BCT3236_COLORS_COUNT,
+				 brightness_iout);
+	if (ret < 0)
+		return 0;
 
 	return bct3236_set_colors(bct3236);
 }
 
-static int bct3236_check(struct bct3236 *bct3236)
-{
-	int i;
-
-	for (i = 0; i < bct3236->led_counts; i++)
-		if (bct3236->io[i].red >= BCT3236_MAX_IO ||
-		    bct3236->io[i].green >= BCT3236_MAX_IO ||
-		    bct3236->io[i].blue >= BCT3236_MAX_IO)
-			return -EINVAL;
-
-	return 0;
-}
-
-static int bct3236_init_data(struct bct3236 *bct3236)
-{
-	int ret;
-
-	ret = bct3236_check(bct3236);
-	if (ret) {
-		dev_err(bct3236->dev, "%s: error bct3236 check data fail!\n",
-			__func__);
-		return ret;
-	}
-
-	return bct3236_init(bct3236);
-}
-
-static void bct3236_set_brightness(struct led_classdev *cdev,
-				   enum led_brightness brightness)
+static enum led_brightness bct3236_brightness_get(struct led_classdev *cdev)
 {
 	struct bct3236 *bct3236 = container_of(cdev, struct bct3236, cdev);
-	int ret;
-	int i;
+
+	return (enum led_brightness)bct3236->cdev.brightness;
+}
+
+static int bct3236_brightness_set(struct led_classdev *cdev,
+				  enum led_brightness brightness)
+{
+	struct bct3236 *bct3236 = container_of(cdev, struct bct3236, cdev);
+	int i, ret;
 	u8 brightness_val;
 	u8 brightness_iout[BCT3236_MAX_IO];
 
-	if (brightness > BCT3236_BRI_IOUT_MAX) {
-		dev_err(bct3236->dev, "%s: brightness in range from 0-%d\n",
-			__func__, BCT3236_BRI_IOUT_MAX);
-		brightness = BCT3236_BRI_IOUT_MAX;
-	}
+	mutex_lock(&bct3236_lock);
 
-	bct3236->cdev.brightness = brightness;
+	if (brightness > 0)
+		brightness_val = CONV_BRI(brightness, BCT3236_BRI_IOUT_LED_ON);
+	else
+		brightness_val = CONV_BRI(BCT3236_BRI_IOUT_MIN,
+					  BCT3236_BRI_IOUT_LED_OFF);
 
-	if (brightness > 0) {
-		brightness_val = CONV_BRI(brightness - 1);
-		brightness_val |= BCT3236_BRI_IOUT_LED_ON;
-	} else {
-		brightness_val = CONV_BRI(BCT3236_BRI_IOUT_MIN);
-		brightness_val |= BCT3236_BRI_IOUT_LED_OFF;
-	}
-
-	if (debug) {
-		dev_info(bct3236->dev,
-			 "%s: set brightness to %d (brightness_val=0x%02x)\n",
-			 __func__, brightness, brightness_val);
-	}
+	if (debug)
+		pr_info("%s: brightness = %d reg val = 0x%02x\n", __func__,
+			brightness, brightness_val);
 
 	for (i = 0; i < BCT3236_MAX_IO; i++)
 		brightness_iout[i] = brightness_val;
@@ -533,28 +636,90 @@ static void bct3236_set_brightness(struct led_classdev *cdev,
 	ret = bct3236_i2c_writes(bct3236, BCT3236_REG_LED_CONTROL,
 				 bct3236->led_counts * BCT3236_COLORS_COUNT,
 				 brightness_iout);
-	if (ret)
-		return;
+	if (ret < 0) {
+		mutex_unlock(&bct3236_lock);
+		return 0;
+	}
 
 	bct3236_i2c_write(bct3236, BCT3236_REG_UPDATE_LED, 0x00);
+	mutex_unlock(&bct3236_lock);
+	return 0;
 }
 
 static int bct3236_parse_led_dt(struct bct3236 *bct3236, struct device_node *np)
 {
 	struct device_node *temp;
 	struct group_rgb color_rgb;
-	int ret = -1;
 	int i = 0;
+	int ret = -1;
 
-	//bct3236->cdev.default_trigger = "default-on";
+	bct3236->cdev.default_trigger =
+		of_get_property(np, "linux,default-trigger", NULL);
 
 	if (of_property_read_bool(np, "ignore-led-suspend"))
 		bct3236->ignore_led_suspend = 1;
 
+	ret = of_property_read_u32(np, "brightness", &bct3236->brightness);
+	if (!ret) {
+		if (bct3236->brightness > BCT3236_BRI_IOUT_MAX)
+			bct3236->brightness = BCT3236_BRI_IOUT_MAX;
+	} else
+		bct3236->brightness = BCT3236_BRI_IOUT_MIN;
+
+	for_each_child_of_node (np, temp) {
+		ret = of_property_read_u32_array(temp, "default_colors",
+						 (u32 *)&color_rgb,
+						 BCT3236_COLORS_COUNT);
+		if (ret < 0) {
+			pr_err("Failure reading default colors ret = %d\n",
+			       ret);
+			return ret;
+		} else {
+			bct3236->led_colors[i] = RGB_TO_COLOR(color_rgb);
+		}
+
+		ret = of_property_read_u32(temp, "red_io_number",
+					   &bct3236->io[i].red);
+		if (ret < 0) {
+			pr_err("Failure reading red io number ret = %d\n", ret);
+			return ret;
+		}
+
+		ret = of_property_read_u32(temp, "green_io_number",
+					   &bct3236->io[i].green);
+		if (ret < 0) {
+			pr_err("Failure reading green io number ret = %d\n",
+			       ret);
+			return ret;
+		}
+
+		ret = of_property_read_u32(temp, "blue_io_number",
+					   &bct3236->io[i].blue);
+		if (ret < 0) {
+			pr_err("Failure reading blue io number ret = %d\n",
+			       ret);
+			return ret;
+		}
+
+		if (bct3236->io[i].red >= BCT3236_MAX_IO ||
+		    bct3236->io[i].green >= BCT3236_MAX_IO ||
+		    bct3236->io[i].blue >= BCT3236_MAX_IO) {
+			pr_err("%s: io number wrong value\n", __func__);
+			return -EINVAL;
+		}
+
+		i++;
+	}
+
+	/* overwrite values with just single color */
 	ret = of_property_read_u32_array(np, "edge_color_on", (u32 *)&color_rgb,
 					 BCT3236_COLORS_COUNT);
-	if (!ret)
+	if (!ret) {
 		bct3236->edge_color_on = RGB_TO_COLOR(color_rgb);
+
+		for (i = 0; i < bct3236->led_counts; i++)
+			bct3236->led_colors[i] = RGB_TO_COLOR(color_rgb);
+	}
 
 	ret = of_property_read_u32_array(
 		np, "edge_color_off", (u32 *)&color_rgb, BCT3236_COLORS_COUNT);
@@ -567,48 +732,7 @@ static int bct3236_parse_led_dt(struct bct3236 *bct3236, struct device_node *np)
 	if (!ret)
 		bct3236->edge_color_suspend = RGB_TO_COLOR(color_rgb);
 
-	for_each_child_of_node (np, temp) {
-		ret = of_property_read_u32_array(temp, "default_colors",
-						 (u32 *)&color_rgb,
-						 BCT3236_COLORS_COUNT);
-		if (ret < 0) {
-			dev_err(bct3236->dev,
-				"Failure reading default colors ret = %d\n",
-				ret);
-			return ret;
-		} else {
-			bct3236->led_colors[i] = RGB_TO_COLOR(color_rgb);
-		}
-
-		ret = of_property_read_u32(temp, "red_io_number",
-					   &bct3236->io[i].red);
-		if (ret < 0) {
-			dev_err(bct3236->dev,
-				"Failure reading red io number ret = %d\n",
-				ret);
-			return ret;
-		}
-
-		ret = of_property_read_u32(temp, "green_io_number",
-					   &bct3236->io[i].green);
-		if (ret < 0) {
-			dev_err(bct3236->dev,
-				"Failure reading green io number ret = %d\n",
-				ret);
-			return ret;
-		}
-
-		ret = of_property_read_u32(temp, "blue_io_number",
-					   &bct3236->io[i++].blue);
-		if (ret < 0) {
-			dev_err(bct3236->dev,
-				"Failure reading blue io number ret = %d\n",
-				ret);
-			return ret;
-		}
-	}
-
-	return ret;
+	return 0;
 }
 
 static int bct3236_i2c_probe(struct i2c_client *i2c,
@@ -617,13 +741,12 @@ static int bct3236_i2c_probe(struct i2c_client *i2c,
 	struct device_node *np = i2c->dev.of_node;
 	struct bct3236 *bct3236;
 	int ret;
-	int i;
 
 	pr_info("%s: driver version %s\n", __func__, BCT3236_VERSION);
 
 	if (!i2c_check_functionality(i2c->adapter,
 				     I2C_FUNC_I2C | I2C_FUNC_SMBUS_EMUL)) {
-		pr_err("%s: check_functionality failed!\n", __func__);
+		pr_err("%s: i2c functionality failed\n", __func__);
 		return -EIO;
 	}
 
@@ -652,48 +775,42 @@ static int bct3236_i2c_probe(struct i2c_client *i2c,
 
 	ret = bct3236_parse_led_dt(bct3236, np);
 	if (ret < 0) {
-		dev_err(&i2c->dev, "%s: error bct3236 parse dts fail!\n",
-			__func__);
+		pr_err("%s: error bct3236 parse dts fail!\n", __func__);
 		return ret;
 	}
 
-	if (COLOR_TO_RED(bct3236->edge_color_on) != 0x00 ||
-	    COLOR_TO_GREEN(bct3236->edge_color_on) != 0x00 ||
-	    COLOR_TO_BLUE(bct3236->edge_color_on) != 0x00) {
-		for (i = 0; i < bct3236->led_counts; i++)
-			bct3236->led_colors[i] = bct3236->edge_color_on;
-	}
-
-	ret = bct3236_init_data(bct3236);
+	ret = bct3236_init(bct3236);
 	if (ret) {
-		dev_err(&i2c->dev, "%s: error bct3236 init led fail!\n",
-			__func__);
+		pr_err("%s: error bct3236 init led fail!\n", __func__);
 		return ret;
 	}
 
 	i2c_set_clientdata(i2c, bct3236);
 	dev_set_drvdata(&i2c->dev, bct3236);
 	bct3236->cdev.name = LEDS_CDEV_NAME;
-	bct3236->cdev.brightness = BCT3236_BRI_IOUT_DEF;
+	bct3236->cdev.brightness = bct3236->brightness;
+	bct3236->cdev.blink_brightness = bct3236->brightness;
 	bct3236->cdev.max_brightness = BCT3236_BRI_IOUT_MAX;
-	bct3236->cdev.brightness_set = bct3236_set_brightness;
+	bct3236->cdev.brightness_get = bct3236_brightness_get;
+	bct3236->cdev.brightness_set_blocking = bct3236_brightness_set;
 
 	ret = led_classdev_register(bct3236->dev, &bct3236->cdev);
 	if (ret) {
-		dev_err(bct3236->dev, "%s: unable to register led! ret = %d\n",
-			__func__, ret);
+		pr_err("%s: unable to register led! ret = %d\n", __func__, ret);
 		return ret;
 	}
 
-	/* fix brightness which is set to max */
-	bct3236_set_brightness(&bct3236->cdev, BCT3236_BRI_IOUT_DEF);
+	/* fix brightness which is set to max with default-on trigger */
+	if (bct3236->cdev.brightness != bct3236->brightness) {
+		bct3236->cdev.brightness = bct3236->brightness;
+		bct3236_brightness_set(&bct3236->cdev, bct3236->brightness);
+	}
 
 	ret = sysfs_create_group(&bct3236->cdev.dev->kobj,
 				 &bct3236_attribute_group);
 	if (ret) {
-		dev_err(bct3236->dev,
-			"%s: unable to create led sysfs! ret = %d\n", __func__,
-			ret);
+		pr_err("%s: unable to create led sysfs! ret = %d\n", __func__,
+		       ret);
 		led_classdev_unregister(&bct3236->cdev);
 		return ret;
 	}
@@ -705,7 +822,7 @@ static int bct3236_i2c_remove(struct i2c_client *i2c)
 {
 	struct bct3236 *bct3236 = i2c_get_clientdata(i2c);
 
-	dev_info(bct3236->dev, "%s: enter\n", __func__);
+	pr_info("%s: enter\n", __func__);
 	sysfs_remove_group(&bct3236->cdev.dev->kobj, &bct3236_attribute_group);
 	led_classdev_unregister(&bct3236->cdev);
 	return 0;
@@ -717,7 +834,7 @@ static int bct3236_suspend(struct device *dev)
 	struct bct3236 *bct3236 = i2c_get_clientdata(client);
 
 	if (!bct3236) {
-		dev_err(dev, "bct3236 is NULL!\n");
+		dev_err(dev, "bct3236 is null!\n");
 		return -ENXIO;
 	}
 
@@ -734,7 +851,7 @@ static int bct3236_resume(struct device *dev)
 	struct bct3236 *bct3236 = i2c_get_clientdata(client);
 
 	if (!bct3236) {
-		dev_err(dev, "%s: bct3236 is NULL!\n", __func__);
+		dev_err(dev, "%s: bct3236 is null!\n", __func__);
 		return -ENXIO;
 	}
 
@@ -751,21 +868,14 @@ static void bct3236_i2c_shutdown(struct i2c_client *i2c)
 	int i;
 
 	if (!bct3236) {
-		dev_err(bct3236->dev, "%s: bct3236 is NULL!\n", __func__);
+		pr_err("%s: bct3236 is null!\n", __func__);
 		return;
 	}
 
 	mutex_lock(&bct3236_lock);
 
-	if (COLOR_TO_RED(bct3236->edge_color_off) != 0x00 ||
-	    COLOR_TO_GREEN(bct3236->edge_color_off) != 0x00 ||
-	    COLOR_TO_BLUE(bct3236->edge_color_off) != 0x00) {
-		for (i = 0; i < bct3236->led_counts; i++)
-			bct3236->led_colors[i] = bct3236->edge_color_off;
-	} else {
-		for (i = 0; i < bct3236->led_counts; i++)
-			bct3236->led_colors[i] = 0x000000;
-	}
+	for (i = 0; i < bct3236->led_counts; i++)
+		bct3236->led_colors[i] = bct3236->edge_color_off;
 
 	bct3236_set_colors(bct3236);
 	mutex_unlock(&bct3236_lock);
