@@ -123,7 +123,7 @@ MODULE_PARM_DESC(primary_debug, "\n primary_debug\n");
 /*		else bypass Dolby Vision */
 /* #define DOLBY_VISION_FORCE_OUTPUT_MODE	2 */
 
-static unsigned int dolby_vision_policy = 1;
+static unsigned int dolby_vision_policy = DOLBY_VISION_FOLLOW_SOURCE;
 module_param(dolby_vision_policy, uint, 0664);
 MODULE_PARM_DESC(dolby_vision_policy, "\n dolby_vision_policy\n");
 static unsigned int last_dolby_vision_policy;
@@ -147,7 +147,7 @@ static unsigned int last_dolby_vision_policy;
 #define SDR_BY_DV_F_SINK 0x20
 #define SDR_BY_DV_F_SRC 0x40
 
-static unsigned int dolby_vision_hdr10_policy;
+static unsigned int dolby_vision_hdr10_policy = (HDR_BY_DV_F_SRC | HLG_BY_DV_F_SRC | SDR_BY_DV_F_SRC);
 module_param(dolby_vision_hdr10_policy, uint, 0664);
 MODULE_PARM_DESC(dolby_vision_hdr10_policy, "\n dolby_vision_hdr10_policy\n");
 static unsigned int last_dolby_vision_hdr10_policy;
