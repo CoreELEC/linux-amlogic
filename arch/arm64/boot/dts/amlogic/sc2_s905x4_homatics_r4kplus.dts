@@ -3,6 +3,8 @@
 / {
 	model = "Homatics R 4K Plus";
 	coreelec-dt-id = "sc2_s905x4_homatics_r4kplus";
+
+	/delete-node/ gpioleds;
 };
 
 &ethmac {
