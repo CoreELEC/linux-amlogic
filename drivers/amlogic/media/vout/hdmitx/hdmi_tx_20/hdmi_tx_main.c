@@ -2580,7 +2580,7 @@ static ssize_t show_config(struct device *dev,
 		para = hdev->para;
 
 		// YUV422
-		if (cs == 1)
+		if (cs == COLORSPACE_YUV422)
 			cd = (~cd & 0x3);
 
 		pos += snprintf(buf+pos, PAGE_SIZE, "VIC: %d %s\n",
