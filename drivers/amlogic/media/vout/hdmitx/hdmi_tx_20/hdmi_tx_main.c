@@ -2816,7 +2816,7 @@ static ssize_t config_show(struct device *dev,
 		para = hdev->para;
 
 		// YUV422
-		if (cs == 1)
+		if (cs == COLORSPACE_YUV422)
 			cd = (~cd & 0x3);
 
 		if (hdmitx_hdr10p_en())

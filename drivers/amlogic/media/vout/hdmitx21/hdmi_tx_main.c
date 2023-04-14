@@ -2363,17 +2363,11 @@ static ssize_t config_show(struct device *dev,
 
 	if (hdev->para) {
 		struct hdmi_format_para *para = hdev->para;
-		u8 color_depth = COLORDEPTH_24B; // Pixel bit width: 4=24-bit; 5=30-bit; 6=36-bit; 7=48-bit.
+		u8 color_depth = para->cd; // Pixel bit width: 4=24-bit; 5=30-bit; 6=36-bit; 7=48-bit.
 		u8 input_color_format = HDMI_COLORSPACE_YUV444;  // Pixel format: 0=RGB444; 1=YCbCr422; 2=YCbCr444; 3=YCbCr420.
 		u8 input_color_range = COLORRANGE_LIM;  // Pixel range: 0=limited; 1=full.
 		u8 output_color_format = HDMI_COLORSPACE_YUV444; // Pixel format: 0=RGB444; 1=YCbCr422; 2=YCbCr444; 3=YCbCr420.
 		u8 output_color_range = COLORRANGE_LIM; // Pixel range: 0=limited; 1=full.
-		u8 dp_color_depth = 0;
-
-		color_depth = para->cd;
-		output_color_format = para->cs;
-		dp_color_depth = (output_color_format == HDMI_COLORSPACE_YUV422) ?
-					COLORDEPTH_24B : color_depth;
 
 		if (hdmitx21_hdr10p_en())
 			eotf = eotf_hdr10p[hdmitx21_get_cur_hdr10p_st() & ~HDMI_HDR10P_TYPE];
@@ -2385,7 +2379,7 @@ static ssize_t config_show(struct device *dev,
 		pos += snprintf(buf+pos, PAGE_SIZE, "VIC: %d %s\n",
 				hdev->cur_VIC, para->hdmitx_vinfo.name);
 		pos += snprintf(buf + pos, PAGE_SIZE, "Colour depth: %s-bit\nColourspace: %s\nColour range: %s\nEOTF: %s\nYCC colour range: %s\n",
-				bpp[dp_color_depth & 0x3],
+				bpp[color_depth & 0x3],
 				pix_fmt[output_color_format & 0x3],
 				range[(input_color_format != output_color_format || input_color_range  != output_color_range) ? 1 : 0],
 				eotf,
