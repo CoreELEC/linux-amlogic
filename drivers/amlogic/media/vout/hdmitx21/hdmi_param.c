@@ -45,6 +45,7 @@ static void _auto_setup_attr(char const *mode, char const *attr,
 	enum hdmi_vic vic = HDMI_0_UNKNOWN;
 	struct hdmitx_dev *hdev = get_hdmitx21_device();
 	int colour_depths[] = { 8, 10, 12, 16 };
+	char* colour_sampling[] = {"RGB","YUV422","YUV444","YUV420"};
 
 	if (!mode || !attr)
 		return;
@@ -54,52 +55,114 @@ static void _auto_setup_attr(char const *mode, char const *attr,
 	if (vic != HDMI_0_UNKNOWN) {
 		pr_info("hdmitx: hdmi attr: %s\n", attr);
 		// check if any colour subsampling is set
+		// force colour subsampling when DV mode
 		if (strstr(attr, "rgb") == NULL &&
 		    strstr(attr, "420") == NULL &&
 		    strstr(attr, "422") == NULL &&
 		    strstr(attr, "444") == NULL) {
-			// nothing set, set to VUY420 if 420 vic
 			switch (hdev->hdmi_current_eotf_type) {
 				case EOTF_T_DOLBYVISION:
 				case EOTF_T_LL_MODE:
+					{
+						int _cs = *cs;
+						switch (hdev->hdmi_current_tunnel_mode) {
+							case RGB_8BIT:
+							case RGB_10_12BIT:
+								*cs = HDMI_COLORSPACE_RGB;
+								break;
+							case YUV422_BIT12:
+								*cs = HDMI_COLORSPACE_YUV422;
+								break;
+							case YUV444_10_12BIT:
+								*cs = HDMI_COLORSPACE_YUV444;
+								break;
+							default:
+								break;
+						}
+						if (_cs != *cs)
+							pr_info("hdmitx: display colour subsampling is forced to %s by Dolby Vision tunneling\n",
+								colour_sampling[*cs]);
+					}
 					break;
 				default:
 					if (_is_y420_vic(vic)) {
-						pr_info("hdmitx: set colour subsampling to 4:2:0 because of current video information code %d\n", vic);
 						*cs = HDMI_COLORSPACE_YUV420;
+						pr_info("hdmitx: display colour subsampling is forced to %s because of current video information code %d\n", colour_sampling[*cs], vic);
 					}
 					break;
 			}
+			pr_info("hdmitx: display colour subsampling is auto set to %s (VIC: %d)\n",
+				colour_sampling[*cs], vic);
 		}
 
 		// check colourdepth
 		if (strstr(attr,"bit") != NULL) {
-			pr_info("hdmitx: display colourdepth forced by attr to %d bits (VIC: %d)\n", colour_depths[*cd - COLORDEPTH_24B], vic);
+			pr_info("hdmitx: display colourdepth is forced by attr to %d bits (VIC: %d)\n", colour_depths[*cd - COLORDEPTH_24B], vic);
 		} else {
 			// parse and set maximum colourdepth given by edid
-			*cd = COLORDEPTH_24B;
-			if (hdev->rxcap.ColorDeepSupport & 0x78 && *cs != HDMI_COLORSPACE_YUV420) {
-				enum hdmi_color_depth _cd;
-				for (_cd = COLORDEPTH_36B; _cd > COLORDEPTH_24B; _cd--) {
-					if (hdev->rxcap.ColorDeepSupport & (1 << (_cd - 1))) {
-						*cd = _cd;
-						break;
-					}
-				}
-			} else if (hdev->rxcap.hf_ieeeoui == HDMI_FORUM_IEEE_OUI) {
-				if (hdev->rxcap.dc_36bit_420)
-					*cd = COLORDEPTH_36B;
-				else if (hdev->rxcap.dc_30bit_420)
-					*cd = COLORDEPTH_30B;
-				else
-					*cd = COLORDEPTH_24B;
-			}
-
 			// check for colour subsampling limit
-			if (_is_y420_vic(vic) && *cd > COLORDEPTH_24B && (*cs == HDMI_COLORSPACE_RGB || *cs == HDMI_COLORSPACE_YUV444))
-			{
-				*cd = COLORDEPTH_24B;
-				pr_info("hdmitx: forced colourdepth to %d bits because of current video information code\n", colour_depths[*cd - COLORDEPTH_24B]);
+			switch (hdev->hdmi_current_eotf_type) {
+				case EOTF_T_DOLBYVISION:
+				case EOTF_T_LL_MODE:
+					{
+						const struct dv_info *dv_info = &hdev->rxcap.dv_info;
+						int _cd = *cd;
+						switch (hdev->hdmi_current_tunnel_mode) {
+							case RGB_8BIT:
+								*cd = COLORDEPTH_24B;
+								break;
+							case RGB_10_12BIT:
+							case YUV444_10_12BIT:
+								if (dv_info->ver == 2) {
+									switch (dv_info->sup_10b_12b_444) {
+										case 1:
+											*cd = COLORDEPTH_30B;
+											break;
+										case 2:
+											*cd = COLORDEPTH_36B;
+											break;
+										default:
+											break;
+									}
+								}
+								break;
+							case YUV422_BIT12:
+								*cd = COLORDEPTH_24B;
+								break;
+							default:
+								break;
+						}
+
+						if (_cd != *cd)
+							pr_info("hdmitx: display colourdepth is forced to %d bits because of display Dolby Vision sink capability\n",
+								colour_depths[*cd - COLORDEPTH_24B]);
+					}
+					break;
+				default:
+					*cd = COLORDEPTH_24B;
+					if (hdev->rxcap.ColorDeepSupport & 0x78 && *cs != HDMI_COLORSPACE_YUV420) {
+						enum hdmi_color_depth _cd;
+						for (_cd = COLORDEPTH_36B; _cd > COLORDEPTH_24B; _cd--) {
+							if (hdev->rxcap.ColorDeepSupport & (1 << (_cd - 1))) {
+								*cd = _cd;
+								break;
+							}
+						}
+					} else if (hdev->rxcap.hf_ieeeoui == HDMI_FORUM_IEEE_OUI) {
+						if (hdev->rxcap.dc_36bit_420)
+							*cd = COLORDEPTH_36B;
+						else if (hdev->rxcap.dc_30bit_420)
+							*cd = COLORDEPTH_30B;
+						else
+							*cd = COLORDEPTH_24B;
+					}
+
+					if (_is_y420_vic(vic) && *cd > COLORDEPTH_24B && (*cs == HDMI_COLORSPACE_RGB || *cs == HDMI_COLORSPACE_YUV444))
+					{
+						*cd = COLORDEPTH_24B;
+						pr_info("hdmitx: display colourdepth is forced to %d bits because of current video information code\n", colour_depths[*cd - COLORDEPTH_24B]);
+					}
+					break;
 			}
 
 			pr_info("hdmitx: display colourdepth is auto set to %d bits (VIC: %d)\n", colour_depths[*cd - COLORDEPTH_24B], vic);
