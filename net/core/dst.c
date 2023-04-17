@@ -146,6 +146,7 @@ static void dst_destroy_rcu(struct rcu_head *head)
  * in preparation for a NETDEV_DOWN/NETDEV_UNREGISTER event and also to
  * make the next dst_ops->check() fail.
  */
+#ifndef CONFIG_AMLOGIC_ZAPPER_NET_CUT
 void dst_dev_put(struct dst_entry *dst)
 {
 	struct net_device *dev = dst->dev;
@@ -160,6 +161,7 @@ void dst_dev_put(struct dst_entry *dst)
 	dev_put(dev);
 }
 EXPORT_SYMBOL(dst_dev_put);
+#endif
 
 static void dst_count_dec(struct dst_entry *dst)
 {
