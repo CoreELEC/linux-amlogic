@@ -725,7 +725,7 @@ static int set_disp_mode_auto(void)
 					switch (hdev->hdmi_current_tunnel_mode) {
 						case RGB_8BIT:
 						case RGB_10_12BIT:
-							para->cs = COLORSPACE_RGB444;
+							para->cs = COLORSPACE_YUV444;
 							break;
 						case YUV422_BIT12:
 							para->cs = COLORSPACE_YUV422;
