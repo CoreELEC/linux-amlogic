@@ -290,6 +290,54 @@ static const struct nand_interface_config onfi_sdr_timings[] = {
 			.tWW_min = 100000,
 		},
 	},
+#ifdef CONFIG_AMLOGIC_NAND
+	/**
+	 * Mode 6 for GD9FU4G8F4D
+	 * GD9FU4G8F4D tREA is 9ns, which does not comply with
+	 * ONFI TIMING MODE 5
+	 */
+	{
+		.type = NAND_SDR_IFACE,
+		.timings.sdr = {
+			.tCCS_min = 500000,
+			.tR_max = 200000000,
+			.tADL_min = 400000,
+			.tALH_min = 5000,
+			.tALS_min = 10000,
+			.tAR_min = 10000,
+			.tCEA_max = 25000,
+			.tCEH_min = 20000,
+			.tCH_min = 5000,
+			.tCHZ_max = 30000,
+			.tCLH_min = 5000,
+			.tCLR_min = 10000,
+			.tCLS_min = 10000,
+			.tCOH_min = 15000,
+			.tCS_min = 15000,
+			.tDH_min = 5000,
+			.tDS_min = 7000,
+			.tFEAT_max = 1000000,
+			.tIR_min = 0,
+			.tITC_max = 1000000,
+			.tRC_min = 20000,
+			.tREA_max = 9000,
+			.tREH_min = 7000,
+			.tRHOH_min = 15000,
+			.tRHW_min = 100000,
+			.tRHZ_max = 100000,
+			.tRLOH_min = 5000,
+			.tRP_min = 10000,
+			.tRR_min = 20000,
+			.tRST_max = 500000000,
+			.tWB_max = 100000,
+			.tWC_min = 20000,
+			.tWH_min = 7000,
+			.tWHR_min = 80000,
+			.tWP_min = 10000,
+			.tWW_min = 100000,
+		},
+	},
+#endif
 };
 
 static const struct nand_interface_config onfi_nvddr_timings[] = {
@@ -735,3 +783,7 @@ void onfi_fill_interface_config(struct nand_chip *chip,
 	else
 		return onfi_fill_nvddr_interface_config(chip, iface, timing_mode);
 }
+
+#if IS_ENABLED(CONFIG_AMLOGIC_MTD_NAND)
+EXPORT_SYMBOL_GPL(onfi_fill_interface_config);
+#endif
