@@ -14748,6 +14748,18 @@ static ssize_t amdolby_vision_inst_debug_store
 	return count;
 }
 
+static ssize_t dv_video_on_show
+		(struct class *cla,
+		 struct class_attribute *attr,
+		 char *buf)
+{
+	ssize_t len = 0;
+
+	len += sprintf(buf + len, "%d\n",
+				   is_amdv_video_on());
+	return len;
+}
+
 static ssize_t amdolby_vision_operate_mode_show
 	 (struct class *cla,
 	  struct class_attribute *attr,
@@ -15036,6 +15048,9 @@ static struct class_attribute amdolby_vision_class_attrs[] = {
 	__ATTR(inst_res_debug, 0644,
 	       amdolby_vision_inst_debug_show,
 	       amdolby_vision_inst_debug_store),
+	__ATTR(dv_video_on, 0644,
+	       dv_video_on_show,
+	       NULL),
 	__ATTR_NULL
 };
 
