@@ -13239,6 +13239,18 @@ static ssize_t  amdolby_vision_crc_show(struct class *cla,
 	return sprintf(buf, "%s\n", cur_crc);
 }
 
+static ssize_t dv_video_on_show
+		(struct class *cla,
+		 struct class_attribute *attr,
+		 char *buf)
+{
+	ssize_t len = 0;
+
+	len += sprintf(buf + len, "%d\n",
+				   is_dolby_vision_video_on());
+	return len;
+}
+
 static struct class_attribute amdolby_vision_class_attrs[] = {
 	__ATTR(ko_info, 0444,
 	amdolby_vision_ko_info_show, NULL),
@@ -13286,6 +13298,8 @@ static struct class_attribute amdolby_vision_class_attrs[] = {
 	__ATTR(use_target_lum_from_cfg, 0644,
 	       amdolby_vision_use_cfg_target_lum_show,
 	       amdolby_vision_use_cfg_target_lum_store),
+	__ATTR(dv_video_on, 0444,
+	       dv_video_on_show, NULL),
 	__ATTR_NULL
 };
 
