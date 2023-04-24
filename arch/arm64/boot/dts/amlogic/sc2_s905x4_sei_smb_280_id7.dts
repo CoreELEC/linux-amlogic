@@ -1,0 +1,41 @@
+#include "sc2_s905x4_sei_smb_280_id5.dts"
+
+/ {
+	model = "RockTek G2";
+	coreelec-dt-id = "sc2_s905x4_sei_smb_280_id7";
+	amlogic-dt-id = "sc2_s905x4_ah212-id7";
+
+	auge_sound {
+		avout_mute-gpios = <&gpio GPIOD_2 GPIO_ACTIVE_HIGH>;
+	};
+
+	gpioleds {
+		sys_led {
+			label = "sys_led";
+			gpios = <&gpio GPIOD_11 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "default-on";
+		};
+
+		/*
+		net_green {
+			label = "net_green";
+			gpios = <&gpio GPIOD_4 GPIO_ACTIVE_LOW>;
+			linux,default-trigger = "none";
+		};
+		*/
+	};
+};
+
+&i2c3 {
+	/delete-node/ bct3236@3c;
+};
+
+&ethmac {
+	reg = <2>;
+	max-speed = <1000>;
+
+	reset-assert-us = <100000>;
+	reset-deassert-us = <300000>;
+	reset-gpios = <&gpio GPIOZ_15 (GPIO_ACTIVE_LOW |
+				GPIO_OPEN_DRAIN)>;
+};
