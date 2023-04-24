@@ -1,18 +1,27 @@
 #include "sc2_s905x4_4g_1gbit.dts"
 
 / {
-	model = "Homatics R 4K Plus";
-	coreelec-dt-id = "sc2_s905x4_homatics_r4kplus";
+	model = "Dune/Homatics R 4K Plus, Nokia 8010";
+	coreelec-dt-id = "sc2_s905x4_sei_smb_280_id5";
+	amlogic-dt-id = "sc2_s905x4_ah212-id5";
 
-	/delete-node/ gpioleds;
+	gpioleds {
+		/delete-node/ sys_led;
+	};
 };
 
 &ethmac {
 	internal_phy = <0>;
 };
 
+&usb3_phy_v2 {
+	otg = <0>;
+};
+
 &i2c3 {
 	status = "okay";
+
+	/delete-node/ aw9523_led@5b;
 
 	bct3236@3c {
 		compatible = "amlogic,bct3236_led";
