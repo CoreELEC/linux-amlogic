@@ -98,10 +98,7 @@ struct bct3236 {
 
 #define BCT3236_I2C_NAME "bct3236_led"
 #define LEDS_CDEV_NAME "bct3236"
-#define BCT3236_VERSION "v1.0.0"
 
-#define BCT3236_I2C_RETRIES 5
-#define BCT3236_I2C_RETRY_DELAY 5
 #define BCT3236_MAX_IO 36
 #define BCT3236_COLORS_COUNT 3
 #define BCT3236_MAX_LED (BCT3236_MAX_IO / BCT3236_COLORS_COUNT)
@@ -181,7 +178,8 @@ static int bct3236_i2c_writes(struct bct3236 *bct3236, unsigned char reg_addr,
 
 	ret = i2c_transfer(bct3236->i2c->adapter, &msg, 1);
 	if (ret < 0) {
-		pr_err("%s: i2c write failed ret = %d\n", __func__, ret);
+		pr_err("%s: i2c transfer failed with error %d\n", __func__,
+		       ret);
 		return ret;
 	}
 
@@ -192,36 +190,23 @@ static int bct3236_i2c_write(struct bct3236 *bct3236, unsigned char reg_addr,
 			     unsigned char reg_data)
 {
 	int ret = -1;
-	unsigned char cnt = 0;
 
 	if (!bct3236->i2c) {
 		pr_err("%s: i2c client not set\n", __func__);
 		return ret;
 	}
 
-	while (cnt < BCT3236_I2C_RETRIES) {
-		if (debug) {
-			if (cnt)
-				pr_info("%s: addr = %02x data = %02x (cnt = %u)\n",
-					__func__, reg_addr, reg_data, cnt);
-			else
-				pr_info("%s: addr = %02x data = %02x\n",
-					__func__, reg_addr, reg_data);
-		}
+	if (debug)
+		pr_info("%s: addr = %02x data = %02x\n", __func__, reg_addr,
+			reg_data);
 
-		ret = i2c_smbus_write_byte_data(bct3236->i2c, reg_addr,
-						reg_data);
-		if (!ret)
-			return 0;
-
-		pr_err("%s: i2c write failed cnt = %d ret = %d\n", __func__,
-		       cnt, ret);
-
-		cnt++;
-		msleep(BCT3236_I2C_RETRY_DELAY);
+	ret = i2c_smbus_write_byte_data(bct3236->i2c, reg_addr, reg_data);
+	if (ret < 0) {
+		pr_err("%s: i2c write failed with error %d\n", __func__, ret);
+		return ret;
 	}
 
-	return ret;
+	return 0;
 }
 
 static ssize_t io_show(struct device *dev, struct device_attribute *attr,
@@ -310,8 +295,7 @@ static ssize_t edge_color_on_store(struct device *dev,
 	ret = sscanf(buf, "%6x", &color);
 	if (ret != 1) {
 		pr_info("bct3236_%s: Invalid number of arguments\n", __func__);
-		mutex_unlock(&bct3236_lock);
-		return count;
+		goto unlock;
 	}
 
 	bct3236->edge_color_on = color;
@@ -322,6 +306,7 @@ static ssize_t edge_color_on_store(struct device *dev,
 	if (ret < 0)
 		pr_info("bct3236_%s: set color failed\n", __func__);
 
+unlock:
 	mutex_unlock(&bct3236_lock);
 	return count;
 }
@@ -340,11 +325,12 @@ static ssize_t edge_color_off_store(struct device *dev,
 	ret = sscanf(buf, "%6x", &color_buf);
 	if (ret != 1) {
 		pr_info("bct3236_%s: Invalid number of arguments\n", __func__);
-		mutex_unlock(&bct3236_lock);
-		return count;
+		goto unlock;
 	}
 
 	bct3236->edge_color_off = color_buf;
+
+unlock:
 	mutex_unlock(&bct3236_lock);
 	return count;
 }
@@ -363,11 +349,12 @@ static ssize_t edge_color_suspend_store(struct device *dev,
 	ret = sscanf(buf, "%6x", &color_buf);
 	if (ret != 1) {
 		pr_info("bct3236_%s: Invalid number of arguments\n", __func__);
-		mutex_unlock(&bct3236_lock);
-		return count;
+		goto unlock;
 	}
 
 	bct3236->edge_color_suspend = color_buf;
+
+unlock:
 	mutex_unlock(&bct3236_lock);
 	return count;
 }
@@ -388,8 +375,7 @@ static ssize_t colors_store(struct device *dev, struct device_attribute *attr,
 		     &colors[10], &colors[11]);
 	if (ret != bct3236->led_counts) {
 		pr_info("bct3236_%s: Invalid number of arguments\n", __func__);
-		mutex_unlock(&bct3236_lock);
-		return count;
+		goto unlock;
 	}
 
 	for (i = 0; i < bct3236->led_counts; i++)
@@ -399,6 +385,7 @@ static ssize_t colors_store(struct device *dev, struct device_attribute *attr,
 	if (ret < 0)
 		pr_info("bct3236_%s: store colors failed\n", __func__);
 
+unlock:
 	mutex_unlock(&bct3236_lock);
 	return count;
 }
@@ -471,13 +458,12 @@ static ssize_t single_color_store(struct device *dev,
 	ret = sscanf(buf, "%u %6x", &led_num, &color);
 	if (ret != 2) {
 		pr_info("bct3236_%s: Invalid number of arguments\n", __func__);
-		mutex_unlock(&bct3236_lock);
-		return count;
+		goto unlock;
 	}
 
 	if (led_num == 0 || led_num > bct3236->led_counts) {
 		pr_info("%s: Wrong led number!\n", __func__);
-		return count;
+		goto unlock;
 	}
 
 	led_num--; /* leds starts with 0 */
@@ -488,6 +474,7 @@ static ssize_t single_color_store(struct device *dev,
 	if (ret < 0)
 		pr_info("bct3236_%s: set color failed\n", __func__);
 
+unlock:
 	mutex_unlock(&bct3236_lock);
 	return count;
 }
@@ -504,15 +491,13 @@ static ssize_t reg_store(struct device *dev, struct device_attribute *attr,
 
 	if (sscanf(buf, "%2x %6x", &reg_addr, &reg_data) != 2) {
 		pr_err("bct3236_%s: Invalid number of arguments\n", __func__);
-		mutex_unlock(&bct3236_lock);
-		return count;
+		goto unlock;
 	}
 
 	if (reg_addr >= BCT3236_REG_MAX) {
 		pr_err("bct3236_%s: error max register addr = 0x%x\n", __func__,
 		       BCT3236_REG_MAX);
-		mutex_unlock(&bct3236_lock);
-		return count;
+		goto unlock;
 	}
 
 	if (debug)
@@ -523,6 +508,7 @@ static ssize_t reg_store(struct device *dev, struct device_attribute *attr,
 	if (ret < 0)
 		pr_info("bct3236_%s: set register failed\n", __func__);
 
+unlock:
 	mutex_unlock(&bct3236_lock);
 	return count;
 }
@@ -578,9 +564,10 @@ static int bct3236_init(struct bct3236 *bct3236)
 	u8 brightness_reg;
 	int i, ret;
 
-	bct3236_i2c_write(bct3236, BCT3236_REG_RESET, 0x00);
-	bct3236_i2c_write(bct3236, BCT3236_REG_SHUTDOWN, 0x01);
-	bct3236_i2c_write(bct3236, BCT3236_REG_GLOBAL_CONTROL, 0x00);
+	if (bct3236_i2c_write(bct3236, BCT3236_REG_RESET, 0x00) < 0 ||
+	    bct3236_i2c_write(bct3236, BCT3236_REG_SHUTDOWN, 0x01) < 0 ||
+	    bct3236_i2c_write(bct3236, BCT3236_REG_GLOBAL_CONTROL, 0x00) < 0)
+		return -1;
 
 	if (bct3236->cdev.default_trigger &&
 	    strncmp(bct3236->cdev.default_trigger, "none", 4) != 0 &&
@@ -636,14 +623,14 @@ static int bct3236_brightness_set(struct led_classdev *cdev,
 	ret = bct3236_i2c_writes(bct3236, BCT3236_REG_LED_CONTROL,
 				 bct3236->led_counts * BCT3236_COLORS_COUNT,
 				 brightness_iout);
-	if (ret < 0) {
-		mutex_unlock(&bct3236_lock);
-		return 0;
-	}
+	if (ret < 0)
+		goto unlock;
 
-	bct3236_i2c_write(bct3236, BCT3236_REG_UPDATE_LED, 0x00);
+	ret = bct3236_i2c_write(bct3236, BCT3236_REG_UPDATE_LED, 0x00);
+
+unlock:
 	mutex_unlock(&bct3236_lock);
-	return 0;
+	return ret;
 }
 
 static int bct3236_parse_led_dt(struct bct3236 *bct3236, struct device_node *np)
@@ -742,7 +729,7 @@ static int bct3236_i2c_probe(struct i2c_client *i2c,
 	struct bct3236 *bct3236;
 	int ret;
 
-	pr_info("%s: driver version %s\n", __func__, BCT3236_VERSION);
+	pr_info("%s: loading driver\n", __func__);
 
 	if (!i2c_check_functionality(i2c->adapter,
 				     I2C_FUNC_I2C | I2C_FUNC_SMBUS_EMUL)) {
@@ -780,9 +767,9 @@ static int bct3236_i2c_probe(struct i2c_client *i2c,
 	}
 
 	ret = bct3236_init(bct3236);
-	if (ret) {
-		pr_err("%s: error bct3236 init led fail!\n", __func__);
-		return ret;
+	if (ret < 0) {
+		pr_err("%s: bct3236 init failed\n", __func__);
+		return -EIO;
 	}
 
 	i2c_set_clientdata(i2c, bct3236);
