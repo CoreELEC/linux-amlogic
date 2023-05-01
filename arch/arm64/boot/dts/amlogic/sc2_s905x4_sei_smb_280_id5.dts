@@ -1,7 +1,7 @@
 #include "sc2_s905x4_4g_1gbit.dts"
 
 / {
-	model = "Dune/Homatics R 4K Plus, Nokia 8010";
+	model = "Dune/Homatics R 4K Plus";
 	coreelec-dt-id = "sc2_s905x4_sei_smb_280_id5";
 	amlogic-dt-id = "sc2_s905x4_ah212-id5";
 
