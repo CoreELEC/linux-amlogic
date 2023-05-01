@@ -1,7 +1,7 @@
 #include "sc2_s905x4_sei_smb_280_id5.dts"
 
 / {
-	model = "RockTek G2";
+	model = "RockTek G2, Nokia 8010";
 	coreelec-dt-id = "sc2_s905x4_sei_smb_280_id7";
 	amlogic-dt-id = "sc2_s905x4_ah212-id7";
 
@@ -31,11 +31,9 @@
 };
 
 &ethmac {
-	reg = <2>;
-	max-speed = <1000>;
+	/delete-property/ reg;
 
+	/* Intel XWAY PHY11G needs longer times */
 	reset-assert-us = <100000>;
 	reset-deassert-us = <300000>;
-	reset-gpios = <&gpio GPIOZ_15 (GPIO_ACTIVE_LOW |
-				GPIO_OPEN_DRAIN)>;
 };
