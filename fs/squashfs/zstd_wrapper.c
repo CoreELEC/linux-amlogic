@@ -131,7 +131,7 @@ static int zstd_uncompress(struct squashfs_sb_info *msblk, void *strm,
 		if (ZSTD_isError(zstd_err)) {
 			ERROR("zstd decompression error: %d\n",
 					(int)ZSTD_getErrorCode(zstd_err));
-			error = -EIO;
+			/*error = -EIO;*/
 			break;
 		}
 	}
