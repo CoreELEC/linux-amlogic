@@ -817,35 +817,49 @@ static int bct3236_i2c_remove(struct i2c_client *i2c)
 
 static int bct3236_suspend(struct device *dev)
 {
-	struct i2c_client *client = container_of(dev, struct i2c_client, dev);
-	struct bct3236 *bct3236 = i2c_get_clientdata(client);
+	struct i2c_client *i2c = container_of(dev, struct i2c_client, dev);
+	struct bct3236 *bct3236 = i2c_get_clientdata(i2c);
+	int i;
 
 	if (!bct3236) {
-		dev_err(dev, "bct3236 is null!\n");
+		pr_err("%s: bct3236 not set\n", __func__);
 		return -ENXIO;
 	}
 
 	if (bct3236->ignore_led_suspend)
 		return 0;
 
-	bct3236_i2c_write(bct3236, BCT3236_REG_GLOBAL_CONTROL, 0x01);
+	mutex_lock(&bct3236_lock);
+
+	for (i = 0; i < bct3236->led_counts; i++)
+		bct3236->led_colors[i] = bct3236->edge_color_suspend;
+
+	bct3236_set_colors(bct3236);
+	mutex_unlock(&bct3236_lock);
 	return 0;
 }
 
 static int bct3236_resume(struct device *dev)
 {
-	struct i2c_client *client = container_of(dev, struct i2c_client, dev);
-	struct bct3236 *bct3236 = i2c_get_clientdata(client);
+	struct i2c_client *i2c = container_of(dev, struct i2c_client, dev);
+	struct bct3236 *bct3236 = i2c_get_clientdata(i2c);
+	int i;
 
 	if (!bct3236) {
-		dev_err(dev, "%s: bct3236 is null!\n", __func__);
+		pr_err("%s: bct3236 not set\n", __func__);
 		return -ENXIO;
 	}
 
 	if (bct3236->ignore_led_suspend)
 		return 0;
 
-	bct3236_i2c_write(bct3236, BCT3236_REG_GLOBAL_CONTROL, 0x00);
+	mutex_lock(&bct3236_lock);
+
+	for (i = 0; i < bct3236->led_counts; i++)
+		bct3236->led_colors[i] = bct3236->edge_color_on;
+
+	bct3236_set_colors(bct3236);
+	mutex_unlock(&bct3236_lock);
 	return 0;
 }
 
@@ -855,7 +869,7 @@ static void bct3236_i2c_shutdown(struct i2c_client *i2c)
 	int i;
 
 	if (!bct3236) {
-		pr_err("%s: bct3236 is null!\n", __func__);
+		pr_err("%s: bct3236 not set\n", __func__);
 		return;
 	}
 
