@@ -31,7 +31,7 @@
 
 		aml-audio-card,dai-link@1 {
 			codec {
-				sound-dai = <&tdmb>;
+				sound-dai = <&amlogic_codec>;
 			};
 		};
 	};
