@@ -495,6 +495,7 @@ endif
 
 KBUILD_CFLAGS	+= -Wno-stringop-overread -Wno-tautological-compare -Wno-tautological-pointer-compare
 KBUILD_CFLAGS	+= -Wno-error=array-compare -Wno-error=address -Wno-dangling-pointer
+KBUILD_CFLAGS	+= -Wno-enum-int-mismatch
 
 ifdef CONFIG_AMLOGIC_MODIFY
 ifndef CONFIG_DYNAMIC_DEBUG
