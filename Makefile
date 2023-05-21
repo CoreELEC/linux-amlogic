@@ -553,7 +553,7 @@ KBUILD_CFLAGS   := -Wall -Wundef -Werror=strict-prototypes -Wno-trigraphs \
 		   -std=gnu89
 KBUILD_CFLAGS	+= -Wno-stringop-overread -Wno-tautological-compare \
        -Wno-tautological-pointer-compare -Wno-error=array-compare \
-       -Wno-error=address -Wno-dangling-pointer
+       -Wno-error=address -Wno-dangling-pointer -Wno-enum-int-mismatch
 
 KBUILD_CPPFLAGS := -D__KERNEL__
 KBUILD_AFLAGS_KERNEL :=
