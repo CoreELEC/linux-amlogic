@@ -1,14 +1,15 @@
+dtb-$(CONFIG_ARM64_A32) += g12b_s922x_minix_u22xj.dtb
+dtb-$(CONFIG_ARM64_A32) += g12b_s922x_minix_u22xj_max.dtb
+dtb-$(CONFIG_ARM64_A32) += g12b_s922x_minix_u22xj_max_rev_a.dtb
+dtb-$(CONFIG_ARM64_A32) += g12b_s922x_ugoos_am6_2g.dtb
+dtb-$(CONFIG_ARM64_A32) += g12b_s922x_ugoos_am6_4g.dtb
+dtb-$(CONFIG_ARM64_A32) += g12b_s922x_ugoos_am6_rev_a_2g.dtb
+dtb-$(CONFIG_ARM64_A32) += g12b_s922x_ugoos_am6_rev_a_4g.dtb
+dtb-$(CONFIG_ARM64_A32) += g12b_s922x_ugoos_am6b_2g.dtb
+dtb-$(CONFIG_ARM64_A32) += g12b_s922x_ugoos_am6b_4g.dtb
+dtb-$(CONFIG_ARM64_A32) += g12b_s922x_ugoos_am6b_rev_a_2g.dtb
+dtb-$(CONFIG_ARM64_A32) += g12b_s922x_ugoos_am6b_rev_a_4g.dtb
 
-targets += dtbs
-
-DTB_NAMES := $(subst $\",,$(CONFIG_BUILD_ARM64_APPENDED_DTB_IMAGE_NAMES))
-ifneq ($(DTB_NAMES),)
-DTB_LIST := $(addsuffix .dtb,$(DTB_NAMES))
-else
-DTB_LIST := $(dtb-y)
-endif
-targets += $(DTB_LIST)
-
-dtbs: $(addprefix $(obj)/, $(DTB_LIST))
-
-clean-files := *.dtb
+always		:= $(dtb-y)
+subdir-y	:= $(dts-dirs)
+clean-files	:= *.dtb

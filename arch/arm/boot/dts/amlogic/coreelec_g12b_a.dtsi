@@ -1,0 +1,64 @@
+#include "g12b_a311d_w400_a.dts"
+#include "coreelec_g12_common.dtsi"
+
+/{
+	reserved-memory {
+		di_cma_reserved:linux,di_cma {
+			size = <0x0>;
+		};
+
+		codec_mm_cma:linux,codec_mm_cma {
+			size = <0x1b000000>;
+		};
+
+		galcore_reserved:linux,galcore {
+			size = <0x1000000>;
+			alignment = <0x400000>;
+		};
+	};
+
+	cpu_opp_table0: cpu_opp_table0 {
+		opp08 {
+			opp-hz = /bits/ 64 <1800000000>;
+			opp-microvolt = <981000>;
+		};
+	};
+
+	multi-di {
+		compatible = "amlogic, dim-g12b";
+		status = "okay";
+		/* 0:use reserved; 1:use cma; 2:use cma as reserved */
+		flag_cma = <4>; //<1>
+		//memory-region = <&di_reserved>;
+		memory-region = <&di_cma_reserved>;
+		interrupts = <0 46 1
+				0 40 1>;
+		interrupt-names = "pre_irq", "post_irq";
+		clocks = <&clkc CLKID_VPU_CLKB_TMP_COMP>,
+			<&clkc CLKID_VPU_CLKB_COMP>;
+		clock-names = "vpu_clkb_tmp_composite",
+			"vpu_clkb_composite";
+		clock-range = <334 667>;
+		/* buffer-size = <3621952>;(yuv422 8bit) */
+		buffer-size = <4074560>;/*yuv422 fullpack*/
+		/* reserve-iomap = "true"; */
+		/* if enable nr10bit, set nr10bit-support to 1 */
+		post-wr-support = <1>;
+		nr10bit-support = <1>;
+		nrds-enable = <1>;
+		pps-enable = <1>;
+	};
+
+	deinterlace {
+		status = "disable";
+	};
+};
+
+&ethmac {
+	pinctrl-names = "external_eth_pins";
+	pinctrl-0 = <&external_eth_pins>;
+	internal_phy = <0>;
+	auto_cali_idx = <0>;
+	/delete-property/ cali_val;
+	/delete-property/ mc_val;
+};

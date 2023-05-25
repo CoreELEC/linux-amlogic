@@ -1,0 +1,48 @@
+#include "coreelec_common.dtsi"
+
+/{
+	auge_sound {
+		aml-audio-card,effect = <&audio_effect>;
+
+		aml-audio-card,dai-link@0 {
+			continuous-clock;
+			cpu {
+				sound-dai = <&aml_spdif_b>;
+			};
+		};
+
+		aml-audio-card,dai-link@1 {
+			bitclock-master = <&aml_tdmb>;
+			frame-master = <&aml_tdmb>;
+			continuous-clock;
+			cpu {
+				sound-dai = <&aml_tdmb>;
+			};
+		};
+
+		aml-audio-card,dai-link@2 {
+			continuous-clock;
+			cpu {
+				sound-dai = <&aml_spdif>;
+			};
+		};
+
+		aml-audio-card,dai-link@3 {
+			continuous-clock;
+		};
+	};
+};
+
+&audiobus {
+	aml_i2s2hdmi: i2s2hdmi {
+		compatible = "amlogic, g12a-snd-tdmc";
+	};
+
+	aml_spdif: spdif {
+		pinctrl-0 = <&spdifout>;
+	};
+
+	aml_spdif_b: spdif_b {
+		status = "okay";
+	};
+};

@@ -1,0 +1,264 @@
+#include <dt-bindings/media/rc-map.h>
+
+/{
+	coreelec;
+	/delete-property/ amlogic-dt-id;
+
+	chosen { };
+
+	reserved-memory {
+		linux,meson-fb {
+			alloc-ranges = <0x77800000 0x800000>;
+		};
+		linux,vdin0_cma {
+			status = "disabled";
+		};
+		linux,vdin1_cma {
+			status = "disabled";
+		};
+		linux,isp_cma {
+			status = "disabled";
+		};
+		linux,adapt_cma {
+			status = "disabled";
+		};
+	};
+
+	gpioleds {
+		status = "okay";
+		/delete-node/ net_red;
+		/delete-node/ net_green;
+		/delete-node/ remote_led;
+		sys_led {
+			/delete-property/ retain-state-suspended;
+			/delete-property/ default-state;
+			linux,default-trigger="default-on";
+		};
+	};
+
+	codec_mm {
+		clear-map;
+	};
+
+	vcodec_dec {
+		status = "disable";
+	};
+
+	gpio_keypad {
+		reg = <0xFF800000 0x400>;
+	};
+
+	/delete-node/ auge_sound;
+	auge_sound {
+		compatible = "amlogic, g12a-sound-card";
+		aml-audio-card,name = "AML-AUGESOUND";
+		avout_mute-gpios = <&gpio_ao GPIOAO_2 GPIO_ACTIVE_HIGH>;
+
+		aml-audio-card,dai-link@0 {
+			mclk-fs = <128>;
+			cpu {
+				system-clock-frequency = <6144000>;
+			};
+			codec {
+				sound-dai = <&dummy_codec>;
+			};
+		};
+
+		aml-audio-card,dai-link@1 {
+			format = "i2s";
+			mclk-fs = <256>;
+			cpu {
+				dai-tdm-slot-tx-mask = <1 1>;
+				dai-tdm-slot-rx-mask = <1 1>;
+				dai-tdm-slot-num = <2>;
+				dai-tdm-slot-width = <32>;
+				system-clock-frequency = <12288000>;
+			};
+			codec {
+				sound-dai = <&amlogic_codec>;
+			};
+		};
+
+		aml-audio-card,dai-link@2 {
+			mclk-fs = <128>;
+			cpu {
+				system-clock-frequency = <6144000>;
+			};
+			codec {
+				sound-dai = <&dummy_codec>;
+			};
+		};
+
+		aml-audio-card,dai-link@3 {
+			format = "i2s";
+			mclk-fs = <256>;
+			bitclock-master = <&aml_i2s2hdmi>;
+			frame-master = <&aml_i2s2hdmi>;
+			cpu {
+				sound-dai = <&aml_i2s2hdmi>;
+				dai-tdm-slot-tx-mask = <1 1>;
+				dai-tdm-slot-rx-mask = <1 1>;
+				dai-tdm-slot-num = <2>;
+				dai-tdm-slot-width = <32>;
+				system-clock-frequency = <12288000>;
+			};
+			codec {
+				sound-dai = <&dummy_codec>;
+			};
+		};
+	};
+
+	audiolocker: locker {
+		status = "okay";
+	};
+
+	/delete-node/ partitions;
+	/delete-node/ firmware;
+
+	/delete-node/ rc@0xff808040;
+	/delete-node/ custom_maps;
+	meson-ir {
+		compatible = "amlogic,meson6-ir";
+		/* Multi-format IR controller */
+		reg = <0xff808040 0x44>;
+		interrupts = <0 196 1>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&remote_pins>;
+		pulse-inverted;
+		wakeup_protocol = <NEC>; /* force default NEC by <dt-bindings/media/rc-map.h> */
+		status = "okay";
+	};
+	meson-remote {
+		compatible = "amlogic, aml_remote";
+		dev_name = "meson-remote";
+		reg = <0xff808040 0x44>, /*Multi-format IR controller*/
+			  <0xff808000 0x20>; /*Legacy IR controller*/
+		status = "okay";
+		protocol = <REMOTE_TYPE_NEC>;
+		led_blink = <1>;
+		led_blink_frq = <100>;
+		interrupts = <0 196 1>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&remote_pins>;
+		max_frame_time = <200>; /*set software decoder max frame time*/
+	};
+
+	amvideocap {
+		compatible = "amlogic, amvideocap";
+		dev_name = "amvideocap.0";
+		status = "okay";
+		max_size = <8>;//8M
+	};
+
+	openvfd {
+		compatible = "open,vfd";
+		dev_name = "openvfd";
+		status = "okay";
+	};
+
+	dummy_venc: dummy_venc {
+		status = "disabled";
+	};
+
+	/delete-node/ sensor;
+	/delete-node/ iq;
+	/delete-node/ demux;
+	/delete-node/ dvb;
+	/delete-node/ amvdec_656in;
+	/delete-node/ aml_cams;
+
+	/delete-node/ lcd;
+	/delete-node/ lcd_extern;
+	/delete-node/ backlight;
+	/delete-node/ bl_pwm_conf;
+	/delete-node/ bl_extern;
+};
+
+&meson_fb {
+	display_size_default = <1920 1080 1920 2160 32>;
+	mem_size = <0x00800000 0x4b80000 0x100000 0x100000 0x800000>;
+	mem_alloc = <1>;
+	4k2k_fb = <1>;
+};
+
+&i2c0 {
+	status = "disabled";
+	/delete-node/ gt9xx@5d;
+	/delete-node/ ftxx@38;
+	/delete-node/ touchscreen@5d;
+	/delete-node/ touchscreen@38;
+};
+
+&i2c2 {
+	status = "disabled";
+	/delete-node/ sensor-i2c@6c;
+};
+
+&i2c3 {
+	/delete-node/ ad82584f_62@62;
+	/delete-node/ tlv320adc3101_32@32;
+	/delete-node/ bl_extern_i2c;
+	/delete-node/ tas5707_36@36;
+};
+
+&audiobus {
+	aml_i2s2hdmi: i2s2hdmi {
+		#sound-dai-cells = <0>;
+		dai-tdm-lane-slot-mask-out = <1 1 1 1>;
+		dai-tdm-clk-sel = <2>;
+		clocks = <&clkaudio CLKID_AUDIO_MCLK_C
+				&clkc CLKID_MPLL2>;
+		clock-names = "mclk", "clk_srcpll";
+		i2s2hdmi = <1>;
+		status = "okay";
+	};
+
+	/delete-node/ tdma;
+	/delete-node/ tdm@0;
+	/delete-node/ tdmc;
+	/delete-node/ tdm@2;
+	/delete-node/ tdm@3;
+	/delete-node/ pdm;
+};
+
+&pinctrl_periphs {
+	/delete-node/ tdmout_a;
+	/delete-node/ tdmin_a;
+	/delete-node/ tdmc_mclk;
+	/delete-node/ tdmout_c;
+	/delete-node/ tdmin_c;
+	/delete-node/ spdifin;
+	/delete-node/ pdmin;
+	/delete-node/ bl_pwm_off_pin;
+	/delete-node/ clk12_24_z_pins;
+	/delete-node/ gen_clk_ee_z;
+	/delete-node/ cam_dvp_pins;
+};
+
+&pinctrl_aobus {
+	/delete-node/ dvb_s_ts0_pins;
+};
+
+&vdin0 {
+	status = "disabled";
+};
+
+&vdin1 {
+	status = "disabled";
+};
+
+/delete-node/ &nand;
+
+&pcie_A {
+	status = "disabled";
+};
+
+&aocec {
+	/delete-property/ arc_port_mask;
+};
+
+&sd_emmc_c {
+	emmc {
+		caps2 = "MMC_CAP2_HS200";
+	};
+};

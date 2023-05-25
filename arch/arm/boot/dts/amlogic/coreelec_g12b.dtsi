@@ -1,0 +1,64 @@
+#include "g12b_a311d_w400.dts"
+#include "coreelec_g12_common.dtsi"
+
+/{
+	reserved-memory {
+		galcore_reserved:linux,galcore {
+			size = <0x1000000>;
+			alignment = <0x400000>;
+		};
+	};
+
+	cpu_opp_table0: cpu_opp_table0 {
+		opp08 {
+			opp-hz = /bits/ 64 <1800000000>;
+			opp-microvolt = <1020000>;
+		};
+	};
+
+	cpu_opp_table1: cpu_opp_table1 {
+		opp08 {
+			opp-hz = /bits/ 64 <1800000000>;
+			opp-microvolt = <830000>;
+		};
+		opp09 {
+			opp-hz = /bits/ 64 <1908000000>;
+			opp-microvolt = <860000>;
+		};
+		opp10 {
+			opp-hz = /bits/ 64 <2016000000>;
+			opp-microvolt = <910000>;
+		};
+		opp11 {
+			opp-hz = /bits/ 64 <2100000000>;
+			opp-microvolt = <960000>;
+		};
+		opp12 {
+			opp-hz = /bits/ 64 <2208000000>;
+			opp-microvolt = <1030000>;
+		};
+	};
+};
+
+&ethmac {
+	pinctrl-names = "external_eth_pins";
+	pinctrl-0 = <&external_eth_pins>;
+	internal_phy = <0>;
+	auto_cali_idx = <0>;
+	/delete-property/ cali_val;
+	/delete-property/ mc_val;
+};
+
+&pinctrl_periphs {
+	a_uart_pins:a_uart {
+		mux {
+			groups = "uart_tx_a",
+				"uart_rx_a",
+				"uart_cts_a",
+				"uart_rts_a";
+			function = "uart_a";
+		};
+
+		/delete-node/ mux1;
+	};
+};
