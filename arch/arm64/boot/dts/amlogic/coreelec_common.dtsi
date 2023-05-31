@@ -86,6 +86,7 @@
 
 &aocec {
 	/delete-property/ arc_port_mask;
+	cec_log_en = <0>;
 };
 
 &audiobus {
