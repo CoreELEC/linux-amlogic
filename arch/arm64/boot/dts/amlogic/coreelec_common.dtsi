@@ -119,6 +119,10 @@
 	/delete-property/ vrr_type;
 };
 
+&ethmac {
+	wol = <0>;
+};
+
 &drm_subsystem {
 	fbdev_sizes = <4096 2160 4096 4320 32>;
 };
