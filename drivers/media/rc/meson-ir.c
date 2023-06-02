@@ -273,7 +273,11 @@ static int meson_ir_resume(struct device *dev)
 
 	spin_lock_irqsave(&ir->lock, flags);
 	meson_ir_init(pdev);
+#ifndef CONFIG_AMLOGIC_MODIFY
 	enable_irq_wake(ir->irq);
+#else
+	enable_irq(ir->irq);
+#endif
 	spin_unlock_irqrestore(&ir->lock, flags);
 
 	dev_info(dev, "receiver resumed\n");
@@ -285,11 +289,15 @@ static int meson_ir_suspend(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct meson_ir *ir = platform_get_drvdata(pdev);
+#ifndef CONFIG_AMLOGIC_MODIFY
 	unsigned long flags;
 
 	spin_lock_irqsave(&ir->lock, flags);
 	disable_irq_wake(ir->irq);
 	spin_unlock_irqrestore(&ir->lock, flags);
+#else
+	disable_irq(ir->irq);
+#endif
 
 	dev_info(dev, "receiver suspend\n");
 
