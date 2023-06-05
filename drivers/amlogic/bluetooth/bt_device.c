@@ -59,7 +59,7 @@ static struct early_suspend bt_early_suspend;
 #define POWER_EVENT_DEF     0
 #define POWER_EVENT_RESET   1
 #define POWER_EVENT_EN      2
-//#define CONTROL_POWER_EN_LINUX
+#define CONTROL_POWER_EN_LINUX
 
 char bt_addr[18] = "";
 char *btmac;
