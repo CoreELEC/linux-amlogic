@@ -1650,10 +1650,19 @@ static int aml_dai_tdm_prepare(struct snd_pcm_substream *substream,
 			memset(&aud_param, 0, sizeof(aud_param));
 			aud_param.rate = runtime->rate;
 			aud_param.size = runtime->sample_bits;
-			if (codec_type == AUD_CODEC_TYPE_STEREO_PCM)
-				aud_param.chs  = 2;
-			else
-				aud_param.chs  = runtime->channels;
+
+			switch (codec_type)
+			{
+				case AUD_CODEC_TYPE_STEREO_PCM:
+				case AUD_CODEC_TYPE_MULTI_LPCM:
+				case AUD_CODEC_TYPE_HSR_STEREO_PCM:
+					aud_param.chs  = runtime->channels;
+					break;
+				default:
+					aud_param.chs  = 2;
+					break;
+			}
+
 			aud_param.aud_src_if = AUD_SRC_IF_I2S;
 
 			memset(&chsts, 0, sizeof(chsts));
