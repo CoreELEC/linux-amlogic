@@ -7924,14 +7924,14 @@ __setup("frac_rate_policy=", hdmitx_boot_frac_rate);
 
 static int hdmitx_boot_hdr_priority(char *str)
 {
-	unsigned int val = 0;
+	long int val = 0;
+	int ret;
 
-	if ((strncmp("1", str, 1) == 0) || (strncmp("2", str, 1) == 0)) {
-		val = str[0] - '0';
+	if ((ret = kstrtol(str, 10, &val)) == 0) {
 		hdmitx_device.hdr_priority = val;
 		pr_info("hdmitx boot hdr_priority: %d\n", val);
 	}
-	return 0;
+	return ret;
 }
 
 __setup("hdr_priority=", hdmitx_boot_hdr_priority);

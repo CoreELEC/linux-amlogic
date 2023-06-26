@@ -7365,14 +7365,14 @@ __setup("frac_rate_policy=", hdmitx21_boot_frac_rate);
 static int hdmitx21_boot_hdr_priority(char *str)
 {
 	struct hdmitx_dev *hdev = get_hdmitx21_device();
-	unsigned int val = 0;
+	long int val = 0;
+	int ret;
 
-	if ((strncmp("1", str, 1) == 0) || (strncmp("2", str, 1) == 0)) {
-		val = str[0] - '0';
+	if ((ret = kstrtol(str, 10, &val)) == 0) {
 		hdev->hdr_priority = val;
 		pr_info("hdmitx boot hdr_priority: %d\n", val);
 	}
-	return 0;
+	return ret;
 }
 
 __setup("hdr_priority=", hdmitx21_boot_hdr_priority);
