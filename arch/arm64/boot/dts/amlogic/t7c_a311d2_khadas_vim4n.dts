@@ -1,0 +1,19 @@
+#include "t7c_a311d2_an400_drm_hdmitx_only.dts"
+#include "coreelec_t7_common.dtsi"
+#include "a311d2_khadas_vim4_base.dtsi"
+
+/ {
+	model = "Khadas VIM4N";
+	coreelec-dt-id = "t7c_a311d2_khadas_vim4n";
+	amlogic-dt-id = "t7c_a311d2_an400-8g";
+};
+
+&crg_phy_20 {
+	gpio-vbus-power = "GPIOY_5";
+	gpios = <&gpio GPIOY_5 GPIO_ACTIVE_HIGH>;
+};
+
+&crg_phy_21 {
+	/delete-property/ gpio-vbus-power;
+	/delete-property/ gpios;
+};

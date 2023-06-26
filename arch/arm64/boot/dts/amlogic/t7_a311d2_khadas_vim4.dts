@@ -1,74 +1,9 @@
 #include "t7_a311d2_an400_drm_hdmitx_only.dts"
 #include "coreelec_t7_common.dtsi"
+#include "a311d2_khadas_vim4_base.dtsi"
 
 / {
 	model = "Khadas VIM4";
 	coreelec-dt-id = "t7_a311d2_khadas_vim4";
-
-	memory@00000000 {
-		device_type = "memory";
-		linux,usable-memory = <0x00000000 0x00000000 0x00000000 0xE0000000
-		                       0x00000001 0x00000000 0x00000001 0x20000000>;
-	};
-
-	gpioleds {
-		sys_led {
-			label = "sys_led";
-			gpios = <&gpio GPIOD_6 GPIO_ACTIVE_HIGH>;
-			linux,default-trigger = "default-on";
-		};
-	};
-
-	gpio_keypad {
-		key-gpios = <&gpio GPIOD_4 GPIO_ACTIVE_HIGH>;
-	};
-};
-
-&ext_mdio {
-	external_phy: ethernet-phy@0 {
-		reg = <0>;
-		max-speed = <1000>;
-	};
-};
-
-&ethmac {
-	pinctrl-0 = <&eth_pins>, <&eth_rgmii_pins>;
-	pinctrl-names = "default";
-	status = "okay";
-	phy-mode = "rgmii";
-	phy-handle = <&external_phy>;
-	mc_val = <0x1621>;
-	amlogic,tx-delay-ns = <2>;
-};
-
-&i2c_AO_A {
-	status = "okay";
-	pinctrl-names = "default";
-	pinctrl-0 = <&i2c0_ao_pins1>;
-	clock-frequency = <100000>; /* default 100k */
-
-	hym8563-rtc@51 {
-		compatible = "haoyu,hym8563";
-		reg = <0x51>;
-	};
-
-	khadas-mcu@18 {
-		compatible = "khadas-mcu";
-		reg = <0x18>;
-		fan,trig_temp_level0 = <50>;
-		fan,trig_temp_level1 = <60>;
-		fan,trig_temp_level2 = <70>;
-		fan,trig_temp_level3 = <80>;
-		hwver = "VIM4.V12"; /* Will be updated in uboot. */
-	};
-};
-
-&vrtc {
-	status = "disabled";
-};
-
-&pwm_ef {
-	status = "okay";
-	pinctrl-names = "default";
-	pinctrl-0 = <&pwm_f_pins>;
+	amlogic-dt-id = "t7_a311d2_an400-8g";
 };
