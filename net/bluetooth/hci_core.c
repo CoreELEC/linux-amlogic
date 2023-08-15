@@ -4062,7 +4062,14 @@ static void hci_rx_work(struct work_struct *work)
 		switch (hci_skb_pkt_type(skb)) {
 		case HCI_EVENT_PKT:
 			BT_DBG("%s Event packet", hdev->name);
+#if IS_ENABLED(CONFIG_AMLOGIC_LINUX_BT)
+			if (skb->data[0] != 0x62)	/* filter hci bt fw log */
+				hci_event_packet(hdev, skb);
+			else
+				kfree_skb(skb);
+#else
 			hci_event_packet(hdev, skb);
+#endif
 			break;
 
 		case HCI_ACLDATA_PKT:
