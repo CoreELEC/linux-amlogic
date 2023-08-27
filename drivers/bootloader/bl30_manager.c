@@ -23,6 +23,7 @@ static u32 remotewakeupmask = 0xffffffff;
 static u32 decode_type = 0;
 static u32 enable_system_power = 0;
 static char gpio[16] = {0};
+static uint32_t gpiopower = 0xffff;
 
 static int __init remote_wakeup_setup(char *str)
 {
@@ -119,11 +120,42 @@ static struct platform_driver bl30_manager_driver = {
 	},
 };
 
+static ssize_t setup_bl30_store(struct class *cla,
+			     struct class_attribute *attr,
+			     const char *buf, size_t count)
+
+{
+	pr_info("%s: Do setup BL30 blob\n", DRIVER_NAME);
+	pr_info("%s: IR remote wake-up code: 0x%x\n", DRIVER_NAME, remotewakeup);
+	pr_info("%s: IR remote wake-up code protocol: 0x%x\n", DRIVER_NAME, decode_type);
+	pr_info("%s: IR remote wake-up code mask: 0x%x\n", DRIVER_NAME, remotewakeupmask);
+	pr_info("%s: enable 5V system power on suspend/power off state: %d\n", DRIVER_NAME
+		, enable_system_power);
+	pr_info("%s: gpiopower: %d (%s)\n", DRIVER_NAME, gpiopower, gpio);
+
+	// uboot 2019
+	scpi_send_data((void *)&remotewakeup, sizeof(remotewakeup), SCPI_AOCPU,
+			  SCPI_CMD_SET_REMOTE, NULL, 0);
+	scpi_send_data((void *)&decode_type, sizeof(decode_type), SCPI_AOCPU,
+			  SCPI_CMD_SET_IR_PROTOCOL, NULL, 0);
+	scpi_send_data((void *)&remotewakeupmask, sizeof(remotewakeupmask), SCPI_AOCPU,
+			  SCPI_CMD_SET_REMOTE_MASK, NULL, 0);
+	scpi_send_data((void *)&enable_system_power, sizeof(enable_system_power), SCPI_AOCPU,
+			  SCPI_CMD_SET_USB_POWER, NULL, 0);
+	scpi_send_data((void *)&gpiopower, sizeof(gpiopower), SCPI_AOCPU,
+			  SCPI_CMD_SET_GPIO_POWER, NULL, 0);
+
+	return count;
+}
+
+static CLASS_ATTR_WO(setup_bl30);
+
+static struct class *bl30_manager_class;
+
 static int __init bl30_manager_init(void)
 {
 	int ret;
 	int i, x;
-	uint32_t gpiopower = 0xffff;
 
 	ret = platform_driver_register(&bl30_manager_driver);
 	if (ret < 0) {
@@ -146,24 +178,10 @@ static int __init bl30_manager_init(void)
 		}
 	}
 
-	pr_info("%s: IR remote wake-up code: 0x%x\n", DRIVER_NAME, remotewakeup);
-	pr_info("%s: IR remote wake-up code protocol: 0x%x\n", DRIVER_NAME, decode_type);
-	pr_info("%s: IR remote wake-up code mask: 0x%x\n", DRIVER_NAME, remotewakeupmask);
-	pr_info("%s: enable 5V system power on suspend/power off state: %d\n", DRIVER_NAME
-		, enable_system_power);
-	pr_info("%s: gpiopower: %d (%s)\n", DRIVER_NAME, gpiopower, gpio);
-
-	// uboot 2019
-	ret = scpi_send_data((void *)&remotewakeup, sizeof(remotewakeup), SCPI_AOCPU,
-			     SCPI_CMD_SET_REMOTE, NULL, 0);
-	ret = scpi_send_data((void *)&decode_type, sizeof(decode_type), SCPI_AOCPU,
-			     SCPI_CMD_SET_IR_PROTOCOL, NULL, 0);
-	ret = scpi_send_data((void *)&remotewakeupmask, sizeof(remotewakeupmask), SCPI_AOCPU,
-			     SCPI_CMD_SET_REMOTE_MASK, NULL, 0);
-	ret = scpi_send_data((void *)&enable_system_power, sizeof(enable_system_power), SCPI_AOCPU,
-			     SCPI_CMD_SET_USB_POWER, NULL, 0);
-	ret = scpi_send_data((void *)&gpiopower, sizeof(gpiopower), SCPI_AOCPU,
-			     SCPI_CMD_SET_GPIO_POWER, NULL, 0);
+	bl30_manager_class = class_create(THIS_MODULE, DRIVER_NAME);
+	ret = class_create_file(bl30_manager_class, &class_attr_setup_bl30);
+	if (ret)
+		pr_err("%s: create class fail.\n", DRIVER_NAME);
 
 	return 0;
 }
@@ -171,6 +189,7 @@ static int __init bl30_manager_init(void)
 static void __exit bl30_manager_exit(void)
 {
 	platform_driver_unregister(&bl30_manager_driver);
+	class_unregister(bl30_manager_class);
 	pr_info("%s: driver exited\n", DRIVER_NAME);
 }
 
