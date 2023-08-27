@@ -103,18 +103,12 @@ static struct platform_driver bl301_manager_driver = {
 	},
 };
 
-static int __init bl301_manager_init(void)
+static ssize_t setup_bl301_store(struct class *cla,
+			     struct class_attribute *attr,
+			     const char *buf, size_t count)
+
 {
-	int ret;
-
-	ret = platform_driver_register(&bl301_manager_driver);
-	if (ret < 0) {
-			pr_info("%s: unable to register platform driver\n", DRIVER_NAME);
-			return ret;
-	}
-
-	pr_info("%s: driver init\n", DRIVER_NAME);
-
+	pr_info("%s: Do setup BL301 blob\n", DRIVER_NAME);
 	pr_info("%s: IR remote wake-up code: 0x%x\n", DRIVER_NAME, remotewakeup);
 	pr_info("%s: IR remote wake-up code mask: 0x%x\n", DRIVER_NAME, remotewakeupmask);
 	pr_info("%s: IR remote wake-up code protocol: 0x%x\n", DRIVER_NAME, decode_type);
@@ -130,12 +124,42 @@ static int __init bl301_manager_init(void)
 	scpi_send_usr_data(SCPI_CL_5V_SYSTEM_POWER, &enable_system_power,
 		sizeof(enable_system_power));
 
+	return count;
+}
+
+static struct class_attribute bl301_manager_class_attrs[] = {
+	__ATTR_WO(setup_bl301),
+	__ATTR_NULL
+};
+
+static struct class bl301_manager_class = {
+	.name = DRIVER_NAME,
+	.class_attrs = bl301_manager_class_attrs,
+};
+
+static int __init bl301_manager_init(void)
+{
+	int ret;
+
+	ret = platform_driver_register(&bl301_manager_driver);
+	if (ret < 0) {
+			pr_info("%s: unable to register platform driver\n", DRIVER_NAME);
+			return ret;
+	}
+
+	ret = class_register(&bl301_manager_class);
+	if (ret)
+		pr_err("%s: create class fail.\n", DRIVER_NAME);
+
+	pr_info("%s: driver init\n", DRIVER_NAME);
+
 	return 0;
 }
 
 static void __exit bl301_manager_exit(void)
 {
 	platform_driver_unregister(&bl301_manager_driver);
+	class_unregister(&bl301_manager_class);
 	pr_info("%s: driver exited\n", DRIVER_NAME);
 }
 
