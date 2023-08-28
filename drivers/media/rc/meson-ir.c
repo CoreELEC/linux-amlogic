@@ -61,6 +61,13 @@
 
 #define MESON_TRATE		10	/* us */
 
+u32 backup_IR_DEC_REG0;
+u32 backup_IR_DEC_REG1;
+u32 backup_IR_DEC_LDR_ACTIVE;
+u32 backup_IR_DEC_LDR_IDLE;
+u32 backup_IR_DEC_BIT_0;
+u32 backup_IR_DEC_LDR_REPEAT;
+
 struct meson_ir {
 	void __iomem	*reg;
 	struct rc_dev	*rc;
@@ -218,6 +225,14 @@ static int meson_ir_probe(struct platform_device *pdev)
 
 	meson_ir_init(pdev);
 
+	// make register backup
+	backup_IR_DEC_REG0 = meson_ir_get_reg(ir, IR_DEC_REG0);
+	backup_IR_DEC_REG1 = meson_ir_get_reg(ir, IR_DEC_REG1);
+	backup_IR_DEC_LDR_ACTIVE = meson_ir_get_reg(ir, IR_DEC_LDR_ACTIVE);
+	backup_IR_DEC_LDR_IDLE = meson_ir_get_reg(ir, IR_DEC_LDR_IDLE);
+	backup_IR_DEC_BIT_0 = meson_ir_get_reg(ir, IR_DEC_BIT_0);
+	backup_IR_DEC_LDR_REPEAT = meson_ir_get_reg(ir, IR_DEC_LDR_REPEAT);
+
 	dev_info(dev, "receiver initialized\n");
 
 	return 0;
@@ -272,6 +287,15 @@ static int meson_ir_resume(struct device *dev)
 	unsigned long flags;
 
 	spin_lock_irqsave(&ir->lock, flags);
+
+	// restore register backup
+	meson_ir_set_mask(ir, IR_DEC_REG0, backup_IR_DEC_REG0, backup_IR_DEC_REG0);
+	meson_ir_set_mask(ir, IR_DEC_REG1, backup_IR_DEC_REG1, backup_IR_DEC_REG1);
+	meson_ir_set_mask(ir, IR_DEC_LDR_ACTIVE, backup_IR_DEC_LDR_ACTIVE, backup_IR_DEC_LDR_ACTIVE);
+	meson_ir_set_mask(ir, IR_DEC_LDR_IDLE, backup_IR_DEC_LDR_IDLE, backup_IR_DEC_LDR_IDLE);
+	meson_ir_set_mask(ir, IR_DEC_BIT_0, backup_IR_DEC_BIT_0, backup_IR_DEC_BIT_0);
+	meson_ir_set_mask(ir, IR_DEC_LDR_REPEAT, backup_IR_DEC_LDR_REPEAT, backup_IR_DEC_LDR_REPEAT);
+
 	meson_ir_init(pdev);
 #ifndef CONFIG_AMLOGIC_MODIFY
 	enable_irq_wake(ir->irq);
