@@ -225,6 +225,15 @@ static int c_show(struct seq_file *m, void *v)
 	seq_printf(m, "SoC\t\t: ");
 
 	switch (chipid[0]) {
+		case MESON_CPU_MAJOR_ID_G12A:
+			seq_puts(m, "G12A\n");
+			break;
+		case MESON_CPU_MAJOR_ID_G12B:
+			seq_puts(m, "G12B\n");
+			break;
+		case MESON_CPU_MAJOR_ID_SM1:
+			seq_puts(m, "SM1\n");
+			break;
 		case MESON_CPU_MAJOR_ID_SC2:
 			seq_puts(m, "S905X4\n");
 			break;
