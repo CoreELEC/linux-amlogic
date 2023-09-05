@@ -149,6 +149,9 @@
 &audiobus {
 	aml_i2s2hdmi: i2s2hdmi {
 		compatible = "amlogic, t7-snd-tdmc";
+		clocks = <&clkaudio CLKID_AUDIO_MCLK_C
+				&clkc CLKID_MPLL2>;
+		clock-names = "mclk", "clk_srcpll";
 	};
 	tdm@1 {
 		/delete-property/ tdmin-src-name;
