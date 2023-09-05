@@ -6,6 +6,7 @@ dtb-y += s4_s905y4_4g.dtb
 dtb-y += s4_s905y4_buzztv_hd5_2g.dtb
 dtb-y += s4_s905y4_buzztv_hd5_4g.dtb
 dtb-y += s4_s905y4_khadas_vim1s.dtb
+dtb-y += s5_s928x_tencent_aurora_5x.dtb
 dtb-y += sc2_s905x4_2g.dtb
 dtb-y += sc2_s905x4_2g_1gbit.dtb
 dtb-y += sc2_s905x4_4g.dtb

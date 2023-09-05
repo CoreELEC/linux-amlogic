@@ -1,0 +1,51 @@
+#include "s5_s928x_ax201_v2_linux.dts"
+#include "coreelec_s5_common.dtsi"
+
+/ {
+	model = "Tencent Aurora Box 5X";
+	coreelec-dt-id = "s5_s928x_tencent_aurora_5x";
+	amlogic-dt-id = "s5_s928x_ax201-v2";
+
+	/delete-node/ sdcard-3v3;
+	/delete-node/ sdcard-1v8_3v3;
+};
+
+&i2c1 {
+	clock-frequency = <300000>;
+
+	tca6507: tca6507@45 {
+		compatible = "ti,tca6507";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		reg = <0x45>;
+
+		gpio-controller;
+		#gpio-cells = <2>;
+
+		led0: led-red@0 {
+			label = "strip-red";
+			reg = <0x0>;
+			linux,default-trigger = "default-on";
+			retain-state-shutdown;
+		};
+
+		led1: led-green@1 {
+			label = "strip-green";
+			reg = <0x1>;
+			linux,default-trigger = "default-on";
+		};
+
+		led2: led-blue@2 {
+			label = "strip-blue";
+			reg = <0x2>;
+			linux,default-trigger = "default-on";
+			retain-state-suspended;
+		};
+	};
+};
+
+&sd_emmc_b {
+	status = "disabled";
+	/delete-property/ vmmc-supply;
+	/delete-property/ vqmmc-supply;
+};

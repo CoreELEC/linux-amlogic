@@ -1,0 +1,179 @@
+#include "coreelec_common.dtsi"
+
+/ {
+	amhdmitx: amhdmitx{
+		/delete-property/ pxp_mode;
+		vend_data: vend_data{ /* Should modified by Customer */
+			product_desc = "S5"; /* Max Chars: 16 */
+		};
+	};
+
+	reserved-memory {
+		codec_mm_cma:linux,codec_mm_cma {
+			size = <0x0 0x4b000000>;
+		};
+
+		di_cma_reserved:linux,di_cma {
+			size = <0x0 0x400000>;
+		};
+
+		ion_cma_reserved:linux,ion-dev {
+			size = <0x0 0xd000000>;
+		};
+
+		ion_fb_reserved:linux,ion-fb {
+			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
+		};
+
+		pcie_dma_ops_mm:linux,pcie_dma_ops {
+			size = <0x0 0x4800000>;
+		};
+	};
+
+	vc9000e_rev {
+		interrupts = <GIC_SPI 157 IRQ_TYPE_EDGE_RISING
+				GIC_SPI 158 IRQ_TYPE_EDGE_RISING
+				GIC_SPI 159 IRQ_TYPE_EDGE_RISING>;
+		interrupt-names = "vc9000e_irq0", "vc9000e_irq1", "vc9000e_irq1";
+		power-domains = <&pwrdm PDID_S5_VC9000E>;
+		clock-names = "vers_sys_clk", "vers_core_clk", "vers_aclk";
+		clocks = <&clkc CLKID_SYS_CLK_VC9000E>,
+				<&clkc CLKID_VC9000E_CORE>,
+				<&clkc CLKID_VC9000E_AXI>;
+	};
+
+	/delete-node/ auge_sound;
+	auge_sound {
+		compatible = "amlogic, auge-sound-card";
+		aml-audio-card,name = "AML-AUGESOUND";
+
+		avout_mute-gpios = <&gpio GPIOA_8 GPIO_ACTIVE_HIGH>;
+
+		interrupts = <GIC_SPI 83 IRQ_TYPE_EDGE_RISING>;
+		interrupt-names = "audio_exception64";
+
+		aml-audio-card,dai-link@0 {
+			mclk-fs = <128>;
+			cpu {
+				system-clock-frequency = <6144000>;
+				sound-dai = <&spdifb>;
+			};
+			codec {
+				sound-dai = <&spdifb>;
+			};
+		};
+
+		aml-audio-card,dai-link@1 {
+			format = "i2s";
+			mclk-fs = <256>;
+			bitclock-master = <&tdmb>;
+			frame-master = <&tdmb>;
+			cpu {
+				dai-tdm-slot-tx-mask = <1 1>;
+				dai-tdm-slot-rx-mask = <1 1>;
+				dai-tdm-slot-num = <2>;
+				dai-tdm-slot-width = <32>;
+				system-clock-frequency = <12288000>;
+				sound-dai = <&tdmb>;
+			};
+			codec {
+				sound-dai = <&tdmb>;
+			};
+		};
+
+		aml-audio-card,dai-link@2 {
+			mclk-fs = <128>;
+			cpu {
+				system-clock-frequency = <6144000>;
+				sound-dai = <&spdifa>;
+			};
+			codec {
+				sound-dai = <&spdifa>;
+			};
+		};
+
+		aml-audio-card,dai-link@3 {
+			format = "i2s";
+			mclk-fs = <256>;
+			bitclock-master = <&aml_i2s2hdmi>;
+			frame-master = <&aml_i2s2hdmi>;
+			cpu {
+				sound-dai = <&aml_i2s2hdmi>;
+				dai-tdm-slot-tx-mask = <1 1>;
+				dai-tdm-slot-rx-mask = <1 1>;
+				dai-tdm-slot-num = <2>;
+				dai-tdm-slot-width = <32>;
+				system-clock-frequency = <12288000>;
+			};
+			codec {
+				sound-dai = <&dummy_codec>;
+			};
+		};
+	};
+
+	vcc1v8_reg: fixedregulator@vcc1v8 {
+		vin-supply = <&vddao3v3_reg>;
+	};
+
+	sdcard_3v3: sdcard-3v3 {
+		startup-delay-us = <70000>;
+		/delete-property/ regulator-always-on;
+	};
+
+	vddio_c: sdcard-1v8_3v3 {
+		startup-delay-us = <70000>;
+	};
+
+	multi-di {
+		tb = <2>;
+	};
+
+	meson-ir {
+		/* Multi-format IR controller */
+		reg = <0x0 0xfe084040 0x00 0x44>;
+		interrupts = <GIC_SPI 61 IRQ_TYPE_EDGE_RISING>;
+	};
+
+	meson-remote {
+		reg = <0x0 0xfe084040 0x00 0x44>, /*Multi-format IR controller*/
+		      <0x0 0xfe084000 0x00 0x20>; /*Legacy IR controller*/
+		interrupts = <GIC_SPI 61 IRQ_TYPE_EDGE_RISING>;
+	};
+};
+
+&audiobus {
+	aml_i2s2hdmi: i2s2hdmi {
+		compatible = "amlogic, tm2-revb-snd-tdmc";
+		clocks = <&clkaudio CLKID_AUDIO_MCLK_C
+				&clkc CLKID_HIFI_PLL
+				&clkc CLKID_HIFI1_PLL>;
+		clock-names = "mclk", "clk_srcpll", "clk_src_cd";
+	};
+};
+
+&earc {
+	status = "disabled";
+};
+
+&i2c1 {
+	/delete-node/ aw9523_led@5b;
+};
+
+&soc_thermal {
+	sustainable-power = <3000>;
+};
+
+&periphs_pinctrl {
+	/delete-node/ spdifin;
+	/delete-node/ spdifin_a_mute;
+};
+
+&vddqlp_reg {
+	/delete-property/ pinctrl-names;
+	/delete-property/ gpio;
+};
+
+&vddq_reg {
+	/delete-property/ pinctrl-names;
+	/delete-property/ gpio;
+};
