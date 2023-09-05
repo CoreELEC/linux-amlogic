@@ -137,6 +137,15 @@
 	status = "disabled";
 };
 
+&i2c2 {
+	/delete-node/ sensor1@1a;
+	/delete-node/ sensor2@36;
+};
+
+&csiphy0 {
+	/delete-node/ ports;
+};
+
 &audiobus {
 	aml_i2s2hdmi: i2s2hdmi {
 		compatible = "amlogic, t7-snd-tdmc";
