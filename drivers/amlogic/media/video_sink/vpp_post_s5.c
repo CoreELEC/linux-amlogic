@@ -1040,13 +1040,19 @@ int update_vpp_input_info(const struct vinfo_s *info)
 	/* vd3 */
 	vpp_input.din_hsize[2] = 0;
 	vpp_input.din_vsize[2] = 0;
+	vpp_input.din_x_start[2] = 0;
+	vpp_input.din_y_start[2] = 0;
 
 	/* osd1 */
 	vpp_input.din_hsize[3] = 0;
 	vpp_input.din_vsize[3] = 0;
+	vpp_input.din_x_start[3] = 0;
+	vpp_input.din_y_start[3] = 0;
 	/* osd2 */
 	vpp_input.din_hsize[4] = 0;
 	vpp_input.din_vsize[4] = 0;
+	vpp_input.din_x_start[4] = 0;
+	vpp_input.din_y_start[4] = 0;
 
 	if (vd_proc_vd1_info->vd1_slices_dout_dpsel == VD1_SLICES_DOUT_4S4P ||
 		vd_proc_vd1_info->vd1_slices_dout_dpsel == VD1_SLICES_DOUT_2S4P) {
