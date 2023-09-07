@@ -202,6 +202,9 @@ static int c_show(struct seq_file *m, void *v)
 		case MESON_CPU_MAJOR_ID_SC2:
 			seq_puts(m, "S905X4\n");
 			break;
+		case MESON_CPU_MAJOR_ID_S5:
+			seq_puts(m, "S928X\n");
+			break;
 		case MESON_CPU_MAJOR_ID_T7:
 			seq_puts(m, "A311D2\n");
 			break;
