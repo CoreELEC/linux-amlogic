@@ -9,7 +9,6 @@
 	/delete-node/ bt-dev;
 	/delete-node/ wifi;
 	/delete-node/ wifi_pwm_conf;
-	/delete-node/ adc_keypad;
 	/delete-node/ unifykey;
 	/delete-node/ rtc;
 

@@ -48,6 +48,8 @@
 		reg = <0x0 0xFF800000 0x0 0x400>;
 	};
 
+	/delete-node/ adc_keypad;
+
 	/delete-node/ auge_sound;
 	auge_sound {
 		compatible = "amlogic, g12a-sound-card";

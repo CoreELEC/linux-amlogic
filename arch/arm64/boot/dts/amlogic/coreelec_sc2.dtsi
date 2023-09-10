@@ -168,6 +168,8 @@
 	dummy_venc: dummy_venc {
 		status = "disabled";
 	};
+
+	/delete-node/ adc_keypad;
 };
 
 &meson_fb {

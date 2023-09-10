@@ -15,10 +15,6 @@
 		key_type = <EV_KEY>;
 	};
 
-	adc_keypad {
-		status = "disable";
-	};
-
 	gpioleds {
 		net_green {
 			label="net_green";

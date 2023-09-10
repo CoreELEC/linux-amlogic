@@ -53,18 +53,6 @@
 		};
 	};
 
-	adc_keypad {
-		compatible = "amlogic, adc_keypad";
-		status = "okay";
-		key_name = "power";
-		key_num = <1>;
-		io-channels = <&saradc SARADC_CH2>;
-		io-channel-names = "key-chan-2";
-		key_chan = <SARADC_CH2>;
-		key_code = <116>;
-		key_val = <0>; //val=voltage/1800mV*1023
-		key_tolerance = <40>;
-	};
 	efuse: efuse {
 		compatible = "amlogic, efuse";
 		read_cmd = <0x82000030>;
