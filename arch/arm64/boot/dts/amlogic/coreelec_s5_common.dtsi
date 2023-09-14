@@ -8,6 +8,10 @@
 		};
 	};
 
+	gpu:valhall {
+		compatible = "arm,mali-valhall";
+	};
+
 	reserved-memory {
 		codec_mm_cma:linux,codec_mm_cma {
 			size = <0x0 0x4b000000>;

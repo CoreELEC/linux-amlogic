@@ -7,6 +7,10 @@
 		};
 	};
 
+	gpu:bifrost {
+		compatible = "arm,mali-bifrost";
+	};
+
 	reserved-memory {
 		ramoops@0x07400000 {
 			compatible = "ramoops";
