@@ -481,7 +481,8 @@ static const char * const fw_path[] = {
 	"/lib/firmware/updates/" UTS_RELEASE,
 	"/lib/firmware/updates",
 	"/lib/firmware/" UTS_RELEASE,
-	"/lib/firmware"
+	"/lib/firmware",
+	""
 };
 
 static char strpath[PATH_SIZE * CUSTOM_FW_PATH_COUNT];
@@ -576,11 +577,16 @@ fw_get_filesystem_firmware(struct device *device, struct fw_priv *fw_priv,
 		size_t *file_size_ptr = NULL;
 
 		/* skip the unset customized path */
-		if (!fw_path[i][0])
-			continue;
+		if (i != ARRAY_SIZE(fw_path) - 1) {
+			if (!fw_path[i][0])
+				continue;
 
-		len = snprintf(path, PATH_MAX, "%s/%s%s",
-			       fw_path[i], fw_priv->fw_name, suffix);
+			len = snprintf(path, PATH_MAX, "%s/%s%s",
+				       fw_path[i], fw_priv->fw_name, suffix);
+		}
+		else
+			len = snprintf(path, PATH_MAX, "%s%s",
+				       fw_priv->fw_name, suffix);
 		if (len >= PATH_MAX) {
 			rc = -ENAMETOOLONG;
 			break;
