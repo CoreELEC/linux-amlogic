@@ -119,6 +119,10 @@
 	/delete-property/ vrr_type;
 };
 
+&aml_wifi {
+	dhd_static_buf;
+};
+
 &ethmac {
 	wol = <0>;
 };

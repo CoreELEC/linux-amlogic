@@ -33,10 +33,6 @@
 		};
 	};
 
-	aml_wifi {
-		dhd_static_buf; /* if use bcm wifi, config dhd_static_buf */
-	};
-
 	auge_sound {
 		/delete-property/ avout_mute-gpios;
 

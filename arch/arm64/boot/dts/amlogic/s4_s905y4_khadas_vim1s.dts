@@ -101,10 +101,6 @@
 	power_down_disable = <1>;
 };
 
-&aml_wifi {
-	dhd_static_buf;
-};
-
 &sd_emmc_b {
 	cap-sd-highspeed;
 	sd-uhs-sdr12;
