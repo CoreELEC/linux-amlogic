@@ -54,7 +54,6 @@
 	/delete-node/ smartcard;
 	/delete-node/ dvb-extern;
 	/delete-node/ dvb-demux;
-	/delete-node/ adc_keypad;
 	/delete-node/ lcd;
 	/delete-node/ backlight;
 	/delete-node/ local_dimming_device;
