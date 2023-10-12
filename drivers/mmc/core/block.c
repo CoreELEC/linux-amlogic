@@ -62,6 +62,9 @@
 #include "quirks.h"
 #include "sd_ops.h"
 
+#include "../../../common_drivers/drivers/mmc/host/mmc_common.h"
+#include "../../../common_drivers/drivers/mmc/host/mmc_partitions.h"
+
 MODULE_ALIAS("mmc:block");
 #ifdef MODULE_PARAM_PREFIX
 #undef MODULE_PARAM_PREFIX
@@ -2942,6 +2945,39 @@ static void mmc_blk_remove_debugfs(struct mmc_card *card,
 
 #endif /* CONFIG_DEBUG_FS */
 
+#ifdef CONFIG_AMLOGIC_MMC_MESON_GX
+static int mmc_validate_mpt_partition(struct mmc_card *card)
+{
+	char *buf;
+	int ret;
+
+	/* check only if 'card' is eMMC device */
+	if (strcmp(mmc_hostname(card->host), "mmc0"))
+		return -EINVAL;
+
+	buf = (char*)kmalloc(1 << card->csd.read_blkbits, GFP_KERNEL);
+	if (buf == NULL)
+		return -ENOMEM;
+
+	mmc_claim_host(card->host);
+
+	/* FIXME: fix up the magic number for start block to check MPT partition */
+	ret = mmc_read_internal(card,
+		(get_reserve_partition_off_from_tbl()) / 512, 1, buf);
+	if (ret == 0) {
+		if (strncmp(buf, MMC_PARTITIONS_MAGIC,
+			sizeof(((struct mmc_partitions_fmt*)0)->magic)) != 0) {
+			ret = -EINVAL;
+		}
+	}
+
+	mmc_release_host(card->host);
+
+	kfree(buf);
+	return ret;
+}
+#endif
+
 static int mmc_blk_probe(struct mmc_card *card)
 {
 	struct mmc_blk_data *md;
@@ -2971,6 +3007,11 @@ static int mmc_blk_probe(struct mmc_card *card)
 	ret = mmc_blk_alloc_parts(card, md);
 	if (ret)
 		goto out;
+
+#ifdef CONFIG_AMLOGIC_MMC_MESON_GX
+	if (mmc_validate_mpt_partition(card) == 0)
+		aml_emmc_partition_ops(card, md->disk);
+#endif
 
 	/* Add two debugfs entries */
 	mmc_blk_add_debugfs(card, md);
