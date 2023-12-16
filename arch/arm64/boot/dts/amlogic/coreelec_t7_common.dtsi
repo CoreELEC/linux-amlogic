@@ -94,7 +94,7 @@
 				sound-dai = <&tdmb>;
 			};
 			codec {
-				sound-dai = <&tdmb>;
+				sound-dai = <&acodec>;
 			};
 		};
 
