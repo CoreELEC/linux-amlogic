@@ -710,7 +710,6 @@ USERINCLUDE    += \
 LINUXINCLUDE   += \
 		-I$(srctree)/$(COMMON_DRIVERS_DIR)/include \
 		-I$(srctree)/$(COMMON_DRIVERS_DIR)/include/uapi
-KBUILD_CFLAGS += -Werror
 endif
 
 ifeq ($(KBUILD_EXTMOD),)
