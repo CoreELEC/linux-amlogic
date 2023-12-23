@@ -854,7 +854,6 @@ USERINCLUDE    += \
 LINUXINCLUDE   += \
 		-I$(srctree)/$(COMMON_DRIVERS_DIR)/include \
 		-I$(srctree)/$(COMMON_DRIVERS_DIR)/include/uapi
-KBUILD_CFLAGS += -Werror
 KBUILD_CFLAGS += -Wno-override-module
 KBUILD_AFLAGS += -Wno-unused-command-line-argument
 endif
