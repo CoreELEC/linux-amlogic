@@ -704,7 +704,7 @@ endif
 
 ifdef CONFIG_AMLOGIC_DRIVER
 include $(srctree)/$(COMMON_DRIVERS_DIR)/header_include.mk
-KBUILD_CFLAGS += -Werror
+KBUILD_CFLAGS-$(CONFIG_WERROR) += -Werror
 endif
 
 ifeq ($(KBUILD_EXTMOD),)
