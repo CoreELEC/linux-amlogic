@@ -86,6 +86,12 @@ obj-$(CONFIG_DVB_USB_TBS5520SE) += dvb-usb-tbs5520se.o
 dvb-usb-tbs5930-objs := tbs5930.o
 obj-$(CONFIG_DVB_USB_TBS5930) += dvb-usb-tbs5930.o
 
+dvb-usb-tbs5580-objs := tbs5580.o
+obj-$(CONFIG_DVB_USB_TBS5580) += dvb-usb-tbs5580.o
+
+dvb-usb-tbs5930-objs := tbs5930.o
+obj-$(CONFIG_DVB_USB_TBS5930) += dvb-usb-tbs5930.o
+
 ccflags-y += -I$(srctree)/drivers/media/dvb-frontends/
 # due to tuner-xc3028
 ccflags-y += -I$(srctree)/drivers/media/tuners
