@@ -1392,6 +1392,9 @@ static int force_disable_dv_backlight;
 static bool dv_control_backlight_status;
 static bool bypass_all_vpp_pq;
 static int use_target_lum_from_cfg;
+static bool is_mel = false;
+module_param(is_mel, bool, 0444);
+MODULE_PARM_DESC(is_mel, "\n is_mel\n");
 
 /*0: not debug mode; 1:force bypass vpp pq; 2:force enable vpp pq*/
 /*3: force do nothing*/
@@ -8229,7 +8232,7 @@ int dolby_vision_parse_metadata(struct vframe_s *vf,
 				pr_dolby_dbg("bypass mel\n");
 			}
 			if (ret_flags == 1)
-				mel_flag = true;
+				mel_flag = is_mel = true;
 			if (!is_dv_standard_es(req.dv_enhance_exist,
 					       ret_flags, w)) {
 				src_format = FORMAT_SDR;
@@ -12587,6 +12590,7 @@ static ssize_t amdolby_vision_debug_store
 		if (kstrtoul(parm[1], 10, &val) < 0)
 			return -EINVAL;
 		enable_fel = val;
+		is_mel = false;
 		pr_info("enable_fel %d\n", enable_fel);
 	} else if (!strcmp(parm[0], "ko_info")) {
 		if (ko_info)
