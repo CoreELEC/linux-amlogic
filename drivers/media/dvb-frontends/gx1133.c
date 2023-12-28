@@ -1121,8 +1121,26 @@ static int gx1133_set_frontend(struct dvb_frontend *fe)
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	enum fe_status tunerstat;
 	int ret, i;
-	u32 s;
+	u32 s, pls_mode, pls_code;
+	u8 isi;
 	u8 buf[4],temp;
+
+	if (c->stream_id != NO_STREAM_ID_FILTER) {
+		isi = c->stream_id & 0xff;
+		pls_mode = (c->stream_id >> 26) & 3;
+		pls_code = (c->stream_id >> 8) & 0x3ffff;
+		if (!pls_mode && !pls_code)
+			pls_code = 1;
+	} else {
+		isi = 0;
+		pls_mode = 0;
+		pls_code = 1;
+	}
+
+	if (c->scrambling_sequence_index) {
+		pls_mode = 1;
+		pls_code = c->scrambling_sequence_index;
+	}
 
 	dev_dbg(&priv->i2c->dev, "%s()\n", __func__);
 
@@ -1201,7 +1219,21 @@ static int gx1133_set_frontend(struct dvb_frontend *fe)
 	for (i = 0; i<15; i++) {
 		ret = gx1133_read_status(fe, &tunerstat);
 		if (tunerstat & FE_HAS_LOCK)
+		{
+			/* Setup MIS filtering */
+			if (c->delivery_system == SYS_DVBS2)
+			{
+				gx1133_rd(priv,DVB_S2,GX1133_LDPC_TSID_CTRL,&temp);
+				if (c->stream_id != NO_STREAM_ID_FILTER)
+					temp|=1;
+				else
+					temp&=0xfe;
+				gx1133_wr(priv,DVB_S2,GX1133_LDPC_TSID_CTRL,temp);
+				gx1133_wr(priv,DVB_S2,GX1133_LDPC_TSID_CFG,isi);
+				
+			}
 			return 0;
+		}
 		msleep(20);
 	}
 	return -EINVAL;
@@ -1299,7 +1331,8 @@ static struct dvb_frontend_ops gx1133_ops = {
 			FE_CAN_FEC_4_5 | FE_CAN_FEC_5_6 | FE_CAN_FEC_6_7 |
 			FE_CAN_FEC_7_8 | FE_CAN_FEC_AUTO |
 			FE_CAN_2G_MODULATION |
-			FE_CAN_QPSK | FE_CAN_RECOVER
+			FE_CAN_QPSK | FE_CAN_RECOVER |
+			FE_CAN_MULTISTREAM
 	},
 	.release = gx1133_release,
 
