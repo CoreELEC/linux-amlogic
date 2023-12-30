@@ -2978,44 +2978,6 @@ static int cxd2878_tune(struct dvb_frontend*fe,bool re_tune,
 	return 0;
 }
 
-static int cxd2878_set_property(struct dvb_frontend*fe,
-		u32 cmd,u32 data)
-{
-	int ret = 0;
-	switch(cmd){
-		case DTV_DELIVERY_SYSTEM:
-			switch (data){
-				default:
-				case SYS_DVBT:
-				case SYS_DVBT2:
-					fe->ops.info.frequency_min_hz = 174*MHz;
-					fe->ops.info.frequency_max_hz = 868*MHz;
-					fe->ops.info.frequency_stepsize_hz = 250000;				
-					break;
-				case SYS_ISDBT:
-					fe->ops.info.frequency_min_hz = 42*MHz;
-					fe->ops.info.frequency_max_hz = 1002*MHz;
-					fe->ops.info.frequency_stepsize_hz = 0;
-					break;
-				case SYS_DVBC_ANNEX_A:
-				case SYS_DVBC_ANNEX_B:
-				case SYS_DVBC_ANNEX_C:
-					fe->ops.info.frequency_min_hz = 47*MHz;
-					fe->ops.info.frequency_max_hz = 862*MHz;
-					fe->ops.info.frequency_stepsize_hz = 62500;
-					fe->ops.info.symbol_rate_min = 1700000;
-					fe->ops.info.symbol_rate_max = 7200000;
-					break;
-				case SYS_ATSC:
-					fe->ops.info.frequency_min_hz = 54*MHz;
-					fe->ops.info.frequency_max_hz = 858*MHz;
-					fe->ops.info.frequency_stepsize_hz = 62500;
-					break;
-			}
-		}
-
-	return ret;
-}
 static enum dvbfe_algo cxd2878_get_algo(struct dvb_frontend *fe)
 {
 	return DVBFE_ALGO_HW;
@@ -3142,7 +3104,6 @@ static const struct dvb_frontend_ops cxd2878_ops = {
 			.read_snr				= cxd2878_read_snr,
 			.read_ucblocks			= cxd2878_read_ucblocks,
 
-			.set_property			= cxd2878_set_property,
 			
 			.spi_read				= cxd2878_spi_read,
 			.spi_write				= cxd2878_spi_write,
