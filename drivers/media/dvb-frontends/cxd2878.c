@@ -2979,12 +2979,12 @@ static int cxd2878_tune(struct dvb_frontend*fe,bool re_tune,
 }
 
 static int cxd2878_set_property(struct dvb_frontend*fe,
-		u32 cmd,u32 data)
+		struct dtv_property *tvp)
 {
 	int ret = 0;
-	switch(cmd){
+	switch(tvp->cmd){
 		case DTV_DELIVERY_SYSTEM:
-			switch (data){
+			switch (tvp->u.data){
 				default:
 				case SYS_DVBT:
 				case SYS_DVBT2:
