@@ -126,8 +126,8 @@ static uint debug = 0;
 module_param(debug, uint, 0644);
 static DEFINE_MUTEX(bct3236_lock);
 
-static int bct3236_i2c_writes(struct bct3236 *bct3236, unsigned char reg_addr,
-			      u8 len, u8 *bufs)
+static int bct3236_i2c_writes(struct bct3236 *bct3236, u8 reg_addr, int len,
+			      u8 *bufs)
 {
 	struct i2c_msg msg;
 	int i, ret;
@@ -145,7 +145,7 @@ static int bct3236_i2c_writes(struct bct3236 *bct3236, unsigned char reg_addr,
 
 	if (debug) {
 		if (len == 1) {
-			pr_info("%s: len = %u addr = %02x data = %02x\n",
+			pr_info("%s: len = %d addr = %02x data = %02x\n",
 				__func__, len, reg_addr, bufs[0]);
 		} else {
 			for (i = 1; i < len; i++) {
@@ -154,10 +154,10 @@ static int bct3236_i2c_writes(struct bct3236 *bct3236, unsigned char reg_addr,
 			}
 
 			if (i == len) {
-				pr_info("%s: len = %u addr = %02x data = %02x ...",
+				pr_info("%s: len = %d addr = %02x data = %02x ...",
 					__func__, len, reg_addr, bufs[0]);
 			} else {
-				pr_info("%s: len = %u addr = %02x data =",
+				pr_info("%s: len = %d addr = %02x data =",
 					__func__, len, reg_addr);
 
 				for (i = 0; i < len; i++)
@@ -186,8 +186,7 @@ static int bct3236_i2c_writes(struct bct3236 *bct3236, unsigned char reg_addr,
 	return 0;
 }
 
-static int bct3236_i2c_write(struct bct3236 *bct3236, unsigned char reg_addr,
-			     unsigned char reg_data)
+static int bct3236_i2c_write(struct bct3236 *bct3236, u8 reg_addr, u8 reg_data)
 {
 	int ret = -1;
 
@@ -216,7 +215,7 @@ static ssize_t io_show(struct device *dev, struct device_attribute *attr,
 	struct bct3236 *bct3236 = container_of(led_cdev, struct bct3236, cdev);
 	ssize_t len = 0;
 	int i;
-	u32 led_num;
+	int led_num;
 
 	mutex_lock(&bct3236_lock);
 
@@ -239,7 +238,7 @@ static int bct3236_set_colors(struct bct3236 *bct3236)
 	struct group_rgb *io;
 	u8 color_data[BCT3236_MAX_IO] = {};
 	int i, ret;
-	u32 led_num;
+	int led_num;
 
 	if (debug) {
 		pr_info("%s: colors =", __func__);
@@ -292,7 +291,7 @@ static ssize_t edge_color_on_store(struct device *dev,
 
 	mutex_lock(&bct3236_lock);
 
-	ret = sscanf(buf, "%6x", &color);
+	ret = sscanf(buf, "%x", &color);
 	if (ret != 1) {
 		pr_info("bct3236_%s: Invalid number of arguments\n", __func__);
 		goto unlock;
@@ -317,18 +316,18 @@ static ssize_t edge_color_off_store(struct device *dev,
 {
 	struct led_classdev *led_cdev = dev_get_drvdata(dev);
 	struct bct3236 *bct3236 = container_of(led_cdev, struct bct3236, cdev);
-	unsigned int color_buf;
+	u32 color;
 	int ret;
 
 	mutex_lock(&bct3236_lock);
 
-	ret = sscanf(buf, "%6x", &color_buf);
+	ret = sscanf(buf, "%x", &color);
 	if (ret != 1) {
 		pr_info("bct3236_%s: Invalid number of arguments\n", __func__);
 		goto unlock;
 	}
 
-	bct3236->edge_color_off = color_buf;
+	bct3236->edge_color_off = color;
 
 unlock:
 	mutex_unlock(&bct3236_lock);
@@ -341,18 +340,18 @@ static ssize_t edge_color_suspend_store(struct device *dev,
 {
 	struct led_classdev *led_cdev = dev_get_drvdata(dev);
 	struct bct3236 *bct3236 = container_of(led_cdev, struct bct3236, cdev);
-	unsigned int color_buf;
+	u32 color;
 	int ret;
 
 	mutex_lock(&bct3236_lock);
 
-	ret = sscanf(buf, "%6x", &color_buf);
+	ret = sscanf(buf, "%x", &color);
 	if (ret != 1) {
 		pr_info("bct3236_%s: Invalid number of arguments\n", __func__);
 		goto unlock;
 	}
 
-	bct3236->edge_color_suspend = color_buf;
+	bct3236->edge_color_suspend = color;
 
 unlock:
 	mutex_unlock(&bct3236_lock);
@@ -369,9 +368,9 @@ static ssize_t colors_store(struct device *dev, struct device_attribute *attr,
 
 	mutex_lock(&bct3236_lock);
 
-	ret = sscanf(buf, "%6x %6x %6x %6x %6x %6x %6x %6x %6x %6x %6x %6x",
-		     &colors[0], &colors[1], &colors[2], &colors[3], &colors[4],
-		     &colors[5], &colors[6], &colors[7], &colors[8], &colors[9],
+	ret = sscanf(buf, "%x %x %x %x %x %x %x %x %x %x %x %x", &colors[0],
+		     &colors[1], &colors[2], &colors[3], &colors[4], &colors[5],
+		     &colors[6], &colors[7], &colors[8], &colors[9],
 		     &colors[10], &colors[11]);
 	if (ret != bct3236->led_counts) {
 		pr_info("bct3236_%s: Invalid number of arguments\n", __func__);
@@ -395,7 +394,7 @@ static ssize_t colors_show(struct device *dev, struct device_attribute *attr,
 {
 	struct led_classdev *led_cdev = dev_get_drvdata(dev);
 	struct bct3236 *bct3236 = container_of(led_cdev, struct bct3236, cdev);
-	ssize_t len = 0;
+	int len = 0;
 	int i;
 
 	mutex_lock(&bct3236_lock);
@@ -417,7 +416,7 @@ static ssize_t colors_show(struct device *dev, struct device_attribute *attr,
 	return len;
 }
 
-static int bct3236_set_single_color(struct bct3236 *bct3236, u32 led_num)
+static int bct3236_set_single_color(struct bct3236 *bct3236, int led_num)
 {
 	struct group_rgb *io;
 	u8 color_data[BCT3236_MAX_IO] = {};
@@ -447,7 +446,7 @@ static ssize_t single_color_store(struct device *dev,
 				  struct device_attribute *attr,
 				  const char *buf, size_t count)
 {
-	u32 led_num;
+	int led_num;
 	struct led_classdev *led_cdev = dev_get_drvdata(dev);
 	struct bct3236 *bct3236 = container_of(led_cdev, struct bct3236, cdev);
 	u32 color = 0;
@@ -455,7 +454,7 @@ static ssize_t single_color_store(struct device *dev,
 
 	mutex_lock(&bct3236_lock);
 
-	ret = sscanf(buf, "%u %6x", &led_num, &color);
+	ret = sscanf(buf, "%u %x", &led_num, &color);
 	if (ret != 2) {
 		pr_info("bct3236_%s: Invalid number of arguments\n", __func__);
 		goto unlock;
@@ -485,11 +484,11 @@ static ssize_t reg_store(struct device *dev, struct device_attribute *attr,
 	struct led_classdev *led_cdev = dev_get_drvdata(dev);
 	struct bct3236 *bct3236 = container_of(led_cdev, struct bct3236, cdev);
 	int ret;
-	unsigned char reg_addr, reg_data;
+	u8 reg_addr, reg_data;
 
 	mutex_lock(&bct3236_lock);
 
-	if (sscanf(buf, "%2x %6x", &reg_addr, &reg_data) != 2) {
+	if (sscanf(buf, "%hhx %hhx", &reg_addr, &reg_data) != 2) {
 		pr_err("bct3236_%s: Invalid number of arguments\n", __func__);
 		goto unlock;
 	}
