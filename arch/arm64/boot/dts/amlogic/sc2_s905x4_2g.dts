@@ -5,10 +5,6 @@
 	model = "Amlogic";
 	coreelec-dt-id = "sc2_s905x4_2g";
 
-	auge_sound {
-		/delete-property/ avout_mute-gpios;
-	};
-
 	gpioleds {
 		sys_led {
 			label = "sys_led";

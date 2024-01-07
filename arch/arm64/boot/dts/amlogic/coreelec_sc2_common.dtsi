@@ -25,7 +25,7 @@
 		aml-audio-card,name = "AML-AUGESOUND";
 
 		/*avout mute gpio*/
-		avout_mute-gpios = <&gpio GPIOH_5 GPIO_ACTIVE_HIGH>;
+		avout_mute-gpios = <&gpio GPIOD_2 GPIO_ACTIVE_HIGH>;
 
 		aml-audio-card,dai-link@0 {
 			mclk-fs = <128>;
@@ -52,7 +52,7 @@
 				sound-dai = <&tdmb>;
 			};
 			codec {
-				sound-dai = <&tdmb>;
+				sound-dai = <&amlogic_codec>;
 			};
 		};
 
