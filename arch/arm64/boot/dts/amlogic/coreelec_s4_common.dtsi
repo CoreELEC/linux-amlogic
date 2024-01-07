@@ -40,7 +40,7 @@
 				sound-dai = <&tdmb>;
 			};
 			codec {
-				sound-dai = <&tdmb>;
+				sound-dai = <&amlogic_codec>;
 			};
 		};
 
