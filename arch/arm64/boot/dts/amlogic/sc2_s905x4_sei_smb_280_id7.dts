@@ -5,10 +5,6 @@
 	coreelec-dt-id = "sc2_s905x4_sei_smb_280_id7";
 	amlogic-dt-id = "sc2_s905x4_ah212-id7";
 
-	auge_sound {
-		avout_mute-gpios = <&gpio GPIOD_2 GPIO_ACTIVE_HIGH>;
-	};
-
 	gpioleds {
 		sys_led {
 			label = "sys_led";
