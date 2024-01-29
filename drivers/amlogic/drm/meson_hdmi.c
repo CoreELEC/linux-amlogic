@@ -54,18 +54,18 @@ static struct drm_display_mode dummy_mode = {
 	.name = "dummy_l",
 	.type = DRM_MODE_TYPE_USERDEF,
 	.status = MODE_OK,
-	.clock = 25000,
-	.hdisplay = 720,
-	.hsync_start = 736,
-	.hsync_end = 798,
-	.htotal = 858,
+	.clock = 148500,
+	.hdisplay = 1920,
+	.hsync_start = 1930,
+	.hsync_end = 1970,
+	.htotal = 2200,
 	.hskew = 0,
-	.vdisplay = 480,
-	.vsync_start = 489,
-	.vsync_end = 495,
-	.vtotal = 525,
+	.vdisplay = 1080,
+	.vsync_start = 1090,
+	.vsync_end = 1100,
+	.vtotal = 1125,
 	.vscan = 0,
-	.vrefresh = 50,
+	.vrefresh = 60,
 	.flags =  DRM_MODE_FLAG_NHSYNC | DRM_MODE_FLAG_NVSYNC,
 };
 
@@ -2059,6 +2059,7 @@ int meson_hdmitx_dev_bind(struct drm_device *drm,
 
 	/* Connector */
 	connector->polled = DRM_CONNECTOR_POLL_HPD;
+	connector->force = DRM_FORCE_ON;
 	drm_connector_helper_add(connector,
 				 &am_hdmi_connector_helper_funcs);
 
