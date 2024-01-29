@@ -825,10 +825,6 @@ static int set_disp_mode_auto(void)
 	u8 mode[32];
 	enum hdmi_vic vic = HDMI_0_UNKNOWN;
 
-	if (hdev->hpd_state == 0) {
-		pr_info("current hpd_state0, exit %s\n", __func__);
-		return -1;
-	}
 	if (hdev->suspend_flag) {
 		pr_info("currently under suspend, exit %s\n", __func__);
 		return -1;
