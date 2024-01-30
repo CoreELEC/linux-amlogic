@@ -131,3 +131,7 @@
 &drm_subsystem {
 	fbdev_sizes = <4096 2160 4096 4320 32>;
 };
+
+&drm_amcvbsout {
+	status = "disabled";
+};
