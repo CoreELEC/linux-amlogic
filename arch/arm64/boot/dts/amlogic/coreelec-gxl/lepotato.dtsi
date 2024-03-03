@@ -25,4 +25,16 @@
 		select = "disable";
 	};
 
+	bt-dev {
+		status = "disabled";
+	};
+
+	wifi {
+		status = "disabled";
+	};
+
+};
+	
+&sd_emmc_a {
+	status = "disabled";
 };
