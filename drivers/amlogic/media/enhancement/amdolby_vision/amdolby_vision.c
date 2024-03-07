@@ -182,7 +182,7 @@ module_param(dolby_vision_status, uint, 0664);
 MODULE_PARM_DESC(dolby_vision_status, "\n dolby_vision_status\n");
 
 /* delay before first frame toggle when core off->on */
-static uint dolby_vision_wait_delay = 2;
+static uint dolby_vision_wait_delay = 16;
 module_param(dolby_vision_wait_delay, uint, 0664);
 MODULE_PARM_DESC(dolby_vision_wait_delay, "\n dolby_vision_wait_delay\n");
 static int dolby_vision_wait_count;
@@ -305,7 +305,7 @@ static bool dolby_vision_el_disable;
 #define FLAG_FRAME_DELAY_MASK	0xf
 #define FLAG_FRAME_DELAY_SHIFT	16
 
-static unsigned int dolby_vision_flags = FLAG_BYPASS_VPP | FLAG_FORCE_CVM;
+static unsigned int dolby_vision_flags = FLAG_BYPASS_VPP | FLAG_FORCE_CVM | FLAG_USE_SINK_MIN_MAX;
 module_param(dolby_vision_flags, uint, 0664);
 MODULE_PARM_DESC(dolby_vision_flags, "\n dolby_vision_flags\n");
 
@@ -434,6 +434,11 @@ static u32 vpp_data_422T0444_backup;
 static unsigned int dolby_vision_graphics_priority;
 module_param(dolby_vision_graphics_priority, uint, 0664);
 MODULE_PARM_DESC(dolby_vision_graphics_priority, "\n dolby_vision_graphics_priority\n");
+
+/* Force video priority - overrides check if OSD is on in: is_graphics_output_off */
+static unsigned int dolby_vision_force_video_priority = 1;
+module_param(dolby_vision_force_video_priority, uint, 0664);
+MODULE_PARM_DESC(dolby_vision_force_video_priority, "\n dolby_vision_force_video_priority\n");
 
 /*1:HDR10, 2:HLG, 3: DV LL*/
 static int force_hdmin_fmt;
@@ -1532,6 +1537,9 @@ static bool is_meson_tvmode(void)
 
 static int is_graphics_output_off(void)
 {
+	if (dolby_vision_force_video_priority)
+		return 1;
+
 	if (is_meson_g12() || is_meson_tm2_stbmode() || is_meson_sc2())
 		return !(READ_VPP_REG(OSD1_BLEND_SRC_CTRL) & (0xf << 8)) &&
 		!(READ_VPP_REG(OSD2_BLEND_SRC_CTRL) & (0xf << 8));
@@ -9004,7 +9012,11 @@ int dolby_vision_parse_metadata(struct vframe_s *vf,
 		}
 	}
 
-	if (is_osd_off) {
+	/* dolby_vision_force_video_priority on will result in */
+	/* is_osd_off being set - in this case we still want to */
+	/* have the graphics luminance for subtitles and OSD. */
+	/* just want to have the video as the priority */
+	if (is_osd_off && !dolby_vision_force_video_priority) {
 		graphic_min = 0;
 		graphic_max = 0;
 	}
