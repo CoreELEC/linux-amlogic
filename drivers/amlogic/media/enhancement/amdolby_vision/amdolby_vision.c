@@ -414,6 +414,19 @@ static unsigned int dv_target_graphics_LL_max[3][3] = {
 	{ 300, 316, 100 }, /* SDR =>  DOVI/HDR/SDR */
 };
 
+static unsigned int dolby_vision_force_hdmi_lum = 0;
+module_param(dolby_vision_force_hdmi_lum, uint, 0664);
+MODULE_PARM_DESC(dolby_vision_force_hdmi_lum, "\n dolby_vision_force_hdmi_lum\n");
+
+static unsigned int dolby_vision_hdmi_lum_min = 50;
+static unsigned int dolby_vision_hdmi_lum_max = 4000; 
+
+module_param(dolby_vision_hdmi_lum_min, uint, 0664);
+MODULE_PARM_DESC(dolby_vision_hdmi_lum_min, "\n dolby_vision_hdmi_lum_min\n");
+
+module_param(dolby_vision_hdmi_lum_max, uint, 0664);
+MODULE_PARM_DESC(dolby_vision_hdmi_lum_max, "\n dolby_vision_hdmi_lum_max\n");
+
 /*these two parameters form OSD*/
 static unsigned int osd_graphic_width = 1920;
 static unsigned int osd_graphic_height = 1080;
@@ -8958,18 +8971,27 @@ int dolby_vision_parse_metadata(struct vframe_s *vf,
 				/* need lookup PQ table ... */
 			} else if (vinfo->vout_device->dv_info->ver == 1) {
 				if (vinfo->vout_device->dv_info->tmaxLUM) {
-					/* Target max luminance = 100+50*CV */
-					graphic_max =
-					target_lumin_max =
-						(vinfo->vout_device
-						->dv_info->tmaxLUM
-						* 50 + 100);
-					/* Target min luminance = (CV/127)^2 */
-					graphic_min =
-					dolby_vision_target_min =
-						(vinfo->vout_device->
-						dv_info->tminLUM ^ 2)
-						* 10000 / (127 * 127);
+
+					if (dolby_vision_force_hdmi_lum) {
+
+						graphic_max = target_lumin_max = dolby_vision_hdmi_lum_max;
+						graphic_min = dolby_vision_target_min = dolby_vision_hdmi_lum_min;
+
+					} else { 
+			
+						/* Target max luminance = 100+50*CV */
+						graphic_max =
+						target_lumin_max =
+							(vinfo->vout_device
+							->dv_info->tmaxLUM
+							* 50 + 100);
+						/* Target min luminance = (CV/127)^2 */
+						graphic_min =
+						dolby_vision_target_min =
+							(vinfo->vout_device->
+							dv_info->tminLUM ^ 2)
+							* 10000 / (127 * 127);
+					}
 				}
 			}
 		} else if (sink_hdr_support(vinfo) & HDR_SUPPORT) {
