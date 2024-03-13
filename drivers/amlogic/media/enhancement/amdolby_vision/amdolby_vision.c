@@ -9131,7 +9131,7 @@ int dolby_vision_parse_metadata(struct vframe_s *vf,
 	if (dolby_vision_flags & FLAG_CERTIFICAION) {
 		dolby_vision_graphics_priority = 0;
 	} else {
-		if (get_video_enabled() && is_graphics_output_off())
+		if (get_video_enabled())
 			dolby_vision_graphics_priority = 0;
 		else
 			dolby_vision_graphics_priority = 1;
