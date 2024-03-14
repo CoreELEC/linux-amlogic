@@ -2438,7 +2438,7 @@ static void check_dv_truly_support(struct hdmitx_dev *hdev, struct dv_info *dv)
 	struct rx_cap *prxcap = &hdev->rxcap;
 	unsigned int max_tmds_clk = 0;
 
-	if ((dv->ieeeoui == DV_IEEE_OUI) && (dv->ver <= 2)) {
+	if ((dv->ieeeoui == DV_IEEE_OUI) && (dv->ver <= 1)) {
 		/* check max tmds rate to determine if 4k60 DV can truly be
 		 * supported.
 		 */
@@ -2477,17 +2477,6 @@ static void check_dv_truly_support(struct hdmitx_dev *hdev, struct dv_info *dv)
 		if ((dv->ver == 1) && (dv->length == 0xE))
 			dv->sup_2160p60hz = dv->sup_2160p60hz &&
 						(max_tmds_clk >= 594);
-
-		if (dv->ver == 2) {
-			/* 4k60 DV support should be determined using video
-			 * formats supported in the EEDID as flag sup_2160p60hz
-			 * is not applicable for VSVDB V2.
-			 */
-			if (is_4k60_supported(prxcap) && (max_tmds_clk >= 594))
-				dv->sup_2160p60hz = 1;
-			else
-				dv->sup_2160p60hz = 0;
-		}
 	}
 }
 
@@ -2721,17 +2710,21 @@ int hdmitx_edid_parse(struct hdmitx_dev *hdmitx_device)
 	}
 	dv = &prxcap->dv_info;
 	/* if sup_2160p60hz of dv or dv2 is true, check the MAX_TMDS*/
-	if (dv->sup_2160p60hz) {
-		if (prxcap->Max_TMDS_Clock2 * 5 < 590) {
-			dv->sup_2160p60hz = 0;
-			pr_info(EDID "clear sup_2160p60hz\n");
+	if (dv->ver < 2) {
+		if (dv->sup_2160p60hz) {
+			if (prxcap->Max_TMDS_Clock2 * 5 < 590) {
+				dv->sup_2160p60hz = 0;
+				pr_info(EDID "clear sup_2160p60hz\n");
+			}
 		}
 	}
 	dv = &prxcap->dv_info2;
-	if (dv->sup_2160p60hz) {
-		if (prxcap->Max_TMDS_Clock2 * 5 < 590) {
-			dv->sup_2160p60hz = 0;
-			pr_info(EDID "clear sup_2160p60hz\n");
+	if (dv->ver < 2) {
+		if (dv->sup_2160p60hz) {
+			if (prxcap->Max_TMDS_Clock2 * 5 < 590) {
+				dv->sup_2160p60hz = 0;
+				pr_info(EDID "clear sup_2160p60hz\n");
+			}
 		}
 	}
 	hdmitx_device->vend_id_hit = hdmitx_find_philips(hdmitx_device);
