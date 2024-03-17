@@ -6197,7 +6197,6 @@ static void hdmitx_hpd_plugout_handler(struct work_struct *work)
 	}
 	/*after plugout, DV mode can't be supported*/
 	hdmitx_set_drm_pkt(NULL);
-	hdmitx_set_vsif_pkt(0, 0, NULL, true);
 	hdmitx_set_hdr10plus_pkt(0, NULL);
 	hdev->ready = 0;
 	if (hdev->repeater_tx)
