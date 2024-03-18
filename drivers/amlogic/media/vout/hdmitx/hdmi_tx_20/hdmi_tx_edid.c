@@ -2469,8 +2469,10 @@ static void check_dv_truly_support(struct hdmitx_dev *hdev, struct dv_info *dv)
 				     is_4k60_supported(prxcap)) &&
 				     (max_tmds_clk >= 594))
 					dv->sup_2160p60hz = 1;
-				else
+				else {
+					pr_info(EDID "clear sup_2160p60hz because of max TMDS\n");
 					dv->sup_2160p60hz = 0;
+				}
 			}
 		}
 
@@ -2485,8 +2487,10 @@ static void check_dv_truly_support(struct hdmitx_dev *hdev, struct dv_info *dv)
 			 */
 			if (is_4k60_supported(prxcap) && (max_tmds_clk >= 594))
 				dv->sup_2160p60hz = 1;
-			else
+			else {
+				pr_info(EDID "clear sup_2160p60hz because of max TMDS\n");
 				dv->sup_2160p60hz = 0;
+			}
 		}
 	}
 }

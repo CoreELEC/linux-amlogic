@@ -3946,11 +3946,13 @@ uint32_t sink_dv_support(const struct vinfo_s *vinfo)
 	if (vinfo->vout_device->dv_info->block_flag != CORRECT)
 		return 0;
 	/* for sink not support 60 dovi */
+	/*
 	if ((strstr(vinfo->name, "2160p60hz") != NULL) ||
 		(strstr(vinfo->name, "2160p50hz") != NULL)) {
 		if (!vinfo->vout_device->dv_info->sup_2160p60hz)
 			return 0;
 	}
+	*/
 	/* for interlace output */
 	if (vinfo->height != vinfo->field_height)
 		return 0;
