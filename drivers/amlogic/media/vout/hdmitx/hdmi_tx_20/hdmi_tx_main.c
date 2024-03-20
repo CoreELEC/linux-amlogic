@@ -909,35 +909,6 @@ ssize_t store_attr(struct device *dev,
 }
 /*aud_mode attr*/
 
-static ssize_t cs_show(struct device *dev,
-			 struct device_attribute *attr, char *buf)
-{
-	int pos = 0;
-	int cs = hdmitx_rd_reg(HDMITX_DWC_FC_AVICONF0) & 0x3;
-
-	pos +=
-	snprintf(buf + pos, PAGE_SIZE, "%d\n", cs);
-
-	return pos;
-}
-
-static ssize_t cd_show(struct device *dev,
-			 struct device_attribute *attr, char *buf)
-{
-	int pos = 0;
-	int cs = hdmitx_rd_reg(HDMITX_DWC_FC_AVICONF0) & 0x3;
-	int cd = (hdmitx_rd_reg(HDMITX_DWC_TX_INVID0) & 0x6) >> 1;
-
-	// YUV422
-	if (cs == COLORSPACE_YUV422)
-		cd = (~cd & 0x3);
-
-	pos +=
-	snprintf(buf + pos, PAGE_SIZE, "%d\n", cd);
-
-	return pos;
-}
-
 void setup_attr(const char *buf)
 {
 	char attr[16] = {0};
@@ -5507,8 +5478,6 @@ static ssize_t show_hdmi_hsty_config(struct device *dev,
 
 static DEVICE_ATTR(disp_mode, 0664, show_disp_mode, store_disp_mode);
 static DEVICE_ATTR(attr, 0664, show_attr, store_attr);
-static DEVICE_ATTR(cs, 0444, cs_show, NULL);
-static DEVICE_ATTR(cd, 0444, cd_show, NULL);
 static DEVICE_ATTR(aud_mode, 0644, show_aud_mode, store_aud_mode);
 static DEVICE_ATTR(vid_mute, 0644, show_vid_mute, store_vid_mute);
 static DEVICE_ATTR(edid, 0644, show_edid, store_edid);
@@ -6977,8 +6946,6 @@ static int amhdmitx_probe(struct platform_device *pdev)
 	hdmitx_device.hdtx_dev = dev;
 	ret = device_create_file(dev, &dev_attr_disp_mode);
 	ret = device_create_file(dev, &dev_attr_attr);
-	ret = device_create_file(dev, &dev_attr_cs);
-	ret = device_create_file(dev, &dev_attr_cd);
 	ret = device_create_file(dev, &dev_attr_aud_mode);
 	ret = device_create_file(dev, &dev_attr_vid_mute);
 	ret = device_create_file(dev, &dev_attr_edid);
@@ -7118,8 +7085,6 @@ static int amhdmitx_remove(struct platform_device *pdev)
 	/* Remove the cdev */
 	device_remove_file(dev, &dev_attr_disp_mode);
 	device_remove_file(dev, &dev_attr_attr);
-	device_remove_file(dev, &dev_attr_cs);
-	device_remove_file(dev, &dev_attr_cd);
 	device_remove_file(dev, &dev_attr_aud_mode);
 	device_remove_file(dev, &dev_attr_vid_mute);
 	device_remove_file(dev, &dev_attr_edid);
