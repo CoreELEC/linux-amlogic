@@ -785,9 +785,9 @@ static int set_disp_mode_auto(void)
 					case HDMI_3840x2160p60_64x27:
 						if (para->cs == COLORSPACE_RGB444 || para->cs == COLORSPACE_YUV444)
 						{
-							para->cd = COLORDEPTH_24B;
-							pr_info("hdmitx: display colourdepth is forced to %d bits because of current video information code\n",
-								colour_depths[para->cd - COLORDEPTH_24B]);
+							para->cd = COLORDEPTH_36B;
+							para->cs = COLORSPACE_YUV422;
+							pr_info("hdmitx: display is forced to cs/cd YUV422 12-bit because of current video information code\n");
 						}
 						break;
 					default:
@@ -5588,38 +5588,7 @@ static int hdmitx_set_current_vmode(enum vmode_e mode)
 
 static enum vmode_e hdmitx_validate_vmode(char *mode, unsigned int frac)
 {
-	struct vinfo_s *info = NULL;
-	struct hdmitx_dev *hdev = &hdmitx_device;
-
-	// force 4k50/60Hz to 420 unless manually set
-	if (strstr(hdev->fmt_attr, "rgb") == NULL &&
-	    strstr(hdev->fmt_attr, "420") == NULL &&
-	    strstr(hdev->fmt_attr, "422") == NULL &&
-	    strstr(hdev->fmt_attr, "444") == NULL) {
-		switch (hdev->hdmi_current_eotf_type) {
-			case EOTF_T_DOLBYVISION:
-			case EOTF_T_LL_MODE:
-			case EOTF_T_DV_AHEAD:
-				break;
-			default:
-				switch (hdmitx_edid_vic_tab_map_vic(mode)) {
-					case HDMI_3840x2160p50_16x9:
-					case HDMI_3840x2160p60_16x9:
-					case HDMI_4096x2160p50_256x135:
-					case HDMI_4096x2160p60_256x135:
-					case HDMI_3840x2160p50_64x27:
-					case HDMI_3840x2160p60_64x27:
-						if (!strstr(mode, "420"))
-							strncat(mode, "420", 3);
-						break;
-					default:
-						break;
-				}
-				break;
-		}
-	}
-
-	info = hdmi_get_valid_vinfo(mode);
+	struct vinfo_s *info = hdmi_get_valid_vinfo(mode);
 
 	if (info) {
 		/* //remove frac support for vout api
@@ -6162,10 +6131,14 @@ static void hdmitx_hpd_plugout_handler(struct work_struct *work)
 		mutex_unlock(&setclk_mutex);
 		return;
 	}
-	/*after plugout, DV mode can't be supported*/
-	hdmitx_set_drm_pkt(NULL);
-	hdmitx_set_vsif_pkt(0, 0, NULL, true);
-	hdmitx_set_hdr10plus_pkt(0, NULL);
+	if (is_tv_changed()) {
+		/* after plugout, DV mode can't be supported
+		 * clear pkt
+		 */
+		hdmitx_set_drm_pkt(NULL);
+		hdmitx_set_vsif_pkt(0, 0, NULL, true);
+		hdmitx_set_hdr10plus_pkt(0, NULL);
+	}
 	hdev->ready = 0;
 	if (hdev->repeater_tx)
 		rx_repeat_hpd_state(0);
@@ -7056,7 +7029,7 @@ static int amhdmitx_probe(struct platform_device *pdev)
 	hdmitx_extcon_register(pdev, dev);
 
 	/* update fmt_attr */
-	//hdmitx_init_fmt_attr(&hdmitx_device);
+	hdmitx_init_fmt_attr(&hdmitx_device);
 
 	hdmitx_device.task = kthread_run(hdmi_task_handle,
 		&hdmitx_device, "kthread_hdmi");
