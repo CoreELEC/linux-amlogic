@@ -180,6 +180,7 @@ static struct hdmitx_dev hdmitx_device = {
 static const struct dv_info dv_dummy;
 static int log_level;
 static bool hdmitx_edid_done;
+bool dovi_tv_led_bt2020 = false;
 /* for SONY-KD-55A8F TV, need to mute more frames
  * when switch DV(LL)->HLG
  */
@@ -2259,11 +2260,19 @@ static void hdmitx_set_vsif_pkt(enum eotf_type type,
 			hdmitx_device.hwop.setpacket(HDMI_PACKET_DRM,
 				NULL, NULL);
 			hdev->hwop.setpacket(HDMI_PACKET_VEND, VEN_DB1, VEN_HB);
-			/* Dolby Vision Source System-on-Chip Platform Kit Version 2.6:
-			 * 4.4.1 Expected AVI-IF for Dolby Vision output, need BT2020 for DV
-			 */
-			hdev->hwop.cntlconfig(hdev, CONF_AVI_BT2020,
-				SET_AVI_BT2020);/*BT.2020*/
+
+			if (dovi_tv_led_bt2020) {
+				/* Dolby Vision Source System-on-Chip Platform Kit Version 2.6:
+			 	* 4.4.1 Expected AVI-IF for Dolby Vision output, need BT2020 for DV
+			 	*/
+				hdev->hwop.cntlconfig(hdev, CONF_AVI_BT2020,
+					SET_AVI_BT2020);/*BT.2020*/
+			} else {
+				/* BT.2020 flag should not be used for TV-LED config */
+				hdev->hwop.cntlconfig(hdev, CONF_AVI_BT2020,
+					CLR_AVI_BT2020);
+			}
+
 			if (tunnel_mode == RGB_8BIT) {
 				hdev->hwop.cntlconfig(hdev,
 					CONF_AVI_RGBYCC_INDIC,
@@ -2365,11 +2374,17 @@ static void hdmitx_set_vsif_pkt(enum eotf_type type,
 			hdmitx_device.hwop.setpacket(HDMI_PACKET_DRM,
 				NULL, NULL);
 			hdev->hwop.setpacket(HDMI_PACKET_VEND, VEN_DB2, VEN_HB);
-			/* Dolby Vision Source System-on-Chip Platform Kit Version 2.6:
-			 * 4.4.1 Expected AVI-IF for Dolby Vision output, need BT2020 for DV
-			 */
-			hdev->hwop.cntlconfig(hdev, CONF_AVI_BT2020,
-				SET_AVI_BT2020);/*BT.2020*/
+			if (dovi_tv_led_bt2020) {
+				/* Dolby Vision Source System-on-Chip Platform Kit Version 2.6:
+				 * 4.4.1 Expected AVI-IF for Dolby Vision output, need BT2020 for DV
+				 */
+				hdev->hwop.cntlconfig(hdev, CONF_AVI_BT2020,
+					SET_AVI_BT2020);/*BT.2020*/
+			} else {
+				/* BT.2020 flag should not be used for TV-LED config */
+				hdev->hwop.cntlconfig(hdev, CONF_AVI_BT2020,
+					CLR_AVI_BT2020);
+			}
 			if (tunnel_mode == RGB_8BIT) {/*RGB444*/
 				hdev->hwop.cntlconfig(hdev,
 					CONF_AVI_RGBYCC_INDIC,
@@ -7943,6 +7958,9 @@ __setup("hdmichecksum=", get_hdmi_checksum);
 
 MODULE_PARM_DESC(log_level, "\n log_level\n");
 module_param(log_level, int, 0644);
+
+MODULE_PARM_DESC(dovi_tv_led_bt2020, "\n dovi_tv_led_bt2020\n");
+module_param(dovi_tv_led_bt2020, bool, 0644);
 
 /*************DRM connector API**************/
 static int drm_hdmitx_detect_hpd(void)
