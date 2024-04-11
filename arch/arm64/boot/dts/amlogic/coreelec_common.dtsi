@@ -124,6 +124,12 @@
 	dhd_static_buf;
 };
 
+&ext_mdio {
+	external_phy: ethernet-phy@0 {
+		/delete-property/ reg;
+	};
+};
+
 &ethmac {
 	wol = <0>;
 };

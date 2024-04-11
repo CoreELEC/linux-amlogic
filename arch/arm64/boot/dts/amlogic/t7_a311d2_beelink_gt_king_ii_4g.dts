@@ -15,7 +15,6 @@
 
 &ext_mdio {
 	external_phy: ethernet-phy@0 {
-		reg = <0>;
 		max-speed = <1000>;
 
 		reset-assert-us = <20000>;

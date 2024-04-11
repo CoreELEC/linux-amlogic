@@ -28,8 +28,6 @@
 
 &ext_mdio {
 	external_phy: ethernet-phy@0 {
-		/delete-property/ reg;
-
 		/* Intel XWAY PHY11G needs longer times */
 		reset-assert-us = <100000>;
 		reset-deassert-us = <300000>;
