@@ -29,6 +29,9 @@
 #define XWAY_MDIO_LED_LED1_DA		BIT(1)	/* Direct Access to LED1 */
 #define XWAY_MDIO_LED_LED0_DA		BIT(0)	/* Direct Access to LED0 */
 
+#define XWAY_MDIO_STD_GCTRL_MBTFD		BIT(9)
+#define XWAY_MDIO_STD_GCTRL_MBTHD		BIT(8)
+
 #define XWAY_MDIO_INIT_WOL		BIT(15)	/* Wake-On-LAN */
 #define XWAY_MDIO_INIT_MSRE		BIT(14)
 #define XWAY_MDIO_INIT_NPRX		BIT(13)
@@ -231,7 +234,7 @@ static int xway_gphy_rgmii_init(struct phy_device *phydev)
 
 static int xway_gphy_config_init(struct phy_device *phydev)
 {
-	int err;
+	int reg, err = 0;
 	u32 ledxh;
 	u32 ledxl;
 
@@ -280,7 +283,16 @@ static int xway_gphy_config_init(struct phy_device *phydev)
 	if (err)
 		return err;
 
-	return 0;
+	/**
+	 * Disable gigabit autoneg when disabled my DTS
+	 */
+	if (!phydev->is_gigabit_capable) {
+		reg = phy_read(phydev, MII_CTRL1000);
+		reg &= ~(XWAY_MDIO_STD_GCTRL_MBTFD | XWAY_MDIO_STD_GCTRL_MBTHD);
+		err = phy_write(phydev, MII_CTRL1000, reg);
+	}
+
+	return err;
 }
 
 static int xway_gphy14_config_aneg(struct phy_device *phydev)
