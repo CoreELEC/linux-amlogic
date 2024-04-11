@@ -1,0 +1,20 @@
+#include "sc2_s905x4_4g_1gbit.dts"
+
+/ {
+	coreelec-dt-id = "sc2_s905x4_kinhank_g1";
+};
+
+&ext_mdio {
+	external_phy: ethernet-phy@0 {
+		max-speed = <100>;
+		eee-broken-1000t;
+	};
+};
+
+&pcie {
+	status = "okay";
+};
+
+&sd_emmc_a {
+	status = "disabled";
+};
