@@ -1,0 +1,13 @@
+#include "sc2_s905x4_4g_1gbit.dts"
+
+/ {
+	coreelec-dt-id = "sc2_s905x4_kinhank_g1";
+};
+
+&pcie_A {
+	status = "okay";
+};
+
+&sd_emmc_a {
+	status = "disabled";
+};
