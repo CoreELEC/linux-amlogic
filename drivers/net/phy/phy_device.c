@@ -3613,6 +3613,8 @@ static int phy_probe(struct device *dev)
 			       phydev->supported))
 		phydev->autoneg = 0;
 
+	of_set_phy_supported(phydev);
+
 	if (linkmode_test_bit(ETHTOOL_LINK_MODE_1000baseT_Half_BIT,
 			      phydev->supported))
 		phydev->is_gigabit_capable = 1;
@@ -3620,7 +3622,6 @@ static int phy_probe(struct device *dev)
 			      phydev->supported))
 		phydev->is_gigabit_capable = 1;
 
-	of_set_phy_supported(phydev);
 	phy_advertise_supported(phydev);
 
 	/* Get PHY default EEE advertising modes and handle them as potentially
