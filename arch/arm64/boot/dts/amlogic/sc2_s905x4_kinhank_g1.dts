@@ -2,6 +2,27 @@
 
 / {
 	coreelec-dt-id = "sc2_s905x4_kinhank_g1";
+
+	gpioleds {
+		sys_led {
+			gpios = <&gpio GPIOH_7 GPIO_ACTIVE_LOW>;
+		};
+		net_led {
+			label = "net_led";
+			gpios = <&gpio GPIOD_4 GPIO_ACTIVE_LOW>;
+			linux,default-trigger = "0.0:06:link";
+		};
+		red_led {
+			label = "red_led";
+			gpios = <&gpio GPIOD_11 GPIO_ACTIVE_LOW>;
+			linux,default-trigger = "default-on";
+		};
+		rc_led {
+			label = "rc_led";
+			gpios = <&gpio GPIOE_2 GPIO_ACTIVE_LOW>;
+			linux,default-trigger = "rc-feedback";
+		};
+	};
 };
 
 &pcie_A {
