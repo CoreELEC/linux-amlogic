@@ -4189,6 +4189,10 @@ static int hdmitx_cntl_config(struct hdmitx_dev *hdev, unsigned int cmd,
 		hdmitx_set_reg_bits(HDMITX_DWC_FC_AVIVID, argv >> 2, 0, 7);	//vic
 		break;
 	case CONF_AVI_BT2020:
+		if (argv == SET_AVI_NO_CM) {
+			hdmitx_set_reg_bits(HDMITX_DWC_FC_AVICONF1, 0, 6, 2);
+			hdmitx_set_reg_bits(HDMITX_DWC_FC_AVICONF2, 0, 4, 3);
+		}
 		if (argv == SET_AVI_BT2020) {
 			hdmitx_set_reg_bits(HDMITX_DWC_FC_AVICONF1, 3, 6, 2);
 			hdmitx_set_reg_bits(HDMITX_DWC_FC_AVICONF2, 6, 4, 3);

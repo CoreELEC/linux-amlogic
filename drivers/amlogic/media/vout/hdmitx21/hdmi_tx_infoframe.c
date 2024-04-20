@@ -197,6 +197,10 @@ void hdmi_avi_infoframe_config(enum avi_component_conf conf, u8 val)
 			info->colorimetry = HDMI_COLORIMETRY_EXTENDED;
 			info->extended_colorimetry = HDMI_EXTENDED_COLORIMETRY_BT2020;
 		}
+		if (val == SET_AVI_NO_CM) {
+			info->colorimetry = HDMI_COLORIMETRY_NONE;
+			info->extended_colorimetry = 0;
+		}
 		if (val == CLR_AVI_BT2020) {
 			if (para->timing.v_total <= 576) {/* SD formats */
 				info->colorimetry = HDMI_COLORIMETRY_ITU_601;

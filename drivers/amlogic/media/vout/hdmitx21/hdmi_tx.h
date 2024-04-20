@@ -274,6 +274,7 @@ enum vrr_component_conf {
 /* CONF_AVI_BT2020 */
 #define CLR_AVI_BT2020	0x0
 #define SET_AVI_BT2020	0x1
+#define SET_AVI_NO_CM	0x2
 /* CONF_AVI_Q01 */
 #define RGB_RANGE_DEFAULT	0
 #define RGB_RANGE_LIM		1
