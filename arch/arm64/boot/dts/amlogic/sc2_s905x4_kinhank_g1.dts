@@ -23,6 +23,11 @@
 			linux,default-trigger = "rc-feedback";
 		};
 	};
+
+	auge_sound {
+		/*avout mute gpio*/
+		avout_mute-gpios = <&gpio GPIOH_5 GPIO_ACTIVE_HIGH>;
+	};
 };
 
 &pcie_A {
