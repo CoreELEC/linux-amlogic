@@ -88,6 +88,10 @@
 	};
 };
 
+&ethmac {
+	auto_cali_idx = <1>;
+};
+
 &i2c0 {
 	/delete-property/ pinctrl-names;
 	/delete-property/ pinctrl-0;
