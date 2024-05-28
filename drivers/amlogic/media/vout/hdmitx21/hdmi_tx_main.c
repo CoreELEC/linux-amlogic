@@ -5255,6 +5255,48 @@ static ssize_t not_restart_hdcp_store(struct device *dev,
 	return count;
 }
 
+// enum from xbmc/rendering/RenderSystemTypes.h
+enum RENDER_STEREO_MODE
+{
+  RENDER_STEREO_MODE_OFF,
+  RENDER_STEREO_MODE_SPLIT_HORIZONTAL,
+  RENDER_STEREO_MODE_SPLIT_VERTICAL,
+  RENDER_STEREO_MODE_ANAGLYPH_RED_CYAN,
+  RENDER_STEREO_MODE_ANAGLYPH_GREEN_MAGENTA,
+  RENDER_STEREO_MODE_ANAGLYPH_YELLOW_BLUE,
+  RENDER_STEREO_MODE_INTERLACED,
+  RENDER_STEREO_MODE_CHECKERBOARD,
+  RENDER_STEREO_MODE_HARDWAREBASED,
+  RENDER_STEREO_MODE_MONO,
+  RENDER_STEREO_MODE_COUNT,
+
+  // Pseudo modes
+  RENDER_STEREO_MODE_AUTO = 100,
+  RENDER_STEREO_MODE_UNDEFINED = 999,
+};
+
+static ssize_t stereo_mode_show(struct device *dev,
+	struct device_attribute *attr, char *buf)
+{
+	int pos = 0;
+	struct hdmitx_dev *hdev = get_hdmitx21_device();
+
+	if (hdev->flag_3dtb)
+		pos += snprintf(buf, PAGE_SIZE, "%d\n",
+			RENDER_STEREO_MODE_SPLIT_HORIZONTAL);
+	else if (hdev->flag_3dss)
+		pos += snprintf(buf, PAGE_SIZE, "%d\n",
+			RENDER_STEREO_MODE_SPLIT_VERTICAL);
+	else if (hdev->flag_3dfp)
+		pos += snprintf(buf, PAGE_SIZE, "%d\n",
+			RENDER_STEREO_MODE_HARDWAREBASED);
+	else
+		pos += snprintf(buf, PAGE_SIZE, "%d\n",
+			RENDER_STEREO_MODE_OFF);
+
+	return pos;
+}
+
 static ssize_t sysctrl_enable_show(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
@@ -5359,6 +5401,7 @@ static DEVICE_ATTR_RO(rxsense_state);
 static DEVICE_ATTR_RW(fake_plug);
 static DEVICE_ATTR_RW(ready);
 static DEVICE_ATTR_RO(support_3d);
+static DEVICE_ATTR_RO(stereo_mode);
 static DEVICE_ATTR_RO(hdmitx21);
 static DEVICE_ATTR_RW(def_stream_type);
 static DEVICE_ATTR_RW(hdcp_ctl_lvl);
@@ -6918,6 +6961,7 @@ static int amhdmitx_probe(struct platform_device *pdev)
 	ret = device_create_file(dev, &dev_attr_fake_plug);
 	ret = device_create_file(dev, &dev_attr_ready);
 	ret = device_create_file(dev, &dev_attr_support_3d);
+	ret = device_create_file(dev, &dev_attr_stereo_mode);
 	ret = device_create_file(dev, &dev_attr_dc_cap);
 	ret = device_create_file(dev, &dev_attr_valid_mode);
 	ret = device_create_file(dev, &dev_attr_allm_cap);
@@ -7105,6 +7149,7 @@ static int amhdmitx_remove(struct platform_device *pdev)
 	device_remove_file(dev, &dev_attr_fake_plug);
 	device_remove_file(dev, &dev_attr_ready);
 	device_remove_file(dev, &dev_attr_support_3d);
+	device_remove_file(dev, &dev_attr_stereo_mode);
 	device_remove_file(dev, &dev_attr_avmute);
 	device_remove_file(dev, &dev_attr_aud_mute);
 	device_remove_file(dev, &dev_attr_frac_rate_policy);
