@@ -3118,6 +3118,76 @@ static ssize_t vesa_cap_show(struct device *dev,
 	return 0;
 }
 
+/**/
+static int local_support_3dfp(enum hdmi_vic vic)
+{
+	switch (vic) {
+	case HDMI_19_1280x720p50_16x9:
+	case HDMI_4_1280x720p60_16x9:
+	case HDMI_32_1920x1080p24_16x9:
+	case HDMI_33_1920x1080p25_16x9:
+	case HDMI_34_1920x1080p30_16x9:
+	case HDMI_31_1920x1080p50_16x9:
+	case HDMI_16_1920x1080p60_16x9:
+		return 1;
+	default:
+		return 0;
+	}
+}
+
+static ssize_t disp_cap_3d_show(struct device *dev,
+				struct device_attribute *attr,
+				char *buf)
+{
+	int i, pos = 0;
+	struct hdmitx_dev *hdev = get_hdmitx21_device();
+	struct rx_cap *prxcap = &hdev->rxcap;
+	const struct hdmi_timing *timing = NULL;
+	enum hdmi_vic vic;
+
+	for (i = 0; i < prxcap->VIC_count; i++) {
+		vic = prxcap->VIC[i];
+		if (vic == HDMI_2_720x480p60_4x3 ||
+			vic == HDMI_6_720x480i60_4x3 ||
+			vic == HDMI_17_720x576p50_4x3 ||
+			vic == HDMI_21_720x576i50_4x3) {
+			if (hdmitx_check_vic(vic + 1))
+				continue;
+			timing = hdmitx21_gettiming_from_vic(vic + 1);
+		} else {
+			timing = hdmitx21_gettiming_from_vic(vic);
+		}
+		if (timing) {
+			pr_info("++++ %s(%d) check %s vic: %d, local_support_3dfp: %d, frame_packing: %d, top_and_bottom: %d, side_by_side: %d\n", __FUNCTION__, __LINE__,
+				timing->sname ? timing->sname : timing->name, vic, local_support_3dfp(vic),
+				prxcap->support_3d_format[vic].frame_packing,
+				prxcap->support_3d_format[vic].top_and_bottom,
+				prxcap->support_3d_format[vic].side_by_side);
+		}
+		if (timing &&
+		  ((local_support_3dfp(vic) &&
+		   (prxcap->support_3d_format[vic].frame_packing == 1)) ||
+		    prxcap->support_3d_format[vic].top_and_bottom == 1 ||
+		    prxcap->support_3d_format[vic].side_by_side == 1)) {
+			pos += snprintf(buf+pos, PAGE_SIZE, "%s",
+				timing->sname ? timing->sname : timing->name);
+			if (local_support_3dfp(vic) &&
+			    (prxcap->support_3d_format[vic].frame_packing == 1)) {
+				pos += snprintf(buf + pos, PAGE_SIZE, " FramePacking");
+			}
+			if (prxcap->support_3d_format[vic].top_and_bottom == 1) {
+				pos += snprintf(buf + pos, PAGE_SIZE, " TopBottom");
+			}
+			if (prxcap->support_3d_format[vic].side_by_side == 1) {
+				pos += snprintf(buf + pos, PAGE_SIZE, " SidebySide");
+			}
+			pos += snprintf(buf+pos, PAGE_SIZE, "\n");
+		}
+	}
+
+	return pos;
+}
+
 static void _show_pcm_ch(struct rx_cap *prxcap, int i,
 			 int *ppos, char *buf)
 {
@@ -5390,6 +5460,7 @@ static DEVICE_ATTR_RW(rxsense_policy);
 static DEVICE_ATTR_RW(cedst_policy);
 static DEVICE_ATTR_RO(cedst_count);
 static DEVICE_ATTR_RW(hdcp_mode);
+static DEVICE_ATTR_RO(disp_cap_3d);
 static DEVICE_ATTR_RO(hdcp_ver);
 static DEVICE_ATTR_RW(hdcp_type_policy);
 static DEVICE_ATTR_RW(hdcp_lstore);
@@ -6934,6 +7005,7 @@ static int amhdmitx_probe(struct platform_device *pdev)
 	ret = device_create_file(dev, &dev_attr_preferred_mode);
 	ret = device_create_file(dev, &dev_attr_cea_cap);
 	ret = device_create_file(dev, &dev_attr_vesa_cap);
+	ret = device_create_file(dev, &dev_attr_disp_cap_3d);
 	ret = device_create_file(dev, &dev_attr_aud_cap);
 	ret = device_create_file(dev, &dev_attr_lipsync_cap);
 	ret = device_create_file(dev, &dev_attr_hdmi_hdr_status);
@@ -7132,6 +7204,7 @@ static int amhdmitx_remove(struct platform_device *pdev)
 	device_remove_file(dev, &dev_attr_preferred_mode);
 	device_remove_file(dev, &dev_attr_cea_cap);
 	device_remove_file(dev, &dev_attr_vesa_cap);
+	device_remove_file(dev, &dev_attr_disp_cap_3d);
 	device_remove_file(dev, &dev_attr_hdr_cap);
 	device_remove_file(dev, &dev_attr_hdr_cap2);
 	device_remove_file(dev, &dev_attr_dv_cap);

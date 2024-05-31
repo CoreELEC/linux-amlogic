@@ -3538,7 +3538,7 @@ static ssize_t disp_cap_3d_show(struct device *dev,
 	enum hdmi_vic vic;
 	struct hdmitx_dev *hdev = &hdmitx_device;
 
-	pos += snprintf(buf + pos, PAGE_SIZE, "3D support lists:\n");
+	//pos += snprintf(buf + pos, PAGE_SIZE, "3D support lists:\n");
 	for (i = 0; disp_mode_t[i]; i++) {
 		/* 3D is not supported under 4k modes */
 		if (strstr(disp_mode_t[i], "2160p") ||
@@ -3549,23 +3549,25 @@ static ssize_t disp_cap_3d_show(struct device *dev,
 			if (vic == hdev->rxcap.VIC[j])
 				break;
 		}
-		pos += snprintf(buf + pos, PAGE_SIZE, "\n%s ",
-			disp_mode_t[i]);
-		if (local_support_3dfp(vic) &&
-		    hdev->rxcap.support_3d_format[hdev->rxcap.VIC[j]].
-		    frame_packing == 1) {
-			pos += snprintf(buf + pos, PAGE_SIZE, "FramePacking ");
-		}
-		if (hdev->rxcap.support_3d_format[hdev->rxcap.VIC[j]].
-		    top_and_bottom == 1) {
-			pos += snprintf(buf + pos, PAGE_SIZE, "TopBottom ");
-		}
-		if (hdev->rxcap.support_3d_format[hdev->rxcap.VIC[j]].
-		    side_by_side == 1) {
-			pos += snprintf(buf + pos, PAGE_SIZE, "SidebySide ");
+		if ((local_support_3dfp(vic) &&
+		    (hdev->rxcap.support_3d_format[vic].frame_packing == 1)) ||
+		     hdev->rxcap.support_3d_format[vic].top_and_bottom == 1 ||
+		     hdev->rxcap.support_3d_format[vic].side_by_side == 1) {
+			pos += snprintf(buf+pos, PAGE_SIZE, "%s",
+				disp_mode_t[i]);
+			if (local_support_3dfp(vic) &&
+			    (hdev->rxcap.support_3d_format[vic].frame_packing == 1)) {
+				pos += snprintf(buf + pos, PAGE_SIZE, " FramePacking");
+			}
+			if (hdev->rxcap.support_3d_format[vic].top_and_bottom == 1) {
+				pos += snprintf(buf + pos, PAGE_SIZE, " TopBottom");
+			}
+			if (hdev->rxcap.support_3d_format[vic].side_by_side == 1) {
+				pos += snprintf(buf + pos, PAGE_SIZE, " SidebySide");
+			}
+			pos += snprintf(buf+pos, PAGE_SIZE, "\n");
 		}
 	}
-	pos += snprintf(buf + pos, PAGE_SIZE, "\n");
 
 	return pos;
 }
