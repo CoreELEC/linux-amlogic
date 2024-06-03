@@ -164,7 +164,12 @@ static void _auto_setup_attr(char const *mode, char const *attr,
 						*cd = COLORDEPTH_24B;
 						pr_info("hdmitx: display colourdepth is forced to %d bits because of current video information code\n", colour_depths[*cd - COLORDEPTH_24B]);
 					}
-					pr_info("hdmitx: display colourdepth is auto set to %d bits (VIC: %d)\n", colour_depths[*cd - COLORDEPTH_24B], vic);
+					if (hdev->flag_3dfp) {
+						*cd = COLORDEPTH_24B;
+						pr_info("hdmitx: display colourdepth is auto set to %d bits because of 3dfp mode (VIC: %d)\n", colour_depths[*cd - COLORDEPTH_24B], vic);
+					}
+					else
+						pr_info("hdmitx: display colourdepth is auto set to %d bits (VIC: %d)\n", colour_depths[*cd - COLORDEPTH_24B], vic);
 				}
 				break;
 		}
