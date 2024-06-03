@@ -787,8 +787,13 @@ static int set_disp_mode_auto(void)
 						break;
 				break;
 			}
-			pr_info("hdmitx: display colourdepth is auto set to %d bits (VIC: %d)\n",
-				colour_depths[para->cd - COLORDEPTH_24B], vic);
+			if (hdev->flag_3dfp) {
+				para->cd = COLORDEPTH_24B;
+				pr_info("hdmitx: display colourdepth is forced to %d bits because of 3dfp mode (VIC: %d)\n",
+					colour_depths[para->cd - COLORDEPTH_24B], vic);
+			} else
+				pr_info("hdmitx: display colourdepth is auto set to %d bits (VIC: %d)\n",
+					colour_depths[para->cd - COLORDEPTH_24B], vic);
 		}
 	}
 
