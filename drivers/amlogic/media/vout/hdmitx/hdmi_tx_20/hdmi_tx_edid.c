@@ -1588,6 +1588,21 @@ static int hdmitx_edid_3d_parse(struct rx_cap *prxcap, unsigned char *dat,
 		pos += 1;
 		prxcap->hdmi_vic_LEN = dat[pos] >> 5;
 		prxcap->HDMI_3D_LEN = dat[pos] & 0x1f;
+
+		/* mandatory formats HDMI 1.4b 8.3.2 */
+		for (j = 0; j < prxcap->VIC_count; j++) {
+			if (prxcap->VIC[j] == HDMI_1920x1080p24_16x9 ||
+			    prxcap->VIC[j] == HDMI_1280x720p60_16x9 ||
+			    prxcap->VIC[j] == HDMI_1280x720p50_16x9) {
+				prxcap->support_3d_format[prxcap->VIC[j]].frame_packing = 1;
+				prxcap->support_3d_format[prxcap->VIC[j]].top_and_bottom = 1;
+			}
+			if (prxcap->VIC[j] == HDMI_1920x1080i60_16x9 ||
+			    prxcap->VIC[j] == HDMI_1920x1080i50_16x9) {
+				prxcap->support_3d_format[prxcap->VIC[j]].side_by_side = 1;
+			}
+		}
+
 		pos += prxcap->hdmi_vic_LEN + 1;
 
 		if (prxcap->threeD_Multi_present == 0x01) {
