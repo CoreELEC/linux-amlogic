@@ -458,6 +458,7 @@ struct hdmi_format_para *hdmitx21_get_fmtpara(const char *mode,
 {
 	struct hdmitx_dev *hdev = get_hdmitx21_device();
 	const struct hdmi_timing *timing;
+	static struct hdmi_timing timing_3dfp = {};
 	struct vinfo_s *tx_vinfo = &hdev->para->hdmitx_vinfo;
 	struct hdmi_format_para *para = hdev->para;
 
@@ -467,6 +468,19 @@ struct hdmi_format_para *hdmitx21_get_fmtpara(const char *mode,
 	timing = hdmitx21_gettiming_from_name(mode);
 	if (!timing)
 		return NULL;
+
+	if (hdev->flag_3dfp) {
+		memcpy(&timing_3dfp, timing, sizeof(struct hdmi_timing));
+		timing_3dfp.v_active =
+			timing_3dfp.v_active * 2 + timing_3dfp.v_blank;
+		timing_3dfp.v_total *= 2;
+		timing_3dfp.pixel_freq *= 2;
+		timing = &timing_3dfp;
+		tx_vinfo->info_3d = FP_3D;
+	} else if (hdev->flag_3dtb)
+		tx_vinfo->info_3d = TB_3D;
+	else if (hdev->flag_3dss)
+		tx_vinfo->info_3d = SS_3D;
 
 	para->timing = *timing;
 	_parse_hdmi_attr(attr, &para->cs, &para->cd, &para->cr);

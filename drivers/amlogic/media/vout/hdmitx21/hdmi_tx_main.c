@@ -3157,13 +3157,6 @@ static ssize_t disp_cap_3d_show(struct device *dev,
 		} else {
 			timing = hdmitx21_gettiming_from_vic(vic);
 		}
-		if (timing) {
-			pr_info("++++ %s(%d) check %s vic: %d, local_support_3dfp: %d, frame_packing: %d, top_and_bottom: %d, side_by_side: %d\n", __FUNCTION__, __LINE__,
-				timing->sname ? timing->sname : timing->name, vic, local_support_3dfp(vic),
-				prxcap->support_3d_format[vic].frame_packing,
-				prxcap->support_3d_format[vic].top_and_bottom,
-				prxcap->support_3d_format[vic].side_by_side);
-		}
 		if (timing &&
 		  ((local_support_3dfp(vic) &&
 		   (prxcap->support_3d_format[vic].frame_packing == 1)) ||
@@ -5557,6 +5550,7 @@ static enum vmode_e hdmitx_validate_vmode(char *_mode, u32 frac, void *data)
 		 */
 		hdev->para->hdmitx_vinfo.info_3d = NON_3D;
 		hdev->para->hdmitx_vinfo.vout_device = &hdmitx_vdev;
+
 		return VMODE_HDMI;
 	}
 	return VMODE_MAX;
