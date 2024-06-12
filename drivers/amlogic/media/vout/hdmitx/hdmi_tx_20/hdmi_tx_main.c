@@ -5661,7 +5661,9 @@ static int hdmitx_set_current_vmode(enum vmode_e mode)
 static enum vmode_e hdmitx_validate_vmode(char *mode, unsigned int frac)
 {
 	struct vinfo_s *info = NULL;
+	static struct vinfo_s info_3dfp = {};
 	struct hdmitx_dev *hdev = &hdmitx_device;
+	enum hdmi_vic vic = hdmitx_edid_vic_tab_map_vic(mode);
 
 	// force 4k50/60Hz to 420 unless manually set
 	if (strstr(hdev->fmt_attr, "rgb") == NULL &&
@@ -5674,7 +5676,7 @@ static enum vmode_e hdmitx_validate_vmode(char *mode, unsigned int frac)
 			case EOTF_T_DV_AHEAD:
 				break;
 			default:
-				switch (hdmitx_edid_vic_tab_map_vic(mode)) {
+				switch (vic) {
 					case HDMI_3840x2160p50_16x9:
 					case HDMI_3840x2160p60_16x9:
 					case HDMI_4096x2160p50_256x135:
@@ -5703,8 +5705,18 @@ static enum vmode_e hdmitx_validate_vmode(char *mode, unsigned int frac)
 
 		hdmitx_device.vinfo = info;
 		hdmitx_device.vinfo->info_3d = NON_3D;
-		if (hdmitx_device.flag_3dfp)
+		if (hdmitx_device.flag_3dfp) {
+			// use temporary memory place to leave origin untouched
+			struct hdmi_format_para *para = hdmi_get_fmt_paras(vic);
+			memcpy(&info_3dfp, info, sizeof(struct vinfo_s));
+			info_3dfp.height =
+				info_3dfp.height * 2 + para->timing.v_blank;
+			info_3dfp.field_height =
+				info_3dfp.field_height * 2 + para->timing.v_blank;
+			info_3dfp.vtotal *= 2;
+			hdmitx_device.vinfo = &info_3dfp;
 			hdmitx_device.vinfo->info_3d = FP_3D;
+		}
 
 		if (hdmitx_device.flag_3dtb)
 			hdmitx_device.vinfo->info_3d = TB_3D;
