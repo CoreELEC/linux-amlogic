@@ -776,6 +776,8 @@ int video_hw_init(void);
 int video_early_init(struct amvideo_device_data_s *p_amvideo);
 int video_late_uninit(void);
 
+extern bool is_enable_3d_to_2d(void);
+
 int video_hw_init_s5(void);
 int video_early_init_s5(struct amvideo_device_data_s *p_amvideo);
 void vd_scaler_setting_s5(struct video_layer_s *layer,

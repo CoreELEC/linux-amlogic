@@ -2186,6 +2186,11 @@ s32 di_request_afbc_hw(u8 id, bool on)
 }
 EXPORT_SYMBOL(di_request_afbc_hw);
 
+bool is_enable_3d_to_2d(void) {
+	return (process_3d_type & MODE_3D_ENABLE) &&
+		(process_3d_type & MODE_3D_TO_2D_MASK);
+}
+
 /*********************************************************/
 static inline struct vframe_s *pip2_vf_peek(void)
 {
@@ -2363,7 +2368,6 @@ void pre_process_for_3d(struct vframe_s *vf)
 	/*can be moved to h264mvc.c */
 	if ((vf->type & VIDTYPE_MVC) &&
 	    (process_3d_type & MODE_3D_ENABLE) && vf->trans_fmt) {
-		vf->type = VIDTYPE_PROGRESSIVE | VIDTYPE_VIU_FIELD;
 		process_3d_type |= MODE_3D_MVC;
 		mvc_flag = 1;
 	} else {
@@ -6174,6 +6178,14 @@ void primary_swap_frame(struct video_layer_s *layer, struct vframe_s *vf1, int l
 		}
 		vpp_hold_setting_cnt = 0;
 	}
+
+	if (((last_process_3d_type & MODE_3D_ENABLE) &&
+	    !(process_3d_type & MODE_3D_ENABLE)) |
+	   (!(last_process_3d_type & MODE_3D_TO_2D_MASK) &&
+	     (process_3d_type & MODE_3D_TO_2D_MASK))) {
+		need_disable_vd2 = true;
+	}
+
 	last_process_3d_type = process_3d_type;
 
 	/* if el is unnecessary, afbc2 need to be closed */
@@ -6429,7 +6441,8 @@ s32 primary_render_frame(struct video_layer_s *layer)
 	if ((dispbuf &&
 	     (dispbuf->type & VIDTYPE_MVC)) ||
 	    last_mode_3d) {
-		layer->sc_setting.sc_v_enable = false;
+		layer->sc_setting.sc_v_enable = is_enable_3d_to_2d() ||
+			(dispbuf && (dispbuf->type & VIDTYPE_INTERLACE));
 		config_3d_vd2_pps
 			(layer, &local_vd2_pps, vinfo);
 		config_3d_vd2_blend

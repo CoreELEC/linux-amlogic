@@ -1961,7 +1961,7 @@ static void vd1_set_dcu(struct video_layer_s *layer,
 	}
 
 	type = vf->type;
-	if (type & VIDTYPE_MVC)
+	if ((type & VIDTYPE_MVC) || is_enable_3d_to_2d())
 		is_mvc = true;
 
 	pr_debug("%s for vd%d %p, type:0x%x, flag:%x\n",
@@ -2401,10 +2401,11 @@ static void vd1_set_dcu(struct video_layer_s *layer,
 			pat = vpat[frame_par->vscale_skip_count >> 1];
 	} else if (is_mvc) {
 		loop = 0x11;
-		if (framepacking_support)
+		if (framepacking_support ||
+		    is_enable_3d_to_2d())
 			pat = 0;
 		else
-			pat = 0x80;
+			pat = 0x88;
 	} else if ((type & VIDTYPE_TYPEMASK) == VIDTYPE_INTERLACE_TOP) {
 		loop = 0x11;
 		pat <<= 4;
@@ -2432,7 +2433,8 @@ static void vd1_set_dcu(struct video_layer_s *layer,
 	cur_dev->rdma_func[vpp_index].rdma_wr(vd_mif_reg->vd_if0_chroma1_rpt_pat, pat);
 
 	if (is_mvc) {
-		if (framepacking_support)
+		if (framepacking_support ||
+		    is_enable_3d_to_2d())
 			pat = 0;
 		else
 			pat = 0x88;
@@ -2447,7 +2449,17 @@ static void vd1_set_dcu(struct video_layer_s *layer,
 	}
 
 	/* picture 0/1 control */
-	if ((((type & VIDTYPE_INTERLACE) == 0) &&
+	if (framepacking_support) {
+		/*  frame packed output */
+		cur_dev->rdma_func[vpp_index].rdma_wr
+			(vd_mif_reg->vd_if0_luma_psel, 0);
+		cur_dev->rdma_func[vpp_index].rdma_wr
+			(vd_mif_reg->vd_if0_chroma_psel, 0);
+		cur_dev->rdma_func[vpp_index].rdma_wr
+			(vd2_mif_reg->vd_if0_luma_psel, 0);
+		cur_dev->rdma_func[vpp_index].rdma_wr
+			(vd2_mif_reg->vd_if0_chroma_psel, 0);
+	} else if ((((type & VIDTYPE_INTERLACE) == 0) &&
 	     ((type & VIDTYPE_VIU_FIELD) == 0) &&
 	     ((type & VIDTYPE_MVC) == 0)) ||
 	    (frame_par->vpp_2pic_mode & 0x3)) {
@@ -2876,8 +2888,13 @@ static void vdx_set_dcu(struct video_layer_s *layer,
 		(loop << VDIF_CHROMA_LOOP0_BIT) |
 		(loop << VDIF_LUMA_LOOP0_BIT));
 
-	if (is_mvc)
-		pat = 0x88;
+	if (is_mvc) {
+		if (framepacking_support ||
+		    is_enable_3d_to_2d())
+			pat = 0;
+		else
+			pat = 0x88;
+	}
 
 	cur_dev->rdma_func[vpp_index].rdma_wr
 		(vd_mif_reg->vd_if0_luma0_rpt_pat, pat);
@@ -5038,6 +5055,7 @@ static void get_3d_vert_pos(struct video_layer_s *layer,
 	} else if (vpp_3d_mode == VPP_3D_MODE_FA) {
 		/*same width same heiht */
 		if ((process_3d_type & MODE_3D_TO_2D_MASK) ||
+		    (process_3d_type & MODE_3D_MVC) ||
 		    (process_3d_type & MODE_3D_OUT_LR)) {
 			*ls = layer->start_y_lines;
 			*le = layer->end_y_lines;
@@ -5517,7 +5535,8 @@ s32 config_vd_position_internal(struct video_layer_s *layer,
 	/* to set vd2 Y0 not vd1 Y1*/
 	if (setting->id == 0 &&
 	    (dispbuf->type & VIDTYPE_MVC) &&
-	    !framepacking_support) {
+	    !framepacking_support &&
+	    !is_enable_3d_to_2d()) {
 		setting->l_vs_chrm =
 			setting->l_vs_luma;
 		setting->l_ve_chrm =
@@ -5553,7 +5572,8 @@ static void config_vd_param_internal(struct video_layer_s *layer,
 		/* vdin interlace non afbc frame case height/2 */
 		zoom_start_y /= 2;
 		zoom_end_y = ((zoom_end_y + 1) >> 1) - 1;
-	} else if (dispbuf->type & VIDTYPE_MVC) {
+	} else if ((dispbuf->type & VIDTYPE_MVC) &&
+	    !is_enable_3d_to_2d()) {
 		/* mvc case, (height - blank)/2 */
 		if (framepacking_support)
 			blank = framepacking_blank;
@@ -9355,7 +9375,9 @@ s32 layer_swap_frame(struct vframe_s *vf, struct video_layer_s *layer,
 	layer_id = layer->layer_id;
 	layer_info = &glayer_info[layer_id];
 
-	if ((vf->type & VIDTYPE_MVC) && layer_id == 0)
+	if ((vf->type & VIDTYPE_MVC) &&
+	    !is_enable_3d_to_2d() &&
+	    (layer_id == 0))
 		is_mvc = true;
 
 	if (layer->dispbuf != vf) {
