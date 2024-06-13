@@ -243,6 +243,14 @@ static int amvideocap_get_input_format(struct vframe_s *vf)
 		pr_debug
 		("****************Into VIDTYPE_VIU_NV21******************\n");
 		format = GE2D_FORMAT_M24_NV21;
+	} else if ((vf->type & VIDTYPE_MVC) == VIDTYPE_MVC) {
+		pr_debug
+		("****************Into VIDTYPE_MVC******************\n");
+		format = GE2D_FORMAT_M24_YUV420;
+	} else if ((vf->type & VIDTYPE_VIU_FIELD) == VIDTYPE_VIU_FIELD) {
+		pr_debug
+		("****************Into VIDTYPE_VIU_FIELD******************\n");
+		format = GE2D_FORMAT_M24_YUV420;
 	}
 	return format;
 }
@@ -385,6 +393,9 @@ static ssize_t amvideocap_YUV_to_RGB(
 				input_height = input_height / 2;
 		}
 	}
+
+	if (vf->type & VIDTYPE_MVC)
+		input_height = vf->left_eye.height;
 
 	ge2d_config.alu_const_color = 0;
 	ge2d_config.bitmask_en = 0;
