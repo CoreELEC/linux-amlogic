@@ -529,6 +529,8 @@ int video_hw_init(void);
 int video_early_init(struct amvideo_device_data_s *p_amvideo);
 int video_late_uninit(void);
 
+extern bool is_enable_3d_to_2d(void);
+
 /* from video.c */
 extern u32 osd_vpp_misc;
 extern u32 osd_vpp_misc_mask;

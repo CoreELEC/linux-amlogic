@@ -1361,7 +1361,7 @@ static int vpp_set_filters_internal(
 	}
 	if (width_in > src_width_max)
 		next_frame_par->hscale_skip_count++;
-	if (height_in > src_height_max)
+	if (!(vf->type & VIDTYPE_MVC) && height_in > src_height_max)
 		next_frame_par->vscale_skip_count++;
 
 RESTART_ALL:
@@ -3173,9 +3173,17 @@ static void vpp_get_video_source_size(
 				*src_height = vf->left_eye.height;
 			}
 			next_frame_par->vpp_2pic_mode = 0;
+		} else if (process_3d_type & MODE_3D_OUT_TB) {
+			*src_width = vf->width;
+			*src_height = vf->height << 1;
+			next_frame_par->vpp_2pic_mode = 2;
 		} else if (process_3d_type & MODE_3D_OUT_LR) {
 			*src_width = frame_width << 1;
 			*src_height = frame_height;
+			next_frame_par->vpp_2pic_mode = 2;
+		} else if (process_3d_type & MODE_3D_MVC) {
+			*src_width = vf->width;
+			*src_height = vf->height;
 			next_frame_par->vpp_2pic_mode = 2;
 		} else {
 			*src_width = frame_width;

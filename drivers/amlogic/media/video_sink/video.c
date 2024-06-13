@@ -1149,6 +1149,11 @@ s32 di_request_afbc_hw(u8 id, bool on)
 }
 EXPORT_SYMBOL(di_request_afbc_hw);
 
+bool is_enable_3d_to_2d(void) {
+	return (process_3d_type & MODE_3D_ENABLE) &&
+		(process_3d_type & MODE_3D_TO_2D_MASK);
+}
+
 /*********************************************************/
 static inline struct vframe_s *pip_vf_peek(void)
 {
@@ -1297,7 +1302,6 @@ static inline struct vframe_s *video_vf_get(void)
 		/*can be moved to h264mvc.c */
 		if ((vf->type & VIDTYPE_MVC)
 		    && (process_3d_type & MODE_3D_ENABLE) && vf->trans_fmt) {
-			vf->type = VIDTYPE_PROGRESSIVE | VIDTYPE_VIU_FIELD;
 			process_3d_type |= MODE_3D_MVC;
 			mvc_flag = 1;
 		} else {
@@ -4121,6 +4125,14 @@ static void primary_swap_frame(
 		}
 		vpp_hold_setting_cnt = 0;
 	}
+
+	if (((last_process_3d_type & MODE_3D_ENABLE) &&
+	    !(process_3d_type & MODE_3D_ENABLE)) |
+	   (!(last_process_3d_type & MODE_3D_TO_2D_MASK) &&
+	     (process_3d_type & MODE_3D_TO_2D_MASK))) {
+		need_disable_vd2 = true;
+	}
+
 	last_process_3d_type = process_3d_type;
 
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
@@ -4259,7 +4271,8 @@ static s32 primary_render_frame(struct video_layer_s *layer)
 			/* vdin interlace non afbc frame case height/2 */
 			zoom_start_y /= 2;
 			zoom_end_y = ((zoom_end_y + 1) >> 1) - 1;
-		} else if (dispbuf->type & VIDTYPE_MVC) {
+		} else if ((dispbuf->type & VIDTYPE_MVC) &&
+		    !is_enable_3d_to_2d()) {
 			/* mvc case, (height - blank)/2 */
 			if (framepacking_support)
 				blank = framepacking_blank;
@@ -4341,7 +4354,8 @@ static s32 primary_render_frame(struct video_layer_s *layer)
 	if ((dispbuf &&
 	     (dispbuf->type & VIDTYPE_MVC)) ||
 	    last_mode_3d) {
-		layer->sc_setting.sc_v_enable = false;
+		layer->sc_setting.sc_v_enable = is_enable_3d_to_2d() ||
+			(dispbuf && (dispbuf->type & VIDTYPE_INTERLACE));
 		config_3d_vd2_pps(
 			layer, &local_vd2_pps, vinfo);
 		config_3d_vd2_blend(
