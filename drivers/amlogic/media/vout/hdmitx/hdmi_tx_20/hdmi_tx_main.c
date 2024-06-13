@@ -2858,8 +2858,8 @@ static ssize_t store_config(struct device *dev,
 			hdmitx_device.flag_3dtb = 0;
 			hdmitx_device.flag_3dss = 1;
 			hdmitx_device.flag_3dfp = 0;
-			if (buf[2])
-				ret = kstrtoul(buf+2, 10,
+			if (buf[4])
+				ret = kstrtoul(buf+4, 10,
 					&sub_sample_mode);
 			/* side by side */
 			hdmi_set_3d(&hdmitx_device, T3D_SBS_HALF,
