@@ -2868,8 +2868,8 @@ static ssize_t config_store(struct device *dev,
 			hdev->flag_3dtb = 0;
 			hdev->flag_3dss = 1;
 			hdev->flag_3dfp = 0;
-			if (buf[2])
-				ret = kstrtoul(buf + 2, 10,
+			if (buf[4])
+				ret = kstrtoul(buf + 4, 10,
 					       &sub_sample_mode);
 			/* side by side */
 			hdmi21_set_3d(hdev, T3D_SBS_HALF,
