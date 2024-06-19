@@ -245,9 +245,7 @@ kallsyms()
 {
 	local kallsymopt;
 
-	# we don't need all symbols, this can help to save about 1MB memory
-	#if [ -n "${CONFIG_KALLSYMS_ALL}" ]; then
-	if [[ -n "${CONFIG_KALLSYMS_ALL}" && ! -n "${CONFIG_AMLOGIC_KALLSYM_OPT}" ]]; then
+	if [ -n "${CONFIG_KALLSYMS_ALL}" ]; then
 		kallsymopt="${kallsymopt} --all-symbols"
 	fi
 
