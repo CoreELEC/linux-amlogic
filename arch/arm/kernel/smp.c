@@ -687,6 +687,9 @@ static void do_handle_IPI(int ipinr)
 
 	case IPI_CPU_BACKTRACE:
 #if IS_ENABLED(CONFIG_AMLOGIC_FREERTOS)
+#if IS_ENABLED(CONFIG_AMLOGIC_FREERTOS_NOFITIER) && IS_ENABLED(CONFIG_AMLOGIC_FREERTOS_C3)
+		call_freertos_notifiers(1, NULL);
+#endif
 		if (!freertos_finish())
 			break;
 #endif
