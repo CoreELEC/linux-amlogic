@@ -1,0 +1,191 @@
+#include "s5_s928x_ax201_v2_linux.dts"
+#include "dt-bindings/usb/pd.h"
+#include "coreelec_s5_common.dtsi"
+
+/ {
+	model = "Ugoos AM8";
+	coreelec-dt-id = "s5_s928x_ugoos_am8_4g";
+	amlogic-dt-id = "s5_s928x_AM8-4g";
+
+	memory@00000000 {
+		device_type = "memory";
+		linux,usable-memory = <0x00000000 0x00000000 0x00000000 0xE0000000
+					0x00000001 0x00000000 0x00000000 0x20000000>;
+	};
+
+	gpioleds {
+		/* red led */
+		net_red {
+			label = "net_red";
+			gpios = <&gpio GPIOD_7 GPIO_ACTIVE_LOW>;
+			linux,default-trigger = "default-on";
+			retain-state-suspended;
+		};
+
+		/* green led */
+		net_green {
+			label = "net_green";
+			gpios = <&gpio GPIOD_11 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "default-on";
+		};
+
+		/* blue led */
+		net_blue {
+			label = "net_blue";
+			gpios = <&gpio GPIOD_6 GPIO_ACTIVE_LOW>;
+			linux,default-trigger = "default-on";
+			retain-state-shutdown;
+		};
+	};
+
+	// usb hub
+	usb5v_reg: fixedregulator@usb5v {
+		vin-supply = <&vbat>;
+		compatible = "regulator-fixed";
+		regulator-name = "USB5V";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		pinctrl-names = "default";
+		gpio = <&gpio GPIOH_5 GPIO_ACTIVE_HIGH>;
+		startup-delay-us = <70000>;
+		enable-active-high;
+		early-suspend;
+		regulator-boot-on;
+		regulator-always-on;
+		regulator-state-mem {
+			regulator-on-in-suspend;
+		};
+	};
+
+	// usbc
+	usbc5v_reg: fixedregulator@usbc5v {
+		vin-supply = <&vbat>;
+		compatible = "regulator-fixed";
+		regulator-name = "USBC5V";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		pinctrl-names = "default";
+		gpio = <&gpio GPIOH_6 GPIO_ACTIVE_HIGH>;
+		startup-delay-us = <70000>;
+		enable-active-high;
+		early-suspend;
+		regulator-boot-on;
+		regulator-always-on;
+		regulator-state-mem {
+			regulator-on-in-suspend;
+		};
+	};
+
+	dc_in {
+		compatible = "adc-power";
+		name = "dc_in";
+		voltage_k = <15123>;
+		io-channels = <&saradc 0>;
+		io-channel-names = "voltage";
+	};
+
+	gpio_keypad{
+		key_num = <1>;
+		key_name = "power";
+		key_code = <116>;
+		key-gpios = <&gpio  GPIOD_2  GPIO_ACTIVE_HIGH>;
+	};
+};
+
+&i2c1 {
+	clock-frequency = <100000>;
+
+	es8388: es8388@10 {
+		status = "okay";
+		compatible = "everest,es8388";
+		#sound-dai-cells = <0>;
+		reg = <0x10>;
+		/*spk-con-gpio = <&gpio GPIOA_6 0x00>;*/
+		def-vol = <0x1d>;
+		def-dacvol = <0x0a>;
+	};
+};
+
+&i2c2 {
+	clock-frequency = <100000>;
+
+	// usbc
+	fusb302@22 {
+		compatible = "fcs,fusb302";
+		reg = <0x22>;
+		// hw irq doesn't work
+		//interrupt-parent = <&gpio_intc>;
+		//interrupts = <GPIOT_2 IRQ_TYPE_LEVEL_LOW>;
+		//pinctrl-names = "default";
+		//pinctrl-0 = <&fusb302_int>;
+		fcs,int_n = <&gpio GPIOT_2 GPIO_ACTIVE_HIGH>;
+		vbus-supply = <&usbc5v_reg>;
+		port {
+			typec_dr_sw: endpoint {
+				remote-endpoint = <&usb_dr_sw>;
+			};
+		};
+		usb_con: connector {
+			compatible = "usb-c-connector";
+			label = "USB-C";
+			data-role = "dual";
+			power-role = "dual";
+			try-power-role = "source";
+			source-pdos = <PDO_FIXED(5000, 1000,
+				PDO_FIXED_USB_COMM |
+				PDO_FIXED_DUAL_ROLE |
+				PDO_FIXED_DATA_SWAP |
+				PDO_FIXED_EXTPOWER)>;
+			sink-pdos = <PDO_FIXED(5000, 100,
+				PDO_FIXED_USB_COMM |
+				PDO_FIXED_DUAL_ROLE |
+				PDO_FIXED_DATA_SWAP |
+				PDO_FIXED_EXTPOWER)>;
+			op-sink-microwatt = <1000000>;
+		};
+	};
+};
+
+/* rtc, eeprom */
+&i2c5 {
+	status = "okay";
+	pinctrl-0 = <&i2c5_pins2>;
+	clock-frequency = <100000>;
+
+	hym8563: hym8563@51 {
+		compatible = "haoyu,hym8563";
+		reg = <0x51>;
+		#clock-cells = <0>;
+		clock-frequency = <32768>;
+		clock-output-names = "xin32k";
+	};
+};
+
+// otg (port B)
+&crg21_otg {
+	dr_mode = "otg";
+	usb-role-switch;
+	role-switch-default-mode = "host";
+	set-switch-default-mode;
+	/delete-property/ controller-type;
+	/delete-property/ gpio-vbus-power;
+	/delete-property/ gpios;
+	port {
+		usb_dr_sw: endpoint {
+			remote-endpoint = <&typec_dr_sw>;
+		};
+	};
+};
+
+// usb host controller (port C)
+&crg31 {
+	vbus-supply = <&usb5v_reg>;
+};
+
+&crg_udc_2 {
+	status = "disabled";
+};
+
+&aml_bt {
+	hostwake-gpios = <&gpio GPIOX_3 GPIO_ACTIVE_HIGH>;
+};
