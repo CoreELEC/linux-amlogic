@@ -65,7 +65,7 @@ static void _auto_setup_attr(char const *mode, char const *attr,
 					switch (hdev->hdmi_current_tunnel_mode) {
 						case RGB_8BIT:
 						case RGB_10_12BIT:
-							*cs = HDMI_COLORSPACE_YUV444;
+							*cs = HDMI_COLORSPACE_RGB;
 							break;
 						case YUV422_BIT12:
 							*cs = HDMI_COLORSPACE_YUV422;
