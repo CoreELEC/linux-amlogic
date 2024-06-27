@@ -125,7 +125,7 @@ static void _auto_setup_attr(char const *mode, char const *attr,
 							}
 							break;
 						case YUV422_BIT12:
-							*cd = COLORDEPTH_24B;
+							*cd = COLORDEPTH_36B;
 							break;
 						default:
 							break;
