@@ -48,7 +48,8 @@ struct pcie_wifi_chip {
 };
 
 static const struct pcie_wifi_chip pcie_wifi[] = {
-	{0x16c3, 0xabcd}
+	{0x16c3, 0xabcd},
+	{0x14e4, 0x44a0}  /* AP6276P Wifi 6 PCIe module */
 };
 
 int wifi_power_gpio;
