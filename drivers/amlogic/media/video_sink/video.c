@@ -811,8 +811,7 @@ static void dump_mif_reg(void)
 		reg_val = READ_VCBUS_REG(reg_addr);
 		pr_info("[0x%x] = 0x%X\n",
 			   reg_addr, reg_val);
-		reg_addr = vd_layer[i].vd_mif_reg.vd_if0_canvas0;
-		reg_val = READ_VCBUS_REG(reg_addr);
+		reg_val = get_layer_display_canvas(i);
 		pr_info("[0x%x] = 0x%X\n",
 			   reg_addr, reg_val);
 		reg_addr = vd_layer[i].vd_mif_reg.vd_if0_canvas1;
@@ -2542,12 +2541,9 @@ static void dump_vdin_reg(void)
 #ifdef CONFIG_AMLOGIC_MEDIA_VIDEOCAPTURE
 int ext_get_cur_video_frame(struct vframe_s **vf, int *canvas_index)
 {
-	struct video_layer_s *layer = &vd_layer[0];
-
 	if (cur_dispbuf == NULL)
 		return -1;
-	if (cur_dev->display_module != S5_DISPLAY_MODULE)
-		*canvas_index = READ_VCBUS_REG(layer->vd_mif_reg.vd_if0_canvas0);
+	*canvas_index = get_layer_display_canvas(0);
 	*vf = cur_dispbuf;
 	return 0;
 }
@@ -2596,7 +2592,7 @@ int ext_frame_capture_poll(struct vframe_s *vf)
 		if ((atomic_read(&layer->capture_use_cnt) == CAPTURE_STATE_CAPTURE) && layer->capture_frame_req) {
 			struct amvideocap_req_data *reqdata =
 				(struct amvideocap_req_data *)layer->capture_frame_req->data;
-			int index = READ_VCBUS_REG(layer->vd_mif_reg.vd_if0_canvas0);
+			int index = get_layer_display_canvas(0);
 
 			if (layer->capture_frame_req && layer->capture_frame_req->callback && reqdata && reqdata->privdata)
 				ret = layer->capture_frame_req->callback(reqdata->privdata, vf, index);
