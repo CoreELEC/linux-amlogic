@@ -387,18 +387,16 @@ static void led_release(struct tca6507_led *led)
 	led->bank = -1;
 }
 
-static int led_prepare(struct tca6507_led *led)
+static int led_prepare(struct tca6507_led *led, int level)
 {
 	/* Assign this led to a bank, configuring that bank if
 	 * necessary. */
-	int level = TO_LEVEL(led->led_cdev.brightness);
 	struct tca6507_chip *tca = led->chip;
 	int c1, c2;
 	int i;
 	struct bank *b;
 	int need_init = 0;
 
-	led->led_cdev.brightness = TO_BRIGHT(level);
 	if (level == 0) {
 		set_select(tca, led->num, TCA6507_LS_LED_OFF);
 		return 0;
@@ -445,7 +443,6 @@ static int led_prepare(struct tca6507_led *led)
 		tca->bank[best].level_use++;
 		led->bank = best;
 		set_select(tca, led->num, bank_source[best]);
-		led->led_cdev.brightness = TO_BRIGHT(tca->bank[best].level);
 		return 0;
 	}
 
@@ -524,12 +521,11 @@ static int led_prepare(struct tca6507_led *led)
 
 	b->time_use++;
 	led->blink = 1;
-	led->led_cdev.brightness = TO_BRIGHT(b->level);
 	set_select(tca, led->num, blink_source[i]);
 	return 0;
 }
 
-static int led_assign(struct tca6507_led *led)
+static int led_assign(struct tca6507_led *led, int level)
 {
 	struct tca6507_chip *tca = led->chip;
 	int err;
@@ -537,7 +533,7 @@ static int led_assign(struct tca6507_led *led)
 
 	spin_lock_irqsave(&tca->lock, flags);
 	led_release(led);
-	err = led_prepare(led);
+	err = led_prepare(led, level);
 	if (err) {
 		/*
 		 * Can only fail on timer setup.  In that case we need
@@ -545,7 +541,7 @@ static int led_assign(struct tca6507_led *led)
 		 */
 		led->ontime = 0;
 		led->offtime = 0;
-		led_prepare(led);
+		led_prepare(led, level);
 	}
 	spin_unlock_irqrestore(&tca->lock, flags);
 
@@ -559,10 +555,9 @@ static void tca6507_brightness_set(struct led_classdev *led_cdev,
 {
 	struct tca6507_led *led = container_of(led_cdev, struct tca6507_led,
 					       led_cdev);
-	led->led_cdev.brightness = brightness;
 	led->ontime = 0;
 	led->offtime = 0;
-	led_assign(led);
+	led_assign(led, TO_LEVEL(brightness));
 }
 
 static int tca6507_blink_set(struct led_classdev *led_cdev,
@@ -591,7 +586,7 @@ static int tca6507_blink_set(struct led_classdev *led_cdev,
 
 	if (led->led_cdev.brightness == LED_OFF)
 		led->led_cdev.brightness = LED_FULL;
-	if (led_assign(led) < 0) {
+	if (led_assign(led, led->led_cdev.brightness) < 0) {
 		led->ontime = 0;
 		led->offtime = 0;
 		led->led_cdev.brightness = LED_OFF;
@@ -637,7 +632,7 @@ static int tca6507_probe_gpios(struct i2c_client *client,
 	int gpios = 0;
 
 	for (i = 0; i < NUM_LEDS; i++)
-		if (pdata->leds.leds[i].name && pdata->leds.leds[i].flags) {
+		if (pdata->leds.leds[i].name && (pdata->leds.leds[i].flags & TCA6507_MAKE_GPIO)) {
 			/* Configure as a gpio */
 			tca->gpio_name[gpios] = pdata->leds.leds[i].name;
 			tca->gpio_map[gpios] = i;
@@ -715,6 +710,12 @@ tca6507_led_dt_init(struct i2c_client *client)
 		led.flags = 0;
 		if (of_property_match_string(child, "compatible", "gpio") >= 0)
 			led.flags |= TCA6507_MAKE_GPIO;
+		if (of_find_property(child, "retain-state-shutdown", NULL))
+			led.flags |= LED_RETAIN_AT_SHUTDOWN;
+		if (of_find_property(child, "retain-state-suspended", NULL))
+			led.flags |= LED_RETAIN_AT_SUSPEND;
+		else
+			led.flags |= LED_CORE_SUSPENDRESUME;
 		ret = of_property_read_u32(child, "reg", &reg);
 		if (ret != 0 || reg >= NUM_LEDS)
 			continue;
@@ -786,8 +787,11 @@ static int tca6507_probe(struct i2c_client *client,
 
 		l->chip = tca;
 		l->num = i;
-		if (pdata->leds.leds[i].name && !pdata->leds.leds[i].flags) {
+		if (pdata->leds.leds[i].name && !(pdata->leds.leds[i].flags & TCA6507_MAKE_GPIO)) {
 			l->led_cdev.name = pdata->leds.leds[i].name;
+			l->led_cdev.flags = pdata->leds.leds[i].flags;
+			l->led_cdev.brightness = LED_HALF;
+			l->led_cdev.max_brightness = LED_HALF;
 			l->led_cdev.default_trigger
 				= pdata->leds.leds[i].default_trigger;
 			l->led_cdev.brightness_set = tca6507_brightness_set;
@@ -831,6 +835,18 @@ static int tca6507_remove(struct i2c_client *client)
 	return 0;
 }
 
+static void tca6507_shutdown(struct i2c_client *client)
+{
+	int i;
+	struct tca6507_chip *tca = i2c_get_clientdata(client);
+	struct tca6507_led *tca_leds = tca->leds;
+
+	for (i = 0; i < NUM_LEDS; i++) {
+		if (tca_leds[i].led_cdev.name && !(tca_leds[i].led_cdev.flags & LED_RETAIN_AT_SHUTDOWN))
+			tca6507_brightness_set(&tca_leds[i].led_cdev, TO_BRIGHT(LED_OFF));
+	}
+}
+
 static struct i2c_driver tca6507_driver = {
 	.driver   = {
 		.name    = "leds-tca6507",
@@ -838,6 +854,7 @@ static struct i2c_driver tca6507_driver = {
 	},
 	.probe    = tca6507_probe,
 	.remove   = tca6507_remove,
+	.shutdown = tca6507_shutdown,
 	.id_table = tca6507_id,
 };
 
