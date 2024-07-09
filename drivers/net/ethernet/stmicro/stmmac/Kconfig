@@ -41,16 +41,6 @@ config STMMAC_PLATFORM
 
 if STMMAC_PLATFORM
 
-config STMMAC_JL2XX1
-	bool "Allow STMMAC delay for JL2XX1/JL2101 Gigabit Ethernet PHY"
-	default n
-	depends on STMMAC_PLATFORM
-	help
-	  This allows the STMMAC driver to be delayed for 1.5 seconds
-	  if the PHY JL2XX1/JL2101 is found so they can be properly
-	  initialized. This is only applied to the specific PHY IDs
-	  so other PHY won't be affected.
-
 config DWMAC_DWC_QOS_ETH
 	tristate "Support for snps,dwc-qos-ethernet.txt DT binding."
 	select CRC32

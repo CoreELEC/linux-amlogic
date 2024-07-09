@@ -176,12 +176,6 @@ int stmmac_bus_clks_config(struct stmmac_priv *priv, bool enabled)
 }
 EXPORT_SYMBOL_GPL(stmmac_bus_clks_config);
 
-/* PHY ID for JL2XX1 and JL2101, these are used for special initialization modifications for them */
-#ifdef CONFIG_STMMAC_JL2XX1
-#define JL2XX1_PHY_ID	0x937c4030
-#define JL2101_PHY_ID	0x937c4032
-#endif
-
 /**
  * stmmac_verify_args - verify the driver parameters.
  * Description: it checks the driver parameters and set a default in case of
@@ -2939,11 +2933,6 @@ static int stmmac_init_dma_engine(struct stmmac_priv *priv)
 
 	if (priv->extend_desc && (priv->mode == STMMAC_RING_MODE))
 		atds = 1;
-
-#ifdef CONFIG_STMMAC_JL2XX1
-	if (priv->phylink->phydev->phy_id == JL2XX1_PHY_ID || priv->phylink->phydev->phy_id == JL2101_PHY_ID)
-		msleep(1500);
-#endif
 
 	ret = stmmac_reset(priv, priv->ioaddr);
 	if (ret) {
