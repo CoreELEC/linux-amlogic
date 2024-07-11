@@ -182,10 +182,6 @@
 	vbus-supply = <&usb5v_reg>;
 };
 
-&crg_udc_2 {
-	status = "disabled";
-};
-
 &aml_bt {
 	hostwake-gpios = <&gpio GPIOX_3 GPIO_ACTIVE_HIGH>;
 };
