@@ -1911,6 +1911,7 @@ static void vd_set_blk_mode(struct video_layer_s *layer, u8 block_mode)
 		18,
 		9);
 	/* VD1_IF0_STRIDE_1_F1 bit31:18 same as vd_if0_gen_reg3 */
+	/*
 	if (process_3d_type & MODE_3D_ENABLE) {
 		cur_dev->rdma_func[vpp_index].rdma_wr_bits
 			(layer->vd_mif_linear_reg.vd_if0_stride_1_f1,
@@ -1921,6 +1922,7 @@ static void vd_set_blk_mode(struct video_layer_s *layer, u8 block_mode)
 			18,
 			9);
 	}
+	*/
 }
 
 static void set_vd1_vd2_mux(void)
