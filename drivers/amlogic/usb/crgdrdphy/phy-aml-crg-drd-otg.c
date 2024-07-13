@@ -49,22 +49,7 @@ struct amlogic_crg_otg {
 	int mode_work_flag;
 };
 
-bool crg_force_device_mode;
-module_param_named(otg_device, crg_force_device_mode,
-		bool, 0644);
-
-static char otg_mode_string[2] = "0";
-static int force_otg_mode(char *s)
-{
-	if (s)
-		sprintf(otg_mode_string, "%s", s);
-	if (strncmp(otg_mode_string, "0", 1) == 0)
-		crg_force_device_mode = 0;
-	else
-		crg_force_device_mode = 1;
-	return 0;
-}
-__setup("otg_device=", force_otg_mode);
+bool crg_force_device_mode = 0;
 
 static void set_mode
 	(unsigned long reg_addr, int mode, unsigned long phy3_addr);
