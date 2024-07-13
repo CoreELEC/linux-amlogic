@@ -163,11 +163,9 @@
 
 // otg (port B)
 &crg21_otg {
-	dr_mode = "otg";
-	usb-role-switch;
+	dr_mode = "host";
 	role-switch-default-mode = "host";
-	set-switch-default-mode;
-	/delete-property/ controller-type;
+	controller-type = <1>;  /* host only */
 	/delete-property/ gpio-vbus-power;
 	/delete-property/ gpios;
 	port {
