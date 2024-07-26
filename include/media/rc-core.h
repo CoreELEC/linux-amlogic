@@ -204,6 +204,7 @@ struct rc_dev {
  * returns a pointer to struct rc_dev.
  */
 struct rc_dev *rc_allocate_device(void);
+struct rc_dev *rc_allocate_device_type(enum rc_driver_type type);
 
 /**
  * rc_free_device - Frees a RC device

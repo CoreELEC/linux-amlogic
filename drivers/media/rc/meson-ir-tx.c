@@ -345,7 +345,7 @@ static int meson_irtx_probe(struct platform_device *pdev)
 	if (ret)
 		return dev_err_probe(dev, ret, "irq request failed\n");
 
-	rc = rc_allocate_device(RC_DRIVER_IR_RAW_TX);
+	rc = rc_allocate_device_type(RC_DRIVER_IR_RAW_TX);
 	if (!rc)
 		return -ENOMEM;
 
