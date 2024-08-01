@@ -293,10 +293,6 @@ static const char * const fw_path[] = {
 	fw_path_para,
 	"/lib/firmware/updates/" UTS_RELEASE,
 	"/lib/firmware/updates",
-	"/vendor/firmware/",
-#ifdef CONFIG_AMLOGIC_MODIFY
-	"/vendor/etc/firmware/hifi4dsp/",
-#endif
 	"/lib/firmware/" UTS_RELEASE,
 	"/lib/firmware"
 };
