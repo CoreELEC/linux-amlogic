@@ -314,6 +314,27 @@ static void dwmac4_pmt(struct mac_device_info *hw, unsigned long mode)
 	void __iomem *ioaddr = hw->pcsr;
 	unsigned int pmt = 0;
 	u32 config;
+#if IS_ENABLED(CONFIG_AMLOGIC_ETH_PRIVE)
+	if (mode & (1 << 8)) {
+		pr_debug("GMAC4: WOL mdns wakeup\n");
+		/* udp:  offset:0x17  val=0x11
+		 * mdns: offset:0x22  val=0x14 0xe9 0x14 0xe9
+		 * query:offset:0x2c  val=0x0
+		 * crc16= 0x1089
+		 */
+		writel(readl(ioaddr + GMAC_PACKET_FILTER) | GMAC_PACKET_FILTER_PM,
+			ioaddr + GMAC_PACKET_FILTER);
+		writel(0x207801, (ioaddr + 0xc4));
+		writel(0, (ioaddr + 0xc4));
+		writel(0, (ioaddr + 0xc4));
+		writel(0, (ioaddr + 0xc4));
+		writel(0x9, (ioaddr + 0xc4));
+		writel(0x17, (ioaddr + 0xc4));
+		writel(0x1089, (ioaddr + 0xc4));
+		writel(0, (ioaddr + 0xc4));
+		pmt |= power_down | wake_up_frame_en;
+	}
+#endif
 
 	if (mode & WAKE_MAGIC) {
 		pr_debug("GMAC: WOL Magic frame\n");

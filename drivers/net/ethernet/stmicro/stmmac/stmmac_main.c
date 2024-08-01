@@ -297,10 +297,16 @@ static void stmmac_amlogic_task(struct work_struct *work)
 		regval = readl(priv->ioaddr + MAC_CTRL_REG);
 		regval |= MAC_ENABLE_RX | MAC_ENABLE_TX;
 		writel(regval, priv->ioaddr + MAC_CTRL_REG);
-		if (priv->linkup_after_resume < 2) {
-			// revert the effect of phy_speed_down() again
-			phylink_speed_up(priv->phylink);
+#ifdef CONFIG_PM_SLEEP
+		if (wol_switch_from_user && priv->linkup_after_resume < 2) {
+			if (!mdns_switch_from_user) {
+				// revert the effect of phy_speed_down() again
+				rtnl_lock();
+				phylink_speed_up(priv->phylink);
+				rtnl_unlock();
+			}
 		}
+#endif
 	}
 	priv->amlogic_task_action = 0;
 }
@@ -1214,11 +1220,6 @@ static void stmmac_mac_link_up(struct phylink_config *config,
 	stmmac_mac_set(priv, priv->ioaddr, true);
 
 #if IS_ENABLED(CONFIG_AMLOGIC_ETH_PRIVE)
-#ifdef CONFIG_PM_SLEEP
-	if (device_may_wakeup(priv->device)) {
-		pm_relax(priv->device);
-	}
-#endif
 	priv->linkup_after_resume++;
 #endif
 
@@ -7418,7 +7419,11 @@ int stmmac_suspend(struct device *dev)
 	struct stmmac_priv *priv = netdev_priv(ndev);
 	u32 chan;
 
+#if IS_ENABLED(CONFIG_AMLOGIC_ETH_PRIVE)
+	if (!ndev || !netif_running(ndev) || !netif_device_present(ndev))
+#else
 	if (!ndev || !netif_running(ndev))
+#endif
 		return 0;
 
 	mutex_lock(&priv->lock);
@@ -7442,7 +7447,16 @@ int stmmac_suspend(struct device *dev)
 		priv->plat->serdes_powerdown(ndev, priv->plat->bsp_priv);
 
 	/* Enable Power down mode by programming the PMT regs */
-	if (device_may_wakeup(priv->device) && priv->plat->pmt) {
+#ifdef CONFIG_AMLOGIC_ETH_PRIVE
+#ifdef CONFIG_PM_SLEEP
+	if (device_may_wakeup(priv->device) && priv->plat->pmt && wol_switch_from_user)
+#else
+	if (device_may_wakeup(priv->device) && priv->plat->pmt)
+#endif
+#else
+	if (device_may_wakeup(priv->device) && priv->plat->pmt)
+#endif
+	{
 		stmmac_pmt(priv, priv->hw, priv->wolopts);
 #if IS_ENABLED(CONFIG_AMLOGIC_ETH_PRIVE)
 		priv->irq_wake = 0;
@@ -7462,7 +7476,7 @@ int stmmac_suspend(struct device *dev)
 #ifdef CONFIG_PM_SLEEP
 		int ret;
 
-		if (wol_switch_from_user && priv->phylink->phydev->link) {
+		if (wol_switch_from_user && priv->phylink->phydev->link && !mdns_switch_from_user) {
 			ret = phylink_speed_down(priv->phylink, true);
 			if (ret)
 				dev_err(priv->device, "phylink_speed_down(): auto-negotiation is incomplete\n");
@@ -7545,7 +7559,16 @@ int stmmac_resume(struct device *dev)
 	 * this bit because it can generate problems while resuming
 	 * from another devices (e.g. serial console).
 	 */
-	if (device_may_wakeup(priv->device) && priv->plat->pmt) {
+#ifdef CONFIG_AMLOGIC_ETH_PRIVE
+#ifdef CONFIG_PM_SLEEP
+	if (device_may_wakeup(priv->device) && priv->plat->pmt && wol_switch_from_user)
+#else
+	if (device_may_wakeup(priv->device) && priv->plat->pmt)
+#endif
+#else
+	if (device_may_wakeup(priv->device) && priv->plat->pmt)
+#endif
+	{
 		mutex_lock(&priv->lock);
 		stmmac_pmt(priv, priv->hw, 0);
 		mutex_unlock(&priv->lock);
@@ -7601,7 +7624,10 @@ int stmmac_resume(struct device *dev)
 	rtnl_lock();
 	if (device_may_wakeup(priv->device) && priv->plat->pmt) {
 		phylink_resume(priv->phylink);
-		phylink_speed_up(priv->phylink);
+#ifdef CONFIG_PM_SLEEP
+		if (wol_switch_from_user && !mdns_switch_from_user)
+			phylink_speed_up(priv->phylink);
+#endif
 	} else {
 		phylink_resume(priv->phylink);
 		if (device_may_wakeup(priv->device))

@@ -435,12 +435,11 @@ static void set_wol_notify_bl30(struct meson8b_dwmac *dwmac, u32 enable_bl30)
 	#endif
 }
 #endif
-unsigned int internal_phy;
+unsigned int mc_val;
 static int aml_custom_setting(struct platform_device *pdev, struct meson8b_dwmac *dwmac)
 {
 	struct device_node *np = pdev->dev.of_node;
 	struct net_device *ndev = platform_get_drvdata(pdev);
-	unsigned int mc_val = 0;
 	unsigned int cali_val = 0;
 
 	pr_info("aml_cust_setting\n");
@@ -455,8 +454,23 @@ static int aml_custom_setting(struct platform_device *pdev, struct meson8b_dwmac
 
 	ndev->wol_enabled = true;
 #ifdef CONFIG_PM_SLEEP
-	if (of_property_read_u32(np, "mac_wol", &wol_switch_from_user) == 0)
-		pr_info("feature mac_wol\n");
+	if (internal_phy == 2) {
+		if (of_property_read_u32(np, "wol", &support_gpio_wol) != 0) {
+			pr_info("no gpio wol %d\n", support_gpio_wol);
+		} else {
+			pr_info("gpio %d\n", support_gpio_wol);
+			ndev->wol_enabled = false;
+		}
+
+		if (of_property_read_u32(np, "mdns_wkup", &exphy_mdns_wkup) == 0)
+			pr_debug("feature exphy_mdns_wkup\n");
+	} else {
+		if (of_property_read_u32(np, "mac_wol", &wol_switch_from_user) == 0)
+			pr_info("feature mac_wol\n");
+
+		if (of_property_read_u32(np, "mdns_wkup", &mdns_switch_from_user) == 0)
+			pr_debug("feature mdns_switch_from_user\n");
+	}
 #endif
 
 	/*internal_phy 1:inphy;2:exphy; 0 as default*/
@@ -632,7 +646,10 @@ static void meson8b_dwmac_shutdown(struct platform_device *pdev)
 	struct meson8b_dwmac *dwmac = get_stmmac_bsp_priv(&pdev->dev);
 	int ret;
 
-	if (wol_switch_from_user) {
+	if (internal_phy == 2) {
+		set_wol_notify_bl31(0);
+		set_wol_notify_bl30(dwmac, 2);
+	} else {
 		set_wol_notify_bl31(0);
 		set_wol_notify_bl30(dwmac, 0);
 	}
@@ -657,6 +674,9 @@ static int dwmac_suspend(struct meson8b_dwmac *dwmac)
 	writel(0x00001683, phy_analog_config_addr + 0x18);
 	if (phy_pll_mode == 1)
 		writel(0x608200a0, phy_analog_config_addr + 0x44);
+	else if (phy_pll_mode == 3) /*s7d*/
+		writel(readl(phy_analog_config_addr + 0x50) & 0xfffffffc,
+			phy_analog_config_addr + 0x50);
 	else
 		writel(0x09c0040a, phy_analog_config_addr + 0x44);
 	return 0;
@@ -679,6 +699,32 @@ static void dwmac_resume(struct meson8b_dwmac *dwmac)
 			writel(0x34047, phy_analog_config_addr + 0x84);
 			writel(0x74047, phy_analog_config_addr + 0x84);
 		}
+	} else if (phy_pll_mode == 2) {/*s7 new*/
+		writel(0x00510630, phy_analog_config_addr + 0x44);
+		writel(0x222210a0, phy_analog_config_addr + 0x48);
+		writel(0x00518630, phy_analog_config_addr + 0x44);
+		usleep_range(100, 200);
+		writel(0x222200a0, phy_analog_config_addr + 0x48);
+		usleep_range(100, 200);
+		writel(0x00118630, phy_analog_config_addr + 0x44);
+
+		usleep_range(800, 1000);
+		writel(0x12804008, phy_analog_config_addr + 0x8);
+	} else if (phy_pll_mode == 3) {/*s7d new*/
+		writel(readl(phy_analog_config_addr + 0x50) & 0xfffffffc,
+			phy_analog_config_addr + 0x50);
+		writel(0x00c091a2, phy_analog_config_addr + 0x44);
+		writel(0x01111140, phy_analog_config_addr + 0x48);
+		writel(readl(phy_analog_config_addr + 0x50) | 0x2,
+			phy_analog_config_addr + 0x50);
+		usleep_range(100, 200);
+		writel(readl(phy_analog_config_addr + 0x50) | 0x3,
+			phy_analog_config_addr + 0x50);
+		usleep_range(100, 200);
+		writel(0x00e091a2, phy_analog_config_addr + 0x44);
+		usleep_range(800, 1000);
+
+		writel(0x12804008, phy_analog_config_addr + 0x8);
 	} else {
 		writel(0x19c0040a, phy_analog_config_addr + 0x44);
 	}
@@ -699,13 +745,22 @@ static int meson8b_suspend(struct device *dev)
 	if ((wol_switch_from_user) && phydev->link) {
 		set_wol_notify_bl31(true);
 		set_wol_notify_bl30(dwmac, true);
-		priv->wolopts = WAKE_MAGIC;
+		if (mdns_switch_from_user)
+			priv->wolopts = (0x1 << 5) | (0x1 << 8);
+		else
+			priv->wolopts = WAKE_MAGIC;
 		ret = stmmac_suspend(dev);
 		without_reset = 1;
 	} else {
-		set_wol_notify_bl31(false);
-		set_wol_notify_bl30(dwmac, false);
-
+		if (support_gpio_wol == 0 && internal_phy == 2) {
+			pr_info("wzh pull exphy reset\n");
+			set_wol_notify_bl31(false);
+			set_wol_notify_bl30(dwmac, 2);
+		} else {
+			pr_info("wzh exphy wol\n");
+			set_wol_notify_bl31(false);
+			set_wol_notify_bl30(dwmac, false);
+		}
 		ret = stmmac_suspend(dev);
 		if (internal_phy != 2) {
 			if (dwmac->data->suspend)
@@ -728,7 +783,7 @@ static int meson8b_resume(struct device *dev)
 	if ((wol_switch_from_user) && (without_reset)) {
 		ret = stmmac_resume(dev);
 
-		if (get_resume_method() == ETH_PHY_WAKEUP) {
+		if (get_resume_method() == ETH_PHY_WAKEUP  && !mdns_switch_from_user) {
 			pr_info("evan---wol rx--KEY_POWER\n");
 			input_event(dwmac->input_dev,
 				EV_KEY, KEY_POWER, 1);
@@ -752,6 +807,22 @@ static int meson8b_resume(struct device *dev)
 		if (phy_mode == 2)
 			stmmac_global_err(priv);
 	}
+
+	if (support_gpio_wol) {
+		if (get_resume_method() == ETH_PHY_GPIO && !exphy_mdns_wkup) {
+			pr_info("wzh gpio wol rx--KEY_POWER\n");
+			input_event(dwmac->input_dev,
+				EV_KEY, KEY_POWER, 1);
+			input_sync(dwmac->input_dev);
+			input_event(dwmac->input_dev,
+				EV_KEY, KEY_POWER, 0);
+			input_sync(dwmac->input_dev);
+		}
+
+		pr_info("exeth hold wakelock 5s\n");
+		pm_wakeup_event(dev, 5000);
+	}
+
 	return ret;
 }
 
