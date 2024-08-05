@@ -9,6 +9,7 @@ dtb-y += s4_s905y4_khadas_vim1s.dtb
 dtb-y += s5_s928x_tencent_aurora_5x.dtb
 dtb-y += s5_s928x_ugoos_am8_4g.dtb
 dtb-y += s5_s928x_ugoos_am8_8g.dtb
+dtb-y += s5_s928x_ugoos_sk1_8g.dtb
 dtb-y += s5_s928x_x96_x10_4g.dtb
 dtb-y += s5_s928x_x96_x10_8g.dtb
 dtb-y += sc2_s905x4_2g.dtb
