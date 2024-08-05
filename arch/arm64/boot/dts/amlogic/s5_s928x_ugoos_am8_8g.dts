@@ -1,6 +1,7 @@
 #include "s5_s928x_ugoos_am8_4g.dts"
 
 / {
+	model = "Ugoos AM8 Pro";
 	coreelec-dt-id = "s5_s928x_ugoos_am8_8g";
 	amlogic-dt-id = "s5_s928x_AM8-8g";
 
