@@ -1,0 +1,12 @@
+#include "s5_s928x_x96_x10_4g.dts"
+
+/ {
+	model = "X96 X10";
+	coreelec-dt-id = "s5_s928x_x96_x10_8g";
+	amlogic-dt-id = "s5_s928x_ax201-v28g";
+
+	memory@00000000 {
+		linux,usable-memory = <0x00000000 0x00000000 0x00000000 0xE0000000
+					0x00000001 0x00000000 0x00000001 0x20000000>;
+	};
+};
