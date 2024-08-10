@@ -1652,7 +1652,7 @@ config SND_SOC_RT5645
 	depends on I2C
 
 config SND_SOC_RT5651
-	tristate
+	tristate "Realtek RT5651 Codec"
 	depends on I2C
 
 config SND_SOC_RT5659
