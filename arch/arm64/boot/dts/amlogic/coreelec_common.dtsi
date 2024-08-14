@@ -104,8 +104,6 @@
 
 	/delete-node/ tdma;
 	/delete-node/ tdm@0;
-	/delete-node/ tdmc;
-	/delete-node/ tdm@2;
 	/delete-node/ tdm@3;
 	/delete-node/ pdm;
 	/delete-node/ extn;

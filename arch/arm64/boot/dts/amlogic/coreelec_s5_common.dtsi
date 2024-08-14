@@ -70,18 +70,18 @@
 		aml-audio-card,dai-link@1 {
 			format = "i2s";
 			mclk-fs = <256>;
-			bitclock-master = <&tdmb>;
-			frame-master = <&tdmb>;
+			bitclock-master = <&tdmc>;
+			frame-master = <&tdmc>;
 			cpu {
 				dai-tdm-slot-tx-mask = <1 1>;
 				dai-tdm-slot-rx-mask = <1 1>;
 				dai-tdm-slot-num = <2>;
 				dai-tdm-slot-width = <32>;
 				system-clock-frequency = <12288000>;
-				sound-dai = <&tdmb>;
+				sound-dai = <&tdmc>;
 			};
 			codec {
-				sound-dai = <&tdmb>;
+				sound-dai = <&amlogic_codec>;
 			};
 		};
 
@@ -147,6 +147,10 @@
 
 &audiobus {
 	/delete-node/ tdm@1;
+
+	tdmc: tdm@2 {
+		/delete-property/ i2s2hdmi;
+	};
 
 	aml_i2s2hdmi: i2s2hdmi {
 		compatible = "amlogic, tm2-revb-snd-tdmb";

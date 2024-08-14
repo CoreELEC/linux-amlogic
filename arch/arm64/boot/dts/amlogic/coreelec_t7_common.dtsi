@@ -151,6 +151,7 @@
 };
 
 &audiobus {
+	/delete-node/ tdm@2;
 	aml_i2s2hdmi: i2s2hdmi {
 		compatible = "amlogic, t7-snd-tdmc";
 		clocks = <&clkaudio CLKID_AUDIO_MCLK_C
