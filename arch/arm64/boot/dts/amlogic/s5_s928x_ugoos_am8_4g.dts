@@ -90,6 +90,15 @@
 		key_code = <116>;
 		key-gpios = <&gpio  GPIOD_2  GPIO_ACTIVE_HIGH>;
 	};
+
+	auge_sound {
+		spk_mute-gpios = <&gpio GPIOA_5 GPIO_ACTIVE_LOW>;
+		aml-audio-card,dai-link@1 {
+			codec {
+				sound-dai = <&es8388>;
+			};
+		};
+	};
 };
 
 &i2c1 {
@@ -149,7 +158,6 @@
 /* rtc, eeprom */
 &i2c5 {
 	status = "okay";
-	pinctrl-0 = <&i2c5_pins2>;
 	clock-frequency = <100000>;
 
 	hym8563: hym8563@51 {
@@ -182,4 +190,63 @@
 
 &aml_bt {
 	hostwake-gpios = <&gpio GPIOX_3 GPIO_ACTIVE_HIGH>;
+};
+
+&audiobus {
+	tdmc: tdm@2 {
+		clocks = <&clkaudio CLKID_AUDIO_MCLK_C
+				&clkaudio CLKID_AUDIO_MCLK_PAD1
+				&clkc CLKID_HIFI_PLL
+				&clkc CLKID_HIFI1_PLL>;
+		clock-names = "mclk", "mclk_pad", "clk_srcpll", "clk_src_cd";
+		pinctrl-names = "tdm_pins";
+		pinctrl-0 = <&tdmc_mclk
+			&tdm_c_pins
+			&tdm_d4_pins
+			&tdm_d8_pins
+			&tdmc_clk_pins>;
+	};
+};
+
+&periphs_pinctrl {
+	// audio codec
+	tdm_c_pins: tdm_c_pin {
+		mux { /* GPIOA_7, GPIOA_8, GPIOA_0, GPIOA_4 */
+			groups = "tdm_sclk2_a",
+				"tdm_fs2_a",
+				"tdm_d4_a",
+				"tdm_d8_a";
+			function = "tdm";
+		};
+	};
+	tdmc_mclk: tdmc_mclk {
+		mux {
+			groups = "mclk_1";
+			function = "mclk";
+		};
+	};
+};
+
+&pinctrl_audio {
+	// codec din
+	tdm_d4_pins: tdm_d4_pin {
+		mux {
+			groups = "tdm_d4";
+			function = "tdminc_lane1";
+		};
+	};
+	// codec dout
+	tdm_d8_pins: tdm_d8_pin {
+		mux {
+			groups = "tdm_d8";
+			function = "tdmoutc_lane0";
+		};
+	};
+	// codec clk
+	tdmc_clk_pins: tdmc_clk_pin {
+		mux {
+			groups = "tdm_sclk2", "tdm_lrclk2";
+			function = "tdm_clk_outc";
+		};
+	};
 };
