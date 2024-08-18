@@ -92,7 +92,9 @@
 	};
 
 	auge_sound {
-		spk_mute-gpios = <&gpio GPIOA_5 GPIO_ACTIVE_LOW>;
+		/delete-property/ spk_mute-gpios;
+		avout_mute-gpios = <&gpio GPIOA_5 GPIO_ACTIVE_LOW>;
+
 		aml-audio-card,dai-link@1 {
 			codec {
 				sound-dai = <&es8388>;
@@ -159,6 +161,7 @@
 &i2c5 {
 	status = "okay";
 	clock-frequency = <100000>;
+	pinctrl-0 = <&i2c5_pins2>;
 
 	hym8563: hym8563@51 {
 		compatible = "haoyu,hym8563";
