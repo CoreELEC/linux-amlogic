@@ -291,6 +291,10 @@ config AMLOGIC_KERNEL_VERSION
 	  so the default value is 13515
 	  the driver uses it to adapt different kernel versions
 
+config AMLOGIC_ARM
+	bool
+	default y if ARM
+
 if AMLOGIC_IN_KERNEL_MODULES
 source "$(COMMON_DRIVERS_DIR)/drivers/Kconfig"
 source "$(COMMON_DRIVERS_DIR)/sound/Kconfig"

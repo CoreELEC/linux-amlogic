@@ -17,7 +17,11 @@
 
 #include <linux/types.h>
 
+#if IS_ENABLED(CONFIG_AMLOGIC_ARM)
+#define COMMAND_LINE_SIZE 2048
+#else
 #define COMMAND_LINE_SIZE 1024
+#endif
 
 /* The list ends with an ATAG_NONE node. */
 #define ATAG_NONE	0x00000000
