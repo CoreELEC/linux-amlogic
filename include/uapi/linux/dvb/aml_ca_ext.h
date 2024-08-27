@@ -11,7 +11,6 @@
 #else
 #include "ca.h"
 #endif
-#include <linux/types.h>
 
 /* amlogic define */
 /* CW type. */
@@ -53,8 +52,7 @@ enum ca_sc2_cmd_type {
 	CA_KEY,
 	CA_GET_STATUS,
 	CA_SET_SCB,
-	CA_SET_ALGO,
-	CA_SET_EXTEND
+	CA_SET_ALGO
 };
 
 enum ca_sc2_algo_type {
@@ -73,7 +71,6 @@ enum ca_sc2_algo_type {
 	CA_ALGO_ASA_LIGHT,
 	CA_ALGO_S17_ECB_CLR_END,
 	CA_ALGO_S17_ECB_CTS,
-	CA_ALGO_MULTI2,
 	CA_ALGO_UNKNOWN
 };
 
@@ -158,28 +155,6 @@ struct ca_sc2_algo {
 	enum ca_sc2_algo_type algo;
 };
 
-enum ca_sc2_extend_type {
-	CA_EXTEND_MULTI2_SYSKEY
-};
-
-struct ca_multi2_params {
-	unsigned char round;
-	unsigned char syskey[32];
-};
-
-/**
- * struct ca_sc2_extend - set extend value
- *
- * @ca_index:		use slot index.
- * @type:		extend type
- * @extend_params_ptr:	pointer to extend params
- */
-struct ca_sc2_extend {
-	unsigned int ca_index;
-	enum ca_sc2_extend_type type;
-	__u64 extend_params_ptr;
-};
-
 /**
  * struct ca_sc2_descr_ex - ca extend descriptor
  *
@@ -193,7 +168,6 @@ struct ca_sc2_descr_ex {
 		struct ca_sc2_key key_params;
 		struct ca_sc2_scb scb_params;
 		struct ca_sc2_algo algo_params;
-		struct ca_sc2_extend extend_params;
 	} params;
 };
 
