@@ -398,6 +398,7 @@ struct hdmitx_dev {
 	u8 EDID_buf[EDID_MAX_BLOCK * 128];
 	u8 EDID_buf1[EDID_MAX_BLOCK * 128]; /* for second read */
 	u8 tmp_edid_buf[128 * EDID_MAX_BLOCK];
+	u8 custom_EDID_buf[EDID_MAX_BLOCK * 128];
 	u8 *edid_ptr;
 	u32 edid_parsing; /* Indicator that RX edid data integrated */
 	u8 EDID_hash[20];
@@ -645,6 +646,7 @@ void hdmitx21_edid_ram_buffer_clear(struct hdmitx_dev *hdev);
 void hdmitx21_edid_buf_compare_print(struct hdmitx_dev *hdev);
 int hdmitx21_read_phy_status(void);
 void hdmitx21_dither_config(struct hdmitx_dev *hdev);
+u32 hdmitx21_edid_check_valid_blocks(unsigned char *buf);
 
 /* VSIF: Vendor Specific InfoFrame
  * It has multiple purposes:

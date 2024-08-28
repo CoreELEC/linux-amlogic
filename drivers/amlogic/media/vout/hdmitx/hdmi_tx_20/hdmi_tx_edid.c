@@ -77,7 +77,6 @@
 #define TAG_DUMMY_DES 0x10
 
 static unsigned char __nosavedata edid_checkvalue[4] = {0};
-static unsigned int hdmitx_edid_check_valid_blocks(unsigned char *buf);
 static void edid_dtd_parsing(struct rx_cap *prxcap, unsigned char *data);
 static void hdmitx_edid_set_default_aud(struct hdmitx_dev *hdev);
 /* Base Block, Vendor/Product Information, byte[8]~[18] */
@@ -2907,7 +2906,7 @@ static void hdmitx_edid_blk_print(unsigned char *blk, unsigned int blk_idx)
 /*
  * check EDID buf contains valid block numbers
  */
-static unsigned int hdmitx_edid_check_valid_blocks(unsigned char *buf)
+unsigned int hdmitx_edid_check_valid_blocks(unsigned char *buf)
 {
 	unsigned int valid_blk_no = 0;
 	unsigned int i = 0, j = 0;

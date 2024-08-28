@@ -113,6 +113,7 @@
 &amhdmitx {
 	/delete-property/ hdcp_ctl_lvl;
 	/delete-property/ vrr_type;
+	custom_edid = "";
 };
 
 &aml_wifi {

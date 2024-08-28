@@ -422,6 +422,7 @@ struct hdmitx_dev {
 	unsigned char EDID_buf[EDID_MAX_BLOCK * 128];
 	unsigned char EDID_buf1[EDID_MAX_BLOCK * 128]; /* for second read */
 	unsigned char tmp_edid_buf[128 * EDID_MAX_BLOCK];
+	unsigned char custom_EDID_buf[EDID_MAX_BLOCK * 128];
 	unsigned char *edid_ptr;
 	/* indicate RX edid data integrated, HEAD valid and checksum pass */
 	unsigned int edid_parsing;
@@ -709,6 +710,7 @@ void hdmitx_edid_buf_compare_print(struct hdmitx_dev *hdmitx_device);
 const char *hdmitx_edid_get_native_VIC(struct hdmitx_dev *hdmitx_device);
 bool hdmitx_check_edid_all_zeros(unsigned char *buf);
 bool hdmitx_edid_notify_ng(unsigned char *buf);
+unsigned int hdmitx_edid_check_valid_blocks(unsigned char *buf);
 
 extern struct hdmitx_audpara hdmiaud_config_data;
 extern struct hdmitx_audpara hsty_hdmiaud_config_data[8];

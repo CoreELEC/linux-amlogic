@@ -6789,6 +6789,22 @@ static int amhdmitx_get_dt_info(struct platform_device *pdev)
 				pr_info("not find pwr_ctl\n");
 		}
 
+		/* Get custom EDID */
+		const char *custom_edid;
+		memset(hdev->custom_EDID_buf, 0, sizeof(hdev->custom_EDID_buf));
+		ret = of_property_read_string(pdev->dev.of_node, "custom_edid", &custom_edid);
+		if (!ret) {
+			int i = 0;
+			while ((i * 2) < strlen(custom_edid)) {
+				if (i == sizeof(hdev->custom_EDID_buf))
+					break;
+				sscanf(custom_edid + i * 2, "%02x", &hdev->custom_EDID_buf[i]);
+				i++;
+			}
+			if (hdmitx21_edid_check_valid_blocks(hdev->custom_EDID_buf))
+				pr_info("hdmitx: edid: using custom edid from dt\n");
+		}
+
 		/* Get reg information */
 		ret = hdmitx21_init_reg_map(pdev);
 		if (ret < 0)

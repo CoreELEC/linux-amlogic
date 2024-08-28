@@ -2344,9 +2344,15 @@ static int hdmitx_cntl_ddc(struct hdmitx_dev *hdev, u32 cmd,
 		break;
 	case DDC_EDID_GET_DATA:
 		if (argv == 0)
-			hdmitx_getediddata(hdev->EDID_buf, hdev->tmp_edid_buf);
+			if (hdmitx21_edid_check_valid_blocks(hdev->custom_EDID_buf))
+				hdmitx_getediddata(hdev->EDID_buf, hdev->custom_EDID_buf);
+			else
+				hdmitx_getediddata(hdev->EDID_buf, hdev->tmp_edid_buf);
 		else
-			hdmitx_getediddata(hdev->EDID_buf1, hdev->tmp_edid_buf);
+			if (hdmitx21_edid_check_valid_blocks(hdev->custom_EDID_buf))
+				hdmitx_getediddata(hdev->EDID_buf1, hdev->custom_EDID_buf);
+			else
+				hdmitx_getediddata(hdev->EDID_buf1, hdev->tmp_edid_buf);
 		break;
 	case DDC_GLITCH_FILTER_RESET:
 		hdmitx21_set_reg_bits(HDMITX_TOP_SW_RESET, 1, 6, 1);

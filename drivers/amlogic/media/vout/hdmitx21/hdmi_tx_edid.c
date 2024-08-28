@@ -79,7 +79,6 @@
 #define TAG_DUMMY_DES 0x10
 
 static u8 __nosavedata edid_checkvalue[4] = {0};
-static u32 hdmitx_edid_check_valid_blocks(u8 *buf);
 static void edid_dtd_parsing(struct rx_cap *prxcap, u8 *data);
 static void hdmitx_edid_set_default_aud(struct hdmitx_dev *hdev);
 /* Base Block, Vendor/Product Information, byte[8]~[18] */
@@ -2809,7 +2808,7 @@ int hdmitx21_edid_parse(struct hdmitx_dev *hdmitx_device)
 
 	edid_save_checkvalue(EDID_buf, blockcount + 1, prxcap);
 
-	if (!hdmitx_edid_check_valid_blocks(&EDID_buf[0])) {
+	if (!hdmitx21_edid_check_valid_blocks(&EDID_buf[0])) {
 		prxcap->ieeeoui = HDMI_IEEE_OUI;
 		pr_info(EDID "Invalid edid, consider RX as HDMI device\n");
 	}
@@ -3196,7 +3195,7 @@ static void hdmitx_edid_blk_print(u8 *blk, u32 blk_idx)
 /*
  * check EDID buf contains valid block numbers
  */
-static u32 hdmitx_edid_check_valid_blocks(u8 *buf)
+u32 hdmitx21_edid_check_valid_blocks(u8 *buf)
 {
 	u32 valid_blk_no = 0;
 	u32 i = 0, j = 0;
@@ -3238,7 +3237,7 @@ void hdmitx21_edid_buf_compare_print(struct hdmitx_dev *hdmitx_device)
 
 	if (err_no == 0) {
 		/* calculate valid edid block numbers */
-		valid_blk_no = hdmitx_edid_check_valid_blocks(buf0);
+		valid_blk_no = hdmitx21_edid_check_valid_blocks(buf0);
 
 		if (valid_blk_no == 0) {
 			pr_info(EDID "raw data are all zeroes\n");
@@ -3249,11 +3248,11 @@ void hdmitx21_edid_buf_compare_print(struct hdmitx_dev *hdmitx_device)
 		}
 	} else {
 		pr_info(EDID "%d errors between two reading\n", err_no);
-		valid_blk_no = hdmitx_edid_check_valid_blocks(buf0);
+		valid_blk_no = hdmitx21_edid_check_valid_blocks(buf0);
 		for (blk_idx = 0; blk_idx < valid_blk_no; blk_idx++)
 			hdmitx_edid_blk_print(&buf0[blk_idx * 128], blk_idx);
 
-		valid_blk_no = hdmitx_edid_check_valid_blocks(buf1);
+		valid_blk_no = hdmitx21_edid_check_valid_blocks(buf1);
 		for (blk_idx = 0; blk_idx < valid_blk_no; blk_idx++)
 			hdmitx_edid_blk_print(&buf1[blk_idx * 128], blk_idx);
 	}
