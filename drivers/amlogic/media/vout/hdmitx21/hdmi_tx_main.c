@@ -1719,7 +1719,7 @@ static void hdr_work_func(struct work_struct *work)
 
 	if (hdev->hdr_transfer_feature == T_BT709 &&
 	    hdev->hdr_color_feature == C_BT709) {
-		pr_info("%s: send zero DRM\n", __func__);
+		//pr_info("%s: send zero DRM\n", __func__);
 		hdmi_drm_infoframe_init(info);
 		hdmi_drm_infoframe_set(info);
 		hdmi_avi_infoframe_config(CONF_AVI_BT2020, hdev->colormetry);
