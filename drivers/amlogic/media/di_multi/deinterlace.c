@@ -7124,7 +7124,7 @@ void dim_irq_pre(void)
 			flag = 0;
 		}
 	} else {
-		PR_WARN("irq:flag 0\n");
+		//PR_WARN("irq:flag 0\n");
 	}
 
 	/* check timeout*/

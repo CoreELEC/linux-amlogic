@@ -1826,7 +1826,7 @@ static void hdr_work_func(struct work_struct *work)
 		unsigned char DRM_HB[3] = {0x87, 0x1, 26};
 		unsigned char DRM_DB[26] = {0x0};
 
-		pr_info("%s: send zero DRM\n", __func__);
+		//pr_info("%s: send zero DRM\n", __func__);
 		hdev->hwop.setpacket(HDMI_PACKET_DRM, DRM_DB, DRM_HB);
 
 		msleep(1500);/*delay 1.5s*/
