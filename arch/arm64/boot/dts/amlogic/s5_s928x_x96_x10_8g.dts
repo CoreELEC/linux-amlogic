@@ -1,7 +1,7 @@
 #include "s5_s928x_x96_x10_4g.dts"
 
 / {
-	model = "X96 X10";
+	model = "X96 X10 Pro";
 	coreelec-dt-id = "s5_s928x_x96_x10_8g";
 	amlogic-dt-id = "s5_s928x_ax201-v28g";
 
