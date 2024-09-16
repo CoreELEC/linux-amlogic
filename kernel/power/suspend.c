@@ -194,7 +194,7 @@ static int __init mem_sleep_default_setup(char *str)
 
 	return 1;
 }
-__setup("mem_sleep_default=", mem_sleep_default_setup);
+early_param("mem_sleep_default", mem_sleep_default_setup);
 
 /**
  * suspend_set_ops - Set the global suspend method table.
