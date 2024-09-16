@@ -14,3 +14,38 @@
 	/delete-property/ vmmc-supply;
 	/delete-property/ vqmmc-supply;
 };
+
+&i2c1 {
+	clock-frequency = <300000>;
+	status = "okay";
+
+	tca6507: tca6507@45 {
+		compatible = "ti,tca6507";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		reg = <0x45>;
+
+		gpio-controller;
+		#gpio-cells = <2>;
+
+		led0: led-red@0 {
+			label = "strip-red";
+			reg = <0x0>;
+			linux,default-trigger = "default-on";
+			retain-state-shutdown;
+		};
+
+		led1: led-green@1 {
+			label = "strip-green";
+			reg = <0x1>;
+			linux,default-trigger = "default-on";
+		};
+
+		led2: led-blue@2 {
+			label = "strip-blue";
+			reg = <0x2>;
+			linux,default-trigger = "default-on";
+			retain-state-suspended;
+		};
+	};
+};
