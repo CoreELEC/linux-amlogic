@@ -733,6 +733,7 @@ static void dwmac_resume(struct meson8b_dwmac *dwmac)
 
 int backup_adv;
 int without_reset;
+extern int rtl8211f_suspend(struct phy_device *phydev);
 static int meson8b_suspend(struct device *dev)
 {
 	struct net_device *ndev = dev_get_drvdata(dev);
@@ -765,6 +766,7 @@ static int meson8b_suspend(struct device *dev)
 			set_wol_notify_bl30(dwmac, false);
 		}
 		ret = stmmac_suspend(dev);
+		ret = rtl8211f_suspend(phydev);
 		if (internal_phy != 2) {
 			if (dwmac->data->suspend)
 				ret = dwmac->data->suspend(dwmac);
@@ -774,6 +776,7 @@ static int meson8b_suspend(struct device *dev)
 	return ret;
 }
 
+extern int rtl821x_resume(struct phy_device *phydev);
 static int meson8b_resume(struct device *dev)
 {
 	struct net_device *ndev = dev_get_drvdata(dev);
@@ -810,6 +813,7 @@ static int meson8b_resume(struct device *dev)
 				dwmac->data->resume(dwmac);
 		}
 		ret = stmmac_resume(dev);
+		ret = rtl821x_resume(phydev);
 		if (ret) {
 			pr_info("eth hold wakelock 10s\n");
 			pm_wakeup_event(dev, 10000);
