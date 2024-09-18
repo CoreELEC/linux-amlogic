@@ -733,6 +733,7 @@ static void dwmac_resume(struct meson8b_dwmac *dwmac)
 
 int backup_adv;
 int without_reset;
+extern int rtl8211f_suspend(struct phy_device *phydev);
 static int meson8b_suspend(struct device *dev)
 {
 	struct net_device *ndev = dev_get_drvdata(dev);
@@ -762,6 +763,7 @@ static int meson8b_suspend(struct device *dev)
 			set_wol_notify_bl30(dwmac, false);
 		}
 		ret = stmmac_suspend(dev);
+		ret = rtl8211f_suspend(phydev);
 		if (internal_phy != 2) {
 			if (dwmac->data->suspend)
 				ret = dwmac->data->suspend(dwmac);
@@ -771,11 +773,13 @@ static int meson8b_suspend(struct device *dev)
 	return ret;
 }
 
+extern int rtl821x_resume(struct phy_device *phydev);
 static int meson8b_resume(struct device *dev)
 {
 	struct net_device *ndev = dev_get_drvdata(dev);
 	struct stmmac_priv *priv = netdev_priv(ndev);
 	struct meson8b_dwmac *dwmac = priv->plat->bsp_priv;
+	struct phy_device *phydev = ndev->phydev;
 	int ret;
 
 	priv->wolopts = 0;
@@ -803,6 +807,7 @@ static int meson8b_resume(struct device *dev)
 				dwmac->data->resume(dwmac);
 		}
 		ret = stmmac_resume(dev);
+		ret = rtl821x_resume(phydev);
 		/*this flow only for txhd2, not for common anymore*/
 		if (phy_mode == 2)
 			stmmac_global_err(priv);
