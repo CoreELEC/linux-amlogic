@@ -721,6 +721,7 @@ static int meson8b_suspend(struct device *dev)
 	return ret;
 }
 
+extern int rtl821x_resume(struct phy_device *phydev);
 static int meson8b_resume(struct device *dev)
 {
 	struct net_device *ndev = dev_get_drvdata(dev);
@@ -759,6 +760,7 @@ static int meson8b_resume(struct device *dev)
 				dwmac->data->resume(dwmac);
 		}
 		ret = stmmac_resume(dev);
+		ret = rtl821x_resume(phydev);
 		/*this flow only for txhd2, not for common anymore*/
 		if (phy_mode == 2)
 			stmmac_global_err(priv);
