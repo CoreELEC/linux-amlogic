@@ -34,6 +34,7 @@
 #include <linux/io.h>
 #include <linux/uaccess.h>
 #include <linux/of.h>
+#include <linux/motorcomm_phy.h>
 
 #include <asm/irq.h>
 
@@ -518,6 +519,33 @@ static int get_phy_id(struct mii_bus *bus, int addr, u32 *phy_id,
 	return 0;
 }
 
+static int ytphy_mii_rd_ext(struct mii_bus *bus, int phy_id, u32 regnum)
+{
+	int ret;
+	int val;
+
+	ret = bus->write(bus, phy_id, REG_DEBUG_ADDR_OFFSET, regnum);
+	if (ret < 0)
+		return ret;
+
+	val = bus->read(bus, phy_id, REG_DEBUG_DATA);
+
+	return val;
+}
+
+static int ytphy_mii_wr_ext(struct mii_bus *bus, int phy_id, u32 regnum, u16 val)
+{
+	int ret;
+
+	ret = bus->write(bus, phy_id, REG_DEBUG_ADDR_OFFSET, regnum);
+	if (ret < 0)
+		return ret;
+
+	ret = bus->write(bus, phy_id, REG_DEBUG_DATA, val);
+
+	return ret;
+}
+
 /**
  * get_phy_device - reads the specified PHY device and returns its @phy_device
  *		    struct
@@ -544,6 +572,16 @@ struct phy_device *get_phy_device(struct mii_bus *bus, int addr, bool is_c45)
 	if ((phy_id & 0x1fffffff) == 0x1fffffff)
 #endif
 		return ERR_PTR(-ENODEV);
+
+	pr_info("yzhang..read phyaddr=%d, phyid=%08x\n",addr, phy_id);
+	if(phy_id == 0x4f51e91b)
+	{
+		pr_info("yzhang..get YT8511, abt to set 125m clk out, phyaddr=%d, phyid=%08x\n",addr, phy_id);
+		r = yt8511_config_out_125m(bus, addr);
+		pr_info("yzhang..8511 set 125m clk out, reg=%#04x\n",bus->read(bus,addr,0x1f)/*double check as delay*/);
+		if (r<0)
+			pr_info("yzhang..failed to set 125m clk out, ret=%d\n",r);
+	}
 
 	return phy_device_create(bus, addr, phy_id, is_c45, &c45_ids);
 }
