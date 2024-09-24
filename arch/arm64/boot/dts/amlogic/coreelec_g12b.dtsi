@@ -1,5 +1,6 @@
 #include "g12b_a311d_w400.dts"
 #include "coreelec_g12_common.dtsi"
+#include "coreelec_g12b_cache.dtsi"
 
 /{
 	reserved-memory {
