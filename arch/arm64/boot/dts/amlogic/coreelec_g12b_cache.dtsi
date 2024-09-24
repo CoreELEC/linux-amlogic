@@ -1,0 +1,53 @@
+
+/ {
+	cpus:cpus {
+		CPU0:cpu@0 {
+			capacity-dmips-mhz = <778>;
+			next-level-cache = <&l2_0>;
+		};
+
+		CPU1:cpu@1 {
+			capacity-dmips-mhz = <778>;
+			next-level-cache = <&l2_0>;
+		};
+
+		CPU2:cpu@100 {
+			capacity-dmips-mhz = <1192>;
+			next-level-cache = <&l2_1>;
+		};
+
+		CPU3:cpu@101 {
+			capacity-dmips-mhz = <1192>;
+			next-level-cache = <&l2_1>;
+		};
+
+		CPU4:cpu@102 {
+			capacity-dmips-mhz = <1192>;
+			next-level-cache = <&l2_1>;
+		};
+
+		CPU5:cpu@103 {
+			capacity-dmips-mhz = <1192>;
+			next-level-cache = <&l2_1>;
+		};
+
+		//HINT: cache-size does not have to be correct, just get the hierarchy right.
+		l2_0: l2-cache0 {
+			compatible = "cache";
+			cache-level = <2>;
+			cache-unified;
+			cache-size = <0x80000>;
+			cache-line-size = <64>;
+			cache-sets = <512>;
+		};
+
+		l2_1: l2-cache1 {
+			compatible = "cache";
+			cache-level = <2>;
+			cache-unified;
+			cache-size = <0x100000>;
+			cache-line-size = <64>;
+			cache-sets = <1024>;
+		};
+	};
+};
