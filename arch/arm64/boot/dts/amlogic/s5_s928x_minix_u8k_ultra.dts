@@ -1,0 +1,47 @@
+#include "s5_s928x_ax201_v2_linux.dts"
+#include "coreelec_s5_common.dtsi"
+
+/ {
+	model = "Minix U8K-Ultra";
+	coreelec-dt-id = "s5_s928x_minix_u8k_ultra";
+
+	memory@00000000 {
+		linux,usable-memory = <0x00000000 0x00000000 0x00000000 0xE0000000
+					0x00000001 0x00000000 0x00000001 0x20000000>;
+	};
+
+	gpio_keypad{
+		key_name = "power", "mute";
+		key_code = <116 SW_MUTE_DEVICE>;
+	};
+
+	// HDMI 5V
+	hdmi5v: fixedregulator@hdmi5v {
+		vin-supply = <&vbat>;
+		compatible = "regulator-fixed";
+		regulator-name = "HDMI_5V";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		pinctrl-names = "default";
+		gpio = <&gpio GPIOT_0 GPIO_ACTIVE_HIGH>;
+		startup-delay-us = <70000>;
+		enable-active-high;
+		regulator-boot-on;
+		regulator-always-on;
+	};
+};
+
+&i2c2 {
+	pinctrl-0=<&i2c2_pins1>;
+
+	hym8563: hym8563@51 {
+		compatible = "haoyu,hym8563";
+		reg = <0x51>;
+		init_date = "2024/01/01";
+		irq_gpio = <&gpio GPIOA_6 GPIO_ACTIVE_HIGH>;
+	};
+};
+
+&vrtc {
+	status = "disabled";
+};
