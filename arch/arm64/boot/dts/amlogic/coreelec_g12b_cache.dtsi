@@ -153,7 +153,8 @@
 			clock-latency = <50000>;
 			next-level-cache = <&l2_1>;
 		};
-		
+
+		//HINT:cache-size does not have to be correct, just get the hierarchy right. 
 		l2_0: l2-cache0 {
  			compatible = "cache";
 			cache-level = <2>;
