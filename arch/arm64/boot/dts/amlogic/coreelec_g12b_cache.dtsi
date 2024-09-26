@@ -1,0 +1,175 @@
+
+/ {
+	cpus:cpus {
+		#address-cells = <2>;
+		#size-cells = <0>;
+
+		cpu-map {
+			cluster0:cluster0 {
+				core0 {
+					cpu = <&CPU0>;
+				};
+				core1 {
+					cpu = <&CPU1>;
+				};
+			};
+			cluster1:cluster1 {
+				core0 {
+					cpu = <&CPU2>;
+				};
+				core1 {
+					cpu = <&CPU3>;
+				};
+				core2 {
+					cpu = <&CPU4>;
+				};
+				core3 {
+					cpu = <&CPU5>;
+				};
+			};
+		};
+
+		CPU0:cpu@0 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a53","arm,armv8";
+			reg = <0x0 0x0>;
+			enable-method = "psci";
+			//cpu-idle-states = <&CPU_SLEEP_0 &CLUSTER_SLEEP_0>;
+			capacity-dmips-mhz = <778>;
+			sched-energy-costs = <&CPU_COST_A53 &CLUSTER_COST_A53>;
+			clocks = <&clkc CLKID_CPU_CLK>,
+				<&clkc CLKID_CPU_FCLK_P>,
+				<&clkc CLKID_SYS1_PLL>;
+			clock-names = "core_clk",
+				"low_freq_clk_parent",
+				"high_freq_clk_parent";
+			operating-points-v2 = <&cpu_opp_table0>;
+			cpu-supply = <&vddcpu0>;
+			voltage-tolerance = <0>;
+			clock-latency = <50000>;
+			next-level-cache = <&l2_0>;
+		};
+
+		CPU1:cpu@1 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a53","arm,armv8";
+			reg = <0x0 0x1>;
+			enable-method = "psci";
+			capacity-dmips-mhz = <778>;
+			sched-energy-costs = <&CPU_COST_A53 &CLUSTER_COST_A53>;
+			clocks = <&clkc CLKID_CPU_CLK>,
+			       <&clkc CLKID_CPU_FCLK_P>,
+			       <&clkc CLKID_SYS1_PLL>;
+			clock-names = "core_clk",
+				"low_freq_clk_parent",
+				"high_freq_clk_parent";
+			operating-points-v2 = <&cpu_opp_table0>;
+			cpu-supply = <&vddcpu0>;
+			voltage-tolerance = <0>;
+			clock-latency = <50000>;
+			next-level-cache = <&l2_0>;
+		};
+
+		CPU2:cpu@100 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a73","arm,armv8";
+			reg = <0x0 0x100>;
+			enable-method = "psci";
+			//cpu-idle-states = <&CPU_SLEEP_0 &CLUSTER_SLEEP_0>;
+			sched-energy-costs = <&CPU_COST_A73 &CLUSTER_COST_A73>;
+			capacity-dmips-mhz = <1192>;
+			clocks = <&clkc CLKID_CPUB_CLK>,
+				<&clkc CLKID_CPUB_FCLK_P>,
+				<&clkc CLKID_SYS_PLL>;
+			clock-names = "core_clk",
+				"low_freq_clk_parent",
+				"high_freq_clk_parent";
+			operating-points-v2 = <&cpu_opp_table1>;
+			cpu-supply = <&vddcpu1>;
+			voltage-tolerance = <0>;
+			clock-latency = <50000>;
+			next-level-cache = <&l2_1>;
+		};
+
+		CPU3:cpu@101 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a73","arm,armv8";
+			reg = <0x0 0x101>;
+			enable-method = "psci";
+			//cpu-idle-states = <&CPU_SLEEP_0 &CLUSTER_SLEEP_0>;
+			sched-energy-costs = <&CPU_COST_A73 &CLUSTER_COST_A73>;
+			capacity-dmips-mhz = <1192>;
+			clocks = <&clkc CLKID_CPUB_CLK>,
+			       <&clkc CLKID_CPUB_FCLK_P>,
+			       <&clkc CLKID_SYS_PLL>;
+			clock-names = "core_clk",
+				"low_freq_clk_parent",
+				"high_freq_clk_parent";
+			operating-points-v2 = <&cpu_opp_table1>;
+			cpu-supply = <&vddcpu1>;
+			voltage-tolerance = <0>;
+			clock-latency = <50000>;
+			next-level-cache = <&l2_1>;
+		};
+
+		CPU4:cpu@102 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a73","arm,armv8";
+			reg = <0x0 0x102>;
+			enable-method = "psci";
+			//cpu-idle-states = <&CPU_SLEEP_0 &CLUSTER_SLEEP_0>;
+			sched-energy-costs = <&CPU_COST_A73 &CLUSTER_COST_A73>;
+			capacity-dmips-mhz = <1192>;
+			clocks = <&clkc CLKID_CPUB_CLK>,
+			       <&clkc CLKID_CPUB_FCLK_P>,
+			       <&clkc CLKID_SYS_PLL>;
+			clock-names = "core_clk",
+				"low_freq_clk_parent",
+				"high_freq_clk_parent";
+			operating-points-v2 = <&cpu_opp_table1>;
+			cpu-supply = <&vddcpu1>;
+			voltage-tolerance = <0>;
+			clock-latency = <50000>;
+			next-level-cache = <&l2_1>;
+		};
+
+		CPU5:cpu@103 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a73","arm,armv8";
+			reg = <0x0 0x103>;
+			enable-method = "psci";
+			//cpu-idle-states = <&CPU_SLEEP_0 &CLUSTER_SLEEP_0>;
+			sched-energy-costs = <&CPU_COST_A73 &CLUSTER_COST_A73>;
+			capacity-dmips-mhz = <1192>;
+			clocks = <&clkc CLKID_CPUB_CLK>,
+			       <&clkc CLKID_CPUB_FCLK_P>,
+			       <&clkc CLKID_SYS_PLL>;
+			clock-names = "core_clk",
+				"low_freq_clk_parent",
+				"high_freq_clk_parent";
+			operating-points-v2 = <&cpu_opp_table1>;
+			cpu-supply = <&vddcpu1>;
+			voltage-tolerance = <0>;
+			clock-latency = <50000>;
+			next-level-cache = <&l2_1>;
+		};
+		
+		l2_0: l2-cache0 {
+ 			compatible = "cache";
+			cache-level = <2>;
+			cache-unified;
+			cache-size = <0x80000>;
+			cache-line-size = <64>;
+			cache-sets = <512>;
+ 		};
+ 		
+ 		l2_1: l2-cache1 {
+ 			compatible = "cache";
+			cache-level = <2>;
+			cache-unified;
+			cache-size = <0x100000>;
+			cache-line-size = <64>;
+			cache-sets = <1024>;
+		};
+ 	}
+ }
