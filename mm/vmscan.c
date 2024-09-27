@@ -1409,7 +1409,7 @@ static unsigned int demote_page_list(struct list_head *demote_pages,
 	return nr_succeeded;
 }
 
-#ifdef CONFIG_AMLOGIC_MEMORY_EXTEND
+#ifdef CONFIG_AMLOGIC_SWAPD_OPT
 static int can_unmap_files(struct scan_control *sc, struct page *page)
 {
 	if (!current_is_kswapd())
@@ -1467,7 +1467,7 @@ retry:
 		if (unlikely(!page_evictable(page)))
 			goto activate_locked;
 
-	#ifdef CONFIG_AMLOGIC_MEMORY_EXTEND
+	#ifdef CONFIG_AMLOGIC_SWAPD_OPT
 		if (!can_unmap_files(sc, page))
 	#else
 		if (!sc->may_unmap && page_mapped(page))
