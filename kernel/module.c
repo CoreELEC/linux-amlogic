@@ -1304,8 +1304,7 @@ bad_version:
 	pr_warn("%s: disagrees about version of symbol %s\n",
 	       info->name, symname);
 #if IS_ENABLED(CONFIG_AMLOGIC_BGKI_DEBUG_MISC)
-	pr_warn("!!!MUST FIX!!! %s: ko need recompile.\n", info->name);
-	dump_stack();
+	pr_err("please rebuild ko: %s\n", info->name);
 	return ignore_check_version;
 #else
 	return 0;
