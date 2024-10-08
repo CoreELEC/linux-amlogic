@@ -551,9 +551,9 @@ KBUILD_CFLAGS   := -Wall -Wundef -Werror=strict-prototypes -Wno-trigraphs \
 		   -Werror=implicit-function-declaration -Werror=implicit-int \
 		   -Werror=return-type -Wno-format-security \
 		   -std=gnu89
-KBUILD_CFLAGS	+= -Wno-stringop-overread -Wno-tautological-compare \
-       -Wno-tautological-pointer-compare -Wno-error=array-compare \
-       -Wno-error=address -Wno-dangling-pointer -Wno-enum-int-mismatch \
+KBUILD_CFLAGS	+= -Wno-tautological-compare \
+       -Wno-tautological-pointer-compare \
+       -Wno-error=address \
        -Wno-return-type
 
 KBUILD_CPPFLAGS := -D__KERNEL__
@@ -1117,9 +1117,6 @@ endif
 
 # Prohibit date/time macros, which would make the build non-deterministic
 KBUILD_CFLAGS   += -Werror=date-time
-
-# enforce correct pointer usage
-KBUILD_CFLAGS   += $(call cc-option,-Werror=incompatible-pointer-types)
 
 # Require designated initializers for all marked structures
 KBUILD_CFLAGS   += $(call cc-option,-Werror=designated-init)
