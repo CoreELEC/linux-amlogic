@@ -49,6 +49,9 @@
 
 #include "internal.h"
 
+#ifdef CONFIG_AMLOGIC_MEMORY_SLAB_LARGE
+#include <linux/amlogic/memory.h>
+#endif
 /*
  * Lock order:
  *   1. slab_mutex (Global Mutex)
@@ -4331,15 +4334,33 @@ static void *___kmalloc_large_node(size_t size, gfp_t flags, int node)
 
 	flags |= __GFP_COMP;
 
+#ifdef CONFIG_AMLOGIC_MEMORY_SLAB_LARGE
+	if (size < (PAGE_SIZE * (1 << order))) {
+		struct page *page = aml_slub_alloc_large(node, size, flags, order);
+		if (page)
+			folio = page_folio(page);
+		else
+			folio = NULL;
+	
+	} else {
+		folio = (struct folio *)alloc_pages_node_noprof(node, flags, order);
+	}
+#else
 	if (node == NUMA_NO_NODE)
 		folio = (struct folio *)alloc_pages_noprof(flags, order);
 	else
 		folio = (struct folio *)__alloc_pages_noprof(flags, order, node, NULL);
-
+#endif
 	if (folio) {
 		ptr = folio_address(folio);
+	#ifdef CONFIG_AMLOGIC_MEMORY_SLAB_LARGE
+		lruvec_stat_mod_folio(folio, NR_SLAB_UNRECLAIMABLE_B,
+				      PAGE_ALIGN(size));
+	#else
+
 		lruvec_stat_mod_folio(folio, NR_SLAB_UNRECLAIMABLE_B,
 				      PAGE_SIZE << order);
+	#endif
 	}
 
 	trace_android_vh_kmalloc_large_alloced(folio, order, flags);
@@ -4862,7 +4883,14 @@ void kfree(const void *object)
 		trace_android_vh_kfree_bypass(folio, object, &bypass);
 		if (bypass)
 			return;
+#ifdef CONFIG_AMLOGIC_MEMORY_SLAB_LARGE
+		if (aml_free_nonslab_page(folio, (void *)object))
+			return;
+
+		folio_put(folio);
+#else
 		free_large_kmalloc(folio, (void *)object);
+#endif
 		return;
 	}
 
@@ -5196,6 +5224,9 @@ static inline unsigned int calc_slab_order(unsigned int size,
 
 static inline int calculate_order(unsigned int size)
 {
+#ifdef CONFIG_AMLOGIC_MEMORY_OPT
+	return get_order(size);
+#else
 	unsigned int order;
 	unsigned int min_objects;
 	unsigned int max_objects;
@@ -5255,6 +5286,7 @@ static inline int calculate_order(unsigned int size)
 	if (order <= MAX_PAGE_ORDER)
 		return order;
 	return -ENOSYS;
+#endif
 }
 
 static void

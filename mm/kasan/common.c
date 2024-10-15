@@ -30,6 +30,10 @@
 #include <linux/bug.h>
 #include <linux/vmalloc.h>
 #include <trace/hooks/kasan.h>
+#ifdef CONFIG_AMLOGIC_MEMORY_SLAB_LARGE
+#include "../internal.h"
+#include <linux/amlogic/memory.h>
+#endif
 
 #include "kasan.h"
 #include "../slab.h"
@@ -417,7 +421,9 @@ static inline void poison_kmalloc_large_redzone(const void *ptr, size_t size,
 	/* Poison the aligned part of the redzone. */
 	redzone_start = round_up((unsigned long)(ptr + size), KASAN_GRANULE_SIZE);
 	redzone_end = (unsigned long)ptr + page_size(virt_to_page(ptr));
-
+#ifdef CONFIG_AMLOGIC_MEMORY_SLAB_LARGE
+	adjust_redzone_end(ptr, size, &redzone_end);
+#endif
 	trace_android_vh_poison_kmalloc_large_redzone(ptr, size, &redzone_end);
 
 	kasan_poison((void *)redzone_start, redzone_end - redzone_start,

@@ -920,9 +920,11 @@ static enum folio_references folio_check_references(struct folio *folio,
 	unsigned long vm_flags;
 	int ret = 0;
 
+#ifndef CONFIG_AMLOGIC_MEMORY_OPT
 #ifdef CONFIG_ANDROID_VENDOR_OEM_DATA
 	trace_android_vh_page_should_be_protected(folio, sc->nr_scanned,
 		sc->priority, &sc->android_vendor_data1, &ret);
+#endif
 #endif
 	trace_android_vh_check_folio_look_around_ref(folio, &ret);
 	if (ret)
@@ -1111,6 +1113,17 @@ static bool may_enter_fs(struct folio *folio, gfp_t gfp_mask)
 	return !data_race(folio_swap_flags(folio) & SWP_FS_OPS);
 }
 
+#ifdef CONFIG_AMLOGIC_SWAPD_OPT
+static int can_unmap_files(struct scan_control *sc, struct folio *folio)
+{
+	if (!current_is_kswapd())
+		return 1;
+	if (folio_mapcount(folio) > 1)
+		return 0;
+	return 1;
+}
+#endif
+
 /*
  * shrink_folio_list() returns the number of reclaimed pages
  */
@@ -1176,7 +1189,7 @@ retry:
 			goto activate_locked;
 
 		if (!sc->may_unmap && folio_mapped(folio))
-			goto keep_locked;
+		    goto keep_locked;
 
 		/*
 		 * The number of dirty pages determines if a node is marked
@@ -1836,8 +1849,15 @@ static unsigned long isolate_lru_folios(unsigned long nr_to_scan,
 		if (bypass)
 			goto move;
 
+	#ifdef CONFIG_AMLOGIC_SWAPD_OPT
+		if (is_active_lru(lru) && !sc->may_unmap && folio_mapped(folio))
+			goto move;
+		if (!is_active_lru(lru) && !can_unmap_files(sc, folio))
+			goto move;
+	#else
 		if (!sc->may_unmap && folio_mapped(folio))
 			goto move;
+	#endif
 
 		/*
 		 * Be careful not to clear the lru flag until after we're
@@ -1961,8 +1981,10 @@ static bool too_many_isolated(struct pglist_data *pgdat, int file,
 	 * won't get blocked by normal direct-reclaimers, forming a circular
 	 * deadlock.
 	 */
+#ifndef CONFIG_AMLOGIC_MEMORY_EXTEND
 	if (gfp_has_io_fs(sc->gfp_mask))
 		inactive >>= 3;
+#endif
 
 	too_many = isolated > inactive;
 
@@ -2236,9 +2258,11 @@ static void shrink_active_list(unsigned long nr_to_scan,
 			}
 		}
 
+#ifndef CONFIG_AMLOGIC_MEMORY_OPT
 #ifdef CONFIG_ANDROID_VENDOR_OEM_DATA
 		trace_android_vh_page_should_be_protected(folio, sc->nr_scanned,
 			sc->priority, &sc->android_vendor_data1, &should_protect);
+#endif
 #endif
 		if (unlikely(should_protect)) {
 			nr_rotated += folio_nr_pages(folio);
@@ -6094,9 +6118,11 @@ static inline bool should_continue_reclaim(struct pglist_data *pgdat,
 			return false;
 	}
 
+#ifndef CONFIG_AMLOGIC_MEMORY_OPT
 #ifdef CONFIG_ANDROID_VENDOR_OEM_DATA
 	trace_android_vh_should_continue_reclaim(&sc->android_vendor_data1,
 		&sc->nr_to_reclaim, &sc->nr_reclaimed, &continue_reclaim);
+#endif
 #endif
 	if (!continue_reclaim)
 		return false;
@@ -6190,10 +6216,12 @@ static void shrink_node_memcgs(pg_data_t *pgdat, struct scan_control *sc)
 				   sc->nr_scanned - scanned,
 				   sc->nr_reclaimed - reclaimed);
 
+#ifndef CONFIG_AMLOGIC_MEMORY_OPT
 #ifdef CONFIG_ANDROID_VENDOR_OEM_DATA
 		trace_android_vh_shrink_node_memcgs_bypass(&sc->android_vendor_data1,
 				    partial, sc->nr_to_reclaim, sc->nr_reclaimed,
 				    sc->gfp_mask, sc->order, &bypass);
+#endif
 #endif
 
 		/* If partial walks are allowed, bail once goal is reached */
@@ -6506,10 +6534,12 @@ static void modify_scan_control(struct scan_control *sc)
 {
 	bool file_is_tiny = false, may_writepage = true;
 
+#ifndef CONFIG_AMLOGIC_MEMORY_OPT
 #ifdef CONFIG_ANDROID_VENDOR_OEM_DATA
 	trace_android_vh_modify_scan_control(&sc->android_vendor_data1,
 		&sc->nr_to_reclaim, sc->target_mem_cgroup, &file_is_tiny,
 		&may_writepage);
+#endif
 #endif
 
 	if (file_is_tiny)
