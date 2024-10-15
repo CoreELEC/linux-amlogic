@@ -42,7 +42,11 @@ struct folio_batch;
 #define GFP_CONSTRAINT_MASK (__GFP_HARDWALL|__GFP_THISNODE)
 
 /* Do not use these with a slab allocator */
+#ifdef CONFIG_AMLOGIC_CMA
+#define GFP_SLAB_BUG_MASK (__GFP_DMA32|__GFP_HIGHMEM|(~__GFP_BITS_MASK) << 1)
+#else
 #define GFP_SLAB_BUG_MASK (__GFP_DMA32|__GFP_HIGHMEM|~__GFP_BITS_MASK)
+#endif
 
 /*
  * Different from WARN_ON_ONCE(), no warning will be issued

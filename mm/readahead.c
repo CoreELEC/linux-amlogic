@@ -248,6 +248,11 @@ void page_cache_ra_unbounded(struct readahead_control *ractl,
 	 */
 	unsigned int nofs = memalloc_nofs_save();
 
+#ifdef CONFIG_AMLOGIC_CMA
+	if (ractl && ractl->file &&
+		(ractl->file->f_mode & FMODE_WRITE))
+		gfp_mask |= __GFP_WRITE;
+#endif /* CONFIG_AMLOGIC_CMA */
 	trace_page_cache_ra_unbounded(mapping->host, index, nr_to_read,
 				      lookahead_size);
 	filemap_invalidate_lock_shared(mapping);
