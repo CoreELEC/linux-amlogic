@@ -22,7 +22,6 @@ dtb-y += sc2_s905x4_buzztv_x5_2g.dtb
 dtb-y += sc2_s905x4_buzztv_x5_2g_1gbit.dtb
 dtb-y += sc2_s905x4_buzztv_x5_4g.dtb
 dtb-y += sc2_s905x4_buzztv_x5_4g_1gbit.dtb
-dtb-y += sc2_s905x4_kinhank_g1.dtb
 dtb-y += sc2_s905x4_sei_smb_280_id5.dtb
 dtb-y += sc2_s905x4_sei_smb_280_id6.dtb
 dtb-y += sc2_s905x4_sei_smb_280_id7.dtb
