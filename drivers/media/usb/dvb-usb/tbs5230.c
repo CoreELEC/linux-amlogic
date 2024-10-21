@@ -157,7 +157,7 @@ static struct cxd2878_config tbs5230_cfg = {
 		.read_properties = NULL,	
 	};
 
-static int tbs5230_frontend_attach(struct dvb_usb_adapter*adap)
+static int __nocfi tbs5230_frontend_attach(struct dvb_usb_adapter*adap)
 {
 
 	struct dvb_usb_device *d = adap->dev;

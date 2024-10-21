@@ -186,7 +186,7 @@ static int tbs5530_ter_cable_streaming_ctrl(struct dvb_usb_adapter*adap,int onof
 			
 	return 0;
 }
-static int tbs5530_frontend_cxd2878_attach(struct dvb_usb_adapter *adap)
+static int __nocfi tbs5530_frontend_cxd2878_attach(struct dvb_usb_adapter *adap)
 {
 	struct dvb_usb_device *d = adap->dev;
 

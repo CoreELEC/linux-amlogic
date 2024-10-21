@@ -186,7 +186,7 @@ static int tbs5931_read_mac_address(struct dvb_usb_device *d, u8 mac[6])
 
 static struct dvb_usb_device_properties tbs5931_properties;
 
-static int tbs5931_frontend_attach(struct dvb_usb_adapter *adap)
+static int __nocfi tbs5931_frontend_attach(struct dvb_usb_adapter *adap)
 {
 	struct dvb_usb_device *d = adap->dev;
 

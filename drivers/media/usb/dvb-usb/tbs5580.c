@@ -505,7 +505,7 @@ static int tbs5580_read_mac_address(struct dvb_usb_device *d, u8 mac[6])
 
 static struct dvb_usb_device_properties tbs5580_properties;
 
-static int tbs5580_frontend_attach(struct dvb_usb_adapter *adap)
+static int __nocfi tbs5580_frontend_attach(struct dvb_usb_adapter *adap)
 {
 	struct dvb_usb_device *d = adap->dev;
 	struct tbs5580_state *st = d->priv;

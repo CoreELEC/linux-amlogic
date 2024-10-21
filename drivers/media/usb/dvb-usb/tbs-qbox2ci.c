@@ -510,7 +510,7 @@ static struct i2c_algorithm tbsqbox2ci_i2c_algo = {
 	.functionality = tbsqbox2ci_i2c_func,
 };
 
-static int tbsqbox2ci_earda_tuner_attach(struct dvb_usb_adapter *adap)
+static int __nocfi tbsqbox2ci_earda_tuner_attach(struct dvb_usb_adapter *adap)
 {
 	if (!dvb_attach(stb6100_attach, adap->fe_adap->fe, &qbox2_stb6100_config,
 		&adap->dev->i2c_adap))
@@ -570,7 +570,7 @@ static int tbsqbox2ci_set_voltage(struct dvb_frontend *fe,
 
 static struct dvb_usb_device_properties tbsqbox2ci_properties;
 
-static int tbsqbox2ci_frontend_attach(struct dvb_usb_adapter *d)
+static int __nocfi tbsqbox2ci_frontend_attach(struct dvb_usb_adapter *d)
 {
 	struct dvb_usb_device *u = d->dev;
 	struct tbsqbox2ci_state *state = (struct tbsqbox2ci_state *)u->priv;
