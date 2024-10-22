@@ -24,6 +24,8 @@ core_param(cfi_no_warn, cfi_no_warn, uint, 0644);
 /* Compiler-defined handler names */
 #ifdef CONFIG_CFI_PERMISSIVE
 #define cfi_failure_handler	__ubsan_handle_cfi_check_fail
+void __ubsan_handle_cfi_check_fail_abort(void *data, void *ptr, void *vtable) {}
+EXPORT_SYMBOL(__ubsan_handle_cfi_check_fail_abort);
 #else
 #define cfi_failure_handler	__ubsan_handle_cfi_check_fail_abort
 #endif
