@@ -406,5 +406,11 @@ static inline int stmmac_selftest_get_count(struct stmmac_priv *priv)
 #if IS_ENABLED(CONFIG_AMLOGIC_ETH_PRIVE)
 void stmmac_global_err(struct stmmac_priv *priv);
 void stmmac_trigger_amlogic_task(struct stmmac_priv *priv);
+#ifdef CONFIG_PM_SLEEP
+#ifdef CONFIG_HIBERNATION
+int g12a_resume_enable_internal_mdio(void);
+int gxl_resume_internal_registers(struct phy_device *phydev);
+#endif
+#endif
 #endif
 #endif /* __STMMAC_H__ */

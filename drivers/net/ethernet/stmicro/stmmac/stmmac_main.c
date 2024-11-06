@@ -307,6 +307,9 @@ static void stmmac_amlogic_task(struct work_struct *work)
 			}
 		}
 #endif
+	} else if (priv->amlogic_task_action == 101) {
+		msleep(3000);
+		stmmac_global_err(priv);
 	}
 	priv->amlogic_task_action = 0;
 }
@@ -3854,7 +3857,7 @@ static int stmmac_open(struct net_device *dev)
 	stmmac_enable_all_dma_irq(priv);
 
 #if IS_ENABLED(CONFIG_AMLOGIC_ETH_PRIVE)
-	ret = gmac_create_sysfs(priv->phylink->phydev, priv->ioaddr);
+	gmac_create_sysfs(priv->phylink->phydev, priv->ioaddr);
 #endif
 	return 0;
 
@@ -7112,7 +7115,7 @@ int stmmac_dvr_probe(struct device *device,
 
 #if IS_ENABLED(CONFIG_AMLOGIC_ETH_PRIVE)
 	/* Allocate workqueue for Amlogic task */
-	priv->amlogic_wq = create_singlethread_workqueue("amlogic_wq");
+	priv->amlogic_wq = create_singlethread_workqueue("stmmacamlogictask_wq");
 	if (!priv->amlogic_wq) {
 		dev_err(priv->device, "failed to create workqueue\n");
 		ret = -ENOMEM;
@@ -7597,7 +7600,11 @@ int stmmac_resume(struct device *dev)
 	stmmac_free_tx_skbufs(priv);
 	stmmac_clear_descriptors(priv);
 
+#if IS_ENABLED(CONFIG_AMLOGIC_ETH_PRIVE)
+	ret = stmmac_hw_setup(ndev, false);
+#else
 	stmmac_hw_setup(ndev, false);
+#endif
 	stmmac_init_coalesce(priv);
 	stmmac_set_rx_mode(ndev);
 
@@ -7627,7 +7634,11 @@ int stmmac_resume(struct device *dev)
 
 	netif_device_attach(ndev);
 
+#if IS_ENABLED(CONFIG_AMLOGIC_ETH_PRIVE)
+	return ret;
+#else
 	return 0;
+#endif
 }
 EXPORT_SYMBOL_GPL(stmmac_resume);
 

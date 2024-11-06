@@ -810,9 +810,16 @@ static int meson8b_resume(struct device *dev)
 				dwmac->data->resume(dwmac);
 		}
 		ret = stmmac_resume(dev);
-		/*this flow only for txhd2, not for common anymore*/
-		if (phy_mode == 2)
-			stmmac_global_err(priv);
+		if (ret) {
+			pr_info("eth hold wakelock 10s\n");
+			pm_wakeup_event(dev, 10000);
+			priv->amlogic_task_action = 101;
+		} else {
+			pr_info("eth hold wakelock 5s\n");
+			pm_wakeup_event(dev, 5000);
+			priv->amlogic_task_action = 100;
+		}
+		stmmac_trigger_amlogic_task(priv);
 	}
 
 	if (support_gpio_wol) {
@@ -825,9 +832,6 @@ static int meson8b_resume(struct device *dev)
 				EV_KEY, KEY_POWER, 0);
 			input_sync(dwmac->input_dev);
 		}
-
-		pr_info("exeth hold wakelock 5s\n");
-		pm_wakeup_event(dev, 5000);
 	}
 
 	return ret;
@@ -852,8 +856,52 @@ static int meson8b_dwmac_remove(struct platform_device *pdev)
 	return err;
 }
 
-static SIMPLE_DEV_PM_OPS(meson8b_pm_ops,
-	meson8b_suspend, meson8b_resume);
+#ifdef CONFIG_HIBERNATION
+static int meson8b_freeze(struct device *dev)
+{
+	int ret;
+
+	ret = stmmac_suspend(dev);
+	return ret;
+}
+
+static int meson8b_thaw(struct device *dev)
+{
+	return 0;
+}
+
+static int meson8b_restore(struct device *dev)
+{
+	struct net_device *ndev = dev_get_drvdata(dev);
+	struct stmmac_priv *priv = netdev_priv(ndev);
+	struct meson8b_dwmac *dwmac = priv->plat->bsp_priv;
+	struct phy_device *phydev = ndev->phydev;
+	int ret;
+
+	if (mc_val)
+		writel(mc_val, dwmac->regs + PRG_ETH0);
+	else
+		writel(0x4be04, dwmac->regs + PRG_ETH0);
+	g12a_resume_enable_internal_mdio();
+	ret = stmmac_resume(dev);
+	gxl_resume_internal_registers(phydev);
+
+	priv->amlogic_task_action = 100;
+	stmmac_trigger_amlogic_task(priv);
+
+	return ret;
+}
+#endif
+
+static const struct dev_pm_ops meson8b_pm_ops = {
+	.suspend	= meson8b_suspend,
+	.resume		= meson8b_resume,
+#ifdef CONFIG_HIBERNATION
+	.freeze		= meson8b_freeze,
+	.thaw		= meson8b_thaw,
+	.restore	= meson8b_restore,
+#endif
+};
 #endif
 #endif
 static const struct meson8b_dwmac_data meson8b_dwmac_data = {
