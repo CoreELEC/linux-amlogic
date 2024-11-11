@@ -43,7 +43,7 @@ struct vm_area_struct *find_dst_vma(struct mm_struct *dst_mm,
 	 * enforce the VM_MAYWRITE check done at uffd registration
 	 * time.
 	 */
-	if (!dst_vma->vm_userfaultfd_ctx.ctx)
+	if (!rcu_access_pointer(dst_vma->vm_userfaultfd_ctx.ctx))
 		return NULL;
 
 	return dst_vma;
@@ -290,6 +290,7 @@ static __always_inline ssize_t __mcopy_atomic_hugetlb(struct mm_struct *dst_mm,
 					      unsigned long dst_start,
 					      unsigned long src_start,
 					      unsigned long len,
+					      atomic_t *mmap_changing,
 					      enum mcopy_atomic_mode mode)
 {
 	int vm_shared = dst_vma->vm_flags & VM_SHARED;
@@ -406,6 +407,15 @@ retry:
 				goto out;
 			}
 			mmap_read_lock(dst_mm);
+			/*
+			 * If memory mappings are changing because of non-cooperative
+			 * operation (e.g. mremap) running in parallel, bail out and
+			 * request the user to retry later
+			 */
+			if (mmap_changing && atomic_read(mmap_changing)) {
+				err = -EAGAIN;
+				break;
+			}
 
 			dst_vma = NULL;
 			goto retry;
@@ -441,6 +451,7 @@ extern ssize_t __mcopy_atomic_hugetlb(struct mm_struct *dst_mm,
 				      unsigned long dst_start,
 				      unsigned long src_start,
 				      unsigned long len,
+				      atomic_t *mmap_changing,
 				      enum mcopy_atomic_mode mode);
 #endif /* CONFIG_HUGETLB_PAGE */
 
@@ -520,14 +531,19 @@ static __always_inline ssize_t __mcopy_atomic(struct mm_struct *dst_mm,
 	copied = 0;
 	page = NULL;
 retry:
-	mmap_read_lock(dst_mm);
+	err = -EAGAIN;
+	if (mode & UFFDIO_MODE_MMAP_TRYLOCK) {
+		if (!mmap_read_trylock(dst_mm))
+			goto out;
+	} else {
+		mmap_read_lock(dst_mm);
+	}
 
 	/*
 	 * If memory mappings are changing because of non-cooperative
 	 * operation (e.g. mremap) running in parallel, bail out and
 	 * request the user to retry later
 	 */
-	err = -EAGAIN;
 	if (mmap_changing && atomic_read(mmap_changing))
 		goto out_unlock;
 
@@ -562,7 +578,8 @@ retry:
 	 */
 	if (is_vm_hugetlb_page(dst_vma))
 		return  __mcopy_atomic_hugetlb(dst_mm, dst_vma, dst_start,
-						src_start, len, mcopy_mode);
+					       src_start, len, mmap_changing,
+					       mcopy_mode);
 
 	if (!vma_is_anonymous(dst_vma) && !vma_is_shmem(dst_vma))
 		goto out_unlock;
@@ -620,6 +637,15 @@ retry:
 		if (unlikely(err == -ENOENT)) {
 			void *page_kaddr;
 
+			/*
+			 * Return early due to mmap_lock contention only after
+			 * some pages are copied to ensure that jank sensitive
+			 * threads don't keep retrying for progress-critical
+			 * pages.
+			 */
+			if (copied && mmap_lock_is_contended(dst_mm))
+				break;
+
 			mmap_read_unlock(dst_mm);
 			BUG_ON(!page);
 
@@ -644,6 +670,9 @@ retry:
 
 			if (fatal_signal_pending(current))
 				err = -EINTR;
+
+			if (mmap_lock_is_contended(dst_mm))
+				err = -EAGAIN;
 		}
 		if (err)
 			break;
@@ -669,10 +698,10 @@ ssize_t mcopy_atomic(struct mm_struct *dst_mm, unsigned long dst_start,
 }
 
 ssize_t mfill_zeropage(struct mm_struct *dst_mm, unsigned long start,
-		       unsigned long len, atomic_t *mmap_changing)
+		       unsigned long len, atomic_t *mmap_changing, __u64 mode)
 {
 	return __mcopy_atomic(dst_mm, start, 0, len, MCOPY_ATOMIC_ZEROPAGE,
-			      mmap_changing, 0);
+			      mmap_changing, mode);
 }
 
 ssize_t mcopy_continue(struct mm_struct *dst_mm, unsigned long start,

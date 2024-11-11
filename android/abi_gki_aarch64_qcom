@@ -238,6 +238,7 @@
   clk_set_rate
   clk_sync_state
   clk_unprepare
+  clk_unregister_fixed_rate
   close_fd
   cma_alloc
   cma_release
@@ -419,6 +420,7 @@
   devm_extcon_dev_unregister
   devm_extcon_register_notifier
   devm_free_irq
+  devm_fwnode_pwm_get
   devm_gpiod_get
   devm_gpiod_get_optional
   devm_gpio_request
@@ -762,6 +764,7 @@
   fwnode_property_present
   fwnode_property_read_string
   fwnode_property_read_u32_array
+  fw_devlink_purge_absent_suppliers
   generic_device_group
   generic_file_llseek
   generic_handle_domain_irq
@@ -789,6 +792,7 @@
   genphy_c45_check_and_restart_aneg
   genphy_c45_pma_setup_forced
   genphy_c45_read_status
+  genphy_handle_interrupt_no_ack
   genphy_read_abilities
   genphy_read_lpa
   genphy_read_mmd_unsupported
@@ -823,6 +827,7 @@
   get_option
   get_page_owner_handle
   get_pfnblock_flags_mask
+  get_phy_device
   get_pid_task
   get_random_bytes
   get_sg_io_hdr
@@ -872,6 +877,7 @@
   gro_cells_destroy
   gro_cells_init
   gro_cells_receive
+  groups_free
   handle_bad_irq
   handle_edge_irq
   handle_fasteoi_ack_irq
@@ -899,6 +905,7 @@
   hvc_remove
   hwspin_lock_free
   hwspin_lock_request_specific
+  __hw_addr_sync_dev
   __hwspin_lock_timeout
   __hwspin_unlock
   hypervisor_kobj
@@ -1259,12 +1266,14 @@
   mdiobus_free
   mdiobus_get_phy
   __mdiobus_read
+  __mdiobus_register
   mdiobus_read
   mdiobus_unregister
   __mdiobus_write
   mdiobus_write
   mdio_device_create
   mdio_device_free
+  mdio_device_reset
   memblock_end_of_DRAM
   memblock_free
   __memcat_p
@@ -1352,6 +1361,7 @@
   neigh_destroy
   neigh_resolve_output
   netdev_alert
+  netdev_features_change
   netdev_rss_key_fill
   netif_receive_skb_list
   nla_find
@@ -1501,6 +1511,7 @@
   pci_disable_pcie_error_reporting
   pcie_aspm_enabled
   pcie_capability_clear_and_set_word
+  pcie_capability_read_dword
   pcie_capability_read_word
   pci_enable_device
   pci_enable_pcie_error_reporting
@@ -1514,10 +1525,12 @@
   pci_msi_create_irq_domain
   pci_msi_mask_irq
   pci_msi_unmask_irq
+  pci_prepare_to_sleep
   pci_read_config_dword
   pci_read_config_word
   __pci_register_driver
   pci_request_irq
+  pci_request_regions
   pci_restore_state
   pci_save_state
   pci_set_master
@@ -1554,8 +1567,11 @@
   perf_trace_buf_alloc
   perf_trace_run_bpf_submit
   phy_attached_info
+  phy_basic_t1_features
   phy_calibrate
   phy_config_aneg
+  phy_device_free
+  phy_device_register
   phy_drivers_register
   phy_drivers_unregister
   phy_error
@@ -1592,6 +1608,8 @@
   phylink_start
   phylink_stop
   phylink_suspend
+  phy_lookup_setting
+  phy_loopback
   phy_mac_interrupt
   __phy_modify
   phy_modify
@@ -1605,6 +1623,7 @@
   phy_read_mmd
   phy_read_paged
   phy_resolve_aneg_pause
+  phy_restart_aneg
   phy_restore_page
   phy_save_page
   phy_select_page
@@ -1853,6 +1872,7 @@
   regulator_get_voltage_rdev
   regulator_is_enabled
   regulator_is_supported_voltage
+  regulator_list_voltage_table
   regulator_put
   regulator_register_notifier
   regulator_set_current_limit
@@ -1894,6 +1914,7 @@
   rpmsg_get_signals
   rpmsg_poll
   rpmsg_register_device
+  rpmsg_register_device_override
   rpmsg_rx_done
   rpmsg_send
   rpmsg_set_signals
@@ -2094,6 +2115,7 @@
   sock_unregister
   sort
   __spi_alloc_controller
+  spi_add_device
   spi_register_controller
   spi_unregister_controller
   spmi_controller_add
@@ -2337,6 +2359,7 @@
   __traceiter_android_vh_show_suspend_epoch_val
   __traceiter_android_vh_skip_swap_map_write
   __traceiter_android_vh_timer_calc_index
+  __traceiter_android_vh_try_fixup_sea
   __traceiter_android_vh_ufs_check_int_errors
   __traceiter_android_vh_ufs_clock_scaling
   __traceiter_android_vh_ufs_compl_command
@@ -2460,6 +2483,7 @@
   __tracepoint_android_vh_show_suspend_epoch_val
   __tracepoint_android_vh_skip_swap_map_write
   __tracepoint_android_vh_timer_calc_index
+  __tracepoint_android_vh_try_fixup_sea
   __tracepoint_android_vh_ufs_check_int_errors
   __tracepoint_android_vh_ufs_clock_scaling
   __tracepoint_android_vh_ufs_compl_command
@@ -2504,6 +2528,8 @@
   typec_set_pwr_role
   typec_unregister_partner
   typec_get_orientation
+  typec_partner_set_identity
+  typec_set_vconn_role
   uart_add_one_port
   uart_get_baud_rate
   uart_insert_char
@@ -2696,6 +2722,8 @@
   vm_zone_stat
   vscnprintf
   vsnprintf
+  vsock_addr_init
+  vsock_remove_bound
   vunmap
   vzalloc
   wait_for_completion
