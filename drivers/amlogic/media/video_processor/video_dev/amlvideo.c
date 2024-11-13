@@ -562,7 +562,7 @@ static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *p)
 	u64 pts_tmp;
 	struct vframe_s *next_vf;
 
-	if (vfq_level(&dev->q_ready) > AMLVIDEO_POOL_SIZE - 1)
+	if (vfq_level(&dev->q_omx) > AMLVIDEO_POOL_SIZE - 1 || vfq_level(&dev->q_ready) > AMLVIDEO_POOL_SIZE - 1)
 		return -EAGAIN;
 
 	if (!vf_peek(dev->vf_receiver_name))
