@@ -7146,6 +7146,7 @@ static int amhdmitx_device_init(struct hdmitx_dev *hdmi_dev)
 					       hdmitx_device.fmt_attr);
 	hdmitx_device.hdmi_last_hdr_mode = 0;
 	hdmitx_device.hdmi_current_hdr_mode = 0;
+	hdmitx_device.hdr_priority = 0;
 	/* hdr/vsif packet status init, no need to get actual status,
 	 * force to print function callback for confirmation.
 	 */
@@ -8038,7 +8039,7 @@ static int hdmitx_boot_hdr_priority(char *str)
 	return ret;
 }
 
-__setup("hdr_priority=", hdmitx_boot_hdr_priority);
+//__setup("hdr_priority=", hdmitx_boot_hdr_priority);
 
 static int get_hdmi_checksum(char *str)
 {

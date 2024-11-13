@@ -6567,6 +6567,7 @@ static int amhdmitx21_device_init(struct hdmitx_dev *hdmi_dev)
 	hdev->physical_addr = 0xffff;
 	hdev->hdmi_last_hdr_mode = 0;
 	hdev->hdmi_current_hdr_mode = 0;
+	hdev->hdr_priority = 0;
 	hdev->unplug_powerdown = 0;
 	hdev->vic_count = 0;
 	hdev->force_audio_flag = 0;
@@ -7529,7 +7530,7 @@ static int hdmitx21_boot_hdr_priority(char *str)
 	return ret;
 }
 
-__setup("hdr_priority=", hdmitx21_boot_hdr_priority);
+//__setup("hdr_priority=", hdmitx21_boot_hdr_priority);
 
 static int __init get_hdmi21_checksum(char *str)
 {
