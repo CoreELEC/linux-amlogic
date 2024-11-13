@@ -635,7 +635,7 @@ static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *p)
 	p->timestamp.tv_sec = pts_us64 >> 32;
 	p->timestamp.tv_usec = pts_us64 & 0xFFFFFFFF;
 	dev->last_pts_us64 = pts_us64;
-	dev->vf->pts_us64 = omx_freerun_index++;
+	dev->vf->pts_us64 = omx_freerun_index;
 	vfq_push(&dev->q_omx, dev->vf);
 	ATRACE_COUNTER(dev->v4l2_dev.name, vfq_level(&dev->q_omx));
 
@@ -647,7 +647,7 @@ static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *p)
 		p->timecode.flags = dev->vf->height;
 	}
 dqbuf_done:
-	p->index = omx_freerun_index;
+	p->index = omx_freerun_index++;
 	p->sequence = dev->frame_num++;
 	mutex_unlock(&dev->vf_mutex);
 
