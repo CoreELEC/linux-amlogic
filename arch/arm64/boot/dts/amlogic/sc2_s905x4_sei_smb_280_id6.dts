@@ -3,4 +3,18 @@
 / {
 	coreelec-dt-id = "sc2_s905x4_sei_smb_280_id6";
 	amlogic-dt-id = "sc2_s905x4_ah212-id6";
+
+	gpioleds {
+		sys_led {
+			label="sys_led";
+			gpios = <&gpio GPIOD_11 GPIO_ACTIVE_HIGH>;
+			default-state ="on";
+		};
+
+		red_led {
+			label = "red_led";
+			gpios = <&gpio GPIOD_4 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger="none";
+		};
+	};
 };
