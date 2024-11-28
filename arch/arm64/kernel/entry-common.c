@@ -31,6 +31,9 @@
 #include <trace/hooks/traps.h>
 #include <trace/hooks/gic.h>
 #include <trace/hooks/dtask.h>
+#ifdef CONFIG_AMLOGIC_VMAP
+#include <linux/amlogic/vmap_stack.h>
+#endif
 
 /*
  * Handle IRQ/context state management when entering from kernel mode.
@@ -526,6 +529,9 @@ asmlinkage void noinstr el1h_64_sync_handler(struct pt_regs *regs)
 	switch (ESR_ELx_EC(esr)) {
 	case ESR_ELx_EC_DABT_CUR:
 	case ESR_ELx_EC_IABT_CUR:
+	#ifdef CONFIG_AMLOGIC_VMAP
+		regs = handle_vmap_fault(read_sysreg(far_el1), esr, regs);
+	#endif
 		el1_abort(regs, esr);
 		break;
 	/*
@@ -537,6 +543,9 @@ asmlinkage void noinstr el1h_64_sync_handler(struct pt_regs *regs)
 		break;
 	case ESR_ELx_EC_SYS64:
 	case ESR_ELx_EC_UNKNOWN:
+	#ifdef CONFIG_AMLOGIC_VMAP
+		regs = switch_vmap_context(regs);
+	#endif
 		el1_undef(regs, esr);
 		break;
 	case ESR_ELx_EC_BTI:
@@ -546,6 +555,9 @@ asmlinkage void noinstr el1h_64_sync_handler(struct pt_regs *regs)
 	case ESR_ELx_EC_SOFTSTP_CUR:
 	case ESR_ELx_EC_WATCHPT_CUR:
 	case ESR_ELx_EC_BRK64:
+	#ifdef CONFIG_AMLOGIC_VMAP
+		regs = switch_vmap_context(regs);
+	#endif
 		el1_dbg(regs, esr);
 		break;
 	case ESR_ELx_EC_FPAC:
@@ -590,6 +602,9 @@ static void noinstr el1_interrupt(struct pt_regs *regs,
 
 asmlinkage void noinstr el1h_64_irq_handler(struct pt_regs *regs)
 {
+#ifdef CONFIG_AMLOGIC_VMAP
+	regs = switch_vmap_context(regs);
+#endif
 	el1_interrupt(regs, handle_arch_irq);
 }
 
