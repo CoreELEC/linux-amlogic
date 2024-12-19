@@ -3248,6 +3248,9 @@ int ni_write_inode(struct inode *inode, int sync, const char *hint)
 		if (!ntfs_is_meta_file(sbi, inode->i_ino) &&
 		    (modified || (ni->ni_flags & NI_FLAG_UPDATE_PARENT))
 		    /* Avoid __wait_on_freeing_inode(inode). */
+#ifdef CONFIG_AMLOGIC_NTFS3_ISSUE
+		    && !(inode->i_state & (I_FREEING | I_WILL_FREE))
+#endif
 		    && (sb->s_flags & SB_ACTIVE)) {
 			dup.cr_time = std->cr_time;
 			/* Not critical if this function fail. */
