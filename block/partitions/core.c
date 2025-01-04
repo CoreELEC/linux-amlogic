@@ -603,6 +603,29 @@ static bool blk_add_partition(struct gendisk *disk,
 	return true;
 }
 
+static int validate_mpt_partition(struct parsed_partitions *state)
+{
+	sector_t sect_num;
+	Sector sect;
+	unsigned char *data;
+	int ret = 0;
+
+	/* MPT signature is at 0x2400000 */
+	sect_num = (0x2400000 / 512) *
+		(queue_logical_block_size(state->disk->queue) / 512);
+
+	data = read_part_sector(state, sect_num, &sect);
+	if (!data)
+		return ret;
+
+	/* check for 'MPT\0' */
+	if (!strncmp(data, "MPT", 4))
+		ret = 1;
+
+	put_dev_sector(sect);
+	return ret;
+}
+
 static int blk_add_partitions(struct gendisk *disk)
 {
 	struct parsed_partitions *state;
@@ -614,6 +637,20 @@ static int blk_add_partitions(struct gendisk *disk)
 	state = check_partition(disk);
 	if (!state)
 		return 0;
+
+	/* 
+	 * skip adding partitions for eMMC device
+	 * on Android 14 GPT partitions are added as block devices /dev/mmcblk0p*
+	 * which are mounted under /media
+	 * but we expects block devices from partition names like /dev/env and /dev/userdata
+	 * that's why we exit here and mount partitions from MPT
+	 */
+	if (validate_mpt_partition(state)) {
+		pr_info("%s: skip mounting disk with MPT partition\n", disk->disk_name);
+		ret = 0;
+		goto out_free_state;
+	}
+
 	if (IS_ERR(state)) {
 		/*
 		 * I/O error reading the partition table.  If we tried to read
