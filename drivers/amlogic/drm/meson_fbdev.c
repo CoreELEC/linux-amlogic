@@ -361,7 +361,6 @@ static int am_meson_drm_fb_pan_display(struct fb_var_screeninfo *var,
 	struct drm_plane_state *plane_state;
 	struct drm_plane *plane = fbdev->plane;
 	struct drm_mode_set *mode_set;
-	int hdisplay, vdisplay;
 	int ret;
 
 	if (fbdev->blank) {
@@ -397,11 +396,10 @@ retry:
 		goto fail;
 	}
 
-	drm_mode_get_hv_timing(&mode_set->crtc->mode, &hdisplay, &vdisplay);
 	plane_state->crtc_x = 0;
 	plane_state->crtc_y = 0;
-	plane_state->crtc_w = hdisplay;
-	plane_state->crtc_h = vdisplay;
+	plane_state->crtc_w = var->xres;
+	plane_state->crtc_h = var->yres;
 
 	drm_atomic_set_fb_for_plane(plane_state, fb_helper->fb);
 	if (fb_helper->fb) {
