@@ -945,7 +945,8 @@ void meson_hdmitx_reset(struct drm_connector *connector)
 	hdmitx_state->base.hdcp_content_type = am_hdmi_info.hdcp_request_content_type;
 	hdmitx_state->base.content_protection = am_hdmi_info.hdcp_request_content_protection;
 
-	hdmitx_state->pref_hdr_policy = MESON_PREF_DV;
+	hdmitx_state->pref_hdr_policy = MESON_PREF_SDR;
+	hdmitx_state->frac_rate_policy = am_hdmi_info.hdmitx_dev->get_frac();
 
 	/*drm api need update state, so need delay attach when create state.*/
 	if (!connector->max_bpc_property)
