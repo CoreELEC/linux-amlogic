@@ -34,6 +34,8 @@ struct zcomp_strm {
 	local_lock_t lock;
 	/* compression buffer */
 	void *buffer;
+	/* local copy of handle memory */
+	void *local_copy;
 	struct zcomp_ctx ctx;
 };
 
