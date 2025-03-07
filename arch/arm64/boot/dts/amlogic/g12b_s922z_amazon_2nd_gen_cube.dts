@@ -298,7 +298,6 @@
 		/delete-property/ dhd_static_buf;
 		/delete-property/ pinctrl-names;
 		/delete-property/ pinctrl-0;
-		// /delete-property/ pwm_config;
 	};
 
 	wifi_pwm_conf {
