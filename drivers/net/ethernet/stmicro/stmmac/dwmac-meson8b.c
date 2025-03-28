@@ -454,7 +454,7 @@ static int aml_custom_setting(struct platform_device *pdev, struct meson8b_dwmac
 
 	ndev->wol_enabled = true;
 #ifdef CONFIG_PM_SLEEP
-	if (internal_phy == 2) {
+	if (internal_phy == 0 || internal_phy == 2) {
 		if (of_property_read_u32(np, "wol", &support_gpio_wol) != 0) {
 			pr_info("no gpio wol %d\n", support_gpio_wol);
 		} else {
