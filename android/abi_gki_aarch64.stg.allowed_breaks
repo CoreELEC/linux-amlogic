@@ -1,0 +1,119 @@
+# How to use this file: http://go/approve-abi-break
+# ABI freeze commit: f025c9bd5ab1c474b5ee78d2ec9f8c3a1b3a42fc
+
+type 'struct kvm_cpu_context' changed
+  member changed from 'struct kvm_vcpu* __hyp_running_vcpu' to 'void* __hyp_running_vcpu'
+    type changed from 'struct kvm_vcpu*' to 'void*'
+      pointed-to type changed from 'struct kvm_vcpu' to 'void'
+
+type 'struct usb_phy' changed
+  member 'u64 android_kabi_reserved0' was removed
+  member 'union { int(* notify_port_status)(struct usb_phy*, int, u16, u16); struct { u64 android_kabi_reserved0; }; union { }; }' was added
+
+type 'struct io_sr_msg' changed
+  byte size changed from 48 to 56
+  member 'void* msg_control' was added
+
+type 'struct trace_buffer' changed
+  byte size changed from 216 to 208
+  member 'atomic_t resizing' was added
+  2 members ('bool time_stamp_abs' .. 'struct ring_buffer_ext_cb* ext_cb') changed
+    offset changed by -64
+
+type 'struct fscrypt_policy_v2' changed
+  member '__u8 log2_data_unit_size' was added
+  member changed from '__u8 __reserved[4]' to '__u8 __reserved[3]'
+    offset changed from 32 to 40
+    type changed from '__u8[4]' to '__u8[3]'
+      number of elements changed from 4 to 3
+
+type 'struct fscrypt_info' changed
+  member 'u8 ci_data_unit_bits' was added
+  member 'u8 ci_data_units_per_block_bits' was added
+
+1 variable symbol(s) removed
+  'char* __kfence_pool'
+
+29 function symbol(s) removed
+  'void __kunit_test_suites_exit(struct kunit_suite**)'
+  'int __kunit_test_suites_init(struct kunit_suite* const*)'
+  'struct device* __root_device_register(const char*, struct module*)'
+  'void fat_time_fat2unix(struct msdos_sb_info*, struct timespec64*, __le16, __le16, u8)'
+  'void fat_time_unix2fat(struct msdos_sb_info*, struct timespec64*, __le16*, __le16*, u8*)'
+  'int kmem_cache_alloc_bulk(struct kmem_cache*, gfp_t, size_t, void**)'
+  'void kmem_cache_free_bulk(struct kmem_cache*, size_t, void**)'
+  'int kmem_cache_shrink(struct kmem_cache*)'
+  'int kunit_add_named_resource(struct kunit*, kunit_resource_init_t, kunit_resource_free_t, struct kunit_resource*, const char*, void*)'
+  'int kunit_add_resource(struct kunit*, kunit_resource_init_t, kunit_resource_free_t, struct kunit_resource*, void*)'
+  'struct kunit_resource* kunit_alloc_and_get_resource(struct kunit*, kunit_resource_init_t, kunit_resource_free_t, gfp_t, void*)'
+  'void kunit_binary_assert_format(const struct kunit_assert*, struct string_stream*)'
+  'void kunit_binary_ptr_assert_format(const struct kunit_assert*, struct string_stream*)'
+  'void kunit_binary_str_assert_format(const struct kunit_assert*, struct string_stream*)'
+  'void kunit_cleanup(struct kunit*)'
+  'int kunit_destroy_resource(struct kunit*, kunit_resource_match_t, void*)'
+  'void kunit_do_assertion(struct kunit*, struct kunit_assert*, bool, const char*, ...)'
+  'void kunit_fail_assert_format(const struct kunit_assert*, struct string_stream*)'
+  'void kunit_init_test(struct kunit*, const char*, char*)'
+  'void* kunit_kmalloc_array(struct kunit*, size_t, size_t, gfp_t)'
+  'void kunit_log_append(char*, const char*, ...)'
+  'void kunit_ptr_not_err_assert_format(const struct kunit_assert*, struct string_stream*)'
+  'void kunit_try_catch_run(struct kunit_try_catch*, void*)'
+  'void kunit_try_catch_throw(struct kunit_try_catch*)'
+  'void kunit_unary_assert_format(const struct kunit_assert*, struct string_stream*)'
+  'void root_device_unregister(struct device*)'
+  'int rtc_month_days(unsigned int, unsigned int)'
+  'int snd_soc_add_component(struct snd_soc_component*, struct snd_soc_dai_driver*, int)'
+  'int snd_soc_component_initialize(struct snd_soc_component*, const struct snd_soc_component_driver*, struct device*)'
+
+type 'struct pkvm_module_ops' changed
+  member 'u64 android_kabi_reserved1' was removed
+  member 'union { int(* host_stage2_mod_prot_range)(u64, enum kvm_pgtable_prot, u64); struct { u64 android_kabi_reserved1; }; union { }; }' was added
+
+type 'struct prefix_info' changed
+  member '__u8 reserved:6' was removed
+  member '__u8 autoconf:1' was removed
+  member '__u8 onlink:1' was removed
+  member 'union { __u8 flags; struct { __u8 reserved:6; __u8 autoconf:1; __u8 onlink:1; }; }' was added
+
+type 'struct perf_event' changed
+  member 'unsigned int group_generation' was added
+
+type 'struct ipv6_devconf' changed
+  member 'u64 android_kabi_reserved1' was removed
+  member 'union { struct { __s32 accept_ra_min_lft; u32 padding; }; struct { u64 android_kabi_reserved1; }; union { }; }' was added
+
+type 'struct queue_limits' changed
+  member 'bool sub_page_limits' was added
+
+type 'struct userfaultfd_ctx' changed
+  byte size changed from 128 to 144
+  member 'struct callback_head callback_head' was added
+
+type 'struct io_ring_ctx' changed
+  member 'struct { struct socket* ring_sock; struct io_wq_hash* hash_map; struct user_struct* user; struct mm_struct* mm_account; struct llist_head fallback_llist; struct delayed_work fallback_work; struct work_struct exit_work; struct list_head tctx_list; struct completion ref_comp; u32 iowq_limits[2]; bool iowq_limits_set; }' was removed
+  member 'struct { struct io_wq_hash* hash_map; struct user_struct* user; struct mm_struct* mm_account; struct llist_head fallback_llist; struct delayed_work fallback_work; struct work_struct exit_work; struct list_head tctx_list; struct completion ref_comp; u32 iowq_limits[2]; bool iowq_limits_set; }' was added
+
+type 'struct rb_irq_work' changed
+  byte size changed from 88 to 80
+  member 'long wait_index' was removed
+  3 members ('bool waiters_pending' .. 'bool wakeup_full') changed
+    offset changed by -64
+
+type 'struct ring_buffer_per_cpu' changed
+  byte size changed from 488 to 480
+
+type 'struct clk_core' changed
+  byte size changed from 248 to 264
+  member 'struct hlist_node rpm_node' was added
+  30 members ('struct device_node* of_node' .. 'struct kref ref') changed
+    offset changed by 128
+
+type 'struct trace_buffer' changed
+  byte size changed from 216 to 208
+  2 members ('bool time_stamp_abs' .. 'struct ring_buffer_ext_cb* ext_cb') changed
+    offset changed by -64
+
+type 'enum binder_work_type' changed
+  enumerator 'BINDER_WORK_FROZEN_BINDER' (10) was added
+  ... 1 other enumerator(s) added
+

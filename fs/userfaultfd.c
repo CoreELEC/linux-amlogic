@@ -29,6 +29,7 @@
 #include <linux/ioctl.h>
 #include <linux/security.h>
 #include <linux/hugetlb.h>
+#include <linux/pgsize_migration.h>
 
 int sysctl_unprivileged_userfaultfd __read_mostly;
 
@@ -359,18 +360,26 @@ static inline unsigned int userfaultfd_get_blocking_state(unsigned int flags)
 }
 
 #ifdef CONFIG_SPECULATIVE_PAGE_FAULT
-bool userfaultfd_using_sigbus(struct vm_area_struct *vma)
+bool userfaultfd_using_sigbus(struct vm_area_struct *vma, unsigned long seq)
 {
-	struct userfaultfd_ctx *ctx;
-	bool ret;
+	bool ret = false;
 
 	/*
 	 * Do it inside RCU section to ensure that the ctx doesn't
 	 * disappear under us.
 	 */
 	rcu_read_lock();
-	ctx = rcu_dereference(vma->vm_userfaultfd_ctx.ctx);
-	ret = ctx && (ctx->features & UFFD_FEATURE_SIGBUS);
+	/*
+	 * Ensure that we are not looking at dangling pointer to
+	 * userfaultfd_ctx, which could happen if userfaultfd_release() is
+	 * called after vma is copied.
+	 */
+	if (mmap_seq_read_check(vma->vm_mm, seq, SPF_ABORT_USERFAULTFD)) {
+		struct userfaultfd_ctx *ctx;
+
+		ctx = rcu_dereference(vma->vm_userfaultfd_ctx.ctx);
+		ret = ctx && (ctx->features & UFFD_FEATURE_SIGBUS);
+	}
 	rcu_read_unlock();
 	return ret;
 }
@@ -1502,7 +1511,7 @@ static int userfaultfd_register(struct userfaultfd_ctx *ctx,
 		 * the next vma was merged into the current one and
 		 * the current one has not been updated yet.
 		 */
-		vma->vm_flags = new_flags;
+		vma->vm_flags = vma_pad_fixup_flags(vma, new_flags);
 		rcu_assign_pointer(vma->vm_userfaultfd_ctx.ctx, ctx);
 
 		if (is_vm_hugetlb_page(vma) && uffd_disable_huge_pmd_share(vma))
@@ -1682,7 +1691,7 @@ static int userfaultfd_unregister(struct userfaultfd_ctx *ctx,
 		 * the next vma was merged into the current one and
 		 * the current one has not been updated yet.
 		 */
-		vma->vm_flags = new_flags;
+		vma->vm_flags = vma_pad_fixup_flags(vma, new_flags);
 		rcu_assign_pointer(vma->vm_userfaultfd_ctx.ctx, NULL);
 
 	skip:
@@ -1986,7 +1995,7 @@ static int userfaultfd_api(struct userfaultfd_ctx *ctx,
 		goto out;
 	features = uffdio_api.features;
 	ret = -EINVAL;
-	if (uffdio_api.api != UFFD_API || (features & ~UFFD_API_FEATURES))
+	if (uffdio_api.api != UFFD_API)
 		goto err_out;
 	ret = -EPERM;
 	if ((features & UFFD_FEATURE_EVENT_FORK) && !capable(CAP_SYS_PTRACE))
@@ -2000,6 +2009,11 @@ static int userfaultfd_api(struct userfaultfd_ctx *ctx,
 #ifndef CONFIG_HAVE_ARCH_USERFAULTFD_WP
 	uffdio_api.features &= ~UFFD_FEATURE_PAGEFAULT_FLAG_WP;
 #endif
+
+	ret = -EINVAL;
+	if (features & ~uffdio_api.features)
+		goto err_out;
+
 	uffdio_api.ioctls = UFFD_API_IOCTLS;
 	ret = -EFAULT;
 	if (copy_to_user(buf, &uffdio_api, sizeof(uffdio_api)))

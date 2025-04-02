@@ -17,46 +17,51 @@
 #include <linux/usb.h>
 #include <linux/usb/cdc.h>
 #include <linux/usb/usbnet.h>
+#include <trace/hooks/cdc_ether.h>
 
-
+static bool is_config_rndis_enabled(void)
+{
 #if IS_ENABLED(CONFIG_USB_NET_RNDIS_HOST)
+	return true;
+#else
+	bool enable = false;
+
+	trace_android_vh_is_rndis_enabled(&enable);
+	return enable;
+#endif
+}
 
 static int is_rndis(struct usb_interface_descriptor *desc)
 {
-	return (desc->bInterfaceClass == USB_CLASS_COMM &&
+	return (is_config_rndis_enabled()) ?
+		(desc->bInterfaceClass == USB_CLASS_COMM &&
 		desc->bInterfaceSubClass == 2 &&
-		desc->bInterfaceProtocol == 0xff);
+		desc->bInterfaceProtocol == 0xff) : 0;
 }
 
 static int is_activesync(struct usb_interface_descriptor *desc)
 {
-	return (desc->bInterfaceClass == USB_CLASS_MISC &&
+	return (is_config_rndis_enabled()) ?
+		(desc->bInterfaceClass == USB_CLASS_MISC &&
 		desc->bInterfaceSubClass == 1 &&
-		desc->bInterfaceProtocol == 1);
+		desc->bInterfaceProtocol == 1) : 0;
 }
 
 static int is_wireless_rndis(struct usb_interface_descriptor *desc)
 {
-	return (desc->bInterfaceClass == USB_CLASS_WIRELESS_CONTROLLER &&
+	return (is_config_rndis_enabled()) ?
+		(desc->bInterfaceClass == USB_CLASS_WIRELESS_CONTROLLER &&
 		desc->bInterfaceSubClass == 1 &&
-		desc->bInterfaceProtocol == 3);
+		desc->bInterfaceProtocol == 3) : 0;
 }
 
 static int is_novatel_rndis(struct usb_interface_descriptor *desc)
 {
-	return (desc->bInterfaceClass == USB_CLASS_MISC &&
+	return (is_config_rndis_enabled()) ?
+		(desc->bInterfaceClass == USB_CLASS_MISC &&
 		desc->bInterfaceSubClass == 4 &&
-		desc->bInterfaceProtocol == 1);
+		desc->bInterfaceProtocol == 1) : 0;
 }
-
-#else
-
-#define is_rndis(desc)		0
-#define is_activesync(desc)	0
-#define is_wireless_rndis(desc)	0
-#define is_novatel_rndis(desc)	0
-
-#endif
 
 static const u8 mbm_guid[16] = {
 	0xa3, 0x17, 0xa8, 0x8b, 0x04, 0x5e, 0x4f, 0x01,
