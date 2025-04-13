@@ -201,7 +201,7 @@ static inline void check_heap_object(const void *ptr, unsigned long n,
 		if (bypass)
 			return;
 
-#ifdef CONFIG_AMLOGIC_MEMORY_EXTEND
+#ifdef CONFIG_AMLOGIC_MEMORY_SLAB_LARGE
 		if (unlikely(folio_test_owner_priv_1(folio)))
 			return;
 #endif
