@@ -4,6 +4,9 @@
 #include <linux/libfdt.h>
 #include <linux/sizes.h>
 #include "misc.h"
+#ifdef CONFIG_AMLOGIC_DEBUG_EARLY_UART
+#include "debug/uncompress_debug.h"
+#endif
 
 static const void *get_prop(const void *fdt, const char *node_path,
 			    const char *property, int minlen)
@@ -158,6 +161,9 @@ uint32_t fdt_check_mem_start(uint32_t mem_start, const void *fdt)
 		return mem_start;
 	}
 
+#ifdef CONFIG_AMLOGIC_DEBUG_EARLY_UART
+	putstr_debug("fdt_check_mem_start end\n");
+#endif
 	/*
 	 * The calculated address is not usable, or was overridden by the
 	 * "linux,usable-memory-range" property.

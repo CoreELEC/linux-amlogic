@@ -229,6 +229,10 @@ start:
 		mov	r7, r1			@ save architecture ID
 		mov	r8, r2			@ save atags pointer
 
+#ifdef CONFIG_AMLOGIC_DEBUG_EARLY_UART
+		kputc	#'A'
+		kputc	#'\n'
+#endif
 #ifndef CONFIG_CPU_V7M
 		/*
 		 * Booting from Angel - need to enter SVC mode and disable
@@ -258,6 +262,10 @@ not_angel:
 
 		.text
 
+#ifdef CONFIG_AMLOGIC_DEBUG_EARLY_UART
+		kputc	#'Z'
+		kputc	#'\n'
+#endif
 #ifdef CONFIG_AUTO_ZRELADDR
 		/*
 		 * Find the start of physical memory.  As we are executing

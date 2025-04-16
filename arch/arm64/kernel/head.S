@@ -35,6 +35,9 @@
 #include <asm/thread_info.h>
 #include <asm/virt.h>
 
+#ifdef CONFIG_AMLOGIC_DEBUG_EARLY_UART
+#include "aml_uart_puts.h"
+#endif
 #include "efi-header.S"
 
 #if (PAGE_OFFSET & 0x1fffff) != 0
@@ -119,6 +122,9 @@ SYM_CODE_START(primary_entry)
 	bl	init_kernel_el			// w0=cpu_boot_mode
 	mov	x20, x0
 
+#ifdef CONFIG_AMLOGIC_DEBUG_EARLY_UART
+	puts_uart_m x15 x16 w3 "----------primary_entry 1----------\r\n"
+#endif
 	/*
 	 * The following calls CPU setup code, see arch/arm64/mm/proc.S for
 	 * details.
@@ -504,7 +510,13 @@ SYM_FUNC_END(__no_granule_support)
 
 SYM_FUNC_START_LOCAL(__primary_switch)
 	adrp	x1, reserved_pg_dir
+#ifdef CONFIG_AMLOGIC_DEBUG_EARLY_UART
+	puts_uart_m x15 x16 w3 "----------__primary_switch 1----------\r\n"
+#endif
 	adrp	x2, init_idmap_pg_dir
+#ifdef CONFIG_AMLOGIC_DEBUG_EARLY_UART
+	puts_uart_m x15 x16 w3 "----------__primary_switch 2----------\r\n"
+#endif
 	bl	__enable_mmu
 
 	adrp	x1, early_init_stack

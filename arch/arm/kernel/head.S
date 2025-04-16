@@ -20,6 +20,10 @@
 #include <asm/page.h>
 #include <asm/thread_info.h>
 
+#ifdef CONFIG_AMLOGIC_DEBUG_EARLY_UART
+#include "aml_uart_puts.h"
+#endif
+
 #if defined(CONFIG_DEBUG_LL) && !defined(CONFIG_DEBUG_SEMIHOSTING)
 #include CONFIG_DEBUG_LL_INCLUDE
 #endif
@@ -143,11 +147,18 @@ ENTRY(stext)
 #ifdef CONFIG_SMP_ON_UP
 	bl	__fixup_smp
 #endif
+
 #ifdef CONFIG_ARM_PATCH_PHYS_VIRT
 	bl	__fixup_pv_table
 #endif
+#ifdef CONFIG_AMLOGIC_DEBUG_EARLY_UART
+	puts_uart_m r3 r7 r12 "----------primary_entry aarch 1----------\r\n"
+#endif
 	bl	__create_page_tables
 
+#ifdef CONFIG_AMLOGIC_DEBUG_EARLY_UART
+	puts_uart_m r3 r7 r12 "----------primary_entry aarch 2----------\r\n"
+#endif
 	/*
 	 * The following calls CPU specific code in a position independent
 	 * manner.  See arch/arm/mm/proc-*.S for details.  r10 = base of
@@ -195,6 +206,9 @@ ENDPROC(stext)
  *  r4 = physical page table address
  */
 __create_page_tables:
+#ifdef CONFIG_AMLOGIC_DEBUG_EARLY_UART
+	puts_uart_m r3 r7 r12 "----------__create_page_tables aarch 1----------\r\n"
+#endif
 	pgtbl	r4, r8				@ page table address
 
 	/*

@@ -547,7 +547,7 @@ choice
 
 	config DEBUG_MESON_UARTAO
 		bool "Kernel low-level debugging via Meson6 UARTAO"
-		depends on ARCH_MESON
+		depends on ARCH_MESON || AMLOGIC_DEBUG_EARLY_UART
 		help
 		  Say Y here if you want kernel low-lever debugging support
 		  on Amlogic Meson6 based platforms on the UARTAO.
