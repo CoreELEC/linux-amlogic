@@ -351,6 +351,15 @@ config HID_EZKEY
 	default !EXPERT
 	help
 	Support for Ezkey BTC 8193 keyboard.
+	
+config HID_FIRETV
+	tristate "Amazon Fire TV remote app button support"
+	depends on HID
+	help
+	  Support for Amazon Fire TV Bluetooth remote app buttons.
+
+	  Say Y here to enable support for Fire TV remotes via
+	  the hid-firetv driver.
 
 config HID_FT260
 	tristate "FTDI FT260 USB HID to I2C host support"
