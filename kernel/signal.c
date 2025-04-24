@@ -4894,7 +4894,11 @@ static int __init init_signal_sysctls(void)
 	register_sysctl_init("debug", signal_debug_table);
 	return 0;
 }
+#if IS_ENABLED(CONFIG_AMLOGIC_LINUX_S_OPTIMIZE)
+arch_initcall(init_signal_sysctls);
+#else
 early_initcall(init_signal_sysctls);
+#endif
 #endif /* CONFIG_SYSCTL */
 
 void __init signals_init(void)

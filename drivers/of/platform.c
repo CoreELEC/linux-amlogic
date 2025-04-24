@@ -594,10 +594,13 @@ static int __init of_platform_default_populate_init(void)
 		/* Populate everything else. */
 		of_platform_default_populate(NULL, NULL, NULL);
 	}
-
 	return 0;
 }
+#if IS_ENABLED(CONFIG_AMLOGIC_LINUX_S_OPTIMIZE)
+postcore_initcall(of_platform_default_populate_init);
+#else
 arch_initcall_sync(of_platform_default_populate_init);
+#endif
 
 static int __init of_platform_sync_state_init(void)
 {

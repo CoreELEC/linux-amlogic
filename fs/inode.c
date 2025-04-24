@@ -141,7 +141,11 @@ static int __init init_fs_inode_sysctls(void)
 	register_sysctl_init("fs", inodes_sysctls);
 	return 0;
 }
+#if IS_ENABLED(CONFIG_AMLOGIC_LINUX_S_OPTIMIZE)
+arch_initcall(init_fs_inode_sysctls);
+#else
 early_initcall(init_fs_inode_sysctls);
+#endif
 #endif
 
 static int no_open(struct inode *inode, struct file *file)

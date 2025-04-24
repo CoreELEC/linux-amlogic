@@ -202,4 +202,8 @@ static int __init psci_idle_init_domains(void)
 {
 	return platform_driver_register(&psci_cpuidle_domain_driver);
 }
+#if IS_ENABLED(CONFIG_AMLOGIC_LINUX_S_OPTIMIZE)
+subsys_initcall(psci_idle_init_domains);
+#else
 core_initcall(psci_idle_init_domains);
+#endif

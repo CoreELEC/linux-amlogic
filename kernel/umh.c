@@ -567,5 +567,9 @@ static int __init init_umh_sysctls(void)
 	register_sysctl_init("kernel/usermodehelper", usermodehelper_table);
 	return 0;
 }
+#if IS_ENABLED(CONFIG_AMLOGIC_LINUX_S_OPTIMIZE)
+arch_initcall(init_umh_sysctls);
+#else
 early_initcall(init_umh_sysctls);
+#endif
 #endif /* CONFIG_SYSCTL */

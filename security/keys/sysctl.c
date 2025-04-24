@@ -73,4 +73,8 @@ static int __init init_security_keys_sysctls(void)
 	register_sysctl_init("kernel/keys", key_sysctls);
 	return 0;
 }
+#if IS_ENABLED(CONFIG_AMLOGIC_LINUX_S_OPTIMIZE)
+arch_initcall(init_security_keys_sysctls);
+#else
 early_initcall(init_security_keys_sysctls);
+#endif

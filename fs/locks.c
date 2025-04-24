@@ -121,7 +121,11 @@ static int __init init_fs_locks_sysctls(void)
 	register_sysctl_init("fs", locks_sysctls);
 	return 0;
 }
+#if IS_ENABLED(CONFIG_AMLOGIC_LINUX_S_OPTIMIZE)
+arch_initcall(init_fs_locks_sysctls);
+#else
 early_initcall(init_fs_locks_sysctls);
+#endif
 #endif /* CONFIG_SYSCTL */
 
 /*
