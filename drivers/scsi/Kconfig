@@ -3,7 +3,7 @@ menu "SCSI device support"
 
 config SCSI_MOD
 	tristate
-	default y if SCSI=n || SCSI=y
+	default y if (SCSI=n || SCSI=y) && !AMLOGIC_LINUX_S_OPTIMIZE
 	default m if SCSI=m
 	depends on BLOCK
 

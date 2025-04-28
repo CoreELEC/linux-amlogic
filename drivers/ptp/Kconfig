@@ -29,7 +29,7 @@ config PTP_1588_CLOCK
 
 config PTP_1588_CLOCK_OPTIONAL
 	tristate
-	default y if PTP_1588_CLOCK=n
+	default y if PTP_1588_CLOCK=n && !AMLOGIC_LINUX_S_OPTIMIZE
 	default PTP_1588_CLOCK
 	help
 	  Drivers that can optionally use the PTP_1588_CLOCK framework
