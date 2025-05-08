@@ -634,6 +634,13 @@ struct ieee80211_fils_discovery {
  * @beacon_tx_rate: The configured beacon transmit rate that needs to be passed
  *	to driver when rate control is offloaded to firmware.
  */
+ enum ieee80211_reg_ap_type {
+	IEEE80211_REG_UNSET_AP,
+	IEEE80211_REG_SP_AP,
+	IEEE80211_REG_LPI_AP,
+	IEEE80211_REG_VLP_AP,
+};
+
 struct ieee80211_bss_conf {
 	const u8 *bssid;
 	u8 htc_trig_based_pkt_ext;
@@ -703,9 +710,11 @@ struct ieee80211_bss_conf {
 	u32 unsol_bcast_probe_resp_interval;
 	bool s1g;
 	struct cfg80211_bitrate_mask beacon_tx_rate;
+	enum ieee80211_reg_ap_type power_type;
 
 	ANDROID_KABI_RESERVE(1);
 };
+
 
 /**
  * enum mac80211_tx_info_flags - flags to describe transmission information/status
