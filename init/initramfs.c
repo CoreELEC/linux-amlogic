@@ -19,6 +19,10 @@
 #include <linux/umh.h>
 #include <linux/security.h>
 
+#ifdef CONFIG_AMLOGIC_FREERTOS_C4
+#include <linux/amlogic/amfc.h>
+#endif /* CONFIG_AMLOGIC_FREERTOS_C4 */
+
 #include "do_mounts.h"
 
 static __initdata bool csum_present;
@@ -704,11 +708,40 @@ static void __init populate_initrd_image(char *err)
 #endif /* CONFIG_BLK_DEV_RAM */
 
 #ifdef CONFIG_AMLOGIC_FREERTOS_C4
+static bool storage_async_load_ramdisk __initdata;
+static int __init storage_async_load_ramdisk_setup(char *str)
+{
+	return kstrtobool(str, &storage_async_load_ramdisk) == 0;
+}
+__setup("storage_async_load_ramdisk=", storage_async_load_ramdisk_setup);
+
+#define NFC_INFO_BUF	(0xf3c23800 + 1024)		// SOC relative!!!
+#define ECC_COMPLETE	BIT(31)
+
+void __iomem *nfc_dma_saved_status;
+
+struct amfc_bin_hdr {
+	unsigned int magic;
+	u32 total_sz;
+	u32 comp_sz;
+};
+
+#define AMFC_BIN_HDR	0x54535a40
+#endif /* CONFIG_AMLOGIC_FREERTOS_C4 */
+
+#ifdef CONFIG_AMLOGIC_FREERTOS_C4
 static void __init do_populate_rootfs(void)
 #else
 static void __init do_populate_rootfs(void *unused, async_cookie_t cookie)
 #endif
 {
+#ifdef CONFIG_AMLOGIC_FREERTOS_C4
+	struct amfc_bin_hdr *amfc_hdr;
+	unsigned long amfc_bin_start;
+	unsigned long amfc_bin_vir_start;
+	ktime_t start_time;
+#endif /* CONFIG_AMLOGIC_FREERTOS_C4 */
+
 	/* Load the built in initramfs */
 	char *err = unpack_to_rootfs(__initramfs_start, __initramfs_size);
 	if (err)
@@ -721,6 +754,49 @@ static void __init do_populate_rootfs(void *unused, async_cookie_t cookie)
 		printk(KERN_INFO "Trying to unpack rootfs image as initramfs...\n");
 	else
 		printk(KERN_INFO "Unpacking initramfs...\n");
+
+#ifdef CONFIG_AMLOGIC_FREERTOS_C4
+	if (!storage_async_load_ramdisk) {
+		pr_err("storage no async load ramdisk ...\n");
+		goto async_load_timeout;
+	}
+
+	start_time = ktime_get();
+	nfc_dma_saved_status = ioremap(NFC_INFO_BUF, 64);
+	do {
+		if (ktime_us_delta(ktime_get(), start_time) > 1000000) {
+			pr_info("timeout<1s> for async loading initrd ...\n");
+			goto async_load_timeout;
+		}
+	} while (!(readl(nfc_dma_saved_status) & ECC_COMPLETE));
+
+async_load_timeout:
+	pr_info("asyc loading time = %lld\n",
+	       ktime_us_delta(ktime_get(), start_time));
+
+	/*check amfc bin header.*/
+	amfc_bin_start = 0x1080000 - 0x40;
+	amfc_bin_vir_start = (unsigned long)phys_to_virt(amfc_bin_start);
+	amfc_hdr = (struct amfc_bin_hdr *)amfc_bin_vir_start;
+
+	if (amfc_hdr->magic == AMFC_BIN_HDR) {
+		while (amfc_probe_done() == 0) {
+			if (ktime_us_delta(ktime_get(), start_time) > 1000000) {
+				pr_err("timeout<1s> for wait amfc probe done...\n");
+				return;
+			}
+		}
+		if (amfc_decompress((void *)(amfc_bin_vir_start + sizeof(*amfc_hdr)),
+			(void *)initrd_start,
+			amfc_hdr->comp_sz,
+			amfc_hdr->total_sz, 0) < 0) {
+			pr_err("amfc decompress failed.\n");
+			goto done;
+		}
+	} else {
+		pr_err("not a amfc compress bin.\n");
+	}
+#endif /* CONFIG_AMLOGIC_FREERTOS_C4 */
 
 	err = unpack_to_rootfs((char *)initrd_start, initrd_end - initrd_start);
 	if (err) {
