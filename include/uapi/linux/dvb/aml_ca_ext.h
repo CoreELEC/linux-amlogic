@@ -7,11 +7,7 @@
 #ifndef _AML_CA_EXIT_H_
 #define _AML_CA_EXIT_H_
 
-#ifdef __KERNEL__
 #include <linux/dvb/ca.h>
-#else
-#include "ca.h"
-#endif
 
 /* amlogic define */
 /* CW type. */

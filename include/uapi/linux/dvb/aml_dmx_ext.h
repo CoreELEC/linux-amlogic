@@ -6,11 +6,7 @@
 #ifndef _UAPI_AML_DVBDMX_EXT_H_
 #define _UAPI_AML_DVBDMX_EXT_H_
 
-#ifdef __KERNEL__
 #include <linux/dvb/dmx.h>
-#else
-#include "dmx.h"
-#endif
 
 /* amlogic define */
 #define DMX_USE_SWFILTER    0x100
