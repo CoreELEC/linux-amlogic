@@ -265,6 +265,9 @@ static int c_show(struct seq_file *m, void *v)
 			else if (strstr(ce_name, "s905w2") != NULL)
 				seq_puts(m, "S905W2\n");
 			break;
+		case MESON_CPU_MAJOR_ID_S7D:
+			seq_puts(m, "S905X5M\n");
+			break;
 		default:
 			seq_puts(m, "Unknown\n");
 	}
