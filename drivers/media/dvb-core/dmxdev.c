@@ -1132,6 +1132,10 @@ static int dvb_demux_do_ioctl(struct file *file,
 		ret = dmx_ext->set_input(dmxdev->demux, arg);
 		break;
 	case DMX_GET_MEM_INFO:
+		if (dmxdevfilter->state < DMXDEV_STATE_GO) {
+			ret = -EINVAL;
+			break;
+		}
 		if (mutex_lock_interruptible(&dmxdevfilter->mutex)) {
 			mutex_unlock(&dmxdev->mutex);
 			return -ERESTARTSYS;
