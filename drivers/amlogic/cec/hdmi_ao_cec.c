@@ -43,6 +43,7 @@
 #include <linux/pm_wakeirq.h>
 #include <linux/pm.h>
 #include <linux/poll.h>
+#include <linux/moduleparam.h>
 #include <linux/amlogic/media/frame_provider/tvin/tvin.h>
 #include <linux/amlogic/media/vout/hdmi_tx/hdmi_tx_cec_20.h>
 #ifdef CONFIG_AMLOGIC_HDMITX
@@ -4091,9 +4092,18 @@ static void cec_stored_msg_push(void)
 /*
  * save param to mailbox, to uboot
  */
+static bool enable_cec_mailbox = false;
+module_param(enable_cec_mailbox, bool, 0644);
+MODULE_PARM_DESC(enable_cec_mailbox, "Enable SCPI mailbox sync in cec_save_mail_box");
+
 void cec_save_mail_box(void)
 {
 	unsigned int tmp;
+
+	if (!enable_cec_mailbox) {
+		CEC_INFO("cec_save_mail_box: skipped (enable_cec_mailbox=0)\n");
+		return;
+	}
 
 	CEC_INFO("%s\n", __func__);
 	tmp = cec_get_cur_phy_addr();
