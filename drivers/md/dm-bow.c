@@ -87,6 +87,9 @@ struct bow_context {
 	struct mutex ranges_lock; /* Hold to access this struct and/or ranges */
 	struct rb_root ranges;
 	struct dm_kobject_holder kobj_holder;	/* for sysfs attributes */
+#ifdef CONFIG_AMLOGIC_DM_BOW_BUGFIX
+	struct mutex state_lock; /* lock for state change */
+#endif
 	atomic_t state; /* One of the enum state values above */
 	u64 trims_total;
 	struct log_sector *log_sector;
@@ -526,6 +529,13 @@ static ssize_t state_store(struct kobject *kobj, struct kobj_attribute *attr,
 		return -EINVAL;
 	}
 
+#ifdef CONFIG_AMLOGIC_DM_BOW_BUGFIX
+	/* Block new writes until state change is complete. */
+	mutex_lock(&bc->state_lock);
+
+	/* Flush any already-queued writes before the state change. */
+	flush_workqueue(bc->workqueue);
+#endif
 	mutex_lock(&bc->ranges_lock);
 	original_state = atomic_read(&bc->state);
 	if (state != original_state + 1) {
@@ -561,6 +571,10 @@ static ssize_t state_store(struct kobject *kobj, struct kobj_attribute *attr,
 
 bad:
 	mutex_unlock(&bc->ranges_lock);
+#ifdef CONFIG_AMLOGIC_DM_BOW_BUGFIX
+	mutex_unlock(&bc->state_lock);
+#endif
+
 	return ret;
 }
 
@@ -736,6 +750,9 @@ static int dm_bow_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	}
 
 	init_completion(&bc->kobj_holder.completion);
+#ifdef CONFIG_AMLOGIC_DM_BOW_BUGFIX
+	mutex_init(&bc->state_lock);
+#endif
 	mutex_init(&bc->ranges_lock);
 	bc->ranges = RB_ROOT;
 	bc->bufio = dm_bufio_client_create(bc->dev->bdev, bc->block_size, 1, 0,
@@ -1121,11 +1138,27 @@ static int dm_bow_map(struct dm_target *ti, struct bio *bio)
 	int ret = DM_MAPIO_REMAPPED;
 	struct bow_context *bc = ti->private;
 
+#ifdef CONFIG_AMLOGIC_DM_BOW_BUGFIX
+	/* Fast path when already committed or when performing a read. */
+#endif
+
 	if (likely(bc->state.counter == COMMITTED))
 		return remap_unless_illegal_trim(bc, bio);
 
 	if (bio_data_dir(bio) == READ && bio->bi_iter.bi_sector != 0)
 		return remap_unless_illegal_trim(bc, bio);
+
+#ifdef CONFIG_AMLOGIC_DM_BOW_BUGFIX
+	if (bio->bi_iter.bi_size == 0)
+		return remap_unless_illegal_trim(bc, bio);
+
+	/*
+	 * Fall back to the slower path when we may be in TRIM/CHECKPOINT.
+	 * Operations must wait for any pending state changes to complete.
+	 */
+
+	mutex_lock(&bc->state_lock);
+#endif
 
 	if (atomic_read(&bc->state) != COMMITTED) {
 		enum state state;
@@ -1151,6 +1184,10 @@ static int dm_bow_map(struct dm_target *ti, struct bio *bio)
 		}
 		mutex_unlock(&bc->ranges_lock);
 	}
+
+#ifdef CONFIG_AMLOGIC_DM_BOW_BUGFIX
+	mutex_unlock(&bc->state_lock);
+#endif
 
 	if (ret == DM_MAPIO_REMAPPED)
 		return remap_unless_illegal_trim(bc, bio);
