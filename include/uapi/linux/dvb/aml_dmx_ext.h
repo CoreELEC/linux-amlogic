@@ -199,7 +199,22 @@ struct decoder_mem_info {
 
 /*for set command to dmx*/
 #define DMX_CLEAR_CACHE		0
+#define DMX_FILTER_HW_MEM_SIZE		1
+/*format*/
+enum dmx_filter_format {
+	FORMAT_ES = 1,
+	FORMAT_PES,
+	FORMAT_SECTION,
+	FORMAT_DVR,
+};
 
+/*reserved0 is made of format + pid*/
+/*DVR_FORMAT don't need set pid*/
+/*reserved0 =  format << 16 | pid*/
+/*reserved1 is memory_size
+ *if memory_size equal 0, then release format/pid filter
+ *last time memory_size, then filter use the default size.
+ */
 struct dmx_set_command_info {
 	__u32 command;
 	__u32 reserved0;
