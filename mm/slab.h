@@ -322,7 +322,7 @@ struct kmem_cache {
 };
 
 #if defined(CONFIG_SYSFS) && !defined(CONFIG_SLUB_TINY)
-#ifndef CONFIG_AMLOGIC_TXHD2_REMOVE
+#if !defined(CONFIG_AMLOGIC_TXHD2_REMOVE) && !defined(CONFIG_AMLOGIC_LINUX_S_OPTIMIZE)
 #define SLAB_SUPPORTS_SYSFS 1
 #endif
 void sysfs_slab_unlink(struct kmem_cache *s);

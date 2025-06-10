@@ -304,7 +304,20 @@ static const struct of_device_id scmi_of_match[] = {
 
 DEFINE_SCMI_TRANSPORT_DRIVER(scmi_smc, scmi_smc_driver, scmi_smc_desc,
 			     scmi_of_match, core);
+#if IS_ENABLED(CONFIG_AMLOGIC_LINUX_S_OPTIMIZE)
+static int __init scmi_smc_driver_init(void)
+{
+    return platform_driver_register(&scmi_smc_driver);
+}
+subsys_initcall(scmi_smc_driver_init);
+static void __exit scmi_smc_driver_exit(void)
+{
+    platform_driver_unregister(&scmi_smc_driver);
+}
+module_exit(scmi_smc_driver_exit)
+#else
 module_platform_driver(scmi_smc_driver);
+#endif
 
 MODULE_AUTHOR("Peng Fan <peng.fan@nxp.com>");
 MODULE_AUTHOR("Nikunj Kela <quic_nkela@quicinc.com>");

@@ -703,7 +703,11 @@ static void __init populate_initrd_image(char *err)
 }
 #endif /* CONFIG_BLK_DEV_RAM */
 
+#ifdef CONFIG_AMLOGIC_FREERTOS_C4
+static void __init do_populate_rootfs(void)
+#else
 static void __init do_populate_rootfs(void *unused, async_cookie_t cookie)
+#endif
 {
 	/* Load the built in initramfs */
 	char *err = unpack_to_rootfs(__initramfs_start, __initramfs_size);
@@ -748,11 +752,16 @@ done:
 	init_flush_fput();
 }
 
+#ifndef CONFIG_AMLOGIC_FREERTOS_C4
 static ASYNC_DOMAIN_EXCLUSIVE(initramfs_domain);
 static async_cookie_t initramfs_cookie;
+#endif
 
 void wait_for_initramfs(void)
 {
+#ifdef CONFIG_AMLOGIC_FREERTOS_C4
+	return;
+#else
 	if (!initramfs_cookie) {
 		/*
 		 * Something before rootfs_initcall wants to access
@@ -764,16 +773,23 @@ void wait_for_initramfs(void)
 		return;
 	}
 	async_synchronize_cookie_domain(initramfs_cookie + 1, &initramfs_domain);
+#endif
 }
 EXPORT_SYMBOL_GPL(wait_for_initramfs);
 
 static int __init populate_rootfs(void)
 {
+#ifdef CONFIG_AMLOGIC_FREERTOS_C4
+	do_populate_rootfs();
+	usermodehelper_enable();
+	return 0;
+#else
 	initramfs_cookie = async_schedule_domain(do_populate_rootfs, NULL,
 						 &initramfs_domain);
 	usermodehelper_enable();
 	if (!initramfs_async)
 		wait_for_initramfs();
 	return 0;
+#endif
 }
 rootfs_initcall(populate_rootfs);

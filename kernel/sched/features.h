@@ -55,7 +55,11 @@ SCHED_FEAT(CACHE_HOT_BUDDY, true)
  *
  * DELAY_ZERO clips the lag on dequeue (or wakeup) to 0.
  */
+#if IS_ENABLED(CONFIG_AMLOGIC_LINUX_S_OPTIMIZE)
+SCHED_FEAT(DELAY_DEQUEUE, false)
+#else
 SCHED_FEAT(DELAY_DEQUEUE, true)
+#endif
 SCHED_FEAT(DELAY_ZERO, true)
 
 /*

@@ -234,5 +234,13 @@ static struct platform_driver of_fixed_clk_driver = {
 	.probe = of_fixed_clk_probe,
 	.remove = of_fixed_clk_remove,
 };
+#if IS_ENABLED(CONFIG_AMLOGIC_LINUX_S_OPTIMIZE)
+static int __init of_fixed_clk_init(void)
+{
+	return platform_driver_register(&of_fixed_clk_driver);
+}
+subsys_initcall_sync(of_fixed_clk_init);
+#else
 builtin_platform_driver(of_fixed_clk_driver);
+#endif
 #endif

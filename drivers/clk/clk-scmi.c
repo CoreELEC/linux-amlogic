@@ -513,7 +513,20 @@ static struct scmi_driver scmi_clocks_driver = {
 	.probe = scmi_clocks_probe,
 	.id_table = scmi_id_table,
 };
+#if IS_ENABLED(CONFIG_AMLOGIC_LINUX_S_OPTIMIZE)
+static int __init scmi_clocks_driver_init(void)
+{
+	return scmi_register(&scmi_clocks_driver);
+}
+subsys_initcall_sync(scmi_clocks_driver_init);
+static void __exit scmi_clocks_driver_exit(void)
+{
+	scmi_unregister(&scmi_clocks_driver);
+}
+module_exit(scmi_clocks_driver_exit);
+#else
 module_scmi_driver(scmi_clocks_driver);
+#endif
 
 MODULE_AUTHOR("Sudeep Holla <sudeep.holla@arm.com>");
 MODULE_DESCRIPTION("ARM SCMI clock driver");

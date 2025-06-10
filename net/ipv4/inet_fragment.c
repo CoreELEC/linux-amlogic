@@ -217,7 +217,11 @@ static int __init inet_frag_wq_init(void)
 	return 0;
 }
 
+#if IS_ENABLED(CONFIG_AMLOGIC_LINUX_S_OPTIMIZE)
+core_initcall(inet_frag_wq_init);
+#else
 pure_initcall(inet_frag_wq_init);
+#endif
 
 void fqdir_exit(struct fqdir *fqdir)
 {

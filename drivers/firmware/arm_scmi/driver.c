@@ -3368,7 +3368,11 @@ static int __init scmi_driver_init(void)
 
 	return platform_driver_register(&scmi_driver);
 }
+#if IS_ENABLED(CONFIG_AMLOGIC_LINUX_S_OPTIMIZE)
+subsys_initcall(scmi_driver_init);
+#else
 module_init(scmi_driver_init);
+#endif
 
 static void __exit scmi_driver_exit(void)
 {

@@ -3496,7 +3496,7 @@ static inline int node_match(struct slab *slab, int node)
 }
 
 #ifdef CONFIG_SLUB_DEBUG
-#ifndef CONFIG_AMLOGIC_TXHD2_REMOVE
+#if !defined(CONFIG_AMLOGIC_TXHD2_REMOVE) && !defined(CONFIG_AMLOGIC_LINUX_S_OPTIMIZE)
 static int count_free(struct slab *slab)
 {
 	return slab->objects - slab->inuse;
@@ -3567,7 +3567,7 @@ out:
 #endif /* CONFIG_SLUB_DEBUG */
 
 #if defined(CONFIG_SLUB_DEBUG) || defined(SLAB_SUPPORTS_SYSFS)
-#ifndef CONFIG_AMLOGIC_TXHD2_REMOVE
+#if !defined(CONFIG_AMLOGIC_TXHD2_REMOVE) && !defined(CONFIG_AMLOGIC_LINUX_S_OPTIMIZE)
 static unsigned long count_partial(struct kmem_cache_node *n,
 					int (*get_count)(struct slab *))
 {

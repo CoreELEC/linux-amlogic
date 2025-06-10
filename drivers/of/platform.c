@@ -24,6 +24,12 @@
 
 #include "of_private.h"
 
+#if IS_ENABLED(CONFIG_AMLOGIC_LINUX_S_OPTIMIZE)
+static struct device_node *g_root;
+static struct device_node *g_child;
+static struct delayed_work of_platform_work;
+#endif
+
 const struct of_device_id of_default_bus_match_table[] = {
 	{ .compatible = "simple-bus", },
 	{ .compatible = "simple-mfd", },
@@ -432,6 +438,22 @@ int of_platform_bus_probe(struct device_node *root,
 }
 EXPORT_SYMBOL(of_platform_bus_probe);
 
+#if IS_ENABLED(CONFIG_AMLOGIC_LINUX_S_OPTIMIZE)
+static void of_platform_populate_for_soc_work_func(struct work_struct *work)
+{
+	device_links_supplier_sync_state_pause();
+
+	of_platform_bus_create(g_child, of_default_bus_match_table, NULL, NULL, true);
+	pr_debug("child->name = %s, matches->name = %s, matches->compatible = %s\n",
+				g_child->name, of_default_bus_match_table->name, of_default_bus_match_table->compatible);
+
+	device_links_supplier_sync_state_resume();
+
+	of_node_set_flag(g_root, OF_POPULATED_BUS);
+
+	of_node_put(g_root);
+}
+#endif
 /**
  * of_platform_populate() - Populate platform_devices from device tree data
  * @root: parent of the first level to probe or NULL for the root of the tree
@@ -467,6 +489,15 @@ int of_platform_populate(struct device_node *root,
 
 	device_links_supplier_sync_state_pause();
 	for_each_child_of_node_scoped(root, child) {
+#if IS_ENABLED(CONFIG_AMLOGIC_LINUX_S_OPTIMIZE)
+		//if (child && matches) {
+		//	if (!strcmp(child->name, "soc") && !strcmp(matches->compatible, "simple-bus")) {
+		//		g_child = child;
+		//		g_root = root;
+		//		continue;
+		//	}
+		//}
+#endif
 		rc = of_platform_bus_create(child, matches, lookup, parent, true);
 		if (rc)
 			break;
@@ -504,6 +535,9 @@ static int __init of_platform_default_populate_init(void)
 {
 	struct device_node *node;
 
+#if IS_ENABLED(CONFIG_AMLOGIC_LINUX_S_OPTIMIZE)
+	INIT_DELAYED_WORK(&of_platform_work, of_platform_populate_for_soc_work_func);
+#endif
 	device_links_supplier_sync_state_pause();
 
 	if (IS_ENABLED(CONFIG_PPC)) {
@@ -593,6 +627,10 @@ static int __init of_platform_default_populate_init(void)
 
 		/* Populate everything else. */
 		of_platform_default_populate(NULL, NULL, NULL);
+#if IS_ENABLED(CONFIG_AMLOGIC_LINUX_S_OPTIMIZE)
+		//queue_delayed_work(system_unbound_wq, &of_platform_work,
+		//		   msecs_to_jiffies(10));
+#endif
 	}
 	return 0;
 }
