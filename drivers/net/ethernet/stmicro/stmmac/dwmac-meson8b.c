@@ -427,6 +427,8 @@ void set_wol_notify_bl31(u32 enable_bl31)
 
 static void set_wol_notify_bl30(struct meson8b_dwmac *dwmac, u32 enable_bl30)
 {
+	// bl30 is handled by bl30_manager
+	return;
 	#ifdef MBOX_NEW_VERSION
 	aml_mbox_transfer_data(dwmac->mbox_chan, MBOX_CMD_SET_ETHERNET_WOL,
 			       &enable_bl30, 4, NULL, 0, MBOX_SYNC);
