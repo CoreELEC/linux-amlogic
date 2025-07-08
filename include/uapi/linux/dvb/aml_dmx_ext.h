@@ -120,9 +120,11 @@ struct dmx_sec_mem {
 /*bit 16~23 for output */
 #define DMX_ES_OUTPUT        (1 << 16)
 /*set raw mode, it will send the struct dmx_sec_es_data, not es data*/
-#define DMX_OUTPUT_RAW_MODE	 (1 << 17)
+#define DMX_OUTPUT_RAW_MODE  (1 << 17)
 
 #define DMX_TEMI_FLAGS       (1 << 18)
+
+#define DMX_SUPPORT_64BITS   (1 << 19)
 
 /*24~31 one byte for audio type, dmx_audio_format_t*/
 #define DMX_AUDIO_FORMAT_BIT 24
@@ -241,6 +243,54 @@ struct dmx_dma_buf_info {
 	__u32 fd;
 	struct dmx_dma_buf_sec_es_data dmxes;
 };
+
+/*for 64bits address*/
+struct dmx_sec_es_data_64bits {
+	__u8 pts_dts_flag;
+	__u64 pts;
+	__u64 dts;
+	__u64 buf_start;
+	__u64 buf_end;
+	__u64 data_start;
+	__u64 data_end;
+};
+
+struct dmx_sec_ts_data_64bits {
+	__u64 buf_start;
+	__u64 buf_end;
+	__u64 data_start;
+	__u64 data_end;
+};
+
+struct dmx_mem_info_64bits {
+	__u32 dmx_total_size;
+	__u64 dmx_buf_phy_start;
+	__u32 dmx_free_size;
+	__u32 dvb_core_total_size;
+	__u32 dvb_core_free_size;
+	__u32 wp_offset;
+	__u64 newest_pts;
+};
+
+struct filter_mem_info_64bits {
+	__u32 type;
+	__u32 pid;
+	struct dmx_mem_info_64bits filter_info;
+};
+
+struct dmx_filter_mem_info_64bits {
+	__u32 filter_num;
+	struct filter_mem_info_64bits info[40];
+};
+
+struct dmx_sec_mem_64bits {
+	__u64 buff;
+	__u32 size;
+};
+
+struct decoder_mem_info_64bits {
+	__u64 rp_phy;
+};
 /* amlogic define end */
 
 /* amlogic define */
@@ -258,6 +308,11 @@ struct dmx_dma_buf_info {
 /*for dma buf*/
 #define DMX_GET_DMA_BUF_FD		_IOWR('o', 90, struct dmx_dma_buf_info)
 #define DMX_GET_DMA_BUF_INFO		_IOWR('o', 91, struct dmx_dma_buf_info)
+/*for 64bits address*/
+#define DMX_GET_MEM_INFO_64BITS		_IOR('o', 92, struct dmx_mem_info_64bits)
+#define DMX_GET_FILTER_MEM_INFO_64BITS	_IOR('o', 93, struct dmx_filter_mem_info_64bits)
+#define DMX_SET_SEC_MEM_64BITS		_IOW('o', 94, struct dmx_sec_mem_64bits)
+#define DMX_SET_DECODE_INFO_64BITS	_IOW('o', 95, struct decoder_mem_info_64bits)
 /* amlogic define end */
 
 #endif
