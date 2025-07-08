@@ -1250,6 +1250,73 @@ static int dvb_demux_do_ioctl(struct file *file,
 		}
 		ret = dmx_ext->get_dma_buf_info(dmxdev->demux, parg);
 		break;
+	case DMX_GET_MEM_INFO_64BITS:
+		if (dmxdevfilter->state < DMXDEV_STATE_GO) {
+			ret = -EINVAL;
+			break;
+		}
+		if (mutex_lock_interruptible(&dmxdevfilter->mutex)) {
+			mutex_unlock(&dmxdev->mutex);
+			return -ERESTARTSYS;
+		}
+		{
+			struct dmx_mem_info_64bits *info = parg;
+
+			info->dvb_core_total_size = dmxdevfilter->buffer.size;
+			info->dvb_core_free_size =
+			    dvb_ringbuffer_free(&dmxdevfilter->buffer);
+
+			if (dmxdevfilter->type == DMXDEV_TYPE_SEC) {
+				if (dmx_ext->get_sec_mem_info_64bits) {
+					struct dmx_section_feed *sec_feed =
+					    dmxdevfilter->feed.sec;
+
+					ret =
+					    dmx_ext->get_sec_mem_info_64bits(dmxdev->demux,
+								sec_feed, info);
+				}
+			} else if (dmxdevfilter->type == DMXDEV_TYPE_PES) {
+				if (dmx_ext->get_ts_mem_info_64bits) {
+					struct dmxdev_feed *feed;
+
+					list_for_each_entry(feed, &dmxdevfilter->feed.ts, next) {
+						ret =
+						    dmx_ext->get_ts_mem_info_64bits(dmxdev->demux,
+									feed->ts, info);
+						break;
+					}
+				}
+			}
+		}
+		mutex_unlock(&dmxdevfilter->mutex);
+		break;
+	case DMX_GET_FILTER_MEM_INFO_64BITS:
+		if (mutex_lock_interruptible(&dmxdevfilter->mutex)) {
+			mutex_unlock(&dmxdev->mutex);
+			return -ERESTARTSYS;
+		}
+		{
+			struct dmx_filter_mem_info_64bits *info = parg;
+
+			if (dmx_ext->get_dmx_mem_info_64bits)
+				ret = dmx_ext->get_dmx_mem_info_64bits(dmxdev->demux, info);
+		}
+		mutex_unlock(&dmxdevfilter->mutex);
+		break;
+	case DMX_SET_SEC_MEM_64BITS:
+		if (!dmx_ext->set_sec_mem_64bits) {
+			ret = -EINVAL;
+			break;
+		}
+		ret = dmx_ext->set_sec_mem_64bits(dmxdev->demux, parg);
+		break;
+	case DMX_SET_DECODE_INFO_64BITS:
+		if (!dmx_ext->decode_info_64bits) {
+			ret = -EINVAL;
+			break;
+		}
+		ret = dmx_ext->decode_info_64bits(dmxdev->demux, parg);
+		break;
 #endif
 
 	case DMX_ADD_PID:

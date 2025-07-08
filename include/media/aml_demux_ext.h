@@ -36,6 +36,18 @@ struct dmx_demux_ext {
 		void *info);
 	int (*get_dma_buf_info)(struct dmx_demux *demux,
 		void *info);
+	int (*get_ts_mem_info_64bits)(struct dmx_demux *demux,
+			void *feed,
+			void *info);
+	int (*get_sec_mem_info_64bits)(struct dmx_demux *demux,
+			void *feed,
+			void *info);
+	int (*get_dmx_mem_info_64bits)(struct dmx_demux *demux,
+			void *info);
+	int (*set_sec_mem_64bits)(struct dmx_demux *demux,
+			void *sec_mem);
+	int (*decode_info_64bits)(struct dmx_demux *demux,
+		void *info);
 };
 
 #endif
