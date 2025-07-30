@@ -105,6 +105,18 @@ static int module_debug;
 core_param(module_debug, module_debug, int, 0644);
 #endif
 
+#ifndef CONFIG_CFI_CLANG
+/*
+ * fallback for compiled modules with CFI
+ * empty functions copied from kernel/cfi.c
+ */
+void __ubsan_handle_cfi_check_fail_abort(void *data, void *ptr, void *vtable) {}
+EXPORT_SYMBOL(__ubsan_handle_cfi_check_fail_abort);
+
+void __cfi_slowpath_diag(uint64_t id, void *ptr, void *diag) {}
+EXPORT_SYMBOL(__cfi_slowpath_diag);
+#endif
+
 #ifdef CONFIG_MODULES_TREE_LOOKUP
 
 /*
@@ -4641,6 +4653,29 @@ out:
 
 static void cfi_init(struct module *mod)
 {
+#ifndef CONFIG_CFI_CLANG
+	/* fallback for compiled modules with CFI */
+	initcall_t *init;
+	exitcall_t *exit;
+
+	rcu_read_lock_sched();
+	init = (initcall_t *) find_kallsyms_symbol_value(mod, "__cfi_jt_init_module");
+	exit = (exitcall_t *) find_kallsyms_symbol_value(mod, "__cfi_jt_cleanup_module");
+	rcu_read_unlock_sched();
+
+	if (init) {
+		pr_info("%s: using CFI init symbol __cfi_jt_init_module\n", mod->name);
+		mod->init = *init;
+	}
+
+#ifdef CONFIG_MODULE_UNLOAD
+	if (exit) {
+		pr_info("%s: using CFI exit symbol __cfi_jt_cleanup_module\n", mod->name);
+		mod->exit = *exit;
+	}
+#endif /* CONFIG_MODULE_UNLOAD */
+#endif /* not CONFIG_CFI_CLANG */
+
 #ifdef CONFIG_CFI_CLANG
 	initcall_t *init;
 	exitcall_t *exit;
