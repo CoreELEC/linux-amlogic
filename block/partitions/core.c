@@ -367,6 +367,17 @@ static struct block_device *add_partition(struct gendisk *disk, int partno,
 	else
 		dev_set_name(pdev, "%s%d", dname, partno);
 
+	/*
+	 * make block special file using partition name 
+	 * instead of device name with partition number
+	 */	
+	if (!strcmp(dname, "mmcblk0") && info && info->volname[0]) {
+		pr_info("[%sp%02d] %20s  offset 0x%012llx, size 0x%012llx add\n",
+			dname, partno, info->volname, start << 9, len << 9);
+
+		dev_set_name(pdev, "%s", info->volname);
+	}
+
 	device_initialize(pdev);
 	pdev->class = &block_class;
 	pdev->type = &part_type;
