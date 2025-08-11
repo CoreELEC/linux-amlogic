@@ -3359,16 +3359,8 @@ static int m88rs6060_ready(struct m88rs6060_dev *dev)
 		
 	dev_dbg(&dev->base->i2c->dev, "%s", __func__);
 
-	//rest the harware and wake up the demod and tuner;
+	//reset the harware;
 	m88rs6060_hard_rest(dev);
-	rs6060_init(dev);
-
-	ret = regmap_write(dev->regmap, 0x07, 0xe0);	//global reset ,diseqc and fec reset
-	if (ret)
-		goto err;
-	ret = regmap_write(dev->regmap, 0x07, 0x00);
-	if (ret)
-		goto err;
 
 	/* cold state - try to download firmware */
 	dev_info(&i2c->dev, "found a '%s' in cold state\n",
