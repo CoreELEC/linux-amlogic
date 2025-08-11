@@ -19,8 +19,9 @@
 
 
 struct tbs5530_state {
-	struct i2c_client *i2c_client;
-	u8 initialized;
+	struct i2c_client *i2c_client_demod;
+	struct i2c_client *i2c_client_tuner; 
+	u32 last_key_pressed;
 };
 
 
@@ -190,20 +191,28 @@ static int tbs5530_frontend_cxd2878_attach(struct dvb_usb_adapter *adap)
 {
 	struct dvb_usb_device *d = adap->dev;
 
+	//u8 buf[20];
+
+
 	/* attach frontend */
 	adap->fe_adap[0].fe = dvb_attach(cxd2878_attach, &tbs5530_cfg, &d->i2c_adap);
 
-	if(adap->fe_adap[0].fe == NULL)
-		return -ENODEV;
+	if(adap->fe_adap[0].fe!=NULL){
+		strlcpy(adap->fe_adap[0].fe->ops.info.name,d->props.devices[0].name,60);
+		strcat(adap->fe_adap[0].fe->ops.info.name," DVB-T/T2/C/C2,ISDB-T/C,ATSC1.0");
+		return 0;		
+		}
+	
+//	strlcpy(adap->fe_adap[0].fe->ops.info.name,d->props.devices[0].name,52);
 
-	strlcpy(adap->fe_adap[0].fe->ops.info.name,d->props.devices[0].name,60);
-	strcat(adap->fe_adap[0].fe->ops.info.name," DVB-T/T2/C/C2,ISDB-T/C,ATSC,J83B");
-	return 0;		
+//	strlcpy(adap->fe_adap[0].fe2->ops.info.name,d->props.devices[0].name,52);
+//	strcat(adap->fe_adap[0].fe2->ops.info.name," DVB-S/S2/S2X");
+
+	return -EIO;
 }
-static int tbs5530_frontend_m88rs6060_attach(struct dvb_usb_adapter *adap)
+static int tbs5930_frontend_m88rs6060_attach(struct dvb_usb_adapter *adap)
 {
 	struct dvb_usb_device *d = adap->dev;
-	struct tbs5530_state *st = d->priv;
 	struct i2c_client *client;
 	struct i2c_board_info info;
 	struct m88rs6060_cfg m88rs6060_config;
@@ -235,7 +244,7 @@ static int tbs5530_frontend_m88rs6060_attach(struct dvb_usb_adapter *adap)
 			return -ENODEV;
 	}
 
-	st->i2c_client = client;
+
 	
 	buf[0] = 0;
 	buf[1] = 0;
@@ -347,7 +356,7 @@ static struct dvb_usb_device_properties tbs5530_properties = {
 				}
 			},
 		},{
-			.frontend_attach = tbs5530_frontend_m88rs6060_attach,
+			.frontend_attach = tbs5930_frontend_m88rs6060_attach,
 			.streaming_ctrl = tbs5530_sat_streaming_ctrl,
 			.tuner_attach = NULL,
 			.stream = {
@@ -369,7 +378,7 @@ static struct dvb_usb_device_properties tbs5530_properties = {
 
 	.num_device_descs = 1,
 	.devices = {
-		{"TurboSight TBS 5530",
+		{"TurboSight TBS 5530 DVB-T2/T/C/S/S2/S2x,ISDB-T,ATSC1.0",
 			{&tbs5530_table[0], NULL},
 			{NULL},
 		}
@@ -386,27 +395,10 @@ static int tbs5530_probe(struct usb_interface *intf,
 	return -ENODEV;
 }
 
-static void tbs5530_disconnect(struct usb_interface *intf)
-{
-#if 1
-	struct dvb_usb_device *d = usb_get_intfdata(intf);
-	struct tbs5530_state *st = d->priv;
-	struct i2c_client *client;
-
-	/* remove I2C client for tuner/demod*/
-	client = st->i2c_client;
-	if (client) {
-		module_put(client->dev.driver->owner);
-		i2c_unregister_device(client);
-	}
-#endif
-	dvb_usb_device_exit(intf);
-}
-
 static struct usb_driver tbs5530_driver = {
 	.name = "tbs5530",
 	.probe = tbs5530_probe,
-	.disconnect = tbs5530_disconnect,
+	.disconnect = dvb_usb_device_exit,
 	.id_table = tbs5530_table,
 };
 
