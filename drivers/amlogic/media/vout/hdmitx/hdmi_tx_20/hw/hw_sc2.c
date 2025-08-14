@@ -295,6 +295,30 @@ void set_sc2_hpll_clk_out(unsigned int frac_rate, unsigned int clk)
 		WAIT_FOR_PLL_LOCKED(P_ANACTRL_HDMIPLL_CTRL0);
 		pr_info("HPLL: 0x%x\n", hd_read_reg(P_ANACTRL_HDMIPLL_CTRL0));
 		break;
+	case 3180000:
+		hd_write_reg(P_ANACTRL_HDMIPLL_CTRL0, 0x3b000484);
+		hd_write_reg(P_ANACTRL_HDMIPLL_CTRL1, 0x00010000);
+		hd_write_reg(P_ANACTRL_HDMIPLL_CTRL2, 0x00000000);
+		hd_write_reg(P_ANACTRL_HDMIPLL_CTRL3, 0x4a691c00);
+		hd_write_reg(P_ANACTRL_HDMIPLL_CTRL4, 0x33771290);
+		hd_write_reg(P_ANACTRL_HDMIPLL_CTRL5, 0x39270008);
+		hd_write_reg(P_ANACTRL_HDMIPLL_CTRL6, 0x50540000);
+		hd_set_reg_bits(P_ANACTRL_HDMIPLL_CTRL0, 0x0, 29, 1);
+		WAIT_FOR_PLL_LOCKED(P_ANACTRL_HDMIPLL_CTRL0);
+		pr_info("HPLL: 0x%x\n", hd_read_reg(P_ANACTRL_HDMIPLL_CTRL0));
+		break;
+	case 3420000:
+		hd_write_reg(P_ANACTRL_HDMIPLL_CTRL0, 0x3b00048e);
+		hd_write_reg(P_ANACTRL_HDMIPLL_CTRL1, 0x00010000);
+		hd_write_reg(P_ANACTRL_HDMIPLL_CTRL2, 0x00000000);
+		hd_write_reg(P_ANACTRL_HDMIPLL_CTRL3, 0x4a691c00);
+		hd_write_reg(P_ANACTRL_HDMIPLL_CTRL4, 0x33771290);
+		hd_write_reg(P_ANACTRL_HDMIPLL_CTRL5, 0x39270008);
+		hd_write_reg(P_ANACTRL_HDMIPLL_CTRL6, 0x50540000);
+		hd_set_reg_bits(P_ANACTRL_HDMIPLL_CTRL0, 0x0, 29, 1);
+		WAIT_FOR_PLL_LOCKED(P_ANACTRL_HDMIPLL_CTRL0);
+		pr_info("HPLL: 0x%x\n", hd_read_reg(P_ANACTRL_HDMIPLL_CTRL0));
+		break;
 	default:
 		pr_info("error hpll clk: %d\n", clk);
 		break;
