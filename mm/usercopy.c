@@ -236,8 +236,10 @@ static inline void check_heap_object(const void *ptr, unsigned long n,
 	page = compound_head(kmap_to_page((void *)ptr));
 
 	if (PageSlab(page)) {
+#ifndef CONFIG_AMLOGIC_MEMORY_EXTEND
 		/* Check slab allocator for flags and size. */
 		__check_heap_object(ptr, n, page, to_user);
+#endif
 	} else {
 		/* Verify object does not incorrectly span multiple pages. */
 		check_page_span(ptr, n, page, to_user);
