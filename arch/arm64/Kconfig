@@ -2421,7 +2421,7 @@ config EFI
 	select EFI_STUB
 	select EFI_GENERIC_STUB
 	imply IMA_SECURE_AND_OR_TRUSTED_BOOT
-	default y
+	default y if !AMLOGIC_LINUX_S_OPTIMIZE
 	help
 	  This option provides support for runtime services provided
 	  by UEFI firmware (such as non-volatile variables, realtime
@@ -2450,6 +2450,12 @@ config DMI
 	  This option is only useful on systems that have UEFI firmware.
 	  However, even with this option, the resultant kernel should
 	  continue to boot on existing non-UEFI platforms.
+
+config AMLOGIC_LINUX_S_OPTIMIZE
+	bool "linux kernel size optimize"
+	default n
+	help
+	Amlogic linux kernel size optimize
 
 endmenu # "Boot options"
 
