@@ -198,6 +198,7 @@ struct decoder_mem_info {
 /*for set command to dmx*/
 #define DMX_CLEAR_CACHE		0
 #define DMX_FILTER_HW_MEM_SIZE		1
+#define DMX_FILTER_KEY_READY        2
 /*format*/
 enum dmx_filter_format {
 	FORMAT_ES = 1,
