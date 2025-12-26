@@ -915,6 +915,9 @@ static int aw210xx_parse_led_cdev(struct aw210xx *aw210xx, struct device_node *n
 
 	aw210xx_led_init(aw210xx);
 
+	/* fix brightness which is set to max */
+	aw210xx_set_brightness(&aw210xx->cdev, aw210xx->cdev.brightness);
+
 	return 0;
 
 free_class:
@@ -1076,6 +1079,14 @@ static void aw210xx_i2c_remove(struct i2c_client *i2c)
 	aw210xx = NULL;
 }
 
+static void aw210xx_i2c_shutdown(struct i2c_client *i2c)
+{
+	struct aw210xx *aw210xx = i2c_get_clientdata(i2c);
+
+	aw210xx->effect = 0;  /* aw210xx_group_cfg_led_off */
+	aw210xx_cfg_update(aw210xx);	
+}
+
 static const struct i2c_device_id aw210xx_i2c_id[] = {
 	{AW210XX_I2C_NAME, 0},
 	{}
@@ -1088,6 +1099,8 @@ static const struct of_device_id aw210xx_dt_match[] = {
 	{}
 };
 
+MODULE_DEVICE_TABLE(of, aw210xx_dt_match);
+
 static struct i2c_driver aw210xx_i2c_driver = {
 	.driver = {
 		.name = AW210XX_I2C_NAME,
@@ -1096,6 +1109,7 @@ static struct i2c_driver aw210xx_i2c_driver = {
 		},
 	.probe = aw210xx_i2c_probe,
 	.remove = aw210xx_i2c_remove,
+	.shutdown = aw210xx_i2c_shutdown,
 	.id_table = aw210xx_i2c_id,
 };
 
