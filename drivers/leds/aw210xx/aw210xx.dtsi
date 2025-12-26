@@ -1,0 +1,19 @@
+&i2c_3 {
+	status = "okay";
+	aw210xx_led@20 {
+		compatible = "awinic,aw210xx_led";
+		status = "okay";
+		reg = <0x20>;
+		enable-gpio = <&tlmm 20 0>;  /* optional */
+		global_current = <0x66>;
+		osc_clk = <1>;
+		br_res = <1>;
+
+		aw210xx,led {
+			aw210xx,name = "aw210xx_led";
+			aw210xx,imax = <1>;
+			aw210xx,brightness = <128>;
+			aw210xx,max_brightness = <255>;
+		};
+	};
+};
