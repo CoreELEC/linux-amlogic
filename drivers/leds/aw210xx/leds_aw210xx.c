@@ -1090,12 +1090,34 @@ static int aw210xx_i2c_remove(struct i2c_client *i2c)
 	return 0;
 }
 
+static int aw210xx_suspend(struct device *dev)
+{
+	struct aw210xx *aw210xx = dev_get_drvdata(dev);
+
+	AW_ERR("set blue color\n");
+
+	aw210xx->effect = 3;  /* aw21018_ugoos_sk4_blue */
+	aw210xx_cfg_update(aw210xx);
+	return 0;
+}
+
+static int aw210xx_resume(struct device *dev)
+{
+	struct aw210xx *aw210xx = dev_get_drvdata(dev);
+
+	AW_ERR("set green color\n");
+
+	aw210xx->effect = 2;  /* aw21018_ugoos_sk4_green */
+	aw210xx_cfg_update(aw210xx);
+	return 0;
+}
+
 static void aw210xx_i2c_shutdown(struct i2c_client *i2c)
 {
 	struct aw210xx *aw210xx = i2c_get_clientdata(i2c);
 
 	aw210xx->effect = 0;  /* aw210xx_group_cfg_led_off */
-	aw210xx_cfg_update(aw210xx);	
+	aw210xx_cfg_update(aw210xx);
 }
 
 static const struct i2c_device_id aw210xx_i2c_id[] = {
@@ -1112,11 +1134,14 @@ static const struct of_device_id aw210xx_dt_match[] = {
 
 MODULE_DEVICE_TABLE(of, aw210xx_dt_match);
 
+static SIMPLE_DEV_PM_OPS(aw210xx_pm, aw210xx_suspend, aw210xx_resume);
+
 static struct i2c_driver aw210xx_i2c_driver = {
 	.driver = {
 		.name = AW210XX_I2C_NAME,
 		.owner = THIS_MODULE,
 		.of_match_table = of_match_ptr(aw210xx_dt_match),
+		.pm = &aw210xx_pm,
 		},
 	.probe = aw210xx_i2c_probe,
 	.remove = aw210xx_i2c_remove,
