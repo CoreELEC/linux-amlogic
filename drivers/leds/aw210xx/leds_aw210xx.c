@@ -84,6 +84,9 @@
  ******************************************************/
 struct aw210xx_cfg aw210xx_cfg_array[] = {
 	{aw210xx_group_cfg_led_off, sizeof(aw210xx_group_cfg_led_off)},
+	{aw21018_ugoos_sk4_red, sizeof(aw21018_ugoos_sk4_red)},
+	{aw21018_ugoos_sk4_green, sizeof(aw21018_ugoos_sk4_green)},
+	{aw21018_ugoos_sk4_blue, sizeof(aw21018_ugoos_sk4_blue)},
 	{aw21018_group_all_leds_on, sizeof(aw21018_group_all_leds_on)},
 	{aw21018_group_red_leds_on, sizeof(aw21018_group_red_leds_on)},
 	{aw21018_group_green_leds_on, sizeof(aw21018_group_green_leds_on)},
@@ -102,6 +105,9 @@ struct aw210xx_cfg aw210xx_cfg_array[] = {
 };
 static char aw210xx_cfg_name[][AW210XX_CFG_NAME_MAX] = {
 	{"aw210xx_group_cfg_led_off"},
+	{"aw21018_ugoos_sk4_red"},
+	{"aw21018_ugoos_sk4_green"},
+	{"aw21018_ugoos_sk4_blue"},
 	{"aw21018_group_all_leds_on"},
 	{"aw21018_group_red_leds_on"},
 	{"aw21018_group_green_leds_on"},
