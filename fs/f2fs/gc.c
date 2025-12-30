@@ -1038,7 +1038,8 @@ static int check_valid_map(struct f2fs_sb_info *sbi,
  * ignore that.
  */
 static int gc_node_segment(struct f2fs_sb_info *sbi,
-		struct f2fs_summary *sum, unsigned int segno, int gc_type)
+		struct f2fs_summary *sum, unsigned int segno, int gc_type,
+		struct blk_plug *plug)
 {
 	struct f2fs_summary *entry;
 	block_t start_addr;
@@ -1107,8 +1108,11 @@ next_step:
 		stat_inc_node_blk_count(sbi, 1, gc_type);
 	}
 
-	if (++phase < 3)
+	if (++phase < 3) {
+		blk_finish_plug(plug);
+		blk_start_plug(plug);
 		goto next_step;
+	}
 
 	if (fggc)
 		atomic_dec(&sbi->wb_sync_req[NODE]);
@@ -1539,7 +1543,7 @@ out:
  */
 static int gc_data_segment(struct f2fs_sb_info *sbi, struct f2fs_summary *sum,
 		struct gc_inode_list *gc_list, unsigned int segno, int gc_type,
-		bool force_migrate)
+		bool force_migrate, struct blk_plug *plug)
 {
 	struct super_block *sb = sbi->sb;
 	struct f2fs_summary *entry;
@@ -1707,8 +1711,11 @@ next_step:
 		}
 	}
 
-	if (++phase < 5)
+	if (++phase < 5) {
+		blk_finish_plug(plug);
+		blk_start_plug(plug);
 		goto next_step;
+	}
 
 	return submitted;
 }
@@ -1840,11 +1847,11 @@ static int do_garbage_collect(struct f2fs_sb_info *sbi,
 		 */
 		if (type == SUM_TYPE_NODE)
 			submitted += gc_node_segment(sbi, sum->entries, segno,
-								gc_type);
+								gc_type, &plug);
 		else
 			submitted += gc_data_segment(sbi, sum->entries, gc_list,
 							segno, gc_type,
-							force_migrate);
+							force_migrate, &plug);
 
 		stat_inc_gc_seg_count(sbi, data_type, gc_type);
 		sbi->gc_reclaimed_segs[sbi->gc_mode]++;
