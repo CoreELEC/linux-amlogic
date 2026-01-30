@@ -1301,7 +1301,9 @@ got:
 					      sizeof(gen));
 	}
 
+#ifndef CONFIG_AMLOGIC_EXT4_FIX1
 	ext4_clear_state_flags(ei); /* Only relevant on 32-bit archs */
+#endif
 	ext4_set_inode_state(inode, EXT4_STATE_NEW);
 
 	ei->i_extra_isize = sbi->s_want_extra_isize;
