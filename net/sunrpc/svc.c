@@ -878,7 +878,7 @@ svc_rqst_free(struct svc_rqst *rqstp)
 	kfree(rqstp->rq_resp);
 	kfree(rqstp->rq_argp);
 	kfree(rqstp->rq_auth_data);
-	kfree_rcu(rqstp, rq_rcu_head);
+	kfree(rqstp);
 }
 EXPORT_SYMBOL_GPL(svc_rqst_free);
 
