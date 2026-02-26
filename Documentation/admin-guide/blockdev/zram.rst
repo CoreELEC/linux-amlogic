@@ -228,7 +228,7 @@ mem_limit         	WO	specifies the maximum amount of memory ZRAM can
 writeback_limit   	WO	specifies the maximum amount of write IO zram
 				can write out to backing device as 4KB unit
 writeback_limit_enable  RW	show and set writeback_limit feature
-writeback_compressed	RW	show and set compressed writeback feature
+compressed_writeback	RW	show and set compressed writeback feature
 max_comp_streams  	RW	the number of possible concurrent compress
 				operations
 comp_algorithm    	RW	show and change the compression algorithm
@@ -451,11 +451,11 @@ budget in next setting is user's job.
 By default zram stores written back pages in decompressed (raw) form, which
 means that writeback operation involves decompression of the page before
 writing it to the backing device.  This behavior can be changed by enabling
-`writeback_compressed` feature, which causes zram to write compressed pages
+`compressed_writeback` feature, which causes zram to write compressed pages
 to the backing device, thus avoiding decompression overhead.  To enable
 this feature, execute::
 
-	$ echo yes > /sys/block/zramX/writeback_compressed
+	$ echo yes > /sys/block/zramX/compressed_writeback
 
 Note that this feature should be configured before the `zramX` device is
 initialized.
