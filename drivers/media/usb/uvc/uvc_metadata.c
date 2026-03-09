@@ -52,7 +52,7 @@ static int uvc_meta_v4l2_get_format(struct file *file, void *fh,
 	memset(fmt, 0, sizeof(*fmt));
 
 	fmt->dataformat = stream->meta.format;
-	fmt->buffersize = UVC_METADATA_BUF_SIZE;
+	fmt->buffersize = stream->meta.buffersize;
 
 	return 0;
 }
@@ -65,6 +65,7 @@ static int uvc_meta_v4l2_try_format(struct file *file, void *fh,
 	struct uvc_device *dev = stream->dev;
 	struct v4l2_meta_format *fmt = &format->fmt.meta;
 	u32 fmeta = V4L2_META_FMT_UVC;
+	u32 buffersize;
 
 	if (format->type != vfh->vdev->queue->type)
 		return -EINVAL;
@@ -75,10 +76,12 @@ static int uvc_meta_v4l2_try_format(struct file *file, void *fh,
 			break;
 		}
 
+	buffersize = max(UVC_METADATA_BUF_MIN_SIZE, fmt->buffersize);
+
 	memset(fmt, 0, sizeof(*fmt));
 
 	fmt->dataformat = fmeta;
-	fmt->buffersize = UVC_METADATA_BUF_SIZE;
+	fmt->buffersize = buffersize;
 
 	return 0;
 }
@@ -102,10 +105,12 @@ static int uvc_meta_v4l2_set_format(struct file *file, void *fh,
 	 */
 	mutex_lock(&stream->mutex);
 
-	if (uvc_queue_allocated(&stream->queue))
+	if (uvc_queue_allocated(&stream->queue)) {
 		ret = -EBUSY;
-	else
+	} else {
 		stream->meta.format = fmt->dataformat;
+		stream->meta.buffersize = fmt->buffersize;
+	}
 
 	mutex_unlock(&stream->mutex);
 
@@ -236,6 +241,7 @@ int uvc_meta_register(struct uvc_streaming *stream)
 	struct uvc_video_queue *queue = &stream->meta.queue;
 
 	stream->meta.format = V4L2_META_FMT_UVC;
+	stream->meta.buffersize = UVC_METADATA_BUF_MIN_SIZE;
 
 	/*
 	 * The video interface queue uses manual locking and thus does not set
