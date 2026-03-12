@@ -215,6 +215,13 @@
   blk_mq_sched_mark_restart_hctx
   blk_mq_sched_try_insert_merge
   elv_rqhash_add
+  blkcg_print_blkgs
+  blkg_conf_init
+  blkg_conf_prep
+  blkg_conf_exit
+  __blkg_prfill_u64
+  blkcg_root
+  blkcg_activate_policy
 
 # required by mi_damon.ko
   folio_deactivate
