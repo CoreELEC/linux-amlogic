@@ -430390,6 +430390,14 @@ function {
   parameter_id: 0xf1a6dfed
 }
 function {
+  id: 0xbb057b65
+  return_type_id: 0x6720d32f
+  parameter_id: 0x9565759f
+  parameter_id: 0xf435685e
+  parameter_id: 0x33756485
+  parameter_id: 0x33756485
+}
+function {
   id: 0xbb40a305
   return_type_id: 0x6720d32f
   parameter_id: 0x92233392
@@ -502323,6 +502331,15 @@ elf_symbol {
   full_name: "regcache_sync_region"
 }
 elf_symbol {
+  id: 0x82f8f67b
+  name: "region_intersects"
+  is_defined: true
+  symbol_type: FUNCTION
+  crc: 0x8f7f8afd
+  type_id: 0xbb057b65
+  full_name: "region_intersects"
+}
+elf_symbol {
   id: 0xceab3170
   name: "register_btf_kfunc_id_set"
   is_defined: true
@@ -533790,6 +533807,7 @@ interface {
   symbol_id: 0x60b782b4
   symbol_id: 0x38aaa220
   symbol_id: 0xb34d0634
+  symbol_id: 0x82f8f67b
   symbol_id: 0xceab3170
   symbol_id: 0xeab63d27
   symbol_id: 0x1bc307a0

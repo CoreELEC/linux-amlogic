@@ -1637,6 +1637,7 @@
   regcache_cache_only
   regcache_mark_dirty
   regcache_sync
+  region_intersects
   __register_chrdev
   register_chrdev_region
   register_die_notifier
