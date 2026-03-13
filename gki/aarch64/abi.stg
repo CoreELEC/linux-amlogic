@@ -456507,7 +456507,7 @@ elf_symbol {
   symbol_type: FUNCTION
   crc: 0x0bdc7772
   type_id: 0x7e9586be
-  full_name: "ashmem_rust::ashmem_area_name"
+  full_name: "ashmem::ashmem_area_name"
 }
 elf_symbol {
   id: 0x8e36b8ab
@@ -456516,7 +456516,7 @@ elf_symbol {
   symbol_type: FUNCTION
   crc: 0x823718bd
   type_id: 0x469873b1
-  full_name: "ashmem_rust::ashmem_area_size"
+  full_name: "ashmem::ashmem_area_size"
 }
 elf_symbol {
   id: 0x64c484a8
@@ -456525,7 +456525,7 @@ elf_symbol {
   symbol_type: FUNCTION
   crc: 0xbdb982a0
   type_id: 0xab633df4
-  full_name: "ashmem_rust::ashmem_area_vmfile"
+  full_name: "ashmem::ashmem_area_vmfile"
 }
 elf_symbol {
   id: 0xac417394
@@ -485186,7 +485186,7 @@ elf_symbol {
   symbol_type: FUNCTION
   crc: 0x0505a219
   type_id: 0xbbca391d
-  full_name: "ashmem_rust::is_ashmem_file"
+  full_name: "ashmem::is_ashmem_file"
 }
 elf_symbol {
   id: 0x65d49acf
