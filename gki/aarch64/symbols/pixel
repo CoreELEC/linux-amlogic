@@ -62,6 +62,7 @@
   bio_end_io_acct_remapped
   bio_init
   bio_start_io_acct
+  bitmap_alloc
   __bitmap_andnot
   __bitmap_clear
   __bitmap_equal
@@ -73,6 +74,7 @@
   bitmap_parselist
   bitmap_parse_user
   bitmap_print_to_pagebuf
+  __bitmap_replace
   __bitmap_set
   bitmap_to_arr32
   __bitmap_weight
@@ -312,6 +314,7 @@
   debugfs_create_devm_seqfile
   debugfs_create_dir
   debugfs_create_file
+  debugfs_create_file_size
   debugfs_create_file_unsafe
   debugfs_create_regset32
   debugfs_create_size_t
@@ -400,6 +403,7 @@
   device_property_read_u8_array
   device_register
   device_remove_file
+  device_remove_file_self
   device_remove_groups
   device_rename
   device_set_node
@@ -412,6 +416,15 @@
   _dev_info
   dev_iommu_priv_set
   dev_kfree_skb_any_reason
+  devlink_alloc_ns
+  devlink_flash_update_status_notify
+  devlink_free
+  devlink_health_reporter_state_update
+  devlink_priv
+  devlink_region_create
+  devlink_region_destroy
+  devlink_register
+  devlink_unregister
   __devm_add_action
   devm_backlight_device_register
   devm_backlight_device_unregister
@@ -502,6 +515,7 @@
   devm_register_sys_off_handler
   devm_regmap_add_irq_chip
   devm_regmap_field_alloc
+  devm_regmap_field_bulk_alloc
   __devm_regmap_init
   __devm_regmap_init_i2c
   __devm_regmap_init_mmio_clk
@@ -509,6 +523,7 @@
   __devm_regmap_init_spmi_ext
   devm_regulator_bulk_get
   devm_regulator_bulk_get_const
+  devm_regulator_bulk_get_enable
   devm_regulator_get
   devm_regulator_get_exclusive
   devm_regulator_get_optional
@@ -530,6 +545,7 @@
   devm_usb_get_phy_by_phandle
   devm_watchdog_register_device
   _dev_notice
+  dev_open
   dev_pm_clear_wake_irq
   dev_pm_domain_attach
   dev_pm_domain_attach_by_id
@@ -537,6 +553,7 @@
   dev_pm_domain_detach
   dev_pm_genpd_add_notifier
   dev_pm_genpd_remove_notifier
+  dev_pm_genpd_synced_poweroff
   dev_pm_opp_add_dynamic
   dev_pm_opp_clear_config
   dev_pm_opp_disable
@@ -571,9 +588,12 @@
   devres_add
   __devres_alloc_node
   devres_free
+  dev_set_mtu
   dev_set_name
+  dev_set_threaded
   dev_vprintk_emit
   _dev_warn
+  disable_delayed_work_sync
   disable_irq
   disable_irq_nosync
   disable_percpu_irq
@@ -644,6 +664,7 @@
   dma_mmap_attrs
   dmam_pool_create
   dma_pool_alloc
+  dma_pool_create
   dma_pool_destroy
   dma_pool_free
   dma_release_channel
@@ -681,6 +702,7 @@
   driver_find_device
   driver_for_each_device
   driver_register
+  driver_set_override
   driver_unregister
   drm_add_modes_noedid
   drm_atomic_add_affected_connectors
@@ -1025,6 +1047,7 @@
   finish_wait
   firmware_kobj
   firmware_request_nowarn
+  fixed_size_llseek
   flush_dcache_page
   flush_delayed_work
   flush_work
@@ -1358,6 +1381,7 @@
   ip_send_check
   iput
   __ipv6_addr_type
+  ipv6_skip_exthdr
   __irq_alloc_descs
   __irq_apply_affinity_hint
   irq_check_status_bit
@@ -1425,7 +1449,9 @@
   __kfifo_out
   __kfifo_out_linear
   __kfifo_out_peek
+  __kfifo_to_user
   kfree
+  kfree_const
   kfree_sensitive
   kfree_skb_list_reason
   kill_fasync
@@ -1679,6 +1705,7 @@
   nbcon_device_release
   nbcon_device_try_acquire
   __ndelay
+  __netdev_alloc_frag_align
   __netdev_alloc_skb
   netdev_core_stats_inc
   netdev_err
@@ -1690,6 +1717,7 @@
   netdev_update_features
   netif_carrier_off
   netif_carrier_on
+  netif_device_attach
   netif_napi_add_weight
   __netif_napi_del
   netif_receive_skb
@@ -1814,6 +1842,7 @@
   __of_parse_phandle_with_args
   of_phandle_iterator_init
   of_phandle_iterator_next
+  of_phy_simple_xlate
   of_platform_depopulate
   of_platform_populate
   of_property_count_elems_of_size
@@ -1835,6 +1864,7 @@
   of_reserved_mem_device_release
   of_reserved_mem_lookup
   of_root
+  of_translate_dma_region
   of_usb_host_tpl_support
   __oom_reap_task_mm
   oops_in_progress
@@ -1843,6 +1873,11 @@
   page_frag_free
   page_pinner_inited
   __page_pinner_put_page
+  page_pool_alloc_frag
+  page_pool_alloc_pages
+  page_pool_create
+  page_pool_destroy
+  page_pool_put_unrefed_netmem
   panic
   panic_notifier_list
   param_array_ops
@@ -1858,10 +1893,12 @@
   param_ops_uint
   param_ops_ullong
   param_ops_ulong
+  param_ops_ushort
   param_set_copystring
   param_set_int
   param_set_uint_minmax
   path_put
+  pci_aer_clear_nonfatal_status
   pci_alloc_irq_vectors
   pci_alloc_irq_vectors_affinity
   pci_assign_resource
@@ -1869,12 +1906,18 @@
   pci_bus_read_config_dword
   pci_bus_type
   pci_clear_master
+  pci_dev_get
   pci_device_group
+  pci_device_is_present
+  pci_dev_lock
   pci_dev_put
+  pci_dev_unlock
   pci_disable_ats
   pci_disable_device
   pci_disable_msi
+  pcie_capability_clear_and_set_word_unlocked
   pcie_capability_read_word
+  pcie_capability_write_word
   pcie_get_speed_cap
   pcie_get_width_cap
   pcie_link_speed
@@ -1899,6 +1942,10 @@
   pci_load_and_free_saved_state
   pci_load_saved_state
   pci_lock_rescan_remove
+  pcim_enable_device
+  pcim_iomap_regions
+  pcim_iomap_table
+  pcim_iounmap_regions
   pci_msi_create_irq_domain
   pci_msi_mask_irq
   pci_msi_unmask_irq
@@ -1921,6 +1968,7 @@
   pci_unlock_rescan_remove
   pci_unregister_driver
   pci_wake_from_d3
+  pci_walk_bus
   pci_write_config_dword
   pci_write_config_word
   pcpu_alloc_noprof
@@ -1928,6 +1976,7 @@
   percpu_counter_add_batch
   percpu_counter_batch
   __per_cpu_offset
+  perf_allow_kernel
   perf_aux_output_begin
   perf_aux_output_end
   perf_aux_output_flag
@@ -2032,6 +2081,7 @@
   __pm_runtime_set_status
   __pm_runtime_suspend
   __pm_runtime_use_autosuspend
+  pm_schedule_suspend
   __pm_stay_awake
   pm_stay_awake
   pm_system_wakeup
@@ -2099,6 +2149,8 @@
   pwrseq_power_on
   queue_delayed_work_on
   queue_work_on
+  radix_tree_delete
+  radix_tree_gang_lookup
   radix_tree_insert
   radix_tree_iter_delete
   radix_tree_lookup
@@ -2185,11 +2237,13 @@
   regmap_bulk_read
   regmap_bulk_write
   regmap_check_range_table
+  regmap_exit
   regmap_field_read
   regmap_field_update_bits_base
   regmap_get_device
   regmap_get_reg_stride
   __regmap_init
+  __regmap_init_i2c
   regmap_irq_get_virq
   regmap_multi_reg_write
   regmap_multi_reg_write_bypassed
@@ -2213,7 +2267,9 @@
   regulator_is_enabled
   regulator_is_enabled_regmap
   regulator_list_voltage_linear
+  regulator_list_voltage_linear_range
   regulator_map_voltage_linear
+  regulator_map_voltage_linear_range
   regulator_notifier_call_chain
   regulator_put
   regulator_set_active_discharge_regmap
@@ -2403,10 +2459,12 @@
   skb_set_owner_w
   skb_store_bits
   skb_trim
+  skb_unlink
   sk_free
   skip_spaces
   sk_skb_reason_drop
   smp_call_function
+  smp_call_function_any
   smp_call_function_single
   smp_call_on_cpu
   snd_compr_stop_error
@@ -2671,6 +2729,7 @@
   time64_to_tm
   timer_delete
   timer_delete_sync
+  timer_shutdown_sync
   topology_update_hw_pressure
   topup_hyp_memcache
   _totalram_pages
@@ -2791,6 +2850,7 @@
   __traceiter_android_vh_sysrq_crash
   __traceiter_android_vh_timerfd_create
   __traceiter_android_vh_tune_swappiness
+  __traceiter_android_vh_typec_tcpm_log
   __traceiter_android_vh_uclamp_validate
   __traceiter_android_vh_ufs_check_int_errors
   __traceiter_android_vh_ufs_compl_command
@@ -2942,6 +3002,7 @@
   __tracepoint_android_vh_sysrq_crash
   __tracepoint_android_vh_timerfd_create
   __tracepoint_android_vh_tune_swappiness
+  __tracepoint_android_vh_typec_tcpm_log
   __tracepoint_android_vh_uclamp_validate
   __tracepoint_android_vh_ufs_check_int_errors
   __tracepoint_android_vh_ufs_compl_command
@@ -2997,6 +3058,7 @@
   trace_set_clr_event
   __trace_trigger_soft_disabled
   try_module_get
+  try_wait_for_completion
   tty_flip_buffer_push
   tty_get_char_size
   __tty_insert_flip_string_flags
@@ -3273,6 +3335,12 @@
   wireless_send_event
   woken_wake_function
   work_busy
+  wwan_create_port
+  wwan_port_get_drvdata
+  wwan_port_rx
+  wwan_register_ops
+  wwan_remove_port
+  wwan_unregister_ops
   ww_mutex_lock
   ww_mutex_unlock
   x509_load_certificate_list
