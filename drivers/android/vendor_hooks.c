@@ -724,3 +724,4 @@ EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_dwc3_xhci_soft_reset);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_cma_release_bypass);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_cma_alloc_end);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_typec_tcpm_log);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_pci_pm_verify_state);

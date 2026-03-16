@@ -23,6 +23,9 @@ DECLARE_HOOK(android_vh_platform_pci_get_power_state,
 DECLARE_HOOK(android_vh_platform_pci_choose_state,
 		TP_PROTO(struct pci_dev *dev, pci_power_t *state),
 		TP_ARGS(dev, state));
+DECLARE_HOOK(android_vh_pci_pm_verify_state,
+		TP_PROTO(int *state_ret, pci_power_t *state),
+		TP_ARGS(state_ret, state));
 
 #endif /* _TRACE_HOOK_PCI_VH_H */
 /* This part must be outside protection */
