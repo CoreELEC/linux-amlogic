@@ -237,24 +237,15 @@ void release_pp_ctl(struct zram *zram, struct zram_pp_ctl *ctl)
 	kfree(ctl);
 }
 
-static bool place_pp_slot(struct zram *zram, struct zram_pp_ctl *ctl,
-			  u32 index)
+static void place_pp_slot(struct zram *zram, struct zram_pp_ctl *ctl,
+			  struct zram_pp_slot *pps)
 {
-	struct zram_pp_slot *pps;
-	u32 bid;
+	u32 idx;
 
-	pps = kmalloc(sizeof(*pps), GFP_NOIO | __GFP_NOWARN);
-	if (!pps)
-		return false;
-
-	INIT_LIST_HEAD(&pps->entry);
-	pps->index = index;
-
-	bid = zram_get_obj_size(zram, pps->index) / PP_BUCKET_SIZE_RANGE;
-	list_add(&pps->entry, &ctl->pp_buckets[bid]);
+	idx = zram_get_obj_size(zram, pps->index) / PP_BUCKET_SIZE_RANGE;
+	list_add(&pps->entry, &ctl->pp_buckets[idx]);
 
 	zram_set_flag(zram, pps->index, ZRAM_PP_SLOT);
-	return true;
 }
 
 static struct zram_pp_slot *select_pp_slot(struct zram_pp_ctl *ctl)
@@ -1177,9 +1168,15 @@ int scan_slots_for_writeback(struct zram *zram, u32 mode,
 			     struct zram_pp_ctl *ctl)
 {
 	u32 index = lo;
+	struct zram_pp_slot *pps = NULL;
 
 	while (index < hi) {
-		bool ok = true;
+		if (!pps)
+			pps = kmalloc(sizeof(*pps), GFP_KERNEL);
+		if (!pps)
+			return -ENOMEM;
+
+		INIT_LIST_HEAD(&pps->entry);
 
 		zram_slot_lock(zram, index);
 		if (!zram_allocated(zram, index))
@@ -1199,13 +1196,14 @@ int scan_slots_for_writeback(struct zram *zram, u32 mode,
 		    !zram_test_flag(zram, index, ZRAM_INCOMPRESSIBLE))
 			goto next;
 
-		ok = place_pp_slot(zram, ctl, index);
+		pps->index = index;
+		place_pp_slot(zram, ctl, pps);
+		pps = NULL;
 next:
 		zram_slot_unlock(zram, index);
-		if (!ok)
-			break;
 		index++;
 	}
+	kfree(pps);
 
 	return 0;
 }
@@ -2365,10 +2363,16 @@ static int scan_slots_for_recompress(struct zram *zram, u32 mode, u32 prio_max,
 				     struct zram_pp_ctl *ctl)
 {
 	unsigned long nr_pages = zram->disksize >> PAGE_SHIFT;
+	struct zram_pp_slot *pps = NULL;
 	unsigned long index;
 
 	for (index = 0; index < nr_pages; index++) {
-		bool ok = true;
+		if (!pps)
+			pps = kmalloc(sizeof(*pps), GFP_KERNEL);
+		if (!pps)
+			return -ENOMEM;
+
+		INIT_LIST_HEAD(&pps->entry);
 
 		zram_slot_lock(zram, index);
 		if (!zram_allocated(zram, index))
@@ -2391,13 +2395,14 @@ static int scan_slots_for_recompress(struct zram *zram, u32 mode, u32 prio_max,
 		if (zram_get_priority(zram, index) + 1 >= prio_max)
 			goto next;
 
-		ok = place_pp_slot(zram, ctl, index);
+		pps->index = index;
+		place_pp_slot(zram, ctl, pps);
+		pps = NULL;
 next:
 		zram_slot_unlock(zram, index);
-		if (!ok)
-			break;
 	}
 
+	kfree(pps);
 	return 0;
 }
 
