@@ -428,7 +428,9 @@ pub(crate) const THREAD_LAYOUT: rb_thread_layout = rb_thread_layout {
     arc_offset: Arc::<Thread>::DATA_OFFSET,
     process: offset_of!(Thread, process),
     id: offset_of!(Thread, id),
-    __kabi_reserved_backport0: 0,
+    __bindgen_anon_1: kernel::bindings::rb_thread_layout__bindgen_ty_1 {
+        task: offset_of!(Thread, task),
+    },
     __kabi_reserved_backport1: 0,
     __kabi_reserved_backport2: 0,
     __kabi_reserved_backport3: 0,
