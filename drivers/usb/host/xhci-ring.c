@@ -3028,7 +3028,7 @@ err_out:
  * This function handles one OS-owned event on the event ring. It may drop
  * xhci->lock between event processing (e.g. to pass up port status changes).
  */
-static int xhci_handle_event_trb(struct xhci_hcd *xhci, struct xhci_interrupter *ir,
+int xhci_handle_event_trb(struct xhci_hcd *xhci, struct xhci_interrupter *ir,
 				 union xhci_trb *event)
 {
 	u32 trb_type;
@@ -3072,6 +3072,7 @@ static int xhci_handle_event_trb(struct xhci_hcd *xhci, struct xhci_interrupter 
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(xhci_handle_event_trb);
 
 /*
  * Update Event Ring Dequeue Pointer:

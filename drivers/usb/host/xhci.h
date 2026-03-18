@@ -1961,7 +1961,8 @@ void xhci_process_cancelled_tds(struct xhci_virt_ep *ep);
 void xhci_update_erst_dequeue(struct xhci_hcd *xhci,
 			      struct xhci_interrupter *ir,
 			      bool clear_ehb);
-
+int xhci_handle_event_trb(struct xhci_hcd *xhci, struct xhci_interrupter *ir,
+			union xhci_trb *event);
 /* xHCI roothub code */
 void xhci_set_link_state(struct xhci_hcd *xhci, struct xhci_port *port,
 				u32 link_state);
