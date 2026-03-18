@@ -420601,6 +420601,13 @@ function {
   parameter_id: 0x20007040
 }
 function {
+  id: 0x9be19d09
+  return_type_id: 0x6720d32f
+  parameter_id: 0x18bd6530
+  parameter_id: 0x13580d6c
+  parameter_id: 0x0d1d7def
+}
+function {
   id: 0x9be1ca34
   return_type_id: 0x6720d32f
   parameter_id: 0x18bd6530
@@ -443977,6 +443984,15 @@ elf_symbol {
   full_name: "__traceiter_android_vh_pagetypeinfo_show"
 }
 elf_symbol {
+  id: 0x5f55b542
+  name: "__traceiter_android_vh_pci_pm_verify_state"
+  is_defined: true
+  symbol_type: FUNCTION
+  crc: 0x5ef17f15
+  type_id: 0x9be19d09
+  full_name: "__traceiter_android_vh_pci_pm_verify_state"
+}
+elf_symbol {
   id: 0x13b0736e
   name: "__traceiter_android_vh_percpu_rwsem_down_read"
   is_defined: true
@@ -451796,6 +451812,15 @@ elf_symbol {
   crc: 0x7c5aa8a7
   type_id: 0x18ccbd2c
   full_name: "__tracepoint_android_vh_pagetypeinfo_show"
+}
+elf_symbol {
+  id: 0x01285174
+  name: "__tracepoint_android_vh_pci_pm_verify_state"
+  is_defined: true
+  symbol_type: OBJECT
+  crc: 0x7c5aa8a7
+  type_id: 0x18ccbd2c
+  full_name: "__tracepoint_android_vh_pci_pm_verify_state"
 }
 elf_symbol {
   id: 0xa4c454d8
@@ -526886,6 +526911,7 @@ interface {
   symbol_id: 0x3246acbb
   symbol_id: 0xb4d5ffdc
   symbol_id: 0x3c5e668a
+  symbol_id: 0x5f55b542
   symbol_id: 0x13b0736e
   symbol_id: 0x12b996bc
   symbol_id: 0xc72f2012
@@ -527755,6 +527781,7 @@ interface {
   symbol_id: 0x4a5e6e41
   symbol_id: 0x352038ba
   symbol_id: 0x2f61d5a4
+  symbol_id: 0x01285174
   symbol_id: 0xa4c454d8
   symbol_id: 0xffa6607a
   symbol_id: 0x7d42b7c8
