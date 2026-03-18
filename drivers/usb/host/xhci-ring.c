@@ -59,6 +59,8 @@
 #include "xhci.h"
 #include "xhci-trace.h"
 
+#include <trace/hooks/usb.h>
+
 static int queue_command(struct xhci_hcd *xhci, struct xhci_command *cmd,
 			 u32 field1, u32 field2,
 			 u32 field3, u32 field4, bool command_must_succeed);
@@ -3127,6 +3129,11 @@ static int xhci_handle_events(struct xhci_hcd *xhci, struct xhci_interrupter *ir
 	int event_loop = 0;
 	int err = 0;
 	u64 temp;
+	bool offload = false;
+
+	trace_android_vh_xhci_handle_offload(xhci, ir, &offload);
+	if (offload)
+		return 0;
 
 	xhci_clear_interrupt_pending(ir);
 

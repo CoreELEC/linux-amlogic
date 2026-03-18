@@ -11,6 +11,8 @@
 #include <trace/hooks/vendor_hooks.h>
 
 struct usb_device;
+struct xhci_hcd;
+struct xhci_interrupter;
 
 /*
  * Following tracepoints are not exported in tracefs and provide a
@@ -23,6 +25,11 @@ DECLARE_RESTRICTED_HOOK(android_rvh_usb_dev_suspend,
 DECLARE_HOOK(android_vh_usb_dev_resume,
 	TP_PROTO(struct usb_device *udev, pm_message_t msg, bool *bypass),
 	TP_ARGS(udev, msg, bypass));
+
+DECLARE_HOOK(android_vh_xhci_handle_offload,
+	TP_PROTO(struct xhci_hcd *xhci, struct xhci_interrupter *ir,
+		bool *offload),
+	TP_ARGS(xhci, ir, offload));
 
 #endif /*  _TRACE_HOOK_USB_H */
 /*  This part must be outside protection */
