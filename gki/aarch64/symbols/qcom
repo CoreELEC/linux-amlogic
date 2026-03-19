@@ -3480,6 +3480,7 @@
   __traceiter_android_vh_ufs_send_uic_command
   __traceiter_android_vh_ufs_update_sdev
   __traceiter_android_vh_update_topology_flags_workfn
+  __traceiter_android_vh_xhci_handle_offload
   __traceiter_binder_transaction_received
   __traceiter_cpu_frequency_limits
   __traceiter_cpu_idle
@@ -3628,6 +3629,7 @@
   __tracepoint_android_vh_ufs_send_uic_command
   __tracepoint_android_vh_ufs_update_sdev
   __tracepoint_android_vh_update_topology_flags_workfn
+  __tracepoint_android_vh_xhci_handle_offload
   __tracepoint_binder_transaction_received
   __tracepoint_cpu_frequency_limits
   __tracepoint_cpu_idle
@@ -4117,6 +4119,7 @@
   xfrm_lookup
   xhci_create_secondary_interrupter
   xhci_get_endpoint_index
+  xhci_handle_event_trb
   xhci_initialize_ring_info
   xhci_remove_secondary_interrupter
   xhci_sideband_add_endpoint
