@@ -279,16 +279,6 @@ static inline void update_used_max(struct zram *zram,
 					  &cur_max, pages));
 }
 
-static bool zram_can_store_page(struct zram *zram)
-{
-	unsigned long alloced_pages;
-
-	alloced_pages = zs_get_total_pages(zram->mem_pool);
-	update_used_max(zram, alloced_pages);
-
-	return !zram->limit_pages || alloced_pages <= zram->limit_pages;
-}
-
 static inline void zram_fill_page(void *ptr, unsigned long len,
 					unsigned long value)
 {
@@ -1086,6 +1076,16 @@ int zram_prefetch_cache_drop(struct zram *zram, u32 index)
 	return err;
 }
 #endif
+
+static bool zram_can_store_page(struct zram *zram)
+{
+	unsigned long alloced_pages;
+
+	alloced_pages = zs_get_total_pages(zram->mem_pool);
+	update_used_max(zram, alloced_pages);
+
+	return !zram->limit_pages || alloced_pages <= zram->limit_pages;
+}
 
 static int zram_populate_table(struct zram *zram, struct page *page, u32 index)
 {
