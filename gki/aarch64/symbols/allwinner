@@ -89,3 +89,8 @@
   pinctrl_gpio_set_config
   skb_append
   no_seek_end_llseek
+  ir_raw_handler_register
+  ir_raw_handler_unregister
+  ir_raw_gen_pd
+  ir_raw_gen_manchester
+  hdmi_drm_infoframe_check
