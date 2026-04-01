@@ -61,6 +61,7 @@
   bio_endio
   bio_end_io_acct_remapped
   bio_init
+  bio_put
   bio_start_io_acct
   bitmap_alloc
   __bitmap_andnot
@@ -344,6 +345,7 @@
   __dev_change_net_namespace
   dev_close
   dev_coredumpm_timeout
+  dev_coredumpv
   _dev_crit
   dev_driver_string
   _dev_emerg
@@ -2840,6 +2842,7 @@
   __traceiter_android_vh_prio_inheritance
   __traceiter_android_vh_prio_restore
   __traceiter_android_vh_put_task
+  __traceiter_android_vh_ra_alloc_retry
   __traceiter_android_vh_resume_end
   __traceiter_android_vh_rmqueue
   __traceiter_android_vh_scheduler_tick
@@ -2995,6 +2998,7 @@
   __tracepoint_android_vh_prio_inheritance
   __tracepoint_android_vh_prio_restore
   __tracepoint_android_vh_put_task
+  __tracepoint_android_vh_ra_alloc_retry
   __tracepoint_android_vh_resume_end
   __tracepoint_android_vh_rmqueue
   __tracepoint_android_vh_scheduler_tick
