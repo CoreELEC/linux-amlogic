@@ -42,6 +42,10 @@
 
 #include <trace/hooks/fs.h>
 
+#ifdef CONFIG_AMLOGIC_PIN_LOCKED_FILE
+/* the macro must large than enum mapping_flags in include/linux/pagemap.h */
+#define AS_LOCK_MAPPING	10
+#endif
 static int thaw_super_locked(struct super_block *sb, enum freeze_holder who);
 
 static LIST_HEAD(super_blocks);
@@ -620,6 +624,9 @@ EXPORT_SYMBOL(retire_super);
 void generic_shutdown_super(struct super_block *sb)
 {
 	const struct super_operations *sop = sb->s_op;
+#ifdef CONFIG_AMLOGIC_PIN_LOCKED_FILE
+	struct inode *inode;
+#endif
 
 	if (sb->s_root) {
 		shrink_dcache_for_umount(sb);
@@ -628,6 +635,18 @@ void generic_shutdown_super(struct super_block *sb)
 
 		cgroup_writeback_umount(sb);
 
+#ifdef CONFIG_AMLOGIC_PIN_LOCKED_FILE
+		spin_lock(&sb->s_inode_list_lock);
+		list_for_each_entry(inode, &sb->s_inodes, i_sb_list) {
+			if (atomic_read(&inode->i_count) <= 0)
+				continue;
+			/* The file is to be removed, dec ref by mlock */
+			if (test_and_clear_bit(AS_LOCK_MAPPING, &inode->i_mapping->flags)) {
+				atomic_set(&inode->i_count, 0);
+			}
+		}
+		spin_unlock(&sb->s_inode_list_lock);
+#endif
 		/* Evict all inodes with zero refcount. */
 		evict_inodes(sb);
 
