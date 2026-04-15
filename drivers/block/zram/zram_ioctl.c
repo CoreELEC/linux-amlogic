@@ -125,7 +125,7 @@ static const struct mm_walk_ops zram_walk_ops = {
 };
 
 static int zram_ioctl_process_scan(struct zram *zram, unsigned int cmd,
-	__aligned_u64 pidfd,
+	u64 pidfd,
 	struct zram_android_ioc_process_range_writeback *prwb,
 	struct zram_pp_ctl *ctl)
 {
