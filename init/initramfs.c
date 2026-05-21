@@ -21,6 +21,7 @@
 
 #ifdef CONFIG_AMLOGIC_FREERTOS_C4
 #include <linux/amlogic/amfc.h>
+#include <linux/of_reserved_mem.h>
 #endif /* CONFIG_AMLOGIC_FREERTOS_C4 */
 
 #include "do_mounts.h"
@@ -727,6 +728,35 @@ struct amfc_bin_hdr {
 };
 
 #define AMFC_BIN_HDR	0x54535a40
+
+static int free_rootfs_memory(void)
+{
+	struct device_node *rootfs_reserved;
+	struct reserved_mem *rmem;
+
+	rootfs_reserved = of_find_compatible_node(NULL, NULL, "amlogic, aml_rootfs_memory");
+	if (!rootfs_reserved) {
+		pr_err("rootfs_reserved device node find error\n");
+		return 1;
+	}
+
+	rmem = of_reserved_mem_lookup(rootfs_reserved);
+	if (!rmem) {
+		pr_err("%s no such reserved mem\n", (char *)rootfs_reserved->name);
+		return 1;
+	}
+
+	if (!rmem->base || !rmem->size) {
+		pr_err("%s unexpected reserved memory\n", (char *)rootfs_reserved->name);
+		return 1;
+	}
+
+	free_reserved_area(__va(rmem->base),
+			   __va(PAGE_ALIGN(rmem->base + rmem->size)),
+			   0,
+			   "free_aml_rootfs_memory");
+	return 0;
+}
 #endif /* CONFIG_AMLOGIC_FREERTOS_C4 */
 
 #ifdef CONFIG_AMLOGIC_FREERTOS_C4
@@ -826,6 +856,10 @@ done:
 	initrd_end = 0;
 
 	init_flush_fput();
+#ifdef CONFIG_AMLOGIC_FREERTOS_C4
+	if (free_rootfs_memory())
+		pr_err("Failed to free rootfs memory\n");
+#endif
 }
 
 #ifndef CONFIG_AMLOGIC_FREERTOS_C4
