@@ -103,3 +103,24 @@ asmlinkage u64 __init create_init_idmap(pgd_t *pg_dir, pteval_t clrmask)
 
 	return ptep;
 }
+
+#ifdef CONFIG_AMLOGIC_DEBUG_EARLY_UART
+#define BLOCK_SHIFT	21
+#define BLOCK_MASK	(~((1UL << BLOCK_SHIFT) - 1))
+
+asmlinkage u64 __init create_uart_idmap(pgd_t *pg_dir, pteval_t clrmask)
+{
+	u64 ptep = (u64)pg_dir + 2 * PAGE_SIZE;
+	pgprot_t text_prot = __pgprot(PROT_DEVICE_nGnRnE);
+	u64 uart_phys = CONFIG_AMLOGIC_DEBUG_UART_PHYS;
+	u64 start = uart_phys & BLOCK_MASK;
+	u64 end   = start + (1UL << BLOCK_SHIFT);
+
+	pgprot_val(text_prot) &= ~clrmask;
+
+	map_range(&ptep, start, end, start,
+		  text_prot, IDMAP_ROOT_LEVEL, (pte_t *)pg_dir, false, 0);
+
+	return ptep;
+}
+#endif

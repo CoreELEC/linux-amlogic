@@ -75,7 +75,9 @@ ENDPROC(__vet_atags)
  */
 	__INIT
 __mmap_switched:
-
+#ifdef CONFIG_AMLOGIC_DEBUG_EARLY_UART
+	puts_uart_m r7 r8 r10 "----------after __enable_mmu enter __mmap_switched----------\r\n"
+#endif
 	mov	r7, r1
 	mov	r8, r2
 	mov	r10, r0
@@ -118,6 +120,9 @@ __mmap_switched:
 	bl	kasan_early_init
 #endif
 	mov	lr, #0
+#ifdef CONFIG_AMLOGIC_DEBUG_EARLY_UART
+	puts_uart_m r7 r8 r10 "----------after __enable_mmu before start_kernel----------\r\n"
+#endif
 	b	start_kernel
 ENDPROC(__mmap_switched)
 

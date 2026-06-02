@@ -269,6 +269,26 @@ __create_page_tables:
 	addlo	r5, r5, #1			@ next section
 	blo	1b
 
+#ifdef CONFIG_AMLOGIC_DEBUG_EARLY_UART
+	/* amlogic idmap uart */
+	ldr	r7, [r10, #PROCINFO_IO_MMUFLAGS] @ io_mmuflags
+
+	ldr	r5, =CONFIG_DEBUG_UART_PHYS
+	ldr	r3, =0xfff00000
+	and	r5, r5, r3
+	mov	r6, r5
+	add	r6, r6, #0x200000
+
+	mov	r5, r5, lsr #SECTION_SHIFT
+	mov	r6, r6, lsr #SECTION_SHIFT
+
+7:	orr	r3, r7, r5, lsl #SECTION_SHIFT	@ flags + kernel base
+	str	r3, [r4, r5, lsl #PMD_ENTRY_ORDER]	@ identity mapping
+	cmp	r5, r6
+	addlo	r5, r5, #1			@ next section
+	blo	7b
+	ldr	r7, [r10, #PROCINFO_MM_MMUFLAGS] @ mm_mmuflags
+#endif
 	/*
 	 * The main matter: map in the kernel using section mappings, and
 	 * set two variables to indicate the physical start and end of the

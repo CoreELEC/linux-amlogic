@@ -34,3 +34,7 @@ void map_range(u64 *pgd, u64 start, u64 end, u64 pa, pgprot_t prot,
 asmlinkage void early_map_kernel(u64 boot_status, void *fdt);
 
 asmlinkage u64 create_init_idmap(pgd_t *pgd, pteval_t clrmask);
+
+#ifdef CONFIG_AMLOGIC_DEBUG_EARLY_UART
+asmlinkage u64 create_uart_idmap(pgd_t *pgd, pteval_t clrmask);
+#endif

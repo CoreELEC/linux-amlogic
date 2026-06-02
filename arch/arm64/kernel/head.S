@@ -95,6 +95,11 @@ SYM_CODE_START(primary_entry)
 	mov	x1, xzr
 	bl	__pi_create_init_idmap
 
+#ifdef CONFIG_AMLOGIC_DEBUG_EARLY_UART
+	adrp	x0, init_idmap_pg_dir
+	mov	x1, xzr
+	bl	__pi_create_uart_idmap
+#endif
 	/*
 	 * If the page tables have been populated with non-cacheable
 	 * accesses (MMU disabled), invalidate those tables again to
@@ -518,7 +523,9 @@ SYM_FUNC_START_LOCAL(__primary_switch)
 	puts_uart_m x15 x16 w3 "----------__primary_switch 2----------\r\n"
 #endif
 	bl	__enable_mmu
-
+#ifdef CONFIG_AMLOGIC_DEBUG_EARLY_UART
+	puts_uart_m x15 x16 w3 "----------after __enable_mmu----------\r\n"
+#endif
 	adrp	x1, early_init_stack
 	mov	sp, x1
 	mov	x29, xzr
