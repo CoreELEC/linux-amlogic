@@ -837,7 +837,7 @@ __visible noinstr void __stack_chk_fail(void)
 	instrumentation_begin();
 	flags = user_access_save();
 
-	panic("stack-protector: Kernel stack is corrupted in: %pB",
+	pr_warn("stack-protector: Kernel stack is corrupted in: %pB",
 		__builtin_return_address(0));
 
 	user_access_restore(flags);
