@@ -758,7 +758,7 @@ device_initcall(register_warn_debugfs);
 __visible noinstr void __stack_chk_fail(void)
 {
 	instrumentation_begin();
-	panic("stack-protector: Kernel stack is corrupted in: %pB",
+	pr_warn("stack-protector: Kernel stack is corrupted in: %pB",
 		__builtin_return_address(0));
 	instrumentation_end();
 }
