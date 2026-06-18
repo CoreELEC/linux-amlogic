@@ -22,6 +22,12 @@
 #ifdef CONFIG_AMLOGIC_FREERTOS_C4
 #include <linux/amlogic/amfc.h>
 #include <linux/of_reserved_mem.h>
+#include <linux/of_fdt.h>
+#include <linux/of_address.h>
+#include <asm/sections.h>
+#include <linux/kernel.h>
+#include <linux/byteorder/generic.h>
+#include <linux/libfdt.h>
 #endif /* CONFIG_AMLOGIC_FREERTOS_C4 */
 
 #include "do_mounts.h"
@@ -729,10 +735,12 @@ struct amfc_bin_hdr {
 
 #define AMFC_BIN_HDR	0x54535a40
 
-static int free_rootfs_memory(void)
+static int __init free_rootfs_memory(void)
 {
 	struct device_node *rootfs_reserved;
 	struct reserved_mem *rmem;
+	phys_addr_t dtb_phys = 0, dtb_end = 0;
+	uint32_t dtb_size = 0;
 
 	rootfs_reserved = of_find_compatible_node(NULL, NULL, "amlogic, aml_rootfs_memory");
 	if (!rootfs_reserved) {
@@ -751,6 +759,61 @@ static int free_rootfs_memory(void)
 		return 1;
 	}
 
+	pr_info("Rootfs reserved: 0x%llx, 0x%llx\n",
+			(unsigned long long)rmem->base,
+			(unsigned long long)(rmem->base + rmem->size));
+
+	if (initial_boot_params) {
+		const struct fdt_header *fdt = (const struct fdt_header *)initial_boot_params;
+		dtb_size = be32_to_cpu(fdt->totalsize);
+		dtb_phys = virt_to_phys(initial_boot_params);
+		dtb_end = dtb_phys + dtb_size;
+		pr_err("dtb reserved: 0x%llx, 0x%llx\n",
+				(unsigned long long)dtb_phys,
+				(unsigned long long)dtb_end);
+	} else {
+		pr_warn("initial_boot_params is NULL, cannot check DTB location\n");
+	}
+
+	extern phys_addr_t phys_initrd_start;
+	extern unsigned long phys_initrd_size;
+
+	if (phys_initrd_start && phys_initrd_size) {
+		phys_addr_t initrd_phys_start = phys_initrd_start;
+		phys_addr_t initrd_phys_end = phys_initrd_start + phys_initrd_size;
+		pr_err("Initrd reserved: 0x%llx, 0x%llx\n",
+				(unsigned long long)initrd_phys_start,
+				(unsigned long long)initrd_phys_end);
+
+		if (rmem->base < initrd_phys_end && rmem->base + rmem->size > initrd_phys_start) {
+			pr_err("rootfs reserved overlaps initrd [0x%llx, 0x%llx)\n",
+			(unsigned long long)initrd_phys_start,
+			(unsigned long long)initrd_phys_end);
+			dump_stack();
+		}
+	} else {
+		pr_err("Could not read initrd start end addr, skip overlap check.\n");
+	}
+
+	extern char _text[], _end[];
+	phys_addr_t kstart = virt_to_phys(_text);
+	phys_addr_t kend = virt_to_phys(_end);
+	pr_info("kernel image 0x%llx, 0x%llx\n",
+			(unsigned long long)kstart, (unsigned long long)kend);
+
+	if (rmem->base < kend && rmem->base + rmem->size > kstart)  {
+		pr_err("ERROR: rootfs reserved overlaps kernel image [0x%llx, 0x%llx), ABORT!\n",
+			(unsigned long long)kstart, (unsigned long long)kend);
+			dump_stack();
+	}
+
+	if (dtb_phys && dtb_end) {
+		if (rmem->base < dtb_end && rmem->base + rmem->size > dtb_phys) {
+			pr_err("rootfs reserved overlaps  dtb reserved[0x%llx, 0x%llx)\n",
+				(unsigned long long)dtb_phys, (unsigned long long)dtb_end);
+			dump_stack();
+		}
+	}
 	free_reserved_area(__va(rmem->base),
 			   __va(PAGE_ALIGN(rmem->base + rmem->size)),
 			   0,
