@@ -35,6 +35,8 @@ enum meson_cpu_pack_id_e {
 	MESON_CPU_PACK_ID_S7D_S905A   = 0x03,
 	MESON_CPU_PACK_ID_SC2_S905X4  = 0x02,
 	MESON_CPU_PACK_ID_SC2_S905C2L = 0x05,
+	MESON_CPU_PACK_ID_S6_S905X5   = 0x01,
+	MESON_CPU_PACK_ID_S6_S905X5L  = 0x05,
 };
 
 /*
@@ -299,7 +301,17 @@ static int c_show(struct seq_file *m, void *v)
 			}
 			break;
 		case MESON_CPU_MAJOR_ID_S6:
-			seq_puts(m, "S905X5\n");
+			switch (chipid[MESON_CPU_VERSION_LVL_PACK]) {
+				case MESON_CPU_PACK_ID_S6_S905X5:
+					seq_puts(m, "S905X5\n");
+					break;
+				case MESON_CPU_PACK_ID_S6_S905X5L:
+					seq_puts(m, "S905X5L\n");
+					break;
+				default:
+					seq_puts(m, "S6 Unknown\n");
+					break;
+			}
 			break;
 		case MESON_CPU_MAJOR_ID_S7:
 			seq_puts(m, "S905Y5\n");
