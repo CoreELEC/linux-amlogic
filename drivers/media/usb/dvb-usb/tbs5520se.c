@@ -10,6 +10,8 @@
  */
 
 #include <linux/version.h>
+#include <linux/delay.h>
+#include <linux/mutex.h>
 #include "tbs5520se.h"
 #include "si2183.h"
 #include "si2157.h"
@@ -25,6 +27,21 @@ struct tbs5520se_state {
 	struct i2c_client *i2c_client_demod;
 	struct i2c_client *i2c_client_tuner; 
 	u32 last_key_pressed;
+
+	struct mutex fe_lock;
+	int (*fe_init)(struct dvb_frontend *fe);
+	int (*fe_sleep)(struct dvb_frontend *fe);
+	int (*fe_set_frontend)(struct dvb_frontend *fe);
+	int (*fe_read_status)(struct dvb_frontend *fe, enum fe_status *status);
+	int (*fe_tune)(struct dvb_frontend *fe, bool re_tune,
+			unsigned int mode_flags, unsigned int *delay,
+			enum fe_status *status);
+	int (*fe_set_tone)(struct dvb_frontend *fe,
+			enum fe_sec_tone_mode tone);
+	int (*fe_diseqc_send_burst)(struct dvb_frontend *fe,
+			enum fe_sec_mini_cmd burst);
+	int (*fe_diseqc_send_master_cmd)(struct dvb_frontend *fe,
+			struct dvb_diseqc_master_cmd *cmd);
 };
 
 static struct av201x_config tbs5520se_av201x_cfg = {
@@ -65,32 +82,76 @@ static int tbs5520se_op_rw(struct usb_device *dev, u8 request, u16 value,
 	return ret;
 }
 
+#define TBS5520SE_I2C_RETRIES   20
+#define TBS5520SE_I2C_GAP_US    250
+
+static int tbs5520se_op_rw_retry(struct usb_device *dev, u8 request,
+				u8 *data, u16 len, int flags)
+{
+	int ret = -EREMOTEIO;
+	int attempt;
+
+	for (attempt = 0; attempt < TBS5520SE_I2C_RETRIES; attempt++) {
+		ret = tbs5520se_op_rw(dev, request, 0, 0, data, len, flags);
+		if (ret == len)
+			return 0;
+
+		usleep_range(TBS5520SE_I2C_GAP_US,
+				TBS5520SE_I2C_GAP_US * 2);
+	}
+
+	/* Ran out of retries: the bridge never produced a valid result. */
+	return (ret < 0) ? ret : -EREMOTEIO;
+}
+
+static int tbs5520se_op_read_retry(struct usb_device *dev, u8 request,
+				u8 *data, u16 len)
+{
+	return tbs5520se_op_rw_retry(dev, request, data, len,
+					TBS5520SE_READ_MSG);
+}
+
+static int tbs5520se_op_write_retry(struct usb_device *dev, u8 request,
+				u8 *data, u16 len)
+{
+	return tbs5520se_op_rw_retry(dev, request, data, len,
+					TBS5520SE_WRITE_MSG);
+}
+
 /* I2C */
 static int tbs5520se_i2c_transfer(struct i2c_adapter *adap, 
 					struct i2c_msg msg[], int num)
 {
 	struct dvb_usb_device *d = i2c_get_adapdata(adap);
 	int i = 0;
+	int ret = 0;
 	u8 buf6[20];
 	u8 inbuf[20];
 
 	if (!d)
 		return -ENODEV;
-	if (mutex_lock_interruptible(&d->i2c_mutex) < 0)
-		return -EAGAIN;
+	mutex_lock(&d->i2c_mutex);
 
 	switch (num) {
 	case 2:
+		if (msg[1].len > sizeof(inbuf)) {
+			ret = -EINVAL;
+			break;
+		}
+
 		buf6[0]=msg[1].len;//lenth
 		buf6[1]=msg[0].addr<<1;//demod addr
 		//register
 		buf6[2] = msg[0].buf[0];
 
-		tbs5520se_op_rw(d->udev, 0x90, 0, 0,
-					buf6, 3, TBS5520SE_WRITE_MSG);
-		//msleep(5);
-		tbs5520se_op_rw(d->udev, 0x91, 0, 0,
-					inbuf, buf6[0], TBS5520SE_READ_MSG);
+		ret = tbs5520se_op_write_retry(d->udev, 0x90, buf6, 3);
+		if (ret)
+			break;
+
+		ret = tbs5520se_op_read_retry(d->udev, 0x91, inbuf, buf6[0]);
+		if (ret)
+			break;
+
 		memcpy(msg[1].buf, inbuf, msg[1].len);
 
 		break;
@@ -99,38 +160,47 @@ static int tbs5520se_i2c_transfer(struct i2c_adapter *adap,
 		case 0x67:
 		case 0x62:
 		case 0x61:
+			if (msg[0].len + 2 > sizeof(buf6) ||
+			    msg[0].len > sizeof(inbuf)) {
+				ret = -EINVAL;
+				break;
+			}
+
 			if (msg[0].flags == 0) {
 				buf6[0] = msg[0].len+1;//lenth
 				buf6[1] = msg[0].addr<<1;//addr
 				for(i=0;i<msg[0].len;i++) {
 					buf6[2+i] = msg[0].buf[i];//register
 				}
-				tbs5520se_op_rw(d->udev, 0x80, 0, 0,
-					buf6, msg[0].len+2, TBS5520SE_WRITE_MSG);
+				ret = tbs5520se_op_write_retry(d->udev, 0x80,
+						buf6, msg[0].len+2);
 			} else {
 				buf6[0] = msg[0].len;//length
 				buf6[1] = (msg[0].addr<<1) | 0x01;//addr
-				tbs5520se_op_rw(d->udev, 0x93, 0, 0,
-						buf6, 2, TBS5520SE_WRITE_MSG);
-				//msleep(5);
-				tbs5520se_op_rw(d->udev, 0x91, 0, 0,
-					inbuf, buf6[0], TBS5520SE_READ_MSG);
+				ret = tbs5520se_op_write_retry(d->udev, 0x93,
+						buf6, 2);
+				if (ret)
+					break;
+
+				ret = tbs5520se_op_read_retry(d->udev, 0x91,
+							inbuf, buf6[0]);
+				if (ret)
+					break;
+
 				memcpy(msg[0].buf, inbuf, msg[0].len);
 			}
-			msleep(3);
 		break;
 		case (TBS5520SE_VOLTAGE_CTRL):
 			buf6[0] = 3;
 			buf6[1] = msg[0].buf[0];
-			tbs5520se_op_rw(d->udev, 0x8a, 0, 0,
-					buf6, 2, TBS5520SE_WRITE_MSG);
+			ret = tbs5520se_op_write_retry(d->udev, 0x8a, buf6, 2);
 			break;
 		case (TBS5520SE_RC_QUERY):
-			tbs5520se_op_rw(d->udev, 0xb8, 0, 0,
-					buf6, 4, TBS5520SE_READ_MSG);
+			ret = tbs5520se_op_read_retry(d->udev, 0xb8, buf6, 4);
+			if (ret)
+				break;
 			msg[0].buf[0] = buf6[2];
 			msg[0].buf[1] = buf6[3];
-			//msleep(3);
 			//info("TBS5520SE_RC_QUERY %x %x %x %x\n",
 			//		buf6[0],buf6[1],buf6[2],buf6[3]);
 			break;
@@ -140,7 +210,7 @@ static int tbs5520se_i2c_transfer(struct i2c_adapter *adap,
 	}
 
 	mutex_unlock(&d->i2c_mutex);
-	return num;
+	return ret ? ret : num;
 }
 
 static u32 tbs5520se_i2c_func(struct i2c_adapter *adapter)
@@ -174,6 +244,139 @@ static int tbs5520se_set_voltage(struct dvb_frontend *fe,
 	return 0;
 }
 
+static struct tbs5520se_state *tbs5520se_state_from_fe(struct dvb_frontend *fe)
+{
+	struct dvb_usb_adapter *udev_adap =
+		(struct dvb_usb_adapter *)(fe->dvb->priv);
+	return udev_adap->dev->priv;
+}
+
+static int tbs5520se_si2183_init_retry(struct dvb_frontend *fe,
+				int (*init_fn)(struct dvb_frontend *))
+{
+	static const int backoff_ms[] = {50, 100, 200, 400, 800};
+	int ret = -EIO;
+	int attempt;
+
+	if (!init_fn)
+		return 0;
+
+	for (attempt = 0; attempt <= 5; attempt++) {
+		ret = init_fn(fe);
+		if (!ret)
+			return 0;
+
+		if (attempt < 5) {
+			err("tbs5520se: si2183 init attempt %d failed (%d), retrying",
+				attempt + 1, ret);
+			msleep(backoff_ms[attempt]);
+		}
+	}
+
+	return ret;
+}
+
+static int tbs5520se_fe_init(struct dvb_frontend *fe)
+{
+	struct tbs5520se_state *st = tbs5520se_state_from_fe(fe);
+	int ret;
+
+	mutex_lock(&st->fe_lock);
+	ret = tbs5520se_si2183_init_retry(fe, st->fe_init);
+	mutex_unlock(&st->fe_lock);
+	return ret;
+}
+
+static int tbs5520se_fe_sleep(struct dvb_frontend *fe)
+{
+	struct tbs5520se_state *st = tbs5520se_state_from_fe(fe);
+	int ret = 0;
+
+	mutex_lock(&st->fe_lock);
+	if (st->fe_sleep)
+		ret = st->fe_sleep(fe);
+	mutex_unlock(&st->fe_lock);
+	return ret;
+}
+
+static int tbs5520se_fe_set_frontend(struct dvb_frontend *fe)
+{
+	struct tbs5520se_state *st = tbs5520se_state_from_fe(fe);
+	int ret = 0;
+
+	mutex_lock(&st->fe_lock);
+	if (st->fe_set_frontend)
+		ret = st->fe_set_frontend(fe);
+	mutex_unlock(&st->fe_lock);
+	return ret;
+}
+
+static int tbs5520se_fe_read_status(struct dvb_frontend *fe,
+					enum fe_status *status)
+{
+	struct tbs5520se_state *st = tbs5520se_state_from_fe(fe);
+	int ret = 0;
+
+	mutex_lock(&st->fe_lock);
+	if (st->fe_read_status)
+		ret = st->fe_read_status(fe, status);
+	mutex_unlock(&st->fe_lock);
+	return ret;
+}
+
+static int tbs5520se_fe_tune(struct dvb_frontend *fe, bool re_tune,
+				unsigned int mode_flags, unsigned int *delay,
+				enum fe_status *status)
+{
+	struct tbs5520se_state *st = tbs5520se_state_from_fe(fe);
+	int ret = 0;
+
+	mutex_lock(&st->fe_lock);
+	if (st->fe_tune)
+		ret = st->fe_tune(fe, re_tune, mode_flags, delay, status);
+	mutex_unlock(&st->fe_lock);
+	return ret;
+}
+
+static int tbs5520se_fe_set_tone(struct dvb_frontend *fe,
+				enum fe_sec_tone_mode tone)
+{
+	struct tbs5520se_state *st = tbs5520se_state_from_fe(fe);
+	int ret = 0;
+
+	mutex_lock(&st->fe_lock);
+	if (st->fe_set_tone)
+		ret = st->fe_set_tone(fe, tone);
+	mutex_unlock(&st->fe_lock);
+	return ret;
+}
+
+static int tbs5520se_fe_diseqc_send_burst(struct dvb_frontend *fe,
+				enum fe_sec_mini_cmd burst)
+{
+	struct tbs5520se_state *st = tbs5520se_state_from_fe(fe);
+	int ret = 0;
+
+	mutex_lock(&st->fe_lock);
+	if (st->fe_diseqc_send_burst)
+		ret = st->fe_diseqc_send_burst(fe, burst);
+	mutex_unlock(&st->fe_lock);
+	return ret;
+}
+
+static int tbs5520se_fe_diseqc_send_master_cmd(struct dvb_frontend *fe,
+				struct dvb_diseqc_master_cmd *cmd)
+{
+	struct tbs5520se_state *st = tbs5520se_state_from_fe(fe);
+	int ret = 0;
+
+	mutex_lock(&st->fe_lock);
+	if (st->fe_diseqc_send_master_cmd)
+		ret = st->fe_diseqc_send_master_cmd(fe, cmd);
+	mutex_unlock(&st->fe_lock);
+	return ret;
+}
+
 static int tbs5520se_read_mac_address(struct dvb_usb_device *d, u8 mac[6])
 {
 	int i,ret;
@@ -184,11 +387,14 @@ static int tbs5520se_read_mac_address(struct dvb_usb_device *d, u8 mac[6])
 		ibuf[0]=1;//lenth
 		ibuf[1]=0xa0;//eeprom addr
 		ibuf[2]=i;//register
-		ret = tbs5520se_op_rw(d->udev, 0x90, 0, 0,
-					ibuf, 3, TBS5520SE_WRITE_MSG);
-		ret = tbs5520se_op_rw(d->udev, 0x91, 0, 0,
-					ibuf, 1, TBS5520SE_READ_MSG);
-			if (ret < 0) {
+		ret = tbs5520se_op_write_retry(d->udev, 0x90, ibuf, 3);
+		if (ret) {
+			err("read eeprom failed (select).");
+			return -1;
+		}
+
+		ret = tbs5520se_op_read_retry(d->udev, 0x91, ibuf, 1);
+			if (ret) {
 				err("read eeprom failed.");
 				return -1;
 			} else {
@@ -230,7 +436,7 @@ static int tbs5520se_frontend_attach(struct dvb_usb_adapter *adap)
 	si2183_config.RF_switch = NULL;
 	si2183_config.agc_mode = 0x5 ;
 	memset(&info, 0, sizeof(struct i2c_board_info));
-	strlcpy(info.type, "si2183", I2C_NAME_SIZE);
+	strscpy(info.type, "si2183", I2C_NAME_SIZE);
 	info.addr = 0x67;
 	info.platform_data = &si2183_config;
 	request_module(info.type);
@@ -264,7 +470,7 @@ static int tbs5520se_frontend_attach(struct dvb_usb_adapter *adap)
 	si2157_config.fe = adap->fe_adap[0].fe;
 	si2157_config.if_port = 1;
 	memset(&info, 0, sizeof(struct i2c_board_info));
-	strlcpy(info.type, "si2157", I2C_NAME_SIZE);
+	strscpy(info.type, "si2157", I2C_NAME_SIZE);
 	info.addr = 0x61;
 	info.platform_data = &si2157_config;
 	request_module(info.type);
@@ -296,26 +502,68 @@ static int tbs5520se_frontend_attach(struct dvb_usb_adapter *adap)
 	else {
 		buf[0] = 1;
 		buf[1] = 0;
-		tbs5520se_op_rw(d->udev, 0x8a, 0, 0,
-					buf, 2, TBS5520SE_WRITE_MSG);
-		
+		if (tbs5520se_op_write_retry(d->udev, 0x8a, buf, 2))
+			err("tbs5520se: failed to init sat tuner power (0x8a)");
+
 		adap->fe_adap[0].fe2->ops.set_voltage = tbs5520se_set_voltage;
 		
 	}
 
 	buf[0] = 0;
 	buf[1] = 0;
-	tbs5520se_op_rw(d->udev, 0xb7, 0, 0,
-			buf, 2, TBS5520SE_WRITE_MSG);
+	if (tbs5520se_op_write_retry(d->udev, 0xb7, buf, 2))
+		err("tbs5520se: failed bridge init write (0xb7)");
 	buf[0] = 8;
 	buf[1] = 1;
-	tbs5520se_op_rw(d->udev, 0x8a, 0, 0,
-			buf, 2, TBS5520SE_WRITE_MSG);
+	if (tbs5520se_op_write_retry(d->udev, 0x8a, buf, 2))
+		err("tbs5520se: failed bridge path-select write (0x8a)");
 
-	strlcpy(adap->fe_adap[0].fe->ops.info.name,d->props.devices[0].name,52);
+	strscpy(adap->fe_adap[0].fe->ops.info.name,d->props.devices[0].name,52);
 	strcat(adap->fe_adap[0].fe->ops.info.name," DVB-T/T2/C/C2/ISDB-T");
-	strlcpy(adap->fe_adap[0].fe2->ops.info.name,d->props.devices[0].name,52);
+	strscpy(adap->fe_adap[0].fe2->ops.info.name,d->props.devices[0].name,52);
 	strcat(adap->fe_adap[0].fe2->ops.info.name," DVB-S/S2/S2X");
+
+	mutex_init(&st->fe_lock);
+	st->fe_init = adap->fe_adap[0].fe->ops.init;
+	st->fe_sleep = adap->fe_adap[0].fe->ops.sleep;
+	st->fe_set_frontend = adap->fe_adap[0].fe->ops.set_frontend;
+	st->fe_read_status = adap->fe_adap[0].fe->ops.read_status;
+	st->fe_tune = adap->fe_adap[0].fe->ops.tune;
+	st->fe_set_tone = adap->fe_adap[0].fe->ops.set_tone;
+	st->fe_diseqc_send_burst = adap->fe_adap[0].fe->ops.diseqc_send_burst;
+	st->fe_diseqc_send_master_cmd =
+		adap->fe_adap[0].fe->ops.diseqc_send_master_cmd;
+
+	adap->fe_adap[0].fe->ops.init = tbs5520se_fe_init;
+	adap->fe_adap[0].fe->ops.sleep = tbs5520se_fe_sleep;
+	adap->fe_adap[0].fe->ops.set_frontend = tbs5520se_fe_set_frontend;
+	adap->fe_adap[0].fe->ops.read_status = tbs5520se_fe_read_status;
+	adap->fe_adap[0].fe->ops.tune = tbs5520se_fe_tune;
+	adap->fe_adap[0].fe->ops.set_tone = tbs5520se_fe_set_tone;
+	adap->fe_adap[0].fe->ops.diseqc_send_burst =
+		tbs5520se_fe_diseqc_send_burst;
+	adap->fe_adap[0].fe->ops.diseqc_send_master_cmd =
+		tbs5520se_fe_diseqc_send_master_cmd;
+
+	adap->fe_adap[0].fe2->ops.init = tbs5520se_fe_init;
+	adap->fe_adap[0].fe2->ops.sleep = tbs5520se_fe_sleep;
+	adap->fe_adap[0].fe2->ops.set_frontend = tbs5520se_fe_set_frontend;
+	adap->fe_adap[0].fe2->ops.read_status = tbs5520se_fe_read_status;
+	adap->fe_adap[0].fe2->ops.tune = tbs5520se_fe_tune;
+	adap->fe_adap[0].fe2->ops.set_tone = tbs5520se_fe_set_tone;
+	adap->fe_adap[0].fe2->ops.diseqc_send_burst =
+		tbs5520se_fe_diseqc_send_burst;
+	adap->fe_adap[0].fe2->ops.diseqc_send_master_cmd =
+		tbs5520se_fe_diseqc_send_master_cmd;
+
+	if (st->fe_init) {
+		int fe2_init_ret = tbs5520se_si2183_init_retry(
+					adap->fe_adap[0].fe2, st->fe_init);
+
+		if (fe2_init_ret)
+			err("tbs5520se: initial satellite priming init failed (%d)",
+				fe2_init_ret);
+	}
 
 	return 0;
 }
