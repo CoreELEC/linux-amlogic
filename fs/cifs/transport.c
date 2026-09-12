@@ -1039,7 +1039,7 @@ cifs_cancelled_callback(struct mid_q_entry *mid)
 struct TCP_Server_Info *cifs_pick_channel(struct cifs_ses *ses)
 {
 	uint index = 0;
-	unsigned int min_in_flight = UINT_MAX, max_in_flight = 0;
+	unsigned int min_in_flight = UINT_MAX;
 	struct TCP_Server_Info *server = NULL;
 	int i, start, cur;
 
@@ -1056,6 +1056,9 @@ struct TCP_Server_Info *cifs_pick_channel(struct cifs_ses *ses)
 				if (!server)
 					continue;
 
+				if (server->tcpStatus == CifsNeedReconnect)
+					continue;
+
 				/*
 				 * strictly speaking, we should pick up req_lock to read
 				 * server->in_flight. But it shouldn't matter much here if we
@@ -1068,13 +1071,7 @@ struct TCP_Server_Info *cifs_pick_channel(struct cifs_ses *ses)
 					min_in_flight = server->in_flight;
 					index = cur;
 				}
-				if (server->in_flight > max_in_flight)
-					max_in_flight = server->in_flight;
 			}
-
-			/* if all channels are equally loaded, fall back to round-robin */
-			if (min_in_flight == max_in_flight)
-				index = (uint)start % ses->chan_count;
 		}
 		spin_unlock(&ses->chan_lock);
 		return ses->chans[index].server;
