@@ -2057,6 +2057,7 @@ cifs_get_smb_ses(struct TCP_Server_Info *server, struct smb3_fs_context *ctx)
 	ses->chans[0].server = server;
 	ses->chan_count = 1;
 	ses->chan_max = ctx->multichannel ? ctx->max_channels:1;
+	ses->chans_need_reconnect = 1;
 	spin_unlock(&ses->chan_lock);
 
 	rc = cifs_negotiate_protocol(xid, ses);

@@ -65,6 +65,64 @@ bool is_ses_using_iface(struct cifs_ses *ses, struct cifs_server_iface *iface)
 	return false;
 }
 
+/*
+ * The per-channel reconnect helpers below are called with ses->chan_lock held.
+ * Keep an unknown server fail-closed: it must never be treated as a healthy
+ * channel and must never silently alias channel zero.
+ */
+unsigned int
+cifs_ses_get_chan_index(struct cifs_ses *ses, struct TCP_Server_Info *server)
+{
+	unsigned int i;
+
+	for (i = 0; i < ses->chan_count; i++) {
+		if (ses->chans[i].server == server)
+			return i;
+	}
+
+	return CIFS_MAX_CHANNELS;
+}
+
+void
+cifs_chan_set_need_reconnect(struct cifs_ses *ses,
+			     struct TCP_Server_Info *server)
+{
+	unsigned int chan_index = cifs_ses_get_chan_index(ses, server);
+
+	if (WARN_ON_ONCE(chan_index >= ses->chan_count))
+		return;
+
+	set_bit(chan_index, &ses->chans_need_reconnect);
+	cifs_dbg(FYI, "Set reconnect bit for chan %d; mask=0x%lx\n",
+		 chan_index, ses->chans_need_reconnect);
+}
+
+void
+cifs_chan_clear_need_reconnect(struct cifs_ses *ses,
+			       struct TCP_Server_Info *server)
+{
+	unsigned int chan_index = cifs_ses_get_chan_index(ses, server);
+
+	if (WARN_ON_ONCE(chan_index >= ses->chan_count))
+		return;
+
+	clear_bit(chan_index, &ses->chans_need_reconnect);
+	cifs_dbg(FYI, "Cleared reconnect bit for chan %d; mask=0x%lx\n",
+		 chan_index, ses->chans_need_reconnect);
+}
+
+bool
+cifs_chan_needs_reconnect(struct cifs_ses *ses,
+			  struct TCP_Server_Info *server)
+{
+	unsigned int chan_index = cifs_ses_get_chan_index(ses, server);
+
+	if (WARN_ON_ONCE(chan_index >= ses->chan_count))
+		return true;
+
+	return CIFS_CHAN_NEEDS_RECONNECT(ses, chan_index);
+}
+
 /* returns number of channels added */
 int cifs_try_adding_channels(struct cifs_sb_info *cifs_sb, struct cifs_ses *ses)
 {
@@ -193,6 +251,7 @@ cifs_ses_add_channel(struct cifs_sb_info *cifs_sb, struct cifs_ses *ses,
 	char unc[sizeof(unc_fmt)+SERVER_NAME_LEN_WITH_NULL] = {0};
 	struct sockaddr_in *ipv4 = (struct sockaddr_in *)&iface->sockaddr;
 	struct sockaddr_in6 *ipv6 = (struct sockaddr_in6 *)&iface->sockaddr;
+	bool chan_registered = false;
 	int rc;
 	unsigned int xid = get_xid();
 
@@ -274,6 +333,15 @@ cifs_ses_add_channel(struct cifs_sb_info *cifs_sb, struct cifs_ses *ses,
 		spin_unlock(&ses->chan_lock);
 		goto out;
 	}
+
+	/*
+	 * Register the channel before negotiate/session setup so its reconnect
+	 * bit has a stable index throughout channel binding.
+	 */
+	ses->chan_count++;
+	atomic_set(&ses->chan_seq, 0);
+	cifs_chan_set_need_reconnect(ses, chan->server);
+	chan_registered = true;
 	spin_unlock(&ses->chan_lock);
 
 	spin_lock(&cifs_tcp_ses_lock);
@@ -310,12 +378,18 @@ cifs_ses_add_channel(struct cifs_sb_info *cifs_sb, struct cifs_ses *ses,
 	 * ses to the new server.
 	 */
 
-	spin_lock(&ses->chan_lock);
-	ses->chan_count++;
-	atomic_set(&ses->chan_seq, 0);
-	spin_unlock(&ses->chan_lock);
-
 out:
+	if (rc && chan_registered) {
+		spin_lock(&ses->chan_lock);
+		cifs_chan_clear_need_reconnect(ses, chan->server);
+		WARN_ON_ONCE(!ses->chan_count ||
+			     &ses->chans[ses->chan_count - 1] != chan);
+		if (ses->chan_count &&
+		    &ses->chans[ses->chan_count - 1] == chan)
+			ses->chan_count--;
+		spin_unlock(&ses->chan_lock);
+	}
+
 	ses->binding = false;
 	ses->binding_chan = NULL;
 	mutex_unlock(&ses->session_mutex);
@@ -933,6 +1007,15 @@ sess_establish_session(struct sess_data *sess_data)
 	mutex_unlock(&ses->server->srv_mutex);
 
 	cifs_dbg(FYI, "CIFS session established successfully\n");
+
+	spin_lock(&ses->chan_lock);
+	if (ses->binding)
+		cifs_chan_clear_need_reconnect(ses, ses->binding_chan->server);
+	else
+		cifs_chan_clear_need_reconnect(ses, ses->server);
+	spin_unlock(&ses->chan_lock);
+
+	/* Keep the legacy session state until the reconnect engine is ported. */
 	spin_lock(&GlobalMid_Lock);
 	ses->status = CifsGood;
 	ses->need_reconnect = false;

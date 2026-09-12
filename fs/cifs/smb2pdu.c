@@ -1378,7 +1378,15 @@ SMB2_sess_establish_session(struct SMB2_sess_data *sess_data)
 	mutex_unlock(&server->srv_mutex);
 
 	cifs_dbg(FYI, "SMB2/3 session established successfully\n");
-	/* keep existing ses state if binding */
+
+	spin_lock(&ses->chan_lock);
+	if (ses->binding)
+		cifs_chan_clear_need_reconnect(ses, ses->binding_chan->server);
+	else
+		cifs_chan_clear_need_reconnect(ses, ses->server);
+	spin_unlock(&ses->chan_lock);
+
+	/* Keep the legacy session state until the reconnect engine is ported. */
 	if (!ses->binding) {
 		spin_lock(&GlobalMid_Lock);
 		ses->status = CifsGood;

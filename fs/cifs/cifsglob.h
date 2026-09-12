@@ -112,7 +112,13 @@ enum statusEnum {
 	CifsGood,
 	CifsExiting,
 	CifsNeedReconnect,
-	CifsNeedNegotiate
+	CifsNeedNegotiate,
+	CifsInNegotiate,
+	CifsNeedSessSetup,
+	CifsInSessSetup,
+	CifsNeedTcon,
+	CifsInTcon,
+	CifsInFilesInvalidate
 };
 
 enum securityEnum {
@@ -959,11 +965,29 @@ struct cifs_ses {
 	spinlock_t chan_lock;
 	/* ========= begin: protected by chan_lock ======== */
 #define CIFS_MAX_CHANNELS 16
+#define CIFS_ALL_CHANNELS_SET(ses)	\
+	((1UL << (ses)->chan_count) - 1)
+#define CIFS_ALL_CHANS_NEED_RECONNECT(ses)	\
+	((ses)->chans_need_reconnect == CIFS_ALL_CHANNELS_SET(ses))
+#define CIFS_CHAN_NEEDS_RECONNECT(ses, index)	\
+	test_bit((index), &(ses)->chans_need_reconnect)
+#define CIFS_SET_ALL_CHANS_NEED_RECONNECT(ses)	\
+	((ses)->chans_need_reconnect = CIFS_ALL_CHANNELS_SET(ses))
+
 	struct cifs_chan chans[CIFS_MAX_CHANNELS];
 	struct cifs_chan *binding_chan;
 	size_t chan_count;
 	size_t chan_max;
 	atomic_t chan_seq; /* round robin state */
+
+	/*
+	 * Bitmap of channels that require connection/session recovery.
+	 *
+	 * Track reconnect state per channel while another established transport
+	 * can keep the SMB session usable. The bitmap is protected by chan_lock.
+	 * Keep channel eligibility separate from the session-wide state.
+	 */
+	unsigned long chans_need_reconnect;
 	/* ========= end: protected by chan_lock ======== */
 };
 
