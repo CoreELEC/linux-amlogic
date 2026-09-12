@@ -4475,6 +4475,8 @@ smb2_async_writev(struct cifs_writedata *wdata,
 		flags |= CIFS_TRANSFORM_REQ;
 
 	shdr = (struct smb2_sync_hdr *)req;
+	if (wdata->replay && server && server->dialect >= SMB30_PROT_ID)
+		shdr->Flags |= SMB2_FLAGS_REPLAY_OPERATION;
 	shdr->ProcessId = cpu_to_le32(wdata->cfile->pid);
 
 	req->PersistentFileId = wdata->cfile->fid.persistent_fid;

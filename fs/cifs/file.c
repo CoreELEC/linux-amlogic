@@ -2904,7 +2904,8 @@ cifs_resend_wdata(struct cifs_writedata *wdata, struct list_head *wdata_list,
 	unsigned int wsize;
 	struct cifs_credits credits;
 	int rc;
-	struct TCP_Server_Info *server = wdata->server;
+	struct TCP_Server_Info *server;
+	struct cifs_tcon *tcon = tlink_tcon(wdata->cfile->tlink);
 
 	do {
 		if (wdata->cfile->invalidHandle) {
@@ -2915,6 +2916,18 @@ cifs_resend_wdata(struct cifs_writedata *wdata, struct list_head *wdata_list,
 				break;
 		}
 
+
+		/*
+		 * A retry may have been applied before the response was lost.
+		 * Repick a healthy channel, then mark the SMB3 WRITE as replay.
+		 */
+		server = cifs_pick_channel(tcon->ses);
+		if (!server) {
+			rc = -EIO;
+			goto fail;
+		}
+		wdata->server = server;
+		wdata->replay = true;
 
 		/*
 		 * Wait for credits to resend this wdata.
