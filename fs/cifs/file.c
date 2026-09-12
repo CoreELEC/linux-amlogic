@@ -3640,9 +3640,7 @@ static int cifs_resend_rdata(struct cifs_readdata *rdata,
 	struct cifs_credits credits;
 	int rc;
 	struct TCP_Server_Info *server;
-
-	/* XXX: should we pick a new channel here? */
-	server = rdata->server;
+	struct cifs_tcon *tcon = tlink_tcon(rdata->cfile->tlink);
 
 	do {
 		if (rdata->cfile->invalidHandle) {
@@ -3652,6 +3650,14 @@ static int cifs_resend_rdata(struct cifs_readdata *rdata,
 			else if (rc)
 				break;
 		}
+
+		/* Retry on a currently eligible channel, not the failed transport. */
+		server = cifs_pick_channel(tcon->ses);
+		if (!server) {
+			rc = -EIO;
+			goto fail;
+		}
+		rdata->server = server;
 
 		/*
 		 * Wait for credits to resend this rdata.
