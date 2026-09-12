@@ -426,9 +426,7 @@ unmask:
 		 * be taken as the remainder of this one. We need to kill the
 		 * socket so the server throws away the partial SMB
 		 */
-		spin_lock(&GlobalMid_Lock);
-		server->tcpStatus = CifsNeedReconnect;
-		spin_unlock(&GlobalMid_Lock);
+		cifs_signal_cifsd_for_reconnect(server, false);
 		trace_smb3_partial_send_reconnect(server->CurrentMid,
 						  server->conn_id, server->hostname);
 	}

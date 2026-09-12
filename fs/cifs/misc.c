@@ -72,6 +72,7 @@ sesInfoAlloc(void)
 		ret_buf->status = CifsNew;
 		++ret_buf->ses_count;
 		INIT_LIST_HEAD(&ret_buf->smb_ses_list);
+		INIT_LIST_HEAD(&ret_buf->rlist);
 		INIT_LIST_HEAD(&ret_buf->tcon_list);
 		mutex_init(&ret_buf->session_mutex);
 		spin_lock_init(&ret_buf->iface_lock);

@@ -166,51 +166,136 @@ static void cifs_resolve_server(struct work_struct *work)
 	mutex_unlock(&server->srv_mutex);
 }
 
-/**
- * Mark all sessions and tcons for reconnect.
+/*
+ * Mark one transport, or every transport under the same SMB session family,
+ * so that the owning cifsd thread performs the reconnect.
  *
- * @server needs to be previously set to CifsNeedReconnect.
+ * This 5.15 tree predates the upstream per-server srv_lock and explicit
+ * channel parent linkage. Use primary_server and cifs_tcp_ses_lock for the
+ * equivalent tcpStatus transitions.
  */
-static void cifs_mark_tcp_ses_conns_for_reconnect(struct TCP_Server_Info *server)
+void
+cifs_signal_cifsd_for_reconnect(struct TCP_Server_Info *server,
+				bool all_channels)
 {
-	struct list_head *tmp, *tmp2;
+	struct TCP_Server_Info *pserver;
+	struct cifs_ses *ses;
+	int i;
+
+	pserver = server->is_channel ? server->primary_server : server;
+	if (WARN_ON_ONCE(!pserver))
+		return;
+
+	spin_lock(&cifs_tcp_ses_lock);
+	if (!all_channels) {
+		/* The affected channel itself must be marked, never its primary. */
+		if (server->tcpStatus != CifsExiting)
+			server->tcpStatus = CifsNeedReconnect;
+		spin_unlock(&cifs_tcp_ses_lock);
+		return;
+	}
+
+	list_for_each_entry(ses, &pserver->smb_ses_list, smb_ses_list) {
+		spin_lock(&ses->chan_lock);
+		for (i = 0; i < ses->chan_count; i++) {
+			if (ses->chans[i].server &&
+			    ses->chans[i].server->tcpStatus != CifsExiting)
+				ses->chans[i].server->tcpStatus = CifsNeedReconnect;
+		}
+		spin_unlock(&ses->chan_lock);
+	}
+	spin_unlock(&cifs_tcp_ses_lock);
+}
+
+/*
+ * Mark the SMB state affected by a transport reconnect.
+ *
+ * A single failed channel does not invalidate a healthy SMB session/tcon.
+ * Only a full-session reconnect, or loss of every channel, promotes the
+ * session and its tcons to CifsNeedReconnect.
+ *
+ * Must be called by the cifsd reconnect path, after server->tcpStatus has
+ * been moved to CifsNeedReconnect.
+ */
+static void
+cifs_mark_tcp_ses_conns_for_reconnect(struct TCP_Server_Info *server,
+				      bool mark_smb_session)
+{
+	struct TCP_Server_Info *pserver;
 	struct cifs_ses *ses;
 	struct cifs_tcon *tcon;
+
+	pserver = server->is_channel ? server->primary_server : server;
+	if (WARN_ON_ONCE(!pserver))
+		return;
+
+	cifs_dbg(FYI, "%s: marking necessary sessions/tcons for reconnect\n",
+		 __func__);
+
+	spin_lock(&cifs_tcp_ses_lock);
+	list_for_each_entry(ses, &pserver->smb_ses_list, smb_ses_list) {
+		unsigned int chan_index;
+
+		spin_lock(&ses->chan_lock);
+		chan_index = cifs_ses_get_chan_index(ses, server);
+
+		/*
+		 * Secondary transports are session-private in this vendor tree.
+		 * Other sessions may share the same primary transport, so skip
+		 * them without calling the fail-closed helper on an unknown server.
+		 */
+		if (!mark_smb_session && chan_index >= ses->chan_count)
+			goto next_session;
+
+		if (!mark_smb_session &&
+		    CIFS_CHAN_NEEDS_RECONNECT(ses, chan_index))
+			goto next_session;
+
+		if (mark_smb_session)
+			CIFS_SET_ALL_CHANS_NEED_RECONNECT(ses);
+		else
+			cifs_chan_set_need_reconnect(ses, server);
+
+		if (!mark_smb_session && !CIFS_ALL_CHANS_NEED_RECONNECT(ses))
+			goto next_session;
+
+		/* No usable channel remains, so the SMB session/tcons are stale. */
+		ses->need_reconnect = true;
+		ses->status = CifsNeedReconnect;
+		list_for_each_entry(tcon, &ses->tcon_list, tcon_list) {
+			tcon->need_reconnect = true;
+			tcon->tidStatus = CifsNeedReconnect;
+		}
+		if (ses->tcon_ipc) {
+			ses->tcon_ipc->need_reconnect = true;
+			ses->tcon_ipc->tidStatus = CifsNeedReconnect;
+		}
+
+next_session:
+		spin_unlock(&ses->chan_lock);
+	}
+	spin_unlock(&cifs_tcp_ses_lock);
+}
+
+/* Tear down only the failed transport and retry its outstanding MIDs. */
+static void
+cifs_abort_connection(struct TCP_Server_Info *server)
+{
+	struct list_head *tmp, *tmp2;
 	struct mid_q_entry *mid_entry;
 	struct list_head retry_list;
 
 	server->maxBuf = 0;
 	server->max_read = 0;
 
-	cifs_dbg(FYI, "Mark tcp session as need reconnect\n");
-	trace_smb3_reconnect(server->CurrentMid, server->conn_id, server->hostname);
-	/*
-	 * before reconnecting the tcp session, mark the smb session (uid) and the tid bad so they
-	 * are not used until reconnected.
-	 */
-	cifs_dbg(FYI, "%s: marking sessions and tcons for reconnect\n", __func__);
-	spin_lock(&cifs_tcp_ses_lock);
-	list_for_each(tmp, &server->smb_ses_list) {
-		ses = list_entry(tmp, struct cifs_ses, smb_ses_list);
-		ses->need_reconnect = true;
-		list_for_each(tmp2, &ses->tcon_list) {
-			tcon = list_entry(tmp2, struct cifs_tcon, tcon_list);
-			tcon->need_reconnect = true;
-		}
-		if (ses->tcon_ipc)
-			ses->tcon_ipc->need_reconnect = true;
-	}
-	spin_unlock(&cifs_tcp_ses_lock);
-
-	/* do not want to be sending data on a socket we are freeing */
 	cifs_dbg(FYI, "%s: tearing down socket\n", __func__);
 	mutex_lock(&server->srv_mutex);
 	if (server->ssocket) {
-		cifs_dbg(FYI, "State: 0x%x Flags: 0x%lx\n", server->ssocket->state,
-			 server->ssocket->flags);
+		cifs_dbg(FYI, "State: 0x%x Flags: 0x%lx\n",
+			 server->ssocket->state, server->ssocket->flags);
 		kernel_sock_shutdown(server->ssocket, SHUT_WR);
-		cifs_dbg(FYI, "Post shutdown state: 0x%x Flags: 0x%lx\n", server->ssocket->state,
-			 server->ssocket->flags);
+		cifs_dbg(FYI, "Post shutdown state: 0x%x Flags: 0x%lx\n",
+			 server->ssocket->state, server->ssocket->flags);
 		sock_release(server->ssocket);
 		server->ssocket = NULL;
 	}
@@ -221,7 +306,6 @@ static void cifs_mark_tcp_ses_conns_for_reconnect(struct TCP_Server_Info *server
 	server->session_key.len = 0;
 	server->lstrp = jiffies;
 
-	/* mark submitted MIDs for retry and issue callback */
 	INIT_LIST_HEAD(&retry_list);
 	cifs_dbg(FYI, "%s: moving mids to private list\n", __func__);
 	spin_lock(&GlobalMid_Lock);
@@ -251,46 +335,55 @@ static void cifs_mark_tcp_ses_conns_for_reconnect(struct TCP_Server_Info *server
 	}
 }
 
-static bool cifs_tcp_ses_needs_reconnect(struct TCP_Server_Info *server, int num_targets)
+static bool
+cifs_tcp_ses_needs_reconnect(struct TCP_Server_Info *server, int num_targets)
 {
-	spin_lock(&GlobalMid_Lock);
+	spin_lock(&cifs_tcp_ses_lock);
 	server->nr_targets = num_targets;
 	if (server->tcpStatus == CifsExiting) {
-		/* the demux thread will exit normally next time through the loop */
-		spin_unlock(&GlobalMid_Lock);
+		spin_unlock(&cifs_tcp_ses_lock);
 		wake_up(&server->response_q);
 		return false;
 	}
+
+	cifs_dbg(FYI, "Mark tcp session as need reconnect\n");
+	trace_smb3_reconnect(server->CurrentMid, server->conn_id,
+			     server->hostname);
 	server->tcpStatus = CifsNeedReconnect;
-	spin_unlock(&GlobalMid_Lock);
+	spin_unlock(&cifs_tcp_ses_lock);
 	return true;
 }
 
 /*
- * cifs tcp session reconnection
- *
- * mark tcp session as reconnecting so temporarily locked
- * mark all smb sessions as reconnecting for tcp session
- * reconnect tcp session
- * wake up waiters on reconnection? - (not needed currently)
+ * Reconnect one TCP transport. mark_smb_session=true means that the SMB
+ * session itself is invalid, therefore every channel must also be reset.
  */
-static int __cifs_reconnect(struct TCP_Server_Info *server)
+static int
+__cifs_reconnect(struct TCP_Server_Info *server, bool mark_smb_session)
 {
 	int rc = 0;
 
 	if (!cifs_tcp_ses_needs_reconnect(server, 1))
 		return 0;
 
-	cifs_mark_tcp_ses_conns_for_reconnect(server);
+	/*
+	 * Session-wide failure: make every sibling cifsd observe reconnect
+	 * before marking the SMB session/tcons stale.
+	 */
+	if (mark_smb_session)
+		cifs_signal_cifsd_for_reconnect(server, true);
+
+	cifs_mark_tcp_ses_conns_for_reconnect(server, mark_smb_session);
+	cifs_abort_connection(server);
 
 	do {
 		try_to_freeze();
 		mutex_lock(&server->srv_mutex);
 
 		if (!cifs_swn_set_server_dstaddr(server)) {
-			/* resolve the hostname again to make sure that IP address is up-to-date */
 			rc = reconn_set_ipaddr_from_hostname(server);
-			cifs_dbg(FYI, "%s: reconn_set_ipaddr_from_hostname: rc=%d\n", __func__, rc);
+			cifs_dbg(FYI, "%s: reconn_set_ipaddr_from_hostname: rc=%d\n",
+				 __func__, rc);
 		}
 
 		if (cifs_rdma_enabled(server))
@@ -304,17 +397,22 @@ static int __cifs_reconnect(struct TCP_Server_Info *server)
 		} else {
 			atomic_inc(&tcpSesReconnectCount);
 			set_credits(server, 1);
-			spin_lock(&GlobalMid_Lock);
+			spin_lock(&cifs_tcp_ses_lock);
 			if (server->tcpStatus != CifsExiting)
 				server->tcpStatus = CifsNeedNegotiate;
-			spin_unlock(&GlobalMid_Lock);
+			spin_unlock(&cifs_tcp_ses_lock);
 			cifs_swn_reset_server_dstaddr(server);
 			mutex_unlock(&server->srv_mutex);
+
+			/* Rebind this channel even when all tcons stayed healthy. */
+			mod_delayed_work(cifsiod_wq, &server->reconnect, 0);
 		}
 	} while (server->tcpStatus == CifsNeedReconnect);
 
+	spin_lock(&cifs_tcp_ses_lock);
 	if (server->tcpStatus == CifsNeedNegotiate)
 		mod_delayed_work(cifsiod_wq, &server->echo, 0);
+	spin_unlock(&cifs_tcp_ses_lock);
 
 	wake_up(&server->response_q);
 	return rc;
@@ -376,7 +474,8 @@ static int reconnect_target_unlocked(struct TCP_Server_Info *server, struct dfs_
 	return rc;
 }
 
-static int reconnect_dfs_server(struct TCP_Server_Info *server)
+static int reconnect_dfs_server(struct TCP_Server_Info *server,
+				bool mark_smb_session)
 {
 	int rc = 0;
 	const char *refpath = server->current_fullpath + 1;
@@ -400,7 +499,10 @@ static int reconnect_dfs_server(struct TCP_Server_Info *server)
 	if (!cifs_tcp_ses_needs_reconnect(server, num_targets))
 		return 0;
 
-	cifs_mark_tcp_ses_conns_for_reconnect(server);
+	if (mark_smb_session)
+		cifs_signal_cifsd_for_reconnect(server, true);
+	cifs_mark_tcp_ses_conns_for_reconnect(server, mark_smb_session);
+	cifs_abort_connection(server);
 
 	do {
 		try_to_freeze();
@@ -421,12 +523,13 @@ static int reconnect_dfs_server(struct TCP_Server_Info *server)
 		 */
 		atomic_inc(&tcpSesReconnectCount);
 		set_credits(server, 1);
-		spin_lock(&GlobalMid_Lock);
+		spin_lock(&cifs_tcp_ses_lock);
 		if (server->tcpStatus != CifsExiting)
 			server->tcpStatus = CifsNeedNegotiate;
-		spin_unlock(&GlobalMid_Lock);
+		spin_unlock(&cifs_tcp_ses_lock);
 		cifs_swn_reset_server_dstaddr(server);
 		mutex_unlock(&server->srv_mutex);
+		mod_delayed_work(cifsiod_wq, &server->reconnect, 0);
 	} while (server->tcpStatus == CifsNeedReconnect);
 
 	if (target_hint)
@@ -444,20 +547,39 @@ static int reconnect_dfs_server(struct TCP_Server_Info *server)
 
 int cifs_reconnect(struct TCP_Server_Info *server)
 {
-	/* If tcp session is not an dfs connection, then reconnect to last target server */
+	/*
+	 * Keep the one-argument ABI for callers outside this source
+	 * file, but keep socket teardown owned by cifsd. Unknown legacy callers
+	 * are conservative and invalidate the whole SMB session.
+	 */
+	if (current != server->tsk) {
+		cifs_signal_cifsd_for_reconnect(server, true);
+		return 0;
+	}
+
 	spin_lock(&cifs_tcp_ses_lock);
 	if (!server->is_dfs_conn || !server->origin_fullpath || !server->leaf_fullpath) {
 		spin_unlock(&cifs_tcp_ses_lock);
-		return __cifs_reconnect(server);
+		return __cifs_reconnect(server, true);
 	}
 	spin_unlock(&cifs_tcp_ses_lock);
 
-	return reconnect_dfs_server(server);
+	return reconnect_dfs_server(server, true);
 }
 #else
 int cifs_reconnect(struct TCP_Server_Info *server)
 {
-	return __cifs_reconnect(server);
+	/*
+	 * Keep the one-argument ABI while ensuring that non-cifsd
+	 * callers only signal. Their legacy semantics are conservatively treated
+	 * as session-wide reconnect requests.
+	 */
+	if (current != server->tsk) {
+		cifs_signal_cifsd_for_reconnect(server, true);
+		return 0;
+	}
+
+	return __cifs_reconnect(server, true);
 }
 #endif
 
@@ -545,7 +667,7 @@ server_unresponsive(struct TCP_Server_Info *server)
 	    time_after(jiffies, server->lstrp + 3 * server->echo_interval)) {
 		cifs_server_dbg(VFS, "has not responded in %lu seconds. Reconnecting...\n",
 			 (3 * server->echo_interval) / HZ);
-		cifs_reconnect(server);
+		__cifs_reconnect(server, false);
 		return true;
 	}
 
@@ -578,7 +700,7 @@ cifs_readv_from_socket(struct TCP_Server_Info *server, struct msghdr *smb_msg)
 
 		/* reconnect if no credits and no requests in flight */
 		if (zero_credits(server)) {
-			cifs_reconnect(server);
+			__cifs_reconnect(server, false);
 			return -ECONNABORTED;
 		}
 
@@ -593,7 +715,7 @@ cifs_readv_from_socket(struct TCP_Server_Info *server, struct msghdr *smb_msg)
 			return -ESHUTDOWN;
 
 		if (server->tcpStatus == CifsNeedReconnect) {
-			cifs_reconnect(server);
+			__cifs_reconnect(server, false);
 			return -ECONNABORTED;
 		}
 
@@ -612,7 +734,7 @@ cifs_readv_from_socket(struct TCP_Server_Info *server, struct msghdr *smb_msg)
 
 		if (length <= 0) {
 			cifs_dbg(FYI, "Received no data or error: %d\n", length);
-			cifs_reconnect(server);
+			__cifs_reconnect(server, false);
 			return -ECONNABORTED;
 		}
 	}
@@ -1126,7 +1248,7 @@ next_pdu:
 
 		/* do this reconnect at the very end after processing all MIDs */
 		if (pending_reconnect)
-			cifs_reconnect(server);
+			__cifs_reconnect(server, false);
 
 	} /* end while !EXITING */
 
@@ -1432,6 +1554,7 @@ cifs_get_tcp_session(struct smb3_fs_context *ctx)
 		rc = -ENOMEM;
 		goto out_err;
 	}
+	tcp_ses->primary_server = tcp_ses;
 
 	tcp_ses->hostname = kstrdup(ctx->server_hostname, GFP_KERNEL);
 	if (!tcp_ses->hostname) {
@@ -3813,18 +3936,28 @@ cifs_negotiate_protocol(const unsigned int xid, struct cifs_ses *ses)
 	if (!server->ops->need_neg || !server->ops->negotiate)
 		return -ENOSYS;
 
-	/* only send once per connect */
-	if (!server->ops->need_neg(server))
+	spin_lock(&cifs_tcp_ses_lock);
+	if (!server->ops->need_neg(server) ||
+	    server->tcpStatus != CifsNeedNegotiate) {
+		spin_unlock(&cifs_tcp_ses_lock);
 		return 0;
+	}
+	server->tcpStatus = CifsInNegotiate;
+	spin_unlock(&cifs_tcp_ses_lock);
 
 	rc = server->ops->negotiate(xid, ses);
-	if (rc == 0) {
-		spin_lock(&GlobalMid_Lock);
-		if (server->tcpStatus == CifsNeedNegotiate)
-			server->tcpStatus = CifsGood;
+	if (!rc) {
+		spin_lock(&cifs_tcp_ses_lock);
+		if (server->tcpStatus == CifsInNegotiate)
+			server->tcpStatus = CifsNeedSessSetup;
 		else
 			rc = -EHOSTDOWN;
-		spin_unlock(&GlobalMid_Lock);
+		spin_unlock(&cifs_tcp_ses_lock);
+	} else {
+		spin_lock(&cifs_tcp_ses_lock);
+		if (server->tcpStatus == CifsInNegotiate)
+			server->tcpStatus = CifsNeedNegotiate;
+		spin_unlock(&cifs_tcp_ses_lock);
 	}
 
 	return rc;
@@ -3836,6 +3969,19 @@ cifs_setup_session(const unsigned int xid, struct cifs_ses *ses,
 {
 	int rc = -ENOSYS;
 	struct TCP_Server_Info *server = cifs_ses_server(ses);
+
+	/*
+	 * On a healthy session, only the channel in CifsNeedSessSetup should
+	 * perform another Session Setup/bind.
+	 */
+	spin_lock(&cifs_tcp_ses_lock);
+	if (server->tcpStatus != CifsNeedSessSetup &&
+	    ses->status == CifsGood) {
+		spin_unlock(&cifs_tcp_ses_lock);
+		return 0;
+	}
+	server->tcpStatus = CifsInSessSetup;
+	spin_unlock(&cifs_tcp_ses_lock);
 
 	if (!ses->binding) {
 		ses->capabilities = server->capabilities;
@@ -3857,8 +4003,24 @@ cifs_setup_session(const unsigned int xid, struct cifs_ses *ses,
 	if (server->ops->sess_setup)
 		rc = server->ops->sess_setup(xid, ses, nls_info);
 
-	if (rc)
+	if (rc) {
 		cifs_server_dbg(VFS, "Send error in SessSetup = %d\n", rc);
+		spin_lock(&cifs_tcp_ses_lock);
+		if (server->tcpStatus == CifsInSessSetup)
+			server->tcpStatus = CifsNeedSessSetup;
+		spin_unlock(&cifs_tcp_ses_lock);
+	} else {
+		spin_lock(&cifs_tcp_ses_lock);
+		if (server->tcpStatus == CifsInSessSetup)
+			server->tcpStatus = CifsGood;
+		/* One live channel keeps the SMB session usable. */
+		ses->status = CifsGood;
+		spin_unlock(&cifs_tcp_ses_lock);
+
+		spin_lock(&ses->chan_lock);
+		cifs_chan_clear_need_reconnect(ses, server);
+		spin_unlock(&ses->chan_lock);
+	}
 
 	return rc;
 }
@@ -4128,14 +4290,7 @@ cifs_prune_tlinks(struct work_struct *work)
 #ifdef CONFIG_CIFS_DFS_UPCALL
 static void mark_tcon_tcp_ses_for_reconnect(struct cifs_tcon *tcon)
 {
-	int i;
-
-	for (i = 0; i < tcon->ses->chan_count; i++) {
-		spin_lock(&GlobalMid_Lock);
-		if (tcon->ses->chans[i].server->tcpStatus != CifsExiting)
-			tcon->ses->chans[i].server->tcpStatus = CifsNeedReconnect;
-		spin_unlock(&GlobalMid_Lock);
-	}
+	cifs_signal_cifsd_for_reconnect(tcon->ses->server, true);
 }
 
 /* Update dfs referral path of superblock */

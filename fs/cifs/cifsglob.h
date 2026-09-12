@@ -696,6 +696,12 @@ struct TCP_Server_Info {
 	int nr_targets;
 	bool noblockcnt; /* use non-blocking connect() */
 	bool is_channel; /* if a session channel */
+	/*
+	 * Primary transport owning the SMB session list. Primary connections
+	 * point to themselves; secondary multichannel transports point to the
+	 * session's original transport.
+	 */
+	struct TCP_Server_Info *primary_server;
 #ifdef CONFIG_CIFS_SWN_UPCALL
 	bool use_swn_dstaddr;
 	struct sockaddr_storage swn_dstaddr;
@@ -912,6 +918,7 @@ struct cifs_chan {
  */
 struct cifs_ses {
 	struct list_head smb_ses_list;
+	struct list_head rlist; /* reconnect list */
 	struct list_head tcon_list;
 	struct cifs_tcon *tcon_ipc;
 	struct mutex session_mutex;

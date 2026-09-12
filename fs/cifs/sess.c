@@ -346,6 +346,7 @@ cifs_ses_add_channel(struct cifs_sb_info *cifs_sb, struct cifs_ses *ses,
 
 	spin_lock(&cifs_tcp_ses_lock);
 	chan->server->is_channel = true;
+	chan->server->primary_server = ses->server;
 	spin_unlock(&cifs_tcp_ses_lock);
 
 	/*
