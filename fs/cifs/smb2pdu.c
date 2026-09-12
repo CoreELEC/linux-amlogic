@@ -88,10 +88,31 @@ smb2_hdr_assemble(struct smb2_sync_hdr *shdr, __le16 smb2_cmd,
 		  const struct cifs_tcon *tcon,
 		  struct TCP_Server_Info *server)
 {
+	struct TCP_Server_Info *pserver;
+	__u16 channel_sequence = 0;
+
 	shdr->ProtocolId = SMB2_PROTO_NUMBER;
 	shdr->StructureSize = cpu_to_le16(64);
 	shdr->Command = smb2_cmd;
+
+	/*
+	 * In responses bytes 8..11 are Status. For SMB3 requests the same four
+	 * bytes are ChannelSequence + Reserved. Keep Reserved zero and store the
+	 * primary-scoped sequence in the low 16 bits. Check server before
+	 * dereferencing dialect (upstream 05d0f8f55ad6 safety ordering).
+	 */
+	shdr->Status = 0;
 	if (server) {
+		if (server->dialect >= SMB30_PROT_ID) {
+			pserver = server->is_channel ? server->primary_server : server;
+			if (pserver) {
+				spin_lock(&pserver->req_lock);
+				channel_sequence = pserver->channel_sequence_num;
+				spin_unlock(&pserver->req_lock);
+				shdr->Status = cpu_to_le32((__u32)channel_sequence);
+			}
+		}
+
 		spin_lock(&server->req_lock);
 		/* Request up to 10 credits but don't go over the limit. */
 		if (server->credits >= server->max_credits)
@@ -1809,10 +1830,7 @@ SMB2_tcon(const unsigned int xid, struct cifs_ses *ses, const char *tree,
 	__le16 *unc_path = NULL;
 	int flags = 0;
 	unsigned int total_len;
-	struct TCP_Server_Info *server;
-
-	/* always use master channel */
-	server = ses->server;
+	struct TCP_Server_Info *server = cifs_pick_channel(ses);
 
 	cifs_dbg(FYI, "TCON\n");
 
@@ -1940,6 +1958,7 @@ SMB2_tdis(const unsigned int xid, struct cifs_tcon *tcon)
 	struct smb2_tree_disconnect_req *req; /* response is trivial */
 	int rc = 0;
 	struct cifs_ses *ses = tcon->ses;
+	struct TCP_Server_Info *server;
 	int flags = 0;
 	unsigned int total_len;
 	struct kvec iov[1];
@@ -1954,9 +1973,13 @@ SMB2_tdis(const unsigned int xid, struct cifs_tcon *tcon)
 	if ((tcon->need_reconnect) || (tcon->ses->need_reconnect))
 		return 0;
 
+	server = cifs_pick_channel(ses);
+	if (!server)
+		return -EIO;
+
 	close_cached_dir_lease(&tcon->crfid);
 
-	rc = smb2_plain_req_init(SMB2_TREE_DISCONNECT, tcon, ses->server,
+	rc = smb2_plain_req_init(SMB2_TREE_DISCONNECT, tcon, server,
 				 (void **) &req,
 				 &total_len);
 	if (rc)
@@ -1974,7 +1997,7 @@ SMB2_tdis(const unsigned int xid, struct cifs_tcon *tcon)
 	rqst.rq_iov = iov;
 	rqst.rq_nvec = 1;
 
-	rc = cifs_send_recv(xid, ses, ses->server,
+	rc = cifs_send_recv(xid, ses, server,
 			    &rqst, &resp_buf_type, flags, &rsp_iov);
 	cifs_small_buf_release(req);
 	if (rc)

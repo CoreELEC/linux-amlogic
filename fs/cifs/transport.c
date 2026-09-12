@@ -1028,11 +1028,12 @@ cifs_cancelled_callback(struct mid_q_entry *mid)
 }
 
 /*
- * Return a channel (master if none) of @ses that can be used to send
- * regular requests.
+ * Pick an eligible channel for regular network operations.
  *
- * If we are currently binding a new channel (negprot/sess.setup),
- * return the new incomplete channel.
+ * Prefer the least-loaded established channel. Channels still marked for
+ * reconnect or Session Setup are skipped. If no eligible channel exists,
+ * fall back to the primary channel so the normal reconnect path can wait
+ * for recovery.
  */
 struct TCP_Server_Info *cifs_pick_channel(struct cifs_ses *ses)
 {
@@ -1044,39 +1045,46 @@ struct TCP_Server_Info *cifs_pick_channel(struct cifs_ses *ses)
 	if (!ses)
 		return NULL;
 
+	/*
+	 * Negotiate/Session Setup use cifs_ses_server() explicitly. Regular I/O
+	 * must stay on an established channel while another channel is binding.
+	 */
 	spin_lock(&ses->chan_lock);
-	if (!ses->binding) {
-		if (ses->chan_count > 1) {
-			start = atomic_inc_return(&ses->chan_seq);
-			for (i = 0; i < ses->chan_count; i++) {
-				cur = (start + i) % ses->chan_count;
-				server = ses->chans[cur].server;
-				if (!server)
-					continue;
+	start = atomic_inc_return(&ses->chan_seq);
+	for (i = 0; i < ses->chan_count; i++) {
+		cur = (start + i) % ses->chan_count;
+		server = ses->chans[cur].server;
+		if (!server)
+			continue;
 
-				if (server->tcpStatus == CifsNeedReconnect)
-					continue;
+		/*
+		 * The reconnect bit stays set from transport failure until Session
+		 * Setup/binding succeeds. Do not re-admit a channel merely because
+		 * its socket has already left CifsNeedReconnect.
+		 */
+		if (CIFS_CHAN_NEEDS_RECONNECT(ses, cur) ||
+		    CIFS_CHAN_IN_RECONNECT(ses, cur))
+			continue;
 
-				/*
-				 * strictly speaking, we should pick up req_lock to read
-				 * server->in_flight. But it shouldn't matter much here if we
-				 * race while reading this data. The worst that can happen is
-				 * that we could use a channel that's not least loaded. Avoiding
-				 * taking the lock could help reduce wait time, which is
-				 * important for this function
-				 */
-				if (server->in_flight < min_in_flight) {
-					min_in_flight = server->in_flight;
-					index = cur;
-				}
-			}
+		/* Keep the transport-state fence as a second guard. */
+		if (server->tcpStatus == CifsNeedReconnect)
+			continue;
+
+		/*
+		 * Keep the rotated least-loaded policy. If no
+		 * eligible channel exists, index remains zero and we deliberately
+		 * fall back to the primary transport so normal reconnect handling
+		 * can wait/recover instead of failing channel selection outright.
+		 */
+		if (server->in_flight < min_in_flight) {
+			min_in_flight = server->in_flight;
+			index = cur;
 		}
-		spin_unlock(&ses->chan_lock);
-		return ses->chans[index].server;
-	} else {
-		spin_unlock(&ses->chan_lock);
-		return cifs_ses_server(ses);
 	}
+	server = ses->chans[index].server;
+	spin_unlock(&ses->chan_lock);
+
+	return server;
 }
 
 int

@@ -709,6 +709,11 @@ struct TCP_Server_Info {
 	 * session's original transport.
 	 */
 	struct TCP_Server_Info *primary_server;
+	/*
+	 * SMB3 ChannelSequence is primary/session scoped. Increment it whenever
+	 * any channel reconnects and use the primary value on all channels.
+	 */
+	__u16 channel_sequence_num;
 #ifdef CONFIG_CIFS_SWN_UPCALL
 	bool use_swn_dstaddr;
 	struct sockaddr_storage swn_dstaddr;
