@@ -3614,6 +3614,11 @@ int cifs_mount(struct cifs_sb_info *cifs_sb, struct smb3_fs_context *ctx)
 			goto error;
 	}
 
+	/*
+	 * SMB3 multichannel is independent of DFS. Keep the non-DFS mount
+	 * path equivalent to the DFS path.
+	 */
+	cifs_try_adding_channels(cifs_sb, mnt_ctx.ses);
 	rc = mount_setup_tlink(cifs_sb, mnt_ctx.ses, mnt_ctx.tcon);
 	if (rc)
 		goto error;
