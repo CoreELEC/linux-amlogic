@@ -727,14 +727,14 @@ static int allocate_mid(struct cifs_ses *ses, struct smb_hdr *in_buf,
 		return -EAGAIN;
 	}
 
-	if (ses->status == CifsNew) {
+	if (cifs_get_ses_status(ses) == SES_NEW) {
 		if ((in_buf->Command != SMB_COM_SESSION_SETUP_ANDX) &&
 			(in_buf->Command != SMB_COM_NEGOTIATE))
 			return -EAGAIN;
 		/* else ok - we are setting up session */
 	}
 
-	if (ses->status == CifsExiting) {
+	if (cifs_get_ses_status(ses) == SES_EXITING) {
 		/* check if SMB session is bad because we are setting it up */
 		if (in_buf->Command != SMB_COM_LOGOFF_ANDX)
 			return -EAGAIN;
@@ -1206,7 +1206,8 @@ compound_send_recv(const unsigned int xid, struct cifs_ses *ses,
 	/*
 	 * Compounding is never used during session establish.
 	 */
-	if ((ses->status == CifsNew) || (optype & CIFS_NEG_OP) || (optype & CIFS_SESS_OP)) {
+	if ((cifs_get_ses_status(ses) == SES_NEW) ||
+	    (optype & CIFS_NEG_OP) || (optype & CIFS_SESS_OP)) {
 		mutex_lock(&server->srv_mutex);
 		smb311_update_preauth_hash(ses, rqst[0].rq_iov,
 					   rqst[0].rq_nvec);
@@ -1275,7 +1276,8 @@ compound_send_recv(const unsigned int xid, struct cifs_ses *ses,
 	/*
 	 * Compounding is never used during session establish.
 	 */
-	if ((ses->status == CifsNew) || (optype & CIFS_NEG_OP) || (optype & CIFS_SESS_OP)) {
+	if ((cifs_get_ses_status(ses) == SES_NEW) ||
+	    (optype & CIFS_NEG_OP) || (optype & CIFS_SESS_OP)) {
 		struct kvec iov = {
 			.iov_base = resp_iov[0].iov_base,
 			.iov_len = resp_iov[0].iov_len

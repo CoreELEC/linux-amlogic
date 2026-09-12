@@ -83,6 +83,49 @@ cifs_ses_get_chan_index(struct cifs_ses *ses, struct TCP_Server_Info *server)
 	return CIFS_MAX_CHANNELS;
 }
 
+struct cifs_chan *
+cifs_ses_find_chan_locked(struct cifs_ses *ses, struct TCP_Server_Info *server)
+{
+	unsigned int chan_index = cifs_ses_get_chan_index(ses, server);
+
+	if (chan_index >= ses->chan_count)
+		return NULL;
+	return &ses->chans[chan_index];
+}
+
+void
+cifs_chan_set_in_reconnect(struct cifs_ses *ses,
+			   struct TCP_Server_Info *server)
+{
+	unsigned int chan_index = cifs_ses_get_chan_index(ses, server);
+
+	if (WARN_ON_ONCE(chan_index >= ses->chan_count))
+		return;
+	ses->chans[chan_index].in_reconnect = true;
+}
+
+void
+cifs_chan_clear_in_reconnect(struct cifs_ses *ses,
+			     struct TCP_Server_Info *server)
+{
+	unsigned int chan_index = cifs_ses_get_chan_index(ses, server);
+
+	if (WARN_ON_ONCE(chan_index >= ses->chan_count))
+		return;
+	ses->chans[chan_index].in_reconnect = false;
+}
+
+bool
+cifs_chan_in_reconnect(struct cifs_ses *ses,
+			struct TCP_Server_Info *server)
+{
+	unsigned int chan_index = cifs_ses_get_chan_index(ses, server);
+
+	if (WARN_ON_ONCE(chan_index >= ses->chan_count))
+		return true;
+	return CIFS_CHAN_IN_RECONNECT(ses, chan_index);
+}
+
 void
 cifs_chan_set_need_reconnect(struct cifs_ses *ses,
 			     struct TCP_Server_Info *server)
@@ -360,7 +403,9 @@ cifs_ses_add_channel(struct cifs_sb_info *cifs_sb, struct cifs_ses *ses,
 		goto out;
 	}
 
+	spin_lock(&ses->chan_lock);
 	ses->binding = true;
+	spin_unlock(&ses->chan_lock);
 	rc = cifs_negotiate_protocol(xid, ses);
 	if (rc)
 		goto out;
@@ -391,8 +436,10 @@ out:
 		spin_unlock(&ses->chan_lock);
 	}
 
+	spin_lock(&ses->chan_lock);
 	ses->binding = false;
 	ses->binding_chan = NULL;
+	spin_unlock(&ses->chan_lock);
 	mutex_unlock(&ses->session_mutex);
 
 	if (rc && chan->server)
@@ -1010,17 +1057,21 @@ sess_establish_session(struct sess_data *sess_data)
 	cifs_dbg(FYI, "CIFS session established successfully\n");
 
 	spin_lock(&ses->chan_lock);
-	if (ses->binding)
+	if (ses->binding) {
+		cifs_chan_clear_in_reconnect(ses, ses->binding_chan->server);
 		cifs_chan_clear_need_reconnect(ses, ses->binding_chan->server);
-	else
+	} else {
+		cifs_chan_clear_in_reconnect(ses, ses->server);
 		cifs_chan_clear_need_reconnect(ses, ses->server);
+	}
 	spin_unlock(&ses->chan_lock);
 
-	/* Keep the legacy session state until the reconnect engine is ported. */
-	spin_lock(&GlobalMid_Lock);
-	ses->status = CifsGood;
-	ses->need_reconnect = false;
-	spin_unlock(&GlobalMid_Lock);
+	spin_lock(&ses->ses_lock);
+	if (ses->ses_status != SES_EXITING) {
+		ses->ses_status = SES_GOOD;
+		ses->need_reconnect = false;
+	}
+	spin_unlock(&ses->ses_lock);
 
 	return 0;
 }

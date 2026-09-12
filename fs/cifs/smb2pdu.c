@@ -164,13 +164,15 @@ smb2_reconnect(__le16 smb2_command, struct cifs_tcon *tcon,
 			return -ENODEV;
 		}
 	}
-	if ((!tcon->ses) || (tcon->ses->status == CifsExiting) ||
-	    (!tcon->ses->server) || !server)
+	if (!tcon->ses || !server)
 		return -EIO;
 
 	ses = tcon->ses;
-	retries = server->nr_targets;
+	if (cifs_ses_exiting(ses) || !ses->server)
+		return -EIO;
 
+again:
+	retries = server->nr_targets;
 	while (server->tcpStatus == CifsNeedReconnect) {
 		switch (smb2_command) {
 		case SMB2_TREE_DISCONNECT:
@@ -213,73 +215,72 @@ smb2_reconnect(__le16 smb2_command, struct cifs_tcon *tcon,
 	spin_unlock(&ses->chan_lock);
 
 	nls_codepage = load_nls_default();
+	mutex_lock(&ses->session_mutex);
 
+	/*
+	 * Another reconnect can win while this thread waits for session_mutex.
+	 * Recheck the transport after acquiring the serialization point.  Hard
+	 * mounts retry; soft/internal reconnects return and let the worker retry.
+	 */
 	spin_lock(&cifs_tcp_ses_lock);
 	if (server->tcpStatus == CifsNeedReconnect) {
 		spin_unlock(&cifs_tcp_ses_lock);
-		rc = -EHOSTDOWN;
-		goto out;
+		mutex_unlock(&ses->session_mutex);
+		unload_nls(nls_codepage);
+		if (tcon->retry)
+			goto again;
+		return -EHOSTDOWN;
 	}
 	spin_unlock(&cifs_tcp_ses_lock);
 
-	/*
-	 * Serialize negotiate/session setup and re-check the channel bit after
-	 * taking session_mutex because another reconnect worker may have won.
-	 */
-	mutex_lock(&ses->session_mutex);
-
+	spin_lock(&ses->ses_lock);
 	spin_lock(&ses->chan_lock);
-	if (!cifs_chan_needs_reconnect(ses, server)) {
+	if (!cifs_chan_needs_reconnect(ses, server) &&
+	    ses->ses_status == SES_GOOD) {
 		spin_unlock(&ses->chan_lock);
-		mutex_unlock(&ses->session_mutex);
-
+		spin_unlock(&ses->ses_lock);
 		if (tcon->need_reconnect)
 			goto skip_sess_setup;
+		mutex_unlock(&ses->session_mutex);
 		goto out;
 	}
 
-	/*
-	 * If another channel is still healthy, re-establish this transport as a
-	 * binding to the existing SMB session. This applies to the primary too:
-	 * after a primary-only failure, a surviving secondary keeps the session
-	 * alive and the recovered primary must bind rather than create a new one.
-	 */
 	binding = !CIFS_ALL_CHANS_NEED_RECONNECT(ses);
-	spin_unlock(&ses->chan_lock);
-
 	if (binding) {
 		ses->binding = true;
-		ses->binding_chan = cifs_ses_find_chan(ses, server);
+		ses->binding_chan = cifs_ses_find_chan_locked(ses, server);
 		if (!ses->binding_chan) {
 			ses->binding = false;
-			rc = -EHOSTDOWN;
+			spin_unlock(&ses->chan_lock);
+			spin_unlock(&ses->ses_lock);
 			mutex_unlock(&ses->session_mutex);
+			rc = -EHOSTDOWN;
 			goto out;
 		}
 	} else {
 		ses->binding = false;
 		ses->binding_chan = NULL;
 	}
+	spin_unlock(&ses->chan_lock);
+	spin_unlock(&ses->ses_lock);
 
 	rc = cifs_negotiate_protocol(0, ses);
 	if (!rc)
 		rc = cifs_setup_session(0, ses, nls_codepage);
 
-	if (binding) {
+	/* Negotiate can fail before cifs_setup_session clears binding state. */
+	if (rc) {
+		spin_lock(&ses->chan_lock);
 		ses->binding = false;
 		ses->binding_chan = NULL;
-	}
-
-	mutex_unlock(&ses->session_mutex);
-
-	if (rc) {
+		spin_unlock(&ses->chan_lock);
+		mutex_unlock(&ses->session_mutex);
 		if ((rc == -EACCES) && !tcon->retry)
 			rc = -EHOSTDOWN;
 		goto failed;
 	}
 
 skip_sess_setup:
-	mutex_lock(&ses->session_mutex);
 	if (!tcon->need_reconnect) {
 		mutex_unlock(&ses->session_mutex);
 		goto out;
@@ -294,7 +295,7 @@ skip_sess_setup:
 
 	cifs_dbg(FYI, "reconnect tcon rc = %d\n", rc);
 	if (rc) {
-		pr_warn_once("reconnect tcon failed rc = %d\n", rc);
+		cifs_dbg(VFS, "reconnect tcon failed rc = %d\n", rc);
 		goto out;
 	}
 
@@ -1252,6 +1253,7 @@ SMB2_sess_alloc_buffer(struct SMB2_sess_data *sess_data)
 	struct smb2_sess_setup_req *req;
 	struct TCP_Server_Info *server = cifs_ses_server(ses);
 	unsigned int total_len;
+	bool is_binding;
 
 	rc = smb2_plain_req_init(SMB2_SESSION_SETUP, NULL, server,
 				 (void **) &req,
@@ -1259,8 +1261,9 @@ SMB2_sess_alloc_buffer(struct SMB2_sess_data *sess_data)
 	if (rc)
 		return rc;
 
-	if (sess_data->ses->binding) {
-		req->sync_hdr.SessionId = sess_data->ses->Suid;
+	is_binding = cifs_get_ses_status(ses) == SES_GOOD;
+	if (is_binding) {
+		req->sync_hdr.SessionId = ses->Suid;
 		req->sync_hdr.Flags |= SMB2_FLAGS_SIGNED;
 		req->PreviousSessionId = 0;
 		req->Flags = SMB2_SESSION_REQ_FLAG_BINDING;
@@ -1367,19 +1370,28 @@ SMB2_sess_establish_session(struct SMB2_sess_data *sess_data)
 
 	cifs_dbg(FYI, "SMB2/3 session established successfully\n");
 
-	spin_lock(&ses->chan_lock);
-	if (ses->binding)
-		cifs_chan_clear_need_reconnect(ses, ses->binding_chan->server);
-	else
-		cifs_chan_clear_need_reconnect(ses, ses->server);
-	spin_unlock(&ses->chan_lock);
+	{
+		bool is_binding;
 
-	/* Keep the legacy session state until the reconnect engine is ported. */
-	if (!ses->binding) {
-		spin_lock(&GlobalMid_Lock);
-		ses->status = CifsGood;
-		ses->need_reconnect = false;
-		spin_unlock(&GlobalMid_Lock);
+		spin_lock(&ses->chan_lock);
+		is_binding = ses->binding;
+		if (is_binding) {
+			cifs_chan_clear_in_reconnect(ses, ses->binding_chan->server);
+			cifs_chan_clear_need_reconnect(ses, ses->binding_chan->server);
+		} else {
+			cifs_chan_clear_in_reconnect(ses, ses->server);
+			cifs_chan_clear_need_reconnect(ses, ses->server);
+		}
+		spin_unlock(&ses->chan_lock);
+
+		if (!is_binding) {
+			spin_lock(&ses->ses_lock);
+			if (ses->ses_status != SES_EXITING) {
+				ses->ses_status = SES_GOOD;
+				ses->need_reconnect = false;
+			}
+			spin_unlock(&ses->ses_lock);
+		}
 	}
 
 	return rc;
@@ -1394,10 +1406,12 @@ SMB2_auth_kerberos(struct SMB2_sess_data *sess_data)
 	struct cifs_spnego_msg *msg;
 	struct key *spnego_key = NULL;
 	struct smb2_sess_setup_rsp *rsp = NULL;
+	bool is_binding;
 
 	rc = SMB2_sess_alloc_buffer(sess_data);
 	if (rc)
 		goto out;
+	is_binding = cifs_get_ses_status(ses) == SES_GOOD;
 
 	spnego_key = cifs_get_spnego_key(ses);
 	if (IS_ERR(spnego_key)) {
@@ -1421,7 +1435,7 @@ SMB2_auth_kerberos(struct SMB2_sess_data *sess_data)
 	}
 
 	/* keep session key if binding */
-	if (!ses->binding) {
+	if (!is_binding) {
 		ses->auth_key.response = kmemdup(msg->data, msg->sesskey_len,
 						 GFP_KERNEL);
 		if (!ses->auth_key.response) {
@@ -1442,7 +1456,7 @@ SMB2_auth_kerberos(struct SMB2_sess_data *sess_data)
 
 	rsp = (struct smb2_sess_setup_rsp *)sess_data->iov[0].iov_base;
 	/* keep session id and flags if binding */
-	if (!ses->binding) {
+	if (!is_binding) {
 		ses->Suid = rsp->sync_hdr.SessionId;
 		ses->session_flags = le16_to_cpu(rsp->SessionFlags);
 	}
@@ -1478,6 +1492,7 @@ SMB2_sess_auth_rawntlmssp_negotiate(struct SMB2_sess_data *sess_data)
 	char *ntlmssp_blob = NULL;
 	bool use_spnego = false; /* else use raw ntlmssp */
 	u16 blob_length = 0;
+	bool is_binding;
 
 	/*
 	 * If memory allocation is successful, caller of this function
@@ -1493,6 +1508,7 @@ SMB2_sess_auth_rawntlmssp_negotiate(struct SMB2_sess_data *sess_data)
 	rc = SMB2_sess_alloc_buffer(sess_data);
 	if (rc)
 		goto out_err;
+	is_binding = cifs_get_ses_status(ses) == SES_GOOD;
 
 	ntlmssp_blob = kmalloc(sizeof(struct _NEGOTIATE_MESSAGE),
 			       GFP_KERNEL);
@@ -1540,7 +1556,7 @@ SMB2_sess_auth_rawntlmssp_negotiate(struct SMB2_sess_data *sess_data)
 	cifs_dbg(FYI, "rawntlmssp session setup challenge phase\n");
 
 	/* keep existing ses id and flags if binding */
-	if (!ses->binding) {
+	if (!is_binding) {
 		ses->Suid = rsp->sync_hdr.SessionId;
 		ses->session_flags = le16_to_cpu(rsp->SessionFlags);
 	}
@@ -1570,10 +1586,12 @@ SMB2_sess_auth_rawntlmssp_authenticate(struct SMB2_sess_data *sess_data)
 	unsigned char *ntlmssp_blob = NULL;
 	bool use_spnego = false; /* else use raw ntlmssp */
 	u16 blob_length = 0;
+	bool is_binding;
 
 	rc = SMB2_sess_alloc_buffer(sess_data);
 	if (rc)
 		goto out;
+	is_binding = cifs_get_ses_status(ses) == SES_GOOD;
 
 	req = (struct smb2_sess_setup_req *) sess_data->iov[0].iov_base;
 	req->sync_hdr.SessionId = ses->Suid;
@@ -1601,7 +1619,7 @@ SMB2_sess_auth_rawntlmssp_authenticate(struct SMB2_sess_data *sess_data)
 	rsp = (struct smb2_sess_setup_rsp *)sess_data->iov[0].iov_base;
 
 	/* keep existing ses id and flags if binding */
-	if (!ses->binding) {
+	if (!is_binding) {
 		ses->Suid = rsp->sync_hdr.SessionId;
 		ses->session_flags = le16_to_cpu(rsp->SessionFlags);
 	}
@@ -3770,6 +3788,8 @@ void smb2_reconnect_server(struct work_struct *work)
 
 	spin_lock(&cifs_tcp_ses_lock);
 	list_for_each_entry(ses, &pserver->smb_ses_list, smb_ses_list) {
+		if (cifs_ses_exiting(ses))
+			continue;
 		tcon_selected = false;
 
 		list_for_each_entry(tcon, &ses->tcon_list, tcon_list) {
@@ -3875,7 +3895,7 @@ SMB2_echo(struct TCP_Server_Info *server)
 
 	cifs_dbg(FYI, "In echo request\n");
 
-	if (server->tcpStatus == CifsNeedNegotiate) {
+	if (server->ops->need_neg && server->ops->need_neg(server)) {
 		/* No need to send echo on newly established connections */
 		mod_delayed_work(cifsiod_wq, &server->reconnect, 0);
 		return rc;

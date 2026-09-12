@@ -106,7 +106,7 @@
  * CIFS vfs client Status information (based on what we know.)
  */
 
-/* associated with each tcp and smb session */
+/* associated with each transport connection */
 enum statusEnum {
 	CifsNew = 0,
 	CifsGood,
@@ -114,11 +114,18 @@ enum statusEnum {
 	CifsNeedReconnect,
 	CifsNeedNegotiate,
 	CifsInNegotiate,
-	CifsNeedSessSetup,
-	CifsInSessSetup,
 	CifsNeedTcon,
 	CifsInTcon,
 	CifsInFilesInvalidate
+};
+
+/* associated with each SMB session */
+enum ses_status_enum {
+	SES_NEW = 0,
+	SES_GOOD,
+	SES_EXITING,
+	SES_NEED_RECON,
+	SES_IN_SETUP
 };
 
 enum securityEnum {
@@ -909,6 +916,7 @@ struct cifs_server_iface {
 };
 
 struct cifs_chan {
+	unsigned int in_reconnect : 1; /* Session Setup in progress on this channel */
 	struct TCP_Server_Info *server;
 	__u8 signkey[SMB3_SIGN_KEY_SIZE];
 };
@@ -922,9 +930,10 @@ struct cifs_ses {
 	struct list_head tcon_list;
 	struct cifs_tcon *tcon_ipc;
 	struct mutex session_mutex;
+	spinlock_t ses_lock; /* protects ses_status */
 	struct TCP_Server_Info *server;	/* pointer to server info */
 	int ses_count;		/* reference counter */
-	enum statusEnum status;  /* updates protected by GlobalMid_Lock */
+	enum ses_status_enum ses_status;
 	unsigned overrideSecFlg;  /* if non-zero override global sec flags */
 	char *serverOS;		/* name of operating system underlying server */
 	char *serverNOS;	/* name of network operating system of server */
@@ -974,12 +983,16 @@ struct cifs_ses {
 #define CIFS_MAX_CHANNELS 16
 #define CIFS_ALL_CHANNELS_SET(ses)	\
 	((1UL << (ses)->chan_count) - 1)
+#define CIFS_ALL_CHANS_GOOD(ses)	\
+	(!(ses)->chans_need_reconnect)
 #define CIFS_ALL_CHANS_NEED_RECONNECT(ses)	\
 	((ses)->chans_need_reconnect == CIFS_ALL_CHANNELS_SET(ses))
 #define CIFS_CHAN_NEEDS_RECONNECT(ses, index)	\
 	test_bit((index), &(ses)->chans_need_reconnect)
 #define CIFS_SET_ALL_CHANS_NEED_RECONNECT(ses)	\
 	((ses)->chans_need_reconnect = CIFS_ALL_CHANNELS_SET(ses))
+#define CIFS_CHAN_IN_RECONNECT(ses, index)	\
+	((ses)->chans[(index)].in_reconnect)
 
 	struct cifs_chan chans[CIFS_MAX_CHANNELS];
 	struct cifs_chan *binding_chan;
@@ -1830,7 +1843,7 @@ require use of the stronger protocol */
  *	list operations on pending_mid_q and oplockQ
  *      updates to XID counters, multiplex id  and SMB sequence numbers
  *      list operations on global DnotifyReqList
- *      updates to ses->status and TCP_Server_Info->tcpStatus
+ *      TCP_Server_Info->tcpStatus (session state uses ses->ses_lock)
  *      updates to server->CurrentMid
  *  tcp_ses_lock protects:
  *	list operations on tcp and SMB session lists
@@ -2073,12 +2086,19 @@ static inline struct scatterlist *cifs_sg_set_buf(struct scatterlist *sg,
 	return sg;
 }
 
+static inline enum ses_status_enum cifs_get_ses_status(struct cifs_ses *ses)
+{
+	enum ses_status_enum status;
+
+	spin_lock(&ses->ses_lock);
+	status = ses->ses_status;
+	spin_unlock(&ses->ses_lock);
+	return status;
+}
+
 static inline bool cifs_ses_exiting(struct cifs_ses *ses)
 {
-	bool ret;
-
-	ret = ses->status == CifsExiting;
-	return ret;
+	return cifs_get_ses_status(ses) == SES_EXITING;
 }
 
 #endif	/* _CIFS_GLOB_H */
