@@ -2973,7 +2973,7 @@ cifs_resend_wdata(struct cifs_writedata *wdata, struct list_head *wdata_list,
 
 		/* Roll back credits and retry if needed */
 		add_credits_and_wake_if(server, &wdata->credits, 0);
-	} while (rc == -EAGAIN);
+	} while (is_replayable_error(rc));
 
 fail:
 	kref_put(&wdata->refcount, cifs_uncached_writedata_release);
@@ -2994,6 +2994,7 @@ cifs_write_from_iter(loff_t offset, size_t len, struct iov_iter *from,
 	loff_t saved_offset = offset;
 	pid_t pid;
 	struct TCP_Server_Info *server;
+	bool replay = false;
 	struct page **pagevec;
 	size_t start;
 	unsigned int xid;
@@ -3003,7 +3004,6 @@ cifs_write_from_iter(loff_t offset, size_t len, struct iov_iter *from,
 	else
 		pid = current->tgid;
 
-	server = cifs_pick_channel(tlink_tcon(open_file->tlink)->ses);
 	xid = get_xid();
 
 	do {
@@ -3019,10 +3019,27 @@ cifs_write_from_iter(loff_t offset, size_t len, struct iov_iter *from,
 				break;
 		}
 
+		/*
+		 * Choose an eligible channel before taking credits. The same
+		 * server then owns the credits and the asynchronous send.
+		 */
+		server = cifs_pick_channel(tlink_tcon(open_file->tlink)->ses);
+		if (!server) {
+			rc = -EIO;
+			break;
+		}
+
 		rc = server->ops->wait_mtu_credits(server, cifs_sb->ctx->wsize,
 						   &wsize, credits);
-		if (rc)
+		if (rc) {
+			/*
+			 * No request was sent yet. Repick on a replayable
+			 * transport failure without marking a new WRITE as replay.
+			 */
+			if (is_replayable_error(rc))
+				continue;
 			break;
+		}
 
 		cur_len = min_t(const size_t, len, wsize);
 
@@ -3108,6 +3125,7 @@ cifs_write_from_iter(loff_t offset, size_t len, struct iov_iter *from,
 		wdata->offset = (__u64)offset;
 		wdata->cfile = cifsFileInfo_get(open_file);
 		wdata->server = server;
+		wdata->replay = replay;
 		wdata->pid = pid;
 		wdata->bytes = cur_len;
 		wdata->pagesz = PAGE_SIZE;
@@ -3129,7 +3147,9 @@ cifs_write_from_iter(loff_t offset, size_t len, struct iov_iter *from,
 			add_credits_and_wake_if(server, &wdata->credits, 0);
 			kref_put(&wdata->refcount,
 				 cifs_uncached_writedata_release);
-			if (rc == -EAGAIN) {
+			if (is_replayable_error(rc)) {
+				/* Retry the same offset/data on another channel. */
+				replay = true;
 				*from = saved_from;
 				iov_iter_advance(from, offset - saved_offset);
 				continue;
@@ -3137,6 +3157,8 @@ cifs_write_from_iter(loff_t offset, size_t len, struct iov_iter *from,
 			break;
 		}
 
+		/* The next chunk is a new WRITE, not a replay of this one. */
+		replay = false;
 		list_add_tail(&wdata->list, wdata_list);
 		offset += cur_len;
 		len -= cur_len;
@@ -3184,7 +3206,7 @@ restart_loop:
 				ctx->total_len += wdata->bytes;
 
 			/* resend call if it's a retryable error */
-			if (rc == -EAGAIN) {
+			if (is_replayable_error(rc)) {
 				struct list_head tmp_list;
 				struct iov_iter tmp_from = ctx->iter;
 

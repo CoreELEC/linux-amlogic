@@ -1885,12 +1885,22 @@ cifs_writev_requeue(struct cifs_writedata *wdata)
 	struct TCP_Server_Info *server;
 	unsigned int rest_len;
 
-	server = tlink_tcon(wdata->cfile->tlink)->ses->server;
 	i = 0;
 	rest_len = wdata->bytes;
 	do {
 		struct cifs_writedata *wdata2;
+		struct cifs_tcon *tcon = tlink_tcon(wdata->cfile->tlink);
 		unsigned int j, nr_pages, wsize, tailsz, cur_len;
+
+		/*
+		 * Retry writeback on a healthy channel. Bind it before sizing
+		 * and sending so one transport owns the complete retry attempt.
+		 */
+		server = cifs_pick_channel(tcon->ses);
+		if (!server) {
+			rc = -EIO;
+			break;
+		}
 
 		wsize = server->ops->wp_retry_size(inode);
 		if (wsize < rest_len) {
@@ -1920,6 +1930,8 @@ cifs_writev_requeue(struct cifs_writedata *wdata)
 		}
 
 		wdata2->sync_mode = wdata->sync_mode;
+		wdata2->server = server;
+		wdata2->replay = true;
 		wdata2->nr_pages = nr_pages;
 		wdata2->offset = page_offset(wdata2->pages[0]);
 		wdata2->pagesz = PAGE_SIZE;
@@ -1931,7 +1943,7 @@ cifs_writev_requeue(struct cifs_writedata *wdata)
 		if (!wdata2->cfile) {
 			cifs_dbg(VFS, "No writable handle to retry writepages rc=%d\n",
 				 rc);
-			if (!is_retryable_error(rc))
+			if (!is_retryable_error(rc) && !is_replayable_error(rc))
 				rc = -EBADF;
 		} else {
 			wdata2->pid = wdata2->cfile->pid;
@@ -1941,7 +1953,8 @@ cifs_writev_requeue(struct cifs_writedata *wdata)
 
 		for (j = 0; j < nr_pages; j++) {
 			unlock_page(wdata2->pages[j]);
-			if (rc != 0 && !is_retryable_error(rc)) {
+			if (rc != 0 && !is_retryable_error(rc) &&
+			    !is_replayable_error(rc)) {
 				SetPageError(wdata2->pages[j]);
 				end_page_writeback(wdata2->pages[j]);
 				put_page(wdata2->pages[j]);
@@ -1950,7 +1963,7 @@ cifs_writev_requeue(struct cifs_writedata *wdata)
 
 		kref_put(&wdata2->refcount, cifs_writedata_release);
 		if (rc) {
-			if (is_retryable_error(rc))
+			if (is_retryable_error(rc) || is_replayable_error(rc))
 				continue;
 			i += nr_pages;
 			break;
@@ -1967,7 +1980,7 @@ cifs_writev_requeue(struct cifs_writedata *wdata)
 		put_page(wdata->pages[i]);
 	}
 
-	if (rc != 0 && !is_retryable_error(rc))
+	if (rc != 0 && !is_retryable_error(rc) && !is_replayable_error(rc))
 		mapping_set_error(inode->i_mapping, rc);
 	kref_put(&wdata->refcount, cifs_writedata_release);
 }
@@ -1986,12 +1999,13 @@ cifs_writev_complete(struct work_struct *work)
 		spin_unlock(&inode->i_lock);
 		cifs_stats_bytes_written(tlink_tcon(wdata->cfile->tlink),
 					 wdata->bytes);
-	} else if (wdata->sync_mode == WB_SYNC_ALL && wdata->result == -EAGAIN)
+	} else if (wdata->sync_mode == WB_SYNC_ALL &&
+		   is_replayable_error(wdata->result))
 		return cifs_writev_requeue(wdata);
 
 	for (i = 0; i < wdata->nr_pages; i++) {
 		struct page *page = wdata->pages[i];
-		if (wdata->result == -EAGAIN)
+		if (is_replayable_error(wdata->result))
 			__set_page_dirty_nobuffers(page);
 		else if (wdata->result < 0)
 			SetPageError(page);
@@ -1999,7 +2013,7 @@ cifs_writev_complete(struct work_struct *work)
 		cifs_readpage_to_fscache(inode, page);
 		put_page(page);
 	}
-	if (wdata->result != -EAGAIN)
+	if (!is_replayable_error(wdata->result))
 		mapping_set_error(inode->i_mapping, wdata->result);
 	kref_put(&wdata->refcount, cifs_writedata_release);
 }
