@@ -3982,22 +3982,37 @@ SMB2_flush(const unsigned int xid, struct cifs_tcon *tcon, u64 persistent_fid,
 	struct smb_rqst rqst;
 	struct kvec iov[1];
 	struct kvec rsp_iov = {NULL, 0};
-	struct TCP_Server_Info *server = cifs_pick_channel(ses);
+	struct TCP_Server_Info *server;
 	int resp_buftype = CIFS_NO_BUFFER;
 	int flags = 0;
 	int rc = 0;
+	unsigned int retries = 0;
+	const unsigned int max_replays = 3;
 
 	cifs_dbg(FYI, "flush\n");
 	if (!ses || !(ses->server))
 		return -EIO;
 
-	if (smb3_encryption_required(tcon))
-		flags |= CIFS_TRANSFORM_REQ;
-
+replay_again:
+	/* Reinitialize all per-attempt response/request state. */
+	resp_buftype = CIFS_NO_BUFFER;
+	memset(&rsp_iov, 0, sizeof(rsp_iov));
+	flags = 0;
 	memset(&rqst, 0, sizeof(struct smb_rqst));
 	memset(&iov, 0, sizeof(iov));
 	rqst.rq_iov = iov;
 	rqst.rq_nvec = 1;
+
+	/*
+	 * A replay must be rebuilt on the currently eligible channel so the
+	 * current ChannelSequence header uses the current session state.
+	 */
+	server = cifs_pick_channel(ses);
+	if (!server)
+		return -EIO;
+
+	if (smb3_encryption_required(tcon))
+		flags |= CIFS_TRANSFORM_REQ;
 
 	rc = SMB2_flush_init(xid, &rqst, tcon, server,
 			     persistent_fid, volatile_fid);
@@ -4005,6 +4020,14 @@ SMB2_flush(const unsigned int xid, struct cifs_tcon *tcon, u64 persistent_fid,
 		goto flush_exit;
 
 	trace_smb3_flush_enter(xid, persistent_fid, tcon->tid, ses->Suid);
+
+	if (retries && server->dialect >= SMB30_PROT_ID) {
+		struct smb2_sync_hdr *shdr = rqst.rq_iov[0].iov_base;
+
+		if (shdr)
+			shdr->Flags |= SMB2_FLAGS_REPLAY_OPERATION;
+	}
+
 	rc = cifs_send_recv(xid, ses, server,
 			    &rqst, &resp_buftype, flags, &rsp_iov);
 
@@ -4016,9 +4039,19 @@ SMB2_flush(const unsigned int xid, struct cifs_tcon *tcon, u64 persistent_fid,
 		trace_smb3_flush_done(xid, persistent_fid, tcon->tid,
 				      ses->Suid);
 
- flush_exit:
+flush_exit:
 	SMB2_flush_free(&rqst);
 	free_rsp_buf(resp_buftype, rsp_iov.iov_base);
+
+	/*
+	 * Keep soft-mount failover bounded to three replay attempts.
+	 * Re-evaluate the channel before each replay.
+	 */
+	if (is_replayable_error(rc) && retries < max_replays) {
+		retries++;
+		goto replay_again;
+	}
+
 	return rc;
 }
 
