@@ -1757,6 +1757,12 @@ static inline bool is_retryable_error(int error)
 }
 
 
+static inline bool is_replayable_error(int error)
+{
+	return error == -EAGAIN || error == -ECONNABORTED;
+}
+
+
 /* cifs_get_writable_file() flags */
 #define FIND_WR_ANY         0
 #define FIND_WR_FSUID_ONLY  1

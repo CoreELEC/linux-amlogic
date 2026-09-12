@@ -431,10 +431,18 @@ unmask:
 						  server->conn_id, server->hostname);
 	}
 smbd_done:
-	if (rc < 0 && rc != -EINTR)
+	/*
+	 * Upper CIFS layers need one replayable transport error, not a family
+	 * of socket errno values. Preserve signal/interruption returns from this
+	 * 5.15 tree, and ask the owning cifsd to recover this channel.
+	 */
+	if (rc < 0 && rc != -EINTR && rc != -EAGAIN &&
+	    rc != -ERESTARTSYS) {
 		cifs_server_dbg(VFS, "Error %d sending data on socket to server\n",
 			 rc);
-	else if (rc > 0)
+		rc = -ECONNABORTED;
+		cifs_signal_cifsd_for_reconnect(server, false);
+	} else if (rc > 0)
 		rc = 0;
 out:
 	cifs_in_send_dec(server);
