@@ -227,6 +227,11 @@ MODULE_PARM_DESC(dv_ll_output_mode, "\n dv_ll_output_mode\n");
 static u32 dolby_vision_ll_policy = DOLBY_VISION_LL_DISABLE;
 module_param(dolby_vision_ll_policy, uint, 0664);
 MODULE_PARM_DESC(dolby_vision_ll_policy, "\n dolby_vision_ll_policy\n");
+
+/* Emit the canonical player-led Dolby Vision signal value for LLDV output. */
+static bool dolby_vision_canonical_ll_signal = true;
+module_param(dolby_vision_canonical_ll_signal, bool, 0664);
+MODULE_PARM_DESC(dolby_vision_canonical_ll_signal, "\n dolby_vision_canonical_ll_signal\n");
 static u32 last_dolby_vision_ll_policy = DOLBY_VISION_LL_DISABLE;
 
 #ifdef V2_4_3
@@ -7036,6 +7041,22 @@ static int prepare_vsif_pkt
 		vsif->vers.ver2.dobly_vision_signal = 7;/*0b0111*/
 	else if (src_format == FORMAT_SDR || src_format == FORMAT_SDR_2020)
 		vsif->vers.ver2.dobly_vision_signal = 5;/*0b0101*/
+
+	/*
+	 * The values above encode the pre-VS10 source type in bits that are
+	 * reserved in the player-led (low latency) Dolby Vision VSIF, so a
+	 * VS10 converted stream is signalled as 3, 5 or 7 instead of 1. Once
+	 * VS10 has converted the source the HDMI output is ordinary LLDV, and
+	 * sinks that validate the reserved bits reject the infoframe. Signal
+	 * the canonical value 1 whenever the output itself is LLDV; TV-led
+	 * Dolby Vision keeps the legacy encoding.
+	 *
+	 * The 5.15 Amlogic driver reached the same conclusion and disabled
+	 * the 3/5/7 encoding behind #define NEW_DOLBY_SIGNAL_TYPE 0.
+	 */
+	if (dolby_vision_canonical_ll_signal && setting->dovi_ll_enable)
+		vsif->vers.ver2.dobly_vision_signal = 1;/*0b0001*/
+
 	if ((debug_dolby & 2))
 		pr_dolby_dbg("src %d, dobly_vision_signal %d\n",
 			     src_format, vsif->vers.ver2.dobly_vision_signal);
