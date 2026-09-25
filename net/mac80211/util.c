@@ -3487,6 +3487,19 @@ bool ieee80211_chandef_he_6ghz_oper(struct ieee80211_sub_if_data *sdata,
 	he_chandef.chan = ieee80211_get_channel(sdata->local->hw.wiphy, freq);
 
 	switch (u8_get_bits(he_6ghz_oper->control,
+			    IEEE80211_HE_6GHZ_OPER_CTRL_REG_INFO)) {
+	case IEEE80211_6GHZ_CTRL_REG_LPI_AP:
+		sdata->vif.bss_conf.power_type = IEEE80211_REG_LPI_AP;
+		break;
+	case IEEE80211_6GHZ_CTRL_REG_SP_AP:
+		sdata->vif.bss_conf.power_type = IEEE80211_REG_SP_AP;
+		break;
+	default:
+		sdata->vif.bss_conf.power_type = IEEE80211_REG_UNSET_AP;
+		break;
+	}
+
+	switch (u8_get_bits(he_6ghz_oper->control,
 			    IEEE80211_HE_6GHZ_OPER_CTRL_CHANWIDTH)) {
 	case IEEE80211_HE_6GHZ_OPER_CTRL_CHANWIDTH_20MHZ:
 		he_chandef.width = NL80211_CHAN_WIDTH_20;
