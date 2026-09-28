@@ -426,17 +426,23 @@ unmask:
 		 * be taken as the remainder of this one. We need to kill the
 		 * socket so the server throws away the partial SMB
 		 */
-		spin_lock(&GlobalMid_Lock);
-		server->tcpStatus = CifsNeedReconnect;
-		spin_unlock(&GlobalMid_Lock);
+		cifs_signal_cifsd_for_reconnect(server, false);
 		trace_smb3_partial_send_reconnect(server->CurrentMid,
 						  server->conn_id, server->hostname);
 	}
 smbd_done:
-	if (rc < 0 && rc != -EINTR)
+	/*
+	 * Upper CIFS layers need one replayable transport error, not a family
+	 * of socket errno values. Preserve signal/interruption returns from this
+	 * 5.15 tree, and ask the owning cifsd to recover this channel.
+	 */
+	if (rc < 0 && rc != -EINTR && rc != -EAGAIN &&
+	    rc != -ERESTARTSYS) {
 		cifs_server_dbg(VFS, "Error %d sending data on socket to server\n",
 			 rc);
-	else if (rc > 0)
+		rc = -ECONNABORTED;
+		cifs_signal_cifsd_for_reconnect(server, false);
+	} else if (rc > 0)
 		rc = 0;
 out:
 	cifs_in_send_dec(server);
@@ -729,14 +735,14 @@ static int allocate_mid(struct cifs_ses *ses, struct smb_hdr *in_buf,
 		return -EAGAIN;
 	}
 
-	if (ses->status == CifsNew) {
+	if (cifs_get_ses_status(ses) == SES_NEW) {
 		if ((in_buf->Command != SMB_COM_SESSION_SETUP_ANDX) &&
 			(in_buf->Command != SMB_COM_NEGOTIATE))
 			return -EAGAIN;
 		/* else ok - we are setting up session */
 	}
 
-	if (ses->status == CifsExiting) {
+	if (cifs_get_ses_status(ses) == SES_EXITING) {
 		/* check if SMB session is bad because we are setting it up */
 		if (in_buf->Command != SMB_COM_LOGOFF_ANDX)
 			return -EAGAIN;
@@ -1030,32 +1036,63 @@ cifs_cancelled_callback(struct mid_q_entry *mid)
 }
 
 /*
- * Return a channel (master if none) of @ses that can be used to send
- * regular requests.
+ * Pick an eligible channel for regular network operations.
  *
- * If we are currently binding a new channel (negprot/sess.setup),
- * return the new incomplete channel.
+ * Prefer the least-loaded established channel. Channels still marked for
+ * reconnect or Session Setup are skipped. If no eligible channel exists,
+ * fall back to the primary channel so the normal reconnect path can wait
+ * for recovery.
  */
 struct TCP_Server_Info *cifs_pick_channel(struct cifs_ses *ses)
 {
 	uint index = 0;
+	unsigned int min_in_flight = UINT_MAX;
+	struct TCP_Server_Info *server = NULL;
+	int i, start, cur;
 
 	if (!ses)
 		return NULL;
 
+	/*
+	 * Negotiate/Session Setup use cifs_ses_server() explicitly. Regular I/O
+	 * must stay on an established channel while another channel is binding.
+	 */
 	spin_lock(&ses->chan_lock);
-	if (!ses->binding) {
-		/* round robin */
-		if (ses->chan_count > 1) {
-			index = (uint)atomic_inc_return(&ses->chan_seq);
-			index %= ses->chan_count;
+	start = atomic_inc_return(&ses->chan_seq);
+	for (i = 0; i < ses->chan_count; i++) {
+		cur = (start + i) % ses->chan_count;
+		server = ses->chans[cur].server;
+		if (!server)
+			continue;
+
+		/*
+		 * The reconnect bit stays set from transport failure until Session
+		 * Setup/binding succeeds. Do not re-admit a channel merely because
+		 * its socket has already left CifsNeedReconnect.
+		 */
+		if (CIFS_CHAN_NEEDS_RECONNECT(ses, cur) ||
+		    CIFS_CHAN_IN_RECONNECT(ses, cur))
+			continue;
+
+		/* Keep the transport-state fence as a second guard. */
+		if (server->tcpStatus == CifsNeedReconnect)
+			continue;
+
+		/*
+		 * Keep the rotated least-loaded policy. If no
+		 * eligible channel exists, index remains zero and we deliberately
+		 * fall back to the primary transport so normal reconnect handling
+		 * can wait/recover instead of failing channel selection outright.
+		 */
+		if (server->in_flight < min_in_flight) {
+			min_in_flight = server->in_flight;
+			index = cur;
 		}
-		spin_unlock(&ses->chan_lock);
-		return ses->chans[index].server;
-	} else {
-		spin_unlock(&ses->chan_lock);
-		return cifs_ses_server(ses);
 	}
+	server = ses->chans[index].server;
+	spin_unlock(&ses->chan_lock);
+
+	return server;
 }
 
 int
@@ -1185,7 +1222,8 @@ compound_send_recv(const unsigned int xid, struct cifs_ses *ses,
 	/*
 	 * Compounding is never used during session establish.
 	 */
-	if ((ses->status == CifsNew) || (optype & CIFS_NEG_OP) || (optype & CIFS_SESS_OP)) {
+	if ((cifs_get_ses_status(ses) == SES_NEW) ||
+	    (optype & CIFS_NEG_OP) || (optype & CIFS_SESS_OP)) {
 		mutex_lock(&server->srv_mutex);
 		smb311_update_preauth_hash(ses, rqst[0].rq_iov,
 					   rqst[0].rq_nvec);
@@ -1254,7 +1292,8 @@ compound_send_recv(const unsigned int xid, struct cifs_ses *ses,
 	/*
 	 * Compounding is never used during session establish.
 	 */
-	if ((ses->status == CifsNew) || (optype & CIFS_NEG_OP) || (optype & CIFS_SESS_OP)) {
+	if ((cifs_get_ses_status(ses) == SES_NEW) ||
+	    (optype & CIFS_NEG_OP) || (optype & CIFS_SESS_OP)) {
 		struct kvec iov = {
 			.iov_base = resp_iov[0].iov_base,
 			.iov_len = resp_iov[0].iov_len

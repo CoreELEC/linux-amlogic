@@ -164,6 +164,7 @@ cifs_get_next_mid(struct TCP_Server_Info *server)
 	__u64 mid = 0;
 	__u16 last_mid, cur_mid;
 	bool collision;
+	bool reconnect = false;
 
 	spin_lock(&GlobalMid_Lock);
 
@@ -215,7 +216,7 @@ cifs_get_next_mid(struct TCP_Server_Info *server)
 		 * an eventual reconnect to clean out the pending_mid_q.
 		 */
 		if (num_mids > 32768)
-			server->tcpStatus = CifsNeedReconnect;
+			reconnect = true;
 
 		if (!collision) {
 			mid = (__u64)cur_mid;
@@ -225,6 +226,10 @@ cifs_get_next_mid(struct TCP_Server_Info *server)
 		cur_mid++;
 	}
 	spin_unlock(&GlobalMid_Lock);
+
+	if (reconnect)
+		cifs_signal_cifsd_for_reconnect(server, false);
+
 	return mid;
 }
 

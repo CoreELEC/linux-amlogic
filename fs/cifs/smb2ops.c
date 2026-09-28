@@ -152,6 +152,7 @@ smb2_add_credits(struct TCP_Server_Info *server,
 static void
 smb2_set_credits(struct TCP_Server_Info *server, const int val)
 {
+	struct TCP_Server_Info *pserver;
 	int scredits, in_flight;
 
 	spin_lock(&server->req_lock);
@@ -161,6 +162,20 @@ smb2_set_credits(struct TCP_Server_Info *server, const int val)
 	scredits = server->credits;
 	in_flight = server->in_flight;
 	spin_unlock(&server->req_lock);
+
+	/*
+	 * ChannelSequence is shared by all channels of the SMB session.
+	 * Serialize the update on the primary transport's req_lock so parallel
+	 * channel reconnects cannot lose an increment.
+	 */
+	if (val == 1) {
+		pserver = server->is_channel ? server->primary_server : server;
+		if (pserver) {
+			spin_lock(&pserver->req_lock);
+			pserver->channel_sequence_num++;
+			spin_unlock(&pserver->req_lock);
+		}
+	}
 
 	trace_smb3_set_credits(server->CurrentMid,
 			server->conn_id, server->hostname, scredits, val, in_flight);
