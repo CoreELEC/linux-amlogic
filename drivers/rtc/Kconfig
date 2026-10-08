@@ -327,6 +327,17 @@ config RTC_DRV_LP8788
 	help
 	  Say Y to enable support for the LP8788 RTC/ALARM driver.
 
+config RTC_DRV_TCS9563
+	tristate "TCTEK TCS9563"
+	depends on OF
+	help
+	  Say Y to enable support for the TCS9563 I2C RTC chip. Apart
+	  from the usual rtc functions it provides a clock output of
+	  up to 32kHz.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called rtc-tcs9563.
+
 config RTC_DRV_MAX6900
 	tristate "Maxim MAX6900"
 	help
