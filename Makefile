@@ -1098,6 +1098,22 @@ include-$(CONFIG_GCC_PLUGINS)	+= scripts/Makefile.gcc-plugins
 
 include $(addprefix $(srctree)/, $(include-y))
 
+# Relax warnings for out-of-tree/vendor drivers. These have to come after
+# Makefile.extrawarn, otherwise its -Wall/-Werror=return-type re-enable them.
+KBUILD_CFLAGS	+= -Wno-tautological-compare \
+		   -Wno-tautological-pointer-compare \
+		   -Wno-error=address \
+		   -Wno-return-type \
+		   -Wno-uninitialized \
+		   -Wno-format \
+		   -Wno-unused-variable \
+		   -Wno-unused-function \
+		   -Wno-unused-label \
+		   -Wno-bitwise-conditional-parentheses \
+		   -Wno-misleading-indentation \
+		   -Wno-vla \
+		   -Wno-macro-redefined
+
 # scripts/Makefile.gcc-plugins is intentionally included last.
 # Do not add $(call cc-option,...) below this line. When you build the kernel
 # from the clean source tree, the GCC plugins do not exist at this point.
