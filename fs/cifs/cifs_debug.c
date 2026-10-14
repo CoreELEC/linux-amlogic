@@ -142,6 +142,8 @@ cifs_dump_channel(struct seq_file *m, int i, struct cifs_chan *chan)
 		   in_flight(server),
 		   atomic_read(&server->in_send),
 		   atomic_read(&server->num_waiters));
+	if (chan->in_reconnect)
+		seq_puts(m, "\n\t\t[RECONNECTING]");
 }
 
 static void
@@ -382,7 +384,7 @@ skip_rdma:
 		list_for_each(tmp2, &server->smb_ses_list) {
 			ses = list_entry(tmp2, struct cifs_ses,
 					 smb_ses_list);
-			if (ses->status == CifsExiting)
+			if (cifs_ses_exiting(ses))
 				continue;
 			i++;
 			if ((ses->serverDomain == NULL) ||
@@ -390,7 +392,7 @@ skip_rdma:
 				(ses->serverNOS == NULL)) {
 				seq_printf(m, "\n\t%d) Address: %s Uses: %d Capability: 0x%x\tSession Status: %d ",
 					i, ses->ip_addr, ses->ses_count,
-					ses->capabilities, ses->status);
+					ses->capabilities, cifs_get_ses_status(ses));
 				if (ses->session_flags & SMB2_SESSION_FLAG_IS_GUEST)
 					seq_printf(m, "Guest ");
 				else if (ses->session_flags & SMB2_SESSION_FLAG_IS_NULL)
@@ -402,7 +404,7 @@ skip_rdma:
 					"\n\tSMB session status: %d ",
 				i, ses->ip_addr, ses->serverDomain,
 				ses->ses_count, ses->serverOS, ses->serverNOS,
-				ses->capabilities, ses->status);
+				ses->capabilities, cifs_get_ses_status(ses));
 			}
 
 			seq_printf(m, "\n\tSecurity type: %s ",

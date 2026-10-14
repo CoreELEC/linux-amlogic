@@ -83,17 +83,23 @@ int smb2_get_sign_key(__u64 ses_id, struct TCP_Server_Info *server, u8 *key)
 {
 	struct cifs_chan *chan;
 	struct cifs_ses *ses = NULL;
-	struct TCP_Server_Info *it = NULL;
+	struct TCP_Server_Info *pserver;
 	int i;
 	int rc = 0;
+	bool is_binding;
 
 	spin_lock(&cifs_tcp_ses_lock);
 
-	list_for_each_entry(it, &cifs_tcp_ses_list, tcp_ses_list) {
-		list_for_each_entry(ses, &it->smb_ses_list, smb_ses_list) {
-			if (ses->Suid == ses_id)
-				goto found;
-		}
+	pserver = server->is_channel ? server->primary_server : server;
+	if (!pserver) {
+		rc = -ENOENT;
+		goto out;
+	}
+
+	list_for_each_entry(ses, &pserver->smb_ses_list, smb_ses_list) {
+		if (ses->Suid != ses_id || cifs_ses_exiting(ses))
+			continue;
+		goto found;
 	}
 	cifs_server_dbg(VFS, "%s: Could not find session 0x%llx\n",
 			__func__, ses_id);
@@ -101,27 +107,28 @@ int smb2_get_sign_key(__u64 ses_id, struct TCP_Server_Info *server, u8 *key)
 	goto out;
 
 found:
-	if (ses->binding) {
-		/*
-		 * If we are in the process of binding a new channel
-		 * to an existing session, use the master connection
-		 * session key
-		 */
+	spin_lock(&ses->ses_lock);
+	spin_lock(&ses->chan_lock);
+	is_binding = (cifs_chan_needs_reconnect(ses, server) &&
+		      ses->ses_status == SES_GOOD);
+	if (is_binding) {
 		memcpy(key, ses->smb3signingkey, SMB3_SIGN_KEY_SIZE);
+		spin_unlock(&ses->chan_lock);
+		spin_unlock(&ses->ses_lock);
 		goto out;
 	}
-
-	/*
-	 * Otherwise, use the channel key.
-	 */
 
 	for (i = 0; i < ses->chan_count; i++) {
 		chan = ses->chans + i;
 		if (chan->server == server) {
 			memcpy(key, chan->signkey, SMB3_SIGN_KEY_SIZE);
+			spin_unlock(&ses->chan_lock);
+			spin_unlock(&ses->ses_lock);
 			goto out;
 		}
 	}
+	spin_unlock(&ses->chan_lock);
+	spin_unlock(&ses->ses_lock);
 
 	cifs_dbg(VFS,
 		 "%s: Could not find channel signing key for session 0x%llx\n",
@@ -136,10 +143,15 @@ out:
 static struct cifs_ses *
 smb2_find_smb_ses_unlocked(struct TCP_Server_Info *server, __u64 ses_id)
 {
+	struct TCP_Server_Info *pserver;
 	struct cifs_ses *ses;
 
-	list_for_each_entry(ses, &server->smb_ses_list, smb_ses_list) {
-		if (ses->Suid != ses_id)
+	pserver = server->is_channel ? server->primary_server : server;
+	if (!pserver)
+		return NULL;
+
+	list_for_each_entry(ses, &pserver->smb_ses_list, smb_ses_list) {
+		if (ses->Suid != ses_id || cifs_ses_exiting(ses))
 			continue;
 		++ses->ses_count;
 		return ses;
@@ -393,25 +405,32 @@ static int
 generate_smb3signingkey(struct cifs_ses *ses,
 			const struct derivation_triplet *ptriplet)
 {
+	struct TCP_Server_Info *server = cifs_ses_server(ses);
+	unsigned int chan_index;
+	bool is_binding;
 	int rc;
-#ifdef CONFIG_CIFS_DEBUG_DUMP_KEYS
-	struct TCP_Server_Info *server = ses->server;
-#endif
+
+	spin_lock(&ses->ses_lock);
+	spin_lock(&ses->chan_lock);
+	chan_index = cifs_ses_get_chan_index(ses, server);
+	if (WARN_ON_ONCE(chan_index >= ses->chan_count)) {
+		spin_unlock(&ses->chan_lock);
+		spin_unlock(&ses->ses_lock);
+		return -EHOSTDOWN;
+	}
+	is_binding = (CIFS_CHAN_NEEDS_RECONNECT(ses, chan_index) &&
+		      ses->ses_status == SES_GOOD);
+	spin_unlock(&ses->chan_lock);
+	spin_unlock(&ses->ses_lock);
 
 	/*
-	 * All channels use the same encryption/decryption keys but
-	 * they have their own signing key.
-	 *
-	 * When we generate the keys, check if it is for a new channel
-	 * (binding) in which case we only need to generate a signing
-	 * key and store it in the channel as to not overwrite the
-	 * master connection signing key stored in the session
+	 * Each channel has its own signing key. A binding must not overwrite
+	 * the established SMB session encryption/decryption keys.
 	 */
-
-	if (ses->binding) {
+	if (is_binding) {
 		rc = generate_key(ses, ptriplet->signing.label,
 				  ptriplet->signing.context,
-				  cifs_ses_binding_channel(ses)->signkey,
+				  ses->chans[chan_index].signkey,
 				  SMB3_SIGN_KEY_SIZE);
 		if (rc)
 			return rc;
@@ -423,8 +442,10 @@ generate_smb3signingkey(struct cifs_ses *ses,
 		if (rc)
 			return rc;
 
-		memcpy(ses->chans[0].signkey, ses->smb3signingkey,
+		spin_lock(&ses->chan_lock);
+		memcpy(ses->chans[chan_index].signkey, ses->smb3signingkey,
 		       SMB3_SIGN_KEY_SIZE);
+		spin_unlock(&ses->chan_lock);
 
 		rc = generate_key(ses, ptriplet->encryption.label,
 				  ptriplet->encryption.context,
@@ -442,28 +463,24 @@ generate_smb3signingkey(struct cifs_ses *ses,
 
 #ifdef CONFIG_CIFS_DEBUG_DUMP_KEYS
 	cifs_dbg(VFS, "%s: dumping generated AES session keys\n", __func__);
-	/*
-	 * The session id is opaque in terms of endianness, so we can't
-	 * print it as a long long. we dump it as we got it on the wire
-	 */
 	cifs_dbg(VFS, "Session Id    %*ph\n", (int)sizeof(ses->Suid),
-			&ses->Suid);
+		 &ses->Suid);
 	cifs_dbg(VFS, "Cipher type   %d\n", server->cipher_type);
 	cifs_dbg(VFS, "Session Key   %*ph\n",
 		 SMB2_NTLMV2_SESSKEY_SIZE, ses->auth_key.response);
 	cifs_dbg(VFS, "Signing Key   %*ph\n",
 		 SMB3_SIGN_KEY_SIZE, ses->smb3signingkey);
 	if ((server->cipher_type == SMB2_ENCRYPTION_AES256_CCM) ||
-		(server->cipher_type == SMB2_ENCRYPTION_AES256_GCM)) {
+	    (server->cipher_type == SMB2_ENCRYPTION_AES256_GCM)) {
 		cifs_dbg(VFS, "ServerIn Key  %*ph\n",
-				SMB3_GCM256_CRYPTKEY_SIZE, ses->smb3encryptionkey);
+			 SMB3_GCM256_CRYPTKEY_SIZE, ses->smb3encryptionkey);
 		cifs_dbg(VFS, "ServerOut Key %*ph\n",
-				SMB3_GCM256_CRYPTKEY_SIZE, ses->smb3decryptionkey);
+			 SMB3_GCM256_CRYPTKEY_SIZE, ses->smb3decryptionkey);
 	} else {
 		cifs_dbg(VFS, "ServerIn Key  %*ph\n",
-				SMB3_GCM128_CRYPTKEY_SIZE, ses->smb3encryptionkey);
+			 SMB3_GCM128_CRYPTKEY_SIZE, ses->smb3encryptionkey);
 		cifs_dbg(VFS, "ServerOut Key %*ph\n",
-				SMB3_GCM128_CRYPTKEY_SIZE, ses->smb3decryptionkey);
+			 SMB3_GCM128_CRYPTKEY_SIZE, ses->smb3decryptionkey);
 	}
 #endif
 	return rc;
@@ -626,7 +643,7 @@ smb2_sign_rqst(struct smb_rqst *rqst, struct TCP_Server_Info *server)
 
 	if (!is_signed)
 		return 0;
-	if (server->tcpStatus == CifsNeedNegotiate)
+	if (server->ops->need_neg && server->ops->need_neg(server))
 		return 0;
 	if (!is_binding && !server->session_estab) {
 		strncpy(shdr->Signature, "BSRSPYL", 8);
@@ -754,14 +771,14 @@ smb2_get_mid_entry(struct cifs_ses *ses, struct TCP_Server_Info *server,
 	   shdr->Command != SMB2_NEGOTIATE)
 		return -EAGAIN;
 
-	if (ses->status == CifsNew) {
+	if (cifs_get_ses_status(ses) == SES_NEW) {
 		if ((shdr->Command != SMB2_SESSION_SETUP) &&
 		    (shdr->Command != SMB2_NEGOTIATE))
 			return -EAGAIN;
 		/* else ok - we are setting up session */
 	}
 
-	if (ses->status == CifsExiting) {
+	if (cifs_get_ses_status(ses) == SES_EXITING) {
 		if (shdr->Command != SMB2_LOGOFF)
 			return -EAGAIN;
 		/* else ok - we are shutting down the session */

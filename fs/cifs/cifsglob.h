@@ -106,13 +106,26 @@
  * CIFS vfs client Status information (based on what we know.)
  */
 
-/* associated with each tcp and smb session */
+/* associated with each transport connection */
 enum statusEnum {
 	CifsNew = 0,
 	CifsGood,
 	CifsExiting,
 	CifsNeedReconnect,
-	CifsNeedNegotiate
+	CifsNeedNegotiate,
+	CifsInNegotiate,
+	CifsNeedTcon,
+	CifsInTcon,
+	CifsInFilesInvalidate
+};
+
+/* associated with each SMB session */
+enum ses_status_enum {
+	SES_NEW = 0,
+	SES_GOOD,
+	SES_EXITING,
+	SES_NEED_RECON,
+	SES_IN_SETUP
 };
 
 enum securityEnum {
@@ -690,6 +703,17 @@ struct TCP_Server_Info {
 	int nr_targets;
 	bool noblockcnt; /* use non-blocking connect() */
 	bool is_channel; /* if a session channel */
+	/*
+	 * Primary transport owning the SMB session list. Primary connections
+	 * point to themselves; secondary multichannel transports point to the
+	 * session's original transport.
+	 */
+	struct TCP_Server_Info *primary_server;
+	/*
+	 * SMB3 ChannelSequence is primary/session scoped. Increment it whenever
+	 * any channel reconnects and use the primary value on all channels.
+	 */
+	__u16 channel_sequence_num;
 #ifdef CONFIG_CIFS_SWN_UPCALL
 	bool use_swn_dstaddr;
 	struct sockaddr_storage swn_dstaddr;
@@ -897,6 +921,7 @@ struct cifs_server_iface {
 };
 
 struct cifs_chan {
+	unsigned int in_reconnect : 1; /* Session Setup in progress on this channel */
 	struct TCP_Server_Info *server;
 	__u8 signkey[SMB3_SIGN_KEY_SIZE];
 };
@@ -906,12 +931,14 @@ struct cifs_chan {
  */
 struct cifs_ses {
 	struct list_head smb_ses_list;
+	struct list_head rlist; /* reconnect list */
 	struct list_head tcon_list;
 	struct cifs_tcon *tcon_ipc;
 	struct mutex session_mutex;
+	spinlock_t ses_lock; /* protects ses_status */
 	struct TCP_Server_Info *server;	/* pointer to server info */
 	int ses_count;		/* reference counter */
-	enum statusEnum status;  /* updates protected by GlobalMid_Lock */
+	enum ses_status_enum ses_status;
 	unsigned overrideSecFlg;  /* if non-zero override global sec flags */
 	char *serverOS;		/* name of operating system underlying server */
 	char *serverNOS;	/* name of network operating system of server */
@@ -959,11 +986,33 @@ struct cifs_ses {
 	spinlock_t chan_lock;
 	/* ========= begin: protected by chan_lock ======== */
 #define CIFS_MAX_CHANNELS 16
+#define CIFS_ALL_CHANNELS_SET(ses)	\
+	((1UL << (ses)->chan_count) - 1)
+#define CIFS_ALL_CHANS_GOOD(ses)	\
+	(!(ses)->chans_need_reconnect)
+#define CIFS_ALL_CHANS_NEED_RECONNECT(ses)	\
+	((ses)->chans_need_reconnect == CIFS_ALL_CHANNELS_SET(ses))
+#define CIFS_CHAN_NEEDS_RECONNECT(ses, index)	\
+	test_bit((index), &(ses)->chans_need_reconnect)
+#define CIFS_SET_ALL_CHANS_NEED_RECONNECT(ses)	\
+	((ses)->chans_need_reconnect = CIFS_ALL_CHANNELS_SET(ses))
+#define CIFS_CHAN_IN_RECONNECT(ses, index)	\
+	((ses)->chans[(index)].in_reconnect)
+
 	struct cifs_chan chans[CIFS_MAX_CHANNELS];
 	struct cifs_chan *binding_chan;
 	size_t chan_count;
 	size_t chan_max;
 	atomic_t chan_seq; /* round robin state */
+
+	/*
+	 * Bitmap of channels that require connection/session recovery.
+	 *
+	 * Track reconnect state per channel while another established transport
+	 * can keep the SMB session usable. The bitmap is protected by chan_lock.
+	 * Keep channel eligibility separate from the session-wide state.
+	 */
+	unsigned long chans_need_reconnect;
 	/* ========= end: protected by chan_lock ======== */
 };
 
@@ -1357,6 +1406,7 @@ struct cifs_writedata {
 	pid_t				pid;
 	unsigned int			bytes;
 	int				result;
+	bool				replay; /* retry may have reached server */
 	struct TCP_Server_Info		*server;
 #ifdef CONFIG_CIFS_SMB_DIRECT
 	struct smbd_mr			*mr;
@@ -1707,6 +1757,12 @@ static inline bool is_retryable_error(int error)
 }
 
 
+static inline bool is_replayable_error(int error)
+{
+	return error == -EAGAIN || error == -ECONNABORTED;
+}
+
+
 /* cifs_get_writable_file() flags */
 #define FIND_WR_ANY         0
 #define FIND_WR_FSUID_ONLY  1
@@ -1799,7 +1855,7 @@ require use of the stronger protocol */
  *	list operations on pending_mid_q and oplockQ
  *      updates to XID counters, multiplex id  and SMB sequence numbers
  *      list operations on global DnotifyReqList
- *      updates to ses->status and TCP_Server_Info->tcpStatus
+ *      TCP_Server_Info->tcpStatus (session state uses ses->ses_lock)
  *      updates to server->CurrentMid
  *  tcp_ses_lock protects:
  *	list operations on tcp and SMB session lists
@@ -2042,12 +2098,19 @@ static inline struct scatterlist *cifs_sg_set_buf(struct scatterlist *sg,
 	return sg;
 }
 
+static inline enum ses_status_enum cifs_get_ses_status(struct cifs_ses *ses)
+{
+	enum ses_status_enum status;
+
+	spin_lock(&ses->ses_lock);
+	status = ses->ses_status;
+	spin_unlock(&ses->ses_lock);
+	return status;
+}
+
 static inline bool cifs_ses_exiting(struct cifs_ses *ses)
 {
-	bool ret;
-
-	ret = ses->status == CifsExiting;
-	return ret;
+	return cifs_get_ses_status(ses) == SES_EXITING;
 }
 
 #endif	/* _CIFS_GLOB_H */
