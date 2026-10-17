@@ -226,7 +226,7 @@ static int scmi_clk_ops_init(struct device *dev, struct scmi_clk *sclk,
 	unsigned long min_rate, max_rate;
 
 	struct clk_init_data init = {
-		.flags = CLK_GET_RATE_NOCACHE,
+		.flags = CLK_GET_RATE_NOCACHE | CLK_IGNORE_UNUSED,
 		.num_parents = sclk->info->num_parents,
 		.ops = scmi_ops,
 		.name = sclk->info->name,
