@@ -1066,20 +1066,19 @@ copy_pte:
 }
 
 static inline struct folio *folio_prealloc(struct mm_struct *src_mm,
-		struct vm_area_struct *vma, unsigned long addr, bool need_zero)
+		struct vm_area_struct *vma, unsigned long addr, bool need_zero,
+		bool no_cma)
 {
 	struct folio *new_folio;
 
 #ifdef CONFIG_AMLOGIC_CMA
-	if (need_zero) {
-		gfp_t tmp_flags = GFP_HIGHUSER_MOVABLE |
-				__GFP_ZERO | __GFP_NO_CMA;
+	gfp_t tmp_flags = GFP_HIGHUSER_MOVABLE;
 
-		new_folio = vma_alloc_folio(tmp_flags, 0, vma, addr, false);
-	} else {
-		new_folio = vma_alloc_folio(GFP_HIGHUSER_MOVABLE | __GFP_NO_CMA, 0, vma,
-						addr, false);
-	}
+	if (need_zero)
+		tmp_flags |= __GFP_ZERO;
+	if (no_cma)
+		tmp_flags |= __GFP_NO_CMA;
+	new_folio = vma_alloc_folio(tmp_flags, 0, vma, addr, false);
 #else
 	if (need_zero)
 		new_folio = vma_alloc_zeroed_movable_folio(vma, addr);
@@ -1237,7 +1236,7 @@ again:
 	} else if (ret == -EBUSY || unlikely(ret == -EHWPOISON)) {
 		goto out;
 	} else if (ret ==  -EAGAIN) {
-		prealloc = folio_prealloc(src_mm, src_vma, addr, false);
+		prealloc = folio_prealloc(src_mm, src_vma, addr, false, false);
 		if (!prealloc)
 			return -ENOMEM;
 	} else if (ret < 0) {
@@ -3389,7 +3388,7 @@ static vm_fault_t wp_page_copy(struct vm_fault *vmf)
 		goto out;
 
 	pfn_is_zero = is_zero_pfn(pte_pfn(vmf->orig_pte));
-	new_folio = folio_prealloc(mm, vma, vmf->address, pfn_is_zero);
+	new_folio = folio_prealloc(mm, vma, vmf->address, pfn_is_zero, true);
 	if (!new_folio)
 		goto oom;
 
@@ -4778,7 +4777,7 @@ next:
 
 fallback:
 #endif
-	return folio_prealloc(vma->vm_mm, vma, vmf->address, true);
+	return folio_prealloc(vma->vm_mm, vma, vmf->address, true, false);
 }
 
 /*
@@ -5400,7 +5399,7 @@ static vm_fault_t do_cow_fault(struct vm_fault *vmf)
 	if (ret)
 		return ret;
 
-	folio = folio_prealloc(vma->vm_mm, vma, vmf->address, false);
+	folio = folio_prealloc(vma->vm_mm, vma, vmf->address, false, false);
 	if (!folio)
 		return VM_FAULT_OOM;
 
