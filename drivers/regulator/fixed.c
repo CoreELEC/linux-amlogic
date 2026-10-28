@@ -29,7 +29,8 @@
 #include <linux/regulator/of_regulator.h>
 #include <linux/regulator/machine.h>
 #include <linux/clk.h>
-
+#include <linux/delay.h>
+#include <linux/syscore_ops.h>
 
 struct fixed_voltage_data {
 	struct regulator_desc desc;
@@ -38,6 +39,80 @@ struct fixed_voltage_data {
 	struct clk *enable_clock;
 	unsigned int enable_counter;
 	int performance_state;
+
+	struct gpio_desc *ena_gpiod;
+	struct list_head rail_node;
+	bool off_on_shutdown;
+	bool off_in_suspend;
+	bool cut_in_suspend;	/* suspend switched this rail off; resume restores it */
+};
+
+/*
+ * Rails driven directly through their enable GPIO at power-off/suspend,
+ * bypassing the regulator core so regulator-always-on rails work.
+ * Filled at probe under the lock; walked later with IRQs off, so the
+ * hooks must not sleep.
+ */
+static LIST_HEAD(rail_list);
+static DEFINE_MUTEX(rail_list_lock);
+
+static void reg_fixed_syscore_shutdown(void)
+{
+	struct fixed_voltage_data *d;
+
+	/* Syscore shutdown also runs on reboot/halt; only cut on power-off */
+	if (system_state != SYSTEM_POWER_OFF)
+		return;
+
+	list_for_each_entry(d, &rail_list, rail_node) {
+		if (!d->off_on_shutdown)
+			continue;
+
+		pr_info("%s: off for power-off\n", d->desc.name);
+		gpiod_set_value(d->ena_gpiod, 0);
+	}
+}
+
+static int reg_fixed_syscore_suspend(void)
+{
+	struct fixed_voltage_data *d;
+
+	list_for_each_entry(d, &rail_list, rail_node) {
+		/* Leave rails that are already off alone */
+		if (!d->off_in_suspend || !gpiod_get_value(d->ena_gpiod))
+			continue;
+
+		pr_info("%s: off for suspend\n", d->desc.name);
+		gpiod_set_value(d->ena_gpiod, 0);
+		d->cut_in_suspend = true;
+	}
+
+	return 0;
+}
+
+static void reg_fixed_syscore_resume(void)
+{
+	struct fixed_voltage_data *d;
+	unsigned int delay_us = 0;
+
+	list_for_each_entry(d, &rail_list, rail_node) {
+		if (!d->cut_in_suspend)
+			continue;
+
+		gpiod_set_value(d->ena_gpiod, 1);
+		d->cut_in_suspend = false;
+		pr_info("%s: on for resume\n", d->desc.name);
+
+		delay_us = max(delay_us, d->desc.enable_time);	/* startup-delay-us */
+	}
+
+	mdelay(DIV_ROUND_UP(delay_us, 1000));
+}
+
+static struct syscore_ops reg_fixed_syscore_ops = {
+	.suspend	= reg_fixed_syscore_suspend,
+	.resume		= reg_fixed_syscore_resume,
+	.shutdown	= reg_fixed_syscore_shutdown,
 };
 
 struct fixed_dev_type {
@@ -172,6 +247,32 @@ static const struct regulator_ops fixed_voltage_domain_ops = {
 	.is_enabled = reg_is_enabled,
 };
 
+static void reg_fixed_track_rail(struct device *dev,
+				 struct fixed_voltage_data *drvdata,
+				 const struct fixed_voltage_config *config)
+{
+	if (!drvdata->ena_gpiod)
+		return;
+
+	drvdata->off_on_shutdown =
+		of_property_read_bool(dev->of_node, "regulator-off-on-shutdown");
+	drvdata->off_in_suspend = config->init_data &&
+		config->init_data->constraints.state_mem.enabled ==
+							DISABLE_IN_SUSPEND;
+
+	if (!drvdata->off_on_shutdown && !drvdata->off_in_suspend)
+		return;
+
+	if (gpiod_cansleep(drvdata->ena_gpiod)) {
+		dev_warn(dev, "enable GPIO can sleep, not usable for late power-off/suspend\n");
+		return;
+	}
+
+	mutex_lock(&rail_list_lock);
+	list_add_tail(&drvdata->rail_node, &rail_list);
+	mutex_unlock(&rail_list_lock);
+}
+
 static int reg_fixed_voltage_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -284,6 +385,8 @@ static int reg_fixed_voltage_probe(struct platform_device *pdev)
 	cfg.driver_data = drvdata;
 	cfg.of_node = pdev->dev.of_node;
 
+	drvdata->ena_gpiod = cfg.ena_gpiod;
+
 	drvdata->dev = devm_regulator_register(&pdev->dev, &drvdata->desc,
 					       &cfg);
 	if (IS_ERR(drvdata->dev)) {
@@ -292,6 +395,8 @@ static int reg_fixed_voltage_probe(struct platform_device *pdev)
 				    PTR_ERR(drvdata->dev));
 		return ret;
 	}
+
+	reg_fixed_track_rail(dev, drvdata, config);
 
 	platform_set_drvdata(pdev, drvdata);
 
@@ -337,6 +442,7 @@ static struct platform_driver regulator_fixed_voltage_driver = {
 	.probe		= reg_fixed_voltage_probe,
 	.driver		= {
 		.name		= "reg-fixed-voltage",
+		.suppress_bind_attrs = true,
 		.of_match_table = of_match_ptr(fixed_of_match),
 #if IS_ENABLED(CONFIG_AMLOGIC_BOOT_TIME)
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
@@ -346,6 +452,7 @@ static struct platform_driver regulator_fixed_voltage_driver = {
 
 static int __init regulator_fixed_voltage_init(void)
 {
+	register_syscore_ops(&reg_fixed_syscore_ops);
 	return platform_driver_register(&regulator_fixed_voltage_driver);
 }
 subsys_initcall(regulator_fixed_voltage_init);
