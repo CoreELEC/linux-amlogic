@@ -201,6 +201,8 @@ int thermal_zone_device_set_policy(struct thermal_zone_device *tz,
 				   char *policy)
 {
 	struct thermal_governor *gov;
+	struct thermal_trip_desc *td;
+	bool changed = false;
 	int ret = -EINVAL;
 
 	mutex_lock(&thermal_governor_lock);
@@ -210,7 +212,22 @@ int thermal_zone_device_set_policy(struct thermal_zone_device *tz,
 	if (!gov)
 		goto exit;
 
+	changed = gov != tz->governor;
 	ret = thermal_set_governor(tz, gov);
+	if (ret || !changed)
+		goto exit;
+
+	/*
+	 * The cooling devices still hold the states set under the old
+	 * governor, so let the new one evaluate every instance again.
+	 */
+	for_each_trip_desc(tz, td) {
+		struct thermal_instance *instance;
+
+		list_for_each_entry(instance, &td->thermal_instances, trip_node)
+			instance->initialized = false;
+	}
+	__thermal_zone_device_update(tz, THERMAL_EVENT_UNSPECIFIED);
 
 exit:
 	mutex_unlock(&tz->lock);
