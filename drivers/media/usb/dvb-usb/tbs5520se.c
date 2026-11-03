@@ -147,7 +147,8 @@ static int tbs5520se_i2c_transfer(struct i2c_adapter *adap,
 
 	switch (num) {
 	case 2:
-		if (msg[1].len > sizeof(inbuf)) {
+		if (msg[0].len < 1 || !(msg[1].flags & I2C_M_RD) ||
+		    msg[1].len > sizeof(inbuf)) {
 			ret = -EINVAL;
 			break;
 		}
@@ -179,7 +180,7 @@ static int tbs5520se_i2c_transfer(struct i2c_adapter *adap,
 				break;
 			}
 
-			if (msg[0].flags == 0) {
+			if (!(msg[0].flags & I2C_M_RD)) {
 				buf6[0] = msg[0].len+1;//lenth
 				buf6[1] = msg[0].addr<<1;//addr
 				for(i=0;i<msg[0].len;i++) {
@@ -217,8 +218,15 @@ static int tbs5520se_i2c_transfer(struct i2c_adapter *adap,
 			//info("TBS5520SE_RC_QUERY %x %x %x %x\n",
 			//		buf6[0],buf6[1],buf6[2],buf6[3]);
 			break;
+		default:
+			/* nothing is attached at this address */
+			ret = -ENXIO;
+			break;
 		}
 
+		break;
+	default:
+		ret = -EOPNOTSUPP;
 		break;
 	}
 
