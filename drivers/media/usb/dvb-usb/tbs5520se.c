@@ -91,11 +91,23 @@ static int tbs5520se_op_rw_retry(struct usb_device *dev, u8 request,
 {
 	int ret = -EREMOTEIO;
 	int attempt;
+	int timeouts = 0;
 
 	for (attempt = 0; attempt < TBS5520SE_I2C_RETRIES; attempt++) {
 		ret = tbs5520se_op_rw(dev, request, 0, 0, data, len, flags);
 		if (ret == len)
 			return 0;
+
+		/* device gone / transfer cancelled: retrying cannot help */
+		if (ret == -ENODEV || ret == -ESHUTDOWN || ret == -ENOENT)
+			break;
+
+		/*
+		 * Each timed out control transfer already costs 2 s while the
+		 * i2c and frontend locks are held, so give up after a few.
+		 */
+		if (ret == -ETIMEDOUT && ++timeouts >= 3)
+			break;
 
 		usleep_range(TBS5520SE_I2C_GAP_US,
 				TBS5520SE_I2C_GAP_US * 2);
