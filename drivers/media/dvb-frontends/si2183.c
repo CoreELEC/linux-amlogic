@@ -532,14 +532,16 @@ static int si2183_read_status(struct dvb_frontend *fe, enum fe_status *status)
 		cmd.rlen = 3;
 		ret = si2183_cmd_execute(client, &cmd);
 		if (ret) {
-			dev_err(&client->dev, "read_status fe%d cmd_exec failed=%d\n", fe->id, ret);
-			goto err;
-		}
-		dev_dbg(&client->dev, "status=%02x args=%*ph\n",
-			*status, cmd.rlen, cmd.args);
+			/* signal strength is informational: do not lose the lock status */
+			dev_dbg(&client->dev, "read agc fe%d failed=%d\n", fe->id, ret);
+			ret = 0;
+		} else {
+			dev_dbg(&client->dev, "status=%02x args=%*ph\n",
+				*status, cmd.rlen, cmd.args);
 
-		agc = cmd.args[1];
-		fe->ops.tuner_ops.get_rf_strength(fe, &agc);
+			agc = cmd.args[1];
+			fe->ops.tuner_ops.get_rf_strength(fe, &agc);
+		}
 	}
 
 	if (c->strength.len == 1 && c->strength.stat[0].scale == FE_SCALE_DECIBEL) {
@@ -552,7 +554,8 @@ static int si2183_read_status(struct dvb_frontend *fe, enum fe_status *status)
 
 	return 0;
 err:
-	dev_err(&client->dev, "read_status failed=%d\n", ret);
+	if (ret != -EAGAIN)
+		dev_err(&client->dev, "read_status failed=%d\n", ret);
 	return ret;
 }
 
