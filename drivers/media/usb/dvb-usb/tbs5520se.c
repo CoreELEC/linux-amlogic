@@ -256,12 +256,19 @@ static int tbs5520se_set_voltage(struct dvb_frontend *fe,
 	
 	struct dvb_usb_adapter *udev_adap =
 		(struct dvb_usb_adapter *)(fe->dvb->priv);
+	int ret;
+
 	if (voltage == SEC_VOLTAGE_18)
 		msg[0].buf = command_18v;
 
-	//info("tbs5520se_set_voltage %d",voltage);
-	i2c_transfer(&udev_adap->dev->i2c_adap, msg, 1);
-	
+	/*
+	 * The bridge only knows 13 V (0x00) and 18 V (0x01); no command to
+	 * switch the LNB supply off is known, so SEC_VOLTAGE_OFF keeps 13 V.
+	 */
+	ret = i2c_transfer(&udev_adap->dev->i2c_adap, msg, 1);
+	if (ret != 1)
+		return ret < 0 ? ret : -EIO;
+
 	return 0;
 }
 
