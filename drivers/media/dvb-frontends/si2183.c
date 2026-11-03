@@ -70,6 +70,8 @@ struct si2183_dev {
 	enum fe_status fe_status;
 	u8 stat_resp;
 	u16 snr;
+	u32 ber;
+	unsigned long stats_next;
 	bool fw_loaded;
 	u8 ts_mode;
 	bool ts_clock_inv;
@@ -229,6 +231,137 @@ static int si2183_get_prop(struct i2c_client *client, u16 prop, u16 *val)
 }
 #endif
 
+static void si2183_stats_reset(struct dvb_frontend *fe)
+{
+	struct i2c_client *client = fe->demodulator_priv;
+	struct si2183_dev *dev = i2c_get_clientdata(client);
+	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
+
+	dev->ber = 0;
+	dev->stats_next = jiffies;
+
+	c->cnr.len = 1;
+	c->cnr.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+
+	/*
+	 * Keep the error counters at FE_SCALE_COUNTER even while unlocked:
+	 * Tvheadend permanently disables a stat for the whole mux session if
+	 * it ever reads it as FE_SCALE_NOT_AVAILABLE before lock.
+	 */
+	c->pre_bit_error.len = 1;
+	c->pre_bit_error.stat[0].scale = FE_SCALE_COUNTER;
+	c->pre_bit_error.stat[0].uvalue = 0;
+	c->pre_bit_count.len = 1;
+	c->pre_bit_count.stat[0].scale = FE_SCALE_COUNTER;
+	c->pre_bit_count.stat[0].uvalue = 0;
+	c->post_bit_error.len = 1;
+	c->post_bit_error.stat[0].scale = FE_SCALE_COUNTER;
+	c->post_bit_error.stat[0].uvalue = 0;
+	c->post_bit_count.len = 1;
+	c->post_bit_count.stat[0].scale = FE_SCALE_COUNTER;
+	c->post_bit_count.stat[0].uvalue = 0;
+	c->block_error.len = 1;
+	c->block_error.stat[0].scale = FE_SCALE_COUNTER;
+	c->block_error.stat[0].uvalue = 0;
+	/* the firmware has no block total */
+	c->block_count.len = 0;
+}
+
+/*
+ * Update the DVBv5 error statistics. Called from read_status().
+ *
+ * The two firmware commands below each cost a USB control transfer round
+ * trip on a bridge that also carries the TS stream, and read_status() runs
+ * several times a second (kernel frontend thread plus userspace polling).
+ * The counters are cumulative and the UCB read resets the firmware counter,
+ * so nothing is lost by reading at most once per second.
+ *
+ * BER (cmd 0x82): the firmware returns an exponent [0..8] in args[1] and a
+ * mantissa [0..255] in args[2]; BER = mantissa * 10^-exponent. This is mapped
+ * to mantissa * 10^(8 - exponent) errors out of 10^8 bits per sample, so
+ * error/count gives the BER. The Si2168 driver reports this measurement as
+ * post_bit_*; it is also published as pre_bit_* because that is what
+ * Tvheadend reads. The pre counters are deliberately NOT monotonic: they
+ * hold the latest sample only, to stay inside the 32 bit ints Tvheadend
+ * stores them in. post_bit_* are running totals as the DVBv5 API describes.
+ *
+ * UCB (cmd 0x84, reset bit set, as in the Si2168 driver): 16 bit uncorrected
+ * block count since the previous read, added to the DVBv5 counter.
+ * The firmware does not report a block total, so block_count has len 0.
+ */
+static void si2183_update_stats(struct dvb_frontend *fe, enum fe_status status)
+{
+	struct i2c_client *client = fe->demodulator_priv;
+	struct si2183_dev *dev = i2c_get_clientdata(client);
+	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
+	struct si2183_cmd cmd;
+	u64 errors;
+	u32 exp, i;
+	u16 raw;
+	int ret;
+
+	if (!(status & FE_HAS_LOCK)) {
+		/* no valid measurement window: pre counters empty, cumulative ones held */
+		c->pre_bit_error.stat[0].uvalue = 0;
+		c->pre_bit_count.stat[0].uvalue = 0;
+		dev->ber = 0;
+		dev->stats_next = jiffies;
+		return;
+	}
+
+	if (time_before(jiffies, dev->stats_next))
+		return;
+	dev->stats_next = jiffies + HZ;
+
+	/* BER */
+	memcpy(cmd.args, "\x82\x00", 2);
+	cmd.wlen = 2;
+	cmd.rlen = 3;
+	ret = si2183_cmd_execute(client, &cmd);
+	if (ret) {
+		dev_dbg(&client->dev, "read ber failed=%d\n", ret);
+	} else {
+		dev_dbg(&client->dev, "ber raw=%*ph\n", cmd.rlen, cmd.args);
+		exp = min_t(u32, cmd.args[1], 8);
+		errors = cmd.args[2];
+		for (i = exp; i < 8; i++)
+			errors *= 10;
+
+		dev->ber = (u32)min_t(u64, errors, U32_MAX);
+		/*
+		 * pre counters: latest measurement window only (errors out of
+		 * 10^8 bits), so error/count is the BER and both stay inside
+		 * the 32 bit ints Tvheadend stores them in. post counters are
+		 * cumulative as the DVBv5 API describes.
+		 */
+		c->pre_bit_error.stat[0].scale = FE_SCALE_COUNTER;
+		c->pre_bit_error.stat[0].uvalue = min_t(u64, errors, 100000000ULL);
+		c->pre_bit_count.stat[0].scale = FE_SCALE_COUNTER;
+		c->pre_bit_count.stat[0].uvalue = 100000000ULL;
+		c->post_bit_error.stat[0].scale = FE_SCALE_COUNTER;
+		c->post_bit_error.stat[0].uvalue += errors;
+		c->post_bit_count.stat[0].scale = FE_SCALE_COUNTER;
+		c->post_bit_count.stat[0].uvalue += 100000000ULL;
+	}
+
+	/* UCB: 0x84 with the reset bit set returns the count since the last read */
+	memcpy(cmd.args, "\x84\x01", 2);
+	cmd.wlen = 2;
+	cmd.rlen = 3;
+	ret = si2183_cmd_execute(client, &cmd);
+	if (ret) {
+		dev_dbg(&client->dev, "read ucb failed=%d\n", ret);
+	} else {
+		raw = ((u16)cmd.args[2] << 8) | cmd.args[1];
+		dev_dbg(&client->dev, "ucb raw=%*ph -> %u\n", cmd.rlen, cmd.args, raw);
+		/* the firmware sometimes returns a bogus value (as seen on Si2168) */
+		if (raw == 0xffff)
+			raw = 0;
+		c->block_error.stat[0].scale = FE_SCALE_COUNTER;
+		c->block_error.stat[0].uvalue += raw;
+	}
+}
+
 static int si2183_read_status(struct dvb_frontend *fe, enum fe_status *status)
 {
 	struct i2c_client *client = fe->demodulator_priv;
@@ -306,6 +439,7 @@ static int si2183_read_status(struct dvb_frontend *fe, enum fe_status *status)
 	switch ((dev->stat_resp >> 1) & 0x03) {
 	case 0x01:
 		*status = FE_HAS_SIGNAL | FE_HAS_CARRIER;
+		c->cnr.len = 1;
 		c->cnr.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
 		break;
 	case 0x03:
@@ -516,11 +650,14 @@ static int si2183_read_status(struct dvb_frontend *fe, enum fe_status *status)
 		}
 		break;
 	default:
+		c->cnr.len = 1;
 		c->cnr.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
 		break;
 	}
 
 	dev->fe_status = *status;
+
+	si2183_update_stats(fe, *status);
 
 	dev_dbg(&client->dev, "status=%02x args=%*ph\n",
 			*status, cmd.rlen, cmd.args);
@@ -590,51 +727,21 @@ static int si2183_read_ber(struct dvb_frontend *fe, u32 *ber)
 {
 	struct i2c_client *client = fe->demodulator_priv;
 	struct si2183_dev *dev = i2c_get_clientdata(client);
-	struct si2183_cmd cmd;
-	int ret;
 
-	if (dev->fe_status & FE_HAS_LOCK) {
-		memcpy(cmd.args, "\x82\x00", 2);
-		cmd.wlen = 2;
-		cmd.rlen = 3;
-		ret = si2183_cmd_execute(client, &cmd);
-		if (ret) {
-			dev_err(&client->dev, "read_ber fe%d cmd_exec failed=%d\n", fe->id, ret);
-			goto err;
-		}
-		*ber = (u32)cmd.args[2] * cmd.args[1] & 0xf;
-	} else *ber = 1;
+	/* units of 1e-8, taken from the last read_status() poll */
+	*ber = (dev->fe_status & FE_HAS_LOCK) ? dev->ber : 0;
 
 	return 0;
-err:
-	dev_err(&client->dev, "read_ber failed=%d\n", ret);
-	return ret;
 }
 
 static int si2183_read_ucblocks(struct dvb_frontend *fe, u32 *ucblocks)
 {
-	struct i2c_client *client = fe->demodulator_priv;
-	struct si2183_dev *dev = i2c_get_clientdata(client);
-	struct si2183_cmd cmd;
-	int ret;
+	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 
-	if (dev->stat_resp & 0x10) {
-		memcpy(cmd.args, "\x84\x00", 2);
-		cmd.wlen = 2;
-		cmd.rlen = 3;
-		ret = si2183_cmd_execute(client, &cmd);
-		if (ret) {
-		dev_err(&client->dev, "read_ucblocks fe%d cmd_exec failed=%d\n", fe->id, ret);
-			goto err;
-		}
-
-		*ucblocks = (u16)cmd.args[2] << 8 | cmd.args[1];
-	} else 	*ucblocks = 0;
+	*ucblocks = (c->block_error.stat[0].scale == FE_SCALE_COUNTER) ?
+			(u32)c->block_error.stat[0].uvalue : 0;
 
 	return 0;
-err:
-	dev_err(&client->dev, "read_ucblocks failed=%d\n", ret);
-	return ret;
 }
 
 
@@ -1088,6 +1195,7 @@ static int si2183_set_frontend(struct dvb_frontend *fe)
 	}
 
 	dev->delivery_system = c->delivery_system;
+	si2183_stats_reset(fe);
 	return 0;
 err:
 	dev_err(&client->dev, "set_params failed=%d\n", ret);
@@ -1113,8 +1221,7 @@ static int si2183_init(struct dvb_frontend *fe)
 		return 0;
 	}
 
-	c->cnr.len = 1;
-	c->cnr.stat[0].scale = FE_SCALE_DECIBEL;
+	si2183_stats_reset(fe);
 
 	/* initialize */
 	memcpy(cmd.args, "\xc0\x12\x00\x0c\x00\x0d\x16\x00\x00\x00\x00\x00\x00", 13);
