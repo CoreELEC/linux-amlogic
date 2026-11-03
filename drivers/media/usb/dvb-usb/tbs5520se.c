@@ -67,7 +67,7 @@ static int tbs5520se_op_rw(struct usb_device *dev, u8 request, u16 value,
 	unsigned int pipe = (flags == TBS5520SE_READ_MSG) ?
 			usb_rcvctrlpipe(dev, 0) : usb_sndctrlpipe(dev, 0);
 	u8 request_type = (flags == TBS5520SE_READ_MSG) ? USB_DIR_IN : USB_DIR_OUT;
-	u8buf = kmalloc(len, GFP_KERNEL);
+	u8buf = kzalloc(len, GFP_KERNEL);
 	if (!u8buf)
 		return -ENOMEM;
 
@@ -76,7 +76,8 @@ static int tbs5520se_op_rw(struct usb_device *dev, u8 request, u16 value,
 	ret = usb_control_msg(dev, pipe, request, request_type | USB_TYPE_VENDOR,
 				value, index , u8buf, len, 2000);
 
-	if (flags == TBS5520SE_READ_MSG)
+	/* never hand back bytes the device did not deliver */
+	if (flags == TBS5520SE_READ_MSG && ret == len)
 		memcpy(data, u8buf, len);
 	kfree(u8buf);
 	return ret;
