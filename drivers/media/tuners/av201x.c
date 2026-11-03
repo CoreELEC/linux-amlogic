@@ -242,6 +242,12 @@ static int av201x_get_rf_strength(struct dvb_frontend *fe, u16 *st)
 	for (index = 0; index < table_length; index ++)
 		if (x[index] > if_agc ) break;
 
+	/* an AGC reading at/above the last table entry would run off the arrays */
+	if (index >= table_length)
+		index = table_length - 1;
+	if (index < 1)
+		index = 1;
+
 	/* Computing segment slope */
 	slope =  ((y[index]-y[index-1])*1000)/(x[index]-x[index-1]);
 	/* Linear approximation of rssi value in segment (rssi values will be in 0.1dBm unit: '-523' means -52.3 dBm) */
