@@ -754,26 +754,28 @@ static int tbs5520se_probe(struct usb_interface *intf,
 
 static void tbs5520se_disconnect(struct usb_interface *intf)
 {
-#if 0
 	struct dvb_usb_device *d = usb_get_intfdata(intf);
-	struct tbs5520se_state *st = d->priv;
-	struct i2c_client *client;
+	struct module *demod_owner = NULL, *tuner_owner = NULL;
 
-	/* remove I2C client for tuner */
-	client = st->i2c_client_tuner;
-	if (client) {
-		module_put(client->dev.driver->owner);
-		i2c_unregister_device(client);
+	/*
+	 * Remember which modules frontend_attach() pinned. The i2c clients
+	 * themselves are removed by the i2c core when dvb_usb_device_exit()
+	 * deletes the adapter, so the references may only be dropped after
+	 * that has finished.
+	 */
+	if (d && d->priv) {
+		struct tbs5520se_state *st = d->priv;
+
+		if (st->i2c_client_demod && st->i2c_client_demod->dev.driver)
+			demod_owner = st->i2c_client_demod->dev.driver->owner;
+		if (st->i2c_client_tuner && st->i2c_client_tuner->dev.driver)
+			tuner_owner = st->i2c_client_tuner->dev.driver->owner;
 	}
 
-	/* remove I2C client for demodulator */
-	client = st->i2c_client_demod;
-	if (client) {
-		module_put(client->dev.driver->owner);
-		i2c_unregister_device(client);
-	}
-#endif	
 	dvb_usb_device_exit(intf);
+
+	module_put(tuner_owner);
+	module_put(demod_owner);
 }
 
 static struct usb_driver tbs5520se_driver = {
