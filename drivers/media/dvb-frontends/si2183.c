@@ -311,12 +311,12 @@ static int si2183_read_status(struct dvb_frontend *fe, enum fe_status *status)
 	case 0x03:
 		*status = FE_HAS_SIGNAL | FE_HAS_CARRIER | FE_HAS_VITERBI |
 				FE_HAS_SYNC | FE_HAS_LOCK;
-		dev->snr *= cmd.args[3] * 164;
+		dev->snr = min_t(u32, dev->snr * cmd.args[3] * 164, 0xffff);
 		c->cnr.len = 2;
 		c->cnr.stat[0].scale = FE_SCALE_DECIBEL;
 		c->cnr.stat[0].svalue = (s64) cmd.args[3] * 250;
 		c->cnr.stat[1].scale = FE_SCALE_RELATIVE;
-		c->cnr.stat[1].svalue = dev->snr;
+		c->cnr.stat[1].uvalue = dev->snr;
 
 		// writing missing properties
 		// CONSTELLATION or modulation
@@ -542,11 +542,13 @@ static int si2183_read_status(struct dvb_frontend *fe, enum fe_status *status)
 		fe->ops.tuner_ops.get_rf_strength(fe, &agc);
 	}
 
-	if ( c->strength.len == 1 && c->strength.stat[0].scale == FE_SCALE_DECIBEL) {
-		c->strength.len ++;
+	if (c->strength.len == 1 && c->strength.stat[0].scale == FE_SCALE_DECIBEL) {
+		s32 rel = ((100000 + (s32)c->strength.stat[0].svalue) / 1000) * 656;
+
+		c->strength.len = 2;
 		c->strength.stat[1].scale = FE_SCALE_RELATIVE;
-		c->strength.stat[1].svalue = ((100000 + (s32)c->strength.stat[0].svalue) / 1000) * 656;
-    }
+		c->strength.stat[1].uvalue = clamp(rel, 0, 0xffff);
+	}
 
 	return 0;
 err:
@@ -575,7 +577,7 @@ static int si2183_read_signal_strength(struct dvb_frontend *fe, u16 *strength)
 		if (c->strength.stat[i].scale == FE_SCALE_RELATIVE)
 			*strength = (u16)c->strength.stat[i].uvalue;
 		else if (c->strength.stat[i].scale == FE_SCALE_DECIBEL)
-			*strength = ((100000 + (s32)c->strength.stat[i].svalue)/1000) * 656;
+			*strength = clamp(((100000 + (s32)c->strength.stat[i].svalue)/1000) * 656, 0, 0xffff);
 	}
 
 	return 0;
