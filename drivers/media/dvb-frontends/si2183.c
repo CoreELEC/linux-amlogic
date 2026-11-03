@@ -42,7 +42,8 @@ struct si2183_cmd {
 
 static const struct dvb_frontend_ops si2183_ops;
 
-LIST_HEAD(silist);
+static LIST_HEAD(silist);
+static DEFINE_MUTEX(silist_mutex);
 
 struct si_base {
 	struct mutex i2c_mutex;
@@ -1715,14 +1716,17 @@ static int si2183_probe(struct i2c_client *client,
 		goto err;
 	}
 
+	mutex_lock(&silist_mutex);
 	base = match_base(client->adapter, client->addr);
 	if (base) {
 		base->count++;
 		dev->base = base;
 	} else {
 		base = kzalloc(sizeof(struct si_base), GFP_KERNEL);
-		if (!base)
+		if (!base) {
+			ret = -ENOMEM;
 			goto err_kfree;
+		}
 		base->i2c = client->adapter;
 		base->adr = client->addr;
 		base->count = 1;
@@ -1760,6 +1764,8 @@ static int si2183_probe(struct i2c_client *client,
 #endif
 	}
 
+	mutex_unlock(&silist_mutex);
+
 	/* create dvb_frontend */
 	memcpy(&dev->fe.ops, &si2183_ops, sizeof(struct dvb_frontend_ops));
 	dev->fe.demodulator_priv = client;
@@ -1794,8 +1800,10 @@ static int si2183_probe(struct i2c_client *client,
 	dev_info(&client->dev, "Silicon Labs Si2183 successfully attached\n");
 	return 0;
 err_base_kfree:
+	list_del(&base->silist);
 	kfree(base);
 err_kfree:
+	mutex_unlock(&silist_mutex);
 	kfree(dev);
 err:
 	dev_dbg(&client->dev, "probe failed=%d\n", ret);
@@ -1808,6 +1816,7 @@ static int si2183_remove(struct i2c_client *client)
 
 	dev_dbg(&client->dev, "\n");
 
+	mutex_lock(&silist_mutex);
 	dev->base->count--;
 	if (dev->base->count == 0) {
 #ifdef SI2183_USE_I2C_MUX
@@ -1820,6 +1829,7 @@ static int si2183_remove(struct i2c_client *client)
 		list_del(&dev->base->silist);
 		kfree(dev->base);
 	}
+	mutex_unlock(&silist_mutex);
 
 	dev->fe.ops.release = NULL;
 	dev->fe.demodulator_priv = NULL;
