@@ -506,12 +506,14 @@ static int tbs5520se_frontend_attach(struct dvb_usb_adapter *adap)
 	if (!i2c_client_has_driver(client_tuner)) {
 		module_put(client_demod->dev.driver->owner);
 		i2c_unregister_device(client_demod);
+		st->i2c_client_demod = NULL;
 		return -ENODEV;
 	}
 	if (!try_module_get(client_tuner->dev.driver->owner)) {
 		i2c_unregister_device(client_tuner);
 		module_put(client_demod->dev.driver->owner);
 		i2c_unregister_device(client_demod);
+		st->i2c_client_demod = NULL;
 		return -ENODEV;
 	}
 
@@ -525,6 +527,12 @@ static int tbs5520se_frontend_attach(struct dvb_usb_adapter *adap)
 
 	if (dvb_attach(av201x_attach, adap->fe_adap[0].fe2, &tbs5520se_av201x_cfg,
 			adapter) == NULL) {
+		module_put(client_tuner->dev.driver->owner);
+		i2c_unregister_device(client_tuner);
+		st->i2c_client_tuner = NULL;
+		module_put(client_demod->dev.driver->owner);
+		i2c_unregister_device(client_demod);
+		st->i2c_client_demod = NULL;
 		return -ENODEV;
 	}
 	else {
