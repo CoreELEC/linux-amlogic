@@ -614,10 +614,12 @@ MODULE_DEVICE_TABLE(usb, tbs5520se_table);
 static int tbs5520se_load_firmware(struct usb_device *dev,
 			const struct firmware *frmwr)
 {
-	u8 *b, *p;
-	int ret = 0, i;
-	u8 reset;
 	const struct firmware *fw;
+	bool own_fw = false;
+	int ret = 0;
+	size_t i;
+	u8 reset;
+
 	switch (dev->descriptor.idProduct) {
 	case 0x5521:
 		ret = request_firmware(&fw, tbs5520se_properties.firmware, &dev->dev);
@@ -627,45 +629,56 @@ static int tbs5520se_load_firmware(struct usb_device *dev,
 			"on firmware-problems.", tbs5520se_properties.firmware);
 			return ret;
 		}
+		own_fw = true;
 		break;
 	default:
 		fw = frmwr;
 		break;
 	}
+
+	/* the 8051 load address is 16 bit */
+	if (fw->size > 0x10000) {
+		err("firmware image too large (%zu bytes)", fw->size);
+		ret = -EINVAL;
+		goto out;
+	}
+
 	info("start downloading TBS5520se firmware");
-	p = kmalloc(fw->size, GFP_KERNEL);
 	reset = 1;
 	/*stop the CPU*/
 	tbs5520se_op_rw(dev, 0xa0, 0x7f92, 0, &reset, 1, TBS5520SE_WRITE_MSG);
 	tbs5520se_op_rw(dev, 0xa0, 0xe600, 0, &reset, 1, TBS5520SE_WRITE_MSG);
 
-	if (p != NULL) {
-		memcpy(p, fw->data, fw->size);
-		for (i = 0; i < fw->size; i += 0x40) {
-			b = (u8 *) p + i;
-			if (tbs5520se_op_rw(dev, 0xa0, i, 0, b , 0x40,
-					TBS5520SE_WRITE_MSG) != 0x40) {
-				err("error while transferring firmware");
-				ret = -EINVAL;
-				break;
-			}
-		}
-		/* restart the CPU */
-		reset = 0;
-		if (ret || tbs5520se_op_rw(dev, 0xa0, 0x7f92, 0, &reset, 1,
-					TBS5520SE_WRITE_MSG) != 1) {
-			err("could not restart the USB controller CPU.");
-			ret = -EINVAL;
-		}
-		if (ret || tbs5520se_op_rw(dev, 0xa0, 0xe600, 0, &reset, 1,
-					TBS5520SE_WRITE_MSG) != 1) {
-			err("could not restart the USB controller CPU.");
-			ret = -EINVAL;
-		}
+	for (i = 0; i < fw->size; i += 0x40) {
+		/* last chunk may be shorter: never read past the image */
+		u16 chunk = min_t(size_t, 0x40, fw->size - i);
 
-		msleep(100);
-		kfree(p);
+		/* tbs5520se_op_rw() only reads from the buffer for writes */
+		if (tbs5520se_op_rw(dev, 0xa0, i, 0, (u8 *)fw->data + i, chunk,
+				TBS5520SE_WRITE_MSG) != chunk) {
+			err("error while transferring firmware");
+			ret = -EINVAL;
+			break;
+		}
 	}
+
+	/* restart the CPU */
+	reset = 0;
+	if (ret || tbs5520se_op_rw(dev, 0xa0, 0x7f92, 0, &reset, 1,
+				TBS5520SE_WRITE_MSG) != 1) {
+		err("could not restart the USB controller CPU.");
+		ret = -EINVAL;
+	}
+	if (ret || tbs5520se_op_rw(dev, 0xa0, 0xe600, 0, &reset, 1,
+				TBS5520SE_WRITE_MSG) != 1) {
+		err("could not restart the USB controller CPU.");
+		ret = -EINVAL;
+	}
+
+	msleep(100);
+out:
+	if (own_fw)
+		release_firmware(fw);
 	return ret;
 }
 
