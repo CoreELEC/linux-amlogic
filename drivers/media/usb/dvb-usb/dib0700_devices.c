@@ -3751,8 +3751,10 @@ static int xbox_one_attach(struct dvb_usb_adapter *adap)
 	struct tda18250_config tda18250_config;
 	struct i2c_board_info info;
 
-	st->fw_use_new_i2c_api = 1;
+	st->fw_use_new_i2c_api = 0;
 	st->disable_streaming_master_mode = 1;
+	dib0700_ctrl_clock(adap->dev, 72, 1);
+	dib0700_set_i2c_speed(adap->dev, 1000);
 
 	/* fe power enable */
 	dib0700_set_gpio(adap->dev, GPIO6, GPIO_OUT, 0);
@@ -3773,7 +3775,7 @@ static int xbox_one_attach(struct dvb_usb_adapter *adap)
 	mn88472_config.i2c_wr_max = 22;
 	mn88472_config.xtal = 20500000;
 	mn88472_config.ts_mode = PARALLEL_TS_MODE;
-	mn88472_config.ts_clock = FIXED_TS_CLOCK;
+	mn88472_config.ts_clock = VARIABLE_TS_CLOCK;
 	memset(&info, 0, sizeof(struct i2c_board_info));
 	strscpy(info.type, "mn88472", I2C_NAME_SIZE);
 	info.addr = 0x18;
